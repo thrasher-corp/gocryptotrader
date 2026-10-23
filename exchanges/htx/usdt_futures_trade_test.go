@@ -20,8 +20,8 @@ func TestPlaceV5BatchOrders(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrEmptyParams, "PlaceV5BatchOrders must reject empty request")
 	resp, err := h.PlaceV5BatchOrders(t.Context(), []*V5OrderRequest{{ContractCode: "BTC-USDT", MarginMode: "cross", Side: "buy", Type: "market", Volume: 1}})
 	require.NoError(t, err, "PlaceV5BatchOrders must not error")
-	require.Len(t, resp.Data, 1, "one order acknowledgement must decode")
-	assert.Equal(t, "1", resp.Data[0].OrderID, "order ID should decode")
+	require.Len(t, resp.Acknowledgements, 1, "one order acknowledgement must decode")
+	assert.Equal(t, "1", resp.Acknowledgements[0].OrderID, "order ID should decode")
 }
 
 func TestCancelV5BatchOrders(t *testing.T) {
@@ -31,8 +31,8 @@ func TestCancelV5BatchOrders(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrNilPointer, "CancelV5BatchOrders must reject nil request")
 	resp, err := h.CancelV5BatchOrders(t.Context(), &V5CancelBatchOrdersRequest{ContractCode: "BTC-USDT", OrderIDs: []string{"1"}})
 	require.NoError(t, err, "CancelV5BatchOrders must not error")
-	require.Len(t, resp.Data, 1, "one cancellation must decode")
-	assert.Equal(t, "1", resp.Data[0].OrderID, "order ID should decode")
+	require.Len(t, resp.Acknowledgements, 1, "one cancellation must decode")
+	assert.Equal(t, "1", resp.Acknowledgements[0].OrderID, "order ID should decode")
 }
 
 func TestSetV5CancelAfter(t *testing.T) {
@@ -42,7 +42,7 @@ func TestSetV5CancelAfter(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrNilPointer, "SetV5CancelAfter must reject nil request")
 	resp, err := h.SetV5CancelAfter(t.Context(), &V5CancelAfterRequest{Enabled: "on", Timeout: 60})
 	require.NoError(t, err, "SetV5CancelAfter must not error")
-	assert.False(t, resp.Data.TriggerTime.Time().IsZero(), "trigger time should decode")
+	assert.False(t, resp.Schedule.TriggerTime.Time().IsZero(), "trigger time should decode")
 }
 
 func TestCloseV5Position(t *testing.T) {
@@ -52,7 +52,7 @@ func TestCloseV5Position(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrNilPointer, "CloseV5Position must reject nil request")
 	resp, err := h.CloseV5Position(t.Context(), &V5ClosePositionRequest{ContractCode: "BTC-USDT", MarginMode: "cross", PositionSide: "long"})
 	require.NoError(t, err, "CloseV5Position must not error")
-	assert.Equal(t, "1", resp.Data.OrderID, "order ID should decode")
+	assert.Equal(t, "1", resp.Acknowledgement.OrderID, "order ID should decode")
 }
 
 func TestCloseAllV5Positions(t *testing.T) {
@@ -60,8 +60,8 @@ func TestCloseAllV5Positions(t *testing.T) {
 	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodPost, "/v5/trade/position_all", `{"code":200,"data":[{"order_id":"1"}]}`, nil)
 	resp, err := h.CloseAllV5Positions(t.Context())
 	require.NoError(t, err, "CloseAllV5Positions must not error")
-	require.Len(t, resp.Data, 1, "one close acknowledgement must decode")
-	assert.Equal(t, "1", resp.Data[0].OrderID, "order ID should decode")
+	require.Len(t, resp.Acknowledgements, 1, "one close acknowledgement must decode")
+	assert.Equal(t, "1", resp.Acknowledgements[0].OrderID, "order ID should decode")
 }
 
 func TestGetV5OrderHistory(t *testing.T) {
@@ -86,8 +86,8 @@ func TestGetV5OrderHistory(t *testing.T) {
 		Direction:    "next",
 	})
 	require.NoError(t, err, "GetV5OrderHistory must not error")
-	require.Len(t, resp.Data, 1, "one historical order must decode")
-	assert.Equal(t, types.Number(2), resp.Data[0].Volume, "volume should decode")
+	require.Len(t, resp.Orders, 1, "one historical order must decode")
+	assert.Equal(t, types.Number(2), resp.Orders[0].Volume, "volume should decode")
 }
 
 func TestGetV5OrderDetails(t *testing.T) {
@@ -109,12 +109,12 @@ func TestGetV5OrderDetails(t *testing.T) {
 		Direction:    "next",
 	})
 	require.NoError(t, err, "GetV5OrderDetails must not error")
-	require.Len(t, resp.Data, 1, "one execution detail must decode")
-	assert.Equal(t, "100000032538647", resp.Data[0].TradeID, "trade ID should decode")
-	assert.Equal(t, types.Number(31400), resp.Data[0].TradePrice, "trade price should decode")
-	assert.Equal(t, types.Number(0.01884), resp.Data[0].TradeFee, "trade fee should decode")
-	assert.True(t, currency.USDT.Equal(resp.Data[0].FeeCurrency), "fee currency should decode as a single currency")
-	assert.False(t, resp.Data[0].CreatedTime.Time().IsZero(), "creation time should decode")
+	require.Len(t, resp.Orders, 1, "one execution detail must decode")
+	assert.Equal(t, "100000032538647", resp.Orders[0].TradeID, "trade ID should decode")
+	assert.Equal(t, types.Number(31400), resp.Orders[0].TradePrice, "trade price should decode")
+	assert.Equal(t, types.Number(0.01884), resp.Orders[0].TradeFee, "trade fee should decode")
+	assert.True(t, currency.USDT.Equal(resp.Orders[0].FeeCurrency), "fee currency should decode as a single currency")
+	assert.False(t, resp.Orders[0].CreatedTime.Time().IsZero(), "creation time should decode")
 }
 
 func TestGetV5OpenPositions(t *testing.T) {
@@ -122,8 +122,8 @@ func TestGetV5OpenPositions(t *testing.T) {
 	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/trade/position/opens", `{"code":200,"data":[{"contract_code":"BTC-USDT","volume":"2"}]}`, nil)
 	resp, err := h.GetV5OpenPositions(t.Context(), currency.EMPTYPAIR)
 	require.NoError(t, err, "GetV5OpenPositions must not error")
-	require.Len(t, resp.Data, 1, "one position must decode")
-	assert.Equal(t, types.Number(2), resp.Data[0].Volume, "volume should decode")
+	require.Len(t, resp.Positions, 1, "one position must decode")
+	assert.Equal(t, types.Number(2), resp.Positions[0].Volume, "volume should decode")
 }
 
 func TestPlaceV5Order(t *testing.T) {
@@ -134,7 +134,7 @@ func TestPlaceV5Order(t *testing.T) {
 	resp, err := h.PlaceV5Order(t.Context(), &V5OrderRequest{ContractCode: "BTC-USDT", MarginMode: "cross", Side: "buy", Type: "limit", Volume: types.Number(1)})
 	require.NoError(t, err, "PlaceV5Order must not error")
 	require.NotNil(t, resp, "decoded order response must be returned")
-	assert.Equal(t, "123", resp.Data.OrderID, "order ID should decode")
+	assert.Equal(t, "123", resp.Acknowledgement.OrderID, "order ID should decode")
 }
 
 func TestCancelV5Order(t *testing.T) {
@@ -143,7 +143,7 @@ func TestCancelV5Order(t *testing.T) {
 	resp, err := h.CancelV5Order(t.Context(), btcusdtPair, "1", "")
 	require.NoError(t, err, "CancelV5Order must not error")
 	require.NotNil(t, resp, "decoded cancellation must be returned")
-	assert.Equal(t, "123", resp.Data.OrderID, "order ID should decode")
+	assert.Equal(t, "123", resp.Acknowledgement.OrderID, "order ID should decode")
 }
 
 func TestCancelAllV5Orders(t *testing.T) {
@@ -152,8 +152,8 @@ func TestCancelAllV5Orders(t *testing.T) {
 	resp, err := h.CancelAllV5Orders(t.Context(), btcusdtPair, "buy", "long")
 	require.NoError(t, err, "CancelAllV5Orders must not error")
 	require.NotNil(t, resp, "decoded cancellations must be returned")
-	require.Len(t, resp.Data, 1, "one cancellation must decode")
-	assert.Equal(t, "123", resp.Data[0].OrderID, "order ID should decode")
+	require.Len(t, resp.Acknowledgements, 1, "one cancellation must decode")
+	assert.Equal(t, "123", resp.Acknowledgements[0].OrderID, "order ID should decode")
 }
 
 func TestGetV5Order(t *testing.T) {
@@ -162,7 +162,7 @@ func TestGetV5Order(t *testing.T) {
 	resp, err := h.GetV5Order(t.Context(), btcusdtPair, "cross", "1", "")
 	require.NoError(t, err, "GetV5Order must not error")
 	require.NotNil(t, resp, "decoded order must be returned")
-	assert.Equal(t, "123", resp.Data.OrderID, "order ID should decode")
+	assert.Equal(t, "123", resp.Order.OrderID, "order ID should decode")
 }
 
 func TestGetV5OpenOrders(t *testing.T) {
@@ -171,6 +171,6 @@ func TestGetV5OpenOrders(t *testing.T) {
 	resp, err := h.GetV5OpenOrders(t.Context(), btcusdtPair, "cross", "", "", 1, 10, "next")
 	require.NoError(t, err, "GetV5OpenOrders must not error")
 	require.NotNil(t, resp, "decoded open orders must be returned")
-	require.Len(t, resp.Data, 1, "one open order must decode")
-	assert.Equal(t, "123", resp.Data[0].OrderID, "order ID should decode")
+	require.Len(t, resp.Orders, 1, "one open order must decode")
+	assert.Equal(t, "123", resp.Orders[0].OrderID, "order ID should decode")
 }

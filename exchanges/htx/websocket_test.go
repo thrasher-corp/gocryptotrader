@@ -47,10 +47,11 @@ func TestStringToOrderSide(t *testing.T) {
 
 func TestStringToOrderType(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct {
+	type testCase struct {
 		input    string
 		expected order.Type
-	}{
+	}
+	for _, tc := range []testCase{
 		{"buy-limit", order.Limit}, {"sell-market", order.Market}, {"buy-stop-limit", order.StopLimit}, {"sell-stop-limit-fok", order.StopLimit}, {"buy-ioc", order.Limit}, {"sell-ioc", order.Limit}, {"woah-nelly", order.UnknownType},
 	} {
 		t.Run(tc.input, func(t *testing.T) {
@@ -307,12 +308,13 @@ func TestManageSubs(t *testing.T) {
 		require.ErrorContains(t, h.manageSubs(t.Context(), conn, wsSubOp, subscription.List{sub}), "websocket connection is disconnected", "subscription must fail on a disconnected socket")
 		assert.Empty(t, h.Websocket.GetSubscriptions(), "failed subscription should leave no registration")
 	})
-	for _, tc := range []struct {
+	type testCase struct {
 		name         string
 		channel      string
 		topic        string
 		contractCode string
-	}{
+	}
+	for _, tc := range []testCase{
 		{name: "orders", channel: subscription.MyOrdersChannel, topic: "orders", contractCode: "*"},
 		{name: "account", channel: subscription.MyAccountChannel, topic: "account"},
 	} {
@@ -360,10 +362,11 @@ func TestSubscribe(t *testing.T) {
 				sub.Enabled = true
 			}
 		}
-		for _, tt := range []struct {
+		type testCase struct {
 			a     asset.Item
 			pairs currency.Pairs
-		}{
+		}
+		for _, tt := range []testCase{
 			{a: asset.Futures, pairs: currency.Pairs{currency.NewPairWithDelimiter("BTC", "CW", "_")}},
 			{a: asset.CoinMarginedFutures, pairs: currency.Pairs{btcusdPair}},
 			{a: asset.USDTMarginedFutures, pairs: currency.Pairs{btcusdtPair}},
@@ -372,11 +375,12 @@ func TestSubscribe(t *testing.T) {
 			require.NoErrorf(t, h.SetPairs(tt.pairs, tt.a, true), "%s enabled pairs must be set", tt.a)
 		}
 		var all subscription.List
-		for _, tt := range []struct {
+		type privateSubscriptionCase struct {
 			a        asset.Item
 			endpoint exchange.URL
 			count    int
-		}{
+		}
+		for _, tt := range []privateSubscriptionCase{
 			{a: asset.Futures, endpoint: exchange.WebsocketFuturesPrivate, count: 5},
 			{a: asset.CoinMarginedFutures, endpoint: exchange.WebsocketCoinMarginedPrivate, count: 5},
 			{a: asset.USDTMarginedFutures, endpoint: exchange.WebsocketUSDTMarginedPrivate, count: 7},
@@ -387,11 +391,12 @@ func TestSubscribe(t *testing.T) {
 			all = append(all, subs...)
 		}
 		require.NoError(t, h.Subscribe(all), "all private derivative subscriptions must succeed")
-		for _, tt := range []struct {
+		type subscriptionCountCase struct {
 			endpoint exchange.URL
 			asset    asset.Item
 			count    int
-		}{
+		}
+		for _, tt := range []subscriptionCountCase{
 			{endpoint: exchange.WebsocketFuturesPrivate, asset: asset.Futures, count: 5},
 			{endpoint: exchange.WebsocketCoinMarginedPrivate, asset: asset.CoinMarginedFutures, count: 5},
 			{endpoint: exchange.WebsocketUSDTMarginedPrivate, asset: asset.USDTMarginedFutures, count: 7},
@@ -460,10 +465,11 @@ func TestChannelName(t *testing.T) {
 	assert.Equal(t, "public.BTC-USD.funding_rate", channelName(&subscription.Subscription{Channel: wsFundingRateChannel}, btcusdPair), "funding-rate channel should expand to the HTX topic")
 	assert.Equal(t, "public.BTC-USD.funding_rate", channelName(&subscription.Subscription{Channel: wsFundingRateTopic}, btcusdPair), "saved funding-rate subscriptions should still expand")
 	assert.Equal(t, "trade.clearing#*#1", channelName(&subscription.Subscription{Channel: subscription.MyTradesChannel}, btcusdPair))
-	for _, tt := range []struct {
+	type testCase struct {
 		channel string
 		want    string
-	}{
+	}
+	for _, tt := range []testCase{
 		{channel: subscription.MyOrdersChannel, want: "orders"},
 		{channel: wsTradeUpdatesChannel, want: "trade"},
 		{channel: wsExecutionDetailsChannel, want: "trade_detail"},
@@ -527,12 +533,13 @@ func TestWSSubscriptionKeyMatch(t *testing.T) {
 	require.NoError(t, err, "second connection must be created")
 	sub := &subscription.Subscription{Asset: asset.Spot, Channel: subscription.TickerChannel, QualifiedChannel: "market.btcusdt.detail", Pairs: currency.Pairs{btcusdtPair}}
 	key := wsSubscriptionKey{ExactKey: &subscription.ExactKey{Subscription: sub}, connection: conn}
-	for _, tc := range []struct {
+	type testCase struct {
 		name  string
 		query wsSubscriptionKey
 		other subscription.MatchableKey
 		want  bool
-	}{
+	}
+	for _, tc := range []testCase{
 		{name: "same connection and topic", query: key, other: key, want: true},
 		{name: "different connection", query: key, other: wsSubscriptionKey{ExactKey: key.ExactKey, connection: other}},
 		{name: "nil connection cannot select managed topic", query: wsSubscriptionKey{ExactKey: key.ExactKey}, other: key},
@@ -642,7 +649,8 @@ func TestWSHandleSubscriptionResponse(t *testing.T) {
 		}
 	}
 	require.ErrorIs(t, new(Exchange).wsHandleSubscriptionResponse(nil, wsSubOp, "orders.*", nil), common.ErrNilPointer, "acknowledgement must require a connection")
-	var typedNil *struct{ websocket.Connection }
+	type nilConnection struct{ websocket.Connection }
+	var typedNil *nilConnection
 	require.ErrorIs(t, new(Exchange).wsHandleSubscriptionResponse(typedNil, wsSubOp, "orders.*", nil), common.ErrNilPointer, "acknowledgement must reject a typed nil connection")
 }
 
@@ -860,11 +868,12 @@ func TestGenerateSubscriptionsForAsset(t *testing.T) {
 func TestIsExpiredDeliveryContract(t *testing.T) {
 	t.Parallel()
 	delivery := time.Date(2026, time.October, 16, 8, 0, 0, 0, time.UTC)
-	for _, tc := range []struct {
+	type testCase struct {
 		name, quote string
 		now         time.Time
 		expired     bool
-	}{
+	}
+	for _, tc := range []testCase{
 		{name: "before delivery", quote: "261016", now: delivery.Add(-time.Nanosecond)},
 		{name: "at delivery", quote: "261016", now: delivery, expired: true},
 		{name: "after delivery", quote: "261016", now: delivery.Add(time.Nanosecond), expired: true},
@@ -884,12 +893,13 @@ func TestIsExpiredDeliveryContract(t *testing.T) {
 func TestGetWebsocketConnection(t *testing.T) {
 	t.Parallel()
 	h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
-	for _, tt := range []struct {
+	type testCase struct {
 		name          string
 		asset         asset.Item
 		authenticated bool
 		endpoint      exchange.URL
-	}{
+	}
+	for _, tt := range []testCase{
 		{name: "spot public", asset: asset.Spot, endpoint: exchange.WebsocketSpot},
 		{name: "spot private", asset: asset.Spot, authenticated: true, endpoint: exchange.WebsocketPrivate},
 		{name: "delivery public", asset: asset.Futures, endpoint: exchange.WebsocketFutures},

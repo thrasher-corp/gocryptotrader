@@ -733,14 +733,14 @@ func (e *Exchange) PlaceSwapBatchOrders(ctx context.Context, data *SwapBatchOrde
 	}
 	resp := new(SwapBatchOrderResponse)
 	req := make(map[string]any)
-	if len(data.Data) > 10 || len(data.Data) == 0 {
+	if len(data.Orders) > 10 || len(data.Orders) == 0 {
 		return resp, errBatchOrderLimitExceeded
 	}
-	for x := range data.Data {
-		if data.Data[x].ContractCode == "" {
+	for x := range data.Orders {
+		if data.Orders[x].ContractCode == "" {
 			continue
 		}
-		unformattedPair, err := currency.NewPairFromString(data.Data[x].ContractCode)
+		unformattedPair, err := currency.NewPairFromString(data.Orders[x].ContractCode)
 		if err != nil {
 			return resp, err
 		}
@@ -748,9 +748,9 @@ func (e *Exchange) PlaceSwapBatchOrders(ctx context.Context, data *SwapBatchOrde
 		if err != nil {
 			return resp, err
 		}
-		data.Data[x].ContractCode = codeValue
+		data.Orders[x].ContractCode = codeValue
 	}
-	req["orders_data"] = data.Data
+	req["orders_data"] = data.Orders
 	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_batchorder", nil, req, resp); err != nil {
 		return resp, err
 	}
@@ -1106,7 +1106,7 @@ func (e *Exchange) GetSwapMarkets(ctx context.Context, contract currency.Pair) (
 	if err := e.SendHTTPRequest(ctx, exchange.RestFutures, common.EncodeURLValues("/swap-api/v1/swap_contract_info", vals), result); err != nil {
 		return nil, err
 	}
-	return result.Data, nil
+	return result.Markets, nil
 }
 
 // GetSwapFundingRate gets funding rate data for one currency
@@ -1121,7 +1121,7 @@ func (e *Exchange) GetSwapFundingRate(ctx context.Context, contract currency.Pai
 	if err := e.SendHTTPRequest(ctx, exchange.RestFutures, common.EncodeURLValues("/swap-api/v1/swap_funding_rate", vals), result); err != nil {
 		return nil, err
 	}
-	return &result.Data, nil
+	return &result.FundingRate, nil
 }
 
 // GetSwapFundingRates gets funding rates data

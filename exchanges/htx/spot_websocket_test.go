@@ -63,11 +63,12 @@ func TestWSHandleCandleMsg(t *testing.T) {
 
 func TestWSHandleOrderbookMsg(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct {
+	type testCase struct {
 		name string
 		raw  string
 		err  error
-	}{
+	}
+	for _, tc := range []testCase{
 		{name: "empty bid", raw: `{"tick":{"bids":[[]]}}`, err: errInvalidBidData},
 		{name: "short bid", raw: `{"tick":{"bids":[[100]]}}`, err: errInvalidBidData},
 		{name: "long bid", raw: `{"tick":{"bids":[[100,2,3]]}}`, err: errInvalidBidData},
@@ -182,13 +183,14 @@ func TestWSHandleTickerMsg(t *testing.T) {
 		require.NoError(t, err, "websocket ticker must reach the shared store")
 		assert.Equal(t, tick, stored, "stored ticker should match the dispatched ticker")
 	})
-	for _, tc := range []struct {
+	type testCase struct {
 		name  string
 		asset asset.Item
 		raw   string
 		quote float64
 		err   error
-	}{
+	}
+	for _, tc := range []testCase{
 		{name: "spot quotes", asset: asset.Spot, raw: `{"tick":{"bid":[100,2],"ask":[101,3],"vol":40,"trade_turnover":50}}`, quote: 40},
 		{name: "delivery volume", asset: asset.Futures, raw: `{"tick":{"bid":[100,2],"ask":[101,3],"amount":2,"vol":40}}`, quote: 0},
 		{name: "coin volume", asset: asset.CoinMarginedFutures, raw: `{"tick":{"bid":[100,2],"ask":[101,3],"amount":2,"vol":40}}`, quote: 0},

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
@@ -91,38 +92,39 @@ type LinearSwapMarket struct {
 
 // V5Response stores HTX V3 and V5 status metadata, whose message keys differ.
 type V5Response struct {
+	// Signed so a negative API error cannot fail decoding and bypass the status check.
 	Code      int64      `json:"code"`
 	Message   string     `json:"message"`
-	Msg       string     `json:"msg"`
+	V3Message string     `json:"msg"`
 	Timestamp types.Time `json:"ts"`
 }
 
 // V5AccountBalanceResponse stores USDT-margined unified-margin balances.
 type V5AccountBalanceResponse struct {
 	V5Response
-	Data V5AccountBalance `json:"data"`
+	Balance V5AccountBalance `json:"data"`
 }
 
 // V5AccountBalance stores a USDT-margined unified-margin account balance.
 type V5AccountBalance struct {
-	State                 string                    `json:"state"`
-	Equity                types.Number              `json:"equity"`
-	InitialMargin         types.Number              `json:"initial_margin"`
-	MaintenanceMargin     types.Number              `json:"maintenance_margin"`
-	MaintenanceMarginRate types.Number              `json:"maintenance_margin_rate"`
-	ProfitUnreal          types.Number              `json:"profit_unreal"`
-	AvailableMargin       types.Number              `json:"available_margin"`
-	VoucherValue          types.Number              `json:"voucher_value"`
-	CreatedTime           types.Time                `json:"created_time"`
-	UpdatedTime           types.Time                `json:"updated_time"`
-	Details               []V5AccountBalanceDetails `json:"details"`
+	State                 string              `json:"state"`
+	Equity                types.Number        `json:"equity"`
+	InitialMargin         types.Number        `json:"initial_margin"`
+	MaintenanceMargin     types.Number        `json:"maintenance_margin"`
+	MaintenanceMarginRate types.Number        `json:"maintenance_margin_rate"`
+	ProfitUnreal          types.Number        `json:"profit_unreal"`
+	AvailableMargin       types.Number        `json:"available_margin"`
+	VoucherValue          types.Number        `json:"voucher_value"`
+	CreatedTime           types.Time          `json:"created_time"`
+	UpdatedTime           types.Time          `json:"updated_time"`
+	CurrencyBalances      []V5CurrencyBalance `json:"details"`
 }
 
 // V5OpenInterestResponse stores the current USDT-margined contract open interest.
 type V5OpenInterestResponse struct {
 	V5Response
-	Success bool           `json:"success"`
-	Data    V5OpenInterest `json:"data"`
+	Success      bool           `json:"success"`
+	OpenInterest V5OpenInterest `json:"data"`
 }
 
 // V5OpenInterest stores current USDT-margined contract open interest data.
@@ -178,12 +180,12 @@ type V5CancelAllOrdersRequest struct {
 // V5OrderResponse stores a USDT-margined V5 order response.
 type V5OrderResponse struct {
 	V5Response
-	Data V5OrderAcknowledgement `json:"data"`
+	Acknowledgement V5OrderAcknowledgement `json:"data"`
 }
 
 // V5OrderAcknowledgement stores a USDT-margined V5 order acknowledgement.
 type V5OrderAcknowledgement struct {
-	Code          int64  `json:"code,omitempty"`
+	Code          uint64 `json:"code,omitempty"`
 	Message       string `json:"message,omitempty"`
 	OrderID       string `json:"order_id"`
 	ClientOrderID string `json:"client_order_id"`
@@ -195,50 +197,30 @@ func (v *V5OrderAcknowledgement) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	decodeID := func(value json.RawMessage) (string, error) {
-		if len(value) == 0 || bytes.Equal(value, []byte("null")) {
-			return "", nil
-		}
-		if value[0] != '"' {
-			return string(value), nil
-		}
-		var id string
-		if err := json.Unmarshal(value, &id); err != nil {
-			return "", fmt.Errorf("error decoding V5 order identifier: %w", err)
-		}
-		return id, nil
-	}
-	orderID, err := decodeID(raw.OrderID)
-	if err != nil {
-		return err
-	}
-	clientOrderID, err := decodeID(raw.ClientOrderID)
-	if err != nil {
-		return err
-	}
+
 	v.Code = raw.Code
 	v.Message = raw.Message
-	v.OrderID = orderID
-	v.ClientOrderID = clientOrderID
+	v.OrderID = string(raw.OrderID)
+	v.ClientOrderID = string(raw.ClientOrderID)
 	return nil
 }
 
 // V5CancelAllOrdersResponse stores USDT-margined V5 cancel all order acknowledgements.
 type V5CancelAllOrdersResponse struct {
 	V5Response
-	Data []V5OrderAcknowledgement `json:"data"`
+	Acknowledgements []V5OrderAcknowledgement `json:"data"`
 }
 
 // V5OrderQueryResponse stores a USDT-margined V5 order query response.
 type V5OrderQueryResponse struct {
 	V5Response
-	Data V5Order `json:"data"`
+	Order V5Order `json:"data"`
 }
 
 // V5OrdersQueryResponse stores a USDT-margined V5 order list response.
 type V5OrdersQueryResponse struct {
 	V5Response
-	Data []V5Order `json:"data"`
+	Orders []V5Order `json:"data"`
 }
 
 // V5Order stores USDT-margined V5 order details.
@@ -270,7 +252,7 @@ type V5Order struct {
 	TradeAveragePrice   types.Number `json:"trade_avg_price"`
 	TradeVolume         types.Number `json:"trade_volume"`
 	TradeTurnover       types.Number `json:"trade_turnover"`
-	FeeCurrency         string       `json:"fee_currency"`
+	FeeCurrency         string       `json:"fee_currency"` // HTX may send a comma-separated list of fee currencies.
 	Fee                 types.Number `json:"fee"`
 	PriceProtect        V5Boolean    `json:"price_protect"`
 	Profit              types.Number `json:"profit"`
@@ -281,39 +263,65 @@ type V5Order struct {
 	SelfMatchPrevent    string       `json:"self_match_prevent"`
 }
 
-// V5AccountBalanceDetails breaks an account balance down by collateral currency.
-type V5AccountBalanceDetails struct {
-	Currency              string       `json:"currency"`
-	Equity                types.Number `json:"equity"`
-	IsolatedEquity        types.Number `json:"isolated_equity"`
-	Available             types.Number `json:"available"`
-	IsolatedAvailable     types.Number `json:"isolated_available"`
-	WithdrawAvailable     types.Number `json:"withdraw_available"`
-	ProfitUnreal          types.Number `json:"profit_unreal"`
-	IsolatedProfitUnreal  types.Number `json:"isolated_profit_unreal"`
-	InitialMargin         types.Number `json:"initial_margin"`
-	MaintenanceMargin     types.Number `json:"maintenance_margin"`
-	MaintenanceMarginRate types.Number `json:"maintenance_margin_rate"`
-	InitialMarginRate     types.Number `json:"initial_margin_rate"`
-	Voucher               types.Number `json:"voucher"`
-	VoucherValue          types.Number `json:"voucher_value"`
-	AvailableMargin       types.Number `json:"available_margin"`
-	CrossOrderFrozen      types.Number `json:"cross_order_frozen"`
-	IsolatedOrderFrozen   types.Number `json:"isolated_order_frozen"`
-	CreatedTime           types.Time   `json:"created_time"`
-	UpdatedTime           types.Time   `json:"updated_time"`
+// V5CurrencyBalance breaks an account balance down by collateral currency.
+type V5CurrencyBalance struct {
+	Currency              currency.Code `json:"currency"`
+	Equity                types.Number  `json:"equity"`
+	IsolatedEquity        types.Number  `json:"isolated_equity"`
+	Available             types.Number  `json:"available"`
+	IsolatedAvailable     types.Number  `json:"isolated_available"`
+	WithdrawAvailable     types.Number  `json:"withdraw_available"`
+	ProfitUnreal          types.Number  `json:"profit_unreal"`
+	IsolatedProfitUnreal  types.Number  `json:"isolated_profit_unreal"`
+	InitialMargin         types.Number  `json:"initial_margin"`
+	MaintenanceMargin     types.Number  `json:"maintenance_margin"`
+	MaintenanceMarginRate types.Number  `json:"maintenance_margin_rate"`
+	InitialMarginRate     types.Number  `json:"initial_margin_rate"`
+	Voucher               types.Number  `json:"voucher"`
+	VoucherValue          types.Number  `json:"voucher_value"`
+	AvailableMargin       types.Number  `json:"available_margin"`
+	CrossOrderFrozen      types.Number  `json:"cross_order_frozen"`
+	IsolatedOrderFrozen   types.Number  `json:"isolated_order_frozen"`
+	CreatedTime           types.Time    `json:"created_time"`
+	UpdatedTime           types.Time    `json:"updated_time"`
 }
 
 // V5OrderAcknowledgementPayload preserves numeric and string order identifiers before decoding.
 type V5OrderAcknowledgementPayload struct {
-	Code          int64           `json:"code"`
-	Message       string          `json:"message"`
-	OrderID       json.RawMessage `json:"order_id"`
-	ClientOrderID json.RawMessage `json:"client_order_id"`
+	Code          uint64            `json:"code"`
+	Message       string            `json:"message"`
+	OrderID       v5OrderIdentifier `json:"order_id"`
+	ClientOrderID v5OrderIdentifier `json:"client_order_id"`
 }
 
 // LinearSwapMarketsResponse contains USDT-margined contract metadata.
 type LinearSwapMarketsResponse struct {
 	Response
-	Data []LinearSwapMarket `json:"data"`
+	Markets []LinearSwapMarket `json:"data"`
+}
+
+// v5OrderIdentifier preserves both numeric order IDs and client-supplied strings.
+type v5OrderIdentifier string
+
+// UnmarshalJSON preserves identifier precision without a floating-point conversion.
+func (i *v5OrderIdentifier) UnmarshalJSON(payload []byte) error {
+	payload = bytes.TrimSpace(payload)
+	if bytes.Equal(payload, []byte("null")) {
+		*i = ""
+		return nil
+	}
+	if len(payload) > 0 && payload[0] == '"' {
+		var value string
+		if err := json.Unmarshal(payload, &value); err != nil {
+			return fmt.Errorf("error decoding V5 order identifier: %w", err)
+		}
+		*i = v5OrderIdentifier(value)
+		return nil
+	}
+	var value uint64
+	if err := json.Unmarshal(payload, &value); err != nil {
+		return fmt.Errorf("error decoding V5 order identifier: %w", err)
+	}
+	*i = v5OrderIdentifier(payload)
+	return nil
 }

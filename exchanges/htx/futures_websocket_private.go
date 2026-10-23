@@ -171,7 +171,7 @@ func (e *Exchange) wsHandleDeliveryFuturesPrivateMessage(ctx context.Context, su
 			price:          response.Price,
 			tradeVolume:    response.TradeVolume,
 			tradeTurnover:  response.TradeTurnover,
-			averagePrice:   response.TradeAvgPrice,
+			averagePrice:   response.TradeAveragePrice,
 			trades:         response.Trade,
 			fee:            response.Fee,
 			feeAsset:       response.FeeAsset,
@@ -218,15 +218,15 @@ func (e *Exchange) wsHandleDeliveryFuturesPrivateMessage(ctx context.Context, su
 		if err := json.Unmarshal(raw, response); err != nil {
 			return err
 		}
-		changes := make([]accounts.Change, 0, len(response.Data))
-		for i := range response.Data {
+		changes := make([]accounts.Change, 0, len(response.Equities))
+		for i := range response.Equities {
 			changes = append(changes, accounts.Change{
 				AssetType: sub.Asset,
 				Balance: accounts.Balance{
-					Currency:  currency.NewCode(response.Data[i].Symbol),
-					Total:     response.Data[i].MarginBalance,
-					Hold:      response.Data[i].MarginFrozen,
-					Free:      response.Data[i].MarginAvailable,
+					Currency:  currency.NewCode(response.Equities[i].Symbol),
+					Total:     response.Equities[i].MarginBalance,
+					Hold:      response.Equities[i].MarginFrozen,
+					Free:      response.Equities[i].MarginAvailable,
 					UpdatedAt: response.Timestamp.Time(),
 				},
 			})

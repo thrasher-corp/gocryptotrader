@@ -23,7 +23,7 @@ import (
 
 func TestFuturesAuthenticatedHTTPRequest(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct {
+	type testCase struct {
 		name         string
 		path         string
 		statusCode   int
@@ -31,7 +31,9 @@ func TestFuturesAuthenticatedHTTPRequest(t *testing.T) {
 		authenticate bool
 		nilResult    bool
 		expected     []error
-	}{
+	}
+	for _, tc := range []testCase{
+		{name: "negative V5 code", path: "/v5/test", statusCode: http.StatusOK, authenticate: true, body: `{"code":-1,"message":"negative failure","data":[]}`, expected: []error{request.ErrAuthRequestFailed}},
 		{name: "V3 failure", path: "/api/v3/contract_hisorders", statusCode: http.StatusOK, authenticate: true, body: `{"code":403,"msg":"incorrect key","data":""}`, expected: []error{request.ErrAuthRequestFailed}},
 		{name: "V3 success", path: "/api/v3/contract_hisorders", statusCode: http.StatusOK, authenticate: true, body: `{"code":200,"msg":"","data":[]}`},
 
@@ -128,7 +130,7 @@ func TestFuturesAuthenticatedHTTPRequest(t *testing.T) {
 			}
 			require.NoError(t, err, "FuturesAuthenticatedHTTPRequest must not error")
 			if result != nil {
-				assert.Empty(t, response.Data.FinancialRecord, "empty data should produce an empty result")
+				assert.Empty(t, response.FinancialRecords.Records, "empty data should produce an empty result")
 			}
 		})
 	}
@@ -154,12 +156,13 @@ func TestAddV3HistoryTimeRange(t *testing.T) {
 
 func TestFormatFuturesOrderStatuses(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct {
+	type testCase struct {
 		name        string
 		statuses    []order.Status
 		expected    string
 		expectedErr error
-	}{
+	}
+	for _, tc := range []testCase{
 		{name: "empty", expected: "0"},
 		{name: "single", statuses: []order.Status{order.Active}, expected: "3"},
 		{name: "multiple", statuses: []order.Status{order.PartiallyCancelled, order.Active}, expected: "5,3"},
@@ -287,10 +290,11 @@ func TestFuturesLiquidationOrders(t *testing.T) {
 	t.Parallel()
 	_, err := e.FuturesLiquidationOrders(t.Context(), currency.BTC, "filled", 0, 0, "", 0)
 	require.NoError(t, err, "FLiquidationOrders must not error")
-	for _, tc := range []struct {
+	type testCase struct {
 		name       string
 		start, end uint64
-	}{
+	}
+	for _, tc := range []testCase{
 		{name: "both timestamps", start: 1604367600000, end: 1604367700000},
 		{name: "start only", start: 1604367600000},
 		{name: "end only", end: 1604367700000},
@@ -453,13 +457,14 @@ func TestFuturesGetAvailableLeverage(t *testing.T) {
 
 func TestFuturesOrder(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct {
+	type testCase struct {
 		name             string
 		priceType        string
 		clientOrderID    string
 		expectedClientID uint64
 		expectedErr      error
-	}{
+	}
+	for _, tc := range []testCase{
 		{name: "limit", priceType: orderPriceTypeLimit, clientOrderID: "123", expectedClientID: 123},
 		{name: "post only", priceType: orderPriceTypePostOnly, clientOrderID: "123", expectedClientID: 123},
 		{name: "no client ID", priceType: orderPriceTypeLimit},
@@ -474,14 +479,20 @@ func TestFuturesOrder(t *testing.T) {
 			t.Parallel()
 			h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/api/v1/contract_order", emptySuccessResponse, func(r *http.Request) {
 				assert.NoError(t, tc.expectedErr, "invalid client IDs should not reach the endpoint")
-				var body map[string]json.RawMessage
+				type orderRequest struct {
+					OrderPriceType string  `json:"order_price_type"`
+					LeverageRate   uint64  `json:"lever_rate"`
+					ClientOrderID  *uint64 `json:"client_order_id"`
+				}
+				var body orderRequest
 				require.NoError(t, json.NewDecoder(r.Body).Decode(&body), "order request must decode")
-				assert.JSONEq(t, `"`+tc.priceType+`"`, string(body["order_price_type"]), "order price type should match")
-				assert.Equal(t, "1", string(body["lever_rate"]), "leverage should match the requested integer")
+				assert.Equal(t, tc.priceType, body.OrderPriceType, "order price type should match")
+				assert.Equal(t, uint64(1), body.LeverageRate, "leverage should match the requested integer")
 				if tc.clientOrderID == "" {
-					assert.NotContains(t, body, "client_order_id", "unset client IDs should be omitted")
+					assert.Nil(t, body.ClientOrderID, "unset client IDs should be omitted")
 				} else {
-					assert.Equal(t, strconv.FormatUint(tc.expectedClientID, 10), string(body["client_order_id"]), "client ID should retain precision as a JSON integer")
+					require.NotNil(t, body.ClientOrderID, "client order ID must be present")
+					assert.Equal(t, tc.expectedClientID, *body.ClientOrderID, "client ID should retain precision as a JSON integer")
 				}
 			})
 			_, err := h.FuturesOrder(t.Context(), currency.EMPTYPAIR, "BTC", "quarter", tc.clientOrderID, "buy", "open", tc.priceType, 1, 1, 1)
@@ -517,12 +528,13 @@ func TestFuturesPlaceBatchOrder(t *testing.T) {
 
 func TestFuturesCancelOrder(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct {
+	type testCase struct {
 		name           string
 		orderIDs       string
 		clientOrderIDs string
 		expectedErr    error
-	}{
+	}
+	for _, tc := range []testCase{
 		{name: "one order", orderIDs: "123"},
 		{name: "one client order", clientOrderIDs: "456"},
 		{name: "ten orders", orderIDs: "1,2,3,4,5,6,7,8,9,10"},
@@ -614,8 +626,8 @@ func TestFuturesGetOrderHistoryByTimeRange(t *testing.T) {
 	endTime := startTime.Add(48 * time.Hour)
 	resp, err := h.FuturesGetOrderHistoryByTimeRange(t.Context(), currency.EMPTYPAIR, "BTC", "all", "all", "limit", nil, startTime, endTime, 11, 50)
 	require.NoError(t, err, "FGetOrderHistoryByTimeRange must not error")
-	require.Len(t, resp.Data.Orders, 1, "decoded order history must be returned")
-	assert.Equal(t, uint64(12), resp.Data.Orders[0].QueryID, "query ID should decode")
+	require.Len(t, resp.OrderHistory.Orders, 1, "decoded order history must be returned")
+	assert.Equal(t, uint64(12), resp.OrderHistory.Orders[0].QueryID, "query ID should decode")
 
 	var requestBody map[string]any
 	require.NoError(t, json.Unmarshal(<-body, &requestBody), "request body must decode")

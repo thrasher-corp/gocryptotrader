@@ -35,7 +35,7 @@ func (e *Exchange) wsHandleCoinMarginedPrivateMessage(ctx context.Context, sub *
 			price:          response.Price,
 			tradeVolume:    response.TradeVolume,
 			tradeTurnover:  response.TradeTurnover,
-			averagePrice:   response.TradeAvgPrice,
+			averagePrice:   response.TradeAveragePrice,
 			trades:         response.Trade,
 			fee:            response.Fee,
 			feeAsset:       response.FeeAsset,
@@ -82,19 +82,19 @@ func (e *Exchange) wsHandleCoinMarginedPrivateMessage(ctx context.Context, sub *
 		if err := json.Unmarshal(raw, response); err != nil {
 			return err
 		}
-		changes := make([]accounts.Change, 0, len(response.Data))
-		for i := range response.Data {
-			code := response.Data[i].MarginAsset
-			if code == "" {
-				code = response.Data[i].Symbol
+		changes := make([]accounts.Change, 0, len(response.Accounts))
+		for i := range response.Accounts {
+			code := response.Accounts[i].MarginAsset
+			if code.IsEmpty() {
+				code = currency.NewCode(response.Accounts[i].Symbol)
 			}
 			changes = append(changes, accounts.Change{
 				AssetType: sub.Asset,
 				Balance: accounts.Balance{
-					Currency:  currency.NewCode(code),
-					Total:     response.Data[i].MarginBalance,
-					Hold:      response.Data[i].MarginFrozen,
-					Free:      response.Data[i].MarginAvailable,
+					Currency:  code,
+					Total:     response.Accounts[i].MarginBalance,
+					Hold:      response.Accounts[i].MarginFrozen,
+					Free:      response.Accounts[i].MarginAvailable,
 					UpdatedAt: response.Timestamp.Time(),
 				},
 			})

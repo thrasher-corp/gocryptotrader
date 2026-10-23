@@ -18,7 +18,7 @@ func TestGetV5AssetsDeductionCurrencies(t *testing.T) {
 	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/market/assets_deduction_currency", `{"code":200,"data":{"currency":["USDT","HTX"]}}`, nil)
 	resp, err := h.GetV5AssetsDeductionCurrencies(t.Context())
 	require.NoError(t, err, "GetV5AssetsDeductionCurrencies must not error")
-	assert.Equal(t, []string{"USDT", "HTX"}, resp.Data.Currencies, "currencies should decode")
+	assert.Equal(t, []currency.Code{currency.USDT, currency.NewCode("HTX")}, resp.DeductionCurrencies.Currencies, "currencies should decode")
 
 	errorExchange := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/market/assets_deduction_currency", `{"code":400,"message":"invalid request"}`, nil)
 	_, err = errorExchange.GetV5AssetsDeductionCurrencies(t.Context())
@@ -30,7 +30,7 @@ func TestGetV5MultiAssetsMarginCurrencies(t *testing.T) {
 	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/market/multi_assets_margin", `{"code":200,"data":{"multi_assets":["USDT","BTC"]}}`, nil)
 	resp, err := h.GetV5MultiAssetsMarginCurrencies(t.Context())
 	require.NoError(t, err, "GetV5MultiAssetsMarginCurrencies must not error")
-	assert.Equal(t, []string{"USDT", "BTC"}, resp.Data.Currencies, "currencies should decode")
+	assert.Equal(t, []currency.Code{currency.USDT, currency.BTC}, resp.MarginCurrencies.Currencies, "currencies should decode")
 }
 
 func TestGetV5EliteAccountRatio(t *testing.T) {
@@ -41,8 +41,8 @@ func TestGetV5EliteAccountRatio(t *testing.T) {
 	})
 	resp, err := h.GetV5EliteAccountRatio(t.Context(), btcusdtPair, "5min")
 	require.NoError(t, err, "GetV5EliteAccountRatio must not error")
-	require.Len(t, resp.Data, 1, "one ratio must decode")
-	assert.Equal(t, types.Number(0.6), resp.Data[0].BuyRatio, "buy ratio should decode")
+	require.Len(t, resp.Ratios, 1, "one ratio must decode")
+	assert.Equal(t, types.Number(0.6), resp.Ratios[0].BuyRatio, "buy ratio should decode")
 }
 
 func TestGetV5ElitePositionRatio(t *testing.T) {
@@ -50,8 +50,8 @@ func TestGetV5ElitePositionRatio(t *testing.T) {
 	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/market/elite_position_ratio", `{"code":200,"data":[{"contract_code":"BTC-USDT","sell_ratio":"0.4"}]}`, nil)
 	resp, err := h.GetV5ElitePositionRatio(t.Context(), btcusdtPair, "5min")
 	require.NoError(t, err, "GetV5ElitePositionRatio must not error")
-	require.Len(t, resp.Data, 1, "one ratio must decode")
-	assert.Equal(t, types.Number(0.4), resp.Data[0].SellRatio, "sell ratio should decode")
+	require.Len(t, resp.Ratios, 1, "one ratio must decode")
+	assert.Equal(t, types.Number(0.4), resp.Ratios[0].SellRatio, "sell ratio should decode")
 }
 
 func TestGetV5EstimatedSettlementPrice(t *testing.T) {
@@ -59,8 +59,8 @@ func TestGetV5EstimatedSettlementPrice(t *testing.T) {
 	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/market/estimated_settlement_price", `{"code":200,"data":[{"contract_code":"BTC-USDT","estimated_settlement_price":"10"}]}`, nil)
 	resp, err := h.GetV5EstimatedSettlementPrice(t.Context(), currency.EMPTYPAIR)
 	require.NoError(t, err, "GetV5EstimatedSettlementPrice must not error")
-	require.Len(t, resp.Data, 1, "one estimate must decode")
-	assert.Equal(t, types.Number(10), resp.Data[0].EstimatedSettlementPrice, "settlement price should decode")
+	require.Len(t, resp.SettlementPrices, 1, "one estimate must decode")
+	assert.Equal(t, types.Number(10), resp.SettlementPrices[0].EstimatedSettlementPrice, "settlement price should decode")
 }
 
 func TestGetV5FundingRates(t *testing.T) {
@@ -79,10 +79,10 @@ func TestGetV5FundingRates(t *testing.T) {
 		ContractCodes: currency.Pairs{btcusdtPair, currency.NewPair(currency.ETH, currency.USDT)},
 	})
 	require.NoError(t, err, "GetV5FundingRates must not error")
-	require.Len(t, resp.Data, 1, "one funding rate must decode")
-	assert.Equal(t, types.Number(-0.0001), resp.Data[0].FundingRate, "funding rate should decode")
-	assert.Equal(t, types.Number(0.00375), resp.Data[0].MaximumRate, "maximum funding rate should decode")
-	assert.False(t, resp.Data[0].NextFundingTime.Time().IsZero(), "next funding time should decode")
+	require.Len(t, resp.FundingRates, 1, "one funding rate must decode")
+	assert.Equal(t, types.Number(-0.0001), resp.FundingRates[0].FundingRate, "funding rate should decode")
+	assert.Equal(t, types.Number(0.00375), resp.FundingRates[0].MaximumRate, "maximum funding rate should decode")
+	assert.False(t, resp.FundingRates[0].NextFundingTime.Time().IsZero(), "next funding time should decode")
 }
 
 func TestGetV5FundingRateHistory(t *testing.T) {
@@ -103,9 +103,9 @@ func TestGetV5FundingRateHistory(t *testing.T) {
 		Direction:    "next",
 	})
 	require.NoError(t, err, "GetV5FundingRateHistory must not error")
-	require.Len(t, resp.Data, 1, "one historical funding rate must decode")
-	assert.Equal(t, "9566", resp.Data[0].ID, "funding-rate ID should decode")
-	assert.Equal(t, types.Number(-0.00375), resp.Data[0].FundingRate, "funding rate should decode")
+	require.Len(t, resp.FundingRates, 1, "one historical funding rate must decode")
+	assert.Equal(t, "9566", resp.FundingRates[0].ID, "funding-rate ID should decode")
+	assert.Equal(t, types.Number(-0.00375), resp.FundingRates[0].FundingRate, "funding rate should decode")
 }
 
 func TestGetV5PriceLimits(t *testing.T) {
@@ -115,9 +115,9 @@ func TestGetV5PriceLimits(t *testing.T) {
 	})
 	resp, err := h.GetV5PriceLimits(t.Context(), btcusdtPair)
 	require.NoError(t, err, "GetV5PriceLimits must not error")
-	require.Len(t, resp.Data, 1, "one price limit must decode")
-	assert.Equal(t, types.Number(88660.5), resp.Data[0].High, "high limit should decode")
-	assert.Equal(t, types.Number(100), resp.Data[0].Low, "low limit should decode")
+	require.Len(t, resp.PriceLimits, 1, "one price limit must decode")
+	assert.Equal(t, types.Number(88660.5), resp.PriceLimits[0].High, "high limit should decode")
+	assert.Equal(t, types.Number(100), resp.PriceLimits[0].Low, "low limit should decode")
 }
 
 func TestGetV5LiquidationOrders(t *testing.T) {
@@ -138,8 +138,8 @@ func TestGetV5LiquidationOrders(t *testing.T) {
 		Limit:        10,
 	})
 	require.NoError(t, err, "GetV5LiquidationOrders must not error")
-	require.Len(t, resp.Data, 1, "one liquidation must decode")
-	assert.Equal(t, types.Number(2), resp.Data[0].Volume, "volume should decode")
+	require.Len(t, resp.LiquidationOrders, 1, "one liquidation must decode")
+	assert.Equal(t, types.Number(2), resp.LiquidationOrders[0].Volume, "volume should decode")
 }
 
 func TestGetV5MarketRiskLimit(t *testing.T) {
@@ -147,8 +147,8 @@ func TestGetV5MarketRiskLimit(t *testing.T) {
 	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/market/risk/limit", `{"code":200,"data":[{"contract_code":"BTC-USDT","max_lever":"20"}]}`, nil)
 	resp, err := h.GetV5MarketRiskLimit(t.Context(), btcusdtPair, "cross", "1")
 	require.NoError(t, err, "GetV5MarketRiskLimit must not error")
-	require.Len(t, resp.Data, 1, "one risk limit must decode")
-	assert.Equal(t, types.Number(20), resp.Data[0].MaximumLeverage, "maximum leverage should decode")
+	require.Len(t, resp.RiskLimits, 1, "one risk limit must decode")
+	assert.Equal(t, types.Number(20), resp.RiskLimits[0].MaximumLeverage, "maximum leverage should decode")
 }
 
 func TestGetV5SettlementHistory(t *testing.T) {
@@ -167,8 +167,8 @@ func TestGetV5SettlementHistory(t *testing.T) {
 		Limit:        10,
 	})
 	require.NoError(t, err, "GetV5SettlementHistory must not error")
-	require.Len(t, resp.Data, 1, "one settlement must decode")
-	assert.Equal(t, types.Number(10), resp.Data[0].SettlementPrice, "settlement price should decode")
+	require.Len(t, resp.Settlements, 1, "one settlement must decode")
+	assert.Equal(t, types.Number(10), resp.Settlements[0].SettlementPrice, "settlement price should decode")
 }
 
 func TestGetV5OpenInterest(t *testing.T) {
@@ -177,5 +177,5 @@ func TestGetV5OpenInterest(t *testing.T) {
 	resp, err := h.GetV5OpenInterest(t.Context(), btcusdtPair)
 	require.NoError(t, err, "GetV5OpenInterest must not error")
 	require.NotNil(t, resp, "decoded open interest must be returned")
-	assert.Equal(t, "BTC-USDT", resp.Data.ContractCode, "contract code should decode")
+	assert.Equal(t, "BTC-USDT", resp.OpenInterest.ContractCode, "contract code should decode")
 }

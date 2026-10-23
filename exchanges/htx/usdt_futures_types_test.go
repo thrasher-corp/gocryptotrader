@@ -10,12 +10,13 @@ import (
 
 func TestV5BooleanUnmarshalJSON(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct {
+	type testCase struct {
 		name     string
 		input    string
 		expected V5Boolean
 		wantErr  bool
-	}{
+	}
+	for _, tc := range []testCase{
 		{name: "empty string", input: `""`},
 		{name: "boolean", input: `true`, expected: true},
 		{name: "invalid", input: `null`, wantErr: true},
@@ -42,13 +43,14 @@ func TestV5BooleanBool(t *testing.T) {
 
 func TestV5OrderStateUnmarshalJSON(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct {
+	type testCase struct {
 		name        string
 		input       string
 		expected    V5OrderState
 		expectedErr error
 		wantErr     bool
-	}{
+	}
+	for _, tc := range []testCase{
 		{name: "named", input: `"filled"`, expected: "filled"},
 		{name: "preparing", input: `1`, expected: "NEW"},
 		{name: "submitting", input: `2`, expected: "NEW"},
@@ -82,31 +84,78 @@ func TestV5OrderQueryResponseUnmarshal(t *testing.T) {
 	err := json.Unmarshal([]byte(`{"code":200,"message":"Success","data":{"order_id":"1","contract_code":"BTC-USDT","side":"buy","type":"limit","price":"5000","volume":"1","trade_volume":"0.25","trade_turnover":"1250","fee":"0.1","lever_rate":10,"state":3,"reduce_only":"","price_protect":"","created_time":"1769076510922","updated_time":"1769076510922"}}`), &resp)
 	require.NoError(t, err, "Unmarshal must decode HTX V5 order response")
 	require.NotNil(t, resp, "response must not be nil")
-	assert.Equal(t, 5000.0, resp.Data.Price.Float64(), "price should decode from quoted number")
-	assert.Equal(t, 0.25, resp.Data.TradeVolume.Float64(), "trade volume should decode from quoted number")
-	assert.Equal(t, 10.0, resp.Data.LeverageRate.Float64(), "leverage should decode from bare number")
-	assert.Equal(t, V5OrderState("ACTIVE"), resp.Data.State, "numeric order state should decode")
-	assert.False(t, resp.Data.ReduceOnly.Bool(), "empty reduce-only should decode as false")
-	assert.False(t, resp.Data.PriceProtect.Bool(), "empty price-protect should decode as false")
+	assert.Equal(t, 5000.0, resp.Order.Price.Float64(), "price should decode from quoted number")
+	assert.Equal(t, 0.25, resp.Order.TradeVolume.Float64(), "trade volume should decode from quoted number")
+	assert.Equal(t, 10.0, resp.Order.LeverageRate.Float64(), "leverage should decode from bare number")
+	assert.Equal(t, V5OrderState("ACTIVE"), resp.Order.State, "numeric order state should decode")
+	assert.False(t, resp.Order.ReduceOnly.Bool(), "empty reduce-only should decode as false")
+	assert.False(t, resp.Order.PriceProtect.Bool(), "empty price-protect should decode as false")
 }
 
 func TestV5OrderAcknowledgementUnmarshalJSON(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct {
+	type testCase struct {
 		name          string
 		payload       string
 		orderID       string
 		clientOrderID string
-	}{
+		code          uint64
+		wantErr       bool
+	}
+	for _, tc := range []testCase{
+		{name: "unsigned code", payload: `{"code":18446744073709551615}`, code: 18446744073709551615},
+		{name: "negative code", payload: `{"code":-1}`, wantErr: true},
 		{name: "string identifiers", payload: `{"order_id":"123","client_order_id":"456"}`, orderID: "123", clientOrderID: "456"},
 		{name: "numeric identifiers", payload: `{"order_id":1358944503420903424,"client_order_id":1358944503420903425}`, orderID: "1358944503420903424", clientOrderID: "1358944503420903425"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			var response V5OrderAcknowledgement
-			require.NoError(t, json.Unmarshal([]byte(tc.payload), &response), "V5OrderAcknowledgement unmarshal must not error")
+			err := json.Unmarshal([]byte(tc.payload), &response)
+			if tc.wantErr {
+				require.Error(t, err, "negative acknowledgement codes must not decode as unsigned values")
+				return
+			}
+			require.NoError(t, err, "V5OrderAcknowledgement unmarshal must not error")
+			assert.Equal(t, tc.code, response.Code, "acknowledgement code should retain its unsigned range")
 			assert.Equal(t, tc.orderID, response.OrderID, "order ID should retain full precision")
 			assert.Equal(t, tc.clientOrderID, response.ClientOrderID, "client order ID should retain full precision")
+		})
+	}
+}
+
+func TestV5OrderIdentifierUnmarshalJSON(t *testing.T) {
+	t.Parallel()
+	type testCase struct {
+		name, payload, want string
+		wantErr             bool
+	}
+	for _, tc := range []testCase{
+		{name: "null", payload: `null`},
+		{name: "empty string", payload: `""`},
+		{name: "client identifier", payload: `"my-order-1"`, want: "my-order-1"},
+		{name: "escaped identifier", payload: `"my\u002dorder"`, want: "my-order"},
+		{name: "zero", payload: `0`, want: "0"},
+		{name: "maximum integer", payload: `18446744073709551615`, want: "18446744073709551615"},
+		{name: "whitespace", payload: ` 123 `, want: "123"},
+		{name: "negative integer", payload: `-1`, wantErr: true},
+		{name: "fraction", payload: `1.5`, wantErr: true},
+		{name: "overflow", payload: `18446744073709551616`, wantErr: true},
+		{name: "boolean", payload: `true`, wantErr: true},
+		{name: "object", payload: `{}`, wantErr: true},
+		{name: "invalid string", payload: `"`, wantErr: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			identifier := v5OrderIdentifier("previous")
+			err := identifier.UnmarshalJSON([]byte(tc.payload))
+			if tc.wantErr {
+				require.Error(t, err, "invalid identifiers must fail decoding")
+				assert.Equal(t, v5OrderIdentifier("previous"), identifier, "failed decoding should preserve the identifier")
+				return
+			}
+			require.NoError(t, err, "valid identifiers must decode")
+			assert.Equal(t, tc.want, string(identifier), "identifier should retain its exact value")
 		})
 	}
 }
@@ -118,6 +167,6 @@ func TestV5OpenInterestResponseUnmarshal(t *testing.T) {
 	require.NoError(t, err, "Unmarshal must decode HTX V5 open interest response")
 	require.NotNil(t, resp, "response must not be nil")
 	assert.True(t, resp.Success, "success should decode")
-	assert.Equal(t, 244.004, resp.Data.Amount.Float64(), "amount should decode from quoted number")
-	assert.Equal(t, 1091416.458752, resp.Data.TradeTurnover.Float64(), "trade turnover should decode from quoted number")
+	assert.Equal(t, 244.004, resp.OpenInterest.Amount.Float64(), "amount should decode from quoted number")
+	assert.Equal(t, 1091416.458752, resp.OpenInterest.TradeTurnover.Float64(), "trade turnover should decode from quoted number")
 }

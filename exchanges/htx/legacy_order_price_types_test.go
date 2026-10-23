@@ -11,10 +11,11 @@ import (
 
 func TestLegacyOrderPriceTypeUnmarshalJSON(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct {
+	type testCase struct {
 		code uint64
 		name string
-	}{
+	}
+	for _, tc := range []testCase{
 		{1, "limit"},
 		{2, "market"},
 		{3, "opponent"},

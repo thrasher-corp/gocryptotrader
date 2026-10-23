@@ -2,14 +2,17 @@ package htx
 
 import (
 	"net/http"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -19,7 +22,7 @@ func TestGetV5AssetMode(t *testing.T) {
 	resp, err := h.GetV5AssetMode(t.Context())
 	require.NoError(t, err, "GetV5AssetMode must not error")
 	require.NotNil(t, resp, "asset mode response must not be nil")
-	assert.Equal(t, uint64(1), resp.Data.AssetMode, "asset mode should decode")
+	assert.Equal(t, uint64(1), resp.Mode.AssetMode, "asset mode should decode")
 }
 
 func TestSetV5AssetMode(t *testing.T) {
@@ -33,7 +36,7 @@ func TestSetV5AssetMode(t *testing.T) {
 	resp, err := h.SetV5AssetMode(t.Context(), 2)
 	require.NoError(t, err, "SetV5AssetMode must not error")
 	require.NotNil(t, resp, "asset mode response must not be nil")
-	assert.Equal(t, uint64(2), resp.Data.AssetMode, "asset mode should decode")
+	assert.Equal(t, uint64(2), resp.Mode.AssetMode, "asset mode should decode")
 }
 
 func TestGetV5AccountBills(t *testing.T) {
@@ -55,8 +58,8 @@ func TestGetV5AccountBills(t *testing.T) {
 		Direction:    "next",
 	})
 	require.NoError(t, err, "GetV5AccountBills must not error")
-	require.Len(t, resp.Data, 1, "one bill must decode")
-	assert.Equal(t, types.Number(2), resp.Data[0].Amount, "amount should decode")
+	require.Len(t, resp.Bills, 1, "one bill must decode")
+	assert.Equal(t, types.Number(2), resp.Bills[0].Amount, "amount should decode")
 }
 
 func TestGetV5FeeDeductionCurrency(t *testing.T) {
@@ -65,7 +68,7 @@ func TestGetV5FeeDeductionCurrency(t *testing.T) {
 	resp, err := h.GetV5FeeDeductionCurrency(t.Context())
 	require.NoError(t, err, "GetV5FeeDeductionCurrency must not error")
 	require.NotNil(t, resp, "fee deduction response must not be nil")
-	assert.Equal(t, "HTX", resp.Data.DeductionCurrency, "deduction currency should decode")
+	assert.Equal(t, currency.NewCode("HTX"), resp.FeeDeduction.DeductionCurrency, "deduction currency should decode")
 }
 
 func TestSetV5FeeDeductionCurrency(t *testing.T) {
@@ -73,33 +76,47 @@ func TestSetV5FeeDeductionCurrency(t *testing.T) {
 	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodPost, "/v5/account/fee_deduction_currency", `{"code":200,"data":{"fee_option":1,"deduction_currency":"HTX"}}`, nil)
 	_, err := h.SetV5FeeDeductionCurrency(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "SetV5FeeDeductionCurrency must reject nil request")
-	resp, err := h.SetV5FeeDeductionCurrency(t.Context(), &V5SetFeeDeductionCurrencyRequest{FeeOption: 1, DeductionCurrency: "HTX"})
+	resp, err := h.SetV5FeeDeductionCurrency(t.Context(), &V5SetFeeDeductionCurrencyRequest{FeeOption: 1, DeductionCurrency: currency.NewCode("HTX")})
 	require.NoError(t, err, "SetV5FeeDeductionCurrency must not error")
 	require.NotNil(t, resp, "fee deduction response must not be nil")
-	assert.Equal(t, "HTX", resp.Data.DeductionCurrency, "deduction currency should decode")
+	assert.Equal(t, currency.NewCode("HTX"), resp.FeeDeduction.DeductionCurrency, "deduction currency should decode")
 }
 
 func TestV5UniversalTransfer(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct {
+	t.Run("dedicated rate limit", func(t *testing.T) {
+		t.Parallel()
+		var sent atomic.Int32
+		h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodPost, "/v5/account/universal_transfer", `{"code":200,"data":{}}`, func(*http.Request) { sent.Add(1) })
+		// A long refill interval makes routing observable without timing assertions or sleeps.
+		limits := h.Requester.GetRateLimiterDefinitions()
+		limits[htxUniversalTransfer] = request.NewRateLimitWithWeight(time.Hour, 1, 1)
+		require.NoError(t, limits[htxUniversalTransfer].RateLimit(t.Context()), "dedicated allowance must be exhausted")
+		_, err := h.V5UniversalTransfer(request.WithDelayNotAllowed(t.Context()), &V5UniversalTransferRequest{Amount: 1, Currency: currency.USDT, FromAccountType: "spot", ToAccountType: "linear-swap"})
+		require.ErrorIs(t, err, request.ErrDelayNotAllowed, "endpoint must use its exhausted dedicated allowance")
+		assert.Zero(t, sent.Load(), "rate-limited request should not reach the server")
+	})
+	type testCase struct {
 		name   string
 		amount uint64
 		wire   string
-	}{
+	}
+	for _, tc := range []testCase{
 		{"documented integer", 123, "123"},
 		{"signed long precision", 9223372036854775807, "9223372036854775807"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodPost, "/v5/account/universal_transfer", `{"code":200,"data":{"transfer_id":123}}`, func(r *http.Request) {
-				var req struct {
-					Amount json.RawMessage `json:"amount"`
+				type requestPayload struct {
+					Amount uint64 `json:"amount"`
 				}
+				var req requestPayload
 				if assert.NoError(t, json.NewDecoder(r.Body).Decode(&req), "transfer payload should decode") {
-					assert.Equal(t, tc.wire, string(req.Amount), "amount should retain exact integer precision without quotes")
+					assert.Equal(t, tc.amount, req.Amount, "amount should retain exact integer precision without quotes")
 				}
 			})
-			_, err := h.V5UniversalTransfer(t.Context(), &V5UniversalTransferRequest{Amount: tc.amount, Currency: "BTC", FromAccountType: "spot", ToAccountType: "linear-swap"})
+			_, err := h.V5UniversalTransfer(t.Context(), &V5UniversalTransferRequest{Amount: tc.amount, Currency: currency.BTC, FromAccountType: "spot", ToAccountType: "linear-swap"})
 			require.NoError(t, err, "integer transfer payload must send")
 		})
 	}
@@ -115,13 +132,13 @@ func TestV5UniversalTransfer(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrNilPointer, "V5UniversalTransfer must reject nil request")
 	resp, err := h.V5UniversalTransfer(t.Context(), &V5UniversalTransferRequest{
 		Amount:          10,
-		Currency:        "USDT",
+		Currency:        currency.USDT,
 		FromAccountType: "spot",
 		ToAccountType:   "linear-swap",
 	})
 	require.NoError(t, err, "V5UniversalTransfer must not error")
 	require.NotNil(t, resp, "transfer response must not be nil")
-	assert.Equal(t, uint64(123), resp.Data.TransferID, "transfer ID should decode")
+	assert.Equal(t, uint64(123), resp.Transfer.TransferID, "transfer ID should decode")
 }
 
 func TestGetV5UniversalTransferRecords(t *testing.T) {
@@ -134,7 +151,7 @@ func TestGetV5UniversalTransferRecords(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetV5UniversalTransferRecords must reject nil request")
 	resp, err := h.GetV5UniversalTransferRecords(t.Context(), &V5UniversalTransferRecordsRequest{
 		TransferID: 123,
-		Currency:   "USDT",
+		Currency:   currency.USDT,
 		Status:     "success",
 		StartTime:  time.UnixMilli(1),
 		EndTime:    time.UnixMilli(2),
@@ -143,8 +160,8 @@ func TestGetV5UniversalTransferRecords(t *testing.T) {
 		Direction:  "next",
 	})
 	require.NoError(t, err, "GetV5UniversalTransferRecords must not error")
-	require.Len(t, resp.Data, 1, "one transfer record must decode")
-	assert.Equal(t, types.Number(123), resp.Data[0].TransferID, "transfer ID should decode")
+	require.Len(t, resp.Transfers, 1, "one transfer record must decode")
+	assert.Equal(t, types.Number(123), resp.Transfers[0].TransferID, "transfer ID should decode")
 }
 
 func TestGetV5AccountBalance(t *testing.T) {
@@ -153,5 +170,5 @@ func TestGetV5AccountBalance(t *testing.T) {
 	resp, err := h.GetV5AccountBalance(t.Context())
 	require.NoError(t, err, "GetV5AccountBalance must not error")
 	require.NotNil(t, resp, "decoded balance must be returned")
-	assert.Equal(t, "working", resp.Data.State, "account state should decode")
+	assert.Equal(t, "working", resp.Balance.State, "account state should decode")
 }

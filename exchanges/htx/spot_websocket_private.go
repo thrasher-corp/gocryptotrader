@@ -29,7 +29,7 @@ func (e *Exchange) wsHandleV2ping(ctx context.Context, conn websocket.Connection
 	if err != nil {
 		return fmt.Errorf("error getting ts from auth ping: %w", err)
 	}
-	if err := conn.SendJSONMessage(ctx, request.Unset, json.RawMessage(`{"action":"pong","data":{"ts":`+strconv.FormatInt(ts, 10)+`}}`)); err != nil {
+	if err := conn.SendJSONMessage(ctx, request.Unset, &websocketPrivatePong{Action: "pong", Heartbeat: websocketHeartbeat{Timestamp: ts}}); err != nil {
 		return fmt.Errorf("error sending auth pong response: %w", err)
 	}
 	return nil
@@ -91,7 +91,7 @@ func (e *Exchange) wsHandleMyAccountMsg(ctx context.Context, respRaw []byte) err
 	if err := json.Unmarshal(respRaw, u); err != nil {
 		return err
 	}
-	return e.Websocket.DataHandler.Send(ctx, u.Data)
+	return e.Websocket.DataHandler.Send(ctx, u.Account)
 }
 
 func (e *Exchange) wsHandleMyOrdersMsg(ctx context.Context, s *subscription.Subscription, respRaw []byte) error {
@@ -99,7 +99,7 @@ func (e *Exchange) wsHandleMyOrdersMsg(ctx context.Context, s *subscription.Subs
 	if err := json.Unmarshal(respRaw, &msg); err != nil {
 		return err
 	}
-	o := msg.Data
+	o := msg.Order
 	p, err := e.CurrencyPairs.Match(o.Symbol, s.Asset)
 	if err != nil {
 		return err
@@ -156,8 +156,8 @@ func (e *Exchange) wsHandleMyOrdersMsg(ctx context.Context, s *subscription.Subs
 	if err := e.Websocket.DataHandler.Send(ctx, d); err != nil {
 		return err
 	}
-	if o.ErrCode != 0 {
-		return fmt.Errorf("%w: error with order %q: %s (%v)", errAPIResponse, o.ClientOrderID, o.ErrMessage, o.ErrCode)
+	if o.ErrorCode != 0 {
+		return fmt.Errorf("%w: error with order %q: %s (%v)", errAPIResponse, o.ClientOrderID, o.ErrorMessage, o.ErrorCode)
 	}
 	return nil
 }
@@ -167,7 +167,7 @@ func (e *Exchange) wsHandleMyTradesMsg(ctx context.Context, s *subscription.Subs
 	if err := json.Unmarshal(respRaw, &msg); err != nil {
 		return err
 	}
-	t := msg.Data
+	t := msg.Trade
 	p, err := e.CurrencyPairs.Match(t.Symbol, s.Asset)
 	if err != nil {
 		return err

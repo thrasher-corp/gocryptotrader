@@ -7,7 +7,7 @@ import (
 
 // SwapIndexPriceResponse gets price of a perpetual swap
 type SwapIndexPriceResponse struct {
-	Data []SwapIndexPrice `json:"data"`
+	IndexPrices []SwapIndexPrice `json:"data"`
 }
 
 // SwapIndexPrice contains the index price for a perpetual swap.
@@ -19,7 +19,7 @@ type SwapIndexPrice struct {
 
 // SwapPriceLimitsResponse gets price restrictions on perpetual swaps
 type SwapPriceLimitsResponse struct {
-	Data []SwapPriceLimit `json:"data"`
+	PriceLimits []SwapPriceLimit `json:"data"`
 }
 
 // SwapPriceLimit contains the price restrictions for a perpetual swap.
@@ -32,7 +32,7 @@ type SwapPriceLimit struct {
 
 // SwapOpenInterestResponse stores open interest data for swaps
 type SwapOpenInterestResponse struct {
-	Data []SwapOpenInterest `json:"data"`
+	OpenInterest []SwapOpenInterest `json:"data"`
 }
 
 // SwapOpenInterest contains open interest for a perpetual swap.
@@ -61,7 +61,7 @@ type SwapMarketDepth struct {
 
 // SwapKlineResponse stores kline data for perpetual swaps
 type SwapKlineResponse struct {
-	Data []FuturesKline `json:"data"`
+	Candles []FuturesKline `json:"data"`
 }
 
 // SwapMarketOverviewResponse stores market overview data
@@ -73,7 +73,7 @@ type SwapMarketOverviewResponse struct {
 // MarketOverview contains the latest aggregate market values for a perpetual swap.
 type MarketOverview struct {
 	TradeTurnover types.Number `json:"trade_turnover"`
-	Vol           types.Number `json:"vol"`
+	Volume        types.Number `json:"vol"`
 	Ask           []float64    `json:"ask"`
 	Bid           []float64    `json:"bid"`
 	Close         types.Number `json:"close"`
@@ -94,7 +94,7 @@ type SwapLastTradeResponse struct {
 
 // LastTradeTick contains the latest trades for a perpetual swap.
 type LastTradeTick struct {
-	Data []LastTrade `json:"data"`
+	Trades []LastTrade `json:"data"`
 }
 
 // LastTrade contains a single latest trade for a perpetual swap.
@@ -108,16 +108,16 @@ type LastTrade struct {
 
 // SwapTradesResponse stores batch trades for a given swap contract
 type SwapTradesResponse struct {
-	ID        uint64           `json:"id"`
-	Timestamp types.Time       `json:"ts"`
-	Data      []SwapTradeBatch `json:"data"`
+	ID           uint64           `json:"id"`
+	Timestamp    types.Time       `json:"ts"`
+	TradeBatches []SwapTradeBatch `json:"data"`
 }
 
 // SwapTradeBatch groups executions published together by the swap history endpoints.
 type SwapTradeBatch struct {
 	ID        uint64                     `json:"id"`
 	Timestamp types.Time                 `json:"ts"`
-	Data      []CoinMarginedFuturesTrade `json:"data"`
+	Trades    []CoinMarginedFuturesTrade `json:"data"`
 }
 
 // CoinMarginedFuturesTrade holds coinmarginedfutures trade data
@@ -131,20 +131,20 @@ type CoinMarginedFuturesTrade struct {
 
 // SwapTieredAdjustmentFactorsResponse stores tiered adjustment factor data
 type SwapTieredAdjustmentFactorsResponse struct {
-	Data []TieredAdjustmentFactor `json:"data"`
+	AdjustmentFactors []TieredAdjustmentFactor `json:"data"`
 }
 
 // TieredAdjustmentFactor contains leverage tiers for a perpetual swap.
 type TieredAdjustmentFactor struct {
-	Symbol       string                           `json:"symbol"`
-	ContractCode string                           `json:"contract_code"`
-	List         []TieredAdjustmentFactorLeverage `json:"list"`
+	Symbol        string                           `json:"symbol"`
+	ContractCode  string                           `json:"contract_code"`
+	LeverageTiers []TieredAdjustmentFactorLeverage `json:"list"`
 }
 
 // TieredAdjustmentFactorLeverage contains adjustment ladders for a leverage rate.
 type TieredAdjustmentFactorLeverage struct {
-	LeverRate float64                        `json:"lever_rate"`
-	Ladders   []TieredAdjustmentFactorLadder `json:"ladders"`
+	LeverageRate float64                        `json:"lever_rate"`
+	Ladders      []TieredAdjustmentFactorLadder `json:"ladders"`
 }
 
 // TieredAdjustmentFactorLadder contains the adjustment factor for a size range.
@@ -157,7 +157,7 @@ type TieredAdjustmentFactorLadder struct {
 
 // SwapHistoricalOpenInterestResponse stores open interest data
 type SwapHistoricalOpenInterestResponse struct {
-	Data OpenInterest `json:"data"`
+	OpenInterest OpenInterest `json:"data"`
 }
 
 // OpenInterest contains historical open interest for a perpetual swap.
@@ -176,7 +176,7 @@ type OpenInterestTick struct {
 
 // SwapSystemStatusResponse stores information on system status
 type SwapSystemStatusResponse struct {
-	Data []SystemStatus `json:"data"`
+	Statuses []SystemStatus `json:"data"`
 }
 
 // SystemStatus contains the enabled operations for a perpetual swap.
@@ -194,14 +194,14 @@ type SystemStatus struct {
 
 // SwapAccountSentimentResponse stores trader sentiment index data
 type SwapAccountSentimentResponse struct {
-	Data TraderSentimentIndexAccount `json:"data"`
+	Sentiment TraderSentimentIndexAccount `json:"data"`
 }
 
 // TraderSentimentIndexAccount contains account sentiment for a perpetual swap.
 type TraderSentimentIndexAccount struct {
 	Symbol       string                                `json:"symbol"`
 	ContractCode string                                `json:"contract_code"`
-	List         []TraderSentimentIndexAccountSnapshot `json:"list"`
+	Snapshots    []TraderSentimentIndexAccountSnapshot `json:"list"`
 }
 
 // TraderSentimentIndexAccountSnapshot contains account sentiment at a point in time.
@@ -214,14 +214,14 @@ type TraderSentimentIndexAccountSnapshot struct {
 
 // SwapPositionSentimentResponse stores trader sentiment index data
 type SwapPositionSentimentResponse struct {
-	Data TraderSentimentIndexPosition `json:"data"`
+	Sentiment TraderSentimentIndexPosition `json:"data"`
 }
 
 // TraderSentimentIndexPosition contains position sentiment for a perpetual swap.
 type TraderSentimentIndexPosition struct {
 	Symbol       string                                 `json:"symbol"`
 	ContractCode string                                 `json:"contract_code"`
-	List         []TraderSentimentIndexPositionSnapshot `json:"list"`
+	Snapshots    []TraderSentimentIndexPositionSnapshot `json:"list"`
 }
 
 // TraderSentimentIndexPositionSnapshot contains position sentiment at a point in time.
@@ -233,7 +233,7 @@ type TraderSentimentIndexPositionSnapshot struct {
 
 // SwapLiquidationOrdersResponse stores data of liquidation orders
 type SwapLiquidationOrdersResponse struct {
-	Data []LiquidationOrder `json:"data"`
+	LiquidationOrders []LiquidationOrder `json:"data"`
 }
 
 // LiquidationOrder contains a perpetual swap liquidation order.
@@ -252,7 +252,7 @@ type LiquidationOrder struct {
 // SwapFundingRatesResponse holds funding rates and data response
 type SwapFundingRatesResponse struct {
 	Response
-	Data []SwapFundingRate `json:"data"`
+	FundingRates []SwapFundingRate `json:"data"`
 }
 
 // SwapFundingRate stores funding rates data
@@ -268,39 +268,39 @@ type SwapFundingRate struct {
 
 // SwapHistoricalFundingRatesResponse stores historical funding rates for perpetuals
 type SwapHistoricalFundingRatesResponse struct {
-	Data HistoricalFundingRatePage `json:"data"`
+	FundingHistory HistoricalFundingRatePage `json:"data"`
 }
 
 // HistoricalFundingRatePage contains paginated perpetual swap funding rates.
 type HistoricalFundingRatePage struct {
-	TotalPage   uint64                      `json:"total_page"`
-	CurrentPage uint64                      `json:"current_page"`
-	TotalSize   uint64                      `json:"total_size"`
-	Data        []SwapHistoricalFundingRate `json:"data"`
+	TotalPage    uint64                      `json:"total_page"`
+	CurrentPage  uint64                      `json:"current_page"`
+	TotalSize    uint64                      `json:"total_size"`
+	FundingRates []SwapHistoricalFundingRate `json:"data"`
 }
 
 // SwapHistoricalFundingRate stores historical rates data
 type SwapHistoricalFundingRate struct {
-	FundingRate     types.Number  `json:"funding_rate"`
-	RealizedRate    types.Number  `json:"realized_rate"`
-	FundingTime     types.Time    `json:"funding_time"`
-	ContractCode    string        `json:"contract_code"`
-	Symbol          string        `json:"symbol"`
-	FeeAsset        currency.Code `json:"fee_asset"`
-	AvgPremiumIndex types.Number  `json:"avg_premium_index"`
+	FundingRate         types.Number  `json:"funding_rate"`
+	RealizedRate        types.Number  `json:"realized_rate"`
+	FundingTime         types.Time    `json:"funding_time"`
+	ContractCode        string        `json:"contract_code"`
+	Symbol              string        `json:"symbol"`
+	FeeAsset            currency.Code `json:"fee_asset"`
+	AveragePremiumIndex types.Number  `json:"avg_premium_index"`
 }
 
 // SwapPremiumIndexKlineResponse stores kline data for premium
 type SwapPremiumIndexKlineResponse struct {
 	Channel   string           `json:"ch"`
-	Data      []SwapIndexKline `json:"data"`
+	Candles   []SwapIndexKline `json:"data"`
 	Timestamp types.Time       `json:"ts"`
 }
 
 // SwapEstimatedFundingRateResponse stores estimated funding rate data
 type SwapEstimatedFundingRateResponse struct {
 	Channel   string           `json:"ch"`
-	Data      []SwapIndexKline `json:"data"`
+	Candles   []SwapIndexKline `json:"data"`
 	Timestamp types.Time       `json:"ts"`
 }
 
@@ -319,7 +319,7 @@ type SwapIndexKline struct {
 // SwapBasisResponse stores basis data for swaps
 type SwapBasisResponse struct {
 	Channel   string      `json:"ch"`
-	Data      []BasisTick `json:"data"`
+	Basis     []BasisTick `json:"data"`
 	Timestamp types.Time  `json:"ts"`
 }
 
@@ -334,7 +334,7 @@ type BasisTick struct {
 
 // SwapAccountResponse stores swap account information
 type SwapAccountResponse struct {
-	Data []SwapAccount `json:"data"`
+	Accounts []SwapAccount `json:"data"`
 }
 
 // SwapAccount contains account balances and risk values for a perpetual swap.
@@ -357,7 +357,7 @@ type SwapAccount struct {
 
 // SwapPositionsResponse stores user's swap positions' info
 type SwapPositionsResponse struct {
-	Data []SwapPosition `json:"data"`
+	Positions []SwapPosition `json:"data"`
 }
 
 // SwapPosition contains a perpetual swap position.
@@ -373,15 +373,15 @@ type SwapPosition struct {
 	ProfitRate     float64 `json:"profit_rate"`
 	Profit         float64 `json:"profit"`
 	PositionMargin float64 `json:"position_margin"`
-	LeverRate      float64 `json:"lever_rate"`
+	LeverageRate   float64 `json:"lever_rate"`
 	Direction      string  `json:"direction"`
 	LastPrice      float64 `json:"last_price"`
 }
 
 // SwapAssetsAndPositionsResponse stores positions and assets data for swaps
 type SwapAssetsAndPositionsResponse struct {
-	Timestamp types.Time             `json:"ts"`
-	Data      []SwapAssetAndPosition `json:"data"`
+	Timestamp          types.Time             `json:"ts"`
+	AssetsAndPositions []SwapAssetAndPosition `json:"data"`
 }
 
 // SwapAssetAndPosition contains account values and positions for a perpetual swap.
@@ -406,13 +406,13 @@ type SwapAssetAndPosition struct {
 // SwapSubaccountAssetsResponse stores asset data for all subaccounts
 type SwapSubaccountAssetsResponse struct {
 	Timestamp types.Time        `json:"ts"`
-	Data      []SubAccountAsset `json:"data"`
+	Assets    []SubAccountAsset `json:"data"`
 }
 
 // SubAccountAsset contains perpetual swap assets for a subaccount.
 type SubAccountAsset struct {
-	SubUID uint64                   `json:"sub_uid"`
-	List   []SubAccountAssetBalance `json:"list"`
+	SubUID   uint64                   `json:"sub_uid"`
+	Balances []SubAccountAssetBalance `json:"list"`
 }
 
 // SubAccountAssetBalance contains a subaccount balance and risk values.
@@ -427,18 +427,18 @@ type SubAccountAssetBalance struct {
 // SwapSingleSubaccountAssetsResponse stores asset info for a single subaccount
 type SwapSingleSubaccountAssetsResponse struct {
 	Timestamp types.Time    `json:"ts"`
-	Data      []SwapAccount `json:"data"`
+	Accounts  []SwapAccount `json:"data"`
 }
 
 // SwapSubaccountPositionsResponse stores single subaccount's positions data
 type SwapSubaccountPositionsResponse struct {
 	Timestamp types.Time     `json:"ts"`
-	Data      []SwapPosition `json:"data"`
+	Positions []SwapPosition `json:"data"`
 }
 
 // SwapAvailableLeverageResponse stores data of available leverage for account
 type SwapAvailableLeverageResponse struct {
-	Data      []AvailableLeverage `json:"data"`
+	Leverage  []AvailableLeverage `json:"data"`
 	Timestamp types.Time          `json:"timestamp"`
 }
 
@@ -457,7 +457,7 @@ type SwitchCoinMarginedLeverageRequest struct {
 // SwitchCoinMarginedLeverageResponse contains the leverage accepted by HTX.
 type SwitchCoinMarginedLeverageResponse struct {
 	Response
-	Data CoinMarginedLeverage `json:"data"`
+	Leverage CoinMarginedLeverage `json:"data"`
 }
 
 // CoinMarginedLeverage contains the accepted contract leverage.
@@ -479,23 +479,23 @@ type FinancialRecord struct {
 
 // SwapFinancialRecordPage stores financial record data and legacy pagination values.
 type SwapFinancialRecordPage struct {
-	FinancialRecord []FinancialRecord `json:"financial_record"`
-	TotalPage       uint64            `json:"total_page"`
-	CurrentPage     uint64            `json:"current_page"`
-	TotalSize       uint64            `json:"total_size"`
+	Records     []FinancialRecord `json:"financial_record"`
+	TotalPage   uint64            `json:"total_page"`
+	CurrentPage uint64            `json:"current_page"`
+	TotalSize   uint64            `json:"total_size"`
 }
 
 // SwapFinancialRecordsResponse stores an accounts financial records.
 type SwapFinancialRecordsResponse struct {
-	Data      SwapFinancialRecordPage `json:"data"`
-	Timestamp types.Time              `json:"ts"`
+	FinancialRecords SwapFinancialRecordPage `json:"data"`
+	Timestamp        types.Time              `json:"ts"`
 }
 
 // UnmarshalJSON supports the documented v3 array response while preserving the
 // legacy paged-object shape used by older responses.
 func (f *SwapFinancialRecordsResponse) UnmarshalJSON(data []byte) error {
 	var response SwapFinancialRecordsResponse
-	if err := unmarshalV3FuturesResponse(data, &response.Timestamp, &response.Data.FinancialRecord, &response.Data); err != nil {
+	if err := unmarshalV3FuturesResponse(data, &response.Timestamp, &response.FinancialRecords.Records, &response.FinancialRecords); err != nil {
 		return err
 	}
 	*f = response
@@ -504,14 +504,14 @@ func (f *SwapFinancialRecordsResponse) UnmarshalJSON(data []byte) error {
 
 // SwapOrderLimitsResponse stores information about order limits on a perpetual swap
 type SwapOrderLimitsResponse struct {
-	Data      SwapOrderLimits `json:"data"`
-	Timestamp types.Time      `json:"ts"`
+	OrderLimits SwapOrderLimits `json:"data"`
+	Timestamp   types.Time      `json:"ts"`
 }
 
 // SwapOrderLimits contains order limits grouped by order price type.
 type SwapOrderLimits struct {
 	OrderPriceType string           `json:"order_price_type"`
-	List           []SwapOrderLimit `json:"list"`
+	ContractLimits []SwapOrderLimit `json:"list"`
 }
 
 // SwapOrderLimit contains open and close limits for a perpetual swap.
@@ -524,8 +524,8 @@ type SwapOrderLimit struct {
 
 // SwapTradingFeesResponse stores trading fee data for swaps
 type SwapTradingFeesResponse struct {
-	Data      []SwapTradingFee `json:"data"`
-	Timestamp types.Time       `json:"ts"`
+	TradingFees []SwapTradingFee `json:"data"`
+	Timestamp   types.Time       `json:"ts"`
 }
 
 // SwapTradingFee contains maker and taker fees for a perpetual swap.
@@ -541,8 +541,8 @@ type SwapTradingFee struct {
 
 // SwapTransferLimitsResponse stores transfer limits
 type SwapTransferLimitsResponse struct {
-	Data      []TransferLimit `json:"data"`
-	Timestamp types.Time      `json:"timestamp"`
+	TransferLimits []TransferLimit `json:"data"`
+	Timestamp      types.Time      `json:"timestamp"`
 }
 
 // TransferLimit contains transfer restrictions for a perpetual swap.
@@ -563,8 +563,8 @@ type TransferLimit struct {
 
 // SwapPositionLimitsResponse stores position limit data
 type SwapPositionLimitsResponse struct {
-	Data      []PositionLimit `json:"data"`
-	Timestamp types.Time      `json:"ts"`
+	PositionLimits []PositionLimit `json:"data"`
+	Timestamp      types.Time      `json:"ts"`
 }
 
 // PositionLimit contains buy and sell position limits for a perpetual swap.
@@ -578,7 +578,7 @@ type PositionLimit struct {
 // SwapInternalTransferResponse stores transfer data between subaccounts and main account
 type SwapInternalTransferResponse struct {
 	Timestamp types.Time                  `json:"ts"`
-	Data      InternalAccountTransferInfo `json:"data"`
+	Transfer  InternalAccountTransferInfo `json:"data"`
 }
 
 // InternalAccountTransferInfo contains an internal transfer identifier.
@@ -588,7 +588,7 @@ type InternalAccountTransferInfo struct {
 
 // SwapOrderResponse stores swap order data
 type SwapOrderResponse struct {
-	Data      SwapOrderIdentifiers `json:"data"`
+	Order     SwapOrderIdentifiers `json:"data"`
 	Timestamp types.Time           `json:"ts"`
 }
 
@@ -601,7 +601,7 @@ type SwapOrderIdentifiers struct {
 
 // SwapBatchOrderResponse stores data for batch orders
 type SwapBatchOrderResponse struct {
-	Data      SwapBatchOrderResult `json:"data"`
+	Orders    SwapBatchOrderResult `json:"data"`
 	Timestamp types.Time           `json:"ts"`
 }
 
@@ -613,9 +613,9 @@ type SwapBatchOrderResult struct {
 
 // BatchOrderError contains a failed batch order result.
 type BatchOrderError struct {
-	ErrCode int64  `json:"err_code"`
-	ErrMsg  string `json:"err_msg"`
-	Index   uint64 `json:"index"`
+	ErrorCode    uint64 `json:"err_code"`
+	ErrorMessage string `json:"err_msg"`
+	Index        uint64 `json:"index"`
 }
 
 // BatchOrderSuccess contains a successful batch order result.
@@ -627,7 +627,7 @@ type BatchOrderSuccess struct {
 
 // SwapBatchOrderRequest stores batch order request data
 type SwapBatchOrderRequest struct {
-	Data []SwapBatchOrder
+	Orders []SwapBatchOrder
 }
 
 // SwapBatchOrder contains one coin-margined perpetual order in a batch request.
@@ -644,8 +644,8 @@ type SwapBatchOrder struct {
 
 // SwapCancelOrdersResponse stores order cancellation data
 type SwapCancelOrdersResponse struct {
-	Data      SwapCancelOrdersResult `json:"data"`
-	Timestamp types.Time             `json:"ts"`
+	Cancellations SwapCancelOrdersResult `json:"data"`
+	Timestamp     types.Time             `json:"ts"`
 }
 
 // SwapCancelOrdersResult contains successful and failed order cancellations.
@@ -656,54 +656,54 @@ type SwapCancelOrdersResult struct {
 
 // CancelOrderError contains a failed order cancellation.
 type CancelOrderError struct {
-	OrderID string `json:"order_id"`
-	ErrCode int64  `json:"err_code"`
-	ErrMsg  string `json:"err_msg"`
+	OrderID      string `json:"order_id"`
+	ErrorCode    uint64 `json:"err_code"`
+	ErrorMessage string `json:"err_msg"`
 }
 
 // SwapLightningCloseOrderResponse stores order data from a lightning close order
 type SwapLightningCloseOrderResponse struct {
-	Data      SwapOrderIdentifiers `json:"data"`
+	Order     SwapOrderIdentifiers `json:"data"`
 	Timestamp types.Time           `json:"ts"`
 }
 
 // SwapOrderInfoResponse stores info for swap orders
 type SwapOrderInfoResponse struct {
-	Data      []SwapOrder `json:"data"`
+	Orders    []SwapOrder `json:"data"`
 	Timestamp types.Time  `json:"ts"`
 }
 
 // SwapOrder contains perpetual swap order information.
 type SwapOrder struct {
-	Symbol          string        `json:"symbol"`
-	ContractCode    string        `json:"contract_code"`
-	Volume          float64       `json:"volume"`
-	Price           float64       `json:"price"`
-	OrderPriceType  string        `json:"order_price_type"`
-	Direction       string        `json:"direction"`
-	Offset          string        `json:"offset"`
-	LeverRate       uint64        `json:"lever_rate"`
-	OrderID         uint64        `json:"order_id"`
-	OrderIDString   string        `json:"order_id_str"`
-	ClientOrderID   uint64        `json:"client_order_id"`
-	OrderSource     string        `json:"order_source"`
-	CreatedAt       types.Time    `json:"created_at"`
-	CancelledAt     types.Time    `json:"canceled_at"`
-	TradeVolume     float64       `json:"trade_volume"`
-	TradeTurnover   float64       `json:"trade_turnover"`
-	Fee             float64       `json:"fee"`
-	TradeAvgPrice   float64       `json:"trade_avg_price"`
-	MarginFrozen    float64       `json:"margin_frozen"`
-	Profit          float64       `json:"profit"`
-	Status          uint64        `json:"status"`
-	FeeAsset        currency.Code `json:"fee_asset"`
-	LiquidationType types.Number  `json:"liquidation_type"`
+	Symbol            string        `json:"symbol"`
+	ContractCode      string        `json:"contract_code"`
+	Volume            float64       `json:"volume"`
+	Price             float64       `json:"price"`
+	OrderPriceType    string        `json:"order_price_type"`
+	Direction         string        `json:"direction"`
+	Offset            string        `json:"offset"`
+	LeverageRate      uint64        `json:"lever_rate"`
+	OrderID           uint64        `json:"order_id"`
+	OrderIDString     string        `json:"order_id_str"`
+	ClientOrderID     uint64        `json:"client_order_id"`
+	OrderSource       string        `json:"order_source"`
+	CreatedAt         types.Time    `json:"created_at"`
+	CancelledAt       types.Time    `json:"canceled_at"`
+	TradeVolume       float64       `json:"trade_volume"`
+	TradeTurnover     float64       `json:"trade_turnover"`
+	Fee               float64       `json:"fee"`
+	TradeAveragePrice float64       `json:"trade_avg_price"`
+	MarginFrozen      float64       `json:"margin_frozen"`
+	Profit            float64       `json:"profit"`
+	Status            uint64        `json:"status"`
+	FeeAsset          currency.Code `json:"fee_asset"`
+	LiquidationType   types.Number  `json:"liquidation_type"`
 }
 
 // SwapOpenOrdersResponse stores open orders data for swaps
 type SwapOpenOrdersResponse struct {
-	Data      SwapOpenOrdersPage `json:"data"`
-	Timestamp types.Time         `json:"ts"`
+	OpenOrders SwapOpenOrdersPage `json:"data"`
+	Timestamp  types.Time         `json:"ts"`
 }
 
 // SwapOpenOrdersPage contains open orders and pagination values.
@@ -716,27 +716,27 @@ type SwapOpenOrdersPage struct {
 
 // SwapOpenOrder contains an open perpetual swap order.
 type SwapOpenOrder struct {
-	Symbol         string        `json:"symbol"`
-	ContractCode   string        `json:"contract_code"`
-	Volume         float64       `json:"volume"`
-	Price          float64       `json:"price"`
-	OrderPriceType string        `json:"order_price_type"`
-	OrderType      uint64        `json:"order_type"`
-	Direction      string        `json:"direction"`
-	Offset         string        `json:"offset"`
-	LeverageRate   uint64        `json:"lever_rate"`
-	OrderID        uint64        `json:"order_id"`
-	OrderIDString  string        `json:"order_id_str"`
-	OrderSource    string        `json:"order_source"`
-	CreatedAt      types.Time    `json:"created_at"`
-	TradeVolume    float64       `json:"trade_volume"`
-	TradeTurnover  float64       `json:"trade_turnover"`
-	Fee            float64       `json:"fee"`
-	TradeAvgPrice  float64       `json:"trade_avg_price"`
-	MarginFrozen   float64       `json:"margin_frozen"`
-	Profit         float64       `json:"profit"`
-	Status         uint64        `json:"status"`
-	FeeAsset       currency.Code `json:"fee_asset"`
+	Symbol            string        `json:"symbol"`
+	ContractCode      string        `json:"contract_code"`
+	Volume            float64       `json:"volume"`
+	Price             float64       `json:"price"`
+	OrderPriceType    string        `json:"order_price_type"`
+	OrderType         uint64        `json:"order_type"`
+	Direction         string        `json:"direction"`
+	Offset            string        `json:"offset"`
+	LeverageRate      uint64        `json:"lever_rate"`
+	OrderID           uint64        `json:"order_id"`
+	OrderIDString     string        `json:"order_id_str"`
+	OrderSource       string        `json:"order_source"`
+	CreatedAt         types.Time    `json:"created_at"`
+	TradeVolume       float64       `json:"trade_volume"`
+	TradeTurnover     float64       `json:"trade_turnover"`
+	Fee               float64       `json:"fee"`
+	TradeAveragePrice float64       `json:"trade_avg_price"`
+	MarginFrozen      float64       `json:"margin_frozen"`
+	Profit            float64       `json:"profit"`
+	Status            uint64        `json:"status"`
+	FeeAsset          currency.Code `json:"fee_asset"`
 }
 
 // SwapOrderHistoryEntry stores an order history entry for coin-margined swaps.
@@ -777,15 +777,15 @@ type SwapOrderHistoryPage struct {
 
 // SwapOrderHistoryResponse gets order history for swaps.
 type SwapOrderHistoryResponse struct {
-	Data      SwapOrderHistoryPage `json:"data"`
-	Timestamp types.Time           `json:"ts"`
+	OrderHistory SwapOrderHistoryPage `json:"data"`
+	Timestamp    types.Time           `json:"ts"`
 }
 
 // UnmarshalJSON supports the documented v3 array response while preserving the
 // legacy paged-object shape used by older responses.
 func (s *SwapOrderHistoryResponse) UnmarshalJSON(data []byte) error {
 	var response SwapOrderHistoryResponse
-	if err := unmarshalV3FuturesResponse(data, &response.Timestamp, &response.Data.Orders, &response.Data); err != nil {
+	if err := unmarshalV3FuturesResponse(data, &response.Timestamp, &response.OrderHistory.Orders, &response.OrderHistory); err != nil {
 		return err
 	}
 	*s = response
@@ -824,15 +824,15 @@ type SwapTradeHistoryPage struct {
 
 // SwapTradeHistoryResponse stores account trade history for swaps.
 type SwapTradeHistoryResponse struct {
-	Data      SwapTradeHistoryPage `json:"data"`
-	Timestamp types.Time           `json:"ts"`
+	TradeHistory SwapTradeHistoryPage `json:"data"`
+	Timestamp    types.Time           `json:"ts"`
 }
 
 // UnmarshalJSON supports the documented v3 array response while preserving the
 // legacy paged-object shape used by older responses.
 func (a *SwapTradeHistoryResponse) UnmarshalJSON(data []byte) error {
 	var response SwapTradeHistoryResponse
-	if err := unmarshalV3FuturesResponse(data, &response.Timestamp, &response.Data.Trades, &response.Data); err != nil {
+	if err := unmarshalV3FuturesResponse(data, &response.Timestamp, &response.TradeHistory.Trades, &response.TradeHistory); err != nil {
 		return err
 	}
 	*a = response
@@ -841,8 +841,8 @@ func (a *SwapTradeHistoryResponse) UnmarshalJSON(data []byte) error {
 
 // SwapCancelTriggerOrdersResponse stores trigger order cancel data
 type SwapCancelTriggerOrdersResponse struct {
-	Data      SwapCancelTriggerOrdersResult `json:"data"`
-	Timestamp types.Time                    `json:"ts"`
+	Cancellations SwapCancelTriggerOrdersResult `json:"data"`
+	Timestamp     types.Time                    `json:"ts"`
 }
 
 // SwapCancelTriggerOrdersResult contains successful and failed trigger order cancellations.
@@ -853,15 +853,15 @@ type SwapCancelTriggerOrdersResult struct {
 
 // CancelTriggerOrderError contains a failed trigger order cancellation.
 type CancelTriggerOrderError struct {
-	OrderID uint64 `json:"order_id"`
-	ErrCode int64  `json:"err_code"`
-	ErrMsg  string `json:"err_msg"`
+	OrderID      uint64 `json:"order_id"`
+	ErrorCode    uint64 `json:"err_code"`
+	ErrorMessage string `json:"err_msg"`
 }
 
 // SwapTriggerOrderHistoryResponse stores trigger order history data for swaps
 type SwapTriggerOrderHistoryResponse struct {
-	Data      SwapTriggerOrderHistoryPage `json:"data"`
-	Timestamp types.Time                  `json:"ts"`
+	OrderHistory SwapTriggerOrderHistoryPage `json:"data"`
+	Timestamp    types.Time                  `json:"ts"`
 }
 
 // SwapTriggerOrderHistoryPage contains trigger orders and pagination values.
@@ -895,18 +895,18 @@ type TriggerOrder struct {
 	TriggeredAt     types.Time `json:"triggered_at"`
 	OrderInsertAt   types.Time `json:"order_insert_at"`
 	CancelledAt     types.Time `json:"canceled_at"`
-	FailCode        int64      `json:"fail_code"`
+	FailCode        uint64     `json:"fail_code"`
 	FailReason      string     `json:"fail_reason"`
 }
 
 // SwapMarketsResponse lists the coin-margined contracts currently known to HTX.
 type SwapMarketsResponse struct {
 	Response
-	Data []SwapMarket `json:"data"`
+	Markets []SwapMarket `json:"data"`
 }
 
 // SwapFundingRateResponse reports the current and estimated funding for one contract.
 type SwapFundingRateResponse struct {
 	Response
-	Data SwapFundingRate `json:"data"`
+	FundingRate SwapFundingRate `json:"data"`
 }

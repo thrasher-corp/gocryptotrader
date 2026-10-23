@@ -15,12 +15,13 @@ import (
 
 func TestWSHandleCoinMarginedPrivateMessage(t *testing.T) {
 	t.Parallel()
-	for _, tt := range []struct {
+	type testCase struct {
 		name     string
 		channel  string
 		expected any
 		raw      string
-	}{
+	}
+	for _, tt := range []testCase{
 		{name: "orders", channel: subscription.MyOrdersChannel, expected: &order.Detail{}, raw: `{"contract_code":"BTC-USD","direction":"buy","order_price_type":"limit","status":6,"order_id":1,"volume":2,"trade_volume":1}`},
 		{name: "matches", channel: subscription.MyTradesChannel, expected: &order.Detail{}, raw: `{"contract_code":"BTC-USD","direction":"buy","order_type":1,"status":6,"order_id":1,"volume":2,"trade_volume":1}`},
 		{name: "cancellation pending", channel: subscription.MyTradesChannel, raw: `{"status":9}`},

@@ -73,46 +73,52 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 		if err != nil {
 			return nil, err
 		}
-		windows, err := getV3HistoryWindows(r.StartDate, r.EndDate)
-		if err != nil {
+		end := r.EndDate
+		if end.IsZero() {
+			end = time.Now().UTC()
+		}
+		start := r.StartDate
+		if start.IsZero() {
+			start = end.Add(-48 * time.Hour)
+		}
+		if err := common.StartEndTimeCheck(start, end); err != nil {
 			return nil, err
 		}
-		for _, window := range windows {
-			var from string
-			for {
-				history, err := e.GetV5FundingRateHistory(ctx, &V5FundingRateHistoryRequest{
-					ContractCode: codeValue,
-					StartTime:    window.start,
-					EndTime:      window.end,
-					From:         from,
-					Limit:        pageSize,
-					Direction:    "next",
-				})
-				if err != nil {
-					return nil, err
-				}
-				if history == nil {
-					return nil, errEmptyResult
-				}
-				for i := range history.Data {
-					rateTime := history.Data[i].FundingTime.Time()
-					if (!r.StartDate.IsZero() && rateTime.Before(r.StartDate)) || (!r.EndDate.IsZero() && rateTime.After(r.EndDate)) {
-						continue
-					}
-					result.FundingRates = append(result.FundingRates, fundingrate.Rate{
-						Time: history.Data[i].FundingTime.Time(),
-						Rate: decimal.MustFromFloat(history.Data[i].FundingRate.Float64()),
-					})
-				}
-				if len(history.Data) < int(pageSize) {
-					break
-				}
-				nextFrom := history.Data[len(history.Data)-1].ID
-				if nextFrom == from {
-					break
-				}
-				from = nextFrom
+		// Funding history has its own cursor and no documented 90-day order-history cap.
+		var from string
+		for {
+			history, err := e.GetV5FundingRateHistory(ctx, &V5FundingRateHistoryRequest{
+				ContractCode: codeValue,
+				StartTime:    start,
+				EndTime:      end,
+				From:         from,
+				Limit:        pageSize,
+				Direction:    "next",
+			})
+			if err != nil {
+				return nil, err
 			}
+			if history == nil {
+				return nil, errEmptyResult
+			}
+			for i := range history.FundingRates {
+				rateTime := history.FundingRates[i].FundingTime.Time()
+				if rateTime.Before(start) || rateTime.After(end) {
+					continue
+				}
+				result.FundingRates = append(result.FundingRates, fundingrate.Rate{
+					Time: history.FundingRates[i].FundingTime.Time(),
+					Rate: decimal.MustFromFloat(history.FundingRates[i].FundingRate.Float64()),
+				})
+			}
+			if len(history.FundingRates) < int(pageSize) {
+				break
+			}
+			nextFrom := history.FundingRates[len(history.FundingRates)-1].ID
+			if nextFrom == from {
+				break
+			}
+			from = nextFrom
 		}
 	} else {
 		for page := uint64(1); ; page++ {
@@ -121,7 +127,7 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 				return nil, err
 			}
 			var reachedStartDate bool
-			for _, rate := range history.Data.Data {
+			for _, rate := range history.FundingHistory.FundingRates {
 				rateTime := rate.FundingTime.Time()
 				if !r.StartDate.IsZero() && rateTime.Before(r.StartDate) {
 					reachedStartDate = true
@@ -135,7 +141,7 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 					Rate: decimal.MustFromFloat(rate.FundingRate.Float64()),
 				})
 			}
-			if reachedStartDate || history.Data.TotalPage == 0 || page >= history.Data.TotalPage {
+			if reachedStartDate || history.FundingHistory.TotalPage == 0 || page >= history.FundingHistory.TotalPage {
 				break
 			}
 		}
@@ -251,8 +257,8 @@ func (e *Exchange) SetCollateralMode(ctx context.Context, item asset.Item, mode 
 	if resp == nil {
 		return errEmptyResult
 	}
-	if resp.Data.AssetMode != assetMode && (mode != collateral.SingleMode || resp.Data.AssetMode != 0) {
-		return fmt.Errorf("%w: requested %d, received %d", collateral.ErrInvalidCollateralMode, assetMode, resp.Data.AssetMode)
+	if resp.Mode.AssetMode != assetMode && (mode != collateral.SingleMode || resp.Mode.AssetMode != 0) {
+		return fmt.Errorf("%w: requested %d, received %d", collateral.ErrInvalidCollateralMode, assetMode, resp.Mode.AssetMode)
 	}
 	return nil
 }
@@ -269,13 +275,13 @@ func (e *Exchange) GetCollateralMode(ctx context.Context, item asset.Item) (coll
 	if resp == nil {
 		return collateral.UnsetMode, errEmptyResult
 	}
-	switch resp.Data.AssetMode {
+	switch resp.Mode.AssetMode {
 	case 1:
 		return collateral.MultiMode, nil
 	case 0, 2:
 		return collateral.SingleMode, nil
 	default:
-		return collateral.UnsetMode, fmt.Errorf("%w %d", collateral.ErrInvalidCollateralMode, resp.Data.AssetMode)
+		return collateral.UnsetMode, fmt.Errorf("%w %d", collateral.ErrInvalidCollateralMode, resp.Mode.AssetMode)
 	}
 }
 
@@ -293,9 +299,9 @@ func (e *Exchange) GetLeverage(ctx context.Context, item asset.Item, pair curren
 		if err != nil {
 			return 0, err
 		}
-		for i := range account.AccData {
-			if account.AccData[i].Symbol.Equal(pair.Base) {
-				return account.AccData[i].LeverageRate, nil
+		for i := range account.Accounts {
+			if account.Accounts[i].Symbol.Equal(pair.Base) {
+				return account.Accounts[i].LeverageRate, nil
 			}
 		}
 	case asset.CoinMarginedFutures:
@@ -310,10 +316,10 @@ func (e *Exchange) GetLeverage(ctx context.Context, item asset.Item, pair curren
 		if err != nil {
 			return 0, err
 		}
-		for i := range account.Data {
-			if account.Data[i].ContractCode == contractCode ||
-				(account.Data[i].ContractCode == "" && account.Data[i].Symbol.Equal(pair.Base)) {
-				return account.Data[i].LeverageRate, nil
+		for i := range account.Accounts {
+			if account.Accounts[i].ContractCode == contractCode ||
+				(account.Accounts[i].ContractCode == "" && account.Accounts[i].Symbol.Equal(pair.Base)) {
+				return account.Accounts[i].LeverageRate, nil
 			}
 		}
 	case asset.USDTMarginedFutures:
@@ -347,11 +353,15 @@ func (e *Exchange) GetLeverage(ctx context.Context, item asset.Item, pair curren
 		if err != nil {
 			return 0, err
 		}
-		for i := range leverage.Data {
-			if leverage.Data[i].ContractCode == contractCode &&
-				leverage.Data[i].MarginMode == marginMode &&
-				(positionSide == "" || leverage.Data[i].PositionSide == "both" || leverage.Data[i].PositionSide == positionSide) {
-				return float64(leverage.Data[i].LeverageRate), nil
+		for i := range leverage.Leverage {
+			if leverage.Leverage[i].ContractCode == contractCode &&
+				leverage.Leverage[i].MarginMode == marginMode &&
+				(positionSide == "" || leverage.Leverage[i].PositionSide == "both" || leverage.Leverage[i].PositionSide == positionSide) {
+				// Isolated hedge positions have a separate leverage for each side.
+				if positionSide == "" && marginMode == marginModeIsolated && leverage.Leverage[i].PositionSide != "both" {
+					return 0, order.ErrSideIsInvalid
+				}
+				return float64(leverage.Leverage[i].LeverageRate), nil
 			}
 		}
 	default:

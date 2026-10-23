@@ -11,10 +11,11 @@ import (
 
 func TestWebsocketAccountUpdateJSON(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct {
+	type testCase struct {
 		name     string
 		sequence string
-	}{
+	}
+	for _, tc := range []testCase{
 		{name: "numeric sequence", sequence: `9007199254740993`},
 		{name: "quoted sequence", sequence: `"9007199254740993"`},
 	} {
@@ -35,4 +36,21 @@ func TestWebsocketTradeUpdateJSON(t *testing.T) {
 	assert.Equal(t, uint64(9007199254740993), update.OrderID, "order ID should retain its exact value")
 	assert.True(t, currency.BTC.Equal(update.FeeCurrency), "fee currency should identify the single fee asset")
 	assert.Equal(t, -0.0001, update.TransactFee.Float64(), "fee rebate should retain its negative sign")
+}
+
+func TestWebsocketOrderUpdateErrorCodes(t *testing.T) {
+	t.Parallel()
+	type testCase struct {
+		name, key string
+		response  any
+	}
+	for _, tc := range []testCase{
+		{name: "WebsocketOrderUpdate", key: "errCode", response: new(WebsocketOrderUpdate)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			require.NoError(t, json.Unmarshal([]byte(`{"`+tc.key+`":1001}`), tc.response), "documented positive error code must decode")
+			require.Error(t, json.Unmarshal([]byte(`{"`+tc.key+`":-1}`), tc.response), "negative error code must not decode into an unsigned field")
+		})
+	}
 }

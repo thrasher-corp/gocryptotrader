@@ -42,52 +42,10 @@ type MarketSummary24HourResponse struct {
 
 // CurrencyChains stores currency and chain info
 type CurrencyChains struct {
-	Currency   string           `json:"currency"`
+	Currency   currency.Code    `json:"currency"`
 	AssetType  uint8            `json:"assetType"`
 	InstStatus string           `json:"instStatus"`
 	Chains     []*CurrencyChain `json:"chains"`
-}
-
-// WebsocketFuturesKline stores kline data for futures and swap websocket
-type WebsocketFuturesKline struct {
-	Channel   string                    `json:"ch"`
-	Timestamp types.Time                `json:"ts"`
-	Tick      WebsocketFuturesKlineTick `json:"tick"`
-}
-
-// WebsocketMarketDepth stores market depth data for futures and swap websocket
-type WebsocketMarketDepth struct {
-	Channel   string                   `json:"ch"`
-	Timestamp types.Time               `json:"ts"`
-	Tick      WebsocketMarketDepthTick `json:"tick"`
-}
-
-// WebsocketIncrementalMarketDepth stores incremental market depth data for swap and futures websocket
-type WebsocketIncrementalMarketDepth struct {
-	Channel   string                              `json:"ch"`
-	Timestamp types.Time                          `json:"ts"`
-	Tick      WebsocketIncrementalMarketDepthTick `json:"tick"`
-}
-
-// WebsocketMarketDetail stores market detail data for futures and swap websocket
-type WebsocketMarketDetail struct {
-	Channel   string                    `json:"ch"`
-	Timestamp types.Time                `json:"ts"`
-	Tick      WebsocketMarketDetailTick `json:"tick"`
-}
-
-// WebsocketMarketBBO stores BBO data for futures and swap websocket
-type WebsocketMarketBBO struct {
-	Channel   string                 `json:"ch"`
-	Timestamp types.Time             `json:"ts"`
-	Tick      WebsocketMarketBBOTick `json:"tick"`
-}
-
-// WebsocketSubTradeDetail stores trade detail data for futures websocket
-type WebsocketSubTradeDetail struct {
-	Channel   string                      `json:"ch"`
-	Timestamp types.Time                  `json:"ts"`
-	Tick      WebsocketSubTradeDetailTick `json:"tick"`
 }
 
 // --------------------------------Spot-----------------------------------------
@@ -103,7 +61,7 @@ type Response struct {
 
 // MarginRatesResponse stores margin rates data
 type MarginRatesResponse struct {
-	Data []MarginRate `json:"data"`
+	MarginRates []MarginRate `json:"data"`
 }
 
 // ResponseV2 stores the HTX generic response info
@@ -138,9 +96,9 @@ type KlineItem struct {
 
 // CancelOpenOrdersBatchResponse retains cancellation counts and any remaining-order cursor.
 type CancelOpenOrdersBatchResponse struct {
-	Data         OpenOrderCancellationResult `json:"data"`
-	Status       string                      `json:"status"`
-	ErrorMessage string                      `json:"err-msg"`
+	Cancellations OpenOrderCancellationResult `json:"data"`
+	Status        string                      `json:"status"`
+	ErrorMessage  string                      `json:"err-msg"`
 }
 
 // DetailMerged stores the ticker detail merged data
@@ -153,7 +111,7 @@ type DetailMerged struct {
 
 // TickersResponse contains the rolling summaries for all spot symbols.
 type TickersResponse struct {
-	Data []Ticker `json:"data"`
+	Tickers []Ticker `json:"data"`
 }
 
 // FuturesBatchTicker holds ticker data
@@ -282,10 +240,10 @@ type Account struct {
 
 // AccountBalance stores the user all account balance
 type AccountBalance struct {
-	ID                    uint64                 `json:"id"`
-	Type                  string                 `json:"type"`
-	State                 string                 `json:"state"`
-	AccountBalanceDetails []AccountBalanceDetail `json:"list"`
+	ID               uint64                 `json:"id"`
+	Type             string                 `json:"type"`
+	State            string                 `json:"state"`
+	CurrencyBalances []AccountBalanceDetail `json:"list"`
 }
 
 // AccountBalanceDetail stores the user account balance
@@ -372,7 +330,7 @@ type MarginAccountBalance struct {
 	FlPrice  string           `json:"fl-price"`
 	FlType   string           `json:"fl-type"`
 	RiskRate string           `json:"risk-rate"`
-	List     []AccountBalance `json:"list"`
+	Balances []AccountBalance `json:"list"`
 }
 
 // SpotOrderRequest holds the params required to place an order
@@ -614,8 +572,8 @@ var (
 
 // WithdrawalHistoryResponse lists deposits or withdrawals matching the requested filters.
 type WithdrawalHistoryResponse struct {
-	Status string       `json:"status"`
-	Data   []Withdrawal `json:"data"`
+	Status       string       `json:"status"`
+	Transactions []Withdrawal `json:"data"`
 }
 
 // Withdrawal contains details of a withdrawal
@@ -648,7 +606,7 @@ func isEmptyHTXData(data []byte) bool {
 // SpotKlineResponse contains spot candles ordered as supplied by the history endpoint.
 type SpotKlineResponse struct {
 	Response
-	Data []KlineItem `json:"data"`
+	Candles []KlineItem `json:"data"`
 }
 
 // MarketDetailMergedResponse wraps a rolling spot summary and the best bid and ask.
@@ -690,17 +648,17 @@ type SymbolsResponse struct {
 // CurrenciesResponse lists the currency codes recognised by the spot API.
 type CurrenciesResponse struct {
 	Response
-	Currencies []string `json:"data"`
+	Currencies []currency.Code `json:"data"`
 }
 
 // FuturesBatchTickersResponse uses ticks for the list of derivative market summaries.
 type FuturesBatchTickersResponse struct {
-	Data []FuturesBatchTicker `json:"ticks"`
+	Tickers []FuturesBatchTicker `json:"ticks"`
 }
 
 // CurrenciesIncludingChainsResponse lists supported networks and transfer rules for each currency.
 type CurrenciesIncludingChainsResponse struct {
-	Data []CurrencyChains `json:"data"`
+	Currencies []CurrencyChains `json:"data"`
 }
 
 // CurrentServerTimeResponse places the server Unix timestamp in data rather than ts.
@@ -716,7 +674,7 @@ type AccountsResponse struct {
 
 // AccountBalanceResponse groups the balances belonging to the requested account.
 type AccountBalanceResponse struct {
-	AccountBalanceData AccountBalance `json:"data"`
+	Balance AccountBalance `json:"data"`
 }
 
 // AggregatedBalanceResponse groups balances across the requested subaccounts.
@@ -855,73 +813,6 @@ type CurrencyChain struct {
 	AddressDepositTag         bool         `json:"addrDepositTag"`
 }
 
-// WebsocketFuturesKlineTick is a delivery candle whose volume is measured in contracts and amount in coins.
-type WebsocketFuturesKlineTick struct {
-	ID     uint64  `json:"id"`
-	MRID   uint64  `json:"mrid"`
-	Volume float64 `json:"vol"`
-	Count  float64 `json:"count"`
-	Open   float64 `json:"open"`
-	Close  float64 `json:"close"`
-	Low    float64 `json:"low"`
-	High   float64 `json:"high"`
-	Amount float64 `json:"amount"`
-}
-
-// WebsocketMarketDepthTick is a complete depth snapshot; each level is a price and quantity pair.
-type WebsocketMarketDepthTick struct {
-	MRID      uint64       `json:"mrid"`
-	ID        uint64       `json:"id"`
-	Bids      [][2]float64 `json:"bids"`
-	Asks      [][2]float64 `json:"asks"`
-	Timestamp types.Time   `json:"ts"`
-	Version   uint64       `json:"version"`
-	Channel   string       `json:"ch"`
-}
-
-// WebsocketIncrementalMarketDepthTick carries depth changes; Event distinguishes snapshots from subsequent updates.
-type WebsocketIncrementalMarketDepthTick struct {
-	MRID      uint64       `json:"mrid"`
-	ID        uint64       `json:"id"`
-	Bids      [][2]float64 `json:"bids"`
-	Asks      [][2]float64 `json:"asks"`
-	Timestamp types.Time   `json:"ts"`
-	Version   uint64       `json:"version"`
-	Channel   string       `json:"ch"`
-	Event     string       `json:"event"`
-}
-
-// WebsocketMarketDetailTick is the rolling market summary carried by a detail subscription.
-type WebsocketMarketDetailTick struct {
-	ID     uint64  `json:"id"`
-	MRID   uint64  `json:"mrid"`
-	Open   float64 `json:"open"`
-	Close  float64 `json:"close"`
-	High   float64 `json:"high"`
-	Low    float64 `json:"low"`
-	Amount float64 `json:"amount"`
-	Volume float64 `json:"vol"`
-	Count  float64 `json:"count"`
-}
-
-// WebsocketMarketBBOTick carries the best bid and ask as price and quantity pairs.
-type WebsocketMarketBBOTick struct {
-	Channel   string     `json:"ch"`
-	MRID      uint64     `json:"mrid"`
-	ID        uint64     `json:"id"`
-	Bid       [2]float64 `json:"bid"`
-	Ask       [2]float64 `json:"ask"`
-	Timestamp types.Time `json:"ts"`
-	Version   uint64     `json:"version"`
-}
-
-// WebsocketSubTradeDetailTick groups executions published in one trade notification.
-type WebsocketSubTradeDetailTick struct {
-	ID        uint64                  `json:"id"`
-	Timestamp types.Time              `json:"ts"`
-	Data      []WebsocketFuturesTrade `json:"data"`
-}
-
 // MarginRate groups the borrowing currencies available for a margin trading symbol.
 type MarginRate struct {
 	Symbol     string               `json:"symbol"`
@@ -945,32 +836,23 @@ type OrderCancellationFailure struct {
 
 // TradesTick groups executions returned by the latest-trade endpoint.
 type TradesTick struct {
-	Data []Trade `json:"data"`
-}
-
-// WebsocketFuturesTrade is one execution with its taker direction and exchange timestamp.
-type WebsocketFuturesTrade struct {
-	Amount    float64    `json:"amount"`
-	Timestamp types.Time `json:"ts"`
-	ID        uint64     `json:"id"`
-	Price     float64    `json:"price"`
-	Direction string     `json:"direction"`
+	Trades []Trade `json:"data"`
 }
 
 // MarginRateCurrency describes the borrowing limits and interest rates for one margin currency.
 type MarginRateCurrency struct {
-	Currency       string       `json:"currency"`
-	InterestRate   types.Number `json:"interest-rate"`
-	MinLoanAmount  types.Number `json:"min-loan-amt"`
-	MaxLoanAmount  types.Number `json:"max-loan-amt"`
-	LoanableAmount types.Number `json:"loanable-amt"`
-	ActualRate     types.Number `json:"actual-rate"`
+	Currency       currency.Code `json:"currency"`
+	InterestRate   types.Number  `json:"interest-rate"`
+	MinLoanAmount  types.Number  `json:"min-loan-amt"`
+	MaxLoanAmount  types.Number  `json:"max-loan-amt"`
+	LoanableAmount types.Number  `json:"loanable-amt"`
+	ActualRate     types.Number  `json:"actual-rate"`
 }
 
 // CancelOrderBatchResponse contains the result of one batch cancellation request.
 type CancelOrderBatchResponse struct {
 	Response
-	Data *CancelOrderBatch `json:"data"`
+	Cancellations *CancelOrderBatch `json:"data"`
 }
 
 // cancelOrderBatchRequest accepts one identifier kind per request.

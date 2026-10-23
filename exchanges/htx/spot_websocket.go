@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"math"
-	"strconv"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -36,7 +35,7 @@ func (e *Exchange) wsHandleV1ping(ctx context.Context, conn websocket.Connection
 	if err := common.NilGuard(conn); err != nil {
 		return err
 	}
-	if err := conn.SendJSONMessage(ctx, request.Unset, json.RawMessage(`{"pong":`+strconv.FormatInt(pingValue, 10)+`}`)); err != nil {
+	if err := conn.SendJSONMessage(ctx, request.Unset, &websocketPong{Pong: pingValue}); err != nil {
 		return fmt.Errorf("error sending pong response: %w", err)
 	}
 	return nil
@@ -83,23 +82,23 @@ func (e *Exchange) wsHandleAllTradesMsg(ctx context.Context, s *subscription.Sub
 	if err := json.Unmarshal(respRaw, &t); err != nil {
 		return err
 	}
-	trades := make([]trade.Data, 0, len(t.Tick.Data))
-	for i := range t.Tick.Data {
+	trades := make([]trade.Data, 0, len(t.Tick.Trades))
+	for i := range t.Tick.Trades {
 		side := order.Buy
-		if t.Tick.Data[i].Direction != "buy" {
+		if t.Tick.Trades[i].Direction != "buy" {
 			side = order.Sell
 		}
-		tradeID := t.Tick.Data[i].TradeID
+		tradeID := t.Tick.Trades[i].TradeID
 		if tradeID == "" {
-			tradeID = t.Tick.Data[i].ID
+			tradeID = t.Tick.Trades[i].ID
 		}
 		trades = append(trades, trade.Data{
 			Exchange:     e.Name,
 			AssetType:    s.Asset,
 			CurrencyPair: s.Pairs[0],
-			Timestamp:    t.Tick.Data[i].Timestamp.Time().UTC(),
-			Amount:       t.Tick.Data[i].Amount,
-			Price:        t.Tick.Data[i].Price,
+			Timestamp:    t.Tick.Trades[i].Timestamp.Time().UTC(),
+			Amount:       t.Tick.Trades[i].Amount,
+			Price:        t.Tick.Trades[i].Price,
 			Side:         side,
 			TID:          string(tradeID),
 		})

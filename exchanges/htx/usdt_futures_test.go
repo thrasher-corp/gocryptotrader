@@ -13,12 +13,13 @@ import (
 
 func TestGetLinearSwapMarkets(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct {
+	type testCase struct {
 		name, date, deliveryTime string
 		expected                 time.Time
 		expectedDeliveryTime     time.Time
 		wantErr                  bool
-	}{
+	}
+	for _, tc := range []testCase{
 		{name: "dated contract", date: "20211203", deliveryTime: "1638518400000", expectedDeliveryTime: time.UnixMilli(1638518400000), expected: time.Date(2021, time.December, 3, 0, 0, 0, 0, time.UTC)},
 		{name: "perpetual", date: ""},
 		{name: "malformed date", date: "20211303", wantErr: true},
@@ -62,8 +63,8 @@ func TestGetLinearSwapKlineData(t *testing.T) {
 	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/linear-swap-ex/market/history/kline", `{"status":"ok","data":[{"id":1604312615,"close":1}]}`, nil)
 	resp, err := h.GetLinearSwapKlineData(t.Context(), btcusdtPair, "1min", 10, time.Time{}, time.Time{})
 	require.NoError(t, err, "GetLinearSwapKlineData must not error")
-	require.Len(t, resp.Data, 1, "decoded candles must be returned")
-	assert.Equal(t, float64(1), resp.Data[0].Close, "close price should decode")
+	require.Len(t, resp.Candles, 1, "decoded candles must be returned")
+	assert.Equal(t, float64(1), resp.Candles[0].Close, "close price should decode")
 	_, err = h.GetLinearSwapKlineData(t.Context(), btcusdtPair, "invalid", 10, time.Time{}, time.Time{})
 	require.ErrorIs(t, err, common.ErrInvalidPeriod, "GetLinearSwapKlineData must reject an invalid period")
 	_, err = h.GetLinearSwapKlineData(t.Context(), btcusdtPair, "1min", 10, time.Now(), time.Time{})

@@ -7,43 +7,43 @@ import (
 
 // SwapWebsocketOrder stores subscribed order data for swap websocket
 type SwapWebsocketOrder struct {
-	Operation       string                 `json:"op"`
-	Topic           string                 `json:"topic"`
-	UID             string                 `json:"uid"`
-	Timestamp       types.Time             `json:"ts"`
-	Symbol          string                 `json:"symbol"`
-	ContractCode    string                 `json:"contract_code"`
-	ContractType    string                 `json:"contract_type"`
-	Pair            string                 `json:"pair"`
-	BusinessType    string                 `json:"business_type"`
-	MarginMode      string                 `json:"margin_mode"`
-	MarginAccount   string                 `json:"margin_account"`
-	Volume          float64                `json:"volume"`
-	Price           float64                `json:"price"`
-	OrderPriceType  string                 `json:"order_price_type"`
-	Direction       string                 `json:"direction"`
-	Offset          string                 `json:"offset"`
-	Status          uint64                 `json:"status"`
-	LeverageRate    uint64                 `json:"lever_rate"`
-	OrderID         uint64                 `json:"order_id"`
-	OrderIDString   string                 `json:"order_id_str"`
-	ClientOrderID   uint64                 `json:"client_order_id"`
-	OrderSource     string                 `json:"order_source"`
-	OrderType       uint64                 `json:"order_type"`
-	CreatedAt       types.Time             `json:"created_at"`
-	CanceledAt      types.Time             `json:"canceled_at"`
-	TradeVolume     float64                `json:"trade_volume"`
-	TradeTurnover   float64                `json:"trade_turnover"`
-	Fee             float64                `json:"fee"`
-	FeeAsset        currency.Code          `json:"fee_asset"`
-	TradeAvgPrice   float64                `json:"trade_avg_price"`
-	MarginFrozen    float64                `json:"margin_frozen"`
-	Profit          float64                `json:"profit"`
-	RealProfit      float64                `json:"real_profit"`
-	ReduceOnly      uint64                 `json:"reduce_only"`
-	IsTPSL          uint64                 `json:"is_tpsl"`
-	Trade           []LegacyFuturesWSTrade `json:"trade"`
-	LiquidationType string                 `json:"liquidation_type"`
+	Operation         string                 `json:"op"`
+	Topic             string                 `json:"topic"`
+	UID               string                 `json:"uid"`
+	Timestamp         types.Time             `json:"ts"`
+	Symbol            string                 `json:"symbol"`
+	ContractCode      string                 `json:"contract_code"`
+	ContractType      string                 `json:"contract_type"`
+	Pair              string                 `json:"pair"`
+	BusinessType      string                 `json:"business_type"`
+	MarginMode        string                 `json:"margin_mode"`
+	MarginAccount     string                 `json:"margin_account"`
+	Volume            float64                `json:"volume"`
+	Price             float64                `json:"price"`
+	OrderPriceType    string                 `json:"order_price_type"`
+	Direction         string                 `json:"direction"`
+	Offset            string                 `json:"offset"`
+	Status            uint64                 `json:"status"`
+	LeverageRate      uint64                 `json:"lever_rate"`
+	OrderID           uint64                 `json:"order_id"`
+	OrderIDString     string                 `json:"order_id_str"`
+	ClientOrderID     uint64                 `json:"client_order_id"`
+	OrderSource       string                 `json:"order_source"`
+	OrderType         uint64                 `json:"order_type"`
+	CreatedAt         types.Time             `json:"created_at"`
+	CanceledAt        types.Time             `json:"canceled_at"`
+	TradeVolume       float64                `json:"trade_volume"`
+	TradeTurnover     float64                `json:"trade_turnover"`
+	Fee               float64                `json:"fee"`
+	FeeAsset          currency.Code          `json:"fee_asset"`
+	TradeAveragePrice float64                `json:"trade_avg_price"`
+	MarginFrozen      float64                `json:"margin_frozen"`
+	Profit            float64                `json:"profit"`
+	RealProfit        float64                `json:"real_profit"`
+	ReduceOnly        uint64                 `json:"reduce_only"`
+	IsTPSL            uint64                 `json:"is_tpsl"`
+	Trade             []LegacyFuturesWSTrade `json:"trade"`
+	LiquidationType   string                 `json:"liquidation_type"`
 }
 
 // SwapWebsocketMatchOrder stores subscribed match order data for swap websocket
@@ -101,7 +101,7 @@ type SwapWebsocketAccountUpdates struct {
 	Timestamp types.Time             `json:"ts"`
 	UID       string                 `json:"uid"`
 	Event     string                 `json:"event"`
-	Data      []SwapWebsocketAccount `json:"data"`
+	Accounts  []SwapWebsocketAccount `json:"data"`
 }
 
 // SwapWebsocketPositionUpdates stores subscribed position updates data for swap websocket
@@ -111,7 +111,7 @@ type SwapWebsocketPositionUpdates struct {
 	UID       string                  `json:"uid"`
 	Timestamp types.Time              `json:"ts"`
 	Event     string                  `json:"event"`
-	Data      []SwapWebsocketPosition `json:"data"`
+	Positions []SwapWebsocketPosition `json:"data"`
 }
 
 // SwapWebsocketTriggerOrderUpdates stores subscribed trigger order updates data for swap websocket
@@ -120,7 +120,7 @@ type SwapWebsocketTriggerOrderUpdates struct {
 	Topic     string                      `json:"topic"`
 	UID       string                      `json:"uid"`
 	Event     string                      `json:"event"`
-	Data      []SwapWebsocketTriggerOrder `json:"data"`
+	Orders    []SwapWebsocketTriggerOrder `json:"data"`
 }
 
 // SwapWebsocketAccount contains a coin-margined perpetual account update.
@@ -129,7 +129,7 @@ type SwapWebsocketAccount struct {
 	ContractCode          string                        `json:"contract_code"`
 	MarginMode            string                        `json:"margin_mode"`
 	MarginAccount         string                        `json:"margin_account"`
-	MarginAsset           string                        `json:"margin_asset"`
+	MarginAsset           currency.Code                 `json:"margin_asset"`
 	PositionMode          string                        `json:"position_mode"`
 	MarginBalance         float64                       `json:"margin_balance"`
 	MarginStatic          float64                       `json:"margin_static"`
@@ -149,27 +149,27 @@ type SwapWebsocketAccount struct {
 
 // SwapWebsocketPosition contains a coin-margined perpetual position update.
 type SwapWebsocketPosition struct {
-	Symbol         string  `json:"symbol"`
-	ContractCode   string  `json:"contract_code"`
-	ContractType   string  `json:"contract_type"`
-	Pair           string  `json:"pair"`
-	BusinessType   string  `json:"business_type"`
-	MarginAsset    string  `json:"margin_asset"`
-	MarginMode     string  `json:"margin_mode"`
-	MarginAccount  string  `json:"margin_account"`
-	PositionMode   string  `json:"position_mode"`
-	Volume         float64 `json:"volume"`
-	Available      float64 `json:"available"`
-	Frozen         float64 `json:"frozen"`
-	CostOpen       float64 `json:"cost_open"`
-	CostHold       float64 `json:"cost_hold"`
-	ProfitUnreal   float64 `json:"profit_unreal"`
-	ProfitRate     float64 `json:"profit_rate"`
-	Profit         float64 `json:"profit"`
-	PositionMargin float64 `json:"position_margin"`
-	LeverageRate   float64 `json:"lever_rate"`
-	Direction      string  `json:"direction"`
-	LastPrice      float64 `json:"last_price"`
+	Symbol         string        `json:"symbol"`
+	ContractCode   string        `json:"contract_code"`
+	ContractType   string        `json:"contract_type"`
+	Pair           string        `json:"pair"`
+	BusinessType   string        `json:"business_type"`
+	MarginAsset    currency.Code `json:"margin_asset"`
+	MarginMode     string        `json:"margin_mode"`
+	MarginAccount  string        `json:"margin_account"`
+	PositionMode   string        `json:"position_mode"`
+	Volume         float64       `json:"volume"`
+	Available      float64       `json:"available"`
+	Frozen         float64       `json:"frozen"`
+	CostOpen       float64       `json:"cost_open"`
+	CostHold       float64       `json:"cost_hold"`
+	ProfitUnreal   float64       `json:"profit_unreal"`
+	ProfitRate     float64       `json:"profit_rate"`
+	Profit         float64       `json:"profit"`
+	PositionMargin float64       `json:"position_margin"`
+	LeverageRate   float64       `json:"lever_rate"`
+	Direction      string        `json:"direction"`
+	LastPrice      float64       `json:"last_price"`
 }
 
 // SwapWebsocketTriggerOrder contains a coin-margined perpetual trigger order update.
@@ -199,7 +199,7 @@ type SwapWebsocketTriggerOrder struct {
 	TriggeredAt     types.Time `json:"triggered_at"`
 	OrderInsertAt   types.Time `json:"order_insert_at"`
 	CancelledAt     types.Time `json:"canceled_at"`
-	FailCode        int64      `json:"fail_code"`
+	FailCode        uint64     `json:"fail_code"`
 	FailReason      string     `json:"fail_reason"`
 	ReduceOnly      uint64     `json:"reduce_only"`
 }

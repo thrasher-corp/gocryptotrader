@@ -28,6 +28,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 )
@@ -1668,6 +1670,37 @@ func TestReadConfigFromReader(t *testing.T) {
 
 	err = c.readConfig(strings.NewReader("{}"))
 	require.NoError(t, err, "Reading a config shorter than encryptionPrefix must not error EOF")
+	for _, name := range []string{"Huobi", "huobi", "HTX"} {
+		t.Run("HTX derivative migration "+name, func(t *testing.T) {
+			t.Parallel()
+			input := `{"version":17,"exchanges":[{"name":"` + name + `","currencyPairs":{"pairs":{}},"features":{"subscriptions":[{"enabled":true,"channel":"myAccount","authenticated":true},{"enabled":true,"channel":"myOrders","asset":"Futures"},{"enabled":true,"channel":"fundingRate","asset":"USDTMarginedFutures"}]}}]}`
+			cfg := new(Config)
+			require.NoError(t, cfg.readConfig(strings.NewReader(input)), "real config loader must migrate derivative subscriptions")
+			require.Len(t, cfg.Exchanges, 1, "loader must retain the exchange")
+			loaded := &cfg.Exchanges[0]
+			assert.Equal(t, "HTX", loaded.Name, "loader should canonicalise the exchange name")
+			require.NotNil(t, loaded.CurrencyPairs, "migrated pair manager must be present")
+			assert.Contains(t, loaded.CurrencyPairs.Pairs, asset.USDTMarginedFutures, "USDT pairs should load under the runtime asset key")
+			require.NotNil(t, loaded.Features, "migrated features must be present")
+			require.Len(t, loaded.Features.Subscriptions, 31, "loader must preserve user entries and add all derivative defaults")
+			assert.Equal(t, asset.Spot, loaded.Features.Subscriptions[0].Asset, "implicit spot account scope should remain spot")
+			assert.False(t, loaded.Features.Subscriptions[1].Authenticated, "existing unauthenticated user entry should remain unchanged")
+			var candles, privateOrders int
+			for _, sub := range loaded.Features.Subscriptions {
+				assert.NotEqual(t, "fundingRate", sub.Channel, "unsupported mixed-case funding default should be removed")
+				if sub.Channel == subscription.CandlesChannel {
+					candles++
+					assert.Equal(t, kline.OneMin, sub.Interval, "candle interval should decode through runtime types")
+				}
+				if sub.Asset == asset.Futures && sub.Channel == subscription.MyOrdersChannel && sub.Authenticated {
+					privateOrders++
+					assert.False(t, sub.Enabled, "added private default should remain disabled")
+				}
+			}
+			assert.Equal(t, 3, candles, "all derivative candle defaults should load")
+			assert.Equal(t, 1, privateOrders, "unauthenticated user entry should not suppress the authenticated default")
+		})
+	}
 }
 
 func TestLoadConfig(t *testing.T) {

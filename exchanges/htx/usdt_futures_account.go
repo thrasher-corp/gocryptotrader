@@ -122,8 +122,8 @@ func (e *Exchange) GetV5UniversalTransferRecords(ctx context.Context, req *V5Uni
 	if req.TransferID != 0 {
 		params.Set("transfer_id", strconv.FormatUint(req.TransferID, 10))
 	}
-	if req.Currency != "" {
-		params.Set("currency", req.Currency)
+	if !req.Currency.IsEmpty() {
+		params.Set("currency", req.Currency.String())
 	}
 	if req.Status != "" {
 		params.Set("status", req.Status)

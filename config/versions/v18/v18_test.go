@@ -96,43 +96,59 @@ func TestUpgradeExchange(t *testing.T) {
 	})
 	t.Run("derivative configuration", func(t *testing.T) {
 		t.Parallel()
-		input := []byte(`{"name":"HTX","currencyPairs":{"pairs":{}},"features":{"subscriptions":[{"enabled":true,"channel":"myAccount","authenticated":true}]}}`)
-		out, err := new(v18.Version).UpgradeExchange(t.Context(), input)
-		require.NoError(t, err, "UpgradeExchange must not error")
-		var config struct {
-			CurrencyPairs struct {
-				Pairs map[string]any `json:"pairs"`
-			} `json:"currencyPairs"`
-			Features struct {
-				Subscriptions []struct {
-					Enabled       bool   `json:"enabled"`
-					Channel       string `json:"channel"`
-					Asset         string `json:"asset"`
-					Authenticated bool   `json:"authenticated"`
-				} `json:"subscriptions"`
-			} `json:"features"`
+		const defaults = `{"enabled":true,"channel":"ticker","asset":"futures"},
+{"enabled":true,"channel":"candles","asset":"futures","interval":"1m"},
+{"enabled":true,"channel":"orderbook","asset":"futures"},
+{"enabled":true,"channel":"allTrades","asset":"futures"},
+{"enabled":false,"channel":"myOrders","asset":"futures","authenticated":true},
+{"enabled":false,"channel":"myTrades","asset":"futures","authenticated":true},
+{"enabled":false,"channel":"myAccount","asset":"futures","authenticated":true},
+{"enabled":false,"channel":"positions","asset":"futures","authenticated":true},
+{"enabled":false,"channel":"triggerOrders","asset":"futures","authenticated":true},
+{"enabled":true,"channel":"ticker","asset":"coinmarginedfutures"},
+{"enabled":true,"channel":"candles","asset":"coinmarginedfutures","interval":"1m"},
+{"enabled":true,"channel":"orderbook","asset":"coinmarginedfutures"},
+{"enabled":true,"channel":"allTrades","asset":"coinmarginedfutures"},
+{"enabled":false,"channel":"myOrders","asset":"coinmarginedfutures","authenticated":true},
+{"enabled":false,"channel":"myTrades","asset":"coinmarginedfutures","authenticated":true},
+{"enabled":false,"channel":"myAccount","asset":"coinmarginedfutures","authenticated":true},
+{"enabled":false,"channel":"positions","asset":"coinmarginedfutures","authenticated":true},
+{"enabled":false,"channel":"triggerOrders","asset":"coinmarginedfutures","authenticated":true},
+{"enabled":true,"channel":"ticker","asset":"usdtmarginedfutures"},
+{"enabled":true,"channel":"candles","asset":"usdtmarginedfutures","interval":"1m"},
+{"enabled":true,"channel":"orderbook","asset":"usdtmarginedfutures"},
+{"enabled":true,"channel":"allTrades","asset":"usdtmarginedfutures"},
+{"enabled":false,"channel":"myOrders","asset":"usdtmarginedfutures","authenticated":true},
+{"enabled":false,"channel":"tradeUpdates","asset":"usdtmarginedfutures","authenticated":true},
+{"enabled":false,"channel":"executionDetails","asset":"usdtmarginedfutures","authenticated":true},
+{"enabled":false,"channel":"myAccount","asset":"usdtmarginedfutures","authenticated":true},
+{"enabled":false,"channel":"positions","asset":"usdtmarginedfutures","authenticated":true},
+{"enabled":false,"channel":"myTrades","asset":"usdtmarginedfutures","authenticated":true},
+{"enabled":false,"channel":"triggerOrders","asset":"usdtmarginedfutures","authenticated":true}`
+		for _, tc := range []struct{ name, subscriptions, preserved string }{
+			{name: "defaults", subscriptions: `{"enabled":true,"channel":"myAccount","authenticated":true}`, preserved: `{"enabled":true,"channel":"myAccount","authenticated":true,"asset":"spot"}`},
+			{name: "unauthenticated private channel", subscriptions: `{"enabled":true,"channel":"myOrders","asset":"futures"}`, preserved: `{"enabled":true,"channel":"myOrders","asset":"futures"}`},
+			{name: "mixed-case funding defaults", subscriptions: `{"enabled":true,"channel":"myAccount","authenticated":true},{"enabled":true,"channel":"fundingRate","asset":"USDTMarginedFutures"},{"enabled":true,"channel":"fundingRate","asset":"COINMARGINEDFUTURES"}`, preserved: `{"enabled":true,"channel":"myAccount","authenticated":true,"asset":"spot"}`},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				input := []byte(`{"name":"HTX","currencyPairs":{"pairs":{}},"features":{"subscriptions":[` + tc.subscriptions + `]}}`)
+				out, err := new(v18.Version).UpgradeExchange(t.Context(), input)
+				require.NoError(t, err, "derivative configuration must migrate")
+				var cfg struct {
+					CurrencyPairs currency.PairsManager `json:"currencyPairs"`
+					Features      struct {
+						Subscriptions json.RawMessage `json:"subscriptions"`
+					} `json:"features"`
+				}
+				require.NoError(t, json.Unmarshal(out, &cfg), "runtime pair manager and subscriptions must decode")
+				assert.Contains(t, cfg.CurrencyPairs.Pairs, asset.USDTMarginedFutures, "USDT-margined pairs should be added")
+				assert.JSONEq(t, `[`+tc.preserved+`,`+defaults+`]`, string(cfg.Features.Subscriptions), "complete subscription defaults should retain intervals, authentication and asset scope")
+				second, err := new(v18.Version).UpgradeExchange(t.Context(), out)
+				require.NoError(t, err, "repeated migration must succeed")
+				assert.JSONEq(t, string(out), string(second), "derivative migration should be idempotent")
+			})
 		}
-		require.NoError(t, json.Unmarshal(out, &config), "upgraded exchange must decode")
-		assert.Contains(t, config.CurrencyPairs.Pairs, "usdtmarginedfutures", "USDT-margined pairs should be added")
-		assert.Len(t, config.Features.Subscriptions, 30, "spot account and all derivative subscriptions should be retained")
-		assert.Equal(t, "spot", config.Features.Subscriptions[0].Asset, "spot account subscription should retain its asset")
-		privateCount := 0
-		fundingRateCount := 0
-		for _, sub := range config.Features.Subscriptions {
-			if sub.Channel == "fundingRate" {
-				fundingRateCount++
-			}
-			if sub.Authenticated && sub.Asset != "spot" {
-				privateCount++
-				assert.False(t, sub.Enabled, "private derivative subscriptions should default to disabled")
-			}
-		}
-		assert.Equal(t, 17, privateCount, "all private derivative subscriptions should be added")
-		assert.Zero(t, fundingRateCount, "unsupported funding defaults should not be added")
-
-		second, err := new(v18.Version).UpgradeExchange(t.Context(), out)
-		require.NoError(t, err, "repeated UpgradeExchange must not error")
-		assert.JSONEq(t, string(out), string(second), "UpgradeExchange should be idempotent")
 	})
 	t.Run("implicit defaults", func(t *testing.T) {
 		t.Parallel()

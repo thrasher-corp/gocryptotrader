@@ -3,7 +3,6 @@ package htx
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -28,19 +27,19 @@ func (e *Exchange) wsHandleUSDTMarginedPrivateMessage(ctx context.Context, sub *
 		if err := json.Unmarshal(raw, response); err != nil {
 			return err
 		}
-		return e.sendV5WSOrderUpdate(ctx, sub, response.ContractCode, &response.Data)
+		return e.sendV5WSOrderUpdate(ctx, sub, response.ContractCode, &response.Order)
 	case wsTradeUpdatesChannel:
 		response := new(V5WebsocketTradeUpdate)
 		if err := json.Unmarshal(raw, response); err != nil {
 			return err
 		}
-		return e.sendV5WSExecutionUpdates(ctx, sub, response.ContractCode, response.Data)
+		return e.sendV5WSExecutionUpdates(ctx, sub, response.ContractCode, response.Executions)
 	case wsExecutionDetailsChannel:
 		response := new(V5WebsocketTradeDetailUpdate)
 		if err := json.Unmarshal(raw, response); err != nil {
 			return err
 		}
-		return e.sendV5WSExecutionUpdates(ctx, sub, response.ContractCode, response.Data)
+		return e.sendV5WSExecutionUpdates(ctx, sub, response.ContractCode, response.Executions)
 	case wsPositionsChannel:
 		response := new(V5WebsocketPositionUpdate)
 		if err := json.Unmarshal(raw, response); err != nil {
@@ -52,16 +51,16 @@ func (e *Exchange) wsHandleUSDTMarginedPrivateMessage(ctx context.Context, sub *
 		if err := json.Unmarshal(raw, response); err != nil {
 			return err
 		}
-		changes := make([]accounts.Change, 0, len(response.Data.Details))
-		for i := range response.Data.Details {
-			free := v5FreeMargin(&response.Data.Details[i])
+		changes := make([]accounts.Change, 0, len(response.Balance.CurrencyBalances))
+		for i := range response.Balance.CurrencyBalances {
+			free := v5FreeMargin(&response.Balance.CurrencyBalances[i])
 			changes = append(changes, accounts.Change{
 				AssetType: sub.Asset,
 				Balance: accounts.Balance{
-					Currency:  currency.NewCode(response.Data.Details[i].Currency),
-					Total:     (response.Data.Details[i].Equity.Float64() + response.Data.Details[i].IsolatedEquity.Float64()),
+					Currency:  response.Balance.CurrencyBalances[i].Currency,
+					Total:     (response.Balance.CurrencyBalances[i].Equity.Float64() + response.Balance.CurrencyBalances[i].IsolatedEquity.Float64()),
 					Free:      free,
-					Hold:      (response.Data.Details[i].Equity.Float64() + response.Data.Details[i].IsolatedEquity.Float64()) - free,
+					Hold:      (response.Balance.CurrencyBalances[i].Equity.Float64() + response.Balance.CurrencyBalances[i].IsolatedEquity.Float64()) - free,
 					UpdatedAt: response.Timestamp.Time(),
 				},
 			})
@@ -75,8 +74,8 @@ func (e *Exchange) wsHandleUSDTMarginedPrivateMessage(ctx context.Context, sub *
 		if err := json.Unmarshal(raw, response); err != nil {
 			return err
 		}
-		for i := range response.Data {
-			match := &response.Data[i]
+		for i := range response.Orders {
+			match := &response.Orders[i]
 			contractCode := match.ContractCode
 			if contractCode == "" {
 				contractCode = response.ContractCode
@@ -102,13 +101,6 @@ func (e *Exchange) wsHandleUSDTMarginedPrivateMessage(ctx context.Context, sub *
 
 // sendV5WSOrderUpdate converts each V5 order-notification variant into the canonical order type.
 func (e *Exchange) sendV5WSOrderUpdate(ctx context.Context, sub *subscription.Subscription, contractCode string, data *V5WebsocketOrder) error {
-	var created, updated time.Time
-	if data.CreatedTime != 0 {
-		created = time.UnixMilli(data.CreatedTime.Int64())
-	}
-	if data.UpdatedTime != 0 {
-		updated = time.UnixMilli(data.UpdatedTime.Int64())
-	}
 	detail, err := e.formatV5OrderDetail(&V5Order{
 		ContractCode:      contractCode,
 		Side:              data.Side,
@@ -128,8 +120,8 @@ func (e *Exchange) sendV5WSOrderUpdate(ctx context.Context, sub *subscription.Su
 		TradeTurnover:     data.TradeTurnover,
 		FeeCurrency:       data.FeeCurrency,
 		Fee:               data.Fee,
-		CreatedTime:       types.Time(created),
-		UpdatedTime:       types.Time(updated),
+		CreatedTime:       data.CreatedTime,
+		UpdatedTime:       data.UpdatedTime,
 	}, sub.Asset)
 	if err != nil {
 		return err
@@ -208,7 +200,7 @@ func (e *Exchange) sendV5TradeRequest(ctx context.Context, operation string, dat
 		return err
 	}
 	cid := e.MessageID()
-	raw, err := conn.SendMessageReturnResponse(ctx, request.Unset, cid, &V5WebsocketTradeRequest{Operation: operation, CID: cid, Data: data})
+	raw, err := conn.SendMessageReturnResponse(ctx, request.Unset, cid, &V5WebsocketTradeRequest{Operation: operation, CID: cid, Parameters: data})
 	if err != nil {
 		return err
 	}

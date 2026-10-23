@@ -26,8 +26,8 @@ func TestGetV5Leverage(t *testing.T) {
 	})
 	resp, err := h.GetV5Leverage(t.Context(), btcusdtPair, "cross", "long")
 	require.NoError(t, err, "GetV5Leverage must not error")
-	require.Len(t, resp.Data, 1, "one leverage entry must decode")
-	assert.Equal(t, []uint64{1, 5, 10}, resp.Data[0].AvailableLeverage, "available leverage should decode")
+	require.Len(t, resp.Leverage, 1, "one leverage entry must decode")
+	assert.Equal(t, []uint64{1, 5, 10}, resp.Leverage[0].AvailableLeverage, "available leverage should decode")
 }
 
 func TestSetV5Leverage(t *testing.T) {
@@ -37,7 +37,7 @@ func TestSetV5Leverage(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrNilPointer, "SetV5Leverage must reject nil request")
 	resp, err := h.SetV5Leverage(t.Context(), &V5SetLeverageRequest{ContractCode: "BTC-USDT", MarginMode: "cross", LeverageRate: 5})
 	require.NoError(t, err, "SetV5Leverage must not error")
-	assert.Equal(t, types.Number(5), resp.Data.LeverageRate, "leverage should decode")
+	assert.Equal(t, types.Number(5), resp.Leverage.LeverageRate, "leverage should decode")
 }
 
 func TestAdjustV5PositionMargin(t *testing.T) {
@@ -55,7 +55,7 @@ func TestGetV5PositionMode(t *testing.T) {
 	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/position/mode", `{"code":200,"data":{"position_mode":"dual_side"}}`, nil)
 	resp, err := h.GetV5PositionMode(t.Context())
 	require.NoError(t, err, "GetV5PositionMode must not error")
-	assert.Equal(t, "dual_side", resp.Data.PositionMode, "position mode should decode")
+	assert.Equal(t, "dual_side", resp.Mode.PositionMode, "position mode should decode")
 }
 
 func TestSetV5PositionMode(t *testing.T) {
@@ -63,7 +63,7 @@ func TestSetV5PositionMode(t *testing.T) {
 	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodPost, "/v5/position/mode", `{"code":200,"data":{"position_mode":"single_side"}}`, nil)
 	resp, err := h.SetV5PositionMode(t.Context(), "single_side")
 	require.NoError(t, err, "SetV5PositionMode must not error")
-	assert.Equal(t, "single_side", resp.Data.PositionMode, "position mode should decode")
+	assert.Equal(t, "single_side", resp.Mode.PositionMode, "position mode should decode")
 }
 
 func TestGetV5PositionRiskLimit(t *testing.T) {
@@ -71,8 +71,8 @@ func TestGetV5PositionRiskLimit(t *testing.T) {
 	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/position/risk/limit", `{"code":200,"data":[{"contract_code":"BTC-USDT","max_volume":"100"}]}`, nil)
 	resp, err := h.GetV5PositionRiskLimit(t.Context(), currency.EMPTYPAIR, "cross", "long")
 	require.NoError(t, err, "GetV5PositionRiskLimit must not error")
-	require.Len(t, resp.Data, 1, "one risk limit must decode")
-	assert.Equal(t, types.Number(100), resp.Data[0].MaximumVolume, "maximum volume should decode")
+	require.Len(t, resp.RiskLimits, 1, "one risk limit must decode")
+	assert.Equal(t, types.Number(100), resp.RiskLimits[0].MaximumVolume, "maximum volume should decode")
 }
 
 func TestGetV5PositionRiskLimitTiers(t *testing.T) {
@@ -80,13 +80,13 @@ func TestGetV5PositionRiskLimitTiers(t *testing.T) {
 	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/position/risk/limit_tier", `{"code":200,"data":[{"contract_code":"BTC-USDT","tier":"1"}]}`, nil)
 	resp, err := h.GetV5PositionRiskLimitTiers(t.Context(), btcusdtPair, "cross")
 	require.NoError(t, err, "GetV5PositionRiskLimitTiers must not error")
-	require.Len(t, resp.Data, 1, "one risk tier must decode")
-	assert.Equal(t, types.Number(1), resp.Data[0].Tier, "risk tier should decode")
+	require.Len(t, resp.RiskLimits, 1, "one risk tier must decode")
+	assert.Equal(t, types.Number(1), resp.RiskLimits[0].Tier, "risk tier should decode")
 }
 
 func TestSwitchLinearSwapLeverage(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct {
+	type testCase struct {
 		name         string
 		mode         string
 		crossMargin  bool
@@ -94,7 +94,8 @@ func TestSwitchLinearSwapLeverage(t *testing.T) {
 		wantSide     string
 		wantErr      error
 		modeResponse string
-	}{
+	}
+	for _, tc := range []testCase{
 		{name: "one-way isolated buy", mode: "single_side", side: order.Buy, wantSide: "both"},
 		{name: "one-way isolated sell", mode: "single_side", side: order.Sell, wantSide: "both"},
 		{name: "one-way cross buy", mode: "single_side", crossMargin: true, side: order.Buy, wantSide: "both"},

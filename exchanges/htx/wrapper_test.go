@@ -106,11 +106,11 @@ func TestNewHTTPTestExchange(t *testing.T) {
 	}, httpTestResponse{method: http.MethodGet, path: "/v5/position/mode", body: `{"code":200,"data":{"position_mode":"single_side"}}`, calls: 1})
 	mode, err := h.GetV5PositionMode(t.Context())
 	require.NoError(t, err, "additional HTTP route must be available")
-	assert.Equal(t, "single_side", mode.Data.PositionMode, "additional route should return its own fixture")
+	assert.Equal(t, "single_side", mode.Mode.PositionMode, "additional route should return its own fixture")
 	response, err := h.GetV5AssetMode(t.Context())
 	require.NoError(t, err, "newHTTPTestExchange must provide a usable authenticated exchange")
 	assert.True(t, checked.Load(), "request check should run")
-	assert.Equal(t, uint64(1), response.Data.AssetMode, "response should decode")
+	assert.Equal(t, uint64(1), response.Mode.AssetMode, "response should decode")
 }
 
 func TestSetDefaults(t *testing.T) {
@@ -130,10 +130,11 @@ func TestSetDefaults(t *testing.T) {
 			assert.False(t, sub.Enabled, "private derivative subscriptions should default to disabled")
 		}
 	}
-	for _, tt := range []struct {
+	type testCase struct {
 		endpoint exchange.URL
 		want     string
-	}{
+	}
+	for _, tt := range []testCase{
 		{endpoint: exchange.WebsocketFuturesPrivate, want: wsFuturesPrivateURL},
 		{endpoint: exchange.WebsocketCoinMarginedPrivate, want: wsCoinMarginedPrivateURL},
 		{endpoint: exchange.WebsocketUSDTMarginedPrivate, want: wsUSDTMarginedPrivateURL},
@@ -225,13 +226,14 @@ func TestUpdateCurrencyStates(t *testing.T) {
 
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct {
+	type testCase struct {
 		name           string
 		asset          asset.Item
 		pair           currency.Pair
 		invalidPair    currency.Pair
 		expectedErrMsg string
-	}{
+	}
+	for _, tc := range []testCase{
 		{name: "spot", asset: asset.Spot, pair: currency.NewPairWithDelimiter("BTC", "USDT", "_"), invalidPair: currency.NewPairWithDelimiter("INV", "ALID", "-"), expectedErrMsg: "invalid symbol"},
 		{name: "coin margined futures", asset: asset.CoinMarginedFutures, pair: currency.NewPairWithDelimiter("BTC", "USD", "_"), invalidPair: currency.NewPairWithDelimiter("INV", "ALID", "_"), expectedErrMsg: "symbol data error"},
 		{name: "delivery futures", asset: asset.Futures, pair: btccwPair},
@@ -250,7 +252,7 @@ func TestUpdateTicker(t *testing.T) {
 			require.NoError(t, err, "UpdateTicker must accept the asset's enabled pair")
 		})
 	}
-	for _, tc := range []struct {
+	type tickerResponseCase struct {
 		name                       string
 		a                          asset.Item
 		pair                       currency.Pair
@@ -259,7 +261,8 @@ func TestUpdateTicker(t *testing.T) {
 		wantBase, wantQuote        float64
 		wantBid, wantBidSize       float64
 		wantLastUpdatedFromPayload bool
-	}{
+	}
+	for _, tc := range []tickerResponseCase{
 		{
 			// trimmed from GET /market/detail/merged?symbol=btcusdt
 			name: "spot records the quote turnover and the book", a: asset.Spot,
@@ -328,12 +331,13 @@ func TestUpdateTicker(t *testing.T) {
 
 func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct {
+	type testCase struct {
 		name        string
 		asset       asset.Item
 		pair        currency.Pair
 		expectedErr error
-	}{
+	}
+	for _, tc := range []testCase{
 		{name: "spot", asset: asset.Spot, pair: btcusdtPair},
 		{name: "coin margined futures", asset: asset.CoinMarginedFutures, pair: btcusdPair},
 		{name: "delivery futures", asset: asset.Futures, pair: btccwPair},
@@ -367,11 +371,12 @@ func TestUpdateOrderbookWithLimit(t *testing.T) {
 
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct {
+	type testCase struct {
 		item           asset.Item
 		pair           currency.Pair
 		path, contract string
-	}{
+	}
+	for _, tc := range []testCase{
 		{asset.Futures, btccwPair, "/api/v3/contract_hisorders", "BTC_CW"},
 		{asset.CoinMarginedFutures, btcusdPair, "/swap-api/v3/swap_hisorders", "BTC-USD"},
 	} {
@@ -393,10 +398,11 @@ func TestGetOrderHistory(t *testing.T) {
 			}
 		})
 	}
-	for _, tc := range []struct {
+	type orderTypeCase struct {
 		requestType string
 		timeInForce order.TimeInForce
-	}{
+	}
+	for _, tc := range []orderTypeCase{
 		{requestType: "buy-limit-maker", timeInForce: order.PostOnly},
 		{requestType: "buy-ioc", timeInForce: order.ImmediateOrCancel},
 		{requestType: "buy-limit-fok", timeInForce: order.FillOrKill},
@@ -461,9 +467,10 @@ func TestGetOrderHistory(t *testing.T) {
 		defer mu.Unlock()
 		assert.Equal(t, []string{"", "201"}, cursors, "each page should start after the previous page's last id")
 	})
-	for _, tc := range []struct {
+	type optionalFieldCase struct {
 		name, fields string
-	}{
+	}
+	for _, tc := range []optionalFieldCase{
 		{name: "documented response example", fields: `"field-amount":"1","field-cash-amount":"99.5","field-fees":"0.1"`},
 		{name: "documented response table", fields: `"filled-amount":"1","filled-cash-amount":"99.5","filled-fees":"0.1"`},
 	} {
@@ -495,12 +502,13 @@ func TestGetOrderHistory(t *testing.T) {
 
 		h := new(Exchange)
 		require.NoError(t, testexch.Setup(h), "Setup must not error")
-		testCases := []struct {
+		type testCase struct {
 			name        string
 			pair        currency.Pair
 			asset       asset.Item
 			expectedErr error
-		}{
+		}
+		testCases := []testCase{
 			{name: "spot", pair: btcusdtPair, asset: asset.Spot, expectedErr: exchange.ErrAuthenticationSupportNotEnabled},
 			{name: "coin margined futures", pair: btcusdPair, asset: asset.CoinMarginedFutures, expectedErr: exchange.ErrAuthenticationSupportNotEnabled},
 			{name: "usdt margined futures", pair: btcusdtPair, asset: asset.USDTMarginedFutures, expectedErr: exchange.ErrAuthenticationSupportNotEnabled},
@@ -522,14 +530,15 @@ func TestGetOrderHistory(t *testing.T) {
 			})
 		}
 	})
-	for _, tc := range []struct {
+	type contractHistoryCase struct {
 		name       string
 		item       asset.Item
 		pair       currency.Pair
 		path       string
 		contract   string
 		extraEntry map[string]any
-	}{
+	}
+	for _, tc := range []contractHistoryCase{
 		{
 			name:     "coin margined futures",
 			item:     asset.CoinMarginedFutures,
@@ -715,10 +724,11 @@ func TestGetV3HistoryWindows(t *testing.T) {
 
 func TestCancelAllOrders(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct {
+	type testCase struct {
 		name, response string
 		wantErr        error
-	}{
+	}
+	for _, tc := range []testCase{
 		{name: "API rejection", response: `{"code":400,"message":"cancel unavailable"}`, wantErr: request.ErrAuthRequestFailed},
 		{name: "null response", response: `null`, wantErr: errEmptyResult},
 	} {
@@ -759,7 +769,7 @@ func TestCancelAllOrders(t *testing.T) {
 			assert.Equal(t, []string{"BTC-USDT", "ETH-USDT"}, requested, "cancel-all should attempt every enabled pair after a failure")
 		})
 	}
-	for _, tc := range []struct {
+	type cancellationRequestCase struct {
 		name     string
 		item     asset.Item
 		pair     currency.Pair
@@ -767,7 +777,8 @@ func TestCancelAllOrders(t *testing.T) {
 		path     string
 		response string
 		want     map[string]string
-	}{
+	}
+	for _, tc := range []cancellationRequestCase{
 		{
 			name: "coin margined", item: asset.CoinMarginedFutures, pair: btcusdPair, endpoint: exchange.RestFutures, path: "/swap-api/v1/swap_cancelall",
 			response: `{"status":"ok","data":{"errors":[{"order_id":"9","err_code":1061,"err_msg":"not found"}],"successes":"8"},"ts":1700000000000}`,
@@ -787,16 +798,35 @@ func TestCancelAllOrders(t *testing.T) {
 		for _, allPairs := range []bool{false, true} {
 			t.Run(tc.name+map[bool]string{false: " pair", true: " all pairs"}[allPairs], func(t *testing.T) {
 				t.Parallel()
-				h := newHTTPTestExchange(t, tc.endpoint, http.MethodPost, tc.path, tc.response, nil)
+				var requested []string
+				h := newHTTPTestExchange(t, tc.endpoint, http.MethodPost, tc.path, tc.response, func(r *http.Request) {
+					var payload map[string]any
+					if assert.NoError(t, json.NewDecoder(r.Body).Decode(&payload), "cancel-all payload should decode") {
+						code, ok := payload["contract_code"].(string)
+						assert.True(t, ok, "cancel-all should explicitly restrict the contract")
+						requested = append(requested, code)
+					}
+				})
+				otherPair := currency.NewPair(currency.ETH, tc.pair.Quote)
+				pairs := currency.Pairs{tc.pair, otherPair}
+				require.NoError(t, h.SetPairs(pairs, tc.item, false), "both contracts must be available")
+				require.NoError(t, h.SetPairs(pairs, tc.item, true), "both contracts must be enabled")
 				cancel := &order.Cancel{Exchange: h.Name, AssetType: tc.item, Pair: tc.pair}
 				if allPairs {
-					require.NoError(t, h.SetPairs(currency.Pairs{tc.pair}, tc.item, false), "available pairs must be set")
-					require.NoError(t, h.SetPairs(currency.Pairs{tc.pair}, tc.item, true), "enabled pairs must be set")
 					cancel.Pair = currency.EMPTYPAIR
 				}
 				resp, err := h.CancelAllOrders(t.Context(), cancel)
 				require.NoError(t, err, "cancel-all must not error")
 				assert.Equal(t, tc.want, resp.Status, "cancel-all should report failed cancellations as failures")
+				expectedCode, err := h.FormatSymbol(tc.pair, tc.item)
+				require.NoError(t, err, "selected contract must format")
+				expected := []string{expectedCode}
+				if allPairs {
+					otherCode, err := h.FormatSymbol(otherPair, tc.item)
+					require.NoError(t, err, "other contract must format")
+					expected = append(expected, otherCode)
+				}
+				assert.Equal(t, expected, requested, "explicit-pair cancellation should never cancel another enabled contract")
 			})
 		}
 	}
@@ -807,12 +837,13 @@ func TestCancelAllOrders(t *testing.T) {
 
 		h := new(Exchange)
 		require.NoError(t, testexch.Setup(h), "Setup must not error")
-		testCases := []struct {
+		type testCase struct {
 			name        string
 			pair        currency.Pair
 			asset       asset.Item
 			expectedErr error
-		}{
+		}
+		testCases := []testCase{
 			{name: "spot", pair: btcusdtPair, asset: asset.Spot, expectedErr: exchange.ErrAuthenticationSupportNotEnabled},
 			{name: "coin margined futures", pair: btcusdPair, asset: asset.CoinMarginedFutures, expectedErr: exchange.ErrAuthenticationSupportNotEnabled},
 			{name: "usdt margined futures", pair: btcusdtPair, asset: asset.USDTMarginedFutures, expectedErr: exchange.ErrAuthenticationSupportNotEnabled},
@@ -839,13 +870,14 @@ func TestCancelAllOrders(t *testing.T) {
 		assert.ErrorContains(t, err, "5454600", "incomplete result should retain the next order identifier")
 	})
 
-	for _, tt := range []struct {
+	type cancellationResponseCase struct {
 		name     string
 		endpoint exchange.URL
 		path     string
 		cancel   order.Cancel
 		response string
-	}{
+	}
+	for _, tt := range []cancellationResponseCase{
 		{
 			name: "spot", endpoint: exchange.RestSpot, path: "/v1/order/orders/batchCancelOpenOrders",
 			cancel:   order.Cancel{AccountID: "1", Pair: btcusdtPair, AssetType: asset.Spot},
@@ -996,12 +1028,13 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 		require.NoError(t, err, "GetHistoricCandlesExtended must not error for USDT-margined futures")
 		require.NotEmpty(t, got.Candles, "extended candles must be returned")
 	})
-	for _, tc := range []struct {
+	type testCase struct {
 		item     asset.Item
 		pair     currency.Pair
 		path     string
 		endpoint exchange.URL
-	}{
+	}
+	for _, tc := range []testCase{
 		{asset.Futures, btccwPair, "/market/history/kline", exchange.RestFutures},
 		{asset.CoinMarginedFutures, btcusdPair, "/swap-ex/market/history/kline", exchange.RestFutures},
 		{asset.USDTMarginedFutures, btcusdtPair, "/linear-swap-ex/market/history/kline", exchange.RestUSDTMargined},
@@ -1079,10 +1112,11 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct {
+	type testCase struct {
 		requestType string
 		timeInForce order.TimeInForce
-	}{
+	}
+	for _, tc := range []testCase{
 		{requestType: "buy-limit-maker", timeInForce: order.PostOnly},
 		{requestType: "buy-ioc", timeInForce: order.ImmediateOrCancel},
 		{requestType: "buy-limit-fok", timeInForce: order.FillOrKill},
@@ -1100,60 +1134,107 @@ func TestGetActiveOrders(t *testing.T) {
 		})
 	}
 
-	t.Run("V5 pages", func(t *testing.T) {
-		t.Parallel()
-		const path, state = "/v5/trade/order/opens", "new"
-		var mu sync.Mutex
-		var cursors []string
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if !assert.Equal(t, path, r.URL.Path, "pager path should match") {
-				return
-			}
-			from := r.URL.Query().Get("from")
+	type marginScopeCase struct {
+		name       string
+		marginType margin.Type
+		expected   []string
+	}
+	for _, tc := range []marginScopeCase{
+		{name: "cross", marginType: margin.Multi, expected: []string{"cross"}},
+		{name: "isolated", marginType: margin.Isolated, expected: []string{"isolated"}},
+		{name: "all margin modes", marginType: margin.Unset, expected: []string{"cross", "isolated"}},
+	} {
+		t.Run("all contracts "+tc.name, func(t *testing.T) {
+			t.Parallel()
+			var mu sync.Mutex
+			var modes []string
+			h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/trade/order/opens", `{"code":200,"data":[]}`, func(r *http.Request) {
+				assert.NotContains(t, r.URL.Query(), "contract_code", "all-contract query should omit the pair filter")
+				mu.Lock()
+				modes = append(modes, r.URL.Query().Get("margin_mode"))
+				mu.Unlock()
+			})
+			orders, err := h.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.USDTMarginedFutures, MarginType: tc.marginType, Side: order.AnySide, Type: order.AnyType})
+			require.NoError(t, err, "all-contract lookup must support each accepted margin selection")
+			assert.Empty(t, orders, "empty API pages should remain empty")
 			mu.Lock()
-			cursors = append(cursors, from)
-			calls := len(cursors)
-			mu.Unlock()
-			var high, low int
-			switch {
-			case calls > 2:
-				http.Error(w, "unexpected extra page", http.StatusBadRequest)
-				return
-			case from == "":
-				high, low = 300, 201
-			case from == "201":
-				high, low = 200, 196
-			default:
-				http.Error(w, "unexpected cursor "+from, http.StatusBadRequest)
-				return
-			}
-			rows := make([]string, 0, high-low+1)
-			for id := high; id >= low; id-- {
-				rows = append(rows, fmt.Sprintf(`{"id":"%d","order_id":"%d","contract_code":"BTC-USDT","side":"buy","type":"limit","state":%q,"time_in_force":"gtc","margin_mode":"cross","price":"1","volume":"1","trade_volume":"1"}`, id, id, state))
-			}
-			_, _ = w.Write([]byte(`{"code":200,"data":[` + strings.Join(rows, ",") + `]}`))
-		}))
-		t.Cleanup(server.Close)
-		h := new(Exchange)
-		require.NoError(t, testexch.Setup(h), "HTX setup must succeed")
-		h.API.AuthenticatedSupport = true
-		h.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
-		require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestUSDTMargined.String(), server.URL), "mock endpoint must be set")
-		req := &order.MultiOrderRequest{AssetType: asset.USDTMarginedFutures, Type: order.AnyType, Side: order.AnySide, Pairs: currency.Pairs{btcusdtPair}, MarginType: margin.Multi}
-		got, err := h.GetActiveOrders(t.Context(), req)
-		require.NoError(t, err, "paged orders must be fetched")
-		assert.Len(t, got, 105, "every page should be returned")
-		mu.Lock()
-		defer mu.Unlock()
-		assert.Equal(t, []string{"", "201"}, cursors, "each page should start after the previous page's last id")
-	})
+			defer mu.Unlock()
+			assert.Equal(t, tc.expected, modes, "all-contract lookup should preserve the requested margin scope")
+		})
+	}
 
-	for _, tc := range []struct {
+	for _, allPairs := range []bool{false, true} {
+		t.Run(fmt.Sprintf("V5 pages all pairs %t", allPairs), func(t *testing.T) {
+			t.Parallel()
+			const path, state = "/v5/trade/order/opens", "new"
+			var mu sync.Mutex
+			var cursors []string
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if !assert.Equal(t, path, r.URL.Path, "pager path should match") {
+					return
+				}
+				if allPairs {
+					assert.NotContains(t, r.URL.Query(), "contract_code", "all-contract query should omit contract_code")
+				} else {
+					assert.Equal(t, "BTC-USDT", r.URL.Query().Get("contract_code"), "paired query should restrict its contract")
+				}
+				from := r.URL.Query().Get("from")
+				mu.Lock()
+				cursors = append(cursors, from)
+				calls := len(cursors)
+				mu.Unlock()
+				var high, low int
+				switch {
+				case calls > 2:
+					http.Error(w, "unexpected extra page", http.StatusBadRequest)
+					return
+				case from == "":
+					high, low = 300, 201
+				case from == "201":
+					high, low = 200, 196
+				default:
+					http.Error(w, "unexpected cursor "+from, http.StatusBadRequest)
+					return
+				}
+				contract := "BTC-USDT"
+				if allPairs && from != "" {
+					contract = "ETH-USDT"
+				}
+				rows := make([]string, 0, high-low+1)
+				for id := high; id >= low; id-- {
+					rows = append(rows, fmt.Sprintf(`{"id":"%d","order_id":"%d","contract_code":%q,"side":"buy","type":"limit","state":%q,"time_in_force":"gtc","margin_mode":"cross","price":"1","volume":"1","trade_volume":"1"}`, id, id, contract, state))
+				}
+				_, _ = w.Write([]byte(`{"code":200,"data":[` + strings.Join(rows, ",") + `]}`))
+			}))
+			t.Cleanup(server.Close)
+			h := new(Exchange)
+			require.NoError(t, testexch.Setup(h), "HTX setup must succeed")
+			h.API.AuthenticatedSupport = true
+			h.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+			require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestUSDTMargined.String(), server.URL), "mock endpoint must be set")
+			req := &order.MultiOrderRequest{AssetType: asset.USDTMarginedFutures, Type: order.AnyType, Side: order.AnySide, Pairs: currency.Pairs{btcusdtPair}, MarginType: margin.Multi}
+			if allPairs {
+				req.Pairs = nil
+			}
+			got, err := h.GetActiveOrders(t.Context(), req)
+			require.NoError(t, err, "paged orders must be fetched")
+			require.Len(t, got, 105, "every page must be returned")
+			if allPairs {
+				assert.True(t, got[104].Pair.Equal(currency.NewPair(currency.ETH, currency.USDT)), "orders from other contracts should be retained")
+			}
+			mu.Lock()
+			defer mu.Unlock()
+			assert.Equal(t, []string{"", "201"}, cursors, "each page should start after the previous page's last id")
+		})
+	}
+
+	type contractRequestCase struct {
 		item     asset.Item
 		pair     currency.Pair
 		path     string
 		contract string
-	}{
+	}
+	for _, tc := range []contractRequestCase{
 		{asset.CoinMarginedFutures, btcusdPair, "/swap-api/v1/swap_openorders", "BTC-USD"},
 		{asset.Futures, currency.NewPair(currency.BTC, currency.NewCode("261016")), "/api/v1/contract_openorders", "BTC261016"},
 	} {
@@ -1162,9 +1243,10 @@ func TestGetActiveOrders(t *testing.T) {
 			var mu sync.Mutex
 			var pages []int64
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				var body struct {
+				type requestPayload struct {
 					PageIndex int64 `json:"page_index"`
 				}
+				var body requestPayload
 				if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&body), "request should decode") {
 					return
 				}
@@ -1226,12 +1308,13 @@ func TestGetActiveOrders(t *testing.T) {
 
 		h := new(Exchange)
 		require.NoError(t, testexch.Setup(h), "Setup must not error")
-		testCases := []struct {
+		type testCase struct {
 			name        string
 			pair        currency.Pair
 			asset       asset.Item
 			expectedErr error
-		}{
+		}
+		testCases := []testCase{
 			{name: "spot", pair: btcusdtPair, asset: asset.Spot, expectedErr: exchange.ErrAuthenticationSupportNotEnabled},
 			{name: "coin margined futures", pair: btcusdPair, asset: asset.CoinMarginedFutures, expectedErr: exchange.ErrAuthenticationSupportNotEnabled},
 			{name: "usdt margined futures", pair: btcusdtPair, asset: asset.USDTMarginedFutures, expectedErr: exchange.ErrAuthenticationSupportNotEnabled},
@@ -1251,11 +1334,12 @@ func TestGetActiveOrders(t *testing.T) {
 			})
 		}
 	})
-	for _, tc := range []struct {
+	type openOrderRequestCase struct {
 		item           asset.Item
 		pair           currency.Pair
 		path, contract string
-	}{
+	}
+	for _, tc := range []openOrderRequestCase{
 		{asset.Futures, btccwPair, "/api/v1/contract_openorders", "BTC_CW"},
 		{asset.CoinMarginedFutures, btcusdPair, "/swap-api/v1/swap_openorders", "BTC-USD"},
 	} {
@@ -1408,12 +1492,13 @@ func TestSubmitOrder(t *testing.T) {
 		})
 	}
 
-	for _, tc := range []struct {
+	type testCase struct {
 		name          string
 		clientOrderID string
 		wantID        string
 		attempts      int32
-	}{
+	}
+	for _, tc := range []testCase{
 		{name: "spot without client order ID", attempts: 1},
 		{name: "spot repeated RPC account ID", clientOrderID: "1", attempts: 2},
 		{name: "spot distinct client order ID", clientOrderID: "client-1", wantID: "client-1", attempts: 1},
@@ -1447,14 +1532,15 @@ func TestSubmitOrder(t *testing.T) {
 	}
 	t.Run("request bodies", func(t *testing.T) {
 		t.Parallel()
-		for _, market := range []struct {
+		type marketCase struct {
 			asset          asset.Item
 			pair           currency.Pair
 			endpoint       exchange.URL
 			path, response string
 			contract       string
 			additional     []httpTestResponse
-		}{
+		}
+		for _, market := range []marketCase{
 			{asset.CoinMarginedFutures, btcusdPair, exchange.RestFutures, "/swap-api/v1/swap_order", `{"status":"ok","data":{"order_id_str":"1"}}`, "BTC-USD", nil},
 			{asset.Futures, currency.NewPair(currency.BTC, currency.NewCode("261016")), exchange.RestFutures, "/api/v1/contract_order", `{"status":"ok","data":{"order_id_str":"1"}}`, "BTC261016", nil},
 			{asset.USDTMarginedFutures, btcusdtPair, exchange.RestUSDTMargined, "/v5/trade/order", `{"code":200,"data":{"order_id":"1"}}`, "BTC-USDT", []httpTestResponse{{method: http.MethodGet, path: "/v5/position/mode", body: `{"code":200,"data":{"position_mode":"single_side"}}`, calls: 1}}},
@@ -1500,24 +1586,26 @@ func TestSubmitOrder(t *testing.T) {
 			}
 		}
 	})
-	for _, market := range []struct {
+	type marketCase struct {
 		asset          asset.Item
 		pair           currency.Pair
 		endpoint       exchange.URL
 		path, response string
-	}{
+	}
+	for _, market := range []marketCase{
 		{asset.Spot, btcusdtPair, exchange.RestSpot, "/v1/order/orders/place", `{"status":"ok","data":"1"}`},
 		{asset.CoinMarginedFutures, btcusdPair, exchange.RestFutures, "/swap-api/v1/swap_order", `{"status":"ok","data":{"order_id_str":"1"}}`},
 		{asset.Futures, btccwPair, exchange.RestFutures, "/api/v1/contract_order", `{"status":"ok","data":{"order_id_str":"1"}}`},
 	} {
 		for _, side := range []order.Side{order.Buy, order.Sell} {
-			for _, tc := range []struct {
+			type testCase struct {
 				name                         string
 				orderType                    order.Type
 				timeInForce                  order.TimeInForce
 				spotSuffix, derivativeType   string
 				expectedErr, expectedSpotErr error
-			}{
+			}
+			for _, tc := range []testCase{
 				{name: "limit default", orderType: order.Limit, spotSuffix: "-limit", derivativeType: "limit"},
 				{name: "limit GTC", orderType: order.Limit, timeInForce: order.GoodTillCancel, spotSuffix: "-limit", derivativeType: "limit"},
 				{name: "limit post only", orderType: order.Limit, timeInForce: order.PostOnly, spotSuffix: "-limit-maker", derivativeType: "post_only"},
@@ -1600,12 +1688,13 @@ func TestSubmitOrder(t *testing.T) {
 
 		h := new(Exchange)
 		require.NoError(t, testexch.Setup(h), "Setup must not error")
-		testCases := []struct {
+		type testCase struct {
 			name        string
 			pair        currency.Pair
 			asset       asset.Item
 			expectedErr error
-		}{
+		}
+		testCases := []testCase{
 			{name: "coin margined futures", pair: btcusdPair, asset: asset.CoinMarginedFutures, expectedErr: exchange.ErrAuthenticationSupportNotEnabled},
 			{name: "usdt margined futures", pair: btcusdtPair, asset: asset.USDTMarginedFutures, expectedErr: exchange.ErrAuthenticationSupportNotEnabled},
 			{name: "futures", pair: btccwPair, asset: asset.Futures, expectedErr: exchange.ErrAuthenticationSupportNotEnabled},
@@ -1628,7 +1717,7 @@ func TestSubmitOrder(t *testing.T) {
 			})
 		}
 	})
-	for _, tt := range []struct {
+	type submissionResponseCase struct {
 		name       string
 		endpoint   exchange.URL
 		path       string
@@ -1637,7 +1726,8 @@ func TestSubmitOrder(t *testing.T) {
 		status     order.Status
 		check      func(*testing.T, *http.Request)
 		additional []httpTestResponse
-	}{
+	}
+	for _, tt := range []submissionResponseCase{
 		{
 			name: "spot", endpoint: exchange.RestSpot, path: "/v1/order/orders/place",
 			submission: order.Submit{Pair: btcusdtPair, AssetType: asset.Spot, Side: order.Buy, Type: order.Limit, Price: 5, Amount: 1, ClientID: "1"},
@@ -1721,11 +1811,12 @@ func TestCancelOrder(t *testing.T) {
 
 	h := new(Exchange)
 	require.NoError(t, testexch.Setup(h), "Setup must not error")
-	testCases := []struct {
+	type testCase struct {
 		name  string
 		pair  currency.Pair
 		asset asset.Item
-	}{
+	}
+	testCases := []testCase{
 		{name: "spot", pair: btcusdtPair, asset: asset.Spot},
 		{name: "coin margined futures", pair: btcusdPair, asset: asset.CoinMarginedFutures},
 		{name: "usdt margined futures", pair: btcusdtPair, asset: asset.USDTMarginedFutures},
@@ -1742,7 +1833,7 @@ func TestCancelOrder(t *testing.T) {
 			require.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled, "CancelOrder must require credentials")
 		})
 	}
-	for _, tt := range []struct {
+	type cancellationRequestCase struct {
 		name          string
 		endpoint      exchange.URL
 		path          string
@@ -1751,7 +1842,8 @@ func TestCancelOrder(t *testing.T) {
 		expectedValue any
 		response      string
 		expectedErr   error
-	}{
+	}
+	for _, tt := range []cancellationRequestCase{
 		{
 			name: "spot response", endpoint: exchange.RestSpot, path: "/v1/order/orders/42/submitcancel",
 			cancel: order.Cancel{OrderID: "42", Pair: btcusdtPair, AssetType: asset.Spot},
@@ -1815,13 +1907,15 @@ func TestCancelOrder(t *testing.T) {
 		})
 	}
 	for _, a := range []asset.Item{asset.CoinMarginedFutures, asset.Futures} {
-		for _, identifiers := range []struct{ name, orderID, clientID, acknowledgement string }{
+		type identifierCase struct{ name, orderID, clientID, acknowledgement string }
+		for _, identifiers := range []identifierCase{
 			{"order ID", "9", "", "9"}, {"client ID", "", "7", "7"}, {"order ID takes precedence", "9", "7", "9"},
 		} {
-			for _, tc := range []struct {
+			type testCase struct {
 				name, data string
 				want       error
-			}{
+			}
+			for _, tc := range []testCase{
 				{"success", `{"successes":"` + identifiers.acknowledgement + `","errors":[]}`, nil},
 				{"rejected", `{"successes":"","errors":[{"order_id":"9","err_code":1061,"err_msg":"order cannot be cancelled"}]}`, errAPIResponse},
 				{"partial rejection", `{"successes":"` + identifiers.acknowledgement + `","errors":[{"order_id":"9","err_code":1061,"err_msg":"order cannot be cancelled"}]}`, errAPIResponse},
@@ -1873,11 +1967,12 @@ func TestUpdateAccountBalances(t *testing.T) {
 		t.Parallel()
 		h := new(Exchange)
 		require.NoError(t, testexch.Setup(h), "Setup must not error")
-		testCases := []struct {
+		type testCase struct {
 			name        string
 			asset       asset.Item
 			expectedErr error
-		}{
+		}
+		testCases := []testCase{
 			{name: "spot", asset: asset.Spot, expectedErr: exchange.ErrAuthenticationSupportNotEnabled},
 			{name: "coin margined futures", asset: asset.CoinMarginedFutures, expectedErr: exchange.ErrAuthenticationSupportNotEnabled},
 			{name: "usdt margined futures", asset: asset.USDTMarginedFutures, expectedErr: exchange.ErrAuthenticationSupportNotEnabled},
@@ -1892,10 +1987,11 @@ func TestUpdateAccountBalances(t *testing.T) {
 			})
 		}
 	})
-	for _, tc := range []struct {
+	type testCase struct {
 		name, data        string
 		total, free, hold float64
-	}{
+	}
+	for _, tc := range []testCase{
 		{"documented balance", `"equity":"113.54","isolated_equity":"0.5","available":"113.54","isolated_available":"30"`, 114.04, 113.54, 0.5},
 		{"losing cross position", `"equity":"90","available":"100","profit_unreal":"-10","initial_margin":"20"`, 90, 70, 20},
 		{"isolated collateral", `"equity":"100","isolated_equity":"20","available":"100","isolated_available":"15"`, 120, 100, 20},
@@ -2033,15 +2129,16 @@ func TestGetDepositAddress(t *testing.T) {
 
 func TestV5FreeMargin(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct {
+	type testCase struct {
 		name string
-		data V5AccountBalanceDetails
+		data V5CurrencyBalance
 		want float64
-	}{
-		{name: "documented balance", data: V5AccountBalanceDetails{Available: 113.54}, want: 113.54},
-		{name: "losing cross position", data: V5AccountBalanceDetails{Available: 100, ProfitUnreal: -10, InitialMargin: 20}, want: 70},
-		{name: "profitable cross position", data: V5AccountBalanceDetails{Available: 100, ProfitUnreal: 10, InitialMargin: 20}, want: 90},
-		{name: "isolated funds remain held", data: V5AccountBalanceDetails{Available: 100, IsolatedAvailable: 30, IsolatedEquity: 0.5}, want: 100},
+	}
+	for _, tc := range []testCase{
+		{name: "documented balance", data: V5CurrencyBalance{Available: 113.54}, want: 113.54},
+		{name: "losing cross position", data: V5CurrencyBalance{Available: 100, ProfitUnreal: -10, InitialMargin: 20}, want: 70},
+		{name: "profitable cross position", data: V5CurrencyBalance{Available: 100, ProfitUnreal: 10, InitialMargin: 20}, want: 90},
+		{name: "isolated funds remain held", data: V5CurrencyBalance{Available: 100, IsolatedAvailable: 30, IsolatedEquity: 0.5}, want: 100},
 		{name: "empty account"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -2118,13 +2215,14 @@ func TestGetOrderInfo(t *testing.T) {
 	t.Run("V5 execution prices and cost", func(t *testing.T) {
 		t.Parallel()
 		// Volumes count contracts of 0.001 BTC or 0.01 ETH, so turnover differs from volume times average price.
-		for _, tc := range []struct {
+		type testCase struct {
 			name, data                                        string
 			pair                                              currency.Pair
 			side                                              order.Side
 			status                                            order.Status
 			price, amount, executed, remaining, cost, average float64
-		}{
+		}
+		for _, tc := range []testCase{
 			{name: "partially filled sell", data: `"contract_code":"BTC-USDT","side":"sell","state":"partially_filled","price":"100","volume":"4000","trade_volume":"3000","trade_turnover":"303","trade_avg_price":"101"`, pair: btcusdtPair, side: order.Sell, status: order.PartiallyFilled, price: 100, amount: 4000, executed: 3000, remaining: 1000, cost: 303, average: 101},
 			{name: "filled sell", data: `"contract_code":"BTC-USDT","side":"sell","state":"filled","price":"100","volume":"3","trade_volume":"3","trade_turnover":"0.303","trade_avg_price":"101"`, pair: btcusdtPair, side: order.Sell, status: order.Filled, price: 100, amount: 3, executed: 3, cost: 0.303, average: 101},
 			{name: "partially filled buy", data: `"contract_code":"BTC-USDT","side":"buy","state":"partially_filled","price":"100","volume":"4","trade_volume":"3","trade_turnover":"0.297","trade_avg_price":"99"`, pair: btcusdtPair, side: order.Buy, status: order.PartiallyFilled, price: 100, amount: 4, executed: 3, remaining: 1, cost: 0.297, average: 99},
@@ -2162,14 +2260,15 @@ func TestGetOrderInfo(t *testing.T) {
 	t.Run("derivative mapping", func(t *testing.T) {
 		t.Parallel()
 		const fields = `"volume":4,"price":0.1,"order_price_type":"ioc","direction":"sell","offset":"close","lever_rate":10,"order_id_str":"9","client_order_id":55,"created_at":1604367611263,"trade_volume":3,"trade_turnover":30,"trade_avg_price":0.09,"fee":-0.02,"status":5,"fee_asset":"ADA","liquidation_type":"0","canceled_at":1604367700000`
-		for _, tc := range []struct {
+		type testCase struct {
 			name      string
 			asset     asset.Item
 			pair      currency.Pair
 			path      string
 			data      string
 			costAsset currency.Code
-		}{
+		}
+		for _, tc := range []testCase{
 			{name: "delivery", asset: asset.Futures, pair: currency.NewPair(currency.ADA, currency.NewCode("201225")), path: "/api/v1/contract_order_info", data: `{"symbol":"ADA","contract_code":"ADA201225","contract_type":"quarter",` + fields + `}`, costAsset: currency.USD},
 			{name: "coin margined", asset: asset.CoinMarginedFutures, pair: currency.NewPair(currency.ADA, currency.USD), path: "/swap-api/v1/swap_order_info", data: `{"symbol":"ADA","contract_code":"ADA-USD",` + fields + `}`, costAsset: currency.USD},
 		} {
@@ -2208,7 +2307,7 @@ func TestGetOrderInfo(t *testing.T) {
 			})
 		}
 	})
-	for _, tc := range []struct {
+	type testCase struct {
 		name      string
 		asset     asset.Item
 		pair      currency.Pair
@@ -2216,7 +2315,8 @@ func TestGetOrderInfo(t *testing.T) {
 		data      string
 		closeTime time.Time
 		cost      float64
-	}{
+	}
+	for _, tc := range []testCase{
 		{
 			name: "delivery filled", asset: asset.Futures,
 			pair: currency.NewPair(currency.ADA, currency.NewCode("201225")), path: "/api/v1/contract_order_info",
@@ -2265,11 +2365,12 @@ func TestGetOrderInfo(t *testing.T) {
 
 	h := new(Exchange)
 	require.NoError(t, testexch.Setup(h), "Setup must not error")
-	testCases := []struct {
+	type validationCase struct {
 		name  string
 		pair  currency.Pair
 		asset asset.Item
-	}{
+	}
+	testCases := []validationCase{
 		{name: "spot", pair: btcusdtPair, asset: asset.Spot},
 		{name: "coin margined futures", pair: btcusdPair, asset: asset.CoinMarginedFutures},
 		{name: "usdt margined futures", pair: btcusdtPair, asset: asset.USDTMarginedFutures},
@@ -2282,7 +2383,7 @@ func TestGetOrderInfo(t *testing.T) {
 			require.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled, "GetOrderInfo must require credentials")
 		})
 	}
-	for _, tt := range []struct {
+	type orderResponseCase struct {
 		name               string
 		endpoint           exchange.URL
 		method             string
@@ -2293,7 +2394,8 @@ func TestGetOrderInfo(t *testing.T) {
 		expectedMarginMode string
 		expectedType       order.Type
 		expectedTIF        order.TimeInForce
-	}{
+	}
+	for _, tt := range []orderResponseCase{
 		{
 			name: "spot maker response", endpoint: exchange.RestSpot, method: http.MethodGet, path: "/v1/order/orders/1", pair: btcusdtPair, asset: asset.Spot,
 			response:     `{"status":"ok","data":{"id":1,"symbol":"btcusdt","account-id":2,"amount":"2","price":"100","type":"buy-limit-maker","state":"filled","field-amount":"1","field-cash-amount":"100","field-fees":"0.1"}}`,
@@ -2388,10 +2490,11 @@ func TestGetOrderInfo(t *testing.T) {
 
 func TestFormatExchangeKlineInterval(t *testing.T) {
 	t.Parallel()
-	for _, tt := range []struct {
+	type testCase struct {
 		interval kline.Interval
 		output   string
-	}{
+	}
+	for _, tt := range []testCase{
 		{kline.OneMin, "1min"},
 		{kline.FourHour, "4hour"},
 		{kline.OneDay, "1day"},
@@ -2406,12 +2509,13 @@ func TestFormatExchangeKlineInterval(t *testing.T) {
 
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct {
+	type testCase struct {
 		asset    asset.Item
 		endpoint exchange.URL
 		path     string
 		pair     currency.Pair
-	}{
+	}
+	for _, tc := range []testCase{
 		{asset.CoinMarginedFutures, exchange.RestFutures, "/swap-ex/market/history/trade", btcusdPair},
 		{asset.USDTMarginedFutures, exchange.RestUSDTMargined, "/linear-swap-ex/market/history/trade", btcusdtPair},
 	} {
@@ -2460,7 +2564,8 @@ func TestGetV5PositionModeName(t *testing.T) {
 		require.NoError(t, testexch.Setup(h), "setup must succeed")
 		h.API.AuthenticatedSupport = true
 		require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestUSDTMargined.String(), server.URL), "mock endpoint must be configured")
-		for _, tc := range []struct{ key, mode string }{{"first-account", "single_side"}, {"second-account", "dual_side"}} {
+		type testCase struct{ key, mode string }
+		for _, tc := range []testCase{{"first-account", "single_side"}, {"second-account", "dual_side"}} {
 			t.Run(tc.key, func(t *testing.T) {
 				t.Parallel()
 				ctx := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: tc.key, Secret: "test-secret"})
@@ -2473,13 +2578,14 @@ func TestGetV5PositionModeName(t *testing.T) {
 		}
 	})
 
-	for _, tc := range []struct {
+	type testCase struct {
 		name        string
 		response    string
 		expected    string
 		expectedErr error
 		wantErr     bool
-	}{
+	}
+	for _, tc := range []testCase{
 		{name: "success", response: `{"code":200,"data":{"position_mode":"dual_side"}}`, expected: "dual_side"},
 		{name: "empty response", response: `null`, expectedErr: errEmptyResult},
 		{name: "empty mode", response: `{"code":200,"data":{}}`, expectedErr: errEmptyResult},
@@ -2542,14 +2648,15 @@ func TestFormatV5OrderRequest(t *testing.T) {
 		}
 	}
 
-	for _, tc := range []struct {
+	type testCase struct {
 		name             string
 		submit           order.Submit
 		expectedType     string
 		expectedTIF      string
 		expectedMode     string
 		expectedPosition string
-	}{
+	}
+	for _, tc := range []testCase{
 		{
 			name: "isolated post only",
 			submit: order.Submit{
@@ -2629,11 +2736,12 @@ func TestFormatV5OrderRequest(t *testing.T) {
 		})
 	}
 
-	for _, tc := range []struct {
+	type validationCase struct {
 		name        string
 		submit      order.Submit
 		expectedErr error
-	}{
+	}
+	for _, tc := range []validationCase{
 		{name: "empty pair", submit: order.Submit{Side: order.Buy, Type: order.Limit}, expectedErr: currency.ErrCurrencyPairEmpty},
 		{name: "market post only", submit: order.Submit{Pair: btcusdtPair, Side: order.Buy, Type: order.Market, TimeInForce: order.PostOnly}, expectedErr: order.ErrUnsupportedTimeInForce},
 		{name: "market GTC post only", submit: order.Submit{Pair: btcusdtPair, Side: order.Buy, Type: order.Market, TimeInForce: order.GoodTillCancel | order.PostOnly}, expectedErr: order.ErrUnsupportedTimeInForce},
@@ -2729,7 +2837,8 @@ func TestWebsocketSubmitOrders(t *testing.T) {
 		responses, err := h.WebsocketSubmitOrders(t.Context(), orders)
 		require.NoError(t, err, "a rejected member must not fail the entire batch")
 		require.Len(t, responses, 3, "each submitted order must retain its response")
-		for i, expected := range []struct{ orderID, clientOrderID string }{{"1", "first"}, {"", "rejected"}, {"3", "last"}} {
+		type expectedOrder struct{ orderID, clientOrderID string }
+		for i, expected := range []expectedOrder{{"1", "first"}, {"", "rejected"}, {"3", "last"}} {
 			require.NotNil(t, responses[i], "each response must be populated")
 			assert.Equal(t, expected.orderID, responses[i].OrderID, "order IDs should retain batch order")
 			assert.Equal(t, expected.clientOrderID, responses[i].ClientOrderID, "client order IDs should retain batch order")
@@ -2820,7 +2929,7 @@ func TestCompatibleVars(t *testing.T) {
 		})
 	}
 
-	testCases := []struct {
+	type testCase struct {
 		name           string
 		side           string
 		orderPriceType string
@@ -2830,7 +2939,8 @@ func TestCompatibleVars(t *testing.T) {
 		expectedStatus order.Status
 		expectedTIF    order.TimeInForce
 		wantErr        bool
-	}{
+	}
+	testCases := []testCase{
 		{name: "buy limit active", side: "buy", orderPriceType: "limit", status: 3, expectedSide: order.Buy, expectedType: order.Limit, expectedStatus: order.Active},
 		{name: "buy trigger active", side: "buy", orderPriceType: "trigger", status: 3, expectedSide: order.Buy, expectedType: order.Trigger, expectedStatus: order.Active},
 		{name: "sell market filled", side: "sell", orderPriceType: "opponent", status: 6, expectedSide: order.Sell, expectedType: order.Market, expectedStatus: order.Filled},
@@ -2860,7 +2970,7 @@ func TestCompatibleVars(t *testing.T) {
 func TestSetOrderSideStatusAndType(t *testing.T) {
 	t.Parallel()
 
-	testCases := []struct {
+	type testCase struct {
 		name           string
 		state          string
 		requestType    string
@@ -2868,7 +2978,8 @@ func TestSetOrderSideStatusAndType(t *testing.T) {
 		expectedType   order.Type
 		expectedStatus order.Status
 		expectedTIF    order.TimeInForce
-	}{
+	}
+	testCases := []testCase{
 		{
 			name:           "buy market",
 			state:          "filled",
@@ -3022,14 +3133,15 @@ func TestIsPerpetualFutureCurrency(t *testing.T) {
 
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct {
+	type testCase struct {
 		name     string
 		item     asset.Item
 		pair     currency.Pair
 		endpoint exchange.URL
 		path     string
 		response string
-	}{
+	}
+	for _, tc := range []testCase{
 		{
 			name: "spot", item: asset.Spot, pair: btcusdtPair, endpoint: exchange.RestSpot, path: "/market/tickers",
 			response: `{"status":"ok","data":[{"symbol":"btcusdt","open":1,"high":3,"low":1,"close":2,"amount":4,"vol":8,"bid":1.9,"bidSize":2,"ask":2.1,"askSize":3}]}`,
@@ -3060,13 +3172,29 @@ func TestUpdateTickers(t *testing.T) {
 		})
 	}
 
-	for _, tc := range []struct {
+	t.Run("delivery futures by alias", func(t *testing.T) {
+		t.Parallel()
+		h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodGet, "/v2/market/detail/batch_merged", `{"status":"ok","ticks":[{"symbol":"BTC_CW","open":"1","high":"3","low":"1","close":"2","amount":"4","vol":"800","number_of":"8","bid":[1.9,2],"ask":[2.1,3]}]}`, nil)
+		h.Name = t.Name()
+		dated := currency.NewPair(currency.BTC, currency.NewCode("261016"))
+		require.NoError(t, h.SetPairs(currency.Pairs{dated}, asset.Futures, false), "dated pair must be available")
+		require.NoError(t, h.SetPairs(currency.Pairs{dated}, asset.Futures, true), "dated pair must be enabled")
+		h.futureContractCodes = map[string]currency.Code{"CW": dated.Quote}
+		require.NoError(t, h.UpdateTickers(t.Context(), asset.Futures), "alias ticker must update")
+		price, err := ticker.GetTicker(h.Name, dated, asset.Futures)
+		require.NoError(t, err, "alias must resolve to its dated pair")
+		assert.Equal(t, 2.0, price.Last, "alias ticker should retain its closing price")
+		assert.Equal(t, 800.0, price.QuoteVolume, "batch vol should retain USD turnover")
+	})
+
+	type tickerResponseCase struct {
 		name     string
 		item     asset.Item
 		pair     currency.Pair
 		path     string
 		response string
-	}{
+	}
+	for _, tc := range []tickerResponseCase{
 		{
 			name: "coin margined empty bid", item: asset.CoinMarginedFutures, pair: btcusdPair, path: "/v2/swap-ex/market/detail/batch_merged",
 			response: `{"status":"ok","ticks":[{"contract_code":"BTC-USD","bid":[],"ask":[2.1,3]}]}`,
@@ -3212,14 +3340,15 @@ var (
 
 func TestCancelBatchOrders(t *testing.T) {
 	t.Parallel()
-	markets := []struct {
+	type marketCase struct {
 		assetType asset.Item
 		endpoint  exchange.URL
 		path      string
 		pair      currency.Pair
 		limit     int
 		response  string
-	}{
+	}
+	markets := []marketCase{
 		{assetType: asset.Spot, endpoint: exchange.RestSpot, path: "/v1/order/orders/batchcancel", pair: btcusdtPair, limit: 50, response: `{"status":"ok","data":{"success":[],"failed":[]}}`},
 		{assetType: asset.Futures, endpoint: exchange.RestFutures, path: "/api/v1/contract_cancel", pair: btccwPair, limit: 10, response: `{"status":"ok","data":{"successes":"","errors":[]}}`},
 		{assetType: asset.CoinMarginedFutures, endpoint: exchange.RestFutures, path: "/swap-api/v1/swap_cancel", pair: btcusdPair, limit: 10, response: `{"status":"ok","data":{"successes":"","errors":[]}}`},
@@ -3227,12 +3356,13 @@ func TestCancelBatchOrders(t *testing.T) {
 	}
 	for _, market := range markets {
 		for _, clientIDs := range []bool{false, true} {
-			for _, tc := range []struct {
+			type testCase struct {
 				name    string
 				count   int
 				mixed   bool
 				wantErr error
-			}{
+			}
+			for _, tc := range []testCase{
 				{name: "one", count: 1},
 				{name: "maximum", count: market.limit},
 				{name: "over maximum", count: market.limit + 1, wantErr: errCancelOrderLimitExceeded},
@@ -3262,7 +3392,7 @@ func TestCancelBatchOrders(t *testing.T) {
 					var calls atomic.Int32
 					h := newHTTPTestExchange(t, market.endpoint, http.MethodPost, market.path, market.response, func(r *http.Request) {
 						calls.Add(1)
-						var body map[string]json.RawMessage
+						var body map[string]any
 						require.NoError(t, json.NewDecoder(r.Body).Decode(&body), "batch request must decode")
 						field, omitted := "order_id", "client_order_id"
 						if market.assetType == asset.Spot {
@@ -3274,11 +3404,17 @@ func TestCancelBatchOrders(t *testing.T) {
 						assert.NotContains(t, body, omitted, "batch should contain one identifier kind")
 						var sent []string
 						if market.assetType == asset.Futures || market.assetType == asset.CoinMarginedFutures {
-							var joined string
-							require.NoError(t, json.Unmarshal(body[field], &joined), "legacy identifiers must decode")
+							joined, ok := body[field].(string)
+							require.True(t, ok, "legacy identifiers must decode as a string")
 							sent = strings.Split(joined, ",")
 						} else {
-							require.NoError(t, json.Unmarshal(body[field], &sent), "batch identifiers must decode")
+							values, ok := body[field].([]any)
+							require.True(t, ok, "batch identifiers must decode as an array")
+							for _, value := range values {
+								identifier, ok := value.(string)
+								require.True(t, ok, "batch identifiers must be strings")
+								sent = append(sent, identifier)
+							}
 						}
 						assert.Equal(t, ids, sent, "one request should contain every selected identifier")
 					})
@@ -3320,11 +3456,12 @@ func TestCancelBatchOrders(t *testing.T) {
 			})
 		}
 	}
-	for _, tc := range []struct {
+	type testCase struct {
 		name    string
 		orders  []order.Cancel
 		wantErr error
-	}{
+	}
+	for _, tc := range []testCase{
 		{name: "empty", wantErr: order.ErrCancelOrderIsNil},
 		{name: "missing identifier", orders: []order.Cancel{{}}, wantErr: order.ErrOrderIDNotSet},
 		{name: "mixed assets", orders: []order.Cancel{{OrderID: "1", AssetType: asset.Spot}, {OrderID: "2", AssetType: asset.Futures}}, wantErr: errBatchAssetMismatch},
@@ -3341,11 +3478,12 @@ func TestCancelBatchOrders(t *testing.T) {
 			assert.Zero(t, calls.Load(), "validation failures should not send a request")
 		})
 	}
-	for _, tc := range []struct {
+	type cancellationFieldsCase struct {
 		name string
 		data string
 		want map[string]string
-	}{
+	}
+	for _, tc := range []cancellationFieldsCase{
 		{name: "client failures", data: `{"success":[],"failed":[{"client-order-id":"client-1","err-msg":"first rejected"},{"client-order-id":"client-2","err-msg":"second rejected"}]}`, want: map[string]string{"client-1": "first rejected", "client-2": "second rejected"}},
 		{name: "partial result", data: `{"success":["client-1"],"failed":[{"client-order-id":"client-2","err-msg":"second rejected"}]}`, want: map[string]string{"client-1": htxStatusSuccess, "client-2": "second rejected"}},
 		{name: "exchange ID alias", data: `{"success":["client-1"],"failed":[{"order-id":"42","client-order-id":"client-2","err-msg":"second rejected"}]}`, want: map[string]string{"client-1": htxStatusSuccess, "42": "second rejected", "client-2": "second rejected"}},
@@ -3405,11 +3543,12 @@ func TestGetFeeByType(t *testing.T) {
 
 func TestFirstNonZero(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct {
+	type testCase struct {
 		name   string
 		values []types.Number
 		want   float64
-	}{
+	}
+	for _, tc := range []testCase{
 		{name: "empty"},
 		{name: "zero", values: []types.Number{0, 0}},
 		{name: "detail preferred", values: []types.Number{2, 3}, want: 2},
@@ -3427,11 +3566,12 @@ func TestFirstNonZero(t *testing.T) {
 // when nothing rests there, so neither element can be indexed unconditionally
 func TestBookLevel(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct {
+	type testCase struct {
 		name                string
 		level               []float64
 		wantPrice, wantSize float64
-	}{
+	}
+	for _, tc := range []testCase{
 		{name: "price and size", level: []float64{78553, 12}, wantPrice: 78553, wantSize: 12},
 		{name: "price only", level: []float64{78553}, wantPrice: 78553},
 		{name: "empty side", level: []float64{}},

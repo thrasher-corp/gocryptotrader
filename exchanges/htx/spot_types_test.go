@@ -11,11 +11,12 @@ import (
 
 func TestIsEmptyHTXData(t *testing.T) {
 	t.Parallel()
-	for _, tt := range []struct {
+	type testCase struct {
 		name string
 		data []byte
 		want bool
-	}{
+	}
+	for _, tt := range []testCase{
 		{name: "empty", want: true},
 		{name: "empty string", data: []byte(`""`), want: true},
 		{name: "null", data: []byte(` null `), want: true},

@@ -10,19 +10,19 @@ import (
 
 // FuturesContractInfoResponse gets contract info data for futures
 type FuturesContractInfoResponse struct {
-	Data []FuturesContractInfo `json:"data"`
+	Contracts []FuturesContractInfo `json:"data"`
 }
 
 // FuturesContractIndexPriceInfoResponse stores contract index price
 type FuturesContractIndexPriceInfoResponse struct {
-	Data      []FuturesContractIndexPriceInfo `json:"data"`
-	Timestamp types.Time                      `json:"ts"`
+	IndexPrices []FuturesContractIndexPriceInfo `json:"data"`
+	Timestamp   types.Time                      `json:"ts"`
 }
 
 // FuturesContractOpenInterestResponse stores open interest data for futures contracts
 type FuturesContractOpenInterestResponse struct {
-	Data      []FuturesContractOpenInterest `json:"data"`
-	Timestamp types.Time                    `json:"ts"`
+	OpenInterest []FuturesContractOpenInterest `json:"data"`
+	Timestamp    types.Time                    `json:"ts"`
 }
 
 // FuturesContractOpenInterest stores open interest data for futures contracts.
@@ -42,8 +42,8 @@ type FuturesContractOpenInterest struct {
 
 // FuturesEstimatedDeliveryPriceResponse stores estimated delivery price data for futures
 type FuturesEstimatedDeliveryPriceResponse struct {
-	Data      FuturesEstimatedDeliveryPrice `json:"data"`
-	Timestamp types.Time                    `json:"ts"`
+	DeliveryPrice FuturesEstimatedDeliveryPrice `json:"data"`
+	Timestamp     types.Time                    `json:"ts"`
 }
 
 // FuturesMarketDepthResponse gets orderbook data for futures
@@ -68,7 +68,7 @@ type obItem struct {
 // FuturesKlineResponse stores kline data for futures
 type FuturesKlineResponse struct {
 	Channel   string         `json:"ch"`
-	Data      []FuturesKline `json:"data"`
+	Candles   []FuturesKline `json:"data"`
 	Timestamp types.Time     `json:"ts"`
 }
 
@@ -100,9 +100,9 @@ type FuturesLastTradeResponse struct {
 
 // FuturesBatchTradesForContractResponse stores batch of trades data for a contract
 type FuturesBatchTradesForContractResponse struct {
-	Channel   string                          `json:"ch"`
-	Timestamp types.Time                      `json:"ts"`
-	Data      []FuturesBatchTradesForContract `json:"data"`
+	Channel      string                          `json:"ch"`
+	Timestamp    types.Time                      `json:"ts"`
+	TradeBatches []FuturesBatchTradesForContract `json:"data"`
 }
 
 // FuturesTrade is futures trade data
@@ -116,70 +116,70 @@ type FuturesTrade struct {
 
 // FuturesTieredAdjustmentFactorInfoResponse stores info on adjustment factor for futures
 type FuturesTieredAdjustmentFactorInfoResponse struct {
-	Data      []FuturesTieredAdjustmentFactorInfo `json:"data"`
-	Timestamp types.Time                          `json:"ts"`
+	AdjustmentFactors []FuturesTieredAdjustmentFactorInfo `json:"data"`
+	Timestamp         types.Time                          `json:"ts"`
 }
 
 // FuturesOpenInterestResponse gets oi data on futures
 type FuturesOpenInterestResponse struct {
-	Data      FuturesOpenInterest `json:"data"`
-	Timestamp types.Time          `json:"ts"`
+	OpenInterest FuturesOpenInterest `json:"data"`
+	Timestamp    types.Time          `json:"ts"`
 }
 
 // FuturesTopAccountsLongShortRatioResponse stores long/short ratio for top futures accounts
 type FuturesTopAccountsLongShortRatioResponse struct {
-	Data      FuturesTopAccountsLongShortRatio `json:"data"`
+	Ratios    FuturesTopAccountsLongShortRatio `json:"data"`
 	Timestamp types.Time                       `json:"ts"`
 }
 
 // FuturesTopPositionsLongShortRatioResponse stores long short ratio for top futures positions
 type FuturesTopPositionsLongShortRatioResponse struct {
-	Data      FuturesTopPositionsLongShortRatio `json:"data"`
+	Ratios    FuturesTopPositionsLongShortRatio `json:"data"`
 	Timestamp types.Time                        `json:"timestamp"`
 }
 
 // FuturesIndexKlineResponse stores index kline data for futures
 type FuturesIndexKlineResponse struct {
 	Channel   string              `json:"ch"`
-	Data      []FuturesIndexKline `json:"data"`
+	Candles   []FuturesIndexKline `json:"data"`
 	Timestamp types.Time          `json:"ts"`
 }
 
 // FuturesBasisResponse stores basis data for futures
 type FuturesBasisResponse struct {
 	Channel   string         `json:"ch"`
-	Data      []FuturesBasis `json:"data"`
+	Basis     []FuturesBasis `json:"data"`
 	Timestamp types.Time     `json:"ts"`
 }
 
 // FuturesUserAccountResponse stores user account data info for futures
 type FuturesUserAccountResponse struct {
-	AccData   []FuturesUserAccount `json:"data"`
+	Accounts  []FuturesUserAccount `json:"data"`
 	Timestamp types.Time           `json:"ts"`
 }
 
 // FuturesUsersPositionsInfoResponse stores positions data for futures
 type FuturesUsersPositionsInfoResponse struct {
-	PosInfo   []FuturesPosition `json:"data"`
+	Positions []FuturesPosition `json:"data"`
 	Timestamp types.Time        `json:"ts"`
 }
 
 // FuturesSubAccountAssetsInfoResponse gets subaccounts asset data
 type FuturesSubAccountAssetsInfoResponse struct {
 	Timestamp types.Time                    `json:"ts"`
-	Data      []FuturesSubAccountAssetsInfo `json:"data"`
+	Assets    []FuturesSubAccountAssetsInfo `json:"data"`
 }
 
 // FuturesSingleSubAccountAssetsInfoResponse stores futures assets info for a single subaccount
 type FuturesSingleSubAccountAssetsInfoResponse struct {
-	AssetsData []FuturesSingleSubAccountAsset `json:"data"`
-	Timestamp  types.Time                     `json:"ts"`
+	Assets    []FuturesSingleSubAccountAsset `json:"data"`
+	Timestamp types.Time                     `json:"ts"`
 }
 
 // FuturesSingleSubAccountPositionsInfoResponse stores futures positions' info for a single subaccount
 type FuturesSingleSubAccountPositionsInfoResponse struct {
-	PositionsData []FuturesSingleSubAccountPosition `json:"data"`
-	Timestamp     types.Time                        `json:"ts"`
+	Positions []FuturesSingleSubAccountPosition `json:"data"`
+	Timestamp types.Time                        `json:"ts"`
 }
 
 // FuturesFinancialRecord stores a financial record entry for futures.
@@ -195,23 +195,23 @@ type FuturesFinancialRecord struct {
 
 // FuturesFinancialRecords stores financial record data and legacy pagination values.
 type FuturesFinancialRecords struct {
-	FinancialRecord []FuturesFinancialRecord `json:"financial_record"`
-	TotalPage       uint64                   `json:"total_page"`
-	CurrentPage     uint64                   `json:"current_page"`
-	TotalSize       uint64                   `json:"total_size"`
+	Records     []FuturesFinancialRecord `json:"financial_record"`
+	TotalPage   uint64                   `json:"total_page"`
+	CurrentPage uint64                   `json:"current_page"`
+	TotalSize   uint64                   `json:"total_size"`
 }
 
 // FuturesFinancialRecordsResponse stores financial records data for futures.
 type FuturesFinancialRecordsResponse struct {
-	Data      FuturesFinancialRecords `json:"data"`
-	Timestamp types.Time              `json:"ts"`
+	FinancialRecords FuturesFinancialRecords `json:"data"`
+	Timestamp        types.Time              `json:"ts"`
 }
 
 // UnmarshalJSON supports the documented v3 array response while preserving the
 // legacy paged-object shape used by older responses.
 func (f *FuturesFinancialRecordsResponse) UnmarshalJSON(data []byte) error {
 	var response FuturesFinancialRecordsResponse
-	if err := unmarshalV3FuturesResponse(data, &response.Timestamp, &response.Data.FinancialRecord, &response.Data); err != nil {
+	if err := unmarshalV3FuturesResponse(data, &response.Timestamp, &response.FinancialRecords.Records, &response.FinancialRecords); err != nil {
 		return err
 	}
 	*f = response
@@ -220,55 +220,55 @@ func (f *FuturesFinancialRecordsResponse) UnmarshalJSON(data []byte) error {
 
 // FuturesSettlementRecordsResponse stores user's futures settlement records
 type FuturesSettlementRecordsResponse struct {
-	Data      FuturesSettlementRecords `json:"data"`
-	Timestamp types.Time               `json:"ts"`
+	SettlementRecords FuturesSettlementRecords `json:"data"`
+	Timestamp         types.Time               `json:"ts"`
 }
 
 // FuturesContractOrderLimitResponse stores contract info on futures order limit
 type FuturesContractOrderLimitResponse struct {
-	ContractData []FuturesContractOrderLimit `json:"data"`
-	Timestamp    types.Time                  `json:"ts"`
+	OrderLimits []FuturesContractOrderLimit `json:"data"`
+	Timestamp   types.Time                  `json:"ts"`
 }
 
 // FuturesContractTradingFeeResponse stores contract trading fee data
 type FuturesContractTradingFeeResponse struct {
-	ContractTradingFeeData []FuturesContractTradingFee `json:"data"`
-	Timestamp              types.Time                  `json:"ts"`
+	TradingFees []FuturesContractTradingFee `json:"data"`
+	Timestamp   types.Time                  `json:"ts"`
 }
 
 // FuturesTransferLimitResponse stores transfer limit data for futures
 type FuturesTransferLimitResponse struct {
-	Data      []FuturesTransferLimit `json:"data"`
-	Timestamp types.Time             `json:"ts"`
+	TransferLimits []FuturesTransferLimit `json:"data"`
+	Timestamp      types.Time             `json:"ts"`
 }
 
 // FuturesPositionLimitResponse stores information on futures positions limit
 type FuturesPositionLimitResponse struct {
-	Data      []FuturesPositionLimit `json:"data"`
-	Timestamp types.Time             `json:"ts"`
+	PositionLimits []FuturesPositionLimit `json:"data"`
+	Timestamp      types.Time             `json:"ts"`
 }
 
 // FuturesAssetsAndPositionsResponse stores assets and positions data for futures
 type FuturesAssetsAndPositionsResponse struct {
-	Data []FuturesAssetsAndPositions `json:"data"`
+	AssetsAndPositions []FuturesAssetsAndPositions `json:"data"`
 }
 
 // FuturesAccountTransferResponse stores internal transfer data for futures
 type FuturesAccountTransferResponse struct {
 	Status    string                 `json:"status"`
 	Timestamp types.Time             `json:"ts"`
-	Data      FuturesAccountTransfer `json:"data"`
+	Transfer  FuturesAccountTransfer `json:"data"`
 }
 
 // FuturesTransferRecordsResponse gets transfer records data
 type FuturesTransferRecordsResponse struct {
 	Timestamp types.Time             `json:"ts"`
-	Data      FuturesTransferRecords `json:"data"`
+	Transfers FuturesTransferRecords `json:"data"`
 }
 
 // FuturesAvailableLeverageResponse stores available leverage data for futures
 type FuturesAvailableLeverageResponse struct {
-	Data      []FuturesAvailableLeverage `json:"data"`
+	Leverage  []FuturesAvailableLeverage `json:"data"`
 	Timestamp types.Time                 `json:"timestamp"`
 }
 
@@ -281,12 +281,12 @@ type FuturesSwitchLeverageRequest struct {
 // FuturesSwitchLeverageResponse contains the leverage accepted by HTX.
 type FuturesSwitchLeverageResponse struct {
 	Response
-	Data FuturesLeverage `json:"data"`
+	Leverage FuturesLeverage `json:"data"`
 }
 
 // FuturesOrderResponse stores order data for futures
 type FuturesOrderResponse struct {
-	Data      FuturesOrder `json:"data"`
+	Order     FuturesOrder `json:"data"`
 	Timestamp types.Time   `json:"ts"`
 }
 
@@ -306,60 +306,60 @@ type FuturesBatchOrderRequest struct {
 
 // FuturesBatchOrderResponse stores batch order data
 type FuturesBatchOrderResponse struct {
-	OrdersData []FuturesOrderResponse `json:"orders_data"`
+	Orders []FuturesOrderResponse `json:"orders_data"`
 }
 
 // FuturesCancelOrderResponse stores cancel order data
 type FuturesCancelOrderResponse struct {
-	Data      FuturesCancelOrder `json:"data"`
-	Timestamp types.Time         `json:"ts"`
+	Cancellations FuturesCancelOrder `json:"data"`
+	Timestamp     types.Time         `json:"ts"`
 }
 
 // FuturesOrderInfoResponse stores order info
 type FuturesOrderInfoResponse struct {
-	Data      []FuturesOrderInfo `json:"data"`
+	Orders    []FuturesOrderInfo `json:"data"`
 	Timestamp types.Time         `json:"timestamp"`
 }
 
 // FuturesOrderDetailsResponse stores order details for futures orders
 type FuturesOrderDetailsResponse struct {
-	Data      FuturesOrderDetails `json:"data"`
+	Order     FuturesOrderDetails `json:"data"`
 	Timestamp types.Time          `json:"ts"`
 }
 
 // FuturesOpenOrdersResponse stores open orders data for futures
 type FuturesOpenOrdersResponse struct {
-	Data      FuturesOpenOrders `json:"data"`
-	Timestamp types.Time        `json:"ts"`
+	OpenOrders FuturesOpenOrders `json:"data"`
+	Timestamp  types.Time        `json:"ts"`
 }
 
 // FuturesOrderHistoryEntry stores an order history entry for futures.
 type FuturesOrderHistoryEntry struct {
-	QueryID         uint64               `json:"query_id"`
-	Symbol          string               `json:"symbol"`
-	ContractType    string               `json:"contract_type"`
-	ContractCode    string               `json:"contract_code"`
-	Volume          float64              `json:"volume"`
-	Price           float64              `json:"price"`
-	OrderPriceType  LegacyOrderPriceType `json:"order_price_type"`
-	Direction       string               `json:"direction"`
-	Offset          string               `json:"offset"`
-	LeverageRate    uint64               `json:"lever_rate"`
-	OrderID         uint64               `json:"order_id"`
-	OrderIDString   string               `json:"order_id_str"`
-	OrderSource     string               `json:"order_source"`
-	CreateDate      types.Time           `json:"create_date"`
-	UpdateTime      types.Time           `json:"update_time"`
-	TradeVolume     float64              `json:"trade_volume"`
-	TradeTurnover   float64              `json:"trade_turnover"`
-	Fee             float64              `json:"fee"`
-	TradeAvgPrice   float64              `json:"trade_avg_price"`
-	MarginFrozen    float64              `json:"margin_frozen"`
-	Profit          float64              `json:"profit"`
-	Status          uint64               `json:"status"`
-	OrderType       uint64               `json:"order_type"`
-	FeeAsset        currency.Code        `json:"fee_asset"`
-	LiquidationType types.Number         `json:"liquidation_type"`
+	QueryID           uint64               `json:"query_id"`
+	Symbol            string               `json:"symbol"`
+	ContractType      string               `json:"contract_type"`
+	ContractCode      string               `json:"contract_code"`
+	Volume            float64              `json:"volume"`
+	Price             float64              `json:"price"`
+	OrderPriceType    LegacyOrderPriceType `json:"order_price_type"`
+	Direction         string               `json:"direction"`
+	Offset            string               `json:"offset"`
+	LeverageRate      uint64               `json:"lever_rate"`
+	OrderID           uint64               `json:"order_id"`
+	OrderIDString     string               `json:"order_id_str"`
+	OrderSource       string               `json:"order_source"`
+	CreateDate        types.Time           `json:"create_date"`
+	UpdateTime        types.Time           `json:"update_time"`
+	TradeVolume       float64              `json:"trade_volume"`
+	TradeTurnover     float64              `json:"trade_turnover"`
+	Fee               float64              `json:"fee"`
+	TradeAveragePrice float64              `json:"trade_avg_price"`
+	MarginFrozen      float64              `json:"margin_frozen"`
+	Profit            float64              `json:"profit"`
+	Status            uint64               `json:"status"`
+	OrderType         uint64               `json:"order_type"`
+	FeeAsset          currency.Code        `json:"fee_asset"`
+	LiquidationType   types.Number         `json:"liquidation_type"`
 }
 
 // FuturesOrderHistory stores order history data and legacy pagination values.
@@ -372,15 +372,15 @@ type FuturesOrderHistory struct {
 
 // FuturesOrderHistoryResponse stores order history data.
 type FuturesOrderHistoryResponse struct {
-	Data      FuturesOrderHistory `json:"data"`
-	Timestamp types.Time          `json:"ts"`
+	OrderHistory FuturesOrderHistory `json:"data"`
+	Timestamp    types.Time          `json:"ts"`
 }
 
 // UnmarshalJSON supports the documented v3 array response while preserving the
 // legacy paged-object shape used by older responses.
 func (f *FuturesOrderHistoryResponse) UnmarshalJSON(data []byte) error {
 	var response FuturesOrderHistoryResponse
-	if err := unmarshalV3FuturesResponse(data, &response.Timestamp, &response.Data.Orders, &response.Data); err != nil {
+	if err := unmarshalV3FuturesResponse(data, &response.Timestamp, &response.OrderHistory.Orders, &response.OrderHistory); err != nil {
 		return err
 	}
 	*f = response
@@ -420,15 +420,15 @@ type FuturesTradeHistory struct {
 
 // FuturesTradeHistoryResponse stores trade history data for futures.
 type FuturesTradeHistoryResponse struct {
-	Data      FuturesTradeHistory `json:"data"`
-	Timestamp types.Time          `json:"ts"`
+	TradeHistory FuturesTradeHistory `json:"data"`
+	Timestamp    types.Time          `json:"ts"`
 }
 
 // UnmarshalJSON supports the documented v3 array response while preserving the
 // legacy paged-object shape used by older responses.
 func (f *FuturesTradeHistoryResponse) UnmarshalJSON(data []byte) error {
 	var response FuturesTradeHistoryResponse
-	if err := unmarshalV3FuturesResponse(data, &response.Timestamp, &response.Data.Trades, &response.Data); err != nil {
+	if err := unmarshalV3FuturesResponse(data, &response.Timestamp, &response.TradeHistory.Trades, &response.TradeHistory); err != nil {
 		return err
 	}
 	*f = response
@@ -438,36 +438,30 @@ func (f *FuturesTradeHistoryResponse) UnmarshalJSON(data []byte) error {
 // unmarshalV3FuturesResponse preserves HTX's legacy paginated response shape
 // while accepting the array and empty-data forms returned by current V3 APIs.
 func unmarshalV3FuturesResponse[T, P any](data []byte, timestamp *types.Time, arrayResponse *[]T, legacyResponse *P) error {
-	var raw futuresV3Response
-	if err := json.Unmarshal(data, &raw); err != nil {
+	response := futuresV3Response[T, P]{Records: futuresV3Records[T, P]{Array: arrayResponse, Page: legacyResponse}}
+	if err := json.Unmarshal(data, &response); err != nil {
 		return err
 	}
-	*timestamp = raw.Timestamp
-	if isEmptyHTXData(raw.Data) {
-		return nil
-	}
-	if bytes.HasPrefix(bytes.TrimSpace(raw.Data), []byte("[")) {
-		return json.Unmarshal(raw.Data, arrayResponse)
-	}
-	return json.Unmarshal(raw.Data, legacyResponse)
+	*timestamp = response.Timestamp
+	return nil
 }
 
 // FuturesTriggerOrderResponse stores trigger order data
 type FuturesTriggerOrderResponse struct {
-	Data      FuturesTriggerOrder `json:"data"`
+	Order     FuturesTriggerOrder `json:"data"`
 	Timestamp types.Time          `json:"ts"`
 }
 
 // FuturesTriggerOpenOrdersResponse stores trigger open orders data
 type FuturesTriggerOpenOrdersResponse struct {
-	Data      FuturesTriggerOpenOrders `json:"data"`
-	Timestamp types.Time               `json:"ts"`
+	OpenOrders FuturesTriggerOpenOrders `json:"data"`
+	Timestamp  types.Time               `json:"ts"`
 }
 
 // FuturesTriggerOrderHistoryResponse stores trigger order history for futures
 type FuturesTriggerOrderHistoryResponse struct {
-	Data      FuturesTriggerOrderHistory `json:"data"`
-	Timestamp types.Time                 `json:"ts"`
+	OrderHistory FuturesTriggerOrderHistory `json:"data"`
+	Timestamp    types.Time                 `json:"ts"`
 }
 
 // FuturesContractInfo describes the size, price tick and lifecycle of a delivery contract.
@@ -508,7 +502,7 @@ type FuturesMarketDepthTick struct {
 
 // FuturesMarketOverviewTick combines the rolling delivery summary with the best bid and ask.
 type FuturesMarketOverviewTick struct {
-	Vol       types.Number `json:"vol"`
+	Volume    types.Number `json:"vol"`
 	Ask       []float64    `json:"ask"`
 	Bid       []float64    `json:"bid"`
 	Close     types.Number `json:"close"`
@@ -532,7 +526,7 @@ type FuturesLastTrade struct {
 
 // FuturesLastTradeTick groups recent executions under their exchange update ID.
 type FuturesLastTradeTick struct {
-	Data      []FuturesLastTrade `json:"data"`
+	Trades    []FuturesLastTrade `json:"data"`
 	ID        uint64             `json:"id"`
 	Timestamp types.Time         `json:"ts"`
 }
@@ -541,7 +535,7 @@ type FuturesLastTradeTick struct {
 type FuturesBatchTradesForContract struct {
 	ID        uint64         `json:"id"`
 	Timestamp types.Time     `json:"ts"`
-	Data      []FuturesTrade `json:"data"`
+	Trades    []FuturesTrade `json:"data"`
 }
 
 // FuturesTieredAdjustmentFactorInfoLadders defines the position-size interval for one margin adjustment factor.
@@ -560,8 +554,8 @@ type FuturesTieredAdjustmentFactorInfoList struct {
 
 // FuturesTieredAdjustmentFactorInfo groups the available margin adjustment tiers for an underlying symbol.
 type FuturesTieredAdjustmentFactorInfo struct {
-	Symbol string                                  `json:"symbol"`
-	List   []FuturesTieredAdjustmentFactorInfoList `json:"list"`
+	Symbol        string                                  `json:"symbol"`
+	LeverageTiers []FuturesTieredAdjustmentFactorInfoList `json:"list"`
 }
 
 // FuturesOpenInterestTick records outstanding contract volume at an exchange timestamp.
@@ -588,8 +582,8 @@ type FuturesTopAccountsLongShortRatioList struct {
 
 // FuturesTopAccountsLongShortRatio groups account sentiment samples for an underlying symbol.
 type FuturesTopAccountsLongShortRatio struct {
-	List   []FuturesTopAccountsLongShortRatioList `json:"list"`
-	Symbol string                                 `json:"symbol"`
+	Snapshots []FuturesTopAccountsLongShortRatioList `json:"list"`
+	Symbol    string                                 `json:"symbol"`
 }
 
 // FuturesTopPositionsLongShortRatioList records long and short position proportions at a sample time.
@@ -601,13 +595,13 @@ type FuturesTopPositionsLongShortRatioList struct {
 
 // FuturesTopPositionsLongShortRatio groups position sentiment samples for an underlying symbol.
 type FuturesTopPositionsLongShortRatio struct {
-	Symbol string                                  `json:"symbol"`
-	List   []FuturesTopPositionsLongShortRatioList `json:"list"`
+	Symbol    string                                  `json:"symbol"`
+	Snapshots []FuturesTopPositionsLongShortRatioList `json:"list"`
 }
 
 // FuturesIndexKline is an index-price candle whose ID is its start time in Unix seconds.
 type FuturesIndexKline struct {
-	Vol    float64 `json:"vol"`
+	Volume float64 `json:"vol"`
 	Close  float64 `json:"close"`
 	Count  float64 `json:"count"`
 	High   float64 `json:"high"`
@@ -672,8 +666,8 @@ type FuturesSubAccountAsset struct {
 
 // FuturesSubAccountAssetsInfo groups balances by subaccount identifier.
 type FuturesSubAccountAssetsInfo struct {
-	SubUID uint64                   `json:"sub_uid"`
-	List   []FuturesSubAccountAsset `json:"list"`
+	SubUID   uint64                   `json:"sub_uid"`
+	Balances []FuturesSubAccountAsset `json:"list"`
 }
 
 // FuturesSingleSubAccountAsset reports the collateral and profit components of a subaccount balance.
@@ -765,7 +759,7 @@ type FuturesSymbolOrderLimit struct {
 // FuturesContractOrderLimit groups order limits by price instruction.
 type FuturesContractOrderLimit struct {
 	OrderPriceType string                    `json:"order_price_type"`
-	List           []FuturesSymbolOrderLimit `json:"list"`
+	SymbolLimits   []FuturesSymbolOrderLimit `json:"list"`
 }
 
 // FuturesContractTradingFee lists maker, taker and delivery fees in their settlement currency.
@@ -801,8 +795,8 @@ type FuturesContractPositionLimit struct {
 
 // FuturesPositionLimit groups expiry-specific position limits for an underlying symbol.
 type FuturesPositionLimit struct {
-	Symbol string                         `json:"symbol"`
-	List   []FuturesContractPositionLimit `json:"list"`
+	Symbol         string                         `json:"symbol"`
+	ContractLimits []FuturesContractPositionLimit `json:"list"`
 }
 
 // FuturesAssetsAndPositions reports collateral, margin and profit totals for a delivery account.
@@ -857,15 +851,15 @@ type FuturesLeverage struct {
 // FuturesOrder identifies an accepted delivery order using exchange and client identifiers.
 type FuturesOrder struct {
 	OrderID       uint64 `json:"order_id"`
-	OrderIDStr    string `json:"order_id_str"`
+	OrderIDString string `json:"order_id_str"`
 	ClientOrderID uint64 `json:"client_order_id"`
 }
 
 // FuturesCancelOrderError identifies an order rejected within a cancellation request.
 type FuturesCancelOrderError struct {
-	OrderID uint64 `json:"order_id,string"`
-	ErrCode int64  `json:"err_code"`
-	ErrMsg  string `json:"err_msg"`
+	OrderID      uint64 `json:"order_id,string"`
+	ErrorCode    uint64 `json:"err_code"`
+	ErrorMessage string `json:"err_msg"`
 }
 
 // FuturesCancelOrder retains successful identifiers and individual failures from a cancellation request.
@@ -876,31 +870,31 @@ type FuturesCancelOrder struct {
 
 // FuturesOrderInfo combines delivery order state with its execution and fee totals.
 type FuturesOrderInfo struct {
-	ClientOrderID   uint64        `json:"client_order_id"`
-	ContractCode    string        `json:"contract_code"`
-	ContractType    string        `json:"contract_type"`
-	CreatedAt       types.Time    `json:"created_at"`
-	CanceledAt      types.Time    `json:"canceled_at"`
-	Direction       string        `json:"direction"`
-	Fee             float64       `json:"fee"`
-	FeeAsset        currency.Code `json:"fee_asset"`
-	LeverRate       uint64        `json:"lever_rate"`
-	MarginFrozen    float64       `json:"margin_frozen"`
-	Offset          string        `json:"offset"`
-	OrderID         uint64        `json:"order_id"`
-	OrderIDString   string        `json:"order_id_str"`
-	OrderPriceType  string        `json:"order_price_type"`
-	OrderSource     string        `json:"order_source"`
-	OrderType       uint64        `json:"order_type"`
-	Price           float64       `json:"price"`
-	Profit          float64       `json:"profit"`
-	Status          uint64        `json:"status"`
-	Symbol          string        `json:"symbol"`
-	TradeAvgPrice   float64       `json:"trade_avg_price"`
-	TradeTurnover   float64       `json:"trade_turnover"`
-	TradeVolume     float64       `json:"trade_volume"`
-	Volume          float64       `json:"volume"`
-	LiquidationType types.Number  `json:"liquidation_type"`
+	ClientOrderID     uint64        `json:"client_order_id"`
+	ContractCode      string        `json:"contract_code"`
+	ContractType      string        `json:"contract_type"`
+	CreatedAt         types.Time    `json:"created_at"`
+	CanceledAt        types.Time    `json:"canceled_at"`
+	Direction         string        `json:"direction"`
+	Fee               float64       `json:"fee"`
+	FeeAsset          currency.Code `json:"fee_asset"`
+	LeverageRate      uint64        `json:"lever_rate"`
+	MarginFrozen      float64       `json:"margin_frozen"`
+	Offset            string        `json:"offset"`
+	OrderID           uint64        `json:"order_id"`
+	OrderIDString     string        `json:"order_id_str"`
+	OrderPriceType    string        `json:"order_price_type"`
+	OrderSource       string        `json:"order_source"`
+	OrderType         uint64        `json:"order_type"`
+	Price             float64       `json:"price"`
+	Profit            float64       `json:"profit"`
+	Status            uint64        `json:"status"`
+	Symbol            string        `json:"symbol"`
+	TradeAveragePrice float64       `json:"trade_avg_price"`
+	TradeTurnover     float64       `json:"trade_turnover"`
+	TradeVolume       float64       `json:"trade_volume"`
+	Volume            float64       `json:"volume"`
+	LiquidationType   types.Number  `json:"liquidation_type"`
 }
 
 // FuturesOrderTrade records an individual fill and its fee within a delivery order.
@@ -917,62 +911,62 @@ type FuturesOrderTrade struct {
 
 // FuturesOrderDetails combines a delivery order with its individual fills and pagination totals.
 type FuturesOrderDetails struct {
-	Symbol         string              `json:"symbol"`
-	ContractType   string              `json:"contract_type"`
-	ContractCode   string              `json:"contract_code"`
-	Volume         float64             `json:"volume"`
-	Price          float64             `json:"price"`
-	OrderPriceType string              `json:"order_price_type"`
-	Direction      string              `json:"direction"`
-	Offset         string              `json:"offset"`
-	LeverageRate   uint64              `json:"lever_rate"`
-	MarginFrozen   float64             `json:"margin_frozen"`
-	Profit         float64             `json:"profit"`
-	OrderSource    string              `json:"order_source"`
-	OrderID        uint64              `json:"order_id"`
-	OrderIDString  string              `json:"order_id_str"`
-	ClientOrderID  uint64              `json:"client_order_id"`
-	OrderType      uint64              `json:"order_type"`
-	Status         uint64              `json:"status"`
-	TradeVolume    float64             `json:"trade_volume"`
-	TradeTurnover  float64             `json:"trade_turnover"`
-	TradeAvgPrice  float64             `json:"trade_avg_price"`
-	Fee            float64             `json:"fee"`
-	CreatedAt      types.Time          `json:"created_at"`
-	CanceledAt     types.Time          `json:"canceled_at"`
-	FinalInterest  float64             `json:"final_interest"`
-	AdjustValue    float64             `json:"adjust_value"`
-	FeeAsset       currency.Code       `json:"fee_asset"`
-	Trades         []FuturesOrderTrade `json:"trades"`
-	TotalPage      uint64              `json:"total_page"`
-	TotalSize      uint64              `json:"total_size"`
-	CurrentPage    uint64              `json:"current_page"`
+	Symbol            string              `json:"symbol"`
+	ContractType      string              `json:"contract_type"`
+	ContractCode      string              `json:"contract_code"`
+	Volume            float64             `json:"volume"`
+	Price             float64             `json:"price"`
+	OrderPriceType    string              `json:"order_price_type"`
+	Direction         string              `json:"direction"`
+	Offset            string              `json:"offset"`
+	LeverageRate      uint64              `json:"lever_rate"`
+	MarginFrozen      float64             `json:"margin_frozen"`
+	Profit            float64             `json:"profit"`
+	OrderSource       string              `json:"order_source"`
+	OrderID           uint64              `json:"order_id"`
+	OrderIDString     string              `json:"order_id_str"`
+	ClientOrderID     uint64              `json:"client_order_id"`
+	OrderType         uint64              `json:"order_type"`
+	Status            uint64              `json:"status"`
+	TradeVolume       float64             `json:"trade_volume"`
+	TradeTurnover     float64             `json:"trade_turnover"`
+	TradeAveragePrice float64             `json:"trade_avg_price"`
+	Fee               float64             `json:"fee"`
+	CreatedAt         types.Time          `json:"created_at"`
+	CanceledAt        types.Time          `json:"canceled_at"`
+	FinalInterest     float64             `json:"final_interest"`
+	AdjustValue       float64             `json:"adjust_value"`
+	FeeAsset          currency.Code       `json:"fee_asset"`
+	Trades            []FuturesOrderTrade `json:"trades"`
+	TotalPage         uint64              `json:"total_page"`
+	TotalSize         uint64              `json:"total_size"`
+	CurrentPage       uint64              `json:"current_page"`
 }
 
 // FuturesOpenOrder describes an unfilled or partially filled delivery order.
 type FuturesOpenOrder struct {
-	Symbol         string        `json:"symbol"`
-	ContractType   string        `json:"contract_type"`
-	ContractCode   string        `json:"contract_code"`
-	Volume         float64       `json:"volume"`
-	Price          float64       `json:"price"`
-	OrderPriceType string        `json:"order_price_type"`
-	OrderType      uint64        `json:"order_type"`
-	Direction      string        `json:"direction"`
-	Offset         string        `json:"offset"`
-	LeverageRate   uint64        `json:"lever_rate"`
-	OrderID        uint64        `json:"order_id"`
-	OrderIDString  string        `json:"order_id_str"`
-	ClientOrderID  uint64        `json:"client_order_id"`
-	OrderSource    string        `json:"order_source"`
-	CreatedAt      types.Time    `json:"created_at"`
-	TradeVolume    float64       `json:"trade_volume"`
-	Fee            float64       `json:"fee"`
-	TradeAvgPrice  float64       `json:"trade_avg_price"`
-	MarginFrozen   float64       `json:"margin_frozen"`
-	Profit         float64       `json:"profit"`
-	Status         uint64        `json:"status"`
-	FeeAsset       currency.Code `json:"fee_asset"`
+	Symbol            string        `json:"symbol"`
+	ContractType      string        `json:"contract_type"`
+	ContractCode      string        `json:"contract_code"`
+	Volume            float64       `json:"volume"`
+	Price             float64       `json:"price"`
+	OrderPriceType    string        `json:"order_price_type"`
+	OrderType         uint64        `json:"order_type"`
+	Direction         string        `json:"direction"`
+	Offset            string        `json:"offset"`
+	LeverageRate      uint64        `json:"lever_rate"`
+	OrderID           uint64        `json:"order_id"`
+	OrderIDString     string        `json:"order_id_str"`
+	ClientOrderID     uint64        `json:"client_order_id"`
+	OrderSource       string        `json:"order_source"`
+	CreatedAt         types.Time    `json:"created_at"`
+	TradeVolume       float64       `json:"trade_volume"`
+	Fee               float64       `json:"fee"`
+	TradeAveragePrice float64       `json:"trade_avg_price"`
+	MarginFrozen      float64       `json:"margin_frozen"`
+	Profit            float64       `json:"profit"`
+	Status            uint64        `json:"status"`
+	FeeAsset          currency.Code `json:"fee_asset"`
 }
 
 // FuturesOpenOrders is a page of unfilled or partially filled delivery orders.
@@ -985,8 +979,8 @@ type FuturesOpenOrders struct {
 
 // FuturesTriggerOrder identifies an accepted trigger order before it creates a regular order.
 type FuturesTriggerOrder struct {
-	OrderID    uint64 `json:"order_id"`
-	OrderIDStr string `json:"order_id_str"`
+	OrderID       uint64 `json:"order_id"`
+	OrderIDString string `json:"order_id_str"`
 }
 
 // FuturesOpenTriggerOrder describes a trigger order still awaiting its price condition.
@@ -1042,7 +1036,7 @@ type FuturesTriggerOrderHistoryEntry struct {
 	TriggeredAt     types.Time `json:"triggered_at"`
 	OrderInsertAt   types.Time `json:"order_insert_at"`
 	CancelledAt     types.Time `json:"canceled_at"`
-	FailCode        int64      `json:"fail_code"`
+	FailCode        uint64     `json:"fail_code"`
 	FailReason      string     `json:"fail_reason"`
 }
 
@@ -1054,8 +1048,25 @@ type FuturesTriggerOrderHistory struct {
 	TotalSize   uint64                            `json:"total_size"`
 }
 
-// futuresV3Response retains the data shape until the API version is identified.
-type futuresV3Response struct {
-	Data      json.RawMessage `json:"data"`
-	Timestamp types.Time      `json:"ts"`
+// futuresV3Response decodes both current arrays and older paginated responses.
+type futuresV3Response[T, P any] struct {
+	Records   futuresV3Records[T, P] `json:"data"`
+	Timestamp types.Time             `json:"ts"`
+}
+
+// futuresV3Records selects a concrete response type for the documented API generation.
+type futuresV3Records[T, P any] struct {
+	Array *[]T
+	Page  *P
+}
+
+// UnmarshalJSON accepts empty V3 results, record arrays and older page objects.
+func (r *futuresV3Records[T, P]) UnmarshalJSON(payload []byte) error {
+	if isEmptyHTXData(payload) {
+		return nil
+	}
+	if bytes.HasPrefix(bytes.TrimSpace(payload), []byte("[")) {
+		return json.Unmarshal(payload, r.Array)
+	}
+	return json.Unmarshal(payload, r.Page)
 }

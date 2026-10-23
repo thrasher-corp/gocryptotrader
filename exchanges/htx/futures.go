@@ -1270,8 +1270,12 @@ func (e *Exchange) FuturesAuthenticatedHTTPRequest(ctx context.Context, ep excha
 		values = url.Values{}
 	}
 
-	var tempResp json.RawMessage
-	responseHeaders := make(http.Header)
+	response := &httpResponse{
+		Result:        result,
+		Authenticated: true,
+		Futures:       true,
+		Version5:      strings.HasPrefix(endpoint, "/v5/") || strings.Contains(endpoint, "/v3/"),
+	}
 	newRequest := func() (*request.Item, error) {
 		values.Del("Signature")
 		values.Set("AccessKeyId", creds.Key)
@@ -1307,52 +1311,19 @@ func (e *Exchange) FuturesAuthenticatedHTTPRequest(ctx context.Context, ep excha
 			Path:                   common.EncodeURLValues(ePoint+endpoint, values),
 			Headers:                headers,
 			Body:                   body,
-			Result:                 &tempResp,
+			Result:                 response,
 			Verbose:                e.Verbose,
 			HTTPDebugging:          e.HTTPDebugging,
 			HTTPRecording:          e.HTTPRecording,
 			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
-			HeaderResponse:         &responseHeaders,
 		}, nil
 	}
 
 	if err := e.SendPayload(ctx, getRateLimitID(ep, endpoint, method, true), newRequest, request.AuthenticatedRequest); err != nil {
 		return err
 	}
-	if responseHeaders.Get("Status") == strconv.Itoa(http.StatusNoContent) {
-		if len(bytes.TrimSpace(tempResp)) != 0 {
-			return fmt.Errorf("%w: status %d returned a response body", request.ErrAuthRequestFailed, http.StatusNoContent)
-		}
-		if result == nil {
-			return nil
-		}
+	if !response.Received && result != nil {
 		return common.AppendError(errExpectedResponseBody, request.ErrAuthRequestFailed)
-	}
-
-	var errCap errorCapture
-	if err = json.Unmarshal(tempResp, &errCap); err == nil {
-		if errCap.ErrMsgType1 != "" {
-			return fmt.Errorf("%w error code: %v error message: %s", request.ErrAuthRequestFailed, errCap.CodeType1, errCap.ErrMsgType1)
-		}
-		if errCap.ErrMsgType2 != "" {
-			return fmt.Errorf("%w error code: %v error message: %s", request.ErrAuthRequestFailed, errCap.CodeType2, errCap.ErrMsgType2)
-		}
-		if errCap.Status == htxStatusError {
-			return fmt.Errorf("%w: status %s", request.ErrAuthRequestFailed, errCap.Status)
-		}
-	}
-	if strings.HasPrefix(endpoint, "/v5/") || strings.Contains(endpoint, "/v3/") {
-		var resp V5Response
-		if err = json.Unmarshal(tempResp, &resp); err == nil && resp.Code != 0 && resp.Code != http.StatusOK {
-			message := resp.Message
-			if message == "" {
-				message = resp.Msg
-			}
-			return fmt.Errorf("%w error code: %v error message: %s", request.ErrAuthRequestFailed, resp.Code, message)
-		}
-	}
-	if err = unmarshalResponse(tempResp, result); err != nil {
-		return common.AppendError(err, request.ErrAuthRequestFailed)
 	}
 	return nil
 }

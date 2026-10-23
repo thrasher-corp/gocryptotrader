@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
@@ -42,7 +43,7 @@ func TestGetSwapKlineData(t *testing.T) {
 	t.Parallel()
 	r, err := e.GetSwapKlineData(t.Context(), btcusdPair, "5min", 5, time.Now().Add(-time.Hour), time.Now())
 	require.NoError(t, err)
-	assert.NotEmpty(t, r.Data, "GetSwapKlineData should return some data")
+	assert.NotEmpty(t, r.Candles, "GetSwapKlineData should return some data")
 	_, err = e.GetSwapKlineData(t.Context(), btcusdPair, "invalid", 5, time.Time{}, time.Time{})
 	require.ErrorIs(t, err, common.ErrInvalidPeriod, "GetSwapKlineData must reject an invalid period")
 	_, err = e.GetSwapKlineData(t.Context(), btcusdPair, "5min", 5, time.Now(), time.Time{})
@@ -177,10 +178,10 @@ func TestGetSwapAllSubAccAssets(t *testing.T) {
 	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_sub_account_list", `{"status":"ok","data":[{"sub_uid":123,"list":[{"symbol":"ETH","contract_code":"ETH-USD","margin_balance":0.125}]}]}`, nil)
 	response, err := h.GetSwapAllSubAccAssets(t.Context(), ethusdPair)
 	require.NoError(t, err, "GetSwapAllSubAccAssets must decode decimal balances")
-	require.Len(t, response.Data, 1, "response must contain the subaccount")
-	require.Len(t, response.Data[0].List, 1, "subaccount must contain its balance")
-	assert.Equal(t, uint64(123), response.Data[0].SubUID, "subaccount ID should decode")
-	assert.Equal(t, 0.125, response.Data[0].List[0].MarginBalance, "fractional margin balance should retain its decimals")
+	require.Len(t, response.Assets, 1, "response must contain the subaccount")
+	require.Len(t, response.Assets[0].Balances, 1, "subaccount must contain its balance")
+	assert.Equal(t, uint64(123), response.Assets[0].SubUID, "subaccount ID should decode")
+	assert.Equal(t, 0.125, response.Assets[0].Balances[0].MarginBalance, "fractional margin balance should retain its decimals")
 }
 
 func TestGetSubAccPositionInfo(t *testing.T) {
@@ -264,7 +265,7 @@ func TestAccountTransferData(t *testing.T) {
 	require.NoError(t, err, "AccountTransferData must not error")
 	require.NotNil(t, response, "transfer response must be returned as a pointer")
 	assert.Equal(t, time.UnixMilli(1603872000000), response.Timestamp.Time(), "transfer timestamp should retain milliseconds")
-	assert.Equal(t, "123", response.Data.OrderID, "transfer identifier should decode")
+	assert.Equal(t, "123", response.Transfer.OrderID, "transfer identifier should decode")
 	_, err = h.AccountTransferData(t.Context(), ethusdPair, "123", "invalid", 15)
 	require.ErrorIs(t, err, errInvalidTransferType, "AccountTransferData must reject an invalid transfer type")
 }
@@ -293,13 +294,14 @@ func TestPlaceSwapOrders(t *testing.T) {
 
 func TestPlaceSwapBatchOrders(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct {
+	type testCase struct {
 		name       string
 		count      int
 		nilRequest bool
 		priceType  string
 		wantErr    error
-	}{
+	}
+	for _, tc := range []testCase{
 		{name: "nil request", nilRequest: true, wantErr: common.ErrNilPointer},
 		{name: "empty batch", wantErr: errBatchOrderLimitExceeded},
 		{name: "too many orders", count: 11, wantErr: errBatchOrderLimitExceeded},
@@ -312,9 +314,10 @@ func TestPlaceSwapBatchOrders(t *testing.T) {
 			var calls atomic.Int32
 			h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_batchorder", emptySuccessResponse, func(r *http.Request) {
 				calls.Add(1)
-				var payload struct {
+				type orderPayload struct {
 					Orders []map[string]any `json:"orders_data"`
 				}
+				var payload orderPayload
 				if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&payload), "batch payload should decode") {
 					return
 				}
@@ -333,9 +336,9 @@ func TestPlaceSwapBatchOrders(t *testing.T) {
 			})
 			var req *SwapBatchOrderRequest
 			if !tc.nilRequest {
-				req = &SwapBatchOrderRequest{Data: make([]SwapBatchOrder, tc.count)}
-				for i := range req.Data {
-					req.Data[i] = SwapBatchOrder{ContractCode: "ETH-USD", Price: 5, Volume: 1, Direction: "buy", Offset: "open", LeverageRate: 1, OrderPriceType: tc.priceType}
+				req = &SwapBatchOrderRequest{Orders: make([]SwapBatchOrder, tc.count)}
+				for i := range req.Orders {
+					req.Orders[i] = SwapBatchOrder{ContractCode: "ETH-USD", Price: 5, Volume: 1, Direction: "buy", Offset: "open", LeverageRate: 1, OrderPriceType: tc.priceType}
 				}
 			}
 			_, err := h.PlaceSwapBatchOrders(t.Context(), req)
@@ -352,12 +355,13 @@ func TestPlaceSwapBatchOrders(t *testing.T) {
 
 func TestCancelSwapOrder(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct {
+	type testCase struct {
 		name           string
 		orderIDs       string
 		clientOrderIDs string
 		wantErr        error
-	}{
+	}
+	for _, tc := range []testCase{
 		{name: "order ID", orderIDs: "123"},
 		{name: "client order ID", clientOrderIDs: "123"},
 		{name: "ten order IDs", orderIDs: strings.Repeat("123,", 9) + "123"},
@@ -369,9 +373,9 @@ func TestCancelSwapOrder(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			calls := make(chan struct{}, 1)
+			calls := make(chan bool, 1)
 			h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_cancel", emptySuccessResponse, func(r *http.Request) {
-				calls <- struct{}{}
+				calls <- true
 				var payload map[string]string
 				require.NoError(t, json.NewDecoder(r.Body).Decode(&payload), "cancellation body must decode")
 				assert.Equal(t, tc.orderIDs, payload["order_id"], "order IDs should be retained")
@@ -398,12 +402,13 @@ func TestCancelAllSwapOrders(t *testing.T) {
 
 func TestPlaceLightningCloseOrder(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct {
+	type testCase struct {
 		name          string
 		clientOrderID uint64
 		priceType     string
 		wantErr       error
-	}{
+	}
+	for _, tc := range []testCase{
 		{name: "client order ID", clientOrderID: 1, priceType: "lightning"},
 		{name: "omitted client order ID", priceType: "lightning"},
 		{name: "maximum client order ID", clientOrderID: math.MaxInt64, priceType: "lightning"},
@@ -412,18 +417,20 @@ func TestPlaceLightningCloseOrder(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			calls := make(chan struct{}, 1)
+			calls := make(chan bool, 1)
 			h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_lightning_close_position", emptySuccessResponse, func(r *http.Request) {
-				calls <- struct{}{}
-				var payload map[string]json.RawMessage
+				calls <- true
+				type lightningRequest struct {
+					ClientOrderID *uint64 `json:"client_order_id"`
+				}
+				var payload lightningRequest
 				require.NoError(t, json.NewDecoder(r.Body).Decode(&payload), "lightning close body must decode")
 				if tc.clientOrderID == 0 {
-					assert.NotContains(t, payload, "client_order_id", "zero client order ID should be omitted")
+					assert.Nil(t, payload.ClientOrderID, "zero client order ID should be omitted")
 					return
 				}
-				var clientOrderID uint64
-				require.NoError(t, json.Unmarshal(payload["client_order_id"], &clientOrderID), "client order ID must decode without precision loss")
-				assert.Equal(t, tc.clientOrderID, clientOrderID, "client order ID should be retained")
+				require.NotNil(t, payload.ClientOrderID, "client order ID must be present")
+				assert.Equal(t, tc.clientOrderID, *payload.ClientOrderID, "client order ID should be retained")
 			})
 			_, err := h.PlaceLightningCloseOrder(t.Context(), ethusdPair, "buy", tc.priceType, 5, tc.clientOrderID)
 			if tc.wantErr != nil {
@@ -480,8 +487,8 @@ func TestGetSwapOrderHistoryByTimeRange(t *testing.T) {
 	endTime := startTime.Add(48 * time.Hour)
 	resp, err := h.GetSwapOrderHistoryByTimeRange(t.Context(), ethusdPair, "all", "all", nil, startTime, endTime, 11, 50)
 	require.NoError(t, err, "GetSwapOrderHistoryByTimeRange must not error")
-	require.Len(t, resp.Data.Orders, 1, "decoded order history must be returned")
-	assert.Equal(t, uint64(12), resp.Data.Orders[0].QueryID, "query ID should decode")
+	require.Len(t, resp.OrderHistory.Orders, 1, "decoded order history must be returned")
+	assert.Equal(t, uint64(12), resp.OrderHistory.Orders[0].QueryID, "query ID should decode")
 
 	var requestBody map[string]any
 	require.NoError(t, json.Unmarshal(<-body, &requestBody), "request body must decode")
@@ -613,12 +620,24 @@ func TestGetHistoricalFundingRatesForPair(t *testing.T) {
 	require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestFutures.String(), server.URL), "futures endpoint must be set")
 	got, err := h.GetHistoricalFundingRatesForPair(t.Context(), btcusdPair, 25, 2)
 	require.NoError(t, err, "GetHistoricalFundingRatesForPair must not error")
-	require.Len(t, got.Data.Data, 1, "one funding rate must be returned")
-	assert.Equal(t, time.UnixMilli(1604312615051), got.Data.Data[0].FundingTime.Time(), "funding time should match")
+	require.Len(t, got.FundingHistory.FundingRates, 1, "one funding rate must be returned")
+	assert.Equal(t, time.UnixMilli(1604312615051), got.FundingHistory.FundingRates[0].FundingTime.Time(), "funding time should match")
 }
 
 func TestSwitchCoinMarginedLeverage(t *testing.T) {
 	t.Parallel()
+	t.Run("dedicated rate limit", func(t *testing.T) {
+		t.Parallel()
+		var sent atomic.Int32
+		h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_switch_lever_rate", `{"status":"ok","data":{}}`, func(*http.Request) { sent.Add(1) })
+		// A long refill interval makes routing observable without timing assertions or sleeps.
+		limits := h.Requester.GetRateLimiterDefinitions()
+		limits[htxSwapSwitchLeverage] = request.NewRateLimitWithWeight(time.Hour, 1, 1)
+		require.NoError(t, limits[htxSwapSwitchLeverage].RateLimit(t.Context()), "dedicated allowance must be exhausted")
+		err := h.SwitchCoinMarginedLeverage(request.WithDelayNotAllowed(t.Context()), btcusdPair, 5)
+		require.ErrorIs(t, err, request.ErrDelayNotAllowed, "endpoint must use its exhausted dedicated allowance")
+		assert.Zero(t, sent.Load(), "rate-limited request should not reach the server")
+	})
 	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_switch_lever_rate", `{"status":"ok","data":{"contract_code":"BTC-USD","lever_rate":5}}`, func(r *http.Request) {
 		body, err := io.ReadAll(r.Body)
 		assert.NoError(t, err, "request body should be readable")

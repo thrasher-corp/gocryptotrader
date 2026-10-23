@@ -35,7 +35,7 @@ func (e *Exchange) GetLinearSwapMarkets(ctx context.Context, code currency.Pair,
 	if err := e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/linear-swap-api/v1/swap_contract_info", params), resp); err != nil {
 		return nil, err
 	}
-	return resp.Data, nil
+	return resp.Markets, nil
 }
 
 // GetLinearSwapMarketDepth gets current USDT-margined market depth.

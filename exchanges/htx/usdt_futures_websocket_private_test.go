@@ -87,7 +87,7 @@ func TestNewV5TradeWebsocketTestExchange(t *testing.T) {
 	resp, err := h.WSPlaceV5Order(t.Context(), &V5OrderRequest{ContractCode: "BTC-USDT"})
 	require.NoError(t, err, "authenticated trade connection must complete an order request")
 	require.NotNil(t, resp, "order acknowledgement must be returned")
-	assert.Equal(t, "1", resp.Data.OrderID, "order acknowledgement should decode")
+	assert.Equal(t, "1", resp.Acknowledgement.OrderID, "order acknowledgement should decode")
 	assert.Equal(t, int32(1), requests.Load(), "order request should use the production trade connection")
 }
 
@@ -106,12 +106,13 @@ func TestSendV5TradeRequest(t *testing.T) {
 		require.ErrorIs(t, err, request.ErrAuthRequestFailed, "trade request must require authentication even when connected")
 		assert.Nil(t, response, "unauthenticated trade request should return no response")
 	})
-	for _, tc := range []struct {
+	type testCase struct {
 		name        string
 		setup       func(*testing.T) *Exchange
 		expectedErr bool
 		cancel      bool
-	}{
+	}
+	for _, tc := range []testCase{
 		{
 			name: "success",
 			setup: func(t *testing.T) *Exchange {
@@ -201,7 +202,7 @@ func TestSendV5TradeRequest(t *testing.T) {
 			}
 			require.NoError(t, err, "sendV5TradeRequest must not error")
 			require.NotNil(t, response, "sendV5TradeRequest response must not be nil")
-			assert.Equal(t, "1", response.Data.OrderID, "order ID should decode")
+			assert.Equal(t, "1", response.Acknowledgement.OrderID, "order ID should decode")
 		})
 	}
 }
@@ -230,7 +231,7 @@ func TestWSPlaceV5Order(t *testing.T) {
 			resp, err := h.WSPlaceV5Order(t.Context(), &V5OrderRequest{ContractCode: "BTC-USDT", MarginMode: "cross", Side: "buy", Type: "market", Volume: 1})
 			require.NoError(t, err, "trade acknowledgement must decode both documented shapes")
 			require.NotNil(t, resp, "placed order acknowledgement must remain available")
-			assert.Equal(t, "1", resp.Data.OrderID, "placed order should retain its ID")
+			assert.Equal(t, "1", resp.Acknowledgement.OrderID, "placed order should retain its ID")
 			assert.Equal(t, types.Number(19), resp.RateLimit.Remaining, "remaining limit should decode through actual transport")
 		})
 	}
@@ -239,7 +240,7 @@ func TestWSPlaceV5Order(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrNilPointer, "WSPlaceV5Order must reject nil request")
 	resp, err := h.WSPlaceV5Order(t.Context(), &V5OrderRequest{ContractCode: "BTC-USDT", MarginMode: "cross", Side: "buy", Type: "market", Volume: 1})
 	require.NoError(t, err, "WSPlaceV5Order must not error")
-	assert.Equal(t, "1", resp.Data.OrderID, "order ID should decode")
+	assert.Equal(t, "1", resp.Acknowledgement.OrderID, "order ID should decode")
 	assert.Equal(t, types.Number(19), resp.RateLimit.Remaining, "remaining rate limit should decode")
 
 	h.Websocket.SetCanUseAuthenticatedEndpoints(false)
@@ -254,8 +255,8 @@ func TestWSPlaceV5BatchOrders(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrEmptyParams, "WSPlaceV5BatchOrders must reject empty request")
 	resp, err := h.WSPlaceV5BatchOrders(t.Context(), []*V5OrderRequest{{ContractCode: "BTC-USDT", MarginMode: "cross", Side: "buy", Type: "market", Volume: 1}})
 	require.NoError(t, err, "WSPlaceV5BatchOrders must not error")
-	require.Len(t, resp.Data, 1, "one order acknowledgement must decode")
-	assert.Equal(t, "1", resp.Data[0].OrderID, "order ID should decode")
+	require.Len(t, resp.Acknowledgements, 1, "one order acknowledgement must decode")
+	assert.Equal(t, "1", resp.Acknowledgements[0].OrderID, "order ID should decode")
 
 	h.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	_, err = h.WSPlaceV5BatchOrders(t.Context(), []*V5OrderRequest{{ContractCode: "BTC-USDT"}})
@@ -269,7 +270,7 @@ func TestWSCancelV5Order(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrNilPointer, "WSCancelV5Order must reject nil request")
 	resp, err := h.WSCancelV5Order(t.Context(), &V5CancelOrderRequest{ContractCode: "BTC-USDT", OrderID: "1"})
 	require.NoError(t, err, "WSCancelV5Order must not error")
-	assert.Equal(t, "1", resp.Data.OrderID, "order ID should decode")
+	assert.Equal(t, "1", resp.Acknowledgement.OrderID, "order ID should decode")
 
 	h.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	_, err = h.WSCancelV5Order(t.Context(), &V5CancelOrderRequest{ContractCode: "BTC-USDT", OrderID: "1"})
@@ -278,17 +279,57 @@ func TestWSCancelV5Order(t *testing.T) {
 
 func TestWSCancelV5BatchOrders(t *testing.T) {
 	t.Parallel()
-	h := newV5TradeWebsocketTestExchange(t, wsFixture)
-	_, err := h.WSCancelV5BatchOrders(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "WSCancelV5BatchOrders must reject nil request")
-	resp, err := h.WSCancelV5BatchOrders(t.Context(), &V5CancelBatchOrdersRequest{ContractCode: "BTC-USDT", OrderIDs: []string{"1"}})
-	require.NoError(t, err, "WSCancelV5BatchOrders must not error")
-	require.Len(t, resp.Data, 1, "one cancellation must decode")
-	assert.Equal(t, "1", resp.Data[0].OrderID, "order ID should decode")
-
-	h.Websocket.SetCanUseAuthenticatedEndpoints(false)
-	_, err = h.WSCancelV5BatchOrders(t.Context(), &V5CancelBatchOrdersRequest{ContractCode: "BTC-USDT", OrderIDs: []string{"1"}})
-	require.ErrorIs(t, err, request.ErrAuthRequestFailed, "WSCancelV5BatchOrders must reject unauthenticated requests")
+	eleven := []string{"1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11"}
+	type testCase struct {
+		name    string
+		request *V5CancelBatchOrdersRequest
+		wantErr error
+	}
+	for _, tc := range []testCase{
+		{name: "nil request", wantErr: common.ErrNilPointer},
+		{name: "mixed identifiers", request: &V5CancelBatchOrdersRequest{OrderIDs: []string{"1"}, ClientOrderIDs: []string{"2"}}, wantErr: errMixedOrderIdentifiers},
+		{name: "no identifiers", request: &V5CancelBatchOrdersRequest{}, wantErr: order.ErrOrderIDNotSet},
+		{name: "order one ID", request: &V5CancelBatchOrdersRequest{ContractCode: "BTC-USDT", OrderIDs: eleven[:1]}},
+		{name: "order ten IDs", request: &V5CancelBatchOrdersRequest{ContractCode: "BTC-USDT", OrderIDs: eleven[:10]}},
+		{name: "order eleven IDs", request: &V5CancelBatchOrdersRequest{ContractCode: "BTC-USDT", OrderIDs: eleven}, wantErr: errCancelOrderLimitExceeded},
+		{name: "order single empty ID", request: &V5CancelBatchOrdersRequest{ContractCode: "BTC-USDT", OrderIDs: []string{""}}, wantErr: order.ErrOrderIDNotSet},
+		{name: "order empty first ID", request: &V5CancelBatchOrdersRequest{ContractCode: "BTC-USDT", OrderIDs: []string{"", "2", "3"}}, wantErr: order.ErrOrderIDNotSet},
+		{name: "order empty middle ID", request: &V5CancelBatchOrdersRequest{ContractCode: "BTC-USDT", OrderIDs: []string{"1", "", "3"}}, wantErr: order.ErrOrderIDNotSet},
+		{name: "order empty last ID", request: &V5CancelBatchOrdersRequest{ContractCode: "BTC-USDT", OrderIDs: []string{"1", "2", ""}}, wantErr: order.ErrOrderIDNotSet},
+		{name: "client order one ID", request: &V5CancelBatchOrdersRequest{ContractCode: "BTC-USDT", ClientOrderIDs: eleven[:1]}},
+		{name: "client order ten IDs", request: &V5CancelBatchOrdersRequest{ContractCode: "BTC-USDT", ClientOrderIDs: eleven[:10]}},
+		{name: "client order eleven IDs", request: &V5CancelBatchOrdersRequest{ContractCode: "BTC-USDT", ClientOrderIDs: eleven}, wantErr: errCancelOrderLimitExceeded},
+		{name: "client order single empty ID", request: &V5CancelBatchOrdersRequest{ContractCode: "BTC-USDT", ClientOrderIDs: []string{""}}, wantErr: order.ErrOrderIDNotSet},
+		{name: "client order empty first ID", request: &V5CancelBatchOrdersRequest{ContractCode: "BTC-USDT", ClientOrderIDs: []string{"", "2", "3"}}, wantErr: order.ErrOrderIDNotSet},
+		{name: "client order empty middle ID", request: &V5CancelBatchOrdersRequest{ContractCode: "BTC-USDT", ClientOrderIDs: []string{"1", "", "3"}}, wantErr: order.ErrOrderIDNotSet},
+		{name: "client order empty last ID", request: &V5CancelBatchOrdersRequest{ContractCode: "BTC-USDT", ClientOrderIDs: []string{"1", "2", ""}}, wantErr: order.ErrOrderIDNotSet},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var sent atomic.Int32
+			h := newV5TradeWebsocketTestExchange(t, func(tb testing.TB, msg []byte, conn *gws.Conn) error {
+				tb.Helper()
+				if operation, _ := jsonparser.GetString(msg, "op"); operation == "cancel_batch_orders" {
+					sent.Add(1)
+				}
+				return wsFixture(tb, msg, conn)
+			})
+			resp, err := h.WSCancelV5BatchOrders(t.Context(), tc.request)
+			if tc.wantErr != nil {
+				require.ErrorIs(t, err, tc.wantErr, "invalid batch must return its validation error")
+				assert.Zero(t, sent.Load(), "invalid batch should never reach the trade socket")
+				return
+			}
+			require.NoError(t, err, "valid batch must succeed")
+			require.Len(t, resp.Acknowledgements, 1, "cancellation acknowledgement must decode")
+			assert.Equal(t, "1", resp.Acknowledgements[0].OrderID, "order ID should decode")
+			assert.Equal(t, int32(1), sent.Load(), "valid batch should send exactly one request")
+			h.Websocket.SetCanUseAuthenticatedEndpoints(false)
+			_, err = h.WSCancelV5BatchOrders(t.Context(), tc.request)
+			require.ErrorIs(t, err, request.ErrAuthRequestFailed, "unauthenticated batch must fail")
+			assert.Equal(t, int32(1), sent.Load(), "unauthenticated batch should not send another request")
+		})
+	}
 }
 
 func TestWSCancelAllV5Orders(t *testing.T) {
@@ -298,8 +339,8 @@ func TestWSCancelAllV5Orders(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrNilPointer, "WSCancelAllV5Orders must reject nil request")
 	resp, err := h.WSCancelAllV5Orders(t.Context(), &V5CancelAllOrdersRequest{ContractCode: "BTC-USDT"})
 	require.NoError(t, err, "WSCancelAllV5Orders must not error")
-	require.Len(t, resp.Data, 1, "one cancellation must decode")
-	assert.Equal(t, "1", resp.Data[0].OrderID, "order ID should decode")
+	require.Len(t, resp.Acknowledgements, 1, "one cancellation must decode")
+	assert.Equal(t, "1", resp.Acknowledgements[0].OrderID, "order ID should decode")
 
 	h.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	_, err = h.WSCancelAllV5Orders(t.Context(), &V5CancelAllOrdersRequest{ContractCode: "BTC-USDT"})
@@ -330,8 +371,8 @@ func TestSendV5WSOrderUpdate(t *testing.T) {
 			TradeTurnover:     100,
 			FeeCurrency:       "HTX",
 			Fee:               0.1,
-			CreatedTime:       1000,
-			UpdatedTime:       2000,
+			CreatedTime:       types.Time(time.UnixMilli(1000)),
+			UpdatedTime:       types.Time(time.UnixMilli(2000)),
 		}
 		sub := &subscription.Subscription{Asset: asset.USDTMarginedFutures}
 		require.NoError(t, h.sendV5WSOrderUpdate(t.Context(), sub, "BTC-USDT", data), "sendV5WSOrderUpdate must convert and send the update")
@@ -361,12 +402,13 @@ func TestSendV5WSOrderUpdate(t *testing.T) {
 
 func TestWSHandleUSDTMarginedPrivateMessage(t *testing.T) {
 	t.Parallel()
-	for _, tt := range []struct {
+	type testCase struct {
 		name     string
 		channel  string
 		expected any
 		raw      string
-	}{
+	}
+	for _, tt := range []testCase{
 		{name: "orders", channel: subscription.MyOrdersChannel, expected: &order.Detail{}, raw: `{"contract_code":"BTC-USDT","data":{"side":"buy","type":"limit","order_id":"1","margin_mode":"cross","state":"filled","time_in_force":"rpi","volume":"2","trade_volume":"1"}}`},
 		{name: "trades", channel: wsTradeUpdatesChannel, expected: []fill.Data{}, raw: `{"contract_code":"BTC-USDT","data":[{"direction":"buy","order_id":"123","trade_id":456,"id":"456-123-1","trade_price":"100","trade_volume":"1","updated_time":1749468764315}]}`},
 		{name: "trade details", channel: wsExecutionDetailsChannel, expected: []fill.Data{}, raw: `{"contract_code":"BTC-USDT","data":[{"direction":"buy","order_id":"123","trade_id":456,"id":"456-123-1","trade_price":"100","trade_volume":"1","updated_time":1749468764315}]}`},
@@ -384,7 +426,7 @@ func TestWSHandleUSDTMarginedPrivateMessage(t *testing.T) {
 			sub := &subscription.Subscription{Asset: asset.USDTMarginedFutures, Channel: tt.channel, Authenticated: true}
 			raw := []byte(tt.raw)
 			if len(raw) == 0 {
-				raw = []byte(`{"op":"notify","topic":"private","ts":1603878749908,"uid":"123","contract_code":"BTC-USDT","data":{}}`)
+				raw = []byte(`{"op":"notify","topic":"private","ts":1603878749908,"uid":"123","contract_code":"BTC-USDT","data":[]}`)
 			}
 			require.NoError(t, h.wsHandleUSDTMarginedPrivateMessage(t.Context(), sub, raw), "private USDT-margined notification must be decoded")
 			require.Len(t, h.Websocket.DataHandler.C, 1, "handler must dispatch one message")
@@ -458,10 +500,11 @@ func TestWSHandleUSDTMarginedPrivateMessage(t *testing.T) {
 
 func TestSendV5WSExecutionUpdates(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct {
+	type testCase struct {
 		name, raw string
 		wantErr   bool
-	}{
+	}
+	for _, tc := range []testCase{
 		{name: "exact IDs and multiple fills", raw: `[{"contract_code":"BTC-USDT","side":"buy","order_id":1381717672952373249,"trade_id":"100005308993681","id":"first","trade_volume":"1","trade_price":"100","updated_time":1749468764315},{"direction":"sell","order_id":"1381717672952373251","trade_id":100005308993682,"id":"second","trade_volume":"2","trade_price":"101","created_time":"1749468764316"}]`},
 		{name: "invalid side", raw: `[{"contract_code":"BTC-USDT","side":"invalid"}]`, wantErr: true},
 		{name: "invalid symbol", raw: `[{"contract_code":"-","side":"buy"}]`, wantErr: true},

@@ -31,24 +31,36 @@ const (
 	htxSwapAuth
 	htxSwapUnAuth
 	htxSetAssetMode
+	htxSwapSwitchLeverage
+	htxUniversalTransfer
 )
 
 // GetRateLimit returns the rate limit for the exchange
 func GetRateLimit() request.RateLimitDefinitions {
 	return request.RateLimitDefinitions{
-		htxSetAssetMode:    request.NewRateLimitWithWeight(10*time.Second, 1, 1),
-		request.Unset:      request.NewRateLimitWithWeight(htxSpotRateInterval, htxSpotRequestRate, 1),
-		htxFuturesAuth:     request.NewRateLimitWithWeight(htxFuturesRateInterval, htxFuturesAuthRequestRate, 1),
-		htxFuturesUnAuth:   request.NewRateLimitWithWeight(htxFuturesRateInterval, htxFuturesUnAuthRequestRate, 1),
-		htxSwapAuth:        request.NewRateLimitWithWeight(htxSwapRateInterval, htxSwapAuthRequestRate, 1),
-		htxSwapUnAuth:      request.NewRateLimitWithWeight(htxSwapRateInterval, htxSwapUnauthRequestRate, 1),
-		htxFuturesTransfer: request.NewRateLimitWithWeight(htxFuturesTransferRateInterval, htxFuturesTransferReqRate, 1),
+		htxSwapSwitchLeverage: request.NewRateLimitWithWeight(3*time.Second, 1, 1),
+		htxUniversalTransfer:  request.NewRateLimitWithWeight(2*time.Second, 5, 1),
+		htxSetAssetMode:       request.NewRateLimitWithWeight(10*time.Second, 1, 1),
+		request.Unset:         request.NewRateLimitWithWeight(htxSpotRateInterval, htxSpotRequestRate, 1),
+		htxFuturesAuth:        request.NewRateLimitWithWeight(htxFuturesRateInterval, htxFuturesAuthRequestRate, 1),
+		htxFuturesUnAuth:      request.NewRateLimitWithWeight(htxFuturesRateInterval, htxFuturesUnAuthRequestRate, 1),
+		htxSwapAuth:           request.NewRateLimitWithWeight(htxSwapRateInterval, htxSwapAuthRequestRate, 1),
+		htxSwapUnAuth:         request.NewRateLimitWithWeight(htxSwapRateInterval, htxSwapUnauthRequestRate, 1),
+		htxFuturesTransfer:    request.NewRateLimitWithWeight(htxFuturesTransferRateInterval, htxFuturesTransferReqRate, 1),
 	}
 }
 
 func getRateLimitID(ep exchange.URL, path, method string, authenticated bool) request.EndpointLimit {
 	if authenticated && ep == exchange.RestUSDTMargined && path == "/v5/account/asset_mode" && method == http.MethodPost {
 		return htxSetAssetMode
+	}
+	if authenticated && method == http.MethodPost {
+		if (ep == exchange.RestFutures || ep == exchange.RestCoinMargined) && path == "/swap-api/v1/swap_switch_lever_rate" {
+			return htxSwapSwitchLeverage
+		}
+		if ep == exchange.RestSpot && path == "/v5/account/universal_transfer" {
+			return htxUniversalTransfer
+		}
 	}
 	if ep == exchange.RestSpot {
 		return request.Unset

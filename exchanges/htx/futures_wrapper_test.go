@@ -1,11 +1,14 @@
 package htx
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
+	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -29,11 +32,12 @@ func TestAppendFuturesCandles(t *testing.T) {
 	t.Parallel()
 	start := time.Unix(100, 0)
 	end := time.Unix(200, 0)
-	for _, tc := range []struct {
+	type testCase struct {
 		name     string
 		candles  []FuturesKline
 		expected int
-	}{
+	}
+	for _, tc := range []testCase{
 		{
 			name: "inclusive range and field mapping",
 			candles: []FuturesKline{
@@ -72,7 +76,7 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 	for _, bounded := range []bool{false, true} {
 		t.Run(fmt.Sprintf("exact millisecond bounds/%t", bounded), func(t *testing.T) {
 			t.Parallel()
-			at := time.Date(2026, time.July, 1, 18, 0, 0, 0, time.UTC)
+			at := time.Now().UTC().Add(-time.Hour).Truncate(time.Millisecond)
 			body := fmt.Sprintf(`{"code":200,"data":[{"id":"1","funding_time":"%d","funding_rate":"0.001"},{"id":"2","funding_time":"%d","funding_rate":"0.002"},{"id":"3","funding_time":"%d","funding_rate":"0.003"}]}`, at.UnixMilli(), at.Add(time.Second).UnixMilli(), at.Add(2*time.Second).UnixMilli())
 			h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/market/funding_rate_history", body, nil)
 			req := &fundingrate.HistoricalRatesRequest{Asset: asset.USDTMarginedFutures, Pair: btcusdtPair}
@@ -90,33 +94,117 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 			}
 		})
 	}
+	type testCase struct {
+		name       string
+		start, end time.Time
+		wantErr    error
+	}
+	for _, tc := range []testCase{
+		{name: "reversed bounds", start: time.Date(2020, time.January, 2, 0, 0, 0, 0, time.UTC), end: time.Date(2020, time.January, 1, 0, 0, 0, 0, time.UTC), wantErr: common.ErrStartAfterEnd},
+		{name: "equal bounds", start: time.Date(2020, time.January, 1, 0, 0, 0, 0, time.UTC), end: time.Date(2020, time.January, 1, 0, 0, 0, 0, time.UTC), wantErr: common.ErrStartEqualsEnd},
+		{name: "start after default end", start: time.Now().UTC().Add(24 * time.Hour), wantErr: common.ErrStartAfterEnd},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var sent atomic.Int32
+			h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/market/funding_rate_history", `{"code":200,"data":[]}`, func(*http.Request) { sent.Add(1) })
+			_, err := h.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{Asset: asset.USDTMarginedFutures, Pair: btcusdtPair, StartDate: tc.start, EndDate: tc.end})
+			require.ErrorIs(t, err, tc.wantErr, "invalid funding bounds must return their validation error")
+			assert.Zero(t, sent.Load(), "invalid funding bounds should not reach HTTP")
+		})
+	}
+	t.Run("repeated funding cursor", func(t *testing.T) {
+		t.Parallel()
+		at := time.Date(2020, time.January, 1, 0, 0, 0, 0, time.UTC)
+		rows := make([]string, 50)
+		for i := range rows {
+			rows[i] = fmt.Sprintf(`{"id":"%d","funding_time":"%d","funding_rate":"0.001"}`, i+1, at.Add(time.Duration(i)*time.Millisecond).UnixMilli())
+		}
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+		var sent atomic.Int32
+		h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/market/funding_rate_history", `{"code":200,"data":[`+strings.Join(rows, ",")+`]}`, func(*http.Request) {
+			if sent.Add(1) > 2 {
+				// Bound the test if cursor termination regresses.
+				cancel()
+			}
+		})
+		result, err := h.GetHistoricalFundingRates(ctx, &fundingrate.HistoricalRatesRequest{Asset: asset.USDTMarginedFutures, Pair: btcusdtPair, StartDate: at, EndDate: at.Add(time.Minute)})
+		require.NoError(t, err, "repeated cursor must stop funding pagination")
+		assert.Len(t, result.FundingRates, 50, "repeated page should not duplicate funding rates")
+		assert.Equal(t, int32(2), sent.Load(), "non-advancing cursor should stop after the repeated page")
+	})
 	t.Run("null V5 response", func(t *testing.T) {
 		t.Parallel()
 		h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/market/funding_rate_history", `null`, nil)
 		_, err := h.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{Asset: asset.USDTMarginedFutures, Pair: btcusdtPair})
 		require.ErrorIs(t, err, errEmptyResult, "null funding history must return an error")
 	})
-	t.Run("descending windows with repeated boundary", func(t *testing.T) {
-		t.Parallel()
-		start := time.Date(2026, time.July, 1, 0, 0, 0, 0, time.UTC)
-		boundary := start.Add(48 * time.Hour)
-		end := start.Add(72 * time.Hour)
-		h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/market/funding_rate_history", "", nil)
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.URL.Query().Get("start_time") == strconv.FormatInt(start.UnixMilli(), 10) {
-				_, _ = fmt.Fprintf(w, `{"code":200,"data":[{"id":"2","funding_time":"%d","funding_rate":"0.002"},{"id":"1","funding_time":"%d","funding_rate":"0.001"}]}`, boundary.UnixMilli(), start.UnixMilli())
-			} else {
-				_, _ = fmt.Fprintf(w, `{"code":200,"data":[{"id":"3","funding_time":"%d","funding_rate":"0.003"},{"id":"2","funding_time":"%d","funding_rate":"0.002"}]}`, end.UnixMilli(), boundary.UnixMilli())
-			}
-		}))
-		t.Cleanup(server.Close)
-		require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestUSDTMargined.String(), server.URL), "history endpoint must be set")
-		result, err := h.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{Asset: asset.USDTMarginedFutures, Pair: btcusdtPair, StartDate: start, EndDate: end})
-		require.NoError(t, err, "funding history must succeed")
-		require.Len(t, result.FundingRates, 3, "window boundaries must be deduplicated")
-		assert.Equal(t, start, result.FundingRates[0].Time.UTC(), "oldest rate should be first")
-		assert.Equal(t, end, result.FundingRates[2].Time.UTC(), "newest rate should be last")
-	})
+	type fundingWindowCase struct {
+		name       string
+		start, end time.Time
+	}
+	for _, tc := range []fundingWindowCase{
+		{name: "over 90 days", start: time.Now().UTC().Add(-100 * 24 * time.Hour), end: time.Now().UTC()},
+		{name: "old historical range", start: time.Date(2020, time.January, 1, 0, 0, 0, 0, time.UTC), end: time.Date(2020, time.January, 8, 0, 0, 0, 0, time.UTC)},
+		{name: "start only", start: time.Now().UTC().Add(-72 * time.Hour)},
+		{name: "end only", end: time.Date(2020, time.January, 8, 0, 0, 0, 0, time.UTC)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			before := time.Now().UTC()
+			var calls atomic.Int32
+			var cursors []string
+			h := new(Exchange)
+			require.NoError(t, testexch.Setup(h), "funding-history exchange must initialise")
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				query := r.URL.Query()
+				startMillis, err := strconv.ParseInt(query.Get("start_time"), 10, 64)
+				if !assert.NoError(t, err, "funding start should be sent") {
+					return
+				}
+				endMillis, err := strconv.ParseInt(query.Get("end_time"), 10, 64)
+				if !assert.NoError(t, err, "funding end should be sent") {
+					return
+				}
+				if tc.end.IsZero() {
+					assert.GreaterOrEqual(t, endMillis, before.UnixMilli(), "omitted end should default to now")
+					assert.LessOrEqual(t, endMillis, time.Now().UnixMilli(), "default end should not be in the future")
+				} else {
+					assert.Equal(t, tc.end.UnixMilli(), endMillis, "explicit end should be preserved")
+				}
+				if tc.start.IsZero() {
+					assert.Equal(t, endMillis-int64((48*time.Hour)/time.Millisecond), startMillis, "omitted start should use a 48-hour range")
+				} else {
+					assert.Equal(t, tc.start.UnixMilli(), startMillis, "explicit start should be preserved without truncation")
+				}
+				assert.Equal(t, "next", query.Get("direct"), "history should use the documented cursor direction")
+				cursors = append(cursors, query.Get("from"))
+				switch calls.Add(1) {
+				case 1:
+					rows := make([]string, 50)
+					for i := range rows {
+						rows[i] = fmt.Sprintf(`{"id":"%d","funding_time":"%d","funding_rate":"0.001"}`, 100-i, startMillis+int64(100-i))
+					}
+					_, _ = fmt.Fprintf(w, `{"code":200,"data":[%s]}`, strings.Join(rows, ","))
+				case 2:
+					_, _ = fmt.Fprintf(w, `{"code":200,"data":[{"id":"51","funding_time":"%d","funding_rate":"0.001"},{"id":"50","funding_time":"%d","funding_rate":"0.002"}]}`, startMillis+51, startMillis+50)
+				default:
+					http.Error(w, "unexpected funding page", http.StatusBadRequest)
+				}
+			}))
+			t.Cleanup(server.Close)
+			require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestUSDTMargined.String(), server.URL), "funding endpoint must be set")
+			result, err := h.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{Asset: asset.USDTMarginedFutures, Pair: btcusdtPair, StartDate: tc.start, EndDate: tc.end})
+			require.NoError(t, err, "funding history must support its own time range")
+			require.Len(t, result.FundingRates, 51, "every page must be retained with duplicate timestamps removed")
+			assert.True(t, result.FundingRates[0].Time.Before(result.FundingRates[50].Time), "funding rates should be sorted oldest first")
+			assert.Equal(t, []string{"", "51"}, cursors, "funding cursor should advance independently of the time range")
+			assert.Equal(t, tc.start, result.StartDate, "request start should remain unchanged")
+			assert.Equal(t, tc.end, result.EndDate, "request end should remain unchanged")
+		})
+	}
+
 	h := new(Exchange)
 	require.NoError(t, testexch.Setup(h), "HTX setup must not error")
 
@@ -167,10 +255,11 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 
 func TestSetLeverage(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct {
+	type testCase struct {
 		mode     margin.Type
 		expected string
-	}{{margin.Unset, "cross"}, {margin.Multi, "cross"}, {margin.Isolated, "isolated"}} {
+	}
+	for _, tc := range []testCase{{margin.Unset, "cross"}, {margin.Multi, "cross"}, {margin.Isolated, "isolated"}} {
 		t.Run(tc.mode.String()+" outbound mode", func(t *testing.T) {
 			t.Parallel()
 			h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodPost, "/v5/position/lever", `{"code":200,"data":{}}`, func(r *http.Request) {
@@ -185,9 +274,10 @@ func TestSetLeverage(t *testing.T) {
 	t.Run("largest representable float below uint64 boundary", func(t *testing.T) {
 		t.Parallel()
 		h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/api/v1/contract_switch_lever_rate", `{"status":"ok","data":{}}`, func(r *http.Request) {
-			var req struct {
+			type requestPayload struct {
 				Leverage uint64 `json:"lever_rate"`
 			}
+			var req requestPayload
 			require.NoError(t, json.NewDecoder(r.Body).Decode(&req), "leverage payload must decode")
 			assert.Equal(t, uint64(18446744073709549568), req.Leverage, "representable leverage should reach the API without wrapping")
 		})
@@ -197,14 +287,15 @@ func TestSetLeverage(t *testing.T) {
 	h := new(Exchange)
 	require.NoError(t, testexch.Setup(h), "HTX setup must not error")
 
-	for _, tc := range []struct {
+	type validationCase struct {
 		name       string
 		item       asset.Item
 		pair       currency.Pair
 		marginType margin.Type
 		amount     float64
 		expected   error
-	}{
+	}
+	for _, tc := range []validationCase{
 		{name: "empty pair", item: asset.Futures, marginType: margin.Isolated, amount: 5, expected: currency.ErrCurrencyPairEmpty},
 		{name: "zero leverage", item: asset.Futures, pair: btcusdPair, marginType: margin.Isolated, expected: errInvalidLeverage},
 		{name: "negative leverage", item: asset.Futures, pair: btcusdPair, marginType: margin.Isolated, amount: -5, expected: errInvalidLeverage},
@@ -241,13 +332,14 @@ func TestSetLeverage(t *testing.T) {
 
 func TestSettlementCurrencyForContract(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct {
+	type testCase struct {
 		name     string
 		item     asset.Item
 		pair     currency.Pair
 		expected currency.Code
 		err      error
-	}{
+	}
+	for _, tc := range []testCase{
 		{name: "delivery futures", item: asset.Futures, pair: btccwPair, expected: currency.BTC},
 		{name: "coin margined futures", item: asset.CoinMarginedFutures, pair: btcusdPair, expected: currency.BTC},
 		{name: "USDT margined futures", item: asset.USDTMarginedFutures, pair: btcusdtPair, expected: currency.USDT},
@@ -287,13 +379,14 @@ func TestGetCurrencyForRealisedPNL(t *testing.T) {
 
 func TestSetCollateralMode(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct {
+	type testCase struct {
 		name         string
 		mode         collateral.Mode
 		expectedMode uint64
 		requestMode  uint64
 		wantErr      error
-	}{
+	}
+	for _, tc := range []testCase{
 		{name: "multi asset", mode: collateral.MultiMode, expectedMode: 1, requestMode: 1},
 		{name: "single asset", mode: collateral.SingleMode, expectedMode: 2, requestMode: 2},
 		{name: "legacy single asset", mode: collateral.SingleMode, expectedMode: 0, requestMode: 2},
@@ -323,12 +416,13 @@ func TestSetCollateralMode(t *testing.T) {
 
 func TestGetCollateralMode(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct {
+	type testCase struct {
 		name      string
 		assetMode uint64
 		expected  collateral.Mode
 		err       error
-	}{
+	}
+	for _, tc := range []testCase{
 		{name: "multi asset", assetMode: 1, expected: collateral.MultiMode},
 		{name: "legacy single asset", assetMode: 0, expected: collateral.SingleMode},
 		{name: "single asset", assetMode: 2, expected: collateral.SingleMode},
@@ -360,7 +454,7 @@ func TestGetLeverage(t *testing.T) {
 		_, err := h.GetLeverage(t.Context(), asset.USDTMarginedFutures, btcusdtPair, margin.Unset, order.UnknownSide)
 		require.ErrorIs(t, err, errEmptyResult, "null leverage must return an error")
 	})
-	for _, tc := range []struct {
+	type testCase struct {
 		name       string
 		item       asset.Item
 		pair       currency.Pair
@@ -369,7 +463,8 @@ func TestGetLeverage(t *testing.T) {
 		method     string
 		path       string
 		response   string
-	}{
+	}
+	for _, tc := range []testCase{
 		{
 			name: "delivery futures", item: asset.Futures, pair: btccwPair, marginType: margin.Isolated,
 			endpoint: exchange.RestFutures, method: http.MethodPost, path: "/api/v1/contract_account_info",
@@ -397,14 +492,15 @@ func TestGetLeverage(t *testing.T) {
 
 	const oneWay = `[{"contract_code":"BTC-USDT","margin_mode":"cross","position_side":"both","lever_rate":5}]`
 	const hedge = `[{"contract_code":"ETH-USDT","margin_mode":"cross","position_side":"both","lever_rate":50},{"contract_code":"BTC-USDT","margin_mode":"isolated","position_side":"both","lever_rate":25},{"contract_code":"BTC-USDT","margin_mode":"cross","position_side":"short","lever_rate":10},{"contract_code":"BTC-USDT","margin_mode":"cross","position_side":"long","lever_rate":5}]`
-	for _, tc := range []struct {
+	type leverageResponseCase struct {
 		name     string
 		isolated bool
 		side     order.Side
 		data     string
 		want     float64
 		wantErr  error
-	}{
+	}
+	for _, tc := range []leverageResponseCase{
 		{name: "one-way buy", side: order.Buy, data: oneWay, want: 5},
 		{name: "one-way sell", side: order.Sell, data: oneWay, want: 5},
 		{name: "one-way long", side: order.Long, data: oneWay, want: 5},
@@ -416,6 +512,15 @@ func TestGetLeverage(t *testing.T) {
 		{name: "hedge sell", side: order.Sell, data: hedge, want: 10},
 		{name: "hedge long", side: order.Long, data: hedge, want: 5},
 		{name: "hedge short", side: order.Short, data: hedge, want: 10},
+		{name: "hedge isolated buy", isolated: true, side: order.Buy, data: `[{"contract_code":"BTC-USDT","margin_mode":"isolated","position_side":"long","lever_rate":5},{"contract_code":"BTC-USDT","margin_mode":"isolated","position_side":"short","lever_rate":10}]`, want: 5},
+		{name: "hedge isolated sell", isolated: true, side: order.Sell, data: `[{"contract_code":"BTC-USDT","margin_mode":"isolated","position_side":"long","lever_rate":5},{"contract_code":"BTC-USDT","margin_mode":"isolated","position_side":"short","lever_rate":10}]`, want: 10},
+		{name: "hedge isolated unspecified long first", isolated: true, data: `[{"contract_code":"BTC-USDT","margin_mode":"isolated","position_side":"long","lever_rate":5},{"contract_code":"BTC-USDT","margin_mode":"isolated","position_side":"short","lever_rate":10}]`, wantErr: order.ErrSideIsInvalid},
+		{name: "hedge isolated unspecified short first", isolated: true, data: `[{"contract_code":"BTC-USDT","margin_mode":"isolated","position_side":"short","lever_rate":10},{"contract_code":"BTC-USDT","margin_mode":"isolated","position_side":"long","lever_rate":5}]`, wantErr: order.ErrSideIsInvalid},
+		{name: "hedge isolated unspecified equal leverage", isolated: true, data: `[{"contract_code":"BTC-USDT","margin_mode":"isolated","position_side":"short","lever_rate":5},{"contract_code":"BTC-USDT","margin_mode":"isolated","position_side":"long","lever_rate":5}]`, wantErr: order.ErrSideIsInvalid},
+		{name: "hedge isolated unspecified one side", isolated: true, data: `[{"contract_code":"BTC-USDT","margin_mode":"isolated","position_side":"long","lever_rate":5}]`, wantErr: order.ErrSideIsInvalid},
+		{name: "one-way isolated unspecified", isolated: true, data: `[{"contract_code":"BTC-USDT","margin_mode":"isolated","position_side":"both","lever_rate":5}]`, want: 5},
+		{name: "cross unspecified", data: `[{"contract_code":"BTC-USDT","margin_mode":"cross","position_side":"long","lever_rate":5},{"contract_code":"BTC-USDT","margin_mode":"cross","position_side":"short","lever_rate":5}]`, want: 5},
+		{name: "isolated different contract", isolated: true, data: `[{"contract_code":"ETH-USDT","margin_mode":"isolated","position_side":"long","lever_rate":5}]`, wantErr: futures.ErrPositionNotFound},
 		{name: "missing requested side", side: order.Buy, data: `[{"contract_code":"BTC-USDT","margin_mode":"cross","position_side":"short","lever_rate":10}]`, wantErr: futures.ErrPositionNotFound},
 		{name: "invalid side", side: order.AnySide, data: oneWay, wantErr: order.ErrSideIsInvalid},
 	} {

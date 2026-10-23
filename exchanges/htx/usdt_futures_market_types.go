@@ -10,19 +10,19 @@ import (
 // V5AssetsDeductionCurrenciesResponse stores currencies supported for fee deduction.
 type V5AssetsDeductionCurrenciesResponse struct {
 	V5Response
-	Data V5DeductionCurrencies `json:"data"`
+	DeductionCurrencies V5DeductionCurrencies `json:"data"`
 }
 
 // V5MultiAssetsMarginCurrenciesResponse stores currencies supported by multi-assets margin.
 type V5MultiAssetsMarginCurrenciesResponse struct {
 	V5Response
-	Data V5MarginCurrencies `json:"data"`
+	MarginCurrencies V5MarginCurrencies `json:"data"`
 }
 
 // V5EliteRatioResponse stores elite-trader long/short ratios.
 type V5EliteRatioResponse struct {
 	V5Response
-	Data []V5EliteRatio `json:"data"`
+	Ratios []V5EliteRatio `json:"data"`
 }
 
 // V5EliteRatio stores one elite-trader ratio sample.
@@ -36,7 +36,7 @@ type V5EliteRatio struct {
 // V5EstimatedSettlementPriceResponse stores estimated settlement prices.
 type V5EstimatedSettlementPriceResponse struct {
 	V5Response
-	Data []V5EstimatedSettlementPrice `json:"data"`
+	SettlementPrices []V5EstimatedSettlementPrice `json:"data"`
 }
 
 // V5EstimatedSettlementPrice stores an estimated contract settlement price.
@@ -54,7 +54,7 @@ type V5FundingRatesRequest struct {
 // V5FundingRatesResponse stores current contract funding rates.
 type V5FundingRatesResponse struct {
 	V5Response
-	Data []V5FundingRate `json:"data"`
+	FundingRates []V5FundingRate `json:"data"`
 }
 
 // V5FundingRate stores the current and next funding information for one contract.
@@ -80,7 +80,7 @@ type V5FundingRateHistoryRequest struct {
 // V5FundingRateHistoryResponse stores historical contract funding rates.
 type V5FundingRateHistoryResponse struct {
 	V5Response
-	Data []V5HistoricalFundingRate `json:"data"`
+	FundingRates []V5HistoricalFundingRate `json:"data"`
 }
 
 // V5HistoricalFundingRate stores one historical contract funding rate.
@@ -94,7 +94,7 @@ type V5HistoricalFundingRate struct {
 // V5PriceLimitsResponse stores current contract price limits.
 type V5PriceLimitsResponse struct {
 	V5Response
-	Data []V5PriceLimit `json:"data"`
+	PriceLimits []V5PriceLimit `json:"data"`
 }
 
 // V5PriceLimit stores the highest permitted buy price and lowest permitted sell price.
@@ -118,7 +118,7 @@ type V5LiquidationOrdersRequest struct {
 // V5LiquidationOrdersResponse stores public liquidation orders.
 type V5LiquidationOrdersResponse struct {
 	V5Response
-	Data []V5LiquidationOrder `json:"data"`
+	LiquidationOrders []V5LiquidationOrder `json:"data"`
 }
 
 // V5LiquidationOrder stores a public liquidation order.
@@ -137,7 +137,7 @@ type V5LiquidationOrder struct {
 // V5RiskLimitResponse stores contract risk limits.
 type V5RiskLimitResponse struct {
 	V5Response
-	Data []V5RiskLimit `json:"data"`
+	RiskLimits []V5RiskLimit `json:"data"`
 }
 
 // V5RiskLimit stores one contract risk-limit tier.
@@ -166,7 +166,7 @@ type V5SettlementHistoryRequest struct {
 // V5SettlementHistoryResponse stores public settlement history.
 type V5SettlementHistoryResponse struct {
 	V5Response
-	Data []V5Settlement `json:"data"`
+	Settlements []V5Settlement `json:"data"`
 }
 
 // V5Settlement stores one contract settlement.
@@ -180,10 +180,10 @@ type V5Settlement struct {
 
 // V5DeductionCurrencies lists the assets eligible for fee deductions.
 type V5DeductionCurrencies struct {
-	Currencies []string `json:"currency"`
+	Currencies []currency.Code `json:"currency"`
 }
 
 // V5MarginCurrencies lists the assets accepted as collateral in multi-asset mode.
 type V5MarginCurrencies struct {
-	Currencies []string `json:"multi_assets"`
+	Currencies []currency.Code `json:"multi_assets"`
 }

@@ -91,7 +91,7 @@ func (e *Exchange) GetSpotKline(ctx context.Context, arg *KlinesRequest) ([]Klin
 	result := new(SpotKlineResponse)
 
 	err = e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("/market/history/kline", vals), result)
-	return result.Data, err
+	return result.Candles, err
 }
 
 // Get24HourMarketSummary returns the rolling 24-hour summary for a spot symbol
@@ -111,21 +111,21 @@ func (e *Exchange) Get24HourMarketSummary(ctx context.Context, symbol currency.P
 func (e *Exchange) GetBatchCoinMarginSwapContracts(ctx context.Context) ([]FuturesBatchTicker, error) {
 	result := new(FuturesBatchTickersResponse)
 	err := e.SendHTTPRequest(ctx, exchange.RestFutures, "/v2/swap-ex/market/detail/batch_merged", result)
-	return result.Data, err
+	return result.Tickers, err
 }
 
 // GetBatchLinearSwapContracts  returns the tickers for linear swap contracts
 func (e *Exchange) GetBatchLinearSwapContracts(ctx context.Context) ([]FuturesBatchTicker, error) {
 	result := new(FuturesBatchTickersResponse)
 	err := e.SendHTTPRequest(ctx, exchange.RestFutures, "/v2/linear-swap-ex/market/detail/batch_merged", result)
-	return result.Data, err
+	return result.Tickers, err
 }
 
 // GetBatchFuturesContracts returns the tickers for futures contracts
 func (e *Exchange) GetBatchFuturesContracts(ctx context.Context) ([]FuturesBatchTicker, error) {
 	result := new(FuturesBatchTickersResponse)
 	err := e.SendHTTPRequest(ctx, exchange.RestFutures, "/v2/market/detail/batch_merged", result)
-	return result.Data, err
+	return result.Tickers, err
 }
 
 // GetTickers returns the ticker for the specified symbol
@@ -184,7 +184,7 @@ func (e *Exchange) GetTrades(ctx context.Context, symbol currency.Pair) ([]Trade
 	result := new(TradesResponse)
 
 	err = e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("/market/trade", vals), result)
-	return result.Tick.Data, err
+	return result.Tick.Trades, err
 }
 
 // GetLatestSpotPrice returns latest spot price of symbol
@@ -245,7 +245,7 @@ func (e *Exchange) GetSymbols(ctx context.Context) ([]Symbol, error) {
 }
 
 // GetCurrencies returns a list of currencies supported by HTX
-func (e *Exchange) GetCurrencies(ctx context.Context) ([]string, error) {
+func (e *Exchange) GetCurrencies(ctx context.Context) ([]currency.Code, error) {
 	result := new(CurrenciesResponse)
 
 	err := e.SendHTTPRequest(ctx, exchange.RestSpot, "/v1/common/currencys", result)
@@ -264,7 +264,7 @@ func (e *Exchange) GetCurrenciesIncludingChains(ctx context.Context, curr curren
 	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, path, resp); err != nil {
 		return nil, err
 	}
-	return resp.Data, nil
+	return resp.Currencies, nil
 }
 
 // GetCurrentServerTime returns the HTX server time
@@ -288,7 +288,7 @@ func (e *Exchange) GetAccountBalance(ctx context.Context, accountID string) ([]A
 	v := url.Values{}
 	v.Set("account-id", accountID)
 	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, endpoint, v, nil, result, false)
-	return result.AccountBalanceData.AccountBalanceDetails, err
+	return result.Balance.CurrencyBalances, err
 }
 
 // GetAggregatedBalance returns the balances of all the sub-account aggregated.
@@ -366,10 +366,10 @@ func (e *Exchange) CancelOrderBatch(ctx context.Context, orderIDs, clientOrderID
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/order/orders/batchcancel", nil, data, resp, false); err != nil {
 		return nil, err
 	}
-	if resp.Data == nil {
+	if resp.Cancellations == nil {
 		return nil, errEmptyResult
 	}
-	return resp.Data, nil
+	return resp.Cancellations, nil
 }
 
 // CancelOpenOrdersBatch cancels open spot orders for an account and symbol in one request.
@@ -397,11 +397,11 @@ func validateCancelOpenOrdersBatchResponse(result *CancelOpenOrdersBatchResponse
 	if result == nil {
 		return common.ErrNilPointer
 	}
-	if result.Data.FailedCount > 0 {
-		return fmt.Errorf("%w: %d orders failed to cancel", errOrderCancellationFailed, result.Data.FailedCount)
+	if result.Cancellations.FailedCount > 0 {
+		return fmt.Errorf("%w: %d orders failed to cancel", errOrderCancellationFailed, result.Cancellations.FailedCount)
 	}
-	if result.Data.NextID != -1 {
-		return fmt.Errorf("%w: cancellation incomplete; next open order %d", errOrderCancellationFailed, result.Data.NextID)
+	if result.Cancellations.NextID != -1 {
+		return fmt.Errorf("%w: cancellation incomplete; next open order %d", errOrderCancellationFailed, result.Cancellations.NextID)
 	}
 	return nil
 }
@@ -729,12 +729,15 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 	if err != nil {
 		return err
 	}
-	var tempResp json.RawMessage
+	response := &httpResponse{
+		Result:   result,
+		Version5: strings.HasPrefix(path, "/v5/") || strings.Contains(path, "/v3/"),
+	}
 
 	item := &request.Item{
 		Method:                 http.MethodGet,
 		Path:                   endpoint + path,
-		Result:                 &tempResp,
+		Result:                 response,
 		Verbose:                e.Verbose,
 		HTTPDebugging:          e.HTTPDebugging,
 		HTTPRecording:          e.HTTPRecording,
@@ -748,29 +751,10 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 		return err
 	}
 
-	var errCap errorCapture
-	if err := json.Unmarshal(tempResp, &errCap); err == nil {
-		if errCap.ErrMsgType1 != "" {
-			return fmt.Errorf("error code %v: %w: %s", errCap.CodeType1, errAPIResponse, errCap.ErrMsgType1)
-		}
-		if errCap.ErrMsgType2 != "" {
-			return fmt.Errorf("error code %v: %w: %s", errCap.CodeType2, errAPIResponse, errCap.ErrMsgType2)
-		}
-		if errCap.Status == htxStatusError {
-			return fmt.Errorf("%w: status %s", errAPIResponse, errCap.Status)
-		}
+	if !response.Received && result != nil {
+		return errExpectedResponseBody
 	}
-	if strings.HasPrefix(path, "/v5/") || strings.Contains(path, "/v3/") {
-		resp := new(V5Response)
-		if err := json.Unmarshal(tempResp, resp); err == nil && resp.Code != 0 && resp.Code != http.StatusOK {
-			message := resp.Message
-			if message == "" {
-				message = resp.Msg
-			}
-			return fmt.Errorf("error code %v: %w: %s", resp.Code, errAPIResponse, message)
-		}
-	}
-	return unmarshalResponse(tempResp, result)
+	return nil
 }
 
 // SendAuthenticatedHTTPRequest sends authenticated requests to the HTX API
@@ -792,7 +776,7 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		values = url.Values{}
 	}
 
-	interim := json.RawMessage{}
+	response := &httpResponse{Result: result, Authenticated: true, Version2: isVersion2API}
 	newRequest := func() (*request.Item, error) {
 		values.Del("Signature")
 		values.Set("AccessKeyId", creds.Key)
@@ -838,7 +822,7 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 			Path:                   ePoint + common.EncodeURLValues(signatureEndpoint, values),
 			Headers:                headers,
 			Body:                   bytes.NewReader(body),
-			Result:                 &interim,
+			Result:                 response,
 			Verbose:                e.Verbose,
 			HTTPDebugging:          e.HTTPDebugging,
 			HTTPRecording:          e.HTTPRecording,
@@ -850,28 +834,13 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		return err
 	}
 
-	if isVersion2API {
-		var errCap ResponseV2
-		if err = json.Unmarshal(interim, &errCap); err == nil {
-			if errCap.Code != 0 && errCap.Code != http.StatusOK {
-				return fmt.Errorf("%w error code: %v error message: %s", request.ErrAuthRequestFailed, errCap.Code, errCap.Message)
-			}
-		}
-	} else {
-		var errCap Response
-		if err = json.Unmarshal(interim, &errCap); err == nil {
-			if errCap.Status == htxStatusError {
-				return fmt.Errorf("%w error code: %v error message: %s", request.ErrAuthRequestFailed, errCap.ErrorCode, errCap.ErrorMessage)
-			}
-		}
-	}
-	if err := unmarshalResponse(interim, result); err != nil {
-		return common.AppendError(err, request.ErrAuthRequestFailed)
+	if !response.Received && result != nil {
+		return common.AppendError(errExpectedResponseBody, request.ErrAuthRequestFailed)
 	}
 	return nil
 }
 
-func unmarshalResponse(response json.RawMessage, result any) error {
+func unmarshalResponse(response []byte, result any) error {
 	trimmed := bytes.TrimSpace(response)
 	if len(trimmed) == 0 {
 		if result == nil {

@@ -24,12 +24,12 @@ type websocketAuthenticationRequest struct {
 }
 
 type websocketAccountUpdateMessage struct {
-	Data WebsocketAccountUpdate `json:"data"`
+	Account WebsocketAccountUpdate `json:"data"`
 }
 
 // WebsocketAccountUpdate contains account updates to balances
 type WebsocketAccountUpdate struct {
-	Currency       string              `json:"currency"`
+	Currency       currency.Code       `json:"currency"`
 	AccountID      uint64              `json:"accountId"`
 	Balance        types.Number        `json:"balance"`
 	Available      types.Number        `json:"available"`
@@ -40,7 +40,7 @@ type WebsocketAccountUpdate struct {
 }
 
 type websocketOrderUpdateMessage struct {
-	Data WebsocketOrderUpdate `json:"data"`
+	Order WebsocketOrderUpdate `json:"data"`
 }
 
 // WebsocketOrderUpdate contains updates to orders
@@ -66,12 +66,12 @@ type WebsocketOrderUpdate struct {
 	LastActTime     types.Time   `json:"lastActTime"`
 	CreateTime      types.Time   `json:"orderCreateTime"`
 	TradeTime       types.Time   `json:"tradeTime"`
-	ErrCode         int64        `json:"errCode"`
-	ErrMessage      string       `json:"errMessage"`
+	ErrorCode       uint64       `json:"errCode"`
+	ErrorMessage    string       `json:"errMessage"`
 }
 
 type websocketTradeUpdateMessage struct {
-	Data WebsocketTradeUpdate `json:"data"`
+	Trade WebsocketTradeUpdate `json:"data"`
 }
 
 // WebsocketTradeUpdate contains trade updates to orders
@@ -100,4 +100,15 @@ type WebsocketTradeUpdate struct {
 	Operator        string        `json:"operator"`
 	OrderCreateTime types.Time    `json:"orderCreateTime"`
 	OrderStatus     string        `json:"orderStatus"`
+}
+
+// websocketPrivatePong echoes the private feed's nested heartbeat timestamp.
+type websocketPrivatePong struct {
+	Action    string             `json:"action"`
+	Heartbeat websocketHeartbeat `json:"data"`
+}
+
+// websocketHeartbeat contains the timestamp required by a private heartbeat.
+type websocketHeartbeat struct {
+	Timestamp int64 `json:"ts"`
 }

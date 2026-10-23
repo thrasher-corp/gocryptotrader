@@ -84,35 +84,35 @@ type legacyFuturesWSOrder struct {
 
 // FuturesWebsocketSubOrder stores subscribed order data for futures websocket
 type FuturesWebsocketSubOrder struct {
-	Operation      string                 `json:"op"`
-	Topic          string                 `json:"topic"`
-	UID            string                 `json:"uid"`
-	Timestamp      types.Time             `json:"ts"`
-	Symbol         string                 `json:"symbol"`
-	ContractType   string                 `json:"contract_type"`
-	ContractCode   string                 `json:"contract_code"`
-	Volume         float64                `json:"volume"`
-	Price          float64                `json:"price"`
-	OrderPriceType string                 `json:"order_price_type"`
-	Direction      string                 `json:"direction"`
-	Offset         string                 `json:"offset"`
-	Status         uint64                 `json:"status"`
-	LeverageRate   uint64                 `json:"lever_rate"`
-	OrderID        uint64                 `json:"order_id"`
-	OrderIDString  string                 `json:"order_id_str"`
-	ClientOrderID  uint64                 `json:"client_order_id"`
-	OrderSource    string                 `json:"order_source"`
-	OrderType      uint64                 `json:"order_type"`
-	CreatedAt      types.Time             `json:"created_at"`
-	TradeVolume    float64                `json:"trade_volume"`
-	TradeTurnover  float64                `json:"trade_turnover"`
-	Fee            float64                `json:"fee"`
-	TradeAvgPrice  float64                `json:"trade_avg_price"`
-	MarginFrozen   float64                `json:"margin_frozen"`
-	Profit         float64                `json:"profit"`
-	FeeAsset       currency.Code          `json:"fee_asset"`
-	CancelledAt    types.Time             `json:"canceled_at"`
-	Trade          []LegacyFuturesWSTrade `json:"trade"`
+	Operation         string                 `json:"op"`
+	Topic             string                 `json:"topic"`
+	UID               string                 `json:"uid"`
+	Timestamp         types.Time             `json:"ts"`
+	Symbol            string                 `json:"symbol"`
+	ContractType      string                 `json:"contract_type"`
+	ContractCode      string                 `json:"contract_code"`
+	Volume            float64                `json:"volume"`
+	Price             float64                `json:"price"`
+	OrderPriceType    string                 `json:"order_price_type"`
+	Direction         string                 `json:"direction"`
+	Offset            string                 `json:"offset"`
+	Status            uint64                 `json:"status"`
+	LeverageRate      uint64                 `json:"lever_rate"`
+	OrderID           uint64                 `json:"order_id"`
+	OrderIDString     string                 `json:"order_id_str"`
+	ClientOrderID     uint64                 `json:"client_order_id"`
+	OrderSource       string                 `json:"order_source"`
+	OrderType         uint64                 `json:"order_type"`
+	CreatedAt         types.Time             `json:"created_at"`
+	TradeVolume       float64                `json:"trade_volume"`
+	TradeTurnover     float64                `json:"trade_turnover"`
+	Fee               float64                `json:"fee"`
+	TradeAveragePrice float64                `json:"trade_avg_price"`
+	MarginFrozen      float64                `json:"margin_frozen"`
+	Profit            float64                `json:"profit"`
+	FeeAsset          currency.Code          `json:"fee_asset"`
+	CancelledAt       types.Time             `json:"canceled_at"`
+	Trade             []LegacyFuturesWSTrade `json:"trade"`
 }
 
 // FuturesWebsocketSubMatchOrder stores subscribed match order data for futures websocket
@@ -147,17 +147,17 @@ type FuturesWebsocketSubEquityUpdates struct {
 	UID       string                   `json:"uid"`
 	Timestamp types.Time               `json:"ts"`
 	Event     string                   `json:"event"`
-	Data      []FuturesWebsocketEquity `json:"data"`
+	Equities  []FuturesWebsocketEquity `json:"data"`
 }
 
 // FuturesWebsocketSubPositionUpdates stores subscribed position updates data for futures websocket
 type FuturesWebsocketSubPositionUpdates struct {
-	Operation     string                     `json:"op"`
-	Topic         string                     `json:"topic"`
-	UID           string                     `json:"uid"`
-	Timestamp     types.Time                 `json:"ts"`
-	Event         string                     `json:"event"`
-	PositionsData []FuturesWebsocketPosition `json:"data"`
+	Operation string                     `json:"op"`
+	Topic     string                     `json:"topic"`
+	UID       string                     `json:"uid"`
+	Timestamp types.Time                 `json:"ts"`
+	Event     string                     `json:"event"`
+	Positions []FuturesWebsocketPosition `json:"data"`
 }
 
 // FuturesWebsocketSubTriggerOrderUpdates stores subscribed trigger order updates data for futures websocket
@@ -166,7 +166,7 @@ type FuturesWebsocketSubTriggerOrderUpdates struct {
 	Topic     string                         `json:"topic"`
 	UID       string                         `json:"uid"`
 	Event     string                         `json:"event"`
-	Data      []FuturesWebsocketTriggerOrder `json:"data"`
+	Orders    []FuturesWebsocketTriggerOrder `json:"data"`
 }
 
 // LegacyFuturesWSTrade contains one fill in a delivery or coin-margined private notification.
@@ -242,6 +242,6 @@ type FuturesWebsocketTriggerOrder struct {
 	TriggeredAt     types.Time `json:"triggered_at"`
 	OrderInsertAt   types.Time `json:"order_insert_at"`
 	CancelledAt     types.Time `json:"canceled_at"`
-	FailCode        int64      `json:"fail_code"`
+	FailCode        uint64     `json:"fail_code"`
 	FailReason      string     `json:"fail_reason"`
 }

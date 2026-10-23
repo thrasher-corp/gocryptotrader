@@ -64,12 +64,13 @@ func TestMain(m *testing.M) {
 
 func TestGetSignatureHost(t *testing.T) {
 	t.Parallel()
-	for _, tt := range []struct {
+	type testCase struct {
 		name    string
 		in      string
 		want    string
 		wantErr error
-	}{
+	}
+	for _, tt := range []testCase{
 		{
 			name: "spot",
 			in:   "https://api.huobi.pro",
@@ -106,7 +107,7 @@ func TestGetSignatureHost(t *testing.T) {
 
 func TestSendHTTPRequest(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct {
+	type testCase struct {
 		name       string
 		path       string
 		statusCode int
@@ -114,7 +115,9 @@ func TestSendHTTPRequest(t *testing.T) {
 		nilResult  bool
 		expected   error
 		expectedID uint64
-	}{
+	}
+	for _, tc := range []testCase{
+		{name: "negative V5 code", path: "/v5/test", statusCode: http.StatusOK, body: `{"code":-1,"message":"negative failure","data":[]}`, expected: errAPIResponse},
 		{name: "V3 failure", path: "/api/v3/public", statusCode: http.StatusOK, body: `{"code":403,"msg":"incorrect key","data":""}`, expected: errAPIResponse},
 		{name: "V3 success", path: "/api/v3/public", statusCode: http.StatusOK, body: `{"code":200,"msg":"","data":1}`, expectedID: 1},
 
@@ -186,10 +189,11 @@ func TestSendHTTPRequest(t *testing.T) {
 			h := new(Exchange)
 			require.NoError(t, testexch.Setup(h), "HTX setup must not error")
 			require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "spot endpoint must be set")
-			var response struct {
+			type identifierResponse struct {
 				Response
-				Data uint64 `json:"data"`
+				Identifier uint64 `json:"data"`
 			}
+			var response identifierResponse
 			var result any = &response
 			if tc.nilResult {
 				result = nil
@@ -204,14 +208,14 @@ func TestSendHTTPRequest(t *testing.T) {
 				return
 			}
 			require.NoError(t, err, "SendHTTPRequest must not error")
-			assert.Equal(t, tc.expectedID, response.Data, "response data should match")
+			assert.Equal(t, tc.expectedID, response.Identifier, "response identifier should match")
 		})
 	}
 }
 
 func TestSendAuthenticatedHTTPRequest(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct {
+	type testCase struct {
 		name         string
 		statusCode   int
 		body         string
@@ -220,7 +224,8 @@ func TestSendAuthenticatedHTTPRequest(t *testing.T) {
 		nilResult    bool
 		expected     []error
 		expectedID   uint64
-	}{
+	}
+	for _, tc := range []testCase{
 		{
 			name:       "authentication required",
 			statusCode: http.StatusOK,
@@ -308,10 +313,11 @@ func TestSendAuthenticatedHTTPRequest(t *testing.T) {
 				h.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
 			}
 			require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "spot endpoint must be set")
-			var response struct {
+			type identifierResponse struct {
 				Response
-				Data uint64 `json:"data"`
+				Identifier uint64 `json:"data"`
 			}
+			var response identifierResponse
 			var result any = &response
 			if tc.nilResult {
 				result = nil
@@ -325,20 +331,21 @@ func TestSendAuthenticatedHTTPRequest(t *testing.T) {
 				return
 			}
 			require.NoError(t, err, "SendAuthenticatedHTTPRequest must not error")
-			assert.Equal(t, tc.expectedID, response.Data, "response data should match")
+			assert.Equal(t, tc.expectedID, response.Identifier, "response identifier should match")
 		})
 	}
 }
 
 func TestUnmarshalResponse(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct {
+	type testCase struct {
 		name      string
 		response  string
 		nilResult bool
 		expected  error
 		malformed bool
-	}{
+	}
+	for _, tc := range []testCase{
 		{name: "empty response without result", nilResult: true},
 		{name: "whitespace response without result", response: " \n\t", nilResult: true},
 		{name: "empty response with result", expected: errExpectedResponseBody},
@@ -353,7 +360,7 @@ func TestUnmarshalResponse(t *testing.T) {
 			if tc.nilResult {
 				result = nil
 			}
-			err := unmarshalResponse(json.RawMessage(tc.response), result)
+			err := unmarshalResponse([]byte(tc.response), result)
 			if tc.expected != nil {
 				require.ErrorIs(t, err, tc.expected, "unmarshalResponse must return the expected error")
 				return
@@ -364,7 +371,7 @@ func TestUnmarshalResponse(t *testing.T) {
 			}
 			require.NoError(t, err, "unmarshalResponse must not error")
 			if result != nil {
-				assert.Empty(t, response.Data.FinancialRecord, "empty data should produce an empty result")
+				assert.Empty(t, response.FinancialRecords.Records, "empty data should produce an empty result")
 			}
 		})
 	}
@@ -393,10 +400,11 @@ func TestGetCurrenciesIncludingChains(t *testing.T) {
 
 func TestGetMarginRates(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct {
+	type testCase struct {
 		name, body string
 		wantErr    error
-	}{
+	}
+	for _, tc := range []testCase{
 		{name: "margin rates", body: `{"status":"ok","data":[{"symbol":"btcusdt","currencies":[{"currency":"btc","interest-rate":"0.001"}]}]}`},
 		{name: "API failure", body: `{"status":"error","err-code":"invalid-symbol","err-msg":"invalid symbol"}`, wantErr: request.ErrAuthRequestFailed},
 	} {
@@ -410,10 +418,10 @@ func TestGetMarginRates(t *testing.T) {
 			}
 			require.NoError(t, err, "GetMarginRates must decode margin rates")
 			require.NotNil(t, response, "margin response must be returned as a pointer")
-			require.Len(t, response.Data, 1, "margin response must retain its symbol")
-			assert.Equal(t, "btcusdt", response.Data[0].Symbol, "margin symbol should decode")
-			require.Len(t, response.Data[0].Currencies, 1, "margin response must retain its borrowing currency")
-			assert.Equal(t, 0.001, response.Data[0].Currencies[0].InterestRate.Float64(), "quoted interest rate should decode")
+			require.Len(t, response.MarginRates, 1, "margin response must retain its symbol")
+			assert.Equal(t, "btcusdt", response.MarginRates[0].Symbol, "margin symbol should decode")
+			require.Len(t, response.MarginRates[0].Currencies, 1, "margin response must retain its borrowing currency")
+			assert.Equal(t, 0.001, response.MarginRates[0].Currencies[0].InterestRate.Float64(), "quoted interest rate should decode")
 		})
 	}
 }
@@ -612,10 +620,11 @@ func TestGetMarginAccountBalance(t *testing.T) {
 
 func TestMarginTransfer(t *testing.T) {
 	t.Parallel()
-	for _, tt := range []struct {
+	type testCase struct {
 		name string
 		in   bool
-	}{
+	}
+	for _, tt := range []testCase{
 		{name: "in", in: true},
 		{name: "out"},
 	} {
@@ -648,13 +657,14 @@ func TestMarginRepayment(t *testing.T) {
 
 func TestWithdraw(t *testing.T) {
 	t.Parallel()
-	for _, tt := range []struct {
+	type testCase struct {
 		name    string
 		code    currency.Code
 		address string
 		amount  float64
 		wantErr error
-	}{
+	}
+	for _, tt := range []testCase{
 		{name: "invalid", wantErr: errWithdrawDetailsUnset},
 		{name: "credentials", code: currency.USDT, address: "address", amount: 1},
 	} {
@@ -696,10 +706,11 @@ func setFeeBuilder() *exchange.FeeBuilder {
 
 func TestQueryDepositAddress(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct {
+	type testCase struct {
 		name, body string
 		wantErr    error
-	}{
+	}
+	for _, tc := range []testCase{
 		{name: "deposit address", body: `{"code":200,"data":[{"currency":"usdt","address":"address","addressTag":"","chain":"trc20usdt"}]}`},
 		{name: "no address", body: `{"code":200,"data":[]}`, wantErr: errDepositAddressMissing},
 		{name: "API failure", body: `{"code":400,"message":"invalid currency"}`, wantErr: request.ErrAuthRequestFailed},
@@ -725,10 +736,11 @@ func TestQueryDepositAddress(t *testing.T) {
 
 func TestQueryWithdrawQuotas(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct {
+	type testCase struct {
 		name, body string
 		wantErr    error
-	}{
+	}
+	for _, tc := range []testCase{
 		{name: "withdrawal quota", body: `{"code":200,"data":{"currency":"btc","chains":[]}}`},
 		{name: "API failure", body: `{"code":400,"message":"invalid currency"}`, wantErr: request.ErrAuthRequestFailed},
 	} {
@@ -762,13 +774,14 @@ func TestSearchForExistedWithdrawsAndDeposits(t *testing.T) {
 
 func TestCancelOrderBatch(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct {
+	type testCase struct {
 		name             string
 		orderCount       int
 		clientOrderCount int
 		response         string
 		wantError        error
-	}{
+	}
+	for _, tc := range []testCase{
 		{name: "missing identifiers", wantError: order.ErrOrderIDNotSet},
 		{name: "mixed identifiers", orderCount: 1, clientOrderCount: 1, wantError: errMixedOrderIdentifiers},
 		{name: "too many order IDs", orderCount: 51, wantError: errCancelOrderLimitExceeded},
@@ -834,14 +847,15 @@ func TestCancelOpenOrdersBatch(t *testing.T) {
 func TestValidateCancelOpenOrdersBatchResponse(t *testing.T) {
 	t.Parallel()
 	require.ErrorIs(t, validateCancelOpenOrdersBatchResponse(nil), common.ErrNilPointer, "validation must reject a nil response")
-	for _, tc := range []struct {
+	type testCase struct {
 		name        string
 		failedCount uint64
 		nextID      int64
 		status      string
 		errorMsg    string
 		want        error
-	}{
+	}
+	for _, tc := range []testCase{
 		{name: "success", nextID: -1},
 		{name: "failed orders", failedCount: 2, nextID: -1, want: errOrderCancellationFailed},
 		{name: "more open orders", nextID: 5454600, want: errOrderCancellationFailed},
@@ -850,8 +864,8 @@ func TestValidateCancelOpenOrdersBatchResponse(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			result := CancelOpenOrdersBatchResponse{Status: tc.status, ErrorMessage: tc.errorMsg}
-			result.Data.FailedCount = tc.failedCount
-			result.Data.NextID = tc.nextID
+			result.Cancellations.FailedCount = tc.failedCount
+			result.Cancellations.NextID = tc.nextID
 			err := validateCancelOpenOrdersBatchResponse(&result)
 			if tc.want == nil {
 				assert.NoError(t, err, "successful response should not error")
@@ -979,11 +993,12 @@ func TestGetFee(t *testing.T) {
 
 func TestCalculateTradingFee(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct {
+	type testCase struct {
 		name     string
 		pair     currency.Pair
 		expected float64
-	}{
+	}
+	for _, tc := range []testCase{
 		{name: "crypto fiat", pair: currency.NewBTCUSD(), expected: 0.1},
 		{name: "non-fiat quote", pair: currency.NewPair(currency.BTC, currency.ETH), expected: 0.2},
 	} {

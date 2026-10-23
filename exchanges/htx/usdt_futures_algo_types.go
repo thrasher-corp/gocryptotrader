@@ -24,7 +24,7 @@ type V5AlgoOrderRequest struct {
 	StopLossType        string        `json:"sl_type,omitempty"`
 	StopLossPriceType   string        `json:"sl_trigger_price_type,omitempty"`
 	Price               types.Number  `json:"price,omitempty"`
-	PriceType           string        `json:"price_type,omitempty"`
+	PriceMatch          string        `json:"price_match,omitempty"`
 	TriggerPrice        types.Number  `json:"trigger_price,omitempty"`
 	TriggerPriceType    string        `json:"trigger_price_type,omitempty"`
 	ActivationPrice     types.Number  `json:"active_price,omitempty"`
@@ -43,12 +43,12 @@ type V5CancelAlgoOrderRequest struct {
 // V5AlgoAcknowledgementsResponse stores strategy-order acknowledgements.
 type V5AlgoAcknowledgementsResponse struct {
 	V5Response
-	Data []V5AlgoAcknowledgement `json:"data"`
+	Acknowledgements []V5AlgoAcknowledgement `json:"data"`
 }
 
 // V5AlgoAcknowledgement stores one strategy-order acknowledgement.
 type V5AlgoAcknowledgement struct {
-	Code          int64  `json:"code,omitempty"`
+	Code          uint64 `json:"code,omitempty"`
 	Message       string `json:"message,omitempty"`
 	AlgoID        string `json:"algo_id"`
 	ClientOrderID string `json:"algo_client_order_id"`
@@ -81,7 +81,7 @@ type V5AlgoOrderHistoryRequest struct {
 // V5AlgoOrdersResponse stores strategy orders.
 type V5AlgoOrdersResponse struct {
 	V5Response
-	Data []V5AlgoOrder `json:"data"`
+	Orders []V5AlgoOrder `json:"data"`
 }
 
 // V5AlgoOrder stores a strategy order.

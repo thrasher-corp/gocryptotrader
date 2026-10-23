@@ -66,7 +66,7 @@ func TestFormatLegacyFuturesWSOrder(t *testing.T) {
 		orderIDString:  "order-id",
 		orderPriceType: "limit",
 	}
-	for _, tc := range []struct {
+	type testCase struct {
 		name             string
 		update           func(*legacyFuturesWSOrder)
 		expectedType     order.Type
@@ -75,7 +75,8 @@ func TestFormatLegacyFuturesWSOrder(t *testing.T) {
 		expectedErr      error
 		wantErr          bool
 		checkFullDetails bool
-	}{
+	}
+	for _, tc := range []testCase{
 		{name: "explicit price type", expectedType: order.Limit, expectedOrderID: "order-id", checkFullDetails: true},
 		{name: "numeric limit", update: func(data *legacyFuturesWSOrder) {
 			data.orderPriceType = ""
@@ -160,12 +161,13 @@ func TestWSGenerateFuturesSignature(t *testing.T) {
 
 func TestWSFuturesLogin(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct {
+	type testCase struct {
 		name         string
 		authResponse string
 		connectErr   error
 		tradeErr     error
-	}{
+	}
+	for _, tc := range []testCase{
 		{name: "successful trade login", authResponse: `{"op":"auth","err-code":0}`},
 		{name: "rejected trade login", authResponse: `{"op":"auth","err-code":2001,"err-msg":"invalid authentication"}`, connectErr: errAPIResponse, tradeErr: websocket.ErrNotConnected},
 	} {
@@ -229,9 +231,10 @@ func TestWSFuturesLogin(t *testing.T) {
 
 func TestWSHandleFuturesPing(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct {
+	type testCase struct {
 		name, input, expected string
-	}{
+	}
+	for _, tc := range []testCase{
 		{name: "string", input: `{"op":"ping","ts":"1492420473058"}`, expected: `{"op":"pong","ts":"1492420473058"}`},
 		{name: "number", input: `{"op":"ping","ts":1492420473027}`, expected: `{"op":"pong","ts":1492420473027}`},
 	} {
@@ -277,10 +280,11 @@ func TestGetFuturesPrivateSubscription(t *testing.T) {
 		t.Parallel()
 		h := new(Exchange)
 		require.NoError(t, testexch.Setup(h), "exchange setup must succeed")
-		for _, tc := range []struct {
+		type testCase struct {
 			filter any
 			asset  asset.Item
-		}{
+		}
+		for _, tc := range []testCase{
 			{filter: exchange.WebsocketFuturesPrivate, asset: asset.Futures},
 			{filter: exchange.WebsocketCoinMarginedPrivate, asset: asset.CoinMarginedFutures},
 		} {
@@ -351,11 +355,12 @@ func TestWSHandleFuturesPrivateMessage(t *testing.T) {
 					assert.Equal(t, 0.003, detail.Fee, "aggregate charged fee should be positive in GCT")
 					assert.Equal(t, currency.BTC, detail.FeeAsset, "aggregate fee currency should be retained")
 					require.Len(t, detail.Trades, 2, "both fills must be retained despite their shared match ID")
-					for i, expected := range []struct {
+					type expectedOrder struct {
 						id         string
 						price, fee float64
 						maker      bool
-					}{
+					}
+					for i, expected := range []expectedOrder{
 						{id: "9007199254740993", price: 90, fee: 0.001, maker: true},
 						{id: "9007199254740994", price: 110, fee: 0.002},
 					} {
@@ -393,10 +398,11 @@ func TestWSHandleFuturesPrivateMessage(t *testing.T) {
 	err = h.wsHandleFuturesPrivateMessage(t.Context(), nil, []byte(`{}`))
 	require.ErrorIs(t, err, common.ErrNilPointer, "wsHandleFuturesPrivateMessage must reject nil subscriptions")
 
-	for _, tt := range []struct {
+	type testCase struct {
 		a        asset.Item
 		expected any
-	}{
+	}
+	for _, tt := range []testCase{
 		{a: asset.Futures, expected: &FuturesWebsocketSubPositionUpdates{}},
 		{a: asset.CoinMarginedFutures, expected: &SwapWebsocketPositionUpdates{}},
 		{a: asset.USDTMarginedFutures, expected: &V5WebsocketPositionUpdate{}},
@@ -411,12 +417,13 @@ func TestWSHandleFuturesPrivateMessage(t *testing.T) {
 
 func TestWSHandleDeliveryFuturesPrivateMessage(t *testing.T) {
 	t.Parallel()
-	for _, tt := range []struct {
+	type testCase struct {
 		name     string
 		channel  string
 		expected any
 		raw      string
-	}{
+	}
+	for _, tt := range []testCase{
 		{name: "orders", channel: subscription.MyOrdersChannel, expected: &order.Detail{}, raw: `{"contract_code":"BTC-USD","direction":"buy","order_price_type":"limit","status":6,"order_id":1,"volume":2,"trade_volume":1}`},
 		{name: "matches", channel: subscription.MyTradesChannel, expected: &order.Detail{}, raw: `{"contract_code":"BTC-USD","direction":"buy","order_type":1,"status":6,"order_id":1,"volume":2,"trade_volume":1}`},
 		{name: "cancellation pending", channel: subscription.MyTradesChannel, raw: `{"status":9}`},

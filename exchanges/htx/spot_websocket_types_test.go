@@ -10,13 +10,14 @@ import (
 
 func TestWebsocketTradeIDUnmarshalJSON(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct {
+	type testCase struct {
 		name        string
 		input       []byte
 		expected    WebsocketTradeID
 		expectedErr error
 		wantErr     bool
-	}{
+	}
+	for _, tc := range []testCase{
 		{name: "numeric", input: []byte(`137005445109359290000000000`), expected: "137005445109359290000000000"},
 		{name: "quoted", input: []byte(`"137005445109359290000000000"`), expected: "137005445109359290000000000"},
 		{name: "whitespace", input: []byte(" 123 "), expected: "123"},
@@ -45,7 +46,7 @@ func TestWebsocketTradeIDUnmarshalJSON(t *testing.T) {
 		t.Parallel()
 		var response WebsocketTrade
 		require.NoError(t, json.Unmarshal([]byte(`{"tick":{"data":[{"id":137005445109359290000000000}]}}`), &response), "large derivative trade ID must decode")
-		require.Len(t, response.Tick.Data, 1, "one trade must decode")
-		assert.Equal(t, WebsocketTradeID("137005445109359290000000000"), response.Tick.Data[0].ID, "trade ID should retain full precision")
+		require.Len(t, response.Tick.Trades, 1, "one trade must decode")
+		assert.Equal(t, WebsocketTradeID("137005445109359290000000000"), response.Tick.Trades[0].ID, "trade ID should retain full precision")
 	})
 }

@@ -32,9 +32,9 @@ func TestWSHandleMyAccountMsg(t *testing.T) {
 	e.Websocket.DataHandler.Close()
 	require.Len(t, e.Websocket.DataHandler.C, 3, "Must see correct number of records")
 	exp := []WebsocketAccountUpdate{
-		{Currency: "btc", AccountID: 123456, Balance: 23.111, ChangeType: "transfer", AccountType: "trade", ChangeTime: types.Time(time.UnixMilli(1568601800000))},
-		{Currency: "btc", AccountID: 33385, Available: 2028.69, ChangeType: "order.match", AccountType: "trade", ChangeTime: types.Time(time.UnixMilli(1574393385167))},
-		{Currency: "usdt", AccountID: 14884859, Available: 20.29388158, Balance: 20.29388158, AccountType: "trade"},
+		{Currency: currency.BTC.Lower(), AccountID: 123456, Balance: 23.111, ChangeType: "transfer", AccountType: "trade", ChangeTime: types.Time(time.UnixMilli(1568601800000))},
+		{Currency: currency.BTC.Lower(), AccountID: 33385, Available: 2028.69, ChangeType: "order.match", AccountType: "trade", ChangeTime: types.Time(time.UnixMilli(1574393385167))},
+		{Currency: currency.USDT.Lower(), AccountID: 14884859, Available: 20.29388158, Balance: 20.29388158, AccountType: "trade"},
 	}
 	for i, ex := range exp {
 		var err error

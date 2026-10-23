@@ -41,11 +41,6 @@ type websocketSubscriptionRequest struct {
 	Unsub string `json:"unsub,omitempty"`
 }
 
-// WebsocketHeartBeat defines a heartbeat request
-type WebsocketHeartBeat struct {
-	ClientNonce int64 `json:"ping"`
-}
-
 // WebsocketDepth defines market depth websocket response
 type WebsocketDepth struct {
 	Channel   string             `json:"ch"`
@@ -63,7 +58,7 @@ type WebsocketKline struct {
 // WebsocketTick stores websocket ticker data
 type WebsocketTick struct {
 	Channel   string              `json:"ch"`
-	Rep       string              `json:"rep"`
+	Reply     string              `json:"rep"`
 	Timestamp types.Time          `json:"ts"`
 	Tick      WebsocketTickerTick `json:"tick"`
 }
@@ -115,7 +110,7 @@ type WebsocketTickerTick struct {
 type WebsocketTradeTick struct {
 	ID        uint64                    `json:"id"`
 	Timestamp types.Time                `json:"ts"`
-	Data      []WebsocketTradeExecution `json:"data"`
+	Trades    []WebsocketTradeExecution `json:"data"`
 }
 
 // WebsocketTradeExecution accepts either id or tradeId so execution identifiers retain their exact digits.
@@ -126,4 +121,9 @@ type WebsocketTradeExecution struct {
 	TradeID   WebsocketTradeID `json:"tradeId"`
 	Price     float64          `json:"price"`
 	Direction string           `json:"direction"`
+}
+
+// websocketPong echoes the public feed's heartbeat timestamp.
+type websocketPong struct {
+	Pong int64 `json:"pong"`
 }

@@ -14,7 +14,7 @@ import (
 // V5BatchOrderResponse stores per-order acknowledgements.
 type V5BatchOrderResponse struct {
 	V5Response
-	Data []V5OrderAcknowledgement `json:"data"`
+	Acknowledgements []V5OrderAcknowledgement `json:"data"`
 }
 
 // V5CancelBatchOrdersRequest defines a batch cancellation.
@@ -33,7 +33,7 @@ type V5CancelAfterRequest struct {
 // V5CancelAfterResponse stores the automatic-cancellation schedule.
 type V5CancelAfterResponse struct {
 	V5Response
-	Data V5CancellationSchedule `json:"data"`
+	Schedule V5CancellationSchedule `json:"data"`
 }
 
 // V5ClosePositionRequest defines a market position close.
@@ -73,7 +73,7 @@ type V5OrderDetailsRequest struct {
 // V5OrderDetailsResponse stores recent order executions.
 type V5OrderDetailsResponse struct {
 	V5Response
-	Data []V5OrderDetail `json:"data"`
+	Orders []V5OrderDetail `json:"data"`
 }
 
 // V5OrderDetail stores one futures execution.
@@ -104,33 +104,33 @@ type V5OrderDetail struct {
 // V5OpenPositionsResponse stores current positions.
 type V5OpenPositionsResponse struct {
 	V5Response
-	Data []V5OpenPosition `json:"data"`
+	Positions []V5OpenPosition `json:"data"`
 }
 
 // V5OpenPosition stores a current position.
 type V5OpenPosition struct {
-	ContractCode      string       `json:"contract_code"`
-	PositionSide      string       `json:"position_side"`
-	Direction         string       `json:"direction"`
-	OpenAveragePrice  types.Number `json:"open_avg_price"`
-	MarginMode        string       `json:"margin_mode"`
-	Volume            types.Number `json:"volume"`
-	Available         types.Number `json:"available"`
-	LeverageRate      uint64       `json:"lever_rate"`
-	ADLRiskPercent    types.Number `json:"adl_risk_percent"`
-	LiquidationPrice  types.Number `json:"liquidation_price"`
-	InitialMargin     types.Number `json:"initial_margin"`
-	MaintenanceMargin types.Number `json:"maintenance_margin"`
-	Margin            types.Number `json:"margin"`
-	ProfitUnreal      types.Number `json:"profit_unreal"`
-	ProfitRate        types.Number `json:"profit_rate"`
-	MarginRate        types.Number `json:"margin_rate"`
-	MarginCurrency    string       `json:"margin_currency"`
-	LastPrice         types.Number `json:"last_price"`
-	MarkPrice         types.Number `json:"mark_price"`
-	ContractType      string       `json:"contract_type"`
-	CreatedTime       types.Time   `json:"created_time"`
-	UpdatedTime       types.Time   `json:"updated_time"`
+	ContractCode      string        `json:"contract_code"`
+	PositionSide      string        `json:"position_side"`
+	Direction         string        `json:"direction"`
+	OpenAveragePrice  types.Number  `json:"open_avg_price"`
+	MarginMode        string        `json:"margin_mode"`
+	Volume            types.Number  `json:"volume"`
+	Available         types.Number  `json:"available"`
+	LeverageRate      uint64        `json:"lever_rate"`
+	ADLRiskPercent    types.Number  `json:"adl_risk_percent"`
+	LiquidationPrice  types.Number  `json:"liquidation_price"`
+	InitialMargin     types.Number  `json:"initial_margin"`
+	MaintenanceMargin types.Number  `json:"maintenance_margin"`
+	Margin            types.Number  `json:"margin"`
+	ProfitUnreal      types.Number  `json:"profit_unreal"`
+	ProfitRate        types.Number  `json:"profit_rate"`
+	MarginRate        types.Number  `json:"margin_rate"`
+	MarginCurrency    currency.Code `json:"margin_currency"`
+	LastPrice         types.Number  `json:"last_price"`
+	MarkPrice         types.Number  `json:"mark_price"`
+	ContractType      string        `json:"contract_type"`
+	CreatedTime       types.Time    `json:"created_time"`
+	UpdatedTime       types.Time    `json:"updated_time"`
 }
 
 // V5CancellationSchedule reports the server time and deadline for automatic order cancellation.

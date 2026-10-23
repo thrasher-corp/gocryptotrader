@@ -35,7 +35,7 @@ func TestWebsocketSubscriptionLifecycle(t *testing.T) {
 		{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel},
 		{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel, Levels: 6},
 	}
-	releaseRejection := make(chan struct{})
+	releaseRejection := make(chan bool)
 	var releaseOnce sync.Once
 	t.Cleanup(func() { releaseOnce.Do(func() { close(releaseRejection) }) })
 	var requests atomic.Int32
@@ -134,9 +134,10 @@ func TestWebsocketTradeConnectionLifecycle(t *testing.T) {
 	var tradeAuthentications atomic.Int32
 	server := httptest.NewServer(mockws.CurryWsMockUpgrader(t, func(tb testing.TB, message []byte, conn *gws.Conn) error {
 		tb.Helper()
-		var request struct {
+		type requestPayload struct {
 			Operation string `json:"op"`
 		}
+		var request requestPayload
 		if err := json.Unmarshal(message, &request); err != nil {
 			return err
 		}
@@ -185,7 +186,7 @@ func TestWebsocketTradeConnectionLifecycle(t *testing.T) {
 	require.NoError(t, h.Websocket.FlushChannels(t.Context()), "disabling trade asset must remove its connection")
 	_, err = h.Websocket.GetConnection(exchange.WebsocketTrade)
 	require.ErrorIs(t, err, websocket.ErrNotConnected, "disabled trade connection must be unavailable")
-	assert.ErrorContains(t, trade.SendJSONMessage(t.Context(), 0, struct{}{}), "disconnected", "disabled trade connection should close")
+	assert.ErrorContains(t, trade.SendJSONMessage(t.Context(), 0, &V5WebsocketTradeRequest{}), "disconnected", "disabled trade connection should close")
 	spotAfterDisable, err := h.Websocket.GetConnection(exchange.WebsocketSpot)
 	require.NoError(t, err, "spot connection must remain available after disabling trade")
 	assert.Same(t, spot, spotAfterDisable, "disabling trade should retain the spot connection")

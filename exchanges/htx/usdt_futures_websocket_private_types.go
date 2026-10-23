@@ -11,9 +11,9 @@ import (
 
 // V5WebsocketTradeRequest wraps an authenticated V5 trade operation.
 type V5WebsocketTradeRequest struct {
-	Operation string `json:"op"`
-	CID       string `json:"cid"`
-	Data      any    `json:"data"`
+	Operation  string `json:"op"`
+	CID        string `json:"cid"`
+	Parameters any    `json:"data"`
 }
 
 // V5WebsocketRateLimit stores the rate-limit state returned by V5 trade operations.
@@ -47,17 +47,17 @@ func (r *V5WebsocketRateLimit) UnmarshalJSON(data []byte) error {
 // V5WebsocketOrderResponse stores a single V5 WebSocket trade acknowledgement.
 type V5WebsocketOrderResponse struct {
 	V5Response
-	CID       string                 `json:"cid"`
-	Data      V5OrderAcknowledgement `json:"data"`
-	RateLimit V5WebsocketRateLimit   `json:"rate_limit"`
+	CID             string                 `json:"cid"`
+	Acknowledgement V5OrderAcknowledgement `json:"data"`
+	RateLimit       V5WebsocketRateLimit   `json:"rate_limit"`
 }
 
 // V5WebsocketBatchOrderResponse stores batch V5 WebSocket trade acknowledgements.
 type V5WebsocketBatchOrderResponse struct {
 	V5Response
-	CID       string                   `json:"cid"`
-	Data      []V5OrderAcknowledgement `json:"data"`
-	RateLimit V5WebsocketRateLimit     `json:"rate_limit"`
+	CID              string                   `json:"cid"`
+	Acknowledgements []V5OrderAcknowledgement `json:"data"`
+	RateLimit        V5WebsocketRateLimit     `json:"rate_limit"`
 }
 
 // V5WebsocketOrderUpdate contains an authenticated V5 USDT-margined order update.
@@ -67,7 +67,7 @@ type V5WebsocketOrderUpdate struct {
 	ContractCode string           `json:"contract_code"`
 	Timestamp    types.Time       `json:"ts"`
 	UID          string           `json:"uid"`
-	Data         V5WebsocketOrder `json:"data"`
+	Order        V5WebsocketOrder `json:"data"`
 }
 
 // V5WebsocketOrder contains the order fields published by the V5 notification API.
@@ -91,7 +91,7 @@ type V5WebsocketOrder struct {
 	TradeVolume          types.Number `json:"trade_volume"`
 	CancelVolume         types.Number `json:"cancel_volume"`
 	TradeTurnover        types.Number `json:"trade_turnover"`
-	FeeCurrency          string       `json:"fee_currency"`
+	FeeCurrency          string       `json:"fee_currency"` // HTX may send a comma-separated list of fee currencies.
 	Fee                  types.Number `json:"fee"`
 	Profit               types.Number `json:"profit"`
 	ContractType         string       `json:"contract_type"`
@@ -103,8 +103,8 @@ type V5WebsocketOrder struct {
 	StopLossOrderPrice   types.Number `json:"sl_order_price"`
 	StopLossType         string       `json:"sl_type"`
 	StopLossPriceType    string       `json:"sl_trigger_price_type"`
-	CreatedTime          types.Number `json:"created_time"`
-	UpdatedTime          types.Number `json:"updated_time"`
+	CreatedTime          types.Time   `json:"created_time"`
+	UpdatedTime          types.Time   `json:"updated_time"`
 	SelfMatchPrevent     string       `json:"self_match_prevent"`
 	AmendOriginalVolume  types.Number `json:"amend_origin_volume"`
 	AmendSource          string       `json:"amend_source"`
@@ -118,7 +118,7 @@ type V5WebsocketTradeUpdate struct {
 	ContractCode string                 `json:"contract_code"`
 	Timestamp    types.Time             `json:"ts"`
 	UID          string                 `json:"uid"`
-	Data         []V5WebsocketExecution `json:"data"`
+	Executions   []V5WebsocketExecution `json:"data"`
 }
 
 // V5WebsocketTradeDetailUpdate contains an authenticated V5 USDT-margined execution-detail update.
@@ -128,17 +128,18 @@ type V5WebsocketTradeDetailUpdate struct {
 	ContractCode string                 `json:"contract_code"`
 	Timestamp    types.Time             `json:"ts"`
 	UID          string                 `json:"uid"`
-	Data         []V5WebsocketExecution `json:"data"`
+	Executions   []V5WebsocketExecution `json:"data"`
 }
 
 // V5WebsocketPositionUpdate contains an authenticated V5 USDT-margined position update.
 type V5WebsocketPositionUpdate struct {
-	Operation    string          `json:"op"`
-	Topic        string          `json:"topic"`
-	ContractCode string          `json:"contract_code"`
-	Timestamp    types.Time      `json:"ts"`
-	UID          string          `json:"uid"`
-	Data         json.RawMessage `json:"data"`
+	Event        string                `json:"event"`
+	Operation    string                `json:"op"`
+	Topic        string                `json:"topic"`
+	ContractCode string                `json:"contract_code"`
+	Timestamp    types.Time            `json:"ts"`
+	UID          string                `json:"uid"`
+	Positions    []V5WebsocketPosition `json:"data"`
 }
 
 // V5WebsocketAccountUpdate contains an authenticated V5 USDT-margined account update.
@@ -147,7 +148,7 @@ type V5WebsocketAccountUpdate struct {
 	Topic     string           `json:"topic"`
 	Timestamp types.Time       `json:"ts"`
 	UID       string           `json:"uid"`
-	Data      V5AccountBalance `json:"data"`
+	Balance   V5AccountBalance `json:"data"`
 }
 
 // V5WebsocketMatchOrderUpdate contains an authenticated V5 USDT-margined match-order update.
@@ -157,17 +158,17 @@ type V5WebsocketMatchOrderUpdate struct {
 	ContractCode string                  `json:"contract_code"`
 	Timestamp    types.Time              `json:"ts"`
 	UID          string                  `json:"uid"`
-	Data         []V5WebsocketMatchOrder `json:"data"`
+	Orders       []V5WebsocketMatchOrder `json:"data"`
 }
 
 // V5WebsocketAlgoOrderUpdate contains an authenticated V5 USDT-margined strategy-order update.
 type V5WebsocketAlgoOrderUpdate struct {
-	Operation    string          `json:"op"`
-	Topic        string          `json:"topic"`
-	ContractCode string          `json:"contract_code"`
-	Timestamp    types.Time      `json:"ts"`
-	UID          string          `json:"uid"`
-	Data         json.RawMessage `json:"data"`
+	Operation    string        `json:"op"`
+	Topic        string        `json:"topic"`
+	ContractCode string        `json:"contract_code"`
+	Timestamp    types.Time    `json:"ts"`
+	UID          string        `json:"uid"`
+	Orders       []V5AlgoOrder `json:"data"`
 }
 
 // V5WebsocketExecution describes a fill rather than a complete order snapshot.
@@ -198,5 +199,39 @@ type V5WebsocketMatchOrder struct {
 	ContractCode     string       `json:"contract_code"`
 	TotalTradeVolume types.Number `json:"total_trade_volume"`
 	TradePrice       types.Number `json:"trade_price"`
-	MatchTime        types.Number `json:"match_time"`
+	MatchTime        types.Time   `json:"match_time"`
+}
+
+// V5WebsocketPosition contains the fields published by the V5 position channel.
+type V5WebsocketPosition struct {
+	ContractCode      string        `json:"contract_code"`
+	Symbol            currency.Code `json:"symbol"`
+	PositionMode      string        `json:"position_mode"`
+	PositionSide      string        `json:"position_side"`
+	Direction         string        `json:"direction"`
+	MarginMode        string        `json:"margin_mode"`
+	OpenAveragePrice  types.Number  `json:"open_avg_price"`
+	Volume            types.Number  `json:"volume"`
+	Available         types.Number  `json:"available"`
+	Fee               types.Number  `json:"fee"`
+	LeverageRate      types.Number  `json:"lever_rate"`
+	ADLRiskPercent    uint64        `json:"adl_risk_percent"`
+	LiquidationPrice  types.Number  `json:"liquidation_price"`
+	InitialMargin     types.Number  `json:"initial_margin"`
+	MaintenanceMargin types.Number  `json:"maintenance_margin"`
+	Margin            types.Number  `json:"margin"`
+	ProfitUnreal      types.Number  `json:"profit_unreal"`
+	Profit            types.Number  `json:"profit"`
+	ProfitRate        types.Number  `json:"profit_rate"`
+	MarginRate        types.Number  `json:"margin_rate"`
+	State             string        `json:"state"`
+	FundingFee        types.Number  `json:"funding_fee"`
+	LastPrice         types.Number  `json:"last_price"`
+	MarkPrice         types.Number  `json:"mark_price"`
+	ContractType      string        `json:"contract_type"`
+	TotalTradeFee     types.Number  `json:"total_trade_fee"`
+	BreakEvenPrice    types.Number  `json:"break_even_price"`
+	CreatedTime       types.Time    `json:"created_time"`
+	UpdatedTime       types.Time    `json:"updated_time"`
+	Version           uint64        `json:"version"`
 }

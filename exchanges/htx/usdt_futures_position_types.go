@@ -5,7 +5,7 @@ import "github.com/thrasher-corp/gocryptotrader/types"
 // V5LeverageResponse stores leverage levels.
 type V5LeverageResponse struct {
 	V5Response
-	Data []V5Leverage `json:"data"`
+	Leverage []V5Leverage `json:"data"`
 }
 
 // V5Leverage stores current and available leverage levels.
@@ -29,7 +29,7 @@ type V5SetLeverageRequest struct {
 // V5SetLeverageResponse stores an accepted leverage change.
 type V5SetLeverageResponse struct {
 	V5Response
-	Data V5LeverageSetting `json:"data"`
+	Leverage V5LeverageSetting `json:"data"`
 }
 
 // V5AdjustPositionMarginRequest defines an isolated-position margin adjustment.
@@ -48,7 +48,7 @@ type V5SetPositionModeRequest struct {
 // V5PositionModeResponse stores the account position mode.
 type V5PositionModeResponse struct {
 	V5Response
-	Data V5PositionMode `json:"data"`
+	Mode V5PositionMode `json:"data"`
 }
 
 // V5LeverageSetting identifies leverage by contract, margin mode and position side.

@@ -13,13 +13,14 @@ import (
 
 func TestUnmarshalV3FuturesResponse(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct {
+	type testCase struct {
 		name           string
 		payload        string
 		expectedArray  int
 		expectedLegacy int64
 		expectedErr    bool
-	}{
+	}
+	for _, tc := range []testCase{
 		{name: "array", payload: `{"data":[{"id":1}],"ts":1604312615051}`, expectedArray: 1},
 		{name: "legacy", payload: `{"data":{"items":[{"id":1}],"total_page":2},"ts":1604312615051}`, expectedLegacy: 2},
 		{name: "empty string", payload: `{"data":"","ts":1604312615051}`},
@@ -30,15 +31,15 @@ func TestUnmarshalV3FuturesResponse(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			var timestamp types.Time
-			var array []struct {
+			type record struct {
 				ID int64 `json:"id"`
 			}
-			var legacy struct {
-				Items []struct {
-					ID int64 `json:"id"`
-				} `json:"items"`
-				TotalPage int64 `json:"total_page"`
+			type page struct {
+				Items     []record `json:"items"`
+				TotalPage int64    `json:"total_page"`
 			}
+			var array []record
+			var legacy page
 			err := unmarshalV3FuturesResponse([]byte(tc.payload), &timestamp, &array, &legacy)
 			if tc.expectedErr {
 				require.Error(t, err, "unmarshalV3FuturesResponse must return the expected error")
@@ -52,23 +53,67 @@ func TestUnmarshalV3FuturesResponse(t *testing.T) {
 	}
 }
 
+func TestFuturesV3RecordsUnmarshalJSON(t *testing.T) {
+	t.Parallel()
+	type testCase struct {
+		name, payload string
+		wantID        uint64
+		wantPage      uint64
+		wantErr       bool
+	}
+	for _, tc := range []testCase{
+		{name: "array", payload: `[{"query_id":18446744073709551615}]`, wantID: 18446744073709551615},
+		{name: "page", payload: `{"financial_record":[{"query_id":12}],"total_page":2}`, wantID: 12, wantPage: 2},
+		{name: "empty string", payload: `""`},
+		{name: "null", payload: `null`},
+		{name: "missing result"},
+		{name: "empty array", payload: `[]`},
+		{name: "empty page", payload: `{}`},
+		{name: "malformed array", payload: `[{`, wantErr: true},
+		{name: "wrong shape", payload: `true`, wantErr: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var records []FinancialRecord
+			var page SwapFinancialRecordPage
+			response := futuresV3Records[FinancialRecord, SwapFinancialRecordPage]{Array: &records, Page: &page}
+			err := response.UnmarshalJSON([]byte(tc.payload))
+			if tc.wantErr {
+				require.Error(t, err, "invalid V3 record shapes must fail")
+				return
+			}
+			require.NoError(t, err, "supported V3 record shapes must decode")
+			assert.Equal(t, tc.wantPage, page.TotalPage, "legacy pagination should remain available")
+			if tc.wantPage != 0 {
+				records = page.Records
+			}
+			if tc.wantID == 0 {
+				assert.Empty(t, records, "empty responses should contain no records")
+				return
+			}
+			require.Len(t, records, 1, "response must contain one record")
+			assert.Equal(t, tc.wantID, records[0].QueryID, "record identifier should retain its full range")
+		})
+	}
+}
+
 func TestFuturesFinancialRecordsResponseUnmarshalJSON(t *testing.T) {
 	t.Parallel()
 	var arrayResp FuturesFinancialRecordsResponse
 	err := json.Unmarshal([]byte(`{"code":200,"msg":"","data":[{"query_id":12,"id":34,"symbol":"BTC","contract_code":"BTC-USD","type":3,"amount":1.25,"ts":1604312615051}],"ts":1604312615051}`), &arrayResp)
 	require.NoError(t, err, "FuturesFinancialRecordsResponse unmarshal must support v3 array data")
-	require.Len(t, arrayResp.Data.FinancialRecord, 1, "financial records must decode from v3 array data")
-	assert.Equal(t, uint64(12), arrayResp.Data.FinancialRecord[0].QueryID, "query id should decode")
+	require.Len(t, arrayResp.FinancialRecords.Records, 1, "financial records must decode from v3 array data")
+	assert.Equal(t, uint64(12), arrayResp.FinancialRecords.Records[0].QueryID, "query id should decode")
 
 	var emptyResp FuturesFinancialRecordsResponse
 	err = json.Unmarshal([]byte(`{"code":200,"msg":"","data":"","ts":1604312615051}`), &emptyResp)
 	require.NoError(t, err, "FuturesFinancialRecordsResponse unmarshal must support empty string data")
-	assert.Empty(t, emptyResp.Data.FinancialRecord, "financial records should be empty")
+	assert.Empty(t, emptyResp.FinancialRecords.Records, "financial records should be empty")
 
 	var legacyResp FuturesFinancialRecordsResponse
 	err = json.Unmarshal([]byte(`{"data":{"financial_record":[{"id":34,"symbol":"BTC","type":3,"amount":1.25,"ts":1604312615051}],"total_page":2,"current_page":1,"total_size":3},"ts":1604312615051}`), &legacyResp)
 	require.NoError(t, err, "FuturesFinancialRecordsResponse unmarshal must support legacy object data")
-	assert.Equal(t, uint64(2), legacyResp.Data.TotalPage, "legacy total page should decode")
+	assert.Equal(t, uint64(2), legacyResp.FinancialRecords.TotalPage, "legacy total page should decode")
 
 	err = json.Unmarshal([]byte(`{`), &legacyResp)
 	require.Error(t, err, "FuturesFinancialRecordsResponse unmarshal must return malformed JSON errors")
@@ -82,24 +127,24 @@ func TestFuturesOrderHistoryResponseUnmarshalJSON(t *testing.T) {
 		t.Parallel()
 		var response FuturesOrderHistoryResponse
 		require.NoError(t, json.Unmarshal([]byte(`{"data":[{"order_price_type":6}]}`), &response), "numeric V3 order price type must decode")
-		require.Len(t, response.Data.Orders, 1, "numeric V3 history must retain its order")
-		assert.Equal(t, LegacyOrderPriceType("post_only"), response.Data.Orders[0].OrderPriceType, "numeric type should retain post-only semantics")
+		require.Len(t, response.OrderHistory.Orders, 1, "numeric V3 history must retain its order")
+		assert.Equal(t, LegacyOrderPriceType("post_only"), response.OrderHistory.Orders[0].OrderPriceType, "numeric type should retain post-only semantics")
 	})
 	var arrayResp FuturesOrderHistoryResponse
 	err := json.Unmarshal([]byte(`{"code":200,"msg":"","data":[{"query_id":12,"order_id":34,"order_id_str":"34","symbol":"BTC","contract_code":"BTC-USD","contract_type":"quarter","lever_rate":20,"direction":"buy","offset":"open","volume":1,"price":10,"create_date":1604312615051,"order_source":"api","order_price_type":"limit","margin_frozen":0,"profit":0,"trade_volume":0,"trade_turnover":0,"fee":0,"trade_avg_price":0,"status":6,"order_type":1,"fee_asset":"BTC","liquidation_type":"0"}],"ts":1604312615051}`), &arrayResp)
 	require.NoError(t, err, "FuturesOrderHistoryResponse unmarshal must support v3 array data")
-	require.Len(t, arrayResp.Data.Orders, 1, "orders must decode from v3 array data")
-	assert.Equal(t, uint64(12), arrayResp.Data.Orders[0].QueryID, "query id should decode")
+	require.Len(t, arrayResp.OrderHistory.Orders, 1, "orders must decode from v3 array data")
+	assert.Equal(t, uint64(12), arrayResp.OrderHistory.Orders[0].QueryID, "query id should decode")
 
 	var emptyResp FuturesOrderHistoryResponse
 	err = json.Unmarshal([]byte(`{"code":200,"msg":"","data":"","ts":1604312615051}`), &emptyResp)
 	require.NoError(t, err, "FuturesOrderHistoryResponse unmarshal must support empty string data")
-	assert.Empty(t, emptyResp.Data.Orders, "orders should be empty")
+	assert.Empty(t, emptyResp.OrderHistory.Orders, "orders should be empty")
 
 	var legacyResp FuturesOrderHistoryResponse
 	err = json.Unmarshal([]byte(`{"data":{"orders":[{"query_id":12,"order_id":34,"symbol":"BTC","liquidation_type":0}],"total_page":2},"ts":1604312615051}`), &legacyResp)
 	require.NoError(t, err, "FuturesOrderHistoryResponse unmarshal must support legacy object data")
-	assert.Equal(t, uint64(2), legacyResp.Data.TotalPage, "legacy total page should decode")
+	assert.Equal(t, uint64(2), legacyResp.OrderHistory.TotalPage, "legacy total page should decode")
 
 	err = json.Unmarshal([]byte(`{`), &legacyResp)
 	require.Error(t, err, "FuturesOrderHistoryResponse unmarshal must return malformed JSON errors")
@@ -112,18 +157,18 @@ func TestFuturesTradeHistoryResponseUnmarshalJSON(t *testing.T) {
 	var arrayResp FuturesTradeHistoryResponse
 	err := json.Unmarshal([]byte(`{"code":200,"msg":"","data":[{"query_id":12,"id":"match","match_id":34,"order_id":56,"order_id_str":"56","symbol":"BTC","contract_code":"BTC-USD","contract_type":"quarter","direction":"buy","offset":"open","trade_volume":1,"trade_price":10,"trade_turnover":10,"trade_fee":0.1,"offset_profitloss":0,"create_date":1604312615051,"role":"Maker","order_source":"api","fee_asset":"BTC"}],"ts":1604312615051}`), &arrayResp)
 	require.NoError(t, err, "FuturesTradeHistoryResponse unmarshal must support v3 array data")
-	require.Len(t, arrayResp.Data.Trades, 1, "trades must decode from v3 array data")
-	assert.Equal(t, uint64(12), arrayResp.Data.Trades[0].QueryID, "query id should decode")
+	require.Len(t, arrayResp.TradeHistory.Trades, 1, "trades must decode from v3 array data")
+	assert.Equal(t, uint64(12), arrayResp.TradeHistory.Trades[0].QueryID, "query id should decode")
 
 	var emptyResp FuturesTradeHistoryResponse
 	err = json.Unmarshal([]byte(`{"code":200,"msg":"","data":"","ts":1604312615051}`), &emptyResp)
 	require.NoError(t, err, "FuturesTradeHistoryResponse unmarshal must support empty string data")
-	assert.Empty(t, emptyResp.Data.Trades, "trades should be empty")
+	assert.Empty(t, emptyResp.TradeHistory.Trades, "trades should be empty")
 
 	var legacyResp FuturesTradeHistoryResponse
 	err = json.Unmarshal([]byte(`{"data":{"trades":[{"query_id":12,"id":"match"}],"total_page":2},"ts":1604312615051}`), &legacyResp)
 	require.NoError(t, err, "FuturesTradeHistoryResponse unmarshal must support legacy object data")
-	assert.Equal(t, uint64(2), legacyResp.Data.TotalPage, "legacy total page should decode")
+	assert.Equal(t, uint64(2), legacyResp.TradeHistory.TotalPage, "legacy total page should decode")
 
 	err = json.Unmarshal([]byte(`{`), &legacyResp)
 	require.Error(t, err, "FuturesTradeHistoryResponse unmarshal must return malformed JSON errors")
@@ -144,12 +189,13 @@ func TestFuturesMarketOverviewResponseUnmarshal(t *testing.T) {
 
 func TestFuturesContractInfoUnmarshalJSON(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct {
+	type testCase struct {
 		name          string
 		date          string
 		expected      time.Time
 		expectedError bool
-	}{
+	}
+	for _, tc := range []testCase{
 		{name: "delivery date", date: "20210813", expected: time.Date(2021, time.August, 13, 0, 0, 0, 0, time.UTC)},
 		{name: "empty date"},
 		{name: "invalid date", date: "20211313", expectedError: true},
@@ -205,5 +251,23 @@ func TestFuturesTriggerOrderHistoryEntryUnmarshalJSON(t *testing.T) {
 	assert.Equal(t, time.UnixMilli(1604390110566), response.CancelledAt.Time(), "trigger cancellation time should retain milliseconds")
 	assert.True(t, response.TriggeredAt.Time().IsZero(), "zero trigger time should remain unset")
 	assert.Equal(t, time.UnixMilli(1604390110567), response.OrderInsertAt.Time(), "order insertion time should retain milliseconds")
-	assert.Equal(t, int64(1001), response.FailCode, "failure codes should decode without changing their signed type")
+	assert.Equal(t, uint64(1001), response.FailCode, "non-negative failure codes should decode")
+}
+
+func TestFuturesErrorCodes(t *testing.T) {
+	t.Parallel()
+	type testCase struct {
+		name, key string
+		response  any
+	}
+	for _, tc := range []testCase{
+		{name: "FuturesCancelOrderError", key: "err_code", response: new(FuturesCancelOrderError)},
+		{name: "FuturesTriggerOrderHistoryEntry", key: "fail_code", response: new(FuturesTriggerOrderHistoryEntry)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			require.NoError(t, json.Unmarshal([]byte(`{"`+tc.key+`":1001}`), tc.response), "documented positive error code must decode")
+			require.Error(t, json.Unmarshal([]byte(`{"`+tc.key+`":-1}`), tc.response), "negative error code must not decode into an unsigned field")
+		})
+	}
 }

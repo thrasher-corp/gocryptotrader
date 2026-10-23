@@ -10,11 +10,12 @@ import (
 
 func TestV5CancelBatchOrdersRequestValidate(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct {
+	type testCase struct {
 		name    string
 		request *V5CancelBatchOrdersRequest
 		wantErr error
-	}{
+	}
+	for _, tc := range []testCase{
 		{name: "nil", wantErr: common.ErrNilPointer},
 		{name: "empty", request: &V5CancelBatchOrdersRequest{}, wantErr: order.ErrOrderIDNotSet},
 		{name: "mixed", request: &V5CancelBatchOrdersRequest{OrderIDs: []string{"1"}, ClientOrderIDs: []string{"2"}}, wantErr: errMixedOrderIdentifiers},
