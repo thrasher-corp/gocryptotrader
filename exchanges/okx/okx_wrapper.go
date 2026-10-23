@@ -225,7 +225,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		ResponseMaxLimit:          websocketResponseMaxLimit,
 		ConnectionRateLimiter:     func() *request.RateLimiterWithWeight { return request.NewRateLimitWithWeight(time.Hour, 480, 1) }, // see: https://www.okx.com/docs-v5/en/#overview-websocket-connect
 		Connector:                 e.wsConnect,
-		GenerateSubscriptions:     func() (subscription.List, error) { return e.generateSubscriptions(true) },
+		GenerateSubscriptions:     func(context.Context) (subscription.List, error) { return e.generateSubscriptions(true) },
 		Handler:                   e.wsHandleData,
 		Subscriber:                e.Subscribe,
 		TrackOnExistingConnection: e.trackEquivalentSubscriptionsOnExistingConnection,
@@ -245,7 +245,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		ResponseMaxLimit:      websocketResponseMaxLimit,
 		ConnectionRateLimiter: func() *request.RateLimiterWithWeight { return request.NewRateLimitWithWeight(time.Hour, 480, 1) }, // see: https://www.okx.com/docs-v5/en/#overview-websocket-connect
 		Connector:             e.wsConnect,
-		GenerateSubscriptions: func() (subscription.List, error) { return e.generateSubscriptions(false) },
+		GenerateSubscriptions: func(context.Context) (subscription.List, error) { return e.generateSubscriptions(false) },
 		Subscriber:            e.Subscribe,
 		Unsubscriber:          e.Unsubscribe,
 		Handler:               e.wsHandleData,

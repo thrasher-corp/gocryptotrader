@@ -11,7 +11,7 @@ import (
 )
 
 // GenerateInverseDefaultSubscriptions generates default subscription
-func (e *Exchange) GenerateInverseDefaultSubscriptions() (subscription.List, error) {
+func (e *Exchange) GenerateInverseDefaultSubscriptions(_ context.Context) (subscription.List, error) {
 	pairs, err := e.GetEnabledPairs(asset.CoinMarginedFutures)
 	if err != nil {
 		if errors.Is(err, asset.ErrNotEnabled) {

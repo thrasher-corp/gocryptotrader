@@ -187,7 +187,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 	exp = append(exp, expectedPerPairSubscriptions(subscription.OrderbookChannel, asset.Futures, pairs["futures"], futuresOrderbookDepth5Channel, kline.HundredMilliseconds, nil)...)
 	exp = append(exp, expectedPerPairSubscriptions(subscription.AllTradesChannel, asset.Spot, pairs["both"], marketMatchChannel, 0, nil)...)
 
-	publicSubs, err := ku.generateSubscriptions()
+	publicSubs, err := ku.generateSubscriptions(t.Context())
 	require.NoError(t, err, "generateSubscriptions must not error")
 	testsubs.EqualLists(t, exp, publicSubs)
 
@@ -213,7 +213,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 		{Channel: accountBalanceChannel, QualifiedChannel: "/account/balance"},
 	}...)
 
-	subs, err := ku.generateSubscriptions()
+	subs, err := ku.generateSubscriptions(t.Context())
 	require.NoError(t, err, "generateSubscriptions with Auth must not error")
 	testsubs.EqualLists(t, exp, subs)
 }
@@ -231,7 +231,7 @@ func TestGenerateRealtimeOrderbookIntervals(t *testing.T) {
 				ku := testInstance(t)
 				ku.Websocket.SetCanUseAuthenticatedEndpoints(true)
 				ku.Features.Subscriptions = subscription.List{{Channel: subscription.OrderbookChannel, Asset: assetType, Interval: interval, Levels: 50}}
-				subs, err := ku.generateSubscriptions()
+				subs, err := ku.generateSubscriptions(t.Context())
 				require.NoError(t, err, "realtime subscriptions must generate")
 				require.NotEmpty(t, subs, "realtime subscriptions must include enabled pairs")
 				gotTopics := make([]string, 0, len(subs))
@@ -265,7 +265,7 @@ func TestGenerateRealtimeOrderbooksPreservesConfiguredSubscriptions(t *testing.T
 				ku.Features.Subscriptions = append(ku.Features.Subscriptions, &subscription.Subscription{Channel: subscription.TickerChannel, Asset: asset.Spot})
 			}
 			ku.Websocket.SetCanUseAuthenticatedEndpoints(true)
-			subs, err := ku.generateSubscriptions()
+			subs, err := ku.generateSubscriptions(t.Context())
 			require.NoError(t, err, "mixed and qualified subscriptions must generate")
 			require.NotEmpty(t, subs, "generated subscriptions must contain the orderbook")
 			assert.NotSame(t, configured, subs[0], "rewritten orderbook should not alias its configuration")
@@ -273,7 +273,7 @@ func TestGenerateRealtimeOrderbooksPreservesConfiguredSubscriptions(t *testing.T
 			assert.Equal(t, "/market/level2:ETH-BTC", subs[0].QualifiedChannel, "realtime topic should omit the candle suffix")
 			assert.Zero(t, subs[0].Levels, "realtime subscriptions should not retain the configured depth limit")
 			ku.Websocket.SetCanUseAuthenticatedEndpoints(false)
-			public, err := ku.generateSubscriptions()
+			public, err := ku.generateSubscriptions(t.Context())
 			require.NoError(t, err, "public subscriptions must generate after authentication is disabled")
 			require.NotEmpty(t, public, "public subscriptions must contain the orderbook")
 			assert.Equal(t, original, public[0], "disabling authentication should restore the configured public subscription")
@@ -289,7 +289,7 @@ func TestGenerateRealtimeOrderbooksFormatsPreExpandedPairs(t *testing.T) {
 		QualifiedChannel: marketOrderbookDepth5Channel + ":BTC-USDT",
 	}}
 	ku.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	subs, err := ku.generateSubscriptions()
+	subs, err := ku.generateSubscriptions(t.Context())
 	require.NoError(t, err, "pre-expanded realtime orderbook must generate")
 	require.Len(t, subs, 1, "pre-expanded realtime orderbook must remain singular")
 	assert.Equal(t, marketOrderbookChannel+":BTC-USDT", subs[0].QualifiedChannel, "realtime topic should retain request-formatted pair spelling")
@@ -301,7 +301,7 @@ func TestGenerateOrderbooksSkipsEmptyAsset(t *testing.T) {
 		ku := testInstance(t)
 		ku.Features.Subscriptions = subscription.List{{Channel: subscription.OrderbookChannel}}
 		ku.Websocket.SetCanUseAuthenticatedEndpoints(authenticated)
-		subs, err := ku.generateSubscriptions()
+		subs, err := ku.generateSubscriptions(t.Context())
 		require.NoErrorf(t, err, "assetless orderbook must not fail with authentication=%t", authenticated)
 		assert.Empty(t, subs, "assetless orderbook should not generate subscriptions")
 	}
@@ -335,7 +335,7 @@ func TestGenerateRealtimeOrderbooksCoalescesNormalisedKeys(t *testing.T) {
 			require.NoError(t, restarted.Setup(restored), "configured subscriptions must survive setup")
 			for _, authenticated := range []bool{false, true} {
 				restarted.Websocket.SetCanUseAuthenticatedEndpoints(authenticated)
-				subs, genErr := restarted.generateSubscriptions()
+				subs, genErr := restarted.generateSubscriptions(t.Context())
 				require.NoError(t, genErr, "distinct configured subscriptions must generate")
 				_, err = subscription.NewStoreFromList(subs)
 				require.NoError(t, err, "normalised subscriptions must fit the connection store")
@@ -369,7 +369,7 @@ func TestGenerateRealtimeOrderbooksCoalescesSameAssetSettings(t *testing.T) {
 		{Channel: subscription.OrderbookChannel, Asset: asset.Spot, Interval: kline.HundredMilliseconds, Levels: 50},
 	}
 	ku.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	subs, err := ku.generateSubscriptions()
+	subs, err := ku.generateSubscriptions(t.Context())
 	require.NoError(t, err, "same-asset orderbooks that differ only in depth must coalesce")
 	assert.Len(t, subs, 4, "each spot pair should be subscribed once after normalisation")
 }
@@ -385,7 +385,7 @@ func TestGenerateOrderbooksRejectsConfiguredDuplicates(t *testing.T) {
 				{Channel: subscription.OrderbookChannel, Asset: asset.Spot, Pairs: currency.Pairs{currency.NewBTCUSDT()}},
 			}
 			ku.Websocket.SetCanUseAuthenticatedEndpoints(authenticated)
-			subs, err := ku.generateSubscriptions()
+			subs, err := ku.generateSubscriptions(t.Context())
 			if err == nil {
 				_, err = subscription.NewStoreFromList(subs)
 			}
@@ -438,7 +438,7 @@ func TestGenerateTickerAllSub(t *testing.T) {
 	exp := subscription.List{
 		{Channel: subscription.TickerChannel, Asset: asset.Spot, QualifiedChannel: "/market/ticker:all", Pairs: avail[:11]},
 	}
-	subs, err := ku.generateSubscriptions()
+	subs, err := ku.generateSubscriptions(t.Context())
 	require.NoError(t, err, "generateSubscriptions with Auth must not error")
 	testsubs.EqualLists(t, exp, subs)
 }
@@ -461,7 +461,7 @@ func TestGenerateOtherSubscriptions(t *testing.T) {
 
 	for _, s := range subs {
 		ku.Features.Subscriptions = subscription.List{s}
-		got, err := ku.generateSubscriptions()
+		got, err := ku.generateSubscriptions(t.Context())
 		require.NoError(t, err, "generateSubscriptions must not error")
 
 		var exp subscription.List
@@ -501,14 +501,14 @@ func TestGenerateMarginSubscriptions(t *testing.T) {
 	require.NoError(t, err, "StorePairs must not error storing spot pairs")
 
 	ku.Features.Subscriptions = subscription.List{{Channel: subscription.TickerChannel, Asset: asset.Margin}}
-	subs, err := ku.generateSubscriptions()
+	subs, err := ku.generateSubscriptions(t.Context())
 	require.NoError(t, err, "generateSubscriptions must not error")
 	testsubs.EqualLists(t, expectedPerPairSubscriptions(subscription.TickerChannel, asset.Margin, marginAvail[:6], marketTickerChannel, 0, nil), subs)
 
 	require.NoError(t, ku.CurrencyPairs.SetAssetEnabled(asset.Margin, false), "SetAssetEnabled Spot must not error")
 	require.NoError(t, err, "SetAssetEnabled must not error")
 	ku.Features.Subscriptions = subscription.List{{Channel: subscription.TickerChannel, Asset: asset.All}}
-	subs, err = ku.generateSubscriptions()
+	subs, err = ku.generateSubscriptions(t.Context())
 	require.NoError(t, err, "mergeMarginPairs must not cause errAssetRecords by adding an empty asset when Margin is disabled")
 	require.NotEmpty(t, subs, "generateSubscriptions must return some subs")
 
@@ -516,7 +516,7 @@ func TestGenerateMarginSubscriptions(t *testing.T) {
 	require.NoError(t, ku.CurrencyPairs.SetAssetEnabled(asset.Spot, false), "SetAssetEnabled Spot must not error")
 	require.NoError(t, ku.CurrencyPairs.SetAssetEnabled(asset.Futures, false), "SetAssetEnabled Futures must not error")
 	ku.Features.Subscriptions = subscription.List{{Channel: subscription.TickerChannel, Asset: asset.All}}
-	subs, err = ku.generateSubscriptions()
+	subs, err = ku.generateSubscriptions(t.Context())
 	require.NoError(t, err, "mergeMarginPairs must not cause errAssetRecords by adding an empty asset when Spot is disabled")
 	require.NotEmpty(t, subs, "generateSubscriptions must return some subs")
 }
@@ -609,7 +609,7 @@ func TestGenerateSharedSpotMarginFeeds(t *testing.T) {
 			}
 			for _, authenticated := range []bool{false, true} {
 				ku.Websocket.SetCanUseAuthenticatedEndpoints(authenticated)
-				got, err := ku.generateSubscriptions()
+				got, err := ku.generateSubscriptions(t.Context())
 				require.NoErrorf(t, err, "shared feeds must generate with authentication=%t", authenticated)
 				wantCount := test.publicCount
 				if authenticated {
@@ -640,7 +640,7 @@ func TestGenerateFuturesOrderbookOverlap(t *testing.T) {
 	}
 	for _, authenticated := range []bool{false, true} {
 		ku.Websocket.SetCanUseAuthenticatedEndpoints(authenticated)
-		subs, err := ku.generateSubscriptions()
+		subs, err := ku.generateSubscriptions(t.Context())
 		require.NoErrorf(t, err, "overlapping futures orderbooks must generate with authentication=%t", authenticated)
 		var symbols []string
 		for _, sub := range subs {
@@ -667,7 +667,7 @@ func TestGenerateRealtimeOrderbooksLeavesDepthFedPairs(t *testing.T) {
 		},
 	}
 	ku.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	subs, err := ku.generateSubscriptions()
+	subs, err := ku.generateSubscriptions(t.Context())
 	require.NoError(t, err, "generateSubscriptions must not error")
 	feeds := make(map[string][]string)
 	for _, sub := range subs {
@@ -711,7 +711,7 @@ func TestGenerateRealtimeOrderbooksKeepsUnservedDepthPairs(t *testing.T) {
 				test.sub,
 			}
 			ku.Websocket.SetCanUseAuthenticatedEndpoints(true)
-			subs, err := ku.generateSubscriptions()
+			subs, err := ku.generateSubscriptions(t.Context())
 			require.NoError(t, err, "generateSubscriptions must not error")
 			assert.True(t, slices.ContainsFunc(subs, func(sub *subscription.Subscription) bool {
 				return sub.QualifiedChannel == test.topic
@@ -754,12 +754,12 @@ func TestGenerateOrderbooksAuthFlipKeepsSharedTopics(t *testing.T) {
 			ku.Features.Subscriptions = test.subs.Clone()
 			for _, authenticated := range []bool{false, true} {
 				ku.Websocket.SetCanUseAuthenticatedEndpoints(authenticated)
-				before, err := ku.generateSubscriptions()
+				before, err := ku.generateSubscriptions(t.Context())
 				require.NoErrorf(t, err, "subscriptions must generate with authentication=%t", authenticated)
 				store, err := subscription.NewStoreFromList(before)
 				require.NoErrorf(t, err, "subscriptions must fit the store with authentication=%t", authenticated)
 				ku.Websocket.SetCanUseAuthenticatedEndpoints(!authenticated)
-				after, err := ku.generateSubscriptions()
+				after, err := ku.generateSubscriptions(t.Context())
 				require.NoErrorf(t, err, "subscriptions must generate with authentication=%t", !authenticated)
 				added, removed := store.Diff(after)
 				kept := slices.DeleteFunc(slices.Clone(after), func(sub *subscription.Subscription) bool { return slices.Contains(added, sub) })
@@ -791,7 +791,7 @@ func TestGeneratePublicOrderbooksKeepServedTopics(t *testing.T) {
 			t.Parallel()
 			ku := testInstance(t)
 			ku.Features.Subscriptions = test.subs
-			subs, err := ku.generateSubscriptions()
+			subs, err := ku.generateSubscriptions(t.Context())
 			require.NoError(t, err, "generateSubscriptions must not error")
 			for _, sub := range subs {
 				assert.NotContainsf(t, sub.QualifiedChannel, "_1min", "orderbook topic %s should not carry a candle suffix", sub.QualifiedChannel)
@@ -810,7 +810,7 @@ func TestGeneratePublicOrderbooksKeepRankAmongSuffixedEntries(t *testing.T) {
 		{Channel: subscription.OrderbookChannel, Asset: asset.Spot, Interval: kline.OneMin},
 		{Channel: subscription.OrderbookChannel, Asset: asset.Spot, Interval: kline.OneMin, Levels: 5, Pairs: currency.Pairs{currency.NewBTCUSDT()}},
 	}
-	subs, err := ku.generateSubscriptions()
+	subs, err := ku.generateSubscriptions(t.Context())
 	require.NoError(t, err, "generateSubscriptions must not error")
 	topics := make(map[string]int)
 	for _, sub := range subs {
@@ -864,7 +864,7 @@ func TestMergeMarginPairsWithSpotDisabled(t *testing.T) {
 			require.NoError(t, ku.checkSubscriptions(), "margin subscription migration must succeed")
 			for _, authenticated := range []bool{false, true} {
 				ku.Websocket.SetCanUseAuthenticatedEndpoints(authenticated)
-				subs, err := ku.generateSubscriptions()
+				subs, err := ku.generateSubscriptions(t.Context())
 				require.NoError(t, err, "margin-only feeds must generate")
 				symbols := make([]string, 0, len(subs))
 				for _, sub := range subs {
@@ -988,7 +988,7 @@ func TestCheckSubscriptionsPreservesRealtimeOrderbooks(t *testing.T) {
 			for _, instance := range []*Exchange{ku, restarted} {
 				for _, authenticated := range []bool{false, true} {
 					instance.Websocket.SetCanUseAuthenticatedEndpoints(authenticated)
-					subs, err := instance.generateSubscriptions()
+					subs, err := instance.generateSubscriptions(t.Context())
 					require.NoError(t, err, "migrated subscriptions must generate before and after restart")
 					generatedAssets := make(map[asset.Item]bool)
 					topics := make(map[string]bool)
@@ -1055,7 +1055,7 @@ func TestCheckSubscriptionsMigrationEdgeCases(t *testing.T) {
 		require.NoError(t, ku.checkSubscriptions(), "restricted all-assets migration must succeed")
 		for _, authenticated := range []bool{false, true} {
 			ku.Websocket.SetCanUseAuthenticatedEndpoints(authenticated)
-			subs, err := ku.generateSubscriptions()
+			subs, err := ku.generateSubscriptions(t.Context())
 			require.NoErrorf(t, err, "migrated subscriptions must generate with authentication=%t", authenticated)
 			_, err = subscription.NewStoreFromList(subs)
 			require.NoErrorf(t, err, "migrated subscriptions must not contain duplicate topics with authentication=%t: %v", authenticated, subs)
@@ -1074,7 +1074,7 @@ func TestCheckSubscriptionsMigrationEdgeCases(t *testing.T) {
 		require.NoError(t, ku.checkSubscriptions(), "migration without websocket authentication must succeed")
 		require.Len(t, ku.Config.Features.Subscriptions, 1, "legacy coverage must consolidate with the authenticated generic entry")
 		assert.False(t, ku.Config.Features.Subscriptions[0].Authenticated, "replacement coverage should generate without authentication")
-		subs, err := ku.generateSubscriptions()
+		subs, err := ku.generateSubscriptions(t.Context())
 		require.NoError(t, err, "replacement coverage must generate without authentication")
 		require.Len(t, subs, 3, "replacement coverage must retain all enabled futures pairs")
 	})
@@ -1103,7 +1103,7 @@ func TestCheckSubscriptionsMigrationEdgeCases(t *testing.T) {
 					ku.Features.Subscriptions = ku.Config.Features.Subscriptions.Enabled()
 					require.NoErrorf(t, ku.checkSubscriptions(), "migration must succeed with websocket authentication=%t", auth.migrated)
 					ku.Websocket.SetCanUseAuthenticatedEndpoints(auth.running)
-					subs, err := ku.generateSubscriptions()
+					subs, err := ku.generateSubscriptions(t.Context())
 					require.NoErrorf(t, err, "migrated subscriptions must generate with authentication=%t", auth.running)
 					channel := test.depth
 					if auth.running {
@@ -1137,7 +1137,7 @@ func TestCheckSubscriptionsMigrationEdgeCases(t *testing.T) {
 		require.NoError(t, err, "enabled spot pairs must load")
 		dogeUSDT := currency.NewPair(currency.DOGE, currency.USDT)
 		require.NoError(t, ku.CurrencyPairs.StorePairs(asset.Spot, pairs.Add(dogeUSDT), true), "new spot pair must be enabled")
-		subs, err := ku.generateSubscriptions()
+		subs, err := ku.generateSubscriptions(t.Context())
 		require.NoError(t, err, "widened wildcard must generate")
 		assert.True(t, slices.ContainsFunc(subs, func(sub *subscription.Subscription) bool {
 			return sub.QualifiedChannel == marketOrderbookDepth5Channel+":DOGE-USDT"
@@ -1202,7 +1202,7 @@ func TestCheckSubscriptionsOverlappingCoverage(t *testing.T) {
 			require.NoError(t, ku.checkSubscriptions(), "overlapping migration must succeed")
 			for _, authenticated := range []bool{false, true} {
 				ku.Websocket.SetCanUseAuthenticatedEndpoints(authenticated)
-				got, err := ku.generateSubscriptions()
+				got, err := ku.generateSubscriptions(t.Context())
 				require.NoErrorf(t, err, "migrated coverage must generate with authentication=%t", authenticated)
 				wantCount := test.publicCount
 				if authenticated {
@@ -1785,7 +1785,7 @@ func TestSubscribeBatches(t *testing.T) {
 		{Asset: asset.Spot, Channel: marketSnapshotChannel},
 	}
 
-	subs, err := ku.generateSubscriptions()
+	subs, err := ku.generateSubscriptions(t.Context())
 	require.NoError(t, err, "generateSubscriptions must not error")
 	spotPairs, err := ku.GetEnabledPairs(asset.Spot)
 	require.NoError(t, err, "GetEnabledPairs must not error for spot pairs")
@@ -1851,7 +1851,7 @@ func TestSubscribeBatchLimit(t *testing.T) {
 		require.NoError(tb, err, "StorePairs must not error")
 
 		ku.Features.Subscriptions = subscription.List{{Asset: asset.Spot, Channel: subscription.AllTradesChannel}}
-		subs, err := ku.generateSubscriptions()
+		subs, err := ku.generateSubscriptions(t.Context())
 		require.NoError(tb, err, "generateSubscriptions must not error")
 		return ku, subs
 	}
@@ -1933,7 +1933,7 @@ func TestSubscribeTickerAll(t *testing.T) {
 
 	ku.Features.Subscriptions = subscription.List{{Asset: asset.Spot, Channel: subscription.TickerChannel}}
 
-	subs, err := ku.generateSubscriptions()
+	subs, err := ku.generateSubscriptions(t.Context())
 	require.NoError(t, err, "generateSubscriptions must not error")
 	require.Len(t, subs, 1, "Must generate one subscription")
 	assert.Equal(t, "/market/ticker:all", subs[0].QualifiedChannel, "QualifiedChannel should be correct")

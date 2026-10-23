@@ -685,7 +685,7 @@ func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 	return template.New("master.tmpl").Funcs(template.FuncMap{"channelName": channelName}).Parse(subTplText)
 }
 
-func (e *Exchange) generateSubscriptions() (subscription.List, error) {
+func (e *Exchange) generateSubscriptions(_ context.Context) (subscription.List, error) {
 	return e.Features.Subscriptions.ExpandTemplates(e)
 }
 

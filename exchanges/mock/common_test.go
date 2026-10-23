@@ -178,6 +178,21 @@ func TestDeriveURLValsFromJSONArray(t *testing.T) {
 	}
 }
 
+func TestDeriveURLValsFromJSONArrayOfScalars(t *testing.T) {
+	t.Parallel()
+	// Lists of order IDs are sent as arrays of strings, whose elements are matched by their JSON text
+	values, err := DeriveURLValsFromJSONArray([]byte(`["1", 2, true, null]`))
+	require.NoError(t, err, "DeriveURLValsFromJSONArray must not error for an array of scalars")
+	exp := []url.Values{{"": {`"1"`}}, {"": {"2"}}, {"": {"true"}}, {"": {"null"}}}
+	assert.Equal(t, exp, values, "DeriveURLValsFromJSONArray should key each scalar's JSON text by an empty string")
+
+	request, err := DeriveURLValsFromJSONArray([]byte(`[1,"2",true,null]`))
+	require.NoError(t, err, "DeriveURLValsFromJSONArray must not error for an array of scalars")
+	assert.False(t, MatchURLVals(values[0], request[0]), "a string should not match the same number")
+	assert.False(t, MatchURLVals(values[1], request[1]), "a number should not match the same string")
+	assert.True(t, MatchURLVals(values[2], request[2]), "the same scalar should match")
+}
+
 func TestDeriveURLValsFromJSONArrayAsMap(t *testing.T) {
 	t.Parallel()
 
