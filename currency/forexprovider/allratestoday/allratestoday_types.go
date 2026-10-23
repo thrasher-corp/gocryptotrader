@@ -1,9 +1,11 @@
 package allratestoday
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
@@ -36,5 +38,43 @@ type RateResponse struct {
 	Source string    `json:"source"`
 	Target string    `json:"target"`
 	Rate   float64   `json:"rate"`
-	Time   time.Time `json:"time"`
+	Time   Timestamp `json:"time"`
+}
+
+// Timestamp is a rate's time. The rates endpoint may send its offset without a
+// colon (2026-10-22T23:07:01+0000), which time.Time cannot decode, or as RFC 3339,
+// so both forms are accepted
+type Timestamp time.Time
+
+// UnmarshalJSON deserialises a rate's timestamp
+func (t *Timestamp) UnmarshalJSON(data []byte) error {
+	if string(data) == "null" {
+		return nil
+	}
+
+	var value string
+	if err := json.Unmarshal(data, &value); err != nil {
+		return fmt.Errorf("%w %s: %w", errInvalidTimestamp, data, err)
+	}
+	if value == "" {
+		return nil
+	}
+
+	for _, layout := range []string{"2006-01-02T15:04:05Z0700", time.RFC3339Nano} {
+		if parsed, err := time.Parse(layout, value); err == nil {
+			*t = Timestamp(parsed)
+			return nil
+		}
+	}
+	return fmt.Errorf("%w: %q", errInvalidTimestamp, value)
+}
+
+// MarshalJSON serialises the timestamp in RFC 3339 format
+func (t Timestamp) MarshalJSON() ([]byte, error) {
+	return t.Time().MarshalJSON()
+}
+
+// Time converts Timestamp to time.Time
+func (t Timestamp) Time() time.Time {
+	return time.Time(t)
 }

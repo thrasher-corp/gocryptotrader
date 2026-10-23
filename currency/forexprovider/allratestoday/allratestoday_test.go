@@ -4,10 +4,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
@@ -40,6 +42,57 @@ func TestGetRates(t *testing.T) {
 	rates, err := a.GetRates("usd", "EUR, GBP")
 	require.NoError(t, err, "GetRates must not error")
 	assert.Equal(t, map[string]float64{"USDEUR": 0.85, "USDGBP": 0.75}, rates, "GetRates should return rates keyed by base and target")
+}
+
+func TestGetRatesUnsupportedTargets(t *testing.T) {
+	t.Parallel()
+	a := newTestProvider(t, "placeholder", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "EUR,GBP", r.URL.Query().Get("target"), "target should drop unsupported currencies")
+		_, _ = w.Write([]byte(`[{"source":"USD","target":"EUR","rate":0.891107,"time":"2026-10-22T23:07:01+0000"},{"source":"USD","target":"GBP","rate":0.75,"time":"2026-10-22T23:07:01+0000"}]`))
+	}))
+
+	rates, err := a.GetRates("USD", "RUR,EUR,TVD,GBP,ZWD,VEF")
+	require.NoError(t, err, "GetRates must not error")
+	assert.Equal(t, map[string]float64{"USDEUR": 0.891107, "USDGBP": 0.75}, rates, "GetRates should return rates for the supported targets")
+
+	a = newTestProvider(t, "placeholder", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Error("a request should not be sent without a supported target")
+		http.NotFound(w, r)
+	}))
+	_, err = a.GetRates("USD", "RUR,TVD,ZWD")
+	assert.ErrorIs(t, err, errNoSupportedTargets, "GetRates should error when no requested target is supported")
+}
+
+func TestTimestampUnmarshalJSON(t *testing.T) {
+	t.Parallel()
+	want := time.Date(2026, 10, 22, 23, 7, 1, 0, time.UTC)
+	for _, input := range []string{`"2026-10-22T23:07:01+0000"`, `"2026-10-22T23:07:01+00:00"`, `"2026-10-22T23:07:01Z"`, `"2026-10-23T01:07:01+0200"`} {
+		var ts Timestamp
+		require.NoError(t, json.Unmarshal([]byte(input), &ts), "Unmarshal must not error for %s", input)
+		assert.True(t, want.Equal(ts.Time()), "Unmarshal should decode %s", input)
+	}
+
+	var ts Timestamp
+	require.NoError(t, json.Unmarshal([]byte(`null`), &ts), "Unmarshal must not error on null")
+	assert.True(t, ts.Time().IsZero(), "null should leave a zero time")
+	require.NoError(t, json.Unmarshal([]byte(`""`), &ts), "Unmarshal must not error on an empty string")
+	assert.True(t, ts.Time().IsZero(), "an empty string should leave a zero time")
+
+	assert.ErrorIs(t, json.Unmarshal([]byte(`"22/10/2026"`), &ts), errInvalidTimestamp, "Unmarshal should error on an unknown layout")
+	assert.ErrorIs(t, json.Unmarshal([]byte(`1761174421`), &ts), errInvalidTimestamp, "Unmarshal should error on a non-string")
+}
+
+func TestTimestampMarshalJSON(t *testing.T) {
+	t.Parallel()
+	var resp RateResponse
+	require.NoError(t, json.Unmarshal([]byte(`{"source":"USD","target":"EUR","rate":0.891107,"time":"2026-10-22T23:07:01+0000"}`), &resp), "Unmarshal must not error")
+	data, err := json.Marshal(resp.Time)
+	require.NoError(t, err, "Marshal must not error")
+	assert.Equal(t, `"2026-10-22T23:07:01Z"`, string(data), "Marshal should emit RFC 3339")
+
+	var roundTrip Timestamp
+	require.NoError(t, json.Unmarshal(data, &roundTrip), "Unmarshal must not error on marshalled output")
+	assert.True(t, resp.Time.Time().Equal(roundTrip.Time()), "a marshalled timestamp should round-trip")
 }
 
 func TestGetRatesAllTargets(t *testing.T) {

@@ -1,7 +1,6 @@
-// AllRatesToday provides current exchange rates for 160+ fiat currencies
+// Package allratestoday provides current exchange rates for 160+ fiat currencies
 // through a JSON API. Every rate for a base currency is returned in a single
 // request. An API key is required (free trial, paid plans).
-
 package allratestoday
 
 import (
@@ -9,6 +8,7 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -17,9 +17,11 @@ import (
 )
 
 var (
-	errAPIKeyNotSet  = errors.New("AllRatesToday API key is not set")
-	errEmptyBase     = errors.New("base currency must not be empty")
-	errNoRatesReturn = errors.New("no AllRatesToday rates returned")
+	errAPIKeyNotSet       = errors.New("AllRatesToday API key is not set")
+	errEmptyBase          = errors.New("base currency must not be empty")
+	errNoRatesReturn      = errors.New("no AllRatesToday rates returned")
+	errNoSupportedTargets = errors.New("no supported AllRatesToday target currencies requested")
+	errInvalidTimestamp   = errors.New("invalid AllRatesToday timestamp")
 )
 
 // Setup sets appropriate values for the AllRatesToday provider
@@ -44,7 +46,21 @@ func (a *AllRatesToday) GetSupportedCurrencies() ([]string, error) {
 
 // GetRates is a wrapper function to return rates keyed by base and target,
 // for example "USDEUR". An empty symbols string returns every available rate.
+// Targets outside the supported currency list are dropped, as the API fails the
+// whole request on an unlisted code; if none remain an error is returned.
+// baseCurrency is a string because package currency imports the forex providers.
 func (a *AllRatesToday) GetRates(baseCurrency, symbols string) (map[string]float64, error) {
+	if symbols = strings.ToUpper(strings.ReplaceAll(symbols, " ", "")); symbols != "" {
+		supported := strings.Split(supportedCurrencies, ",")
+		targets := slices.DeleteFunc(strings.Split(symbols, ","), func(target string) bool {
+			return !slices.Contains(supported, target)
+		})
+		if len(targets) == 0 {
+			return nil, errNoSupportedTargets
+		}
+		symbols = strings.Join(targets, ",")
+	}
+
 	rates, err := a.GetLatestRates(context.TODO(), baseCurrency, symbols)
 	if err != nil {
 		return nil, err
@@ -59,6 +75,7 @@ func (a *AllRatesToday) GetRates(baseCurrency, symbols string) (map[string]float
 
 // GetLatestRates returns the latest rates for a base currency. Symbols is an
 // optional comma separated list of target currencies.
+// baseCurrency is a string because package currency imports the forex providers.
 func (a *AllRatesToday) GetLatestRates(ctx context.Context, baseCurrency, symbols string) ([]RateResponse, error) {
 	baseCurrency = strings.ToUpper(strings.TrimSpace(baseCurrency))
 	if baseCurrency == "" {
