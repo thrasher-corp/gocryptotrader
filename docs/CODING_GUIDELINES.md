@@ -233,6 +233,9 @@ Use `require` and `assert` appropriately:
 - Full test coverage is preferable; mock external calls as needed.
 - Distinguish mocked verification from live API verification when reporting results. A credential-gated test that skips does not establish endpoint compatibility; explicitly report the unverified behaviour without exposing credentials.
 - All unit tests must pass before finalising changes.
+- Keep mock-backed tests independent of production rate limits and the local
+    time zone: disable request throttling and serialise fixed test windows in
+    UTC, unless the test specifically targets those behaviours.
 - For interface-valued inputs with nil guards, cover both a nil interface and
     a typed-nil concrete value. For format detection and segmented-name rules,
     include missing metadata, malformed inputs and multiple separators so the

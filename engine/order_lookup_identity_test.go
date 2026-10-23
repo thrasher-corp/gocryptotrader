@@ -127,8 +127,8 @@ func TestRPCServerBTSEActiveOrderAsset(t *testing.T) {
 	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
 	got, err := s.GetOrders(t.Context(), &gctrpc.GetOrdersRequest{
 		Exchange: ex.Name, AssetType: "spot", Pair: &gctrpc.CurrencyPair{Base: "BTC", Quote: "USD"},
-		StartDate: time.UnixMilli(1792648800123).Add(-time.Hour).Format(common.SimpleTimeFormatWithTimezone),
-		EndDate:   time.UnixMilli(1792648860456).Add(time.Hour).Format(common.SimpleTimeFormatWithTimezone),
+		StartDate: time.UnixMilli(1792648800123).UTC().Add(-time.Hour).Format(common.SimpleTimeFormatWithTimezone),
+		EndDate:   time.UnixMilli(1792648860456).UTC().Add(time.Hour).Format(common.SimpleTimeFormatWithTimezone),
 	})
 	require.NoError(t, err, "RPC active order lookup must succeed through the real wrapper")
 	require.Len(t, got.Orders, 1, "RPC must return the active order")

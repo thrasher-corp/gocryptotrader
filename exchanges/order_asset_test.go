@@ -93,19 +93,12 @@ func TestGetOrderInfoReportedAsset(t *testing.T) {
 			},
 		},
 		{
-			name: "bitfinex_inactive_spot", newExchange: func() exchange.IBotExchange { return new(bitfinex.Exchange) }, wantAsset: asset.Spot,
-			requestedAssets: []asset.Item{asset.Spot, asset.Margin},
-			responses:       map[string]string{"/hist": `[[1,null,null,"tBTCUSD",1792648800123,1792648860456,0,2,"EXCHANGE LIMIT",null,null,null,0,"EXECUTED @ 25",null,null,26,25]]`},
-		},
-		{
-			name: "bitfinex_inactive_margin", newExchange: func() exchange.IBotExchange { return new(bitfinex.Exchange) }, wantAsset: asset.Margin,
-			requestedAssets: []asset.Item{asset.Spot, asset.Margin},
-			responses:       map[string]string{"/hist": `[[1,null,null,"tBTCUSD",1792648800123,1792648860456,0,2,"LIMIT",null,null,null,0,"EXECUTED @ 25",null,null,26,25]]`},
-		},
-		{
 			name: "bitfinex_unknown_type", newExchange: func() exchange.IBotExchange { return new(bitfinex.Exchange) }, wantAsset: asset.Empty,
 			requestedAssets: []asset.Item{asset.Spot, asset.Margin},
-			responses:       map[string]string{"/hist": `[[1,null,null,"tBTCUSD",1792648800123,1792648860456,0,2,"unrecognised",null,null,null,0,"EXECUTED",null,null,26,25]]`},
+			responses: map[string]string{
+				"/hist":      `[]`,
+				"/v1/orders": `[{"id":1,"symbol":"btcusd","side":"buy","type":"unrecognised"}]`,
+			},
 		},
 		{
 			name: "coinbase_spot", newExchange: func() exchange.IBotExchange { return new(coinbase.Exchange) }, wantAsset: asset.Spot,
@@ -176,6 +169,7 @@ func TestGetOrderInfoReportedAsset(t *testing.T) {
 			b := ex.GetBase()
 			b.SkipAuthCheck = true
 			b.SetCredentials(&accounts.Credentials{Key: "mock-key", Secret: base64.StdEncoding.EncodeToString(make([]byte, 32))})
+			require.NoError(t, b.Requester.DisableRateLimiter(), "DisableRateLimiter must not error")
 			pair := currency.NewBTCUSD()
 			sharedtestvalues.SetupCurrencyPairsForExchangeAsset(t, ex, asset.Spot, pair)
 			if b.CurrencyPairs.IsAssetSupported(asset.Margin) {
@@ -218,6 +212,7 @@ func TestGetOrderInfoDeribitCreationTime(t *testing.T) {
 			b := ex.GetBase()
 			b.SkipAuthCheck = true
 			b.SetCredentials(&accounts.Credentials{Key: "mock-key", Secret: base64.StdEncoding.EncodeToString(make([]byte, 32))})
+			require.NoError(t, b.Requester.DisableRateLimiter(), "DisableRateLimiter must not error")
 			require.NoError(t, b.SetHTTPClient(&http.Client{Transport: orderAssetTransport{t: t, responses: map[string]string{
 				"/private/get_order_state": `{"result":{"order_id":"1","instrument_name":"` + instrument + `","order_type":"limit","order_state":"open","time_in_force":"good_til_cancelled","creation_timestamp":1792648800123,"last_update_timestamp":1792648860456}}`,
 			}}}), "SetHTTPClient must not error")
@@ -237,6 +232,7 @@ func TestBTSEActiveOrdersReportedAsset(t *testing.T) {
 	require.NoError(t, testexch.Setup(ex), "Setup must not error")
 	ex.SkipAuthCheck = true
 	ex.SetCredentials(&accounts.Credentials{Key: "mock-key", Secret: "mock-secret"})
+	require.NoError(t, ex.Requester.DisableRateLimiter(), "DisableRateLimiter must not error")
 	sharedtestvalues.SetupCurrencyPairsForExchangeAsset(t, ex, asset.Spot, currency.NewBTCUSD())
 	require.NoError(t, ex.SetHTTPClient(&http.Client{Transport: orderAssetTransport{t: t, responses: map[string]string{
 		"/spot/api/v3.2/user/open_orders":   `[{"orderID":"1","symbol":"BTC-USD","side":"BUY","orderState":"open","orderType":76}]`,

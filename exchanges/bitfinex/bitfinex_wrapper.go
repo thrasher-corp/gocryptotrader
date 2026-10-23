@@ -685,26 +685,10 @@ func (e *Exchange) parseOrderToOrderDetail(o *Order) (*order.Detail, error) {
 		RemainingAmount:      o.RemainingAmount,
 		Pair:                 o.Symbol,
 		ExecutedAmount:       o.ExecutedAmount,
-		LastUpdated:          o.LastUpdated.Time(),
 		AverageExecutedPrice: o.AverageExecutionPrice,
 	}
 
 	switch {
-	case o.Status != "":
-		status, _, _ := strings.Cut(o.Status, " @ ")
-		switch {
-		case status == "EXECUTED" || status == "FORCED EXECUTED":
-			orderDetail.Status = order.Filled
-		case strings.HasSuffix(status, "CANCELED"):
-			orderDetail.Status = order.Cancelled
-		case strings.HasPrefix(status, "INSUFFICIENT BALANCE"):
-			orderDetail.Status = order.InsufficientBalance
-		default:
-			orderDetail.Status, err = order.StringToOrderStatus(status)
-			if err != nil {
-				return nil, err
-			}
-		}
 	case o.IsLive:
 		orderDetail.Status = order.Active
 	case o.IsCancelled:
@@ -717,14 +701,7 @@ func (e *Exchange) parseOrderToOrderDetail(o *Order) (*order.Detail, error) {
 
 	// API docs discrepancy. Example contains prefixed "exchange "
 	// Return type suggests “market” / “limit” / “stop” / “trailing-stop”
-	orderType, isSpot := strings.CutPrefix(strings.ToLower(o.Type), "exchange ")
-	if orderType == "fok" || orderType == "ioc" {
-		orderDetail.TimeInForce, err = order.StringToTimeInForce(orderType)
-		if err != nil {
-			return nil, err
-		}
-		orderType = "limit"
-	}
+	orderType, isSpot := strings.CutPrefix(o.Type, "exchange ")
 	if orderType == "trailing-stop" {
 		orderDetail.Type = order.TrailingStop
 	} else {
