@@ -234,12 +234,25 @@ func (r *Requester) executeRequest(ctx context.Context, p *Item, req *http.Reque
 	// (e.g. HTTP 204 No Content) to avoid a spurious syntax error.
 	var unmarshallError error
 	if p.Result != nil && resp.StatusCode != http.StatusNoContent {
-		unmarshallError = json.Unmarshal(contents, p.Result)
+		// A *[]byte result takes the body as sent, for endpoints replying with files rather than JSON
+		if body, ok := p.Result.(*[]byte); ok {
+			*body = contents
+		} else {
+			unmarshallError = json.Unmarshal(contents, p.Result)
+		}
 	}
 
 	if p.HTTPRecording {
 		// This dumps http responses for future mocking implementations
-		if err := mock.HTTPRecord(resp, r.name, contents, p.HTTPMockDataSliceLimit); err != nil {
+		err := mock.HTTPRecord(resp, r.name, contents, p.HTTPMockDataSliceLimit)
+		// The mock data holds JSON only, so a file taken as bytes goes unrecorded rather than failing the request
+		if _, rawBody := p.Result.(*[]byte); rawBody && errors.Is(err, mock.ErrResponseBodyNotJSON) {
+			if verbose {
+				log.Debugf(log.RequestSys, "%s mock recording skipped %s %s: %v", r.name, req.Method, req.URL.Path, mock.ErrResponseBodyNotJSON)
+			}
+			err = nil
+		}
+		if err != nil {
 			return false, fmt.Errorf("mock recording failure %w, request %s %s: resp: %s", err, req.Method, pathForLog(p.Path), resp.Status)
 		}
 	}

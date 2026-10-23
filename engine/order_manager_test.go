@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"errors"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -846,9 +847,7 @@ func TestProcessOrders(t *testing.T) {
 		t.Fatal(err)
 	}
 	exch.SetDefaults()
-	fakeExchange := omfExchange{
-		IBotExchange: exch,
-	}
+	fakeExchange := &orderLookupExchange{IBotExchange: exch}
 	err = em.Add(fakeExchange)
 	require.NoError(t, err)
 
@@ -1014,6 +1013,9 @@ func TestProcessOrders(t *testing.T) {
 	if res[0].Status != order.Active {
 		t.Errorf("Order 3 should be active, but status is %s", res[0].Status)
 	}
+
+	// Order 4 is a futures order exch.GetActiveOrders() leaves out
+	assert.NotContains(t, fakeExchange.lookedUp(), "4", "processOrders should not look up a futures order the exchange no longer lists as open")
 }
 
 func TestGetOrdersFiltered(t *testing.T) {
@@ -1157,6 +1159,51 @@ func TestProcessMatchingOrders(t *testing.T) {
 	if res[0].OrderID != "Test4" {
 		t.Error("Order Test4 should have been fetched and updated")
 	}
+}
+
+// orderLookupExchange records the orders the order manager looks up, answering as omfExchange does
+type orderLookupExchange struct {
+	omfExchange
+	mu      sync.Mutex
+	lookups []string
+}
+
+func (f *orderLookupExchange) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
+	f.mu.Lock()
+	f.lookups = append(f.lookups, orderID)
+	f.mu.Unlock()
+	return f.omfExchange.GetOrderInfo(ctx, orderID, pair, assetType)
+}
+
+// lookedUp returns the IDs of the orders looked up so far
+func (f *orderLookupExchange) lookedUp() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Clone(f.lookups)
+}
+
+func TestProcessMatchingOrdersFutures(t *testing.T) {
+	t.Parallel()
+	m := OrdersSetup(t)
+	exch, err := m.orderStore.exchangeManager.GetExchangeByName(testExchange)
+	require.NoError(t, err, "GetExchangeByName must not error")
+	f := &orderLookupExchange{IBotExchange: exch}
+	stale := time.Now().Add(-time.Hour)
+	assets := asset.Supported()
+	statuses := []order.Status{order.New, order.Open, order.PartiallyFilled, order.UnknownStatus}
+	orders := make([]order.Detail, 0, len(assets)*len(statuses))
+	var exp []string
+	for _, a := range assets {
+		for _, s := range statuses {
+			id := a.String() + " " + s.String()
+			orders = append(orders, order.Detail{Exchange: testExchange, OrderID: id, Pair: btcusdPair, AssetType: a, Status: s, LastUpdated: stale})
+			if !a.IsFutures() || s == order.UnknownStatus {
+				exp = append(exp, id)
+			}
+		}
+	}
+	m.processMatchingOrders(t.Context(), f, orders, nil)
+	assert.Equal(t, exp, f.lookedUp(), "processMatchingOrders should look up futures orders of unknown status alone, and every other asset's orders")
 }
 
 func TestFetchAndUpdateExchangeOrder(t *testing.T) {
@@ -1468,6 +1515,40 @@ func TestUpdateExisting(t *testing.T) {
 	if len(pos) != 1 {
 		t.Error("expected 1")
 	}
+}
+
+// TestStoreFuturesOrdersKeepExchangeName pins that futures orders stay matched by their exchange's name once they are
+// tracked as positions, as the order store's filters, such as RPC GetManagedOrders', match orders by that name
+func TestStoreFuturesOrdersKeepExchangeName(t *testing.T) {
+	t.Parallel()
+	m := OrdersSetup(t)
+	newOrder := func(id string) *order.Detail {
+		return &order.Detail{
+			Exchange:  testExchange,
+			AssetType: asset.Futures,
+			Pair:      currency.NewBTCUSDT(),
+			OrderID:   id,
+			Side:      order.Buy,
+			Type:      order.Limit,
+			Status:    order.Open,
+			Amount:    1,
+			Price:     1,
+			Date:      time.Now(),
+		}
+	}
+	require.NoError(t, m.orderStore.add(newOrder("added")), "add must not error")
+	_, err := m.orderStore.upsert(newOrder("upserted"))
+	require.NoError(t, err, "upsert must not error")
+	require.NoError(t, m.orderStore.updateExisting(newOrder("added")), "updateExisting must not error")
+	require.NoError(t, m.orderStore.modifyExisting("upserted", &order.ModifyResponse{Exchange: testExchange, OrderID: "upserted", Amount: 2}), "modifyExisting must not error")
+
+	active := m.orderStore.getActiveOrders(&order.Filter{Exchange: testExchange})
+	ids := make([]string, len(active))
+	for i := range active {
+		ids[i] = active[i].OrderID
+		assert.Equal(t, testExchange, active[i].Exchange, "a tracked futures order should keep its exchange's name")
+	}
+	assert.ElementsMatch(t, []string{"added", "upserted"}, ids, "the active futures orders should be matched by their exchange's name")
 }
 
 func TestOrderManagerExists(t *testing.T) {

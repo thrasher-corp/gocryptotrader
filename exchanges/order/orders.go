@@ -261,23 +261,29 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 				continue
 			}
 			found = true
-			if d.Trades[y].Fee != m.Trades[x].Fee {
+			// A report of a known trade can leave out what another source reported of it, such as its fee, so only the
+			// values it holds replace those stored. IsMaker is always replaced, as its false cannot show it was left out
+			if m.Trades[x].Fee != 0 && d.Trades[y].Fee != m.Trades[x].Fee {
 				d.Trades[y].Fee = m.Trades[x].Fee
+				updated = true
+			}
+			if m.Trades[x].FeeAsset != "" && d.Trades[y].FeeAsset != m.Trades[x].FeeAsset {
+				d.Trades[y].FeeAsset = m.Trades[x].FeeAsset
 				updated = true
 			}
 			if m.Trades[x].Price != 0 && d.Trades[y].Price != m.Trades[x].Price {
 				d.Trades[y].Price = m.Trades[x].Price
 				updated = true
 			}
-			if d.Trades[y].Side != m.Trades[x].Side {
+			if m.Trades[x].Side != UnknownSide && d.Trades[y].Side != m.Trades[x].Side {
 				d.Trades[y].Side = m.Trades[x].Side
 				updated = true
 			}
-			if d.Trades[y].Type != m.Trades[x].Type {
+			if m.Trades[x].Type != UnknownType && d.Trades[y].Type != m.Trades[x].Type {
 				d.Trades[y].Type = m.Trades[x].Type
 				updated = true
 			}
-			if d.Trades[y].Description != m.Trades[x].Description {
+			if m.Trades[x].Description != "" && d.Trades[y].Description != m.Trades[x].Description {
 				d.Trades[y].Description = m.Trades[x].Description
 				updated = true
 			}
@@ -285,7 +291,11 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 				d.Trades[y].Amount = m.Trades[x].Amount
 				updated = true
 			}
-			if d.Trades[y].Timestamp != m.Trades[x].Timestamp {
+			if m.Trades[x].Total != 0 && d.Trades[y].Total != m.Trades[x].Total {
+				d.Trades[y].Total = m.Trades[x].Total
+				updated = true
+			}
+			if !m.Trades[x].Timestamp.IsZero() && !d.Trades[y].Timestamp.Equal(m.Trades[x].Timestamp) {
 				d.Trades[y].Timestamp = m.Trades[x].Timestamp
 				updated = true
 			}
@@ -303,6 +313,12 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 	// or from a different snapshot. A supplied non-zero value is preserved.
 	if m.RemainingAmount > 0 && m.RemainingAmount != d.RemainingAmount {
 		d.RemainingAmount = m.RemainingAmount
+		updated = true
+	}
+	// Nothing remains of an order an update reports filled without a remaining amount; one it reports is kept above, as
+	// some exchanges report a partial fill as filled
+	if m.Status == Filled && m.RemainingAmount == 0 && d.RemainingAmount != 0 {
+		d.RemainingAmount = 0
 		updated = true
 	}
 	if updated {
@@ -374,8 +390,15 @@ func (d *Detail) UpdateOrderFromModifyResponse(m *ModifyResponse) {
 		d.RemainingAmount = m.RemainingAmount
 		updated = true
 	}
+	// Nothing remains of an order an update reports filled without a remaining amount; one it reports is kept above, as
+	// some exchanges report a partial fill as filled
+	if m.Status == Filled && m.RemainingAmount == 0 && d.RemainingAmount != 0 {
+		d.RemainingAmount = 0
+		updated = true
+	}
 	if updated {
-		if d.LastUpdated.Equal(m.LastUpdated) {
+		// A modify response usually carries no update time, as DeriveModifyResponse sets none
+		if m.LastUpdated.IsZero() || d.LastUpdated.Equal(m.LastUpdated) {
 			d.LastUpdated = time.Now()
 		} else {
 			d.LastUpdated = m.LastUpdated

@@ -1575,7 +1575,7 @@ func TestReadVersion14ConfigFromFile(t *testing.T) {
 	require.NoError(t, err, "ReadFile must load the config fixture")
 	var expected Config
 	require.NoError(t, json.Unmarshal(data, &expected), "Unmarshal must decode the current config fixture")
-	require.Equal(t, 17, expected.Version, "Config.Version must use version 17")
+	require.Equal(t, 18, expected.Version, "Config.Version must use version 18")
 
 	var saved map[string]json.RawMessage
 	require.NoError(t, json.Unmarshal(data, &saved), "Unmarshal must preserve saved config fields")
@@ -1592,7 +1592,7 @@ func TestReadVersion14ConfigFromFile(t *testing.T) {
 
 	var migrated Config
 	require.NoError(t, migrated.ReadConfigFromFile(path, true), "ReadConfigFromFile must upgrade the version 14 config")
-	assert.Equal(t, expected.Version, migrated.Version, "ReadConfigFromFile should advance the config to version 17")
+	assert.Equal(t, expected.Version, migrated.Version, "ReadConfigFromFile should advance the config to version 18")
 	assert.Equal(t, expected.Exchanges, migrated.Exchanges, "ReadConfigFromFile should remove BitMEX credentials while preserving all other exchanges")
 	assert.Equal(t, expected.Currency, migrated.Currency, "ReadConfigFromFile should preserve currency settings")
 }
@@ -1604,7 +1604,7 @@ func TestReadVersion16OrderbookBufferConfigFromFile(t *testing.T) {
 	require.NoError(t, err, "ReadFile must load the current config fixture")
 	var expected Config
 	require.NoError(t, json.Unmarshal(data, &expected), "Unmarshal must decode the current config fixture")
-	require.Equal(t, 17, expected.Version, "Config.Version must use version 17")
+	require.Equal(t, 18, expected.Version, "Config.Version must use version 18")
 
 	var saved map[string]json.RawMessage
 	require.NoError(t, json.Unmarshal(data, &saved), "Unmarshal must preserve saved config fields")
@@ -1634,13 +1634,74 @@ func TestReadVersion16OrderbookBufferConfigFromFile(t *testing.T) {
 
 	var migrated Config
 	require.NoError(t, migrated.ReadConfigFromFile(path, true), "ReadConfigFromFile must upgrade the version 16 config")
-	assert.Equal(t, expected.Version, migrated.Version, "ReadConfigFromFile should advance the config to version 17")
+	assert.Equal(t, expected.Version, migrated.Version, "ReadConfigFromFile should advance the config to version 18")
 	assert.Equal(t, expected.Exchanges, migrated.Exchanges, "ReadConfigFromFile should preserve exchanges apart from obsolete buffer settings")
 
 	var output bytes.Buffer
 	require.NoError(t, migrated.Save(func() (io.Writer, error) { return &output, nil }), "Save must serialise the migrated config")
 	assert.NotContains(t, output.String(), `"websocketBufferEnabled"`, "Save should omit removed buffer enabled settings")
 	assert.NotContains(t, output.String(), `"websocketBufferLimit"`, "Save should omit removed buffer limit settings")
+}
+
+func TestReadVersion17KrakenConfigFromFile(t *testing.T) {
+	t.Parallel()
+
+	data, err := os.ReadFile(TestFile)
+	require.NoError(t, err, "ReadFile must load the current config fixture")
+	var expected Config
+	require.NoError(t, json.Unmarshal(data, &expected), "Unmarshal must decode the current config fixture")
+	require.Equal(t, 18, expected.Version, "Config.Version must use version 18")
+	expectedKraken, err := expected.GetExchangeConfig("Kraken")
+	require.NoError(t, err, "GetExchangeConfig must find Kraken in the config fixture")
+	// Kraken adds the futures and level 3 websocket endpoints a version 17 config lacks when it is set up
+	delete(expectedKraken.API.Endpoints, "WebsocketFuturesURL")
+	delete(expectedKraken.API.Endpoints, "WebsocketPrivateURL")
+
+	var saved map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(data, &saved), "Unmarshal must preserve saved config fields")
+	var exchanges []map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(saved["exchanges"], &exchanges), "Unmarshal must preserve saved exchanges")
+	i := slices.IndexFunc(exchanges, func(e map[string]json.RawMessage) bool { return string(e["name"]) == `"Kraken"` })
+	require.NotEqual(t, -1, i, "the config fixture must hold Kraken")
+
+	var api map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(exchanges[i]["api"], &api), "Unmarshal must preserve Kraken's API settings")
+	var endpoints map[string]string
+	require.NoError(t, json.Unmarshal(api["urlEndpoints"], &endpoints), "Unmarshal must preserve Kraken's endpoints")
+	require.Equal(t, "wss://ws.kraken.com/v2", endpoints["WebsocketSpotURL"], "the config fixture must use Kraken's websocket v2 endpoint")
+	require.Equal(t, "wss://ws-auth.kraken.com/v2", endpoints["WebsocketSpotSupplementaryURL"], "the config fixture must use Kraken's authenticated websocket v2 endpoint")
+	endpoints["WebsocketSpotURL"] = "wss://ws.kraken.com"
+	endpoints["WebsocketSpotSupplementaryURL"] = "wss://ws-auth.kraken.com"
+	delete(endpoints, "WebsocketFuturesURL")
+	delete(endpoints, "WebsocketPrivateURL")
+	api["urlEndpoints"], err = json.Marshal(endpoints)
+	require.NoError(t, err, "Marshal must encode Kraken's version 17 endpoints")
+	exchanges[i]["api"], err = json.Marshal(api)
+	require.NoError(t, err, "Marshal must encode Kraken's version 17 API settings")
+
+	var features map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(exchanges[i]["features"], &features), "Unmarshal must preserve Kraken's features")
+	var subs []json.RawMessage
+	require.NoError(t, json.Unmarshal(features["subscriptions"], &subs), "Unmarshal must preserve Kraken's subscriptions")
+	require.Len(t, subs, 11, "the config fixture must hold Kraken's default subscriptions")
+	// Version 17's default subscriptions are the spot and account ones, which come before the futures ones
+	features["subscriptions"], err = json.Marshal(subs[:6])
+	require.NoError(t, err, "Marshal must encode Kraken's version 17 subscriptions")
+	exchanges[i]["features"], err = json.Marshal(features)
+	require.NoError(t, err, "Marshal must encode Kraken's version 17 features")
+
+	saved["exchanges"], err = json.Marshal(exchanges)
+	require.NoError(t, err, "Marshal must encode saved exchanges")
+	saved["version"] = json.RawMessage(`17`)
+	v17, err := json.Marshal(saved)
+	require.NoError(t, err, "Marshal must encode the version 17 config")
+	path := filepath.Join(t.TempDir(), "config.json")
+	require.NoError(t, os.WriteFile(path, v17, 0o600), "WriteFile must save the version 17 config")
+
+	var migrated Config
+	require.NoError(t, migrated.ReadConfigFromFile(path, true), "ReadConfigFromFile must upgrade the version 17 config")
+	assert.Equal(t, expected.Version, migrated.Version, "ReadConfigFromFile should advance the config to version 18")
+	assert.Equal(t, expected.Exchanges, migrated.Exchanges, "ReadConfigFromFile should move Kraken to its websocket v2 endpoints and add the futures subscriptions, preserving everything else")
 }
 
 func TestReadVersion15ConfigRetainsSafeGCTScriptSubLogger(t *testing.T) {
@@ -1652,7 +1713,7 @@ func TestReadVersion15ConfigRetainsSafeGCTScriptSubLogger(t *testing.T) {
 
 	var migrated Config
 	require.NoError(t, migrated.ReadConfigFromFile(path, true), "ReadConfigFromFile must upgrade the version 15 config")
-	assert.Equal(t, 17, migrated.Version, "ReadConfigFromFile should advance the config to version 17")
+	assert.Equal(t, 18, migrated.Version, "ReadConfigFromFile should advance the config to version 18")
 	require.Len(t, migrated.Logging.SubLoggers, 1, "ReadConfigFromFile must preserve the obsolete GCTScript sublogger")
 	assert.Equal(t, "GCTSCRIPT", migrated.Logging.SubLoggers[0].Name, "ReadConfigFromFile should preserve the obsolete sublogger name")
 	require.NoError(t, log.SetupSubLoggers(migrated.Logging.SubLoggers), "SetupSubLoggers must safely ignore the obsolete GCTScript sublogger")
