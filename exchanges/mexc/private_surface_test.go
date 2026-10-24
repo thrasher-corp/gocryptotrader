@@ -1,16 +1,22 @@
 package mexc
 
 import (
+	"encoding/hex"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -20,7 +26,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-// newPrivateTestExchange builds an isolated Exchange whose spot REST endpoint points at a local
+// newPrivateTestExchange builds an isolated Exchange whose spot and futures REST endpoints point at a local
 // httptest server returning recorded (fixture) MEXC responses. It never reaches a live private
 // endpoint: it exercises the private response mapping without live keys. The credentials are dummy
 // and the server ignores the signature. It exists because the shipped auth tests skip under mock
@@ -39,6 +45,7 @@ func newPrivateTestExchange(t *testing.T, handler http.HandlerFunc) *Exchange {
 	b := ex.GetBase()
 	b.SkipAuthCheck = true
 	require.NoError(t, b.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), srv.URL), "SetRunningURL must not error")
+	require.NoError(t, b.API.Endpoints.SetRunningURL(exchange.RestFutures.String(), srv.URL), "SetRunningURL must not error")
 	require.NoError(t, ex.setEnabledPairs(spotTradablePair), "setEnabledPairs must not error")
 	return ex
 }
@@ -53,6 +60,9 @@ const (
 	liveReadOnly
 	// liveManipulatesOrders tests place, cancel or withdraw and also need canManipulateRealOrders
 	liveManipulatesOrders
+	// liveUnavailable tests replay recorded replies only, since they name records, such as order IDs, which no live
+	// account holds
+	liveUnavailable
 )
 
 // testExchangeFor returns the exchange a private test runs against. In mock mode it is an isolated
@@ -70,8 +80,77 @@ func testExchangeFor(t *testing.T, handler http.HandlerFunc, access liveAccess) 
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	case liveManipulatesOrders:
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	case liveUnavailable:
+		t.Skip("the test names records which only its recorded replies hold")
 	}
 	return e
+}
+
+// futuresRoute is a recorded futures reply to a request. A route serves the requests of its method and path which carry
+// its query and its body, where it names them
+type futuresRoute struct {
+	method string
+	// path follows /api/v1/
+	path string
+	// query is the request's encoded query
+	query string
+	// body is the request's JSON body, compared as JSON
+	body string
+	// data is the reply's data member; a reply without one carries none
+	data string
+}
+
+// matches reports whether the route serves a request
+func (f *futuresRoute) matches(t *testing.T, r *http.Request, body []byte) bool {
+	t.Helper()
+	if r.Method != f.method || r.URL.Path != "/api/v1/"+f.path || (f.query != "" && r.URL.RawQuery != f.query) {
+		return false
+	}
+	if f.body == "" {
+		return true
+	}
+	// The handler runs off the test's goroutine, where a require would not stop the test
+	var want, got any
+	if !assert.NoError(t, json.Unmarshal([]byte(f.body), &want), "the route's body should be JSON") {
+		return false
+	}
+	return json.Unmarshal(body, &got) == nil && reflect.DeepEqual(want, got)
+}
+
+// futuresHandler serves recorded futures replies and reports a request no route serves. It checks each private
+// request's signature as the venue verifies it: a hex HMAC-SHA256 of the API key, the request time and the query, or
+// the body of a POST
+func futuresHandler(t *testing.T, routes ...futuresRoute) http.HandlerFunc {
+	t.Helper()
+	return func(w http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(r.Body)
+		if !assert.NoError(t, err, "reading the request body should not error") {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		i := slices.IndexFunc(routes, func(f futuresRoute) bool { return f.matches(t, r, body) })
+		if i == -1 {
+			t.Errorf("unexpected request %s %s %s", r.Method, r.URL, body)
+			http.Error(w, "unexpected request", http.StatusNotFound)
+			return
+		}
+		if strings.HasPrefix(routes[i].path, "private/") {
+			signed := r.URL.RawQuery
+			if r.Method == http.MethodPost {
+				signed = string(body)
+			}
+			mac, err := crypto.GetHMAC(crypto.HashSHA256, []byte("test-key"+r.Header.Get("Request-Time")+signed), []byte("test-secret"))
+			assert.NoError(t, err, "GetHMAC should not error")
+			assert.Equalf(t, "test-key", r.Header.Get("ApiKey"), "%s should carry the API key", routes[i].path)
+			assert.Equalf(t, hex.EncodeToString(mac), r.Header.Get("Signature"), "%s should be signed over the key, the request time and its parameters", routes[i].path)
+		}
+		reply := `{"success":true,"code":0}`
+		if routes[i].data != "" {
+			reply = `{"success":true,"code":0,"data":` + routes[i].data + `}`
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(reply))
+	}
 }
 
 // jsonHandler routes on the request path suffix and writes the matching recorded body.

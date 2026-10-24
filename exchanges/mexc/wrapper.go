@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -21,6 +22,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
@@ -42,6 +44,13 @@ func (e *Exchange) SetDefaults() {
 	if err := e.SetAssetPairStore(asset.Spot, currency.PairStore{
 		RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: ""},
 		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
+	}); err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+	// Futures symbols are base and quote joined by an underscore, as BTC_USDT
+	if err := e.SetAssetPairStore(asset.Futures, currency.PairStore{
+		RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter},
+		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter},
 	}); err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -73,6 +82,7 @@ func (e *Exchange) SetDefaults() {
 				// advertised as multi-chain.
 				MultiChainWithdrawals: true,
 				AutoPairUpdates:       true,
+				FundingRateFetching:   true,
 			},
 			// The spot websocket carries market data and account pushes only; orders are placed over REST.
 			// Subscribe and Unsubscribe are left off, so a flush reconnects from scratch: the websocket
@@ -91,6 +101,25 @@ func (e *Exchange) SetDefaults() {
 			// The wallet API withdraws crypto only.
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.NoFiatWithdrawals,
+			FuturesCapabilities: exchange.FuturesCapabilities{
+				FundingRates: true,
+				FundingRateBatching: map[asset.Item]bool{
+					asset.Futures: true,
+				},
+				SupportedFundingRateFrequencies: map[kline.Interval]bool{
+					kline.OneHour:   true,
+					kline.FourHour:  true,
+					kline.EightHour: true,
+					kline.OneDay:    true,
+				},
+				Positions: true,
+				Leverage:  true,
+				OpenInterest: exchange.OpenInterestSupport{
+					Supported:          true,
+					SupportedViaTicker: true,
+					SupportsRestBatch:  true,
+				},
+			},
 		},
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
@@ -102,6 +131,8 @@ func (e *Exchange) SetDefaults() {
 					kline.IntervalCapacity{Interval: kline.ThirtyMin},
 					kline.IntervalCapacity{Interval: kline.OneHour},
 					kline.IntervalCapacity{Interval: kline.FourHour},
+					// Futures only; spot candles have no eight hour interval
+					kline.IntervalCapacity{Interval: kline.EightHour},
 					kline.IntervalCapacity{Interval: kline.OneDay},
 					kline.IntervalCapacity{Interval: kline.OneWeek},
 					kline.IntervalCapacity{Interval: kline.OneMonth},
@@ -126,8 +157,10 @@ func (e *Exchange) SetDefaults() {
 
 	e.API.Endpoints = e.NewEndpoints()
 	if err := e.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
-		exchange.RestSpot:      spotAPIURL,
-		exchange.WebsocketSpot: spotWebsocketURL,
+		exchange.RestSpot:         spotAPIURL,
+		exchange.RestFutures:      futuresAPIURL,
+		exchange.WebsocketSpot:    spotWebsocketURL,
+		exchange.WebsocketFutures: futuresWebsocketURL,
 	}); err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -178,6 +211,41 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	}); err != nil {
 		return err
 	}
+	futuresWSURL, err := e.API.Endpoints.GetURL(exchange.WebsocketFutures)
+	if err != nil {
+		return err
+	}
+	if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+		URL:                   futuresWSURL,
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+		RateLimit:             request.NewRateLimitWithWeight(time.Second, 10, 1),
+		Connector:             e.WebsocketFuturesConnect,
+		Subscriber:            e.WebsocketFuturesSubscribe,
+		Unsubscriber:          e.WebsocketFuturesUnsubscribe,
+		GenerateSubscriptions: e.generateFuturesPublicSubscriptions,
+		Handler:               e.WebsocketFuturesHandleData,
+		MessageFilter:         futuresPublicConnection,
+	}); err != nil {
+		return err
+	}
+	// The private futures pushes follow a login on a connection of their own, so the public ones are not lost when
+	// a login is refused
+	if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+		URL:                   futuresWSURL,
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+		RateLimit:             request.NewRateLimitWithWeight(time.Second, 10, 1),
+		Authenticated:         true,
+		Connector:             e.websocketFuturesConnectPrivate,
+		Subscriber:            e.websocketFuturesSubscribePrivate,
+		Unsubscriber:          e.websocketFuturesUnsubscribePrivate,
+		GenerateSubscriptions: e.generateFuturesPrivateSubscriptions,
+		Handler:               e.WebsocketFuturesHandleData,
+		MessageFilter:         futuresPrivateConnection,
+	}); err != nil {
+		return err
+	}
 	// Only the private channels need a listen key, so they have a connection of their own, set up last so
 	// that a public connection failing to connect ends the connect before a key is minted.
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
@@ -215,6 +283,24 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 				continue
 			}
 			pair := currency.NewPair(result.Symbols[i].BaseAsset, result.Symbols[i].QuoteAsset)
+			currencyPairs = append(currencyPairs, pair.Format(pairFormat))
+		}
+		return currencyPairs, nil
+	case asset.Futures:
+		contracts, err := e.GetFuturesContracts(ctx, currency.EMPTYPAIR)
+		if err != nil {
+			return nil, err
+		}
+		currencyPairs := make(currency.Pairs, 0, len(contracts))
+		for _, c := range contracts {
+			// A contract closed to API trading is still listed, but orders for it are refused
+			if c.State != FuturesContractStateEnabled || !c.APIAllowed {
+				continue
+			}
+			pair, err := currency.NewPairDelimiter(c.Symbol, currency.UnderscoreDelimiter)
+			if err != nil {
+				return nil, err
+			}
 			currencyPairs = append(currencyPairs, pair.Format(pairFormat))
 		}
 		return currencyPairs, nil
@@ -283,10 +369,58 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, assetType 
 		if !found {
 			return nil, fmt.Errorf("%w for currency pair: %s", ticker.ErrTickerNotFound, p)
 		}
+	case asset.Futures:
+		fPair := p.Format(pFormat)
+		tickers, err := e.GetFuturesTickers(ctx, fPair)
+		if err != nil {
+			return nil, err
+		}
+		if len(tickers) != 1 || tickers[0] == nil || tickers[0].Symbol != fPair.String() {
+			return nil, fmt.Errorf("%w for currency pair: %s", ticker.ErrTickerNotFound, p)
+		}
+		contract, err := e.futuresContract(ctx, fPair.String())
+		if err != nil {
+			return nil, err
+		}
+		if err := ticker.ProcessTicker(e.futuresTickerPrice(tickers[0], contract, p)); err != nil {
+			return nil, err
+		}
 	default:
 		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, assetType)
 	}
 	return ticker.GetTicker(e.Name, p, assetType)
+}
+
+// futuresTickerPrice returns a futures ticker as a ticker price. The venue counts volume and open interest in
+// contracts, so they are restated in currency using the contract's size
+func (e *Exchange) futuresTickerPrice(t *FuturesTickerResponse, c *FuturesContractResponse, pair currency.Pair) *ticker.Price {
+	baseVolume, quoteVolume := futuresVolumes(c, t.Volume24Hour, t.Amount24Hour)
+	return &ticker.Price{
+		Pair:         pair,
+		ExchangeName: e.Name,
+		AssetType:    asset.Futures,
+		Last:         t.LastPrice,
+		High:         t.High24Hour,
+		Low:          t.Low24Hour,
+		Bid:          t.BestBidPrice,
+		Ask:          t.BestAskPrice,
+		BaseVolume:   baseVolume,
+		QuoteVolume:  quoteVolume,
+		OpenInterest: t.HoldVolume * c.ContractSize,
+		MarkPrice:    t.FairPrice,
+		IndexPrice:   t.IndexPrice,
+		LastUpdated:  t.Timestamp.Time(),
+	}
+}
+
+// futuresVolumes returns a volume counted in contracts, with its turnover, as base and quote currency volumes. A linear
+// contract's size is in the base currency and its turnover in the quote currency; an inverse contract's size is in
+// the quote currency and its turnover in the base currency
+func futuresVolumes(c *FuturesContractResponse, contracts, turnover float64) (baseVolume, quoteVolume float64) {
+	if c.IsInverse() {
+		return turnover, contracts * c.ContractSize
+	}
+	return contracts * c.ContractSize, turnover
 }
 
 // UpdateTickers updates all currency pairs of a given asset type
@@ -328,6 +462,41 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 				return err
 			}
 		}
+	case asset.Futures:
+		tickers, err := e.GetFuturesTickers(ctx, currency.EMPTYPAIR)
+		if err != nil {
+			return err
+		}
+		// The venue lists every contract; one not held as an available pair is skipped, as on spot
+		available := make([]*FuturesTickerResponse, 0, len(tickers))
+		pairs := make([]currency.Pair, 0, len(tickers))
+		for _, t := range tickers {
+			if t == nil {
+				continue
+			}
+			pair, err := e.MatchSymbolWithAvailablePairs(t.Symbol, assetType, true)
+			if err != nil {
+				continue
+			}
+			available = append(available, t)
+			pairs = append(pairs, pair)
+		}
+		contracts, err := e.futuresContractsFor(ctx, available)
+		if err != nil {
+			return err
+		}
+		var errs error
+		for i, t := range available {
+			c, ok := contracts[t.Symbol]
+			if !ok {
+				errs = common.AppendError(errs, fmt.Errorf("%w: %s", errContractNotFound, t.Symbol))
+				continue
+			}
+			if err := ticker.ProcessTicker(e.futuresTickerPrice(t, c, pairs[i])); err != nil {
+				errs = common.AppendError(errs, err)
+			}
+		}
+		return errs
 	default:
 		return fmt.Errorf("%w: %v", asset.ErrNotSupported, assetType)
 	}
@@ -364,6 +533,19 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 		if err := book.Process(); err != nil {
 			return book, err
 		}
+	case asset.Futures:
+		result, err := e.GetFuturesOrderbook(ctx, fPair, 0)
+		if err != nil {
+			return book, err
+		}
+		// Amounts are in contracts, as the venue sends them and as orders are sized
+		book.Bids = result.Bids.Levels()
+		book.Asks = result.Asks.Levels()
+		book.LastUpdated = result.Timestamp.Time()
+		book.LastUpdateID = int64(min(result.Version, math.MaxInt64))
+		if err := book.Process(); err != nil {
+			return book, err
+		}
 	default:
 		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, assetType)
 	}
@@ -387,6 +569,21 @@ func accountTypeMatches(reported string, assetType asset.Item) bool {
 
 // UpdateAccountBalances retrieves currency balances
 func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
+	if assetType == asset.Futures {
+		assets, err := e.GetFuturesAccountAssets(ctx)
+		if err != nil {
+			return nil, err
+		}
+		subAccount := accounts.NewSubAccount(asset.Futures, "")
+		for _, a := range assets {
+			if a == nil || a.Currency.IsEmpty() {
+				continue
+			}
+			subAccount.Balances.Set(a.Currency, futuresBalance(a.AvailableBalance, a.FrozenBalance, a.PositionMargin))
+		}
+		subAccounts := accounts.SubAccounts{subAccount}
+		return subAccounts, e.Accounts.Save(ctx, subAccounts, true)
+	}
 	accountInfo, err := e.GetAccountInformation(ctx)
 	if err != nil {
 		return nil, err
@@ -578,9 +775,42 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, assetTy
 			}
 		}
 		return resp, nil
+	case asset.Futures:
+		result, err := e.GetFuturesRecentTrades(ctx, p, futuresRecentTradesLimit)
+		if err != nil {
+			return nil, err
+		}
+		resp := make([]trade.Data, 0, len(result))
+		for _, t := range result {
+			if t == nil {
+				continue
+			}
+			resp = append(resp, trade.Data{
+				TID:          t.TradeID.String(),
+				Exchange:     e.Name,
+				CurrencyPair: p,
+				AssetType:    assetType,
+				Side:         futuresTradeSide(t.Side),
+				Price:        t.Price,
+				Amount:       t.Volume,
+				Timestamp:    t.Time.Time(),
+			})
+		}
+		return resp, nil
 	default:
 		return nil, fmt.Errorf("%w: asset type %v", asset.ErrNotSupported, assetType)
 	}
+}
+
+// futuresTradeSide returns the taker's side of a public futures trade, 1 for a buy and 2 for a sell
+func futuresTradeSide(side uint8) order.Side {
+	switch side {
+	case 1:
+		return order.Buy
+	case 2:
+		return order.Sell
+	}
+	return order.UnknownSide
 }
 
 // aggregatedTradesPageLimit is the most aggregated trades the venue returns for one request
@@ -596,6 +826,10 @@ func (e *Exchange) GetHistoricTrades(ctx context.Context, p currency.Pair, asset
 	p, err := e.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return nil, err
+	}
+	if assetType == asset.Futures {
+		// The futures API serves only the latest 100 trades, which GetRecentTrades returns
+		return nil, fmt.Errorf("%w for %v", common.ErrFunctionNotSupported, assetType)
 	}
 	if assetType != asset.Spot {
 		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, assetType)
@@ -704,7 +938,10 @@ func (e *Exchange) aggregatedTradesInSecond(ctx context.Context, p currency.Pair
 }
 
 // GetServerTime returns the current exchange server time.
-func (e *Exchange) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
+func (e *Exchange) GetServerTime(ctx context.Context, a asset.Item) (time.Time, error) {
+	if a == asset.Futures {
+		return e.GetFuturesServerTime(ctx)
+	}
 	serverTime, err := e.GetSystemTime(ctx)
 	return serverTime.Time(), err
 }
@@ -795,9 +1032,134 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			}
 		}
 		return resp, nil
+	case asset.Futures:
+		return e.submitFuturesOrder(ctx, s)
 	default:
 		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, s.AssetType)
 	}
+}
+
+// submitFuturesOrder places a futures order sized in contracts. An order without a margin type is isolated, and an
+// isolated order opening a position without leverage takes the account's leverage for that side, since the venue
+// needs one and order submissions through RPC carry none. A reducing order names the position it closes, as the venue
+// recommends, and takes that position's margin mode when it names none
+func (e *Exchange) submitFuturesOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
+	if s.QuoteAmount != 0 {
+		return nil, fmt.Errorf("%w: futures orders are sized in contracts by Amount", order.ErrAmountIsInvalid)
+	}
+	side, err := futuresOrderSide(s.Side, s.ReduceOnly)
+	if err != nil {
+		return nil, err
+	}
+	orderType, err := futuresOrderTypeFromOrderTypeAndTimeInForce(s.Type, s.TimeInForce)
+	if err != nil {
+		return nil, err
+	}
+	openType, err := futuresOpenTypeFromMarginType(s.MarginType)
+	if err != nil {
+		return nil, err
+	}
+	if s.Leverage < 0 || s.Leverage != math.Trunc(s.Leverage) {
+		return nil, fmt.Errorf("%w: %v, the venue takes whole leverage", errInvalidLeverage, s.Leverage)
+	}
+	leverage := uint64(s.Leverage)
+	var positionID uint64
+	if s.ReduceOnly {
+		position, err := e.futuresClosingPosition(ctx, s.Pair, side, s.MarginType)
+		if err != nil {
+			return nil, err
+		}
+		if position != nil {
+			if positionID, err = parseFuturesPositionID(position); err != nil {
+				return nil, err
+			}
+			openType = position.OpenType
+		}
+	}
+	if leverage == 0 && openType == FuturesOpenTypeIsolated && (side == FuturesSideOpenLong || side == FuturesSideOpenShort) {
+		if leverage, err = e.futuresCurrentLeverage(ctx, s.Pair, side, openType); err != nil {
+			return nil, err
+		}
+	}
+	req := &FuturesOrderRequest{
+		Symbol:          s.Pair.String(),
+		Volume:          s.Amount,
+		Leverage:        leverage,
+		Side:            side,
+		Type:            orderType,
+		OpenType:        openType,
+		ExternalOrderID: s.ClientOrderID,
+		PositionID:      positionID,
+	}
+	if isFuturesLimitOrderType(orderType) {
+		req.Price = s.Price
+	}
+	placed, err := e.PlaceFuturesOrder(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	if placed == nil || placed.OrderID == "" {
+		return nil, common.ErrNoResponse
+	}
+	resp, err := s.DeriveSubmitResponse(placed.OrderID.String())
+	if err != nil {
+		return nil, err
+	}
+	// The venue only acknowledges the placement; a market order's fills arrive later, by push or by GetOrderInfo,
+	// so no order is reported final here
+	resp.Status = order.New
+	resp.MarginType = futuresMarginType(openType)
+	resp.Leverage = float64(leverage)
+	if placedAt := placed.Timestamp.Time(); !placedAt.IsZero() {
+		resp.Date = placedAt
+		resp.LastUpdated = placedAt
+	}
+	return resp, nil
+}
+
+// futuresClosingPosition returns the open position a reducing order closes: of the side it closes and of the margin
+// type it names, or of either margin type when it names none. It returns nil when no such position is open
+func (e *Exchange) futuresClosingPosition(ctx context.Context, pair currency.Pair, side uint8, marginType margin.Type) (*FuturesPositionResponse, error) {
+	positionType := uint8(FuturesPositionTypeLong)
+	if side == FuturesSideCloseShort {
+		positionType = FuturesPositionTypeShort
+	}
+	positions, err := e.GetFuturesOpenPositions(ctx, pair, "")
+	if err != nil {
+		return nil, err
+	}
+	var closing *FuturesPositionResponse
+	for _, p := range positions {
+		if p == nil || p.Symbol != pair.String() || p.PositionType != positionType || p.State == FuturesPositionStateClosed {
+			continue
+		}
+		if marginType != margin.Unset && futuresMarginType(p.OpenType) != marginType {
+			continue
+		}
+		if closing != nil {
+			return nil, fmt.Errorf("%w: isolated and cross %s %s positions are open, name a margin type", errMarginTypeAmbiguous, pair, futuresPositionSide(positionType))
+		}
+		closing = p
+	}
+	return closing, nil
+}
+
+// futuresCurrentLeverage returns the account's leverage for the side and margin mode of a contract's positions
+func (e *Exchange) futuresCurrentLeverage(ctx context.Context, pair currency.Pair, side, openType uint8) (uint64, error) {
+	positionType := uint8(FuturesPositionTypeLong)
+	if side == FuturesSideOpenShort || side == FuturesSideCloseLong {
+		positionType = FuturesPositionTypeShort
+	}
+	leverages, err := e.GetFuturesLeverage(ctx, pair)
+	if err != nil {
+		return 0, err
+	}
+	for _, l := range leverages {
+		if l != nil && l.PositionType == positionType && l.OpenType == openType && l.Leverage > 0 {
+			return l.Leverage, nil
+		}
+	}
+	return 0, fmt.Errorf("%w: no %s leverage is set for %s %s positions", errInvalidLeverage, futuresMarginType(openType), pair, futuresPositionSide(positionType))
 }
 
 // readBackMarketOrder updates a submitted market order's response with the status and quantities the venue holds for it
@@ -832,8 +1194,12 @@ func (e *Exchange) ModifyOrder(context.Context, *order.Modify) (*order.ModifyRes
 	return nil, common.ErrFunctionNotSupported
 }
 
-// CancelOrder cancels an order by its corresponding ID number
+// CancelOrder cancels an order by its corresponding ID number. A futures order can also be named by its client order
+// ID and pair
 func (e *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
+	if ord != nil && ord.AssetType == asset.Futures {
+		return e.cancelFuturesOrder(ctx, ord)
+	}
 	if err := ord.Validate(ord.StandardCancel()); err != nil {
 		return err
 	}
@@ -855,9 +1221,109 @@ func (e *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 	return err
 }
 
-// CancelBatchOrders cancels orders by their corresponding ID numbers
-func (e *Exchange) CancelBatchOrders(context.Context, []order.Cancel) (*order.CancelBatchResponse, error) {
-	return nil, common.ErrFunctionNotSupported
+// cancelFuturesOrder cancels a futures order named by its order ID, or by its client order ID and pair
+func (e *Exchange) cancelFuturesOrder(ctx context.Context, ord *order.Cancel) error {
+	if ord.OrderID == "" {
+		if ord.ClientOrderID == "" {
+			return order.ErrOrderIDNotSet
+		}
+		if ord.Pair.IsEmpty() {
+			return currency.ErrCurrencyPairEmpty
+		}
+		pair, err := e.FormatExchangeCurrency(ord.Pair, ord.AssetType)
+		if err != nil {
+			return err
+		}
+		results, err := e.CancelFuturesOrderByExternalID(ctx, pair, ord.ClientOrderID)
+		if err != nil {
+			return err
+		}
+		// One order is named, so the outcome returned is that order's
+		i := slices.IndexFunc(results, func(r *FuturesCancelOrderResponse) bool { return r != nil })
+		switch {
+		case i == -1:
+			return fmt.Errorf("%w: client order %s", errCancelOutcomeMissing, ord.ClientOrderID)
+		case results[i].ErrorCode != 0:
+			return fmt.Errorf("%w: client order %s: code %d: %s", errFuturesRequestFailed, ord.ClientOrderID, results[i].ErrorCode, results[i].ErrorMessage)
+		}
+		return nil
+	}
+	id, err := parseFuturesOrderID(ord.OrderID)
+	if err != nil {
+		return err
+	}
+	results, err := e.CancelFuturesOrders(ctx, []uint64{id})
+	if err != nil {
+		return err
+	}
+	for _, r := range results {
+		if r == nil || r.OrderID.String() != ord.OrderID {
+			continue
+		}
+		if r.ErrorCode != 0 {
+			return fmt.Errorf("%w: order %s: code %d: %s", errFuturesRequestFailed, ord.OrderID, r.ErrorCode, r.ErrorMessage)
+		}
+		return nil
+	}
+	return fmt.Errorf("%w: order %s", errCancelOutcomeMissing, ord.OrderID)
+}
+
+// CancelBatchOrders cancels futures orders by their IDs, up to 50 in a request. Each order's outcome is reported in
+// the response's status; a failed request, or an order the venue gives no outcome for, is returned as an error
+func (e *Exchange) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (*order.CancelBatchResponse, error) {
+	if len(orders) == 0 {
+		return nil, order.ErrCancelOrderIsNil
+	}
+	ids := make([]uint64, len(orders))
+	for i := range orders {
+		if orders[i].AssetType != asset.Futures {
+			return nil, fmt.Errorf("%w for %v", common.ErrFunctionNotSupported, orders[i].AssetType)
+		}
+		if err := orders[i].Validate(orders[i].StandardCancel()); err != nil {
+			return nil, err
+		}
+		var err error
+		if ids[i], err = parseFuturesOrderID(orders[i].OrderID); err != nil {
+			return nil, err
+		}
+	}
+	resp := &order.CancelBatchResponse{Status: make(map[string]string, len(orders))}
+	var errs error
+	for start := 0; start < len(ids); start += futuresBatchLimit {
+		end := min(start+futuresBatchLimit, len(ids))
+		results, err := e.CancelFuturesOrders(ctx, ids[start:end])
+		errs = common.AppendError(errs, recordFuturesCancelOutcomes(resp, orders[start:end], results, err))
+	}
+	return resp, errs
+}
+
+// recordFuturesCancelOutcomes reports each requested order's outcome in the batch response. A request that failed is
+// reported against every order it carried, and an order the venue returned no outcome for is reported as missing;
+// both are returned as errors
+func recordFuturesCancelOutcomes(resp *order.CancelBatchResponse, requested []order.Cancel, results []*FuturesCancelOrderResponse, err error) error {
+	if err != nil {
+		ids := make([]string, len(requested))
+		for i := range requested {
+			ids[i] = requested[i].OrderID
+			resp.Status[ids[i]] = err.Error()
+		}
+		return fmt.Errorf("error cancelling orders %v: %w", ids, err)
+	}
+	var errs error
+	for i := range requested {
+		id := requested[i].OrderID
+		idx := slices.IndexFunc(results, func(r *FuturesCancelOrderResponse) bool { return r != nil && r.OrderID.String() == id })
+		switch {
+		case idx == -1:
+			resp.Status[id] = errCancelOutcomeMissing.Error()
+			errs = common.AppendError(errs, fmt.Errorf("%w: order %s", errCancelOutcomeMissing, id))
+		case results[idx].ErrorCode == 0:
+			resp.Status[id] = order.Cancelled.String()
+		default:
+			resp.Status[id] = results[idx].ErrorMessage
+		}
+	}
+	return errs
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair, or every open order of the
@@ -891,6 +1357,15 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 			resp.Status[result[r].OrderID] = "cancelled"
 		}
 		return resp, nil
+	case asset.Futures:
+		pair := orderCancellation.Pair
+		if !pair.IsEmpty() {
+			if pair, err = e.FormatExchangeCurrency(pair, orderCancellation.AssetType); err != nil {
+				return order.CancelAllResponse{}, err
+			}
+		}
+		// The venue confirms the cancellation without naming the orders, so the status map stays empty on success
+		return resp, e.CancelAllFuturesOrders(ctx, pair)
 	default:
 		return order.CancelAllResponse{}, asset.ErrNotSupported
 	}
@@ -1145,6 +1620,33 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			}
 		}
 		return detail, nil
+	case asset.Futures:
+		result, err := e.GetFuturesOrder(ctx, orderID)
+		if err != nil {
+			return nil, err
+		}
+		if result == nil || result.OrderID == "" {
+			return nil, common.ErrNoResponse
+		}
+		// A pair which has left the available pairs falls back to the one the caller named
+		fallback := currency.EMPTYPAIR
+		if !pair.IsEmpty() {
+			fallback = pair.Format(pairFormat)
+		}
+		detail, err := e.futuresOrderDetail(ctx, result, fallback)
+		if err != nil {
+			return nil, err
+		}
+		if result.DealVolume > 0 {
+			deals, err := e.GetFuturesOrderDealDetails(ctx, orderID)
+			if err != nil {
+				// The fills only enrich the order, so a failed lookup does not sink it
+				log.Warnf(log.ExchangeSys, "%s: fills lookup failed for futures order %s (%s): %v", e.Name, orderID, detail.Pair, err)
+			} else {
+				detail.Trades = futuresTradeHistory(e.Name, deals)
+			}
+		}
+		return &detail, nil
 	default:
 		return nil, fmt.Errorf("%w: asset type: %v", order.ErrAssetNotSet, assetType)
 	}
@@ -1324,9 +1826,49 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, getOrdersRequest *order.
 		// The request's side, type and time filters were ignored; apply them here so a caller asking
 		// for only buys or only limit orders is not handed the full open-order set.
 		return getOrdersRequest.Filter(e.Name, details), nil
+	case asset.Futures:
+		// The venue lists open orders across every contract, so the pairs asked for are picked out by the filter
+		var details []order.Detail
+		seen := make(map[FuturesID]struct{})
+		for page := uint64(1); ; page++ {
+			result, err := e.GetFuturesOpenOrders(ctx, &FuturesPageRequest{PageNumber: page, PageSize: futuresDefaultPageSizeLimit})
+			if err != nil {
+				return nil, err
+			}
+			added, err := e.appendFuturesOrders(ctx, &details, seen, result)
+			if err != nil {
+				return nil, err
+			}
+			// A page of only known orders means the page number was not applied, so further pages would repeat it
+			if len(result) < futuresDefaultPageSizeLimit || !added {
+				break
+			}
+		}
+		return getOrdersRequest.Filter(e.Name, details), nil
 	default:
 		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, getOrdersRequest.AssetType)
 	}
+}
+
+// appendFuturesOrders appends the orders not yet seen as order details and reports whether any was added
+func (e *Exchange) appendFuturesOrders(ctx context.Context, details *[]order.Detail, seen map[FuturesID]struct{}, orders []*FuturesOrderResponse) (bool, error) {
+	var added bool
+	for _, o := range orders {
+		if o == nil {
+			continue
+		}
+		if _, ok := seen[o.OrderID]; ok {
+			continue
+		}
+		seen[o.OrderID] = struct{}{}
+		added = true
+		detail, err := e.futuresOrderDetail(ctx, o, currency.EMPTYPAIR)
+		if err != nil {
+			return added, err
+		}
+		*details = append(*details, detail)
+	}
+	return added, nil
 }
 
 // GetOrderHistory retrieves account order information
@@ -1363,9 +1905,62 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 		// The request's side and type filters were ignored; apply them here so a caller asking for
 		// only sells or only limit orders is not handed the full history.
 		return getOrdersRequest.Filter(e.Name, details), nil
+	case asset.Futures:
+		if len(getOrdersRequest.Pairs) == 0 {
+			return nil, currency.ErrCurrencyPairsEmpty
+		}
+		var details []order.Detail
+		seen := make(map[FuturesID]struct{})
+		for _, p := range getOrdersRequest.Pairs {
+			for _, window := range futuresHistoryWindows(getOrdersRequest.StartTime, getOrdersRequest.EndTime) {
+				for page := uint64(1); ; page++ {
+					result, err := e.GetFuturesOrderHistory(ctx, &FuturesOrderHistoryRequest{
+						Symbol:     p.Format(pairFormat),
+						States:     []uint8{FuturesOrderStateFilled, FuturesOrderStateCancelled, FuturesOrderStateInvalid},
+						StartTime:  window.start,
+						EndTime:    window.end,
+						PageNumber: page,
+						PageSize:   futuresDefaultPageSizeLimit,
+					})
+					if err != nil {
+						return nil, err
+					}
+					added, err := e.appendFuturesOrders(ctx, &details, seen, result)
+					if err != nil {
+						return nil, err
+					}
+					if len(result) < futuresDefaultPageSizeLimit || !added {
+						break
+					}
+				}
+			}
+		}
+		return getOrdersRequest.Filter(e.Name, details), nil
 	default:
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, getOrdersRequest.AssetType)
 	}
+}
+
+// historyWindow is a window of a history request
+type historyWindow struct {
+	start, end time.Time
+}
+
+// futuresHistoryWindows splits a window into the 90 day windows the futures history endpoints serve. A window missing
+// a bound is sent as it is, and the venue then returns the last 7 days
+func futuresHistoryWindows(start, end time.Time) []historyWindow {
+	if start.IsZero() || end.IsZero() || !end.After(start) {
+		return []historyWindow{{start: start, end: end}}
+	}
+	var windows []historyWindow
+	for from := start; from.Before(end); from = from.Add(futuresHistoryWindow) {
+		to := from.Add(futuresHistoryWindow)
+		if to.After(end) {
+			to = end
+		}
+		windows = append(windows, historyWindow{start: from, end: to})
+	}
+	return windows
 }
 
 // GetFeeByType returns an estimate of fee based on the type of transaction
@@ -1429,6 +2024,21 @@ func candlesFromCandlestick(result []*CandlestickData) []kline.Candle {
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	if a == asset.Futures {
+		fPair, err := e.FormatExchangeCurrency(pair, a)
+		if err != nil {
+			return nil, err
+		}
+		req, err := e.GetKlineRequest(fPair, a, interval, start, end, false)
+		if err != nil {
+			return nil, err
+		}
+		candles, err := e.futuresCandles(ctx, fPair, interval, req.Start, req.End)
+		if err != nil {
+			return nil, err
+		}
+		return req.ProcessResponse(candles)
+	}
 	intervalString, err := intervalToString(interval)
 	if err != nil {
 		return nil, err
@@ -1488,19 +2098,694 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 			timeSeries = append(timeSeries, candlesFromCandlestick(result)...)
 		}
 		return req.ProcessResponse(timeSeries)
+	case asset.Futures:
+		timeSeries := make([]kline.Candle, 0, req.Size())
+		for x := range req.RangeHolder.Ranges {
+			candles, err := e.futuresCandles(ctx, pair.Format(pFormat), interval, req.RangeHolder.Ranges[x].Start.Time, req.RangeHolder.Ranges[x].End.Time)
+			if err != nil {
+				return nil, err
+			}
+			timeSeries = append(timeSeries, candles...)
+		}
+		return req.ProcessResponse(timeSeries)
 	default:
 		return nil, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, a)
 	}
 }
 
-// GetFuturesContractDetails returns all contracts from the exchange by asset type
-func (e *Exchange) GetFuturesContractDetails(context.Context, asset.Item) ([]futures.Contract, error) {
-	return nil, common.ErrFunctionNotSupported
+// futuresCandles returns a contract's candles within a window. Each candle is stamped with its open time, and its
+// volume is restated from contracts in the base currency
+func (e *Exchange) futuresCandles(ctx context.Context, pair currency.Pair, interval kline.Interval, start, end time.Time) ([]kline.Candle, error) {
+	result, err := e.GetFuturesCandles(ctx, &FuturesCandlesRequest{
+		Symbol:    pair,
+		Interval:  interval,
+		StartTime: start,
+		// The venue reads the end as the last candle's open, and the window's end is exclusive
+		EndTime: end.Add(-time.Second),
+	})
+	if err != nil {
+		return nil, err
+	}
+	if result == nil {
+		return nil, common.ErrNoResponse
+	}
+	n := len(result.Time)
+	if len(result.Open) != n || len(result.High) != n || len(result.Low) != n || len(result.Close) != n || len(result.Volume) != n || len(result.Amount) != n {
+		return nil, fmt.Errorf("%w: candle fields of unequal lengths", errMalformedCandles)
+	}
+	contract, err := e.futuresContract(ctx, pair.String())
+	if err != nil {
+		return nil, err
+	}
+	candles := make([]kline.Candle, n)
+	for i := range n {
+		baseVolume, _ := futuresVolumes(contract, result.Volume[i], result.Amount[i])
+		candles[i] = kline.Candle{
+			Time:   result.Time[i].Time(),
+			Open:   result.Open[i],
+			High:   result.High[i],
+			Low:    result.Low[i],
+			Close:  result.Close[i],
+			Volume: baseVolume,
+		}
+	}
+	return candles, nil
 }
 
-// GetLatestFundingRates returns the latest funding rates data
-func (e *Exchange) GetLatestFundingRates(context.Context, *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
-	return nil, common.ErrFunctionNotSupported
+// GetFuturesContractDetails returns the details of every futures contract
+func (e *Exchange) GetFuturesContractDetails(ctx context.Context, a asset.Item) ([]futures.Contract, error) {
+	if !a.IsFutures() {
+		return nil, futures.ErrNotFuturesAsset
+	}
+	if a != asset.Futures {
+		return nil, fmt.Errorf("%w %q", asset.ErrNotSupported, a)
+	}
+	contracts, err := e.GetFuturesContracts(ctx, currency.EMPTYPAIR)
+	if err != nil {
+		return nil, err
+	}
+	resp := make([]futures.Contract, 0, len(contracts))
+	for _, c := range contracts {
+		pair, err := currency.NewPairDelimiter(c.Symbol, currency.UnderscoreDelimiter)
+		if err != nil {
+			return nil, err
+		}
+		contractType := futures.Perpetual
+		if c.FutureType == FuturesTypeDelivery {
+			// The venue lists no delivery contracts and documents no expiry cycle for them
+			contractType = futures.Unknown
+		}
+		settlementType := futures.Linear
+		if c.IsInverse() {
+			settlementType = futures.Inverse
+		}
+		startDate := c.OpeningTime.Time()
+		if startDate.IsZero() {
+			startDate = c.CreateTime.Time()
+		}
+		resp = append(resp, futures.Contract{
+			Exchange:           e.Name,
+			Name:               pair,
+			Underlying:         currency.NewPair(c.BaseCoin, c.QuoteCoin),
+			Asset:              a,
+			StartDate:          startDate,
+			EndDate:            c.DeliveryTime.Time(),
+			IsActive:           c.State == FuturesContractStateEnabled && c.APIAllowed,
+			Status:             futuresContractStatus(c.State),
+			Type:               contractType,
+			SettlementType:     settlementType,
+			SettlementCurrency: c.SettleCoin,
+			MarginCurrency:     c.SettleCoin,
+			Multiplier:         c.ContractSize,
+			MaxLeverage:        float64(c.MaxLeverage),
+		})
+	}
+	return resp, nil
+}
+
+// futuresContractStatus names a contract state
+func futuresContractStatus(state uint8) string {
+	switch state {
+	case FuturesContractStateEnabled:
+		return "enabled"
+	case FuturesContractStateDelivery:
+		return "delivery"
+	case FuturesContractStateDelivered:
+		return "delivered"
+	case FuturesContractStateOffline:
+		return "offline"
+	case FuturesContractStatePaused:
+		return "paused"
+	}
+	return "unknown"
+}
+
+// GetLatestFundingRates returns the latest settled funding rates of perpetual contracts, those of the enabled pairs
+// when no pair is set. The current rate is settled at the next funding time, so it is returned as the predicted rate
+// when requested
+func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
+	if err := common.NilGuard(r); err != nil {
+		return nil, err
+	}
+	if r.Asset != asset.Futures {
+		return nil, fmt.Errorf("%w %s %s", futures.ErrNotPerpetualFuture, r.Asset, r.Pair)
+	}
+	pairs := currency.Pairs{r.Pair}
+	if r.Pair.IsEmpty() {
+		var err error
+		if pairs, err = e.GetEnabledPairs(r.Asset); err != nil {
+			return nil, err
+		}
+	}
+	for i := range pairs {
+		var err error
+		if pairs[i], err = e.FormatExchangeCurrency(pairs[i], r.Asset); err != nil {
+			return nil, err
+		}
+	}
+	// One pair is read on its own, and several from the list of every contract's rate
+	query := currency.EMPTYPAIR
+	if !r.Pair.IsEmpty() {
+		query = pairs[0]
+	}
+	current, err := e.GetFuturesFundingRates(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	currentBySymbol := make(map[string]*FuturesFundingRateResponse, len(current))
+	for _, c := range current {
+		if c != nil {
+			currentBySymbol[c.Symbol] = c
+		}
+	}
+	resp := make([]fundingrate.LatestRateResponse, 0, len(pairs))
+	for _, p := range pairs {
+		rate, ok := currentBySymbol[p.String()]
+		if !ok {
+			return nil, fmt.Errorf("%w: %s", fundingrate.ErrNoFundingRatesFound, p)
+		}
+		history, err := e.GetFuturesFundingRateHistory(ctx, p, &FuturesPageRequest{PageNumber: 1, PageSize: 1})
+		if err != nil {
+			return nil, err
+		}
+		latest := fundingrate.LatestRateResponse{
+			Exchange:       e.Name,
+			Asset:          r.Asset,
+			Pair:           p,
+			TimeOfNextRate: rate.NextSettleTime.Time(),
+			TimeChecked:    time.Now(),
+		}
+		if history != nil && len(history.ResultList) > 0 {
+			latest.LatestRate = fundingrate.Rate{
+				Time: history.ResultList[0].SettleTime.Time(),
+				Rate: decimal.MustFromFloat(history.ResultList[0].FundingRate),
+			}
+		}
+		if r.IncludePredictedRate {
+			latest.PredictedUpcomingRate = fundingrate.Rate{
+				Time: rate.NextSettleTime.Time(),
+				Rate: decimal.MustFromFloat(rate.FundingRate),
+			}
+		}
+		resp = append(resp, latest)
+	}
+	return resp, nil
+}
+
+// futuresFundingRateHistoryMaxPages bounds the funding rate history pages read for one request
+const futuresFundingRateHistoryMaxPages = 50
+
+// GetHistoricalFundingRates returns a perpetual contract's settled funding rates within a window, oldest first;
+// without a start date, the latest 1000 settled by the end date, or by now without one. The current rate is settled at
+// the next funding time, so it is returned as the predicted rate when requested
+func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.HistoricalRatesRequest) (*fundingrate.HistoricalRates, error) {
+	if err := common.NilGuard(r); err != nil {
+		return nil, err
+	}
+	if r.Asset != asset.Futures {
+		return nil, fmt.Errorf("%w %s %s", futures.ErrNotPerpetualFuture, r.Asset, r.Pair)
+	}
+	if r.Pair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if r.IncludePayments {
+		return nil, fmt.Errorf("%w: funding payments", common.ErrFunctionNotSupported)
+	}
+	if !r.StartDate.IsZero() && !r.EndDate.IsZero() {
+		if err := common.StartEndTimeCheck(r.StartDate, r.EndDate); err != nil {
+			return nil, err
+		}
+	}
+	fPair, err := e.FormatExchangeCurrency(r.Pair, r.Asset)
+	if err != nil {
+		return nil, err
+	}
+	// The history is paged newest first, so pages are read until one reaches back to the start
+	var rates []fundingrate.Rate
+	seen := make(map[int64]bool)
+	for page := uint64(1); page <= futuresFundingRateHistoryMaxPages; page++ {
+		history, err := e.GetFuturesFundingRateHistory(ctx, fPair, &FuturesPageRequest{PageNumber: page, PageSize: futuresFundingRateHistoryPageSizeLimit})
+		if err != nil {
+			return nil, err
+		}
+		if history == nil {
+			break
+		}
+		var added, reachedStart bool
+		for i := range history.ResultList {
+			settled := history.ResultList[i].SettleTime.Time()
+			if seen[settled.UnixMilli()] {
+				continue
+			}
+			seen[settled.UnixMilli()] = true
+			added = true
+			if !r.StartDate.IsZero() && settled.Before(r.StartDate) {
+				reachedStart = true
+				continue
+			}
+			if !r.EndDate.IsZero() && settled.After(r.EndDate) {
+				continue
+			}
+			rates = append(rates, fundingrate.Rate{
+				Time: settled,
+				Rate: decimal.MustFromFloat(history.ResultList[i].FundingRate),
+			})
+		}
+		// A page of only known rates means the page number was not applied, so further pages would repeat it
+		if reachedStart || !added || len(history.ResultList) < futuresFundingRateHistoryPageSizeLimit ||
+			(r.StartDate.IsZero() && len(rates) >= futuresFundingRateHistoryPageSizeLimit) {
+			break
+		}
+	}
+	if len(rates) == 0 {
+		return nil, fundingrate.ErrNoFundingRatesFound
+	}
+	slices.SortFunc(rates, func(a, b fundingrate.Rate) int {
+		return a.Time.Compare(b.Time)
+	})
+	if r.StartDate.IsZero() && len(rates) > futuresFundingRateHistoryPageSizeLimit {
+		rates = rates[len(rates)-futuresFundingRateHistoryPageSizeLimit:]
+	}
+	resp := &fundingrate.HistoricalRates{
+		Exchange:     e.Name,
+		Asset:        r.Asset,
+		Pair:         fPair,
+		StartDate:    rates[0].Time,
+		EndDate:      rates[len(rates)-1].Time,
+		LatestRate:   rates[len(rates)-1],
+		FundingRates: rates,
+	}
+	if r.IncludePredictedRate {
+		current, err := e.GetFuturesFundingRates(ctx, fPair)
+		if err != nil {
+			return nil, err
+		}
+		if len(current) != 1 || current[0] == nil {
+			return nil, fmt.Errorf("%w: %s", fundingrate.ErrNoFundingRatesFound, fPair)
+		}
+		resp.TimeOfNextRate = current[0].NextSettleTime.Time()
+		resp.PredictedUpcomingRate = fundingrate.Rate{
+			Time: current[0].NextSettleTime.Time(),
+			Rate: decimal.MustFromFloat(current[0].FundingRate),
+		}
+	}
+	return resp, nil
+}
+
+// IsPerpetualFutureCurrency reports whether a contract is perpetual; every contract the venue lists is
+func (e *Exchange) IsPerpetualFutureCurrency(a asset.Item, _ currency.Pair) (bool, error) {
+	return a == asset.Futures, nil
+}
+
+// GetCollateralCurrencyForContract returns the settlement currency of a contract
+func (e *Exchange) GetCollateralCurrencyForContract(a asset.Item, cp currency.Pair) (currency.Code, asset.Item, error) {
+	if a != asset.Futures {
+		return currency.EMPTYCODE, asset.Empty, fmt.Errorf("%w %q", futures.ErrNotFuturesAsset, a)
+	}
+	if cp.IsEmpty() {
+		return currency.EMPTYCODE, asset.Empty, currency.ErrCurrencyPairEmpty
+	}
+	fPair, err := e.FormatExchangeCurrency(cp, a)
+	if err != nil {
+		return currency.EMPTYCODE, asset.Empty, err
+	}
+	e.futuresContractsMu.RLock()
+	c, ok := e.futuresContracts[fPair.String()]
+	e.futuresContractsMu.RUnlock()
+	if !ok {
+		return currency.EMPTYCODE, asset.Empty, fmt.Errorf("%w: %s", errContractNotFound, fPair)
+	}
+	return c.SettleCoin, a, nil
+}
+
+// GetOpenInterest returns the open interest of contracts: in the base currency for a linear contract and in the
+// quote currency for an inverse one, the currency its size is counted in
+func (e *Exchange) GetOpenInterest(ctx context.Context, keys ...key.PairAsset) ([]futures.OpenInterest, error) {
+	for i := range keys {
+		if keys[i].Asset != asset.Futures {
+			// Avoid API calls or returning errors after a successful retrieval
+			return nil, fmt.Errorf("%w %v %v", asset.ErrNotSupported, keys[i].Asset, keys[i].Pair())
+		}
+	}
+	symbol := currency.EMPTYPAIR
+	if len(keys) == 1 {
+		var err error
+		if symbol, err = e.FormatExchangeCurrency(keys[0].Pair(), asset.Futures); err != nil {
+			return nil, err
+		}
+	}
+	tickers, err := e.GetFuturesTickers(ctx, symbol)
+	if err != nil {
+		return nil, err
+	}
+	wanted := make([]*FuturesTickerResponse, 0, len(tickers))
+	pairs := make([]currency.Pair, 0, len(tickers))
+	for _, t := range tickers {
+		if t == nil {
+			continue
+		}
+		pair, enabled, err := e.MatchSymbolCheckEnabled(t.Symbol, asset.Futures, true)
+		if err != nil {
+			continue
+		}
+		switch {
+		case len(keys) == 0 && !enabled:
+			continue
+		case len(keys) > 0 && !slices.ContainsFunc(keys, func(k key.PairAsset) bool { return k.Pair().Equal(pair) }):
+			continue
+		}
+		wanted = append(wanted, t)
+		pairs = append(pairs, pair)
+	}
+	contracts, err := e.futuresContractsFor(ctx, wanted)
+	if err != nil {
+		return nil, err
+	}
+	resp := make([]futures.OpenInterest, 0, len(wanted))
+	for i, t := range wanted {
+		c, ok := contracts[t.Symbol]
+		if !ok {
+			return nil, fmt.Errorf("%w: %s", errContractNotFound, t.Symbol)
+		}
+		resp = append(resp, futures.OpenInterest{
+			Key:          key.NewExchangeAssetPair(e.Name, asset.Futures, pairs[i]),
+			OpenInterest: t.HoldVolume * c.ContractSize,
+		})
+	}
+	return resp, nil
+}
+
+// SetLeverage sets the leverage of a contract's long or short positions in a margin mode. A buy side sets the long
+// positions' leverage and a sell side the short positions'; an unset side sets both. An open position is named by its
+// ID, as the venue asks, and a side without one has the leverage set for the positions it opens
+func (e *Exchange) SetLeverage(ctx context.Context, a asset.Item, pair currency.Pair, marginType margin.Type, amount float64, side order.Side) error {
+	if a != asset.Futures {
+		return fmt.Errorf("%w %q", futures.ErrNotFuturesAsset, a)
+	}
+	if amount <= 0 || amount != math.Trunc(amount) {
+		return fmt.Errorf("%w: %v, the venue takes whole leverage", errInvalidLeverage, amount)
+	}
+	openType, err := futuresOpenTypeFromMarginType(marginType)
+	if err != nil {
+		return err
+	}
+	positionTypes, err := futuresPositionTypes(side)
+	if err != nil {
+		return err
+	}
+	fPair, err := e.FormatExchangeCurrency(pair, a)
+	if err != nil {
+		return err
+	}
+	positions, err := e.GetFuturesOpenPositions(ctx, fPair, "")
+	if err != nil {
+		return err
+	}
+	for _, positionType := range positionTypes {
+		req := &FuturesChangeLeverageRequest{Leverage: uint64(amount), OpenType: openType, Symbol: fPair.String(), PositionType: positionType}
+		if i := slices.IndexFunc(positions, func(p *FuturesPositionResponse) bool {
+			return p != nil && p.Symbol == fPair.String() && p.PositionType == positionType && p.OpenType == openType && p.State != FuturesPositionStateClosed
+		}); i != -1 {
+			positionID, err := parseFuturesPositionID(positions[i])
+			if err != nil {
+				return err
+			}
+			req = &FuturesChangeLeverageRequest{PositionID: positionID, Leverage: uint64(amount)}
+		}
+		if err := e.ChangeFuturesLeverage(ctx, req); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// parseFuturesPositionID returns a position's ID as the number the venue's request bodies take
+func parseFuturesPositionID(p *FuturesPositionResponse) (uint64, error) {
+	id, err := strconv.ParseUint(p.PositionID.String(), 10, 64)
+	if err != nil || id == 0 {
+		return 0, fmt.Errorf("%w: position %q", errInvalidFuturesID, p.PositionID)
+	}
+	return id, nil
+}
+
+// futuresPositionTypes returns the position types a side names: a buy names the long positions and a sell the short
+// ones, and an unset side names both
+func futuresPositionTypes(side order.Side) ([]uint8, error) {
+	switch {
+	case side == order.UnknownSide:
+		return []uint8{FuturesPositionTypeLong, FuturesPositionTypeShort}, nil
+	case side.IsLong():
+		return []uint8{FuturesPositionTypeLong}, nil
+	case side.IsShort():
+		return []uint8{FuturesPositionTypeShort}, nil
+	}
+	return nil, fmt.Errorf("%w: %v", order.ErrSideIsInvalid, side)
+}
+
+// GetLeverage returns the leverage of a contract's long or short positions in a margin mode. A buy side names the long
+// positions and a sell side the short ones; an unset side needs both to share one leverage
+func (e *Exchange) GetLeverage(ctx context.Context, a asset.Item, pair currency.Pair, marginType margin.Type, side order.Side) (float64, error) {
+	if a != asset.Futures {
+		return 0, fmt.Errorf("%w %q", futures.ErrNotFuturesAsset, a)
+	}
+	if pair.IsEmpty() {
+		return 0, currency.ErrCurrencyPairEmpty
+	}
+	openType, err := futuresOpenTypeFromMarginType(marginType)
+	if err != nil {
+		return 0, err
+	}
+	positionTypes, err := futuresPositionTypes(side)
+	if err != nil {
+		return 0, err
+	}
+	fPair, err := e.FormatExchangeCurrency(pair, a)
+	if err != nil {
+		return 0, err
+	}
+	leverages, err := e.GetFuturesLeverage(ctx, fPair)
+	if err != nil {
+		return 0, err
+	}
+	var leverage uint64
+	for _, positionType := range positionTypes {
+		i := slices.IndexFunc(leverages, func(l *FuturesLeverageResponse) bool {
+			return l != nil && l.PositionType == positionType && l.OpenType == openType
+		})
+		if i == -1 {
+			return 0, fmt.Errorf("%w: no %s leverage for %s %s positions", errInvalidLeverage, futuresMarginType(openType), fPair, futuresPositionSide(positionType))
+		}
+		if leverage != 0 && leverages[i].Leverage != leverage {
+			return 0, fmt.Errorf("%w: %s long and short positions use different leverage, name a side", errInvalidLeverage, fPair)
+		}
+		leverage = leverages[i].Leverage
+	}
+	return float64(leverage), nil
+}
+
+// GetFuturesPositionSummary returns a summary of a contract's open position. With both sides open in hedge mode the
+// direction of the request names the side; isolated positions are preferred over cross positions
+func (e *Exchange) GetFuturesPositionSummary(ctx context.Context, r *futures.PositionSummaryRequest) (*futures.PositionSummary, error) {
+	if err := common.NilGuard(r); err != nil {
+		return nil, err
+	}
+	if r.Asset != asset.Futures {
+		return nil, fmt.Errorf("%w %q", futures.ErrNotFuturesAsset, r.Asset)
+	}
+	if r.Pair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	fPair, err := e.FormatExchangeCurrency(r.Pair, r.Asset)
+	if err != nil {
+		return nil, err
+	}
+	positions, err := e.GetFuturesOpenPositions(ctx, fPair, "")
+	if err != nil {
+		return nil, err
+	}
+	pos, err := selectFuturesPosition(positions, fPair.String(), r.Direction)
+	if err != nil {
+		return nil, err
+	}
+	contract, err := e.futuresContract(ctx, fPair.String())
+	if err != nil {
+		return nil, err
+	}
+	size := decimal.MustFromFloat(pos.HoldVolume)
+	if pos.PositionType == FuturesPositionTypeShort {
+		size = size.Neg()
+	}
+	settlementType := futures.Linear
+	if contract.IsInverse() {
+		settlementType = futures.Inverse
+	}
+	notional, _ := futuresCost(contract, pos.HoldVolume, pos.HoldAveragePrice)
+	summary := &futures.PositionSummary{
+		Pair:                      r.Pair,
+		Asset:                     r.Asset,
+		MarginType:                futuresMarginType(pos.OpenType),
+		Currency:                  contract.SettleCoin,
+		NotionalSize:              decimal.MustFromFloat(notional),
+		Leverage:                  decimal.NewFromInt(int64(min(pos.Leverage, math.MaxInt64))),
+		EstimatedLiquidationPrice: decimal.MustFromFloat(pos.LiquidatePrice),
+		CollateralUsed:            decimal.MustFromFloat(pos.InitialMargin),
+		CurrentSize:               size,
+		ContractSize:              decimal.MustFromFloat(contract.ContractSize),
+		ContractMultiplier:        decimal.MustFromFloat(contract.ContractSize),
+		ContractSettlementType:    settlementType,
+		AverageOpenPrice:          decimal.MustFromFloat(pos.OpenAveragePrice),
+		UnrealisedPNL:             decimal.MustFromFloat(pos.UnrealisedPNL),
+		RealisedPNL:               decimal.MustFromFloat(pos.RealisedPNL),
+	}
+	if pos.OpenType == FuturesOpenTypeIsolated {
+		summary.IsolatedMargin = decimal.MustFromFloat(pos.InitialMargin)
+	}
+	return summary, nil
+}
+
+// selectFuturesPosition returns a contract's open position, of the side the direction names when one is named, and
+// otherwise the only one held; isolated positions are preferred over cross positions
+func selectFuturesPosition(positions []*FuturesPositionResponse, symbol string, direction order.Side) (*FuturesPositionResponse, error) {
+	var selected *FuturesPositionResponse
+	sides := make(map[uint8]bool)
+	for _, p := range positions {
+		if p == nil || p.Symbol != symbol || p.State == FuturesPositionStateClosed {
+			continue
+		}
+		switch {
+		case direction.IsLong() && p.PositionType != FuturesPositionTypeLong:
+			continue
+		case direction.IsShort() && p.PositionType != FuturesPositionTypeShort:
+			continue
+		}
+		sides[p.PositionType] = true
+		if selected == nil || p.OpenType == FuturesOpenTypeIsolated {
+			selected = p
+		}
+	}
+	if selected == nil {
+		return nil, fmt.Errorf("%w for %s", futures.ErrNoPositionsFound, symbol)
+	}
+	if len(sides) > 1 {
+		return nil, fmt.Errorf("%w: %s has long and short positions open, name a direction", order.ErrSideIsInvalid, symbol)
+	}
+	return selected, nil
+}
+
+// GetFuturesPositionOrders returns the orders of contracts' positions, from their order history within the window
+func (e *Exchange) GetFuturesPositionOrders(ctx context.Context, r *futures.PositionsRequest) ([]futures.PositionResponse, error) {
+	if err := common.NilGuard(r); err != nil {
+		return nil, err
+	}
+	if r.Asset != asset.Futures {
+		return nil, fmt.Errorf("%w %q", futures.ErrNotFuturesAsset, r.Asset)
+	}
+	if len(r.Pairs) == 0 {
+		return nil, currency.ErrCurrencyPairsEmpty
+	}
+	if err := common.StartEndTimeCheck(r.StartDate, r.EndDate); err != nil {
+		return nil, err
+	}
+	resp := make([]futures.PositionResponse, len(r.Pairs))
+	for i, p := range r.Pairs {
+		orders, err := e.GetOrderHistory(ctx, &order.MultiOrderRequest{
+			Pairs:     currency.Pairs{p},
+			AssetType: r.Asset,
+			Type:      order.AnyType,
+			Side:      order.AnySide,
+			StartTime: r.StartDate,
+			EndTime:   r.EndDate,
+		})
+		if err != nil {
+			return nil, err
+		}
+		settlementType := futures.Linear
+		fPair, err := e.FormatExchangeCurrency(p, r.Asset)
+		if err != nil {
+			return nil, err
+		}
+		contract, err := e.futuresContract(ctx, fPair.String())
+		if err != nil {
+			return nil, err
+		}
+		if contract.IsInverse() {
+			settlementType = futures.Inverse
+		}
+		resp[i] = futures.PositionResponse{
+			Pair:                   p,
+			Asset:                  r.Asset,
+			ContractSettlementType: settlementType,
+			Orders:                 orders,
+		}
+	}
+	return resp, nil
+}
+
+// ChangePositionMargin sets the margin of an isolated position. With both sides open in hedge mode the margin side
+// names the position
+func (e *Exchange) ChangePositionMargin(ctx context.Context, r *margin.PositionChangeRequest) (*margin.PositionChangeResponse, error) {
+	if err := common.NilGuard(r); err != nil {
+		return nil, err
+	}
+	if r.Asset != asset.Futures {
+		return nil, fmt.Errorf("%w %q", futures.ErrNotFuturesAsset, r.Asset)
+	}
+	if r.Pair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if r.MarginType != margin.Isolated {
+		return nil, fmt.Errorf("%w %v", margin.ErrMarginTypeUnsupported, r.MarginType)
+	}
+	if r.NewAllocatedMargin <= 0 {
+		return nil, margin.ErrNewAllocatedMarginRequired
+	}
+	fPair, err := e.FormatExchangeCurrency(r.Pair, r.Asset)
+	if err != nil {
+		return nil, err
+	}
+	positions, err := e.GetFuturesOpenPositions(ctx, fPair, "")
+	if err != nil {
+		return nil, err
+	}
+	isolated := slices.DeleteFunc(slices.Clone(positions), func(p *FuturesPositionResponse) bool {
+		return p == nil || p.OpenType != FuturesOpenTypeIsolated
+	})
+	pos, err := selectFuturesPosition(isolated, fPair.String(), sideFromMarginSide(r.MarginSide))
+	if err != nil {
+		return nil, err
+	}
+	positionID, err := parseFuturesPositionID(pos)
+	if err != nil {
+		return nil, err
+	}
+	// The venue changes margin by an amount, so the change is the difference to the position's current margin
+	change := r.NewAllocatedMargin - pos.InitialMargin
+	if change == 0 {
+		return &margin.PositionChangeResponse{Exchange: e.Name, Pair: r.Pair, Asset: r.Asset, MarginType: r.MarginType, AllocatedMargin: pos.InitialMargin}, nil
+	}
+	req := &FuturesChangeMarginRequest{PositionID: positionID, Amount: change, Type: FuturesMarginAdd}
+	if change < 0 {
+		req.Amount, req.Type = -change, FuturesMarginSubtract
+	}
+	if err := e.ChangeFuturesPositionMargin(ctx, req); err != nil {
+		return nil, err
+	}
+	return &margin.PositionChangeResponse{
+		Exchange:        e.Name,
+		Pair:            r.Pair,
+		Asset:           r.Asset,
+		MarginType:      r.MarginType,
+		AllocatedMargin: r.NewAllocatedMargin,
+	}, nil
+}
+
+// sideFromMarginSide returns the position side a margin change names, or none when it names none
+func sideFromMarginSide(marginSide string) order.Side {
+	side, err := order.StringToOrderSide(marginSide)
+	if err != nil {
+		return order.UnknownSide
+	}
+	return side
 }
 
 // UpdateOrderExecutionLimits updates order execution limits
@@ -1551,6 +2836,40 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, assetType ass
 		if err := limits.Load(l); err != nil {
 			return err
 		}
+	case asset.Futures:
+		contracts, err := e.GetFuturesContracts(ctx, currency.EMPTYPAIR)
+		if err != nil {
+			return err
+		}
+		pairFormat, err := e.GetPairFormat(assetType, false)
+		if err != nil {
+			return err
+		}
+		l := make([]limits.MinMaxLevel, 0, len(contracts))
+		for _, c := range contracts {
+			pair, err := currency.NewPairDelimiter(c.Symbol, currency.UnderscoreDelimiter)
+			if err != nil {
+				return err
+			}
+			// Amounts are in contracts. A limit order may be larger than a market order, so the limit order cap is
+			// the maximum and the market order cap MarketMaxQty
+			l = append(l, limits.MinMaxLevel{
+				Key:                     key.NewExchangeAssetPair(e.Name, assetType, pair.Format(pairFormat)),
+				PriceStepIncrementSize:  c.PriceUnit,
+				AmountStepIncrementSize: c.VolumeUnit,
+				MinimumBaseAmount:       c.MinVolume,
+				MaximumBaseAmount:       max(c.LimitMaxVolume, c.MaxVolume),
+				MarketMinQty:            c.MinVolume,
+				MarketMaxQty:            c.MaxVolume,
+				MarketStepIncrementSize: c.VolumeUnit,
+				MultiplierDecimal:       c.ContractSize,
+				Listed:                  c.OpeningTime.Time(),
+				Delisting:               c.DeliveryTime.Time(),
+			})
+		}
+		if err := limits.Load(l); err != nil {
+			return err
+		}
 	default:
 		return fmt.Errorf("%w: %v", asset.ErrNotSupported, assetType)
 	}
@@ -1566,6 +2885,12 @@ func (e *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp curre
 		}
 		cp.Delimiter = currency.UnderscoreDelimiter
 		return tradeBaseURL + "exchange/" + cp.Upper().String(), nil
+	case asset.Futures:
+		if _, err := e.CurrencyPairs.IsPairEnabled(cp, a); err != nil {
+			return "", err
+		}
+		cp.Delimiter = currency.UnderscoreDelimiter
+		return tradeBaseURL + "futures/" + cp.Upper().String(), nil
 	default:
 		return "", fmt.Errorf("%w: %v", asset.ErrNotSupported, a)
 	}
@@ -1582,4 +2907,284 @@ func orderStatusFromString(status string) (order.Status, error) {
 		return order.PartiallyCancelled, nil
 	}
 	return order.StringToOrderStatus(status)
+}
+
+// futuresOrderSide returns the futures side of an order: a buy opens a long position, or closes a short one when it
+// only reduces, and a sell opens a short position, or closes a long one
+func futuresOrderSide(side order.Side, reduceOnly bool) (uint8, error) {
+	switch {
+	case side.IsLong() && reduceOnly:
+		return FuturesSideCloseShort, nil
+	case side.IsLong():
+		return FuturesSideOpenLong, nil
+	case side.IsShort() && reduceOnly:
+		return FuturesSideCloseLong, nil
+	case side.IsShort():
+		return FuturesSideOpenShort, nil
+	}
+	return 0, fmt.Errorf("%w: %v", order.ErrSideIsInvalid, side)
+}
+
+// orderSideFromFuturesSide returns an order's side and whether it only reduces a position
+func orderSideFromFuturesSide(side uint8) (order.Side, bool) {
+	switch side {
+	case FuturesSideOpenLong:
+		return order.Buy, false
+	case FuturesSideCloseShort:
+		return order.Buy, true
+	case FuturesSideOpenShort:
+		return order.Sell, false
+	case FuturesSideCloseLong:
+		return order.Sell, true
+	}
+	return order.UnknownSide, false
+}
+
+// futuresPositionSide returns the side of a position type
+func futuresPositionSide(positionType uint8) order.Side {
+	switch positionType {
+	case FuturesPositionTypeLong:
+		return order.Long
+	case FuturesPositionTypeShort:
+		return order.Short
+	}
+	return order.UnknownSide
+}
+
+// futuresOrderTypeFromOrderTypeAndTimeInForce returns the futures order type of an order. The time in force is
+// carried by the order type, so a limit order which must not rest is sent as an IOC or FOK order
+func futuresOrderTypeFromOrderTypeAndTimeInForce(oType order.Type, tif order.TimeInForce) (uint8, error) {
+	switch oType {
+	case order.Limit:
+		// A limit order rests until cancelled anyway, so a GTC flag beside the one constraint the venue carries is
+		// harmless; any other flag would be dropped on the wire
+		switch tif &^ order.GoodTillCancel {
+		case order.UnknownTIF:
+			return FuturesOrderTypeLimit, nil
+		case order.PostOnly:
+			return FuturesOrderTypePostOnly, nil
+		case order.ImmediateOrCancel:
+			return FuturesOrderTypeImmediateOrCancel, nil
+		case order.FillOrKill:
+			return FuturesOrderTypeFillOrKill, nil
+		}
+		return 0, fmt.Errorf("%w %q for a limit order", order.ErrUnsupportedTimeInForce, tif)
+	case order.Market:
+		switch tif {
+		case order.UnknownTIF, order.GoodTillCancel, order.ImmediateOrCancel:
+			return FuturesOrderTypeMarket, nil
+		}
+		return 0, fmt.Errorf("%w %q for a market order", order.ErrUnsupportedTimeInForce, tif)
+	}
+	return 0, fmt.Errorf("%w %q with %w", order.ErrUnsupportedOrderType, oType, order.ErrUnsupportedTimeInForce)
+}
+
+// orderTypeFromFuturesOrder returns an order's type and time in force from its futures order type and category.
+// Orders the venue places to liquidate a position are reported as liquidations whatever their type
+func orderTypeFromFuturesOrder(orderType, category uint8) (order.Type, order.TimeInForce) {
+	switch category {
+	case FuturesOrderCategoryLiquidationCustody, FuturesOrderCategoryCustodyClose, FuturesOrderCategoryLiquidationReduction:
+		return order.Liquidation, order.UnknownTIF
+	}
+	switch orderType {
+	case FuturesOrderTypeLimit:
+		return order.Limit, order.GoodTillCancel
+	case FuturesOrderTypePostOnly:
+		return order.Limit, order.PostOnly
+	case FuturesOrderTypeImmediateOrCancel:
+		return order.Limit, order.ImmediateOrCancel
+	case FuturesOrderTypeFillOrKill:
+		return order.Limit, order.FillOrKill
+	case FuturesOrderTypeMarket, FuturesOrderTypeMarketToLimit:
+		return order.Market, order.UnknownTIF
+	}
+	return order.UnknownType, order.UnknownTIF
+}
+
+// orderStatusFromFuturesState returns an order's status from its futures state and filled volume
+func orderStatusFromFuturesState(state uint8, dealVolume float64) order.Status {
+	switch state {
+	case FuturesOrderStatePending:
+		return order.New
+	case FuturesOrderStateUnfilled:
+		if dealVolume > 0 {
+			return order.PartiallyFilled
+		}
+		return order.New
+	case FuturesOrderStateFilled:
+		return order.Filled
+	case FuturesOrderStateCancelled:
+		if dealVolume > 0 {
+			return order.PartiallyCancelled
+		}
+		return order.Cancelled
+	case FuturesOrderStateInvalid:
+		return order.Rejected
+	}
+	return order.UnknownStatus
+}
+
+// futuresOpenTypeFromMarginType returns the open type of a margin type; an unset margin type is isolated, which puts
+// only the position's own margin at risk
+func futuresOpenTypeFromMarginType(m margin.Type) (uint8, error) {
+	switch m {
+	case margin.Isolated, margin.Unset:
+		return FuturesOpenTypeIsolated, nil
+	case margin.Multi:
+		return FuturesOpenTypeCross, nil
+	}
+	return 0, fmt.Errorf("%w %v", margin.ErrMarginTypeUnsupported, m)
+}
+
+// futuresMarginType returns the margin type of an open type
+func futuresMarginType(openType uint8) margin.Type {
+	switch openType {
+	case FuturesOpenTypeIsolated:
+		return margin.Isolated
+	case FuturesOpenTypeCross:
+		return margin.Multi
+	}
+	return margin.Unset
+}
+
+// futuresBalance returns a futures account balance. The venue reports what is available apart from what open orders
+// freeze and what positions hold as margin, so both count as held; the total leaves out unrealised PNL, which the
+// venue's equity counts, so that it moves with funds rather than with the mark price
+func futuresBalance(available, frozen, positionMargin float64) accounts.Balance {
+	return accounts.Balance{
+		Free:  available,
+		Hold:  frozen + positionMargin,
+		Total: available + frozen + positionMargin,
+	}
+}
+
+// futuresSymbolPair returns the available pair of a futures symbol, or the pair the symbol names when it is not
+// available, so that orders on a contract which has left the available pairs are still reported
+func (e *Exchange) futuresSymbolPair(symbol string) (currency.Pair, error) {
+	if pair, err := e.MatchSymbolWithAvailablePairs(symbol, asset.Futures, true); err == nil {
+		return pair, nil
+	}
+	pair, err := currency.NewPairDelimiter(symbol, currency.UnderscoreDelimiter)
+	if err != nil {
+		return currency.EMPTYPAIR, err
+	}
+	pairFormat, err := e.GetPairFormat(asset.Futures, false)
+	if err != nil {
+		return currency.EMPTYPAIR, err
+	}
+	return pair.Format(pairFormat), nil
+}
+
+// futuresOrderDetail returns a futures order as an order detail. Amounts are in contracts, and the cost is in the
+// contract's settlement currency
+func (e *Exchange) futuresOrderDetail(ctx context.Context, o *FuturesOrderResponse, fallback currency.Pair) (order.Detail, error) {
+	pair, err := e.futuresSymbolPair(o.Symbol)
+	if err != nil {
+		if fallback.IsEmpty() {
+			return order.Detail{}, err
+		}
+		pair = fallback
+	}
+	oType, tif := orderTypeFromFuturesOrder(o.OrderType, o.Category)
+	side, reduceOnly := orderSideFromFuturesSide(o.Side)
+	lastUpdated := o.UpdateTime.Time()
+	if lastUpdated.IsZero() {
+		lastUpdated = o.CreateTime.Time()
+	}
+	detail := order.Detail{
+		Exchange:             e.Name,
+		OrderID:              o.OrderID.String(),
+		ClientOrderID:        o.ExternalOrderID,
+		Pair:                 pair,
+		AssetType:            asset.Futures,
+		Price:                o.Price,
+		Amount:               o.Volume,
+		ContractAmount:       o.Volume,
+		ExecutedAmount:       o.DealVolume,
+		RemainingAmount:      o.Volume - o.DealVolume,
+		AverageExecutedPrice: o.DealAveragePrice,
+		Fee:                  o.TakerFee + o.MakerFee,
+		FeeAsset:             o.FeeCurrency,
+		Leverage:             float64(o.Leverage),
+		MarginType:           futuresMarginType(o.OpenType),
+		ReduceOnly:           reduceOnly || o.ReduceOnly,
+		Type:                 oType,
+		TimeInForce:          tif,
+		Side:                 side,
+		Status:               orderStatusFromFuturesState(o.State, o.DealVolume),
+		Date:                 o.CreateTime.Time(),
+		LastUpdated:          lastUpdated,
+	}
+	if o.DealVolume > 0 && o.DealAveragePrice > 0 {
+		contract, err := e.futuresContract(ctx, o.Symbol)
+		if err != nil {
+			// The cost only enriches the order, so a contract the venue no longer lists does not sink it
+			log.Warnf(log.ExchangeSys, "%s: cost unknown for futures order %s: %v", e.Name, detail.OrderID, err)
+			return detail, nil
+		}
+		detail.Cost, detail.CostAsset = futuresCost(contract, o.DealVolume, o.DealAveragePrice)
+	}
+	return detail, nil
+}
+
+// futuresCost returns what contracts filled at a price are worth in the contract's settlement currency
+func futuresCost(c *FuturesContractResponse, contracts, price float64) (float64, currency.Code) {
+	if c.IsInverse() {
+		return contracts * c.ContractSize / price, c.SettleCoin
+	}
+	return contracts * c.ContractSize * price, c.SettleCoin
+}
+
+// futuresTradeHistory returns futures fills as trade history; amounts are in contracts
+func futuresTradeHistory(exchangeName string, deals []*FuturesOrderDealResponse) []order.TradeHistory {
+	trades := make([]order.TradeHistory, 0, len(deals))
+	for _, d := range deals {
+		if d == nil {
+			continue
+		}
+		side, _ := orderSideFromFuturesSide(d.Side)
+		trades = append(trades, order.TradeHistory{
+			Price:     d.Price,
+			Amount:    d.Volume,
+			Fee:       d.Fee,
+			FeeAsset:  d.FeeCurrency.String(),
+			Exchange:  exchangeName,
+			TID:       d.ID.String(),
+			Side:      side,
+			Timestamp: d.Timestamp.Time(),
+			IsMaker:   !d.WasTaker(),
+		})
+	}
+	return trades
+}
+
+// futuresContractsFor returns the details of the contracts behind tickers, reading every contract's once when one is
+// not yet known
+func (e *Exchange) futuresContractsFor(ctx context.Context, tickers []*FuturesTickerResponse) (map[string]*FuturesContractResponse, error) {
+	snapshot := func() (map[string]*FuturesContractResponse, bool) {
+		e.futuresContractsMu.RLock()
+		defer e.futuresContractsMu.RUnlock()
+		contracts := make(map[string]*FuturesContractResponse, len(e.futuresContracts))
+		complete := true
+		for _, t := range tickers {
+			if t == nil {
+				continue
+			}
+			c, ok := e.futuresContracts[t.Symbol]
+			if !ok {
+				complete = false
+				continue
+			}
+			contracts[t.Symbol] = c
+		}
+		return contracts, complete
+	}
+	if contracts, complete := snapshot(); complete {
+		return contracts, nil
+	}
+	if _, err := e.GetFuturesContracts(ctx, currency.EMPTYPAIR); err != nil {
+		return nil, err
+	}
+	contracts, _ := snapshot()
+	return contracts, nil
 }

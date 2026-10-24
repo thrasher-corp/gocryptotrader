@@ -7,23 +7,40 @@
 
 + REST Support
 + Websocket Support
++ Spot and perpetual futures assets; futures pairs are the venue's contract symbols, for example `BTC_USDT` for a USDT margined contract and `BTC_USD` for a coin margined one
++ Futures support for contract details, funding rates, open interest, leverage, positions and position margin
+
+### Futures
+
++ Order, order book and trade amounts are in contracts, as the venue counts them; a contract's size is in its details, the `Multiplier` of `GetFuturesContractDetails`
++ Ticker volumes, candle volumes and open interest are restated in currency with each contract's size
++ An order without a margin type is isolated, and an isolated order opening a position without leverage takes the account's leverage for that side of the contract
++ A reduce-only order names the position it closes, and takes that position's margin type when it names none
++ `GetHistoricTrades` is not supported for futures, since the venue serves only the latest trades, which `GetRecentTrades` returns
 
 ### Subscriptions
 
 Default Public Subscriptions:
 
-+ Orderbook for spot
-+ Candles for spot
-+ Ticker for spot
-+ All trades for spot
++ Orderbook for spot and futures
++ Candles for spot and futures
++ Ticker for spot and futures
++ All trades for spot and futures
 
 Default Authenticated Subscriptions:
 
-+ Account Balance events for spot
-+ Order events for spot
-+ Trade fill events for spot
++ Account Balance events for spot and futures
++ Order events for spot and futures
++ Trade fill events for spot and futures
++ Position events for futures
 
 Subscriptions are subject to enabled assets and pairs.
+
+### Testing
+
++ Tests run against recorded mock responses in `testdata/http.json` by default
++ Live tests are enabled with the `mock_test_off` build tag, for example `go test -tags=mock_test_off ./exchanges/mexc/...`
++ Authenticated live tests require credentials in `rest_test.go` or the `MEXC_API_KEY` and `MEXC_API_SECRET` environment variables, and order placement tests also require `canManipulateRealOrders` to be enabled in `rest_test.go`
 
 {{template "donations" .}}
 {{end}}

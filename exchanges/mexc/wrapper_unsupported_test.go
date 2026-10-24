@@ -2,20 +2,21 @@ package mexc
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-// TestUnsupportedOperations asserts the operations MEXC spot does not offer report it, rather than
-// returning a zero value a caller could mistake for success.
+// TestUnsupportedOperations asserts the operations MEXC does not offer report it, rather than returning a zero
+// value a caller could mistake for success.
 func TestUnsupportedOperations(t *testing.T) {
 	t.Parallel()
 
@@ -26,8 +27,8 @@ func TestUnsupportedOperations(t *testing.T) {
 	})
 	t.Run("CancelBatchOrders", func(t *testing.T) {
 		t.Parallel()
-		_, err := e.CancelBatchOrders(t.Context(), nil)
-		assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "CancelBatchOrders should report it is unsupported")
+		_, err := e.CancelBatchOrders(t.Context(), []order.Cancel{{OrderID: "1", AssetType: asset.Spot}})
+		assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "CancelBatchOrders should report it is unsupported for spot")
 	})
 	t.Run("WithdrawFiatFunds", func(t *testing.T) {
 		t.Parallel()
@@ -39,15 +40,10 @@ func TestUnsupportedOperations(t *testing.T) {
 		_, err := e.WithdrawFiatFundsToInternationalBank(t.Context(), &withdraw.Request{})
 		assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "WithdrawFiatFundsToInternationalBank should report it is unsupported")
 	})
-	t.Run("GetFuturesContractDetails", func(t *testing.T) {
+	t.Run("GetHistoricTrades", func(t *testing.T) {
 		t.Parallel()
-		_, err := e.GetFuturesContractDetails(t.Context(), asset.Futures)
-		assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "GetFuturesContractDetails should report it is unsupported")
-	})
-	t.Run("GetLatestFundingRates", func(t *testing.T) {
-		t.Parallel()
-		_, err := e.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{})
-		assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "GetLatestFundingRates should report it is unsupported")
+		_, err := e.GetHistoricTrades(t.Context(), currency.NewBTCUSDT(), asset.Futures, time.Now().Add(-time.Hour), time.Now())
+		assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "GetHistoricTrades should report it is unsupported for futures")
 	})
 }
 
@@ -95,6 +91,7 @@ func TestFeaturesMatchImplementation(t *testing.T) {
 		WithdrawalHistory:     true,
 		MultiChainWithdrawals: true,
 		AutoPairUpdates:       true,
+		FundingRateFetching:   true,
 	}, ex.Features.Supports.RESTCapabilities, "the REST capabilities should match the implemented wrapper methods")
 	assert.Equal(t, protocol.Features{
 		TickerFetching:         true,

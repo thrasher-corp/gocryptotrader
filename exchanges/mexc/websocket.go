@@ -220,6 +220,15 @@ var defaultSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.MyTradesChannel, Authenticated: true},
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.MyOrdersChannel, Authenticated: true},
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.MyAccountChannel, Authenticated: true},
+
+	{Enabled: true, Asset: asset.Futures, Channel: subscription.TickerChannel},
+	{Enabled: true, Asset: asset.Futures, Channel: subscription.OrderbookChannel, Levels: futuresDefaultDepthLevels},
+	{Enabled: true, Asset: asset.Futures, Channel: subscription.AllTradesChannel},
+	{Enabled: true, Asset: asset.Futures, Channel: subscription.CandlesChannel, Interval: kline.FifteenMin},
+	{Enabled: true, Asset: asset.Futures, Channel: subscription.MyOrdersChannel, Authenticated: true},
+	{Enabled: true, Asset: asset.Futures, Channel: subscription.MyTradesChannel, Authenticated: true},
+	{Enabled: true, Asset: asset.Futures, Channel: subscription.MyAccountChannel, Authenticated: true},
+	{Enabled: true, Asset: asset.Futures, Channel: FuturesPositionsChannel, Authenticated: true},
 }
 
 // generateSubscriptions returns a list of subscriptions from the configured subscriptions feature
@@ -238,24 +247,27 @@ func isPrivateChannel(s *subscription.Subscription) bool {
 	return false
 }
 
-// generatePublicSubscriptions returns the configured subscriptions to the public channels
+// generatePublicSubscriptions returns the configured subscriptions to the public spot channels
 func (e *Exchange) generatePublicSubscriptions() (subscription.List, error) {
 	subs, err := e.generateSubscriptions()
-	return slices.DeleteFunc(subs, isPrivateChannel), err
+	return slices.DeleteFunc(subs, func(s *subscription.Subscription) bool { return s.Asset != asset.Spot || isPrivateChannel(s) }), err
 }
 
-// generatePrivateSubscriptions returns the configured subscriptions to the private channels, none unless the
+// generatePrivateSubscriptions returns the configured subscriptions to the private spot channels, none unless the
 // authenticated websocket can be used
 func (e *Exchange) generatePrivateSubscriptions() (subscription.List, error) {
 	if !e.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, nil
 	}
 	subs, err := e.generateSubscriptions()
-	return slices.DeleteFunc(subs, func(s *subscription.Subscription) bool { return !isPrivateChannel(s) }), err
+	return slices.DeleteFunc(subs, func(s *subscription.Subscription) bool { return s.Asset != asset.Spot || !isPrivateChannel(s) }), err
 }
 
 // GetSubscriptionTemplate returns a subscription channel template
-func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
+func (e *Exchange) GetSubscriptionTemplate(s *subscription.Subscription) (*template.Template, error) {
+	if s != nil && s.Asset == asset.Futures {
+		return e.futuresSubscriptionTemplate()
+	}
 	return template.New("master.tmpl").
 		Funcs(template.FuncMap{
 			"channelName":       channelName,
