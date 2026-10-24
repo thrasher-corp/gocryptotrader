@@ -498,14 +498,18 @@ func (e *websocketTestExchange) GetWebsocket() (*websocket.Manager, error) { ret
 // exchange.Base.Shutdown does, tolerating an already disabled or disconnected
 // websocket so cleanups do not race the connection monitor
 func (e *websocketTestExchange) Shutdown() error {
-	if err := e.ws.Disable(); err != nil && !errors.Is(err, websocket.ErrAlreadyDisabled) {
+	err := e.ws.Disable()
+	if errors.Is(err, websocket.ErrAlreadyDisabled) {
+		err = nil
+	}
+	if err != nil {
 		return err
 	}
-	err := e.ws.Shutdown()
-	if err != nil && !errors.Is(err, websocket.ErrNotConnected) {
-		return err
+	err = e.ws.Shutdown()
+	if errors.Is(err, websocket.ErrNotConnected) {
+		err = nil
 	}
-	return nil
+	return err
 }
 
 func testWebsocketManager(name string, connects *atomic.Int32) (*websocket.Manager, error) {
