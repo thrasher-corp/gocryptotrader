@@ -4135,7 +4135,7 @@ func TestCancelBatchOrdersFallsBackToSingleCancels(t *testing.T) {
 	assert.Equal(t, []string{"0", "1", "2"}, fake.cancelledIDs)
 	assert.Equal(t, order.Cancelled.String(), status["0"])
 	assert.Equal(t, order.Cancelled.String(), status["1"])
-	assert.Equal(t, errBoom.Error(), status["2"], "a failed single cancel must not report as cancelled")
+	assert.Equal(t, errBoom.Error(), status["2"], "a failed single cancel is reported as an error, not as cancelled")
 }
 
 func TestCancelBatchOrdersReportsWrapperStatuses(t *testing.T) {
@@ -4150,7 +4150,7 @@ func TestCancelBatchOrdersReportsWrapperStatuses(t *testing.T) {
 
 	assert.Equal(t, order.Cancelled.String(), status["0"])
 	assert.Equal(t, "not supported", status["1"])
-	assert.Equal(t, order.UnknownStatus.String(), status["2"], "an omitted status must not report as cancelled")
+	assert.Equal(t, order.UnknownStatus.String(), status["2"], "an omitted status is reported as unknown, not as cancelled")
 }
 
 func TestCancelBatchOrdersPropagatesBatchError(t *testing.T) {
