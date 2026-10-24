@@ -942,7 +942,7 @@ func TestConnectStartsTrafficMonitorOnceConnected(t *testing.T) {
 				return conn.Dial(ctx, dialer, nil, nil)
 			},
 			GenerateSubscriptions: func() (subscription.List, error) {
-				return subscription.List{{Channel: "test"}}, nil
+				return subscription.List{{Channel: "test", QualifiedChannel: "test"}}, nil
 			},
 			Subscriber: func(_ context.Context, conn Connection, subs subscription.List) error {
 				return ws.AddSuccessfulSubscriptions(conn, subs...)
