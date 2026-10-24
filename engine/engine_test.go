@@ -9,12 +9,15 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bitfinex"
@@ -867,5 +870,83 @@ func TestSetupExchanges(t *testing.T) {
 			exchangeNames := []string{exchanges[0].GetName(), exchanges[1].GetName()}
 			assert.ElementsMatch(t, []string{"Bitstamp", "Bitfinex"}, exchangeNames)
 		})
+	})
+}
+
+type websocketTestExchangeBuilder struct {
+	connects atomic.Int32
+}
+
+func (b *websocketTestExchangeBuilder) NewExchangeByName(name string) (exchange.IBotExchange, error) {
+	if name != websocketTestExchangeName {
+		return nil, fmt.Errorf("%s, %w", name, ErrExchangeNotFound)
+	}
+	ws, err := testWebsocketManager(name, &b.connects)
+	if err != nil {
+		return nil, err
+	}
+	return &websocketTestExchange{name: name, ws: ws, supportsWebsocket: true}, nil
+}
+
+func TestLoadExchangeStartsWebsocketAfterRuntimeLoad(t *testing.T) {
+	t.Parallel()
+	manager, err := setupWebsocketRoutineManager(NewExchangeManager(), &OrderManager{}, &SyncManager{}, &currency.Config{CurrencyPairFormat: &currency.PairFormat{}}, false)
+	require.NoError(t, err)
+	require.NoError(t, manager.Start(t.Context()))
+	t.Cleanup(func() {
+		if err := manager.Stop(); err != nil {
+			assert.ErrorIs(t, err, ErrSubSystemNotStarted, "Stop should only fail when already stopped")
+		}
+	})
+
+	received := make(chan any, 4)
+	require.NoError(t, manager.registerWebsocketDataHandler(func(_ string, data any) error {
+		received <- data
+		return nil
+	}, false))
+
+	builder := &websocketTestExchangeBuilder{}
+	e := &Engine{
+		ExchangeManager:         NewExchangeManager(),
+		Config:                  &config.Config{Exchanges: []config.Exchange{{Name: websocketTestExchangeName}}},
+		WebsocketRoutineManager: manager,
+		runtimeCtx:              t.Context(),
+	}
+	e.ExchangeManager.Builder = builder
+
+	require.NoError(t, e.LoadExchange(websocketTestExchangeName), "LoadExchange must not error")
+	loaded, err := e.GetExchangeByName(websocketTestExchangeName)
+	require.NoError(t, err, "loaded exchange must be retrievable")
+	firstWS, err := loaded.GetWebsocket()
+	require.NoError(t, err, "GetWebsocket must not error")
+	assert.True(t, firstWS.IsConnected(), "runtime-loaded websocket should connect")
+	assert.EqualValues(t, 1, builder.connects.Load(), "connector should be called once")
+
+	require.NoError(t, firstWS.DataHandler.Send(t.Context(), "runtime load"))
+	select {
+	case data := <-received:
+		assert.Equal(t, "runtime load", data, "data receiver should be registered")
+	case <-time.After(time.Second):
+		t.Fatal("data receiver was not registered")
+	}
+
+	require.NoError(t, e.UnloadExchange(websocketTestExchangeName), "UnloadExchange must not error")
+	assert.False(t, firstWS.IsConnected(), "unloaded websocket should be disconnected")
+	manager.receiversMu.Lock()
+	assert.Empty(t, manager.dataReceivers, "UnloadExchange should cancel the exchange's data receiver")
+	manager.receiversMu.Unlock()
+
+	require.NoError(t, e.LoadExchange(websocketTestExchangeName), "reloading the exchange must not error")
+	reloaded, err := e.GetExchangeByName(websocketTestExchangeName)
+	require.NoError(t, err, "reloaded exchange must be retrievable")
+	secondWS, err := reloaded.GetWebsocket()
+	require.NoError(t, err, "GetWebsocket must not error")
+	assert.NotSame(t, firstWS, secondWS, "reload should construct a new websocket")
+	assert.True(t, secondWS.IsConnected(), "reloaded websocket should connect")
+	assert.EqualValues(t, 2, builder.connects.Load(), "connector should be called for the replacement")
+	t.Cleanup(func() {
+		if err := reloaded.Shutdown(); err != nil {
+			assert.ErrorIs(t, err, websocket.ErrNotConnected, "reloaded websocket should shut down cleanly")
+		}
 	})
 }
