@@ -1142,6 +1142,7 @@ func TestWithdrawCryptoPreservesFractionalAmount(t *testing.T) {
 		{name: "fraction", amount: 1.9, want: "1.9"},
 		{name: "small fraction", amount: 0.00001234, want: "0.00001234"},
 		{name: "whole amount", amount: 2, want: "2"},
+		{name: "seventeen significant digits", amount: 0.12345678912345678, want: "0.12345678912345678"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -1151,7 +1152,7 @@ func TestWithdrawCryptoPreservesFractionalAmount(t *testing.T) {
 			ex.SetCredentials(&accounts.Credentials{Key: "test-key", Secret: "test-secret"})
 			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				assert.Equal(t, http.MethodPost, r.Method)
-				assert.Equal(t, applyWithdrawal, r.URL.Path)
+				assert.Equal(t, "/sapi/v1/capital/withdraw/apply", r.URL.Path)
 				assert.Equal(t, tc.want, r.URL.Query().Get("amount"))
 				_, err := w.Write([]byte(`{"id":"withdrawal-id"}`))
 				assert.NoError(t, err)
