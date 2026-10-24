@@ -104,9 +104,12 @@ func (m *WebsocketRoutineManager) Stop() error {
 		m.connectionCancel()
 		m.connectionCancel = nil
 	}
+	m.mu.Unlock()
+
+	m.receiversMu.Lock()
 	receivers := m.dataReceivers
 	m.dataReceivers = nil
-	m.mu.Unlock()
+	m.receiversMu.Unlock()
 
 	for _, cancel := range receivers {
 		cancel()
@@ -210,7 +213,6 @@ func (m *WebsocketRoutineManager) registerExchange(ctx context.Context, exch exc
 	}
 
 	if err := ws.Connect(ctx); err != nil {
-		m.unregisterExchange(exch.GetName())
 		return fmt.Errorf("%s websocket connect error: %w", exch.GetName(), err)
 	}
 	return nil
@@ -224,10 +226,10 @@ func (m *WebsocketRoutineManager) unregisterExchange(name string) {
 	}
 
 	key := strings.ToLower(name)
-	m.mu.Lock()
+	m.receiversMu.Lock()
 	cancel := m.dataReceivers[key]
 	delete(m.dataReceivers, key)
-	m.mu.Unlock()
+	m.receiversMu.Unlock()
 
 	if cancel != nil {
 		cancel()
@@ -251,9 +253,9 @@ func (m *WebsocketRoutineManager) websocketDataReceiver(ctx context.Context, ws 
 
 	receiverCtx, cancel := context.WithCancel(ctx)
 
-	m.mu.Lock()
+	m.receiversMu.Lock()
 	if m.state.Load() == stoppedState {
-		m.mu.Unlock()
+		m.receiversMu.Unlock()
 		cancel()
 		return errRoutineManagerNotStarted
 	}
@@ -265,8 +267,9 @@ func (m *WebsocketRoutineManager) websocketDataReceiver(ctx context.Context, ws 
 		previous()
 	}
 	m.dataReceivers[key] = cancel
-	m.mu.Unlock()
 
+	// The receiver is counted in m.wg before releasing receiversMu so Stop
+	// cannot reach wg.Wait ahead of it.
 	m.wg.Go(func() {
 		for {
 			select {
@@ -289,6 +292,7 @@ func (m *WebsocketRoutineManager) websocketDataReceiver(ctx context.Context, ws 
 			}
 		}
 	})
+	m.receiversMu.Unlock()
 	return nil
 }
 

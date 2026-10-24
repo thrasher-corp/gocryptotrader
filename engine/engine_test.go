@@ -932,6 +932,9 @@ func TestLoadExchangeStartsWebsocketAfterRuntimeLoad(t *testing.T) {
 
 	require.NoError(t, e.UnloadExchange(websocketTestExchangeName), "UnloadExchange must not error")
 	assert.False(t, firstWS.IsConnected(), "unloaded websocket should be disconnected")
+	manager.receiversMu.Lock()
+	assert.Empty(t, manager.dataReceivers, "UnloadExchange should cancel the exchange's data receiver")
+	manager.receiversMu.Unlock()
 
 	require.NoError(t, e.LoadExchange(websocketTestExchangeName), "reloading the exchange must not error")
 	reloaded, err := e.GetExchangeByName(websocketTestExchangeName)
@@ -942,7 +945,7 @@ func TestLoadExchangeStartsWebsocketAfterRuntimeLoad(t *testing.T) {
 	assert.True(t, secondWS.IsConnected(), "reloaded websocket should connect")
 	assert.EqualValues(t, 2, builder.connects.Load(), "connector should be called for the replacement")
 	t.Cleanup(func() {
-		if err := secondWS.Shutdown(); err != nil {
+		if err := reloaded.Shutdown(); err != nil {
 			assert.ErrorIs(t, err, websocket.ErrNotConnected, "reloaded websocket should shut down cleanly")
 		}
 	})
