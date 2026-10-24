@@ -1132,6 +1132,44 @@ func TestWithdrawCrypto(t *testing.T) {
 	assert.ErrorContains(t, err, "You are not authorized to execute this request.")
 }
 
+func TestWithdrawCryptoPreservesFractionalAmount(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name   string
+		amount float64
+		want   string
+	}{
+		{name: "fraction", amount: 1.9, want: "1.9"},
+		{name: "small fraction", amount: 0.00001234, want: "0.00001234"},
+		{name: "whole amount", amount: 2, want: "2"},
+		{name: "seventeen significant digits", amount: 0.12345678912345678, want: "0.12345678912345678"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex))
+			ex.SkipAuthCheck = true
+			ex.SetCredentials(&accounts.Credentials{Key: "test-key", Secret: "test-secret"})
+			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, http.MethodPost, r.Method)
+				assert.Equal(t, "/sapi/v1/capital/withdraw/apply", r.URL.Path)
+				assert.Equal(t, tc.want, r.URL.Query().Get("amount"))
+				_, err := w.Write([]byte(`{"id":"withdrawal-id"}`))
+				assert.NoError(t, err)
+			}))
+			require.NoError(t, ex.SetHTTPClient(server.Client()))
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpotSupplementary.String(), server.URL))
+			id, err := ex.WithdrawCrypto(t.Context(), &withdraw.Request{
+				Currency: currency.BTC,
+				Crypto:   withdraw.CryptoRequest{Chain: "BTC", Address: "test-address"},
+				Amount:   tc.amount,
+			})
+			require.NoError(t, err)
+			assert.Equal(t, "withdrawal-id", id)
+		})
+	}
+}
+
 func TestFiatWithdrawalHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)

@@ -1357,7 +1357,7 @@ func (e *Exchange) WithdrawCrypto(ctx context.Context, arg *withdraw.Request) (s
 	if arg.Amount <= 0 {
 		return "", errAmountValueMustBeGreaterThan0
 	}
-	params.Set("amount", strconv.FormatFloat(arg.Amount, 'f', 0, 64))
+	params.Set("amount", strconv.FormatFloat(arg.Amount, 'f', -1, 64))
 	var response WithdrawalResponse
 	if err := e.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
