@@ -3853,6 +3853,7 @@ func TestCancelBatchOrders(t *testing.T) {
 	t.Parallel()
 	_, err := e.CancelBatchOrders(contextGenerate(), make([]order.Cancel, 21))
 	require.ErrorIs(t, err, errExceedLimit)
+	require.Equal(t, 20, e.CancelBatchLimit(asset.Spot), "the advertised batch limit must match the enforced one")
 	_, err = e.CancelBatchOrders(contextGenerate(), nil)
 	require.ErrorIs(t, err, order.ErrCancelOrderIsNil)
 

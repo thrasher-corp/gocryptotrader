@@ -1415,15 +1415,12 @@ func (s *RPCServer) CancelBatchOrders(ctx context.Context, r *gctrpc.CancelBatch
 		return nil, err
 	}
 
-	status := make(map[string]string)
 	orders := strings.Split(r.OrdersId, ",")
 	req := make([]order.Cancel, len(orders))
 	for x := range orders {
-		orderID := orders[x]
-		status[orderID] = order.Cancelled.String()
 		req[x] = order.Cancel{
 			AccountID: r.AccountId,
-			OrderID:   orderID,
+			OrderID:   orders[x],
 			Side:      side,
 			Pair:      pair,
 			AssetType: assetType,
@@ -1431,7 +1428,7 @@ func (s *RPCServer) CancelBatchOrders(ctx context.Context, r *gctrpc.CancelBatch
 	}
 
 	// TODO: Change to order manager
-	_, err = exch.CancelBatchOrders(ctx, req)
+	status, err := cancelBatchOrders(ctx, exch, req)
 	if err != nil {
 		return nil, err
 	}
@@ -1442,6 +1439,76 @@ func (s *RPCServer) CancelBatchOrders(ctx context.Context, r *gctrpc.CancelBatch
 			OrderStatus: status,
 		}},
 	}, nil
+}
+
+// batchCanceller is the subset of an exchange wrapper needed to cancel orders.
+type batchCanceller interface {
+	CancelOrder(ctx context.Context, o *order.Cancel) error
+	CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error)
+}
+
+// cancelBatchOrders splits the cancels into the largest batches the exchange
+// accepts and reports a status for every order ID. A wrapper that does not
+// support batch cancels has each order cancelled individually instead.
+func cancelBatchOrders(ctx context.Context, exch batchCanceller, orders []order.Cancel) (map[string]string, error) {
+	if len(orders) == 0 {
+		return nil, order.ErrCancelOrderIsNil
+	}
+
+	limit := cancelBatchLimit(exch, orders[0].AssetType)
+	if limit <= 0 {
+		limit = len(orders)
+	}
+
+	status := make(map[string]string, len(orders))
+	for start := 0; start < len(orders); start += limit {
+		batch := orders[start:min(start+limit, len(orders))]
+		resp, err := exch.CancelBatchOrders(ctx, batch)
+		if err != nil {
+			if !errors.Is(err, common.ErrFunctionNotSupported) {
+				return nil, err
+			}
+			// The wrapper has no batch endpoint, so cancel this batch one order at a time.
+			for x := range batch {
+				status[batch[x].OrderID] = cancelSingleOrder(ctx, exch, &batch[x])
+			}
+			continue
+		}
+		for x := range batch {
+			status[batch[x].OrderID] = cancelBatchStatus(resp, batch[x].OrderID)
+		}
+	}
+	return status, nil
+}
+
+// cancelSingleOrder cancels one order and returns its status.
+func cancelSingleOrder(ctx context.Context, exch batchCanceller, o *order.Cancel) string {
+	if err := exch.CancelOrder(ctx, o); err != nil {
+		return err.Error()
+	}
+	return order.Cancelled.String()
+}
+
+// cancelBatchStatus returns the status a wrapper reported for an order ID. A
+// missing status is unknown, but a wrapper that reports no statuses at all is
+// taken at its word when it returns without an error.
+func cancelBatchStatus(resp *order.CancelBatchResponse, orderID string) string {
+	if resp == nil || resp.Status == nil {
+		return order.Cancelled.String()
+	}
+	if s, ok := resp.Status[orderID]; ok {
+		return s
+	}
+	return order.UnknownStatus.String()
+}
+
+// cancelBatchLimit returns the largest batch an exchange accepts for that asset,
+// or 0 when it does not advertise one.
+func cancelBatchLimit(exch batchCanceller, a asset.Item) int {
+	if l, ok := exch.(order.BatchCancelLimit); ok {
+		return l.CancelBatchLimit(a)
+	}
+	return 0
 }
 
 // CancelAllOrders cancels all orders, filterable by exchange
