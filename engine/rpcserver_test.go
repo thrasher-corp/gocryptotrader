@@ -4037,3 +4037,135 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp.Url)
 }
+
+// batchCancelFake is a fake exchange wrapper that records the batches it is
+// asked to cancel so the RPC's splitting and reporting can be asserted.
+type batchCancelFake struct {
+	exchange.IBotExchange
+	batches      [][]order.Cancel
+	cancelledIDs []string
+	batchErr     error
+	singleErrs   map[string]error
+	statuses     map[string]string
+	reportStatus bool
+}
+
+func (f *batchCancelFake) CancelBatchOrders(_ context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
+	if f.batchErr != nil {
+		return nil, f.batchErr
+	}
+	f.batches = append(f.batches, o)
+	if !f.reportStatus {
+		return &order.CancelBatchResponse{}, nil
+	}
+	resp := &order.CancelBatchResponse{Status: make(map[string]string, len(o))}
+	for x := range o {
+		if s, ok := f.statuses[o[x].OrderID]; ok {
+			resp.Status[o[x].OrderID] = s
+		}
+	}
+	return resp, nil
+}
+
+func (f *batchCancelFake) CancelOrder(_ context.Context, o *order.Cancel) error {
+	f.cancelledIDs = append(f.cancelledIDs, o.OrderID)
+	return f.singleErrs[o.OrderID]
+}
+
+// batchCancelLimitFake also advertises the largest batch its exchange accepts.
+type batchCancelLimitFake struct {
+	batchCancelFake
+	limit int
+}
+
+func (f *batchCancelLimitFake) CancelBatchLimit(asset.Item) int {
+	return f.limit
+}
+
+func newOrderCancels(n int) []order.Cancel {
+	orders := make([]order.Cancel, n)
+	for x := range orders {
+		orders[x] = order.Cancel{OrderID: strconv.Itoa(x), AssetType: asset.Spot}
+	}
+	return orders
+}
+
+func TestCancelBatchOrdersSplitsIntoExchangeBatches(t *testing.T) {
+	t.Parallel()
+
+	fake := &batchCancelLimitFake{limit: 20}
+	status, err := cancelBatchOrders(t.Context(), fake, newOrderCancels(21))
+	require.NoError(t, err)
+
+	require.Len(t, fake.batches, 2, "21 orders must send a batch of 20, then one of 1")
+	assert.Len(t, fake.batches[0], 20)
+	assert.Len(t, fake.batches[1], 1)
+	assert.Empty(t, fake.cancelledIDs, "no single cancels when the batch call succeeded")
+
+	require.Len(t, status, 21)
+	for _, o := range fake.batches[0] {
+		assert.Equal(t, order.Cancelled.String(), status[o.OrderID])
+	}
+}
+
+func TestCancelBatchOrdersWithoutAdvertisedLimit(t *testing.T) {
+	t.Parallel()
+
+	fake := &batchCancelFake{}
+	status, err := cancelBatchOrders(t.Context(), fake, newOrderCancels(21))
+	require.NoError(t, err)
+
+	require.Len(t, fake.batches, 1, "an exchange without a limit gets every order at once")
+	assert.Len(t, fake.batches[0], 21)
+	assert.Len(t, status, 21)
+}
+
+func TestCancelBatchOrdersFallsBackToSingleCancels(t *testing.T) {
+	t.Parallel()
+
+	errBoom := errors.New("boom")
+	fake := &batchCancelFake{
+		batchErr:   common.ErrFunctionNotSupported,
+		singleErrs: map[string]error{"2": errBoom},
+	}
+	status, err := cancelBatchOrders(t.Context(), fake, newOrderCancels(3))
+	require.NoError(t, err)
+
+	assert.Empty(t, fake.batches)
+	assert.Equal(t, []string{"0", "1", "2"}, fake.cancelledIDs)
+	assert.Equal(t, order.Cancelled.String(), status["0"])
+	assert.Equal(t, order.Cancelled.String(), status["1"])
+	assert.Equal(t, errBoom.Error(), status["2"], "a failed single cancel is reported as an error, not as cancelled")
+}
+
+func TestCancelBatchOrdersReportsWrapperStatuses(t *testing.T) {
+	t.Parallel()
+
+	fake := &batchCancelFake{
+		reportStatus: true,
+		statuses:     map[string]string{"0": order.Cancelled.String(), "1": "not supported"},
+	}
+	status, err := cancelBatchOrders(t.Context(), fake, newOrderCancels(3))
+	require.NoError(t, err)
+
+	assert.Equal(t, order.Cancelled.String(), status["0"])
+	assert.Equal(t, "not supported", status["1"])
+	assert.Equal(t, order.UnknownStatus.String(), status["2"], "an omitted status is reported as unknown, not as cancelled")
+}
+
+func TestCancelBatchOrdersPropagatesBatchError(t *testing.T) {
+	t.Parallel()
+
+	fake := &batchCancelFake{batchErr: errors.New("exchange down")}
+	status, err := cancelBatchOrders(t.Context(), fake, newOrderCancels(2))
+	assert.ErrorContains(t, err, "exchange down")
+	assert.Nil(t, status)
+}
+
+func TestCancelBatchOrdersWithoutOrders(t *testing.T) {
+	t.Parallel()
+
+	status, err := cancelBatchOrders(t.Context(), &batchCancelFake{}, nil)
+	assert.ErrorIs(t, err, order.ErrCancelOrderIsNil)
+	assert.Nil(t, status)
+}

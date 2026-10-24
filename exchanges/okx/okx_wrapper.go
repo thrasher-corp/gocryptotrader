@@ -1328,6 +1328,12 @@ func (e *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 	return err
 }
 
+// CancelBatchLimit returns the most orders okx accepts in a single
+// CancelBatchOrders request, whatever the asset type.
+func (e *Exchange) CancelBatchLimit(asset.Item) int {
+	return 20
+}
+
 // CancelBatchOrders cancels orders by their corresponding ID numbers
 func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
 	if len(o) > 20 {
