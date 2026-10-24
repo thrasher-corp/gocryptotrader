@@ -1,0 +1,29 @@
+{{define "exchanges mexc" -}}
+{{template "header" .}}
+
+## MEXC Exchange
+
+### Current Features
+
++ REST Support
++ Websocket Support
+
+### Subscriptions
+
+Default Public Subscriptions:
+
++ Orderbook for spot
++ Candles for spot
++ Ticker for spot
++ All trades for spot
+
+Default Authenticated Subscriptions:
+
++ Account Balance events for spot
++ Order events for spot
++ Trade fill events for spot
+
+Subscriptions are subject to enabled assets and pairs.
+
+{{template "donations" .}}
+{{end}}

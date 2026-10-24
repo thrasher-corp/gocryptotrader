@@ -208,6 +208,10 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 		d.Fee = m.Fee
 		updated = true
 	}
+	if !m.FeeAsset.IsEmpty() && !m.FeeAsset.Equal(d.FeeAsset) {
+		d.FeeAsset = m.FeeAsset
+		updated = true
+	}
 	if m.AccountID != "" && m.AccountID != d.AccountID {
 		d.AccountID = m.AccountID
 		updated = true
@@ -1117,7 +1121,7 @@ func StringToOrderStatus(status string) (Status, error) {
 		return PartiallyFilled, nil
 	case Filled.String(), "FULLY MATCHED", "FULLY FILLED", "ORDER_FULLY_TRANSACTED", "EFFECTIVE":
 		return Filled, nil
-	case PartiallyCancelled.String(), "PARTIAL-CANCELED", "PARTIALLY CANCELLED", "ORDER_PARTIALLY_TRANSACTED":
+	case PartiallyCancelled.String(), "PARTIAL-CANCELED", "PARTIALLY_CANCELED", "PARTIALLY CANCELLED", "ORDER_PARTIALLY_TRANSACTED":
 		return PartiallyCancelled, nil
 	case PartiallyFilledCancelled.String(), "PARTIALLYFILLEDCANCELED":
 		return PartiallyFilledCancelled, nil

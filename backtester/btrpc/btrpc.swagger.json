@@ -591,12 +591,14 @@
         "clearedTasks": {
           "type": "array",
           "items": {
+            "type": "object",
             "$ref": "#/definitions/btrpcTaskSummary"
           }
         },
         "remainingTasks": {
           "type": "array",
           "items": {
+            "type": "object",
             "$ref": "#/definitions/btrpcTaskSummary"
           }
         }
@@ -628,6 +630,7 @@
         "currencySettings": {
           "type": "array",
           "items": {
+            "type": "object",
             "$ref": "#/definitions/btrpcCurrencySettings"
           }
         },
@@ -863,6 +866,7 @@
         "exchangeLevelFunding": {
           "type": "array",
           "items": {
+            "type": "object",
             "$ref": "#/definitions/btrpcExchangeLevelFunding"
           }
         }
@@ -899,6 +903,7 @@
         "tasks": {
           "type": "array",
           "items": {
+            "type": "object",
             "$ref": "#/definitions/btrpcTaskSummary"
           }
         }
@@ -935,6 +940,7 @@
         "credentials": {
           "type": "array",
           "items": {
+            "type": "object",
             "$ref": "#/definitions/btrpcCredentials"
           }
         }
@@ -1012,6 +1018,7 @@
         "tasksStopped": {
           "type": "array",
           "items": {
+            "type": "object",
             "$ref": "#/definitions/btrpcTaskSummary"
           }
         }
@@ -1040,6 +1047,7 @@
         "customSettings": {
           "type": "array",
           "items": {
+            "type": "object",
             "$ref": "#/definitions/btrpcCustomSettings"
           }
         }
@@ -1097,6 +1105,7 @@
         "details": {
           "type": "array",
           "items": {
+            "type": "object",
             "$ref": "#/definitions/protobufAny"
           }
         }

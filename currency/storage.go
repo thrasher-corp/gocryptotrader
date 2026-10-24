@@ -139,6 +139,7 @@ func (s *Storage) RunUpdater(overrides BotOverrides, settings *Config, filePath 
 		enabled := (settings.ForexProviders[i].Name == "CurrencyConverter" && overrides.CurrencyConverter) ||
 			(settings.ForexProviders[i].Name == "CurrencyLayer" && overrides.CurrencyLayer) ||
 			(settings.ForexProviders[i].Name == "Fixer" && overrides.Fixer) ||
+			(settings.ForexProviders[i].Name == "FXMacroData" && overrides.FXMacroData) ||
 			(settings.ForexProviders[i].Name == "OpenExchangeRates" && overrides.OpenExchangeRates) ||
 			(settings.ForexProviders[i].Name == "ExchangeRates" && overrides.ExchangeRates)
 
@@ -154,7 +155,7 @@ func (s *Storage) RunUpdater(overrides BotOverrides, settings *Config, filePath 
 			continue
 		}
 
-		if settings.ForexProviders[i].APIKeyLvl == -1 && settings.ForexProviders[i].Name != "ExchangeRates" {
+		if settings.ForexProviders[i].APIKeyLvl == -1 && settings.ForexProviders[i].Name != "ExchangeRates" && settings.ForexProviders[i].Name != "FXMacroData" {
 			log.Warnf(log.Currency, "%s APIKey level not set, functionality is limited. Please review this in your config.json file\n",
 				settings.ForexProviders[i].Name)
 		}
