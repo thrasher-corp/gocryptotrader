@@ -1,0 +1,67 @@
+{
+ "private/create-order": {
+  "client_oid": "c5f682ed-7108-4f1c-b755-972fcdca0f02",
+  "order_id": "6530219466236720401"
+ },
+ "private/amend-order": {
+  "client_oid": "c5f682ed-7108-4f1c-b755-972fcdca0f02",
+  "order_id": "6530219466236720401"
+ },
+ "private/cancel-order": {
+  "client_oid": "c5f682ed-7108-4f1c-b755-972fcdca0f02",
+  "order_id": "6530219466236720401"
+ },
+ "private/cancel-all-orders": {},
+ "private/close-position": {
+  "client_oid": "1684d6e4-2c55-64e1-52c3-3aa9febc3a23",
+  "order_id": "6530219466236720404"
+ },
+ "private/create-order-list": [
+  {
+   "code": "0",
+   "index": "0",
+   "client_oid": "api_leg1",
+   "order_id": "5755600460443882762"
+  },
+  {
+   "code": "0",
+   "index": "1",
+   "client_oid": "api_leg2",
+   "order_id": "5755600460443882763"
+  }
+ ],
+ "private/cancel-order-list": [
+  {
+   "code": "0",
+   "index": "0"
+  },
+  {
+   "code": "0",
+   "index": "1"
+  }
+ ],
+ "private/batch-order-request": {
+  "cancels": [
+   {
+    "code": "0",
+    "order_id": "6530219466236720401"
+   },
+   {
+    "code": "0",
+    "client_oid": "my-client-order-id"
+   }
+  ],
+  "creates": [
+   {
+    "code": "0",
+    "order_id": "6530219466236720409",
+    "client_oid": "optional-client-id"
+   },
+   {
+    "code": "0",
+    "order_id": "6530219466236720410",
+    "client_oid": "1792890506012"
+   }
+  ]
+ }
+}

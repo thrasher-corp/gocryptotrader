@@ -1,0 +1,51 @@
+{
+ "private/advanced/create-order": {
+  "client_oid": "c5f682ed-7108-4f1c-b755-972fcdca0f02",
+  "order_id": "5755600460443882762"
+ },
+ "private/advanced/amend-order": {
+  "order_id": "5755600460443882762",
+  "client_oid": "c5f682ed-7108-4f1c-b755-972fcdca0f02"
+ },
+ "private/advanced/create-oco": {
+  "list_id": "6498090546073120100"
+ },
+ "private/advanced/cancel-oco": null,
+ "private/advanced/create-oto": {
+  "list_id": "6498090546073120199"
+ },
+ "private/advanced/cancel-oto": null,
+ "private/advanced/create-otoco": {
+  "list_id": "6498090546073120243"
+ },
+ "private/advanced/cancel-otoco": null,
+ "private/advanced/cancel-order": {
+  "client_oid": "c5f682ed-7108-4f1c-b755-972fcdca0f02",
+  "order_id": "5755600460443882762"
+ },
+ "private/advanced/cancel-all-orders": null,
+ "private/advanced/create-order-list": [
+  {
+   "index": 0,
+   "code": 0,
+   "order_id": "289991951579667814",
+   "client_oid": "my_sl_order"
+  },
+  {
+   "index": 1,
+   "code": 0,
+   "order_id": "289991951579667815",
+   "client_oid": "my_tp_order"
+  }
+ ],
+ "private/advanced/cancel-order-list": [
+  {
+   "index": 0,
+   "code": 0
+  },
+  {
+   "index": 1,
+   "code": 0
+  }
+ ]
+}

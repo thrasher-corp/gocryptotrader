@@ -414,6 +414,7 @@ const (
 	orderChase                 = "CHASE"
 	orderTakeProfit            = "TAKE PROFIT"
 	orderTakeProfitMarket      = "TAKE PROFIT MARKET"
+	orderTakeProfitLimit       = "TAKE PROFIT LIMIT"
 	orderTrailingStop          = "TRAILING_STOP"
 	orderTrailingStopLimit     = "TRAILING_STOP_LIMIT"
 	orderIOS                   = "IOS"
@@ -524,9 +525,8 @@ type PriceType uint8
 
 // price types
 const (
-	UnsetPriceType PriceType = 0
-	LastPrice      PriceType = 1 << iota
-	IndexPrice
+	LastPrice  PriceType = 0
+	IndexPrice PriceType = 1 << iota
 	MarkPrice
 	UnknownPriceType
 )

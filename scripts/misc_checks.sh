@@ -162,9 +162,9 @@ if [[ "$HAS_GNU_GREP" -eq 0 ]]; then
 fi
 
 # ---------------------------------------------------------------------------
-# 1. currency.NewBTCUSD() usage
+# 1. currency.NewPair(BTC, USD) usage
 # ---------------------------------------------------------------------------
-info "Check for currency.NewBTCUSD() used instead of currency.NewBTCUSD"
+info "Check for currency.NewPair(BTC, USD) used instead of currency.NewBTCUSD"
 if ere_grep 'currency\.NewPair\(currency\.BTC, currency\.USDT?\)' '*.go' 1 '*'; then
     fail "Replace currency.NewPair(BTC, USD*) with currency.NewBTCUSD*()"
 else
