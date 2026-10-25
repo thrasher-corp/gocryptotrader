@@ -597,6 +597,77 @@ func TestEmbeddedSkip(t *testing.T) {
 	assert.False(t, ok, "embeddedSkip should not match a record naming only the end of an announced name")
 }
 
+func TestSkipRecordName(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		line, exp string
+	}{
+		{line: "--- SKIP: BenchmarkCodec", exp: "BenchmarkCodec"},
+		{line: "    --- SKIP: BenchmarkCodec/large", exp: "BenchmarkCodec/large"},
+		{line: "fixture missing: --- SKIP: BenchmarkCodec/large", exp: "BenchmarkCodec/large"},
+		{line: "    codec_test.go:9: --- SKIP: BenchmarkCodec/large", exp: "BenchmarkCodec/large"},
+		{line: "--- SKIP: BenchmarkPrior--- SKIP: BenchmarkCodec", exp: "BenchmarkCodec"},
+		{line: "--- SKIP: BenchmarkCodec and more"},
+		{line: "--- SKIP: BenchmarkCodec\tmore"},
+		{line: "--- SKIP: TestCodec"},
+		{line: "BenchmarkCodec"},
+		{line: ""},
+	} {
+		got, ok := skipRecordName(tc.line)
+		assert.Equalf(t, tc.exp != "", ok, "skipRecordName should report whether %q ends with skip record text", tc.line)
+		if ok {
+			assert.Equalf(t, tc.exp, got, "skipRecordName should return the name in %q", tc.line)
+		}
+	}
+}
+
+func TestRecordUnreported(t *testing.T) {
+	t.Parallel()
+	announced := []string{
+		"BenchmarkMeasured", "BenchmarkMeasuredX", "BenchmarkParent", "BenchmarkSkipped", "BenchmarkSkippedParent",
+		"BenchmarkSilent", "BenchmarkSilentLonger", "BenchmarkCases", "BenchmarkCases/one",
+	}
+	newRun := func(finished bool) *Run {
+		return &Run{
+			Samples:  map[string]*Samples{"p.BenchmarkMeasured": {}, "p.BenchmarkParent/sub": {}, "q.BenchmarkSilent": {}},
+			Skipped:  map[string]string{"p.BenchmarkSkipped": "p", "p.BenchmarkSkippedParent/sub": "p"},
+			Finished: map[string]bool{"p": finished},
+		}
+	}
+	run := newRun(true)
+	recordUnreported(run, "p", announced)
+	assert.Equal(t, map[string]string{
+		"p.BenchmarkSkipped": "p", "p.BenchmarkSkippedParent/sub": "p",
+		"p.BenchmarkMeasuredX": "p", "p.BenchmarkSilent": "p", "p.BenchmarkSilentLonger": "p", "p.BenchmarkCases/one": "p",
+	}, run.Skipped, "each announced benchmark that reported nothing for itself or a sub-benchmark should be recorded as skipped")
+
+	run = newRun(false)
+	recordUnreported(run, "p", announced)
+	assert.Equal(t, map[string]string{"p.BenchmarkSkipped": "p", "p.BenchmarkSkippedParent/sub": "p"}, run.Skipped,
+		"nothing should be recorded for a package whose output did not finish")
+}
+
+func TestReportsUnder(t *testing.T) {
+	t.Parallel()
+	keys := map[string]bool{"p.BenchmarkA": true, "p.BenchmarkB/x": true}
+	for _, tc := range []struct {
+		key string
+		exp bool
+	}{
+		{key: "p.BenchmarkA", exp: true},
+		{key: "p.BenchmarkB", exp: true},
+		{key: "p.BenchmarkB/x", exp: true},
+		{key: "p.BenchmarkB/x/y"},
+		{key: "p.BenchmarkAB"},
+		{key: "p.Benchmark"},
+		{key: "p.BenchmarkB/"},
+		{key: "q.BenchmarkA"},
+	} {
+		assert.Equalf(t, tc.exp, reportsUnder(keys, tc.key), "reportsUnder should report whether keys hold %s or a sub-benchmark of it", tc.key)
+	}
+	assert.False(t, reportsUnder(map[string]*Samples{}, "p.BenchmarkA"), "reportsUnder should find nothing among no keys")
+}
+
 func TestFailureRecord(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {

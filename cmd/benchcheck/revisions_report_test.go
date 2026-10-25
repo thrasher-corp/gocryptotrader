@@ -3,9 +3,11 @@ package main
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"math"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -113,17 +115,54 @@ func TestComparisonCompare(t *testing.T) {
 	assert.Empty(t, c.warnings, "seven samples should be enough for the test to find a difference")
 }
 
+// guardHeap ends the test binary once the heap has grown by 256 MiB, until stop returns, since
+// benchmath's U test allocates without bound once given a NaN and only exiting stops it
+func guardHeap(t *testing.T) (stop func()) {
+	t.Helper()
+	var start runtime.MemStats
+	runtime.ReadMemStats(&start)
+	name := t.Name()
+	done, exited := make(chan struct{}), make(chan struct{})
+	go func() {
+		defer close(exited)
+		tick := time.NewTicker(20 * time.Millisecond)
+		defer tick.Stop()
+		var ms runtime.MemStats
+		for {
+			select {
+			case <-done:
+				return
+			case <-tick.C:
+			}
+			runtime.ReadMemStats(&ms)
+			if ms.HeapAlloc > start.HeapAlloc+256<<20 {
+				// Exits even if nothing reads stderr and the message blocks
+				time.AfterFunc(time.Second, func() { os.Exit(1) })
+				fmt.Fprintf(os.Stderr, "%s: the heap grew by more than 256 MiB, as it does once a NaN timing reaches benchmath's U test\n", name)
+				os.Exit(1)
+			}
+		}
+	}()
+	// Waits for a poll already under way, which could otherwise end the test binary after its test passed
+	return func() {
+		close(done)
+		<-exited
+	}
+}
+
 func TestComparisonCompareRejectsBadTimings(t *testing.T) {
 	t.Parallel()
 	c := &comparison{base: newRevision("base", ""), head: newRevision("head", ""), samples: 3}
 	c.base.samples["p.BenchmarkX"] = steadySamples(3, 100, 0, 0)
 	c.head.samples["p.BenchmarkX"] = steadySamples(3, 100, 0, 0)
 	c.head.samples["p.BenchmarkX"].NS[1] = math.NaN()
-	// benchmath's U test never returns for a NaN, so without the check this would hang rather than fail
+	// Stopped only once compare returns, which it never does once the NaN reaches the U test
+	stop := guardHeap(t)
 	done := make(chan error, 1)
 	go func() { done <- c.compare(Baseline{}) }()
 	select {
 	case err := <-done:
+		stop()
 		assert.ErrorIs(t, err, errBadTiming, "a timing Parse could not read should fail the comparison")
 	case <-time.After(time.Minute):
 		require.FailNow(t, "compare must refuse a timing Parse could not read rather than hang")
@@ -158,8 +197,8 @@ func TestComparisonRender(t *testing.T) {
 	c.render(&report)
 	out := report.String()
 
-	assert.Contains(t, out, "Base `0123456789ab` against head `fedcba987654` with uncommitted changes: 8 benchmarks in 1 package,",
-		"the report should say what it compared")
+	assert.Contains(t, out, "Base `0123456789ab` against head `fedcba987654` with uncommitted changes: 8 benchmarks in 1 package, measured in 7 rounds",
+		"the report should say what it compared, and in how many rounds")
 	assert.Contains(t, out, ", on Example CPU.", "the report should name the processor both revisions ran on")
 	assert.Contains(t, out, "### Moved (3)", "the report should lead with the benchmarks that moved")
 	moved, all, ok := strings.Cut(out, "<details>")
@@ -363,4 +402,176 @@ func TestFormatting(t *testing.T) {
 	assert.Equal(t, "abc", shortCommit("abc"), "a short name should be left as it is")
 	assert.True(t, math.IsInf(relativeChange(0, 1), 1), "a change from zero should be infinite")
 	assert.Zero(t, relativeChange(0, 0), "no change from zero should be zero")
+}
+
+func TestCompareSamples(t *testing.T) {
+	t.Parallel()
+	row, warnings, err := compareSamples("p.BenchmarkX", steadySamples(7, 100, 64, 1), steadySamples(7, 50, 80, 2), nil)
+	require.NoError(t, err, "compareSamples must not error")
+	assert.Empty(t, warnings, "seven samples a side should be enough for the test to find a difference")
+	assert.Less(t, row.p, 0.05, "timings that never overlap should differ significantly")
+	assert.Equal(t, comparisonRow{
+		key: "p.BenchmarkX", baseNS: 100, headNS: 50, p: row.p, significant: true,
+		baseBytes: 64, headBytes: 80, baseAllocs: 1, headAllocs: 2, allocationsMoved: true,
+	}, row, "the row should hold both revisions' medians and the test's result")
+	noisyBase, noisyHead := steadySamples(7, 100, 64, 1), steadySamples(7, 50, 80, 2)
+	noisyBase.Bytes, noisyBase.Allocs = []float64{1000, 62, 64, 0, 66, 63, 2000}, []float64{9, 1, 2, 0, 4, 3, 10}
+	noisyHead.Bytes, noisyHead.Allocs = []float64{2000, 78, 80, 0, 82, 79, 3000}, []float64{10, 4, 5, 0, 7, 6, 20}
+	row, _, err = compareSamples("p.BenchmarkX", noisyBase, noisyHead, nil)
+	require.NoError(t, err, "compareSamples must not error")
+	assert.Equal(t, []uint64{64, 80, 3, 6}, []uint64{row.baseBytes, row.headBytes, row.baseAllocs, row.headAllocs},
+		"the row should hold each revision's allocation medians, which outlying samples do not move")
+	row, _, err = compareSamples("p.BenchmarkX", withTimings(100, 110, 120, 130, 140, 150, 160), withTimings(130, 140, 150, 160, 170, 180, 190), nil)
+	require.NoError(t, err, "compareSamples must not error")
+	assert.True(t, row.significant, "timings at p = 0.037 should differ significantly, as benchstat's p < 0.05 counts them")
+	row, _, err = compareSamples("p.BenchmarkX", withTimings(100, 110, 120, 130, 140, 150, 160), withTimings(125, 135, 145, 155, 165, 175, 185), nil)
+	require.NoError(t, err, "compareSamples must not error")
+	assert.False(t, row.significant, "timings at p = 0.073 should not differ significantly, as benchstat's p < 0.05 counts them")
+
+	base, head := steadySamples(7, 100, 6400, 100), steadySamples(7, 100, 6400, 101)
+	row, _, err = compareSamples("p.BenchmarkX", base, head, &Entry{AllocsTolerance: 0.01, Reason: "measured"})
+	require.NoError(t, err, "compareSamples must not error")
+	assert.False(t, row.significant, "identical timings should not differ significantly")
+	assert.InDelta(t, 1.0, row.p, 1e-9, "identical timings should have a p of 1")
+	assert.False(t, row.allocationsMoved, "allocations within the entry's tolerance should not count as moved")
+	row, _, err = compareSamples("p.BenchmarkX", base, head, nil)
+	require.NoError(t, err, "compareSamples must not error")
+	assert.True(t, row.allocationsMoved, "allocations that differ should count as moved without an entry")
+
+	for _, tc := range []struct {
+		name       string
+		base, head *Samples
+		entry      *Entry
+		moved      bool
+	}{
+		{"bytes alone beyond the default tolerance", steadySamples(7, 100, 1000, 1), steadySamples(7, 100, 1020, 1), nil, true},
+		{"bytes alone within the default tolerance", steadySamples(7, 100, 1000, 1), steadySamples(7, 100, 1005, 1), nil, false},
+		{"bytes alone falling beyond the default tolerance", steadySamples(7, 100, 1000, 1), steadySamples(7, 100, 980, 1), nil, true},
+		{"allocations alone falling", steadySamples(7, 100, 64, 2), steadySamples(7, 100, 64, 1), nil, true},
+		// Measured against the base, a fall to the edge of the tolerance stays within it
+		{"bytes falling to the default tolerance", steadySamples(7, 100, 1000, 1), steadySamples(7, 100, 990, 1), nil, false},
+		{"allocations falling to the entry's tolerance", steadySamples(7, 100, 6400, 100), steadySamples(7, 100, 6400, 90), &Entry{AllocsTolerance: 0.1, Reason: "measured"}, false},
+		{"bytes rising within the entry's tolerance, beyond the default", steadySamples(7, 100, 1000, 1), steadySamples(7, 100, 1020, 1), &Entry{BytesTolerance: new(0.05), Reason: "measured"}, false},
+		{"bytes falling within the entry's tolerance, beyond the default", steadySamples(7, 100, 1000, 1), steadySamples(7, 100, 980, 1), &Entry{BytesTolerance: new(0.05), Reason: "measured"}, false},
+		{"bytes rising within the default tolerance, beyond the entry's", steadySamples(7, 100, 1000, 1), steadySamples(7, 100, 1005, 1), &Entry{BytesTolerance: new(0.0), Reason: "measured"}, true},
+		{"bytes falling within the default tolerance, beyond the entry's", steadySamples(7, 100, 1000, 1), steadySamples(7, 100, 995, 1), &Entry{BytesTolerance: new(0.0), Reason: "measured"}, true},
+		{"bytes rising beyond the default tolerance under an allocations tolerance", steadySamples(7, 100, 1000, 100), steadySamples(7, 100, 1020, 100), &Entry{AllocsTolerance: 0.1, Reason: "measured"}, true},
+		{"bytes falling beyond the default tolerance under an allocations tolerance", steadySamples(7, 100, 1000, 100), steadySamples(7, 100, 980, 100), &Entry{AllocsTolerance: 0.1, Reason: "measured"}, true},
+		{"allocations rising under a bytes tolerance", steadySamples(7, 100, 1000, 100), steadySamples(7, 100, 1000, 101), &Entry{BytesTolerance: new(0.05), Reason: "measured"}, true},
+		{"allocations falling under a bytes tolerance", steadySamples(7, 100, 1000, 100), steadySamples(7, 100, 1000, 99), &Entry{BytesTolerance: new(0.05), Reason: "measured"}, true},
+	} {
+		row, _, err := compareSamples("p.BenchmarkX", tc.base, tc.head, tc.entry)
+		require.NoErrorf(t, err, "compareSamples must not error for %s", tc.name)
+		assert.Equalf(t, tc.moved, row.allocationsMoved, "allocations should count as moved only beyond the tolerance, for %s", tc.name)
+	}
+
+	_, warnings, err = compareSamples("p.BenchmarkX", steadySamples(3, 100, 0, 0), steadySamples(3, 200, 0, 0), nil)
+	require.NoError(t, err, "compareSamples must not error")
+	assert.NotEmpty(t, warnings, "three samples a side should come with the test's warning")
+
+	for _, side := range []string{"base", "head"} {
+		samples := map[string]*Samples{"base": steadySamples(7, 100, 64, 1), "head": steadySamples(7, 100, 64, 1)}
+		samples[side].NS[3] = math.NaN()
+		stop := guardHeap(t)
+		_, _, err = compareSamples("p.BenchmarkX", samples["base"], samples["head"], nil)
+		stop()
+		assert.ErrorIsf(t, err, errBadTiming, "a NaN timing at the %s should be refused", side)
+	}
+
+	shortened := func(metric func(s *Samples) *[]float64) *Samples {
+		s := steadySamples(7, 100, 64, 1)
+		*metric(s) = (*metric(s))[:6]
+		return s
+	}
+	for _, tc := range []struct {
+		name       string
+		base, head *Samples
+		text       string
+	}{
+		{"an even count of the base's timings", shortened(func(s *Samples) *[]float64 { return &s.NS }), steadySamples(7, 100, 64, 1), "p.BenchmarkX ns/op"},
+		{"an even count of the base's allocations", shortened(func(s *Samples) *[]float64 { return &s.Allocs }), steadySamples(7, 100, 64, 1), "p.BenchmarkX allocs/op"},
+		{"an even count of the head's bytes", steadySamples(7, 100, 64, 1), shortened(func(s *Samples) *[]float64 { return &s.Bytes }), "p.BenchmarkX B/op"},
+	} {
+		_, _, err := compareSamples("p.BenchmarkX", tc.base, tc.head, nil)
+		assert.ErrorIsf(t, err, errEvenSampleCount, "compareSamples should refuse %s", tc.name)
+		assert.ErrorContainsf(t, err, tc.text, "compareSamples should name the benchmark and metric for %s", tc.name)
+	}
+}
+
+func TestComparisonCPU(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct{ base, head, exp string }{
+		{"Example CPU", "Example CPU", "Example CPU"},
+		{"One CPU", "Another CPU", ""},
+		{"Example CPU", "", ""},
+		{"", "", ""},
+	} {
+		c := &comparison{base: newRevision("base", ""), head: newRevision("head", "")}
+		c.base.cpu, c.head.cpu = tc.base, tc.head
+		assert.Equalf(t, tc.exp, c.cpu(), "cpu should name a processor only when both revisions name the same one, not for %q and %q", tc.base, tc.head)
+	}
+}
+
+func TestComparisonRowTimingCell(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		row  comparisonRow
+		exp  string
+	}{
+		{"a significant change as a percentage", comparisonRow{baseNS: 100, headNS: 50, p: 0.0012, significant: true}, "100 → 50.0 (-50.0%, p=0.001)"},
+		{"a change that is not significant as ~", comparisonRow{baseNS: 100, headNS: 102, p: 0.25}, "100 → 102 (~, p=0.250)"},
+	} {
+		assert.Equalf(t, tc.exp, tc.row.timingCell(), "timingCell should give %s", tc.name)
+	}
+}
+
+func TestComplete(t *testing.T) {
+	t.Parallel()
+	assert.True(t, complete(steadySamples(7, 100, 64, 1), 7), "seven samples of each metric should be complete for seven")
+	assert.False(t, complete(steadySamples(7, 100, 64, 1), 5), "seven samples of each metric should not be complete for five")
+	for name, short := range map[string]*Samples{
+		"ns/op":     {NS: make([]float64, 6), Bytes: make([]float64, 7), Allocs: make([]float64, 7)},
+		"B/op":      {NS: make([]float64, 7), Bytes: make([]float64, 6), Allocs: make([]float64, 7)},
+		"allocs/op": {NS: make([]float64, 7), Bytes: make([]float64, 7), Allocs: make([]float64, 6)},
+	} {
+		assert.Falsef(t, complete(short, 7), "samples one %s short should not be complete", name)
+	}
+}
+
+func TestDescribeCounts(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, "6 ns/op, 7 B/op and 5 allocs/op", describeCounts(&Samples{NS: make([]float64, 6), Bytes: make([]float64, 7), Allocs: make([]float64, 5)}),
+		"describeCounts should count each metric's samples")
+}
+
+func TestFormatChange(t *testing.T) {
+	t.Parallel()
+	for change, exp := range map[float64]string{0.5: "+50.0%", -0.25: "-25.0%", 0: "+0.0%", 1.234: "+123.4%", -1: "-100.0%"} {
+		assert.Equalf(t, exp, formatChange(change), "formatChange should give %v as a signed percentage", change)
+	}
+}
+
+func TestPlural(t *testing.T) {
+	t.Parallel()
+	for n, exp := range map[int]string{0: "0 packages", 1: "1 package", 2: "2 packages", 12: "12 packages"} {
+		assert.Equalf(t, exp, plural(n, "package"), "plural should count %d packages", n)
+	}
+}
+
+func TestRenderRows(t *testing.T) {
+	t.Parallel()
+	header := "| Benchmark | ns/op | B/op | allocs/op |\n| --- | --- | --- | --- |\n"
+	var out bytes.Buffer
+	renderRows(&out, []comparisonRow{
+		{key: "p.BenchmarkSame/a|b", baseNS: 100, headNS: 100, p: 1, baseBytes: 64, headBytes: 64, baseAllocs: 1, headAllocs: 1},
+		{key: "p.BenchmarkFaster", baseNS: 100, headNS: 50, p: 0.001, significant: true, baseBytes: 64, headBytes: 128, baseAllocs: 1, headAllocs: 2},
+	})
+	assert.Equal(t, header+
+		"| `p.BenchmarkSame/a\\|b` | 100 → 100 (~, p=1.000) | 64 | 1 |\n"+
+		"| `p.BenchmarkFaster` | 100 → 50.0 (-50.0%, p=0.001) | 64 → 128 (+100.0%) | 1 → 2 (+100.0%) |\n",
+		out.String(), "renderRows should write a table row per benchmark, in the order given")
+	out.Reset()
+	renderRows(&out, nil)
+	assert.Equal(t, header, out.String(), "renderRows should write only the header for no rows")
 }

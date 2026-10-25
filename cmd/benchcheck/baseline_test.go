@@ -79,6 +79,9 @@ func TestCheckNames(t *testing.T) {
 		{name: "a field strings.EqualFold matches", data: "{\"a.B\": {\"allocs\": 2, \"alloc\u017f\": 40}}", err: errUnknownField, msg: "a.B: \"alloc\u017f\""},
 		{name: "a misspelt override", data: `{"a.B": {"byte_tolerance": 0.5, "reason": "x"}}`, err: errUnknownField, msg: `a.B: "byte_tolerance"`},
 		{name: "an unterminated string", data: `{"a.B": {}, "a.B`},
+		{name: "repeated strings in an array", data: `{"a.B": {"reason": "x"}, "a.C": ["x", "x"]}`},
+		{name: "a repeated field in an object inside an array", data: `{"a.B": [{"allocs": 1, "allocs": 2}]}`, err: errDuplicateName, msg: "a.B: allocs"},
+		{name: "a field in another case in an object inside an array", data: `{"a.B": [{"Allocs": 1}]}`, err: errUnknownField, msg: `a.B: "Allocs"`},
 	} {
 		err := checkNames([]byte(tc.data))
 		if tc.err == nil {
@@ -254,6 +257,16 @@ func TestValidateToleranceRange(t *testing.T) {
 	}
 	assert.NoError(t, Baseline{"a.B": {BytesTolerance: new(0.99), Reason: "x"}}.Validate(),
 		"a tolerance just inside the range should be accepted")
+}
+
+func TestValidTolerance(t *testing.T) {
+	t.Parallel()
+	for _, tol := range []float64{0, 0.004, 0.999} {
+		assert.NoErrorf(t, validTolerance(tol), "validTolerance should accept %v", tol)
+	}
+	for _, tol := range []float64{-0.01, 1, 2, math.NaN(), math.Inf(1), math.Inf(-1)} {
+		assert.ErrorIsf(t, validTolerance(tol), errToleranceOutOfRange, "validTolerance should reject %v", tol)
+	}
 }
 
 func TestBaselineUpdateNeverLoosensQuietly(t *testing.T) {

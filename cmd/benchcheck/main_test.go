@@ -699,3 +699,17 @@ func TestSilentPackages(t *testing.T) {
 		[]string{"common", "currency", "types"})
 	assert.Equal(t, []string{"common"}, got, "a package that reported a skip should not count as silent")
 }
+
+func TestSkipRecordBudgets(t *testing.T) {
+	t.Parallel()
+	base := Baseline{
+		"currency.BenchmarkMeasured": {}, "currency.BenchmarkNamed": {}, "currency.BenchmarkNamed/sub": {},
+		"currency.BenchmarkNamedX": {}, "currency.BenchmarkSkipped": {}, "currency.BenchmarkSkipped/sub": {}, "currency.BenchmarkGone": {},
+	}
+	results := resultsOf(result("currency", "BenchmarkMeasured", 1, 8))
+	skipped := map[string]string{"currency.BenchmarkSkipped": "currency"}
+	records := map[string]string{"currency.BenchmarkMeasured": "currency", "currency.BenchmarkNamed": "currency", "currency.BenchmarkSkipped": "currency"}
+	assert.Equal(t, []string{"currency.BenchmarkNamed", "currency.BenchmarkNamed/sub"}, skipRecordBudgets(base, results, skipped, records),
+		"skipRecordBudgets should name, in key order, the unmeasured and unskipped budgets that skip record text covers")
+	assert.Empty(t, skipRecordBudgets(base, results, skipped, nil), "skipRecordBudgets should name nothing without skip record text")
+}

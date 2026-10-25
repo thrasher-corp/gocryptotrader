@@ -4,6 +4,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -77,7 +78,15 @@ func TestLoadPackagesMissingFile(t *testing.T) {
 func TestLoadPackagesUnreadable(t *testing.T) {
 	t.Parallel()
 	_, err := LoadPackages(t.TempDir())
+	var pathErr *fs.PathError
+	assert.ErrorAs(t, err, &pathErr, "a package list that cannot be read should report why")
 	assert.ErrorContains(t, err, "error reading package list", "a package list that cannot be read should be reported")
+
+	// No system accepts a NUL in a path, and the failure is not that the file is missing
+	_, err = LoadPackages("packages\x00.txt")
+	assert.ErrorAs(t, err, &pathErr, "a package list that cannot be opened should report why")
+	assert.ErrorContains(t, err, "error reading package list", "a package list that cannot be opened should be reported")
+	assert.NotErrorIs(t, err, errNoPackageList, "a package list that cannot be opened should not read as missing")
 }
 
 func TestLoadPackagesCanonicalises(t *testing.T) {
@@ -337,5 +346,15 @@ func TestIsBenchmark(t *testing.T) {
 		fn, ok := f.Decls[0].(*ast.FuncDecl)
 		require.Truef(t, ok, "the fixture %q must declare a function", tc.decl)
 		assert.Equalf(t, tc.exp, isBenchmark(fn), "isBenchmark should judge %q as go test does", tc.decl)
+	}
+}
+
+func TestBenchmarkFuncName(t *testing.T) {
+	t.Parallel()
+	for name, exp := range map[string]bool{
+		"Benchmark": true, "BenchmarkX": true, "Benchmark_x": true, "Benchmark1": true, "BenchmarkÉ": true,
+		"Benchmarkx": false, "Benchmarké": false, "Bench": false, "XBenchmark": false, "benchmarkX": false, "": false,
+	} {
+		assert.Equalf(t, exp, benchmarkFuncName(name), "benchmarkFuncName should judge %q as go test does", name)
 	}
 }

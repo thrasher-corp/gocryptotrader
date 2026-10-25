@@ -248,9 +248,9 @@ baseline's tolerance, and timings that changed significantly by 5% or more. A ti
 is benchstat's default test, a Mann-Whitney U test at p < 0.05, and `~` marks a timing without a
 significant change. With this many benchmarks a few pass that test by chance alone, some by a wide
 margin, so a timing change is a reason to look again rather than a result. The report is saved as
-`summary.md`, beside each revision's raw output for
-[benchstat](https://pkg.go.dev/golang.org/x/perf/cmd/benchstat) to read. Before writing them, a run
-removes any `summary.md`, `base.txt` and `head.txt` already in the output directory.
+`summary.md` in `.bench-compare`, or the directory `BENCH_COMPARE_OUT` names, beside each revision's
+raw output for [benchstat](https://pkg.go.dev/golang.org/x/perf/cmd/benchstat) to read. Before writing
+them, a run removes any `summary.md`, `base.txt` and `head.txt` already in that directory.
 
 Both revisions are built with the running toolchain and `-trimpath`, which shares the build cache
 between them and builds a package whose code and dependencies are unchanged into the same binary at

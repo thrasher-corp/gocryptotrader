@@ -3,13 +3,19 @@ package main
 import (
 	"archive/tar"
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"flag"
 	"fmt"
+	"io"
+	"io/fs"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -167,10 +173,54 @@ func TestExtractTarRefusesUnexpectedEntries(t *testing.T) {
 	for _, h := range []tar.Header{
 		{Typeflag: tar.TypeSymlink, Name: "link", Linkname: "elsewhere"},
 		{Typeflag: tar.TypeReg, Name: "../outside.go", Mode: 0o644},
+		{Typeflag: tar.TypeReg, Name: "pkg/../../outside.go", Mode: 0o644},
+		{Typeflag: tar.TypeReg, Name: "/outside.go", Mode: 0o644},
 	} {
 		err := extractTar(tarArchive(t, h), t.TempDir())
 		assert.ErrorIsf(t, err, errArchiveEntry, "extractTar should refuse %s", h.Name)
 	}
+}
+
+func TestExtractTarReportsErrors(t *testing.T) {
+	t.Parallel()
+	file := tar.Header{Typeflag: tar.TypeReg, Name: "x.go", Mode: 0o644, Size: 3}
+	whole := tarArchive(t, file).Bytes()
+	for _, tc := range []struct {
+		name    string
+		archive []byte
+		err     error
+		text    string
+	}{
+		{"a truncated header", whole[:100], io.ErrUnexpectedEOF, "error reading git archive"},
+		{"a truncated body", whole[:514], io.ErrUnexpectedEOF, "error extracting x.go"},
+		{"a repeated file", tarArchive(t, file, file).Bytes(), os.ErrExist, "error extracting x.go"},
+		{"a directory where a file is", tarArchive(t, tar.Header{Typeflag: tar.TypeReg, Name: "pkg", Mode: 0o644},
+			tar.Header{Typeflag: tar.TypeDir, Name: "pkg/", Mode: 0o755}).Bytes(), syscall.ENOTDIR, "error extracting pkg/"},
+	} {
+		err := extractTar(bytes.NewReader(tc.archive), t.TempDir())
+		assert.ErrorIsf(t, err, tc.err, "extractTar should report the cause of %s", tc.name)
+		assert.ErrorContainsf(t, err, tc.text, "extractTar should say where it failed for %s", tc.name)
+	}
+}
+
+func TestWriteArchiveFile(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	path := filepath.Join(dir, "a", "b", "run.sh")
+	h := &tar.Header{Typeflag: tar.TypeReg, Name: "a/b/run.sh", Mode: 0o755, Size: 4}
+	require.NoError(t, writeArchiveFile(path, strings.NewReader("body and more"), h), "writeArchiveFile must not error")
+	got, err := os.ReadFile(path)
+	require.NoError(t, err, "reading the written file must not error")
+	assert.Equal(t, "body", string(got), "only as many bytes as the header gives should be written")
+	if runtime.GOOS != "windows" {
+		info, err := os.Stat(path)
+		require.NoError(t, err, "stat on the written file must not error")
+		assert.NotZero(t, info.Mode().Perm()&0o100, "the header's mode should be kept")
+	}
+	assert.ErrorIs(t, writeArchiveFile(path, strings.NewReader("body"), h), os.ErrExist, "a file already written should not be replaced")
+	assert.ErrorIs(t, writeArchiveFile(filepath.Join(path, "below"), strings.NewReader("body"), h), syscall.ENOTDIR, "a file below a file should fail")
+	assert.ErrorIs(t, writeArchiveFile(filepath.Join(dir, "short"), strings.NewReader("abc"), h), io.EOF,
+		"a body shorter than the header gives should fail")
 }
 
 func TestExtractRevision(t *testing.T) {
@@ -192,6 +242,13 @@ func TestExtractRevision(t *testing.T) {
 	assert.ErrorIs(t, err, errBadRevision, "a revision git would read as an option should be refused")
 	_, err = extractRevision(t.Context(), repo, "no-such-branch", filepath.Join(t.TempDir(), "missing"))
 	assert.Error(t, err, "a revision naming no commit should fail")
+
+	// git archive reads tar.umask before it writes anything, so it fails after an archive that reads as empty
+	require.NoError(t, gitCommand(t, repo, "config", "tar.umask", "invalid").Run(), "git config must not error")
+	_, err = extractRevision(t.Context(), repo, "HEAD", filepath.Join(t.TempDir(), "umask"))
+	var exitErr *exec.ExitError
+	assert.ErrorAs(t, err, &exitErr, "a git archive that fails should fail the export with its exit status")
+	assert.ErrorContains(t, err, "error running git archive", "a git archive that fails should fail the export, naming it")
 }
 
 func TestExtractRevisionRefusesSymlinks(t *testing.T) {
@@ -231,6 +288,76 @@ func TestRevisionBuild(t *testing.T) {
 	assert.ErrorContains(t, err, "error building the head test binary for fixture", "a package that does not compile should fail the build, naming it")
 }
 
+func TestRevisionBuildEnvironment(t *testing.T) {
+	// No t.Parallel, since t.Setenv changes the process's environment. Set here so that the caller's own
+	// settings, such as the GOTOOLCHAIN=local that CI's setup-go exports, cannot stand in for the build's
+	t.Setenv("GOTOOLCHAIN", "auto")
+	t.Setenv("GOWORK", "")
+	const bench = "package fixture\n\nimport \"testing\"\n\nfunc BenchmarkNothing(b *testing.B) {\n\tfor b.Loop() {\n\t}\n}\n"
+	later := newRepo(t, map[string]string{"go.mod": "module github.com/thrasher-corp/gocryptotrader\n\ngo 1.99.0\n", "fixture/fixture_test.go": bench})
+	err := newRevision("head", later).build(t.Context(), []string{"fixture"}, t.TempDir())
+	assert.ErrorContains(t, err, "GOTOOLCHAIN=local", "a revision whose go.mod asks for a later release should fail to build rather than switch toolchains")
+
+	repo := newBenchmarkRepo(t, map[string]string{"fixture_test.go": bench})
+	writeFiles(t, repo, map[string]string{"go.work": "go 1.24\n\nuse ./other\n", "other/go.mod": "module example.invalid/other\n\ngo 1.24\n"})
+	assert.NoError(t, newRevision("head", repo).build(t.Context(), []string{"fixture"}, t.TempDir()), "a workspace over the checkout should not change how a revision builds")
+}
+
+func TestRevisionMeasure(t *testing.T) {
+	t.Parallel()
+	// Reported from the iteration count rather than measured, which a stray allocation in the runtime can
+	// move, so that each metric and each process's differ
+	repo := newBenchmarkRepo(t, map[string]string{
+		"fixture_test.go": "package fixture\n\nimport (\n\t\"os\"\n\t\"testing\"\n)\n\n" +
+			"func BenchmarkWork(b *testing.B) {\n\tif _, err := os.Stat(\"fixture_test.go\"); err != nil {\n\t\tb.Fatal(err)\n\t}\n" +
+			"\tvar n float64\n\tfor b.Loop() {\n\t\tn++\n\t}\n" +
+			"\tb.ReportMetric(n, \"ns/op\")\n\tb.ReportMetric(n+1, \"B/op\")\n\tb.ReportMetric(n+2, \"allocs/op\")\n}\n\n" +
+			"func BenchmarkSkipped(b *testing.B) {\n\tb.Skip(\"not here\")\n}\n\n" +
+			"func BenchmarkNegative(b *testing.B) {\n\tfor b.Loop() {\n\t}\n\tb.ReportMetric(-1, \"B/op\")\n}\n\n" +
+			"func BenchmarkFailing(b *testing.B) {\n\tb.Fatal(\"broken\")\n}\n",
+	})
+	r := newRevision("head", repo)
+	require.NoError(t, r.build(t.Context(), []string{"fixture"}, t.TempDir()), "building the test binary must not error")
+	// The package is measured as the second, so a measurement that ran the first binary would fail. It has the
+	// built binary's name, since on Windows exec rejects a name without .exe before trying to start it
+	r.binaries = append([]string{filepath.Join(t.TempDir(), filepath.Base(r.binaries[0]))}, r.binaries...)
+	benchmarks := func(pattern, benchtime string) []string {
+		t.Helper()
+		flags, err := binaryFlags([]string{"-run", "^$", "-bench", pattern, "-benchmem", "-benchtime", benchtime, "-count", "1", "-v"}, 1)
+		require.NoError(t, err, "binaryFlags must not error")
+		return flags
+	}
+	for _, benchtime := range []string{"10x", "20x"} {
+		require.NoErrorf(t, r.measure(t.Context(), 1, "fixture", benchmarks("^Benchmark(Work|Skipped)$", benchtime)), "measure must not error for -benchtime %s", benchtime)
+	}
+	assert.Equal(t, map[string]*Samples{
+		"fixture.BenchmarkWork": {Pkg: "fixture", Name: "BenchmarkWork", NS: []float64{10, 20}, Bytes: []float64{11, 21}, Allocs: []float64{12, 22}},
+	}, r.samples, "each process's metrics should be kept, in the order measured")
+	flags := benchmarks("^Benchmark(Work|Skipped)$", "10x")
+	assert.Equal(t, map[string]bool{"fixture.BenchmarkSkipped": true}, r.skipped, "a skipped benchmark should be recorded")
+	assert.Equal(t, 2, strings.Count(r.output.String(), "pkg: github.com/thrasher-corp/gocryptotrader/fixture"), "each process's output should be kept")
+	assert.Equal(t, cpuModel(r.output.Bytes()), r.cpu, "the processor should be read from the output")
+
+	r.cpu = "Earlier CPU"
+	require.NoError(t, r.measure(t.Context(), 1, "fixture", flags), "measure must not error")
+	assert.Equal(t, "Earlier CPU", r.cpu, "the processor first read should be kept")
+
+	err := r.measure(t.Context(), 1, "fixture", benchmarks("^BenchmarkNegative$", "10x"))
+	assert.ErrorIs(t, err, errBadMeasurement, "output Parse rejects should fail the measurement")
+	assert.ErrorContains(t, err, "head fixture: ", "a failed measurement should name the revision and package")
+	assert.Contains(t, r.output.String(), "BenchmarkNegative", "output Parse rejects should still be kept")
+
+	err = r.measure(t.Context(), 1, "fixture", benchmarks("^BenchmarkFailing$", "10x"))
+	var exitErr *exec.ExitError
+	assert.ErrorAs(t, err, &exitErr, "a failing process should fail the measurement with its exit status")
+	assert.ErrorContains(t, err, "head fixture: benchmark process failed", "a failed measurement should name the revision and package")
+	assert.Contains(t, r.output.String(), "broken", "a failing process's output should still be kept")
+	assert.NotContains(t, r.samples, "fixture.BenchmarkNegative", "a measurement that failed should add no samples")
+
+	var pathErr *fs.PathError
+	assert.ErrorAs(t, r.measure(t.Context(), 0, "fixture", flags), &pathErr, "a binary that cannot be run should fail the measurement")
+}
+
 func TestExtractRevisionIgnoresHookEnvironment(t *testing.T) {
 	// No t.Parallel, since t.Setenv changes the process's environment
 	hook := newRepo(t, map[string]string{"hook.txt": "hook\n"})
@@ -243,6 +370,37 @@ func TestExtractRevisionIgnoresHookEnvironment(t *testing.T) {
 	require.NoError(t, err, "extractRevision must not error while a hook's variables are set")
 	assert.FileExists(t, filepath.Join(dir, "repo.txt"), "the repository asked for should be exported")
 	assert.NoFileExists(t, filepath.Join(dir, "hook.txt"), "the hook's repository should not be exported")
+}
+
+func TestGitEnv(t *testing.T) {
+	// No t.Parallel, since t.Setenv changes the process's environment
+	t.Setenv("GIT_DIR", filepath.Join(t.TempDir(), ".git"))
+	t.Setenv("GIT_INDEX_FILE", filepath.Join(t.TempDir(), "index"))
+	t.Setenv("GIT_WORK_TREE", "")
+	t.Setenv("BENCHCHECK_GIT_DIR", "kept")
+	t.Setenv("GITHUB_BENCHCHECK", "kept")
+	// Asserted as booleans, since a failure would otherwise print the whole environment
+	env := gitEnv()
+	assert.True(t, slices.Contains(env, "BENCHCHECK_GIT_DIR=kept"), "gitEnv should keep a variable that does not start with GIT_")
+	assert.True(t, slices.Contains(env, "GITHUB_BENCHCHECK=kept"), "gitEnv should keep a variable that starts with GIT but not GIT_")
+	assert.False(t, slices.ContainsFunc(env, func(kv string) bool { return strings.HasPrefix(kv, "GIT_") }), "gitEnv should drop every GIT_ variable")
+}
+
+func TestGitOutput(t *testing.T) {
+	// No t.Parallel, since t.Setenv changes the process's environment, here so git prints untranslated messages
+	t.Setenv("LC_ALL", "C")
+	repo := newRepo(t, map[string]string{"x.txt": "x\n"})
+	head, err := gitCommand(t, repo, "rev-parse", "HEAD").Output()
+	require.NoError(t, err, "git rev-parse must not error")
+	got, err := gitOutput(t.Context(), repo, "rev-parse", "HEAD")
+	require.NoError(t, err, "gitOutput must not error")
+	assert.Equal(t, strings.TrimSpace(string(head)), got, "gitOutput should return git's output without its trailing newline")
+
+	_, err = gitOutput(t.Context(), repo, "rev-parse", "--verify", "no-such-ref")
+	var exitErr *exec.ExitError
+	assert.ErrorAs(t, err, &exitErr, "gitOutput should return git's exit status")
+	assert.ErrorContains(t, err, "error running git rev-parse --verify no-such-ref", "gitOutput should name the git command that failed")
+	assert.ErrorContains(t, err, "Needed a single revision", "gitOutput should carry what git printed on failing")
 }
 
 func TestRunTestBinary(t *testing.T) {
@@ -259,6 +417,15 @@ func TestRunTestBinary(t *testing.T) {
 		wd, err := os.Getwd()
 		require.NoError(t, err, "os.Getwd must not error")
 		fmt.Println("measured in " + wd)
+		return
+	case "spawn":
+		self, err := os.Executable()
+		require.NoError(t, err, "os.Executable must not error")
+		// Outlives this process, holding its output open
+		descendant := exec.CommandContext(context.WithoutCancel(t.Context()), self, "-test.run=^TestRunTestBinary$", "hang")
+		descendant.Stdout = os.Stdout
+		require.NoError(t, descendant.Start(), "starting the descendant must not error")
+		fmt.Println("started", descendant.Process.Pid)
 		return
 	}
 	self, err := os.Executable()
@@ -287,6 +454,17 @@ func TestRunTestBinary(t *testing.T) {
 	want, err := os.Stat(dir)
 	require.NoError(t, err, "stat on the directory given must not error")
 	assert.True(t, os.SameFile(want, got), "the process should run from the directory given, as go test runs a test binary from its package")
+
+	start = time.Now()
+	out, err = runTestBinary(t.Context(), self, dir, args("spawn"), time.Minute)
+	assert.ErrorIs(t, err, exec.ErrWaitDelay, "a process that leaves a descendant holding its output should fail")
+	assert.Less(t, time.Since(start), 30*time.Second, "a descendant holding the output should not keep the run waiting")
+	firstLine, _, _ = strings.Cut(string(out), "\n")
+	pid, err := strconv.Atoi(strings.TrimPrefix(firstLine, "started "))
+	require.NoError(t, err, "the process must report the descendant it started")
+	if descendant, err := os.FindProcess(pid); err == nil {
+		_ = descendant.Kill()
+	}
 }
 
 func TestCPUModel(t *testing.T) {
@@ -417,6 +595,8 @@ func TestRunComparisonErrors(t *testing.T) {
 		setup func(t *testing.T) *options
 		err   error
 		text  string
+		// nanTiming marks a row whose timing reaches the U test as a NaN should the comparison stop refusing one
+		nanTiming bool
 	}{
 		{name: "a go test flag without a test binary equivalent", err: errUnsupportedFlag, setup: func(t *testing.T) *options {
 			t.Helper()
@@ -487,7 +667,7 @@ func TestRunComparisonErrors(t *testing.T) {
 			writeFiles(t, o.root, map[string]string{"fixture/fixture_test.go": "package fixture\n\nfunc broken() {\n"})
 			return o
 		}},
-		{name: "a negative timing", err: errBadTiming, setup: func(t *testing.T) *options {
+		{name: "a negative timing", err: errBadTiming, nanTiming: true, setup: func(t *testing.T) *options {
 			t.Helper()
 			return newOptions(t, "package fixture\n\nimport \"testing\"\n\n"+
 				"func BenchmarkNegative(b *testing.B) {\n\tfor b.Loop() {\n\t}\n\tb.ReportMetric(-1, \"ns/op\")\n}\n")
@@ -495,7 +675,11 @@ func TestRunComparisonErrors(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			err := runComparison(&bytes.Buffer{}, tc.setup(t))
+			o := tc.setup(t)
+			if tc.nanTiming {
+				defer guardHeap(t)()
+			}
+			err := runComparison(&bytes.Buffer{}, o)
 			if tc.err != nil {
 				assert.ErrorIsf(t, err, tc.err, "runComparison should fail for %s", tc.name)
 			} else {
