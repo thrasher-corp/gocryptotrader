@@ -121,7 +121,8 @@ type OpenOrdersRequest struct {
 	AccountID string
 	// IncludeTrades adds the IDs of each order's trades
 	IncludeTrades bool
-	// UserReference and ClientOrderID filter the orders to those placed with them
+	// UserReference and ClientOrderID filter the orders to those placed with them. UserReference is signed, as Kraken's
+	// user references are 32-bit integers that may be negative
 	UserReference int32
 	ClientOrderID string
 	// WithoutTakerConsolidation lists a taker trade's fills separately rather than consolidated into one trade
@@ -223,7 +224,8 @@ type ClosedOrdersRequest struct {
 	AccountID string
 	// IncludeTrades adds the IDs of each order's trades
 	IncludeTrades bool
-	// UserReference and ClientOrderID filter the orders to those placed with them
+	// UserReference and ClientOrderID filter the orders to those placed with them. UserReference is signed, as Kraken's
+	// user references are 32-bit integers that may be negative
 	UserReference int32
 	ClientOrderID string
 	// Start and End bound the orders by time, exclusively and inclusively; StartOrderID and EndOrderID bound them by
@@ -265,7 +267,8 @@ type QueryOrdersRequest struct {
 	OrderIDs []string
 	// IncludeTrades adds the IDs of each order's trades
 	IncludeTrades bool
-	// UserReference and ClientOrderID filter the orders to those placed with them
+	// UserReference and ClientOrderID filter the orders to those placed with them. UserReference is signed, as Kraken's
+	// user references are 32-bit integers that may be negative
 	UserReference int32
 	ClientOrderID string
 	// WithoutTakerConsolidation lists a taker trade's fills separately rather than consolidated into one trade

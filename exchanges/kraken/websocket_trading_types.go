@@ -33,7 +33,8 @@ type WebsocketOrder struct {
 	// ClientOrderID is a UUID, with or without dashes, or up to 18 characters of text. It cannot be sent with
 	// UserReference
 	ClientOrderID string
-	// UserReference tags a group of orders; Kraken does not enforce its uniqueness
+	// UserReference tags a group of orders; Kraken does not enforce its uniqueness. It is signed, as Kraken's user
+	// references are 32-bit integers that may be negative
 	UserReference int32
 	// Conditional creates a close order for each fill of the order
 	Conditional *WebsocketConditionalOrder
@@ -107,7 +108,8 @@ type WebsocketEditOrderRequest struct {
 	PostOnly        bool
 	ReduceOnly      bool
 	Triggers        *WebsocketOrderTriggers
-	// UserReference is placed on the new order; it does not identify the edited order
+	// UserReference is placed on the new order; it does not identify the edited order. It is signed, as Kraken's user
+	// references are 32-bit integers that may be negative
 	UserReference int32
 	Validate      bool
 	Deadline      time.Time

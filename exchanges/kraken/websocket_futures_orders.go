@@ -1,11 +1,9 @@
 package kraken
 
 import (
-	"math"
 	"sync"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
@@ -16,7 +14,7 @@ const futuresOrderRetention = 10 * time.Minute
 
 // futuresOrderTracker holds what the futures feeds have reported of each order. The open_orders feed names only the
 // order when it leaves the open orders and reports its filled quantity only while it stays open, and the fills feed
-// reports each fill on its own, so an order's executed quantity and totals are put together here
+// reports each fill on its own, so an order's executed quantity is put together here
 type futuresOrderTracker struct {
 	mu     sync.Mutex
 	orders map[string]*futuresOrderState
@@ -40,17 +38,10 @@ type futuresOrderState struct {
 	quantity, filled float64
 	// open is set while open_orders reports the order open, so a snapshot leaving it out shows it has left
 	open bool
-	// inverse is set for an inverse contract, whose quantity is in its quote currency
-	inverse bool
-	// fillIDs holds the fills counted into the totals, each once, as a fills snapshot repeats recent fills
-	fillIDs map[string]struct{}
-	// fillQuantity totals the fills counted; value totals their quantity times price, and inverseValue their quantity
-	// over price, which is an inverse contract's value in its base currency
-	fillQuantity, value, inverseValue float64
-	fee                               float64
-	feeAsset                          currency.Code
-	// mixedFees is set when the fills charged fees in more than one currency, which add up to no total
-	mixedFees bool
+	// fillIDs holds the fills counted, each once, as a fills snapshot repeats recent fills, and fillQuantity totals
+	// their quantities
+	fillIDs      map[string]struct{}
+	fillQuantity float64
 	// liveOnly is set while the feeds first reported the order on a connection both feeds' snapshots covered, no
 	// open_orders snapshot has held it, and every fill counted was reported as it happened on it within the same fills
 	// coverage, so no fill of the order came before or went unseen. A fills snapshot can hold only the latest of an
@@ -154,7 +145,7 @@ func (t *futuresOrderTracker) update(conn websocket.Connection, o *WebsocketFutu
 // a stop is once it triggers, is open again
 func (t *futuresOrderTracker) record(conn websocket.Connection, o *WebsocketFuturesOpenOrder) *futuresOrderState {
 	s := t.state(o.OrderID, conn)
-	s.quantity, s.filled, s.inverse, s.open, s.reason = o.Quantity, o.Filled, inverseFuturesSymbol(o.Instrument), true, ""
+	s.quantity, s.filled, s.open, s.reason = o.Quantity, o.Filled, true, ""
 	s.updated = time.Now()
 	return s
 }
@@ -170,30 +161,17 @@ func (t *futuresOrderTracker) finish(conn websocket.Connection, orderID, reason 
 	return *s
 }
 
-// fill counts a fill into its order's totals, once whatever feed reports it again, returning what the feeds have
-// reported of the order
-func (t *futuresOrderTracker) fill(conn websocket.Connection, f *WebsocketFuturesFill, live bool, feeAsset currency.Code) futuresOrderState {
+// fill counts a fill towards its order's executed quantity, once whatever feed reports it again, returning what the
+// feeds have reported of the order
+func (t *futuresOrderTracker) fill(conn websocket.Connection, f *WebsocketFuturesFill, live bool) futuresOrderState {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	defer t.prune()
 	s := t.state(f.OrderID, conn)
-	s.inverse = inverseFuturesSymbol(f.Instrument)
 	if _, counted := s.fillIDs[f.FillID]; !counted {
 		s.liveOnly = s.liveOnly && live && t.fillsCovered(conn) && s.fillsCoverage == t.fillsCoverage
 		s.fillIDs[f.FillID] = struct{}{}
-		switch {
-		case s.fillQuantity == 0:
-			s.feeAsset = feeAsset
-		case !s.feeAsset.Equal(feeAsset):
-			s.mixedFees = true
-		}
 		s.fillQuantity += f.Quantity
-		// The product is rounded on its own, so arm64 cannot fuse it into the sum and change the total
-		s.value += float64(f.Quantity * f.Price)
-		if f.Price > 0 {
-			s.inverseValue += f.Quantity / f.Price
-		}
-		s.fee += f.FeePaid
 		s.filledInFull = s.filledInFull || f.RemainingOrderQuantity == 0
 	}
 	s.updated = time.Now()
@@ -261,45 +239,20 @@ func (s *futuresOrderState) fillStatus() order.Status {
 	}
 }
 
-// complete reports whether the fills counted make up the order's executed quantity, so their totals are the order's
-func (s *futuresOrderState) complete() bool {
-	return s.fillQuantity > 0 && sameQuantity(s.fillQuantity, s.executed())
-}
-
-// addTo adds to an order update what the feeds have reported of the order. An order whose quantity open_orders has
-// reported, and which the tracker has not forgotten since, gets its quantity and executed quantity; any other, such as a
-// market order, which rests in no book, gets them only once its fills, all reported as they happened, have filled it in
-// full, as fills alone tell neither an order's quantity nor whether earlier fills were missed. The average price, cost
-// and fee are added once the fills counted make up the executed quantity, as partial totals would replace fuller ones
-// the order store holds. An inverse contract's cost would be in its base currency, so it is left out
+// addTo adds to an order update the order's quantities, as far as the feeds have reported them. An order whose quantity
+// open_orders has reported, and which the tracker has not forgotten since, gets its quantity and executed quantity; any
+// other, such as a market order, which rests in no book, gets them only once its fills, all reported as they happened,
+// have filled it in full, as fills alone tell neither an order's quantity nor whether earlier fills were missed. The
+// order's average price, cost and fee are left unset, each fill's price and fee staying on its trade: the fills counted
+// can add up to all the feeds have reported filled while fills from before the feeds subscribed, which the fills
+// snapshot can leave out, are missing, as when a fill is reported before open_orders reports it, and Kraken's futures
+// order reads carry no totals that would correct partial ones
 func (s *futuresOrderState) addTo(d *order.Detail) {
-	// The order store keeps the fee currency of the update that first stores an order, which can be a fill's
-	if !s.mixedFees && !s.feeAsset.IsEmpty() {
-		d.FeeAsset = s.feeAsset
-	}
 	switch {
 	case s.quantity > 0:
 		d.Amount, d.ExecutedAmount = s.quantity, s.executed()
 		d.RemainingAmount = max(d.Amount-d.ExecutedAmount, 0)
 	case s.liveOnly && s.filledInFull:
 		d.Amount, d.ExecutedAmount, d.RemainingAmount = s.fillQuantity, s.fillQuantity, 0
-	default:
-		return
 	}
-	if !s.complete() {
-		return
-	}
-	if s.inverse {
-		d.AverageExecutedPrice = s.fillQuantity / s.inverseValue
-	} else {
-		d.Cost, d.AverageExecutedPrice = s.value, s.value/s.fillQuantity
-	}
-	if !s.mixedFees {
-		d.Fee, d.FeeAsset = s.fee, s.feeAsset
-	}
-}
-
-// sameQuantity reports whether two quantities agree but for the rounding of adding fills up
-func sameQuantity(a, b float64) bool {
-	return math.Abs(a-b) <= 1e-9*max(math.Abs(a), math.Abs(b))
 }

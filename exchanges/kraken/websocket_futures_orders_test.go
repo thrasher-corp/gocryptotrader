@@ -93,6 +93,16 @@ func futuresRemovalMessage(orderID, reason string) string {
 	return `{"feed":"open_orders","order_id":"` + orderID + `","is_cancel":true,"reason":"` + reason + `"}`
 }
 
+// assertFuturesOrderTotalsUnset asserts that an order holds no average price, cost or fee, which the futures feeds
+// leave unset as they cannot show the fills they report are all of an order's
+func assertFuturesOrderTotalsUnset(t *testing.T, d *order.Detail, of string) {
+	t.Helper()
+	assert.Zerof(t, d.AverageExecutedPrice, "%s should hold no average price", of)
+	assert.Zerof(t, d.Cost, "%s should hold no cost", of)
+	assert.Zerof(t, d.Fee, "%s should hold no fee", of)
+	assert.Truef(t, d.FeeAsset.IsEmpty(), "%s should hold no fee currency", of)
+}
+
 func TestFuturesOrderFilledAtOnce(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
@@ -108,22 +118,18 @@ func TestFuturesOrderFilledAtOnce(t *testing.T) {
 	)
 	require.Len(t, details, 3, "each fill and the order's removal must relay an order update")
 	assert.Zero(t, details[0].ExecutedAmount, "a fill should relay no executed quantity while the order's quantity is unknown")
-	assert.Zero(t, details[0].Cost, "a fill should relay no cost while the order's quantity is unknown")
-	assert.Equal(t, currency.USD, details[0].FeeAsset, "a fill should relay its fee currency, which the order store keeps from the update that first stores an order")
 	mergeOrderUpdates(t, stored, details)
 	assert.Equal(t, order.Filled, stored.Status, "the order should be stored filled")
 	assert.Equal(t, 10.0, stored.Amount, "the order should keep its quantity")
 	assert.Equal(t, 10.0, stored.ExecutedAmount, "the order should be stored with all of it executed")
-	assert.InDelta(t, 200060.0, stored.Cost, 1e-6, "the order should be stored with its fills' cost")
-	assert.InDelta(t, 20006.0, stored.AverageExecutedPrice, 1e-9, "the order should be stored with its fills' average price")
-	assert.InDelta(t, 0.5, stored.Fee, 1e-12, "the order should be stored with its fills' fees")
-	assert.Equal(t, currency.USD, details[1].FeeAsset, "the fee currency should be relayed with the fee")
+	// Every fill was reported as it happened, but the tracker cannot tell that from a sequence that missed some, so it
+	// leaves even these totals unset
+	assertFuturesOrderTotalsUnset(t, stored, "an order whose fills were all reported as they happened")
 
 	// The fills feed can repeat a fill, which must not be counted again
 	repeated := futuresOrderUpdates(t, ex, futuresFillMessage(wsFuturesFeedFills, "o-1", "f-2", "PF_XBTUSD", 6, 0, 20010, 0.3, "USD"))
 	require.Len(t, repeated, 1, "the repeated fill must relay an order update")
 	assert.Equal(t, 10.0, repeated[0].ExecutedAmount, "a repeated fill should relay the same executed quantity")
-	assert.InDelta(t, 0.5, repeated[0].Fee, 1e-12, "a repeated fill's fee should not be counted again")
 }
 
 func TestFuturesOrderPlacedElsewhere(t *testing.T) {
@@ -142,8 +148,8 @@ func TestFuturesOrderPlacedElsewhere(t *testing.T) {
 	mergeOrderUpdates(t, stored, details[1:])
 	assert.Equal(t, order.Filled, stored.Status, "the order should be stored filled")
 	assert.Equal(t, 10.0, stored.ExecutedAmount, "the order should be stored with its fills executed")
-	assert.InDelta(t, 0.5, stored.Fee, 1e-12, "the order should be stored with its fills' fees")
-	assert.Equal(t, currency.USD, stored.FeeAsset, "the order should be stored with its fee currency")
+	assertFuturesOrderTotalsUnset(t, stored, "an order placed elsewhere")
+	assert.Len(t, stored.Trades, 2, "the order should be stored with each fill's trade, which holds the fill's fee")
 }
 
 func TestFuturesOrderFillsAfterRemoval(t *testing.T) {
@@ -161,14 +167,11 @@ func TestFuturesOrderFillsAfterRemoval(t *testing.T) {
 	removal := details[1]
 	assert.Equal(t, order.Filled, removal.Status, "the removal should relay the order filled")
 	assert.Equal(t, 10.0, removal.ExecutedAmount, "the removal should relay the order's quantity as executed")
-	assert.Zero(t, removal.Cost, "the removal should relay no cost before the fills are counted")
 	for i, d := range details[2:] {
 		assert.Equalf(t, 10.0, d.ExecutedAmount, "fill %d should not relay less executed than the removal did", i)
 		assert.Equalf(t, order.Filled, d.Status, "fill %d should relay the order as it was removed", i)
 	}
-	assert.Zero(t, details[2].Cost, "the first fill should relay no cost, as it is not all the order executed")
-	assert.Equal(t, 200000.0, details[3].Cost, "the last fill should relay the order's cost")
-	assert.InDelta(t, 0.5, details[3].Fee, 1e-12, "the last fill should relay the order's fees")
+	assertFuturesOrderTotalsUnset(t, details[3], "the last fill of an order removed as filled")
 }
 
 func TestFuturesOrderPartlyFilledCancellation(t *testing.T) {
@@ -183,18 +186,49 @@ func TestFuturesOrderPartlyFilledCancellation(t *testing.T) {
 	)
 	require.Len(t, details, 4, "each message must relay an order update")
 	assert.Equal(t, &order.Detail{
-		Exchange:             ex.Name,
-		AssetType:            asset.Futures,
-		OrderID:              "o-3",
-		Status:               order.PartiallyFilledCancelled,
-		Amount:               10,
-		ExecutedAmount:       4,
-		RemainingAmount:      6,
-		Cost:                 80000,
-		AverageExecutedPrice: 20000,
-		Fee:                  0.2,
-		FeeAsset:             currency.USD,
+		Exchange:        ex.Name,
+		AssetType:       asset.Futures,
+		OrderID:         "o-3",
+		Status:          order.PartiallyFilledCancelled,
+		Amount:          10,
+		ExecutedAmount:  4,
+		RemainingAmount: 6,
 	}, details[3], "a cancellation after a fill should relay the order partly filled, with what it executed")
+}
+
+func TestFuturesOrderFillReportedBeforeItsUpdate(t *testing.T) {
+	t.Parallel()
+	ex := newTestExchange(t)
+	seedTestAssetNames(ex)
+	// 4 of the order filled before the feeds subscribed, in a fill the fills snapshot leaves out, and its next fill is
+	// reported before open_orders reports it, when that fill alone makes up all the feeds have reported filled
+	details := futuresOrderUpdates(t, ex,
+		`{"feed":"open_orders_snapshot","account":"DemoUser","orders":[`+futuresOpenOrder("o-40", 10, 4)+`]}`,
+		futuresEmptyFillsSnapshot,
+		futuresFillMessage(wsFuturesFeedFills, "o-40", "f-2", "PF_XBTUSD", 5, 1, 21000, 0.5, "USD"),
+		futuresOpenOrderMessage("o-40", 10, 9, "partial_fill"),
+		futuresRemovalMessage("o-40", "cancelled_by_user"),
+	)
+	require.Len(t, details, 4, "the snapshot, the fill, the update and the removal must each relay an order update")
+	stored := details[0]
+	mergeOrderUpdates(t, stored, details[1:])
+	stored.LastUpdated = time.Time{}
+	exp := &order.Detail{
+		Exchange:        ex.Name,
+		AssetType:       asset.Futures,
+		OrderID:         "o-40",
+		Pair:            futuresTestPair,
+		Side:            order.Buy,
+		Type:            order.Limit,
+		Status:          order.PartiallyFilledCancelled,
+		Price:           20000,
+		Amount:          10,
+		ExecutedAmount:  9,
+		RemainingAmount: 1,
+		Date:            time.UnixMilli(1612275024153),
+		Trades:          []order.TradeHistory{{TID: "f-2", Price: 21000, Amount: 5, Fee: 0.5, FeeAsset: "USD", Exchange: ex.Name, Type: order.Limit, Side: order.Buy, Timestamp: time.UnixMilli(1600256966528)}},
+	}
+	assert.Equal(t, exp, stored, "the order should be stored with what it executed, and its fill's price and fee on the fill's trade alone")
 }
 
 func TestFuturesOrderFillsAfterCancellation(t *testing.T) {
@@ -213,7 +247,7 @@ func TestFuturesOrderFillsAfterCancellation(t *testing.T) {
 	mergeOrderUpdates(t, stored, details)
 	assert.Equal(t, order.PartiallyFilledCancelled, stored.Status, "a fill after the cancellation should make the order partly filled")
 	assert.Equal(t, 4.0, stored.ExecutedAmount, "a fill after the cancellation should relay what the order executed")
-	assert.Equal(t, 80000.0, stored.Cost, "a fill after the cancellation should relay the order's cost")
+	assertFuturesOrderTotalsUnset(t, stored, "an order filled after its cancellation")
 }
 
 func TestFuturesOrderRemovedWithOrder(t *testing.T) {
@@ -264,7 +298,6 @@ func TestFuturesOrderAmendedQuantity(t *testing.T) {
 		assert.Equalf(t, 4.0, d.ExecutedAmount, "update %d should relay what the order executed, whatever its quantity", i)
 	}
 	assert.Equal(t, 20.0, details[3].Amount, "a fill should relay the order's amended quantity")
-	assert.InDelta(t, 0.2, details[3].Fee, 1e-12, "a repeated fill's fee should not be counted again")
 }
 
 func TestFuturesOrderFillsSnapshot(t *testing.T) {
@@ -280,13 +313,9 @@ func TestFuturesOrderFillsSnapshot(t *testing.T) {
 		futuresFillMessage(wsFuturesFeedFills, "o-8", "f-2", "PF_XBTUSD", 6, 0, 20000, 0.3, "USD"),
 	)
 	require.Len(t, details, 4, "the snapshot and each fill must relay an order update")
-	assert.Equal(t, 80000.0, details[1].Cost, "the fills snapshot's fill should relay the cost of what the order executed before the connection")
-	assert.Equal(t, 80000.0, details[2].Cost, "a repeated fill should not be counted again")
-	assert.InDelta(t, 0.2, details[2].Fee, 1e-12, "a repeated fill's fee should not be counted again")
+	assert.Equal(t, 4.0, details[2].ExecutedAmount, "a repeated fill should not be counted again")
 	assert.Equal(t, order.Filled, details[3].Status, "the fill leaving nothing remaining should relay the order filled")
 	assert.Equal(t, 10.0, details[3].ExecutedAmount, "the live fill should relay the order filled in full")
-	assert.Equal(t, 200000.0, details[3].Cost, "the live fill should relay both fills' cost")
-	assert.InDelta(t, 0.5, details[3].Fee, 1e-12, "the live fill should relay both fills' fees")
 
 	// The fills snapshot can come before the open orders snapshot
 	early := futuresOrderUpdates(t, ex,
@@ -295,7 +324,6 @@ func TestFuturesOrderFillsSnapshot(t *testing.T) {
 	)
 	require.Len(t, early, 2, "the fill and the snapshot must relay an order update")
 	assert.Zero(t, early[0].ExecutedAmount, "a fill of an order not yet reported should relay its trade alone")
-	assert.Equal(t, 80000.0, early[1].Cost, "the open orders snapshot should relay the cost of the fill counted before it")
 
 	missing := futuresOrderUpdates(t, ex,
 		`{"feed":"open_orders_snapshot","account":"DemoUser","orders":[`+futuresOpenOrder("o-10", 10, 4)+`]}`,
@@ -303,8 +331,16 @@ func TestFuturesOrderFillsSnapshot(t *testing.T) {
 	)
 	require.Len(t, missing, 2, "the snapshot and the fill must relay an order update")
 	assert.Equal(t, 10.0, missing[1].ExecutedAmount, "a fill leaving nothing remaining should relay the order filled in full")
-	assert.Zero(t, missing[1].Cost, "an order whose earlier fill was not reported should relay no cost")
-	assert.Zero(t, missing[1].Fee, "an order whose earlier fill was not reported should relay no fee")
+	assertFuturesOrderTotalsUnset(t, missing[1], "an order whose earlier fill was not reported")
+
+	// A live fill can be reported before open_orders reports it, when only the fills counted show what has executed
+	ahead := futuresOrderUpdates(t, ex,
+		`{"feed":"open_orders_snapshot","account":"DemoUser","orders":[`+futuresOpenOrder("o-41", 10, 4)+`]}`,
+		futuresFillMessage(wsFuturesFeedFillsSnapshot, "o-41", "f-5", "PF_XBTUSD", 4, 6, 20000, 0.2, "USD"),
+		futuresFillMessage(wsFuturesFeedFills, "o-41", "f-6", "PF_XBTUSD", 3, 3, 20000, 0.15, "USD"),
+	)
+	require.Len(t, ahead, 3, "the snapshot and each fill must relay an order update")
+	assert.Equal(t, 7.0, ahead[2].ExecutedAmount, "a live fill reported before open_orders reports it should add to the fills snapshot's fill")
 }
 
 func TestFuturesOrderFillsOfAnUnnamedOrder(t *testing.T) {
@@ -482,27 +518,14 @@ func TestFuturesOrderInverseContract(t *testing.T) {
 		futuresFillMessage(wsFuturesFeedFills, "o-12", "f-2", "PI_XBTUSD", 1000, 0, 20000, 0.00002, "BTC"),
 	)
 	require.Len(t, details, 2, "each fill must relay an order update")
-	// An inverse contract's quantity is in US dollars, so its average price is what it bought over the bitcoin it cost
-	assert.InDelta(t, 2000/(0.1+0.05), details[1].AverageExecutedPrice, 1e-9, "an inverse contract's average price should weight its fills by their base value")
-	assert.Zero(t, details[1].Cost, "an inverse contract's cost should not be relayed")
-	assert.InDelta(t, 0.00003, details[1].Fee, 1e-15, "the fills' fees should be relayed")
-	assert.Equal(t, currency.XBT, details[1].FeeAsset, "the fee currency should be relayed by its alternative name")
-}
-
-func TestFuturesOrderMixedFeeCurrencies(t *testing.T) {
-	t.Parallel()
-	ex := newTestExchange(t)
-	seedTestAssetNames(ex)
-	details := futuresOrderUpdates(t, ex,
-		futuresEmptySnapshot,
-		futuresEmptyFillsSnapshot,
-		futuresFillMessage(wsFuturesFeedFills, "o-13", "f-1", "PF_XBTUSD", 4, 6, 20000, 0.2, "USD"),
-		futuresFillMessage(wsFuturesFeedFills, "o-13", "f-2", "PF_XBTUSD", 6, 0, 20000, 0.3, "EUR"),
-	)
-	require.Len(t, details, 2, "each fill must relay an order update")
-	assert.Equal(t, 200000.0, details[1].Cost, "the order's cost should be relayed")
-	assert.Zero(t, details[1].Fee, "fees charged in more than one currency should relay no fee")
-	assert.True(t, details[1].FeeAsset.IsEmpty(), "fees charged in more than one currency should relay no fee currency")
+	// An inverse contract's quantity is in US dollars, and its fees are charged in bitcoin
+	assert.Equal(t, 2000.0, details[1].ExecutedAmount, "the fill leaving nothing remaining should relay the order filled in full")
+	assertFuturesOrderTotalsUnset(t, details[1], "an inverse contract's order")
+	for i, fee := range []float64{0.00001, 0.00002} {
+		require.Lenf(t, details[i].Trades, 1, "fill %d must relay its trade", i)
+		assert.Equalf(t, fee, details[i].Trades[0].Fee, "fill %d's trade should hold its fee", i)
+		assert.Equalf(t, "XBT", details[i].Trades[0].FeeAsset, "fill %d's trade should hold its fee currency by its alternative name", i)
+	}
 }
 
 func TestFuturesOrderFillsAddUp(t *testing.T) {
@@ -516,8 +539,8 @@ func TestFuturesOrderFillsAddUp(t *testing.T) {
 		futuresFillMessage(wsFuturesFeedFills, "o-14", "f-2", "PF_XBTUSD", 0.7, 0, 20000, 0.07, "USD"),
 	)
 	require.Len(t, details, 3, "each message must relay an order update")
+	assert.Equal(t, 0.1, details[1].ExecutedAmount, "a fill leaving some of the order remaining should relay what it executed")
 	assert.Equal(t, 0.8, details[2].ExecutedAmount, "a fill leaving nothing remaining should relay the order's quantity as executed")
-	assert.InDelta(t, 16000.0, details[2].Cost, 1e-9, "fills adding up to the order's quantity but for rounding should relay its cost")
 }
 
 func TestFuturesOrderTracker(t *testing.T) {
@@ -530,7 +553,7 @@ func TestFuturesOrderTracker(t *testing.T) {
 	assert.Equal(t, 10.0, tracker.get("left").quantity, "a snapshot should record its orders")
 	tracker.finish(nil, "finished", "cancelled_by_user")
 	tracker.finish(nil, "stale", "cancelled_by_user")
-	tracker.fill(nil, &WebsocketFuturesFill{Instrument: "PF_XBTUSD", OrderID: "filled only", FillID: "f-1", Quantity: 1, RemainingOrderQuantity: 1}, true, currency.USD)
+	tracker.fill(nil, &WebsocketFuturesFill{Instrument: "PF_XBTUSD", OrderID: "filled only", FillID: "f-1", Quantity: 1, RemainingOrderQuantity: 1}, true)
 	tracker.mu.Lock()
 	tracker.orders["stale"].updated = time.Now().Add(-futuresOrderRetention - time.Second)
 	tracker.mu.Unlock()
@@ -548,7 +571,7 @@ func TestFuturesOrderTracker(t *testing.T) {
 	// A fill not reported as it happened can follow fills that went unseen
 	tracker.fillsSnapshot(nil)
 	fill := func(fillID string, live bool) futuresOrderState {
-		return tracker.fill(nil, &WebsocketFuturesFill{Instrument: "PF_XBTUSD", OrderID: "repeated", FillID: fillID, Quantity: 1, RemainingOrderQuantity: 1}, live, currency.USD)
+		return tracker.fill(nil, &WebsocketFuturesFill{Instrument: "PF_XBTUSD", OrderID: "repeated", FillID: fillID, Quantity: 1, RemainingOrderQuantity: 1}, live)
 	}
 	require.True(t, fill("f-2", true).liveOnly, "a fill reported as it happened on a covered connection must be counted live")
 	assert.False(t, fill("f-3", false).liveOnly, "a fill not reported as it happened should end an order's live fills")
@@ -769,7 +792,6 @@ func TestFuturesOrderQuantityCoverage(t *testing.T) {
 				Status:         tc.status,
 				Amount:         tc.amount,
 				ExecutedAmount: tc.amount,
-				FeeAsset:       currency.USD,
 				LastUpdated:    fillTime,
 				Trades:         []order.TradeHistory{{TID: "f-last", Price: 20000, Amount: tc.filled, Fee: 0.25, FeeAsset: "USD", Exchange: ex.Name, Type: order.Limit, Side: order.Buy, Timestamp: fillTime}},
 			}
@@ -792,14 +814,6 @@ func TestFuturesOrderRestingPastRetention(t *testing.T) {
 	require.Len(t, got, 1, "the removal must relay one order update")
 	exp := &order.Detail{Exchange: ex.Name, AssetType: asset.Futures, OrderID: "resting", Status: order.Filled, Amount: 10, ExecutedAmount: 10}
 	assert.Equal(t, exp, got[0], "an order resting past futuresOrderRetention should keep the quantity open_orders reported, and be relayed filled in full")
-}
-
-func TestSameQuantity(t *testing.T) {
-	t.Parallel()
-	assert.True(t, sameQuantity(0.1+0.2, 0.3), "sameQuantity should accept the rounding of adding fills")
-	assert.True(t, sameQuantity(0, 0), "sameQuantity should accept two zeros")
-	assert.False(t, sameQuantity(0.3, 0.30001), "sameQuantity should tell different quantities apart")
-	assert.False(t, sameQuantity(4, 10), "sameQuantity should tell different quantities apart")
 }
 
 // setFuturesMarginCurrencies records the REST margin accounts' currencies for the default credentials, as

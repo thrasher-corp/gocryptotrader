@@ -131,7 +131,8 @@ of the day, so they leave `Open` unset.
 + The futures websocket streams the tickers, order books and trades of futures subscriptions, and, when
 authenticated websocket support is enabled and credentials are set, the account's open orders, fills and balances
 with the `myOrders`, `myTrades` and `myWallet` channels. Futures order books stream whole, so futures subscriptions
-take no `levels`.
+take no `levels`. Futures order updates leave an order's average price, cost and fee unset, as the feeds cannot show
+that the fills they report are all of the order's; each fill is relayed as the order's trade, with its price and fee.
 
 + Kraken's spot balance messages carry neither the amount on hold nor the credit it counts as available, so each one
 the `myWallet` channel streams refreshes the stored spot balances over REST, at most once every five seconds, and the

@@ -597,10 +597,10 @@ func futuresOrderUpdateStatus(reason string, isCancel bool, filled float64) orde
 }
 
 // wsFuturesProcessFills relays the account's futures fills: each as its order's trade, with its fee, and as a fill when
-// the fills feed is enabled. The order's executed quantity and totals are relayed with its trade where the feeds have
+// the fills feed is enabled. The order's quantity and executed quantity are relayed with its trade where the feeds have
 // reported enough of the order to know them. A fill that cannot be relayed, such as one on a contract missing from the
-// available pairs, does not hold back the others, and still counts towards its order's totals, which its order's later
-// fills relay
+// available pairs, does not hold back the others, and still counts towards its order's executed quantity, which its
+// order's later updates relay
 func (e *Exchange) wsFuturesProcessFills(ctx context.Context, conn websocket.Connection, feed string, respRaw []byte) error {
 	var wsFills WebsocketFuturesFills
 	if err := json.Unmarshal(respRaw, &wsFills); err != nil {
@@ -613,8 +613,7 @@ func (e *Exchange) wsFuturesProcessFills(ctx context.Context, conn websocket.Con
 	var fills []fill.Data
 	for i := range wsFills.Fills {
 		f := &wsFills.Fills[i]
-		feeAsset := e.assetCode(f.FeeCurrency)
-		state := e.futuresOrders.fill(conn, f, feed == wsFuturesFeedFills, feeAsset)
+		state := e.futuresOrders.fill(conn, f, feed == wsFuturesFeedFills)
 		pair, err := e.futuresPair(f.Instrument)
 		if err != nil {
 			errs = common.AppendError(errs, err)
@@ -643,7 +642,7 @@ func (e *Exchange) wsFuturesProcessFills(ctx context.Context, conn websocket.Con
 				Price:     f.Price,
 				Amount:    f.Quantity,
 				Fee:       f.FeePaid,
-				FeeAsset:  feeAsset.String(),
+				FeeAsset:  e.assetCode(f.FeeCurrency).String(),
 				Exchange:  e.Name,
 				Type:      orderType,
 				Side:      side,

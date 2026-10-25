@@ -87,7 +87,7 @@ func (p *OrderPrice) UnmarshalJSON(data []byte) error {
 // of its orders
 type OrderParameters struct {
 	// UserReference is a number grouping orders for queries and cancellation, unique or not; 0 is not sent. It excludes
-	// ClientOrderID
+	// ClientOrderID, and is signed, as Kraken's user references are 32-bit integers that may be negative
 	UserReference int32
 	// ClientOrderID uniquely identifies an open order: a UUID, with or without its dashes, or up to 18 characters of
 	// free text
@@ -208,7 +208,8 @@ type EditOrderRequest struct {
 	TransactionID string
 	// OrderUserReference is signed, as Kraken's user references are 32-bit integers that may be negative
 	OrderUserReference int32
-	// NewUserReference is the replacement order's user reference, as the original order's is not kept
+	// NewUserReference is the replacement order's user reference, as the original order's is not kept. It is signed, as
+	// Kraken's user references are 32-bit integers that may be negative
 	NewUserReference int32
 	Pair             currency.Pair
 	// AssetClass is tokenized_asset, which xStocks pairs require
@@ -257,7 +258,8 @@ type EditOrderDescription struct {
 // CancelExistingOrderRequest holds the parameters of Cancel Order, which takes exactly one identifier
 type CancelExistingOrderRequest struct {
 	TransactionID string
-	// UserReference cancels every open order with this user reference
+	// UserReference cancels every open order with this user reference. It is signed, as Kraken's user references are
+	// 32-bit integers that may be negative
 	UserReference int32
 	ClientOrderID string
 }
@@ -328,7 +330,8 @@ type BatchOrderResult struct {
 // CancelOrderBatchRequest holds the parameters of Cancel Order Batch, which takes up to 50 identifiers in all
 type CancelOrderBatchRequest struct {
 	TransactionIDs []string
-	// UserReferences cancel every open order with each user reference
+	// UserReferences cancel every open order with each user reference. They are signed, as Kraken's user references
+	// are 32-bit integers that may be negative
 	UserReferences []int32
 	ClientOrderIDs []string
 }

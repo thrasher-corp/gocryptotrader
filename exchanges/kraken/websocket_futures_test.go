@@ -514,7 +514,6 @@ func TestWebsocketFuturesHandleData(t *testing.T) {
 			Pair:        futuresTestPair,
 			Side:        order.Buy,
 			Type:        order.Limit,
-			FeeAsset:    currency.XBT,
 			LastUpdated: makerTime,
 			Trades: []order.TradeHistory{{
 				TID:       "cad76f07-814e-4dc6-8478-7867407b6bff",
@@ -536,7 +535,6 @@ func TestWebsocketFuturesHandleData(t *testing.T) {
 			Pair:        piETHUSD,
 			Side:        order.Buy,
 			Type:        order.Limit,
-			FeeAsset:    currency.ETH,
 			LastUpdated: takerTime,
 			Trades: []order.TradeHistory{{
 				TID:       "b1aa44b2-4f2a-4031-999c-ae1175c91580",
@@ -1429,7 +1427,6 @@ func TestWebsocketFuturesProcessFills(t *testing.T) {
 		Pair:          futuresTestPair,
 		Side:          order.Sell,
 		Type:          order.Stop,
-		FeeAsset:      currency.XBT,
 		LastUpdated:   fillTime,
 		Trades: []order.TradeHistory{{
 			TID:       "c14ee7cb-ad6b-4f25-b0c0-7e0b4e7a4e3b",
@@ -1499,15 +1496,14 @@ func TestWebsocketFuturesProcessFills(t *testing.T) {
 				Pair:        futuresTestPair,
 				Side:        order.Buy,
 				Type:        order.Limit,
-				FeeAsset:    currency.USD,
 				LastUpdated: fillTime,
 				Trades:      []order.TradeHistory{{TID: "f-3", Price: 20000, Amount: 4, Fee: 0.5, FeeAsset: "USD", Exchange: ex.Name, Type: order.Limit, Side: order.Buy, Timestamp: fillTime}},
 			},
 			[]fill.Data{{ID: "f-3", Timestamp: fillTime, Exchange: ex.Name, AssetType: asset.Futures, CurrencyPair: futuresTestPair, Side: order.Buy, OrderID: "listed", TradeID: "f-3", Price: 20000, Amount: 4}},
 		}
 		assert.Equal(t, exp, relayed(ex), "wsFuturesProcessFills should relay a fill after ones it cannot relay, as its order's trade and as a fill")
-		assert.Equal(t, 4.0, ex.futuresOrders.get("listed").fillQuantity, "wsFuturesProcessFills should count a fill after ones it cannot relay into its order's totals")
-		assert.Equal(t, 2.0, ex.futuresOrders.get("unlisted").fillQuantity, "wsFuturesProcessFills should count a fill it cannot relay into its order's totals")
+		assert.Equal(t, 4.0, ex.futuresOrders.get("listed").fillQuantity, "wsFuturesProcessFills should count a fill after ones it cannot relay towards its order's executed quantity")
+		assert.Equal(t, 2.0, ex.futuresOrders.get("unlisted").fillQuantity, "wsFuturesProcessFills should count a fill it cannot relay towards its order's executed quantity")
 	})
 
 	t.Run("relay full", func(t *testing.T) {
@@ -1523,7 +1519,7 @@ func TestWebsocketFuturesProcessFills(t *testing.T) {
 		var errs interface{ Unwrap() []error }
 		require.ErrorAs(t, ex.wsFuturesProcessFills(t.Context(), nil, wsFuturesFeedFills, []byte(msg)), &errs, "wsFuturesProcessFills must return the relay's errors")
 		assert.Len(t, errs.Unwrap(), 3, "wsFuturesProcessFills should try to relay each fill as its order's trade, and the fills to the fills feed")
-		assert.Equal(t, 6.0, ex.futuresOrders.get("second").fillQuantity, "wsFuturesProcessFills should count a fill after one it could not relay into its order's totals")
+		assert.Equal(t, 6.0, ex.futuresOrders.get("second").fillQuantity, "wsFuturesProcessFills should count a fill after one it could not relay towards its order's executed quantity")
 	})
 
 	t.Run("contract listed after a fill", func(t *testing.T) {
@@ -1544,23 +1540,20 @@ func TestWebsocketFuturesProcessFills(t *testing.T) {
 		require.NoError(t, ex.wsFuturesProcessFills(t.Context(), nil, wsFuturesFeedFills, []byte(later)), "wsFuturesProcessFills must not error once the contract is listed")
 		fillTime := time.UnixMilli(1600256966528)
 		exp := &order.Detail{
-			Exchange:             ex.Name,
-			AssetType:            asset.Futures,
-			OrderID:              "o-1",
-			Pair:                 listedLater,
-			Side:                 order.Buy,
-			Type:                 order.Limit,
-			Status:               order.Filled,
-			Amount:               5,
-			ExecutedAmount:       5,
-			Cost:                 800,
-			AverageExecutedPrice: 160,
-			Fee:                  0.75,
-			FeeAsset:             currency.USD,
-			LastUpdated:          fillTime,
-			Trades:               []order.TradeHistory{{TID: "f-2", Price: 200, Amount: 3, Fee: 0.5, FeeAsset: "USD", Exchange: ex.Name, Type: order.Limit, Side: order.Buy, Timestamp: fillTime}},
+			Exchange:       ex.Name,
+			AssetType:      asset.Futures,
+			OrderID:        "o-1",
+			Pair:           listedLater,
+			Side:           order.Buy,
+			Type:           order.Limit,
+			Status:         order.Filled,
+			Amount:         5,
+			ExecutedAmount: 5,
+			LastUpdated:    fillTime,
+			Trades:         []order.TradeHistory{{TID: "f-2", Price: 200, Amount: 3, Fee: 0.5, FeeAsset: "USD", Exchange: ex.Name, Type: order.Limit, Side: order.Buy, Timestamp: fillTime}},
 		}
-		assert.Equal(t, []any{exp}, relayed(ex), "wsFuturesProcessFills should relay the order's totals with the fill it could not relay before its contract was listed")
+		assert.Equal(t, []any{exp}, relayed(ex), "wsFuturesProcessFills should relay the order filled once its contract is listed")
+		assert.Equal(t, 5.0, ex.futuresOrders.get("o-1").fillQuantity, "wsFuturesProcessFills should count the fill it could not relay before its contract was listed towards its order's executed quantity")
 	})
 
 	t.Run("order type it cannot decode before a later fill", func(t *testing.T) {
@@ -1578,23 +1571,20 @@ func TestWebsocketFuturesProcessFills(t *testing.T) {
 		require.NoError(t, ex.wsFuturesProcessFills(t.Context(), nil, wsFuturesFeedFills, []byte(later)), "wsFuturesProcessFills must not error for a fill it can decode")
 		fillTime := time.UnixMilli(1600256966528)
 		exp := &order.Detail{
-			Exchange:             ex.Name,
-			AssetType:            asset.Futures,
-			OrderID:              "o-1",
-			Pair:                 futuresTestPair,
-			Side:                 order.Buy,
-			Type:                 order.Limit,
-			Status:               order.Filled,
-			Amount:               5,
-			ExecutedAmount:       5,
-			Cost:                 800,
-			AverageExecutedPrice: 160,
-			Fee:                  0.75,
-			FeeAsset:             currency.USD,
-			LastUpdated:          fillTime,
-			Trades:               []order.TradeHistory{{TID: "f-2", Price: 200, Amount: 3, Fee: 0.5, FeeAsset: "USD", Exchange: ex.Name, Type: order.Limit, Side: order.Buy, Timestamp: fillTime}},
+			Exchange:       ex.Name,
+			AssetType:      asset.Futures,
+			OrderID:        "o-1",
+			Pair:           futuresTestPair,
+			Side:           order.Buy,
+			Type:           order.Limit,
+			Status:         order.Filled,
+			Amount:         5,
+			ExecutedAmount: 5,
+			LastUpdated:    fillTime,
+			Trades:         []order.TradeHistory{{TID: "f-2", Price: 200, Amount: 3, Fee: 0.5, FeeAsset: "USD", Exchange: ex.Name, Type: order.Limit, Side: order.Buy, Timestamp: fillTime}},
 		}
-		assert.Equal(t, []any{exp}, relayed(ex), "wsFuturesProcessFills should relay the order's totals with the fill of an order type it could not decode")
+		assert.Equal(t, []any{exp}, relayed(ex), "wsFuturesProcessFills should relay the order filled with a fill it can decode")
+		assert.Equal(t, 5.0, ex.futuresOrders.get("o-1").fillQuantity, "wsFuturesProcessFills should count the fill of an order type it could not decode towards its order's executed quantity")
 	})
 }
 
