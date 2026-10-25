@@ -15,6 +15,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
@@ -1196,6 +1197,36 @@ func TestFiatHistoryForwardsOrderID(t *testing.T) {
 				assert.Equal(t, int64(1), requests.Load(), "exactly one request should reach the server")
 			})
 		}
+	}
+}
+
+func TestFiatHistoryEndTimeAndNilParams(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name    string
+		history func(*Exchange, context.Context, *FiatWithdrawalRequestParams) (FiatAssetsHistory, error)
+	}{
+		{name: "withdrawal", history: (*Exchange).FiatWithdrawalHistory},
+		{name: "deposit", history: (*Exchange).FiatDepositHistory},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup must not error")
+			_, err := tc.history(ex, t.Context(), nil)
+			require.ErrorIs(t, err, common.ErrNilPointer, "nil params must return ErrNilPointer")
+			ex.SkipAuthCheck = true
+			ex.SetCredentials(&accounts.Credentials{Key: "test-key", Secret: "test-secret"})
+			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.True(t, r.URL.Query().Has("endTime"), "a past endTime should be sent")
+				_, err := w.Write([]byte(`{"assetLogRecordList":[]}`))
+				assert.NoError(t, err, "writing the response should not error")
+			}))
+			require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpotSupplementary.String(), server.URL), "SetRunningURL must not error")
+			_, err = tc.history(ex, t.Context(), &FiatWithdrawalRequestParams{EndTime: time.Now().Add(-time.Hour)})
+			require.NoError(t, err, "fiat history request must not error")
+		})
 	}
 }
 
