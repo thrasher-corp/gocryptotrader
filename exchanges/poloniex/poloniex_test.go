@@ -1629,8 +1629,12 @@ func TestSpotOrderExecutionMappings(t *testing.T) {
 			response = `[]`
 		case "/orders/1":
 			response = orderResponse
+		case "/orders/2/trades":
+			response = `[]`
+		case "/orders/2":
+			response = `{"id":"2","symbol":"BTC_USDT","state":"FILLED","accountType":"SPOT","side":"BUY","type":"LIMIT","price":"61000","avgPrice":"60000.33","quantity":"0.03","amount":"1830","filledQuantity":"0.03","filledAmount":"1800.01","createTime":1735720637000,"updateTime":1735720638000}`
 		case "/orders/history":
-			response = `[{"id":1,"symbol":"BTC_USDT","state":"FILLED","accountType":"SPOT","side":"BUY","type":"LIMIT","price":"61000","avgPrice":"60000","quantity":"0.01","amount":"610","filledQuantity":"0.01","filledAmount":"600","createTime":1735720637000,"updateTime":1735720638000}]`
+			response = `[{"id":1,"symbol":"BTC_USDT","state":"FILLED","accountType":"SPOT","side":"BUY","type":"LIMIT","price":"61000","avgPrice":"60000","quantity":"0.01","amount":"610","filledQuantity":"0.01","filledAmount":"600","createTime":1735720637000,"updateTime":1735720638000},{"id":2,"symbol":"BTC_USDT","state":"FILLED","accountType":"SPOT","side":"BUY","type":"LIMIT","price":"61000","avgPrice":"60000.33","quantity":"0.03","amount":"1830","filledQuantity":"0.03","filledAmount":"1800.01","createTime":1735720637000,"updateTime":1735720638000}]`
 		default:
 			http.NotFound(w, r)
 			return
@@ -1647,6 +1651,9 @@ func TestSpotOrderExecutionMappings(t *testing.T) {
 	assert.Equal(t, 0.01, detail.ExecutedAmount, "GetOrderInfo should retain filled base quantity")
 	assert.Equal(t, 600.0, detail.ExecutedQuoteAmount, "GetOrderInfo should retain filled quote amount")
 	assert.Zero(t, detail.RemainingAmount, "GetOrderInfo should report no remaining quantity for a filled order")
+	rounded, err := ex.GetOrderInfo(t.Context(), "2", currency.NewBTCUSDT(), asset.Spot)
+	require.NoError(t, err, "GetOrderInfo must not error for an order with a rounded average")
+	assert.Equal(t, 1800.01, rounded.ExecutedQuoteAmount, "GetOrderInfo should report filledAmount, not quantity times its rounded average")
 
 	history, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
 		AssetType: asset.Spot,
@@ -1654,10 +1661,11 @@ func TestSpotOrderExecutionMappings(t *testing.T) {
 		Type:      order.AnyType,
 	})
 	require.NoError(t, err, "GetOrderHistory must not error")
-	require.Len(t, history, 1, "GetOrderHistory must return one order")
+	require.Len(t, history, 2, "GetOrderHistory must return both orders")
 	assert.Equal(t, 0.01, history[0].ExecutedAmount, "GetOrderHistory should retain filled base quantity")
 	assert.Equal(t, 600.0, history[0].ExecutedQuoteAmount, "GetOrderHistory should retain filled quote amount")
 	assert.Zero(t, history[0].RemainingAmount, "GetOrderHistory should report no remaining quantity for a filled order")
+	assert.Equal(t, 1800.01, history[1].ExecutedQuoteAmount, "GetOrderHistory should report filledAmount, not quantity times its rounded average")
 }
 
 func TestGetDepositAddress(t *testing.T) {
@@ -2344,14 +2352,17 @@ func TestProcessFuturesOrdersExecutionAmount(t *testing.T) {
 	t.Parallel()
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
-	data := []byte(`[{"symbol":"BTC_USDT_PERP","side":"BUY","type":"LIMIT","mgnMode":"CROSS","timeInForce":"GTC","ordId":"123","sz":"3","px":"60","state":"NEW","avgPx":"59.9","execQty":"3","execAmt":"179.7","qCcy":"USDT"}]`)
+	data := []byte(`[{"symbol":"BTC_USDT_PERP","side":"BUY","type":"LIMIT","mgnMode":"CROSS","timeInForce":"GTC","ordId":"123","sz":"3","px":"60000","state":"FILLED","avgPx":"59900","execQty":"3","execAmt":"179.7","qCcy":"USDT"}]`)
 	require.NoError(t, ex.processFuturesOrders(t.Context(), data), "processFuturesOrders must not error")
 	require.Len(t, ex.Websocket.DataHandler.C, 1, "processFuturesOrders must emit one update")
-	got, ok := (<-ex.Websocket.DataHandler.C).Data.([]order.Detail)
-	require.True(t, ok, "futures update must contain order details")
-	require.Len(t, got, 1, "futures update must contain one order")
-	assert.Equal(t, 3.0, got[0].ExecutedAmount, "executed amount should use execQty")
-	assert.Equal(t, 179.7, got[0].ExecutedQuoteAmount, "executed quote amount should use execAmt")
+	exp := []order.Detail{{
+		TimeInForce: order.GoodTillCancel, Price: 60000, Amount: 3,
+		AverageExecutedPrice: 59900, ExecutedAmount: 3, ExecutedQuoteAmount: 179.7,
+		Exchange: ex.Name, OrderID: "123", Type: order.Limit, Side: order.Buy,
+		Status: order.Filled, AssetType: asset.Futures,
+		Pair: currency.NewPairWithDelimiter("BTC", "USDT_PERP", "_"), MarginType: margin.Multi,
+	}}
+	assert.Equal(t, exp, (<-ex.Websocket.DataHandler.C).Data, "processFuturesOrders should map the order update")
 }
 
 func TestProcessOrders(t *testing.T) {

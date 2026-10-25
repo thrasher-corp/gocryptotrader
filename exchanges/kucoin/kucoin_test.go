@@ -2370,6 +2370,11 @@ func TestGetOrderHistoryExecutionAmounts(t *testing.T) {
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
 	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/2") {
+			_, err := w.Write([]byte(`{"code":"200000","data":{"id":"2","symbol":"BTC-USDT","type":"limit","side":"buy","tradeType":"TRADE","price":"61000","size":"0.02","dealFunds":"0","dealSize":"0","isActive":true,"createdAt":1735720637000}}`))
+			assert.NoError(t, err, "mock unfilled order detail response should be written")
+			return
+		}
 		if strings.HasSuffix(r.URL.Path, "/1") {
 			_, err := w.Write([]byte(`{"code":"200000","data":{"id":"1","symbol":"BTC-USDT","type":"limit","side":"buy","tradeType":"TRADE","price":"61000","size":"0.02","dealFunds":"600","dealSize":"0.01","createdAt":1735720637000}}`))
 			assert.NoError(t, err, "mock order detail response should be written")
@@ -2397,6 +2402,12 @@ func TestGetOrderHistoryExecutionAmounts(t *testing.T) {
 	assert.Equal(t, orders[0].ExecutedQuoteAmount, detail.ExecutedQuoteAmount, "order detail should retain the same filled quote amount as history")
 	assert.Equal(t, orders[0].AverageExecutedPrice, detail.AverageExecutedPrice, "order detail should infer the same average execution price as history")
 	assert.True(t, detail.LastUpdated.IsZero(), "order detail should not take its update time from the creation time")
+	unfilled, err := ex.GetOrderInfo(t.Context(), "2", currency.NewBTCUSDT(), asset.Spot)
+	require.NoError(t, err, "GetOrderInfo must not error for an unfilled order")
+	assert.Zero(t, unfilled.AverageExecutedPrice, "an unfilled order should not report an average execution price")
+	stored := order.Detail{Exchange: ex.Name, OrderID: "2", Pair: currency.NewBTCUSDT(), AssetType: asset.Spot}
+	require.NoError(t, stored.UpdateOrderFromDetail(unfilled), "unfilled order merge must not error")
+	assert.Zero(t, stored.AverageExecutedPrice, "an unfilled order merge should not store a NaN average")
 }
 
 func TestGetActiveOrders(t *testing.T) {

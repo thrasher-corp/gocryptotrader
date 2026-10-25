@@ -982,13 +982,14 @@ func (e *Exchange) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset
 	return nil, common.ErrFunctionNotSupported
 }
 
-// futuresFinishStatus converts a finished futures order's finish_as. Gate's ioc,
-// reduce_only and reduce_out outcomes cancel the unfilled remainder, and
-// order.StringToOrderStatus rejects all three.
+// futuresFinishStatus converts Gate-specific completion reasons that the generic
+// status parser does not recognise.
 func futuresFinishStatus(finishAs string) (order.Status, error) {
 	switch finishAs {
-	case "ioc", "reduce_only", "reduce_out":
+	case "ioc", "reduce_only", "reduce_out", "position_close":
 		return order.Cancelled, nil
+	case "auto_deleveraging":
+		return order.AutoDeleverage, nil
 	}
 	return order.StringToOrderStatus(finishAs)
 }

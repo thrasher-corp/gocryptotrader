@@ -2614,6 +2614,7 @@ func TestSpotExecutionResponseMappings(t *testing.T) {
 
 	detail, err := ex.GetOrderInfo(t.Context(), "1234", currency.NewBTCUSDT(), asset.Spot)
 	require.NoError(t, err, "GetOrderInfo must not error")
+	require.Equal(t, 3.0, detail.Amount, "amount must be copied from the exchange response")
 	require.Equal(t, 2.0, detail.ExecutedAmount, "executed amount must use authoritative total and remaining quantities")
 	require.Equal(t, 1.0, detail.RemainingAmount, "remaining amount must be copied from the exchange response")
 	require.Equal(t, 10.0, detail.AverageExecutedPrice, "average execution price must be copied from the exchange response")
@@ -2644,6 +2645,8 @@ func TestFuturesExecutionResponseMappings(t *testing.T) {
 		{finishAs: "ioc", left: 4, status: order.Cancelled},
 		{finishAs: "reduce_only", left: 4, status: order.Cancelled},
 		{finishAs: "reduce_out", left: 4, status: order.Cancelled},
+		{finishAs: "position_close", left: 4, status: order.Cancelled},
+		{finishAs: "auto_deleveraging", left: 0, status: order.AutoDeleverage},
 		{finishAs: "filled", left: 0, status: order.Filled},
 		{finishAs: "liquidated", left: 4, status: order.Liquidated},
 	} {
@@ -2692,6 +2695,7 @@ func TestGetActiveSpotOrdersExecutionResponseMappings(t *testing.T) {
 	})
 	require.NoError(t, err, "GetActiveOrders must not error")
 	require.Len(t, orders, 2, "GetActiveOrders must return the mocked orders")
+	assert.Equal(t, 2.0, orders[0].Amount, "amount should retain the exchange value")
 	assert.Equal(t, 0.5, orders[0].ExecutedAmount, "executed amount should retain the filled base quantity")
 	assert.Equal(t, 5.0, orders[0].ExecutedQuoteAmount, "executed quote amount should retain the filled quote total")
 	assert.Equal(t, 1.5, orders[0].RemainingAmount, "remaining amount should retain the exchange value")
@@ -3387,6 +3391,7 @@ func TestProcessSpotOrdersFinish(t *testing.T) {
 		{name: "filled", finishAs: "filled", finishLeft: "0", status: order.Filled, remaining: 0},
 		{name: "cancelled", finishAs: "cancelled", finishLeft: "1", status: order.Cancelled, remaining: 1},
 		{name: "self-trade prevention", finishAs: "stp", finishLeft: "1", status: order.Cancelled, remaining: 1},
+		{name: "remainder too small", finishAs: "small", finishLeft: "0.00001", status: order.Cancelled, remaining: 0.00001},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -3405,6 +3410,9 @@ func TestProcessSpotOrdersFinish(t *testing.T) {
 				details, ok := res.Data.([]order.Detail)
 				require.True(t, ok, "processSpotOrders must send order details")
 				require.Len(t, details, 1, "processSpotOrders must send one order detail")
+				if push.event != "finish" {
+					assert.Equalf(t, order.UnknownStatus, details[0].Status, "a %s push should not carry a status", push.event)
+				}
 				// The engine merges a push into a copy of the stored order, then merges that copy back.
 				merged := stored.Copy()
 				require.NoError(t, merged.UpdateOrderFromDetail(&details[0]), "UpdateOrderFromDetail must not error")
@@ -4910,6 +4918,25 @@ func TestProcessFinishedFuturesOrdersPushData(t *testing.T) {
 		assert.Zero(t, processed[0].Price, "market order request price should remain zero")
 		assert.Equal(t, 40000.4, processed[0].AverageExecutedPrice, "market order should preserve its fill price")
 	})
+}
+
+func TestProcessFuturesOrderCompletionReasons(t *testing.T) {
+	t.Parallel()
+	for a, contract := range map[asset.Item]string{asset.CoinMarginedFutures: "BTC_USD", asset.USDTMarginedFutures: "BTC_USDT"} {
+		t.Run(a.String(), func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+			payload := fmt.Appendf(nil, `{"channel":"futures.orders","event":"update","result":[{"id":1,"contract":%q,"size":3,"left":0,"price":"60000","status":"finished","finish_as":"filled"},{"id":2,"contract":%q,"size":3,"left":0,"price":"60000","status":"finished","finish_as":"auto_deleveraging"},{"id":3,"contract":%q,"size":3,"left":1,"price":"60000","status":"finished","finish_as":"position_close"}]}`, contract, contract, contract)
+			got, err := ex.processFuturesOrdersPushData(payload, a)
+			require.NoError(t, err, "documented completion reasons must not reject the futures batch")
+			require.Len(t, got, 3, "the batch must retain all orders beside the new completion reasons")
+			for i, want := range []order.Status{order.Filled, order.AutoDeleverage, order.Cancelled} {
+				assert.Equal(t, want, got[i].Status, "each completion reason should retain its meaning")
+				assert.Equal(t, a, got[i].AssetType, "the batch should retain its futures market")
+			}
+		})
+	}
 }
 
 func TestGetCurrencyTradeURL(t *testing.T) {

@@ -282,6 +282,9 @@ Use `require` and `assert` appropriately:
     fixture values that fail when an assignment is removed or reads the wrong
     field, and include omitted optional fields where practical. Unaffected
     transports and unrelated fields need no new coverage.
+    When pinning an authoritative execution total, include realistic contract
+    units or a rounded average so quantity times average cannot reproduce that
+    total. Cover zero fills wherever a derived average divides by filled quantity.
     Fee-currency fixtures must distinguish the reported currency from both
     pair currencies where supported. Otherwise cover reported base and quote
     fees separately, so guessing either currency from the pair fails a test.

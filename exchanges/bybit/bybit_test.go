@@ -502,6 +502,9 @@ func TestGetOrderInfoExecutionMappings(t *testing.T) {
 			response = []byte(`{"retCode":0,"retMsg":"OK","result":{"list":[{"orderId":"1","symbol":"BTCUSDT","side":"Buy","orderType":"Limit","orderStatus":"Filled","price":"61000","qty":"0.01","leavesQty":"0","cumExecQty":"0.01","cumExecValue":"600","avgPrice":"60000","cumExecFee":"9","cumFeeDetail":{"USDT":"0.1"},"createdTime":"1735720637000","updatedTime":"1735720638000"}]},"time":1735720638000}`)
 		case linearPair.String():
 			response = []byte(`{"retCode":0,"retMsg":"OK","result":{"list":[{"orderId":"1","symbol":"ETHUSDT","side":"Buy","orderType":"Limit","orderStatus":"Filled","price":"1600","qty":"0.1","leavesQty":"0","cumExecQty":"0.1","cumExecValue":"160","avgPrice":"1600","cumExecFee":"0.1","cumFeeDetail":{"MNT":"0.00242968"},"createdTime":"1735720637000","updatedTime":"1735720638000"}]},"time":1735720638000}`)
+			if r.URL.Query().Get("orderId") == "2" {
+				response = []byte(`{"retCode":0,"retMsg":"OK","result":{"list":[{"orderId":"2","symbol":"ETHUSDT","side":"Buy","orderType":"Limit","orderStatus":"Filled","price":"1600","qty":"0.11","leavesQty":"0","cumExecQty":"0.11","cumExecValue":"160","avgPrice":"1454.55","cumExecFee":"0.1","cumFeeDetail":{"MNT":"0.00242968"},"createdTime":"1735720637000","updatedTime":"1735720638000"}]},"time":1735720638000}`)
+			}
 		default:
 			response = []byte(`{"retCode":0,"retMsg":"OK","result":{"list":[{"orderId":"1","symbol":"BTCUSD","side":"Buy","orderType":"Limit","orderStatus":"Filled","price":"61000","qty":"0.01","leavesQty":"0","cumExecQty":"0.01","cumExecValue":"600","avgPrice":"60000","cumExecFee":"0.1","createdTime":"1735720637000","updatedTime":"1735720638000"}]},"time":1735720638000}`)
 		}
@@ -528,6 +531,9 @@ func TestGetOrderInfoExecutionMappings(t *testing.T) {
 	assert.Equal(t, 160.0, linearDetail.ExecutedQuoteAmount, "linear order should retain cumulative executed quote value")
 	assert.Equal(t, 0.00242968, linearDetail.Fee, "linear order should retain cumulative fee")
 	assert.Equal(t, currency.MNT, linearDetail.FeeAsset, "linear order should retain a fee currency outside its pair")
+	roundedDetail, err := ex.GetOrderInfo(t.Context(), "2", linearPair, asset.USDTMarginedFutures)
+	require.NoError(t, err, "linear GetOrderInfo must not error for an order with a rounded average")
+	assert.Equal(t, 160.0, roundedDetail.ExecutedQuoteAmount, "linear order should report cumExecValue, not quantity times its rounded average")
 }
 
 func TestGetOrderFee(t *testing.T) {
@@ -552,7 +558,7 @@ func TestGetOrderHistorySpotExecutionMappings(t *testing.T) {
 	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
 	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{currency.NewBTCUSDT()}, true), "spot pair must be enabled")
 	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		_, err := w.Write([]byte(`{"retCode":0,"retMsg":"OK","result":{"category":"spot","list":[{"orderId":"1","symbol":"BTCUSDT","side":"Buy","orderType":"Limit","orderStatus":"PartiallyFilledCanceled","price":"61000","qty":"2","leavesQty":"0.5","cumExecQty":"1","cumExecValue":"60000","avgPrice":"60000","cumExecFee":"0","cumFeeDetail":{"BTC":"0.001"},"createdTime":"1735720637000","updatedTime":"1735720638000"},{"orderId":"2","symbol":"BTCUSDT","side":"Sell","orderType":"Limit","orderStatus":"Filled","price":"62000","qty":"0.5","leavesQty":"0","cumExecQty":"0.5","cumExecValue":"31000","avgPrice":"62000","cumExecFee":"0.1","cumFeeDetail":{"MNT":"0.00242968"},"createdTime":"1735720639000","updatedTime":"1735720640000"}],"nextPageCursor":""},"time":1735720638000}`))
+		_, err := w.Write([]byte(`{"retCode":0,"retMsg":"OK","result":{"category":"spot","list":[{"orderId":"1","symbol":"BTCUSDT","side":"Buy","orderType":"Limit","orderStatus":"PartiallyFilledCanceled","price":"61000","qty":"2","leavesQty":"0.5","cumExecQty":"1","cumExecValue":"60000","avgPrice":"60000","cumExecFee":"0","cumFeeDetail":{"BTC":"0.001"},"createdTime":"1735720637000","updatedTime":"1735720638000"},{"orderId":"2","symbol":"BTCUSDT","side":"Sell","orderType":"Limit","orderStatus":"Filled","price":"62000","qty":"0.5","leavesQty":"0","cumExecQty":"0.5","cumExecValue":"31000","avgPrice":"62000","cumExecFee":"0.1","cumFeeDetail":{"MNT":"0.00242968"},"createdTime":"1735720639000","updatedTime":"1735720640000"},{"orderId":"3","symbol":"BTCUSDT","side":"Sell","orderType":"Limit","orderStatus":"Filled","price":"62000","qty":"0.3","leavesQty":"0","cumExecQty":"0.3","cumExecValue":"18600.1","avgPrice":"62000.33","cumExecFee":"0.1","cumFeeDetail":{"MNT":"0.00242968"},"createdTime":"1735720641000","updatedTime":"1735720642000"}],"nextPageCursor":""},"time":1735720638000}`))
 		assert.NoError(t, err, "mock order history response should be written")
 	}))
 	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
@@ -561,13 +567,14 @@ func TestGetOrderHistorySpotExecutionMappings(t *testing.T) {
 
 	orders, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType})
 	require.NoError(t, err, "GetOrderHistory must not error")
-	require.Len(t, orders, 2, "GetOrderHistory must return both orders")
+	require.Len(t, orders, 3, "GetOrderHistory must return all three orders")
 	assert.Equal(t, 0.5, orders[0].RemainingAmount, "spot history should retain the reported remaining quantity")
 	assert.Equal(t, 60000.0, orders[0].ExecutedQuoteAmount, "spot history should retain cumulative executed quote value")
 	assert.Equal(t, 0.001, orders[0].Fee, "spot history should retain the cumulative fee")
 	assert.Equal(t, currency.BTC, orders[0].FeeAsset, "spot history should retain the cumulative fee currency")
 	assert.Equal(t, 0.00242968, orders[1].Fee, "spot history should retain a fee charged outside the pair")
 	assert.Equal(t, currency.MNT, orders[1].FeeAsset, "spot history should retain a fee currency outside the pair")
+	assert.Equal(t, 18600.1, orders[2].ExecutedQuoteAmount, "spot history should report cumExecValue, not quantity times its rounded average")
 }
 
 func TestGetActiveOrders(t *testing.T) {
