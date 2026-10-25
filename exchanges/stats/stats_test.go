@@ -1,8 +1,10 @@
 package stats
 
 import (
+	"cmp"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
@@ -10,170 +12,6 @@ import (
 const (
 	testExchange = "Okx"
 )
-
-func TestLenByPrice(t *testing.T) {
-	t.Parallel()
-	p, err := currency.NewPairFromStrings("BTC", "USD")
-	if err != nil {
-		t.Fatal(err)
-	}
-	localItems := []Item{
-		{
-			Exchange:  testExchange,
-			Pair:      p,
-			AssetType: asset.Spot,
-			Price:     1200,
-			Volume:    5,
-		},
-	}
-
-	if byPrice.Len(localItems) < 1 {
-		t.Error("stats LenByPrice() length not correct.")
-	}
-}
-
-func TestLessByPrice(t *testing.T) {
-	t.Parallel()
-	p, err := currency.NewPairFromStrings("BTC", "USD")
-	if err != nil {
-		t.Fatal(err)
-	}
-	localItems := []Item{
-		{
-			Exchange:  "bitstamp",
-			Pair:      p,
-			AssetType: asset.Spot,
-			Price:     1200,
-			Volume:    5,
-		},
-		{
-			Exchange:  "bitfinex",
-			Pair:      p,
-			AssetType: asset.Spot,
-			Price:     1198,
-			Volume:    20,
-		},
-	}
-
-	if !byPrice.Less(localItems, 1, 0) {
-		t.Error("stats LessByPrice() incorrect return.")
-	}
-	if byPrice.Less(localItems, 0, 1) {
-		t.Error("stats LessByPrice() incorrect return.")
-	}
-}
-
-func TestSwapByPrice(t *testing.T) {
-	t.Parallel()
-	p, err := currency.NewPairFromStrings("BTC", "USD")
-	if err != nil {
-		t.Fatal(err)
-	}
-	localItems := []Item{
-		{
-			Exchange:  "bitstamp",
-			Pair:      p,
-			AssetType: asset.Spot,
-			Price:     1324,
-			Volume:    5,
-		},
-		{
-			Exchange:  "bitfinex",
-			Pair:      p,
-			AssetType: asset.Spot,
-			Price:     7863,
-			Volume:    20,
-		},
-	}
-
-	byPrice.Swap(localItems, 0, 1)
-	if localItems[0].Exchange != "bitfinex" || localItems[1].Exchange != "bitstamp" {
-		t.Error("stats SwapByPrice did not swap values.")
-	}
-}
-
-func TestLenByVolume(t *testing.T) {
-	t.Parallel()
-	p, err := currency.NewPairFromStrings("BTC", "USD")
-	if err != nil {
-		t.Fatal(err)
-	}
-	localItems := []Item{
-		{
-			Exchange:  "bitstamp",
-			Pair:      p,
-			AssetType: asset.Spot,
-			Price:     1324,
-			Volume:    5,
-		},
-		{
-			Exchange:  "bitfinex",
-			Pair:      p,
-			AssetType: asset.Spot,
-			Price:     7863,
-			Volume:    20,
-		},
-	}
-
-	if byVolume.Len(localItems) != 2 {
-		t.Error("stats lenByVolume did not swap values.")
-	}
-}
-
-func TestLessByVolume(t *testing.T) {
-	t.Parallel()
-	p, err := currency.NewPairFromStrings("BTC", "USD")
-	if err != nil {
-		t.Fatal(err)
-	}
-	localItems := []Item{
-		{
-			Exchange:  "bitstamp",
-			Pair:      p,
-			AssetType: asset.Spot,
-			Price:     1324,
-			Volume:    5,
-		},
-		{
-			Exchange:  "bitfinex",
-			Pair:      p,
-			AssetType: asset.Spot,
-			Price:     7863,
-			Volume:    20,
-		},
-	}
-	if !byVolume.Less(localItems, 0, 1) {
-		t.Error("localItems[0].Volume should be less than localItems[1].Volume")
-	}
-}
-
-func TestSwapByVolume(t *testing.T) {
-	t.Parallel()
-	p, err := currency.NewPairFromStrings("BTC", "USD")
-	if err != nil {
-		t.Fatal(err)
-	}
-	localItems := []Item{
-		{
-			Exchange:  "bitstamp",
-			Pair:      p,
-			AssetType: asset.Spot,
-			Price:     1324,
-			Volume:    5,
-		},
-		{
-			Exchange:  "bitfinex",
-			Pair:      p,
-			AssetType: asset.Spot,
-			Price:     7863,
-			Volume:    20,
-		},
-	}
-	byVolume.Swap(localItems, 0, 1)
-	if localItems[0].Exchange != "bitfinex" || localItems[1].Exchange != "bitstamp" {
-		t.Error("stats SwapByVolume did not swap values.")
-	}
-}
 
 func TestAdd(t *testing.T) {
 	items = items[:0]
@@ -284,4 +122,43 @@ func TestSortExchangesByPrice(t *testing.T) {
 	if topPrice[0].Exchange != testExchange {
 		t.Error("stats SortExchangesByPrice incorrectly sorted values.")
 	}
+}
+
+func TestSortItems(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name    string
+		reverse bool
+		want    []float64
+	}{
+		{
+			name: "ascending",
+			want: []float64{1, 2, 2, 3},
+		},
+		{
+			name:    "descending",
+			reverse: true,
+			want:    []float64{3, 2, 2, 1},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			items := []Item{
+				{Price: 2},
+				{Price: 3},
+				{Price: 1},
+				{Price: 2},
+			}
+			sortItems(items, tc.reverse, func(a, b Item) int { return cmp.Compare(a.Price, b.Price) })
+
+			got := make([]float64, len(items))
+			for i := range items {
+				got[i] = items[i].Price
+			}
+			assert.Equal(t, tc.want, got, "sortItems should order the prices")
+		})
+	}
+
+	assert.NotPanics(t, func() { sortItems(nil, true, func(a, b Item) int { return cmp.Compare(a.Price, b.Price) }) },
+		"sortItems should accept a nil slice")
 }

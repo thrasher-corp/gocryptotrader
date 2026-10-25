@@ -41,7 +41,7 @@ func (e *Exchange) WebsocketFuturesSubmitOrders(ctx context.Context, a asset.Ite
 		if err := o.validate(false); err != nil {
 			return nil, err
 		}
-		if _, err := getSettlementCurrency(o.Contract, a); err != nil {
+		if err := validateFuturesPairAsset(o.Contract, a); err != nil {
 			return nil, err
 		}
 	}
@@ -155,6 +155,9 @@ func (e *Exchange) WebsocketFuturesGetOrderStatus(ctx context.Context, contract 
 func validateFuturesPairAsset(pair currency.Pair, a asset.Item) error {
 	if pair.IsEmpty() {
 		return currency.ErrCurrencyPairEmpty
+	}
+	if err := validateFuturesAsset(a); err != nil {
+		return err
 	}
 	_, err := getSettlementCurrency(pair, a)
 	return err

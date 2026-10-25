@@ -4,7 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sort"
+	"maps"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -14,7 +15,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
@@ -107,7 +107,6 @@ func (e *Exchange) SetDefaults() {
 	e.Websocket = websocket.NewManager()
 	e.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	e.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
-	e.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
 }
 
 // Setup sets the current exchange configuration
@@ -139,10 +138,6 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Unsubscriber:          e.Unsubscribe,
 		GenerateSubscriptions: e.GenerateDefaultSubscriptions,
 		Features:              &e.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferConfig: buffer.Config{
-			SortBuffer:            true,
-			SortBufferByUpdateIDs: true,
-		},
 	})
 	if err != nil {
 		return err
@@ -270,7 +265,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 		Low:          tick.Low24,
 		Bid:          tick.HighestBuy,
 		Ask:          tick.LowestSell,
-		Volume:       tick.Volume24,
+		BaseVolume:   tick.Volume24,
 		Pair:         p,
 		LastUpdated:  tick.Timestamp.Time(),
 		ExchangeName: e.Name,
@@ -390,7 +385,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, assetTy
 		return nil, err
 	}
 
-	sort.Sort(trade.ByDate(resp))
+	trade.SortByDate(resp)
 	return resp, nil
 }
 
@@ -725,9 +720,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 			currenciesToCheck = append(currenciesToCheck, fPair.String())
 		}
 	} else {
-		for k := range e.instrumentMap.Instruments {
-			currenciesToCheck = append(currenciesToCheck, k)
-		}
+		currenciesToCheck = slices.AppendSeq(currenciesToCheck, maps.Keys(e.instrumentMap.Instruments))
 	}
 	if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		for x := range currenciesToCheck {
@@ -918,7 +911,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 
 		for x := range instrumentsToUse {
 			var orders TradeHistory
-			orders, err = e.GetTradeHistory(ctx, instrumentsToUse[x], -1, -1)
+			orders, err = e.GetTradeHistory(ctx, instrumentsToUse[x], 0, 0)
 			if err != nil {
 				return nil, err
 			}

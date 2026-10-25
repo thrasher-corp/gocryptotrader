@@ -73,9 +73,29 @@ func TestNewExchangeAndSaveConfig(t *testing.T) {
 		},
 	)
 	assert.NoError(t, err)
+	readme, err := os.ReadFile(filepath.Join(testExchangeDir, "README.md"))
+	require.NoError(t, err, "reading generated README must not error")
+	assert.Contains(t, string(readme), `<img src="../../common/gctlogo.png" alt="GoCryptoTrader logo"`, "generated README should link the logo relative to the exchange directory")
+	assert.NotRegexp(t, `(?m)[ \t]+$`, string(readme), "generated README should not include trailing whitespace")
 
 	err = os.RemoveAll(testExchangeDir)
-	require.NoErrorf(t, err, "RemoveAll failed: %s, manual deletion of test directory required", err)
+	require.NoError(t, err, "removing the REST and websocket test exchange must not error")
+	_, err = makeExchange(
+		testExchangeDir,
+		cfg,
+		&exchange{
+			Name: testExchangeName,
+			REST: false,
+			WS:   true,
+		},
+	)
+	require.NoError(t, err, "making websocket-only exchange must not error")
+	readme, err = os.ReadFile(filepath.Join(testExchangeDir, "README.md"))
+	require.NoError(t, err, "reading websocket-only README must not error")
+	assert.NotContains(t, string(readme), "\n\n\n", "websocket-only README should not include consecutive blank lines")
+
+	err = os.RemoveAll(testExchangeDir)
+	require.NoError(t, err, "removing the websocket-only test exchange must not error")
 
 	exchCfg, err := makeExchange(
 		testExchangeDir,

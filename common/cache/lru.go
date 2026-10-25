@@ -86,9 +86,7 @@ func (l *LRU) Remove(key any) bool {
 
 // Clear is used to completely clear the cache.
 func (l *LRU) Clear() {
-	for x := range l.items {
-		delete(l.items, l.items[x])
-	}
+	clear(l.items)
 	l.l.Init()
 }
 

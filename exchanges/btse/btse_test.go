@@ -1,8 +1,14 @@
 package btse
 
 import (
+	"context"
+	"errors"
+	"fmt"
 	"log"
+	"net/http"
+	"net/http/httptest"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -11,26 +17,31 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // Please supply your own keys here to do better tests
-const (
-	apiKey                  = ""
-	apiSecret               = ""
-	canManipulateRealOrders = false
-)
+const canManipulateRealOrders = false
+
+var apiCredentials = &accounts.Credentials{
+	Key:    "",
+	Secret: "",
+}
 
 var (
 	e           *Exchange
@@ -44,9 +55,9 @@ func TestMain(m *testing.M) {
 		log.Fatalf("BTSE Setup error: %s", err)
 	}
 
-	if apiKey != "" && apiSecret != "" {
+	if apiCredentials.Key != "" && apiCredentials.Secret != "" {
 		e.API.AuthenticatedSupport = true
-		e.SetCredentials(apiKey, apiSecret, "", "", "", "")
+		e.SetCredentials(apiCredentials)
 	}
 
 	os.Exit(m.Run())
@@ -180,20 +191,92 @@ func TestGetTrades(t *testing.T) {
 
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
-	_, err := e.UpdateTicker(t.Context(), spotPair, asset.Spot)
-	assert.NoError(t, common.ExcludeError(err, ticker.ErrBidEqualsAsk), "UpdateTickers may only error about locked markets")
+	// both pairs come from a summary that excludes locked books, so neither call below needs the
+	// ErrBidEqualsAsk tolerance
+	spot := busiestSpotPair(t)
+	p, err := currency.NewPairFromString(spot.Symbol)
+	require.NoError(t, err, "NewPairFromString must not error")
+	tick, err := e.UpdateTicker(t.Context(), p, asset.Spot)
+	require.NoErrorf(t, err, "UpdateTicker must not error for %s", p)
+	assert.InEpsilonf(t, spot.BaseVolume24Hour, tick.BaseVolume, 0.05, "UpdateTicker should take the base volume for %s from size", p)
+	assert.InEpsilonf(t, spot.QuoteVolume24Hour, tick.QuoteVolume, 0.05, "UpdateTicker should take the quote volume for %s from volume", p)
 
-	_, err = e.UpdateTicker(t.Context(), futuresPair, asset.Futures)
-	assert.NoError(t, common.ExcludeError(err, ticker.ErrBidEqualsAsk), "UpdateTickers may only error about locked markets")
+	futures := futuresPairWithOpenInterest(t)
+	fp, err := currency.NewPairFromString(futures.Symbol)
+	require.NoError(t, err, "NewPairFromString must not error")
+	futuresTick, err := e.UpdateTicker(t.Context(), fp, asset.Futures)
+	require.NoErrorf(t, err, "UpdateTicker must not error for %s", fp)
+	assert.Zerof(t, futuresTick.BaseVolume, "UpdateTicker should report no base volume for futures %s, since that summary omits size", fp)
+	assert.InEpsilonf(t, futures.OpenInterest, futuresTick.OpenInterest, 0.05, "UpdateTicker should carry open interest for %s", fp)
 }
 
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
+
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	e.Name = t.Name()
+
 	err := e.UpdateTickers(t.Context(), asset.Spot)
 	assert.NoError(t, common.ExcludeError(err, ticker.ErrBidEqualsAsk), "UpdateTickers may only error about locked markets")
 
 	err = e.UpdateTickers(t.Context(), asset.Futures)
 	assert.NoError(t, common.ExcludeError(err, ticker.ErrBidEqualsAsk), "UpdateTickers may only error about locked markets")
+
+	spot := busiestSpotPair(t)
+	p, err := currency.NewPairFromString(spot.Symbol)
+	require.NoError(t, err, "NewPairFromString must not error")
+	stored, err := ticker.GetTicker(e.Name, p, asset.Spot)
+	require.NoErrorf(t, err, "ticker.GetTicker must not error for %s", p)
+	assert.InEpsilonf(t, spot.BaseVolume24Hour, stored.BaseVolume, 0.05, "UpdateTickers should take the base volume for %s from size", p)
+	assert.InEpsilonf(t, spot.QuoteVolume24Hour, stored.QuoteVolume, 0.05, "UpdateTickers should take the quote volume for %s from volume", p)
+
+	futures := futuresPairWithOpenInterest(t)
+	fp, err := currency.NewPairFromString(futures.Symbol)
+	require.NoError(t, err, "NewPairFromString must not error")
+	futuresStored, err := ticker.GetTicker(e.Name, fp, asset.Futures)
+	require.NoErrorf(t, err, "ticker.GetTicker must not error for %s", fp)
+	assert.Zerof(t, futuresStored.BaseVolume, "UpdateTickers should report no base volume for futures %s, since that summary omits size", fp)
+	assert.InEpsilonf(t, futures.OpenInterest, futuresStored.OpenInterest, 0.05, "UpdateTickers should carry open interest for %s", fp)
+}
+
+// BTSE rate limits aggressively, so each summary is fetched once and shared by the ticker tests
+var (
+	spotSummaryOnce    = sync.OnceValues(func() (MarketSummary, error) { return e.GetMarketSummary(context.Background(), "", true) })
+	futuresSummaryOnce = sync.OnceValues(func() (MarketSummary, error) { return e.GetMarketSummary(context.Background(), "", false) })
+)
+
+// busiestSpotPair returns the spot pair with the most turnover whose two volume figures differ, so
+// that a swapped base and quote mapping cannot pass, and whose book is not locked
+func busiestSpotPair(tb testing.TB) *MarketPair {
+	tb.Helper()
+	summary, err := spotSummaryOnce()
+	require.NoError(tb, err, "GetMarketSummary must not error")
+	var busiest *MarketPair
+	for _, m := range summary {
+		if m.BaseVolume24Hour != 0 && m.BaseVolume24Hour != m.QuoteVolume24Hour &&
+			m.LowestAsk != m.HighestBid && (busiest == nil || m.QuoteVolume24Hour > busiest.QuoteVolume24Hour) {
+			busiest = m
+		}
+	}
+	require.NotNil(tb, busiest, "a spot pair reporting base and quote volumes that differ must exist")
+	return busiest
+}
+
+// futuresPairWithOpenInterest returns the futures contract carrying the most open interest whose
+// book is not locked
+func futuresPairWithOpenInterest(tb testing.TB) *MarketPair {
+	tb.Helper()
+	summary, err := futuresSummaryOnce()
+	require.NoError(tb, err, "GetMarketSummary must not error")
+	var most *MarketPair
+	for _, m := range summary {
+		if m.LowestAsk != m.HighestBid && (most == nil || m.OpenInterest > most.OpenInterest) {
+			most = m
+		}
+	}
+	require.NotNil(tb, most, "a futures contract reporting open interest must exist")
+	return most
 }
 
 func TestGetCurrentServerTime(t *testing.T) {
@@ -242,6 +325,131 @@ func TestCreateWalletAddress(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, err := e.CreateWalletAddress(t.Context(), "XRP")
 	assert.NoError(t, err, "CreateWalletAddress should not error")
+}
+
+func TestCreateWalletAddressErrorHandling(t *testing.T) {
+	t.Parallel()
+
+	t.Run("ordinary BTSE error", func(t *testing.T) {
+		t.Parallel()
+		ex := newCreateWalletAddressTestExchange(t, http.StatusBadRequest, `{"code":1234,"msg":"BADREQUEST: invalid currency","success":false}`)
+		resp, err := ex.CreateWalletAddress(t.Context(), "INVALID")
+		assert.Empty(t, resp, "CreateWalletAddress response should be empty")
+		assert.ErrorIs(t, err, request.ErrBadStatus, "CreateWalletAddress should preserve the request error")
+		assert.ErrorContains(t, err, `"code":1234`, "CreateWalletAddress should preserve the BTSE response")
+		responseErr, ok := errors.AsType[*responseError](err)
+		require.True(t, ok, "CreateWalletAddress must return a structured BTSE error")
+		assert.Equal(t, int64(1234), responseErr.response.code(), "BTSE error code should be captured")
+		assert.Equal(t, "BADREQUEST: invalid currency", responseErr.response.message(), "BTSE error message should be captured")
+	})
+
+	t.Run("missing raw response", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must not error")
+		ex.SkipAuthCheck = true
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel()
+		resp, err := ex.CreateWalletAddress(ctx, "BTC")
+		assert.Empty(t, resp, "CreateWalletAddress response should be empty")
+		assert.ErrorIs(t, err, context.Canceled, "CreateWalletAddress should preserve the context error")
+	})
+
+	t.Run("created address", func(t *testing.T) {
+		t.Parallel()
+		ex := newCreateWalletAddressTestExchange(t, http.StatusOK, `[{"address":"new-address","created":1592627542}]`)
+		resp, err := ex.CreateWalletAddress(t.Context(), "BTC")
+		require.NoError(t, err, "CreateWalletAddress must decode a successful response")
+		require.Len(t, resp, 1, "CreateWalletAddress must return one address")
+		assert.Equal(t, "new-address", resp[0].Address, "CreateWalletAddress should return the new address")
+	})
+
+	t.Run("undecodable created address", func(t *testing.T) {
+		t.Parallel()
+		ex := newCreateWalletAddressTestExchange(t, http.StatusOK, `{"address":"new-address"}`)
+		_, err := ex.CreateWalletAddress(t.Context(), "BTC")
+		assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "CreateWalletAddress should report an undecodable response as a failed authenticated request")
+	})
+
+	for _, tt := range []struct {
+		name     string
+		response string
+	}{
+		{name: "malformed existing address message", response: `{"errorCode":3528,"message":"unexpected format","status":400}`},
+		{name: "empty existing address", response: `{"errorCode":3528,"message":"BADREQUEST: ","status":400}`},
+		{name: "undecodable existing address response", response: `{"errorCode":3528,"message":"BADREQUEST: existing-address","status":"invalid"}`},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			ex := newCreateWalletAddressTestExchange(t, http.StatusBadRequest, tt.response)
+			resp, err := ex.CreateWalletAddress(t.Context(), "BTC")
+			assert.Empty(t, resp, "CreateWalletAddress response should be empty")
+			assert.ErrorIs(t, err, request.ErrBadStatus, "CreateWalletAddress should preserve the request error")
+		})
+	}
+
+	for _, tt := range []struct {
+		name     string
+		response string
+	}{
+		{name: "legacy existing address response", response: `{"errorCode":3528,"message":"BADREQUEST: existing-address","status":400}`},
+		{name: "spot existing address response", response: `{"code":3528,"msg":"BADREQUEST: existing-address","success":false}`},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			ex := newCreateWalletAddressTestExchange(t, http.StatusBadRequest, tt.response)
+			resp, err := ex.CreateWalletAddress(t.Context(), "BTC")
+			require.NoError(t, err, "CreateWalletAddress must accept BTSE's existing address response")
+			require.Len(t, resp, 1, "CreateWalletAddress must return one address")
+			assert.Equal(t, "existing-address", resp[0].Address, "CreateWalletAddress should return the existing address")
+		})
+	}
+}
+
+func newCreateWalletAddressTestExchange(t *testing.T, status int, response string) *Exchange {
+	t.Helper()
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodPost, r.Method, "CreateWalletAddress should use POST")
+		assert.Equal(t, "/spot/api/v3.2/user/wallet/address", r.URL.Path, "CreateWalletAddress should use the wallet address endpoint")
+		w.WriteHeader(status)
+		_, err := fmt.Fprint(w, response)
+		assert.NoError(t, err, "writing the wallet address response should not error")
+	}))
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.SkipAuthCheck = true
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
+	return ex
+}
+
+func TestSendAuthenticatedHTTPRequestWithoutResult(t *testing.T) {
+	t.Parallel()
+	ex := newCreateWalletAddressTestExchange(t, http.StatusOK, "")
+	err := ex.SendAuthenticatedHTTPRequest(t.Context(), exchange.RestSpot, http.MethodPost, btseWalletAddress, true, nil, map[string]any{"currency": "BTC"}, nil, queryFunc)
+	assert.NoError(t, err, "SendAuthenticatedHTTPRequest should accept a 200 without a body when no result is wanted")
+}
+
+func TestWalletAddressUnmarshalJSON(t *testing.T) {
+	t.Parallel()
+	const inp = `
+[
+	{
+		"address": "Blockchain address",
+		"created": 1592627542
+	}
+]
+`
+	var resp []WalletAddress
+	require.NoError(t, json.Unmarshal([]byte(inp), &resp), "Unmarshal must not error")
+	exp := []WalletAddress{
+		{
+			Address: "Blockchain address",
+			Created: types.Time(time.Unix(1592627542, 0)),
+		},
+	}
+	assert.Equal(t, exp, resp, "WalletAddress should unmarshal correctly")
 }
 
 func TestGetDepositAddress(t *testing.T) {

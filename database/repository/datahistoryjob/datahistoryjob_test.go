@@ -7,13 +7,12 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
-	"github.com/thrasher-corp/gocryptotrader/database/drivers"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	"github.com/thrasher-corp/gocryptotrader/database/testhelpers"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -31,6 +30,7 @@ var (
 	}
 )
 
+//nolint:forbidigo // TestMain reports setup and teardown failures before or after a *testing.T exists
 func TestMain(m *testing.M) {
 	if verbose {
 		err := testhelpers.EnableVerboseTestOutput()
@@ -88,8 +88,8 @@ func TestDataHistoryJob(t *testing.T) {
 		{
 			name: "SQLite",
 			config: &database.Config{
-				Driver:            database.DBSQLite3,
-				ConnectionDetails: drivers.ConnectionDetails{Database: "./testdb"},
+				Driver:   database.DBSQLite3,
+				Database: "./testdb",
 			},
 			seedDB: seedDB,
 		},
@@ -112,8 +112,7 @@ func TestDataHistoryJob(t *testing.T) {
 
 			jerberinos := make([]*DataHistoryJob, 20)
 			for i := range jerberinos {
-				uu, err := uuid.NewV4()
-				require.NoError(t, err, "uuid.NewV4 must not error")
+				uu := uuid.NewV4()
 				jerberinos[i] = &DataHistoryJob{
 					ID:           uu.String(),
 					Nickname:     fmt.Sprintf("TestDataHistoryJob%v", i),
@@ -133,8 +132,7 @@ func TestDataHistoryJob(t *testing.T) {
 			// insert the same jerbs to test conflict resolution
 			jerberoos := make([]*DataHistoryJob, 20)
 			for i := range jerberoos {
-				uu, err := uuid.NewV4()
-				require.NoError(t, err, "uuid.NewV4 must not error")
+				uu := uuid.NewV4()
 				j := &DataHistoryJob{
 					ID:           uu.String(),
 					Nickname:     fmt.Sprintf("TestDataHistoryJob%v", i),

@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"net"
+	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -172,9 +174,9 @@ func TestSetClientProxyAddress(t *testing.T) {
 	newBase := Base{
 		Name:      "rawr",
 		Requester: requester,
-	}
 
-	newBase.Websocket = websocket.NewManager()
+		Websocket: websocket.NewManager(),
+	}
 	err = newBase.SetClientProxyAddress("")
 	if err != nil {
 		t.Error(err)
@@ -440,6 +442,7 @@ func TestSetCurrencyPairFormat(t *testing.T) {
 func TestLoadConfigPairs(t *testing.T) {
 	t.Parallel()
 
+	//nolint:prealloc // fixed test fixture; growing it only to satisfy the linter would leave cap > len on a slice shared by Enabled and Available
 	pairs := currency.Pairs{
 		currency.Pair{Base: currency.BTC, Quote: currency.USD},
 		currency.Pair{Base: currency.LTC, Quote: currency.USD},
@@ -900,8 +903,8 @@ func TestUpdatePairs(t *testing.T) {
 			ConfigFormat:    &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
 			UseGlobalFormat: true,
 		},
+		Config: exchCfg,
 	}
-	UAC.Config = exchCfg
 	exchangeProducts, err := currency.NewPairsFromStrings([]string{
 		"ltcusd",
 		"btcusd",
@@ -1141,6 +1144,76 @@ func TestIsWebsocketEnabled(t *testing.T) {
 	assert.True(t, b.IsWebsocketEnabled(), "websocket should be enabled")
 	require.NoError(t, b.Websocket.Disable(), "Websocket.Disable must not error")
 	assert.False(t, b.IsWebsocketEnabled(), "websocket should not be enabled")
+}
+
+func TestShutdownWebsocket(t *testing.T) {
+	t.Parallel()
+
+	disabled := Base{Websocket: websocket.NewManager()}
+	var err error
+	disabled.Requester, err = request.New("testShutdownDisabled", common.NewHTTPClientWithTimeout(0))
+	require.NoError(t, err, "request.New must not error")
+	require.NoError(t, disabled.Shutdown(), "Shutdown must not error when the websocket is already disabled")
+
+	notConnected := Base{Websocket: websocket.NewManager()}
+	notConnected.Requester, err = request.New("testShutdownNotConnected", common.NewHTTPClientWithTimeout(0))
+	require.NoError(t, err, "request.New must not error")
+	err = notConnected.Websocket.Setup(&websocket.ManagerSetup{
+		ExchangeConfig: &config.Exchange{
+			Name:                    "test",
+			WebsocketTrafficTimeout: time.Minute,
+			Features:                &config.FeaturesConfig{Enabled: config.FeaturesEnabledConfig{Websocket: true}},
+		},
+		Features:              &protocol.Features{},
+		DefaultURL:            "ws://something.com",
+		RunningURL:            "ws://something.com",
+		Connector:             func() error { return nil },
+		GenerateSubscriptions: func() (subscription.List, error) { return nil, nil },
+		Subscriber:            func(subscription.List) error { return nil },
+	})
+	require.NoError(t, err, "Websocket.Setup must not error")
+	require.True(t, notConnected.Websocket.IsEnabled(), "Websocket must be enabled before Shutdown")
+	require.False(t, notConnected.Websocket.IsConnected(), "Websocket must not be connected before Shutdown")
+	require.NoError(t, notConnected.Shutdown(), "Shutdown must not error when the websocket is not connected")
+	assert.False(t, notConnected.Websocket.IsEnabled(), "Shutdown should disable an enabled websocket even when it is not connected")
+
+	synctest.Test(t, func(t *testing.T) {
+		var dials atomic.Int64
+		b := Base{Websocket: websocket.NewManager()}
+		b.Requester, err = request.New("testShutdown", common.NewHTTPClientWithTimeout(0))
+		require.NoError(t, err, "request.New must not error")
+		err = b.Websocket.Setup(&websocket.ManagerSetup{
+			ExchangeConfig: &config.Exchange{
+				Name:                    "test",
+				ConnectionMonitorDelay:  time.Second,
+				WebsocketTrafficTimeout: time.Minute,
+				Features:                &config.FeaturesConfig{Enabled: config.FeaturesEnabledConfig{Websocket: true}},
+			},
+			Features:              &protocol.Features{},
+			DefaultURL:            "ws://something.com",
+			RunningURL:            "ws://something.com",
+			Connector:             func() error { dials.Add(1); return nil },
+			GenerateSubscriptions: func() (subscription.List, error) { return nil, nil },
+			Subscriber:            func(subscription.List) error { return nil },
+		})
+		require.NoError(t, err, "Websocket.Setup must not error")
+		require.NoError(t, b.Websocket.Connect(t.Context()), "Websocket.Connect must not error")
+		defer func() { // Stop leaked monitors on regression so the synctest bubble can finish.
+			_ = b.Websocket.Disable()
+			synctest.Sleep(time.Second)
+		}()
+
+		shutdownC := b.Websocket.ShutdownC
+		b.Websocket.Wg.Go(func() {
+			<-shutdownC
+			assert.False(t, b.Websocket.IsEnabled(), "Shutdown should disable the websocket before closing it, or the monitor can redial in between")
+		})
+
+		require.NoError(t, b.Shutdown(), "Shutdown must not error")
+		assert.False(t, b.Websocket.IsConnected(), "Shutdown should disconnect the websocket")
+		synctest.Sleep(3 * time.Second)
+		assert.Equal(t, int64(1), dials.Load(), "Shutdown should stop the connection monitor redialling")
+	})
 }
 
 func TestSupportsWithdrawPermissions(t *testing.T) {
@@ -1685,9 +1758,9 @@ func TestFormatSymbol(t *testing.T) {
 
 func TestSetAPIURL(t *testing.T) {
 	b := Base{
-		Name: "SomeExchange",
+		Name:   "SomeExchange",
+		Config: &config.Exchange{},
 	}
-	b.Config = &config.Exchange{}
 	var mappy struct {
 		Mappymap map[string]string `json:"urlEndpoints"`
 	}
@@ -2518,29 +2591,46 @@ func TestParallelChanOp(t *testing.T) {
 		{Channel: "spin"},
 		{Channel: "charm"},
 	}
-	run := make(chan struct{}, len(c)*2)
-	b := Base{}
-	errC := make(chan error, 1)
-	go func() {
-		errC <- b.ParallelChanOp(t.Context(), c, func(_ context.Context, c subscription.List) error {
-			time.Sleep(300 * time.Millisecond)
-			run <- struct{}{}
-			switch c[0].Channel {
-			case "spin", "violent":
-				return errors.New(c[0].Channel)
+	synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
+		run := make(chan struct{}, len(c)*2)
+		b := Base{}
+		errC := make(chan error, 1)
+		start := time.Now()
+		var elapsed time.Duration
+		stopped := make(chan struct{})
+		go func() {
+			defer close(stopped)
+			err := b.ParallelChanOp(t.Context(), c, func(_ context.Context, c subscription.List) error {
+				time.Sleep(300 * time.Millisecond)
+				run <- struct{}{}
+				switch c[0].Channel {
+				case "spin", "violent":
+					return errors.New(c[0].Channel)
+				}
+				return nil
+			}, 1)
+			elapsed = time.Since(start)
+			errC <- err
+		}()
+		// a failed require would otherwise leave ParallelChanOp running, which panics the bubble and aborts the package; the
+		// bound stops an operation that never returns from hanging the test until it times out
+		defer func() {
+			select {
+			case <-stopped:
+			case <-time.After(time.Minute):
 			}
-			return nil
-		}, 1)
-	}()
-	f := func(ct *assert.CollectT) {
-		if assert.Len(ct, errC, 1, "Should eventually have an error") {
-			err := <-errC
-			assert.ErrorContains(ct, err, "violent", "Should get a violent error")
-			assert.ErrorContains(ct, err, "spin", "Should get a spin error")
-		}
-	}
-	assert.EventuallyWithT(t, f, 500*time.Millisecond, 50*time.Millisecond, "ParallelChanOp should complete within 500ms not 5*300ms")
-	assert.Len(t, run, len(c), "Every channel was run to completion")
+		}()
+		// advance well past either outcome, so the elapsed figure below decides which happened
+		synctest.Sleep(2 * time.Second)
+		require.Len(t, errC, 1, "ParallelChanOp must complete")
+		err := <-errC
+		assert.ErrorContains(t, err, "violent", "Should get a violent error")
+		assert.ErrorContains(t, err, "spin", "Should get a spin error")
+		assert.Len(t, run, len(c), "Every channel was run to completion")
+		// the fake clock turns the old "within 500ms" budget into an exact figure: the five
+		// channels each sleep 300ms, so anything but 300ms means they did not run concurrently
+		assert.Equal(t, 300*time.Millisecond, elapsed, "ParallelChanOp should run the channels concurrently, not 5*300ms in series")
+	})
 }
 
 func TestGetDefaultConfig(t *testing.T) {
@@ -2940,9 +3030,9 @@ func TestWebsocketCancelOrder(t *testing.T) {
 
 func TestMessageID(t *testing.T) {
 	t.Parallel()
-	id := (new(Base)).MessageID()
+	id := new(Base).MessageID()
 	require.NotEmpty(t, id, "MessageID must return a non-empty message ID")
-	u, err := uuid.FromString(id)
+	u, err := uuid.Parse(id)
 	require.NoError(t, err, "MessageID must return a valid UUID")
-	assert.Equal(t, uuid.V7, u.Version(), "MessageID should return a V7 uuid")
+	assert.Equal(t, byte(7), u[6]>>4, "MessageID should return a V7 uuid") // RFC 9562 version nibble
 }

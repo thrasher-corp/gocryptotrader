@@ -7,10 +7,9 @@ import (
 	"fmt"
 	"math"
 	"strings"
-	"sync/atomic"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	gctmath "github.com/thrasher-corp/gocryptotrader/common/math"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -80,7 +79,7 @@ func (m *DataHistoryManager) Start(ctx context.Context) error {
 	if m.databaseConnectionInstance == nil {
 		return errNilDatabaseConnectionManager
 	}
-	if !atomic.CompareAndSwapInt32(&m.started, 0, 1) {
+	if !m.started.CompareAndSwap(false, true) {
 		return ErrSubSystemAlreadyStarted
 	}
 	m.shutdown = make(chan struct{})
@@ -95,7 +94,7 @@ func (m *DataHistoryManager) IsRunning() bool {
 	if m == nil {
 		return false
 	}
-	return atomic.LoadInt32(&m.started) == 1
+	return m.started.Load()
 }
 
 // Stop stops the subsystem
@@ -103,7 +102,7 @@ func (m *DataHistoryManager) Stop() error {
 	if m == nil {
 		return ErrNilSubsystem
 	}
-	if !atomic.CompareAndSwapInt32(&m.started, 1, 0) {
+	if !m.started.CompareAndSwap(true, false) {
 		return ErrSubSystemNotStarted
 	}
 	close(m.shutdown)
@@ -116,7 +115,7 @@ func (m *DataHistoryManager) retrieveJobs() ([]*DataHistoryJob, error) {
 	if m == nil {
 		return nil, ErrNilSubsystem
 	}
-	if atomic.LoadInt32(&m.started) == 0 {
+	if !m.started.Load() {
 		return nil, ErrSubSystemNotStarted
 	}
 	dbJobs, err := m.jobDB.GetAllIncompleteJobsAndResults()
@@ -148,7 +147,7 @@ func (m *DataHistoryManager) PrepareJobs() ([]*DataHistoryJob, error) {
 	if m == nil {
 		return nil, ErrNilSubsystem
 	}
-	if atomic.LoadInt32(&m.started) == 0 {
+	if !m.started.Load() {
 		return nil, ErrSubSystemNotStarted
 	}
 	jobs, err := m.retrieveJobs()
@@ -173,7 +172,7 @@ func (m *DataHistoryManager) compareJobsToData(jobs ...*DataHistoryJob) error {
 	if m == nil {
 		return ErrNilSubsystem
 	}
-	if atomic.LoadInt32(&m.started) == 0 {
+	if !m.started.Load() {
 		return ErrSubSystemNotStarted
 	}
 	var err error
@@ -256,14 +255,14 @@ func (m *DataHistoryManager) runJobs(ctx context.Context) error {
 	if m == nil {
 		return ErrNilSubsystem
 	}
-	if atomic.LoadInt32(&m.started) == 0 {
+	if !m.started.Load() {
 		return ErrSubSystemNotStarted
 	}
 
-	if !atomic.CompareAndSwapInt32(&m.processing, 0, 1) {
+	if !m.processing.CompareAndSwap(false, true) {
 		return fmt.Errorf("cannot process jobs, %w", ErrSubSystemAlreadyStarted)
 	}
-	defer atomic.StoreInt32(&m.processing, 0)
+	defer m.processing.Store(false)
 
 	validJobs, err := m.PrepareJobs()
 	if err != nil {
@@ -303,7 +302,7 @@ func (m *DataHistoryManager) runJob(ctx context.Context, job *DataHistoryJob) er
 	if m == nil {
 		return ErrNilSubsystem
 	}
-	if atomic.LoadInt32(&m.started) == 0 {
+	if !m.started.Load() {
 		return ErrSubSystemNotStarted
 	}
 	if job == nil {
@@ -383,11 +382,7 @@ ranges:
 			if !ok && !job.OverwriteExistingData {
 				// we have determined that data is there, however it is not reflected in
 				// this specific job's results, which is required for a job to be complete
-				var id uuid.UUID
-				id, err = uuid.NewV4()
-				if err != nil {
-					return err
-				}
+				id := uuid.NewV4()
 				job.Results[job.rangeHolder.Ranges[i].Start.Time.Unix()] = []DataHistoryJobResult{
 					{
 						ID:                id,
@@ -710,10 +705,7 @@ func (m *DataHistoryManager) processCandleData(ctx context.Context, job *DataHis
 		return nil, err
 	}
 
-	id, err := uuid.NewV4()
-	if err != nil {
-		return nil, err
-	}
+	id := uuid.NewV4()
 	r := &DataHistoryJobResult{
 		ID:                id,
 		JobID:             job.ID,
@@ -766,10 +758,7 @@ func (m *DataHistoryManager) processTradeData(ctx context.Context, job *DataHist
 	if err := common.StartEndTimeCheck(startRange, endRange); err != nil {
 		return nil, err
 	}
-	id, err := uuid.NewV4()
-	if err != nil {
-		return nil, err
-	}
+	id := uuid.NewV4()
 	r := &DataHistoryJobResult{
 		ID:                id,
 		JobID:             job.ID,
@@ -843,10 +832,7 @@ func (m *DataHistoryManager) convertTradesToCandles(job *DataHistoryJob, startRa
 	if err := common.StartEndTimeCheck(startRange, endRange); err != nil {
 		return nil, err
 	}
-	id, err := uuid.NewV4()
-	if err != nil {
-		return nil, err
-	}
+	id := uuid.NewV4()
 	r := &DataHistoryJobResult{
 		ID:                id,
 		JobID:             job.ID,
@@ -882,10 +868,7 @@ func (m *DataHistoryManager) convertCandleData(job *DataHistoryJob, startRange, 
 	if err := common.StartEndTimeCheck(startRange, endRange); err != nil {
 		return nil, err
 	}
-	id, err := uuid.NewV4()
-	if err != nil {
-		return nil, err
-	}
+	id := uuid.NewV4()
 	r := &DataHistoryJobResult{
 		ID:                id,
 		JobID:             job.ID,
@@ -924,10 +907,7 @@ func (m *DataHistoryManager) validateCandles(ctx context.Context, job *DataHisto
 	if err := common.StartEndTimeCheck(startRange, endRange); err != nil {
 		return nil, err
 	}
-	id, err := uuid.NewV4()
-	if err != nil {
-		return nil, err
-	}
+	id := uuid.NewV4()
 	r := &DataHistoryJobResult{
 		ID:                id,
 		JobID:             job.ID,
@@ -1056,7 +1036,7 @@ func (m *DataHistoryManager) CheckCandleIssue(job *DataHistoryJob, multiplier in
 	if m == nil {
 		return ErrNilSubsystem.Error(), false
 	}
-	if atomic.LoadInt32(&m.started) == 0 {
+	if !m.started.Load() {
 		return ErrSubSystemNotStarted.Error(), false
 	}
 	if job == nil {
@@ -1095,7 +1075,7 @@ func (m *DataHistoryManager) SetJobRelationship(prerequisiteJobNickname, jobNick
 	if m == nil {
 		return ErrNilSubsystem
 	}
-	if atomic.LoadInt32(&m.started) == 0 {
+	if !m.started.Load() {
 		return ErrSubSystemNotStarted
 	}
 	if jobNickname == "" {
@@ -1167,11 +1147,8 @@ func (m *DataHistoryManager) UpsertJob(job *DataHistoryJob, insertOnly bool) err
 	if existingJob != nil {
 		job.ID = existingJob.ID
 	}
-	if job.ID == uuid.Nil {
-		job.ID, err = uuid.NewV4()
-		if err != nil {
-			return err
-		}
+	if job.ID == uuid.Nil() {
+		job.ID = uuid.NewV4()
 	}
 	interval := job.Interval
 	if job.DataType == dataHistoryConvertCandlesDataType {
@@ -1301,10 +1278,10 @@ func (m *DataHistoryManager) GetByID(id uuid.UUID) (*DataHistoryJob, error) {
 	if m == nil {
 		return nil, ErrNilSubsystem
 	}
-	if atomic.LoadInt32(&m.started) == 0 {
+	if !m.started.Load() {
 		return nil, ErrSubSystemNotStarted
 	}
-	if id == uuid.Nil {
+	if id == uuid.Nil() {
 		return nil, errEmptyID
 	}
 	dbJ, err := m.jobDB.GetByID(id.String())
@@ -1325,7 +1302,7 @@ func (m *DataHistoryManager) GetByNickname(nickname string, fullDetails bool) (*
 	if m == nil {
 		return nil, ErrNilSubsystem
 	}
-	if atomic.LoadInt32(&m.started) == 0 {
+	if !m.started.Load() {
 		return nil, ErrSubSystemNotStarted
 	}
 	if fullDetails {
@@ -1360,7 +1337,7 @@ func (m *DataHistoryManager) GetAllJobStatusBetween(start, end time.Time) ([]*Da
 	if m == nil {
 		return nil, ErrNilSubsystem
 	}
-	if atomic.LoadInt32(&m.started) == 0 {
+	if !m.started.Load() {
 		return nil, ErrSubSystemNotStarted
 	}
 	if err := common.StartEndTimeCheck(start, end); err != nil {
@@ -1386,7 +1363,7 @@ func (m *DataHistoryManager) SetJobStatus(nickname, id string, status dataHistor
 	if m == nil {
 		return ErrNilSubsystem
 	}
-	if atomic.LoadInt32(&m.started) == 0 {
+	if !m.started.Load() {
 		return ErrSubSystemNotStarted
 	}
 	if nickname == "" && id == "" {
@@ -1504,7 +1481,7 @@ func (m *DataHistoryManager) convertDBModelToJob(dbModel *datahistoryjob.DataHis
 	if !m.IsRunning() {
 		return nil, ErrSubSystemNotStarted
 	}
-	id, err := uuid.FromString(dbModel.ID)
+	id, err := uuid.Parse(dbModel.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -1548,7 +1525,7 @@ func (m *DataHistoryManager) convertDBModelToJob(dbModel *datahistoryjob.DataHis
 		PrerequisiteJobNickname:  dbModel.PrerequisiteJobNickname,
 	}
 	if resp.PrerequisiteJobNickname != "" {
-		prereqID, err := uuid.FromString(dbModel.PrerequisiteJobID)
+		prereqID, err := uuid.Parse(dbModel.PrerequisiteJobID)
 		if err != nil {
 			return nil, err
 		}
@@ -1564,12 +1541,12 @@ func (m *DataHistoryManager) convertDBResultToJobResult(dbModels []*datahistoryj
 	}
 	result := make(map[int64][]DataHistoryJobResult)
 	for i := range dbModels {
-		id, err := uuid.FromString(dbModels[i].ID)
+		id, err := uuid.Parse(dbModels[i].ID)
 		if err != nil {
 			return nil, err
 		}
 
-		jobID, err := uuid.FromString(dbModels[i].JobID)
+		jobID, err := uuid.Parse(dbModels[i].JobID)
 		if err != nil {
 			return nil, err
 		}
@@ -1632,10 +1609,10 @@ func (m *DataHistoryManager) convertJobToDBModel(job *DataHistoryJob) *datahisto
 		IssueTolerancePercentage:    job.IssueTolerancePercentage,
 		ReplaceOnIssue:              job.ReplaceOnIssue,
 	}
-	if job.ID != uuid.Nil {
+	if job.ID != uuid.Nil() {
 		model.ID = job.ID.String()
 	}
-	if job.PrerequisiteJobID != uuid.Nil {
+	if job.PrerequisiteJobID != uuid.Nil() {
 		model.PrerequisiteJobID = job.PrerequisiteJobID.String()
 	}
 

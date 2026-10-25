@@ -5,6 +5,7 @@ import (
 	"errors"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/stretchr/testify/require"
@@ -125,6 +126,12 @@ func (f *fakerino) GetBase() *exchange.Base {
 	return &exchange.Base{States: currencystate.NewCurrencyStates()}
 }
 
+func startedCurrencyStateManager(em iExchangeManager) *CurrencyStateManager {
+	c := &CurrencyStateManager{iExchangeManager: em}
+	c.started.Store(true)
+	return c
+}
+
 func TestCurrencyStateManagerIsRunning(t *testing.T) {
 	t.Parallel()
 	err := (*CurrencyStateManager)(nil).Stop()
@@ -133,53 +140,34 @@ func TestCurrencyStateManagerIsRunning(t *testing.T) {
 	err = (&CurrencyStateManager{}).Stop()
 	require.ErrorIs(t, err, ErrSubSystemNotStarted)
 
-	err = (&CurrencyStateManager{started: 1, shutdown: make(chan struct{})}).Stop()
+	startedManager := startedCurrencyStateManager(nil)
+	startedManager.shutdown = make(chan struct{})
+	err = startedManager.Stop()
 	require.NoError(t, err)
 
 	err = (*CurrencyStateManager)(nil).Start(t.Context())
 	require.ErrorIs(t, err, ErrNilSubsystem)
 
-	err = (&CurrencyStateManager{started: 1}).Start(t.Context())
+	err = startedCurrencyStateManager(nil).Start(t.Context())
 	require.ErrorIs(t, err, ErrSubSystemAlreadyStarted)
 
-	man := &CurrencyStateManager{
-		shutdown:         make(chan struct{}),
-		iExchangeManager: &fakeExchangeManagerino{ErrorMeOne: true},
-		sleep:            time.Minute,
-	}
-	err = man.Start(t.Context())
-	require.NoError(t, err)
-
-	time.Sleep(time.Millisecond)
-
-	err = man.Stop()
-	require.NoError(t, err)
-
-	man.iExchangeManager = &fakeExchangeManagerino{ErrorMeOne: true}
-	err = man.Start(t.Context())
-	require.NoError(t, err)
-
-	time.Sleep(time.Millisecond)
-
-	err = man.Stop()
-	require.NoError(t, err)
-
-	man.iExchangeManager = &fakeExchangeManagerino{ErrorMeOne: true}
-	err = man.Start(t.Context())
-	require.NoError(t, err)
-
-	time.Sleep(time.Millisecond)
-
-	if !man.IsRunning() {
-		t.Fatal("this should be running")
-	}
-
-	err = man.Stop()
-	require.NoError(t, err)
-
-	if man.IsRunning() {
-		t.Fatal("this should be stopped")
-	}
+	synctest.Test(t, func(t *testing.T) {
+		man := &CurrencyStateManager{
+			shutdown:         make(chan struct{}),
+			iExchangeManager: &fakeExchangeManagerino{ErrorMeOne: true},
+			sleep:            time.Minute,
+		}
+		// a failed require would otherwise leave the monitor blocked on its timer, which panics the bubble and aborts the package
+		t.Cleanup(func() { _ = man.Stop() })
+		for range 3 {
+			require.NoError(t, man.Start(t.Context()), "Start must not error")
+			// the first sync fires on a zero timer, so this lets it finish before the manager is inspected
+			synctest.Sleep(time.Millisecond)
+			require.True(t, man.IsRunning(), "manager must be running after Start")
+			require.NoError(t, man.Stop(), "Stop must not error")
+			require.False(t, man.IsRunning(), "manager must not be running after Stop")
+		}
+	})
 }
 
 func TestGetAllRPC(t *testing.T) {
@@ -187,22 +175,13 @@ func TestGetAllRPC(t *testing.T) {
 	_, err := (*CurrencyStateManager)(nil).GetAllRPC("")
 	require.ErrorIs(t, err, ErrSubSystemNotStarted)
 
-	_, err = (&CurrencyStateManager{
-		started:          1,
-		iExchangeManager: &fakeExchangeManagerino{ErrorMeOne: true},
-	}).GetAllRPC("")
+	_, err = startedCurrencyStateManager(&fakeExchangeManagerino{ErrorMeOne: true}).GetAllRPC("")
 	require.ErrorIs(t, err, errManager)
 
-	_, err = (&CurrencyStateManager{
-		started:          1,
-		iExchangeManager: &fakeExchangeManagerino{ErrorMeTwo: true},
-	}).GetAllRPC("")
+	_, err = startedCurrencyStateManager(&fakeExchangeManagerino{ErrorMeTwo: true}).GetAllRPC("")
 	require.ErrorIs(t, err, errExchange)
 
-	_, err = (&CurrencyStateManager{
-		started:          1,
-		iExchangeManager: &fakeExchangeManagerino{},
-	}).GetAllRPC("")
+	_, err = startedCurrencyStateManager(&fakeExchangeManagerino{}).GetAllRPC("")
 	require.NoError(t, err)
 }
 
@@ -211,22 +190,13 @@ func TestCanWithdrawRPC(t *testing.T) {
 	_, err := (*CurrencyStateManager)(nil).CanWithdrawRPC("", currency.EMPTYCODE, asset.Empty)
 	require.ErrorIs(t, err, ErrSubSystemNotStarted)
 
-	_, err = (&CurrencyStateManager{
-		started:          1,
-		iExchangeManager: &fakeExchangeManagerino{ErrorMeOne: true},
-	}).CanWithdrawRPC("", currency.EMPTYCODE, asset.Empty)
+	_, err = startedCurrencyStateManager(&fakeExchangeManagerino{ErrorMeOne: true}).CanWithdrawRPC("", currency.EMPTYCODE, asset.Empty)
 	require.ErrorIs(t, err, errManager)
 
-	_, err = (&CurrencyStateManager{
-		started:          1,
-		iExchangeManager: &fakeExchangeManagerino{ErrorMeTwo: true},
-	}).CanWithdrawRPC("", currency.EMPTYCODE, asset.Empty)
+	_, err = startedCurrencyStateManager(&fakeExchangeManagerino{ErrorMeTwo: true}).CanWithdrawRPC("", currency.EMPTYCODE, asset.Empty)
 	require.ErrorIs(t, err, errExchange)
 
-	_, err = (&CurrencyStateManager{
-		started:          1,
-		iExchangeManager: &fakeExchangeManagerino{},
-	}).CanWithdrawRPC("", currency.EMPTYCODE, asset.Empty)
+	_, err = startedCurrencyStateManager(&fakeExchangeManagerino{}).CanWithdrawRPC("", currency.EMPTYCODE, asset.Empty)
 	require.NoError(t, err)
 }
 
@@ -235,22 +205,13 @@ func TestCanDepositRPC(t *testing.T) {
 	_, err := (*CurrencyStateManager)(nil).CanDepositRPC("", currency.EMPTYCODE, asset.Empty)
 	require.ErrorIs(t, err, ErrSubSystemNotStarted)
 
-	_, err = (&CurrencyStateManager{
-		started:          1,
-		iExchangeManager: &fakeExchangeManagerino{ErrorMeOne: true},
-	}).CanDepositRPC("", currency.EMPTYCODE, asset.Empty)
+	_, err = startedCurrencyStateManager(&fakeExchangeManagerino{ErrorMeOne: true}).CanDepositRPC("", currency.EMPTYCODE, asset.Empty)
 	require.ErrorIs(t, err, errManager)
 
-	_, err = (&CurrencyStateManager{
-		started:          1,
-		iExchangeManager: &fakeExchangeManagerino{ErrorMeTwo: true},
-	}).CanDepositRPC("", currency.EMPTYCODE, asset.Empty)
+	_, err = startedCurrencyStateManager(&fakeExchangeManagerino{ErrorMeTwo: true}).CanDepositRPC("", currency.EMPTYCODE, asset.Empty)
 	require.ErrorIs(t, err, errExchange)
 
-	_, err = (&CurrencyStateManager{
-		started:          1,
-		iExchangeManager: &fakeExchangeManagerino{},
-	}).CanDepositRPC("", currency.EMPTYCODE, asset.Empty)
+	_, err = startedCurrencyStateManager(&fakeExchangeManagerino{}).CanDepositRPC("", currency.EMPTYCODE, asset.Empty)
 	require.NoError(t, err)
 }
 
@@ -259,22 +220,13 @@ func TestCanTradeRPC(t *testing.T) {
 	_, err := (*CurrencyStateManager)(nil).CanTradeRPC("", currency.EMPTYCODE, asset.Empty)
 	require.ErrorIs(t, err, ErrSubSystemNotStarted)
 
-	_, err = (&CurrencyStateManager{
-		started:          1,
-		iExchangeManager: &fakeExchangeManagerino{ErrorMeOne: true},
-	}).CanTradeRPC("", currency.EMPTYCODE, asset.Empty)
+	_, err = startedCurrencyStateManager(&fakeExchangeManagerino{ErrorMeOne: true}).CanTradeRPC("", currency.EMPTYCODE, asset.Empty)
 	require.ErrorIs(t, err, errManager)
 
-	_, err = (&CurrencyStateManager{
-		started:          1,
-		iExchangeManager: &fakeExchangeManagerino{ErrorMeTwo: true},
-	}).CanTradeRPC("", currency.EMPTYCODE, asset.Empty)
+	_, err = startedCurrencyStateManager(&fakeExchangeManagerino{ErrorMeTwo: true}).CanTradeRPC("", currency.EMPTYCODE, asset.Empty)
 	require.ErrorIs(t, err, errExchange)
 
-	_, err = (&CurrencyStateManager{
-		started:          1,
-		iExchangeManager: &fakeExchangeManagerino{},
-	}).CanTradeRPC("", currency.EMPTYCODE, asset.Empty)
+	_, err = startedCurrencyStateManager(&fakeExchangeManagerino{}).CanTradeRPC("", currency.EMPTYCODE, asset.Empty)
 	require.NoError(t, err)
 }
 
@@ -283,22 +235,13 @@ func TestCanTradePairRPC(t *testing.T) {
 	_, err := (*CurrencyStateManager)(nil).CanTradePairRPC("", currency.EMPTYPAIR, asset.Empty)
 	require.ErrorIs(t, err, ErrSubSystemNotStarted)
 
-	_, err = (&CurrencyStateManager{
-		started:          1,
-		iExchangeManager: &fakeExchangeManagerino{ErrorMeOne: true},
-	}).CanTradePairRPC("", currency.EMPTYPAIR, asset.Empty)
+	_, err = startedCurrencyStateManager(&fakeExchangeManagerino{ErrorMeOne: true}).CanTradePairRPC("", currency.EMPTYPAIR, asset.Empty)
 	require.ErrorIs(t, err, errManager)
 
-	_, err = (&CurrencyStateManager{
-		started:          1,
-		iExchangeManager: &fakeExchangeManagerino{ErrorMeTwo: true},
-	}).CanTradePairRPC("", currency.EMPTYPAIR, asset.Empty)
+	_, err = startedCurrencyStateManager(&fakeExchangeManagerino{ErrorMeTwo: true}).CanTradePairRPC("", currency.EMPTYPAIR, asset.Empty)
 	require.ErrorIs(t, err, errExchange)
 
-	_, err = (&CurrencyStateManager{
-		started:          1,
-		iExchangeManager: &fakeExchangeManagerino{},
-	}).CanTradePairRPC("", currency.EMPTYPAIR, asset.Empty)
+	_, err = startedCurrencyStateManager(&fakeExchangeManagerino{}).CanTradePairRPC("", currency.EMPTYPAIR, asset.Empty)
 	require.NoError(t, err)
 }
 

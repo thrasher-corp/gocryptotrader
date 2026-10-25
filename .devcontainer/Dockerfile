@@ -1,8 +1,8 @@
 ## Dev Container base image
 # See: https://github.com/devcontainers/images/tree/main/src/go
 # Use the published "dev-" tagged image for the latest Go version.
-# See MCR tags: dev-1.26, dev-1.26-trixie
-ARG VARIANT=dev-1.26-trixie
+# See MCR tags: dev-1.27, dev-1.27-trixie
+ARG VARIANT=dev-1.27-trixie
 FROM mcr.microsoft.com/devcontainers/go:${VARIANT}
 
 USER root
@@ -19,8 +19,11 @@ RUN apt-get update \
 		libssl-dev \
 		protobuf-compiler \
 		jq \
+		pipx \
 	&& apt-get clean \
 	&& rm -rf /var/lib/apt/lists/*
+
+RUN PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx install shellcheck-py==0.11.0.1
 
 WORKDIR /workspace
 

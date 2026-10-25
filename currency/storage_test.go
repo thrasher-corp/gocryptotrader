@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database/testhelpers"
 )
 
+//nolint:forbidigo // TestMain reports setup and teardown failures before or after a *testing.T exists
 func TestMain(m *testing.M) {
 	var err error
 	testhelpers.TempDir, err = os.MkdirTemp("", "gct-temp")
@@ -101,6 +102,23 @@ func TestRunUpdater(t *testing.T) {
 	assert.False(t, c.ForexProviders[0].Enabled, "Old Default ExchangeRates should not have defaulted to enabled with no enabled overrides")
 }
 
+func TestRunUpdaterFXMacroDataOverrideRequiresAPIKey(t *testing.T) {
+	var newStorage Storage
+	c := &Config{
+		FiatDisplayCurrency:           AUD,
+		CurrencyFileUpdateDuration:    DefaultCurrencyFileDelay,
+		ForeignExchangeUpdateDuration: DefaultForeignExchangeDelay,
+		ForexProviders: AllFXSettings{
+			{Name: "FXMacroData", Enabled: true, APIKey: ""},
+		},
+	}
+
+	err := newStorage.RunUpdater(overrideForProvider("FXMacroData"), c, testhelpers.TempDir)
+	assert.NoError(t, err, "FXMacroData should not error when disabled due to missing API key")
+	assert.False(t, c.ForexProviders[0].Enabled, "FXMacroData should be disabled when API key is missing")
+	assert.Nil(t, newStorage.fiatExchangeMarkets, "forex markets should not start without an API key")
+}
+
 func overrideForProvider(n string) BotOverrides {
 	b := BotOverrides{}
 	switch n {
@@ -114,6 +132,8 @@ func overrideForProvider(n string) BotOverrides {
 		b.OpenExchangeRates = true
 	case "ExchangeRates":
 		b.ExchangeRates = true
+	case "FXMacroData":
+		b.FXMacroData = true
 	}
 	return b
 }

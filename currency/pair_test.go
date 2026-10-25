@@ -371,6 +371,14 @@ func TestNewPairDelimiter(t *testing.T) {
 	pair, err = NewPairDelimiter("sETH-USDT", "-")
 	require.NoError(t, err)
 	assert.Equal(t, "SETH-USDT", pair.String(), "If any upper case is found in set this forces the pair to be uppercase")
+
+	pair, err = NewPairDelimiter("BTC::USD", "::")
+	require.NoError(t, err)
+	assert.Equal(t, "USD", pair.Quote.String(), "a multi-rune delimiter should be consumed whole")
+
+	pair, err = NewPairDelimiter("BTCΔUSD", "Δ")
+	require.NoError(t, err)
+	assert.Equal(t, "USD", pair.Quote.String(), "a multi-byte delimiter should not leave a partial rune on the quote")
 }
 
 func TestNewPairFromString(t *testing.T) {
@@ -522,8 +530,7 @@ func TestCopyPairFormat(t *testing.T) {
 }
 
 func TestPairsToStringArray(t *testing.T) {
-	var pairs Pairs
-	pairs = append(pairs, NewBTCUSD())
+	pairs := Pairs{NewBTCUSD()}
 
 	expected := []string{defaultPair}
 	actual := pairs.Strings()
@@ -544,8 +551,7 @@ func TestRandomPairFromPairs(t *testing.T) {
 	}
 
 	// Test that a populated pairs array returns a non-empty currency pair
-	var pairs Pairs
-	pairs = append(pairs, NewBTCUSD())
+	pairs := Pairs{NewBTCUSD()} //nolint:prealloc // fixed test fixture, not a hot path
 	result, err = pairs.GetRandomPair()
 	require.NoError(t, err)
 

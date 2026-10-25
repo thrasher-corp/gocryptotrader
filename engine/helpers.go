@@ -34,7 +34,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bitfinex"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bitflyer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bithumb"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/bitmex"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bitstamp"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/btcmarkets"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/btse"
@@ -44,7 +43,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/cryptodotcom"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deribit"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/exmo"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/gateio"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/gemini"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/hitbtc"
@@ -52,12 +50,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kraken"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kucoin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/lbank"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/mexc"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/okx"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/poloniex"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/yobit"
-	"github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -87,7 +85,6 @@ func (bot *Engine) GetSubsystemsStatus() map[string]bool {
 		SyncManagerName:               bot.Settings.EnableExchangeSyncManager,
 		grpcName:                      bot.Settings.EnableGRPC,
 		grpcProxyName:                 bot.Settings.EnableGRPCProxy,
-		vm.Name:                       bot.gctScriptManager.IsRunning(),
 		dispatch.Name:                 dispatch.IsRunning(),
 		dataHistoryManagerName:        bot.dataHistoryManager.IsRunning(),
 		CurrencyStateManagementName:   bot.currencyStateManager.IsRunning(),
@@ -188,7 +185,8 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 			if bot.ntpManager == nil {
 				bot.ntpManager, err = setupNTPManager(
 					&bot.Config.NTPClient,
-					*bot.Config.Logging.Enabled)
+					*bot.Config.Logging.Enabled,
+				)
 				if err != nil {
 					return err
 				}
@@ -233,7 +231,8 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 					&cfg,
 					bot.ExchangeManager,
 					&bot.Config.RemoteControl,
-					bot.Settings.EnableWebsocketRoutine)
+					bot.Settings.EnableWebsocketRoutine,
+				)
 				if err != nil {
 					return err
 				}
@@ -259,23 +258,13 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 			return bot.dataHistoryManager.Start(runtimeCtx)
 		}
 		return bot.dataHistoryManager.Stop()
-	case vm.Name:
-		if enable {
-			if bot.gctScriptManager == nil {
-				bot.gctScriptManager, err = vm.NewManager(&bot.Config.GCTScript)
-				if err != nil {
-					return err
-				}
-			}
-			return bot.gctScriptManager.Start(&bot.ServicesWG)
-		}
-		return bot.gctScriptManager.Stop()
 	case strings.ToLower(CurrencyStateManagementName):
 		if enable {
 			if bot.currencyStateManager == nil {
 				bot.currencyStateManager, err = SetupCurrencyStateManager(
 					bot.Config.CurrencyStateManager.Delay,
-					bot.ExchangeManager)
+					bot.ExchangeManager,
+				)
 				if err != nil {
 					return err
 				}
@@ -927,8 +916,6 @@ func NewSupportedExchangeByName(name string) (exchange.IBotExchange, error) {
 		return new(bitflyer.Exchange), nil
 	case "bithumb":
 		return new(bithumb.Exchange), nil
-	case "bitmex":
-		return new(bitmex.Exchange), nil
 	case "bitstamp":
 		return new(bitstamp.Exchange), nil
 	case "btc markets":
@@ -943,8 +930,6 @@ func NewSupportedExchangeByName(name string) (exchange.IBotExchange, error) {
 		return new(cryptodotcom.Exchange), nil
 	case "deribit":
 		return new(deribit.Exchange), nil
-	case "exmo":
-		return new(exmo.Exchange), nil
 	case "coinbase":
 		return new(coinbase.Exchange), nil
 	case "gateio":
@@ -961,6 +946,8 @@ func NewSupportedExchangeByName(name string) (exchange.IBotExchange, error) {
 		return new(kucoin.Exchange), nil
 	case "lbank":
 		return new(lbank.Exchange), nil
+	case "mexc":
+		return new(mexc.Exchange), nil
 	case "okx":
 		return new(okx.Exchange), nil
 	case "poloniex":

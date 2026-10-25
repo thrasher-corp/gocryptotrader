@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/orderbookmanager"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -73,7 +73,7 @@ func TestCheckPendingUpdate(t *testing.T) {
 	require.True(t, skip)
 
 	_, err = checkPendingUpdate(100, 102, &orderbook.Update{UpdateID: 102})
-	require.ErrorIs(t, err, buffer.ErrOrderbookSnapshotOutdated)
+	require.ErrorIs(t, err, orderbookmanager.ErrOrderbookSnapshotOutdated)
 
 	skip, err = checkPendingUpdate(100, 101, &orderbook.Update{UpdateID: 101})
 	require.NoError(t, err)
@@ -92,12 +92,12 @@ func TestOBManagerProcessOrderbookUpdateHTTPMocked(t *testing.T) {
 	err = e.Websocket.AddSubscriptions(nil, &subscription.Subscription{Channel: subscription.OrderbookChannel, Interval: kline.TwentyMilliseconds})
 	require.NoError(t, err)
 
-	m := buffer.NewUpdateManager(&buffer.UpdateManagerParams{
+	m := orderbookmanager.NewUpdateManager(&orderbookmanager.UpdateManagerParams{
 		FetchDelay:         0,
-		FetchDeadline:      buffer.DefaultWSOrderbookUpdateDeadline,
+		FetchDeadline:      orderbookmanager.DefaultWSOrderbookUpdateDeadline,
 		FetchOrderbook:     e.fetchWSOrderbookSnapshot,
 		CheckPendingUpdate: checkPendingUpdate,
-		BufferInstance:     &e.Websocket.Orderbook,
+		Orderbook:          &e.Websocket.Orderbook,
 	})
 	err = m.ProcessOrderbookUpdate(t.Context(), 27596272446, &orderbook.Update{
 		UpdateID:   27596272447,
