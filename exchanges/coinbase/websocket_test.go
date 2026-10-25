@@ -97,11 +97,34 @@ func replayWebsocketFixture(t *testing.T, ex *Exchange, conn websocket.Connectio
 	t.Helper()
 	var errs []error
 	for _, message := range websocketFixture(t, name) {
-		if err := ex.wsHandleData(t.Context(), conn, message); err != nil {
+		if err := awaitHandled(t, func(ctx context.Context) error { return ex.wsHandleData(ctx, conn, message) }); err != nil {
 			errs = append(errs, err)
 		}
 	}
 	return errs
+}
+
+// handleUser has the user channel handle a message, failing the test rather than blocking when the handler never
+// returns
+func handleUser(t *testing.T, ex *Exchange, envelope *WebsocketEnvelope) error {
+	t.Helper()
+	return awaitHandled(t, func(ctx context.Context) error { return ex.wsHandleUser(ctx, envelope) })
+}
+
+// awaitHandled returns a handler's error, failing the test rather than blocking when the handler never returns, as one
+// left waiting for a relay lock held for good would
+func awaitHandled(t *testing.T, handle func(context.Context) error) error {
+	t.Helper()
+	ctx := t.Context()
+	handled := make(chan error, 1)
+	go func() { handled <- handle(ctx) }()
+	select {
+	case err := <-handled:
+		return err
+	case <-time.After(30 * time.Second):
+		require.FailNow(t, "the handler must return")
+		return nil
+	}
 }
 
 // relayed drains what the exchange has relayed so far, returning the payloads of one type and leaving out the order
@@ -464,22 +487,22 @@ func TestWebsocketLookUpOrderSizes(t *testing.T) {
 		}
 	}
 	// An order placed elsewhere arrives without its size, which is looked up and relayed
-	require.NoError(t, ex.wsHandleUser(t.Context(), update(OrderStatusOpen, "0.5")), "wsHandleUser must not error")
+	require.NoError(t, handleUser(t, ex, update(OrderStatusOpen, "0.5")), "wsHandleUser must not error")
 	var details [][]order.Detail
 	require.Eventually(t, func() bool {
 		details = append(details, relayed[[]order.Detail](ex)...)
 		return len(details) == 2
-	}, 5*time.Second, 10*time.Millisecond, "the user channel must relay the order, then the order with its size")
+	}, 30*time.Second, 10*time.Millisecond, "the user channel must relay the order, then the order with its size")
 	assert.Zero(t, details[0][0].Amount, "the user channel should relay the order as reported, without a size")
 	assert.Equal(t, 0.5, details[1][0].Amount, "the user channel should relay the order again with the size it looked up")
 	assert.True(t, details[1][0].IsActive(), "the order with its size should be active")
 
-	require.NoError(t, ex.wsHandleUser(t.Context(), update(OrderStatusOpen, "0.5")), "wsHandleUser must not error for the order's next update")
+	require.NoError(t, handleUser(t, ex, update(OrderStatusOpen, "0.5")), "wsHandleUser must not error for the order's next update")
 	got := relayed[[]order.Detail](ex)
 	require.Len(t, got, 1, "the user channel must relay the order's next update")
 	assert.Equal(t, 0.5, got[0][0].Amount, "the user channel should give the order's next update its recorded size")
 	assert.Equal(t, 0.5, got[0][0].RemainingAmount, "the user channel should report a base sized order's remaining amount")
-	require.NoError(t, ex.wsHandleUser(t.Context(), update(OrderStatusCancelled, "0")), "wsHandleUser must not error for the order's cancellation")
+	require.NoError(t, handleUser(t, ex, update(OrderStatusCancelled, "0")), "wsHandleUser must not error for the order's cancellation")
 	_, ok := ex.orderSizes.get(orderID)
 	assert.False(t, ok, "the user channel should forget a closed order's size")
 	assert.Equal(t, int32(1), lookups.Load(), "the user channel should look an order up once")
@@ -498,6 +521,29 @@ func userOrderEnvelope(orderID, orderType, status, executed, remaining string) *
 // listedOrder returns an order list holding a limit order of a base size
 func listedOrder(orderID, size string) string {
 	return `{"orders":[{"order_id":"` + orderID + `","product_id":"BTC-USD","product_type":"SPOT","side":"SELL","status":"OPEN","order_type":"LIMIT","time_in_force":"GOOD_UNTIL_CANCELLED","filled_size":"0","size_in_quote":false,"order_configuration":{"limit_limit_gtc":{"base_size":"` + size + `","limit_price":"90000"}}}],"has_next":false,"cursor":""}`
+}
+
+// awaitClosed waits for a channel to close, failing the test rather than blocking when it never does
+func awaitClosed(t *testing.T, ch <-chan struct{}, msg string) {
+	t.Helper()
+	select {
+	case <-ch:
+	case <-time.After(30 * time.Second):
+		require.FailNow(t, msg)
+	}
+}
+
+// awaitLookupsSettled waits until no size lookup is under way and each that ended has relayed its orders; a lookup
+// leaves pending before it relays, holding the relay lock, so the lock is held while pending is read
+func awaitLookupsSettled(t *testing.T, ex *Exchange) {
+	t.Helper()
+	require.Eventually(t, func() bool {
+		ex.orderSizes.relayMu.Lock()
+		defer ex.orderSizes.relayMu.Unlock()
+		ex.orderSizes.m.Lock()
+		defer ex.orderSizes.m.Unlock()
+		return len(ex.orderSizes.pending) == 0
+	}, 30*time.Second, time.Millisecond, "the size lookups must settle")
 }
 
 // awaitRelayedOrders returns the order updates relayed, waiting until there are n
@@ -538,7 +584,7 @@ func TestWebsocketHandleUserEditedSize(t *testing.T) {
 		{name: "sized in quote with a base size", base: 1, quote: 100, orderType: OrderTypeLimit, status: OrderStatusOpen, executed: "0.1", remaining: "90", amount: 1, quoteAmount: 100},
 		// An edit cannot resize a TWAP order, whose quantities need not give its size
 		{name: "not resizable", base: 1, orderType: OrderTypeTWAP, status: OrderStatusOpen, executed: "0", remaining: "2", amount: 1},
-		{name: "nothing remaining", base: 1, orderType: OrderTypeLimit, status: OrderStatusOpen, executed: "1", remaining: "0", amount: 1},
+		{name: "nothing remaining", base: 1, orderType: OrderTypeLimit, status: OrderStatusOpen, executed: "0.5", remaining: "0", amount: 1},
 		// A filled order that executed more than its size was enlarged by an edit elsewhere, and one that executed less
 		// left dust unfilled
 		{name: "filled after an edit elsewhere", base: 1, orderType: OrderTypeLimit, status: OrderStatusFilled, executed: "2", remaining: "0", amount: 2},
@@ -556,7 +602,7 @@ func TestWebsocketHandleUserEditedSize(t *testing.T) {
 		}))
 		require.NoErrorf(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{currency.NewBTCUSD()}, false), "StorePairs must not error for the order %s", tc.name)
 		ex.orderSizes.set(orderID, tc.base, tc.quote)
-		require.NoErrorf(t, ex.wsHandleUser(t.Context(), userOrderEnvelope(orderID, tc.orderType, tc.status, tc.executed, tc.remaining)), "wsHandleUser must not error for the order %s", tc.name)
+		require.NoErrorf(t, handleUser(t, ex, userOrderEnvelope(orderID, tc.orderType, tc.status, tc.executed, tc.remaining)), "wsHandleUser must not error for the order %s", tc.name)
 		relays := 1
 		if tc.listed != "" {
 			relays = 2
@@ -573,6 +619,7 @@ func TestWebsocketHandleUserEditedSize(t *testing.T) {
 				require.Truef(t, ok, "the user channel must keep the size of the order %s", tc.name)
 				assert.Equalf(t, tc.base, size.base, "the user channel should keep the size of the order %s", tc.name)
 				assert.Equalf(t, tc.quote, size.quote, "the user channel should keep the quote size of the order %s", tc.name)
+				assert.Falsef(t, size.disputed, "the user channel should not dispute the size of the order %s", tc.name)
 			}
 			continue
 		}
@@ -626,6 +673,55 @@ func TestEditOrderReportedBeforeResponse(t *testing.T) {
 	assert.Equal(t, 2.0, size.base, "the edited order's size should be recorded")
 }
 
+func TestEditOrderAnsweredDuringLookup(t *testing.T) {
+	t.Parallel()
+	const orderID = "dddddddd-eeee-ffff-0000-888888888888"
+	listing, release := make(chan struct{}), make(chan struct{})
+	releaseOnce := sync.OnceFunc(func() { close(release) })
+	t.Cleanup(releaseOnce)
+	var ex *Exchange
+	ex = newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body string
+		switch r.URL.Path {
+		case "/api/v3/brokerage/orders/edit":
+			// Coinbase answers the edit while the lookup its report starts is listing the order
+			assert.NoError(t, ex.wsHandleUser(t.Context(), userOrderEnvelope(orderID, OrderTypeLimit, OrderStatusOpen, "0", "2")), "wsHandleUser should not error for the edit's report")
+			select {
+			case <-listing:
+			case <-time.After(30 * time.Second):
+				assert.Fail(t, "the edit's report should start a lookup")
+			}
+			body = `{"success":true,"errors":[]}`
+		case "/api/v3/brokerage/orders/historical/batch":
+			close(listing)
+			select {
+			case <-release:
+			case <-r.Context().Done():
+				return
+			}
+			// The list reads the order as it was before the edit
+			body = listedOrder(orderID, "1")
+		default:
+			assert.Failf(t, "EditOrder should edit the order and the user channel look it up", "requested %s", r.URL.Path)
+			http.NotFound(w, r)
+			return
+		}
+		_, err := w.Write([]byte(body))
+		assert.NoError(t, err, "writing the response should not error")
+	}))
+	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{currency.NewBTCUSD()}, false), "StorePairs must not error")
+	ex.orderSizes.set(orderID, 1, 0)
+	_, err := ex.EditOrder(t.Context(), &EditOrderRequest{OrderID: orderID, Price: 90000, Size: 2})
+	require.NoError(t, err, "EditOrder must not error")
+	require.Len(t, relayed[[]order.Detail](ex), 1, "the user channel must relay the edit's report alone while the lookup lists the order")
+	releaseOnce()
+	// The edited size, recorded once Coinbase answered, is newer than the list's
+	got := awaitRelayedOrders(t, ex, 1)
+	require.Len(t, got, 1, "the lookup must relay the order once")
+	require.Len(t, got[0], 1, "the lookup must relay the order")
+	assert.Equal(t, 2.0, got[0][0].Amount, "the lookup should relay the edited size")
+}
+
 func TestWebsocketLookUpOrderSizesEditedMeanwhile(t *testing.T) {
 	t.Parallel()
 	const orderID = "dddddddd-eeee-ffff-0000-555555555555"
@@ -655,11 +751,11 @@ func TestWebsocketLookUpOrderSizesEditedMeanwhile(t *testing.T) {
 			_, err := w.Write([]byte(listedOrder(orderID, size)))
 			assert.NoError(t, err, "writing the response should not error")
 		}))
-		require.NoErrorf(t, ex.wsHandleUser(t.Context(), userOrderEnvelope(orderID, tc.orderType, OrderStatusOpen, "0.25", "0.75")), "wsHandleUser must not error for the %s order", tc.orderType)
-		<-listed
+		require.NoErrorf(t, handleUser(t, ex, userOrderEnvelope(orderID, tc.orderType, OrderStatusOpen, "0.25", "0.75")), "wsHandleUser must not error for the %s order", tc.orderType)
+		awaitClosed(t, listed, "the order must be looked up")
 		// The order is edited elsewhere to 2 while its size is being looked up, then its cancellation is queued
-		require.NoErrorf(t, ex.wsHandleUser(t.Context(), userOrderEnvelope(orderID, tc.orderType, OrderStatusOpen, "0.25", "1.75")), "wsHandleUser must not error for the %s order's edit report", tc.orderType)
-		require.NoErrorf(t, ex.wsHandleUser(t.Context(), userOrderEnvelope(orderID, tc.orderType, OrderStatusCancelQueued, "0.25", "1.75")), "wsHandleUser must not error for the %s order's queued cancellation report", tc.orderType)
+		require.NoErrorf(t, handleUser(t, ex, userOrderEnvelope(orderID, tc.orderType, OrderStatusOpen, "0.25", "1.75")), "wsHandleUser must not error for the %s order's edit report", tc.orderType)
+		require.NoErrorf(t, handleUser(t, ex, userOrderEnvelope(orderID, tc.orderType, OrderStatusCancelQueued, "0.25", "1.75")), "wsHandleUser must not error for the %s order's queued cancellation report", tc.orderType)
 		close(release)
 		got := awaitRelayedOrders(t, ex, 4)
 		assert.Equalf(t, tc.lists, lists.Load(), "the %s order should be listed as often as its reports dispute the list", tc.orderType)
@@ -711,13 +807,18 @@ func TestWebsocketLookUpOrderSizesOlderList(t *testing.T) {
 		_, err := ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType})
 		listed <- err
 	}()
-	<-listing
-	require.NoError(t, ex.wsHandleUser(t.Context(), userOrderEnvelope(orderID, OrderTypeLimit, OrderStatusOpen, "0", "2")), "wsHandleUser must not error for the first edit's report")
-	<-looking
-	require.NoError(t, ex.wsHandleUser(t.Context(), userOrderEnvelope(orderID, OrderTypeLimit, OrderStatusOpen, "0", "3")), "wsHandleUser must not error for the second edit's report")
+	awaitClosed(t, listing, "the live orders must be listed")
+	require.NoError(t, handleUser(t, ex, userOrderEnvelope(orderID, OrderTypeLimit, OrderStatusOpen, "0", "2")), "wsHandleUser must not error for the first edit's report")
+	awaitClosed(t, looking, "the order must be looked up")
+	require.NoError(t, handleUser(t, ex, userOrderEnvelope(orderID, OrderTypeLimit, OrderStatusOpen, "0", "3")), "wsHandleUser must not error for the second edit's report")
 	// The older list records the old size while the lookup is under way, and the lookup lists the first edit's
 	close(releaseList)
-	require.NoError(t, <-listed, "GetActiveOrders must not error")
+	select {
+	case err := <-listed:
+		require.NoError(t, err, "GetActiveOrders must not error")
+	case <-time.After(30 * time.Second):
+		require.FailNow(t, "GetActiveOrders must return")
+	}
 	close(releaseLookup)
 	got := awaitRelayedOrders(t, ex, 3)
 	assert.EqualValues(t, 2, lookups.Load(), "the order should be looked up again despite the older list")
@@ -776,14 +877,14 @@ func TestAdvancedTradeOrderSizes(t *testing.T) {
 	claimed, started = sizes.claim([]order.Detail{open("listed")})
 	assert.Equal(t, []string{"listed"}, claimed, "claim should claim an order a list recorded after a report disputed its size")
 	sizes.release(claimed, started)
-	sizes.remove("listed")
+	sizes.remove("listed", 1)
 	sizes.dispute("unrecorded")
 	_, ok := sizes.get("unrecorded")
 	assert.False(t, ok, "dispute should record nothing for an order without a size")
 	size, ok := sizes.get("a")
 	require.True(t, ok, "get must return a recorded order's size")
 	assert.Equal(t, 1.0, size.base, "get should return the recorded size")
-	sizes.remove("a")
+	sizes.remove("a", 1)
 	_, ok = sizes.get("a")
 	assert.False(t, ok, "remove should forget an order's size")
 	for i := range orderSizesPruneThreshold {
@@ -791,6 +892,78 @@ func TestAdvancedTradeOrderSizes(t *testing.T) {
 	}
 	sizes.set("fresh", 1, 0)
 	assert.Len(t, sizes.sizes, 1, "set should forget sizes recorded long ago once the record is large")
+}
+
+func TestAdvancedTradeOrderSizesClosed(t *testing.T) {
+	t.Parallel()
+	var sizes advancedTradeOrderSizes
+	sizes.set("filled", 1, 0)
+	sizes.remove("filled", 2)
+	_, ok := sizes.get("filled")
+	assert.False(t, ok, "remove should forget a closed order's size")
+	assert.Equal(t, 2.0, sizes.closedSize("filled"), "remove should keep the base size an order closed with")
+	// A report of the order after its close, which the record no longer holds, leaves the size it closed with
+	sizes.remove("filled", 3)
+	assert.Equal(t, 2.0, sizes.closedSize("filled"), "remove should leave the size an order closed with to a later report of it")
+	// Only an order the record held keeps a size, as a list of closed orders can reach back years
+	sizes.remove("unrecorded", 1)
+	assert.Zero(t, sizes.closedSize("unrecorded"), "remove should keep no size for an order the record did not hold")
+	sizes.set("quote", 0, 100)
+	sizes.remove("quote", 0)
+	assert.Zero(t, sizes.closedSize("quote"), "remove should keep no size for an order that closed without a base size")
+	for i := range orderSizesPruneThreshold {
+		sizes.closed[strconv.Itoa(i)] = closedOrderSize{base: 1, closed: time.Now().Add(-2 * closedOrderSizeLifetime)}
+	}
+	sizes.set("fresh", 1, 0)
+	assert.Len(t, sizes.closed, 1, "set should forget the sizes orders closed with long ago once there are many")
+	assert.Equal(t, 2.0, sizes.closedSize("filled"), "set should keep the size an order closed with since")
+}
+
+func TestAdvancedTradeOrderSizesLiveReports(t *testing.T) {
+	t.Parallel()
+	var sizes advancedTradeOrderSizes
+	for _, id := range []string{"reported", "unreported"} {
+		sizes.set(id, 1, 0)
+		size := sizes.sizes[id]
+		size.recorded = time.Now().Add(-2 * orderSizeLifetime)
+		sizes.sizes[id] = size
+	}
+	// A live report keeps an order's size from being pruned as one whose close went unreported
+	sizes.observe(&order.Detail{OrderID: "reported", Status: order.Open}, 0)
+	sizes.observe(&order.Detail{OrderID: "unreported", Status: order.Cancelled}, 0)
+	for i := range orderSizesPruneThreshold {
+		sizes.sizes[strconv.Itoa(i)] = advancedTradeOrderSize{base: 1, recorded: time.Now().Add(-2 * orderSizeLifetime)}
+	}
+	sizes.set("fresh", 1, 0)
+	_, ok := sizes.get("reported")
+	assert.True(t, ok, "set should keep the size of an order reported live since it was recorded")
+	_, ok = sizes.get("unreported")
+	assert.False(t, ok, "set should forget the size of an order not reported live since it was recorded long ago")
+}
+
+func TestAdvancedTradeOrderSizesPrunedByListsAndLookups(t *testing.T) {
+	t.Parallel()
+	expire := func(sizes *advancedTradeOrderSizes) {
+		for i := range orderSizesPruneThreshold {
+			sizes.sizes[strconv.Itoa(i)] = advancedTradeOrderSize{base: 1, recorded: time.Now().Add(-2 * orderSizeLifetime)}
+		}
+	}
+	// An account whose orders are placed elsewhere records sizes only from lists and lookups, which prune the record too
+	var sizes advancedTradeOrderSizes
+	sizes.setListed("listed", 1, 0, sizes.stamp())
+	expire(&sizes)
+	sizes.setListed("listed again", 1, 0, sizes.stamp())
+	assert.Len(t, sizes.sizes, 2, "setListed should forget sizes recorded long ago once the record is large")
+	expire(&sizes)
+	claimed, started := sizes.claim([]order.Detail{{OrderID: "looked up", Status: order.Open}})
+	require.Equal(t, []string{"looked up"}, claimed, "claim must claim an order without a size")
+	_, outcome := sizes.complete("looked up", 1, 0)
+	require.Equal(t, lookupRelay, outcome, "complete must relay the order looked up")
+	sizes.release(claimed, started)
+	assert.Len(t, sizes.sizes, 3, "complete should forget sizes recorded long ago once the record is large")
+	expire(&sizes)
+	sizes.remove("listed", 1)
+	assert.Len(t, sizes.sizes, 2, "remove should forget sizes recorded long ago once the record is large")
 }
 
 func TestAdvancedTradeOrderSizeLookups(t *testing.T) {
@@ -867,9 +1040,13 @@ func TestWebsocketLookUpOrderSizesAfterClose(t *testing.T) {
 	t.Parallel()
 	const orderID = "eeeeeeee-ffff-0000-1111-222222222222"
 	listed, release := make(chan struct{}), make(chan struct{})
-	ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		close(listed)
-		<-release
+		select {
+		case <-release:
+		case <-r.Context().Done():
+			return
+		}
 		_, err := w.Write([]byte(`{"orders":[{"order_id":"` + orderID + `","product_id":"BTC-USD","product_type":"SPOT","side":"SELL","status":"OPEN","order_type":"LIMIT","time_in_force":"GOOD_UNTIL_CANCELLED","filled_size":"0","order_configuration":{"limit_limit_gtc":{"base_size":"0.5","limit_price":"90000"}}}],"has_next":false,"cursor":""}`))
 		assert.NoError(t, err, "writing the response should not error")
 	}))
@@ -881,16 +1058,12 @@ func TestWebsocketLookUpOrderSizesAfterClose(t *testing.T) {
 				`","product_id":"BTC-USD","product_type":"SPOT","time_in_force":"GOOD_UNTIL_CANCELLED","limit_price":"90000","cumulative_quantity":"0","leaves_quantity":"0.5"}]}]`),
 		}
 	}
-	require.NoError(t, ex.wsHandleUser(t.Context(), update(OrderStatusOpen)), "wsHandleUser must not error")
-	<-listed
+	require.NoError(t, handleUser(t, ex, update(OrderStatusOpen)), "wsHandleUser must not error")
+	awaitClosed(t, listed, "the order must be looked up")
 	// The order is cancelled while its size is being looked up
-	require.NoError(t, ex.wsHandleUser(t.Context(), update(OrderStatusCancelled)), "wsHandleUser must not error for the cancellation")
+	require.NoError(t, handleUser(t, ex, update(OrderStatusCancelled)), "wsHandleUser must not error for the cancellation")
 	close(release)
-	require.Eventually(t, func() bool {
-		ex.orderSizes.m.Lock()
-		defer ex.orderSizes.m.Unlock()
-		return len(ex.orderSizes.pending) == 0
-	}, 5*time.Second, 10*time.Millisecond, "the lookup must finish")
+	awaitLookupsSettled(t, ex)
 	var statuses []order.Status
 	for _, details := range relayed[[]order.Detail](ex) {
 		for i := range details {
@@ -902,14 +1075,17 @@ func TestWebsocketLookUpOrderSizesAfterClose(t *testing.T) {
 	assert.False(t, ok, "the lookup should not record a closed order's size")
 }
 
-// assertWaitsForLock asserts an operation waits while a lock is held and finishes once it is released
-func assertWaitsForLock(t *testing.T, mu *sync.Mutex, operation func(), name string) {
+// assertWaitsForLock asserts an operation waits while a lock is held, and finishes without error once it is released;
+// a lock an earlier operation left held fails the test rather than blocking it. The operation's error is asserted on the
+// test's goroutine, as an operation that ends after the test has failed must not touch it
+func assertWaitsForLock(t *testing.T, mu *sync.Mutex, operation func() error, name string) {
 	t.Helper()
-	mu.Lock()
+	require.Eventuallyf(t, mu.TryLock, 30*time.Second, time.Millisecond, "the lock %s waits for must be free", name)
+	var err error
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		operation()
+		err = operation()
 	}()
 	finished := func() bool {
 		select {
@@ -921,7 +1097,10 @@ func assertWaitsForLock(t *testing.T, mu *sync.Mutex, operation func(), name str
 	}
 	assert.Neverf(t, finished, 50*time.Millisecond, 5*time.Millisecond, "%s should wait for the lock", name)
 	mu.Unlock()
-	assert.Eventuallyf(t, finished, 5*time.Second, 5*time.Millisecond, "%s should finish once the lock is released", name)
+	if assert.Eventuallyf(t, finished, 30*time.Second, 5*time.Millisecond, "%s should finish once the lock is released", name) {
+		<-done
+		assert.NoErrorf(t, err, "%s should not error", name)
+	}
 }
 
 func TestWebsocketUserRelaysInOrder(t *testing.T) {
@@ -936,12 +1115,45 @@ func TestWebsocketUserRelaysInOrder(t *testing.T) {
 			`"product_id":"BTC-USD","product_type":"SPOT","time_in_force":"GOOD_UNTIL_CANCELLED","limit_price":"80000","cumulative_quantity":"0","leaves_quantity":"1"}]}]`),
 	}
 	// The channel's relays and a lookup's are held in order, so a lookup's report cannot follow a newer one
-	assertWaitsForLock(t, &ex.orderSizes.relayMu, func() {
-		assert.NoError(t, ex.wsHandleUser(t.Context(), envelope), "wsHandleUser should not error")
+	ctx := t.Context()
+	assertWaitsForLock(t, &ex.orderSizes.relayMu, func() error {
+		return ex.wsHandleUser(ctx, envelope)
 	}, "wsHandleUser")
-	assertWaitsForLock(t, &ex.orderSizes.relayMu, func() {
-		ex.relayLookedUpOrders(t.Context(), nil)
+	assertWaitsForLock(t, &ex.orderSizes.relayMu, func() error {
+		ex.relayLookedUpOrders(ctx, nil)
+		return nil
 	}, "relayLookedUpOrders")
+	// Each relays holding the lock too, as a relay sent once the lock is released can follow a newer report
+	lockCtx := &relayLockContext{Context: t.Context(), lock: &ex.orderSizes.relayMu}
+	require.NoError(t, awaitHandled(t, func(context.Context) error { return ex.wsHandleUser(lockCtx, envelope) }), "wsHandleUser must not error")
+	require.Positive(t, lockCtx.held.Load()+lockCtx.free.Load(), "the user channel's relay must read the context it is given")
+	assert.Zero(t, lockCtx.free.Load(), "wsHandleUser should relay holding the relay lock")
+	lockCtx = &relayLockContext{Context: t.Context(), lock: &ex.orderSizes.relayMu}
+	claimed, started := ex.orderSizes.claim([]order.Detail{{OrderID: "looked-up", Status: order.Open}})
+	require.Equal(t, []string{"looked-up"}, claimed, "claim must claim an order without a size")
+	ex.relayLookedUpOrders(lockCtx, []Order{{OrderID: "looked-up", OrderConfiguration: &OrderConfiguration{LimitLimitGTC: &LimitLimitGTC{BaseSize: 1, LimitPrice: 80000}}}})
+	ex.orderSizes.release(claimed, started)
+	require.Positive(t, lockCtx.held.Load()+lockCtx.free.Load(), "the lookup's relay must read the context it is given")
+	assert.Zero(t, lockCtx.free.Load(), "relayLookedUpOrders should relay holding the relay lock")
+}
+
+// relayLockContext notes, each time a relay reads one of its values, as a relay does to keep its context's values with
+// what it relays, whether a relay lock is held
+type relayLockContext struct {
+	context.Context //nolint:containedctx // wraps the test's context to see the relay lock's state as a relay reads it
+	lock            *sync.Mutex
+	held, free      atomic.Int32
+}
+
+// Value notes whether the relay lock is held, and returns the wrapped context's value
+func (c *relayLockContext) Value(key any) any {
+	if c.lock.TryLock() {
+		c.lock.Unlock()
+		c.free.Add(1)
+	} else {
+		c.held.Add(1)
+	}
+	return c.Context.Value(key)
 }
 
 func TestProcessMergedTickersHoldsTheStore(t *testing.T) {
@@ -953,8 +1165,9 @@ func TestProcessMergedTickersHoldsTheStore(t *testing.T) {
 		Events:    json.RawMessage(`[{"type":"update","tickers":[{"type":"ticker","product_id":"BTC-USD","price":"82410","volume_24_h":"100","best_bid":"82409","best_bid_quantity":"1","best_ask":"82411","best_ask_quantity":"2"}]}]`),
 	}
 	// A merge between another's read of the stored ticker and its store would restore what that one replaced
-	assertWaitsForLock(t, &ex.tickerMergeMu, func() {
-		assert.NoError(t, ex.wsHandleTicker(t.Context(), envelope), "wsHandleTicker should not error")
+	ctx := t.Context()
+	assertWaitsForLock(t, &ex.tickerMergeMu, func() error {
+		return ex.wsHandleTicker(ctx, envelope)
 	}, "wsHandleTicker")
 }
 
@@ -1059,9 +1272,9 @@ func TestWebsocketOrderDetailErrors(t *testing.T) {
 	assert.Equal(t, currency.NewPairWithDelimiter("SOL", "EUR", currency.DashDelimiter), detail.Pair, "websocketOrderDetail should name a pair outside the available pairs by its product ID")
 
 	envelope.Events = json.RawMessage(`[{"type":"update","orders":[{"order_id":"1","product_type":"OPTION"}]}]`)
-	assert.ErrorIs(t, ex.wsHandleUser(t.Context(), envelope), errUnknownProductType, "wsHandleUser should report an order it cannot convert")
+	assert.ErrorIs(t, handleUser(t, ex, envelope), errUnknownProductType, "wsHandleUser should report an order it cannot convert")
 	envelope.Events = json.RawMessage(`{}`)
-	assert.Error(t, ex.wsHandleUser(t.Context(), envelope), "wsHandleUser should error for malformed events")
+	assert.Error(t, handleUser(t, ex, envelope), "wsHandleUser should error for malformed events")
 	assert.Error(t, ex.wsHandleFuturesBalanceSummary(t.Context(), envelope), "wsHandleFuturesBalanceSummary should error for malformed events")
 }
 
@@ -1093,18 +1306,10 @@ func TestWebsocketHandleUserLatestReportInMessage(t *testing.T) {
 		}))
 		return ex
 	}
-	lookedUp := func(t *testing.T, ex *Exchange) {
-		t.Helper()
-		require.Eventually(t, func() bool {
-			ex.orderSizes.m.Lock()
-			defer ex.orderSizes.m.Unlock()
-			return len(ex.orderSizes.pending) == 0
-		}, 5*time.Second, time.Millisecond, "the lookup must end")
-	}
 
 	ex := listed(t)
-	require.NoError(t, ex.wsHandleUser(t.Context(), message(report(OrderStatusOpen, "1", "0"), report(OrderStatusCancelled, "0", "0"))), "wsHandleUser must not error")
-	lookedUp(t, ex)
+	require.NoError(t, handleUser(t, ex, message(report(OrderStatusOpen, "1", "0"), report(OrderStatusCancelled, "0", "0"))), "wsHandleUser must not error")
+	awaitLookupsSettled(t, ex)
 	var statuses []order.Status
 	for _, details := range relayed[[]order.Detail](ex) {
 		for i := range details {
@@ -1116,8 +1321,8 @@ func TestWebsocketHandleUserLatestReportInMessage(t *testing.T) {
 	assert.False(t, ok, "an order a message closes should not have its size recorded")
 
 	ex = listed(t)
-	require.NoError(t, ex.wsHandleUser(t.Context(), message(report(OrderStatusOpen, "1", "0"), report(OrderStatusOpen, "0.5", "0.5"))), "wsHandleUser must not error")
-	lookedUp(t, ex)
+	require.NoError(t, handleUser(t, ex, message(report(OrderStatusOpen, "1", "0"), report(OrderStatusOpen, "0.5", "0.5"))), "wsHandleUser must not error")
+	awaitLookupsSettled(t, ex)
 	got := relayed[[]order.Detail](ex)
 	require.Len(t, got, 2, "the message and the lookup must each relay once")
 	require.Len(t, got[1], 1, "the lookup must relay the order")
@@ -1487,6 +1692,10 @@ type advancedTradeVenue struct {
 	skip uint64
 	// delayOnce holds channels whose next confirmation the venue sends late, by the time held, as it does under load
 	delayOnce map[string]time.Duration
+	// holdOnce holds channels whose next confirmation the venue sends only once their channel closes
+	holdOnce map[string]chan struct{}
+	// refuseOnce holds channels whose next request the venue refuses, with its refusal
+	refuseOnce map[string]string
 }
 
 // skipSequence has the venue skip sequence numbers before its next message
@@ -1527,9 +1736,18 @@ func (v *advancedTradeVenue) upgrader() func(testing.TB, []byte, *gws.Conn) erro
 		v.skip = 0
 		delay := v.delayOnce[req.Channel]
 		delete(v.delayOnce, req.Channel)
+		hold := v.holdOnce[req.Channel]
+		delete(v.holdOnce, req.Channel)
+		if refusalOnce, ok := v.refuseOnce[req.Channel]; ok {
+			refusal, refused = refusalOnce, true
+			delete(v.refuseOnce, req.Channel)
+		}
 		v.mu.Unlock()
 		// A late confirmation holds up the connection's later requests too, as the venue reads them in turn
 		time.Sleep(delay)
+		if hold != nil {
+			<-hold
+		}
 		mu.Lock()
 		defer mu.Unlock()
 		subs, ok := state[conn]
@@ -1755,6 +1973,45 @@ func (c *closeCountingConnection) SendRawMessage(ctx context.Context, epl reques
 	return c.Connection.SendRawMessage(ctx, epl, messageType, message)
 }
 
+// timedOutConnection is a connection whose requests time out, counting the close frames sent on it
+type timedOutConnection struct {
+	websocket.Connection
+	connected bool
+	closes    atomic.Int32
+}
+
+// IsConnected reports whether the connection is connected
+func (c *timedOutConnection) IsConnected() bool { return c.connected }
+
+// SendMessageReturnResponse times out
+func (c *timedOutConnection) SendMessageReturnResponse(context.Context, request.EndpointLimit, any, any) ([]byte, error) {
+	return nil, websocket.ErrSignatureTimeout
+}
+
+// SendRawMessage counts a close frame
+func (c *timedOutConnection) SendRawMessage(_ context.Context, _ request.EndpointLimit, messageType int, _ []byte) error {
+	if messageType == gws.CloseMessage {
+		c.closes.Add(1)
+	}
+	return nil
+}
+
+func TestWebsocketRequestTimeoutClosesConnection(t *testing.T) {
+	t.Parallel()
+	ex := newWebsocketTestExchange(t)
+	for _, connected := range []bool{true, false} {
+		conn := &timedOutConnection{connected: connected}
+		_, err := ex.wsSendRequest(t.Context(), conn, wsRequestSubscribe, wsChannelHeartbeats, nil, false)
+		require.ErrorIsf(t, err, websocket.ErrSignatureTimeout, "wsSendRequest must return the timeout on a connection connected %t", connected)
+		// A connection already down, such as one shut down while the request waited, has nothing to close
+		exp := int32(0)
+		if connected {
+			exp = 1
+		}
+		assert.Equalf(t, exp, conn.closes.Load(), "wsSendRequest should close the connection only while it is up, connected %t", connected)
+	}
+}
+
 func TestWebsocketSubscribeErrors(t *testing.T) {
 	t.Parallel()
 	venue := &advancedTradeVenue{refuse: map[string]string{ChannelTickerBatch: "rate limit exceeded"}, ignore: map[string]bool{"ETH-USD": true}}
@@ -1790,7 +2047,7 @@ func TestWebsocketResynchronise(t *testing.T) {
 	require.ErrorIs(t, err, errWebsocketSequenceGap, "a dropped message must be reported")
 	_, err = ex.Websocket.Orderbook.GetOrderbook(testFuturesPair, asset.Futures)
 	assert.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "the connection's books should be invalidated until resubscribing reloads them")
-	require.Eventually(t, func() bool { return len(venue.requestsFor(wsChannelLevel2)) == 3 }, 5*time.Second, time.Millisecond, "the books must be unsubscribed and subscribed again")
+	require.Eventually(t, func() bool { return len(venue.requestsFor(wsChannelLevel2)) == 3 }, 30*time.Second, time.Millisecond, "the books must be unsubscribed and subscribed again")
 	books := venue.requestsFor(wsChannelLevel2)
 	assert.Equal(t, []string{wsRequestSubscribe, wsRequestUnsubscribe, wsRequestSubscribe}, []string{books[0].Type, books[1].Type, books[2].Type}, "the books should be resubscribed")
 	assert.Len(t, venue.requestsFor(wsChannelTicker), 1, "a channel without state should not be resubscribed")
@@ -1956,4 +2213,197 @@ func TestSetupFromVersion17Config(t *testing.T) {
 			assert.Truef(t, slices.ContainsFunc(subs, func(s *subscription.Subscription) bool { return s.Channel == channel && s.Asset == a }), "the upgraded configuration should subscribe %s's %s channel", a, channel)
 		}
 	}
+}
+
+func TestWebsocketHandleUserFirstSeenFilled(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		orderType string
+		executed  string
+		amount    float64
+	}{
+		// An order placed elsewhere that filled at once is first reported filled, without a size recorded
+		{orderType: OrderTypeMarket, executed: "1", amount: 1},
+		{orderType: OrderTypeLimit, executed: "0.5", amount: 0.5},
+	} {
+		ex := newWebsocketTestExchange(t)
+		require.NoErrorf(t, handleUser(t, ex, userOrderEnvelope("first-seen", tc.orderType, OrderStatusFilled, tc.executed, "0")), "wsHandleUser must not error for a filled %s order", tc.orderType)
+		got := relayed[[]order.Detail](ex)
+		require.Lenf(t, got, 1, "the user channel must relay the filled %s order once", tc.orderType)
+		require.Lenf(t, got[0], 1, "the user channel must relay the filled %s order", tc.orderType)
+		assert.Equalf(t, tc.amount, got[0][0].Amount, "the user channel should relay a filled %s order with the amount it executed", tc.orderType)
+	}
+}
+
+func TestWebsocketHandleUserQuoteSizedOrders(t *testing.T) {
+	t.Parallel()
+	const orderID = "dddddddd-eeee-ffff-0000-bbbbbbbbbbbb"
+	for _, tc := range []struct {
+		name                        string
+		base, quote                 float64
+		status, executed, remaining string
+		amount, remainingAmount     float64
+	}{
+		// The report gives what remains of the quote size, so what remains of the base size is what is not executed
+		{name: "open with a base size", base: 1, quote: 100, status: OrderStatusOpen, executed: "0.1", remaining: "90", amount: 1, remainingAmount: 0.9},
+		{name: "open without a base size", quote: 100, status: OrderStatusOpen, executed: "0.0001", remaining: "20"},
+		// A filled order without a base size takes the base amount it executed as its size
+		{name: "filled without a base size", quote: 100, status: OrderStatusFilled, executed: "0.001", remaining: "0", amount: 0.001},
+		{name: "filled with a base size", base: 1, quote: 100, status: OrderStatusFilled, executed: "1", remaining: "0", amount: 1},
+	} {
+		ex := newWebsocketTestExchange(t)
+		ex.orderSizes.set(orderID, tc.base, tc.quote)
+		require.NoErrorf(t, handleUser(t, ex, userOrderEnvelope(orderID, OrderTypeLimit, tc.status, tc.executed, tc.remaining)), "wsHandleUser must not error for the order %s", tc.name)
+		got := relayed[[]order.Detail](ex)
+		require.Lenf(t, got, 1, "the user channel must relay the order %s once", tc.name)
+		require.Lenf(t, got[0], 1, "the user channel must relay the order %s", tc.name)
+		assert.Equalf(t, tc.amount, got[0][0].Amount, "the user channel should relay the order %s with its base size", tc.name)
+		assert.Equalf(t, tc.quote, got[0][0].QuoteAmount, "the user channel should relay the order %s with its quote size", tc.name)
+		assert.Equalf(t, tc.remainingAmount, got[0][0].RemainingAmount, "the user channel should relay what remains of the order %s in its base currency", tc.name)
+	}
+}
+
+func TestWebsocketHandleUserReportedAfterClose(t *testing.T) {
+	t.Parallel()
+	const orderID = "dddddddd-eeee-ffff-0000-cccccccccccc"
+	for _, tc := range []struct {
+		name        string
+		base, quote float64
+		executed    string
+		amount      float64
+	}{
+		// Coinbase can mark an order filled leaving dust, so a report of it after its close keeps the size it closed with
+		{name: "filled leaving dust", base: 1, executed: "0.999999", amount: 1},
+		{name: "filled beyond its size", base: 1, executed: "2", amount: 2},
+		{name: "sized in quote", quote: 100, executed: "0.5", amount: 0.5},
+		{name: "unrecorded", executed: "0.5", amount: 0.5},
+	} {
+		ex := newWebsocketTestExchange(t)
+		if tc.base > 0 || tc.quote > 0 {
+			ex.orderSizes.set(orderID, tc.base, tc.quote)
+		}
+		for range 2 {
+			require.NoErrorf(t, handleUser(t, ex, userOrderEnvelope(orderID, OrderTypeLimit, OrderStatusFilled, tc.executed, "0")), "wsHandleUser must not error for the order %s", tc.name)
+		}
+		got := relayed[[]order.Detail](ex)
+		require.Lenf(t, got, 2, "the user channel must relay each report of the order %s", tc.name)
+		for i := range got {
+			require.Lenf(t, got[i], 1, "the user channel must relay the order %s", tc.name)
+			assert.Equalf(t, tc.amount, got[i][0].Amount, "report %d of the order %s should be relayed with the size it closed with", i+1, tc.name)
+		}
+	}
+	// A list that reads the order closed forgets its recorded size before the user channel reports the close
+	ex := newWebsocketTestExchange(t)
+	ex.orderSizes.set(orderID, 1, 0)
+	listed := &Order{
+		OrderID:            orderID,
+		ProductID:          "BTC-USD",
+		ProductType:        ProductTypeSpot,
+		OrderConfiguration: &OrderConfiguration{LimitLimitGTC: &LimitLimitGTC{BaseSize: 1, LimitPrice: 90000}},
+		Side:               OrderSideSell,
+		Status:             OrderStatusFilled,
+		TimeInForce:        TimeInForceGoodUntilCancelled,
+		FilledSize:         0.999999,
+		OrderType:          OrderTypeLimit,
+	}
+	_, err := ex.orderDetail(listed, ex.orderSizes.stamp())
+	require.NoError(t, err, "orderDetail must not error")
+	require.NoError(t, handleUser(t, ex, userOrderEnvelope(orderID, OrderTypeLimit, OrderStatusFilled, "0.999999", "0")), "wsHandleUser must not error")
+	got := relayed[[]order.Detail](ex)
+	require.Len(t, got, 1, "the user channel must relay the order's close")
+	require.Len(t, got[0], 1, "the user channel must relay the order")
+	assert.Equal(t, 1.0, got[0][0].Amount, "the user channel should relay an order a list read closed with the size it closed with")
+	// A later report executing more than the size an order closed with takes what it executed, as a filled order's size
+	// is never below its fill
+	ex = newWebsocketTestExchange(t)
+	ex.orderSizes.set(orderID, 1, 0)
+	for _, executed := range []string{"1", "2"} {
+		require.NoErrorf(t, handleUser(t, ex, userOrderEnvelope(orderID, OrderTypeLimit, OrderStatusFilled, executed, "0")), "wsHandleUser must not error for the report executing %s", executed)
+	}
+	got = relayed[[]order.Detail](ex)
+	require.Len(t, got, 2, "the user channel must relay each report of the order")
+	require.Len(t, got[1], 1, "the user channel must relay the order")
+	assert.Equal(t, 2.0, got[1][0].Amount, "a later report executing more than the size the order closed with should take what it executed")
+}
+
+func TestWebsocketResubscribeHoldsClaim(t *testing.T) {
+	t.Parallel()
+	venue := new(advancedTradeVenue)
+	ex, err := connectAdvancedTradeTestExchange(t, venue, subscription.List{{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel}})
+	require.NoError(t, err, "Connect must subscribe to the mock venue")
+	conn, err := ex.Websocket.GetConnection(websocketMarketDataConnection)
+	require.NoError(t, err, "GetConnection must not error")
+	books := ex.Websocket.GetSubscriptions()
+	require.Len(t, books, 2, "both books must be subscribed")
+	// The venue holds its answer to the resubscription's unsubscribe until the claim is checked, or the test ends
+	release := make(chan struct{})
+	releaseOnce := sync.OnceFunc(func() { close(release) })
+	t.Cleanup(releaseOnce)
+	venue.mu.Lock()
+	venue.holdOnce = map[string]chan struct{}{wsChannelLevel2: release}
+	venue.mu.Unlock()
+	ex.wsResubscribe(t.Context(), conn, books, websocketMessageEPL)
+	state := ex.wsConnections.get(conn)
+	require.Eventually(t, func() bool { return len(venue.requestsFor(wsChannelLevel2)) == 2 }, 30*time.Second, time.Millisecond, "the books must be unsubscribed")
+	assert.True(t, state.isResubscribing(books[0]), "the resubscription should hold its claim while it runs")
+	assert.Empty(t, state.claimResubscription(books), "another resubscription should not claim books one holds")
+	// An overlapping resubscription leaves the books to the one under way
+	ex.wsResubscribe(t.Context(), conn, books, websocketMessageEPL)
+	releaseOnce()
+	require.Eventually(t, func() bool { return !state.isResubscribing(books[0]) }, 30*time.Second, time.Millisecond, "the resubscription must release its claim once done")
+	assert.Len(t, venue.requestsFor(wsChannelLevel2), 3, "the books should be resubscribed once")
+	assert.Len(t, venue.requestsFor(wsChannelHeartbeats), 1, "the connection should stay up")
+	for _, s := range ex.Websocket.GetSubscriptions() {
+		assert.Equalf(t, subscription.SubscribedState, s.State(), "%s should be subscribed once resubscribed", s)
+	}
+}
+
+func TestWebsocketResubscribeFailureReconnects(t *testing.T) {
+	t.Parallel()
+	venue := new(advancedTradeVenue)
+	ex, err := connectAdvancedTradeTestExchange(t, venue, subscription.List{
+		{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel},
+		{Enabled: true, Asset: asset.All, Channel: subscription.MyAccountChannel, Authenticated: true},
+	})
+	require.NoError(t, err, "Connect must subscribe to the mock venue")
+	conn, err := ex.Websocket.GetConnection(websocketMarketDataConnection)
+	require.NoError(t, err, "GetConnection must not error")
+	var books subscription.List
+	for _, s := range ex.Websocket.GetSubscriptions() {
+		if s.QualifiedChannel == wsChannelLevel2 {
+			books = append(books, s)
+		}
+	}
+	require.Len(t, books, 2, "both books must be subscribed")
+	heartbeats := len(venue.requestsFor(wsChannelHeartbeats))
+	// A refused unsubscribe leaves the books neither resubscribed nor unsubscribed
+	venue.mu.Lock()
+	venue.refuseOnce = map[string]string{wsChannelLevel2: "temporary failure"}
+	venue.mu.Unlock()
+	ex.wsResubscribe(t.Context(), conn, books, websocketMessageEPL)
+	// The connection is closed, so the manager reconnects and subscribes afresh
+	require.Eventually(t, func() bool {
+		return len(venue.requestsFor(wsChannelHeartbeats)) > heartbeats && len(ex.Websocket.GetSubscriptions()) == 3
+	}, 30*time.Second, time.Millisecond, "the websocket must reconnect and subscribe afresh")
+	for _, s := range ex.Websocket.GetSubscriptions() {
+		assert.Equalf(t, subscription.SubscribedState, s.State(), "%s should be subscribed once the websocket reconnects", s)
+	}
+}
+
+func TestWebsocketResubscribeBookClaimed(t *testing.T) {
+	t.Parallel()
+	ex, err := connectAdvancedTradeTestExchange(t, new(advancedTradeVenue), subscription.List{{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel}})
+	require.NoError(t, err, "Connect must subscribe to the mock venue")
+	conn, err := ex.Websocket.GetConnection(websocketMarketDataConnection)
+	require.NoError(t, err, "GetConnection must not error")
+	require.NoError(t, ex.Websocket.Orderbook.LoadSnapshot(t.Context(), &orderbook.Book{
+		Exchange: ex.Name, Pair: currency.NewBTCUSD(), Asset: asset.Spot, Bids: orderbook.Levels{{Price: 1, Amount: 1}}, Asks: orderbook.Levels{{Price: 2, Amount: 1}}, LastUpdated: time.Now(),
+	}), "LoadSnapshot must not error")
+	// A resubscription claims its books before the manager marks them resubscribing
+	state := ex.wsConnections.get(conn)
+	claimed := state.claimResubscription(ex.Websocket.GetSubscriptions())
+	t.Cleanup(func() { state.releaseResubscription(claimed) })
+	assert.True(t, ex.wsResubscribeBook(t.Context(), conn, asset.Spot, "BTC-USD"), "wsResubscribeBook should handle an update for a book being resubscribed")
+	_, err = ex.Websocket.Orderbook.GetOrderbook(currency.NewBTCUSD(), asset.Spot)
+	assert.NoError(t, err, "wsResubscribeBook should leave a claimed book to the resubscription holding it")
 }

@@ -154,20 +154,28 @@ Coinbase Exchange moves a currency on, such as `ethereum` and `solana` for USDC.
 Market data and the user channels go over separate Advanced Trade connections, and the gateway's channels over its
 public streams and its private connection. Advanced Trade's connections each subscribe to heartbeats first, which keep
 them open, then one channel a request, as its acknowledgements name no request; a request that times out closes the
-connection, for the manager to reconnect it, as its late acknowledgement would be taken for the next request's. A
-connection carries at most 30 subscriptions, as Coinbase holds at most 30 level2 products a connection, and more
-connections open as needed. Each message's sequence number is checked; after a gap, the books are resubscribed for new
-snapshots, and the account channels for a fresh view of the account. A resubscription that fails closes the connection,
-for the manager to reconnect and subscribe afresh. The standard channels use these channels: tickers `ticker`, candles
-`candles`, trades `market_trades`, order books `level2` and the account `user`; `status`, `ticker_batch` and
-`futures_balance_summary` take their own names.
+connection, as its late acknowledgement would be taken for the next request's. A connection carries at most 30
+subscriptions, as Coinbase holds at most 30 level2 products a connection, and more connections open as needed. Each
+message's sequence number is checked; after a gap, the books are resubscribed for new snapshots, and the account
+channels for a fresh view of the account. A resubscription that fails closes the connection too. A closed connection
+has the manager reconnect every Coinbase connection, the gateway's included, and subscribe each afresh, so a request
+that times out on one connection resubscribes every channel. The standard channels use these channels: tickers
+`ticker`, candles `candles`, trades `market_trades`, order books `level2` and the account `user`; `status`,
+`ticker_batch` and `futures_balance_summary` take their own names.
 
 + The account channel, and `futures_balance_summary`, subscribe once, without an asset, as they cover every product.
-  It reports no order's size, so each order takes the size it was placed or last listed with; an order placed
-  elsewhere is looked up, and relayed again with its size. An open order sized in the base currency that an edit can
-  resize, a limit, stop limit, bracket or take profit/stop loss order, is looked up too when its filled and remaining
-  quantities give another size, so an edit made elsewhere is followed, and takes what it filled as its size when it
-  fills beyond it. An order Coinbase marks filled leaving dust keeps its size.
+  It reports no order's size, so each order takes the size it was placed, edited or last listed with; an order placed
+  elsewhere is looked up, and relayed again with its size. A filled order with no base size, such as one first
+  reported filled or one sized in the quote currency alone, takes what it filled as its size; one first reported
+  cancelled, expired or failed has none, as its report doesn't say which currency its remaining quantity is in. An open
+  order sized in the base currency that an edit can resize, a limit, stop limit, bracket or take profit/stop loss
+  order, is looked up too when its filled and remaining quantities give another size, so an edit made elsewhere is
+  followed, and takes what it filled as its size when it fills beyond it. An order Coinbase marks filled leaving dust
+  keeps its size. The record keeps the size an order it held closed with for at least an hour, and a report of the order
+  filled with no size recorded for it, such as a repeated one, or one after a list read it closed, takes that size where
+  it exceeds what the order executed. `ModifyOrder` records the size it gives an order once Coinbase answers. Should a
+  lookup started by the edit's own report list the order as it was before the edit, and end before that answer, the
+  order is relayed with its old size until its next report.
 + On the gateway, tickers subscribe `ticker`, order books `book` and trades `trades`, aggregated over 100ms by default,
   `agg2` for an interval of a second or `raw` for `kline.Raw`, and candles `chart.trades` at their interval, of up to 2
   hours, as the gateway aligns longer ones to its daily settlement. Any of the gateway's channels can be subscribed by

@@ -341,3 +341,25 @@ func TestRegisteredMigration(t *testing.T) {
 	require.NoError(t, err, "Deploy must reapply v18")
 	assert.JSONEq(t, expected, string(reupgraded), "Reapplying v18 should reproduce the upgraded configuration")
 }
+
+func TestMigrationRoundTripsDisabledEntries(t *testing.T) {
+	t.Parallel()
+	for name, tc := range map[string]struct {
+		from        []string
+		there, back func(*v18.Version, context.Context, []byte) ([]byte, error)
+	}{
+		// A disabled entry naming a channel the other version's defaults stream is set aside on the way back too
+		"upgrade then downgrade": {append(append([]string(nil), previousDefaults...), `{"enabled":false,"channel":"ticker","asset":"all"}`), (*v18.Version).UpgradeExchange, (*v18.Version).DowngradeExchange},
+		"downgrade then upgrade": {append(append([]string(nil), currentDefaults...), `{"enabled":false,"channel":"ticker","asset":"spot"}`), (*v18.Version).DowngradeExchange, (*v18.Version).UpgradeExchange},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			version := new(v18.Version)
+			there, err := tc.there(version, t.Context(), []byte(subscriptions(tc.from...)))
+			require.NoError(t, err, "migration must not error")
+			back, err := tc.back(version, t.Context(), there)
+			require.NoError(t, err, "the reverse migration must not error")
+			assert.JSONEq(t, subscriptions(tc.from...), string(back), "a round trip should restore the defaults and keep the disabled entry")
+		})
+	}
+}

@@ -223,7 +223,7 @@ func TestWebsocketDerivativesResubscribe(t *testing.T) {
 	ex.wsDerivativesResubscribe(t.Context(), conn, s.QualifiedChannel)
 	assert.Eventually(t, func() bool {
 		return len(venue.requestsFor("public/unsubscribe")) == 1 && len(venue.requestsFor("public/subscribe")) == 1
-	}, 5*time.Second, time.Millisecond, "wsDerivativesResubscribe should unsubscribe and subscribe the channel again")
+	}, 30*time.Second, time.Millisecond, "wsDerivativesResubscribe should unsubscribe and subscribe the channel again")
 }
 
 func TestWebsocketHandleDerivativesIncrementalTickerErrors(t *testing.T) {

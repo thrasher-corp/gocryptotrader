@@ -19,6 +19,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -175,13 +176,26 @@ func newTestServerExchange(t *testing.T, handler http.Handler) *Exchange {
 	setTestCredentials(ex, testCredentials(t))
 	ex.SkipAuthCheck = true
 	ex.derivativesToken.set(testAPIKey, testDerivativesAccessToken, time.Now().Add(time.Hour))
-	server := httptest.NewTestServer(t, handler)
+	// A pager that stops advancing asks forever, so the server refuses requests past what any test sends, failing the
+	// test rather than hanging it
+	var requests atomic.Int32
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if requests.Add(1) > testServerRequestLimit {
+			assert.Failf(t, "the test server should not be asked forever", "request %s", r.URL)
+			http.Error(w, `{"error":"INTERNAL","message":"request limit reached"}`, http.StatusInternalServerError)
+			return
+		}
+		handler.ServeHTTP(w, r)
+	}))
 	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
 	for _, ep := range []exchange.URL{exchange.RestSpot, exchange.RestSpotSupplementary, exchange.RestFutures} {
 		require.NoErrorf(t, ex.API.Endpoints.SetRunningURL(ep.String(), server.URL), "SetRunningURL must not error for %s", ep)
 	}
 	return ex
 }
+
+// testServerRequestLimit is the most requests a test server answers, well above the 18 the busiest test sends
+const testServerRequestLimit = 100
 
 // newResponseServerExchange returns an exchange whose REST requests all receive one fixed response body
 func newResponseServerExchange(t *testing.T, body string) *Exchange {

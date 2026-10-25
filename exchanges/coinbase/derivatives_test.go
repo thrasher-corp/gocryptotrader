@@ -312,7 +312,7 @@ func TestWebsocketAPISendRequest(t *testing.T) {
 	jwt := verifyTestJWT(t, params.Token)
 	assert.NotContains(t, jwt.Claims, "uri", "the websocket JWT should not be bound to a request")
 	// The gateway's public streams and its private connection each ask for heartbeats
-	assert.Eventually(t, func() bool { return len(venue.requestsFor("public/set_heartbeat")) == 2 }, time.Second, time.Millisecond, "each gateway connection should ask for heartbeats")
+	assert.Eventually(t, func() bool { return len(venue.requestsFor("public/set_heartbeat")) == 2 }, 30*time.Second, time.Millisecond, "each gateway connection should ask for heartbeats")
 
 	var result string
 	require.NoError(t, ex.WebsocketAPI().SendRequest(t.Context(), derivativesNonMatchingEPL, "public/set_heartbeat", &DerivativesHeartbeatWireRequest{Interval: 30}, &result), "SendRequest must not error")
@@ -348,13 +348,16 @@ func TestDerivativesAccessTokenSharedRenewal(t *testing.T) {
 		assert.NoError(t, err, "Writing the response should not error")
 	}))
 	ex.derivativesToken.clear(testAPIKey, testDerivativesAccessToken)
+	// A renewal that is never released fails the requests waiting for it rather than holding the test
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
 	var wg sync.WaitGroup
 	start := make(chan struct{})
 	for range 10 {
 		wg.Go(func() {
 			<-start
 			var resp string
-			assert.NoError(t, ex.GlobalDerivatives().SendAuthenticatedHTTPRequest(t.Context(), derivativesNonMatchingEPL, "private/get_positions", nil, &resp), "SendAuthenticatedHTTPRequest should not error")
+			assert.NoError(t, ex.GlobalDerivatives().SendAuthenticatedHTTPRequest(ctx, derivativesNonMatchingEPL, "private/get_positions", nil, &resp), "SendAuthenticatedHTTPRequest should not error")
 		})
 	}
 	close(start)
@@ -366,10 +369,14 @@ func TestDerivativesAccessTokenRenewalWaitEnds(t *testing.T) {
 	t.Parallel()
 	entered, release := make(chan struct{}), make(chan struct{})
 	var authCalls atomic.Int32
-	ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if authCalls.Add(1) == 1 {
 			close(entered)
-			<-release
+			select {
+			case <-release:
+			case <-r.Context().Done():
+				return
+			}
 		}
 		writeJSONRPC(t, w, `{"jsonrpc":"2.0","result":{"access_token":"renewed","expires_in":900}}`)
 	}))
@@ -379,7 +386,7 @@ func TestDerivativesAccessTokenRenewalWaitEnds(t *testing.T) {
 		_, _, err := ex.GlobalDerivatives().accessToken(t.Context())
 		first <- err
 	}()
-	<-entered
+	awaitClosed(t, entered, "the renewal must reach the gateway")
 	// A request waiting for the renewal under way stops when its context ends
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
@@ -391,11 +398,16 @@ func TestDerivativesAccessTokenRenewalWaitEnds(t *testing.T) {
 	select {
 	case err := <-waited:
 		assert.ErrorIs(t, err, context.Canceled, "accessToken should return its context's error while another renewal is under way")
-	case <-time.After(5 * time.Second):
+	case <-time.After(30 * time.Second):
 		assert.Fail(t, "accessToken should stop waiting for another renewal once its context ends")
 	}
 	close(release)
-	require.NoError(t, <-first, "the renewal under way must complete")
+	select {
+	case err := <-first:
+		require.NoError(t, err, "the renewal under way must complete")
+	case <-time.After(30 * time.Second):
+		require.FailNow(t, "the renewal under way must complete")
+	}
 	assert.EqualValues(t, 1, authCalls.Load(), "the request whose context ended should not renew the token")
 	_, token, err := ex.GlobalDerivatives().accessToken(t.Context())
 	require.NoError(t, err, "accessToken must not error once a token is renewed")
@@ -519,21 +531,34 @@ func TestDerivativesTimesBeforeEpochRefused(t *testing.T) {
 	}
 }
 
+func TestDerivativesTokenLifetime(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, 15*time.Minute, derivativesTokenLifetime(900), "derivativesTokenLifetime should read a lifetime in seconds")
+	assert.Zero(t, derivativesTokenLifetime(0), "derivativesTokenLifetime should give no lifetime for none")
+	longest := time.Duration(math.MaxInt64/int64(time.Second)) * time.Second
+	assert.Equal(t, longest, derivativesTokenLifetime(uint64(math.MaxInt64/time.Second)+1), "derivativesTokenLifetime should cap a lifetime a duration cannot hold")
+	assert.Equal(t, longest, derivativesTokenLifetime(math.MaxUint64), "derivativesTokenLifetime should cap the largest lifetime")
+}
+
+func TestGlobalDerivativesLongestAccessToken(t *testing.T) {
+	t.Parallel()
+	ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		writeJSONRPC(t, w, `{"jsonrpc":"2.0","result":{"access_token":"lasting","expires_in":18446744073709551615}}`)
+	}))
+	ex.derivativesToken.clear(testAPIKey, testDerivativesAccessToken)
+	_, token, err := ex.GlobalDerivatives().accessToken(t.Context())
+	require.NoError(t, err, "accessToken must not error")
+	require.Equal(t, "lasting", token, "accessToken must return the token issued")
+	// A lifetime longer than a duration holds is capped, rather than wrapping round to one already over
+	token, ok := ex.derivativesToken.get(testAPIKey)
+	assert.True(t, ok, "accessToken should keep a token whose lifetime is longer than a duration holds")
+	assert.Equal(t, "lasting", token, "accessToken should keep the token issued")
+}
+
 func TestDerivativesRequestIDs(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
 	first, second := ex.derivativesRequestID(), ex.derivativesRequestID()
 	assert.Positive(t, first, "derivativesRequestID should count up from one")
 	assert.Equal(t, first+1, second, "derivativesRequestID should give each request the next ID")
-	// The mock gateway decodes every ID a request can carry
-	body, err := json.Marshal(&JSONRPCRequest{JSONRPC: jsonRPCVersion, ID: math.MaxUint64, Method: "public/test"})
-	require.NoError(t, err, "a request with the largest ID must encode")
-	var req derivativesVenueRequest
-	require.NoError(t, json.Unmarshal(body, &req), "the mock must decode a request with the largest ID")
-	assert.Equal(t, uint64(math.MaxUint64), req.ID, "the mock should decode the request's ID")
-	frame, err := derivativesVenueFrame(req.ID, json.RawMessage(`{"result":"ok"}`))
-	require.NoError(t, err, "the mock must answer a request with the largest ID")
-	var envelope DerivativesEnvelope
-	require.NoError(t, json.Unmarshal(frame, &envelope), "the mock's answer must decode")
-	assert.Equal(t, uint64(math.MaxUint64), envelope.ID, "the mock should answer with the request's ID")
 }

@@ -467,7 +467,7 @@ func (e *Exchange) wsDerivativesSendAuth(ctx context.Context, conn websocket.Con
 	}
 	authentication := e.derivativesSessions.authenticated(conn, creds.Key)
 	if resp.ExpiresIn > 0 {
-		e.wsDerivativesScheduleReauthentication(ctx, conn, authentication, time.Duration(resp.ExpiresIn)*time.Second)
+		e.wsDerivativesScheduleReauthentication(ctx, conn, authentication, derivativesTokenLifetime(resp.ExpiresIn))
 	}
 	return nil
 }

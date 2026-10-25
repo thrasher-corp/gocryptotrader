@@ -375,12 +375,12 @@ func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
 // listProducts returns every product of an Advanced Trade asset: the spot products, or the US derivatives that trade
 // through Coinbase Financial Markets, view only ones among them. It loads the spot products' aliases and which US
 // derivatives pay funding, as both come with product data
-func (e *Exchange) listProducts(ctx context.Context, a asset.Item) ([]Product, error) {
+func (e *Exchange) listProducts(ctx context.Context, a asset.Item) ([]ProductResponse, error) {
 	req := &ListProductsRequest{ProductType: ProductTypeSpot}
 	if a == asset.Futures {
 		req = &ListProductsRequest{ProductType: ProductTypeFuture, ProductVenue: ProductVenueFCM}
 	}
-	var products []Product
+	var products []ProductResponse
 	cursors := pageCursors{}
 	for {
 		cursors.visit(req.Cursor)
@@ -399,7 +399,7 @@ func (e *Exchange) listProducts(ctx context.Context, a asset.Item) ([]Product, e
 	}
 	if a == asset.Futures {
 		// The product venue only narrows the list as the docs describe it, so the venue is checked here as well
-		products = slices.DeleteFunc(products, func(p Product) bool { return p.ProductVenue != ProductVenueFCM })
+		products = slices.DeleteFunc(products, func(p ProductResponse) bool { return p.ProductVenue != ProductVenueFCM })
 		e.loadPerpetualFutures(products)
 		return products, nil
 	}
@@ -408,13 +408,13 @@ func (e *Exchange) listProducts(ctx context.Context, a asset.Item) ([]Product, e
 
 // tradableProduct reports whether a product is open to trading: listed and neither disabled nor view only, as a US
 // derivative is until its contract month opens
-func tradableProduct(p *Product) bool {
+func tradableProduct(p *ProductResponse) bool {
 	return !p.TradingDisabled && !p.IsDisabled && !p.ViewOnly
 }
 
 // loadPairAliases loads which spot products trade on one book, the USD product and its USDC aliases, each also its
 // own alias as the websocket's alias lookups expect
-func (e *Exchange) loadPairAliases(products []Product) error {
+func (e *Exchange) loadPairAliases(products []ProductResponse) error {
 	aliases := make(map[currency.Pair]currency.Pairs)
 	for i := range products {
 		p, err := currency.NewPairDelimiter(products[i].ProductID, currency.DashDelimiter)
@@ -443,12 +443,12 @@ func (e *Exchange) loadPairAliases(products []Product) error {
 
 // isPerpetualProduct reports whether a US derivative is perpetual style, paying funding rather than expiring soon;
 // Coinbase lists these as expiring contracts, years out
-func isPerpetualProduct(p *Product) bool {
+func isPerpetualProduct(p *ProductResponse) bool {
 	return p.FutureProductDetails != nil && p.FutureProductDetails.FundingInterval != 0
 }
 
 // loadPerpetualFutures records which US derivatives are perpetual style
-func (e *Exchange) loadPerpetualFutures(products []Product) {
+func (e *Exchange) loadPerpetualFutures(products []ProductResponse) {
 	perpetuals := make(map[string]struct{})
 	for i := range products {
 		if isPerpetualProduct(&products[i]) {
@@ -547,7 +547,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 		if err != nil {
 			return err
 		}
-		byID := make(map[string]*Product, len(products))
+		byID := make(map[string]*ProductResponse, len(products))
 		for i := range products {
 			byID[products[i].ProductID] = &products[i]
 		}
@@ -747,7 +747,7 @@ func (e *Exchange) processMergedTickers(prices []ticker.Price, book, quoteVolume
 
 // productTickerPrice returns a product's day statistics as a ticker; a US derivative's volume and open interest are
 // in contracts, the unit its base names
-func (e *Exchange) productTickerPrice(p *Product, pair currency.Pair, a asset.Item) *ticker.Price {
+func (e *Exchange) productTickerPrice(p *ProductResponse, pair currency.Pair, a asset.Item) *ticker.Price {
 	price := &ticker.Price{
 		ExchangeName:        e.Name,
 		Pair:                pair,
@@ -2452,12 +2452,13 @@ func (e *Exchange) orderDetail(o *Order, listed listStamp) (*order.Detail, error
 	case order.Expired:
 		d.CloseTime = values.endTime
 	}
-	// The user channel reports no order's size, so a live order's is recorded for its updates
+	// The user channel reports no order's size, so a live order's is recorded for its updates, and a closed one's kept for
+	// the channel's report of its close
 	switch {
 	case isLiveOrderStatus(status):
 		e.orderSizes.setListed(o.OrderID, values.baseSize, values.quoteSize, listed)
 	case isClosedOrderStatus(status):
-		e.orderSizes.remove(o.OrderID)
+		e.orderSizes.remove(o.OrderID, values.baseSize)
 	}
 	return d, nil
 }
@@ -3381,7 +3382,7 @@ func (e *Exchange) futuresLatestFundingRates(ctx context.Context, p currency.Pai
 	if err != nil {
 		return nil, err
 	}
-	byID := make(map[string]*Product, len(products))
+	byID := make(map[string]*ProductResponse, len(products))
 	for i := range products {
 		byID[products[i].ProductID] = &products[i]
 	}
@@ -3403,7 +3404,7 @@ func (e *Exchange) futuresLatestFundingRates(ctx context.Context, p currency.Pai
 
 // futuresFundingRate returns a perpetual style US derivative's latest funding rate, which it pays each funding
 // interval
-func (e *Exchange) futuresFundingRate(p *Product, pair currency.Pair) fundingrate.LatestRateResponse {
+func (e *Exchange) futuresFundingRate(p *ProductResponse, pair currency.Pair) fundingrate.LatestRateResponse {
 	d := p.FutureProductDetails
 	resp := fundingrate.LatestRateResponse{
 		Exchange:    e.Name,

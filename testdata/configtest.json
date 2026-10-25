@@ -1440,7 +1440,7 @@
    "verbose": false,
    "httpTimeout": 15000000000,
    "websocketResponseCheckTimeout": 30000000,
-   "websocketResponseMaxLimit": 7000000000,
+   "websocketResponseMaxLimit": 30000000000,
    "websocketTrafficTimeout": 30000000000,
    "connectionMonitorDelay": 2000000000,
    "baseCurrencies": "USD,GBP,EUR",

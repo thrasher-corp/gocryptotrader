@@ -45,11 +45,11 @@ func (e *Exchange) GetPublicMarketTrades(ctx context.Context, req *MarketTradesR
 }
 
 // GetPublicProduct returns a product
-func (e *Exchange) GetPublicProduct(ctx context.Context, productID string) (*Product, error) {
+func (e *Exchange) GetPublicProduct(ctx context.Context, productID string) (*ProductResponse, error) {
 	if productID == "" {
 		return nil, errProductIDRequired
 	}
-	var resp *Product
+	var resp *ProductResponse
 	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, advancedTradePublicEPL, advancedTradePath+"market/products/"+productID, nil, &resp); err != nil {
 		return nil, err
 	}

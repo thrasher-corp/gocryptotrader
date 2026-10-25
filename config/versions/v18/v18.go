@@ -229,36 +229,49 @@ func shortInterval(d time.Duration) string {
 	return strings.TrimSuffix(s, "0m")
 }
 
-// matchDefaults reports whether each saved subscription resolves to a different one of the defaults, and holds only
-// the fields the defaults use, setting aside the disabled entries whose channel and asset match no default: the
-// config loader drops a disabled subscription, so it changes nothing the defaults stream, and it is returned to be kept
+// matchDefaults reports whether each default is resolved to by a different saved subscription holding only the fields
+// the defaults use, setting aside the disabled entries no default takes: the config loader drops a disabled
+// subscription, so it changes nothing the defaults stream, and it is returned to be kept. An entry is matched to the
+// defaults before the rest are set aside, so a disabled entry naming a channel another entry resolves is set aside
+// wherever it comes in the list
 func matchDefaults(entries []json.RawMessage, saved []savedSubscription, defaults []defaultSubscription) (inert []json.RawMessage, ok bool) {
 	matched := make([]bool, len(defaults))
-	var count int
+	resolved := make([]bool, len(saved))
 	for i := range saved {
 		j := slices.IndexFunc(defaults, func(d defaultSubscription) bool {
 			return d.channel == saved[i].Channel && strings.EqualFold(d.asset, saved[i].Asset)
 		})
-		if j == -1 && (saved[i].Enabled == nil || !*saved[i].Enabled) {
-			inert = append(inert, entries[i])
+		if j != -1 && !matched[j] && defaults[j].matches(&saved[i]) && onlyDefaultFields(entries[i]) {
+			matched[j], resolved[i] = true, true
+		}
+	}
+	if slices.Contains(matched, false) {
+		return nil, false
+	}
+	for i := range saved {
+		if resolved[i] {
 			continue
 		}
-		var fields map[string]json.RawMessage
-		if json.Unmarshal(entries[i], &fields) != nil {
+		if saved[i].Enabled != nil && *saved[i].Enabled {
 			return nil, false
 		}
-		for key := range fields {
-			if !slices.Contains(subscriptionKeys, key) {
-				return nil, false
-			}
-		}
-		if j == -1 || matched[j] || !defaults[j].matches(&saved[i]) {
-			return nil, false
-		}
-		matched[j] = true
-		count++
+		inert = append(inert, entries[i])
 	}
-	return inert, count == len(defaults)
+	return inert, true
+}
+
+// onlyDefaultFields reports whether a saved subscription holds only the fields the defaults use
+func onlyDefaultFields(entry json.RawMessage) bool {
+	var fields map[string]json.RawMessage
+	if json.Unmarshal(entry, &fields) != nil {
+		return false
+	}
+	for key := range fields {
+		if !slices.Contains(subscriptionKeys, key) {
+			return false
+		}
+	}
+	return true
 }
 
 // matches reports whether a saved subscription resolves to the default: explicitly enabled, or disabled where the

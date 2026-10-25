@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -87,6 +88,11 @@ func derivativesUnixMilli(t time.Time) (uint64, error) {
 	return uint64(milli), nil
 }
 
+// derivativesTokenLifetime returns a token's lifetime in seconds as a duration, capped at the longest a duration holds
+func derivativesTokenLifetime(expiresIn uint64) time.Duration {
+	return time.Duration(min(expiresIn, uint64(math.MaxInt64/time.Second))) * time.Second
+}
+
 // derivativesUnixMilliRange returns a time range's ends in Unix milliseconds, as derivativesUnixMilli does
 func derivativesUnixMilliRange(start, end time.Time) (startMilli, endMilli uint64, err error) {
 	if startMilli, err = derivativesUnixMilli(start); err != nil {
@@ -147,7 +153,7 @@ type DerivativesAuthResponse struct {
 	AccessToken     string   `json:"access_token"`
 	EnabledFeatures []string `json:"enabled_features"`
 	// ExpiresIn is the token's lifetime in seconds
-	ExpiresIn          int64  `json:"expires_in"`
+	ExpiresIn          uint64 `json:"expires_in"`
 	GoogleLogin        bool   `json:"google_login"`
 	MandatoryTFAStatus string `json:"mandatory_tfa_status"`
 	RefreshToken       string `json:"refresh_token"`
@@ -272,7 +278,7 @@ func (g GlobalDerivativesAPI) accessToken(ctx context.Context) (apiKey, token st
 	if err != nil {
 		return "", "", fmt.Errorf("%w: %w", request.ErrAuthRequestFailed, err)
 	}
-	g.e.derivativesToken.set(creds.Key, resp.AccessToken, time.Now().Add(time.Duration(resp.ExpiresIn)*time.Second))
+	g.e.derivativesToken.set(creds.Key, resp.AccessToken, time.Now().Add(derivativesTokenLifetime(resp.ExpiresIn)))
 	return creds.Key, resp.AccessToken, nil
 }
 

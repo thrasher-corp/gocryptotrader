@@ -216,7 +216,7 @@ func TestLoadPairAliases(t *testing.T) {
 	t.Parallel()
 	ex := new(Exchange)
 	btcUSDC := currency.NewPair(currency.BTC, currency.USDC)
-	require.NoError(t, ex.loadPairAliases([]Product{
+	require.NoError(t, ex.loadPairAliases([]ProductResponse{
 		{ProductID: "BTC-USD", AliasTo: []string{"BTC-USDC"}},
 		{ProductID: "BTC-USDC", Alias: "BTC-USD"},
 		{ProductID: "ETH-USD"},
@@ -224,20 +224,20 @@ func TestLoadPairAliases(t *testing.T) {
 	assert.True(t, ex.pairAliases.GetAlias(currency.NewBTCUSD()).Equal(currency.Pairs{currency.NewBTCUSD(), btcUSDC}), "loadPairAliases should load a USD product with its own pair and its alias")
 	assert.True(t, ex.pairAliases.GetAlias(btcUSDC).Equal(currency.Pairs{btcUSDC}), "loadPairAliases should load an alias as its own alias")
 	assert.True(t, ex.pairAliases.GetAlias(testETHUSD).Equal(currency.Pairs{testETHUSD}), "loadPairAliases should load a product without aliases as its own alias")
-	for _, p := range []Product{{ProductID: "BTCUSD"}, {ProductID: "BTC-USD", Alias: "BTCUSD"}, {ProductID: "BTC-USD", AliasTo: []string{"BTCUSDC"}}} {
-		assert.Errorf(t, ex.loadPairAliases([]Product{p}), "loadPairAliases should error for %+v", p)
+	for _, p := range []ProductResponse{{ProductID: "BTCUSD"}, {ProductID: "BTC-USD", Alias: "BTCUSD"}, {ProductID: "BTC-USD", AliasTo: []string{"BTCUSDC"}}} {
+		assert.Errorf(t, ex.loadPairAliases([]ProductResponse{p}), "loadPairAliases should error for %+v", p)
 	}
 }
 
 func TestTradableProduct(t *testing.T) {
 	t.Parallel()
-	assert.True(t, tradableProduct(&Product{}), "tradableProduct should report a product open to trading")
-	for _, p := range []Product{{TradingDisabled: true}, {IsDisabled: true}, {ViewOnly: true}} {
+	assert.True(t, tradableProduct(&ProductResponse{}), "tradableProduct should report a product open to trading")
+	for _, p := range []ProductResponse{{TradingDisabled: true}, {IsDisabled: true}, {ViewOnly: true}} {
 		assert.Falsef(t, tradableProduct(&p), "tradableProduct should not report %+v", p)
 	}
-	assert.False(t, isPerpetualProduct(&Product{}), "isPerpetualProduct should not report a product without futures details")
-	assert.False(t, isPerpetualProduct(&Product{FutureProductDetails: &FutureProductDetails{}}), "isPerpetualProduct should not report a dated future")
-	assert.True(t, isPerpetualProduct(&Product{FutureProductDetails: &FutureProductDetails{FundingInterval: Duration(time.Hour)}}), "isPerpetualProduct should report a future paying funding")
+	assert.False(t, isPerpetualProduct(&ProductResponse{}), "isPerpetualProduct should not report a product without futures details")
+	assert.False(t, isPerpetualProduct(&ProductResponse{FutureProductDetails: &FutureProductDetails{}}), "isPerpetualProduct should not report a dated future")
+	assert.True(t, isPerpetualProduct(&ProductResponse{FutureProductDetails: &FutureProductDetails{FundingInterval: Duration(time.Hour)}}), "isPerpetualProduct should report a future paying funding")
 }
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
@@ -703,6 +703,7 @@ func TestAppPages(t *testing.T) {
 	list := func(page *AppPageRequest) (*AppListResponse[AppAccountResponse], error) {
 		assert.Equal(t, uint64(appMaximumPageLimit), page.Limit, "appPages should ask for full pages")
 		requested = append(requested, page.StartingAfter)
+		require.LessOrEqual(t, len(requested), len(pages), "appPages must not ask for more pages than the list has")
 		return pages[page.StartingAfter], nil
 	}
 	id := func(a *AppAccountResponse) string { return a.ID }
@@ -722,7 +723,10 @@ func TestAppPages(t *testing.T) {
 	assert.Equal(t, []string{"a", "b"}, visited, "appPages should stop once visit has what it needs")
 	assert.Equal(t, []string{""}, requested, "appPages should not request another page once stopped")
 
+	var asked int
 	err := appPages(func(page *AppPageRequest) (*AppListResponse[AppAccountResponse], error) {
+		asked++
+		require.LessOrEqual(t, asked, 3, "appPages must stop a list that does not advance")
 		next := "x"
 		if page.StartingAfter != "" {
 			next = page.StartingAfter
@@ -730,7 +734,10 @@ func TestAppPages(t *testing.T) {
 		return &AppListResponse[AppAccountResponse]{Data: []AppAccountResponse{{ID: "x"}}, Pagination: AppPagination{NextURI: "/next", NextStartingAfter: next}}, nil
 	}, id, func(*AppAccountResponse) bool { return false })
 	assert.ErrorIs(t, err, errListPagingStalled, "appPages should error when a page does not advance")
+	asked = 0
 	err = appPages(func(page *AppPageRequest) (*AppListResponse[AppAccountResponse], error) {
+		asked++
+		require.LessOrEqual(t, asked, 4, "appPages must stop a list whose pages cycle")
 		next := "x"
 		if page.StartingAfter == "x" {
 			next = "y"
@@ -2519,6 +2526,7 @@ func TestOrderDetail(t *testing.T) {
 	require.NoError(t, err, "orderDetail must not error")
 	_, ok = ex.orderSizes.get("order")
 	assert.False(t, ok, "orderDetail should forget a closed order's size")
+	assert.Equal(t, 2.0, ex.orderSizes.closedSize("order"), "orderDetail should keep the base size the list gave a closed order the record held")
 	// Coinbase reports no time an order was cancelled, and an expired order closed at its end time
 	cancelled := *o
 	cancelled.Status, cancelled.Settled, cancelled.FilledSize = OrderStatusCancelled, false, 0
@@ -3102,7 +3110,7 @@ func TestIsPerpetualFutureCurrency(t *testing.T) {
 	}
 	_, err := ex.IsPerpetualFutureCurrency(asset.Futures, testFuturesPair)
 	require.ErrorIs(t, err, errPerpetualFuturesNotLoaded, "IsPerpetualFutureCurrency must refuse a future until product data loads")
-	ex.loadPerpetualFutures([]Product{{ProductID: "BIP-20DEC30-CDE", FutureProductDetails: &FutureProductDetails{FundingInterval: Duration(time.Hour)}}, {ProductID: "BIT-30OCT26-CDE", FutureProductDetails: &FutureProductDetails{}}})
+	ex.loadPerpetualFutures([]ProductResponse{{ProductID: "BIP-20DEC30-CDE", FutureProductDetails: &FutureProductDetails{FundingInterval: Duration(time.Hour)}}, {ProductID: "BIT-30OCT26-CDE", FutureProductDetails: &FutureProductDetails{}}})
 	for p, exp := range map[currency.Pair]bool{testFuturesPair: true, testDatedFuture: false} {
 		perpetual, err := ex.IsPerpetualFutureCurrency(asset.Futures, p)
 		require.NoErrorf(t, err, "IsPerpetualFutureCurrency must not error for %s", p)

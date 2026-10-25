@@ -110,7 +110,7 @@ func TestGetPublicProduct(t *testing.T) {
 	resp, err := e.GetPublicProduct(t.Context(), testSpotProductID)
 	require.NoError(t, err, "GetPublicProduct must not error")
 	if mockTests {
-		exp := &Product{
+		exp := &ProductResponse{
 			ProductID:                    "BTC-USD",
 			Price:                        82064.62,
 			PricePercentageChange24Hour:  0.83251563577797,
@@ -368,7 +368,7 @@ func TestListPublicProducts(t *testing.T) {
 	require.NoError(t, err, "ListPublicProducts must not error")
 	if mockTests {
 		exp := &ProductsResponse{
-			Products: []Product{
+			Products: []ProductResponse{
 				{
 					ProductID:                    "BTC-USD",
 					Price:                        82064.62,
@@ -446,7 +446,7 @@ func TestListPublicProducts(t *testing.T) {
 	require.NoError(t, err, "ListPublicProducts must not error for futures")
 	if mockTests {
 		exp := &ProductsResponse{
-			Products: []Product{
+			Products: []ProductResponse{
 				{
 					ProductID:                    "BIP-20DEC30-CDE",
 					Price:                        82070,

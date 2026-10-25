@@ -19,11 +19,14 @@ import (
 const (
 	// orderSizeLookupBatchSize is the most orders one lookup of the sizes the user channel leaves out names
 	orderSizeLookupBatchSize = 50
-	// orderSizeLifetime is how long an order's recorded size is kept once the record holds orderSizesPruneThreshold
-	// orders, as an order whose close the user channel never reported would otherwise stay; an order still live after
-	// it is looked up again
+	// orderSizeLifetime is how long an order's recorded size is kept, since it was recorded or the user channel last
+	// reported the order live, once the record holds orderSizesPruneThreshold orders, as an order whose close the user
+	// channel never reported would otherwise stay; an order still live after it is looked up again
 	orderSizeLifetime        = 30 * 24 * time.Hour
 	orderSizesPruneThreshold = 1000
+	// closedOrderSizeLifetime is how long the size an order closed with is kept once the record holds
+	// orderSizesPruneThreshold closed orders, for a report of the order that comes after its close
+	closedOrderSizeLifetime = time.Hour
 	// orderSizeTolerance is the relative difference within which two sizes of an order are the same, as one summed from
 	// the user channel's quantities can differ from the one Coinbase holds by the floats' rounding
 	orderSizeTolerance = 1e-12
@@ -147,11 +150,12 @@ func isClosedOrderStatus(s order.Status) bool {
 }
 
 // advancedTradeOrderSizes holds the sizes of the account's live Advanced Trade orders by order ID, each in the currency
-// it was placed in, and the orders being looked up
+// it was placed in, the orders being looked up, and the sizes the orders it held closed with
 type advancedTradeOrderSizes struct {
 	m       sync.Mutex
 	sizes   map[string]advancedTradeOrderSize
 	pending map[string]*orderSizeLookup
+	closed  map[string]closedOrderSize
 	// stamps orders the record's writes and the lists and lookups that read sizes, as clock readings can be equal
 	stamps uint64
 	// relayMu orders the user channel's relays of orders and a lookup's
@@ -175,6 +179,12 @@ type advancedTradeOrderSize struct {
 	disputed    bool
 }
 
+// closedOrderSize is the base size an order closed with, and when its close was recorded
+type closedOrderSize struct {
+	base   float64
+	closed time.Time
+}
+
 // listStamp is when an order list began: its stamp orders the list's sizes against sizes recorded since, and its
 // time is recorded as theirs
 type listStamp struct {
@@ -194,9 +204,17 @@ func (s *advancedTradeOrderSizes) stamp() listStamp {
 func (s *advancedTradeOrderSizes) set(orderID string, base, quote float64) {
 	s.m.Lock()
 	defer s.m.Unlock()
+	s.prune()
 	if s.sizes == nil {
 		s.sizes = make(map[string]advancedTradeOrderSize)
 	}
+	s.stamps++
+	s.sizes[orderID] = advancedTradeOrderSize{base: base, quote: quote, recorded: time.Now(), stamp: s.stamps}
+}
+
+// prune forgets the sizes kept longest once the record holds many, as it does the sizes closed orders closed with; the
+// caller holds s.m
+func (s *advancedTradeOrderSizes) prune() {
 	now := time.Now()
 	if len(s.sizes) >= orderSizesPruneThreshold {
 		for id, size := range s.sizes {
@@ -205,8 +223,13 @@ func (s *advancedTradeOrderSizes) set(orderID string, base, quote float64) {
 			}
 		}
 	}
-	s.stamps++
-	s.sizes[orderID] = advancedTradeOrderSize{base: base, quote: quote, recorded: now, stamp: s.stamps}
+	if len(s.closed) >= orderSizesPruneThreshold {
+		for id, size := range s.closed {
+			if now.Sub(size.closed) > closedOrderSizeLifetime {
+				delete(s.closed, id)
+			}
+		}
+	}
 }
 
 // setListed records an order's size as an order list begun at a stamp reported it, unless a size was recorded since,
@@ -219,6 +242,7 @@ func (s *advancedTradeOrderSizes) setListed(orderID string, base, quote float64,
 	if ok && size.stamp > listed.order {
 		return
 	}
+	s.prune()
 	if s.sizes == nil {
 		s.sizes = make(map[string]advancedTradeOrderSize)
 	}
@@ -233,11 +257,30 @@ func (s *advancedTradeOrderSizes) get(orderID string) (advancedTradeOrderSize, b
 	return size, ok
 }
 
-// remove forgets a closed order's size
-func (s *advancedTradeOrderSizes) remove(orderID string) {
+// remove forgets a closed order's size, keeping the base size it closed with, when the record held the order, for a
+// report of it that comes after its close
+func (s *advancedTradeOrderSizes) remove(orderID string, base float64) {
 	s.m.Lock()
 	defer s.m.Unlock()
+	if _, ok := s.sizes[orderID]; !ok {
+		return
+	}
 	delete(s.sizes, orderID)
+	if !(base > 0) {
+		return
+	}
+	s.prune()
+	if s.closed == nil {
+		s.closed = make(map[string]closedOrderSize)
+	}
+	s.closed[orderID] = closedOrderSize{base: base, closed: time.Now()}
+}
+
+// closedSize returns the base size a closed order closed with, or zero when none was kept
+func (s *advancedTradeOrderSizes) closedSize(orderID string) float64 {
+	s.m.Lock()
+	defer s.m.Unlock()
+	return s.closed[orderID].base
 }
 
 // claim begins looking up the orders reported that are not being looked up and have no size recorded, or a disputed
@@ -272,10 +315,15 @@ func (s *advancedTradeOrderSizes) dispute(orderID string) {
 }
 
 // observe keeps the user channel's latest report of an order being looked up, and the size it gives the order were it
-// sized in the base currency, when it gives one
+// sized in the base currency, when it gives one. A live report keeps a recorded size as if recorded anew, so that it is
+// not pruned as an order whose close went unreported
 func (s *advancedTradeOrderSizes) observe(d *order.Detail, reported float64) {
 	s.m.Lock()
 	defer s.m.Unlock()
+	if size, ok := s.sizes[d.OrderID]; ok && isLiveOrderStatus(d.Status) {
+		size.recorded = time.Now()
+		s.sizes[d.OrderID] = size
+	}
 	if lookup, ok := s.pending[d.OrderID]; ok {
 		lookup.latest = *d
 		if reported > 0 {
@@ -319,6 +367,7 @@ func (s *advancedTradeOrderSizes) complete(orderID string, base, quote float64) 
 			}
 			return lookup.latest, lookupAgain
 		}
+		s.prune()
 		if s.sizes == nil {
 			s.sizes = make(map[string]advancedTradeOrderSize)
 		}
@@ -377,10 +426,9 @@ func (e *Exchange) websocketOrderDetail(o *WebsocketUserOrder, envelope *Websock
 	var amount, remaining, quoteAmount float64
 	if size, ok := e.orderSizes.get(o.OrderID); ok {
 		amount, quoteAmount = size.base, size.quote
-		if amount > 0 {
+		switch {
+		case amount > 0 && quoteAmount == 0:
 			remaining = o.LeavesQuantity.Float64()
-		}
-		if amount > 0 && quoteAmount == 0 {
 			// An edit made elsewhere, or one reported before its response, changes the size an open order's
 			// quantities give, but so does a report older than an edit's response, so the order is looked up
 			if reported, ok := openOrderSize(o); ok && !sameOrderSize(reported, amount) {
@@ -391,11 +439,22 @@ func (e *Exchange) websocketOrderDetail(o *WebsocketUserOrder, envelope *Websock
 			if executed := o.CumulativeQuantity.Float64(); o.Status == OrderStatusFilled && executed > amount && resizableOrderType(o.OrderType) {
 				amount = executed
 			}
+		case amount > 0:
+			// An order sized in the quote currency reports what remains of its quote size, so what remains of its base
+			// size is what it has not executed
+			remaining = max(amount-o.CumulativeQuantity.Float64(), 0)
 		}
+	}
+	if amount == 0 && o.Status == OrderStatusFilled {
+		// An order filled without a base size recorded, as one first reported filled, such as one placed elsewhere that
+		// filled at once, or one sized in the quote currency alone, takes the base amount it executed as its size. One
+		// reported filled once its close is recorded, as by a repeated report or a list that read it closed, keeps the
+		// size it closed with where that is larger, as Coinbase can mark an order filled leaving dust unfilled
+		amount = max(e.orderSizes.closedSize(o.OrderID), o.CumulativeQuantity.Float64())
 	}
 	var closeTime time.Time
 	if isClosedOrderStatus(status) {
-		e.orderSizes.remove(o.OrderID)
+		e.orderSizes.remove(o.OrderID, amount)
 		closeTime = envelope.Timestamp
 		if !o.EndTime.IsZero() && !o.EndTime.After(closeTime) {
 			closeTime = o.EndTime

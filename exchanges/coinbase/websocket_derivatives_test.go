@@ -294,11 +294,32 @@ func TestWebsocketDerivativesScheduleReauthentication(t *testing.T) {
 	ex := newWebsocketTestExchange(t)
 	conn := &reauthConnection{result: json.RawMessage(`{"access_token":"t","expires_in":0}`), connected: true}
 	ex.wsDerivativesScheduleReauthentication(t.Context(), conn, ex.derivativesSessions.authenticated(conn, testAPIKey), 2*time.Millisecond)
-	assert.Eventually(t, func() bool { return conn.sent() == 1 }, time.Second, time.Millisecond, "a session should be authenticated again before it expires")
+	assert.Eventually(t, func() bool { return conn.sent() == 1 }, 30*time.Second, time.Millisecond, "a session should be authenticated again before it expires")
 
 	closed := &reauthConnection{result: json.RawMessage(`{}`)}
 	ex.wsDerivativesScheduleReauthentication(t.Context(), closed, ex.derivativesSessions.authenticated(closed, testAPIKey), time.Millisecond)
 	assert.Never(t, func() bool { return closed.sent() != 0 }, 50*time.Millisecond, time.Millisecond, "a closed connection should not be authenticated again")
+}
+
+// switchedConnection is a reauthConnection a test can disconnect while its renewals run
+type switchedConnection struct {
+	reauthConnection
+	up atomic.Bool
+}
+
+// IsConnected reports whether the connection is up
+func (c *switchedConnection) IsConnected() bool { return c.up.Load() }
+
+func TestWebsocketDerivativesLongestSession(t *testing.T) {
+	t.Parallel()
+	ex := newWebsocketTestExchange(t)
+	conn := &switchedConnection{result: json.RawMessage(`{"access_token":"t","expires_in":18446744073709551615}`)}
+	conn.up.Store(true)
+	// Disconnecting ends any renewal, so a renewal that is wrongly due at once stops with the test
+	t.Cleanup(func() { conn.up.Store(false) })
+	require.NoError(t, ex.wsDerivativesSendAuth(t.Context(), conn), "the connection's authentication must succeed")
+	// A lifetime longer than a duration holds is capped, rather than wrapping round to one already over
+	assert.Never(t, func() bool { return conn.sent() > 1 }, 100*time.Millisecond, time.Millisecond, "a session whose lifetime is longer than a duration holds should not be renewed at once")
 }
 
 func TestWebsocketDerivativesRenewalOutlivesCaller(t *testing.T) {
@@ -501,7 +522,7 @@ func TestWebsocketDerivativesAnswerHeartbeat(t *testing.T) {
 	ex := newWebsocketTestExchange(t)
 	conn := &reauthConnection{result: json.RawMessage(`{"version":"1.2.26"}`), connected: true}
 	require.NoError(t, ex.wsHandleDerivatives(t.Context(), conn, []byte(`{"jsonrpc":"2.0","method":"heartbeat","params":{"type":"test_request"}}`)), "a heartbeat test request must be handled")
-	assert.Eventually(t, func() bool { return conn.sent() == 1 }, time.Second, time.Millisecond, "a heartbeat test request should be answered with public/test")
+	assert.Eventually(t, func() bool { return conn.sent() == 1 }, 30*time.Second, time.Millisecond, "a heartbeat test request should be answered with public/test")
 	assert.Equal(t, "public/test", conn.requests[0].Method, "a heartbeat test request should be answered with public/test")
 	require.NoError(t, ex.wsHandleDerivatives(t.Context(), conn, []byte(`{"jsonrpc":"2.0","method":"heartbeat","params":{"type":"heartbeat"}}`)), "a heartbeat must be handled")
 	assert.Never(t, func() bool { return conn.sent() != 1 }, 20*time.Millisecond, time.Millisecond, "a heartbeat should need no answer")

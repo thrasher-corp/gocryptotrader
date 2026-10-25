@@ -113,7 +113,7 @@ type ListProductsRequest struct {
 
 // ProductsResponse is a page of products
 type ProductsResponse struct {
-	Products         []Product          `json:"products"`
+	Products         []ProductResponse  `json:"products"`
 	NumberOfProducts uint64             `json:"num_products"`
 	Pagination       PaginationMetadata `json:"pagination"`
 }
@@ -126,9 +126,9 @@ type PaginationMetadata struct {
 	HasPrevious    bool   `json:"has_prev"`
 }
 
-// Product is a product Coinbase lists, a spot pair, a future or an equity; a numeric field Coinbase leaves empty
-// decodes as zero
-type Product struct {
+// ProductResponse is a product Coinbase lists, a spot pair, a future or an equity; a numeric field Coinbase leaves
+// empty decodes as zero
+type ProductResponse struct {
 	ProductID                    string       `json:"product_id"`
 	Price                        types.Number `json:"price"`
 	PricePercentageChange24Hour  types.Number `json:"price_percentage_change_24h"`

@@ -44,7 +44,7 @@ func (e *Exchange) GetMarketTrades(ctx context.Context, req *MarketTradesRequest
 
 // GetProduct returns a product, with Watched set when it is on the user's watchlist and, when GetTradabilityStatus is
 // set, a spot product's ViewOnly set when the account cannot trade it
-func (e *Exchange) GetProduct(ctx context.Context, req *ProductRequest) (*Product, error) {
+func (e *Exchange) GetProduct(ctx context.Context, req *ProductRequest) (*ProductResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -55,7 +55,7 @@ func (e *Exchange) GetProduct(ctx context.Context, req *ProductRequest) (*Produc
 	if req.GetTradabilityStatus {
 		params.Set("get_tradability_status", "true")
 	}
-	var resp *Product
+	var resp *ProductResponse
 	if err := e.SendAuthenticatedHTTPRequest(ctx, advancedTradePrivateEPL, http.MethodGet, advancedTradePath+"products/"+req.ProductID, params, nil, &resp); err != nil {
 		return nil, err
 	}

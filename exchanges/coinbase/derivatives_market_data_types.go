@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -427,7 +428,7 @@ func (i *DerivativesInstrumentResponse) UnmarshalJSON(data []byte) error {
 	type instrument DerivativesInstrumentResponse
 	aux := struct {
 		*instrument
-		ExpirationTimestamp *int64 `json:"expiration_timestamp"`
+		ExpirationTimestamp *uint64 `json:"expiration_timestamp"`
 	}{instrument: (*instrument)(i)}
 	if err := json.Unmarshal(data, &aux); err != nil {
 		return err
@@ -437,7 +438,7 @@ func (i *DerivativesInstrumentResponse) UnmarshalJSON(data []byte) error {
 	case *aux.ExpirationTimestamp == 0:
 		i.ExpirationTimestamp = types.Time{}
 	default:
-		i.ExpirationTimestamp = types.Time(time.UnixMilli(*aux.ExpirationTimestamp))
+		i.ExpirationTimestamp = types.Time(time.UnixMilli(int64(min(*aux.ExpirationTimestamp, math.MaxInt64))))
 	}
 	return nil
 }

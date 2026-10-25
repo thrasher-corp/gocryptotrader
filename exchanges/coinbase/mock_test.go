@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math"
 	"net/http/httptest"
 	"net/url"
 	"os"
@@ -20,6 +21,7 @@ import (
 	"time"
 
 	gws "github.com/gorilla/websocket"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
@@ -306,4 +308,19 @@ func decodeDerivativesParams(params json.RawMessage) (map[string]any, error) {
 		return decoded, nil
 	}
 	return decoded, json.Unmarshal(params, &decoded)
+}
+
+func TestDerivativesVenueRequestIDs(t *testing.T) {
+	t.Parallel()
+	// The mock gateway decodes every ID a request can carry
+	body, err := json.Marshal(&JSONRPCRequest{JSONRPC: jsonRPCVersion, ID: math.MaxUint64, Method: "public/test"})
+	require.NoError(t, err, "a request with the largest ID must encode")
+	var req derivativesVenueRequest
+	require.NoError(t, json.Unmarshal(body, &req), "the mock must decode a request with the largest ID")
+	assert.Equal(t, uint64(math.MaxUint64), req.ID, "the mock should decode the request's ID")
+	frame, err := derivativesVenueFrame(req.ID, json.RawMessage(`{"result":"ok"}`))
+	require.NoError(t, err, "the mock must answer a request with the largest ID")
+	var envelope DerivativesEnvelope
+	require.NoError(t, json.Unmarshal(frame, &envelope), "the mock's answer must decode")
+	assert.Equal(t, uint64(math.MaxUint64), envelope.ID, "the mock should answer with the request's ID")
 }

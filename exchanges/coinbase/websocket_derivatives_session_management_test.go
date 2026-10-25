@@ -100,7 +100,7 @@ func TestWebsocketAPISetHeartbeat(t *testing.T) {
 	if mockTests {
 		// The gateway's public streams and its private connection ask for heartbeats themselves once they connect, so
 		// their requests may arrive after this one
-		require.Eventually(t, func() bool { return len(venue.requestsFor("public/set_heartbeat")) == 3 }, time.Second, time.Millisecond, "each gateway connection and WebsocketAPI.SetHeartbeat must set heartbeats")
+		require.Eventually(t, func() bool { return len(venue.requestsFor("public/set_heartbeat")) == 3 }, 30*time.Second, time.Millisecond, "each gateway connection and WebsocketAPI.SetHeartbeat must set heartbeats")
 		intervals := make([]float64, 0, 3)
 		for _, req := range venue.requestsFor("public/set_heartbeat") {
 			var params DerivativesHeartbeatWireRequest

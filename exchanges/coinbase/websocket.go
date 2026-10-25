@@ -500,10 +500,10 @@ func (e *Exchange) wsSendRequest(ctx context.Context, conn websocket.Connection,
 	}
 	resp, err := conn.SendMessageReturnResponse(ctx, websocketMessageEPL, wsChannelSubscriptions, req)
 	if err != nil {
-		if errors.Is(err, websocket.ErrSignatureTimeout) || ctx.Err() != nil {
+		if (errors.Is(err, websocket.ErrSignatureTimeout) || ctx.Err() != nil) && isConnected(conn) {
 			// The reply can still arrive, after the request stopped waiting for it, and be taken for the next request's,
-			// so the connection is closed, for the manager to reconnect and subscribe afresh; the close outlives the
-			// request's context
+			// so a connection still up is closed, for the manager to reconnect and subscribe afresh; the close outlives
+			// the request's context
 			closeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), websocketCloseTimeout)
 			defer cancel()
 			e.wsCloseForReconnection(closeCtx, conn, websocketMessageEPL, "request unanswered")

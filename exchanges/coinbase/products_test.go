@@ -165,7 +165,7 @@ func TestGetProduct(t *testing.T) {
 	resp, err := e.GetProduct(t.Context(), &ProductRequest{ProductID: testSpotProductID, GetTradabilityStatus: true})
 	require.NoError(t, err, "GetProduct must not error")
 	if mockTests {
-		exp := &Product{
+		exp := &ProductResponse{
 			ProductID:                    "BTC-USD",
 			Price:                        82253.5,
 			PricePercentageChange24Hour:  0.9857012787131,
@@ -325,7 +325,7 @@ func TestListProducts(t *testing.T) {
 	require.NoError(t, err, "ListProducts must not error")
 	if mockTests {
 		exp := &ProductsResponse{
-			Products: []Product{
+			Products: []ProductResponse{
 				{
 					ProductID:                    "BTC-USD",
 					Price:                        82245.65,
