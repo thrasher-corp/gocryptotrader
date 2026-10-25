@@ -62,8 +62,11 @@ refused.
   sends; a stop limit by its `TriggerPrice` and its `Price`, its limit; a trailing stop, which trails the market, by
   neither; and any other order by its `Price`. An amount is the order's whole amount, as GCT holds it, and is sent less
   what the order has executed, or not at all when unchanged, as Bitfinex would put back a fill made since the order was
-  looked up; changing it needs the order's side, as Bitfinex signs an amount by its side. Bitfinex changes neither an
-  order's type, so another is refused, nor its time in force.
+  looked up; changing it needs the order's side, as Bitfinex signs an amount by its side. Bitfinex does not change an
+  order's type, so another is refused. `ModifyOrder` leaves an order's time in force as it is and reports it as the
+  order has it, as a modification carries no expiry time and the order manager sets each one's time in force to what
+  it holds for the order. `UpdateOrder` and `WebsocketUpdateOrder` change an order's expiry, which an update cannot
+  remove, and its flags, such as post only.
 + With the authenticated websocket connected, orders are placed, updated and cancelled through it; otherwise over REST.
 + `CancelAllOrders` cancels the open orders of the requested asset, and of its pair when one is given; a request naming
   neither, or the nil one the cancel all orders RPC sends, cancels every open order through Bitfinex's own cancellation

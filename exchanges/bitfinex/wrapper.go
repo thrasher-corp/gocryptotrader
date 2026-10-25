@@ -870,8 +870,10 @@ func derivativeLeverage(leverage float64) (uint64, error) {
 // order's leverage, which Bitfinex needs to update it, so the order is looked up for each. A stop moves by its trigger
 // price, and a stop limit by its trigger price and its limit price, each when given; a stop has no price of its own, so
 // its price is neither sent nor reported, and a price given without a trigger price is refused. A trailing stop's stop
-// trails the market, so a price for it is refused. Bitfinex updates neither an order's type, so another is refused, nor
-// its time in force, which the response reports as the order has it
+// trails the market, so a price for it is refused. Bitfinex does not change an order's type, so another is refused. An
+// order's time in force is left as it is and reported as the order has it, as a modification carries no expiry time and
+// the order manager sets each one's time in force to what it holds for the order; UpdateOrder and WebsocketUpdateOrder
+// change an order's expiry and flags, such as post only
 func (e *Exchange) ModifyOrder(ctx context.Context, m *order.Modify) (*order.ModifyResponse, error) {
 	if err := m.Validate(); err != nil {
 		return nil, err

@@ -126,6 +126,21 @@ func newResponseServerExchange(t *testing.T, body string) *Exchange {
 	}))
 }
 
+// newRefusingServerExchange returns an exchange whose first REST request receives a fixed response body and later
+// ones an empty list, so a pager retrying the body's error returns without it rather than hangs its test
+func newRefusingServerExchange(t *testing.T, body string) *Exchange {
+	t.Helper()
+	var requests atomic.Int64
+	return newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		reply := `[]`
+		if requests.Add(1) == 1 {
+			reply = body
+		}
+		_, err := w.Write([]byte(reply))
+		assert.NoError(t, err, "Writing the response should not error")
+	}))
+}
+
 // newUnavailableServerExchange returns an exchange whose REST requests all fail without a body Bitfinex would send
 func newUnavailableServerExchange(t *testing.T) *Exchange {
 	t.Helper()

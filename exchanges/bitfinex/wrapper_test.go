@@ -442,7 +442,7 @@ func TestGetMovementsHistory(t *testing.T) {
 		assert.Equalf(t, path, paths[len(paths)-1], "getMovementsHistory should read the movements of currency %q", c)
 		mu.Unlock()
 	}
-	_, err := newResponseServerExchange(t, `["error",10020,"symbol: invalid"]`).getMovementsHistory(t.Context(), currency.ETH)
+	_, err := newRefusingServerExchange(t, `["error",10020,"symbol: invalid"]`).getMovementsHistory(t.Context(), currency.ETH)
 	var apiErr *APIError
 	assert.ErrorAs(t, err, &apiErr, "getMovementsHistory should return the error Bitfinex reports")
 }
@@ -525,8 +525,18 @@ func TestPageBack(t *testing.T) {
 	assert.Equal(t, 2, calls, "pageBack should stop paging a server ignoring the end at its second page")
 
 	errPageRefused := errors.New("page refused")
-	_, err = pageBack(time.Time{}, time.Time{}, 3, func(time.Time) ([]record, error) { return nil, errPageRefused }, id, at)
+	var refusals int
+	// Pages after the refusal are empty, so a pager retrying it returns without the error rather than hangs
+	refusedOnce := func(time.Time) ([]record, error) {
+		refusals++
+		if refusals > 1 {
+			return nil, nil
+		}
+		return nil, errPageRefused
+	}
+	_, err = pageBack(time.Time{}, time.Time{}, 3, refusedOnce, id, at)
 	assert.ErrorIs(t, err, errPageRefused, "pageBack should return a page's error")
+	assert.Equal(t, 1, refusals, "pageBack should not fetch again after a page is refused")
 }
 
 func TestGetRecentTrades(t *testing.T) {
@@ -961,9 +971,11 @@ func TestModifyOrder(t *testing.T) {
 			resp, err := ex.ModifyOrder(t.Context(), &order.Modify{OrderID: "16", AssetType: asset.Spot, Pair: currency.NewBTCUSD(), Side: order.Buy, Type: orderType, TimeInForce: order.GoodTillCancel, Price: 101})
 			require.NoErrorf(t, err, "ModifyOrder must not error for a modification of type %s", orderType)
 			assert.Equalf(t, order.Limit, resp.Type, "ModifyOrder should report the order's type for a modification of type %s", orderType)
-			assert.Equalf(t, order.PostOnly, resp.TimeInForce, "ModifyOrder should report the order's time in force, which Bitfinex does not update, for a modification of type %s", orderType)
+			assert.Equalf(t, order.PostOnly, resp.TimeInForce, "ModifyOrder should report the order's time in force, which it leaves unchanged, for a modification of type %s", orderType)
 		}
 		require.Len(t, updates(), 3, "ModifyOrder must send each modification of the order's type")
+		exp := map[string]any{"id": 16.0, "price": "101"}
+		assert.Equal(t, []map[string]any{exp, exp, exp}, updates(), "ModifyOrder should send each modification's price alone, leaving the order's expiry and flags, post only among them, as they are")
 		_, err := ex.ModifyOrder(t.Context(), &order.Modify{OrderID: "16", AssetType: asset.Spot, Pair: currency.NewBTCUSD(), Side: order.Buy, Type: order.Stop, Price: 95})
 		assert.ErrorIs(t, err, errOrderTypeUnchangeable, "ModifyOrder should refuse to make the order another type")
 		assert.Len(t, updates(), 3, "ModifyOrder should send nothing for a modification it refuses")
@@ -1953,11 +1965,10 @@ func TestGetOrderHistory(t *testing.T) {
 	assert.ErrorIs(t, err, order.ErrGetOrdersRequestIsNil, "GetOrderHistory should refuse a nil request")
 	_, err = ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Pairs: currency.Pairs{testDerivativePair}, Side: order.AnySide, Type: order.AnyType})
 	assert.ErrorIs(t, err, errPairNotOfAsset, "GetOrderHistory should refuse a pair the asset does not trade")
-	refusing := newResponseServerExchange(t, `["error",10020,"symbol: invalid"]`)
 	unknownType := newResponseServerExchange(t, `[[33963608937,null,null,"tETHUSD",null,null,1,1,"NOVEL"]]`)
 	for _, pairs := range []currency.Pairs{nil, {currency.NewPair(currency.ETH, currency.USD)}} {
 		req := &order.MultiOrderRequest{AssetType: asset.Spot, Pairs: pairs, Side: order.AnySide, Type: order.AnyType}
-		_, err = refusing.GetOrderHistory(t.Context(), req)
+		_, err = newRefusingServerExchange(t, `["error",10020,"symbol: invalid"]`).GetOrderHistory(t.Context(), req)
 		var apiErr *APIError
 		assert.ErrorAsf(t, err, &apiErr, "GetOrderHistory should return the error Bitfinex reports for pairs %s", pairs)
 		_, err = unknownType.GetOrderHistory(t.Context(), req)
@@ -2565,7 +2576,7 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 		_, err := e.GetHistoricalFundingRates(t.Context(), &tc.r)
 		assert.ErrorIsf(t, err, tc.err, "GetHistoricalFundingRates should refuse %+v", tc.r)
 	}
-	_, err = newResponseServerExchange(t, `["error",10020,"symbol: invalid"]`).GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{Asset: asset.USDTMarginedFutures, Pair: testDerivativePair, StartDate: start, EndDate: end})
+	_, err = newRefusingServerExchange(t, `["error",10020,"symbol: invalid"]`).GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{Asset: asset.USDTMarginedFutures, Pair: testDerivativePair, StartDate: start, EndDate: end})
 	var apiErr *APIError
 	assert.ErrorAs(t, err, &apiErr, "GetHistoricalFundingRates should return the error Bitfinex reports")
 	rates, err := e.GetHistoricalFundingRates(mockRequestContext(t), &fundingrate.HistoricalRatesRequest{Asset: asset.USDTMarginedFutures, Pair: testDerivativePair, StartDate: start, EndDate: end})

@@ -59,7 +59,49 @@ func replaced(entries []string, oldnew ...string) []string {
 
 func TestExchanges(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, []string{"Bitfinex"}, new(v18.Version).Exchanges(), "Exchanges should only list Bitfinex")
+	assert.Equal(t, []string{"*"}, new(v18.Version).Exchanges(), "Exchanges should list every exchange, leaving the migration to pick Bitfinex out in any case")
+}
+
+func TestMigrationLeavesOtherExchanges(t *testing.T) {
+	t.Parallel()
+	statusEntries := append(append([]string(nil), currentDefaults...), `{"enabled":true,"channel":"status","asset":"spot"}`)
+	// The config loader takes the last of a repeated name, whatever the case of its key
+	names := []string{`"name":"Kraken",`, `"name":"Bitfinexx",`, `"name":"xBitfinex",`, `"name":"Bitfinzz",`, `"name":" Bitfinex ",`, `"name":"bitfinex","name":"Kraken",`, `"name":"bitfinex","Name":"Kraken",`, ``}
+	// An upgrade would change the previous defaults, and a downgrade the enabled spot status, so each exchange has both
+	entrySets := [][]string{previousDefaults, statusEntries}
+	inputs := make([]string, 0, len(entrySets)*len(names))
+	for _, entries := range entrySets {
+		bitfinex := subscriptions(entries...)
+		for _, name := range names {
+			inputs = append(inputs, strings.Replace(bitfinex, `"name":"Bitfinex",`, name, 1))
+		}
+	}
+	for _, input := range inputs {
+		for name, migrate := range map[string]func(context.Context, []byte) ([]byte, error){
+			"UpgradeExchange":   new(v18.Version).UpgradeExchange,
+			"DowngradeExchange": new(v18.Version).DowngradeExchange,
+		} {
+			got, err := migrate(t.Context(), []byte(input))
+			require.NoErrorf(t, err, "%s must not error for %s", name, input)
+			assert.Equalf(t, input, string(got), "%s should leave another exchange's configuration unchanged: %s", name, input)
+		}
+	}
+}
+
+func TestMigrationFindsBitfinexAsTheLoaderDoes(t *testing.T) {
+	t.Parallel()
+	// The config loader takes the last of a repeated name, whatever the case of its key
+	for _, name := range []string{`"name":"bitfinex",`, `"name":"Kraken","name":"Bitfinex",`, `"name":"Kraken","Name":"bitfinex",`} {
+		named := func(entries ...string) string {
+			return strings.Replace(subscriptions(entries...), `"name":"Bitfinex",`, name, 1)
+		}
+		got, err := new(v18.Version).UpgradeExchange(t.Context(), []byte(named(previousDefaults...)))
+		require.NoErrorf(t, err, "UpgradeExchange must not error for %s", name)
+		assert.JSONEqf(t, named(currentDefaults...), string(got), "UpgradeExchange should migrate an exchange the config loader reads as Bitfinex: %s", name)
+		got, err = new(v18.Version).DowngradeExchange(t.Context(), []byte(named(currentDefaults...)))
+		require.NoErrorf(t, err, "DowngradeExchange must not error for %s", name)
+		assert.JSONEqf(t, named(previousDefaults...), string(got), "DowngradeExchange should migrate an exchange the config loader reads as Bitfinex: %s", name)
+	}
 }
 
 func TestUpgradeExchangeSubscriptions(t *testing.T) {
@@ -228,10 +270,10 @@ func TestMigrationWithoutSubscriptions(t *testing.T) {
 func TestMigrationRejectsMalformedConfigs(t *testing.T) {
 	t.Parallel()
 	for name, tc := range map[string]struct{ input, errContains string }{
-		"subscriptions object":  {input: `{"features":{"subscriptions":{}}}`, errContains: "error decoding Bitfinex subscriptions"},
-		"subscription string":   {input: `{"features":{"subscriptions":["ticker","allTrades"]}}`, errContains: "error decoding Bitfinex subscriptions"},
-		"params string":         {input: subscriptions(with(previousDefaults, 5, strings.Replace(orderbookEntry, `{"prec":"R0"}`, `"R0"`, 1))...), errContains: "error decoding Bitfinex subscriptions"},
-		"subscriptions missing": {input: `{"features":{"subscriptions":}}`, errContains: "error getting Bitfinex subscriptions"},
+		"subscriptions object": {input: `{"name":"Bitfinex","features":{"subscriptions":{}}}`, errContains: "error decoding Bitfinex subscriptions"},
+		"subscription string":  {input: `{"name":"Bitfinex","features":{"subscriptions":["ticker","allTrades"]}}`, errContains: "error decoding Bitfinex subscriptions"},
+		"params string":        {input: subscriptions(with(previousDefaults, 5, strings.Replace(orderbookEntry, `{"prec":"R0"}`, `"R0"`, 1))...), errContains: "error decoding Bitfinex subscriptions"},
+		"malformed exchange":   {input: `{"name":"Bitfinex","features":{"subscriptions":}}`, errContains: "error decoding exchange name"},
 	} {
 		for direction, migrate := range map[string]func(context.Context, []byte) ([]byte, error){
 			"upgrade":   new(v18.Version).UpgradeExchange,
@@ -251,22 +293,28 @@ func TestRegisteredMigration(t *testing.T) {
 	t.Parallel()
 	previous := strings.Join(previousDefaults, ",")
 	current := strings.Join(currentDefaults, ",")
-	// Other exchanges with the same subscriptions are not migrated
-	input := []byte(`{"version":17,"exchanges":[{"name":"Bitfinex","features":{"subscriptions":[` + previous + `]}},{"name":"Kraken","features":{"subscriptions":[` + previous + `]}}]}`)
-	unchanged, err := versions.Manager.Deploy(t.Context(), input, 17)
-	require.NoError(t, err, "Deploy must leave an existing v17 configuration valid")
-	assert.Equal(t, input, unchanged, "Deploy should retain v17 Bitfinex subscriptions until the v18 upgrade")
+	// The config loader finds Bitfinex's configuration whatever the case of its name
+	for _, name := range []string{"Bitfinex", "bitfinex", "BITFINEX"} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			// Other exchanges with the same subscriptions are not migrated
+			input := []byte(`{"version":17,"exchanges":[{"name":"` + name + `","features":{"subscriptions":[` + previous + `]}},{"name":"Kraken","features":{"subscriptions":[` + previous + `]}}]}`)
+			unchanged, err := versions.Manager.Deploy(t.Context(), input, 17)
+			require.NoError(t, err, "Deploy must leave an existing v17 configuration valid")
+			assert.Equal(t, input, unchanged, "Deploy should retain v17 Bitfinex subscriptions until the v18 upgrade")
 
-	out, err := versions.Manager.Deploy(t.Context(), input, 18)
-	require.NoError(t, err, "Deploy must apply the registered v18 upgrade")
-	expected := `{"version":18,"exchanges":[{"name":"Bitfinex","features":{"subscriptions":[` + current + `]}},{"name":"Kraken","features":{"subscriptions":[` + previous + `]}}]}`
-	assert.JSONEq(t, expected, string(out), "Deploy should only migrate Bitfinex and advance to v18")
+			out, err := versions.Manager.Deploy(t.Context(), input, 18)
+			require.NoError(t, err, "Deploy must apply the registered v18 upgrade")
+			expected := `{"version":18,"exchanges":[{"name":"` + name + `","features":{"subscriptions":[` + current + `]}},{"name":"Kraken","features":{"subscriptions":[` + previous + `]}}]}`
+			assert.JSONEq(t, expected, string(out), "Deploy should only migrate Bitfinex and advance to v18")
 
-	downgraded, err := versions.Manager.Deploy(t.Context(), out, 17)
-	require.NoError(t, err, "Deploy must downgrade from v18")
-	assert.JSONEq(t, string(input), string(downgraded), "Downgrade should restore the v17 Bitfinex subscriptions")
+			downgraded, err := versions.Manager.Deploy(t.Context(), out, 17)
+			require.NoError(t, err, "Deploy must downgrade from v18")
+			assert.JSONEq(t, string(input), string(downgraded), "Downgrade should restore the v17 Bitfinex subscriptions")
 
-	reupgraded, err := versions.Manager.Deploy(t.Context(), downgraded, 18)
-	require.NoError(t, err, "Deploy must reapply v18")
-	assert.JSONEq(t, expected, string(reupgraded), "Reapplying v18 should reproduce the upgraded configuration")
+			reupgraded, err := versions.Manager.Deploy(t.Context(), downgraded, 18)
+			require.NoError(t, err, "Deploy must reapply v18")
+			assert.JSONEq(t, expected, string(reupgraded), "Reapplying v18 should reproduce the upgraded configuration")
+		})
+	}
 }

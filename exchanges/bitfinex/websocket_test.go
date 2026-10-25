@@ -8,6 +8,7 @@ import (
 	"hash/crc32"
 	"math"
 	"os"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"sync"
@@ -20,7 +21,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
-	v18 "github.com/thrasher-corp/gocryptotrader/config/versions/v18"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
@@ -1336,36 +1336,75 @@ func TestGenerateSubscriptions(t *testing.T) {
 	assert.Equal(t, subscription.List{{Channel: subscription.MyAccountChannel, Authenticated: true, Asset: asset.All}}, accountSubs, "generateAccountSubscriptions should generate the account channel")
 }
 
+// version17Subscriptions are the default subscriptions a configuration saved before perpetual contracts holds
+const version17Subscriptions = `[{"enabled":true,"channel":"ticker","asset":"all"},{"enabled":true,"channel":"allTrades","asset":"all"},` +
+	`{"enabled":true,"channel":"candles","asset":"spot","interval":"1m"},{"enabled":true,"channel":"candles","asset":"margin","interval":"1m"},` +
+	`{"enabled":true,"channel":"candles","asset":"marginfunding","params":{"_period":"p30"},"interval":"1m"},` +
+	`{"enabled":true,"channel":"orderbook","asset":"all","params":{"prec":"R0"},"levels":100}]`
+
 func TestGenerateSubscriptionsFromMigratedConfig(t *testing.T) {
 	t.Parallel()
 	raw, err := testExchangeConfig()
 	require.NoError(t, err, "testExchangeConfig must not error")
-	// A configuration saved before perpetual contracts holds the defaults of the time, which the v18 upgrade replaces
-	saved, err := jsonparser.Set(raw, []byte(`[{"enabled":true,"channel":"ticker","asset":"all"},{"enabled":true,"channel":"allTrades","asset":"all"},`+
-		`{"enabled":true,"channel":"candles","asset":"spot","interval":"1m"},{"enabled":true,"channel":"candles","asset":"margin","interval":"1m"},`+
-		`{"enabled":true,"channel":"candles","asset":"marginfunding","params":{"_period":"p30"},"interval":"1m"},`+
-		`{"enabled":true,"channel":"orderbook","asset":"all","params":{"prec":"R0"},"levels":100}]`), "features", "subscriptions")
+	withPerpetualPairs, err := jsonparser.Set(raw, []byte(version17Subscriptions), "features", "subscriptions")
 	require.NoError(t, err, "jsonparser.Set must not error")
-	upgraded, err := new(v18.Version).UpgradeExchange(t.Context(), saved)
-	require.NoError(t, err, "UpgradeExchange must not error")
-	var exchCfg config.Exchange
-	require.NoError(t, json.Unmarshal(upgraded, &exchCfg), "the upgraded configuration must load")
-	testsubs.EqualLists(t, defaultSubscriptions.Clone(), exchCfg.Features.Subscriptions.Clone())
-
-	ex := new(Exchange)
-	ex.SetDefaults()
-	ex.Websocket = sharedtestvalues.NewTestWebsocket()
-	require.NoError(t, ex.Setup(&exchCfg), "Setup must not error for the upgraded configuration")
-	ex.Name = t.Name()
-	subs, err := ex.generateSubscriptions()
-	require.NoError(t, err, "generateSubscriptions must not error for the upgraded configuration")
+	// A configuration saved before perpetual contracts holds no perpetual pairs, and one downgraded from version 18 keeps them
+	withoutPerpetualPairs := withPerpetualPairs
 	for _, a := range []asset.Item{asset.USDTMarginedFutures, asset.CoinMarginedFutures} {
-		enabled, err := ex.GetEnabledPairs(a)
-		require.NoErrorf(t, err, "GetEnabledPairs must not error for %s", a)
-		require.NotEmptyf(t, enabled, "the test config must enable %s pairs", a)
-		for _, channel := range []string{subscription.TickerChannel, subscription.AllTradesChannel, subscription.CandlesChannel, subscription.OrderbookChannel, wsStatusChannel} {
-			n := slices.IndexFunc(subs, func(s *subscription.Subscription) bool { return s.Channel == channel && s.Asset == a })
-			assert.NotEqualf(t, -1, n, "the upgraded configuration should subscribe %s's %s channel", a, channel)
+		withoutPerpetualPairs = jsonparser.Delete(withoutPerpetualPairs, "currencyPairs", "pairs", a.String())
+	}
+	// The config loader finds Bitfinex's configuration whatever the case of its name
+	for _, name := range []string{"Bitfinex", "bitfinex", "BITFINEX"} {
+		for _, tc := range []struct {
+			pairs          string
+			saved          []byte
+			perpetualPairs bool
+		}{
+			{pairs: "without perpetual pairs", saved: withoutPerpetualPairs},
+			{pairs: "with perpetual pairs", saved: withPerpetualPairs, perpetualPairs: true},
+		} {
+			t.Run(name+" "+tc.pairs, func(t *testing.T) {
+				t.Parallel()
+				saved, err := jsonparser.Set(tc.saved, []byte(strconv.Quote(name)), "name")
+				require.NoError(t, err, "jsonparser.Set must not error")
+				path := filepath.Join(t.TempDir(), "config.json")
+				require.NoError(t, os.WriteFile(path, []byte(`{"version":17,"exchanges":[`+string(saved)+`]}`), 0o600), "WriteFile must not error")
+				var cfg config.Config
+				require.NoError(t, cfg.ReadConfigFromFile(path, true), "ReadConfigFromFile must upgrade the version 17 configuration")
+				assert.Equal(t, 18, cfg.Version, "ReadConfigFromFile should advance the configuration to version 18")
+				require.NoError(t, cfg.CheckExchangeConfigValues(), "CheckExchangeConfigValues must accept the upgraded configuration")
+				exchCfg, err := cfg.GetExchangeConfig("Bitfinex")
+				require.NoError(t, err, "GetExchangeConfig must not error")
+				testsubs.EqualLists(t, defaultSubscriptions.Clone(), exchCfg.Features.Subscriptions.Clone())
+
+				ex := new(Exchange)
+				ex.SetDefaults()
+				ex.Websocket = sharedtestvalues.NewTestWebsocket()
+				require.NoError(t, ex.Setup(exchCfg), "Setup must not error for the upgraded configuration")
+				ex.Name = t.Name()
+				subs, err := ex.generateSubscriptions()
+				require.NoError(t, err, "generateSubscriptions must not error for the upgraded configuration")
+				for _, a := range []asset.Item{asset.Spot, asset.Margin, asset.MarginFunding} {
+					for _, channel := range []string{subscription.TickerChannel, subscription.AllTradesChannel, subscription.CandlesChannel, subscription.OrderbookChannel} {
+						n := slices.IndexFunc(subs, func(s *subscription.Subscription) bool { return s.Channel == channel && s.Asset == a })
+						assert.NotEqualf(t, -1, n, "the upgraded configuration should subscribe %s's %s channel", a, channel)
+					}
+				}
+				if !tc.perpetualPairs {
+					n := slices.IndexFunc(subs, func(s *subscription.Subscription) bool { return isDerivativeAsset(s.Asset) })
+					assert.Equal(t, -1, n, "the upgraded configuration should subscribe no perpetual contract without its pairs")
+					return
+				}
+				for _, a := range []asset.Item{asset.USDTMarginedFutures, asset.CoinMarginedFutures} {
+					enabled, err := ex.GetEnabledPairs(a)
+					require.NoErrorf(t, err, "GetEnabledPairs must not error for %s", a)
+					require.NotEmptyf(t, enabled, "the test config must enable %s pairs", a)
+					for _, channel := range []string{subscription.TickerChannel, subscription.AllTradesChannel, subscription.CandlesChannel, subscription.OrderbookChannel, wsStatusChannel} {
+						n := slices.IndexFunc(subs, func(s *subscription.Subscription) bool { return s.Channel == channel && s.Asset == a })
+						assert.NotEqualf(t, -1, n, "the upgraded configuration should subscribe %s's %s channel", a, channel)
+					}
+				}
+			})
 		}
 	}
 }

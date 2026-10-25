@@ -84,26 +84,53 @@ type savedDefault struct {
 	Levels   int            `json:"levels,omitempty"`
 }
 
+// savedExchange holds the saved exchange field the config loader identifies an exchange by
+type savedExchange struct {
+	Name string `json:"name"`
+}
+
+// exchangeName is the name of the exchange this version migrates, which the config loader matches in any case
+const exchangeName = "Bitfinex"
+
 // Version implements ExchangeVersion for Bitfinex's perpetual contracts
 type Version struct{}
 
-// Exchanges returns just Bitfinex
-func (*Version) Exchanges() []string { return []string{"Bitfinex"} }
+// Exchanges returns every exchange: the version manager matches the first name an exchange holds to the names a
+// version lists exactly, but the config loader finds Bitfinex's configuration by its name in any case, so
+// UpgradeExchange and DowngradeExchange pick Bitfinex out themselves
+func (*Version) Exchanges() []string { return []string{"*"} }
 
-// UpgradeExchange replaces the previous default subscriptions with the current defaults, which cover the perpetual
-// contracts; subscriptions which differ from the previous defaults are the user's choice and are left unchanged
+// UpgradeExchange replaces Bitfinex's previous default subscriptions with the current defaults, which cover the
+// perpetual contracts; subscriptions which differ from the previous defaults are the user's choice and are left
+// unchanged, as are other exchanges
 func (*Version) UpgradeExchange(_ context.Context, exchange []byte) ([]byte, error) {
+	if bitfinex, err := isBitfinex(exchange); err != nil || !bitfinex {
+		return exchange, err
+	}
 	return replaceSubscriptions(exchange, previousDefaults, currentDefaults)
 }
 
-// DowngradeExchange replaces the current default subscriptions with the previous defaults, and disables subscriptions
-// to the status channel the previous version cannot subscribe to
+// DowngradeExchange replaces Bitfinex's current default subscriptions with the previous defaults, and disables
+// subscriptions to the status channel the previous version cannot subscribe to; other exchanges are left unchanged
 func (*Version) DowngradeExchange(_ context.Context, exchange []byte) ([]byte, error) {
+	if bitfinex, err := isBitfinex(exchange); err != nil || !bitfinex {
+		return exchange, err
+	}
 	exchange, err := replaceSubscriptions(exchange, currentDefaults, previousDefaults)
 	if err != nil {
 		return exchange, err
 	}
 	return disableStatusSubscriptions(exchange)
+}
+
+// isBitfinex reports whether a saved exchange is Bitfinex as the config loader reads it: the loader matches the name
+// key in any case and takes the last of a repeated key, then matches the name itself in any case
+func isBitfinex(exchange []byte) (bool, error) {
+	var saved savedExchange
+	if err := json.Unmarshal(exchange, &saved); err != nil {
+		return false, fmt.Errorf("error decoding exchange name: %w", err)
+	}
+	return strings.EqualFold(saved.Name, exchangeName), nil
 }
 
 // disableStatusSubscriptions disables the enabled subscriptions to the status channel, which the previous version sends
