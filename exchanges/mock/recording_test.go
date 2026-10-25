@@ -38,11 +38,13 @@ func TestGetFilteredURLVals(t *testing.T) {
 	vals := url.Values{}
 	vals.Set("real_name", "Dr Seuss")
 	vals.Set("user", "admin")
+	vals.Set("api_key", "form-api-key")
 	vals.Set("currency", "btc")
 
 	result := GetFilteredURLVals(vals, items)
 	assert.NotContains(t, result, "Dr Seuss", "excluded real_name value should be removed")
 	assert.NotContains(t, result, "admin", "excluded user value should be removed")
+	assert.NotContains(t, result, "form-api-key", "excluded api_key value should be removed")
 	assert.Contains(t, result, "currency=btc", "non-excluded currency should survive")
 }
 

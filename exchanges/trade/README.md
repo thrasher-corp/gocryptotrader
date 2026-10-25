@@ -78,7 +78,7 @@ _b in this context is an `IBotExchange` implemented struct_
 | Huobi.Pro | Yes | Yes | No |
 | Kraken | Yes | Yes | No |
 | Kucoin | Yes | No | Yes |
-| Lbank | Yes | No | Yes |
+| Lbank | Yes | Yes | Yes |
 | MEXC | Yes | Yes | Yes |
 | Okx | Yes | Yes | Yes |
 | Poloniex | Yes | Yes | Yes |
