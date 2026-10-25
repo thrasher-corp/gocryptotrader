@@ -4437,6 +4437,203 @@ func TestUpdateAccountBalancesListingTimeMilliseconds(t *testing.T) {
 	}
 }
 
+// TestUpdateAccountBalancesMarginKeepsNewerPushes checks a margin listing keeps the balances that pushes saved while it
+// was answered, stamped after its time, over its figures, with its own liability, and that a push made while it was
+// answered is saved once it has been, as for spot
+func TestUpdateAccountBalancesMarginKeepsNewerPushes(t *testing.T) {
+	t.Parallel()
+	ex, release, wait := heldListing(t, asset.Margin, map[string]string{
+		"/v3/margin/accounts":   `{"code":"200000","data":{"accounts":[{"currency":"USDT","total":"20","available":"15","hold":"5","liability":"5"}]}}`,
+		"/v3/isolated/accounts": `{"code":"200000","data":{"assets":[{"symbol":"BTC-USDT","status":"BORROW","baseAsset":{"currency":"BTC","total":"0.01","available":"0.01","hold":"0","liability":"0.001"},"quoteAsset":{"currency":"USDT","total":"100","available":"100","hold":"0","liability":"25"}}]}}`,
+	})
+	time.Sleep(2 * time.Millisecond)
+	pushedAt := time.UnixMilli(time.Now().UnixMilli())
+	for _, p := range []struct {
+		event, ccy string
+		total      float64
+	}{
+		{event: "marginV2.transfer", ccy: "USDT", total: 40},
+		{event: "marginV2.transfer", ccy: "ETH", total: 2},
+		{event: "isolatedV2_BTC-USDT.transfer", ccy: "USDT", total: 90},
+		{event: "isolatedV2_ETH-USDT.transfer", ccy: "USDT", total: 30},
+	} {
+		require.NoErrorf(t, ex.processAccountBalance(t.Context(), balancePushAt(p.event, p.ccy, p.total, pushedAt)), "processAccountBalance must not error for the %s %s push", p.event, p.ccy)
+	}
+	time.Sleep(2 * time.Millisecond)
+	during := time.UnixMilli(time.Now().UnixMilli())
+	release()
+	require.NoError(t, wait(), "the listing must not error")
+	creds, err := ex.GetCredentials(t.Context())
+	require.NoError(t, err, "GetCredentials must not error")
+	for _, tc := range []struct {
+		subAccount string
+		exp        accounts.Balance
+	}{
+		{exp: accounts.Balance{Currency: currency.USDT, Total: 40, Free: 40, Borrowed: 5, UpdatedAt: pushedAt}},
+		{exp: accounts.Balance{Currency: currency.ETH, Total: 2, Free: 2, UpdatedAt: pushedAt}},
+		{subAccount: "BTC-USDT", exp: accounts.Balance{Currency: currency.USDT, Total: 90, Free: 90, Borrowed: 25, UpdatedAt: pushedAt}},
+		{subAccount: "ETH-USDT", exp: accounts.Balance{Currency: currency.USDT, Total: 30, Free: 30, UpdatedAt: pushedAt}},
+	} {
+		b, err := ex.Accounts.GetBalance(tc.subAccount, creds, asset.Margin, tc.exp.Currency)
+		require.NoErrorf(t, err, "the margin %q %s balance must be stored", tc.subAccount, tc.exp.Currency)
+		assert.Equalf(t, tc.exp, b, "the listing should keep the margin %q %s balance a push saved while it was answered, with the listing's liability", tc.subAccount, tc.exp.Currency)
+	}
+	require.NoError(t, ex.processAccountBalance(t.Context(), balancePushAt("isolatedV2_BTC-USDT.transfer", "BTC", 0.02, during)), "processAccountBalance must save a push made while the listing was answered")
+	b, err := ex.Accounts.GetBalance("BTC-USDT", creds, asset.Margin, currency.BTC)
+	require.NoError(t, err, "the isolated margin BTC balance must be stored")
+	assert.Equal(t, accounts.Balance{Currency: currency.BTC, Total: 0.02, Free: 0.02, Borrowed: 0.001, UpdatedAt: during}, b, "a push made while the listing was answered should replace the listing's figures, keeping its liability")
+
+	// A later listing is newer than those pushes, so its figures replace them
+	_, err = ex.UpdateAccountBalances(t.Context(), asset.Margin)
+	require.NoError(t, err, "the later listing must not error")
+	b, err = ex.Accounts.GetBalance("", creds, asset.Margin, currency.USDT)
+	require.NoError(t, err, "the cross margin USDT balance must be stored")
+	assert.Equal(t, 20.0, b.Total, "a listing newer than a push should replace its figures")
+	_, err = ex.Accounts.GetBalance("", creds, asset.Margin, currency.ETH)
+	assert.ErrorIs(t, err, accounts.ErrNoBalances, "a listing newer than a push should remove the currency it no longer lists")
+	_, err = ex.Accounts.GetBalance("ETH-USDT", creds, asset.Margin, currency.USDT)
+	assert.ErrorIs(t, err, accounts.ErrNoBalances, "a listing newer than a push should empty the isolated margin account it no longer lists")
+}
+
+// TestUpdateAccountBalancesMarginKeptPushLiability checks a balance a push saved while a margin listing was answered is
+// kept with that listing's liability, none for a currency the listing leaves out, rather than the earlier liability the
+// push kept
+func TestUpdateAccountBalancesMarginKeptPushLiability(t *testing.T) {
+	t.Parallel()
+	started, release := make(chan struct{}), make(chan struct{})
+	var releaseOnce sync.Once
+	var listings atomic.Int32
+	ex := newLocalServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
+		reply := `{"code":"200000","data":{"assets":[]}}`
+		if r.URL.Path == "/v3/margin/accounts" {
+			reply = `{"code":"200000","data":{"accounts":[{"currency":"USDT","total":"20","available":"20","hold":"0","liability":"5"},{"currency":"ETH","total":"1","available":"1","hold":"0","liability":"3"}]}}`
+			if listings.Add(1) == 2 {
+				close(started)
+				<-release
+				reply = `{"code":"200000","data":{"accounts":[{"currency":"USDT","total":"30","available":"30","hold":"0","liability":"7"}]}}`
+			}
+		}
+		_, err := io.WriteString(w, reply)
+		assert.NoError(t, err, "writing the reply should not error")
+	})
+	t.Cleanup(func() { releaseOnce.Do(func() { close(release) }) })
+	_, err := ex.UpdateAccountBalances(t.Context(), asset.Margin)
+	require.NoError(t, err, "the first listing must not error")
+	type listing struct {
+		subAccts accounts.SubAccounts
+		err      error
+	}
+	second := make(chan listing, 1)
+	go func() {
+		subAccts, err := ex.UpdateAccountBalances(t.Context(), asset.Margin)
+		second <- listing{subAccts: subAccts, err: err}
+	}()
+	received(t, started, "the second listing's request must reach the server")
+	time.Sleep(2 * time.Millisecond)
+	pushedAt := time.UnixMilli(time.Now().UnixMilli())
+	for _, p := range []struct {
+		ccy   string
+		total float64
+	}{{ccy: "USDT", total: 40}, {ccy: "ETH", total: 2}} {
+		require.NoErrorf(t, ex.processAccountBalance(t.Context(), balancePushAt("marginV2.transfer", p.ccy, p.total, pushedAt)), "processAccountBalance must not error for the %s push", p.ccy)
+	}
+	releaseOnce.Do(func() { close(release) })
+	got := received(t, second, "the second listing must return once its reply is released")
+	require.NoError(t, got.err, "the second listing must not error")
+	creds, err := ex.GetCredentials(t.Context())
+	require.NoError(t, err, "GetCredentials must not error")
+	exp := accounts.SubAccounts{accounts.NewSubAccount(asset.Margin, "")}
+	exp[0].Balances.Set(currency.USDT, accounts.Balance{Total: 40, Free: 40, Borrowed: 7, UpdatedAt: pushedAt})
+	exp[0].Balances.Set(currency.ETH, accounts.Balance{Total: 2, Free: 2, UpdatedAt: pushedAt})
+	for c, expBalance := range exp[0].Balances {
+		b, err := ex.Accounts.GetBalance("", creds, asset.Margin, c)
+		require.NoErrorf(t, err, "the cross margin %s balance must be stored", c)
+		assert.Equalf(t, expBalance, b, "the listing should keep the %s balance a push saved while it was answered, with the listing's liability", c)
+	}
+	assert.Equal(t, exp, got.subAccts, "UpdateAccountBalances should return the cross margin account as saved, with the balances kept from pushes")
+}
+
+// TestUpdateAccountBalancesMarginOlderListingAnsweredLast checks a margin listing answered after a newer one was saved
+// leaves the newer listing's figures, liability included, and brings back no currency the newer listing left out
+func TestUpdateAccountBalancesMarginOlderListingAnsweredLast(t *testing.T) {
+	t.Parallel()
+	started, release := make(chan struct{}), make(chan struct{})
+	var releaseOnce sync.Once
+	var requests atomic.Int32
+	ex := newLocalServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
+		reply := `{"code":"200000","data":{"assets":[]}}`
+		if r.URL.Path == "/v3/margin/accounts" {
+			reply = `{"code":"200000","data":{"accounts":[{"currency":"USDT","total":"30","available":"30","hold":"0","liability":"9"}]}}`
+			if requests.Add(1) == 1 {
+				close(started)
+				<-release
+				reply = `{"code":"200000","data":{"accounts":[{"currency":"USDT","total":"20","available":"20","hold":"0","liability":"5"},{"currency":"ETH","total":"2","available":"2","hold":"0","liability":"0"}]}}`
+			}
+		}
+		_, err := io.WriteString(w, reply)
+		assert.NoError(t, err, "writing the reply should not error")
+	})
+	t.Cleanup(func() { releaseOnce.Do(func() { close(release) }) })
+	older := make(chan error, 1)
+	go func() {
+		_, err := ex.UpdateAccountBalances(t.Context(), asset.Margin)
+		older <- err
+	}()
+	received(t, started, "the older listing's request must reach the server")
+	time.Sleep(2 * time.Millisecond)
+	_, err := ex.UpdateAccountBalances(t.Context(), asset.Margin)
+	require.NoError(t, err, "the newer listing must not error")
+	releaseOnce.Do(func() { close(release) })
+	require.NoError(t, received(t, older, "the older listing must return once its reply is released"), "the older listing must not error")
+	creds, err := ex.GetCredentials(t.Context())
+	require.NoError(t, err, "GetCredentials must not error")
+	b, err := ex.Accounts.GetBalance("", creds, asset.Margin, currency.USDT)
+	require.NoError(t, err, "the cross margin USDT balance must be stored")
+	assert.Equal(t, 30.0, b.Total, "an older listing answered last should leave the newer listing's figure")
+	assert.Equal(t, 9.0, b.Borrowed, "an older listing answered last should leave the newer listing's liability")
+	_, err = ex.Accounts.GetBalance("", creds, asset.Margin, currency.ETH)
+	assert.ErrorIs(t, err, accounts.ErrNoBalances, "an older listing answered last should bring back no currency the newer listing left out")
+}
+
+// TestUpdateAccountBalancesMarginListingTimePerCredentials checks a margin listing is saved though another set of
+// credentials' listing, newer than it, was saved while it was answered, as each set's accounts are their own
+func TestUpdateAccountBalancesMarginListingTimePerCredentials(t *testing.T) {
+	t.Parallel()
+	started, release := make(chan struct{}), make(chan struct{})
+	var releaseOnce sync.Once
+	var requests atomic.Int32
+	ex := newLocalServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
+		reply := `{"code":"200000","data":{"assets":[]}}`
+		if r.URL.Path == "/v3/margin/accounts" {
+			reply = `{"code":"200000","data":{"accounts":[{"currency":"USDT","total":"20","available":"20","hold":"0","liability":"5"}]}}`
+			if requests.Add(1) == 1 {
+				close(started)
+				<-release
+			}
+		}
+		_, err := io.WriteString(w, reply)
+		assert.NoError(t, err, "writing the reply should not error")
+	})
+	t.Cleanup(func() { releaseOnce.Do(func() { close(release) }) })
+	other := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: "other-api-key", Secret: "other-api-secret", ClientID: "other-passphrase"})
+	held := make(chan error, 1)
+	go func() {
+		_, err := ex.UpdateAccountBalances(other, asset.Margin)
+		held <- err
+	}()
+	received(t, started, "the other credentials' listing must reach the server")
+	time.Sleep(2 * time.Millisecond)
+	_, err := ex.UpdateAccountBalances(t.Context(), asset.Margin)
+	require.NoError(t, err, "the newer listing must not error")
+	releaseOnce.Do(func() { close(release) })
+	require.NoError(t, received(t, held, "the other credentials' listing must return once its reply is released"), "the other credentials' listing must not error")
+	otherCreds, err := ex.GetCredentials(other)
+	require.NoError(t, err, "GetCredentials must not error for the other credentials")
+	b, err := ex.Accounts.GetBalance("", otherCreds, asset.Margin, currency.USDT)
+	require.NoError(t, err, "the other credentials' listing must be saved though another set's newer listing was saved first")
+	assert.Equal(t, 20.0, b.Total, "the other credentials' listing should save its figures")
+}
+
 // TestUpdateAccountBalancesStampedBeforeRequests checks a listing's time is taken before its requests are sent, so a push
 // made while the listing is answered is not refused as older than the listing, which could not hold it
 func TestUpdateAccountBalancesStampedBeforeRequests(t *testing.T) {
@@ -4907,7 +5104,11 @@ func TestChangePositionMargin(t *testing.T) {
 		ex := newLocalServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
 			var params map[string]any
 			assert.NoError(t, json.NewDecoder(r.Body).Decode(&params), "decoding the request body should not error")
-			sent <- marginRequest{path: r.URL.Path, positionSide: params["positionSide"]}
+			select {
+			case sent <- marginRequest{path: r.URL.Path, positionSide: params["positionSide"]}:
+			default:
+				assert.Fail(t, "ChangePositionMargin should send one request per change")
+			}
 			reply := `{"code":"200000","data":"1"}`
 			if r.URL.Path == "/v1/position/margin/deposit-margin" {
 				reply = `{"code":"200000","data":{"id":"6200c9b83aecfb000152ddcd","symbol":"XBTUSDTM","posMargin":2,"settleCurrency":"USDT"}}`
@@ -4935,7 +5136,8 @@ func TestChangePositionMargin(t *testing.T) {
 			} {
 				_, err := ex.ChangePositionMargin(t.Context(), &margin.PositionChangeRequest{Asset: asset.Futures, Pair: xbtusdtm, MarginType: margin.Isolated, OriginalAllocatedMargin: change.original, NewAllocatedMargin: change.newAllocation, MarginSide: tc.marginSide})
 				require.NoErrorf(t, err, "ChangePositionMargin must not error %s margin for margin side %q", change.name, tc.marginSide)
-				assert.Equalf(t, marginRequest{path: change.path, positionSide: tc.exp}, <-sent, "ChangePositionMargin should send margin side %q as KuCoin's position side when %s margin", tc.marginSide, change.name)
+				got := received(t, sent, "ChangePositionMargin must send its request")
+				assert.Equalf(t, marginRequest{path: change.path, positionSide: tc.exp}, got, "ChangePositionMargin should send margin side %q as KuCoin's position side when %s margin", tc.marginSide, change.name)
 			}
 		}
 	})
@@ -5265,7 +5467,7 @@ func TestGetFuturesPositionOrders(t *testing.T) {
 		require.NoError(t, err, "GetFuturesPositionOrders must not error without an end date")
 		assert.WithinRange(t, req.EndDate, before, time.Now(), "GetFuturesPositionOrders should end the window now")
 		assert.Equal(t, req.EndDate.Add(-7*24*time.Hour), req.StartDate, "GetFuturesPositionOrders should shorten the window to seven days")
-		query := <-queries
+		query := received(t, queries, "GetFuturesPositionOrders must request the orders")
 		assert.Equal(t, strconv.FormatInt(req.StartDate.UnixMilli(), 10), query.Get("startAt"), "GetFuturesPositionOrders should request orders from the window's start")
 		assert.Equal(t, strconv.FormatInt(req.EndDate.UnixMilli(), 10), query.Get("endAt"), "GetFuturesPositionOrders should request orders up to now")
 		exp := []futures.PositionResponse{{Pair: xbtusdtm, Asset: asset.Futures, ContractSettlementType: futures.Linear, Orders: []order.Detail{}}}

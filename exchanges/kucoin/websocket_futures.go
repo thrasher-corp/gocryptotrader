@@ -282,9 +282,6 @@ func (e *Exchange) processFuturesOrderChange(ctx context.Context, data []byte) e
 			oType = t
 		}
 	}
-	if resp.Status == "done" {
-		e.futuresStopOrderTypes.Delete(resp.OrderID)
-	}
 	side, err := order.StringToOrderSide(resp.Side)
 	if err != nil {
 		return err
@@ -326,7 +323,15 @@ func (e *Exchange) processFuturesOrderChange(ctx context.Context, data []byte) e
 			IsMaker:   resp.Liquidity == "maker",
 		}}
 	}
-	return e.Websocket.DataHandler.Send(ctx, detail)
+	if err := e.Websocket.DataHandler.Send(ctx, detail); err != nil {
+		return err
+	}
+	if resp.Status == "done" {
+		// Noted once relayed, so that the stop pushes of an order whose final push the relay could not take keep their
+		// status
+		e.endFuturesOrder(resp.OrderID)
+	}
+	return nil
 }
 
 // futuresMarginType returns the margin type of a futures margin mode
@@ -397,6 +402,77 @@ func (e *Exchange) processFuturesPosition(ctx context.Context, msg *WebsocketMes
 	return unhandledSubject(msg)
 }
 
+// rememberFuturesStopOrderType records the type of a futures stop order a push or a REST read reported, unless a push or
+// REST read has reported the order ended within futuresFinalPushWait, and reports whether it did. An end noted longer ago
+// is forgotten, so the type is not forgotten with it
+func (e *Exchange) rememberFuturesStopOrderType(orderID string, oType order.Type) bool {
+	e.futuresOrderEndsMu.Lock()
+	defer e.futuresOrderEndsMu.Unlock()
+	return e.rememberFuturesStopOrderTypeLocked(orderID, oType)
+}
+
+// rememberFuturesStopOrderTypeLocked is rememberFuturesStopOrderType with futuresOrderEndsMu held
+func (e *Exchange) rememberFuturesStopOrderTypeLocked(orderID string, oType order.Type) bool {
+	if e.futuresOrderEndedLocked(orderID) {
+		return false
+	}
+	delete(e.futuresOrderEnds, orderID)
+	e.futuresStopOrderTypes.Store(orderID, oType)
+	return true
+}
+
+// rememberFuturesStopOrderRead records the type of a futures stop order a REST read reported, as
+// rememberFuturesStopOrderType does, and notes the end of one the read reported ended, whose final Orders push may still
+// be on its way
+func (e *Exchange) rememberFuturesStopOrderRead(orderID string, oType order.Type, ended bool) {
+	e.futuresOrderEndsMu.Lock()
+	defer e.futuresOrderEndsMu.Unlock()
+	if e.rememberFuturesStopOrderTypeLocked(orderID, oType) && ended {
+		e.noteFuturesOrderEndLocked(orderID)
+	}
+}
+
+// endFuturesOrder forgets the type of a futures stop order a push reported ended, noting that it ended
+func (e *Exchange) endFuturesOrder(orderID string) {
+	e.futuresOrderEndsMu.Lock()
+	defer e.futuresOrderEndsMu.Unlock()
+	e.futuresStopOrderTypes.Delete(orderID)
+	e.noteFuturesOrderEndLocked(orderID)
+}
+
+// noteFuturesOrderEndLocked notes that a push or a REST read reported a futures order ended, a push's end replacing an
+// earlier one. Noting an end forgets, at most once a second, the ends noted longer ago than futuresFinalPushWait, with
+// the types REST reads recorded for final Orders pushes that did not come. futuresOrderEndsMu must be held
+func (e *Exchange) noteFuturesOrderEndLocked(orderID string) {
+	now := time.Now()
+	if now.Sub(e.futuresOrderEndsPrunedAt) >= time.Second {
+		for id, endedAt := range e.futuresOrderEnds {
+			if now.Sub(endedAt) > futuresFinalPushWait {
+				delete(e.futuresOrderEnds, id)
+				e.futuresStopOrderTypes.Delete(id)
+			}
+		}
+		e.futuresOrderEndsPrunedAt = now
+	}
+	if e.futuresOrderEnds == nil {
+		e.futuresOrderEnds = make(map[string]time.Time)
+	}
+	e.futuresOrderEnds[orderID] = now
+}
+
+// futuresOrderEnded reports whether a push or a REST read reported a futures order ended within futuresFinalPushWait
+func (e *Exchange) futuresOrderEnded(orderID string) bool {
+	e.futuresOrderEndsMu.Lock()
+	defer e.futuresOrderEndsMu.Unlock()
+	return e.futuresOrderEndedLocked(orderID)
+}
+
+// futuresOrderEndedLocked is futuresOrderEnded with futuresOrderEndsMu held
+func (e *Exchange) futuresOrderEndedLocked(orderID string) bool {
+	endedAt, ok := e.futuresOrderEnds[orderID]
+	return ok && time.Since(endedAt) <= futuresFinalPushWait
+}
+
 // processFuturesStopOrder relays a futures Stop Orders push as an order update
 func (e *Exchange) processFuturesStopOrder(ctx context.Context, data []byte) error {
 	var resp WebsocketFuturesStopOrder
@@ -420,20 +496,23 @@ func (e *Exchange) processFuturesStopOrder(ctx context.Context, data []byte) err
 	if err != nil {
 		return err
 	}
-	if resp.Type == "cancel" {
-		e.futuresStopOrderTypes.Delete(resp.OrderID)
-	} else {
-		e.futuresStopOrderTypes.Store(resp.OrderID, oType)
-	}
-	if resp.Type == "triggered" {
-		// A triggered futures stop order stays live under its order ID, and the Orders topic follows it from then on
-		status = order.Open
-	}
 	marginType, err := futuresMarginType(resp.MarginMode)
 	if err != nil {
 		return err
 	}
-	return e.Websocket.DataHandler.Send(ctx, &order.Detail{
+	switch {
+	case resp.Type == "cancel":
+		// A cancel reports the order's end whatever came before it
+	case !e.rememberFuturesStopOrderType(resp.OrderID, oType):
+		// On its own topic this push can arrive after a push or a REST read reported the order ended, when its status would
+		// reopen the order. It is relayed without one, which the order store leaves as it is; an order the store does not
+		// hold is added with its status unknown, which the order manager reads back once the order is no longer listed
+		status = order.UnknownStatus
+	case resp.Type == "triggered":
+		// A triggered futures stop order stays live under its order ID, and the Orders topic follows it from then on
+		status = order.Open
+	}
+	if err := e.Websocket.DataHandler.Send(ctx, &order.Detail{
 		Price:        resp.OrderPrice.Float64(),
 		TriggerPrice: resp.StopPrice.Float64(),
 		Amount:       float64(resp.Size),
@@ -447,5 +526,12 @@ func (e *Exchange) processFuturesStopOrder(ctx context.Context, data []byte) err
 		Date:         resp.CreatedAt.Time(),
 		LastUpdated:  resp.Timestamp.Time(),
 		Pair:         pair,
-	})
+	}); err != nil {
+		return err
+	}
+	if resp.Type == "cancel" {
+		// Noted once relayed, so that the stop pushes of an order whose cancel the relay could not take keep their status
+		e.endFuturesOrder(resp.OrderID)
+	}
+	return nil
 }

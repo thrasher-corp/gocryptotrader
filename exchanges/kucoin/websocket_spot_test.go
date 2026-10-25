@@ -314,7 +314,7 @@ func TestProcessSpotTickers(t *testing.T) {
 	// The pair is enabled for spot and margin in the test config
 	pair := currency.NewPairWithDelimiter("ETH", "BTC", "-")
 	require.NoError(t, ex.processSpotTickers(t.Context(), pair, marketTickerChannel, func(p *ticker.Price) { p.Bid, p.Ask = 1, 2 }), "processSpotTickers must not error")
-	got, ok := (<-ex.Websocket.DataHandler.C).Data.([]ticker.Price)
+	got, ok := relayed(t, ex).([]ticker.Price)
 	require.True(t, ok, "processSpotTickers must relay a ticker batch")
 	assert.Len(t, got, 2, "processSpotTickers should relay a ticker for each enabled asset")
 
@@ -353,7 +353,7 @@ func TestProcessSpotTickers(t *testing.T) {
 
 	require.NoError(t, ex.DisableAssetWebsocketSupport(asset.Margin), "DisableAssetWebsocketSupport must not error")
 	require.NoError(t, ex.processSpotTickers(t.Context(), pair, marketTickerChannel, func(p *ticker.Price) { p.Bid, p.Ask = 1, 2 }), "processSpotTickers must not error")
-	got, ok = (<-ex.Websocket.DataHandler.C).Data.([]ticker.Price)
+	got, ok = relayed(t, ex).([]ticker.Price)
 	require.True(t, ok, "processSpotTickers must relay a ticker batch")
 	assert.Len(t, got, 1, "processSpotTickers should leave out an asset without websocket support")
 
@@ -590,7 +590,7 @@ func TestProcessCallAuctionData(t *testing.T) {
 
 	require.NoError(t, ex.processCallAuctionData(t.Context(), wsFixtureData(t, "wsSpot.json", "callAuctionData")), "processCallAuctionData must not error")
 	require.Len(t, ex.Websocket.DataHandler.C, 1, "processCallAuctionData must relay the push")
-	assert.Equal(t, exp, (<-ex.Websocket.DataHandler.C).Data, "processCallAuctionData should relay every field of the push")
+	assert.Equal(t, exp, relayed(t, ex), "processCallAuctionData should relay every field of the push")
 	require.Error(t, ex.processCallAuctionData(t.Context(), []byte(`{"estimatedPrice":[]}`)), "processCallAuctionData must reject an undecodable push")
 	assert.Empty(t, ex.Websocket.DataHandler.C, "processCallAuctionData should not relay an undecodable push")
 }
@@ -615,7 +615,7 @@ func TestProcessCandlesticks(t *testing.T) {
 			Interval: kline.OneMin,
 			Candles:  []kline.Candle{{Time: time.Unix(1791899460, 0), Open: 83310.5, Close: 83296.2, High: 83310.5, Low: 83281.5, Volume: 3.86976157}},
 		}
-		assert.Equalf(t, exp, (<-ex.Websocket.DataHandler.C).Data, "processCandlesticks should relay the %s candle", a)
+		assert.Equalf(t, exp, relayed(t, ex), "processCandlesticks should relay the %s candle", a)
 	}
 
 	data := wsFixtureData(t, "wsSpot.json", "klines")
@@ -665,7 +665,7 @@ func TestProcessTradeData(t *testing.T) {
 			Amount:       0.00534199,
 			Timestamp:    time.UnixMilli(1791899507179),
 		}}
-		assert.Equalf(t, exp, (<-ex.Websocket.DataHandler.C).Data, "processTradeData should relay the %s trade", a)
+		assert.Equalf(t, exp, relayed(t, ex), "processTradeData should relay the %s trade", a)
 	}
 
 	data := wsFixtureData(t, "wsSpot.json", "trade")
@@ -785,7 +785,7 @@ func TestProcessOrderChange(t *testing.T) {
 		t.Helper()
 		data := bytes.Replace(wsFixtureData(t, "wsSpot.json", key), []byte("6720da3fa30a360007f5f832"), []byte(orderID), 1)
 		require.NoErrorf(t, ex.processOrderChange(t.Context(), data), "processOrderChange must not error for %s", key)
-		d, ok := (<-ex.Websocket.DataHandler.C).Data.(*order.Detail)
+		d, ok := relayed(t, ex).(*order.Detail)
 		require.Truef(t, ok, "%s must relay an order detail", key)
 		return d.AssetType
 	}
@@ -918,7 +918,7 @@ func TestProcessAccountBalance(t *testing.T) {
 	require.NoError(t, ex.processAccountBalance(t.Context(), isolated), "processAccountBalance must not error for an isolated margin account change")
 	isolatedExp := accounts.SubAccounts{accounts.NewSubAccount(asset.Margin, "BTC-USDT")}
 	isolatedExp[0].Balances.Set(currency.USDT, accounts.Balance{Total: 21.133773386762, Hold: 1.001, Free: 20.132773386762, UpdatedAt: time.UnixMilli(1730269283892)})
-	assert.Equal(t, isolatedExp, (<-ex.Websocket.DataHandler.C).Data, "an isolated margin account change should be relayed as its symbol's margin balance")
+	assert.Equal(t, isolatedExp, relayed(t, ex), "an isolated margin account change should be relayed as its symbol's margin balance")
 	creds, err := ex.GetCredentials(t.Context())
 	require.NoError(t, err, "GetCredentials must not error")
 	isolatedStored, err := ex.Accounts.GetBalance("BTC-USDT", creds, asset.Margin, currency.USDT)
@@ -926,7 +926,7 @@ func TestProcessAccountBalance(t *testing.T) {
 	assert.Equal(t, 20.132773386762, isolatedStored.Free, "the stored isolated margin balance should be the pushed one")
 	otherAccount := bytes.Replace(wsFixtureData(t, "wsSpot.json", "balanceMain"), []byte(`"main.deposit"`), []byte(`"other"`), 1)
 	require.NoError(t, ex.processAccountBalance(t.Context(), otherAccount), "processAccountBalance must not error for an account without a sub-account")
-	otherPush, ok := (<-ex.Websocket.DataHandler.C).Data.(*WebsocketAccountBalance)
+	otherPush, ok := relayed(t, ex).(*WebsocketAccountBalance)
 	require.True(t, ok, "an account without a sub-account must be relayed as it comes")
 	assert.Equal(t, "other", otherPush.RelationEvent, "an account without a sub-account should be relayed as it comes")
 
@@ -989,7 +989,9 @@ func TestProcessAccountBalance(t *testing.T) {
 	require.NoError(t, ex.processAccountBalance(t.Context(), frame(`"total":"15.75","available":"14.5","hold":"1.25","relationEvent":"main.deposit"`, pushed.Add(3*time.Second))), "processAccountBalance must not error for a main account push")
 	assert.Equal(t, accounts.Balance{Currency: currency.USDT, Total: 36.25, Hold: 2.25, Free: 34, UpdatedAt: pushed.Add(3 * time.Second)}, stored(asset.Spot, currency.USDT), "a rejected push should not change its account's share")
 
-	// A REST listing older than the pushes keeps the shares they left, and refreshes the currencies no push is newer for
+	// A REST listing older than the pushes keeps the shares they left, and refreshes the currencies no push is newer for.
+	// Listings are stamped to the millisecond, so this one starts in a later millisecond than the first to tell them apart
+	time.Sleep(time.Until(restBTC.UpdatedAt.Add(time.Millisecond)))
 	_, err = ex.UpdateAccountBalances(t.Context(), asset.Spot)
 	require.NoError(t, err, "UpdateAccountBalances must not error when pushes are newer than its listing")
 	assert.Equal(t, accounts.Balance{Currency: currency.USDT, Total: 36.25, Hold: 2.25, Free: 34, UpdatedAt: pushed.Add(3 * time.Second)}, stored(asset.Spot, currency.USDT), "a REST listing older than the pushes should keep their shares")
@@ -1163,7 +1165,7 @@ func TestProcessStopOrder(t *testing.T) {
 			LastUpdated:  time.Unix(0, 1742305928091268493),
 			Pair:         spotTestPair,
 		}
-		assert.Equalf(t, exp, (<-ex.Websocket.DataHandler.C).Data, "processStopOrder should relay a stop order push %s as a stop market order", tc.name)
+		assert.Equalf(t, exp, relayed(t, ex), "processStopOrder should relay a stop order push %s as a stop market order", tc.name)
 	}
 	marginOpen := `{"orderId":"vs93gpupfa48anof003u85mb","orderPrice":"70000","orderType":"stop","side":"buy","size":"0.00007142","stop":"loss","stopPrice":"71000","symbol":"BTC-USDT","tradeType":"MARGIN_TRADE","type":"open","createdAt":1742305928064,"ts":1742305928091268493}`
 	require.NoError(t, ex.processStopOrder(t.Context(), []byte(marginOpen)), "processStopOrder must not error for a margin stop order's open push")
@@ -1269,7 +1271,7 @@ func TestProcessStopOrderTriggeredMarginOrder(t *testing.T) {
 			require.NoError(t, ex.processStopOrder(t.Context(), stopPush("MARGIN_TRADE", "70000", "open")), "processStopOrder must not error for the open push")
 			relayed(t, ex)
 		default:
-			require.FailNowf(t, "unknown step", "step %q", name)
+			require.FailNowf(t, "unknown step", "step %q must be one the test knows", name)
 		}
 	}
 	for _, tc := range []struct {

@@ -35,9 +35,16 @@ type Exchange struct {
 	// marginOrderIDs maps the IDs of the live margin orders this exchange placed or listed, as spot and margin order
 	// pushes share one topic and do not say which asset an order is, to whether a stop order's trigger has been reported
 	marginOrderIDs sync.Map
-	// futuresStopOrderTypes holds the type of each live futures stop order this exchange has seen, as the Orders topic
-	// follows a triggered stop order under its order ID with only the limit or market type it places
+	// futuresStopOrderTypes holds the type of each futures stop order this exchange has seen, until its final Orders push,
+	// as the Orders topic follows a triggered stop order under its order ID with only the limit or market type it places
 	futuresStopOrderTypes sync.Map
+	// futuresOrderEnds holds when each futures order a push or a REST read reported ended was so reported, as a stop
+	// order's pushes come on a topic of their own and can arrive after its final Orders push; an end older than
+	// futuresFinalPushWait no longer counts, and is forgotten as a later end is noted. futuresOrderEndsMu makes reading an
+	// order's end and recording its type, and forgetting its type and noting its end, one step each
+	futuresOrderEnds         map[string]time.Time
+	futuresOrderEndsPrunedAt time.Time
+	futuresOrderEndsMu       sync.Mutex
 	// marginPlacements holds the margin orders being placed, by client order ID, as their pushes can arrive before
 	// KuCoin's reply names their order IDs; marginPlacementsMu makes reading a push against them and settling a reply one
 	// step each
@@ -54,7 +61,8 @@ type Exchange struct {
 	// liability, one step each
 	marginBalanceMu sync.Mutex
 	// marginAccountsListedAt holds when each set of credentials' margin accounts were last listed, as a listing that
-	// leaves out a currency or an isolated margin account leaves no balance to tell a later push from an earlier one by
+	// leaves out a currency or an isolated margin account leaves no balance to tell a later push from an earlier one by,
+	// and a listing answered after a newer one would undo it
 	marginAccountsListedAt map[accounts.Credentials]time.Time
 	// tickerMergeMu serialises websocket ticker merges, which load the stored ticker and store it back, as the pushes
 	// of one pair can arrive on several connections at once

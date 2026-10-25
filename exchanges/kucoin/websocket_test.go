@@ -111,12 +111,26 @@ func relayed(t *testing.T, ex *Exchange) any {
 	}
 }
 
+// received returns what ch sends, failing the test once five seconds pass without it rather than leaving the test
+// waiting for go test's timeout
+func received[T any](t *testing.T, ch <-chan T, msg string) T {
+	t.Helper()
+	select {
+	case v := <-ch:
+		return v
+	case <-time.After(5 * time.Second):
+		require.FailNow(t, msg)
+	}
+	var zero T
+	return zero
+}
+
 // wsPush feeds a recorded frame through the router and returns what it relays
 func wsPush(t *testing.T, ex *Exchange, file, key string) any {
 	t.Helper()
 	require.NoErrorf(t, ex.wsHandleData(t.Context(), nil, wsFixture(t, file, key)), "wsHandleData must not error for %s", key)
 	require.Lenf(t, ex.Websocket.DataHandler.C, 1, "wsHandleData must relay one message for %s", key)
-	return (<-ex.Websocket.DataHandler.C).Data
+	return relayed(t, ex)
 }
 
 // liveWsData subscribes a fresh exchange to KuCoin and returns the first relayed message of type T; prepare, when set,
@@ -136,7 +150,7 @@ func liveWsData[T any](t *testing.T, prepare func(*Exchange), subs ...*subscript
 			}
 		case <-timeout:
 			var zero T
-			require.FailNowf(t, "no data", "no %T arrived within a minute", zero)
+			require.FailNowf(t, "no data", "a %T must arrive within a minute", zero)
 		}
 	}
 }
@@ -752,6 +766,8 @@ func TestOrderbookFeedOwnership(t *testing.T) {
 		dropped, live := &utaFakeConnection{subs: subscription.NewStore()}, &utaFakeConnection{subs: subscription.NewStore()}
 		require.NoError(t, ex.wsHandleData(t.Context(), dropped, []byte(`{"topic":"/contractMarket/level2Depth50:XBTUSDTM","type":"message","subject":"level2","data":{"sequence":100,"asks":[["101",1]],"bids":[["99",1]],"timestamp":1791899571610}}`)), "wsHandleData must not error")
 		stored, release, fed, invalidated := make(chan struct{}), make(chan struct{}), make(chan error, 1), make(chan struct{})
+		var releaseOnce sync.Once
+		t.Cleanup(func() { releaseOnce.Do(func() { close(release) }) })
 		go func() {
 			fed <- ex.feedOrderbook(live, futuresTestPair, asset.Futures, 101, orderbookSnapshot, func() error {
 				err := ex.Websocket.Orderbook.LoadSnapshot(t.Context(), &orderbook.Book{
@@ -763,7 +779,7 @@ func TestOrderbookFeedOwnership(t *testing.T) {
 				return err
 			})
 		}()
-		<-stored
+		received(t, stored, "the push must be stored")
 		go func() {
 			ex.invalidateOrderbooks(t.Context(), dropped)
 			close(invalidated)
@@ -773,9 +789,9 @@ func TestOrderbookFeedOwnership(t *testing.T) {
 			assert.Fail(t, "the disconnect hook should wait for a push being stored")
 		case <-time.After(100 * time.Millisecond):
 		}
-		close(release)
-		require.NoError(t, <-fed, "feedOrderbook must not error")
-		<-invalidated
+		releaseOnce.Do(func() { close(release) })
+		require.NoError(t, received(t, fed, "feedOrderbook must return once released"), "feedOrderbook must not error")
+		received(t, invalidated, "the disconnect hook must return once the push is stored")
 		assertOrderbookValid(t, ex, futuresTestPair, asset.Futures, true, "a book holding the push another connection stored as the dropped connection's hook ran")
 	})
 
@@ -784,6 +800,8 @@ func TestOrderbookFeedOwnership(t *testing.T) {
 		ex := wsTestInstance(t)
 		first, second := &utaFakeConnection{subs: subscription.NewStore()}, &utaFakeConnection{subs: subscription.NewStore()}
 		stored, release, firstFed, secondFed := make(chan struct{}), make(chan struct{}), make(chan error, 1), make(chan error, 1)
+		var releaseOnce sync.Once
+		t.Cleanup(func() { releaseOnce.Do(func() { close(release) }) })
 		go func() {
 			firstFed <- ex.feedOrderbook(first, futuresTestPair, asset.Futures, 100, orderbookSnapshot, func() error {
 				err := ex.Websocket.Orderbook.LoadSnapshot(t.Context(), &orderbook.Book{
@@ -795,7 +813,7 @@ func TestOrderbookFeedOwnership(t *testing.T) {
 				return err
 			})
 		}()
-		<-stored
+		received(t, stored, "the push must be stored")
 		// The second push has the same update ID, as two feeds of one book can
 		go func() {
 			secondFed <- ex.wsHandleData(t.Context(), second, []byte(`{"topic":"/contractMarket/level2Depth50:XBTUSDTM","type":"message","subject":"level2","data":{"sequence":100,"asks":[["101",1]],"bids":[["99",1]],"timestamp":1791899571610}}`))
@@ -807,10 +825,10 @@ func TestOrderbookFeedOwnership(t *testing.T) {
 		case <-time.After(100 * time.Millisecond):
 		}
 		assert.True(t, waited, "another connection's push should wait for a push being stored")
-		close(release)
-		require.NoError(t, <-firstFed, "feedOrderbook must not error")
+		releaseOnce.Do(func() { close(release) })
+		require.NoError(t, received(t, firstFed, "feedOrderbook must return once released"), "feedOrderbook must not error")
 		if waited {
-			require.NoError(t, <-secondFed, "wsHandleData must not error")
+			require.NoError(t, received(t, secondFed, "wsHandleData must return once the first push is stored"), "wsHandleData must not error")
 		}
 		ex.invalidateOrderbooks(t.Context(), first)
 		assertOrderbookValid(t, ex, futuresTestPair, asset.Futures, true, "a book holding another connection's later push with the same update ID")
@@ -866,7 +884,7 @@ func TestOrderbookFeedOwnership(t *testing.T) {
 		ex.invalidateOrderbooks(t.Context(), fed)
 		assertOrderbookValid(t, ex, futuresTestPair, asset.Futures, false, "a book holding the dropped connection's push while another connection's resync is under way")
 		cancel()
-		<-fetched
+		received(t, fetched, "the snapshot fetch must return once its context is cancelled")
 	})
 }
 
@@ -1105,7 +1123,7 @@ func TestWebsocketHandleData(t *testing.T) {
 	assert.Empty(t, ex.Websocket.DataHandler.C, "welcome and pong frames should not be relayed")
 
 	require.NoError(t, ex.wsHandleData(t.Context(), conn, wsFixture(t, "wsFutures.json", "orderMargin")), "wsHandleData must route a push without a type")
-	assert.IsType(t, &WebsocketFuturesOrderMargin{}, (<-ex.Websocket.DataHandler.C).Data, "a push without a type should reach its topic's handler")
+	assert.IsType(t, &WebsocketFuturesOrderMargin{}, relayed(t, ex), "a push without a type should reach its topic's handler")
 
 	require.ErrorIs(t, ex.wsHandleData(t.Context(), conn, []byte(`{"type":"message","data":{}}`)), errUnhandledMessageType, "wsHandleData must reject a push without a topic")
 	require.ErrorIs(t, ex.wsHandleData(t.Context(), conn, []byte(`{"id":"1","type":"notice"}`)), errUnhandledMessageType, "wsHandleData must reject an unknown message type")
@@ -1129,7 +1147,7 @@ func TestProcessPayload(t *testing.T) {
 	t.Parallel()
 	ex := wsTestInstance(t)
 	require.NoError(t, processPayload[WebsocketFuturesLeverage](t.Context(), ex, []byte(`{"leverage":"5"}`)), "processPayload must not error")
-	assert.Equal(t, &WebsocketFuturesLeverage{Leverage: 5}, (<-ex.Websocket.DataHandler.C).Data, "processPayload should relay the decoded push")
+	assert.Equal(t, &WebsocketFuturesLeverage{Leverage: 5}, relayed(t, ex), "processPayload should relay the decoded push")
 	require.Error(t, processPayload[WebsocketFuturesLeverage](t.Context(), ex, []byte(`{"leverage":[]}`)), "processPayload must reject an undecodable push")
 }
 
@@ -1164,11 +1182,11 @@ func TestProcessMergedTicker(t *testing.T) {
 	ex := wsTestInstance(t)
 	pair := currency.NewBTCUSDT()
 	require.NoError(t, ex.processMergedTicker(t.Context(), pair, asset.Spot, func(p *ticker.Price) { p.Bid, p.Ask = 1, 2 }), "processMergedTicker must not error")
-	relayed, ok := (<-ex.Websocket.DataHandler.C).Data.(*ticker.Price)
+	got, ok := relayed(t, ex).(*ticker.Price)
 	require.True(t, ok, "processMergedTicker must relay a ticker")
 	stored, err := ticker.GetTicker(ex.Name, pair, asset.Spot)
 	require.NoError(t, err, "processMergedTicker must store the ticker")
-	assert.Equal(t, stored, relayed, "processMergedTicker should relay the stored ticker")
+	assert.Equal(t, stored, got, "processMergedTicker should relay the stored ticker")
 
 	require.ErrorIs(t, ex.processMergedTicker(t.Context(), pair, asset.Spot, func(p *ticker.Price) { p.Bid, p.Ask = 2, 2 }), ticker.ErrBidEqualsAsk, "processMergedTicker must not relay a ticker the store rejects")
 	assert.Empty(t, ex.Websocket.DataHandler.C, "processMergedTicker should not relay a rejected ticker")
@@ -1189,7 +1207,17 @@ func TestProcessMergedTicker(t *testing.T) {
 		})
 	}
 	close(start)
-	wg.Wait()
+	merged := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(merged)
+	}()
+	// Generous, as the merges take a fraction of a second, so that merges stuck on each other fail rather than hang
+	select {
+	case <-merged:
+	case <-time.After(time.Minute):
+		require.FailNow(t, "every merge must finish")
+	}
 	stored, err = ticker.GetTicker(ex.Name, futuresPair, asset.Futures)
 	require.NoError(t, err, "GetTicker must not error")
 	assert.Equal(t, float64(mergers*merges), stored.Last, "every concurrent merge should be kept")

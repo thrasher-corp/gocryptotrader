@@ -522,8 +522,8 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.It
 			})
 		}
 	case asset.Margin:
-		// Stamped before the requests, so that a push arriving while they are answered is not refused, and to the
-		// millisecond, as pushes are, so that a push in the listing's millisecond does not read as older
+		// Stamped before the requests, so that a push arriving while they are answered is neither undone nor refused, and
+		// to the millisecond, as pushes are, so that a push in the listing's millisecond does not read as older
 		listedAt := time.Now().Truncate(time.Millisecond)
 		resp, err := e.GetCrossMarginAccountsDetail(ctx, currency.EMPTYCODE, "")
 		if err != nil {
@@ -533,7 +533,7 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.It
 			return nil, common.ErrNoResponse
 		}
 		for i := range resp.Accounts {
-			subAccts[0].Balances.Set(resp.Accounts[i].Currency, marginAssetBalance(&resp.Accounts[i]))
+			subAccts[0].Balances.Set(resp.Accounts[i].Currency, marginAssetBalance(&resp.Accounts[i], listedAt))
 		}
 		isolated, err := e.GetIsolatedMarginAccountDetail(ctx, &IsolatedMarginAccountDetailRequest{QueryType: "ISOLATED"})
 		if err != nil {
@@ -549,12 +549,13 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.It
 				return nil, currency.ErrSymbolStringEmpty
 			}
 			s := accounts.NewSubAccount(asset.Margin, isolated.Assets[i].Symbol)
-			s.Balances.Set(isolated.Assets[i].BaseAsset.Currency, marginAssetBalance(&isolated.Assets[i].BaseAsset))
-			s.Balances.Set(isolated.Assets[i].QuoteAsset.Currency, marginAssetBalance(&isolated.Assets[i].QuoteAsset))
+			s.Balances.Set(isolated.Assets[i].BaseAsset.Currency, marginAssetBalance(&isolated.Assets[i].BaseAsset, listedAt))
+			s.Balances.Set(isolated.Assets[i].QuoteAsset.Currency, marginAssetBalance(&isolated.Assets[i].QuoteAsset, listedAt))
 			snapshot = append(snapshot, s)
 		}
-		// The isolated margin accounts are saved beside the cross margin account, which alone is returned, as callers
-		// such as the backtester's live funding set each currency from one returned sub-account after another
+		// The isolated margin accounts are saved beside the cross margin account, which alone is returned, with any
+		// balance kept from a push, as callers such as the backtester's live funding set each currency from one returned
+		// sub-account after another
 		return subAccts, e.saveMarginSnapshot(ctx, snapshot, listedAt)
 	case asset.Spot:
 		// Stamped before the request, so that a push arriving while it is answered keeps its account's share, and to the
@@ -601,18 +602,21 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.It
 	return subAccts, e.Accounts.Save(ctx, subAccts, true)
 }
 
-// marginAssetBalance returns the balance of a cross or isolated margin account's currency
-func marginAssetBalance(a *MarginAssetDetail) accounts.Balance {
+// marginAssetBalance returns the balance of a cross or isolated margin account's currency as of its listing's time
+func marginAssetBalance(a *MarginAssetDetail, listedAt time.Time) accounts.Balance {
 	return accounts.Balance{
-		Total:    a.Total.Float64(),
-		Hold:     a.Hold.Float64(),
-		Free:     a.Available.Float64(),
-		Borrowed: a.Liability.Float64(),
+		Total:     a.Total.Float64(),
+		Hold:      a.Hold.Float64(),
+		Free:      a.Available.Float64(),
+		Borrowed:  a.Liability.Float64(),
+		UpdatedAt: listedAt,
 	}
 }
 
 // saveMarginSnapshot saves the cross margin account and each isolated margin account REST listed as the margin
-// sub-accounts, and empties the sub-account of an isolated margin symbol the account no longer lists
+// sub-accounts, and empties the sub-account of an isolated margin symbol the account no longer lists. A balance a push
+// saved after the listing's time is kept, set on the listed sub-account it belongs to, and a listing older than one
+// already saved is left unsaved
 func (e *Exchange) saveMarginSnapshot(ctx context.Context, subAccts accounts.SubAccounts, listedAt time.Time) error {
 	creds, err := e.GetCredentials(ctx)
 	if err != nil {
@@ -620,14 +624,30 @@ func (e *Exchange) saveMarginSnapshot(ctx context.Context, subAccts accounts.Sub
 	}
 	e.marginBalanceMu.Lock()
 	defer e.marginBalanceMu.Unlock()
+	// A listing answered after a newer one was saved holds older figures than those saved, liabilities included
+	if listedAt.Before(e.marginAccountsListedAt[*creds]) {
+		return nil
+	}
 	saved, err := e.Accounts.SubAccounts(creds, asset.Margin)
 	if err != nil && !errors.Is(err, accounts.ErrNoSubAccounts) {
 		return err
 	}
 	snapshot := slices.Clone(subAccts)
 	for _, s := range saved {
-		if !slices.ContainsFunc(subAccts, func(listed *accounts.SubAccount) bool { return listed.ID == s.ID }) {
+		i := slices.IndexFunc(snapshot, func(listed *accounts.SubAccount) bool { return listed.ID == s.ID })
+		if i == -1 {
 			snapshot = append(snapshot, accounts.NewSubAccount(asset.Margin, s.ID))
+			i = len(snapshot) - 1
+		}
+		for c, b := range s.Balances {
+			if !b.UpdatedAt.After(listedAt) {
+				continue
+			}
+			// A balance a push saved after the listing's time is kept over the listing's figures, as for spot, as the
+			// listing cannot show whether KuCoin took them before or after the push, though the liability, which a push
+			// carries none of, is the listing's: none for a currency it leaves out
+			b.Borrowed = snapshot[i].Balances[c].Borrowed
+			snapshot[i].Balances.Set(c, b)
 		}
 	}
 	if err := e.Accounts.Save(ctx, snapshot, true); err != nil {
@@ -2011,8 +2031,9 @@ func takeProfitType(oType order.Type, stop string, side order.Side) order.Type {
 	return oType
 }
 
-// futuresFinalPushWait is how long after a futures order ends its final Orders push is waited for, which reports a
-// triggered stop order by the type its stop push or a REST read gave it
+// futuresFinalPushWait is how long after a futures order ends its final pushes are waited for: its final Orders push,
+// which reports a triggered stop order by the type its stop push or a REST read gave it, and its stop pushes, which come
+// on a topic of their own and can arrive after its final Orders push
 const futuresFinalPushWait = time.Minute
 
 // futuresOrderDetail converts a futures order, whose amounts are in lots
@@ -2031,11 +2052,11 @@ func (e *Exchange) futuresOrderDetail(o *FuturesOrderDetailResponse) (order.Deta
 	}
 	oType = takeProfitType(oType, o.Stop, side)
 	switch {
-	case o.IsActive && o.Stop != "":
-		e.futuresStopOrderTypes.Store(o.ID, oType)
 	case !o.IsActive && time.Since(o.EndAt.Time()) > futuresFinalPushWait:
-		// An order that has only just ended keeps its type for its final Orders push, which may still be on its way
 		e.futuresStopOrderTypes.Delete(o.ID)
+	case o.Stop != "":
+		// An order that has only just ended keeps its type for its final Orders push, which may still be on its way
+		e.rememberFuturesStopOrderRead(o.ID, oType, !o.IsActive)
 	}
 	marginType := margin.Isolated
 	if o.MarginMode == "CROSS" {
