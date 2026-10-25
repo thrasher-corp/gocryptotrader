@@ -866,6 +866,8 @@ func TestModifyOrdersInternal(t *testing.T) {
 func TestPlaceOrdersInternal(t *testing.T) {
 	t.Parallel()
 	limit := OrderRequest{Asset: 0, IsBuy: true, Price: 85000, Size: 0.001, Limit: &LimitOrderType{TimeInForce: TimeInForceIOC}}
+	// A position TP/SL order without a size covers the whole position, as Hyperliquid's app places one
+	wholePosition := OrderRequest{Asset: 0, Price: 73800, ReduceOnly: true, Trigger: &TriggerOrderType{IsMarket: true, TriggerPrice: 82000, TakeProfitStopLoss: TriggerTakeProfit}}
 	for _, overWebsocket := range []bool{false, true} {
 		for _, tc := range []struct {
 			name string
@@ -880,6 +882,9 @@ func TestPlaceOrdersInternal(t *testing.T) {
 			{name: "invalid builder", arg: &PlaceOrdersRequest{Orders: []OrderRequest{limit}, Builder: &BuilderFee{Builder: "invalid"}}, err: errInvalidAddress},
 			{name: "excessive builder fee", arg: &PlaceOrdersRequest{Orders: []OrderRequest{limit}, Builder: &BuilderFee{Builder: testBuilderAddress, Fee: maximumPerpetualBuilderFee + 1}}, err: errBuilderFeeInvalid},
 			{name: "expired action", arg: &PlaceOrdersRequest{Orders: []OrderRequest{limit}, ExpiresAfter: time.Unix(1, 0)}, err: errExpiresAfterPassed},
+			{name: "a whole-position trigger order outside a position grouping", arg: &PlaceOrdersRequest{Orders: []OrderRequest{wholePosition}, Grouping: GroupingNormalTPSL}, err: order.ErrAmountIsInvalid},
+			{name: "a limit order without a size in a position grouping", arg: &PlaceOrdersRequest{Orders: []OrderRequest{{Price: 85000, Limit: &LimitOrderType{TimeInForce: TimeInForceGTC}}}, Grouping: GroupingPositionTPSL}, err: order.ErrAmountIsInvalid},
+			{name: "a negative size in a position grouping", arg: &PlaceOrdersRequest{Orders: []OrderRequest{{Price: 73800, Size: -1, ReduceOnly: true, Trigger: wholePosition.Trigger}}, Grouping: GroupingPositionTPSL}, err: order.ErrAmountIsInvalid},
 		} {
 			t.Run(tc.name+"/websocket="+strconv.FormatBool(overWebsocket), func(t *testing.T) {
 				t.Parallel()
@@ -942,6 +947,24 @@ func TestPlaceOrdersInternal(t *testing.T) {
 				assert.Equal(t, new(unixMilli(expires)), captured.ExpiresAfter, "placeOrders should preserve the expiry")
 			})
 		}
+		t.Run("whole position TP SL/websocket="+strconv.FormatBool(overWebsocket), func(t *testing.T) {
+			t.Parallel()
+			response := statusesResponse("order", `"waitingForTrigger"`)
+			var captured SignedActionRequest
+			ex := newActionServerExchange(t, subAccountCredentials(), &captured, response)
+			connection := &websocketConnectionFixture{exchange: ex, reply: replyToPost(`{"type":"action","payload":` + response + `}`)}
+			ex.websocketPostConnection = connection
+			_, err := ex.placeOrders(t.Context(), &PlaceOrdersRequest{Orders: []OrderRequest{wholePosition}, Grouping: GroupingPositionTPSL}, overWebsocket)
+			require.NoError(t, err, "placeOrders must place a whole-position TP/SL order")
+			if overWebsocket {
+				sent := connection.sentRequests()
+				require.Len(t, sent, 1, "placeOrders must post one websocket action")
+				var post websocketVenueRequest
+				require.NoError(t, json.Unmarshal([]byte(sent[0]), &post), "Unmarshal must decode the websocket post")
+				require.NoError(t, json.Unmarshal(post.Request.Payload, &captured), "Unmarshal must decode the signed action")
+			}
+			assert.JSONEq(t, `{"type":"order","orders":[{"a":0,"b":false,"p":"73800","s":"0","r":true,"t":{"trigger":{"isMarket":true,"triggerPx":"82000","tpsl":"tp"}}}],"grouping":"positionTpsl"}`, capturedAction(t, &captured), "placeOrders should send a whole-position TP/SL order with a zero size")
+		})
 	}
 }
 

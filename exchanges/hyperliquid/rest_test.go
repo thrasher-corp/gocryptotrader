@@ -756,6 +756,14 @@ func TestGetCandleSnapshot(t *testing.T) {
 	_, err = limited.GetCandleSnapshot(t.Context(), &CandleSnapshotRequest{Coin: "BTC", Interval: kline.OneHour, StartTime: recentStart})
 	require.NoError(t, err, "GetCandleSnapshot must weigh a request without an end time by the candles up to now")
 	assert.JSONEq(t, `{"type":"candleSnapshot","req":{"coin":"BTC","interval":"1h","startTime":`+strconv.FormatInt(recentStart.UnixMilli(), 10)+`}}`, string(requestBody), "GetCandleSnapshot should omit a zero end time")
+	// Hyperliquid returns every candle overlapping the range of a market trading throughout it, as BTC does: the 61
+	// overlapping 60 hours from an hour up to now, and the 61 overlapping a range from half past an hour to 59 and a half
+	// hours later, which spans 59 whole hours
+	_, err = limited.GetCandleSnapshot(t.Context(), &CandleSnapshotRequest{Coin: "BTC", Interval: kline.OneHour, StartTime: time.Now().Truncate(time.Hour).Add(-60 * time.Hour)})
+	require.NoError(t, err, "GetCandleSnapshot must weigh the candle opening at the end of a range starting on an interval")
+	hour := time.Now().Truncate(time.Hour).Add(-100 * time.Hour)
+	_, err = limited.GetCandleSnapshot(t.Context(), &CandleSnapshotRequest{Coin: "BTC", Interval: kline.OneHour, StartTime: hour.Add(30 * time.Minute), EndTime: hour.Add(60 * time.Hour)})
+	require.NoError(t, err, "GetCandleSnapshot must weigh the candle holding the start of a range starting within an interval")
 
 	exp := []CandleResponse{
 		{OpenTime: milli(1791252000000), CloseTime: milli(1791255599999), Coin: "BTC", Interval: "1h", Open: 85641, Close: 85513, High: 85739, Low: 85433, Volume: 526.02537, NumberOfTrades: 7830},

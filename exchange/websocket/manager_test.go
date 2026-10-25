@@ -2716,7 +2716,12 @@ func TestConnectRollbackLeavesHandlersUnawaited(t *testing.T) {
 		return nil
 	}
 	m = newLifecycleTestManager(t, feeds, lifecycleTestSetup(&m, wsURL, "failing", func(context.Context, Connection) error {
-		<-handling
+		// Abandoning ends this wait too, so a greeting that never reaches the handler fails the test rather than
+		// holding Connect until go test's timeout
+		select {
+		case <-handling:
+		case <-abandon:
+		}
 		return errDastardlyReason
 	}, func() (subscription.List, error) {
 		return subscription.List{{Channel: "failing"}}, nil
@@ -2729,8 +2734,14 @@ func TestConnectRollbackLeavesHandlersUnawaited(t *testing.T) {
 		assert.ErrorIs(t, err, errDastardlyReason, "Connect should return the required connection's failure")
 	case <-time.After(5 * time.Second):
 		close(abandon)
-		<-connected
-		assert.Fail(t, "Connect should not wait for a reader whose handler waits on the manager's lock")
+		_, returned := lifecycleWithin(t, func() error { return <-connected })
+		require.True(t, returned, "Connect must return once its handler and connector are abandoned")
+		select {
+		case <-handling:
+			assert.Fail(t, "Connect should not wait for a reader whose handler waits on the manager's lock")
+		default:
+			assert.Fail(t, "The feeds connection's reader should hand its greeting to the handler")
+		}
 	}
 	assert.Empty(t, m.snapshotManagedConnections(m.connectionManager[0]), "Connect should close the connections it made")
 }

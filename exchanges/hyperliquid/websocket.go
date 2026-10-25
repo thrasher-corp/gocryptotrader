@@ -48,6 +48,8 @@ const (
 	maximumWebsocketOrders = 10000
 	// websocketOrderLifetime is how long an order whose rows and fills stop arriving is remembered
 	websocketOrderLifetime = 24 * time.Hour
+	// maximumFinishedTrades bounds the trade IDs kept of finished orders' fills, which userEvents and userFills both deliver
+	maximumFinishedTrades = 10000
 
 	wsMethodSubscribe   = "subscribe"
 	wsMethodUnsubscribe = "unsubscribe"
@@ -668,8 +670,10 @@ func (e *Exchange) wsHandleTrades(raw []byte) error {
 		e.consumeEmptyTradeReplay()
 		return nil
 	}
+	coin := updates[0].Coin
 	updates = e.unrelayedTrades(updates)
 	trades := make([]trade.Data, 0, len(updates))
+	relayed := make([]websocketPosition, 0, len(updates))
 	var errs error
 	for i := range updates {
 		mapping, a, err := e.lookupPairMappingByCoin(updates[i].Coin)
@@ -683,7 +687,11 @@ func (e *Exchange) wsHandleTrades(raw []byte) error {
 			continue
 		}
 		trades = append(trades, converted)
+		relayed = append(relayed, tradePosition(&updates[i]))
 	}
+	e.websocketPendingMu.Lock()
+	advanceWatermark(e.websocketWatermarks.trades, coin, relayed)
+	e.websocketPendingMu.Unlock()
 	if len(trades) > 0 {
 		errs = common.AppendError(errs, e.Websocket.Trade.Update(e.IsSaveTradeDataEnabled(), trades...))
 	}
@@ -755,32 +763,57 @@ func (e *Exchange) unrelayedTrades(updates []RecentTradeResponse) []RecentTradeR
 	if e.websocketWatermarks.trades == nil {
 		e.websocketWatermarks.trades = make(map[string]websocketPosition)
 	}
-	return unrelayedEntries(e.websocketWatermarks.trades, coin, updates, replay, func(update *RecentTradeResponse) websocketPosition {
-		return websocketPosition{time: update.Time.Time(), tradeID: update.TradeID}
-	})
+	return unrelayedEntries(e.websocketWatermarks.trades, coin, updates, replay, tradePosition)
 }
 
-// unrelayedEntries returns the entries of a feed's message that were not relayed before and moves the feed's watermark to
-// the newest entry: every entry of a live message, the entries of a replay after the watermark, and none of a replay
-// that arrives before the feed has a watermark, as on its first subscription, since that replay predates it
+// tradePosition returns where a trade sits in its market's feed
+func tradePosition(update *RecentTradeResponse) websocketPosition {
+	return websocketPosition{time: update.Time.Time(), tradeID: update.TradeID}
+}
+
+// unrelayedEntries returns the entries of a feed's message that were not relayed before: every entry of a live message,
+// the entries of a replay after the watermark, and none of a replay that arrives before the feed has a watermark, as on
+// its first subscription, since that replay predates it and so moves the watermark to its newest entry. The entries
+// returned move the watermark only once relayed or skipped, through advanceWatermark, so one that fails to convert is
+// relayed by a later replay, as long as no entry after it is relayed or skipped first
 func unrelayedEntries[K comparable, T any](watermarks map[K]websocketPosition, key K, entries []T, replay bool, position func(*T) websocketPosition) []T {
+	if !replay {
+		return entries
+	}
 	watermark, ok := watermarks[key]
 	newest := watermark
-	unrelayed := entries
-	if replay {
-		unrelayed = make([]T, 0, len(entries))
-	}
+	unrelayed := make([]T, 0, len(entries))
 	for i := range entries {
 		entry := position(&entries[i])
-		if replay && ok && entry.after(watermark) {
+		switch {
+		case !ok:
+			if entry.after(newest) {
+				newest = entry
+			}
+		case entry.after(watermark):
 			unrelayed = append(unrelayed, entries[i])
 		}
+	}
+	if !ok {
+		watermarks[key] = newest
+	}
+	return unrelayed
+}
+
+// advanceWatermark moves a feed's watermark to the newest of the entries relayed or skipped from it. A feed without a
+// watermark is left without one: the replay every subscription starts with sets it, and a message handled once an
+// unsubscribe has cleared it must not restore it, or subscribing the feed again would relay its replay as missed entries
+func advanceWatermark[K comparable](watermarks map[K]websocketPosition, key K, relayed []websocketPosition) {
+	newest, ok := watermarks[key]
+	if !ok || len(relayed) == 0 {
+		return
+	}
+	for _, entry := range relayed {
 		if entry.after(newest) {
 			newest = entry
 		}
 	}
 	watermarks[key] = newest
-	return unrelayed
 }
 
 // clearWebsocketWatermark forgets the watermark of a feed that was unsubscribed, so subscribing it again relays no
@@ -829,8 +862,8 @@ func (e *Exchange) wsHandleOrderUpdates(ctx context.Context, raw []byte) error {
 
 // applyWebsocketOrderRow records an order's row and completes the update relaying it: it adds the cost and average price
 // of the row's executed size when the order's fills sum to it, or reports the order's cumulative execution when fills
-// arrived ahead of the row. A final row forgets the order, unless the order's fills have yet to reach its executed size,
-// as when the row is the first seen of an order that executed something
+// arrived ahead of the row. A final row forgets the order, keeping its fills' trade IDs, unless the order's fills have yet
+// to reach its executed size, as when the row is the first seen of an order that executed something
 func (e *Exchange) applyWebsocketOrderRow(orderID uint64, update *order.Detail, now time.Time) {
 	final := update.Status.IsInactive()
 	e.websocketPendingMu.Lock()
@@ -865,7 +898,7 @@ func (e *Exchange) applyWebsocketOrderRow(orderID uint64, update *order.Detail, 
 		return
 	}
 	if final {
-		orders.remove(record)
+		orders.finish(record)
 	}
 }
 
@@ -903,6 +936,9 @@ func (e *Exchange) applyWebsocketOrderFill(source *FillResponse, mapping *pairMa
 	e.websocketPendingMu.Lock()
 	defer e.websocketPendingMu.Unlock()
 	orders := &e.websocketWatermarks.orders
+	if _, finished := orders.finishedTrades[websocketFinishedTrade{orderID: source.OrderID, tradeID: source.TradeID}]; finished {
+		return order.Detail{}, false
+	}
 	record := orders.touch(source.OrderID, now)
 	if _, relayed := record.tradeIDs[source.TradeID]; relayed {
 		return order.Detail{}, false
@@ -939,7 +975,7 @@ func (e *Exchange) applyWebsocketOrderFill(source *FillResponse, mapping *pairMa
 		if filled.After(final.LastUpdated) {
 			final.LastUpdated = filled
 		}
-		orders.remove(record)
+		orders.finish(record)
 		return final, true
 	}
 	if record.covered && record.originalSize > 0 {
@@ -1012,6 +1048,30 @@ func (o *websocketOrders) touch(orderID uint64, now time.Time) *websocketOrder {
 	return record
 }
 
+// finish forgets a finished order but keeps its fills' trade IDs, dropping the earliest kept once maximumFinishedTrades
+// are kept, so a copy of one of them that another feed delivers after the order's final row is still dropped; a trade ID
+// is kept with its order, as Hyperliquid hashes it from the two orders that traded
+func (o *websocketOrders) finish(record *websocketOrder) {
+	if o.finishedTrades == nil {
+		o.finishedTrades = make(map[websocketFinishedTrade]struct{}, maximumFinishedTrades)
+	}
+	for tradeID := range record.tradeIDs {
+		kept := websocketFinishedTrade{orderID: record.orderID, tradeID: tradeID}
+		if _, ok := o.finishedTrades[kept]; ok {
+			continue
+		}
+		if len(o.finishedTradeOrder) < maximumFinishedTrades {
+			o.finishedTradeOrder = append(o.finishedTradeOrder, kept)
+		} else {
+			delete(o.finishedTrades, o.finishedTradeOrder[o.finishedTradeNext])
+			o.finishedTradeOrder[o.finishedTradeNext] = kept
+			o.finishedTradeNext = (o.finishedTradeNext + 1) % maximumFinishedTrades
+		}
+		o.finishedTrades[kept] = struct{}{}
+	}
+	o.remove(record)
+}
+
 // remove forgets an order's record
 func (o *websocketOrders) remove(record *websocketOrder) {
 	o.unlink(record)
@@ -1042,9 +1102,11 @@ func (e *Exchange) wsHandleUserEvent(ctx context.Context, raw []byte) error {
 	}
 	switch {
 	case len(event.Fills) > 0:
-		return e.relayFills(ctx, event.Fills, nil, true)
+		_, err := e.relayFills(ctx, event.Fills, nil, true)
+		return err
 	case len(event.TWAPSliceFills) > 0:
-		return e.relayFills(ctx, nil, event.TWAPSliceFills, true)
+		_, err := e.relayFills(ctx, nil, event.TWAPSliceFills, true)
+		return err
 	case event.Funding != nil:
 		return e.Websocket.DataHandler.Send(ctx, event.Funding)
 	case event.Liquidation != nil:
@@ -1064,10 +1126,15 @@ func (e *Exchange) wsHandleUserFills(ctx context.Context, raw []byte) error {
 		return err
 	}
 	feed := websocketFillsFeed{channel: wsChannelUserFills, user: strings.ToLower(update.User)}
-	fills := unrelayedFills(e, feed, update.Fills, update.IsSnapshot, func(f *FillResponse) websocketPosition {
-		return websocketPosition{time: f.Time.Time(), tradeID: f.TradeID}
-	})
-	return e.relayFills(ctx, fills, nil, !e.aggregatesUserFills(feed.user))
+	fills := unrelayedFills(e, feed, update.Fills, update.IsSnapshot, fillPosition)
+	relayed, err := e.relayFills(ctx, fills, nil, !e.aggregatesUserFills(feed.user))
+	e.advanceFillsWatermark(feed, relayed)
+	return err
+}
+
+// fillPosition returns where a fill sits in its account fills feed
+func fillPosition(f *FillResponse) websocketPosition {
+	return websocketPosition{time: f.Time.Time(), tradeID: f.TradeID}
 }
 
 // aggregatesUserFills reports whether the userFills feed held for a user, or else one acknowledged after its subscribe
@@ -1099,19 +1166,31 @@ func unrelayedFills[T any](e *Exchange, feed websocketFillsFeed, fills []T, snap
 	return unrelayedEntries(e.websocketWatermarks.fills, feed, fills, snapshot, position)
 }
 
+// advanceFillsWatermark moves an account fills feed's watermark over the fills relayed from it
+func (e *Exchange) advanceFillsWatermark(feed websocketFillsFeed, relayed []websocketPosition) {
+	e.websocketPendingMu.Lock()
+	defer e.websocketPendingMu.Unlock()
+	if e.websocketWatermarks.fills == nil {
+		e.websocketWatermarks.fills = make(map[websocketFillsFeed]websocketPosition)
+	}
+	advanceWatermark(e.websocketWatermarks.fills, feed, relayed)
+}
+
 // relayFills relays fills and TWAP slice fills as trades of their orders to the order stream, when toOrders is set, and
-// to the fills feed, when it is enabled, reporting those whose coin or side cannot convert; outcome fills are skipped, as
-// no supported asset holds them
-func (e *Exchange) relayFills(ctx context.Context, fills []FillResponse, sliceFills []TWAPSliceFillResponse, toOrders bool) error {
+// to the fills feed, when it is enabled, reporting those whose coin or side cannot convert, and returns the positions of
+// the fills it relayed or skipped; outcome fills are skipped, as no supported asset holds them
+func (e *Exchange) relayFills(ctx context.Context, fills []FillResponse, sliceFills []TWAPSliceFillResponse, toOrders bool) ([]websocketPosition, error) {
 	toFillsFeed := e.IsFillsFeedEnabled()
 	if !toOrders && !toFillsFeed {
-		return nil
+		return nil, nil
 	}
 	orders := make([]order.Detail, 0, len(fills)+len(sliceFills))
 	data := make([]fill.Data, 0, len(fills)+len(sliceFills))
+	relayed := make([]websocketPosition, 0, len(fills)+len(sliceFills))
 	now := time.Now()
 	relay := func(source *FillResponse) error {
 		if isOutcomeCoin(source.Coin) {
+			relayed = append(relayed, fillPosition(source))
 			return nil
 		}
 		mapping, a, err := e.lookupPairMappingByCoin(source.Coin)
@@ -1130,6 +1209,7 @@ func (e *Exchange) relayFills(ctx context.Context, fills []FillResponse, sliceFi
 		if toFillsFeed {
 			data = append(data, e.convertFill(source, mapping.pair, a, side))
 		}
+		relayed = append(relayed, fillPosition(source))
 		return nil
 	}
 	var errs error
@@ -1149,7 +1229,7 @@ func (e *Exchange) relayFills(ctx context.Context, fills []FillResponse, sliceFi
 	if len(data) > 0 {
 		errs = common.AppendError(errs, e.Websocket.Fills.Update(data...))
 	}
-	return errs
+	return relayed, errs
 }
 
 // convertFill converts a fill of a market, identified by its trade ID
@@ -1242,9 +1322,11 @@ func (e *Exchange) wsHandleUserTWAPSliceFills(ctx context.Context, raw []byte) e
 	}
 	feed := websocketFillsFeed{channel: wsChannelUserTWAPSliceFills, user: strings.ToLower(update.User)}
 	sliceFills := unrelayedFills(e, feed, update.TWAPSliceFills, update.IsSnapshot, func(f *TWAPSliceFillResponse) websocketPosition {
-		return websocketPosition{time: f.Fill.Time.Time(), tradeID: f.Fill.TradeID}
+		return fillPosition(&f.Fill)
 	})
-	return e.relayFills(ctx, nil, sliceFills, true)
+	relayed, err := e.relayFills(ctx, nil, sliceFills, true)
+	e.advanceFillsWatermark(feed, relayed)
+	return err
 }
 
 // wsHandleUserTWAPHistory relays TWAP status changes, dropping a message without changes

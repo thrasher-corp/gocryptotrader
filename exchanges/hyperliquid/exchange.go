@@ -113,7 +113,7 @@ func (e *Exchange) placeOrders(ctx context.Context, arg *PlaceOrdersRequest, ove
 	}
 	wires := make([]OrderWire, len(arg.Orders))
 	for i := range arg.Orders {
-		wire, err := arg.Orders[i].ToWire()
+		wire, err := arg.Orders[i].toWire(arg.Grouping == GroupingPositionTPSL && arg.Orders[i].Trigger != nil)
 		if err != nil {
 			return nil, fmt.Errorf("order %d: %w", i, err)
 		}
@@ -898,7 +898,13 @@ func (e *Exchange) BidGossipPriority(ctx context.Context, arg *GossipPriorityBid
 
 // ToWire validates an order and formats its numbers for signing
 func (o *OrderRequest) ToWire() (OrderWire, error) {
-	if o.Size <= 0 {
+	return o.toWire(false)
+}
+
+// toWire validates an order and formats its numbers for signing; wholePosition allows the zero size with which a position
+// TP/SL order covers the whole position, as Hyperliquid's app sends one
+func (o *OrderRequest) toWire(wholePosition bool) (OrderWire, error) {
+	if o.Size < 0 || o.Size == 0 && !wholePosition {
 		return OrderWire{}, order.ErrAmountIsInvalid
 	}
 	if o.Price <= 0 {

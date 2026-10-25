@@ -1045,7 +1045,8 @@ func (e *Exchange) ModifyOrder(ctx context.Context, modify *order.Modify) (*orde
 		}
 		identifier = strings.ToLower(modify.ClientOrderID)
 	}
-	existing, err := e.GetOrderInfo(ctx, identifier, modify.Pair, modify.AssetType)
+	// The replacement needs the order's status and sizes, not the cost, price and fee its fills would add
+	existing, err := e.getOrderInfo(ctx, identifier, modify.Pair, modify.AssetType, false)
 	if err != nil {
 		return nil, err
 	}
@@ -1196,8 +1197,18 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, cancel *order.Cancel) (o
 // GetOrderInfo returns one order by order ID or client order ID
 // orderStatus returns only an order's latest status change, and once a trigger order has triggered and filled that
 // change has no trigger price and gives the trigger time as the order's timestamp, so such an order is returned without
-// its trigger price and dated when it triggered; GetOrderHistory recovers both from the order's earlier changes
+// its trigger price and dated when it triggered; GetOrderHistory recovers both from the order's earlier changes. An open
+// position TP/SL order, which Hyperliquid lists without a size, takes the size of the position it closes, as
+// GetActiveOrders sizes it. A finished order that executed something takes its cost, average price and fee from its
+// fills, and a reduce-only one, which Hyperliquid cuts down to its position without a fill, takes its executed size
+// from them too once they are shown to be all of its fills, with its size as that plus its remaining size when it
+// executed something
 func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, a asset.Item) (*order.Detail, error) {
+	return e.getOrderInfo(ctx, orderID, pair, a, true)
+}
+
+// getOrderInfo returns one order as GetOrderInfo does, reading a finished order's fills only when withExecution is set
+func (e *Exchange) getOrderInfo(ctx context.Context, orderID string, pair currency.Pair, a asset.Item, withExecution bool) (*order.Detail, error) {
 	if orderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
@@ -1221,14 +1232,127 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		// open orders
 		return e.findOpenOrder(ctx, statusRequest, pair, a)
 	}
-	converted, err := e.convertOrder(ctx, &response.Order.Order, response.Order.Status, response.Order.StatusTimestamp.Time())
+	mapping, orderAsset, err := e.getPairMappingByCoin(ctx, response.Order.Order.Coin)
+	if err != nil {
+		return nil, err
+	}
+	converted, err := e.convertOrderFromMapping(&response.Order.Order, response.Order.Status, response.Order.StatusTimestamp.Time(), &mapping, orderAsset)
 	if err != nil {
 		return nil, err
 	}
 	if (!pair.IsEmpty() && !converted.Pair.Equal(pair)) || (a != asset.Empty && converted.AssetType != a) {
 		return nil, order.ErrOrderNotFound
 	}
+	if response.Order.Order.IsPositionTPSL && converted.Amount == 0 && converted.Status == order.Open {
+		sized := []order.Detail{converted}
+		if err := e.sizePositionOrders(ctx, address, mapping.dex, sized, map[int]string{0: response.Order.Order.Coin}); err != nil {
+			return nil, err
+		}
+		converted = sized[0]
+	}
+	if withExecution && converted.ExecutedAmount > 0 && converted.IsInactive() {
+		// The order's status stands without its fills, and the engine looks an order up again every 10 seconds while its
+		// lookup fails, so a fills failure is logged rather than returned
+		if err := e.addOrderExecution(ctx, address, &converted, response.Order, mapping.sizeDecimals); err != nil {
+			log.Warnf(log.ExchangeSys, "%s order %s fills: %s", e.Name, converted.OrderID, err)
+		}
+	}
 	return &converted, nil
+}
+
+// addOrderExecution sets a finished order's cost, average price and fee from its fills, which orderStatus does not
+// report, once the account's fills between the order's placement and its final status sum to its executed size. They
+// can fall short, as Hyperliquid keeps an account's 10000 most recent fills, and the fields are then left unset; the
+// fee is left unset too when the fills paid it in different tokens
+// A reduce-only order's executed size, its original size less its remaining size, can also exceed its fills, as
+// Hyperliquid cuts such an order down to the position it closes without a fill. Its fills then set its executed size
+// and status, and its size to that plus its remaining size when it executed something, once they are shown to be all of
+// them: the read passed over no millisecond's fills, and afterwards the fills history still keeps a fill from before
+// the order's placement, so it had dropped none of the order's, as Hyperliquid drops an account's oldest fills first
+func (e *Exchange) addOrderExecution(ctx context.Context, user string, detail *order.Detail, source *HistoricalOrderResponse, sizeDecimals uint64) error {
+	start := detail.Date
+	// Sizes are whole multiples of the market's size step, so sums within half a step of each other are equal
+	tolerance := 0.5 / math.Pow(10, float64(sizeDecimals))
+	seen := make(map[uint64]struct{})
+	var executed, cost, fee float64
+	var feeAsset currency.Code
+	var mixedFees, passedOver bool
+	for {
+		fills, err := e.GetUserFillsByTime(ctx, &UserFillsByTimeRequest{User: user, StartTime: start, EndTime: detail.LastUpdated})
+		if err != nil {
+			return err
+		}
+		for i := range fills {
+			if _, ok := seen[fills[i].TradeID]; ok || fills[i].OrderID != source.Order.OrderID {
+				continue
+			}
+			seen[fills[i].TradeID] = struct{}{}
+			price, size := fills[i].Price.Float64(), fills[i].Size.Float64()
+			executed += size
+			// Converting rounds the product first, so an architecture that fuses the multiply and add sums the same cost
+			cost += float64(price * size)
+			switch {
+			case mixedFees:
+			case feeAsset.IsEmpty() || feeAsset.Equal(fills[i].FeeToken):
+				fee, feeAsset = fee+fills[i].Fee.Float64(), fills[i].FeeToken
+			default:
+				mixedFees = true
+			}
+		}
+		// Fills are positive and counted once each, so fills summing to the order's executed size are all of its fills
+		if len(fills) < maximumUserFillsCount || math.Abs(executed-detail.ExecutedAmount) <= tolerance {
+			break
+		}
+		// A full page continues from its last fill's time, whose fills repeat on the next page and are dropped by trade ID;
+		// a page whose fills all share the cursor's time cannot be read further, so the next page starts a millisecond on,
+		// and the order's fills left unread there leave its sum short
+		next := fills[len(fills)-1].Time.Time()
+		if !next.After(start) {
+			next, passedOver = start.Add(time.Millisecond), true
+		}
+		if next.After(detail.LastUpdated) {
+			break
+		}
+		start = next
+	}
+	if math.Abs(executed-detail.ExecutedAmount) > tolerance {
+		// Only passing over a millisecond's fills ends a read on a full page, so a read that passed over none ended on a page
+		// holding the rest of the range's fills
+		if !detail.ReduceOnly || executed > detail.ExecutedAmount || passedOver {
+			return nil
+		}
+		kept, err := e.keepsFillsBefore(ctx, user, detail.Date)
+		if err != nil || !kept {
+			return err
+		}
+		status, err := parseOrderStatus(source.Status)
+		if err != nil {
+			return err
+		}
+		detail.ExecutedAmount, detail.Status = executed, executionStatus(status, executed, detail.RemainingAmount)
+		if executed == 0 {
+			// The order store keeps a positive executed size it holds when a lookup reports none, so an order that executed
+			// nothing keeps its original size, which the executed size the store may hold for it cannot exceed
+			return nil
+		}
+		// The size Hyperliquid cut was neither executed nor left, so the order's size is its executed and remaining sizes
+		detail.Amount = executed + detail.RemainingAmount
+	}
+	detail.Cost, detail.AverageExecutedPrice = cost, cost/executed
+	if !mixedFees {
+		detail.Fee, detail.FeeAsset = fee, feeAsset
+	}
+	return nil
+}
+
+// keepsFillsBefore reports whether the account's fills history still keeps a fill from before a time
+func (e *Exchange) keepsFillsBefore(ctx context.Context, user string, before time.Time) (bool, error) {
+	// A start at or before the Unix epoch counts as unset
+	fills, err := e.GetUserFillsByTime(ctx, &UserFillsByTimeRequest{User: user, StartTime: time.UnixMilli(1), EndTime: before.Add(-time.Millisecond)})
+	if err != nil {
+		return false, err
+	}
+	return len(fills) > 0, nil
 }
 
 // findOpenOrder returns the open order a status request identifies from the account's open orders of the asset type, or
@@ -1314,8 +1438,9 @@ func (e *Exchange) WithdrawFiatFundsToInternationalBank(context.Context, *withdr
 // newest, for an account with very many, such as one of HLP's child vaults, so a DEX at that count has the rest added
 // from openOrders, which omits their order type, time in force and trigger price. Position TP/SL orders, which
 // Hyperliquid lists without a size, take the size of the position they close, and HIP-4 outcome orders are skipped, as
-// no supported asset type covers them. A DEX whose orders cannot all be read is reported in the error, beside the orders
-// that could be read
+// no supported asset type covers them. A reduce-only order's executed size, its original size less its remaining size,
+// includes any size Hyperliquid cut from the order to fit its position. A DEX whose orders cannot all be read is
+// reported in the error, beside the orders that could be read
 func (e *Exchange) GetActiveOrders(ctx context.Context, filter *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	if err := filter.Validate(); err != nil {
 		return nil, err
@@ -1449,7 +1574,9 @@ func (e *Exchange) convertOpenOrder(ctx context.Context, source *BasicOrderRespo
 // request
 // Hyperliquid returns the account's 2000 most recent status changes, which list an order once per change, so each order
 // is converted once, from its latest status, with the trigger price and placement time of its earlier changes; HIP-4
-// outcome orders are skipped, as no supported asset type covers them
+// outcome orders are skipped, as no supported asset type covers them. A reduce-only order's executed size, its original
+// size less its remaining size, includes any size Hyperliquid cut from the order to fit its position; GetOrderInfo takes
+// a finished one's executed size from its fills once they are shown to be all of them
 func (e *Exchange) GetOrderHistory(ctx context.Context, filter *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	if err := filter.Validate(); err != nil {
 		return nil, err
@@ -2608,7 +2735,9 @@ func (e *Exchange) convertWsOrder(update *WebsocketOrder) (order.Detail, error) 
 	return e.convertBasicOrder(&update.Order, update.Status, update.StatusTimestamp.Time(), mapping.pair, a)
 }
 
-// convertBasicOrder converts the order fields every order source provides; its size is the order's remaining size
+// convertBasicOrder converts the order fields every order source provides; its size is the order's remaining size, so
+// its executed size is its original size less that, which for a reduce-only order includes any size Hyperliquid cut
+// from it to fit its position
 func (e *Exchange) convertBasicOrder(source *BasicOrderResponse, status string, statusTimestamp time.Time, p currency.Pair, a asset.Item) (order.Detail, error) {
 	side, err := parseSide(source.Side)
 	if err != nil {
@@ -2620,21 +2749,7 @@ func (e *Exchange) convertBasicOrder(source *BasicOrderResponse, status string, 
 	}
 	amount := cmp.Or(source.OriginalSize.Float64(), source.Size.Float64())
 	executed := max(0, amount-source.Size.Float64())
-	// Hyperliquid keeps an order's status through partial fills, so its executed size tells a partly filled order apart
-	if executed > 0 {
-		switch orderStatus {
-		case order.Open:
-			orderStatus = order.PartiallyFilled
-		case order.Cancelled:
-			orderStatus = order.PartiallyFilledCancelled
-		case order.Filled:
-			// An order that ends filled with part of its size unexecuted, such as an IOC order or a GTC order whose rest is
-			// under the minimum order value, keeps its cancelled rest as its size
-			if source.Size.Float64() > 0 {
-				orderStatus = order.PartiallyFilledCancelled
-			}
-		}
-	}
+	orderStatus = executionStatus(orderStatus, executed, source.Size.Float64())
 	placed := source.Timestamp.Time().UTC()
 	lastUpdated := statusTimestamp.UTC()
 	if lastUpdated.IsZero() {
@@ -2655,6 +2770,27 @@ func (e *Exchange) convertBasicOrder(source *BasicOrderResponse, status string, 
 		LastUpdated:     lastUpdated,
 		Pair:            p,
 	}, nil
+}
+
+// executionStatus returns an order's status given its executed and remaining sizes: Hyperliquid keeps an order's status
+// through partial fills, so its executed size tells a partly filled order apart
+func executionStatus(status order.Status, executed, remaining float64) order.Status {
+	if executed <= 0 {
+		return status
+	}
+	switch status {
+	case order.Open:
+		return order.PartiallyFilled
+	case order.Cancelled:
+		return order.PartiallyFilledCancelled
+	case order.Filled:
+		// An order that ends filled with part of its size unexecuted, such as an IOC order or a GTC order whose rest is
+		// under the minimum order value, keeps its cancelled rest as its size
+		if remaining > 0 {
+			return order.PartiallyFilledCancelled
+		}
+	}
+	return status
 }
 
 // convertL2Book converts an L2 book snapshot into an orderbook

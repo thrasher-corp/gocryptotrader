@@ -375,7 +375,7 @@ func (e *Exchange) GetCandleSnapshot(ctx context.Context, arg *CandleSnapshotReq
 		weightEnd = time.Now()
 	}
 	var resp []CandleResponse
-	return resp, e.SendHTTPRequest(ctx, candleEndpointLimit(kline.TotalCandlesPerInterval(arg.StartTime, weightEnd, arg.Interval)), &InfoRequest{
+	return resp, e.SendHTTPRequest(ctx, candleEndpointLimit(candleCount(arg.StartTime, weightEnd, arg.Interval)), &InfoRequest{
 		Type: "candleSnapshot",
 		Request: &CandleSnapshotWire{
 			Coin:      arg.Coin,

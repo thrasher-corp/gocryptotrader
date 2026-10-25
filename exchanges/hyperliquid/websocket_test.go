@@ -1472,6 +1472,9 @@ func TestWebsocketHandleTrades(t *testing.T) {
 		{TID: "3", Exchange: ex.Name, CurrencyPair: perpetualPair, AssetType: asset.PerpetualContract, Side: order.Sell, Price: 85830, Amount: 0.01, Timestamp: time.UnixMilli(1791278880000).UTC()},
 	}
 	assert.Equal(t, missed, receiveWebsocketData(t, ex), "wsHandleTrades should relay only the replayed trades after the last relayed one")
+	require.NoError(t, ex.wsHandleData(t.Context(), publicConn(t, ex), acknowledgement("BTC")), "wsHandleData must not error for another reconnect's acknowledgement")
+	require.NoError(t, ex.wsHandleData(t.Context(), publicConn(t, ex), []byte(reconnect)), "wsHandleData must not error for a repeated replay")
+	assertNoWebsocketData(t, ex)
 
 	// A market without recent trades replays an empty batch, which must not leave its replay awaited
 	require.NoError(t, ex.wsHandleData(t.Context(), publicConn(t, ex), acknowledgement("@107")), "wsHandleData must not error for the acknowledgement")
@@ -1595,9 +1598,16 @@ func TestUnrelayedEntries(t *testing.T) {
 	assert.Empty(t, unrelayedEntries(watermarks, "BTC", []websocketPosition{late, early}, true, position), "unrelayedEntries should relay none of a replay before the feed has a watermark")
 	assert.Equal(t, late, watermarks["BTC"], "unrelayedEntries should move the watermark to the newest entry")
 	assert.Equal(t, []websocketPosition{later}, unrelayedEntries(watermarks, "BTC", []websocketPosition{early, later, late}, true, position), "unrelayedEntries should relay a replay's entries after the watermark")
-	assert.Equal(t, later, watermarks["BTC"], "unrelayedEntries should move the watermark to the replay's newest entry")
+	assert.Equal(t, late, watermarks["BTC"], "unrelayedEntries should leave the watermark to the entries relayed")
+	advanceWatermark(watermarks, "BTC", []websocketPosition{later})
+	assert.Equal(t, later, watermarks["BTC"], "advanceWatermark should move the watermark to the newest entry relayed")
 	assert.Equal(t, []websocketPosition{early}, unrelayedEntries(watermarks, "BTC", []websocketPosition{early}, false, position), "unrelayedEntries should relay every entry of a live message")
-	assert.Equal(t, later, watermarks["BTC"], "unrelayedEntries should keep a watermark newer than the message")
+	advanceWatermark(watermarks, "BTC", []websocketPosition{early})
+	assert.Equal(t, later, watermarks["BTC"], "advanceWatermark should keep a watermark newer than the entries relayed")
+	advanceWatermark(watermarks, "ETH", nil)
+	assert.NotContains(t, watermarks, "ETH", "advanceWatermark should start no watermark when nothing was relayed")
+	advanceWatermark(watermarks, "ETH", []websocketPosition{later})
+	assert.NotContains(t, watermarks, "ETH", "advanceWatermark should start no watermark, which a feed's first replay sets")
 	assert.Empty(t, unrelayedEntries(watermarks, "ETH", []websocketPosition{later}, true, position), "unrelayedEntries should keep each feed's watermark apart")
 }
 
@@ -1623,6 +1633,71 @@ func TestClearWebsocketWatermark(t *testing.T) {
 	assert.Equal(t, exp, ex.websocketWatermarks, "clearWebsocketWatermark should forget only the unsubscribed feeds' watermarks")
 	ex.clearWebsocketWatermark(&WebsocketSubscription{Type: wsChannelUserTWAPSliceFills, User: testAccountAddress})
 	assert.Empty(t, ex.websocketWatermarks.fills, "clearWebsocketWatermark should forget a TWAP slice fills feed's watermark")
+}
+
+func TestWebsocketResubscribeRelaysNoHistory(t *testing.T) {
+	t.Parallel()
+	// A message handled once a feed's unsubscribe has cleared its watermark, as one converting when the unsubscribe
+	// completes, must not restore the watermark, or subscribing the feed again would relay its replay as missed entries
+	for _, channel := range []string{wsChannelTrades, wsChannelUserFills, wsChannelUserTWAPSliceFills} {
+		t.Run(channel, func(t *testing.T) {
+			t.Parallel()
+			ex := newWebsocketTestExchange(t)
+			account := subscription.List{{Channel: channel, Authenticated: true}}
+			subscribe := func() {
+				t.Helper()
+				if channel == wsChannelTrades {
+					require.NoError(t, ex.wsHandleData(t.Context(), publicConn(t, ex), []byte(`{"channel":"subscriptionResponse","data":{"method":"subscribe","subscription":{"type":"trades","coin":"BTC"}}}`)), "wsHandleData must not error for the acknowledgement")
+					return
+				}
+				require.NoError(t, subscribeWebsocketTest(t, ex, account), "Subscribe must not error")
+			}
+			handle := func(replay bool, tradeIDs ...uint64) {
+				t.Helper()
+				// The entries share a time, so their trade IDs order them
+				entries := make([]string, 0, len(tradeIDs))
+				for _, tradeID := range tradeIDs {
+					fill := websocketOrderFillJSON(tradeID, tradeID, "85000.0", "0.1", websocketOrderPlaced, true)
+					switch channel {
+					case wsChannelTrades:
+						entries = append(entries, `{"coin":"BTC","side":"B","px":"85000.0","sz":"0.1","time":`+strconv.FormatInt(websocketOrderPlaced, 10)+`,"tid":`+strconv.FormatUint(tradeID, 10)+`}`)
+					case wsChannelUserFills:
+						entries = append(entries, fill)
+					default:
+						entries = append(entries, `{"fill":`+fill+`,"twapId":42}`)
+					}
+				}
+				message := `{"channel":"trades","data":[` + strings.Join(entries, ",") + `]}`
+				conn := publicConn(t, ex)
+				switch channel {
+				case wsChannelUserFills:
+					message = `{"channel":"userFills","data":{"isSnapshot":` + strconv.FormatBool(replay) + `,"user":"` + testAccountAddress + `","fills":[` + strings.Join(entries, ",") + `]}}`
+					conn = accountConn(t, ex)
+				case wsChannelUserTWAPSliceFills:
+					message = `{"channel":"userTwapSliceFills","data":{"isSnapshot":` + strconv.FormatBool(replay) + `,"user":"` + testAccountAddress + `","twapSliceFills":[` + strings.Join(entries, ",") + `]}}`
+					conn = accountConn(t, ex)
+				}
+				require.NoError(t, ex.wsHandleData(t.Context(), conn, []byte(message)), "wsHandleData must not error")
+			}
+
+			subscribe()
+			handle(true, 1)
+			assertNoWebsocketData(t, ex)
+			if channel == wsChannelTrades {
+				// As websocketUnsubscribe does once Hyperliquid acknowledges the unsubscribe
+				ex.clearWebsocketWatermark(&WebsocketSubscription{Type: wsChannelTrades, Coin: "BTC"})
+			} else {
+				require.NoError(t, unsubscribeWebsocketTest(t, ex, account), "Unsubscribe must not error")
+			}
+			handle(false, 2)
+			for len(ex.Websocket.DataHandler.C) > 0 {
+				<-ex.Websocket.DataHandler.C
+			}
+			subscribe()
+			handle(true, 1, 2, 3)
+			assertNoWebsocketData(t, ex)
+		})
+	}
 }
 
 func TestWebsocketHandleOrderUpdates(t *testing.T) {
@@ -1808,6 +1883,23 @@ func TestWebsocketOrderEvents(t *testing.T) {
 		return update
 	}
 
+	t.Run("a fill another feed delivers after the filled row", func(t *testing.T) {
+		t.Parallel()
+		// userEvents and userFills both deliver each fill, and the order stream relays each once, its finished order included
+		ex := newWebsocketOrderEventsExchange(t)
+		delivered := websocketOrderFillJSON(1011, 41, "85000.0", "0.02", websocketOrderPlaced+100, true)
+		handleWebsocketFrames(t, ex,
+			websocketOrderUpdatesFrame(websocketOrderRowJSON(1011, "open", "0.02", "0.02", websocketOrderPlaced)),
+			websocketUserFillsFrame(delivered),
+			websocketOrderUpdatesFrame(websocketOrderRowJSON(1011, "filled", "0.0", "0.02", websocketOrderPlaced+100)),
+			[]byte(`{"channel":"userFills","data":{"user":"`+testAccountAddress+`","fills":[`+delivered+`]}}`),
+		)
+		for range 3 {
+			receiveOrderUpdates(t, ex)
+		}
+		assertNoWebsocketData(t, ex)
+	})
+
 	t.Run("placement row, partial fills, then the filled row", func(t *testing.T) {
 		t.Parallel()
 		ex := newWebsocketOrderEventsExchange(t)
@@ -1846,6 +1938,7 @@ func TestWebsocketOrderEvents(t *testing.T) {
 		assert.Equal(t, order.Filled, merged.Status, "the engine should hold the order filled")
 		assert.Len(t, merged.Trades, 2, "the engine should hold each trade of the order")
 		assert.Nil(t, ex.websocketWatermarks.orders.byOrderID[1001], "the filled row should forget the order")
+		assert.Contains(t, ex.websocketWatermarks.orders.finishedTrades, websocketFinishedTrade{orderID: 1001, tradeID: 12}, "the filled row should keep the finished order's trade IDs")
 	})
 
 	t.Run("fill before its placement row", func(t *testing.T) {
@@ -2388,6 +2481,7 @@ func TestApplyWebsocketOrderFill(t *testing.T) {
 	record = orders.touch(2, now)
 	record.placed = placed
 	record.final = &order.Detail{Price: 85000, Amount: 0.02, ExecutedAmount: 0.02, OrderID: "2", Status: order.Filled, Date: placed, LastUpdated: time.UnixMilli(websocketOrderPlaced + 300).UTC()}
+	waiting := *record.final
 	update, ok = ex.applyWebsocketOrderFill(source(2, 21, 85000, 0.01, 250, true), &mapping, asset.PerpetualContract, order.Buy, now)
 	require.True(t, ok, "applyWebsocketOrderFill must relay a new fill")
 	assert.Equal(t, tradeOnly("2", 21, 85000, 0.01, 250, true, placed), update, "applyWebsocketOrderFill should relay a fill alone while the fills have yet to reach a final row's executed size")
@@ -2395,12 +2489,14 @@ func TestApplyWebsocketOrderFill(t *testing.T) {
 	require.True(t, ok, "applyWebsocketOrderFill must relay a new fill")
 	price3, size3, price4, size4 := 85000.0, 0.01, 85010.0, 0.01
 	cost = float64(price3*size3) + float64(price4*size4)
-	completed := *record.final
+	completed := waiting
 	completed.Cost, completed.AverageExecutedPrice, completed.Fee, completed.FeeAsset = cost, cost/(size3+size4), 0.1+-0.05, currency.USDC
 	completed.Trades = []order.TradeHistory{websocketOrderTrade(ex.Name, 22, 85010, 0.01, websocketOrderPlaced+400, false)}
 	completed.LastUpdated = time.UnixMilli(websocketOrderPlaced + 400).UTC()
 	assert.Equal(t, completed, update, "applyWebsocketOrderFill should complete a final row with the cost of the fills that reach its executed size, as last updated by the later of the two")
 	assert.Nil(t, orders.byOrderID[2], "applyWebsocketOrderFill should forget an order once it completes its final row")
+	_, ok = ex.applyWebsocketOrderFill(source(2, 22, 85010, 0.01, 400, false), &mapping, asset.PerpetualContract, order.Buy, now)
+	assert.False(t, ok, "applyWebsocketOrderFill should drop a copy of a finished order's fill that another feed delivers late")
 
 	record = orders.touch(3, now)
 	record.rowSeen, record.covered, record.originalSize, record.limitPrice, record.placed = true, true, 0.03, 85000, placed
@@ -2529,6 +2625,41 @@ func TestWebsocketOrdersTouch(t *testing.T) {
 	assert.NotNil(t, bounded.byOrderID[maximumWebsocketOrders], "touch should keep the record it touched")
 }
 
+func TestWebsocketOrdersFinish(t *testing.T) {
+	t.Parallel()
+	var orders websocketOrders
+	now := time.Now()
+	record := orders.touch(1, now)
+	record.tradeIDs = map[uint64]struct{}{11: {}, 12: {}}
+	orders.finish(record)
+	assert.Empty(t, orders.byOrderID, "finish should forget the order")
+	assert.Equal(t, map[websocketFinishedTrade]struct{}{{orderID: 1, tradeID: 11}: {}, {orderID: 1, tradeID: 12}: {}}, orders.finishedTrades, "finish should keep the order's trade IDs")
+	repeated := orders.touch(1, now)
+	repeated.tradeIDs = map[uint64]struct{}{12: {}}
+	orders.finish(repeated)
+	assert.Len(t, orders.finishedTradeOrder, 2, "finish should keep a trade kept already once")
+	// Hyperliquid hashes a trade ID from the two orders that traded, so another order's fill may share it
+	other := orders.touch(2, now)
+	other.tradeIDs = map[uint64]struct{}{12: {}}
+	orders.finish(other)
+	assert.Contains(t, orders.finishedTrades, websocketFinishedTrade{orderID: 2, tradeID: 12}, "finish should keep another order's trade with the same trade ID apart")
+
+	// Once full, each trade ID kept replaces the oldest
+	for tradeID := uint64(100); len(orders.finishedTradeOrder) < maximumFinishedTrades; tradeID++ {
+		full := orders.touch(tradeID, now)
+		full.tradeIDs = map[uint64]struct{}{tradeID: {}}
+		orders.finish(full)
+	}
+	oldest := orders.finishedTradeOrder[0]
+	overflow := orders.touch(1, now)
+	overflow.tradeIDs = map[uint64]struct{}{99999: {}}
+	orders.finish(overflow)
+	assert.Len(t, orders.finishedTrades, maximumFinishedTrades, "finish should keep at most maximumFinishedTrades trade IDs")
+	assert.NotContains(t, orders.finishedTrades, oldest, "finish should replace the oldest trade kept")
+	assert.Contains(t, orders.finishedTrades, websocketFinishedTrade{orderID: 1, tradeID: 99999}, "finish should keep the newest trade")
+	assert.Equal(t, 1, orders.finishedTradeNext, "finish should move on to the next oldest trade ID")
+}
+
 func TestWebsocketOrdersRemove(t *testing.T) {
 	t.Parallel()
 	var orders websocketOrders
@@ -2606,9 +2737,31 @@ func TestWebsocketHandleUserFills(t *testing.T) {
 	missed := testWebsocketFillData(ex.Name)
 	missed.ID, missed.TradeID, missed.Timestamp = "669583051366497", "669583051366497", time.UnixMilli(1791280950000).UTC()
 	assert.Equal(t, []fill.Data{missed}, receiveWebsocketData(t, ex), "wsHandleUserFills should relay only the snapshot's fills after the last relayed one to the fills feed")
+	require.NoError(t, ex.wsHandleData(t.Context(), accountConn(t, ex), []byte(`{"channel":"userFills","data":{"isSnapshot":true,"user":"0x000000000000000000000000000000000000000a","fills":[`+websocketLaterFillJSON+`,`+websocketFillJSON+`]}}`)), "wsHandleData must not error for a repeated snapshot")
+	assertNoWebsocketData(t, ex)
 
 	require.NoError(t, ex.wsHandleData(t.Context(), accountConn(t, ex), []byte(`{"channel":"userFills","data":{"isSnapshot":true,"user":"0x000000000000000000000000000000000000000b","fills":[`+websocketLaterFillJSON+`]}}`)), "wsHandleData must not error for another account's snapshot")
 	assertNoWebsocketData(t, ex)
+
+	// A fill whose market is not mapped yet fails to convert and leaves the watermark behind it, so the next snapshot
+	// relays it once the market is mapped
+	unmapped := newWebsocketTestExchange(t)
+	ethFill := strings.Replace(websocketLaterFillJSON, `"coin":"BTC"`, `"coin":"ETH"`, 1)
+	require.NoError(t, unmapped.wsHandleData(t.Context(), accountConn(t, unmapped), []byte(`{"channel":"userFills","data":{"isSnapshot":true,"user":"`+testAccountAddress+`","fills":[`+websocketFillJSON+`]}}`)), "wsHandleData must not error for the snapshot")
+	assert.ErrorIs(t, unmapped.wsHandleData(t.Context(), accountConn(t, unmapped), []byte(`{"channel":"userFills","data":{"user":"`+testAccountAddress+`","fills":[`+ethFill+`]}}`)), errPairMappingNotFound, "wsHandleData should report a fill whose market is not mapped")
+	assertNoWebsocketData(t, unmapped)
+	ethPair := currency.NewPair(currency.ETH, currency.USDC)
+	setTestPairs(t, unmapped, asset.PerpetualContract, testPerpetualMapping, testBuilderMapping, pairMapping{pair: ethPair, coin: "ETH", assetID: 1, sizeDecimals: 4})
+	require.NoError(t, unmapped.wsHandleData(t.Context(), accountConn(t, unmapped), []byte(`{"channel":"userFills","data":{"isSnapshot":true,"user":"`+testAccountAddress+`","fills":[`+websocketFillJSON+`,`+ethFill+`]}}`)), "wsHandleData must not error for a reconnect's snapshot")
+	recovered, ok := receiveWebsocketData(t, unmapped).([]order.Detail)
+	require.True(t, ok, "wsHandleUserFills must relay the recovered fill to the order stream")
+	require.Len(t, recovered, 1, "wsHandleUserFills must relay only the fill that failed to convert")
+	assert.Equal(t, ethPair, recovered[0].Pair, "wsHandleUserFills should relay the fill that failed to convert once its market is mapped")
+	recoveredData, ok := receiveWebsocketData(t, unmapped).([]fill.Data)
+	require.True(t, ok, "wsHandleUserFills must relay the recovered fill to the fills feed")
+	require.Len(t, recoveredData, 1, "wsHandleUserFills must relay only the fill that failed to convert to the fills feed")
+	assert.Equal(t, "669583051366497", recoveredData[0].TradeID, "wsHandleUserFills should relay the fill that failed to convert to the fills feed")
+	assertNoWebsocketData(t, unmapped)
 
 	// An aggregated fill carries the trade ID of one of the fills it combines, so it would be counted beside them
 	aggregated := newWebsocketTestExchange(t)
@@ -2732,7 +2885,8 @@ func TestRelayFills(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(websocketSpotFillJSON), &spotFill), "Unmarshal must not error")
 	fills := []FillResponse{{Coin: "ETH", Side: "B"}, {Coin: "#90700", Side: "B", OrderID: 570870444900, TradeID: 1}, testWebsocketFill()}
 	sliceFills := []TWAPSliceFillResponse{{Fill: FillResponse{Coin: "BTC", Side: "X"}, TWAPID: 7}, {Fill: spotFill, TWAPID: 2278664}}
-	err := ex.relayFills(t.Context(), fills, sliceFills, true)
+	relayed, err := ex.relayFills(t.Context(), fills, sliceFills, true)
+	assert.Equal(t, []websocketPosition{fillPosition(&fills[1]), fillPosition(&fills[2]), fillPosition(&sliceFills[1].Fill)}, relayed, "relayFills should return the positions of the fills it relayed or skipped, but not of those that failed")
 	assert.ErrorIs(t, err, errPairMappingNotFound, "relayFills should report a fill of an unknown coin")
 	assert.ErrorIs(t, err, order.ErrSideIsInvalid, "relayFills should report a TWAP slice fill with an invalid side")
 	assert.ErrorContains(t, err, "fill 0", "relayFills should identify the fill that failed")
@@ -2741,24 +2895,30 @@ func TestRelayFills(t *testing.T) {
 	assert.Equal(t, []order.Detail{testWebsocketFillUpdate(ex.Name), testWebsocketSpotFillUpdate(ex.Name)}, receiveWebsocketData(t, ex), "relayFills should relay the fills that convert to the order stream")
 	assert.Equal(t, []fill.Data{testWebsocketFillData(ex.Name), testWebsocketSpotFillData(ex.Name)}, receiveWebsocketData(t, ex), "relayFills should relay the fills that convert to the fills feed")
 
-	require.NoError(t, ex.relayFills(t.Context(), []FillResponse{testWebsocketFill()}, nil, true), "relayFills must not error for a fill relayed before")
+	_, err = ex.relayFills(t.Context(), []FillResponse{testWebsocketFill()}, nil, true)
+	require.NoError(t, err, "relayFills must not error for a fill relayed before")
 	assert.Equal(t, []fill.Data{testWebsocketFillData(ex.Name)}, receiveWebsocketData(t, ex), "relayFills should relay a fill relayed before to the fills feed only, as another feed delivered it to the order stream")
 
 	later := testWebsocketFill()
 	later.TradeID = 669583051366497
-	require.NoError(t, ex.relayFills(t.Context(), []FillResponse{later}, nil, false), "relayFills must not error")
+	_, err = ex.relayFills(t.Context(), []FillResponse{later}, nil, false)
+	require.NoError(t, err, "relayFills must not error")
 	laterData := testWebsocketFillData(ex.Name)
 	laterData.ID, laterData.TradeID = "669583051366497", "669583051366497"
 	assert.Equal(t, []fill.Data{laterData}, receiveWebsocketData(t, ex), "relayFills should relay fills kept from the order stream to the fills feed")
 	assertNoWebsocketData(t, ex)
 
-	assert.NoError(t, ex.relayFills(t.Context(), nil, nil, true), "relayFills should not error without fills")
+	_, err = ex.relayFills(t.Context(), nil, nil, true)
+	assert.NoError(t, err, "relayFills should not error without fills")
 	ex.SetFillsFeedStatus(false)
-	require.NoError(t, ex.relayFills(t.Context(), []FillResponse{later}, nil, true), "relayFills must not error while the fills feed is disabled")
+	_, err = ex.relayFills(t.Context(), []FillResponse{later}, nil, true)
+	require.NoError(t, err, "relayFills must not error while the fills feed is disabled")
 	laterUpdate := testWebsocketFillUpdate(ex.Name)
 	laterUpdate.Trades[0].TID = "669583051366497"
 	assert.Equal(t, []order.Detail{laterUpdate}, receiveWebsocketData(t, ex), "relayFills should relay fills to the order stream while the fills feed is disabled")
-	assert.NoError(t, ex.relayFills(t.Context(), []FillResponse{{Coin: "ETH", Side: "B"}}, nil, false), "relayFills should ignore fills it relays nowhere")
+	relayed, err = ex.relayFills(t.Context(), []FillResponse{{Coin: "ETH", Side: "B"}}, nil, false)
+	assert.NoError(t, err, "relayFills should ignore fills it relays nowhere")
+	assert.Empty(t, relayed, "relayFills should relay nothing when neither the order stream nor the fills feed takes fills")
 	assertNoWebsocketData(t, ex)
 }
 
@@ -2900,6 +3060,8 @@ func TestWebsocketHandleUserTWAPSliceFills(t *testing.T) {
 	missed := testWebsocketSpotFillData(ex.Name)
 	missed.ID, missed.TradeID, missed.Timestamp = "499584618036467", "499584618036467", time.UnixMilli(1791279180013).UTC()
 	assert.Equal(t, []fill.Data{missed}, receiveWebsocketData(t, ex), "wsHandleUserTWAPSliceFills should relay only the snapshot's slice fills after the last relayed one to the fills feed")
+	require.NoError(t, ex.wsHandleData(t.Context(), accountConn(t, ex), []byte(`{"channel":"userTwapSliceFills","data":{"isSnapshot":true,"user":"0x0000000000000000000000000000000000000007","twapSliceFills":[{"fill":`+websocketSpotFillJSON+`,"twapId":2278664},{"fill":`+websocketLaterSpotFillJSON+`,"twapId":2278664}]}}`)), "wsHandleData must not error for a repeated snapshot")
+	assertNoWebsocketData(t, ex)
 }
 
 func TestWebsocketHandleUserTWAPHistory(t *testing.T) {

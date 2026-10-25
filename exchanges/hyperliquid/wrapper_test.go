@@ -8,6 +8,7 @@ import (
 	"math"
 	"math/rand/v2"
 	"net/http"
+	"os"
 	"slices"
 	"strconv"
 	"strings"
@@ -2642,8 +2643,12 @@ func TestModifyOrder(t *testing.T) {
 	_, err = newTradingServerExchange(t, map[string]string{"orderStatus": `{"status":"unknownOid"}`, "frontendOpenOrders": `[]`}, nil).ModifyOrder(t.Context(), &order.Modify{OrderID: "7", Pair: perpetualPair, AssetType: asset.PerpetualContract})
 	assert.ErrorIs(t, err, order.ErrOrderNotFound, "ModifyOrder should report an unknown order")
 	filledOrder := strings.Replace(strings.Replace(openOrderStatus, `"sz":"1"`, `"sz":"0"`, 1), `"status":"open"`, `"status":"filled"`, 1)
-	_, err = newTradingServerExchange(t, map[string]string{"orderStatus": filledOrder}, nil).ModifyOrder(t.Context(), &order.Modify{OrderID: "7", Pair: perpetualPair, AssetType: asset.PerpetualContract})
+	filled, requests := newCountingServerExchange(t, map[string]string{"orderStatus": filledOrder})
+	setTestCredentials(filled, &accounts.Credentials{Key: testAccountAddress, Secret: testPrivateKey})
+	filled.setPairMappings(asset.PerpetualContract, []pairMapping{testPerpetualMapping, testBuilderMapping})
+	_, err = filled.ModifyOrder(t.Context(), &order.Modify{OrderID: "7", Pair: perpetualPair, AssetType: asset.PerpetualContract})
 	assert.ErrorIs(t, err, errOrderNotModifiable, "ModifyOrder should reject a filled order")
+	assert.NotContains(t, requests(), "userFillsByTime:", "ModifyOrder should not read the fills of the order it looks up")
 
 	var action string
 	explicit := newTradingServerExchange(t, map[string]string{"orderStatus": openOrderStatus}, captureAction(t, &action, statusesResponse("order", `{"resting":{"oid":8}}`)))
@@ -3045,6 +3050,10 @@ func TestGetOrderInfo(t *testing.T) {
 	assert.ErrorIs(t, err, order.ErrOrderNotFound, "GetOrderInfo should not return an order of another pair")
 	_, err = ex.GetOrderInfo(t.Context(), "7", currency.EMPTYPAIR, asset.Spot)
 	assert.ErrorIs(t, err, order.ErrOrderNotFound, "GetOrderInfo should not return an order of another asset")
+	spotStatusOrder, err := newTradingServerExchange(t, map[string]string{"orderStatus": strings.Replace(openOrderStatus, `"coin":"BTC"`, `"coin":"@107"`, 1)}, nil).GetOrderInfo(t.Context(), "7", currency.EMPTYPAIR, asset.Empty)
+	require.NoError(t, err, "GetOrderInfo must not error for a spot order")
+	assert.Equal(t, asset.Spot, spotStatusOrder.AssetType, "GetOrderInfo should return a spot order under the spot asset")
+	assert.Equal(t, spotPair, spotStatusOrder.Pair, "GetOrderInfo should return a spot order under its spot pair")
 	for _, response := range []string{`{"status":"unknownOid"}`, `{"status":"order","order":null}`} {
 		_, err = newTradingServerExchange(t, map[string]string{"orderStatus": response, "frontendOpenOrders": `[]`}, nil).GetOrderInfo(t.Context(), "7", currency.EMPTYPAIR, asset.Empty)
 		assert.ErrorIsf(t, err, order.ErrOrderNotFound, "GetOrderInfo should report %s as not found", response)
@@ -3110,6 +3119,37 @@ func TestGetOrderInfo(t *testing.T) {
 	assert.ErrorIs(t, err, errPairMappingNotFound, "GetOrderInfo should report an order without a market")
 	_, err = newUnavailableServerExchange(t).GetOrderInfo(t.Context(), "7", currency.EMPTYPAIR, asset.Empty)
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetOrderInfo should return an order status failure")
+
+	// orderStatus lists a position TP/SL order without a size, as live, so an open one takes the size of the position it
+	// closes, as GetActiveOrders sizes it
+	const positionOrderStatus = `{"status":"order","order":{"order":{"coin":"BTC","side":"B","limitPx":"99000.0","sz":"0.0","origSz":"0.0","oid":14,"timestamp":1791275926947,"triggerCondition":"Price above 90000","isTrigger":true,"triggerPx":"90000.0","isPositionTpsl":true,"reduceOnly":true,"orderType":"Stop Market","tif":null},"status":"open","statusTimestamp":1791275926947}}`
+	const btcShortPosition = `{"assetPositions":[{"type":"oneWay","position":{"coin":"ETH","szi":"3"}},{"type":"oneWay","position":{"coin":"BTC","szi":"-0.25"}}]}`
+	positioned := newTradingServerExchange(t, map[string]string{"orderStatus": positionOrderStatus, "clearinghouseState": btcShortPosition}, nil)
+	positionOrder, err := positioned.GetOrderInfo(t.Context(), "14", perpetualPair, asset.PerpetualContract)
+	require.NoError(t, err, "GetOrderInfo must not error for an open position TP/SL order")
+	positionPlaced := time.UnixMilli(1791275926947).UTC()
+	expPositionOrder := &order.Detail{TimeInForce: order.GoodTillCancel, ReduceOnly: true, Price: 99000, Amount: 0.25, TriggerPrice: 90000, RemainingAmount: 0.25, Exchange: positioned.Name, OrderID: "14", Type: order.StopMarket, Side: order.Buy, Status: order.Open, AssetType: asset.PerpetualContract, Date: positionPlaced, LastUpdated: positionPlaced, Pair: perpetualPair}
+	assert.Equal(t, expPositionOrder, positionOrder, "GetOrderInfo should size an open position TP/SL order from its position")
+	_, err = newTradingServerExchange(t, map[string]string{"orderStatus": positionOrderStatus}, nil).GetOrderInfo(t.Context(), "14", perpetualPair, asset.PerpetualContract)
+	assert.ErrorIs(t, err, request.ErrBadStatus, "GetOrderInfo should return the positions failure of an open position TP/SL order")
+	cancelledPositionOrder, err := newTradingServerExchange(t, map[string]string{"orderStatus": strings.Replace(positionOrderStatus, `"status":"open"`, `"status":"canceled"`, 1)}, nil).GetOrderInfo(t.Context(), "14", perpetualPair, asset.PerpetualContract)
+	require.NoError(t, err, "GetOrderInfo must not read positions for a cancelled position TP/SL order")
+	assert.Zero(t, cancelledPositionOrder.Amount, "GetOrderInfo should leave a cancelled position TP/SL order unsized")
+	sizedPositionOrder, err := newTradingServerExchange(t, map[string]string{"orderStatus": strings.NewReplacer(`"sz":"0.0"`, `"sz":"0.1"`, `"origSz":"0.0"`, `"origSz":"0.1"`).Replace(positionOrderStatus)}, nil).GetOrderInfo(t.Context(), "14", perpetualPair, asset.PerpetualContract)
+	require.NoError(t, err, "GetOrderInfo must not read positions for a position TP/SL order with a size")
+	assert.Equal(t, 0.1, sizedPositionOrder.Amount, "GetOrderInfo should keep the size of a position TP/SL order placed with one")
+	unsizedOrder, err := newTradingServerExchange(t, map[string]string{"orderStatus": strings.Replace(positionOrderStatus, `"isPositionTpsl":true`, `"isPositionTpsl":false`, 1)}, nil).GetOrderInfo(t.Context(), "14", perpetualPair, asset.PerpetualContract)
+	require.NoError(t, err, "GetOrderInfo must not read positions for an order that is not a position TP/SL")
+	assert.Zero(t, unsizedOrder.Amount, "GetOrderInfo should size only position TP/SL orders from their positions")
+	builderPositioned := newInfoServerExchange(t, map[string]string{
+		"orderStatus":            strings.Replace(positionOrderStatus, `"coin":"BTC"`, `"coin":"xyz:XYZ100"`, 1),
+		"clearinghouseState:":    btcShortPosition,
+		"clearinghouseState:xyz": `{"assetPositions":[{"type":"oneWay","position":{"coin":"xyz:XYZ100","szi":"0.5"}}]}`,
+	}, nil)
+	builderPositioned.setPairMappings(asset.PerpetualContract, []pairMapping{testPerpetualMapping, testBuilderMapping})
+	builderPositionOrder, err := builderPositioned.GetOrderInfo(t.Context(), "14", testBuilderPair, asset.PerpetualContract)
+	require.NoError(t, err, "GetOrderInfo must not error for an open position TP/SL order on a builder-deployed DEX")
+	assert.Equal(t, 0.5, builderPositionOrder.Amount, "GetOrderInfo should size a position TP/SL order from its own DEX's position")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -3387,6 +3427,309 @@ func TestGetActiveOrders(t *testing.T) {
 		{TimeInForce: order.PostOnly, Price: 95.5, Amount: 1.5, RemainingAmount: 1.5, Exchange: e.Name, OrderID: "566563303538", Type: order.Limit, Side: order.Sell, Status: order.Open, AssetType: asset.Spot, Date: placed, LastUpdated: placed, Pair: spotPair},
 	}
 	assert.Equal(t, expOrders, spotOrders, "GetActiveOrders should convert the spot orders")
+}
+
+func TestGetOrderInfoExecution(t *testing.T) {
+	t.Parallel()
+	// orderStatus reports no execution price, cost or fee, so a finished order that executed something takes them from the
+	// account's fills between its placement and its final status
+	const placedAt, finishedAt = 1791275926000, 1791275926500
+	status := func(state, remaining string) string {
+		return `{"status":"order","order":{"order":{"coin":"BTC","side":"B","limitPx":"89924.0","sz":"` + remaining + `","origSz":"0.5","oid":21,"timestamp":1791275926000,"orderType":"Market","tif":"FrontendMarket"},"status":"` + state + `","statusTimestamp":1791275926500}}`
+	}
+	fill := func(orderID, tradeID uint64, price, size, fee, feeToken string, at int64) string {
+		return `{"coin":"BTC","px":"` + price + `","sz":"` + size + `","side":"B","time":` + strconv.FormatInt(at, 10) + `,"oid":` + strconv.FormatUint(orderID, 10) + `,"crossed":true,"fee":"` + fee + `","tid":` + strconv.FormatUint(tradeID, 10) + `,"feeToken":"` + feeToken + `"}`
+	}
+	first, second := fill(21, 1, "80000", "0.25", "8", "USDC", placedAt+100), fill(21, 2, "84000", "0.25", "8.5", "USDC", placedAt+400)
+	other := fill(99, 3, "1", "1", "1", "USDC", placedAt+200)
+	// The markets of the orders captured live in testdata/order_execution.json
+	ethPair, fartcoinPair, hypePair := currency.NewPair(currency.ETH, currency.USDC), currency.NewPair(currency.NewCode("FARTCOIN"), currency.USDC), currency.NewPair(currency.HYPE, currency.USDC)
+	capturedMappings := []pairMapping{
+		{pair: ethPair, coin: "ETH", assetID: 1, sizeDecimals: 4, maxLeverage: 25},
+		{pair: fartcoinPair, coin: "FARTCOIN", assetID: 165, sizeDecimals: 1, maxLeverage: 10},
+		{pair: hypePair, coin: "HYPE", assetID: 159, sizeDecimals: 2, maxLeverage: 10},
+	}
+	newExecutionServer := func(t *testing.T, orderStatus string, pages map[uint64]string) (*Exchange, func() []InfoRequest) {
+		t.Helper()
+		var mu sync.Mutex
+		var fillRequests []InfoRequest
+		ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			var body InfoRequest
+			if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&body), "Decoding the info request should not error") {
+				return
+			}
+			response := orderStatus
+			if body.Type == "userFillsByTime" {
+				mu.Lock()
+				fillRequests = append(fillRequests, body)
+				requests := len(fillRequests)
+				mu.Unlock()
+				// Capped, so a pager that stops advancing fails rather than requesting the same page until go test's timeout
+				if requests > 5 {
+					assert.Fail(t, "GetOrderInfo should not request more than five pages of fills")
+					http.Error(w, "too many fills requests", http.StatusBadRequest)
+					return
+				}
+				var ok bool
+				if response, ok = pages[body.StartTime]; !ok {
+					http.Error(w, "unexpected fills request", http.StatusBadRequest)
+					return
+				}
+			} else if body.Type != "orderStatus" {
+				http.Error(w, "unexpected info request "+body.Type, http.StatusBadRequest)
+				return
+			}
+			_, err := w.Write([]byte(response))
+			assert.NoError(t, err, "Writing the response should not error")
+		}))
+		ex.Name = t.Name()
+		setTestCredentials(ex, &accounts.Credentials{Key: testAccountAddress, Secret: testPrivateKey})
+		ex.setPairMappings(asset.PerpetualContract, append([]pairMapping{testPerpetualMapping, testBuilderMapping}, capturedMappings...))
+		ex.setPairMappings(asset.Spot, []pairMapping{testSpotMapping})
+		return ex, func() []InfoRequest {
+			mu.Lock()
+			defer mu.Unlock()
+			return slices.Clone(fillRequests)
+		}
+	}
+
+	ex, fillRequests := newExecutionServer(t, status("filled", "0.0"), map[uint64]string{placedAt: `[` + first + `,` + other + `,` + first + `,` + second + `]`})
+	result, err := ex.GetOrderInfo(t.Context(), "21", perpetualPair, asset.PerpetualContract)
+	require.NoError(t, err, "GetOrderInfo must not error for a filled order")
+	assert.Equal(t, 41000.0, result.Cost, "GetOrderInfo should add up the cost of the order's own fills, once each")
+	assert.Equal(t, 82000.0, result.AverageExecutedPrice, "GetOrderInfo should report the order's average execution price")
+	assert.Equal(t, 16.5, result.Fee, "GetOrderInfo should add up the fees of the order's fills")
+	assert.Equal(t, currency.USDC, result.FeeAsset, "GetOrderInfo should report the fee token of the order's fills")
+	assert.Equal(t, []InfoRequest{{Type: "userFillsByTime", User: testAccountAddress, StartTime: placedAt, EndTime: finishedAt}}, fillRequests(), "GetOrderInfo should read the fills between the order's placement and its final status")
+
+	ex, _ = newExecutionServer(t, status("filled", "0.0"), map[uint64]string{placedAt: `[` + first + `,` + strings.Replace(second, `"feeToken":"USDC"`, `"feeToken":"HYPE"`, 1) + `]`})
+	result, err = ex.GetOrderInfo(t.Context(), "21", perpetualPair, asset.PerpetualContract)
+	require.NoError(t, err, "GetOrderInfo must not error for fills paying fees in different tokens")
+	assert.Equal(t, 82000.0, result.AverageExecutedPrice, "GetOrderInfo should report the average price of fills paying fees in different tokens")
+	assert.Zero(t, result.Fee, "GetOrderInfo should leave the fee unset when the fills paid it in different tokens")
+	assert.True(t, result.FeeAsset.IsEmpty(), "GetOrderInfo should leave the fee token unset when the fills paid fees in different tokens")
+
+	// A page short of the maximum holds every fill left in the range, so an empty page after it must not be read
+	ex, _ = newExecutionServer(t, status("filled", "0.0"), map[uint64]string{placedAt: `[` + first + `]`, placedAt + 100: `[]`})
+	result, err = ex.GetOrderInfo(t.Context(), "21", perpetualPair, asset.PerpetualContract)
+	require.NoError(t, err, "GetOrderInfo must not error when the fills fall short of the executed size")
+	assert.Zero(t, result.Cost, "GetOrderInfo should leave the cost unset when the fills fall short of the executed size")
+	assert.Zero(t, result.AverageExecutedPrice, "GetOrderInfo should leave the average price unset when the fills fall short of the executed size")
+	assert.Zero(t, result.Fee, "GetOrderInfo should leave the fee unset when the fills fall short of the executed size")
+
+	// Sizes are summed in floating point, where 0.10001 and 0.20003 do not add up to exactly 0.30004, and a resting
+	// order's maker fill, at its limit price, earns a rebate
+	limitStatus := func(size, limitPrice string) string {
+		return strings.NewReplacer(`"origSz":"0.5"`, `"origSz":"`+size+`"`, `"limitPx":"89924.0"`, `"limitPx":"`+limitPrice+`"`, `"orderType":"Market","tif":"FrontendMarket"`, `"orderType":"Limit","tif":"Gtc"`).Replace(status("filled", "0.0"))
+	}
+	maker := func(tradeID uint64, price, size string) string {
+		return strings.Replace(fill(21, tradeID, price, size, "-0.05", "USDC", placedAt+400), `"crossed":true`, `"crossed":false`, 1)
+	}
+	ex, _ = newExecutionServer(t, limitStatus("0.30004", "84001.0"), map[uint64]string{placedAt: `[` + fill(21, 4, "80001", "0.10001", "8.000123", "USDC", placedAt+100) + `,` + maker(5, "84001", "0.20003") + `]`})
+	result, err = ex.GetOrderInfo(t.Context(), "21", perpetualPair, asset.PerpetualContract)
+	require.NoError(t, err, "GetOrderInfo must not error for fills whose sizes do not sum exactly")
+	assert.InDelta(t, 24803.62004, result.Cost, 1e-6, "GetOrderInfo should add up the cost of fills whose sizes sum to the executed size within half a size step")
+	assert.InDelta(t, 24803.62004/0.30004, result.AverageExecutedPrice, 1e-6, "GetOrderInfo should divide the fills' cost by their size")
+	assert.InDelta(t, 7.950123, result.Fee, 1e-9, "GetOrderInfo should net a maker rebate against the fees")
+	ex, _ = newExecutionServer(t, limitStatus("0.25", "80000.0"), map[uint64]string{placedAt: `[` + maker(6, "80000", "0.25") + `]`})
+	result, err = ex.GetOrderInfo(t.Context(), "21", perpetualPair, asset.PerpetualContract)
+	require.NoError(t, err, "GetOrderInfo must not error for an order filled as a maker")
+	assert.InDelta(t, -0.05, result.Fee, 1e-9, "GetOrderInfo should report fees that net to a rebate")
+
+	// This market order is not reduce-only, so fills a size step short of its executed size are not all of its fills
+	ex, _ = newExecutionServer(t, status("filled", "0.0"), map[uint64]string{placedAt: `[` + first + `,` + strings.Replace(second, `"sz":"0.25"`, `"sz":"0.24999"`, 1) + `]`})
+	result, err = ex.GetOrderInfo(t.Context(), "21", perpetualPair, asset.PerpetualContract)
+	require.NoError(t, err, "GetOrderInfo must not error for fills a size step short of the executed size")
+	assert.Zero(t, result.Cost, "GetOrderInfo should leave the cost unset when the fills are a size step short of the executed size")
+
+	ex, _ = newExecutionServer(t, status("filled", "0.0"), nil)
+	result, err = ex.GetOrderInfo(t.Context(), "21", perpetualPair, asset.PerpetualContract)
+	require.NoError(t, err, "GetOrderInfo must return the order's status though its fills cannot be read")
+	assert.Equal(t, order.Filled, result.Status, "GetOrderInfo should return the order's status though its fills cannot be read")
+	assert.Zero(t, result.AverageExecutedPrice, "GetOrderInfo should leave the average price unset when the fills cannot be read")
+
+	// A full page continues from its last fill's time, and the fills repeated there are dropped by trade ID
+	page := make([]string, 0, maximumUserFillsCount)
+	for i := range maximumUserFillsCount - 1 {
+		page = append(page, fill(99, uint64(1000+i), "1", "1", "1", "USDC", placedAt+50))
+	}
+	page = append(page, first)
+	stuckAtEnd := make([]string, 0, maximumUserFillsCount)
+	for i := range maximumUserFillsCount - 2 {
+		stuckAtEnd = append(stuckAtEnd, fill(99, uint64(9000+i), "1", "1", "1", "USDC", placedAt))
+	}
+	stuckAtEnd = append(stuckAtEnd, strings.Replace(first, `"time":`+strconv.FormatInt(placedAt+100, 10), `"time":`+strconv.FormatInt(placedAt, 10), 1), strings.Replace(second, `"time":`+strconv.FormatInt(placedAt+400, 10), `"time":`+strconv.FormatInt(placedAt, 10), 1))
+	ex, fillRequests = newExecutionServer(t, status("filled", "0.0"), map[uint64]string{placedAt: `[` + strings.Join(page, ",") + `]`, placedAt + 100: `[` + first + `,` + second + `]`})
+	result, err = ex.GetOrderInfo(t.Context(), "21", perpetualPair, asset.PerpetualContract)
+	require.NoError(t, err, "GetOrderInfo must not error for fills over two pages")
+	assert.Equal(t, 41000.0, result.Cost, "GetOrderInfo should add up the order's fills across pages, once each")
+	assert.Len(t, fillRequests(), 2, "GetOrderInfo should read the next page from the last fill of a full one")
+
+	// A full page holding all of the order's fills is the last read
+	complete := append(append(make([]string, 0, maximumUserFillsCount), page[:maximumUserFillsCount-2]...), first, second)
+	ex, fillRequests = newExecutionServer(t, status("filled", "0.0"), map[uint64]string{placedAt: `[` + strings.Join(complete, ",") + `]`})
+	result, err = ex.GetOrderInfo(t.Context(), "21", perpetualPair, asset.PerpetualContract)
+	require.NoError(t, err, "GetOrderInfo must not error for a full page holding all of the order's fills")
+	assert.Equal(t, 82000.0, result.AverageExecutedPrice, "GetOrderInfo should use a full page holding all of the order's fills")
+	assert.Len(t, fillRequests(), 1, "GetOrderInfo should stop reading once the order's fills sum to its executed size")
+
+	// A full page of fills sharing the cursor's time cannot be read further, so the next page starts a millisecond on
+	stuck := make([]string, 0, maximumUserFillsCount)
+	for i := range maximumUserFillsCount {
+		stuck = append(stuck, fill(99, uint64(5000+i), "1", "1", "1", "USDC", placedAt))
+	}
+	ex, fillRequests = newExecutionServer(t, status("filled", "0.0"), map[uint64]string{placedAt: `[` + strings.Join(stuck, ",") + `]`, placedAt + 1: `[` + first + `,` + second + `]`})
+	result, err = ex.GetOrderInfo(t.Context(), "21", perpetualPair, asset.PerpetualContract)
+	require.NoError(t, err, "GetOrderInfo must not error for a full page of fills sharing one time")
+	assert.Equal(t, 82000.0, result.AverageExecutedPrice, "GetOrderInfo should read the fills after a full page sharing one time")
+	assert.Len(t, fillRequests(), 2, "GetOrderInfo should read on from a millisecond after a full page sharing the cursor's time")
+	// The range ends at the order's final status, so for an order placed and filled in one millisecond, a full page of
+	// that millisecond is the last, whether or not it holds all of the order's fills
+	sameTime := strings.Replace(status("filled", "0.0"), `"statusTimestamp":1791275926500`, `"statusTimestamp":1791275926000`, 1)
+	ex, fillRequests = newExecutionServer(t, sameTime, map[uint64]string{placedAt: `[` + strings.Join(stuckAtEnd, ",") + `]`})
+	result, err = ex.GetOrderInfo(t.Context(), "21", perpetualPair, asset.PerpetualContract)
+	require.NoError(t, err, "GetOrderInfo must not error for a full page of the order's final millisecond")
+	assert.Equal(t, 82000.0, result.AverageExecutedPrice, "GetOrderInfo should use the fills of the order's final millisecond")
+	assert.Len(t, fillRequests(), 1, "GetOrderInfo should not read past the order's final status")
+	shortAtEnd := append(slices.Clone(stuckAtEnd[:maximumUserFillsCount-1]), fill(99, 8999, "1", "1", "1", "USDC", placedAt))
+	ex, fillRequests = newExecutionServer(t, sameTime, map[uint64]string{placedAt: `[` + strings.Join(shortAtEnd, ",") + `]`})
+	result, err = ex.GetOrderInfo(t.Context(), "21", perpetualPair, asset.PerpetualContract)
+	require.NoError(t, err, "GetOrderInfo must not error for a full page of the order's final millisecond short of its fills")
+	assert.Zero(t, result.AverageExecutedPrice, "GetOrderInfo should leave the average price unset when the order's final millisecond holds too few of its fills")
+	assert.Len(t, fillRequests(), 1, "GetOrderInfo should not read past the order's final status when its fills fall short")
+
+	// An order that executed nothing has no average price, which an empty page of fills must not make 0/0
+	ex, _ = newExecutionServer(t, status("canceled", "0.5"), map[uint64]string{placedAt: `[]`})
+	result, err = ex.GetOrderInfo(t.Context(), "21", perpetualPair, asset.PerpetualContract)
+	require.NoError(t, err, "GetOrderInfo must not error for a cancelled order that executed nothing")
+	assert.Equal(t, order.Cancelled, result.Status, "GetOrderInfo should report an unexecuted order cancelled")
+	assert.Zero(t, result.AverageExecutedPrice, "GetOrderInfo should leave an unexecuted order's average price unset")
+
+	ex, _ = newExecutionServer(t, status("canceled", "0.25"), map[uint64]string{placedAt: `[` + first + `]`})
+	result, err = ex.GetOrderInfo(t.Context(), "21", perpetualPair, asset.PerpetualContract)
+	require.NoError(t, err, "GetOrderInfo must not error for a partly filled cancelled order")
+	assert.Equal(t, order.PartiallyFilledCancelled, result.Status, "GetOrderInfo should report the order partly filled and cancelled")
+	assert.Equal(t, 80000.0, result.AverageExecutedPrice, "GetOrderInfo should report the average price of a partly filled cancelled order")
+
+	// Hyperliquid cuts a reduce-only order down to the position it closes without a fill, as it cut order 577148510333
+	// from 30000 to the 20000 it filled, so such an order's fills can fall short of its original size less its remaining
+	// size and still be all of them; one that executed something then takes its executed and remaining sizes as its size
+	reduceOnly := func(state, remaining string) string {
+		return strings.Replace(status(state, remaining), `"orderType":"Market","tif":"FrontendMarket"`, `"reduceOnly":true,"orderType":"Limit","tif":"Gtc"`, 1)
+	}
+	read := func(start, end uint64) InfoRequest {
+		return InfoRequest{Type: "userFillsByTime", User: testAccountAddress, StartTime: start, EndTime: end}
+	}
+	earlier, kept := read(1, placedAt-1), `[`+fill(99, 7, "80100", "0.01", "0.36045", "USDC", placedAt-1000)+`]`
+	third := fill(21, 8, "86000", "0.25", "9", "USDC", placedAt+450)
+	reduceOnlySameTime := strings.Replace(reduceOnly("filled", "0.0"), `"statusTimestamp":1791275926500`, `"statusTimestamp":1791275926000`, 1)
+	firstAtPlacement := strings.Replace(first, `"time":`+strconv.FormatInt(placedAt+100, 10), `"time":`+strconv.FormatInt(placedAt, 10), 1)
+	for _, tc := range []struct {
+		name, orderStatus                                    string
+		pages                                                map[uint64]string
+		amount, executed, remaining, cost, averagePrice, fee float64
+		feeAsset                                             currency.Code
+		status                                               order.Status
+		requests                                             []InfoRequest
+	}{
+		{name: "filled", orderStatus: reduceOnly("filled", "0.0"), pages: map[uint64]string{placedAt: `[` + first + `,` + other + `]`, 1: kept}, amount: 0.25, executed: 0.25, cost: 20000, averagePrice: 80000, fee: 8, feeAsset: currency.USDC, status: order.Filled, requests: []InfoRequest{read(placedAt, finishedAt), earlier}},
+		{name: "filled to a size step", orderStatus: reduceOnly("filled", "0.0"), pages: map[uint64]string{placedAt: `[` + fill(21, 9, "80000", "0.12345", "4.444", "USDC", placedAt+100) + `]`, 1: kept}, amount: 0.12345, executed: 0.12345, cost: 9876, averagePrice: 80000, fee: 4.444, feeAsset: currency.USDC, status: order.Filled, requests: []InfoRequest{read(placedAt, finishedAt), earlier}},
+		{name: "filled in its millisecond", orderStatus: reduceOnlySameTime, pages: map[uint64]string{placedAt: `[` + firstAtPlacement + `]`, 1: kept}, amount: 0.25, executed: 0.25, cost: 20000, averagePrice: 80000, fee: 8, feeAsset: currency.USDC, status: order.Filled, requests: []InfoRequest{read(placedAt, placedAt), earlier}},
+		// The order store keeps the executed size it holds when a lookup reports none, so such an order keeps its size
+		{name: "cancelled unfilled", orderStatus: reduceOnly("reduceOnlyCanceled", "0.3"), pages: map[uint64]string{placedAt: `[` + other + `]`, 1: kept}, amount: 0.5, remaining: 0.3, status: order.Cancelled, requests: []InfoRequest{read(placedAt, finishedAt), earlier}},
+		{name: "cancelled partly filled", orderStatus: reduceOnly("canceled", "0.1"), pages: map[uint64]string{placedAt: `[` + first + `]`, 1: kept}, amount: 0.35, executed: 0.25, remaining: 0.1, cost: 20000, averagePrice: 80000, fee: 8, feeAsset: currency.USDC, status: order.PartiallyFilledCancelled, requests: []InfoRequest{read(placedAt, finishedAt), earlier}},
+		{name: "fills over two pages", orderStatus: reduceOnly("filled", "0.0"), pages: map[uint64]string{placedAt: `[` + strings.Join(page, ",") + `]`, placedAt + 100: `[` + first + `]`, 1: kept}, amount: 0.25, executed: 0.25, cost: 20000, averagePrice: 80000, fee: 8, feeAsset: currency.USDC, status: order.Filled, requests: []InfoRequest{read(placedAt, finishedAt), read(placedAt+100, finishedAt), earlier}},
+		// Hyperliquid drops an account's oldest fills first, so without an earlier fill the order's may have been dropped
+		{name: "earlier fills dropped", orderStatus: reduceOnly("filled", "0.0"), pages: map[uint64]string{placedAt: `[` + first + `]`, 1: `[]`}, amount: 0.5, executed: 0.5, status: order.Filled, requests: []InfoRequest{read(placedAt, finishedAt), earlier}},
+		{name: "earlier fills unread", orderStatus: reduceOnly("filled", "0.0"), pages: map[uint64]string{placedAt: `[` + first + `]`}, amount: 0.5, executed: 0.5, status: order.Filled, requests: []InfoRequest{read(placedAt, finishedAt), earlier}},
+		{name: "millisecond passed over", orderStatus: reduceOnly("filled", "0.0"), pages: map[uint64]string{placedAt: `[` + strings.Join(stuck, ",") + `]`, placedAt + 1: `[` + first + `]`, 1: kept}, amount: 0.5, executed: 0.5, status: order.Filled, requests: []InfoRequest{read(placedAt, finishedAt), read(placedAt+1, finishedAt)}},
+		{name: "final millisecond unread", orderStatus: reduceOnlySameTime, pages: map[uint64]string{placedAt: `[` + strings.Join(shortAtEnd, ",") + `]`, 1: kept}, amount: 0.5, executed: 0.5, status: order.Filled, requests: []InfoRequest{read(placedAt, placedAt)}},
+		// Fills beyond the executed size are not the fills of an order cut down without one
+		{name: "fills exceed executed size", orderStatus: reduceOnly("filled", "0.0"), pages: map[uint64]string{placedAt: `[` + first + `,` + second + `,` + third + `]`, 1: kept}, amount: 0.5, executed: 0.5, status: order.Filled, requests: []InfoRequest{read(placedAt, finishedAt)}},
+		{name: "fills match executed size", orderStatus: reduceOnly("filled", "0.0"), pages: map[uint64]string{placedAt: `[` + first + `,` + second + `]`, 1: kept}, amount: 0.5, executed: 0.5, cost: 41000, averagePrice: 82000, fee: 16.5, feeAsset: currency.USDC, status: order.Filled, requests: []InfoRequest{read(placedAt, finishedAt)}},
+		// Hyperliquid cuts only reduce-only orders down without a fill
+		{name: "not reduce-only", orderStatus: status("filled", "0.0"), pages: map[uint64]string{placedAt: `[` + first + `]`, 1: kept}, amount: 0.5, executed: 0.5, status: order.Filled, requests: []InfoRequest{read(placedAt, finishedAt)}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			server, sent := newExecutionServer(t, tc.orderStatus, tc.pages)
+			got, err := server.GetOrderInfo(t.Context(), "21", perpetualPair, asset.PerpetualContract)
+			require.NoError(t, err, "GetOrderInfo must not error for a reduce-only order")
+			assert.Equal(t, tc.amount, got.Amount, "GetOrderInfo should report the order's size")
+			assert.Equal(t, tc.executed, got.ExecutedAmount, "GetOrderInfo should report the order's executed size")
+			assert.Equal(t, tc.remaining, got.RemainingAmount, "GetOrderInfo should keep the order's remaining size")
+			assert.Equal(t, tc.cost, got.Cost, "GetOrderInfo should report the cost of the order's fills")
+			assert.Equal(t, tc.averagePrice, got.AverageExecutedPrice, "GetOrderInfo should report the average price of the order's fills")
+			assert.Equal(t, tc.fee, got.Fee, "GetOrderInfo should report the fees of the order's fills")
+			assert.Equal(t, tc.feeAsset, got.FeeAsset, "GetOrderInfo should report the fee token of the order's fills")
+			assert.Equal(t, tc.status, got.Status, "GetOrderInfo should report the order's status")
+			assert.Equal(t, tc.requests, sent(), "GetOrderInfo should check that earlier fills are kept, after reading the order's, only for a cut reduce-only order")
+
+			// The engine merges the lookup into the order it holds, which can carry the size cut as executed, as a lookup
+			// that could not show its fills complete reports it
+			pages := maps.Clone(tc.pages)
+			delete(pages, 1)
+			unproven, _ := newExecutionServer(t, tc.orderStatus, pages)
+			held, err := unproven.GetOrderInfo(t.Context(), "21", perpetualPair, asset.PerpetualContract)
+			require.NoError(t, err, "GetOrderInfo must not error for a reduce-only order whose earlier fills cannot be read")
+			merged := mergeOrderUpdates(t, *held, *got)
+			assert.InDelta(t, merged.RemainingAmount, merged.Amount-merged.ExecutedAmount, 1e-9, "The merged order's size should be its executed and remaining sizes")
+		})
+	}
+
+	// Live replies: position TP/SL order 585000471462 triggered and filled within one millisecond, and Hyperliquid cut
+	// reduce-only orders 577148510333 and 574372010549 down to their positions; each witness reply keeps the first of its
+	// 2000 fills
+	raw, err := os.ReadFile("testdata/order_execution.json")
+	require.NoError(t, err, "Reading the order execution captures must not error")
+	var captures map[string]struct {
+		OrderStatus, Fills, Witness json.RawMessage
+	}
+	require.NoError(t, json.Unmarshal(raw, &captures), "Decoding the order execution captures must not error")
+	for _, tc := range []struct {
+		orderID                                              string
+		pair                                                 currency.Pair
+		placedAt, finishedAt                                 uint64
+		amount, executed, remaining, cost, averagePrice, fee float64
+		feeAsset                                             currency.Code
+		status                                               order.Status
+		witness                                              bool
+	}{
+		{orderID: "585000471462", pair: ethPair, placedAt: 1792906755936, finishedAt: 1792906755936, amount: 19.7784, executed: 19.7784, cost: 46548.00531, averagePrice: 2353.476788314525, fee: 20.946597, feeAsset: currency.USDC, status: order.Filled},
+		{orderID: "577148510333", pair: fartcoinPair, placedAt: 1792192466897, finishedAt: 1792192552969, amount: 20000, executed: 20000, cost: 3086.4, averagePrice: 0.15432, fee: 1.004687, feeAsset: currency.USDC, status: order.Filled, witness: true},
+		{orderID: "574372010549", pair: hypePair, placedAt: 1791994300968, finishedAt: 1791994306173, amount: 505.62, remaining: 319.27, status: order.Cancelled, witness: true},
+	} {
+		t.Run(tc.orderID, func(t *testing.T) {
+			t.Parallel()
+			capture, ok := captures[tc.orderID]
+			require.True(t, ok, "The captures must hold the order")
+			pages := map[uint64]string{tc.placedAt: string(capture.Fills)}
+			requests := []InfoRequest{read(tc.placedAt, tc.finishedAt)}
+			if tc.witness {
+				pages[1] = string(capture.Witness)
+				requests = append(requests, read(1, tc.placedAt-1))
+			}
+			server, sent := newExecutionServer(t, string(capture.OrderStatus), pages)
+			got, err := server.GetOrderInfo(t.Context(), tc.orderID, tc.pair, asset.PerpetualContract)
+			require.NoError(t, err, "GetOrderInfo must not error for a captured order")
+			assert.Equal(t, tc.amount, got.Amount, "GetOrderInfo should report the order's size")
+			assert.Equal(t, tc.executed, got.ExecutedAmount, "GetOrderInfo should report the order's executed size")
+			assert.Equal(t, tc.remaining, got.RemainingAmount, "GetOrderInfo should report the order's remaining size")
+			assert.InDelta(t, tc.cost, got.Cost, 1e-6, "GetOrderInfo should report the cost of the order's fills")
+			assert.InDelta(t, tc.averagePrice, got.AverageExecutedPrice, 1e-9, "GetOrderInfo should report the average price of the order's fills")
+			assert.InDelta(t, tc.fee, got.Fee, 1e-9, "GetOrderInfo should report the fees of the order's fills")
+			assert.Equal(t, tc.feeAsset, got.FeeAsset, "GetOrderInfo should report the fee token of the order's fills")
+			assert.Equal(t, tc.status, got.Status, "GetOrderInfo should report the order's status")
+			assert.Equal(t, requests, sent(), "GetOrderInfo should read the order's fills, and whether earlier fills are kept only when they fall short")
+		})
+	}
+
+	// An open order is still trading, so its fills are not read
+	ex, fillRequests = newExecutionServer(t, status("open", "0.25"), nil)
+	result, err = ex.GetOrderInfo(t.Context(), "21", perpetualPair, asset.PerpetualContract)
+	require.NoError(t, err, "GetOrderInfo must not read fills for an open order")
+	assert.Zero(t, result.AverageExecutedPrice, "GetOrderInfo should leave an open order's average price unset")
+	assert.Empty(t, fillRequests(), "GetOrderInfo should not read fills for an open order")
 }
 
 func TestGetOrderHistory(t *testing.T) {
@@ -4853,6 +5196,27 @@ func TestParseOrderStatus(t *testing.T) {
 	}
 	_, err := parseOrderStatus("unknown")
 	assert.ErrorIs(t, err, errUnsupportedOrderStatus, "parseOrderStatus should reject an unknown status")
+}
+
+func TestExecutionStatus(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		status              order.Status
+		executed, remaining float64
+		exp                 order.Status
+	}{
+		{status: order.Open, remaining: 0.5, exp: order.Open},
+		{status: order.Open, executed: 0.25, remaining: 0.25, exp: order.PartiallyFilled},
+		{status: order.Cancelled, remaining: 0.5, exp: order.Cancelled},
+		{status: order.Cancelled, executed: 0.25, remaining: 0.25, exp: order.PartiallyFilledCancelled},
+		{status: order.Cancelled, executed: 0.25, exp: order.PartiallyFilledCancelled},
+		{status: order.Filled, executed: 0.5, exp: order.Filled},
+		// A GTC order whose rest is under the minimum order value ends filled with that rest as its size
+		{status: order.Filled, executed: 0.49998, remaining: 0.00002, exp: order.PartiallyFilledCancelled},
+		{status: order.Rejected, executed: 0.25, remaining: 0.25, exp: order.Rejected},
+	} {
+		assert.Equalf(t, tc.exp, executionStatus(tc.status, tc.executed, tc.remaining), "executionStatus should return %s for a %s order with %v executed and %v left", tc.exp, tc.status, tc.executed, tc.remaining)
+	}
 }
 
 func TestParseOrderType(t *testing.T) {

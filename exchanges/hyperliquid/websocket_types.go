@@ -217,6 +217,16 @@ type websocketOrders struct {
 	byOrderID map[uint64]*websocketOrder
 	// oldest and newest end the list of orders from the least to the most recently touched
 	oldest, newest *websocketOrder
+	// finishedTrades holds the trades of forgotten finished orders' fills, which finishedTradeOrder lists from
+	// finishedTradeNext, the oldest, once it is full
+	finishedTrades     map[websocketFinishedTrade]struct{}
+	finishedTradeOrder []websocketFinishedTrade
+	finishedTradeNext  int
+}
+
+// websocketFinishedTrade identifies a fill by its order and trade IDs
+type websocketFinishedTrade struct {
+	orderID, tradeID uint64
 }
 
 // websocketOrder is what an order's orderUpdates rows and fills have shown

@@ -3,6 +3,7 @@ package hyperliquid
 import (
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
@@ -72,6 +73,18 @@ var rateLimits = func() request.RateLimitDefinitions {
 	}
 	return limits
 }()
+
+// candleCount returns the most candles a range can return: those of a grid of the interval's length from the Unix
+// epoch, from the one holding the range's start to the one holding its end, of which Hyperliquid omits any before a
+// market's first candle or after the one holding its latest trade
+func candleCount(start, end time.Time, interval kline.Interval) uint64 {
+	length := interval.Duration()
+	if length <= 0 || end.Before(start) {
+		return 0
+	}
+	first := start.Add(-time.Duration(start.UnixNano() % int64(length)))
+	return uint64(end.Sub(first)/length) + 1 //nolint:gosec // end is not before start, which is not before first
+}
 
 // candleEndpointLimit returns the rate limit of a candle snapshot, which weighs one extra per 60 candles returned
 func candleEndpointLimit(count uint64) request.EndpointLimit {

@@ -27,7 +27,8 @@ const (
 	GroupingNone = "na"
 	// GroupingNormalTPSL places a parent order followed by take-profit and stop-loss children sized to it
 	GroupingNormalTPSL = "normalTpsl"
-	// GroupingPositionTPSL places take-profit and stop-loss orders sized to the open position
+	// GroupingPositionTPSL places take-profit and stop-loss orders for the open position, which cover all of it when their
+	// size is zero
 	GroupingPositionTPSL = "positionTpsl"
 )
 

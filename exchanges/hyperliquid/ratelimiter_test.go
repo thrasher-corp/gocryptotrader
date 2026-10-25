@@ -2,9 +2,11 @@ package hyperliquid
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
@@ -83,5 +85,34 @@ func TestExchangeActionEndpointLimit(t *testing.T) {
 		{batchLength: maximumActionBatchSize + 1, exp: 25},
 	} {
 		assert.Equalf(t, exchangeActionEPLBase+tc.exp, exchangeActionEndpointLimit(tc.batchLength), "exchangeActionEndpointLimit should weigh a batch of %d", tc.batchLength)
+	}
+}
+
+func TestCandleCount(t *testing.T) {
+	t.Parallel()
+	// Counts as Hyperliquid returned them live for BTC, which trades throughout: every candle overlapping the range, on a
+	// grid from the Unix epoch, which puts 1w candles on Thursdays and 3d and 30 day 1M candles on epoch days divisible by
+	// three and 30
+	hour := time.Date(2026, 10, 23, 5, 0, 0, 0, time.UTC)
+	week := time.Date(2026, 10, 22, 0, 0, 0, 0, time.UTC)
+	month := time.Unix(20370*24*60*60, 0).UTC()
+	for _, tc := range []struct {
+		name       string
+		start, end time.Time
+		interval   kline.Interval
+		exp        uint64
+	}{
+		{name: "an aligned range", start: hour, end: hour.Add(40 * time.Minute), interval: kline.OneMin, exp: 41},
+		{name: "a range starting within a candle", start: hour.Add(30 * time.Second), end: hour.Add(40 * time.Minute), interval: kline.OneMin, exp: 41},
+		{name: "a range ending within a candle", start: hour, end: hour.Add(40*time.Minute + 20*time.Second), interval: kline.OneMin, exp: 41},
+		{name: "a range ending a millisecond short", start: hour, end: hour.Add(40*time.Minute - time.Millisecond), interval: kline.OneMin, exp: 40},
+		{name: "weeks from a Thursday", start: week, end: week.Add(8 * 7 * 24 * time.Hour), interval: kline.OneWeek, exp: 9},
+		{name: "weeks from a Monday", start: week.Add(4 * 24 * time.Hour), end: week.Add(8 * 7 * 24 * time.Hour), interval: kline.OneWeek, exp: 9},
+		{name: "30 day months", start: month.Add(24 * time.Hour), end: month.Add(6 * 30 * 24 * time.Hour), interval: kline.OneMonth, exp: 7},
+		{name: "a single instant", start: hour, end: hour, interval: kline.OneHour, exp: 1},
+		{name: "an end before the start", start: hour, end: hour.Add(-3 * time.Hour), interval: kline.OneHour, exp: 0},
+		{name: "no interval", start: hour, end: hour.Add(time.Hour), exp: 0},
+	} {
+		assert.Equalf(t, tc.exp, candleCount(tc.start, tc.end, tc.interval), "candleCount should count the candles of %s", tc.name)
 	}
 }
