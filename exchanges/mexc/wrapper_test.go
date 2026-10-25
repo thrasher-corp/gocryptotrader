@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -23,6 +24,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/types"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 // futuresContractsReply holds the venue's details of a linear and an inverse contract, trimmed to the fields read
@@ -38,10 +41,71 @@ var futuresContractsRoute = futuresRoute{method: http.MethodGet, path: "contract
 
 // futuresFilledOrderReply is a filled isolated market order opening a long position
 const futuresFilledOrderReply = `{"orderId":"739106551624717312","symbol":"BTC_USDT","positionId":1109973831,` +
-	`"price":109777.5,"vol":5,"leverage":2,"side":1,"category":1,"orderType":5,"dealAvgPrice":109777.5,"dealVol":5,` +
-	`"orderMargin":27.444375,"takerFee":0.0329,"makerFee":0,"profit":0,"feeCurrency":"USDT","openType":1,"state":3,` +
-	`"externalOid":"gct-1","errorCode":0,"usedMargin":27.444375,"createTime":1761887134000,"updateTime":1761887135000,` +
-	`"positionMode":1,"version":2}`
+	`"price":109777.5,"priceStr":"109777.500000000000000000","vol":5,"leverage":2,"side":1,"category":1,"orderType":5,` +
+	`"dealAvgPrice":109777.5,"dealAvgPriceStr":"109777.500000000000000000","dealVol":5,"orderMargin":27.444375,` +
+	`"takerFee":0.0329,"makerFee":0,"profit":0,"feeCurrency":"USDT","openType":1,"state":3,"externalOid":"gct-1",` +
+	`"errorCode":0,"usedMargin":27.444375,"createTime":1761887134000,"updateTime":1761887135000,"positionMode":1,` +
+	`"version":2,"showCancelReason":0,"showProfitRateShare":0,"bboTypeNum":0,"totalFee":0.0329,` +
+	`"zeroSaveTotalFeeBinance":0,"zeroTradeTotalFeeBinance":0.0329}`
+
+// futuresFilledOrder returns futuresFilledOrderReply as it decodes
+func futuresFilledOrder() *FuturesOrderResponse {
+	return &FuturesOrderResponse{
+		OrderID:                  "739106551624717312",
+		Symbol:                   "BTC_USDT",
+		PositionID:               "1109973831",
+		Price:                    109777.5,
+		PriceExact:               109777.5,
+		Volume:                   5,
+		Leverage:                 2,
+		Side:                     FuturesSideOpenLong,
+		Category:                 FuturesOrderCategoryLimit,
+		OrderType:                FuturesOrderTypeMarket,
+		DealAveragePrice:         109777.5,
+		DealAveragePriceExact:    109777.5,
+		DealVolume:               5,
+		OrderMargin:              27.444375,
+		UsedMargin:               27.444375,
+		TakerFee:                 0.0329,
+		FeeCurrency:              currency.USDT,
+		OpenType:                 FuturesOpenTypeIsolated,
+		State:                    FuturesOrderStateFilled,
+		ExternalOrderID:          "gct-1",
+		CreateTime:               types.Time(time.UnixMilli(1761887134000)),
+		UpdateTime:               types.Time(time.UnixMilli(1761887135000)),
+		PositionMode:             FuturesPositionModeHedge,
+		Version:                  2,
+		TotalFee:                 0.0329,
+		ZeroTradeTotalFeeBinance: 0.0329,
+	}
+}
+
+// futuresFilledOrderDetail returns futuresFilledOrderReply as an exchange's wrapper maps it
+func futuresFilledOrderDetail(exchangeName string) *order.Detail {
+	return &order.Detail{
+		Leverage:             2,
+		Price:                109777.5,
+		Amount:               5,
+		ContractAmount:       5,
+		AverageExecutedPrice: 109777.5,
+		ExecutedAmount:       5,
+		Cost:                 54.88875,
+		CostAsset:            currency.USDT,
+		Fee:                  0.0329,
+		FeeAsset:             currency.USDT,
+		Exchange:             exchangeName,
+		OrderID:              "739106551624717312",
+		ClientOrderID:        "gct-1",
+		Type:                 order.Market,
+		Side:                 order.Buy,
+		Status:               order.Filled,
+		AssetType:            asset.Futures,
+		Date:                 time.UnixMilli(1761887134000),
+		LastUpdated:          time.UnixMilli(1761887135000),
+		Pair:                 futuresTradablePair,
+		MarginType:           margin.Isolated,
+	}
+}
 
 // futuresOpenPositionReply is an isolated long position
 const futuresOpenPositionReply = `{"positionId":1109973831,"symbol":"BTC_USDT","positionType":1,"openType":1,"state":1,` +
@@ -57,6 +121,72 @@ func TestGetFuturesContractDetails(t *testing.T) {
 
 	result, err := e.GetFuturesContractDetails(t.Context(), asset.Futures)
 	require.NoError(t, err, "GetFuturesContractDetails must not error")
+	if mockTests {
+		// HOOKED_USDT is closed to API trading, so it is listed but not active
+		exp := []futures.Contract{
+			{
+				Exchange:           "MEXC",
+				Name:               futuresTradablePair,
+				Underlying:         currency.NewBTCUSDT(),
+				Asset:              asset.Futures,
+				StartDate:          time.Unix(1591242684, 0),
+				IsActive:           true,
+				Status:             "enabled",
+				Type:               futures.Perpetual,
+				SettlementType:     futures.Linear,
+				SettlementCurrency: currency.USDT,
+				MarginCurrency:     currency.USDT,
+				Multiplier:         0.0001,
+				MaxLeverage:        500,
+			},
+			{
+				Exchange:           "MEXC",
+				Name:               currency.NewPairWithDelimiter("ETH", "USDT", currency.UnderscoreDelimiter),
+				Underlying:         currency.NewPair(currency.ETH, currency.USDT),
+				Asset:              asset.Futures,
+				StartDate:          time.Unix(1591243107, 0),
+				IsActive:           true,
+				Status:             "enabled",
+				Type:               futures.Perpetual,
+				SettlementType:     futures.Linear,
+				SettlementCurrency: currency.USDT,
+				MarginCurrency:     currency.USDT,
+				Multiplier:         0.01,
+				MaxLeverage:        500,
+			},
+			{
+				Exchange:           "MEXC",
+				Name:               futuresInversePair,
+				Underlying:         currency.NewBTCUSD(),
+				Asset:              asset.Futures,
+				StartDate:          time.Unix(1608718223, 0),
+				IsActive:           true,
+				Status:             "enabled",
+				Type:               futures.Perpetual,
+				SettlementType:     futures.Inverse,
+				SettlementCurrency: currency.BTC,
+				MarginCurrency:     currency.BTC,
+				Multiplier:         100,
+				MaxLeverage:        125,
+			},
+			{
+				Exchange:           "MEXC",
+				Name:               currency.NewPairWithDelimiter("HOOKED", "USDT", currency.UnderscoreDelimiter),
+				Underlying:         currency.NewPair(currency.NewCode("HOOKED"), currency.USDT),
+				Asset:              asset.Futures,
+				StartDate:          time.Unix(1791098820, 0),
+				Status:             "enabled",
+				Type:               futures.Perpetual,
+				SettlementType:     futures.Linear,
+				SettlementCurrency: currency.USDT,
+				MarginCurrency:     currency.USDT,
+				Multiplier:         10,
+				MaxLeverage:        20,
+			},
+		}
+		assert.Equal(t, exp, result, "every recorded contract should be mapped")
+		return
+	}
 	contracts := make(map[string]futures.Contract, len(result))
 	for i := range result {
 		contracts[result[i].Name.String()] = result[i]
@@ -72,11 +202,6 @@ func TestGetFuturesContractDetails(t *testing.T) {
 	require.True(t, ok, "the inverse contract must be listed")
 	assert.Equal(t, futures.Inverse, inverse.SettlementType, "a coin margined contract should be inverse")
 	assert.Equal(t, currency.BTC, inverse.SettlementCurrency, "the inverse contract should settle in its base currency")
-	if mockTests {
-		hooked, ok := contracts["HOOKED_USDT"]
-		require.True(t, ok, "a contract closed to API trading must still be listed")
-		assert.False(t, hooked.IsActive, "a contract closed to API trading should not be active")
-	}
 }
 
 func TestFuturesContractStatus(t *testing.T) {
@@ -103,13 +228,51 @@ func TestGetLatestFundingRates(t *testing.T) {
 	result, err := e.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{Asset: asset.Futures, Pair: futuresTradablePair, IncludePredictedRate: true})
 	require.NoError(t, err, "GetLatestFundingRates must not error")
 	require.Len(t, result, 1, "the contract's rate must be returned")
-	assert.False(t, result[0].LatestRate.Time.IsZero(), "the latest settled rate should carry its time")
-	assert.True(t, result[0].TimeOfNextRate.After(result[0].LatestRate.Time), "the next funding should follow the latest")
-	assert.Equal(t, result[0].TimeOfNextRate, result[0].PredictedUpcomingRate.Time, "the predicted rate should be settled at the next funding")
+	if mockTests {
+		assert.False(t, result[0].TimeChecked.IsZero(), "the rate should record when it was checked")
+		result[0].TimeChecked = time.Time{}
+		// The predicted rate is the current one, settled at the next funding
+		exp := fundingrate.LatestRateResponse{
+			Exchange:              "MEXC",
+			Asset:                 asset.Futures,
+			Pair:                  futuresTradablePair,
+			LatestRate:            fundingrate.Rate{Time: time.Unix(1792828800, 0), Rate: decimal.MustFromFloat(0.000035)},
+			PredictedUpcomingRate: fundingrate.Rate{Time: time.Unix(1792857600, 0), Rate: decimal.MustFromFloat(0.000034)},
+			TimeOfNextRate:        time.Unix(1792857600, 0),
+		}
+		assert.Equal(t, exp, result[0], "the latest and predicted rates should be mapped")
+	} else {
+		assert.False(t, result[0].LatestRate.Time.IsZero(), "the latest settled rate should carry its time")
+		assert.True(t, result[0].TimeOfNextRate.After(result[0].LatestRate.Time), "the next funding should follow the latest")
+		assert.Equal(t, result[0].TimeOfNextRate, result[0].PredictedUpcomingRate.Time, "the predicted rate should be settled at the next funding")
+	}
 
 	result, err = e.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{Asset: asset.Futures})
 	require.NoError(t, err, "GetLatestFundingRates must not error for the enabled pairs")
-	assert.Len(t, result, 2, "every enabled contract's rate should be returned")
+	require.Len(t, result, 2, "every enabled contract's rate must be returned")
+	if mockTests {
+		for i := range result {
+			assert.Falsef(t, result[i].TimeChecked.IsZero(), "rate %d should record when it was checked", i)
+			result[i].TimeChecked = time.Time{}
+		}
+		exp := []fundingrate.LatestRateResponse{
+			{
+				Exchange:       "MEXC",
+				Asset:          asset.Futures,
+				Pair:           futuresTradablePair,
+				LatestRate:     fundingrate.Rate{Time: time.Unix(1792828800, 0), Rate: decimal.MustFromFloat(0.000035)},
+				TimeOfNextRate: time.Unix(1792857600, 0),
+			},
+			{
+				Exchange:       "MEXC",
+				Asset:          asset.Futures,
+				Pair:           futuresInversePair,
+				LatestRate:     fundingrate.Rate{Time: time.Unix(1792828800, 0), Rate: decimal.MustFromFloat(0.000098)},
+				TimeOfNextRate: time.Unix(1792857600, 0),
+			},
+		}
+		assert.Equal(t, exp, result, "every enabled contract's rate should be mapped")
+	}
 }
 
 func TestGetHistoricalFundingRates(t *testing.T) {
@@ -128,16 +291,52 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 
 	result, err := e.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{Asset: asset.Futures, Pair: futuresTradablePair, IncludePredictedRate: true})
 	require.NoError(t, err, "GetHistoricalFundingRates must not error")
-	require.NotEmpty(t, result.FundingRates, "settled rates must be returned")
-	for i := 1; i < len(result.FundingRates); i++ {
-		assert.Truef(t, result.FundingRates[i].Time.After(result.FundingRates[i-1].Time), "rate %d should follow the one before it", i)
+	// The recorded page of settled rates is trimmed to its newest five
+	rate := func(settled int64, value float64) fundingrate.Rate {
+		return fundingrate.Rate{Time: time.Unix(settled, 0), Rate: decimal.MustFromFloat(value)}
 	}
-	assert.Equal(t, result.FundingRates[len(result.FundingRates)-1], result.LatestRate, "the latest rate should be the newest settled")
-	assert.True(t, result.TimeOfNextRate.After(result.LatestRate.Time), "the next funding should follow the latest")
+	recorded := []fundingrate.Rate{
+		rate(1792713600, 0.000052), rate(1792742400, 0.000072), rate(1792771200, 0.0001), rate(1792800000, 0.000039), rate(1792828800, 0.000035),
+	}
+	if mockTests {
+		exp := &fundingrate.HistoricalRates{
+			Exchange:              "MEXC",
+			Asset:                 asset.Futures,
+			Pair:                  futuresTradablePair,
+			StartDate:             time.Unix(1792713600, 0),
+			EndDate:               time.Unix(1792828800, 0),
+			LatestRate:            recorded[4],
+			PredictedUpcomingRate: rate(1792857600, 0.000034),
+			FundingRates:          recorded,
+			TimeOfNextRate:        time.Unix(1792857600, 0),
+		}
+		assert.Equal(t, exp, result, "the settled rates should be mapped oldest first, with the predicted rate")
+	} else {
+		require.NotEmpty(t, result.FundingRates, "settled rates must be returned")
+		for i := 1; i < len(result.FundingRates); i++ {
+			assert.Truef(t, result.FundingRates[i].Time.After(result.FundingRates[i-1].Time), "rate %d should follow the one before it", i)
+		}
+		assert.Equal(t, result.FundingRates[len(result.FundingRates)-1], result.LatestRate, "the latest rate should be the newest settled")
+		assert.True(t, result.TimeOfNextRate.After(result.LatestRate.Time), "the next funding should follow the latest")
+	}
 
 	start = start.Add(-7 * 24 * time.Hour)
 	result, err = e.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{Asset: asset.Futures, Pair: futuresTradablePair, StartDate: start, EndDate: end})
 	require.NoError(t, err, "GetHistoricalFundingRates must not error within a window")
+	if mockTests {
+		// The window ends before the newest recorded rate, and its dates are those of the rates returned
+		exp := &fundingrate.HistoricalRates{
+			Exchange:     "MEXC",
+			Asset:        asset.Futures,
+			Pair:         futuresTradablePair,
+			StartDate:    time.Unix(1792713600, 0),
+			EndDate:      time.Unix(1792800000, 0),
+			LatestRate:   recorded[3],
+			FundingRates: recorded[:4],
+		}
+		assert.Equal(t, exp, result, "the window's rates should be mapped")
+		return
+	}
 	require.NotEmpty(t, result.FundingRates, "the window's rates must be returned")
 	for i := range result.FundingRates {
 		assert.Falsef(t, result.FundingRates[i].Time.Before(start), "rate %d should not precede the window", i)
@@ -186,13 +385,28 @@ func TestGetOpenInterest(t *testing.T) {
 	result, err := e.GetOpenInterest(t.Context(), linear)
 	require.NoError(t, err, "GetOpenInterest must not error for a contract")
 	require.Len(t, result, 1, "the contract's open interest must be returned")
-	assert.True(t, result[0].Key.Pair().Equal(futuresTradablePair), "the contract asked for should be returned")
-	assert.Positive(t, result[0].OpenInterest, "the open interest should be positive")
+	// The open interest is the contracts held times each contract's size, in the base currency of a linear contract
+	// and the quote currency of an inverse one
+	if mockTests {
+		exp := []futures.OpenInterest{{Key: key.NewExchangeAssetPair("MEXC", asset.Futures, futuresTradablePair), OpenInterest: 48989.418000000005}}
+		assert.Equal(t, exp, result, "the contract's open interest should be mapped")
+	} else {
+		assert.True(t, result[0].Key.Pair().Equal(futuresTradablePair), "the contract asked for should be returned")
+		assert.Positive(t, result[0].OpenInterest, "the open interest should be positive")
+	}
 
 	for _, keys := range [][]key.PairAsset{{linear, inverse}, nil} {
 		result, err = e.GetOpenInterest(t.Context(), keys...)
 		require.NoErrorf(t, err, "GetOpenInterest must not error for %d contracts", len(keys))
-		assert.Lenf(t, result, 2, "both contracts' open interest should be returned for %d contracts asked for", len(keys))
+		if !mockTests {
+			assert.Lenf(t, result, 2, "both contracts' open interest should be returned for %d contracts asked for", len(keys))
+			continue
+		}
+		exp := []futures.OpenInterest{
+			{Key: key.NewExchangeAssetPair("MEXC", asset.Futures, futuresTradablePair), OpenInterest: 49021.712400000004},
+			{Key: key.NewExchangeAssetPair("MEXC", asset.Futures, futuresInversePair), OpenInterest: 172493300},
+		}
+		assert.Equalf(t, exp, result, "both contracts' open interest should be mapped for %d contracts asked for", len(keys))
 	}
 }
 
@@ -234,16 +448,12 @@ func TestFuturesHistoryWindows(t *testing.T) {
 	assert.Equal(t, []historyWindow{{}}, futuresHistoryWindows(time.Time{}, time.Time{}), "an unset window should be sent as it is")
 
 	end := start.Add(200 * 24 * time.Hour)
-	windows := futuresHistoryWindows(start, end)
-	require.Len(t, windows, 3, "a 200 day window must be read in three parts")
-	assert.Equal(t, start, windows[0].start, "the first part should start the window")
-	assert.Equal(t, end, windows[2].end, "the last part should end the window")
-	for i := range windows {
-		assert.LessOrEqualf(t, windows[i].end.Sub(windows[i].start), futuresHistoryWindow, "part %d should span at most 90 days", i)
-		if i > 0 {
-			assert.Equalf(t, windows[i-1].end, windows[i].start, "part %d should follow on from the one before", i)
-		}
+	exp := []historyWindow{
+		{start: start, end: start.Add(futuresHistoryWindow)},
+		{start: start.Add(futuresHistoryWindow), end: start.Add(2 * futuresHistoryWindow)},
+		{start: start.Add(2 * futuresHistoryWindow), end: end},
 	}
+	assert.Equal(t, exp, futuresHistoryWindows(start, end), "a 200 day window should be read in parts of at most 90 days, each following on from the one before")
 }
 
 func TestFuturesOrderSide(t *testing.T) {
@@ -395,10 +605,8 @@ func TestFuturesOpenTypeFromMarginType(t *testing.T) {
 
 func TestFuturesBalance(t *testing.T) {
 	t.Parallel()
-	b := futuresBalance(10, 2, 1.5)
-	assert.Equal(t, 10.0, b.Free, "the available balance should be free")
-	assert.Equal(t, 3.5, b.Hold, "frozen funds and position margin should be held")
-	assert.Equal(t, 13.5, b.Total, "the total should be what is free and held")
+	// Frozen funds and position margin are held, and the total is what is free and held
+	assert.Equal(t, accounts.Balance{Total: 13.5, Hold: 3.5, Free: 10}, futuresBalance(10, 2, 1.5), "futuresBalance should count margin as held")
 }
 
 func TestSideFromMarginSide(t *testing.T) {
@@ -465,11 +673,16 @@ func TestUpdateAccountBalancesFutures(t *testing.T) {
 	if !mockTests {
 		return
 	}
-	require.Len(t, subAccounts[0].Balances, 1, "a balance without a currency must be skipped")
 	b := subAccounts[0].Balances[currency.USDT]
-	assert.Equal(t, 10.0, b.Free, "the available balance should be free")
-	assert.Equal(t, 3.5, b.Hold, "frozen funds and position margin should be held")
-	assert.Equal(t, 13.5, b.Total, "the total should be what is free and held")
+	assert.False(t, b.UpdatedAt.IsZero(), "the balance should record when it was updated")
+	b.UpdatedAt = time.Time{}
+	subAccounts[0].Balances[currency.USDT] = b
+	// A balance without a currency is skipped
+	exp := accounts.SubAccounts{{
+		AssetType: asset.Futures,
+		Balances:  accounts.CurrencyBalances{currency.USDT: {Currency: currency.USDT, Total: 13.5, Hold: 3.5, Free: 10}},
+	}}
+	assert.Equal(t, exp, subAccounts, "the futures balances should be mapped")
 }
 
 func TestSubmitOrderFutures(t *testing.T) {
@@ -502,11 +715,24 @@ func TestSubmitOrderFutures(t *testing.T) {
 		}), liveUnavailable)
 		resp, err := submit(ex, order.Submit{Side: order.Buy, Type: order.Limit, Price: 50000, Amount: 1, ClientOrderID: "gct-1"})
 		require.NoError(t, err, "SubmitOrder must not error for futures")
-		assert.Equal(t, order.New, resp.Status, "a placed order should be new")
-		assert.Equal(t, "739113577038255616", resp.OrderID, "the order ID should be returned")
-		assert.Equal(t, margin.Isolated, resp.MarginType, "an order without a margin type should be isolated")
-		assert.Equal(t, 20.0, resp.Leverage, "the account's leverage should be used")
-		assert.Equal(t, int64(1761888808839), resp.Date.UnixMilli(), "the venue's placement time should be used")
+		// An order without a margin type is isolated, at the account's leverage, and stamped with the venue's time
+		exp := &order.SubmitResponse{
+			Exchange:      ex.Name,
+			Type:          order.Limit,
+			Side:          order.Buy,
+			Pair:          futuresTradablePair,
+			AssetType:     asset.Futures,
+			Leverage:      20,
+			Price:         50000,
+			Amount:        1,
+			ClientOrderID: "gct-1",
+			LastUpdated:   time.UnixMilli(1761888808839),
+			Date:          time.UnixMilli(1761888808839),
+			Status:        order.New,
+			OrderID:       "739113577038255616",
+			MarginType:    margin.Isolated,
+		}
+		assert.Equal(t, exp, resp, "the placed order should be returned")
 	})
 
 	t.Run("isolated open without leverage set", func(t *testing.T) {
@@ -557,9 +783,22 @@ func TestSubmitOrderFutures(t *testing.T) {
 			if tc.err != nil {
 				return
 			}
-			assert.Equal(t, tc.exp, resp.MarginType, "the closed position's margin type should be returned")
-			assert.True(t, resp.ReduceOnly, "a closing order should reduce only")
-			assert.Zero(t, resp.Leverage, "a closing order should send no leverage")
+			// A closing order reduces only, and sends no leverage
+			exp := &order.SubmitResponse{
+				Exchange:    ex.Name,
+				Type:        order.Market,
+				Side:        order.Sell,
+				Pair:        futuresTradablePair,
+				AssetType:   asset.Futures,
+				ReduceOnly:  true,
+				Amount:      2,
+				LastUpdated: time.UnixMilli(1761888808840),
+				Date:        time.UnixMilli(1761888808840),
+				Status:      order.New,
+				OrderID:     "739113577038255617",
+				MarginType:  tc.exp,
+			}
+			assert.Equal(t, exp, resp, "the closing order should be returned with the closed position's margin type")
 		})
 	}
 }
@@ -654,9 +893,12 @@ func TestCancelBatchOrdersFutures(t *testing.T) {
 	resp, err := ex.CancelBatchOrders(t.Context(), orders)
 	require.NoError(t, err, "a refused cancellation must be reported in its status, not as an error")
 	assert.EqualValues(t, 2, requests.Load(), "the orders should be cancelled 50 at a time")
-	require.Len(t, resp.Status, len(orders), "every order must carry an outcome")
-	assert.Equal(t, order.Cancelled.String(), resp.Status["1000"], "a cancelled order should be reported cancelled")
-	assert.Equal(t, "order state cannot be cancelled", resp.Status["1050"], "a refused order should carry the venue's reason")
+	// A refused order carries the venue's reason
+	exp := &order.CancelBatchResponse{Status: map[string]string{"1050": "order state cannot be cancelled"}}
+	for _, id := range firstIDs {
+		exp.Status[id] = order.Cancelled.String()
+	}
+	assert.Equal(t, exp, resp, "every order should carry its outcome")
 }
 
 func TestCancelAllOrdersFutures(t *testing.T) {
@@ -674,7 +916,7 @@ func TestCancelAllOrdersFutures(t *testing.T) {
 			ex := testExchangeFor(t, futuresHandler(t, futuresRoute{method: http.MethodPost, path: "private/order/cancel_all", body: tc.body}), liveUnavailable)
 			resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Futures, Pair: tc.pair})
 			require.NoError(t, err, "CancelAllOrders must not error for futures")
-			assert.Empty(t, resp.Status, "the venue names no orders, so none should be reported")
+			assert.Equal(t, order.CancelAllResponse{Status: map[string]string{}}, resp, "the venue names no orders, so none should be reported")
 		})
 	}
 }
@@ -696,25 +938,19 @@ func TestGetOrderInfoFutures(t *testing.T) {
 	}), liveUnavailable)
 	detail, err := ex.GetOrderInfo(t.Context(), "739106551624717312", futuresTradablePair, asset.Futures)
 	require.NoError(t, err, "GetOrderInfo must not error for futures")
-	assert.Equal(t, "739106551624717312", detail.OrderID, "the order ID should be returned")
-	assert.Equal(t, "gct-1", detail.ClientOrderID, "the external order ID should be the client order ID")
-	assert.True(t, detail.Pair.Equal(futuresTradablePair), "the contract should be returned")
-	assert.Equal(t, order.Market, detail.Type, "the order type should be decoded")
-	assert.Equal(t, order.Buy, detail.Side, "an opening long should be a buy")
-	assert.Equal(t, order.Filled, detail.Status, "a filled order should be filled")
-	assert.Equal(t, 5.0, detail.ContractAmount, "the order's contracts should be returned")
-	assert.Equal(t, 5.0, detail.ExecutedAmount, "the filled contracts should be returned")
-	assert.Zero(t, detail.RemainingAmount, "a filled order should have nothing remaining")
-	assert.InDelta(t, 54.88875, detail.Cost, 1e-9, "the cost should be the contracts' value in the settlement currency")
-	assert.Equal(t, currency.USDT, detail.CostAsset, "the cost should be in the settlement currency")
-	assert.Equal(t, 0.0329, detail.Fee, "the fee should be returned")
-	assert.Equal(t, margin.Isolated, detail.MarginType, "the margin type should be decoded")
-	assert.Equal(t, 2.0, detail.Leverage, "the leverage should be decoded")
-	assert.Equal(t, int64(1761887135000), detail.LastUpdated.UnixMilli(), "the update time should be decoded")
-	require.Len(t, detail.Trades, 1, "the order's fill must be returned")
-	assert.Equal(t, "9466823344", detail.Trades[0].TID, "the fill ID should be decoded")
-	assert.False(t, detail.Trades[0].IsMaker, "a taker fill should not be a maker's")
-	assert.Equal(t, "USDT", detail.Trades[0].FeeAsset, "the fill's fee currency should be decoded")
+	// An opening long is a buy, its amounts are in contracts and its cost is their value in the settlement currency
+	exp := futuresFilledOrderDetail(ex.Name)
+	exp.Trades = []order.TradeHistory{{
+		Price:     109777.5,
+		Amount:    5,
+		Fee:       0.0329,
+		Exchange:  ex.Name,
+		TID:       "9466823344",
+		Side:      order.Buy,
+		Timestamp: time.UnixMilli(1761887134000),
+		FeeAsset:  "USDT",
+	}}
+	assert.Equal(t, exp, detail, "the order and its fill should be mapped")
 }
 
 func TestGetActiveOrdersFutures(t *testing.T) {
@@ -733,13 +969,27 @@ func TestGetActiveOrdersFutures(t *testing.T) {
 	if !mockTests {
 		return
 	}
-	require.Len(t, orders, 1, "only the pair asked for must be returned")
-	assert.Equal(t, "750330663772702720", orders[0].OrderID, "the pair's order should be returned")
-	assert.Equal(t, order.New, orders[0].Status, "an unfilled order should be new")
-	assert.Equal(t, order.Limit, orders[0].Type, "the order type should be decoded")
-	assert.Equal(t, order.GoodTillCancel, orders[0].TimeInForce, "a limit order should rest until cancelled")
-	assert.Equal(t, margin.Multi, orders[0].MarginType, "a cross order should be multi")
-	assert.Equal(t, 10.0, orders[0].RemainingAmount, "an unfilled order should have every contract remaining")
+	// Only the pair asked for is returned; an unfilled cross limit order is new, multi margined and rests until
+	// cancelled, with every contract remaining
+	exp := order.FilteredOrders{{
+		TimeInForce:     order.GoodTillCancel,
+		Leverage:        1,
+		Price:           80000,
+		Amount:          10,
+		ContractAmount:  10,
+		RemainingAmount: 10,
+		Exchange:        ex.Name,
+		OrderID:         "750330663772702720",
+		Type:            order.Limit,
+		Side:            order.Buy,
+		Status:          order.New,
+		AssetType:       asset.Futures,
+		Date:            time.UnixMilli(1764563170653),
+		LastUpdated:     time.UnixMilli(1764563170723),
+		Pair:            futuresTradablePair,
+		MarginType:      margin.Multi,
+	}}
+	assert.Equal(t, exp, orders, "the pair's order should be mapped")
 }
 
 // futuresOrderPage returns a page of open orders with consecutive IDs
@@ -905,13 +1155,46 @@ func TestGetOrderHistoryFutures(t *testing.T) {
 		EndTime:   time.UnixMilli(end),
 	})
 	require.NoError(t, err, "GetOrderHistory must not error for futures")
-	require.Len(t, orders, 2, "each order must be returned once")
-	byID := map[string]order.Detail{orders[0].OrderID: orders[0], orders[1].OrderID: orders[1]}
-	assert.Equal(t, order.Filled, byID["739211854408619008"].Status, "a filled order should be filled")
-	assert.Equal(t, order.Sell, byID["739211854408619008"].Side, "an opening short should be a sell")
-	assert.InDelta(t, 10.0, byID["739211854408619008"].Cost, 1e-9, "a filled order should carry its cost")
-	assert.Equal(t, order.Cancelled, byID["739211257974395392"].Status, "an unfilled cancelled order should be cancelled")
-	assert.True(t, byID["739211257974395392"].ReduceOnly, "a closing order should reduce only")
+	// An opening short is a sell, and a closing order reduces only
+	exp := order.FilteredOrders{
+		{
+			Amount:               1,
+			ContractAmount:       1,
+			AverageExecutedPrice: 100000,
+			ExecutedAmount:       1,
+			Cost:                 10,
+			CostAsset:            currency.USDT,
+			Exchange:             ex.Name,
+			OrderID:              "739211854408619008",
+			Type:                 order.Market,
+			Side:                 order.Sell,
+			Status:               order.Filled,
+			AssetType:            asset.Futures,
+			Date:                 time.UnixMilli(1757776000000),
+			LastUpdated:          time.UnixMilli(1757776000000),
+			Pair:                 futuresTradablePair,
+			MarginType:           margin.Isolated,
+		},
+		{
+			TimeInForce:     order.GoodTillCancel,
+			ReduceOnly:      true,
+			Price:           90000,
+			Amount:          1,
+			ContractAmount:  1,
+			RemainingAmount: 1,
+			Exchange:        ex.Name,
+			OrderID:         "739211257974395392",
+			Type:            order.Limit,
+			Side:            order.Buy,
+			Status:          order.Cancelled,
+			AssetType:       asset.Futures,
+			Date:            time.UnixMilli(1758000000000),
+			LastUpdated:     time.UnixMilli(1758000001000),
+			Pair:            futuresTradablePair,
+			MarginType:      margin.Isolated,
+		},
+	}
+	assert.Equal(t, exp, orders, "each order should be mapped once")
 }
 
 func TestSetLeverage(t *testing.T) {
@@ -1015,15 +1298,26 @@ func TestGetFuturesPositionSummary(t *testing.T) {
 	}), liveUnavailable)
 	summary, err := ex.GetFuturesPositionSummary(t.Context(), &futures.PositionSummaryRequest{Asset: asset.Futures, Pair: futuresTradablePair})
 	require.NoError(t, err, "GetFuturesPositionSummary must not error")
-	assert.Equal(t, 5.0, summary.CurrentSize.InexactFloat64(), "a long position's size should be positive")
-	assert.InDelta(t, 54.88875, summary.NotionalSize.InexactFloat64(), 1e-9, "the notional size should be the position's value")
-	assert.Equal(t, 2.0, summary.Leverage.InexactFloat64(), "the leverage should be returned")
-	assert.Equal(t, margin.Isolated, summary.MarginType, "the margin type should be returned")
-	assert.Equal(t, 27.5, summary.IsolatedMargin.InexactFloat64(), "an isolated position should report its margin")
-	assert.Equal(t, currency.USDT, summary.Currency, "the settlement currency should be returned")
-	assert.Equal(t, futures.Linear, summary.ContractSettlementType, "the contract should be linear")
-	assert.Equal(t, -0.0039, summary.UnrealisedPNL.InexactFloat64(), "the unrealised PNL should be returned")
-	assert.Equal(t, 55020.5, summary.EstimatedLiquidationPrice.InexactFloat64(), "the liquidation price should be returned")
+	// A long position's size is positive, its notional size is its value, and an isolated position reports its margin
+	exp := &futures.PositionSummary{
+		Pair:                      futuresTradablePair,
+		Asset:                     asset.Futures,
+		MarginType:                margin.Isolated,
+		Currency:                  currency.USDT,
+		IsolatedMargin:            decimal.MustFromFloat(27.5),
+		NotionalSize:              decimal.MustFromFloat(54.88875),
+		Leverage:                  decimal.NewFromInt(2),
+		EstimatedLiquidationPrice: decimal.MustFromFloat(55020.5),
+		CollateralUsed:            decimal.MustFromFloat(27.5),
+		CurrentSize:               decimal.MustFromFloat(5),
+		ContractSize:              decimal.MustFromFloat(0.0001),
+		ContractMultiplier:        decimal.MustFromFloat(0.0001),
+		ContractSettlementType:    futures.Linear,
+		AverageOpenPrice:          decimal.MustFromFloat(109777.5),
+		UnrealisedPNL:             decimal.MustFromFloat(-0.0039),
+		RealisedPNL:               decimal.MustFromFloat(-0.0329),
+	}
+	assert.Equal(t, exp, summary, "the position should be summarised")
 
 	ex = testExchangeFor(t, futuresHandler(t, futuresContractsRoute, futuresRoute{
 		method: http.MethodGet,
@@ -1035,7 +1329,8 @@ func TestGetFuturesPositionSummary(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrSideIsInvalid, "both sides open must need a direction")
 	summary, err = ex.GetFuturesPositionSummary(t.Context(), &futures.PositionSummaryRequest{Asset: asset.Futures, Pair: futuresTradablePair, Direction: order.Short})
 	require.NoError(t, err, "GetFuturesPositionSummary must not error with a direction")
-	assert.Equal(t, -5.0, summary.CurrentSize.InexactFloat64(), "a short position's size should be negative")
+	exp.CurrentSize = decimal.MustFromFloat(-5)
+	assert.Equal(t, exp, summary, "a short position's size should be negative")
 }
 
 func TestGetFuturesPositionOrders(t *testing.T) {
@@ -1058,10 +1353,13 @@ func TestGetFuturesPositionOrders(t *testing.T) {
 	}), liveUnavailable)
 	resp, err := ex.GetFuturesPositionOrders(t.Context(), &futures.PositionsRequest{Asset: asset.Futures, Pairs: currency.Pairs{futuresTradablePair}, StartDate: start, EndDate: start.Add(24 * time.Hour)})
 	require.NoError(t, err, "GetFuturesPositionOrders must not error")
-	require.Len(t, resp, 1, "the contract's orders must be returned")
-	assert.Equal(t, futures.Linear, resp[0].ContractSettlementType, "the contract should be linear")
-	require.Len(t, resp[0].Orders, 1, "the contract's order must be returned")
-	assert.Equal(t, "739106551624717312", resp[0].Orders[0].OrderID, "the order should be returned")
+	exp := []futures.PositionResponse{{
+		Pair:                   futuresTradablePair,
+		Asset:                  asset.Futures,
+		ContractSettlementType: futures.Linear,
+		Orders:                 []order.Detail{*futuresFilledOrderDetail(ex.Name)},
+	}}
+	assert.Equal(t, exp, resp, "the contract's orders should be mapped")
 }
 
 func TestChangePositionMargin(t *testing.T) {
@@ -1101,7 +1399,8 @@ func TestChangePositionMargin(t *testing.T) {
 				NewAllocatedMargin: tc.newMargin,
 			})
 			require.NoError(t, err, "ChangePositionMargin must not error")
-			assert.Equal(t, tc.newMargin, resp.AllocatedMargin, "the position's new margin should be returned")
+			exp := &margin.PositionChangeResponse{Exchange: ex.Name, Pair: futuresTradablePair, Asset: asset.Futures, AllocatedMargin: tc.newMargin, MarginType: margin.Isolated}
+			assert.Equal(t, exp, resp, "the position's new margin should be returned")
 		})
 	}
 }

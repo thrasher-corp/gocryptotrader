@@ -25,6 +25,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -33,6 +34,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 // The public frames below were pushed by the venue on 2026-10-24; the private ones are its documented examples
@@ -71,6 +73,57 @@ const (
 		`"leverage":20,"autoAddIm":false,"pnl":100.5,"marginRatio":0.2,"createTime":1760942212000,"updateTime":1760942213000,` +
 		`"version":3},"ts":1760942212000}`
 )
+
+// futuresTickerFramePrice returns futuresTickerFrame as an exchange stores it. The fair price is the mark price, and
+// the base volume and open interest are the contracts times their size
+func futuresTickerFramePrice(exchangeName string) *ticker.Price {
+	return &ticker.Price{
+		Last:         80591.4,
+		High:         82032.7,
+		Low:          80409.4,
+		Bid:          80590,
+		Ask:          80590.1,
+		BaseVolume:   36180.0379,
+		QuoteVolume:  2939324762.13142,
+		OpenInterest: 48966.8514,
+		MarkPrice:    80591.5,
+		IndexPrice:   80628.1,
+		Pair:         futuresTradablePair,
+		ExchangeName: exchangeName,
+		AssetType:    asset.Futures,
+		LastUpdated:  time.UnixMilli(1792842497019),
+	}
+}
+
+// futuresOrderFrameDetail returns futuresOrderFrame as an exchange relays it. An open order with fills is partially
+// filled, its cost is the filled contracts' value, and its fee is its taker and maker fees so far
+func futuresOrderFrameDetail(exchangeName string) *order.Detail {
+	return &order.Detail{
+		TimeInForce:          order.GoodTillCancel,
+		Leverage:             20,
+		Price:                45000.5,
+		Amount:               10,
+		ContractAmount:       10,
+		AverageExecutedPrice: 45000,
+		ExecutedAmount:       5,
+		RemainingAmount:      5,
+		Cost:                 22.5,
+		CostAsset:            currency.USDT,
+		Fee:                  0.2025,
+		FeeAsset:             currency.USDT,
+		Exchange:             exchangeName,
+		OrderID:              "123456789",
+		ClientOrderID:        "ext_001",
+		Type:                 order.Limit,
+		Side:                 order.Buy,
+		Status:               order.PartiallyFilled,
+		AssetType:            asset.Futures,
+		Date:                 time.UnixMilli(1760942212000),
+		LastUpdated:          time.UnixMilli(1760942213000),
+		Pair:                 futuresTradablePair,
+		MarginType:           margin.Isolated,
+	}
+}
 
 // newFuturesWebsocketTestExchange returns an exchange named for the test which holds the futures contracts' details,
 // so its handlers read no contract over REST
@@ -126,13 +179,7 @@ func TestWebsocketFuturesHandleTicker(t *testing.T) {
 	stored, err := ticker.GetTicker(ex.Name, futuresTradablePair, asset.Futures)
 	require.NoError(t, err, "the ticker must be stored before it is relayed")
 	assert.Equal(t, tick, stored, "the relayed ticker should be the stored one")
-	assert.Equal(t, 80591.4, tick.Last, "the last price should be decoded")
-	assert.Equal(t, 80590.0, tick.Bid, "the best bid should be decoded")
-	assert.Equal(t, 80591.5, tick.MarkPrice, "the fair price should be the mark price")
-	assert.InDelta(t, 36180.0379, tick.BaseVolume, 1e-6, "the base volume should be the contracts times their size")
-	assert.Equal(t, 2939324762.13142, tick.QuoteVolume, "the quote volume should be the turnover")
-	assert.InDelta(t, 48966.8514, tick.OpenInterest, 1e-6, "the open interest should be the contracts held times their size")
-	assert.Equal(t, int64(1792842497019), tick.LastUpdated.UnixMilli(), "the ticker's time should be decoded")
+	assert.Equal(t, futuresTickerFramePrice(ex.Name), tick, "the ticker should be mapped")
 }
 
 func TestWebsocketFuturesHandleTrades(t *testing.T) {
@@ -147,18 +194,18 @@ func TestWebsocketFuturesHandleTrades(t *testing.T) {
 	require.NoError(t, ex.WebsocketFuturesHandleData(t.Context(), nil, []byte(futuresDealsFrame)), "WebsocketFuturesHandleData must not error")
 	trades, ok := relayed(t, ex).([]trade.Data)
 	require.True(t, ok, "trades must be relayed")
-	require.Len(t, trades, 2, "every merged trade must be relayed")
-	assert.Equal(t, "16745103311", trades[0].TID, "the trade ID should be decoded")
-	assert.Equal(t, order.Sell, trades[0].Side, "a taker sell should be a sell")
-	assert.Equal(t, 7739.0, trades[0].Amount, "the amount should be in contracts")
-	assert.Equal(t, order.Buy, trades[1].Side, "a taker buy should be a buy")
-	assert.True(t, trades[0].CurrencyPair.Equal(futuresTradablePair), "the contract should be decoded")
+	// A taker sell is a sell and a taker buy a buy, and the amounts are in contracts
+	exp := []trade.Data{
+		{TID: "16745103311", Exchange: ex.Name, CurrencyPair: futuresTradablePair, AssetType: asset.Futures, Side: order.Sell, Price: 80585.5, Amount: 7739, Timestamp: time.UnixMilli(1792842498973)},
+		{TID: "16745103221", Exchange: ex.Name, CurrencyPair: futuresTradablePair, AssetType: asset.Futures, Side: order.Buy, Price: 80590.1, Amount: 4, Timestamp: time.UnixMilli(1792842498334)},
+	}
+	assert.Equal(t, exp, trades, "every merged trade should be relayed")
 
 	require.NoError(t, ex.WebsocketFuturesHandleData(t.Context(), nil, []byte(futuresDealFrame)), "WebsocketFuturesHandleData must not error for an unmerged trade")
 	trades, ok = relayed(t, ex).([]trade.Data)
 	require.True(t, ok, "an unmerged trade must be relayed")
-	require.Len(t, trades, 1, "the trade must be relayed")
-	assert.Equal(t, int64(1792842497333), trades[0].Timestamp.UnixMilli(), "the trade's time should be decoded")
+	exp = []trade.Data{{TID: "16745103083", Exchange: ex.Name, CurrencyPair: futuresTradablePair, AssetType: asset.Futures, Side: order.Sell, Price: 80590, Amount: 5, Timestamp: time.UnixMilli(1792842497333)}}
+	assert.Equal(t, exp, trades, "the unmerged trade should be relayed")
 }
 
 func TestWebsocketFuturesHandleOrderbook(t *testing.T) {
@@ -168,13 +215,21 @@ func TestWebsocketFuturesHandleOrderbook(t *testing.T) {
 
 	book, err := orderbook.Get(ex.Name, futuresTradablePair, asset.Futures)
 	require.NoError(t, err, "the snapshot must be loaded")
-	assert.Equal(t, int64(42904820315), book.LastUpdateID, "the version should be the update ID")
-	assert.Equal(t, int64(1792842498876), book.LastUpdated.UnixMilli(), "the matching engine's time should be the update time")
-	assert.Equal(t, int64(1792842498880), book.LastPushed.UnixMilli(), "the push time should be recorded")
-	require.Len(t, book.Asks, 2, "every ask must be loaded")
-	assert.Equal(t, orderbook.Level{Price: 80590.1, Amount: 46440, OrderCount: 12}, book.Asks[0], "the best ask should be decoded")
-	require.Len(t, book.Bids, 2, "every bid must be loaded")
-	assert.Equal(t, 80590.0, book.Bids[0].Price, "the best bid should be decoded")
+	assert.False(t, book.InsertedAt.IsZero(), "the book should record when it was loaded")
+	book.InsertedAt = time.Time{}
+	// The version is the update ID, the matching engine's time the update time, and the push's time is recorded
+	exp := &orderbook.Book{
+		Bids:              orderbook.Levels{{Price: 80590, Amount: 1074, OrderCount: 2}, {Price: 80589.8, Amount: 184, OrderCount: 1}},
+		Asks:              orderbook.Levels{{Price: 80590.1, Amount: 46440, OrderCount: 12}, {Price: 80590.4, Amount: 184, OrderCount: 1}},
+		Exchange:          ex.Name,
+		Pair:              futuresTradablePair,
+		Asset:             asset.Futures,
+		LastUpdated:       time.UnixMilli(1792842498876),
+		LastPushed:        time.UnixMilli(1792842498880),
+		LastUpdateID:      42904820315,
+		ValidateOrderbook: true,
+	}
+	assert.Equal(t, exp, book, "the snapshot should be loaded")
 }
 
 func TestWebsocketFuturesHandleCandle(t *testing.T) {
@@ -184,14 +239,24 @@ func TestWebsocketFuturesHandleCandle(t *testing.T) {
 
 	item, ok := relayed(t, ex).(kline.Item)
 	require.True(t, ok, "a candle must be relayed")
-	assert.True(t, item.Pair.Equal(futuresInversePair), "the contract should be decoded")
-	assert.Equal(t, kline.FifteenMin, item.Interval, "the interval should be decoded")
-	require.Len(t, item.Candles, 1, "the candle must be relayed")
-	c := item.Candles[0]
-	assert.Equal(t, time.Unix(1792842300, 0), c.Time, "the candle should be stamped with its open in seconds")
-	assert.Equal(t, 80479.5, c.Open, "the open should be decoded")
-	assert.Equal(t, 0.0708234966710365, c.Volume, "an inverse contract's base volume should be its turnover")
-	assert.Equal(t, kline.PartialCandle, c.ValidationIssues, "a candle still forming should be marked partial")
+	// The candle is stamped with its open in seconds, an inverse contract's base volume is its turnover, and a candle
+	// still forming is marked partial
+	exp := kline.Item{
+		Exchange: ex.Name,
+		Pair:     futuresInversePair,
+		Asset:    asset.Futures,
+		Interval: kline.FifteenMin,
+		Candles: []kline.Candle{{
+			Time:             time.Unix(1792842300, 0),
+			Open:             80479.5,
+			High:             80490.8,
+			Low:              80479.4,
+			Close:            80490.8,
+			Volume:           0.0708234966710365,
+			ValidationIssues: kline.PartialCandle,
+		}},
+	}
+	assert.Equal(t, exp, item, "the candle should be relayed")
 
 	err := ex.WebsocketFuturesHandleData(t.Context(), nil, []byte(strings.Replace(futuresKlineFrame, `"interval":"Min15"`, `"interval":"Min3"`, 1)))
 	assert.ErrorIs(t, err, kline.ErrInvalidInterval, "an unknown interval should be refused")
@@ -207,16 +272,7 @@ func TestWebsocketFuturesHandleOrder(t *testing.T) {
 	require.NoError(t, ex.WebsocketFuturesHandleData(t.Context(), nil, []byte(futuresOrderFrame)), "WebsocketFuturesHandleData must not error")
 	detail, ok := relayed(t, ex).(*order.Detail)
 	require.True(t, ok, "an order must be relayed")
-	assert.Equal(t, "123456789", detail.OrderID, "the order ID should be decoded")
-	assert.Equal(t, "ext_001", detail.ClientOrderID, "the external order ID should be the client order ID")
-	assert.Equal(t, order.PartiallyFilled, detail.Status, "an open order with fills should be partially filled")
-	assert.Equal(t, order.Limit, detail.Type, "the order type should be decoded")
-	assert.Equal(t, 5.0, detail.ExecutedAmount, "the filled contracts should be decoded")
-	assert.InDelta(t, 22.50000, detail.Cost, 1e-9, "the cost should be the filled contracts' value")
-	assert.InDelta(t, 0.2025, detail.Fee, 1e-12, "the fee should be the order's taker and maker fees so far")
-	assert.Equal(t, currency.USDT, detail.FeeAsset, "the fee currency should be decoded")
-	assert.Equal(t, 5.0, detail.RemainingAmount, "the unfilled contracts should remain")
-	assert.Equal(t, int64(1760942213000), detail.LastUpdated.UnixMilli(), "the update time should be decoded")
+	assert.Equal(t, futuresOrderFrameDetail(ex.Name), detail, "the order should be mapped")
 
 	// The order store takes only a pushed fee and remaining amount which are set
 	stored := &order.Detail{Exchange: ex.Name, OrderID: detail.OrderID, Amount: 10, RemainingAmount: 10}
@@ -235,13 +291,21 @@ func TestWebsocketFuturesHandleFill(t *testing.T) {
 	require.NoError(t, ex.WebsocketFuturesHandleData(t.Context(), nil, []byte(futuresFillFrame)), "WebsocketFuturesHandleData must not error")
 	fills, ok := relayed(t, ex).([]fill.Data)
 	require.True(t, ok, "fills must be relayed")
-	require.Len(t, fills, 1, "the fill must be relayed")
-	assert.Equal(t, "987654321", fills[0].TradeID, "the fill ID should be decoded")
-	assert.Equal(t, "123456789", fills[0].OrderID, "the order ID should be decoded")
-	assert.Equal(t, "ext_001", fills[0].ClientOrderID, "the external order ID should be decoded")
-	assert.Equal(t, order.Sell, fills[0].Side, "closing a long should be a sell")
-	assert.Equal(t, 10.0, fills[0].Amount, "the amount should be in contracts")
-	assert.True(t, fills[0].CurrencyPair.Equal(futuresTradablePair), "the contract should be decoded")
+	// Closing a long is a sell, and the amount is in contracts
+	exp := []fill.Data{{
+		ID:            "987654321",
+		Timestamp:     time.UnixMilli(1760942212000),
+		Exchange:      ex.Name,
+		AssetType:     asset.Futures,
+		CurrencyPair:  futuresTradablePair,
+		Side:          order.Sell,
+		OrderID:       "123456789",
+		ClientOrderID: "ext_001",
+		TradeID:       "987654321",
+		Price:         45000.5,
+		Amount:        10,
+	}}
+	assert.Equal(t, exp, fills, "the fill should be relayed")
 }
 
 func TestWebsocketFuturesHandleAsset(t *testing.T) {
@@ -259,9 +323,15 @@ func TestWebsocketFuturesHandleAsset(t *testing.T) {
 	require.True(t, ok, "the balance must be relayed")
 	require.Len(t, subAccounts, 1, "the futures account must be relayed")
 	b := subAccounts[0].Balances[currency.USDT]
-	assert.Equal(t, 9000.0, b.Free, "the available balance should be free")
-	assert.Equal(t, 6000.0, b.Hold, "frozen funds and position margin should be held")
-	assert.Equal(t, 15000.0, b.Total, "the total should be what is free and held")
+	assert.False(t, b.UpdatedAt.IsZero(), "the balance should record when it was updated")
+	b.UpdatedAt = time.Time{}
+	subAccounts[0].Balances[currency.USDT] = b
+	// Frozen funds and position margin are held, and the total is what is free and held
+	exp := accounts.SubAccounts{{
+		AssetType: asset.Futures,
+		Balances:  accounts.CurrencyBalances{currency.USDT: {Currency: currency.USDT, Total: 15000, Hold: 6000, Free: 9000}},
+	}}
+	assert.Equal(t, exp, subAccounts, "the balance should be relayed")
 
 	err := ex.WebsocketFuturesHandleData(t.Context(), nil, []byte(strings.Replace(futuresAssetFrame, `"currency":"USDT"`, `"currency":""`, 1)))
 	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "a balance without a currency should be refused")
@@ -277,23 +347,38 @@ func TestWebsocketFuturesHandlePosition(t *testing.T) {
 	require.NoError(t, ex.WebsocketFuturesHandleData(t.Context(), nil, []byte(futuresPositionFrame)), "WebsocketFuturesHandleData must not error")
 	positions, ok := relayed(t, ex).([]futures.Position)
 	require.True(t, ok, "the position must be relayed")
-	require.Len(t, positions, 1, "the position must be relayed")
-	p := positions[0]
-	assert.Equal(t, order.Short, p.LatestDirection, "a short position should be short")
-	assert.Equal(t, order.Open, p.Status, "a held position should be open")
-	assert.Equal(t, 10.0, p.LatestSize.InexactFloat64(), "the size should be in contracts")
-	assert.Equal(t, 20.0, p.Leverage.InexactFloat64(), "the leverage should be decoded")
-	assert.Equal(t, 100.5, p.UnrealisedPNL.InexactFloat64(), "the unrealised PNL should be read from the push's pnl")
-	assert.Equal(t, int64(3), p.UpdateID, "the version should be the update ID")
-	assert.Equal(t, currency.USDT, p.CollateralCurrency, "the collateral should be the settlement currency")
-	assert.True(t, p.CloseDate.IsZero(), "an open position should have no close date")
+	// A held short position is open and short, its size is in contracts, its unrealised PNL is read from the push's
+	// pnl, its version is the update ID and its collateral the settlement currency
+	exp := []futures.Position{{
+		Exchange:                  ex.Name,
+		Asset:                     asset.Futures,
+		Pair:                      futuresTradablePair,
+		Underlying:                currency.BTC,
+		CollateralCurrency:        currency.USDT,
+		Leverage:                  decimal.NewFromInt(20),
+		PositionMargin:            decimal.MustFromFloat(2250.025),
+		InitialMarginRequirement:  decimal.MustFromFloat(2250.025),
+		EstimatedLiquidationPrice: decimal.MustFromFloat(50000),
+		UpdateID:                  3,
+		RealisedPNL:               decimal.MustFromFloat(-0.1125),
+		UnrealisedPNL:             decimal.MustFromFloat(100.5),
+		Status:                    order.Open,
+		OpeningDate:               time.UnixMilli(1760942212000),
+		OpeningPrice:              decimal.MustFromFloat(45000.5),
+		OpeningDirection:          order.Short,
+		LatestSize:                decimal.MustFromFloat(10),
+		LatestDirection:           order.Short,
+		LastUpdated:               time.UnixMilli(1760942213000),
+	}}
+	assert.Equal(t, exp, positions, "the open position should be relayed")
 
 	require.NoError(t, ex.WebsocketFuturesHandleData(t.Context(), nil, []byte(strings.Replace(futuresPositionFrame, `"state":1`, `"state":3`, 1))),
 		"WebsocketFuturesHandleData must not error for a closed position")
 	positions, ok = relayed(t, ex).([]futures.Position)
 	require.True(t, ok, "the closed position must be relayed")
-	assert.Equal(t, order.Closed, positions[0].Status, "a closed position should be closed")
-	assert.Equal(t, int64(1760942213000), positions[0].CloseDate.UnixMilli(), "a closed position should close at its update")
+	// A closed position closes at its update
+	exp[0].Status, exp[0].CloseDate = order.Closed, time.UnixMilli(1760942213000)
+	assert.Equal(t, exp, positions, "the closed position should be relayed")
 }
 
 func TestWebsocketFuturesHandleData(t *testing.T) {
@@ -424,13 +509,15 @@ func TestWebsocketFuturesLogin(t *testing.T) {
 		require.NoError(t, ex.websocketFuturesLogin(t.Context(), conn), "websocketFuturesLogin must not error")
 	}
 	require.Len(t, conn.sent, 1, "a connection must be logged in once")
-	assert.Equal(t, futuresMethodLogin, conn.sent[0].Method, "the login method should be sent")
 	params, ok := conn.sent[0].Param.(*WebsocketFuturesLoginParams)
 	require.True(t, ok, "the login parameters must be sent")
 	mac, err := crypto.GetHMAC(crypto.HashSHA256, []byte("test-key"+params.RequestTime), []byte("test-secret"))
 	require.NoError(t, err, "GetHMAC must not error")
-	assert.Equal(t, "test-key", params.APIKey, "the API key should be sent")
-	assert.Equal(t, hex.EncodeToString(mac), params.Signature, "the login should be signed over the key and the request time")
+	exp := &WebsocketFuturesRequest{
+		Method: futuresMethodLogin,
+		Param:  &WebsocketFuturesLoginParams{APIKey: "test-key", RequestTime: params.RequestTime, Signature: hex.EncodeToString(mac)},
+	}
+	assert.Equal(t, exp, conn.sent[0], "the login should be signed over the key and the request time")
 
 	refused := &futuresReplyConnection{reply: []byte(`{"channel":"rs.error","data":"Apikey doesn't exist!","ts":1792842495741}`)}
 	require.ErrorIs(t, ex.websocketFuturesLogin(t.Context(), refused), errFuturesWebsocketRejected, "a refused login must be returned")
@@ -635,7 +722,7 @@ func TestWebsocketFuturesSubscribe(t *testing.T) {
 	}, 5*time.Second, 10*time.Millisecond, "the pushed book must be loaded")
 	tick, err := ticker.GetTicker(ex.Name, futuresTradablePair, asset.Futures)
 	require.NoError(t, err, "the pushed ticker must be stored")
-	assert.Equal(t, 80591.4, tick.Last, "the pushed ticker should be stored")
+	assert.Equal(t, futuresTickerFramePrice(ex.Name), tick, "the pushed ticker should be stored")
 
 	conn, err := ex.Websocket.GetConnection(futuresPublicConnection)
 	require.NoError(t, err, "GetConnection must not error")
@@ -678,7 +765,7 @@ func TestWebsocketFuturesSubscribePrivate(t *testing.T) {
 	venue.push(t, futuresOrderFrame)
 	detail, ok := relayed(t, ex).(*order.Detail)
 	require.True(t, ok, "the pushed order must be relayed")
-	assert.Equal(t, "123456789", detail.OrderID, "the pushed order should be relayed")
+	assert.Equal(t, futuresOrderFrameDetail(ex.Name), detail, "the pushed order should be relayed")
 }
 
 func TestWebsocketFuturesSubscribePrivateRefused(t *testing.T) {

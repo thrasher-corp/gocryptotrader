@@ -13,9 +13,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-// The recorded replies below are the venue's documented examples, trimmed to the fields the tests read
+// The replies below are the venue's documented examples, as no credentials were available to record live ones. Some
+// values are changed from the examples' zeros, so that more fields' decoding is checked
 
 func TestValidateFuturesOrder(t *testing.T) {
 	t.Parallel()
@@ -106,8 +108,8 @@ func TestPlaceFuturesOrder(t *testing.T) {
 		SelfTradePreventionMode: 1,
 	})
 	require.NoError(t, err, "PlaceFuturesOrder must not error")
-	assert.Equal(t, FuturesID("739113577038255616"), result.OrderID, "the order ID should be returned")
-	assert.Equal(t, int64(1761888808839), result.Timestamp.Time().UnixMilli(), "the venue's time should be returned")
+	assert.Equal(t, &FuturesOrderPlacementResponse{OrderID: "739113577038255616", Timestamp: types.Time(time.UnixMilli(1761888808839))}, result,
+		"PlaceFuturesOrder should decode the order ID and the venue's time")
 }
 
 func TestPlaceFuturesBatchOrders(t *testing.T) {
@@ -131,9 +133,12 @@ func TestPlaceFuturesBatchOrders(t *testing.T) {
 		{Symbol: "BTC_USDT", Price: 150000, Volume: 1, Side: FuturesSideOpenShort, Type: FuturesOrderTypePostOnly, OpenType: FuturesOpenTypeCross},
 	})
 	require.NoError(t, err, "PlaceFuturesBatchOrders must not error when an order is refused")
-	require.Len(t, result, 2, "every order's outcome must be returned")
-	assert.Equal(t, FuturesID("768116802038827520"), result[0].OrderID, "a numeric order ID above 2^53 should keep every digit")
-	assert.EqualValues(t, 2009, result[1].ErrorCode, "a refused order should carry its error code")
+	// A numeric order ID above 2^53 keeps every digit, and a refused order carries its error
+	exp := []*FuturesBatchOrderResponse{
+		{OrderID: "768116802038827520", ExternalOrderID: "gct-1"},
+		{ErrorCode: 2009, ErrorMessage: "insufficient balance"},
+	}
+	assert.Equal(t, exp, result, "every order's outcome should be decoded")
 }
 
 func TestChaseFuturesOrder(t *testing.T) {
@@ -188,9 +193,11 @@ func TestCancelFuturesOrders(t *testing.T) {
 	}), liveUnavailable)
 	result, err := ex.CancelFuturesOrders(t.Context(), []uint64{101716841474621953, 108886241042563584})
 	require.NoError(t, err, "CancelFuturesOrders must not error when an order is refused")
-	require.Len(t, result, 2, "every order's outcome must be returned")
-	assert.EqualValues(t, 2040, result[0].ErrorCode, "a refused order should carry its error code")
-	assert.Zero(t, result[1].ErrorCode, "a cancelled order should carry no error code")
+	exp := []*FuturesCancelOrderResponse{
+		{OrderID: "101716841474621953", ErrorCode: 2040, ErrorMessage: "order not exist"},
+		{OrderID: "108886241042563584", ErrorMessage: "success"},
+	}
+	assert.Equal(t, exp, result, "every order's outcome should be decoded")
 }
 
 func TestValidateExternalOrders(t *testing.T) {
@@ -215,8 +222,8 @@ func TestCancelFuturesOrdersByExternalID(t *testing.T) {
 	}), liveUnavailable)
 	result, err := ex.CancelFuturesOrdersByExternalID(t.Context(), []FuturesExternalOrderRequest{{Symbol: "BTC_USDT", ExternalOrderID: "ext_11"}})
 	require.NoError(t, err, "CancelFuturesOrdersByExternalID must not error")
-	require.Len(t, result, 1, "the order's outcome must be returned")
-	assert.Equal(t, "ext_11", result[0].ExternalOrderID, "the external order ID should be decoded")
+	assert.Equal(t, []*FuturesCancelOrderResponse{{OrderID: "108886241042563584", ExternalOrderID: "ext_11", ErrorMessage: "success"}}, result,
+		"the order's outcome should be decoded")
 }
 
 func TestCancelFuturesOrderByExternalID(t *testing.T) {
@@ -239,8 +246,7 @@ func TestCancelFuturesOrderByExternalID(t *testing.T) {
 		}), liveUnavailable)
 		result, err := ex.CancelFuturesOrderByExternalID(t.Context(), futuresTradablePair, "gct-1")
 		require.NoErrorf(t, err, "CancelFuturesOrderByExternalID must not error for %s", data)
-		require.Lenf(t, result, 1, "the order's outcome must be returned for %s", data)
-		assert.Equalf(t, FuturesID("108886241042563584"), result[0].OrderID, "the order ID should be decoded from %s", data)
+		assert.Equalf(t, []*FuturesCancelOrderResponse{{OrderID: "108886241042563584", ErrorMessage: "success"}}, result, "the outcome should be decoded from %s", data)
 	}
 }
 
@@ -302,7 +308,7 @@ func TestGetFuturesOrderByExternalID(t *testing.T) {
 	}), liveUnavailable)
 	result, err := ex.GetFuturesOrderByExternalID(t.Context(), futuresTradablePair, "gct-1")
 	require.NoError(t, err, "GetFuturesOrderByExternalID must not error")
-	assert.Equal(t, "gct-1", result.ExternalOrderID, "the order named should be returned")
+	assert.Equal(t, futuresFilledOrder(), result, "the order named should be decoded")
 }
 
 func TestGetFuturesOrder(t *testing.T) {
@@ -317,11 +323,7 @@ func TestGetFuturesOrder(t *testing.T) {
 	}), liveUnavailable)
 	result, err := ex.GetFuturesOrder(t.Context(), "739106551624717312")
 	require.NoError(t, err, "GetFuturesOrder must not error")
-	assert.Equal(t, FuturesID("739106551624717312"), result.OrderID, "the order ID should be decoded")
-	assert.Equal(t, FuturesID("1109973831"), result.PositionID, "a numeric position ID should be decoded")
-	assert.EqualValues(t, FuturesOrderStateFilled, result.State, "the state should be decoded")
-	assert.Equal(t, 109777.5, result.DealAveragePrice, "the average price should be decoded")
-	assert.Equal(t, currency.USDT, result.FeeCurrency, "the fee currency should be decoded")
+	assert.Equal(t, futuresFilledOrder(), result, "GetFuturesOrder should decode every field")
 }
 
 func TestGetFuturesOrdersByID(t *testing.T) {
@@ -341,7 +343,7 @@ func TestGetFuturesOrdersByID(t *testing.T) {
 	}), liveUnavailable)
 	result, err := ex.GetFuturesOrdersByID(t.Context(), []string{"743829153601634818", "739106551624717312"})
 	require.NoError(t, err, "GetFuturesOrdersByID must not error")
-	assert.Len(t, result, 1, "the orders found should be returned")
+	assert.Equal(t, []*FuturesOrderResponse{futuresFilledOrder()}, result, "the orders found should be decoded")
 }
 
 func TestGetFuturesOrdersByExternalID(t *testing.T) {
@@ -357,8 +359,7 @@ func TestGetFuturesOrdersByExternalID(t *testing.T) {
 	}), liveUnavailable)
 	result, err := ex.GetFuturesOrdersByExternalID(t.Context(), []FuturesExternalOrderRequest{{Symbol: "BTC_USDT", ExternalOrderID: "gct-1"}})
 	require.NoError(t, err, "GetFuturesOrdersByExternalID must not error")
-	require.Len(t, result, 1, "the order must be returned")
-	assert.Equal(t, "gct-1", result[0].ExternalOrderID, "the order named should be returned")
+	assert.Equal(t, []*FuturesOrderResponse{futuresFilledOrder()}, result, "the order named should be decoded")
 }
 
 func TestGetFuturesOpenOrders(t *testing.T) {
@@ -377,7 +378,7 @@ func TestGetFuturesOpenOrders(t *testing.T) {
 	if !mockTests {
 		return
 	}
-	assert.Len(t, result, 1, "the page's orders should be returned")
+	assert.Equal(t, []*FuturesOrderResponse{futuresFilledOrder()}, result, "the page's orders should be decoded")
 }
 
 func TestGetFuturesOrderHistory(t *testing.T) {
@@ -408,7 +409,7 @@ func TestGetFuturesOrderHistory(t *testing.T) {
 		PageSize:  5,
 	})
 	require.NoError(t, err, "GetFuturesOrderHistory must not error")
-	assert.Len(t, result, 1, "the order should be returned")
+	assert.Equal(t, []*FuturesOrderResponse{futuresFilledOrder()}, result, "the order should be decoded")
 }
 
 func TestFuturesDealsParams(t *testing.T) {
@@ -438,9 +439,22 @@ func TestGetFuturesOrderDeals(t *testing.T) {
 	if !mockTests {
 		return
 	}
-	require.Len(t, result, 1, "the fill must be returned")
-	assert.True(t, result[0].WasTaker(), "a taker fill sent as taker should be read as one")
-	assert.Equal(t, FuturesID("739211854408619008"), result[0].OrderID, "the order ID should be decoded")
+	// The venue's examples name a taker fill taker
+	exp := []*FuturesOrderDealResponse{{
+		ID:           "9466823344",
+		Symbol:       "BTC_USDT",
+		Side:         FuturesSideOpenShort,
+		Volume:       1,
+		Price:        0.18695,
+		Fee:          0.0001,
+		FeeCurrency:  currency.USDT,
+		Taker:        true,
+		Category:     FuturesOrderCategoryLimit,
+		OrderID:      "739211854408619008",
+		PositionMode: FuturesPositionModeHedge,
+		Timestamp:    types.Time(time.UnixMilli(1761912240000)),
+	}}
+	assert.Equal(t, exp, result, "GetFuturesOrderDeals should decode every field")
 }
 
 func TestFuturesOrderDealWasTaker(t *testing.T) {
@@ -463,9 +477,21 @@ func TestGetFuturesOrderDealDetails(t *testing.T) {
 	}), liveUnavailable)
 	result, err := ex.GetFuturesOrderDealDetails(t.Context(), "102015012431820288")
 	require.NoError(t, err, "GetFuturesOrderDealDetails must not error")
-	require.Len(t, result, 1, "the fill must be returned")
-	assert.Equal(t, 0.0072501, result[0].Fee, "the fee should be decoded")
-	assert.True(t, result[0].WasTaker(), "a fill sent as isTaker should be a taker's")
+	// The reply names a taker fill isTaker, as the venue's field table does
+	exp := []*FuturesOrderDealResponse{{
+		ID:          "159274416",
+		Symbol:      "ETH_USDT",
+		Side:        FuturesSideCloseShort,
+		Volume:      1,
+		Price:       1208.35,
+		Fee:         0.0072501,
+		FeeCurrency: currency.USDT,
+		IsTaker:     true,
+		Category:    FuturesOrderCategoryLimit,
+		OrderID:     "102015012431820288",
+		Timestamp:   types.Time(time.UnixMilli(1609992674000)),
+	}}
+	assert.Equal(t, exp, result, "GetFuturesOrderDealDetails should decode every field")
 }
 
 func TestGetFuturesClosedOrders(t *testing.T) {
@@ -484,7 +510,7 @@ func TestGetFuturesClosedOrders(t *testing.T) {
 	if !mockTests {
 		return
 	}
-	assert.Len(t, result, 1, "the finished order should be returned")
+	assert.Equal(t, []*FuturesOrderResponse{futuresFilledOrder()}, result, "the finished order should be decoded")
 }
 
 func TestGetFuturesPlanOrders(t *testing.T) {
@@ -503,7 +529,8 @@ func TestGetFuturesPlanOrders(t *testing.T) {
 		query:  "end_time=1761886400000&page_num=1&side=1&start_time=1761800000000&states=1%2C3&symbol=DOGE_USD",
 		data: `[{"id":"739114860879304259","symbol":"DOGE_USD","leverage":2,"side":1,"triggerPrice":0.00001,"price":0.00001,` +
 			`"vol":1,"openType":1,"triggerType":2,"state":1,"executeCycle":87600,"trend":1,"orderType":1,"errorCode":0,` +
-			`"priceProtect":0,"createTime":1761889115000,"updateTime":1761889115000,"positionMode":1,"lossTrend":1,"profitTrend":1}]`,
+			`"priceProtect":0,"createTime":1761889115000,"updateTime":1761889115000,"positionMode":1,"lossTrend":1,"profitTrend":1,` +
+			`"reduceOnly":false}]`,
 	}), liveUnavailable)
 	result, err := ex.GetFuturesPlanOrders(t.Context(), &FuturesPlanOrdersRequest{
 		Symbol:    currency.NewPairWithDelimiter("DOGE", "USD", currency.UnderscoreDelimiter),
@@ -513,9 +540,28 @@ func TestGetFuturesPlanOrders(t *testing.T) {
 		EndTime:   start.Add(24 * time.Hour),
 	})
 	require.NoError(t, err, "GetFuturesPlanOrders must not error")
-	require.Len(t, result, 1, "the plan order must be returned")
-	assert.Equal(t, FuturesID("739114860879304259"), result[0].ID, "the plan order ID should be decoded")
-	assert.EqualValues(t, 87600, result[0].ExecuteCycle, "the execution cycle in hours should be decoded")
+	// The execution cycle is in hours
+	exp := []*FuturesPlanOrderResponse{{
+		ID:           "739114860879304259",
+		Symbol:       "DOGE_USD",
+		Leverage:     2,
+		Side:         FuturesSideOpenLong,
+		TriggerPrice: 0.00001,
+		Price:        0.00001,
+		Volume:       1,
+		OpenType:     FuturesOpenTypeIsolated,
+		TriggerType:  FuturesTriggerLessOrEqual,
+		State:        1,
+		ExecuteCycle: 87600,
+		Trend:        FuturesPriceTypeLatest,
+		OrderType:    FuturesOrderTypeLimit,
+		PositionMode: FuturesPositionModeHedge,
+		LossTrend:    FuturesPriceTypeLatest,
+		ProfitTrend:  FuturesPriceTypeLatest,
+		CreateTime:   types.Time(time.UnixMilli(1761889115000)),
+		UpdateTime:   types.Time(time.UnixMilli(1761889115000)),
+	}}
+	assert.Equal(t, exp, result, "GetFuturesPlanOrders should decode every field")
 }
 
 func TestPlaceFuturesPlanOrder(t *testing.T) {
@@ -739,16 +785,18 @@ func TestGetFuturesTakeProfitStopLossOrders(t *testing.T) {
 		method: http.MethodGet,
 		path:   "private/stoporder/list/orders",
 		query:  "is_finished=0&page_num=1&state=1&symbol=BTC_USDT&type=2",
-		data:   `{"pageSize":20,"totalCount":1,"totalPage":1,"currentPage":1,"resultList":[{"id":357859177,"symbol":"BTC_USDT","positionId":"1027177055","state":1,"positionType":2,"vol":2,"createTime":"","updateTime":""}]}`,
+		data: `{"pageSize":20,"totalCount":1,"totalPage":1,"currentPage":1,"resultList":[{"id":357859177,"orderId":0,"symbol":"BTC_USDT",` +
+			`"positionId":"1027177055","stopLossPrice":0.0,"takeProfitPrice":0.0,"state":1,"triggerSide":0,"positionType":2,"vol":2,` +
+			`"realityVol":0.0,"placeOrderId":0,"errorCode":0,"version":0,"isFinished":0,"createTime":"","updateTime":""}]}`,
 	}), liveReadOnly)
 	result, err := ex.GetFuturesTakeProfitStopLossOrders(t.Context(), &FuturesTakeProfitStopLossOrdersRequest{Symbol: futuresTradablePair, IsFinished: &finished, State: 1, PositionType: FuturesPositionTypeShort})
 	require.NoError(t, err, "GetFuturesTakeProfitStopLossOrders must not error")
 	if !mockTests {
 		return
 	}
-	require.Len(t, result, 1, "the order must be returned")
-	assert.Equal(t, FuturesID("1027177055"), result[0].PositionID, "a position ID sent as a string should be decoded")
-	assert.True(t, result[0].CreateTime.Time().IsZero(), "an empty creation time should be read as unset")
+	// The position ID is sent as a string, and the order IDs of 0 and the empty times are read as unset
+	exp := []*FuturesTakeProfitStopLossOrderResponse{{ID: "357859177", Symbol: "BTC_USDT", PositionID: "1027177055", State: 1, PositionType: FuturesPositionTypeShort, Volume: 2}}
+	assert.Equal(t, exp, result, "GetFuturesTakeProfitStopLossOrders should decode every field")
 }
 
 func TestGetFuturesOpenTakeProfitStopLossOrders(t *testing.T) {
@@ -761,17 +809,42 @@ func TestGetFuturesOpenTakeProfitStopLossOrders(t *testing.T) {
 			`"profitTrend":1,"stopLossPrice":111325,"takeProfitPrice":113573.9,"state":3,"triggerSide":2,"positionType":1,"vol":2,` +
 			`"realityVol":2,"placeOrderId":"720744238723187712","errorCode":0,"version":2,"isFinished":1,"priceProtect":0,` +
 			`"profitLossVolType":"SEPARATE","takeProfitVol":2,"stopLossVol":2,"createTime":1757506663000,"updateTime":1757509217000,` +
-			`"volType":1,"takeProfitReverse":2,"stopLossReverse":2,"closeTryTimes":0,"reverseTryTimes":0,"reverseErrorCode":0,"takeProfitType":0}]`,
+			`"volType":1,"takeProfitReverse":2,"stopLossReverse":2,"closeTryTimes":0,"reverseTryTimes":0,"reverseErrorCode":0,"takeProfitType":0,` +
+			`"profit_LOSS_VOL_TYPE_SAME":"SAME","profit_LOSS_VOL_TYPE_DIFFERENT":"SEPARATE"}]`,
 	}), liveReadOnly)
 	result, err := ex.GetFuturesOpenTakeProfitStopLossOrders(t.Context(), futuresTradablePair)
 	require.NoError(t, err, "GetFuturesOpenTakeProfitStopLossOrders must not error")
 	if !mockTests {
 		return
 	}
-	require.Len(t, result, 1, "the order must be returned")
-	assert.Equal(t, FuturesID("720744238723187712"), result[0].PlaceOrderID, "the placed order's ID should be decoded")
-	assert.Equal(t, "SEPARATE", result[0].ProfitLossVolumeType, "the volume type should be decoded")
-	assert.Equal(t, 113573.9, result[0].TakeProfitPrice, "the take-profit price should be decoded")
+	// The example's profit_LOSS_VOL_TYPE fields name the volume types profitLossVolType takes, so they are not decoded
+	exp := []*FuturesTakeProfitStopLossOrderResponse{{
+		ID:                   "357859177",
+		OrderID:              "720733527158642176",
+		Symbol:               "BTC_USDT",
+		PositionID:           "1027177055",
+		LossTrend:            FuturesPriceTypeLatest,
+		ProfitTrend:          FuturesPriceTypeLatest,
+		StopLossPrice:        111325,
+		TakeProfitPrice:      113573.9,
+		State:                3,
+		TriggerSide:          2,
+		PositionType:         FuturesPositionTypeLong,
+		Volume:               2,
+		RealityVolume:        2,
+		PlaceOrderID:         "720744238723187712",
+		IsFinished:           1,
+		Version:              2,
+		ProfitLossVolumeType: "SEPARATE",
+		TakeProfitVolume:     2,
+		StopLossVolume:       2,
+		VolumeType:           1,
+		TakeProfitReverse:    2,
+		StopLossReverse:      2,
+		CreateTime:           types.Time(time.UnixMilli(1757506663000)),
+		UpdateTime:           types.Time(time.UnixMilli(1757509217000)),
+	}}
+	assert.Equal(t, exp, result, "GetFuturesOpenTakeProfitStopLossOrders should decode every field")
 }
 
 func TestValidateTrailing(t *testing.T) {
@@ -876,10 +949,26 @@ func TestGetFuturesTrailingOrders(t *testing.T) {
 	if !mockTests {
 		return
 	}
-	require.Len(t, result, 1, "the trailing order must be returned")
-	assert.Equal(t, FuturesID("739628779353703936"), result[0].ID, "the trailing order ID should be decoded")
-	assert.Equal(t, 0.1903, result[0].TriggerPrice, "the trigger price should be decoded")
-	assert.Empty(t, result[0].OrderID.String(), "an untriggered order should carry no placed order")
+	// An untriggered order carries no placed order
+	exp := []*FuturesTrailingOrderResponse{{
+		ID:           "739628779353703936",
+		Symbol:       "DOGE_USDT",
+		Leverage:     2,
+		Side:         FuturesSideOpenLong,
+		Volume:       100,
+		OpenType:     FuturesOpenTypeIsolated,
+		Trend:        FuturesPriceTypeLatest,
+		MarkPrice:    0.18657,
+		BackType:     FuturesCallbackPercentage,
+		BackValue:    0.02,
+		TriggerPrice: 0.1903,
+		TriggerType:  FuturesTriggerGreaterOrEqual,
+		State:        1,
+		PositionMode: FuturesPositionModeHedge,
+		CreateTime:   types.Time(time.UnixMilli(1762011642623)),
+		UpdateTime:   types.Time(time.UnixMilli(1762011642623)),
+	}}
+	assert.Equal(t, exp, result, "GetFuturesTrailingOrders should decode every field")
 }
 
 func TestFuturesOrderIDsAboveFloatPrecision(t *testing.T) {
@@ -892,5 +981,7 @@ func TestFuturesOrderIDsAboveFloatPrecision(t *testing.T) {
 	}), liveUnavailable)
 	result, err := ex.GetFuturesOrder(t.Context(), strconv.FormatUint(739106551624717313, 10))
 	require.NoError(t, err, "GetFuturesOrder must not error")
-	assert.Equal(t, FuturesID("739106551624717313"), result.OrderID, "an order ID sent as a number should keep every digit")
+	exp := futuresFilledOrder()
+	exp.OrderID = "739106551624717313"
+	assert.Equal(t, exp, result, "an order ID sent as a number should keep every digit")
 }

@@ -11,25 +11,25 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-// The recorded replies below are the venue's documented examples, trimmed to the fields the tests read
+// The replies below are the venue's documented examples, as no credentials were available to record live ones. Some
+// values are changed from the examples' zeros, so that more fields' decoding is checked
 
 func TestSetFuturesTimeWindow(t *testing.T) {
 	t.Parallel()
 	start := time.UnixMilli(1761000000000)
 	params := make(map[string][]string)
 	require.NoError(t, setFuturesTimeWindow(params, start, start.Add(futuresHistoryWindow)), "a 90 day window must be accepted")
-	assert.Equal(t, "1761000000000", params["start_time"][0], "the start should be sent in milliseconds")
-	assert.Equal(t, "1768776000000", params["end_time"][0], "the end should be sent in milliseconds")
+	assert.Equal(t, map[string][]string{"start_time": {"1761000000000"}, "end_time": {"1768776000000"}}, params, "the window should be sent in milliseconds")
 
 	assert.ErrorIs(t, setFuturesTimeWindow(params, start, start.Add(futuresHistoryWindow+time.Millisecond)), errHistoryWindowTooWide)
 	assert.ErrorIs(t, setFuturesTimeWindow(params, start, start.Add(-time.Second)), common.ErrStartAfterEnd)
 
 	params = make(map[string][]string)
 	require.NoError(t, setFuturesTimeWindow(params, time.Time{}, start), "an open start must be accepted")
-	assert.NotContains(t, params, "start_time", "an unset start should not be sent")
-	assert.Contains(t, params, "end_time", "a set end should be sent")
+	assert.Equal(t, map[string][]string{"end_time": {"1761000000000"}}, params, "only the set end should be sent")
 }
 
 func TestGetFuturesAccountAssets(t *testing.T) {
@@ -46,12 +46,18 @@ func TestGetFuturesAccountAssets(t *testing.T) {
 	if !mockTests {
 		return
 	}
-	require.Len(t, result, 1, "the currency must be returned")
-	assert.Equal(t, currency.USDT, result[0].Currency, "the currency should be decoded")
-	assert.Equal(t, 32.80984793658, result[0].AvailableBalance, "the available balance should be decoded")
-	assert.Equal(t, 2.0, result[0].FrozenBalance, "the frozen balance should be decoded")
-	assert.Equal(t, 1.5, result[0].PositionMargin, "the position margin should be decoded")
-	assert.Equal(t, "128f589271cb4951b03e71e6323eb7be", result[0].CurrencyID, "the currency ID should be decoded")
+	exp := []*FuturesAccountAssetResponse{{
+		Currency:         currency.USDT,
+		PositionMargin:   1.5,
+		FrozenBalance:    2,
+		AvailableBalance: 32.80984793658,
+		CashBalance:      32.80984793,
+		Equity:           36.30984793,
+		AvailableCash:    32.80984793658,
+		AvailableOpen:    32.80984793658,
+		CurrencyID:       "128f589271cb4951b03e71e6323eb7be",
+	}}
+	assert.Equal(t, exp, result, "GetFuturesAccountAssets should decode every field")
 }
 
 func TestGetFuturesAccountAsset(t *testing.T) {
@@ -61,16 +67,26 @@ func TestGetFuturesAccountAsset(t *testing.T) {
 
 	ex := testExchangeFor(t, futuresHandler(t, futuresRoute{
 		method: http.MethodGet,
-		path:   "private/account/asset/USDT",
-		data:   `{"currency":"USDT","positionMargin":0,"availableBalance":0.99647149597724856,"cashBalance":0.99647149,"frozenBalance":0}`,
+		path:   "private/account/asset/MX",
+		data: `{"currency":"MX","positionMargin":0,"availableBalance":0.9964714959772486,"cashBalance":0.99647149,"frozenBalance":0,` +
+			`"equity":0.99647149,"unrealized":0,"bonus":0,"availableCash":0.9964714959772486,"availableOpen":0.9964714959772486,` +
+			`"debtAmount":0,"contributeMarginAmount":0,"vcoinId":"8c1e92655f9a4064808ce03ec1a48d38"}`,
 	}), liveReadOnly)
-	result, err := ex.GetFuturesAccountAsset(t.Context(), currency.NewCode("usdt"))
+	result, err := ex.GetFuturesAccountAsset(t.Context(), currency.NewCode("mx"))
 	require.NoError(t, err, "GetFuturesAccountAsset must not error")
 	if !mockTests {
 		return
 	}
-	assert.Equal(t, currency.USDT, result.Currency, "the currency asked for should be returned")
-	assert.Equal(t, 0.99647149, result.CashBalance, "the withdrawable balance should be decoded")
+	exp := &FuturesAccountAssetResponse{
+		Currency:         currency.MX,
+		AvailableBalance: 0.9964714959772486,
+		CashBalance:      0.99647149,
+		Equity:           0.99647149,
+		AvailableCash:    0.9964714959772486,
+		AvailableOpen:    0.9964714959772486,
+		CurrencyID:       "8c1e92655f9a4064808ce03ec1a48d38",
+	}
+	assert.Equal(t, exp, result, "GetFuturesAccountAsset should decode every field")
 }
 
 func TestGetFuturesAssetTransferRecords(t *testing.T) {
@@ -98,10 +114,23 @@ func TestGetFuturesAssetTransferRecords(t *testing.T) {
 	if !mockTests {
 		return
 	}
-	require.Len(t, result.ResultList, 1, "the transfer must be returned")
-	assert.EqualValues(t, 303381159, result.ResultList[0].ID, "the transfer ID should be decoded")
-	assert.Equal(t, 1.0, result.ResultList[0].Amount, "the amount should be decoded")
-	assert.Equal(t, int64(1760537642000), result.ResultList[0].CreateTime.Time().UnixMilli(), "the creation time should be decoded")
+	exp := &FuturesPageResponse[FuturesTransferRecordResponse]{
+		PageSize:    20,
+		TotalCount:  1,
+		TotalPage:   1,
+		CurrentPage: 1,
+		ResultList: []FuturesTransferRecordResponse{{
+			ID:            303381159,
+			TransactionID: "86f334f8850346e89ce4d0ba52b7aa87",
+			Currency:      currency.USDT,
+			Amount:        1,
+			Type:          "IN",
+			State:         "SUCCESS",
+			CreateTime:    types.Time(time.UnixMilli(1760537642000)),
+			UpdateTime:    types.Time(time.UnixMilli(1760537641000)),
+		}},
+	}
+	assert.Equal(t, exp, result, "GetFuturesAssetTransferRecords should decode the page")
 }
 
 func TestGetFuturesProfitRate(t *testing.T) {
@@ -119,8 +148,8 @@ func TestGetFuturesProfitRate(t *testing.T) {
 	if !mockTests {
 		return
 	}
-	assert.Equal(t, 0.0125, result.ProfitRate, "the profit rate should be decoded")
-	assert.Equal(t, int64(1666612800000), result.StatisticTime.Time().UnixMilli(), "the statistic time should be decoded")
+	assert.Equal(t, &FuturesProfitRateResponse{ProfitRate: 0.0125, StatisticTime: types.Time(time.UnixMilli(1666612800000))}, result,
+		"GetFuturesProfitRate should decode every field")
 }
 
 func TestGetFuturesFeeDeductionConfigs(t *testing.T) {
@@ -135,9 +164,11 @@ func TestGetFuturesFeeDeductionConfigs(t *testing.T) {
 	if !mockTests {
 		return
 	}
-	require.Len(t, result, 2, "every configuration must be returned")
-	assert.Equal(t, currency.MX, result[0].DeductCoin, "the deduction currency should be decoded")
-	assert.Equal(t, 0.8, result[0].DiscountRatio, "the discount ratio should be decoded")
+	exp := []*FuturesFeeDeductionConfigResponse{
+		{DeductCoin: currency.MX, SettleCoin: currency.USDT, DiscountRatio: 0.8},
+		{DeductCoin: currency.NewCode("MXPOINT"), SettleCoin: currency.USDT, DiscountRatio: 1},
+	}
+	assert.Equal(t, exp, result, "GetFuturesFeeDeductionConfigs should decode every configuration")
 }
 
 func TestGetFuturesSpotDiscountConfigs(t *testing.T) {
@@ -154,10 +185,17 @@ func TestGetFuturesSpotDiscountConfigs(t *testing.T) {
 	if !mockTests {
 		return
 	}
-	require.Len(t, result, 1, "the configuration must be returned")
-	require.Len(t, result[0].DiscountConfig, 1, "the discount bands held in a string must be decoded")
-	assert.Equal(t, FuturesDiscountTier{Level: 1, VolumeMin: 500, VolumeMax: 2147483647, Day: 1, Discount: 0.5}, result[0].DiscountConfig[0], "the band should be decoded")
-	assert.Empty(t, result[0].IneffectiveDiscountConfig, "an empty string should hold no bands")
+	// The discount bands are held in a string, which is empty where there are none
+	exp := []*FuturesDiscountConfigResponse{{
+		ID:             1,
+		Currency:       currency.MX,
+		State:          "ENABLED",
+		DiscountConfig: FuturesDiscountTiers{{Level: 1, VolumeMin: 500, VolumeMax: 2147483647, Day: 1, Discount: 0.5}},
+		CreateTime:     types.Time(time.UnixMilli(1699775818000)),
+		UpdateTime:     types.Time(time.UnixMilli(1732982217000)),
+		Enabled:        true,
+	}}
+	assert.Equal(t, exp, result, "GetFuturesSpotDiscountConfigs should decode every field")
 }
 
 func TestFuturesDiscountTiersUnmarshalJSON(t *testing.T) {
@@ -203,10 +241,21 @@ func TestGetFuturesFeeDeductionDetails(t *testing.T) {
 		EndTime:   start.Add(24 * time.Hour),
 	})
 	require.NoError(t, err, "GetFuturesFeeDeductionDetails must not error")
-	require.Len(t, result, 2, "every deal must be returned")
-	assert.Equal(t, FuturesID("739132568196170240"), result[0].OrderID, "an order ID above 2^53 should keep every digit")
-	assert.Equal(t, 2.0, result[0].DeductType.Float64(), "the deduction type should be decoded")
-	assert.Equal(t, 0.297936756, result[1].Fee, "the fee should be decoded")
+	// The order IDs pass 2^53, so they must keep every digit
+	exp := []*FuturesFeeDeductionDetailResponse{
+		{
+			ID:                "54236193",
+			OrderID:           "739132568196170240",
+			FeeCurrency:       currency.USDT,
+			Fee:               0.0906990372,
+			DeductType:        2,
+			DeductFeeCurrency: currency.USDT,
+			DeductFee:         0.0906990372,
+			Timestamp:         types.Time(time.UnixMilli(1761893337000)),
+		},
+		{ID: "52060733", OrderID: "735908917455962624", FeeCurrency: currency.USDT, Fee: 0.297936756, Timestamp: types.Time(time.UnixMilli(1761124758000))},
+	}
+	assert.Equal(t, exp, result, "GetFuturesFeeDeductionDetails should decode every deal")
 }
 
 func TestGetFuturesDiscountType(t *testing.T) {
@@ -221,8 +270,7 @@ func TestGetFuturesDiscountType(t *testing.T) {
 	if !mockTests {
 		return
 	}
-	assert.True(t, result.UseFeeDiscount, "the spot discount flag should be decoded")
-	assert.False(t, result.UseFeeDeduct, "the deduction flag should be decoded")
+	assert.Equal(t, &FuturesDiscountTypeResponse{UseFeeDiscount: true}, result, "GetFuturesDiscountType should decode both flags")
 }
 
 func TestGetFuturesFeeStatistics(t *testing.T) {
@@ -237,8 +285,7 @@ func TestGetFuturesFeeStatistics(t *testing.T) {
 	if !mockTests {
 		return
 	}
-	assert.Equal(t, 1.2345, result.TotalFee, "the total fee should be decoded")
-	assert.Equal(t, 0.1, result.SaveFee, "the saved fee should be decoded")
+	assert.Equal(t, &FuturesFeeStatisticsResponse{TotalFee: 1.2345, SaveFee: 0.1}, result, "GetFuturesFeeStatistics should decode every field")
 }
 
 func TestFuturesPositionsParams(t *testing.T) {
@@ -272,22 +319,47 @@ func TestGetFuturesHistoricalPositions(t *testing.T) {
 		method: http.MethodGet,
 		path:   "private/position/list/history_positions",
 		query:  "page_num=1&symbol=BTC_USDT",
-		data: `[{"positionId":1027177055,"symbol":"BTC_USDT","positionType":1,"openType":1,"state":3,"holdVol":0,` +
+		data: `[{"positionId":1027177055,"symbol":"BTC_USDT","positionType":1,"openType":1,"state":3,"holdVol":0,"frozenVol":0,` +
 			`"closeVol":2,"holdAvgPrice":112449.5,"holdAvgPriceFullyScale":"112449.5","openAvgPrice":112449.5,` +
-			`"closeAvgPrice":113572.3,"liquidatePrice":56314.7,"realised":0.2155,"leverage":2,"createTime":1757506663000,` +
-			`"updateTime":1757509217000,"version":3,"profitRatio":0.0191,"closeProfitLoss":0.2245,"fee":-0.009,` +
-			`"positionShowStatus":"CLOSED","deductFeeList":[],"totalFee":0.009}]`,
+			`"openAvgPriceFullyScale":"112449.5","closeAvgPrice":113572.3,"liquidatePrice":56314.7,"oim":0,"im":0,"holdFee":0,` +
+			`"realised":0.2155,"leverage":2,"createTime":1757506663000,"updateTime":1757509217000,"autoAddIm":false,"version":3,` +
+			`"profitRatio":0.0191,"newOpenAvgPrice":112449.5,"newCloseAvgPrice":113572.3,"closeProfitLoss":0.2245,"fee":-0.009,` +
+			`"positionShowStatus":"CLOSED","deductFeeList":[],"totalFee":0.009,"zeroSaveTotalFeeBinance":0,"zeroTradeTotalFeeBinance":0.009}]`,
 	}), liveReadOnly)
 	result, err := ex.GetFuturesHistoricalPositions(t.Context(), &FuturesPositionsRequest{Symbol: futuresTradablePair})
 	require.NoError(t, err, "GetFuturesHistoricalPositions must not error")
 	if !mockTests {
 		return
 	}
-	require.Len(t, result, 1, "the position must be returned")
-	assert.Equal(t, FuturesID("1027177055"), result[0].PositionID, "the position ID should be decoded")
-	assert.EqualValues(t, FuturesPositionStateClosed, result[0].State, "the state should be decoded")
-	assert.Equal(t, 112449.5, result[0].HoldAveragePriceExact.Float64(), "the full precision price should be decoded")
-	assert.Equal(t, -0.009, result[0].Fee, "the fee should be decoded")
+	exp := []*FuturesPositionResponse{{
+		PositionID:               "1027177055",
+		Symbol:                   "BTC_USDT",
+		PositionType:             FuturesPositionTypeLong,
+		OpenType:                 FuturesOpenTypeIsolated,
+		State:                    FuturesPositionStateClosed,
+		CloseVolume:              2,
+		HoldAveragePrice:         112449.5,
+		HoldAveragePriceExact:    112449.5,
+		CloseAveragePrice:        113572.3,
+		OpenAveragePrice:         112449.5,
+		OpenAveragePriceExact:    112449.5,
+		NewOpenAveragePrice:      112449.5,
+		NewCloseAveragePrice:     113572.3,
+		LiquidatePrice:           56314.7,
+		RealisedPNL:              0.2155,
+		Leverage:                 2,
+		ProfitRatio:              0.0191,
+		CloseProfitLoss:          0.2245,
+		Fee:                      -0.009,
+		TotalFee:                 0.009,
+		DeductFeeList:            []FuturesDeductFee{},
+		PositionShowStatus:       "CLOSED",
+		ZeroTradeTotalFeeBinance: 0.009,
+		Version:                  3,
+		CreateTime:               types.Time(time.UnixMilli(1757506663000)),
+		UpdateTime:               types.Time(time.UnixMilli(1757509217000)),
+	}}
+	assert.Equal(t, exp, result, "GetFuturesHistoricalPositions should decode every field")
 }
 
 func TestGetFuturesOpenPositions(t *testing.T) {
@@ -296,23 +368,46 @@ func TestGetFuturesOpenPositions(t *testing.T) {
 		method: http.MethodGet,
 		path:   "private/position/open_positions",
 		query:  "symbol=BTC_USDT",
-		data: `[{"positionId":1109973831,"symbol":"BTC_USDT","positionType":1,"openType":1,"state":1,"holdVol":5,` +
-			`"frozenVol":0,"closeVol":0,"holdAvgPrice":109777.5,"openAvgPrice":109777.5,"liquidatePrice":55020.5,` +
-			`"oim":27.444375,"im":27.444375,"holdFee":0,"realised":0,"leverage":2,"marginRatio":0.0027,` +
-			`"createTime":1761887133854,"updateTime":1761887133854,"autoAddIm":false,"version":1,"lowSaveTotalFee":0,` +
-			`"positionDrop":false,"feeRates":{"min":0,"max":0.0002},"unRealizedPnl":-0.0039}]`,
+		data: `[{"positionId":1109973831,"symbol":"BTC_USDT","positionType":1,"openType":1,"state":1,"holdVol":5,"frozenVol":0,` +
+			`"closeVol":0,"holdAvgPrice":109777.5,"holdAvgPriceFullyScale":"109777.5","openAvgPrice":109777.5,` +
+			`"openAvgPriceFullyScale":"109777.5","closeAvgPrice":0,"liquidatePrice":55020.5,"oim":27.444375,"im":27.444375,` +
+			`"holdFee":0,"realised":0,"leverage":2,"marginRatio":0.0027,"createTime":1761887133854,"updateTime":1761887133854,` +
+			`"autoAddIm":false,"version":1,"profitRatio":0,"newOpenAvgPrice":109777.5,"newCloseAvgPrice":0,"closeProfitLoss":0,` +
+			`"fee":0,"deductFeeList":[],"totalFee":0,"zeroSaveTotalFeeBinance":0.0301,"zeroTradeTotalFeeBinance":0.0301,` +
+			`"lowSaveTotalFee":0,"positionDrop":false,"feeRates":{"min":0,"max":0.0002},"unRealizedPnl":-0.0039}]`,
 	}), liveReadOnly)
 	result, err := ex.GetFuturesOpenPositions(t.Context(), futuresTradablePair, "")
 	require.NoError(t, err, "GetFuturesOpenPositions must not error")
 	if !mockTests {
 		return
 	}
-	require.Len(t, result, 1, "the position must be returned")
-	assert.Equal(t, 5.0, result[0].HoldVolume, "the held volume should be decoded")
-	assert.Equal(t, 27.444375, result[0].InitialMargin, "the initial margin should be decoded")
-	assert.Equal(t, -0.0039, result[0].unrealisedPNL(), "the unrealised PNL should be read from unRealizedPnl")
-	require.NotNil(t, result[0].FeeRates, "the fee rates must be decoded")
-	assert.Equal(t, 0.0002, result[0].FeeRates.Max, "the fee rate range should be decoded")
+	exp := []*FuturesPositionResponse{{
+		PositionID:               "1109973831",
+		Symbol:                   "BTC_USDT",
+		HoldVolume:               5,
+		PositionType:             FuturesPositionTypeLong,
+		OpenType:                 FuturesOpenTypeIsolated,
+		State:                    FuturesPositionStateHolding,
+		HoldAveragePrice:         109777.5,
+		HoldAveragePriceExact:    109777.5,
+		OpenAveragePrice:         109777.5,
+		OpenAveragePriceExact:    109777.5,
+		NewOpenAveragePrice:      109777.5,
+		LiquidatePrice:           55020.5,
+		OriginalInitialMargin:    27.444375,
+		InitialMargin:            27.444375,
+		Leverage:                 2,
+		MarginRatio:              0.0027,
+		DeductFeeList:            []FuturesDeductFee{},
+		ZeroSaveTotalFeeBinance:  0.0301,
+		ZeroTradeTotalFeeBinance: 0.0301,
+		FeeRates:                 &FuturesFeeRange{Max: 0.0002},
+		UnrealisedPNL:            -0.0039,
+		Version:                  1,
+		CreateTime:               types.Time(time.UnixMilli(1761887133854)),
+		UpdateTime:               types.Time(time.UnixMilli(1761887133854)),
+	}}
+	assert.Equal(t, exp, result, "GetFuturesOpenPositions should decode every field")
 }
 
 func TestFuturesPositionUnrealisedPNL(t *testing.T) {
@@ -340,9 +435,18 @@ func TestGetFuturesFundingFees(t *testing.T) {
 	if !mockTests {
 		return
 	}
-	require.Len(t, result, 1, "the funding fee must be returned")
-	assert.Equal(t, -0.0104, result[0].Funding, "a paid funding fee should be negative")
-	assert.Equal(t, int64(1761897600000), result[0].SettleTime.Time().UnixMilli(), "the settlement time should be decoded")
+	// A paid funding fee is negative
+	exp := []*FuturesFundingFeeResponse{{
+		ID:            7123,
+		Symbol:        "BTC_USDT",
+		PositionID:    "1109973831",
+		PositionType:  FuturesPositionTypeLong,
+		PositionValue: 548.8875,
+		Funding:       -0.0104,
+		Rate:          -0.000019,
+		SettleTime:    types.Time(time.UnixMilli(1761897600000)),
+	}}
+	assert.Equal(t, exp, result, "GetFuturesFundingFees should decode every field")
 }
 
 func TestGetFuturesRiskLimits(t *testing.T) {
@@ -360,9 +464,32 @@ func TestGetFuturesRiskLimits(t *testing.T) {
 	if !mockTests {
 		return
 	}
-	require.Len(t, result["BTC_USDT"], 2, "both position sides must be returned")
-	assert.EqualValues(t, 6, result["BTC_USDT"][0].Level, "the risk level should be decoded")
-	assert.Equal(t, 0.05, result["BTC_USDT"][0].CurrentMaintenanceMarginRate, "the current maintenance margin rate should be decoded")
+	exp := map[string][]*FuturesRiskLimitResponse{"BTC_USDT": {
+		{
+			Symbol:                       "BTC_USDT",
+			PositionType:                 FuturesPositionTypeShort,
+			OpenType:                     FuturesOpenTypeIsolated,
+			Level:                        6,
+			MaxVolume:                    4500000,
+			MaxLeverage:                  500,
+			MaintenanceMarginRate:        0.05,
+			InitialMarginRate:            0.1,
+			Leverage:                     2,
+			CurrentMaintenanceMarginRate: 0.05,
+		},
+		{
+			Symbol:                "BTC_USDT",
+			PositionType:          FuturesPositionTypeLong,
+			OpenType:              FuturesOpenTypeIsolated,
+			Level:                 1,
+			MaxVolume:             50000,
+			MaxLeverage:           500,
+			MaintenanceMarginRate: 0.001,
+			InitialMarginRate:     0.002,
+			Leverage:              2,
+		},
+	}}
+	assert.Equal(t, exp, result, "GetFuturesRiskLimits should decode both position sides")
 }
 
 func TestGetFuturesFeeDetails(t *testing.T) {
@@ -371,22 +498,55 @@ func TestGetFuturesFeeDetails(t *testing.T) {
 		method: http.MethodGet,
 		path:   "private/account/tiered_fee_rate/v2",
 		query:  "symbol=BTC_USDT",
-		data: `{"symbol":"BTC_USDT","joinDiscount":true,"enjoyDiscount":true,"discountRate":0.5,"realMakerFee":0,` +
-			`"realTakerFee":0.0002,"walletBalance":35.10272884,"level":9999,"feeType":1,"feeRateMode":"TIERED",` +
-			`"tieredFeeRates":[{"takerFeeRate":0,"makerFeeRate":0,"minTieredDealAmount":0,"maxTieredDealAmount":10000000},` +
-			`{"takerFeeRate":0.0004,"makerFeeRate":0.0001,"minTieredDealAmount":10000001,"realTakerFee":0.0002,"realMakerFee":0.00005}],` +
-			`"tieredContractIds":[10,77,1104],"statisticType":"FIXED","fixedStartTime":1760544000000,"minLeverage":1,"maxLeverage":50}`,
+		data: `{"symbol":"BTC_USDT","joinDiscount":true,"enjoyDiscount":true,"discountRate":0.5,"joinDeduct":true,"enjoyDeduct":true,` +
+			`"deductRate":0.8,"originalMakerFee":0.0001,"originalTakerFee":0.0004,"realMakerFee":0.00005,"realTakerFee":0.0002,` +
+			`"dealAmount":1250.5,"walletBalance":35.10272884,"inviterKyc":"","level":9999,"feeType":1,"agentFee":false,` +
+			`"feeRateMode":"TIERED","leverageFeeRates":[],"tieredFeeRates":[{"takerFeeRate":0,"makerFeeRate":0,` +
+			`"minTieredDealAmount":0,"maxTieredDealAmount":10000000,"realTakerFee":0,"realMakerFee":0},{"takerFeeRate":0.0004,` +
+			`"makerFeeRate":0.0001,"minTieredDealAmount":10000001,"realTakerFee":0.0002,"realMakerFee":0.00005}],` +
+			`"tieredDealAmount":54,"tieredEffectiveDay":0,"tieredAppointContract":true,"tieredExcludeContractId":true,` +
+			`"tieredContractIds":[10,77,1104],"tieredExcludeZeroFee":false,"statisticType":"FIXED","fixedStartTime":1760544000000,` +
+			`"fixedEndTime":1763049600000,"minLeverage":1,"maxLeverage":50,"isMaxLeverage":true}`,
 	}), liveReadOnly)
 	result, err := ex.GetFuturesFeeDetails(t.Context(), futuresTradablePair)
 	require.NoError(t, err, "GetFuturesFeeDetails must not error")
 	if !mockTests {
 		return
 	}
-	assert.Equal(t, 0.0002, result.RealTakerFee, "the taker fee should be decoded")
-	assert.EqualValues(t, 9999, result.Level, "the level should be decoded")
-	require.Len(t, result.TieredFeeRates, 2, "every fee tier must be decoded")
-	assert.Equal(t, 0.00005, result.TieredFeeRates[1].RealMakerFee, "a tier's maker fee should be decoded")
-	assert.Equal(t, []uint64{10, 77, 1104}, result.TieredContractIDs, "the tiered contracts should be decoded")
+	// The leverage fee rates are set only in a fee mode the venue gives no example of, so they are not decoded
+	exp := &FuturesFeeDetailsResponse{
+		Symbol:                  "BTC_USDT",
+		OriginalMakerFee:        0.0001,
+		OriginalTakerFee:        0.0004,
+		JoinDiscount:            true,
+		EnjoyDiscount:           true,
+		JoinDeduct:              true,
+		EnjoyDeduct:             true,
+		RealMakerFee:            0.00005,
+		RealTakerFee:            0.0002,
+		DiscountRate:            0.5,
+		DeductRate:              0.8,
+		DealAmount:              1250.5,
+		WalletBalance:           35.10272884,
+		Level:                   9999,
+		FeeType:                 1,
+		FeeRateMode:             "TIERED",
+		TieredDealAmount:        54,
+		TieredAppointContract:   true,
+		TieredExcludeContractID: true,
+		FixedEndTime:            types.Time(time.UnixMilli(1763049600000)),
+		IsMaxLeverage:           true,
+		TieredFeeRates: []FuturesTieredFeeRate{
+			{MaxTieredDealAmount: 10000000},
+			{TakerFeeRate: 0.0004, MakerFeeRate: 0.0001, MinTieredDealAmount: 10000001, RealTakerFee: 0.0002, RealMakerFee: 0.00005},
+		},
+		TieredContractIDs: []uint64{10, 77, 1104},
+		StatisticType:     "FIXED",
+		FixedStartTime:    types.Time(time.UnixMilli(1760544000000)),
+		MinLeverage:       1,
+		MaxLeverage:       50,
+	}
+	assert.Equal(t, exp, result, "GetFuturesFeeDetails should decode every field")
 }
 
 func TestChangeFuturesPositionMargin(t *testing.T) {
@@ -435,10 +595,31 @@ func TestGetFuturesLeverage(t *testing.T) {
 	if !mockTests {
 		return
 	}
-	require.Len(t, result, 2, "both position sides must be returned")
-	assert.EqualValues(t, FuturesPositionTypeShort, result[1].PositionType, "the position type should be decoded")
-	assert.EqualValues(t, 3, result[1].Leverage, "the leverage should be decoded")
-	assert.EqualValues(t, 500, result[1].MaxLeverageView, "the maximum leverage should be decoded")
+	exp := []*FuturesLeverageResponse{
+		{
+			PositionType:                 FuturesPositionTypeLong,
+			OpenType:                     FuturesOpenTypeIsolated,
+			Leverage:                     2,
+			MaxLeverageView:              500,
+			Level:                        6,
+			MaxVolume:                    4500000,
+			MaintenanceMarginRate:        0.05,
+			InitialMarginRate:            0.1,
+			CurrentMaintenanceMarginRate: 0.001,
+		},
+		{
+			PositionType:                 FuturesPositionTypeShort,
+			OpenType:                     FuturesOpenTypeIsolated,
+			Leverage:                     3,
+			MaxLeverageView:              500,
+			Level:                        6,
+			MaxVolume:                    4500000,
+			MaintenanceMarginRate:        0.05,
+			InitialMarginRate:            0.1,
+			CurrentMaintenanceMarginRate: 0.001,
+		},
+	}
+	assert.Equal(t, exp, result, "GetFuturesLeverage should decode both position sides")
 }
 
 func TestChangeFuturesLeverage(t *testing.T) {
@@ -518,8 +699,13 @@ func TestGetFuturesSelfTradePreventionGroups(t *testing.T) {
 	}), liveUnavailable)
 	result, err := ex.GetFuturesSelfTradePreventionGroups(t.Context(), "stpconfi001")
 	require.NoError(t, err, "GetFuturesSelfTradePreventionGroups must not error")
-	require.Len(t, result, 1, "the group must be returned")
-	assert.Equal(t, []FuturesID{"45359845", "72009483"}, result[0].BlackList, "the members should be decoded")
+	exp := []*FuturesSelfTradePreventionGroupResponse{{
+		GroupName:  "stpconfi001",
+		BlackList:  []FuturesID{"45359845", "72009483"},
+		CreateTime: types.Time(time.UnixMilli(1768804555000)),
+		UpdateTime: types.Time(time.UnixMilli(1768804555000)),
+	}}
+	assert.Equal(t, exp, result, "GetFuturesSelfTradePreventionGroups should decode every field")
 }
 
 func TestGetFuturesSelfTradePreventionGroup(t *testing.T) {
@@ -531,8 +717,9 @@ func TestGetFuturesSelfTradePreventionGroup(t *testing.T) {
 	}), liveUnavailable)
 	result, err := ex.GetFuturesSelfTradePreventionGroup(t.Context())
 	require.NoError(t, err, "GetFuturesSelfTradePreventionGroup must not error")
-	assert.Equal(t, "stpconfi001", result.GroupName, "the group name should be decoded")
-	assert.Equal(t, []FuturesID{"45359845"}, result.BlackList, "a member sent as a number should be decoded")
+	// The member is sent as a number
+	exp := &FuturesSelfTradePreventionGroupResponse{GroupName: "stpconfi001", BlackList: []FuturesID{"45359845"}, CreateTime: types.Time(time.UnixMilli(1768804555000))}
+	assert.Equal(t, exp, result, "GetFuturesSelfTradePreventionGroup should decode every field")
 }
 
 func TestCreateFuturesSelfTradePreventionGroup(t *testing.T) {
