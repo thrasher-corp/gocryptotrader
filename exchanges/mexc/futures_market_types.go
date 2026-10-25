@@ -33,9 +33,10 @@ const (
 type FuturesID string
 
 // UnmarshalJSON decodes an identifier from a JSON string or number. The venue sends an ID of zero where there is
-// none, such as the order of an untriggered plan order, so zero and null leave it empty
+// none, such as the order of an untriggered plan order, so zero and null decode as an empty ID
 func (f *FuturesID) UnmarshalJSON(data []byte) error {
 	if bytes.Equal(data, []byte("null")) {
+		*f = ""
 		return nil
 	}
 	if len(data) > 0 && data[0] == '"' {
@@ -43,15 +44,17 @@ func (f *FuturesID) UnmarshalJSON(data []byte) error {
 		if err := json.Unmarshal(data, &s); err != nil {
 			return err
 		}
-		if s != "0" {
-			*f = FuturesID(s)
+		if s == "0" {
+			s = ""
 		}
+		*f = FuturesID(s)
 		return nil
 	}
 	id, err := strconv.ParseUint(string(data), 10, 64)
 	if err != nil {
 		return fmt.Errorf("%w: %q", errInvalidFuturesID, data)
 	}
+	*f = ""
 	if id != 0 {
 		*f = FuturesID(strconv.FormatUint(id, 10))
 	}

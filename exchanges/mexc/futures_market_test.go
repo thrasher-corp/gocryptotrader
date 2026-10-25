@@ -559,7 +559,7 @@ func TestFuturesIDUnmarshalJSON(t *testing.T) {
 		`0`:                    "",
 		`"0"`:                  "",
 	} {
-		var id FuturesID
+		id := FuturesID("1") // a receiver reused from an earlier decode
 		require.NoErrorf(t, json.Unmarshal([]byte(input), &id), "Unmarshal must not error for %s", input)
 		assert.Equalf(t, exp, id, "%s should decode exactly", input)
 	}

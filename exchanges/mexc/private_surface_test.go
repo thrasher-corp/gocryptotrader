@@ -1,8 +1,10 @@
 package mexc
 
 import (
+	"bytes"
 	"encoding/hex"
 	"io"
+	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -110,11 +112,56 @@ func (f *futuresRoute) matches(t *testing.T, r *http.Request, body []byte) bool 
 		return true
 	}
 	// The handler runs off the test's goroutine, where a require would not stop the test
-	var want, got any
-	if !assert.NoError(t, json.Unmarshal([]byte(f.body), &want), "the route's body should be JSON") {
+	want, err := exactJSON([]byte(f.body))
+	if !assert.NoError(t, err, "the route's body should be JSON") {
 		return false
 	}
-	return json.Unmarshal(body, &got) == nil && reflect.DeepEqual(want, got)
+	got, err := exactJSON(body)
+	return err == nil && reflect.DeepEqual(want, got)
+}
+
+// exactNumber is a JSON number held as its exact rational value
+type exactNumber string
+
+// exactJSON decodes JSON as unmarshalling into an any does, but keeps each number exact: as float64s, order IDs above
+// 2^53 such as 739206374277809664 and 739206374277809665 compare equal
+func exactJSON(data []byte) (any, error) {
+	var v any
+	if err := json.Unmarshal(data, &v); err != nil {
+		return nil, err
+	}
+	switch v.(type) {
+	case map[string]any:
+		var members map[string]json.RawMessage
+		if err := json.Unmarshal(data, &members); err != nil {
+			return nil, err
+		}
+		object := make(map[string]any, len(members))
+		for name, member := range members {
+			var err error
+			if object[name], err = exactJSON(member); err != nil {
+				return nil, err
+			}
+		}
+		return object, nil
+	case []any:
+		var elements []json.RawMessage
+		if err := json.Unmarshal(data, &elements); err != nil {
+			return nil, err
+		}
+		list := make([]any, len(elements))
+		for i, element := range elements {
+			var err error
+			if list[i], err = exactJSON(element); err != nil {
+				return nil, err
+			}
+		}
+		return list, nil
+	case float64:
+		n, _ := new(big.Rat).SetString(string(bytes.TrimSpace(data))) // every JSON number is a valid rational
+		return exactNumber(n.RatString()), nil
+	}
+	return v, nil
 }
 
 // futuresHandler serves recorded futures replies and reports a request no route serves. It checks each private
@@ -166,6 +213,23 @@ func jsonHandler(t *testing.T, bySuffix map[string]string) http.HandlerFunc {
 		}
 		t.Errorf("unexpected request path %q", r.URL.Path)
 		http.Error(w, "unexpected path", http.StatusNotFound)
+	}
+}
+
+func TestFuturesRouteMatches(t *testing.T) {
+	t.Parallel()
+	route := &futuresRoute{method: http.MethodPost, path: "private/planorder/cancel", body: `[{"symbol":"BTC_USDT","orderId":739206374277809664}]`}
+	for body, exp := range map[string]bool{
+		`[{"symbol":"BTC_USDT","orderId":739206374277809664}]`:          true,
+		`[ { "orderId" : 739206374277809664, "symbol" : "BTC_USDT" } ]`: true,
+		`[{"symbol":"BTC_USDT","orderId":7.39206374277809664e17}]`:      true,
+		`[{"symbol":"BTC_USDT","orderId":739206374277809665}]`:          false,
+		`[{"symbol":"BTC_USDT","orderId":"739206374277809664"}]`:        false,
+		`[{"symbol":"BTC_USDT","orderId":739206374277809664,"x":1}]`:    false,
+		`[{"symbol":"BTC_USDT","orderId":739206374277809664`:            false,
+	} {
+		r := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/private/planorder/cancel", http.NoBody)
+		assert.Equalf(t, exp, route.matches(t, r, []byte(body)), "matching %s should report %t", body, exp)
 	}
 }
 
