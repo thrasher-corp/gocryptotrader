@@ -93,6 +93,14 @@ func TestTimestampMarshalJSON(t *testing.T) {
 	var roundTrip Timestamp
 	require.NoError(t, json.Unmarshal(data, &roundTrip), "Unmarshal must not error on marshalled output")
 	assert.True(t, resp.Time.Time().Equal(roundTrip.Time()), "a marshalled timestamp should round-trip")
+
+	var offset Timestamp
+	require.NoError(t, json.Unmarshal([]byte(`"2026-10-23T01:07:01+0200"`), &offset), "Unmarshal must not error on a non-zero offset")
+	data, err = json.Marshal(offset)
+	require.NoError(t, err, "Marshal must not error on a non-zero offset")
+	var decoded time.Time
+	require.NoError(t, json.Unmarshal(data, &decoded), "time.Time must decode the marshalled output")
+	assert.True(t, offset.Time().Equal(decoded), "a marshalled timestamp should decode to the same instant")
 }
 
 func TestGetRatesAllTargets(t *testing.T) {
@@ -105,6 +113,22 @@ func TestGetRatesAllTargets(t *testing.T) {
 	rates, err := a.GetRates("EUR", "")
 	require.NoError(t, err, "GetRates must not error")
 	assert.Equal(t, 1.17, rates["EURUSD"], "EURUSD should match the mocked rate")
+}
+
+func TestGetRatesSkipsUnusableRows(t *testing.T) {
+	t.Parallel()
+	a := newTestProvider(t, "placeholder", http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`[{"source":"USD","target":"EUR","rate":0.891107,"time":"2026-10-22T23:07:01+0000"},null,{},{"source":"USD","rate":0.75},{"target":"AUD","rate":1.52},{"source":"US","target":"EUR","rate":1},{"source":"USD","target":"EU","rate":1},{"source":"USDX","target":"EUR","rate":1},{"source":"USD","target":"EURO","rate":1},{"source":"USD","target":"GBP","rate":0},{"source":"USD","target":"JPY","rate":null},{"source":"USD","target":"CAD","rate":-0.73}]`))
+	}))
+	rates, err := a.GetRates("USD", "EUR,GBP,JPY,CAD")
+	require.NoError(t, err, "GetRates must not error while a usable row remains")
+	assert.Equal(t, map[string]float64{"USDEUR": 0.891107}, rates, "GetRates should skip rows without both codes or a positive rate")
+
+	a = newTestProvider(t, "placeholder", http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`[{},{"source":"USD","target":"EUR","rate":0}]`))
+	}))
+	_, err = a.GetRates("USD", "EUR")
+	assert.ErrorIs(t, err, errNoRatesReturn, "GetRates should error when no row is usable")
 }
 
 func TestGetRatesErrors(t *testing.T) {

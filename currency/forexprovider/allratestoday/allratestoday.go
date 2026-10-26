@@ -68,7 +68,16 @@ func (a *AllRatesToday) GetRates(baseCurrency, symbols string) (map[string]float
 
 	standardisedRates := make(map[string]float64, len(rates))
 	for i := range rates {
+		// ConversionRates.Update splits each key after its third byte and stores
+		// 1/rate, so keep only rows whose codes are three bytes each and whose
+		// rate is positive
+		if len(rates[i].Source) != 3 || len(rates[i].Target) != 3 || rates[i].Rate <= 0 {
+			continue
+		}
 		standardisedRates[strings.ToUpper(rates[i].Source+rates[i].Target)] = rates[i].Rate
+	}
+	if len(standardisedRates) == 0 {
+		return nil, errNoRatesReturn
 	}
 	return standardisedRates, nil
 }
