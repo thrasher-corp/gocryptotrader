@@ -3,6 +3,8 @@ package bybit
 import (
 	"context"
 	"fmt"
+	"io"
+	"maps"
 	"math"
 	"net/http"
 	"net/http/httptest"
@@ -11,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 	"uuid"
@@ -347,7 +350,7 @@ func TestDeriveSubmitOrderArguments(t *testing.T) {
 				Side:             sideSell,
 				OrderType:        "Market",
 				Quantity:         1,
-				TimeInForce:      "GTC",
+				TimeInForce:      "IOC",
 				TriggerPrice:     90000,
 				TriggerDirection: 1,
 				TriggerBy:        "LastPrice",
@@ -369,7 +372,7 @@ func TestDeriveSubmitOrderArguments(t *testing.T) {
 				Side:             sideBuy,
 				OrderType:        "Market",
 				Quantity:         1,
-				TimeInForce:      "GTC",
+				TimeInForce:      "IOC",
 				TriggerPrice:     70000,
 				TriggerDirection: 2,
 				TriggerBy:        "LastPrice",
@@ -393,7 +396,7 @@ func TestDeriveSubmitOrderArguments(t *testing.T) {
 				OrderType:    "Market",
 				Quantity:     0.01,
 				MarketUnit:   "baseCoin",
-				TimeInForce:  "GTC",
+				TimeInForce:  "IOC",
 				TriggerPrice: 90000,
 				TriggerBy:    "LastPrice",
 				OrderFilter:  "tpslOrder",
@@ -404,21 +407,21 @@ func TestDeriveSubmitOrderArguments(t *testing.T) {
 			submit: &order.Submit{Exchange: e.GetName(), Pair: currency.NewBTCUSDT(), AssetType: asset.Spot, Side: order.Buy, Type: order.Stop, Amount: 0.01, TriggerPrice: 90000},
 			exp: &PlaceOrderRequest{
 				Category: getCategoryName(asset.Spot), Symbol: "BTCUSDT", Side: sideBuy, OrderType: "Market", Quantity: 0.01, MarketUnit: "baseCoin",
-				TimeInForce: "GTC", TriggerPrice: 90000, TriggerBy: "LastPrice", OrderFilter: "tpslOrder",
+				TimeInForce: "IOC", TriggerPrice: 90000, TriggerBy: "LastPrice", OrderFilter: "tpslOrder",
 			},
 		},
 		{
 			submit: &order.Submit{Exchange: e.GetName(), Pair: currency.NewBTCUSDT(), AssetType: asset.Spot, Side: order.Sell, Type: order.StopMarket, Amount: 0.01, TriggerPrice: 80000},
 			exp: &PlaceOrderRequest{
 				Category: getCategoryName(asset.Spot), Symbol: "BTCUSDT", Side: sideSell, OrderType: "Market", Quantity: 0.01, MarketUnit: "baseCoin",
-				TimeInForce: "GTC", TriggerPrice: 80000, TriggerBy: "LastPrice", OrderFilter: "tpslOrder",
+				TimeInForce: "IOC", TriggerPrice: 80000, TriggerBy: "LastPrice", OrderFilter: "tpslOrder",
 			},
 		},
 		{
 			// Coin margined conditional orders say which way the price must cross their trigger, as other futures do
 			submit: &order.Submit{Exchange: e.GetName(), Pair: currency.NewPair(currency.ADA, currency.USD), AssetType: asset.CoinMarginedFutures, Side: order.Sell, Type: order.StopMarket, Amount: 100, TriggerPrice: 0.6, StopDirection: order.StopUp},
 			exp: &PlaceOrderRequest{
-				Category: cInverse, Symbol: "ADAUSD", Side: sideSell, OrderType: "Market", Quantity: 100, TimeInForce: "GTC",
+				Category: cInverse, Symbol: "ADAUSD", Side: sideSell, OrderType: "Market", Quantity: 100, TimeInForce: "IOC",
 				TriggerPrice: 0.6, TriggerDirection: 1, TriggerBy: "LastPrice",
 			},
 		},
@@ -500,6 +503,36 @@ func TestDeriveSubmitOrderArguments(t *testing.T) {
 		assert.Equal(t, tc.exp, got, "deriveSubmitOrderArguments should derive the expected request")
 	}
 
+	// A conditional order takes the times in force of the order type Bybit places it as
+	for _, tc := range []struct {
+		orderType order.Type
+		market    bool
+	}{
+		{orderType: order.Limit},
+		{orderType: order.StopLimit},
+		{orderType: order.Market, market: true},
+		{orderType: order.Stop, market: true},
+		{orderType: order.StopMarket, market: true},
+	} {
+		for _, tif := range timeInForceTestCases {
+			s := &order.Submit{Exchange: e.GetName(), Pair: currency.NewBTCUSDT(), AssetType: asset.USDTMarginedFutures, Side: order.Buy, Type: tc.orderType, Amount: 1, Price: 80000, TimeInForce: tif.timeInForce}
+			if tc.orderType.Is(order.Stop) {
+				s.TriggerPrice = 79000
+			}
+			exp := tif.limit
+			if tc.market {
+				exp = tif.market
+			}
+			got, err := e.deriveSubmitOrderArguments(s)
+			if exp == "" {
+				assert.ErrorIsf(t, err, order.ErrUnsupportedTimeInForce, "deriveSubmitOrderArguments should refuse a %s order with time in force %q", tc.orderType, tif.timeInForce)
+				continue
+			}
+			require.NoErrorf(t, err, "deriveSubmitOrderArguments must not error for a %s order with time in force %q", tc.orderType, tif.timeInForce)
+			assert.Equalf(t, exp, got.TimeInForce, "deriveSubmitOrderArguments should send Bybit's time in force for a %s order with time in force %q", tc.orderType, tif.timeInForce)
+		}
+	}
+
 	// Bybit requires a client order ID on every options order, so one is generated when none is given
 	option := currency.NewPairWithDelimiter("BTC", "26NOV24-92000-C", "-")
 	got, err := e.deriveSubmitOrderArguments(&order.Submit{Exchange: e.GetName(), Pair: option, AssetType: asset.Options, Side: order.Buy, Type: order.Limit, Amount: 0.01, Price: 500})
@@ -572,6 +605,58 @@ func TestBybitOrderType(t *testing.T) {
 	for _, orderType := range []order.Type{order.UnknownType, order.TrailingStop} {
 		_, _, err := bybitOrderType(orderType)
 		assert.ErrorIsf(t, err, order.ErrUnsupportedOrderType, "bybitOrderType should reject %s", orderType)
+	}
+}
+
+// timeInForceTestCases holds each valid time in force with the name Bybit takes it by for a limit and for a market
+// order, or none where Bybit cannot honour it: Bybit takes GTC, PostOnly, IOC or FOK for a limit order and executes
+// every market order as IOC
+var timeInForceTestCases = []struct {
+	timeInForce   order.TimeInForce
+	limit, market string
+}{
+	{timeInForce: order.UnknownTIF, limit: "GTC", market: "IOC"},
+	{timeInForce: order.GoodTillCancel, limit: "GTC"},
+	{timeInForce: order.PostOnly, limit: "PostOnly"},
+	{timeInForce: order.GoodTillCancel | order.PostOnly, limit: "PostOnly"},
+	{timeInForce: order.ImmediateOrCancel, limit: "IOC", market: "IOC"},
+	{timeInForce: order.FillOrKill, limit: "FOK"},
+	{timeInForce: order.GoodTillDay},
+	{timeInForce: order.GoodTillTime},
+	{timeInForce: order.GoodTillCrossing},
+	{timeInForce: order.StopOrReduce},
+	{timeInForce: order.GoodTillCancel | order.GoodTillDay},
+	{timeInForce: order.GoodTillCancel | order.StopOrReduce},
+	{timeInForce: order.GoodTillDay | order.PostOnly},
+	{timeInForce: order.GoodTillTime | order.PostOnly},
+	{timeInForce: order.GoodTillCrossing | order.PostOnly},
+	{timeInForce: order.StopOrReduce | order.PostOnly},
+	{timeInForce: order.GoodTillCancel | order.GoodTillCrossing | order.PostOnly},
+}
+
+func TestBybitTimeInForce(t *testing.T) {
+	t.Parallel()
+	for _, tc := range timeInForceTestCases {
+		for _, o := range []struct {
+			kind   string
+			market bool
+			exp    string
+		}{{kind: "limit", exp: tc.limit}, {kind: "market", market: true, exp: tc.market}} {
+			got, err := bybitTimeInForce(tc.timeInForce, o.market)
+			if o.exp == "" {
+				assert.ErrorIsf(t, err, order.ErrUnsupportedTimeInForce, "bybitTimeInForce should refuse a %s order with time in force %q", o.kind, tc.timeInForce)
+				continue
+			}
+			require.NoErrorf(t, err, "bybitTimeInForce must not error for a %s order with time in force %q", o.kind, tc.timeInForce)
+			assert.Equalf(t, o.exp, got, "bybitTimeInForce should return Bybit's time in force for a %s order with time in force %q", o.kind, tc.timeInForce)
+		}
+	}
+	// Combinations that order.Submit's validation already refuses
+	for _, tif := range []order.TimeInForce{order.ImmediateOrCancel | order.FillOrKill, order.ImmediateOrCancel | order.GoodTillCancel, order.FillOrKill | order.PostOnly} {
+		for _, market := range []bool{false, true} {
+			_, err := bybitTimeInForce(tif, market)
+			assert.ErrorIsf(t, err, order.ErrUnsupportedTimeInForce, "bybitTimeInForce should refuse time in force %q, market %t", tif, market)
+		}
 	}
 }
 
@@ -770,6 +855,51 @@ func TestSetDefaultsKlineIntervals(t *testing.T) {
 	for _, interval := range kline.SupportedIntervals {
 		assert.Equalf(t, slices.Contains(served, interval), ex.Features.Enabled.Kline.Intervals.ExchangeSupported(interval), "SetDefaults should enable %s only if Bybit serves candles at it", interval)
 	}
+}
+
+func TestSetDefaultsRetryPolicy(t *testing.T) {
+	t.Parallel()
+	// stalled returns an exchange with the requester SetDefaults builds and a short client timeout, whose server holds the
+	// first request until the client gives up on it and answers the others, and the number of requests the server got
+	stalled := func(t *testing.T) (*Exchange, *atomic.Int64) {
+		t.Helper()
+		hits := new(atomic.Int64)
+		ex := newTransportTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+			// The server notices the client leave only once the request body is read
+			_, err := io.Copy(io.Discard, r.Body)
+			assert.NoError(t, err, "reading the request body should not error")
+			if hits.Add(1) == 1 {
+				select {
+				case <-r.Context().Done():
+				case <-time.After(10 * time.Second):
+					assert.Fail(t, "the client should give up on the stalled request")
+				}
+				return
+			}
+			_, err = fmt.Fprint(w, `{"retCode":0,"retMsg":"OK","result":{},"retExtInfo":{},"time":1760000000000}`)
+			assert.NoError(t, err, "writing the reply should not error")
+		})
+		require.NoError(t, ex.SetHTTPClientTimeout(250*time.Millisecond), "SetHTTPClientTimeout must not error")
+		return ex, hits
+	}
+
+	t.Run("POST", func(t *testing.T) {
+		t.Parallel()
+		ex, hits := stalled(t)
+		_, err := ex.PlaceOrder(t.Context(), &PlaceOrderRequest{Category: cSpot, Symbol: "BTCUSDT", Side: sideBuy, OrderType: "Limit", Quantity: 0.001, Price: 80000, TimeInForce: "GTC"})
+		var urlErr *url.Error
+		require.ErrorAs(t, err, &urlErr, "PlaceOrder must return the HTTP client's error")
+		assert.True(t, urlErr.Timeout(), "PlaceOrder should return the client's timeout")
+		assert.Equal(t, int64(1), hits.Load(), "a POST that timed out should be sent once, as Bybit may have applied it")
+	})
+
+	t.Run("GET", func(t *testing.T) {
+		t.Parallel()
+		ex, hits := stalled(t)
+		_, err := ex.GetBybitServerTime(t.Context())
+		require.NoError(t, err, "GetBybitServerTime must not error once a retry is answered")
+		assert.Greater(t, hits.Load(), int64(1), "a GET that timed out should be sent again")
+	})
 }
 
 func TestSetup(t *testing.T) {
@@ -1254,21 +1384,41 @@ func TestUpdateTickerInverseVolumes(t *testing.T) {
 		t.Volume24Hour, t.Turnover24Hour = volume24Hour, turnover24Hour
 		return t
 	}
+	volumes := map[string]bool{"volume24h": true, "turnover24h": true}
 
 	tick := &ticker.Price{AssetType: asset.CoinMarginedFutures}
-	updateTicker(tick, wsTicker(147122986, 1873.7925))
+	updateTicker(tick, wsTicker(147122986, 1873.7925), volumes)
 	assert.Equal(t, 1873.7925, tick.BaseVolume, "an inverse ticker's turnover24h should be recorded as the base volume")
 	assert.Equal(t, 147122986.0, tick.QuoteVolume, "an inverse ticker's volume24h should be recorded as the quote volume")
 
 	// a delta carrying only the volumes must not overwrite the base figure with the quote one
-	updateTicker(tick, wsTicker(140241671, 1787.3508))
+	updateTicker(tick, wsTicker(140241671, 1787.3508), volumes)
 	assert.Equal(t, 1787.3508, tick.BaseVolume, "a later update should keep mapping turnover24h to the base volume")
 	assert.Equal(t, 140241671.0, tick.QuoteVolume, "a later update should keep mapping volume24h to the quote volume")
 
 	linear := &ticker.Price{AssetType: asset.USDTMarginedFutures}
-	updateTicker(linear, wsTicker(52633.7910, 4129941840.8562))
+	updateTicker(linear, wsTicker(52633.7910, 4129941840.8562), volumes)
 	assert.Equal(t, 52633.7910, linear.BaseVolume, "a linear ticker's volume24h should be recorded as the base volume")
 	assert.Equal(t, 4129941840.8562, linear.QuoteVolume, "a linear ticker's turnover24h should be recorded as the quote volume")
+}
+
+func TestBaseQuoteVolumes(t *testing.T) {
+	t.Parallel()
+	// The volume24h and turnover24h of a ticker of each category
+	for _, tc := range []struct {
+		asset            asset.Item
+		volume, turnover types.Number
+		exp              [2]float64
+	}{
+		// An inverse contract is worth one unit of its quote currency, so volume counts that currency and turnover the base
+		{asset: asset.CoinMarginedFutures, volume: 147122986, turnover: 1873.7925, exp: [2]float64{1873.7925, 147122986}},
+		{asset: asset.USDTMarginedFutures, volume: 52633.7910, turnover: 4129941840.8562, exp: [2]float64{52633.7910, 4129941840.8562}},
+		{asset: asset.Spot, volume: 8125.606399, turnover: 638025011.4045, exp: [2]float64{8125.606399, 638025011.4045}},
+		{asset: asset.Options, volume: 0.08, turnover: 6269.45554303, exp: [2]float64{0.08, 6269.45554303}},
+	} {
+		baseVolume, quoteVolume := baseQuoteVolumes(tc.volume, tc.turnover, tc.asset)
+		assert.Equalf(t, tc.exp, [2]float64{baseVolume, quoteVolume}, "baseQuoteVolumes should return the base and quote volumes of %s", tc.asset)
+	}
 }
 
 // tickerTestCase is an enabled pair whose ticker the fixtures record
@@ -1578,13 +1728,16 @@ func TestUpdateAccountBalances(t *testing.T) {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
 	ex := testInstance(t)
-	for _, a := range []asset.Item{asset.Spot, asset.USDTMarginedFutures, asset.CoinMarginedFutures, asset.Options} {
+	var last accounts.CurrencyBalances
+	for _, a := range []asset.Item{asset.Spot, asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures, asset.Options} {
 		subAccts, err := ex.UpdateAccountBalances(t.Context(), a)
 		require.NoErrorf(t, err, "UpdateAccountBalances must not error for %s", a)
 		require.Lenf(t, subAccts, 1, "UpdateAccountBalances must return the unified account for %s", a)
+		assert.Equalf(t, asset.Spot, subAccts[0].AssetType, "UpdateAccountBalances should return the unified account as the spot sub account for %s", a)
 		cached, err := ex.GetCachedCurrencyBalances(t.Context(), a)
 		require.NoErrorf(t, err, "GetCachedCurrencyBalances must not error for %s", a)
 		assert.Equalf(t, subAccts[0].Balances, cached, "UpdateAccountBalances should store the balances it returns for %s", a)
+		last = maps.Clone(subAccts[0].Balances)
 		if !mockTests {
 			continue
 		}
@@ -1601,8 +1754,101 @@ func TestUpdateAccountBalances(t *testing.T) {
 			balance.UpdatedAt = time.Time{}
 			subAccts[0].Balances[code] = balance
 		}
-		assert.Equalf(t, a, subAccts[0].AssetType, "UpdateAccountBalances should return the %s sub account", a)
 		assert.Equalf(t, exp, subAccts[0].Balances, "UpdateAccountBalances should map every unified balance for %s", a)
+	}
+	// The unified account is stored once, so balances across every asset type count it once
+	stored, err := ex.Accounts.SubAccounts(nil, asset.All)
+	require.NoError(t, err, "SubAccounts must not error")
+	require.Len(t, stored, 1, "UpdateAccountBalances must store the unified account once for every asset type asked for")
+	all, err := ex.Accounts.CurrencyBalances(nil, asset.All)
+	require.NoError(t, err, "CurrencyBalances must not error")
+	assert.Equal(t, last, all, "balances across every asset type should be the unified account's")
+}
+
+func TestUpdateAccountBalancesKeepsNewerWalletPush(t *testing.T) {
+	t.Parallel()
+	var mu sync.Mutex
+	var push, coins string // The wallet push arriving during the next request, if any, and the coins its reply lists
+	var ex *Exchange
+	ex = newTransportTestExchange(t, func(w http.ResponseWriter, _ *http.Request) {
+		mu.Lock()
+		pushed, listed := push, coins
+		mu.Unlock()
+		if pushed != "" {
+			assert.NoError(t, ex.wsProcessWalletPushData(t.Context(), []byte(`{"id":"wallet-push","topic":"wallet","creationTime":1787197420650,"data":[{"accountType":"UNIFIED","coin":[`+pushed+`]}]}`)), "a wallet push arriving during the request should not error")
+		}
+		_, err := fmt.Fprint(w, `{"retCode":0,"retMsg":"OK","result":{"list":[{"accountType":"UNIFIED","coin":[`+listed+`]}]},"retExtInfo":{},"time":1760000000000}`)
+		assert.NoError(t, err, "writing the reply should not error")
+	})
+	withoutTimes := func(b accounts.CurrencyBalances) accounts.CurrencyBalances {
+		for code, balance := range b {
+			balance.UpdatedAt = time.Time{}
+			b[code] = balance
+		}
+		return b
+	}
+	usdt := func(total float64) accounts.Balance {
+		return accounts.Balance{Currency: currency.USDT, Total: total, Free: total, AvailableWithoutBorrow: total}
+	}
+	btc := accounts.Balance{Currency: currency.BTC, Total: 1, Free: 1, AvailableWithoutBorrow: 1}
+	listed := `{"coin":"USDT","walletBalance":"50"},{"coin":"BTC","walletBalance":"1"}`
+	for _, tc := range []struct {
+		name  string
+		push  string
+		coins string
+		exp   accounts.CurrencyBalances
+	}{
+		// The push arrived after the snapshot was requested, so its USDT and its ETH, which the snapshot leaves out, stay
+		{
+			name: "a push arriving during the request", push: `{"coin":"USDT","walletBalance":"100"},{"coin":"ETH","walletBalance":"2"}`, coins: listed,
+			exp: accounts.CurrencyBalances{currency.USDT: usdt(100), currency.BTC: btc, currency.ETH: {Currency: currency.ETH, Total: 2, Free: 2, AvailableWithoutBorrow: 2}},
+		},
+		{name: "a snapshot requested after the push", coins: listed, exp: accounts.CurrencyBalances{currency.USDT: usdt(50), currency.BTC: btc}},
+		// Bybit lists no coin that holds nothing, so an empty reply still empties the coins stored before the request
+		{name: "an empty reply after a push arriving during the request", push: `{"coin":"USDT","walletBalance":"70"}`, exp: accounts.CurrencyBalances{currency.USDT: usdt(70)}},
+	} {
+		mu.Lock()
+		push, coins = tc.push, tc.coins
+		mu.Unlock()
+		subAccts, err := ex.UpdateAccountBalances(t.Context(), asset.Spot)
+		require.NoErrorf(t, err, "UpdateAccountBalances must not error for %s", tc.name)
+		require.Lenf(t, subAccts, 1, "UpdateAccountBalances must return the unified account for %s", tc.name)
+		cached, err := ex.GetCachedCurrencyBalances(t.Context(), asset.Spot)
+		require.NoErrorf(t, err, "GetCachedCurrencyBalances must not error for %s", tc.name)
+		assert.Equalf(t, tc.exp, withoutTimes(cached), "UpdateAccountBalances should store the newest balances for %s", tc.name)
+		assert.Equalf(t, tc.exp, withoutTimes(subAccts[0].Balances), "UpdateAccountBalances should return the balances it stores for %s", tc.name)
+	}
+}
+
+func TestGetCachedSubAccounts(t *testing.T) {
+	t.Parallel()
+	ex := withMockCredentials(websocketTestInstance(t))
+	_, err := ex.GetCachedSubAccounts(t.Context(), asset.Margin)
+	require.ErrorIs(t, err, asset.ErrNotSupported, "GetCachedSubAccounts must reject an asset Bybit does not trade")
+	unified, futuresCopy := accounts.NewSubAccount(asset.Spot, ""), accounts.NewSubAccount(asset.USDTMarginedFutures, "")
+	unified.Balances.Set(currency.USDT, accounts.Balance{Total: 100})
+	futuresCopy.Balances.Set(currency.USDT, accounts.Balance{Total: 7})
+	require.NoError(t, ex.Accounts.Save(t.Context(), accounts.SubAccounts{unified, futuresCopy}, true), "Accounts.Save must not error")
+	for _, a := range []asset.Item{asset.All, asset.Spot, asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures, asset.Options} {
+		got, err := ex.GetCachedSubAccounts(t.Context(), a)
+		require.NoErrorf(t, err, "GetCachedSubAccounts must not error for %s", a)
+		assert.Equalf(t, accounts.SubAccounts{unified}, got, "GetCachedSubAccounts should return the unified account for %s", a)
+	}
+}
+
+func TestGetCachedCurrencyBalances(t *testing.T) {
+	t.Parallel()
+	ex := withMockCredentials(websocketTestInstance(t))
+	_, err := ex.GetCachedCurrencyBalances(t.Context(), asset.Margin)
+	require.ErrorIs(t, err, asset.ErrNotSupported, "GetCachedCurrencyBalances must reject an asset Bybit does not trade")
+	unified, futuresCopy := accounts.NewSubAccount(asset.Spot, ""), accounts.NewSubAccount(asset.USDTMarginedFutures, "")
+	unified.Balances.Set(currency.USDT, accounts.Balance{Total: 100})
+	futuresCopy.Balances.Set(currency.USDT, accounts.Balance{Total: 7})
+	require.NoError(t, ex.Accounts.Save(t.Context(), accounts.SubAccounts{unified, futuresCopy}, true), "Accounts.Save must not error")
+	for _, a := range []asset.Item{asset.All, asset.Spot, asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures, asset.Options} {
+		got, err := ex.GetCachedCurrencyBalances(t.Context(), a)
+		require.NoErrorf(t, err, "GetCachedCurrencyBalances must not error for %s", a)
+		assert.Equalf(t, unified.Balances, got, "GetCachedCurrencyBalances should return the unified account's balances for %s", a)
 	}
 }
 
@@ -2001,6 +2247,8 @@ func TestSubmitOrder(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrAmountMustBeSet, "SubmitOrder must require a quote amount for a spot market buy")
 	_, err = e.SubmitOrder(t.Context(), &order.Submit{Exchange: e.Name, Pair: currency.NewBTCUSDT(), AssetType: asset.Binary, Side: order.Buy, Type: order.Limit, Price: 1, Amount: 1})
 	require.ErrorIs(t, err, asset.ErrNotSupported, "SubmitOrder must reject an asset Bybit does not trade")
+	_, err = e.SubmitOrder(t.Context(), &order.Submit{Exchange: e.Name, Pair: currency.NewBTCUSDT(), AssetType: asset.USDTMarginedFutures, Side: order.Buy, Type: order.Market, Amount: 1, TimeInForce: order.FillOrKill})
+	require.ErrorIs(t, err, order.ErrUnsupportedTimeInForce, "SubmitOrder must refuse a time in force Bybit cannot honour before sending")
 	noOrderID := restReplyTestInstance(t, map[string]string{"/v5/order/create": `{"retCode":0,"retMsg":"OK","result":{"orderId":"","orderLinkId":"spot-test-10"},"retExtInfo":{},"time":1760000000000}`})
 	_, err = noOrderID.SubmitOrder(t.Context(), &order.Submit{Exchange: noOrderID.Name, Pair: currency.NewBTCUSDT(), AssetType: asset.Spot, Side: order.Buy, Type: order.Limit, Price: 1, Amount: 1, ClientOrderID: "spot-test-10"})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "SubmitOrder must not report an order placed without Bybit's order ID")
@@ -3411,6 +3659,85 @@ func TestGetOrderHistory(t *testing.T) {
 	assert.Less(t, lastEnd, requested.Add(time.Hour).UnixMilli(), "GetOrderHistory should end the week at the time it was asked")
 	mu.Unlock()
 
+	// An order of a requested pair whose contract has expired or been delisted since keeps that pair, as GetOrderInfo's
+	// does, though its symbol is no longer an available pair, and an order of a listed pair keeps its own match
+	historyOrder := `{"orderId":"%s","orderLinkId":"","symbol":"%s","side":"Buy","orderType":"Limit","timeInForce":"GTC","orderStatus":"Filled","qty":"0.1","price":"100","avgPrice":"100","cumExecQty":"0.1","cumExecValue":"10","leavesQty":"0","cumExecFee":"0.05","createdTime":"1792108800000","updatedTime":"1792108801000"}`
+	historyOrders := make([]string, 0, 11)
+	for _, o := range [][2]string{
+		{"expired-order", "BTCUSDT-16OCT26"},
+		{"listed-order", "BTCUSDT"},
+		{"usdc-perpetual-order", "BTCPERP"},
+		{"expired-usdc-order", "BTC-16OCT26"},
+		{"expired-inverse-order", "BTCUSDU26"},
+		{"expired-option-order", "BTC-16OCT26-70000-C"},
+		{"expired-usdt-option-order", "BTC-16OCT26-70000-C-USDT"},
+		{"delisted-spot-order", "XYZUSDT"},
+		{"delisted-usdt-perpetual-order", "ETHUSDT"},
+		{"delisted-usdc-perpetual-order", "ETHPERP"},
+		{"delisted-inverse-perpetual-order", "ETHUSD"},
+	} {
+		historyOrders = append(historyOrders, fmt.Sprintf(historyOrder, o[0], o[1]))
+	}
+	expiredReply := `{"retCode":0,"retMsg":"OK","result":{"category":"linear","nextPageCursor":"","list":[` + strings.Join(historyOrders, ",") + `]},"retExtInfo":{},"time":1792700000000}`
+	expiredContract := restReplyTestInstance(t, map[string]string{"/v5/order/history": expiredReply})
+	// Only perpetuals and an option of another expiry remain available, so no dated symbol above is an available pair
+	for a, available := range map[asset.Item]currency.Pairs{
+		asset.USDTMarginedFutures: {currency.NewBTCUSDT()},
+		asset.USDCMarginedFutures: {currency.NewPair(currency.BTC, currency.PERP)},
+		asset.CoinMarginedFutures: {currency.NewBTCUSD()},
+		asset.Options:             {currency.NewPairWithDelimiter("BTC", "30OCT26-70000-C", currency.DashDelimiter)},
+	} {
+		require.NoErrorf(t, expiredContract.CurrencyPairs.StorePairs(a, available, false), "StorePairs must not error for %s", a)
+	}
+	// A caller may name a pair with a delimiter, which Bybit's symbol does not carry
+	expired := currency.NewPairWithDelimiter("BTC", "USDT-16OCT26", currency.DashDelimiter)
+	expiredUSDC := currency.NewPair(currency.BTC, currency.NewCode("16OCT26"))
+	expiredInverse := currency.NewPair(currency.BTC, currency.NewCode("USDU26"))
+	expiredOption := currency.NewPairWithDelimiter("BTC", "16OCT26-70000-C", currency.DashDelimiter)
+	expiredUSDTOption := currency.NewPairWithDelimiter("BTC", "16OCT26-70000-C-USDT", currency.DashDelimiter)
+	delistedSpot := currency.NewPairWithDelimiter("XYZ", "USDT", "")
+	delistedUSDT, delistedUSDC, delistedInverse := currency.NewPair(currency.ETH, currency.USDT), currency.NewPair(currency.ETH, currency.PERP), currency.NewPair(currency.ETH, currency.USD)
+	type returned struct {
+		id   string
+		pair currency.Pair
+	}
+	for _, tc := range []struct {
+		name  string
+		asset asset.Item
+		pairs currency.Pairs
+		exp   []returned
+	}{
+		{name: "the expired contract requested", asset: asset.USDTMarginedFutures, pairs: currency.Pairs{expired, currency.NewBTCUSDT()}, exp: []returned{{"expired-order", expired}, {"listed-order", currency.NewBTCUSDT()}}},
+		// Equal pairs, with and without a delimiter, name one symbol without making it ambiguous
+		{name: "the expired contract requested twice", asset: asset.USDTMarginedFutures, pairs: currency.Pairs{expired, currency.NewPair(currency.BTC, currency.NewCode("USDT-16OCT26"))}, exp: []returned{{"expired-order", expired}}},
+		{name: "no pair requested", asset: asset.USDTMarginedFutures, exp: []returned{{"listed-order", currency.NewBTCUSDT()}}},
+		{name: "the empty pair, which asks for every pair", asset: asset.USDTMarginedFutures, pairs: currency.Pairs{currency.EMPTYPAIR}, exp: []returned{{"listed-order", currency.NewBTCUSDT()}}},
+		// Neither of two unequal pairs naming one symbol is taken for its order, even when one is named again
+		{name: "two unequal pairs of the expired contract's symbol", asset: asset.USDTMarginedFutures, pairs: currency.Pairs{expired, currency.NewPair(currency.NewCode("BTCUSDT-16"), currency.NewCode("OCT26")), expired}},
+		{name: "an expired USDC margined future", asset: asset.USDCMarginedFutures, pairs: currency.Pairs{expiredUSDC}, exp: []returned{{"expired-usdc-order", expiredUSDC}}},
+		{name: "an expired coin margined future", asset: asset.CoinMarginedFutures, pairs: currency.Pairs{expiredInverse}, exp: []returned{{"expired-inverse-order", expiredInverse}}},
+		// A USDC settled option's symbol is a prefix of the USDT settled one's, and neither is taken for the other
+		{name: "an expired option", asset: asset.Options, pairs: currency.Pairs{expiredOption}, exp: []returned{{"expired-option-order", expiredOption}}},
+		{name: "an expired USDT settled option", asset: asset.Options, pairs: currency.Pairs{expiredUSDTOption}, exp: []returned{{"expired-usdt-option-order", expiredUSDTOption}}},
+		{name: "a delisted spot pair", asset: asset.Spot, pairs: currency.Pairs{delistedSpot}, exp: []returned{{"delisted-spot-order", delistedSpot}}},
+		{name: "a delisted USDT perpetual", asset: asset.USDTMarginedFutures, pairs: currency.Pairs{delistedUSDT}, exp: []returned{{"delisted-usdt-perpetual-order", delistedUSDT}}},
+		{name: "a delisted USDC perpetual", asset: asset.USDCMarginedFutures, pairs: currency.Pairs{delistedUSDC}, exp: []returned{{"delisted-usdc-perpetual-order", delistedUSDC}}},
+		{name: "a delisted inverse perpetual", asset: asset.CoinMarginedFutures, pairs: currency.Pairs{delistedInverse}, exp: []returned{{"delisted-inverse-perpetual-order", delistedInverse}}},
+		// The linear category returns USDT and USDC margined orders alike, so a pair of one margin is not taken for an
+		// order of the other's symbol
+		{name: "a USDC margined pair of the USDT margined symbol", asset: asset.USDCMarginedFutures, pairs: currency.Pairs{currency.NewPair(currency.NewCode("BTCUSDT"), currency.NewCode("16OCT26"))}},
+		{name: "a USDT margined pair of the USDC perpetual's symbol", asset: asset.USDTMarginedFutures, pairs: currency.Pairs{currency.NewPair(currency.BTC, currency.PERP)}},
+	} {
+		got, err := expiredContract.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: tc.asset, Side: order.AnySide, Type: order.AnyType, Pairs: tc.pairs})
+		require.NoErrorf(t, err, "GetOrderHistory must not error for %s", tc.name)
+		require.Lenf(t, got, len(tc.exp), "GetOrderHistory must return the expected orders for %s", tc.name)
+		for _, o := range tc.exp {
+			i := slices.IndexFunc(got, func(d order.Detail) bool { return d.OrderID == o.id })
+			require.GreaterOrEqualf(t, i, 0, "GetOrderHistory must return %s for %s", o.id, tc.name)
+			assert.Truef(t, o.pair.Equal(got[i].Pair), "GetOrderHistory should return %s with pair %s for %s", o.id, o.pair, tc.name)
+		}
+	}
+
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 		for _, a := range []asset.Item{asset.Spot, asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures, asset.Options} {
@@ -3654,6 +3981,56 @@ func TestValidateAPICredentials(t *testing.T) {
 	assert.NoError(t, testInstance(t).ValidateAPICredentials(t.Context(), asset.Spot), "ValidateAPICredentials should not error for valid credentials")
 }
 
+// candlePageTestCases holds a pair of each asset with candles and its first two hourly candles of 1 October 2026, which
+// candlePageTestInstance requests one to a page
+var candlePageTestCases = []struct {
+	asset   asset.Item
+	pair    currency.Pair
+	candles []kline.Candle
+}{
+	{
+		asset: asset.Spot,
+		pair:  currency.NewBTCUSDT(),
+		candles: []kline.Candle{
+			{Time: time.UnixMilli(1790812800000), Open: 83616.2, High: 83656.8, Low: 83415.9, Close: 83509.1, Volume: 245.654482, QuoteVolume: 20513410.67309914},
+			{Time: time.UnixMilli(1790816400000), Open: 83509.1, High: 83691, Low: 83471.8, Close: 83514.3, Volume: 268.805241, QuoteVolume: 22464396.7397634},
+		},
+	},
+	{
+		asset: asset.USDTMarginedFutures,
+		pair:  currency.NewBTCUSDT(),
+		candles: []kline.Candle{
+			{Time: time.UnixMilli(1790812800000), Open: 83573.8, High: 83617.4, Low: 83374, Close: 83468.7, Volume: 976.028, QuoteVolume: 81466096.8998},
+			{Time: time.UnixMilli(1790816400000), Open: 83468.7, High: 83656.1, Low: 83438.7, Close: 83469.7, Volume: 786.118, QuoteVolume: 65671255.4582},
+		},
+	},
+	{
+		asset: asset.USDCMarginedFutures,
+		pair:  currency.NewPair(currency.BTC, currency.PERP),
+		candles: []kline.Candle{
+			{Time: time.UnixMilli(1790812800000), Open: 83527.5, High: 83568, Low: 83331.4, Close: 83419.2, Volume: 5.128, QuoteVolume: 427795.4665},
+			{Time: time.UnixMilli(1790816400000), Open: 83419.2, High: 83604, Low: 83376.9, Close: 83425.1, Volume: 11.281, QuoteVolume: 941566.5783},
+		},
+	},
+	{
+		// An inverse candle's volume counts USD contracts and its turnover the base currency
+		asset: asset.CoinMarginedFutures,
+		pair:  currency.NewBTCUSD(),
+		candles: []kline.Candle{
+			{Time: time.UnixMilli(1790812800000), Open: 83523, High: 83568.2, Low: 83324.4, Close: 83425.2, Volume: 25.57477885, QuoteVolume: 2133426},
+			{Time: time.UnixMilli(1790816400000), Open: 83425.2, High: 83600, Low: 83385.9, Close: 83413.8, Volume: 26.895959, QuoteVolume: 2245520},
+		},
+	},
+}
+
+// candlePageTestInstance returns an exchange of its own that requests one hourly candle at a time
+func candlePageTestInstance(t *testing.T) *Exchange {
+	t.Helper()
+	ex := testInstance(t)
+	ex.Features.Enabled.Kline.Intervals = kline.DeployExchangeIntervals(kline.IntervalCapacity{Interval: kline.OneHour, Capacity: 1})
+	return ex
+}
+
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
 	ensureTradablePairs(t)
@@ -3676,10 +4053,10 @@ func TestGetHistoricCandles(t *testing.T) {
 			exp: &kline.Item{
 				Exchange: e.Name, Pair: currency.NewBTCUSDT(), Asset: asset.Spot, Interval: kline.OneDay,
 				Candles: []kline.Candle{
-					{Time: time.UnixMilli(1692748800000), Open: 26055.96, High: 26828.97, Low: 25815.02, Close: 26434.1, Volume: 9231.841678},
-					{Time: time.UnixMilli(1692835200000), Open: 26434.1, High: 26581.96, Low: 25861.66, Close: 26179.04, Volume: 5670.414738},
-					{Time: time.UnixMilli(1692921600000), Open: 26179.04, High: 26308, Low: 25780.01, Close: 26057.97, Volume: 7330.623157},
-					{Time: time.UnixMilli(1693008000000), Open: 26057.97, High: 26125, Low: 25986.86, Close: 26022.55, Volume: 1510.386762},
+					{Time: time.UnixMilli(1692748800000), Open: 26055.96, High: 26828.97, Low: 25815.02, Close: 26434.1, Volume: 9231.841678, QuoteVolume: 242606836.35109652},
+					{Time: time.UnixMilli(1692835200000), Open: 26434.1, High: 26581.96, Low: 25861.66, Close: 26179.04, Volume: 5670.414738, QuoteVolume: 148770066.12487193},
+					{Time: time.UnixMilli(1692921600000), Open: 26179.04, High: 26308, Low: 25780.01, Close: 26057.97, Volume: 7330.623157, QuoteVolume: 190802348.69902463},
+					{Time: time.UnixMilli(1693008000000), Open: 26057.97, High: 26125, Low: 25986.86, Close: 26022.55, Volume: 1510.386762, QuoteVolume: 39329818.11324434},
 				},
 			},
 		},
@@ -3691,10 +4068,10 @@ func TestGetHistoricCandles(t *testing.T) {
 			exp: &kline.Item{
 				Exchange: e.Name, Pair: currency.NewPairWithDelimiter("10000LADYS", "USDT", ""), Asset: asset.USDTMarginedFutures, Interval: kline.OneDay,
 				Candles: []kline.Candle{
-					{Time: time.UnixMilli(1692748800000), Open: 0.000252, High: 0.000274, Low: 0.0002485, Close: 0.0002675, Volume: 36510318200},
-					{Time: time.UnixMilli(1692835200000), Open: 0.0002675, High: 0.000293, Low: 0.00026, Close: 0.0002875, Volume: 26041256900},
-					{Time: time.UnixMilli(1692921600000), Open: 0.0002875, High: 0.000296, Low: 0.000272, Close: 0.0002805, Volume: 53354780600},
-					{Time: time.UnixMilli(1693008000000), Open: 0.0002805, High: 0.00048, Low: 0.0002765, Close: 0.0003745, Volume: 302432632700},
+					{Time: time.UnixMilli(1692748800000), Open: 0.000252, High: 0.000274, Low: 0.0002485, Close: 0.0002675, Volume: 36510318200, QuoteVolume: 9621294.59825},
+					{Time: time.UnixMilli(1692835200000), Open: 0.0002675, High: 0.000293, Low: 0.00026, Close: 0.0002875, Volume: 26041256900, QuoteVolume: 7131049.82345},
+					{Time: time.UnixMilli(1692921600000), Open: 0.0002875, High: 0.000296, Low: 0.000272, Close: 0.0002805, Volume: 53354780600, QuoteVolume: 15188058.6729},
+					{Time: time.UnixMilli(1693008000000), Open: 0.0002805, High: 0.00048, Low: 0.0002765, Close: 0.0003745, Volume: 302432632700, QuoteVolume: 114487750.11205},
 				},
 			},
 		},
@@ -3706,14 +4083,15 @@ func TestGetHistoricCandles(t *testing.T) {
 			exp: &kline.Item{
 				Exchange: e.Name, Pair: currency.NewPairWithDelimiter("ETH", "PERP", ""), Asset: asset.USDCMarginedFutures, Interval: kline.OneDay,
 				Candles: []kline.Candle{
-					{Time: time.UnixMilli(1692748800000), Open: 1631.73, High: 1699.01, Low: 1627.54, Close: 1677.14, Volume: 8257.9},
-					{Time: time.UnixMilli(1692835200000), Open: 1677.14, High: 1680.85, Low: 1633.17, Close: 1659.07, Volume: 4584.65},
-					{Time: time.UnixMilli(1692921600000), Open: 1659.07, High: 1674.61, Low: 1632.87, Close: 1651.39, Volume: 4797.14},
-					{Time: time.UnixMilli(1693008000000), Open: 1651.39, High: 1653.21, Low: 1641.98, Close: 1644.77, Volume: 720.1},
+					{Time: time.UnixMilli(1692748800000), Open: 1631.73, High: 1699.01, Low: 1627.54, Close: 1677.14, Volume: 8257.9, QuoteVolume: 13750594.9205},
+					{Time: time.UnixMilli(1692835200000), Open: 1677.14, High: 1680.85, Low: 1633.17, Close: 1659.07, Volume: 4584.65, QuoteVolume: 7591676.2446},
+					{Time: time.UnixMilli(1692921600000), Open: 1659.07, High: 1674.61, Low: 1632.87, Close: 1651.39, Volume: 4797.14, QuoteVolume: 7921436.5451},
+					{Time: time.UnixMilli(1693008000000), Open: 1651.39, High: 1653.21, Low: 1641.98, Close: 1644.77, Volume: 720.1, QuoteVolume: 1186107.9245},
 				},
 			},
 		},
 		{
+			// An inverse candle's volume counts USD contracts and its turnover the base currency
 			asset:    asset.CoinMarginedFutures,
 			pair:     inverseTradablePair,
 			interval: kline.OneHour,
@@ -3721,9 +4099,9 @@ func TestGetHistoricCandles(t *testing.T) {
 			exp: &kline.Item{
 				Exchange: e.Name, Pair: currency.NewPairWithDelimiter("ADA", "USD", ""), Asset: asset.CoinMarginedFutures, Interval: kline.OneHour,
 				Candles: []kline.Candle{
-					{Time: time.UnixMilli(1692748800000), Open: 0.2578, High: 0.2593, Low: 0.2578, Close: 0.2583, Volume: 46763},
-					{Time: time.UnixMilli(1692752400000), Open: 0.2583, High: 0.26, Low: 0.2581, Close: 0.2594, Volume: 63462},
-					{Time: time.UnixMilli(1692756000000), Open: 0.2594, High: 0.26, Low: 0.2586, Close: 0.2586, Volume: 18254},
+					{Time: time.UnixMilli(1692748800000), Open: 0.2578, High: 0.2593, Low: 0.2578, Close: 0.2583, Volume: 180681.48601755, QuoteVolume: 46763},
+					{Time: time.UnixMilli(1692752400000), Open: 0.2583, High: 0.26, Low: 0.2581, Close: 0.2594, Volume: 245056.69708332, QuoteVolume: 63462},
+					{Time: time.UnixMilli(1692756000000), Open: 0.2594, High: 0.26, Low: 0.2586, Close: 0.2586, Volume: 70399.64984162, QuoteVolume: 18254},
 				},
 			},
 		},
@@ -3743,6 +4121,17 @@ func TestGetHistoricCandles(t *testing.T) {
 		})
 	}
 
+	for _, tc := range candlePageTestCases {
+		t.Run(tc.asset.String()+" full page", func(t *testing.T) {
+			t.Parallel()
+			ex := candlePageTestInstance(t)
+			candles, err := ex.GetHistoricCandles(t.Context(), tc.pair, tc.asset, kline.OneHour, tc.candles[0].Time, tc.candles[1].Time)
+			require.NoError(t, err, "GetHistoricCandles must not error")
+			exp := &kline.Item{Exchange: ex.Name, Pair: tc.pair, Asset: tc.asset, Interval: kline.OneHour, Candles: tc.candles[:1]}
+			assert.Equal(t, exp, candles, "GetHistoricCandles should return the first candle of a full page")
+		})
+	}
+
 	// A USDC margined futures contract is asked for by its dashed symbol; Bybit lists none now, but still serves the
 	// candles of the delivered BTC-26DEC25, which do not change
 	t.Run("USDC margined futures contract", func(t *testing.T) {
@@ -3756,9 +4145,9 @@ func TestGetHistoricCandles(t *testing.T) {
 		exp := &kline.Item{
 			Exchange: ex.Name, Pair: usdcFutures, Asset: asset.USDCMarginedFutures, Interval: kline.OneDay,
 			Candles: []kline.Candle{
-				{Time: time.UnixMilli(1766448000000), Open: 88500, High: 88898, Low: 86750, Close: 87416.5, Volume: 1.243},
-				{Time: time.UnixMilli(1766534400000), Open: 87416.5, High: 88000, Low: 86456, Close: 87750, Volume: 5.835},
-				{Time: time.UnixMilli(1766620800000), Open: 87750, High: 88571, Low: 86920, Close: 87245.5, Volume: 36.598},
+				{Time: time.UnixMilli(1766448000000), Open: 88500, High: 88898, Low: 86750, Close: 87416.5, Volume: 1.243, QuoteVolume: 109112.4735},
+				{Time: time.UnixMilli(1766534400000), Open: 87416.5, High: 88000, Low: 86456, Close: 87750, Volume: 5.835, QuoteVolume: 509714.9335},
+				{Time: time.UnixMilli(1766620800000), Open: 87750, High: 88571, Low: 86920, Close: 87245.5, Volume: 36.598, QuoteVolume: 3214955.859},
 			},
 		}
 		assert.Equal(t, exp, candles, "GetHistoricCandles should return the contract's candles within the time range, oldest first")
@@ -3768,7 +4157,7 @@ func TestGetHistoricCandles(t *testing.T) {
 	_, err = e.GetHistoricCandles(t.Context(), spotTradablePair, asset.Spot, kline.OneMin, start, start.Add(24*time.Hour))
 	require.ErrorIs(t, err, kline.ErrRequestExceedsExchangeLimits, "GetHistoricCandles must refuse more candles than one request serves")
 
-	ex := marketReplyInstance(t, map[string]string{"/v5/market/kline?category=spot&end=1693094400000&interval=D&limit=1000&start=1692748800000&symbol=BTCUSDT": marketErrorReply})
+	ex := marketReplyInstance(t, map[string]string{"/v5/market/kline?category=spot&end=1693094399999&interval=D&limit=1000&start=1692748800000&symbol=BTCUSDT": marketErrorReply})
 	_, err = ex.GetHistoricCandles(t.Context(), currency.NewBTCUSDT(), asset.Spot, kline.OneDay, start, end)
 	require.ErrorIs(t, err, errAPIResponse, "GetHistoricCandles must return the error of a refused request")
 }
@@ -3796,18 +4185,21 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 			exp: &kline.Item{
 				Exchange: e.Name, Pair: currency.NewBTCUSDT(), Asset: asset.Spot, Interval: kline.OneMin,
 				Candles: []kline.Candle{
-					{Time: time.UnixMilli(1692889440000), Open: 26139.97, High: 26168, Low: 26138, Close: 26154.01, Volume: 5.185705},
-					{Time: time.UnixMilli(1692949380000), Open: 26017.44, High: 26017.99, Low: 26010.19, Close: 26010.19, Volume: 2.176552},
-					{Time: time.UnixMilli(1692949440000), Open: 26010.19, High: 26010.19, Low: 26002.01, Close: 26002.01, Volume: 0.547795},
-					{Time: time.UnixMilli(1693009380000), Open: 26057.66, High: 26062.64, Low: 26057.66, Close: 26062.64, Volume: 3.958518},
-					{Time: time.UnixMilli(1693009440000), Open: 26062.64, High: 26062.65, Low: 26062.63, Close: 26062.64, Volume: 1.108455},
-					{Time: time.UnixMilli(1693069380000), Open: 26034.25, High: 26034.25, Low: 26034, Close: 26034.01, Volume: 1.007656},
-					{Time: time.UnixMilli(1693069440000), Open: 26034.01, High: 26034.01, Low: 26034, Close: 26034.01, Volume: 0.04861},
-					{Time: time.UnixMilli(1693129380000), Open: 26056.09, High: 26056.1, Low: 26056.09, Close: 26056.1, Volume: 0.044087},
+					{Time: time.UnixMilli(1692889380000), Open: 26117.96, High: 26139.97, Low: 26117.96, Close: 26139.97, Volume: 9.783565, QuoteVolume: 255650.35615606},
+					{Time: time.UnixMilli(1692949320000), Open: 26024.01, High: 26024.01, Low: 26017.44, Close: 26017.44, Volume: 0.569562, QuoteVolume: 14820.28897415},
+					{Time: time.UnixMilli(1692949380000), Open: 26017.44, High: 26017.99, Low: 26010.19, Close: 26010.19, Volume: 2.176552, QuoteVolume: 56622.34355863},
+					{Time: time.UnixMilli(1693009320000), Open: 26057.65, High: 26057.66, Low: 26057.65, Close: 26057.66, Volume: 0.002532, QuoteVolume: 65.97798786},
+					{Time: time.UnixMilli(1693009380000), Open: 26057.66, High: 26062.64, Low: 26057.66, Close: 26062.64, Volume: 3.958518, QuoteVolume: 103156.08937572},
+					{Time: time.UnixMilli(1693069320000), Open: 26037.85, High: 26037.85, Low: 26034.25, Close: 26034.25, Volume: 0.676922, QuoteVolume: 17624.51093096},
+					{Time: time.UnixMilli(1693069380000), Open: 26034.25, High: 26034.25, Low: 26034, Close: 26034.01, Volume: 1.007656, QuoteVolume: 26233.37843275},
+					{Time: time.UnixMilli(1693129320000), Open: 26056.09, High: 26056.1, Low: 26056.09, Close: 26056.09, Volume: 0.014182, QuoteVolume: 369.52756245},
+					{Time: time.UnixMilli(1693129380000), Open: 26056.09, High: 26056.1, Low: 26056.09, Close: 26056.1, Volume: 0.044087, QuoteVolume: 1148.73522573},
+					{Time: time.UnixMilli(1693144980000), Open: 26081.97, High: 26083.97, Low: 26081.96, Close: 26083.96, Volume: 0.87951, QuoteVolume: 22940.8606566},
 				},
 			},
 		},
 		{
+			// An inverse candle's volume counts USD contracts and its turnover the base currency
 			asset:    asset.CoinMarginedFutures,
 			pair:     inverseTradablePair,
 			interval: kline.OneHour,
@@ -3815,7 +4207,8 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 			exp: &kline.Item{
 				Exchange: e.Name, Pair: currency.NewPairWithDelimiter("ADA", "USD", ""), Asset: asset.CoinMarginedFutures, Interval: kline.OneHour,
 				Candles: []kline.Candle{
-					{Time: time.UnixMilli(1692889200000), Open: 0.2628, High: 0.2635, Low: 0.2614, Close: 0.2617, Volume: 126770},
+					{Time: time.UnixMilli(1692889200000), Open: 0.2628, High: 0.2635, Low: 0.2614, Close: 0.2617, Volume: 483242.19194522, QuoteVolume: 126770},
+					{Time: time.UnixMilli(1693144800000), Open: 0.2625, High: 0.2651, Low: 0.2625, Close: 0.2646, Volume: 453092.36315104, QuoteVolume: 119853},
 				},
 			},
 		},
@@ -3827,10 +4220,10 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 			exp: &kline.Item{
 				Exchange: e.Name, Pair: currency.NewPairWithDelimiter("10000LADYS", "USDT", ""), Asset: asset.USDTMarginedFutures, Interval: kline.OneDay,
 				Candles: []kline.Candle{
-					{Time: time.UnixMilli(1692835200000), Open: 0.0002675, High: 0.000293, Low: 0.00026, Close: 0.0002875, Volume: 26041256900},
-					{Time: time.UnixMilli(1692921600000), Open: 0.0002875, High: 0.000296, Low: 0.000272, Close: 0.0002805, Volume: 53354780600},
-					{Time: time.UnixMilli(1693008000000), Open: 0.0002805, High: 0.00048, Low: 0.0002765, Close: 0.0003745, Volume: 302432632700},
-					{Time: time.UnixMilli(1693094400000), Open: 0.0003745, High: 0.0003885, Low: 0.0003015, Close: 0.0003155, Volume: 179703986200},
+					{Time: time.UnixMilli(1692835200000), Open: 0.0002675, High: 0.000293, Low: 0.00026, Close: 0.0002875, Volume: 26041256900, QuoteVolume: 7131049.82345},
+					{Time: time.UnixMilli(1692921600000), Open: 0.0002875, High: 0.000296, Low: 0.000272, Close: 0.0002805, Volume: 53354780600, QuoteVolume: 15188058.6729},
+					{Time: time.UnixMilli(1693008000000), Open: 0.0002805, High: 0.00048, Low: 0.0002765, Close: 0.0003745, Volume: 302432632700, QuoteVolume: 114487750.11205},
+					{Time: time.UnixMilli(1693094400000), Open: 0.0003745, High: 0.0003885, Low: 0.0003015, Close: 0.0003155, Volume: 179703986200, QuoteVolume: 60495658.01195},
 				},
 			},
 		},
@@ -3852,6 +4245,18 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 		})
 	}
 
+	// Each of the two requests fills its page
+	for _, tc := range candlePageTestCases {
+		t.Run(tc.asset.String()+" full pages", func(t *testing.T) {
+			t.Parallel()
+			ex := candlePageTestInstance(t)
+			candles, err := ex.GetHistoricCandlesExtended(t.Context(), tc.pair, tc.asset, kline.OneHour, tc.candles[0].Time, tc.candles[1].Time.Add(time.Hour))
+			require.NoError(t, err, "GetHistoricCandlesExtended must not error")
+			exp := &kline.Item{Exchange: ex.Name, Pair: tc.pair, Asset: tc.asset, Interval: kline.OneHour, Candles: tc.candles}
+			assert.Equal(t, exp, candles, "GetHistoricCandlesExtended should return the first candle of each full page")
+		})
+	}
+
 	// A USDC margined futures contract is asked for by its dashed symbol; Bybit lists none now, but still serves the
 	// candles of the delivered BTC-26DEC25, which do not change
 	t.Run("USDC margined futures contract", func(t *testing.T) {
@@ -3865,9 +4270,9 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 		exp := &kline.Item{
 			Exchange: ex.Name, Pair: usdcFutures, Asset: asset.USDCMarginedFutures, Interval: kline.OneDay,
 			Candles: []kline.Candle{
-				{Time: time.UnixMilli(1766448000000), Open: 88500, High: 88898, Low: 86750, Close: 87416.5, Volume: 1.243},
-				{Time: time.UnixMilli(1766534400000), Open: 87416.5, High: 88000, Low: 86456, Close: 87750, Volume: 5.835},
-				{Time: time.UnixMilli(1766620800000), Open: 87750, High: 88571, Low: 86920, Close: 87245.5, Volume: 36.598},
+				{Time: time.UnixMilli(1766448000000), Open: 88500, High: 88898, Low: 86750, Close: 87416.5, Volume: 1.243, QuoteVolume: 109112.4735},
+				{Time: time.UnixMilli(1766534400000), Open: 87416.5, High: 88000, Low: 86456, Close: 87750, Volume: 5.835, QuoteVolume: 509714.9335},
+				{Time: time.UnixMilli(1766620800000), Open: 87750, High: 88571, Low: 86920, Close: 87245.5, Volume: 36.598, QuoteVolume: 3214955.859},
 			},
 		}
 		assert.Equal(t, exp, candles, "GetHistoricCandlesExtended should return the contract's candles within the time range, oldest first")
@@ -3876,9 +4281,43 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	_, err = e.GetHistoricCandlesExtended(t.Context(), currency.NewPair(currency.NewCode("ZZZQ"), currency.USDT), asset.Spot, kline.OneDay, start, end)
 	require.ErrorIs(t, err, currency.ErrPairNotEnabled, "GetHistoricCandlesExtended must refuse a pair that is not enabled")
 
-	ex := marketReplyInstance(t, map[string]string{"/v5/market/kline?category=spot&end=1693094400000&interval=D&limit=1000&start=1692748800000&symbol=BTCUSDT": marketErrorReply})
+	ex := marketReplyInstance(t, map[string]string{"/v5/market/kline?category=spot&end=1693094399999&interval=D&limit=1000&start=1692748800000&symbol=BTCUSDT": marketErrorReply})
 	_, err = ex.GetHistoricCandlesExtended(t.Context(), currency.NewBTCUSDT(), asset.Spot, kline.OneDay, time.UnixMilli(1692748800000), time.UnixMilli(1693094400000))
 	require.ErrorIs(t, err, errAPIResponse, "GetHistoricCandlesExtended must return the error of a refused request")
+}
+
+func TestKlineCandles(t *testing.T) {
+	t.Parallel()
+	assert.Empty(t, klineCandles(nil, asset.Spot), "klineCandles should return no candles for none")
+	// Bybit's BTCUSDT spot and BTCUSD inverse candles of the first hour of 1 October 2026
+	for _, tc := range []struct {
+		asset asset.Item
+		item  KlineItem
+		exp   kline.Candle
+	}{
+		{
+			asset: asset.Spot,
+			item:  KlineItem{StartTime: types.Time(time.UnixMilli(1790812800000)), OpenPrice: 83616.2, HighPrice: 83656.8, LowPrice: 83415.9, ClosePrice: 83509.1, Volume: 245.654482, Turnover: 20513410.67309914},
+			exp:   kline.Candle{Time: time.UnixMilli(1790812800000), Open: 83616.2, High: 83656.8, Low: 83415.9, Close: 83509.1, Volume: 245.654482, QuoteVolume: 20513410.67309914},
+		},
+		{
+			// An inverse candle's volume counts USD contracts and its turnover the base currency
+			asset: asset.CoinMarginedFutures,
+			item:  KlineItem{StartTime: types.Time(time.UnixMilli(1790812800000)), OpenPrice: 83523, HighPrice: 83568.2, LowPrice: 83324.4, ClosePrice: 83425.2, Volume: 2133426, Turnover: 25.57477885},
+			exp:   kline.Candle{Time: time.UnixMilli(1790812800000), Open: 83523, High: 83568.2, Low: 83324.4, Close: 83425.2, Volume: 25.57477885, QuoteVolume: 2133426},
+		},
+	} {
+		assert.Equalf(t, []kline.Candle{tc.exp}, klineCandles([]KlineItem{tc.item}, tc.asset), "klineCandles should convert a %s candle", tc.asset)
+	}
+	items := []KlineItem{
+		{StartTime: types.Time(time.UnixMilli(1790812800000)), OpenPrice: 83616.2, HighPrice: 83656.8, LowPrice: 83415.9, ClosePrice: 83509.1, Volume: 245.654482, Turnover: 20513410.67309914},
+		{StartTime: types.Time(time.UnixMilli(1790816400000)), OpenPrice: 83509.1, HighPrice: 83620, LowPrice: 83480.5, ClosePrice: 83601.7, Volume: 198.36, Turnover: 16571326.5},
+	}
+	exp := []kline.Candle{
+		{Time: time.UnixMilli(1790812800000), Open: 83616.2, High: 83656.8, Low: 83415.9, Close: 83509.1, Volume: 245.654482, QuoteVolume: 20513410.67309914},
+		{Time: time.UnixMilli(1790816400000), Open: 83509.1, High: 83620, Low: 83480.5, Close: 83601.7, Volume: 198.36, QuoteVolume: 16571326.5},
+	}
+	assert.Equal(t, exp, klineCandles(items, asset.Spot), "klineCandles should convert every candle, in turn")
 }
 
 func TestGetServerTime(t *testing.T) {
@@ -3919,6 +4358,25 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 		})
 	}
 
+	// Bybit checks a spot order against maxLimitOrderQty or maxMarketOrderQty and minOrderAmt, not the deprecated
+	// minOrderQty, maxOrderQty and maxOrderAmt, which its instruments set to the same values; each field of this BTCUSDT
+	// instrument differs, so a limit read from the wrong field shows
+	t.Run("spot order size fields", func(t *testing.T) {
+		t.Parallel()
+		ex := marketReplyInstance(t, map[string]string{"/v5/market/instruments-info?category=spot&limit=1000": `{"retCode":0,"retMsg":"OK","result":{"category":"spot","list":[{"symbolId":9,"symbol":"BTCUSDT","baseCoin":"BTC","quoteCoin":"USDT","innovation":"0","status":"Trading","marginTrading":"utaOnly","stTag":"0","lotSizeFilter":{"basePrecision":"0.000001","quotePrecision":"0.0000001","minOrderQty":"0.00002","maxOrderQty":"250","minOrderAmt":"5","maxOrderAmt":"8000000","maxLimitOrderQty":"230","maxMarketOrderQty":"120","postOnlyMaxLimitOrderSize":"1150"},"priceFilter":{"tickSize":"0.1"},"riskParameters":{"priceLimitRatioX":"0.005","priceLimitRatioY":"0.01"},"symbolType":"","xstockMultiplier":"1"}]},"retExtInfo":{},"time":1791897732915}`})
+		require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{currency.NewBTCUSDT()}, false), "StorePairs must not error")
+		require.NoError(t, ex.UpdateOrderExecutionLimits(t.Context(), asset.Spot), "UpdateOrderExecutionLimits must not error")
+		l, err := ex.GetOrderExecutionLimits(asset.Spot, currency.NewBTCUSDT())
+		require.NoError(t, err, "GetOrderExecutionLimits must not error")
+		l.UpdatedAt = time.Time{}
+		exp := limits.MinMaxLevel{Key: key.NewExchangeAssetPair(ex.Name, asset.Spot, currency.NewBTCUSDT()), PriceStepIncrementSize: 0.1, PriceDivisor: 1, MultiplierDecimal: 1, MaximumBaseAmount: 230, MarketMaxQty: 120, MinimumQuoteAmount: 5, AmountStepIncrementSize: 0.000001, QuoteStepIncrementSize: 0.0000001}
+		assert.Equal(t, exp, l, "UpdateOrderExecutionLimits should load the limits Bybit checks spot orders against")
+		// The limits hold a market order to maxMarketOrderQty and a limit order to maxLimitOrderQty
+		assert.ErrorIs(t, l.Validate(80000, 150, order.Market), limits.ErrMarketAmountExceedsMax, "Validate should refuse a market order above maxMarketOrderQty")
+		assert.NoError(t, l.Validate(80000, 150, order.Limit), "Validate should accept a limit order within maxLimitOrderQty")
+		assert.ErrorIs(t, l.Validate(80000, 240, order.Limit), limits.ErrAmountExceedsMax, "Validate should refuse a limit order above maxLimitOrderQty")
+	})
+
 	// Of Bybit's BTCUSDT and ETHUSDT spot instruments, only the pair the exchange lists gets limits; a delivery time,
 	// which spot instruments do not have, is ignored
 	for _, tc := range []struct {
@@ -3936,7 +4394,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 			l, err := ex.GetOrderExecutionLimits(asset.Spot, currency.NewBTCUSDT())
 			require.NoError(t, err, "GetOrderExecutionLimits must not error")
 			l.UpdatedAt = time.Time{}
-			exp := limits.MinMaxLevel{Key: key.NewExchangeAssetPair(ex.Name, asset.Spot, currency.NewBTCUSDT()), PriceStepIncrementSize: 0.1, PriceDivisor: 1, MultiplierDecimal: 1, MinimumBaseAmount: 0.000001, MaximumBaseAmount: 230, MinimumQuoteAmount: 5, MaximumQuoteAmount: 8000000, AmountStepIncrementSize: 0.000001, QuoteStepIncrementSize: 0.0000001}
+			exp := limits.MinMaxLevel{Key: key.NewExchangeAssetPair(ex.Name, asset.Spot, currency.NewBTCUSDT()), PriceStepIncrementSize: 0.1, PriceDivisor: 1, MultiplierDecimal: 1, MaximumBaseAmount: 230, MarketMaxQty: 120, MinimumQuoteAmount: 5, AmountStepIncrementSize: 0.000001, QuoteStepIncrementSize: 0.0000001}
 			assert.Equal(t, exp, l, "UpdateOrderExecutionLimits should load the listed pair's limits")
 			_, err = ex.GetOrderExecutionLimits(asset.Spot, currency.NewPair(currency.ETH, currency.USDT))
 			assert.ErrorIs(t, err, limits.ErrOrderLimitNotFound, "UpdateOrderExecutionLimits should load no limits for a pair the exchange does not list")
@@ -3952,7 +4410,12 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 			for _, p := range pairs {
 				l, err := ex.GetOrderExecutionLimits(a, p)
 				require.NoErrorf(t, err, "GetOrderExecutionLimits must not error for %s %s", a, p)
-				assert.Positivef(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive for %s %s", a, p)
+				minimum := l.MinimumBaseAmount
+				if a == asset.Spot {
+					// Bybit limits a spot order's value rather than its quantity
+					minimum = l.MinimumQuoteAmount
+				}
+				assert.Positivef(t, minimum, "the minimum order size should be positive for %s %s", a, p)
 				assert.Positivef(t, l.PriceDivisor, "PriceDivisor should be positive for %s %s", a, p)
 				if a == asset.USDTMarginedFutures && !p.Quote.Equal(currency.USDT) {
 					assert.NotZerof(t, l.Expiry, "Expiry should be set for the dated contract %s", p)
@@ -3971,7 +4434,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 			// Spot amounts step by the base precision, and spot instruments have no price bounds
 			asset: asset.Spot,
 			pair:  currency.NewBTCUSDT(),
-			exp:   limits.MinMaxLevel{PriceStepIncrementSize: 0.1, PriceDivisor: 1, MultiplierDecimal: 1, MinimumBaseAmount: 0.000001, MaximumBaseAmount: 230, MinimumQuoteAmount: 5, MaximumQuoteAmount: 8000000, AmountStepIncrementSize: 0.000001, QuoteStepIncrementSize: 0.0000001},
+			exp:   limits.MinMaxLevel{PriceStepIncrementSize: 0.1, PriceDivisor: 1, MultiplierDecimal: 1, MaximumBaseAmount: 230, MarketMaxQty: 120, MinimumQuoteAmount: 5, AmountStepIncrementSize: 0.000001, QuoteStepIncrementSize: 0.0000001},
 		},
 		{
 			// A symbol that prices 10000 coins as one has its prices divided by 10000. The perpetual contract is being
@@ -4068,7 +4531,7 @@ func TestUpdateOrderExecutionLimitsLeavesNonOptionsStatusHandlingUnchanged(t *te
 
 	loadedLimit, err := ex.GetOrderExecutionLimits(asset.Spot, spotPair)
 	require.NoError(t, err, "GetOrderExecutionLimits must not error for a closed spot pair")
-	assert.Equal(t, closedInstrument.LotSizeFilter.MinOrderQuantity.Float64(), loadedLimit.MinimumBaseAmount, "MinimumBaseAmount should match the closed spot instrument")
+	assert.Equal(t, closedInstrument.LotSizeFilter.BasePrecision.Float64(), loadedLimit.AmountStepIncrementSize, "AmountStepIncrementSize should match the closed spot instrument")
 
 	require.Len(t, queries, 1, "UpdateOrderExecutionLimits must query spot instruments once")
 	assert.Equal(t, cSpot, queries[0].Get("category"), "UpdateOrderExecutionLimits should request the spot category")
@@ -4438,36 +4901,37 @@ func TestGetOpenInterest(t *testing.T) {
 
 	ensureTradablePairs(t)
 	usdc := key.PairAsset{Base: usdcMarginedTradablePair.Base.Item, Quote: usdcMarginedTradablePair.Quote.Item, Asset: asset.USDCMarginedFutures}
-	usdt := key.PairAsset{Base: usdtMarginedTradablePair.Base.Item, Quote: usdtMarginedTradablePair.Quote.Item, Asset: asset.USDTMarginedFutures}
+	usdt := key.PairAsset{Base: currency.BTC.Item, Quote: currency.USDT.Item, Asset: asset.USDTMarginedFutures}
 	inverse := key.PairAsset{Base: inverseTradablePair.Base.Item, Quote: inverseTradablePair.Quote.Item, Asset: asset.CoinMarginedFutures}
-	ladys := currency.NewPair(currency.NewCode("10000LADYS"), currency.USDT)
+	// Bybit's tickers count open interest on both sides of each contract and on one side, which is what GCT reports
 	for _, tc := range []struct {
 		name string
 		keys []key.PairAsset
 		exp  []futures.OpenInterest
 	}{
-		{name: "USDC margined futures pair", keys: []key.PairAsset{usdc}, exp: []futures.OpenInterest{{Key: key.NewExchangeAssetPair(e.Name, asset.USDCMarginedFutures, currency.NewPair(currency.ETH, currency.PERP)), OpenInterest: 13821.19}}},
-		{name: "USDT margined futures pair", keys: []key.PairAsset{usdt}, exp: []futures.OpenInterest{{Key: key.NewExchangeAssetPair(e.Name, asset.USDTMarginedFutures, ladys), OpenInterest: 7564770200}}},
-		{name: "coin margined futures pair", keys: []key.PairAsset{inverse}, exp: []futures.OpenInterest{{Key: key.NewExchangeAssetPair(e.Name, asset.CoinMarginedFutures, currency.NewPair(currency.ADA, currency.USD)), OpenInterest: 3484506}}},
+		{name: "USDC margined futures pair", keys: []key.PairAsset{usdc}, exp: []futures.OpenInterest{{Key: key.NewExchangeAssetPair(e.Name, asset.USDCMarginedFutures, currency.NewPair(currency.ETH, currency.PERP)), OpenInterest: 6910.6}}},
+		{name: "USDT margined futures pair", keys: []key.PairAsset{usdt}, exp: []futures.OpenInterest{{Key: key.NewExchangeAssetPair(e.Name, asset.USDTMarginedFutures, currency.NewBTCUSDT()), OpenInterest: 28999.236}}},
+		{name: "coin margined futures pair", keys: []key.PairAsset{inverse}, exp: []futures.OpenInterest{{Key: key.NewExchangeAssetPair(e.Name, asset.CoinMarginedFutures, currency.NewPair(currency.ADA, currency.USD)), OpenInterest: 1742253}}},
 		{
 			// Several pairs are read from their categories' tickers
 			name: "pairs of two assets",
 			keys: []key.PairAsset{usdt, inverse},
 			exp: []futures.OpenInterest{
-				{Key: key.NewExchangeAssetPair(e.Name, asset.USDTMarginedFutures, ladys), OpenInterest: 7211877200},
-				{Key: key.NewExchangeAssetPair(e.Name, asset.CoinMarginedFutures, currency.NewPair(currency.ADA, currency.USD)), OpenInterest: 3484506},
+				{Key: key.NewExchangeAssetPair(e.Name, asset.USDTMarginedFutures, currency.NewBTCUSDT()), OpenInterest: 28333.457},
+				{Key: key.NewExchangeAssetPair(e.Name, asset.CoinMarginedFutures, currency.NewPair(currency.ADA, currency.USD)), OpenInterest: 1742253},
 			},
 		},
 		{
-			// Without pairs, every enabled futures pair; USDT and USDC margined futures share the linear tickers
+			// Without pairs, every enabled futures pair; USDT and USDC margined futures share the linear tickers. The ticker
+			// of the delisted 10000LADYSUSDT has no single side open interest
 			name: "every enabled pair",
 			exp: []futures.OpenInterest{
-				{Key: key.NewExchangeAssetPair(e.Name, asset.USDCMarginedFutures, currency.NewPair(currency.BTC, currency.PERP)), OpenInterest: 1336.519},
-				{Key: key.NewExchangeAssetPair(e.Name, asset.USDCMarginedFutures, currency.NewPair(currency.ETH, currency.PERP)), OpenInterest: 13821.19},
-				{Key: key.NewExchangeAssetPair(e.Name, asset.USDTMarginedFutures, currency.NewBTCUSDT()), OpenInterest: 56666.914},
-				{Key: key.NewExchangeAssetPair(e.Name, asset.USDTMarginedFutures, ladys), OpenInterest: 7211877200},
-				{Key: key.NewExchangeAssetPair(e.Name, asset.CoinMarginedFutures, currency.NewPair(currency.ADA, currency.USD)), OpenInterest: 3484506},
-				{Key: key.NewExchangeAssetPair(e.Name, asset.CoinMarginedFutures, currency.NewBTCUSD()), OpenInterest: 526804854},
+				{Key: key.NewExchangeAssetPair(e.Name, asset.USDCMarginedFutures, currency.NewPair(currency.BTC, currency.PERP)), OpenInterest: 668.26},
+				{Key: key.NewExchangeAssetPair(e.Name, asset.USDCMarginedFutures, currency.NewPair(currency.ETH, currency.PERP)), OpenInterest: 6910.6},
+				{Key: key.NewExchangeAssetPair(e.Name, asset.USDTMarginedFutures, currency.NewBTCUSDT()), OpenInterest: 28333.457},
+				{Key: key.NewExchangeAssetPair(e.Name, asset.USDTMarginedFutures, currency.NewPair(currency.NewCode("10000LADYS"), currency.USDT))},
+				{Key: key.NewExchangeAssetPair(e.Name, asset.CoinMarginedFutures, currency.NewPair(currency.ADA, currency.USD)), OpenInterest: 1742253},
+				{Key: key.NewExchangeAssetPair(e.Name, asset.CoinMarginedFutures, currency.NewBTCUSD()), OpenInterest: 263402427},
 			},
 		},
 	} {

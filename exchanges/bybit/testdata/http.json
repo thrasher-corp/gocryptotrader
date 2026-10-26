@@ -18098,18 +18098,9 @@
       "retCode": 0,
       "retMsg": "OK",
       "result": {
-       "category": "linear",
        "symbol": "ETHPERP",
+       "category": "linear",
        "list": [
-        [
-         "1693094400000",
-         "1644.77",
-         "1657.01",
-         "1644.04",
-         "1655.63",
-         "756.47",
-         "1248687.4837"
-        ],
         [
          "1693008000000",
          "1651.39",
@@ -18149,9 +18140,9 @@
        ]
       },
       "retExtInfo": {},
-      "time": 1791885236930
+      "time": 1793004586495
      },
-     "queryString": "category=linear\u0026end=1693094400000\u0026interval=D\u0026limit=1000\u0026start=1692748800000\u0026symbol=ETHPERP",
+     "queryString": "category=linear\u0026end=1693094399999\u0026interval=D\u0026limit=1000\u0026start=1692748800000\u0026symbol=ETHPERP",
      "bodyParams": "",
      "headers": {}
     },
@@ -18164,13 +18155,13 @@
        "symbol": "BTCUSDT",
        "list": [
         [
-         "1693145040000",
-         "26083.96",
+         "1693144980000",
+         "26081.97",
          "26083.97",
+         "26081.96",
          "26083.96",
-         "26083.97",
-         "0.005067",
-         "132.16747599"
+         "0.87951",
+         "22940.8606566"
         ],
         [
          "1693129380000",
@@ -18184,9 +18175,9 @@
        ]
       },
       "retExtInfo": {},
-      "time": 1698845091793
+      "time": 1793004590141
      },
-     "queryString": "category=spot\u0026end=1693145040000\u0026interval=1\u0026limit=1000\u0026start=1693129380000\u0026symbol=BTCUSDT",
+     "queryString": "category=spot\u0026end=1693145039999\u0026interval=1\u0026limit=1000\u0026start=1693129380000\u0026symbol=BTCUSDT",
      "bodyParams": "",
      "headers": {}
     },
@@ -18195,17 +18186,17 @@
       "retCode": 0,
       "retMsg": "OK",
       "result": {
-       "category": "inverse",
        "symbol": "ADAUSD",
+       "category": "inverse",
        "list": [
         [
-         "1693148400000",
+         "1693144800000",
+         "0.2625",
+         "0.2651",
+         "0.2625",
          "0.2646",
-         "0.2654",
-         "0.2632",
-         "0.2635",
-         "78379",
-         "296182.51849617"
+         "119853",
+         "453092.36315104"
         ],
         [
          "1692889200000",
@@ -18219,9 +18210,9 @@
        ]
       },
       "retExtInfo": {},
-      "time": 1698845092434
+      "time": 1793004590580
      },
-     "queryString": "category=inverse\u0026end=1693148400000\u0026interval=60\u0026limit=1000\u0026start=1692889200000\u0026symbol=ADAUSD",
+     "queryString": "category=inverse\u0026end=1693148399999\u0026interval=60\u0026limit=1000\u0026start=1692889200000\u0026symbol=ADAUSD",
      "bodyParams": "",
      "headers": {}
     },
@@ -18230,18 +18221,9 @@
       "retCode": 0,
       "retMsg": "OK",
       "result": {
-       "category": "linear",
        "symbol": "10000LADYSUSDT",
+       "category": "linear",
        "list": [
-        [
-         "1693180800000",
-         "0.0003155",
-         "0.0003665",
-         "0.00029",
-         "0.000332",
-         "106712905200",
-         "35302663.48615"
-        ],
         [
          "1693094400000",
          "0.0003745",
@@ -18281,9 +18263,9 @@
        ]
       },
       "retExtInfo": {},
-      "time": 1698845093188
+      "time": 1793004591028
      },
-     "queryString": "category=linear\u0026end=1693180800000\u0026interval=D\u0026limit=1000\u0026start=1692835200000\u0026symbol=10000LADYSUSDT",
+     "queryString": "category=linear\u0026end=1693180799999\u0026interval=D\u0026limit=1000\u0026start=1692835200000\u0026symbol=10000LADYSUSDT",
      "bodyParams": "",
      "headers": {}
     },
@@ -18295,6 +18277,50 @@
        "category": "spot",
        "symbol": "BTCUSDT",
        "list": [
+        [
+         "1692949320000",
+         "26024.01",
+         "26024.01",
+         "26017.44",
+         "26017.44",
+         "0.569562",
+         "14820.28897415"
+        ],
+        [
+         "1692889380000",
+         "26117.96",
+         "26139.97",
+         "26117.96",
+         "26139.97",
+         "9.783565",
+         "255650.35615606"
+        ]
+       ]
+      },
+      "retExtInfo": {},
+      "time": 1793004587935
+     },
+     "queryString": "category=spot\u0026end=1692949379999\u0026interval=1\u0026limit=1000\u0026start=1692889380000\u0026symbol=BTCUSDT",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "retCode": 0,
+      "retMsg": "OK",
+      "result": {
+       "category": "spot",
+       "symbol": "BTCUSDT",
+       "list": [
+        [
+         "1693009320000",
+         "26057.65",
+         "26057.66",
+         "26057.65",
+         "26057.66",
+         "0.002532",
+         "65.97798786"
+        ],
         [
          "1692949380000",
          "26017.44",
@@ -18303,22 +18329,13 @@
          "26010.19",
          "2.176552",
          "56622.34355863"
-        ],
-        [
-         "1692889440000",
-         "26139.97",
-         "26168",
-         "26138",
-         "26154.01",
-         "5.185705",
-         "135642.51288494"
         ]
        ]
       },
       "retExtInfo": {},
-      "time": 1698845087438
+      "time": 1793004588576
      },
-     "queryString": "category=spot\u0026end=1692949380000\u0026interval=1\u0026limit=1000\u0026start=1692889380000\u0026symbol=BTCUSDT",
+     "queryString": "category=spot\u0026end=1693009379999\u0026interval=1\u0026limit=1000\u0026start=1692949380000\u0026symbol=BTCUSDT",
      "bodyParams": "",
      "headers": {}
     },
@@ -18330,6 +18347,15 @@
        "category": "spot",
        "symbol": "BTCUSDT",
        "list": [
+        [
+         "1693069320000",
+         "26037.85",
+         "26037.85",
+         "26034.25",
+         "26034.25",
+         "0.676922",
+         "17624.51093096"
+        ],
         [
          "1693009380000",
          "26057.66",
@@ -18338,22 +18364,13 @@
          "26062.64",
          "3.958518",
          "103156.08937572"
-        ],
-        [
-         "1692949440000",
-         "26010.19",
-         "26010.19",
-         "26002.01",
-         "26002.01",
-         "0.547795",
-         "14247.24441931"
         ]
        ]
       },
       "retExtInfo": {},
-      "time": 1698845088791
+      "time": 1793004589137
      },
-     "queryString": "category=spot\u0026end=1693009380000\u0026interval=1\u0026limit=1000\u0026start=1692949380000\u0026symbol=BTCUSDT",
+     "queryString": "category=spot\u0026end=1693069379999\u0026interval=1\u0026limit=1000\u0026start=1693009380000\u0026symbol=BTCUSDT",
      "bodyParams": "",
      "headers": {}
     },
@@ -18365,6 +18382,15 @@
        "category": "spot",
        "symbol": "BTCUSDT",
        "list": [
+        [
+         "1693129320000",
+         "26056.09",
+         "26056.1",
+         "26056.09",
+         "26056.09",
+         "0.014182",
+         "369.52756245"
+        ],
         [
          "1693069380000",
          "26034.25",
@@ -18373,22 +18399,13 @@
          "26034.01",
          "1.007656",
          "26233.37843275"
-        ],
-        [
-         "1693009440000",
-         "26062.64",
-         "26062.65",
-         "26062.63",
-         "26062.64",
-         "1.108455",
-         "28889.27065481"
         ]
        ]
       },
       "retExtInfo": {},
-      "time": 1698845089869
+      "time": 1793004589685
      },
-     "queryString": "category=spot\u0026end=1693069380000\u0026interval=1\u0026limit=1000\u0026start=1693009380000\u0026symbol=BTCUSDT",
+     "queryString": "category=spot\u0026end=1693129379999\u0026interval=1\u0026limit=1000\u0026start=1693069380000\u0026symbol=BTCUSDT",
      "bodyParams": "",
      "headers": {}
     },
@@ -18400,50 +18417,6 @@
        "category": "spot",
        "symbol": "BTCUSDT",
        "list": [
-        [
-         "1693129380000",
-         "26056.09",
-         "26056.1",
-         "26056.09",
-         "26056.1",
-         "0.044087",
-         "1148.73522573"
-        ],
-        [
-         "1693069440000",
-         "26034.01",
-         "26034.01",
-         "26034",
-         "26034.01",
-         "0.04861",
-         "1265.51275112"
-        ]
-       ]
-      },
-      "retExtInfo": {},
-      "time": 1698845090878
-     },
-     "queryString": "category=spot\u0026end=1693129380000\u0026interval=1\u0026limit=1000\u0026start=1693069380000\u0026symbol=BTCUSDT",
-     "bodyParams": "",
-     "headers": {}
-    },
-    {
-     "data": {
-      "retCode": 0,
-      "retMsg": "OK",
-      "result": {
-       "category": "spot",
-       "symbol": "BTCUSDT",
-       "list": [
-        [
-         "1693094400000",
-         "26022.55",
-         "26180",
-         "25975.97",
-         "26102",
-         "1549.593018",
-         "40425215.41580064"
-        ],
         [
          "1693008000000",
          "26057.97",
@@ -18483,9 +18456,9 @@
        ]
       },
       "retExtInfo": {},
-      "time": 1698844864498
+      "time": 1793004585594
      },
-     "queryString": "category=spot\u0026end=1693094400000\u0026interval=D\u0026limit=1000\u0026start=1692748800000\u0026symbol=BTCUSDT",
+     "queryString": "category=spot\u0026end=1693094399999\u0026interval=D\u0026limit=1000\u0026start=1692748800000\u0026symbol=BTCUSDT",
      "bodyParams": "",
      "headers": {}
     },
@@ -18494,18 +18467,9 @@
       "retCode": 0,
       "retMsg": "OK",
       "result": {
-       "category": "linear",
        "symbol": "10000LADYSUSDT",
+       "category": "linear",
        "list": [
-        [
-         "1693094400000",
-         "0.0003745",
-         "0.0003885",
-         "0.0003015",
-         "0.0003155",
-         "179703986200",
-         "60495658.01195"
-        ],
         [
          "1693008000000",
          "0.0002805",
@@ -18545,9 +18509,9 @@
        ]
       },
       "retExtInfo": {},
-      "time": 1698844865070
+      "time": 1793004586048
      },
-     "queryString": "category=linear\u0026end=1693094400000\u0026interval=D\u0026limit=1000\u0026start=1692748800000\u0026symbol=10000LADYSUSDT",
+     "queryString": "category=linear\u0026end=1693094399999\u0026interval=D\u0026limit=1000\u0026start=1692748800000\u0026symbol=10000LADYSUSDT",
      "bodyParams": "",
      "headers": {}
     },
@@ -18660,18 +18624,9 @@
       "retCode": 0,
       "retMsg": "OK",
       "result": {
-       "category": "inverse",
        "symbol": "ADAUSD",
+       "category": "inverse",
        "list": [
-        [
-         "1692759600000",
-         "0.2586",
-         "0.2593",
-         "0.2578",
-         "0.2583",
-         "9399",
-         "36363.39483554"
-        ],
         [
          "1692756000000",
          "0.2594",
@@ -18702,9 +18657,9 @@
        ]
       },
       "retExtInfo": {},
-      "time": 1791885237455
+      "time": 1793004586973
      },
-     "queryString": "category=inverse\u0026end=1692759600000\u0026interval=60\u0026limit=1000\u0026start=1692748800000\u0026symbol=ADAUSD",
+     "queryString": "category=inverse\u0026end=1692759599999\u0026interval=60\u0026limit=1000\u0026start=1692748800000\u0026symbol=ADAUSD",
      "bodyParams": "",
      "headers": {}
     },
@@ -18716,15 +18671,6 @@
        "symbol": "BTC-26DEC25",
        "category": "linear",
        "list": [
-        [
-         "1766707200000",
-         "87245.5",
-         "89316.5",
-         "86871.5",
-         "88750.5",
-         "16.86",
-         "1472585.8495"
-        ],
         [
          "1766620800000",
          "87750",
@@ -18755,9 +18701,217 @@
        ]
       },
       "retExtInfo": {},
-      "time": 1791897854697
+      "time": 1793004587413
      },
-     "queryString": "category=linear\u0026end=1766707200000\u0026interval=D\u0026limit=1000\u0026start=1766448000000\u0026symbol=BTC-26DEC25",
+     "queryString": "category=linear\u0026end=1766707199999\u0026interval=D\u0026limit=1000\u0026start=1766448000000\u0026symbol=BTC-26DEC25",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "retCode": 0,
+      "retMsg": "OK",
+      "result": {
+       "category": "spot",
+       "symbol": "BTCUSDT",
+       "list": [
+        [
+         "1790812800000",
+         "83616.2",
+         "83656.8",
+         "83415.9",
+         "83509.1",
+         "245.654482",
+         "20513410.67309914"
+        ]
+       ]
+      },
+      "retExtInfo": {},
+      "time": 1793004591469
+     },
+     "queryString": "category=spot\u0026end=1790816399999\u0026interval=60\u0026limit=1\u0026start=1790812800000\u0026symbol=BTCUSDT",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "retCode": 0,
+      "retMsg": "OK",
+      "result": {
+       "category": "spot",
+       "symbol": "BTCUSDT",
+       "list": [
+        [
+         "1790816400000",
+         "83509.1",
+         "83691",
+         "83471.8",
+         "83514.3",
+         "268.805241",
+         "22464396.7397634"
+        ]
+       ]
+      },
+      "retExtInfo": {},
+      "time": 1793004591882
+     },
+     "queryString": "category=spot\u0026end=1790819999999\u0026interval=60\u0026limit=1\u0026start=1790816400000\u0026symbol=BTCUSDT",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "retCode": 0,
+      "retMsg": "OK",
+      "result": {
+       "symbol": "BTCUSDT",
+       "category": "linear",
+       "list": [
+        [
+         "1790812800000",
+         "83573.8",
+         "83617.4",
+         "83374",
+         "83468.7",
+         "976.028",
+         "81466096.8998"
+        ]
+       ]
+      },
+      "retExtInfo": {},
+      "time": 1793004592318
+     },
+     "queryString": "category=linear\u0026end=1790816399999\u0026interval=60\u0026limit=1\u0026start=1790812800000\u0026symbol=BTCUSDT",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "retCode": 0,
+      "retMsg": "OK",
+      "result": {
+       "symbol": "BTCUSDT",
+       "category": "linear",
+       "list": [
+        [
+         "1790816400000",
+         "83468.7",
+         "83656.1",
+         "83438.7",
+         "83469.7",
+         "786.118",
+         "65671255.4582"
+        ]
+       ]
+      },
+      "retExtInfo": {},
+      "time": 1793004592741
+     },
+     "queryString": "category=linear\u0026end=1790819999999\u0026interval=60\u0026limit=1\u0026start=1790816400000\u0026symbol=BTCUSDT",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "retCode": 0,
+      "retMsg": "OK",
+      "result": {
+       "symbol": "BTCPERP",
+       "category": "linear",
+       "list": [
+        [
+         "1790812800000",
+         "83527.5",
+         "83568",
+         "83331.4",
+         "83419.2",
+         "5.128",
+         "427795.4665"
+        ]
+       ]
+      },
+      "retExtInfo": {},
+      "time": 1793004593152
+     },
+     "queryString": "category=linear\u0026end=1790816399999\u0026interval=60\u0026limit=1\u0026start=1790812800000\u0026symbol=BTCPERP",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "retCode": 0,
+      "retMsg": "OK",
+      "result": {
+       "symbol": "BTCPERP",
+       "category": "linear",
+       "list": [
+        [
+         "1790816400000",
+         "83419.2",
+         "83604",
+         "83376.9",
+         "83425.1",
+         "11.281",
+         "941566.5783"
+        ]
+       ]
+      },
+      "retExtInfo": {},
+      "time": 1793004593589
+     },
+     "queryString": "category=linear\u0026end=1790819999999\u0026interval=60\u0026limit=1\u0026start=1790816400000\u0026symbol=BTCPERP",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "retCode": 0,
+      "retMsg": "OK",
+      "result": {
+       "symbol": "BTCUSD",
+       "category": "inverse",
+       "list": [
+        [
+         "1790812800000",
+         "83523",
+         "83568.2",
+         "83324.4",
+         "83425.2",
+         "2133426",
+         "25.57477885"
+        ]
+       ]
+      },
+      "retExtInfo": {},
+      "time": 1793004594034
+     },
+     "queryString": "category=inverse\u0026end=1790816399999\u0026interval=60\u0026limit=1\u0026start=1790812800000\u0026symbol=BTCUSD",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "retCode": 0,
+      "retMsg": "OK",
+      "result": {
+       "symbol": "BTCUSD",
+       "category": "inverse",
+       "list": [
+        [
+         "1790816400000",
+         "83425.2",
+         "83600",
+         "83385.9",
+         "83413.8",
+         "2245520",
+         "26.895959"
+        ]
+       ]
+      },
+      "retExtInfo": {},
+      "time": 1793004594471
+     },
+     "queryString": "category=inverse\u0026end=1790819999999\u0026interval=60\u0026limit=1\u0026start=1790816400000\u0026symbol=BTCUSD",
      "bodyParams": "",
      "headers": {}
     }

@@ -3,9 +3,12 @@ package bybit
 import (
 	"bytes"
 	"errors"
+	"maps"
+	"strconv"
 	"testing"
 	"time"
 
+	"github.com/buger/jsonparser"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -1119,8 +1122,8 @@ func TestWebsocketTicker(t *testing.T) {
 			AskSize:           0.751,
 			BaseVolume:        83950.362,
 			QuoteVolume:       6866421328.479,
-			OpenInterest:      57991.212,
-			OpenInterestValue: 4787737065.36,
+			OpenInterest:      28995.606,
+			OpenInterestValue: 2393868532.68,
 			MarkPrice:         82559.7,
 			IndexPrice:        82590.92,
 			Pair:              currency.NewBTCUSDT(),
@@ -1138,8 +1141,8 @@ func TestWebsocketTicker(t *testing.T) {
 			AskSize:           0.755,
 			BaseVolume:        83950.363,
 			QuoteVolume:       6866421411.0399,
-			OpenInterest:      57991.212,
-			OpenInterestValue: 4787737065.36,
+			OpenInterest:      28995.606,
+			OpenInterestValue: 2393868532.68,
 			MarkPrice:         82559.7,
 			IndexPrice:        82590.92,
 			Pair:              currency.NewBTCUSDT(),
@@ -1157,8 +1160,8 @@ func TestWebsocketTicker(t *testing.T) {
 			AskSize:           0.484,
 			BaseVolume:        1.644,
 			QuoteVolume:       135063.2496,
-			OpenInterest:      99.452,
-			OpenInterestValue: 8224342.26,
+			OpenInterest:      49.726,
+			OpenInterestValue: 4112171.13,
 			MarkPrice:         82696.6,
 			IndexPrice:        82594.9,
 			Pair:              currency.NewPairWithDelimiter("BTC", "USDT-16OCT26", ""),
@@ -1205,8 +1208,8 @@ func TestWebsocketTicker(t *testing.T) {
 			AskSize:           3500,
 			BaseVolume:        4571.2059,
 			QuoteVolume:       373935316,
-			OpenInterest:      516533432,
-			OpenInterestValue: 6260.39,
+			OpenInterest:      258266716,
+			OpenInterestValue: 3130.19,
 			MarkPrice:         82508.23,
 			IndexPrice:        82536.06,
 			Pair:              currency.NewBTCUSD(),
@@ -1256,8 +1259,8 @@ func TestWebsocketProcessPublicTicker(t *testing.T) {
 			AskSize:           0.751,
 			BaseVolume:        83950.362,
 			QuoteVolume:       6866421328.479,
-			OpenInterest:      57991.212,
-			OpenInterestValue: 4787737065.36,
+			OpenInterest:      28995.606,
+			OpenInterestValue: 2393868532.68,
 			MarkPrice:         82559.7,
 			IndexPrice:        82590.92,
 			Pair:              currency.NewBTCUSDT(),
@@ -1276,8 +1279,8 @@ func TestWebsocketProcessPublicTicker(t *testing.T) {
 			AskSize:           0.755,
 			BaseVolume:        83950.363,
 			QuoteVolume:       6866421411.0399,
-			OpenInterest:      57991.212,
-			OpenInterestValue: 4787737065.36,
+			OpenInterest:      28995.606,
+			OpenInterestValue: 2393868532.68,
 			MarkPrice:         82559.7,
 			IndexPrice:        82590.92,
 			Pair:              currency.NewBTCUSDT(),
@@ -1295,6 +1298,15 @@ func TestWebsocketProcessPublicTicker(t *testing.T) {
 	}
 	assert.Equal(t, []any{exp[0], exp[2]}, stored, "wsProcessPublicTicker should store each ticker it relays")
 
+	// A delta can take a field to zero, and an empty one leaves the field as it was
+	zeroed := []byte(`{"topic":"tickers.BTCUSDT","type":"delta","data":{"symbol":"BTCUSDT","singleOpenInterest":"0","singleOpenInterestValue":"0","markPrice":"","bid1Price":""},"cs":414513823617,"ts":1791535782583}`)
+	require.NoError(t, ex.wsProcessPublicTicker(t.Context(), asset.USDTMarginedFutures, zeroed), "wsProcessPublicTicker must not error for a delta taking a field to zero")
+	expZeroed, ok := exp[2].(*ticker.Price)
+	require.True(t, ok, "the delta's ticker must be a price")
+	zeroedTick := *expZeroed
+	zeroedTick.OpenInterest, zeroedTick.OpenInterestValue, zeroedTick.LastUpdated = 0, 0, time.UnixMilli(1791535782583)
+	assert.Equal(t, []any{&zeroedTick}, relayed(ex), "wsProcessPublicTicker should apply a delta's zeroes and ignore its empty fields")
+
 	for _, tc := range []struct {
 		name  string
 		asset asset.Item
@@ -1304,7 +1316,8 @@ func TestWebsocketProcessPublicTicker(t *testing.T) {
 		{name: "delta without a snapshot", asset: asset.USDTMarginedFutures, frame: frames[2], err: ticker.ErrTickerNotFound},
 		{name: "unknown pair", asset: asset.Spot, frame: bytes.ReplaceAll(frames[0], []byte("BTCUSDT"), []byte("ZZZQUSDT")), err: currency.ErrPairNotFound},
 		{name: "ticker the store rejects", asset: asset.USDTMarginedFutures, frame: bytes.Replace(frames[1], []byte(`"ask1Price":"82561.00"`), []byte(`"ask1Price":"82560.90"`), 1), err: ticker.ErrBidEqualsAsk},
-		{name: "undecodable push", asset: asset.Spot, frame: []byte(`{"topic":"tickers.BTCUSDT","type":"snapshot","data":"bad"}`)},
+		{name: "undecodable push", asset: asset.Spot, frame: []byte(`{"topic":"tickers.BTCUSDT","type":"snapshot","data":"bad"}`), err: jsonparser.MalformedObjectError},
+		{name: "undecodable field", asset: asset.Spot, frame: []byte(`{"topic":"tickers.BTCUSDT","type":"snapshot","data":{"symbol":"BTCUSDT","lastPrice":"bad"}}`)},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -1324,15 +1337,101 @@ func TestWebsocketProcessPublicTicker(t *testing.T) {
 
 func TestUpdateTickerDelta(t *testing.T) {
 	t.Parallel()
-	tick := &ticker.Price{AssetType: asset.USDTMarginedFutures, Last: 1, Bid: 2, Ask: 3, MarkPrice: 4}
-	updateTicker(tick, &WebsocketTicker{Bid1Price: 2.5, Volume24Hour: 10, Turnover24Hour: 20})
-	assert.Equal(t, &ticker.Price{AssetType: asset.USDTMarginedFutures, Last: 1, Bid: 2.5, Ask: 3, MarkPrice: 4, BaseVolume: 10, QuoteVolume: 20}, tick, "a delta should change only the fields it holds")
+	carried := func(fields ...string) map[string]bool {
+		m := make(map[string]bool, len(fields))
+		for _, f := range fields {
+			m[f] = true
+		}
+		return m
+	}
+	tick := &ticker.Price{AssetType: asset.USDTMarginedFutures, Last: 1, Bid: 2, BidSize: 7, Ask: 3, MarkPrice: 4}
+	updateTicker(tick, &WebsocketTicker{Bid1Price: 2.5, Volume24Hour: 10, Turnover24Hour: 20}, carried("bid1Price", "bid1Size", "volume24h", "turnover24h"))
+	assert.Equal(t, &ticker.Price{AssetType: asset.USDTMarginedFutures, Last: 1, Bid: 2.5, Ask: 3, MarkPrice: 4, BaseVolume: 10, QuoteVolume: 20}, tick, "a delta should change only the fields it carries, to zero too")
 	inverse := &ticker.Price{AssetType: asset.CoinMarginedFutures}
-	updateTicker(inverse, &WebsocketTicker{Volume24Hour: 373935316, Turnover24Hour: 4571.2059})
+	updateTicker(inverse, &WebsocketTicker{Volume24Hour: 373935316, Turnover24Hour: 4571.2059}, carried("volume24h", "turnover24h"))
 	assert.Equal(t, &ticker.Price{AssetType: asset.CoinMarginedFutures, BaseVolume: 4571.2059, QuoteVolume: 373935316}, inverse, "an inverse ticker's turnover should be its base volume")
+	updateTicker(inverse, &WebsocketTicker{Turnover24Hour: 4572}, carried("turnover24h"))
+	assert.Equal(t, &ticker.Price{AssetType: asset.CoinMarginedFutures, BaseVolume: 4572, QuoteVolume: 373935316}, inverse, "an inverse delta carrying only turnover should change only the base volume")
 	option := &ticker.Price{AssetType: asset.Options}
-	updateTicker(option, &WebsocketTicker{BidPrice: 83310, BidSize: 18.55, AskPrice: 85565, AskSize: 2.5})
+	updateTicker(option, &WebsocketTicker{BidPrice: 83310, BidSize: 18.55, AskPrice: 85565, AskSize: 2.5}, carried("bidPrice", "bidSize", "askPrice", "askSize"))
 	assert.Equal(t, &ticker.Price{AssetType: asset.Options, Bid: 83310, BidSize: 18.55, Ask: 85565, AskSize: 2.5}, option, "an option ticker's best bid and ask should be mapped")
+
+	// Linear and inverse tickers count open interest on both sides of each contract and on one side, which GCT reports;
+	// an option ticker's open interest, its only figure, counts one side
+	for _, a := range []asset.Item{asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures} {
+		contract := &ticker.Price{AssetType: a}
+		updateTicker(contract, &WebsocketTicker{OpenInterest: 57991.212, OpenInterestValue: 4787737065.36, SingleOpenInterest: 28995.606, SingleOpenInterestValue: 2393868532.68}, carried("openInterest", "openInterestValue", "singleOpenInterest", "singleOpenInterestValue"))
+		assert.Equalf(t, &ticker.Price{AssetType: a, OpenInterest: 28995.606, OpenInterestValue: 2393868532.68}, contract, "a %s ticker should report its single side open interest", a)
+		// A delta in which only the figure for both sides changed leaves the single side figure as it was
+		updateTicker(contract, &WebsocketTicker{OpenInterest: 57991.213, OpenInterestValue: 4787737147.92}, carried("openInterest", "openInterestValue"))
+		assert.Equalf(t, &ticker.Price{AssetType: a, OpenInterest: 28995.606, OpenInterestValue: 2393868532.68}, contract, "a %s ticker should not report open interest for both sides", a)
+		// The last contract closing takes open interest to zero
+		updateTicker(contract, &WebsocketTicker{}, carried("openInterest", "openInterestValue", "singleOpenInterest", "singleOpenInterestValue"))
+		assert.Equalf(t, &ticker.Price{AssetType: a}, contract, "a %s ticker should report open interest falling to zero", a)
+	}
+	option = &ticker.Price{AssetType: asset.Options}
+	updateTicker(option, &WebsocketTicker{OpenInterest: 1.2, OpenInterestValue: 99, SingleOpenInterest: 0.6}, carried("openInterest", "openInterestValue", "singleOpenInterest"))
+	assert.Equal(t, &ticker.Price{AssetType: asset.Options, OpenInterest: 1.2, OpenInterestValue: 99}, option, "an option ticker's open interest should be mapped")
+
+	// A delta can take any field to zero
+	full := func(a asset.Item) *ticker.Price {
+		return &ticker.Price{AssetType: a, Last: 1, High: 2, Low: 3, Bid: 4, BidSize: 5, Ask: 6, AskSize: 7, BaseVolume: 8, QuoteVolume: 9, MarkPrice: 10, IndexPrice: 11, OpenInterest: 12, OpenInterestValue: 13}
+	}
+	contract := full(asset.USDTMarginedFutures)
+	updateTicker(contract, &WebsocketTicker{}, carried("lastPrice", "highPrice24h", "lowPrice24h", "bid1Price", "bid1Size", "ask1Price", "ask1Size", "volume24h", "turnover24h", "markPrice", "indexPrice", "singleOpenInterest", "singleOpenInterestValue"))
+	assert.Equal(t, &ticker.Price{AssetType: asset.USDTMarginedFutures}, contract, "a delta should take every field it carries as zero to zero")
+	option = full(asset.Options)
+	updateTicker(option, &WebsocketTicker{}, carried("lastPrice", "highPrice24h", "lowPrice24h", "bidPrice", "bidSize", "askPrice", "askSize", "volume24h", "turnover24h", "markPrice", "indexPrice", "openInterest", "openInterestValue"))
+	assert.Equal(t, &ticker.Price{AssetType: asset.Options}, option, "an option delta should take every field it carries as zero to zero")
+
+	// A delta taking one field to zero leaves every other field as it was
+	shared := map[string]func(*ticker.Price) *float64{
+		"lastPrice":    func(p *ticker.Price) *float64 { return &p.Last },
+		"highPrice24h": func(p *ticker.Price) *float64 { return &p.High },
+		"lowPrice24h":  func(p *ticker.Price) *float64 { return &p.Low },
+		"markPrice":    func(p *ticker.Price) *float64 { return &p.MarkPrice },
+		"indexPrice":   func(p *ticker.Price) *float64 { return &p.IndexPrice },
+	}
+	with := func(fields map[string]func(*ticker.Price) *float64) map[string]func(*ticker.Price) *float64 {
+		maps.Copy(fields, shared)
+		return fields
+	}
+	for a, fields := range map[asset.Item]map[string]func(*ticker.Price) *float64{
+		asset.USDTMarginedFutures: with(map[string]func(*ticker.Price) *float64{
+			"bid1Price": func(p *ticker.Price) *float64 { return &p.Bid }, "bid1Size": func(p *ticker.Price) *float64 { return &p.BidSize },
+			"ask1Price": func(p *ticker.Price) *float64 { return &p.Ask }, "ask1Size": func(p *ticker.Price) *float64 { return &p.AskSize },
+			"volume24h": func(p *ticker.Price) *float64 { return &p.BaseVolume }, "turnover24h": func(p *ticker.Price) *float64 { return &p.QuoteVolume },
+			"singleOpenInterest": func(p *ticker.Price) *float64 { return &p.OpenInterest }, "singleOpenInterestValue": func(p *ticker.Price) *float64 { return &p.OpenInterestValue },
+		}),
+		asset.CoinMarginedFutures: with(map[string]func(*ticker.Price) *float64{
+			"bid1Price": func(p *ticker.Price) *float64 { return &p.Bid }, "bid1Size": func(p *ticker.Price) *float64 { return &p.BidSize },
+			"ask1Price": func(p *ticker.Price) *float64 { return &p.Ask }, "ask1Size": func(p *ticker.Price) *float64 { return &p.AskSize },
+			"volume24h": func(p *ticker.Price) *float64 { return &p.QuoteVolume }, "turnover24h": func(p *ticker.Price) *float64 { return &p.BaseVolume },
+			"singleOpenInterest": func(p *ticker.Price) *float64 { return &p.OpenInterest }, "singleOpenInterestValue": func(p *ticker.Price) *float64 { return &p.OpenInterestValue },
+		}),
+		asset.Options: with(map[string]func(*ticker.Price) *float64{
+			"bidPrice": func(p *ticker.Price) *float64 { return &p.Bid }, "bidSize": func(p *ticker.Price) *float64 { return &p.BidSize },
+			"askPrice": func(p *ticker.Price) *float64 { return &p.Ask }, "askSize": func(p *ticker.Price) *float64 { return &p.AskSize },
+			"volume24h": func(p *ticker.Price) *float64 { return &p.BaseVolume }, "turnover24h": func(p *ticker.Price) *float64 { return &p.QuoteVolume },
+			"openInterest": func(p *ticker.Price) *float64 { return &p.OpenInterest }, "openInterestValue": func(p *ticker.Price) *float64 { return &p.OpenInterestValue },
+		}),
+	} {
+		for field, value := range fields {
+			got, exp := full(a), full(a)
+			*value(exp) = 0
+			updateTicker(got, &WebsocketTicker{}, carried(field))
+			assert.Equalf(t, exp, got, "a %s delta taking %s to zero should change that field alone", a, field)
+		}
+	}
+}
+
+func TestTickerFields(t *testing.T) {
+	t.Parallel()
+	fields, err := tickerFields([]byte(`{"topic":"tickers.BTCUSDT","type":"delta","data":{"symbol":"BTCUSDT","bid1Price":"","bid1Size":"0","lastPrice":"95000.5","basis":"","nextFundingTime":"1792108800000","isPreListing":false},"ts":1792108700000}`))
+	require.NoError(t, err, "tickerFields must not error")
+	assert.Equal(t, map[string]bool{"symbol": true, "bid1Size": true, "lastPrice": true, "nextFundingTime": true, "isPreListing": true}, fields, "tickerFields should return every field carrying a value, zero included, and no empty one")
+	_, err = tickerFields([]byte(`{"topic":"tickers.BTCUSDT","data":"bad"}`))
+	assert.Error(t, err, "tickerFields should error for a push whose data is not an object")
 }
 
 func TestWebsocketKline(t *testing.T) {
@@ -1402,13 +1501,14 @@ func TestWebsocketKline(t *testing.T) {
 			Interval: kline.OneMin,
 			Candles: []kline.Candle{
 				{
-					Time:        time.Unix(1791535740, 0),
-					Open:        82585.8,
-					High:        82590.6,
-					Low:         82585.8,
-					Close:       82590.6,
-					Volume:      0.768965,
-					QuoteVolume: 63508.6685769,
+					Time:             time.Unix(1791535740, 0),
+					Open:             82585.8,
+					High:             82590.6,
+					Low:              82585.8,
+					Close:            82590.6,
+					Volume:           0.768965,
+					QuoteVolume:      63508.6685769,
+					ValidationIssues: kline.PartialCandle,
 				},
 			},
 		},
@@ -1453,13 +1553,14 @@ func TestWebsocketProcessKline(t *testing.T) {
 			Interval: kline.OneMin,
 			Candles: []kline.Candle{
 				{
-					Time:        time.Unix(1791535740, 0),
-					Open:        82585.8,
-					High:        82590.6,
-					Low:         82585.8,
-					Close:       82590.6,
-					Volume:      0.768965,
-					QuoteVolume: 63508.6685769,
+					Time:             time.Unix(1791535740, 0),
+					Open:             82585.8,
+					High:             82590.6,
+					Low:              82585.8,
+					Close:            82590.6,
+					Volume:           0.768965,
+					QuoteVolume:      63508.6685769,
+					ValidationIssues: kline.PartialCandle,
 				},
 			},
 		},
@@ -1483,6 +1584,24 @@ func TestWebsocketProcessKline(t *testing.T) {
 		},
 	}
 	assert.Equal(t, exp, relayed(ex), "wsProcessKline should relay each candle with the pair its topic names")
+
+	// Whether a candle is partial follows its confirm flag, whichever asset it is of
+	for i, a := range []asset.Item{asset.Spot, asset.CoinMarginedFutures} {
+		for _, confirmed := range []bool{false, true} {
+			frame := bytes.Replace(frames[i], []byte(`"confirm":`+strconv.FormatBool(i == 1)), []byte(`"confirm":`+strconv.FormatBool(confirmed)), 1)
+			require.NoErrorf(t, ex.wsProcessKline(t.Context(), a, frame), "wsProcessKline must not error for a %s candle confirmed %t", a, confirmed)
+			got := relayed(ex)
+			require.Lenf(t, got, 1, "wsProcessKline must relay a %s candle confirmed %t", a, confirmed)
+			item, ok := got[0].(kline.Item)
+			require.Truef(t, ok, "wsProcessKline must relay a %s candle confirmed %t as a kline item", a, confirmed)
+			require.Lenf(t, item.Candles, 1, "wsProcessKline must relay the %s candle confirmed %t", a, confirmed)
+			expIssues := kline.PartialCandle
+			if confirmed {
+				expIssues = ""
+			}
+			assert.Equalf(t, expIssues, item.Candles[0].ValidationIssues, "wsProcessKline should mark a %s candle confirmed %t partial only while it is open", a, confirmed)
+		}
+	}
 
 	for _, tc := range []struct {
 		name  string

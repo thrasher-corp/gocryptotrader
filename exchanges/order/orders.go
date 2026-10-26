@@ -147,7 +147,8 @@ func (s *Submit) GetTradeAmount(tr protocol.TradingRequirements) float64 {
 // UpdateOrderFromDetail Will update an order detail (used in order management)
 // by comparing passed in and existing values. Fees that m reports, for the
 // order or for a fill, replace the stored fees rather than adding to them, and
-// fees that m leaves out are kept.
+// fees that m leaves out are kept. A zero RemainingAmount in m clears the
+// stored one only when m's status is Filled.
 func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 	if d == nil {
 		return ErrOrderDetailIsNil
@@ -206,6 +207,10 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 		d.Cost = m.Cost
 		updated = true
 	}
+	if !m.CostAsset.IsEmpty() && !m.CostAsset.Equal(d.CostAsset) {
+		d.CostAsset = m.CostAsset
+		updated = true
+	}
 	if d.mergeFees(m) {
 		updated = true
 	}
@@ -245,6 +250,10 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 	}
 	if m.AssetType != asset.Empty && m.AssetType != d.AssetType {
 		d.AssetType = m.AssetType
+		updated = true
+	}
+	if !m.SettlementCurrency.IsEmpty() && !m.SettlementCurrency.Equal(d.SettlementCurrency) {
+		d.SettlementCurrency = m.SettlementCurrency
 		updated = true
 	}
 	if !m.CloseTime.IsZero() && !m.CloseTime.Equal(d.CloseTime) {
@@ -298,10 +307,15 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 			updated = true
 		}
 	}
-	// Do not derive RemainingAmount from Trades: trade lists may be cumulative
-	// or from a different snapshot. A supplied non-zero value is preserved.
-	if m.RemainingAmount > 0 && m.RemainingAmount != d.RemainingAmount {
+	// RemainingAmount is not derived from Trades, which may be cumulative or
+	// from a different snapshot, and a zero is applied only to a filled order
+	// because feeds that report fills alone leave the remainder unset
+	switch {
+	case m.RemainingAmount > 0 && m.RemainingAmount != d.RemainingAmount:
 		d.RemainingAmount = m.RemainingAmount
+		updated = true
+	case m.RemainingAmount == 0 && m.Status == Filled && d.RemainingAmount != 0:
+		d.RemainingAmount = 0
 		updated = true
 	}
 	if updated {

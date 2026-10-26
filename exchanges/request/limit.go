@@ -322,8 +322,9 @@ func (r *RateLimiterWithWeight) RateLimit(ctx context.Context) error {
 
 	select {
 	case <-ctx.Done():
-		// A request that will not be sent gives back what it reserved, so that it holds up no later request on its own
-		// budget or on a shared one
+		// A request that will not be sent gives back its booking in every window budget, so that it holds up no later
+		// request on one, and those of its own limiter's tokens that rate.Limiter can still restore, which excludes any
+		// already due: tokens spent while it waited can still delay later requests on its own limiter
 		rateLimitReservationMu.Lock()
 		reserved.cancelLocked(time.Now())
 		rateLimitReservationMu.Unlock()

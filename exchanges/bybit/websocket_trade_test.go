@@ -711,6 +711,8 @@ func TestWebsocketSubmitOrder(t *testing.T) {
 	s := &order.Submit{Exchange: e.Name, Pair: currency.NewBTCUSDT(), AssetType: asset.Spot, Side: order.Buy, Type: order.Market, Amount: 0.0001}
 	_, err = e.WebsocketSubmitOrder(t.Context(), s)
 	require.ErrorIs(t, err, order.ErrAmountMustBeSet, "WebsocketSubmitOrder must require a quote amount for a spot market buy")
+	_, err = e.WebsocketSubmitOrder(t.Context(), &order.Submit{Exchange: e.Name, Pair: currency.NewBTCUSDT(), AssetType: asset.Spot, Side: order.Sell, Type: order.Market, Amount: 0.0001, TimeInForce: order.FillOrKill})
+	require.ErrorIs(t, err, order.ErrUnsupportedTimeInForce, "WebsocketSubmitOrder must refuse a time in force Bybit cannot honour before sending")
 	_, err = e.WebsocketSubmitOrder(t.Context(), &order.Submit{Exchange: e.Name, Pair: currency.NewBTCUSDT(), AssetType: asset.Spot, Side: order.Buy, Type: order.Limit, Price: 82650, Amount: 0.0001})
 	require.ErrorIs(t, err, websocket.ErrNotConnected, "WebsocketSubmitOrder must not fall back to REST without a trade connection")
 

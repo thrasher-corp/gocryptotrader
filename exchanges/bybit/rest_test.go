@@ -1,6 +1,7 @@
 package bybit
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
@@ -539,6 +540,46 @@ func TestSendRequest(t *testing.T) {
 		})
 		assert.ErrorIs(t, err, errRequestItem, "sendRequest should return the request builder's error")
 	})
+}
+
+func TestRetryPolicy(t *testing.T) {
+	t.Parallel()
+	// The HTTP client names a request's method in the errors it returns
+	failed := func(op string, err error) error {
+		return &url.Error{Op: op, URL: bybitAPIURL + "/v5/order/create", Err: err}
+	}
+	post, get := &http.Request{Method: http.MethodPost}, &http.Request{Method: http.MethodGet}
+	for _, tc := range []struct {
+		name  string
+		resp  *http.Response
+		err   error
+		retry bool
+		// errReturned is whether the policy returns the error it was given
+		errReturned bool
+	}{
+		// Bybit may have applied a POST that timed out
+		{name: "POST timeout", err: failed("Post", context.DeadlineExceeded)},
+		{name: "POST timeout with the method upper case", err: failed(http.MethodPost, context.DeadlineExceeded)},
+		{name: "GET timeout", err: failed("Get", context.DeadlineExceeded), retry: true},
+		{name: "POST error that is not a timeout", err: failed("Post", io.ErrUnexpectedEOF), errReturned: true},
+		{name: "GET error that is not a timeout", err: failed("Get", io.ErrUnexpectedEOF), errReturned: true},
+		// A POST that Bybit turns away with 429 or Retry-After was not applied
+		{name: "POST rate limited", resp: &http.Response{StatusCode: http.StatusTooManyRequests, Header: http.Header{}, Request: post}, retry: true},
+		{name: "POST told to retry after", resp: &http.Response{StatusCode: http.StatusServiceUnavailable, Header: http.Header{"Retry-After": {"1"}}, Request: post}, retry: true},
+		{name: "GET rate limited", resp: &http.Response{StatusCode: http.StatusTooManyRequests, Header: http.Header{}, Request: get}, retry: true},
+		{name: "POST answered", resp: &http.Response{StatusCode: http.StatusOK, Header: http.Header{}, Request: post}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			retry, err := retryPolicy(tc.resp, tc.err)
+			assert.Equal(t, tc.retry, retry, "retryPolicy should decide whether to retry")
+			if tc.errReturned {
+				assert.ErrorIs(t, err, tc.err, "retryPolicy should return the request's error")
+				return
+			}
+			assert.NoError(t, err, "retryPolicy should not error")
+		})
+	}
 }
 
 func TestRestResponseAPIError(t *testing.T) {

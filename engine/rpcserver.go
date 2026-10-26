@@ -1398,8 +1398,13 @@ func (s *RPCServer) CancelOrder(ctx context.Context, r *gctrpc.CancelOrderReques
 	}, nil
 }
 
-// CancelBatchOrders cancels an orders specified by exchange, currency pair and asset type
+// CancelBatchOrders cancels orders specified by exchange, currency pair and asset type, and returns each order's status
+// as the exchange reports it, or every order as cancelled when the exchange reports no statuses for a batch it accepted
 func (s *RPCServer) CancelBatchOrders(ctx context.Context, r *gctrpc.CancelBatchOrdersRequest) (*gctrpc.CancelBatchOrdersResponse, error) {
+	if r.Pair == nil {
+		return nil, errCurrencyPairUnset
+	}
+
 	assetType, err := asset.New(r.AssetType)
 	if err != nil {
 		return nil, err
@@ -1423,15 +1428,12 @@ func (s *RPCServer) CancelBatchOrders(ctx context.Context, r *gctrpc.CancelBatch
 		return nil, err
 	}
 
-	status := make(map[string]string)
 	orders := strings.Split(r.OrdersId, ",")
 	req := make([]order.Cancel, len(orders))
 	for x := range orders {
-		orderID := orders[x]
-		status[orderID] = order.Cancelled.String()
 		req[x] = order.Cancel{
 			AccountID: r.AccountId,
-			OrderID:   orderID,
+			OrderID:   orders[x],
 			Side:      side,
 			Pair:      pair,
 			AssetType: assetType,
@@ -1439,9 +1441,17 @@ func (s *RPCServer) CancelBatchOrders(ctx context.Context, r *gctrpc.CancelBatch
 	}
 
 	// TODO: Change to order manager
-	_, err = exch.CancelBatchOrders(ctx, req)
+	resp, err := exch.CancelBatchOrders(ctx, req)
 	if err != nil {
 		return nil, err
+	}
+	status := make(map[string]string, len(orders))
+	if resp != nil {
+		status = resp.Status
+	} else {
+		for _, orderID := range orders {
+			status[orderID] = order.Cancelled.String()
+		}
 	}
 
 	return &gctrpc.CancelBatchOrdersResponse{

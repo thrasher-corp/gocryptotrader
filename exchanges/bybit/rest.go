@@ -33,10 +33,12 @@ type Exchange struct {
 
 	// topicMu guards topicHolders, which records the connection each subscription of the streams whose subscriptions
 	// can share a topic holds its topic on, so that a shared topic is subscribed with the first and unsubscribed with
-	// the last of them, and topicRequests, which numbers the requests marking holders leaving
+	// the last of them, topicRequests, which numbers the requests marking holders leaving, and bookDepths, which counts
+	// the requests in flight asking for each orderbook depth of a symbol on a stream
 	topicMu       sync.Mutex
 	topicHolders  map[*subscription.Subscription]topicHolder
 	topicRequests uint64
+	bookDepths    map[bookDepth]int
 }
 
 const (
@@ -221,6 +223,15 @@ func (e *Exchange) sendRequest(ctx context.Context, f request.EndpointLimit, aut
 		return common.ErrNoResponse
 	}
 	return json.Unmarshal(resp.Result, result)
+}
+
+// retryPolicy retries what request.DefaultRetryPolicy retries, except a POST that timed out, which Bybit may have
+// applied regardless: every Bybit write is a POST, and sending one again could place an order twice
+func retryPolicy(resp *http.Response, err error) (bool, error) {
+	if urlErr, ok := errors.AsType[*url.Error](err); ok && urlErr.Timeout() && strings.EqualFold(urlErr.Op, http.MethodPost) {
+		return false, nil
+	}
+	return request.DefaultRetryPolicy(resp, err)
 }
 
 // isNil reports whether v is nil or a nil pointer, map or slice

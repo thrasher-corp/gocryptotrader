@@ -1154,6 +1154,95 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 		assert.Equal(t, correction.Trades, stored.Trades, "UpdateOrderFromDetail should update a fill's type")
 		assert.Equal(t, correction.LastUpdated, stored.LastUpdated, "UpdateOrderFromDetail should mark the order updated when only a fill's type changes")
 	})
+
+	before := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+	after := before.Add(time.Minute)
+	for _, tc := range []struct {
+		name     string
+		stored   Detail
+		incoming Detail
+		exp      Detail
+	}{
+		{
+			name:     "a filled order clears the remainder",
+			stored:   Detail{Amount: 2, ExecutedAmount: 0.5, RemainingAmount: 1.5, Status: PartiallyFilled, LastUpdated: before},
+			incoming: Detail{ExecutedAmount: 2, Status: Filled, LastUpdated: after},
+			exp:      Detail{Amount: 2, ExecutedAmount: 2, Status: Filled, LastUpdated: after},
+		},
+		{
+			name:     "a cleared remainder alone marks the order updated",
+			stored:   Detail{RemainingAmount: 1.5, Status: Filled, LastUpdated: before},
+			incoming: Detail{Status: Filled, LastUpdated: after},
+			exp:      Detail{Status: Filled, LastUpdated: after},
+		},
+		{
+			name:     "a filled order applies a reported remainder",
+			stored:   Detail{Amount: 2, ExecutedAmount: 0.5, RemainingAmount: 1.5, Status: PartiallyFilled, LastUpdated: before},
+			incoming: Detail{ExecutedAmount: 1.9, RemainingAmount: 0.1, Status: Filled, LastUpdated: after},
+			exp:      Detail{Amount: 2, ExecutedAmount: 1.9, RemainingAmount: 0.1, Status: Filled, LastUpdated: after},
+		},
+		{
+			name:     "a partially filled order keeps the remainder",
+			stored:   Detail{RemainingAmount: 1.5, Status: PartiallyFilled, LastUpdated: before},
+			incoming: Detail{Status: PartiallyFilled, LastUpdated: after},
+			exp:      Detail{RemainingAmount: 1.5, Status: PartiallyFilled, LastUpdated: before},
+		},
+		{
+			name:     "a cancelled order keeps the remainder",
+			stored:   Detail{RemainingAmount: 1.5, Status: PartiallyFilled, LastUpdated: before},
+			incoming: Detail{Status: Cancelled, LastUpdated: after},
+			exp:      Detail{RemainingAmount: 1.5, Status: Cancelled, LastUpdated: after},
+		},
+		{
+			name:     "an update without a status keeps a filled order's remainder",
+			stored:   Detail{RemainingAmount: 1.5, Status: Filled, LastUpdated: before},
+			incoming: Detail{LastUpdated: after},
+			exp:      Detail{RemainingAmount: 1.5, Status: Filled, LastUpdated: before},
+		},
+		{
+			name:     "a filled order without a remainder is not marked updated",
+			stored:   Detail{Status: Filled, LastUpdated: before},
+			incoming: Detail{Status: Filled, LastUpdated: after},
+			exp:      Detail{Status: Filled, LastUpdated: before},
+		},
+		{
+			name:     "reported currencies fill an inverse order's empty ones",
+			stored:   Detail{Pair: currency.NewBTCUSD(), AssetType: asset.CoinMarginedFutures, LastUpdated: before},
+			incoming: Detail{CostAsset: currency.BTC, SettlementCurrency: currency.BTC, LastUpdated: after},
+			exp:      Detail{Pair: currency.NewBTCUSD(), AssetType: asset.CoinMarginedFutures, CostAsset: currency.BTC, SettlementCurrency: currency.BTC, LastUpdated: after},
+		},
+		{
+			name:     "a cost asset replaces the stored one",
+			stored:   Detail{CostAsset: currency.USDT, SettlementCurrency: currency.USDT, LastUpdated: before},
+			incoming: Detail{CostAsset: currency.BTC, LastUpdated: after},
+			exp:      Detail{CostAsset: currency.BTC, SettlementCurrency: currency.USDT, LastUpdated: after},
+		},
+		{
+			name:     "a settlement currency replaces the stored one",
+			stored:   Detail{CostAsset: currency.USDT, SettlementCurrency: currency.USDT, LastUpdated: before},
+			incoming: Detail{SettlementCurrency: currency.BTC, LastUpdated: after},
+			exp:      Detail{CostAsset: currency.USDT, SettlementCurrency: currency.BTC, LastUpdated: after},
+		},
+		{
+			name:     "empty currencies keep the stored ones",
+			stored:   Detail{CostAsset: currency.USDT, SettlementCurrency: currency.BTC, LastUpdated: before},
+			incoming: Detail{LastUpdated: after},
+			exp:      Detail{CostAsset: currency.USDT, SettlementCurrency: currency.BTC, LastUpdated: before},
+		},
+		{
+			name:     "the stored currencies do not mark the order updated",
+			stored:   Detail{CostAsset: currency.USDT, SettlementCurrency: currency.BTC, LastUpdated: before},
+			incoming: Detail{CostAsset: currency.USDT, SettlementCurrency: currency.BTC, LastUpdated: after},
+			exp:      Detail{CostAsset: currency.USDT, SettlementCurrency: currency.BTC, LastUpdated: before},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got := tc.stored
+			require.NoError(t, got.UpdateOrderFromDetail(&tc.incoming), "UpdateOrderFromDetail must not error")
+			assert.Equal(t, tc.exp, got, "UpdateOrderFromDetail should merge the incoming detail")
+		})
+	}
 }
 
 // TestUpdateOrderFromDetailMergesFeeAsset asserts the commission currency propagates through order

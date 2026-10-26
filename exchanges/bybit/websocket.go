@@ -107,6 +107,7 @@ var (
 	errContractGroupNotSupported  = errors.New("topic has no contract group for asset")
 	errOptionTradesNotOneBaseCoin = errors.New("option trade subscriptions must share one base coin")
 	errNoStreamOrigin             = errors.New("websocket URL has no scheme and host")
+	errOrderbookDepthConflict     = errors.New("orderbook subscriptions of a symbol must share one depth")
 )
 
 // commandResponseMu lets one option or system status request at a time wait for its reply, since the replies carry no
@@ -355,10 +356,16 @@ type topicHolder struct {
 	leaving []uint64
 }
 
-// topicMarks are the holders a request marked leaving, and the request's own mark
+// topicMarks are the holders a request marked leaving, the request's own mark, and the orderbook depths it asks for
 type topicMarks struct {
 	request uint64
 	holders subscription.List
+	depths  []bookDepth
+}
+
+// bookDepth is an orderbook depth of a symbol on a stream, every connection to which loads the symbol's one book
+type bookDepth struct {
+	stream, symbol, depth string
 }
 
 // shareTopics records at once the subscriptions in subs whose topic another subscription on the connection holds, and
@@ -369,7 +376,10 @@ type topicMarks struct {
 // topic. Each subscription unsubscribed takes the holder it names, itself or an equal copy, off its topic, so
 // subscriptions unsubscribed together leave their topic to be unsubscribed, and a holder whose unsubscribe is sent is
 // marked leaving, so that a request made while it is in flight does not count it. Requests are not held back for one
-// another, so two subscribes of a topic sent at once can still both go out
+// another, so two subscribes of a topic sent at once can still both go out. Every orderbook depth of a symbol loads the
+// one book the symbol has, so a subscribe to a depth is refused while a connection to the stream holds another depth
+// of the symbol, even one being unsubscribed, which can fail, a request in flight asks for one, or an earlier
+// subscription in the request does
 func (e *Exchange) shareTopics(conn websocket.Connection, operation string, subs subscription.List) (pending subscription.List, marks topicMarks, err error) {
 	e.topicMu.Lock()
 	defer e.topicMu.Unlock()
@@ -379,6 +389,15 @@ func (e *Exchange) shareTopics(conn websocket.Connection, operation string, subs
 		if len(e.topicHolders[h].leaving) == 0 {
 			held[h.QualifiedChannel]++
 		}
+	}
+	var stream string
+	var depths map[string][]string // The orderbook depths of each symbol the stream holds or requests ask for
+	if operation == subscribeOperation && slices.ContainsFunc(subs, func(s *subscription.Subscription) bool {
+		_, _, ok := orderbookDepthTopic(s.QualifiedChannel)
+		return ok
+	}) {
+		stream = conn.GetURL()
+		depths = e.bookDepthsLocked(stream)
 	}
 	named := make([]*subscription.Subscription, len(subs))
 	if operation == unsubscribeOperation {
@@ -398,11 +417,26 @@ func (e *Exchange) shareTopics(conn websocket.Connection, operation string, subs
 	marks.request = e.topicRequests
 	var shared subscription.List
 	for i, s := range subs {
+		if depth, symbol, ok := orderbookDepthTopic(s.QualifiedChannel); ok && operation == subscribeOperation {
+			if j := slices.IndexFunc(depths[symbol], func(d string) bool { return d != depth }); j >= 0 {
+				err = common.AppendError(err, fmt.Errorf("%w: %w: %s conflicts with depth %s", websocket.ErrSubscriptionFailure, errOrderbookDepthConflict, s.QualifiedChannel, depths[symbol][j]))
+				continue
+			}
+			depths[symbol] = []string{depth}
+		}
 		if held[s.QualifiedChannel] > 0 {
 			shared = append(shared, s)
 			continue
 		}
 		pending = append(pending, s)
+		if depth, symbol, ok := orderbookDepthTopic(s.QualifiedChannel); ok && operation == subscribeOperation {
+			d := bookDepth{stream: stream, symbol: symbol, depth: depth}
+			if e.bookDepths == nil {
+				e.bookDepths = make(map[bookDepth]int)
+			}
+			e.bookDepths[d]++
+			marks.depths = append(marks.depths, d)
+		}
 		if h := named[i]; h != nil {
 			holder := e.topicHolders[h]
 			holder.leaving = append(holder.leaving, marks.request)
@@ -411,19 +445,62 @@ func (e *Exchange) shareTopics(conn websocket.Connection, operation string, subs
 		}
 	}
 	if len(shared) != 0 {
-		err = e.recordSubscriptionsLocked(conn, operation, shared)
+		err = common.AppendError(err, e.recordSubscriptionsLocked(conn, operation, shared))
 	}
 	return pending, marks, err
 }
 
+// orderbookDepthTopic returns the depth and symbol of an orderbook topic, orderbook.{depth}.{symbol}, whose pushes are
+// loaded into the symbol's book, and false for any other topic, such as the RPI and full depth orderbook topics
+func orderbookDepthTopic(topic string) (depth, symbol string, ok bool) {
+	name, rest, _ := strings.Cut(topic, ".")
+	if name != chanOrderbook {
+		return "", "", false
+	}
+	depth, symbol, _ = strings.Cut(rest, ".")
+	if _, err := strconv.ParseUint(depth, 10, 64); err != nil || symbol == "" {
+		return "", "", false
+	}
+	return depth, symbol, true
+}
+
+// bookDepthsLocked returns the orderbook depths of each symbol that subscriptions on the connections to stream hold,
+// those being unsubscribed included, and that requests in flight on them ask for. topicMu must be held
+func (e *Exchange) bookDepthsLocked(stream string) map[string][]string {
+	depths := make(map[string][]string)
+	add := func(symbol, depth string) {
+		if !slices.Contains(depths[symbol], depth) {
+			depths[symbol] = append(depths[symbol], depth)
+		}
+	}
+	for s, h := range e.topicHolders {
+		if depth, symbol, ok := orderbookDepthTopic(s.QualifiedChannel); ok && h.conn.GetURL() == stream {
+			add(symbol, depth)
+		}
+	}
+	for d := range e.bookDepths {
+		if d.stream == stream {
+			add(d.symbol, d.depth)
+		}
+	}
+	return depths
+}
+
 // keepHolders clears a request's leaving marks once its unsubscriptions are over, so a holder whose unsubscription
-// failed, which the websocket manager still stores, is counted again unless another request is unsubscribing it
+// failed, which the websocket manager still stores, is counted again unless another request is unsubscribing it, and
+// releases the orderbook depths the request asked for, which the subscriptions it made now hold
 func (e *Exchange) keepHolders(marks topicMarks) {
-	if len(marks.holders) == 0 {
+	if len(marks.holders) == 0 && len(marks.depths) == 0 {
 		return
 	}
 	e.topicMu.Lock()
 	defer e.topicMu.Unlock()
+	for _, d := range marks.depths {
+		e.bookDepths[d]--
+		if e.bookDepths[d] <= 0 {
+			delete(e.bookDepths, d)
+		}
+	}
 	for _, s := range marks.holders {
 		h, ok := e.topicHolders[s]
 		if !ok {

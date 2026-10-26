@@ -49,20 +49,12 @@ func (e *Exchange) deriveSubmitOrderArguments(s *order.Submit) (*PlaceOrderReque
 	if s.Side.IsShort() {
 		side = sideSell
 	}
-	timeInForce := "GTC"
-	if s.Type == order.Market {
-		timeInForce = "IOC"
-	} else {
-		switch {
-		case s.TimeInForce.Is(order.FillOrKill):
-			timeInForce = "FOK"
-		case s.TimeInForce.Is(order.PostOnly):
-			timeInForce = "PostOnly"
-		case s.TimeInForce.Is(order.ImmediateOrCancel):
-			timeInForce = "IOC"
-		}
-	}
 	orderType, conditional, err := bybitOrderType(s.Type)
+	if err != nil {
+		return nil, err
+	}
+	market := orderType == "Market"
+	timeInForce, err := bybitTimeInForce(s.TimeInForce, market)
 	if err != nil {
 		return nil, err
 	}
@@ -89,7 +81,7 @@ func (e *Exchange) deriveSubmitOrderArguments(s *order.Submit) (*PlaceOrderReque
 			arg.OrderFilter = "tpslOrder"
 			// Bybit sizes a spot market buy in the quote currency unless told otherwise, and a stop order's amount is in
 			// the base currency
-			if conditional && orderType == "Market" {
+			if conditional && market {
 				arg.MarketUnit = "baseCoin"
 			}
 		case asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures:
@@ -153,6 +145,29 @@ func bybitOrderType(t order.Type) (orderType string, conditional bool, err error
 		return "Market", true, nil
 	}
 	return "", false, fmt.Errorf("%w: %s", order.ErrUnsupportedOrderType, t)
+}
+
+// bybitTimeInForce returns Bybit's name for the time in force of a market order, or of a limit order when market is
+// false, or order.ErrUnsupportedTimeInForce for one Bybit cannot honour: Bybit executes every market order as IOC, and
+// takes GTC, PostOnly, IOC or FOK for a limit order
+func bybitTimeInForce(tif order.TimeInForce, market bool) (string, error) {
+	if market {
+		if tif != order.UnknownTIF && tif != order.ImmediateOrCancel {
+			return "", fmt.Errorf("%w %q for a market order", order.ErrUnsupportedTimeInForce, tif)
+		}
+		return "IOC", nil
+	}
+	switch tif {
+	case order.UnknownTIF, order.GoodTillCancel:
+		return "GTC", nil
+	case order.PostOnly, order.GoodTillCancel | order.PostOnly:
+		return "PostOnly", nil
+	case order.ImmediateOrCancel:
+		return "IOC", nil
+	case order.FillOrKill:
+		return "FOK", nil
+	}
+	return "", fmt.Errorf("%w %q for a limit order", order.ErrUnsupportedTimeInForce, tif)
 }
 
 func (e *Exchange) deriveAmendOrderArguments(action *order.Modify) (*AmendOrderRequest, error) {
@@ -397,7 +412,7 @@ func (e *Exchange) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	if e.Requester, err = request.New(e.Name, common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout), request.WithLimiter(rateLimits)); err != nil {
+	if e.Requester, err = request.New(e.Name, common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout), request.WithLimiter(rateLimits), request.WithRetryPolicy(retryPolicy)); err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
@@ -716,14 +731,14 @@ func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
 	return e.EnsureOnePairEnabled()
 }
 
-// tickerVolumes maps a ticker's two volume figures onto base and quote. Bybit reports volume24h in
-// the base currency and turnover24h in the quote, except on the inverse category, where a contract
-// is worth one unit of the quote currency and the two swap over
-func tickerVolumes(t *TickerCommon, a asset.Item) (baseVolume, quoteVolume float64) {
+// baseQuoteVolumes maps a ticker's or candle's volume and turnover onto its base and quote volumes. Bybit reports
+// volume in the base currency and turnover in the quote, except on the inverse category, where a contract is worth one
+// unit of the quote currency and the two swap over
+func baseQuoteVolumes(volume, turnover types.Number, a asset.Item) (baseVolume, quoteVolume float64) {
 	if a == asset.CoinMarginedFutures {
-		return t.Turnover24Hour.Float64(), t.Volume24Hour.Float64()
+		return turnover.Float64(), volume.Float64()
 	}
-	return t.Volume24Hour.Float64(), t.Turnover24Hour.Float64()
+	return volume.Float64(), turnover.Float64()
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
@@ -753,7 +768,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 				continue
 			}
 			pair = enabled[i]
-			baseVolume, quoteVolume := tickerVolumes(&TickerCommon{Volume24Hour: ticks.List[x].Volume24Hour, Turnover24Hour: ticks.List[x].Turnover24Hour}, assetType)
+			baseVolume, quoteVolume := baseQuoteVolumes(ticks.List[x].Volume24Hour, ticks.List[x].Turnover24Hour, assetType)
 			err = ticker.ProcessTicker(&ticker.Price{
 				Last:         ticks.List[x].LastPrice.Float64(),
 				High:         ticks.List[x].HighPrice24Hour.Float64(),
@@ -796,7 +811,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 					continue
 				}
 				pair = enabled[i]
-				baseVolume, quoteVolume := tickerVolumes(&TickerCommon{Volume24Hour: ticks.List[x].Volume24Hour, Turnover24Hour: ticks.List[x].Turnover24Hour}, assetType)
+				baseVolume, quoteVolume := baseQuoteVolumes(ticks.List[x].Volume24Hour, ticks.List[x].Turnover24Hour, assetType)
 				err = ticker.ProcessTicker(&ticker.Price{
 					Last:         ticks.List[x].LastPrice.Float64(),
 					High:         ticks.List[x].HighPrice24Hour.Float64(),
@@ -896,23 +911,43 @@ func orderbookDepth(a asset.Item) uint64 {
 }
 
 // UpdateAccountBalances returns the balances of the unified trading account, which every Bybit account has been since
-// November 2025 and which holds the funds of every asset type
+// November 2025 and which holds the funds of every asset type. Whichever asset type is asked for, it is stored once, as
+// the spot sub-account the wallet stream updates, and as of when it was requested, so a wallet push that arrives while
+// the request is in flight is kept
 func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
 	if getCategoryName(assetType) == "" {
 		return nil, fmt.Errorf("%s %w", assetType, asset.ErrNotSupported)
 	}
+	requested := time.Now()
 	resp, err := e.GetWalletBalance(ctx, &WalletBalanceRequest{AccountType: "UNIFIED"})
 	if err != nil {
 		return nil, err
 	}
-	subAccts := accounts.SubAccounts{accounts.NewSubAccount(assetType, "")}
+	subAccts := accounts.SubAccounts{accounts.NewSubAccount(asset.Spot, "")}
 	for i := range resp.List {
 		for j := range resp.List[i].Coin {
 			c := &resp.List[i].Coin[j]
 			subAccts[0].Balances.Set(c.Coin, unifiedBalance(c))
 		}
 	}
-	return subAccts, e.Accounts.Save(ctx, subAccts, true)
+	return subAccts, e.Accounts.SaveSnapshot(ctx, subAccts, requested)
+}
+
+// GetCachedSubAccounts returns the stored unified trading account, which holds the funds of every asset type
+func (e *Exchange) GetCachedSubAccounts(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
+	if assetType != asset.All && getCategoryName(assetType) == "" {
+		return nil, fmt.Errorf("%s %w", assetType, asset.ErrNotSupported)
+	}
+	return e.Base.GetCachedSubAccounts(ctx, asset.Spot)
+}
+
+// GetCachedCurrencyBalances returns the stored balances of the unified trading account, which holds the funds of every
+// asset type
+func (e *Exchange) GetCachedCurrencyBalances(ctx context.Context, assetType asset.Item) (accounts.CurrencyBalances, error) {
+	if assetType != asset.All && getCategoryName(assetType) == "" {
+		return nil, fmt.Errorf("%s %w", assetType, asset.ErrNotSupported)
+	}
+	return e.Base.GetCachedCurrencyBalances(ctx, asset.Spot)
 }
 
 // unifiedBalance returns a coin's balance in the unified trading account. Its wallet balance includes what spot margin
@@ -1733,6 +1768,19 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 	if category == "" {
 		return nil, fmt.Errorf("%s %w", req.AssetType, asset.ErrNotSupported)
 	}
+	// An order of a requested pair keeps that pair once its contract has expired or been delisted, as GetOrderInfo's
+	// does, unless unequal requested pairs share its symbol. The empty pair, which asks for every pair, names no symbol
+	requested := make(map[string]currency.Pair, len(req.Pairs))
+	for _, p := range req.Pairs {
+		symbol, err := e.orderSymbol(p, req.AssetType)
+		if err != nil {
+			continue
+		}
+		if known, ok := requested[symbol]; ok && !known.Equal(p) {
+			p = currency.EMPTYPAIR
+		}
+		requested[symbol] = p
+	}
 	windows := [][2]time.Time{{req.StartTime, req.EndTime}}
 	if !req.StartTime.IsZero() {
 		// No order is created after now, so a range ending later is fetched up to now
@@ -1758,7 +1806,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 				return nil, err
 			}
 			for i := range resp.List {
-				d, err := e.orderDetail(&resp.List[i].OpenOrder, req.AssetType, currency.EMPTYPAIR)
+				d, err := e.orderDetail(&resp.List[i].OpenOrder, req.AssetType, requested[resp.List[i].Symbol])
 				if err != nil {
 					if errors.Is(err, currency.ErrPairNotFound) {
 						continue
@@ -1915,28 +1963,16 @@ func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 		if err != nil {
 			return nil, err
 		}
-		var timeSeries []kline.Candle
 		if a == asset.USDCMarginedFutures && !pair.Quote.Equal(currency.PERP) {
 			req.RequestFormatted.Delimiter = currency.DashDelimiter
 		}
-		klines, err := e.GetKlines(ctx, &KlineRequest{Category: getCategoryName(req.Asset), Symbol: req.RequestFormatted.String(), Interval: req.ExchangeInterval, Start: req.Start, End: req.End, Limit: req.RequestLimit})
+		// Bybit's end is inclusive, and the candle starting at the exclusive end would push the first candle out of a full
+		// page
+		klines, err := e.GetKlines(ctx, &KlineRequest{Category: getCategoryName(req.Asset), Symbol: req.RequestFormatted.String(), Interval: req.ExchangeInterval, Start: req.Start, End: req.End.Add(-time.Millisecond), Limit: req.RequestLimit})
 		if err != nil {
 			return nil, err
 		}
-		candles := klines.List
-
-		timeSeries = make([]kline.Candle, len(candles))
-		for x := range candles {
-			timeSeries[x] = kline.Candle{
-				Time:   candles[x].StartTime.Time(),
-				Open:   candles[x].OpenPrice.Float64(),
-				High:   candles[x].HighPrice.Float64(),
-				Low:    candles[x].LowPrice.Float64(),
-				Close:  candles[x].ClosePrice.Float64(),
-				Volume: candles[x].Volume.Float64(),
-			}
-		}
-		return req.ProcessResponse(timeSeries)
+		return req.ProcessResponse(klineCandles(klines.List, a))
 	default:
 		return nil, fmt.Errorf("%s %w", a, asset.ErrNotSupported)
 	}
@@ -1955,27 +1991,36 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 			if req.Asset == asset.USDCMarginedFutures && !req.RequestFormatted.Quote.Equal(currency.PERP) {
 				req.RequestFormatted.Delimiter = currency.DashDelimiter
 			}
-			klines, err := e.GetKlines(ctx, &KlineRequest{Category: getCategoryName(req.Asset), Symbol: req.RequestFormatted.String(), Interval: req.ExchangeInterval, Start: req.RangeHolder.Ranges[x].Start.Time, End: req.RangeHolder.Ranges[x].End.Time, Limit: req.RequestLimit})
+			// Bybit's end is inclusive, and the candle starting at the range's exclusive end would push the range's first
+			// candle out of a full page
+			klines, err := e.GetKlines(ctx, &KlineRequest{Category: getCategoryName(req.Asset), Symbol: req.RequestFormatted.String(), Interval: req.ExchangeInterval, Start: req.RangeHolder.Ranges[x].Start.Time, End: req.RangeHolder.Ranges[x].End.Time.Add(-time.Millisecond), Limit: req.RequestLimit})
 			if err != nil {
 				return nil, err
 			}
-			klineItems := klines.List
-
-			for i := range klineItems {
-				timeSeries = append(timeSeries, kline.Candle{
-					Time:   klineItems[i].StartTime.Time(),
-					Open:   klineItems[i].OpenPrice.Float64(),
-					High:   klineItems[i].HighPrice.Float64(),
-					Low:    klineItems[i].LowPrice.Float64(),
-					Close:  klineItems[i].ClosePrice.Float64(),
-					Volume: klineItems[i].Volume.Float64(),
-				})
-			}
+			timeSeries = append(timeSeries, klineCandles(klines.List, a)...)
 		}
 		return req.ProcessResponse(timeSeries)
 	default:
 		return nil, fmt.Errorf("%s %w", a, asset.ErrNotSupported)
 	}
+}
+
+// klineCandles converts Bybit's candles of an asset to GCT candles
+func klineCandles(items []KlineItem, a asset.Item) []kline.Candle {
+	candles := make([]kline.Candle, len(items))
+	for i := range items {
+		volume, quoteVolume := baseQuoteVolumes(items[i].Volume, items[i].Turnover, a)
+		candles[i] = kline.Candle{
+			Time:        items[i].StartTime.Time(),
+			Open:        items[i].OpenPrice.Float64(),
+			High:        items[i].HighPrice.Float64(),
+			Low:         items[i].LowPrice.Float64(),
+			Close:       items[i].ClosePrice.Float64(),
+			Volume:      volume,
+			QuoteVolume: quoteVolume,
+		}
+	}
+	return candles
 }
 
 // GetServerTime returns the current exchange server time.
@@ -2117,25 +2162,29 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 			}
 		}
 
-		baseStepAmount := inst.LotSizeFilter.QuantityStep.Float64()
-		if a == asset.Spot {
+		var minBaseAmount, maxBaseAmount, marketMaxQty, baseStepAmount, minQuoteAmount float64
+		switch a {
+		case asset.Spot:
+			// Bybit checks a spot order's quantity against the maximum for its order type and its value against
+			// minOrderAmt, and no longer checks the deprecated minOrderQty, maxOrderQty and maxOrderAmt
+			maxBaseAmount = inst.LotSizeFilter.MaxLimitOrderQuantity.Float64()
+			marketMaxQty = inst.LotSizeFilter.MaxMarketOrderQuantity.Float64()
 			baseStepAmount = inst.LotSizeFilter.BasePrecision.Float64()
-		}
-
-		var marketMaxQty float64
-		if a != asset.Spot && a != asset.Options {
-			marketMaxQty = inst.LotSizeFilter.MaxMktOrderQuantity.Float64()
-		}
-
-		minQuoteAmount := inst.LotSizeFilter.MinOrderAmount.Float64()
-		if a != asset.Spot {
+			minQuoteAmount = inst.LotSizeFilter.MinOrderAmount.Float64()
+		default:
+			minBaseAmount = inst.LotSizeFilter.MinOrderQuantity.Float64()
+			maxBaseAmount = inst.LotSizeFilter.MaxOrderQuantity.Float64()
+			baseStepAmount = inst.LotSizeFilter.QuantityStep.Float64()
 			minQuoteAmount = inst.LotSizeFilter.MinNotionalValue.Float64()
+			if a != asset.Options {
+				marketMaxQty = inst.LotSizeFilter.MaxMktOrderQuantity.Float64()
+			}
 		}
 
 		l = append(l, limits.MinMaxLevel{
 			Key:                     key.NewExchangeAssetPair(e.Name, a, pair),
-			MinimumBaseAmount:       inst.LotSizeFilter.MinOrderQuantity.Float64(),
-			MaximumBaseAmount:       inst.LotSizeFilter.MaxOrderQuantity.Float64(),
+			MinimumBaseAmount:       minBaseAmount,
+			MaximumBaseAmount:       maxBaseAmount,
 			MarketMaxQty:            marketMaxQty,
 			MinPrice:                inst.PriceFilter.MinPrice.Float64(),
 			MaxPrice:                inst.PriceFilter.MaxPrice.Float64(),
@@ -2143,7 +2192,6 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 			AmountStepIncrementSize: baseStepAmount,
 			QuoteStepIncrementSize:  inst.LotSizeFilter.QuotePrecision.Float64(),
 			MinimumQuoteAmount:      minQuoteAmount,
-			MaximumQuoteAmount:      inst.LotSizeFilter.MaxOrderAmount.Float64(),
 			Delisting:               delistingAt,
 			Delisted:                delistedAt,
 			Expiry:                  delivery,
@@ -2395,7 +2443,7 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 }
 
 // GetOpenInterest returns the open interest of the given futures pairs, or of every enabled futures pair when none
-// are given
+// are given. It reports Bybit's single side figure, as Bybit's openInterest counts each contract on both sides
 func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futures.OpenInterest, error) {
 	for i := range k {
 		if k[i].Asset != asset.USDCMarginedFutures && k[i].Asset != asset.USDTMarginedFutures && k[i].Asset != asset.CoinMarginedFutures {
@@ -2415,7 +2463,7 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 			if ticks.List[i].Symbol == symbol {
 				return []futures.OpenInterest{{
 					Key:          key.NewExchangeAssetPair(e.Name, k[0].Asset, k[0].Pair()),
-					OpenInterest: ticks.List[i].OpenInterest.Float64(),
+					OpenInterest: ticks.List[i].SingleOpenInterest.Float64(),
 				}}, nil
 			}
 		}
@@ -2447,7 +2495,7 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 			}
 			resp = append(resp, futures.OpenInterest{
 				Key:          key.NewExchangeAssetPair(e.Name, a, pair),
-				OpenInterest: ticks.List[x].OpenInterest.Float64(),
+				OpenInterest: ticks.List[x].SingleOpenInterest.Float64(),
 			})
 		}
 	}

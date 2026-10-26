@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/buger/jsonparser"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
@@ -17,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // wsHandleAuthenticatedData handles a message from the private stream
@@ -58,16 +60,17 @@ func (e *Exchange) wsHandleAuthenticatedData(ctx context.Context, conn websocket
 // wsProcessPosition emits canonical positions from Bybit's account-wide private stream so consumers do not depend on
 // exchange wire types
 func (e *Exchange) wsProcessPosition(ctx context.Context, respRaw []byte) error {
-	var resp WebsocketPositionUpdate
-	if err := json.Unmarshal(respRaw, &resp); err != nil {
-		return err
-	}
-	positions := make([]futures.Position, len(resp.Data))
-	for i := range resp.Data {
-		p := &resp.Data[i]
+	data, errs := websocketEntries[WebsocketPosition](respRaw, "position index", "positionIdx")
+	positions := make([]futures.Position, 0, len(data))
+	for i := range data {
+		p := &data[i]
+		report := func(err error) {
+			errs = common.AppendError(errs, fmt.Errorf("%s %s position index %d: %w", p.Category, p.Symbol, p.PositionIndex, err))
+		}
 		pair, a, err := e.matchPairAssetFromResponse(p.Category, p.Symbol)
 		if err != nil {
-			return err
+			report(err)
+			continue
 		}
 		size := p.Size.Decimal()
 		isSizeZero := size.IsZero()
@@ -75,11 +78,13 @@ func (e *Exchange) wsProcessPosition(ctx context.Context, respRaw []byte) error 
 		if !isSizeZero || p.Side != "" {
 			direction, err = order.StringToOrderSide(p.Side)
 			if err != nil {
-				return err
+				report(err)
+				continue
 			}
 			direction, err = direction.Position()
 			if err != nil {
-				return err
+				report(err)
+				continue
 			}
 		} else {
 			switch p.PositionIndex {
@@ -91,7 +96,8 @@ func (e *Exchange) wsProcessPosition(ctx context.Context, respRaw []byte) error 
 		}
 		collateralCurrency, err := positionCollateralCurrency(a, pair, p.Symbol)
 		if err != nil {
-			return err
+			report(err)
+			continue
 		}
 		status := order.Closed
 		if !isSizeZero {
@@ -112,7 +118,7 @@ func (e *Exchange) wsProcessPosition(ctx context.Context, respRaw []byte) error 
 		// positionMM includes estimated closing fees, so dividing it by positionValue does not recover the tier rate.
 		// MaintenanceMarginFraction requires the matching riskId tier from Bybit's /v5/market/risk-limit endpoint and
 		// remains unset until that data is available here.
-		positions[i] = futures.Position{
+		positions = append(positions, futures.Position{
 			Exchange:           e.Name,
 			Asset:              a,
 			Pair:               pair,
@@ -138,9 +144,12 @@ func (e *Exchange) wsProcessPosition(ctx context.Context, respRaw []byte) error 
 			LatestDirection:              direction,
 			LastUpdated:                  p.UpdatedTime.Time(),
 			CloseDate:                    closeDate,
-		}
+		})
 	}
-	return e.Websocket.DataHandler.Send(ctx, positions)
+	if len(positions) == 0 {
+		return errs
+	}
+	return common.AppendError(errs, e.Websocket.DataHandler.Send(ctx, positions))
 }
 
 func positionCollateralCurrency(a asset.Item, pair currency.Pair, symbol string) (currency.Code, error) {
@@ -162,19 +171,17 @@ func positionCollateralCurrency(a asset.Item, pair currency.Pair, symbol string)
 }
 
 func (e *Exchange) wsProcessExecution(ctx context.Context, respRaw []byte) error {
-	var resp WebsocketExecutionUpdate
-	if err := json.Unmarshal(respRaw, &resp); err != nil {
-		return err
-	}
-	fills := make([]fill.Data, 0, len(resp.Data))
-	for i := range resp.Data {
-		x := &resp.Data[i]
+	data, errs := websocketEntries[WebsocketExecution](respRaw, "execution", "execId")
+	fills := make([]fill.Data, 0, len(data))
+	for i := range data {
+		x := &data[i]
 		if !isTradeExecution(x.ExecutionType) {
 			continue
 		}
 		f, err := e.executionFill(x.Category, x.Symbol, x.Side, x.ExecutionID, x.OrderID, x.OrderLinkID)
 		if err != nil {
-			return err
+			errs = common.AppendError(errs, fmt.Errorf("%s %s execution %s: %w", x.Category, x.Symbol, x.ExecutionID, err))
+			continue
 		}
 		f.Timestamp = x.ExecutionTime.Time()
 		f.Price = x.ExecutionPrice.Float64()
@@ -182,9 +189,35 @@ func (e *Exchange) wsProcessExecution(ctx context.Context, respRaw []byte) error
 		fills = append(fills, f)
 	}
 	if len(fills) == 0 {
-		return nil
+		return errs
 	}
-	return e.Websocket.DataHandler.Send(ctx, fills)
+	return common.AppendError(errs, e.Websocket.DataHandler.Send(ctx, fills))
+}
+
+// websocketEntries decodes each entry of a private push's data on its own, so that an entry that cannot be decoded is
+// reported, named by its category, symbol and the value of idKey, without losing the push's other entries
+func websocketEntries[T any](respRaw []byte, kind, idKey string) ([]T, error) {
+	var resp struct {
+		CreationTime types.Time        `json:"creationTime"`
+		Data         []json.RawMessage `json:"data"`
+	}
+	if err := json.Unmarshal(respRaw, &resp); err != nil {
+		return nil, err
+	}
+	entries := make([]T, 0, len(resp.Data))
+	var errs error
+	for _, raw := range resp.Data {
+		var entry T
+		if err := json.Unmarshal(raw, &entry); err != nil {
+			category, _ := jsonparser.GetString(raw, "category")
+			symbol, _ := jsonparser.GetString(raw, "symbol")
+			id, _, _, _ := jsonparser.Get(raw, idKey)
+			errs = common.AppendError(errs, fmt.Errorf("%s %s %s %s: %w", category, symbol, kind, id, err))
+			continue
+		}
+		entries = append(entries, entry)
+	}
+	return entries, errs
 }
 
 // isTradeExecution returns whether an execution type is a trade, as opposed to a funding payment, a settlement, a
@@ -198,25 +231,24 @@ func isTradeExecution(execType string) bool {
 }
 
 func (e *Exchange) wsProcessFastExecution(ctx context.Context, respRaw []byte) error {
-	var resp WebsocketFastExecutionUpdate
-	if err := json.Unmarshal(respRaw, &resp); err != nil {
-		return err
-	}
-	fills := make([]fill.Data, len(resp.Data))
-	for i := range resp.Data {
-		x := &resp.Data[i]
-		var err error
-		if fills[i], err = e.executionFill(x.Category, x.Symbol, x.Side, x.ExecutionID, x.OrderID, x.OrderLinkID); err != nil {
-			return err
+	data, errs := websocketEntries[WebsocketFastExecution](respRaw, "execution", "execId")
+	fills := make([]fill.Data, 0, len(data))
+	for i := range data {
+		x := &data[i]
+		f, err := e.executionFill(x.Category, x.Symbol, x.Side, x.ExecutionID, x.OrderID, x.OrderLinkID)
+		if err != nil {
+			errs = common.AppendError(errs, fmt.Errorf("%s %s execution %s: %w", x.Category, x.Symbol, x.ExecutionID, err))
+			continue
 		}
-		fills[i].Timestamp = x.ExecutionTime.Time()
-		fills[i].Price = x.ExecutionPrice.Float64()
-		fills[i].Amount = x.ExecutionQuantity.Float64()
+		f.Timestamp = x.ExecutionTime.Time()
+		f.Price = x.ExecutionPrice.Float64()
+		f.Amount = x.ExecutionQuantity.Float64()
+		fills = append(fills, f)
 	}
 	if len(fills) == 0 {
-		return nil
+		return errs
 	}
-	return e.Websocket.DataHandler.Send(ctx, fills)
+	return common.AppendError(errs, e.Websocket.DataHandler.Send(ctx, fills))
 }
 
 // executionFill returns a fill with the identifying fields an execution and a fast execution share
@@ -242,29 +274,33 @@ func (e *Exchange) executionFill(category, symbol, side, executionID, orderID, o
 
 // wsProcessOrder relays order pushes as order details
 func (e *Exchange) wsProcessOrder(ctx context.Context, respRaw []byte) error {
-	var resp WebsocketOrderUpdate
-	if err := json.Unmarshal(respRaw, &resp); err != nil {
-		return err
-	}
-	details := make([]order.Detail, len(resp.Data))
-	for i := range resp.Data {
-		o := &resp.Data[i]
+	data, errs := websocketEntries[WebsocketOrder](respRaw, "order", "orderId")
+	details := make([]order.Detail, 0, len(data))
+	for i := range data {
+		o := &data[i]
+		report := func(err error) {
+			errs = common.AppendError(errs, fmt.Errorf("%s %s order %s: %w", o.Category, o.Symbol, o.OrderID, err))
+		}
 		cp, a, err := e.matchPairAssetFromResponse(o.Category, o.Symbol)
 		if err != nil {
-			return err
+			report(err)
+			continue
 		}
 		side, err := order.StringToOrderSide(o.Side)
 		if err != nil {
-			return err
+			report(err)
+			continue
 		}
 		orderType, err := orderTypeFromString(o.OrderType)
 		if err != nil {
-			return err
+			report(err)
+			continue
 		}
 		orderType = conditionalOrderType(orderType, o.StopOrderType)
 		tif, err := timeInForceFromString(o.TimeInForce)
 		if err != nil {
-			return err
+			report(err)
+			continue
 		}
 		var fees order.Fees
 		settle, err := orderCostCurrency(a, cp, o.Symbol)
@@ -272,9 +308,10 @@ func (e *Exchange) wsProcessOrder(ctx context.Context, respRaw []byte) error {
 			fees, err = orderFees(a, settle, o.CumulativeFeeDetail, o.CumulativeExecutedFee)
 		}
 		if err != nil {
-			return err
+			report(err)
+			continue
 		}
-		details[i] = order.Detail{
+		d := order.Detail{
 			TimeInForce:          tif,
 			ReduceOnly:           o.ReduceOnly,
 			Price:                o.Price.Float64(),
@@ -297,15 +334,19 @@ func (e *Exchange) wsProcessOrder(ctx context.Context, respRaw []byte) error {
 			Pair:                 cp,
 		}
 		if a != asset.Spot {
-			details[i].SettlementCurrency = settle
+			d.SettlementCurrency = settle
 		}
 		// A spot market order sized by value holds a quote amount in qty, and the base amount it bought in cumExecQty
 		if quoteSized(a, o.OrderType, o.Side, o.MarketUnit) {
-			details[i].QuoteAmount, details[i].Amount = details[i].Amount, details[i].ExecutedAmount
+			d.QuoteAmount, d.Amount = d.Amount, d.ExecutedAmount
 		}
-		details[i].SetFees(fees)
+		d.SetFees(fees)
+		details = append(details, d)
 	}
-	return e.Websocket.DataHandler.Send(ctx, details)
+	if len(details) == 0 {
+		return errs
+	}
+	return common.AppendError(errs, e.Websocket.DataHandler.Send(ctx, details))
 }
 
 // timeInForceFromString returns the time in force Bybit names; an RPI order rests on the book as a post only order that
@@ -317,8 +358,8 @@ func timeInForceFromString(s string) (order.TimeInForce, error) {
 	return order.StringToTimeInForce(s)
 }
 
-// wsProcessWalletPushData stores and emits a canonical account snapshot of the unified trading account's spot
-// balances
+// wsProcessWalletPushData stores and emits the unified trading account's balances as the spot sub-account, where
+// UpdateAccountBalances stores the account for every asset type
 func (e *Exchange) wsProcessWalletPushData(ctx context.Context, respRaw []byte) error {
 	var resp WebsocketWalletUpdate
 	if err := json.Unmarshal(respRaw, &resp); err != nil {

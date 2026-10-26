@@ -43,6 +43,7 @@ var errUnexpectedRequest = errors.New("unexpected request type")
 
 // FixtureConnection is a websocket connection that answers requests without a server
 type FixtureConnection struct {
+	url                               string
 	dialError                         error
 	sendMessageReturnResponseOverride []byte
 	// reply answers each request sent through SendMessageReturnResponse when set
@@ -53,6 +54,8 @@ type FixtureConnection struct {
 }
 
 func (d *FixtureConnection) SetupPingHandler(request.EndpointLimit, websocket.PingHandler) {}
+
+func (d *FixtureConnection) GetURL() string { return d.url }
 
 func (d *FixtureConnection) Dial(context.Context, *gws.Dialer, http.Header, url.Values) error {
 	return d.dialError
@@ -569,6 +572,27 @@ func TestSendSubscriptions(t *testing.T) {
 	require.True(t, ok, "sendSubscriptions must send a SubscriptionRequest")
 	assert.Len(t, req.Arguments, len(topics), "sendSubscriptions should send each topic once")
 	assert.Len(t, shared.Websocket.GetSubscriptions(), len(subs), "sendSubscriptions should store every subscription sharing a topic")
+
+	// A second orderbook depth of a symbol is neither sent nor stored, and the rest of the request goes ahead
+	books := websocketTestInstance(t)
+	book := func(levels int) *subscription.Subscription {
+		return &subscription.Subscription{Channel: subscription.OrderbookChannel, Asset: asset.Spot, Pairs: currency.Pairs{currency.NewBTCUSDT()}, Levels: levels, QualifiedChannel: "orderbook." + strconv.Itoa(levels) + ".BTCUSDT"}
+	}
+	conn = &FixtureConnection{reply: reject()}
+	err := books.sendSubscriptions(t.Context(), conn, subscribeOperation, subscription.List{book(50), book(1), sub("A")})
+	require.ErrorIs(t, err, errOrderbookDepthConflict, "sendSubscriptions must refuse a second depth of a symbol asked for in one request")
+	require.ErrorIs(t, err, websocket.ErrSubscriptionFailure, "sendSubscriptions must report a refusal as a subscription failure")
+	assert.ErrorContains(t, err, "orderbook.1.BTCUSDT conflicts with depth 50", "error should name the refused topic and the depth asked for first")
+	require.Len(t, conn.sent, 1, "sendSubscriptions must send the rest of the request")
+	req, ok = conn.sent[0].(*SubscriptionRequest)
+	require.True(t, ok, "sendSubscriptions must send a SubscriptionRequest")
+	assert.Equal(t, []string{"orderbook.50.BTCUSDT", "tickers.AUSDT"}, req.Arguments, "sendSubscriptions should send every topic but the refused one")
+	assert.ElementsMatch(t, []string{"orderbook.50.BTCUSDT", "tickers.AUSDT"}, books.Websocket.GetSubscriptions().QualifiedChannels(), "sendSubscriptions should store every subscription but the refused one")
+	err = books.sendSubscriptions(t.Context(), conn, subscribeOperation, subscription.List{book(200)})
+	require.ErrorIs(t, err, errOrderbookDepthConflict, "sendSubscriptions must refuse another depth of a symbol the connection holds")
+	assert.ErrorContains(t, err, "orderbook.200.BTCUSDT conflicts with depth 50", "error should name the refused topic and the depth held")
+	assert.Len(t, conn.sent, 1, "sendSubscriptions should send nothing for a request whose only subscription it refuses")
+	assert.ElementsMatch(t, []string{"orderbook.50.BTCUSDT", "tickers.AUSDT"}, books.Websocket.GetSubscriptions().QualifiedChannels(), "sendSubscriptions should not store a refused subscription")
 }
 
 // sendOrFail fails a request that holds topic and accepts the rest
@@ -798,6 +822,74 @@ func TestSpotSharedTopic(t *testing.T) {
 	assert.Empty(t, held, "the stream should no longer carry the topic")
 }
 
+// TestSpotOrderbookDepthFlush checks through the websocket manager that a flush changing the depth of a spot symbol's
+// orderbook unsubscribes the old depth before it subscribes the new one, and that a second configured depth is refused
+func TestSpotOrderbookDepthFlush(t *testing.T) {
+	t.Parallel()
+	var (
+		mu       sync.Mutex
+		topics   = make(map[string]bool)
+		requests []string
+	)
+	handler := func(_ testing.TB, msg []byte, c *gws.Conn) error {
+		var req SubscriptionRequest
+		if err := json.Unmarshal(msg, &req); err != nil {
+			return err
+		}
+		if req.Operation != subscribeOperation && req.Operation != unsubscribeOperation {
+			return nil
+		}
+		mu.Lock()
+		for _, topic := range req.Arguments {
+			requests = append(requests, req.Operation+" "+topic)
+			topics[topic] = req.Operation == subscribeOperation
+		}
+		mu.Unlock()
+		return c.WriteJSON(&SubscriptionResponse{Success: true, ConnectionID: "d9avrat34tmf5pih98i0-gsmne", RequestID: req.RequestID, Operation: req.Operation})
+	}
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	for _, a := range []asset.Item{asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures, asset.Options} {
+		require.NoErrorf(t, ex.CurrencyPairs.SetAssetEnabled(a, false), "SetAssetEnabled must not error for %s", a)
+	}
+	book := func(levels int) *subscription.Subscription {
+		return &subscription.Subscription{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel, Levels: levels, Pairs: currency.Pairs{currency.NewBTCUSDT()}}
+	}
+	ex.Features.Subscriptions = subscription.List{book(50)}
+	s := httptest.NewTestServer(t, mockws.CurryWsMockUpgrader(t, handler))
+	s.Start()
+	require.NoError(t, ex.Websocket.SetAllConnectionURLs("ws"+strings.TrimPrefix(s.URL, "http")), "SetAllConnectionURLs must not error")
+	require.NoError(t, ex.Websocket.Connect(context.WithoutCancel(t.Context())), "Connect must not error")
+	t.Cleanup(func() { stopWebsocket(t, ex) })
+	state := func() (stored, sent, carried []string) {
+		stored = ex.Websocket.GetSubscriptions().QualifiedChannels()
+		mu.Lock()
+		defer mu.Unlock()
+		for topic, on := range topics {
+			if on {
+				carried = append(carried, topic)
+			}
+		}
+		return stored, slices.Clone(requests), carried
+	}
+
+	ex.Features.Subscriptions = subscription.List{book(200)}
+	require.NoError(t, ex.Websocket.FlushChannels(t.Context()), "FlushChannels must not error when the depth of a symbol changes")
+	stored, sent, carried := state()
+	assert.Equal(t, []string{"orderbook.200.BTCUSDT"}, stored, "FlushChannels should store the new depth only")
+	assert.Equal(t, []string{"subscribe orderbook.50.BTCUSDT", "unsubscribe orderbook.50.BTCUSDT", "subscribe orderbook.200.BTCUSDT"}, sent, "FlushChannels should unsubscribe the old depth before it subscribes the new one")
+	assert.Equal(t, []string{"orderbook.200.BTCUSDT"}, carried, "the stream should carry the new depth only")
+
+	ex.Features.Subscriptions = subscription.List{book(200), book(1)}
+	err := ex.Websocket.FlushChannels(t.Context())
+	require.ErrorIs(t, err, errOrderbookDepthConflict, "FlushChannels must report a second depth of a symbol")
+	assert.ErrorContains(t, err, "orderbook.1.BTCUSDT conflicts with depth 200", "error should name the refused topic and the depth held")
+	stored, sent, carried = state()
+	assert.Equal(t, []string{"orderbook.200.BTCUSDT"}, stored, "FlushChannels should not store the refused depth")
+	assert.Equal(t, []string{"subscribe orderbook.50.BTCUSDT", "unsubscribe orderbook.50.BTCUSDT", "subscribe orderbook.200.BTCUSDT"}, sent, "FlushChannels should not send the refused depth")
+	assert.Equal(t, []string{"orderbook.200.BTCUSDT"}, carried, "the stream should carry the held depth only")
+}
+
 func TestSplitRejectedSubscriptions(t *testing.T) {
 	t.Parallel()
 	a := &subscription.Subscription{QualifiedChannel: "orderbook.50.BTCUSDT"}
@@ -860,6 +952,22 @@ func TestSendCommandSubscriptions(t *testing.T) {
 	require.NoError(t, ex.sendCommandSubscriptions(t.Context(), conn, subscribeOperation, fresh), "sendCommandSubscriptions must not error")
 	require.NoError(t, ex.sendCommandSubscriptions(t.Context(), conn, unsubscribeOperation, fresh), "sendCommandSubscriptions must not error when unsubscribing")
 	assert.Empty(t, ex.Websocket.GetSubscriptions(), "unsubscribed topics should be removed")
+
+	// Option books come in 25 and 100 levels, and an option takes one of them on a connection
+	optionBook := func(levels int) *subscription.Subscription {
+		return &subscription.Subscription{Channel: subscription.OrderbookChannel, Asset: asset.Options, Pairs: currency.Pairs{fixtureOptionPair}, Levels: levels, QualifiedChannel: "orderbook." + strconv.Itoa(levels) + ".BTC-24SEP27-170000-P-USDT"}
+	}
+	conn = &FixtureConnection{reply: func(any) ([]byte, error) {
+		return []byte(`{"success":true,"conn_id":"dat43eb07optjqfk6030-1k2ih","data":{"failTopics":[],"successTopics":["orderbook.25.BTC-24SEP27-170000-P-USDT"]},"type":"COMMAND_RESP"}`), nil
+	}}
+	err = ex.sendCommandSubscriptions(t.Context(), conn, subscribeOperation, subscription.List{optionBook(25), optionBook(100)})
+	require.ErrorIs(t, err, errOrderbookDepthConflict, "sendCommandSubscriptions must refuse a second depth of an option")
+	assert.ErrorContains(t, err, "orderbook.100.BTC-24SEP27-170000-P-USDT conflicts with depth 25", "error should name the refused topic and the depth asked for first")
+	require.Len(t, conn.sent, 1, "sendCommandSubscriptions must send the rest of the request")
+	req, ok = conn.sent[0].(*SubscriptionRequest)
+	require.True(t, ok, "sendCommandSubscriptions must send a SubscriptionRequest")
+	assert.Equal(t, []string{"orderbook.25.BTC-24SEP27-170000-P-USDT"}, req.Arguments, "sendCommandSubscriptions should not send the refused depth")
+	assert.Equal(t, []string{"orderbook.25.BTC-24SEP27-170000-P-USDT"}, ex.Websocket.GetSubscriptions().QualifiedChannels(), "sendCommandSubscriptions should not store the refused depth")
 }
 
 func TestSendCommandSubscriptionBatch(t *testing.T) {
@@ -1078,12 +1186,21 @@ func TestShareTopics(t *testing.T) {
 	require.NoError(t, ex.recordSubscriptions(optionConn, unsubscribeOperation, pending), "recordSubscriptions must not error")
 	ex.keepHolders(leaving)
 
-	// A subscription the manager no longer stores, as after a reconnect, holds no topic
+	// A subscription the manager no longer stores, as after a reconnect, which drops subscriptions without unsubscribing
+	// them, holds no topic, even on the connection it was recorded on, and its record is dropped, as is that of one
+	// recorded on a connection the reconnect replaced
+	dropped, replaced := optionTrades("24SEP27-170000-C-USDT"), optionTrades("31DEC27-170000-C-USDT")
+	oldConn := &FixtureConnection{}
+	require.NoError(t, ex.recordSubscriptions(optionConn, subscribeOperation, subscription.List{dropped}), "recordSubscriptions must not error")
+	require.NoError(t, ex.recordSubscriptions(oldConn, subscribeOperation, subscription.List{replaced}), "recordSubscriptions must not error")
+	require.NoError(t, ex.Websocket.RemoveSubscriptions(optionConn, dropped), "RemoveSubscriptions must not error")
+	require.NoError(t, ex.Websocket.RemoveSubscriptions(oldConn, replaced), "RemoveSubscriptions must not error")
 	fresh := optionTrades("24SEP27-170000-P-USDT")
 	pending, _, err = ex.shareTopics(optionConn, subscribeOperation, subscription.List{fresh})
 	require.NoError(t, err, "shareTopics must not error")
 	assert.Equal(t, subscription.List{fresh}, pending, "shareTopics should send a topic whose subscriptions the manager no longer stores")
-	assert.NotContains(t, ex.topicHolders, call, "shareTopics should forget a subscription the manager no longer stores")
+	assert.NotContains(t, ex.topicHolders, dropped, "shareTopics should forget a subscription the manager no longer stores")
+	assert.NotContains(t, ex.topicHolders, replaced, "shareTopics should forget a subscription the manager no longer stores on another connection")
 
 	// A custom key names the stored subscription it matches, as the manager's store looks one up, so a subscription of
 	// other pairs can name one keyed to ignore them; it takes one holder off the topic, and another keeps the topic
@@ -1112,7 +1229,9 @@ func TestShareTopics(t *testing.T) {
 	assert.Equal(t, subscription.List{broad}, leaving.holders, "shareTopics should mark the last holder the custom key names leaving")
 	require.NoError(t, ex.recordSubscriptions(optionConn, unsubscribeOperation, pending), "recordSubscriptions must not error")
 
-	// A key naming two holders leaves the manager to remove either, and the other still counts whichever it removes
+	// A key naming two holders leaves the manager to remove either, and the other still counts whichever it removes. The
+	// removed holder's record no longer counts, though its key may still match the other's, so the topic is unsubscribed
+	// once the other and a subscription sharing the topic go together
 	for i := range 50 {
 		wide := optionTrades("24SEP27-170000-C-USDT")
 		wide.Key = subscription.IgnoringPairsKey{Subscription: wide}
@@ -1129,7 +1248,184 @@ func TestShareTopics(t *testing.T) {
 		pending, _, err = ex.shareTopics(optionConn, subscribeOperation, subscription.List{sharer})
 		require.NoErrorf(t, err, "shareTopics must not error, iteration %d", i)
 		require.Emptyf(t, pending, "shareTopics must count the holder the manager kept, iteration %d", i)
+		last := slices.DeleteFunc(ex.Websocket.GetSubscriptions(), func(s *subscription.Subscription) bool { return s.QualifiedChannel != "publicTrade.BTC" })
+		require.Lenf(t, last, 2, "the manager must store the holder it kept and the sharer, iteration %d", i)
+		pending, leaving, err = ex.shareTopics(optionConn, unsubscribeOperation, last)
+		require.NoErrorf(t, err, "shareTopics must not error when unsubscribing, iteration %d", i)
+		require.ElementsMatchf(t, last, pending, "shareTopics must unsubscribe a topic whose last holders go, iteration %d", i)
+		require.NoErrorf(t, ex.recordSubscriptions(optionConn, unsubscribeOperation, pending), "recordSubscriptions must not error, iteration %d", i)
+		ex.keepHolders(leaving)
 		require.NoErrorf(t, ex.recordSubscriptions(optionConn, unsubscribeOperation, ex.Websocket.GetSubscriptions()), "recordSubscriptions must not error clearing iteration %d", i)
+	}
+
+	// Every orderbook depth of a symbol loads its one book, so a subscribe to another depth of a symbol the connection
+	// holds is refused, while the same depth shares its topic and the RPI and full depth topics load no book
+	book := func(base string, levels int, topic string) *subscription.Subscription {
+		return &subscription.Subscription{Channel: subscription.OrderbookChannel, Asset: asset.Spot, Pairs: currency.Pairs{currency.NewPairWithDelimiter(base, "USDT", "")}, Levels: levels, QualifiedChannel: topic}
+	}
+	bookConn := &FixtureConnection{}
+	held := book("BTC", 50, "orderbook.50.BTCUSDT")
+	require.NoError(t, ex.recordSubscriptions(bookConn, subscribeOperation, subscription.List{held}), "recordSubscriptions must not error")
+	level1, level200 := book("BTC", 1, "orderbook.1.BTCUSDT"), book("BTC", 200, "orderbook.200.BTCUSDT")
+	sharer, otherSymbol := book("BTC", 0, "orderbook.50.BTCUSDT"), book("ETH", 1, "orderbook.1.ETHUSDT")
+	rpi := &subscription.Subscription{Channel: chanRPIOrderbook, Asset: asset.Spot, Pairs: currency.Pairs{currency.NewBTCUSDT()}, QualifiedChannel: "orderbook.rpi.BTCUSDT"}
+	full := &subscription.Subscription{Channel: chanFullOrderbook, Asset: asset.Spot, Pairs: currency.Pairs{currency.NewBTCUSDT()}, QualifiedChannel: "orderbook.full.BTCUSDT"}
+	pending, asked, err := ex.shareTopics(bookConn, subscribeOperation, subscription.List{level1, sharer, otherSymbol, rpi, full, level200})
+	ex.keepHolders(asked)
+	require.ErrorIs(t, err, errOrderbookDepthConflict, "shareTopics must refuse another depth of a symbol the connection holds")
+	assert.ErrorIs(t, err, websocket.ErrSubscriptionFailure, "shareTopics should report a refusal as a subscription failure")
+	assert.ErrorContains(t, err, "orderbook.1.BTCUSDT conflicts with depth 50", "error should name each refused topic and the depth held")
+	assert.ErrorContains(t, err, "orderbook.200.BTCUSDT conflicts with depth 50", "error should name each refused topic and the depth held")
+	assert.Equal(t, subscription.List{otherSymbol, rpi, full}, pending, "shareTopics should send another symbol's depth and the topics that load no book")
+	assert.Same(t, sharer, ex.Websocket.GetSubscription(sharer), "shareTopics should store a subscription sharing the topic of the depth held")
+	for _, refused := range []*subscription.Subscription{level1, level200} {
+		assert.Nilf(t, ex.Websocket.GetSubscription(refused), "shareTopics should not store refused %s", refused.QualifiedChannel)
+		assert.Equalf(t, subscription.InactiveState, refused.State(), "shareTopics should leave refused %s inactive", refused.QualifiedChannel)
+	}
+
+	// A request asking for two depths of a symbol keeps the first, and the subscriptions sharing its topic
+	solDefault, sol1, sol50 := book("SOL", 0, "orderbook.50.SOLUSDT"), book("SOL", 1, "orderbook.1.SOLUSDT"), book("SOL", 50, "orderbook.50.SOLUSDT")
+	pending, asked, err = ex.shareTopics(bookConn, subscribeOperation, subscription.List{solDefault, sol1, sol50})
+	ex.keepHolders(asked)
+	require.ErrorIs(t, err, errOrderbookDepthConflict, "shareTopics must refuse a second depth of a symbol asked for in one request")
+	assert.ErrorContains(t, err, "orderbook.1.SOLUSDT conflicts with depth 50", "error should name the refused topic and the depth asked for first")
+	assert.Equal(t, subscription.List{solDefault, sol50}, pending, "shareTopics should send the first depth of a symbol asked for")
+
+	// A depth whose holders are being unsubscribed still counts, since the unsubscribe can fail
+	pending, leaving, err = ex.shareTopics(bookConn, unsubscribeOperation, subscription.List{held, sharer})
+	require.NoError(t, err, "shareTopics must not error when unsubscribing")
+	require.Equal(t, subscription.List{held, sharer}, pending, "shareTopics must leave a depth whose every holder goes to be unsubscribed")
+	pending, asked, err = ex.shareTopics(bookConn, subscribeOperation, subscription.List{level1})
+	ex.keepHolders(asked)
+	require.ErrorIs(t, err, errOrderbookDepthConflict, "shareTopics must refuse a depth while the holders of another are being unsubscribed")
+	assert.Empty(t, pending, "shareTopics should not send a depth while the holders of another are being unsubscribed")
+	ex.keepHolders(leaving)
+	pending, asked, err = ex.shareTopics(bookConn, subscribeOperation, subscription.List{level1})
+	ex.keepHolders(asked)
+	assert.ErrorIs(t, err, errOrderbookDepthConflict, "shareTopics should refuse another depth once a failed unsubscribe leaves the depth held")
+	assert.Empty(t, pending, "shareTopics should send nothing for a refused depth")
+
+	// Two depths held at once, as concurrent requests can leave them, refuse a subscribe to either, but not an
+	// unsubscribe from one
+	require.NoError(t, ex.recordSubscriptions(bookConn, subscribeOperation, subscription.List{level1}), "recordSubscriptions must not error")
+	for _, s := range []*subscription.Subscription{
+		{Channel: subscription.OrderbookChannel, Pairs: currency.Pairs{currency.NewBTCUSDT()}, Levels: 1, QualifiedChannel: "orderbook.1.BTCUSDT"},
+		{Channel: subscription.OrderbookChannel, Pairs: currency.Pairs{currency.NewBTCUSDT()}, Levels: 50, QualifiedChannel: "orderbook.50.BTCUSDT"},
+	} {
+		pending, asked, err = ex.shareTopics(bookConn, subscribeOperation, subscription.List{s})
+		ex.keepHolders(asked)
+		assert.ErrorIsf(t, err, errOrderbookDepthConflict, "shareTopics should refuse %s while the connection holds two depths of its symbol", s.QualifiedChannel)
+		assert.Emptyf(t, pending, "shareTopics should not send %s while the connection holds two depths of its symbol", s.QualifiedChannel)
+	}
+	pending, leaving, err = ex.shareTopics(bookConn, unsubscribeOperation, subscription.List{level1})
+	ex.keepHolders(leaving)
+	require.NoError(t, err, "shareTopics must not refuse an unsubscribe from a depth")
+	assert.Equal(t, subscription.List{level1}, pending, "shareTopics should leave the last holder of a depth to be unsubscribed")
+
+	// Every connection to a stream loads the same books, so a depth another connection to the stream holds is refused,
+	// while another stream's books are its own
+	spotConn, sibling, linearConn := &FixtureConnection{url: "wss://spot"}, &FixtureConnection{url: "wss://spot"}, &FixtureConnection{url: "wss://linear"}
+	require.NoError(t, ex.recordSubscriptions(spotConn, subscribeOperation, subscription.List{book("ADA", 50, "orderbook.50.ADAUSDT")}), "recordSubscriptions must not error")
+	pending, asked, err = ex.shareTopics(sibling, subscribeOperation, subscription.List{book("ADA", 1, "orderbook.1.ADAUSDT")})
+	ex.keepHolders(asked)
+	require.ErrorIs(t, err, errOrderbookDepthConflict, "shareTopics must refuse a depth another connection to the stream holds")
+	assert.Empty(t, pending, "shareTopics should not send a depth another connection to the stream holds another of")
+	linearADA := book("ADA", 1, "orderbook.1.ADAUSDT")
+	pending, asked, err = ex.shareTopics(linearConn, subscribeOperation, subscription.List{linearADA})
+	ex.keepHolders(asked)
+	require.NoError(t, err, "shareTopics must not refuse a depth of another stream's book")
+	assert.Equal(t, subscription.List{linearADA}, pending, "shareTopics should send a depth of another stream's book")
+
+	// A depth a request in flight asks for is held until the request is over, and then only by what it subscribed
+	dot50, dot1 := book("DOT", 50, "orderbook.50.DOTUSDT"), book("DOT", 1, "orderbook.1.DOTUSDT")
+	pending, inFlight, err := ex.shareTopics(spotConn, subscribeOperation, subscription.List{dot50})
+	require.NoError(t, err, "shareTopics must not error")
+	require.Equal(t, subscription.List{dot50}, pending, "shareTopics must send a depth no one holds")
+	pending, asked, err = ex.shareTopics(sibling, subscribeOperation, subscription.List{dot1})
+	ex.keepHolders(asked)
+	require.ErrorIs(t, err, errOrderbookDepthConflict, "shareTopics must refuse a depth while a request in flight on the stream asks for another")
+	assert.Empty(t, pending, "shareTopics should not send a depth while a request in flight on the stream asks for another")
+	ex.keepHolders(inFlight)
+	assert.Empty(t, ex.bookDepths, "keepHolders should release the depths a request asked for once it is over")
+	pending, asked, err = ex.shareTopics(sibling, subscribeOperation, subscription.List{dot1})
+	require.NoError(t, err, "shareTopics must not refuse a depth once a request for another fails")
+	require.Equal(t, subscription.List{dot1}, pending, "shareTopics must send a depth once a request for another fails")
+	require.NoError(t, ex.recordSubscriptions(sibling, subscribeOperation, pending), "recordSubscriptions must not error")
+	ex.keepHolders(asked)
+	pending, asked, err = ex.shareTopics(spotConn, subscribeOperation, subscription.List{dot50})
+	ex.keepHolders(asked)
+	assert.ErrorIs(t, err, errOrderbookDepthConflict, "shareTopics should refuse another depth once a request in flight subscribes its own")
+	assert.Empty(t, pending, "shareTopics should not send another depth once a request in flight subscribes its own")
+
+	// Two requests in flight asking for one depth hold it until both are over
+	pending, first, err := ex.shareTopics(spotConn, subscribeOperation, subscription.List{book("XRP", 50, "orderbook.50.XRPUSDT")})
+	require.NoError(t, err, "shareTopics must not error")
+	require.Len(t, pending, 1, "shareTopics must send a depth no one holds")
+	pending, second, err := ex.shareTopics(sibling, subscribeOperation, subscription.List{book("XRP", 50, "orderbook.50.XRPUSDT")})
+	require.NoError(t, err, "shareTopics must not refuse the depth a request in flight asks for")
+	require.Len(t, pending, 1, "shareTopics must send the depth a request in flight asks for")
+	ex.keepHolders(first)
+	pending, asked, err = ex.shareTopics(sibling, subscribeOperation, subscription.List{book("XRP", 1, "orderbook.1.XRPUSDT")})
+	ex.keepHolders(asked)
+	require.ErrorIs(t, err, errOrderbookDepthConflict, "shareTopics must refuse a depth while another request in flight still asks for another")
+	assert.Empty(t, pending, "shareTopics should not send a depth while another request in flight still asks for another")
+	ex.keepHolders(second)
+	assert.Empty(t, ex.bookDepths, "keepHolders should release a depth once every request asking for it is over")
+}
+
+func TestBookDepthsLocked(t *testing.T) {
+	t.Parallel()
+	ex := websocketTestInstance(t)
+	spotConn, sibling, linearConn := &FixtureConnection{url: "wss://spot"}, &FixtureConnection{url: "wss://spot"}, &FixtureConnection{url: "wss://linear"}
+	topic := func(qualified string) *subscription.Subscription {
+		return &subscription.Subscription{Channel: subscription.OrderbookChannel, QualifiedChannel: qualified}
+	}
+	ex.topicHolders = map[*subscription.Subscription]topicHolder{
+		topic("orderbook.50.BTCUSDT"):  {conn: spotConn},
+		topic("orderbook.1.BTCUSDT"):   {conn: sibling},
+		topic("orderbook.50.BTCUSDT"):  {conn: sibling},
+		topic("orderbook.200.SOLUSDT"): {conn: spotConn, leaving: []uint64{1}},
+		topic("orderbook.50.ETHUSDT"):  {conn: linearConn},
+		topic("tickers.ADAUSDT"):       {conn: spotConn},
+		topic("orderbook.rpi.DOTUSDT"): {conn: spotConn},
+	}
+	ex.bookDepths = map[bookDepth]int{
+		{stream: "wss://spot", symbol: "XRPUSDT", depth: "25"}:  1,
+		{stream: "wss://spot", symbol: "BTCUSDT", depth: "50"}:  1,
+		{stream: "wss://linear", symbol: "ADAUSDT", depth: "1"}: 2,
+	}
+	got := ex.bookDepthsLocked("wss://spot")
+	for _, depths := range got {
+		slices.Sort(depths)
+	}
+	exp := map[string][]string{"BTCUSDT": {"1", "50"}, "SOLUSDT": {"200"}, "XRPUSDT": {"25"}}
+	assert.Equal(t, exp, got, "bookDepthsLocked should return each depth the stream's connections hold or its requests in flight ask for, once")
+}
+
+func TestOrderbookDepthTopic(t *testing.T) {
+	t.Parallel()
+	type parsed struct {
+		depth, symbol string
+		ok            bool
+	}
+	for topic, exp := range map[string]parsed{
+		"orderbook.50.BTCUSDT":                   {depth: "50", symbol: "BTCUSDT", ok: true},
+		"orderbook.1.BTCUSDT":                    {depth: "1", symbol: "BTCUSDT", ok: true},
+		"orderbook.25.BTC-24SEP27-170000-P-USDT": {depth: "25", symbol: "BTC-24SEP27-170000-P-USDT", ok: true},
+		"orderbook.50.BTC.USDT":                  {depth: "50", symbol: "BTC.USDT", ok: true},
+		"orderbook.rpi.BTCUSDT":                  {},
+		"orderbook.full.BTCUSDT":                 {},
+		"orderbook.-50.BTCUSDT":                  {},
+		"orderbook..BTCUSDT":                     {},
+		"orderbook.50.":                          {},
+		"orderbook.50":                           {},
+		"orderbook":                              {},
+		"kline.1.BTCUSDT":                        {},
+		"tickers.BTCUSDT":                        {},
+		"":                                       {},
+	} {
+		depth, symbol, ok := orderbookDepthTopic(topic)
+		assert.Equalf(t, exp, parsed{depth: depth, symbol: symbol, ok: ok}, "orderbookDepthTopic should parse %q", topic)
 	}
 }
 
@@ -1297,9 +1593,26 @@ func TestShareTopicsWhileUnsubscribing(t *testing.T) {
 		}
 		return json.Marshal(&SubscriptionResponse{Success: true, RequestID: req.RequestID, Operation: req.Operation})
 	}}
-	assert.NoError(t, ex.sendSubscriptions(t.Context(), other, subscribeOperation, subscription.List{ticker(subscription.TickerChannel, "ETH")}), "a request on another connection should not wait for the reply")
+	// A request that waited for the held reply would block until go test's timeout, so each is given five seconds
+	unheld := func(send func() error) error {
+		done := make(chan error, 1)
+		go func() { done <- send() }()
+		select {
+		case err := <-done:
+			return err
+		case <-time.After(5 * time.Second):
+			close(release)
+			require.FailNow(t, "a request must not wait for the reply to another request")
+			return nil
+		}
+	}
+	assert.NoError(t, unheld(func() error {
+		return ex.sendSubscriptions(t.Context(), other, subscribeOperation, subscription.List{ticker(subscription.TickerChannel, "ETH")})
+	}), "a request on another connection should not wait for the reply")
 	second := ticker(chanPublicTicker, "BTC")
-	assert.NoError(t, ex.sendSubscriptions(t.Context(), held, subscribeOperation, subscription.List{second}), "a subscribe to a topic being unsubscribed should not error")
+	assert.NoError(t, unheld(func() error {
+		return ex.sendSubscriptions(t.Context(), held, subscribeOperation, subscription.List{second})
+	}), "a subscribe to a topic being unsubscribed should not error")
 	close(release)
 	select {
 	case err := <-errs:

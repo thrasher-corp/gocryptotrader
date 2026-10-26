@@ -28,7 +28,26 @@ var (
 )
 
 // UnsubscribeChannels unsubscribes from a list of websocket channel
+// A managed connection's own store, which flushing uses to tell what to unsubscribe from the connection and whether it
+// is still in use, drops the channels too, and on error those the unsubscriber removed
 func (m *Manager) UnsubscribeChannels(ctx context.Context, conn Connection, channels subscription.List) error {
+	if _, managed := m.managedWebsocket(conn); !managed {
+		return m.unsubscribeChannels(ctx, conn, channels)
+	}
+	store := conn.Subscriptions()
+	recorded := store.Contained(channels)
+	if err := m.unsubscribeChannels(ctx, conn, channels); err != nil {
+		return common.AppendError(err, releaseConnectionSubscriptions(store, m.subscriptionStore(conn), recorded))
+	}
+	var errs error
+	for _, s := range recorded {
+		errs = common.AppendError(errs, store.Remove(s))
+	}
+	return errs
+}
+
+// unsubscribeChannels unsubscribes from channels without changing a connection's own store
+func (m *Manager) unsubscribeChannels(ctx context.Context, conn Connection, channels subscription.List) error {
 	if len(channels) == 0 {
 		return nil // No channels to unsubscribe from is not an error
 	}
@@ -117,7 +136,30 @@ func (m *Manager) ResubscribeToChannel(ctx context.Context, conn Connection, s *
 
 // SubscribeToChannels subscribes to websocket channels using the exchange specific Subscriber method
 // Errors are returned for duplicates or exceeding max Subscriptions
+// A managed connection's own store, which flushing uses to tell what to unsubscribe from the connection and whether it
+// is still in use, records the subscriptions too, and on error those the subscriber added
 func (m *Manager) SubscribeToChannels(ctx context.Context, conn Connection, subs subscription.List) error {
+	if _, managed := m.managedWebsocket(conn); !managed {
+		return m.subscribeChannels(ctx, conn, subs)
+	}
+	managerStore := m.subscriptionStore(conn)
+	pending, err := unheldSubscriptions(managerStore, subs)
+	if err != nil {
+		return err
+	}
+	store := conn.Subscriptions()
+	if err := m.subscribeChannels(ctx, conn, subs); err != nil {
+		return common.AppendError(err, recordConnectionSubscriptions(store, managerStore, pending))
+	}
+	var errs error
+	for _, s := range subs {
+		errs = common.AppendError(errs, store.Add(s))
+	}
+	return errs
+}
+
+// subscribeChannels subscribes to channels without recording them in a connection's own store
+func (m *Manager) subscribeChannels(ctx context.Context, conn Connection, subs subscription.List) error {
 	if slices.Contains(subs, nil) {
 		return fmt.Errorf("%w: List parameter contains an nil element", common.ErrNilPointer)
 	}
@@ -348,7 +390,7 @@ func (m *Manager) flushChannels(ctx context.Context) error {
 		}
 
 		if err := m.scaleConnectionsToSubscriptions(ctx, ws, newSubs); err != nil {
-			return err
+			subscriptionError = common.AppendError(subscriptionError, err)
 		}
 	}
 	return subscriptionError
@@ -607,7 +649,7 @@ func (m *Manager) unsubscribeFromConnection(ctx context.Context, conn Connection
 
 	managerStore := m.subscriptionStore(conn)
 	held := managerStore.Contained(remove)
-	if err := m.UnsubscribeChannels(ctx, conn, remove); err != nil {
+	if err := m.unsubscribeChannels(ctx, conn, remove); err != nil {
 		return nil, common.AppendError(err, releaseConnectionSubscriptions(store, managerStore, held))
 	}
 
@@ -648,7 +690,7 @@ func (m *Manager) subscribeToConnection(ctx context.Context, conn Connection, su
 	if err != nil {
 		return nil, err
 	}
-	if err := m.SubscribeToChannels(ctx, conn, toSubscribe); err != nil {
+	if err := m.subscribeChannels(ctx, conn, toSubscribe); err != nil {
 		return nil, common.AppendError(err, recordConnectionSubscriptions(store, managerStore, pending))
 	}
 

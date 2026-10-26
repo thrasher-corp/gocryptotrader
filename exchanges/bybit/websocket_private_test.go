@@ -315,6 +315,9 @@ func TestWebsocketPositionStates(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrPairNotFound, "wsProcessPosition must reject an unknown pair")
 	err = ex.wsProcessPosition(t.Context(), []byte(strings.NewReplacer(`"category":"linear"`, `"category":"spot"`, `"symbol":"BBUSDT"`, `"symbol":"BTCUSDT"`).Replace(payload)))
 	require.ErrorIs(t, err, asset.ErrNotSupported, "wsProcessPosition must reject a spot position")
+	assert.Empty(t, relayed(ex), "wsProcessPosition should relay nothing for a push whose only position it rejects")
+	require.NoError(t, ex.wsProcessPosition(t.Context(), []byte(`{"topic":"position","data":[]}`)), "wsProcessPosition must not error for a push without positions")
+	assert.Empty(t, relayed(ex), "wsProcessPosition should not relay an empty batch")
 
 	// A push can carry several positions, such as both legs of a hedge mode position, and every one of them is relayed
 	position := payload[strings.IndexByte(payload, '[')+1 : strings.LastIndexByte(payload, ']')]
@@ -327,6 +330,31 @@ func TestWebsocketPositionStates(t *testing.T) {
 	require.Len(t, positions, 2, "wsProcessPosition must relay every position of a push")
 	assert.Equal(t, order.Short, positions[0].LatestDirection, "wsProcessPosition should relay the short leg first, as it was pushed")
 	assert.Equal(t, order.Long, positions[1].LatestDirection, "wsProcessPosition should relay the long leg second, as it was pushed")
+
+	// A position that cannot be read is reported without holding back the push's other positions
+	require.NoError(t, ex.wsProcessPosition(t.Context(), []byte(payload)), "wsProcessPosition must process the captured position")
+	exp := relayed(ex)
+	require.Len(t, exp, 1, "wsProcessPosition must relay the captured position")
+	unknownPair := strings.Replace(position, `"symbol":"BBUSDT"`, `"symbol":"BTCUSDT-26SEP25"`, 1)
+	unknownSide := strings.NewReplacer(`"positionIdx":0`, `"positionIdx":1`, `"side":"Sell"`, `"side":"Hold"`).Replace(position)
+	spotPosition := strings.NewReplacer(`"category":"linear"`, `"category":"spot"`, `"symbol":"BBUSDT"`, `"symbol":"BTCUSDT"`, `"positionIdx":0`, `"positionIdx":2`).Replace(position)
+	undecodable := strings.NewReplacer(`"positionIdx":0`, `"positionIdx":2`, `"size":"883"`, `"size":"broken"`).Replace(position)
+	mixed := []byte(strings.Replace(payload, position, unknownPair+","+position+","+spotPosition+","+unknownSide+","+undecodable, 1))
+	err = ex.wsProcessPosition(t.Context(), mixed)
+	require.ErrorIs(t, err, currency.ErrPairNotFound, "wsProcessPosition must report a position whose symbol is not an available pair")
+	require.ErrorIs(t, err, order.ErrSideIsInvalid, "wsProcessPosition must report every position it cannot read")
+	require.ErrorIs(t, err, asset.ErrNotSupported, "wsProcessPosition must report a position without a collateral currency")
+	assert.ErrorContains(t, err, "linear BTCUSDT-26SEP25 position index 0", "error should identify the position of the unknown pair")
+	assert.ErrorContains(t, err, "linear BBUSDT position index 1", "error should identify the position of the unknown side")
+	assert.ErrorContains(t, err, "spot BTCUSDT position index 2", "error should identify the position without a collateral currency")
+	assert.ErrorContains(t, err, "linear BBUSDT position index 2", "error should identify the position that cannot be decoded")
+	assert.Equal(t, exp, relayed(ex), "wsProcessPosition should relay the push's other positions")
+
+	errBufferFull := fillDataHandler(t, ex)
+	require.ErrorIs(t, ex.wsProcessPosition(t.Context(), []byte(payload)), errBufferFull, "wsProcessPosition must return the data handler's error")
+	err = ex.wsProcessPosition(t.Context(), mixed)
+	require.ErrorIs(t, err, errBufferFull, "wsProcessPosition must return the data handler's error for a push with a failed position")
+	assert.ErrorIs(t, err, currency.ErrPairNotFound, "wsProcessPosition should still report the failed position when the relay fails")
 }
 
 func TestPositionCollateralCurrency(t *testing.T) {
@@ -610,6 +638,34 @@ func TestWebsocketProcessExecution(t *testing.T) {
 	require.NoError(t, ex.wsProcessExecution(t.Context(), []byte(`{"topic":"execution","id":"386825804_BTCUSDT_140612148849390","creationTime":1746273600010,"data":[`+funding+`]}`)), "wsProcessExecution must not error for a push without trades")
 	assert.Empty(t, relayed(ex), "wsProcessExecution should not relay an empty batch")
 
+	// An execution that cannot be read is reported without holding back the push's other executions
+	unknownPair := `{"category":"linear","symbol":"BTCUSDT-26SEP25","execId":"5d1f0e3a-7b2c-4d9e-8f6a-1c3b5d7e9f0a","execType":"Trade","side":"Buy"}`
+	unknownSide := `{"category":"linear","symbol":"BTCUSDT","execId":"8c4a2e6f-0b1d-4f3a-9e5c-7d2b4a6c8e1f","execType":"Trade","side":"Hold"}`
+	undecodable := `{"category":"linear","symbol":"BTCUSDT","execId":"3e7d9b1f-5a2c-4c8e-9d6b-0f1a2b3c4d5e","execType":"Trade","side":"Buy","execQty":"broken"}`
+	buy := `{"category":"linear","symbol":"BTCUSDT","execId":"7a6b5c4d-3e2f-4a1b-9c8d-e7f6a5b4c3d2","execPrice":"95899.9","execQty":"0.1","execType":"Trade","orderId":"c3d2e1f0-a9b8-4c7d-6e5f-4a3b2c1d0e9f","orderLinkId":"linear-open-002","side":"Buy","execTime":"1746273600361"}`
+	mixed := []byte(`{"topic":"execution","id":"386825804_BTCUSDT_140612148849392","creationTime":1746273600370,"data":[` + unknownPair + `,` + trade + `,` + undecodable + `,` + unknownSide + `,` + buy + `]}`)
+	err := ex.wsProcessExecution(t.Context(), mixed)
+	require.ErrorIs(t, err, currency.ErrPairNotFound, "wsProcessExecution must report an execution whose symbol is not an available pair")
+	require.ErrorIs(t, err, order.ErrSideIsInvalid, "wsProcessExecution must report every execution it cannot read")
+	assert.ErrorContains(t, err, "linear BTCUSDT-26SEP25 execution 5d1f0e3a-7b2c-4d9e-8f6a-1c3b5d7e9f0a", "error should identify the execution of the unknown pair")
+	assert.ErrorContains(t, err, "linear BTCUSDT execution 8c4a2e6f-0b1d-4f3a-9e5c-7d2b4a6c8e1f", "error should identify the execution of the unknown side")
+	assert.ErrorContains(t, err, "linear BTCUSDT execution 3e7d9b1f-5a2c-4c8e-9d6b-0f1a2b3c4d5e", "error should identify the execution that cannot be decoded")
+	tradeFills, ok := exp[0].([]fill.Data)
+	require.True(t, ok, "the trade must have been relayed as fills")
+	exp = []any{append(tradeFills, fill.Data{
+		ID:            "7a6b5c4d-3e2f-4a1b-9c8d-e7f6a5b4c3d2",
+		Timestamp:     time.UnixMilli(1746273600361),
+		Exchange:      "TestWebsocketProcessExecution",
+		AssetType:     asset.USDTMarginedFutures,
+		CurrencyPair:  currency.NewBTCUSDT(),
+		Side:          order.Buy,
+		OrderID:       "c3d2e1f0-a9b8-4c7d-6e5f-4a3b2c1d0e9f",
+		ClientOrderID: "linear-open-002",
+		Price:         95899.9,
+		Amount:        0.1,
+	})}
+	assert.Equal(t, exp, relayed(ex), "wsProcessExecution should relay the push's other trades in turn")
+
 	for _, tc := range []struct {
 		name  string
 		frame []byte
@@ -628,6 +684,12 @@ func TestWebsocketProcessExecution(t *testing.T) {
 		}
 		assert.Emptyf(t, relayed(ex), "wsProcessExecution should relay nothing for %s", tc.name)
 	}
+
+	errBufferFull := fillDataHandler(t, ex)
+	require.ErrorIs(t, ex.wsProcessExecution(t.Context(), frames[0]), errBufferFull, "wsProcessExecution must return the data handler's error")
+	err = ex.wsProcessExecution(t.Context(), mixed)
+	require.ErrorIs(t, err, errBufferFull, "wsProcessExecution must return the data handler's error for a push with a failed execution")
+	assert.ErrorIs(t, err, currency.ErrPairNotFound, "wsProcessExecution should still report the failed execution when the relay fails")
 }
 
 func TestIsTradeExecution(t *testing.T) {
@@ -762,55 +824,64 @@ func TestWebsocketProcessFastExecution(t *testing.T) {
 	require.Len(t, frames, 1, "the fast execution fixture must hold one push")
 	ex := fixtureStreamInstance(t)
 	require.NoError(t, ex.wsProcessFastExecution(t.Context(), frames[0]), "wsProcessFastExecution must not error")
-	exp := []any{
-		[]fill.Data{
-			{
-				ID:            "3510f361-0add-5c7b-a2e7-9679810944fc",
-				Timestamp:     time.UnixMilli(1716800399334),
-				Exchange:      "TestWebsocketProcessFastExecution",
-				AssetType:     asset.USDTMarginedFutures,
-				CurrencyPair:  currency.NewBTCUSDT(),
-				Side:          order.Sell,
-				OrderID:       "443d63fa-b4c3-4297-b7b1-23bca88b04dc",
-				ClientOrderID: "test-00001",
-				Price:         82560.9,
-				Amount:        0.003,
-			},
-			{
-				ID:           "6e3f9a27-4b0c-5d1e-9f2a-81c7d4e0b5aa",
-				Timestamp:    time.UnixMilli(1716800399335),
-				Exchange:     "TestWebsocketProcessFastExecution",
-				AssetType:    asset.USDTMarginedFutures,
-				CurrencyPair: currency.NewBTCUSDT(),
-				Side:         order.Buy,
-				OrderID:      "b1d0e2f4-7c3a-4a51-9f6e-2d8b0c1a3e57",
-				Price:        82561,
-				Amount:       0.001,
-			},
-		},
+	sell := fill.Data{
+		ID:            "3510f361-0add-5c7b-a2e7-9679810944fc",
+		Timestamp:     time.UnixMilli(1716800399334),
+		Exchange:      "TestWebsocketProcessFastExecution",
+		AssetType:     asset.USDTMarginedFutures,
+		CurrencyPair:  currency.NewBTCUSDT(),
+		Side:          order.Sell,
+		OrderID:       "443d63fa-b4c3-4297-b7b1-23bca88b04dc",
+		ClientOrderID: "test-00001",
+		Price:         82560.9,
+		Amount:        0.003,
 	}
-	assert.Equal(t, exp, relayed(ex), "wsProcessFastExecution should relay the push's executions as fills")
+	buy := fill.Data{
+		ID:           "6e3f9a27-4b0c-5d1e-9f2a-81c7d4e0b5aa",
+		Timestamp:    time.UnixMilli(1716800399335),
+		Exchange:     "TestWebsocketProcessFastExecution",
+		AssetType:    asset.USDTMarginedFutures,
+		CurrencyPair: currency.NewBTCUSDT(),
+		Side:         order.Buy,
+		OrderID:      "b1d0e2f4-7c3a-4a51-9f6e-2d8b0c1a3e57",
+		Price:        82561,
+		Amount:       0.001,
+	}
+	assert.Equal(t, []any{[]fill.Data{sell, buy}}, relayed(ex), "wsProcessFastExecution should relay the push's executions as fills")
 
+	unknownPair := bytes.Replace(frames[0], []byte(`"symbol":"BTCUSDT"`), []byte(`"symbol":"ZZZQUSDT"`), 1)
 	for _, tc := range []struct {
 		name  string
 		frame []byte
-		err   error
+		errs  []error
+		named []string // the failed executions the error names
+		exp   []any
 	}{
-		{name: "an unknown pair", frame: bytes.Replace(frames[0], []byte(`"symbol":"BTCUSDT"`), []byte(`"symbol":"ZZZQUSDT"`), 1), err: currency.ErrPairNotFound},
-		{name: "an unknown side", frame: bytes.Replace(frames[0], []byte(`"side":"Sell"`), []byte(`"side":"Hold"`), 1), err: order.ErrSideIsInvalid},
+		{name: "an unknown pair", frame: unknownPair, errs: []error{currency.ErrPairNotFound}, named: []string{"linear ZZZQUSDT execution 3510f361-0add-5c7b-a2e7-9679810944fc"}, exp: []any{[]fill.Data{buy}}},
+		{name: "an unknown side", frame: bytes.Replace(frames[0], []byte(`"side":"Sell"`), []byte(`"side":"Hold"`), 1), errs: []error{order.ErrSideIsInvalid}, named: []string{"linear BTCUSDT execution 3510f361-0add-5c7b-a2e7-9679810944fc"}, exp: []any{[]fill.Data{buy}}},
+		{name: "no readable execution", frame: bytes.Replace(unknownPair, []byte(`"side":"Buy"`), []byte(`"side":"Hold"`), 1), errs: []error{currency.ErrPairNotFound, order.ErrSideIsInvalid}, named: []string{"linear ZZZQUSDT execution 3510f361-0add-5c7b-a2e7-9679810944fc", "linear BTCUSDT execution 6e3f9a27-4b0c-5d1e-9f2a-81c7d4e0b5aa"}},
+		{name: "an execution that cannot be decoded", frame: bytes.Replace(frames[0], []byte(`"execQty":"0.003"`), []byte(`"execQty":"broken"`), 1), named: []string{"linear BTCUSDT execution 3510f361-0add-5c7b-a2e7-9679810944fc"}, exp: []any{[]fill.Data{buy}}},
 		{name: "an undecodable push", frame: []byte(`{"topic":"execution.fast","data":"bad"}`)},
 	} {
 		err := ex.wsProcessFastExecution(t.Context(), tc.frame)
-		if tc.err == nil {
-			require.Errorf(t, err, "wsProcessFastExecution must error for %s", tc.name)
-		} else {
-			require.ErrorIsf(t, err, tc.err, "wsProcessFastExecution must error for %s", tc.name)
+		require.Errorf(t, err, "wsProcessFastExecution must error for %s", tc.name)
+		for _, expErr := range tc.errs {
+			require.ErrorIsf(t, err, expErr, "wsProcessFastExecution must report each failed execution for %s", tc.name)
 		}
-		assert.Emptyf(t, relayed(ex), "wsProcessFastExecution should relay nothing for %s", tc.name)
+		for _, named := range tc.named {
+			assert.ErrorContainsf(t, err, named, "error should identify each failed execution for %s", tc.name)
+		}
+		assert.Equalf(t, tc.exp, relayed(ex), "wsProcessFastExecution should relay only the executions it reads for %s", tc.name)
 	}
 
 	require.NoError(t, ex.wsProcessFastExecution(t.Context(), []byte(`{"topic":"execution.fast","creationTime":1716800399338,"data":[]}`)), "wsProcessFastExecution must not error for a push without executions")
 	assert.Empty(t, relayed(ex), "wsProcessFastExecution should not relay an empty batch")
+
+	errBufferFull := fillDataHandler(t, ex)
+	require.ErrorIs(t, ex.wsProcessFastExecution(t.Context(), frames[0]), errBufferFull, "wsProcessFastExecution must return the data handler's error")
+	err := ex.wsProcessFastExecution(t.Context(), unknownPair)
+	require.ErrorIs(t, err, errBufferFull, "wsProcessFastExecution must return the data handler's error for a push with a failed execution")
+	assert.ErrorIs(t, err, currency.ErrPairNotFound, "wsProcessFastExecution should still report the failed execution when the relay fails")
 }
 
 func TestExecutionFill(t *testing.T) {
@@ -1063,6 +1134,30 @@ func TestWebsocketProcessOrder(t *testing.T) {
 	require.NoError(t, ex.wsProcessOrder(t.Context(), bytes.Replace(frames[1], []byte(`"marketUnit":"quoteCoin"`), []byte(`"marketUnit":""`), 1)), "wsProcessOrder must not error for a spot market buy without a market unit")
 	assert.Equal(t, []any{[]order.Detail{spot}}, relayed(ex), "wsProcessOrder should read a spot market buy without a market unit as sized by value")
 
+	// An order that cannot be read is reported without holding back the push's other orders
+	linearOrders := frames[0][bytes.Index(frames[0], []byte(`"data":[`))+len(`"data":[`) : bytes.LastIndexByte(frames[0], ']')]
+	unknownPair := `{"category":"linear","symbol":"BTCUSDT-26SEP25","orderId":"0f6c8a52-3e1d-4b7a-9c25-6d8e1f4a7b30","side":"Sell","orderType":"Limit","timeInForce":"GTC","orderStatus":"Cancelled"}`
+	unknownSide := `{"category":"spot","symbol":"BTCUSDT","orderId":"2290000000123456790","side":"Hold","orderType":"Limit","timeInForce":"GTC","orderStatus":"New"}`
+	unknownType := `{"category":"linear","symbol":"BTCUSDT","orderId":"6b5a4c3d-2e1f-4a0b-9c8d-7e6f5a4b3c21","side":"Buy","orderType":"Bogus","timeInForce":"GTC","orderStatus":"New"}`
+	unknownTimeInForce := `{"category":"linear","symbol":"BTCUSDT","orderId":"6b5a4c3d-2e1f-4a0b-9c8d-7e6f5a4b3c22","side":"Buy","orderType":"Limit","timeInForce":"Bogus","orderStatus":"New"}`
+	unknownFeeCoin := `{"category":"linear","symbol":"BTCUSDT","orderId":"6b5a4c3d-2e1f-4a0b-9c8d-7e6f5a4b3c23","side":"Buy","orderType":"Limit","timeInForce":"GTC","orderStatus":"New","cumFeeDetail":{"":"0.1"}}`
+	undecodable := `{"category":"linear","symbol":"BTCUSDT","orderId":"6b5a4c3d-2e1f-4a0b-9c8d-7e6f5a4b3c24","side":"Buy","orderType":"Limit","timeInForce":"GTC","orderStatus":"New","qty":"broken"}`
+	mixed := []byte(`{"topic":"order","data":[` + unknownPair + `,` + string(linearOrders) + `,` + unknownType + `,` + unknownTimeInForce + `,` + unknownFeeCoin + `,` + undecodable + `,` + unknownSide + `,` + string(spotOrders) + `]}`)
+	err := ex.wsProcessOrder(t.Context(), mixed)
+	require.ErrorIs(t, err, currency.ErrPairNotFound, "wsProcessOrder must report an order whose symbol is not an available pair")
+	require.ErrorIs(t, err, order.ErrSideIsInvalid, "wsProcessOrder must report every order it cannot read")
+	require.ErrorIs(t, err, order.ErrUnrecognisedOrderType, "wsProcessOrder must report an order of an unknown type")
+	require.ErrorIs(t, err, order.ErrInvalidTimeInForce, "wsProcessOrder must report an order of an unknown time in force")
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "wsProcessOrder must report an order whose fees name no coin")
+	assert.ErrorContains(t, err, "linear BTCUSDT-26SEP25 order 0f6c8a52-3e1d-4b7a-9c25-6d8e1f4a7b30", "error should identify the order of the unknown pair")
+	assert.ErrorContains(t, err, "spot BTCUSDT order 2290000000123456790", "error should identify the order of the unknown side")
+	for _, id := range []string{"6b5a4c3d-2e1f-4a0b-9c8d-7e6f5a4b3c21", "6b5a4c3d-2e1f-4a0b-9c8d-7e6f5a4b3c22", "6b5a4c3d-2e1f-4a0b-9c8d-7e6f5a4b3c23", "6b5a4c3d-2e1f-4a0b-9c8d-7e6f5a4b3c24"} {
+		assert.ErrorContainsf(t, err, "linear BTCUSDT order "+id, "error should identify order %s", id)
+	}
+	assert.Equal(t, []any{[]order.Detail{linear, spot}}, relayed(ex), "wsProcessOrder should relay the push's other orders in turn")
+	require.NoError(t, ex.wsProcessOrder(t.Context(), []byte(`{"topic":"order","data":[]}`)), "wsProcessOrder must not error for a push without orders")
+	assert.Empty(t, relayed(ex), "wsProcessOrder should not relay an empty batch")
+
 	for _, tc := range []struct {
 		name  string
 		frame []byte
@@ -1083,6 +1178,12 @@ func TestWebsocketProcessOrder(t *testing.T) {
 		}
 		assert.Emptyf(t, relayed(ex), "wsProcessOrder should relay nothing for %s", tc.name)
 	}
+
+	errBufferFull := fillDataHandler(t, ex)
+	require.ErrorIs(t, ex.wsProcessOrder(t.Context(), frames[0]), errBufferFull, "wsProcessOrder must return the data handler's error")
+	err = ex.wsProcessOrder(t.Context(), mixed)
+	require.ErrorIs(t, err, errBufferFull, "wsProcessOrder must return the data handler's error for a push with a failed order")
+	assert.ErrorIs(t, err, currency.ErrPairNotFound, "wsProcessOrder should still report the failed order when the relay fails")
 }
 
 // mustFees returns the fee snapshot of amounts
@@ -1228,6 +1329,25 @@ func fixtureWebsocketOrders() []WebsocketOrderUpdate {
 			},
 		},
 	}
+}
+
+func TestWebsocketEntries(t *testing.T) {
+	t.Parallel()
+	_, err := websocketEntries[WebsocketOrder]([]byte(`{"topic":"order","data":"bad"}`), "order", "orderId")
+	require.Error(t, err, "websocketEntries must error for a push whose data is not a list")
+	for _, creationTime := range []string{`"bad"`, `42`} {
+		_, err = websocketEntries[WebsocketOrder]([]byte(`{"topic":"order","creationTime":`+creationTime+`,"data":[]}`), "order", "orderId")
+		require.Errorf(t, err, "websocketEntries must error for a push whose creation time %s is not a time", creationTime)
+	}
+	entries, err := websocketEntries[WebsocketOrder]([]byte(`{"topic":"order","data":[]}`), "order", "orderId")
+	require.NoError(t, err, "websocketEntries must not error for a push without entries")
+	assert.Empty(t, entries, "websocketEntries should return no entries for a push without any")
+
+	entries, err = websocketEntries[WebsocketOrder]([]byte(`{"topic":"order","data":[{"category":"linear","symbol":"BTCUSDT","orderId":"a","qty":"1"},{"category":"linear","symbol":"ETHUSDT","orderId":"b","qty":"broken"},{"category":"spot","symbol":"SOLUSDT","orderId":"c","qty":"2"}]}`), "order", "orderId")
+	require.Error(t, err, "websocketEntries must report an entry that cannot be decoded")
+	assert.ErrorContains(t, err, "linear ETHUSDT order b", "error should identify the entry that cannot be decoded")
+	exp := []WebsocketOrder{{Category: "linear", Symbol: "BTCUSDT", OrderID: "a", Quantity: 1}, {Category: "spot", Symbol: "SOLUSDT", OrderID: "c", Quantity: 2}}
+	assert.Equal(t, exp, entries, "websocketEntries should decode the other entries in turn")
 }
 
 func TestTimeInForceFromString(t *testing.T) {

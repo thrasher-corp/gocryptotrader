@@ -2279,56 +2279,6 @@ func TestTransformSymbol(t *testing.T) {
 	}
 }
 
-// TestTickerVolumes pins which currency each of Bybit's two volume figures carries. An inverse
-// contract is worth one unit of its quote currency, so volume24h counts that currency there while
-// turnover24h carries the base, the reverse of every other category
-func TestTickerVolumes(t *testing.T) {
-	t.Parallel()
-	// figures from GET /v5/market/tickers, one symbol per category
-	for _, tc := range []struct {
-		name                string
-		asset               asset.Item
-		tick                TickerCommon
-		wantBase, wantQuote float64
-	}{
-		{
-			name:      "inverse reports the quote currency in volume24h",
-			asset:     asset.CoinMarginedFutures,
-			tick:      TickerCommon{Volume24Hour: 147122986, Turnover24Hour: 1873.7925},
-			wantBase:  1873.7925,
-			wantQuote: 147122986,
-		},
-		{
-			name:      "linear reports the base currency in volume24h",
-			asset:     asset.USDTMarginedFutures,
-			tick:      TickerCommon{Volume24Hour: 52633.7910, Turnover24Hour: 4129941840.8562},
-			wantBase:  52633.7910,
-			wantQuote: 4129941840.8562,
-		},
-		{
-			name:      "spot reports the base currency in volume24h",
-			asset:     asset.Spot,
-			tick:      TickerCommon{Volume24Hour: 8125.606399, Turnover24Hour: 638025011.4045},
-			wantBase:  8125.606399,
-			wantQuote: 638025011.4045,
-		},
-		{
-			name:      "options report the base currency in volume24h",
-			asset:     asset.Options,
-			tick:      TickerCommon{Volume24Hour: 0.08, Turnover24Hour: 6269.45554303},
-			wantBase:  0.08,
-			wantQuote: 6269.45554303,
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			baseVolume, quoteVolume := tickerVolumes(&tc.tick, tc.asset)
-			assert.Equal(t, tc.wantBase, baseVolume, "tickerVolumes should return the base currency volume")
-			assert.Equal(t, tc.wantQuote, quoteVolume, "tickerVolumes should return the quote currency volume")
-		})
-	}
-}
-
 func TestCheckTimeWindow(t *testing.T) {
 	t.Parallel()
 	future := time.Now().Add(time.Hour)

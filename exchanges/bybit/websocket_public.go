@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // Errors from decoding public stream pushes
@@ -181,6 +182,10 @@ func (e *Exchange) publicTradePair(symbol string, a asset.Item) (currency.Pair, 
 }
 
 func (e *Exchange) wsProcessPublicTicker(ctx context.Context, assetType asset.Item, respRaw []byte) error {
+	fields, err := tickerFields(respRaw)
+	if err != nil {
+		return err
+	}
 	var resp WebsocketTickerUpdate
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
@@ -196,7 +201,7 @@ func (e *Exchange) wsProcessPublicTicker(ctx context.Context, assetType asset.It
 			return err
 		}
 	}
-	updateTicker(tick, &resp.Data)
+	updateTicker(tick, &resp.Data, fields)
 	tick.LastUpdated = resp.Timestamp.Time()
 	if err := ticker.ProcessTicker(tick); err != nil {
 		return err
@@ -204,39 +209,57 @@ func (e *Exchange) wsProcessPublicTicker(ctx context.Context, assetType asset.It
 	return e.Websocket.DataHandler.Send(ctx, tick)
 }
 
-// updateTicker applies the non-zero fields of a ticker push to tick; a delta omits the fields that did not change, so
-// a zero value cannot be told apart from an omitted one
-func updateTicker(tick *ticker.Price, t *WebsocketTicker) {
-	setIfNonZero := func(dst *float64, v float64) {
-		if v != 0 {
-			*dst = v
+// tickerFields returns the fields a ticker push carries a value for: a delta carries only the fields that changed,
+// which can change to zero, and an empty string carries no value
+func tickerFields(respRaw []byte) (map[string]bool, error) {
+	fields := make(map[string]bool)
+	return fields, jsonparser.ObjectEach(respRaw, func(key, value []byte, dataType jsonparser.ValueType, _ int) error {
+		if dataType != jsonparser.String || len(value) != 0 {
+			fields[string(key)] = true
+		}
+		return nil
+	}, "data")
+}
+
+// updateTicker merges the fields a ticker push carries into tick
+func updateTicker(tick *ticker.Price, t *WebsocketTicker, fields map[string]bool) {
+	set := func(dst *float64, field string, v types.Number) {
+		if fields[field] {
+			*dst = v.Float64()
 		}
 	}
-	setIfNonZero(&tick.Last, t.LastPrice.Float64())
-	setIfNonZero(&tick.High, t.HighPrice24Hour.Float64())
-	setIfNonZero(&tick.Low, t.LowPrice24Hour.Float64())
+	set(&tick.Last, "lastPrice", t.LastPrice)
+	set(&tick.High, "highPrice24h", t.HighPrice24Hour)
+	set(&tick.Low, "lowPrice24h", t.LowPrice24Hour)
 	// Linear and inverse tickers carry the best bid and ask as bid1 and ask1, option tickers without the 1, and spot
 	// tickers carry neither
-	setIfNonZero(&tick.Bid, t.Bid1Price.Float64())
-	setIfNonZero(&tick.BidSize, t.Bid1Size.Float64())
-	setIfNonZero(&tick.Ask, t.Ask1Price.Float64())
-	setIfNonZero(&tick.AskSize, t.Ask1Size.Float64())
-	setIfNonZero(&tick.Bid, t.BidPrice.Float64())
-	setIfNonZero(&tick.BidSize, t.BidSize.Float64())
-	setIfNonZero(&tick.Ask, t.AskPrice.Float64())
-	setIfNonZero(&tick.AskSize, t.AskSize.Float64())
+	set(&tick.Bid, "bid1Price", t.Bid1Price)
+	set(&tick.BidSize, "bid1Size", t.Bid1Size)
+	set(&tick.Ask, "ask1Price", t.Ask1Price)
+	set(&tick.AskSize, "ask1Size", t.Ask1Size)
+	set(&tick.Bid, "bidPrice", t.BidPrice)
+	set(&tick.BidSize, "bidSize", t.BidSize)
+	set(&tick.Ask, "askPrice", t.AskPrice)
+	set(&tick.AskSize, "askSize", t.AskSize)
 	// volume24h counts the quote currency on the inverse category and turnover24h the base, the reverse of everywhere
-	// else, so the two are mapped together rather than one field at a time
-	baseVolume, quoteVolume := t.Volume24Hour.Float64(), t.Turnover24Hour.Float64()
+	// else
+	baseField, quoteField, baseVolume, quoteVolume := "volume24h", "turnover24h", t.Volume24Hour, t.Turnover24Hour
 	if tick.AssetType == asset.CoinMarginedFutures {
-		baseVolume, quoteVolume = quoteVolume, baseVolume
+		baseField, quoteField, baseVolume, quoteVolume = quoteField, baseField, quoteVolume, baseVolume
 	}
-	setIfNonZero(&tick.BaseVolume, baseVolume)
-	setIfNonZero(&tick.QuoteVolume, quoteVolume)
-	setIfNonZero(&tick.MarkPrice, t.MarkPrice.Float64())
-	setIfNonZero(&tick.IndexPrice, t.IndexPrice.Float64())
-	setIfNonZero(&tick.OpenInterest, t.OpenInterest.Float64())
-	setIfNonZero(&tick.OpenInterestValue, t.OpenInterestValue.Float64())
+	set(&tick.BaseVolume, baseField, baseVolume)
+	set(&tick.QuoteVolume, quoteField, quoteVolume)
+	set(&tick.MarkPrice, "markPrice", t.MarkPrice)
+	set(&tick.IndexPrice, "indexPrice", t.IndexPrice)
+	// openInterest counts both sides of each linear and inverse contract, where GCT counts one; an option ticker's
+	// openInterest, its only figure, counts one side already
+	if tick.AssetType == asset.Options {
+		set(&tick.OpenInterest, "openInterest", t.OpenInterest)
+		set(&tick.OpenInterestValue, "openInterestValue", t.OpenInterestValue)
+		return
+	}
+	set(&tick.OpenInterest, "singleOpenInterest", t.SingleOpenInterest)
+	set(&tick.OpenInterestValue, "singleOpenInterestValue", t.SingleOpenInterestValue)
 }
 
 func (e *Exchange) wsProcessKline(ctx context.Context, assetType asset.Item, respRaw []byte) error {
@@ -264,19 +287,24 @@ func (e *Exchange) wsProcessKline(ctx context.Context, assetType asset.Item, res
 		if assetType == asset.CoinMarginedFutures {
 			volume, quoteVolume = quoteVolume, volume
 		}
+		var validationIssues string
+		if !k.Confirm {
+			validationIssues = kline.PartialCandle
+		}
 		if err := e.Websocket.DataHandler.Send(ctx, kline.Item{
 			Pair:     cp,
 			Asset:    assetType,
 			Exchange: e.Name,
 			Interval: interval,
 			Candles: []kline.Candle{{
-				Time:        k.Start.Time(),
-				Open:        k.Open.Float64(),
-				Close:       k.Close.Float64(),
-				High:        k.High.Float64(),
-				Low:         k.Low.Float64(),
-				Volume:      volume,
-				QuoteVolume: quoteVolume,
+				Time:             k.Start.Time(),
+				Open:             k.Open.Float64(),
+				Close:            k.Close.Float64(),
+				High:             k.High.Float64(),
+				Low:              k.Low.Float64(),
+				Volume:           volume,
+				QuoteVolume:      quoteVolume,
+				ValidationIssues: validationIssues,
 			}},
 		}); err != nil {
 			return err
