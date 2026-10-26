@@ -374,7 +374,8 @@ func (e *Exchange) processFuturesWallet(ctx context.Context, msg *WebsocketMessa
 	return unhandledSubject(msg)
 }
 
-// saveFuturesBalance saves and relays a futures balance
+// saveFuturesBalance saves and relays a futures balance. The save is one step against REST's futures listings, so a
+// listing saved alongside neither undoes it nor is refused for it
 func (e *Exchange) saveFuturesBalance(ctx context.Context, code currency.Code, total, hold, available float64, updatedAt time.Time) error {
 	subAccts := accounts.SubAccounts{accounts.NewSubAccount(asset.Futures, "")}
 	subAccts[0].Balances.Set(code, accounts.Balance{
@@ -383,7 +384,10 @@ func (e *Exchange) saveFuturesBalance(ctx context.Context, code currency.Code, t
 		Free:      available,
 		UpdatedAt: updatedAt,
 	})
-	if err := e.Accounts.Save(ctx, subAccts, false); err != nil {
+	e.futuresBalanceMu.Lock()
+	err := e.Accounts.Save(ctx, subAccts, false)
+	e.futuresBalanceMu.Unlock()
+	if err != nil {
 		return err
 	}
 	return e.Websocket.DataHandler.Send(ctx, subAccts)

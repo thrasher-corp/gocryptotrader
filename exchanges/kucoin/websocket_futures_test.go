@@ -1165,6 +1165,8 @@ func TestSaveFuturesBalance(t *testing.T) {
 	exp := accounts.SubAccounts{accounts.NewSubAccount(asset.Futures, "")}
 	exp[0].Balances.Set(currency.USDT, accounts.Balance{Total: 4, Hold: 1, Free: 3, UpdatedAt: time.UnixMilli(1741164936624)})
 	assert.Equal(t, exp, relayed(t, ex), "saveFuturesBalance should relay the balance it saves")
+	require.True(t, ex.futuresBalanceMu.TryLock(), "saveFuturesBalance must release the futures balance lock")
+	ex.futuresBalanceMu.Unlock()
 	creds, err := ex.GetCredentials(t.Context())
 	require.NoError(t, err, "GetCredentials must not error")
 	stored, err := ex.Accounts.GetBalance("", creds, asset.Futures, currency.USDT)
@@ -1172,6 +1174,8 @@ func TestSaveFuturesBalance(t *testing.T) {
 	assert.Equal(t, 4.0, stored.Total, "the stored total should be the one saved")
 	ex.Accounts = nil
 	require.ErrorIs(t, ex.saveFuturesBalance(t.Context(), currency.USDT, 4, 1, 3, time.Now()), common.ErrNilPointer, "saveFuturesBalance must return a save error")
+	require.True(t, ex.futuresBalanceMu.TryLock(), "saveFuturesBalance must release the futures balance lock")
+	ex.futuresBalanceMu.Unlock()
 }
 
 func TestProcessFuturesPosition(t *testing.T) {

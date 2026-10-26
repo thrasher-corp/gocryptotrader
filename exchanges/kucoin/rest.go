@@ -64,6 +64,9 @@ type Exchange struct {
 	// leaves out a currency or an isolated margin account leaves no balance to tell a later push from an earlier one by,
 	// and a listing answered after a newer one would undo it
 	marginAccountsListedAt map[accounts.Credentials]time.Time
+	// futuresBalanceMu makes saving REST's futures listing, which keeps the balances pushes saved after it was asked for,
+	// and a futures balance push one step each
+	futuresBalanceMu sync.Mutex
 	// tickerMergeMu serialises websocket ticker merges, which load the stored ticker and store it back, as the pushes
 	// of one pair can arrive on several connections at once
 	tickerMergeMu sync.Mutex

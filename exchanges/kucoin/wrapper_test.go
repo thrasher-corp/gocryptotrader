@@ -4634,6 +4634,235 @@ func TestUpdateAccountBalancesMarginListingTimePerCredentials(t *testing.T) {
 	assert.Equal(t, 20.0, b.Total, "the other credentials' listing should save its figures")
 }
 
+// futuresOverviewReply returns a futures account overview of the settlement currency a request asks for, its equity and
+// available balance both total
+func futuresOverviewReply(r *http.Request, total float64) string {
+	amount := strconv.FormatFloat(total, 'f', -1, 64)
+	for _, c := range futuresSettlementCurrencies {
+		if r.URL.Query().Get("currency") == c.String() {
+			return `{"code":"200000","data":{"accountEquity":` + amount + `,"availableBalance":` + amount + `,"currency":"` + c.String() + `"}}`
+		}
+	}
+	return `{"code":"400100","msg":"unexpected currency"}`
+}
+
+// TestUpdateAccountBalancesFuturesKeepsNewerPushes checks a futures listing keeps the balances pushes saved while it was
+// answered over its figures, that a push made while it was answered is saved once it has been, and that a later listing
+// replaces them
+func TestUpdateAccountBalancesFuturesKeepsNewerPushes(t *testing.T) {
+	t.Parallel()
+	started, release := make(chan struct{}), make(chan struct{})
+	var releaseOnce sync.Once
+	var requests atomic.Int32
+	var figure atomic.Int64
+	figure.Store(20)
+	ex := newLocalServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
+		if requests.Add(1) == 1 {
+			close(started)
+			<-release
+		}
+		_, err := io.WriteString(w, futuresOverviewReply(r, float64(figure.Load())))
+		assert.NoError(t, err, "writing the reply should not error")
+	})
+	t.Cleanup(func() { releaseOnce.Do(func() { close(release) }) })
+	type listing struct {
+		subAccts accounts.SubAccounts
+		err      error
+	}
+	held := make(chan listing, 1)
+	go func() {
+		subAccts, err := ex.UpdateAccountBalances(t.Context(), asset.Futures)
+		held <- listing{subAccts: subAccts, err: err}
+	}()
+	received(t, started, "the listing's first request must reach the server")
+	time.Sleep(2 * time.Millisecond)
+	pushedAt := time.UnixMilli(time.Now().UnixMilli())
+	pushed := []currency.Code{currency.USDT, currency.XBT, currency.DOGE}
+	for _, c := range pushed {
+		require.NoErrorf(t, ex.saveFuturesBalance(t.Context(), c, 40, 0, 40, pushedAt), "saveFuturesBalance must not error for the %s push", c)
+		relayed(t, ex)
+	}
+	time.Sleep(2 * time.Millisecond)
+	during := time.UnixMilli(time.Now().UnixMilli())
+	releaseOnce.Do(func() { close(release) })
+	got := received(t, held, "the listing must return once its reply is released")
+	require.NoError(t, got.err, "the listing must not error")
+	creds, err := ex.GetCredentials(t.Context())
+	require.NoError(t, err, "GetCredentials must not error")
+	listed, err := ex.Accounts.GetBalance("", creds, asset.Futures, currency.USDC)
+	require.NoError(t, err, "the futures USDC balance must be stored")
+	require.True(t, listed.UpdatedAt.Before(pushedAt), "the listing must be stamped before the pushes made while it was answered")
+	exp := accounts.SubAccounts{accounts.NewSubAccount(asset.Futures, "")}
+	for _, c := range futuresSettlementCurrencies {
+		exp[0].Balances.Set(c, accounts.Balance{Total: 20, Free: 20, UpdatedAt: listed.UpdatedAt})
+	}
+	for _, c := range pushed {
+		exp[0].Balances.Set(c, accounts.Balance{Total: 40, Free: 40, UpdatedAt: pushedAt})
+	}
+	assert.Equal(t, exp, got.subAccts, "UpdateAccountBalances should return the futures balances as saved, with the balances kept from pushes")
+	saved, err := ex.Accounts.SubAccounts(creds, asset.Futures)
+	require.NoError(t, err, "the futures balances must be stored")
+	assert.Equal(t, exp, saved, "the listing should keep the balances pushes saved while it was answered over its figures")
+
+	require.NoError(t, ex.saveFuturesBalance(t.Context(), currency.USDC, 25, 0, 25, during), "saveFuturesBalance must save a push made while the listing was answered")
+	relayed(t, ex)
+	figure.Store(30)
+	_, err = ex.UpdateAccountBalances(t.Context(), asset.Futures)
+	require.NoError(t, err, "the later listing must not error")
+	for _, c := range []currency.Code{currency.USDT, currency.USDC} {
+		b, err := ex.Accounts.GetBalance("", creds, asset.Futures, c)
+		require.NoErrorf(t, err, "the futures %s balance must be stored", c)
+		assert.Equalf(t, 30.0, b.Total, "a listing newer than the %s push should replace its figures", c)
+	}
+	_, err = ex.Accounts.GetBalance("", creds, asset.Futures, currency.DOGE)
+	assert.ErrorIs(t, err, accounts.ErrNoBalances, "a listing newer than a push should remove the currency it does not list")
+}
+
+// TestUpdateAccountBalancesFuturesListingTimeMilliseconds checks a futures listing is stamped to the millisecond, as
+// pushes carry their times, so a push made in the listing's millisecond is not refused as older than the listing
+func TestUpdateAccountBalancesFuturesListingTimeMilliseconds(t *testing.T) {
+	t.Parallel()
+	ex := newLocalServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
+		_, err := io.WriteString(w, futuresOverviewReply(r, 20))
+		assert.NoError(t, err, "writing the reply should not error")
+	})
+	_, err := ex.UpdateAccountBalances(t.Context(), asset.Futures)
+	require.NoError(t, err, "UpdateAccountBalances must not error")
+	creds, err := ex.GetCredentials(t.Context())
+	require.NoError(t, err, "GetCredentials must not error")
+	listed, err := ex.Accounts.GetBalance("", creds, asset.Futures, currency.USDT)
+	require.NoError(t, err, "the futures USDT balance must be stored")
+	sameMillisecond := time.UnixMilli(listed.UpdatedAt.UnixMilli())
+	assert.NoError(t, ex.saveFuturesBalance(t.Context(), currency.USDT, 40, 0, 40, sameMillisecond), "saveFuturesBalance should save a push made in the listing's millisecond")
+}
+
+// TestUpdateAccountBalancesFuturesAlongsidePushes checks futures listings saved alongside a run of balance pushes all
+// succeed, that only a push older than a listing saved since it was made is refused, and that a push made once every
+// listing is saved stays saved
+func TestUpdateAccountBalancesFuturesAlongsidePushes(t *testing.T) {
+	t.Parallel()
+	ex := newLocalServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
+		_, err := io.WriteString(w, futuresOverviewReply(r, 20))
+		assert.NoError(t, err, "writing the reply should not error")
+	})
+	const listings = 20
+	errs := make(chan error, listings)
+	var wg sync.WaitGroup
+	for range listings {
+		wg.Go(func() {
+			_, err := ex.UpdateAccountBalances(t.Context(), asset.Futures)
+			errs <- err
+		})
+	}
+	listed := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(listed)
+	}()
+	var pushedAt time.Time
+	push := func(total float64) error {
+		// Stamped as it is made, after the last push, so it is older only than a listing begun since
+		at := time.UnixMilli(time.Now().UnixMilli() + 1)
+		if !at.After(pushedAt) {
+			at = pushedAt.Add(time.Millisecond)
+		}
+		pushedAt = at
+		return ex.saveFuturesBalance(t.Context(), currency.USDT, total, 0, total, at)
+	}
+	type pushRun struct {
+		refused   []error
+		unrelayed int
+	}
+	pushed := make(chan pushRun, 1)
+	go func() {
+		var run pushRun
+		for i := 0; ; i++ {
+			select {
+			case <-listed:
+				pushed <- run
+				return
+			default:
+			}
+			if err := push(float64(i)); err != nil {
+				run.refused = append(run.refused, err)
+				continue
+			}
+			select {
+			case <-ex.Websocket.DataHandler.C:
+			default:
+				run.unrelayed++
+			}
+		}
+	}()
+	var run pushRun
+	select {
+	case run = <-pushed:
+	case <-time.After(30 * time.Second):
+		require.FailNow(t, "the listings and the pushes alongside them must finish")
+	}
+	for _, err := range run.refused {
+		assert.ErrorContains(t, err, "out of sequence", "saveFuturesBalance should refuse a push only as older than a listing saved since it was made")
+	}
+	assert.Zero(t, run.unrelayed, "saveFuturesBalance should relay every push it saves")
+	close(errs)
+	for err := range errs {
+		assert.NoError(t, err, "a listing saved alongside pushes should not error")
+	}
+	require.NoError(t, push(-1), "saveFuturesBalance must save a push made once every listing is saved")
+	relayed(t, ex)
+	creds, err := ex.GetCredentials(t.Context())
+	require.NoError(t, err, "GetCredentials must not error")
+	b, err := ex.Accounts.GetBalance("", creds, asset.Futures, currency.USDT)
+	require.NoError(t, err, "the futures USDT balance must be stored")
+	assert.Equal(t, -1.0, b.Total, "the latest push should stay saved")
+}
+
+func TestSaveFuturesListing(t *testing.T) {
+	t.Parallel()
+	ex := accountTestInstance(t)
+	unlocked := func() {
+		t.Helper()
+		require.True(t, ex.futuresBalanceMu.TryLock(), "saveFuturesListing must release the futures balance lock")
+		ex.futuresBalanceMu.Unlock()
+	}
+	creds, err := ex.GetCredentials(t.Context())
+	require.NoError(t, err, "GetCredentials must not error")
+	listedAt := time.UnixMilli(time.Now().UnixMilli())
+	listing := func() accounts.SubAccounts {
+		subAccts := accounts.SubAccounts{accounts.NewSubAccount(asset.Futures, "")}
+		for _, c := range []currency.Code{currency.USDT, currency.XBT, currency.ETH} {
+			subAccts[0].Balances.Set(c, accounts.Balance{Total: 20, Free: 20, UpdatedAt: listedAt})
+		}
+		return subAccts
+	}
+	require.NoError(t, ex.saveFuturesListing(t.Context(), listing(), listedAt), "saveFuturesListing must save a listing when no futures balance is saved")
+	unlocked()
+	saved := accounts.SubAccounts{accounts.NewSubAccount(asset.Futures, ""), accounts.NewSubAccount(asset.Futures, "other")}
+	saved[0].Balances.Set(currency.USDT, accounts.Balance{Total: 40, Free: 40, UpdatedAt: listedAt.Add(time.Millisecond)})
+	saved[0].Balances.Set(currency.DOGE, accounts.Balance{Total: 5, Free: 5, UpdatedAt: listedAt.Add(time.Millisecond)})
+	saved[0].Balances.Set(currency.XBT, accounts.Balance{Total: 3, Free: 3, UpdatedAt: listedAt})
+	saved[1].Balances.Set(currency.ETH, accounts.Balance{Total: 7, Free: 7, UpdatedAt: listedAt.Add(time.Millisecond)})
+	require.NoError(t, ex.Accounts.Save(t.Context(), saved, false), "Save must not error")
+	subAccts := listing()
+	require.NoError(t, ex.saveFuturesListing(t.Context(), subAccts, listedAt), "saveFuturesListing must not error")
+	unlocked()
+	exp := listing()
+	exp[0].Balances.Set(currency.USDT, saved[0].Balances[currency.USDT])
+	exp[0].Balances.Set(currency.DOGE, saved[0].Balances[currency.DOGE])
+	assert.Equal(t, exp, subAccts, "saveFuturesListing should keep over the listing's figures only its sub-account's balances saved after the listing's time")
+	got, err := ex.Accounts.SubAccounts(creds, asset.Futures)
+	require.NoError(t, err, "the futures balances must be stored")
+	assert.ElementsMatch(t, append(exp, saved[1]), got, "saveFuturesListing should save the listing with the balances it kept and leave the other sub-account as it was")
+
+	ex = accountTestInstance(t)
+	ex.Accounts = nil
+	assert.ErrorIs(t, ex.saveFuturesListing(t.Context(), listing(), listedAt), common.ErrNilPointer, "saveFuturesListing should return the error reading the saved balances")
+	unlocked()
+	ex.SkipAuthCheck = false // The mock instance skips credential checks
+	ex.SetCredentials(&accounts.Credentials{})
+	assert.ErrorIs(t, ex.saveFuturesListing(t.Context(), listing(), listedAt), exchange.ErrCredentialsAreEmpty, "saveFuturesListing should return a credentials error")
+}
+
 // TestUpdateAccountBalancesStampedBeforeRequests checks a listing's time is taken before its requests are sent, so a push
 // made while the listing is answered is not refused as older than the listing, which could not hold it
 func TestUpdateAccountBalancesStampedBeforeRequests(t *testing.T) {
@@ -6310,8 +6539,7 @@ func batchCancelReply(cancelled []string, failed string) string {
 // local server, for replies and request checks the recorded fixtures cannot give
 func newLocalServerExchange(tb testing.TB, handler http.HandlerFunc) *Exchange {
 	tb.Helper()
-	server := httptest.NewServer(handler)
-	tb.Cleanup(server.Close)
+	server := httptest.NewTestServer(tb, handler)
 	ex := new(Exchange)
 	require.NoError(tb, testexch.Setup(ex), "Setup must not error")
 	require.NoError(tb, ex.DisableRateLimiter(), "DisableRateLimiter must not error")

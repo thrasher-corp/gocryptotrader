@@ -506,6 +506,9 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.It
 	subAccts := accounts.SubAccounts{accounts.NewSubAccount(assetType, "")}
 	switch assetType {
 	case asset.Futures:
+		// Stamped before the requests, so that a push arriving while they are answered is neither undone nor refused, and
+		// to the millisecond, as pushes are, so that a push in the listing's millisecond does not read as older
+		listedAt := time.Now().Truncate(time.Millisecond)
 		for _, settlement := range futuresSettlementCurrencies {
 			resp, err := e.GetFuturesAccountOverview(ctx, settlement)
 			if err != nil {
@@ -516,11 +519,13 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.It
 			}
 			// Account equity is position margin, order margin, frozen funds and the available balance together
 			subAccts[0].Balances.Set(resp.Currency, accounts.Balance{
-				Total: resp.AccountEquity,
-				Hold:  resp.PositionMargin + resp.OrderMargin + resp.FrozenFunds,
-				Free:  resp.AvailableBalance,
+				Total:     resp.AccountEquity,
+				Hold:      resp.PositionMargin + resp.OrderMargin + resp.FrozenFunds,
+				Free:      resp.AvailableBalance,
+				UpdatedAt: listedAt,
 			})
 		}
+		return subAccts, e.saveFuturesListing(ctx, subAccts, listedAt)
 	case asset.Margin:
 		// Stamped before the requests, so that a push arriving while they are answered is neither undone nor refused, and
 		// to the millisecond, as pushes are, so that a push in the listing's millisecond does not read as older
@@ -599,7 +604,32 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.It
 	default:
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
-	return subAccts, e.Accounts.Save(ctx, subAccts, true)
+}
+
+// saveFuturesListing saves the futures balances REST listed. A balance a push saved after the listing's time is kept
+// over the listing's figures, as the listing cannot show whether KuCoin took them before or after the push
+func (e *Exchange) saveFuturesListing(ctx context.Context, subAccts accounts.SubAccounts, listedAt time.Time) error {
+	creds, err := e.GetCredentials(ctx)
+	if err != nil {
+		return err
+	}
+	e.futuresBalanceMu.Lock()
+	defer e.futuresBalanceMu.Unlock()
+	saved, err := e.Accounts.SubAccounts(creds, asset.Futures)
+	if err != nil && !errors.Is(err, accounts.ErrNoSubAccounts) {
+		return err
+	}
+	for _, s := range saved {
+		if s.ID != subAccts[0].ID {
+			continue
+		}
+		for c, b := range s.Balances {
+			if b.UpdatedAt.After(listedAt) {
+				subAccts[0].Balances.Set(c, b)
+			}
+		}
+	}
+	return e.Accounts.Save(ctx, subAccts, true)
 }
 
 // marginAssetBalance returns the balance of a cross or isolated margin account's currency as of its listing's time

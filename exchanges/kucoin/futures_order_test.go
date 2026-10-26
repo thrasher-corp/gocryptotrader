@@ -404,7 +404,7 @@ func TestBatchCancelFuturesOrders(t *testing.T) {
 // matches DELETE requests by their query alone, so it cannot tell this body from one that cancels by order ID
 func TestBatchCancelFuturesOrdersByClientOrderID(t *testing.T) {
 	t.Parallel()
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, http.MethodDelete, r.Method, "the request method should be DELETE")
 		assert.Equal(t, "/v1/orders/multi-cancel", r.URL.Path, "the request path should be Batch Cancel Orders")
 		body, err := io.ReadAll(r.Body)
@@ -413,7 +413,6 @@ func TestBatchCancelFuturesOrdersByClientOrderID(t *testing.T) {
 		_, err = io.WriteString(w, `{"code":"200000","data":[{"orderId":null,"clientOid":"5c52e11203aa1677f133e493fb","code":"200","msg":"success"},{"orderId":null,"clientOid":"5c52214e112","code":"200","msg":"success"}]}`)
 		assert.NoError(t, err, "writing the response should not error")
 	}))
-	t.Cleanup(server.Close)
 
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Setup must not error")
