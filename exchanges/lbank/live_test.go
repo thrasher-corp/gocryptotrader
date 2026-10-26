@@ -71,8 +71,17 @@ type websocketVenue struct{}
 func (*websocketVenue) received(string) []websocketSubscribeRequest { return nil }
 
 // connectWebsocketTestExchange connects an exchange's websocket to LBank, with its account connection when the exchange
-// has credentials, and subs subscribed, or none. The websocket is disabled and shut down when the test ends
+// has credentials, and subs subscribed, or none
 func connectWebsocketTestExchange(t *testing.T, ex *Exchange, subs subscription.List) *websocketVenue {
+	t.Helper()
+	venue, err := dialWebsocketTestExchange(t, ex, subs)
+	require.NoError(t, err, "Connect must not error")
+	return venue
+}
+
+// dialWebsocketTestExchange connects an exchange's websocket as connectWebsocketTestExchange does, returning Connect's
+// error. The websocket is disabled and shut down when the test ends
+func dialWebsocketTestExchange(t *testing.T, ex *Exchange, subs subscription.List) (*websocketVenue, error) {
 	t.Helper()
 	ex.Features.Subscriptions = subs
 	if len(subs) == 0 {
@@ -80,7 +89,7 @@ func connectWebsocketTestExchange(t *testing.T, ex *Exchange, subs subscription.
 	}
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(ex.API.AuthenticatedWebsocketSupport)
 	startRelayRecorder(t, ex)
-	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
+	err := ex.Websocket.Connect(t.Context())
 	t.Cleanup(func() {
 		if ex.Websocket.IsEnabled() {
 			assert.NoError(t, ex.Websocket.Disable(), "Disable should not error")
@@ -89,5 +98,5 @@ func connectWebsocketTestExchange(t *testing.T, ex *Exchange, subs subscription.
 			assert.ErrorIs(t, err, websocket.ErrNotConnected, "Shutdown should only fail when the connection monitor has shut the connection down first")
 		}
 	})
-	return nil
+	return nil, err
 }

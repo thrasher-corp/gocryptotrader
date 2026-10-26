@@ -130,7 +130,7 @@ type WebsocketOrderUpdate struct {
 	CustomerID    string `json:"customerID"`
 	Symbol        string `json:"symbol"`
 	TransactionID string `json:"txUuid"`
-	// Type is the order's side, buy or sell
+	// Type is the order's side, buy or sell, as LBank documents it, or its side and type, such as buy_market
 	Type        string       `json:"type"`
 	OrderPrice  types.Number `json:"orderPrice"`
 	OrderAmount types.Number `json:"orderAmt"`

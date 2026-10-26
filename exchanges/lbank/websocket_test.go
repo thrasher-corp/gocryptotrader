@@ -17,10 +17,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
@@ -28,16 +30,19 @@ import (
 
 var errSendFailed = errors.New("send failed")
 
-// recordingConnection is a websocket connection that records what is sent on it, dialled or not
+// recordingConnection is a websocket connection that records what is sent on it, dialled or not. It refuses every send
+// with sendErr, or only subscriptions to failChannel
 type recordingConnection struct {
 	websocket.Connection
-	mu          sync.Mutex
-	sent        []any
-	sendErr     error
-	dialErr     error
-	dialled     int
-	pingHandler *websocket.PingHandler
-	connected   bool
+	mu            sync.Mutex
+	sent          []any
+	sendErr       error
+	failChannel   string
+	dialErr       error
+	dialled       int
+	pingHandler   *websocket.PingHandler
+	connected     bool
+	subscriptions *subscription.Store
 }
 
 func (c *recordingConnection) SendJSONMessage(_ context.Context, _ request.EndpointLimit, payload any) error {
@@ -46,8 +51,23 @@ func (c *recordingConnection) SendJSONMessage(_ context.Context, _ request.Endpo
 	if c.sendErr != nil {
 		return c.sendErr
 	}
+	if req, ok := payload.(*websocketSubscribeRequest); ok && c.failChannel != "" && req.Subscribe == c.failChannel {
+		return errSendFailed
+	}
 	c.sent = append(c.sent, payload)
 	return nil
+}
+
+func (c *recordingConnection) clearMessages() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.sent = nil
+}
+
+func (c *recordingConnection) setSendFailures(sendErr error, failChannel string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.sendErr, c.failChannel = sendErr, failChannel
 }
 
 func (c *recordingConnection) Dial(context.Context, *gws.Dialer, http.Header, url.Values) error {
@@ -73,6 +93,15 @@ func (c *recordingConnection) setConnected(connected bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.connected = connected
+}
+
+func (c *recordingConnection) Subscriptions() *subscription.Store {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.subscriptions == nil {
+		c.subscriptions = subscription.NewStore()
+	}
+	return c.subscriptions
 }
 
 func (c *recordingConnection) messages() []any {
@@ -250,9 +279,36 @@ func TestManageSubscriptions(t *testing.T) {
 	assert.Equal(t, subscription.InactiveState, tradeSub.State(), "wsSubscribe should not record a subscription it couldn't send")
 
 	account := &subscription.Subscription{Enabled: true, Channel: subscription.MyOrdersChannel, Authenticated: true, QualifiedChannel: wsOrderUpdateChannel}
-	err = ex.wsSubscribe(t.Context(), conn, subscription.List{account, tradeSub})
-	assert.ErrorIs(t, err, errSubscribeKeyRequired, "wsSubscribe should refuse an account channel on a connection without a key")
-	assert.Equal(t, subscription.SubscribedState, tradeSub.State(), "wsSubscribe should still record the subscriptions it sent")
+	err = ex.manageSubscriptions(t.Context(), conn, "subscribe", subscription.List{account, tradeSub})
+	assert.ErrorIs(t, err, errSubscribeKeyRequired, "manageSubscriptions should refuse an account channel on a connection without a key")
+	assert.Equal(t, subscription.SubscribedState, tradeSub.State(), "manageSubscriptions should still record the subscriptions it sent")
+}
+
+func TestSetupWebsocket(t *testing.T) {
+	t.Parallel()
+	exch := newTestExchangeConfig(t)
+	ex := new(Exchange)
+	ex.SetDefaults()
+	ex.Websocket = sharedtestvalues.NewTestWebsocket()
+	require.NoError(t, ex.SetupDefaults(exch), "SetupDefaults must not error")
+	require.NoError(t, ex.setupWebsocket(exch), "setupWebsocket must not error")
+	urls, err := ex.Websocket.GetConfiguredWebsocketURLs()
+	require.NoError(t, err, "GetConfiguredWebsocketURLs must not error")
+	assert.Equal(t, []string{websocketURL}, urls, "setupWebsocket should set its connections up on LBank's websocket")
+
+	featureless := *exch
+	featureless.Features = nil
+	ex = new(Exchange)
+	ex.SetDefaults()
+	ex.Websocket = sharedtestvalues.NewTestWebsocket()
+	assert.ErrorIs(t, ex.setupWebsocket(&featureless), common.ErrNilPointer, "setupWebsocket should report a websocket it can't set up")
+
+	ex = new(Exchange)
+	ex.SetDefaults()
+	ex.Websocket = sharedtestvalues.NewTestWebsocket()
+	require.NoError(t, ex.SetupDefaults(exch), "SetupDefaults must not error")
+	ex.API.Endpoints = ex.NewEndpoints()
+	assert.ErrorIs(t, ex.setupWebsocket(exch), exchange.ErrEndpointPathNotFound, "setupWebsocket should report a missing websocket endpoint")
 }
 
 func TestWebsocketConnect(t *testing.T) {

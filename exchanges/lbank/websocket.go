@@ -127,7 +127,7 @@ func (e *Exchange) setupWebsocket(exch *config.Exchange) error {
 		URL:                   wsURL,
 		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
-		Connector:             e.wsConnectAccount,
+		Connector:             e.wsConnect,
 		GenerateSubscriptions: e.generateAccountSubscriptions,
 		Subscriber:            e.wsSubscribe,
 		Unsubscriber:          e.wsUnsubscribe,
@@ -266,13 +266,28 @@ const subTplText = `
 `
 
 // wsSubscribe subscribes to channels. LBank confirms no subscription, so each is recorded once its request is sent; it
-// reports a pair it doesn't trade, or a subscribe key it doesn't recognise, in an error frame the handler relays
+// reports a pair it doesn't trade, or a subscribe key it doesn't recognise, in an error frame the handler relays. The
+// account channels take a subscribe key of the connection's own, created with its first account subscription, so a key
+// LBank refuses fails only those subscriptions, which the next connect or flush retries, and leaves the market data up
 func (e *Exchange) wsSubscribe(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
-	return e.manageSubscriptions(ctx, conn, "subscribe", subs)
+	if !slices.ContainsFunc(subs, isAccountChannel) {
+		return e.manageSubscriptions(ctx, conn, "subscribe", subs)
+	}
+	e.subscribeKeys.account.Lock()
+	defer e.subscribeKeys.account.Unlock()
+	var errs error
+	if e.subscribeKeys.get(conn) == "" {
+		errs = e.startSubscribeKey(ctx, conn, defaultSubscribeKeyTimings)
+	}
+	return common.AppendError(errs, e.manageSubscriptions(ctx, conn, "subscribe", subs))
 }
 
 // wsUnsubscribe unsubscribes from channels, which LBank confirms no more than subscriptions
 func (e *Exchange) wsUnsubscribe(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
+	if slices.ContainsFunc(subs, isAccountChannel) {
+		e.subscribeKeys.account.Lock()
+		defer e.subscribeKeys.account.Unlock()
+	}
 	return e.manageSubscriptions(ctx, conn, "unsubscribe", subs)
 }
 
@@ -282,6 +297,14 @@ func (e *Exchange) manageSubscriptions(ctx context.Context, conn websocket.Conne
 		req, err := e.subscriptionRequest(conn, action, s)
 		if err == nil {
 			err = conn.SendJSONMessage(ctx, request.Unset, req)
+		}
+		if err == nil && req.SubscribeKey != "" {
+			// The key an account channel went out with tells a replacement key to subscribe the channel again
+			if action == "subscribe" {
+				e.subscribeKeys.markSent(conn, req.Subscribe, req.SubscribeKey)
+			} else {
+				e.subscribeKeys.forgetSent(conn, req.Subscribe)
+			}
 		}
 		if err == nil {
 			if action == "subscribe" {
@@ -369,7 +392,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 	return e.Websocket.DataHandler.Send(ctx, websocket.UnhandledMessageWarning{Message: e.Name + websocket.UnhandledMessage + string(respRaw)})
 }
 
-// matchSpotPair returns the enabled spot pair a frame's symbol names
+// matchSpotPair returns the available spot pair a frame's symbol names
 func (e *Exchange) matchSpotPair(symbol string) (currency.Pair, error) {
 	return e.MatchSymbolWithAvailablePairs(symbol, asset.Spot, true)
 }

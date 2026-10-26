@@ -78,9 +78,18 @@ func newWebsocketTestExchange(t *testing.T, subs subscription.List) (*Exchange, 
 }
 
 // connectWebsocketTestExchange connects an exchange's websocket to a new mock of LBank's websocket, with its account
-// connection when the exchange supports authentication, and subs subscribed, or none, returning the mock. The websocket
-// is disabled and shut down when the test ends, so its connection monitor does not redial the closed mock
+// connection when the exchange supports authentication, and subs subscribed, or none, returning the mock
 func connectWebsocketTestExchange(t *testing.T, ex *Exchange, subs subscription.List) *websocketVenue {
+	t.Helper()
+	venue, err := dialWebsocketTestExchange(t, ex, subs)
+	require.NoError(t, err, "Connect must not error")
+	return venue
+}
+
+// dialWebsocketTestExchange connects an exchange's websocket as connectWebsocketTestExchange does, returning the mock and
+// Connect's error. The websocket is disabled and shut down when the test ends, so its connection monitor does not redial
+// the closed mock
+func dialWebsocketTestExchange(t *testing.T, ex *Exchange, subs subscription.List) (*websocketVenue, error) {
 	t.Helper()
 	venue := new(websocketVenue)
 	server := httptest.NewTestServer(t, venue.handler(t))
@@ -95,10 +104,10 @@ func connectWebsocketTestExchange(t *testing.T, ex *Exchange, subs subscription.
 	}
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(ex.API.AuthenticatedWebsocketSupport)
 	startRelayRecorder(t, ex)
-	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
+	err := ex.Websocket.Connect(t.Context())
 	t.Cleanup(func() { stopWebsocketTestExchange(t, ex) })
 	t.Cleanup(venue.closing)
-	return venue
+	return venue, err
 }
 
 // websocketVenue mocks LBank's websocket. It answers pings, and follows a subscription with the frames

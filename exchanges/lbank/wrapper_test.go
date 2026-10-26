@@ -1002,6 +1002,10 @@ func TestListOrders(t *testing.T) {
 			list := func(_ context.Context, req *OrdersPageRequest) (*OrdersPageResponse, error) {
 				assert.Equal(t, uint64(maxOrdersPageLength), req.PageLength, "listOrders should ask for full pages")
 				asked[req.Pair.String()] = append(asked[req.Pair.String()], req.CurrentPage)
+				if len(asked[req.Pair.String()]) > maxOrderPages {
+					// Refused, so a pager no longer stopped by its page limit fails rather than pages forever
+					return nil, errRequestFailed
+				}
 				return tc.page(req.CurrentPage), nil
 			}
 			pairs := currency.Pairs{spotTestPair, ethPair}

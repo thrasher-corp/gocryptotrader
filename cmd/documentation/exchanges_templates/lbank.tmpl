@@ -73,8 +73,10 @@ snapshot. Candles take 1, 5, 15 or 30 minute, 1 or 4 hour, day, week or month in
 at midnight UTC+8, and weeks on Sunday. LBank acknowledges no subscription.
 
 When authenticated, a separate connection carries the account's orders, `orderUpdate`, and balances, `assetUpdate`. It
-creates a subscribe key of its own when it connects, refreshes it every 30 minutes, retrying each minute after a failed
-refresh, and closes it when the connection ends.
+creates a subscribe key of its own with its first account subscription, so a key LBank refuses fails only the account
+subscriptions, which the next connect or flush retries, and leaves the market data streaming. The key is refreshed every
+30 minutes, retrying each minute after a failed refresh, and closed when the connection ends. A key left unrefreshed for
+the hour it lasts is replaced, and the account channels are subscribed to again with the new key.
 
 Each connection pings LBank every 20 seconds and answers LBank's pings. LBank's websocket errors carry the client's IP
 address, which is removed before an error is reported.

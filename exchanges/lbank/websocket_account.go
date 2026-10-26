@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -14,18 +16,45 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const (
-	// subscribeKeyRefreshInterval renews a subscribe key well within the hour it lasts from its creation or last renewal
+	// subscribeKeyLifetime is how long a subscribe key lasts from its creation or last renewal
+	subscribeKeyLifetime = time.Hour
+	// subscribeKeyRefreshInterval renews a subscribe key well within its lifetime
 	subscribeKeyRefreshInterval = 30 * time.Minute
-	// subscribeKeyRetryInterval spaces the attempts to renew a subscribe key after one fails, as waiting a full refresh
-	// interval would let a single passing outage expire the key
+	// subscribeKeyRetryInterval spaces the attempts to renew or replace a subscribe key after one fails, as waiting a full
+	// refresh interval would let a single passing outage expire the key
 	subscribeKeyRetryInterval = time.Minute
 	// subscribeKeyCloseTimeout bounds the request that closes a subscribe key once its connection ends
 	subscribeKeyCloseTimeout = 5 * time.Second
 )
+
+// subscribeKeyTimings holds how often a subscribe key is renewed, how soon a failed renewal is retried and how long a key
+// lasts without renewal
+type subscribeKeyTimings struct {
+	refresh  time.Duration
+	retry    time.Duration
+	lifetime time.Duration
+}
+
+var defaultSubscribeKeyTimings = subscribeKeyTimings{
+	refresh:  subscribeKeyRefreshInterval,
+	retry:    subscribeKeyRetryInterval,
+	lifetime: subscribeKeyLifetime,
+}
+
+// nextRenewal returns how long to wait before renewing a subscribe key again: the refresh interval after a renewal, and
+// the retry interval, if sooner, after a failure
+func (t subscribeKeyTimings) nextRenewal(err error) time.Duration {
+	if err != nil {
+		return min(t.refresh, t.retry)
+	}
+	return t.refresh
+}
 
 // CreateSubscribeKey creates a subscribe key, which the account websocket channels take and which lasts an hour unless
 // refreshed
@@ -59,10 +88,15 @@ func (e *Exchange) subscribeKeyRequest(ctx context.Context, path, subscribeKey s
 	return e.SendAuthHTTPRequest(ctx, defaultEPL, path, params, nil)
 }
 
-// subscribeKeyStore holds the subscribe key of each account connection
+// subscribeKeyStore holds the subscribe key of each account connection, and the key each account channel on it was
+// last subscribed with
 type subscribeKeyStore struct {
 	mu   sync.Mutex
 	keys map[websocket.Connection]string
+	sent map[websocket.Connection]map[string]string
+	// account serialises creating and replacing keys with the account subscriptions, so a connection gets one key and
+	// renewer, and a replacement key subscribes again only the channels still subscribed
+	account sync.Mutex
 }
 
 func (s *subscribeKeyStore) set(conn websocket.Connection, key string) {
@@ -80,73 +114,169 @@ func (s *subscribeKeyStore) get(conn websocket.Connection) string {
 	return s.keys[conn]
 }
 
-// remove forgets a connection's subscribe key, unless a reconnect has given the connection another
+// remove forgets a connection's subscribe key and the channels subscribed with it, unless a reconnect has given the
+// connection another
 func (s *subscribeKeyStore) remove(conn websocket.Connection, key string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.keys[conn] == key {
 		delete(s.keys, conn)
+		delete(s.sent, conn)
 	}
 }
 
-// wsConnectAccount dials the account connection with a subscribe key of its own, which a renewer keeps alive for as
-// long as the connection lives. A key that cannot be created fails only this connection, which the manager retries
-// on the next connect or flush, leaving the market data connections up
-func (e *Exchange) wsConnectAccount(ctx context.Context, conn websocket.Connection) error {
+// markSent records the key an account channel on a connection was subscribed with, while the connection still holds
+// that key, so a subscription finishing as its connection shuts down records nothing
+func (s *subscribeKeyStore) markSent(conn websocket.Connection, channel, key string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.keys[conn] != key {
+		return
+	}
+	if s.sent == nil {
+		s.sent = make(map[websocket.Connection]map[string]string)
+	}
+	if s.sent[conn] == nil {
+		s.sent[conn] = make(map[string]string)
+	}
+	s.sent[conn][channel] = key
+}
+
+// forgetSent forgets an account channel a connection has unsubscribed from
+func (s *subscribeKeyStore) forgetSent(conn websocket.Connection, channel string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.sent[conn], channel)
+}
+
+// sentWith returns the key an account channel on a connection was last subscribed with, and whether it is subscribed
+func (s *subscribeKeyStore) sentWith(conn websocket.Connection, channel string) (string, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	key, ok := s.sent[conn][channel]
+	return key, ok
+}
+
+// connectionGone reports whether a connection has been shut down; one that can't tell is taken as live
+func connectionGone(conn websocket.Connection) bool {
+	c, ok := conn.(interface{ IsConnected() bool })
+	return ok && !c.IsConnected()
+}
+
+// startSubscribeKey creates a connection's subscribe key and starts the renewer that keeps it alive until the websocket
+// shuts down or the connection ends. Its caller holds the account lock
+func (e *Exchange) startSubscribeKey(ctx context.Context, conn websocket.Connection, timings subscribeKeyTimings) error {
+	shutdown := e.Websocket.ShutdownC
 	key, err := e.CreateSubscribeKey(ctx)
 	if err != nil {
 		return fmt.Errorf("creating subscribe key: %w", err)
 	}
-	if err := e.wsConnect(ctx, conn); err != nil {
-		// No renewer owns the key until the connection is up, so it is closed here: the monitor retries a failed connect
-		// every few seconds and would otherwise leave a key behind each time
+	if connectionGone(conn) {
+		// The connection was shut down while its key was created, leaving no renewer to close the key
 		e.closeSubscribeKey(ctx, key)
-		return err
+		return fmt.Errorf("creating subscribe key: %w", websocket.ErrNotConnected)
 	}
 	e.subscribeKeys.set(conn, key)
 	e.Websocket.Wg.Add(1)
-	go e.keepSubscribeKeyAlive(ctx, conn, key, subscribeKeyRefreshInterval)
+	// The renewer outlives the request that created the key, such as a flush, so it renews on a context of its own
+	go e.keepSubscribeKeyAlive(context.WithoutCancel(ctx), conn, key, shutdown, timings)
 	return nil
 }
 
-// keepSubscribeKeyAlive refreshes a connection's subscribe key on a timer until the connection ends, then closes it.
-// A connection lost on its own is noticed at the next refresh, so its key is closed up to one interval later
-func (e *Exchange) keepSubscribeKeyAlive(ctx context.Context, conn websocket.Connection, key string, interval time.Duration) {
+// subscribeKeyRenewal is the state of a connection's subscribe key renewer
+type subscribeKeyRenewal struct {
+	key     string
+	renewed time.Time
+}
+
+// keepSubscribeKeyAlive renews a connection's subscribe key on a timer until the websocket shuts down or the connection
+// ends, then closes it. A connection lost on its own is noticed at the next renewal, so its key is closed up to one
+// interval later
+func (e *Exchange) keepSubscribeKeyAlive(ctx context.Context, conn websocket.Connection, key string, shutdown <-chan struct{}, timings subscribeKeyTimings) {
 	defer e.Websocket.Wg.Done()
-	defer e.subscribeKeys.remove(conn, key)
-	defer e.closeSubscribeKey(ctx, key)
-	refresh := time.NewTicker(interval)
-	defer refresh.Stop()
+	r := &subscribeKeyRenewal{key: key, renewed: time.Now()}
+	defer func() {
+		e.subscribeKeys.remove(conn, r.key)
+		e.closeSubscribeKey(ctx, r.key)
+	}()
+	timer := time.NewTimer(timings.refresh)
+	defer timer.Stop()
 	for {
 		select {
-		case <-ctx.Done():
+		case <-shutdown:
 			return
-		case <-e.Websocket.ShutdownC:
-			return
-		case <-refresh.C:
-			// The manager can close one connection without closing ShutdownC, such as a connection it rolls back, so a
-			// key whose connection has gone is closed rather than refreshed
-			if c, ok := conn.(interface{ IsConnected() bool }); ok && !c.IsConnected() {
+		case <-timer.C:
+			// The manager can close one connection without shutting the websocket down, such as a connection it rolls
+			// back, so a key whose connection has gone is closed rather than renewed
+			if connectionGone(conn) {
 				return
 			}
-			err := e.RefreshSubscribeKey(ctx, key)
+			err := e.renewSubscribeKey(ctx, conn, r, timings.lifetime)
 			if err != nil {
-				if errSend := e.Websocket.DataHandler.Send(ctx, fmt.Errorf("refreshing subscribe key: %w", err)); errSend != nil {
+				if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
 					log.Errorf(log.WebsocketMgr, "%s: %v: %v", e.Name, errSend, err)
 				}
 			}
-			refresh.Reset(refreshDelay(err, interval))
+			timer.Reset(timings.nextRenewal(err))
 		}
 	}
 }
 
-// refreshDelay returns how long to wait before renewing a subscribe key again: the refresh interval after a renewal,
-// and sooner after a failure
-func refreshDelay(err error, interval time.Duration) time.Duration {
-	if err != nil {
-		return min(interval, subscribeKeyRetryInterval)
+// renewSubscribeKey refreshes a connection's subscribe key, or replaces it once its refreshes have failed for as long as
+// a key lasts, then subscribes with the current key each account channel the connection carries under an earlier one
+func (e *Exchange) renewSubscribeKey(ctx context.Context, conn websocket.Connection, r *subscribeKeyRenewal, lifetime time.Duration) error {
+	var errs error
+	var replacement string
+	if time.Since(r.renewed) < lifetime {
+		if err := e.RefreshSubscribeKey(ctx, r.key); err != nil {
+			errs = fmt.Errorf("refreshing subscribe key: %w", err)
+		} else {
+			r.renewed = time.Now()
+		}
+	} else {
+		var err error
+		if replacement, err = e.CreateSubscribeKey(ctx); err != nil {
+			return fmt.Errorf("replacing expired subscribe key: %w", err)
+		}
 	}
-	return interval
+	// Only installing a replacement and subscribing with it wait for the account subscriptions, so a slow request holds
+	// up none of them
+	e.subscribeKeys.account.Lock()
+	defer e.subscribeKeys.account.Unlock()
+	if replacement != "" {
+		e.subscribeKeys.set(conn, replacement)
+		r.key, r.renewed = replacement, time.Now()
+	}
+	return common.AppendError(errs, e.resubscribeAccountChannels(ctx, conn))
+}
+
+// subscribedAccountSubscriptions returns the account subscriptions the websocket holds as subscribed
+func (e *Exchange) subscribedAccountSubscriptions() subscription.List {
+	return slices.DeleteFunc(e.Websocket.GetSubscriptions(), func(s *subscription.Subscription) bool {
+		return !isAccountSubscription(s) || s.State() != subscription.SubscribedState
+	})
+}
+
+// resubscribeAccountChannels subscribes with the connection's current subscribe key each account channel still
+// subscribed that the connection carries under an earlier key. Its caller holds the account lock, so no subscription
+// change can overtake it
+func (e *Exchange) resubscribeAccountChannels(ctx context.Context, conn websocket.Connection) error {
+	var errs error
+	for _, s := range e.subscribedAccountSubscriptions() {
+		if key, ok := e.subscribeKeys.sentWith(conn, subscriptionNames[s.Channel]); !ok || key == e.subscribeKeys.get(conn) {
+			continue
+		}
+		req, err := e.subscriptionRequest(conn, "subscribe", s)
+		if err == nil {
+			err = conn.SendJSONMessage(ctx, request.Unset, req)
+		}
+		if err != nil {
+			errs = common.AppendError(errs, fmt.Errorf("resubscribing %s with a new subscribe key: %w", s.QualifiedChannel, err))
+			continue
+		}
+		e.subscribeKeys.markSent(conn, req.Subscribe, req.SubscribeKey)
+	}
+	return errs
 }
 
 // closeSubscribeKey closes a subscribe key on a detached context, since the connection's is usually done by then
@@ -168,9 +298,14 @@ func (e *Exchange) wsProcessOrderUpdate(ctx context.Context, msg *websocketMessa
 	if err != nil {
 		return err
 	}
-	side, err := order.StringToOrderSide(u.Type)
+	side, orderType, tif, err := parseOrderType(u.Type)
 	if err != nil {
 		return err
+	}
+	if !strings.Contains(u.Type, "_") {
+		// LBank documents the pushed type as the order's side, yet pushes a market buy as buy_market, as its order queries
+		// type it, so only a suffixed type sets the order's type; a bare side leaves the stored order's type alone
+		orderType, tif = order.UnknownType, order.UnknownTIF
 	}
 	status, err := orderStatus(u.OrderStatus)
 	if err != nil {
@@ -183,16 +318,26 @@ func (e *Exchange) wsProcessOrderUpdate(ctx context.Context, msg *websocketMessa
 		Pair:                 pair,
 		AssetType:            asset.Spot,
 		Side:                 side,
+		Type:                 orderType,
+		TimeInForce:          tif,
 		Status:               status,
 		Price:                u.OrderPrice.Float64(),
-		Amount:               u.OrderAmount.Float64(),
 		ExecutedAmount:       u.AccumulatedAmount.Float64(),
 		AverageExecutedPrice: u.AveragePrice.Float64(),
+		Cost:                 u.AveragePrice.Float64() * u.AccumulatedAmount.Float64(),
 		LastUpdated:          u.UpdateTime.Time(),
 	}
-	// A buy order's remaining amount is a quote value, which the order's base remaining amount can't be taken from
-	if side == order.Sell {
+	switch {
+	case side == order.Buy && orderType == order.Market:
+		// A market buy orders the quote amount it spends, leaving its base amount, and so its remaining amount, unknown
+		detail.QuoteAmount = u.OrderAmount.Float64()
+	case side == order.Sell:
+		detail.Amount = u.OrderAmount.Float64()
 		detail.RemainingAmount = u.RemainAmount.Float64()
+	default:
+		// LBank pushes a buy's remaining quote value, so its remaining amount is taken from its amount and fill
+		detail.Amount = u.OrderAmount.Float64()
+		detail.RemainingAmount = max(detail.Amount-detail.ExecutedAmount, 0)
 	}
 	if err := e.Websocket.DataHandler.Send(ctx, detail); err != nil {
 		return err
