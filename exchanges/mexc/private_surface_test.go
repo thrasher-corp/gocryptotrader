@@ -29,11 +29,8 @@ import (
 )
 
 // newPrivateTestExchange builds an isolated Exchange whose spot and futures REST endpoints point at a local
-// httptest server returning recorded (fixture) MEXC responses. It never reaches a live private
-// endpoint: it exercises the private response mapping without live keys. The credentials are dummy
-// and the server ignores the signature. It exists because the shipped auth tests skip under mock
-// without keys, so the private response-mapping was never exercised - which is how these defects
-// reached review.
+// httptest server returning recorded (fixture) MEXC responses, so the private response mapping is exercised without
+// live keys. The credentials are dummy; the spot handlers ignore the signature, which futuresHandler checks
 func newPrivateTestExchange(t *testing.T, handler http.HandlerFunc) *Exchange {
 	t.Helper()
 	ex := new(Exchange)

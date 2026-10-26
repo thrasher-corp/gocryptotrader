@@ -3,6 +3,7 @@ package mexc
 import (
 	"bytes"
 	"io"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -109,7 +110,7 @@ func futuresFilledOrderDetail(exchangeName string) *order.Detail {
 
 // futuresOpenPositionReply is an isolated long position
 const futuresOpenPositionReply = `{"positionId":1109973831,"symbol":"BTC_USDT","positionType":1,"openType":1,"state":1,` +
-	`"holdVol":5,"holdAvgPrice":109777.5,"openAvgPrice":109777.5,"liquidatePrice":55020.5,"oim":27.5,"im":27.5,` +
+	`"holdVol":5,"holdAvgPrice":109777.5,"openAvgPrice":109777.5,"liquidatePrice":55020.5,"oim":27.444375,"im":27.444375,` +
 	`"realised":-0.0329,"leverage":2,"createTime":1761887133854,"updateTime":1761887133854,"version":1,"unRealizedPnl":-0.0039}`
 
 func TestGetFuturesContractDetails(t *testing.T) {
@@ -425,13 +426,102 @@ func TestFuturesVolumes(t *testing.T) {
 
 func TestFuturesCost(t *testing.T) {
 	t.Parallel()
-	cost, code := futuresCost(&FuturesContractResponse{BaseCoin: currency.BTC, QuoteCoin: currency.USDT, SettleCoin: currency.USDT, ContractSize: 0.0001}, 5, 100000)
-	assert.InDelta(t, 50.0, cost, 1e-9, "a linear contract should cost its contracts times its size and price")
-	assert.Equal(t, currency.USDT, code, "a linear contract should cost its settlement currency")
+	cost := futuresCost(&FuturesContractResponse{BaseCoin: currency.BTC, QuoteCoin: currency.USDT, SettleCoin: currency.USDT, ContractSize: 0.0001}, 5, 100000)
+	assert.InDelta(t, 50.0, cost, 1e-9, "a linear contract should be worth its contracts times its size and price in its settlement currency")
 
-	cost, code = futuresCost(&FuturesContractResponse{BaseCoin: currency.BTC, QuoteCoin: currency.USD, SettleCoin: currency.BTC, ContractSize: 100}, 5, 100000)
-	assert.InDelta(t, 0.005, cost, 1e-12, "an inverse contract should cost its contracts times its size over the price")
-	assert.Equal(t, currency.BTC, code, "an inverse contract should cost its settlement currency")
+	cost = futuresCost(&FuturesContractResponse{BaseCoin: currency.BTC, QuoteCoin: currency.USD, SettleCoin: currency.BTC, ContractSize: 100}, 5, 100000)
+	assert.InDelta(t, 0.005, cost, 1e-12, "an inverse contract should be worth its contracts times its size over the price in its settlement currency")
+}
+
+func TestFuturesQuoteCost(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		contract *FuturesContractResponse
+		exp      float64
+	}{
+		{&FuturesContractResponse{BaseCoin: currency.BTC, QuoteCoin: currency.USDT, SettleCoin: currency.USDT, ContractSize: 0.0001}, 50},
+		{&FuturesContractResponse{BaseCoin: currency.BTC, QuoteCoin: currency.USDC, SettleCoin: currency.USDC, ContractSize: 0.0001}, 50},
+		{&FuturesContractResponse{BaseCoin: currency.BTC, QuoteCoin: currency.USD, SettleCoin: currency.BTC, ContractSize: 100}, 500},
+	} {
+		assert.InDeltaf(t, tc.exp, futuresQuoteCost(tc.contract, 5, 100000), 1e-9, "five %s margined contracts at 100000 should cost %v %s", tc.contract.SettleCoin, tc.exp, tc.contract.QuoteCoin)
+	}
+}
+
+func TestFuturesOrderDetailInverseCost(t *testing.T) {
+	t.Parallel()
+	ex := newFuturesWebsocketTestExchange(t)
+	o := futuresFilledOrder()
+	o.Symbol = "BTC_USD"
+	o.Price, o.Volume, o.DealVolume, o.DealAveragePrice, o.State = 51000, 10, 4, 50000, FuturesOrderStateUnfilled
+	o.FeeCurrency = currency.BTC
+	detail, err := ex.futuresOrderDetail(t.Context(), o, currency.EMPTYPAIR)
+	require.NoError(t, err, "futuresOrderDetail must not error")
+	// Four of ten contracts of 100 USD each cost 400 USD, whatever the price they filled at
+	exp := futuresFilledOrderDetail(ex.Name)
+	exp.Pair = futuresInversePair
+	exp.Price, exp.Amount, exp.ContractAmount, exp.ExecutedAmount, exp.RemainingAmount = 51000, 10, 10, 4, 6
+	exp.AverageExecutedPrice, exp.Cost, exp.CostAsset = 50000, 400, currency.USD
+	exp.Status, exp.FeeAsset = order.PartiallyFilled, currency.BTC
+	assert.Equal(t, exp, &detail, "a partly filled inverse order should cost its filled contracts' value in its quote currency")
+}
+
+func TestFuturesOrderDetailUnlistedSymbol(t *testing.T) {
+	t.Parallel()
+	unformatted := new(Exchange)
+	unformatted.CurrencyPairs.UseGlobalFormat = true
+	o := futuresFilledOrder()
+	o.DealVolume = 0
+	_, err := unformatted.futuresOrderDetail(t.Context(), o, currency.EMPTYPAIR)
+	require.ErrorIs(t, err, currency.ErrPairFormatIsNil, "futuresOrderDetail must return why a symbol has no pair without a fallback pair")
+
+	ex := newFuturesWebsocketTestExchange(t)
+	o.Symbol = "UNLISTED"
+	_, err = ex.futuresOrderDetail(t.Context(), o, currency.EMPTYPAIR)
+	require.ErrorContains(t, err, "delimiter not found", "futuresOrderDetail must return why a symbol which names no pair has none")
+	detail, err := ex.futuresOrderDetail(t.Context(), o, futuresTradablePair)
+	require.NoError(t, err, "futuresOrderDetail must not error with a fallback pair")
+	assert.Equal(t, futuresTradablePair, detail.Pair, "a symbol which names no pair should take the fallback pair")
+
+	ex = testExchangeFor(t, futuresHandler(t, futuresContractsRoute), liveUnavailable)
+	o = futuresFilledOrder()
+	o.Symbol = "ETH_USDT"
+	detail, err = ex.futuresOrderDetail(t.Context(), o, currency.EMPTYPAIR)
+	require.NoError(t, err, "futuresOrderDetail must not error for a contract the venue no longer lists")
+	exp := futuresFilledOrderDetail(ex.Name)
+	exp.Pair = currency.NewPairWithDelimiter("ETH", "USDT", currency.UnderscoreDelimiter)
+	exp.Cost, exp.CostAsset = 0, currency.EMPTYCODE
+	assert.Equal(t, exp, &detail, "an order on a contract the venue no longer lists should be reported without its cost")
+}
+
+func TestFuturesCurrentLeverage(t *testing.T) {
+	t.Parallel()
+	ex := testExchangeFor(t, futuresHandler(t, futuresRoute{
+		method: http.MethodGet,
+		path:   "private/position/leverage",
+		query:  "symbol=BTC_USDT",
+		data: `[{"positionType":1,"openType":1,"leverage":2},{"positionType":2,"openType":1,"leverage":3},` +
+			`{"positionType":1,"openType":2,"leverage":5},{"positionType":2,"openType":2,"leverage":0}]`,
+	}), liveUnavailable)
+	for _, tc := range []struct {
+		side, openType uint8
+		exp            uint64
+		err            error
+	}{
+		{FuturesSideOpenLong, FuturesOpenTypeIsolated, 2, nil},
+		{FuturesSideOpenShort, FuturesOpenTypeIsolated, 3, nil},
+		{FuturesSideOpenLong, FuturesOpenTypeCross, 5, nil},
+		{FuturesSideOpenShort, FuturesOpenTypeCross, 0, errInvalidLeverage},
+	} {
+		leverage, err := ex.futuresCurrentLeverage(t.Context(), futuresTradablePair, tc.side, tc.openType)
+		require.ErrorIsf(t, err, tc.err, "futuresCurrentLeverage must return the expected error for side %d and open type %d", tc.side, tc.openType)
+		assert.Equalf(t, tc.exp, leverage, "side %d and open type %d should take the leverage of their positions", tc.side, tc.openType)
+	}
+
+	ex = testExchangeFor(t, func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"success":false,"code":401,"message":"Not logged in"}`))
+	}, liveUnavailable)
+	_, err := ex.futuresCurrentLeverage(t.Context(), futuresTradablePair, FuturesSideOpenLong, FuturesOpenTypeIsolated)
+	assert.ErrorIs(t, err, errFuturesRequestFailed, "futuresCurrentLeverage should return a refused leverage request")
 }
 
 func TestFuturesContractIsInverse(t *testing.T) {
@@ -609,11 +699,36 @@ func TestFuturesBalance(t *testing.T) {
 	assert.Equal(t, accounts.Balance{Total: 13.5, Hold: 3.5, Free: 10}, futuresBalance(10, 2, 1.5), "futuresBalance should count margin as held")
 }
 
-func TestSideFromMarginSide(t *testing.T) {
+func TestFuturesMarginChange(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, order.Long, sideFromMarginSide("long"), "a long margin side should be long")
-	assert.Equal(t, order.Short, sideFromMarginSide("SHORT"), "a short margin side should be short")
-	assert.Equal(t, order.UnknownSide, sideFromMarginSide(""), "an unset margin side should name no side")
+	documented := 27.444375
+	ulpsAbove := func(x float64, n int) float64 {
+		for range n {
+			x = math.Nextafter(x, math.Inf(1))
+		}
+		return x
+	}
+	for _, tc := range []struct {
+		newMargin, currentMargin, exp float64
+	}{
+		{30, documented, 2.555625},
+		{25, documented, -2.444375},
+		{documented + 0.1, documented, 0.1},
+		{documented + 64, documented, 64},
+		{0.004, 0.003125, 0.000875},
+		{100.1, 0.2, 99.9},
+		{0.2, 100.1, -99.9},
+		{1000000.3, 0.1, 1000000.2},
+		{10000000.00390625, 10000000, 0.00390625},
+		{30, 27.5, 2.5},
+		{documented, documented, 0},
+		{ulpsAbove(documented, 1), documented, 0},
+		{ulpsAbove(documented, 2), documented, 0},
+		{ulpsAbove(documented, 3), documented, 1e-14},
+	} {
+		assert.Equalf(t, tc.exp, futuresMarginChange(tc.newMargin, tc.currentMargin), "moving a margin of %v to %v should change it by %v", tc.currentMargin, tc.newMargin, tc.exp)
+	}
+	assert.True(t, math.IsNaN(futuresMarginChange(math.NaN(), documented)), "a new margin which is not a number should give no change amount")
 }
 
 func TestSelectFuturesPosition(t *testing.T) {
@@ -938,7 +1053,7 @@ func TestGetOrderInfoFutures(t *testing.T) {
 	}), liveUnavailable)
 	detail, err := ex.GetOrderInfo(t.Context(), "739106551624717312", futuresTradablePair, asset.Futures)
 	require.NoError(t, err, "GetOrderInfo must not error for futures")
-	// An opening long is a buy, its amounts are in contracts and its cost is their value in the settlement currency
+	// An opening long is a buy, its amounts are in contracts and its cost is their value in the quote currency
 	exp := futuresFilledOrderDetail(ex.Name)
 	exp.Trades = []order.TradeHistory{{
 		Price:     109777.5,
@@ -1289,8 +1404,27 @@ func TestGetFuturesPositionSummary(t *testing.T) {
 	require.ErrorIs(t, err, futures.ErrNotFuturesAsset)
 	_, err = e.GetFuturesPositionSummary(t.Context(), &futures.PositionSummaryRequest{Asset: asset.Futures})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+	unformatted := new(Exchange)
+	unformatted.CurrencyPairs.UseGlobalFormat = true
+	_, err = unformatted.GetFuturesPositionSummary(t.Context(), &futures.PositionSummaryRequest{Asset: asset.Futures, Pair: futuresTradablePair})
+	require.ErrorIs(t, err, currency.ErrPairFormatIsNil, "GetFuturesPositionSummary must refuse a pair it cannot format")
 
-	ex := testExchangeFor(t, futuresHandler(t, futuresContractsRoute, futuresRoute{
+	ex := testExchangeFor(t, func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"success":false,"code":401,"message":"Not logged in"}`))
+	}, liveUnavailable)
+	_, err = ex.GetFuturesPositionSummary(t.Context(), &futures.PositionSummaryRequest{Asset: asset.Futures, Pair: futuresTradablePair})
+	require.ErrorIs(t, err, errFuturesRequestFailed, "GetFuturesPositionSummary must return a refused positions request")
+
+	ex = testExchangeFor(t, futuresHandler(t, futuresContractsRoute, futuresRoute{
+		method: http.MethodGet,
+		path:   "private/position/open_positions",
+		query:  "symbol=ETH_USDT",
+		data:   "[" + strings.Replace(futuresOpenPositionReply, `"symbol":"BTC_USDT"`, `"symbol":"ETH_USDT"`, 1) + "]",
+	}), liveUnavailable)
+	_, err = ex.GetFuturesPositionSummary(t.Context(), &futures.PositionSummaryRequest{Asset: asset.Futures, Pair: currency.NewPairWithDelimiter("ETH", "USDT", currency.UnderscoreDelimiter)})
+	require.ErrorIs(t, err, errContractNotFound, "GetFuturesPositionSummary must refuse a position on a contract the venue does not list")
+
+	ex = testExchangeFor(t, futuresHandler(t, futuresContractsRoute, futuresRoute{
 		method: http.MethodGet,
 		path:   "private/position/open_positions",
 		query:  "symbol=BTC_USDT",
@@ -1304,11 +1438,11 @@ func TestGetFuturesPositionSummary(t *testing.T) {
 		Asset:                     asset.Futures,
 		MarginType:                margin.Isolated,
 		Currency:                  currency.USDT,
-		IsolatedMargin:            decimal.MustFromFloat(27.5),
+		IsolatedMargin:            decimal.MustFromFloat(27.444375),
 		NotionalSize:              decimal.MustFromFloat(54.88875),
 		Leverage:                  decimal.NewFromInt(2),
 		EstimatedLiquidationPrice: decimal.MustFromFloat(55020.5),
-		CollateralUsed:            decimal.MustFromFloat(27.5),
+		CollateralUsed:            decimal.MustFromFloat(27.444375),
 		CurrentSize:               decimal.MustFromFloat(5),
 		ContractSize:              decimal.MustFromFloat(0.0001),
 		ContractMultiplier:        decimal.MustFromFloat(0.0001),
@@ -1331,6 +1465,37 @@ func TestGetFuturesPositionSummary(t *testing.T) {
 	require.NoError(t, err, "GetFuturesPositionSummary must not error with a direction")
 	exp.CurrentSize = decimal.MustFromFloat(-5)
 	assert.Equal(t, exp, summary, "a short position's size should be negative")
+
+	ex = testExchangeFor(t, futuresHandler(t, futuresContractsRoute, futuresRoute{
+		method: http.MethodGet,
+		path:   "private/position/open_positions",
+		query:  "symbol=BTC_USD",
+		data: `[{"positionId":1109973840,"symbol":"BTC_USD","positionType":1,"openType":1,"state":1,"holdVol":5,` +
+			`"holdAvgPrice":50000,"openAvgPrice":50000,"liquidatePrice":33500,"oim":0.005,"im":0.005,"realised":-0.000003,` +
+			`"leverage":2,"createTime":1761887133854,"updateTime":1761887133854,"version":1,"unRealizedPnl":0.0000012}]`,
+	}), liveUnavailable)
+	summary, err = ex.GetFuturesPositionSummary(t.Context(), &futures.PositionSummaryRequest{Asset: asset.Futures, Pair: futuresInversePair})
+	require.NoError(t, err, "GetFuturesPositionSummary must not error for an inverse contract")
+	// Five contracts of 100 USD at 50000 are worth 0.01 BTC, the settlement currency the summary is in
+	exp = &futures.PositionSummary{
+		Pair:                      futuresInversePair,
+		Asset:                     asset.Futures,
+		MarginType:                margin.Isolated,
+		Currency:                  currency.BTC,
+		IsolatedMargin:            decimal.MustFromFloat(0.005),
+		NotionalSize:              decimal.MustFromFloat(0.01),
+		Leverage:                  decimal.NewFromInt(2),
+		EstimatedLiquidationPrice: decimal.MustFromFloat(33500),
+		CollateralUsed:            decimal.MustFromFloat(0.005),
+		CurrentSize:               decimal.MustFromFloat(5),
+		ContractSize:              decimal.MustFromFloat(100),
+		ContractMultiplier:        decimal.MustFromFloat(100),
+		ContractSettlementType:    futures.Inverse,
+		AverageOpenPrice:          decimal.MustFromFloat(50000),
+		UnrealisedPNL:             decimal.MustFromFloat(0.0000012),
+		RealisedPNL:               decimal.MustFromFloat(-0.000003),
+	}
+	assert.Equal(t, exp, summary, "an inverse position should be summarised in its settlement currency")
 }
 
 func TestGetFuturesPositionOrders(t *testing.T) {
@@ -1374,32 +1539,88 @@ func TestChangePositionMargin(t *testing.T) {
 	require.ErrorIs(t, err, margin.ErrMarginTypeUnsupported)
 	_, err = e.ChangePositionMargin(t.Context(), &margin.PositionChangeRequest{Asset: asset.Futures, Pair: futuresTradablePair, MarginType: margin.Isolated})
 	require.ErrorIs(t, err, margin.ErrNewAllocatedMarginRequired)
+	unformatted := new(Exchange)
+	unformatted.CurrencyPairs.UseGlobalFormat = true
+	_, err = unformatted.ChangePositionMargin(t.Context(), &margin.PositionChangeRequest{Asset: asset.Futures, Pair: futuresTradablePair, MarginType: margin.Isolated, NewAllocatedMargin: 1})
+	require.ErrorIs(t, err, currency.ErrPairFormatIsNil, "ChangePositionMargin must refuse a pair it cannot format")
 
-	positions := futuresRoute{method: http.MethodGet, path: "private/position/open_positions", query: "symbol=BTC_USDT", data: "[" + futuresOpenPositionReply + "]"}
+	const (
+		add               = `{"positionId":1109973831,"amount":2.555625,"type":"ADD"}`
+		addShort          = `{"positionId":1109973832,"amount":2.555625,"type":"ADD"}`
+		notLoggedIn       = `{"success":false,"code":401,"message":"Not logged in"}`
+		precisionRejected = `{"success":false,"code":2015,"message":"Price or quantity precision error"}`
+	)
+	bothSides := futuresOpenPositionReply + "," + strings.NewReplacer(`"positionId":1109973831`, `"positionId":1109973832`, `"positionType":1`, `"positionType":2`).Replace(futuresOpenPositionReply)
 	for name, tc := range map[string]struct {
-		newMargin float64
-		body      string
+		newMargin  float64
+		marginSide string
+		position   string
+		body       string
+		refusals   map[string]string
+		err        error
+		allocated  float64
 	}{
-		"add":       {newMargin: 30, body: `{"positionId":1109973831,"amount":2.5,"type":"ADD"}`},
-		"subtract":  {newMargin: 25, body: `{"positionId":1109973831,"amount":2.5,"type":"SUB"}`},
-		"unchanged": {newMargin: 27.5},
+		"add":                  {newMargin: 30, position: futuresOpenPositionReply, body: add, allocated: 30},
+		"subtract":             {newMargin: 25, position: futuresOpenPositionReply, body: `{"positionId":1109973831,"amount":2.444375,"type":"SUB"}`, allocated: 25},
+		"unchanged":            {newMargin: 27.444375, position: futuresOpenPositionReply, allocated: 27.444375},
+		"within float64 error": {newMargin: math.Nextafter(27.444375, 30), position: futuresOpenPositionReply, allocated: 27.444375},
+		"buy side":             {newMargin: 30, marginSide: "Buy", position: futuresOpenPositionReply, body: add, allocated: 30},
+		"long side":            {newMargin: 30, marginSide: "LONG", position: futuresOpenPositionReply, body: add, allocated: 30},
+		"short side":           {newMargin: 30, marginSide: "short", position: futuresOpenPositionReply, err: futures.ErrNoPositionsFound},
+		"misspelt side":        {newMargin: 30, marginSide: "shrot", err: order.ErrSideIsInvalid},
+		"both open, short":     {newMargin: 30, marginSide: "short", position: bothSides, body: addShort, allocated: 30},
+		"both open, sell":      {newMargin: 30, marginSide: "Sell", position: bothSides, body: addShort, allocated: 30},
+		"both open, buy":       {newMargin: 30, marginSide: "buy", position: bothSides, body: add, allocated: 30},
+		"both open, no side":   {newMargin: 30, position: bothSides, err: order.ErrSideIsInvalid},
+		"both open, any side":  {newMargin: 30, marginSide: "any", position: bothSides, err: order.ErrSideIsInvalid},
+		"position without id":  {newMargin: 30, position: strings.Replace(futuresOpenPositionReply, `"positionId":1109973831`, `"positionId":0`, 1), err: errInvalidFuturesID},
+		"positions refused":    {newMargin: 30, refusals: map[string]string{"private/position/open_positions": notLoggedIn}, err: errFuturesRequestFailed},
+		"change refused": {
+			newMargin: 30, position: futuresOpenPositionReply, body: add,
+			refusals: map[string]string{"private/position/change_margin": precisionRejected}, err: errFuturesRequestFailed,
+		},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			routes := []futuresRoute{positions}
+			var routes []futuresRoute
+			if tc.position != "" {
+				routes = append(routes, futuresRoute{method: http.MethodGet, path: "private/position/open_positions", query: "symbol=BTC_USDT", data: "[" + tc.position + "]"})
+			}
 			if tc.body != "" {
 				routes = append(routes, futuresRoute{method: http.MethodPost, path: "private/position/change_margin", body: tc.body})
 			}
-			ex := testExchangeFor(t, futuresHandler(t, routes...), liveUnavailable)
+			serve := futuresHandler(t, routes...)
+			var changes atomic.Int32
+			ex := testExchangeFor(t, func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == "/api/v1/private/position/change_margin" {
+					changes.Add(1)
+				}
+				if refusal, ok := tc.refusals[strings.TrimPrefix(r.URL.Path, "/api/v1/")]; ok {
+					_, _ = w.Write([]byte(refusal))
+					return
+				}
+				serve(w, r)
+			}, liveUnavailable)
 			resp, err := ex.ChangePositionMargin(t.Context(), &margin.PositionChangeRequest{
 				Exchange:           ex.Name,
 				Asset:              asset.Futures,
 				Pair:               futuresTradablePair,
 				MarginType:         margin.Isolated,
 				NewAllocatedMargin: tc.newMargin,
+				MarginSide:         tc.marginSide,
 			})
+			var sent int32
+			if tc.body != "" {
+				sent = 1
+			}
+			assert.Equal(t, sent, changes.Load(), "a margin change should be sent only when the selected position's margin moves")
+			if tc.err != nil {
+				require.ErrorIs(t, err, tc.err, "ChangePositionMargin must return the expected error")
+				assert.Nil(t, resp, "no response should be returned with an error")
+				return
+			}
 			require.NoError(t, err, "ChangePositionMargin must not error")
-			exp := &margin.PositionChangeResponse{Exchange: ex.Name, Pair: futuresTradablePair, Asset: asset.Futures, AllocatedMargin: tc.newMargin, MarginType: margin.Isolated}
+			exp := &margin.PositionChangeResponse{Exchange: ex.Name, Pair: futuresTradablePair, Asset: asset.Futures, AllocatedMargin: tc.allocated, MarginType: margin.Isolated}
 			assert.Equal(t, exp, resp, "the position's new margin should be returned")
 		})
 	}

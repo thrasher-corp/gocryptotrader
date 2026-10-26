@@ -57,14 +57,28 @@ var currentDefaults = slices.Concat(previousDefaults, []defaultSubscription{
 	{channel: "position", asset: futuresAsset, authenticated: true},
 })
 
-// savedSubscription holds the saved subscription fields the config loader decodes
+// savedSubscription holds the saved subscription fields the config loader decodes, as values of the kinds it decodes
+// them into, so that an absent field, a null and a repeated key resolve as they do when the config is loaded
 type savedSubscription struct {
-	Enabled       *bool           `json:"enabled"`
+	Enabled       bool            `json:"enabled"`
 	Channel       string          `json:"channel"`
-	Asset         string          `json:"asset"`
+	Asset         savedAsset      `json:"asset"`
 	Interval      json.RawMessage `json:"interval"`
-	Levels        *int64          `json:"levels"`
-	Authenticated *bool           `json:"authenticated"`
+	Levels        int64           `json:"levels"`
+	Authenticated bool            `json:"authenticated"`
+}
+
+// savedAsset is a saved asset decoded as the loader decodes it, where a null clears the asset rather than leaving it
+type savedAsset string
+
+// UnmarshalJSON decodes a saved asset, clearing it for a null
+func (a *savedAsset) UnmarshalJSON(data []byte) error {
+	var s string
+	if err := json.Unmarshal(data, &s); err != nil {
+		return err
+	}
+	*a = savedAsset(s)
+	return nil
 }
 
 // savedDefault is a default subscription in the form the config saves it
@@ -109,19 +123,23 @@ func replaceSubscriptions(exchange []byte, from, to []defaultSubscription) ([]by
 	if err := json.Unmarshal(raw, &entries); err != nil {
 		return exchange, fmt.Errorf("error decoding MEXC subscriptions: %w", err)
 	}
-	matched, err := matchDefaults(entries, from)
+	matched, carried, err := matchDefaults(entries, from)
 	if err != nil {
 		return exchange, fmt.Errorf("error decoding MEXC subscriptions: %w", err)
 	}
 	if !matched {
 		return exchange, nil
 	}
-	saved := make([]savedDefault, len(to))
+	saved := make([]any, 0, len(to)+len(carried))
 	for i := range to {
-		saved[i] = savedDefault{Enabled: true, Channel: to[i].channel, Asset: to[i].asset, Levels: to[i].levels, Authenticated: to[i].authenticated}
+		s := savedDefault{Enabled: true, Channel: to[i].channel, Asset: to[i].asset, Levels: to[i].levels, Authenticated: to[i].authenticated}
 		if to[i].interval != 0 {
-			saved[i].Interval = shortInterval(to[i].interval)
+			s.Interval = shortInterval(to[i].interval)
 		}
+		saved = append(saved, s)
+	}
+	for _, entry := range carried {
+		saved = append(saved, entry)
 	}
 	updated, err := json.Marshal(saved)
 	if err != nil {
@@ -144,55 +162,87 @@ func shortInterval(d time.Duration) string {
 	return s
 }
 
-// matchDefaults reports whether each saved subscription resolves to a different one of the defaults
-// Every entry is decoded first, so that a malformed entry is reported whichever defaults are matched
-func matchDefaults(entries []json.RawMessage, defaults []defaultSubscription) (bool, error) {
-	saved := make([]savedSubscription, len(entries))
+// matchDefaults reports whether each saved subscription resolves to a different one of the defaults, leaving out the
+// disabled entries which name none of the previous or current defaults: they subscribe to nothing, so they are returned
+// to be carried over unchanged. Every entry is decoded first, so that a malformed entry is reported whichever defaults
+// are matched
+func matchDefaults(entries []json.RawMessage, defaults []defaultSubscription) (matched bool, carried []json.RawMessage, err error) {
+	saved := make([]savedSubscription, 0, len(entries))
 	var customised bool
-	for i, entry := range entries {
+	for _, entry := range entries {
 		var fields map[string]json.RawMessage
 		if err := json.Unmarshal(entry, &fields); err != nil {
-			return false, err
+			return false, nil, err
+		}
+		var s savedSubscription
+		if err := json.Unmarshal(entry, &s); err != nil {
+			return false, nil, err
+		}
+		if fields != nil && !s.Enabled && !namesDefault(&s) {
+			carried = append(carried, entry)
+			continue
 		}
 		for key := range fields {
 			if !slices.Contains(subscriptionKeys, key) {
 				customised = true
 			}
 		}
-		if err := json.Unmarshal(entry, &saved[i]); err != nil {
-			return false, err
-		}
+		saved = append(saved, s)
 	}
 	if customised || len(saved) != len(defaults) {
-		return false, nil
+		return false, nil, nil
 	}
-	matched := make([]bool, len(defaults))
+	used := make([]bool, len(defaults))
 	for i := range saved {
 		// A channel and asset name one default at most, so an entry can match no other
 		j := slices.IndexFunc(defaults, func(d defaultSubscription) bool {
-			return d.channel == saved[i].Channel && strings.EqualFold(d.asset, saved[i].Asset)
+			return d.channel == saved[i].Channel && strings.EqualFold(d.asset, string(saved[i].Asset))
 		})
-		if j == -1 || matched[j] || !defaults[j].matches(&saved[i]) {
-			return false, nil
+		if j == -1 || used[j] || !defaults[j].matches(&saved[i]) {
+			return false, nil, nil
 		}
-		matched[j] = true
+		used[j] = true
 	}
-	return true, nil
+	return true, carried, nil
+}
+
+// spotVenueChannels are the venue channels the generic spot default channels resolve to
+var spotVenueChannels = map[string]string{
+	"ticker":    "public.aggre.bookTicker.v3.api.pb",
+	"orderbook": "public.limit.depth.v3.api.pb",
+	"allTrades": "public.aggre.deals.v3.api.pb",
+	"candles":   "public.kline.v3.api.pb",
+	"myTrades":  "private.deals.v3.api.pb",
+	"myOrders":  "private.orders.v3.api.pb",
+	"myAccount": "private.account.v3.api.pb",
+}
+
+// namesDefault reports whether a saved subscription names one of the current defaults, which hold the previous ones;
+// a disabled entry which does reads as that default switched off, a customisation. Asset all covers every asset, while
+// an entry without an asset reaches neither of MEXC's connections, and a spot default is named by its generic channel or
+// the venue channel it resolves to
+func namesDefault(s *savedSubscription) bool {
+	return slices.ContainsFunc(currentDefaults, func(d defaultSubscription) bool {
+		if !strings.EqualFold(string(s.Asset), "all") && !strings.EqualFold(string(s.Asset), d.asset) {
+			return false
+		}
+		if s.Channel == d.channel {
+			return true
+		}
+		venueChannel, ok := spotVenueChannels[d.channel]
+		return ok && d.asset == spotAsset && s.Channel == venueChannel
+	})
 }
 
 // matches reports whether a saved subscription resolves to the default; an absent, false or null authenticated field
 // is unauthenticated, and absent levels are none
 func (d *defaultSubscription) matches(s *savedSubscription) bool {
 	interval, ok := parseInterval(s.Interval)
-	var levels int64
-	if s.Levels != nil {
-		levels = *s.Levels
-	}
 	return ok &&
-		s.Enabled != nil && *s.Enabled &&
+		s.Enabled &&
 		interval == d.interval &&
-		levels == d.levels &&
-		(s.Authenticated != nil && *s.Authenticated) == d.authenticated
+		s.Levels == d.levels &&
+		s.Authenticated == d.authenticated
 }
 
 // parseInterval returns a saved interval as the config loader parses it, either as nanoseconds or as a duration such

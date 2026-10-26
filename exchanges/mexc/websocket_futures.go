@@ -121,9 +121,12 @@ func (e *Exchange) websocketFuturesConnectPrivate(ctx context.Context, conn webs
 func (e *Exchange) futuresWebsocketRequest(ctx context.Context, conn websocket.Connection, req *WebsocketFuturesRequest) error {
 	e.futuresWebsocketRequestMu.Lock()
 	defer e.futuresWebsocketRequestMu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	data, err := conn.SendMessageReturnResponse(ctx, request.Unset, futuresWebsocketReplySignature, req)
 	if err != nil {
-		if errors.Is(err, websocket.ErrSignatureTimeout) || errors.Is(err, context.DeadlineExceeded) {
+		if errors.Is(err, websocket.ErrSignatureTimeout) || errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
 			awaitLateFuturesReply(ctx, conn)
 		}
 		return err
@@ -148,8 +151,8 @@ func (e *Exchange) futuresWebsocketRequest(ctx context.Context, conn websocket.C
 	return fmt.Errorf("%w: %s answered by %s: %s", errFuturesWebsocketRejected, req.Method, reply.Channel, message)
 }
 
-// awaitLateFuturesReply waits, as long again, for the reply to a request which went unanswered in time. The venue's
-// replies name no request, so a late one would otherwise answer the next request sent
+// awaitLateFuturesReply waits, up to the response limit, for the reply to a sent request which was given up on. The
+// venue's replies name no request, so a late one would otherwise answer the next request sent
 func awaitLateFuturesReply(ctx context.Context, conn websocket.Connection) {
 	late, err := conn.MatchReturnResponses(context.WithoutCancel(ctx), futuresWebsocketReplySignature, 1)
 	if err != nil {

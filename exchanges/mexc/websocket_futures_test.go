@@ -3,12 +3,16 @@ package mexc
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	gws "github.com/gorilla/websocket"
@@ -16,6 +20,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
+	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
@@ -29,10 +34,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+	testutils "github.com/thrasher-corp/gocryptotrader/internal/testing/utils"
 	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
 	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
@@ -405,16 +412,20 @@ func TestWebsocketFuturesHandleData(t *testing.T) {
 	assert.Error(t, ex.WebsocketFuturesHandleData(t.Context(), nil, []byte(`{"channel":`)), "a malformed frame should be refused")
 }
 
-// futuresReplyConnection answers each futures websocket request with a recorded reply, and routes no reply to a
-// waiting request
+// futuresReplyConnection answers each futures websocket request with a recorded reply, or fails to send it with err,
+// and routes no reply to a waiting request
 type futuresReplyConnection struct {
 	websocket.Connection
 	mu    sync.Mutex
 	reply []byte
+	err   error
 	sent  []*WebsocketFuturesRequest
+	// late, when set, holds the late reply which is awaited until the test sends it
+	late    chan websocket.MatchedResponse
+	awaited bool
 }
 
-// SendMessageReturnResponse records a request and returns the recorded reply
+// SendMessageReturnResponse records a request and returns the recorded reply, or fails to send it
 func (c *futuresReplyConnection) SendMessageReturnResponse(_ context.Context, _ request.EndpointLimit, signature, payload any) ([]byte, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -425,8 +436,24 @@ func (c *futuresReplyConnection) SendMessageReturnResponse(_ context.Context, _ 
 	if !ok {
 		return nil, common.ErrTypeAssertFailure
 	}
+	if c.err != nil {
+		return nil, c.err
+	}
 	c.sent = append(c.sent, req)
 	return c.reply, nil
+}
+
+// MatchReturnResponses records that a late reply is waited for, and ends the wait at once without one
+func (c *futuresReplyConnection) MatchReturnResponses(context.Context, any, int) (<-chan websocket.MatchedResponse, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.awaited = true
+	if c.late != nil {
+		return c.late, nil
+	}
+	matched := make(chan websocket.MatchedResponse, 1)
+	matched <- websocket.MatchedResponse{Err: websocket.ErrSignatureTimeout}
+	return matched, nil
 }
 
 // IncomingWithData reports that no request waits for a reply
@@ -449,33 +476,105 @@ func TestFuturesWebsocketRequest(t *testing.T) {
 		err := ex.futuresWebsocketRequest(t.Context(), &futuresReplyConnection{reply: []byte(reply)}, req)
 		assert.ErrorIsf(t, err, exp, "the reply %s should be read", reply)
 	}
+	assert.Error(t, ex.futuresWebsocketRequest(t.Context(), &futuresReplyConnection{reply: []byte(`{"channel":`)}, req), "a malformed reply should be refused")
 }
 
-func TestFuturesWebsocketRequestAwaitsLateReply(t *testing.T) {
+type lockCheckingContext struct {
+	context.Context //nolint:containedctx // lockCheckingContext implements context.Context
+	lock            *sync.Mutex
+	held            []bool
+}
+
+func (c *lockCheckingContext) Err() error {
+	held := !c.lock.TryLock()
+	if !held {
+		c.lock.Unlock()
+	}
+	c.held = append(c.held, held)
+	return c.Context.Err()
+}
+
+func TestFuturesWebsocketRequestHoldsLock(t *testing.T) {
 	t.Parallel()
 	ex := newFuturesWebsocketTestExchange(t)
-	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		mockws.WsMockUpgrader(t, w, r, func(_ testing.TB, msg []byte, c *gws.Conn) error {
-			var req struct {
-				Param WebsocketFuturesChannelParams `json:"param"`
-			}
-			if err := json.Unmarshal(msg, &req); err != nil {
-				return err
-			}
-			if req.Param.Symbol == "BTC_USDT" {
-				// Acknowledged after its request has given up on it
-				time.Sleep(200 * time.Millisecond)
-				return c.WriteMessage(gws.TextMessage, []byte(`{"channel":"rs.sub.ticker","data":"success","ts":1792842495741}`))
-			}
-			return c.WriteMessage(gws.TextMessage, []byte(`{"channel":"rs.error","data":"Contract [BTC_USD] not exists","ts":1792842495741}`))
-		})
-	}))
-	// The connector dials with a dialer of its own, which reaches a listening server only
-	server.Start()
-	require.NoError(t, ex.Websocket.SetAllConnectionURLs("ws"+strings.TrimPrefix(server.URL, "http")), "SetAllConnectionURLs must not error")
+	req := &WebsocketFuturesRequest{Method: "sub.ticker", Param: &WebsocketFuturesChannelParams{Symbol: "BTC_USDT"}}
+	ctx := &lockCheckingContext{Context: t.Context(), lock: &ex.futuresWebsocketRequestMu}
+	require.NoError(t, ex.futuresWebsocketRequest(ctx, &futuresReplyConnection{reply: []byte(`{"channel":"rs.sub.ticker","data":"success"}`)}, req),
+		"futuresWebsocketRequest must not error")
+	require.NotEmpty(t, ctx.held, "the request's context must be checked before it is sent")
+	assert.NotContains(t, ctx.held, false, "the request's context should be checked under the request lock, so that one ending while it waits for the lock is not sent")
+
+	synctest.Test(t, func(t *testing.T) {
+		ex := newFuturesWebsocketTestExchange(t)
+		conn := &futuresReplyConnection{err: websocket.ErrSignatureTimeout, late: make(chan websocket.MatchedResponse, 1)}
+		done := make(chan error, 1)
+		go func() { done <- ex.futuresWebsocketRequest(t.Context(), conn, req) }()
+		synctest.Wait()
+		held := !ex.futuresWebsocketRequestMu.TryLock()
+		if !held {
+			ex.futuresWebsocketRequestMu.Unlock()
+		}
+		conn.late <- websocket.MatchedResponse{Err: websocket.ErrSignatureTimeout}
+		require.ErrorIs(t, <-done, websocket.ErrSignatureTimeout, "futuresWebsocketRequest must return the timeout")
+		assert.True(t, conn.awaited, "the late reply should be awaited")
+		assert.True(t, held, "the request lock should be held until the late reply is read, so that no other request is sent meanwhile")
+	})
+}
+
+func TestFuturesWebsocketRequestSendFailure(t *testing.T) {
+	t.Parallel()
+	ex := newFuturesWebsocketTestExchange(t)
+	errSendFailed := errors.New("websocket connection: cannot send message")
+	conn := &futuresReplyConnection{err: errSendFailed}
+	err := ex.futuresWebsocketRequest(t.Context(), conn, &WebsocketFuturesRequest{Method: "sub.ticker", Param: &WebsocketFuturesChannelParams{Symbol: "BTC_USDT"}})
+	require.ErrorIs(t, err, errSendFailed, "a request which could not be sent must return why")
+	assert.False(t, conn.awaited, "a request which was never sent should not wait for a reply")
+}
+
+// futuresLateReplyVenue is a mock futures venue which acknowledges a BTC_USDT subscription once its hold has passed, or
+// never when the hold is negative, refuses any other at once, and records the symbols it is sent
+type futuresLateReplyVenue struct {
+	hold    time.Duration
+	mu      sync.Mutex
+	symbols []string
+}
+
+func (v *futuresLateReplyVenue) handle(_ testing.TB, msg []byte, conn *gws.Conn) error {
+	var req struct {
+		Param WebsocketFuturesChannelParams `json:"param"`
+	}
+	if err := json.Unmarshal(msg, &req); err != nil {
+		return err
+	}
+	v.mu.Lock()
+	v.symbols = append(v.symbols, req.Param.Symbol)
+	v.mu.Unlock()
+	reply := `{"channel":"rs.error","data":"Contract [` + req.Param.Symbol + `] not exists","ts":1792842495741}`
+	if req.Param.Symbol == "BTC_USDT" {
+		if v.hold < 0 {
+			return nil
+		}
+		time.Sleep(v.hold)
+		reply = `{"channel":"rs.sub.ticker","data":"success","ts":1792842495741}`
+	}
+	return conn.WriteMessage(gws.TextMessage, []byte(reply))
+}
+
+func (v *futuresLateReplyVenue) sent() []string {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	return slices.Clone(v.symbols)
+}
+
+// dialFuturesTestVenue dials a venue in memory, so that a synctest bubble can wait on the connection, and handles what
+// the venue sends until the test ends
+func dialFuturesTestVenue(t *testing.T, ex *Exchange, handle mockws.WsMockFunc) websocket.Connection {
+	t.Helper()
+	server, dialer := mockws.NewTestServer(t, mockws.CurryWsMockUpgrader(t, handle))
 	conn, err := ex.Websocket.CreateTestConnection(futuresPublicConnection)
 	require.NoError(t, err, "CreateTestConnection must not error")
-	require.NoError(t, ex.WebsocketFuturesConnect(t.Context(), conn), "WebsocketFuturesConnect must not error")
+	conn.SetURL("ws" + strings.TrimPrefix(server.URL, "http"))
+	require.NoError(t, conn.Dial(t.Context(), dialer, http.Header{}, nil), "Dial must not error")
 	read := make(chan struct{})
 	go func() {
 		defer close(read)
@@ -487,13 +586,104 @@ func TestFuturesWebsocketRequestAwaitsLateReply(t *testing.T) {
 		assert.NoError(t, conn.Shutdown(), "Shutdown should not error")
 		<-read
 	})
+	return conn
+}
 
-	ctx, cancel := context.WithTimeout(t.Context(), 50*time.Millisecond)
-	defer cancel()
-	err = ex.futuresWebsocketRequest(ctx, conn, &WebsocketFuturesRequest{Method: "sub.ticker", Param: &WebsocketFuturesChannelParams{Symbol: "BTC_USDT"}})
-	require.ErrorIs(t, err, context.DeadlineExceeded, "the unacknowledged request must time out")
-	err = ex.futuresWebsocketRequest(t.Context(), conn, &WebsocketFuturesRequest{Method: "sub.ticker", Param: &WebsocketFuturesChannelParams{Symbol: "BTC_USD"}})
-	assert.ErrorIs(t, err, errFuturesWebsocketRejected, "the next request should be answered by its own reply, not the late one")
+func TestFuturesWebsocketRequestAwaitsLateReply(t *testing.T) {
+	t.Parallel()
+	limit := exchange.DefaultWebsocketResponseMaxLimit
+	for _, tc := range []struct {
+		name string
+		// hold is how long the venue holds the first request's reply; a negative hold is never answered
+		hold time.Duration
+		ctx  func(context.Context) (context.Context, context.CancelFunc)
+		err  error
+		// returned is when the first request returns, on the test's fake clock
+		returned time.Duration
+		sent     []string
+	}{
+		{
+			name: "deadline passed while waiting",
+			hold: 200 * time.Millisecond,
+			ctx: func(ctx context.Context) (context.Context, context.CancelFunc) {
+				return context.WithTimeout(ctx, 50*time.Millisecond)
+			},
+			err:      context.DeadlineExceeded,
+			returned: 200 * time.Millisecond,
+			sent:     []string{"BTC_USDT", "BTC_USD"},
+		},
+		{
+			name: "cancelled while waiting",
+			hold: 200 * time.Millisecond,
+			ctx: func(ctx context.Context) (context.Context, context.CancelFunc) {
+				ctx, cancel := context.WithCancel(ctx)
+				time.AfterFunc(50*time.Millisecond, cancel)
+				return ctx, cancel
+			},
+			err:      context.Canceled,
+			returned: 200 * time.Millisecond,
+			sent:     []string{"BTC_USDT", "BTC_USD"},
+		},
+		{
+			name:     "signature timeout",
+			hold:     limit + time.Second,
+			ctx:      context.WithCancel,
+			err:      websocket.ErrSignatureTimeout,
+			returned: limit + time.Second,
+			sent:     []string{"BTC_USDT", "BTC_USD"},
+		},
+		{
+			name: "never answered",
+			hold: -1,
+			ctx: func(ctx context.Context) (context.Context, context.CancelFunc) {
+				return context.WithTimeout(ctx, 50*time.Millisecond)
+			},
+			err:      context.DeadlineExceeded,
+			returned: 50*time.Millisecond + limit,
+			sent:     []string{"BTC_USDT", "BTC_USD"},
+		},
+		{
+			name: "deadline passed before sending",
+			hold: 200 * time.Millisecond,
+			ctx: func(ctx context.Context) (context.Context, context.CancelFunc) {
+				return context.WithDeadline(ctx, time.Now())
+			},
+			err:  context.DeadlineExceeded,
+			sent: []string{"BTC_USD"},
+		},
+		{
+			name: "cancelled before sending",
+			hold: 200 * time.Millisecond,
+			ctx: func(ctx context.Context) (context.Context, context.CancelFunc) {
+				ctx, cancel := context.WithCancel(ctx)
+				cancel()
+				return ctx, cancel
+			},
+			err:  context.Canceled,
+			sent: []string{"BTC_USD"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			synctest.Test(t, func(t *testing.T) {
+				// Lets a held reply and a wait for one end, should a failed assertion end the case early
+				defer synctest.Sleep(time.Minute)
+				ex := newFuturesWebsocketTestExchange(t)
+				require.Equal(t, limit, ex.WebsocketResponseMaxLimit, "the test config must set the default response limit")
+				venue := &futuresLateReplyVenue{hold: tc.hold}
+				conn := dialFuturesTestVenue(t, ex, venue.handle)
+				ctx, cancel := tc.ctx(t.Context())
+				defer cancel()
+				start := time.Now()
+				err := ex.futuresWebsocketRequest(ctx, conn, &WebsocketFuturesRequest{Method: "sub.ticker", Param: &WebsocketFuturesChannelParams{Symbol: "BTC_USDT"}})
+				require.ErrorIs(t, err, tc.err, "the unacknowledged request must return why it was given up on")
+				assert.Equal(t, tc.returned, time.Since(start), "the request should return once its late reply is read, or its wait for one ends")
+				err = ex.futuresWebsocketRequest(t.Context(), conn, &WebsocketFuturesRequest{Method: "sub.ticker", Param: &WebsocketFuturesChannelParams{Symbol: "BTC_USD"}})
+				assert.ErrorIs(t, err, errFuturesWebsocketRejected, "the next request should be answered by its own reply, not the late one")
+				assert.Equal(t, tc.sent, venue.sent(), "only a request whose context has not ended should be sent")
+			})
+		})
+	}
 }
 
 func TestWebsocketFuturesLogin(t *testing.T) {
@@ -590,6 +780,65 @@ func TestGenerateFuturesSubscriptions(t *testing.T) {
 	require.NoError(t, err, "generatePublicSubscriptions must not error")
 	for _, s := range spot {
 		assert.Equalf(t, asset.Spot, s.Asset, "the spot connection should not carry %s", s.QualifiedChannel)
+	}
+}
+
+func TestMigratedSubscriptionsCoverFutures(t *testing.T) {
+	t.Parallel()
+	root, err := testutils.RootPathFromCWD()
+	require.NoError(t, err, "RootPathFromCWD must not error")
+	data, err := os.ReadFile(filepath.Join(root, "testdata", "configtest.json"))
+	require.NoError(t, err, "ReadFile must load the test config")
+	var saved map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(data, &saved), "Unmarshal must decode the test config")
+	var exchanges []map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(saved["exchanges"], &exchanges), "Unmarshal must decode the saved exchanges")
+	i := slices.IndexFunc(exchanges, func(e map[string]json.RawMessage) bool { return string(e["name"]) == `"MEXC"` })
+	require.NotEqual(t, -1, i, "the test config must hold MEXC")
+	var features map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(exchanges[i]["features"], &features), "Unmarshal must decode MEXC's features")
+	// A version 17 config holds the spot defaults, here beside a disabled subscription which names no default
+	spotDefaults := slices.DeleteFunc(defaultSubscriptions.Clone(), func(s *subscription.Subscription) bool { return s.Asset != asset.Spot })
+	previous, err := json.Marshal(spotDefaults)
+	require.NoError(t, err, "Marshal must encode the spot defaults")
+	features["subscriptions"] = json.RawMessage(strings.TrimSuffix(string(previous), "]") +
+		`,{"enabled":false,"channel":"public.bookTicker.batch.v3.api.pb","asset":"spot"}]`)
+	exchanges[i]["features"], err = json.Marshal(features)
+	require.NoError(t, err, "Marshal must encode MEXC's features")
+	saved["exchanges"], err = json.Marshal(exchanges)
+	require.NoError(t, err, "Marshal must encode the saved exchanges")
+	saved["version"] = json.RawMessage(`17`)
+	data, err = json.Marshal(saved)
+	require.NoError(t, err, "Marshal must encode the version 17 config")
+	path := filepath.Join(t.TempDir(), "config.json")
+	require.NoError(t, os.WriteFile(path, data, 0o600), "WriteFile must save the version 17 config")
+
+	var cfg config.Config
+	require.NoError(t, cfg.ReadConfigFromFile(path, true), "ReadConfigFromFile must upgrade the version 17 config")
+	exchCfg, err := cfg.GetExchangeConfig("MEXC")
+	require.NoError(t, err, "GetExchangeConfig must find MEXC")
+	ex := new(Exchange)
+	ex.SetDefaults()
+	ex.Websocket = sharedtestvalues.NewTestWebsocket()
+	require.NoError(t, ex.Setup(exchCfg), "Setup must accept the upgraded config")
+	assert.Len(t, ex.Config.Features.Subscriptions, len(defaultSubscriptions)+1, "the upgraded config should hold every default and the disabled subscription")
+
+	public, err := ex.generateFuturesPublicSubscriptions()
+	require.NoError(t, err, "generateFuturesPublicSubscriptions must not error")
+	got := make([]string, 0, len(public))
+	for _, s := range public {
+		got = append(got, s.QualifiedChannel)
+	}
+	assert.ElementsMatch(t, []string{
+		"ticker@BTC_USDT", "ticker@ETH_USDT",
+		"depth.full@BTC_USDT@20", "depth.full@ETH_USDT@20",
+		"deal@BTC_USDT", "deal@ETH_USDT",
+		"kline@BTC_USDT@Min15", "kline@ETH_USDT@Min15",
+	}, got, "the upgraded config should subscribe to every public futures channel for each enabled contract")
+	spot, err := ex.generatePublicSubscriptions()
+	require.NoError(t, err, "generatePublicSubscriptions must not error")
+	for _, s := range spot {
+		assert.NotContainsf(t, s.QualifiedChannel, "bookTicker.batch", "the disabled subscription should not subscribe, but %s does", s.QualifiedChannel)
 	}
 }
 

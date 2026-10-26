@@ -1664,8 +1664,24 @@ func TestReadVersion17MEXCSubscriptionsFromFile(t *testing.T) {
 			`{"enabled":true,"channel":"myAccount","asset":"futures","authenticated":true},` +
 			`{"enabled":true,"channel":"position","asset":"futures","authenticated":true}`
 	)
+	const disabled = `{"enabled":false,"channel":"public.bookTicker.batch.v3.api.pb","asset":"spot"}`
 	for name, tc := range map[string]struct{ saved, exp string }{
 		"previous defaults": {saved: "[" + spot + "]", exp: "[" + spot + "," + futures + "]"},
+		// A disabled entry which names no default subscribes to nothing, so it is carried over
+		"previous defaults and a disabled entry": {saved: "[" + spot + "," + disabled + "]", exp: "[" + spot + "," + futures + "," + disabled + "]"},
+		"previous defaults and an entry whose asset is nulled": {
+			saved: "[" + spot + `,{"enabled":false,"channel":"ticker","asset":"spot","asset":null}]`,
+			exp:   "[" + spot + "," + futures + `,{"enabled":false,"channel":"ticker"}]`,
+		},
+		"previous defaults and an entry without an asset": {
+			saved: "[" + spot + `,{"enabled":false,"channel":"myOrders"}]`,
+			exp:   "[" + spot + "," + futures + `,{"enabled":false,"channel":"myOrders"}]`,
+		},
+		// A null leaves an earlier enabled field as it was, so this extra subscription is enabled and the list customised
+		"previous defaults and an enabled entry": {
+			saved: "[" + spot + `,{"enabled":true,"enabled":null,"channel":"public.bookTicker.batch.v3.api.pb","asset":"spot"}]`,
+			exp:   "[" + spot + `,{"enabled":true,"channel":"public.bookTicker.batch.v3.api.pb","asset":"spot"}]`,
+		},
 		// A list which differs from the previous defaults is the user's choice
 		"customised": {saved: "[" + strings.Replace(spot, `"levels":20`, `"levels":5`, 1) + "]", exp: "[" + strings.Replace(spot, `"levels":20`, `"levels":5`, 1) + "]"},
 	} {

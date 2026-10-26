@@ -65,6 +65,10 @@ func replaced(entries []string, oldnew ...string) []string {
 	return out
 }
 
+func plus(entries []string, more ...string) []string {
+	return append(append([]string(nil), entries...), more...)
+}
+
 // reversed returns entries in reverse order
 func reversed(entries []string) []string {
 	out := make([]string, len(entries))
@@ -96,6 +100,10 @@ func TestUpgradeExchangeSubscriptions(t *testing.T) {
 		"null authenticated":       with(previousDefaults, 4, field(spotTrades, `"authenticated":null`)),
 		"repeated key last applies": with(previousDefaults, 0,
 			strings.Replace(spotOrderbook, `"asset":"spot"`, `"asset":"futures","asset":"spot"`, 1)),
+		// A null leaves the value before it, as the loader decodes it
+		"enabled then null":       with(previousDefaults, 0, strings.Replace(spotOrderbook, `"enabled":true`, `"enabled":true,"enabled":null`, 1)),
+		"levels then null":        with(previousDefaults, 0, strings.Replace(spotOrderbook, `"levels":20`, `"levels":20,"levels":null`, 1)),
+		"authenticated then null": with(previousDefaults, 5, strings.Replace(spotMyTrades, `"authenticated":true`, `"authenticated":true,"authenticated":null`, 1)),
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
@@ -131,14 +139,64 @@ func TestDowngradeExchangeSubscriptions(t *testing.T) {
 	}
 }
 
+func TestMigrationCarriesDisabledSubscriptions(t *testing.T) {
+	t.Parallel()
+	const (
+		batch      = `{"enabled":false,"channel":"public.bookTicker.batch.v3.api.pb","asset":"spot"}`
+		otherAsset = `{"enabled":false,"channel":"ticker","asset":"margin"}`
+	)
+	for name, tc := range map[string]struct{ saved, carried []string }{
+		"disabled":            {plus(previousDefaults, batch), []string{batch}},
+		"enabled omitted":     {plus(previousDefaults, `{"channel":"public.bookTicker.batch.v3.api.pb","asset":"spot"}`), []string{`{"channel":"public.bookTicker.batch.v3.api.pb","asset":"spot"}`}},
+		"enabled null":        {plus(previousDefaults, `{"enabled":null,"channel":"public.bookTicker.batch.v3.api.pb"}`), []string{`{"enabled":null,"channel":"public.bookTicker.batch.v3.api.pb"}`}},
+		"capitalised enabled": {plus(previousDefaults, `{"Enabled":false,"channel":"public.bookTicker.batch.v3.api.pb","asset":"spot"}`), []string{`{"Enabled":false,"channel":"public.bookTicker.batch.v3.api.pb","asset":"spot"}`}},
+		"other fields":        {plus(previousDefaults, field(batch, `"pairs":"BTC-USDT","params":{"depth":5}`)), []string{field(batch, `"pairs":"BTC-USDT","params":{"depth":5}`)}},
+		"another asset":       {plus(previousDefaults, otherAsset), []string{otherAsset}},
+		"spot venue channel for futures": {
+			plus(previousDefaults, `{"enabled":false,"channel":"public.aggre.deals.v3.api.pb","asset":"futures"}`),
+			[]string{`{"enabled":false,"channel":"public.aggre.deals.v3.api.pb","asset":"futures"}`},
+		},
+		"channel case":       {plus(previousDefaults, `{"enabled":false,"channel":"Ticker","asset":"spot"}`), []string{`{"enabled":false,"channel":"Ticker","asset":"spot"}`}},
+		"channel whitespace": {plus(previousDefaults, `{"enabled":false,"channel":" ticker ","asset":"spot"}`), []string{`{"enabled":false,"channel":" ticker ","asset":"spot"}`}},
+		// An entry without an asset reaches neither of MEXC's connections
+		"without asset": {plus(previousDefaults, `{"enabled":false,"channel":"myOrders"}`), []string{`{"enabled":false,"channel":"myOrders"}`}},
+		"empty asset":   {plus(previousDefaults, `{"enabled":false,"channel":"ticker","asset":""}`), []string{`{"enabled":false,"channel":"ticker","asset":""}`}},
+		"null asset":    {plus(previousDefaults, `{"enabled":false,"channel":"ticker","asset":null}`), []string{`{"enabled":false,"channel":"ticker","asset":null}`}},
+		"asset then null": {
+			plus(previousDefaults, `{"enabled":false,"channel":"ticker","asset":"spot","asset":null}`),
+			[]string{`{"enabled":false,"channel":"ticker","asset":"spot","asset":null}`},
+		},
+		"enabled then disabled": {
+			plus(previousDefaults, `{"enabled":true,"enabled":false,"channel":"public.bookTicker.batch.v3.api.pb","asset":"spot"}`),
+			[]string{`{"enabled":true,"enabled":false,"channel":"public.bookTicker.batch.v3.api.pb","asset":"spot"}`},
+		},
+		"among the defaults": {plus(previousDefaults[:3], plus([]string{batch}, previousDefaults[3:]...)...), []string{batch}},
+		"two":                {plus(previousDefaults, batch, otherAsset), []string{batch, otherAsset}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			version := new(v18.Version)
+			upgraded, err := version.UpgradeExchange(t.Context(), []byte(subscriptions(tc.saved...)))
+			require.NoError(t, err, "UpgradeExchange must not error")
+			assert.JSONEq(t, subscriptions(plus(currentDefaults, tc.carried...)...), string(upgraded), "UpgradeExchange should replace the previous defaults and carry the disabled entries over")
+			again, err := version.UpgradeExchange(t.Context(), upgraded)
+			require.NoError(t, err, "repeated UpgradeExchange must not error")
+			assert.Equal(t, upgraded, again, "UpgradeExchange should be idempotent")
+			downgraded, err := version.DowngradeExchange(t.Context(), upgraded)
+			require.NoError(t, err, "DowngradeExchange must not error")
+			assert.JSONEq(t, subscriptions(plus(previousDefaults, tc.carried...)...), string(downgraded), "DowngradeExchange should restore the previous defaults and carry the disabled entries over")
+		})
+	}
+}
+
 func TestMigrationPreservesCustomSubscriptions(t *testing.T) {
 	t.Parallel()
 	for name, entries := range map[string][]string{
 		"empty":                     {},
 		"missing entry":             previousDefaults[:7],
-		"extra entry":               append(append([]string(nil), previousDefaults...), `{"enabled":true,"channel":"public.bookTicker.batch.v3.api.pb","asset":"spot"}`),
+		"extra entry":               plus(previousDefaults, `{"enabled":true,"channel":"public.bookTicker.batch.v3.api.pb","asset":"spot"}`),
 		"repeated entry":            with(previousDefaults, 7, spotOrders),
-		"futures subscribed":        append(append([]string(nil), previousDefaults...), futuresTicker),
+		"futures subscribed":        plus(previousDefaults, futuresTicker),
 		"disabled":                  with(previousDefaults, 0, strings.Replace(spotOrderbook, `"enabled":true`, `"enabled":false`, 1)),
 		"enabled omitted":           with(previousDefaults, 1, strings.Replace(spotCandles, `"enabled":true,`, ``, 1)),
 		"enabled null":              with(previousDefaults, 2, strings.Replace(spotTicker, `"enabled":true`, `"enabled":null`, 1)),
@@ -162,6 +220,20 @@ func TestMigrationPreservesCustomSubscriptions(t *testing.T) {
 		"unknown field":             with(previousDefaults, 7, field(spotAccount, `"custom":"retained"`)),
 		"capitalised field":         with(previousDefaults, 4, strings.Replace(spotTrades, `"enabled"`, `"Enabled"`, 1)),
 		"current defaults":          currentDefaults,
+		// A disabled entry which names a previous or current default reads as that default switched off
+		"disabled extra default":            plus(previousDefaults, `{"enabled":false,"channel":"ticker","asset":"spot"}`),
+		"disabled futures default":          plus(previousDefaults, `{"enabled":false,"channel":"ticker","asset":"futures"}`),
+		"disabled upper case asset default": plus(previousDefaults, `{"enabled":false,"channel":"position","asset":"FUTURES"}`),
+		"disabled wildcard asset":           plus(previousDefaults, `{"enabled":false,"channel":"ticker","asset":"all"}`),
+		"disabled candles venue channel":    plus(previousDefaults, `{"enabled":false,"channel":"public.kline.v3.api.pb","asset":"spot"}`),
+		"disabled venue channel":            plus(previousDefaults, `{"enabled":false,"channel":"public.aggre.deals.v3.api.pb","asset":"spot"}`),
+		"disabled wildcard venue channel":   plus(previousDefaults, `{"enabled":false,"channel":"private.orders.v3.api.pb","asset":"all"}`),
+		"enabled by a repeated key":         plus(previousDefaults, `{"enabled":false,"Enabled":true,"channel":"public.bookTicker.batch.v3.api.pb","asset":"spot"}`),
+		"enabled extra then null":           plus(previousDefaults, `{"enabled":true,"enabled":null,"channel":"public.bookTicker.batch.v3.api.pb","asset":"spot"}`),
+		"default asset then null":           with(previousDefaults, 0, strings.Replace(spotOrderbook, `"asset":"spot"`, `"asset":"spot","asset":null`, 1)),
+		"capitalised enabled then null":     plus(previousDefaults, `{"Enabled":true,"enabled":null,"channel":"public.bookTicker.batch.v3.api.pb","asset":"spot"}`),
+		"null entry":                        plus(previousDefaults, `null`),
+		"disabled extra beside a custom":    plus(with(previousDefaults, 0, strings.Replace(spotOrderbook, `20`, `5`, 1)), `{"enabled":false,"channel":"public.bookTicker.batch.v3.api.pb","asset":"spot"}`),
 	} {
 		t.Run("upgrade/"+name, func(t *testing.T) {
 			t.Parallel()
@@ -178,6 +250,8 @@ func TestMigrationPreservesCustomSubscriptions(t *testing.T) {
 		"futures candles interval": with(currentDefaults, 11, strings.Replace(futuresCandles, `"15m"`, `"4h"`, 1)),
 		"spot position":            with(currentDefaults, 15, strings.Replace(futuresPosition, `"futures"`, `"spot"`, 1)),
 		"previous defaults":        previousDefaults,
+		"disabled extra position":  plus(currentDefaults, `{"enabled":false,"channel":"position","asset":"futures"}`),
+		"disabled extra spot":      plus(currentDefaults, `{"enabled":false,"channel":"myAccount","asset":"spot"}`),
 	} {
 		t.Run("downgrade/"+name, func(t *testing.T) {
 			t.Parallel()
@@ -223,6 +297,11 @@ func TestMigrationRejectsMalformedConfigs(t *testing.T) {
 		"enabled string": {
 			upgrade:     subscriptions(with(previousDefaults, 0, strings.Replace(spotOrderbook, `"enabled":true`, `"enabled":"true"`, 1))...),
 			downgrade:   subscriptions(with(currentDefaults, 8, strings.Replace(futuresTicker, `"enabled":true`, `"enabled":"true"`, 1))...),
+			errContains: "error decoding MEXC subscriptions",
+		},
+		"disabled string": {
+			upgrade:     subscriptions(plus(previousDefaults, `{"enabled":"false","channel":"public.bookTicker.batch.v3.api.pb","asset":"spot"}`)...),
+			downgrade:   subscriptions(plus(currentDefaults, `{"enabled":"false","channel":"public.bookTicker.batch.v3.api.pb","asset":"spot"}`)...),
 			errContains: "error decoding MEXC subscriptions",
 		},
 		"fractional levels": {

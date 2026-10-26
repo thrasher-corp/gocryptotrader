@@ -1147,7 +1147,7 @@ func (e *Exchange) futuresClosingPosition(ctx context.Context, pair currency.Pai
 // futuresCurrentLeverage returns the account's leverage for the side and margin mode of a contract's positions
 func (e *Exchange) futuresCurrentLeverage(ctx context.Context, pair currency.Pair, side, openType uint8) (uint64, error) {
 	positionType := uint8(FuturesPositionTypeLong)
-	if side == FuturesSideOpenShort || side == FuturesSideCloseLong {
+	if side == FuturesSideOpenShort {
 		positionType = FuturesPositionTypeShort
 	}
 	leverages, err := e.GetFuturesLeverage(ctx, pair)
@@ -2619,13 +2619,12 @@ func (e *Exchange) GetFuturesPositionSummary(ctx context.Context, r *futures.Pos
 	if contract.IsInverse() {
 		settlementType = futures.Inverse
 	}
-	notional, _ := futuresCost(contract, pos.HoldVolume, pos.HoldAveragePrice)
 	summary := &futures.PositionSummary{
 		Pair:                      r.Pair,
 		Asset:                     r.Asset,
 		MarginType:                futuresMarginType(pos.OpenType),
 		Currency:                  contract.SettleCoin,
-		NotionalSize:              decimal.MustFromFloat(notional),
+		NotionalSize:              decimal.MustFromFloat(futuresCost(contract, pos.HoldVolume, pos.HoldAveragePrice)),
 		Leverage:                  decimal.NewFromInt(int64(min(pos.Leverage, math.MaxInt64))),
 		EstimatedLiquidationPrice: decimal.MustFromFloat(pos.LiquidatePrice),
 		CollateralUsed:            decimal.MustFromFloat(pos.InitialMargin),
@@ -2739,6 +2738,14 @@ func (e *Exchange) ChangePositionMargin(ctx context.Context, r *margin.PositionC
 	if r.NewAllocatedMargin <= 0 {
 		return nil, margin.ErrNewAllocatedMarginRequired
 	}
+	// A margin side which cannot be read would select whichever position is open, so it is refused before any request
+	side := order.UnknownSide
+	if r.MarginSide != "" {
+		var err error
+		if side, err = order.StringToOrderSide(r.MarginSide); err != nil {
+			return nil, err
+		}
+	}
 	fPair, err := e.FormatExchangeCurrency(r.Pair, r.Asset)
 	if err != nil {
 		return nil, err
@@ -2750,7 +2757,7 @@ func (e *Exchange) ChangePositionMargin(ctx context.Context, r *margin.PositionC
 	isolated := slices.DeleteFunc(slices.Clone(positions), func(p *FuturesPositionResponse) bool {
 		return p == nil || p.OpenType != FuturesOpenTypeIsolated
 	})
-	pos, err := selectFuturesPosition(isolated, fPair.String(), sideFromMarginSide(r.MarginSide))
+	pos, err := selectFuturesPosition(isolated, fPair.String(), side)
 	if err != nil {
 		return nil, err
 	}
@@ -2759,7 +2766,7 @@ func (e *Exchange) ChangePositionMargin(ctx context.Context, r *margin.PositionC
 		return nil, err
 	}
 	// The venue changes margin by an amount, so the change is the difference to the position's current margin
-	change := r.NewAllocatedMargin - pos.InitialMargin
+	change := futuresMarginChange(r.NewAllocatedMargin, pos.InitialMargin)
 	if change == 0 {
 		return &margin.PositionChangeResponse{Exchange: e.Name, Pair: r.Pair, Asset: r.Asset, MarginType: r.MarginType, AllocatedMargin: pos.InitialMargin}, nil
 	}
@@ -2779,13 +2786,23 @@ func (e *Exchange) ChangePositionMargin(ctx context.Context, r *margin.PositionC
 	}, nil
 }
 
-// sideFromMarginSide returns the position side a margin change names, or none when it names none
-func sideFromMarginSide(marginSide string) order.Side {
-	side, err := order.StringToOrderSide(marginSide)
-	if err != nil {
-		return order.UnknownSide
+// futuresMarginChange returns the amount which moves a position's margin to a new margin, as the shortest decimal
+// within the error of their float64 difference, so that no binary remainder such as 2.555624999999999 is sent. A
+// difference within that error is no change
+func futuresMarginChange(newMargin, currentMargin float64) float64 {
+	change := newMargin - currentMargin
+	larger := max(math.Abs(newMargin), math.Abs(currentMargin))
+	tolerance := 2 * (math.Nextafter(larger, math.Inf(1)) - larger)
+	if math.Abs(change) <= tolerance {
+		return 0
 	}
-	return side
+	for digits := 1; ; digits++ {
+		// Seventeen significant digits identify any float64, and FormatFloat's output always parses
+		rounded, _ := strconv.ParseFloat(strconv.FormatFloat(change, 'g', digits, 64), 64)
+		if digits == 17 || math.Abs(rounded-change) <= tolerance {
+			return rounded
+		}
+	}
 }
 
 // UpdateOrderExecutionLimits updates order execution limits
@@ -3076,7 +3093,7 @@ func (e *Exchange) futuresSymbolPair(symbol string) (currency.Pair, error) {
 }
 
 // futuresOrderDetail returns a futures order as an order detail. Amounts are in contracts, and the cost is in the
-// contract's settlement currency
+// contract's quote currency
 func (e *Exchange) futuresOrderDetail(ctx context.Context, o *FuturesOrderResponse, fallback currency.Pair) (order.Detail, error) {
 	pair, err := e.futuresSymbolPair(o.Symbol)
 	if err != nil {
@@ -3122,17 +3139,26 @@ func (e *Exchange) futuresOrderDetail(ctx context.Context, o *FuturesOrderRespon
 			log.Warnf(log.ExchangeSys, "%s: cost unknown for futures order %s: %v", e.Name, detail.OrderID, err)
 			return detail, nil
 		}
-		detail.Cost, detail.CostAsset = futuresCost(contract, o.DealVolume, o.DealAveragePrice)
+		detail.Cost, detail.CostAsset = futuresQuoteCost(contract, o.DealVolume, o.DealAveragePrice), contract.QuoteCoin
 	}
 	return detail, nil
 }
 
 // futuresCost returns what contracts filled at a price are worth in the contract's settlement currency
-func futuresCost(c *FuturesContractResponse, contracts, price float64) (float64, currency.Code) {
+func futuresCost(c *FuturesContractResponse, contracts, price float64) float64 {
 	if c.IsInverse() {
-		return contracts * c.ContractSize / price, c.SettleCoin
+		return contracts * c.ContractSize / price
 	}
-	return contracts * c.ContractSize * price, c.SettleCoin
+	return contracts * c.ContractSize * price
+}
+
+// futuresQuoteCost returns what contracts filled at a price cost in the contract's quote currency, the currency an
+// order's cost is reported in; an inverse contract's size is counted in it already
+func futuresQuoteCost(c *FuturesContractResponse, contracts, price float64) float64 {
+	if c.IsInverse() {
+		return contracts * c.ContractSize
+	}
+	return contracts * c.ContractSize * price
 }
 
 // futuresTradeHistory returns futures fills as trade history; amounts are in contracts
