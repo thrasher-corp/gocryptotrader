@@ -2402,9 +2402,11 @@ func TestGetOrderHistoryExecutionAmounts(t *testing.T) {
 	assert.Equal(t, orders[0].ExecutedQuoteAmount, detail.ExecutedQuoteAmount, "order detail should retain the same filled quote amount as history")
 	assert.Equal(t, orders[0].AverageExecutedPrice, detail.AverageExecutedPrice, "order detail should infer the same average execution price as history")
 	assert.True(t, detail.LastUpdated.IsZero(), "order detail should not take its update time from the creation time")
+	assert.True(t, detail.CloseTime.IsZero(), "a completed spot order should leave its unavailable close time unknown")
 	unfilled, err := ex.GetOrderInfo(t.Context(), "2", currency.NewBTCUSDT(), asset.Spot)
 	require.NoError(t, err, "GetOrderInfo must not error for an unfilled order")
 	assert.Zero(t, unfilled.AverageExecutedPrice, "an unfilled order should not report an average execution price")
+	assert.True(t, unfilled.CloseTime.IsZero(), "an active spot order should not report creation time as close time")
 	stored := order.Detail{Exchange: ex.Name, OrderID: "2", Pair: currency.NewBTCUSDT(), AssetType: asset.Spot}
 	require.NoError(t, stored.UpdateOrderFromDetail(unfilled), "unfilled order merge must not error")
 	assert.Zero(t, stored.AverageExecutedPrice, "an unfilled order merge should not store a NaN average")

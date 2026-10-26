@@ -1039,8 +1039,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			TimeInForce:          StringToTimeInForce(orderDetail.TimeInForce, orderDetail.PostOnly),
 			ReduceOnly:           orderDetail.ReduceOnly,
 			Leverage:             orderDetail.Leverage,
-			AverageExecutedPrice: orderDetail.Price,
-			QuoteAmount:          orderDetail.Size,
+			AverageExecutedPrice: orderDetail.AverageDealPrice.Float64(),
 			ClientOrderID:        orderDetail.ClientOid,
 			Status:               oStatus,
 			CloseTime:            orderDetail.EndAt.Time(),
@@ -1112,7 +1111,6 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			FeeAsset:            currency.NewCode(orderDetail.FeeCurrency),
 			ClientOrderID:       orderDetail.ClientOID,
 			Status:              oStatus,
-			CloseTime:           orderDetail.CreatedAt.Time(),
 			MarginType:          mType,
 			LastUpdated:         orderDetail.LastUpdatedAt.Time(),
 		}

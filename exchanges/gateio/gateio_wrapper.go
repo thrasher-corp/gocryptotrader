@@ -983,10 +983,10 @@ func (e *Exchange) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset
 }
 
 // futuresFinishStatus converts Gate-specific completion reasons that the generic
-// status parser does not recognise.
+// status parser rejects or reads as another status, as with position_closed.
 func futuresFinishStatus(finishAs string) (order.Status, error) {
 	switch finishAs {
-	case "ioc", "reduce_only", "reduce_out", "position_close":
+	case "ioc", "reduce_only", "reduce_out", "position_close", "position_closed":
 		return order.Cancelled, nil
 	case "auto_deleveraging":
 		return order.AutoDeleverage, nil
@@ -1380,6 +1380,12 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		if err != nil {
 			return nil, err
 		}
+		var tif order.TimeInForce
+		if spotOrder.TimeInForce != "" {
+			if tif, err = timeInForceFromString(spotOrder.TimeInForce); err != nil {
+				return nil, err
+			}
+		}
 		var orderStatus order.Status
 		orderStatus, err = order.StringToOrderStatus(spotOrder.Status)
 		if err != nil {
@@ -1402,6 +1408,8 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			Amount:               amount,
 			Exchange:             e.Name,
 			OrderID:              spotOrder.OrderID,
+			ClientOrderID:        spotOrder.Text,
+			TimeInForce:          tif,
 			Side:                 side,
 			Type:                 orderType,
 			Pair:                 pair,
@@ -1600,6 +1608,12 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 				if err != nil {
 					return nil, err
 				}
+				var tif order.TimeInForce
+				if spotOrders[x].Orders[y].TimeInForce != "" {
+					if tif, err = timeInForceFromString(spotOrders[x].Orders[y].TimeInForce); err != nil {
+						return nil, err
+					}
+				}
 				status, err := order.StringToOrderStatus(spotOrders[x].Orders[y].Status)
 				if err != nil {
 					log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
@@ -1633,6 +1647,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 					Exchange:             e.Name,
 					AssetType:            req.AssetType,
 					ClientOrderID:        spotOrders[x].Orders[y].Text,
+					TimeInForce:          tif,
 					FeeAsset:             currency.NewCode(spotOrders[x].Orders[y].FeeCurrency),
 				})
 			}

@@ -285,6 +285,8 @@ Use `require` and `assert` appropriately:
     When pinning an authoritative execution total, include realistic contract
     units or a rounded average so quantity times average cannot reproduce that
     total. Cover zero fills wherever a derived average divides by filled quantity.
+    For completion reasons with multiple documented spellings, test the aliases
+    through each affected transport and keep their mapped semantics consistent.
     Fee-currency fixtures must distinguish the reported currency from both
     pair currencies where supported. Otherwise cover reported base and quote
     fees separately, so guessing either currency from the pair fails a test.

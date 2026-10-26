@@ -2615,6 +2615,8 @@ func TestSpotExecutionResponseMappings(t *testing.T) {
 	detail, err := ex.GetOrderInfo(t.Context(), "1234", currency.NewBTCUSDT(), asset.Spot)
 	require.NoError(t, err, "GetOrderInfo must not error")
 	require.Equal(t, 3.0, detail.Amount, "amount must be copied from the exchange response")
+	assert.Equal(t, "t-client", detail.ClientOrderID, "order detail should retain the reported text")
+	assert.Equal(t, order.GoodTillCancel, detail.TimeInForce, "order detail should retain the reported time in force")
 	require.Equal(t, 2.0, detail.ExecutedAmount, "executed amount must use authoritative total and remaining quantities")
 	require.Equal(t, 1.0, detail.RemainingAmount, "remaining amount must be copied from the exchange response")
 	require.Equal(t, 10.0, detail.AverageExecutedPrice, "average execution price must be copied from the exchange response")
@@ -2646,6 +2648,7 @@ func TestFuturesExecutionResponseMappings(t *testing.T) {
 		{finishAs: "reduce_only", left: 4, status: order.Cancelled},
 		{finishAs: "reduce_out", left: 4, status: order.Cancelled},
 		{finishAs: "position_close", left: 4, status: order.Cancelled},
+		{finishAs: "position_closed", left: 4, status: order.Cancelled},
 		{finishAs: "auto_deleveraging", left: 0, status: order.AutoDeleverage},
 		{finishAs: "filled", left: 0, status: order.Filled},
 		{finishAs: "liquidated", left: 4, status: order.Liquidated},
@@ -2696,6 +2699,9 @@ func TestGetActiveSpotOrdersExecutionResponseMappings(t *testing.T) {
 	require.NoError(t, err, "GetActiveOrders must not error")
 	require.Len(t, orders, 2, "GetActiveOrders must return the mocked orders")
 	assert.Equal(t, 2.0, orders[0].Amount, "amount should retain the exchange value")
+	assert.Equal(t, "t-client", orders[0].ClientOrderID, "active order should retain the reported text")
+	assert.Equal(t, order.GoodTillCancel, orders[0].TimeInForce, "active limit order should retain its time in force")
+	assert.Equal(t, order.ImmediateOrCancel, orders[1].TimeInForce, "active market order should retain its distinct time in force")
 	assert.Equal(t, 0.5, orders[0].ExecutedAmount, "executed amount should retain the filled base quantity")
 	assert.Equal(t, 5.0, orders[0].ExecutedQuoteAmount, "executed quote amount should retain the filled quote total")
 	assert.Equal(t, 1.5, orders[0].RemainingAmount, "remaining amount should retain the exchange value")
@@ -4875,7 +4881,7 @@ func TestProcessFinishedFuturesOrdersPushData(t *testing.T) {
 		{`{"channel":"futures.orders","event":"update","time":1541505434,"time_ms":1541505434123,"result":[{"contract":"BTC_USD","create_time":1628736847,"create_time_ms":1628736847325,"fill_price":40000.4,"finish_as":"auto_deleveraged","finish_time":1628736848,"finish_time_ms":1628736848321,"iceberg":0,"id":4872460,"is_close":false,"is_liq":false,"is_reduce_only":false,"left":0,"mkfr":-0.00025,"price":40000.4,"refr":0,"refu":0,"size":1,"status":"finished","text":"-","tif":"gtc","tkfr":0.0005,"user":"110xxxxx"}]}`, order.AutoDeleverage},
 		{`{"channel":"futures.orders","event":"update","time":1541505434,"time_ms":1541505434123,"result":[{"contract":"BTC_USD","create_time":1628736847,"create_time_ms":1628736847325,"fill_price":40000.4,"finish_as":"reduce_only","finish_time":1628736848,"finish_time_ms":1628736848321,"iceberg":0,"id":4872460,"is_close":false,"is_liq":false,"is_reduce_only":false,"left":0,"mkfr":-0.00025,"price":40000.4,"refr":0,"refu":0,"size":1,"status":"finished","text":"-","tif":"gtc","tkfr":0.0005,"user":"110xxxxx"}]}`, order.Cancelled},
 		{`{"channel":"futures.orders","event":"update","time":1541505434,"time_ms":1541505434123,"result":[{"contract":"BTC_USD","create_time":1628736847,"create_time_ms":1628736847325,"fill_price":40000.4,"finish_as":"reduce_out","finish_time":1628736848,"finish_time_ms":1628736848321,"iceberg":0,"id":4872460,"is_close":false,"is_liq":false,"is_reduce_only":false,"left":0,"mkfr":-0.00025,"price":40000.4,"refr":0,"refu":0,"size":1,"status":"finished","text":"-","tif":"gtc","tkfr":0.0005,"user":"110xxxxx"}]}`, order.Cancelled},
-		{`{"channel":"futures.orders","event":"update","time":1541505434,"time_ms":1541505434123,"result":[{"contract":"BTC_USD","create_time":1628736847,"create_time_ms":1628736847325,"fill_price":40000.4,"finish_as":"position_closed","finish_time":1628736848,"finish_time_ms":1628736848321,"iceberg":0,"id":4872460,"is_close":false,"is_liq":false,"is_reduce_only":false,"left":0,"mkfr":-0.00025,"price":40000.4,"refr":0,"refu":0,"size":1,"status":"finished","text":"-","tif":"gtc","tkfr":0.0005,"user":"110xxxxx"}]}`, order.Closed},
+		{`{"channel":"futures.orders","event":"update","time":1541505434,"time_ms":1541505434123,"result":[{"contract":"BTC_USD","create_time":1628736847,"create_time_ms":1628736847325,"fill_price":40000.4,"finish_as":"position_closed","finish_time":1628736848,"finish_time_ms":1628736848321,"iceberg":0,"id":4872460,"is_close":false,"is_liq":false,"is_reduce_only":false,"left":0,"mkfr":-0.00025,"price":40000.4,"refr":0,"refu":0,"size":1,"status":"finished","text":"-","tif":"gtc","tkfr":0.0005,"user":"110xxxxx"}]}`, order.Cancelled},
 		{`{"channel":"futures.orders","event":"update","time":1541505434,"time_ms":1541505434123,"result":[{"contract":"BTC_USD","create_time":1628736847,"create_time_ms":1628736847325,"fill_price":40000.4,"finish_as":"stp","finish_time":1628736848,"finish_time_ms":1628736848321,"iceberg":0,"id":4872460,"is_close":false,"is_liq":false,"is_reduce_only":false,"left":0,"mkfr":-0.00025,"price":40000.4,"refr":0,"refu":0,"size":1,"status":"finished","text":"-","tif":"gtc","tkfr":0.0005,"user":"110xxxxx"}]}`, order.STP},
 	}
 
