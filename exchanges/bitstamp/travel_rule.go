@@ -107,8 +107,8 @@ func (e *Exchange) GetSatoshiTest(ctx context.Context, satoshiTestID string) (*S
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/v2/travel_rule/satoshi_test/"+url.PathEscape(satoshiTestID)+"/", nil, nil, &resp)
 }
 
-// GetXpubRegistrations returns the account's extended public key registrations
-func (e *Exchange) GetXpubRegistrations(ctx context.Context, req *XpubRegistrationsRequest) ([]XpubRegistrationResponse, error) {
+// GetExtendedPublicKeyRegistrations returns the account's extended public key registrations
+func (e *Exchange) GetExtendedPublicKeyRegistrations(ctx context.Context, req *ExtendedPublicKeyRegistrationsRequest) ([]ExtendedPublicKeyRegistrationResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -128,13 +128,13 @@ func (e *Exchange) GetXpubRegistrations(ctx context.Context, req *XpubRegistrati
 	if req.Limit != 0 {
 		params.Set("limit", strconv.FormatUint(req.Limit, 10))
 	}
-	var resp []XpubRegistrationResponse
+	var resp []ExtendedPublicKeyRegistrationResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/v2/travel_rule/utxo/xpub_registrations/", params, nil, &resp)
 }
 
-// CreateXpubRegistration registers an extended public key for UTXO address derivation
+// CreateExtendedPublicKeyRegistration registers an extended public key for UTXO address derivation
 // The registration remains pending until ownership is proven with a Satoshi test
-func (e *Exchange) CreateXpubRegistration(ctx context.Context, req *XpubRegistrationRequest) (*XpubRegistrationResponse, error) {
+func (e *Exchange) CreateExtendedPublicKeyRegistration(ctx context.Context, req *ExtendedPublicKeyRegistrationRequest) (*ExtendedPublicKeyRegistrationResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -144,25 +144,25 @@ func (e *Exchange) CreateXpubRegistration(ctx context.Context, req *XpubRegistra
 	if req.ExtendedPublicKey == "" {
 		return nil, errPublicKeyRequired
 	}
-	var resp *XpubRegistrationResponse
+	var resp *ExtendedPublicKeyRegistrationResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/v2/travel_rule/utxo/xpub_registrations/", nil, req, &resp)
 }
 
-// RevokeXpubRegistration revokes an extended public key registration
-func (e *Exchange) RevokeXpubRegistration(ctx context.Context, registrationID string) (*XpubRevocationResponse, error) {
+// RevokeExtendedPublicKeyRegistration revokes an extended public key registration
+func (e *Exchange) RevokeExtendedPublicKeyRegistration(ctx context.Context, registrationID string) (*ExtendedPublicKeyRevocationResponse, error) {
 	if registrationID == "" {
 		return nil, errRegistrationIDRequired
 	}
-	var resp *XpubRevocationResponse
+	var resp *ExtendedPublicKeyRevocationResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/v2/travel_rule/utxo/xpub_registrations/"+url.PathEscape(registrationID)+"/revoke/", nil, nil, &resp)
 }
 
-// GetXpubRegistration returns an extended public key registration
-func (e *Exchange) GetXpubRegistration(ctx context.Context, registrationID string) (*XpubRegistrationResponse, error) {
+// GetExtendedPublicKeyRegistration returns an extended public key registration
+func (e *Exchange) GetExtendedPublicKeyRegistration(ctx context.Context, registrationID string) (*ExtendedPublicKeyRegistrationResponse, error) {
 	if registrationID == "" {
 		return nil, errRegistrationIDRequired
 	}
-	var resp *XpubRegistrationResponse
+	var resp *ExtendedPublicKeyRegistrationResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/v2/travel_rule/utxo/xpub_registrations/"+url.PathEscape(registrationID)+"/", nil, nil, &resp)
 }
 

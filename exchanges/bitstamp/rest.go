@@ -63,6 +63,11 @@ type Exchange struct {
 	// market and order source
 	orderEventsKept map[string][]keptOrderEvent
 	orderEventMu    sync.Mutex
+	// orderEventHandlingMu handles one private order event, or one retry of the kept events, at a time, as each
+	// connection's read loop handles its own channels and heartbeats
+	orderEventHandlingMu sync.Mutex
+	// keptOrderEventsRetried is when the last retry of the kept order events ended; orderEventHandlingMu guards it
+	keptOrderEventsRetried time.Time
 	// orderTotalFetches tracks the fetches of deleted and replaced orders' totals, which run off the websocket's read loop
 	// and its wait group, so a reconnection does not wait for them
 	orderTotalFetches sync.WaitGroup
@@ -85,6 +90,7 @@ var (
 	errInvalidOffset            = errors.New("invalid offset")
 	errInvalidTimeDelta         = errors.New("time delta must be between 1 and 50000000 seconds")
 	errInvalidDateTime          = errors.New("invalid date time")
+	errInvalidEnabledStatus     = errors.New("invalid enabled status")
 	errNoResponse               = errors.New("no response data")
 	errOrderSourceRequired      = errors.New("order source is required")
 	errNetworkRequired          = errors.New("network is required")

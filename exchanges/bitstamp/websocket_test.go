@@ -2,9 +2,12 @@ package bitstamp
 
 import (
 	"bytes"
+	"context"
+	"errors"
 	"maps"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
@@ -132,7 +135,7 @@ func dataHandlerPayloads(t *testing.T, ex *Exchange) []any {
 func newWebsocketServer(t *testing.T, msgs ...string) string {
 	t.Helper()
 	var upgrader gws.Upgrader
-	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	s := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		c, err := upgrader.Upgrade(w, r, nil)
 		if !assert.NoError(t, err, "Upgrade should not error") {
 			return
@@ -147,7 +150,8 @@ func newWebsocketServer(t *testing.T, msgs ...string) string {
 			}
 		}
 	}))
-	t.Cleanup(s.Close)
+	// The exchange dials its own connections, so the server listens on the loopback interface
+	s.Start()
 	return "ws" + strings.TrimPrefix(s.URL, "http")
 }
 
@@ -181,54 +185,108 @@ func waitForOrderTotalFetches(t *testing.T, ex *Exchange) {
 	}
 }
 
-// waitForReadLoop waits for wsReadData to return once its connection is closed, failing rather than hanging when it
-// does not
-func waitForReadLoop(t *testing.T, ex *Exchange) {
+// fixtureConnection is a websocket connection which records how it is dialled and set up, and matches the responses it
+// receives with its own match, as each connection the websocket manager makes does
+type fixtureConnection struct {
+	websocket.Connection
+	dialErr     error
+	dialled     bool
+	pingHandler websocket.PingHandler
+	match       *websocket.Match
+}
+
+func (c *fixtureConnection) Dial(context.Context, *gws.Dialer, http.Header, url.Values) error {
+	c.dialled = true
+	return c.dialErr
+}
+
+func (c *fixtureConnection) SetupPingHandler(_ request.EndpointLimit, h websocket.PingHandler) {
+	c.pingHandler = h
+}
+
+func (c *fixtureConnection) RequireMatchWithData(signature any, data []byte) error {
+	return c.match.RequireMatchWithData(signature, data)
+}
+
+// websocketTestConnection returns the connection of a websocket test instance which has connected
+func websocketTestConnection(t *testing.T, ex *Exchange) websocket.Connection {
 	t.Helper()
-	done := make(chan struct{})
-	go func() {
-		ex.Websocket.Wg.Wait()
-		close(done)
-	}()
-	select {
-	case <-done:
-	case <-time.After(5 * time.Second):
-		require.FailNow(t, "wsReadData must return once the connection is closed")
+	conn, err := ex.Websocket.GetConnection(websocketConnection)
+	require.NoError(t, err, "GetConnection must not error")
+	return conn
+}
+
+// shutdownWebsocketTestInstance disables a connected websocket test instance's websocket and shuts it down, so the
+// connection monitor does not reconnect it
+func shutdownWebsocketTestInstance(t *testing.T, ex *Exchange) {
+	t.Helper()
+	assert.NoError(t, ex.Websocket.Disable(), "Disable should not error")
+	if err := ex.Websocket.Shutdown(); err != nil {
+		assert.ErrorIs(t, err, websocket.ErrNotConnected, "Shutdown should only error when the connection is already closed")
 	}
 }
 
 func TestWebsocketConnect(t *testing.T) {
 	t.Parallel()
-	ex := newWebsocketTestInstance(t)
-	ex.SetEnabled(false)
-	assert.ErrorIs(t, ex.WebsocketConnect(), websocket.ErrWebsocketNotEnabled, "WebsocketConnect should error when the exchange is disabled")
+	conn := &fixtureConnection{}
+	require.NoError(t, e.WebsocketConnect(t.Context(), conn), "WebsocketConnect must not error")
+	assert.True(t, conn.dialled, "WebsocketConnect should dial the connection")
+	assert.Equal(t, websocket.PingHandler{MessageType: gws.TextMessage, Message: hbMsg, Delay: hbInterval}, conn.pingHandler, "WebsocketConnect should send heartbeats on the connection")
 
-	ex = newWebsocketTestInstance(t)
-	require.NoError(t, ex.Websocket.SetAllConnectionURLs(newWebsocketServer(t, `{"event":"bts:heartbeat","channel":"","data":{"status":"success"}}`, `{"channel":"live_trades_btcusd"}`)), "SetAllConnectionURLs must not error")
-	require.NoError(t, ex.WebsocketConnect(), "WebsocketConnect must not error")
-	assert.ErrorIs(t, receiveError(t, ex), common.ErrParsingWSField, "WebsocketConnect should start reading messages")
-
-	require.NoError(t, ex.Websocket.Conn.Shutdown(), "Shutdown must not error")
-	close(ex.Websocket.ShutdownC) // Stops the heartbeat
-	waitForReadLoop(t, ex)
+	errDial := errors.New("dial failed")
+	conn = &fixtureConnection{dialErr: errDial}
+	assert.ErrorIs(t, e.WebsocketConnect(t.Context(), conn), errDial, "WebsocketConnect should return the dial error")
+	assert.Zero(t, conn.pingHandler, "WebsocketConnect should not send heartbeats on a connection which failed to dial")
 }
 
-func TestWebsocketReadData(t *testing.T) {
+func TestWebsocketConnectionHandling(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestInstance(t)
-	require.NoError(t, ex.Websocket.SetAllConnectionURLs(newWebsocketServer(t, `{"channel":"live_trades_btcusd"}`)), "SetAllConnectionURLs must not error")
-	require.NoError(t, ex.Websocket.Conn.Dial(t.Context(), &gws.Dialer{}, http.Header{}, nil), "Dial must not error")
-	ex.Websocket.Wg.Add(1)
-	go ex.wsReadData(t.Context())
+	require.NoError(t, ex.Websocket.SetAllConnectionURLs(newWebsocketServer(t, `{"event":"bts:heartbeat","channel":"","data":{"status":"success"}}`, `{"channel":"live_trades_btcusd"}`)), "SetAllConnectionURLs must not error")
+	ex.Websocket.SetSubscriptionsNotRequired()
+	t.Cleanup(func() { shutdownWebsocketTestInstance(t, ex) })
+	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
+	assert.ErrorIs(t, receiveError(t, ex), common.ErrParsingWSField, "the connection's messages should be handled, with errors sent to the data handler")
+}
 
-	assert.ErrorIs(t, receiveError(t, ex), common.ErrParsingWSField, "wsReadData should send handling errors to the data handler")
-	require.NoError(t, ex.Websocket.Conn.Shutdown(), "Shutdown must not error")
-	waitForReadLoop(t, ex)
+func TestWebsocketConnectionsBySubscriptionCount(t *testing.T) {
+	t.Parallel()
+	var upgrades atomic.Int64
+	m := &mockWsSubscriptions{channels: make(map[string]string)}
+	wsHandler := mockws.CurryWsMockUpgrader(t, m.handle)
+	s := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !gws.IsWebSocketUpgrade(r) {
+			// Live trades are subscribed to without loading anything over REST
+			http.NotFound(w, r)
+			return
+		}
+		upgrades.Add(1)
+		wsHandler(w, r)
+	}))
+	s.Start()
+
+	ex := newWebsocketTestInstance(t)
+	require.NoError(t, ex.Websocket.SetAllConnectionURLs("ws"+strings.TrimPrefix(s.URL, "http")), "SetAllConnectionURLs must not error")
+	ex.Features.Subscriptions = subscription.List{{Enabled: true, Asset: asset.Spot, Channel: subscription.AllTradesChannel}}
+	pairs, err := ex.GetEnabledPairs(asset.Spot)
+	require.NoError(t, err, "GetEnabledPairs must not error")
+	require.GreaterOrEqual(t, len(pairs), 3, "the test configuration must enable at least 3 spot pairs")
+	// A limit of two subscriptions a connection stands in for the API's 1024, so subscribing to each pair takes a
+	// connection for every two pairs
+	ex.Websocket.MaxSubscriptionsPerConnection = 2
+	// A subscription failure leaves the other connections open
+	t.Cleanup(func() { shutdownWebsocketTestInstance(t, ex) })
+	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
+
+	assert.Equal(t, int64((len(pairs)+1)/2), upgrades.Load(), "a connection should be opened for every two subscriptions")
+	assert.Len(t, m.subscribed(), len(pairs), "every channel should be subscribed")
+	assert.Len(t, ex.Websocket.GetSubscriptions(), len(pairs), "every subscription should be stored")
 }
 
 func TestWebsocketHandleDataErrors(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestInstance(t)
+	conn := &fixtureConnection{match: websocket.NewMatch()}
 	for _, tc := range []struct {
 		name string
 		msg  string
@@ -247,7 +305,7 @@ func TestWebsocketHandleDataErrors(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			err := ex.wsHandleData(t.Context(), []byte(tc.msg))
+			err := ex.wsHandleData(t.Context(), conn, []byte(tc.msg))
 			if tc.err == nil {
 				assert.Error(t, err, "wsHandleData should error")
 				return
@@ -263,7 +321,7 @@ func TestWebsocketHandleDataIgnoredEvents(t *testing.T) {
 	for _, msg := range []string{
 		`{"event":"bts:heartbeat","channel":"","data":{"status":"success"}}`,
 	} {
-		assert.NoErrorf(t, ex.wsHandleData(t.Context(), []byte(msg)), "wsHandleData should not error for %s", msg)
+		assert.NoErrorf(t, ex.wsHandleData(t.Context(), nil, []byte(msg)), "wsHandleData should not error for %s", msg)
 	}
 	assert.Empty(t, dataHandlerPayloads(t, ex), "heartbeats should not be sent to the data handler")
 }
@@ -276,7 +334,7 @@ func TestWebsocketHandleDataUnhandled(t *testing.T) {
 		`{"event":"settlement","channel":"my_settlements","data":{}}`,
 		`{"event":"order_created","channel":"live_orders_btcusd-perp","data":{"id":2054076732301440,"order_type":0,"order_subtype":5,"amount_str":"0.00134","price_str":"75609"}}`,
 	} {
-		assert.NoErrorf(t, ex.wsHandleData(t.Context(), []byte(msg)), "wsHandleData should not error for %s", msg)
+		assert.NoErrorf(t, ex.wsHandleData(t.Context(), nil, []byte(msg)), "wsHandleData should not error for %s", msg)
 	}
 	payloads := dataHandlerPayloads(t, ex)
 	require.Len(t, payloads, 3, "each unhandled message must be sent to the data handler")
@@ -302,7 +360,7 @@ func TestWebsocketHandleDataRouting(t *testing.T) {
 		`{"event":"self_trade","channel":"private-live_trades_btcusd-123456","data":{"buy_order_id":1500000010,"sell_order_id":1500000011,"amount":0.05,"amount_str":"0.05000000","price":61200.00,"price_str":"61200.00","type":0,"timestamp":"1712131205","microtimestamp":"1712131205000000","sellers_trade_account_id":0,"buyers_trade_account_id":0}}`,
 		`{"event":"trade","channel":"private-live_order_trades_btcusd-123456","data":{"id":296050734,"id_str":"296050734","order_id":1500000001,"client_order_id":"my-order-001","amount":0.1,"amount_str":"0.10000000","price":61200.00,"price_str":"61200.00","fee":"0.01","side":"buy","microtimestamp":"1712131200500000","trade_account_id":0,"order_remaining_amount":"0.40000000"}}`,
 	} {
-		require.NoErrorf(t, ex.wsHandleData(t.Context(), []byte(msg)), "wsHandleData must not error for %s", msg)
+		require.NoErrorf(t, ex.wsHandleData(t.Context(), nil, []byte(msg)), "wsHandleData must not error for %s", msg)
 	}
 
 	ob, err := ex.Websocket.Orderbook.GetOrderbook(wsPerpetualPair, asset.PerpetualContract)
@@ -356,23 +414,23 @@ func TestWebsocketHandleDataRouting(t *testing.T) {
 func TestWebsocketRequestReconnect(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestInstance(t)
-	err := ex.wsHandleData(t.Context(), []byte(`{"event":"bts:request_reconnect","channel":"","data":null}`))
+	err := ex.wsHandleData(t.Context(), nil, []byte(`{"event":"bts:request_reconnect","channel":"","data":null}`))
 	assert.NoError(t, err, "wsHandleData should not error on a reconnection request")
 }
 
 func TestHandleWebsocketSubscription(t *testing.T) {
 	t.Parallel()
-	ex := newWebsocketTestInstance(t)
+	conn := &fixtureConnection{match: websocket.NewMatch()}
 	for event, signature := range map[string]string{"bts:subscription_succeeded": "sub:live_trades_btcusd", "bts:unsubscription_succeeded": "unsub:live_trades_btcusd"} {
 		msg := []byte(`{"event":"` + event + `","channel":"live_trades_btcusd","data":{}}`)
-		confirmation, err := ex.Websocket.Match.Set(signature, 1)
+		confirmation, err := conn.match.Set(signature, 1)
 		require.NoErrorf(t, err, "Match.Set must not error for %s", signature)
-		require.NoErrorf(t, ex.handleWSSubscription(event, msg), "handleWSSubscription must not error for %s", event)
-		require.Lenf(t, confirmation, 1, "handleWSSubscription must deliver the %s event", event)
+		require.NoErrorf(t, handleWSSubscription(conn, event, msg), "handleWSSubscription must not error for %s", event)
+		require.Lenf(t, confirmation, 1, "handleWSSubscription must deliver the %s event to the connection it was requested on", event)
 		assert.Equalf(t, msg, <-confirmation, "handleWSSubscription should deliver the %s event", event)
-		assert.ErrorIsf(t, ex.handleWSSubscription(event, msg), websocket.ErrSignatureNotMatched, "handleWSSubscription should error on an unrequested %s event", event)
+		assert.ErrorIsf(t, handleWSSubscription(conn, event, msg), websocket.ErrSignatureNotMatched, "handleWSSubscription should error on an unrequested %s event", event)
 	}
-	err := ex.handleWSSubscription("bts:subscription_succeeded", []byte(`{"event":"bts:subscription_succeeded","data":{}}`))
+	err := handleWSSubscription(conn, "bts:subscription_succeeded", []byte(`{"event":"bts:subscription_succeeded","data":{}}`))
 	assert.ErrorIs(t, err, common.ErrParsingWSField, "handleWSSubscription should error without a channel")
 }
 
@@ -744,7 +802,8 @@ func TestSubscribe(t *testing.T) {
 	}.ExpandTemplates(ex)
 	require.NoError(t, err, "ExpandTemplates must not error")
 
-	require.NoError(t, ex.Subscribe(subs), "Subscribe must not error")
+	conn := websocketTestConnection(t, ex)
+	require.NoError(t, ex.Subscribe(t.Context(), conn, subs), "Subscribe must not error")
 	for _, s := range subs {
 		assert.Equalf(t, subscription.SubscribedState, s.State(), "subscription %s should be subscribed", s)
 	}
@@ -767,7 +826,7 @@ func TestSubscribe(t *testing.T) {
 		"private-my_settlements-314159":        token,
 	}, m.subscribed(), "the server should receive every channel, with private channels suffixed with the user ID and authorised with the token")
 
-	require.NoError(t, ex.Unsubscribe(subs), "Unsubscribe must not error")
+	require.NoError(t, ex.Unsubscribe(t.Context(), conn, subs), "Unsubscribe must not error")
 	for _, s := range subs {
 		assert.Equalf(t, subscription.UnsubscribedState, s.State(), "subscription %s should be unsubscribed", s)
 	}
@@ -824,7 +883,8 @@ func TestSubscribeSeedsOrderbooks(t *testing.T) {
 		{Enabled: true, Asset: asset.Spot, Channel: subscription.AllTradesChannel, Pairs: currency.Pairs{spotPair}},
 	}.ExpandTemplates(ex)
 	require.NoError(t, err, "ExpandTemplates must not error")
-	require.NoError(t, ex.Subscribe(subs), "Subscribe must not error when a market's orderbook cannot be loaded")
+	conn := websocketTestConnection(t, ex)
+	require.NoError(t, ex.Subscribe(t.Context(), conn, subs), "Subscribe must not error when a market's orderbook cannot be loaded")
 	assert.Equal(t, map[string]string{
 		"order_book_btcusd":             "",
 		"order_book_btceur":             "",
@@ -871,7 +931,7 @@ func TestSubscribeSeedsOrderbooks(t *testing.T) {
 	}
 	assert.ErrorIs(t, seedErr, errOrderbookSeed, "the data handler should receive the error of an orderbook which could not be loaded")
 
-	require.NoError(t, ex.Unsubscribe(subs), "Unsubscribe must not error")
+	require.NoError(t, ex.Unsubscribe(t.Context(), conn, subs), "Unsubscribe must not error")
 	mu.Lock()
 	defer mu.Unlock()
 	assert.Len(t, sequence, len(seeded)+len(subs), "unsubscribing should not load any orderbook")
@@ -928,7 +988,8 @@ func testSubscribeLive(t *testing.T) {
 
 	subs, err := templates.ExpandTemplates(ex)
 	require.NoError(t, err, "ExpandTemplates must not error")
-	require.NoError(t, ex.Subscribe(subs), "Subscribe must not error")
+	conn := websocketTestConnection(t, ex)
+	require.NoError(t, ex.Subscribe(t.Context(), conn, subs), "Subscribe must not error")
 	for _, s := range subs {
 		assert.Equalf(t, subscription.SubscribedState, s.State(), "subscription %s should be subscribed", s)
 	}
@@ -939,7 +1000,7 @@ func testSubscribeLive(t *testing.T) {
 		}, 30*time.Second, 100*time.Millisecond, "the %s order book for %s should be streamed", a, p)
 	}
 
-	require.NoError(t, ex.Unsubscribe(subs), "Unsubscribe must not error")
+	require.NoError(t, ex.Unsubscribe(t.Context(), conn, subs), "Unsubscribe must not error")
 	for _, s := range subs {
 		assert.Equalf(t, subscription.UnsubscribedState, s.State(), "subscription %s should be unsubscribed", s)
 	}
@@ -954,7 +1015,7 @@ func TestManageSubsWithCreds(t *testing.T) {
 	}.ExpandTemplates(ex)
 	require.NoError(t, err, "ExpandTemplates must not error")
 
-	err = ex.manageSubsWithCreds(t.Context(), subs, "sub")
+	err = ex.manageSubsWithCreds(t.Context(), websocketTestConnection(t, ex), subs, "sub")
 	assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "manageSubsWithCreds should error when a websocket token cannot be fetched")
 	assert.ErrorIs(t, err, errAPIResponse, "manageSubsWithCreds should return the websocket token error")
 	assert.Equal(t, map[string]string{"funding_rate_btcusd-perp": ""}, m.subscribed(), "public channels should still be subscribed")
@@ -964,9 +1025,10 @@ func TestManageSubsWithCreds(t *testing.T) {
 	ex, m = newMockWsInstance(t, true)
 	subs, err = subscription.List{{Enabled: true, Asset: asset.PerpetualContract, Channel: subscription.MyOrdersChannel, Authenticated: true}}.ExpandTemplates(ex)
 	require.NoError(t, err, "ExpandTemplates must not error")
-	require.NoError(t, ex.manageSubsWithCreds(t.Context(), subs, "sub"), "manageSubsWithCreds must not error")
+	conn := websocketTestConnection(t, ex)
+	require.NoError(t, ex.manageSubsWithCreds(t.Context(), conn, subs, "sub"), "manageSubsWithCreds must not error")
 	assert.Equal(t, map[string]string{"private-my_orders_btcusd-perp-314159": "Tr6kJCxPiqCcTVWRmNaNBR1EUGPUTjlA"}, m.subscribed(), "private channels should use the fetched token")
-	require.NoError(t, ex.manageSubsWithCreds(t.Context(), subs, "unsub"), "manageSubsWithCreds must not error when unsubscribing")
+	require.NoError(t, ex.manageSubsWithCreds(t.Context(), conn, subs, "unsub"), "manageSubsWithCreds must not error when unsubscribing")
 	assert.Empty(t, m.subscribed(), "private channels should be unsubscribed")
 
 	// Private channels need not be marked as authenticated, whether or not their templates have been expanded
@@ -977,14 +1039,15 @@ func TestManageSubsWithCreds(t *testing.T) {
 			unmarked, err = unmarked.ExpandTemplates(ex)
 			require.NoError(t, err, "ExpandTemplates must not error")
 		}
-		require.NoErrorf(t, ex.manageSubsWithCreds(t.Context(), unmarked, "sub"), "manageSubsWithCreds must not error on an unmarked private channel, expanded: %t", expand)
+		conn := websocketTestConnection(t, ex)
+		require.NoErrorf(t, ex.manageSubsWithCreds(t.Context(), conn, unmarked, "sub"), "manageSubsWithCreds must not error on an unmarked private channel, expanded: %t", expand)
 		assert.Equalf(t, map[string]string{"private-my_orders_btcusd-perp-314159": "Tr6kJCxPiqCcTVWRmNaNBR1EUGPUTjlA"}, m.subscribed(), "an unmarked private channel should use the fetched token, expanded: %t", expand)
 		assert.Falsef(t, unmarked[0].Authenticated, "manageSubsWithCreds should not modify the subscription, expanded: %t", expand)
 		if expand {
 			// An expanded subscription is stored as it is, so the websocket manager tracks the caller's subscription
 			assert.Equal(t, subscription.SubscribedState, unmarked[0].State(), "an expanded subscription should be subscribed")
 		}
-		require.NoErrorf(t, ex.manageSubsWithCreds(t.Context(), unmarked, "unsub"), "manageSubsWithCreds must not error when unsubscribing an unmarked private channel, expanded: %t", expand)
+		require.NoErrorf(t, ex.manageSubsWithCreds(t.Context(), conn, unmarked, "unsub"), "manageSubsWithCreds must not error when unsubscribing an unmarked private channel, expanded: %t", expand)
 		assert.Emptyf(t, m.subscribed(), "an unmarked private channel should be unsubscribed, expanded: %t", expand)
 		if expand {
 			assert.Equal(t, subscription.UnsubscribedState, unmarked[0].State(), "an expanded subscription should be unsubscribed")
@@ -997,17 +1060,18 @@ func TestUnsubscribeWithoutToken(t *testing.T) {
 	ex, m := newMockWsInstance(t, true)
 	subs, err := subscription.List{{Enabled: true, Asset: asset.Spot, Channel: subscription.MyOrdersChannel, Authenticated: true}}.ExpandTemplates(ex)
 	require.NoError(t, err, "ExpandTemplates must not error")
-	require.NoError(t, ex.Subscribe(subs), "Subscribe must not error")
+	conn := websocketTestConnection(t, ex)
+	require.NoError(t, ex.Subscribe(t.Context(), conn, subs), "Subscribe must not error")
 
 	// The token endpoint now refuses requests, so unsubscribing must use the user ID kept from subscribing
-	refused := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	refused := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusForbidden)
 		_, err := w.Write([]byte(`{"status":"error","reason":"Invalid signature","code":"API0005"}`))
 		assert.NoError(t, err, "Write should not error")
 	}))
-	t.Cleanup(refused.Close)
+	refused.Start()
 	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), refused.URL), "SetRunningURL must not error")
-	require.NoError(t, ex.Unsubscribe(subs), "Unsubscribe must not need a new token")
+	require.NoError(t, ex.Unsubscribe(t.Context(), conn, subs), "Unsubscribe must not need a new token")
 	assert.Empty(t, m.subscribed(), "private channels should be unsubscribed with the user ID of the last token")
 }
 
@@ -1035,12 +1099,13 @@ func TestManageSubs(t *testing.T) {
 	}.ExpandTemplates(ex)
 	require.NoError(t, err, "ExpandTemplates must not error")
 
-	err = ex.manageSubs(t.Context(), subs, "sub", nil)
+	conn := websocketTestConnection(t, ex)
+	err = ex.manageSubs(t.Context(), conn, subs, "sub", nil)
 	assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "manageSubs should error on private channels without a token")
 	assert.Empty(t, m.subscribed(), "private channels should not be subscribed without a token")
 
 	creds := &WebsocketTokenResponse{Token: "token", UserID: 1}
-	require.NoError(t, ex.manageSubs(t.Context(), subs, "sub", creds), "manageSubs must not error")
+	require.NoError(t, ex.manageSubs(t.Context(), conn, subs, "sub", creds), "manageSubs must not error")
 	for _, s := range subs {
 		assert.Equalf(t, subscription.SubscribedState, s.State(), "subscription %s should be subscribed", s)
 	}
@@ -1053,10 +1118,10 @@ func TestManageSubs(t *testing.T) {
 		"private-my_liquidations-1":  "token",
 	}, m.subscribed(), "private channels should be suffixed with the user ID and authorised with the token")
 
-	require.NoError(t, ex.manageSubs(t.Context(), subs, "unsub", creds), "manageSubs must not error when unsubscribing")
+	require.NoError(t, ex.manageSubs(t.Context(), conn, subs, "unsub", creds), "manageSubs must not error when unsubscribing")
 	for _, s := range subs {
 		assert.Equalf(t, subscription.UnsubscribedState, s.State(), "subscription %s should be unsubscribed", s)
 	}
 	assert.Empty(t, m.subscribed(), "every channel should be unsubscribed")
-	assert.ErrorIs(t, ex.manageSubs(t.Context(), subs, "unsub", creds), subscription.ErrNotFound, "manageSubs should error when unsubscribing channels which are not subscribed")
+	assert.ErrorIs(t, ex.manageSubs(t.Context(), conn, subs, "unsub", creds), subscription.ErrNotFound, "manageSubs should error when unsubscribing channels which are not subscribed")
 }

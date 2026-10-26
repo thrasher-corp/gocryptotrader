@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"slices"
 	"strconv"
+	"time"
 
 	"github.com/buger/jsonparser"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	gctmath "github.com/thrasher-corp/gocryptotrader/common/math"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
@@ -37,6 +39,12 @@ const maxOrderEventRecoveryFailures = 3
 // relayed
 const maxKeptOrderEvents = 1000
 
+// keptOrderEventRetryInterval is the least time from the end of one retry of the kept order events to the next. Every
+// connection's heartbeat reply retries, and several connections' replies can arrive together, which would use up the
+// failed recoveries allowed before giving up within moments; one connection's replies, a heartbeat interval apart, each
+// still retry
+const keptOrderEventRetryInterval = hbInterval / 2
+
 func (e *Exchange) handleWSSelfTrade(ctx context.Context, data []byte, pair currency.Pair, a asset.Item) error {
 	selfTrade := &WebsocketSelfTrade{Pair: pair, AssetType: a}
 	if err := json.Unmarshal(data, selfTrade); err != nil {
@@ -54,6 +62,8 @@ func (e *Exchange) handleWSAccountOrder(ctx context.Context, respRaw []byte, eve
 	if err := json.Unmarshal(data, &o); err != nil {
 		return err
 	}
+	e.orderEventHandlingMu.Lock()
+	defer e.orderEventHandlingMu.Unlock()
 	eventID, eventErr := jsonparser.GetString(respRaw, "event_id")
 	preEventID, preEventType, _, preEventErr := jsonparser.Get(respRaw, "pre_event_id")
 	if eventErr != nil || eventID == "" || preEventErr != nil {
@@ -261,9 +271,16 @@ func (e *Exchange) removeKeptOrderEvent(key, eventID string) {
 }
 
 // retryKeptOrderEvents retries the recovery of each market and order source with kept events, up to its last kept event,
-// so that kept events are relayed although no later event arrives. A failed retry counts towards giving up, as each
-// recovery holds up the read loop until it fails
+// so that kept events are relayed although no later event arrives. Every connection's heartbeat reply calls it, and it
+// retries once keptOrderEventRetryInterval has passed since its last retry. A failed retry counts towards giving up, as
+// each recovery holds up its read loop, and the private order events of the others, until it fails
 func (e *Exchange) retryKeptOrderEvents(ctx context.Context) error {
+	e.orderEventHandlingMu.Lock()
+	defer e.orderEventHandlingMu.Unlock()
+	if time.Since(e.keptOrderEventsRetried) < keptOrderEventRetryInterval {
+		return nil
+	}
+	defer func() { e.keptOrderEventsRetried = time.Now() }()
 	e.orderEventMu.Lock()
 	keys := make([]string, 0, len(e.orderEventsKept))
 	lasts := make(map[string]keptOrderEvent, len(e.orderEventsKept))
@@ -310,7 +327,7 @@ func (e *Exchange) processOrderEvent(ctx context.Context, event string, o *Order
 	amount := o.AmountAtCreate.Float64()
 	remaining := o.RemainingAmount.Float64()
 	// AmountTraded only holds the amount executed by this event, so the total executed amount is derived instead
-	executedDecimal, err := decimalDifference(amount, remaining)
+	executedDecimal, err := gctmath.DecimalDifferenceOfFloats(amount, remaining)
 	if err != nil {
 		return fmt.Errorf("%w: %s %+v: %w", errMalformedOrderEvent, event, o, err)
 	}
@@ -413,7 +430,7 @@ func (e *Exchange) fetchOrderTotals(ctx context.Context, closed *order.Detail, e
 			log.Errorf(log.WebsocketMgr, "%s unable to fetch the totals of closed order %s: %v", e.Name, closed.OrderID, err)
 			return
 		}
-		fetchedExecuted, err := floatDecimal(fetched.ExecutedAmount)
+		fetchedExecuted, err := gctmath.DecimalFromFloat(fetched.ExecutedAmount)
 		if err != nil {
 			log.Errorf(log.WebsocketMgr, "%s unable to fetch the totals of closed order %s: %v", e.Name, closed.OrderID, err)
 			return

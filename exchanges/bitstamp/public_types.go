@@ -34,10 +34,10 @@ const (
 	EntityAsiaSG    = "ASIA_SG"
 )
 
-// Availability of market trading and of currency or network deposits and withdrawals
+// Availability of market trading and of currency or network deposits and withdrawals, as the API sends it
 const (
-	StatusEnabled  = "Enabled"
-	StatusDisabled = "Disabled"
+	statusEnabled  = "Enabled"
+	statusDisabled = "Disabled"
 )
 
 // Currency types
@@ -66,25 +66,25 @@ const (
 
 // CurrencyResponse holds information for a listed currency
 type CurrencyResponse struct {
-	Name            string            `json:"name"`
-	Currency        currency.Code     `json:"currency"`
-	Type            string            `json:"type"`
-	Symbol          string            `json:"symbol"`
-	Decimals        uint8             `json:"decimals"`
-	Logo            string            `json:"logo"`
-	AvailableSupply types.Number      `json:"available_supply"`
-	Deposit         string            `json:"deposit"`
-	Withdrawal      string            `json:"withdrawal"`
-	Networks        []CurrencyNetwork `json:"networks"`
+	Name              string            `json:"name"`
+	Currency          currency.Code     `json:"currency"`
+	Type              string            `json:"type"`
+	Symbol            string            `json:"symbol"`
+	Decimals          uint8             `json:"decimals"`
+	Logo              string            `json:"logo"`
+	AvailableSupply   types.Number      `json:"available_supply"`
+	DepositEnabled    EnabledStatus     `json:"deposit"`
+	WithdrawalEnabled EnabledStatus     `json:"withdrawal"`
+	Networks          []CurrencyNetwork `json:"networks"`
 }
 
 // CurrencyNetwork holds deposit and withdrawal details for a currency network
 type CurrencyNetwork struct {
-	Network                 string       `json:"network"`
-	WithdrawalMinimumAmount types.Number `json:"withdrawal_minimum_amount"`
-	WithdrawalDecimals      uint8        `json:"withdrawal_decimals"`
-	Deposit                 string       `json:"deposit"`
-	Withdrawal              string       `json:"withdrawal"`
+	Network                 string        `json:"network"`
+	WithdrawalMinimumAmount types.Number  `json:"withdrawal_minimum_amount"`
+	WithdrawalDecimals      uint8         `json:"withdrawal_decimals"`
+	DepositEnabled          EnabledStatus `json:"deposit"`
+	WithdrawalEnabled       EnabledStatus `json:"withdrawal"`
 }
 
 // TickerResponse holds ticker information for a market
@@ -137,30 +137,30 @@ type TransactionResponse struct {
 
 // MarketResponse holds market information
 type MarketResponse struct {
-	Name                        string        `json:"name"`
-	MarketSymbol                string        `json:"market_symbol"`
-	BaseCurrency                currency.Code `json:"base_currency"`
-	BaseDecimals                uint8         `json:"base_decimals"`
-	CounterCurrency             currency.Code `json:"counter_currency"`
-	CounterDecimals             uint8         `json:"counter_decimals"`
-	MinimumOrderValue           types.Number  `json:"minimum_order_value"`
-	MaximumOrderValue           types.Number  `json:"maximum_order_value"`
-	MinimumOrderAmount          types.Number  `json:"minimum_order_amount"`
-	MaximumOrderAmount          types.Number  `json:"maximum_order_amount"`
-	Trading                     string        `json:"trading"`
-	InstantOrderCounterDecimals uint8         `json:"instant_order_counter_decimals"`
-	InstantAndMarketOrders      string        `json:"instant_and_market_orders"`
-	Description                 string        `json:"description"`
-	MarketType                  string        `json:"market_type"`
-	UnderlyingAsset             string        `json:"underlying_asset"` // A reference index's name, not a currency
-	PayoffType                  string        `json:"payoff_type"`
-	ContractSize                types.Number  `json:"contract_size"`
-	MaxLeverage                 types.Number  `json:"max_leverage"`
-	TickSize                    types.Number  `json:"tick_size"`
-	ISIN                        string        `json:"isin"`
-	AssetClass                  string        `json:"asset_class"`
-	HasMarketHours              bool          `json:"has_market_hours"`
-	Exchange                    string        `json:"exchange"`
+	Name                          string        `json:"name"`
+	MarketSymbol                  string        `json:"market_symbol"`
+	BaseCurrency                  currency.Code `json:"base_currency"`
+	BaseDecimals                  uint8         `json:"base_decimals"`
+	CounterCurrency               currency.Code `json:"counter_currency"`
+	CounterDecimals               uint8         `json:"counter_decimals"`
+	MinimumOrderValue             types.Number  `json:"minimum_order_value"`
+	MaximumOrderValue             types.Number  `json:"maximum_order_value"`
+	MinimumOrderAmount            types.Number  `json:"minimum_order_amount"`
+	MaximumOrderAmount            types.Number  `json:"maximum_order_amount"`
+	TradingEnabled                EnabledStatus `json:"trading"`
+	InstantOrderCounterDecimals   uint8         `json:"instant_order_counter_decimals"`
+	InstantAndMarketOrdersEnabled EnabledStatus `json:"instant_and_market_orders"`
+	Description                   string        `json:"description"`
+	MarketType                    string        `json:"market_type"`
+	UnderlyingAsset               string        `json:"underlying_asset"` // A reference index's name, not a currency
+	PayoffType                    string        `json:"payoff_type"`
+	ContractSize                  types.Number  `json:"contract_size"`
+	MaxLeverage                   types.Number  `json:"max_leverage"`
+	TickSize                      types.Number  `json:"tick_size"`
+	ISIN                          string        `json:"isin"`
+	AssetClass                    string        `json:"asset_class"`
+	HasMarketHours                bool          `json:"has_market_hours"`
+	Exchange                      string        `json:"exchange"`
 }
 
 // OHLCRequest holds the parameters for fetching candle data
@@ -231,14 +231,14 @@ type FundingRate struct {
 	Timestamp   types.Time   `json:"timestamp"`
 }
 
-// VASPListResponse holds Virtual Asset Service Providers used for Travel Rule compliance
-type VASPListResponse struct {
-	Data       []VASP     `json:"data"`
-	Pagination Pagination `json:"pagination"`
+// VirtualAssetServiceProvidersResponse holds Virtual Asset Service Providers used for Travel Rule compliance
+type VirtualAssetServiceProvidersResponse struct {
+	Data       []VirtualAssetServiceProvider `json:"data"`
+	Pagination Pagination                    `json:"pagination"`
 }
 
-// VASP holds a Virtual Asset Service Provider
-type VASP struct {
+// VirtualAssetServiceProvider holds a Virtual Asset Service Provider
+type VirtualAssetServiceProvider struct {
 	UUID string `json:"uuid"`
 	Name string `json:"name"`
 }

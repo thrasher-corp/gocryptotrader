@@ -6,12 +6,16 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 )
 
 // GetFee returns an estimate of fee based on type of transaction
 func (e *Exchange) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
+	if err := common.NilGuard(feeBuilder); err != nil {
+		return 0, err
+	}
 	var fee float64
 
 	switch feeBuilder.FeeType {

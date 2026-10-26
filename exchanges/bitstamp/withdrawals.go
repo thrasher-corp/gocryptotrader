@@ -128,11 +128,11 @@ func (e *Exchange) CryptoWithdrawal(ctx context.Context, req *CryptoWithdrawalRe
 		return nil, common.ErrAddressIsEmptyOrInvalid
 	}
 	travelRule := &travelRuleParams{
-		OriginatorInfo:        req.OriginatorInfo,
-		BeneficiaryInfo:       req.BeneficiaryInfo,
-		BeneficiaryThirdParty: req.BeneficiaryThirdParty,
-		BeneficiaryID:         req.BeneficiaryID,
-		VASPUUID:              req.VASPUUID,
+		OriginatorInfo:                  req.OriginatorInfo,
+		BeneficiaryInfo:                 req.BeneficiaryInfo,
+		BeneficiaryThirdParty:           req.BeneficiaryThirdParty,
+		BeneficiaryID:                   req.BeneficiaryID,
+		VirtualAssetServiceProviderUUID: req.VirtualAssetServiceProviderUUID,
 	}
 	if err := validateTravelRuleParams(travelRule); err != nil {
 		return nil, err
@@ -174,11 +174,11 @@ func (e *Exchange) RippleIOUWithdrawal(ctx context.Context, req *RippleIOUWithdr
 		return nil, common.ErrAddressIsEmptyOrInvalid
 	}
 	travelRule := &travelRuleParams{
-		OriginatorInfo:        req.OriginatorInfo,
-		BeneficiaryInfo:       req.BeneficiaryInfo,
-		BeneficiaryThirdParty: req.BeneficiaryThirdParty,
-		BeneficiaryID:         req.BeneficiaryID,
-		VASPUUID:              req.VASPUUID,
+		OriginatorInfo:                  req.OriginatorInfo,
+		BeneficiaryInfo:                 req.BeneficiaryInfo,
+		BeneficiaryThirdParty:           req.BeneficiaryThirdParty,
+		BeneficiaryID:                   req.BeneficiaryID,
+		VirtualAssetServiceProviderUUID: req.VirtualAssetServiceProviderUUID,
 	}
 	if err := validateTravelRuleParams(travelRule); err != nil {
 		return nil, err
@@ -261,8 +261,8 @@ func setTravelRuleParams(params url.Values, p *travelRuleParams) error {
 	if p.BeneficiaryID != "" {
 		params.Set("beneficiary_id", p.BeneficiaryID)
 	}
-	if p.VASPUUID != "" {
-		params.Set("vasp_uuid", p.VASPUUID)
+	if p.VirtualAssetServiceProviderUUID != "" {
+		params.Set("vasp_uuid", p.VirtualAssetServiceProviderUUID)
 	}
 	return nil
 }

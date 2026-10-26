@@ -169,12 +169,12 @@ func (e *Exchange) GetFundingRateHistory(ctx context.Context, req *FundingRateHi
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, "/v2/funding_rate_history/"+formatMarketSymbol(req.Pair)+"/", params, &resp)
 }
 
-// GetVASPs returns the Virtual Asset Service Providers used for Travel Rule compliance
-func (e *Exchange) GetVASPs(ctx context.Context, req *PaginationRequest) (*VASPListResponse, error) {
+// GetVirtualAssetServiceProviders returns the Virtual Asset Service Providers used for Travel Rule compliance
+func (e *Exchange) GetVirtualAssetServiceProviders(ctx context.Context, req *PaginationRequest) (*VirtualAssetServiceProvidersResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
 	params := paginationParams(req)
-	var resp *VASPListResponse
+	var resp *VirtualAssetServiceProvidersResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, "/v2/travel_rule/vasps/", params, &resp)
 }

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"maps"
 	"math"
-	"math/big"
 	"slices"
 	"strconv"
 	"strings"
@@ -14,6 +13,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
+	gctmath "github.com/thrasher-corp/gocryptotrader/common/math"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
@@ -39,8 +39,8 @@ import (
 
 const (
 	perpetualMarketSuffix = "-PERP"
-	// maxSubscriptionsPerConnection is the documented subscription limit; the server silently closes the connection on
-	// the next subscription
+	// maxSubscriptionsPerConnection is the documented subscription limit of a connection; the server silently closes the
+	// connection on the next subscription, so the websocket manager opens another connection for any more
 	maxSubscriptionsPerConnection = 1024
 
 	// The time filters of user transactions, from which spot order history is aggregated, only reach back 30 days
@@ -202,15 +202,10 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 
 	err = e.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:                         exch,
-		DefaultURL:                             bitstampWSURL,
-		RunningURL:                             wsURL,
-		Connector:                              e.WebsocketConnect,
-		Subscriber:                             e.Subscribe,
-		Unsubscriber:                           e.Unsubscribe,
-		GenerateSubscriptions:                  e.generateSubscriptions,
 		Features:                               &e.Features.Supports.WebsocketCapabilities,
 		TradeFeed:                              e.Features.Enabled.TradeFeed,
 		FillsFeed:                              e.Features.Enabled.FillsFeed,
+		UseMultiConnectionManagement:           true,
 		MaxWebsocketSubscriptionsPerConnection: maxSubscriptionsPerConnection,
 	})
 	if err != nil {
@@ -218,9 +213,15 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	}
 
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                  e.Websocket.GetWebsocketURL(),
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		URL:                   wsURL,
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+		Connector:             e.WebsocketConnect,
+		GenerateSubscriptions: e.generateSubscriptions,
+		Subscriber:            e.Subscribe,
+		Unsubscriber:          e.Unsubscribe,
+		Handler:               e.wsHandleData,
+		MessageFilter:         websocketConnection,
 	})
 }
 
@@ -264,7 +265,7 @@ func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
 func tradablePairs(markets []MarketResponse, marketType string) (currency.Pairs, error) {
 	pairs := make(currency.Pairs, 0, len(markets))
 	for i := range markets {
-		if markets[i].MarketType != marketType || markets[i].Trading != StatusEnabled {
+		if markets[i].MarketType != marketType || !markets[i].TradingEnabled {
 			continue
 		}
 		pair, err := currency.NewPairDelimiter(markets[i].Name, currency.ForwardSlashDelimiter)
@@ -289,7 +290,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 	l := make([]limits.MinMaxLevel, 0, len(markets))
 	for i := range markets {
 		m := &markets[i]
-		if m.MarketType != marketType || m.Trading != StatusEnabled {
+		if m.MarketType != marketType || !m.TradingEnabled {
 			continue
 		}
 		pair, err := currency.NewPairDelimiter(m.Name, currency.ForwardSlashDelimiter)
@@ -682,9 +683,10 @@ func (e *Exchange) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset
 
 // SubmitOrder submits a new order
 // Market orders with a QuoteAmount are placed as instant orders, which do not support reduce only orders. Perpetual
-// contract orders use cross margin unless isolated margin is requested and use the current leverage setting when
-// Leverage is not set. Trailing stop orders follow the market by a TrackingValue percentage once the TriggerPrice is
-// reached
+// contract orders use cross margin unless isolated margin is requested, and are sent with a leverage, as the API
+// requires one on limit, market and instant buy orders; when Leverage is not set, the current leverage setting is
+// fetched first, which costs a request before the order is placed.
+// Trailing stop orders follow the market by a TrackingValue percentage once the TriggerPrice is reached
 func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if err := s.Validate(e.GetTradingRequirements()); err != nil {
 		return nil, err
@@ -949,7 +951,7 @@ func executedAmount(transactions []OrderTransaction, base currency.Code) (decima
 		if !ok {
 			return decimal.Zero, fmt.Errorf("%w %d: no %s amount", errMalformedTransaction, transactions[i].TradeID, base)
 		}
-		value, err := floatDecimal(math.Abs(amount))
+		value, err := gctmath.DecimalFromFloat(math.Abs(amount))
 		if err != nil {
 			return decimal.Zero, fmt.Errorf("%w %d: %w", errMalformedTransaction, transactions[i].TradeID, err)
 		}
@@ -1063,7 +1065,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, _ currency.
 	if err != nil {
 		return nil, err
 	}
-	remaining, err := floatDecimal(status.AmountRemaining.Float64())
+	remaining, err := gctmath.DecimalFromFloat(status.AmountRemaining.Float64())
 	if err != nil {
 		return nil, fmt.Errorf("%w: amount remaining: %w", order.ErrAmountIsInvalid, err)
 	}
@@ -1189,7 +1191,7 @@ func (e *Exchange) GetAvailableTransferChains(ctx context.Context, cryptocurrenc
 		chains := make([]string, 0, len(currencies[i].Networks))
 		for j := range currencies[i].Networks {
 			n := &currencies[i].Networks[j]
-			if n.Deposit == StatusEnabled || n.Withdrawal == StatusEnabled {
+			if n.DepositEnabled || n.WithdrawalEnabled {
 				chains = append(chains, n.Network)
 			}
 		}
@@ -1338,7 +1340,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 		if amount == 0 {
 			amount = o.RemainingAmount.Float64()
 		}
-		executedDecimal, err := decimalDifference(amount, o.RemainingAmount.Float64())
+		executedDecimal, err := gctmath.DecimalDifferenceOfFloats(amount, o.RemainingAmount.Float64())
 		if err != nil {
 			return nil, fmt.Errorf("%w for order %d: %w", order.ErrAmountIsInvalid, o.ID, err)
 		}
@@ -1567,7 +1569,7 @@ func (e *Exchange) derivativesOrderHistory(ctx context.Context, pairs currency.P
 			if err != nil {
 				return nil, err
 			}
-			fee, err := decimalSum(t.Fee.Float64(), t.LiquidationFee.Float64())
+			fee, err := gctmath.DecimalSumOfFloats(t.Fee.Float64(), t.LiquidationFee.Float64())
 			if err != nil {
 				return nil, fmt.Errorf("%w %d: %w", errMalformedTransaction, t.TradeID, err)
 			}
@@ -1699,15 +1701,15 @@ type tradeTotals struct {
 
 // add adds a trade's amount, cost and fee to the totals
 func (t *tradeTotals) add(amount, price, fee float64) error {
-	a, err := floatDecimal(amount)
+	a, err := gctmath.DecimalFromFloat(amount)
 	if err != nil {
 		return err
 	}
-	p, err := floatDecimal(price)
+	p, err := gctmath.DecimalFromFloat(price)
 	if err != nil {
 		return err
 	}
-	f, err := floatDecimal(fee)
+	f, err := gctmath.DecimalFromFloat(fee)
 	if err != nil {
 		return err
 	}
@@ -1717,51 +1719,7 @@ func (t *tradeTotals) add(amount, price, fee float64) error {
 
 // averagePrice returns the trades' average price, or zero without an executed amount
 func (t *tradeTotals) averagePrice() float64 {
-	return exactQuotient(t.cost, t.amount)
-}
-
-// floatDecimal returns the shortest decimal which rounds to a float. For amounts, prices and fees of up to 15
-// significant digits, as the API's decimal strings are, that is the API's own value
-func floatDecimal(f float64) (decimal.Decimal, error) {
-	return decimal.NewFromString(strconv.FormatFloat(f, 'f', -1, 64))
-}
-
-// decimalDifference returns a minus b, subtracted as decimals so that it carries no float residue
-func decimalDifference(a, b float64) (decimal.Decimal, error) {
-	x, err := floatDecimal(a)
-	if err != nil {
-		return decimal.Zero, err
-	}
-	y, err := floatDecimal(b)
-	if err != nil {
-		return decimal.Zero, err
-	}
-	return x.Sub(y), nil
-}
-
-// decimalSum returns a plus b, added as decimals so that it carries no float residue
-func decimalSum(a, b float64) (decimal.Decimal, error) {
-	x, err := floatDecimal(a)
-	if err != nil {
-		return decimal.Zero, err
-	}
-	y, err := floatDecimal(b)
-	if err != nil {
-		return decimal.Zero, err
-	}
-	return x.Add(y), nil
-}
-
-// exactQuotient returns the float nearest to the quotient of two decimals, or zero for a zero divisor. Dividing their
-// floats rounds twice, and dividing them as decimals stops at 16 decimal places
-func exactQuotient(dividend, divisor decimal.Decimal) float64 {
-	x, okDividend := new(big.Rat).SetString(dividend.String())
-	y, okDivisor := new(big.Rat).SetString(divisor.String())
-	if !okDividend || !okDivisor || y.Sign() == 0 {
-		return 0
-	}
-	f, _ := x.Quo(x, y).Float64()
-	return f
+	return gctmath.FloatQuotientOfDecimals(t.cost, t.amount)
 }
 
 // ValidateAPICredentials validates current credentials used for wrapper functionality
@@ -1864,8 +1822,8 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, a asset.Item) 
 			Name:               pair,
 			Underlying:         currency.NewPair(m.BaseCurrency.Upper(), m.CounterCurrency.Upper()),
 			Asset:              a,
-			IsActive:           m.Trading == StatusEnabled,
-			Status:             m.Trading,
+			IsActive:           bool(m.TradingEnabled),
+			Status:             m.TradingEnabled.String(),
 			Type:               futures.Perpetual,
 			SettlementType:     settlementType,
 			SettlementCurrency: m.CounterCurrency.Upper(),
@@ -2006,6 +1964,11 @@ func (e *Exchange) fundingRatesInRange(ctx context.Context, pair currency.Pair, 
 	for {
 		history, err := e.GetFundingRateHistory(ctx, req)
 		if err != nil {
+			// The API refuses a range which holds no rate with this message, which it also gives for a limit over 100, so the
+			// first page's refusal means there are none. A later page ends at a rate the page before returned
+			if len(seen) == 0 && errors.Is(err, errAPIResponse) && strings.Contains(err.Error(), "Cannot fetch funding rate history for market "+formatMarketName(pair)) {
+				return nil, fmt.Errorf("%w: %w", fundingrate.ErrNoFundingRatesFound, err)
+			}
 			return nil, err
 		}
 		var oldest time.Time

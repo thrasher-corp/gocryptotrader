@@ -40,6 +40,8 @@ const (
 	bitstampWSURL = "wss://ws.bitstamp.net" //nolint:gosec // G101 false positive on a public URL
 	// hbInterval keeps traffic flowing for the connection monitor when the subscribed channels are quiet
 	hbInterval = 8 * time.Second
+	// websocketConnection is the message filter of the connection setup which every connection is made from
+	websocketConnection = "websocket"
 
 	privateChannelPrefix = "private-"
 )
@@ -110,50 +112,21 @@ var privateChannels = []string{
 	channelMySettlements, channelMyLiquidations, channelMyTokenSettlements,
 }
 
-// WebsocketConnect connects to a websocket feed
-func (e *Exchange) WebsocketConnect() error {
-	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
-		return websocket.ErrWebsocketNotEnabled
-	}
-	ctx := context.TODO()
+// WebsocketConnect connects to the websocket server and keeps the connection's traffic flowing with heartbeats
+func (e *Exchange) WebsocketConnect(ctx context.Context, conn websocket.Connection) error {
 	var dialer gws.Dialer
-	err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{}, nil)
-	if err != nil {
+	if err := conn.Dial(ctx, &dialer, http.Header{}, nil); err != nil {
 		return err
 	}
-	if e.Verbose {
-		log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", e.Name)
-	}
-	e.Websocket.Conn.SetupPingHandler(request.Unset, websocket.PingHandler{
+	conn.SetupPingHandler(request.Unset, websocket.PingHandler{
 		MessageType: gws.TextMessage,
 		Message:     hbMsg,
 		Delay:       hbInterval,
 	})
-
-	e.Websocket.Wg.Add(1)
-	go e.wsReadData(ctx)
-
 	return nil
 }
 
-// wsReadData receives and passes on websocket messages for processing
-func (e *Exchange) wsReadData(ctx context.Context) {
-	defer e.Websocket.Wg.Done()
-
-	for {
-		resp := e.Websocket.Conn.ReadMessage()
-		if resp.Raw == nil {
-			return
-		}
-		if err := e.wsHandleData(ctx, resp.Raw); err != nil {
-			if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
-				log.Errorf(log.WebsocketMgr, "%s %s: %s %s", e.Name, e.Websocket.Conn.GetURL(), errSend, err)
-			}
-		}
-	}
-}
-
-func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
+func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
 	event, err := jsonparser.GetUnsafeString(respRaw, "event")
 	if err != nil {
 		return fmt.Errorf("%w `event`: %w", common.ErrParsingWSField, err)
@@ -163,7 +136,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 	case "bts:heartbeat":
 		return e.retryKeptOrderEvents(ctx)
 	case "bts:subscription_succeeded", "bts:unsubscription_succeeded":
-		return e.handleWSSubscription(event, respRaw)
+		return handleWSSubscription(conn, event, respRaw)
 	case "bts:error":
 		return handleWSError(respRaw)
 	case "bts:request_reconnect":
@@ -232,13 +205,14 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 	return e.Websocket.DataHandler.Send(ctx, websocket.UnhandledMessageWarning{Message: e.Name + websocket.UnhandledMessage + string(respRaw)})
 }
 
-func (e *Exchange) handleWSSubscription(event string, respRaw []byte) error {
+// handleWSSubscription delivers a subscription's confirmation to the request awaiting it on the connection it was sent on
+func handleWSSubscription(conn websocket.Connection, event string, respRaw []byte) error {
 	channel, err := jsonparser.GetUnsafeString(respRaw, "channel")
 	if err != nil {
 		return fmt.Errorf("%w `channel`: %w", common.ErrParsingWSField, err)
 	}
 	op := strings.TrimSuffix(strings.TrimPrefix(event, "bts:"), "scription_succeeded")
-	return e.Websocket.Match.RequireMatchWithData(op+":"+channel, respRaw)
+	return conn.RequireMatchWithData(op+":"+channel, respRaw)
 }
 
 // handleWSError returns the error reported by the server
@@ -322,22 +296,20 @@ func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 	}).Parse(subTplText)
 }
 
-// Subscribe sends a websocket message to receive data from a list of channels
-func (e *Exchange) Subscribe(subs subscription.List) error {
-	ctx := context.TODO()
-	return e.manageSubsWithCreds(ctx, subs, "sub")
+// Subscribe sends websocket messages on a connection to receive data from a list of channels
+func (e *Exchange) Subscribe(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
+	return e.manageSubsWithCreds(ctx, conn, subs, "sub")
 }
 
-// Unsubscribe sends a websocket message to stop receiving data from a list of channels
-func (e *Exchange) Unsubscribe(subs subscription.List) error {
-	ctx := context.TODO()
-	return e.manageSubsWithCreds(ctx, subs, "unsub")
+// Unsubscribe sends websocket messages on a connection to stop receiving data from a list of channels
+func (e *Exchange) Unsubscribe(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
+	return e.manageSubsWithCreds(ctx, conn, subs, "unsub")
 }
 
 // manageSubsWithCreds subscribes to or unsubscribes from channels
 // Subscribing to private channels needs a new token, as a token cannot be reused for later subscriptions, whereas
 // unsubscribing only needs the user ID which names the private channels, which is kept from the last token
-func (e *Exchange) manageSubsWithCreds(ctx context.Context, subs subscription.List, op string) error {
+func (e *Exchange) manageSubsWithCreds(ctx context.Context, conn websocket.Connection, subs subscription.List, op string) error {
 	subs = normaliseSubscriptions(subs)
 	var errs error
 	var creds *WebsocketTokenResponse
@@ -351,7 +323,7 @@ func (e *Exchange) manageSubsWithCreds(ctx context.Context, subs subscription.Li
 			}
 		}
 	}
-	return common.AppendError(errs, e.ParallelChanOp(ctx, subs, func(ctx context.Context, s subscription.List) error { return e.manageSubs(ctx, s, op, creds) }, 1))
+	return common.AppendError(errs, e.ParallelChanOp(ctx, subs, func(ctx context.Context, s subscription.List) error { return e.manageSubs(ctx, conn, s, op, creds) }, 1))
 }
 
 // isPrivateSubscription returns whether a subscription needs a token, as it is either marked as authenticated or is to
@@ -362,14 +334,14 @@ func isPrivateSubscription(s *subscription.Subscription) bool {
 	return s.Authenticated || slices.Contains(privateChannels, s.Channel)
 }
 
-func (e *Exchange) manageSubs(ctx context.Context, subs subscription.List, op string, creds *WebsocketTokenResponse) error {
+func (e *Exchange) manageSubs(ctx context.Context, conn websocket.Connection, subs subscription.List, op string, creds *WebsocketTokenResponse) error {
 	subs, errs := subs.ExpandTemplates(e)
 	for _, s := range subs {
 		if op == "sub" && isOrderbookSubscription(s) {
 			// A market whose REST orderbook cannot be loaded gets its book when it next changes, so it is still subscribed
 			if err := e.seedOrderbook(ctx, s); err != nil {
 				if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
-					log.Errorf(log.WebsocketMgr, "%s %s: %s %s", e.Name, e.Websocket.Conn.GetURL(), errSend, err)
+					log.Errorf(log.WebsocketMgr, "%s %s: %s %s", e.Name, conn.GetURL(), errSend, err)
 				}
 			}
 		}
@@ -386,12 +358,12 @@ func (e *Exchange) manageSubs(ctx context.Context, subs subscription.List, op st
 			req.Data.Channel = privateChannelPrefix + req.Data.Channel + "-" + strconv.FormatUint(creds.UserID, 10)
 			req.Data.Auth = creds.Token
 		}
-		_, err := e.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, op+":"+req.Data.Channel, req)
+		_, err := conn.SendMessageReturnResponse(ctx, request.Unset, op+":"+req.Data.Channel, req)
 		if err == nil {
 			if op == "sub" {
-				err = e.Websocket.AddSuccessfulSubscriptions(e.Websocket.Conn, s)
+				err = e.Websocket.AddSuccessfulSubscriptions(conn, s)
 			} else {
-				err = e.Websocket.RemoveSubscriptions(e.Websocket.Conn, s)
+				err = e.Websocket.RemoveSubscriptions(conn, s)
 			}
 		}
 		if err != nil {

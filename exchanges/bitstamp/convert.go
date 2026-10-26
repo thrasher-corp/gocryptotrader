@@ -33,6 +33,24 @@ func (s OrderSide) Side() order.Side {
 	return order.Side(s)
 }
 
+// UnmarshalJSON implements json.Unmarshaler
+func (s *EnabledStatus) UnmarshalJSON(data []byte) error {
+	var status *string
+	if err := json.Unmarshal(data, &status); err != nil {
+		return fmt.Errorf("%w: %s", errInvalidEnabledStatus, data)
+	}
+	*s = status != nil && *status == statusEnabled
+	return nil
+}
+
+// String returns the status as the API sends it
+func (s EnabledStatus) String() string {
+	if s {
+		return statusEnabled
+	}
+	return statusDisabled
+}
+
 // dateTimeLayouts are the forms in which the API sends date-time values
 var dateTimeLayouts = []string{time.RFC3339, "2006-01-02T15:04:05", time.DateTime, "2006-01-02 15:04:05Z07:00"}
 

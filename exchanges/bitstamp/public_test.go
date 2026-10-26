@@ -23,18 +23,18 @@ func TestGetCurrencies(t *testing.T) {
 	btc := currencies[i]
 	if mockTests {
 		assert.Equal(t, CurrencyResponse{
-			Name:            "Bitcoin",
-			Currency:        currency.BTC,
-			Type:            "crypto",
-			Symbol:          "₿",
-			Decimals:        8,
-			Logo:            "https://assets.bitstamp.net/assets/logos/btc.svg",
-			AvailableSupply: 19934406,
-			Deposit:         "Enabled",
-			Withdrawal:      "Enabled",
+			Name:              "Bitcoin",
+			Currency:          currency.BTC,
+			Type:              "crypto",
+			Symbol:            "₿",
+			Decimals:          8,
+			Logo:              "https://assets.bitstamp.net/assets/logos/btc.svg",
+			AvailableSupply:   19934406,
+			DepositEnabled:    true,
+			WithdrawalEnabled: true,
 			Networks: []CurrencyNetwork{
-				{Network: "bitcoin", WithdrawalMinimumAmount: 0.00006, WithdrawalDecimals: 8, Deposit: "Enabled", Withdrawal: "Enabled"},
-				{Network: "xrpl", WithdrawalDecimals: 8, Deposit: "Disabled", Withdrawal: "Disabled"},
+				{Network: "bitcoin", WithdrawalMinimumAmount: 0.00006, WithdrawalDecimals: 8, DepositEnabled: true, WithdrawalEnabled: true},
+				{Network: "xrpl", WithdrawalDecimals: 8},
 			},
 		}, btc, "GetCurrencies should decode every BTC field")
 		return
@@ -329,18 +329,18 @@ func TestGetMarkets(t *testing.T) {
 			i := slices.IndexFunc(markets, func(m MarketResponse) bool { return m.Name == "BTC/USD" })
 			require.NotEqualf(t, -1, i, "GetMarkets must list BTC/USD for entity %q", entity)
 			exp := MarketResponse{
-				Name:                        "BTC/USD",
-				MarketSymbol:                "btcusd",
-				BaseCurrency:                currency.BTC,
-				BaseDecimals:                8,
-				CounterCurrency:             currency.USD,
-				CounterDecimals:             2,
-				MinimumOrderValue:           10,
-				Trading:                     StatusEnabled,
-				InstantOrderCounterDecimals: 2,
-				InstantAndMarketOrders:      StatusEnabled,
-				Description:                 "Bitcoin / U.S. dollar",
-				MarketType:                  MarketTypeSpot,
+				Name:                          "BTC/USD",
+				MarketSymbol:                  "btcusd",
+				BaseCurrency:                  currency.BTC,
+				BaseDecimals:                  8,
+				CounterCurrency:               currency.USD,
+				CounterDecimals:               2,
+				MinimumOrderValue:             10,
+				TradingEnabled:                true,
+				InstantOrderCounterDecimals:   2,
+				InstantAndMarketOrdersEnabled: true,
+				Description:                   "Bitcoin / U.S. dollar",
+				MarketType:                    MarketTypeSpot,
 			}
 			assert.Equalf(t, exp, markets[i], "GetMarkets should decode a spot market for entity %q", entity)
 		}
@@ -368,26 +368,26 @@ func TestGetMarkets(t *testing.T) {
 			i := slices.IndexFunc(markets, func(m MarketResponse) bool { return m.Name == "BTC/USD-PERP" })
 			require.NotEqual(t, -1, i, "GetMarkets must list BTC/USD-PERP")
 			exp := MarketResponse{
-				Name:                        "BTC/USD-PERP",
-				MarketSymbol:                "btcusd-perp",
-				BaseCurrency:                currency.BTC,
-				BaseDecimals:                5,
-				CounterCurrency:             currency.USD,
-				MinimumOrderValue:           10,
-				MaximumOrderValue:           1000000,
-				MinimumOrderAmount:          0.00001,
-				MaximumOrderAmount:          20,
-				Trading:                     StatusEnabled,
-				InstantOrderCounterDecimals: 2,
-				InstantAndMarketOrders:      StatusEnabled,
-				Description:                 "Bitcoin / U.S. dollar Perpetual",
-				MarketType:                  MarketTypePerpetual,
-				UnderlyingAsset:             "Kaiko BTC Benchmark Reference Rate",
-				PayoffType:                  "Linear",
-				ContractSize:                1,
-				MaxLeverage:                 10,
-				ISIN:                        "EZHKD4DNKHY3",
-				AssetClass:                  AssetClassCrypto,
+				Name:                          "BTC/USD-PERP",
+				MarketSymbol:                  "btcusd-perp",
+				BaseCurrency:                  currency.BTC,
+				BaseDecimals:                  5,
+				CounterCurrency:               currency.USD,
+				MinimumOrderValue:             10,
+				MaximumOrderValue:             1000000,
+				MinimumOrderAmount:            0.00001,
+				MaximumOrderAmount:            20,
+				TradingEnabled:                true,
+				InstantOrderCounterDecimals:   2,
+				InstantAndMarketOrdersEnabled: true,
+				Description:                   "Bitcoin / U.S. dollar Perpetual",
+				MarketType:                    MarketTypePerpetual,
+				UnderlyingAsset:               "Kaiko BTC Benchmark Reference Rate",
+				PayoffType:                    "Linear",
+				ContractSize:                  1,
+				MaxLeverage:                   10,
+				ISIN:                          "EZHKD4DNKHY3",
+				AssetClass:                    AssetClassCrypto,
 			}
 			assert.Equal(t, exp, markets[i], "GetMarkets should decode a perpetual market")
 		}
@@ -509,25 +509,25 @@ func TestGetFundingRateHistory(t *testing.T) {
 	}
 }
 
-func TestGetVASPs(t *testing.T) {
+func TestGetVirtualAssetServiceProviders(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetVASPs(t.Context(), nil)
-	assert.ErrorIs(t, err, common.ErrNilPointer, "GetVASPs should error on a nil request")
-	vasps, err := e.GetVASPs(t.Context(), &PaginationRequest{Page: 1, PerPage: 3})
-	require.NoError(t, err, "GetVASPs must not error")
+	_, err := e.GetVirtualAssetServiceProviders(t.Context(), nil)
+	assert.ErrorIs(t, err, common.ErrNilPointer, "GetVirtualAssetServiceProviders should error on a nil request")
+	providers, err := e.GetVirtualAssetServiceProviders(t.Context(), &PaginationRequest{Page: 1, PerPage: 3})
+	require.NoError(t, err, "GetVirtualAssetServiceProviders must not error")
 	if mockTests {
-		exp := &VASPListResponse{
-			Data: []VASP{
+		exp := &VirtualAssetServiceProvidersResponse{
+			Data: []VirtualAssetServiceProvider{
 				{UUID: "48feffe5-a5d0-44fe-bf4c-734e7d721249", Name: "Payco"},
 				{UUID: "3b21f525-d47c-4514-b575-c3c0eb0846a4", Name: "V-Bank AG (DE)"},
 				{UUID: "0a0ab6c6-3e85-4cb5-b182-ddc7adc3bc19", Name: "Bitpace"},
 			},
 			Pagination: Pagination{Page: 1, Size: 3, Count: 1204},
 		}
-		assert.Equal(t, exp, vasps, "GetVASPs should decode the page of VASPs")
+		assert.Equal(t, exp, providers, "GetVirtualAssetServiceProviders should decode the page of providers")
 		return
 	}
-	require.NotEmpty(t, vasps.Data, "GetVASPs must return VASPs")
-	assert.NotEmpty(t, vasps.Data[0].UUID, "UUID should be set")
-	assert.NotEmpty(t, vasps.Data[0].Name, "Name should be set")
+	require.NotEmpty(t, providers.Data, "GetVirtualAssetServiceProviders must return providers")
+	assert.NotEmpty(t, providers.Data[0].UUID, "UUID should be set")
+	assert.NotEmpty(t, providers.Data[0].Name, "Name should be set")
 }

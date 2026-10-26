@@ -14,10 +14,10 @@ const (
 
 // Extended public key registration statuses
 const (
-	XpubRegistrationStatusPending = "PENDING"
-	XpubRegistrationStatusActive  = "ACTIVE"
-	XpubRegistrationStatusRevoked = "REVOKED"
-	XpubRegistrationStatusFailed  = "FAILED"
+	ExtendedPublicKeyRegistrationStatusPending = "PENDING"
+	ExtendedPublicKeyRegistrationStatusActive  = "ACTIVE"
+	ExtendedPublicKeyRegistrationStatusRevoked = "REVOKED"
+	ExtendedPublicKeyRegistrationStatusFailed  = "FAILED"
 )
 
 // ContactRequest holds the details of a Travel Rule contact to create
@@ -37,26 +37,26 @@ type ContactResponse struct {
 
 // CounterpartyAddressRequest holds Travel Rule counterparty details for a cryptocurrency address
 type CounterpartyAddressRequest struct {
-	Address           string `json:"address"`
-	Network           string `json:"network"`
-	MemoID            string `json:"memo_id,omitempty"`
-	DestinationTag    string `json:"destination_tag,omitempty"`
-	TransferID        uint64 `json:"transfer_id,omitempty"`
-	ContactThirdParty bool   `json:"contact_thirdparty"`
-	ContactUUID       string `json:"contact_uuid,omitempty"`
-	VASPUUID          string `json:"vasp_uuid,omitempty"`
+	Address                         string `json:"address"`
+	Network                         string `json:"network"`
+	MemoID                          string `json:"memo_id,omitempty"`
+	DestinationTag                  string `json:"destination_tag,omitempty"`
+	TransferID                      uint64 `json:"transfer_id,omitempty"`
+	ContactThirdParty               bool   `json:"contact_thirdparty"`
+	ContactUUID                     string `json:"contact_uuid,omitempty"`
+	VirtualAssetServiceProviderUUID string `json:"vasp_uuid,omitempty"`
 }
 
 // CounterpartyAddressResponse holds the Travel Rule counterparty details registered for a cryptocurrency address
 type CounterpartyAddressResponse struct {
-	Address           string `json:"address"`
-	Network           string `json:"network"`
-	MemoID            string `json:"memo_id"`
-	DestinationTag    string `json:"destination_tag"`
-	TransferID        uint64 `json:"transfer_id"`
-	ContactThirdParty bool   `json:"contact_thirdparty"`
-	ContactUUID       string `json:"contact_uuid"`
-	VASPUUID          string `json:"vasp_uuid"`
+	Address                         string `json:"address"`
+	Network                         string `json:"network"`
+	MemoID                          string `json:"memo_id"`
+	DestinationTag                  string `json:"destination_tag"`
+	TransferID                      uint64 `json:"transfer_id"`
+	ContactThirdParty               bool   `json:"contact_thirdparty"`
+	ContactUUID                     string `json:"contact_uuid"`
+	VirtualAssetServiceProviderUUID string `json:"vasp_uuid"`
 }
 
 // SatoshiTestsRequest holds the filters for fetching Satoshi tests
@@ -85,41 +85,41 @@ type SatoshiTestResponse struct {
 	Expires        types.Time    `json:"expires"`
 }
 
-// XpubRegistrationsRequest holds the filters for fetching xpub registrations
-type XpubRegistrationsRequest struct {
+// ExtendedPublicKeyRegistrationsRequest holds the filters for fetching extended public key registrations
+type ExtendedPublicKeyRegistrationsRequest struct {
 	Network string
 	Status  string
 	Offset  uint64
 	Limit   uint64
 }
 
-// XpubRegistrationRequest holds the parameters for registering an extended public key
-type XpubRegistrationRequest struct {
+// ExtendedPublicKeyRegistrationRequest holds the parameters for registering an extended public key
+type ExtendedPublicKeyRegistrationRequest struct {
 	Network           string `json:"network"`
 	ExtendedPublicKey string `json:"extended_public_key"`
 	Label             string `json:"label,omitempty"`
 }
 
-// XpubRegistrationResponse holds an extended public key registration
-type XpubRegistrationResponse struct {
-	ID          string                `json:"id"`
-	Network     string                `json:"network"`
-	Label       string                `json:"label"`
-	Status      string                `json:"status"`
-	Proof       XpubRegistrationProof `json:"proof"`
-	CreatedAt   DateTime              `json:"created_at"`
-	ActivatedAt DateTime              `json:"activated_at"`
-	RevokedAt   DateTime              `json:"revoked_at"`
+// ExtendedPublicKeyRegistrationResponse holds an extended public key registration
+type ExtendedPublicKeyRegistrationResponse struct {
+	ID          string                             `json:"id"`
+	Network     string                             `json:"network"`
+	Label       string                             `json:"label"`
+	Status      string                             `json:"status"`
+	Proof       ExtendedPublicKeyRegistrationProof `json:"proof"`
+	CreatedAt   DateTime                           `json:"created_at"`
+	ActivatedAt DateTime                           `json:"activated_at"`
+	RevokedAt   DateTime                           `json:"revoked_at"`
 }
 
-// XpubRegistrationProof holds the proof of control for an extended public key registration
-type XpubRegistrationProof struct {
+// ExtendedPublicKeyRegistrationProof holds the proof of control for an extended public key registration
+type ExtendedPublicKeyRegistrationProof struct {
 	ID     string `json:"id"`
 	Method string `json:"method"`
 }
 
-// XpubRevocationResponse holds the status of a revoked extended public key registration
-type XpubRevocationResponse struct {
+// ExtendedPublicKeyRevocationResponse holds the status of a revoked extended public key registration
+type ExtendedPublicKeyRevocationResponse struct {
 	ID     string `json:"id"`
 	Status string `json:"status"`
 }

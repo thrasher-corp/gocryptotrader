@@ -193,6 +193,32 @@ func TestUnmarshalTransactionType(t *testing.T) {
 	assert.Error(t, unmarshalTransactionType(json.RawMessage(`"wibble"`), &typ), "unmarshalTransactionType should error on a non-numeric type")
 }
 
+func TestEnabledStatusUnmarshalJSON(t *testing.T) {
+	t.Parallel()
+	for data, exp := range map[string]EnabledStatus{
+		`"Enabled"`:  true,
+		`"Disabled"`: false,
+		`"enabled"`:  false,
+		`"Paused"`:   false,
+		`""`:         false,
+		`null`:       false,
+	} {
+		reused := !exp
+		require.NoErrorf(t, json.Unmarshal([]byte(data), &reused), "Unmarshal must not error for %s", data)
+		assert.Equalf(t, exp, reused, "Unmarshal should decode %s", data)
+	}
+	for _, data := range []string{`true`, `1`, `[]`, `{}`} {
+		var s EnabledStatus
+		assert.ErrorIsf(t, json.Unmarshal([]byte(data), &s), errInvalidEnabledStatus, "Unmarshal should error on %s", data)
+	}
+}
+
+func TestEnabledStatusString(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, "Enabled", EnabledStatus(true).String(), "String should return Enabled for true")
+	assert.Equal(t, "Disabled", EnabledStatus(false).String(), "String should return Disabled for false")
+}
+
 func TestDateTimeUnmarshalJSON(t *testing.T) {
 	t.Parallel()
 	for data, exp := range map[string]time.Time{

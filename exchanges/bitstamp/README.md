@@ -22,6 +22,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 + REST Support for the Bitstamp v2 API, including every documented endpoint
 + Websocket Support for orderbooks, detail orderbooks, trades, funding rates, announcements and private order, trade, order trade, self trade, settlement, liquidation and token settlement channels
 + Private order events missed during a reconnection or a server restart are recovered from the REST API
++ Each websocket connection holds up to Bitstamp's limit of 1024 subscriptions, and further connections are opened for any more
 + The `diff_order_book` channel is not supported, as its documented reconciliation with a REST snapshot keeps levels of orders created and deleted between broadcasts, which leaves the book crossed
 + Spot and perpetual contract assets; perpetual contract pairs are quoted in `USD-PERP`, for example `BTC/USD-PERP`
 + Perpetual contract support for contract details, funding rates, open interest, leverage, positions and collateral

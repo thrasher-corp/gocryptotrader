@@ -52,11 +52,11 @@ const (
 
 // Outcomes of checking whether an estimated order can be placed
 const (
-	OrderPlaceableUnspecified          = "UNSPECIFIED"
-	OrderPlaceableYes                  = "YES"
-	OrderPlaceableNoMMRBreach          = "NO_MMR_BREACH"
-	OrderPlaceableNoIMRBreach          = "NO_IMR_BREACH"
-	OrderPlaceableNoInsufficientMargin = "NO_INSUFFICIENT_MARGIN"
+	OrderPlaceableUnspecified                          = "UNSPECIFIED"
+	OrderPlaceableYes                                  = "YES"
+	OrderPlaceableNoMaintenanceMarginRequirementBreach = "NO_MMR_BREACH"
+	OrderPlaceableNoInitialMarginRequirementBreach     = "NO_IMR_BREACH"
+	OrderPlaceableNoInsufficientMargin                 = "NO_INSUFFICIENT_MARGIN"
 )
 
 // MarginTiersResponse holds the margin tiers of a derivatives market

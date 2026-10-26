@@ -117,9 +117,9 @@ type CryptoWithdrawalRequest struct {
 	OriginatorInfo  *CustomerInfo
 	BeneficiaryInfo *CustomerInfo
 	// BeneficiaryThirdParty is sent when set, and must be false when withdrawing to an address in the account holder's name
-	BeneficiaryThirdParty *bool
-	BeneficiaryID         string
-	VASPUUID              string
+	BeneficiaryThirdParty           *bool
+	BeneficiaryID                   string
+	VirtualAssetServiceProviderUUID string
 }
 
 // RippleIOUWithdrawalRequest holds the parameters for a Ripple IOU withdrawal
@@ -130,9 +130,9 @@ type RippleIOUWithdrawalRequest struct {
 	OriginatorInfo  *CustomerInfo
 	BeneficiaryInfo *CustomerInfo
 	// BeneficiaryThirdParty is sent when set, and must be false when withdrawing to an address in the account holder's name
-	BeneficiaryThirdParty *bool
-	BeneficiaryID         string
-	VASPUUID              string
+	BeneficiaryThirdParty           *bool
+	BeneficiaryID                   string
+	VirtualAssetServiceProviderUUID string
 }
 
 // CryptoWithdrawalResponse holds the ID of a cryptocurrency withdrawal request
@@ -142,9 +142,9 @@ type CryptoWithdrawalResponse struct {
 
 // travelRuleParams holds the optional Travel Rule parameters shared by cryptocurrency withdrawals
 type travelRuleParams struct {
-	OriginatorInfo        *CustomerInfo
-	BeneficiaryInfo       *CustomerInfo
-	BeneficiaryThirdParty *bool
-	BeneficiaryID         string
-	VASPUUID              string
+	OriginatorInfo                  *CustomerInfo
+	BeneficiaryInfo                 *CustomerInfo
+	BeneficiaryThirdParty           *bool
+	BeneficiaryID                   string
+	VirtualAssetServiceProviderUUID string
 }

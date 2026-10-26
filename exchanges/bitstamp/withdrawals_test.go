@@ -21,11 +21,11 @@ func TestSetTravelRuleParams(t *testing.T) {
 	assert.Empty(t, params, "setTravelRuleParams should not set unset parameters")
 
 	require.NoError(t, setTravelRuleParams(params, &travelRuleParams{
-		OriginatorInfo:        &CustomerInfo{RetailInfo: &RetailInfo{FirstName: "John", LastName: "Doe", DateOfBirth: time.Date(1990, 1, 31, 0, 0, 0, 0, time.UTC), PlaceOfBirth: "Sydney", PostalCode: "2000"}},
-		BeneficiaryInfo:       &CustomerInfo{CorporateInfo: &CorporateInfo{CompanyName: "Good company"}},
-		BeneficiaryThirdParty: new(true),
-		BeneficiaryID:         "1",
-		VASPUUID:              "48feffe5-a5d0-44fe-bf4c-734e7d721249",
+		OriginatorInfo:                  &CustomerInfo{RetailInfo: &RetailInfo{FirstName: "John", LastName: "Doe", DateOfBirth: time.Date(1990, 1, 31, 0, 0, 0, 0, time.UTC), PlaceOfBirth: "Sydney", PostalCode: "2000"}},
+		BeneficiaryInfo:                 &CustomerInfo{CorporateInfo: &CorporateInfo{CompanyName: "Good company"}},
+		BeneficiaryThirdParty:           new(true),
+		BeneficiaryID:                   "1",
+		VirtualAssetServiceProviderUUID: "48feffe5-a5d0-44fe-bf4c-734e7d721249",
 	}), "setTravelRuleParams must not error")
 	assert.Equal(t, url.Values{
 		"originator_info":        {`{"retail_info":{"first_name":"John","last_name":"Doe","date_of_birth":"1990-01-31","place_of_birth":"Sydney","zip":"2000"}}`},
@@ -180,13 +180,13 @@ func TestCryptoWithdrawal(t *testing.T) {
 		t.Skip("CryptoWithdrawal is not tested live to avoid withdrawing funds")
 	}
 	resp, err := e.CryptoWithdrawal(t.Context(), &CryptoWithdrawalRequest{
-		Currency:              currency.BTC,
-		Amount:                0.002,
-		Address:               core.BitcoinDonationAddress,
-		OriginatorInfo:        &CustomerInfo{CorporateInfo: &CorporateInfo{CompanyName: "Good company", LEI: "5493001KJTIIGC8Y1R12"}},
-		BeneficiaryInfo:       &CustomerInfo{RetailInfo: &RetailInfo{FirstName: "John", LastName: "Doe"}},
-		BeneficiaryThirdParty: new(true),
-		VASPUUID:              "48feffe5-a5d0-44fe-bf4c-734e7d721249",
+		Currency:                        currency.BTC,
+		Amount:                          0.002,
+		Address:                         core.BitcoinDonationAddress,
+		OriginatorInfo:                  &CustomerInfo{CorporateInfo: &CorporateInfo{CompanyName: "Good company", LEI: "5493001KJTIIGC8Y1R12"}},
+		BeneficiaryInfo:                 &CustomerInfo{RetailInfo: &RetailInfo{FirstName: "John", LastName: "Doe"}},
+		BeneficiaryThirdParty:           new(true),
+		VirtualAssetServiceProviderUUID: "48feffe5-a5d0-44fe-bf4c-734e7d721249",
 	})
 	require.NoError(t, err, "CryptoWithdrawal must not error")
 	assert.Equal(t, &CryptoWithdrawalResponse{ID: 3}, resp, "CryptoWithdrawal should return the withdrawal")

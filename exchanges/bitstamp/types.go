@@ -81,6 +81,10 @@ type errorResponse struct {
 // OrderSide decodes an order side sent as 0 for buy or 1 for sell, either quoted or bare
 type OrderSide order.Side
 
+// EnabledStatus decodes the availability of trading, deposits or withdrawals, which the API sends as "Enabled" or
+// "Disabled", as whether it is "Enabled". Any other status decodes as not enabled, as the API's string did when compared
+type EnabledStatus bool
+
 // DateTime decodes a date and time sent either in RFC 3339 form or in Bitstamp's "2006-01-02 15:04:05" form, with or
 // without fractional seconds, since the API documents both forms as date-time values; null and an empty string decode as
 // the zero time

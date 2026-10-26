@@ -2,6 +2,7 @@ package bitstamp
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"net/http"
@@ -89,8 +90,10 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 
 func TestGetFee(t *testing.T) {
 	t.Parallel()
-	skipIfLiveWithoutCredentials(t)
+	_, err := e.GetFee(t.Context(), nil)
+	assert.ErrorIs(t, err, common.ErrNilPointer, "GetFee should error on a nil fee builder")
 
+	skipIfLiveWithoutCredentials(t)
 	feeBuilder := setFeeBuilder()
 	fee, err := e.GetFee(t.Context(), feeBuilder)
 	require.NoError(t, err, "GetFee must not error")
@@ -255,8 +258,20 @@ func TestSetup(t *testing.T) {
 	ex.SetDefaults()
 	require.NoError(t, ex.Setup(exchCfg), "Setup must not error")
 	assert.True(t, ex.IsEnabled(), "Setup should enable the exchange")
-	assert.Equal(t, bitstampWSURL, ex.Websocket.GetWebsocketURL(), "Setup should configure the websocket URL")
+	urls, err := ex.Websocket.GetConfiguredWebsocketURLs()
+	require.NoError(t, err, "GetConfiguredWebsocketURLs must not error")
+	assert.Equal(t, []string{bitstampWSURL}, urls, "Setup should configure the websocket URL")
+	assert.Equal(t, maxSubscriptionsPerConnection, ex.Websocket.MaxSubscriptionsPerConnection, "Setup should limit each connection to the documented number of subscriptions")
 	assert.ElementsMatch(t, asset.Items{asset.Spot, asset.PerpetualContract}, ex.GetAssetTypes(true), "Setup should enable the configured assets")
+
+	const configuredWebsocketURL = "wss://ws.example.com"
+	exchCfg.API.Endpoints[exchange.WebsocketSpot.String()] = configuredWebsocketURL
+	ex = new(Exchange)
+	ex.SetDefaults()
+	require.NoError(t, ex.Setup(exchCfg), "Setup must not error with a configured websocket URL")
+	urls, err = ex.Websocket.GetConfiguredWebsocketURLs()
+	require.NoError(t, err, "GetConfiguredWebsocketURLs must not error")
+	assert.Equal(t, []string{configuredWebsocketURL}, urls, "Setup should configure the websocket URL from the configuration")
 }
 
 // previousVersionConfig writes the test config as config version 17 saved it, with Bitstamp's subscriptions replaced
@@ -388,15 +403,15 @@ func TestFetchTradablePairs(t *testing.T) {
 func TestTradablePairs(t *testing.T) {
 	t.Parallel()
 	markets := []MarketResponse{
-		{Name: "BTC/USD", MarketType: MarketTypeSpot, Trading: StatusEnabled},
-		{Name: "ETH/USD", MarketType: MarketTypeSpot, Trading: StatusDisabled},
-		{Name: "BTC/USD-PERP", MarketType: MarketTypePerpetual, Trading: StatusEnabled},
+		{Name: "BTC/USD", MarketType: MarketTypeSpot, TradingEnabled: true},
+		{Name: "ETH/USD", MarketType: MarketTypeSpot},
+		{Name: "BTC/USD-PERP", MarketType: MarketTypePerpetual, TradingEnabled: true},
 	}
 	pairs, err := tradablePairs(markets, MarketTypeSpot)
 	require.NoError(t, err, "tradablePairs must not error")
 	assert.Equal(t, currency.Pairs{currency.NewPairWithDelimiter("BTC", "USD", "/")}, pairs, "tradablePairs should skip disabled and other market types")
 
-	_, err = tradablePairs([]MarketResponse{{Name: "BTCUSD", MarketType: MarketTypeSpot, Trading: StatusEnabled}}, MarketTypeSpot)
+	_, err = tradablePairs([]MarketResponse{{Name: "BTCUSD", MarketType: MarketTypeSpot, TradingEnabled: true}}, MarketTypeSpot)
 	assert.Error(t, err, "tradablePairs should error on a malformed market name")
 }
 
@@ -1665,6 +1680,10 @@ func TestGetActiveOrders(t *testing.T) {
 	assert.ErrorIs(t, err, errAPIResponse, "GetActiveOrders should error when the open orders cannot be fetched")
 	_, err = newResponseTestExchange(t, http.StatusOK, `[{"id":"1","datetime":"2025-06-16 10:00:00","type":"0","subtype":"LIMIT","price":"84000","amount":"0.40000000","market":"BTCUSD"}]`).GetActiveOrders(t.Context(), spotOrders)
 	assert.ErrorContains(t, err, "BTCUSD", "GetActiveOrders should error on a malformed market")
+	for _, amounts := range []string{`"amount":"NaN"`, `"amount":"NaN","amount_at_create":"0.40000000"`} {
+		_, err = newResponseTestExchange(t, http.StatusOK, `[{"id":"1","datetime":"2025-06-16 10:00:00","type":"0","subtype":"LIMIT","price":"84000",`+amounts+`,"market":"BTC/USD"}]`).GetActiveOrders(t.Context(), spotOrders)
+		assert.ErrorIsf(t, err, order.ErrAmountIsInvalid, "GetActiveOrders should error on a remaining amount which is not a number with %s", amounts)
+	}
 
 	ex = newResponseTestExchange(t, http.StatusOK, `[{"id":"1234123412341237","datetime":"2025-06-16 10:00:00","type":"0","subtype":"LIMIT","price":"84000","amount":"0.40000000","market":"BTC/USD"}]`)
 	withoutAmountAtCreate, err := ex.GetActiveOrders(t.Context(), spotOrders)
@@ -2109,7 +2128,7 @@ func TestGetFuturesContractDetails(t *testing.T) {
 		Underlying:         spotPair,
 		Asset:              asset.PerpetualContract,
 		IsActive:           true,
-		Status:             StatusEnabled,
+		Status:             "Enabled",
 		Type:               futures.Perpetual,
 		SettlementType:     futures.Linear,
 		SettlementCurrency: currency.USD,
@@ -2118,6 +2137,18 @@ func TestGetFuturesContractDetails(t *testing.T) {
 		MaxLeverage:        10,
 	}
 	assert.Equal(t, exp, c, "GetFuturesContractDetails should return the contract")
+}
+
+func TestGetFuturesContractDetailsTradingStatus(t *testing.T) {
+	t.Parallel()
+	ex := newResponseTestExchange(t, http.StatusOK, `[{"name":"BTC/USD-PERP","market_type":"PERPETUAL","trading":"Disabled"},{"name":"ETH/USD-PERP","market_type":"PERPETUAL","trading":"Enabled"}]`)
+	contracts, err := ex.GetFuturesContractDetails(t.Context(), asset.PerpetualContract)
+	require.NoError(t, err, "GetFuturesContractDetails must not error")
+	require.Len(t, contracts, 2, "GetFuturesContractDetails must return every perpetual market")
+	assert.False(t, contracts[0].IsActive, "a market whose trading is disabled should not be active")
+	assert.Equal(t, "Disabled", contracts[0].Status, "a market whose trading is disabled should have the API's status")
+	assert.True(t, contracts[1].IsActive, "a market whose trading is enabled should be active")
+	assert.Equal(t, "Enabled", contracts[1].Status, "a market whose trading is enabled should have the API's status")
 }
 
 func TestGetLatestFundingRates(t *testing.T) {
@@ -2233,9 +2264,12 @@ func TestGetHistoricalFundingRatesRange(t *testing.T) {
 		{name: "one page from the start", start: settled(1101), end: settled(1200), from: 1101, to: 1200, pageEnds: []string{unix(settled(1200))}},
 		{name: "no end", start: settled(1250), from: 1250, to: settlements - 1, pageEnds: []string{""}},
 		{name: "no start", from: settlements - 100, to: settlements - 1, pageEnds: []string{""}},
+		{name: "no start with an end", end: settled(1200), from: 1101, to: 1200, pageEnds: []string{unix(settled(1200))}},
 		// The API takes whole seconds, so it returns the rate settled in the second the start falls in
 		{name: "fractional start", start: settled(1250).Add(500 * time.Millisecond), from: 1251, to: settlements - 1, pageEnds: []string{""}},
+		{name: "fractional start with an end", start: settled(1000).Add(500 * time.Millisecond), end: settled(1200), from: 1001, to: 1200, pageEnds: []string{unix(settled(1200)), unix(settled(1101)), unix(settled(1002))}},
 		{name: "end ignored by the venue", start: settled(1000), end: settled(1250), ignoreEnd: true, from: settlements - 100, to: 1250, pageEnds: []string{unix(settled(1250)), unix(settled(settlements - 100))}},
+		{name: "end ignored by the venue without a start", end: settled(1250).Add(-time.Second), ignoreEnd: true, from: settlements - 100, to: 1249, pageEnds: []string{unix(settled(1250).Add(-time.Second))}},
 		{name: "predicted rate", start: settled(1250), predicted: true, from: 1250, to: settlements - 1, pageEnds: []string{""}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -2329,6 +2363,184 @@ func TestGetHistoricalFundingRatesRange(t *testing.T) {
 			assert.Equal(t, tc.pageEnds, pageEnds, "each page should end at the oldest rate of the page before")
 		})
 	}
+}
+
+func TestGetHistoricalFundingRatesNoneInRange(t *testing.T) {
+	t.Parallel()
+	const refusal = `{"message": "Cannot fetch funding rate history for market BTC/USD-PERP"}`
+	fullPage := make([]string, maxFundingRateHistoryLimit)
+	for i := range fullPage {
+		fullPage[i] = fmt.Sprintf(`{"funding_rate":"0.0001","timestamp":"%d"}`, 1790294400+int64(i)*28800)
+	}
+	ethPerpetualPair := currency.NewPair(currency.ETH, currency.NewCode("USD-PERP"))
+	type reply struct {
+		status int
+		body   string
+	}
+	for _, tc := range []struct {
+		name       string
+		pair       currency.Pair
+		start, end time.Time
+		replies    []reply
+		errs       []error
+		notErr     error
+	}{
+		{
+			// The API takes whole seconds, so a start within the second of a settlement returns that rate, which is before
+			// the start
+			name:    "rate before a fractional start",
+			start:   time.Unix(1790294400, 0).Add(500 * time.Millisecond),
+			replies: []reply{{http.StatusOK, `{"market":"BTC/USD-PERP","funding_rate_history":[{"funding_rate":"0.0001","timestamp":"1790294400"}]}`}},
+			errs:    []error{fundingrate.ErrNoFundingRatesFound},
+		},
+		{
+			name:    "range refused",
+			start:   time.Unix(1790294401, 0),
+			replies: []reply{{http.StatusBadRequest, refusal}},
+			errs:    []error{fundingrate.ErrNoFundingRatesFound, errAPIResponse},
+		},
+		{
+			name:    "bounded range refused",
+			start:   time.Unix(1790294401, 0),
+			end:     time.Unix(1790316000, 0),
+			replies: []reply{{http.StatusBadRequest, refusal}},
+			errs:    []error{fundingrate.ErrNoFundingRatesFound, errAPIResponse},
+		},
+		{
+			// Without a start only the latest rates are requested, which the API is assumed to refuse for a market yet to
+			// settle a rate, as it does an empty range
+			name:    "latest rates refused",
+			replies: []reply{{http.StatusBadRequest, refusal}},
+			errs:    []error{fundingrate.ErrNoFundingRatesFound, errAPIResponse},
+		},
+		{
+			name:    "latest rates before the end refused",
+			end:     time.Unix(1790294399, 0),
+			replies: []reply{{http.StatusBadRequest, refusal}},
+			errs:    []error{fundingrate.ErrNoFundingRatesFound, errAPIResponse},
+		},
+		{
+			name:    "another market's range refused",
+			pair:    ethPerpetualPair,
+			start:   time.Unix(1790294401, 0),
+			replies: []reply{{http.StatusBadRequest, `{"message": "Cannot fetch funding rate history for market ETH/USD-PERP"}`}},
+			errs:    []error{fundingrate.ErrNoFundingRatesFound, errAPIResponse},
+		},
+		{
+			name:    "refusal naming another market",
+			start:   time.Unix(1790294401, 0),
+			replies: []reply{{http.StatusBadRequest, `{"message": "Cannot fetch funding rate history for market ETH/USD-PERP"}`}},
+			errs:    []error{errAPIResponse},
+			notErr:  fundingrate.ErrNoFundingRatesFound,
+		},
+		{
+			name:    "another error naming the market",
+			start:   time.Unix(1790294401, 0),
+			replies: []reply{{http.StatusBadRequest, `{"message": "Market BTC/USD-PERP is temporarily unavailable"}`}},
+			errs:    []error{errAPIResponse},
+			notErr:  fundingrate.ErrNoFundingRatesFound,
+		},
+		{
+			name:    "other refusal",
+			start:   time.Unix(1790294401, 0),
+			replies: []reply{{http.StatusBadRequest, `{"code": "validation-error", "errors": [{"code": "validation-error", "message": "since_timestamp is after until_timestamp", "field": "_schema"}]}`}},
+			errs:    []error{errAPIResponse},
+			notErr:  fundingrate.ErrNoFundingRatesFound,
+		},
+		{
+			// A later page ends at the oldest rate of the page before, so refusing it does not mean the range holds no rate
+			name:    "later page refused",
+			start:   time.Unix(1700000000, 0),
+			replies: []reply{{http.StatusOK, `{"market":"BTC/USD-PERP","funding_rate_history":[` + strings.Join(fullPage, ",") + `]}`}, {http.StatusBadRequest, refusal}},
+			errs:    []error{errAPIResponse},
+			notErr:  fundingrate.ErrNoFundingRatesFound,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			pair := perpetualPair
+			if !tc.pair.IsEmpty() {
+				pair = tc.pair
+			}
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			var mu sync.Mutex
+			var paths []string
+			ex := newTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+				mu.Lock()
+				paths = append(paths, r.URL.Path)
+				n := len(paths)
+				mu.Unlock()
+				if !assert.LessOrEqual(t, n, len(tc.replies), "GetHistoricalFundingRates should not request more pages than there are") {
+					// Cancel the call, so a pager which retries errors stops reaching the server
+					cancel()
+					http.Error(w, "unexpected request", http.StatusNotFound)
+					return
+				}
+				w.WriteHeader(tc.replies[n-1].status)
+				_, err := w.Write([]byte(tc.replies[n-1].body))
+				assert.NoError(t, err, "Write should not error")
+			})
+			var err error
+			waitForCall(t, func() {
+				_, err = ex.GetHistoricalFundingRates(ctx, &fundingrate.HistoricalRatesRequest{Asset: asset.PerpetualContract, Pair: pair, StartDate: tc.start, EndDate: tc.end})
+			})
+			for _, exp := range tc.errs {
+				assert.ErrorIs(t, err, exp, "GetHistoricalFundingRates should return the correct error")
+			}
+			if tc.notErr != nil {
+				assert.NotErrorIs(t, err, tc.notErr, "GetHistoricalFundingRates should not report the range as holding no rate")
+			}
+			mu.Lock()
+			defer mu.Unlock()
+			assert.Len(t, paths, len(tc.replies), "GetHistoricalFundingRates should request each page once")
+			for i, p := range paths {
+				assert.Equalf(t, "/api/v2/funding_rate_history/"+formatMarketSymbol(pair)+"/", p, "request %d should be for the market's funding rate history", i)
+			}
+		})
+	}
+
+	// Only the API's own error response is its refusal, whatever another error's text holds
+	t.Run("refusal text in a transport error", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestExchange(t, func(http.ResponseWriter, *http.Request) {
+			assert.Fail(t, "the test server should not be reached")
+		})
+		transportErr := errors.New("dial tcp: Cannot fetch funding rate history for market BTC/USD-PERP")
+		require.NoError(t, ex.SetHTTPClient(&http.Client{Transport: failingTransport{err: transportErr}}), "SetHTTPClient must not error")
+		var err error
+		waitForCall(t, func() {
+			_, err = ex.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{Asset: asset.PerpetualContract, Pair: perpetualPair, StartDate: time.Unix(1790294401, 0)})
+		})
+		assert.ErrorIs(t, err, transportErr, "GetHistoricalFundingRates should return the transport error")
+		assert.NotErrorIs(t, err, fundingrate.ErrNoFundingRatesFound, "GetHistoricalFundingRates should not report a transport error as a range without rates")
+	})
+}
+
+// waitForCall runs call, failing rather than hanging when it does not return, as a pager which retries every error
+// never does
+func waitForCall(t *testing.T, call func()) {
+	t.Helper()
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		call()
+	}()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		require.FailNow(t, "the call must return")
+	}
+}
+
+// failingTransport fails every request with its error, as a broken connection does
+type failingTransport struct {
+	err error
+}
+
+// RoundTrip implements http.RoundTripper
+func (f failingTransport) RoundTrip(*http.Request) (*http.Response, error) {
+	return nil, f.err
 }
 
 func TestIsPerpetualFutureCurrency(t *testing.T) {
@@ -2560,6 +2772,40 @@ func TestChangePositionMargin(t *testing.T) {
 	} {
 		_, err := e.ChangePositionMargin(t.Context(), tc.req)
 		assert.ErrorIs(t, err, tc.err, "ChangePositionMargin should return the correct error")
+	}
+
+	// Only an isolated position's collateral can be set, so a market without one is refused before any change is sent,
+	// whether the market's positions are read alone or with every other market's
+	const otherIsolated = `{"id":"1234567892","market":"ETH/USD-PERP","margin_mode":"ISOLATED","side":"LONG","size":"0.10000"}`
+	const cross = `{"id":"1234567891","market":"BTC/USD-PERP","margin_mode":"CROSS","side":"LONG","size":"0.02000"}`
+	for _, tc := range []struct {
+		name, market, all string
+	}{
+		{name: "no position", market: `[]`, all: `[` + otherIsolated + `]`},
+		{name: "a cross position", market: `[` + cross + `]`, all: `[` + otherIsolated + `,` + cross + `]`},
+	} {
+		var mu sync.Mutex
+		var paths []string
+		ex := newTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+			mu.Lock()
+			paths = append(paths, r.URL.Path)
+			mu.Unlock()
+			body := `{}`
+			switch r.URL.Path {
+			case "/api/v2/open_positions/btcusd-perp/":
+				body = tc.market
+			case "/api/v2/open_positions/":
+				body = tc.all
+			}
+			_, err := w.Write([]byte(body))
+			assert.NoError(t, err, "Write should not error")
+		})
+		_, err := ex.ChangePositionMargin(t.Context(), &margin.PositionChangeRequest{Asset: asset.PerpetualContract, Pair: perpetualPair, MarginType: margin.Isolated, NewAllocatedMargin: 12.5})
+		assert.ErrorIsf(t, err, futures.ErrNoPositionsFound, "ChangePositionMargin should error with %s for the market", tc.name)
+		mu.Lock()
+		assert.Truef(t, slices.ContainsFunc(paths, func(p string) bool { return strings.HasPrefix(p, "/api/v2/open_positions/") }), "ChangePositionMargin should read the open positions with %s", tc.name)
+		assert.NotContainsf(t, paths, "/api/v2/adjust_position_collateral/", "ChangePositionMargin should not change any collateral with %s", tc.name)
+		mu.Unlock()
 	}
 
 	skipIfLiveWithoutCredentials(t, canManipulateRealOrders)

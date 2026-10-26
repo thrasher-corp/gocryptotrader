@@ -132,9 +132,9 @@ type CryptoDepositResponse struct {
 // DepositOriginatorRequest holds Travel Rule originator details for a pending cryptocurrency deposit
 // OriginatorThirdParty is sent when set, and must be false when the deposit came from an address in the account holder's name
 type DepositOriginatorRequest struct {
-	OriginatorThirdParty *bool         `json:"originator_thirdparty,omitempty"`
-	OriginatorID         string        `json:"originator_id,omitempty"`
-	OriginatorInfo       *CustomerInfo `json:"originator_info,omitempty"`
-	BeneficiaryInfo      *CustomerInfo `json:"beneficiary_info,omitempty"`
-	VASPUUID             string        `json:"vasp_uuid,omitempty"`
+	OriginatorThirdParty            *bool         `json:"originator_thirdparty,omitempty"`
+	OriginatorID                    string        `json:"originator_id,omitempty"`
+	OriginatorInfo                  *CustomerInfo `json:"originator_info,omitempty"`
+	BeneficiaryInfo                 *CustomerInfo `json:"beneficiary_info,omitempty"`
+	VirtualAssetServiceProviderUUID string        `json:"vasp_uuid,omitempty"`
 }

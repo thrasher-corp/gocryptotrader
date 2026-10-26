@@ -509,4 +509,4 @@ var testSatoshiTest = SatoshiTestResponse{
 	Expires:        types.Time(time.Unix(1759995000, 0)),
 }
 
-const testXpubRegistrationID = "9e8d7c6b-5a4f-4e3d-8c2b-1a0f9e8d7c6b"
+const testExtendedPublicKeyRegistrationID = "9e8d7c6b-5a4f-4e3d-8c2b-1a0f9e8d7c6b"

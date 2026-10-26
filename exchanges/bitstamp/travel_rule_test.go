@@ -73,19 +73,19 @@ func TestSubmitCounterpartyInfo(t *testing.T) {
 		t.Skip("SubmitCounterpartyInfo is not tested live to avoid registering addresses")
 	}
 	resp, err := e.SubmitCounterpartyInfo(t.Context(), &CounterpartyAddressRequest{
-		Address:           core.BitcoinDonationAddress,
-		Network:           "bitcoin",
-		ContactThirdParty: true,
-		ContactUUID:       testContact.ID,
-		VASPUUID:          "48feffe5-a5d0-44fe-bf4c-734e7d721249",
+		Address:                         core.BitcoinDonationAddress,
+		Network:                         "bitcoin",
+		ContactThirdParty:               true,
+		ContactUUID:                     testContact.ID,
+		VirtualAssetServiceProviderUUID: "48feffe5-a5d0-44fe-bf4c-734e7d721249",
 	})
 	require.NoError(t, err, "SubmitCounterpartyInfo must not error")
 	exp := &CounterpartyAddressResponse{
-		Address:           core.BitcoinDonationAddress,
-		Network:           "bitcoin",
-		ContactThirdParty: true,
-		ContactUUID:       testContact.ID,
-		VASPUUID:          "48feffe5-a5d0-44fe-bf4c-734e7d721249",
+		Address:                         core.BitcoinDonationAddress,
+		Network:                         "bitcoin",
+		ContactThirdParty:               true,
+		ContactUUID:                     testContact.ID,
+		VirtualAssetServiceProviderUUID: "48feffe5-a5d0-44fe-bf4c-734e7d721249",
 	}
 	assert.Equal(t, exp, resp, "SubmitCounterpartyInfo should return the address")
 }
@@ -141,99 +141,99 @@ func TestGetSatoshiTest(t *testing.T) {
 	assert.Equal(t, &testSatoshiTest, resp, "GetSatoshiTest should return the test")
 }
 
-func TestGetXpubRegistrations(t *testing.T) {
+func TestGetExtendedPublicKeyRegistrations(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetXpubRegistrations(t.Context(), nil)
-	assert.ErrorIs(t, err, common.ErrNilPointer, "GetXpubRegistrations should error on a nil request")
-	_, err = e.GetXpubRegistrations(t.Context(), &XpubRegistrationsRequest{Limit: 1001})
-	assert.ErrorIs(t, err, errInvalidLimit, "GetXpubRegistrations should error on an invalid limit")
+	_, err := e.GetExtendedPublicKeyRegistrations(t.Context(), nil)
+	assert.ErrorIs(t, err, common.ErrNilPointer, "GetExtendedPublicKeyRegistrations should error on a nil request")
+	_, err = e.GetExtendedPublicKeyRegistrations(t.Context(), &ExtendedPublicKeyRegistrationsRequest{Limit: 1001})
+	assert.ErrorIs(t, err, errInvalidLimit, "GetExtendedPublicKeyRegistrations should error on an invalid limit")
 
 	skipIfLiveWithoutCredentials(t)
-	registrations, err := e.GetXpubRegistrations(t.Context(), &XpubRegistrationsRequest{Network: "bitcoin", Limit: 10})
-	require.NoError(t, err, "GetXpubRegistrations must not error")
+	registrations, err := e.GetExtendedPublicKeyRegistrations(t.Context(), &ExtendedPublicKeyRegistrationsRequest{Network: "bitcoin", Limit: 10})
+	require.NoError(t, err, "GetExtendedPublicKeyRegistrations must not error")
 	if mockTests {
-		require.Len(t, registrations, 1, "GetXpubRegistrations must return the registrations")
-		exp := XpubRegistrationResponse{
-			ID:        testXpubRegistrationID,
+		require.Len(t, registrations, 1, "GetExtendedPublicKeyRegistrations must return the registrations")
+		exp := ExtendedPublicKeyRegistrationResponse{
+			ID:        testExtendedPublicKeyRegistrationID,
 			Network:   "bitcoin",
 			Label:     "btc cold wallet",
 			Status:    "PENDING",
-			Proof:     XpubRegistrationProof{ID: testSatoshiTest.ID, Method: "satoshi_test"},
+			Proof:     ExtendedPublicKeyRegistrationProof{ID: testSatoshiTest.ID, Method: "satoshi_test"},
 			CreatedAt: DateTime(time.Date(2026, 5, 13, 10, 0, 0, 0, time.UTC)),
 		}
-		assert.Equal(t, exp, registrations[0], "GetXpubRegistrations should return the registration")
+		assert.Equal(t, exp, registrations[0], "GetExtendedPublicKeyRegistrations should return the registration")
 	}
 }
 
-func TestCreateXpubRegistration(t *testing.T) {
+func TestCreateExtendedPublicKeyRegistration(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		req *XpubRegistrationRequest
+		req *ExtendedPublicKeyRegistrationRequest
 		err error
 	}{
 		{req: nil, err: common.ErrNilPointer},
-		{req: &XpubRegistrationRequest{}, err: errNetworkRequired},
-		{req: &XpubRegistrationRequest{Network: "bitcoin"}, err: errPublicKeyRequired},
+		{req: &ExtendedPublicKeyRegistrationRequest{}, err: errNetworkRequired},
+		{req: &ExtendedPublicKeyRegistrationRequest{Network: "bitcoin"}, err: errPublicKeyRequired},
 	} {
-		_, err := e.CreateXpubRegistration(t.Context(), tc.req)
-		assert.ErrorIs(t, err, tc.err, "CreateXpubRegistration should return the correct error")
+		_, err := e.CreateExtendedPublicKeyRegistration(t.Context(), tc.req)
+		assert.ErrorIs(t, err, tc.err, "CreateExtendedPublicKeyRegistration should return the correct error")
 	}
 
 	if !mockTests {
-		t.Skip("CreateXpubRegistration is not tested live to avoid registering keys")
+		t.Skip("CreateExtendedPublicKeyRegistration is not tested live to avoid registering keys")
 	}
-	resp, err := e.CreateXpubRegistration(t.Context(), &XpubRegistrationRequest{
+	resp, err := e.CreateExtendedPublicKeyRegistration(t.Context(), &ExtendedPublicKeyRegistrationRequest{
 		Network:           "bitcoin",
 		ExtendedPublicKey: "xpub6CUGRUonZSQ4TWtTMmzXdrXDtypWKiKrhko4egpiMZbpiaQL2jkwSB1icqYh2cfDfVxdx4df189oLKnC5fSwqPfgyP3hooxujYzAu3fDVmz",
 		Label:             "btc cold wallet",
 	})
-	require.NoError(t, err, "CreateXpubRegistration must not error")
-	exp := &XpubRegistrationResponse{
-		ID:        testXpubRegistrationID,
+	require.NoError(t, err, "CreateExtendedPublicKeyRegistration must not error")
+	exp := &ExtendedPublicKeyRegistrationResponse{
+		ID:        testExtendedPublicKeyRegistrationID,
 		Network:   "bitcoin",
 		Label:     "btc cold wallet",
-		Status:    XpubRegistrationStatusPending,
-		Proof:     XpubRegistrationProof{ID: testSatoshiTest.ID, Method: "satoshi_test"},
+		Status:    ExtendedPublicKeyRegistrationStatusPending,
+		Proof:     ExtendedPublicKeyRegistrationProof{ID: testSatoshiTest.ID, Method: "satoshi_test"},
 		CreatedAt: DateTime(time.Date(2026, 5, 13, 10, 0, 0, 0, time.UTC)),
 	}
-	assert.Equal(t, exp, resp, "CreateXpubRegistration should return the registration")
+	assert.Equal(t, exp, resp, "CreateExtendedPublicKeyRegistration should return the registration")
 }
 
-func TestRevokeXpubRegistration(t *testing.T) {
+func TestRevokeExtendedPublicKeyRegistration(t *testing.T) {
 	t.Parallel()
-	_, err := e.RevokeXpubRegistration(t.Context(), "")
-	assert.ErrorIs(t, err, errRegistrationIDRequired, "RevokeXpubRegistration should error without an ID")
+	_, err := e.RevokeExtendedPublicKeyRegistration(t.Context(), "")
+	assert.ErrorIs(t, err, errRegistrationIDRequired, "RevokeExtendedPublicKeyRegistration should error without an ID")
 
 	if !mockTests {
-		t.Skip("RevokeXpubRegistration is not tested live to avoid revoking registrations")
+		t.Skip("RevokeExtendedPublicKeyRegistration is not tested live to avoid revoking registrations")
 	}
-	resp, err := e.RevokeXpubRegistration(t.Context(), testXpubRegistrationID)
-	require.NoError(t, err, "RevokeXpubRegistration must not error")
-	assert.Equal(t, &XpubRevocationResponse{ID: testXpubRegistrationID, Status: "REVOKED"}, resp, "RevokeXpubRegistration should return the revocation")
+	resp, err := e.RevokeExtendedPublicKeyRegistration(t.Context(), testExtendedPublicKeyRegistrationID)
+	require.NoError(t, err, "RevokeExtendedPublicKeyRegistration must not error")
+	assert.Equal(t, &ExtendedPublicKeyRevocationResponse{ID: testExtendedPublicKeyRegistrationID, Status: "REVOKED"}, resp, "RevokeExtendedPublicKeyRegistration should return the revocation")
 }
 
-func TestGetXpubRegistration(t *testing.T) {
+func TestGetExtendedPublicKeyRegistration(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetXpubRegistration(t.Context(), "")
-	assert.ErrorIs(t, err, errRegistrationIDRequired, "GetXpubRegistration should error without an ID")
+	_, err := e.GetExtendedPublicKeyRegistration(t.Context(), "")
+	assert.ErrorIs(t, err, errRegistrationIDRequired, "GetExtendedPublicKeyRegistration should error without an ID")
 
 	skipIfLiveWithoutCredentials(t)
-	resp, err := e.GetXpubRegistration(t.Context(), testXpubRegistrationID)
+	resp, err := e.GetExtendedPublicKeyRegistration(t.Context(), testExtendedPublicKeyRegistrationID)
 	if !mockTests {
-		assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "GetXpubRegistration should error for an unknown registration")
+		assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "GetExtendedPublicKeyRegistration should error for an unknown registration")
 		return
 	}
-	require.NoError(t, err, "GetXpubRegistration must not error")
-	exp := &XpubRegistrationResponse{
-		ID:          testXpubRegistrationID,
+	require.NoError(t, err, "GetExtendedPublicKeyRegistration must not error")
+	exp := &ExtendedPublicKeyRegistrationResponse{
+		ID:          testExtendedPublicKeyRegistrationID,
 		Network:     "bitcoin",
 		Label:       "btc cold wallet",
-		Status:      XpubRegistrationStatusActive,
-		Proof:       XpubRegistrationProof{ID: testSatoshiTest.ID, Method: "satoshi_test"},
+		Status:      ExtendedPublicKeyRegistrationStatusActive,
+		Proof:       ExtendedPublicKeyRegistrationProof{ID: testSatoshiTest.ID, Method: "satoshi_test"},
 		CreatedAt:   DateTime(time.Date(2026, 5, 13, 10, 0, 0, 0, time.UTC)),
 		ActivatedAt: DateTime(time.Date(2026, 5, 14, 10, 0, 0, 0, time.UTC)),
 	}
-	assert.Equal(t, exp, resp, "GetXpubRegistration should return the registration")
+	assert.Equal(t, exp, resp, "GetExtendedPublicKeyRegistration should return the registration")
 }
 
 func TestGetAddressVerification(t *testing.T) {
