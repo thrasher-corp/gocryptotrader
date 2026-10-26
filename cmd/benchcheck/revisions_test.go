@@ -504,7 +504,9 @@ func TestRunComparison(t *testing.T) {
 	// Every run writes to the same directory, so each must replace the files of the run before
 	outDir := filepath.Join(t.TempDir(), "out")
 	newOptions := func(base string) *options {
-		o := compareOptions(t, repo, base, 3, "-run", "^$", "-bench", ".", "-benchmem", "-benchtime", "100x", "-count", "3", "-cpu", "2", "-v")
+		// Enough iterations that the thread the runtime can start as b.Loop first resets the timer, once -cpu 2 has
+		// raised GOMAXPROCS from 1, adds less than a byte an operation
+		o := compareOptions(t, repo, base, 3, "-run", "^$", "-bench", ".", "-benchmem", "-benchtime", "100000x", "-count", "3", "-cpu", "2", "-v")
 		o.out = outDir
 		return o
 	}
