@@ -11,6 +11,7 @@ import (
 
 	"github.com/buger/jsonparser"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types/decimal"
@@ -367,4 +368,14 @@ func walletAsset(walletType string, c currency.Code) (asset.Item, error) {
 		return asset.MarginFunding, nil
 	}
 	return asset.Empty, fmt.Errorf("%w: %q", errUnknownWalletType, walletType)
+}
+
+// walletBalance returns a wallet's balance as it is stored: none of it free until Bitfinex sends its available balance
+func walletBalance(w *WalletResponse) accounts.Balance {
+	b := accounts.Balance{Total: w.Balance, Hold: w.Balance}
+	if w.AvailableBalance != nil {
+		b.Free = *w.AvailableBalance
+		b.Hold = b.Total - b.Free
+	}
+	return b
 }

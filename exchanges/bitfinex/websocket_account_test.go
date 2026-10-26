@@ -473,6 +473,123 @@ func TestWebsocketHandleWalletUpdate(t *testing.T) {
 	assert.ErrorIs(t, ex.wsHandleWalletUpdate(t.Context(), conn, []byte(`[0,"wu",{}]`)), errTupleNotArray, "wsHandleWalletUpdate should refuse an update that is not an array")
 }
 
+func TestWebsocketWalletSnapshotReplacesWallets(t *testing.T) {
+	t.Parallel()
+	ex, conn := newAccountTestExchange(t)
+	creds := &accounts.Credentials{Key: testAPIKey, Secret: testAPISecret}
+	collateral := testDerivativePair.Quote
+	handle := func(frame string) error {
+		t.Helper()
+		return ex.wsHandleData(t.Context(), conn, []byte(frame))
+	}
+	assertRemoved := func(msg string, balances map[asset.Item]currency.Code) {
+		t.Helper()
+		for a, c := range balances {
+			_, err := ex.Accounts.GetBalance("", creds, a, c)
+			assert.ErrorIsf(t, err, accounts.ErrNoBalances, "%s should remove the %s %s balance", msg, a, c)
+		}
+	}
+	require.NoError(t, handle(`[0,"ws",[["exchange","BTC",1.5,0,1.25,null,null],["margin","UST",100,0,80,null,null],`+
+		`["funding","USD",820,0,820,null,null],["margin","USTF0",500,0,300,null,null],["margin","BTCF0",0.01,0,0.01,null,null]]]`), "a wallet snapshot must be handled")
+	require.NoError(t, handle(`[0,"wu",["exchange","ETH",2,0,2,null,null]]`), "a wallet update must be handled")
+	require.NoError(t, handle(`[0,"wu",["exchange","XRP",0,0,0,null,null]]`), "a wallet update must be handled")
+	assertWalletBalances(t, ex, map[asset.Item]map[currency.Code][3]float64{
+		asset.Spot: {currency.BTC: {1.5, 1.25, 0.25}, currency.ETH: {2, 2, 0}, currency.XRP: {0, 0, 0}},
+	})
+	relayedPayloads(ex)
+	conn.messages()
+
+	// A later snapshot, such as a reconnected account connection's, lists every wallet the account still has, an emptied
+	// one with a zero balance, whose available balance Bitfinex may yet have to calculate
+	require.NoError(t, handle(`[0,"ws",[["exchange","ETH",2,0,2,null,null],["funding","USD",700,0,700,null,null],["margin","UST",0,0,null,null,null]]]`), "a wallet snapshot must be handled")
+	relayed := relayedPayloads(ex)
+	require.Len(t, relayed, 1, "a wallet snapshot must be relayed once")
+	subAccts, ok := relayed[0].(accounts.SubAccounts)
+	require.True(t, ok, "a wallet snapshot must be relayed as sub accounts")
+	balances := make(map[asset.Item]map[currency.Code][3]float64)
+	for _, s := range subAccts {
+		balances[s.AssetType] = make(map[currency.Code][3]float64)
+		for c, b := range s.Balances {
+			balances[s.AssetType][c] = [3]float64{b.Total, b.Free, b.Hold}
+		}
+	}
+	listed := map[asset.Item]map[currency.Code][3]float64{
+		asset.Spot:          {currency.ETH: {2, 2, 0}},
+		asset.MarginFunding: {currency.USD: {700, 700, 0}},
+		asset.Margin:        {currency.UST: {0, 0, 0}},
+	}
+	assert.Equal(t, listed, balances, "a wallet snapshot should relay the balances of the wallets it lists")
+	assertWalletBalances(t, ex, listed)
+	assertRemoved("a wallet snapshot", map[asset.Item]currency.Code{asset.Spot: currency.BTC, asset.USDTMarginedFutures: collateral, asset.CoinMarginedFutures: testCoinMarginedPair.Quote})
+	_, err := ex.Accounts.GetBalance("", creds, asset.Spot, currency.XRP)
+	assert.ErrorIs(t, err, accounts.ErrNoBalances, "a wallet snapshot should remove the spot XRP balance")
+	assert.Equal(t, []string{`[0,"calc",null,[["wallet_margin_UST"]]]`}, conn.messages(), "a wallet snapshot should ask for the available balances Bitfinex has yet to calculate")
+
+	require.NoError(t, handle(`[0,"wu",["margin","USTF0",100,0,100,null,null]]`), "a wallet update must be handled")
+	held := map[asset.Item]map[currency.Code][3]float64{
+		asset.Spot:                {currency.ETH: {2, 2, 0}},
+		asset.MarginFunding:       {currency.USD: {700, 700, 0}},
+		asset.Margin:              {currency.UST: {0, 0, 0}},
+		asset.USDTMarginedFutures: {collateral: {100, 100, 0}},
+	}
+	assertWalletBalances(t, ex, held)
+
+	// A snapshot holding a wallet of an unknown type or without a currency, or a frame without its list of wallets, cannot
+	// show which wallets the account has, so it removes none
+	err = handle(`[0,"ws",[["novel","BTC",1,0,1,null,null],["exchange","ETH",3,0,3,null,null]]]`)
+	assert.ErrorIs(t, err, errUnknownWalletType, "a wallet snapshot should report a wallet of an unknown type")
+	held[asset.Spot][currency.ETH] = [3]float64{3, 3, 0}
+	assertWalletBalances(t, ex, held)
+	err = handle(`[0,"ws",[["exchange","",1,0,1,null,null],["exchange","ETH",4,0,4,null,null]]]`)
+	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "a wallet snapshot should report a wallet without a currency")
+	held[asset.Spot][currency.ETH] = [3]float64{4, 4, 0}
+	assertWalletBalances(t, ex, held)
+	for _, frame := range []string{`[0,"ws",null]`, `[0,"ws"]`} {
+		assert.ErrorIsf(t, handle(frame), errWebsocketMalformedFrame, "a wallet snapshot frame without its list of wallets should be refused: %s", frame)
+	}
+	assertWalletBalances(t, ex, held)
+
+	everyWallet := `[0,"ws",[["exchange","ETH",5,0,null,null,null],["funding","USD",700,0,700,null,null],["margin","UST",0,0,0,null,null],["margin","USTF0",100,0,100,null,null]]]`
+	disconnected, err := ex.Websocket.CreateTestConnection(wsAccountConnection)
+	require.NoError(t, err, "CreateTestConnection must not error")
+	assert.Error(t, ex.wsHandleData(t.Context(), disconnected, []byte(everyWallet)), "a wallet snapshot should report a calc request it cannot send")
+	fillRelay(t, ex)
+	assert.ErrorContains(t, handle(everyWallet), "channel buffer is full", "a wallet snapshot should report balances it cannot relay")
+	assert.Equal(t, []string{`[0,"calc",null,[["wallet_exchange_ETH"]]]`}, conn.messages(), "a wallet snapshot should ask for available balances though it cannot relay its balances")
+	held[asset.Spot][currency.ETH] = [3]float64{5, 0, 5}
+	assertWalletBalances(t, ex, held)
+	unusableCredentials := context.WithValue(t.Context(), accounts.ContextCredentialsFlag, "unusable")
+	assert.Error(t, ex.wsHandleData(unusableCredentials, conn, []byte(`[0,"ws",[["exchange","ETH",6,0,6,null,null]]]`)), "a wallet snapshot should report balances it cannot store")
+	assertWalletBalances(t, ex, held)
+
+	require.NoError(t, handle(`[0,"ws",[]]`), "an empty wallet snapshot must be handled")
+	assertRemoved("an empty wallet snapshot", map[asset.Item]currency.Code{asset.Spot: currency.ETH, asset.MarginFunding: currency.USD, asset.Margin: currency.UST, asset.USDTMarginedFutures: collateral})
+}
+
+// credentialLookupCounter counts the account store's credential lookups, which it makes once a save or update
+type credentialLookupCounter struct {
+	*Exchange
+	lookups int
+}
+
+// GetCredentials counts a lookup before returning the exchange's credentials
+func (c *credentialLookupCounter) GetCredentials(ctx context.Context) (*accounts.Credentials, error) {
+	c.lookups++
+	return c.Exchange.GetCredentials(ctx)
+}
+
+func TestWebsocketWalletSnapshotStoredInOneSave(t *testing.T) {
+	t.Parallel()
+	ex, conn := newAccountTestExchange(t)
+	counter := &credentialLookupCounter{Exchange: ex}
+	ex.Accounts.Exchange = counter
+	// One save holds the account store's lock throughout, so no other save of the balances, such as a REST one, falls
+	// between the snapshot's wallets
+	require.NoError(t, ex.wsHandleData(t.Context(), conn, []byte(`[0,"ws",[["exchange","BTC",1,0,1,null,null],["funding","USD",7,0,7,null,null],`+
+		`["margin","USTF0",5,0,5,null,null]]]`)), "a wallet snapshot must be handled")
+	assert.Equal(t, 1, counter.lookups, "a wallet snapshot should store every wallet in one save")
+}
+
 func TestWebsocketStoreWallets(t *testing.T) {
 	t.Parallel()
 	ex, conn := newAccountTestExchange(t)

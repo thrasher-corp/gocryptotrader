@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
@@ -366,4 +367,12 @@ func TestWalletAsset(t *testing.T) {
 	}
 	_, err := walletAsset("contribution", currency.USD)
 	assert.ErrorIs(t, err, errUnknownWalletType, "walletAsset should refuse an unknown wallet type")
+}
+
+func TestWalletBalance(t *testing.T) {
+	t.Parallel()
+	available, short := 0.25, -0.5
+	assert.Equal(t, accounts.Balance{Total: 1, Free: 0.25, Hold: 0.75}, walletBalance(&WalletResponse{Balance: 1, AvailableBalance: &available}), "walletBalance should hold what is not available")
+	assert.Equal(t, accounts.Balance{Total: 1, Free: -0.5, Hold: 1.5}, walletBalance(&WalletResponse{Balance: 1, AvailableBalance: &short}), "walletBalance should keep a negative available balance as Bitfinex sends it")
+	assert.Equal(t, accounts.Balance{Total: 1, Hold: 1}, walletBalance(&WalletResponse{Balance: 1}), "walletBalance should hold the whole balance until Bitfinex sends its available balance")
 }

@@ -531,13 +531,7 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, a asset.Item) (acc
 		if wa, err := walletAsset(wallets[i].Type, wallets[i].Currency); err != nil || wa != a {
 			continue
 		}
-		// Bitfinex sends no available balance until it has calculated it, so none of the balance is free until then
-		b := accounts.Balance{Total: wallets[i].Balance, Hold: wallets[i].Balance}
-		if available := wallets[i].AvailableBalance; available != nil {
-			b.Free = *available
-			b.Hold = b.Total - b.Free
-		}
-		subAcct.Balances.Set(wallets[i].Currency, b)
+		subAcct.Balances.Set(wallets[i].Currency, walletBalance(&wallets[i]))
 	}
 	subAccts := accounts.SubAccounts{subAcct}
 	return subAccts, e.Accounts.Save(ctx, subAccts, true)

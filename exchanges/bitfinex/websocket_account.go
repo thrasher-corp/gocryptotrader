@@ -10,9 +10,11 @@ import (
 
 	"github.com/buger/jsonparser"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -207,13 +209,55 @@ func (e *Exchange) wsHandleAccountTrade(ctx context.Context, eventType string, r
 	return e.Websocket.Fills.Update(fd)
 }
 
+// walletAssets are the assets the account's wallets fund, all of which a snapshot of its wallets covers
+var walletAssets = []asset.Item{asset.Spot, asset.Margin, asset.MarginFunding, asset.USDTMarginedFutures, asset.CoinMarginedFutures}
+
 // wsHandleWallets stores and relays the snapshot of the account's wallets
 func (e *Exchange) wsHandleWallets(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
+	// A frame without its list of wallets, which decodes as an empty list, cannot show that the account has none
+	if _, dataType, _, err := jsonparser.Get(respRaw, "[2]"); err != nil || dataType == jsonparser.Null {
+		return fmt.Errorf("%w: %.256s", errWebsocketMalformedFrame, respRaw)
+	}
 	var f wsTypedFrame[[]WalletResponse]
 	if err := f.UnmarshalJSON(respRaw); err != nil {
 		return err
 	}
-	return e.wsStoreWallets(ctx, conn, f.Data)
+	return e.wsStoreWalletSnapshot(ctx, conn, f.Data)
+}
+
+// wsStoreWalletSnapshot stores a snapshot of the account's wallets in one save, so that no other save of its balances
+// falls between its wallets, and relays it. A snapshot lists every wallet, so the balances stored for wallets it leaves
+// out are removed, unless it holds a wallet it cannot read, of an unknown type or without a currency, as it then cannot
+// be taken to list every wallet
+func (e *Exchange) wsStoreWalletSnapshot(ctx context.Context, conn websocket.Connection, wallets []WalletResponse) error {
+	snapshot := make(accounts.SubAccounts, len(walletAssets))
+	for i, a := range walletAssets {
+		snapshot[i] = accounts.NewSubAccount(a, "")
+	}
+	var calcs []string
+	var errs error
+	for i := range wallets {
+		w := &wallets[i]
+		a, err := walletAsset(w.Type, w.Currency)
+		if err != nil {
+			errs = common.AppendError(errs, err)
+			continue
+		}
+		if w.Currency.IsEmpty() {
+			errs = common.AppendError(errs, fmt.Errorf("%w: %s wallet", currency.ErrCurrencyCodeEmpty, w.Type))
+			continue
+		}
+		calcs = e.wsWalletCalc(w, calcs)
+		snapshot[slices.Index(walletAssets, a)].Balances.Set(w.Currency, walletBalance(w))
+	}
+	if err := e.Accounts.Save(ctx, snapshot, errs == nil); err != nil {
+		errs = common.AppendError(errs, err)
+	} else if listed := slices.DeleteFunc(snapshot, func(s *accounts.SubAccount) bool { return len(s.Balances) == 0 }); len(listed) > 0 {
+		if err := e.Websocket.DataHandler.Send(ctx, listed); err != nil {
+			errs = common.AppendError(errs, err)
+		}
+	}
+	return common.AppendError(errs, e.wsRequestWalletCalcs(ctx, conn, calcs))
 }
 
 // wsHandleWalletUpdate stores and relays an update of one of the account's wallets
@@ -239,19 +283,10 @@ func (e *Exchange) wsStoreWallets(ctx context.Context, conn websocket.Connection
 			errs = common.AppendError(errs, err)
 			continue
 		}
-		calc := "wallet_" + w.Type + "_" + w.Currency.String()
-		if w.AvailableBalance == nil {
-			calcs = append(calcs, calc)
-		} else {
-			e.wsWalletCalcs.done(calc)
-		}
+		calcs = e.wsWalletCalc(w, calcs)
 		balance, err := e.Accounts.UpdateBalance(ctx, "", a, w.Currency, func(b *accounts.Balance) {
-			b.Total = w.Balance
-			b.Free = 0
-			if w.AvailableBalance != nil {
-				b.Free = *w.AvailableBalance
-			}
-			b.Hold = b.Total - b.Free
+			updated := walletBalance(w)
+			b.Total, b.Free, b.Hold = updated.Total, updated.Free, updated.Hold
 		})
 		if err != nil {
 			errs = common.AppendError(errs, err)
@@ -267,6 +302,17 @@ func (e *Exchange) wsStoreWallets(ctx context.Context, conn websocket.Connection
 		}
 	}
 	return common.AppendError(errs, e.wsRequestWalletCalcs(ctx, conn, calcs))
+}
+
+// wsWalletCalc returns the calc requests with a wallet's added when Bitfinex has yet to calculate its available balance,
+// and otherwise forgets any asked for it, as it has arrived
+func (e *Exchange) wsWalletCalc(w *WalletResponse, calcs []string) []string {
+	calc := "wallet_" + w.Type + "_" + w.Currency.String()
+	if w.AvailableBalance == nil {
+		return append(calcs, calc)
+	}
+	e.wsWalletCalcs.done(calc)
+	return calcs
 }
 
 // wsRequestWalletCalcs asks Bitfinex to calculate the available balances of wallets it has yet to, once each until it
