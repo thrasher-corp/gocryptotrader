@@ -861,11 +861,11 @@ func (o *OrderData) Error() error {
 	return getStatusError(o.StatusCode, o.StatusMessage)
 }
 
-// RESTResponseHeader contains the common status fields shared by REST endpoints.
-// Endpoint methods decode data into their own concrete response types.
-type RESTResponseHeader struct {
-	Code types.Number `json:"code"`
-	Msg  string       `json:"msg"`
+// RESTResponse contains the common REST envelope; endpoints decode Data into their own response types.
+type RESTResponse struct {
+	Code    types.Number    `json:"code"`
+	Message string          `json:"msg"`
+	Data    json.RawMessage `json:"data"`
 }
 
 // ResponseResult holds responses having a status result value

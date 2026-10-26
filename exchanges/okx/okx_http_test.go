@@ -27,7 +27,7 @@ func TestSendHTTPRequest(t *testing.T) {
 		{name: "multiple object results", payload: `{"code":"0","data":[{},{}]}`, errorText: "got 2 items"},
 		{name: "invalid object", payload: `{"code":"0","data":{"fundingRate":"invalid"}}`, errorText: "cannot unmarshal response data directly"},
 		{name: "invalid single item", payload: `{"code":"0","data":[{"fundingRate":"invalid"}]}`, errorText: "as the first array item"},
-		{name: "missing data", payload: `{"code":"0"}`, errorText: "getting response data"},
+		{name: "missing data", payload: `{"code":"0"}`, errorText: "cannot unmarshal response data directly"},
 		{name: "API error before incompatible data", payload: `{"code":"50001","msg":"service unavailable","data":42}`, errorText: "service unavailable"},
 		{name: "unknown API error", payload: `{"code":"999999","data":[]}`, errorText: "999999"},
 		{name: "invalid header", payload: `{"code":"invalid","data":[]}`, errorText: "invalid"},
@@ -37,11 +37,11 @@ func TestSendHTTPRequest(t *testing.T) {
 			t.Parallel()
 			ex := new(Exchange)
 			require.NoError(t, testexch.Setup(ex), "exchange must initialise")
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				_, err := w.Write([]byte(tc.payload))
 				assert.NoError(t, err, "response should write")
 			}))
-			t.Cleanup(server.Close)
+			require.NoError(t, ex.SetHTTPClient(server.Client()), "HTTP client must use the test server")
 			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/"), "endpoint must be local")
 			if tc.slice {
 				var result []FundingRateResponse

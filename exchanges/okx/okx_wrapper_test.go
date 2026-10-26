@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
@@ -123,5 +124,23 @@ func TestGetOpenInterestSingleOptionsKey(t *testing.T) {
 				"/public/open-interest?instFamily=" + tc.family + "&instId=" + tc.instID + "&instType=OPTION",
 			}, paths, "only the instrument's own family should be queried, with the instrument pinned by ID")
 		})
+	}
+}
+
+// TestDefaultEndpoints also pins the websocket base used to construct the public and private defaults.
+func TestDefaultEndpoints(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	ex.SetDefaults()
+	defaults := ex.API.Endpoints.GetURLMap()
+	require.Len(t, defaults, 4, "endpoint defaults must match the declared API scope")
+	assert.Equal(t, "https://www.okx.com/api/v5/", defaults[exchange.RestSpot.String()], "REST default should target the v5 API")
+	assert.Equal(t, "wss://ws.okx.com/ws/v5/public", defaults[exchange.WebsocketSpot.String()], "public websocket default should use port 443")
+	assert.Equal(t, "wss://ws.okx.com/ws/v5/private", defaults[exchange.WebsocketPrivate.String()], "private websocket default should use port 443")
+	assert.Equal(t, "wss://ws.okx.com/ws/v5/business", defaults[exchange.WebsocketSpotSupplementary.String()], "business websocket default should use port 443")
+	assert.Equal(t, "wss://ws.okx.com/ws/v5/", websocketURL, "websocket base should use port 443")
+	for endpoint, url := range defaults {
+		assert.NotContainsf(t, url, ":8443", "%s default should not use the retired port 8443", endpoint)
 	}
 }

@@ -1455,7 +1455,7 @@ func isAssetChannel(s *subscription.Subscription) bool {
 func isSymbolChannel(s *subscription.Subscription) bool {
 	switch channelName(s) {
 	case subscription.CandlesChannel, channelTickers, channelTrades, channelOrderBooks, channelOrderBooks5,
-		channelOrderBooks50TBT, channelOrderBooksTBT, channelBBOTBT, channelFundingRate, channelMarkPrice, channelOpenInterest:
+		channelOrderBooks50TBT, channelOrderBooksTBT, channelBBOTBT, channelFundingRate, channelMarkPrice, channelOpenInterest, channelPriceLimit:
 		return true
 	}
 	return false

@@ -4999,12 +4999,12 @@ func TestGetLatestFundingRates(t *testing.T) {
 			ex := new(Exchange)
 			require.NoError(t, testexch.Setup(ex), "exchange must initialise")
 			at := time.Now().UTC().Truncate(time.Millisecond)
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				assert.Equal(t, "/public/funding-rate", r.URL.Path, "request should use the public endpoint")
 				_, err := fmt.Fprintf(w, `{"code":"0","data":[{"instId":"BTC-USDT-SWAP","fundingRate":"0.0003","nextFundingRate":"0.9","ts":"%d","fundingTime":"%d","nextFundingTime":"%d"}]}`, at.UnixMilli(), at.Add(time.Hour).UnixMilli(), at.Add(9*time.Hour).UnixMilli())
 				assert.NoError(t, err, "response should write")
 			}))
-			t.Cleanup(server.Close)
+			require.NoError(t, ex.SetHTTPClient(server.Client()), "HTTP client must use the test server")
 			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/"), "endpoint must be local")
 			got, err := ex.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{Asset: asset.PerpetualSwap, Pair: perpetualSwapPair, IncludePredictedRate: predicted})
 			require.NoError(t, err, "funding observation must load")
@@ -5019,6 +5019,25 @@ func TestGetLatestFundingRates(t *testing.T) {
 				assert.True(t, got[0].PredictedUpcomingRate.Time.IsZero(), "excluded prediction should remain unset")
 			}
 		})
+	}
+}
+
+// fakeRequestBudget is far above the requests any funding fake legitimately serves, retries included, so only a
+// paging loop exhausts it
+const fakeRequestBudget = 50
+
+// cappedHandler fails the test, rather than leaving it to go test's timeout, when the code under test keeps
+// requesting past fakeRequestBudget, as a paging regression would
+func cappedHandler(t *testing.T, next http.HandlerFunc) http.HandlerFunc {
+	t.Helper()
+	var calls atomic.Int32
+	return func(w http.ResponseWriter, r *http.Request) {
+		if n := calls.Add(1); n > fakeRequestBudget {
+			assert.Failf(t, "unexpected request", "request %d to %s should not exceed the fake's budget of %d", n, r.URL.Path, fakeRequestBudget)
+			http.Error(w, "unexpected request", http.StatusBadRequest)
+			return
+		}
+		next(w, r)
 	}
 }
 
@@ -5088,8 +5107,9 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 			t.Parallel()
 			ex := new(Exchange)
 			require.NoError(t, testexch.Setup(ex), "exchange must initialise")
+			require.NoError(t, ex.DisableRateLimiter(), "rate limiter must disable")
 			at := time.Now().UTC().Truncate(time.Millisecond)
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			server := httptest.NewTestServer(t, cappedHandler(t, func(w http.ResponseWriter, r *http.Request) {
 				switch r.URL.Path {
 				case "/public/funding-rate-history":
 					_, err := fmt.Fprintf(w, `{"code":"0","data":[{"fundingRate":"0.9","fundingTime":"%d"%s}]}`, at.Add(-time.Hour).UnixMilli(), tc.realised)
@@ -5101,7 +5121,7 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 					assert.Fail(t, "unexpected endpoint", "request should use funding endpoints")
 				}
 			}))
-			t.Cleanup(server.Close)
+			require.NoError(t, ex.SetHTTPClient(server.Client()), "HTTP client must use the test server")
 			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/"), "endpoint must be local")
 			got, err := ex.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{Asset: asset.PerpetualSwap, Pair: perpetualSwapPair, StartDate: at.Add(-2 * time.Hour), EndDate: at, IncludePredictedRate: true})
 			if tc.missing {
@@ -5135,12 +5155,13 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 			t.Parallel()
 			ex := new(Exchange)
 			require.NoError(t, testexch.Setup(ex), "exchange must initialise")
+			require.NoError(t, ex.DisableRateLimiter(), "rate limiter must disable")
 			ex.SkipAuthCheck = true
 			ex.SetCredentials(&accounts.Credentials{Key: "test", Secret: "test", ClientID: "test"})
 			pair, err := currency.NewPairFromString(tc.instrumentID)
 			require.NoError(t, err, "instrument pair must parse")
 			at := time.Now().UTC().Truncate(time.Millisecond)
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			server := httptest.NewTestServer(t, cappedHandler(t, func(w http.ResponseWriter, r *http.Request) {
 				switch r.URL.Path {
 				case "/public/funding-rate-history":
 					_, err := fmt.Fprintf(w, `{"code":"0","data":[{"realizedRate":"0.0001","fundingTime":"%d"}]}`, at.Add(-time.Hour).UnixMilli())
@@ -5163,7 +5184,7 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 					assert.Fail(t, "unexpected endpoint", "funding payment lookup should only use expected endpoints")
 				}
 			}))
-			t.Cleanup(server.Close)
+			require.NoError(t, ex.SetHTTPClient(server.Client()), "HTTP client must use the test server")
 			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/"), "endpoint must be local")
 			got, err := ex.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{Asset: asset.PerpetualSwap, Pair: pair, PaymentCurrency: tc.paymentCurrency, StartDate: at.Add(-2 * time.Hour), EndDate: at, IncludePayments: true})
 			require.ErrorIs(t, err, tc.wantErr, "payment currency resolution must return the expected outcome")
@@ -5175,6 +5196,46 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 			assert.Equal(t, "2", got.PaymentSum.String(), "payment in the resolved currency should be retained")
 		})
 	}
+	t.Run("X-Perps future", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "exchange must initialise")
+		require.NoError(t, ex.DisableRateLimiter(), "rate limiter must disable")
+		ex.SkipAuthCheck = true
+		ex.SetCredentials(&accounts.Credentials{Key: "test", Secret: "test", ClientID: "test"})
+		pair, err := currency.NewPairFromString("BTC-USD_UM_XPERP-310404")
+		require.NoError(t, err, "X-Perps pair must parse")
+		at := time.Now().UTC().Truncate(time.Millisecond)
+		server := httptest.NewTestServer(t, cappedHandler(t, func(w http.ResponseWriter, r *http.Request) {
+			switch r.URL.Path {
+			case "/public/funding-rate-history":
+				assert.Equal(t, pair.String(), r.URL.Query().Get("instId"), "history should select the X-Perps future")
+				_, err := fmt.Fprintf(w, `{"code":"0","data":[{"realizedRate":"0.0001","fundingTime":"%d"}]}`, at.Add(-time.Hour).UnixMilli())
+				assert.NoError(t, err, "history should write")
+			case "/public/funding-rate":
+				_, err := fmt.Fprintf(w, `{"code":"0","data":[{"fundingRate":"0.0001","ts":"%d","fundingTime":"%d"}]}`, at.UnixMilli(), at.Add(time.Hour).UnixMilli())
+				assert.NoError(t, err, "current rate should write")
+			case "/public/instruments":
+				assert.Equal(t, "FUTURES", r.URL.Query().Get("instType"), "metadata request should scope futures")
+				_, err := fmt.Fprintf(w, `{"code":"0","data":[{"instId":%q,"instType":"FUTURES","settleCcy":"USD"}]}`, pair.String())
+				assert.NoError(t, err, "instruments should write")
+			case "/account/bills":
+				assert.Equal(t, "FUTURES", r.URL.Query().Get("instType"), "bills should scope futures")
+				assert.Equal(t, "USD", r.URL.Query().Get("ccy"), "bills should use the settlement currency")
+				_, err := fmt.Fprintf(w, `{"code":"0","data":[{"billId":"1","pnl":"2","ts":"%d"}]}`, at.Add(-time.Hour).UnixMilli())
+				assert.NoError(t, err, "bill should write")
+			default:
+				assert.Fail(t, "unexpected endpoint", "X-Perps funding should only use expected endpoints")
+			}
+		}))
+		require.NoError(t, ex.SetHTTPClient(server.Client()), "HTTP client must use the test server")
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/"), "endpoint must be local")
+		got, err := ex.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{Asset: asset.Futures, Pair: pair, StartDate: at.Add(-2 * time.Hour), EndDate: at, IncludePayments: true})
+		require.NoError(t, err, "X-Perps funding history must load")
+		require.Len(t, got.FundingRates, 1, "one settled rate must load")
+		assert.Equal(t, currency.USD, got.PaymentCurrency, "payment currency should come from the future's settlement currency")
+		assert.Equal(t, "2", got.PaymentSum.String(), "the X-Perps funding bill should be retained")
+	})
 	for _, tc := range []struct {
 		name       string
 		repeatPage bool
@@ -5186,11 +5247,12 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 			t.Parallel()
 			ex := new(Exchange)
 			require.NoError(t, testexch.Setup(ex), "exchange must initialise")
+			require.NoError(t, ex.DisableRateLimiter(), "rate limiter must disable")
 			ex.SkipAuthCheck = true
 			ex.SetCredentials(&accounts.Credentials{Key: "test", Secret: "test", ClientID: "test"})
 			now := time.Now().UTC().Truncate(time.Millisecond)
 			var billCalls atomic.Int32
-			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			server := httptest.NewTestServer(t, cappedHandler(t, func(w http.ResponseWriter, r *http.Request) {
 				switch r.URL.Path {
 				case "/public/funding-rate-history":
 					rows := make([]string, 0, 4)
@@ -5644,6 +5706,7 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 			t.Parallel()
 			ex := new(Exchange)
 			require.NoError(t, testexch.Setup(ex), "exchange must initialise")
+			require.NoError(t, ex.DisableRateLimiter(), "rate limiter must disable")
 			end := time.Now().UTC().Truncate(time.Millisecond)
 			var mu sync.Mutex
 			calls := 0
@@ -5711,11 +5774,12 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 			t.Parallel()
 			ex := new(Exchange)
 			require.NoError(t, testexch.Setup(ex), "exchange must initialise")
+			require.NoError(t, ex.DisableRateLimiter(), "rate limiter must disable")
 			ex.SkipAuthCheck = true
 			ex.SetCredentials(&accounts.Credentials{Key: "test", Secret: "test", ClientID: "test"})
 			end := time.Now().UTC().Truncate(time.Millisecond)
 			settlement := end.Add(-time.Hour)
-			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			server := httptest.NewTestServer(t, cappedHandler(t, func(w http.ResponseWriter, r *http.Request) {
 				switch r.URL.Path {
 				case "/public/funding-rate-history":
 					_, err := fmt.Fprintf(w, `{"code":"0","data":[{"realizedRate":"0.001","fundingTime":"%d"}]}`, settlement.UnixMilli())
@@ -5977,13 +6041,13 @@ func TestGetFuturesContractDetails(t *testing.T) {
 			if tc.item == asset.Futures {
 				instrumentID = "BTC-USD-231115"
 			}
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				assert.Equal(t, "/public/instruments", r.URL.Path, "wrapper should request instruments")
 				assert.Equal(t, GetInstrumentTypeFromAssetItem(tc.item), r.URL.Query().Get("instType"), "request should use the selected asset")
 				_, err := fmt.Fprintf(w, `{"code":"0","data":[{"instId":%q,"instType":%q,"uly":%q,"state":%q,"ctType":%q,"settleCcy":%q,"alias":%q,"ctVal":"100","lever":"20","listTime":"%d","expTime":"%d"}]}`, instrumentID, tc.instrumentType, tc.underlying, tc.state, tc.settlementType, tc.currency.String(), tc.alias, started.UnixMilli(), expires.UnixMilli())
 				assert.NoError(t, err, "instrument response should write")
 			}))
-			t.Cleanup(server.Close)
+			require.NoError(t, ex.SetHTTPClient(server.Client()), "HTTP client must use the test server")
 			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/"), "endpoint must be local")
 			contracts, err := ex.GetFuturesContractDetails(t.Context(), tc.item)
 			if tc.wantErr != nil {
@@ -7689,7 +7753,7 @@ func TestGetFee(t *testing.T) {
 					quote = currency.USDT
 				}
 				pair := currency.NewPair(currency.ETH, quote)
-				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					assert.Equal(t, "SPOT", r.URL.Query().Get("instType"), "request should scope spot fees")
 					assert.Equal(t, "ETH-"+quote.String(), r.URL.Query().Get("instId"), "request should retain the instrument for applicable rates")
 					data := tc.fees
@@ -7702,7 +7766,7 @@ func TestGetFee(t *testing.T) {
 					_, err := fmt.Fprintf(w, `{"code":"0","data":%s}`, data)
 					assert.NoError(t, err, "response should write")
 				}))
-				t.Cleanup(server.Close)
+				require.NoError(t, ex.SetHTTPClient(server.Client()), "HTTP client must use the test server")
 				require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/"), "endpoint must be local")
 				got, err := ex.GetFee(t.Context(), &exchange.FeeBuilder{FeeType: exchange.CryptocurrencyTradeFee, Pair: pair, IsMaker: maker, Amount: 2, PurchasePrice: 500})
 				require.ErrorIs(t, err, tc.wantErr, "fee selection must return the expected result")
@@ -8117,6 +8181,172 @@ func TestOptionalNumberUnmarshalJSON(t *testing.T) {
 			}
 			require.NoError(t, err, "valid numeric field must decode")
 			assert.Equal(t, tc.want, got, "numeric value and presence should match the API field")
+		})
+	}
+}
+
+func TestTradeFeeRateUnmarshalJSON(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name, payload string
+		present       bool
+		invalid       bool
+	}{
+		{name: "explicit zero strings", payload: `{"maker":"0","taker":"0","makerU":"0","takerU":"0","makerUSDC":"0","takerUSDC":"0"}`, present: true},
+		{name: "explicit zero numbers", payload: `{"maker":0,"taker":0,"makerU":0,"takerU":0,"makerUSDC":0,"takerUSDC":0}`, present: true},
+		{name: "present charges", payload: `{"maker":"-0.001","taker":"-0.002","makerU":"-0.001","takerU":"-0.002","makerUSDC":"-0.001","takerUSDC":"-0.002"}`, present: true},
+		{name: "empty", payload: `{"maker":"","taker":"","makerU":"","takerU":"","makerUSDC":"","takerUSDC":""}`},
+		{name: "null", payload: `{"maker":null,"taker":null,"makerU":null,"takerU":null,"makerUSDC":null,"takerUSDC":null}`},
+		{name: "missing", payload: `{}`},
+		{name: "invalid", payload: `{"maker":"invalid"}`, invalid: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			previous := types.Number(1)
+			row := TradeFeeRate{FeeRateMaker: &previous, FeeRateTaker: &previous, FeeRateMakerUSDT: &previous, FeeRateTakerUSDT: &previous, FeeRateMakerUSDC: &previous, FeeRateTakerUSDC: &previous}
+			err := json.Unmarshal([]byte(tc.payload), &row)
+			if tc.invalid {
+				require.Error(t, err, "invalid fees must fail decoding")
+				return
+			}
+			require.NoError(t, err, "valid fees must decode")
+			assert.Equal(t, tc.present, row.FeeRateMaker != nil, "presence should match the response")
+			assert.Equal(t, tc.present, row.FeeRateTaker != nil, "presence should match the response")
+			assert.Equal(t, tc.present, row.FeeRateMakerUSDT != nil, "presence should match the response")
+			assert.Equal(t, tc.present, row.FeeRateTakerUSDT != nil, "presence should match the response")
+			assert.Equal(t, tc.present, row.FeeRateMakerUSDC != nil, "USDC maker presence should match")
+			assert.Equal(t, tc.present, row.FeeRateTakerUSDC != nil, "USDC taker presence should match")
+		})
+	}
+	t.Run("independent legacy fields", func(t *testing.T) {
+		t.Parallel()
+		var row TradeFeeRate
+		require.NoError(t, json.Unmarshal([]byte(`{"maker":"-0.001","taker":null,"makerU":"","takerU":"-0.002","makerUSDC":"0.003","takerUSDC":"0"}`), &row), "mixed legacy fields must decode")
+		maker, takerUSDT, makerUSDC, takerUSDC := types.Number(-0.001), types.Number(-0.002), types.Number(0.003), types.Number(0)
+		assert.Equal(t, TradeFeeRate{
+			FeeRateMaker: &maker, FeeRateTakerUSDT: &takerUSDT, FeeRateMakerUSDC: &makerUSDC, FeeRateTakerUSDC: &takerUSDC,
+		}, row, "each legacy rate and presence flag should follow its own field")
+	})
+	t.Run("modern fee group", func(t *testing.T) {
+		t.Parallel()
+		var row TradeFeeRate
+		require.NoError(t, json.Unmarshal([]byte(`{"feeGroup":[{"groupId":"4","maker":"0","taker":"-0.0005"}]}`), &row), "fee group must decode")
+		require.Len(t, row.FeeGroup, 1, "fee group must decode")
+		maker, taker := types.Number(0), types.Number(-0.0005)
+		assert.Equal(t, TradeFeeGroup{GroupID: "4", MakerRate: &maker, TakerRate: &taker}, row.FeeGroup[0], "fee group should preserve rates and presence")
+		var instrument Instrument
+		require.NoError(t, json.Unmarshal([]byte(`{"instId":"BTC-USDT-SWAP","groupId":"4"}`), &instrument), "instrument must decode")
+		assert.Equal(t, "4", instrument.TradingFeeGroupID, "instrument should retain its fee group")
+	})
+}
+
+func TestTradeFeeGroupUnmarshalJSON(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name, payload                       string
+		makerPresent, takerPresent, invalid bool
+		maker, taker                        float64
+	}{
+		{name: "explicit zero strings", payload: `{"maker":"0","taker":"0"}`, makerPresent: true, takerPresent: true},
+		{name: "explicit zero numbers", payload: `{"maker":0,"taker":0}`, makerPresent: true, takerPresent: true},
+		{name: "charges and rebates", payload: `{"maker":"0.001","taker":"-0.002"}`, makerPresent: true, takerPresent: true, maker: 0.001, taker: -0.002},
+		{name: "maker only", payload: `{"maker":"0","taker":""}`, makerPresent: true},
+		{name: "taker only", payload: `{"maker":null,"taker":"-0.002"}`, takerPresent: true, taker: -0.002},
+		{name: "absent", payload: `{}`},
+		{name: "null", payload: `{"maker":null,"taker":null}`},
+		{name: "empty", payload: `{"maker":"","taker":""}`},
+		{name: "invalid", payload: `{"maker":"invalid","taker":"0"}`, invalid: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			previous := types.Number(1)
+			row := TradeFeeGroup{MakerRate: &previous, TakerRate: &previous}
+			err := json.Unmarshal([]byte(tc.payload), &row)
+			if tc.invalid {
+				require.Error(t, err, "invalid fee values must fail decoding")
+				return
+			}
+			require.NoError(t, err, "valid fee responses must decode")
+			assert.Equal(t, tc.makerPresent, row.MakerRate != nil, "maker presence should match the response")
+			if tc.makerPresent {
+				require.NotNil(t, row.MakerRate, "maker rate must be available")
+				assert.Equal(t, tc.maker, row.MakerRate.Float64(), "maker rate should match the response")
+			}
+			assert.Equal(t, tc.takerPresent, row.TakerRate != nil, "taker presence should match the response")
+			if tc.takerPresent {
+				require.NotNil(t, row.TakerRate, "taker rate must be available")
+				assert.Equal(t, tc.taker, row.TakerRate.Float64(), "taker rate should match the response")
+			}
+		})
+	}
+}
+
+func TestFundingRateResponseUnmarshalJSON(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name, payload string
+		present       bool
+		want          float64
+		invalid       bool
+	}{
+		{name: "zero string", payload: `{"realizedRate":"0"}`, present: true},
+		{name: "zero number", payload: `{"realizedRate":0}`, present: true},
+		{name: "positive", payload: `{"realizedRate":"0.001"}`, present: true, want: 0.001},
+		{name: "negative", payload: `{"realizedRate":"-0.001"}`, present: true, want: -0.001},
+		{name: "missing", payload: `{}`},
+		{name: "empty", payload: `{"realizedRate":""}`},
+		{name: "null", payload: `{"realizedRate":null}`},
+		{name: "invalid", payload: `{"realizedRate":"unknown"}`, invalid: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			previous := types.Number(1)
+			r := FundingRateResponse{RealisedRate: &previous}
+			err := json.Unmarshal([]byte(tc.payload), &r)
+			if tc.invalid {
+				require.Error(t, err, "invalid rate must fail decoding")
+				return
+			}
+			require.NoError(t, err, "valid rate must decode")
+			assert.Equal(t, tc.present, r.RealisedRate != nil, "presence should match settled evidence")
+			if tc.present {
+				require.NotNil(t, r.RealisedRate, "settled rate must be available")
+				assert.Equal(t, tc.want, r.RealisedRate.Float64(), "rate should preserve the supplied value")
+			}
+		})
+	}
+}
+
+func TestCappedHandler(t *testing.T) {
+	t.Parallel()
+	calls := 0
+	handler := cappedHandler(t, func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		assert.Equal(t, "/funding", r.URL.Path, "request path should reach the handler")
+		w.WriteHeader(http.StatusNoContent)
+	})
+	for range fakeRequestBudget {
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/funding", http.NoBody))
+		assert.Equal(t, http.StatusNoContent, response.Code, "requests within the budget should reach the handler")
+	}
+	assert.Equal(t, fakeRequestBudget, calls, "the full legitimate budget should reach the handler")
+}
+
+func TestDefaultWebsocketEndpoints(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	ex.SetDefaults()
+	for ep, want := range map[exchange.URL]string{
+		exchange.WebsocketSpot:              "wss://ws.okx.com/ws/v5/public",
+		exchange.WebsocketPrivate:           "wss://ws.okx.com/ws/v5/private",
+		exchange.WebsocketSpotSupplementary: "wss://ws.okx.com/ws/v5/business",
+	} {
+		t.Run(ep.String(), func(t *testing.T) {
+			t.Parallel()
+			got, err := ex.API.Endpoints.GetURL(ep)
+			require.NoErrorf(t, err, "GetURL must return the default %s endpoint", ep)
+			assert.Equalf(t, want, got, "default %s endpoint should use port 443", ep)
 		})
 	}
 }

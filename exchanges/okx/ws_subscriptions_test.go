@@ -405,6 +405,7 @@ func TestIsSymbolChannel(t *testing.T) {
 		{channelFundingRate, true},
 		{channelMarkPrice, true},
 		{channelOpenInterest, true},
+		{channelPriceLimit, true},
 		{channelInstruments, false},
 		{liquidationOrders, false},
 		{channelOrders, false},
@@ -421,7 +422,7 @@ func TestIsSymbolChannel(t *testing.T) {
 			tracked := new(Exchange)
 			require.NoError(t, testexch.Setup(tracked), "Test exchange setup must succeed")
 			a, pair := asset.Spot, mainPair
-			if tc.channel == channelFundingRate || tc.channel == channelMarkPrice || tc.channel == channelOpenInterest {
+			if tc.channel == channelFundingRate || tc.channel == channelMarkPrice || tc.channel == channelOpenInterest || tc.channel == channelPriceLimit {
 				a, pair = asset.PerpetualSwap, perpetualSwapPair
 			}
 			tracked.Features.Subscriptions = subscription.List{{Enabled: true, Channel: tc.channel, Asset: a, Pairs: currency.Pairs{pair}}}

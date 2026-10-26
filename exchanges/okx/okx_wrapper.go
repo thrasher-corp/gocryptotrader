@@ -2267,7 +2267,8 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 	if r == nil {
 		return nil, fmt.Errorf("%w HistoricalRatesRequest", common.ErrNilPointer)
 	}
-	if r.Asset != asset.PerpetualSwap {
+	// OKX publishes funding history for perpetual swaps and X-Perps futures
+	if r.Asset != asset.PerpetualSwap && r.Asset != asset.Futures {
 		return nil, futures.ErrNotPerpetualFuture
 	}
 	if r.Pair.IsEmpty() {
@@ -2375,11 +2376,12 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 		if pairRate.PaymentCurrency.IsEmpty() {
 			// Linear and inverse swaps settle in different currencies; the pair
 			// name alone does not identify the account bills' payment currency.
-			instruments, err := e.GetInstruments(ctx, &InstrumentsFetchParams{InstrumentType: instTypeSwap, InstrumentID: fPair.String()})
+			instType := GetInstrumentTypeFromAssetItem(r.Asset)
+			instruments, err := e.GetInstruments(ctx, &InstrumentsFetchParams{InstrumentType: instType, InstrumentID: fPair.String()})
 			if err != nil {
 				return nil, err
 			}
-			if len(instruments) != 1 || instruments[0].InstrumentID.String() != fPair.String() || instruments[0].InstrumentType != instTypeSwap || instruments[0].SettlementCurrency.IsEmpty() {
+			if len(instruments) != 1 || instruments[0].InstrumentID.String() != fPair.String() || instruments[0].InstrumentType != instType || instruments[0].SettlementCurrency.IsEmpty() {
 				return nil, fmt.Errorf("%w: settlement currency unavailable for %s", common.ErrNoResponse, fPair)
 			}
 			pairRate.PaymentCurrency = instruments[0].SettlementCurrency

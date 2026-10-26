@@ -15,7 +15,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/buger/jsonparser"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -5223,7 +5222,7 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, f reque
 	if err != nil {
 		return err
 	}
-	var responseJSON json.RawMessage
+	resp := new(RESTResponse)
 	newRequest := func() (*request.Item, error) {
 		var payload []byte
 		if data != nil {
@@ -5258,7 +5257,7 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, f reque
 			Path:                   endpoint + requestPath,
 			Headers:                headers,
 			Body:                   bytes.NewBuffer(payload),
-			Result:                 &responseJSON,
+			Result:                 resp,
 			Verbose:                e.Verbose,
 			HTTPDebugging:          e.HTTPDebugging,
 			HTTPRecording:          e.HTTPRecording,
@@ -5268,16 +5267,12 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, f reque
 	if err := e.SendPayload(ctx, f, newRequest, requestType); err != nil {
 		return err
 	}
-	var resp RESTResponseHeader
-	if err := json.Unmarshal(responseJSON, &resp); err != nil {
-		return err
-	}
 	if resp.Code.Int64() != 0 {
 		if requestType == request.AuthenticatedRequest {
 			err = request.ErrAuthRequestFailed
 		}
-		if resp.Msg != "" {
-			return common.AppendError(err, fmt.Errorf("error code: `%d`; message: %q", resp.Code.Int64(), resp.Msg))
+		if resp.Message != "" {
+			return common.AppendError(err, fmt.Errorf("error code: `%d`; message: %q", resp.Code.Int64(), resp.Message))
 		}
 		if mErr, ok := ErrorCodes[resp.Code.String()]; ok {
 			return common.AppendError(err, mErr)
@@ -5285,37 +5280,20 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, f reque
 		return common.AppendError(err, fmt.Errorf("error code: `%d`", resp.Code.Int64()))
 	}
 
-	// Each endpoint supplies its concrete response type; inspect the common
-	// envelope separately so an API error never depends on that payload shape.
-	responseData, kind, _, err := jsonparser.Get(responseJSON, "data")
-	if err != nil {
-		return fmt.Errorf("getting response data: %w", err)
-	}
-	if kind == jsonparser.String {
-		responseData = append(append([]byte{'"'}, responseData...), '"')
-	}
-	directErr := json.Unmarshal(responseData, result)
+	directErr := json.Unmarshal(resp.Data, result)
 	if directErr == nil {
 		return nil
 	}
 
 	// Some endpoints return a single item wrapped in data:[{...}] for a non-slice result.
-	var count int
-	_, sliceErr := jsonparser.ArrayEach(responseData, func(_ []byte, _ jsonparser.ValueType, _ int, _ error) { count++ })
-	if sliceErr != nil {
+	var items []json.RawMessage
+	if sliceErr := json.Unmarshal(resp.Data, &items); sliceErr != nil {
 		return fmt.Errorf("cannot unmarshal response data directly (error: %w) or as an array (error: %w)", directErr, sliceErr)
 	}
-	if count != 1 {
-		return fmt.Errorf("cannot unmarshal response data directly (error: %w) or as a single-item array (got %d items)", directErr, count)
+	if len(items) != 1 {
+		return fmt.Errorf("cannot unmarshal response data directly (error: %w) or as a single-item array (got %d items)", directErr, len(items))
 	}
-	first, kind, _, err := jsonparser.Get(responseData, "[0]")
-	if err != nil {
-		return fmt.Errorf("getting first response data item: %w", err)
-	}
-	if kind == jsonparser.String {
-		first = append(append([]byte{'"'}, first...), '"')
-	}
-	if firstErr := json.Unmarshal(first, result); firstErr != nil {
+	if firstErr := json.Unmarshal(items[0], result); firstErr != nil {
 		return fmt.Errorf("cannot unmarshal response data directly (error: %w) or as the first array item (error: %w)", directErr, firstErr)
 	}
 	return nil

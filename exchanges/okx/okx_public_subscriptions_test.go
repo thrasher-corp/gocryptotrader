@@ -3,7 +3,6 @@ package okx
 import (
 	"fmt"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -14,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
 )
 
 func TestPublicLiquidationSubscriptionCycle(t *testing.T) {
@@ -31,7 +31,7 @@ func TestPublicLiquidationSubscriptionCycle(t *testing.T) {
 	require.Empty(t, private, "liquidation observations must not require credentials")
 
 	done := make(chan struct{})
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer close(done)
 		assert.Equal(t, "/ws/v5/public", r.URL.Path, "liquidations should use the public socket")
 		conn, err := (&gws.Upgrader{}).Upgrade(w, r, nil)
@@ -51,12 +51,11 @@ func TestPublicLiquidationSubscriptionCycle(t *testing.T) {
 			}
 		}
 	}))
-	t.Cleanup(server.Close)
 	conn, err := ex.Websocket.CreateTestConnection(nil)
 	require.NoError(t, err, "public connection must be available without authentication")
 	require.Contains(t, conn.GetURL(), "/ws/v5/public", "default public connection must use the documented route")
 	conn.SetURL("ws" + strings.TrimPrefix(server.URL, "http") + "/ws/v5/public")
-	require.NoError(t, conn.Dial(t.Context(), &gws.Dialer{}, nil, nil), "local public socket must connect")
+	require.NoError(t, conn.Dial(t.Context(), dialer, nil, nil), "local public socket must connect")
 	t.Cleanup(func() { assert.NoError(t, conn.Shutdown(), "local socket should close") })
 	require.NoError(t, ex.Subscribe(t.Context(), conn, public), "asset subscription must reach the public socket")
 	response := conn.ReadMessage()
