@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -28,6 +29,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
@@ -79,6 +81,44 @@ func TestSetup(t *testing.T) {
 	assert.False(t, ex.IsEnabled(), "Setup should disable the exchange")
 }
 
+// TestSetupContracts checks only a configuration enabling the contracts enables them, as they are off by default
+func TestSetupContracts(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name  string
+		pairs string
+		exp   error
+	}{
+		{
+			name:  "saved before contracts were supported",
+			pairs: `{"requestFormat":{"delimiter":"_"},"configFormat":{"delimiter":"_"},"useGlobalFormat":true,"pairs":{"spot":{"assetEnabled":true,"enabled":"btc_usdt","available":"btc_usdt"}}}`,
+			exp:   asset.ErrNotEnabled,
+		},
+		{
+			name:  "contracts disabled with a pair enabled",
+			pairs: `{"pairs":{"spot":{"assetEnabled":true,"enabled":"btc_usdt","available":"btc_usdt"},"usdtmarginedfutures":{"assetEnabled":false,"enabled":"BTC-USDT","available":"BTC-USDT"}}}`,
+			exp:   asset.ErrNotEnabled,
+		},
+		{
+			name:  "contracts enabled",
+			pairs: `{"pairs":{"spot":{"assetEnabled":true,"enabled":"btc_usdt","available":"btc_usdt"},"usdtmarginedfutures":{"assetEnabled":true,"enabled":"BTC-USDT","available":"BTC-USDT"}}}`,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			exch := newTestExchangeConfig(t)
+			exch.CurrencyPairs = new(currency.PairsManager)
+			require.NoError(t, json.Unmarshal([]byte(tc.pairs), exch.CurrencyPairs), "Unmarshal must decode the configured pairs")
+			ex := new(Exchange)
+			ex.SetDefaults()
+			ex.Websocket = sharedtestvalues.NewTestWebsocket()
+			require.NoError(t, ex.Setup(exch), "Setup must not error")
+			assert.ErrorIs(t, ex.CurrencyPairs.IsAssetEnabled(asset.USDTMarginedFutures), tc.exp, "Setup should enable the contracts only when the configuration does")
+			assert.ErrorIs(t, exch.CurrencyPairs.IsAssetEnabled(asset.USDTMarginedFutures), tc.exp, "Setup should store the contracts in the configuration as set up")
+		})
+	}
+}
+
 func TestFetchTradablePairs(t *testing.T) {
 	t.Parallel()
 	_, err := e.FetchTradablePairs(t.Context(), asset.Margin)
@@ -105,18 +145,87 @@ func TestFetchTradablePairs(t *testing.T) {
 
 func TestUpdateTradablePairs(t *testing.T) {
 	t.Parallel()
-	ex := newTestExchange(t)
-	require.NoError(t, ex.UpdateTradablePairs(t.Context()), "UpdateTradablePairs must not error")
-	spot, err := ex.GetAvailablePairs(asset.Spot)
-	require.NoError(t, err, "GetAvailablePairs must not error for spot")
-	contracts, err := ex.GetAvailablePairs(asset.USDTMarginedFutures)
-	require.NoError(t, err, "GetAvailablePairs must not error for contracts")
-	if mockTests {
-		assert.Len(t, spot, 3, "UpdateTradablePairs should store every spot pair")
-		assert.Len(t, contracts, 2, "UpdateTradablePairs should store every contract's pair")
+	for _, contractsEnabled := range []bool{false, true} {
+		t.Run("contracts enabled "+strconv.FormatBool(contractsEnabled), func(t *testing.T) {
+			t.Parallel()
+			ex := newTestExchange(t)
+			for _, p := range []*currency.PairsManager{&ex.CurrencyPairs, ex.Config.CurrencyPairs} {
+				require.NoError(t, p.SetAssetEnabled(asset.USDTMarginedFutures, contractsEnabled), "SetAssetEnabled must not error")
+			}
+			require.NoError(t, ex.UpdateTradablePairs(t.Context()), "UpdateTradablePairs must not error")
+			spot, err := ex.GetAvailablePairs(asset.Spot)
+			require.NoError(t, err, "GetAvailablePairs must not error for spot")
+			contracts, err := ex.GetAvailablePairs(asset.USDTMarginedFutures)
+			require.NoError(t, err, "GetAvailablePairs must not error for contracts")
+			if mockTests {
+				assert.Len(t, spot, 3, "UpdateTradablePairs should store every spot pair")
+				assert.Len(t, contracts, 2, "UpdateTradablePairs should store every contract's pair")
+			}
+			assert.True(t, spot.Contains(spotTestPair, true), "UpdateTradablePairs should store BTC-USDT spot")
+			assert.True(t, contracts.Contains(futuresTestPair, true), "UpdateTradablePairs should store the BTC-USDT contract")
+			var exp error
+			if !contractsEnabled {
+				exp = asset.ErrNotEnabled
+			}
+			assert.ErrorIs(t, ex.CurrencyPairs.IsAssetEnabled(asset.USDTMarginedFutures), exp, "UpdateTradablePairs should leave the contracts enabled or disabled")
+			assert.ErrorIs(t, ex.Config.CurrencyPairs.IsAssetEnabled(asset.USDTMarginedFutures), exp, "UpdateTradablePairs should leave the configuration's contracts enabled or disabled")
+		})
 	}
-	assert.True(t, spot.Contains(spotTestPair, true), "UpdateTradablePairs should store BTC-USDT spot")
-	assert.True(t, contracts.Contains(futuresTestPair, true), "UpdateTradablePairs should store the BTC-USDT contract")
+}
+
+// TestUpdateTradablePairsFailure checks a disabled asset whose pairs fail to load, as the contracts' do while LBank's
+// contract API is down, keeps the pairs it has without failing the update, while an enabled asset's failure fails it
+func TestUpdateTradablePairsFailure(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name   string
+		status int
+		body   string
+		err    error
+	}{
+		{name: "refused", status: http.StatusForbidden, body: "Forbidden", err: request.ErrBadStatus},
+		{name: "no instruments", status: http.StatusOK, body: `{"data":[],"error_code":0,"msg":"Success","result":"true","success":true}`, err: currency.ErrCurrencyPairsEmpty},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			for _, contractsEnabled := range []bool{false, true} {
+				t.Run("contracts enabled "+strconv.FormatBool(contractsEnabled), func(t *testing.T) {
+					t.Parallel()
+					var instrumentRequests atomic.Int64
+					ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+						switch r.URL.Path {
+						case "/v2/currencyPairs.do":
+							writeResponse(t, w, `{"result":"true","data":["btc_usdt","eth_usdt"],"error_code":0,"ts":1}`)
+						case "/cfd/openApi/v1/pub/instrument":
+							instrumentRequests.Add(1)
+							w.WriteHeader(tc.status)
+							writeResponse(t, w, tc.body)
+						default:
+							assert.Failf(t, "the test server should receive only pair requests", "not %s %s", r.Method, r.URL.Path)
+							http.NotFound(w, r)
+						}
+					}))
+					require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.USDTMarginedFutures, contractsEnabled), "SetAssetEnabled must not error")
+					before, err := ex.GetAvailablePairs(asset.USDTMarginedFutures)
+					require.NoError(t, err, "GetAvailablePairs must not error for contracts")
+
+					err = ex.UpdateTradablePairs(t.Context())
+					assert.Positive(t, instrumentRequests.Load(), "UpdateTradablePairs should request the contracts' instruments")
+					if contractsEnabled {
+						require.ErrorIs(t, err, tc.err, "UpdateTradablePairs must report an enabled asset's failure")
+						return
+					}
+					require.NoError(t, err, "UpdateTradablePairs must not error when only a disabled asset fails")
+					spot, err := ex.GetAvailablePairs(asset.Spot)
+					require.NoError(t, err, "GetAvailablePairs must not error for spot")
+					assert.Equal(t, currency.Pairs{spotTestPair, currency.NewPairWithDelimiter("eth", "usdt", currency.UnderscoreDelimiter)}, spot, "UpdateTradablePairs should store the spot pairs")
+					contracts, err := ex.GetAvailablePairs(asset.USDTMarginedFutures)
+					require.NoError(t, err, "GetAvailablePairs must not error for contracts")
+					assert.Equal(t, before, contracts, "UpdateTradablePairs should keep the contracts' pairs")
+				})
+			}
+		})
+	}
 }
 
 func TestUpdateTickers(t *testing.T) {

@@ -16,6 +16,12 @@
 ### How to enable
 
 + [Enable via configuration]({{.RepoRoot}}/config/README.md#enable-exchange-via-config-example)
++ The contracts are disabled by default, as `GetActiveOrders` refuses them: with authenticated REST support, the order
+  manager would log that on each pass while a contract pair is enabled. Enable the `usdtmarginedfutures` asset and the
+  contracts wanted as its pairs for the engine to sync their market data, and for `UpdateTickers` and
+  `GetLatestFundingRates` without a pair to include them. A configuration without currency pairs, such as
+  `GetDefaultConfig` builds, enables every asset, as it does for every exchange. A disabled asset whose pairs fail to
+  load keeps the pairs it has.
 
 ### Credentials
 

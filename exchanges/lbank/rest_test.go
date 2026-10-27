@@ -77,7 +77,7 @@ var testExchangeConfig = sync.OnceValues(func() ([]byte, error) {
 })
 
 // setupTestExchange sets an exchange up as testexch.Setup does, from its own copy of LBank's test configuration, with
-// the test pairs available and enabled
+// the test pairs and their assets enabled
 func setupTestExchange(ex *Exchange) error {
 	raw, err := testExchangeConfig()
 	if err != nil {
@@ -103,9 +103,12 @@ func setTestCredentials(ex *Exchange, creds *accounts.Credentials) {
 	ex.SetCredentials(creds)
 }
 
-// storeTestPairs makes the test pairs available and enabled
+// storeTestPairs makes the test pairs available and enables them and their assets, as the contracts are off by default
 func storeTestPairs(ex *Exchange) error {
 	for a, p := range map[asset.Item]currency.Pair{asset.Spot: spotTestPair, asset.USDTMarginedFutures: futuresTestPair} {
+		if err := ex.CurrencyPairs.SetAssetEnabled(a, true); err != nil {
+			return err
+		}
 		available, err := ex.CurrencyPairs.GetPairs(a, false)
 		if err != nil {
 			return err

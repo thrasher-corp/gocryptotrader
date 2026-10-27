@@ -59,7 +59,9 @@ func (e *Exchange) SetDefaults() {
 			ConfigFormat:  &currency.PairFormat{Delimiter: currency.UnderscoreDelimiter},
 		},
 		asset.USDTMarginedFutures: {
-			AssetEnabled:  true,
+			// Off by default, as GetActiveOrders refuses contracts: with REST authentication on, the order manager would
+			// log that on each pass while a contract pair is enabled
+			AssetEnabled:  false,
 			RequestFormat: &currency.PairFormat{Uppercase: true},
 			ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
 		},
@@ -215,16 +217,21 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 	return nil, fmt.Errorf("%w: %q", asset.ErrNotSupported, a)
 }
 
-// UpdateTradablePairs updates the exchanges available pairs and stores them in the exchanges config
+// UpdateTradablePairs updates the exchanges available pairs and stores them in the exchanges config. A disabled asset
+// whose pairs fail to load keeps the pairs it has, so a contract API failure doesn't stop the spot pairs updating
 func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
 	for _, a := range e.GetAssetTypes(false) {
 		pairs, err := e.FetchTradablePairs(ctx, a)
-		if err != nil {
+		if err == nil {
+			err = e.UpdatePairs(pairs, a, false)
+		}
+		if err == nil {
+			continue
+		}
+		if e.CurrencyPairs.IsAssetEnabled(a) == nil {
 			return err
 		}
-		if err := e.UpdatePairs(pairs, a, false); err != nil {
-			return err
-		}
+		log.Warnf(log.ExchangeSys, "%s could not update the pairs of disabled asset %s: %v", e.Name, a, err)
 	}
 	return e.EnsureOnePairEnabled()
 }
