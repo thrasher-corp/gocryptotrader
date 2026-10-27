@@ -47,7 +47,7 @@ var (
 	errInvalidRecoveryID       = errors.New("invalid ECDSA recovery ID")
 	errPrivateKeyRequired      = errors.New("private key is required for signed exchange actions")
 	errSigningRecoveryMismatch = errors.New("signature did not recover the signing key")
-	errWireNumberRounding      = errors.New("number cannot be represented with 8 decimal places")
+	errWireNumberRounding      = errors.New("number cannot be represented with the decimal places allowed")
 )
 
 // ActionSignature is an ECDSA signature in the r, s and v form the exchange endpoint expects
@@ -353,14 +353,19 @@ func formatSignatureComponent(component []byte) string {
 
 // floatToWire formats a number with at most eight decimals and no trailing zeros, as signed actions require
 func floatToWire(value float64) (string, error) {
+	return floatToDecimals(value, 8)
+}
+
+// floatToDecimals formats a number with at most the given decimals and no trailing zeros
+func floatToDecimals(value float64, decimals int) (string, error) {
 	if math.IsNaN(value) || math.IsInf(value, 0) {
 		return "", fmt.Errorf("%w: %v", errWireNumberRounding, value)
 	}
-	roundedText := strconv.FormatFloat(value, 'f', 8, 64)
+	roundedText := strconv.FormatFloat(value, 'f', decimals, 64)
 	rounded, _ := strconv.ParseFloat(roundedText, 64) // FormatFloat of a finite value always parses
 	// A value below the tolerance would otherwise round to zero, signing a non-zero size, price or amount as zero
 	if math.Abs(rounded-value) >= 1e-12 || (rounded == 0 && value != 0) {
-		return "", fmt.Errorf("%w: %v", errWireNumberRounding, value)
+		return "", fmt.Errorf("%w: %v to %d places", errWireNumberRounding, value, decimals)
 	}
 	roundedText = strings.TrimRight(strings.TrimRight(roundedText, "0"), ".")
 	if roundedText == "-0" {

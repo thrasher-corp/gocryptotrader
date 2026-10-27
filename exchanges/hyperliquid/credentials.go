@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
@@ -112,21 +113,46 @@ func (e *Exchange) validateCachedAuthority(ctx context.Context, credentials *acc
 		signerAddress:  signerAddress,
 		mainnet:        e.isMainnetEnvironment(),
 	}
+	authorityLock := e.authorityLock(&validationKey)
+	authorityLock.Lock()
+	defer authorityLock.Unlock()
 	e.authorityValidationMu.Lock()
-	defer e.authorityValidationMu.Unlock()
 	if _, validated := e.authorityValidations[validationKey]; validated && !force {
+		e.authorityValidationMu.Unlock()
 		return validationKey, nil
 	}
 	delete(e.authorityValidations, validationKey)
+	e.authorityValidationMu.Unlock()
 	if err := e.validateAuthority(ctx, &validationKey); err != nil {
 		return authorityValidationKey{}, err
 	}
+	e.authorityValidationMu.Lock()
 	e.authorityValidations[validationKey] = struct{}{}
+	e.authorityValidationMu.Unlock()
 	return validationKey, nil
 }
 
-// invalidateAuthority clears a cached validation, so a rejected action revalidates the account before signing again
+// authorityLock returns the lock that orders an authority's validations and invalidations
+func (e *Exchange) authorityLock(validationKey *authorityValidationKey) *sync.Mutex {
+	e.authorityValidationMu.Lock()
+	defer e.authorityValidationMu.Unlock()
+	if e.authorityLocks == nil {
+		e.authorityLocks = make(map[authorityValidationKey]*sync.Mutex)
+	}
+	lock, ok := e.authorityLocks[*validationKey]
+	if !ok {
+		lock = new(sync.Mutex)
+		e.authorityLocks[*validationKey] = lock
+	}
+	return lock
+}
+
+// invalidateAuthority clears a cached validation, so a rejected action revalidates the account before signing again; it
+// waits for the authority's validation under way, which would otherwise cache it again
 func (e *Exchange) invalidateAuthority(validationKey *authorityValidationKey) {
+	authorityLock := e.authorityLock(validationKey)
+	authorityLock.Lock()
+	defer authorityLock.Unlock()
 	e.authorityValidationMu.Lock()
 	delete(e.authorityValidations, *validationKey)
 	e.authorityValidationMu.Unlock()

@@ -16,6 +16,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -43,12 +44,20 @@ type Exchange struct {
 	// authorityValidations holds every authority validated since setup, so callers alternating subaccounts or credentials
 	// do not revalidate before each signed action; authorityValidationMu guards it
 	authorityValidations map[authorityValidationKey]struct{}
-	websocketPendingMu   sync.Mutex
-	websocketPending     map[websocketPendingKey]*websocketPendingOperation
+	// authorityLocks holds a lock per authority, which its validation holds across its lookups so that they hold up no
+	// other authority's signed actions; authorityValidationMu guards the map
+	authorityLocks     map[authorityValidationKey]*sync.Mutex
+	websocketPendingMu sync.Mutex
+	websocketPending   map[websocketPendingKey]*websocketPendingOperation
 	// websocketUnheldAggregatedFills holds the aggregated userFills feeds Hyperliquid acknowledged after their subscribe
-	// was abandoned, which keep sending without a held subscription, until Hyperliquid confirms an unsubscribe of the
-	// feed or its connection is lost; websocketPendingMu guards it
+	// was abandoned, which keep sending without a held subscription, and those whose unsubscribe was abandoned, which may
+	// send until Hyperliquid applies it, until Hyperliquid confirms an unsubscribe of the feed or its connection is lost;
+	// websocketPendingMu guards it
 	websocketUnheldAggregatedFills map[websocketPendingKey]struct{}
+	// websocketAbandonedUnsubscribes holds the subscriptions of the unsubscribes abandoned before Hyperliquid answered
+	// them, whose feeds may send until then, until it answers one, a subscribe of the feed completes or the connection
+	// is lost; websocketPendingMu guards it
+	websocketAbandonedUnsubscribes map[websocketPendingKey]*subscription.Subscription
 	// websocketTradeReplays holds the coins whose next trades message replays recent trades; websocketPendingMu guards it
 	websocketTradeReplays map[string]struct{}
 	// websocketWatermarks holds how far the websocket has relayed feeds that repeat entries: the newest trade per coin, the
@@ -222,7 +231,8 @@ type BasicOrderResponse struct {
 	Timestamp     types.Time   `json:"timestamp"`
 	OriginalSize  types.Number `json:"origSz"`
 	ClientOrderID string       `json:"cloid"`
-	// ReduceOnly is sent by openOrders; FrontendOpenOrder's own ReduceOnly takes the frontendOpenOrders value
+	// ReduceOnly is sent by openOrders, and by orderUpdates on a reduce-only order's rows; FrontendOpenOrder's own
+	// ReduceOnly takes the frontendOpenOrders value
 	ReduceOnly bool `json:"reduceOnly"`
 }
 

@@ -560,7 +560,10 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 				} else {
 					dexContexts = make(map[string]*PerpetualAssetContext, len(resp.AssetContexts))
 					for i := range resp.Metadata.Universe {
-						dexContexts[resp.Metadata.Universe[i].Name] = &resp.AssetContexts[i]
+						// A delisted market keeps a frozen context, and its name can be reused by a listed market
+						if !resp.Metadata.Universe[i].IsDelisted {
+							dexContexts[resp.Metadata.Universe[i].Name] = &resp.AssetContexts[i]
+						}
 					}
 					contexts[mapping.dex] = dexContexts
 				}
@@ -861,11 +864,12 @@ func convertPerpetualBalance(state *ClearinghouseStateResponse) accounts.Balance
 }
 
 // convertSpotBalance converts a spot token balance; portfolio margin accounts report a spot hold beside a hold that can
-// be negative, so the larger of the two, from zero up to the total, is held and the rest of the total is free
+// be negative, so the larger of the two, from zero up to the total, is held and the rest of the total is free, and
+// report what they borrowed of a token, which its total is net of
 func convertSpotBalance(balance *SpotBalance) accounts.Balance {
 	total := balance.Total.Float64()
 	hold := min(max(balance.Hold.Float64(), balance.SpotHold.Float64(), 0), total)
-	return accounts.Balance{Total: total, Hold: hold, Free: total - hold}
+	return accounts.Balance{Total: total, Hold: hold, Free: total - hold, Borrowed: balance.Borrowed.Float64()}
 }
 
 // GetAccountFundingHistory returns the configured account's deposits, withdrawals, transfers, rewards and other
@@ -1562,12 +1566,7 @@ func (e *Exchange) convertOpenOrder(ctx context.Context, source *BasicOrderRespo
 	if err != nil {
 		return order.Detail{}, err
 	}
-	detail, err := e.convertBasicOrder(source, "open", time.Time{}, mapping.pair, a)
-	if err != nil {
-		return order.Detail{}, err
-	}
-	detail.ReduceOnly = source.ReduceOnly
-	return detail, nil
+	return e.convertBasicOrder(source, "open", time.Time{}, mapping.pair, a)
 }
 
 // GetOrderHistory returns the latest status of the configured account's orders of an asset type, filtered by the
@@ -1874,7 +1873,7 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, arg *fundingrate.L
 		}
 		mappings = []pairMapping{mapping}
 	}
-	contexts, err := e.getPerpetualAssetContexts(ctx, mappings)
+	mappings, contexts, err := e.getListedPerpetualAssetContexts(ctx, mappings, arg.Pair.IsEmpty())
 	if err != nil {
 		return nil, err
 	}
@@ -1983,7 +1982,7 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, requested ...key.PairAss
 			}
 		}
 	}
-	contexts, err := e.getPerpetualAssetContexts(ctx, mappings)
+	mappings, contexts, err := e.getListedPerpetualAssetContexts(ctx, mappings, len(requested) == 0)
 	if err != nil {
 		return nil, err
 	}
@@ -2036,17 +2035,26 @@ func (e *Exchange) getPairMapping(ctx context.Context, p currency.Pair, a asset.
 	if mapping, ok := e.lookupPairMapping(p, a); ok {
 		return mapping, nil
 	}
-	mapping, err := e.fetchPairMapping(ctx, p, a)
-	if !errors.Is(err, errPairMappingNotFound) || a != asset.PerpetualContract {
-		return mapping, err
-	}
-	e.pairMappingsMu.RLock()
-	delisted := slices.ContainsFunc(e.delistedPairMappings, func(m pairMapping) bool { return m.pair.Equal(p) })
-	e.pairMappingsMu.RUnlock()
-	if delisted {
+	// A market known to be delisted is refused without refetching every market, which a later refetch for another pair
+	// or a pair update still does
+	if e.isDelistedPair(p, a) {
 		return pairMapping{}, fmt.Errorf("%w: %w: %s %s", errPairMappingNotFound, errMarketDelisted, a, p)
 	}
-	return pairMapping{}, err
+	mapping, err := e.fetchPairMapping(ctx, p, a)
+	if !errors.Is(err, errPairMappingNotFound) || !e.isDelistedPair(p, a) {
+		return mapping, err
+	}
+	return pairMapping{}, fmt.Errorf("%w: %w: %s %s", errPairMappingNotFound, errMarketDelisted, a, p)
+}
+
+// isDelistedPair reports whether a pair is among the delisted perpetual markets the last fetch of every market found
+func (e *Exchange) isDelistedPair(p currency.Pair, a asset.Item) bool {
+	if a != asset.PerpetualContract {
+		return false
+	}
+	e.pairMappingsMu.RLock()
+	defer e.pairMappingsMu.RUnlock()
+	return slices.ContainsFunc(e.delistedPairMappings, func(m pairMapping) bool { return m.pair.Equal(p) })
 }
 
 func (e *Exchange) lookupPairMapping(p currency.Pair, a asset.Item) (pairMapping, bool) {
@@ -2203,14 +2211,23 @@ func (e *Exchange) getPerpetualPairMappings(ctx context.Context) ([]pairMapping,
 
 // getPerpetualAssetContexts returns the current context of each mapped market, fetching each perpetual DEX once
 func (e *Exchange) getPerpetualAssetContexts(ctx context.Context, mappings []pairMapping) ([]PerpetualAssetContext, error) {
+	_, contexts, err := e.getListedPerpetualAssetContexts(ctx, mappings, false)
+	return contexts, err
+}
+
+// getListedPerpetualAssetContexts returns the mapped markets still listed and the current context of each, fetching
+// each perpetual DEX once; a market delisted since the mappings were cached fails the request, unless skipDelisted
+// leaves it out, as a request for every market does
+func (e *Exchange) getListedPerpetualAssetContexts(ctx context.Context, mappings []pairMapping, skipDelisted bool) ([]pairMapping, []PerpetualAssetContext, error) {
 	dexContexts := make(map[string]*PerpetualMetadataAndAssetContextsResponse)
-	contexts := make([]PerpetualAssetContext, len(mappings))
+	listed := make([]pairMapping, 0, len(mappings))
+	contexts := make([]PerpetualAssetContext, 0, len(mappings))
 	for i := range mappings {
 		resp, ok := dexContexts[mappings[i].dex]
 		if !ok {
 			var err error
 			if resp, err = e.GetPerpetualMetadataAndAssetContexts(ctx, mappings[i].dex); err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 			dexContexts[mappings[i].dex] = resp
 		}
@@ -2218,11 +2235,15 @@ func (e *Exchange) getPerpetualAssetContexts(ctx context.Context, mappings []pai
 			return market.Name == mappings[i].coin && !market.IsDelisted
 		})
 		if index == -1 {
-			return nil, fmt.Errorf("%w: %s", errAssetContextNotFound, mappings[i].coin)
+			if skipDelisted {
+				continue
+			}
+			return nil, nil, fmt.Errorf("%w: %s", errAssetContextNotFound, mappings[i].coin)
 		}
-		contexts[i] = resp.AssetContexts[index]
+		listed = append(listed, mappings[i])
+		contexts = append(contexts, resp.AssetContexts[index])
 	}
-	return contexts, nil
+	return listed, contexts, nil
 }
 
 // getPerpetualDEXNames returns the name of each perpetual DEX by index, with an empty name for the default DEX
@@ -2769,6 +2790,7 @@ func (e *Exchange) convertBasicOrder(source *BasicOrderResponse, status string, 
 		Date:            placed,
 		LastUpdated:     lastUpdated,
 		Pair:            p,
+		ReduceOnly:      source.ReduceOnly,
 	}, nil
 }
 

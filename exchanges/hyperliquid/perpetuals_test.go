@@ -667,6 +667,27 @@ func TestSubDeployerUnmarshalJSON(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(`["setOracle",["0x0000000000000000000000000000000000000004"]]`), &deployer), "Unmarshal must not error")
 	assert.Equal(t, SubDeployer{Action: "setOracle", Addresses: []string{"0x0000000000000000000000000000000000000004"}}, deployer, "SubDeployer should decode its action and addresses")
 	assert.ErrorIs(t, json.Unmarshal([]byte(`["setOracle"]`), &deployer), errInvalidTupleLength, "SubDeployer should reject a short tuple")
+
+	// Testnet's registry sends HIP-3* delegations as one-key objects
+	require.NoError(t, json.Unmarshal([]byte(`[{"hip3Star":"modifyApproval"},["0x73b69db46d41c6b721fb5cb9ce9f29193140950e"]]`), &deployer), "Unmarshal must not error for an action sent as an object")
+	assert.Equal(t, SubDeployer{Action: "modifyApproval", ActionSet: "hip3Star", Addresses: []string{"0x73b69db46d41c6b721fb5cb9ce9f29193140950e"}}, deployer, "SubDeployer should decode an action sent as an object with its key")
+	require.NoError(t, json.Unmarshal([]byte(`["setOracle",["0x0000000000000000000000000000000000000004"]]`), &deployer), "Unmarshal must not error")
+	assert.Equal(t, SubDeployer{Action: "setOracle", Addresses: []string{"0x0000000000000000000000000000000000000004"}}, deployer, "SubDeployer should clear the key of an earlier action sent as an object")
+	for _, action := range []string{`{}`, `{"hip3Star":"setOracle","other":"cancel"}`} {
+		assert.ErrorIsf(t, json.Unmarshal([]byte(`[`+action+`,["0x0000000000000000000000000000000000000004"]]`), &deployer), errMalformedResponse, "SubDeployer should reject the action %s", action)
+	}
+	for _, action := range []string{`{"hip3Star":1}`, `["setOracle"]`} {
+		assert.Errorf(t, json.Unmarshal([]byte(`[`+action+`,["0x0000000000000000000000000000000000000004"]]`), &deployer), "SubDeployer should reject the action %s", action)
+	}
+
+	// An entry of testnet's live perpDexs reply, 26 October 2026, which failed to decode while actions were only names
+	var registry []*PerpetualDEXResponse
+	require.NoError(t, json.Unmarshal([]byte(`[null,{"name":"fcmt","fullName":"FCM control test","deployer":"0x19e0af27ea5db8f8a5d060dadbf7d8b4c2348a87","oracleUpdater":null,"feeRecipient":null,"assetToStreamingOiCap":[],"subDeployers":[[{"hip3Star":"modifyApproval"},["0x73b69db46d41c6b721fb5cb9ce9f29193140950e"]],[{"hip3Star":"modifyBackstopLiquidatorApproval"},["0x73b69db46d41c6b721fb5cb9ce9f29193140950e"]],[{"hip3Star":"setReduceOnly"},["0x73b69db46d41c6b721fb5cb9ce9f29193140950e"]],[{"hip3Star":"cancel"},["0x73b69db46d41c6b721fb5cb9ce9f29193140950e"]],[{"hip3Star":"cancelAll"},["0x73b69db46d41c6b721fb5cb9ce9f29193140950e"]],[{"hip3Star":"order"},["0x73b69db46d41c6b721fb5cb9ce9f29193140950e"]],[{"hip3Star":"sendAsset"},["0x73b69db46d41c6b721fb5cb9ce9f29193140950e"]]],"assetToFundingMultiplier":[],"assetToFundingInterestRate":[],"assetToFundingClamp":[]}]`), &registry), "Unmarshal must decode a registry holding actions sent as objects")
+	require.Len(t, registry, 2, "The registry must hold the default DEX and fcmt")
+	require.NotNil(t, registry[1], "fcmt's entry must decode")
+	assert.Equal(t, "fcmt", registry[1].Name, "PerpetualDEXResponse should decode the DEX's name")
+	require.Len(t, registry[1].SubDeployers, 7, "fcmt must list seven delegated actions")
+	assert.Equal(t, SubDeployer{Action: "cancelAll", ActionSet: "hip3Star", Addresses: []string{"0x73b69db46d41c6b721fb5cb9ce9f29193140950e"}}, registry[1].SubDeployers[4], "PerpetualDEXResponse should decode each delegated action")
 }
 
 func TestMarginTableEntryUnmarshalJSON(t *testing.T) {

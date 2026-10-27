@@ -1,9 +1,12 @@
 package hyperliquid
 
 import (
+	"bytes"
+	"fmt"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -35,13 +38,34 @@ func (a *AssetValue) UnmarshalJSON(data []byte) error {
 
 // SubDeployer contains the addresses a DEX deployer has delegated one deployer action to
 type SubDeployer struct {
-	Action    string
+	Action string
+	// ActionSet is the key of an action sent as a one-key object, such as hip3Star in {"hip3Star":"setOracle"} for a
+	// HIP-3* operation, a separate permission from the action of the same name sent as a name, for which it is empty
+	ActionSet string
 	Addresses []string
 }
 
-// UnmarshalJSON decodes an [action, addresses] tuple
+// UnmarshalJSON decodes an [action, addresses] tuple, whose action is a name or a one-key object naming its set
 func (s *SubDeployer) UnmarshalJSON(data []byte) error {
-	return unmarshalTuple(data, &s.Action, &s.Addresses)
+	var action json.RawMessage
+	if err := unmarshalTuple(data, &action, &s.Addresses); err != nil {
+		return err
+	}
+	if trimmed := bytes.TrimSpace(action); len(trimmed) == 0 || trimmed[0] != '{' {
+		s.ActionSet = ""
+		return json.Unmarshal(action, &s.Action)
+	}
+	var set map[string]string
+	if err := json.Unmarshal(action, &set); err != nil {
+		return err
+	}
+	if len(set) != 1 {
+		return fmt.Errorf("%w: sub-deployer action %s", errMalformedResponse, action)
+	}
+	for key, name := range set {
+		s.ActionSet, s.Action = key, name
+	}
+	return nil
 }
 
 // PerpetualMetadataResponse contains the markets, margin tables and collateral token of a perpetual DEX

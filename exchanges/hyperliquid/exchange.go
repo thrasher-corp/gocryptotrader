@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"math"
 	"slices"
 	"strconv"
 	"strings"
@@ -32,6 +33,9 @@ const (
 	liquidatorTransferStep = 1000e6
 	maximumAgentNameLength = 16
 	maximumAgentValidity   = 180 * 24 * time.Hour
+	// maximumTokenWeiDecimals caps the decimals a token transfer amount is formatted with, whatever a token's metadata
+	// reports
+	maximumTokenWeiDecimals = 18
 )
 
 // Nonce field names of user-signed actions; older actions carry their nonce as time
@@ -314,8 +318,11 @@ func (e *Exchange) SendAsset(ctx context.Context, arg *SendAssetRequest) (uint64
 	if arg == nil {
 		return 0, common.ErrNilPointer
 	}
-	destination, amount, err := prepareTransfer(arg.Destination, arg.Amount)
+	destination, err := normaliseRecipientAddress(arg.Destination)
 	if err != nil {
+		return 0, err
+	}
+	if err := validateTransferAmount(arg.Amount); err != nil {
 		return 0, err
 	}
 	if arg.Token.IsEmpty() {
@@ -328,7 +335,11 @@ func (e *Exchange) SendAsset(ctx context.Context, arg *SendAssetRequest) (uint64
 	if err := e.validateUserSignedSubAccount(ctx, credentials, subAccount); err != nil {
 		return 0, err
 	}
-	sourceDEX, destinationDEX, token, err := e.validateSendAssetRoute(ctx, arg.SourceDEX, arg.DestinationDEX, arg.Token)
+	sourceDEX, destinationDEX, token, tokenMetadata, err := e.validateSendAssetRoute(ctx, arg.SourceDEX, arg.DestinationDEX, arg.Token)
+	if err != nil {
+		return 0, err
+	}
+	amount, err := formatTokenTransferAmount(arg.Amount, tokenMetadata)
 	if err != nil {
 		return 0, err
 	}
@@ -348,8 +359,11 @@ func (e *Exchange) AgentSendAsset(ctx context.Context, arg *AgentSendAssetReques
 	if arg == nil {
 		return 0, common.ErrNilPointer
 	}
-	destination, amount, err := prepareTransfer(arg.Destination, arg.Amount)
+	destination, err := normaliseRecipientAddress(arg.Destination)
 	if err != nil {
+		return 0, err
+	}
+	if err := validateTransferAmount(arg.Amount); err != nil {
 		return 0, err
 	}
 	if arg.Token.IsEmpty() {
@@ -366,7 +380,11 @@ func (e *Exchange) AgentSendAsset(ctx context.Context, arg *AgentSendAssetReques
 	if err := e.validateUserSignedSubAccount(ctx, credentials, subAccount); err != nil {
 		return 0, err
 	}
-	sourceDEX, destinationDEX, token, err := e.validateSendAssetRoute(ctx, arg.SourceDEX, arg.DestinationDEX, arg.Token)
+	sourceDEX, destinationDEX, token, tokenMetadata, err := e.validateSendAssetRoute(ctx, arg.SourceDEX, arg.DestinationDEX, arg.Token)
+	if err != nil {
+		return 0, err
+	}
+	amount, err := formatTokenTransferAmount(arg.Amount, tokenMetadata)
 	if err != nil {
 		return 0, err
 	}
@@ -391,8 +409,7 @@ func (e *Exchange) SendToEVMWithData(ctx context.Context, arg *SendToEVMWithData
 	if arg == nil {
 		return 0, common.ErrNilPointer
 	}
-	amount, err := formatTransferAmount(arg.Amount)
-	if err != nil {
+	if err := validateTransferAmount(arg.Amount); err != nil {
 		return 0, err
 	}
 	if arg.Token.IsEmpty() {
@@ -423,7 +440,11 @@ func (e *Exchange) SendToEVMWithData(ctx context.Context, arg *SendToEVMWithData
 	if err != nil {
 		return 0, err
 	}
-	_, token, err := e.resolveTransferToken(ctx, arg.Token)
+	tokenMetadata, token, err := e.resolveTransferToken(ctx, arg.Token)
+	if err != nil {
+		return 0, err
+	}
+	amount, err := formatTokenTransferAmount(arg.Amount, tokenMetadata)
 	if err != nil {
 		return 0, err
 	}
@@ -457,8 +478,11 @@ func (e *Exchange) SendCoreSpot(ctx context.Context, arg *SendCoreSpotRequest) (
 	if arg == nil {
 		return 0, common.ErrNilPointer
 	}
-	destination, amountText, err := prepareTransfer(arg.Destination, arg.Amount)
+	destination, err := normaliseRecipientAddress(arg.Destination)
 	if err != nil {
+		return 0, err
+	}
+	if err := validateTransferAmount(arg.Amount); err != nil {
 		return 0, err
 	}
 	if arg.Token.IsEmpty() {
@@ -468,7 +492,11 @@ func (e *Exchange) SendCoreSpot(ctx context.Context, arg *SendCoreSpotRequest) (
 	if err != nil {
 		return 0, err
 	}
-	_, tokenIdentifier, err := e.resolveTransferToken(ctx, arg.Token)
+	tokenMetadata, tokenIdentifier, err := e.resolveTransferToken(ctx, arg.Token)
+	if err != nil {
+		return 0, err
+	}
+	amountText, err := formatTokenTransferAmount(arg.Amount, tokenMetadata)
 	if err != nil {
 		return 0, err
 	}
@@ -1210,6 +1238,44 @@ func (e *Exchange) getBridgeChain() string {
 	return "Arbitrum Sepolia"
 }
 
+// validateTransferAmount checks a transfer amount is positive, before the requests that resolve its token
+func validateTransferAmount(amount float64) error {
+	if amount <= 0 || math.IsNaN(amount) || math.IsInf(amount, 0) {
+		return errTransferAmountInvalid
+	}
+	return nil
+}
+
+// formatTokenTransferAmount formats a transfer amount of a spot token with up to as many decimals as the token holds,
+// eight at least, as other signed numbers take; UBTC, UETH and others hold more
+func formatTokenTransferAmount(amount float64, token *SpotTokenMetadata) (string, error) {
+	if err := validateTransferAmount(amount); err != nil {
+		return "", err
+	}
+	decimals := 8
+	if token.WeiDecimals > 8 {
+		decimals = int(min(token.WeiDecimals, maximumTokenWeiDecimals))
+		// The shortest text that reads back as the amount is the amount as written, so it is sent when it fits the token's
+		// decimals; formatting to more decimals than it has would add the float's binary residue as digits never written
+		if shortest := strconv.FormatFloat(amount, 'f', -1, 64); decimalPlaces(shortest) <= decimals {
+			return shortest, nil
+		}
+	}
+	formatted, err := floatToDecimals(amount, decimals)
+	if err != nil {
+		return "", fmt.Errorf("%s transfer amount: %w", token.Name, err)
+	}
+	return formatted, nil
+}
+
+// decimalPlaces returns how many digits a number's text has after its decimal point
+func decimalPlaces(text string) int {
+	if point := strings.IndexByte(text, '.'); point >= 0 {
+		return len(text) - point - 1
+	}
+	return 0
+}
+
 func formatTransferAmount(amount float64) (string, error) {
 	if amount <= 0 {
 		return "", errTransferAmountInvalid
@@ -1286,16 +1352,15 @@ func (e *Exchange) resolveTransferDEX(ctx context.Context, dex string) (string, 
 
 // validateSendAssetRoute resolves a send asset route and checks the token is the collateral of each perpetual DEX it
 // touches, since only collateral can enter or leave a perpetual DEX
-func (e *Exchange) validateSendAssetRoute(ctx context.Context, source, destination string, token currency.Code) (sourceDEX, destinationDEX, tokenIdentifier string, err error) {
+func (e *Exchange) validateSendAssetRoute(ctx context.Context, source, destination string, token currency.Code) (sourceDEX, destinationDEX, tokenIdentifier string, tokenMetadata *SpotTokenMetadata, err error) {
 	if sourceDEX, err = e.resolveTransferDEX(ctx, source); err != nil {
-		return "", "", "", err
+		return "", "", "", nil, err
 	}
 	if destinationDEX, err = e.resolveTransferDEX(ctx, destination); err != nil {
-		return "", "", "", err
+		return "", "", "", nil, err
 	}
-	tokenMetadata, tokenIdentifier, err := e.resolveTransferToken(ctx, token)
-	if err != nil {
-		return "", "", "", err
+	if tokenMetadata, tokenIdentifier, err = e.resolveTransferToken(ctx, token); err != nil {
+		return "", "", "", nil, err
 	}
 	if token.Equal(currency.USDC) {
 		// USDC is sent by name, as the Python SDK sends it, rather than as NAME:TOKEN_ID
@@ -1307,11 +1372,11 @@ func (e *Exchange) validateSendAssetRoute(ctx context.Context, source, destinati
 		}
 		metadata, err := e.GetPerpetualMetadata(ctx, dex)
 		if err != nil {
-			return "", "", "", err
+			return "", "", "", nil, err
 		}
 		if metadata.CollateralToken != tokenMetadata.Index {
-			return "", "", "", fmt.Errorf("%w: %s is not collateral for DEX %q", errTransferTokenInvalid, token, dex)
+			return "", "", "", nil, fmt.Errorf("%w: %s is not collateral for DEX %q", errTransferTokenInvalid, token, dex)
 		}
 	}
-	return sourceDEX, destinationDEX, tokenIdentifier, nil
+	return sourceDEX, destinationDEX, tokenIdentifier, tokenMetadata, nil
 }

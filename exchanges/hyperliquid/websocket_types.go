@@ -211,8 +211,9 @@ type websocketWatermarks struct {
 }
 
 // websocketOrders holds what the account feeds have shown of each recent order, so its fills can report its cumulative
-// execution; it holds at most maximumWebsocketOrders, forgetting the least recently touched first, and forgets an order
-// untouched for websocketOrderLifetime, as an account without orderUpdates subscribed sends no row ending an order
+// execution; it forgets the least recently touched orders beyond maximumWebsocketOrders, and an order untouched for
+// websocketOrderLifetime, as an account without orderUpdates subscribed sends no row ending an order, though not one
+// holding fills for its first row
 type websocketOrders struct {
 	byOrderID map[uint64]*websocketOrder
 	// oldest and newest end the list of orders from the least to the most recently touched
@@ -222,6 +223,8 @@ type websocketOrders struct {
 	finishedTrades     map[websocketFinishedTrade]struct{}
 	finishedTradeOrder []websocketFinishedTrade
 	finishedTradeNext  int
+	// held holds the records of orders with fills held for their first row
+	held map[uint64]*websocketOrder
 }
 
 // websocketFinishedTrade identifies a fill by its order and trade IDs
@@ -250,6 +253,11 @@ type websocketOrder struct {
 	tradeIDs   map[uint64]struct{}
 	// final is the order's final row when it arrived before the fills that complete its executed size
 	final *order.Detail
+	// held are the updates of fills that arrived before the order's first row, held until Hyperliquid has sent the rows of
+	// their block: the order's first row relays their trades, or they are relayed as they are
+	held []order.Detail
+	// heldSince is when the oldest held fill arrived
+	heldSince time.Time
 }
 
 // WebsocketMessage is the outer frame of every server message

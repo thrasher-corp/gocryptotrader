@@ -7,6 +7,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -277,6 +278,131 @@ func TestValidateCachedAuthority(t *testing.T) {
 	} else {
 		assert.Equal(t, configuredAuthorityKey(t, e), validationKey, "validateCachedAuthority should key the configured account, vault, signer and environment")
 	}
+}
+
+func TestAuthorityLock(t *testing.T) {
+	t.Parallel()
+	// newHeldRoleServer answers the subaccount's role lookups only once release is called, and signals each on held
+	newHeldRoleServer := func(t *testing.T) (ex *Exchange, held <-chan struct{}, release func(), lookups *atomic.Int32) {
+		t.Helper()
+		heldLookups, released := make(chan struct{}, 8), make(chan struct{})
+		var once sync.Once
+		release = func() { once.Do(func() { close(released) }) }
+		lookups = new(atomic.Int32)
+		ex = newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			var body InfoRequest
+			if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&body), "Decoding the info request should not error") {
+				return
+			}
+			response := `{"role":"user"}`
+			if body.User == testSubAccountAddress {
+				lookups.Add(1)
+				heldLookups <- struct{}{}
+				<-released
+				response = `{"role":"subAccount","data":{"master":"` + testAccountAddress + `"}}`
+			}
+			_, err := w.Write([]byte(response))
+			assert.NoError(t, err, "Writing the info response should not error")
+		}))
+		// Cleanups run last registered first, so a failed test releases the held lookups before the server waits for them
+		t.Cleanup(release)
+		return ex, heldLookups, release, lookups
+	}
+	validate := func(ex *Exchange, credentials *accounts.Credentials, force bool) <-chan error {
+		done := make(chan error, 1)
+		go func() {
+			_, err := ex.validateCachedAuthority(t.Context(), credentials, force)
+			done <- err
+		}()
+		return done
+	}
+	// The waits are bounded only so that a validation that never returns fails the test rather than hanging it; the
+	// bound is long, as a process frozen past it would otherwise fail a test whose result is ready
+	const hangBound = 30 * time.Second
+	waitHeld := func(t *testing.T, held <-chan struct{}) {
+		t.Helper()
+		select {
+		case <-held:
+		case <-time.After(hangBound):
+			require.FailNow(t, "The subaccount's role lookup must reach the venue")
+		}
+	}
+	waitDone := func(t *testing.T, done <-chan error) error {
+		t.Helper()
+		select {
+		case err := <-done:
+			return err
+		case <-time.After(hangBound):
+			require.FailNow(t, "validateCachedAuthority must return once the venue answers")
+			return nil
+		}
+	}
+	account := &accounts.Credentials{Key: testAccountAddress, Secret: testPrivateKey}
+	subAccount := &accounts.Credentials{Key: testAccountAddress, Secret: testPrivateKey, SubAccount: testSubAccountAddress}
+
+	ex, held, release, lookups := newHeldRoleServer(t)
+	_, err := ex.validateCachedAuthority(t.Context(), account, false)
+	require.NoError(t, err, "validateCachedAuthority must not error for the account")
+	first := validate(ex, subAccount, false)
+	waitHeld(t, held)
+	require.True(t, ex.authorityValidationMu.TryLock(), "validateCachedAuthority must not hold the shared lock across an authority's lookups")
+	ex.authorityValidationMu.Unlock()
+	// Authorities differing from the subaccount's in any part have locks of their own
+	for _, other := range []authorityValidationKey{
+		{accountAddress: testAccountAddress, signerAddress: testAccountAddress, mainnet: true},
+		{accountAddress: testAccountAddress, vaultAddress: testSubAccountAddress, signerAddress: testOtherAddress, mainnet: true},
+		{accountAddress: testAccountAddress, vaultAddress: testSubAccountAddress, signerAddress: testAccountAddress},
+		{accountAddress: testOtherAddress, vaultAddress: testSubAccountAddress, signerAddress: testAccountAddress, mainnet: true},
+	} {
+		otherLock := ex.authorityLock(&other)
+		require.Truef(t, otherLock.TryLock(), "validateCachedAuthority must not hold the lock of authority %+v across another authority's lookups", other)
+		otherLock.Unlock()
+	}
+	select {
+	case err := <-validate(ex, account, false):
+		assert.NoError(t, err, "validateCachedAuthority should return a cached authority while another is validated")
+	case <-time.After(hangBound):
+		release()
+		require.FailNow(t, "validateCachedAuthority must not hold a cached authority up behind another authority's lookups")
+	}
+	// A second validation of the same authority waits for the first and takes its result
+	second := validate(ex, subAccount, false)
+	select {
+	case <-held:
+		assert.Fail(t, "validateCachedAuthority should wait for the same authority's validation under way")
+	case <-time.After(100 * time.Millisecond):
+	}
+	release()
+	require.NoError(t, waitDone(t, first), "validateCachedAuthority must not error for the subaccount")
+	require.NoError(t, waitDone(t, second), "validateCachedAuthority must not error while the same authority is validated")
+	assert.Equal(t, int32(1), lookups.Load(), "validateCachedAuthority should look an authority up once while it is validated")
+
+	// An invalidation waits for the authority's validation under way, which would otherwise cache the authority after it
+	invalidating, held, release, _ := newHeldRoleServer(t)
+	forced := validate(invalidating, subAccount, true)
+	waitHeld(t, held)
+	subAccountKey := authorityValidationKey{accountAddress: testAccountAddress, vaultAddress: testSubAccountAddress, signerAddress: testAccountAddress, mainnet: true}
+	invalidated := make(chan struct{})
+	go func() {
+		invalidating.invalidateAuthority(&subAccountKey)
+		close(invalidated)
+	}()
+	select {
+	case <-invalidated:
+		assert.Fail(t, "invalidateAuthority should wait for the authority's validation under way")
+	case <-time.After(100 * time.Millisecond):
+	}
+	release()
+	require.NoError(t, waitDone(t, forced), "validateCachedAuthority must not error once the venue answers")
+	select {
+	case <-invalidated:
+	case <-time.After(hangBound):
+		require.FailNow(t, "invalidateAuthority must return once the validation under way finishes")
+	}
+	invalidating.authorityValidationMu.Lock()
+	_, cached := invalidating.authorityValidations[subAccountKey]
+	invalidating.authorityValidationMu.Unlock()
+	assert.False(t, cached, "invalidateAuthority should clear the validation under way when it was called")
 }
 
 func TestInvalidateAuthority(t *testing.T) {

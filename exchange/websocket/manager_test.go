@@ -2534,7 +2534,9 @@ func TestConnectOptionalSetup(t *testing.T) {
 	assert.Equal(t, 1, optional.retryFailures, "Connect should count the optional setup's failure")
 	assert.WithinDuration(t, time.Now().Add(time.Hour), optional.retryAt, time.Minute, "Connect should retry the optional setup after the monitor delay")
 
-	require.NoError(t, m.Shutdown(), "Shutdown must not error")
+	shutdownErr, returned := lifecycleWithin(t, m.Shutdown)
+	require.True(t, returned, "Shutdown must return within five seconds")
+	require.NoError(t, shutdownErr, "Shutdown must not error")
 	require.NoError(t, m.Connect(t.Context()), "Connect must not error while the optional setup's retry is not due")
 	assert.Equal(t, int32(1), accountDials.Load(), "Connect should not dial an optional setup before its retry is due")
 	assert.Equal(t, 1, optional.retryFailures, "Connect should keep the optional setup's failures across a reconnection")
@@ -2622,19 +2624,19 @@ func TestObserveConnectionIsolatesFaults(t *testing.T) {
 	}
 
 	m.ReadMessageErrors <- fault(accountConnections[0])
-	assert.False(t, m.observeConnection(t.Context(), timer), "observeConnection should keep monitoring")
+	assert.False(t, observeWithin(t, m, timer), "observeConnection should keep monitoring")
 	assert.Empty(t, m.snapshotManagedConnections(optional), "observeConnection should retire the lost connection of an optional setup")
 	assert.Equal(t, 1, optional.retryFailures, "observeConnection should retry an optional setup that lost its connection")
 	assert.True(t, m.IsConnected(), "observeConnection should leave the manager connected when an optional connection is lost")
 	assert.Equal(t, publicConnections, m.snapshotManagedConnections(public), "observeConnection should leave the other setups' connections up")
 
 	m.ReadMessageErrors <- fault(accountConnections[0])
-	assert.False(t, m.observeConnection(t.Context(), timer), "observeConnection should keep monitoring")
+	assert.False(t, observeWithin(t, m, timer), "observeConnection should keep monitoring")
 	assert.Equal(t, 1, optional.retryFailures, "observeConnection should ignore the fault of a connection already retired")
 	assert.Equal(t, publicConnections, m.snapshotManagedConnections(public), "observeConnection should not reconnect for a connection already retired")
 
 	m.ReadMessageErrors <- fault(publicConnections[0])
-	assert.False(t, m.observeConnection(t.Context(), timer), "observeConnection should keep monitoring")
+	assert.False(t, observeWithin(t, m, timer), "observeConnection should keep monitoring")
 	assert.True(t, m.IsConnected(), "observeConnection should reconnect when a required connection is lost")
 	assert.NotEqual(t, publicConnections, m.snapshotManagedConnections(public), "observeConnection should replace a lost required connection")
 }
@@ -2669,7 +2671,7 @@ func TestObserveConnectionReconcilesDroppedFaults(t *testing.T) {
 	require.Eventually(t, func() bool { return !required.IsConnected() }, 5*time.Second, time.Millisecond, "the required connection must be lost")
 	timer := time.NewTimer(time.Hour)
 	t.Cleanup(func() { timer.Stop() })
-	assert.False(t, m.observeConnection(t.Context(), timer), "observeConnection should keep monitoring")
+	assert.False(t, observeWithin(t, m, timer), "observeConnection should keep monitoring")
 	assert.True(t, m.IsConnected(), "observeConnection should reconnect")
 	assert.NotEqual(t, publicConnections, m.snapshotManagedConnections(public), "observeConnection should replace a lost required connection whose fault was dropped")
 }
@@ -3415,4 +3417,12 @@ func TestSubscribeToSetupReconnectsFailedOptionalSetup(t *testing.T) {
 			}
 		})
 	}
+}
+
+// observeWithin runs one connection monitor cycle, failing the test once it has not returned within five seconds
+func observeWithin(t *testing.T, m *Manager, timer *time.Timer) bool {
+	t.Helper()
+	exit, returned := lifecycleWithin(t, func() bool { return m.observeConnection(t.Context(), timer) })
+	require.True(t, returned, "observeConnection must return within five seconds")
+	return exit
 }

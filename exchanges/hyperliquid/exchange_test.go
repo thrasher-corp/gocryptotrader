@@ -2843,8 +2843,10 @@ func TestValidateSendAssetRoute(t *testing.T) {
 		{source: "spot", destination: "spot", token: currency.HYPE, exp: [3]string{"spot", "spot", "HYPE:0x0d01dc56dcaaca66ad901c959b4011ec"}},
 		{source: "xyz", destination: "", token: currency.USDC, exp: [3]string{"xyz", "", "USDC"}},
 	} {
-		sourceDEX, destinationDEX, token, err := e.validateSendAssetRoute(t.Context(), tc.source, tc.destination, tc.token)
+		sourceDEX, destinationDEX, token, tokenMetadata, err := e.validateSendAssetRoute(t.Context(), tc.source, tc.destination, tc.token)
 		require.NoErrorf(t, err, "validateSendAssetRoute must not error from %q to %q", tc.source, tc.destination)
+		require.NotNilf(t, tokenMetadata, "validateSendAssetRoute must return the token's metadata from %q to %q", tc.source, tc.destination)
+		assert.Truef(t, tokenMetadata.Name.Equal(tc.token), "validateSendAssetRoute should return %s's metadata", tc.token)
 		if mockTests {
 			assert.Equalf(t, tc.exp, [3]string{sourceDEX, destinationDEX, token}, "validateSendAssetRoute should resolve the route from %q to %q", tc.source, tc.destination)
 		}
@@ -2859,12 +2861,86 @@ func TestValidateSendAssetRoute(t *testing.T) {
 		{token: currency.NewCode("NOTATOKEN"), err: errTransferTokenInvalid},
 		{destination: "xyz", token: currency.HYPE, err: errTransferTokenInvalid},
 	} {
-		sourceDEX, destinationDEX, token, err := e.validateSendAssetRoute(t.Context(), tc.source, tc.destination, tc.token)
+		sourceDEX, destinationDEX, token, tokenMetadata, err := e.validateSendAssetRoute(t.Context(), tc.source, tc.destination, tc.token)
 		assert.ErrorIsf(t, err, tc.err, "validateSendAssetRoute should reject %s from %q to %q", tc.token, tc.source, tc.destination)
 		assert.Equalf(t, [3]string{}, [3]string{sourceDEX, destinationDEX, token}, "validateSendAssetRoute should return no route for %s from %q to %q", tc.token, tc.source, tc.destination)
+		assert.Nilf(t, tokenMetadata, "validateSendAssetRoute should return no token for %s from %q to %q", tc.token, tc.source, tc.destination)
 	}
 	ex := newInfoServerExchange(t, map[string]string{"spotMeta": `{"tokens":[{"name":"USDC","index":0}]}`, "meta": `{`}, nil)
-	sourceDEX, destinationDEX, token, err := ex.validateSendAssetRoute(t.Context(), "", "spot", currency.USDC)
+	sourceDEX, destinationDEX, token, tokenMetadata, err := ex.validateSendAssetRoute(t.Context(), "", "spot", currency.USDC)
 	assert.Error(t, err, "validateSendAssetRoute should return a metadata failure")
 	assert.Equal(t, [3]string{}, [3]string{sourceDEX, destinationDEX, token}, "validateSendAssetRoute should return no route after a metadata failure")
+	assert.Nil(t, tokenMetadata, "validateSendAssetRoute should return no token after a metadata failure")
+}
+
+func TestFormatTokenTransferAmount(t *testing.T) {
+	t.Parallel()
+	ubtc := &SpotTokenMetadata{Name: currency.NewCode("UBTC"), WeiDecimals: 10}
+	ueth := &SpotTokenMetadata{Name: currency.NewCode("UETH"), WeiDecimals: 9}
+	purr := &SpotTokenMetadata{Name: currency.NewCode("PURR"), WeiDecimals: 5}
+	udoge := &SpotTokenMetadata{Name: currency.NewCode("UDOGE"), WeiDecimals: 9}
+	// Summed at run time, as constants would sum exactly, so the amount carries more decimals than the token has
+	tenth, fifth := 0.1, 0.2
+	for _, tc := range []struct {
+		token  *SpotTokenMetadata
+		amount float64
+		exp    string
+		err    error
+	}{
+		{token: ubtc, amount: 84.9371054562, exp: "84.9371054562"},
+		{token: ueth, amount: 3.933596798, exp: "3.933596798"},
+		{token: purr, amount: 1.12345678, exp: "1.12345678"},
+		// Nine places of this amount would end in its binary residue, one wei short of the amount written
+		{token: udoge, amount: 10000000.12345679, exp: "10000000.12345679"},
+		{token: ubtc, amount: tenth + fifth, exp: "0.3"},
+		{token: ubtc, amount: 0.00000000001, err: errWireNumberRounding},
+		{token: ueth, amount: 0.0000000001, err: errWireNumberRounding},
+		{token: ubtc, err: errTransferAmountInvalid},
+		{token: ubtc, amount: math.NaN(), err: errTransferAmountInvalid},
+		{token: ubtc, amount: math.Inf(1), err: errTransferAmountInvalid},
+	} {
+		amount, err := formatTokenTransferAmount(tc.amount, tc.token)
+		require.ErrorIsf(t, err, tc.err, "formatTokenTransferAmount must return the expected error for %v %s", tc.amount, tc.token.Name)
+		assert.Equalf(t, tc.exp, amount, "formatTokenTransferAmount should format %v %s to the token's decimals, eight at least", tc.amount, tc.token.Name)
+	}
+}
+
+// TestTokenTransferDecimals sends each token transfer of a UBTC balance as a portfolio margin account held it on 26
+// October, whose ten decimals, which UBTC's wei decimals allow, Hyperliquid accepts
+func TestTokenTransferDecimals(t *testing.T) {
+	t.Parallel()
+	var amounts []string
+	ex := newInfoServerExchange(t, map[string]string{
+		"spotMeta": `{"universe":[],"tokens":[{"name":"USDC","index":0,"szDecimals":8,"weiDecimals":8,"tokenId":"0x6d1e7cde53ba9467b783cb7c530ce054"},` +
+			`{"name":"UBTC","index":197,"szDecimals":5,"weiDecimals":10,"tokenId":"0x8f254b963e8468305d409b33aa137c67"}]}`,
+	}, func(action map[string]any) string {
+		amount, _ := action["amount"].(string)
+		token, _ := action["token"].(string)
+		amounts = append(amounts, token+" "+amount)
+		return `{"status":"ok","response":{"type":"default"}}`
+	})
+	const amount = 84.9371054562
+	ubtc := currency.NewCode("UBTC")
+	for name, send := range map[string]func() error{
+		"SendAsset": func() error {
+			_, err := ex.SendAsset(t.Context(), &SendAssetRequest{Destination: testTraderAddress, SourceDEX: "spot", DestinationDEX: "spot", Token: ubtc, Amount: amount})
+			return err
+		},
+		"AgentSendAsset": func() error {
+			_, err := ex.AgentSendAsset(t.Context(), &AgentSendAssetRequest{Destination: testAccountAddress, SourceDEX: "spot", DestinationDEX: "spot", Token: ubtc, Amount: amount})
+			return err
+		},
+		"SendToEVMWithData": func() error {
+			_, err := ex.SendToEVMWithData(t.Context(), &SendToEVMWithDataRequest{Token: ubtc, Amount: amount, SourceDEX: "spot", DestinationRecipient: testTraderAddress, AddressEncoding: AddressEncodingHex, DestinationChainID: 1, GasLimit: 1})
+			return err
+		},
+		"SendCoreSpot": func() error {
+			_, err := ex.SendCoreSpot(t.Context(), &SendCoreSpotRequest{Destination: testTraderAddress, Token: ubtc, Amount: amount})
+			return err
+		},
+	} {
+		amounts = nil
+		require.NoErrorf(t, send(), "%s must not error for a UBTC amount of ten decimals", name)
+		assert.Equalf(t, []string{"UBTC:0x8f254b963e8468305d409b33aa137c67 84.9371054562"}, amounts, "%s should sign the amount with UBTC's ten decimals", name)
+	}
 }

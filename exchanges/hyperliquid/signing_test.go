@@ -515,6 +515,25 @@ func TestFloatToWire(t *testing.T) {
 	}
 }
 
+func TestFloatToDecimals(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		value    float64
+		decimals int
+		exp      string
+		err      error
+	}{
+		{value: 84.9371054562, decimals: 10, exp: "84.9371054562"},
+		{value: 0.0000000001, decimals: 10, exp: "0.0000000001"},
+		{value: 84.9371054562, decimals: 8, err: errWireNumberRounding},
+		{value: 0.00000000001, decimals: 10, err: errWireNumberRounding},
+	} {
+		wire, err := floatToDecimals(tc.value, tc.decimals)
+		require.ErrorIsf(t, err, tc.err, "floatToDecimals must return the expected error for %v to %d places", tc.value, tc.decimals)
+		assert.Equalf(t, tc.exp, wire, "floatToDecimals should format %v to %d places", tc.value, tc.decimals)
+	}
+}
+
 // TestL1ActionVectors checks each L1 action's msgpack encoding, connection ID and signatures against vectors derived
 // from an independent implementation of the SDK signing, which reproduces every published SDK vector, and against the
 // published Python, TypeScript and Rust SDK vectors themselves

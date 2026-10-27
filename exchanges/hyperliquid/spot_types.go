@@ -97,6 +97,8 @@ type SpotBalance struct {
 	EntryNotional types.Number  `json:"entryNtl"`
 	// SpotHold is undocumented and sent only for portfolio margin accounts, whose Hold can be negative
 	SpotHold types.Number `json:"spotHold"`
+	// Borrowed is undocumented and sent only for a token a portfolio margin account has borrowed, which Total is net of
+	Borrowed types.Number `json:"borrowed"`
 }
 
 // SpotDeployStateResponse contains a deployer's in-progress spot token deployments and the spot deploy gas auction

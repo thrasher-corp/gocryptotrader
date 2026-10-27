@@ -35,6 +35,9 @@ import (
 const (
 	// websocketPingInterval keeps quiet connections inside the server's 60 second idle timeout
 	websocketPingInterval = 25 * time.Second
+	// websocketHeldFillLimit is how long a fill waits for its order's first row before the account connection's pong
+	// relays it alone: rows follow their block's fills within milliseconds, while a quiet account may send only pongs
+	websocketHeldFillLimit = 2 * time.Second
 	// websocketHandshakeTimeout bounds a dial, which holds the manager's lock while it retries the account connection
 	websocketHandshakeTimeout = 10 * time.Second
 	// websocketMessageInterval spaces requests within the limit of 2000 messages a minute
@@ -239,8 +242,9 @@ func (e *Exchange) publicWebsocketDisconnected(_ context.Context, conn websocket
 
 // accountWebsocketDisconnected fails the account connection's outstanding subscription operations; when it is the
 // current account connection, account feeds stop, and as userEvents does not resend the fills sent while it is down, the
-// orders' fills may then be incomplete
-func (e *Exchange) accountWebsocketDisconnected(_ context.Context, conn websocket.Connection) {
+// orders' fills may then be incomplete, while orderUpdates does not resend the rows, so fills held for their orders'
+// first rows are relayed as they are
+func (e *Exchange) accountWebsocketDisconnected(ctx context.Context, conn websocket.Connection) {
 	_ = e.failWebsocketPending(conn, websocket.ErrNotConnected)
 	e.websocketConnectionsMu.Lock()
 	current := e.websocketAccountConnection == conn
@@ -251,6 +255,11 @@ func (e *Exchange) accountWebsocketDisconnected(_ context.Context, conn websocke
 	e.websocketConnectionsMu.Unlock()
 	if current {
 		e.uncoverWebsocketOrders()
+		if released := e.releaseHeldWebsocketFills(time.Time{}, true); len(released) > 0 {
+			if err := e.Websocket.DataHandler.Send(ctx, released); err != nil {
+				log.Errorf(log.WebsocketMgr, "%s relaying the fills held for their orders' rows: %s", e.Name, err)
+			}
+		}
 	}
 }
 
@@ -278,6 +287,14 @@ func (e *Exchange) wsHandleChannel(ctx context.Context, conn websocket.Connectio
 	case wsChannelPost:
 		return e.wsHandlePostResponse(conn, envelope.Data)
 	case wsChannelPong:
+		// The account connection handles its rows and fills in the order they arrive, so its pong follows the rows of every
+		// block whose fills it handled before; another connection's pong can come while those rows wait to be handled
+		e.websocketConnectionsMu.Lock()
+		account := conn == e.websocketAccountConnection
+		e.websocketConnectionsMu.Unlock()
+		if account {
+			return e.relayStaleHeldFills(ctx)
+		}
 		return nil
 	case wsChannelError:
 		return e.wsHandleError(conn, envelope.Data)
@@ -380,12 +397,23 @@ func (e *Exchange) wsHandleSubscriptionResponse(conn websocket.Connection, raw [
 }
 
 // completeWebsocketPending applies the server's completion of a pending operation to the subscription store; it reports
-// whether an operation was pending, as a late or unknown completion is ignored
+// whether an operation was pending, as a late or unknown completion is otherwise ignored
 func (e *Exchange) completeWebsocketPending(conn websocket.Connection, method string, sub *WebsocketSubscription) (bool, error) {
 	key := websocketPendingKey{connection: conn, subscription: *sub}
 	e.websocketPendingMu.Lock()
 	if method == wsMethodUnsubscribe {
 		delete(e.websocketUnheldAggregatedFills, key)
+		if _, abandoned := e.websocketAbandonedUnsubscribes[key]; abandoned {
+			// Hyperliquid answers a connection's requests in order, so this answers the abandoned unsubscribe rather than
+			// an operation on the feed sent after it
+			delete(e.websocketAbandonedUnsubscribes, key)
+			e.websocketPendingMu.Unlock()
+			return true, nil
+		}
+	} else {
+		// Hyperliquid answered an unsubscribe of the feed abandoned before this subscribe first, though with nothing taken
+		// as its answer, such as an error quoting nothing
+		delete(e.websocketAbandonedUnsubscribes, key)
 	}
 	pending := e.websocketPending[key]
 	if pending == nil {
@@ -465,7 +493,8 @@ func (e *Exchange) rollbackWebsocketPending(pending *websocketPendingOperation) 
 }
 
 // failWebsocketPending fails and rolls back every operation outstanding on a connection. Abandoned subscribes, already
-// rolled back, are dropped only when the connection is lost, as until then their feeds may be active
+// rolled back, and abandoned unsubscribes are dropped only when the connection is lost, as until then their feeds may be
+// active
 func (e *Exchange) failWebsocketPending(conn websocket.Connection, cause error) error {
 	lost := errors.Is(cause, websocket.ErrNotConnected)
 	e.websocketPendingMu.Lock()
@@ -485,6 +514,11 @@ func (e *Exchange) failWebsocketPending(conn websocket.Connection, cause error) 
 		for key := range e.websocketUnheldAggregatedFills {
 			if key.connection == conn {
 				delete(e.websocketUnheldAggregatedFills, key)
+			}
+		}
+		for key := range e.websocketAbandonedUnsubscribes {
+			if key.connection == conn {
+				delete(e.websocketAbandonedUnsubscribes, key)
 			}
 		}
 	}
@@ -515,15 +549,33 @@ func (e *Exchange) abortWebsocketPending(key *websocketPendingKey, pending *webs
 // abandonWebsocketPending fails a sent operation the server has not settled in time; if the acknowledgement handler
 // already took the operation, its outcome is returned instead. Hyperliquid may still acknowledge a subscribe and keep
 // sending its feed, so an abandoned subscribe stays pending, holding the feed's slot and refusing other operations on
-// it, until Hyperliquid answers it or the connection drops
+// it, until Hyperliquid answers it or the connection drops. Hyperliquid may likewise still drop the feed of an
+// unsubscribe, so an abandoned unsubscribe is taken as done: holding the feed would keep a later subscribe of it from
+// being sent once the feed stops, while Hyperliquid answers a later subscribe of a feed it kept as already subscribed.
+// As the feed may send until Hyperliquid answers the unsubscribe, a variant exclusive of it is refused until then or
+// until the connection drops
 func (e *Exchange) abandonWebsocketPending(key *websocketPendingKey, pending *websocketPendingOperation, cause error) error {
-	if pending.method != wsMethodSubscribe {
-		return e.abortWebsocketPending(key, pending, cause)
-	}
 	e.websocketPendingMu.Lock()
 	if e.websocketPending[*key] != pending {
 		e.websocketPendingMu.Unlock()
 		return <-pending.done
+	}
+	if pending.method != wsMethodSubscribe {
+		delete(e.websocketPending, *key)
+		if e.websocketAbandonedUnsubscribes == nil {
+			e.websocketAbandonedUnsubscribes = make(map[websocketPendingKey]*subscription.Subscription)
+		}
+		e.websocketAbandonedUnsubscribes[*key] = pending.subscription
+		if key.subscription.Type == wsChannelUserFills && key.subscription.AggregateByTime {
+			// The feed may send until Hyperliquid applies the unsubscribe, and its fills must still be known as combined
+			if e.websocketUnheldAggregatedFills == nil {
+				e.websocketUnheldAggregatedFills = make(map[websocketPendingKey]struct{})
+			}
+			e.websocketUnheldAggregatedFills[*key] = struct{}{}
+		}
+		e.websocketPendingMu.Unlock()
+		e.clearWebsocketWatermark(&key.subscription)
+		return common.AppendError(cause, e.Websocket.RemoveSubscriptions(pending.connection, pending.subscription))
 	}
 	pending.abandoned = true
 	e.websocketPendingMu.Unlock()
@@ -542,6 +594,33 @@ func (e *Exchange) abandonedWebsocketSubscriptions() subscription.List {
 		}
 	}
 	return abandoned
+}
+
+// abandonedWebsocketUnsubscribes returns the subscriptions of the abandoned unsubscribes Hyperliquid has not answered,
+// whose feeds may still send; Hyperliquid answers a later subscribe after them, so they take no slot
+func (e *Exchange) abandonedWebsocketUnsubscribes() subscription.List {
+	e.websocketPendingMu.Lock()
+	defer e.websocketPendingMu.Unlock()
+	abandoned := make(subscription.List, 0, len(e.websocketAbandonedUnsubscribes))
+	for _, sub := range e.websocketAbandonedUnsubscribes {
+		abandoned = append(abandoned, sub)
+	}
+	return abandoned
+}
+
+// settleAbandonedUnsubscribe forgets an abandoned unsubscribe of a feed an error message quotes and reports whether there
+// was one: Hyperliquid answers a connection's requests in order, so the message answers it rather than an operation on
+// the feed sent after it, unless an error quoting nothing answered it first, and the feed Hyperliquid kept is left
+// sending but unheld, as after a late acknowledgement
+func (e *Exchange) settleAbandonedUnsubscribe(conn websocket.Connection, sub *WebsocketSubscription) bool {
+	key := websocketPendingKey{connection: conn, subscription: *sub}
+	e.websocketPendingMu.Lock()
+	defer e.websocketPendingMu.Unlock()
+	if _, abandoned := e.websocketAbandonedUnsubscribes[key]; !abandoned {
+		return false
+	}
+	delete(e.websocketAbandonedUnsubscribes, key)
+	return true
 }
 
 // wsHandleError settles the operation an error message answers, which the message identifies by quoting its
@@ -574,7 +653,7 @@ func (e *Exchange) wsHandleError(conn websocket.Connection, raw []byte) error {
 		return cause
 	}
 	if quoted, ok := strings.CutPrefix(message, wsErrorInvalidSubscription); ok {
-		if sub, err := decodeWebsocketSubscription(quoted); err == nil && e.failWebsocketPendingOperation(conn, wsMethodSubscribe, &sub, cause) {
+		if sub, err := decodeWebsocketSubscription(quoted); err == nil && (e.settleAbandonedUnsubscribe(conn, &sub) || e.failWebsocketPendingOperation(conn, wsMethodSubscribe, &sub, cause)) {
 			return cause
 		}
 		return e.failWebsocketPending(conn, cause)
@@ -590,7 +669,8 @@ func (e *Exchange) wsHandleError(conn websocket.Connection, raw []byte) error {
 				}
 				return cause
 			case wsMethodSubscribe, wsMethodUnsubscribe:
-				if e.failWebsocketPendingOperation(conn, quotedRequest.Method, &quotedRequest.Subscription, cause) {
+				if (quotedRequest.Method == wsMethodUnsubscribe && e.settleAbandonedUnsubscribe(conn, &quotedRequest.Subscription)) ||
+					e.failWebsocketPendingOperation(conn, quotedRequest.Method, &quotedRequest.Subscription, cause) {
 					return cause
 				}
 			}
@@ -839,8 +919,12 @@ func (e *Exchange) wsHandleOrderUpdates(ctx context.Context, raw []byte) error {
 	}
 	orders := make([]order.Detail, 0, len(updates))
 	var errs error
+	var latest time.Time
 	now := time.Now()
 	for i := range updates {
+		if updated := updates[i].StatusTimestamp.Time(); updated.After(latest) {
+			latest = updated
+		}
 		if isOutcomeCoin(updates[i].Order.Coin) {
 			continue
 		}
@@ -854,6 +938,9 @@ func (e *Exchange) wsHandleOrderUpdates(ctx context.Context, raw []byte) error {
 		e.applyWebsocketOrderRow(updates[i].Order.OrderID, &detail, now)
 		orders = append(orders, detail)
 	}
+	// Hyperliquid sends rows in block order, after their block's fills, so fills held from blocks before these rows' got
+	// no first row in their block
+	orders = append(e.releaseHeldWebsocketFills(latest, false), orders...)
 	if len(orders) > 0 {
 		errs = common.AppendError(errs, e.Websocket.DataHandler.Send(ctx, orders))
 	}
@@ -880,6 +967,10 @@ func (e *Exchange) applyWebsocketOrderRow(orderID uint64, update *order.Detail, 
 		record.covered = true
 	}
 	record.rowSeen = true
+	for i := range record.held {
+		update.Trades = append(update.Trades, record.held[i].Trades...)
+	}
+	orders.unhold(record)
 	record.originalSize, record.limitPrice, record.placed = update.Amount, update.Price, update.Date
 	switch {
 	case matched:
@@ -903,10 +994,10 @@ func (e *Exchange) applyWebsocketOrderRow(orderID uint64, update *order.Detail, 
 }
 
 // applyWebsocketOrderFill adds a fill to its order's record and returns the update relaying it to the order stream, or
-// false for a fill already relayed. The update reports the order's cumulative execution only when the order's fills are
-// known to include every execution and no final row awaits more of them, and otherwise only the trade, so it never
-// lowers an executed size the engine learnt elsewhere
-func (e *Exchange) applyWebsocketOrderFill(source *FillResponse, mapping *pairMapping, a asset.Item, side order.Side, now time.Time) (order.Detail, bool) {
+// false for a fill already relayed or held for its order's first row, which holdUnseen asks for. The update reports the
+// order's cumulative execution only when the order's fills are known to include every execution and no final row awaits
+// more of them, and otherwise only the trade, so it never lowers an executed size the engine learnt elsewhere
+func (e *Exchange) applyWebsocketOrderFill(source *FillResponse, mapping *pairMapping, a asset.Item, side order.Side, now time.Time, holdUnseen bool) (order.Detail, bool) {
 	price, size, fee := source.Price.Float64(), source.Size.Float64(), source.Fee.Float64()
 	filled := source.Time.Time().UTC()
 	// An order not seen in a row yet is dated by its fill, which is when it was placed if its fill preceded its placement
@@ -978,6 +1069,20 @@ func (e *Exchange) applyWebsocketOrderFill(source *FillResponse, mapping *pairMa
 		orders.finish(record)
 		return final, true
 	}
+	if holdUnseen && !record.rowSeen {
+		// Hyperliquid sends a block's fills before its rows, and the engine stores an order it has not seen from its first
+		// update, a perpetual order's opening its futures position, so the fill waits for the rows of its block, where the
+		// first row of an order placed in the block reports the fill's execution
+		if len(record.held) == 0 {
+			record.heldSince = now
+		}
+		record.held = append(record.held, update)
+		if orders.held == nil {
+			orders.held = make(map[uint64]*websocketOrder)
+		}
+		orders.held[record.orderID] = record
+		return order.Detail{}, false
+	}
 	if record.covered && record.originalSize > 0 {
 		record.setFillState(&update)
 	}
@@ -1018,10 +1123,11 @@ func (e *Exchange) uncoverWebsocketOrders() {
 }
 
 // touch returns an order's record, starting a new one when it is absent or untouched for its lifetime, and marks it
-// touched now, then forgets the least recently touched records beyond the limit and those untouched for their lifetime
+// touched now, then forgets the least recently touched records beyond the limit and those untouched for their lifetime;
+// a record holding fills for its first row is kept, as they were never relayed
 func (o *websocketOrders) touch(orderID uint64, now time.Time) *websocketOrder {
 	record := o.byOrderID[orderID]
-	if record != nil && now.Sub(record.touched) > websocketOrderLifetime {
+	if record != nil && len(record.held) == 0 && now.Sub(record.touched) > websocketOrderLifetime {
 		o.remove(record)
 		record = nil
 	}
@@ -1042,8 +1148,12 @@ func (o *websocketOrders) touch(orderID uint64, now time.Time) *websocketOrder {
 		o.oldest = record
 	}
 	o.newest = record
-	for o.oldest != record && (len(o.byOrderID) > maximumWebsocketOrders || now.Sub(o.oldest.touched) > websocketOrderLifetime) {
-		o.remove(o.oldest)
+	for older := o.oldest; older != record && (len(o.byOrderID) > maximumWebsocketOrders || now.Sub(older.touched) > websocketOrderLifetime); {
+		newer := older.newer
+		if len(older.held) == 0 {
+			o.remove(older)
+		}
+		older = newer
 	}
 	return record
 }
@@ -1076,6 +1186,72 @@ func (o *websocketOrders) finish(record *websocketOrder) {
 func (o *websocketOrders) remove(record *websocketOrder) {
 	o.unlink(record)
 	delete(o.byOrderID, record.orderID)
+	delete(o.held, record.orderID)
+}
+
+// unhold forgets the fills held for an order's first row
+func (o *websocketOrders) unhold(record *websocketOrder) {
+	record.held = nil
+	delete(o.held, record.orderID)
+}
+
+// releaseHeldWebsocketFills returns the updates of the fills held from blocks before a time, or of every held fill, and
+// forgets them. Hyperliquid has sent those blocks' rows, and the orders of the fills got no first row in the blocks in
+// which they filled, so they rested before the orderUpdates feed was held; and no rows come once the feed is not held
+func (e *Exchange) releaseHeldWebsocketFills(before time.Time, all bool) []order.Detail {
+	return e.releaseWebsocketFills(func(_ *websocketOrder, update *order.Detail) bool {
+		return all || update.LastUpdated.Before(before)
+	})
+}
+
+// releaseStaleHeldWebsocketFills returns the updates of the orders whose fills have waited for websocketHeldFillLimit,
+// and forgets them
+func (e *Exchange) releaseStaleHeldWebsocketFills(now time.Time) []order.Detail {
+	return e.releaseWebsocketFills(func(record *websocketOrder, _ *order.Detail) bool {
+		return now.Sub(record.heldSince) >= websocketHeldFillLimit
+	})
+}
+
+// relayStaleHeldFills relays alone the fills held for websocketHeldFillLimit
+func (e *Exchange) relayStaleHeldFills(ctx context.Context) error {
+	if released := e.releaseStaleHeldWebsocketFills(time.Now()); len(released) > 0 {
+		return e.Websocket.DataHandler.Send(ctx, released)
+	}
+	return nil
+}
+
+// releaseWebsocketFills returns the updates of the held fills that release reports, by fill time and order, and forgets
+// them
+func (e *Exchange) releaseWebsocketFills(release func(*websocketOrder, *order.Detail) bool) []order.Detail {
+	e.websocketPendingMu.Lock()
+	defer e.websocketPendingMu.Unlock()
+	orders := &e.websocketWatermarks.orders
+	var released []order.Detail
+	for _, record := range orders.held {
+		kept := record.held[:0]
+		for i := range record.held {
+			if release(record, &record.held[i]) {
+				released = append(released, record.held[i])
+			} else {
+				kept = append(kept, record.held[i])
+			}
+		}
+		switch {
+		case len(kept) == 0:
+			orders.unhold(record)
+		case len(kept) < len(record.held):
+			// The fills kept arrived after those released, so they wait from now
+			record.held, record.heldSince = kept, time.Now()
+		}
+	}
+	// Records are held in a map, so the updates are ordered by fill time and order for a stable relay
+	slices.SortStableFunc(released, func(a, b order.Detail) int {
+		if c := a.LastUpdated.Compare(b.LastUpdated); c != 0 {
+			return c
+		}
+		return strings.Compare(a.OrderID, b.OrderID)
+	})
+	return released
 }
 
 // unlink takes a record out of the order in which records were touched
@@ -1102,10 +1278,10 @@ func (e *Exchange) wsHandleUserEvent(ctx context.Context, raw []byte) error {
 	}
 	switch {
 	case len(event.Fills) > 0:
-		_, err := e.relayFills(ctx, event.Fills, nil, true)
+		_, err := e.relayFills(ctx, "", event.Fills, nil, true)
 		return err
 	case len(event.TWAPSliceFills) > 0:
-		_, err := e.relayFills(ctx, nil, event.TWAPSliceFills, true)
+		_, err := e.relayFills(ctx, "", nil, event.TWAPSliceFills, true)
 		return err
 	case event.Funding != nil:
 		return e.Websocket.DataHandler.Send(ctx, event.Funding)
@@ -1127,7 +1303,7 @@ func (e *Exchange) wsHandleUserFills(ctx context.Context, raw []byte) error {
 	}
 	feed := websocketFillsFeed{channel: wsChannelUserFills, user: strings.ToLower(update.User)}
 	fills := unrelayedFills(e, feed, update.Fills, update.IsSnapshot, fillPosition)
-	relayed, err := e.relayFills(ctx, fills, nil, !e.aggregatesUserFills(feed.user))
+	relayed, err := e.relayFills(ctx, feed.user, fills, nil, !e.aggregatesUserFills(feed.user))
 	e.advanceFillsWatermark(feed, relayed)
 	return err
 }
@@ -1156,6 +1332,17 @@ func (e *Exchange) aggregatesUserFills(user string) bool {
 	return false
 }
 
+// receivesOrderRows reports whether an orderUpdates feed is held for an account, so that each of its orders that fills
+// gets a row, or for any account when none is named, as a userEvents message names none
+func (e *Exchange) receivesOrderRows(user string) bool {
+	for _, sub := range e.Websocket.GetSubscriptions() {
+		if key, ok := sub.EnsureKeyed().(*websocketSubscriptionKey); ok && key.feed.Type == wsChannelOrderUpdates && (user == "" || strings.EqualFold(key.feed.User, user)) {
+			return true
+		}
+	}
+	return false
+}
+
 // unrelayedFills returns the fills of an account fills feed's message that were not relayed before
 func unrelayedFills[T any](e *Exchange, feed websocketFillsFeed, fills []T, snapshot bool, position func(*T) websocketPosition) []T {
 	e.websocketPendingMu.Lock()
@@ -1176,19 +1363,33 @@ func (e *Exchange) advanceFillsWatermark(feed websocketFillsFeed, relayed []webs
 	advanceWatermark(e.websocketWatermarks.fills, feed, relayed)
 }
 
-// relayFills relays fills and TWAP slice fills as trades of their orders to the order stream, when toOrders is set, and
-// to the fills feed, when it is enabled, reporting those whose coin or side cannot convert, and returns the positions of
-// the fills it relayed or skipped; outcome fills are skipped, as no supported asset holds them
-func (e *Exchange) relayFills(ctx context.Context, fills []FillResponse, sliceFills []TWAPSliceFillResponse, toOrders bool) ([]websocketPosition, error) {
+// relayFills relays the fills of the account named, or of userEvents when none is, as trades of their orders to the
+// order stream, when toOrders is set, and fills and TWAP slice fills to the fills feed, when it is enabled, reporting
+// those whose coin or side cannot convert, and returns the positions of the fills it relayed or skipped; outcome fills
+// are skipped, as no supported asset holds them. A TWAP slice fill's order gets no orderUpdates row and is unknown to
+// orderStatus, so the order stream could not complete it
+func (e *Exchange) relayFills(ctx context.Context, user string, fills []FillResponse, sliceFills []TWAPSliceFillResponse, toOrders bool) ([]websocketPosition, error) {
 	toFillsFeed := e.IsFillsFeedEnabled()
 	if !toOrders && !toFillsFeed {
 		return nil, nil
 	}
-	orders := make([]order.Detail, 0, len(fills)+len(sliceFills))
+	// While orderUpdates rows arrive, a fill of an order no row has shown waits for the rows of its block
+	holdUnseen := toOrders && e.receivesOrderRows(user)
+	orders := make([]order.Detail, 0, len(fills))
+	if toOrders {
+		// Hyperliquid sends a block's rows before a later block's fills, and no rows once no orderUpdates feed is held
+		var earliest time.Time
+		for i := range fills {
+			if filled := fills[i].Time.Time(); earliest.IsZero() || filled.Before(earliest) {
+				earliest = filled
+			}
+		}
+		orders = append(orders, e.releaseHeldWebsocketFills(earliest, !e.receivesOrderRows(""))...)
+	}
 	data := make([]fill.Data, 0, len(fills)+len(sliceFills))
 	relayed := make([]websocketPosition, 0, len(fills)+len(sliceFills))
 	now := time.Now()
-	relay := func(source *FillResponse) error {
+	relay := func(source *FillResponse, toOrderStream bool) error {
 		if isOutcomeCoin(source.Coin) {
 			relayed = append(relayed, fillPosition(source))
 			return nil
@@ -1201,8 +1402,8 @@ func (e *Exchange) relayFills(ctx context.Context, fills []FillResponse, sliceFi
 		if err != nil {
 			return err
 		}
-		if toOrders {
-			if update, ok := e.applyWebsocketOrderFill(source, &mapping, a, side, now); ok {
+		if toOrderStream {
+			if update, ok := e.applyWebsocketOrderFill(source, &mapping, a, side, now, holdUnseen); ok {
 				orders = append(orders, update)
 			}
 		}
@@ -1214,12 +1415,12 @@ func (e *Exchange) relayFills(ctx context.Context, fills []FillResponse, sliceFi
 	}
 	var errs error
 	for i := range fills {
-		if err := relay(&fills[i]); err != nil {
+		if err := relay(&fills[i], toOrders); err != nil {
 			errs = common.AppendError(errs, fmt.Errorf("fill %d: %w", i, err))
 		}
 	}
 	for i := range sliceFills {
-		if err := relay(&sliceFills[i].Fill); err != nil {
+		if err := relay(&sliceFills[i].Fill, false); err != nil {
 			errs = common.AppendError(errs, fmt.Errorf("TWAP %d slice fill %d: %w", sliceFills[i].TWAPID, i, err))
 		}
 	}
@@ -1324,7 +1525,7 @@ func (e *Exchange) wsHandleUserTWAPSliceFills(ctx context.Context, raw []byte) e
 	sliceFills := unrelayedFills(e, feed, update.TWAPSliceFills, update.IsSnapshot, func(f *TWAPSliceFillResponse) websocketPosition {
 		return fillPosition(&f.Fill)
 	})
-	relayed, err := e.relayFills(ctx, nil, sliceFills, true)
+	relayed, err := e.relayFills(ctx, "", nil, sliceFills, true)
 	e.advanceFillsWatermark(feed, relayed)
 	return err
 }
@@ -1791,8 +1992,8 @@ func (e *Exchange) ValidateSubscriptions(subs subscription.List) error {
 func (e *Exchange) websocketSubscribe(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
 	// Feeds validated before others were subscribed reach here too, as when the manager reconnects the account
 	// connection with its configured feeds before a runtime subscription's, so they are validated against those held,
-	// and against those of abandoned subscribes, which may still be active
-	if err := e.ValidateSubscriptions(slices.Concat(subs, e.Websocket.GetSubscriptions(), e.abandonedWebsocketSubscriptions())); err != nil {
+	// and against those of abandoned subscribes and unsubscribes, which may still be active
+	if err := e.ValidateSubscriptions(slices.Concat(subs, e.Websocket.GetSubscriptions(), e.abandonedWebsocketSubscriptions(), e.abandonedWebsocketUnsubscribes())); err != nil {
 		return err
 	}
 	var errs error
@@ -1813,7 +2014,8 @@ func (e *Exchange) websocketUnsubscribe(ctx context.Context, conn websocket.Conn
 }
 
 // manageWebsocketSubscription sends a subscription operation and waits for its acknowledgement, rolling the local
-// subscription state back if the server rejects it, the connection drops or it times out
+// subscription state back if the server rejects it, the connection drops, or a subscribe times out or is cancelled once
+// sent; an unsubscribe that times out or is cancelled once sent is taken as done, as abandonWebsocketPending explains
 // An unsubscribe repeats the feed its subscription subscribed, as Hyperliquid requires, rather than rebuilding it from
 // metadata that no longer lists a delisted market or from a configured address that has since changed
 func (e *Exchange) manageWebsocketSubscription(ctx context.Context, connection websocket.Connection, method string, sub *subscription.Subscription) error {

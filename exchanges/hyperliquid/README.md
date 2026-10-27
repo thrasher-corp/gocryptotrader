@@ -26,8 +26,8 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
   state and deployment information
 + Signed orders, cancels, modifications, TWAP and trailing stop orders, scheduled cancels, and leverage and margin
   updates, with orders, cancels and modifications also available over the websocket
-+ Transfers between spot, perpetual DEXs and accounts, USDC bridge withdrawals, HyperEVM sends, HIP-3 backstop
-  liquidator transfers, staking, and API wallet and builder fee approvals
++ Transfers between spot, perpetual DEXs and accounts, HyperEVM sends, HIP-3 backstop liquidator transfers, staking,
+  and API wallet and builder fee approvals
 + Outcome splits, merges and negations, account abstraction settings, reward claims, request weight reservation,
   pending nonce invalidation, and gossip priority bids and auction status
 + Funding rates, open interest and fee estimates
@@ -154,24 +154,36 @@ was cancelled once sent, so the feed keeps its slot, and neither it nor a varian
 until Hyperliquid answers or the connection drops. A late acknowledgement leaves the feed sending but unheld until it is
 subscribed again, which Hyperliquid answers as already subscribed; until then it is not checked against exclusive
 variants, and counts towards the subscription limit only through the room kept for a configured account feed not yet
-held. When a `trades`, `userFills` or `userTwapSliceFills` subscription opens, Hyperliquid replays recent entries, and
-only those newer than the last entry relayed or skipped from that feed are relayed, so a first subscription relays none
-and resubscribing after a reconnect relays what the replay holds of the gap. Account trades use `userEvents`, which
-includes TWAP slice fills but replays nothing, so the fills it misses while disconnected are not recovered from the
-websocket.
+held. An unsubscribe that times out or is cancelled once sent does not keep its feed's slot but is taken as done, so
+subscribing the feed again sends a subscribe, which Hyperliquid answers after the unsubscribe, as it answers a
+connection's requests in order, or as already subscribed if it kept the feed. As the feed may send until Hyperliquid
+answers the unsubscribe, a variant exclusive of it cannot be subscribed until then or until the connection drops; should
+Hyperliquid refuse the unsubscribe, the feed is left sending but unheld, as after a late acknowledgement. When a
+`trades`, `userFills` or `userTwapSliceFills` subscription opens, Hyperliquid replays recent entries, and only those
+newer than the last entry relayed or skipped from that feed are relayed, so a first subscription relays none and
+resubscribing after a reconnect relays what the replay holds of the gap. Account trades use `userEvents`, which includes
+TWAP slice fills but replays nothing, so the fills it misses while disconnected are not recovered from the websocket.
 
-`orderUpdates` sends a row only when an order's status changes, so fills from `userEvents`, and from `userFills` and
-`userTwapSliceFills` when subscribed, are also relayed to the order stream as trades of their orders; a fill both feeds
-deliver is relayed there once. Once an order's fills are known to include all its executions, because its first row
-showed it unfilled or a row's executed size matched its fills, each fill reports the order's executed and remaining
-size, cost, average price and total fee, and its final row carries the cost, average price and total fee. The total fee
-is left out when the fills paid fees in different tokens, as a spot order's fills can: a spot fill pays its fee in the
-token it receives but takes a maker rebate in the token it gives. Otherwise a fill carries the trade alone, so it never
-lowers an executed size or fee learnt elsewhere. Fills from a `userFills` feed
-with `aggregateByTime` go only to the fills feed, as each combines an order's fills within a block under one of their
-trade IDs. Orders are remembered for a day after their last row or fill, 10000 at most, and the trade IDs of finished
-orders' fills, 10000 at most, those of the orders that finished earliest dropped first, so a fill both feeds deliver
-after its order's final row is still relayed once. Outcome (HIP-4) orders and fills are skipped.
+`orderUpdates` sends a row only when an order's status changes, so fills from `userEvents`, and from `userFills` when
+subscribed, are also relayed to the order stream as trades of their orders; a fill both feeds deliver is relayed there
+once. Hyperliquid sends a block's fills before its rows, the fills of an order placed in the block among them, and the
+engine stores an order it has not seen from its first update, so while `orderUpdates` is held for the account, a fill of
+an order no row has shown waits for the rows of its block; a `userEvents` message names no account, so its fills wait
+while `orderUpdates` is held for any account. The order's first row relays its trade; failing that, the fill is relayed
+alone once a row or fill of a later block arrives, as for an order that rested before the feed was held, once the
+account connection drops, as the rows sent while it is down are not resent, or at the account connection's first pong
+after it has waited 2 seconds, as a quiet account may send nothing else. TWAP slice fills go only to the fills feed, as
+their orders get no rows and are unknown to `orderStatus`. Once an order's fills are known to include all its
+executions, because its first row showed it unfilled or a row's executed size matched its fills, each fill reports the
+order's executed and remaining size, cost, average price and total fee, and its final row carries the cost, average
+price and total fee. The total fee is left out when the fills paid fees in different tokens, as a spot order's fills
+can: a spot fill pays its fee in the token it receives but takes a maker rebate in the token it gives. Otherwise a fill
+carries the trade alone, so it never lowers an executed size or fee learnt elsewhere. Fills from a `userFills` feed with
+`aggregateByTime` go only to the fills feed, as each combines an order's fills within a block under one of their trade
+IDs. Orders are remembered for a day after their last row or fill, the least recently touched forgotten beyond 10000,
+though not while their fills wait for their first row, and the trade IDs of finished orders' fills, 10000 at most, those
+of the orders that finished earliest dropped first, so a fill both feeds deliver after its order's final row is still
+relayed once. Outcome (HIP-4) orders and fills are skipped.
 
 `WebsocketAPI()` posts over the websocket instead of REST: its `PostInfo` sends an info request, and its `PlaceOrders`,
 `CancelOrders`, `CancelOrdersByClientOrderID`, `ModifySingleOrder` and `ModifyOrders` send the same signed actions as

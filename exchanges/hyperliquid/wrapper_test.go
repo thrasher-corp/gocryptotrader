@@ -676,6 +676,22 @@ func TestGetPairMapping(t *testing.T) {
 	}
 	_, err = newUnavailableServerExchange(t).getPairMapping(t.Context(), perpetualPair, asset.PerpetualContract)
 	assert.ErrorIs(t, err, request.ErrBadStatus, "getPairMapping should return a metadata failure")
+
+	// Each refetch maps every DEX's markets, so a pair known to be delisted is refused without one, even once its miss
+	// expires
+	counted, requests := newCountingServerExchange(t, map[string]string{"meta:": `{"universe":[{"name":"BTC","szDecimals":5},{"name":"MATIC","szDecimals":1,"isDelisted":true}]}`})
+	_, err = counted.getPairMapping(t.Context(), testDelistedMapping.pair, asset.PerpetualContract)
+	require.ErrorIs(t, err, errMarketDelisted, "getPairMapping must refuse a delisted market's pair")
+	fetched := requests()
+	clear(counted.pairMappingMisses)
+	_, err = counted.getPairMapping(t.Context(), testDelistedMapping.pair, asset.PerpetualContract)
+	assert.ErrorIs(t, err, errMarketDelisted, "getPairMapping should refuse a delisted market's pair again")
+	assert.ErrorIs(t, err, errPairMappingNotFound, "getPairMapping should report a pair known to be delisted as unmapped")
+	delimited := testDelistedMapping.pair
+	delimited.Delimiter = "-"
+	_, err = counted.getPairMapping(t.Context(), delimited, asset.PerpetualContract)
+	assert.ErrorIs(t, err, errMarketDelisted, "getPairMapping should refuse a delisted market's pair written with a delimiter")
+	assert.Equal(t, fetched, requests(), "getPairMapping should refuse a pair known to be delisted without refetching every market")
 }
 
 func TestLookupPairMapping(t *testing.T) {
@@ -925,6 +941,13 @@ func TestGetPerpetualAssetContexts(t *testing.T) {
 	assert.Equal(t, []string{"", "xyz"}, requested, "getPerpetualAssetContexts should fetch each DEX once")
 	_, err = ex.getPerpetualAssetContexts(t.Context(), []pairMapping{{pair: perpetualPair, coin: "OLD"}})
 	assert.ErrorIs(t, err, errAssetContextNotFound, "getPerpetualAssetContexts should not return a delisted market's context")
+	old := pairMapping{pair: currency.NewPair(currency.NewCode("OLD"), currency.USDC), coin: "OLD"}
+	listed, contexts, err := ex.getListedPerpetualAssetContexts(t.Context(), []pairMapping{testPerpetualMapping, old, testBuilderMapping}, true)
+	require.NoError(t, err, "getListedPerpetualAssetContexts must not error for a delisted market it may leave out")
+	assert.Equal(t, []pairMapping{testPerpetualMapping, testBuilderMapping}, listed, "getListedPerpetualAssetContexts should leave out a market delisted since the mappings were cached")
+	assert.Equal(t, []PerpetualAssetContext{{Funding: 0.0001}, {Funding: 0.0003}}, contexts, "getListedPerpetualAssetContexts should return the listed markets' contexts")
+	_, _, err = ex.getListedPerpetualAssetContexts(t.Context(), []pairMapping{testPerpetualMapping, old}, false)
+	assert.ErrorIs(t, err, errAssetContextNotFound, "getListedPerpetualAssetContexts should refuse a delisted market it may not leave out")
 	_, err = newUnavailableServerExchange(t).getPerpetualAssetContexts(t.Context(), []pairMapping{testPerpetualMapping})
 	assert.ErrorIs(t, err, request.ErrBadStatus, "getPerpetualAssetContexts should return a context failure")
 }
@@ -1055,6 +1078,17 @@ func TestUpdateTickers(t *testing.T) {
 	price, err = ticker.GetTicker(mixed.Name, perpetualPair, asset.PerpetualContract)
 	require.NoError(t, err, "GetTicker must not error for the batch's valid ticker")
 	assert.Equal(t, 101.0, price.Last, "UpdateTickers should store the batch's valid tickers")
+
+	// A delisted market keeps a frozen context, which is no ticker, and a listed market may reuse its name
+	frozen := newInfoServerExchange(t, map[string]string{"metaAndAssetCtxs": `[{"universe":[{"name":"BTC","isDelisted":true},{"name":"ETH"},{"name":"ETH","isDelisted":true}]},[{"markPx":"80000"},{"markPx":"3000"},{"markPx":"1500"}]]`}, nil)
+	frozen.Name = t.Name() + " frozen"
+	setTestPairs(t, frozen, asset.PerpetualContract, testPerpetualMapping, pairMapping{pair: ethPair, coin: "ETH", assetID: 1, sizeDecimals: 4})
+	assert.ErrorIs(t, frozen.UpdateTickers(t.Context(), asset.PerpetualContract), errAssetContextNotFound, "UpdateTickers should report a market delisted since the mappings were cached")
+	_, err = ticker.GetTicker(frozen.Name, perpetualPair, asset.PerpetualContract)
+	assert.Error(t, err, "UpdateTickers should not store a delisted market's frozen context")
+	listed, err := ticker.GetTicker(frozen.Name, ethPair, asset.PerpetualContract)
+	require.NoError(t, err, "GetTicker must not error for the listed market")
+	assert.Equal(t, 3000.0, listed.MarkPrice, "UpdateTickers should store the listed market's context rather than a delisted market's of the same name")
 
 	for _, a := range []asset.Item{asset.Spot, asset.PerpetualContract} {
 		unnamed := newInfoServerExchange(t, map[string]string{"metaAndAssetCtxs": perpetualContexts, "spotMetaAndAssetCtxs": spotContexts}, nil)
@@ -1842,9 +1876,14 @@ func TestConvertSpotBalance(t *testing.T) {
 		{name: "a spot hold above the total", balance: SpotBalance{Total: 10, Hold: -3, SpotHold: 12}, exp: accounts.Balance{Total: 10, Hold: 10}},
 		{name: "a negative hold on an empty balance", balance: SpotBalance{Hold: -659983.25}, exp: accounts.Balance{}},
 		{name: "a negative total, leaving nothing free", balance: SpotBalance{Total: -1}, exp: accounts.Balance{Total: -1, Hold: -1}},
+		{name: "a borrowed token whose total stays positive", balance: SpotBalance{Total: 10, Hold: 2, Borrowed: 4}, exp: accounts.Balance{Total: 10, Hold: 2, Free: 8, Borrowed: 4}},
 	} {
 		assert.Equalf(t, tc.exp, convertSpotBalance(&tc.balance), "convertSpotBalance should convert %s", tc.name)
 	}
+	// A portfolio margin account's borrowed token, as Hyperliquid sent it on 26 October
+	var borrowed SpotBalance
+	require.NoError(t, json.Unmarshal([]byte(`{"coin":"USDC","token":0,"total":"-25588943.6761560366","hold":"-25769784.3803080246","entryNtl":"0.0","spotHold":"-25588943.6761560366","ltv":"0.0","borrowed":"37024298.694417052"}`), &borrowed), "Unmarshal must not error for a borrowed token's balance")
+	assert.Equal(t, accounts.Balance{Total: -25588943.6761560366, Hold: -25588943.6761560366, Borrowed: 37024298.694417052}, convertSpotBalance(&borrowed), "convertSpotBalance should report what was borrowed of a token")
 }
 
 func TestConvertPerpetualBalance(t *testing.T) {
@@ -2054,7 +2093,14 @@ func TestGetUserNonFundingLedgerUpdatesPaginated(t *testing.T) {
 			if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&body), "Decoding the info request should not error") {
 				return
 			}
-			times, hashes := page(body.StartTime, pages.Add(1))
+			number := pages.Add(1)
+			// Capped, so a pager that stops advancing fails rather than requesting the same page until go test's timeout
+			if number > 5 {
+				assert.Fail(t, "getUserNonFundingLedgerUpdatesPaginated should not request more than five ledger pages")
+				http.Error(w, "too many ledger requests", http.StatusBadRequest)
+				return
+			}
+			times, hashes := page(body.StartTime, number)
 			updates := make([]string, len(times))
 			for i := range times {
 				updates[i] = fmt.Sprintf(`{"time":%d,"hash":%q,"delta":{"type":"deposit","usdc":"1"}}`, times[i], hashes[i])
@@ -4410,6 +4456,17 @@ func TestGetLatestFundingRates(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetLatestFundingRates should return a context failure")
 	_, err = newUnavailableServerExchange(t).GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{Asset: asset.PerpetualContract})
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetLatestFundingRates should return a metadata failure")
+
+	// ETH was delisted after the mappings were cached: Hyperliquid keeps it in the universe with a frozen context
+	ethMapping := pairMapping{pair: currency.NewPair(currency.ETH, currency.USDC), coin: "ETH", assetID: 1, sizeDecimals: 4, maxLeverage: 25}
+	delisted := newInfoServerExchange(t, map[string]string{"metaAndAssetCtxs": `[{"universe":[{"name":"BTC"},{"name":"ETH","isDelisted":true}]},[{"funding":"0.0000125","openInterest":"100"},{"funding":"0.0","openInterest":"0.0"}]]`}, nil)
+	delisted.setPairMappings(asset.PerpetualContract, []pairMapping{testPerpetualMapping, ethMapping})
+	rates, err = delisted.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{Asset: asset.PerpetualContract})
+	require.NoError(t, err, "GetLatestFundingRates must not error for every market once a cached market is delisted")
+	require.Len(t, rates, 1, "GetLatestFundingRates must return the listed market's rate")
+	assert.Equal(t, perpetualPair, rates[0].Pair, "GetLatestFundingRates should leave out a market delisted since the mappings were cached")
+	_, err = delisted.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{Asset: asset.PerpetualContract, Pair: ethMapping.pair})
+	assert.ErrorIs(t, err, errAssetContextNotFound, "GetLatestFundingRates should report a requested market delisted since the mappings were cached")
 }
 
 func TestGetHistoricalFundingRates(t *testing.T) {
@@ -4488,6 +4545,12 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 			return
 		}
 		requests = append(requests, body)
+		// Capped, so a pager that stops advancing fails rather than requesting the same page until go test's timeout
+		if len(requests) > 5 {
+			assert.Fail(t, "GetHistoricalFundingRates should not request more than five funding pages")
+			http.Error(w, "too many funding requests", http.StatusBadRequest)
+			return
+		}
 		// Funding settles hourly from pageStart, and a page holds the records of the range up to the page size
 		var records []string
 		for recordTime := unixMilli(pageStart); recordTime <= body.EndTime && len(records) < maximumFundingHistoryCount; recordTime += uint64(time.Hour / time.Millisecond) {
@@ -4579,6 +4642,18 @@ func TestGetOpenInterest(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetOpenInterest should return a context failure")
 	_, err = newUnavailableServerExchange(t).GetOpenInterest(t.Context())
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetOpenInterest should return a metadata failure")
+
+	// ETH was delisted after the mappings were cached: Hyperliquid keeps it in the universe with a frozen context
+	ethMapping := pairMapping{pair: currency.NewPair(currency.ETH, currency.USDC), coin: "ETH", assetID: 1, sizeDecimals: 4, maxLeverage: 25}
+	delisted := newInfoServerExchange(t, map[string]string{"metaAndAssetCtxs": `[{"universe":[{"name":"BTC"},{"name":"ETH","isDelisted":true}]},[{"funding":"0.0000125","openInterest":"100"},{"funding":"0.0","openInterest":"0.0"}]]`}, nil)
+	delisted.setPairMappings(asset.PerpetualContract, []pairMapping{testPerpetualMapping, ethMapping})
+	result, err = delisted.GetOpenInterest(t.Context())
+	require.NoError(t, err, "GetOpenInterest must not error for every market once a cached market is delisted")
+	assert.Equal(t, []futures.OpenInterest{{Key: key.NewExchangeAssetPair(delisted.Name, asset.PerpetualContract, perpetualPair), OpenInterest: 100}}, result, "GetOpenInterest should leave out a market delisted since the mappings were cached")
+	_, err = delisted.GetOpenInterest(t.Context(), key.PairAsset{Base: currency.ETH.Item, Quote: currency.USDC.Item, Asset: asset.PerpetualContract})
+	assert.ErrorIs(t, err, errAssetContextNotFound, "GetOpenInterest should report a requested market delisted since the mappings were cached")
+	_, err = delisted.GetOpenInterest(t.Context(), key.PairAsset{Base: currency.BTC.Item, Quote: currency.USDC.Item, Asset: asset.PerpetualContract}, key.PairAsset{Base: currency.ETH.Item, Quote: currency.USDC.Item, Asset: asset.PerpetualContract})
+	assert.ErrorIs(t, err, errAssetContextNotFound, "GetOpenInterest should report a requested market delisted since the mappings were cached beside a listed one")
 }
 
 func TestBuildOrderRequest(t *testing.T) {
@@ -5143,6 +5218,12 @@ func TestConvertBasicOrder(t *testing.T) {
 	source.Side = "B"
 	_, err = e.convertBasicOrder(&source, "unknown", time.Time{}, perpetualPair, asset.PerpetualContract)
 	assert.ErrorIs(t, err, errUnsupportedOrderStatus, "convertBasicOrder should reject an unknown status")
+	source.ReduceOnly = true
+	for _, status := range []string{"open", "triggered", "filled", "reduceOnlyCanceled"} {
+		reduceOnly, err := e.convertBasicOrder(&source, status, time.Time{}, perpetualPair, asset.PerpetualContract)
+		require.NoErrorf(t, err, "convertBasicOrder must not error for a reduce-only order's %s row", status)
+		assert.Truef(t, reduceOnly.ReduceOnly, "convertBasicOrder should keep a reduce-only order's flag on its %s row", status)
+	}
 }
 
 func TestPerpetualTickerPrice(t *testing.T) {
