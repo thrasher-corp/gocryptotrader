@@ -1973,6 +1973,9 @@ func (c *closeCountingConnection) SendRawMessage(ctx context.Context, epl reques
 	return c.Connection.SendRawMessage(ctx, epl, messageType, message)
 }
 
+// IsConnected reports whether the connection it wraps is connected
+func (c *closeCountingConnection) IsConnected() bool { return isConnected(c.Connection) }
+
 // timedOutConnection is a connection whose requests time out, counting the close frames sent on it
 type timedOutConnection struct {
 	websocket.Connection
@@ -2324,6 +2327,60 @@ func TestWebsocketHandleUserReportedAfterClose(t *testing.T) {
 	require.Len(t, got, 2, "the user channel must relay each report of the order")
 	require.Len(t, got[1], 1, "the user channel must relay the order")
 	assert.Equal(t, 2.0, got[1][0].Amount, "a later report executing more than the size the order closed with should take what it executed")
+}
+
+func TestWebsocketHandleUserCancelledAfterClose(t *testing.T) {
+	t.Parallel()
+	const orderID = "dddddddd-eeee-ffff-0000-dddddddddddd"
+	// A close reported again, which the record no longer holds, keeps the size the order closed with
+	for _, tc := range []struct{ orderType, status, executed string }{
+		{orderType: OrderTypeLimit, status: OrderStatusCancelled, executed: "0.25"},
+		{orderType: OrderTypeLimit, status: OrderStatusCancelled, executed: "0"},
+		{orderType: OrderTypeStopLimit, status: OrderStatusCancelled, executed: "0.25"},
+		{orderType: OrderTypeMarket, status: OrderStatusCancelled, executed: "0.25"},
+		{orderType: OrderTypeLimit, status: OrderStatusExpired, executed: "0.25"},
+		{orderType: OrderTypeLimit, status: OrderStatusFailed, executed: "0"},
+	} {
+		ex := newWebsocketTestExchange(t)
+		ex.orderSizes.set(orderID, 1, 0)
+		for range 2 {
+			require.NoErrorf(t, handleUser(t, ex, userOrderEnvelope(orderID, tc.orderType, tc.status, tc.executed, "0")), "wsHandleUser must not error for the %s %s report executing %s", tc.orderType, tc.status, tc.executed)
+		}
+		got := relayed[[]order.Detail](ex)
+		require.Lenf(t, got, 2, "the user channel must relay each %s %s report executing %s", tc.orderType, tc.status, tc.executed)
+		for i := range got {
+			require.Lenf(t, got[i], 1, "the user channel must relay the order in %s %s report %d executing %s", tc.orderType, tc.status, i+1, tc.executed)
+			assert.Equalf(t, 1.0, got[i][0].Amount, "%s %s report %d executing %s should be relayed with the size the order closed with", tc.orderType, tc.status, i+1, tc.executed)
+		}
+	}
+	// So does a cancellation a list read before the user channel reported it
+	ex := newWebsocketTestExchange(t)
+	ex.orderSizes.set(orderID, 1, 0)
+	listed := &Order{
+		OrderID:            orderID,
+		ProductID:          "BTC-USD",
+		ProductType:        ProductTypeSpot,
+		OrderConfiguration: &OrderConfiguration{LimitLimitGTC: &LimitLimitGTC{BaseSize: 1, LimitPrice: 90000}},
+		Side:               OrderSideSell,
+		Status:             OrderStatusCancelled,
+		TimeInForce:        TimeInForceGoodUntilCancelled,
+		FilledSize:         0.25,
+		OrderType:          OrderTypeLimit,
+	}
+	_, err := ex.orderDetail(listed, ex.orderSizes.stamp())
+	require.NoError(t, err, "orderDetail must not error")
+	require.NoError(t, handleUser(t, ex, userOrderEnvelope(orderID, OrderTypeLimit, OrderStatusCancelled, "0.25", "0")), "wsHandleUser must not error for the cancellation")
+	got := relayed[[]order.Detail](ex)
+	require.Len(t, got, 1, "the user channel must relay the cancellation")
+	require.Len(t, got[0], 1, "the user channel must relay the order")
+	assert.Equal(t, 1.0, got[0][0].Amount, "the user channel should relay an order a list read cancelled with the size it closed with")
+	// An order first reported cancelled has no size, as its report doesn't say which currency its remaining quantity is in
+	ex = newWebsocketTestExchange(t)
+	require.NoError(t, handleUser(t, ex, userOrderEnvelope(orderID, OrderTypeLimit, OrderStatusCancelled, "0.25", "0")), "wsHandleUser must not error for an order first reported cancelled")
+	got = relayed[[]order.Detail](ex)
+	require.Len(t, got, 1, "the user channel must relay the order first reported cancelled")
+	require.Len(t, got[0], 1, "the user channel must relay the order")
+	assert.Zero(t, got[0][0].Amount, "the user channel should relay an order first reported cancelled without a size")
 }
 
 func TestWebsocketResubscribeHoldsClaim(t *testing.T) {

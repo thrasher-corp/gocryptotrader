@@ -171,11 +171,11 @@ that times out on one connection resubscribes every channel. The standard channe
   order sized in the base currency that an edit can resize, a limit, stop limit, bracket or take profit/stop loss
   order, is looked up too when its filled and remaining quantities give another size, so an edit made elsewhere is
   followed, and takes what it filled as its size when it fills beyond it. An order Coinbase marks filled leaving dust
-  keeps its size. The record keeps the size an order it held closed with for at least an hour, and a report of the order
-  filled with no size recorded for it, such as a repeated one, or one after a list read it closed, takes that size where
-  it exceeds what the order executed. `ModifyOrder` records the size it gives an order once Coinbase answers. Should a
-  lookup started by the edit's own report list the order as it was before the edit, and end before that answer, the
-  order is relayed with its old size until its next report.
+  keeps its size. The record keeps the size an order it held closed with for at least an hour, and a later report of
+  the order's close with no size recorded for it, such as a repeated one, or one after a list read it closed, takes
+  that size, or for a filled order what it executed where that is larger. `ModifyOrder` records the size it gives an
+  order once Coinbase answers. Should a lookup started by the edit's own report list the order as it was before the
+  edit, and end before that answer, the order is relayed with its old size until its next report.
 + On the gateway, tickers subscribe `ticker`, order books `book` and trades `trades`, aggregated over 100ms by default,
   `agg2` for an interval of a second or `raw` for `kline.Raw`, and candles `chart.trades` at their interval, of up to 2
   hours, as the gateway aligns longer ones to its daily settlement. Any of the gateway's channels can be subscribed by

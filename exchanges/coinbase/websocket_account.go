@@ -192,10 +192,12 @@ type listStamp struct {
 	begun time.Time
 }
 
-// stamp returns the stamp of an order list begun now
+// stamp returns the stamp of an order list or order read begun now, pruning the record first rather than as each
+// live size its response gives is recorded
 func (s *advancedTradeOrderSizes) stamp() listStamp {
 	s.m.Lock()
 	defer s.m.Unlock()
+	s.prune()
 	s.stamps++
 	return listStamp{order: s.stamps, begun: time.Now()}
 }
@@ -242,7 +244,6 @@ func (s *advancedTradeOrderSizes) setListed(orderID string, base, quote float64,
 	if ok && size.stamp > listed.order {
 		return
 	}
-	s.prune()
 	if s.sizes == nil {
 		s.sizes = make(map[string]advancedTradeOrderSize)
 	}
@@ -445,12 +446,15 @@ func (e *Exchange) websocketOrderDetail(o *WebsocketUserOrder, envelope *Websock
 			remaining = max(amount-o.CumulativeQuantity.Float64(), 0)
 		}
 	}
-	if amount == 0 && o.Status == OrderStatusFilled {
-		// An order filled without a base size recorded, as one first reported filled, such as one placed elsewhere that
-		// filled at once, or one sized in the quote currency alone, takes the base amount it executed as its size. One
-		// reported filled once its close is recorded, as by a repeated report or a list that read it closed, keeps the
-		// size it closed with where that is larger, as Coinbase can mark an order filled leaving dust unfilled
-		amount = max(e.orderSizes.closedSize(o.OrderID), o.CumulativeQuantity.Float64())
+	if amount == 0 && isClosedOrderStatus(status) {
+		// A closed order reported once its close is recorded, as by a repeated report or a list that read it closed,
+		// keeps the size it closed with. A filled one takes at least the base amount it executed, its whole size when no
+		// base size is kept, as for one first reported filled or one sized in the quote currency alone; the size kept can
+		// be larger, as Coinbase can mark an order filled leaving dust unfilled
+		amount = e.orderSizes.closedSize(o.OrderID)
+		if o.Status == OrderStatusFilled {
+			amount = max(amount, o.CumulativeQuantity.Float64())
+		}
 	}
 	var closeTime time.Time
 	if isClosedOrderStatus(status) {
