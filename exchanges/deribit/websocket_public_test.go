@@ -175,6 +175,16 @@ func markedResubscribing(t *testing.T, ex *Exchange, sub *subscription.Subscript
 	return sub
 }
 
+// disconnectWebsocket disables an exchange's websocket and shuts its connection down; the connection monitor shuts a
+// disabled websocket down itself at its next check, which may come first
+func disconnectWebsocket(t *testing.T, ex *Exchange) {
+	t.Helper()
+	require.NoError(t, ex.Websocket.Disable(), "Disable must not error")
+	if err := ex.Websocket.Shutdown(); err != nil {
+		require.ErrorIs(t, err, websocket.ErrNotConnected, "Shutdown must only fail when the connection monitor has shut the connection down first")
+	}
+}
+
 // newSubscribedTestExchange returns an exchange connected to a mock of Deribit's websocket, the mock, and the
 // subscription to an index channel the exchange holds
 func newSubscribedTestExchange(t *testing.T) (*Exchange, *websocketVenue, *subscription.Subscription) {
@@ -275,8 +285,7 @@ func TestResubscribe(t *testing.T) {
 		ex, venue, sub := newSubscribedTestExchange(t)
 		generation := ex.connectionGeneration.Load()
 		markedResubscribing(t, ex, sub)
-		require.NoError(t, ex.Websocket.Disable(), "Disable must not error")
-		require.NoError(t, ex.Websocket.Shutdown(), "Shutdown must not error")
+		disconnectWebsocket(t, ex)
 		require.NoError(t, ex.resubscribe(t.Context(), sub, generation), "resubscribe must leave a connection that has gone to the new one")
 		assert.Empty(t, venue.received("public/unsubscribe"), "resubscribe should send nothing for a connection that has gone")
 		assert.Equal(t, subscription.SubscribedState, sub.State(), "resubscribe should mark a subscription it did not resubscribe as subscribed again")
@@ -296,15 +305,14 @@ func TestResubscribe(t *testing.T) {
 	t.Run("unsubscribe unanswered", func(t *testing.T) {
 		t.Parallel()
 		ex, venue := newWebsocketTestExchange(t)
-		// Connect again with a short response limit, so the unsubscribe's late answer times out quickly
-		require.NoError(t, ex.Websocket.Disable(), "Disable must not error")
-		require.NoError(t, ex.Websocket.Shutdown(), "Shutdown must not error")
+		// Connect again with a short response limit, so the unsubscribe whose answer the mock holds back times out quickly
+		disconnectWebsocket(t, ex)
 		require.NoError(t, ex.Websocket.SetupNewConnection(&websocket.ConnectionSetup{URL: ex.Websocket.GetWebsocketURL(), ResponseCheckTimeout: ex.WebsocketResponseCheckTimeout, ResponseMaxLimit: time.Second}), "SetupNewConnection must not error")
 		require.NoError(t, ex.Websocket.Enable(t.Context()), "Enable must connect the websocket again")
 		require.NoError(t, ex.Subscribe(subscription.List{{Channel: ChannelPriceIndex, Params: map[string]any{"index_name": "btc_usd"}}}), "Subscribe must not error")
 		sub := heldSubscription(ex, "deribit_price_index.btc_usd")
 		require.NotNil(t, sub, "Subscribe must hold the subscription")
-		venue.delayNext("public/unsubscribe", 2*time.Second)
+		venue.holdNext(t, "public/unsubscribe")
 		err := ex.resubscribe(t.Context(), markedResubscribing(t, ex, sub), ex.connectionGeneration.Load())
 		assert.ErrorIs(t, err, websocket.ErrSignatureTimeout, "resubscribe should return its unanswered unsubscribe")
 		assert.Len(t, venue.received("public/subscribe"), 1, "resubscribe should not subscribe a channel it takes to be subscribed still")
@@ -342,12 +350,13 @@ func TestResubscribe(t *testing.T) {
 		t.Parallel()
 		ex, venue, sub := newSubscribedTestExchange(t)
 		markedResubscribing(t, ex, sub)
-		venue.delayNext("public/subscribe", 200*time.Millisecond)
+		release := venue.holdNext(t, "public/subscribe")
 		done := make(chan error, 1)
 		go func() { done <- ex.resubscribe(t.Context(), sub, ex.connectionGeneration.Load()) }()
 		require.Eventually(t, func() bool { return len(venue.received("public/subscribe")) == 2 }, 5*time.Second, time.Millisecond, "resubscribe must send its subscribe")
 		assert.Same(t, sub, heldSubscription(ex, sub.QualifiedChannel), "resubscribe should hold the subscription while its subscribe is answered")
 		assert.Equal(t, subscription.ResubscribingState, sub.State(), "resubscribe should leave the subscription marked as resubscribing until its subscribe is answered")
+		release()
 		require.NoError(t, resubscribed(t, ex, done), "resubscribe must not error")
 		assert.Equal(t, subscription.SubscribedState, sub.State(), "resubscribe should leave the subscription subscribed")
 	})
@@ -416,19 +425,15 @@ func TestResubscribe(t *testing.T) {
 	t.Run("connection gone while its subscribe is retried", func(t *testing.T) {
 		t.Parallel()
 		ex, venue, sub := newSubscribedTestExchange(t)
+		generation := ex.connectionGeneration.Load()
 		markedResubscribing(t, ex, sub)
-		venue.refuse("public/subscribe", 1)
+		// The connection goes before the retry, as it may during a retry's backoff, and the manager clears its stores
+		disconnectWebsocket(t, ex)
 		done := make(chan error, 1)
-		go func() { done <- ex.resubscribe(t.Context(), sub, ex.connectionGeneration.Load()) }()
-		require.Eventually(t, func() bool { return len(venue.received("public/subscribe")) == 2 }, 5*time.Second, time.Millisecond, "resubscribe must send its subscribe")
-		// The resubscription holds subscriptionMtx until its refused subscribe is answered, so none is outstanding once
-		// it is taken
-		ex.subscriptionMtx.Lock()
-		require.NoError(t, ex.Websocket.Disable(), "Disable must not error")
-		require.NoError(t, ex.Websocket.Shutdown(), "Shutdown must not error")
-		ex.subscriptionMtx.Unlock()
-		assert.ErrorIs(t, resubscribed(t, ex, done), websocket.ErrNotConnected, "resubscribe should stop retrying once the connection has gone")
-		assert.Equal(t, subscription.UnsubscribedState, sub.State(), "resubscribe should leave a subscription whose connection has gone unsubscribed")
+		go func() { done <- ex.subscribeAgain(t.Context(), sub, generation) }()
+		assert.ErrorIs(t, resubscribed(t, ex, done), websocket.ErrNotConnected, "subscribeAgain should stop retrying once the connection has gone")
+		assert.Len(t, venue.received("public/subscribe"), 1, "subscribeAgain should send nothing once the connection has gone")
+		assert.Equal(t, subscription.UnsubscribedState, sub.State(), "subscribeAgain should leave a subscription whose connection has gone unsubscribed")
 		require.NoError(t, ex.Websocket.Enable(t.Context()), "Enable must connect the websocket again")
 	})
 
@@ -540,9 +545,15 @@ func TestRemoveUnsubscribed(t *testing.T) {
 	generation := ex.connectionGeneration.Load()
 
 	sub := resubscribing(t, true)
+	unrelated := &subscription.Subscription{Channel: ChannelPriceIndex, Params: map[string]any{"index_name": "eth_usd"}, QualifiedChannel: "deribit_price_index.eth_usd"}
+	unrelated.SetKey(qualifiedChannelKey{unrelated})
+	require.NoError(t, ex.Websocket.AddSuccessfulSubscriptions(ex.Websocket.Conn, unrelated), "AddSuccessfulSubscriptions must not error")
 	require.NoError(t, ex.removeUnsubscribed(generation, sub), "removeUnsubscribed must not error")
 	assert.Nil(t, heldSubscription(ex, sub.QualifiedChannel), "removeUnsubscribed should remove a subscription still resubscribing")
 	assert.Equal(t, subscription.UnsubscribedState, sub.State(), "removeUnsubscribed should leave the subscription it removes unsubscribed")
+	assert.Same(t, unrelated, heldSubscription(ex, unrelated.QualifiedChannel), "removeUnsubscribed should leave unrelated subscriptions held")
+	assert.Equal(t, subscription.SubscribedState, unrelated.State(), "removeUnsubscribed should leave unrelated subscriptions subscribed")
+	require.NoError(t, ex.Websocket.RemoveSubscriptions(ex.Websocket.Conn, unrelated), "RemoveSubscriptions must not error")
 
 	orphan := resubscribing(t, false)
 	require.NoError(t, ex.removeUnsubscribed(generation-1, orphan), "removeUnsubscribed must not error once its connection has gone")
@@ -618,8 +629,7 @@ func TestOnConnection(t *testing.T) {
 	errChange := errors.New("change failed")
 	assert.ErrorIs(t, ex.onConnection(generation, sub, func() error { return errChange }), errChange, "onConnection should return the change's error")
 
-	require.NoError(t, ex.Websocket.Disable(), "Disable must not error")
-	require.NoError(t, ex.Websocket.Shutdown(), "Shutdown must not error")
+	disconnectWebsocket(t, ex)
 	assert.ErrorIs(t, ex.onConnection(generation, sub, change), websocket.ErrNotConnected, "onConnection should not make a change without a connection")
 	assert.Equal(t, 1, changes, "onConnection should make no change without a connection")
 	require.NoError(t, ex.Websocket.Enable(t.Context()), "Enable must connect the websocket again")

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -22,6 +23,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/nonce"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	testutils "github.com/thrasher-corp/gocryptotrader/internal/testing/utils"
@@ -286,14 +288,37 @@ func TestSendAuthenticatedHTTPRequest(t *testing.T) {
 	require.NoError(t, retried.SendAuthenticatedHTTPRequest(t.Context(), matchingEPL, "private/buy", nil, &result), "SendAuthenticatedHTTPRequest must succeed once Deribit stops asking for a retry")
 	assert.Equal(t, int32(2), attempts.Load(), "SendAuthenticatedHTTPRequest should send a matching engine request again when Deribit asks for a retry")
 
-	quick := newResponseServerExchange(t, `{"jsonrpc":"2.0","result":{"currency":"BTC"}}`)
-	const signedRequests = 10
-	start := time.Now()
-	for range signedRequests {
-		require.NoError(t, quick.SendAuthenticatedHTTPRequest(t.Context(), nonMatchingEPL, "private/get_account_summary", nil, &result), "SendAuthenticatedHTTPRequest must not error")
+	// Taking a nonce holds the requester's timed lock, so a request taking a second one would wait for the first one's lock
+	// to run out; TestHTTPRequestItem pins NonceEnabled, which tells the requester not to take the lock again
+	var noncesMtx sync.Mutex
+	var nonces []string
+	nonced := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fields, _ := strings.CutPrefix(r.Header.Get("Authorization"), "deri-hmac-sha256 ")
+		for field := range strings.SplitSeq(fields, ",") {
+			if requestNonce, ok := strings.CutPrefix(field, "nonce="); ok {
+				noncesMtx.Lock()
+				nonces = append(nonces, requestNonce)
+				noncesMtx.Unlock()
+			}
+		}
+		_, err := w.Write([]byte(`{"jsonrpc":"2.0","result":{"currency":"BTC"}}`))
+		assert.NoError(t, err, "Writing the response should not error")
+	}))
+	for range 3 {
+		require.NoError(t, nonced.SendAuthenticatedHTTPRequest(t.Context(), nonMatchingEPL, "private/get_account_summary", nil, &result), "SendAuthenticatedHTTPRequest must not error")
 	}
-	// A signed request that waited out the timed lock its nonce takes would spend the lock's whole duration
-	assert.Less(t, time.Since(start), signedRequests*request.DefaultMutexLockTimeout/2, "SendAuthenticatedHTTPRequest should not wait out the timed lock taken with its nonce")
+	require.Len(t, nonces, 3, "SendAuthenticatedHTTPRequest must send each request once")
+	// Two nonces taken from the requester directly give the constant step its counter advances by for each nonce
+	first := nonced.Requester.GetNonce(nonce.UnixNano)
+	step := int64(nonced.Requester.GetNonce(nonce.UnixNano) - first)
+	previous, err := strconv.ParseInt(nonces[0], 10, 64)
+	require.NoError(t, err, "the first request's nonce must be a number")
+	for i := 1; i < len(nonces); i++ {
+		next, err := strconv.ParseInt(nonces[i], 10, 64)
+		require.NoErrorf(t, err, "request %d's nonce must be a number", i+1)
+		assert.Equalf(t, previous+step, next, "SendAuthenticatedHTTPRequest should take one nonce for request %d", i+1)
+		previous = next
+	}
 }
 
 func TestResendable(t *testing.T) {

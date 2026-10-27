@@ -124,6 +124,8 @@ type websocketVenue struct {
 	refusals map[string]int
 	// delays holds how long the mock waits to answer the next request of a method, answering others meanwhile
 	delays map[string]time.Duration
+	// gates holds the gate the mock waits on before answering the next request of a method, answering others meanwhile
+	gates map[string]chan struct{}
 	// notices holds the notification the mock sends ahead of its answer to the next request of a method
 	notices map[string][]byte
 	// writeMu serialises the mock's answers, which a delayed answer writes from its own goroutine
@@ -139,6 +141,22 @@ func (v *websocketVenue) delayNext(method string, delay time.Duration) {
 		v.delays = make(map[string]time.Duration)
 	}
 	v.delays[method] = delay
+}
+
+// holdNext has the mock answer the next request of a method only once the returned function is called, answering other
+// requests meanwhile as usual; the test's cleanup calls it too, so an answer held is never left waiting
+func (v *websocketVenue) holdNext(t *testing.T, method string) func() {
+	t.Helper()
+	gate := make(chan struct{})
+	release := sync.OnceFunc(func() { close(gate) })
+	t.Cleanup(release)
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	if v.gates == nil {
+		v.gates = make(map[string]chan struct{})
+	}
+	v.gates[method] = gate
+	return release
 }
 
 // notifyBeforeNext has the mock send a notification ahead of its answer to the next request of a method, as Deribit
@@ -186,21 +204,25 @@ func startWebsocketVenue(t *testing.T) (string, *websocketVenue) {
 	return "ws" + strings.TrimPrefix(server.URL, "http"), venue
 }
 
-// record keeps a request the mock received, and returns whether to refuse it, how long to wait to answer it and the
-// notification to send ahead of the answer
-func (v *websocketVenue) record(req *websocketVenueRequest) (refused bool, delay time.Duration, notice []byte) {
+// record keeps a request the mock received, and returns whether to refuse it, how long to wait to answer it, the gate
+// to wait on before answering it and the notification to send ahead of the answer
+func (v *websocketVenue) record(req *websocketVenueRequest) (refused bool, delay time.Duration, hold <-chan struct{}, notice []byte) {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 	v.requests = append(v.requests, *req)
 	delay = v.delays[req.Method]
 	delete(v.delays, req.Method)
+	if gate, ok := v.gates[req.Method]; ok {
+		hold = gate
+		delete(v.gates, req.Method)
+	}
 	notice = v.notices[req.Method]
 	delete(v.notices, req.Method)
 	if v.refusals[req.Method] > 0 {
 		v.refusals[req.Method]--
-		return true, delay, notice
+		return true, delay, hold, notice
 	}
-	return false, delay, notice
+	return false, delay, hold, notice
 }
 
 // answer replies to a request as Deribit does: it authenticates a client signature of the test client ID and rejects
@@ -212,7 +234,7 @@ func (v *websocketVenue) answer(_ testing.TB, msg []byte, conn *gws.Conn) error 
 	if err := json.Unmarshal(msg, &req); err != nil {
 		return fmt.Errorf("%w: %s: %w", errWebsocketVenueRequest, msg, err)
 	}
-	refused, delay, notice := v.record(&req)
+	refused, delay, hold, notice := v.record(&req)
 	if req.Method == "private/logout" {
 		return conn.Close()
 	}
@@ -235,8 +257,11 @@ func (v *websocketVenue) answer(_ testing.TB, msg []byte, conn *gws.Conn) error 
 	if err != nil {
 		return err
 	}
-	if delay > 0 {
+	if delay > 0 || hold != nil {
 		go func() {
+			if hold != nil {
+				<-hold
+			}
 			time.Sleep(delay)
 			v.writeMu.Lock()
 			defer v.writeMu.Unlock()

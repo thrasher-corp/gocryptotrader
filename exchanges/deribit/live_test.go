@@ -97,6 +97,8 @@ type websocketVenue struct{}
 
 func (*websocketVenue) delayNext(string, time.Duration) {}
 
+func (*websocketVenue) holdNext(*testing.T, string) func() { return func() {} }
+
 func (*websocketVenue) notifyBeforeNext(string, []byte) {}
 
 func (*websocketVenue) refuse(string, int) {}
