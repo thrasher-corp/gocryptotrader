@@ -387,12 +387,17 @@ func TestResubscribe(t *testing.T) {
 		markedResubscribing(t, ex, sub)
 		// The resubscription's subscribe is refused late, so the subscribe below waits for it and is made in its backoff
 		venue.refuse("public/subscribe", 1)
-		venue.delayNext("public/subscribe", 100*time.Millisecond)
+		release := venue.holdNext(t, "public/subscribe")
 		done := make(chan error, 1)
 		go func() { done <- ex.resubscribe(t.Context(), sub, ex.connectionGeneration.Load()) }()
 		require.Eventually(t, func() bool { return len(venue.received("public/subscribe")) == 2 }, 5*time.Second, time.Millisecond, "resubscribe must send its subscribe")
-		// The websocket manager subscribes a subscription marked as resubscribing even though it is held
+		release()
+		// The websocket manager subscribes a subscription marked as resubscribing even though it is held. Holding
+		// connectionMtx, which the resubscription holds until its subscribe is answered and its retry takes, keeps that
+		// retry and this subscribe apart, so whichever comes second finds the subscription subscribed
+		ex.connectionMtx.Lock()
 		err := ex.Websocket.SubscribeToChannels(t.Context(), ex.Websocket.Conn, subscription.List{sub})
+		ex.connectionMtx.Unlock()
 		assert.ErrorIs(t, err, subscription.ErrDuplicate, "SubscribeToChannels should refuse to hold the subscription twice")
 		require.NoError(t, resubscribed(t, ex, done), "resubscribe must not error for a subscription subscribed meanwhile")
 		assert.Equal(t, subscription.SubscribedState, sub.State(), "resubscribe should leave a subscription subscribed meanwhile subscribed")
@@ -405,12 +410,13 @@ func TestResubscribe(t *testing.T) {
 		ex, venue, sub := newSubscribedTestExchange(t)
 		markedResubscribing(t, ex, sub)
 		venue.refuse("public/subscribe", 1)
-		venue.delayNext("public/subscribe", 100*time.Millisecond)
+		release := venue.holdNext(t, "public/subscribe")
 		ctx, cancel := context.WithCancel(t.Context())
 		defer cancel()
 		done := make(chan error, 1)
 		go func() { done <- ex.resubscribe(ctx, sub, ex.connectionGeneration.Load()) }()
 		require.Eventually(t, func() bool { return len(venue.received("public/subscribe")) == 2 }, 5*time.Second, time.Millisecond, "resubscribe must send its subscribe")
+		release()
 		err := ex.Websocket.SubscribeToChannels(t.Context(), ex.Websocket.Conn, subscription.List{sub})
 		assert.ErrorIs(t, err, subscription.ErrDuplicate, "SubscribeToChannels should refuse to hold the subscription twice")
 		// Stopped during its backoff, the resubscription would remove a subscription still resubscribing
