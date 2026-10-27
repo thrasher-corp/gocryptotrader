@@ -135,8 +135,8 @@ func (e *Exchange) processOptionsTicker(ctx context.Context, data []byte) error 
 		VolumeWeightedAveragePrice: resp.WeightedAveragePrice.Float64(),
 		High:                       resp.HighPrice.Float64(),
 		Low:                        resp.LowPrice.Float64(),
-		BaseVolume:                 resp.TradingVolume.Float64(),
-		QuoteVolume:                resp.TradeAmount.Float64(),
+		BaseVolume:                 resp.TradingVolumeInContracts.Float64(),
+		QuoteVolume:                resp.TradeAmountInQuoteAsset.Float64(),
 		Open:                       resp.OpenPrice.Float64(),
 		PercentChange24Hour:        resp.PriceChangePercent.Float64() * 100,
 		Pair:                       pair,
@@ -221,7 +221,7 @@ func (e *Exchange) processOptionsKline(ctx context.Context, data []byte) error {
 			High:             resp.Kline.High.Float64(),
 			Low:              resp.Kline.Low.Float64(),
 			Close:            resp.Kline.Close.Float64(),
-			Volume:           resp.Kline.Volume.Float64(),
+			Volume:           resp.Kline.VolumeInContracts.Float64(),
 			ValidationIssues: validationIssues,
 		}},
 	})
@@ -274,8 +274,11 @@ func (e *Exchange) processOptionsBalancePositionUpdate(ctx context.Context, data
 			codes[i] = resp.Balances[i].MarginAsset
 		}
 		subAccount := accounts.NewSubAccount(asset.Options, "")
-		if err := e.storeBalanceEvent(ctx, asset.Options, resp.TransactionTime.Time(), codes, func() error {
+		if err := e.storeBalanceEvent(ctx, asset.Options, resp.TransactionTime.Time(), codes, func(accepted map[*currency.Item]bool) error {
 			for _, b := range resp.Balances {
+				if !accepted[b.MarginAsset.Item] {
+					continue
+				}
 				balance, err := e.Accounts.UpdateBalance(ctx, "", asset.Options, b.MarginAsset, func(balance *accounts.Balance) {
 					// Unrealised profit can lift the free balance above the account balance, which the hold cannot show,
 					// so an unchanged account balance keeps the free balance REST reported
@@ -293,8 +296,10 @@ func (e *Exchange) processOptionsBalancePositionUpdate(ctx context.Context, data
 		}); err != nil {
 			return err
 		}
-		if err := e.Websocket.DataHandler.Send(ctx, accounts.SubAccounts{subAccount}); err != nil {
-			return err
+		if len(subAccount.Balances) > 0 {
+			if err := e.Websocket.DataHandler.Send(ctx, accounts.SubAccounts{subAccount}); err != nil {
+				return err
+			}
 		}
 	}
 	positions := make([]futures.Position, 0, len(resp.Positions))

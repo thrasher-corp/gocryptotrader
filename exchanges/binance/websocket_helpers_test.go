@@ -20,12 +20,12 @@ import (
 
 // Derivatives pairs the websocket fixtures use, stored as the config formats store them
 var (
-	testUFuturesPair         = currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter)
-	testUFuturesDisabledPair = currency.NewPairWithDelimiter("ETH", "USDT", currency.UnderscoreDelimiter)
-	testCFuturesPair         = currency.NewPairWithDelimiter("BTCUSD", "PERP", currency.UnderscoreDelimiter)
-	testCFuturesDisabledPair = currency.NewPairWithDelimiter("ETHUSD", "PERP", currency.UnderscoreDelimiter)
-	testOptionsPair          = currency.NewPairWithDelimiter("BTC", "261030-85000-C", currency.DashDelimiter)
-	testOptionsDisabledPair  = currency.NewPairWithDelimiter("ETH", "261009-2700-C", currency.DashDelimiter)
+	testUSDTMarginedFuturesPair         = currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter)
+	testUSDTMarginedFuturesDisabledPair = currency.NewPairWithDelimiter("ETH", "USDT", currency.UnderscoreDelimiter)
+	testCoinMarginedFuturesPair         = currency.NewPairWithDelimiter("BTCUSD", "PERP", currency.UnderscoreDelimiter)
+	testCoinMarginedFuturesDisabledPair = currency.NewPairWithDelimiter("ETHUSD", "PERP", currency.UnderscoreDelimiter)
+	testOptionsPair                     = currency.NewPairWithDelimiter("BTC", "261030-85000-C", currency.DashDelimiter)
+	testOptionsDisabledPair             = currency.NewPairWithDelimiter("ETH", "261009-2700-C", currency.DashDelimiter)
 )
 
 const testListenKey = "pqia91ma19a5s61cv6a81va65sdf19v8a65a1a5s61cv6a81va65sdf19v8a65a1"
@@ -44,8 +44,8 @@ func newDerivativesTestExchange(tb testing.TB) *Exchange {
 	ex.Features.Enabled.TradeFeed = true
 	ex.Websocket.Trade.Setup(true, ex.Websocket.DataHandler)
 	for a, pairs := range map[asset.Item]currency.Pairs{
-		asset.USDTMarginedFutures: {testUFuturesPair, testUFuturesDisabledPair},
-		asset.CoinMarginedFutures: {testCFuturesPair, testCFuturesDisabledPair},
+		asset.USDTMarginedFutures: {testUSDTMarginedFuturesPair, testUSDTMarginedFuturesDisabledPair},
+		asset.CoinMarginedFutures: {testCoinMarginedFuturesPair, testCoinMarginedFuturesDisabledPair},
 		asset.Options:             {testOptionsPair, testOptionsDisabledPair},
 	} {
 		require.NoErrorf(tb, ex.CurrencyPairs.StorePairs(a, pairs, false), "StorePairs must not error for %s available pairs", a)

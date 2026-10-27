@@ -266,14 +266,18 @@ func (e *Exchange) GetSpotKline(ctx context.Context, req *KlinesRequest) ([]Cand
 	return e.getKlines(ctx, req, "/api/v3/klines")
 }
 
-// GetTickerData returns rolling window price change statistics. The window's open time starts on a minute while its
-// close time is the time of the request, so the window can be up to 59999ms wider than the requested WindowSize
+// GetTickerData returns rolling window price change statistics of up to 100 symbols. The window's open time starts on a
+// minute while its close time is the time of the request, so the window can be up to 59999ms wider than the requested
+// WindowSize
 func (e *Exchange) GetTickerData(ctx context.Context, req *RollingWindowTickerRequest) ([]TickerStatisticsResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
 	if len(req.Symbols) == 0 {
 		return nil, currency.ErrCurrencyPairsEmpty
+	}
+	if err := checkListLength("symbols", len(req.Symbols), tickerSymbolsLimit); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	if err := e.setSymbolParams(params, req.Symbols); err != nil {
@@ -352,13 +356,16 @@ func (e *Exchange) GetLatestSpotPrice(ctx context.Context, symbols currency.Pair
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues("/api/v3/ticker/price", params), rateLimit, &resp)
 }
 
-// GetTradingDayTicker returns the price change statistics of the current trading day for each symbol
+// GetTradingDayTicker returns the price change statistics of the current trading day for each of up to 100 symbols
 func (e *Exchange) GetTradingDayTicker(ctx context.Context, req *TradingDayTickerRequest) ([]TickerStatisticsResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
 	if len(req.Symbols) == 0 {
 		return nil, currency.ErrCurrencyPairsEmpty
+	}
+	if err := checkListLength("symbols", len(req.Symbols), tickerSymbolsLimit); err != nil {
+		return nil, err
 	}
 	params := url.Values{}
 	if err := e.setSymbolParams(params, req.Symbols); err != nil {
@@ -419,6 +426,25 @@ func (e *Exchange) getKlines(ctx context.Context, req *KlinesRequest, path strin
 	}
 	var resp []CandleStickResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues(path, params), getKlineRate, &resp)
+}
+
+// Most items Binance takes in one request's list parameter
+const (
+	// batchOrdersLimit is the most orders USDⓈ-M and COIN-M Place Multiple Orders and Modify Multiple Orders take
+	batchOrdersLimit = 5
+	// optionsBatchOrdersLimit is the most orders options Place Multiple Orders takes
+	optionsBatchOrdersLimit = 10
+	// tickerSymbolsLimit is the most symbols the rolling window and trading day tickers take over REST and the WebSocket
+	// API, which answers -1101 past it although its documentation gives 200
+	tickerSymbolsLimit = 100
+)
+
+// checkListLength refuses a list parameter holding more items than Binance takes in one request
+func checkListLength(items string, length, maximum int) error {
+	if length > maximum {
+		return fmt.Errorf("%w: %d %s, at most %d", errTooManyItems, length, items, maximum)
+	}
+	return nil
 }
 
 // setSymbolParams sends one pair as symbol and several as symbols, a JSON array, the way the exchange information and
@@ -519,8 +545,8 @@ func (e *Exchange) newOrderParams(req *NewOrderRequest) (url.Values, error) {
 	if req.StopPrice > 0 {
 		params.Set("stopPrice", strconv.FormatFloat(req.StopPrice, 'f', -1, 64))
 	}
-	if req.TrailingDelta != 0 {
-		params.Set("trailingDelta", strconv.FormatUint(req.TrailingDelta, 10))
+	if req.TrailingDeltaInBasisPoints != 0 {
+		params.Set("trailingDelta", strconv.FormatUint(req.TrailingDeltaInBasisPoints, 10))
 	}
 	if req.IcebergQuantity > 0 {
 		params.Set("icebergQty", strconv.FormatFloat(req.IcebergQuantity, 'f', -1, 64))
@@ -576,8 +602,8 @@ func (e *Exchange) CancelExistingOrder(ctx context.Context, req *CancelOrderRequ
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodDelete, "/api/v3/order", params, spotCancelRate, &resp)
 }
 
-// CancelOCOOrder cancels an entire order list. Cancelling any order of a list cancels the whole list
-func (e *Exchange) CancelOCOOrder(ctx context.Context, req *CancelOrderListRequest) (*OCOOrderResponse, error) {
+// CancelOneCancelsTheOtherOrder cancels an entire order list. Cancelling any order of a list cancels the whole list
+func (e *Exchange) CancelOneCancelsTheOtherOrder(ctx context.Context, req *CancelOrderListRequest) (*OneCancelsTheOtherOrderResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -602,7 +628,7 @@ func (e *Exchange) CancelOCOOrder(ctx context.Context, req *CancelOrderListReque
 	if req.NewClientOrderID != "" {
 		params.Set("newClientOrderId", req.NewClientOrderID)
 	}
-	var resp *OCOOrderResponse
+	var resp *OneCancelsTheOtherOrderResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodDelete, "/api/v3/orderList", params, spotCancelRate, &resp)
 }
 
@@ -670,8 +696,8 @@ func (e *Exchange) CancelExistingOrderAndSendNewOrder(ctx context.Context, req *
 	if req.StopPrice > 0 {
 		params.Set("stopPrice", strconv.FormatFloat(req.StopPrice, 'f', -1, 64))
 	}
-	if req.TrailingDelta != 0 {
-		params.Set("trailingDelta", strconv.FormatUint(req.TrailingDelta, 10))
+	if req.TrailingDeltaInBasisPoints != 0 {
+		params.Set("trailingDelta", strconv.FormatUint(req.TrailingDeltaInBasisPoints, 10))
 	}
 	if req.IcebergQuantity > 0 {
 		params.Set("icebergQty", strconv.FormatFloat(req.IcebergQuantity, 'f', -1, 64))
@@ -715,11 +741,11 @@ func cancelReplaceOutcome[T any](resp *T, err error) (*T, error) {
 	return resp, err
 }
 
-// NewOCOOrderList sends in a one-cancels-the-other (OCO) order list of an above and a below order, where the
-// activation of one order immediately cancels the other. One order must be LIMIT_MAKER, TAKE_PROFIT or
+// NewOneCancelsTheOtherOrderList sends in a one-cancels-the-other (OCO) order list of an above and a below order, where
+// the activation of one order immediately cancels the other. One order must be LIMIT_MAKER, TAKE_PROFIT or
 // TAKE_PROFIT_LIMIT and the other STOP_LOSS or STOP_LOSS_LIMIT, and an OCO counts as two orders against the order rate
 // limit
-func (e *Exchange) NewOCOOrderList(ctx context.Context, req *OCOOrderListRequest) (*OCOOrderResponse, error) {
+func (e *Exchange) NewOneCancelsTheOtherOrderList(ctx context.Context, req *OneCancelsTheOtherOrderListRequest) (*OneCancelsTheOtherOrderResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -749,20 +775,21 @@ func (e *Exchange) NewOCOOrderList(ctx context.Context, req *OCOOrderListRequest
 	if req.ListClientOrderID != "" {
 		params.Set("listClientOrderId", req.ListClientOrderID)
 	}
-	setOCOLegParams(params, "above", &req.Above)
-	setOCOLegParams(params, "below", &req.Below)
+	setOneCancelsTheOtherLegParams(params, "above", &req.Above)
+	setOneCancelsTheOtherLegParams(params, "below", &req.Below)
 	if req.NewOrderResponseType != "" {
 		params.Set("newOrderRespType", req.NewOrderResponseType)
 	}
 	if req.SelfTradePreventionMode != "" {
 		params.Set("selfTradePreventionMode", req.SelfTradePreventionMode)
 	}
-	var resp *OCOOrderResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, "/api/v3/orderList/oco", params, spotOCOOrderRate, &resp)
+	var resp *OneCancelsTheOtherOrderResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, "/api/v3/orderList/oco", params, spotOneCancelsTheOtherOrderRate, &resp)
 }
 
-// setOCOLegParams sets the parameters of an order list's above or below order, which carry the leg's name as a prefix
-func setOCOLegParams(params url.Values, leg string, arg *OCOOrderListLeg) {
+// setOneCancelsTheOtherLegParams sets the parameters of an order list's above or below order, which carry the leg's
+// name as a prefix
+func setOneCancelsTheOtherLegParams(params url.Values, leg string, arg *OneCancelsTheOtherOrderListLeg) {
 	params.Set(leg+"Type", arg.Type)
 	if arg.ClientOrderID != "" {
 		params.Set(leg+"ClientOrderId", arg.ClientOrderID)
@@ -776,8 +803,8 @@ func setOCOLegParams(params url.Values, leg string, arg *OCOOrderListLeg) {
 	if arg.StopPrice > 0 {
 		params.Set(leg+"StopPrice", strconv.FormatFloat(arg.StopPrice, 'f', -1, 64))
 	}
-	if arg.TrailingDelta != 0 {
-		params.Set(leg+"TrailingDelta", strconv.FormatUint(arg.TrailingDelta, 10))
+	if arg.TrailingDeltaInBasisPoints != 0 {
+		params.Set(leg+"TrailingDelta", strconv.FormatUint(arg.TrailingDeltaInBasisPoints, 10))
 	}
 	if arg.TimeInForce != "" {
 		params.Set(leg+"TimeInForce", arg.TimeInForce)
@@ -910,8 +937,8 @@ func (e *Exchange) GetCommissionRates(ctx context.Context, symbol currency.Pair)
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/api/v3/account/commission", params, getCommissionRate, &resp)
 }
 
-// GetAllOCOOrders queries all order lists. A nil request returns the most recent order lists
-func (e *Exchange) GetAllOCOOrders(ctx context.Context, req *AllOrderListsRequest) ([]OCOOrderResponse, error) {
+// GetAllOneCancelsTheOtherOrders queries all order lists. A nil request returns the most recent order lists
+func (e *Exchange) GetAllOneCancelsTheOtherOrders(ctx context.Context, req *AllOrderListsRequest) ([]OneCancelsTheOtherOrderResponse, error) {
 	params := url.Values{}
 	if req != nil {
 		if req.FromID != 0 && (!req.StartTime.IsZero() || !req.EndTime.IsZero()) {
@@ -935,8 +962,8 @@ func (e *Exchange) GetAllOCOOrders(ctx context.Context, req *AllOrderListsReques
 			params.Set("limit", strconv.FormatUint(req.Limit, 10))
 		}
 	}
-	var resp []OCOOrderResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/api/v3/allOrderList", params, getAllOCOOrdersRate, &resp)
+	var resp []OneCancelsTheOtherOrderResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/api/v3/allOrderList", params, getAllOneCancelsTheOtherOrdersRate, &resp)
 }
 
 // AllOrders returns all of the account's orders on a symbol: active, cancelled or filled
@@ -1030,9 +1057,9 @@ func (e *Exchange) QueryOrder(ctx context.Context, symbol currency.Pair, origCli
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/api/v3/order", params, spotOrderQueryRate, &resp)
 }
 
-// GetOCOOrders queries an order list by orderListID or by its list client order ID, which the endpoint takes as
-// origClientOrderId
-func (e *Exchange) GetOCOOrders(ctx context.Context, orderListID uint64, origClientOrderID string) (*OCOOrderResponse, error) {
+// GetOneCancelsTheOtherOrders queries an order list by orderListID or by its list client order ID, which the endpoint
+// takes as origClientOrderId
+func (e *Exchange) GetOneCancelsTheOtherOrders(ctx context.Context, orderListID uint64, origClientOrderID string) (*OneCancelsTheOtherOrderResponse, error) {
 	if orderListID == 0 && origClientOrderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
@@ -1043,8 +1070,8 @@ func (e *Exchange) GetOCOOrders(ctx context.Context, orderListID uint64, origCli
 	if origClientOrderID != "" {
 		params.Set("origClientOrderId", origClientOrderID)
 	}
-	var resp *OCOOrderResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/api/v3/orderList", params, getOCOListRate, &resp)
+	var resp *OneCancelsTheOtherOrderResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/api/v3/orderList", params, getOneCancelsTheOtherListRate, &resp)
 }
 
 // GetAllocations queries the allocations resulting from orders placed using smart order routing (SOR)
@@ -1159,10 +1186,10 @@ func (e *Exchange) GetAccountTradeList(ctx context.Context, req *AccountTradeLis
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/api/v3/myTrades", params, spotAccountTradeListLimit(req.OrderID), &resp)
 }
 
-// GetOpenOCOList queries the open order lists
-func (e *Exchange) GetOpenOCOList(ctx context.Context) ([]OCOOrderResponse, error) {
-	var resp []OCOOrderResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/api/v3/openOrderList", nil, getOpenOCOListRate, &resp)
+// GetOpenOneCancelsTheOtherList queries the open order lists
+func (e *Exchange) GetOpenOneCancelsTheOtherList(ctx context.Context) ([]OneCancelsTheOtherOrderResponse, error) {
+	var resp []OneCancelsTheOtherOrderResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/api/v3/openOrderList", nil, getOpenOneCancelsTheOtherListRate, &resp)
 }
 
 // GetCurrentOrderCountUsage queries the account's unfilled order count for every interval

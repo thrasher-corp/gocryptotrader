@@ -368,70 +368,70 @@ func TestGetFuturesClientIfNewUser(t *testing.T) {
 	assert.Equal(t, "1234", result.BrokerID, "GetFuturesClientIfNewUser should return the broker ID")
 }
 
-func TestGetPAPIClientIfNewUser(t *testing.T) {
+func TestGetPortfolioMarginClientIfNewUser(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetPAPIClientIfNewUser(t.Context(), "", false)
-	require.ErrorIs(t, err, errInvalidBrokerID, "GetPAPIClientIfNewUser must reject an empty broker ID")
+	_, err := e.GetPortfolioMarginClientIfNewUser(t.Context(), "", false)
+	require.ErrorIs(t, err, errInvalidBrokerID, "GetPortfolioMarginClientIfNewUser must reject an empty broker ID")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
 	for _, coinMargined := range []bool{false, true} {
-		result, err := e.GetPAPIClientIfNewUser(t.Context(), "123123", coinMargined)
-		require.NoErrorf(t, err, "GetPAPIClientIfNewUser must not error for coinMargined %t", coinMargined)
+		result, err := e.GetPortfolioMarginClientIfNewUser(t.Context(), "123123", coinMargined)
+		require.NoErrorf(t, err, "GetPortfolioMarginClientIfNewUser must not error for coinMargined %t", coinMargined)
 		if mockTests {
-			exp := &PAPIClientNewUserStatusResponse{
+			exp := &PortfolioMarginClientNewUserStatusResponse{
 				BrokerID:      "123123",
 				RebateWorking: true,
 				IfNewUser:     true,
 			}
-			assert.Equal(t, exp, result, "GetPAPIClientIfNewUser should decode every field")
+			assert.Equal(t, exp, result, "GetPortfolioMarginClientIfNewUser should decode every field")
 			continue
 		}
-		assert.NotEmptyf(t, result.BrokerID, "GetPAPIClientIfNewUser should return the broker ID for coinMargined %t", coinMargined)
+		assert.NotEmptyf(t, result.BrokerID, "GetPortfolioMarginClientIfNewUser should return the broker ID for coinMargined %t", coinMargined)
 	}
 }
 
-func TestCustomisePAPIOwnClientID(t *testing.T) {
+func TestCustomisePortfolioMarginOwnClientID(t *testing.T) {
 	t.Parallel()
-	_, err := e.CustomisePAPIOwnClientID(t.Context(), "", "987654321")
-	require.ErrorIs(t, err, errCustomerIDRequired, "CustomisePAPIOwnClientID must reject an empty customer ID")
-	_, err = e.CustomisePAPIOwnClientID(t.Context(), "12345678", "")
-	require.ErrorIs(t, err, errInvalidBrokerID, "CustomisePAPIOwnClientID must reject an empty broker ID")
+	_, err := e.CustomisePortfolioMarginOwnClientID(t.Context(), "", "987654321")
+	require.ErrorIs(t, err, errCustomerIDRequired, "CustomisePortfolioMarginOwnClientID must reject an empty customer ID")
+	_, err = e.CustomisePortfolioMarginOwnClientID(t.Context(), "12345678", "")
+	require.ErrorIs(t, err, errInvalidBrokerID, "CustomisePortfolioMarginOwnClientID must reject an empty broker ID")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	result, err := e.CustomisePAPIOwnClientID(t.Context(), "12345678", "987654321")
-	require.NoError(t, err, "CustomisePAPIOwnClientID must not error")
+	result, err := e.CustomisePortfolioMarginOwnClientID(t.Context(), "12345678", "987654321")
+	require.NoError(t, err, "CustomisePortfolioMarginOwnClientID must not error")
 	if mockTests {
-		exp := &PAPICustomisedIDResponse{
+		exp := &PortfolioMarginCustomisedIDResponse{
 			BrokerID:   "987654321",
 			CustomerID: "12345678",
 		}
-		assert.Equal(t, exp, result, "CustomisePAPIOwnClientID should decode every field")
+		assert.Equal(t, exp, result, "CustomisePortfolioMarginOwnClientID should decode every field")
 		return
 	}
-	assert.Equal(t, "12345678", result.CustomerID, "CustomisePAPIOwnClientID should return the customer ID")
+	assert.Equal(t, "12345678", result.CustomerID, "CustomisePortfolioMarginOwnClientID should return the customer ID")
 }
 
-func TestGetPAPIUsersCustomisedID(t *testing.T) {
+func TestGetPortfolioMarginUsersCustomisedID(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetPAPIUsersCustomisedID(t.Context(), "")
-	require.ErrorIs(t, err, errInvalidBrokerID, "GetPAPIUsersCustomisedID must reject an empty broker ID")
+	_, err := e.GetPortfolioMarginUsersCustomisedID(t.Context(), "")
+	require.ErrorIs(t, err, errInvalidBrokerID, "GetPortfolioMarginUsersCustomisedID must reject an empty broker ID")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetPAPIUsersCustomisedID(t.Context(), "12345678")
-	require.NoError(t, err, "GetPAPIUsersCustomisedID must not error")
+	result, err := e.GetPortfolioMarginUsersCustomisedID(t.Context(), "12345678")
+	require.NoError(t, err, "GetPortfolioMarginUsersCustomisedID must not error")
 	if mockTests {
-		exp := &PAPICustomisedIDResponse{
+		exp := &PortfolioMarginCustomisedIDResponse{
 			BrokerID:   "12345678",
 			CustomerID: "abc123",
 		}
-		assert.Equal(t, exp, result, "GetPAPIUsersCustomisedID should decode every field")
+		assert.Equal(t, exp, result, "GetPortfolioMarginUsersCustomisedID should decode every field")
 		return
 	}
-	assert.NotEmpty(t, result.BrokerID, "GetPAPIUsersCustomisedID should return the broker ID")
+	assert.NotEmpty(t, result.BrokerID, "GetPortfolioMarginUsersCustomisedID should return the broker ID")
 }

@@ -31,7 +31,7 @@ const (
 	derivativesHeartbeatPool
 	derivativesOrderPool
 	futuresDataPool
-	uFuturesFundingPool
+	usdtMarginedFuturesFundingPool
 	optionsIPPool
 	optionsCancelPool
 	optionsHeartbeatPool
@@ -42,7 +42,7 @@ const (
 	marginMaxLeveragePool
 	withdrawalHistoryPool
 	subAccountFuturesTransferPool
-	pmProBNBTransferPool
+	portfolioMarginProBNBTransferPool
 	autoInvestPlanCreationPool
 	autoInvestPlanAdjustmentPool
 	autoInvestPlanStatusPool
@@ -54,7 +54,7 @@ const (
 	brokerCreateAPIKeyPool
 	brokerDeleteAPIKeyPool
 	brokerFuturesTransferPool
-	pmBNBTransferPool
+	portfolioMarginBNBTransferPool
 )
 
 // perEndpoint reports whether Binance gives every endpoint drawing on the pool a budget of its own
@@ -86,26 +86,26 @@ var poolBudgets = map[rateLimitPool]rateLimitBudget{
 	sapiUIDPool: {time.Minute, 180000},
 	// USDⓈ-M and COIN-M share their budgets since the 2026-06-30 CM-UM integration. Orders are also limited to 300 per
 	// 10 seconds, a looser sustained rate
-	derivativesIPPool:        {time.Minute, 1800}, // 2400 less the cancellations' and heartbeats' shares
-	derivativesCancelPool:    {time.Minute, 450},
-	derivativesHeartbeatPool: {time.Minute, 150},
-	derivativesOrderPool:     {time.Minute, 1200},
-	futuresDataPool:          {5 * time.Minute, 1000}, // per IP, for the /futures/data endpoints of both hosts
-	uFuturesFundingPool:      {5 * time.Minute, 500},  // per IP, shared by /fapi/v1/fundingRate and /fapi/v1/fundingInfo
-	optionsIPPool:            {time.Minute, 240},      // 400 less the cancellations' and heartbeats' shares
-	optionsCancelPool:        {time.Minute, 100},
-	optionsHeartbeatPool:     {time.Minute, 60},
-	optionsOrderPool:         {time.Minute, 100}, // 30 per 10 seconds also applies, a looser sustained rate
-	portfolioMarginIPPool:    {time.Minute, 6000},
-	portfolioMarginOrderPool: {time.Minute, 1200},
+	derivativesIPPool:              {time.Minute, 1800}, // 2400 less the cancellations' and heartbeats' shares
+	derivativesCancelPool:          {time.Minute, 450},
+	derivativesHeartbeatPool:       {time.Minute, 150},
+	derivativesOrderPool:           {time.Minute, 1200},
+	futuresDataPool:                {5 * time.Minute, 1000}, // per IP, for the /futures/data endpoints of both hosts
+	usdtMarginedFuturesFundingPool: {5 * time.Minute, 500},  // per IP, shared by /fapi/v1/fundingRate and /fapi/v1/fundingInfo
+	optionsIPPool:                  {time.Minute, 240},      // 400 less the cancellations' and heartbeats' shares
+	optionsCancelPool:              {time.Minute, 100},
+	optionsHeartbeatPool:           {time.Minute, 60},
+	optionsOrderPool:               {time.Minute, 100}, // 30 per 10 seconds also applies, a looser sustained rate
+	portfolioMarginIPPool:          {time.Minute, 6000},
+	portfolioMarginOrderPool:       {time.Minute, 1200},
 
 	marginMaxLeveragePool: {time.Minute, 1}, // POST /sapi/v1/margin/max-leverage
 	// GET /sapi/v1/capital/withdraw/history: its weight of 18000 counts against a UID budget of 180000 a second of its
 	// own, which Binance documents as 10 requests a second
 	withdrawalHistoryPool: {time.Second, 10},
 	// POST /sapi/v1/sub-account/futures/internalTransfer, per master account
-	subAccountFuturesTransferPool: {time.Minute, 2000},
-	pmProBNBTransferPool:          {10 * time.Minute, 2}, // POST /sapi/v1/portfolio/bnb-transfer
+	subAccountFuturesTransferPool:     {time.Minute, 2000},
+	portfolioMarginProBNBTransferPool: {10 * time.Minute, 2}, // POST /sapi/v1/portfolio/bnb-transfer
 	// Auto-Invest allowed one request every 3 seconds on each of these endpoints when it was last documented
 	autoInvestPlanCreationPool:           {3 * time.Second, 1},
 	autoInvestPlanAdjustmentPool:         {3 * time.Second, 1},
@@ -116,10 +116,10 @@ var poolBudgets = map[rateLimitPool]rateLimitBudget{
 	flexibleLoanLTVAdjustmentHistoryPool: {time.Second, 5}, // GET /sapi/v2/loan/flexible/ltv/adjustment/history
 	vipLoanApplicationStatusPool:         {time.Second, 5}, // GET /sapi/v1/loan/vip/request/data
 	// Binance allows one API key a second per sub-account; one a second across all sub-accounts is stricter
-	brokerCreateAPIKeyPool:    {time.Second, 1},
-	brokerDeleteAPIKeyPool:    {time.Second, 1},
-	brokerFuturesTransferPool: {time.Minute, 5000},    // POST /sapi/v1/broker/transfer/futures, per master account
-	pmBNBTransferPool:         {10 * time.Minute, 10}, // POST /papi/v1/bnb-transfer
+	brokerCreateAPIKeyPool:         {time.Second, 1},
+	brokerDeleteAPIKeyPool:         {time.Second, 1},
+	brokerFuturesTransferPool:      {time.Minute, 5000},    // POST /sapi/v1/broker/transfer/futures, per master account
+	portfolioMarginBNBTransferPool: {10 * time.Minute, 10}, // POST /papi/v1/bnb-transfer
 }
 
 // poolBursts holds the weight of the pools whose requests may go out at once, which the rest of the pool's budget
@@ -175,23 +175,23 @@ const (
 	spotSymbolPriceRate
 	spotSymbolPriceAllRate
 	spotOrderRate
-	spotOCOOrderRate
+	spotOneCancelsTheOtherOrderRate
 	testNewOrderWithCommissionRate
 	getCommissionRate
-	getAllOCOOrdersRate
+	getAllOneCancelsTheOtherOrdersRate
 	spotAllOrdersRate
 	spotAccountInformationRate
 	spotOpenOrdersSpecificRate
 	spotOpenOrdersAllRate
 	spotCancelAllListingRate
 	spotOrderQueryRate
-	getOCOListRate
+	getOneCancelsTheOtherListRate
 	getAllocationsRate
 	preventedMatchesRate
 	preventedMatchesByOrderIDRate
 	accountTradeListRate
 	accountTradeListByOrderIDRate
-	getOpenOCOListRate
+	getOpenOneCancelsTheOtherListRate
 	currentOrderCountUsageRate
 	wsSessionRate
 	userDataStreamSubscribeRate
@@ -223,16 +223,16 @@ const (
 	marginSmallLiabilityExchangeRate
 	smallLiabilityExchangeHistoryRate
 	getMarginAccountsOpenOrdersRate
-	getMarginAccountOCOOrderRate
+	getMarginAccountOneCancelsTheOtherOrderRate
 	getMarginAccountOrderRate
 	marginAccountNewOrderRate
 	marginAccountNewOrderBorrowRate
 	marginAccountCancelOrderRate
 	marginManualLiquidationRate
 	marginCurrentOrderCountUsageRate
-	getMarginAccountAllOCORate
+	getMarginAccountAllOneCancelsTheOtherRate
 	marginAccountsAllOrdersRate
-	marginAccountOpenOCOOrdersRate
+	marginAccountOpenOneCancelsTheOtherOrdersRate
 	marginAccountTradeListRate
 	maxTransferOutRate
 
@@ -280,14 +280,14 @@ const (
 	changeAutoRepayFuturesStatusRate
 	fundAutoCollectionRate
 	fundCollectionByAssetRate
-	classicPMAccountInfoRate
-	repayClassicPMBankruptcyLoanRate
-	getClassicPMBankruptcyLoanAmountRate
-	classicPMNegativeBalanceInterestHistoryRate
+	classicPortfolioMarginAccountInfoRate
+	repayClassicPortfolioMarginBankruptcyLoanRate
+	getClassicPortfolioMarginBankruptcyLoanAmountRate
+	classicPortfolioMarginNegativeBalanceInterestHistoryRate
 	repayFuturesNegativeBalanceRate
-	pmAssetLeverageRate
-	classicPMCollateralRate
-	pmAssetIndexPriceRate
+	portfolioMarginAssetLeverageRate
+	classicPortfolioMarginCollateralRate
+	portfolioMarginAssetIndexPriceRate
 
 	// Simple Earn
 	personalLeftQuotaRate
@@ -400,91 +400,91 @@ const (
 	brokerSubAccountCommissionRate
 
 	// USDⓈ-M futures /fapi
-	uFuturesDefaultRate
-	uFuturesCancelRate
-	uFuturesCancelAllListingRate
-	uFuturesAccountInformationRate
-	uFuturesTradingStatusAllRate
-	uFuturesMultiAssetMarginRate
-	uFuturesPositionModeRate
-	uFuturesPositionModeLookupRate
-	uFuturesDownloadIDRate
-	uFuturesDownloadLinkRate
-	uFuturesIncomeHistoryRate
-	uFuturesUserCommissionRate
-	uFuturesAggregateTradesRate
-	uFuturesFundingRateHistoryRate
-	uFuturesFundingInfoRate
-	uFuturesKline100Rate
-	uFuturesKline500Rate
-	uFuturesKline1000Rate
-	uFuturesKlineMaxRate
-	uFuturesMarkPriceAllRate
-	uFuturesAssetIndexAllRate
-	uFuturesHistoricalTradesRate
-	uFuturesOrderbook50Rate
-	uFuturesOrderbook100Rate
-	uFuturesOrderbook500Rate
-	uFuturesOrderbook1000Rate
-	uFuturesIndexConstituentsRate
-	uFuturesRecentTradesRate
-	uFuturesRPIOrderbookRate
-	uFuturesBookTickerRate
-	uFuturesOrderbookTickerAllRate
-	uFuturesSymbolPriceAllRate
-	uFuturesTicker24HourAllRate
-	uFuturesAccountTradeListRate
-	uFuturesGetAllOrdersRate
-	uFuturesCountdownCancelRate
-	uFuturesHeartbeatOverflowRate
-	uFuturesOrdersDefaultRate
-	uFuturesBatchOrdersRate
-	uFuturesOpenAlgoOrdersAllRate
-	uFuturesGetAllOpenOrdersRate
-	uFuturesADLQuantileRate
-	uFuturesPositionRiskRate
-	uFuturesAllAlgoOrdersRate
-	uFuturesSymbolForceOrdersRate
-	uFuturesAllForceOrdersRate
-	uFuturesAPIReferralRate
+	usdtMarginedFuturesDefaultRate
+	usdtMarginedFuturesCancelRate
+	usdtMarginedFuturesCancelAllListingRate
+	usdtMarginedFuturesAccountInformationRate
+	usdtMarginedFuturesTradingStatusAllRate
+	usdtMarginedFuturesMultiAssetMarginRate
+	usdtMarginedFuturesPositionModeRate
+	usdtMarginedFuturesPositionModeLookupRate
+	usdtMarginedFuturesDownloadIDRate
+	usdtMarginedFuturesDownloadLinkRate
+	usdtMarginedFuturesIncomeHistoryRate
+	usdtMarginedFuturesUserCommissionRate
+	usdtMarginedFuturesAggregateTradesRate
+	usdtMarginedFuturesFundingRateHistoryRate
+	usdtMarginedFuturesFundingInfoRate
+	usdtMarginedFuturesKline100Rate
+	usdtMarginedFuturesKline500Rate
+	usdtMarginedFuturesKline1000Rate
+	usdtMarginedFuturesKlineMaxRate
+	usdtMarginedFuturesMarkPriceAllRate
+	usdtMarginedFuturesAssetIndexAllRate
+	usdtMarginedFuturesHistoricalTradesRate
+	usdtMarginedFuturesOrderbook50Rate
+	usdtMarginedFuturesOrderbook100Rate
+	usdtMarginedFuturesOrderbook500Rate
+	usdtMarginedFuturesOrderbook1000Rate
+	usdtMarginedFuturesIndexConstituentsRate
+	usdtMarginedFuturesRecentTradesRate
+	usdtMarginedFuturesRetailPriceImprovementOrderbookRate
+	usdtMarginedFuturesBookTickerRate
+	usdtMarginedFuturesOrderbookTickerAllRate
+	usdtMarginedFuturesSymbolPriceAllRate
+	usdtMarginedFuturesTicker24HourAllRate
+	usdtMarginedFuturesAccountTradeListRate
+	usdtMarginedFuturesGetAllOrdersRate
+	usdtMarginedFuturesCountdownCancelRate
+	usdtMarginedFuturesHeartbeatOverflowRate
+	usdtMarginedFuturesOrdersDefaultRate
+	usdtMarginedFuturesBatchOrdersRate
+	usdtMarginedFuturesOpenAlgoOrdersAllRate
+	usdtMarginedFuturesGetAllOpenOrdersRate
+	usdtMarginedFuturesAutoDeleveragingQuantileRate
+	usdtMarginedFuturesPositionRiskRate
+	usdtMarginedFuturesAllAlgoOrdersRate
+	usdtMarginedFuturesSymbolForceOrdersRate
+	usdtMarginedFuturesAllForceOrdersRate
+	usdtMarginedFuturesAPIReferralRate
 
 	// /futures/data on the USDⓈ-M and COIN-M hosts
 	futuresDataRate
 
 	// COIN-M futures /dapi
-	cFuturesDefaultRate
-	cFuturesCancelRate
-	cFuturesCancelAllListingRate
-	cFuturesAccountInformationRate
-	cFuturesIncomeHistoryRate
-	cFuturesAggregateTradesRate
-	cFuturesKline100Rate
-	cFuturesKline500Rate
-	cFuturesKline1000Rate
-	cFuturesKlineMaxRate
-	cFuturesIndexMarkPriceRate
-	cFuturesHistoricalTradesRate
-	cFuturesOrderbook50Rate
-	cFuturesOrderbook100Rate
-	cFuturesOrderbook500Rate
-	cFuturesOrderbook1000Rate
-	cFuturesRecentTradesRate
-	cFuturesBookTickerRate
-	cFuturesOrderbookTickerAllRate
-	cFuturesSymbolPriceAllRate
-	cFuturesTicker24HourAllRate
-	cFuturesAccountTradeListRate
-	cFuturesAllOrdersRate
-	cFuturesCountdownCancelRate
-	cFuturesHeartbeatOverflowRate
-	cFuturesBatchOrdersRate
-	cFuturesOrdersDefaultRate
-	cFuturesGetAllOpenOrdersRate
-	cFuturesOpenAlgoOrdersAllRate
-	cFuturesAllAlgoOrdersRate
-	cFuturesADLQuantileRate
-	cFuturesSymbolForceOrdersRate
-	cFuturesAllForceOrdersRate
+	coinMarginedFuturesDefaultRate
+	coinMarginedFuturesCancelRate
+	coinMarginedFuturesCancelAllListingRate
+	coinMarginedFuturesAccountInformationRate
+	coinMarginedFuturesIncomeHistoryRate
+	coinMarginedFuturesAggregateTradesRate
+	coinMarginedFuturesKline100Rate
+	coinMarginedFuturesKline500Rate
+	coinMarginedFuturesKline1000Rate
+	coinMarginedFuturesKlineMaxRate
+	coinMarginedFuturesIndexMarkPriceRate
+	coinMarginedFuturesHistoricalTradesRate
+	coinMarginedFuturesOrderbook50Rate
+	coinMarginedFuturesOrderbook100Rate
+	coinMarginedFuturesOrderbook500Rate
+	coinMarginedFuturesOrderbook1000Rate
+	coinMarginedFuturesRecentTradesRate
+	coinMarginedFuturesBookTickerRate
+	coinMarginedFuturesOrderbookTickerAllRate
+	coinMarginedFuturesSymbolPriceAllRate
+	coinMarginedFuturesTicker24HourAllRate
+	coinMarginedFuturesAccountTradeListRate
+	coinMarginedFuturesAllOrdersRate
+	coinMarginedFuturesCountdownCancelRate
+	coinMarginedFuturesHeartbeatOverflowRate
+	coinMarginedFuturesBatchOrdersRate
+	coinMarginedFuturesOrdersDefaultRate
+	coinMarginedFuturesGetAllOpenOrdersRate
+	coinMarginedFuturesOpenAlgoOrdersAllRate
+	coinMarginedFuturesAllAlgoOrdersRate
+	coinMarginedFuturesAutoDeleveragingQuantileRate
+	coinMarginedFuturesSymbolForceOrdersRate
+	coinMarginedFuturesAllForceOrdersRate
 
 	// Options /eapi
 	optionsDefaultRate
@@ -515,62 +515,62 @@ const (
 	optionsUserExerciseRecordRate
 
 	// Portfolio margin /papi
-	pmDefaultRate
-	pmGetAccountBalancesRate
-	pmGetAccountInformationRate
-	pmBNBTransferRate
-	pmGetAutoRepayFuturesStatusRate
-	pmChangeAutoRepayFuturesStatusRate
-	pmGetCMCurrentPositionModeRate
-	pmGetUMCurrentPositionModeRate
-	pmFundAutoCollectionRate
-	pmFundCollectionByAssetRate
-	pmGetCMAccountDetailRate
-	pmGetCMIncomeHistoryRate
-	pmGetUMAccountDetailRate
-	pmGetUMIncomeHistoryRate
-	pmGetCMUserCommissionRate
-	pmGetUMUserCommissionRate
-	pmMarginMaxBorrowRate
-	pmUMTradingQuantitativeRulesIndicatorsRate
-	pmGetMarginLoanRecordRate
-	pmGetMarginMaxWithdrawalRate
-	pmGetMarginRepayRecordRate
-	pmGetPortfolioMarginNegativeBalanceInterestHistoryRate
-	pmGetUMPositionInformationRate
-	pmNegativeBalanceExchangeRecordRate
-	pmRepayFuturesNegativeBalanceRate
-	pmOrderRate
-	pmCancelMarginAccountOpenOrdersOnSymbolRate
-	pmGetMarginAccountOCORate
-	pmCancelMarginAccountOCORate
-	pmGetMarginAccountOrderRate
-	pmCancelMarginAccountOrderRate
-	pmGetCMAccountTradeListWithSymbolRate
-	pmGetCMAccountTradeListWithPairRate
-	pmGetCMPositionADLQuantileEstimationRate
-	pmMarginAccountLoanAndRepayRate
-	pmOCOOrderRate
-	pmGetMarginAccountTradeListRate
-	pmAllCMConditionalOrderWithoutSymbolRate
-	pmAllCMOrderWithSymbolRate
-	pmAllCMOrderWithPairRate
-	pmAllCMOpenConditionalOrdersWithoutSymbolRate
-	pmRetrieveAllCMOpenOrdersForAllSymbolRate
-	pmRetrieveAllUMOpenOrdersForAllSymbolRate
-	pmAllMarginAccountOrdersRate
-	pmGetAllUMOrdersRate
-	pmGetUMAlgoOrderHistoryRate
-	pmCurrentMarginOpenOrderRate
-	pmGetMarginAccountsAllOCOOrdersRate
-	pmGetMarginAccountsOpenOCOOrdersRate
-	pmGetUserCMForceOrdersWithSymbolRate
-	pmGetUserCMForceOrdersWithoutSymbolRate
-	pmGetUserUMForceOrdersWithSymbolRate
-	pmGetUserUMForceOrdersWithoutSymbolRate
-	pmGetUMAccountTradeListRate
-	pmGetUMPositionADLQuantileEstimationRate
-	pmAPIReferralRate
+	portfolioMarginDefaultRate
+	portfolioMarginGetAccountBalancesRate
+	portfolioMarginGetAccountInformationRate
+	portfolioMarginBNBTransferRate
+	portfolioMarginGetAutoRepayFuturesStatusRate
+	portfolioMarginChangeAutoRepayFuturesStatusRate
+	portfolioMarginGetCoinMarginedCurrentPositionModeRate
+	portfolioMarginGetUSDTMarginedCurrentPositionModeRate
+	portfolioMarginFundAutoCollectionRate
+	portfolioMarginFundCollectionByAssetRate
+	portfolioMarginGetCoinMarginedAccountDetailRate
+	portfolioMarginGetCoinMarginedIncomeHistoryRate
+	portfolioMarginGetUSDTMarginedAccountDetailRate
+	portfolioMarginGetUSDTMarginedIncomeHistoryRate
+	portfolioMarginGetCoinMarginedUserCommissionRate
+	portfolioMarginGetUSDTMarginedUserCommissionRate
+	portfolioMarginMarginMaxBorrowRate
+	portfolioMarginUSDTMarginedTradingQuantitativeRulesIndicatorsRate
+	portfolioMarginGetMarginLoanRecordRate
+	portfolioMarginGetMarginMaxWithdrawalRate
+	portfolioMarginGetMarginRepayRecordRate
+	portfolioMarginGetNegativeBalanceInterestHistoryRate
+	portfolioMarginGetUSDTMarginedPositionInformationRate
+	portfolioMarginNegativeBalanceExchangeRecordRate
+	portfolioMarginRepayFuturesNegativeBalanceRate
+	portfolioMarginOrderRate
+	portfolioMarginCancelMarginAccountOpenOrdersOnSymbolRate
+	portfolioMarginGetMarginAccountOneCancelsTheOtherRate
+	portfolioMarginCancelMarginAccountOneCancelsTheOtherRate
+	portfolioMarginGetMarginAccountOrderRate
+	portfolioMarginCancelMarginAccountOrderRate
+	portfolioMarginGetCoinMarginedAccountTradeListWithSymbolRate
+	portfolioMarginGetCoinMarginedAccountTradeListWithPairRate
+	portfolioMarginGetCoinMarginedPositionAutoDeleveragingQuantileEstimationRate
+	portfolioMarginMarginAccountLoanAndRepayRate
+	portfolioMarginOneCancelsTheOtherOrderRate
+	portfolioMarginGetMarginAccountTradeListRate
+	portfolioMarginAllCoinMarginedConditionalOrderWithoutSymbolRate
+	portfolioMarginAllCoinMarginedOrderWithSymbolRate
+	portfolioMarginAllCoinMarginedOrderWithPairRate
+	portfolioMarginAllCoinMarginedOpenConditionalOrdersWithoutSymbolRate
+	portfolioMarginRetrieveAllCoinMarginedOpenOrdersForAllSymbolRate
+	portfolioMarginRetrieveAllUSDTMarginedOpenOrdersForAllSymbolRate
+	portfolioMarginAllMarginAccountOrdersRate
+	portfolioMarginGetAllUSDTMarginedOrdersRate
+	portfolioMarginGetUSDTMarginedAlgoOrderHistoryRate
+	portfolioMarginCurrentMarginOpenOrderRate
+	portfolioMarginGetMarginAccountsAllOneCancelsTheOtherOrdersRate
+	portfolioMarginGetMarginAccountsOpenOneCancelsTheOtherOrdersRate
+	portfolioMarginGetUserCoinMarginedForceOrdersWithSymbolRate
+	portfolioMarginGetUserCoinMarginedForceOrdersWithoutSymbolRate
+	portfolioMarginGetUserUSDTMarginedForceOrdersWithSymbolRate
+	portfolioMarginGetUserUSDTMarginedForceOrdersWithoutSymbolRate
+	portfolioMarginGetUSDTMarginedAccountTradeListRate
+	portfolioMarginGetUSDTMarginedPositionAutoDeleveragingQuantileEstimationRate
+	portfolioMarginAPIReferralRate
 
 	// Stream subscriptions and pings, which Binance limits per connection
 	wsConnectionMessageRate
@@ -587,91 +587,91 @@ type endpointCost struct {
 // cost their order count on its order pool, which binds before their request weight does
 var endpointCosts = map[request.EndpointLimit]endpointCost{
 	// Spot /api, REST and WebSocket API
-	spotDefaultRate:                {spotIPPool, 1},
-	spotCancelRate:                 {spotCancelPool, 1},
-	spotExchangeInfoRate:           {spotIPPool, 20},
-	aggTradesRate:                  {spotIPPool, 4},
-	getCurrentAveragePriceRate:     {spotIPPool, 2},
-	spotOrderbookDepth100Rate:      {spotIPPool, 5},
-	spotOrderbookDepth500Rate:      {spotIPPool, 25},
-	spotOrderbookDepth1000Rate:     {spotIPPool, 50},
-	spotOrderbookDepth5000Rate:     {spotIPPool, 250},
-	getRecentTradesListRate:        {spotIPPool, 25},
-	getOldTradeLookupRate:          {spotIPPool, 25},
-	getKlineRate:                   {spotIPPool, 2},
-	spotTickerSymbols1Rate:         {spotIPPool, 4},
-	spotTickerSymbols5Rate:         {spotIPPool, 20},
-	spotTickerSymbols10Rate:        {spotIPPool, 40},
-	spotTickerSymbols25Rate:        {spotIPPool, 100},
-	spotTickerSymbolsMaxRate:       {spotIPPool, 200},
-	getTickers20Rate:               {spotIPPool, 2},
-	getTickers100Rate:              {spotIPPool, 40},
-	spotPriceChangeAllRate:         {spotIPPool, 80},
-	spotBookTickerRate:             {spotIPPool, 2},
-	spotOrderbookTickerAllRate:     {spotIPPool, 4},
-	spotSymbolPriceRate:            {spotIPPool, 2},
-	spotSymbolPriceAllRate:         {spotIPPool, 4},
-	spotOrderRate:                  {spotOrderPool, 1},
-	spotOCOOrderRate:               {spotOrderPool, 2},
-	testNewOrderWithCommissionRate: {spotIPPool, 20},
-	getCommissionRate:              {spotIPPool, 20},
-	getAllOCOOrdersRate:            {spotIPPool, 20},
-	spotAllOrdersRate:              {spotIPPool, 20},
-	spotAccountInformationRate:     {spotIPPool, 20},
-	spotOpenOrdersSpecificRate:     {spotIPPool, 6},
-	spotOpenOrdersAllRate:          {spotIPPool, 80},
-	spotCancelAllListingRate:       {spotCancelPool, 80},
-	spotOrderQueryRate:             {spotIPPool, 4},
-	getOCOListRate:                 {spotIPPool, 4},
-	getAllocationsRate:             {spotIPPool, 20},
-	preventedMatchesRate:           {spotIPPool, 2},
-	preventedMatchesByOrderIDRate:  {spotIPPool, 20},
-	accountTradeListRate:           {spotIPPool, 20},
-	accountTradeListByOrderIDRate:  {spotIPPool, 5},
-	getOpenOCOListRate:             {spotIPPool, 6},
-	currentOrderCountUsageRate:     {spotIPPool, 40},
-	wsSessionRate:                  {spotIPPool, 2},
-	userDataStreamSubscribeRate:    {spotIPPool, 2},
+	spotDefaultRate:                    {spotIPPool, 1},
+	spotCancelRate:                     {spotCancelPool, 1},
+	spotExchangeInfoRate:               {spotIPPool, 20},
+	aggTradesRate:                      {spotIPPool, 4},
+	getCurrentAveragePriceRate:         {spotIPPool, 2},
+	spotOrderbookDepth100Rate:          {spotIPPool, 5},
+	spotOrderbookDepth500Rate:          {spotIPPool, 25},
+	spotOrderbookDepth1000Rate:         {spotIPPool, 50},
+	spotOrderbookDepth5000Rate:         {spotIPPool, 250},
+	getRecentTradesListRate:            {spotIPPool, 25},
+	getOldTradeLookupRate:              {spotIPPool, 25},
+	getKlineRate:                       {spotIPPool, 2},
+	spotTickerSymbols1Rate:             {spotIPPool, 4},
+	spotTickerSymbols5Rate:             {spotIPPool, 20},
+	spotTickerSymbols10Rate:            {spotIPPool, 40},
+	spotTickerSymbols25Rate:            {spotIPPool, 100},
+	spotTickerSymbolsMaxRate:           {spotIPPool, 200},
+	getTickers20Rate:                   {spotIPPool, 2},
+	getTickers100Rate:                  {spotIPPool, 40},
+	spotPriceChangeAllRate:             {spotIPPool, 80},
+	spotBookTickerRate:                 {spotIPPool, 2},
+	spotOrderbookTickerAllRate:         {spotIPPool, 4},
+	spotSymbolPriceRate:                {spotIPPool, 2},
+	spotSymbolPriceAllRate:             {spotIPPool, 4},
+	spotOrderRate:                      {spotOrderPool, 1},
+	spotOneCancelsTheOtherOrderRate:    {spotOrderPool, 2},
+	testNewOrderWithCommissionRate:     {spotIPPool, 20},
+	getCommissionRate:                  {spotIPPool, 20},
+	getAllOneCancelsTheOtherOrdersRate: {spotIPPool, 20},
+	spotAllOrdersRate:                  {spotIPPool, 20},
+	spotAccountInformationRate:         {spotIPPool, 20},
+	spotOpenOrdersSpecificRate:         {spotIPPool, 6},
+	spotOpenOrdersAllRate:              {spotIPPool, 80},
+	spotCancelAllListingRate:           {spotCancelPool, 80},
+	spotOrderQueryRate:                 {spotIPPool, 4},
+	getOneCancelsTheOtherListRate:      {spotIPPool, 4},
+	getAllocationsRate:                 {spotIPPool, 20},
+	preventedMatchesRate:               {spotIPPool, 2},
+	preventedMatchesByOrderIDRate:      {spotIPPool, 20},
+	accountTradeListRate:               {spotIPPool, 20},
+	accountTradeListByOrderIDRate:      {spotIPPool, 5},
+	getOpenOneCancelsTheOtherListRate:  {spotIPPool, 6},
+	currentOrderCountUsageRate:         {spotIPPool, 40},
+	wsSessionRate:                      {spotIPPool, 2},
+	userDataStreamSubscribeRate:        {spotIPPool, 2},
 
 	// /sapi weight-1 defaults, used by every SAPI family
 	sapiDefaultRate:    {sapiIPPool, 1},
 	sapiUIDDefaultRate: {sapiUIDPool, 1},
 
 	// Margin
-	adjustCrossMarginMaxLeverageRate:         {marginMaxLeveragePool, 1},
-	getIsolatedMarginAccountInfoRate:         {sapiIPPool, 10},
-	enableIsolatedMarginAccountRate:          {sapiUIDPool, 300},
-	disableIsolatedMarginAccountRate:         {sapiUIDPool, 300},
-	marginAccountSummaryRate:                 {sapiIPPool, 10},
-	marginCapitalFlowRate:                    {sapiIPPool, 100},
-	getCrossMarginAccountDetailRate:          {sapiIPPool, 10},
-	allCrossMarginFeeDataRate:                {sapiIPPool, 5},
-	allIsolatedMarginFeeDataRate:             {sapiIPPool, 10},
-	marginHourlyInterestRate:                 {sapiIPPool, 100},
-	borrowRepayRecordsInMarginAccountRate:    {sapiIPPool, 10},
-	marginAccountBorrowRepayRate:             {sapiUIDPool, 1500},
-	marginMaxBorrowRate:                      {sapiUIDPool, 750},
-	crossMarginCollateralRatioRate:           {sapiIPPool, 100},
-	allIsolatedMarginSymbolsRate:             {sapiIPPool, 10},
-	marginTokensAndSymbolsDelistScheduleRate: {sapiIPPool, 100},
-	marginAvailableInventoryRate:             {sapiUIDPool, 50},
-	getPriceMarginIndexRate:                  {sapiIPPool, 10},
-	getSmallLiabilityExchangeCoinListRate:    {sapiIPPool, 100},
-	marginSmallLiabilityExchangeRate:         {sapiUIDPool, 3000},
-	smallLiabilityExchangeHistoryRate:        {sapiUIDPool, 100},
-	getMarginAccountsOpenOrdersRate:          {sapiIPPool, 10},
-	getMarginAccountOCOOrderRate:             {sapiIPPool, 10},
-	getMarginAccountOrderRate:                {sapiIPPool, 10},
-	marginAccountNewOrderRate:                {sapiUIDPool, 6},
-	marginAccountNewOrderBorrowRate:          {sapiUIDPool, 1500},
-	marginAccountCancelOrderRate:             {sapiIPPool, 10},
-	marginManualLiquidationRate:              {sapiUIDPool, 3000},
-	marginCurrentOrderCountUsageRate:         {sapiIPPool, 20},
-	getMarginAccountAllOCORate:               {sapiIPPool, 200},
-	marginAccountsAllOrdersRate:              {sapiIPPool, 200},
-	marginAccountOpenOCOOrdersRate:           {sapiIPPool, 10},
-	marginAccountTradeListRate:               {sapiIPPool, 10},
-	maxTransferOutRate:                       {sapiIPPool, 50},
+	adjustCrossMarginMaxLeverageRate:              {marginMaxLeveragePool, 1},
+	getIsolatedMarginAccountInfoRate:              {sapiIPPool, 10},
+	enableIsolatedMarginAccountRate:               {sapiUIDPool, 300},
+	disableIsolatedMarginAccountRate:              {sapiUIDPool, 300},
+	marginAccountSummaryRate:                      {sapiIPPool, 10},
+	marginCapitalFlowRate:                         {sapiIPPool, 100},
+	getCrossMarginAccountDetailRate:               {sapiIPPool, 10},
+	allCrossMarginFeeDataRate:                     {sapiIPPool, 5},
+	allIsolatedMarginFeeDataRate:                  {sapiIPPool, 10},
+	marginHourlyInterestRate:                      {sapiIPPool, 100},
+	borrowRepayRecordsInMarginAccountRate:         {sapiIPPool, 10},
+	marginAccountBorrowRepayRate:                  {sapiUIDPool, 1500},
+	marginMaxBorrowRate:                           {sapiUIDPool, 750},
+	crossMarginCollateralRatioRate:                {sapiIPPool, 100},
+	allIsolatedMarginSymbolsRate:                  {sapiIPPool, 10},
+	marginTokensAndSymbolsDelistScheduleRate:      {sapiIPPool, 100},
+	marginAvailableInventoryRate:                  {sapiUIDPool, 50},
+	getPriceMarginIndexRate:                       {sapiIPPool, 10},
+	getSmallLiabilityExchangeCoinListRate:         {sapiIPPool, 100},
+	marginSmallLiabilityExchangeRate:              {sapiUIDPool, 3000},
+	smallLiabilityExchangeHistoryRate:             {sapiUIDPool, 100},
+	getMarginAccountsOpenOrdersRate:               {sapiIPPool, 10},
+	getMarginAccountOneCancelsTheOtherOrderRate:   {sapiIPPool, 10},
+	getMarginAccountOrderRate:                     {sapiIPPool, 10},
+	marginAccountNewOrderRate:                     {sapiUIDPool, 6},
+	marginAccountNewOrderBorrowRate:               {sapiUIDPool, 1500},
+	marginAccountCancelOrderRate:                  {sapiIPPool, 10},
+	marginManualLiquidationRate:                   {sapiUIDPool, 3000},
+	marginCurrentOrderCountUsageRate:              {sapiIPPool, 20},
+	getMarginAccountAllOneCancelsTheOtherRate:     {sapiIPPool, 200},
+	marginAccountsAllOrdersRate:                   {sapiIPPool, 200},
+	marginAccountOpenOneCancelsTheOtherOrdersRate: {sapiIPPool, 10},
+	marginAccountTradeListRate:                    {sapiIPPool, 10},
+	maxTransferOutRate:                            {sapiIPPool, 50},
 
 	// Wallet
 	dailyAccountSnapshotRate:               {sapiIPPool, 2400},
@@ -712,19 +712,19 @@ var endpointCosts = map[request.EndpointLimit]endpointCost{
 	managedSubAccountTransferLogRate:         {sapiUIDPool, 60},
 
 	// Portfolio Margin Pro, formerly classic portfolio margin
-	transferBNBRate:                             {pmProBNBTransferPool, 1},
-	getAutoRepayFuturesStatusRate:               {sapiIPPool, 30},
-	changeAutoRepayFuturesStatusRate:            {sapiIPPool, 1500},
-	fundAutoCollectionRate:                      {sapiIPPool, 1500},
-	fundCollectionByAssetRate:                   {sapiIPPool, 60},
-	classicPMAccountInfoRate:                    {sapiUIDPool, 5},
-	repayClassicPMBankruptcyLoanRate:            {sapiUIDPool, 3000},
-	getClassicPMBankruptcyLoanAmountRate:        {sapiUIDPool, 500},
-	classicPMNegativeBalanceInterestHistoryRate: {sapiIPPool, 50},
-	repayFuturesNegativeBalanceRate:             {sapiIPPool, 1500},
-	pmAssetLeverageRate:                         {sapiIPPool, 50},
-	classicPMCollateralRate:                     {sapiIPPool, 50},
-	pmAssetIndexPriceRate:                       {sapiIPPool, 50},
+	transferBNBRate:                                          {portfolioMarginProBNBTransferPool, 1},
+	getAutoRepayFuturesStatusRate:                            {sapiIPPool, 30},
+	changeAutoRepayFuturesStatusRate:                         {sapiIPPool, 1500},
+	fundAutoCollectionRate:                                   {sapiIPPool, 1500},
+	fundCollectionByAssetRate:                                {sapiIPPool, 60},
+	classicPortfolioMarginAccountInfoRate:                    {sapiUIDPool, 5},
+	repayClassicPortfolioMarginBankruptcyLoanRate:            {sapiUIDPool, 3000},
+	getClassicPortfolioMarginBankruptcyLoanAmountRate:        {sapiUIDPool, 500},
+	classicPortfolioMarginNegativeBalanceInterestHistoryRate: {sapiIPPool, 50},
+	repayFuturesNegativeBalanceRate:                          {sapiIPPool, 1500},
+	portfolioMarginAssetLeverageRate:                         {sapiIPPool, 50},
+	classicPortfolioMarginCollateralRate:                     {sapiIPPool, 50},
+	portfolioMarginAssetIndexPriceRate:                       {sapiIPPool, 50},
 
 	// Simple Earn
 	personalLeftQuotaRate:                    {sapiIPPool, 150},
@@ -837,91 +837,91 @@ var endpointCosts = map[request.EndpointLimit]endpointCost{
 	brokerSubAccountCommissionRate:             {sapiUIDPool, 4},
 
 	// USDⓈ-M futures /fapi
-	uFuturesDefaultRate:            {derivativesIPPool, 1},
-	uFuturesCancelRate:             {derivativesCancelPool, 1},
-	uFuturesCancelAllListingRate:   {derivativesCancelPool, 40},
-	uFuturesAccountInformationRate: {derivativesIPPool, 5},
-	uFuturesTradingStatusAllRate:   {derivativesIPPool, 10},
-	uFuturesMultiAssetMarginRate:   {derivativesIPPool, 30},
-	uFuturesPositionModeRate:       {derivativesIPPool, 30},
-	uFuturesPositionModeLookupRate: {derivativesCancelPool, 30},
-	uFuturesDownloadIDRate:         {derivativesIPPool, 1000},
-	uFuturesDownloadLinkRate:       {derivativesIPPool, 10},
-	uFuturesIncomeHistoryRate:      {derivativesIPPool, 30},
-	uFuturesUserCommissionRate:     {derivativesIPPool, 20},
-	uFuturesAggregateTradesRate:    {derivativesIPPool, 20},
-	uFuturesFundingRateHistoryRate: {uFuturesFundingPool, 1},
-	uFuturesFundingInfoRate:        {uFuturesFundingPool, 1},
-	uFuturesKline100Rate:           {derivativesIPPool, 1},
-	uFuturesKline500Rate:           {derivativesIPPool, 2},
-	uFuturesKline1000Rate:          {derivativesIPPool, 5},
-	uFuturesKlineMaxRate:           {derivativesIPPool, 10},
-	uFuturesMarkPriceAllRate:       {derivativesIPPool, 10},
-	uFuturesAssetIndexAllRate:      {derivativesIPPool, 10},
-	uFuturesHistoricalTradesRate:   {derivativesIPPool, 200},
-	uFuturesOrderbook50Rate:        {derivativesIPPool, 2},
-	uFuturesOrderbook100Rate:       {derivativesIPPool, 5},
-	uFuturesOrderbook500Rate:       {derivativesIPPool, 10},
-	uFuturesOrderbook1000Rate:      {derivativesIPPool, 20},
-	uFuturesIndexConstituentsRate:  {derivativesIPPool, 2},
-	uFuturesRecentTradesRate:       {derivativesIPPool, 5},
-	uFuturesRPIOrderbookRate:       {derivativesIPPool, 20},
-	uFuturesBookTickerRate:         {derivativesIPPool, 2},
-	uFuturesOrderbookTickerAllRate: {derivativesIPPool, 5},
-	uFuturesSymbolPriceAllRate:     {derivativesIPPool, 2},
-	uFuturesTicker24HourAllRate:    {derivativesIPPool, 40},
-	uFuturesAccountTradeListRate:   {derivativesIPPool, 5},
-	uFuturesGetAllOrdersRate:       {derivativesIPPool, 5},
-	uFuturesCountdownCancelRate:    {derivativesHeartbeatPool, 10},
-	uFuturesHeartbeatOverflowRate:  {derivativesIPPool, 10},
-	uFuturesOrdersDefaultRate:      {derivativesOrderPool, 1},
-	uFuturesBatchOrdersRate:        {derivativesOrderPool, 5},
-	uFuturesOpenAlgoOrdersAllRate:  {derivativesIPPool, 40},
-	uFuturesGetAllOpenOrdersRate:   {derivativesIPPool, 40},
-	uFuturesADLQuantileRate:        {derivativesIPPool, 5},
-	uFuturesPositionRiskRate:       {derivativesIPPool, 5},
-	uFuturesAllAlgoOrdersRate:      {derivativesIPPool, 5},
-	uFuturesSymbolForceOrdersRate:  {derivativesIPPool, 20},
-	uFuturesAllForceOrdersRate:     {derivativesIPPool, 50},
-	uFuturesAPIReferralRate:        {derivativesIPPool, 100},
+	usdtMarginedFuturesDefaultRate:                         {derivativesIPPool, 1},
+	usdtMarginedFuturesCancelRate:                          {derivativesCancelPool, 1},
+	usdtMarginedFuturesCancelAllListingRate:                {derivativesCancelPool, 40},
+	usdtMarginedFuturesAccountInformationRate:              {derivativesIPPool, 5},
+	usdtMarginedFuturesTradingStatusAllRate:                {derivativesIPPool, 10},
+	usdtMarginedFuturesMultiAssetMarginRate:                {derivativesIPPool, 30},
+	usdtMarginedFuturesPositionModeRate:                    {derivativesIPPool, 30},
+	usdtMarginedFuturesPositionModeLookupRate:              {derivativesCancelPool, 30},
+	usdtMarginedFuturesDownloadIDRate:                      {derivativesIPPool, 1000},
+	usdtMarginedFuturesDownloadLinkRate:                    {derivativesIPPool, 10},
+	usdtMarginedFuturesIncomeHistoryRate:                   {derivativesIPPool, 30},
+	usdtMarginedFuturesUserCommissionRate:                  {derivativesIPPool, 20},
+	usdtMarginedFuturesAggregateTradesRate:                 {derivativesIPPool, 20},
+	usdtMarginedFuturesFundingRateHistoryRate:              {usdtMarginedFuturesFundingPool, 1},
+	usdtMarginedFuturesFundingInfoRate:                     {usdtMarginedFuturesFundingPool, 1},
+	usdtMarginedFuturesKline100Rate:                        {derivativesIPPool, 1},
+	usdtMarginedFuturesKline500Rate:                        {derivativesIPPool, 2},
+	usdtMarginedFuturesKline1000Rate:                       {derivativesIPPool, 5},
+	usdtMarginedFuturesKlineMaxRate:                        {derivativesIPPool, 10},
+	usdtMarginedFuturesMarkPriceAllRate:                    {derivativesIPPool, 10},
+	usdtMarginedFuturesAssetIndexAllRate:                   {derivativesIPPool, 10},
+	usdtMarginedFuturesHistoricalTradesRate:                {derivativesIPPool, 200},
+	usdtMarginedFuturesOrderbook50Rate:                     {derivativesIPPool, 2},
+	usdtMarginedFuturesOrderbook100Rate:                    {derivativesIPPool, 5},
+	usdtMarginedFuturesOrderbook500Rate:                    {derivativesIPPool, 10},
+	usdtMarginedFuturesOrderbook1000Rate:                   {derivativesIPPool, 20},
+	usdtMarginedFuturesIndexConstituentsRate:               {derivativesIPPool, 2},
+	usdtMarginedFuturesRecentTradesRate:                    {derivativesIPPool, 5},
+	usdtMarginedFuturesRetailPriceImprovementOrderbookRate: {derivativesIPPool, 20},
+	usdtMarginedFuturesBookTickerRate:                      {derivativesIPPool, 2},
+	usdtMarginedFuturesOrderbookTickerAllRate:              {derivativesIPPool, 5},
+	usdtMarginedFuturesSymbolPriceAllRate:                  {derivativesIPPool, 2},
+	usdtMarginedFuturesTicker24HourAllRate:                 {derivativesIPPool, 40},
+	usdtMarginedFuturesAccountTradeListRate:                {derivativesIPPool, 5},
+	usdtMarginedFuturesGetAllOrdersRate:                    {derivativesIPPool, 5},
+	usdtMarginedFuturesCountdownCancelRate:                 {derivativesHeartbeatPool, 10},
+	usdtMarginedFuturesHeartbeatOverflowRate:               {derivativesIPPool, 10},
+	usdtMarginedFuturesOrdersDefaultRate:                   {derivativesOrderPool, 1},
+	usdtMarginedFuturesBatchOrdersRate:                     {derivativesOrderPool, 5},
+	usdtMarginedFuturesOpenAlgoOrdersAllRate:               {derivativesIPPool, 40},
+	usdtMarginedFuturesGetAllOpenOrdersRate:                {derivativesIPPool, 40},
+	usdtMarginedFuturesAutoDeleveragingQuantileRate:        {derivativesIPPool, 5},
+	usdtMarginedFuturesPositionRiskRate:                    {derivativesIPPool, 5},
+	usdtMarginedFuturesAllAlgoOrdersRate:                   {derivativesIPPool, 5},
+	usdtMarginedFuturesSymbolForceOrdersRate:               {derivativesIPPool, 20},
+	usdtMarginedFuturesAllForceOrdersRate:                  {derivativesIPPool, 50},
+	usdtMarginedFuturesAPIReferralRate:                     {derivativesIPPool, 100},
 
 	// /futures/data on the USDⓈ-M and COIN-M hosts
 	futuresDataRate: {futuresDataPool, 1},
 
 	// COIN-M futures /dapi
-	cFuturesDefaultRate:            {derivativesIPPool, 1},
-	cFuturesCancelRate:             {derivativesCancelPool, 1},
-	cFuturesCancelAllListingRate:   {derivativesCancelPool, 40},
-	cFuturesAccountInformationRate: {derivativesIPPool, 5},
-	cFuturesIncomeHistoryRate:      {derivativesIPPool, 20},
-	cFuturesAggregateTradesRate:    {derivativesIPPool, 20},
-	cFuturesKline100Rate:           {derivativesIPPool, 1},
-	cFuturesKline500Rate:           {derivativesIPPool, 2},
-	cFuturesKline1000Rate:          {derivativesIPPool, 5},
-	cFuturesKlineMaxRate:           {derivativesIPPool, 10},
-	cFuturesIndexMarkPriceRate:     {derivativesIPPool, 10},
-	cFuturesHistoricalTradesRate:   {derivativesIPPool, 200},
-	cFuturesOrderbook50Rate:        {derivativesIPPool, 2},
-	cFuturesOrderbook100Rate:       {derivativesIPPool, 5},
-	cFuturesOrderbook500Rate:       {derivativesIPPool, 10},
-	cFuturesOrderbook1000Rate:      {derivativesIPPool, 20},
-	cFuturesRecentTradesRate:       {derivativesIPPool, 5},
-	cFuturesBookTickerRate:         {derivativesIPPool, 2},
-	cFuturesOrderbookTickerAllRate: {derivativesIPPool, 5},
-	cFuturesSymbolPriceAllRate:     {derivativesIPPool, 2},
-	cFuturesTicker24HourAllRate:    {derivativesIPPool, 40},
-	cFuturesAccountTradeListRate:   {derivativesIPPool, 5},
-	cFuturesAllOrdersRate:          {derivativesIPPool, 5},
-	cFuturesCountdownCancelRate:    {derivativesHeartbeatPool, 10},
-	cFuturesHeartbeatOverflowRate:  {derivativesIPPool, 10},
-	cFuturesBatchOrdersRate:        {derivativesOrderPool, 5},
-	cFuturesOrdersDefaultRate:      {derivativesOrderPool, 1},
-	cFuturesGetAllOpenOrdersRate:   {derivativesIPPool, 40},
-	cFuturesOpenAlgoOrdersAllRate:  {derivativesIPPool, 40},
-	cFuturesAllAlgoOrdersRate:      {derivativesIPPool, 5},
-	cFuturesADLQuantileRate:        {derivativesIPPool, 5},
-	cFuturesSymbolForceOrdersRate:  {derivativesIPPool, 20},
-	cFuturesAllForceOrdersRate:     {derivativesIPPool, 50},
+	coinMarginedFuturesDefaultRate:                  {derivativesIPPool, 1},
+	coinMarginedFuturesCancelRate:                   {derivativesCancelPool, 1},
+	coinMarginedFuturesCancelAllListingRate:         {derivativesCancelPool, 40},
+	coinMarginedFuturesAccountInformationRate:       {derivativesIPPool, 5},
+	coinMarginedFuturesIncomeHistoryRate:            {derivativesIPPool, 20},
+	coinMarginedFuturesAggregateTradesRate:          {derivativesIPPool, 20},
+	coinMarginedFuturesKline100Rate:                 {derivativesIPPool, 1},
+	coinMarginedFuturesKline500Rate:                 {derivativesIPPool, 2},
+	coinMarginedFuturesKline1000Rate:                {derivativesIPPool, 5},
+	coinMarginedFuturesKlineMaxRate:                 {derivativesIPPool, 10},
+	coinMarginedFuturesIndexMarkPriceRate:           {derivativesIPPool, 10},
+	coinMarginedFuturesHistoricalTradesRate:         {derivativesIPPool, 200},
+	coinMarginedFuturesOrderbook50Rate:              {derivativesIPPool, 2},
+	coinMarginedFuturesOrderbook100Rate:             {derivativesIPPool, 5},
+	coinMarginedFuturesOrderbook500Rate:             {derivativesIPPool, 10},
+	coinMarginedFuturesOrderbook1000Rate:            {derivativesIPPool, 20},
+	coinMarginedFuturesRecentTradesRate:             {derivativesIPPool, 5},
+	coinMarginedFuturesBookTickerRate:               {derivativesIPPool, 2},
+	coinMarginedFuturesOrderbookTickerAllRate:       {derivativesIPPool, 5},
+	coinMarginedFuturesSymbolPriceAllRate:           {derivativesIPPool, 2},
+	coinMarginedFuturesTicker24HourAllRate:          {derivativesIPPool, 40},
+	coinMarginedFuturesAccountTradeListRate:         {derivativesIPPool, 5},
+	coinMarginedFuturesAllOrdersRate:                {derivativesIPPool, 5},
+	coinMarginedFuturesCountdownCancelRate:          {derivativesHeartbeatPool, 10},
+	coinMarginedFuturesHeartbeatOverflowRate:        {derivativesIPPool, 10},
+	coinMarginedFuturesBatchOrdersRate:              {derivativesOrderPool, 5},
+	coinMarginedFuturesOrdersDefaultRate:            {derivativesOrderPool, 1},
+	coinMarginedFuturesGetAllOpenOrdersRate:         {derivativesIPPool, 40},
+	coinMarginedFuturesOpenAlgoOrdersAllRate:        {derivativesIPPool, 40},
+	coinMarginedFuturesAllAlgoOrdersRate:            {derivativesIPPool, 5},
+	coinMarginedFuturesAutoDeleveragingQuantileRate: {derivativesIPPool, 5},
+	coinMarginedFuturesSymbolForceOrdersRate:        {derivativesIPPool, 20},
+	coinMarginedFuturesAllForceOrdersRate:           {derivativesIPPool, 50},
 
 	// Options /eapi
 	optionsDefaultRate:                               {optionsIPPool, 1},
@@ -952,62 +952,62 @@ var endpointCosts = map[request.EndpointLimit]endpointCost{
 	optionsUserExerciseRecordRate:                    {optionsIPPool, 5},
 
 	// Portfolio margin /papi
-	pmDefaultRate:                                          {portfolioMarginIPPool, 1},
-	pmGetAccountBalancesRate:                               {portfolioMarginIPPool, 20},
-	pmGetAccountInformationRate:                            {portfolioMarginIPPool, 20},
-	pmBNBTransferRate:                                      {pmBNBTransferPool, 1},
-	pmGetAutoRepayFuturesStatusRate:                        {portfolioMarginIPPool, 30},
-	pmChangeAutoRepayFuturesStatusRate:                     {portfolioMarginIPPool, 750},
-	pmGetCMCurrentPositionModeRate:                         {portfolioMarginIPPool, 30},
-	pmGetUMCurrentPositionModeRate:                         {portfolioMarginIPPool, 30},
-	pmFundAutoCollectionRate:                               {portfolioMarginIPPool, 750},
-	pmFundCollectionByAssetRate:                            {portfolioMarginIPPool, 30},
-	pmGetCMAccountDetailRate:                               {portfolioMarginIPPool, 5},
-	pmGetCMIncomeHistoryRate:                               {portfolioMarginIPPool, 30},
-	pmGetUMAccountDetailRate:                               {portfolioMarginIPPool, 5},
-	pmGetUMIncomeHistoryRate:                               {portfolioMarginIPPool, 30},
-	pmGetCMUserCommissionRate:                              {portfolioMarginIPPool, 20},
-	pmGetUMUserCommissionRate:                              {portfolioMarginIPPool, 20},
-	pmMarginMaxBorrowRate:                                  {portfolioMarginIPPool, 5},
-	pmUMTradingQuantitativeRulesIndicatorsRate:             {portfolioMarginIPPool, 10},
-	pmGetMarginLoanRecordRate:                              {portfolioMarginIPPool, 10},
-	pmGetMarginMaxWithdrawalRate:                           {portfolioMarginIPPool, 5},
-	pmGetMarginRepayRecordRate:                             {portfolioMarginIPPool, 10},
-	pmGetPortfolioMarginNegativeBalanceInterestHistoryRate: {portfolioMarginIPPool, 50},
-	pmGetUMPositionInformationRate:                         {portfolioMarginIPPool, 5},
-	pmNegativeBalanceExchangeRecordRate:                    {portfolioMarginIPPool, 100},
-	pmRepayFuturesNegativeBalanceRate:                      {portfolioMarginIPPool, 750},
-	pmOrderRate:                                            {portfolioMarginOrderPool, 1},
-	pmCancelMarginAccountOpenOrdersOnSymbolRate:            {portfolioMarginIPPool, 5},
-	pmGetMarginAccountOCORate:                              {portfolioMarginIPPool, 5},
-	pmCancelMarginAccountOCORate:                           {portfolioMarginIPPool, 2},
-	pmGetMarginAccountOrderRate:                            {portfolioMarginIPPool, 10},
-	pmCancelMarginAccountOrderRate:                         {portfolioMarginIPPool, 2},
-	pmGetCMAccountTradeListWithSymbolRate:                  {portfolioMarginIPPool, 20},
-	pmGetCMAccountTradeListWithPairRate:                    {portfolioMarginIPPool, 40},
-	pmGetCMPositionADLQuantileEstimationRate:               {portfolioMarginIPPool, 5},
-	pmMarginAccountLoanAndRepayRate:                        {portfolioMarginIPPool, 100},
-	pmOCOOrderRate:                                         {portfolioMarginOrderPool, 2},
-	pmGetMarginAccountTradeListRate:                        {portfolioMarginIPPool, 5},
-	pmAllCMConditionalOrderWithoutSymbolRate:               {portfolioMarginIPPool, 40},
-	pmAllCMOrderWithSymbolRate:                             {portfolioMarginIPPool, 20},
-	pmAllCMOrderWithPairRate:                               {portfolioMarginIPPool, 40},
-	pmAllCMOpenConditionalOrdersWithoutSymbolRate:          {portfolioMarginIPPool, 40},
-	pmRetrieveAllCMOpenOrdersForAllSymbolRate:              {portfolioMarginIPPool, 40},
-	pmRetrieveAllUMOpenOrdersForAllSymbolRate:              {portfolioMarginIPPool, 40},
-	pmAllMarginAccountOrdersRate:                           {portfolioMarginIPPool, 100},
-	pmGetAllUMOrdersRate:                                   {portfolioMarginIPPool, 5},
-	pmGetUMAlgoOrderHistoryRate:                            {portfolioMarginIPPool, 5},
-	pmCurrentMarginOpenOrderRate:                           {portfolioMarginIPPool, 5},
-	pmGetMarginAccountsAllOCOOrdersRate:                    {portfolioMarginIPPool, 100},
-	pmGetMarginAccountsOpenOCOOrdersRate:                   {portfolioMarginIPPool, 5},
-	pmGetUserCMForceOrdersWithSymbolRate:                   {portfolioMarginIPPool, 20},
-	pmGetUserCMForceOrdersWithoutSymbolRate:                {portfolioMarginIPPool, 50},
-	pmGetUserUMForceOrdersWithSymbolRate:                   {portfolioMarginIPPool, 20},
-	pmGetUserUMForceOrdersWithoutSymbolRate:                {portfolioMarginIPPool, 50},
-	pmGetUMAccountTradeListRate:                            {portfolioMarginIPPool, 5},
-	pmGetUMPositionADLQuantileEstimationRate:               {portfolioMarginIPPool, 5},
-	pmAPIReferralRate:                                      {portfolioMarginIPPool, 100},
+	portfolioMarginDefaultRate:                                                   {portfolioMarginIPPool, 1},
+	portfolioMarginGetAccountBalancesRate:                                        {portfolioMarginIPPool, 20},
+	portfolioMarginGetAccountInformationRate:                                     {portfolioMarginIPPool, 20},
+	portfolioMarginBNBTransferRate:                                               {portfolioMarginBNBTransferPool, 1},
+	portfolioMarginGetAutoRepayFuturesStatusRate:                                 {portfolioMarginIPPool, 30},
+	portfolioMarginChangeAutoRepayFuturesStatusRate:                              {portfolioMarginIPPool, 750},
+	portfolioMarginGetCoinMarginedCurrentPositionModeRate:                        {portfolioMarginIPPool, 30},
+	portfolioMarginGetUSDTMarginedCurrentPositionModeRate:                        {portfolioMarginIPPool, 30},
+	portfolioMarginFundAutoCollectionRate:                                        {portfolioMarginIPPool, 750},
+	portfolioMarginFundCollectionByAssetRate:                                     {portfolioMarginIPPool, 30},
+	portfolioMarginGetCoinMarginedAccountDetailRate:                              {portfolioMarginIPPool, 5},
+	portfolioMarginGetCoinMarginedIncomeHistoryRate:                              {portfolioMarginIPPool, 30},
+	portfolioMarginGetUSDTMarginedAccountDetailRate:                              {portfolioMarginIPPool, 5},
+	portfolioMarginGetUSDTMarginedIncomeHistoryRate:                              {portfolioMarginIPPool, 30},
+	portfolioMarginGetCoinMarginedUserCommissionRate:                             {portfolioMarginIPPool, 20},
+	portfolioMarginGetUSDTMarginedUserCommissionRate:                             {portfolioMarginIPPool, 20},
+	portfolioMarginMarginMaxBorrowRate:                                           {portfolioMarginIPPool, 5},
+	portfolioMarginUSDTMarginedTradingQuantitativeRulesIndicatorsRate:            {portfolioMarginIPPool, 10},
+	portfolioMarginGetMarginLoanRecordRate:                                       {portfolioMarginIPPool, 10},
+	portfolioMarginGetMarginMaxWithdrawalRate:                                    {portfolioMarginIPPool, 5},
+	portfolioMarginGetMarginRepayRecordRate:                                      {portfolioMarginIPPool, 10},
+	portfolioMarginGetNegativeBalanceInterestHistoryRate:                         {portfolioMarginIPPool, 50},
+	portfolioMarginGetUSDTMarginedPositionInformationRate:                        {portfolioMarginIPPool, 5},
+	portfolioMarginNegativeBalanceExchangeRecordRate:                             {portfolioMarginIPPool, 100},
+	portfolioMarginRepayFuturesNegativeBalanceRate:                               {portfolioMarginIPPool, 750},
+	portfolioMarginOrderRate:                                                     {portfolioMarginOrderPool, 1},
+	portfolioMarginCancelMarginAccountOpenOrdersOnSymbolRate:                     {portfolioMarginIPPool, 5},
+	portfolioMarginGetMarginAccountOneCancelsTheOtherRate:                        {portfolioMarginIPPool, 5},
+	portfolioMarginCancelMarginAccountOneCancelsTheOtherRate:                     {portfolioMarginIPPool, 2},
+	portfolioMarginGetMarginAccountOrderRate:                                     {portfolioMarginIPPool, 10},
+	portfolioMarginCancelMarginAccountOrderRate:                                  {portfolioMarginIPPool, 2},
+	portfolioMarginGetCoinMarginedAccountTradeListWithSymbolRate:                 {portfolioMarginIPPool, 20},
+	portfolioMarginGetCoinMarginedAccountTradeListWithPairRate:                   {portfolioMarginIPPool, 40},
+	portfolioMarginGetCoinMarginedPositionAutoDeleveragingQuantileEstimationRate: {portfolioMarginIPPool, 5},
+	portfolioMarginMarginAccountLoanAndRepayRate:                                 {portfolioMarginIPPool, 100},
+	portfolioMarginOneCancelsTheOtherOrderRate:                                   {portfolioMarginOrderPool, 2},
+	portfolioMarginGetMarginAccountTradeListRate:                                 {portfolioMarginIPPool, 5},
+	portfolioMarginAllCoinMarginedConditionalOrderWithoutSymbolRate:              {portfolioMarginIPPool, 40},
+	portfolioMarginAllCoinMarginedOrderWithSymbolRate:                            {portfolioMarginIPPool, 20},
+	portfolioMarginAllCoinMarginedOrderWithPairRate:                              {portfolioMarginIPPool, 40},
+	portfolioMarginAllCoinMarginedOpenConditionalOrdersWithoutSymbolRate:         {portfolioMarginIPPool, 40},
+	portfolioMarginRetrieveAllCoinMarginedOpenOrdersForAllSymbolRate:             {portfolioMarginIPPool, 40},
+	portfolioMarginRetrieveAllUSDTMarginedOpenOrdersForAllSymbolRate:             {portfolioMarginIPPool, 40},
+	portfolioMarginAllMarginAccountOrdersRate:                                    {portfolioMarginIPPool, 100},
+	portfolioMarginGetAllUSDTMarginedOrdersRate:                                  {portfolioMarginIPPool, 5},
+	portfolioMarginGetUSDTMarginedAlgoOrderHistoryRate:                           {portfolioMarginIPPool, 5},
+	portfolioMarginCurrentMarginOpenOrderRate:                                    {portfolioMarginIPPool, 5},
+	portfolioMarginGetMarginAccountsAllOneCancelsTheOtherOrdersRate:              {portfolioMarginIPPool, 100},
+	portfolioMarginGetMarginAccountsOpenOneCancelsTheOtherOrdersRate:             {portfolioMarginIPPool, 5},
+	portfolioMarginGetUserCoinMarginedForceOrdersWithSymbolRate:                  {portfolioMarginIPPool, 20},
+	portfolioMarginGetUserCoinMarginedForceOrdersWithoutSymbolRate:               {portfolioMarginIPPool, 50},
+	portfolioMarginGetUserUSDTMarginedForceOrdersWithSymbolRate:                  {portfolioMarginIPPool, 20},
+	portfolioMarginGetUserUSDTMarginedForceOrdersWithoutSymbolRate:               {portfolioMarginIPPool, 50},
+	portfolioMarginGetUSDTMarginedAccountTradeListRate:                           {portfolioMarginIPPool, 5},
+	portfolioMarginGetUSDTMarginedPositionAutoDeleveragingQuantileEstimationRate: {portfolioMarginIPPool, 5},
+	portfolioMarginAPIReferralRate:                                               {portfolioMarginIPPool, 100},
 }
 
 // GetRateLimits returns Binance's endpoint limits, each with its limiter and weight
@@ -1115,67 +1115,71 @@ func marginNewOrderLimit(sideEffectType string) request.EndpointLimit {
 	return marginAccountNewOrderRate
 }
 
-// uFuturesKlineLimit returns the limit of a USDⓈ-M kline request for its limit; 0 requests the default of 500
-func uFuturesKlineLimit(limit uint64) request.EndpointLimit {
+// usdtMarginedFuturesKlineLimit returns the limit of a USDⓈ-M kline request for its limit; 0 requests the default of
+// 500
+func usdtMarginedFuturesKlineLimit(limit uint64) request.EndpointLimit {
 	switch {
 	case limit == 0:
-		return uFuturesKline1000Rate
+		return usdtMarginedFuturesKline1000Rate
 	case limit < 100:
-		return uFuturesKline100Rate
+		return usdtMarginedFuturesKline100Rate
 	case limit < 500:
-		return uFuturesKline500Rate
+		return usdtMarginedFuturesKline500Rate
 	case limit <= 1000:
-		return uFuturesKline1000Rate
+		return usdtMarginedFuturesKline1000Rate
 	default:
-		return uFuturesKlineMaxRate
+		return usdtMarginedFuturesKlineMaxRate
 	}
 }
 
-// uFuturesOrderbookLimit returns the limit of a USDⓈ-M order book request for its limit; 0 requests the default of 500
-func uFuturesOrderbookLimit(limit uint64) request.EndpointLimit {
+// usdtMarginedFuturesOrderbookLimit returns the limit of a USDⓈ-M order book request for its limit; 0 requests the
+// default of 500
+func usdtMarginedFuturesOrderbookLimit(limit uint64) request.EndpointLimit {
 	switch {
 	case limit == 0:
-		return uFuturesOrderbook500Rate
+		return usdtMarginedFuturesOrderbook500Rate
 	case limit <= 50:
-		return uFuturesOrderbook50Rate
+		return usdtMarginedFuturesOrderbook50Rate
 	case limit <= 100:
-		return uFuturesOrderbook100Rate
+		return usdtMarginedFuturesOrderbook100Rate
 	case limit <= 500:
-		return uFuturesOrderbook500Rate
+		return usdtMarginedFuturesOrderbook500Rate
 	default:
-		return uFuturesOrderbook1000Rate
+		return usdtMarginedFuturesOrderbook1000Rate
 	}
 }
 
-// cFuturesKlineLimit returns the limit of a COIN-M kline request for its limit; 0 requests the default of 500
-func cFuturesKlineLimit(limit uint64) request.EndpointLimit {
+// coinMarginedFuturesKlineLimit returns the limit of a COIN-M kline request for its limit; 0 requests the default of
+// 500
+func coinMarginedFuturesKlineLimit(limit uint64) request.EndpointLimit {
 	switch {
 	case limit == 0:
-		return cFuturesKline1000Rate
+		return coinMarginedFuturesKline1000Rate
 	case limit < 100:
-		return cFuturesKline100Rate
+		return coinMarginedFuturesKline100Rate
 	case limit < 500:
-		return cFuturesKline500Rate
+		return coinMarginedFuturesKline500Rate
 	case limit <= 1000:
-		return cFuturesKline1000Rate
+		return coinMarginedFuturesKline1000Rate
 	default:
-		return cFuturesKlineMaxRate
+		return coinMarginedFuturesKlineMaxRate
 	}
 }
 
-// cFuturesOrderbookLimit returns the limit of a COIN-M order book request for its limit; 0 requests the default of 500
-func cFuturesOrderbookLimit(limit uint64) request.EndpointLimit {
+// coinMarginedFuturesOrderbookLimit returns the limit of a COIN-M order book request for its limit; 0 requests the
+// default of 500
+func coinMarginedFuturesOrderbookLimit(limit uint64) request.EndpointLimit {
 	switch {
 	case limit == 0:
-		return cFuturesOrderbook500Rate
+		return coinMarginedFuturesOrderbook500Rate
 	case limit <= 50:
-		return cFuturesOrderbook50Rate
+		return coinMarginedFuturesOrderbook50Rate
 	case limit <= 100:
-		return cFuturesOrderbook100Rate
+		return coinMarginedFuturesOrderbook100Rate
 	case limit <= 500:
-		return cFuturesOrderbook500Rate
+		return coinMarginedFuturesOrderbook500Rate
 	default:
-		return cFuturesOrderbook1000Rate
+		return coinMarginedFuturesOrderbook1000Rate
 	}
 }
 

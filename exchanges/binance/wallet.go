@@ -530,6 +530,9 @@ func (e *Exchange) WithdrawHistory(ctx context.Context, req *WithdrawHistoryRequ
 		params.Set("limit", strconv.FormatUint(req.Limit, 10))
 	}
 	if len(req.IDList) > 0 {
+		if err := checkListLength("withdrawal IDs", len(req.IDList), 45); err != nil {
+			return nil, err
+		}
 		params.Set("idList", strings.Join(req.IDList, ","))
 	}
 	if err := setTimeRangeParams(params, req.StartTime, req.EndTime); err != nil {
@@ -629,6 +632,16 @@ func (e *Exchange) WithdrawalHistoryV1(ctx context.Context, req *LocalEntityWith
 // withdrawals made through WithdrawCrypto. The time window cannot exceed 90 days and defaults to the last 90 days, or
 // to the last 7 days when a withdraw order ID is set
 func (e *Exchange) WithdrawalHistoryV2(ctx context.Context, req *LocalEntityWithdrawHistoryRequest) ([]LocalEntityWithdrawalRecordResponse, error) {
+	if err := common.NilGuard(req); err != nil {
+		return nil, err
+	}
+	// Version 2 takes at most 45 travel rule record IDs and 45 transaction IDs, which version 1 does not limit
+	if err := checkListLength("travel rule record IDs", len(req.TravelRuleRecordIDs), 45); err != nil {
+		return nil, err
+	}
+	if err := checkListLength("transaction IDs", len(req.TxIDs), 45); err != nil {
+		return nil, err
+	}
 	return e.localEntityWithdrawHistory(ctx, "/sapi/v2/localentity/withdraw/history", req)
 }
 

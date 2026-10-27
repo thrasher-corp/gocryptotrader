@@ -14,7 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-func TestGetAccountBalance(t *testing.T) {
+func TestGetPortfolioMarginAccountBalance(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -26,47 +26,47 @@ func TestGetAccountBalance(t *testing.T) {
 	}{
 		{name: "allAssets", ccy: currency.EMPTYCODE, exp: []AccountBalanceResponse{
 			{
-				Asset:               currency.USDT,
-				TotalWalletBalance:  139.22469206,
-				CrossMarginAsset:    103,
-				CrossMarginBorrowed: 10,
-				CrossMarginFree:     100,
-				CrossMarginInterest: 0.72469206,
-				CrossMarginLocked:   3,
-				UMWalletBalance:     12.5,
-				UMUnrealisedPNL:     23.72469206,
-				CMWalletBalance:     23.72469206,
-				CMUnrealisedPNL:     -1.25,
-				UpdateTime:          types.Time(time.UnixMilli(1617939110373)),
-				NegativeBalance:     0.5,
+				Asset:                     currency.USDT,
+				TotalWalletBalance:        139.22469206,
+				CrossMarginAsset:          103,
+				CrossMarginBorrowed:       10,
+				CrossMarginFree:           100,
+				CrossMarginInterest:       0.72469206,
+				CrossMarginLocked:         3,
+				USDTMarginedWalletBalance: 12.5,
+				USDTMarginedUnrealisedPNL: 23.72469206,
+				CoinMarginedWalletBalance: 23.72469206,
+				CoinMarginedUnrealisedPNL: -1.25,
+				UpdateTime:                types.Time(time.UnixMilli(1617939110373)),
+				NegativeBalance:           0.5,
 			},
 		}},
 		{name: "asset", ccy: currency.BTC, exp: []AccountBalanceResponse{
 			{
-				Asset:               currency.BTC,
-				TotalWalletBalance:  0.31,
-				CrossMarginBorrowed: 0.01,
-				CrossMarginFree:     0.2,
-				CrossMarginInterest: 0.0001,
-				CrossMarginLocked:   0.05,
-				UMWalletBalance:     0.04,
-				UMUnrealisedPNL:     0.002,
-				CMWalletBalance:     0.02,
-				CMUnrealisedPNL:     -0.001,
-				UpdateTime:          types.Time(time.UnixMilli(1617939110373)),
-				NegativeBalance:     0.003,
+				Asset:                     currency.BTC,
+				TotalWalletBalance:        0.31,
+				CrossMarginBorrowed:       0.01,
+				CrossMarginFree:           0.2,
+				CrossMarginInterest:       0.0001,
+				CrossMarginLocked:         0.05,
+				USDTMarginedWalletBalance: 0.04,
+				USDTMarginedUnrealisedPNL: 0.002,
+				CoinMarginedWalletBalance: 0.02,
+				CoinMarginedUnrealisedPNL: -0.001,
+				UpdateTime:                types.Time(time.UnixMilli(1617939110373)),
+				NegativeBalance:           0.003,
 			},
 		}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			result, err := e.GetAccountBalance(t.Context(), tc.ccy)
-			require.NoError(t, err, "GetAccountBalance must not error")
+			result, err := e.GetPortfolioMarginAccountBalance(t.Context(), tc.ccy)
+			require.NoError(t, err, "GetPortfolioMarginAccountBalance must not error")
 			if mockTests {
-				assert.Equal(t, tc.exp, result, "GetAccountBalance should decode every field")
+				assert.Equal(t, tc.exp, result, "GetPortfolioMarginAccountBalance should decode every field")
 				return
 			}
-			assert.NotEmpty(t, result, "GetAccountBalance should return balances")
+			assert.NotEmpty(t, result, "GetPortfolioMarginAccountBalance should return balances")
 		})
 	}
 }
@@ -79,7 +79,7 @@ func TestGetPortfolioMarginAccountInformation(t *testing.T) {
 	result, err := e.GetPortfolioMarginAccountInformation(t.Context())
 	require.NoError(t, err, "GetPortfolioMarginAccountInformation must not error")
 	if mockTests {
-		exp := &PMAccountInformationResponse{
+		exp := &PortfolioMarginAccountInformationResponse{
 			UniMMR:                   5167.92171923,
 			AccountEquity:            73.47428058,
 			ActualEquity:             122607.35137903,
@@ -97,195 +97,195 @@ func TestGetPortfolioMarginAccountInformation(t *testing.T) {
 	assert.NotEmpty(t, result.AccountStatus, "GetPortfolioMarginAccountInformation should return an account status")
 }
 
-func TestBNBTransfer(t *testing.T) {
+func TestPortfolioMarginBNBTransfer(t *testing.T) {
 	t.Parallel()
-	_, err := e.BNBTransfer(t.Context(), 0, "TO_UM")
-	require.ErrorIs(t, err, limits.ErrAmountBelowMin, "BNBTransfer must reject a zero amount")
-	_, err = e.BNBTransfer(t.Context(), 0.0001, "")
-	require.ErrorIs(t, err, errTransferSideRequired, "BNBTransfer must reject an empty transfer side")
+	_, err := e.PortfolioMarginBNBTransfer(t.Context(), 0, "TO_UM")
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin, "PortfolioMarginBNBTransfer must reject a zero amount")
+	_, err = e.PortfolioMarginBNBTransfer(t.Context(), 0.0001, "")
+	require.ErrorIs(t, err, errTransferSideRequired, "PortfolioMarginBNBTransfer must reject an empty transfer side")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	result, err := e.BNBTransfer(t.Context(), 0.0001, "TO_UM")
-	require.NoError(t, err, "BNBTransfer must not error")
+	result, err := e.PortfolioMarginBNBTransfer(t.Context(), 0.0001, "TO_UM")
+	require.NoError(t, err, "PortfolioMarginBNBTransfer must not error")
 	if mockTests {
-		exp := &PMTransactionResponse{
+		exp := &PortfolioMarginTransactionResponse{
 			TransactionID: 100000001,
 		}
-		assert.Equal(t, exp, result, "BNBTransfer should decode every field")
+		assert.Equal(t, exp, result, "PortfolioMarginBNBTransfer should decode every field")
 		return
 	}
-	assert.NotZero(t, result.TransactionID, "BNBTransfer should return a transaction ID")
+	assert.NotZero(t, result.TransactionID, "PortfolioMarginBNBTransfer should return a transaction ID")
 }
 
-func TestGetAutoRepayFuturesStatus(t *testing.T) {
+func TestGetPortfolioMarginAutoRepayFuturesStatus(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetAutoRepayFuturesStatus(t.Context())
-	require.NoError(t, err, "GetAutoRepayFuturesStatus must not error")
+	result, err := e.GetPortfolioMarginAutoRepayFuturesStatus(t.Context())
+	require.NoError(t, err, "GetPortfolioMarginAutoRepayFuturesStatus must not error")
 	if mockTests {
-		exp := &PMAutoRepayFuturesStatusResponse{
+		exp := &PortfolioMarginAutoRepayFuturesStatusResponse{
 			AutoRepay: true,
 		}
-		assert.Equal(t, exp, result, "GetAutoRepayFuturesStatus should decode every field")
+		assert.Equal(t, exp, result, "GetPortfolioMarginAutoRepayFuturesStatus should decode every field")
 		return
 	}
-	assert.NotNil(t, result, "GetAutoRepayFuturesStatus should return a status")
+	assert.NotNil(t, result, "GetPortfolioMarginAutoRepayFuturesStatus should return a status")
 }
 
-func TestChangeAutoRepayFuturesStatus(t *testing.T) {
+func TestChangePortfolioMarginAutoRepayFuturesStatus(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	result, err := e.ChangeAutoRepayFuturesStatus(t.Context(), false)
-	require.NoError(t, err, "ChangeAutoRepayFuturesStatus must not error")
+	result, err := e.ChangePortfolioMarginAutoRepayFuturesStatus(t.Context(), false)
+	require.NoError(t, err, "ChangePortfolioMarginAutoRepayFuturesStatus must not error")
 	if mockTests {
-		exp := &PMMessageResponse{
+		exp := &PortfolioMarginMessageResponse{
 			Message: "success",
 		}
-		assert.Equal(t, exp, result, "ChangeAutoRepayFuturesStatus should decode every field")
+		assert.Equal(t, exp, result, "ChangePortfolioMarginAutoRepayFuturesStatus should decode every field")
 		return
 	}
-	assert.Equal(t, "success", result.Message, "ChangeAutoRepayFuturesStatus should report success")
+	assert.Equal(t, "success", result.Message, "ChangePortfolioMarginAutoRepayFuturesStatus should report success")
 }
 
-func TestChangeCMInitialLeverage(t *testing.T) {
+func TestChangePortfolioMarginCoinMarginedInitialLeverage(t *testing.T) {
 	t.Parallel()
-	_, err := e.ChangeCMInitialLeverage(t.Context(), currency.EMPTYPAIR, 29)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "ChangeCMInitialLeverage must reject an empty symbol")
-	_, err = e.ChangeCMInitialLeverage(t.Context(), currency.NewPairWithDelimiter("BTCUSD", "PERP", currency.UnderscoreDelimiter), 0)
-	require.ErrorIs(t, err, errLeverageRequired, "ChangeCMInitialLeverage must reject a zero leverage")
+	_, err := e.ChangePortfolioMarginCoinMarginedInitialLeverage(t.Context(), currency.EMPTYPAIR, 29)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "ChangePortfolioMarginCoinMarginedInitialLeverage must reject an empty symbol")
+	_, err = e.ChangePortfolioMarginCoinMarginedInitialLeverage(t.Context(), currency.NewPairWithDelimiter("BTCUSD", "PERP", currency.UnderscoreDelimiter), 0)
+	require.ErrorIs(t, err, errLeverageRequired, "ChangePortfolioMarginCoinMarginedInitialLeverage must reject a zero leverage")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 		ensureTradablePairs(t)
 	}
-	result, err := e.ChangeCMInitialLeverage(t.Context(), coinmTradablePair, 29)
-	require.NoError(t, err, "ChangeCMInitialLeverage must not error")
+	result, err := e.ChangePortfolioMarginCoinMarginedInitialLeverage(t.Context(), coinmTradablePair, 29)
+	require.NoError(t, err, "ChangePortfolioMarginCoinMarginedInitialLeverage must not error")
 	if mockTests {
-		exp := &CMInitialLeverageResponse{
+		exp := &PortfolioMarginCoinMarginedInitialLeverageResponse{
 			Leverage:    29,
 			MaxQuantity: 1000,
 			Symbol:      "BTCUSD_PERP",
 		}
-		assert.Equal(t, exp, result, "ChangeCMInitialLeverage should decode every field")
+		assert.Equal(t, exp, result, "ChangePortfolioMarginCoinMarginedInitialLeverage should decode every field")
 		return
 	}
-	assert.Equal(t, uint64(29), result.Leverage, "ChangeCMInitialLeverage should return the new leverage")
+	assert.Equal(t, uint64(29), result.Leverage, "ChangePortfolioMarginCoinMarginedInitialLeverage should return the new leverage")
 }
 
-func TestGetCMCurrentPositionMode(t *testing.T) {
+func TestGetPortfolioMarginCoinMarginedCurrentPositionMode(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetCMCurrentPositionMode(t.Context())
-	require.NoError(t, err, "GetCMCurrentPositionMode must not error")
+	result, err := e.GetPortfolioMarginCoinMarginedCurrentPositionMode(t.Context())
+	require.NoError(t, err, "GetPortfolioMarginCoinMarginedCurrentPositionMode must not error")
 	if mockTests {
-		exp := &PMPositionModeResponse{
+		exp := &PortfolioMarginPositionModeResponse{
 			DualSidePosition: true,
 		}
-		assert.Equal(t, exp, result, "GetCMCurrentPositionMode should decode every field")
+		assert.Equal(t, exp, result, "GetPortfolioMarginCoinMarginedCurrentPositionMode should decode every field")
 		return
 	}
-	assert.NotNil(t, result, "GetCMCurrentPositionMode should return a position mode")
+	assert.NotNil(t, result, "GetPortfolioMarginCoinMarginedCurrentPositionMode should return a position mode")
 }
 
-func TestChangeCMPositionMode(t *testing.T) {
+func TestChangePortfolioMarginCoinMarginedPositionMode(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	result, err := e.ChangeCMPositionMode(t.Context(), true)
-	require.NoError(t, err, "ChangeCMPositionMode must not error")
+	result, err := e.ChangePortfolioMarginCoinMarginedPositionMode(t.Context(), true)
+	require.NoError(t, err, "ChangePortfolioMarginCoinMarginedPositionMode must not error")
 	if mockTests {
 		exp := &SuccessResponse{
 			Code:    200,
 			Message: "success",
 		}
-		assert.Equal(t, exp, result, "ChangeCMPositionMode should decode every field")
+		assert.Equal(t, exp, result, "ChangePortfolioMarginCoinMarginedPositionMode should decode every field")
 		return
 	}
-	assert.Equal(t, "success", result.Message, "ChangeCMPositionMode should report success")
+	assert.Equal(t, "success", result.Message, "ChangePortfolioMarginCoinMarginedPositionMode should report success")
 }
 
-func TestChangeUMInitialLeverage(t *testing.T) {
+func TestChangePortfolioMarginUSDTMarginedInitialLeverage(t *testing.T) {
 	t.Parallel()
-	_, err := e.ChangeUMInitialLeverage(t.Context(), currency.EMPTYPAIR, 29)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "ChangeUMInitialLeverage must reject an empty symbol")
-	_, err = e.ChangeUMInitialLeverage(t.Context(), currency.NewBTCUSDT(), 0)
-	require.ErrorIs(t, err, errLeverageRequired, "ChangeUMInitialLeverage must reject a zero leverage")
+	_, err := e.ChangePortfolioMarginUSDTMarginedInitialLeverage(t.Context(), currency.EMPTYPAIR, 29)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "ChangePortfolioMarginUSDTMarginedInitialLeverage must reject an empty symbol")
+	_, err = e.ChangePortfolioMarginUSDTMarginedInitialLeverage(t.Context(), currency.NewBTCUSDT(), 0)
+	require.ErrorIs(t, err, errLeverageRequired, "ChangePortfolioMarginUSDTMarginedInitialLeverage must reject a zero leverage")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 		ensureTradablePairs(t)
 	}
-	result, err := e.ChangeUMInitialLeverage(t.Context(), usdtmTradablePair, 29)
-	require.NoError(t, err, "ChangeUMInitialLeverage must not error")
+	result, err := e.ChangePortfolioMarginUSDTMarginedInitialLeverage(t.Context(), usdtmTradablePair, 29)
+	require.NoError(t, err, "ChangePortfolioMarginUSDTMarginedInitialLeverage must not error")
 	if mockTests {
-		exp := &UMInitialLeverageResponse{
+		exp := &PortfolioMarginUSDTMarginedInitialLeverageResponse{
 			Leverage:         29,
 			MaxNotionalValue: 1000000,
 			Symbol:           "BTCUSDT",
 		}
-		assert.Equal(t, exp, result, "ChangeUMInitialLeverage should decode every field")
+		assert.Equal(t, exp, result, "ChangePortfolioMarginUSDTMarginedInitialLeverage should decode every field")
 		return
 	}
-	assert.Equal(t, uint64(29), result.Leverage, "ChangeUMInitialLeverage should return the new leverage")
+	assert.Equal(t, uint64(29), result.Leverage, "ChangePortfolioMarginUSDTMarginedInitialLeverage should return the new leverage")
 }
 
-func TestGetUMCurrentPositionMode(t *testing.T) {
+func TestGetPortfolioMarginUSDTMarginedCurrentPositionMode(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetUMCurrentPositionMode(t.Context())
-	require.NoError(t, err, "GetUMCurrentPositionMode must not error")
+	result, err := e.GetPortfolioMarginUSDTMarginedCurrentPositionMode(t.Context())
+	require.NoError(t, err, "GetPortfolioMarginUSDTMarginedCurrentPositionMode must not error")
 	if mockTests {
-		exp := &PMPositionModeResponse{
+		exp := &PortfolioMarginPositionModeResponse{
 			DualSidePosition: true,
 		}
-		assert.Equal(t, exp, result, "GetUMCurrentPositionMode should decode every field")
+		assert.Equal(t, exp, result, "GetPortfolioMarginUSDTMarginedCurrentPositionMode should decode every field")
 		return
 	}
-	assert.NotNil(t, result, "GetUMCurrentPositionMode should return a position mode")
+	assert.NotNil(t, result, "GetPortfolioMarginUSDTMarginedCurrentPositionMode should return a position mode")
 }
 
-func TestChangeUMPositionMode(t *testing.T) {
+func TestChangePortfolioMarginUSDTMarginedPositionMode(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	result, err := e.ChangeUMPositionMode(t.Context(), true)
-	require.NoError(t, err, "ChangeUMPositionMode must not error")
+	result, err := e.ChangePortfolioMarginUSDTMarginedPositionMode(t.Context(), true)
+	require.NoError(t, err, "ChangePortfolioMarginUSDTMarginedPositionMode must not error")
 	if mockTests {
 		exp := &SuccessResponse{
 			Code:    200,
 			Message: "success",
 		}
-		assert.Equal(t, exp, result, "ChangeUMPositionMode should decode every field")
+		assert.Equal(t, exp, result, "ChangePortfolioMarginUSDTMarginedPositionMode should decode every field")
 		return
 	}
-	assert.Equal(t, "success", result.Message, "ChangeUMPositionMode should report success")
+	assert.Equal(t, "success", result.Message, "ChangePortfolioMarginUSDTMarginedPositionMode should report success")
 }
 
-func TestGetCMNotionalAndLeverageBrackets(t *testing.T) {
+func TestGetPortfolioMarginCoinMarginedNotionalAndLeverageBrackets(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 		ensureTradablePairs(t)
 	}
-	result, err := e.GetCMNotionalAndLeverageBrackets(t.Context(), coinmTradablePair)
-	require.NoError(t, err, "GetCMNotionalAndLeverageBrackets must not error")
+	result, err := e.GetPortfolioMarginCoinMarginedNotionalAndLeverageBrackets(t.Context(), coinmTradablePair)
+	require.NoError(t, err, "GetPortfolioMarginCoinMarginedNotionalAndLeverageBrackets must not error")
 	if mockTests {
-		exp := []CMNotionalAndLeverageResponse{
+		exp := []PortfolioMarginCoinMarginedNotionalAndLeverageResponse{
 			{
 				Symbol: "BTCUSD_PERP",
-				Brackets: []CMNotionalBracket{
+				Brackets: []PortfolioMarginCoinMarginedNotionalBracket{
 					{
 						Bracket:                1,
 						InitialLeverage:        125,
@@ -303,59 +303,59 @@ func TestGetCMNotionalAndLeverageBrackets(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, exp, result, "GetCMNotionalAndLeverageBrackets should decode every field")
+		assert.Equal(t, exp, result, "GetPortfolioMarginCoinMarginedNotionalAndLeverageBrackets should decode every field")
 		return
 	}
-	assert.NotEmpty(t, result, "GetCMNotionalAndLeverageBrackets should return brackets")
+	assert.NotEmpty(t, result, "GetPortfolioMarginCoinMarginedNotionalAndLeverageBrackets should return brackets")
 }
 
-func TestFundAutoCollection(t *testing.T) {
+func TestPortfolioMarginFundAutoCollection(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	result, err := e.FundAutoCollection(t.Context())
-	require.NoError(t, err, "FundAutoCollection must not error")
+	result, err := e.PortfolioMarginFundAutoCollection(t.Context())
+	require.NoError(t, err, "PortfolioMarginFundAutoCollection must not error")
 	if mockTests {
-		exp := &PMMessageResponse{
+		exp := &PortfolioMarginMessageResponse{
 			Message: "success",
 		}
-		assert.Equal(t, exp, result, "FundAutoCollection should decode every field")
+		assert.Equal(t, exp, result, "PortfolioMarginFundAutoCollection should decode every field")
 		return
 	}
-	assert.Equal(t, "success", result.Message, "FundAutoCollection should report success")
+	assert.Equal(t, "success", result.Message, "PortfolioMarginFundAutoCollection should report success")
 }
 
-func TestFundCollectionByAsset(t *testing.T) {
+func TestPortfolioMarginFundCollectionByAsset(t *testing.T) {
 	t.Parallel()
-	_, err := e.FundCollectionByAsset(t.Context(), currency.EMPTYCODE)
-	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "FundCollectionByAsset must reject an empty asset")
+	_, err := e.PortfolioMarginFundCollectionByAsset(t.Context(), currency.EMPTYCODE)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "PortfolioMarginFundCollectionByAsset must reject an empty asset")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	result, err := e.FundCollectionByAsset(t.Context(), currency.ETH)
-	require.NoError(t, err, "FundCollectionByAsset must not error")
+	result, err := e.PortfolioMarginFundCollectionByAsset(t.Context(), currency.ETH)
+	require.NoError(t, err, "PortfolioMarginFundCollectionByAsset must not error")
 	if mockTests {
-		exp := &PMMessageResponse{
+		exp := &PortfolioMarginMessageResponse{
 			Message: "success",
 		}
-		assert.Equal(t, exp, result, "FundCollectionByAsset should decode every field")
+		assert.Equal(t, exp, result, "PortfolioMarginFundCollectionByAsset should decode every field")
 		return
 	}
-	assert.Equal(t, "success", result.Message, "FundCollectionByAsset should report success")
+	assert.Equal(t, "success", result.Message, "PortfolioMarginFundCollectionByAsset should report success")
 }
 
-func TestGetCMAccountDetail(t *testing.T) {
+func TestGetPortfolioMarginCoinMarginedAccountDetail(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetCMAccountDetail(t.Context())
-	require.NoError(t, err, "GetCMAccountDetail must not error")
+	result, err := e.GetPortfolioMarginCoinMarginedAccountDetail(t.Context())
+	require.NoError(t, err, "GetPortfolioMarginCoinMarginedAccountDetail must not error")
 	if mockTests {
-		exp := &CMAccountDetailResponse{
-			Assets: []PMAccountDetailAsset{
+		exp := &PortfolioMarginCoinMarginedAccountDetailResponse{
+			Assets: []PortfolioMarginAccountDetailAsset{
 				{
 					Asset:                  currency.BTC,
 					CrossWalletBalance:     0.00241969,
@@ -367,7 +367,7 @@ func TestGetCMAccountDetail(t *testing.T) {
 					UpdateTime:             types.Time(time.UnixMilli(1625474304765)),
 				},
 			},
-			Positions: []CMAccountDetailPosition{
+			Positions: []PortfolioMarginCoinMarginedAccountDetailPosition{
 				{
 					Symbol:                 "BTCUSD_PERP",
 					PositionAmount:         1,
@@ -384,26 +384,26 @@ func TestGetCMAccountDetail(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, exp, result, "GetCMAccountDetail should decode every field")
+		assert.Equal(t, exp, result, "GetPortfolioMarginCoinMarginedAccountDetail should decode every field")
 		return
 	}
-	assert.NotNil(t, result, "GetCMAccountDetail should return account details")
+	assert.NotNil(t, result, "GetPortfolioMarginCoinMarginedAccountDetail should return account details")
 }
 
-func TestGetCMIncomeHistory(t *testing.T) {
+func TestGetPortfolioMarginCoinMarginedIncomeHistory(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetCMIncomeHistory(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "GetCMIncomeHistory must reject a nil request")
+	_, err := e.GetPortfolioMarginCoinMarginedIncomeHistory(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "GetPortfolioMarginCoinMarginedIncomeHistory must reject a nil request")
 	startTime, endTime := getTime()
-	_, err = e.GetCMIncomeHistory(t.Context(), &PMIncomeHistoryRequest{StartTime: endTime, EndTime: startTime})
-	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetCMIncomeHistory must reject a start time after the end time")
+	_, err = e.GetPortfolioMarginCoinMarginedIncomeHistory(t.Context(), &PortfolioMarginIncomeHistoryRequest{StartTime: endTime, EndTime: startTime})
+	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetPortfolioMarginCoinMarginedIncomeHistory must reject a start time after the end time")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 		ensureTradablePairs(t)
 	}
-	result, err := e.GetCMIncomeHistory(t.Context(), &PMIncomeHistoryRequest{Symbol: coinmTradablePair, IncomeType: "REALIZED_PNL", StartTime: startTime, EndTime: endTime, Page: 1, Limit: 10})
-	require.NoError(t, err, "GetCMIncomeHistory must not error")
+	result, err := e.GetPortfolioMarginCoinMarginedIncomeHistory(t.Context(), &PortfolioMarginIncomeHistoryRequest{Symbol: coinmTradablePair, IncomeType: "REALIZED_PNL", StartTime: startTime, EndTime: endTime, Page: 1, Limit: 10})
+	require.NoError(t, err, "GetPortfolioMarginCoinMarginedIncomeHistory must not error")
 	if mockTests {
 		exp := []IncomeItemResponse{
 			{
@@ -417,28 +417,28 @@ func TestGetCMIncomeHistory(t *testing.T) {
 				TradeID:       "2059192",
 			},
 		}
-		assert.Equal(t, exp, result, "GetCMIncomeHistory should decode every field")
+		assert.Equal(t, exp, result, "GetPortfolioMarginCoinMarginedIncomeHistory should decode every field")
 		return
 	}
-	assert.NotNil(t, result, "GetCMIncomeHistory should return income records")
+	assert.NotNil(t, result, "GetPortfolioMarginCoinMarginedIncomeHistory should return income records")
 }
 
-func TestGetMarginBorrowOrLoanInterestHistory(t *testing.T) {
+func TestGetPortfolioMarginMarginBorrowOrLoanInterestHistory(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetMarginBorrowOrLoanInterestHistory(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "GetMarginBorrowOrLoanInterestHistory must reject a nil request")
+	_, err := e.GetPortfolioMarginMarginBorrowOrLoanInterestHistory(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "GetPortfolioMarginMarginBorrowOrLoanInterestHistory must reject a nil request")
 	startTime, endTime := getTime()
-	_, err = e.GetMarginBorrowOrLoanInterestHistory(t.Context(), &PMMarginInterestHistoryRequest{StartTime: endTime, EndTime: startTime})
-	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetMarginBorrowOrLoanInterestHistory must reject a start time after the end time")
+	_, err = e.GetPortfolioMarginMarginBorrowOrLoanInterestHistory(t.Context(), &PortfolioMarginMarginInterestHistoryRequest{StartTime: endTime, EndTime: startTime})
+	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetPortfolioMarginMarginBorrowOrLoanInterestHistory must reject a start time after the end time")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetMarginBorrowOrLoanInterestHistory(t.Context(), &PMMarginInterestHistoryRequest{Asset: currency.ETH, StartTime: startTime, EndTime: endTime, Current: 10, Size: 1, Archived: true})
-	require.NoError(t, err, "GetMarginBorrowOrLoanInterestHistory must not error")
+	result, err := e.GetPortfolioMarginMarginBorrowOrLoanInterestHistory(t.Context(), &PortfolioMarginMarginInterestHistoryRequest{Asset: currency.ETH, StartTime: startTime, EndTime: endTime, Current: 10, Size: 1, Archived: true})
+	require.NoError(t, err, "GetPortfolioMarginMarginBorrowOrLoanInterestHistory must not error")
 	if mockTests {
-		exp := &PMMarginInterestHistoryResponse{
-			Rows: []PMMarginInterest{
+		exp := &PortfolioMarginMarginInterestHistoryResponse{
+			Rows: []PortfolioMarginMarginInterest{
 				{
 					TransactionID:       1352286576452864800,
 					InterestAccuredTime: types.Time(time.Unix(1744110000, 0)),
@@ -452,22 +452,22 @@ func TestGetMarginBorrowOrLoanInterestHistory(t *testing.T) {
 			},
 			Total: 1,
 		}
-		assert.Equal(t, exp, result, "GetMarginBorrowOrLoanInterestHistory should decode every field")
+		assert.Equal(t, exp, result, "GetPortfolioMarginMarginBorrowOrLoanInterestHistory should decode every field")
 		return
 	}
-	assert.NotNil(t, result, "GetMarginBorrowOrLoanInterestHistory should return interest records")
+	assert.NotNil(t, result, "GetPortfolioMarginMarginBorrowOrLoanInterestHistory should return interest records")
 }
 
-func TestGetUMAccountDetail(t *testing.T) {
+func TestGetPortfolioMarginUSDTMarginedAccountDetail(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetUMAccountDetail(t.Context())
-	require.NoError(t, err, "GetUMAccountDetail must not error")
+	result, err := e.GetPortfolioMarginUSDTMarginedAccountDetail(t.Context())
+	require.NoError(t, err, "GetPortfolioMarginUSDTMarginedAccountDetail must not error")
 	if mockTests {
-		exp := &UMAccountDetailResponse{
-			Assets: []PMAccountDetailAsset{
+		exp := &PortfolioMarginUSDTMarginedAccountDetailResponse{
+			Assets: []PortfolioMarginAccountDetailAsset{
 				{
 					Asset:                  currency.USDT,
 					CrossWalletBalance:     23.72469206,
@@ -479,7 +479,7 @@ func TestGetUMAccountDetail(t *testing.T) {
 					UpdateTime:             types.Time(time.UnixMilli(1625474304765)),
 				},
 			},
-			Positions: []UMAccountDetailPosition{
+			Positions: []PortfolioMarginUSDTMarginedAccountDetailPosition{
 				{
 					Symbol:                 "BTCUSDT",
 					InitialMargin:          10.5,
@@ -498,26 +498,26 @@ func TestGetUMAccountDetail(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, exp, result, "GetUMAccountDetail should decode every field")
+		assert.Equal(t, exp, result, "GetPortfolioMarginUSDTMarginedAccountDetail should decode every field")
 		return
 	}
-	assert.NotNil(t, result, "GetUMAccountDetail should return account details")
+	assert.NotNil(t, result, "GetPortfolioMarginUSDTMarginedAccountDetail should return account details")
 }
 
-func TestGetUMIncomeHistory(t *testing.T) {
+func TestGetPortfolioMarginUSDTMarginedIncomeHistory(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetUMIncomeHistory(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "GetUMIncomeHistory must reject a nil request")
+	_, err := e.GetPortfolioMarginUSDTMarginedIncomeHistory(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "GetPortfolioMarginUSDTMarginedIncomeHistory must reject a nil request")
 	startTime, endTime := getTime()
-	_, err = e.GetUMIncomeHistory(t.Context(), &PMIncomeHistoryRequest{StartTime: endTime, EndTime: startTime})
-	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetUMIncomeHistory must reject a start time after the end time")
+	_, err = e.GetPortfolioMarginUSDTMarginedIncomeHistory(t.Context(), &PortfolioMarginIncomeHistoryRequest{StartTime: endTime, EndTime: startTime})
+	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetPortfolioMarginUSDTMarginedIncomeHistory must reject a start time after the end time")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 		ensureTradablePairs(t)
 	}
-	result, err := e.GetUMIncomeHistory(t.Context(), &PMIncomeHistoryRequest{Symbol: usdtmTradablePair, IncomeType: "COMMISSION", StartTime: startTime, EndTime: endTime, Page: 1, Limit: 10})
-	require.NoError(t, err, "GetUMIncomeHistory must not error")
+	result, err := e.GetPortfolioMarginUSDTMarginedIncomeHistory(t.Context(), &PortfolioMarginIncomeHistoryRequest{Symbol: usdtmTradablePair, IncomeType: "COMMISSION", StartTime: startTime, EndTime: endTime, Page: 1, Limit: 10})
+	require.NoError(t, err, "GetPortfolioMarginUSDTMarginedIncomeHistory must not error")
 	if mockTests {
 		exp := []IncomeItemResponse{
 			{
@@ -531,89 +531,89 @@ func TestGetUMIncomeHistory(t *testing.T) {
 				TradeID:       "2059193",
 			},
 		}
-		assert.Equal(t, exp, result, "GetUMIncomeHistory should decode every field")
+		assert.Equal(t, exp, result, "GetPortfolioMarginUSDTMarginedIncomeHistory should decode every field")
 		return
 	}
-	assert.NotNil(t, result, "GetUMIncomeHistory should return income records")
+	assert.NotNil(t, result, "GetPortfolioMarginUSDTMarginedIncomeHistory should return income records")
 }
 
-func TestGetCMUserCommissionRate(t *testing.T) {
+func TestGetPortfolioMarginCoinMarginedUserCommissionRate(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetCMUserCommissionRate(t.Context(), currency.EMPTYPAIR)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetCMUserCommissionRate must reject an empty symbol")
+	_, err := e.GetPortfolioMarginCoinMarginedUserCommissionRate(t.Context(), currency.EMPTYPAIR)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetPortfolioMarginCoinMarginedUserCommissionRate must reject an empty symbol")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 		ensureTradablePairs(t)
 	}
-	result, err := e.GetCMUserCommissionRate(t.Context(), coinmTradablePair)
-	require.NoError(t, err, "GetCMUserCommissionRate must not error")
+	result, err := e.GetPortfolioMarginCoinMarginedUserCommissionRate(t.Context(), coinmTradablePair)
+	require.NoError(t, err, "GetPortfolioMarginCoinMarginedUserCommissionRate must not error")
 	if mockTests {
-		exp := &PMCommissionRateResponse{
+		exp := &PortfolioMarginCommissionRateResponse{
 			Symbol:              "BTCUSD_PERP",
 			MakerCommissionRate: 0.00015,
 			TakerCommissionRate: 0.0004,
 		}
-		assert.Equal(t, exp, result, "GetCMUserCommissionRate should decode every field")
+		assert.Equal(t, exp, result, "GetPortfolioMarginCoinMarginedUserCommissionRate should decode every field")
 		return
 	}
-	assert.NotEmpty(t, result.Symbol, "GetCMUserCommissionRate should return the symbol")
+	assert.NotEmpty(t, result.Symbol, "GetPortfolioMarginCoinMarginedUserCommissionRate should return the symbol")
 }
 
-func TestGetUMUserCommissionRate(t *testing.T) {
+func TestGetPortfolioMarginUSDTMarginedUserCommissionRate(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetUMUserCommissionRate(t.Context(), currency.EMPTYPAIR)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetUMUserCommissionRate must reject an empty symbol")
+	_, err := e.GetPortfolioMarginUSDTMarginedUserCommissionRate(t.Context(), currency.EMPTYPAIR)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetPortfolioMarginUSDTMarginedUserCommissionRate must reject an empty symbol")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 		ensureTradablePairs(t)
 	}
-	result, err := e.GetUMUserCommissionRate(t.Context(), usdtmTradablePair)
-	require.NoError(t, err, "GetUMUserCommissionRate must not error")
+	result, err := e.GetPortfolioMarginUSDTMarginedUserCommissionRate(t.Context(), usdtmTradablePair)
+	require.NoError(t, err, "GetPortfolioMarginUSDTMarginedUserCommissionRate must not error")
 	if mockTests {
-		exp := &PMCommissionRateResponse{
+		exp := &PortfolioMarginCommissionRateResponse{
 			Symbol:              "BTCUSDT",
 			MakerCommissionRate: 0.0002,
 			TakerCommissionRate: 0.0004,
 		}
-		assert.Equal(t, exp, result, "GetUMUserCommissionRate should decode every field")
+		assert.Equal(t, exp, result, "GetPortfolioMarginUSDTMarginedUserCommissionRate should decode every field")
 		return
 	}
-	assert.NotEmpty(t, result.Symbol, "GetUMUserCommissionRate should return the symbol")
+	assert.NotEmpty(t, result.Symbol, "GetPortfolioMarginUSDTMarginedUserCommissionRate should return the symbol")
 }
 
-func TestGetPMMarginMaxBorrow(t *testing.T) {
+func TestGetPortfolioMarginMarginMaxBorrow(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetPMMarginMaxBorrow(t.Context(), currency.EMPTYCODE)
-	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "GetPMMarginMaxBorrow must reject an empty asset")
+	_, err := e.GetPortfolioMarginMarginMaxBorrow(t.Context(), currency.EMPTYCODE)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "GetPortfolioMarginMarginMaxBorrow must reject an empty asset")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetPMMarginMaxBorrow(t.Context(), currency.ETH)
-	require.NoError(t, err, "GetPMMarginMaxBorrow must not error")
+	result, err := e.GetPortfolioMarginMarginMaxBorrow(t.Context(), currency.ETH)
+	require.NoError(t, err, "GetPortfolioMarginMarginMaxBorrow must not error")
 	if mockTests {
-		exp := &PMMarginMaxBorrowResponse{
+		exp := &PortfolioMarginMarginMaxBorrowResponse{
 			Amount:      1.69248805,
 			BorrowLimit: 60,
 		}
-		assert.Equal(t, exp, result, "GetPMMarginMaxBorrow should decode every field")
+		assert.Equal(t, exp, result, "GetPortfolioMarginMarginMaxBorrow should decode every field")
 		return
 	}
-	assert.NotNil(t, result, "GetPMMarginMaxBorrow should return borrow limits")
+	assert.NotNil(t, result, "GetPortfolioMarginMarginMaxBorrow should return borrow limits")
 }
 
-func TestGetPortfolioMarginUMTradingQuantitativeRulesIndicator(t *testing.T) {
+func TestGetPortfolioMarginUSDTMarginedTradingQuantitativeRulesIndicator(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetPortfolioMarginUMTradingQuantitativeRulesIndicator(t.Context(), currency.EMPTYPAIR)
-	require.NoError(t, err, "GetPortfolioMarginUMTradingQuantitativeRulesIndicator must not error")
+	result, err := e.GetPortfolioMarginUSDTMarginedTradingQuantitativeRulesIndicator(t.Context(), currency.EMPTYPAIR)
+	require.NoError(t, err, "GetPortfolioMarginUSDTMarginedTradingQuantitativeRulesIndicator must not error")
 	if mockTests {
-		exp := &PMTradingQuantitativeRulesIndicatorsResponse{
-			Indicators: map[string][]PMTradingIndicator{
+		exp := &PortfolioMarginTradingQuantitativeRulesIndicatorsResponse{
+			Indicators: map[string][]PortfolioMarginTradingIndicator{
 				"ACCOUNT": {
 					{
 						IsLocked:           true,
@@ -635,13 +635,13 @@ func TestGetPortfolioMarginUMTradingQuantitativeRulesIndicator(t *testing.T) {
 			},
 			UpdateTime: types.Time(time.UnixMilli(1644913304748)),
 		}
-		assert.Equal(t, exp, result, "GetPortfolioMarginUMTradingQuantitativeRulesIndicator should decode every field")
+		assert.Equal(t, exp, result, "GetPortfolioMarginUSDTMarginedTradingQuantitativeRulesIndicator should decode every field")
 		return
 	}
-	assert.NotNil(t, result, "GetPortfolioMarginUMTradingQuantitativeRulesIndicator should return indicators")
+	assert.NotNil(t, result, "GetPortfolioMarginUSDTMarginedTradingQuantitativeRulesIndicator should return indicators")
 }
 
-func TestGetCMPositionInformation(t *testing.T) {
+func TestGetPortfolioMarginCoinMarginedPositionInformation(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -650,9 +650,9 @@ func TestGetCMPositionInformation(t *testing.T) {
 		name        string
 		marginAsset currency.Code
 		pair        currency.Code
-		exp         []CMPositionInformationResponse
+		exp         []PortfolioMarginCoinMarginedPositionInformationResponse
 	}{
-		{name: "marginAsset", marginAsset: currency.ETH, exp: []CMPositionInformationResponse{
+		{name: "marginAsset", marginAsset: currency.ETH, exp: []PortfolioMarginCoinMarginedPositionInformationResponse{
 			{
 				Symbol:           "ETHUSD_PERP",
 				PositionAmount:   10,
@@ -667,7 +667,7 @@ func TestGetCMPositionInformation(t *testing.T) {
 				NotionalValue:    0.06288319,
 			},
 		}},
-		{name: "pair", pair: currency.NewCode("BTCUSD"), exp: []CMPositionInformationResponse{
+		{name: "pair", pair: currency.NewCode("BTCUSD"), exp: []PortfolioMarginCoinMarginedPositionInformationResponse{
 			{
 				Symbol:           "BTCUSD_201225",
 				PositionAmount:   1,
@@ -685,37 +685,37 @@ func TestGetCMPositionInformation(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			result, err := e.GetCMPositionInformation(t.Context(), tc.marginAsset, tc.pair)
-			require.NoError(t, err, "GetCMPositionInformation must not error")
+			result, err := e.GetPortfolioMarginCoinMarginedPositionInformation(t.Context(), tc.marginAsset, tc.pair)
+			require.NoError(t, err, "GetPortfolioMarginCoinMarginedPositionInformation must not error")
 			if mockTests {
-				assert.Equal(t, tc.exp, result, "GetCMPositionInformation should decode every field")
+				assert.Equal(t, tc.exp, result, "GetPortfolioMarginCoinMarginedPositionInformation should decode every field")
 				return
 			}
-			assert.NotNil(t, result, "GetCMPositionInformation should return positions")
+			assert.NotNil(t, result, "GetPortfolioMarginCoinMarginedPositionInformation should return positions")
 		})
 	}
 }
 
-func TestGetMarginLoanRecord(t *testing.T) {
+func TestGetPortfolioMarginMarginLoanRecord(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetMarginLoanRecord(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "GetMarginLoanRecord must reject a nil request")
-	_, err = e.GetMarginLoanRecord(t.Context(), &PMMarginLoanRepayRecordRequest{TransactionID: 1})
-	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "GetMarginLoanRecord must reject an empty asset")
-	_, err = e.GetMarginLoanRecord(t.Context(), &PMMarginLoanRepayRecordRequest{Asset: currency.ETH})
-	require.ErrorIs(t, err, errStartTimeRequired, "GetMarginLoanRecord must reject a request without a transaction ID or start time")
+	_, err := e.GetPortfolioMarginMarginLoanRecord(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "GetPortfolioMarginMarginLoanRecord must reject a nil request")
+	_, err = e.GetPortfolioMarginMarginLoanRecord(t.Context(), &PortfolioMarginMarginLoanRepayRecordRequest{TransactionID: 1})
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "GetPortfolioMarginMarginLoanRecord must reject an empty asset")
+	_, err = e.GetPortfolioMarginMarginLoanRecord(t.Context(), &PortfolioMarginMarginLoanRepayRecordRequest{Asset: currency.ETH})
+	require.ErrorIs(t, err, errStartTimeRequired, "GetPortfolioMarginMarginLoanRecord must reject a request without a transaction ID or start time")
 	startTime, endTime := getTime()
-	_, err = e.GetMarginLoanRecord(t.Context(), &PMMarginLoanRepayRecordRequest{Asset: currency.ETH, StartTime: endTime, EndTime: startTime})
-	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetMarginLoanRecord must reject a start time after the end time")
+	_, err = e.GetPortfolioMarginMarginLoanRecord(t.Context(), &PortfolioMarginMarginLoanRepayRecordRequest{Asset: currency.ETH, StartTime: endTime, EndTime: startTime})
+	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetPortfolioMarginMarginLoanRecord must reject a start time after the end time")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetMarginLoanRecord(t.Context(), &PMMarginLoanRepayRecordRequest{Asset: currency.ETH, TransactionID: 12807067523, StartTime: startTime, EndTime: endTime, Current: 10, Size: 1, Archived: true})
-	require.NoError(t, err, "GetMarginLoanRecord must not error")
+	result, err := e.GetPortfolioMarginMarginLoanRecord(t.Context(), &PortfolioMarginMarginLoanRepayRecordRequest{Asset: currency.ETH, TransactionID: 12807067523, StartTime: startTime, EndTime: endTime, Current: 10, Size: 1, Archived: true})
+	require.NoError(t, err, "GetPortfolioMarginMarginLoanRecord must not error")
 	if mockTests {
-		exp := &PMMarginLoanRecordResponse{
-			Rows: []PMMarginLoanRecord{
+		exp := &PortfolioMarginMarginLoanRecordResponse{
+			Rows: []PortfolioMarginMarginLoanRecord{
 				{
 					TransactionID: 12807067523,
 					Asset:         currency.ETH,
@@ -726,52 +726,52 @@ func TestGetMarginLoanRecord(t *testing.T) {
 			},
 			Total: 1,
 		}
-		assert.Equal(t, exp, result, "GetMarginLoanRecord should decode every field")
+		assert.Equal(t, exp, result, "GetPortfolioMarginMarginLoanRecord should decode every field")
 		return
 	}
-	assert.NotNil(t, result, "GetMarginLoanRecord should return loan records")
+	assert.NotNil(t, result, "GetPortfolioMarginMarginLoanRecord should return loan records")
 }
 
-func TestGetMarginMaxWithdrawal(t *testing.T) {
+func TestGetPortfolioMarginMarginMaxWithdrawal(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetMarginMaxWithdrawal(t.Context(), currency.EMPTYCODE)
-	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "GetMarginMaxWithdrawal must reject an empty asset")
+	_, err := e.GetPortfolioMarginMarginMaxWithdrawal(t.Context(), currency.EMPTYCODE)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "GetPortfolioMarginMarginMaxWithdrawal must reject an empty asset")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetMarginMaxWithdrawal(t.Context(), currency.BTC)
-	require.NoError(t, err, "GetMarginMaxWithdrawal must not error")
+	result, err := e.GetPortfolioMarginMarginMaxWithdrawal(t.Context(), currency.BTC)
+	require.NoError(t, err, "GetPortfolioMarginMarginMaxWithdrawal must not error")
 	if mockTests {
-		exp := &PMMarginMaxWithdrawResponse{
+		exp := &PortfolioMarginMarginMaxWithdrawResponse{
 			Amount: 60,
 		}
-		assert.Equal(t, exp, result, "GetMarginMaxWithdrawal should decode every field")
+		assert.Equal(t, exp, result, "GetPortfolioMarginMarginMaxWithdrawal should decode every field")
 		return
 	}
-	assert.NotNil(t, result, "GetMarginMaxWithdrawal should return an amount")
+	assert.NotNil(t, result, "GetPortfolioMarginMarginMaxWithdrawal should return an amount")
 }
 
-func TestGetMarginRepayRecord(t *testing.T) {
+func TestGetPortfolioMarginMarginRepayRecord(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetMarginRepayRecord(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "GetMarginRepayRecord must reject a nil request")
-	_, err = e.GetMarginRepayRecord(t.Context(), &PMMarginLoanRepayRecordRequest{TransactionID: 1})
-	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "GetMarginRepayRecord must reject an empty asset")
-	_, err = e.GetMarginRepayRecord(t.Context(), &PMMarginLoanRepayRecordRequest{Asset: currency.ETH})
-	require.ErrorIs(t, err, errStartTimeRequired, "GetMarginRepayRecord must reject a request without a transaction ID or start time")
+	_, err := e.GetPortfolioMarginMarginRepayRecord(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "GetPortfolioMarginMarginRepayRecord must reject a nil request")
+	_, err = e.GetPortfolioMarginMarginRepayRecord(t.Context(), &PortfolioMarginMarginLoanRepayRecordRequest{TransactionID: 1})
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "GetPortfolioMarginMarginRepayRecord must reject an empty asset")
+	_, err = e.GetPortfolioMarginMarginRepayRecord(t.Context(), &PortfolioMarginMarginLoanRepayRecordRequest{Asset: currency.ETH})
+	require.ErrorIs(t, err, errStartTimeRequired, "GetPortfolioMarginMarginRepayRecord must reject a request without a transaction ID or start time")
 	startTime, endTime := getTime()
-	_, err = e.GetMarginRepayRecord(t.Context(), &PMMarginLoanRepayRecordRequest{Asset: currency.ETH, StartTime: endTime, EndTime: startTime})
-	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetMarginRepayRecord must reject a start time after the end time")
+	_, err = e.GetPortfolioMarginMarginRepayRecord(t.Context(), &PortfolioMarginMarginLoanRepayRecordRequest{Asset: currency.ETH, StartTime: endTime, EndTime: startTime})
+	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetPortfolioMarginMarginRepayRecord must reject a start time after the end time")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetMarginRepayRecord(t.Context(), &PMMarginLoanRepayRecordRequest{Asset: currency.ETH, TransactionID: 2970933056, StartTime: startTime, EndTime: endTime, Current: 10, Size: 1, Archived: true})
-	require.NoError(t, err, "GetMarginRepayRecord must not error")
+	result, err := e.GetPortfolioMarginMarginRepayRecord(t.Context(), &PortfolioMarginMarginLoanRepayRecordRequest{Asset: currency.ETH, TransactionID: 2970933056, StartTime: startTime, EndTime: endTime, Current: 10, Size: 1, Archived: true})
+	require.NoError(t, err, "GetPortfolioMarginMarginRepayRecord must not error")
 	if mockTests {
-		exp := &PMMarginRepayRecordResponse{
-			Rows: []PMMarginRepayRecord{
+		exp := &PortfolioMarginMarginRepayRecordResponse{
+			Rows: []PortfolioMarginMarginRepayRecord{
 				{
 					Amount:        14,
 					Asset:         currency.ETH,
@@ -784,10 +784,10 @@ func TestGetMarginRepayRecord(t *testing.T) {
 			},
 			Total: 1,
 		}
-		assert.Equal(t, exp, result, "GetMarginRepayRecord should decode every field")
+		assert.Equal(t, exp, result, "GetPortfolioMarginMarginRepayRecord should decode every field")
 		return
 	}
-	assert.NotNil(t, result, "GetMarginRepayRecord should return repay records")
+	assert.NotNil(t, result, "GetPortfolioMarginMarginRepayRecord should return repay records")
 }
 
 func TestGetPortfolioMarginNegativeBalanceInterestHistory(t *testing.T) {
@@ -795,13 +795,13 @@ func TestGetPortfolioMarginNegativeBalanceInterestHistory(t *testing.T) {
 	_, err := e.GetPortfolioMarginNegativeBalanceInterestHistory(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetPortfolioMarginNegativeBalanceInterestHistory must reject a nil request")
 	startTime, endTime := getTime()
-	_, err = e.GetPortfolioMarginNegativeBalanceInterestHistory(t.Context(), &PMNegativeBalanceInterestHistoryRequest{StartTime: endTime, EndTime: startTime})
+	_, err = e.GetPortfolioMarginNegativeBalanceInterestHistory(t.Context(), &PortfolioMarginNegativeBalanceInterestHistoryRequest{StartTime: endTime, EndTime: startTime})
 	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetPortfolioMarginNegativeBalanceInterestHistory must reject a start time after the end time")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetPortfolioMarginNegativeBalanceInterestHistory(t.Context(), &PMNegativeBalanceInterestHistoryRequest{Asset: currency.ETH, StartTime: startTime, EndTime: endTime, Size: 10})
+	result, err := e.GetPortfolioMarginNegativeBalanceInterestHistory(t.Context(), &PortfolioMarginNegativeBalanceInterestHistoryRequest{Asset: currency.ETH, StartTime: startTime, EndTime: endTime, Size: 10})
 	require.NoError(t, err, "GetPortfolioMarginNegativeBalanceInterestHistory must not error")
 	if mockTests {
 		exp := []PortfolioMarginNegativeBalanceInterestResponse{
@@ -819,16 +819,16 @@ func TestGetPortfolioMarginNegativeBalanceInterestHistory(t *testing.T) {
 	assert.NotNil(t, result, "GetPortfolioMarginNegativeBalanceInterestHistory should return interest records")
 }
 
-func TestGetUMPositionInformation(t *testing.T) {
+func TestGetPortfolioMarginUSDTMarginedPositionInformation(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 		ensureTradablePairs(t)
 	}
-	result, err := e.GetUMPositionInformation(t.Context(), usdtmTradablePair)
-	require.NoError(t, err, "GetUMPositionInformation must not error")
+	result, err := e.GetPortfolioMarginUSDTMarginedPositionInformation(t.Context(), usdtmTradablePair)
+	require.NoError(t, err, "GetPortfolioMarginUSDTMarginedPositionInformation must not error")
 	if mockTests {
-		exp := []UMPositionInformationResponse{
+		exp := []PortfolioMarginUSDTMarginedPositionInformationResponse{
 			{
 				EntryPrice:       62000.5,
 				Leverage:         10,
@@ -843,35 +843,35 @@ func TestGetUMPositionInformation(t *testing.T) {
 				UpdateTime:       types.Time(time.UnixMilli(1625474304765)),
 			},
 		}
-		assert.Equal(t, exp, result, "GetUMPositionInformation should decode every field")
+		assert.Equal(t, exp, result, "GetPortfolioMarginUSDTMarginedPositionInformation should decode every field")
 		return
 	}
-	assert.NotNil(t, result, "GetUMPositionInformation should return positions")
+	assert.NotNil(t, result, "GetPortfolioMarginUSDTMarginedPositionInformation should return positions")
 }
 
-func TestGetUserNegativeBalanceAutoExchangeRecord(t *testing.T) {
+func TestGetPortfolioMarginUserNegativeBalanceAutoExchangeRecord(t *testing.T) {
 	t.Parallel()
 	startTime, endTime := getTime()
-	_, err := e.GetUserNegativeBalanceAutoExchangeRecord(t.Context(), time.Time{}, endTime)
-	require.ErrorIs(t, err, common.ErrDateUnset, "GetUserNegativeBalanceAutoExchangeRecord must reject an unset start time")
-	_, err = e.GetUserNegativeBalanceAutoExchangeRecord(t.Context(), startTime, time.Time{})
-	require.ErrorIs(t, err, common.ErrDateUnset, "GetUserNegativeBalanceAutoExchangeRecord must reject an unset end time")
-	_, err = e.GetUserNegativeBalanceAutoExchangeRecord(t.Context(), endTime, startTime)
-	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetUserNegativeBalanceAutoExchangeRecord must reject a start time after the end time")
+	_, err := e.GetPortfolioMarginUserNegativeBalanceAutoExchangeRecord(t.Context(), time.Time{}, endTime)
+	require.ErrorIs(t, err, common.ErrDateUnset, "GetPortfolioMarginUserNegativeBalanceAutoExchangeRecord must reject an unset start time")
+	_, err = e.GetPortfolioMarginUserNegativeBalanceAutoExchangeRecord(t.Context(), startTime, time.Time{})
+	require.ErrorIs(t, err, common.ErrDateUnset, "GetPortfolioMarginUserNegativeBalanceAutoExchangeRecord must reject an unset end time")
+	_, err = e.GetPortfolioMarginUserNegativeBalanceAutoExchangeRecord(t.Context(), endTime, startTime)
+	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetPortfolioMarginUserNegativeBalanceAutoExchangeRecord must reject a start time after the end time")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetUserNegativeBalanceAutoExchangeRecord(t.Context(), startTime, endTime)
-	require.NoError(t, err, "GetUserNegativeBalanceAutoExchangeRecord must not error")
+	result, err := e.GetPortfolioMarginUserNegativeBalanceAutoExchangeRecord(t.Context(), startTime, endTime)
+	require.NoError(t, err, "GetPortfolioMarginUserNegativeBalanceAutoExchangeRecord must not error")
 	if mockTests {
-		exp := &PMNegativeBalanceExchangeRecordResponse{
+		exp := &PortfolioMarginNegativeBalanceExchangeRecordResponse{
 			Total: 1,
-			Rows: []PMNegativeBalanceExchangeRecord{
+			Rows: []PortfolioMarginNegativeBalanceExchangeRecord{
 				{
 					StartTime: types.Time(time.Unix(1744110000, 0)),
 					EndTime:   types.Time(time.UnixMilli(1744110201338)),
-					Details: []PMNegativeBalanceExchangeDetail{
+					Details: []PortfolioMarginNegativeBalanceExchangeDetail{
 						{
 							Asset:                currency.ETH,
 							NegativeBalance:      1.10264488,
@@ -881,21 +881,21 @@ func TestGetUserNegativeBalanceAutoExchangeRecord(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, exp, result, "GetUserNegativeBalanceAutoExchangeRecord should decode every field")
+		assert.Equal(t, exp, result, "GetPortfolioMarginUserNegativeBalanceAutoExchangeRecord should decode every field")
 		return
 	}
-	assert.NotNil(t, result, "GetUserNegativeBalanceAutoExchangeRecord should return records")
+	assert.NotNil(t, result, "GetPortfolioMarginUserNegativeBalanceAutoExchangeRecord should return records")
 }
 
-func TestGetUserRateLimits(t *testing.T) {
+func TestGetPortfolioMarginUserRateLimits(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetUserRateLimits(t.Context())
-	require.NoError(t, err, "GetUserRateLimits must not error")
+	result, err := e.GetPortfolioMarginUserRateLimits(t.Context())
+	require.NoError(t, err, "GetPortfolioMarginUserRateLimits must not error")
 	if mockTests {
-		exp := []PMRateLimitResponse{
+		exp := []PortfolioMarginRateLimitResponse{
 			{
 				RateLimitType:  "ORDERS",
 				Interval:       "MINUTE",
@@ -903,43 +903,43 @@ func TestGetUserRateLimits(t *testing.T) {
 				Limit:          1200,
 			},
 		}
-		assert.Equal(t, exp, result, "GetUserRateLimits should decode every field")
+		assert.Equal(t, exp, result, "GetPortfolioMarginUserRateLimits should decode every field")
 		return
 	}
-	assert.NotEmpty(t, result, "GetUserRateLimits should return rate limits")
+	assert.NotEmpty(t, result, "GetPortfolioMarginUserRateLimits should return rate limits")
 }
 
-func TestRepayFuturesNegativeBalance(t *testing.T) {
+func TestPortfolioMarginRepayFuturesNegativeBalance(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	result, err := e.RepayFuturesNegativeBalance(t.Context())
-	require.NoError(t, err, "RepayFuturesNegativeBalance must not error")
+	result, err := e.PortfolioMarginRepayFuturesNegativeBalance(t.Context())
+	require.NoError(t, err, "PortfolioMarginRepayFuturesNegativeBalance must not error")
 	if mockTests {
-		exp := &PMMessageResponse{
+		exp := &PortfolioMarginMessageResponse{
 			Message: "success",
 		}
-		assert.Equal(t, exp, result, "RepayFuturesNegativeBalance should decode every field")
+		assert.Equal(t, exp, result, "PortfolioMarginRepayFuturesNegativeBalance should decode every field")
 		return
 	}
-	assert.Equal(t, "success", result.Message, "RepayFuturesNegativeBalance should report success")
+	assert.Equal(t, "success", result.Message, "PortfolioMarginRepayFuturesNegativeBalance should report success")
 }
 
-func TestGetUMNotionalAndLeverageBrackets(t *testing.T) {
+func TestGetPortfolioMarginUSDTMarginedNotionalAndLeverageBrackets(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 		ensureTradablePairs(t)
 	}
-	result, err := e.GetUMNotionalAndLeverageBrackets(t.Context(), usdtmTradablePair)
-	require.NoError(t, err, "GetUMNotionalAndLeverageBrackets must not error")
+	result, err := e.GetPortfolioMarginUSDTMarginedNotionalAndLeverageBrackets(t.Context(), usdtmTradablePair)
+	require.NoError(t, err, "GetPortfolioMarginUSDTMarginedNotionalAndLeverageBrackets must not error")
 	if mockTests {
-		exp := []UMNotionalAndLeverageResponse{
+		exp := []PortfolioMarginUSDTMarginedNotionalAndLeverageResponse{
 			{
 				Symbol:              "BTCUSDT",
 				NotionalCoefficient: 1.5,
-				Brackets: []UMNotionalBracket{
+				Brackets: []PortfolioMarginUSDTMarginedNotionalBracket{
 					{
 						Bracket:                1,
 						InitialLeverage:        75,
@@ -957,97 +957,97 @@ func TestGetUMNotionalAndLeverageBrackets(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, exp, result, "GetUMNotionalAndLeverageBrackets should decode every field")
+		assert.Equal(t, exp, result, "GetPortfolioMarginUSDTMarginedNotionalAndLeverageBrackets should decode every field")
 		return
 	}
-	assert.NotEmpty(t, result, "GetUMNotionalAndLeverageBrackets should return brackets")
+	assert.NotEmpty(t, result, "GetPortfolioMarginUSDTMarginedNotionalAndLeverageBrackets should return brackets")
 }
 
-func TestCancelAllCMOpenConditionalOrders(t *testing.T) {
+func TestCancelAllPortfolioMarginCoinMarginedOpenConditionalOrders(t *testing.T) {
 	t.Parallel()
-	_, err := e.CancelAllCMOpenConditionalOrders(t.Context(), currency.EMPTYPAIR)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "CancelAllCMOpenConditionalOrders must reject an empty symbol")
+	_, err := e.CancelAllPortfolioMarginCoinMarginedOpenConditionalOrders(t.Context(), currency.EMPTYPAIR)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "CancelAllPortfolioMarginCoinMarginedOpenConditionalOrders must reject an empty symbol")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 		ensureTradablePairs(t)
 	}
-	result, err := e.CancelAllCMOpenConditionalOrders(t.Context(), coinmTradablePair)
-	require.NoError(t, err, "CancelAllCMOpenConditionalOrders must not error")
+	result, err := e.CancelAllPortfolioMarginCoinMarginedOpenConditionalOrders(t.Context(), coinmTradablePair)
+	require.NoError(t, err, "CancelAllPortfolioMarginCoinMarginedOpenConditionalOrders must not error")
 	if mockTests {
 		exp := &SuccessResponse{
 			Code:    200,
 			Message: "The operation of cancel all conditional open order is done.",
 		}
-		assert.Equal(t, exp, result, "CancelAllCMOpenConditionalOrders should decode every field")
+		assert.Equal(t, exp, result, "CancelAllPortfolioMarginCoinMarginedOpenConditionalOrders should decode every field")
 		return
 	}
-	assert.NotEmpty(t, result.Message, "CancelAllCMOpenConditionalOrders should return a message")
+	assert.NotEmpty(t, result.Message, "CancelAllPortfolioMarginCoinMarginedOpenConditionalOrders should return a message")
 }
 
-func TestCancelAllCMOrders(t *testing.T) {
+func TestCancelAllPortfolioMarginCoinMarginedOrders(t *testing.T) {
 	t.Parallel()
-	_, err := e.CancelAllCMOrders(t.Context(), currency.EMPTYPAIR)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "CancelAllCMOrders must reject an empty symbol")
+	_, err := e.CancelAllPortfolioMarginCoinMarginedOrders(t.Context(), currency.EMPTYPAIR)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "CancelAllPortfolioMarginCoinMarginedOrders must reject an empty symbol")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 		ensureTradablePairs(t)
 	}
-	result, err := e.CancelAllCMOrders(t.Context(), coinmTradablePair)
-	require.NoError(t, err, "CancelAllCMOrders must not error")
+	result, err := e.CancelAllPortfolioMarginCoinMarginedOrders(t.Context(), coinmTradablePair)
+	require.NoError(t, err, "CancelAllPortfolioMarginCoinMarginedOrders must not error")
 	if mockTests {
 		exp := &SuccessResponse{
 			Code:    200,
 			Message: "The operation of cancel all open order is done.",
 		}
-		assert.Equal(t, exp, result, "CancelAllCMOrders should decode every field")
+		assert.Equal(t, exp, result, "CancelAllPortfolioMarginCoinMarginedOrders should decode every field")
 		return
 	}
-	assert.NotEmpty(t, result.Message, "CancelAllCMOrders should return a message")
+	assert.NotEmpty(t, result.Message, "CancelAllPortfolioMarginCoinMarginedOrders should return a message")
 }
 
-func TestCancelAllUMOrders(t *testing.T) {
+func TestCancelAllPortfolioMarginUSDTMarginedOrders(t *testing.T) {
 	t.Parallel()
-	_, err := e.CancelAllUMOrders(t.Context(), currency.EMPTYPAIR)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "CancelAllUMOrders must reject an empty symbol")
+	_, err := e.CancelAllPortfolioMarginUSDTMarginedOrders(t.Context(), currency.EMPTYPAIR)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "CancelAllPortfolioMarginUSDTMarginedOrders must reject an empty symbol")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 		ensureTradablePairs(t)
 	}
-	result, err := e.CancelAllUMOrders(t.Context(), usdtmTradablePair)
-	require.NoError(t, err, "CancelAllUMOrders must not error")
+	result, err := e.CancelAllPortfolioMarginUSDTMarginedOrders(t.Context(), usdtmTradablePair)
+	require.NoError(t, err, "CancelAllPortfolioMarginUSDTMarginedOrders must not error")
 	if mockTests {
 		exp := &SuccessResponse{
 			Code:    200,
 			Message: "The operation of cancel all open order is done.",
 		}
-		assert.Equal(t, exp, result, "CancelAllUMOrders should decode every field")
+		assert.Equal(t, exp, result, "CancelAllPortfolioMarginUSDTMarginedOrders should decode every field")
 		return
 	}
-	assert.NotEmpty(t, result.Message, "CancelAllUMOrders should return a message")
+	assert.NotEmpty(t, result.Message, "CancelAllPortfolioMarginUSDTMarginedOrders should return a message")
 }
 
-func TestNewCMConditionalOrder(t *testing.T) {
+func TestNewPortfolioMarginCoinMarginedConditionalOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.NewCMConditionalOrder(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "NewCMConditionalOrder must reject a nil request")
-	arg := &CMConditionalOrderRequest{PositionSide: "LONG"}
-	_, err = e.NewCMConditionalOrder(t.Context(), arg)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "NewCMConditionalOrder must reject an empty symbol")
+	_, err := e.NewPortfolioMarginCoinMarginedConditionalOrder(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "NewPortfolioMarginCoinMarginedConditionalOrder must reject a nil request")
+	arg := &PortfolioMarginCoinMarginedConditionalOrderRequest{PositionSide: "LONG"}
+	_, err = e.NewPortfolioMarginCoinMarginedConditionalOrder(t.Context(), arg)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "NewPortfolioMarginCoinMarginedConditionalOrder must reject an empty symbol")
 	arg.Symbol = currency.NewPairWithDelimiter("BTCUSD", "PERP", currency.UnderscoreDelimiter)
-	_, err = e.NewCMConditionalOrder(t.Context(), arg)
-	require.ErrorIs(t, err, order.ErrSideIsInvalid, "NewCMConditionalOrder must reject an invalid side")
+	_, err = e.NewPortfolioMarginCoinMarginedConditionalOrder(t.Context(), arg)
+	require.ErrorIs(t, err, order.ErrSideIsInvalid, "NewPortfolioMarginCoinMarginedConditionalOrder must reject an invalid side")
 	arg.Side = order.Buy
-	_, err = e.NewCMConditionalOrder(t.Context(), arg)
-	require.ErrorIs(t, err, errStrategyTypeRequired, "NewCMConditionalOrder must reject an empty strategy type")
+	_, err = e.NewPortfolioMarginCoinMarginedConditionalOrder(t.Context(), arg)
+	require.ErrorIs(t, err, errStrategyTypeRequired, "NewPortfolioMarginCoinMarginedConditionalOrder must reject an empty strategy type")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 		ensureTradablePairs(t)
 	}
-	result, err := e.NewCMConditionalOrder(t.Context(), &CMConditionalOrderRequest{
+	result, err := e.NewPortfolioMarginCoinMarginedConditionalOrder(t.Context(), &PortfolioMarginCoinMarginedConditionalOrderRequest{
 		Symbol:              coinmTradablePair,
 		Side:                order.Buy,
 		PositionSide:        "BOTH",
@@ -1063,9 +1063,9 @@ func TestNewCMConditionalOrder(t *testing.T) {
 		ActivationPrice:     9020,
 		CallbackRate:        0.3,
 	})
-	require.NoError(t, err, "NewCMConditionalOrder must not error")
+	require.NoError(t, err, "NewPortfolioMarginCoinMarginedConditionalOrder must not error")
 	if mockTests {
-		exp := &NewCMConditionalOrderResponse{
+		exp := &NewPortfolioMarginCoinMarginedConditionalOrderResponse{
 			NewClientStrategyID: "testOrder",
 			StrategyID:          123445,
 			StrategyStatus:      "NEW",
@@ -1086,27 +1086,27 @@ func TestNewCMConditionalOrder(t *testing.T) {
 			WorkingType:         "MARK_PRICE",
 			PriceProtect:        true,
 		}
-		assert.Equal(t, exp, result, "NewCMConditionalOrder should decode every field")
+		assert.Equal(t, exp, result, "NewPortfolioMarginCoinMarginedConditionalOrder should decode every field")
 		return
 	}
-	assert.NotZero(t, result.StrategyID, "NewCMConditionalOrder should return a strategy ID")
+	assert.NotZero(t, result.StrategyID, "NewPortfolioMarginCoinMarginedConditionalOrder should return a strategy ID")
 }
 
-func TestCancelCMConditionalOrder(t *testing.T) {
+func TestCancelPortfolioMarginCoinMarginedConditionalOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.CancelCMConditionalOrder(t.Context(), currency.EMPTYPAIR, 1231231, "")
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "CancelCMConditionalOrder must reject an empty symbol")
-	_, err = e.CancelCMConditionalOrder(t.Context(), currency.NewPairWithDelimiter("BTCUSD", "PERP", currency.UnderscoreDelimiter), 0, "")
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "CancelCMConditionalOrder must reject a request without a strategy ID")
+	_, err := e.CancelPortfolioMarginCoinMarginedConditionalOrder(t.Context(), currency.EMPTYPAIR, 1231231, "")
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "CancelPortfolioMarginCoinMarginedConditionalOrder must reject an empty symbol")
+	_, err = e.CancelPortfolioMarginCoinMarginedConditionalOrder(t.Context(), currency.NewPairWithDelimiter("BTCUSD", "PERP", currency.UnderscoreDelimiter), 0, "")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "CancelPortfolioMarginCoinMarginedConditionalOrder must reject a request without a strategy ID")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 		ensureTradablePairs(t)
 	}
-	result, err := e.CancelCMConditionalOrder(t.Context(), coinmTradablePair, 1231231, "myOrder1")
-	require.NoError(t, err, "CancelCMConditionalOrder must not error")
+	result, err := e.CancelPortfolioMarginCoinMarginedConditionalOrder(t.Context(), coinmTradablePair, 1231231, "myOrder1")
+	require.NoError(t, err, "CancelPortfolioMarginCoinMarginedConditionalOrder must not error")
 	if mockTests {
-		exp := &CancelCMConditionalOrderResponse{
+		exp := &CancelPortfolioMarginCoinMarginedConditionalOrderResponse{
 			NewClientStrategyID: "myOrder1",
 			StrategyID:          1231231,
 			StrategyStatus:      "CANCELED",
@@ -1126,27 +1126,27 @@ func TestCancelCMConditionalOrder(t *testing.T) {
 			WorkingType:         "CONTRACT_PRICE",
 			PriceProtect:        true,
 		}
-		assert.Equal(t, exp, result, "CancelCMConditionalOrder should decode every field")
+		assert.Equal(t, exp, result, "CancelPortfolioMarginCoinMarginedConditionalOrder should decode every field")
 		return
 	}
-	assert.NotZero(t, result.StrategyID, "CancelCMConditionalOrder should return the strategy ID")
+	assert.NotZero(t, result.StrategyID, "CancelPortfolioMarginCoinMarginedConditionalOrder should return the strategy ID")
 }
 
-func TestGetCMOrder(t *testing.T) {
+func TestGetPortfolioMarginCoinMarginedOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetCMOrder(t.Context(), currency.EMPTYPAIR, 1234, "")
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetCMOrder must reject an empty symbol")
-	_, err = e.GetCMOrder(t.Context(), currency.NewPairWithDelimiter("BTCUSD", "PERP", currency.UnderscoreDelimiter), 0, "")
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "GetCMOrder must reject a request without an order ID")
+	_, err := e.GetPortfolioMarginCoinMarginedOrder(t.Context(), currency.EMPTYPAIR, 1234, "")
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetPortfolioMarginCoinMarginedOrder must reject an empty symbol")
+	_, err = e.GetPortfolioMarginCoinMarginedOrder(t.Context(), currency.NewPairWithDelimiter("BTCUSD", "PERP", currency.UnderscoreDelimiter), 0, "")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "GetPortfolioMarginCoinMarginedOrder must reject a request without an order ID")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 		ensureTradablePairs(t)
 	}
-	result, err := e.GetCMOrder(t.Context(), coinmTradablePair, 1234, "")
-	require.NoError(t, err, "GetCMOrder must not error")
+	result, err := e.GetPortfolioMarginCoinMarginedOrder(t.Context(), coinmTradablePair, 1234, "")
+	require.NoError(t, err, "GetPortfolioMarginCoinMarginedOrder must not error")
 	if mockTests {
-		exp := &CMOrderDetailResponse{
+		exp := &PortfolioMarginCoinMarginedOrderDetailResponse{
 			AveragePrice:     9500.5,
 			ClientOrderID:    "abc",
 			CumulativeBase:   0.01052576,
@@ -1166,30 +1166,30 @@ func TestGetCMOrder(t *testing.T) {
 			Type:             "LIMIT",
 			UpdateTime:       types.Time(time.UnixMilli(1579276756075)),
 		}
-		assert.Equal(t, exp, result, "GetCMOrder should decode every field")
+		assert.Equal(t, exp, result, "GetPortfolioMarginCoinMarginedOrder should decode every field")
 		return
 	}
-	assert.NotZero(t, result.OrderID, "GetCMOrder should return the order ID")
+	assert.NotZero(t, result.OrderID, "GetPortfolioMarginCoinMarginedOrder should return the order ID")
 }
 
-func TestNewCMOrder(t *testing.T) {
+func TestNewPortfolioMarginCoinMarginedOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.NewCMOrder(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "NewCMOrder must reject a nil request")
-	arg := &CMOrderRequest{ReduceOnly: true}
-	_, err = e.NewCMOrder(t.Context(), arg)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "NewCMOrder must reject an empty symbol")
+	_, err := e.NewPortfolioMarginCoinMarginedOrder(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "NewPortfolioMarginCoinMarginedOrder must reject a nil request")
+	arg := &PortfolioMarginCoinMarginedOrderRequest{ReduceOnly: true}
+	_, err = e.NewPortfolioMarginCoinMarginedOrder(t.Context(), arg)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "NewPortfolioMarginCoinMarginedOrder must reject an empty symbol")
 	arg.Symbol = currency.NewPairWithDelimiter("BTCUSD", "PERP", currency.UnderscoreDelimiter)
-	_, err = e.NewCMOrder(t.Context(), arg)
-	require.ErrorIs(t, err, order.ErrSideIsInvalid, "NewCMOrder must reject an invalid side")
+	_, err = e.NewPortfolioMarginCoinMarginedOrder(t.Context(), arg)
+	require.ErrorIs(t, err, order.ErrSideIsInvalid, "NewPortfolioMarginCoinMarginedOrder must reject an invalid side")
 	arg.Side = order.Buy
-	_, err = e.NewCMOrder(t.Context(), arg)
-	require.ErrorIs(t, err, order.ErrTypeIsInvalid, "NewCMOrder must reject an empty order type")
+	_, err = e.NewPortfolioMarginCoinMarginedOrder(t.Context(), arg)
+	require.ErrorIs(t, err, order.ErrTypeIsInvalid, "NewPortfolioMarginCoinMarginedOrder must reject an empty order type")
 	arg.OrderType = "LIMIT"
 	arg.Price = 9500
 	arg.PriceMatch = "OPPONENT"
-	_, err = e.NewCMOrder(t.Context(), arg)
-	require.ErrorIs(t, err, errPriceMatchWithPrice, "NewCMOrder must reject a price with priceMatch")
+	_, err = e.NewPortfolioMarginCoinMarginedOrder(t.Context(), arg)
+	require.ErrorIs(t, err, errPriceMatchWithPrice, "NewPortfolioMarginCoinMarginedOrder must reject a price with priceMatch")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -1197,13 +1197,13 @@ func TestNewCMOrder(t *testing.T) {
 	}
 	for _, tc := range []struct {
 		name string
-		arg  *CMOrderRequest
-		exp  *CMOrderResponse
+		arg  *PortfolioMarginCoinMarginedOrderRequest
+		exp  *PortfolioMarginCoinMarginedOrderResponse
 	}{
 		{
 			name: "price",
-			arg:  &CMOrderRequest{Symbol: coinmTradablePair, Side: order.Buy, PositionSide: "BOTH", OrderType: "LIMIT", TimeInForce: "GTC", Quantity: 2, ReduceOnly: true, Price: 9500, NewClientOrderID: "testOrder", NewOrderResponseType: "RESULT"},
-			exp: &CMOrderResponse{
+			arg:  &PortfolioMarginCoinMarginedOrderRequest{Symbol: coinmTradablePair, Side: order.Buy, PositionSide: "BOTH", OrderType: "LIMIT", TimeInForce: "GTC", Quantity: 2, ReduceOnly: true, Price: 9500, NewClientOrderID: "testOrder", NewOrderResponseType: "RESULT"},
+			exp: &PortfolioMarginCoinMarginedOrderResponse{
 				ClientOrderID:      "testOrder",
 				CumulativeQuantity: 1,
 				ExecutedQuantity:   1,
@@ -1223,8 +1223,8 @@ func TestNewCMOrder(t *testing.T) {
 		},
 		{
 			name: "priceMatch",
-			arg:  &CMOrderRequest{Symbol: coinmTradablePair, Side: order.Sell, OrderType: "LIMIT", TimeInForce: "GTC", Quantity: 2, PriceMatch: "OPPONENT"},
-			exp: &CMOrderResponse{
+			arg:  &PortfolioMarginCoinMarginedOrderRequest{Symbol: coinmTradablePair, Side: order.Sell, OrderType: "LIMIT", TimeInForce: "GTC", Quantity: 2, PriceMatch: "OPPONENT"},
+			exp: &PortfolioMarginCoinMarginedOrderResponse{
 				ClientOrderID:      "x-priceMatch",
 				CumulativeQuantity: 1,
 				ExecutedQuantity:   1,
@@ -1244,32 +1244,32 @@ func TestNewCMOrder(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			result, err := e.NewCMOrder(t.Context(), tc.arg)
-			require.NoError(t, err, "NewCMOrder must not error")
+			result, err := e.NewPortfolioMarginCoinMarginedOrder(t.Context(), tc.arg)
+			require.NoError(t, err, "NewPortfolioMarginCoinMarginedOrder must not error")
 			if mockTests {
-				assert.Equal(t, tc.exp, result, "NewCMOrder should decode every field")
+				assert.Equal(t, tc.exp, result, "NewPortfolioMarginCoinMarginedOrder should decode every field")
 				return
 			}
-			assert.NotZero(t, result.OrderID, "NewCMOrder should return an order ID")
+			assert.NotZero(t, result.OrderID, "NewPortfolioMarginCoinMarginedOrder should return an order ID")
 		})
 	}
 }
 
-func TestCancelCMOrder(t *testing.T) {
+func TestCancelPortfolioMarginCoinMarginedOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.CancelCMOrder(t.Context(), currency.EMPTYPAIR, 21321312, "")
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "CancelCMOrder must reject an empty symbol")
-	_, err = e.CancelCMOrder(t.Context(), currency.NewPairWithDelimiter("BTCUSD", "PERP", currency.UnderscoreDelimiter), 0, "")
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "CancelCMOrder must reject a request without an order ID")
+	_, err := e.CancelPortfolioMarginCoinMarginedOrder(t.Context(), currency.EMPTYPAIR, 21321312, "")
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "CancelPortfolioMarginCoinMarginedOrder must reject an empty symbol")
+	_, err = e.CancelPortfolioMarginCoinMarginedOrder(t.Context(), currency.NewPairWithDelimiter("BTCUSD", "PERP", currency.UnderscoreDelimiter), 0, "")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "CancelPortfolioMarginCoinMarginedOrder must reject a request without an order ID")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 		ensureTradablePairs(t)
 	}
-	result, err := e.CancelCMOrder(t.Context(), coinmTradablePair, 21321312, "myOrder1")
-	require.NoError(t, err, "CancelCMOrder must not error")
+	result, err := e.CancelPortfolioMarginCoinMarginedOrder(t.Context(), coinmTradablePair, 21321312, "myOrder1")
+	require.NoError(t, err, "CancelPortfolioMarginCoinMarginedOrder must not error")
 	if mockTests {
-		exp := &CMOrderResponse{
+		exp := &PortfolioMarginCoinMarginedOrderResponse{
 			ClientOrderID:      "myOrder1",
 			CumulativeQuantity: 1,
 			ExecutedQuantity:   1,
@@ -1286,25 +1286,25 @@ func TestCancelCMOrder(t *testing.T) {
 			Type:               "LIMIT",
 			UpdateTime:         types.Time(time.UnixMilli(1571110484038)),
 		}
-		assert.Equal(t, exp, result, "CancelCMOrder should decode every field")
+		assert.Equal(t, exp, result, "CancelPortfolioMarginCoinMarginedOrder should decode every field")
 		return
 	}
-	assert.NotZero(t, result.OrderID, "CancelCMOrder should return the order ID")
+	assert.NotZero(t, result.OrderID, "CancelPortfolioMarginCoinMarginedOrder should return the order ID")
 }
 
-func TestCancelAllMarginOpenOrdersBySymbol(t *testing.T) {
+func TestCancelAllPortfolioMarginMarginOpenOrdersBySymbol(t *testing.T) {
 	t.Parallel()
-	_, err := e.CancelAllMarginOpenOrdersBySymbol(t.Context(), currency.EMPTYPAIR)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "CancelAllMarginOpenOrdersBySymbol must reject an empty symbol")
+	_, err := e.CancelAllPortfolioMarginMarginOpenOrdersBySymbol(t.Context(), currency.EMPTYPAIR)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "CancelAllPortfolioMarginMarginOpenOrdersBySymbol must reject an empty symbol")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 		ensureTradablePairs(t)
 	}
-	result, err := e.CancelAllMarginOpenOrdersBySymbol(t.Context(), marginTradablePair)
-	require.NoError(t, err, "CancelAllMarginOpenOrdersBySymbol must not error")
+	result, err := e.CancelAllPortfolioMarginMarginOpenOrdersBySymbol(t.Context(), marginTradablePair)
+	require.NoError(t, err, "CancelAllPortfolioMarginMarginOpenOrdersBySymbol must not error")
 	if mockTests {
-		exp := []PMCancelledMarginOrderResponse{
+		exp := []PortfolioMarginCancelledMarginOrderResponse{
 			{
 				Symbol:                  "BTCUSDT",
 				OriginalClientOrderID:   "E6APeyTJvkMvLMYMqu1KQ4",
@@ -1328,7 +1328,7 @@ func TestCancelAllMarginOpenOrdersBySymbol(t *testing.T) {
 				ListOrderStatus:   "ALL_DONE",
 				ListClientOrderID: "2inzWQdDvZLHbbAmAozX2N",
 				TransactionTime:   types.Time(time.UnixMilli(1585230948299)),
-				Orders: []PMMarginOCOOrderLeg{
+				Orders: []PortfolioMarginMarginOneCancelsTheOtherOrderLeg{
 					{
 						Symbol:        "BTCUSDT",
 						OrderID:       20,
@@ -1340,7 +1340,7 @@ func TestCancelAllMarginOpenOrdersBySymbol(t *testing.T) {
 						ClientOrderID: "461cPg51vQjV3zIMOXNz39",
 					},
 				},
-				OrderReports: []PMCancelledMarginOrderReport{
+				OrderReports: []PortfolioMarginCancelledMarginOrderReport{
 					{
 						Symbol:                  "BTCUSDT",
 						OriginalClientOrderID:   "CwOOIPHSmYywx6jZX77TdL",
@@ -1361,24 +1361,24 @@ func TestCancelAllMarginOpenOrdersBySymbol(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, exp, result, "CancelAllMarginOpenOrdersBySymbol should decode every field")
+		assert.Equal(t, exp, result, "CancelAllPortfolioMarginMarginOpenOrdersBySymbol should decode every field")
 		return
 	}
-	assert.NotNil(t, result, "CancelAllMarginOpenOrdersBySymbol should return the cancelled orders")
+	assert.NotNil(t, result, "CancelAllPortfolioMarginMarginOpenOrdersBySymbol should return the cancelled orders")
 }
 
-func TestGetMarginAccountOCO(t *testing.T) {
+func TestGetPortfolioMarginMarginAccountOneCancelsTheOtherOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetMarginAccountOCO(t.Context(), 0, "")
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "GetMarginAccountOCO must reject a request without an order list ID")
+	_, err := e.GetPortfolioMarginMarginAccountOneCancelsTheOtherOrder(t.Context(), 0, "")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "GetPortfolioMarginMarginAccountOneCancelsTheOtherOrder must reject a request without an order list ID")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetMarginAccountOCO(t.Context(), 0, "123421-abcde")
-	require.NoError(t, err, "GetMarginAccountOCO must not error")
+	result, err := e.GetPortfolioMarginMarginAccountOneCancelsTheOtherOrder(t.Context(), 0, "123421-abcde")
+	require.NoError(t, err, "GetPortfolioMarginMarginAccountOneCancelsTheOtherOrder must not error")
 	if mockTests {
-		exp := &PMMarginOCOOrderResponse{
+		exp := &PortfolioMarginMarginOneCancelsTheOtherOrderResponse{
 			OrderListID:       27,
 			ContingencyType:   "OCO",
 			ListStatusType:    "EXEC_STARTED",
@@ -1386,7 +1386,7 @@ func TestGetMarginAccountOCO(t *testing.T) {
 			ListClientOrderID: "h2USkA5YQpaXHPIrkd96xE",
 			TransactionTime:   types.Time(time.UnixMilli(1565245656253)),
 			Symbol:            "BTCUSDT",
-			Orders: []PMMarginOCOOrderLeg{
+			Orders: []PortfolioMarginMarginOneCancelsTheOtherOrderLeg{
 				{
 					Symbol:        "BTCUSDT",
 					OrderID:       4,
@@ -1399,29 +1399,29 @@ func TestGetMarginAccountOCO(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, exp, result, "GetMarginAccountOCO should decode every field")
+		assert.Equal(t, exp, result, "GetPortfolioMarginMarginAccountOneCancelsTheOtherOrder should decode every field")
 		return
 	}
-	assert.NotZero(t, result.OrderListID, "GetMarginAccountOCO should return the order list ID")
+	assert.NotZero(t, result.OrderListID, "GetPortfolioMarginMarginAccountOneCancelsTheOtherOrder should return the order list ID")
 }
 
-func TestCancelMarginAccountOCOOrders(t *testing.T) {
+func TestCancelPortfolioMarginMarginAccountOneCancelsTheOtherOrders(t *testing.T) {
 	t.Parallel()
-	_, err := e.CancelMarginAccountOCOOrders(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "CancelMarginAccountOCOOrders must reject a nil request")
-	_, err = e.CancelMarginAccountOCOOrders(t.Context(), &PMCancelMarginOCOOrderRequest{OrderListID: 1929})
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "CancelMarginAccountOCOOrders must reject an empty symbol")
-	_, err = e.CancelMarginAccountOCOOrders(t.Context(), &PMCancelMarginOCOOrderRequest{Symbol: currency.NewBTCUSDT()})
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "CancelMarginAccountOCOOrders must reject a request without an order list ID")
+	_, err := e.CancelPortfolioMarginMarginAccountOneCancelsTheOtherOrders(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "CancelPortfolioMarginMarginAccountOneCancelsTheOtherOrders must reject a nil request")
+	_, err = e.CancelPortfolioMarginMarginAccountOneCancelsTheOtherOrders(t.Context(), &PortfolioMarginCancelMarginOneCancelsTheOtherOrderRequest{OrderListID: 1929})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "CancelPortfolioMarginMarginAccountOneCancelsTheOtherOrders must reject an empty symbol")
+	_, err = e.CancelPortfolioMarginMarginAccountOneCancelsTheOtherOrders(t.Context(), &PortfolioMarginCancelMarginOneCancelsTheOtherOrderRequest{Symbol: currency.NewBTCUSDT()})
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "CancelPortfolioMarginMarginAccountOneCancelsTheOtherOrders must reject a request without an order list ID")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 		ensureTradablePairs(t)
 	}
-	result, err := e.CancelMarginAccountOCOOrders(t.Context(), &PMCancelMarginOCOOrderRequest{Symbol: marginTradablePair, OrderListID: 1929, ListClientOrderID: "C3wyj4WVEktd7u9aVBRXcN", NewClientOrderID: "cancelMyList"})
-	require.NoError(t, err, "CancelMarginAccountOCOOrders must not error")
+	result, err := e.CancelPortfolioMarginMarginAccountOneCancelsTheOtherOrders(t.Context(), &PortfolioMarginCancelMarginOneCancelsTheOtherOrderRequest{Symbol: marginTradablePair, OrderListID: 1929, ListClientOrderID: "C3wyj4WVEktd7u9aVBRXcN", NewClientOrderID: "cancelMyList"})
+	require.NoError(t, err, "CancelPortfolioMarginMarginAccountOneCancelsTheOtherOrders must not error")
 	if mockTests {
-		exp := &PMCancelMarginOCOOrderResponse{
+		exp := &PortfolioMarginCancelMarginOneCancelsTheOtherOrderResponse{
 			OrderListID:       1929,
 			ContingencyType:   "OCO",
 			ListStatusType:    "ALL_DONE",
@@ -1429,7 +1429,7 @@ func TestCancelMarginAccountOCOOrders(t *testing.T) {
 			ListClientOrderID: "C3wyj4WVEktd7u9aVBRXcN",
 			TransactionTime:   types.Time(time.UnixMilli(1574040868128)),
 			Symbol:            "BTCUSDT",
-			Orders: []PMMarginOCOOrderLeg{
+			Orders: []PortfolioMarginMarginOneCancelsTheOtherOrderLeg{
 				{
 					Symbol:        "BTCUSDT",
 					OrderID:       2,
@@ -1441,7 +1441,7 @@ func TestCancelMarginAccountOCOOrders(t *testing.T) {
 					ClientOrderID: "TXOvglzXuaubXAaENpaRCB",
 				},
 			},
-			OrderReports: []PMCancelMarginOCOOrderReport{
+			OrderReports: []PortfolioMarginCancelMarginOneCancelsTheOtherOrderReport{
 				{
 					Symbol:                  "BTCUSDT",
 					OriginalClientOrderID:   "pO9ufTiFGg3nw2fOdgeOXa",
@@ -1460,27 +1460,27 @@ func TestCancelMarginAccountOCOOrders(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, exp, result, "CancelMarginAccountOCOOrders should decode every field")
+		assert.Equal(t, exp, result, "CancelPortfolioMarginMarginAccountOneCancelsTheOtherOrders should decode every field")
 		return
 	}
-	assert.NotZero(t, result.OrderListID, "CancelMarginAccountOCOOrders should return the order list ID")
+	assert.NotZero(t, result.OrderListID, "CancelPortfolioMarginMarginAccountOneCancelsTheOtherOrders should return the order list ID")
 }
 
-func TestGetMarginAccountOrder(t *testing.T) {
+func TestGetPortfolioMarginMarginAccountOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetMarginAccountOrder(t.Context(), currency.EMPTYPAIR, 12434, "")
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetMarginAccountOrder must reject an empty symbol")
-	_, err = e.GetMarginAccountOrder(t.Context(), currency.NewBTCUSDT(), 0, "")
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "GetMarginAccountOrder must reject a request without an order ID")
+	_, err := e.GetPortfolioMarginMarginAccountOrder(t.Context(), currency.EMPTYPAIR, 12434, "")
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetPortfolioMarginMarginAccountOrder must reject an empty symbol")
+	_, err = e.GetPortfolioMarginMarginAccountOrder(t.Context(), currency.NewBTCUSDT(), 0, "")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "GetPortfolioMarginMarginAccountOrder must reject a request without an order ID")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 		ensureTradablePairs(t)
 	}
-	result, err := e.GetMarginAccountOrder(t.Context(), marginTradablePair, 12434, "")
-	require.NoError(t, err, "GetMarginAccountOrder must not error")
+	result, err := e.GetPortfolioMarginMarginAccountOrder(t.Context(), marginTradablePair, 12434, "")
+	require.NoError(t, err, "GetPortfolioMarginMarginAccountOrder must not error")
 	if mockTests {
-		exp := &PMMarginOrderResponse{
+		exp := &PortfolioMarginMarginOrderResponse{
 			ClientOrderID:           "ZwfQzuDIGpceVhKW5DvCmO",
 			CumulativeQuoteQuantity: 1500.5,
 			ExecutedQuantity:        0.025,
@@ -1502,25 +1502,25 @@ func TestGetMarginAccountOrder(t *testing.T) {
 			PreventedMatchID:        1,
 			PreventedQuantity:       0.002,
 		}
-		assert.Equal(t, exp, result, "GetMarginAccountOrder should decode every field")
+		assert.Equal(t, exp, result, "GetPortfolioMarginMarginAccountOrder should decode every field")
 		return
 	}
-	assert.NotZero(t, result.OrderID, "GetMarginAccountOrder should return the order ID")
+	assert.NotZero(t, result.OrderID, "GetPortfolioMarginMarginAccountOrder should return the order ID")
 }
 
-func TestNewMarginOrder(t *testing.T) {
+func TestNewPortfolioMarginMarginOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.NewMarginOrder(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "NewMarginOrder must reject a nil request")
-	arg := &PMMarginOrderRequest{TimeInForce: "GTC"}
-	_, err = e.NewMarginOrder(t.Context(), arg)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "NewMarginOrder must reject an empty symbol")
+	_, err := e.NewPortfolioMarginMarginOrder(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "NewPortfolioMarginMarginOrder must reject a nil request")
+	arg := &PortfolioMarginMarginOrderRequest{TimeInForce: "GTC"}
+	_, err = e.NewPortfolioMarginMarginOrder(t.Context(), arg)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "NewPortfolioMarginMarginOrder must reject an empty symbol")
 	arg.Symbol = currency.NewBTCUSDT()
-	_, err = e.NewMarginOrder(t.Context(), arg)
-	require.ErrorIs(t, err, order.ErrSideIsInvalid, "NewMarginOrder must reject an invalid side")
+	_, err = e.NewPortfolioMarginMarginOrder(t.Context(), arg)
+	require.ErrorIs(t, err, order.ErrSideIsInvalid, "NewPortfolioMarginMarginOrder must reject an invalid side")
 	arg.Side = order.Sell
-	_, err = e.NewMarginOrder(t.Context(), arg)
-	require.ErrorIs(t, err, order.ErrTypeIsInvalid, "NewMarginOrder must reject an empty order type")
+	_, err = e.NewPortfolioMarginMarginOrder(t.Context(), arg)
+	require.ErrorIs(t, err, order.ErrTypeIsInvalid, "NewPortfolioMarginMarginOrder must reject an empty order type")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -1529,13 +1529,13 @@ func TestNewMarginOrder(t *testing.T) {
 	autoRepayAtCancel := false
 	for _, tc := range []struct {
 		name string
-		arg  *PMMarginOrderRequest
-		exp  *PMNewMarginOrderResponse
+		arg  *PortfolioMarginMarginOrderRequest
+		exp  *PortfolioMarginNewMarginOrderResponse
 	}{
 		{
 			name: "stopLossLimit",
-			arg:  &PMMarginOrderRequest{Symbol: marginTradablePair, Side: order.Sell, OrderType: "STOP_LOSS_LIMIT", Quantity: 0.001, Price: 60000, StopPrice: 60100, NewClientOrderID: "6gCrw2kRUAF9CvJDGP16IP", NewOrderResponseType: "FULL", IcebergQuantity: 0.0005, SideEffectType: "MARGIN_BUY", TimeInForce: "GTC", SelfTradePreventionMode: "EXPIRE_TAKER", AutoRepayAtCancel: &autoRepayAtCancel},
-			exp: &PMNewMarginOrderResponse{
+			arg:  &PortfolioMarginMarginOrderRequest{Symbol: marginTradablePair, Side: order.Sell, OrderType: "STOP_LOSS_LIMIT", Quantity: 0.001, Price: 60000, StopPrice: 60100, NewClientOrderID: "6gCrw2kRUAF9CvJDGP16IP", NewOrderResponseType: "FULL", IcebergQuantity: 0.0005, SideEffectType: "MARGIN_BUY", TimeInForce: "GTC", SelfTradePreventionMode: "EXPIRE_TAKER", AutoRepayAtCancel: &autoRepayAtCancel},
+			exp: &PortfolioMarginNewMarginOrderResponse{
 				Symbol:                "BTCUSDT",
 				OrderID:               28,
 				ClientOrderID:         "6gCrw2kRUAF9CvJDGP16IP",
@@ -1548,13 +1548,13 @@ func TestNewMarginOrder(t *testing.T) {
 				Side:                  "SELL",
 				MarginBuyBorrowAmount: 0.001,
 				MarginBuyBorrowAsset:  currency.BTC,
-				Fills:                 []PMMarginOrderFill{},
+				Fills:                 []PortfolioMarginMarginOrderFill{},
 			},
 		},
 		{
 			name: "marketQuoteQuantity",
-			arg:  &PMMarginOrderRequest{Symbol: marginTradablePair, Side: order.Buy, OrderType: "MARKET", QuoteOrderQuantity: 100, NewOrderResponseType: "FULL"},
-			exp: &PMNewMarginOrderResponse{
+			arg:  &PortfolioMarginMarginOrderRequest{Symbol: marginTradablePair, Side: order.Buy, OrderType: "MARKET", QuoteOrderQuantity: 100, NewOrderResponseType: "FULL"},
+			exp: &PortfolioMarginNewMarginOrderResponse{
 				Symbol:                  "BTCUSDT",
 				OrderID:                 29,
 				ClientOrderID:           "8xH4F9NkTRjQ1Rz2bR6l3P",
@@ -1566,7 +1566,7 @@ func TestNewMarginOrder(t *testing.T) {
 				TimeInForce:             "GTC",
 				Type:                    "MARKET",
 				Side:                    "BUY",
-				Fills: []PMMarginOrderFill{
+				Fills: []PortfolioMarginMarginOrderFill{
 					{
 						Price:           60240.96,
 						Quantity:        0.00166,
@@ -1579,34 +1579,34 @@ func TestNewMarginOrder(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			result, err := e.NewMarginOrder(t.Context(), tc.arg)
-			require.NoError(t, err, "NewMarginOrder must not error")
+			result, err := e.NewPortfolioMarginMarginOrder(t.Context(), tc.arg)
+			require.NoError(t, err, "NewPortfolioMarginMarginOrder must not error")
 			if mockTests {
-				assert.Equal(t, tc.exp, result, "NewMarginOrder should decode every field")
+				assert.Equal(t, tc.exp, result, "NewPortfolioMarginMarginOrder should decode every field")
 				return
 			}
-			assert.NotZero(t, result.OrderID, "NewMarginOrder should return an order ID")
+			assert.NotZero(t, result.OrderID, "NewPortfolioMarginMarginOrder should return an order ID")
 		})
 	}
 }
 
-func TestPMCancelMarginAccountOrder(t *testing.T) {
+func TestPortfolioMarginCancelMarginAccountOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.PMCancelMarginAccountOrder(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "PMCancelMarginAccountOrder must reject a nil request")
-	_, err = e.PMCancelMarginAccountOrder(t.Context(), &PMCancelMarginOrderRequest{OrderID: 12314})
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "PMCancelMarginAccountOrder must reject an empty symbol")
-	_, err = e.PMCancelMarginAccountOrder(t.Context(), &PMCancelMarginOrderRequest{Symbol: currency.NewBTCUSDT()})
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "PMCancelMarginAccountOrder must reject a request without an order ID")
+	_, err := e.PortfolioMarginCancelMarginAccountOrder(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "PortfolioMarginCancelMarginAccountOrder must reject a nil request")
+	_, err = e.PortfolioMarginCancelMarginAccountOrder(t.Context(), &PortfolioMarginCancelMarginOrderRequest{OrderID: 12314})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "PortfolioMarginCancelMarginAccountOrder must reject an empty symbol")
+	_, err = e.PortfolioMarginCancelMarginAccountOrder(t.Context(), &PortfolioMarginCancelMarginOrderRequest{Symbol: currency.NewBTCUSDT()})
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "PortfolioMarginCancelMarginAccountOrder must reject a request without an order ID")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 		ensureTradablePairs(t)
 	}
-	result, err := e.PMCancelMarginAccountOrder(t.Context(), &PMCancelMarginOrderRequest{Symbol: marginTradablePair, OrderID: 12314, NewClientOrderID: "cancelMyOrder1"})
-	require.NoError(t, err, "PMCancelMarginAccountOrder must not error")
+	result, err := e.PortfolioMarginCancelMarginAccountOrder(t.Context(), &PortfolioMarginCancelMarginOrderRequest{Symbol: marginTradablePair, OrderID: 12314, NewClientOrderID: "cancelMyOrder1"})
+	require.NoError(t, err, "PortfolioMarginCancelMarginAccountOrder must not error")
 	if mockTests {
-		exp := &PMCancelMarginOrderResponse{
+		exp := &PortfolioMarginCancelMarginOrderResponse{
 			Symbol:                  "BTCUSDT",
 			OrderID:                 12314,
 			OriginalClientOrderID:   "myOrder1",
@@ -1620,27 +1620,27 @@ func TestPMCancelMarginAccountOrder(t *testing.T) {
 			Type:                    "LIMIT",
 			Side:                    "SELL",
 		}
-		assert.Equal(t, exp, result, "PMCancelMarginAccountOrder should decode every field")
+		assert.Equal(t, exp, result, "PortfolioMarginCancelMarginAccountOrder should decode every field")
 		return
 	}
-	assert.NotZero(t, result.OrderID, "PMCancelMarginAccountOrder should return the order ID")
+	assert.NotZero(t, result.OrderID, "PortfolioMarginCancelMarginAccountOrder should return the order ID")
 }
 
-func TestGetUMOrder(t *testing.T) {
+func TestGetPortfolioMarginUSDTMarginedOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetUMOrder(t.Context(), currency.EMPTYPAIR, 1234, "")
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetUMOrder must reject an empty symbol")
-	_, err = e.GetUMOrder(t.Context(), currency.NewBTCUSDT(), 0, "")
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "GetUMOrder must reject a request without an order ID")
+	_, err := e.GetPortfolioMarginUSDTMarginedOrder(t.Context(), currency.EMPTYPAIR, 1234, "")
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetPortfolioMarginUSDTMarginedOrder must reject an empty symbol")
+	_, err = e.GetPortfolioMarginUSDTMarginedOrder(t.Context(), currency.NewBTCUSDT(), 0, "")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "GetPortfolioMarginUSDTMarginedOrder must reject a request without an order ID")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 		ensureTradablePairs(t)
 	}
-	result, err := e.GetUMOrder(t.Context(), usdtmTradablePair, 1234, "")
-	require.NoError(t, err, "GetUMOrder must not error")
+	result, err := e.GetPortfolioMarginUSDTMarginedOrder(t.Context(), usdtmTradablePair, 1234, "")
+	require.NoError(t, err, "GetPortfolioMarginUSDTMarginedOrder must not error")
 	if mockTests {
-		exp := &UMOrderDetailResponse{
+		exp := &PortfolioMarginUSDTMarginedOrderDetailResponse{
 			AveragePrice:            62000.5,
 			ClientOrderID:           "abc",
 			CumulativeQuote:         620.005,
@@ -1662,34 +1662,34 @@ func TestGetUMOrder(t *testing.T) {
 			GoodTillDate:            types.Time(time.Unix(1693207680, 0)),
 			PriceMatch:              "QUEUE",
 		}
-		assert.Equal(t, exp, result, "GetUMOrder should decode every field")
+		assert.Equal(t, exp, result, "GetPortfolioMarginUSDTMarginedOrder should decode every field")
 		return
 	}
-	assert.NotZero(t, result.OrderID, "GetUMOrder should return the order ID")
+	assert.NotZero(t, result.OrderID, "GetPortfolioMarginUSDTMarginedOrder should return the order ID")
 }
 
-func TestNewUMOrder(t *testing.T) {
+func TestNewPortfolioMarginUSDTMarginedOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.NewUMOrder(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "NewUMOrder must reject a nil request")
-	arg := &UMOrderRequest{ReduceOnly: true}
-	_, err = e.NewUMOrder(t.Context(), arg)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "NewUMOrder must reject an empty symbol")
+	_, err := e.NewPortfolioMarginUSDTMarginedOrder(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "NewPortfolioMarginUSDTMarginedOrder must reject a nil request")
+	arg := &PortfolioMarginUSDTMarginedOrderRequest{ReduceOnly: true}
+	_, err = e.NewPortfolioMarginUSDTMarginedOrder(t.Context(), arg)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "NewPortfolioMarginUSDTMarginedOrder must reject an empty symbol")
 	arg.Symbol = currency.NewBTCUSDT()
-	_, err = e.NewUMOrder(t.Context(), arg)
-	require.ErrorIs(t, err, order.ErrSideIsInvalid, "NewUMOrder must reject an invalid side")
+	_, err = e.NewPortfolioMarginUSDTMarginedOrder(t.Context(), arg)
+	require.ErrorIs(t, err, order.ErrSideIsInvalid, "NewPortfolioMarginUSDTMarginedOrder must reject an invalid side")
 	arg.Side = order.Buy
-	_, err = e.NewUMOrder(t.Context(), arg)
-	require.ErrorIs(t, err, order.ErrTypeIsInvalid, "NewUMOrder must reject an empty order type")
+	_, err = e.NewPortfolioMarginUSDTMarginedOrder(t.Context(), arg)
+	require.ErrorIs(t, err, order.ErrTypeIsInvalid, "NewPortfolioMarginUSDTMarginedOrder must reject an empty order type")
 	arg.OrderType = "LIMIT"
 	arg.Price = 62000.5
 	arg.PriceMatch = "QUEUE"
-	_, err = e.NewUMOrder(t.Context(), arg)
-	require.ErrorIs(t, err, errPriceMatchWithPrice, "NewUMOrder must reject a price with priceMatch")
+	_, err = e.NewPortfolioMarginUSDTMarginedOrder(t.Context(), arg)
+	require.ErrorIs(t, err, errPriceMatchWithPrice, "NewPortfolioMarginUSDTMarginedOrder must reject a price with priceMatch")
 	arg.PriceMatch = ""
 	arg.TimeInForce = "GTD"
-	_, err = e.NewUMOrder(t.Context(), arg)
-	require.ErrorIs(t, err, errGoodTillDateRequired, "NewUMOrder must reject a GTD order without a good till date")
+	_, err = e.NewPortfolioMarginUSDTMarginedOrder(t.Context(), arg)
+	require.ErrorIs(t, err, errGoodTillDateRequired, "NewPortfolioMarginUSDTMarginedOrder must reject a GTD order without a good till date")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -1697,13 +1697,13 @@ func TestNewUMOrder(t *testing.T) {
 	}
 	for _, tc := range []struct {
 		name string
-		arg  *UMOrderRequest
-		exp  *UMOrderResponse
+		arg  *PortfolioMarginUSDTMarginedOrderRequest
+		exp  *PortfolioMarginUSDTMarginedOrderResponse
 	}{
 		{
 			name: "goodTillDate",
-			arg:  &UMOrderRequest{Symbol: usdtmTradablePair, Side: order.Buy, PositionSide: "BOTH", OrderType: "LIMIT", TimeInForce: "GTD", Quantity: 0.02, ReduceOnly: true, Price: 62000.5, NewClientOrderID: "testOrder", NewOrderResponseType: "RESULT", SelfTradePreventionMode: "EXPIRE_MAKER", GoodTillDate: time.UnixMilli(1693207680000)},
-			exp: &UMOrderResponse{
+			arg:  &PortfolioMarginUSDTMarginedOrderRequest{Symbol: usdtmTradablePair, Side: order.Buy, PositionSide: "BOTH", OrderType: "LIMIT", TimeInForce: "GTD", Quantity: 0.02, ReduceOnly: true, Price: 62000.5, NewClientOrderID: "testOrder", NewOrderResponseType: "RESULT", SelfTradePreventionMode: "EXPIRE_MAKER", GoodTillDate: time.UnixMilli(1693207680000)},
+			exp: &PortfolioMarginUSDTMarginedOrderResponse{
 				ClientOrderID:           "testOrder",
 				CumulativeQuantity:      0.01,
 				ExecutedQuantity:        0.01,
@@ -1725,8 +1725,8 @@ func TestNewUMOrder(t *testing.T) {
 		},
 		{
 			name: "priceMatch",
-			arg:  &UMOrderRequest{Symbol: usdtmTradablePair, Side: order.Sell, OrderType: "LIMIT", TimeInForce: "GTC", Quantity: 0.02, PriceMatch: "QUEUE"},
-			exp: &UMOrderResponse{
+			arg:  &PortfolioMarginUSDTMarginedOrderRequest{Symbol: usdtmTradablePair, Side: order.Sell, OrderType: "LIMIT", TimeInForce: "GTC", Quantity: 0.02, PriceMatch: "QUEUE"},
+			exp: &PortfolioMarginUSDTMarginedOrderResponse{
 				ClientOrderID:           "x-priceMatch",
 				CumulativeQuantity:      0.01,
 				ExecutedQuantity:        0.01,
@@ -1748,32 +1748,32 @@ func TestNewUMOrder(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			result, err := e.NewUMOrder(t.Context(), tc.arg)
-			require.NoError(t, err, "NewUMOrder must not error")
+			result, err := e.NewPortfolioMarginUSDTMarginedOrder(t.Context(), tc.arg)
+			require.NoError(t, err, "NewPortfolioMarginUSDTMarginedOrder must not error")
 			if mockTests {
-				assert.Equal(t, tc.exp, result, "NewUMOrder should decode every field")
+				assert.Equal(t, tc.exp, result, "NewPortfolioMarginUSDTMarginedOrder should decode every field")
 				return
 			}
-			assert.NotZero(t, result.OrderID, "NewUMOrder should return an order ID")
+			assert.NotZero(t, result.OrderID, "NewPortfolioMarginUSDTMarginedOrder should return an order ID")
 		})
 	}
 }
 
-func TestCancelUMOrder(t *testing.T) {
+func TestCancelPortfolioMarginUSDTMarginedOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.CancelUMOrder(t.Context(), currency.EMPTYPAIR, 1234132, "")
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "CancelUMOrder must reject an empty symbol")
-	_, err = e.CancelUMOrder(t.Context(), currency.NewBTCUSDT(), 0, "")
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "CancelUMOrder must reject a request without an order ID")
+	_, err := e.CancelPortfolioMarginUSDTMarginedOrder(t.Context(), currency.EMPTYPAIR, 1234132, "")
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "CancelPortfolioMarginUSDTMarginedOrder must reject an empty symbol")
+	_, err = e.CancelPortfolioMarginUSDTMarginedOrder(t.Context(), currency.NewBTCUSDT(), 0, "")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "CancelPortfolioMarginUSDTMarginedOrder must reject a request without an order ID")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 		ensureTradablePairs(t)
 	}
-	result, err := e.CancelUMOrder(t.Context(), usdtmTradablePair, 1234132, "myOrder1")
-	require.NoError(t, err, "CancelUMOrder must not error")
+	result, err := e.CancelPortfolioMarginUSDTMarginedOrder(t.Context(), usdtmTradablePair, 1234132, "myOrder1")
+	require.NoError(t, err, "CancelPortfolioMarginUSDTMarginedOrder must not error")
 	if mockTests {
-		exp := &UMOrderResponse{
+		exp := &PortfolioMarginUSDTMarginedOrderResponse{
 			ClientOrderID:           "myOrder1",
 			CumulativeQuantity:      0.01,
 			ExecutedQuantity:        0.01,
@@ -1792,28 +1792,28 @@ func TestCancelUMOrder(t *testing.T) {
 			UpdateTime:              types.Time(time.UnixMilli(1571110484038)),
 			PriceMatch:              "NONE",
 		}
-		assert.Equal(t, exp, result, "CancelUMOrder should decode every field")
+		assert.Equal(t, exp, result, "CancelPortfolioMarginUSDTMarginedOrder should decode every field")
 		return
 	}
-	assert.NotZero(t, result.OrderID, "CancelUMOrder should return the order ID")
+	assert.NotZero(t, result.OrderID, "CancelPortfolioMarginUSDTMarginedOrder should return the order ID")
 }
 
-func TestGetCMAccountTradeList(t *testing.T) {
+func TestGetPortfolioMarginCoinMarginedAccountTradeList(t *testing.T) {
 	t.Parallel()
 	cmSymbol := currency.NewPairWithDelimiter("BTCUSD", "PERP", currency.UnderscoreDelimiter)
 	startTime, endTime := getTime()
-	_, err := e.GetCMAccountTradeList(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "GetCMAccountTradeList must reject a nil request")
-	_, err = e.GetCMAccountTradeList(t.Context(), &CMAccountTradeListRequest{})
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetCMAccountTradeList must reject a request without a symbol or pair")
-	_, err = e.GetCMAccountTradeList(t.Context(), &CMAccountTradeListRequest{Symbol: cmSymbol, Pair: currency.NewCode("BTCUSD")})
-	require.ErrorIs(t, err, errSymbolWithPair, "GetCMAccountTradeList must reject a symbol with a pair")
-	_, err = e.GetCMAccountTradeList(t.Context(), &CMAccountTradeListRequest{Pair: currency.NewCode("BTCUSD"), FromID: 6})
-	require.ErrorIs(t, err, errFromIDWithPair, "GetCMAccountTradeList must reject fromId with a pair")
-	_, err = e.GetCMAccountTradeList(t.Context(), &CMAccountTradeListRequest{Symbol: cmSymbol, FromID: 6, StartTime: startTime})
-	require.ErrorIs(t, err, errFromIDWithTimeRange, "GetCMAccountTradeList must reject fromId with a time range")
-	_, err = e.GetCMAccountTradeList(t.Context(), &CMAccountTradeListRequest{Symbol: cmSymbol, StartTime: endTime, EndTime: startTime})
-	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetCMAccountTradeList must reject a start time after the end time")
+	_, err := e.GetPortfolioMarginCoinMarginedAccountTradeList(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "GetPortfolioMarginCoinMarginedAccountTradeList must reject a nil request")
+	_, err = e.GetPortfolioMarginCoinMarginedAccountTradeList(t.Context(), &PortfolioMarginCoinMarginedAccountTradeListRequest{})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetPortfolioMarginCoinMarginedAccountTradeList must reject a request without a symbol or pair")
+	_, err = e.GetPortfolioMarginCoinMarginedAccountTradeList(t.Context(), &PortfolioMarginCoinMarginedAccountTradeListRequest{Symbol: cmSymbol, Pair: currency.NewCode("BTCUSD")})
+	require.ErrorIs(t, err, errSymbolWithPair, "GetPortfolioMarginCoinMarginedAccountTradeList must reject a symbol with a pair")
+	_, err = e.GetPortfolioMarginCoinMarginedAccountTradeList(t.Context(), &PortfolioMarginCoinMarginedAccountTradeListRequest{Pair: currency.NewCode("BTCUSD"), FromID: 6})
+	require.ErrorIs(t, err, errFromIDWithPair, "GetPortfolioMarginCoinMarginedAccountTradeList must reject fromId with a pair")
+	_, err = e.GetPortfolioMarginCoinMarginedAccountTradeList(t.Context(), &PortfolioMarginCoinMarginedAccountTradeListRequest{Symbol: cmSymbol, FromID: 6, StartTime: startTime})
+	require.ErrorIs(t, err, errFromIDWithTimeRange, "GetPortfolioMarginCoinMarginedAccountTradeList must reject fromId with a time range")
+	_, err = e.GetPortfolioMarginCoinMarginedAccountTradeList(t.Context(), &PortfolioMarginCoinMarginedAccountTradeListRequest{Symbol: cmSymbol, StartTime: endTime, EndTime: startTime})
+	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetPortfolioMarginCoinMarginedAccountTradeList must reject a start time after the end time")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -1821,96 +1821,96 @@ func TestGetCMAccountTradeList(t *testing.T) {
 	}
 	for _, tc := range []struct {
 		name string
-		arg  *CMAccountTradeListRequest
-		exp  []CMAccountTradeResponse
+		arg  *PortfolioMarginCoinMarginedAccountTradeListRequest
+		exp  []PortfolioMarginCoinMarginedAccountTradeResponse
 	}{
-		{name: "symbol", arg: &CMAccountTradeListRequest{Symbol: coinmTradablePair, StartTime: startTime, EndTime: endTime, Limit: 10}, exp: []CMAccountTradeResponse{
+		{name: "symbol", arg: &PortfolioMarginCoinMarginedAccountTradeListRequest{Symbol: coinmTradablePair, StartTime: startTime, EndTime: endTime, Limit: 10}, exp: []PortfolioMarginCoinMarginedAccountTradeResponse{
 			{
-				Symbol:          "BTCUSD_PERP",
-				ID:              6,
-				OrderID:         28,
-				Pair:            "BTCUSD",
-				Side:            "BUY",
-				Price:           8800,
-				Quantity:        1,
-				RealisedPNL:     0.0001,
-				MarginAsset:     currency.BTC,
-				BaseQuantity:    0.01136364,
-				Commission:      0.00000454,
-				CommissionAsset: currency.BTC,
-				Time:            types.Time(time.UnixMilli(1590743483586)),
-				PositionSide:    "BOTH",
-				Buyer:           true,
-				Maker:           true,
+				Symbol:              "BTCUSD_PERP",
+				ID:                  6,
+				OrderID:             28,
+				Pair:                "BTCUSD",
+				Side:                "BUY",
+				Price:               8800,
+				QuantityInContracts: 1,
+				RealisedPNL:         0.0001,
+				MarginAsset:         currency.BTC,
+				BaseQuantity:        0.01136364,
+				Commission:          0.00000454,
+				CommissionAsset:     currency.BTC,
+				Time:                types.Time(time.UnixMilli(1590743483586)),
+				PositionSide:        "BOTH",
+				Buyer:               true,
+				Maker:               true,
 			},
 		}},
-		{name: "pair", arg: &CMAccountTradeListRequest{Pair: currency.NewCode("BTCUSD")}, exp: []CMAccountTradeResponse{
+		{name: "pair", arg: &PortfolioMarginCoinMarginedAccountTradeListRequest{Pair: currency.NewCode("BTCUSD")}, exp: []PortfolioMarginCoinMarginedAccountTradeResponse{
 			{
-				Symbol:          "BTCUSD_250926",
-				ID:              7,
-				OrderID:         29,
-				Pair:            "BTCUSD",
-				Side:            "BUY",
-				Price:           8800,
-				Quantity:        1,
-				RealisedPNL:     0.0001,
-				MarginAsset:     currency.BTC,
-				BaseQuantity:    0.01136364,
-				Commission:      0.00000454,
-				CommissionAsset: currency.BTC,
-				Time:            types.Time(time.UnixMilli(1590743483586)),
-				PositionSide:    "BOTH",
-				Buyer:           true,
-				Maker:           true,
+				Symbol:              "BTCUSD_250926",
+				ID:                  7,
+				OrderID:             29,
+				Pair:                "BTCUSD",
+				Side:                "BUY",
+				Price:               8800,
+				QuantityInContracts: 1,
+				RealisedPNL:         0.0001,
+				MarginAsset:         currency.BTC,
+				BaseQuantity:        0.01136364,
+				Commission:          0.00000454,
+				CommissionAsset:     currency.BTC,
+				Time:                types.Time(time.UnixMilli(1590743483586)),
+				PositionSide:        "BOTH",
+				Buyer:               true,
+				Maker:               true,
 			},
 		}},
-		{name: "fromID", arg: &CMAccountTradeListRequest{Symbol: coinmTradablePair, FromID: 6}, exp: []CMAccountTradeResponse{
+		{name: "fromID", arg: &PortfolioMarginCoinMarginedAccountTradeListRequest{Symbol: coinmTradablePair, FromID: 6}, exp: []PortfolioMarginCoinMarginedAccountTradeResponse{
 			{
-				Symbol:          "BTCUSD_PERP",
-				ID:              6,
-				OrderID:         28,
-				Pair:            "BTCUSD",
-				Side:            "BUY",
-				Price:           8800,
-				Quantity:        1,
-				RealisedPNL:     0.0001,
-				MarginAsset:     currency.BTC,
-				BaseQuantity:    0.01136364,
-				Commission:      0.00000454,
-				CommissionAsset: currency.BTC,
-				Time:            types.Time(time.UnixMilli(1590743483586)),
-				PositionSide:    "BOTH",
-				Buyer:           true,
-				Maker:           true,
+				Symbol:              "BTCUSD_PERP",
+				ID:                  6,
+				OrderID:             28,
+				Pair:                "BTCUSD",
+				Side:                "BUY",
+				Price:               8800,
+				QuantityInContracts: 1,
+				RealisedPNL:         0.0001,
+				MarginAsset:         currency.BTC,
+				BaseQuantity:        0.01136364,
+				Commission:          0.00000454,
+				CommissionAsset:     currency.BTC,
+				Time:                types.Time(time.UnixMilli(1590743483586)),
+				PositionSide:        "BOTH",
+				Buyer:               true,
+				Maker:               true,
 			},
 		}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			result, err := e.GetCMAccountTradeList(t.Context(), tc.arg)
-			require.NoError(t, err, "GetCMAccountTradeList must not error")
+			result, err := e.GetPortfolioMarginCoinMarginedAccountTradeList(t.Context(), tc.arg)
+			require.NoError(t, err, "GetPortfolioMarginCoinMarginedAccountTradeList must not error")
 			if mockTests {
-				assert.Equal(t, tc.exp, result, "GetCMAccountTradeList should decode every field")
+				assert.Equal(t, tc.exp, result, "GetPortfolioMarginCoinMarginedAccountTradeList should decode every field")
 				return
 			}
-			assert.NotNil(t, result, "GetCMAccountTradeList should return trades")
+			assert.NotNil(t, result, "GetPortfolioMarginCoinMarginedAccountTradeList should return trades")
 		})
 	}
 }
 
-func TestGetCMPositionADLQuantileEstimation(t *testing.T) {
+func TestGetPortfolioMarginCoinMarginedPositionAutoDeleveragingQuantileEstimation(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 		ensureTradablePairs(t)
 	}
-	result, err := e.GetCMPositionADLQuantileEstimation(t.Context(), coinmTradablePair)
-	require.NoError(t, err, "GetCMPositionADLQuantileEstimation must not error")
+	result, err := e.GetPortfolioMarginCoinMarginedPositionAutoDeleveragingQuantileEstimation(t.Context(), coinmTradablePair)
+	require.NoError(t, err, "GetPortfolioMarginCoinMarginedPositionAutoDeleveragingQuantileEstimation must not error")
 	if mockTests {
-		exp := []CMADLQuantileEstimationResponse{
+		exp := []PortfolioMarginCoinMarginedAutoDeleveragingQuantileEstimationResponse{
 			{
 				Symbol: "BTCUSD_PERP",
-				ADLQuantile: CMADLQuantile{
+				AutoDeleveragingQuantile: PortfolioMarginCoinMarginedAutoDeleveragingQuantile{
 					Long:  3,
 					Short: 3,
 					Hedge: 1,
@@ -1918,70 +1918,70 @@ func TestGetCMPositionADLQuantileEstimation(t *testing.T) {
 			},
 			{
 				Symbol: "BTCUSD_250926",
-				ADLQuantile: CMADLQuantile{
+				AutoDeleveragingQuantile: PortfolioMarginCoinMarginedAutoDeleveragingQuantile{
 					Long:  1,
 					Short: 2,
 					Both:  4,
 				},
 			},
 		}
-		assert.Equal(t, exp, result, "GetCMPositionADLQuantileEstimation should decode every field")
+		assert.Equal(t, exp, result, "GetPortfolioMarginCoinMarginedPositionAutoDeleveragingQuantileEstimation should decode every field")
 		return
 	}
-	assert.NotNil(t, result, "GetCMPositionADLQuantileEstimation should return quantiles")
+	assert.NotNil(t, result, "GetPortfolioMarginCoinMarginedPositionAutoDeleveragingQuantileEstimation should return quantiles")
 }
 
-func TestMarginAccountBorrow(t *testing.T) {
+func TestPortfolioMarginMarginAccountBorrow(t *testing.T) {
 	t.Parallel()
-	_, err := e.MarginAccountBorrow(t.Context(), currency.EMPTYCODE, 0.001)
-	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "MarginAccountBorrow must reject an empty asset")
-	_, err = e.MarginAccountBorrow(t.Context(), currency.USDT, 0)
-	require.ErrorIs(t, err, limits.ErrAmountBelowMin, "MarginAccountBorrow must reject a zero amount")
+	_, err := e.PortfolioMarginMarginAccountBorrow(t.Context(), currency.EMPTYCODE, 0.001)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "PortfolioMarginMarginAccountBorrow must reject an empty asset")
+	_, err = e.PortfolioMarginMarginAccountBorrow(t.Context(), currency.USDT, 0)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin, "PortfolioMarginMarginAccountBorrow must reject a zero amount")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	result, err := e.MarginAccountBorrow(t.Context(), currency.USDT, 0.001)
-	require.NoError(t, err, "MarginAccountBorrow must not error")
+	result, err := e.PortfolioMarginMarginAccountBorrow(t.Context(), currency.USDT, 0.001)
+	require.NoError(t, err, "PortfolioMarginMarginAccountBorrow must not error")
 	if mockTests {
-		exp := &PMTransactionResponse{
+		exp := &PortfolioMarginTransactionResponse{
 			TransactionID: 100000001,
 		}
-		assert.Equal(t, exp, result, "MarginAccountBorrow should decode every field")
+		assert.Equal(t, exp, result, "PortfolioMarginMarginAccountBorrow should decode every field")
 		return
 	}
-	assert.NotZero(t, result.TransactionID, "MarginAccountBorrow should return a transaction ID")
+	assert.NotZero(t, result.TransactionID, "PortfolioMarginMarginAccountBorrow should return a transaction ID")
 }
 
-func TestMarginAccountNewOCO(t *testing.T) {
+func TestPortfolioMarginMarginAccountNewOneCancelsTheOtherOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.MarginAccountNewOCO(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "MarginAccountNewOCO must reject a nil request")
-	arg := &PMMarginOCOOrderRequest{ListClientOrderID: "JYVpp3F0f5CAG15DhtrqLp"}
-	_, err = e.MarginAccountNewOCO(t.Context(), arg)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "MarginAccountNewOCO must reject an empty symbol")
+	_, err := e.PortfolioMarginMarginAccountNewOneCancelsTheOtherOrder(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "PortfolioMarginMarginAccountNewOneCancelsTheOtherOrder must reject a nil request")
+	arg := &PortfolioMarginMarginOneCancelsTheOtherOrderRequest{ListClientOrderID: "JYVpp3F0f5CAG15DhtrqLp"}
+	_, err = e.PortfolioMarginMarginAccountNewOneCancelsTheOtherOrder(t.Context(), arg)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "PortfolioMarginMarginAccountNewOneCancelsTheOtherOrder must reject an empty symbol")
 	arg.Symbol = currency.NewBTCUSDT()
-	_, err = e.MarginAccountNewOCO(t.Context(), arg)
-	require.ErrorIs(t, err, order.ErrSideIsInvalid, "MarginAccountNewOCO must reject an invalid side")
+	_, err = e.PortfolioMarginMarginAccountNewOneCancelsTheOtherOrder(t.Context(), arg)
+	require.ErrorIs(t, err, order.ErrSideIsInvalid, "PortfolioMarginMarginAccountNewOneCancelsTheOtherOrder must reject an invalid side")
 	arg.Side = order.Sell
-	_, err = e.MarginAccountNewOCO(t.Context(), arg)
-	require.ErrorIs(t, err, limits.ErrAmountBelowMin, "MarginAccountNewOCO must reject a zero quantity")
+	_, err = e.PortfolioMarginMarginAccountNewOneCancelsTheOtherOrder(t.Context(), arg)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin, "PortfolioMarginMarginAccountNewOneCancelsTheOtherOrder must reject a zero quantity")
 	arg.Quantity = 0.1
-	_, err = e.MarginAccountNewOCO(t.Context(), arg)
-	require.ErrorIs(t, err, limits.ErrPriceBelowMin, "MarginAccountNewOCO must reject a zero price")
+	_, err = e.PortfolioMarginMarginAccountNewOneCancelsTheOtherOrder(t.Context(), arg)
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin, "PortfolioMarginMarginAccountNewOneCancelsTheOtherOrder must reject a zero price")
 	arg.Price = 70000
-	_, err = e.MarginAccountNewOCO(t.Context(), arg)
-	require.ErrorIs(t, err, limits.ErrPriceBelowMin, "MarginAccountNewOCO must reject a zero stop price")
+	_, err = e.PortfolioMarginMarginAccountNewOneCancelsTheOtherOrder(t.Context(), arg)
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin, "PortfolioMarginMarginAccountNewOneCancelsTheOtherOrder must reject a zero stop price")
 	arg.StopPrice = 60000
 	arg.StopLimitPrice = 59900
-	_, err = e.MarginAccountNewOCO(t.Context(), arg)
-	require.ErrorIs(t, err, errStopLimitTimeInForceRequired, "MarginAccountNewOCO must reject a stop limit price without a time in force")
+	_, err = e.PortfolioMarginMarginAccountNewOneCancelsTheOtherOrder(t.Context(), arg)
+	require.ErrorIs(t, err, errStopLimitTimeInForceRequired, "PortfolioMarginMarginAccountNewOneCancelsTheOtherOrder must reject a stop limit price without a time in force")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 		ensureTradablePairs(t)
 	}
-	result, err := e.MarginAccountNewOCO(t.Context(), &PMMarginOCOOrderRequest{
+	result, err := e.PortfolioMarginMarginAccountNewOneCancelsTheOtherOrder(t.Context(), &PortfolioMarginMarginOneCancelsTheOtherOrderRequest{
 		Symbol:               marginTradablePair,
 		ListClientOrderID:    "JYVpp3F0f5CAG15DhtrqLp",
 		Side:                 order.Sell,
@@ -1997,9 +1997,9 @@ func TestMarginAccountNewOCO(t *testing.T) {
 		NewOrderResponseType: "RESULT",
 		SideEffectType:       "MARGIN_BUY",
 	})
-	require.NoError(t, err, "MarginAccountNewOCO must not error")
+	require.NoError(t, err, "PortfolioMarginMarginAccountNewOneCancelsTheOtherOrder must not error")
 	if mockTests {
-		exp := &PMNewMarginOCOOrderResponse{
+		exp := &PortfolioMarginNewMarginOneCancelsTheOtherOrderResponse{
 			OrderListID:       1,
 			ContingencyType:   "OCO",
 			ListStatusType:    "EXEC_STARTED",
@@ -2007,7 +2007,7 @@ func TestMarginAccountNewOCO(t *testing.T) {
 			ListClientOrderID: "JYVpp3F0f5CAG15DhtrqLp",
 			TransactionTime:   types.Time(time.UnixMilli(1563417480525)),
 			Symbol:            "BTCUSDT",
-			Orders: []PMMarginOCOOrderLeg{
+			Orders: []PortfolioMarginMarginOneCancelsTheOtherOrderLeg{
 				{
 					Symbol:        "BTCUSDT",
 					OrderID:       2,
@@ -2021,7 +2021,7 @@ func TestMarginAccountNewOCO(t *testing.T) {
 			},
 			MarginBuyBorrowAmount: 0.1,
 			MarginBuyBorrowAsset:  currency.BTC,
-			OrderReports: []PMNewMarginOCOOrderReport{
+			OrderReports: []PortfolioMarginNewMarginOneCancelsTheOtherOrderReport{
 				{
 					Symbol:                  "BTCUSDT",
 					OrderID:                 2,
@@ -2040,52 +2040,52 @@ func TestMarginAccountNewOCO(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, exp, result, "MarginAccountNewOCO should decode every field")
+		assert.Equal(t, exp, result, "PortfolioMarginMarginAccountNewOneCancelsTheOtherOrder should decode every field")
 		return
 	}
-	assert.NotZero(t, result.OrderListID, "MarginAccountNewOCO should return an order list ID")
+	assert.NotZero(t, result.OrderListID, "PortfolioMarginMarginAccountNewOneCancelsTheOtherOrder should return an order list ID")
 }
 
-func TestMarginAccountRepay(t *testing.T) {
+func TestPortfolioMarginMarginAccountRepay(t *testing.T) {
 	t.Parallel()
-	_, err := e.MarginAccountRepay(t.Context(), currency.EMPTYCODE, 0.001)
-	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "MarginAccountRepay must reject an empty asset")
-	_, err = e.MarginAccountRepay(t.Context(), currency.USDT, 0)
-	require.ErrorIs(t, err, limits.ErrAmountBelowMin, "MarginAccountRepay must reject a zero amount")
+	_, err := e.PortfolioMarginMarginAccountRepay(t.Context(), currency.EMPTYCODE, 0.001)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "PortfolioMarginMarginAccountRepay must reject an empty asset")
+	_, err = e.PortfolioMarginMarginAccountRepay(t.Context(), currency.USDT, 0)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin, "PortfolioMarginMarginAccountRepay must reject a zero amount")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	result, err := e.MarginAccountRepay(t.Context(), currency.USDT, 0.001)
-	require.NoError(t, err, "MarginAccountRepay must not error")
+	result, err := e.PortfolioMarginMarginAccountRepay(t.Context(), currency.USDT, 0.001)
+	require.NoError(t, err, "PortfolioMarginMarginAccountRepay must not error")
 	if mockTests {
-		exp := &PMTransactionResponse{
+		exp := &PortfolioMarginTransactionResponse{
 			TransactionID: 100000002,
 		}
-		assert.Equal(t, exp, result, "MarginAccountRepay should decode every field")
+		assert.Equal(t, exp, result, "PortfolioMarginMarginAccountRepay should decode every field")
 		return
 	}
-	assert.NotZero(t, result.TransactionID, "MarginAccountRepay should return a transaction ID")
+	assert.NotZero(t, result.TransactionID, "PortfolioMarginMarginAccountRepay should return a transaction ID")
 }
 
-func TestGetPMMarginAccountTradeList(t *testing.T) {
+func TestGetPortfolioMarginMarginAccountTradeList(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetPMMarginAccountTradeList(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "GetPMMarginAccountTradeList must reject a nil request")
-	_, err = e.GetPMMarginAccountTradeList(t.Context(), &PMMarginTradeListRequest{})
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetPMMarginAccountTradeList must reject an empty symbol")
+	_, err := e.GetPortfolioMarginMarginAccountTradeList(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "GetPortfolioMarginMarginAccountTradeList must reject a nil request")
+	_, err = e.GetPortfolioMarginMarginAccountTradeList(t.Context(), &PortfolioMarginMarginTradeListRequest{})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetPortfolioMarginMarginAccountTradeList must reject an empty symbol")
 	startTime, endTime := getTime()
-	_, err = e.GetPMMarginAccountTradeList(t.Context(), &PMMarginTradeListRequest{Symbol: currency.NewBTCUSDT(), StartTime: endTime, EndTime: startTime})
-	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetPMMarginAccountTradeList must reject a start time after the end time")
+	_, err = e.GetPortfolioMarginMarginAccountTradeList(t.Context(), &PortfolioMarginMarginTradeListRequest{Symbol: currency.NewBTCUSDT(), StartTime: endTime, EndTime: startTime})
+	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetPortfolioMarginMarginAccountTradeList must reject a start time after the end time")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 		ensureTradablePairs(t)
 	}
-	result, err := e.GetPMMarginAccountTradeList(t.Context(), &PMMarginTradeListRequest{Symbol: marginTradablePair, OrderID: 39324, StartTime: startTime, EndTime: endTime, FromID: 1, Limit: 10})
-	require.NoError(t, err, "GetPMMarginAccountTradeList must not error")
+	result, err := e.GetPortfolioMarginMarginAccountTradeList(t.Context(), &PortfolioMarginMarginTradeListRequest{Symbol: marginTradablePair, OrderID: 39324, StartTime: startTime, EndTime: endTime, FromID: 1, Limit: 10})
+	require.NoError(t, err, "GetPortfolioMarginMarginAccountTradeList must not error")
 	if mockTests {
-		exp := []PMMarginTradeResponse{
+		exp := []PortfolioMarginMarginTradeResponse{
 			{
 				Commission:      0.00006,
 				CommissionAsset: currency.BTC,
@@ -2100,28 +2100,28 @@ func TestGetPMMarginAccountTradeList(t *testing.T) {
 				Time:            types.Time(time.Unix(1744110000, 0)),
 			},
 		}
-		assert.Equal(t, exp, result, "GetPMMarginAccountTradeList should decode every field")
+		assert.Equal(t, exp, result, "GetPortfolioMarginMarginAccountTradeList should decode every field")
 		return
 	}
-	assert.NotNil(t, result, "GetPMMarginAccountTradeList should return trades")
+	assert.NotNil(t, result, "GetPortfolioMarginMarginAccountTradeList should return trades")
 }
 
-func TestGetAllCMConditionalOrders(t *testing.T) {
+func TestGetAllPortfolioMarginCoinMarginedConditionalOrders(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetAllCMConditionalOrders(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "GetAllCMConditionalOrders must reject a nil request")
+	_, err := e.GetAllPortfolioMarginCoinMarginedConditionalOrders(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "GetAllPortfolioMarginCoinMarginedConditionalOrders must reject a nil request")
 	startTime, endTime := getTime()
-	_, err = e.GetAllCMConditionalOrders(t.Context(), &CMConditionalOrdersRequest{StartTime: endTime, EndTime: startTime})
-	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetAllCMConditionalOrders must reject a start time after the end time")
+	_, err = e.GetAllPortfolioMarginCoinMarginedConditionalOrders(t.Context(), &PortfolioMarginCoinMarginedConditionalOrdersRequest{StartTime: endTime, EndTime: startTime})
+	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetAllPortfolioMarginCoinMarginedConditionalOrders must reject a start time after the end time")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 		ensureTradablePairs(t)
 	}
-	result, err := e.GetAllCMConditionalOrders(t.Context(), &CMConditionalOrdersRequest{Symbol: coinmTradablePair, StrategyID: 123445, StartTime: startTime, EndTime: endTime, Limit: 10})
-	require.NoError(t, err, "GetAllCMConditionalOrders must not error")
+	result, err := e.GetAllPortfolioMarginCoinMarginedConditionalOrders(t.Context(), &PortfolioMarginCoinMarginedConditionalOrdersRequest{Symbol: coinmTradablePair, StrategyID: 123445, StartTime: startTime, EndTime: endTime, Limit: 10})
+	require.NoError(t, err, "GetAllPortfolioMarginCoinMarginedConditionalOrders must not error")
 	if mockTests {
-		exp := []CMConditionalOrderRecordResponse{
+		exp := []PortfolioMarginCoinMarginedConditionalOrderRecordResponse{
 			{
 				NewClientStrategyID: "abc",
 				StrategyID:          123445,
@@ -2145,30 +2145,30 @@ func TestGetAllCMConditionalOrders(t *testing.T) {
 				Type:                "MARKET",
 			},
 		}
-		assert.Equal(t, exp, result, "GetAllCMConditionalOrders should decode every field")
+		assert.Equal(t, exp, result, "GetAllPortfolioMarginCoinMarginedConditionalOrders should decode every field")
 		return
 	}
-	assert.NotNil(t, result, "GetAllCMConditionalOrders should return orders")
+	assert.NotNil(t, result, "GetAllPortfolioMarginCoinMarginedConditionalOrders should return orders")
 }
 
-func TestGetAllCMOrders(t *testing.T) {
+func TestGetAllPortfolioMarginCoinMarginedOrders(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetAllCMOrders(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "GetAllCMOrders must reject a nil request")
-	_, err = e.GetAllCMOrders(t.Context(), &CMOrdersRequest{Limit: 20})
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetAllCMOrders must reject a request without a symbol or pair")
+	_, err := e.GetAllPortfolioMarginCoinMarginedOrders(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "GetAllPortfolioMarginCoinMarginedOrders must reject a nil request")
+	_, err = e.GetAllPortfolioMarginCoinMarginedOrders(t.Context(), &PortfolioMarginCoinMarginedOrdersRequest{Limit: 20})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetAllPortfolioMarginCoinMarginedOrders must reject a request without a symbol or pair")
 	startTime, endTime := getTime()
-	_, err = e.GetAllCMOrders(t.Context(), &CMOrdersRequest{Pair: currency.NewCode("BTCUSD"), StartTime: endTime, EndTime: startTime})
-	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetAllCMOrders must reject a start time after the end time")
+	_, err = e.GetAllPortfolioMarginCoinMarginedOrders(t.Context(), &PortfolioMarginCoinMarginedOrdersRequest{Pair: currency.NewCode("BTCUSD"), StartTime: endTime, EndTime: startTime})
+	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetAllPortfolioMarginCoinMarginedOrders must reject a start time after the end time")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 		ensureTradablePairs(t)
 	}
-	result, err := e.GetAllCMOrders(t.Context(), &CMOrdersRequest{Symbol: coinmTradablePair, Pair: currency.NewCode("BTCUSD"), StartTime: startTime, EndTime: endTime, Limit: 20})
-	require.NoError(t, err, "GetAllCMOrders must not error")
+	result, err := e.GetAllPortfolioMarginCoinMarginedOrders(t.Context(), &PortfolioMarginCoinMarginedOrdersRequest{Symbol: coinmTradablePair, Pair: currency.NewCode("BTCUSD"), StartTime: startTime, EndTime: endTime, Limit: 20})
+	require.NoError(t, err, "GetAllPortfolioMarginCoinMarginedOrders must not error")
 	if mockTests {
-		exp := []CMOrderDetailResponse{
+		exp := []PortfolioMarginCoinMarginedOrderDetailResponse{
 			{
 				AveragePrice:     9500.5,
 				ClientOrderID:    "abc",
@@ -2190,22 +2190,22 @@ func TestGetAllCMOrders(t *testing.T) {
 				UpdateTime:       types.Time(time.UnixMilli(1579276756075)),
 			},
 		}
-		assert.Equal(t, exp, result, "GetAllCMOrders should decode every field")
+		assert.Equal(t, exp, result, "GetAllPortfolioMarginCoinMarginedOrders should decode every field")
 		return
 	}
-	assert.NotNil(t, result, "GetAllCMOrders should return orders")
+	assert.NotNil(t, result, "GetAllPortfolioMarginCoinMarginedOrders should return orders")
 }
 
-func TestGetAllCMOpenConditionalOrders(t *testing.T) {
+func TestGetAllPortfolioMarginCoinMarginedOpenConditionalOrders(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 		ensureTradablePairs(t)
 	}
-	result, err := e.GetAllCMOpenConditionalOrders(t.Context(), coinmTradablePair)
-	require.NoError(t, err, "GetAllCMOpenConditionalOrders must not error")
+	result, err := e.GetAllPortfolioMarginCoinMarginedOpenConditionalOrders(t.Context(), coinmTradablePair)
+	require.NoError(t, err, "GetAllPortfolioMarginCoinMarginedOpenConditionalOrders must not error")
 	if mockTests {
-		exp := []CMConditionalOrderResponse{
+		exp := []PortfolioMarginCoinMarginedConditionalOrderResponse{
 			{
 				NewClientStrategyID: "abc",
 				StrategyID:          123445,
@@ -2225,22 +2225,22 @@ func TestGetAllCMOpenConditionalOrders(t *testing.T) {
 				UpdateTime:          types.Time(time.UnixMilli(1566818724722)),
 			},
 		}
-		assert.Equal(t, exp, result, "GetAllCMOpenConditionalOrders should decode every field")
+		assert.Equal(t, exp, result, "GetAllPortfolioMarginCoinMarginedOpenConditionalOrders should decode every field")
 		return
 	}
-	assert.NotNil(t, result, "GetAllCMOpenConditionalOrders should return orders")
+	assert.NotNil(t, result, "GetAllPortfolioMarginCoinMarginedOpenConditionalOrders should return orders")
 }
 
-func TestGetAllCMOpenOrders(t *testing.T) {
+func TestGetAllPortfolioMarginCoinMarginedOpenOrders(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 		ensureTradablePairs(t)
 	}
-	result, err := e.GetAllCMOpenOrders(t.Context(), coinmTradablePair, currency.NewCode("BTCUSD"))
-	require.NoError(t, err, "GetAllCMOpenOrders must not error")
+	result, err := e.GetAllPortfolioMarginCoinMarginedOpenOrders(t.Context(), coinmTradablePair, currency.NewCode("BTCUSD"))
+	require.NoError(t, err, "GetAllPortfolioMarginCoinMarginedOpenOrders must not error")
 	if mockTests {
-		exp := []CMOrderDetailResponse{
+		exp := []PortfolioMarginCoinMarginedOrderDetailResponse{
 			{
 				AveragePrice:     9500.5,
 				ClientOrderID:    "abc",
@@ -2262,22 +2262,22 @@ func TestGetAllCMOpenOrders(t *testing.T) {
 				UpdateTime:       types.Time(time.UnixMilli(1579276756075)),
 			},
 		}
-		assert.Equal(t, exp, result, "GetAllCMOpenOrders should decode every field")
+		assert.Equal(t, exp, result, "GetAllPortfolioMarginCoinMarginedOpenOrders should decode every field")
 		return
 	}
-	assert.NotNil(t, result, "GetAllCMOpenOrders should return orders")
+	assert.NotNil(t, result, "GetAllPortfolioMarginCoinMarginedOpenOrders should return orders")
 }
 
-func TestGetAllUMOpenOrders(t *testing.T) {
+func TestGetAllPortfolioMarginUSDTMarginedOpenOrders(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 		ensureTradablePairs(t)
 	}
-	result, err := e.GetAllUMOpenOrders(t.Context(), usdtmTradablePair)
-	require.NoError(t, err, "GetAllUMOpenOrders must not error")
+	result, err := e.GetAllPortfolioMarginUSDTMarginedOpenOrders(t.Context(), usdtmTradablePair)
+	require.NoError(t, err, "GetAllPortfolioMarginUSDTMarginedOpenOrders must not error")
 	if mockTests {
-		exp := []UMOrderDetailResponse{
+		exp := []PortfolioMarginUSDTMarginedOrderDetailResponse{
 			{
 				AveragePrice:            62000.5,
 				ClientOrderID:           "abc",
@@ -2301,30 +2301,30 @@ func TestGetAllUMOpenOrders(t *testing.T) {
 				PriceMatch:              "QUEUE",
 			},
 		}
-		assert.Equal(t, exp, result, "GetAllUMOpenOrders should decode every field")
+		assert.Equal(t, exp, result, "GetAllPortfolioMarginUSDTMarginedOpenOrders should decode every field")
 		return
 	}
-	assert.NotNil(t, result, "GetAllUMOpenOrders should return orders")
+	assert.NotNil(t, result, "GetAllPortfolioMarginUSDTMarginedOpenOrders should return orders")
 }
 
-func TestGetAllMarginAccountOrders(t *testing.T) {
+func TestGetAllPortfolioMarginMarginAccountOrders(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetAllMarginAccountOrders(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "GetAllMarginAccountOrders must reject a nil request")
-	_, err = e.GetAllMarginAccountOrders(t.Context(), &PMMarginOrdersRequest{Limit: 10})
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetAllMarginAccountOrders must reject an empty symbol")
+	_, err := e.GetAllPortfolioMarginMarginAccountOrders(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "GetAllPortfolioMarginMarginAccountOrders must reject a nil request")
+	_, err = e.GetAllPortfolioMarginMarginAccountOrders(t.Context(), &PortfolioMarginMarginOrdersRequest{Limit: 10})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetAllPortfolioMarginMarginAccountOrders must reject an empty symbol")
 	startTime, endTime := getTime()
-	_, err = e.GetAllMarginAccountOrders(t.Context(), &PMMarginOrdersRequest{Symbol: currency.NewBTCUSDT(), StartTime: endTime, EndTime: startTime})
-	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetAllMarginAccountOrders must reject a start time after the end time")
+	_, err = e.GetAllPortfolioMarginMarginAccountOrders(t.Context(), &PortfolioMarginMarginOrdersRequest{Symbol: currency.NewBTCUSDT(), StartTime: endTime, EndTime: startTime})
+	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetAllPortfolioMarginMarginAccountOrders must reject a start time after the end time")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 		ensureTradablePairs(t)
 	}
-	result, err := e.GetAllMarginAccountOrders(t.Context(), &PMMarginOrdersRequest{Symbol: marginTradablePair, OrderID: 1234, StartTime: startTime, EndTime: endTime, Limit: 10})
-	require.NoError(t, err, "GetAllMarginAccountOrders must not error")
+	result, err := e.GetAllPortfolioMarginMarginAccountOrders(t.Context(), &PortfolioMarginMarginOrdersRequest{Symbol: marginTradablePair, OrderID: 1234, StartTime: startTime, EndTime: endTime, Limit: 10})
+	require.NoError(t, err, "GetAllPortfolioMarginMarginAccountOrders must not error")
 	if mockTests {
-		exp := []PMMarginOrderResponse{
+		exp := []PortfolioMarginMarginOrderResponse{
 			{
 				ClientOrderID:           "ZwfQzuDIGpceVhKW5DvCmO",
 				CumulativeQuoteQuantity: 1500.5,
@@ -2348,30 +2348,30 @@ func TestGetAllMarginAccountOrders(t *testing.T) {
 				PreventedQuantity:       0.002,
 			},
 		}
-		assert.Equal(t, exp, result, "GetAllMarginAccountOrders should decode every field")
+		assert.Equal(t, exp, result, "GetAllPortfolioMarginMarginAccountOrders should decode every field")
 		return
 	}
-	assert.NotNil(t, result, "GetAllMarginAccountOrders should return orders")
+	assert.NotNil(t, result, "GetAllPortfolioMarginMarginAccountOrders should return orders")
 }
 
-func TestGetAllUMOrders(t *testing.T) {
+func TestGetAllPortfolioMarginUSDTMarginedOrders(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetAllUMOrders(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "GetAllUMOrders must reject a nil request")
-	_, err = e.GetAllUMOrders(t.Context(), &UMOrdersRequest{Limit: 100})
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetAllUMOrders must reject an empty symbol")
+	_, err := e.GetAllPortfolioMarginUSDTMarginedOrders(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "GetAllPortfolioMarginUSDTMarginedOrders must reject a nil request")
+	_, err = e.GetAllPortfolioMarginUSDTMarginedOrders(t.Context(), &PortfolioMarginUSDTMarginedOrdersRequest{Limit: 100})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetAllPortfolioMarginUSDTMarginedOrders must reject an empty symbol")
 	startTime, endTime := getTime()
-	_, err = e.GetAllUMOrders(t.Context(), &UMOrdersRequest{Symbol: currency.NewBTCUSDT(), StartTime: endTime, EndTime: startTime})
-	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetAllUMOrders must reject a start time after the end time")
+	_, err = e.GetAllPortfolioMarginUSDTMarginedOrders(t.Context(), &PortfolioMarginUSDTMarginedOrdersRequest{Symbol: currency.NewBTCUSDT(), StartTime: endTime, EndTime: startTime})
+	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetAllPortfolioMarginUSDTMarginedOrders must reject a start time after the end time")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 		ensureTradablePairs(t)
 	}
-	result, err := e.GetAllUMOrders(t.Context(), &UMOrdersRequest{Symbol: usdtmTradablePair, OrderID: 1, StartTime: startTime, EndTime: endTime, Limit: 100})
-	require.NoError(t, err, "GetAllUMOrders must not error")
+	result, err := e.GetAllPortfolioMarginUSDTMarginedOrders(t.Context(), &PortfolioMarginUSDTMarginedOrdersRequest{Symbol: usdtmTradablePair, OrderID: 1, StartTime: startTime, EndTime: endTime, Limit: 100})
+	require.NoError(t, err, "GetAllPortfolioMarginUSDTMarginedOrders must not error")
 	if mockTests {
-		exp := []UMOrderDetailResponse{
+		exp := []PortfolioMarginUSDTMarginedOrderDetailResponse{
 			{
 				AveragePrice:            62000.5,
 				ClientOrderID:           "abc",
@@ -2395,27 +2395,27 @@ func TestGetAllUMOrders(t *testing.T) {
 				PriceMatch:              "QUEUE",
 			},
 		}
-		assert.Equal(t, exp, result, "GetAllUMOrders should decode every field")
+		assert.Equal(t, exp, result, "GetAllPortfolioMarginUSDTMarginedOrders should decode every field")
 		return
 	}
-	assert.NotNil(t, result, "GetAllUMOrders should return orders")
+	assert.NotNil(t, result, "GetAllPortfolioMarginUSDTMarginedOrders should return orders")
 }
 
-func TestGetCMConditionalOrderHistory(t *testing.T) {
+func TestGetPortfolioMarginCoinMarginedConditionalOrderHistory(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetCMConditionalOrderHistory(t.Context(), currency.EMPTYPAIR, 123432423, "abc")
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetCMConditionalOrderHistory must reject an empty symbol")
-	_, err = e.GetCMConditionalOrderHistory(t.Context(), currency.NewPairWithDelimiter("BTCUSD", "PERP", currency.UnderscoreDelimiter), 0, "")
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "GetCMConditionalOrderHistory must reject a request without a strategy ID")
+	_, err := e.GetPortfolioMarginCoinMarginedConditionalOrderHistory(t.Context(), currency.EMPTYPAIR, 123432423, "abc")
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetPortfolioMarginCoinMarginedConditionalOrderHistory must reject an empty symbol")
+	_, err = e.GetPortfolioMarginCoinMarginedConditionalOrderHistory(t.Context(), currency.NewPairWithDelimiter("BTCUSD", "PERP", currency.UnderscoreDelimiter), 0, "")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "GetPortfolioMarginCoinMarginedConditionalOrderHistory must reject a request without a strategy ID")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 		ensureTradablePairs(t)
 	}
-	result, err := e.GetCMConditionalOrderHistory(t.Context(), coinmTradablePair, 123432423, "abc")
-	require.NoError(t, err, "GetCMConditionalOrderHistory must not error")
+	result, err := e.GetPortfolioMarginCoinMarginedConditionalOrderHistory(t.Context(), coinmTradablePair, 123432423, "abc")
+	require.NoError(t, err, "GetPortfolioMarginCoinMarginedConditionalOrderHistory must not error")
 	if mockTests {
-		exp := &CMConditionalOrderHistoryResponse{
+		exp := &PortfolioMarginCoinMarginedConditionalOrderHistoryResponse{
 			NewClientStrategyID: "abc",
 			StrategyID:          123432423,
 			StrategyStatus:      "TRIGGERED",
@@ -2440,27 +2440,27 @@ func TestGetCMConditionalOrderHistory(t *testing.T) {
 			PriceProtect:        true,
 			PriceMatch:          "NONE",
 		}
-		assert.Equal(t, exp, result, "GetCMConditionalOrderHistory should decode every field")
+		assert.Equal(t, exp, result, "GetPortfolioMarginCoinMarginedConditionalOrderHistory should decode every field")
 		return
 	}
-	assert.NotZero(t, result.StrategyID, "GetCMConditionalOrderHistory should return the strategy ID")
+	assert.NotZero(t, result.StrategyID, "GetPortfolioMarginCoinMarginedConditionalOrderHistory should return the strategy ID")
 }
 
-func TestGetOpenCMConditionalOrder(t *testing.T) {
+func TestGetOpenPortfolioMarginCoinMarginedConditionalOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetOpenCMConditionalOrder(t.Context(), currency.EMPTYPAIR, 1234, "")
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetOpenCMConditionalOrder must reject an empty symbol")
-	_, err = e.GetOpenCMConditionalOrder(t.Context(), currency.NewPairWithDelimiter("BTCUSD", "PERP", currency.UnderscoreDelimiter), 0, "")
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "GetOpenCMConditionalOrder must reject a request without a strategy ID")
+	_, err := e.GetOpenPortfolioMarginCoinMarginedConditionalOrder(t.Context(), currency.EMPTYPAIR, 1234, "")
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetOpenPortfolioMarginCoinMarginedConditionalOrder must reject an empty symbol")
+	_, err = e.GetOpenPortfolioMarginCoinMarginedConditionalOrder(t.Context(), currency.NewPairWithDelimiter("BTCUSD", "PERP", currency.UnderscoreDelimiter), 0, "")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "GetOpenPortfolioMarginCoinMarginedConditionalOrder must reject a request without a strategy ID")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 		ensureTradablePairs(t)
 	}
-	result, err := e.GetOpenCMConditionalOrder(t.Context(), coinmTradablePair, 1234, "")
-	require.NoError(t, err, "GetOpenCMConditionalOrder must not error")
+	result, err := e.GetOpenPortfolioMarginCoinMarginedConditionalOrder(t.Context(), coinmTradablePair, 1234, "")
+	require.NoError(t, err, "GetOpenPortfolioMarginCoinMarginedConditionalOrder must not error")
 	if mockTests {
-		exp := &CMConditionalOrderResponse{
+		exp := &PortfolioMarginCoinMarginedConditionalOrderResponse{
 			NewClientStrategyID: "abc",
 			StrategyID:          1234,
 			StrategyStatus:      "NEW",
@@ -2478,27 +2478,27 @@ func TestGetOpenCMConditionalOrder(t *testing.T) {
 			BookTime:            types.Time(time.UnixMilli(1566818724710)),
 			UpdateTime:          types.Time(time.UnixMilli(1566818724722)),
 		}
-		assert.Equal(t, exp, result, "GetOpenCMConditionalOrder should decode every field")
+		assert.Equal(t, exp, result, "GetOpenPortfolioMarginCoinMarginedConditionalOrder should decode every field")
 		return
 	}
-	assert.NotZero(t, result.StrategyID, "GetOpenCMConditionalOrder should return the strategy ID")
+	assert.NotZero(t, result.StrategyID, "GetOpenPortfolioMarginCoinMarginedConditionalOrder should return the strategy ID")
 }
 
-func TestGetCMOpenOrder(t *testing.T) {
+func TestGetPortfolioMarginCoinMarginedOpenOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetCMOpenOrder(t.Context(), currency.EMPTYPAIR, 1234, "")
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetCMOpenOrder must reject an empty symbol")
-	_, err = e.GetCMOpenOrder(t.Context(), currency.NewPairWithDelimiter("BTCUSD", "PERP", currency.UnderscoreDelimiter), 0, "")
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "GetCMOpenOrder must reject a request without an order ID")
+	_, err := e.GetPortfolioMarginCoinMarginedOpenOrder(t.Context(), currency.EMPTYPAIR, 1234, "")
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetPortfolioMarginCoinMarginedOpenOrder must reject an empty symbol")
+	_, err = e.GetPortfolioMarginCoinMarginedOpenOrder(t.Context(), currency.NewPairWithDelimiter("BTCUSD", "PERP", currency.UnderscoreDelimiter), 0, "")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "GetPortfolioMarginCoinMarginedOpenOrder must reject a request without an order ID")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 		ensureTradablePairs(t)
 	}
-	result, err := e.GetCMOpenOrder(t.Context(), coinmTradablePair, 1234, "")
-	require.NoError(t, err, "GetCMOpenOrder must not error")
+	result, err := e.GetPortfolioMarginCoinMarginedOpenOrder(t.Context(), coinmTradablePair, 1234, "")
+	require.NoError(t, err, "GetPortfolioMarginCoinMarginedOpenOrder must not error")
 	if mockTests {
-		exp := []CMOrderDetailResponse{
+		exp := []PortfolioMarginCoinMarginedOrderDetailResponse{
 			{
 				AveragePrice:     9500.5,
 				ClientOrderID:    "abc",
@@ -2520,22 +2520,22 @@ func TestGetCMOpenOrder(t *testing.T) {
 				UpdateTime:       types.Time(time.UnixMilli(1579276756075)),
 			},
 		}
-		assert.Equal(t, exp, result, "GetCMOpenOrder should decode every field")
+		assert.Equal(t, exp, result, "GetPortfolioMarginCoinMarginedOpenOrder should decode every field")
 		return
 	}
-	assert.NotEmpty(t, result, "GetCMOpenOrder should return the order")
+	assert.NotEmpty(t, result, "GetPortfolioMarginCoinMarginedOpenOrder should return the order")
 }
 
-func TestGetCurrentMarginOpenOrders(t *testing.T) {
+func TestGetPortfolioMarginCurrentMarginOpenOrders(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 		ensureTradablePairs(t)
 	}
-	result, err := e.GetCurrentMarginOpenOrders(t.Context(), marginTradablePair)
-	require.NoError(t, err, "GetCurrentMarginOpenOrders must not error")
+	result, err := e.GetPortfolioMarginCurrentMarginOpenOrders(t.Context(), marginTradablePair)
+	require.NoError(t, err, "GetPortfolioMarginCurrentMarginOpenOrders must not error")
 	if mockTests {
-		exp := []PMMarginOrderResponse{
+		exp := []PortfolioMarginMarginOrderResponse{
 			{
 				ClientOrderID:           "ZwfQzuDIGpceVhKW5DvCmO",
 				CumulativeQuoteQuantity: 1500.5,
@@ -2559,27 +2559,27 @@ func TestGetCurrentMarginOpenOrders(t *testing.T) {
 				PreventedQuantity:       0.002,
 			},
 		}
-		assert.Equal(t, exp, result, "GetCurrentMarginOpenOrders should decode every field")
+		assert.Equal(t, exp, result, "GetPortfolioMarginCurrentMarginOpenOrders should decode every field")
 		return
 	}
-	assert.NotNil(t, result, "GetCurrentMarginOpenOrders should return orders")
+	assert.NotNil(t, result, "GetPortfolioMarginCurrentMarginOpenOrders should return orders")
 }
 
-func TestGetUMOpenOrder(t *testing.T) {
+func TestGetPortfolioMarginUSDTMarginedOpenOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetUMOpenOrder(t.Context(), currency.EMPTYPAIR, 1234, "")
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetUMOpenOrder must reject an empty symbol")
-	_, err = e.GetUMOpenOrder(t.Context(), currency.NewBTCUSDT(), 0, "")
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "GetUMOpenOrder must reject a request without an order ID")
+	_, err := e.GetPortfolioMarginUSDTMarginedOpenOrder(t.Context(), currency.EMPTYPAIR, 1234, "")
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetPortfolioMarginUSDTMarginedOpenOrder must reject an empty symbol")
+	_, err = e.GetPortfolioMarginUSDTMarginedOpenOrder(t.Context(), currency.NewBTCUSDT(), 0, "")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "GetPortfolioMarginUSDTMarginedOpenOrder must reject a request without an order ID")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 		ensureTradablePairs(t)
 	}
-	result, err := e.GetUMOpenOrder(t.Context(), usdtmTradablePair, 1234, "")
-	require.NoError(t, err, "GetUMOpenOrder must not error")
+	result, err := e.GetPortfolioMarginUSDTMarginedOpenOrder(t.Context(), usdtmTradablePair, 1234, "")
+	require.NoError(t, err, "GetPortfolioMarginUSDTMarginedOpenOrder must not error")
 	if mockTests {
-		exp := &UMOrderDetailResponse{
+		exp := &PortfolioMarginUSDTMarginedOrderDetailResponse{
 			AveragePrice:            62000.5,
 			ClientOrderID:           "abc",
 			CumulativeQuote:         620.005,
@@ -2601,27 +2601,27 @@ func TestGetUMOpenOrder(t *testing.T) {
 			GoodTillDate:            types.Time(time.Unix(1693207680, 0)),
 			PriceMatch:              "QUEUE",
 		}
-		assert.Equal(t, exp, result, "GetUMOpenOrder should decode every field")
+		assert.Equal(t, exp, result, "GetPortfolioMarginUSDTMarginedOpenOrder should decode every field")
 		return
 	}
-	assert.NotZero(t, result.OrderID, "GetUMOpenOrder should return the order ID")
+	assert.NotZero(t, result.OrderID, "GetPortfolioMarginUSDTMarginedOpenOrder should return the order ID")
 }
 
-func TestGetPMMarginAccountAllOCO(t *testing.T) {
+func TestGetPortfolioMarginMarginAccountAllOneCancelsTheOtherOrders(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetPMMarginAccountAllOCO(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "GetPMMarginAccountAllOCO must reject a nil request")
+	_, err := e.GetPortfolioMarginMarginAccountAllOneCancelsTheOtherOrders(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "GetPortfolioMarginMarginAccountAllOneCancelsTheOtherOrders must reject a nil request")
 	startTime, endTime := getTime()
-	_, err = e.GetPMMarginAccountAllOCO(t.Context(), &PMMarginAllOCORequest{StartTime: endTime, EndTime: startTime, FromID: 1, Limit: 100})
-	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetPMMarginAccountAllOCO must reject a start time after the end time")
+	_, err = e.GetPortfolioMarginMarginAccountAllOneCancelsTheOtherOrders(t.Context(), &PortfolioMarginMarginAllOneCancelsTheOtherOrdersRequest{StartTime: endTime, EndTime: startTime, FromID: 1, Limit: 100})
+	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetPortfolioMarginMarginAccountAllOneCancelsTheOtherOrders must reject a start time after the end time")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetPMMarginAccountAllOCO(t.Context(), &PMMarginAllOCORequest{StartTime: startTime, EndTime: endTime, FromID: 1, Limit: 100})
-	require.NoError(t, err, "GetPMMarginAccountAllOCO must not error")
+	result, err := e.GetPortfolioMarginMarginAccountAllOneCancelsTheOtherOrders(t.Context(), &PortfolioMarginMarginAllOneCancelsTheOtherOrdersRequest{StartTime: startTime, EndTime: endTime, FromID: 1, Limit: 100})
+	require.NoError(t, err, "GetPortfolioMarginMarginAccountAllOneCancelsTheOtherOrders must not error")
 	if mockTests {
-		exp := []PMMarginOCOOrderResponse{
+		exp := []PortfolioMarginMarginOneCancelsTheOtherOrderResponse{
 			{
 				OrderListID:       27,
 				ContingencyType:   "OCO",
@@ -2630,7 +2630,7 @@ func TestGetPMMarginAccountAllOCO(t *testing.T) {
 				ListClientOrderID: "h2USkA5YQpaXHPIrkd96xE",
 				TransactionTime:   types.Time(time.UnixMilli(1565245656253)),
 				Symbol:            "BTCUSDT",
-				Orders: []PMMarginOCOOrderLeg{
+				Orders: []PortfolioMarginMarginOneCancelsTheOtherOrderLeg{
 					{
 						Symbol:        "BTCUSDT",
 						OrderID:       4,
@@ -2644,21 +2644,21 @@ func TestGetPMMarginAccountAllOCO(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, exp, result, "GetPMMarginAccountAllOCO should decode every field")
+		assert.Equal(t, exp, result, "GetPortfolioMarginMarginAccountAllOneCancelsTheOtherOrders should decode every field")
 		return
 	}
-	assert.NotNil(t, result, "GetPMMarginAccountAllOCO should return order lists")
+	assert.NotNil(t, result, "GetPortfolioMarginMarginAccountAllOneCancelsTheOtherOrders should return order lists")
 }
 
-func TestGetMarginAccountsOpenOCO(t *testing.T) {
+func TestGetPortfolioMarginMarginAccountsOpenOneCancelsTheOtherOrders(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetMarginAccountsOpenOCO(t.Context())
-	require.NoError(t, err, "GetMarginAccountsOpenOCO must not error")
+	result, err := e.GetPortfolioMarginMarginAccountsOpenOneCancelsTheOtherOrders(t.Context())
+	require.NoError(t, err, "GetPortfolioMarginMarginAccountsOpenOneCancelsTheOtherOrders must not error")
 	if mockTests {
-		exp := []PMMarginOCOOrderResponse{
+		exp := []PortfolioMarginMarginOneCancelsTheOtherOrderResponse{
 			{
 				OrderListID:       31,
 				ContingencyType:   "OCO",
@@ -2667,7 +2667,7 @@ func TestGetMarginAccountsOpenOCO(t *testing.T) {
 				ListClientOrderID: "h2USkA5YQpaXHPIrkd96xE",
 				TransactionTime:   types.Time(time.UnixMilli(1565245656253)),
 				Symbol:            "BTCUSDT",
-				Orders: []PMMarginOCOOrderLeg{
+				Orders: []PortfolioMarginMarginOneCancelsTheOtherOrderLeg{
 					{
 						Symbol:        "BTCUSDT",
 						OrderID:       4,
@@ -2681,28 +2681,28 @@ func TestGetMarginAccountsOpenOCO(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, exp, result, "GetMarginAccountsOpenOCO should decode every field")
+		assert.Equal(t, exp, result, "GetPortfolioMarginMarginAccountsOpenOneCancelsTheOtherOrders should decode every field")
 		return
 	}
-	assert.NotNil(t, result, "GetMarginAccountsOpenOCO should return order lists")
+	assert.NotNil(t, result, "GetPortfolioMarginMarginAccountsOpenOneCancelsTheOtherOrders should return order lists")
 }
 
-func TestGetUsersCMForceOrders(t *testing.T) {
+func TestGetUsersPortfolioMarginCoinMarginedForceOrders(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetUsersCMForceOrders(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "GetUsersCMForceOrders must reject a nil request")
+	_, err := e.GetUsersPortfolioMarginCoinMarginedForceOrders(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "GetUsersPortfolioMarginCoinMarginedForceOrders must reject a nil request")
 	startTime, endTime := getTime()
-	_, err = e.GetUsersCMForceOrders(t.Context(), &PMForceOrdersRequest{StartTime: endTime, EndTime: startTime, Limit: 10})
-	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetUsersCMForceOrders must reject a start time after the end time")
+	_, err = e.GetUsersPortfolioMarginCoinMarginedForceOrders(t.Context(), &PortfolioMarginForceOrdersRequest{StartTime: endTime, EndTime: startTime, Limit: 10})
+	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetUsersPortfolioMarginCoinMarginedForceOrders must reject a start time after the end time")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 		ensureTradablePairs(t)
 	}
-	result, err := e.GetUsersCMForceOrders(t.Context(), &PMForceOrdersRequest{Symbol: coinmTradablePair, AutoCloseType: "ADL", StartTime: startTime, EndTime: endTime, Limit: 10})
-	require.NoError(t, err, "GetUsersCMForceOrders must not error")
+	result, err := e.GetUsersPortfolioMarginCoinMarginedForceOrders(t.Context(), &PortfolioMarginForceOrdersRequest{Symbol: coinmTradablePair, AutoCloseType: "ADL", StartTime: startTime, EndTime: endTime, Limit: 10})
+	require.NoError(t, err, "GetUsersPortfolioMarginCoinMarginedForceOrders must not error")
 	if mockTests {
-		exp := []CMForceOrderResponse{
+		exp := []PortfolioMarginCoinMarginedForceOrderResponse{
 			{
 				OrderID:          165123080,
 				Symbol:           "BTCUSD_PERP",
@@ -2724,28 +2724,28 @@ func TestGetUsersCMForceOrders(t *testing.T) {
 				UpdateTime:       types.Time(time.UnixMilli(1596542005050)),
 			},
 		}
-		assert.Equal(t, exp, result, "GetUsersCMForceOrders should decode every field")
+		assert.Equal(t, exp, result, "GetUsersPortfolioMarginCoinMarginedForceOrders should decode every field")
 		return
 	}
-	assert.NotNil(t, result, "GetUsersCMForceOrders should return orders")
+	assert.NotNil(t, result, "GetUsersPortfolioMarginCoinMarginedForceOrders should return orders")
 }
 
-func TestGetUsersMarginForceOrders(t *testing.T) {
+func TestGetUsersPortfolioMarginMarginForceOrders(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetUsersMarginForceOrders(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "GetUsersMarginForceOrders must reject a nil request")
+	_, err := e.GetUsersPortfolioMarginMarginForceOrders(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "GetUsersPortfolioMarginMarginForceOrders must reject a nil request")
 	startTime, endTime := getTime()
-	_, err = e.GetUsersMarginForceOrders(t.Context(), &PMMarginForceOrdersRequest{StartTime: endTime, EndTime: startTime})
-	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetUsersMarginForceOrders must reject a start time after the end time")
+	_, err = e.GetUsersPortfolioMarginMarginForceOrders(t.Context(), &PortfolioMarginMarginForceOrdersRequest{StartTime: endTime, EndTime: startTime})
+	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetUsersPortfolioMarginMarginForceOrders must reject a start time after the end time")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetUsersMarginForceOrders(t.Context(), &PMMarginForceOrdersRequest{StartTime: startTime, EndTime: endTime, Current: 1, Size: 5})
-	require.NoError(t, err, "GetUsersMarginForceOrders must not error")
+	result, err := e.GetUsersPortfolioMarginMarginForceOrders(t.Context(), &PortfolioMarginMarginForceOrdersRequest{StartTime: startTime, EndTime: endTime, Current: 1, Size: 5})
+	require.NoError(t, err, "GetUsersPortfolioMarginMarginForceOrders must not error")
 	if mockTests {
-		exp := &PMMarginForceOrderResponse{
-			Rows: []PMMarginForceOrder{
+		exp := &PortfolioMarginMarginForceOrderResponse{
+			Rows: []PortfolioMarginMarginForceOrder{
 				{
 					AveragePrice:     0.00388359,
 					ExecutedQuantity: 31.39,
@@ -2760,28 +2760,28 @@ func TestGetUsersMarginForceOrders(t *testing.T) {
 			},
 			Total: 1,
 		}
-		assert.Equal(t, exp, result, "GetUsersMarginForceOrders should decode every field")
+		assert.Equal(t, exp, result, "GetUsersPortfolioMarginMarginForceOrders should decode every field")
 		return
 	}
-	assert.NotNil(t, result, "GetUsersMarginForceOrders should return orders")
+	assert.NotNil(t, result, "GetUsersPortfolioMarginMarginForceOrders should return orders")
 }
 
-func TestGetUsersUMForceOrders(t *testing.T) {
+func TestGetUsersPortfolioMarginUSDTMarginedForceOrders(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetUsersUMForceOrders(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "GetUsersUMForceOrders must reject a nil request")
+	_, err := e.GetUsersPortfolioMarginUSDTMarginedForceOrders(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "GetUsersPortfolioMarginUSDTMarginedForceOrders must reject a nil request")
 	startTime, endTime := getTime()
-	_, err = e.GetUsersUMForceOrders(t.Context(), &PMForceOrdersRequest{StartTime: endTime, EndTime: startTime, Limit: 10})
-	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetUsersUMForceOrders must reject a start time after the end time")
+	_, err = e.GetUsersPortfolioMarginUSDTMarginedForceOrders(t.Context(), &PortfolioMarginForceOrdersRequest{StartTime: endTime, EndTime: startTime, Limit: 10})
+	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetUsersPortfolioMarginUSDTMarginedForceOrders must reject a start time after the end time")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 		ensureTradablePairs(t)
 	}
-	result, err := e.GetUsersUMForceOrders(t.Context(), &PMForceOrdersRequest{Symbol: usdtmTradablePair, AutoCloseType: "LIQUIDATION", StartTime: startTime, EndTime: endTime, Limit: 10})
-	require.NoError(t, err, "GetUsersUMForceOrders must not error")
+	result, err := e.GetUsersPortfolioMarginUSDTMarginedForceOrders(t.Context(), &PortfolioMarginForceOrdersRequest{Symbol: usdtmTradablePair, AutoCloseType: "LIQUIDATION", StartTime: startTime, EndTime: endTime, Limit: 10})
+	require.NoError(t, err, "GetUsersPortfolioMarginUSDTMarginedForceOrders must not error")
 	if mockTests {
-		exp := []UMForceOrderResponse{
+		exp := []PortfolioMarginUSDTMarginedForceOrderResponse{
 			{
 				OrderID:          6071832819,
 				Symbol:           "BTCUSDT",
@@ -2802,23 +2802,23 @@ func TestGetUsersUMForceOrders(t *testing.T) {
 				UpdateTime:       types.Time(time.UnixMilli(1596107620087)),
 			},
 		}
-		assert.Equal(t, exp, result, "GetUsersUMForceOrders should decode every field")
+		assert.Equal(t, exp, result, "GetUsersPortfolioMarginUSDTMarginedForceOrders should decode every field")
 		return
 	}
-	assert.NotNil(t, result, "GetUsersUMForceOrders should return orders")
+	assert.NotNil(t, result, "GetUsersPortfolioMarginUSDTMarginedForceOrders should return orders")
 }
 
-func TestGetUMAccountTradeList(t *testing.T) {
+func TestGetPortfolioMarginUSDTMarginedAccountTradeList(t *testing.T) {
 	t.Parallel()
 	startTime, endTime := getTime()
-	_, err := e.GetUMAccountTradeList(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "GetUMAccountTradeList must reject a nil request")
-	_, err = e.GetUMAccountTradeList(t.Context(), &UMAccountTradeListRequest{StartTime: startTime, EndTime: endTime})
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetUMAccountTradeList must reject an empty symbol")
-	_, err = e.GetUMAccountTradeList(t.Context(), &UMAccountTradeListRequest{Symbol: currency.NewBTCUSDT(), FromID: 1, EndTime: endTime})
-	require.ErrorIs(t, err, errFromIDWithTimeRange, "GetUMAccountTradeList must reject fromId with a time range")
-	_, err = e.GetUMAccountTradeList(t.Context(), &UMAccountTradeListRequest{Symbol: currency.NewBTCUSDT(), StartTime: endTime, EndTime: startTime})
-	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetUMAccountTradeList must reject a start time after the end time")
+	_, err := e.GetPortfolioMarginUSDTMarginedAccountTradeList(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "GetPortfolioMarginUSDTMarginedAccountTradeList must reject a nil request")
+	_, err = e.GetPortfolioMarginUSDTMarginedAccountTradeList(t.Context(), &PortfolioMarginUSDTMarginedAccountTradeListRequest{StartTime: startTime, EndTime: endTime})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetPortfolioMarginUSDTMarginedAccountTradeList must reject an empty symbol")
+	_, err = e.GetPortfolioMarginUSDTMarginedAccountTradeList(t.Context(), &PortfolioMarginUSDTMarginedAccountTradeListRequest{Symbol: currency.NewBTCUSDT(), FromID: 1, EndTime: endTime})
+	require.ErrorIs(t, err, errFromIDWithTimeRange, "GetPortfolioMarginUSDTMarginedAccountTradeList must reject fromId with a time range")
+	_, err = e.GetPortfolioMarginUSDTMarginedAccountTradeList(t.Context(), &PortfolioMarginUSDTMarginedAccountTradeListRequest{Symbol: currency.NewBTCUSDT(), StartTime: endTime, EndTime: startTime})
+	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetPortfolioMarginUSDTMarginedAccountTradeList must reject a start time after the end time")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -2826,10 +2826,10 @@ func TestGetUMAccountTradeList(t *testing.T) {
 	}
 	for _, tc := range []struct {
 		name string
-		arg  *UMAccountTradeListRequest
-		exp  []UMAccountTradeResponse
+		arg  *PortfolioMarginUSDTMarginedAccountTradeListRequest
+		exp  []PortfolioMarginUSDTMarginedAccountTradeResponse
 	}{
-		{name: "timeRange", arg: &UMAccountTradeListRequest{Symbol: usdtmTradablePair, StartTime: startTime, EndTime: endTime, Limit: 10}, exp: []UMAccountTradeResponse{
+		{name: "timeRange", arg: &PortfolioMarginUSDTMarginedAccountTradeListRequest{Symbol: usdtmTradablePair, StartTime: startTime, EndTime: endTime, Limit: 10}, exp: []PortfolioMarginUSDTMarginedAccountTradeResponse{
 			{
 				Symbol:          "BTCUSDT",
 				ID:              67880589,
@@ -2847,7 +2847,7 @@ func TestGetUMAccountTradeList(t *testing.T) {
 				PositionSide:    "BOTH",
 			},
 		}},
-		{name: "fromID", arg: &UMAccountTradeListRequest{Symbol: usdtmTradablePair, FromID: 67880589}, exp: []UMAccountTradeResponse{
+		{name: "fromID", arg: &PortfolioMarginUSDTMarginedAccountTradeListRequest{Symbol: usdtmTradablePair, FromID: 67880589}, exp: []PortfolioMarginUSDTMarginedAccountTradeResponse{
 			{
 				Symbol:          "BTCUSDT",
 				ID:              67880589,
@@ -2868,76 +2868,76 @@ func TestGetUMAccountTradeList(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			result, err := e.GetUMAccountTradeList(t.Context(), tc.arg)
-			require.NoError(t, err, "GetUMAccountTradeList must not error")
+			result, err := e.GetPortfolioMarginUSDTMarginedAccountTradeList(t.Context(), tc.arg)
+			require.NoError(t, err, "GetPortfolioMarginUSDTMarginedAccountTradeList must not error")
 			if mockTests {
-				assert.Equal(t, tc.exp, result, "GetUMAccountTradeList should decode every field")
+				assert.Equal(t, tc.exp, result, "GetPortfolioMarginUSDTMarginedAccountTradeList should decode every field")
 				return
 			}
-			assert.NotNil(t, result, "GetUMAccountTradeList should return trades")
+			assert.NotNil(t, result, "GetPortfolioMarginUSDTMarginedAccountTradeList should return trades")
 		})
 	}
 }
 
-func TestGetUMPositionADLQuantileEstimation(t *testing.T) {
+func TestGetPortfolioMarginUSDTMarginedPositionAutoDeleveragingQuantileEstimation(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 		ensureTradablePairs(t)
 	}
-	result, err := e.GetUMPositionADLQuantileEstimation(t.Context(), usdtmTradablePair)
-	require.NoError(t, err, "GetUMPositionADLQuantileEstimation must not error")
+	result, err := e.GetPortfolioMarginUSDTMarginedPositionAutoDeleveragingQuantileEstimation(t.Context(), usdtmTradablePair)
+	require.NoError(t, err, "GetPortfolioMarginUSDTMarginedPositionAutoDeleveragingQuantileEstimation must not error")
 	if mockTests {
-		exp := []UMADLQuantileEstimationResponse{
+		exp := []PortfolioMarginUSDTMarginedAutoDeleveragingQuantileEstimationResponse{
 			{
 				Symbol: "BTCUSDT",
-				ADLQuantile: UMADLQuantile{
+				AutoDeleveragingQuantile: PortfolioMarginUSDTMarginedAutoDeleveragingQuantile{
 					Long:  3,
 					Short: 3,
 					Both:  2,
 				},
 			},
 		}
-		assert.Equal(t, exp, result, "GetUMPositionADLQuantileEstimation should decode every field")
+		assert.Equal(t, exp, result, "GetPortfolioMarginUSDTMarginedPositionAutoDeleveragingQuantileEstimation should decode every field")
 		return
 	}
-	assert.NotNil(t, result, "GetUMPositionADLQuantileEstimation should return quantiles")
+	assert.NotNil(t, result, "GetPortfolioMarginUSDTMarginedPositionAutoDeleveragingQuantileEstimation should return quantiles")
 }
 
-func TestNewUMAlgoOrder(t *testing.T) {
+func TestNewPortfolioMarginUSDTMarginedAlgoOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.NewUMAlgoOrder(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "NewUMAlgoOrder must reject a nil request")
-	arg := &UMAlgoOrderRequest{TriggerPrice: 74000}
-	_, err = e.NewUMAlgoOrder(t.Context(), arg)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "NewUMAlgoOrder must reject an empty symbol")
+	_, err := e.NewPortfolioMarginUSDTMarginedAlgoOrder(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "NewPortfolioMarginUSDTMarginedAlgoOrder must reject a nil request")
+	arg := &PortfolioMarginUSDTMarginedAlgoOrderRequest{TriggerPrice: 74000}
+	_, err = e.NewPortfolioMarginUSDTMarginedAlgoOrder(t.Context(), arg)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "NewPortfolioMarginUSDTMarginedAlgoOrder must reject an empty symbol")
 	arg.Symbol = currency.NewBTCUSDT()
-	_, err = e.NewUMAlgoOrder(t.Context(), arg)
-	require.ErrorIs(t, err, order.ErrSideIsInvalid, "NewUMAlgoOrder must reject an invalid side")
+	_, err = e.NewPortfolioMarginUSDTMarginedAlgoOrder(t.Context(), arg)
+	require.ErrorIs(t, err, order.ErrSideIsInvalid, "NewPortfolioMarginUSDTMarginedAlgoOrder must reject an invalid side")
 	arg.Side = order.Sell
-	_, err = e.NewUMAlgoOrder(t.Context(), arg)
-	require.ErrorIs(t, err, order.ErrTypeIsInvalid, "NewUMAlgoOrder must reject an empty order type")
+	_, err = e.NewPortfolioMarginUSDTMarginedAlgoOrder(t.Context(), arg)
+	require.ErrorIs(t, err, order.ErrTypeIsInvalid, "NewPortfolioMarginUSDTMarginedAlgoOrder must reject an empty order type")
 	arg.OrderType = "TAKE_PROFIT"
 	arg.Price = 75000
 	arg.PriceMatch = "QUEUE"
-	_, err = e.NewUMAlgoOrder(t.Context(), arg)
-	require.ErrorIs(t, err, errPriceMatchWithPrice, "NewUMAlgoOrder must reject a price with priceMatch")
+	_, err = e.NewPortfolioMarginUSDTMarginedAlgoOrder(t.Context(), arg)
+	require.ErrorIs(t, err, errPriceMatchWithPrice, "NewPortfolioMarginUSDTMarginedAlgoOrder must reject a price with priceMatch")
 	arg.PriceMatch = ""
-	_, err = e.NewUMAlgoOrder(t.Context(), arg)
-	require.ErrorIs(t, err, errAlgoTypeRequired, "NewUMAlgoOrder must reject an empty algo type")
+	_, err = e.NewPortfolioMarginUSDTMarginedAlgoOrder(t.Context(), arg)
+	require.ErrorIs(t, err, errAlgoTypeRequired, "NewPortfolioMarginUSDTMarginedAlgoOrder must reject an empty algo type")
 	arg.AlgoType = "CONDITIONAL"
 	arg.TimeInForce = "GTD"
-	_, err = e.NewUMAlgoOrder(t.Context(), arg)
-	require.ErrorIs(t, err, errGoodTillDateRequired, "NewUMAlgoOrder must reject a GTD order without a good till date")
+	_, err = e.NewPortfolioMarginUSDTMarginedAlgoOrder(t.Context(), arg)
+	require.ErrorIs(t, err, errGoodTillDateRequired, "NewPortfolioMarginUSDTMarginedAlgoOrder must reject a GTD order without a good till date")
 	arg.TimeInForce = ""
 	arg.ClosePosition = true
 	arg.Quantity = 0.01
-	_, err = e.NewUMAlgoOrder(t.Context(), arg)
-	require.ErrorIs(t, err, errClosePositionConflict, "NewUMAlgoOrder must reject closePosition with a quantity")
+	_, err = e.NewPortfolioMarginUSDTMarginedAlgoOrder(t.Context(), arg)
+	require.ErrorIs(t, err, errClosePositionConflict, "NewPortfolioMarginUSDTMarginedAlgoOrder must reject closePosition with a quantity")
 	arg.Quantity = 0
 	arg.ReduceOnly = true
-	_, err = e.NewUMAlgoOrder(t.Context(), arg)
-	require.ErrorIs(t, err, errClosePositionConflict, "NewUMAlgoOrder must reject closePosition with reduceOnly")
+	_, err = e.NewPortfolioMarginUSDTMarginedAlgoOrder(t.Context(), arg)
+	require.ErrorIs(t, err, errClosePositionConflict, "NewPortfolioMarginUSDTMarginedAlgoOrder must reject closePosition with reduceOnly")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -2945,13 +2945,13 @@ func TestNewUMAlgoOrder(t *testing.T) {
 	}
 	for _, tc := range []struct {
 		name string
-		arg  *UMAlgoOrderRequest
-		exp  *UMAlgoOrderResponse
+		arg  *PortfolioMarginUSDTMarginedAlgoOrderRequest
+		exp  *PortfolioMarginUSDTMarginedAlgoOrderResponse
 	}{
 		{
 			name: "takeProfit",
-			arg:  &UMAlgoOrderRequest{AlgoType: "CONDITIONAL", Symbol: usdtmTradablePair, Side: order.Sell, PositionSide: "BOTH", OrderType: "TAKE_PROFIT", TimeInForce: "GTD", Quantity: 0.01, Price: 75000, TriggerPrice: 74000, WorkingType: "MARK_PRICE", PriceProtect: true, ReduceOnly: true, ClientAlgoID: "tpOrder1", NewOrderResponseType: "ACK", SelfTradePreventionMode: "EXPIRE_MAKER", GoodTillDate: time.UnixMilli(1750500000000)},
-			exp: &UMAlgoOrderResponse{
+			arg:  &PortfolioMarginUSDTMarginedAlgoOrderRequest{AlgoType: "CONDITIONAL", Symbol: usdtmTradablePair, Side: order.Sell, PositionSide: "BOTH", OrderType: "TAKE_PROFIT", TimeInForce: "GTD", Quantity: 0.01, Price: 75000, TriggerPrice: 74000, WorkingType: "MARK_PRICE", PriceProtect: true, ReduceOnly: true, ClientAlgoID: "tpOrder1", NewOrderResponseType: "ACK", SelfTradePreventionMode: "EXPIRE_MAKER", GoodTillDate: time.UnixMilli(1750500000000)},
+			exp: &PortfolioMarginUSDTMarginedAlgoOrderResponse{
 				AlgoID:                  2146760,
 				ClientAlgoID:            "tpOrder1",
 				AlgoType:                "CONDITIONAL",
@@ -2976,8 +2976,8 @@ func TestNewUMAlgoOrder(t *testing.T) {
 		},
 		{
 			name: "trailingStopMarket",
-			arg:  &UMAlgoOrderRequest{AlgoType: "CONDITIONAL", Symbol: usdtmTradablePair, Side: order.Sell, OrderType: "TRAILING_STOP_MARKET", Quantity: 0.01, ActivatePrice: 76000, CallbackRate: 1},
-			exp: &UMAlgoOrderResponse{
+			arg:  &PortfolioMarginUSDTMarginedAlgoOrderRequest{AlgoType: "CONDITIONAL", Symbol: usdtmTradablePair, Side: order.Sell, OrderType: "TRAILING_STOP_MARKET", Quantity: 0.01, ActivatePrice: 76000, CallbackRate: 1},
+			exp: &PortfolioMarginUSDTMarginedAlgoOrderResponse{
 				AlgoID:                  2146761,
 				ClientAlgoID:            "trailOrder1",
 				AlgoType:                "CONDITIONAL",
@@ -2999,8 +2999,8 @@ func TestNewUMAlgoOrder(t *testing.T) {
 		},
 		{
 			name: "closePosition",
-			arg:  &UMAlgoOrderRequest{AlgoType: "CONDITIONAL", Symbol: usdtmTradablePair, Side: order.Sell, OrderType: "STOP_MARKET", TriggerPrice: 60000, ClosePosition: true},
-			exp: &UMAlgoOrderResponse{
+			arg:  &PortfolioMarginUSDTMarginedAlgoOrderRequest{AlgoType: "CONDITIONAL", Symbol: usdtmTradablePair, Side: order.Sell, OrderType: "STOP_MARKET", TriggerPrice: 60000, ClosePosition: true},
+			exp: &PortfolioMarginUSDTMarginedAlgoOrderResponse{
 				AlgoID:                  2146762,
 				ClientAlgoID:            "stopOrder1",
 				AlgoType:                "CONDITIONAL",
@@ -3023,55 +3023,55 @@ func TestNewUMAlgoOrder(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			result, err := e.NewUMAlgoOrder(t.Context(), tc.arg)
-			require.NoError(t, err, "NewUMAlgoOrder must not error")
+			result, err := e.NewPortfolioMarginUSDTMarginedAlgoOrder(t.Context(), tc.arg)
+			require.NoError(t, err, "NewPortfolioMarginUSDTMarginedAlgoOrder must not error")
 			if mockTests {
-				assert.Equal(t, tc.exp, result, "NewUMAlgoOrder should decode every field")
+				assert.Equal(t, tc.exp, result, "NewPortfolioMarginUSDTMarginedAlgoOrder should decode every field")
 				return
 			}
-			assert.NotZero(t, result.AlgoID, "NewUMAlgoOrder should return an algo ID")
+			assert.NotZero(t, result.AlgoID, "NewPortfolioMarginUSDTMarginedAlgoOrder should return an algo ID")
 		})
 	}
 }
 
-func TestCancelUMAlgoOrder(t *testing.T) {
+func TestCancelPortfolioMarginUSDTMarginedAlgoOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.CancelUMAlgoOrder(t.Context(), 0, "")
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "CancelUMAlgoOrder must reject a request without an algo ID")
+	_, err := e.CancelPortfolioMarginUSDTMarginedAlgoOrder(t.Context(), 0, "")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "CancelPortfolioMarginUSDTMarginedAlgoOrder must reject a request without an algo ID")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	result, err := e.CancelUMAlgoOrder(t.Context(), 2146760, "tpOrder1")
-	require.NoError(t, err, "CancelUMAlgoOrder must not error")
+	result, err := e.CancelPortfolioMarginUSDTMarginedAlgoOrder(t.Context(), 2146760, "tpOrder1")
+	require.NoError(t, err, "CancelPortfolioMarginUSDTMarginedAlgoOrder must not error")
 	if mockTests {
-		exp := &CancelUMAlgoOrderResponse{
+		exp := &CancelPortfolioMarginUSDTMarginedAlgoOrderResponse{
 			Complete: true,
 		}
-		assert.Equal(t, exp, result, "CancelUMAlgoOrder should decode every field")
+		assert.Equal(t, exp, result, "CancelPortfolioMarginUSDTMarginedAlgoOrder should decode every field")
 		return
 	}
-	assert.True(t, result.Complete, "CancelUMAlgoOrder should complete")
+	assert.True(t, result.Complete, "CancelPortfolioMarginUSDTMarginedAlgoOrder should complete")
 }
 
-func TestCancelAllUMAlgoOpenOrders(t *testing.T) {
+func TestCancelAllPortfolioMarginUSDTMarginedAlgoOpenOrders(t *testing.T) {
 	t.Parallel()
-	_, err := e.CancelAllUMAlgoOpenOrders(t.Context(), currency.EMPTYPAIR)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "CancelAllUMAlgoOpenOrders must reject an empty symbol")
+	_, err := e.CancelAllPortfolioMarginUSDTMarginedAlgoOpenOrders(t.Context(), currency.EMPTYPAIR)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "CancelAllPortfolioMarginUSDTMarginedAlgoOpenOrders must reject an empty symbol")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	result, err := e.CancelAllUMAlgoOpenOrders(t.Context(), currency.NewBTCUSDT())
-	require.NoError(t, err, "CancelAllUMAlgoOpenOrders must not error")
+	result, err := e.CancelAllPortfolioMarginUSDTMarginedAlgoOpenOrders(t.Context(), currency.NewBTCUSDT())
+	require.NoError(t, err, "CancelAllPortfolioMarginUSDTMarginedAlgoOpenOrders must not error")
 	if mockTests {
-		assert.Equal(t, &SuccessResponse{Code: 200, Message: "The operation of cancel all open order is done."}, result, "CancelAllUMAlgoOpenOrders should decode every field")
+		assert.Equal(t, &SuccessResponse{Code: 200, Message: "The operation of cancel all open order is done."}, result, "CancelAllPortfolioMarginUSDTMarginedAlgoOpenOrders should decode every field")
 	}
 }
 
 // umAlgoOrderDetail is the UM algo order the algo order fixtures return
-func umAlgoOrderDetail() UMAlgoOrderDetailResponse {
-	return UMAlgoOrderDetailResponse{
+func umAlgoOrderDetail() PortfolioMarginUSDTMarginedAlgoOrderDetailResponse {
+	return PortfolioMarginUSDTMarginedAlgoOrderDetailResponse{
 		AlgoID:                  2146760,
 		ClientAlgoID:            "6B2I9XVcJpCjqPAJ4YoFX7",
 		AlgoType:                "CONDITIONAL",
@@ -3099,31 +3099,31 @@ func umAlgoOrderDetail() UMAlgoOrderDetailResponse {
 	}
 }
 
-func TestGetUMAlgoOrder(t *testing.T) {
+func TestGetPortfolioMarginUSDTMarginedAlgoOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetUMAlgoOrder(t.Context(), 0, "")
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "GetUMAlgoOrder must reject a request without an algo ID")
+	_, err := e.GetPortfolioMarginUSDTMarginedAlgoOrder(t.Context(), 0, "")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "GetPortfolioMarginUSDTMarginedAlgoOrder must reject a request without an algo ID")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetUMAlgoOrder(t.Context(), 2146760, "")
-	require.NoError(t, err, "GetUMAlgoOrder must not error")
+	result, err := e.GetPortfolioMarginUSDTMarginedAlgoOrder(t.Context(), 2146760, "")
+	require.NoError(t, err, "GetPortfolioMarginUSDTMarginedAlgoOrder must not error")
 	if mockTests {
 		exp := umAlgoOrderDetail()
-		assert.Equal(t, &exp, result, "GetUMAlgoOrder should decode every field")
+		assert.Equal(t, &exp, result, "GetPortfolioMarginUSDTMarginedAlgoOrder should decode every field")
 	}
 }
 
-func TestGetUMOpenAlgoOrders(t *testing.T) {
+func TestGetPortfolioMarginUSDTMarginedOpenAlgoOrders(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetUMOpenAlgoOrders(t.Context(), currency.NewBTCUSDT(), "CONDITIONAL", 2146760)
-	require.NoError(t, err, "GetUMOpenAlgoOrders must not error")
+	result, err := e.GetPortfolioMarginUSDTMarginedOpenAlgoOrders(t.Context(), currency.NewBTCUSDT(), "CONDITIONAL", 2146760)
+	require.NoError(t, err, "GetPortfolioMarginUSDTMarginedOpenAlgoOrders must not error")
 	if mockTests {
-		exp := []UMAlgoOrderResponse{{
+		exp := []PortfolioMarginUSDTMarginedAlgoOrderResponse{{
 			AlgoID:                  2146760,
 			ClientAlgoID:            "6B2I9XVcJpCjqPAJ4YoFX7",
 			AlgoType:                "CONDITIONAL",
@@ -3147,26 +3147,26 @@ func TestGetUMOpenAlgoOrders(t *testing.T) {
 			TriggerTime:             types.Time(time.UnixMilli(1750514545000)),
 			GoodTillDate:            types.Time(time.UnixMilli(1750600000000)),
 		}}
-		assert.Equal(t, exp, result, "GetUMOpenAlgoOrders should decode every field")
+		assert.Equal(t, exp, result, "GetPortfolioMarginUSDTMarginedOpenAlgoOrders should decode every field")
 	}
 }
 
-func TestGetUMAlgoOrderHistory(t *testing.T) {
+func TestGetPortfolioMarginUSDTMarginedAlgoOrderHistory(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetUMAlgoOrderHistory(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "GetUMAlgoOrderHistory must reject a nil request")
-	_, err = e.GetUMAlgoOrderHistory(t.Context(), &UMAlgoOrderHistoryRequest{})
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetUMAlgoOrderHistory must reject an empty symbol")
+	_, err := e.GetPortfolioMarginUSDTMarginedAlgoOrderHistory(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "GetPortfolioMarginUSDTMarginedAlgoOrderHistory must reject a nil request")
+	_, err = e.GetPortfolioMarginUSDTMarginedAlgoOrderHistory(t.Context(), &PortfolioMarginUSDTMarginedAlgoOrderHistoryRequest{})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetPortfolioMarginUSDTMarginedAlgoOrderHistory must reject an empty symbol")
 	startTime, endTime := getTime()
-	_, err = e.GetUMAlgoOrderHistory(t.Context(), &UMAlgoOrderHistoryRequest{Symbol: currency.NewBTCUSDT(), StartTime: endTime, EndTime: startTime})
-	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetUMAlgoOrderHistory must reject a start time after the end time")
+	_, err = e.GetPortfolioMarginUSDTMarginedAlgoOrderHistory(t.Context(), &PortfolioMarginUSDTMarginedAlgoOrderHistoryRequest{Symbol: currency.NewBTCUSDT(), StartTime: endTime, EndTime: startTime})
+	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetPortfolioMarginUSDTMarginedAlgoOrderHistory must reject a start time after the end time")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetUMAlgoOrderHistory(t.Context(), &UMAlgoOrderHistoryRequest{Symbol: currency.NewBTCUSDT(), AlgoID: 2146760, StartTime: startTime, EndTime: endTime, Limit: 10})
-	require.NoError(t, err, "GetUMAlgoOrderHistory must not error")
+	result, err := e.GetPortfolioMarginUSDTMarginedAlgoOrderHistory(t.Context(), &PortfolioMarginUSDTMarginedAlgoOrderHistoryRequest{Symbol: currency.NewBTCUSDT(), AlgoID: 2146760, StartTime: startTime, EndTime: endTime, Limit: 10})
+	require.NoError(t, err, "GetPortfolioMarginUSDTMarginedAlgoOrderHistory must not error")
 	if mockTests {
-		assert.Equal(t, []UMAlgoOrderDetailResponse{umAlgoOrderDetail()}, result, "GetUMAlgoOrderHistory should decode every field")
+		assert.Equal(t, []PortfolioMarginUSDTMarginedAlgoOrderDetailResponse{umAlgoOrderDetail()}, result, "GetPortfolioMarginUSDTMarginedAlgoOrderHistory should decode every field")
 	}
 }

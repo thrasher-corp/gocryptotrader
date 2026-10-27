@@ -125,8 +125,8 @@ type BrokerIPRestrictionUpdateRequest struct {
 	SubAccountAPIKey string
 	// Status is 1 for unrestricted access or 2 to restrict access to trusted IPs
 	Status uint64
-	// IPAddress is a comma separated list of trusted IPs to add
-	IPAddress string
+	// IPAddresses are the trusted IPs to add
+	IPAddresses []string
 }
 
 // BrokerIPRestrictionUpdateResponse is a sub-account API key's IP restriction after an update

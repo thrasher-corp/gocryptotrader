@@ -20,11 +20,13 @@ type AccountAPITradingStatus struct {
 	UpdateTime         types.Time                 `json:"updateTime"`
 }
 
-// TradingAPITriggerCondition holds the order counts that lock an account's API trading
+// TradingAPITriggerCondition holds the order counts from which Binance's API trading rules can lock trading: the GTC
+// cancellation ratio (GCR) counts GTC orders, the IOC/FOK expiration ratio (IFER) IOC and FOK orders, and the unfilled
+// ratio (UFR) every order
 type TradingAPITriggerCondition struct {
-	GCR  uint64 `json:"GCR"`  // Number of GTC orders
-	IFER uint64 `json:"IFER"` // Number of FOK/IOC orders
-	UFR  uint64 `json:"UFR"`  // Number of orders
+	GoodTillCancelOrders                uint64 `json:"GCR"`
+	ImmediateOrCancelOrFillOrKillOrders uint64 `json:"IFER"`
+	AllOrders                           uint64 `json:"UFR"`
 }
 
 // AccountInfoResponse holds the Account info

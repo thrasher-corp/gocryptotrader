@@ -10,6 +10,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
+// klineInterval pairs a candle interval with its Binance wire representation.
+type klineInterval struct {
+	Interval kline.Interval
+	String   string
+}
+
 // WebsocketPayloadRequest is a WebSocket Streams subscription request: SUBSCRIBE or UNSUBSCRIBE with the stream names
 type WebsocketPayloadRequest struct {
 	Method string   `json:"method"`
@@ -151,8 +157,8 @@ type WebsocketRateLimitResponse struct {
 
 // WebsocketAveragePriceResponse is the Current average price (avgPrice) result
 type WebsocketAveragePriceResponse struct {
-	Minutes uint64       `json:"mins"` // Average price interval in minutes
-	Price   types.Number `json:"price"`
+	IntervalInMinutes uint64       `json:"mins"`
+	Price             types.Number `json:"price"`
 	// CloseTime is the time of the last trade
 	CloseTime types.Time `json:"closeTime"`
 }
@@ -263,7 +269,7 @@ type WebsocketOrderReport struct {
 	Type                       string       `json:"type"`
 	Side                       string       `json:"side"`
 	StopPrice                  types.Number `json:"stopPrice"`
-	TrailingDelta              uint64       `json:"trailingDelta"`
+	TrailingDeltaInBasisPoints uint64       `json:"trailingDelta"`
 	// TrailingTime is when a trailing stop order started tracking the price, in milliseconds; -1 before it activates
 	TrailingTime            int64        `json:"trailingTime"`
 	IcebergQuantity         types.Number `json:"icebergQty"`
@@ -332,14 +338,14 @@ type WebsocketCancelReplaceOrderRequest struct {
 	QuoteOrderQuantity          float64
 	NewClientOrderID            string
 	// NewOrderResponseType is ACK, RESULT or FULL
-	NewOrderResponseType    string
-	StopPrice               float64
-	TrailingDelta           uint64
-	IcebergQuantity         float64
-	StrategyID              uint64
-	StrategyType            uint64
-	SelfTradePreventionMode string
-	CancelRestrictions      string
+	NewOrderResponseType       string
+	StopPrice                  float64
+	TrailingDeltaInBasisPoints uint64
+	IcebergQuantity            float64
+	StrategyID                 uint64
+	StrategyType               uint64
+	SelfTradePreventionMode    string
+	CancelRestrictions         string
 	// OrderRateLimitExceededMode is DO_NOTHING (the default) or CANCEL_ONLY
 	OrderRateLimitExceededMode string
 	PegPriceType               string
@@ -385,8 +391,9 @@ type WebsocketCancelOrderListRequest struct {
 	NewClientOrderID string
 }
 
-// WebsocketPlaceOCOOrderRequest holds the parameters of the Place new OCO - Deprecated (orderList.place) request
-type WebsocketPlaceOCOOrderRequest struct {
+// WebsocketPlaceOneCancelsTheOtherOrderRequest holds the parameters of the Place new OCO - Deprecated (orderList.place)
+// request
+type WebsocketPlaceOneCancelsTheOtherOrderRequest struct {
 	Symbol currency.Pair
 	Side   string
 	// Price is the limit order's price
@@ -397,17 +404,17 @@ type WebsocketPlaceOCOOrderRequest struct {
 	LimitIcebergQuantity float64
 	LimitStrategyID      uint64
 	LimitStrategyType    uint64
-	// StopPrice or TrailingDelta, or both, trigger the stop order
-	StopPrice               float64
-	TrailingDelta           uint64
-	StopClientOrderID       string
-	StopLimitPrice          float64
-	StopLimitTimeInForce    string
-	StopIcebergQuantity     float64
-	StopStrategyID          uint64
-	StopStrategyType        uint64
-	NewOrderResponseType    string
-	SelfTradePreventionMode string
+	// StopPrice or TrailingDeltaInBasisPoints, or both, trigger the stop order
+	StopPrice                  float64
+	TrailingDeltaInBasisPoints uint64
+	StopClientOrderID          string
+	StopLimitPrice             float64
+	StopLimitTimeInForce       string
+	StopIcebergQuantity        float64
+	StopStrategyID             uint64
+	StopStrategyType           uint64
+	NewOrderResponseType       string
+	SelfTradePreventionMode    string
 }
 
 // WebsocketOrderListResponse is the Place new OCO - Deprecated (orderList.place) result: the order list with each leg's
@@ -437,11 +444,11 @@ type WebsocketPlaceOrderRequest struct {
 	QuoteOrderQuantity float64
 	NewClientOrderID   string
 	// NewOrderResponseType is ACK, RESULT or FULL; MARKET and LIMIT orders default to FULL and the others to ACK
-	NewOrderResponseType string
-	StopPrice            float64
-	TrailingDelta        uint64
-	IcebergQuantity      float64
-	StrategyID           uint64
+	NewOrderResponseType       string
+	StopPrice                  float64
+	TrailingDeltaInBasisPoints uint64
+	IcebergQuantity            float64
+	StrategyID                 uint64
 	// StrategyType values below 1000000 are reserved
 	StrategyType            uint64
 	SelfTradePreventionMode string
@@ -480,16 +487,16 @@ type WebsocketOrderResponse struct {
 	Type                       string       `json:"type"`
 	Side                       string       `json:"side"`
 	// WorkingTime is when the order started working on the book, in milliseconds; -1 for a pending order list leg
-	WorkingTime             int64                `json:"workingTime"`
-	SelfTradePreventionMode string               `json:"selfTradePreventionMode"`
-	Fills                   []WebsocketOrderFill `json:"fills"`
-	IcebergQuantity         types.Number         `json:"icebergQty"`
-	PreventedMatchID        uint64               `json:"preventedMatchId"`
-	PreventedQuantity       types.Number         `json:"preventedQuantity"`
-	StopPrice               types.Number         `json:"stopPrice"`
-	StrategyID              uint64               `json:"strategyId"`
-	StrategyType            uint64               `json:"strategyType"`
-	TrailingDelta           uint64               `json:"trailingDelta"`
+	WorkingTime                int64                `json:"workingTime"`
+	SelfTradePreventionMode    string               `json:"selfTradePreventionMode"`
+	Fills                      []WebsocketOrderFill `json:"fills"`
+	IcebergQuantity            types.Number         `json:"icebergQty"`
+	PreventedMatchID           uint64               `json:"preventedMatchId"`
+	PreventedQuantity          types.Number         `json:"preventedQuantity"`
+	StopPrice                  types.Number         `json:"stopPrice"`
+	StrategyID                 uint64               `json:"strategyId"`
+	StrategyType               uint64               `json:"strategyType"`
+	TrailingDeltaInBasisPoints uint64               `json:"trailingDelta"`
 	// TrailingTime is when a trailing stop order started tracking the price, in milliseconds; -1 before it activates
 	TrailingTime   int64        `json:"trailingTime"`
 	UsedSOR        bool         `json:"usedSor"`
@@ -579,18 +586,18 @@ type WebsocketSOROrderResponse struct {
 	Type                       string       `json:"type"`
 	Side                       string       `json:"side"`
 	// WorkingTime is when the order started working, in milliseconds
-	WorkingTime             int64                   `json:"workingTime"`
-	Fills                   []WebsocketSOROrderFill `json:"fills"`
-	WorkingFloor            string                  `json:"workingFloor"`
-	SelfTradePreventionMode string                  `json:"selfTradePreventionMode"`
-	UsedSOR                 bool                    `json:"usedSor"`
-	StopPrice               types.Number            `json:"stopPrice"`
-	TrailingDelta           uint64                  `json:"trailingDelta"`
-	IcebergQuantity         types.Number            `json:"icebergQty"`
-	StrategyID              uint64                  `json:"strategyId"`
-	StrategyType            uint64                  `json:"strategyType"`
-	PreventedMatchID        uint64                  `json:"preventedMatchId"`
-	PreventedQuantity       types.Number            `json:"preventedQuantity"`
+	WorkingTime                int64                   `json:"workingTime"`
+	Fills                      []WebsocketSOROrderFill `json:"fills"`
+	WorkingFloor               string                  `json:"workingFloor"`
+	SelfTradePreventionMode    string                  `json:"selfTradePreventionMode"`
+	UsedSOR                    bool                    `json:"usedSor"`
+	StopPrice                  types.Number            `json:"stopPrice"`
+	TrailingDeltaInBasisPoints uint64                  `json:"trailingDelta"`
+	IcebergQuantity            types.Number            `json:"icebergQty"`
+	StrategyID                 uint64                  `json:"strategyId"`
+	StrategyType               uint64                  `json:"strategyType"`
+	PreventedMatchID           uint64                  `json:"preventedMatchId"`
+	PreventedQuantity          types.Number            `json:"preventedQuantity"`
 	// TrailingTime is when a trailing stop order started tracking the price, in milliseconds; -1 before it activates
 	TrailingTime   int64        `json:"trailingTime"`
 	PegPriceType   string       `json:"pegPriceType"`
@@ -799,7 +806,7 @@ type WebsocketExecutionReport struct {
 	QuoteOrderQuantity                     types.Number `json:"Q"`
 	WorkingTime                            types.Time   `json:"W"`
 	SelfTradePreventionMode                string       `json:"V"`
-	TrailingDelta                          uint64       `json:"d"`
+	TrailingDeltaInBasisPoints             uint64       `json:"d"`
 	// TrailingTime is when a trailing stop order started tracking the price, in milliseconds; -1 before it activates
 	TrailingTime                    int64        `json:"D"`
 	StrategyID                      uint64       `json:"j"`

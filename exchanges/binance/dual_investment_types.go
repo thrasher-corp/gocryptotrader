@@ -26,7 +26,7 @@ type DualInvestmentProduct struct {
 	InvestCoin           currency.Code `json:"investCoin"`
 	ExercisedCoin        currency.Code `json:"exercisedCoin"`
 	StrikePrice          types.Number  `json:"strikePrice"`
-	Duration             uint64        `json:"duration"` // days
+	DurationInDays       uint64        `json:"duration"`
 	SettleDate           types.Time    `json:"settleDate"`
 	PurchaseDecimal      uint64        `json:"purchaseDecimal"`
 	PurchaseEndTime      types.Time    `json:"purchaseEndTime"`
@@ -60,7 +60,7 @@ type DualInvestmentPosition struct {
 	ExercisedCoin      currency.Code `json:"exercisedCoin"`
 	SubscriptionAmount types.Number  `json:"subscriptionAmount"`
 	StrikePrice        types.Number  `json:"strikePrice"`
-	Duration           uint64        `json:"duration"` // days
+	DurationInDays     uint64        `json:"duration"`
 	SettleDate         types.Time    `json:"settleDate"`
 	PurchaseStatus     string        `json:"purchaseStatus"`
 	APR                types.Number  `json:"apr"`
@@ -85,7 +85,7 @@ type DualInvestmentSubscriptionResponse struct {
 	InvestCoin         currency.Code `json:"investCoin"`
 	ExercisedCoin      currency.Code `json:"exercisedCoin"`
 	SubscriptionAmount types.Number  `json:"subscriptionAmount"`
-	Duration           uint64        `json:"duration"`         // days
+	DurationInDays     uint64        `json:"duration"`
 	AutoCompoundPlan   string        `json:"autoCompoundPlan"` // absent when the plan is NONE
 	StrikePrice        types.Number  `json:"strikePrice"`
 	SettleDate         types.Time    `json:"settleDate"`

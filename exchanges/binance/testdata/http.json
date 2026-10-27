@@ -6847,6 +6847,7 @@
      "data": [
       {
        "id": 1125899906842624000,
+       "symbol": "BTC-200730-9000-C",
        "asset": "USDT",
        "amount": "-0.552",
        "type": "FEE",
@@ -18177,6 +18178,8 @@
        {
         "loanCoin": "ETH",
         "repayAmount": "10000",
+        "repayPrincipal": "9500",
+        "repayInterest": "500",
         "collateralCoin": "BNB,BTC,ETH",
         "repayStatus": "Repaid",
         "loanDate": "1676851200000",

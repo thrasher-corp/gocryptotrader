@@ -94,13 +94,14 @@ func (e *Exchange) WebsocketDerivativesConnect(ctx context.Context, conn websock
 	return nil
 }
 
-// generateUFuturesPublicSubscriptions returns the USDⓈ-M /public stream subscriptions, its order books
-func (e *Exchange) generateUFuturesPublicSubscriptions() (subscription.List, error) {
+// generateUSDTMarginedFuturesPublicSubscriptions returns the USDⓈ-M /public stream subscriptions, its order books
+func (e *Exchange) generateUSDTMarginedFuturesPublicSubscriptions() (subscription.List, error) {
 	return e.generateDerivativesSubscriptions(asset.USDTMarginedFutures, isOrderbookSubscription)
 }
 
-// generateUFuturesMarketSubscriptions returns the USDⓈ-M /market stream subscriptions, all but its order books
-func (e *Exchange) generateUFuturesMarketSubscriptions() (subscription.List, error) {
+// generateUSDTMarginedFuturesMarketSubscriptions returns the USDⓈ-M /market stream subscriptions, all but its order
+// books
+func (e *Exchange) generateUSDTMarginedFuturesMarketSubscriptions() (subscription.List, error) {
 	return e.generateDerivativesSubscriptions(asset.USDTMarginedFutures, func(s *subscription.Subscription) bool { return !isOrderbookSubscription(s) })
 }
 
@@ -109,8 +110,8 @@ func isOrderbookSubscription(s *subscription.Subscription) bool {
 	return s.Channel == subscription.OrderbookChannel
 }
 
-// generateUFuturesUserDataSubscriptions returns the USDⓈ-M user data stream subscription when it can be used
-func (e *Exchange) generateUFuturesUserDataSubscriptions() (subscription.List, error) {
+// generateUSDTMarginedFuturesUserDataSubscriptions returns the USDⓈ-M user data stream subscription when it can be used
+func (e *Exchange) generateUSDTMarginedFuturesUserDataSubscriptions() (subscription.List, error) {
 	return e.generateUserDataSubscriptions(asset.USDTMarginedFutures)
 }
 
@@ -328,10 +329,13 @@ func (e *Exchange) resubscribeUserData(ctx, keepAliveCtx context.Context, conn w
 	if e.Websocket.GetSubscription(failed) != nil {
 		return true, nil
 	}
-	if wanted, err := e.generateUserDataSubscriptions(failed.Asset); err != nil || len(wanted) == 0 {
+	wanted, err := e.generateUserDataSubscriptions(failed.Asset)
+	if err != nil || len(wanted) == 0 {
 		return true, err
 	}
-	s := failed.Clone()
+	// The failed subscription was removed as unsubscribed, and a clone of it would carry that state into this attempt,
+	// so removing it again after another failure would report the state alongside Binance's refusal
+	s := wanted[0]
 	if err := e.subscribeUserDataKeptAlive(ctx, keepAliveCtx, conn, s); err != nil {
 		return false, err
 	}
@@ -390,13 +394,13 @@ func (e *Exchange) startUserDataStream(ctx context.Context, a asset.Item) (strin
 	var listenKey string
 	switch a {
 	case asset.USDTMarginedFutures:
-		resp, err := e.StartUFuturesUserDataStream(ctx)
+		resp, err := e.StartUSDTMarginedFuturesUserDataStream(ctx)
 		if err != nil {
 			return "", err
 		}
 		listenKey = resp.ListenKey
 	case asset.CoinMarginedFutures:
-		resp, err := e.StartCFuturesUserDataStream(ctx)
+		resp, err := e.StartCoinMarginedFuturesUserDataStream(ctx)
 		if err != nil {
 			return "", err
 		}
@@ -420,10 +424,10 @@ func (e *Exchange) startUserDataStream(ctx context.Context, a asset.Item) (strin
 func (e *Exchange) keepaliveUserDataStream(ctx context.Context, a asset.Item) error {
 	switch a {
 	case asset.USDTMarginedFutures:
-		_, err := e.KeepaliveUFuturesUserDataStream(ctx)
+		_, err := e.KeepaliveUSDTMarginedFuturesUserDataStream(ctx)
 		return err
 	case asset.CoinMarginedFutures:
-		_, err := e.KeepaliveCFuturesUserDataStream(ctx)
+		_, err := e.KeepaliveCoinMarginedFuturesUserDataStream(ctx)
 		return err
 	case asset.Options:
 		return e.KeepaliveOptionsUserDataStream(ctx)
@@ -598,13 +602,13 @@ func (e *Exchange) fetchDerivativesOrderbookDepth(ctx context.Context, p currenc
 	)
 	switch a {
 	case asset.USDTMarginedFutures:
-		resp, err := e.UFuturesOrderbook(ctx, p, limit)
+		resp, err := e.USDTMarginedFuturesOrderbook(ctx, p, limit)
 		if err != nil {
 			return nil, err
 		}
 		bids, asks, lastUpdateID, transactionTime = resp.Bids, resp.Asks, resp.LastUpdateID, resp.TransactionTime
 	case asset.CoinMarginedFutures:
-		resp, err := e.GetFuturesOrderbook(ctx, p, limit)
+		resp, err := e.GetCoinMarginedFuturesOrderbook(ctx, p, limit)
 		if err != nil {
 			return nil, err
 		}
@@ -726,8 +730,8 @@ func decodeStreamFrame(respRaw []byte) (stream string, data []byte, event string
 	return stream, data, event, nil
 }
 
-// wsHandleUFuturesData routes USDⓈ-M /public and /market stream frames
-func (e *Exchange) wsHandleUFuturesData(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
+// wsHandleUSDTMarginedFuturesData routes USDⓈ-M /public and /market stream frames
+func (e *Exchange) wsHandleUSDTMarginedFuturesData(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
 	return e.handleFuturesStream(ctx, conn, respRaw, asset.USDTMarginedFutures)
 }
 
@@ -770,9 +774,9 @@ func (e *Exchange) handleFuturesStream(ctx context.Context, conn websocket.Conne
 	case "assetIndexUpdate":
 		return e.processFuturesAssetIndices(ctx, data)
 	case "IndexUpdate", "indexPriceUpdate": // IndexUpdate is live; the docs still name indexPriceUpdate
-		return sendDecoded[CFuturesIndexPrice](ctx, e, data)
+		return sendDecoded[CoinMarginedFuturesIndexPrice](ctx, e, data)
 	case "indexPrice_kline", "markPrice_kline":
-		return sendDecoded[CFuturesPriceKline](ctx, e, data)
+		return sendDecoded[CoinMarginedFuturesPriceKline](ctx, e, data)
 	default:
 		return fmt.Errorf("%w %q on stream %q", errUnhandledStreamEvent, event, stream)
 	}
@@ -1091,8 +1095,8 @@ func (e *Exchange) processFuturesKline(ctx context.Context, data []byte, a asset
 	})
 }
 
-// wsHandleUFuturesUserData routes USDⓈ-M user data stream frames
-func (e *Exchange) wsHandleUFuturesUserData(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
+// wsHandleUSDTMarginedFuturesUserData routes USDⓈ-M user data stream frames
+func (e *Exchange) wsHandleUSDTMarginedFuturesUserData(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
 	return e.handleFuturesUserData(ctx, conn, respRaw, asset.USDTMarginedFutures)
 }
 
@@ -1198,8 +1202,11 @@ func (e *Exchange) processFuturesAccountUpdate(ctx context.Context, data []byte,
 			codes[i] = resp.UpdateData.Balances[i].Asset
 		}
 		subAccount := accounts.NewSubAccount(a, "")
-		if err := e.storeBalanceEvent(ctx, a, resp.TransactionTime.Time(), codes, func() error {
+		if err := e.storeBalanceEvent(ctx, a, resp.TransactionTime.Time(), codes, func(accepted map[*currency.Item]bool) error {
 			for _, b := range resp.UpdateData.Balances {
+				if !accepted[b.Asset.Item] {
+					continue
+				}
 				balance, err := e.Accounts.UpdateBalance(ctx, "", a, b.Asset, func(balance *accounts.Balance) {
 					// Unrealised profit can lift the free balance above the wallet balance, which the hold cannot show, so
 					// an unchanged wallet balance keeps the free balance REST reported
@@ -1217,8 +1224,10 @@ func (e *Exchange) processFuturesAccountUpdate(ctx context.Context, data []byte,
 		}); err != nil {
 			return err
 		}
-		if err := e.Websocket.DataHandler.Send(ctx, accounts.SubAccounts{subAccount}); err != nil {
-			return err
+		if len(subAccount.Balances) > 0 {
+			if err := e.Websocket.DataHandler.Send(ctx, accounts.SubAccounts{subAccount}); err != nil {
+				return err
+			}
 		}
 	}
 	positions := make([]futures.Position, 0, len(resp.UpdateData.Positions))
@@ -1262,8 +1271,12 @@ type balanceRefresher struct {
 	// currency's balance, which a REST snapshot must not predate
 	eventTimes map[asset.Item]map[*currency.Item]time.Time
 	// snapshotTimes holds, by asset, the account update time of the latest REST snapshot stored for the configured
-	// account where Binance gives one for the whole account, which a stream event must not predate
+	// account where Binance gives one for the whole account, which an older REST reply must not replace, and which a
+	// spot stream event, carrying an account update time of its own, must not predate
 	snapshotTimes map[asset.Item]time.Time
+	// currencySnapshotTimes holds, by asset and currency, the REST update time of the latest balance stored for the
+	// configured account by a poll or a refresh, which an older REST reply must not replace
+	currencySnapshotTimes map[asset.Item]map[*currency.Item]time.Time
 	// interval is the time between refreshes of an asset, balanceRefreshInterval when zero
 	interval time.Duration
 	// storeMu keeps a balance event from being stored while a REST snapshot is accepted, by a refresh or a poll, so a
@@ -1281,15 +1294,35 @@ func (e *Exchange) withBalanceStore(f func() error) error {
 
 // storeBalanceEvent records a user data stream balance event and stores its balances with store, under the balance
 // store lock, then refreshes the available balances the event does not carry. The refresh starts once the balances are
-// stored, so its request follows the stores and its snapshot is not taken as older than them
-func (e *Exchange) storeBalanceEvent(ctx context.Context, a asset.Item, transactionTime time.Time, codes []currency.Code, store func() error) error {
+// stored, so its request follows the stores and its snapshot is not taken as older than them. Each currency is accepted
+// separately, and only against earlier events: their transaction times share the matching engine's clock, which REST
+// update times are not documented to keep, and an event older than a REST snapshot is followed on its connection by the
+// event of the later change the snapshot saw. Binance documents the USDⓈ-M and COIN-M user data streams as ordered by
+// transaction time on each connection, and the options stream is taken to be ordered the same way
+func (e *Exchange) storeBalanceEvent(ctx context.Context, a asset.Item, transactionTime time.Time, codes []currency.Code, store func(map[*currency.Item]bool) error) error {
+	accepted := make(map[*currency.Item]bool, len(codes))
+	acceptedCodes := make([]currency.Code, 0, len(codes))
 	if err := e.withBalanceStore(func() error {
-		e.recordBalanceEvent(a, transactionTime, codes...)
-		return store()
+		r := &e.balanceRefresh
+		r.mu.Lock()
+		for _, c := range codes {
+			if !transactionTime.Before(r.eventTimes[a][c.Item]) {
+				accepted[c.Item] = true
+				acceptedCodes = append(acceptedCodes, c)
+			}
+		}
+		r.mu.Unlock()
+		if len(accepted) == 0 {
+			return nil
+		}
+		e.recordBalanceEvent(a, transactionTime, acceptedCodes...)
+		return store(accepted)
 	}); err != nil {
 		return err
 	}
-	e.refreshBalances(ctx, a)
+	if len(accepted) > 0 {
+		e.refreshBalances(ctx, a)
+	}
 	return nil
 }
 
@@ -1312,9 +1345,16 @@ func (e *Exchange) recordBalanceEvent(a asset.Item, transactionTime time.Time, c
 	}
 }
 
-// recordBalanceSnapshot records the account update time of a REST snapshot of an asset's balances stored for the
-// configured account
-func (e *Exchange) recordBalanceSnapshot(a asset.Item, asOf time.Time) {
+// recordBalanceSnapshot records accepted REST update times only for the account whose events the stream delivers.
+// Account-wide times also cover currencies omitted by a full snapshot; refreshes pass only the currencies they stored.
+func (e *Exchange) recordBalanceSnapshot(ctx context.Context, a asset.Item, asOf time.Time, updated map[*currency.Item]time.Time) {
+	creds, err := e.GetCredentials(ctx)
+	if err != nil {
+		return
+	}
+	if streamed := e.GetDefaultCredentials(); streamed == nil || *creds != *streamed {
+		return
+	}
 	r := &e.balanceRefresh
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -1323,6 +1363,20 @@ func (e *Exchange) recordBalanceSnapshot(a asset.Item, asOf time.Time) {
 	}
 	if asOf.After(r.snapshotTimes[a]) {
 		r.snapshotTimes[a] = asOf
+	}
+	if len(updated) == 0 {
+		return
+	}
+	if r.currencySnapshotTimes == nil {
+		r.currencySnapshotTimes = make(map[asset.Item]map[*currency.Item]time.Time)
+	}
+	if r.currencySnapshotTimes[a] == nil {
+		r.currencySnapshotTimes[a] = make(map[*currency.Item]time.Time)
+	}
+	for c, updateTime := range updated {
+		if updateTime.After(r.currencySnapshotTimes[a][c]) {
+			r.currencySnapshotTimes[a][c] = updateTime
+		}
 	}
 }
 
@@ -1422,6 +1476,21 @@ func (e *Exchange) refreshAvailableBalances(ctx context.Context, a asset.Item) (
 	}
 	err = e.withBalanceStore(func() error {
 		eventTimes := e.balanceEventTimes(a)
+		r := &e.balanceRefresh
+		r.mu.Lock()
+		snapshotTimes := maps.Clone(r.currencySnapshotTimes[a])
+		snapshotTime := r.snapshotTimes[a]
+		r.mu.Unlock()
+		// The event and snapshot times are the configured account's, whose user data streams report them, so another
+		// account's refresh is not judged against them
+		creds, err := e.GetCredentials(ctx)
+		if err != nil {
+			return err
+		}
+		if streamed := e.GetDefaultCredentials(); streamed == nil || *creds != *streamed {
+			eventTimes, snapshotTimes, snapshotTime = nil, nil, time.Time{}
+		}
+		accepted := make(map[*currency.Item]time.Time)
 		var errs error
 		for c, fetched := range subAccount.Balances {
 			eventTime, streamed := eventTimes[c.Item]
@@ -1430,38 +1499,44 @@ func (e *Exchange) refreshAvailableBalances(ctx context.Context, a asset.Item) (
 				continue
 			}
 			// A balance kept is left as it was, as storing it would stamp it as current
+			var saved bool
 			_, err := e.Accounts.UpdateBalanceIf(ctx, "", a, c, func(stored *accounts.Balance) bool {
 				if stored.UpdatedAt.After(requested) {
 					return false
 				}
+				if updated[c.Item].Before(snapshotTimes[c.Item]) || updated[c.Item].Before(snapshotTime) {
+					lagging = true
+					return false
+				}
 				if stored.UpdatedAt.IsZero() || stored.Total == fetched.Total {
 					stored.Total, stored.Hold, stored.Free = fetched.Total, fetched.Hold, fetched.Free
+					saved = true
 					return true
 				}
 				// Asking again cannot reconcile a currency the stream does not report
 				lagging = lagging || streamed
 				return false
 			})
+			if err == nil && saved {
+				accepted[c.Item] = updated[c.Item]
+			}
 			errs = common.AppendError(errs, err)
 		}
+		e.recordBalanceSnapshot(ctx, a, time.Time{}, accepted)
 		return errs
 	})
 	return lagging, err
 }
 
 // keepStreamedBalances puts the stored balance in place of each currency a REST poll's snapshot reports as last updated
-// before the latest user data stream event to report it, as refreshes skip it: the snapshot was taken before the event
-// whose wallet balance is stored, however late the poll stores it, and storing the stored balance unchanged keeps its
+// before the latest accepted stream event or REST snapshot. Keeping the stored balance unchanged preserves its
 // update time, which refreshes requested before the poll compare against. A currency the snapshot leaves out keeps its
 // stored balance while its latest event is newer than every update the snapshot shows and than the snapshot's own time,
 // asOf, where Binance gives one, rather than being removed by a snapshot that may predate it; a snapshot showing no
 // update or time therefore removes none. The user data streams are the configured account's, so a poll of another
 // account's credentials is left as it is. The caller holds the balance store lock until the snapshot is stored
 func (e *Exchange) keepStreamedBalances(ctx context.Context, a asset.Item, subAccount *accounts.SubAccount, updated map[*currency.Item]time.Time, asOf time.Time) {
-	eventTimes := e.balanceEventTimes(a)
-	if len(eventTimes) == 0 {
-		return
-	}
+	latestTimes := e.balanceEventTimes(a)
 	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return
@@ -1469,24 +1544,46 @@ func (e *Exchange) keepStreamedBalances(ctx context.Context, a asset.Item, subAc
 	if streamed := e.GetDefaultCredentials(); streamed == nil || *creds != *streamed {
 		return
 	}
+	r := &e.balanceRefresh
+	r.mu.Lock()
+	if latestTimes == nil {
+		latestTimes = make(map[*currency.Item]time.Time)
+	}
+	for c, updateTime := range r.currencySnapshotTimes[a] {
+		if updateTime.After(latestTimes[c]) {
+			latestTimes[c] = updateTime
+		}
+	}
+	snapshotTime := r.snapshotTimes[a]
+	r.mu.Unlock()
 	newest := asOf
 	reported := make(map[*currency.Item]currency.Code, len(subAccount.Balances))
 	for c := range subAccount.Balances {
 		reported[c.Item] = c
+		if snapshotTime.After(latestTimes[c.Item]) {
+			latestTimes[c.Item] = snapshotTime
+		}
 		if updated[c.Item].After(newest) {
 			newest = updated[c.Item]
 		}
 	}
-	for item, eventTime := range eventTimes {
+	for item, latestTime := range latestTimes {
 		c, ok := reported[item]
 		switch {
-		case ok && !updated[item].Before(eventTime), !ok && !eventTime.After(newest):
+		case ok && !updated[item].Before(latestTime):
+			continue
+		case !ok && !latestTime.After(newest):
+			// The snapshot removes the currency, so its newest update time is recorded for the currency too, and an
+			// older reply that still lists it cannot bring it back
+			updated[item] = newest
 			continue
 		case !ok:
 			c = item.Currency()
 		}
 		if stored, err := e.Accounts.GetBalance("", creds, a, c); err == nil {
 			subAccount.Balances.Set(c, stored)
+		} else if errors.Is(err, accounts.ErrNoBalances) {
+			delete(subAccount.Balances, c)
 		}
 	}
 }

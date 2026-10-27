@@ -618,7 +618,7 @@ func TestFetchTradablePairs(t *testing.T) {
 	}
 }
 
-func TestUFuturesSymbolPair(t *testing.T) {
+func TestUSDTMarginedFuturesSymbolPair(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
 		symbol           string
@@ -632,7 +632,7 @@ func TestUFuturesSymbolPair(t *testing.T) {
 		{"BTCUSDC", currency.BTC, currency.USDC, currency.NewPair(currency.BTC, currency.USDC)},
 		{"BTCUSDT_261225", currency.BTC, currency.USDT, currency.NewPair(currency.NewCode("BTCUSDT"), currency.NewCode("261225"))},
 	} {
-		assert.Equalf(t, tc.exp, uFuturesSymbolPair(tc.symbol, tc.baseAsset, tc.quote), "uFuturesSymbolPair should split %s", tc.symbol)
+		assert.Equalf(t, tc.exp, usdtMarginedFuturesSymbolPair(tc.symbol, tc.baseAsset, tc.quote), "usdtMarginedFuturesSymbolPair should split %s", tc.symbol)
 	}
 }
 
@@ -2382,7 +2382,7 @@ func TestSubmitOrderReportsPostOnly(t *testing.T) {
 		{"spot good till cancel limit", asset.Spot, currency.NewBTCUSDT(), order.Limit, order.GoodTillCancel, order.GoodTillCancel},
 		{"USDⓈ-M good till crossing limit", asset.USDTMarginedFutures, currency.NewBTCUSDT(), order.Limit, order.GoodTillCrossing, order.PostOnly},
 		{"USDⓈ-M immediate or cancel limit", asset.USDTMarginedFutures, currency.NewBTCUSDT(), order.Limit, order.ImmediateOrCancel, order.ImmediateOrCancel},
-		{"COIN-M post only good till cancel limit", asset.CoinMarginedFutures, testCFuturesPair, order.Limit, order.PostOnly | order.GoodTillCancel, order.PostOnly},
+		{"COIN-M post only good till cancel limit", asset.CoinMarginedFutures, testCoinMarginedFuturesPair, order.Limit, order.PostOnly | order.GoodTillCancel, order.PostOnly},
 		{"options good till crossing limit", asset.Options, optionsPair, order.Limit, order.GoodTillCrossing, order.PostOnly},
 		{"options good till cancel limit", asset.Options, optionsPair, order.Limit, order.GoodTillCancel, order.GoodTillCancel},
 	} {
@@ -2680,6 +2680,10 @@ func TestCancelAllOrdersWithoutOpenOrders(t *testing.T) {
 
 func TestUpdateAccountBalances(t *testing.T) {
 	t.Parallel()
+	t.Run("REST snapshot ordering", func(t *testing.T) {
+		t.Parallel()
+		testRESTBalanceSnapshotOrdering(t, false)
+	})
 	ex := newMarketTestExchange(t)
 	_, err := ex.UpdateAccountBalances(t.Context(), asset.Futures)
 	require.ErrorIs(t, err, asset.ErrNotSupported, "UpdateAccountBalances must reject an unsupported asset")
@@ -2880,7 +2884,7 @@ func TestCancelOrderUntyped(t *testing.T) {
 	marginList := func(isolated, reply string) cancelStep {
 		return cancelStep{http.MethodDelete, "/sapi/v1/margin/orderList", map[string]string{"orderListId": "28", "isIsolated": isolated}, reply}
 	}
-	uOrder := func(params map[string]string, reply string) cancelStep {
+	usdtMarginedOrder := func(params map[string]string, reply string) cancelStep {
 		return cancelStep{http.MethodDelete, "/fapi/v1/order", params, reply}
 	}
 	byID := map[string]string{"orderId": "3000000123"}
@@ -3002,7 +3006,7 @@ func TestCancelOrderUntyped(t *testing.T) {
 			name:   "USDⓈ-M algo order",
 			cancel: order.Cancel{AssetType: asset.USDTMarginedFutures, OrderID: "3000000123"},
 			steps: []cancelStep{
-				uOrder(byID, unknownOrder),
+				usdtMarginedOrder(byID, unknownOrder),
 				{http.MethodGet, "/fapi/v1/algoOrder", map[string]string{"algoId": "3000000123"}, algo("BTCUSDT", 3000000123)},
 				{http.MethodDelete, "/fapi/v1/algoOrder", map[string]string{"algoId": "3000000123"}, algoCancelled},
 			},
@@ -3011,7 +3015,7 @@ func TestCancelOrderUntyped(t *testing.T) {
 			name:   "USDⓈ-M algo order by client ID",
 			cancel: order.Cancel{AssetType: asset.USDTMarginedFutures, ClientOrderID: "gct-algo"},
 			steps: []cancelStep{
-				uOrder(map[string]string{"origClientOrderId": "gct-algo"}, unknownOrder),
+				usdtMarginedOrder(map[string]string{"origClientOrderId": "gct-algo"}, unknownOrder),
 				{http.MethodGet, "/fapi/v1/algoOrder", map[string]string{"clientAlgoId": "gct-algo"}, algo("BTCUSDT", 77)},
 				{http.MethodDelete, "/fapi/v1/algoOrder", map[string]string{"algoId": "77", "clientAlgoId": ""}, algoCancelled},
 			},
@@ -3019,19 +3023,19 @@ func TestCancelOrderUntyped(t *testing.T) {
 		{
 			name:   "USDⓈ-M algo order of another symbol",
 			cancel: order.Cancel{AssetType: asset.USDTMarginedFutures, OrderID: "3000000123"},
-			steps:  []cancelStep{uOrder(byID, unknownOrder), {http.MethodGet, "/fapi/v1/algoOrder", nil, algo("ETHUSDT", 3000000123)}},
+			steps:  []cancelStep{usdtMarginedOrder(byID, unknownOrder), {http.MethodGet, "/fapi/v1/algoOrder", nil, algo("ETHUSDT", 3000000123)}},
 			errMsg: "Unknown order sent.",
 		},
 		{
 			name:   "USDⓈ-M unknown ID",
 			cancel: order.Cancel{AssetType: asset.USDTMarginedFutures, OrderID: "3000000123"},
-			steps:  []cancelStep{uOrder(byID, unknownOrder), {http.MethodGet, "/fapi/v1/algoOrder", nil, notFound}},
+			steps:  []cancelStep{usdtMarginedOrder(byID, unknownOrder), {http.MethodGet, "/fapi/v1/algoOrder", nil, notFound}},
 			errMsg: "Unknown order sent.",
 		},
 		{
 			name:   "USDⓈ-M limit order",
 			cancel: order.Cancel{AssetType: asset.USDTMarginedFutures, Type: order.Limit, OrderID: "3000000123"},
-			steps:  []cancelStep{uOrder(byID, unknownOrder)},
+			steps:  []cancelStep{usdtMarginedOrder(byID, unknownOrder)},
 			errMsg: "Unknown order sent.",
 		},
 	} {
@@ -3330,8 +3334,8 @@ func TestCancelAlgoOrderLookupRate(t *testing.T) {
 		}
 	}
 	ctx := request.WithDelayNotAllowed(t.Context())
-	_, err := ex.UQueryAlgoOrder(ctx, 3000000123, "")
-	require.ErrorIs(t, err, request.ErrDelayNotAllowed, "UQueryAlgoOrder must draw on the IP pool")
+	_, err := ex.USDTMarginedFuturesQueryAlgoOrder(ctx, 3000000123, "")
+	require.ErrorIs(t, err, request.ErrDelayNotAllowed, "USDTMarginedFuturesQueryAlgoOrder must draw on the IP pool")
 	err = ex.CancelOrder(ctx, &order.Cancel{AssetType: asset.USDTMarginedFutures, Pair: currency.NewBTCUSDT(), OrderID: "3000000123"})
 	require.NoError(t, err, "CancelOrder must not wait on the IP pool")
 	assert.Equal(t, 3, sent(), "CancelOrder should send every expected request")
@@ -3406,7 +3410,7 @@ func TestCoinMarginedAlgoOrders(t *testing.T) {
 
 	t.Run("CancelOrder", func(t *testing.T) {
 		t.Parallel()
-		cOrder := func(reply string) cancelStep {
+		coinMarginedOrder := func(reply string) cancelStep {
 			return cancelStep{http.MethodDelete, "/dapi/v1/order", map[string]string{"orderId": "3100001", "symbol": "BTCUSD_PERP"}, reply}
 		}
 		for _, tc := range []struct {
@@ -3424,7 +3428,7 @@ func TestCoinMarginedAlgoOrders(t *testing.T) {
 				name:   "untyped algo order",
 				cancel: order.Cancel{OrderID: "3100001"},
 				steps: []cancelStep{
-					cOrder(unknownOrder),
+					coinMarginedOrder(unknownOrder),
 					{http.MethodGet, "/dapi/v1/algoOrder", map[string]string{"algoId": "3100001"}, algo("BTCUSD_PERP", 3100001)},
 					{http.MethodDelete, "/dapi/v1/algoOrder", map[string]string{"algoId": "3100001"}, algoCancelled},
 				},
@@ -3432,13 +3436,13 @@ func TestCoinMarginedAlgoOrders(t *testing.T) {
 			{
 				name:   "untyped algo order of another symbol",
 				cancel: order.Cancel{OrderID: "3100001"},
-				steps:  []cancelStep{cOrder(unknownOrder), {http.MethodGet, "/dapi/v1/algoOrder", nil, algo("ETHUSD_PERP", 3100001)}},
+				steps:  []cancelStep{coinMarginedOrder(unknownOrder), {http.MethodGet, "/dapi/v1/algoOrder", nil, algo("ETHUSD_PERP", 3100001)}},
 				errMsg: "Unknown order sent.",
 			},
 			{
 				name:   "limit order",
 				cancel: order.Cancel{Type: order.Limit, OrderID: "3100001"},
-				steps:  []cancelStep{cOrder(unknownOrder)},
+				steps:  []cancelStep{coinMarginedOrder(unknownOrder)},
 				errMsg: "Unknown order sent.",
 			},
 		} {
@@ -3553,8 +3557,8 @@ func TestCancelAllOrdersListingRate(t *testing.T) {
 	}
 	exhausted := request.NewRateLimitWithWeight(time.Hour, 1, 1)
 	require.NoError(t, exhausted.RateLimit(t.Context()), "RateLimit must take the limiter's only token")
-	shares := []request.EndpointLimit{spotCancelAllListingRate, uFuturesCancelAllListingRate, cFuturesCancelAllListingRate, optionsCancelAllListingRate}
-	overflows := []request.EndpointLimit{spotOpenOrdersAllRate, uFuturesGetAllOpenOrdersRate, uFuturesOpenAlgoOrdersAllRate, cFuturesGetAllOpenOrdersRate, cFuturesOpenAlgoOrdersAllRate, optionsAllQueryOpenOrdersRate}
+	shares := []request.EndpointLimit{spotCancelAllListingRate, usdtMarginedFuturesCancelAllListingRate, coinMarginedFuturesCancelAllListingRate, optionsCancelAllListingRate}
+	overflows := []request.EndpointLimit{spotOpenOrdersAllRate, usdtMarginedFuturesGetAllOpenOrdersRate, usdtMarginedFuturesOpenAlgoOrdersAllRate, coinMarginedFuturesGetAllOpenOrdersRate, coinMarginedFuturesOpenAlgoOrdersAllRate, optionsAllQueryOpenOrdersRate}
 	for _, tc := range []struct {
 		name  string
 		limit func(*testing.T, request.RateLimitDefinitions)
@@ -3712,10 +3716,10 @@ func TestCountdownCancelAllRates(t *testing.T) {
 		}
 	}
 	ctx := request.WithDelayNotAllowed(t.Context())
-	_, err := ex.UAutoCancelAllOpenOrders(ctx, currency.NewBTCUSDT(), time.Minute)
-	assert.NoError(t, err, "UAutoCancelAllOpenOrders should draw on the heartbeat pool alone")
-	_, err = ex.AutoCancelAllOpenOrders(ctx, currency.NewPairWithDelimiter("BTCUSD", "PERP", currency.UnderscoreDelimiter), time.Minute)
-	assert.NoError(t, err, "AutoCancelAllOpenOrders should draw on the heartbeat pool alone")
+	_, err := ex.USDTMarginedFuturesAutoCancelAllOpenOrders(ctx, currency.NewBTCUSDT(), time.Minute)
+	assert.NoError(t, err, "USDTMarginedFuturesAutoCancelAllOpenOrders should draw on the heartbeat pool alone")
+	_, err = ex.CoinMarginedFuturesAutoCancelAllOpenOrders(ctx, currency.NewPairWithDelimiter("BTCUSD", "PERP", currency.UnderscoreDelimiter), time.Minute)
+	assert.NoError(t, err, "CoinMarginedFuturesAutoCancelAllOpenOrders should draw on the heartbeat pool alone")
 	_, err = ex.SendOptionsAutoCancelAllOpenOrdersHeartbeat(ctx, []string{"BTCUSDT"})
 	assert.NoError(t, err, "SendOptionsAutoCancelAllOpenOrdersHeartbeat should draw on the heartbeat pool alone")
 	_, err = ex.SetOptionsAutoCancelAllOpenOrders(ctx, "BTCUSDT", 0)
@@ -3741,10 +3745,10 @@ func TestCountdownCancelAllRates(t *testing.T) {
 	}
 	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
 	defer cancel()
-	_, err = ex.UAutoCancelAllOpenOrders(ctx, currency.NewBTCUSDT(), time.Minute)
-	assert.NoError(t, err, "UAutoCancelAllOpenOrders should queue on the IP pool beyond the heartbeat pool")
-	_, err = ex.AutoCancelAllOpenOrders(ctx, currency.NewPairWithDelimiter("BTCUSD", "PERP", currency.UnderscoreDelimiter), time.Minute)
-	assert.NoError(t, err, "AutoCancelAllOpenOrders should queue on the IP pool beyond the heartbeat pool")
+	_, err = ex.USDTMarginedFuturesAutoCancelAllOpenOrders(ctx, currency.NewBTCUSDT(), time.Minute)
+	assert.NoError(t, err, "USDTMarginedFuturesAutoCancelAllOpenOrders should queue on the IP pool beyond the heartbeat pool")
+	_, err = ex.CoinMarginedFuturesAutoCancelAllOpenOrders(ctx, currency.NewPairWithDelimiter("BTCUSD", "PERP", currency.UnderscoreDelimiter), time.Minute)
+	assert.NoError(t, err, "CoinMarginedFuturesAutoCancelAllOpenOrders should queue on the IP pool beyond the heartbeat pool")
 	_, err = ex.SendOptionsAutoCancelAllOpenOrdersHeartbeat(ctx, []string{"BTCUSDT"})
 	assert.NoError(t, err, "SendOptionsAutoCancelAllOpenOrdersHeartbeat should queue on the IP pool beyond the heartbeat pool")
 	_, err = ex.SetOptionsAutoCancelAllOpenOrders(ctx, "BTCUSDT", 0)
@@ -4105,7 +4109,7 @@ func TestGetOrderInfo(t *testing.T) {
 	}
 }
 
-func TestListedOrderListsAreOCO(t *testing.T) {
+func TestListedOrderListsAreOneCancelsTheOther(t *testing.T) {
 	t.Parallel()
 	// The order list endpoints return every contingency type, while GCT tracks only OCO order lists as orders; the orders
 	// of an OTO list are listed as orders
@@ -4135,9 +4139,9 @@ func TestListedOrderListsAreOCO(t *testing.T) {
 	}
 
 	ws := newTestExchange(t)
-	oto := &WebsocketListStatus{EventType: "listStatus", Symbol: "BTCUSDT", OrderListID: 2, ContingencyType: "OTO", ListOrderStatus: "EXECUTING"}
+	oneTriggersTheOtherStatus := &WebsocketListStatus{EventType: "listStatus", Symbol: "BTCUSDT", OrderListID: 2, ContingencyType: "OTO", ListOrderStatus: "EXECUTING"}
 	require.NoError(t, ws.processListStatus(t.Context(), asset.Spot, []byte(`{"e":"listStatus","s":"BTCUSDT","g":2,"c":"OTO","L":"EXECUTING"}`)), "processListStatus must not error")
-	assert.Equal(t, []any{oto}, relayedPayloads(ws), "processListStatus should relay an OTO list status without reporting the list as an order")
+	assert.Equal(t, []any{oneTriggersTheOtherStatus}, relayedPayloads(ws), "processListStatus should relay an OTO list status without reporting the list as an order")
 }
 
 func TestModifyOrder(t *testing.T) {
@@ -4400,7 +4404,7 @@ func TestCancelBatchOrdersEntryOutcomes(t *testing.T) {
 			err: errAPIResponse,
 		},
 		{
-			name: "COIN-M order ID named twice", a: asset.CoinMarginedFutures, pair: testCFuturesPair,
+			name: "COIN-M order ID named twice", a: asset.CoinMarginedFutures, pair: testCoinMarginedFuturesPair,
 			entries: []order.Cancel{{OrderID: "9"}, {OrderID: "9"}},
 			steps: []cancelStep{
 				{http.MethodDelete, "/dapi/v1/batchOrders", map[string]string{"orderIdList": "[9,9]"}, `[{"orderId":9,"symbol":"BTCUSD_PERP","status":"CANCELED"},` + unknownOrder + `]`},
@@ -4740,6 +4744,56 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 			assert.Equal(t, exp, result, "GetHistoricCandlesExtended should return the candles of every request")
 		})
 	}
+}
+
+func TestValidateAPICredentials(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		a    asset.Item
+		path string
+	}{
+		{asset.Spot, "/api/v3/account"},
+		{asset.Margin, "/sapi/v1/margin/account"},
+		{asset.USDTMarginedFutures, "/fapi/v3/balance"},
+		{asset.CoinMarginedFutures, "/dapi/v1/account"},
+		{asset.Options, "/eapi/v1/marginAccount"},
+	} {
+		t.Run(tc.a.String(), func(t *testing.T) {
+			t.Parallel()
+			var requests atomic.Int32
+			ex := newTradingTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+				requests.Add(1)
+				assert.Equal(t, tc.path, r.URL.Path, "credential validation should query the asset's own account endpoint")
+				reply := balanceRefreshReplies[r.URL.Path]
+				switch r.URL.Path {
+				case "/api/v3/account":
+					reply = `{"balances":[{"asset":"USDT","free":"100","locked":"0"}]}`
+				case "/sapi/v1/margin/account":
+					reply = `{"userAssets":[{"asset":"USDT","free":"100","locked":"0","borrowed":"0","interest":"0"}]}`
+				}
+				_, err := w.Write([]byte(reply))
+				assert.NoError(t, err, "the account response should be written")
+			})
+			assert.NoError(t, ex.ValidateAPICredentials(t.Context(), tc.a), "valid account credentials should be accepted")
+			assert.Equal(t, int32(1), requests.Load(), "credential validation should send one account request")
+		})
+	}
+	t.Run("rejected credentials", func(t *testing.T) {
+		t.Parallel()
+		ex := newTradingTestExchange(t, func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusUnauthorized)
+			_, err := w.Write([]byte(`{"code":-2015,"msg":"Invalid API-key, IP, or permissions for action."}`))
+			assert.NoError(t, err, "the rejection should be written")
+		})
+		assert.ErrorIs(t, ex.ValidateAPICredentials(t.Context(), asset.Spot), errAPIResponse, "credential validation should preserve the venue rejection")
+	})
+	t.Run("unsupported asset", func(t *testing.T) {
+		t.Parallel()
+		ex := newTradingTestExchange(t, func(_ http.ResponseWriter, _ *http.Request) {
+			assert.Fail(t, "an unsupported asset should make no request")
+		})
+		assert.ErrorIs(t, ex.ValidateAPICredentials(t.Context(), asset.Empty), asset.ErrNotSupported, "credential validation should reject an unsupported asset")
+	})
 }
 
 func TestFormatExchangeKlineInterval(t *testing.T) {
@@ -5997,7 +6051,7 @@ func TestGetFuturesPositionSummaryHedgeMode(t *testing.T) {
 		{
 			name: "short open", long: "0", short: "-6",
 			exp: &futures.PositionSummary{
-				Pair: testCFuturesPair, Asset: asset.CoinMarginedFutures, MarginType: margin.Multi, CollateralMode: collateral.SingleMode, Currency: currency.BTC,
+				Pair: testCoinMarginedFuturesPair, Asset: asset.CoinMarginedFutures, MarginType: margin.Multi, CollateralMode: collateral.SingleMode, Currency: currency.BTC,
 				NotionalSize: d(-0.007), Leverage: d(10), MaintenanceMarginRequirement: d(0.0002), InitialMarginRequirement: d(0.0006),
 				EstimatedLiquidationPrice: d(99000), CollateralUsed: d(0.0006), MarkPrice: d(86100), CurrentSize: d(-6), ContractSettlementType: futures.Inverse,
 				AverageOpenPrice: d(87000), UnrealisedPNL: d(0.00002), MaintenanceMarginFraction: d(0.0002).Div(d(1)).Mul(hundred), FreeCollateral: d(0.9),
@@ -6009,7 +6063,7 @@ func TestGetFuturesPositionSummaryHedgeMode(t *testing.T) {
 		t.Run("COIN-M "+tc.name, func(t *testing.T) {
 			t.Parallel()
 			ex := coinmExchange(t, tc.long, tc.short)
-			resp, err := ex.GetFuturesPositionSummary(t.Context(), &futures.PositionSummaryRequest{Asset: asset.CoinMarginedFutures, Pair: testCFuturesPair, UnderlyingPair: currency.NewBTCUSD()})
+			resp, err := ex.GetFuturesPositionSummary(t.Context(), &futures.PositionSummaryRequest{Asset: asset.CoinMarginedFutures, Pair: testCoinMarginedFuturesPair, UnderlyingPair: currency.NewBTCUSD()})
 			require.ErrorIs(t, err, tc.err, "GetFuturesPositionSummary must return the expected error")
 			assert.Equal(t, tc.exp, resp, "GetFuturesPositionSummary should summarise the expected side's position")
 		})
@@ -7088,49 +7142,49 @@ func TestNewSpotOrderValues(t *testing.T) {
 	}
 }
 
-func TestNewSpotOCOLegs(t *testing.T) {
+func TestNewSpotOneCancelsTheOtherLegs(t *testing.T) {
 	t.Parallel()
-	_, err := newSpotOCOLegs(&order.Submit{Type: order.OCO, Price: 1, TriggerPrice: 1, Amount: 1})
-	require.ErrorIs(t, err, order.ErrSideIsInvalid, "newSpotOCOLegs must reject an unknown side")
-	_, err = newSpotOCOLegs(&order.Submit{Type: order.OCO, Side: order.Sell, TriggerPrice: 1, Amount: 1})
-	require.ErrorIs(t, err, order.ErrPriceMustBeSetIfLimitOrder, "newSpotOCOLegs must reject a list without a price")
-	_, err = newSpotOCOLegs(&order.Submit{Type: order.OCO, Side: order.Sell, Price: 1, Amount: 1})
-	require.ErrorIs(t, err, errTriggerPriceRequired, "newSpotOCOLegs must reject a list without a trigger price")
-	_, err = newSpotOCOLegs(&order.Submit{
+	_, err := newSpotOneCancelsTheOtherLegs(&order.Submit{Type: order.OCO, Price: 1, TriggerPrice: 1, Amount: 1})
+	require.ErrorIs(t, err, order.ErrSideIsInvalid, "newSpotOneCancelsTheOtherLegs must reject an unknown side")
+	_, err = newSpotOneCancelsTheOtherLegs(&order.Submit{Type: order.OCO, Side: order.Sell, TriggerPrice: 1, Amount: 1})
+	require.ErrorIs(t, err, order.ErrPriceMustBeSetIfLimitOrder, "newSpotOneCancelsTheOtherLegs must reject a list without a price")
+	_, err = newSpotOneCancelsTheOtherLegs(&order.Submit{Type: order.OCO, Side: order.Sell, Price: 1, Amount: 1})
+	require.ErrorIs(t, err, errTriggerPriceRequired, "newSpotOneCancelsTheOtherLegs must reject a list without a trigger price")
+	_, err = newSpotOneCancelsTheOtherLegs(&order.Submit{
 		Type: order.OCO, Side: order.Sell, Price: 2, TriggerPrice: 1, Amount: 1, TimeInForce: order.GoodTillDay,
 		RiskManagementModes: order.RiskManagementModes{StopLoss: order.RiskManagement{LimitPrice: 0.9}},
 	})
-	require.ErrorIs(t, err, order.ErrUnsupportedTimeInForce, "newSpotOCOLegs must reject an unsupported stop limit time in force")
+	require.ErrorIs(t, err, order.ErrUnsupportedTimeInForce, "newSpotOneCancelsTheOtherLegs must reject an unsupported stop limit time in force")
 	for _, tif := range []order.TimeInForce{order.ImmediateOrCancel, order.FillOrKill, order.GoodTillDay, order.GoodTillCrossing, order.PostOnly | 1<<15} {
-		_, err = newSpotOCOLegs(&order.Submit{Type: order.OCO, Side: order.Sell, Price: 2, TriggerPrice: 1, Amount: 1, TimeInForce: tif})
-		require.ErrorIsf(t, err, order.ErrUnsupportedTimeInForce, "newSpotOCOLegs must reject %s for a list without a stop limit order, whose orders take no time in force", tif)
+		_, err = newSpotOneCancelsTheOtherLegs(&order.Submit{Type: order.OCO, Side: order.Sell, Price: 2, TriggerPrice: 1, Amount: 1, TimeInForce: tif})
+		require.ErrorIsf(t, err, order.ErrUnsupportedTimeInForce, "newSpotOneCancelsTheOtherLegs must reject %s for a list without a stop limit order, whose orders take no time in force", tif)
 	}
 
-	got, err := newSpotOCOLegs(&order.Submit{
+	got, err := newSpotOneCancelsTheOtherLegs(&order.Submit{
 		Type: order.OCO, Side: order.Sell, Price: 90000, TriggerPrice: 70000, Amount: 0.001, ClientOrderID: "gct-oco",
 		TimeInForce:         order.PostOnly | order.GoodTillCancel,
 		RiskManagementModes: order.RiskManagementModes{StopLoss: order.RiskManagement{LimitPrice: 69000}},
 	})
-	require.NoError(t, err, "newSpotOCOLegs must not error")
-	exp := &spotOCOLegs{
+	require.NoError(t, err, "newSpotOneCancelsTheOtherLegs must not error")
+	exp := &spotOneCancelsTheOtherLegs{
 		side:       "SELL",
-		limitMaker: OCOOrderListLeg{Type: "LIMIT_MAKER", Price: 90000},
-		stopLoss:   OCOOrderListLeg{Type: "STOP_LOSS_LIMIT", Price: 69000, StopPrice: 70000, TimeInForce: "GTC"},
+		limitMaker: OneCancelsTheOtherOrderListLeg{Type: "LIMIT_MAKER", Price: 90000},
+		stopLoss:   OneCancelsTheOtherOrderListLeg{Type: "STOP_LOSS_LIMIT", Price: 69000, StopPrice: 70000, TimeInForce: "GTC"},
 	}
-	assert.Equal(t, exp, got, "newSpotOCOLegs should work out a stop limit list's legs")
+	assert.Equal(t, exp, got, "newSpotOneCancelsTheOtherLegs should work out a stop limit list's legs")
 
-	got, err = newSpotOCOLegs(&order.Submit{Type: order.OCO, Side: order.Buy, Price: 60000, TriggerPrice: 95000, Amount: 0.002})
-	require.NoError(t, err, "newSpotOCOLegs must not error")
-	exp = &spotOCOLegs{
+	got, err = newSpotOneCancelsTheOtherLegs(&order.Submit{Type: order.OCO, Side: order.Buy, Price: 60000, TriggerPrice: 95000, Amount: 0.002})
+	require.NoError(t, err, "newSpotOneCancelsTheOtherLegs must not error")
+	exp = &spotOneCancelsTheOtherLegs{
 		side:       "BUY",
-		limitMaker: OCOOrderListLeg{Type: "LIMIT_MAKER", Price: 60000},
-		stopLoss:   OCOOrderListLeg{Type: "STOP_LOSS", StopPrice: 95000},
+		limitMaker: OneCancelsTheOtherOrderListLeg{Type: "LIMIT_MAKER", Price: 60000},
+		stopLoss:   OneCancelsTheOtherOrderListLeg{Type: "STOP_LOSS", StopPrice: 95000},
 	}
-	assert.Equal(t, exp, got, "newSpotOCOLegs should work out a stop loss list's legs without client order IDs")
+	assert.Equal(t, exp, got, "newSpotOneCancelsTheOtherLegs should work out a stop loss list's legs without client order IDs")
 
-	got, err = newSpotOCOLegs(&order.Submit{Type: order.OCO, Side: order.Buy, Price: 60000, TriggerPrice: 95000, Amount: 0.002, TimeInForce: order.PostOnly | order.GoodTillCancel})
-	require.NoError(t, err, "newSpotOCOLegs must not error for a post only, good till cancel list without a stop limit order")
-	assert.Equal(t, exp, got, "newSpotOCOLegs should take a post only, good till cancel list without a stop limit order as one without a time in force")
+	got, err = newSpotOneCancelsTheOtherLegs(&order.Submit{Type: order.OCO, Side: order.Buy, Price: 60000, TriggerPrice: 95000, Amount: 0.002, TimeInForce: order.PostOnly | order.GoodTillCancel})
+	require.NoError(t, err, "newSpotOneCancelsTheOtherLegs must not error for a post only, good till cancel list without a stop limit order")
+	assert.Equal(t, exp, got, "newSpotOneCancelsTheOtherLegs should take a post only, good till cancel list without a stop limit order as one without a time in force")
 }
 
 func TestMarginSideEffect(t *testing.T) {
@@ -7313,7 +7367,7 @@ func TestFuturesPositionModeLookups(t *testing.T) {
 	}
 	assert.Equal(t, lookups, venue.lookupCounts(), "futuresPositionSide should keep each account's mode")
 
-	require.NoError(t, ex.ChangePositionMode(hedgeCtx, false), "ChangePositionMode must not error")
+	require.NoError(t, ex.USDTMarginedFuturesChangePositionMode(hedgeCtx, false), "USDTMarginedFuturesChangePositionMode must not error")
 	side, _, err := ex.futuresPositionSide(hedgeCtx, &order.Submit{Side: order.Long})
 	require.NoError(t, err, "futuresPositionSide must not error")
 	assert.Empty(t, side, "futuresPositionSide should follow the account's changed mode")
@@ -7321,7 +7375,7 @@ func TestFuturesPositionModeLookups(t *testing.T) {
 	require.NoError(t, err, "futuresPositionSide must not error")
 	exp := maps.Clone(lookups)
 	exp["hedge-key"]++
-	assert.Equal(t, exp, venue.lookupCounts(), "ChangePositionMode should have only the changed account's mode looked up again")
+	assert.Equal(t, exp, venue.lookupCounts(), "USDTMarginedFuturesChangePositionMode should have only the changed account's mode looked up again")
 }
 
 func TestSubmitFuturesOrderPositionMode(t *testing.T) {
@@ -7414,8 +7468,8 @@ func TestSubmitFuturesOrderPositionMode(t *testing.T) {
 
 func TestPositionModeChangeOverlappingLookup(t *testing.T) {
 	t.Parallel()
-	// A lookup made while ChangePositionMode is in flight can read the mode the change replaces, so its mode is not kept
-	// once the change returns
+	// A lookup made while USDTMarginedFuturesChangePositionMode is in flight can read the mode the change replaces, so its
+	// mode is not kept once the change returns
 	changeStarted, lookupAnswered := make(chan struct{}), make(chan struct{})
 	startChange, answerLookup := sync.OnceFunc(func() { close(changeStarted) }), sync.OnceFunc(func() { close(lookupAnswered) })
 	t.Cleanup(answerLookup)
@@ -7449,14 +7503,14 @@ func TestPositionModeChangeOverlappingLookup(t *testing.T) {
 		select {
 		case <-changeStarted:
 		case <-time.After(30 * time.Second):
-			assert.Fail(t, "ChangePositionMode should reach Binance")
+			assert.Fail(t, "USDTMarginedFuturesChangePositionMode should reach Binance")
 			return
 		}
 		side, _, err := ex.futuresPositionSide(t.Context(), &order.Submit{Side: order.Long})
 		assert.NoError(t, err, "futuresPositionSide should not error")
 		assert.Empty(t, side, "futuresPositionSide should read the mode the change replaces")
 	}()
-	require.NoError(t, ex.ChangePositionMode(t.Context(), true), "ChangePositionMode must not error")
+	require.NoError(t, ex.USDTMarginedFuturesChangePositionMode(t.Context(), true), "USDTMarginedFuturesChangePositionMode must not error")
 	select {
 	case <-looked:
 	case <-time.After(30 * time.Second):
@@ -7486,8 +7540,8 @@ func TestPositionModeLookupRate(t *testing.T) {
 		}
 	}
 	ctx := request.WithDelayNotAllowed(t.Context())
-	_, err := ex.GetCurrentPositionMode(ctx)
-	require.ErrorIs(t, err, request.ErrDelayNotAllowed, "GetCurrentPositionMode must draw on the IP pool")
+	_, err := ex.GetUSDTMarginedFuturesCurrentPositionMode(ctx)
+	require.ErrorIs(t, err, request.ErrDelayNotAllowed, "GetUSDTMarginedFuturesCurrentPositionMode must draw on the IP pool")
 	_, err = ex.SubmitOrder(ctx, &order.Submit{Exchange: ex.Name, AssetType: asset.USDTMarginedFutures, Pair: currency.NewBTCUSDT(), Type: order.Market, Side: order.Long, Amount: 0.002})
 	require.NoError(t, err, "SubmitOrder must not wait on the IP pool to look up a Long order's position mode")
 	assert.Equal(t, []string{"LONG/"}, venue.positionSides(), "SubmitOrder should place the order in the account's position mode")

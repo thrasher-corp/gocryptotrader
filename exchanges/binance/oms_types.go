@@ -135,15 +135,15 @@ type FuturesReferralNewUserResponse struct {
 	IfNewUser     bool   `json:"ifNewUser"`
 }
 
-// PAPIClientNewUserStatusResponse holds whether a referred portfolio margin user is new to the broker
-type PAPIClientNewUserStatusResponse struct {
+// PortfolioMarginClientNewUserStatusResponse holds whether a referred portfolio margin user is new to the broker
+type PortfolioMarginClientNewUserStatusResponse struct {
 	BrokerID      string `json:"brokerId"`
 	RebateWorking bool   `json:"rebateWorking"`
 	IfNewUser     bool   `json:"ifNewUser"`
 }
 
-// PAPICustomisedIDResponse holds a referred portfolio margin user's customised ID
-type PAPICustomisedIDResponse struct {
+// PortfolioMarginCustomisedIDResponse holds a referred portfolio margin user's customised ID
+type PortfolioMarginCustomisedIDResponse struct {
 	BrokerID   string `json:"brokerId"`
 	CustomerID string `json:"customerId"`
 }

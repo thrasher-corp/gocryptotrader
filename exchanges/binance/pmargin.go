@@ -30,8 +30,8 @@ var (
 	errClosePositionConflict        = errors.New("closePosition cannot be sent with quantity or reduceOnly")
 )
 
-// pmOrderSide returns the wire value of a buy or sell order side
-func pmOrderSide(side order.Side) (string, error) {
+// portfolioMarginOrderSide returns the wire value of a buy or sell order side
+func portfolioMarginOrderSide(side order.Side) (string, error) {
 	switch side {
 	case order.Buy, order.Sell:
 		return side.String(), nil
@@ -40,8 +40,8 @@ func pmOrderSide(side order.Side) (string, error) {
 	}
 }
 
-// pmSymbolParam sets the symbol parameter when a pair is given
-func (e *Exchange) pmSymbolParam(params url.Values, pair currency.Pair, a asset.Item) error {
+// portfolioMarginSymbolParam sets the symbol parameter when a pair is given
+func (e *Exchange) portfolioMarginSymbolParam(params url.Values, pair currency.Pair, a asset.Item) error {
 	if pair.IsEmpty() {
 		return nil
 	}
@@ -53,29 +53,30 @@ func (e *Exchange) pmSymbolParam(params url.Values, pair currency.Pair, a asset.
 	return nil
 }
 
-// GetAccountBalance returns the portfolio margin account balance of one asset, or of every asset when asset is empty
-func (e *Exchange) GetAccountBalance(ctx context.Context, ccy currency.Code) ([]AccountBalanceResponse, error) {
+// GetPortfolioMarginAccountBalance returns the portfolio margin account balance of one asset, or of every asset when
+// asset is empty
+func (e *Exchange) GetPortfolioMarginAccountBalance(ctx context.Context, ccy currency.Code) ([]AccountBalanceResponse, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("asset", ccy.Upper().String())
 	}
 	var resp objectOrArray[AccountBalanceResponse]
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/balance", params, pmGetAccountBalancesRate, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/balance", params, portfolioMarginGetAccountBalancesRate, &resp)
 }
 
 // GetPortfolioMarginAccountInformation returns the portfolio margin account information
-func (e *Exchange) GetPortfolioMarginAccountInformation(ctx context.Context) (*PMAccountInformationResponse, error) {
-	var resp *PMAccountInformationResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/account", nil, pmGetAccountInformationRate, &resp)
+func (e *Exchange) GetPortfolioMarginAccountInformation(ctx context.Context) (*PortfolioMarginAccountInformationResponse, error) {
+	var resp *PortfolioMarginAccountInformationResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/account", nil, portfolioMarginGetAccountInformationRate, &resp)
 }
 
-// BNBTransfer transfers BNB into or out of the UM account; transferSide is TO_UM or FROM_UM. The endpoint can be called
-// 10 times per 10 minutes
-func (e *Exchange) BNBTransfer(ctx context.Context, amount float64, transferSide string) (*PMTransactionResponse, error) {
-	return e.pmTransferBNB(ctx, exchange.RestFuturesSupplementary, "/papi/v1/bnb-transfer", amount, transferSide, pmBNBTransferRate)
+// PortfolioMarginBNBTransfer transfers BNB into or out of the UM account; transferSide is TO_UM or FROM_UM. The
+// endpoint can be called 10 times per 10 minutes
+func (e *Exchange) PortfolioMarginBNBTransfer(ctx context.Context, amount float64, transferSide string) (*PortfolioMarginTransactionResponse, error) {
+	return e.portfolioMarginTransferBNB(ctx, exchange.RestFuturesSupplementary, "/papi/v1/bnb-transfer", amount, transferSide, portfolioMarginBNBTransferRate)
 }
 
-func (e *Exchange) pmTransferBNB(ctx context.Context, ePath exchange.URL, path string, amount float64, transferSide string, f request.EndpointLimit) (*PMTransactionResponse, error) {
+func (e *Exchange) portfolioMarginTransferBNB(ctx context.Context, ePath exchange.URL, path string, amount float64, transferSide string, f request.EndpointLimit) (*PortfolioMarginTransactionResponse, error) {
 	if amount <= 0 {
 		return nil, limits.ErrAmountBelowMin
 	}
@@ -85,40 +86,40 @@ func (e *Exchange) pmTransferBNB(ctx context.Context, ePath exchange.URL, path s
 	params := url.Values{}
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	params.Set("transferSide", transferSide)
-	var resp *PMTransactionResponse
+	var resp *PortfolioMarginTransactionResponse
 	return resp, e.SendAuthHTTPRequest(ctx, ePath, http.MethodPost, path, params, f, &resp)
 }
 
-// GetAutoRepayFuturesStatus returns whether futures negative balances are repaid automatically
-func (e *Exchange) GetAutoRepayFuturesStatus(ctx context.Context) (*PMAutoRepayFuturesStatusResponse, error) {
-	var resp *PMAutoRepayFuturesStatusResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/repay-futures-switch", nil, pmGetAutoRepayFuturesStatusRate, &resp)
+// GetPortfolioMarginAutoRepayFuturesStatus returns whether futures negative balances are repaid automatically
+func (e *Exchange) GetPortfolioMarginAutoRepayFuturesStatus(ctx context.Context) (*PortfolioMarginAutoRepayFuturesStatusResponse, error) {
+	var resp *PortfolioMarginAutoRepayFuturesStatusResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/repay-futures-switch", nil, portfolioMarginGetAutoRepayFuturesStatusRate, &resp)
 }
 
-// ChangeAutoRepayFuturesStatus turns the automatic repayment of futures negative balances on or off. The endpoint can
-// be called 20 times a day
-func (e *Exchange) ChangeAutoRepayFuturesStatus(ctx context.Context, autoRepay bool) (*PMMessageResponse, error) {
-	return e.pmChangeAutoRepayFuturesStatus(ctx, exchange.RestFuturesSupplementary, "/papi/v1/repay-futures-switch", autoRepay, pmChangeAutoRepayFuturesStatusRate)
+// ChangePortfolioMarginAutoRepayFuturesStatus turns the automatic repayment of futures negative balances on or off. The
+// endpoint can be called 20 times a day
+func (e *Exchange) ChangePortfolioMarginAutoRepayFuturesStatus(ctx context.Context, autoRepay bool) (*PortfolioMarginMessageResponse, error) {
+	return e.portfolioMarginChangeAutoRepayFuturesStatus(ctx, exchange.RestFuturesSupplementary, "/papi/v1/repay-futures-switch", autoRepay, portfolioMarginChangeAutoRepayFuturesStatusRate)
 }
 
-func (e *Exchange) pmChangeAutoRepayFuturesStatus(ctx context.Context, ePath exchange.URL, path string, autoRepay bool, f request.EndpointLimit) (*PMMessageResponse, error) {
+func (e *Exchange) portfolioMarginChangeAutoRepayFuturesStatus(ctx context.Context, ePath exchange.URL, path string, autoRepay bool, f request.EndpointLimit) (*PortfolioMarginMessageResponse, error) {
 	params := url.Values{}
 	params.Set("autoRepay", strconv.FormatBool(autoRepay))
-	var resp *PMMessageResponse
+	var resp *PortfolioMarginMessageResponse
 	return resp, e.SendAuthHTTPRequest(ctx, ePath, http.MethodPost, path, params, f, &resp)
 }
 
-// ChangeCMInitialLeverage changes the initial leverage of a CM symbol
-func (e *Exchange) ChangeCMInitialLeverage(ctx context.Context, symbol currency.Pair, leverage uint64) (*CMInitialLeverageResponse, error) {
-	params, err := e.pmLeverageParams(symbol, asset.CoinMarginedFutures, leverage)
+// ChangePortfolioMarginCoinMarginedInitialLeverage changes the initial leverage of a CM symbol
+func (e *Exchange) ChangePortfolioMarginCoinMarginedInitialLeverage(ctx context.Context, symbol currency.Pair, leverage uint64) (*PortfolioMarginCoinMarginedInitialLeverageResponse, error) {
+	params, err := e.portfolioMarginLeverageParams(symbol, asset.CoinMarginedFutures, leverage)
 	if err != nil {
 		return nil, err
 	}
-	var resp *CMInitialLeverageResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodPost, "/papi/v1/cm/leverage", params, pmDefaultRate, &resp)
+	var resp *PortfolioMarginCoinMarginedInitialLeverageResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodPost, "/papi/v1/cm/leverage", params, portfolioMarginDefaultRate, &resp)
 }
 
-func (e *Exchange) pmLeverageParams(symbol currency.Pair, a asset.Item, leverage uint64) (url.Values, error) {
+func (e *Exchange) portfolioMarginLeverageParams(symbol currency.Pair, a asset.Item, leverage uint64) (url.Values, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -126,104 +127,106 @@ func (e *Exchange) pmLeverageParams(symbol currency.Pair, a asset.Item, leverage
 		return nil, errLeverageRequired
 	}
 	params := url.Values{}
-	if err := e.pmSymbolParam(params, symbol, a); err != nil {
+	if err := e.portfolioMarginSymbolParam(params, symbol, a); err != nil {
 		return nil, err
 	}
 	params.Set("leverage", strconv.FormatUint(leverage, 10))
 	return params, nil
 }
 
-// GetCMCurrentPositionMode returns whether hedge mode is enabled for every CM symbol
-func (e *Exchange) GetCMCurrentPositionMode(ctx context.Context) (*PMPositionModeResponse, error) {
-	var resp *PMPositionModeResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/cm/positionSide/dual", nil, pmGetCMCurrentPositionModeRate, &resp)
+// GetPortfolioMarginCoinMarginedCurrentPositionMode returns whether hedge mode is enabled for every CM symbol
+func (e *Exchange) GetPortfolioMarginCoinMarginedCurrentPositionMode(ctx context.Context) (*PortfolioMarginPositionModeResponse, error) {
+	var resp *PortfolioMarginPositionModeResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/cm/positionSide/dual", nil, portfolioMarginGetCoinMarginedCurrentPositionModeRate, &resp)
 }
 
-// ChangeCMPositionMode switches every CM symbol between hedge mode (true) and one-way mode (false); the CM position
-// mode must match the UM position mode
-func (e *Exchange) ChangeCMPositionMode(ctx context.Context, dualSidePosition bool) (*SuccessResponse, error) {
-	return e.pmChangePositionMode(ctx, "/papi/v1/cm/positionSide/dual", dualSidePosition)
+// ChangePortfolioMarginCoinMarginedPositionMode switches every CM symbol between hedge mode (true) and one-way mode
+// (false); the CM position mode must match the UM position mode
+func (e *Exchange) ChangePortfolioMarginCoinMarginedPositionMode(ctx context.Context, dualSidePosition bool) (*SuccessResponse, error) {
+	return e.portfolioMarginChangePositionMode(ctx, "/papi/v1/cm/positionSide/dual", dualSidePosition)
 }
 
-func (e *Exchange) pmChangePositionMode(ctx context.Context, path string, dualSidePosition bool) (*SuccessResponse, error) {
+func (e *Exchange) portfolioMarginChangePositionMode(ctx context.Context, path string, dualSidePosition bool) (*SuccessResponse, error) {
 	params := url.Values{}
 	params.Set("dualSidePosition", strconv.FormatBool(dualSidePosition))
 	var resp *SuccessResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodPost, path, params, pmDefaultRate, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodPost, path, params, portfolioMarginDefaultRate, &resp)
 }
 
-// ChangeUMInitialLeverage changes the initial leverage of a UM symbol
-func (e *Exchange) ChangeUMInitialLeverage(ctx context.Context, symbol currency.Pair, leverage uint64) (*UMInitialLeverageResponse, error) {
-	params, err := e.pmLeverageParams(symbol, asset.USDTMarginedFutures, leverage)
+// ChangePortfolioMarginUSDTMarginedInitialLeverage changes the initial leverage of a UM symbol
+func (e *Exchange) ChangePortfolioMarginUSDTMarginedInitialLeverage(ctx context.Context, symbol currency.Pair, leverage uint64) (*PortfolioMarginUSDTMarginedInitialLeverageResponse, error) {
+	params, err := e.portfolioMarginLeverageParams(symbol, asset.USDTMarginedFutures, leverage)
 	if err != nil {
 		return nil, err
 	}
-	var resp *UMInitialLeverageResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodPost, "/papi/v1/um/leverage", params, pmDefaultRate, &resp)
+	var resp *PortfolioMarginUSDTMarginedInitialLeverageResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodPost, "/papi/v1/um/leverage", params, portfolioMarginDefaultRate, &resp)
 }
 
-// GetUMCurrentPositionMode returns whether hedge mode is enabled for every UM symbol
-func (e *Exchange) GetUMCurrentPositionMode(ctx context.Context) (*PMPositionModeResponse, error) {
-	var resp *PMPositionModeResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/um/positionSide/dual", nil, pmGetUMCurrentPositionModeRate, &resp)
+// GetPortfolioMarginUSDTMarginedCurrentPositionMode returns whether hedge mode is enabled for every UM symbol
+func (e *Exchange) GetPortfolioMarginUSDTMarginedCurrentPositionMode(ctx context.Context) (*PortfolioMarginPositionModeResponse, error) {
+	var resp *PortfolioMarginPositionModeResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/um/positionSide/dual", nil, portfolioMarginGetUSDTMarginedCurrentPositionModeRate, &resp)
 }
 
-// ChangeUMPositionMode switches every UM symbol between hedge mode (true) and one-way mode (false)
-func (e *Exchange) ChangeUMPositionMode(ctx context.Context, dualSidePosition bool) (*SuccessResponse, error) {
-	return e.pmChangePositionMode(ctx, "/papi/v1/um/positionSide/dual", dualSidePosition)
+// ChangePortfolioMarginUSDTMarginedPositionMode switches every UM symbol between hedge mode (true) and one-way mode
+// (false)
+func (e *Exchange) ChangePortfolioMarginUSDTMarginedPositionMode(ctx context.Context, dualSidePosition bool) (*SuccessResponse, error) {
+	return e.portfolioMarginChangePositionMode(ctx, "/papi/v1/um/positionSide/dual", dualSidePosition)
 }
 
-// GetCMNotionalAndLeverageBrackets returns the notional and leverage brackets of one CM symbol, or of every CM symbol
-// when symbol is empty
-func (e *Exchange) GetCMNotionalAndLeverageBrackets(ctx context.Context, symbol currency.Pair) ([]CMNotionalAndLeverageResponse, error) {
+// GetPortfolioMarginCoinMarginedNotionalAndLeverageBrackets returns the notional and leverage brackets of one CM
+// symbol, or of every CM symbol when symbol is empty
+func (e *Exchange) GetPortfolioMarginCoinMarginedNotionalAndLeverageBrackets(ctx context.Context, symbol currency.Pair) ([]PortfolioMarginCoinMarginedNotionalAndLeverageResponse, error) {
 	params := url.Values{}
-	if err := e.pmSymbolParam(params, symbol, asset.CoinMarginedFutures); err != nil {
+	if err := e.portfolioMarginSymbolParam(params, symbol, asset.CoinMarginedFutures); err != nil {
 		return nil, err
 	}
-	var resp []CMNotionalAndLeverageResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/cm/leverageBracket", params, pmDefaultRate, &resp)
+	var resp []PortfolioMarginCoinMarginedNotionalAndLeverageResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/cm/leverageBracket", params, portfolioMarginDefaultRate, &resp)
 }
 
-// FundAutoCollection collects every asset except BNB from the futures accounts into the margin account. The endpoint
-// can be called 500 times per hour
-func (e *Exchange) FundAutoCollection(ctx context.Context) (*PMMessageResponse, error) {
-	var resp *PMMessageResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodPost, "/papi/v1/auto-collection", nil, pmFundAutoCollectionRate, &resp)
+// PortfolioMarginFundAutoCollection collects every asset except BNB from the futures accounts into the margin account.
+// The endpoint can be called 500 times per hour
+func (e *Exchange) PortfolioMarginFundAutoCollection(ctx context.Context) (*PortfolioMarginMessageResponse, error) {
+	var resp *PortfolioMarginMessageResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodPost, "/papi/v1/auto-collection", nil, portfolioMarginFundAutoCollectionRate, &resp)
 }
 
-// FundCollectionByAsset collects an asset other than BNB from the futures accounts into the margin account
-func (e *Exchange) FundCollectionByAsset(ctx context.Context, ccy currency.Code) (*PMMessageResponse, error) {
-	return e.pmFundCollectionByAsset(ctx, exchange.RestFuturesSupplementary, "/papi/v1/asset-collection", ccy, pmFundCollectionByAssetRate)
+// PortfolioMarginFundCollectionByAsset collects an asset other than BNB from the futures accounts into the margin
+// account
+func (e *Exchange) PortfolioMarginFundCollectionByAsset(ctx context.Context, ccy currency.Code) (*PortfolioMarginMessageResponse, error) {
+	return e.portfolioMarginFundCollectionByAsset(ctx, exchange.RestFuturesSupplementary, "/papi/v1/asset-collection", ccy, portfolioMarginFundCollectionByAssetRate)
 }
 
-func (e *Exchange) pmFundCollectionByAsset(ctx context.Context, ePath exchange.URL, path string, ccy currency.Code, f request.EndpointLimit) (*PMMessageResponse, error) {
+func (e *Exchange) portfolioMarginFundCollectionByAsset(ctx context.Context, ePath exchange.URL, path string, ccy currency.Code, f request.EndpointLimit) (*PortfolioMarginMessageResponse, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	params := url.Values{}
 	params.Set("asset", ccy.Upper().String())
-	var resp *PMMessageResponse
+	var resp *PortfolioMarginMessageResponse
 	return resp, e.SendAuthHTTPRequest(ctx, ePath, http.MethodPost, path, params, f, &resp)
 }
 
-// GetCMAccountDetail returns the CM account assets and positions
-func (e *Exchange) GetCMAccountDetail(ctx context.Context) (*CMAccountDetailResponse, error) {
-	var resp *CMAccountDetailResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/cm/account", nil, pmGetCMAccountDetailRate, &resp)
+// GetPortfolioMarginCoinMarginedAccountDetail returns the CM account assets and positions
+func (e *Exchange) GetPortfolioMarginCoinMarginedAccountDetail(ctx context.Context) (*PortfolioMarginCoinMarginedAccountDetailResponse, error) {
+	var resp *PortfolioMarginCoinMarginedAccountDetailResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/cm/account", nil, portfolioMarginGetCoinMarginedAccountDetailRate, &resp)
 }
 
-// GetCMIncomeHistory returns CM income history; without a time range the last 200 days are returned, and a range
-// cannot exceed 200 days
-func (e *Exchange) GetCMIncomeHistory(ctx context.Context, arg *PMIncomeHistoryRequest) ([]IncomeItemResponse, error) {
-	return e.pmIncomeHistory(ctx, "/papi/v1/cm/income", asset.CoinMarginedFutures, arg, pmGetCMIncomeHistoryRate)
+// GetPortfolioMarginCoinMarginedIncomeHistory returns CM income history; without a time range the last 200 days are
+// returned, and a range cannot exceed 200 days
+func (e *Exchange) GetPortfolioMarginCoinMarginedIncomeHistory(ctx context.Context, arg *PortfolioMarginIncomeHistoryRequest) ([]IncomeItemResponse, error) {
+	return e.portfolioMarginIncomeHistory(ctx, "/papi/v1/cm/income", asset.CoinMarginedFutures, arg, portfolioMarginGetCoinMarginedIncomeHistoryRate)
 }
 
-func (e *Exchange) pmIncomeHistory(ctx context.Context, path string, a asset.Item, arg *PMIncomeHistoryRequest, f request.EndpointLimit) ([]IncomeItemResponse, error) {
+func (e *Exchange) portfolioMarginIncomeHistory(ctx context.Context, path string, a asset.Item, arg *PortfolioMarginIncomeHistoryRequest, f request.EndpointLimit) ([]IncomeItemResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
 	params := url.Values{}
-	if err := e.pmSymbolParam(params, arg.Symbol, a); err != nil {
+	if err := e.portfolioMarginSymbolParam(params, arg.Symbol, a); err != nil {
 		return nil, err
 	}
 	if arg.IncomeType != "" {
@@ -242,9 +245,9 @@ func (e *Exchange) pmIncomeHistory(ctx context.Context, path string, a asset.Ite
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, path, params, f, &resp)
 }
 
-// GetMarginBorrowOrLoanInterestHistory returns margin borrow and loan interest records, newest first; without a time
-// range the last 7 days are returned, and a range cannot exceed 30 days
-func (e *Exchange) GetMarginBorrowOrLoanInterestHistory(ctx context.Context, arg *PMMarginInterestHistoryRequest) (*PMMarginInterestHistoryResponse, error) {
+// GetPortfolioMarginMarginBorrowOrLoanInterestHistory returns margin borrow and loan interest records, newest first;
+// without a time range the last 7 days are returned, and a range cannot exceed 30 days
+func (e *Exchange) GetPortfolioMarginMarginBorrowOrLoanInterestHistory(ctx context.Context, arg *PortfolioMarginMarginInterestHistoryRequest) (*PortfolioMarginMarginInterestHistoryResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -264,73 +267,73 @@ func (e *Exchange) GetMarginBorrowOrLoanInterestHistory(ctx context.Context, arg
 	if arg.Archived {
 		params.Set("archived", "true")
 	}
-	var resp *PMMarginInterestHistoryResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/margin/marginInterestHistory", params, pmDefaultRate, &resp)
+	var resp *PortfolioMarginMarginInterestHistoryResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/margin/marginInterestHistory", params, portfolioMarginDefaultRate, &resp)
 }
 
-// GetUMAccountDetail returns the UM account assets and positions
-func (e *Exchange) GetUMAccountDetail(ctx context.Context) (*UMAccountDetailResponse, error) {
-	var resp *UMAccountDetailResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/um/account", nil, pmGetUMAccountDetailRate, &resp)
+// GetPortfolioMarginUSDTMarginedAccountDetail returns the UM account assets and positions
+func (e *Exchange) GetPortfolioMarginUSDTMarginedAccountDetail(ctx context.Context) (*PortfolioMarginUSDTMarginedAccountDetailResponse, error) {
+	var resp *PortfolioMarginUSDTMarginedAccountDetailResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/um/account", nil, portfolioMarginGetUSDTMarginedAccountDetailRate, &resp)
 }
 
-// GetUMIncomeHistory returns UM income history of the last three months; without a time range the last 7 days are
-// returned
-func (e *Exchange) GetUMIncomeHistory(ctx context.Context, arg *PMIncomeHistoryRequest) ([]IncomeItemResponse, error) {
-	return e.pmIncomeHistory(ctx, "/papi/v1/um/income", asset.USDTMarginedFutures, arg, pmGetUMIncomeHistoryRate)
+// GetPortfolioMarginUSDTMarginedIncomeHistory returns UM income history of the last three months; without a time range
+// the last 7 days are returned
+func (e *Exchange) GetPortfolioMarginUSDTMarginedIncomeHistory(ctx context.Context, arg *PortfolioMarginIncomeHistoryRequest) ([]IncomeItemResponse, error) {
+	return e.portfolioMarginIncomeHistory(ctx, "/papi/v1/um/income", asset.USDTMarginedFutures, arg, portfolioMarginGetUSDTMarginedIncomeHistoryRate)
 }
 
-// GetCMUserCommissionRate returns the user's commission rates for a CM symbol
-func (e *Exchange) GetCMUserCommissionRate(ctx context.Context, symbol currency.Pair) (*PMCommissionRateResponse, error) {
-	return e.pmUserCommissionRate(ctx, "/papi/v1/cm/commissionRate", symbol, asset.CoinMarginedFutures, pmGetCMUserCommissionRate)
+// GetPortfolioMarginCoinMarginedUserCommissionRate returns the user's commission rates for a CM symbol
+func (e *Exchange) GetPortfolioMarginCoinMarginedUserCommissionRate(ctx context.Context, symbol currency.Pair) (*PortfolioMarginCommissionRateResponse, error) {
+	return e.portfolioMarginUserCommissionRate(ctx, "/papi/v1/cm/commissionRate", symbol, asset.CoinMarginedFutures, portfolioMarginGetCoinMarginedUserCommissionRate)
 }
 
-func (e *Exchange) pmUserCommissionRate(ctx context.Context, path string, symbol currency.Pair, a asset.Item, f request.EndpointLimit) (*PMCommissionRateResponse, error) {
+func (e *Exchange) portfolioMarginUserCommissionRate(ctx context.Context, path string, symbol currency.Pair, a asset.Item, f request.EndpointLimit) (*PortfolioMarginCommissionRateResponse, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	params := url.Values{}
-	if err := e.pmSymbolParam(params, symbol, a); err != nil {
+	if err := e.portfolioMarginSymbolParam(params, symbol, a); err != nil {
 		return nil, err
 	}
-	var resp *PMCommissionRateResponse
+	var resp *PortfolioMarginCommissionRateResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, path, params, f, &resp)
 }
 
-// GetUMUserCommissionRate returns the user's commission rates for a UM symbol
-func (e *Exchange) GetUMUserCommissionRate(ctx context.Context, symbol currency.Pair) (*PMCommissionRateResponse, error) {
-	return e.pmUserCommissionRate(ctx, "/papi/v1/um/commissionRate", symbol, asset.USDTMarginedFutures, pmGetUMUserCommissionRate)
+// GetPortfolioMarginUSDTMarginedUserCommissionRate returns the user's commission rates for a UM symbol
+func (e *Exchange) GetPortfolioMarginUSDTMarginedUserCommissionRate(ctx context.Context, symbol currency.Pair) (*PortfolioMarginCommissionRateResponse, error) {
+	return e.portfolioMarginUserCommissionRate(ctx, "/papi/v1/um/commissionRate", symbol, asset.USDTMarginedFutures, portfolioMarginGetUSDTMarginedUserCommissionRate)
 }
 
-// GetPMMarginMaxBorrow returns the maximum amount of an asset the margin account can borrow
-func (e *Exchange) GetPMMarginMaxBorrow(ctx context.Context, ccy currency.Code) (*PMMarginMaxBorrowResponse, error) {
+// GetPortfolioMarginMarginMaxBorrow returns the maximum amount of an asset the margin account can borrow
+func (e *Exchange) GetPortfolioMarginMarginMaxBorrow(ctx context.Context, ccy currency.Code) (*PortfolioMarginMarginMaxBorrowResponse, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	params := url.Values{}
 	params.Set("asset", ccy.Upper().String())
-	var resp *PMMarginMaxBorrowResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/margin/maxBorrowable", params, pmMarginMaxBorrowRate, &resp)
+	var resp *PortfolioMarginMarginMaxBorrowResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/margin/maxBorrowable", params, portfolioMarginMarginMaxBorrowRate, &resp)
 }
 
-// GetPortfolioMarginUMTradingQuantitativeRulesIndicator returns the UM trading quantitative rules indicators of one
-// symbol, or of every symbol when symbol is empty
-func (e *Exchange) GetPortfolioMarginUMTradingQuantitativeRulesIndicator(ctx context.Context, symbol currency.Pair) (*PMTradingQuantitativeRulesIndicatorsResponse, error) {
+// GetPortfolioMarginUSDTMarginedTradingQuantitativeRulesIndicator returns the UM trading quantitative rules indicators
+// of one symbol, or of every symbol when symbol is empty
+func (e *Exchange) GetPortfolioMarginUSDTMarginedTradingQuantitativeRulesIndicator(ctx context.Context, symbol currency.Pair) (*PortfolioMarginTradingQuantitativeRulesIndicatorsResponse, error) {
 	params := url.Values{}
-	f := pmUMTradingQuantitativeRulesIndicatorsRate
+	f := portfolioMarginUSDTMarginedTradingQuantitativeRulesIndicatorsRate
 	if !symbol.IsEmpty() {
-		if err := e.pmSymbolParam(params, symbol, asset.USDTMarginedFutures); err != nil {
+		if err := e.portfolioMarginSymbolParam(params, symbol, asset.USDTMarginedFutures); err != nil {
 			return nil, err
 		}
-		f = pmDefaultRate
+		f = portfolioMarginDefaultRate
 	}
-	var resp *PMTradingQuantitativeRulesIndicatorsResponse
+	var resp *PortfolioMarginTradingQuantitativeRulesIndicatorsResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/um/apiTradingStatus", params, f, &resp)
 }
 
-// GetCMPositionInformation returns CM positions, filtered by margin asset or by pair (such as BTCUSD, the base of a
-// COIN-M contract pair); without either the positions of every trading symbol are returned
-func (e *Exchange) GetCMPositionInformation(ctx context.Context, marginAsset, pair currency.Code) ([]CMPositionInformationResponse, error) {
+// GetPortfolioMarginCoinMarginedPositionInformation returns CM positions, filtered by margin asset or by pair (such as
+// BTCUSD, the base of a COIN-M contract pair); without either the positions of every trading symbol are returned
+func (e *Exchange) GetPortfolioMarginCoinMarginedPositionInformation(ctx context.Context, marginAsset, pair currency.Code) ([]PortfolioMarginCoinMarginedPositionInformationResponse, error) {
 	params := url.Values{}
 	if !marginAsset.IsEmpty() {
 		params.Set("marginAsset", marginAsset.Upper().String())
@@ -338,22 +341,22 @@ func (e *Exchange) GetCMPositionInformation(ctx context.Context, marginAsset, pa
 	if !pair.IsEmpty() {
 		params.Set("pair", pair.Upper().String())
 	}
-	var resp []CMPositionInformationResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/cm/positionRisk", params, pmDefaultRate, &resp)
+	var resp []PortfolioMarginCoinMarginedPositionInformationResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/cm/positionRisk", params, portfolioMarginDefaultRate, &resp)
 }
 
-// GetMarginLoanRecord returns margin loan records, newest first; a transaction ID or start time is required, and a
-// time range cannot exceed 30 days
-func (e *Exchange) GetMarginLoanRecord(ctx context.Context, arg *PMMarginLoanRepayRecordRequest) (*PMMarginLoanRecordResponse, error) {
-	params, err := pmLoanRepayRecordParams(arg)
+// GetPortfolioMarginMarginLoanRecord returns margin loan records, newest first; a transaction ID or start time is
+// required, and a time range cannot exceed 30 days
+func (e *Exchange) GetPortfolioMarginMarginLoanRecord(ctx context.Context, arg *PortfolioMarginMarginLoanRepayRecordRequest) (*PortfolioMarginMarginLoanRecordResponse, error) {
+	params, err := portfolioMarginLoanRepayRecordParams(arg)
 	if err != nil {
 		return nil, err
 	}
-	var resp *PMMarginLoanRecordResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/margin/marginLoan", params, pmGetMarginLoanRecordRate, &resp)
+	var resp *PortfolioMarginMarginLoanRecordResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/margin/marginLoan", params, portfolioMarginGetMarginLoanRecordRate, &resp)
 }
 
-func pmLoanRepayRecordParams(arg *PMMarginLoanRepayRecordRequest) (url.Values, error) {
+func portfolioMarginLoanRepayRecordParams(arg *PortfolioMarginMarginLoanRepayRecordRequest) (url.Values, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -383,40 +386,41 @@ func pmLoanRepayRecordParams(arg *PMMarginLoanRepayRecordRequest) (url.Values, e
 	return params, nil
 }
 
-// GetMarginMaxWithdrawal returns the maximum amount of an asset that can be withdrawn from the margin account
-func (e *Exchange) GetMarginMaxWithdrawal(ctx context.Context, ccy currency.Code) (*PMMarginMaxWithdrawResponse, error) {
+// GetPortfolioMarginMarginMaxWithdrawal returns the maximum amount of an asset that can be withdrawn from the margin
+// account
+func (e *Exchange) GetPortfolioMarginMarginMaxWithdrawal(ctx context.Context, ccy currency.Code) (*PortfolioMarginMarginMaxWithdrawResponse, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	params := url.Values{}
 	params.Set("asset", ccy.Upper().String())
-	var resp *PMMarginMaxWithdrawResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/margin/maxWithdraw", params, pmGetMarginMaxWithdrawalRate, &resp)
+	var resp *PortfolioMarginMarginMaxWithdrawResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/margin/maxWithdraw", params, portfolioMarginGetMarginMaxWithdrawalRate, &resp)
 }
 
-// GetMarginRepayRecord returns margin repay records, newest first; a transaction ID or start time is required, and a
-// time range cannot exceed 30 days
-func (e *Exchange) GetMarginRepayRecord(ctx context.Context, arg *PMMarginLoanRepayRecordRequest) (*PMMarginRepayRecordResponse, error) {
-	params, err := pmLoanRepayRecordParams(arg)
+// GetPortfolioMarginMarginRepayRecord returns margin repay records, newest first; a transaction ID or start time is
+// required, and a time range cannot exceed 30 days
+func (e *Exchange) GetPortfolioMarginMarginRepayRecord(ctx context.Context, arg *PortfolioMarginMarginLoanRepayRecordRequest) (*PortfolioMarginMarginRepayRecordResponse, error) {
+	params, err := portfolioMarginLoanRepayRecordParams(arg)
 	if err != nil {
 		return nil, err
 	}
-	var resp *PMMarginRepayRecordResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/margin/repayLoan", params, pmGetMarginRepayRecordRate, &resp)
+	var resp *PortfolioMarginMarginRepayRecordResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/margin/repayLoan", params, portfolioMarginGetMarginRepayRecordRate, &resp)
 }
 
 // GetPortfolioMarginNegativeBalanceInterestHistory returns the interest charged on negative balances, newest first;
 // without a time range the last 7 days are returned, and a range cannot exceed 30 days
-func (e *Exchange) GetPortfolioMarginNegativeBalanceInterestHistory(ctx context.Context, arg *PMNegativeBalanceInterestHistoryRequest) ([]PortfolioMarginNegativeBalanceInterestResponse, error) {
-	params, err := pmNegativeBalanceInterestHistoryParams(arg)
+func (e *Exchange) GetPortfolioMarginNegativeBalanceInterestHistory(ctx context.Context, arg *PortfolioMarginNegativeBalanceInterestHistoryRequest) ([]PortfolioMarginNegativeBalanceInterestResponse, error) {
+	params, err := portfolioMarginNegativeBalanceInterestHistoryParams(arg)
 	if err != nil {
 		return nil, err
 	}
 	var resp []PortfolioMarginNegativeBalanceInterestResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/portfolio/interest-history", params, pmGetPortfolioMarginNegativeBalanceInterestHistoryRate, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/portfolio/interest-history", params, portfolioMarginGetNegativeBalanceInterestHistoryRate, &resp)
 }
 
-func pmNegativeBalanceInterestHistoryParams(arg *PMNegativeBalanceInterestHistoryRequest) (url.Values, error) {
+func portfolioMarginNegativeBalanceInterestHistoryParams(arg *PortfolioMarginNegativeBalanceInterestHistoryRequest) (url.Values, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -433,89 +437,89 @@ func pmNegativeBalanceInterestHistoryParams(arg *PMNegativeBalanceInterestHistor
 	return params, nil
 }
 
-// GetUMPositionInformation returns the UM positions of one symbol, or of every symbol when symbol is empty; one-way
-// mode accounts only have BOTH positions and hedge mode accounts LONG and SHORT positions
-func (e *Exchange) GetUMPositionInformation(ctx context.Context, symbol currency.Pair) ([]UMPositionInformationResponse, error) {
+// GetPortfolioMarginUSDTMarginedPositionInformation returns the UM positions of one symbol, or of every symbol when
+// symbol is empty; one-way mode accounts only have BOTH positions and hedge mode accounts LONG and SHORT positions
+func (e *Exchange) GetPortfolioMarginUSDTMarginedPositionInformation(ctx context.Context, symbol currency.Pair) ([]PortfolioMarginUSDTMarginedPositionInformationResponse, error) {
 	params := url.Values{}
-	if err := e.pmSymbolParam(params, symbol, asset.USDTMarginedFutures); err != nil {
+	if err := e.portfolioMarginSymbolParam(params, symbol, asset.USDTMarginedFutures); err != nil {
 		return nil, err
 	}
-	var resp []UMPositionInformationResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/um/positionRisk", params, pmGetUMPositionInformationRate, &resp)
+	var resp []PortfolioMarginUSDTMarginedPositionInformationResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/um/positionRisk", params, portfolioMarginGetUSDTMarginedPositionInformationRate, &resp)
 }
 
-// GetUserNegativeBalanceAutoExchangeRecord returns negative balance auto exchange records, newest first; the time
-// range is required and cannot exceed three months
-func (e *Exchange) GetUserNegativeBalanceAutoExchangeRecord(ctx context.Context, startTime, endTime time.Time) (*PMNegativeBalanceExchangeRecordResponse, error) {
+// GetPortfolioMarginUserNegativeBalanceAutoExchangeRecord returns negative balance auto exchange records, newest first;
+// the time range is required and cannot exceed three months
+func (e *Exchange) GetPortfolioMarginUserNegativeBalanceAutoExchangeRecord(ctx context.Context, startTime, endTime time.Time) (*PortfolioMarginNegativeBalanceExchangeRecordResponse, error) {
 	if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 		return nil, err
 	}
 	params := url.Values{}
 	params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 	params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
-	var resp *PMNegativeBalanceExchangeRecordResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/portfolio/negative-balance-exchange-record", params, pmNegativeBalanceExchangeRecordRate, &resp)
+	var resp *PortfolioMarginNegativeBalanceExchangeRecordResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/portfolio/negative-balance-exchange-record", params, portfolioMarginNegativeBalanceExchangeRecordRate, &resp)
 }
 
-// GetUserRateLimits returns the user's portfolio margin order rate limits
-func (e *Exchange) GetUserRateLimits(ctx context.Context) ([]PMRateLimitResponse, error) {
-	var resp []PMRateLimitResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/rateLimit/order", nil, pmDefaultRate, &resp)
+// GetPortfolioMarginUserRateLimits returns the user's portfolio margin order rate limits
+func (e *Exchange) GetPortfolioMarginUserRateLimits(ctx context.Context) ([]PortfolioMarginRateLimitResponse, error) {
+	var resp []PortfolioMarginRateLimitResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/rateLimit/order", nil, portfolioMarginDefaultRate, &resp)
 }
 
-// RepayFuturesNegativeBalance repays futures negative balances
-func (e *Exchange) RepayFuturesNegativeBalance(ctx context.Context) (*PMMessageResponse, error) {
-	var resp *PMMessageResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodPost, "/papi/v1/repay-futures-negative-balance", nil, pmRepayFuturesNegativeBalanceRate, &resp)
+// PortfolioMarginRepayFuturesNegativeBalance repays futures negative balances
+func (e *Exchange) PortfolioMarginRepayFuturesNegativeBalance(ctx context.Context) (*PortfolioMarginMessageResponse, error) {
+	var resp *PortfolioMarginMessageResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodPost, "/papi/v1/repay-futures-negative-balance", nil, portfolioMarginRepayFuturesNegativeBalanceRate, &resp)
 }
 
-// GetUMNotionalAndLeverageBrackets returns the notional and leverage brackets of one UM symbol, or of every UM symbol
-// when symbol is empty
-func (e *Exchange) GetUMNotionalAndLeverageBrackets(ctx context.Context, symbol currency.Pair) ([]UMNotionalAndLeverageResponse, error) {
+// GetPortfolioMarginUSDTMarginedNotionalAndLeverageBrackets returns the notional and leverage brackets of one UM
+// symbol, or of every UM symbol when symbol is empty
+func (e *Exchange) GetPortfolioMarginUSDTMarginedNotionalAndLeverageBrackets(ctx context.Context, symbol currency.Pair) ([]PortfolioMarginUSDTMarginedNotionalAndLeverageResponse, error) {
 	params := url.Values{}
-	if err := e.pmSymbolParam(params, symbol, asset.USDTMarginedFutures); err != nil {
+	if err := e.portfolioMarginSymbolParam(params, symbol, asset.USDTMarginedFutures); err != nil {
 		return nil, err
 	}
-	var resp []UMNotionalAndLeverageResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/um/leverageBracket", params, pmDefaultRate, &resp)
+	var resp []PortfolioMarginUSDTMarginedNotionalAndLeverageResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/um/leverageBracket", params, portfolioMarginDefaultRate, &resp)
 }
 
-// CancelAllCMOpenConditionalOrders cancels every open CM conditional order of a symbol
-func (e *Exchange) CancelAllCMOpenConditionalOrders(ctx context.Context, symbol currency.Pair) (*SuccessResponse, error) {
-	return e.pmCancelAllOpenOrders(ctx, "/papi/v1/cm/conditional/allOpenOrders", symbol, asset.CoinMarginedFutures)
+// CancelAllPortfolioMarginCoinMarginedOpenConditionalOrders cancels every open CM conditional order of a symbol
+func (e *Exchange) CancelAllPortfolioMarginCoinMarginedOpenConditionalOrders(ctx context.Context, symbol currency.Pair) (*SuccessResponse, error) {
+	return e.portfolioMarginCancelAllOpenOrders(ctx, "/papi/v1/cm/conditional/allOpenOrders", symbol, asset.CoinMarginedFutures)
 }
 
-func (e *Exchange) pmCancelAllOpenOrders(ctx context.Context, path string, symbol currency.Pair, a asset.Item) (*SuccessResponse, error) {
+func (e *Exchange) portfolioMarginCancelAllOpenOrders(ctx context.Context, path string, symbol currency.Pair, a asset.Item) (*SuccessResponse, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	params := url.Values{}
-	if err := e.pmSymbolParam(params, symbol, a); err != nil {
+	if err := e.portfolioMarginSymbolParam(params, symbol, a); err != nil {
 		return nil, err
 	}
 	var resp *SuccessResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodDelete, path, params, pmDefaultRate, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodDelete, path, params, portfolioMarginDefaultRate, &resp)
 }
 
-// CancelAllCMOrders cancels every open CM LIMIT order of a symbol
-func (e *Exchange) CancelAllCMOrders(ctx context.Context, symbol currency.Pair) (*SuccessResponse, error) {
-	return e.pmCancelAllOpenOrders(ctx, "/papi/v1/cm/allOpenOrders", symbol, asset.CoinMarginedFutures)
+// CancelAllPortfolioMarginCoinMarginedOrders cancels every open CM LIMIT order of a symbol
+func (e *Exchange) CancelAllPortfolioMarginCoinMarginedOrders(ctx context.Context, symbol currency.Pair) (*SuccessResponse, error) {
+	return e.portfolioMarginCancelAllOpenOrders(ctx, "/papi/v1/cm/allOpenOrders", symbol, asset.CoinMarginedFutures)
 }
 
-// CancelAllUMOrders cancels every open UM LIMIT order of a symbol
-func (e *Exchange) CancelAllUMOrders(ctx context.Context, symbol currency.Pair) (*SuccessResponse, error) {
-	return e.pmCancelAllOpenOrders(ctx, "/papi/v1/um/allOpenOrders", symbol, asset.USDTMarginedFutures)
+// CancelAllPortfolioMarginUSDTMarginedOrders cancels every open UM LIMIT order of a symbol
+func (e *Exchange) CancelAllPortfolioMarginUSDTMarginedOrders(ctx context.Context, symbol currency.Pair) (*SuccessResponse, error) {
+	return e.portfolioMarginCancelAllOpenOrders(ctx, "/papi/v1/um/allOpenOrders", symbol, asset.USDTMarginedFutures)
 }
 
-// NewCMConditionalOrder places a CM conditional order
-func (e *Exchange) NewCMConditionalOrder(ctx context.Context, arg *CMConditionalOrderRequest) (*NewCMConditionalOrderResponse, error) {
+// NewPortfolioMarginCoinMarginedConditionalOrder places a CM conditional order
+func (e *Exchange) NewPortfolioMarginCoinMarginedConditionalOrder(ctx context.Context, arg *PortfolioMarginCoinMarginedConditionalOrderRequest) (*NewPortfolioMarginCoinMarginedConditionalOrderResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
 	if arg.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	side, err := pmOrderSide(arg.Side)
+	side, err := portfolioMarginOrderSide(arg.Side)
 	if err != nil {
 		return nil, err
 	}
@@ -523,7 +527,7 @@ func (e *Exchange) NewCMConditionalOrder(ctx context.Context, arg *CMConditional
 		return nil, errStrategyTypeRequired
 	}
 	params := url.Values{}
-	if err := e.pmSymbolParam(params, arg.Symbol, asset.CoinMarginedFutures); err != nil {
+	if err := e.portfolioMarginSymbolParam(params, arg.Symbol, asset.CoinMarginedFutures); err != nil {
 		return nil, err
 	}
 	params.Set("side", side)
@@ -561,21 +565,22 @@ func (e *Exchange) NewCMConditionalOrder(ctx context.Context, arg *CMConditional
 	if arg.CallbackRate > 0 {
 		params.Set("callbackRate", strconv.FormatFloat(arg.CallbackRate, 'f', -1, 64))
 	}
-	var resp *NewCMConditionalOrderResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodPost, "/papi/v1/cm/conditional/order", params, pmOrderRate, &resp)
+	var resp *NewPortfolioMarginCoinMarginedConditionalOrderResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodPost, "/papi/v1/cm/conditional/order", params, portfolioMarginOrderRate, &resp)
 }
 
-// CancelCMConditionalOrder cancels a CM conditional order identified by its strategy ID or client strategy ID
-func (e *Exchange) CancelCMConditionalOrder(ctx context.Context, symbol currency.Pair, strategyID uint64, newClientStrategyID string) (*CancelCMConditionalOrderResponse, error) {
-	params, err := e.pmConditionalOrderParams(symbol, strategyID, newClientStrategyID)
+// CancelPortfolioMarginCoinMarginedConditionalOrder cancels a CM conditional order identified by its strategy ID or
+// client strategy ID
+func (e *Exchange) CancelPortfolioMarginCoinMarginedConditionalOrder(ctx context.Context, symbol currency.Pair, strategyID uint64, newClientStrategyID string) (*CancelPortfolioMarginCoinMarginedConditionalOrderResponse, error) {
+	params, err := e.portfolioMarginConditionalOrderParams(symbol, strategyID, newClientStrategyID)
 	if err != nil {
 		return nil, err
 	}
-	var resp *CancelCMConditionalOrderResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodDelete, "/papi/v1/cm/conditional/order", params, pmDefaultRate, &resp)
+	var resp *CancelPortfolioMarginCoinMarginedConditionalOrderResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodDelete, "/papi/v1/cm/conditional/order", params, portfolioMarginDefaultRate, &resp)
 }
 
-func (e *Exchange) pmConditionalOrderParams(symbol currency.Pair, strategyID uint64, newClientStrategyID string) (url.Values, error) {
+func (e *Exchange) portfolioMarginConditionalOrderParams(symbol currency.Pair, strategyID uint64, newClientStrategyID string) (url.Values, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -583,7 +588,7 @@ func (e *Exchange) pmConditionalOrderParams(symbol currency.Pair, strategyID uin
 		return nil, fmt.Errorf("%w: strategyId or newClientStrategyId is required", order.ErrOrderIDNotSet)
 	}
 	params := url.Values{}
-	if err := e.pmSymbolParam(params, symbol, asset.CoinMarginedFutures); err != nil {
+	if err := e.portfolioMarginSymbolParam(params, symbol, asset.CoinMarginedFutures); err != nil {
 		return nil, err
 	}
 	if strategyID > 0 {
@@ -595,19 +600,20 @@ func (e *Exchange) pmConditionalOrderParams(symbol currency.Pair, strategyID uin
 	return params, nil
 }
 
-// GetCMOrder returns a CM order identified by its order ID or client order ID; cancelled or expired orders without
-// fills are not found three days after creation
-func (e *Exchange) GetCMOrder(ctx context.Context, symbol currency.Pair, orderID uint64, origClientOrderID string) (*CMOrderDetailResponse, error) {
-	params, err := e.pmOrderParams(symbol, asset.CoinMarginedFutures, orderID, origClientOrderID)
+// GetPortfolioMarginCoinMarginedOrder returns a CM order identified by its order ID or client order ID; cancelled or
+// expired orders without fills are not found three days after creation
+func (e *Exchange) GetPortfolioMarginCoinMarginedOrder(ctx context.Context, symbol currency.Pair, orderID uint64, origClientOrderID string) (*PortfolioMarginCoinMarginedOrderDetailResponse, error) {
+	params, err := e.portfolioMarginOrderParams(symbol, asset.CoinMarginedFutures, orderID, origClientOrderID)
 	if err != nil {
 		return nil, err
 	}
-	var resp *CMOrderDetailResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/cm/order", params, pmDefaultRate, &resp)
+	var resp *PortfolioMarginCoinMarginedOrderDetailResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/cm/order", params, portfolioMarginDefaultRate, &resp)
 }
 
-// pmOrderParams builds the parameters identifying a single order by its order ID or original client order ID
-func (e *Exchange) pmOrderParams(symbol currency.Pair, a asset.Item, orderID uint64, origClientOrderID string) (url.Values, error) {
+// portfolioMarginOrderParams builds the parameters identifying a single order by its order ID or original client order
+// ID
+func (e *Exchange) portfolioMarginOrderParams(symbol currency.Pair, a asset.Item, orderID uint64, origClientOrderID string) (url.Values, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -615,7 +621,7 @@ func (e *Exchange) pmOrderParams(symbol currency.Pair, a asset.Item, orderID uin
 		return nil, order.ErrOrderIDNotSet
 	}
 	params := url.Values{}
-	if err := e.pmSymbolParam(params, symbol, a); err != nil {
+	if err := e.portfolioMarginSymbolParam(params, symbol, a); err != nil {
 		return nil, err
 	}
 	if orderID > 0 {
@@ -627,12 +633,12 @@ func (e *Exchange) pmOrderParams(symbol currency.Pair, a asset.Item, orderID uin
 	return params, nil
 }
 
-// NewCMOrder places a CM order
-func (e *Exchange) NewCMOrder(ctx context.Context, arg *CMOrderRequest) (*CMOrderResponse, error) {
+// NewPortfolioMarginCoinMarginedOrder places a CM order
+func (e *Exchange) NewPortfolioMarginCoinMarginedOrder(ctx context.Context, arg *PortfolioMarginCoinMarginedOrderRequest) (*PortfolioMarginCoinMarginedOrderResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
-	params, err := e.pmNewFuturesOrderParams(arg.Symbol, asset.CoinMarginedFutures, arg.Side, arg.OrderType, arg.Price, arg.PriceMatch)
+	params, err := e.portfolioMarginNewFuturesOrderParams(arg.Symbol, asset.CoinMarginedFutures, arg.Side, arg.OrderType, arg.Price, arg.PriceMatch)
 	if err != nil {
 		return nil, err
 	}
@@ -654,16 +660,16 @@ func (e *Exchange) NewCMOrder(ctx context.Context, arg *CMOrderRequest) (*CMOrde
 	if arg.NewOrderResponseType != "" {
 		params.Set("newOrderRespType", arg.NewOrderResponseType)
 	}
-	var resp *CMOrderResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodPost, "/papi/v1/cm/order", params, pmOrderRate, &resp)
+	var resp *PortfolioMarginCoinMarginedOrderResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodPost, "/papi/v1/cm/order", params, portfolioMarginOrderRate, &resp)
 }
 
-// pmNewFuturesOrderParams validates and sets the parameters shared by new UM and CM orders
-func (e *Exchange) pmNewFuturesOrderParams(symbol currency.Pair, a asset.Item, orderSide order.Side, orderType string, price float64, priceMatch string) (url.Values, error) {
+// portfolioMarginNewFuturesOrderParams validates and sets the parameters shared by new UM and CM orders
+func (e *Exchange) portfolioMarginNewFuturesOrderParams(symbol currency.Pair, a asset.Item, orderSide order.Side, orderType string, price float64, priceMatch string) (url.Values, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	side, err := pmOrderSide(orderSide)
+	side, err := portfolioMarginOrderSide(orderSide)
 	if err != nil {
 		return nil, err
 	}
@@ -674,7 +680,7 @@ func (e *Exchange) pmNewFuturesOrderParams(symbol currency.Pair, a asset.Item, o
 		return nil, errPriceMatchWithPrice
 	}
 	params := url.Values{}
-	if err := e.pmSymbolParam(params, symbol, a); err != nil {
+	if err := e.portfolioMarginSymbolParam(params, symbol, a); err != nil {
 		return nil, err
 	}
 	params.Set("side", side)
@@ -688,31 +694,32 @@ func (e *Exchange) pmNewFuturesOrderParams(symbol currency.Pair, a asset.Item, o
 	return params, nil
 }
 
-// CancelCMOrder cancels an open CM LIMIT order identified by its order ID or client order ID
-func (e *Exchange) CancelCMOrder(ctx context.Context, symbol currency.Pair, orderID uint64, origClientOrderID string) (*CMOrderResponse, error) {
-	params, err := e.pmOrderParams(symbol, asset.CoinMarginedFutures, orderID, origClientOrderID)
+// CancelPortfolioMarginCoinMarginedOrder cancels an open CM LIMIT order identified by its order ID or client order ID
+func (e *Exchange) CancelPortfolioMarginCoinMarginedOrder(ctx context.Context, symbol currency.Pair, orderID uint64, origClientOrderID string) (*PortfolioMarginCoinMarginedOrderResponse, error) {
+	params, err := e.portfolioMarginOrderParams(symbol, asset.CoinMarginedFutures, orderID, origClientOrderID)
 	if err != nil {
 		return nil, err
 	}
-	var resp *CMOrderResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodDelete, "/papi/v1/cm/order", params, pmDefaultRate, &resp)
+	var resp *PortfolioMarginCoinMarginedOrderResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodDelete, "/papi/v1/cm/order", params, portfolioMarginDefaultRate, &resp)
 }
 
-// CancelAllMarginOpenOrdersBySymbol cancels every open margin order and OCO order list of a symbol
-func (e *Exchange) CancelAllMarginOpenOrdersBySymbol(ctx context.Context, symbol currency.Pair) ([]PMCancelledMarginOrderResponse, error) {
+// CancelAllPortfolioMarginMarginOpenOrdersBySymbol cancels every open margin order and OCO order list of a symbol
+func (e *Exchange) CancelAllPortfolioMarginMarginOpenOrdersBySymbol(ctx context.Context, symbol currency.Pair) ([]PortfolioMarginCancelledMarginOrderResponse, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	params := url.Values{}
-	if err := e.pmSymbolParam(params, symbol, asset.Margin); err != nil {
+	if err := e.portfolioMarginSymbolParam(params, symbol, asset.Margin); err != nil {
 		return nil, err
 	}
-	var resp []PMCancelledMarginOrderResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodDelete, "/papi/v1/margin/allOpenOrders", params, pmCancelMarginAccountOpenOrdersOnSymbolRate, &resp)
+	var resp []PortfolioMarginCancelledMarginOrderResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodDelete, "/papi/v1/margin/allOpenOrders", params, portfolioMarginCancelMarginAccountOpenOrdersOnSymbolRate, &resp)
 }
 
-// GetMarginAccountOCO returns a margin OCO order list identified by its order list ID or original client order ID
-func (e *Exchange) GetMarginAccountOCO(ctx context.Context, orderListID uint64, origClientOrderID string) (*PMMarginOCOOrderResponse, error) {
+// GetPortfolioMarginMarginAccountOneCancelsTheOtherOrder returns a margin OCO order list identified by its order list
+// ID or original client order ID
+func (e *Exchange) GetPortfolioMarginMarginAccountOneCancelsTheOtherOrder(ctx context.Context, orderListID uint64, origClientOrderID string) (*PortfolioMarginMarginOneCancelsTheOtherOrderResponse, error) {
 	if orderListID == 0 && origClientOrderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
@@ -723,12 +730,13 @@ func (e *Exchange) GetMarginAccountOCO(ctx context.Context, orderListID uint64, 
 	if origClientOrderID != "" {
 		params.Set("origClientOrderId", origClientOrderID)
 	}
-	var resp *PMMarginOCOOrderResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/margin/orderList", params, pmGetMarginAccountOCORate, &resp)
+	var resp *PortfolioMarginMarginOneCancelsTheOtherOrderResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/margin/orderList", params, portfolioMarginGetMarginAccountOneCancelsTheOtherRate, &resp)
 }
 
-// CancelMarginAccountOCOOrders cancels a margin OCO order list; cancelling either leg cancels the whole list
-func (e *Exchange) CancelMarginAccountOCOOrders(ctx context.Context, arg *PMCancelMarginOCOOrderRequest) (*PMCancelMarginOCOOrderResponse, error) {
+// CancelPortfolioMarginMarginAccountOneCancelsTheOtherOrders cancels a margin OCO order list; cancelling either leg
+// cancels the whole list
+func (e *Exchange) CancelPortfolioMarginMarginAccountOneCancelsTheOtherOrders(ctx context.Context, arg *PortfolioMarginCancelMarginOneCancelsTheOtherOrderRequest) (*PortfolioMarginCancelMarginOneCancelsTheOtherOrderResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -739,7 +747,7 @@ func (e *Exchange) CancelMarginAccountOCOOrders(ctx context.Context, arg *PMCanc
 		return nil, order.ErrOrderIDNotSet
 	}
 	params := url.Values{}
-	if err := e.pmSymbolParam(params, arg.Symbol, asset.Margin); err != nil {
+	if err := e.portfolioMarginSymbolParam(params, arg.Symbol, asset.Margin); err != nil {
 		return nil, err
 	}
 	if arg.OrderListID > 0 {
@@ -751,29 +759,29 @@ func (e *Exchange) CancelMarginAccountOCOOrders(ctx context.Context, arg *PMCanc
 	if arg.NewClientOrderID != "" {
 		params.Set("newClientOrderId", arg.NewClientOrderID)
 	}
-	var resp *PMCancelMarginOCOOrderResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodDelete, "/papi/v1/margin/orderList", params, pmCancelMarginAccountOCORate, &resp)
+	var resp *PortfolioMarginCancelMarginOneCancelsTheOtherOrderResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodDelete, "/papi/v1/margin/orderList", params, portfolioMarginCancelMarginAccountOneCancelsTheOtherRate, &resp)
 }
 
-// GetMarginAccountOrder returns a margin order identified by its order ID or client order ID
-func (e *Exchange) GetMarginAccountOrder(ctx context.Context, symbol currency.Pair, orderID uint64, origClientOrderID string) (*PMMarginOrderResponse, error) {
-	params, err := e.pmOrderParams(symbol, asset.Margin, orderID, origClientOrderID)
+// GetPortfolioMarginMarginAccountOrder returns a margin order identified by its order ID or client order ID
+func (e *Exchange) GetPortfolioMarginMarginAccountOrder(ctx context.Context, symbol currency.Pair, orderID uint64, origClientOrderID string) (*PortfolioMarginMarginOrderResponse, error) {
+	params, err := e.portfolioMarginOrderParams(symbol, asset.Margin, orderID, origClientOrderID)
 	if err != nil {
 		return nil, err
 	}
-	var resp *PMMarginOrderResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/margin/order", params, pmGetMarginAccountOrderRate, &resp)
+	var resp *PortfolioMarginMarginOrderResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/margin/order", params, portfolioMarginGetMarginAccountOrderRate, &resp)
 }
 
-// NewMarginOrder places a margin order
-func (e *Exchange) NewMarginOrder(ctx context.Context, arg *PMMarginOrderRequest) (*PMNewMarginOrderResponse, error) {
+// NewPortfolioMarginMarginOrder places a margin order
+func (e *Exchange) NewPortfolioMarginMarginOrder(ctx context.Context, arg *PortfolioMarginMarginOrderRequest) (*PortfolioMarginNewMarginOrderResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
 	if arg.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	side, err := pmOrderSide(arg.Side)
+	side, err := portfolioMarginOrderSide(arg.Side)
 	if err != nil {
 		return nil, err
 	}
@@ -781,7 +789,7 @@ func (e *Exchange) NewMarginOrder(ctx context.Context, arg *PMMarginOrderRequest
 		return nil, order.ErrTypeIsInvalid
 	}
 	params := url.Values{}
-	if err := e.pmSymbolParam(params, arg.Symbol, asset.Margin); err != nil {
+	if err := e.portfolioMarginSymbolParam(params, arg.Symbol, asset.Margin); err != nil {
 		return nil, err
 	}
 	params.Set("side", side)
@@ -819,43 +827,43 @@ func (e *Exchange) NewMarginOrder(ctx context.Context, arg *PMMarginOrderRequest
 	if arg.AutoRepayAtCancel != nil {
 		params.Set("autoRepayAtCancel", strconv.FormatBool(*arg.AutoRepayAtCancel))
 	}
-	var resp *PMNewMarginOrderResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodPost, "/papi/v1/margin/order", params, pmOrderRate, &resp)
+	var resp *PortfolioMarginNewMarginOrderResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodPost, "/papi/v1/margin/order", params, portfolioMarginOrderRate, &resp)
 }
 
-// PMCancelMarginAccountOrder cancels a margin order identified by its order ID or client order ID
-func (e *Exchange) PMCancelMarginAccountOrder(ctx context.Context, arg *PMCancelMarginOrderRequest) (*PMCancelMarginOrderResponse, error) {
+// PortfolioMarginCancelMarginAccountOrder cancels a margin order identified by its order ID or client order ID
+func (e *Exchange) PortfolioMarginCancelMarginAccountOrder(ctx context.Context, arg *PortfolioMarginCancelMarginOrderRequest) (*PortfolioMarginCancelMarginOrderResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
-	params, err := e.pmOrderParams(arg.Symbol, asset.Margin, arg.OrderID, arg.OriginalClientOrderID)
+	params, err := e.portfolioMarginOrderParams(arg.Symbol, asset.Margin, arg.OrderID, arg.OriginalClientOrderID)
 	if err != nil {
 		return nil, err
 	}
 	if arg.NewClientOrderID != "" {
 		params.Set("newClientOrderId", arg.NewClientOrderID)
 	}
-	var resp *PMCancelMarginOrderResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodDelete, "/papi/v1/margin/order", params, pmCancelMarginAccountOrderRate, &resp)
+	var resp *PortfolioMarginCancelMarginOrderResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodDelete, "/papi/v1/margin/order", params, portfolioMarginCancelMarginAccountOrderRate, &resp)
 }
 
-// GetUMOrder returns a UM order identified by its order ID or client order ID; cancelled or expired orders without
-// fills are not found three days after creation
-func (e *Exchange) GetUMOrder(ctx context.Context, symbol currency.Pair, orderID uint64, origClientOrderID string) (*UMOrderDetailResponse, error) {
-	params, err := e.pmOrderParams(symbol, asset.USDTMarginedFutures, orderID, origClientOrderID)
+// GetPortfolioMarginUSDTMarginedOrder returns a UM order identified by its order ID or client order ID; cancelled or
+// expired orders without fills are not found three days after creation
+func (e *Exchange) GetPortfolioMarginUSDTMarginedOrder(ctx context.Context, symbol currency.Pair, orderID uint64, origClientOrderID string) (*PortfolioMarginUSDTMarginedOrderDetailResponse, error) {
+	params, err := e.portfolioMarginOrderParams(symbol, asset.USDTMarginedFutures, orderID, origClientOrderID)
 	if err != nil {
 		return nil, err
 	}
-	var resp *UMOrderDetailResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/um/order", params, pmDefaultRate, &resp)
+	var resp *PortfolioMarginUSDTMarginedOrderDetailResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/um/order", params, portfolioMarginDefaultRate, &resp)
 }
 
-// NewUMOrder places a UM order
-func (e *Exchange) NewUMOrder(ctx context.Context, arg *UMOrderRequest) (*UMOrderResponse, error) {
+// NewPortfolioMarginUSDTMarginedOrder places a UM order
+func (e *Exchange) NewPortfolioMarginUSDTMarginedOrder(ctx context.Context, arg *PortfolioMarginUSDTMarginedOrderRequest) (*PortfolioMarginUSDTMarginedOrderResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
-	params, err := e.pmNewFuturesOrderParams(arg.Symbol, asset.USDTMarginedFutures, arg.Side, arg.OrderType, arg.Price, arg.PriceMatch)
+	params, err := e.portfolioMarginNewFuturesOrderParams(arg.Symbol, asset.USDTMarginedFutures, arg.Side, arg.OrderType, arg.Price, arg.PriceMatch)
 	if err != nil {
 		return nil, err
 	}
@@ -886,23 +894,23 @@ func (e *Exchange) NewUMOrder(ctx context.Context, arg *UMOrderRequest) (*UMOrde
 	if !arg.GoodTillDate.IsZero() {
 		params.Set("goodTillDate", strconv.FormatInt(arg.GoodTillDate.UnixMilli(), 10))
 	}
-	var resp *UMOrderResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodPost, "/papi/v1/um/order", params, pmOrderRate, &resp)
+	var resp *PortfolioMarginUSDTMarginedOrderResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodPost, "/papi/v1/um/order", params, portfolioMarginOrderRate, &resp)
 }
 
-// CancelUMOrder cancels an open UM LIMIT order identified by its order ID or client order ID
-func (e *Exchange) CancelUMOrder(ctx context.Context, symbol currency.Pair, orderID uint64, origClientOrderID string) (*UMOrderResponse, error) {
-	params, err := e.pmOrderParams(symbol, asset.USDTMarginedFutures, orderID, origClientOrderID)
+// CancelPortfolioMarginUSDTMarginedOrder cancels an open UM LIMIT order identified by its order ID or client order ID
+func (e *Exchange) CancelPortfolioMarginUSDTMarginedOrder(ctx context.Context, symbol currency.Pair, orderID uint64, origClientOrderID string) (*PortfolioMarginUSDTMarginedOrderResponse, error) {
+	params, err := e.portfolioMarginOrderParams(symbol, asset.USDTMarginedFutures, orderID, origClientOrderID)
 	if err != nil {
 		return nil, err
 	}
-	var resp *UMOrderResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodDelete, "/papi/v1/um/order", params, pmDefaultRate, &resp)
+	var resp *PortfolioMarginUSDTMarginedOrderResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodDelete, "/papi/v1/um/order", params, portfolioMarginDefaultRate, &resp)
 }
 
-// GetCMAccountTradeList returns CM account trades of a symbol, or of every symbol of a pair; without a time range the
-// last 24 hours are returned, and a range cannot exceed 24 hours
-func (e *Exchange) GetCMAccountTradeList(ctx context.Context, arg *CMAccountTradeListRequest) ([]CMAccountTradeResponse, error) {
+// GetPortfolioMarginCoinMarginedAccountTradeList returns CM account trades of a symbol, or of every symbol of a pair;
+// without a time range the last 24 hours are returned, and a range cannot exceed 24 hours
+func (e *Exchange) GetPortfolioMarginCoinMarginedAccountTradeList(ctx context.Context, arg *PortfolioMarginCoinMarginedAccountTradeListRequest) ([]PortfolioMarginCoinMarginedAccountTradeResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -919,12 +927,12 @@ func (e *Exchange) GetCMAccountTradeList(ctx context.Context, arg *CMAccountTrad
 		return nil, errFromIDWithTimeRange
 	}
 	params := url.Values{}
-	f := pmGetCMAccountTradeListWithPairRate
+	f := portfolioMarginGetCoinMarginedAccountTradeListWithPairRate
 	if !arg.Symbol.IsEmpty() {
-		if err := e.pmSymbolParam(params, arg.Symbol, asset.CoinMarginedFutures); err != nil {
+		if err := e.portfolioMarginSymbolParam(params, arg.Symbol, asset.CoinMarginedFutures); err != nil {
 			return nil, err
 		}
-		f = pmGetCMAccountTradeListWithSymbolRate
+		f = portfolioMarginGetCoinMarginedAccountTradeListWithSymbolRate
 	}
 	if !arg.Pair.IsEmpty() {
 		params.Set("pair", arg.Pair.Upper().String())
@@ -938,27 +946,27 @@ func (e *Exchange) GetCMAccountTradeList(ctx context.Context, arg *CMAccountTrad
 	if arg.Limit > 0 {
 		params.Set("limit", strconv.FormatUint(arg.Limit, 10))
 	}
-	var resp []CMAccountTradeResponse
+	var resp []PortfolioMarginCoinMarginedAccountTradeResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/cm/userTrades", params, f, &resp)
 }
 
-// GetCMPositionADLQuantileEstimation returns the auto-deleveraging quantiles of one CM symbol's positions, or of every
-// CM symbol when symbol is empty; values update every 30 seconds
-func (e *Exchange) GetCMPositionADLQuantileEstimation(ctx context.Context, symbol currency.Pair) ([]CMADLQuantileEstimationResponse, error) {
+// GetPortfolioMarginCoinMarginedPositionAutoDeleveragingQuantileEstimation returns the auto-deleveraging quantiles of
+// one CM symbol's positions, or of every CM symbol when symbol is empty; values update every 30 seconds
+func (e *Exchange) GetPortfolioMarginCoinMarginedPositionAutoDeleveragingQuantileEstimation(ctx context.Context, symbol currency.Pair) ([]PortfolioMarginCoinMarginedAutoDeleveragingQuantileEstimationResponse, error) {
 	params := url.Values{}
-	if err := e.pmSymbolParam(params, symbol, asset.CoinMarginedFutures); err != nil {
+	if err := e.portfolioMarginSymbolParam(params, symbol, asset.CoinMarginedFutures); err != nil {
 		return nil, err
 	}
-	var resp []CMADLQuantileEstimationResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/cm/adlQuantile", params, pmGetCMPositionADLQuantileEstimationRate, &resp)
+	var resp []PortfolioMarginCoinMarginedAutoDeleveragingQuantileEstimationResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/cm/adlQuantile", params, portfolioMarginGetCoinMarginedPositionAutoDeleveragingQuantileEstimationRate, &resp)
 }
 
-// MarginAccountBorrow borrows an asset into the margin account
-func (e *Exchange) MarginAccountBorrow(ctx context.Context, ccy currency.Code, amount float64) (*PMTransactionResponse, error) {
-	return e.pmMarginAccountBorrowRepay(ctx, "/papi/v1/marginLoan", ccy, amount)
+// PortfolioMarginMarginAccountBorrow borrows an asset into the margin account
+func (e *Exchange) PortfolioMarginMarginAccountBorrow(ctx context.Context, ccy currency.Code, amount float64) (*PortfolioMarginTransactionResponse, error) {
+	return e.portfolioMarginMarginAccountBorrowRepay(ctx, "/papi/v1/marginLoan", ccy, amount)
 }
 
-func (e *Exchange) pmMarginAccountBorrowRepay(ctx context.Context, path string, ccy currency.Code, amount float64) (*PMTransactionResponse, error) {
+func (e *Exchange) portfolioMarginMarginAccountBorrowRepay(ctx context.Context, path string, ccy currency.Code, amount float64) (*PortfolioMarginTransactionResponse, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -968,20 +976,20 @@ func (e *Exchange) pmMarginAccountBorrowRepay(ctx context.Context, path string, 
 	params := url.Values{}
 	params.Set("asset", ccy.Upper().String())
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
-	var resp *PMTransactionResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodPost, path, params, pmMarginAccountLoanAndRepayRate, &resp)
+	var resp *PortfolioMarginTransactionResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodPost, path, params, portfolioMarginMarginAccountLoanAndRepayRate, &resp)
 }
 
-// MarginAccountNewOCO places a margin OCO order list; both legs share the quantity and the list counts as two orders
-// against the order rate limit
-func (e *Exchange) MarginAccountNewOCO(ctx context.Context, arg *PMMarginOCOOrderRequest) (*PMNewMarginOCOOrderResponse, error) {
+// PortfolioMarginMarginAccountNewOneCancelsTheOtherOrder places a margin OCO order list; both legs share the quantity
+// and the list counts as two orders against the order rate limit
+func (e *Exchange) PortfolioMarginMarginAccountNewOneCancelsTheOtherOrder(ctx context.Context, arg *PortfolioMarginMarginOneCancelsTheOtherOrderRequest) (*PortfolioMarginNewMarginOneCancelsTheOtherOrderResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
 	if arg.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	side, err := pmOrderSide(arg.Side)
+	side, err := portfolioMarginOrderSide(arg.Side)
 	if err != nil {
 		return nil, err
 	}
@@ -998,7 +1006,7 @@ func (e *Exchange) MarginAccountNewOCO(ctx context.Context, arg *PMMarginOCOOrde
 		return nil, errStopLimitTimeInForceRequired
 	}
 	params := url.Values{}
-	if err := e.pmSymbolParam(params, arg.Symbol, asset.Margin); err != nil {
+	if err := e.portfolioMarginSymbolParam(params, arg.Symbol, asset.Margin); err != nil {
 		return nil, err
 	}
 	if arg.ListClientOrderID != "" {
@@ -1032,18 +1040,18 @@ func (e *Exchange) MarginAccountNewOCO(ctx context.Context, arg *PMMarginOCOOrde
 	if arg.SideEffectType != "" {
 		params.Set("sideEffectType", arg.SideEffectType)
 	}
-	var resp *PMNewMarginOCOOrderResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodPost, "/papi/v1/margin/order/oco", params, pmOCOOrderRate, &resp)
+	var resp *PortfolioMarginNewMarginOneCancelsTheOtherOrderResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodPost, "/papi/v1/margin/order/oco", params, portfolioMarginOneCancelsTheOtherOrderRate, &resp)
 }
 
-// MarginAccountRepay repays a margin loan
-func (e *Exchange) MarginAccountRepay(ctx context.Context, ccy currency.Code, amount float64) (*PMTransactionResponse, error) {
-	return e.pmMarginAccountBorrowRepay(ctx, "/papi/v1/repayLoan", ccy, amount)
+// PortfolioMarginMarginAccountRepay repays a margin loan
+func (e *Exchange) PortfolioMarginMarginAccountRepay(ctx context.Context, ccy currency.Code, amount float64) (*PortfolioMarginTransactionResponse, error) {
+	return e.portfolioMarginMarginAccountBorrowRepay(ctx, "/papi/v1/repayLoan", ccy, amount)
 }
 
-// GetPMMarginAccountTradeList returns margin account trades of a symbol, from FromID onwards when it is set; a time
-// range must be shorter than 24 hours
-func (e *Exchange) GetPMMarginAccountTradeList(ctx context.Context, arg *PMMarginTradeListRequest) ([]PMMarginTradeResponse, error) {
+// GetPortfolioMarginMarginAccountTradeList returns margin account trades of a symbol, from FromID onwards when it is
+// set; a time range must be shorter than 24 hours
+func (e *Exchange) GetPortfolioMarginMarginAccountTradeList(ctx context.Context, arg *PortfolioMarginMarginTradeListRequest) ([]PortfolioMarginMarginTradeResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -1051,7 +1059,7 @@ func (e *Exchange) GetPMMarginAccountTradeList(ctx context.Context, arg *PMMargi
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	params := url.Values{}
-	if err := e.pmSymbolParam(params, arg.Symbol, asset.Margin); err != nil {
+	if err := e.portfolioMarginSymbolParam(params, arg.Symbol, asset.Margin); err != nil {
 		return nil, err
 	}
 	if arg.OrderID > 0 {
@@ -1066,23 +1074,23 @@ func (e *Exchange) GetPMMarginAccountTradeList(ctx context.Context, arg *PMMargi
 	if arg.Limit > 0 {
 		params.Set("limit", strconv.FormatUint(arg.Limit, 10))
 	}
-	var resp []PMMarginTradeResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/margin/myTrades", params, pmGetMarginAccountTradeListRate, &resp)
+	var resp []PortfolioMarginMarginTradeResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/margin/myTrades", params, portfolioMarginGetMarginAccountTradeListRate, &resp)
 }
 
-// GetAllCMConditionalOrders returns CM conditional orders of one symbol, or of every symbol when the symbol is empty;
-// a time range cannot exceed 7 days, which is also the default
-func (e *Exchange) GetAllCMConditionalOrders(ctx context.Context, arg *CMConditionalOrdersRequest) ([]CMConditionalOrderRecordResponse, error) {
+// GetAllPortfolioMarginCoinMarginedConditionalOrders returns CM conditional orders of one symbol, or of every symbol
+// when the symbol is empty; a time range cannot exceed 7 days, which is also the default
+func (e *Exchange) GetAllPortfolioMarginCoinMarginedConditionalOrders(ctx context.Context, arg *PortfolioMarginCoinMarginedConditionalOrdersRequest) ([]PortfolioMarginCoinMarginedConditionalOrderRecordResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
 	params := url.Values{}
-	f := pmAllCMConditionalOrderWithoutSymbolRate
+	f := portfolioMarginAllCoinMarginedConditionalOrderWithoutSymbolRate
 	if !arg.Symbol.IsEmpty() {
-		if err := e.pmSymbolParam(params, arg.Symbol, asset.CoinMarginedFutures); err != nil {
+		if err := e.portfolioMarginSymbolParam(params, arg.Symbol, asset.CoinMarginedFutures); err != nil {
 			return nil, err
 		}
-		f = pmDefaultRate
+		f = portfolioMarginDefaultRate
 	}
 	if arg.StrategyID > 0 {
 		params.Set("strategyId", strconv.FormatUint(arg.StrategyID, 10))
@@ -1093,13 +1101,13 @@ func (e *Exchange) GetAllCMConditionalOrders(ctx context.Context, arg *CMConditi
 	if arg.Limit > 0 {
 		params.Set("limit", strconv.FormatUint(arg.Limit, 10))
 	}
-	var resp []CMConditionalOrderRecordResponse
+	var resp []PortfolioMarginCoinMarginedConditionalOrderRecordResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/cm/conditional/allOrders", params, f, &resp)
 }
 
-// GetAllCMOrders returns active, cancelled and filled CM orders of a symbol or pair; cancelled or expired orders
-// without fills are not found three days after creation
-func (e *Exchange) GetAllCMOrders(ctx context.Context, arg *CMOrdersRequest) ([]CMOrderDetailResponse, error) {
+// GetAllPortfolioMarginCoinMarginedOrders returns active, cancelled and filled CM orders of a symbol or pair; cancelled
+// or expired orders without fills are not found three days after creation
+func (e *Exchange) GetAllPortfolioMarginCoinMarginedOrders(ctx context.Context, arg *PortfolioMarginCoinMarginedOrdersRequest) ([]PortfolioMarginCoinMarginedOrderDetailResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -1107,12 +1115,12 @@ func (e *Exchange) GetAllCMOrders(ctx context.Context, arg *CMOrdersRequest) ([]
 		return nil, fmt.Errorf("%w: symbol or pair is required", currency.ErrCurrencyPairEmpty)
 	}
 	params := url.Values{}
-	f := pmAllCMOrderWithPairRate
+	f := portfolioMarginAllCoinMarginedOrderWithPairRate
 	if !arg.Symbol.IsEmpty() {
-		if err := e.pmSymbolParam(params, arg.Symbol, asset.CoinMarginedFutures); err != nil {
+		if err := e.portfolioMarginSymbolParam(params, arg.Symbol, asset.CoinMarginedFutures); err != nil {
 			return nil, err
 		}
-		f = pmAllCMOrderWithSymbolRate
+		f = portfolioMarginAllCoinMarginedOrderWithSymbolRate
 	}
 	if !arg.Pair.IsEmpty() {
 		params.Set("pair", arg.Pair.Upper().String())
@@ -1126,77 +1134,78 @@ func (e *Exchange) GetAllCMOrders(ctx context.Context, arg *CMOrdersRequest) ([]
 	if arg.Limit > 0 {
 		params.Set("limit", strconv.FormatUint(arg.Limit, 10))
 	}
-	var resp []CMOrderDetailResponse
+	var resp []PortfolioMarginCoinMarginedOrderDetailResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/cm/allOrders", params, f, &resp)
 }
 
-// GetAllCMOpenConditionalOrders returns the open CM conditional orders of one symbol, or of every symbol when symbol
-// is empty
-func (e *Exchange) GetAllCMOpenConditionalOrders(ctx context.Context, symbol currency.Pair) ([]CMConditionalOrderResponse, error) {
+// GetAllPortfolioMarginCoinMarginedOpenConditionalOrders returns the open CM conditional orders of one symbol, or of
+// every symbol when symbol is empty
+func (e *Exchange) GetAllPortfolioMarginCoinMarginedOpenConditionalOrders(ctx context.Context, symbol currency.Pair) ([]PortfolioMarginCoinMarginedConditionalOrderResponse, error) {
 	params := url.Values{}
-	f := pmAllCMOpenConditionalOrdersWithoutSymbolRate
+	f := portfolioMarginAllCoinMarginedOpenConditionalOrdersWithoutSymbolRate
 	if !symbol.IsEmpty() {
-		if err := e.pmSymbolParam(params, symbol, asset.CoinMarginedFutures); err != nil {
+		if err := e.portfolioMarginSymbolParam(params, symbol, asset.CoinMarginedFutures); err != nil {
 			return nil, err
 		}
-		f = pmDefaultRate
+		f = portfolioMarginDefaultRate
 	}
-	var resp []CMConditionalOrderResponse
+	var resp []PortfolioMarginCoinMarginedConditionalOrderResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/cm/conditional/openOrders", params, f, &resp)
 }
 
-// GetAllCMOpenOrders returns the open CM orders of a symbol or of a pair (such as BTCUSD, the base of a COIN-M contract
-// pair), or of every symbol when both are empty
-func (e *Exchange) GetAllCMOpenOrders(ctx context.Context, symbol currency.Pair, pair currency.Code) ([]CMOrderDetailResponse, error) {
+// GetAllPortfolioMarginCoinMarginedOpenOrders returns the open CM orders of a symbol or of a pair (such as BTCUSD, the
+// base of a COIN-M contract pair), or of every symbol when both are empty
+func (e *Exchange) GetAllPortfolioMarginCoinMarginedOpenOrders(ctx context.Context, symbol currency.Pair, pair currency.Code) ([]PortfolioMarginCoinMarginedOrderDetailResponse, error) {
 	params := url.Values{}
-	f := pmRetrieveAllCMOpenOrdersForAllSymbolRate
+	f := portfolioMarginRetrieveAllCoinMarginedOpenOrdersForAllSymbolRate
 	if !symbol.IsEmpty() {
-		if err := e.pmSymbolParam(params, symbol, asset.CoinMarginedFutures); err != nil {
+		if err := e.portfolioMarginSymbolParam(params, symbol, asset.CoinMarginedFutures); err != nil {
 			return nil, err
 		}
-		f = pmDefaultRate
+		f = portfolioMarginDefaultRate
 	}
 	if !pair.IsEmpty() {
 		params.Set("pair", pair.Upper().String())
 	}
-	var resp []CMOrderDetailResponse
+	var resp []PortfolioMarginCoinMarginedOrderDetailResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/cm/openOrders", params, f, &resp)
 }
 
-// GetAllUMOpenOrders returns the open UM orders of one symbol, or of every symbol when symbol is empty
-func (e *Exchange) GetAllUMOpenOrders(ctx context.Context, symbol currency.Pair) ([]UMOrderDetailResponse, error) {
+// GetAllPortfolioMarginUSDTMarginedOpenOrders returns the open UM orders of one symbol, or of every symbol when symbol
+// is empty
+func (e *Exchange) GetAllPortfolioMarginUSDTMarginedOpenOrders(ctx context.Context, symbol currency.Pair) ([]PortfolioMarginUSDTMarginedOrderDetailResponse, error) {
 	params := url.Values{}
-	f := pmRetrieveAllUMOpenOrdersForAllSymbolRate
+	f := portfolioMarginRetrieveAllUSDTMarginedOpenOrdersForAllSymbolRate
 	if !symbol.IsEmpty() {
-		if err := e.pmSymbolParam(params, symbol, asset.USDTMarginedFutures); err != nil {
+		if err := e.portfolioMarginSymbolParam(params, symbol, asset.USDTMarginedFutures); err != nil {
 			return nil, err
 		}
-		f = pmDefaultRate
+		f = portfolioMarginDefaultRate
 	}
-	var resp []UMOrderDetailResponse
+	var resp []PortfolioMarginUSDTMarginedOrderDetailResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/um/openOrders", params, f, &resp)
 }
 
-// GetAllMarginAccountOrders returns margin orders of a symbol, from OrderID onwards when it is set
-func (e *Exchange) GetAllMarginAccountOrders(ctx context.Context, arg *PMMarginOrdersRequest) ([]PMMarginOrderResponse, error) {
+// GetAllPortfolioMarginMarginAccountOrders returns margin orders of a symbol, from OrderID onwards when it is set
+func (e *Exchange) GetAllPortfolioMarginMarginAccountOrders(ctx context.Context, arg *PortfolioMarginMarginOrdersRequest) ([]PortfolioMarginMarginOrderResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
-	params, err := e.pmOrdersParams(arg.Symbol, asset.Margin, arg.OrderID, arg.StartTime, arg.EndTime, arg.Limit)
+	params, err := e.portfolioMarginOrdersParams(arg.Symbol, asset.Margin, arg.OrderID, arg.StartTime, arg.EndTime, arg.Limit)
 	if err != nil {
 		return nil, err
 	}
-	var resp []PMMarginOrderResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/margin/allOrders", params, pmAllMarginAccountOrdersRate, &resp)
+	var resp []PortfolioMarginMarginOrderResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/margin/allOrders", params, portfolioMarginAllMarginAccountOrdersRate, &resp)
 }
 
-// pmOrdersParams builds the parameters of the order history queries that require a symbol
-func (e *Exchange) pmOrdersParams(symbol currency.Pair, a asset.Item, orderID uint64, startTime, endTime time.Time, limit uint64) (url.Values, error) {
+// portfolioMarginOrdersParams builds the parameters of the order history queries that require a symbol
+func (e *Exchange) portfolioMarginOrdersParams(symbol currency.Pair, a asset.Item, orderID uint64, startTime, endTime time.Time, limit uint64) (url.Values, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	params := url.Values{}
-	if err := e.pmSymbolParam(params, symbol, a); err != nil {
+	if err := e.portfolioMarginSymbolParam(params, symbol, a); err != nil {
 		return nil, err
 	}
 	if orderID > 0 {
@@ -1211,75 +1220,77 @@ func (e *Exchange) pmOrdersParams(symbol currency.Pair, a asset.Item, orderID ui
 	return params, nil
 }
 
-// GetAllUMOrders returns active, cancelled and filled UM orders of a symbol; a time range cannot exceed 7 days, which
-// is also the default
-func (e *Exchange) GetAllUMOrders(ctx context.Context, arg *UMOrdersRequest) ([]UMOrderDetailResponse, error) {
+// GetAllPortfolioMarginUSDTMarginedOrders returns active, cancelled and filled UM orders of a symbol; a time range
+// cannot exceed 7 days, which is also the default
+func (e *Exchange) GetAllPortfolioMarginUSDTMarginedOrders(ctx context.Context, arg *PortfolioMarginUSDTMarginedOrdersRequest) ([]PortfolioMarginUSDTMarginedOrderDetailResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
-	params, err := e.pmOrdersParams(arg.Symbol, asset.USDTMarginedFutures, arg.OrderID, arg.StartTime, arg.EndTime, arg.Limit)
+	params, err := e.portfolioMarginOrdersParams(arg.Symbol, asset.USDTMarginedFutures, arg.OrderID, arg.StartTime, arg.EndTime, arg.Limit)
 	if err != nil {
 		return nil, err
 	}
-	var resp []UMOrderDetailResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/um/allOrders", params, pmGetAllUMOrdersRate, &resp)
+	var resp []PortfolioMarginUSDTMarginedOrderDetailResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/um/allOrders", params, portfolioMarginGetAllUSDTMarginedOrdersRate, &resp)
 }
 
-// GetCMConditionalOrderHistory returns a triggered, cancelled or expired CM conditional order identified by its
-// strategy ID or client strategy ID; NEW orders are not found
-func (e *Exchange) GetCMConditionalOrderHistory(ctx context.Context, symbol currency.Pair, strategyID uint64, newClientStrategyID string) (*CMConditionalOrderHistoryResponse, error) {
-	params, err := e.pmConditionalOrderParams(symbol, strategyID, newClientStrategyID)
+// GetPortfolioMarginCoinMarginedConditionalOrderHistory returns a triggered, cancelled or expired CM conditional order
+// identified by its strategy ID or client strategy ID; NEW orders are not found
+func (e *Exchange) GetPortfolioMarginCoinMarginedConditionalOrderHistory(ctx context.Context, symbol currency.Pair, strategyID uint64, newClientStrategyID string) (*PortfolioMarginCoinMarginedConditionalOrderHistoryResponse, error) {
+	params, err := e.portfolioMarginConditionalOrderParams(symbol, strategyID, newClientStrategyID)
 	if err != nil {
 		return nil, err
 	}
-	var resp *CMConditionalOrderHistoryResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/cm/conditional/orderHistory", params, pmDefaultRate, &resp)
+	var resp *PortfolioMarginCoinMarginedConditionalOrderHistoryResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/cm/conditional/orderHistory", params, portfolioMarginDefaultRate, &resp)
 }
 
-// GetOpenCMConditionalOrder returns an open CM conditional order identified by its strategy ID or client strategy ID
-func (e *Exchange) GetOpenCMConditionalOrder(ctx context.Context, symbol currency.Pair, strategyID uint64, newClientStrategyID string) (*CMConditionalOrderResponse, error) {
-	params, err := e.pmConditionalOrderParams(symbol, strategyID, newClientStrategyID)
+// GetOpenPortfolioMarginCoinMarginedConditionalOrder returns an open CM conditional order identified by its strategy ID
+// or client strategy ID
+func (e *Exchange) GetOpenPortfolioMarginCoinMarginedConditionalOrder(ctx context.Context, symbol currency.Pair, strategyID uint64, newClientStrategyID string) (*PortfolioMarginCoinMarginedConditionalOrderResponse, error) {
+	params, err := e.portfolioMarginConditionalOrderParams(symbol, strategyID, newClientStrategyID)
 	if err != nil {
 		return nil, err
 	}
-	var resp *CMConditionalOrderResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/cm/conditional/openOrder", params, pmDefaultRate, &resp)
+	var resp *PortfolioMarginCoinMarginedConditionalOrderResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/cm/conditional/openOrder", params, portfolioMarginDefaultRate, &resp)
 }
 
-// GetCMOpenOrder returns an open CM order identified by its order ID or client order ID; unlike its UM counterpart the
-// endpoint answers with an array
-func (e *Exchange) GetCMOpenOrder(ctx context.Context, symbol currency.Pair, orderID uint64, origClientOrderID string) ([]CMOrderDetailResponse, error) {
-	params, err := e.pmOrderParams(symbol, asset.CoinMarginedFutures, orderID, origClientOrderID)
+// GetPortfolioMarginCoinMarginedOpenOrder returns an open CM order identified by its order ID or client order ID;
+// unlike its UM counterpart the endpoint answers with an array
+func (e *Exchange) GetPortfolioMarginCoinMarginedOpenOrder(ctx context.Context, symbol currency.Pair, orderID uint64, origClientOrderID string) ([]PortfolioMarginCoinMarginedOrderDetailResponse, error) {
+	params, err := e.portfolioMarginOrderParams(symbol, asset.CoinMarginedFutures, orderID, origClientOrderID)
 	if err != nil {
 		return nil, err
 	}
-	var resp []CMOrderDetailResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/cm/openOrder", params, pmDefaultRate, &resp)
+	var resp []PortfolioMarginCoinMarginedOrderDetailResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/cm/openOrder", params, portfolioMarginDefaultRate, &resp)
 }
 
-// GetCurrentMarginOpenOrders returns the open margin orders of one symbol, or of every symbol when symbol is empty,
-// which costs a request per trading symbol against the rate limiter
-func (e *Exchange) GetCurrentMarginOpenOrders(ctx context.Context, symbol currency.Pair) ([]PMMarginOrderResponse, error) {
+// GetPortfolioMarginCurrentMarginOpenOrders returns the open margin orders of one symbol, or of every symbol when
+// symbol is empty, which costs a request per trading symbol against the rate limiter
+func (e *Exchange) GetPortfolioMarginCurrentMarginOpenOrders(ctx context.Context, symbol currency.Pair) ([]PortfolioMarginMarginOrderResponse, error) {
 	params := url.Values{}
-	if err := e.pmSymbolParam(params, symbol, asset.Margin); err != nil {
+	if err := e.portfolioMarginSymbolParam(params, symbol, asset.Margin); err != nil {
 		return nil, err
 	}
-	var resp []PMMarginOrderResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/margin/openOrders", params, pmCurrentMarginOpenOrderRate, &resp)
+	var resp []PortfolioMarginMarginOrderResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/margin/openOrders", params, portfolioMarginCurrentMarginOpenOrderRate, &resp)
 }
 
-// GetUMOpenOrder returns an open UM order identified by its order ID or client order ID
-func (e *Exchange) GetUMOpenOrder(ctx context.Context, symbol currency.Pair, orderID uint64, origClientOrderID string) (*UMOrderDetailResponse, error) {
-	params, err := e.pmOrderParams(symbol, asset.USDTMarginedFutures, orderID, origClientOrderID)
+// GetPortfolioMarginUSDTMarginedOpenOrder returns an open UM order identified by its order ID or client order ID
+func (e *Exchange) GetPortfolioMarginUSDTMarginedOpenOrder(ctx context.Context, symbol currency.Pair, orderID uint64, origClientOrderID string) (*PortfolioMarginUSDTMarginedOrderDetailResponse, error) {
+	params, err := e.portfolioMarginOrderParams(symbol, asset.USDTMarginedFutures, orderID, origClientOrderID)
 	if err != nil {
 		return nil, err
 	}
-	var resp *UMOrderDetailResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/um/openOrder", params, pmDefaultRate, &resp)
+	var resp *PortfolioMarginUSDTMarginedOrderDetailResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/um/openOrder", params, portfolioMarginDefaultRate, &resp)
 }
 
-// GetPMMarginAccountAllOCO returns margin OCO order lists, from FromID onwards when it is set
-func (e *Exchange) GetPMMarginAccountAllOCO(ctx context.Context, arg *PMMarginAllOCORequest) ([]PMMarginOCOOrderResponse, error) {
+// GetPortfolioMarginMarginAccountAllOneCancelsTheOtherOrders returns margin OCO order lists, from FromID onwards when
+// it is set
+func (e *Exchange) GetPortfolioMarginMarginAccountAllOneCancelsTheOtherOrders(ctx context.Context, arg *PortfolioMarginMarginAllOneCancelsTheOtherOrdersRequest) ([]PortfolioMarginMarginOneCancelsTheOtherOrderResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -1293,35 +1304,36 @@ func (e *Exchange) GetPMMarginAccountAllOCO(ctx context.Context, arg *PMMarginAl
 	if arg.Limit > 0 {
 		params.Set("limit", strconv.FormatUint(arg.Limit, 10))
 	}
-	var resp []PMMarginOCOOrderResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/margin/allOrderList", params, pmGetMarginAccountsAllOCOOrdersRate, &resp)
+	var resp []PortfolioMarginMarginOneCancelsTheOtherOrderResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/margin/allOrderList", params, portfolioMarginGetMarginAccountsAllOneCancelsTheOtherOrdersRate, &resp)
 }
 
-// GetMarginAccountsOpenOCO returns the open margin OCO order lists
-func (e *Exchange) GetMarginAccountsOpenOCO(ctx context.Context) ([]PMMarginOCOOrderResponse, error) {
-	var resp []PMMarginOCOOrderResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/margin/openOrderList", nil, pmGetMarginAccountsOpenOCOOrdersRate, &resp)
+// GetPortfolioMarginMarginAccountsOpenOneCancelsTheOtherOrders returns the open margin OCO order lists
+func (e *Exchange) GetPortfolioMarginMarginAccountsOpenOneCancelsTheOtherOrders(ctx context.Context) ([]PortfolioMarginMarginOneCancelsTheOtherOrderResponse, error) {
+	var resp []PortfolioMarginMarginOneCancelsTheOtherOrderResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/margin/openOrderList", nil, portfolioMarginGetMarginAccountsOpenOneCancelsTheOtherOrdersRate, &resp)
 }
 
-// GetUsersCMForceOrders returns the user's CM liquidation and auto-deleveraging orders of the last 90 days
-func (e *Exchange) GetUsersCMForceOrders(ctx context.Context, arg *PMForceOrdersRequest) ([]CMForceOrderResponse, error) {
-	params, f, err := e.pmForceOrdersParams(arg, asset.CoinMarginedFutures, pmGetUserCMForceOrdersWithSymbolRate, pmGetUserCMForceOrdersWithoutSymbolRate)
+// GetUsersPortfolioMarginCoinMarginedForceOrders returns the user's CM liquidation and auto-deleveraging orders of the
+// last 90 days
+func (e *Exchange) GetUsersPortfolioMarginCoinMarginedForceOrders(ctx context.Context, arg *PortfolioMarginForceOrdersRequest) ([]PortfolioMarginCoinMarginedForceOrderResponse, error) {
+	params, f, err := e.portfolioMarginForceOrdersParams(arg, asset.CoinMarginedFutures, portfolioMarginGetUserCoinMarginedForceOrdersWithSymbolRate, portfolioMarginGetUserCoinMarginedForceOrdersWithoutSymbolRate)
 	if err != nil {
 		return nil, err
 	}
-	var resp []CMForceOrderResponse
+	var resp []PortfolioMarginCoinMarginedForceOrderResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/cm/forceOrders", params, f, &resp)
 }
 
-// pmForceOrdersParams builds the parameters of a UM or CM force orders query and selects its weight
-func (e *Exchange) pmForceOrdersParams(arg *PMForceOrdersRequest, a asset.Item, withSymbol, withoutSymbol request.EndpointLimit) (url.Values, request.EndpointLimit, error) {
+// portfolioMarginForceOrdersParams builds the parameters of a UM or CM force orders query and selects its weight
+func (e *Exchange) portfolioMarginForceOrdersParams(arg *PortfolioMarginForceOrdersRequest, a asset.Item, withSymbol, withoutSymbol request.EndpointLimit) (url.Values, request.EndpointLimit, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, 0, err
 	}
 	params := url.Values{}
 	f := withoutSymbol
 	if !arg.Symbol.IsEmpty() {
-		if err := e.pmSymbolParam(params, arg.Symbol, a); err != nil {
+		if err := e.portfolioMarginSymbolParam(params, arg.Symbol, a); err != nil {
 			return nil, 0, err
 		}
 		f = withSymbol
@@ -1338,9 +1350,9 @@ func (e *Exchange) pmForceOrdersParams(arg *PMForceOrdersRequest, a asset.Item, 
 	return params, f, nil
 }
 
-// GetUsersMarginForceOrders returns the user's margin liquidation orders; accounts liquidated through risk-based
-// liquidation adjustment have no records here
-func (e *Exchange) GetUsersMarginForceOrders(ctx context.Context, arg *PMMarginForceOrdersRequest) (*PMMarginForceOrderResponse, error) {
+// GetUsersPortfolioMarginMarginForceOrders returns the user's margin liquidation orders; accounts liquidated through
+// risk-based liquidation adjustment have no records here
+func (e *Exchange) GetUsersPortfolioMarginMarginForceOrders(ctx context.Context, arg *PortfolioMarginMarginForceOrdersRequest) (*PortfolioMarginMarginForceOrderResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -1354,23 +1366,24 @@ func (e *Exchange) GetUsersMarginForceOrders(ctx context.Context, arg *PMMarginF
 	if arg.Size > 0 {
 		params.Set("size", strconv.FormatUint(arg.Size, 10))
 	}
-	var resp *PMMarginForceOrderResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/margin/forceOrders", params, pmDefaultRate, &resp)
+	var resp *PortfolioMarginMarginForceOrderResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/margin/forceOrders", params, portfolioMarginDefaultRate, &resp)
 }
 
-// GetUsersUMForceOrders returns the user's UM liquidation and auto-deleveraging orders of the last 90 days
-func (e *Exchange) GetUsersUMForceOrders(ctx context.Context, arg *PMForceOrdersRequest) ([]UMForceOrderResponse, error) {
-	params, f, err := e.pmForceOrdersParams(arg, asset.USDTMarginedFutures, pmGetUserUMForceOrdersWithSymbolRate, pmGetUserUMForceOrdersWithoutSymbolRate)
+// GetUsersPortfolioMarginUSDTMarginedForceOrders returns the user's UM liquidation and auto-deleveraging orders of the
+// last 90 days
+func (e *Exchange) GetUsersPortfolioMarginUSDTMarginedForceOrders(ctx context.Context, arg *PortfolioMarginForceOrdersRequest) ([]PortfolioMarginUSDTMarginedForceOrderResponse, error) {
+	params, f, err := e.portfolioMarginForceOrdersParams(arg, asset.USDTMarginedFutures, portfolioMarginGetUserUSDTMarginedForceOrdersWithSymbolRate, portfolioMarginGetUserUSDTMarginedForceOrdersWithoutSymbolRate)
 	if err != nil {
 		return nil, err
 	}
-	var resp []UMForceOrderResponse
+	var resp []PortfolioMarginUSDTMarginedForceOrderResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/um/forceOrders", params, f, &resp)
 }
 
-// GetUMAccountTradeList returns UM account trades of a symbol; without a time range the last 7 days are returned, and
-// a range cannot exceed 7 days
-func (e *Exchange) GetUMAccountTradeList(ctx context.Context, arg *UMAccountTradeListRequest) ([]UMAccountTradeResponse, error) {
+// GetPortfolioMarginUSDTMarginedAccountTradeList returns UM account trades of a symbol; without a time range the last 7
+// days are returned, and a range cannot exceed 7 days
+func (e *Exchange) GetPortfolioMarginUSDTMarginedAccountTradeList(ctx context.Context, arg *PortfolioMarginUSDTMarginedAccountTradeListRequest) ([]PortfolioMarginUSDTMarginedAccountTradeResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -1381,7 +1394,7 @@ func (e *Exchange) GetUMAccountTradeList(ctx context.Context, arg *UMAccountTrad
 		return nil, errFromIDWithTimeRange
 	}
 	params := url.Values{}
-	if err := e.pmSymbolParam(params, arg.Symbol, asset.USDTMarginedFutures); err != nil {
+	if err := e.portfolioMarginSymbolParam(params, arg.Symbol, asset.USDTMarginedFutures); err != nil {
 		return nil, err
 	}
 	if err := setTimeRangeParams(params, arg.StartTime, arg.EndTime); err != nil {
@@ -1393,28 +1406,28 @@ func (e *Exchange) GetUMAccountTradeList(ctx context.Context, arg *UMAccountTrad
 	if arg.Limit > 0 {
 		params.Set("limit", strconv.FormatUint(arg.Limit, 10))
 	}
-	var resp []UMAccountTradeResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/um/userTrades", params, pmGetUMAccountTradeListRate, &resp)
+	var resp []PortfolioMarginUSDTMarginedAccountTradeResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/um/userTrades", params, portfolioMarginGetUSDTMarginedAccountTradeListRate, &resp)
 }
 
-// GetUMPositionADLQuantileEstimation returns the auto-deleveraging quantiles of one UM symbol's positions, or of every
-// UM symbol when symbol is empty; values update every 30 seconds
-func (e *Exchange) GetUMPositionADLQuantileEstimation(ctx context.Context, symbol currency.Pair) ([]UMADLQuantileEstimationResponse, error) {
+// GetPortfolioMarginUSDTMarginedPositionAutoDeleveragingQuantileEstimation returns the auto-deleveraging quantiles of
+// one UM symbol's positions, or of every UM symbol when symbol is empty; values update every 30 seconds
+func (e *Exchange) GetPortfolioMarginUSDTMarginedPositionAutoDeleveragingQuantileEstimation(ctx context.Context, symbol currency.Pair) ([]PortfolioMarginUSDTMarginedAutoDeleveragingQuantileEstimationResponse, error) {
 	params := url.Values{}
-	if err := e.pmSymbolParam(params, symbol, asset.USDTMarginedFutures); err != nil {
+	if err := e.portfolioMarginSymbolParam(params, symbol, asset.USDTMarginedFutures); err != nil {
 		return nil, err
 	}
-	var resp []UMADLQuantileEstimationResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/um/adlQuantile", params, pmGetUMPositionADLQuantileEstimationRate, &resp)
+	var resp []PortfolioMarginUSDTMarginedAutoDeleveragingQuantileEstimationResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/um/adlQuantile", params, portfolioMarginGetUSDTMarginedPositionAutoDeleveragingQuantileEstimationRate, &resp)
 }
 
-// NewUMAlgoOrder places a UM conditional order through the algo service, which replaced the retired UM conditional
-// order endpoints on 2026-04-28
-func (e *Exchange) NewUMAlgoOrder(ctx context.Context, arg *UMAlgoOrderRequest) (*UMAlgoOrderResponse, error) {
+// NewPortfolioMarginUSDTMarginedAlgoOrder places a UM conditional order through the algo service, which replaced the
+// retired UM conditional order endpoints on 2026-04-28
+func (e *Exchange) NewPortfolioMarginUSDTMarginedAlgoOrder(ctx context.Context, arg *PortfolioMarginUSDTMarginedAlgoOrderRequest) (*PortfolioMarginUSDTMarginedAlgoOrderResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
-	params, err := e.pmNewFuturesOrderParams(arg.Symbol, asset.USDTMarginedFutures, arg.Side, arg.OrderType, arg.Price, arg.PriceMatch)
+	params, err := e.portfolioMarginNewFuturesOrderParams(arg.Symbol, asset.USDTMarginedFutures, arg.Side, arg.OrderType, arg.Price, arg.PriceMatch)
 	if err != nil {
 		return nil, err
 	}
@@ -1470,12 +1483,12 @@ func (e *Exchange) NewUMAlgoOrder(ctx context.Context, arg *UMAlgoOrderRequest) 
 	if !arg.GoodTillDate.IsZero() {
 		params.Set("goodTillDate", strconv.FormatInt(arg.GoodTillDate.UnixMilli(), 10))
 	}
-	var resp *UMAlgoOrderResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodPost, "/papi/v1/um/algo/order", params, pmOrderRate, &resp)
+	var resp *PortfolioMarginUSDTMarginedAlgoOrderResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodPost, "/papi/v1/um/algo/order", params, portfolioMarginOrderRate, &resp)
 }
 
-// CancelUMAlgoOrder cancels an open UM algo order identified by its algo ID or client algo ID
-func (e *Exchange) CancelUMAlgoOrder(ctx context.Context, algoID uint64, clientAlgoID string) (*CancelUMAlgoOrderResponse, error) {
+// CancelPortfolioMarginUSDTMarginedAlgoOrder cancels an open UM algo order identified by its algo ID or client algo ID
+func (e *Exchange) CancelPortfolioMarginUSDTMarginedAlgoOrder(ctx context.Context, algoID uint64, clientAlgoID string) (*CancelPortfolioMarginUSDTMarginedAlgoOrderResponse, error) {
 	if algoID == 0 && clientAlgoID == "" {
 		return nil, fmt.Errorf("%w: algoId or clientAlgoId is required", order.ErrOrderIDNotSet)
 	}
@@ -1486,18 +1499,18 @@ func (e *Exchange) CancelUMAlgoOrder(ctx context.Context, algoID uint64, clientA
 	if clientAlgoID != "" {
 		params.Set("clientAlgoId", clientAlgoID)
 	}
-	var resp *CancelUMAlgoOrderResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodDelete, "/papi/v1/um/algo/order", params, pmDefaultRate, &resp)
+	var resp *CancelPortfolioMarginUSDTMarginedAlgoOrderResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodDelete, "/papi/v1/um/algo/order", params, portfolioMarginDefaultRate, &resp)
 }
 
-// CancelAllUMAlgoOpenOrders cancels every open UM algo order of a symbol
-func (e *Exchange) CancelAllUMAlgoOpenOrders(ctx context.Context, symbol currency.Pair) (*SuccessResponse, error) {
-	return e.pmCancelAllOpenOrders(ctx, "/papi/v1/um/algo/allOpenOrders", symbol, asset.USDTMarginedFutures)
+// CancelAllPortfolioMarginUSDTMarginedAlgoOpenOrders cancels every open UM algo order of a symbol
+func (e *Exchange) CancelAllPortfolioMarginUSDTMarginedAlgoOpenOrders(ctx context.Context, symbol currency.Pair) (*SuccessResponse, error) {
+	return e.portfolioMarginCancelAllOpenOrders(ctx, "/papi/v1/um/algo/allOpenOrders", symbol, asset.USDTMarginedFutures)
 }
 
-// GetUMAlgoOrder returns a UM algo order identified by its algo ID or client algo ID. Binance drops cancelled or
-// expired orders without fills after three days, and every order after 90 days
-func (e *Exchange) GetUMAlgoOrder(ctx context.Context, algoID uint64, clientAlgoID string) (*UMAlgoOrderDetailResponse, error) {
+// GetPortfolioMarginUSDTMarginedAlgoOrder returns a UM algo order identified by its algo ID or client algo ID. Binance
+// drops cancelled or expired orders without fills after three days, and every order after 90 days
+func (e *Exchange) GetPortfolioMarginUSDTMarginedAlgoOrder(ctx context.Context, algoID uint64, clientAlgoID string) (*PortfolioMarginUSDTMarginedAlgoOrderDetailResponse, error) {
 	if algoID == 0 && clientAlgoID == "" {
 		return nil, fmt.Errorf("%w: algoId or clientAlgoId is required", order.ErrOrderIDNotSet)
 	}
@@ -1508,15 +1521,15 @@ func (e *Exchange) GetUMAlgoOrder(ctx context.Context, algoID uint64, clientAlgo
 	if clientAlgoID != "" {
 		params.Set("clientAlgoId", clientAlgoID)
 	}
-	var resp *UMAlgoOrderDetailResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/um/algo/algoOrder", params, pmDefaultRate, &resp)
+	var resp *PortfolioMarginUSDTMarginedAlgoOrderDetailResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/um/algo/algoOrder", params, portfolioMarginDefaultRate, &resp)
 }
 
-// GetUMOpenAlgoOrders returns the open UM algo orders of a symbol, or of every symbol when symbol is empty; algoType
-// and algoID narrow them when set
-func (e *Exchange) GetUMOpenAlgoOrders(ctx context.Context, symbol currency.Pair, algoType string, algoID uint64) ([]UMAlgoOrderResponse, error) {
+// GetPortfolioMarginUSDTMarginedOpenAlgoOrders returns the open UM algo orders of a symbol, or of every symbol when
+// symbol is empty; algoType and algoID narrow them when set
+func (e *Exchange) GetPortfolioMarginUSDTMarginedOpenAlgoOrders(ctx context.Context, symbol currency.Pair, algoType string, algoID uint64) ([]PortfolioMarginUSDTMarginedAlgoOrderResponse, error) {
 	params := url.Values{}
-	if err := e.pmSymbolParam(params, symbol, asset.USDTMarginedFutures); err != nil {
+	if err := e.portfolioMarginSymbolParam(params, symbol, asset.USDTMarginedFutures); err != nil {
 		return nil, err
 	}
 	if algoType != "" {
@@ -1525,12 +1538,13 @@ func (e *Exchange) GetUMOpenAlgoOrders(ctx context.Context, symbol currency.Pair
 	if algoID > 0 {
 		params.Set("algoId", strconv.FormatUint(algoID, 10))
 	}
-	var resp []UMAlgoOrderResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/um/algo/openAlgoOrders", params, pmDefaultRate, &resp)
+	var resp []PortfolioMarginUSDTMarginedAlgoOrderResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/um/algo/openAlgoOrders", params, portfolioMarginDefaultRate, &resp)
 }
 
-// GetUMAlgoOrderHistory returns a symbol's UM algo orders whatever their status, from AlgoID on when it is set
-func (e *Exchange) GetUMAlgoOrderHistory(ctx context.Context, arg *UMAlgoOrderHistoryRequest) ([]UMAlgoOrderDetailResponse, error) {
+// GetPortfolioMarginUSDTMarginedAlgoOrderHistory returns a symbol's UM algo orders whatever their status, from AlgoID
+// on when it is set
+func (e *Exchange) GetPortfolioMarginUSDTMarginedAlgoOrderHistory(ctx context.Context, arg *PortfolioMarginUSDTMarginedAlgoOrderHistoryRequest) ([]PortfolioMarginUSDTMarginedAlgoOrderDetailResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -1543,7 +1557,7 @@ func (e *Exchange) GetUMAlgoOrderHistory(ctx context.Context, arg *UMAlgoOrderHi
 		}
 	}
 	params := url.Values{}
-	if err := e.pmSymbolParam(params, arg.Symbol, asset.USDTMarginedFutures); err != nil {
+	if err := e.portfolioMarginSymbolParam(params, arg.Symbol, asset.USDTMarginedFutures); err != nil {
 		return nil, err
 	}
 	if arg.AlgoID > 0 {
@@ -1558,6 +1572,6 @@ func (e *Exchange) GetUMAlgoOrderHistory(ctx context.Context, arg *UMAlgoOrderHi
 	if arg.Limit > 0 {
 		params.Set("limit", strconv.FormatUint(arg.Limit, 10))
 	}
-	var resp []UMAlgoOrderDetailResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/um/algo/allAlgoOrders", params, pmGetUMAlgoOrderHistoryRate, &resp)
+	var resp []PortfolioMarginUSDTMarginedAlgoOrderDetailResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/um/algo/allAlgoOrders", params, portfolioMarginGetUSDTMarginedAlgoOrderHistoryRate, &resp)
 }

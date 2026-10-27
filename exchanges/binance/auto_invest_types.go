@@ -15,21 +15,21 @@ type AutoInvestTargetAssetListResponse struct {
 
 // AutoInvestTargetAsset holds a target asset's simulated returns over several periods
 type AutoInvestTargetAsset struct {
-	TargetAsset             currency.Code            `json:"targetAsset"`
-	ROIAndDimensionTypeList []AutoInvestROIDimension `json:"roiAndDimensionTypeList"`
+	TargetAsset                            currency.Code                           `json:"targetAsset"`
+	ReturnOnInvestmentAndDimensionTypeList []AutoInvestReturnOnInvestmentDimension `json:"roiAndDimensionTypeList"`
 }
 
-// AutoInvestROIDimension holds a simulated return over a period such as 3 year or 7 day
-type AutoInvestROIDimension struct {
-	SimulateROI    types.Number `json:"simulateRoi"`
-	DimensionValue types.Number `json:"dimensionValue"`
-	DimensionUnit  string       `json:"dimensionUnit"`
+// AutoInvestReturnOnInvestmentDimension holds a simulated return over a period such as 3 year or 7 day
+type AutoInvestReturnOnInvestmentDimension struct {
+	SimulateReturnOnInvestment types.Number `json:"simulateRoi"`
+	DimensionValue             types.Number `json:"dimensionValue"`
+	DimensionUnit              string       `json:"dimensionUnit"`
 }
 
-// AutoInvestTargetAssetROIResponse holds a target asset's simulated return accumulated up to a date
-type AutoInvestTargetAssetROIResponse struct {
-	Date        types.Time   `json:"date"`
-	SimulateROI types.Number `json:"simulateRoi"`
+// AutoInvestTargetAssetReturnOnInvestmentResponse holds a target asset's simulated return accumulated up to a date
+type AutoInvestTargetAssetReturnOnInvestmentResponse struct {
+	Date                       types.Time   `json:"date"`
+	SimulateReturnOnInvestment types.Number `json:"simulateRoi"`
 }
 
 // AutoInvestAllAssetsResponse holds every Auto-Invest source asset and target asset
@@ -65,14 +65,14 @@ type AutoInvestSourceAsset struct {
 
 // InvestmentPlanSchedule holds the subscription schedule and portfolio of an Auto-Invest plan
 type InvestmentPlanSchedule struct {
-	SubscriptionAmount       float64
-	SubscriptionCycle        string // such as H1, H4, DAILY, WEEKLY, BI_WEEKLY or MONTHLY
-	SubscriptionStartDay     uint64 // day of the month in UTC; required for MONTHLY
-	SubscriptionStartWeekday string // MON to SUN in UTC; required for WEEKLY and BI_WEEKLY
-	SubscriptionStartTime    uint64 // hour of the day in UTC, 0 to 23
-	SourceAsset              currency.Code
-	FlexibleAllowedToUse     bool
-	Details                  []PortfolioDetail // percentages must sum to 100
+	SubscriptionAmount          float64
+	SubscriptionCycle           string // such as H1, H4, DAILY, WEEKLY, BI_WEEKLY or MONTHLY
+	SubscriptionStartDayOfMonth uint64 // in UTC; required for MONTHLY
+	SubscriptionStartWeekday    string // MON to SUN in UTC; required for WEEKLY and BI_WEEKLY
+	SubscriptionStartHourOfDay  uint64 // in UTC, 0 to 23
+	SourceAsset                 currency.Code
+	FlexibleAllowedToUse        bool
+	Details                     []PortfolioDetail // percentages must sum to 100
 }
 
 // PortfolioDetail holds a target asset's percentage of an Auto-Invest portfolio
@@ -111,37 +111,37 @@ type AutoInvestPlanStatusResponse struct {
 
 // AutoInvestPlanListResponse holds the account's Auto-Invest plans of a plan type and their total value
 type AutoInvestPlanListResponse struct {
-	PlanValueInUSD types.Number     `json:"planValueInUSD"`
-	PlanValueInBTC types.Number     `json:"planValueInBTC"`
-	PNLInUSD       types.Number     `json:"pnlInUSD"`
-	ROI            types.Number     `json:"roi"`
-	Plans          []AutoInvestPlan `json:"plans"`
+	PlanValueInUSD     types.Number     `json:"planValueInUSD"`
+	PlanValueInBTC     types.Number     `json:"planValueInBTC"`
+	PNLInUSD           types.Number     `json:"pnlInUSD"`
+	ReturnOnInvestment types.Number     `json:"roi"`
+	Plans              []AutoInvestPlan `json:"plans"`
 }
 
 // AutoInvestPlan holds an Auto-Invest plan
 type AutoInvestPlan struct {
-	PlanID                   uint64        `json:"planId"`
-	PlanType                 string        `json:"planType"`
-	EditAllowed              types.Boolean `json:"editAllowed"`
-	CreationDateTime         types.Time    `json:"creationDateTime"`
-	FirstExecutionDateTime   types.Time    `json:"firstExecutionDateTime"`
-	NextExecutionDateTime    types.Time    `json:"nextExecutionDateTime"`
-	Status                   string        `json:"status"`
-	LastUpdatedDateTime      types.Time    `json:"lastUpdatedDateTime"`
-	TargetAsset              currency.Code `json:"targetAsset"`
-	TotalTargetAmount        types.Number  `json:"totalTargetAmount"`
-	SourceAsset              currency.Code `json:"sourceAsset"`
-	TotalInvestedInUSD       types.Number  `json:"totalInvestedInUSD"`
-	SubscriptionAmount       types.Number  `json:"subscriptionAmount"`
-	SubscriptionCycle        string        `json:"subscriptionCycle"`
-	SubscriptionStartDay     types.Number  `json:"subscriptionStartDay"`     // null unless the cycle is monthly
-	SubscriptionStartWeekday string        `json:"subscriptionStartWeekday"` // null unless the cycle is weekly
-	SubscriptionStartTime    types.Number  `json:"subscriptionStartTime"`    // hour of the day in UTC
-	SourceWallet             string        `json:"sourceWallet"`
-	FlexibleAllowedToUse     types.Boolean `json:"flexibleAllowedToUse"`
-	PlanValueInUSD           types.Number  `json:"planValueInUSD"`
-	PNLInUSD                 types.Number  `json:"pnlInUSD"`
-	ROI                      types.Number  `json:"roi"`
+	PlanID                      uint64        `json:"planId"`
+	PlanType                    string        `json:"planType"`
+	EditAllowed                 types.Boolean `json:"editAllowed"`
+	CreationDateTime            types.Time    `json:"creationDateTime"`
+	FirstExecutionDateTime      types.Time    `json:"firstExecutionDateTime"`
+	NextExecutionDateTime       types.Time    `json:"nextExecutionDateTime"`
+	Status                      string        `json:"status"`
+	LastUpdatedDateTime         types.Time    `json:"lastUpdatedDateTime"`
+	TargetAsset                 currency.Code `json:"targetAsset"`
+	TotalTargetAmount           types.Number  `json:"totalTargetAmount"`
+	SourceAsset                 currency.Code `json:"sourceAsset"`
+	TotalInvestedInUSD          types.Number  `json:"totalInvestedInUSD"`
+	SubscriptionAmount          types.Number  `json:"subscriptionAmount"`
+	SubscriptionCycle           string        `json:"subscriptionCycle"`
+	SubscriptionStartDayOfMonth types.Number  `json:"subscriptionStartDay"`     // null unless the cycle is monthly
+	SubscriptionStartWeekday    string        `json:"subscriptionStartWeekday"` // null unless the cycle is weekly
+	SubscriptionStartHourOfDay  types.Number  `json:"subscriptionStartTime"`    // in UTC
+	SourceWallet                string        `json:"sourceWallet"`
+	FlexibleAllowedToUse        types.Boolean `json:"flexibleAllowedToUse"`
+	PlanValueInUSD              types.Number  `json:"planValueInUSD"`
+	PNLInUSD                    types.Number  `json:"pnlInUSD"`
+	ReturnOnInvestment          types.Number  `json:"roi"`
 }
 
 // AutoInvestPlanHoldingResponse holds an Auto-Invest plan's holdings
@@ -158,7 +158,7 @@ type AutoInvestPlanHoldingResponse struct {
 	SourceAsset            currency.Code                 `json:"sourceAsset"`
 	PlanValueInUSD         types.Number                  `json:"planValueInUSD"`
 	PNLInUSD               types.Number                  `json:"pnlInUSD"`
-	ROI                    types.Number                  `json:"roi"`
+	ReturnOnInvestment     types.Number                  `json:"roi"`
 	TotalInvestedInUSD     types.Number                  `json:"totalInvestedInUSD"`
 	Details                []AutoInvestPlanHoldingDetail `json:"details"`
 }
@@ -172,7 +172,7 @@ type AutoInvestPlanHoldingDetail struct {
 	PurchasedAmount     types.Number  `json:"purchasedAmount"`
 	PurchasedAmountUnit currency.Code `json:"purchasedAmountUnit"`
 	PNLInUSD            types.Number  `json:"pnlInUSD"`
-	ROI                 types.Number  `json:"roi"`
+	ReturnOnInvestment  types.Number  `json:"roi"`
 	Percentage          types.Number  `json:"percentage"`
 	AssetStatus         string        `json:"assetStatus"`
 	AvailableAmount     types.Number  `json:"availableAmount"`
@@ -235,7 +235,7 @@ type IndexLinkedPlanPositionResponse struct {
 	TotalInvestedInUSD   types.Number                `json:"totalInvestedInUSD"`
 	CurrentInvestedInUSD types.Number                `json:"currentInvestedInUSD"`
 	PNLInUSD             types.Number                `json:"pnlInUSD"`
-	ROI                  types.Number                `json:"roi"`
+	ReturnOnInvestment   types.Number                `json:"roi"`
 	AssetAllocation      []AutoInvestAssetAllocation `json:"assetAllocation"`
 	Details              []IndexLinkedPlanAsset      `json:"details"`
 }
@@ -248,7 +248,7 @@ type IndexLinkedPlanAsset struct {
 	CurrentInvestedInUSD types.Number  `json:"currentInvestedInUSD"`
 	PurchasedAmount      types.Number  `json:"purchasedAmount"`
 	PNLInUSD             types.Number  `json:"pnlInUSD"`
-	ROI                  types.Number  `json:"roi"`
+	ReturnOnInvestment   types.Number  `json:"roi"`
 	Percentage           types.Number  `json:"percentage"`
 	AvailableAmount      types.Number  `json:"availableAmount"`
 	RedeemedAmount       types.Number  `json:"redeemedAmount"`

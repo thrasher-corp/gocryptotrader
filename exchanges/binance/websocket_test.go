@@ -640,8 +640,8 @@ func TestOrderbookSnapshotLimit(t *testing.T) {
 		cost      endpointCost
 	}{
 		{asset.Spot, 1000, spotOrderbookLimit, endpointCost{spotIPPool, 50}},
-		{asset.USDTMarginedFutures, 1000, uFuturesOrderbookLimit, endpointCost{derivativesIPPool, 20}},
-		{asset.CoinMarginedFutures, 1000, cFuturesOrderbookLimit, endpointCost{derivativesIPPool, 20}},
+		{asset.USDTMarginedFutures, 1000, usdtMarginedFuturesOrderbookLimit, endpointCost{derivativesIPPool, 20}},
+		{asset.CoinMarginedFutures, 1000, coinMarginedFuturesOrderbookLimit, endpointCost{derivativesIPPool, 20}},
 		// Options orders share a 400 a minute pool, so their snapshots take the deepest book at the least weight
 		{asset.Options, 50, optionsOrderbookLimit, endpointCost{optionsIPPool, 2}},
 	} {
@@ -684,7 +684,7 @@ func TestFetchOrderbookSnapshot(t *testing.T) {
 	}{
 		{asset.Spot, currency.NewBTCUSDT(), &orderbook.Book{Bids: orderbook.Levels{{Price: 86104.01, Amount: 7.31683}}, Asks: orderbook.Levels{{Price: 86104.02, Amount: 5.55365}}, LastUpdateID: 101096708690}},
 		{asset.USDTMarginedFutures, currency.NewBTCUSDT(), &orderbook.Book{Bids: orderbook.Levels{{Price: 4, Amount: 431}}, Asks: orderbook.Levels{{Price: 4.000002, Amount: 12}}, LastUpdateID: 1027024, LastUpdated: time.UnixMilli(1589436922959)}},
-		{asset.CoinMarginedFutures, testCFuturesPair, &orderbook.Book{Bids: orderbook.Levels{{Price: 4, Amount: 431}}, Asks: orderbook.Levels{{Price: 4.000002, Amount: 12}}, LastUpdateID: 1027024, LastUpdated: time.UnixMilli(1589436922959)}},
+		{asset.CoinMarginedFutures, testCoinMarginedFuturesPair, &orderbook.Book{Bids: orderbook.Levels{{Price: 4, Amount: 431}}, Asks: orderbook.Levels{{Price: 4.000002, Amount: 12}}, LastUpdateID: 1027024, LastUpdated: time.UnixMilli(1589436922959)}},
 		{asset.Options, testOptionsPair, &orderbook.Book{Bids: orderbook.Levels{{Price: 3645, Amount: 1}}, Asks: orderbook.Levels{{Price: 3675, Amount: 5}}, LastUpdateID: 42788078000, LastUpdated: time.UnixMilli(1762866729358)}},
 	} {
 		book, err := ex.fetchOrderbookSnapshot(t.Context(), tc.pair, tc.a)
@@ -1342,12 +1342,18 @@ func TestChannelName(t *testing.T) {
 func TestIntervalToString(t *testing.T) {
 	t.Parallel()
 	for _, i := range klineIntervalList {
-		got, err := intervalToString(i.Interval)
-		require.NoErrorf(t, err, "intervalToString must not error for %s", i.Interval)
-		assert.Equalf(t, i.String, got, "intervalToString should format %s", i.Interval)
+		t.Run(i.String, func(t *testing.T) {
+			t.Parallel()
+			got, err := intervalToString(i.Interval)
+			require.NoErrorf(t, err, "intervalToString must not error for %s", i.Interval)
+			assert.Equalf(t, i.String, got, "intervalToString should format %s", i.Interval)
+		})
 	}
-	_, err := intervalToString(kline.TwoDay)
-	assert.ErrorIs(t, err, kline.ErrUnsupportedInterval, "intervalToString should reject an unsupported interval")
+	t.Run("unsupported interval", func(t *testing.T) {
+		t.Parallel()
+		_, err := intervalToString(kline.TwoDay)
+		assert.ErrorIs(t, err, kline.ErrUnsupportedInterval, "intervalToString should reject an unsupported interval")
+	})
 }
 
 func TestSubscribe(t *testing.T) {

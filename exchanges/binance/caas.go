@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -188,8 +189,8 @@ func (e *Exchange) UpdateIPRestrictionForSubAccountAPIKey(ctx context.Context, a
 		return nil, errSubAccountStatusMissing
 	}
 	params.Set("status", strconv.FormatUint(arg.Status, 10))
-	if arg.IPAddress != "" {
-		params.Set("ipAddress", arg.IPAddress)
+	if len(arg.IPAddresses) != 0 {
+		params.Set("ipAddress", strings.Join(arg.IPAddresses, ","))
 	}
 	var resp *BrokerIPRestrictionUpdateResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, "/sapi/v2/broker/subAccountApi/ipRestriction", params, updateIPRestrictionForSubAccountAPIKeyRate, &resp)

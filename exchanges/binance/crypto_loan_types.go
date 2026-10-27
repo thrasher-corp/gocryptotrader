@@ -34,19 +34,40 @@ type FlexibleLoanAdjustLTVResponse struct {
 	Status           string        `json:"status"`
 }
 
+type flexibleLoanAdjustLTVResponseAlias FlexibleLoanAdjustLTVResponse
+
+// flexibleLoanAdjustLTVPayload also accepts the legacy endpoint's amount field without recursing into UnmarshalJSON. Its
+// AdjustmentAmount shadows the embedded one, so whether the reply sent each field is known
+type flexibleLoanAdjustLTVPayload struct {
+	*flexibleLoanAdjustLTVResponseAlias
+	AdjustmentAmount sentNumber `json:"adjustmentAmount"`
+	Amount           sentNumber `json:"amount"`
+}
+
+// sentNumber is a Number that records whether its field was sent, null included, which decodes as zero as for a Number
+type sentNumber struct {
+	value types.Number
+	sent  bool
+}
+
+// UnmarshalJSON decodes the number and records that its field was sent
+func (s *sentNumber) UnmarshalJSON(data []byte) error {
+	s.sent = true
+	return s.value.UnmarshalJSON(data)
+}
+
 // UnmarshalJSON decodes a flexible loan LTV adjustment. The v1 endpoint returned the adjusted amount as amount
 // although its docs named it adjustedAmount, so amount is read when adjustmentAmount is absent
 func (f *FlexibleLoanAdjustLTVResponse) UnmarshalJSON(data []byte) error {
-	type alias FlexibleLoanAdjustLTVResponse
-	aux := struct {
-		*alias
-		Amount types.Number `json:"amount"`
-	}{alias: (*alias)(f)}
+	aux := flexibleLoanAdjustLTVPayload{flexibleLoanAdjustLTVResponseAlias: (*flexibleLoanAdjustLTVResponseAlias)(f)}
 	if err := json.Unmarshal(data, &aux); err != nil {
 		return err
 	}
-	if f.AdjustmentAmount == 0 {
-		f.AdjustmentAmount = aux.Amount
+	switch {
+	case aux.AdjustmentAmount.sent:
+		f.AdjustmentAmount = aux.AdjustmentAmount.value
+	case aux.Amount.sent:
+		f.AdjustmentAmount = aux.Amount.value
 	}
 	return nil
 }
@@ -265,7 +286,7 @@ type CryptoLoanBorrowRecord struct {
 	LoanCoin                currency.Code `json:"loanCoin"`
 	InitialLoanAmount       types.Number  `json:"initialLoanAmount"`
 	HourlyInterestRate      types.Number  `json:"hourlyInterestRate"`
-	LoanTerm                types.Number  `json:"loanTerm"` // days
+	LoanTermInDays          types.Number  `json:"loanTerm"`
 	CollateralCoin          currency.Code `json:"collateralCoin"`
 	InitialCollateralAmount types.Number  `json:"initialCollateralAmount"`
 	BorrowTime              types.Time    `json:"borrowTime"`

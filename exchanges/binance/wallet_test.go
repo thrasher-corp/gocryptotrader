@@ -27,9 +27,9 @@ func TestGetAccountTradingAPIStatus(t *testing.T) {
 				IsLocked:           true,
 				PlannedRecoverTime: types.Time(time.Unix(1744194600, 0)),
 				TriggerCondition: TradingAPITriggerCondition{
-					GCR:  150,
-					IFER: 150,
-					UFR:  300,
+					GoodTillCancelOrders:                150,
+					ImmediateOrCancelOrFillOrKillOrders: 150,
+					AllOrders:                           300,
 				},
 				UpdateTime: types.Time(time.UnixMilli(1744190254944)),
 			},

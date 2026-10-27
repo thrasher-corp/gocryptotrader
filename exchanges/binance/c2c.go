@@ -10,9 +10,9 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 )
 
-// GetC2CTradeHistory calls Get C2C Trade History. The API documents this USER_DATA endpoint as unsigned, taking only
-// the API key; without a window it returns the last 30 days, and it only reaches 6 months back
-func (e *Exchange) GetC2CTradeHistory(ctx context.Context, arg *C2CTradeHistoryRequest) (*C2CTradeHistoryResponse, error) {
+// GetCustomerToCustomerTradeHistory calls Get C2C Trade History. The API documents this USER_DATA endpoint as unsigned,
+// taking only the API key; without a window it returns the last 30 days, and it only reaches 6 months back
+func (e *Exchange) GetCustomerToCustomerTradeHistory(ctx context.Context, arg *CustomerToCustomerTradeHistoryRequest) (*CustomerToCustomerTradeHistoryResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -37,6 +37,6 @@ func (e *Exchange) GetC2CTradeHistory(ctx context.Context, arg *C2CTradeHistoryR
 	if arg.Rows > 0 {
 		params.Set("rows", strconv.FormatUint(arg.Rows, 10))
 	}
-	var resp *C2CTradeHistoryResponse
+	var resp *CustomerToCustomerTradeHistoryResponse
 	return resp, e.SendAPIKeyHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, common.EncodeURLValues("/sapi/v1/c2c/orderMatch/listUserOrderHistory", params), sapiDefaultRate, &resp)
 }

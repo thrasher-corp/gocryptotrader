@@ -626,10 +626,7 @@ func (e *Exchange) manageSubs(ctx context.Context, conn websocket.Connection, op
 	return err
 }
 
-var klineIntervalList = []*struct {
-	Interval kline.Interval
-	String   string
-}{
+var klineIntervalList = []klineInterval{
 	{String: "1s", Interval: kline.ThousandMilliseconds},
 	{String: "1m", Interval: kline.OneMin},
 	{String: "3m", Interval: kline.ThreeMin},

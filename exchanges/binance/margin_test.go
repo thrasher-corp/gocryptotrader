@@ -519,7 +519,7 @@ func TestGetBorrowOrRepayRecordsInMarginAccount(t *testing.T) {
 	}
 }
 
-func TestMarginAccountBorrowRepay(t *testing.T) {
+func TestPortfolioMarginMarginAccountBorrowRepay(t *testing.T) {
 	t.Parallel()
 	_, err := e.MarginAccountBorrowRepay(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "MarginAccountBorrowRepay must reject a nil request")
@@ -1075,13 +1075,13 @@ func TestCancelAllOpenMarginAccountOrdersOnSymbol(t *testing.T) {
 	assert.NotNil(t, result, "CancelAllOpenMarginAccountOrdersOnSymbol should return the cancelled orders")
 }
 
-func TestGetMarginAccountOCOOrder(t *testing.T) {
+func TestGetMarginAccountOneCancelsTheOtherOrder(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetMarginAccountOCOOrder(t.Context(), currency.NewBTCUSDT(), true, 0, "12345")
-	require.NoError(t, err, "GetMarginAccountOCOOrder must not error")
+	result, err := e.GetMarginAccountOneCancelsTheOtherOrder(t.Context(), currency.NewBTCUSDT(), true, 0, "12345")
+	require.NoError(t, err, "GetMarginAccountOneCancelsTheOtherOrder must not error")
 	if mockTests {
 		exp := &MarginOrderListResponse{
 			OrderListID:       27,
@@ -1105,26 +1105,26 @@ func TestGetMarginAccountOCOOrder(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, exp, result, "GetMarginAccountOCOOrder should decode every field")
+		assert.Equal(t, exp, result, "GetMarginAccountOneCancelsTheOtherOrder should decode every field")
 		return
 	}
-	assert.NotNil(t, result, "GetMarginAccountOCOOrder should return an order list")
+	assert.NotNil(t, result, "GetMarginAccountOneCancelsTheOtherOrder should return an order list")
 }
 
-func TestCancelMarginAccountOCOOrder(t *testing.T) {
+func TestCancelMarginAccountOneCancelsTheOtherOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.CancelMarginAccountOCOOrder(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "CancelMarginAccountOCOOrder must reject a nil request")
-	_, err = e.CancelMarginAccountOCOOrder(t.Context(), &MarginOCOCancelRequest{ListClientOrderID: "12345678"})
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "CancelMarginAccountOCOOrder must reject an empty symbol")
+	_, err := e.CancelMarginAccountOneCancelsTheOtherOrder(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "CancelMarginAccountOneCancelsTheOtherOrder must reject a nil request")
+	_, err = e.CancelMarginAccountOneCancelsTheOtherOrder(t.Context(), &MarginOneCancelsTheOtherCancelRequest{ListClientOrderID: "12345678"})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "CancelMarginAccountOneCancelsTheOtherOrder must reject an empty symbol")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	result, err := e.CancelMarginAccountOCOOrder(t.Context(), &MarginOCOCancelRequest{Symbol: currency.NewBTCUSDT(), IsIsolated: true, ListClientOrderID: "12345678"})
-	require.NoError(t, err, "CancelMarginAccountOCOOrder must not error")
+	result, err := e.CancelMarginAccountOneCancelsTheOtherOrder(t.Context(), &MarginOneCancelsTheOtherCancelRequest{Symbol: currency.NewBTCUSDT(), IsIsolated: true, ListClientOrderID: "12345678"})
+	require.NoError(t, err, "CancelMarginAccountOneCancelsTheOtherOrder must not error")
 	if mockTests {
-		exp := &MarginOCOCancelResponse{
+		exp := &MarginOneCancelsTheOtherCancelResponse{
 			OrderListID:       1,
 			ContingencyType:   "OCO",
 			ListStatusType:    "ALL_DONE",
@@ -1145,7 +1145,7 @@ func TestCancelMarginAccountOCOOrder(t *testing.T) {
 					ClientOrderID: "TXOvglzXuaubXAaENpaRCB",
 				},
 			},
-			OrderReports: []MarginOCOCancelReport{
+			OrderReports: []MarginOneCancelsTheOtherCancelReport{
 				{
 					Symbol:                  "BTCUSDT",
 					OriginalClientOrderID:   "pO9ufTiFGg3nw2fOdgeOXa",
@@ -1179,10 +1179,10 @@ func TestCancelMarginAccountOCOOrder(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, exp, result, "CancelMarginAccountOCOOrder should decode every field")
+		assert.Equal(t, exp, result, "CancelMarginAccountOneCancelsTheOtherOrder should decode every field")
 		return
 	}
-	assert.NotNil(t, result, "CancelMarginAccountOCOOrder should return the cancelled order list")
+	assert.NotNil(t, result, "CancelMarginAccountOneCancelsTheOtherOrder should return the cancelled order list")
 }
 
 func TestGetMarginAccountsOrder(t *testing.T) {
@@ -1326,34 +1326,34 @@ func TestCancelMarginAccountOrder(t *testing.T) {
 	assert.NotNil(t, result, "CancelMarginAccountOrder should return the cancelled order")
 }
 
-func TestNewMarginAccountOCOOrder(t *testing.T) {
+func TestNewMarginAccountOneCancelsTheOtherOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.NewMarginAccountOCOOrder(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "NewMarginAccountOCOOrder must reject a nil request")
-	req := &MarginOCOOrderRequest{IsIsolated: true}
-	_, err = e.NewMarginAccountOCOOrder(t.Context(), req)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "NewMarginAccountOCOOrder must reject an empty symbol")
+	_, err := e.NewMarginAccountOneCancelsTheOtherOrder(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "NewMarginAccountOneCancelsTheOtherOrder must reject a nil request")
+	req := &MarginOneCancelsTheOtherOrderRequest{IsIsolated: true}
+	_, err = e.NewMarginAccountOneCancelsTheOtherOrder(t.Context(), req)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "NewMarginAccountOneCancelsTheOtherOrder must reject an empty symbol")
 	req.Symbol = currency.NewBTCUSDT()
-	_, err = e.NewMarginAccountOCOOrder(t.Context(), req)
-	require.ErrorIs(t, err, order.ErrSideIsInvalid, "NewMarginAccountOCOOrder must reject an empty side")
+	_, err = e.NewMarginAccountOneCancelsTheOtherOrder(t.Context(), req)
+	require.ErrorIs(t, err, order.ErrSideIsInvalid, "NewMarginAccountOneCancelsTheOtherOrder must reject an empty side")
 	req.Side = order.Sell.String()
-	_, err = e.NewMarginAccountOCOOrder(t.Context(), req)
-	require.ErrorIs(t, err, limits.ErrAmountBelowMin, "NewMarginAccountOCOOrder must reject a zero quantity")
+	_, err = e.NewMarginAccountOneCancelsTheOtherOrder(t.Context(), req)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin, "NewMarginAccountOneCancelsTheOtherOrder must reject a zero quantity")
 	req.Quantity = 0.001
-	_, err = e.NewMarginAccountOCOOrder(t.Context(), req)
-	require.ErrorIs(t, err, limits.ErrPriceBelowMin, "NewMarginAccountOCOOrder must reject a zero price")
+	_, err = e.NewMarginAccountOneCancelsTheOtherOrder(t.Context(), req)
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin, "NewMarginAccountOneCancelsTheOtherOrder must reject a zero price")
 	req.Price = 70000
-	_, err = e.NewMarginAccountOCOOrder(t.Context(), req)
-	require.ErrorIs(t, err, limits.ErrPriceBelowMin, "NewMarginAccountOCOOrder must reject a zero stop price")
+	_, err = e.NewMarginAccountOneCancelsTheOtherOrder(t.Context(), req)
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin, "NewMarginAccountOneCancelsTheOtherOrder must reject a zero stop price")
 	req.StopPrice = 60000
 	req.StopLimitPrice = 59900
-	_, err = e.NewMarginAccountOCOOrder(t.Context(), req)
-	require.ErrorIs(t, err, order.ErrInvalidTimeInForce, "NewMarginAccountOCOOrder must reject a stop limit price without a time in force")
+	_, err = e.NewMarginAccountOneCancelsTheOtherOrder(t.Context(), req)
+	require.ErrorIs(t, err, order.ErrInvalidTimeInForce, "NewMarginAccountOneCancelsTheOtherOrder must reject a stop limit price without a time in force")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	result, err := e.NewMarginAccountOCOOrder(t.Context(), &MarginOCOOrderRequest{
+	result, err := e.NewMarginAccountOneCancelsTheOtherOrder(t.Context(), &MarginOneCancelsTheOtherOrderRequest{
 		Symbol:               currency.NewBTCUSDT(),
 		IsIsolated:           true,
 		ListClientOrderID:    "JYVpp3F0f5CAG15DhtrqLp",
@@ -1366,9 +1366,9 @@ func TestNewMarginAccountOCOOrder(t *testing.T) {
 		NewOrderResponseType: "FULL",
 		SideEffectType:       "MARGIN_BUY",
 	})
-	require.NoError(t, err, "NewMarginAccountOCOOrder must not error")
+	require.NoError(t, err, "NewMarginAccountOneCancelsTheOtherOrder must not error")
 	if mockTests {
-		exp := &MarginOCOOrderResponse{
+		exp := &MarginOneCancelsTheOtherOrderResponse{
 			OrderListID:           2,
 			ContingencyType:       "OCO",
 			ListStatusType:        "EXEC_STARTED",
@@ -1391,7 +1391,7 @@ func TestNewMarginAccountOCOOrder(t *testing.T) {
 					ClientOrderID: "xTXKaGYd4bluPVp78IVRvl",
 				},
 			},
-			OrderReports: []MarginOCOOrderReport{
+			OrderReports: []MarginOneCancelsTheOtherOrderReport{
 				{
 					Symbol:                  "BTCUSDT",
 					OrderID:                 4,
@@ -1425,10 +1425,10 @@ func TestNewMarginAccountOCOOrder(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, exp, result, "NewMarginAccountOCOOrder should decode every field")
+		assert.Equal(t, exp, result, "NewMarginAccountOneCancelsTheOtherOrder should decode every field")
 		return
 	}
-	assert.NotNil(t, result, "NewMarginAccountOCOOrder should return the order list")
+	assert.NotNil(t, result, "NewMarginAccountOneCancelsTheOtherOrder should return the order list")
 }
 
 func TestMarginManualLiquidation(t *testing.T) {
@@ -1511,19 +1511,19 @@ func TestGetCurrentMarginOrderCountUsage(t *testing.T) {
 	assert.NotEmpty(t, result, "GetCurrentMarginOrderCountUsage should return usage")
 }
 
-func TestGetMarginAccountAllOCO(t *testing.T) {
+func TestGetMarginAccountAllOneCancelsTheOtherOrders(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetMarginAccountAllOCO(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "GetMarginAccountAllOCO must reject a nil request")
+	_, err := e.GetMarginAccountAllOneCancelsTheOtherOrders(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "GetMarginAccountAllOneCancelsTheOtherOrders must reject a nil request")
 	startTime, endTime := getTime()
-	_, err = e.GetMarginAccountAllOCO(t.Context(), &MarginAccountAllOCORequest{StartTime: endTime, EndTime: startTime})
-	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetMarginAccountAllOCO must reject a start after the end")
+	_, err = e.GetMarginAccountAllOneCancelsTheOtherOrders(t.Context(), &MarginAccountAllOneCancelsTheOtherOrdersRequest{StartTime: endTime, EndTime: startTime})
+	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetMarginAccountAllOneCancelsTheOtherOrders must reject a start after the end")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetMarginAccountAllOCO(t.Context(), &MarginAccountAllOCORequest{IsIsolated: true, Symbol: currency.NewBTCUSDT(), StartTime: startTime, EndTime: endTime, Limit: 12})
-	require.NoError(t, err, "GetMarginAccountAllOCO must not error")
+	result, err := e.GetMarginAccountAllOneCancelsTheOtherOrders(t.Context(), &MarginAccountAllOneCancelsTheOtherOrdersRequest{IsIsolated: true, Symbol: currency.NewBTCUSDT(), StartTime: startTime, EndTime: endTime, Limit: 12})
+	require.NoError(t, err, "GetMarginAccountAllOneCancelsTheOtherOrders must not error")
 	if mockTests {
 		exp := []MarginOrderListResponse{
 			{
@@ -1571,10 +1571,10 @@ func TestGetMarginAccountAllOCO(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, exp, result, "GetMarginAccountAllOCO should decode every field")
+		assert.Equal(t, exp, result, "GetMarginAccountAllOneCancelsTheOtherOrders should decode every field")
 		return
 	}
-	assert.NotNil(t, result, "GetMarginAccountAllOCO should return a list")
+	assert.NotNil(t, result, "GetMarginAccountAllOneCancelsTheOtherOrders should return a list")
 }
 
 func TestGetMarginAccountAllOrders(t *testing.T) {
@@ -1623,13 +1623,13 @@ func TestGetMarginAccountAllOrders(t *testing.T) {
 	assert.NotNil(t, result, "GetMarginAccountAllOrders should return a list")
 }
 
-func TestGetMarginAccountsOpenOCOOrder(t *testing.T) {
+func TestGetMarginAccountsOpenOneCancelsTheOtherOrder(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetMarginAccountsOpenOCOOrder(t.Context(), currency.NewBTCUSDT(), true)
-	require.NoError(t, err, "GetMarginAccountsOpenOCOOrder must not error")
+	result, err := e.GetMarginAccountsOpenOneCancelsTheOtherOrder(t.Context(), currency.NewBTCUSDT(), true)
+	require.NoError(t, err, "GetMarginAccountsOpenOneCancelsTheOtherOrder must not error")
 	if mockTests {
 		exp := []MarginOrderListResponse{
 			{
@@ -1655,10 +1655,10 @@ func TestGetMarginAccountsOpenOCOOrder(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, exp, result, "GetMarginAccountsOpenOCOOrder should decode every field")
+		assert.Equal(t, exp, result, "GetMarginAccountsOpenOneCancelsTheOtherOrder should decode every field")
 		return
 	}
-	assert.NotNil(t, result, "GetMarginAccountsOpenOCOOrder should return a list")
+	assert.NotNil(t, result, "GetMarginAccountsOpenOneCancelsTheOtherOrder should return a list")
 }
 
 func TestGetMarginAccountTradeList(t *testing.T) {

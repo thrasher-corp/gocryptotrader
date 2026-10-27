@@ -13,108 +13,108 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-func TestPMProBNBTransfer(t *testing.T) {
+func TestPortfolioMarginProBNBTransfer(t *testing.T) {
 	t.Parallel()
-	_, err := e.PMProBNBTransfer(t.Context(), 0, "TO_UM")
-	require.ErrorIs(t, err, limits.ErrAmountBelowMin, "PMProBNBTransfer must reject a zero amount")
-	_, err = e.PMProBNBTransfer(t.Context(), 0.0001, "")
-	require.ErrorIs(t, err, errTransferSideRequired, "PMProBNBTransfer must reject an empty transfer side")
+	_, err := e.PortfolioMarginProBNBTransfer(t.Context(), 0, "TO_UM")
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin, "PortfolioMarginProBNBTransfer must reject a zero amount")
+	_, err = e.PortfolioMarginProBNBTransfer(t.Context(), 0.0001, "")
+	require.ErrorIs(t, err, errTransferSideRequired, "PortfolioMarginProBNBTransfer must reject an empty transfer side")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	result, err := e.PMProBNBTransfer(t.Context(), 0.0001, "TO_UM")
-	require.NoError(t, err, "PMProBNBTransfer must not error")
+	result, err := e.PortfolioMarginProBNBTransfer(t.Context(), 0.0001, "TO_UM")
+	require.NoError(t, err, "PortfolioMarginProBNBTransfer must not error")
 	if mockTests {
-		exp := &PMTransactionResponse{
+		exp := &PortfolioMarginTransactionResponse{
 			TransactionID: 100000001,
 		}
-		assert.Equal(t, exp, result, "PMProBNBTransfer should decode every field")
+		assert.Equal(t, exp, result, "PortfolioMarginProBNBTransfer should decode every field")
 		return
 	}
-	assert.NotZero(t, result.TransactionID, "PMProBNBTransfer should return a transaction ID")
+	assert.NotZero(t, result.TransactionID, "PortfolioMarginProBNBTransfer should return a transaction ID")
 }
 
-func TestGetPMProAutoRepayFuturesStatus(t *testing.T) {
+func TestGetPortfolioMarginProAutoRepayFuturesStatus(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetPMProAutoRepayFuturesStatus(t.Context())
-	require.NoError(t, err, "GetPMProAutoRepayFuturesStatus must not error")
+	result, err := e.GetPortfolioMarginProAutoRepayFuturesStatus(t.Context())
+	require.NoError(t, err, "GetPortfolioMarginProAutoRepayFuturesStatus must not error")
 	if mockTests {
-		exp := &PMAutoRepayFuturesStatusResponse{
+		exp := &PortfolioMarginAutoRepayFuturesStatusResponse{
 			AutoRepay: true,
 		}
-		assert.Equal(t, exp, result, "GetPMProAutoRepayFuturesStatus should decode every field")
+		assert.Equal(t, exp, result, "GetPortfolioMarginProAutoRepayFuturesStatus should decode every field")
 		return
 	}
-	assert.NotNil(t, result, "GetPMProAutoRepayFuturesStatus should return a status")
+	assert.NotNil(t, result, "GetPortfolioMarginProAutoRepayFuturesStatus should return a status")
 }
 
-func TestChangePMProAutoRepayFuturesStatus(t *testing.T) {
+func TestChangePortfolioMarginProAutoRepayFuturesStatus(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	result, err := e.ChangePMProAutoRepayFuturesStatus(t.Context(), false)
-	require.NoError(t, err, "ChangePMProAutoRepayFuturesStatus must not error")
+	result, err := e.ChangePortfolioMarginProAutoRepayFuturesStatus(t.Context(), false)
+	require.NoError(t, err, "ChangePortfolioMarginProAutoRepayFuturesStatus must not error")
 	if mockTests {
-		exp := &PMMessageResponse{
+		exp := &PortfolioMarginMessageResponse{
 			Message: "success",
 		}
-		assert.Equal(t, exp, result, "ChangePMProAutoRepayFuturesStatus should decode every field")
+		assert.Equal(t, exp, result, "ChangePortfolioMarginProAutoRepayFuturesStatus should decode every field")
 		return
 	}
-	assert.Equal(t, "success", result.Message, "ChangePMProAutoRepayFuturesStatus should report success")
+	assert.Equal(t, "success", result.Message, "ChangePortfolioMarginProAutoRepayFuturesStatus should report success")
 }
 
-func TestPMProFundAutoCollection(t *testing.T) {
+func TestPortfolioMarginProFundAutoCollection(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	result, err := e.PMProFundAutoCollection(t.Context())
-	require.NoError(t, err, "PMProFundAutoCollection must not error")
+	result, err := e.PortfolioMarginProFundAutoCollection(t.Context())
+	require.NoError(t, err, "PortfolioMarginProFundAutoCollection must not error")
 	if mockTests {
-		exp := &PMMessageResponse{
+		exp := &PortfolioMarginMessageResponse{
 			Message: "success",
 		}
-		assert.Equal(t, exp, result, "PMProFundAutoCollection should decode every field")
+		assert.Equal(t, exp, result, "PortfolioMarginProFundAutoCollection should decode every field")
 		return
 	}
-	assert.Equal(t, "success", result.Message, "PMProFundAutoCollection should report success")
+	assert.Equal(t, "success", result.Message, "PortfolioMarginProFundAutoCollection should report success")
 }
 
-func TestPMProFundCollectionByAsset(t *testing.T) {
+func TestPortfolioMarginProFundCollectionByAsset(t *testing.T) {
 	t.Parallel()
-	_, err := e.PMProFundCollectionByAsset(t.Context(), currency.EMPTYCODE)
-	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "PMProFundCollectionByAsset must reject an empty asset")
+	_, err := e.PortfolioMarginProFundCollectionByAsset(t.Context(), currency.EMPTYCODE)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "PortfolioMarginProFundCollectionByAsset must reject an empty asset")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	result, err := e.PMProFundCollectionByAsset(t.Context(), currency.LTC)
-	require.NoError(t, err, "PMProFundCollectionByAsset must not error")
+	result, err := e.PortfolioMarginProFundCollectionByAsset(t.Context(), currency.LTC)
+	require.NoError(t, err, "PortfolioMarginProFundCollectionByAsset must not error")
 	if mockTests {
-		exp := &PMMessageResponse{
+		exp := &PortfolioMarginMessageResponse{
 			Message: "success",
 		}
-		assert.Equal(t, exp, result, "PMProFundCollectionByAsset should decode every field")
+		assert.Equal(t, exp, result, "PortfolioMarginProFundCollectionByAsset should decode every field")
 		return
 	}
-	assert.Equal(t, "success", result.Message, "PMProFundCollectionByAsset should report success")
+	assert.Equal(t, "success", result.Message, "PortfolioMarginProFundCollectionByAsset should report success")
 }
 
-func TestGetPMProAccountInfo(t *testing.T) {
+func TestGetPortfolioMarginProAccountInfo(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetPMProAccountInfo(t.Context())
-	require.NoError(t, err, "GetPMProAccountInfo must not error")
+	result, err := e.GetPortfolioMarginProAccountInfo(t.Context())
+	require.NoError(t, err, "GetPortfolioMarginProAccountInfo must not error")
 	if mockTests {
-		exp := &PMProAccountInfoResponse{
+		exp := &PortfolioMarginProAccountInfoResponse{
 			UniMMR:                   5167.92171923,
 			AccountEquity:            122607.35137903,
 			ActualEquity:             142607.35137903,
@@ -124,62 +124,62 @@ func TestGetPMProAccountInfo(t *testing.T) {
 			AccountStatus:            "NORMAL",
 			AccountType:              "PM_1",
 		}
-		assert.Equal(t, exp, result, "GetPMProAccountInfo should decode every field")
+		assert.Equal(t, exp, result, "GetPortfolioMarginProAccountInfo should decode every field")
 		return
 	}
-	assert.NotEmpty(t, result.AccountType, "GetPMProAccountInfo should return the account type")
+	assert.NotEmpty(t, result.AccountType, "GetPortfolioMarginProAccountInfo should return the account type")
 }
 
-func TestRepayPMProBankruptcyLoan(t *testing.T) {
+func TestRepayPortfolioMarginProBankruptcyLoan(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	result, err := e.RepayPMProBankruptcyLoan(t.Context(), "SPOT")
-	require.NoError(t, err, "RepayPMProBankruptcyLoan must not error")
+	result, err := e.RepayPortfolioMarginProBankruptcyLoan(t.Context(), "SPOT")
+	require.NoError(t, err, "RepayPortfolioMarginProBankruptcyLoan must not error")
 	if mockTests {
-		exp := &PMTransactionResponse{
+		exp := &PortfolioMarginTransactionResponse{
 			TransactionID: 58203331886213500,
 		}
-		assert.Equal(t, exp, result, "RepayPMProBankruptcyLoan should decode every field")
+		assert.Equal(t, exp, result, "RepayPortfolioMarginProBankruptcyLoan should decode every field")
 		return
 	}
-	assert.NotZero(t, result.TransactionID, "RepayPMProBankruptcyLoan should return a transaction ID")
+	assert.NotZero(t, result.TransactionID, "RepayPortfolioMarginProBankruptcyLoan should return a transaction ID")
 }
 
-func TestGetPMProBankruptcyLoanAmount(t *testing.T) {
+func TestGetPortfolioMarginProBankruptcyLoanAmount(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetPMProBankruptcyLoanAmount(t.Context())
-	require.NoError(t, err, "GetPMProBankruptcyLoanAmount must not error")
+	result, err := e.GetPortfolioMarginProBankruptcyLoanAmount(t.Context())
+	require.NoError(t, err, "GetPortfolioMarginProBankruptcyLoanAmount must not error")
 	if mockTests {
-		exp := &PMProBankruptcyLoanAmountResponse{
+		exp := &PortfolioMarginProBankruptcyLoanAmountResponse{
 			Asset:  currency.BUSD,
 			Amount: 579.45,
 		}
-		assert.Equal(t, exp, result, "GetPMProBankruptcyLoanAmount should decode every field")
+		assert.Equal(t, exp, result, "GetPortfolioMarginProBankruptcyLoanAmount should decode every field")
 		return
 	}
-	assert.NotNil(t, result, "GetPMProBankruptcyLoanAmount should return an amount")
+	assert.NotNil(t, result, "GetPortfolioMarginProBankruptcyLoanAmount should return an amount")
 }
 
-func TestGetPMProNegativeBalanceInterestHistory(t *testing.T) {
+func TestGetPortfolioMarginProNegativeBalanceInterestHistory(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetPMProNegativeBalanceInterestHistory(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "GetPMProNegativeBalanceInterestHistory must reject a nil request")
+	_, err := e.GetPortfolioMarginProNegativeBalanceInterestHistory(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "GetPortfolioMarginProNegativeBalanceInterestHistory must reject a nil request")
 	startTime, endTime := getTime()
-	_, err = e.GetPMProNegativeBalanceInterestHistory(t.Context(), &PMNegativeBalanceInterestHistoryRequest{Asset: currency.ETH, StartTime: endTime, EndTime: startTime, Size: 100})
-	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetPMProNegativeBalanceInterestHistory must reject a start time after the end time")
+	_, err = e.GetPortfolioMarginProNegativeBalanceInterestHistory(t.Context(), &PortfolioMarginNegativeBalanceInterestHistoryRequest{Asset: currency.ETH, StartTime: endTime, EndTime: startTime, Size: 100})
+	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetPortfolioMarginProNegativeBalanceInterestHistory must reject a start time after the end time")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetPMProNegativeBalanceInterestHistory(t.Context(), &PMNegativeBalanceInterestHistoryRequest{Asset: currency.ETH, StartTime: startTime, EndTime: endTime, Size: 100})
-	require.NoError(t, err, "GetPMProNegativeBalanceInterestHistory must not error")
+	result, err := e.GetPortfolioMarginProNegativeBalanceInterestHistory(t.Context(), &PortfolioMarginNegativeBalanceInterestHistoryRequest{Asset: currency.ETH, StartTime: startTime, EndTime: endTime, Size: 100})
+	require.NoError(t, err, "GetPortfolioMarginProNegativeBalanceInterestHistory must not error")
 	if mockTests {
-		exp := []PMProNegativeBalanceInterestResponse{
+		exp := []PortfolioMarginProNegativeBalanceInterestResponse{
 			{
 				Asset:               currency.ETH,
 				Interest:            24.444,
@@ -188,27 +188,27 @@ func TestGetPMProNegativeBalanceInterestHistory(t *testing.T) {
 				Principal:           210000,
 			},
 		}
-		assert.Equal(t, exp, result, "GetPMProNegativeBalanceInterestHistory should decode every field")
+		assert.Equal(t, exp, result, "GetPortfolioMarginProNegativeBalanceInterestHistory should decode every field")
 		return
 	}
-	assert.NotNil(t, result, "GetPMProNegativeBalanceInterestHistory should return interest records")
+	assert.NotNil(t, result, "GetPortfolioMarginProNegativeBalanceInterestHistory should return interest records")
 }
 
-func TestRepayPMProFuturesNegativeBalance(t *testing.T) {
+func TestRepayPortfolioMarginProFuturesNegativeBalance(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	result, err := e.RepayPMProFuturesNegativeBalance(t.Context(), "MARGIN")
-	require.NoError(t, err, "RepayPMProFuturesNegativeBalance must not error")
+	result, err := e.RepayPortfolioMarginProFuturesNegativeBalance(t.Context(), "MARGIN")
+	require.NoError(t, err, "RepayPortfolioMarginProFuturesNegativeBalance must not error")
 	if mockTests {
-		exp := &PMMessageResponse{
+		exp := &PortfolioMarginMessageResponse{
 			Message: "success",
 		}
-		assert.Equal(t, exp, result, "RepayPMProFuturesNegativeBalance should decode every field")
+		assert.Equal(t, exp, result, "RepayPortfolioMarginProFuturesNegativeBalance should decode every field")
 		return
 	}
-	assert.Equal(t, "success", result.Message, "RepayPMProFuturesNegativeBalance should report success")
+	assert.Equal(t, "success", result.Message, "RepayPortfolioMarginProFuturesNegativeBalance should report success")
 }
 
 func TestGetPortfolioMarginAssetLeverage(t *testing.T) {
@@ -219,7 +219,7 @@ func TestGetPortfolioMarginAssetLeverage(t *testing.T) {
 	result, err := e.GetPortfolioMarginAssetLeverage(t.Context())
 	require.NoError(t, err, "GetPortfolioMarginAssetLeverage must not error")
 	if mockTests {
-		exp := []PMAssetLeverageResponse{
+		exp := []PortfolioMarginAssetLeverageResponse{
 			{
 				Asset:    currency.USDC,
 				Leverage: 10,
@@ -239,7 +239,7 @@ func TestGetPortfolioMarginCollateralRate(t *testing.T) {
 	result, err := e.GetPortfolioMarginCollateralRate(t.Context())
 	require.NoError(t, err, "GetPortfolioMarginCollateralRate must not error")
 	if mockTests {
-		exp := []PMCollateralRateResponse{
+		exp := []PortfolioMarginCollateralRateResponse{
 			{
 				Asset:          currency.USDC,
 				CollateralRate: 1,
@@ -267,21 +267,21 @@ func TestGetPortfolioMarginAssetIndexPrice(t *testing.T) {
 	}{
 		{name: "asset", ccy: currency.BTC, exp: []PortfolioMarginAssetIndexPriceResponse{
 			{
-				Asset:           currency.BTC,
-				AssetIndexPrice: 28251.9136906,
-				Time:            types.Time(time.UnixMilli(1683518338121)),
+				Asset:                currency.BTC,
+				AssetIndexPriceInUSD: 28251.9136906,
+				Time:                 types.Time(time.UnixMilli(1683518338121)),
 			},
 		}},
 		{name: "allAssets", ccy: currency.EMPTYCODE, exp: []PortfolioMarginAssetIndexPriceResponse{
 			{
-				Asset:           currency.BTC,
-				AssetIndexPrice: 28251.9136906,
-				Time:            types.Time(time.UnixMilli(1683518338121)),
+				Asset:                currency.BTC,
+				AssetIndexPriceInUSD: 28251.9136906,
+				Time:                 types.Time(time.UnixMilli(1683518338121)),
 			},
 			{
-				Asset:           currency.ETH,
-				AssetIndexPrice: 1890.12345678,
-				Time:            types.Time(time.UnixMilli(1683518338121)),
+				Asset:                currency.ETH,
+				AssetIndexPriceInUSD: 1890.12345678,
+				Time:                 types.Time(time.UnixMilli(1683518338121)),
 			},
 		}},
 	} {

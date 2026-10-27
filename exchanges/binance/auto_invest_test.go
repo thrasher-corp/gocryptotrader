@@ -31,16 +31,16 @@ func TestGetTargetAssetList(t *testing.T) {
 			AutoInvestAssetList: []AutoInvestTargetAsset{
 				{
 					TargetAsset: currency.BTC,
-					ROIAndDimensionTypeList: []AutoInvestROIDimension{
+					ReturnOnInvestmentAndDimensionTypeList: []AutoInvestReturnOnInvestmentDimension{
 						{
-							SimulateROI:    5.004,
-							DimensionValue: 3,
-							DimensionUnit:  "year",
+							SimulateReturnOnInvestment: 5.004,
+							DimensionValue:             3,
+							DimensionUnit:              "year",
 						},
 						{
-							SimulateROI:    0.14,
-							DimensionValue: 7,
-							DimensionUnit:  "day",
+							SimulateReturnOnInvestment: 0.14,
+							DimensionValue:             7,
+							DimensionUnit:              "day",
 						},
 					},
 				},
@@ -52,33 +52,33 @@ func TestGetTargetAssetList(t *testing.T) {
 	assert.NotNil(t, result, "GetTargetAssetList should return a result")
 }
 
-func TestGetTargetAssetROIData(t *testing.T) {
+func TestGetTargetAssetReturnOnInvestmentData(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetTargetAssetROIData(t.Context(), currency.EMPTYCODE, "THREE_YEAR")
-	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "GetTargetAssetROIData must reject an empty target asset")
-	_, err = e.GetTargetAssetROIData(t.Context(), currency.ETH, "")
-	require.ErrorIs(t, err, errHistoricalROITypeRequired, "GetTargetAssetROIData must reject an empty ROI type")
+	_, err := e.GetTargetAssetReturnOnInvestmentData(t.Context(), currency.EMPTYCODE, "THREE_YEAR")
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "GetTargetAssetReturnOnInvestmentData must reject an empty target asset")
+	_, err = e.GetTargetAssetReturnOnInvestmentData(t.Context(), currency.ETH, "")
+	require.ErrorIs(t, err, errHistoricalReturnOnInvestmentTypeRequired, "GetTargetAssetReturnOnInvestmentData must reject an empty ROI type")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetTargetAssetROIData(t.Context(), currency.ETH, "THREE_YEAR")
-	require.NoError(t, err, "GetTargetAssetROIData must not error")
+	result, err := e.GetTargetAssetReturnOnInvestmentData(t.Context(), currency.ETH, "THREE_YEAR")
+	require.NoError(t, err, "GetTargetAssetReturnOnInvestmentData must not error")
 	if mockTests {
-		exp := []AutoInvestTargetAssetROIResponse{
+		exp := []AutoInvestTargetAssetReturnOnInvestmentResponse{
 			{
-				Date:        types.Time(time.Unix(1648378800, 0)),
-				SimulateROI: 1.75,
+				Date:                       types.Time(time.Unix(1648378800, 0)),
+				SimulateReturnOnInvestment: 1.75,
 			},
 			{
-				Date:        types.Time(time.Unix(1648478800, 0)),
-				SimulateROI: 2.9,
+				Date:                       types.Time(time.Unix(1648478800, 0)),
+				SimulateReturnOnInvestment: 2.9,
 			},
 		}
-		assert.Equal(t, exp, result, "GetTargetAssetROIData should decode every field")
+		assert.Equal(t, exp, result, "GetTargetAssetReturnOnInvestmentData should decode every field")
 		return
 	}
-	assert.NotNil(t, result, "GetTargetAssetROIData should return a result")
+	assert.NotNil(t, result, "GetTargetAssetReturnOnInvestmentData should return a result")
 }
 
 func TestGetAllSourceAssetAndTargetAsset(t *testing.T) {
@@ -148,13 +148,13 @@ func TestInvestmentPlanCreation(t *testing.T) {
 	_, err := e.InvestmentPlanCreation(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "InvestmentPlanCreation must reject a nil request")
 	schedule := InvestmentPlanSchedule{
-		SubscriptionAmount:    4,
-		SubscriptionCycle:     "MONTHLY",
-		SubscriptionStartDay:  1,
-		SubscriptionStartTime: 8,
-		SourceAsset:           currency.USDT,
-		FlexibleAllowedToUse:  true,
-		Details:               testPortfolio,
+		SubscriptionAmount:          4,
+		SubscriptionCycle:           "MONTHLY",
+		SubscriptionStartDayOfMonth: 1,
+		SubscriptionStartHourOfDay:  8,
+		SourceAsset:                 currency.USDT,
+		FlexibleAllowedToUse:        true,
+		Details:                     testPortfolio,
 	}
 	_, err = e.InvestmentPlanCreation(t.Context(), &InvestmentPlanCreationRequest{PlanType: "PORTFOLIO", InvestmentPlanSchedule: schedule})
 	require.ErrorIs(t, err, errSourceTypeRequired, "InvestmentPlanCreation must reject an empty source type")
@@ -269,54 +269,54 @@ func TestGetListOfPlans(t *testing.T) {
 	require.NoError(t, err, "GetListOfPlans must not error")
 	if mockTests {
 		exp := &AutoInvestPlanListResponse{
-			PlanValueInUSD: 123,
-			PlanValueInBTC: 0.0016,
-			PNLInUSD:       12.3,
-			ROI:            0.111,
+			PlanValueInUSD:     123,
+			PlanValueInBTC:     0.0016,
+			PNLInUSD:           12.3,
+			ReturnOnInvestment: 0.111,
 			Plans: []AutoInvestPlan{
 				{
-					PlanID:                 12345,
-					PlanType:               "SINGLE",
-					EditAllowed:            true,
-					CreationDateTime:       types.Time(time.Unix(1744156800, 0)),
-					FirstExecutionDateTime: types.Time(time.Unix(1744156800, 0)),
-					NextExecutionDateTime:  types.Time(time.Unix(1744761600, 0)),
-					Status:                 "ONGOING",
-					LastUpdatedDateTime:    types.Time(time.Unix(1744156800, 0)),
-					TargetAsset:            currency.BTC,
-					TotalTargetAmount:      0.00111,
-					SourceAsset:            currency.USDT,
-					TotalInvestedInUSD:     110.7,
-					SubscriptionAmount:     10,
-					SubscriptionCycle:      "MONTHLY",
-					SubscriptionStartDay:   1,
-					SubscriptionStartTime:  1,
-					SourceWallet:           "SPOT_WALLET",
-					PlanValueInUSD:         123,
-					PNLInUSD:               12.3,
-					ROI:                    0.111,
+					PlanID:                      12345,
+					PlanType:                    "SINGLE",
+					EditAllowed:                 true,
+					CreationDateTime:            types.Time(time.Unix(1744156800, 0)),
+					FirstExecutionDateTime:      types.Time(time.Unix(1744156800, 0)),
+					NextExecutionDateTime:       types.Time(time.Unix(1744761600, 0)),
+					Status:                      "ONGOING",
+					LastUpdatedDateTime:         types.Time(time.Unix(1744156800, 0)),
+					TargetAsset:                 currency.BTC,
+					TotalTargetAmount:           0.00111,
+					SourceAsset:                 currency.USDT,
+					TotalInvestedInUSD:          110.7,
+					SubscriptionAmount:          10,
+					SubscriptionCycle:           "MONTHLY",
+					SubscriptionStartDayOfMonth: 1,
+					SubscriptionStartHourOfDay:  1,
+					SourceWallet:                "SPOT_WALLET",
+					PlanValueInUSD:              123,
+					PNLInUSD:                    12.3,
+					ReturnOnInvestment:          0.111,
 				},
 				{
-					PlanID:                   12346,
-					PlanType:                 "SINGLE",
-					CreationDateTime:         types.Time(time.Unix(1744156800, 0)),
-					FirstExecutionDateTime:   types.Time(time.Unix(1744156800, 0)),
-					NextExecutionDateTime:    types.Time(time.Unix(1744761600, 0)),
-					Status:                   "PAUSED",
-					LastUpdatedDateTime:      types.Time(time.Unix(1744156800, 0)),
-					TargetAsset:              currency.ETH,
-					TotalTargetAmount:        0.0123,
-					SourceAsset:              currency.USDT,
-					TotalInvestedInUSD:       20,
-					SubscriptionAmount:       5,
-					SubscriptionCycle:        "WEEKLY",
-					SubscriptionStartWeekday: "MON",
-					SubscriptionStartTime:    2,
-					SourceWallet:             "SPOT_WALLET_FLEXIBLE_SAVINGS",
-					FlexibleAllowedToUse:     true,
-					PlanValueInUSD:           19.5,
-					PNLInUSD:                 -0.5,
-					ROI:                      -0.025,
+					PlanID:                     12346,
+					PlanType:                   "SINGLE",
+					CreationDateTime:           types.Time(time.Unix(1744156800, 0)),
+					FirstExecutionDateTime:     types.Time(time.Unix(1744156800, 0)),
+					NextExecutionDateTime:      types.Time(time.Unix(1744761600, 0)),
+					Status:                     "PAUSED",
+					LastUpdatedDateTime:        types.Time(time.Unix(1744156800, 0)),
+					TargetAsset:                currency.ETH,
+					TotalTargetAmount:          0.0123,
+					SourceAsset:                currency.USDT,
+					TotalInvestedInUSD:         20,
+					SubscriptionAmount:         5,
+					SubscriptionCycle:          "WEEKLY",
+					SubscriptionStartWeekday:   "MON",
+					SubscriptionStartHourOfDay: 2,
+					SourceWallet:               "SPOT_WALLET_FLEXIBLE_SAVINGS",
+					FlexibleAllowedToUse:       true,
+					PlanValueInUSD:             19.5,
+					PNLInUSD:                   -0.5,
+					ReturnOnInvestment:         -0.025,
 				},
 			},
 		}
@@ -347,7 +347,7 @@ func TestGetHoldingDetailsOfPlan(t *testing.T) {
 			SourceAsset:            currency.USDT,
 			PlanValueInUSD:         101.2,
 			PNLInUSD:               1.2,
-			ROI:                    0.012,
+			ReturnOnInvestment:     0.012,
 			TotalInvestedInUSD:     100,
 			Details: []AutoInvestPlanHoldingDetail{
 				{
@@ -357,7 +357,7 @@ func TestGetHoldingDetailsOfPlan(t *testing.T) {
 					PurchasedAmount:     156.25,
 					PurchasedAmountUnit: currency.ADA,
 					PNLInUSD:            1.2,
-					ROI:                 0.012,
+					ReturnOnInvestment:  0.012,
 					Percentage:          50,
 					AssetStatus:         "ACTIVE",
 					AvailableAmount:     150.25,
@@ -471,7 +471,7 @@ func TestGetIndexLinkedPlanPositionDetails(t *testing.T) {
 			TotalInvestedInUSD:   114.555,
 			CurrentInvestedInUSD: 101.2,
 			PNLInUSD:             -13.355,
-			ROI:                  -0.1166,
+			ReturnOnInvestment:   -0.1166,
 			AssetAllocation: []AutoInvestAssetAllocation{
 				{
 					TargetAsset: currency.ADA,
@@ -486,7 +486,7 @@ func TestGetIndexLinkedPlanPositionDetails(t *testing.T) {
 					CurrentInvestedInUSD: 10.12,
 					PurchasedAmount:      17.89,
 					PNLInUSD:             -1.3355,
-					ROI:                  -0.1166,
+					ReturnOnInvestment:   -0.1166,
 					Percentage:           10,
 					AvailableAmount:      15.89,
 					RedeemedAmount:       2,

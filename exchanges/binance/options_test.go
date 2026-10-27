@@ -1,6 +1,7 @@
 package binance
 
 import (
+	"math"
 	"net/url"
 	"testing"
 	"time"
@@ -19,6 +20,22 @@ import (
 
 func TestGetAccountFundingFlow(t *testing.T) {
 	t.Parallel()
+	for _, tc := range []struct {
+		name    string
+		payload string
+		symbol  string
+	}{
+		{name: "symbol returned", payload: `[{"symbol":"BTC-250425-90000-C"}]`, symbol: "BTC-250425-90000-C"},
+		{name: "symbol omitted for account transfer", payload: `[{"type":"TRANSFER"}]`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var response []OptionsAccountFundingResponse
+			require.NoError(t, json.Unmarshal([]byte(tc.payload), &response), "funding flow response must decode")
+			require.Len(t, response, 1, "funding flow response must contain one record")
+			assert.Equal(t, tc.symbol, response[0].Symbol, "funding flow should retain its symbol or expose an empty symbol when omitted")
+		})
+	}
 	_, err := e.GetAccountFundingFlow(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetAccountFundingFlow must reject a nil request")
 	_, err = e.GetAccountFundingFlow(t.Context(), &OptionsAccountFundingFlowRequest{})
@@ -37,6 +54,7 @@ func TestGetAccountFundingFlow(t *testing.T) {
 		exp := []OptionsAccountFundingResponse{
 			{
 				ID:         1125899906842624000,
+				Symbol:     "BTC-200730-9000-C",
 				Asset:      currency.USDT,
 				Amount:     -0.552,
 				Type:       "FEE",
@@ -112,8 +130,8 @@ func TestGetDownloadIDForOptionTransactionHistory(t *testing.T) {
 	require.NoError(t, err, "GetDownloadIDForOptionTransactionHistory must not error")
 	if mockTests {
 		exp := &OptionsTransactionHistoryDownloadIDResponse{
-			AverageCostTimestampOfLast30Days: 7241837,
-			DownloadID:                       "546975389218332672",
+			AverageDownloadMillisecondsOfLast30Days: 7241837,
+			DownloadID:                              "546975389218332672",
 		}
 		assert.Equal(t, exp, result, "GetDownloadIDForOptionTransactionHistory should decode every field")
 		return
@@ -618,8 +636,8 @@ func TestGetEOptions24HourTickerPriceChangeStatistics(t *testing.T) {
 				Open:               6225,
 				High:               6480,
 				Low:                6225,
-				Volume:             0.02,
-				Amount:             129.6,
+				VolumeInContracts:  0.02,
+				AmountInQuoteAsset: 129.6,
 				BidPrice:           6935,
 				AskPrice:           6985,
 				OpenTime:           types.Time(time.Unix(1791017220, 0)),
@@ -638,8 +656,8 @@ func TestGetEOptions24HourTickerPriceChangeStatistics(t *testing.T) {
 				Open:               4865,
 				High:               6730,
 				Low:                4865,
-				Volume:             0.02,
-				Amount:             101,
+				VolumeInContracts:  0.02,
+				AmountInQuoteAsset: 101,
 				BidPrice:           4855,
 				AskPrice:           4865,
 				OpenTime:           types.Time(time.Unix(1790949720, 0)),
@@ -660,8 +678,8 @@ func TestGetEOptions24HourTickerPriceChangeStatistics(t *testing.T) {
 				Open:               4865,
 				High:               6730,
 				Low:                4865,
-				Volume:             0.02,
-				Amount:             101,
+				VolumeInContracts:  0.02,
+				AmountInQuoteAsset: 101,
 				BidPrice:           4855,
 				AskPrice:           4865,
 				OpenTime:           types.Time(time.Unix(1790949720, 0)),
@@ -718,8 +736,8 @@ func TestGetAutoCancelAllOpenOrdersConfig(t *testing.T) {
 	require.NoError(t, err, "GetAutoCancelAllOpenOrdersConfig must not error")
 	if mockTests {
 		exp := &OptionsAutoCancelAllOpenOrdersConfigResponse{
-			Underlying:    "BTCUSDT",
-			CountdownTime: 100000,
+			Underlying:                  "BTCUSDT",
+			CountdownTimeInMilliseconds: 100000,
 		}
 		assert.Equal(t, exp, result, "GetAutoCancelAllOpenOrdersConfig should decode every field")
 		return
@@ -739,8 +757,8 @@ func TestSetOptionsAutoCancelAllOpenOrders(t *testing.T) {
 	require.NoError(t, err, "SetOptionsAutoCancelAllOpenOrders must not error")
 	if mockTests {
 		exp := &OptionsAutoCancelAllOpenOrdersConfigResponse{
-			Underlying:    "BTCUSDT",
-			CountdownTime: 30000,
+			Underlying:                  "BTCUSDT",
+			CountdownTimeInMilliseconds: 30000,
 		}
 		assert.Equal(t, exp, result, "SetOptionsAutoCancelAllOpenOrders should decode every field")
 	} else {
@@ -1438,4 +1456,29 @@ func TestCloseOptionsUserDataStream(t *testing.T) {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
 	assert.NoError(t, e.CloseOptionsUserDataStream(t.Context()), "CloseOptionsUserDataStream should not error")
+}
+
+func TestOptionsOrderIdentityParams(t *testing.T) {
+	t.Parallel()
+	pair := currency.Pair{Base: currency.BTC, Quote: currency.NewCode("260410-72000-P"), Delimiter: currency.DashDelimiter}
+	for _, tc := range []struct {
+		name, clientOrderID string
+		pair                currency.Pair
+		orderID             uint64
+		exp                 url.Values
+		err                 error
+	}{
+		{name: "empty pair", orderID: 1, err: currency.ErrCurrencyPairEmpty},
+		{name: "missing identity", pair: pair, err: order.ErrOrderIDNotSet},
+		{name: "numeric identity", pair: pair, orderID: math.MaxUint64, exp: url.Values{"symbol": {"BTC-260410-72000-P"}, "orderId": {"18446744073709551615"}}},
+		{name: "client identity", pair: pair, clientOrderID: "client-order", exp: url.Values{"symbol": {"BTC-260410-72000-P"}, "clientOrderId": {"client-order"}}},
+		{name: "both identities", pair: pair, orderID: 123, clientOrderID: "client-order", exp: url.Values{"symbol": {"BTC-260410-72000-P"}, "orderId": {"123"}, "clientOrderId": {"client-order"}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			params, err := e.optionsOrderIdentityParams(tc.pair, tc.clientOrderID, tc.orderID)
+			require.ErrorIs(t, err, tc.err, "optionsOrderIdentityParams must return the expected error")
+			assert.Equal(t, tc.exp, params, "optionsOrderIdentityParams should format the symbol and preserve each supplied identity")
+		})
+	}
 }

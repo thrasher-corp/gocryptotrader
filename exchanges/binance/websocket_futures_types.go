@@ -294,27 +294,27 @@ type FuturesTradingSession struct {
 	SessionType      string     `json:"S"`
 }
 
-// CFuturesIndexPrice is an index price update from the COIN-M <pair>@indexPrice stream
-type CFuturesIndexPrice struct {
+// CoinMarginedFuturesIndexPrice is an index price update from the COIN-M <pair>@indexPrice stream
+type CoinMarginedFuturesIndexPrice struct {
 	EventType  string       `json:"e"`
 	EventTime  types.Time   `json:"E"`
 	Pair       string       `json:"s"`
 	IndexPrice types.Number `json:"p"`
 }
 
-// CFuturesPriceKline is an index or mark price candle from the COIN-M <pair>@indexPriceKline_<interval> and
+// CoinMarginedFuturesPriceKline is an index or mark price candle from the COIN-M <pair>@indexPriceKline_<interval> and
 // <symbol>@markPriceKline_<interval> streams
-type CFuturesPriceKline struct {
-	EventType string              `json:"e"`
-	EventTime types.Time          `json:"E"`
-	Pair      string              `json:"ps"`
-	Kline     CFuturesPriceCandle `json:"k"`
+type CoinMarginedFuturesPriceKline struct {
+	EventType string                         `json:"e"`
+	EventTime types.Time                     `json:"E"`
+	Pair      string                         `json:"ps"`
+	Kline     CoinMarginedFuturesPriceCandle `json:"k"`
 }
 
-// CFuturesPriceCandle is the candle of a CFuturesPriceKline. Binance documents f, L, v, q, V, Q and B as ignored
-// for price candles; they are decoded under their regular candle names so that, for example, L cannot be decoded
-// into l by case-insensitive matching
-type CFuturesPriceCandle struct {
+// CoinMarginedFuturesPriceCandle is the candle of a CoinMarginedFuturesPriceKline. Binance documents f, L, v, q, V, Q
+// and B as ignored for price candles; they are decoded under their regular candle names so that, for example, L cannot
+// be decoded into l by case-insensitive matching
+type CoinMarginedFuturesPriceCandle struct {
 	StartTime                types.Time   `json:"t"`
 	CloseTime                types.Time   `json:"T"`
 	Symbol                   string       `json:"s"` // "0" for index price candles
@@ -615,24 +615,24 @@ type OptionsBookTicker struct {
 // OptionsTicker is a 24 hour ticker from the options <symbol>@optionTicker stream, which only pushes symbols whose
 // ticker changed. PriceChangePercent is a fraction, unlike the futures tickers
 type OptionsTicker struct {
-	EventType            string       `json:"e"`
-	EventTime            types.Time   `json:"E"`
-	Symbol               string       `json:"s"`
-	PriceChange          types.Number `json:"p"`
-	PriceChangePercent   types.Number `json:"P"`
-	WeightedAveragePrice types.Number `json:"w"`
-	LastPrice            types.Number `json:"c"`
-	LastQuantity         types.Number `json:"Q"`
-	OpenPrice            types.Number `json:"o"`
-	HighPrice            types.Number `json:"h"`
-	LowPrice             types.Number `json:"l"`
-	TradingVolume        types.Number `json:"v"` // in contracts
-	TradeAmount          types.Number `json:"q"` // in the quote asset
-	StatisticsOpenTime   types.Time   `json:"O"`
-	StatisticsCloseTime  types.Time   `json:"C"`
-	FirstTradeID         uint64       `json:"F"`
-	LastTradeID          uint64       `json:"L"`
-	TotalNumberOfTrades  uint64       `json:"n"`
+	EventType                string       `json:"e"`
+	EventTime                types.Time   `json:"E"`
+	Symbol                   string       `json:"s"`
+	PriceChange              types.Number `json:"p"`
+	PriceChangePercent       types.Number `json:"P"`
+	WeightedAveragePrice     types.Number `json:"w"`
+	LastPrice                types.Number `json:"c"`
+	LastQuantity             types.Number `json:"Q"`
+	OpenPrice                types.Number `json:"o"`
+	HighPrice                types.Number `json:"h"`
+	LowPrice                 types.Number `json:"l"`
+	TradingVolumeInContracts types.Number `json:"v"`
+	TradeAmountInQuoteAsset  types.Number `json:"q"`
+	StatisticsOpenTime       types.Time   `json:"O"`
+	StatisticsCloseTime      types.Time   `json:"C"`
+	FirstTradeID             uint64       `json:"F"`
+	LastTradeID              uint64       `json:"L"`
+	TotalNumberOfTrades      uint64       `json:"n"`
 }
 
 // WebsocketOptionsTrade is a trade from the options <symbol>@optionTrade stream
@@ -667,22 +667,22 @@ type OptionsKline struct {
 
 // OptionsCandle is the candle of an OptionsKline
 type OptionsCandle struct {
-	StartTime                 types.Time   `json:"t"`
-	EndTime                   types.Time   `json:"T"`
-	Symbol                    string       `json:"s"`
-	CandlePeriod              string       `json:"i"`
-	FirstTradeID              int64        `json:"f"` // -1 when the candle has no trades
-	LastTradeID               int64        `json:"L"` // -1 when the candle has no trades
-	Open                      types.Number `json:"o"`
-	Close                     types.Number `json:"c"`
-	High                      types.Number `json:"h"`
-	Low                       types.Number `json:"l"`
-	Volume                    types.Number `json:"v"` // in contracts
-	NumberOfTrades            uint64       `json:"n"`
-	IsCompleted               bool         `json:"x"`
-	CompletedTradeAmount      types.Number `json:"q"` // in the quote asset
-	TakerCompletedTradeVolume types.Number `json:"V"` // in contracts
-	TakerTradeAmount          types.Number `json:"Q"` // in the quote asset
+	StartTime                            types.Time   `json:"t"`
+	EndTime                              types.Time   `json:"T"`
+	Symbol                               string       `json:"s"`
+	CandlePeriod                         string       `json:"i"`
+	FirstTradeID                         int64        `json:"f"` // -1 when the candle has no trades
+	LastTradeID                          int64        `json:"L"` // -1 when the candle has no trades
+	Open                                 types.Number `json:"o"`
+	Close                                types.Number `json:"c"`
+	High                                 types.Number `json:"h"`
+	Low                                  types.Number `json:"l"`
+	VolumeInContracts                    types.Number `json:"v"`
+	NumberOfTrades                       uint64       `json:"n"`
+	IsCompleted                          bool         `json:"x"`
+	CompletedTradeAmountInQuoteAsset     types.Number `json:"q"`
+	TakerCompletedTradeVolumeInContracts types.Number `json:"V"`
+	TakerTradeAmountInQuoteAsset         types.Number `json:"Q"`
 }
 
 // OptionsMarkPrice is the mark price and greeks of an option symbol from the options <underlying>@optionMarkPrice
@@ -728,11 +728,11 @@ type OptionsNewSymbol struct {
 // WebsocketOptionsOpenInterest is the open interest of an option symbol from the options
 // <underlying>@openInterest@<expirationDate> stream
 type WebsocketOptionsOpenInterest struct {
-	EventType        string       `json:"e"`
-	EventTime        types.Time   `json:"E"`
-	Symbol           string       `json:"s"`
-	OpenInterest     types.Number `json:"o"` // in contracts
-	OpenInterestUSDT types.Number `json:"h"`
+	EventType               string       `json:"e"`
+	EventTime               types.Time   `json:"E"`
+	Symbol                  string       `json:"s"`
+	OpenInterestInContracts types.Number `json:"o"`
+	OpenInterestUSDT        types.Number `json:"h"`
 }
 
 // OptionsAccountUpdate is an options ACCOUNT_UPDATE user data event, pushed on balance or position changes and every

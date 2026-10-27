@@ -11,11 +11,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-func TestUKlineUnmarshalJSON(t *testing.T) {
+func TestUSDTMarginedFuturesKlineUnmarshalJSON(t *testing.T) {
 	t.Parallel()
-	var got UKlineResponse
+	var got USDTMarginedFuturesKlineResponse
 	require.NoError(t, json.Unmarshal([]byte(`[1744156800000,"76298.00","83554.90","74578.50","82588.00","560649.862",1744243199999,"44072322884.09750",8799174,"279060.371","21941548090.15170","0"]`), &got), "Unmarshal must not error")
-	exp := UKlineResponse{
+	exp := USDTMarginedFuturesKlineResponse{
 		OpenTime:                 types.Time(time.UnixMilli(1744156800000)),
 		Open:                     76298,
 		High:                     83554.9,
@@ -28,16 +28,16 @@ func TestUKlineUnmarshalJSON(t *testing.T) {
 		TakerBuyBaseAssetVolume:  279060.371,
 		TakerBuyQuoteAssetVolume: 21941548090.1517,
 	}
-	assert.Equal(t, exp, got, "UKlineResponse should decode every element")
-	assert.Error(t, json.Unmarshal([]byte(`{"openTime":1744156800000}`), &got), "UKlineResponse should reject an object")
-	assert.Error(t, json.Unmarshal([]byte(`[1744156800000,"x"]`), &got), "UKlineResponse should reject an invalid element")
+	assert.Equal(t, exp, got, "USDTMarginedFuturesKlineResponse should decode every element")
+	assert.Error(t, json.Unmarshal([]byte(`{"openTime":1744156800000}`), &got), "USDTMarginedFuturesKlineResponse should reject an object")
+	assert.Error(t, json.Unmarshal([]byte(`[1744156800000,"x"]`), &got), "USDTMarginedFuturesKlineResponse should reject an invalid element")
 }
 
-func TestUPriceKlineUnmarshalJSON(t *testing.T) {
+func TestUSDTMarginedFuturesPriceKlineUnmarshalJSON(t *testing.T) {
 	t.Parallel()
-	var got UPriceKlineResponse
+	var got USDTMarginedFuturesPriceKlineResponse
 	require.NoError(t, json.Unmarshal([]byte(`[1744156800000,"76322.96800000","83567.47466667","74626.60222222","82611.44511111","0",1744243199999,"0",86399,"0","0","0"]`), &got), "Unmarshal must not error")
-	exp := UPriceKlineResponse{
+	exp := USDTMarginedFuturesPriceKlineResponse{
 		OpenTime:  types.Time(time.UnixMilli(1744156800000)),
 		Open:      76322.968,
 		High:      83567.47466667,
@@ -45,25 +45,25 @@ func TestUPriceKlineUnmarshalJSON(t *testing.T) {
 		Close:     82611.44511111,
 		CloseTime: types.Time(time.UnixMilli(1744243199999)),
 	}
-	assert.Equal(t, exp, got, "UPriceKlineResponse should decode the price and time elements")
-	assert.Error(t, json.Unmarshal([]byte(`{"openTime":1744156800000}`), &got), "UPriceKlineResponse should reject an object")
-	assert.Error(t, json.Unmarshal([]byte(`[1744156800000,"x"]`), &got), "UPriceKlineResponse should reject an invalid element")
+	assert.Equal(t, exp, got, "USDTMarginedFuturesPriceKlineResponse should decode the price and time elements")
+	assert.Error(t, json.Unmarshal([]byte(`{"openTime":1744156800000}`), &got), "USDTMarginedFuturesPriceKlineResponse should reject an object")
+	assert.Error(t, json.Unmarshal([]byte(`[1744156800000,"x"]`), &got), "USDTMarginedFuturesPriceKlineResponse should reject an invalid element")
 }
 
-func TestUDownloadLinkResponseUnmarshal(t *testing.T) {
+func TestUSDTMarginedFuturesDownloadLinkResponseUnmarshal(t *testing.T) {
 	t.Parallel()
 	// A file still being prepared has no link yet: its expiry is -1 and isExpired is null
-	var got UDownloadLinkResponse
+	var got USDTMarginedFuturesDownloadLinkResponse
 	require.NoError(t, json.Unmarshal([]byte(`{"downloadId":"545923594199212032","status":"processing","url":"","notified":false,"expirationTimestamp":-1,"isExpired":null}`), &got), "Unmarshal must not error")
-	exp := UDownloadLinkResponse{
+	exp := USDTMarginedFuturesDownloadLinkResponse{
 		DownloadID:          "545923594199212032",
 		Status:              "processing",
 		ExpirationTimestamp: -1,
 	}
-	assert.Equal(t, exp, got, "UDownloadLinkResponse should decode a file that is still processing")
+	assert.Equal(t, exp, got, "USDTMarginedFuturesDownloadLinkResponse should decode a file that is still processing")
 }
 
-func TestUAccountTradeHistoryResponseUnmarshal(t *testing.T) {
+func TestUSDTMarginedFuturesAccountTradeHistoryResponseUnmarshal(t *testing.T) {
 	t.Parallel()
 	const inp = `
 {
@@ -87,9 +87,9 @@ func TestUAccountTradeHistoryResponseUnmarshal(t *testing.T) {
 }
 `
 
-	var x UAccountTradeHistoryResponse
+	var x USDTMarginedFuturesAccountTradeHistoryResponse
 	require.NoError(t, json.Unmarshal([]byte(inp), &x), "Unmarshal must not error")
-	exp := UAccountTradeHistoryResponse{
+	exp := USDTMarginedFuturesAccountTradeHistoryResponse{
 		Buyer:           true,
 		Commission:      -0.078125,
 		CommissionAsset: currency.USDT,
@@ -108,10 +108,10 @@ func TestUAccountTradeHistoryResponseUnmarshal(t *testing.T) {
 		Pair:            "BTCUSDT",
 		Time:            types.Time(time.UnixMilli(1569514978020)),
 	}
-	assert.Equal(t, exp, x, "UAccountTradeHistoryResponse should unmarshal correctly")
+	assert.Equal(t, exp, x, "USDTMarginedFuturesAccountTradeHistoryResponse should unmarshal correctly")
 }
 
-func TestUPublicTradesResponseUnmarshal(t *testing.T) {
+func TestUSDTMarginedFuturesPublicTradesResponseUnmarshal(t *testing.T) {
 	t.Parallel()
 	const inp = `
 {
@@ -125,21 +125,21 @@ func TestUPublicTradesResponseUnmarshal(t *testing.T) {
 }
 `
 
-	var x UPublicTradesResponse
+	var x USDTMarginedFuturesPublicTradesResponse
 	require.NoError(t, json.Unmarshal([]byte(inp), &x), "Unmarshal must not error")
-	exp := UPublicTradesResponse{
-		ID:            8027591209,
-		Price:         79673.50,
-		Quantity:      0.0625,
-		QuoteQuantity: 318.6875,
-		Time:          types.Time(time.UnixMilli(1787893510850)),
-		IsBuyerMaker:  true,
-		IsRPITrade:    true,
+	exp := USDTMarginedFuturesPublicTradesResponse{
+		ID:                            8027591209,
+		Price:                         79673.50,
+		Quantity:                      0.0625,
+		QuoteQuantity:                 318.6875,
+		Time:                          types.Time(time.UnixMilli(1787893510850)),
+		IsBuyerMaker:                  true,
+		IsRetailPriceImprovementTrade: true,
 	}
-	assert.Equal(t, exp, x, "UPublicTradesResponse should unmarshal correctly")
+	assert.Equal(t, exp, x, "USDTMarginedFuturesPublicTradesResponse should unmarshal correctly")
 }
 
-func TestUFuturesOrderResponseUnmarshal(t *testing.T) {
+func TestUSDTMarginedFuturesAllOrdersResponseUnmarshal(t *testing.T) {
 	t.Parallel()
 	const inp = `
 {
@@ -174,9 +174,9 @@ func TestUFuturesOrderResponseUnmarshal(t *testing.T) {
 }
 `
 
-	var x UFuturesOrderResponse
+	var x USDTMarginedFuturesAllOrdersResponse
 	require.NoError(t, json.Unmarshal([]byte(inp), &x), "Unmarshal must not error")
-	exp := UFuturesOrderResponse{
+	exp := USDTMarginedFuturesAllOrdersResponse{
 		ClientOrderID:           "customID",
 		ExecutedQuantity:        4.125,
 		OrderID:                 1573346959,
@@ -206,12 +206,12 @@ func TestUFuturesOrderResponseUnmarshal(t *testing.T) {
 		CumulativeBase:          8.25,
 		Pair:                    "BTCUSDT",
 	}
-	assert.Equal(t, exp, x, "UFuturesOrderResponse should unmarshal correctly")
+	assert.Equal(t, exp, x, "USDTMarginedFuturesAllOrdersResponse should unmarshal correctly")
 }
 
-func TestUAccountBalanceUnmarshal(t *testing.T) {
+func TestUSDTMarginedFuturesAccountBalanceUnmarshal(t *testing.T) {
 	t.Parallel()
-	want := UAccountBalanceResponse{
+	want := USDTMarginedFuturesAccountBalanceResponse{
 		AccountAlias:       "test-account",
 		Asset:              currency.USDT,
 		Balance:            125.5,
@@ -223,7 +223,7 @@ func TestUAccountBalanceUnmarshal(t *testing.T) {
 	for _, tc := range []struct {
 		name  string
 		input string
-		want  UAccountBalanceResponse
+		want  USDTMarginedFuturesAccountBalanceResponse
 	}{
 		{
 			name: "quoted numbers",
@@ -268,7 +268,7 @@ func TestUAccountBalanceUnmarshal(t *testing.T) {
     "maxWithdrawAmount": ""
   }
 ]`,
-			want: UAccountBalanceResponse{
+			want: USDTMarginedFuturesAccountBalanceResponse{
 				AccountAlias: "test-account",
 				Asset:        currency.USDT,
 			},
@@ -276,16 +276,16 @@ func TestUAccountBalanceUnmarshal(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			var got []UAccountBalanceResponse
+			var got []USDTMarginedFuturesAccountBalanceResponse
 			require.NoError(t, json.Unmarshal([]byte(tc.input), &got), "Unmarshal must not error")
-			assert.Equal(t, []UAccountBalanceResponse{tc.want}, got, "UAccountBalanceResponse should decode every field")
+			assert.Equal(t, []USDTMarginedFuturesAccountBalanceResponse{tc.want}, got, "USDTMarginedFuturesAccountBalanceResponse should decode every field")
 		})
 	}
 }
 
-func TestUOrderResponseUnmarshal(t *testing.T) {
+func TestUSDTMarginedFuturesOrderResponseUnmarshal(t *testing.T) {
 	t.Parallel()
-	base := UOrderBase{
+	base := USDTMarginedFuturesOrderBase{
 		ClientOrderID:           "testOrder",
 		OrderID:                 22542179,
 		Side:                    "BUY",
@@ -307,13 +307,13 @@ func TestUOrderResponseUnmarshal(t *testing.T) {
 	filled.OriginalQuantity = 1.25
 	filled.Price = 19999.25
 	filled.StopPrice = 18000.5
-	want := UOrderResponse{
-		UOrderBase:      filled,
-		AveragePrice:    20001.5,
-		CumulativeQuote: 10000.75,
-		Time:            types.Time(time.UnixMilli(1579276756075)),
-		ActivatePrice:   9020.5,
-		PriceRate:       0.3,
+	want := USDTMarginedFuturesOrderResponse{
+		USDTMarginedFuturesOrderBase: filled,
+		AveragePrice:                 20001.5,
+		CumulativeQuote:              10000.75,
+		Time:                         types.Time(time.UnixMilli(1579276756075)),
+		ActivatePrice:                9020.5,
+		PriceRate:                    0.3,
 	}
 	const shared = `
   "clientOrderId": "testOrder",
@@ -337,7 +337,7 @@ func TestUOrderResponseUnmarshal(t *testing.T) {
 	for _, tc := range []struct {
 		name  string
 		input string
-		want  UOrderResponse
+		want  USDTMarginedFuturesOrderResponse
 	}{
 		{
 			name: "quoted numbers",
@@ -379,17 +379,17 @@ func TestUOrderResponseUnmarshal(t *testing.T) {
   "stopPrice": "",
   "activatePrice": "",
   "priceRate": "",` + shared,
-			want: UOrderResponse{
-				UOrderBase: base,
-				Time:       types.Time(time.UnixMilli(1579276756075)),
+			want: USDTMarginedFuturesOrderResponse{
+				USDTMarginedFuturesOrderBase: base,
+				Time:                         types.Time(time.UnixMilli(1579276756075)),
 			},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			var got UOrderResponse
+			var got USDTMarginedFuturesOrderResponse
 			require.NoError(t, json.Unmarshal([]byte(tc.input), &got), "Unmarshal must not error")
-			assert.Equal(t, tc.want, got, "UOrderResponse should decode every field")
+			assert.Equal(t, tc.want, got, "USDTMarginedFuturesOrderResponse should decode every field")
 		})
 	}
 }

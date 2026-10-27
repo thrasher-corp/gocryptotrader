@@ -478,8 +478,8 @@ type MarginOrderListResponse struct {
 	Orders            []MarginOrderListOrder `json:"orders"`
 }
 
-// MarginOCOCancelRequest holds the parameters for CancelMarginAccountOCOOrder
-type MarginOCOCancelRequest struct {
+// MarginOneCancelsTheOtherCancelRequest holds the parameters for CancelMarginAccountOneCancelsTheOtherOrder
+type MarginOneCancelsTheOtherCancelRequest struct {
 	Symbol            currency.Pair
 	IsIsolated        bool
 	OrderListID       uint64
@@ -487,22 +487,22 @@ type MarginOCOCancelRequest struct {
 	NewClientOrderID  string
 }
 
-// MarginOCOCancelResponse holds an order list cancelled by CancelMarginAccountOCOOrder
-type MarginOCOCancelResponse struct {
-	OrderListID       uint64                  `json:"orderListId"`
-	ContingencyType   string                  `json:"contingencyType"` // OCO, OTO, OTOCO, OPO or OPOCO
-	ListStatusType    string                  `json:"listStatusType"`
-	ListOrderStatus   string                  `json:"listOrderStatus"`
-	ListClientOrderID string                  `json:"listClientOrderId"`
-	TransactionTime   types.Time              `json:"transactionTime"`
-	Symbol            string                  `json:"symbol"`
-	IsIsolated        bool                    `json:"isIsolated"`
-	Orders            []MarginOrderListOrder  `json:"orders"`
-	OrderReports      []MarginOCOCancelReport `json:"orderReports"`
+// MarginOneCancelsTheOtherCancelResponse holds an order list cancelled by CancelMarginAccountOneCancelsTheOtherOrder
+type MarginOneCancelsTheOtherCancelResponse struct {
+	OrderListID       uint64                                 `json:"orderListId"`
+	ContingencyType   string                                 `json:"contingencyType"` // OCO, OTO, OTOCO, OPO or OPOCO
+	ListStatusType    string                                 `json:"listStatusType"`
+	ListOrderStatus   string                                 `json:"listOrderStatus"`
+	ListClientOrderID string                                 `json:"listClientOrderId"`
+	TransactionTime   types.Time                             `json:"transactionTime"`
+	Symbol            string                                 `json:"symbol"`
+	IsIsolated        bool                                   `json:"isIsolated"`
+	Orders            []MarginOrderListOrder                 `json:"orders"`
+	OrderReports      []MarginOneCancelsTheOtherCancelReport `json:"orderReports"`
 }
 
-// MarginOCOCancelReport holds the report of an order cancelled with its order list
-type MarginOCOCancelReport struct {
+// MarginOneCancelsTheOtherCancelReport holds the report of an order cancelled with its order list
+type MarginOneCancelsTheOtherCancelReport struct {
 	Symbol                  string       `json:"symbol"`
 	OriginalClientOrderID   string       `json:"origClientOrderId"`
 	OrderID                 uint64       `json:"orderId"`
@@ -522,22 +522,22 @@ type MarginOCOCancelReport struct {
 
 // MarginAccountOrderRequest holds the parameters for PostMarginAccountOrder
 type MarginAccountOrderRequest struct {
-	Symbol                  currency.Pair
-	IsIsolated              bool
-	Side                    string // BUY or SELL
-	OrderType               string // LIMIT, MARKET, STOP_LOSS, STOP_LOSS_LIMIT, TAKE_PROFIT, TAKE_PROFIT_LIMIT or LIMIT_MAKER
-	Quantity                float64
-	QuoteOrderQuantity      float64
-	Price                   float64
-	StopPrice               float64 // For STOP_LOSS, STOP_LOSS_LIMIT, TAKE_PROFIT and TAKE_PROFIT_LIMIT orders
-	NewClientOrderID        string
-	IcebergQuantity         float64 // For LIMIT, STOP_LOSS_LIMIT and TAKE_PROFIT_LIMIT orders
-	NewOrderResponseType    string  // ACK, RESULT or FULL
-	SideEffectType          string  // NO_SIDE_EFFECT, MARGIN_BUY, AUTO_REPAY or AUTO_BORROW_REPAY
-	TimeInForce             string
-	SelfTradePreventionMode string
-	TrailingDelta           uint64 // In basis points, for STOP_LOSS, STOP_LOSS_LIMIT, TAKE_PROFIT and TAKE_PROFIT_LIMIT orders
-	AutoRepayAtCancel       *bool  // Whether a MARGIN_BUY or AUTO_BORROW_REPAY order's debt is repaid when it is cancelled; nil leaves Binance's default of true
+	Symbol                     currency.Pair
+	IsIsolated                 bool
+	Side                       string // BUY or SELL
+	OrderType                  string // LIMIT, MARKET, STOP_LOSS, STOP_LOSS_LIMIT, TAKE_PROFIT, TAKE_PROFIT_LIMIT or LIMIT_MAKER
+	Quantity                   float64
+	QuoteOrderQuantity         float64
+	Price                      float64
+	StopPrice                  float64 // For STOP_LOSS, STOP_LOSS_LIMIT, TAKE_PROFIT and TAKE_PROFIT_LIMIT orders
+	NewClientOrderID           string
+	IcebergQuantity            float64 // For LIMIT, STOP_LOSS_LIMIT and TAKE_PROFIT_LIMIT orders
+	NewOrderResponseType       string  // ACK, RESULT or FULL
+	SideEffectType             string  // NO_SIDE_EFFECT, MARGIN_BUY, AUTO_REPAY or AUTO_BORROW_REPAY
+	TimeInForce                string
+	SelfTradePreventionMode    string
+	TrailingDeltaInBasisPoints uint64 // For STOP_LOSS, STOP_LOSS_LIMIT, TAKE_PROFIT and TAKE_PROFIT_LIMIT orders
+	AutoRepayAtCancel          *bool  // Whether a MARGIN_BUY or AUTO_BORROW_REPAY order's debt is repaid when it is cancelled; nil leaves Binance's default of true
 }
 
 // MarginAccountNewOrderResponse holds a margin account order placed by PostMarginAccountOrder
@@ -596,8 +596,8 @@ type MarginOrderCancelResponse struct {
 	IsIsolated              bool         `json:"isIsolated"`
 }
 
-// MarginOCOOrderRequest holds the parameters for NewMarginAccountOCOOrder
-type MarginOCOOrderRequest struct {
+// MarginOneCancelsTheOtherOrderRequest holds the parameters for NewMarginAccountOneCancelsTheOtherOrder
+type MarginOneCancelsTheOtherOrderRequest struct {
 	Symbol                  currency.Pair
 	IsIsolated              bool
 	ListClientOrderID       string
@@ -617,24 +617,24 @@ type MarginOCOOrderRequest struct {
 	AutoRepayAtCancel       *bool // Whether a MARGIN_BUY or AUTO_BORROW_REPAY list's debt is repaid when it is cancelled; nil leaves Binance's default of true
 }
 
-// MarginOCOOrderResponse holds a margin OCO order list placed by NewMarginAccountOCOOrder
-type MarginOCOOrderResponse struct {
-	OrderListID           uint64                 `json:"orderListId"`
-	ContingencyType       string                 `json:"contingencyType"`
-	ListStatusType        string                 `json:"listStatusType"`
-	ListOrderStatus       string                 `json:"listOrderStatus"`
-	ListClientOrderID     string                 `json:"listClientOrderId"`
-	TransactionTime       types.Time             `json:"transactionTime"`
-	Symbol                string                 `json:"symbol"`
-	MarginBuyBorrowAmount types.Number           `json:"marginBuyBorrowAmount"` // Only returned when the order list borrows
-	MarginBuyBorrowAsset  currency.Code          `json:"marginBuyBorrowAsset"`  // Only returned when the order list borrows
-	IsIsolated            bool                   `json:"isIsolated"`
-	Orders                []MarginOrderListOrder `json:"orders"`
-	OrderReports          []MarginOCOOrderReport `json:"orderReports"`
+// MarginOneCancelsTheOtherOrderResponse holds a margin OCO order list placed by NewMarginAccountOneCancelsTheOtherOrder
+type MarginOneCancelsTheOtherOrderResponse struct {
+	OrderListID           uint64                                `json:"orderListId"`
+	ContingencyType       string                                `json:"contingencyType"`
+	ListStatusType        string                                `json:"listStatusType"`
+	ListOrderStatus       string                                `json:"listOrderStatus"`
+	ListClientOrderID     string                                `json:"listClientOrderId"`
+	TransactionTime       types.Time                            `json:"transactionTime"`
+	Symbol                string                                `json:"symbol"`
+	MarginBuyBorrowAmount types.Number                          `json:"marginBuyBorrowAmount"` // Only returned when the order list borrows
+	MarginBuyBorrowAsset  currency.Code                         `json:"marginBuyBorrowAsset"`  // Only returned when the order list borrows
+	IsIsolated            bool                                  `json:"isIsolated"`
+	Orders                []MarginOrderListOrder                `json:"orders"`
+	OrderReports          []MarginOneCancelsTheOtherOrderReport `json:"orderReports"`
 }
 
-// MarginOCOOrderReport holds the report of an order placed with its OCO order list
-type MarginOCOOrderReport struct {
+// MarginOneCancelsTheOtherOrderReport holds the report of an order placed with its OCO order list
+type MarginOneCancelsTheOtherOrderReport struct {
 	Symbol                  string       `json:"symbol"`
 	OrderID                 uint64       `json:"orderId"`
 	OrderListID             uint64       `json:"orderListId"`
@@ -670,8 +670,8 @@ type MarginOrderCountUsageResponse struct {
 	Count          uint64 `json:"count"`
 }
 
-// MarginAccountAllOCORequest holds the filters for GetMarginAccountAllOCO
-type MarginAccountAllOCORequest struct {
+// MarginAccountAllOneCancelsTheOtherOrdersRequest holds the filters for GetMarginAccountAllOneCancelsTheOtherOrders
+type MarginAccountAllOneCancelsTheOtherOrdersRequest struct {
 	IsIsolated bool
 	Symbol     currency.Pair
 	FromID     uint64

@@ -20,6 +20,9 @@ func (e *Exchange) GetVIPBorrowInterestRate(ctx context.Context, loanCoins []cur
 	if len(loanCoins) == 0 {
 		return nil, fmt.Errorf("%w: loan coin", currency.ErrCurrencyCodeEmpty)
 	}
+	if err := checkListLength("loan coins", len(loanCoins), 10); err != nil {
+		return nil, err
+	}
 	coins := make([]string, len(loanCoins))
 	for i := range loanCoins {
 		if loanCoins[i].IsEmpty() {
@@ -101,7 +104,7 @@ func (e *Exchange) VIPLoanBorrow(ctx context.Context, req *VIPLoanBorrowRequest)
 		return nil, fmt.Errorf("%w: collateral coin", currency.ErrCurrencyCodeEmpty)
 	}
 	// A fixed rate loan runs for a chosen term, so the term is only optional at a flexible rate
-	if !req.IsFlexibleRate && req.LoanTerm == 0 {
+	if !req.IsFlexibleRate && req.LoanTermInDays == 0 {
 		return nil, errLoanTermMustBeSet
 	}
 	accountIDs := make([]string, len(req.CollateralAccountIDs))
@@ -125,8 +128,8 @@ func (e *Exchange) VIPLoanBorrow(ctx context.Context, req *VIPLoanBorrowRequest)
 	params.Set("collateralAccountId", strings.Join(accountIDs, ","))
 	params.Set("collateralCoin", strings.Join(collateralCoins, ","))
 	params.Set("isFlexibleRate", strconv.FormatBool(req.IsFlexibleRate))
-	if req.LoanTerm > 0 {
-		params.Set("loanTerm", strconv.FormatUint(req.LoanTerm, 10))
+	if req.LoanTermInDays > 0 {
+		params.Set("loanTerm", strconv.FormatUint(req.LoanTermInDays, 10))
 	}
 	var resp *VIPLoanBorrowResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, "/sapi/v1/loan/vip/borrow", params, vipLoanBorrowRate, &resp)

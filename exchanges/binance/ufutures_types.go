@@ -22,33 +22,33 @@ var (
 	errInvalidPeriodOrInterval = errors.New("invalid period")
 )
 
-// UAccountInformationV2Response holds the reply of Account Information V2
-type UAccountInformationV2Response struct {
-	FeeTier                     uint64       `json:"feeTier"`
-	FeeBurn                     bool         `json:"feeBurn"`
-	CanTrade                    bool         `json:"canTrade"`
-	CanDeposit                  bool         `json:"canDeposit"`
-	CanWithdraw                 bool         `json:"canWithdraw"`
-	UpdateTime                  types.Time   `json:"updateTime"`
-	MultiAssetsMargin           bool         `json:"multiAssetsMargin"`
-	TradeGroupID                int64        `json:"tradeGroupId"` // -1 when the account is in no trade group
-	TotalInitialMargin          types.Number `json:"totalInitialMargin"`
-	TotalMaintenanceMargin      types.Number `json:"totalMaintMargin"`
-	TotalWalletBalance          types.Number `json:"totalWalletBalance"`
-	TotalUnrealisedProfit       types.Number `json:"totalUnrealizedProfit"`
-	TotalMarginBalance          types.Number `json:"totalMarginBalance"`
-	TotalPositionInitialMargin  types.Number `json:"totalPositionInitialMargin"`
-	TotalOpenOrderInitialMargin types.Number `json:"totalOpenOrderInitialMargin"`
-	TotalCrossWalletBalance     types.Number `json:"totalCrossWalletBalance"`
-	TotalCrossUnrealisedPNL     types.Number `json:"totalCrossUnPnl"`
-	AvailableBalance            types.Number `json:"availableBalance"`
-	MaxWithdrawAmount           types.Number `json:"maxWithdrawAmount"`
-	Assets                      []UAsset     `json:"assets"`
-	Positions                   []UPosition  `json:"positions"`
+// USDTMarginedFuturesAccountInformationV2Response holds the reply of Account Information V2
+type USDTMarginedFuturesAccountInformationV2Response struct {
+	FeeTier                     uint64                        `json:"feeTier"`
+	FeeBurn                     bool                          `json:"feeBurn"`
+	CanTrade                    bool                          `json:"canTrade"`
+	CanDeposit                  bool                          `json:"canDeposit"`
+	CanWithdraw                 bool                          `json:"canWithdraw"`
+	UpdateTime                  types.Time                    `json:"updateTime"`
+	MultiAssetsMargin           bool                          `json:"multiAssetsMargin"`
+	TradeGroupID                int64                         `json:"tradeGroupId"` // -1 when the account is in no trade group
+	TotalInitialMargin          types.Number                  `json:"totalInitialMargin"`
+	TotalMaintenanceMargin      types.Number                  `json:"totalMaintMargin"`
+	TotalWalletBalance          types.Number                  `json:"totalWalletBalance"`
+	TotalUnrealisedProfit       types.Number                  `json:"totalUnrealizedProfit"`
+	TotalMarginBalance          types.Number                  `json:"totalMarginBalance"`
+	TotalPositionInitialMargin  types.Number                  `json:"totalPositionInitialMargin"`
+	TotalOpenOrderInitialMargin types.Number                  `json:"totalOpenOrderInitialMargin"`
+	TotalCrossWalletBalance     types.Number                  `json:"totalCrossWalletBalance"`
+	TotalCrossUnrealisedPNL     types.Number                  `json:"totalCrossUnPnl"`
+	AvailableBalance            types.Number                  `json:"availableBalance"`
+	MaxWithdrawAmount           types.Number                  `json:"maxWithdrawAmount"`
+	Assets                      []USDTMarginedFuturesAsset    `json:"assets"`
+	Positions                   []USDTMarginedFuturesPosition `json:"positions"`
 }
 
-// UAsset holds an asset's balances in Account Information V2
-type UAsset struct {
+// USDTMarginedFuturesAsset holds an asset's balances in Account Information V2
+type USDTMarginedFuturesAsset struct {
 	Asset                  currency.Code `json:"asset"`
 	WalletBalance          types.Number  `json:"walletBalance"`
 	UnrealisedProfit       types.Number  `json:"unrealizedProfit"`
@@ -65,8 +65,8 @@ type UAsset struct {
 	UpdateTime             types.Time    `json:"updateTime"`
 }
 
-// UPosition holds a symbol's position in Account Information V2
-type UPosition struct {
+// USDTMarginedFuturesPosition holds a symbol's position in Account Information V2
+type USDTMarginedFuturesPosition struct {
 	Symbol                 string       `json:"symbol"`
 	InitialMargin          types.Number `json:"initialMargin"`
 	MaintenanceMargin      types.Number `json:"maintMargin"`
@@ -84,26 +84,26 @@ type UPosition struct {
 	UpdateTime             types.Time   `json:"updateTime"`
 }
 
-// UAccountInformationV3Response holds the reply of Account Information V3, which leaves the account and symbol
-// configuration to Futures Account Configuration and Symbol Configuration
-type UAccountInformationV3Response struct {
-	TotalInitialMargin          types.Number  `json:"totalInitialMargin"`
-	TotalMaintenanceMargin      types.Number  `json:"totalMaintMargin"`
-	TotalWalletBalance          types.Number  `json:"totalWalletBalance"`
-	TotalUnrealisedProfit       types.Number  `json:"totalUnrealizedProfit"`
-	TotalMarginBalance          types.Number  `json:"totalMarginBalance"`
-	TotalPositionInitialMargin  types.Number  `json:"totalPositionInitialMargin"`
-	TotalOpenOrderInitialMargin types.Number  `json:"totalOpenOrderInitialMargin"`
-	TotalCrossWalletBalance     types.Number  `json:"totalCrossWalletBalance"`
-	TotalCrossUnrealisedPNL     types.Number  `json:"totalCrossUnPnl"`
-	AvailableBalance            types.Number  `json:"availableBalance"`
-	MaxWithdrawAmount           types.Number  `json:"maxWithdrawAmount"`
-	Assets                      []UAssetV3    `json:"assets"`
-	Positions                   []UPositionV3 `json:"positions"`
+// USDTMarginedFuturesAccountInformationV3Response holds the reply of Account Information V3, which leaves the account
+// and symbol configuration to Futures Account Configuration and Symbol Configuration
+type USDTMarginedFuturesAccountInformationV3Response struct {
+	TotalInitialMargin          types.Number                    `json:"totalInitialMargin"`
+	TotalMaintenanceMargin      types.Number                    `json:"totalMaintMargin"`
+	TotalWalletBalance          types.Number                    `json:"totalWalletBalance"`
+	TotalUnrealisedProfit       types.Number                    `json:"totalUnrealizedProfit"`
+	TotalMarginBalance          types.Number                    `json:"totalMarginBalance"`
+	TotalPositionInitialMargin  types.Number                    `json:"totalPositionInitialMargin"`
+	TotalOpenOrderInitialMargin types.Number                    `json:"totalOpenOrderInitialMargin"`
+	TotalCrossWalletBalance     types.Number                    `json:"totalCrossWalletBalance"`
+	TotalCrossUnrealisedPNL     types.Number                    `json:"totalCrossUnPnl"`
+	AvailableBalance            types.Number                    `json:"availableBalance"`
+	MaxWithdrawAmount           types.Number                    `json:"maxWithdrawAmount"`
+	Assets                      []USDTMarginedFuturesAssetV3    `json:"assets"`
+	Positions                   []USDTMarginedFuturesPositionV3 `json:"positions"`
 }
 
-// UAssetV3 holds an asset's balances in Account Information V3
-type UAssetV3 struct {
+// USDTMarginedFuturesAssetV3 holds an asset's balances in Account Information V3
+type USDTMarginedFuturesAssetV3 struct {
 	Asset                  currency.Code `json:"asset"`
 	WalletBalance          types.Number  `json:"walletBalance"`
 	UnrealisedProfit       types.Number  `json:"unrealizedProfit"`
@@ -119,8 +119,9 @@ type UAssetV3 struct {
 	UpdateTime             types.Time    `json:"updateTime"`
 }
 
-// UPositionV3 holds a position in Account Information V3, which only lists symbols with a position or open orders
-type UPositionV3 struct {
+// USDTMarginedFuturesPositionV3 holds a position in Account Information V3, which only lists symbols with a position or
+// open orders
+type USDTMarginedFuturesPositionV3 struct {
 	Symbol            string       `json:"symbol"`
 	PositionSide      string       `json:"positionSide"`
 	PositionAmount    types.Number `json:"positionAmt"`
@@ -133,8 +134,8 @@ type UPositionV3 struct {
 	UpdateTime        types.Time   `json:"updateTime"`
 }
 
-// UAccountBalanceResponse holds an asset's balance from Futures Account Balance V3
-type UAccountBalanceResponse struct {
+// USDTMarginedFuturesAccountBalanceResponse holds an asset's balance from Futures Account Balance V3
+type USDTMarginedFuturesAccountBalanceResponse struct {
 	AccountAlias       string        `json:"accountAlias"`
 	Asset              currency.Code `json:"asset"`
 	Balance            types.Number  `json:"balance"`
@@ -162,24 +163,26 @@ type TradingQuantitativeRulesIndicator struct {
 	TriggerValue       float64    `json:"triggerValue"`
 }
 
-// UMultiAssetsModeResponse holds the reply of Get Current Multi-Assets Mode
-type UMultiAssetsModeResponse struct {
+// USDTMarginedFuturesMultiAssetsModeResponse holds the reply of Get Current Multi-Assets Mode
+type USDTMarginedFuturesMultiAssetsModeResponse struct {
 	MultiAssetsMargin bool `json:"multiAssetsMargin"` // true for Multi-Assets Mode, false for Single-Asset Mode
 }
 
-// UPositionModeResponse holds the reply of Get Current Position Mode
-type UPositionModeResponse struct {
+// USDTMarginedFuturesPositionModeResponse holds the reply of Get Current Position Mode
+type USDTMarginedFuturesPositionModeResponse struct {
 	DualSidePosition bool `json:"dualSidePosition"` // true for Hedge Mode, false for One-way Mode
 }
 
-// UDownloadIDResponse holds the reply of the Get Download Id endpoints for order, trade and transaction history
-type UDownloadIDResponse struct {
-	AverageCostTimestampOfLast30Days uint64 `json:"avgCostTimestampOfLast30d"` // average milliseconds a download took over the last 30 days
-	DownloadID                       string `json:"downloadId"`
+// USDTMarginedFuturesDownloadIDResponse holds the reply of the Get Download Id endpoints for order, trade and
+// transaction history
+type USDTMarginedFuturesDownloadIDResponse struct {
+	AverageDownloadMillisecondsOfLast30Days uint64 `json:"avgCostTimestampOfLast30d"`
+	DownloadID                              string `json:"downloadId"`
 }
 
-// UDownloadLinkResponse holds the reply of the Download Link by Id endpoints for order, trade and transaction history
-type UDownloadLinkResponse struct {
+// USDTMarginedFuturesDownloadLinkResponse holds the reply of the Download Link by Id endpoints for order, trade and
+// transaction history
+type USDTMarginedFuturesDownloadLinkResponse struct {
 	DownloadID string `json:"downloadId"`
 	Status     string `json:"status"` // completed or processing
 	URL        string `json:"url"`
@@ -190,8 +193,8 @@ type UDownloadLinkResponse struct {
 	IsExpired bool `json:"isExpired"`
 }
 
-// UIncomeHistoryRequest holds the parameters of Get Income History
-type UIncomeHistoryRequest struct {
+// USDTMarginedFuturesIncomeHistoryRequest holds the parameters of Get Income History
+type USDTMarginedFuturesIncomeHistoryRequest struct {
 	Symbol     currency.Pair
 	IncomeType string // TRANSFER, REALIZED_PNL, FUNDING_FEE, COMMISSION and so on; empty for every type
 	StartTime  time.Time
@@ -200,8 +203,8 @@ type UIncomeHistoryRequest struct {
 	Limit      uint64
 }
 
-// UAccountIncomeHistoryResponse holds one income record from Get Income History
-type UAccountIncomeHistoryResponse struct {
+// USDTMarginedFuturesAccountIncomeHistoryResponse holds one income record from Get Income History
+type USDTMarginedFuturesAccountIncomeHistoryResponse struct {
 	Symbol        string        `json:"symbol"`
 	IncomeType    string        `json:"incomeType"`
 	Income        types.Number  `json:"income"`
@@ -212,16 +215,16 @@ type UAccountIncomeHistoryResponse struct {
 	TradeID       string        `json:"tradeId"`
 }
 
-// UNotionalLeverageAndBracketsResponse holds a symbol's notional and leverage brackets
-type UNotionalLeverageAndBracketsResponse struct {
+// USDTMarginedFuturesNotionalLeverageAndBracketsResponse holds a symbol's notional and leverage brackets
+type USDTMarginedFuturesNotionalLeverageAndBracketsResponse struct {
 	Symbol string `json:"symbol"`
 	// NotionalCoefficient is the user's bracket multiplier, only sent when the symbol's brackets were adjusted
-	NotionalCoefficient float64            `json:"notionalCoef"`
-	Brackets            []UNotionalBracket `json:"brackets"`
+	NotionalCoefficient float64                              `json:"notionalCoef"`
+	Brackets            []USDTMarginedFuturesNotionalBracket `json:"brackets"`
 }
 
-// UNotionalBracket holds one notional and leverage bracket
-type UNotionalBracket struct {
+// USDTMarginedFuturesNotionalBracket holds one notional and leverage bracket
+type USDTMarginedFuturesNotionalBracket struct {
 	Bracket                uint64  `json:"bracket"`
 	InitialLeverage        uint64  `json:"initialLeverage"`
 	NotionalCap            float64 `json:"notionalCap"`
@@ -238,16 +241,16 @@ type RateLimitInfoResponse struct {
 	Limit          uint64 `json:"limit"`
 }
 
-// UCommissionRateResponse holds the reply of User Commission Rate
-type UCommissionRateResponse struct {
-	Symbol              string       `json:"symbol"`
-	MakerCommissionRate types.Number `json:"makerCommissionRate"`
-	TakerCommissionRate types.Number `json:"takerCommissionRate"`
-	RPICommissionRate   types.Number `json:"rpiCommissionRate"`
+// USDTMarginedFuturesCommissionRateResponse holds the reply of User Commission Rate
+type USDTMarginedFuturesCommissionRateResponse struct {
+	Symbol                               string       `json:"symbol"`
+	MakerCommissionRate                  types.Number `json:"makerCommissionRate"`
+	TakerCommissionRate                  types.Number `json:"takerCommissionRate"`
+	RetailPriceImprovementCommissionRate types.Number `json:"rpiCommissionRate"`
 }
 
-// UBasisRequest holds the parameters of Basis
-type UBasisRequest struct {
+// USDTMarginedFuturesBasisRequest holds the parameters of Basis
+type USDTMarginedFuturesBasisRequest struct {
 	Pair         currency.Pair
 	ContractType string // PERPETUAL, CURRENT_QUARTER or NEXT_QUARTER
 	Period       string // 5m, 15m, 30m, 1h, 2h, 4h, 6h, 12h or 1d
@@ -268,29 +271,29 @@ type BasisInfoResponse struct {
 	Timestamp           types.Time   `json:"timestamp"`
 }
 
-// UServerTimeResponse holds the reply of Check Server Time
-type UServerTimeResponse struct {
+// USDTMarginedFuturesServerTimeResponse holds the reply of Check Server Time
+type USDTMarginedFuturesServerTimeResponse struct {
 	ServerTime types.Time `json:"serverTime"`
 }
 
-// UCompositeIndexResponse holds a composite index symbol's components
-type UCompositeIndexResponse struct {
-	Symbol        string                     `json:"symbol"`
-	Time          types.Time                 `json:"time"`
-	Component     string                     `json:"component"`
-	BaseAssetList []UCompositeIndexBaseAsset `json:"baseAssetList"`
+// USDTMarginedFuturesCompositeIndexResponse holds a composite index symbol's components
+type USDTMarginedFuturesCompositeIndexResponse struct {
+	Symbol        string                                       `json:"symbol"`
+	Time          types.Time                                   `json:"time"`
+	Component     string                                       `json:"component"`
+	BaseAssetList []USDTMarginedFuturesCompositeIndexBaseAsset `json:"baseAssetList"`
 }
 
-// UCompositeIndexBaseAsset holds one component of a composite index
-type UCompositeIndexBaseAsset struct {
+// USDTMarginedFuturesCompositeIndexBaseAsset holds one component of a composite index
+type USDTMarginedFuturesCompositeIndexBaseAsset struct {
 	BaseAsset          currency.Code `json:"baseAsset"`
 	QuoteAsset         currency.Code `json:"quoteAsset"`
 	WeightInQuantity   types.Number  `json:"weightInQuantity"`
 	WeightInPercentage types.Number  `json:"weightInPercentage"`
 }
 
-// UCompressedTradesRequest holds the parameters of Compressed/Aggregate Trades List
-type UCompressedTradesRequest struct {
+// USDTMarginedFuturesCompressedTradesRequest holds the parameters of Compressed/Aggregate Trades List
+type USDTMarginedFuturesCompressedTradesRequest struct {
 	Symbol    currency.Pair
 	FromID    uint64
 	StartTime time.Time
@@ -298,8 +301,8 @@ type UCompressedTradesRequest struct {
 	Limit     uint64
 }
 
-// UCompressedTradeResponse holds an aggregate trade
-type UCompressedTradeResponse struct {
+// USDTMarginedFuturesCompressedTradeResponse holds an aggregate trade
+type USDTMarginedFuturesCompressedTradeResponse struct {
 	AggregateTradeID uint64       `json:"a"`
 	Price            types.Number `json:"p"`
 	Quantity         types.Number `json:"q"`
@@ -311,8 +314,8 @@ type UCompressedTradeResponse struct {
 	IsBuyerMaker   bool         `json:"m"`
 }
 
-// UContinuousKlineRequest holds the parameters of Continuous Contract Kline/Candlestick Data
-type UContinuousKlineRequest struct {
+// USDTMarginedFuturesContinuousKlineRequest holds the parameters of Continuous Contract Kline/Candlestick Data
+type USDTMarginedFuturesContinuousKlineRequest struct {
 	Pair         currency.Pair
 	ContractType string // PERPETUAL, CURRENT_QUARTER, NEXT_QUARTER or TRADIFI_PERPETUAL
 	Interval     string
@@ -321,8 +324,9 @@ type UContinuousKlineRequest struct {
 	Limit        uint64
 }
 
-// UKlineResponse holds a kline from Kline/Candlestick Data or Continuous Contract Kline/Candlestick Data
-type UKlineResponse struct {
+// USDTMarginedFuturesKlineResponse holds a kline from Kline/Candlestick Data or Continuous Contract Kline/Candlestick
+// Data
+type USDTMarginedFuturesKlineResponse struct {
 	OpenTime                 types.Time
 	Open                     types.Number
 	High                     types.Number
@@ -337,59 +341,59 @@ type UKlineResponse struct {
 }
 
 // UnmarshalJSON decodes a kline from its array form, whose last element is documented as ignore
-func (k *UKlineResponse) UnmarshalJSON(data []byte) error {
+func (k *USDTMarginedFuturesKlineResponse) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &[12]any{&k.OpenTime, &k.Open, &k.High, &k.Low, &k.Close, &k.Volume, &k.CloseTime, &k.QuoteAssetVolume, &k.NumberOfTrades, &k.TakerBuyBaseAssetVolume, &k.TakerBuyQuoteAssetVolume, nil})
 }
 
-// UExchangeInfoResponse holds the reply of Exchange Information
-type UExchangeInfoResponse struct {
-	Timezone        string                  `json:"timezone"`
-	ServerTime      types.Time              `json:"serverTime"`
-	FuturesType     string                  `json:"futuresType"`
-	RateLimits      []RateLimitInfoResponse `json:"rateLimits"`
-	ExchangeFilters []string                `json:"exchangeFilters"`
-	Assets          []UExchangeInfoAsset    `json:"assets"`
-	Symbols         []UFuturesSymbolInfo    `json:"symbols"`
+// USDTMarginedFuturesExchangeInfoResponse holds the reply of Exchange Information
+type USDTMarginedFuturesExchangeInfoResponse struct {
+	Timezone        string                                 `json:"timezone"`
+	ServerTime      types.Time                             `json:"serverTime"`
+	FuturesType     string                                 `json:"futuresType"`
+	RateLimits      []RateLimitInfoResponse                `json:"rateLimits"`
+	ExchangeFilters []string                               `json:"exchangeFilters"`
+	Assets          []USDTMarginedFuturesExchangeInfoAsset `json:"assets"`
+	Symbols         []USDTMarginedFuturesSymbolInfo        `json:"symbols"`
 }
 
-// UExchangeInfoAsset holds a margin asset's Multi-Assets mode settings
-type UExchangeInfoAsset struct {
+// USDTMarginedFuturesExchangeInfoAsset holds a margin asset's Multi-Assets mode settings
+type USDTMarginedFuturesExchangeInfoAsset struct {
 	Asset             currency.Code `json:"asset"`
 	MarginAvailable   bool          `json:"marginAvailable"`
 	AutoAssetExchange types.Number  `json:"autoAssetExchange"` // auto-exchange threshold in Multi-Assets mode
 }
 
-// UFuturesSymbolInfo holds a USDⓈ-M futures symbol's trading rules
-type UFuturesSymbolInfo struct {
-	Symbol                   string                 `json:"symbol"`
-	Pair                     string                 `json:"pair"`
-	ContractType             string                 `json:"contractType"`
-	DeliveryDate             types.Time             `json:"deliveryDate"`
-	OnboardDate              types.Time             `json:"onboardDate"`
-	Status                   string                 `json:"status"`
-	MaintenanceMarginPercent types.Number           `json:"maintMarginPercent"`
-	RequiredMarginPercent    types.Number           `json:"requiredMarginPercent"`
-	BaseAsset                currency.Code          `json:"baseAsset"`
-	QuoteAsset               currency.Code          `json:"quoteAsset"`
-	MarginAsset              currency.Code          `json:"marginAsset"`
-	PricePrecision           uint64                 `json:"pricePrecision"`
-	QuantityPrecision        uint64                 `json:"quantityPrecision"`
-	BaseAssetPrecision       uint64                 `json:"baseAssetPrecision"`
-	QuotePrecision           uint64                 `json:"quotePrecision"`
-	UnderlyingType           string                 `json:"underlyingType"`
-	UnderlyingSubType        []string               `json:"underlyingSubType"`
-	TriggerProtect           types.Number           `json:"triggerProtect"`
-	LiquidationFee           types.Number           `json:"liquidationFee"`
-	MarketTakeBound          types.Number           `json:"marketTakeBound"`
-	MaxMoveOrderLimit        uint64                 `json:"maxMoveOrderLimit"`
-	Filters                  []UFuturesSymbolFilter `json:"filters"`
-	OrderTypes               []string               `json:"orderTypes"`
-	TimeInForce              []string               `json:"timeInForce"`
-	PermissionSets           []string               `json:"permissionSets"`
+// USDTMarginedFuturesSymbolInfo holds a USDⓈ-M futures symbol's trading rules
+type USDTMarginedFuturesSymbolInfo struct {
+	Symbol                   string                            `json:"symbol"`
+	Pair                     string                            `json:"pair"`
+	ContractType             string                            `json:"contractType"`
+	DeliveryDate             types.Time                        `json:"deliveryDate"`
+	OnboardDate              types.Time                        `json:"onboardDate"`
+	Status                   string                            `json:"status"`
+	MaintenanceMarginPercent types.Number                      `json:"maintMarginPercent"`
+	RequiredMarginPercent    types.Number                      `json:"requiredMarginPercent"`
+	BaseAsset                currency.Code                     `json:"baseAsset"`
+	QuoteAsset               currency.Code                     `json:"quoteAsset"`
+	MarginAsset              currency.Code                     `json:"marginAsset"`
+	PricePrecision           uint64                            `json:"pricePrecision"`
+	QuantityPrecision        uint64                            `json:"quantityPrecision"`
+	BaseAssetPrecision       uint64                            `json:"baseAssetPrecision"`
+	QuotePrecision           uint64                            `json:"quotePrecision"`
+	UnderlyingType           string                            `json:"underlyingType"`
+	UnderlyingSubType        []string                          `json:"underlyingSubType"`
+	TriggerProtect           types.Number                      `json:"triggerProtect"`
+	LiquidationFee           types.Number                      `json:"liquidationFee"`
+	MarketTakeBound          types.Number                      `json:"marketTakeBound"`
+	MaxMoveOrderLimit        uint64                            `json:"maxMoveOrderLimit"`
+	Filters                  []USDTMarginedFuturesSymbolFilter `json:"filters"`
+	OrderTypes               []string                          `json:"orderTypes"`
+	TimeInForce              []string                          `json:"timeInForce"`
+	PermissionSets           []string                          `json:"permissionSets"`
 }
 
-// UFuturesSymbolFilter holds a symbol trading filter; each filter type sends only its own fields
-type UFuturesSymbolFilter struct {
+// USDTMarginedFuturesSymbolFilter holds a symbol trading filter; each filter type sends only its own fields
+type USDTMarginedFuturesSymbolFilter struct {
 	FilterType          string       `json:"filterType"`
 	MinPrice            types.Number `json:"minPrice"`
 	MaxPrice            types.Number `json:"maxPrice"`
@@ -424,8 +428,8 @@ type FundingRateInfoResponse struct {
 	UpdateTime               types.Time   `json:"updateTime"` // not in the schema, but sent live
 }
 
-// UIndexPriceKlineRequest holds the parameters of Index Price Kline/Candlestick Data
-type UIndexPriceKlineRequest struct {
+// USDTMarginedFuturesIndexPriceKlineRequest holds the parameters of Index Price Kline/Candlestick Data
+type USDTMarginedFuturesIndexPriceKlineRequest struct {
 	Pair      currency.Pair
 	Interval  string
 	StartTime time.Time
@@ -433,9 +437,9 @@ type UIndexPriceKlineRequest struct {
 	Limit     uint64
 }
 
-// UPriceKlineResponse holds a kline from the index price, mark price and premium index kline endpoints, whose
-// volume and trade count elements are documented as ignore
-type UPriceKlineResponse struct {
+// USDTMarginedFuturesPriceKlineResponse holds a kline from the index price, mark price and premium index kline
+// endpoints, whose volume and trade count elements are documented as ignore
+type USDTMarginedFuturesPriceKlineResponse struct {
 	OpenTime  types.Time
 	Open      types.Number
 	High      types.Number
@@ -445,13 +449,13 @@ type UPriceKlineResponse struct {
 }
 
 // UnmarshalJSON decodes a price kline from its array form
-func (k *UPriceKlineResponse) UnmarshalJSON(data []byte) error {
+func (k *USDTMarginedFuturesPriceKlineResponse) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &[12]any{&k.OpenTime, &k.Open, &k.High, &k.Low, &k.Close, nil, &k.CloseTime, nil, nil, nil, nil, nil})
 }
 
-// UKlineRequest holds the parameters of Kline/Candlestick Data, Mark Price Kline/Candlestick Data and Premium Index
-// Kline Data
-type UKlineRequest struct {
+// USDTMarginedFuturesKlineRequest holds the parameters of Kline/Candlestick Data, Mark Price Kline/Candlestick Data and
+// Premium Index Kline Data
+type USDTMarginedFuturesKlineRequest struct {
 	Symbol    currency.Pair
 	Interval  string
 	StartTime time.Time
@@ -459,9 +463,9 @@ type UKlineRequest struct {
 	Limit     uint64
 }
 
-// UFuturesDataRequest holds the parameters of the /futures/data statistics endpoints: Open Interest Statistics,
-// Long/Short Ratio, Top Trader Long/Short Account and Position Ratios, and Taker Buy/Sell Volume
-type UFuturesDataRequest struct {
+// USDTMarginedFuturesDataRequest holds the parameters of the /futures/data statistics endpoints: Open Interest
+// Statistics, Long/Short Ratio, Top Trader Long/Short Account and Position Ratios, and Taker Buy/Sell Volume
+type USDTMarginedFuturesDataRequest struct {
 	Symbol    currency.Pair
 	Period    string // 5m, 15m, 30m, 1h, 2h, 4h, 6h, 12h or 1d
 	StartTime time.Time
@@ -469,8 +473,8 @@ type UFuturesDataRequest struct {
 	Limit     uint64
 }
 
-// ULongShortRatioResponse holds a period's long/short ratio of accounts or positions
-type ULongShortRatioResponse struct {
+// USDTMarginedFuturesLongShortRatioResponse holds a period's long/short ratio of accounts or positions
+type USDTMarginedFuturesLongShortRatioResponse struct {
 	Symbol         string       `json:"symbol"`
 	LongShortRatio types.Number `json:"longShortRatio"`
 	// LongAccount and ShortAccount are account shares on the account ratio endpoints and position shares on Top
@@ -480,8 +484,8 @@ type ULongShortRatioResponse struct {
 	Timestamp    types.Time   `json:"timestamp"`
 }
 
-// UMarkPriceResponse holds a symbol's mark price and funding rate
-type UMarkPriceResponse struct {
+// USDTMarginedFuturesMarkPriceResponse holds a symbol's mark price and funding rate
+type USDTMarginedFuturesMarkPriceResponse struct {
 	Symbol               string       `json:"symbol"`
 	MarkPrice            types.Number `json:"markPrice"`
 	IndexPrice           types.Number `json:"indexPrice"`
@@ -507,26 +511,26 @@ type AssetIndexResponse struct {
 	AutoExchangeAskRate   types.Number `json:"autoExchangeAskRate"`
 }
 
-// UPublicTradesResponse holds a market trade from Recent Trades List or Old Trades Lookup
-type UPublicTradesResponse struct {
-	ID            uint64       `json:"id"`
-	Price         types.Number `json:"price"`
-	Quantity      types.Number `json:"qty"`
-	QuoteQuantity types.Number `json:"quoteQty"`
-	Time          types.Time   `json:"time"`
-	IsBuyerMaker  bool         `json:"isBuyerMaker"`
-	IsRPITrade    bool         `json:"isRPITrade"`
+// USDTMarginedFuturesPublicTradesResponse holds a market trade from Recent Trades List or Old Trades Lookup
+type USDTMarginedFuturesPublicTradesResponse struct {
+	ID                            uint64       `json:"id"`
+	Price                         types.Number `json:"price"`
+	Quantity                      types.Number `json:"qty"`
+	QuoteQuantity                 types.Number `json:"quoteQty"`
+	Time                          types.Time   `json:"time"`
+	IsBuyerMaker                  bool         `json:"isBuyerMaker"`
+	IsRetailPriceImprovementTrade bool         `json:"isRPITrade"`
 }
 
-// UOpenInterestResponse holds the reply of Open Interest
-type UOpenInterestResponse struct {
+// USDTMarginedFuturesOpenInterestResponse holds the reply of Open Interest
+type USDTMarginedFuturesOpenInterestResponse struct {
 	OpenInterest types.Number `json:"openInterest"`
 	Symbol       string       `json:"symbol"`
 	Time         types.Time   `json:"time"`
 }
 
-// UOpenInterestStatsResponse holds a period's open interest statistics
-type UOpenInterestStatsResponse struct {
+// USDTMarginedFuturesOpenInterestStatsResponse holds a period's open interest statistics
+type USDTMarginedFuturesOpenInterestStatsResponse struct {
 	Symbol               string       `json:"symbol"`
 	SumOpenInterest      types.Number `json:"sumOpenInterest"`
 	SumOpenInterestValue types.Number `json:"sumOpenInterestValue"`
@@ -534,8 +538,8 @@ type UOpenInterestStatsResponse struct {
 	Timestamp            types.Time   `json:"timestamp"`
 }
 
-// UOrderBookResponse holds the reply of Order Book and RPI Order Book
-type UOrderBookResponse struct {
+// USDTMarginedFuturesOrderBookResponse holds the reply of Order Book and RPI Order Book
+type USDTMarginedFuturesOrderBookResponse struct {
 	LastUpdateID      uint64                           `json:"lastUpdateId"`
 	MessageOutputTime types.Time                       `json:"E"`
 	TransactionTime   types.Time                       `json:"T"`
@@ -549,23 +553,24 @@ type SettlementPriceResponse struct {
 	DeliveryPrice float64    `json:"deliveryPrice"`
 }
 
-// UIndexPriceConstituentsResponse holds the reply of Query Index Price Constituents
-type UIndexPriceConstituentsResponse struct {
-	Symbol       string                   `json:"symbol"`
-	Time         types.Time               `json:"time"`
-	Constituents []UIndexPriceConstituent `json:"constituents"`
+// USDTMarginedFuturesIndexPriceConstituentsResponse holds the reply of Query Index Price Constituents
+type USDTMarginedFuturesIndexPriceConstituentsResponse struct {
+	Symbol       string                                     `json:"symbol"`
+	Time         types.Time                                 `json:"time"`
+	Constituents []USDTMarginedFuturesIndexPriceConstituent `json:"constituents"`
 }
 
-// UIndexPriceConstituent holds one exchange's contribution to an index price; TradFi perps report a price of -1
-type UIndexPriceConstituent struct {
+// USDTMarginedFuturesIndexPriceConstituent holds one exchange's contribution to an index price; TradFi perps report a
+// price of -1
+type USDTMarginedFuturesIndexPriceConstituent struct {
 	Exchange string       `json:"exchange"`
 	Symbol   string       `json:"symbol"`
 	Price    types.Number `json:"price"`
 	Weight   types.Number `json:"weight"`
 }
 
-// USymbolOrderbookTickerResponse holds a symbol's best bid and ask
-type USymbolOrderbookTickerResponse struct {
+// USDTMarginedFuturesSymbolOrderbookTickerResponse holds a symbol's best bid and ask
+type USDTMarginedFuturesSymbolOrderbookTickerResponse struct {
 	Symbol       string       `json:"symbol"`
 	BidPrice     types.Number `json:"bidPrice"`
 	BidQuantity  types.Number `json:"bidQty"`
@@ -575,23 +580,23 @@ type USymbolOrderbookTickerResponse struct {
 	LastUpdateID uint64       `json:"lastUpdateId"` // not in the schema, but sent live
 }
 
-// USymbolPriceTickerResponse holds a symbol's latest price
-type USymbolPriceTickerResponse struct {
+// USDTMarginedFuturesSymbolPriceTickerResponse holds a symbol's latest price
+type USDTMarginedFuturesSymbolPriceTickerResponse struct {
 	Symbol string       `json:"symbol"`
 	Price  types.Number `json:"price"`
 	Time   types.Time   `json:"time"`
 }
 
-// UTakerVolumeResponse holds a period's taker buy and sell volumes
-type UTakerVolumeResponse struct {
+// USDTMarginedFuturesTakerVolumeResponse holds a period's taker buy and sell volumes
+type USDTMarginedFuturesTakerVolumeResponse struct {
 	BuySellRatio types.Number `json:"buySellRatio"`
 	BuyVolume    types.Number `json:"buyVol"`
 	SellVolume   types.Number `json:"sellVol"`
 	Timestamp    types.Time   `json:"timestamp"`
 }
 
-// U24HourPriceChangeStatsResponse holds a symbol's 24 hour rolling window price change statistics
-type U24HourPriceChangeStatsResponse struct {
+// USDTMarginedFutures24HourPriceChangeStatsResponse holds a symbol's 24 hour rolling window price change statistics
+type USDTMarginedFutures24HourPriceChangeStatsResponse struct {
 	Symbol               string       `json:"symbol"`
 	PriceChange          types.Number `json:"priceChange"`
 	PriceChangePercent   types.Number `json:"priceChangePercent"`
@@ -610,8 +615,8 @@ type U24HourPriceChangeStatsResponse struct {
 	Count                uint64       `json:"count"`
 }
 
-// UAccountTradeListRequest holds the parameters of Account Trade List
-type UAccountTradeListRequest struct {
+// USDTMarginedFuturesAccountTradeListRequest holds the parameters of Account Trade List
+type USDTMarginedFuturesAccountTradeListRequest struct {
 	Symbol    currency.Pair
 	OrderID   uint64
 	StartTime time.Time
@@ -620,8 +625,8 @@ type UAccountTradeListRequest struct {
 	Limit     uint64
 }
 
-// UAccountTradeHistoryResponse holds one of the account's trades
-type UAccountTradeHistoryResponse struct {
+// USDTMarginedFuturesAccountTradeHistoryResponse holds one of the account's trades
+type USDTMarginedFuturesAccountTradeHistoryResponse struct {
 	Buyer           bool          `json:"buyer"`
 	Commission      types.Number  `json:"commission"`
 	CommissionAsset currency.Code `json:"commissionAsset"`
@@ -642,8 +647,8 @@ type UAccountTradeHistoryResponse struct {
 	Time          types.Time    `json:"time"`
 }
 
-// UAllOrdersRequest holds the parameters of All Orders
-type UAllOrdersRequest struct {
+// USDTMarginedFuturesAllOrdersRequest holds the parameters of All Orders
+type USDTMarginedFuturesAllOrdersRequest struct {
 	Symbol    currency.Pair
 	OrderID   uint64 // returns orders with this ID and newer ones
 	StartTime time.Time
@@ -651,8 +656,8 @@ type UAllOrdersRequest struct {
 	Limit     uint64
 }
 
-// UOrderBase holds the fields every USDⓈ-M order reply carries
-type UOrderBase struct {
+// USDTMarginedFuturesOrderBase holds the fields every USDⓈ-M order reply carries
+type USDTMarginedFuturesOrderBase struct {
 	ClientOrderID           string       `json:"clientOrderId"`
 	ExecutedQuantity        types.Number `json:"executedQty"`
 	OrderID                 uint64       `json:"orderId"`
@@ -676,9 +681,10 @@ type UOrderBase struct {
 	GoodTillDate            types.Time   `json:"goodTillDate"`
 }
 
-// UOrderResponse holds an order's state from Query Order, Query Current Open Order and Current All Open Orders
-type UOrderResponse struct {
-	UOrderBase
+// USDTMarginedFuturesOrderResponse holds an order's state from Query Order, Query Current Open Order and Current All
+// Open Orders
+type USDTMarginedFuturesOrderResponse struct {
+	USDTMarginedFuturesOrderBase
 	AveragePrice    types.Number `json:"avgPrice"`
 	CumulativeQuote types.Number `json:"cumQuote"`
 	Time            types.Time   `json:"time"`
@@ -686,21 +692,21 @@ type UOrderResponse struct {
 	PriceRate       types.Number `json:"priceRate"`     // callback rate, only sent for TRAILING_STOP_MARKET orders
 }
 
-// UFuturesOrderResponse holds an order from All Orders, which may also list COIN-M orders
-type UFuturesOrderResponse struct {
-	UOrderResponse
+// USDTMarginedFuturesAllOrdersResponse holds an order from All Orders, which may also list COIN-M orders
+type USDTMarginedFuturesAllOrdersResponse struct {
+	USDTMarginedFuturesOrderResponse
 	CumulativeBase types.Number `json:"cumBase"`
 	Pair           string       `json:"pair"`
 }
 
-// UAutoCancelAllOpenOrdersResponse holds the reply of Auto-Cancel All Open Orders
-type UAutoCancelAllOpenOrdersResponse struct {
-	Symbol        string       `json:"symbol"`
-	CountdownTime types.Number `json:"countdownTime"` // milliseconds
+// USDTMarginedFuturesAutoCancelAllOpenOrdersResponse holds the reply of Auto-Cancel All Open Orders
+type USDTMarginedFuturesAutoCancelAllOpenOrdersResponse struct {
+	Symbol                      string       `json:"symbol"`
+	CountdownTimeInMilliseconds types.Number `json:"countdownTime"`
 }
 
-// UAlgoOrderBase holds the fields every USDⓈ-M algo (conditional) order reply carries
-type UAlgoOrderBase struct {
+// USDTMarginedFuturesAlgoOrderBase holds the fields every USDⓈ-M algo (conditional) order reply carries
+type USDTMarginedFuturesAlgoOrderBase struct {
 	AlgoID                  uint64       `json:"algoId"`
 	ClientAlgoID            string       `json:"clientAlgoId"`
 	AlgoType                string       `json:"algoType"`
@@ -726,9 +732,10 @@ type UAlgoOrderBase struct {
 	GoodTillDate            types.Time   `json:"goodTillDate"`
 }
 
-// UAlgoOrderResponse holds an algo order from Query Algo Order, Current All Algo Open Orders or Query All Algo Orders
-type UAlgoOrderResponse struct {
-	UAlgoOrderBase
+// USDTMarginedFuturesAlgoOrderResponse holds an algo order from Query Algo Order, Current All Algo Open Orders or Query
+// All Algo Orders
+type USDTMarginedFuturesAlgoOrderResponse struct {
+	USDTMarginedFuturesAlgoOrderBase
 	ActualOrderID          string       `json:"actualOrderId"` // empty until the order triggers
 	ActualPrice            types.Number `json:"actualPrice"`   // the average fill price once filled
 	ActualType             string       `json:"actualType"`    // only sent once the order triggers
@@ -740,8 +747,8 @@ type UAlgoOrderResponse struct {
 	TakeProfitOrderType    string       `json:"tpOrderType"`
 }
 
-// UNewAlgoOrderRequest holds the parameters of New Algo Order
-type UNewAlgoOrderRequest struct {
+// USDTMarginedFuturesNewAlgoOrderRequest holds the parameters of New Algo Order
+type USDTMarginedFuturesNewAlgoOrderRequest struct {
 	AlgoType     string // CONDITIONAL
 	Symbol       currency.Pair
 	Side         string
@@ -765,23 +772,23 @@ type UNewAlgoOrderRequest struct {
 	GoodTillDate            time.Time // required for GTD orders; Binance keeps second precision
 }
 
-// UNewAlgoOrderResponse holds the reply of New Algo Order
-type UNewAlgoOrderResponse struct {
-	UAlgoOrderBase
+// USDTMarginedFuturesNewAlgoOrderResponse holds the reply of New Algo Order
+type USDTMarginedFuturesNewAlgoOrderResponse struct {
+	USDTMarginedFuturesAlgoOrderBase
 	ActivatePrice types.Number `json:"activatePrice"` // only set for TRAILING_STOP_MARKET orders
 	CallbackRate  types.Number `json:"callbackRate"`  // only set for TRAILING_STOP_MARKET orders
 }
 
-// UCancelAlgoOrderResponse holds the reply of Cancel Algo Order
-type UCancelAlgoOrderResponse struct {
+// USDTMarginedFuturesCancelAlgoOrderResponse holds the reply of Cancel Algo Order
+type USDTMarginedFuturesCancelAlgoOrderResponse struct {
 	AlgoID       uint64       `json:"algoId"`
 	ClientAlgoID string       `json:"clientAlgoId"`
 	Code         types.Number `json:"code"`
 	Message      string       `json:"msg"`
 }
 
-// UModifyOrderRequest holds the parameters of Modify Order and one order of Modify Multiple Orders
-type UModifyOrderRequest struct {
+// USDTMarginedFuturesModifyOrderRequest holds the parameters of Modify Order and one order of Modify Multiple Orders
+type USDTMarginedFuturesModifyOrderRequest struct {
 	OrderID           uint64 // OrderID wins when both IDs are set
 	OrigClientOrderID string
 	Symbol            currency.Pair
@@ -794,30 +801,30 @@ type UModifyOrderRequest struct {
 	ReduceOnly bool
 }
 
-// UNewOrderResponse holds the reply of New Order
-type UNewOrderResponse struct {
-	UOrderBase
+// USDTMarginedFuturesNewOrderResponse holds the reply of New Order
+type USDTMarginedFuturesNewOrderResponse struct {
+	USDTMarginedFuturesOrderBase
 	CumulativeQuantity types.Number `json:"cumQty"`
 }
 
-// UModifyOrderResponse holds the reply of Modify Order
-type UModifyOrderResponse struct {
-	UNewOrderResponse
+// USDTMarginedFuturesModifyOrderResponse holds the reply of Modify Order
+type USDTMarginedFuturesModifyOrderResponse struct {
+	USDTMarginedFuturesNewOrderResponse
 	Pair     string `json:"pair"`
 	ModifyID uint64 `json:"modifyId"` // only sent when the request set it
 }
 
-// UModifyBatchOrderResponse holds one order's reply from Modify Multiple Orders: the modified order, or the code and
-// message that rejected it
-type UModifyBatchOrderResponse struct {
-	UModifyOrderResponse
+// USDTMarginedFuturesModifyBatchOrderResponse holds one order's reply from Modify Multiple Orders: the modified order,
+// or the code and message that rejected it
+type USDTMarginedFuturesModifyBatchOrderResponse struct {
+	USDTMarginedFuturesModifyOrderResponse
 	Code    int64  `json:"code"` // negative when Binance rejected the entry
 	Message string `json:"msg"`
 }
 
-// UFuturesNewOrderRequest holds the parameters of New Order and one order of Place Multiple Orders. Stop, take profit
-// and trailing stop orders are placed with UNewAlgoOrder
-type UFuturesNewOrderRequest struct {
+// USDTMarginedFuturesNewOrderRequest holds the parameters of New Order and one order of Place Multiple Orders. Stop,
+// take profit and trailing stop orders are placed with USDTMarginedFuturesNewAlgoOrder
+type USDTMarginedFuturesNewOrderRequest struct {
 	Symbol                  currency.Pair
 	Side                    string
 	PositionSide            string
@@ -833,38 +840,38 @@ type UFuturesNewOrderRequest struct {
 	GoodTillDate            time.Time // required for GTD orders; Binance keeps second precision
 }
 
-// UPlaceBatchOrderResponse holds one order's reply from Place Multiple Orders: the new order, or the code and message
-// that rejected it
-type UPlaceBatchOrderResponse struct {
-	UNewOrderResponse
+// USDTMarginedFuturesPlaceBatchOrderResponse holds one order's reply from Place Multiple Orders: the new order, or the
+// code and message that rejected it
+type USDTMarginedFuturesPlaceBatchOrderResponse struct {
+	USDTMarginedFuturesNewOrderResponse
 	Code    int64  `json:"code"` // negative when Binance rejected the entry
 	Message string `json:"msg"`
 }
 
-// UCancelOrderResponse holds the reply of Cancel Order
-type UCancelOrderResponse struct {
-	UNewOrderResponse
+// USDTMarginedFuturesCancelOrderResponse holds the reply of Cancel Order
+type USDTMarginedFuturesCancelOrderResponse struct {
+	USDTMarginedFuturesNewOrderResponse
 	ActivatePrice types.Number `json:"activatePrice"` // only sent for TRAILING_STOP_MARKET orders
 	PriceRate     types.Number `json:"priceRate"`     // callback rate, only sent for TRAILING_STOP_MARKET orders
 }
 
-// UCancelBatchOrderResponse holds one order's reply from Cancel Multiple Orders: the cancelled order, or the code and
-// message that rejected it
-type UCancelBatchOrderResponse struct {
-	UCancelOrderResponse
+// USDTMarginedFuturesCancelBatchOrderResponse holds one order's reply from Cancel Multiple Orders: the cancelled order,
+// or the code and message that rejected it
+type USDTMarginedFuturesCancelBatchOrderResponse struct {
+	USDTMarginedFuturesCancelOrderResponse
 	Code    int64  `json:"code"` // negative when Binance rejected the entry
 	Message string `json:"msg"`
 }
 
-// UChangeInitialLeverageResponse holds the reply of Change Initial Leverage
-type UChangeInitialLeverageResponse struct {
+// USDTMarginedFuturesChangeInitialLeverageResponse holds the reply of Change Initial Leverage
+type USDTMarginedFuturesChangeInitialLeverageResponse struct {
 	Leverage         uint64       `json:"leverage"`
 	MaxNotionalValue types.Number `json:"maxNotionalValue"`
 	Symbol           string       `json:"symbol"`
 }
 
-// UOrderModifyHistoryRequest holds the parameters of Get Order Modify History
-type UOrderModifyHistoryRequest struct {
+// USDTMarginedFuturesOrderModifyHistoryRequest holds the parameters of Get Order Modify History
+type USDTMarginedFuturesOrderModifyHistoryRequest struct {
 	Symbol            currency.Pair
 	OrderID           uint64 // OrderID wins when both IDs are set
 	OrigClientOrderID string
@@ -898,8 +905,8 @@ type AmendmentChange struct {
 	After  types.Number `json:"after"`
 }
 
-// UPositionMarginChangeHistoryRequest holds the parameters of Get Position Margin Change History
-type UPositionMarginChangeHistoryRequest struct {
+// USDTMarginedFuturesPositionMarginChangeHistoryRequest holds the parameters of Get Position Margin Change History
+type USDTMarginedFuturesPositionMarginChangeHistoryRequest struct {
 	Symbol     currency.Pair
 	ChangeType string // add or reduce; empty for both
 	StartTime  time.Time
@@ -907,8 +914,8 @@ type UPositionMarginChangeHistoryRequest struct {
 	Limit      uint64
 }
 
-// UPositionMarginChangeResponse holds one isolated position margin change
-type UPositionMarginChangeResponse struct {
+// USDTMarginedFuturesPositionMarginChangeResponse holds one isolated position margin change
+type USDTMarginedFuturesPositionMarginChangeResponse struct {
 	Symbol       string        `json:"symbol"`
 	Type         uint64        `json:"type"` // 1 adds and 2 reduces position margin
 	DeltaType    string        `json:"deltaType"`
@@ -918,22 +925,23 @@ type UPositionMarginChangeResponse struct {
 	PositionSide string        `json:"positionSide"`
 }
 
-// UModifyIsolatedPositionMarginResponse holds the reply of Modify Isolated Position Margin
-type UModifyIsolatedPositionMarginResponse struct {
+// USDTMarginedFuturesModifyIsolatedPositionMarginResponse holds the reply of Modify Isolated Position Margin
+type USDTMarginedFuturesModifyIsolatedPositionMarginResponse struct {
 	Amount  float64 `json:"amount"`
 	Code    int64   `json:"code"` // 200 on success; Binance's error codes are negative
 	Message string  `json:"msg"`
 	Type    uint64  `json:"type"` // 1 adds and 2 reduces position margin
 }
 
-// UPositionADLQuantileResponse holds a symbol's auto-deleveraging queue estimates
-type UPositionADLQuantileResponse struct {
-	Symbol      string       `json:"symbol"`
-	ADLQuantile UADLQuantile `json:"adlQuantile"`
+// USDTMarginedFuturesPositionAutoDeleveragingQuantileResponse holds a symbol's auto-deleveraging queue estimates
+type USDTMarginedFuturesPositionAutoDeleveragingQuantileResponse struct {
+	Symbol                   string                                      `json:"symbol"`
+	AutoDeleveragingQuantile USDTMarginedFuturesAutoDeleveragingQuantile `json:"adlQuantile"`
 }
 
-// UADLQuantile holds the auto-deleveraging quantile, 0 (lowest) to 4 (highest), of each position side
-type UADLQuantile struct {
+// USDTMarginedFuturesAutoDeleveragingQuantile holds the auto-deleveraging quantile, 0 (lowest) to 4 (highest), of each
+// position side
+type USDTMarginedFuturesAutoDeleveragingQuantile struct {
 	Long  uint64 `json:"LONG"`
 	Short uint64 `json:"SHORT"`
 	// Hedge is only a sign that cross positions in Hedge Mode share one quantile, sent instead of Both; ignore its value
@@ -941,8 +949,8 @@ type UADLQuantile struct {
 	Both  uint64 `json:"BOTH"`
 }
 
-// UPositionInformationV2Response holds a position from Position Information V2
-type UPositionInformationV2Response struct {
+// USDTMarginedFuturesPositionInformationV2Response holds a position from Position Information V2
+type USDTMarginedFuturesPositionInformationV2Response struct {
 	Symbol           string        `json:"symbol"`
 	PositionAmount   types.Number  `json:"positionAmt"`
 	EntryPrice       types.Number  `json:"entryPrice"`
@@ -961,33 +969,33 @@ type UPositionInformationV2Response struct {
 	UpdateTime       types.Time    `json:"updateTime"`
 }
 
-// UPositionInformationV3Response holds a position from Position Information V3, which only lists symbols with a
-// position or open orders and leaves leverage and margin type to Symbol Configuration
-type UPositionInformationV3Response struct {
-	Symbol                 string        `json:"symbol"`
-	PositionSide           string        `json:"positionSide"`
-	PositionAmount         types.Number  `json:"positionAmt"`
-	EntryPrice             types.Number  `json:"entryPrice"`
-	BreakEvenPrice         types.Number  `json:"breakEvenPrice"`
-	MarkPrice              types.Number  `json:"markPrice"`
-	UnrealisedProfit       types.Number  `json:"unRealizedProfit"`
-	LiquidationPrice       types.Number  `json:"liquidationPrice"`
-	IsolatedMargin         types.Number  `json:"isolatedMargin"`
-	Notional               types.Number  `json:"notional"`
-	MarginAsset            currency.Code `json:"marginAsset"`
-	IsolatedWallet         types.Number  `json:"isolatedWallet"`
-	InitialMargin          types.Number  `json:"initialMargin"`
-	MaintenanceMargin      types.Number  `json:"maintMargin"`
-	PositionInitialMargin  types.Number  `json:"positionInitialMargin"`
-	OpenOrderInitialMargin types.Number  `json:"openOrderInitialMargin"`
-	ADL                    uint64        `json:"adl"` // auto-deleveraging ranking
-	BidNotional            types.Number  `json:"bidNotional"`
-	AskNotional            types.Number  `json:"askNotional"`
-	UpdateTime             types.Time    `json:"updateTime"`
+// USDTMarginedFuturesPositionInformationV3Response holds a position from Position Information V3, which only lists
+// symbols with a position or open orders and leaves leverage and margin type to Symbol Configuration
+type USDTMarginedFuturesPositionInformationV3Response struct {
+	Symbol                  string        `json:"symbol"`
+	PositionSide            string        `json:"positionSide"`
+	PositionAmount          types.Number  `json:"positionAmt"`
+	EntryPrice              types.Number  `json:"entryPrice"`
+	BreakEvenPrice          types.Number  `json:"breakEvenPrice"`
+	MarkPrice               types.Number  `json:"markPrice"`
+	UnrealisedProfit        types.Number  `json:"unRealizedProfit"`
+	LiquidationPrice        types.Number  `json:"liquidationPrice"`
+	IsolatedMargin          types.Number  `json:"isolatedMargin"`
+	Notional                types.Number  `json:"notional"`
+	MarginAsset             currency.Code `json:"marginAsset"`
+	IsolatedWallet          types.Number  `json:"isolatedWallet"`
+	InitialMargin           types.Number  `json:"initialMargin"`
+	MaintenanceMargin       types.Number  `json:"maintMargin"`
+	PositionInitialMargin   types.Number  `json:"positionInitialMargin"`
+	OpenOrderInitialMargin  types.Number  `json:"openOrderInitialMargin"`
+	AutoDeleveragingRanking uint64        `json:"adl"`
+	BidNotional             types.Number  `json:"bidNotional"`
+	AskNotional             types.Number  `json:"askNotional"`
+	UpdateTime              types.Time    `json:"updateTime"`
 }
 
-// UAllAlgoOrdersRequest holds the parameters of Query All Algo Orders
-type UAllAlgoOrdersRequest struct {
+// USDTMarginedFuturesAllAlgoOrdersRequest holds the parameters of Query All Algo Orders
+type USDTMarginedFuturesAllAlgoOrdersRequest struct {
 	Symbol    currency.Pair
 	AlgoID    uint64 // returns algo orders with this ID and newer ones
 	StartTime time.Time
@@ -995,8 +1003,8 @@ type UAllAlgoOrdersRequest struct {
 	Limit     uint64
 }
 
-// UForceOrdersRequest holds the parameters of User's Force Orders
-type UForceOrdersRequest struct {
+// USDTMarginedFuturesForceOrdersRequest holds the parameters of User's Force Orders
+type USDTMarginedFuturesForceOrdersRequest struct {
 	Symbol        currency.Pair
 	AutoCloseType string // LIQUIDATION or ADL; empty for both
 	StartTime     time.Time
@@ -1004,9 +1012,9 @@ type UForceOrdersRequest struct {
 	Limit         uint64
 }
 
-// UForceOrderResponse holds a liquidation or auto-deleveraging order from User's Force Orders, which may also list
-// COIN-M orders
-type UForceOrderResponse struct {
+// USDTMarginedFuturesForceOrderResponse holds a liquidation or auto-deleveraging order from User's Force Orders, which
+// may also list COIN-M orders
+type USDTMarginedFuturesForceOrderResponse struct {
 	OrderID          uint64       `json:"orderId"`
 	Symbol           string       `json:"symbol"`
 	Pair             string       `json:"pair"`

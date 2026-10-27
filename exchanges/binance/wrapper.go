@@ -285,11 +285,11 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		subscribe, unsubscribe func(context.Context, websocket.Connection, subscription.List) error
 		handle                 func(context.Context, websocket.Connection, []byte) error
 	}{
-		{usdtmPublicFilter, fstreamPublicURL, e.generateUFuturesPublicSubscriptions, e.SubscribeDerivatives, e.UnsubscribeDerivatives, e.wsHandleUFuturesData},
-		{usdtmMarketFilter, fstreamMarketURL, e.generateUFuturesMarketSubscriptions, e.SubscribeDerivatives, e.UnsubscribeDerivatives, e.wsHandleUFuturesData},
-		{usdtmPrivateFilter, fstreamPrivateURL, e.generateUFuturesUserDataSubscriptions, e.SubscribeUserData, e.UnsubscribeUserData, e.wsHandleUFuturesUserData},
-		{coinmFilter, binanceCFuturesWebsocketURL, e.generateCFuturesSubscriptions, e.SubscribeDerivatives, e.UnsubscribeDerivatives, e.wsHandleCFuturesData},
-		{coinmPrivateFilter, binanceCFuturesWebsocketURL, e.generateCFuturesUserDataSubscriptions, e.SubscribeUserData, e.UnsubscribeUserData, e.wsHandleCFuturesUserData},
+		{usdtmPublicFilter, fstreamPublicURL, e.generateUSDTMarginedFuturesPublicSubscriptions, e.SubscribeDerivatives, e.UnsubscribeDerivatives, e.wsHandleUSDTMarginedFuturesData},
+		{usdtmMarketFilter, fstreamMarketURL, e.generateUSDTMarginedFuturesMarketSubscriptions, e.SubscribeDerivatives, e.UnsubscribeDerivatives, e.wsHandleUSDTMarginedFuturesData},
+		{usdtmPrivateFilter, fstreamPrivateURL, e.generateUSDTMarginedFuturesUserDataSubscriptions, e.SubscribeUserData, e.UnsubscribeUserData, e.wsHandleUSDTMarginedFuturesUserData},
+		{coinmFilter, binanceCoinMarginedFuturesWebsocketURL, e.generateCoinMarginedFuturesSubscriptions, e.SubscribeDerivatives, e.UnsubscribeDerivatives, e.wsHandleCoinMarginedFuturesData},
+		{coinmPrivateFilter, binanceCoinMarginedFuturesWebsocketURL, e.generateCoinMarginedFuturesUserDataSubscriptions, e.SubscribeUserData, e.UnsubscribeUserData, e.wsHandleCoinMarginedFuturesUserData},
 		{optionsPublicFilter, fstreamPublicURL, e.generateOptionsPublicSubscriptions, e.SubscribeDerivatives, e.UnsubscribeDerivatives, e.wsHandleOptionsData},
 		{optionsMarketFilter, fstreamMarketURL, e.generateOptionsMarketSubscriptions, e.SubscribeDerivatives, e.UnsubscribeDerivatives, e.wsHandleOptionsData},
 		{optionsPrivateFilter, fstreamPrivateURL, e.generateOptionsUserDataSubscriptions, e.SubscribeUserData, e.UnsubscribeUserData, e.wsHandleOptionsUserData},
@@ -353,18 +353,18 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 			}
 		}
 	case asset.USDTMarginedFutures:
-		info, err := e.UExchangeInfo(ctx)
+		info, err := e.USDTMarginedFuturesExchangeInfo(ctx)
 		if err != nil {
 			return nil, err
 		}
 		pairs = make(currency.Pairs, 0, len(info.Symbols))
 		for i := range info.Symbols {
 			if s := &info.Symbols[i]; s.Status == symbolStatusTrading {
-				pairs = append(pairs, uFuturesSymbolPair(s.Symbol, s.BaseAsset, s.QuoteAsset))
+				pairs = append(pairs, usdtMarginedFuturesSymbolPair(s.Symbol, s.BaseAsset, s.QuoteAsset))
 			}
 		}
 	case asset.CoinMarginedFutures:
-		info, err := e.FuturesExchangeInfo(ctx)
+		info, err := e.CoinMarginedFuturesExchangeInfo(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -420,10 +420,10 @@ func spotSymbolTradable(s *SymbolInfo, a asset.Item) bool {
 	return s.IsSpotTradingAllowed
 }
 
-// uFuturesSymbolPair returns the pair of a USDⓈ-M contract. A perpetual's base and quote assets cannot be split from
-// its symbol alone (TSLAUSDT is TSLA/USDT), while a delivery contract keeps its contract pair as base and its delivery
-// date as quote (BTCUSDT_261225 is BTCUSDT/261225)
-func uFuturesSymbolPair(symbol string, baseAsset, quoteAsset currency.Code) currency.Pair {
+// usdtMarginedFuturesSymbolPair returns the pair of a USDⓈ-M contract. A perpetual's base and quote assets cannot be
+// split from its symbol alone (TSLAUSDT is TSLA/USDT), while a delivery contract keeps its contract pair as base and
+// its delivery date as quote (BTCUSDT_261225 is BTCUSDT/261225)
+func usdtMarginedFuturesSymbolPair(symbol string, baseAsset, quoteAsset currency.Code) currency.Pair {
 	if contractPair, deliveryDate, ok := strings.Cut(symbol, currency.UnderscoreDelimiter); ok {
 		return currency.NewPair(currency.NewCode(contractPair), currency.NewCode(deliveryDate))
 	}
@@ -473,7 +473,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 			}
 		}
 	case asset.USDTMarginedFutures:
-		stats, err := e.U24HourTickerPriceChangeStats(ctx, currency.EMPTYPAIR)
+		stats, err := e.USDTMarginedFutures24HourTickerPriceChangeStats(ctx, currency.EMPTYPAIR)
 		if err != nil {
 			return err
 		}
@@ -484,11 +484,11 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 				return err
 			}
 			if ok {
-				prices = append(prices, e.uFuturesTickerPrice(&stats[i], pair))
+				prices = append(prices, e.usdtMarginedFuturesTickerPrice(&stats[i], pair))
 			}
 		}
 	case asset.CoinMarginedFutures:
-		stats, err := e.GetFuturesSwapTickerChangeStats(ctx, currency.EMPTYPAIR, currency.EMPTYCODE)
+		stats, err := e.GetCoinMarginedFuturesSwapTickerChangeStats(ctx, currency.EMPTYPAIR, currency.EMPTYCODE)
 		if err != nil {
 			return err
 		}
@@ -499,7 +499,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 				return err
 			}
 			if ok {
-				prices = append(prices, e.cFuturesTickerPrice(&stats[i], pair))
+				prices = append(prices, e.coinMarginedFuturesTickerPrice(&stats[i], pair))
 			}
 		}
 	case asset.Options:
@@ -555,23 +555,23 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 		}
 		price = e.spotTickerPrice(&stats[0], p, a)
 	case asset.USDTMarginedFutures:
-		stats, err := e.U24HourTickerPriceChangeStats(ctx, p)
+		stats, err := e.USDTMarginedFutures24HourTickerPriceChangeStats(ctx, p)
 		if err != nil {
 			return nil, err
 		}
 		if len(stats) == 0 {
 			return nil, fmt.Errorf("%w: %s %s", ticker.ErrTickerNotFound, p, a)
 		}
-		price = e.uFuturesTickerPrice(&stats[0], p)
+		price = e.usdtMarginedFuturesTickerPrice(&stats[0], p)
 	case asset.CoinMarginedFutures:
-		stats, err := e.GetFuturesSwapTickerChangeStats(ctx, p, currency.EMPTYCODE)
+		stats, err := e.GetCoinMarginedFuturesSwapTickerChangeStats(ctx, p, currency.EMPTYCODE)
 		if err != nil {
 			return nil, err
 		}
 		if len(stats) == 0 {
 			return nil, fmt.Errorf("%w: %s %s", ticker.ErrTickerNotFound, p, a)
 		}
-		price = e.cFuturesTickerPrice(&stats[0], p)
+		price = e.coinMarginedFuturesTickerPrice(&stats[0], p)
 	case asset.Options:
 		stats, err := e.GetEOptions24HourTickerPriceChangeStatistics(ctx, p)
 		if err != nil {
@@ -614,8 +614,8 @@ func (e *Exchange) spotTickerPrice(t *PriceChangeStatsResponse, pair currency.Pa
 	}
 }
 
-// uFuturesTickerPrice converts a USDⓈ-M 24hr ticker, which has no best bid or ask
-func (e *Exchange) uFuturesTickerPrice(t *U24HourPriceChangeStatsResponse, pair currency.Pair) ticker.Price {
+// usdtMarginedFuturesTickerPrice converts a USDⓈ-M 24hr ticker, which has no best bid or ask
+func (e *Exchange) usdtMarginedFuturesTickerPrice(t *USDTMarginedFutures24HourPriceChangeStatsResponse, pair currency.Pair) ticker.Price {
 	return ticker.Price{
 		Last:                       t.LastPrice.Float64(),
 		LastSize:                   t.LastQuantity.Float64(),
@@ -633,9 +633,10 @@ func (e *Exchange) uFuturesTickerPrice(t *U24HourPriceChangeStatsResponse, pair 
 	}
 }
 
-// cFuturesTickerPrice converts a COIN-M 24hr ticker, which has no best bid or ask. Its volume counts contracts, so the
-// base volume comes from the base asset volume, and the quantities stay in contracts as the ticker stream sends them
-func (e *Exchange) cFuturesTickerPrice(t *CFuturesPriceChangeStatsResponse, pair currency.Pair) ticker.Price {
+// coinMarginedFuturesTickerPrice converts a COIN-M 24hr ticker, which has no best bid or ask. Its volume counts
+// contracts, so the base volume comes from the base asset volume, and the quantities stay in contracts as the ticker
+// stream sends them
+func (e *Exchange) coinMarginedFuturesTickerPrice(t *CoinMarginedFuturesPriceChangeStatsResponse, pair currency.Pair) ticker.Price {
 	return ticker.Price{
 		Last:                       t.LastPrice.Float64(),
 		LastSize:                   t.LastQuantity.Float64(),
@@ -662,8 +663,8 @@ func (e *Exchange) optionsTickerPrice(t *EOptionTickerResponse, pair currency.Pa
 		Low:                 t.Low.Float64(),
 		Bid:                 t.BidPrice.Float64(),
 		Ask:                 t.AskPrice.Float64(),
-		BaseVolume:          t.Volume.Float64(),
-		QuoteVolume:         t.Amount.Float64(),
+		BaseVolume:          t.VolumeInContracts.Float64(),
+		QuoteVolume:         t.AmountInQuoteAsset.Float64(),
 		Open:                t.Open.Float64(),
 		PercentChange24Hour: t.PriceChangePercent.Float64() * 100,
 		Pair:                pair,
@@ -721,14 +722,18 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.It
 	err = e.withBalanceStore(func() error {
 		if assetType != asset.Spot {
 			e.keepStreamedBalances(ctx, assetType, subAccount, updated, asOf)
-			return e.Accounts.Save(ctx, subAccts, true)
+			if err := e.Accounts.Save(ctx, subAccts, true); err != nil {
+				return err
+			}
+			e.recordBalanceSnapshot(ctx, assetType, asOf, updated)
+			return nil
 		}
 		ordered := e.keepStreamedSpotBalances(ctx, subAccount, asOf)
 		if err := e.Accounts.Save(ctx, subAccts, true); err != nil {
 			return err
 		}
 		if ordered {
-			e.recordBalanceSnapshot(assetType, asOf)
+			e.recordBalanceSnapshot(ctx, assetType, asOf, nil)
 		}
 		return nil
 	})
@@ -783,7 +788,7 @@ func (e *Exchange) accountBalances(ctx context.Context, assetType asset.Item) (s
 			})
 		}
 	case asset.USDTMarginedFutures:
-		resp, err := e.UAccountBalanceV3(ctx)
+		resp, err := e.USDTMarginedFuturesAccountBalanceV3(ctx)
 		if err != nil {
 			return nil, nil, time.Time{}, err
 		}
@@ -794,7 +799,7 @@ func (e *Exchange) accountBalances(ctx context.Context, assetType asset.Item) (s
 			updated[resp[i].Asset.Item] = resp[i].UpdateTime.Time()
 		}
 	case asset.CoinMarginedFutures:
-		resp, err := e.GetFuturesAccountInfo(ctx)
+		resp, err := e.GetCoinMarginedFuturesAccountInfo(ctx)
 		if err != nil {
 			return nil, nil, time.Time{}, err
 		}
@@ -1007,7 +1012,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, a asset
 			})
 		}
 	case asset.USDTMarginedFutures:
-		trades, err := e.URecentTrades(ctx, p, 1000)
+		trades, err := e.USDTMarginedFuturesRecentTrades(ctx, p, 1000)
 		if err != nil {
 			return nil, err
 		}
@@ -1025,7 +1030,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, a asset
 			})
 		}
 	case asset.CoinMarginedFutures:
-		trades, err := e.GetFuturesPublicTrades(ctx, p, 1000)
+		trades, err := e.GetCoinMarginedFuturesPublicTrades(ctx, p, 1000)
 		if err != nil {
 			return nil, err
 		}
@@ -1039,7 +1044,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, a asset
 				AssetType:    a,
 				Side:         tradeTakerSide(trades[i].IsBuyerMaker),
 				Price:        trades[i].Price.Float64(),
-				Amount:       trades[i].Quantity.Float64(),
+				Amount:       trades[i].QuantityInContracts.Float64(),
 				Timestamp:    trades[i].Time.Time(),
 			})
 		}
@@ -1451,17 +1456,17 @@ func checkUntimedSpotTimeInForce(orderType string, tif order.TimeInForce) error 
 	return nil
 }
 
-// spotOCOLegs holds the side and the two orders of an OCO order list
-type spotOCOLegs struct {
+// spotOneCancelsTheOtherLegs holds the side and the two orders of an OCO order list
+type spotOneCancelsTheOtherLegs struct {
 	side                 string
-	limitMaker, stopLoss OCOOrderListLeg
+	limitMaker, stopLoss OneCancelsTheOtherOrderListLeg
 }
 
-// newSpotOCOLegs works out an OCO order list's LIMIT_MAKER order at Price and its STOP_LOSS order triggered at
-// TriggerPrice, which is a STOP_LOSS_LIMIT order when the stop loss risk management mode has a limit price.
-// ClientOrderID identifies the list, so Binance names the legs: deriving their IDs from it could exceed Binance's
-// 36 character limit, and their order list ID ties them to the list anyway
-func newSpotOCOLegs(s *order.Submit) (*spotOCOLegs, error) {
+// newSpotOneCancelsTheOtherLegs works out an OCO order list's LIMIT_MAKER order at Price and its STOP_LOSS order
+// triggered at TriggerPrice, which is a STOP_LOSS_LIMIT order when the stop loss risk management mode has a limit
+// price. ClientOrderID identifies the list, so Binance names the legs: deriving their IDs from it could exceed
+// Binance's 36 character limit, and their order list ID ties them to the list anyway
+func newSpotOneCancelsTheOtherLegs(s *order.Submit) (*spotOneCancelsTheOtherLegs, error) {
 	side, err := orderSideString(s.Side)
 	if err != nil {
 		return nil, err
@@ -1472,10 +1477,10 @@ func newSpotOCOLegs(s *order.Submit) (*spotOCOLegs, error) {
 	if s.TriggerPrice <= 0 {
 		return nil, errTriggerPriceRequired
 	}
-	legs := &spotOCOLegs{
+	legs := &spotOneCancelsTheOtherLegs{
 		side:       side,
-		limitMaker: OCOOrderListLeg{Type: limitMakerOrderType, Price: s.Price},
-		stopLoss:   OCOOrderListLeg{Type: "STOP_LOSS", StopPrice: s.TriggerPrice},
+		limitMaker: OneCancelsTheOtherOrderListLeg{Type: limitMakerOrderType, Price: s.Price},
+		stopLoss:   OneCancelsTheOtherOrderListLeg{Type: "STOP_LOSS", StopPrice: s.TriggerPrice},
 	}
 	if limitPrice := s.RiskManagementModes.StopLoss.LimitPrice; limitPrice > 0 {
 		legs.stopLoss.Type = "STOP_LOSS_LIMIT"
@@ -1584,12 +1589,12 @@ func (e *Exchange) submitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	switch s.AssetType {
 	case asset.Spot:
 		if s.Type == order.OCO {
-			return e.submitSpotOCOOrder(ctx, s)
+			return e.submitSpotOneCancelsTheOtherOrder(ctx, s)
 		}
 		return e.submitSpotOrder(ctx, s)
 	case asset.Margin:
 		if s.Type == order.OCO {
-			return e.submitMarginOCOOrder(ctx, s)
+			return e.submitMarginOneCancelsTheOtherOrder(ctx, s)
 		}
 		return e.submitMarginOrder(ctx, s)
 	case asset.USDTMarginedFutures:
@@ -1751,15 +1756,15 @@ func (e *Exchange) spotSubmitResponse(s *order.Submit, placed *NewOrderResponse)
 	return resp, nil
 }
 
-// submitSpotOCOOrder places an OCO order list through the WebSocket API when it can be used for orders, and REST
-// otherwise. A sell's limit maker order rests above the last price and its stop loss order below; a buy's the other
-// way round
-func (e *Exchange) submitSpotOCOOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	legs, err := newSpotOCOLegs(s)
+// submitSpotOneCancelsTheOtherOrder places an OCO order list through the WebSocket API when it can be used for orders,
+// and REST otherwise. A sell's limit maker order rests above the last price and its stop loss order below; a buy's the
+// other way round
+func (e *Exchange) submitSpotOneCancelsTheOtherOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
+	legs, err := newSpotOneCancelsTheOtherLegs(s)
 	if err != nil {
 		return nil, err
 	}
-	req := &OCOOrderListRequest{
+	req := &OneCancelsTheOtherOrderListRequest{
 		Symbol:            s.Pair,
 		ListClientOrderID: s.ClientOrderID,
 		Side:              legs.side,
@@ -1771,26 +1776,26 @@ func (e *Exchange) submitSpotOCOOrder(ctx context.Context, s *order.Submit) (*or
 		req.Above, req.Below = legs.stopLoss, legs.limitMaker
 	}
 	if e.canUseWebsocketAPIForOrders() {
-		wsList, wsErr := e.WebsocketPlaceOCOOrderList(ctx, req)
+		wsList, wsErr := e.WebsocketPlaceOneCancelsTheOtherOrderList(ctx, req)
 		if wsErr != nil {
 			return nil, wsErr
 		}
 		return e.orderListSubmitResponse(s, wsList.OrderListID, wsList.ListClientOrderID, wsList.ListOrderStatus, wsList.TransactionTime.Time())
 	}
-	list, err := e.NewOCOOrderList(ctx, req)
+	list, err := e.NewOneCancelsTheOtherOrderList(ctx, req)
 	if err != nil {
 		return nil, err
 	}
 	return e.orderListSubmitResponse(s, list.OrderListID, list.ListClientOrderID, list.ListOrderStatus, list.TransactionTime.Time())
 }
 
-// submitMarginOCOOrder places a margin OCO order list
-func (e *Exchange) submitMarginOCOOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	legs, err := newSpotOCOLegs(s)
+// submitMarginOneCancelsTheOtherOrder places a margin OCO order list
+func (e *Exchange) submitMarginOneCancelsTheOtherOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
+	legs, err := newSpotOneCancelsTheOtherLegs(s)
 	if err != nil {
 		return nil, err
 	}
-	list, err := e.NewMarginAccountOCOOrder(ctx, &MarginOCOOrderRequest{
+	list, err := e.NewMarginAccountOneCancelsTheOtherOrder(ctx, &MarginOneCancelsTheOtherOrderRequest{
 		Symbol:               s.Pair,
 		IsIsolated:           s.MarginType == margin.Isolated,
 		ListClientOrderID:    s.ClientOrderID,
@@ -1915,7 +1920,7 @@ func (e *Exchange) submitUSDTMarginedOrder(ctx context.Context, s *order.Submit)
 		if isConditionalOrderType(s.Type) {
 			return e.submitFuturesAlgoOrder(ctx, s, v)
 		}
-		placed, err := e.UFuturesNewOrder(ctx, &UFuturesNewOrderRequest{
+		placed, err := e.USDTMarginedFuturesNewOrder(ctx, &USDTMarginedFuturesNewOrderRequest{
 			Symbol:               s.Pair,
 			Side:                 v.side,
 			PositionSide:         v.positionSide,
@@ -1939,7 +1944,7 @@ func (e *Exchange) submitUSDTMarginedOrder(ctx context.Context, s *order.Submit)
 // trailing stop's callback rate is its percentage tracking value, and its activation price, the last price when unset,
 // is TriggerPrice
 func (e *Exchange) submitFuturesAlgoOrder(ctx context.Context, s *order.Submit, v *futuresOrderValues) (*order.SubmitResponse, error) {
-	req := &UNewAlgoOrderRequest{
+	req := &USDTMarginedFuturesNewAlgoOrderRequest{
 		AlgoType:             "CONDITIONAL",
 		Symbol:               s.Pair,
 		Side:                 v.side,
@@ -1969,11 +1974,11 @@ func (e *Exchange) submitFuturesAlgoOrder(ctx context.Context, s *order.Submit, 
 	if req.WorkingType, err = workingTypeString(s.TriggerPriceType); err != nil {
 		return nil, err
 	}
-	var placed *UNewAlgoOrderResponse
+	var placed *USDTMarginedFuturesNewAlgoOrderResponse
 	if s.AssetType == asset.CoinMarginedFutures {
-		placed, err = e.FuturesNewAlgoOrder(ctx, req)
+		placed, err = e.CoinMarginedFuturesNewAlgoOrder(ctx, req)
 	} else {
-		placed, err = e.UNewAlgoOrder(ctx, req)
+		placed, err = e.USDTMarginedFuturesNewAlgoOrder(ctx, req)
 	}
 	if err != nil {
 		return nil, err
@@ -1999,7 +2004,7 @@ func (e *Exchange) submitCoinMarginedOrder(ctx context.Context, s *order.Submit)
 		if isConditionalOrderType(s.Type) {
 			return e.submitFuturesAlgoOrder(ctx, s, v)
 		}
-		placed, err := e.FuturesNewOrder(ctx, &FuturesNewOrderRequest{
+		placed, err := e.CoinMarginedFuturesNewOrder(ctx, &CoinMarginedFuturesNewOrderRequest{
 			Symbol:               s.Pair,
 			Side:                 v.side,
 			PositionSide:         v.positionSide,
@@ -2106,7 +2111,7 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 		updated                           types.Time
 	)
 	if action.AssetType == asset.USDTMarginedFutures {
-		modified, err := e.UModifyOrder(ctx, &UModifyOrderRequest{
+		modified, err := e.USDTMarginedFuturesModifyOrder(ctx, &USDTMarginedFuturesModifyOrderRequest{
 			OrderID:           orderID,
 			OrigClientOrderID: action.ClientOrderID,
 			Symbol:            action.Pair,
@@ -2120,7 +2125,7 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 		modifiedID, clientOrderID, orderType, status = modified.OrderID, modified.ClientOrderID, modified.Type, modified.Status
 		price, originalQuantity, executed, updated = modified.Price, modified.OriginalQuantity, modified.ExecutedQuantity, modified.UpdateTime
 	} else {
-		modified, err := e.FuturesModifyOrder(ctx, &CFuturesModifyOrderRequest{
+		modified, err := e.CoinMarginedFuturesModifyOrder(ctx, &CoinMarginedFuturesModifyOrderRequest{
 			OrderID:           orderID,
 			OrigClientOrderID: action.ClientOrderID,
 			Symbol:            action.Pair,
@@ -2180,9 +2185,9 @@ func (e *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 			break
 		}
 		if o.AssetType == asset.CoinMarginedFutures {
-			_, err = e.FuturesCancelOrder(ctx, o.Pair, orderID, o.ClientOrderID)
+			_, err = e.CoinMarginedFuturesCancelOrder(ctx, o.Pair, orderID, o.ClientOrderID)
 		} else {
-			_, err = e.UCancelOrder(ctx, o.Pair, orderID, o.ClientOrderID)
+			_, err = e.USDTMarginedFuturesCancelOrder(ctx, o.Pair, orderID, o.ClientOrderID)
 		}
 		if isUntypedCancel(o.Type) && isUnknownOrder(err) {
 			algo, algoErr := e.cancelPairAlgoOrder(ctx, o.AssetType, o.Pair, orderID, o.ClientOrderID)
@@ -2242,9 +2247,9 @@ func (e *Exchange) cancelSpotOrder(ctx context.Context, o *order.Cancel, orderID
 	cancelList := func() error {
 		var err error
 		if useWebsocket {
-			_, err = e.WebsocketCancelOCOOrder(ctx, &WebsocketCancelOrderListRequest{Symbol: o.Pair, OrderListID: orderID, ListClientOrderID: o.ClientOrderID})
+			_, err = e.WebsocketCancelOneCancelsTheOtherOrder(ctx, &WebsocketCancelOrderListRequest{Symbol: o.Pair, OrderListID: orderID, ListClientOrderID: o.ClientOrderID})
 		} else {
-			_, err = e.CancelOCOOrder(ctx, &CancelOrderListRequest{Symbol: o.Pair, OrderListID: orderID, ListClientOrderID: o.ClientOrderID})
+			_, err = e.CancelOneCancelsTheOtherOrder(ctx, &CancelOrderListRequest{Symbol: o.Pair, OrderListID: orderID, ListClientOrderID: o.ClientOrderID})
 		}
 		return err
 	}
@@ -2288,7 +2293,7 @@ func (e *Exchange) cancelMarginOrder(ctx context.Context, o *order.Cancel, order
 		}
 		if o.Type == order.OCO || isUntypedCancel(o.Type) {
 			attempts = append(attempts, func() error {
-				_, err := e.CancelMarginAccountOCOOrder(ctx, &MarginOCOCancelRequest{Symbol: o.Pair, IsIsolated: isIsolated, OrderListID: orderID, ListClientOrderID: o.ClientOrderID})
+				_, err := e.CancelMarginAccountOneCancelsTheOtherOrder(ctx, &MarginOneCancelsTheOtherCancelRequest{Symbol: o.Pair, IsIsolated: isIsolated, OrderListID: orderID, ListClientOrderID: o.ClientOrderID})
 				return err
 			})
 		}
@@ -2298,24 +2303,24 @@ func (e *Exchange) cancelMarginOrder(ctx context.Context, o *order.Cancel, order
 
 // cancelFuturesAlgoOrder cancels a USDⓈ-M or COIN-M algo (conditional) order by its algo ID or, when algoID is 0, its
 // client algo ID
-func (e *Exchange) cancelFuturesAlgoOrder(ctx context.Context, a asset.Item, algoID uint64, clientAlgoID string) (*UCancelAlgoOrderResponse, error) {
+func (e *Exchange) cancelFuturesAlgoOrder(ctx context.Context, a asset.Item, algoID uint64, clientAlgoID string) (*USDTMarginedFuturesCancelAlgoOrderResponse, error) {
 	if a == asset.CoinMarginedFutures {
-		return e.FuturesCancelAlgoOrder(ctx, algoID, clientAlgoID)
+		return e.CoinMarginedFuturesCancelAlgoOrder(ctx, algoID, clientAlgoID)
 	}
-	return e.UCancelAlgoOrder(ctx, algoID, clientAlgoID)
+	return e.USDTMarginedFuturesCancelAlgoOrder(ctx, algoID, clientAlgoID)
 }
 
 // cancelPairAlgoOrder cancels the USDⓈ-M or COIN-M algo order with the ID or client ID an untyped cancellation names,
 // when it is the pair's, and returns it when it is: SubmitOrder identifies a conditional order by its algo ID, which
 // Binance numbers apart from order IDs. The algo cancellation takes no symbol, so the algo order is looked up first, on
 // the cancel pool as the cancellation is
-func (e *Exchange) cancelPairAlgoOrder(ctx context.Context, a asset.Item, pair currency.Pair, algoID uint64, clientAlgoID string) (*UAlgoOrderResponse, error) {
-	var algo *UAlgoOrderResponse
+func (e *Exchange) cancelPairAlgoOrder(ctx context.Context, a asset.Item, pair currency.Pair, algoID uint64, clientAlgoID string) (*USDTMarginedFuturesAlgoOrderResponse, error) {
+	var algo *USDTMarginedFuturesAlgoOrderResponse
 	var err error
 	if a == asset.CoinMarginedFutures {
-		algo, err = e.futuresQueryAlgoOrder(ctx, algoID, clientAlgoID, cFuturesCancelRate)
+		algo, err = e.futuresQueryAlgoOrder(ctx, algoID, clientAlgoID, coinMarginedFuturesCancelRate)
 	} else {
-		algo, err = e.uQueryAlgoOrder(ctx, algoID, clientAlgoID, uFuturesCancelRate)
+		algo, err = e.usdtMarginedFuturesQueryAlgoOrder(ctx, algoID, clientAlgoID, usdtMarginedFuturesCancelRate)
 	}
 	if isUnknownOrder(err) {
 		return nil, nil
@@ -2447,7 +2452,7 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 			statusKey = algo.ClientOrderID
 		}
 		algoID, err := parseOrderID(algo.OrderID)
-		var cancelled *UCancelAlgoOrderResponse
+		var cancelled *USDTMarginedFuturesCancelAlgoOrderResponse
 		if err == nil {
 			cancelled, err = e.cancelFuturesAlgoOrder(ctx, a, algoID, algo.ClientOrderID)
 		}
@@ -2505,7 +2510,7 @@ type batchCancelOutcome struct {
 func (e *Exchange) cancelOrderBatch(ctx context.Context, a asset.Item, pair currency.Pair, orderIDs []uint64, clientOrderIDs []string) ([]batchCancelOutcome, error) {
 	switch a {
 	case asset.USDTMarginedFutures:
-		cancelled, err := e.UCancelBatchOrders(ctx, pair, orderIDs, clientOrderIDs)
+		cancelled, err := e.USDTMarginedFuturesCancelBatchOrders(ctx, pair, orderIDs, clientOrderIDs)
 		if err != nil {
 			return nil, err
 		}
@@ -2515,7 +2520,7 @@ func (e *Exchange) cancelOrderBatch(ctx context.Context, a asset.Item, pair curr
 		}
 		return outcomes, nil
 	case asset.CoinMarginedFutures:
-		cancelled, err := e.FuturesBatchCancelOrders(ctx, pair, orderIDs, clientOrderIDs)
+		cancelled, err := e.CoinMarginedFuturesBatchCancelOrders(ctx, pair, orderIDs, clientOrderIDs)
 		if err != nil {
 			return nil, err
 		}
@@ -2738,16 +2743,16 @@ func cancelAllPairError(p currency.Pair, err error) error {
 func (e *Exchange) cancelAllUSDTMarginedOrders(ctx context.Context, pair currency.Pair) error {
 	orderPairs, algoPairs := currency.Pairs{pair}, currency.Pairs{pair}
 	if pair.IsEmpty() {
-		var open []UOrderResponse
-		if err := e.sendOnShare(ctx, uFuturesCancelAllListingRate, uFuturesGetAllOpenOrdersRate, func(ctx context.Context, f request.EndpointLimit) (err error) {
-			open, err = e.uAllAccountOpenOrders(ctx, currency.EMPTYPAIR, f)
+		var open []USDTMarginedFuturesOrderResponse
+		if err := e.sendOnShare(ctx, usdtMarginedFuturesCancelAllListingRate, usdtMarginedFuturesGetAllOpenOrdersRate, func(ctx context.Context, f request.EndpointLimit) (err error) {
+			open, err = e.usdtMarginedFuturesAllAccountOpenOrders(ctx, currency.EMPTYPAIR, f)
 			return err
 		}); err != nil {
 			return err
 		}
-		var openAlgo []UAlgoOrderResponse
-		if err := e.sendOnShare(ctx, uFuturesCancelAllListingRate, uFuturesOpenAlgoOrdersAllRate, func(ctx context.Context, f request.EndpointLimit) (err error) {
-			openAlgo, err = e.uCurrentAllAlgoOpenOrders(ctx, "", currency.EMPTYPAIR, 0, f)
+		var openAlgo []USDTMarginedFuturesAlgoOrderResponse
+		if err := e.sendOnShare(ctx, usdtMarginedFuturesCancelAllListingRate, usdtMarginedFuturesOpenAlgoOrdersAllRate, func(ctx context.Context, f request.EndpointLimit) (err error) {
+			openAlgo, err = e.usdtMarginedFuturesCurrentAllAlgoOpenOrders(ctx, "", currency.EMPTYPAIR, 0, f)
 			return err
 		}); err != nil {
 			return err
@@ -2769,12 +2774,12 @@ func (e *Exchange) cancelAllUSDTMarginedOrders(ctx context.Context, pair currenc
 	}
 	var errs error
 	for _, p := range orderPairs {
-		if err := e.UCancelAllOpenOrders(ctx, p); err != nil {
+		if err := e.USDTMarginedFuturesCancelAllOpenOrders(ctx, p); err != nil {
 			errs = common.AppendError(errs, fmt.Errorf("error cancelling %s orders: %w", p, err))
 		}
 	}
 	for _, p := range algoPairs {
-		if err := e.UCancelAllAlgoOpenOrders(ctx, p); err != nil {
+		if err := e.USDTMarginedFuturesCancelAllAlgoOpenOrders(ctx, p); err != nil {
 			errs = common.AppendError(errs, fmt.Errorf("error cancelling %s algo orders: %w", p, err))
 		}
 	}
@@ -2786,15 +2791,15 @@ func (e *Exchange) cancelAllUSDTMarginedOrders(ctx context.Context, pair currenc
 func (e *Exchange) cancelAllCoinMarginedOrders(ctx context.Context, pair currency.Pair) error {
 	orderPairs, algoPairs := currency.Pairs{pair}, currency.Pairs{pair}
 	if pair.IsEmpty() {
-		var open []FuturesOrderDetailResponse
-		if err := e.sendOnShare(ctx, cFuturesCancelAllListingRate, cFuturesGetAllOpenOrdersRate, func(ctx context.Context, f request.EndpointLimit) (err error) {
+		var open []CoinMarginedFuturesOrderDetailResponse
+		if err := e.sendOnShare(ctx, coinMarginedFuturesCancelAllListingRate, coinMarginedFuturesGetAllOpenOrdersRate, func(ctx context.Context, f request.EndpointLimit) (err error) {
 			open, err = e.getFuturesAllOpenOrders(ctx, currency.EMPTYPAIR, currency.EMPTYCODE, f)
 			return err
 		}); err != nil {
 			return err
 		}
-		var openAlgo []UAlgoOrderResponse
-		if err := e.sendOnShare(ctx, cFuturesCancelAllListingRate, cFuturesOpenAlgoOrdersAllRate, func(ctx context.Context, f request.EndpointLimit) (err error) {
+		var openAlgo []USDTMarginedFuturesAlgoOrderResponse
+		if err := e.sendOnShare(ctx, coinMarginedFuturesCancelAllListingRate, coinMarginedFuturesOpenAlgoOrdersAllRate, func(ctx context.Context, f request.EndpointLimit) (err error) {
 			openAlgo, err = e.futuresCurrentAllAlgoOpenOrders(ctx, "", currency.EMPTYPAIR, 0, f)
 			return err
 		}); err != nil {
@@ -2817,12 +2822,12 @@ func (e *Exchange) cancelAllCoinMarginedOrders(ctx context.Context, pair currenc
 	}
 	var errs error
 	for _, p := range orderPairs {
-		if _, err := e.FuturesCancelAllOpenOrders(ctx, p); err != nil {
+		if _, err := e.CoinMarginedFuturesCancelAllOpenOrders(ctx, p); err != nil {
 			errs = common.AppendError(errs, fmt.Errorf("error cancelling %s orders: %w", p, err))
 		}
 	}
 	for _, p := range algoPairs {
-		if err := e.FuturesCancelAllAlgoOpenOrders(ctx, p); err != nil {
+		if err := e.CoinMarginedFuturesCancelAllAlgoOpenOrders(ctx, p); err != nil {
 			errs = common.AppendError(errs, fmt.Errorf("error cancelling %s algo orders: %w", p, err))
 		}
 	}
@@ -2904,20 +2909,20 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		}
 		d, err = e.marginOrderDetail(o, pair)
 	case asset.USDTMarginedFutures:
-		o, orderErr := e.UGetOrderData(ctx, pair, id, "")
+		o, orderErr := e.USDTMarginedFuturesGetOrderData(ctx, pair, id, "")
 		switch {
 		case orderErr == nil:
-			d, err = e.uOrderDetail(o, pair)
+			d, err = e.usdtMarginedFuturesOrderDetail(o, pair)
 		case errors.Is(orderErr, order.ErrOrderNotFound):
 			return e.algoOrderInfo(ctx, a, id, pair, orderErr)
 		default:
 			return nil, orderErr
 		}
 	case asset.CoinMarginedFutures:
-		o, orderErr := e.FuturesGetOrderData(ctx, pair, id, "")
+		o, orderErr := e.CoinMarginedFuturesGetOrderData(ctx, pair, id, "")
 		switch {
 		case orderErr == nil:
-			d, err = e.cOrderDetail(o, pair)
+			d, err = e.coinMarginedFuturesOrderDetail(o, pair)
 		case errors.Is(orderErr, order.ErrOrderNotFound):
 			return e.algoOrderInfo(ctx, a, id, pair, orderErr)
 		default:
@@ -2942,12 +2947,12 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 // algo ID, which Binance numbers apart from order IDs. orderErr is the error looking the ID up as an order gave, which
 // stands when pair has no such algo order
 func (e *Exchange) algoOrderInfo(ctx context.Context, a asset.Item, algoID uint64, pair currency.Pair, orderErr error) (*order.Detail, error) {
-	var algo *UAlgoOrderResponse
+	var algo *USDTMarginedFuturesAlgoOrderResponse
 	var err error
 	if a == asset.CoinMarginedFutures {
-		algo, err = e.FuturesQueryAlgoOrder(ctx, algoID, "")
+		algo, err = e.CoinMarginedFuturesQueryAlgoOrder(ctx, algoID, "")
 	} else {
-		algo, err = e.UQueryAlgoOrder(ctx, algoID, "")
+		algo, err = e.USDTMarginedFuturesQueryAlgoOrder(ctx, algoID, "")
 	}
 	if err != nil {
 		return nil, common.AppendError(fmt.Errorf("error fetching order: %w", orderErr), fmt.Errorf("error fetching algo order: %w", err))
@@ -2959,7 +2964,7 @@ func (e *Exchange) algoOrderInfo(ctx context.Context, a asset.Item, algoID uint6
 	if algo.Symbol != symbol {
 		return nil, orderErr
 	}
-	d, err := e.algoOrderDetail(a, &algo.UAlgoOrderBase, algo.ActualPrice.Float64(), pair)
+	d, err := e.algoOrderDetail(a, &algo.USDTMarginedFuturesAlgoOrderBase, algo.ActualPrice.Float64(), pair)
 	if err != nil {
 		return nil, fmt.Errorf("error converting %s order %d: %w", a, algoID, err)
 	}
@@ -2971,17 +2976,17 @@ func (e *Exchange) algoOrderInfo(ctx context.Context, a asset.Item, algoID uint6
 // spotOrderListInfo returns pair's spot order list orderListID, as SubmitOrder identifies an OCO order by its order list
 // ID. orderErr is the error looking the ID up as an order gave, which stands when pair has no such order list
 func (e *Exchange) spotOrderListInfo(ctx context.Context, orderListID uint64, pair currency.Pair, orderErr error) (*order.Detail, error) {
-	var list *OCOOrderResponse
+	var list *OneCancelsTheOtherOrderResponse
 	var err error
 	if e.canUseWebsocketAPIForOrders() {
-		list, err = e.WebsocketQueryOCOOrder(ctx, orderListID, "")
+		list, err = e.WebsocketQueryOneCancelsTheOtherOrder(ctx, orderListID, "")
 	} else {
-		list, err = e.GetOCOOrders(ctx, orderListID, "")
+		list, err = e.GetOneCancelsTheOtherOrders(ctx, orderListID, "")
 	}
 	if err != nil {
 		return nil, common.AppendError(orderErr, fmt.Errorf("error fetching order list: %w", err))
 	}
-	if list.ContingencyType != ocoContingencyType {
+	if list.ContingencyType != oneCancelsTheOtherContingencyType {
 		return nil, orderErr
 	}
 	return e.orderListInfo(asset.Spot, list.Symbol, list.OrderListID, list.ListClientOrderID, list.ListOrderStatus, list.TransactionTime.Time(), pair, orderErr)
@@ -2992,15 +2997,15 @@ func (e *Exchange) spotOrderListInfo(ctx context.Context, orderListID uint64, pa
 // such order list
 func (e *Exchange) marginOrderListInfo(ctx context.Context, orderListID uint64, pair currency.Pair, orderErr error) (*order.Detail, error) {
 	// Cross margin order list queries take no symbol, isolated ones require it
-	list, crossErr := e.GetMarginAccountOCOOrder(ctx, currency.EMPTYPAIR, false, orderListID, "")
+	list, crossErr := e.GetMarginAccountOneCancelsTheOtherOrder(ctx, currency.EMPTYPAIR, false, orderListID, "")
 	if crossErr != nil {
 		var isolatedErr error
-		if list, isolatedErr = e.GetMarginAccountOCOOrder(ctx, pair, true, orderListID, ""); isolatedErr != nil {
+		if list, isolatedErr = e.GetMarginAccountOneCancelsTheOtherOrder(ctx, pair, true, orderListID, ""); isolatedErr != nil {
 			listErr := common.AppendError(fmt.Errorf("error fetching cross margin order list: %w", crossErr), fmt.Errorf("error fetching isolated margin order list: %w", isolatedErr))
 			return nil, common.AppendError(orderErr, listErr)
 		}
 	}
-	if list.ContingencyType != ocoContingencyType {
+	if list.ContingencyType != oneCancelsTheOtherContingencyType {
 		return nil, orderErr
 	}
 	d, err := e.orderListInfo(asset.Margin, list.Symbol, list.OrderListID, list.ListClientOrderID, list.ListOrderStatus, list.TransactionTime.Time(), pair, orderErr)
@@ -3192,9 +3197,10 @@ func (e *Exchange) marginOrderDetail(o *MarginTradeOrderResponse, pair currency.
 	return d, err
 }
 
-// ocoContingencyType is the contingency type of OCO order lists. The order list endpoints and listStatus events also
-// carry other contingency types, such as OTO lists, which are not OCO orders; their orders are listed as orders
-const ocoContingencyType = "OCO"
+// oneCancelsTheOtherContingencyType is the contingency type of OCO order lists. The order list endpoints and listStatus
+// events also carry other contingency types, such as OTO lists, which are not OCO orders; their orders are listed as
+// orders
+const oneCancelsTheOtherContingencyType = "OCO"
 
 // orderListDetail converts an OCO order list, which GCT tracks as one order identified by the list's ID; the list
 // queries report neither the side nor the amounts of its orders. Values that cannot be converted are left unset and
@@ -3214,9 +3220,9 @@ func (e *Exchange) orderListDetail(a asset.Item, orderListID uint64, listClientO
 	}, err
 }
 
-// uOrderDetail converts a USDⓈ-M order, whose cost is in its margin asset. Values that cannot be converted are left
-// unset and returned as the error
-func (e *Exchange) uOrderDetail(o *UOrderResponse, pair currency.Pair) (order.Detail, error) {
+// usdtMarginedFuturesOrderDetail converts a USDⓈ-M order, whose cost is in its margin asset. Values that cannot be
+// converted are left unset and returned as the error
+func (e *Exchange) usdtMarginedFuturesOrderDetail(o *USDTMarginedFuturesOrderResponse, pair currency.Pair) (order.Detail, error) {
 	vars, err := compatibleOrderVars(asset.USDTMarginedFutures, o.Side, o.Status, o.Type, o.TimeInForce)
 	d := order.Detail{
 		TimeInForce:          vars.TimeInForce,
@@ -3249,7 +3255,7 @@ func (e *Exchange) uOrderDetail(o *UOrderResponse, pair currency.Pair) (order.De
 
 // algoOrderDetail converts a USDⓈ-M or COIN-M algo order, identified by its algo ID; actualPrice is the average price
 // of the order it triggered. Values that cannot be converted are left unset and returned as the error
-func (e *Exchange) algoOrderDetail(a asset.Item, o *UAlgoOrderBase, actualPrice float64, pair currency.Pair) (order.Detail, error) {
+func (e *Exchange) algoOrderDetail(a asset.Item, o *USDTMarginedFuturesAlgoOrderBase, actualPrice float64, pair currency.Pair) (order.Detail, error) {
 	vars, err := compatibleOrderVars(a, o.Side, "", o.OrderType, o.TimeInForce)
 	status, statusErr := algoOrderStatus(o.AlgoStatus)
 	d := order.Detail{
@@ -3273,9 +3279,9 @@ func (e *Exchange) algoOrderDetail(a asset.Item, o *UAlgoOrderBase, actualPrice 
 	return d, common.AppendError(err, statusErr)
 }
 
-// cOrderDetail converts a COIN-M order, whose amounts are contracts and whose cost is the base asset its fills total.
-// Values that cannot be converted are left unset and returned as the error
-func (e *Exchange) cOrderDetail(o *FuturesOrderDetailResponse, pair currency.Pair) (order.Detail, error) {
+// coinMarginedFuturesOrderDetail converts a COIN-M order, whose amounts are contracts and whose cost is the base asset
+// its fills total. Values that cannot be converted are left unset and returned as the error
+func (e *Exchange) coinMarginedFuturesOrderDetail(o *CoinMarginedFuturesOrderDetailResponse, pair currency.Pair) (order.Detail, error) {
 	vars, err := compatibleOrderVars(asset.CoinMarginedFutures, o.Side, o.Status, o.OrderType, o.TimeInForce)
 	d := order.Detail{
 		TimeInForce:          vars.TimeInForce,
@@ -3441,9 +3447,9 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 	case asset.Margin:
 		orders, err = e.marginActiveOrders(ctx, req)
 	case asset.USDTMarginedFutures:
-		orders, err = e.uActiveOrders(ctx, req)
+		orders, err = e.usdtMarginedFuturesActiveOrders(ctx, req)
 	case asset.CoinMarginedFutures:
-		orders, err = e.cActiveOrders(ctx, req)
+		orders, err = e.coinMarginedFuturesActiveOrders(ctx, req)
 	case asset.Options:
 		orders, err = e.optionsActiveOrders(ctx, req)
 	default:
@@ -3472,12 +3478,12 @@ func (e *Exchange) filterOrders(req *order.MultiOrderRequest, orders []order.Det
 func (e *Exchange) spotActiveOrders(ctx context.Context, req *order.MultiOrderRequest) ([]order.Detail, error) {
 	useWebsocket := e.canUseWebsocketAPIForOrders()
 	if req.Type == order.OCO {
-		var lists []OCOOrderResponse
+		var lists []OneCancelsTheOtherOrderResponse
 		var err error
 		if useWebsocket {
-			lists, err = e.WebsocketCurrentOpenOCOOrders(ctx)
+			lists, err = e.WebsocketCurrentOpenOneCancelsTheOtherOrders(ctx)
 		} else {
-			lists, err = e.GetOpenOCOList(ctx)
+			lists, err = e.GetOpenOneCancelsTheOtherList(ctx)
 		}
 		if err != nil {
 			return nil, err
@@ -3485,7 +3491,7 @@ func (e *Exchange) spotActiveOrders(ctx context.Context, req *order.MultiOrderRe
 		orders := make([]order.Detail, 0, len(lists))
 		for i := range lists {
 			l := &lists[i]
-			if l.ContingencyType != ocoContingencyType {
+			if l.ContingencyType != oneCancelsTheOtherContingencyType {
 				continue
 			}
 			orders = e.appendListedOrder(orders, asset.Spot, l.OrderListID, currency.EMPTYPAIR, l.Symbol, func(pair currency.Pair) (order.Detail, error) {
@@ -3533,7 +3539,7 @@ func marginOrderListPairs(pairs currency.Pairs, isIsolated bool) (currency.Pairs
 func (e *Exchange) appendMarginOrderLists(orders []order.Detail, requested currency.Pair, lists []MarginOrderListResponse) []order.Detail {
 	for i := range lists {
 		l := &lists[i]
-		if l.ContingencyType != ocoContingencyType {
+		if l.ContingencyType != oneCancelsTheOtherContingencyType {
 			continue
 		}
 		orders = e.appendListedOrder(orders, asset.Margin, l.OrderListID, requested, l.Symbol, func(pair currency.Pair) (order.Detail, error) {
@@ -3556,7 +3562,7 @@ func (e *Exchange) marginActiveOrders(ctx context.Context, req *order.MultiOrder
 		}
 		for _, p := range pairs {
 			var lists []MarginOrderListResponse
-			if lists, err = e.GetMarginAccountsOpenOCOOrder(ctx, p, isIsolated); err != nil {
+			if lists, err = e.GetMarginAccountsOpenOneCancelsTheOtherOrder(ctx, p, isIsolated); err != nil {
 				return nil, err
 			}
 			orders = e.appendMarginOrderLists(orders, p, lists)
@@ -3578,31 +3584,31 @@ func (e *Exchange) marginActiveOrders(ctx context.Context, req *order.MultiOrder
 	return orders, nil
 }
 
-// uActiveOrders returns open USDⓈ-M orders and algo orders
-func (e *Exchange) uActiveOrders(ctx context.Context, req *order.MultiOrderRequest) ([]order.Detail, error) {
+// usdtMarginedFuturesActiveOrders returns open USDⓈ-M orders and algo orders
+func (e *Exchange) usdtMarginedFuturesActiveOrders(ctx context.Context, req *order.MultiOrderRequest) ([]order.Detail, error) {
 	var orders []order.Detail
 	for _, p := range openOrdersPairs(asset.USDTMarginedFutures, req.Pairs) {
 		if !isConditionalOrderType(req.Type) {
-			open, err := e.UAllAccountOpenOrders(ctx, p)
+			open, err := e.USDTMarginedFuturesAllAccountOpenOrders(ctx, p)
 			if err != nil {
 				return nil, err
 			}
 			for i := range open {
 				o := &open[i]
 				orders = e.appendListedOrder(orders, asset.USDTMarginedFutures, o.OrderID, p, o.Symbol, func(pair currency.Pair) (order.Detail, error) {
-					return e.uOrderDetail(o, pair)
+					return e.usdtMarginedFuturesOrderDetail(o, pair)
 				})
 			}
 		}
 		if req.Type == order.AnyType || isConditionalOrderType(req.Type) {
-			openAlgo, err := e.UCurrentAllAlgoOpenOrders(ctx, "", p, 0)
+			openAlgo, err := e.USDTMarginedFuturesCurrentAllAlgoOpenOrders(ctx, "", p, 0)
 			if err != nil {
 				return nil, err
 			}
 			for i := range openAlgo {
 				o := &openAlgo[i]
 				orders = e.appendListedOrder(orders, asset.USDTMarginedFutures, o.AlgoID, p, o.Symbol, func(pair currency.Pair) (order.Detail, error) {
-					return e.algoOrderDetail(asset.USDTMarginedFutures, &o.UAlgoOrderBase, o.ActualPrice.Float64(), pair)
+					return e.algoOrderDetail(asset.USDTMarginedFutures, &o.USDTMarginedFuturesAlgoOrderBase, o.ActualPrice.Float64(), pair)
 				})
 			}
 		}
@@ -3610,30 +3616,30 @@ func (e *Exchange) uActiveOrders(ctx context.Context, req *order.MultiOrderReque
 	return orders, nil
 }
 
-// cActiveOrders returns open COIN-M orders and algo orders. Orders are listed whatever type is requested, as COIN-M
-// conditional orders placed before Binance's move to algo orders rest among them
-func (e *Exchange) cActiveOrders(ctx context.Context, req *order.MultiOrderRequest) ([]order.Detail, error) {
+// coinMarginedFuturesActiveOrders returns open COIN-M orders and algo orders. Orders are listed whatever type is
+// requested, as COIN-M conditional orders placed before Binance's move to algo orders rest among them
+func (e *Exchange) coinMarginedFuturesActiveOrders(ctx context.Context, req *order.MultiOrderRequest) ([]order.Detail, error) {
 	var orders []order.Detail
 	for _, p := range openOrdersPairs(asset.CoinMarginedFutures, req.Pairs) {
-		open, err := e.GetFuturesAllOpenOrders(ctx, p, currency.EMPTYCODE)
+		open, err := e.GetCoinMarginedFuturesAllOpenOrders(ctx, p, currency.EMPTYCODE)
 		if err != nil {
 			return nil, err
 		}
 		for i := range open {
 			o := &open[i]
 			orders = e.appendListedOrder(orders, asset.CoinMarginedFutures, o.OrderID, p, o.Symbol, func(pair currency.Pair) (order.Detail, error) {
-				return e.cOrderDetail(o, pair)
+				return e.coinMarginedFuturesOrderDetail(o, pair)
 			})
 		}
 		if req.Type == order.AnyType || isConditionalOrderType(req.Type) {
-			openAlgo, err := e.FuturesCurrentAllAlgoOpenOrders(ctx, "", p, 0)
+			openAlgo, err := e.CoinMarginedFuturesCurrentAllAlgoOpenOrders(ctx, "", p, 0)
 			if err != nil {
 				return nil, err
 			}
 			for i := range openAlgo {
 				o := &openAlgo[i]
 				orders = e.appendListedOrder(orders, asset.CoinMarginedFutures, o.AlgoID, p, o.Symbol, func(pair currency.Pair) (order.Detail, error) {
-					return e.algoOrderDetail(asset.CoinMarginedFutures, &o.UAlgoOrderBase, o.ActualPrice.Float64(), pair)
+					return e.algoOrderDetail(asset.CoinMarginedFutures, &o.USDTMarginedFuturesAlgoOrderBase, o.ActualPrice.Float64(), pair)
 				})
 			}
 		}
@@ -3683,9 +3689,9 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 	case asset.Margin:
 		orders, err = e.marginOrderHistory(ctx, req, fromID)
 	case asset.USDTMarginedFutures:
-		orders, err = e.uOrderHistory(ctx, req, fromID)
+		orders, err = e.usdtMarginedFuturesOrderHistory(ctx, req, fromID)
 	case asset.CoinMarginedFutures:
-		orders, err = e.cOrderHistory(ctx, req, fromID)
+		orders, err = e.coinMarginedFuturesOrderHistory(ctx, req, fromID)
 	case asset.Options:
 		orders, err = e.optionsOrderHistory(ctx, req, fromID)
 	default:
@@ -3797,16 +3803,16 @@ func pagedOrderHistory[T any](start, end time.Time, fromID uint64, maxSpan time.
 // spotOrderHistory returns spot orders, or every symbol's order lists for the OCO type, up to 1000 a request
 func (e *Exchange) spotOrderHistory(ctx context.Context, req *order.MultiOrderRequest, fromID uint64) ([]order.Detail, error) {
 	if req.Type == order.OCO {
-		lists, err := pagedOrderHistory(req.StartTime, req.EndTime, fromID, spotOrderHistorySpan, 1000, func(start, end time.Time) ([]OCOOrderResponse, error) {
-			return e.GetAllOCOOrders(ctx, &AllOrderListsRequest{FromID: fromID, StartTime: start, EndTime: end, Limit: 1000})
-		}, func(l *OCOOrderResponse) time.Time { return l.TransactionTime.Time() }, func(l *OCOOrderResponse) uint64 { return l.OrderListID })
+		lists, err := pagedOrderHistory(req.StartTime, req.EndTime, fromID, spotOrderHistorySpan, 1000, func(start, end time.Time) ([]OneCancelsTheOtherOrderResponse, error) {
+			return e.GetAllOneCancelsTheOtherOrders(ctx, &AllOrderListsRequest{FromID: fromID, StartTime: start, EndTime: end, Limit: 1000})
+		}, func(l *OneCancelsTheOtherOrderResponse) time.Time { return l.TransactionTime.Time() }, func(l *OneCancelsTheOtherOrderResponse) uint64 { return l.OrderListID })
 		if err != nil {
 			return nil, err
 		}
 		orders := make([]order.Detail, 0, len(lists))
 		for i := range lists {
 			l := &lists[i]
-			if l.ContingencyType != ocoContingencyType {
+			if l.ContingencyType != oneCancelsTheOtherContingencyType {
 				continue
 			}
 			orders = e.appendListedOrder(orders, asset.Spot, l.OrderListID, currency.EMPTYPAIR, l.Symbol, func(pair currency.Pair) (order.Detail, error) {
@@ -3845,7 +3851,7 @@ func (e *Exchange) marginOrderHistory(ctx context.Context, req *order.MultiOrder
 		for _, p := range pairs {
 			var lists []MarginOrderListResponse
 			if lists, err = pagedOrderHistory(req.StartTime, req.EndTime, fromID, marginOrderHistorySpan, 1000, func(start, end time.Time) ([]MarginOrderListResponse, error) {
-				return e.GetMarginAccountAllOCO(ctx, &MarginAccountAllOCORequest{IsIsolated: isIsolated, Symbol: p, FromID: fromID, StartTime: start, EndTime: end, Limit: 1000})
+				return e.GetMarginAccountAllOneCancelsTheOtherOrders(ctx, &MarginAccountAllOneCancelsTheOtherOrdersRequest{IsIsolated: isIsolated, Symbol: p, FromID: fromID, StartTime: start, EndTime: end, Limit: 1000})
 			}, func(l *MarginOrderListResponse) time.Time { return l.TransactionTime.Time() }, func(l *MarginOrderListResponse) uint64 { return l.OrderListID }); err != nil {
 				return nil, err
 			}
@@ -3870,36 +3876,36 @@ func (e *Exchange) marginOrderHistory(ctx context.Context, req *order.MultiOrder
 	return orders, nil
 }
 
-// uOrderHistory returns USDⓈ-M orders and algo orders up to 1000 a request each; FromOrderID applies to orders alone,
-// since algo orders are numbered apart
-func (e *Exchange) uOrderHistory(ctx context.Context, req *order.MultiOrderRequest, fromID uint64) ([]order.Detail, error) {
+// usdtMarginedFuturesOrderHistory returns USDⓈ-M orders and algo orders up to 1000 a request each; FromOrderID applies
+// to orders alone, since algo orders are numbered apart
+func (e *Exchange) usdtMarginedFuturesOrderHistory(ctx context.Context, req *order.MultiOrderRequest, fromID uint64) ([]order.Detail, error) {
 	var orders []order.Detail
 	for _, p := range req.Pairs {
 		if !isConditionalOrderType(req.Type) {
-			history, err := pagedOrderHistory(req.StartTime, req.EndTime, fromID, futuresOrderHistorySpan, 1000, func(start, end time.Time) ([]UFuturesOrderResponse, error) {
-				return e.UAllAccountOrders(ctx, &UAllOrdersRequest{Symbol: p, OrderID: fromID, StartTime: start, EndTime: end, Limit: 1000})
-			}, func(o *UFuturesOrderResponse) time.Time { return o.Time.Time() }, func(o *UFuturesOrderResponse) uint64 { return o.OrderID })
+			history, err := pagedOrderHistory(req.StartTime, req.EndTime, fromID, futuresOrderHistorySpan, 1000, func(start, end time.Time) ([]USDTMarginedFuturesAllOrdersResponse, error) {
+				return e.USDTMarginedFuturesAllAccountOrders(ctx, &USDTMarginedFuturesAllOrdersRequest{Symbol: p, OrderID: fromID, StartTime: start, EndTime: end, Limit: 1000})
+			}, func(o *USDTMarginedFuturesAllOrdersResponse) time.Time { return o.Time.Time() }, func(o *USDTMarginedFuturesAllOrdersResponse) uint64 { return o.OrderID })
 			if err != nil {
 				return nil, err
 			}
 			for i := range history {
 				o := &history[i]
 				orders = e.appendListedOrder(orders, asset.USDTMarginedFutures, o.OrderID, p, o.Symbol, func(pair currency.Pair) (order.Detail, error) {
-					return e.uOrderDetail(&o.UOrderResponse, pair)
+					return e.usdtMarginedFuturesOrderDetail(&o.USDTMarginedFuturesOrderResponse, pair)
 				})
 			}
 		}
 		if req.Type == order.AnyType || isConditionalOrderType(req.Type) {
-			algoHistory, err := pagedOrderHistory(req.StartTime, req.EndTime, 0, futuresOrderHistorySpan, 1000, func(start, end time.Time) ([]UAlgoOrderResponse, error) {
-				return e.UQueryAllAlgoOrders(ctx, &UAllAlgoOrdersRequest{Symbol: p, StartTime: start, EndTime: end, Limit: 1000})
-			}, func(o *UAlgoOrderResponse) time.Time { return o.CreateTime.Time() }, func(o *UAlgoOrderResponse) uint64 { return o.AlgoID })
+			algoHistory, err := pagedOrderHistory(req.StartTime, req.EndTime, 0, futuresOrderHistorySpan, 1000, func(start, end time.Time) ([]USDTMarginedFuturesAlgoOrderResponse, error) {
+				return e.USDTMarginedFuturesQueryAllAlgoOrders(ctx, &USDTMarginedFuturesAllAlgoOrdersRequest{Symbol: p, StartTime: start, EndTime: end, Limit: 1000})
+			}, func(o *USDTMarginedFuturesAlgoOrderResponse) time.Time { return o.CreateTime.Time() }, func(o *USDTMarginedFuturesAlgoOrderResponse) uint64 { return o.AlgoID })
 			if err != nil {
 				return nil, err
 			}
 			for i := range algoHistory {
 				o := &algoHistory[i]
 				orders = e.appendListedOrder(orders, asset.USDTMarginedFutures, o.AlgoID, p, o.Symbol, func(pair currency.Pair) (order.Detail, error) {
-					return e.algoOrderDetail(asset.USDTMarginedFutures, &o.UAlgoOrderBase, o.ActualPrice.Float64(), pair)
+					return e.algoOrderDetail(asset.USDTMarginedFutures, &o.USDTMarginedFuturesAlgoOrderBase, o.ActualPrice.Float64(), pair)
 				})
 			}
 		}
@@ -3907,36 +3913,36 @@ func (e *Exchange) uOrderHistory(ctx context.Context, req *order.MultiOrderReque
 	return orders, nil
 }
 
-// cOrderHistory returns COIN-M orders and algo orders up to 100 a request each; FromOrderID applies to orders alone,
-// since algo orders are numbered apart. Orders are listed whatever type is requested, as COIN-M conditional orders
-// placed before Binance's move to algo orders are among them. Binance documents no page size for COIN-M algo orders, so
-// they are paged as COIN-M orders are, since a page shorter than requested ends a span
-func (e *Exchange) cOrderHistory(ctx context.Context, req *order.MultiOrderRequest, fromID uint64) ([]order.Detail, error) {
+// coinMarginedFuturesOrderHistory returns COIN-M orders and algo orders up to 100 a request each; FromOrderID applies
+// to orders alone, since algo orders are numbered apart. Orders are listed whatever type is requested, as COIN-M
+// conditional orders placed before Binance's move to algo orders are among them. Binance documents no page size for
+// COIN-M algo orders, so they are paged as COIN-M orders are, since a page shorter than requested ends a span
+func (e *Exchange) coinMarginedFuturesOrderHistory(ctx context.Context, req *order.MultiOrderRequest, fromID uint64) ([]order.Detail, error) {
 	var orders []order.Detail
 	for _, p := range req.Pairs {
-		history, err := pagedOrderHistory(req.StartTime, req.EndTime, fromID, futuresOrderHistorySpan, 100, func(start, end time.Time) ([]CFuturesAllOrdersResponse, error) {
-			return e.GetAllFuturesOrders(ctx, &CFuturesAllOrdersRequest{Symbol: p, OrderID: fromID, StartTime: start, EndTime: end, Limit: 100})
-		}, func(o *CFuturesAllOrdersResponse) time.Time { return o.Time.Time() }, func(o *CFuturesAllOrdersResponse) uint64 { return o.OrderID })
+		history, err := pagedOrderHistory(req.StartTime, req.EndTime, fromID, futuresOrderHistorySpan, 100, func(start, end time.Time) ([]CoinMarginedFuturesAllOrdersResponse, error) {
+			return e.GetAllCoinMarginedFuturesOrders(ctx, &CoinMarginedFuturesAllOrdersRequest{Symbol: p, OrderID: fromID, StartTime: start, EndTime: end, Limit: 100})
+		}, func(o *CoinMarginedFuturesAllOrdersResponse) time.Time { return o.Time.Time() }, func(o *CoinMarginedFuturesAllOrdersResponse) uint64 { return o.OrderID })
 		if err != nil {
 			return nil, err
 		}
 		for i := range history {
 			o := &history[i]
 			orders = e.appendListedOrder(orders, asset.CoinMarginedFutures, o.OrderID, p, o.Symbol, func(pair currency.Pair) (order.Detail, error) {
-				return e.cOrderDetail(&o.FuturesOrderDetailResponse, pair)
+				return e.coinMarginedFuturesOrderDetail(&o.CoinMarginedFuturesOrderDetailResponse, pair)
 			})
 		}
 		if req.Type == order.AnyType || isConditionalOrderType(req.Type) {
-			algoHistory, err := pagedOrderHistory(req.StartTime, req.EndTime, 0, futuresOrderHistorySpan, 100, func(start, end time.Time) ([]UAlgoOrderResponse, error) {
-				return e.FuturesQueryAllAlgoOrders(ctx, &UAllAlgoOrdersRequest{Symbol: p, StartTime: start, EndTime: end, Limit: 100})
-			}, func(o *UAlgoOrderResponse) time.Time { return o.CreateTime.Time() }, func(o *UAlgoOrderResponse) uint64 { return o.AlgoID })
+			algoHistory, err := pagedOrderHistory(req.StartTime, req.EndTime, 0, futuresOrderHistorySpan, 100, func(start, end time.Time) ([]USDTMarginedFuturesAlgoOrderResponse, error) {
+				return e.CoinMarginedFuturesQueryAllAlgoOrders(ctx, &USDTMarginedFuturesAllAlgoOrdersRequest{Symbol: p, StartTime: start, EndTime: end, Limit: 100})
+			}, func(o *USDTMarginedFuturesAlgoOrderResponse) time.Time { return o.CreateTime.Time() }, func(o *USDTMarginedFuturesAlgoOrderResponse) uint64 { return o.AlgoID })
 			if err != nil {
 				return nil, err
 			}
 			for i := range algoHistory {
 				o := &algoHistory[i]
 				orders = e.appendListedOrder(orders, asset.CoinMarginedFutures, o.AlgoID, p, o.Symbol, func(pair currency.Pair) (order.Detail, error) {
-					return e.algoOrderDetail(asset.CoinMarginedFutures, &o.UAlgoOrderBase, o.ActualPrice.Float64(), pair)
+					return e.algoOrderDetail(asset.CoinMarginedFutures, &o.USDTMarginedFuturesAlgoOrderBase, o.ActualPrice.Float64(), pair)
 				})
 			}
 		}
@@ -4048,7 +4054,7 @@ func (e *Exchange) klineCandles(ctx context.Context, a asset.Item, pair currency
 			}
 		}
 	case asset.USDTMarginedFutures:
-		resp, err := e.UKlineData(ctx, &UKlineRequest{
+		resp, err := e.USDTMarginedFuturesKlineData(ctx, &USDTMarginedFuturesKlineRequest{
 			Symbol:    pair,
 			Interval:  e.FormatExchangeKlineInterval(interval),
 			StartTime: start,
@@ -4070,7 +4076,7 @@ func (e *Exchange) klineCandles(ctx context.Context, a asset.Item, pair currency
 			}
 		}
 	case asset.CoinMarginedFutures:
-		resp, err := e.GetFuturesKlineData(ctx, &CFuturesKlineRequest{
+		resp, err := e.GetCoinMarginedFuturesKlineData(ctx, &CoinMarginedFuturesKlineRequest{
 			Symbol:    pair,
 			Interval:  interval,
 			StartTime: start,
@@ -4089,7 +4095,7 @@ func (e *Exchange) klineCandles(ctx context.Context, a asset.Item, pair currency
 				High:   resp[i].High.Float64(),
 				Low:    resp[i].Low.Float64(),
 				Close:  resp[i].Close.Float64(),
-				Volume: resp[i].Volume.Float64(),
+				Volume: resp[i].VolumeInContracts.Float64(),
 			}
 		}
 	case asset.Options:
@@ -4268,7 +4274,7 @@ func (e *Exchange) FetchExchangeLimits(ctx context.Context, a asset.Item) ([]lim
 
 // FetchUSDTMarginExchangeLimits returns the order execution limits of every USDⓈ-M contract
 func (e *Exchange) FetchUSDTMarginExchangeLimits(ctx context.Context) ([]limits.MinMaxLevel, error) {
-	info, err := e.UExchangeInfo(ctx)
+	info, err := e.USDTMarginedFuturesExchangeInfo(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -4276,7 +4282,7 @@ func (e *Exchange) FetchUSDTMarginExchangeLimits(ctx context.Context) ([]limits.
 	for i := range info.Symbols {
 		s := &info.Symbols[i]
 		mml := limits.MinMaxLevel{
-			Key: key.NewExchangeAssetPair(e.Name, asset.USDTMarginedFutures, uFuturesSymbolPair(s.Symbol, s.BaseAsset, s.QuoteAsset)),
+			Key: key.NewExchangeAssetPair(e.Name, asset.USDTMarginedFutures, usdtMarginedFuturesSymbolPair(s.Symbol, s.BaseAsset, s.QuoteAsset)),
 		}
 		for j := range s.Filters {
 			f := &s.Filters[j]
@@ -4313,7 +4319,7 @@ func (e *Exchange) FetchUSDTMarginExchangeLimits(ctx context.Context) ([]limits.
 // FetchCoinMarginExchangeLimits returns the order execution limits of every COIN-M contract, whose quantities count
 // contracts
 func (e *Exchange) FetchCoinMarginExchangeLimits(ctx context.Context) ([]limits.MinMaxLevel, error) {
-	info, err := e.FuturesExchangeInfo(ctx)
+	info, err := e.CoinMarginedFuturesExchangeInfo(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -4476,9 +4482,9 @@ func (e *Exchange) GetServerTime(ctx context.Context, a asset.Item) (time.Time, 
 		}
 		return resp.ServerTime.Time(), nil
 	case asset.USDTMarginedFutures:
-		return e.UServerTime(ctx)
+		return e.USDTMarginedFuturesServerTime(ctx)
 	case asset.CoinMarginedFutures:
-		return e.CFuturesServerTime(ctx)
+		return e.CoinMarginedFuturesServerTime(ctx)
 	case asset.Options:
 		resp, err := e.CheckEOptionsServerTime(ctx)
 		if err != nil {
@@ -4512,11 +4518,11 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 		if err := e.requirePerpetual(r.Asset, r.Pair); err != nil {
 			return nil, err
 		}
-		intervals, err := e.uFundingIntervals(ctx)
+		intervals, err := e.usdtMarginedFuturesFundingIntervals(ctx)
 		if err != nil {
 			return nil, err
 		}
-		marks, err := e.UGetMarkPrice(ctx, r.Pair)
+		marks, err := e.USDTMarginedFuturesGetMarkPrice(ctx, r.Pair)
 		if err != nil {
 			return nil, err
 		}
@@ -4534,11 +4540,11 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 		if err := e.requirePerpetual(r.Asset, r.Pair); err != nil {
 			return nil, err
 		}
-		intervals, err := e.cFundingIntervals(ctx)
+		intervals, err := e.coinMarginedFuturesFundingIntervals(ctx)
 		if err != nil {
 			return nil, err
 		}
-		marks, err := e.GetIndexAndMarkPrice(ctx, r.Pair, currency.EMPTYCODE)
+		marks, err := e.GetCoinMarginedFuturesIndexAndMarkPrice(ctx, r.Pair, currency.EMPTYCODE)
 		if err != nil {
 			return nil, err
 		}
@@ -4611,9 +4617,9 @@ func (e *Exchange) latestFundingRate(r *fundingrate.LatestRateRequest, symbol st
 	}, true, nil
 }
 
-// uFundingIntervals returns the funding interval of each USDⓈ-M contract the funding rate info lists
-func (e *Exchange) uFundingIntervals(ctx context.Context) (map[string]time.Duration, error) {
-	info, err := e.UGetFundingRateInfo(ctx)
+// usdtMarginedFuturesFundingIntervals returns the funding interval of each USDⓈ-M contract the funding rate info lists
+func (e *Exchange) usdtMarginedFuturesFundingIntervals(ctx context.Context) (map[string]time.Duration, error) {
+	info, err := e.USDTMarginedFuturesGetFundingRateInfo(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -4624,9 +4630,9 @@ func (e *Exchange) uFundingIntervals(ctx context.Context) (map[string]time.Durat
 	return intervals, nil
 }
 
-// cFundingIntervals returns the funding interval of each COIN-M contract the funding rate info lists
-func (e *Exchange) cFundingIntervals(ctx context.Context) (map[string]time.Duration, error) {
-	info, err := e.GetFundingRateInfo(ctx)
+// coinMarginedFuturesFundingIntervals returns the funding interval of each COIN-M contract the funding rate info lists
+func (e *Exchange) coinMarginedFuturesFundingIntervals(ctx context.Context) (map[string]time.Duration, error) {
+	info, err := e.GetCoinMarginedFuturesFundingRateInfo(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -4672,9 +4678,9 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 		EndDate:   r.EndDate,
 	}
 	if r.Asset == asset.USDTMarginedFutures {
-		err = e.uHistoricalFundingRates(ctx, r, symbol, resp)
+		err = e.usdtMarginedFuturesHistoricalFundingRates(ctx, r, symbol, resp)
 	} else {
-		err = e.cHistoricalFundingRates(ctx, r, symbol, resp)
+		err = e.coinMarginedFuturesHistoricalFundingRates(ctx, r, symbol, resp)
 	}
 	if err != nil {
 		return nil, err
@@ -4710,15 +4716,16 @@ func addFundingPayments(resp *fundingrate.HistoricalRates, payments []fundingPay
 	}
 }
 
-// uHistoricalFundingRates adds a USDⓈ-M contract's funding rates, latest rate and, when requested, funding fees to resp
-func (e *Exchange) uHistoricalFundingRates(ctx context.Context, r *fundingrate.HistoricalRatesRequest, symbol string, resp *fundingrate.HistoricalRates) error {
-	intervals, err := e.uFundingIntervals(ctx)
+// usdtMarginedFuturesHistoricalFundingRates adds a USDⓈ-M contract's funding rates, latest rate and, when requested,
+// funding fees to resp
+func (e *Exchange) usdtMarginedFuturesHistoricalFundingRates(ctx context.Context, r *fundingrate.HistoricalRatesRequest, symbol string, resp *fundingrate.HistoricalRates) error {
+	intervals, err := e.usdtMarginedFuturesFundingIntervals(ctx)
 	if err != nil {
 		return err
 	}
 	interval := cmp.Or(intervals[symbol], defaultFundingInterval)
 	for start := r.StartDate; ; {
-		page, err := e.UGetFundingHistory(ctx, r.Pair, start, r.EndDate, fundingRatePageLimit)
+		page, err := e.USDTMarginedFuturesGetFundingHistory(ctx, r.Pair, start, r.EndDate, fundingRatePageLimit)
 		if err != nil {
 			return err
 		}
@@ -4734,7 +4741,7 @@ func (e *Exchange) uHistoricalFundingRates(ctx context.Context, r *fundingrate.H
 			break
 		}
 	}
-	marks, err := e.UGetMarkPrice(ctx, r.Pair)
+	marks, err := e.USDTMarginedFuturesGetMarkPrice(ctx, r.Pair)
 	if err != nil {
 		return err
 	}
@@ -4748,7 +4755,7 @@ func (e *Exchange) uHistoricalFundingRates(ctx context.Context, r *fundingrate.H
 	}
 	var payments []fundingPayment
 	for start, end := range fundingFeeWindows(r.StartDate, r.EndDate) {
-		income, err := e.UAccountIncomeHistory(ctx, &UIncomeHistoryRequest{
+		income, err := e.USDTMarginedFuturesAccountIncomeHistory(ctx, &USDTMarginedFuturesIncomeHistoryRequest{
 			Symbol:     r.Pair,
 			IncomeType: "FUNDING_FEE",
 			StartTime:  start,
@@ -4766,15 +4773,16 @@ func (e *Exchange) uHistoricalFundingRates(ctx context.Context, r *fundingrate.H
 	return nil
 }
 
-// cHistoricalFundingRates adds a COIN-M contract's funding rates, latest rate and, when requested, funding fees to resp
-func (e *Exchange) cHistoricalFundingRates(ctx context.Context, r *fundingrate.HistoricalRatesRequest, symbol string, resp *fundingrate.HistoricalRates) error {
-	intervals, err := e.cFundingIntervals(ctx)
+// coinMarginedFuturesHistoricalFundingRates adds a COIN-M contract's funding rates, latest rate and, when requested,
+// funding fees to resp
+func (e *Exchange) coinMarginedFuturesHistoricalFundingRates(ctx context.Context, r *fundingrate.HistoricalRatesRequest, symbol string, resp *fundingrate.HistoricalRates) error {
+	intervals, err := e.coinMarginedFuturesFundingIntervals(ctx)
 	if err != nil {
 		return err
 	}
 	interval := cmp.Or(intervals[symbol], defaultFundingInterval)
 	for start := r.StartDate; ; {
-		page, err := e.FuturesGetFundingHistory(ctx, &CFuturesFundingRateHistoryRequest{
+		page, err := e.CoinMarginedFuturesGetFundingHistory(ctx, &CoinMarginedFuturesFundingRateHistoryRequest{
 			Symbol:    r.Pair,
 			StartTime: start,
 			EndTime:   r.EndDate,
@@ -4795,7 +4803,7 @@ func (e *Exchange) cHistoricalFundingRates(ctx context.Context, r *fundingrate.H
 			break
 		}
 	}
-	marks, err := e.GetIndexAndMarkPrice(ctx, r.Pair, currency.EMPTYCODE)
+	marks, err := e.GetCoinMarginedFuturesIndexAndMarkPrice(ctx, r.Pair, currency.EMPTYCODE)
 	if err != nil {
 		return err
 	}
@@ -4809,7 +4817,7 @@ func (e *Exchange) cHistoricalFundingRates(ctx context.Context, r *fundingrate.H
 	}
 	var payments []fundingPayment
 	for start, end := range fundingFeeWindows(r.StartDate, r.EndDate) {
-		income, err := e.FuturesIncomeHistory(ctx, &CFuturesIncomeHistoryRequest{
+		income, err := e.CoinMarginedFuturesIncomeHistory(ctx, &CoinMarginedFuturesIncomeHistoryRequest{
 			Symbol:     r.Pair,
 			IncomeType: "FUNDING_FEE",
 			StartTime:  start,
@@ -4886,7 +4894,7 @@ func (e *Exchange) SetCollateralMode(ctx context.Context, a asset.Item, collater
 	if collateralMode != collateral.MultiMode && collateralMode != collateral.SingleMode {
 		return fmt.Errorf("%w %v", order.ErrCollateralInvalid, collateralMode)
 	}
-	return e.SetAssetsMode(ctx, collateralMode == collateral.MultiMode)
+	return e.USDTMarginedFuturesSetAssetsMode(ctx, collateralMode == collateral.MultiMode)
 }
 
 // GetCollateralMode returns the USDⓈ-M account's collateral mode: Multi-Assets Mode or Single-Asset Mode
@@ -4894,7 +4902,7 @@ func (e *Exchange) GetCollateralMode(ctx context.Context, a asset.Item) (collate
 	if a != asset.USDTMarginedFutures {
 		return collateral.UnknownMode, fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
-	isMulti, err := e.GetAssetsMode(ctx)
+	isMulti, err := e.GetUSDTMarginedFuturesAssetsMode(ctx)
 	if err != nil {
 		return collateral.UnknownMode, err
 	}
@@ -4914,10 +4922,10 @@ func (e *Exchange) SetMarginType(ctx context.Context, item asset.Item, pair curr
 		return err
 	}
 	if item == asset.CoinMarginedFutures {
-		_, err = e.FuturesChangeMarginType(ctx, pair, mt)
+		_, err = e.CoinMarginedFuturesChangeMarginType(ctx, pair, mt)
 		return err
 	}
-	return e.UChangeInitialMarginType(ctx, pair, mt)
+	return e.USDTMarginedFuturesChangeInitialMarginType(ctx, pair, mt)
 }
 
 // ChangePositionMargin adds margin to or removes margin from an isolated USDⓈ-M or COIN-M position: the difference
@@ -4960,13 +4968,13 @@ func (e *Exchange) ChangePositionMargin(ctx context.Context, req *margin.Positio
 		if change.IsNegative() {
 			changeType = 2
 		}
-		_, err = e.ModifyIsolatedPositionMargin(ctx, &CFuturesModifyIsolatedPositionMarginRequest{Symbol: req.Pair, PositionSide: positionSide, Amount: amount, Type: changeType})
+		_, err = e.CoinMarginedFuturesModifyIsolatedPositionMargin(ctx, &CoinMarginedFuturesModifyIsolatedPositionMarginRequest{Symbol: req.Pair, PositionSide: positionSide, Amount: amount, Type: changeType})
 	} else {
 		changeType := "add"
 		if change.IsNegative() {
 			changeType = "reduce"
 		}
-		_, err = e.UModifyIsolatedPositionMarginRequest(ctx, req.Pair, positionSide, changeType, amount)
+		_, err = e.USDTMarginedFuturesModifyIsolatedPositionMarginRequest(ctx, req.Pair, positionSide, changeType, amount)
 	}
 	if err != nil {
 		return nil, err
@@ -5043,23 +5051,23 @@ func (e *Exchange) GetFuturesPositionSummary(ctx context.Context, req *futures.P
 	}
 	switch req.Asset {
 	case asset.USDTMarginedFutures:
-		return e.uPositionSummary(ctx, req)
+		return e.usdtMarginedFuturesPositionSummary(ctx, req)
 	case asset.CoinMarginedFutures:
-		return e.cPositionSummary(ctx, req)
+		return e.coinMarginedFuturesPositionSummary(ctx, req)
 	default:
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, req.Asset)
 	}
 }
 
-// uPositionSummary returns a USDⓈ-M position's summary from the position information, with the position's leverage,
-// margin type and collateral from the account information. Multi-Assets Mode collateral is the account's, valued in
-// USD
-func (e *Exchange) uPositionSummary(ctx context.Context, req *futures.PositionSummaryRequest) (*futures.PositionSummary, error) {
+// usdtMarginedFuturesPositionSummary returns a USDⓈ-M position's summary from the position information, with the
+// position's leverage, margin type and collateral from the account information. Multi-Assets Mode collateral is the
+// account's, valued in USD
+func (e *Exchange) usdtMarginedFuturesPositionSummary(ctx context.Context, req *futures.PositionSummaryRequest) (*futures.PositionSummary, error) {
 	symbol, err := e.FormatSymbol(req.Pair, asset.USDTMarginedFutures)
 	if err != nil {
 		return nil, err
 	}
-	account, err := e.UAccountInformationV2(ctx)
+	account, err := e.USDTMarginedFuturesAccountInformationV2(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -5073,7 +5081,7 @@ func (e *Exchange) uPositionSummary(ctx context.Context, req *futures.PositionSu
 	if err != nil {
 		return nil, err
 	}
-	var accountPosition *UPosition
+	var accountPosition *USDTMarginedFuturesPosition
 	for i := range account.Positions {
 		if account.Positions[i].Symbol == symbol && account.Positions[i].PositionSide == positionSide {
 			accountPosition = &account.Positions[i]
@@ -5083,11 +5091,11 @@ func (e *Exchange) uPositionSummary(ctx context.Context, req *futures.PositionSu
 	if accountPosition == nil {
 		return nil, fmt.Errorf("%w: %s %s %s account position", futures.ErrNoPositionsFound, req.Asset, req.Pair, positionSide)
 	}
-	positions, err := e.UPositionsInfoV3(ctx, req.Pair)
+	positions, err := e.USDTMarginedFuturesPositionsInfoV3(ctx, req.Pair)
 	if err != nil {
 		return nil, err
 	}
-	var position *UPositionInformationV3Response
+	var position *USDTMarginedFuturesPositionInformationV3Response
 	for i := range positions {
 		if positions[i].Symbol == symbol && positions[i].PositionSide == positionSide {
 			position = &positions[i]
@@ -5124,7 +5132,7 @@ func (e *Exchange) uPositionSummary(ctx context.Context, req *futures.PositionSu
 		summary.TotalCollateral = account.TotalWalletBalance.Decimal()
 		summary.FreeCollateral = account.AvailableBalance.Decimal()
 	} else {
-		var collateralAsset *UAsset
+		var collateralAsset *USDTMarginedFuturesAsset
 		for i := range account.Assets {
 			if account.Assets[i].Asset.Equal(position.MarginAsset) {
 				collateralAsset = &account.Assets[i]
@@ -5141,17 +5149,17 @@ func (e *Exchange) uPositionSummary(ctx context.Context, req *futures.PositionSu
 	return summary, nil
 }
 
-// cPositionSummary returns a COIN-M position's summary from the position information, with the position's margin
-// requirements, margin type and collateral from the account information
-func (e *Exchange) cPositionSummary(ctx context.Context, req *futures.PositionSummaryRequest) (*futures.PositionSummary, error) {
+// coinMarginedFuturesPositionSummary returns a COIN-M position's summary from the position information, with the
+// position's margin requirements, margin type and collateral from the account information
+func (e *Exchange) coinMarginedFuturesPositionSummary(ctx context.Context, req *futures.PositionSummaryRequest) (*futures.PositionSummary, error) {
 	symbol, err := e.FormatSymbol(req.Pair, asset.CoinMarginedFutures)
 	if err != nil {
 		return nil, err
 	}
 	marginAsset := req.UnderlyingPair.Base
 	if marginAsset.IsEmpty() {
-		var info *CFuturesExchangeInfoResponse
-		if info, err = e.FuturesExchangeInfo(ctx); err != nil {
+		var info *CoinMarginedFuturesExchangeInfoResponse
+		if info, err = e.CoinMarginedFuturesExchangeInfo(ctx); err != nil {
 			return nil, err
 		}
 		for i := range info.Symbols {
@@ -5164,7 +5172,7 @@ func (e *Exchange) cPositionSummary(ctx context.Context, req *futures.PositionSu
 			return nil, fmt.Errorf("%w: %s margin asset", currency.ErrCurrencyNotFound, symbol)
 		}
 	}
-	account, err := e.GetFuturesAccountInfo(ctx)
+	account, err := e.GetCoinMarginedFuturesAccountInfo(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -5178,7 +5186,7 @@ func (e *Exchange) cPositionSummary(ctx context.Context, req *futures.PositionSu
 	if err != nil {
 		return nil, err
 	}
-	var accountPosition *FuturesAccountInformationPosition
+	var accountPosition *CoinMarginedFuturesAccountInformationPosition
 	for i := range account.Positions {
 		if account.Positions[i].Symbol == symbol && account.Positions[i].PositionSide == positionSide {
 			accountPosition = &account.Positions[i]
@@ -5188,7 +5196,7 @@ func (e *Exchange) cPositionSummary(ctx context.Context, req *futures.PositionSu
 	if accountPosition == nil {
 		return nil, fmt.Errorf("%w: %s %s %s account position", futures.ErrNoPositionsFound, req.Asset, req.Pair, positionSide)
 	}
-	var accountAsset *FuturesAccountAsset
+	var accountAsset *CoinMarginedFuturesAccountAsset
 	for i := range account.Assets {
 		if account.Assets[i].Asset.Equal(marginAsset) {
 			accountAsset = &account.Assets[i]
@@ -5199,11 +5207,11 @@ func (e *Exchange) cPositionSummary(ctx context.Context, req *futures.PositionSu
 		return nil, fmt.Errorf("%w: %s collateral", currency.ErrCurrencyNotFound, marginAsset)
 	}
 	// The contract pair, such as BTCUSD, is what the position information takes, which is the GCT pair's base
-	positions, err := e.FuturesPositionsInfo(ctx, currency.EMPTYCODE, req.Pair.Base)
+	positions, err := e.CoinMarginedFuturesPositionsInfo(ctx, currency.EMPTYCODE, req.Pair.Base)
 	if err != nil {
 		return nil, err
 	}
-	var position *FuturesPositionInformationResponse
+	var position *CoinMarginedFuturesPositionInformationResponse
 	for i := range positions {
 		if positions[i].Symbol == symbol && positions[i].PositionSide == positionSide {
 			position = &positions[i]
@@ -5329,9 +5337,9 @@ func (e *Exchange) GetFuturesPositionOrders(ctx context.Context, req *futures.Po
 		var orders []order.Detail
 		var err error
 		if req.Asset == asset.USDTMarginedFutures {
-			orders, err = e.uPositionOrders(ctx, p, start, end)
+			orders, err = e.usdtMarginedFuturesPositionOrders(ctx, p, start, end)
 		} else {
-			orders, err = e.cPositionOrders(ctx, p, start, end)
+			orders, err = e.coinMarginedFuturesPositionOrders(ctx, p, start, end)
 		}
 		if err != nil {
 			return nil, err
@@ -5356,9 +5364,10 @@ func (e *Exchange) positionMarginType(a asset.Item, pair currency.Pair, marginTy
 	return mt
 }
 
-// uPositionOrders returns a USDⓈ-M pair's orders from start to end, with its position's leverage and margin type
-func (e *Exchange) uPositionOrders(ctx context.Context, pair currency.Pair, start, end time.Time) ([]order.Detail, error) {
-	positions, err := e.UPositionsInfoV2(ctx, pair)
+// usdtMarginedFuturesPositionOrders returns a USDⓈ-M pair's orders from start to end, with its position's leverage and
+// margin type
+func (e *Exchange) usdtMarginedFuturesPositionOrders(ctx context.Context, pair currency.Pair, start, end time.Time) ([]order.Detail, error) {
+	positions, err := e.USDTMarginedFuturesPositionsInfoV2(ctx, pair)
 	if err != nil {
 		return nil, err
 	}
@@ -5370,8 +5379,8 @@ func (e *Exchange) uPositionOrders(ctx context.Context, pair currency.Pair, star
 		marginType = e.positionMarginType(asset.USDTMarginedFutures, pair, positions[0].MarginType)
 	}
 	const limit = 1000 // the most Binance returns a request
-	history, err := futuresOrdersInWindow(start, end, limit, func(windowStart, windowEnd time.Time) ([]UFuturesOrderResponse, error) {
-		return e.UAllAccountOrders(ctx, &UAllOrdersRequest{Symbol: pair, StartTime: windowStart, EndTime: windowEnd, Limit: limit})
+	history, err := futuresOrdersInWindow(start, end, limit, func(windowStart, windowEnd time.Time) ([]USDTMarginedFuturesAllOrdersResponse, error) {
+		return e.USDTMarginedFuturesAllAccountOrders(ctx, &USDTMarginedFuturesAllOrdersRequest{Symbol: pair, StartTime: windowStart, EndTime: windowEnd, Limit: limit})
 	})
 	if err != nil {
 		return nil, err
@@ -5380,7 +5389,7 @@ func (e *Exchange) uPositionOrders(ctx context.Context, pair currency.Pair, star
 	for i := range history {
 		o := &history[i]
 		orders = e.appendListedOrder(orders, asset.USDTMarginedFutures, o.OrderID, pair, o.Symbol, func(p currency.Pair) (order.Detail, error) {
-			d, convertErr := e.uOrderDetail(&o.UOrderResponse, p)
+			d, convertErr := e.usdtMarginedFuturesOrderDetail(&o.USDTMarginedFuturesOrderResponse, p)
 			d.Leverage = leverage
 			d.MarginType = marginType
 			return d, convertErr
@@ -5389,14 +5398,15 @@ func (e *Exchange) uPositionOrders(ctx context.Context, pair currency.Pair, star
 	return orders, nil
 }
 
-// cPositionOrders returns a COIN-M pair's orders from start to end, with its position's leverage and margin type
-func (e *Exchange) cPositionOrders(ctx context.Context, pair currency.Pair, start, end time.Time) ([]order.Detail, error) {
+// coinMarginedFuturesPositionOrders returns a COIN-M pair's orders from start to end, with its position's leverage and
+// margin type
+func (e *Exchange) coinMarginedFuturesPositionOrders(ctx context.Context, pair currency.Pair, start, end time.Time) ([]order.Detail, error) {
 	symbol, err := e.FormatSymbol(pair, asset.CoinMarginedFutures)
 	if err != nil {
 		return nil, err
 	}
 	// The contract pair, such as BTCUSD, is what the position information takes, which is the GCT pair's base
-	positions, err := e.FuturesPositionsInfo(ctx, currency.EMPTYCODE, pair.Base)
+	positions, err := e.CoinMarginedFuturesPositionsInfo(ctx, currency.EMPTYCODE, pair.Base)
 	if err != nil {
 		return nil, err
 	}
@@ -5411,8 +5421,8 @@ func (e *Exchange) cPositionOrders(ctx context.Context, pair currency.Pair, star
 		break
 	}
 	const limit = 100 // the most Binance returns a request
-	history, err := futuresOrdersInWindow(start, end, limit, func(windowStart, windowEnd time.Time) ([]CFuturesAllOrdersResponse, error) {
-		return e.GetAllFuturesOrders(ctx, &CFuturesAllOrdersRequest{Symbol: pair, StartTime: windowStart, EndTime: windowEnd, Limit: limit})
+	history, err := futuresOrdersInWindow(start, end, limit, func(windowStart, windowEnd time.Time) ([]CoinMarginedFuturesAllOrdersResponse, error) {
+		return e.GetAllCoinMarginedFuturesOrders(ctx, &CoinMarginedFuturesAllOrdersRequest{Symbol: pair, StartTime: windowStart, EndTime: windowEnd, Limit: limit})
 	})
 	if err != nil {
 		return nil, err
@@ -5421,7 +5431,7 @@ func (e *Exchange) cPositionOrders(ctx context.Context, pair currency.Pair, star
 	for i := range history {
 		o := &history[i]
 		orders = e.appendListedOrder(orders, asset.CoinMarginedFutures, o.OrderID, pair, o.Symbol, func(p currency.Pair) (order.Detail, error) {
-			d, convertErr := e.cOrderDetail(&o.FuturesOrderDetailResponse, p)
+			d, convertErr := e.coinMarginedFuturesOrderDetail(&o.CoinMarginedFuturesOrderDetailResponse, p)
 			d.Leverage = leverage
 			d.MarginType = marginType
 			return d, convertErr
@@ -5448,9 +5458,9 @@ func (e *Exchange) SetLeverage(ctx context.Context, item asset.Item, pair curren
 	var err error
 	switch item {
 	case asset.USDTMarginedFutures:
-		_, err = e.UChangeInitialLeverageRequest(ctx, pair, uint64(amount))
+		_, err = e.USDTMarginedFuturesChangeInitialLeverageRequest(ctx, pair, uint64(amount))
 	case asset.CoinMarginedFutures:
-		_, err = e.FuturesChangeInitialLeverage(ctx, pair, uint64(amount))
+		_, err = e.CoinMarginedFuturesChangeInitialLeverage(ctx, pair, uint64(amount))
 	default:
 		_, err = e.AdjustCrossMarginMaxLeverage(ctx, uint64(amount))
 	}
@@ -5465,7 +5475,7 @@ func (e *Exchange) GetLeverage(ctx context.Context, item asset.Item, pair curren
 	}
 	switch item {
 	case asset.USDTMarginedFutures:
-		positions, err := e.UPositionsInfoV2(ctx, pair)
+		positions, err := e.USDTMarginedFuturesPositionsInfoV2(ctx, pair)
 		if err != nil {
 			return 0, err
 		}
@@ -5481,7 +5491,7 @@ func (e *Exchange) GetLeverage(ctx context.Context, item asset.Item, pair curren
 		}
 		// The contract pair, such as BTCUSD, is what the position information takes, which is the GCT pair's base;
 		// it returns the positions of each of the pair's contracts
-		positions, err := e.FuturesPositionsInfo(ctx, currency.EMPTYCODE, pair.Base)
+		positions, err := e.CoinMarginedFuturesPositionsInfo(ctx, currency.EMPTYCODE, pair.Base)
 		if err != nil {
 			return 0, err
 		}
@@ -5510,7 +5520,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 	}
 	var resp []futures.Contract
 	if item == asset.USDTMarginedFutures {
-		info, err := e.UGetFundingRateInfo(ctx)
+		info, err := e.USDTMarginedFuturesGetFundingRateInfo(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -5518,7 +5528,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 		for i := range info {
 			fundingRateLimits[info[i].Symbol] = &info[i]
 		}
-		ei, err := e.UExchangeInfo(ctx)
+		ei, err := e.USDTMarginedFuturesExchangeInfo(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -5527,7 +5537,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 			s := &ei.Symbols[i]
 			c := futures.Contract{
 				Exchange:           e.Name,
-				Name:               uFuturesSymbolPair(s.Symbol, s.BaseAsset, s.QuoteAsset).Format(format),
+				Name:               usdtMarginedFuturesSymbolPair(s.Symbol, s.BaseAsset, s.QuoteAsset).Format(format),
 				Underlying:         currency.NewPair(s.BaseAsset, s.QuoteAsset),
 				Asset:              item,
 				StartDate:          s.OnboardDate.Time(),
@@ -5547,15 +5557,15 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 		}
 		return resp, nil
 	}
-	info, err := e.GetFundingRateInfo(ctx)
+	info, err := e.GetCoinMarginedFuturesFundingRateInfo(ctx)
 	if err != nil {
 		return nil, err
 	}
-	fundingRateLimits := make(map[string]*CFuturesFundingRateInfoResponse, len(info))
+	fundingRateLimits := make(map[string]*CoinMarginedFuturesFundingRateInfoResponse, len(info))
 	for i := range info {
 		fundingRateLimits[info[i].Symbol] = &info[i]
 	}
-	ei, err := e.FuturesExchangeInfo(ctx)
+	ei, err := e.CoinMarginedFuturesExchangeInfo(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -5632,14 +5642,14 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 		pair := k[i].Pair()
 		var openInterest float64
 		if k[i].Asset == asset.USDTMarginedFutures {
-			oi, err := e.UOpenInterest(ctx, pair)
+			oi, err := e.USDTMarginedFuturesOpenInterest(ctx, pair)
 			if err != nil {
 				return nil, err
 			}
 			openInterest = oi.OpenInterest.Float64()
 		} else {
 			// COIN-M open interest counts contracts
-			oi, err := e.OpenInterest(ctx, pair)
+			oi, err := e.CoinMarginedFuturesOpenInterest(ctx, pair)
 			if err != nil {
 				return nil, err
 			}
@@ -5677,7 +5687,7 @@ func (e *Exchange) GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp cur
 			return tradeBaseURL + "futures/" + symbol, nil
 		}
 		// Delivery contracts trade on pages named after the contract pair and quarter
-		info, err := e.UExchangeInfo(ctx)
+		info, err := e.USDTMarginedFuturesExchangeInfo(ctx)
 		if err != nil {
 			return "", err
 		}
@@ -5690,7 +5700,7 @@ func (e *Exchange) GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp cur
 		if cp.Quote.Equal(currency.PERP) {
 			return tradeBaseURL + "delivery/" + cp.Base.Upper().String(), nil
 		}
-		info, err := e.FuturesExchangeInfo(ctx)
+		info, err := e.CoinMarginedFuturesExchangeInfo(ctx)
 		if err != nil {
 			return "", err
 		}

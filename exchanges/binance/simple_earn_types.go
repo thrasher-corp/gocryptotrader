@@ -188,8 +188,8 @@ type SimpleEarnLockedPosition struct {
 	Asset                      currency.Code `json:"asset"`
 	Amount                     types.Number  `json:"amount"`
 	PurchaseTime               types.Time    `json:"purchaseTime"`
-	Duration                   types.Number  `json:"duration"`    // days
-	AccrualDays                types.Number  `json:"accrualDays"` // days
+	DurationInDays             types.Number  `json:"duration"`
+	AccrualDays                types.Number  `json:"accrualDays"`
 	RewardAsset                currency.Code `json:"rewardAsset"`
 	APY                        types.Number  `json:"APY"`
 	RewardAmount               types.Number  `json:"rewardAmt"`
@@ -201,11 +201,11 @@ type SimpleEarnLockedPosition struct {
 	TotalBoostRewardAmount     types.Number  `json:"totalBoostRewardAmt"`
 	NextPay                    types.Number  `json:"nextPay"`
 	NextPayDate                types.Time    `json:"nextPayDate"`
-	PayPeriod                  types.Number  `json:"payPeriod"` // days
+	PayPeriodInDays            types.Number  `json:"payPeriod"`
 	RedeemAmountEarly          types.Number  `json:"redeemAmountEarly"`
 	RewardsEndDate             types.Time    `json:"rewardsEndDate"`
 	DeliverDate                types.Time    `json:"deliverDate"`
-	RedeemPeriod               types.Number  `json:"redeemPeriod"` // days
+	RedeemPeriodInDays         types.Number  `json:"redeemPeriod"`
 	RedeemingAmount            types.Number  `json:"redeemingAmt"`
 	RedeemTo                   string        `json:"redeemTo"`
 	PartialAmountDeliverDate   types.Time    `json:"partialAmtDeliverDate"`
@@ -240,7 +240,7 @@ type SimpleEarnLockedRedemption struct {
 	RedeemID                   uint64        `json:"redeemId"`
 	Time                       types.Time    `json:"time"`
 	Asset                      currency.Code `json:"asset"`
-	LockPeriod                 types.Number  `json:"lockPeriod"` // days
+	LockPeriodInDays           types.Number  `json:"lockPeriod"`
 	Amount                     types.Number  `json:"amount"`
 	OriginalAmount             types.Number  `json:"originalAmount"`
 	Type                       string        `json:"type"`
@@ -272,12 +272,12 @@ type SimpleEarnLockedRewardHistoryResponse struct {
 
 // SimpleEarnLockedReward holds a locked product reward
 type SimpleEarnLockedReward struct {
-	PositionID uint64        `json:"positionId"`
-	Time       types.Time    `json:"time"`
-	Asset      currency.Code `json:"asset"`
-	LockPeriod types.Number  `json:"lockPeriod"` // days
-	Amount     types.Number  `json:"amount"`
-	Type       string        `json:"type"`
+	PositionID       uint64        `json:"positionId"`
+	Time             types.Time    `json:"time"`
+	Asset            currency.Code `json:"asset"`
+	LockPeriodInDays types.Number  `json:"lockPeriod"`
+	Amount           types.Number  `json:"amount"`
+	Type             string        `json:"type"`
 }
 
 // SimpleEarnLockedSubscriptionPreviewResponse holds the estimated rewards and schedule of a locked product subscription
@@ -320,7 +320,7 @@ type SimpleEarnLockedSubscription struct {
 	Time              types.Time    `json:"time"`
 	Asset             currency.Code `json:"asset"`
 	Amount            types.Number  `json:"amount"`
-	LockPeriod        types.Number  `json:"lockPeriod"` // days
+	LockPeriodInDays  types.Number  `json:"lockPeriod"`
 	Type              string        `json:"type"`
 	SourceAccount     string        `json:"sourceAccount"`
 	AmountFromSpot    types.Number  `json:"amtFromSpot"`
@@ -391,7 +391,7 @@ type SimpleEarnLockedProduct struct {
 type SimpleEarnLockedProductDetail struct {
 	Asset                 currency.Code `json:"asset"`
 	RewardAsset           currency.Code `json:"rewardAsset"`
-	Duration              uint64        `json:"duration"` // days
+	DurationInDays        uint64        `json:"duration"`
 	Renewable             bool          `json:"renewable"`
 	IsSoldOut             bool          `json:"isSoldOut"`
 	APR                   types.Number  `json:"apr"`

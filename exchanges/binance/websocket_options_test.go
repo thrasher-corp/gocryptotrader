@@ -3,7 +3,9 @@ package binance
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -89,7 +91,7 @@ func TestWebsocketHandleOptionsData(t *testing.T) {
 			ContractStatus: "TRADING",
 		},
 		[]WebsocketOptionsOpenInterest{{
-			EventType: "openInterest", EventTime: fixtureTime(1791283200045), Symbol: "BTC-261030-85000-C", OpenInterest: 1580.87, OpenInterestUSDT: 136129592.178168204,
+			EventType: "openInterest", EventTime: fixtureTime(1791283200045), Symbol: "BTC-261030-85000-C", OpenInterestInContracts: 1580.87, OpenInterestUSDT: 136129592.178168204,
 		}},
 	}
 	assert.Equal(t, exp, relayedPayloads(ex), "wsHandleOptionsData should relay every stream of enabled pairs")
@@ -363,8 +365,8 @@ func TestOptionsPayloadDecoding(t *testing.T) {
 			name: "ticker", fixture: "testdata/wsOptions.json", key: "btc-261030-85000-c@optionTicker", target: new(OptionsTicker),
 			exp: &OptionsTicker{
 				EventType: "24hrTicker", EventTime: fixtureTime(1791283461766), Symbol: "BTC-261030-85000-C", PriceChange: -244, PriceChangePercent: -0.0625,
-				WeightedAveragePrice: 3650.092, LastPrice: 3660, LastQuantity: 1.25, OpenPrice: 3904, HighPrice: 4085, LowPrice: 3540, TradingVolume: 175,
-				TradeAmount: 643766.05, StatisticsOpenTime: fixtureTime(1791201120000), StatisticsCloseTime: fixtureTime(1791283461766), FirstTradeID: 62,
+				WeightedAveragePrice: 3650.092, LastPrice: 3660, LastQuantity: 1.25, OpenPrice: 3904, HighPrice: 4085, LowPrice: 3540, TradingVolumeInContracts: 175,
+				TradeAmountInQuoteAsset: 643766.05, StatisticsOpenTime: fixtureTime(1791201120000), StatisticsCloseTime: fixtureTime(1791283461766), FirstTradeID: 62,
 				LastTradeID: 468, TotalNumberOfTrades: 407,
 			},
 		},
@@ -381,8 +383,8 @@ func TestOptionsPayloadDecoding(t *testing.T) {
 				EventType: "kline", EventTime: fixtureTime(1791283502013), Symbol: "BTC-261030-85000-C",
 				Kline: OptionsCandle{
 					StartTime: fixtureTime(1791283440000), EndTime: fixtureTime(1791283499999), Symbol: "BTC-261030-85000-C", CandlePeriod: "1m",
-					FirstTradeID: -1, LastTradeID: -1, Open: 3610, Close: 3615, High: 3620, Low: 3605, Volume: 1.2, NumberOfTrades: 2, IsCompleted: true,
-					CompletedTradeAmount: 4335, TakerCompletedTradeVolume: 0.8, TakerTradeAmount: 2892,
+					FirstTradeID: -1, LastTradeID: -1, Open: 3610, Close: 3615, High: 3620, Low: 3605, VolumeInContracts: 1.2, NumberOfTrades: 2, IsCompleted: true,
+					CompletedTradeAmountInQuoteAsset: 4335, TakerCompletedTradeVolumeInContracts: 0.8, TakerTradeAmountInQuoteAsset: 2892,
 				},
 			},
 		},
@@ -410,5 +412,69 @@ func TestOptionsPayloadDecoding(t *testing.T) {
 	} {
 		require.NoErrorf(t, json.Unmarshal(fixtureFrameData(t, tc.fixture, tc.key), tc.target), "Unmarshal must not error for the %s", tc.name)
 		assert.Equalf(t, tc.exp, tc.target, "the %s should decode every field", tc.name)
+	}
+}
+
+func TestProcessOptionsBalancePositionUpdate(t *testing.T) {
+	t.Parallel()
+	for i := range balanceEvents {
+		tc := &balanceEvents[i]
+		if tc.a == asset.Options {
+			testBalanceEventOrdering(t, tc)
+		}
+	}
+}
+
+func TestProcessOptionsBalancePositionUpdateMixedFreshness(t *testing.T) {
+	t.Parallel()
+	// One event can report a currency an earlier event already reported beside one none did, and only the latter is
+	// stored and relayed
+	ex := newTradingTestExchange(t, serveBalanceRefreshReplies(t))
+	first := `{"e":"BALANCE_POSITION_UPDATE","E":1791300000001,"T":1791300000000,"m":"ORDER","B":[{"a":"USDT","b":"100","bc":"0"}],"P":[]}`
+	require.NoError(t, ex.processOptionsBalancePositionUpdate(t.Context(), []byte(first)), "processOptionsBalancePositionUpdate must not error")
+	relayedPayloads(ex)
+	event := `{"e":"BALANCE_POSITION_UPDATE","E":1791299999001,"T":1791299999000,"m":"ORDER","B":[{"a":"USDT","b":"110","bc":"0"},{"a":"BTC","b":"4","bc":"0"}],"P":[]}`
+	require.NoError(t, ex.processOptionsBalancePositionUpdate(t.Context(), []byte(event)), "processOptionsBalancePositionUpdate must not error")
+	assert.Equal(t, 100.0, storedBalance(t, ex, asset.Options, currency.USDT).Total, "a currency with a later event should keep that event's balance")
+	assert.Equal(t, 4.0, storedBalance(t, ex, asset.Options, currency.BTC).Total, "a currency without a later event should take this event's balance")
+	payloads := relayedPayloads(ex)
+	require.Len(t, payloads, 1, "the event's accepted balances must be relayed once")
+	relayed, ok := payloads[0].(accounts.SubAccounts)
+	require.True(t, ok, "the relayed payload must hold balances")
+	require.Len(t, relayed, 1, "one sub-account must be relayed")
+	assert.Len(t, relayed[0].Balances, 1, "only the accepted currency should be relayed")
+	assert.Contains(t, relayed[0].Balances, currency.BTC, "the accepted currency should be relayed")
+}
+
+func TestOptionsOlderReplyKeepsOmittedCurrencyOut(t *testing.T) {
+	t.Parallel()
+	// A full snapshot that leaves a currency out removes it, and an older reply that still lists it, by a poll or a
+	// refresh, does not bring it back
+	for _, refresh := range []bool{false, true} {
+		t.Run(map[bool]string{false: "poll", true: "refresh"}[refresh], func(t *testing.T) {
+			t.Parallel()
+			var older atomic.Bool
+			ex := newTradingTestExchange(t, func(w http.ResponseWriter, _ *http.Request) {
+				reply := `{"asset":[{"asset":"USDT","marginBalance":"100","available":"80"}],"time":1791300000000}`
+				if older.Load() {
+					reply = `{"asset":[{"asset":"BTC","marginBalance":"4","available":"4"}],"time":1791299999000}`
+				}
+				_, err := w.Write([]byte(reply))
+				assert.NoError(t, err, "Write should not error")
+			})
+			_, err := ex.UpdateAccountBalances(t.Context(), asset.Options)
+			require.NoError(t, err, "the newer poll must not error")
+			older.Store(true)
+			if refresh {
+				lagging, err := ex.refreshAvailableBalances(t.Context(), asset.Options)
+				require.NoError(t, err, "the older refresh must not error")
+				assert.True(t, lagging, "the older refresh should be asked again")
+			} else {
+				_, err := ex.UpdateAccountBalances(t.Context(), asset.Options)
+				require.NoError(t, err, "the older poll must not error")
+			}
+			_, err = ex.Accounts.GetBalance("", ex.GetDefaultCredentials(), asset.Options, currency.BTC)
+			assert.ErrorIs(t, err, accounts.ErrNoBalances, "an older reply should not restore a currency a newer snapshot left out")
+		})
 	}
 }

@@ -13,21 +13,21 @@ type AccountBalanceResponse struct {
 	Asset              currency.Code `json:"asset"`
 	TotalWalletBalance types.Number  `json:"totalWalletBalance"`
 	// CrossMarginAsset is crossMarginFree plus crossMarginLocked; it is only returned when no asset is requested
-	CrossMarginAsset    types.Number `json:"crossMarginAsset"`
-	CrossMarginBorrowed types.Number `json:"crossMarginBorrowed"`
-	CrossMarginFree     types.Number `json:"crossMarginFree"`
-	CrossMarginInterest types.Number `json:"crossMarginInterest"`
-	CrossMarginLocked   types.Number `json:"crossMarginLocked"`
-	UMWalletBalance     types.Number `json:"umWalletBalance"`
-	UMUnrealisedPNL     types.Number `json:"umUnrealizedPNL"`
-	CMWalletBalance     types.Number `json:"cmWalletBalance"`
-	CMUnrealisedPNL     types.Number `json:"cmUnrealizedPNL"`
-	UpdateTime          types.Time   `json:"updateTime"`
-	NegativeBalance     types.Number `json:"negativeBalance"`
+	CrossMarginAsset          types.Number `json:"crossMarginAsset"`
+	CrossMarginBorrowed       types.Number `json:"crossMarginBorrowed"`
+	CrossMarginFree           types.Number `json:"crossMarginFree"`
+	CrossMarginInterest       types.Number `json:"crossMarginInterest"`
+	CrossMarginLocked         types.Number `json:"crossMarginLocked"`
+	USDTMarginedWalletBalance types.Number `json:"umWalletBalance"`
+	USDTMarginedUnrealisedPNL types.Number `json:"umUnrealizedPNL"`
+	CoinMarginedWalletBalance types.Number `json:"cmWalletBalance"`
+	CoinMarginedUnrealisedPNL types.Number `json:"cmUnrealizedPNL"`
+	UpdateTime                types.Time   `json:"updateTime"`
+	NegativeBalance           types.Number `json:"negativeBalance"`
 }
 
-// PMAccountInformationResponse holds portfolio margin account information, with amounts in USD
-type PMAccountInformationResponse struct {
+// PortfolioMarginAccountInformationResponse holds portfolio margin account information, with amounts in USD
+type PortfolioMarginAccountInformationResponse struct {
 	UniMMR               types.Number `json:"uniMMR"`
 	AccountEquity        types.Number `json:"accountEquity"`
 	ActualEquity         types.Number `json:"actualEquity"` // account equity without the collateral rate applied
@@ -42,30 +42,31 @@ type PMAccountInformationResponse struct {
 	UpdateTime               types.Time   `json:"updateTime"`
 }
 
-// PMTransactionResponse holds the transaction ID returned by portfolio margin transfer, borrow and repay endpoints
-type PMTransactionResponse struct {
+// PortfolioMarginTransactionResponse holds the transaction ID returned by portfolio margin transfer, borrow and repay
+// endpoints
+type PortfolioMarginTransactionResponse struct {
 	TransactionID uint64 `json:"tranId"`
 }
 
-// PMAutoRepayFuturesStatusResponse holds whether futures negative balances are repaid automatically
-type PMAutoRepayFuturesStatusResponse struct {
+// PortfolioMarginAutoRepayFuturesStatusResponse holds whether futures negative balances are repaid automatically
+type PortfolioMarginAutoRepayFuturesStatusResponse struct {
 	AutoRepay bool `json:"autoRepay"`
 }
 
-// PMMessageResponse holds the message returned by portfolio margin endpoints that only report success
-type PMMessageResponse struct {
+// PortfolioMarginMessageResponse holds the message returned by portfolio margin endpoints that only report success
+type PortfolioMarginMessageResponse struct {
 	Message string `json:"msg"`
 }
 
-// CMInitialLeverageResponse holds a COIN-M symbol's initial leverage after a change
-type CMInitialLeverageResponse struct {
+// PortfolioMarginCoinMarginedInitialLeverageResponse holds a COIN-M symbol's initial leverage after a change
+type PortfolioMarginCoinMarginedInitialLeverageResponse struct {
 	Leverage    uint64       `json:"leverage"`
 	MaxQuantity types.Number `json:"maxQty"` // maximum quantity of the base asset
 	Symbol      string       `json:"symbol"`
 }
 
-// PMPositionModeResponse holds whether hedge mode (dual side position) is enabled
-type PMPositionModeResponse struct {
+// PortfolioMarginPositionModeResponse holds whether hedge mode (dual side position) is enabled
+type PortfolioMarginPositionModeResponse struct {
 	DualSidePosition bool `json:"dualSidePosition"`
 }
 
@@ -76,21 +77,22 @@ type SuccessResponse struct {
 	Message string       `json:"msg"`
 }
 
-// UMInitialLeverageResponse holds a USDⓈ-M symbol's initial leverage after a change
-type UMInitialLeverageResponse struct {
+// PortfolioMarginUSDTMarginedInitialLeverageResponse holds a USDⓈ-M symbol's initial leverage after a change
+type PortfolioMarginUSDTMarginedInitialLeverageResponse struct {
 	Leverage         uint64       `json:"leverage"`
 	MaxNotionalValue types.Number `json:"maxNotionalValue"`
 	Symbol           string       `json:"symbol"`
 }
 
-// CMNotionalAndLeverageResponse holds a COIN-M symbol's notional and leverage brackets
-type CMNotionalAndLeverageResponse struct {
-	Symbol   string              `json:"symbol"`
-	Brackets []CMNotionalBracket `json:"brackets"`
+// PortfolioMarginCoinMarginedNotionalAndLeverageResponse holds a COIN-M symbol's notional and leverage brackets
+type PortfolioMarginCoinMarginedNotionalAndLeverageResponse struct {
+	Symbol   string                                       `json:"symbol"`
+	Brackets []PortfolioMarginCoinMarginedNotionalBracket `json:"brackets"`
 }
 
-// CMNotionalBracket holds a COIN-M leverage bracket, with caps and floors in base asset quantity
-type CMNotionalBracket struct {
+// PortfolioMarginCoinMarginedNotionalBracket holds a COIN-M leverage bracket, with caps and floors in base asset
+// quantity
+type PortfolioMarginCoinMarginedNotionalBracket struct {
 	Bracket                uint64  `json:"bracket"`
 	InitialLeverage        uint64  `json:"initialLeverage"`
 	QuantityCap            float64 `json:"qtyCap"`
@@ -99,8 +101,8 @@ type CMNotionalBracket struct {
 	Cumulative             float64 `json:"cum"` // auxiliary number for quick maintenance margin calculation
 }
 
-// PMAccountDetailAsset holds a UM or CM account asset
-type PMAccountDetailAsset struct {
+// PortfolioMarginAccountDetailAsset holds a UM or CM account asset
+type PortfolioMarginAccountDetailAsset struct {
 	Asset                  currency.Code `json:"asset"`
 	CrossWalletBalance     types.Number  `json:"crossWalletBalance"`
 	CrossUnrealisedPNL     types.Number  `json:"crossUnPnl"`
@@ -111,8 +113,8 @@ type PMAccountDetailAsset struct {
 	UpdateTime             types.Time    `json:"updateTime"`
 }
 
-// CMAccountDetailPosition holds a CM account position
-type CMAccountDetailPosition struct {
+// PortfolioMarginCoinMarginedAccountDetailPosition holds a CM account position
+type PortfolioMarginCoinMarginedAccountDetailPosition struct {
 	Symbol                 string       `json:"symbol"`
 	PositionAmount         types.Number `json:"positionAmt"`
 	InitialMargin          types.Number `json:"initialMargin"`
@@ -127,14 +129,14 @@ type CMAccountDetailPosition struct {
 	UpdateTime             types.Time   `json:"updateTime"`
 }
 
-// CMAccountDetailResponse holds CM account assets and positions
-type CMAccountDetailResponse struct {
-	Assets    []PMAccountDetailAsset    `json:"assets"`
-	Positions []CMAccountDetailPosition `json:"positions"`
+// PortfolioMarginCoinMarginedAccountDetailResponse holds CM account assets and positions
+type PortfolioMarginCoinMarginedAccountDetailResponse struct {
+	Assets    []PortfolioMarginAccountDetailAsset                `json:"assets"`
+	Positions []PortfolioMarginCoinMarginedAccountDetailPosition `json:"positions"`
 }
 
-// PMIncomeHistoryRequest holds the parameters for a UM or CM income history query
-type PMIncomeHistoryRequest struct {
+// PortfolioMarginIncomeHistoryRequest holds the parameters for a UM or CM income history query
+type PortfolioMarginIncomeHistoryRequest struct {
 	Symbol     currency.Pair
 	IncomeType string
 	StartTime  time.Time
@@ -156,8 +158,8 @@ type IncomeItemResponse struct {
 	TradeID       string `json:"tradeId"`
 }
 
-// PMMarginInterestHistoryRequest holds the parameters for a margin borrow or loan interest history query
-type PMMarginInterestHistoryRequest struct {
+// PortfolioMarginMarginInterestHistoryRequest holds the parameters for a margin borrow or loan interest history query
+type PortfolioMarginMarginInterestHistoryRequest struct {
 	Asset     currency.Code
 	StartTime time.Time
 	EndTime   time.Time
@@ -167,14 +169,14 @@ type PMMarginInterestHistoryRequest struct {
 	Archived bool
 }
 
-// PMMarginInterestHistoryResponse holds a page of margin borrow or loan interest records
-type PMMarginInterestHistoryResponse struct {
-	Rows  []PMMarginInterest `json:"rows"`
-	Total uint64             `json:"total"`
+// PortfolioMarginMarginInterestHistoryResponse holds a page of margin borrow or loan interest records
+type PortfolioMarginMarginInterestHistoryResponse struct {
+	Rows  []PortfolioMarginMarginInterest `json:"rows"`
+	Total uint64                          `json:"total"`
 }
 
-// PMMarginInterest holds a margin borrow or loan interest record
-type PMMarginInterest struct {
+// PortfolioMarginMarginInterest holds a margin borrow or loan interest record
+type PortfolioMarginMarginInterest struct {
 	TransactionID       uint64        `json:"txId"`
 	InterestAccuredTime types.Time    `json:"interestAccuredTime"`
 	Asset               currency.Code `json:"asset"`
@@ -186,8 +188,8 @@ type PMMarginInterest struct {
 	Type string `json:"type"`
 }
 
-// UMAccountDetailPosition holds a UM account position
-type UMAccountDetailPosition struct {
+// PortfolioMarginUSDTMarginedAccountDetailPosition holds a UM account position
+type PortfolioMarginUSDTMarginedAccountDetailPosition struct {
 	Symbol                 string       `json:"symbol"`
 	InitialMargin          types.Number `json:"initialMargin"`
 	MaintenanceMargin      types.Number `json:"maintMargin"`
@@ -205,36 +207,36 @@ type UMAccountDetailPosition struct {
 	UpdateTime     types.Time   `json:"updateTime"`
 }
 
-// UMAccountDetailResponse holds UM account assets and positions
-type UMAccountDetailResponse struct {
-	Assets    []PMAccountDetailAsset    `json:"assets"`
-	Positions []UMAccountDetailPosition `json:"positions"`
+// PortfolioMarginUSDTMarginedAccountDetailResponse holds UM account assets and positions
+type PortfolioMarginUSDTMarginedAccountDetailResponse struct {
+	Assets    []PortfolioMarginAccountDetailAsset                `json:"assets"`
+	Positions []PortfolioMarginUSDTMarginedAccountDetailPosition `json:"positions"`
 }
 
-// PMCommissionRateResponse holds a UM or CM symbol's commission rates
-type PMCommissionRateResponse struct {
+// PortfolioMarginCommissionRateResponse holds a UM or CM symbol's commission rates
+type PortfolioMarginCommissionRateResponse struct {
 	Symbol              string       `json:"symbol"`
 	MakerCommissionRate types.Number `json:"makerCommissionRate"`
 	TakerCommissionRate types.Number `json:"takerCommissionRate"`
 }
 
-// PMMarginMaxBorrowResponse holds the maximum amount of an asset the margin account can borrow
-type PMMarginMaxBorrowResponse struct {
+// PortfolioMarginMarginMaxBorrowResponse holds the maximum amount of an asset the margin account can borrow
+type PortfolioMarginMarginMaxBorrowResponse struct {
 	// Amount is the current maximum borrowable amount given system availability
 	Amount types.Number `json:"amount"`
 	// BorrowLimit is the maximum borrowable amount allowed by the account level
 	BorrowLimit types.Number `json:"borrowLimit"`
 }
 
-// PMTradingQuantitativeRulesIndicatorsResponse holds the UM trading quantitative rules indicators
-type PMTradingQuantitativeRulesIndicatorsResponse struct {
+// PortfolioMarginTradingQuantitativeRulesIndicatorsResponse holds the UM trading quantitative rules indicators
+type PortfolioMarginTradingQuantitativeRulesIndicatorsResponse struct {
 	// Indicators is keyed by symbol, with account wide indicators under ACCOUNT
-	Indicators map[string][]PMTradingIndicator `json:"indicators"`
-	UpdateTime types.Time                      `json:"updateTime"`
+	Indicators map[string][]PortfolioMarginTradingIndicator `json:"indicators"`
+	UpdateTime types.Time                                   `json:"updateTime"`
 }
 
-// PMTradingIndicator holds a trading quantitative rules indicator
-type PMTradingIndicator struct {
+// PortfolioMarginTradingIndicator holds a trading quantitative rules indicator
+type PortfolioMarginTradingIndicator struct {
 	IsLocked           bool       `json:"isLocked"`
 	PlannedRecoverTime types.Time `json:"plannedRecoverTime"`
 	Indicator          string     `json:"indicator"`
@@ -242,8 +244,8 @@ type PMTradingIndicator struct {
 	TriggerValue       float64    `json:"triggerValue"`
 }
 
-// CMPositionInformationResponse holds a CM position
-type CMPositionInformationResponse struct {
+// PortfolioMarginCoinMarginedPositionInformationResponse holds a CM position
+type PortfolioMarginCoinMarginedPositionInformationResponse struct {
 	Symbol           string       `json:"symbol"`
 	PositionAmount   types.Number `json:"positionAmt"`
 	EntryPrice       types.Number `json:"entryPrice"`
@@ -257,8 +259,8 @@ type CMPositionInformationResponse struct {
 	NotionalValue    types.Number `json:"notionalValue"`
 }
 
-// PMMarginLoanRepayRecordRequest holds the parameters for a margin loan or repay record query
-type PMMarginLoanRepayRecordRequest struct {
+// PortfolioMarginMarginLoanRepayRecordRequest holds the parameters for a margin loan or repay record query
+type PortfolioMarginMarginLoanRepayRecordRequest struct {
 	Asset currency.Code
 	// TransactionID is the tranId returned by the borrow or repay endpoint and takes precedence over StartTime
 	TransactionID uint64
@@ -270,14 +272,14 @@ type PMMarginLoanRepayRecordRequest struct {
 	Archived bool
 }
 
-// PMMarginLoanRecordResponse holds a page of margin loan records
-type PMMarginLoanRecordResponse struct {
-	Rows  []PMMarginLoanRecord `json:"rows"`
-	Total uint64               `json:"total"`
+// PortfolioMarginMarginLoanRecordResponse holds a page of margin loan records
+type PortfolioMarginMarginLoanRecordResponse struct {
+	Rows  []PortfolioMarginMarginLoanRecord `json:"rows"`
+	Total uint64                            `json:"total"`
 }
 
-// PMMarginLoanRecord holds a margin loan record
-type PMMarginLoanRecord struct {
+// PortfolioMarginMarginLoanRecord holds a margin loan record
+type PortfolioMarginMarginLoanRecord struct {
 	TransactionID uint64        `json:"txId"`
 	Asset         currency.Code `json:"asset"`
 	Principal     types.Number  `json:"principal"`
@@ -285,19 +287,20 @@ type PMMarginLoanRecord struct {
 	Status        string        `json:"status"`
 }
 
-// PMMarginMaxWithdrawResponse holds the maximum amount of an asset that can be withdrawn from the margin account
-type PMMarginMaxWithdrawResponse struct {
+// PortfolioMarginMarginMaxWithdrawResponse holds the maximum amount of an asset that can be withdrawn from the margin
+// account
+type PortfolioMarginMarginMaxWithdrawResponse struct {
 	Amount types.Number `json:"amount"`
 }
 
-// PMMarginRepayRecordResponse holds a page of margin repay records
-type PMMarginRepayRecordResponse struct {
-	Rows  []PMMarginRepayRecord `json:"rows"`
-	Total uint64                `json:"total"`
+// PortfolioMarginMarginRepayRecordResponse holds a page of margin repay records
+type PortfolioMarginMarginRepayRecordResponse struct {
+	Rows  []PortfolioMarginMarginRepayRecord `json:"rows"`
+	Total uint64                             `json:"total"`
 }
 
-// PMMarginRepayRecord holds a margin repay record
-type PMMarginRepayRecord struct {
+// PortfolioMarginMarginRepayRecord holds a margin repay record
+type PortfolioMarginMarginRepayRecord struct {
 	Amount        types.Number  `json:"amount"` // total amount repaid
 	Asset         currency.Code `json:"asset"`
 	Interest      types.Number  `json:"interest"`
@@ -307,9 +310,9 @@ type PMMarginRepayRecord struct {
 	TransactionID uint64        `json:"txId"`
 }
 
-// PMNegativeBalanceInterestHistoryRequest holds the parameters for a negative balance interest history query, shared
-// by portfolio margin and portfolio margin pro
-type PMNegativeBalanceInterestHistoryRequest struct {
+// PortfolioMarginNegativeBalanceInterestHistoryRequest holds the parameters for a negative balance interest history
+// query, shared by portfolio margin and portfolio margin pro
+type PortfolioMarginNegativeBalanceInterestHistoryRequest struct {
 	Asset     currency.Code
 	StartTime time.Time
 	EndTime   time.Time
@@ -325,8 +328,8 @@ type PortfolioMarginNegativeBalanceInterestResponse struct {
 	Principal           types.Number  `json:"principal"`
 }
 
-// UMPositionInformationResponse holds a UM position
-type UMPositionInformationResponse struct {
+// PortfolioMarginUSDTMarginedPositionInformationResponse holds a UM position
+type PortfolioMarginUSDTMarginedPositionInformationResponse struct {
 	EntryPrice       types.Number `json:"entryPrice"`
 	Leverage         types.Number `json:"leverage"`
 	MarkPrice        types.Number `json:"markPrice"`
@@ -340,44 +343,44 @@ type UMPositionInformationResponse struct {
 	UpdateTime       types.Time   `json:"updateTime"`
 }
 
-// PMNegativeBalanceExchangeRecordResponse holds negative balance auto exchange records
-type PMNegativeBalanceExchangeRecordResponse struct {
-	Total uint64                            `json:"total"`
-	Rows  []PMNegativeBalanceExchangeRecord `json:"rows"`
+// PortfolioMarginNegativeBalanceExchangeRecordResponse holds negative balance auto exchange records
+type PortfolioMarginNegativeBalanceExchangeRecordResponse struct {
+	Total uint64                                         `json:"total"`
+	Rows  []PortfolioMarginNegativeBalanceExchangeRecord `json:"rows"`
 }
 
-// PMNegativeBalanceExchangeRecord holds a negative balance auto exchange
-type PMNegativeBalanceExchangeRecord struct {
-	StartTime types.Time                        `json:"startTime"`
-	EndTime   types.Time                        `json:"endTime"`
-	Details   []PMNegativeBalanceExchangeDetail `json:"details"`
+// PortfolioMarginNegativeBalanceExchangeRecord holds a negative balance auto exchange
+type PortfolioMarginNegativeBalanceExchangeRecord struct {
+	StartTime types.Time                                     `json:"startTime"`
+	EndTime   types.Time                                     `json:"endTime"`
+	Details   []PortfolioMarginNegativeBalanceExchangeDetail `json:"details"`
 }
 
-// PMNegativeBalanceExchangeDetail holds an asset's negative balance in an auto exchange
-type PMNegativeBalanceExchangeDetail struct {
+// PortfolioMarginNegativeBalanceExchangeDetail holds an asset's negative balance in an auto exchange
+type PortfolioMarginNegativeBalanceExchangeDetail struct {
 	Asset                currency.Code `json:"asset"`
 	NegativeBalance      float64       `json:"negativeBalance"`
 	NegativeMaxThreshold uint64        `json:"negativeMaxThreshold"`
 }
 
-// PMRateLimitResponse holds a portfolio margin order rate limit
-type PMRateLimitResponse struct {
+// PortfolioMarginRateLimitResponse holds a portfolio margin order rate limit
+type PortfolioMarginRateLimitResponse struct {
 	RateLimitType  string `json:"rateLimitType"`
 	Interval       string `json:"interval"`
 	IntervalNumber uint64 `json:"intervalNum"`
 	Limit          uint64 `json:"limit"`
 }
 
-// UMNotionalAndLeverageResponse holds a UM symbol's notional and leverage brackets
-type UMNotionalAndLeverageResponse struct {
+// PortfolioMarginUSDTMarginedNotionalAndLeverageResponse holds a UM symbol's notional and leverage brackets
+type PortfolioMarginUSDTMarginedNotionalAndLeverageResponse struct {
 	Symbol string `json:"symbol"`
 	// NotionalCoefficient is the user's bracket multiplier, present when it differs from 1
-	NotionalCoefficient types.Number        `json:"notionalCoef"`
-	Brackets            []UMNotionalBracket `json:"brackets"`
+	NotionalCoefficient types.Number                                 `json:"notionalCoef"`
+	Brackets            []PortfolioMarginUSDTMarginedNotionalBracket `json:"brackets"`
 }
 
-// UMNotionalBracket holds a UM leverage bracket, with caps and floors in notional value
-type UMNotionalBracket struct {
+// PortfolioMarginUSDTMarginedNotionalBracket holds a UM leverage bracket, with caps and floors in notional value
+type PortfolioMarginUSDTMarginedNotionalBracket struct {
 	Bracket                uint64  `json:"bracket"`
 	InitialLeverage        uint64  `json:"initialLeverage"`
 	NotionalCap            float64 `json:"notionalCap"`
@@ -386,8 +389,8 @@ type UMNotionalBracket struct {
 	Cumulative             float64 `json:"cum"` // auxiliary number for quick maintenance margin calculation
 }
 
-// CMConditionalOrderRequest holds the parameters for a new CM conditional order
-type CMConditionalOrderRequest struct {
+// PortfolioMarginCoinMarginedConditionalOrderRequest holds the parameters for a new CM conditional order
+type PortfolioMarginCoinMarginedConditionalOrderRequest struct {
 	Symbol currency.Pair
 	Side   order.Side
 	// PositionSide is BOTH in one-way mode and LONG or SHORT in hedge mode, where it is required
@@ -408,8 +411,8 @@ type CMConditionalOrderRequest struct {
 	CallbackRate float64
 }
 
-// CMConditionalOrderResponse holds the fields returned for every CM conditional order
-type CMConditionalOrderResponse struct {
+// PortfolioMarginCoinMarginedConditionalOrderResponse holds the fields returned for every CM conditional order
+type PortfolioMarginCoinMarginedConditionalOrderResponse struct {
 	NewClientStrategyID string       `json:"newClientStrategyId"`
 	StrategyID          uint64       `json:"strategyId"`
 	StrategyStatus      string       `json:"strategyStatus"`
@@ -430,23 +433,23 @@ type CMConditionalOrderResponse struct {
 	UpdateTime    types.Time   `json:"updateTime"`
 }
 
-// NewCMConditionalOrderResponse holds a new CM conditional order
-type NewCMConditionalOrderResponse struct {
-	CMConditionalOrderResponse
+// NewPortfolioMarginCoinMarginedConditionalOrderResponse holds a new CM conditional order
+type NewPortfolioMarginCoinMarginedConditionalOrderResponse struct {
+	PortfolioMarginCoinMarginedConditionalOrderResponse
 	Pair         string `json:"pair"`
 	WorkingType  string `json:"workingType"`
 	PriceProtect bool   `json:"priceProtect"`
 }
 
-// CancelCMConditionalOrderResponse holds a cancelled CM conditional order
-type CancelCMConditionalOrderResponse struct {
-	CMConditionalOrderResponse
+// CancelPortfolioMarginCoinMarginedConditionalOrderResponse holds a cancelled CM conditional order
+type CancelPortfolioMarginCoinMarginedConditionalOrderResponse struct {
+	PortfolioMarginCoinMarginedConditionalOrderResponse
 	WorkingType  string `json:"workingType"`
 	PriceProtect bool   `json:"priceProtect"`
 }
 
-// CMOrderDetailResponse holds a CM order returned by the order query endpoints
-type CMOrderDetailResponse struct {
+// PortfolioMarginCoinMarginedOrderDetailResponse holds a CM order returned by the order query endpoints
+type PortfolioMarginCoinMarginedOrderDetailResponse struct {
 	AveragePrice     types.Number `json:"avgPrice"`
 	ClientOrderID    string       `json:"clientOrderId"`
 	CumulativeBase   types.Number `json:"cumBase"`
@@ -467,8 +470,8 @@ type CMOrderDetailResponse struct {
 	UpdateTime       types.Time   `json:"updateTime"`
 }
 
-// CMOrderRequest holds the parameters for a new CM order
-type CMOrderRequest struct {
+// PortfolioMarginCoinMarginedOrderRequest holds the parameters for a new CM order
+type PortfolioMarginCoinMarginedOrderRequest struct {
 	Symbol currency.Pair
 	Side   order.Side
 	// PositionSide is BOTH in one-way mode and LONG or SHORT in hedge mode, where it is required
@@ -486,8 +489,8 @@ type CMOrderRequest struct {
 	NewOrderResponseType string
 }
 
-// CMOrderResponse holds a CM order returned when it is placed or cancelled
-type CMOrderResponse struct {
+// PortfolioMarginCoinMarginedOrderResponse holds a CM order returned when it is placed or cancelled
+type PortfolioMarginCoinMarginedOrderResponse struct {
 	ClientOrderID      string       `json:"clientOrderId"`
 	CumulativeQuantity types.Number `json:"cumQty"`
 	ExecutedQuantity   types.Number `json:"executedQty"`
@@ -505,58 +508,60 @@ type CMOrderResponse struct {
 	UpdateTime         types.Time   `json:"updateTime"`
 }
 
-// PMCancelledMarginOrderResponse holds an order or OCO order list cancelled by the cancel all margin open orders
-// endpoint; order lists carry the list fields, Orders and OrderReports, and plain orders carry an OrderListID of -1
-type PMCancelledMarginOrderResponse struct {
-	Symbol                  string                         `json:"symbol"`
-	OriginalClientOrderID   string                         `json:"origClientOrderId"`
-	OrderID                 uint64                         `json:"orderId"`
-	OrderListID             int64                          `json:"orderListId"` // -1 unless the entry is an order list
-	ClientOrderID           string                         `json:"clientOrderId"`
-	Price                   types.Number                   `json:"price"`
-	OriginalQuantity        types.Number                   `json:"origQty"`
-	ExecutedQuantity        types.Number                   `json:"executedQty"`
-	CumulativeQuoteQuantity types.Number                   `json:"cummulativeQuoteQty"`
-	Status                  string                         `json:"status"`
-	TimeInForce             string                         `json:"timeInForce"`
-	Type                    string                         `json:"type"`
-	Side                    string                         `json:"side"`
-	ContingencyType         string                         `json:"contingencyType"`
-	ListStatusType          string                         `json:"listStatusType"`
-	ListOrderStatus         string                         `json:"listOrderStatus"`
-	ListClientOrderID       string                         `json:"listClientOrderId"`
-	TransactionTime         types.Time                     `json:"transactionTime"`
-	Orders                  []PMMarginOCOOrderLeg          `json:"orders"`
-	OrderReports            []PMCancelledMarginOrderReport `json:"orderReports"`
+// PortfolioMarginCancelledMarginOrderResponse holds an order or OCO order list cancelled by the cancel all margin open
+// orders endpoint; order lists carry the list fields, Orders and OrderReports, and plain orders carry an OrderListID of
+// -1
+type PortfolioMarginCancelledMarginOrderResponse struct {
+	Symbol                  string                                            `json:"symbol"`
+	OriginalClientOrderID   string                                            `json:"origClientOrderId"`
+	OrderID                 uint64                                            `json:"orderId"`
+	OrderListID             int64                                             `json:"orderListId"` // -1 unless the entry is an order list
+	ClientOrderID           string                                            `json:"clientOrderId"`
+	Price                   types.Number                                      `json:"price"`
+	OriginalQuantity        types.Number                                      `json:"origQty"`
+	ExecutedQuantity        types.Number                                      `json:"executedQty"`
+	CumulativeQuoteQuantity types.Number                                      `json:"cummulativeQuoteQty"`
+	Status                  string                                            `json:"status"`
+	TimeInForce             string                                            `json:"timeInForce"`
+	Type                    string                                            `json:"type"`
+	Side                    string                                            `json:"side"`
+	ContingencyType         string                                            `json:"contingencyType"`
+	ListStatusType          string                                            `json:"listStatusType"`
+	ListOrderStatus         string                                            `json:"listOrderStatus"`
+	ListClientOrderID       string                                            `json:"listClientOrderId"`
+	TransactionTime         types.Time                                        `json:"transactionTime"`
+	Orders                  []PortfolioMarginMarginOneCancelsTheOtherOrderLeg `json:"orders"`
+	OrderReports            []PortfolioMarginCancelledMarginOrderReport       `json:"orderReports"`
 }
 
-// PMCancelledMarginOrderReport holds a cancelled OCO order leg returned by the cancel all margin open orders endpoint
-type PMCancelledMarginOrderReport struct {
-	PMCancelMarginOCOOrderReport
+// PortfolioMarginCancelledMarginOrderReport holds a cancelled OCO order leg returned by the cancel all margin open
+// orders endpoint
+type PortfolioMarginCancelledMarginOrderReport struct {
+	PortfolioMarginCancelMarginOneCancelsTheOtherOrderReport
 	IcebergQuantity types.Number `json:"icebergQty"`
 }
 
-// PMMarginOCOOrderLeg holds an order of a margin OCO order list
-type PMMarginOCOOrderLeg struct {
+// PortfolioMarginMarginOneCancelsTheOtherOrderLeg holds an order of a margin OCO order list
+type PortfolioMarginMarginOneCancelsTheOtherOrderLeg struct {
 	Symbol        string `json:"symbol"`
 	OrderID       uint64 `json:"orderId"`
 	ClientOrderID string `json:"clientOrderId"`
 }
 
-// PMMarginOCOOrderResponse holds a margin OCO order list
-type PMMarginOCOOrderResponse struct {
-	OrderListID       uint64                `json:"orderListId"`
-	ContingencyType   string                `json:"contingencyType"`
-	ListStatusType    string                `json:"listStatusType"`
-	ListOrderStatus   string                `json:"listOrderStatus"`
-	ListClientOrderID string                `json:"listClientOrderId"`
-	TransactionTime   types.Time            `json:"transactionTime"`
-	Symbol            string                `json:"symbol"`
-	Orders            []PMMarginOCOOrderLeg `json:"orders"`
+// PortfolioMarginMarginOneCancelsTheOtherOrderResponse holds a margin OCO order list
+type PortfolioMarginMarginOneCancelsTheOtherOrderResponse struct {
+	OrderListID       uint64                                            `json:"orderListId"`
+	ContingencyType   string                                            `json:"contingencyType"`
+	ListStatusType    string                                            `json:"listStatusType"`
+	ListOrderStatus   string                                            `json:"listOrderStatus"`
+	ListClientOrderID string                                            `json:"listClientOrderId"`
+	TransactionTime   types.Time                                        `json:"transactionTime"`
+	Symbol            string                                            `json:"symbol"`
+	Orders            []PortfolioMarginMarginOneCancelsTheOtherOrderLeg `json:"orders"`
 }
 
-// PMCancelMarginOCOOrderRequest holds the parameters for cancelling a margin OCO order list
-type PMCancelMarginOCOOrderRequest struct {
+// PortfolioMarginCancelMarginOneCancelsTheOtherOrderRequest holds the parameters for cancelling a margin OCO order list
+type PortfolioMarginCancelMarginOneCancelsTheOtherOrderRequest struct {
 	Symbol currency.Pair
 	// OrderListID or ListClientOrderID identifies the order list
 	OrderListID       uint64
@@ -565,14 +570,14 @@ type PMCancelMarginOCOOrderRequest struct {
 	NewClientOrderID string
 }
 
-// PMCancelMarginOCOOrderResponse holds a cancelled margin OCO order list
-type PMCancelMarginOCOOrderResponse struct {
-	PMMarginOCOOrderResponse
-	OrderReports []PMCancelMarginOCOOrderReport `json:"orderReports"`
+// PortfolioMarginCancelMarginOneCancelsTheOtherOrderResponse holds a cancelled margin OCO order list
+type PortfolioMarginCancelMarginOneCancelsTheOtherOrderResponse struct {
+	PortfolioMarginMarginOneCancelsTheOtherOrderResponse
+	OrderReports []PortfolioMarginCancelMarginOneCancelsTheOtherOrderReport `json:"orderReports"`
 }
 
-// PMCancelMarginOCOOrderReport holds a cancelled margin OCO order leg
-type PMCancelMarginOCOOrderReport struct {
+// PortfolioMarginCancelMarginOneCancelsTheOtherOrderReport holds a cancelled margin OCO order leg
+type PortfolioMarginCancelMarginOneCancelsTheOtherOrderReport struct {
 	Symbol                  string       `json:"symbol"`
 	OriginalClientOrderID   string       `json:"origClientOrderId"`
 	OrderID                 uint64       `json:"orderId"`
@@ -589,8 +594,8 @@ type PMCancelMarginOCOOrderReport struct {
 	StopPrice               types.Number `json:"stopPrice"`
 }
 
-// PMMarginOrderResponse holds a margin order returned by the margin order query endpoints
-type PMMarginOrderResponse struct {
+// PortfolioMarginMarginOrderResponse holds a margin order returned by the margin order query endpoints
+type PortfolioMarginMarginOrderResponse struct {
 	ClientOrderID string `json:"clientOrderId"`
 	// CumulativeQuoteQuantity is negative for some historical orders whose data is unavailable
 	CumulativeQuoteQuantity types.Number `json:"cummulativeQuoteQty"`
@@ -615,8 +620,8 @@ type PMMarginOrderResponse struct {
 	PreventedQuantity types.Number `json:"preventedQuantity"`
 }
 
-// PMMarginOrderRequest holds the parameters for a new portfolio margin cross margin order
-type PMMarginOrderRequest struct {
+// PortfolioMarginMarginOrderRequest holds the parameters for a new portfolio margin cross margin order
+type PortfolioMarginMarginOrderRequest struct {
 	Symbol currency.Pair
 	Side   order.Side
 	// OrderType is LIMIT, MARKET, STOP_LOSS, STOP_LOSS_LIMIT, TAKE_PROFIT, TAKE_PROFIT_LIMIT or LIMIT_MAKER
@@ -639,8 +644,8 @@ type PMMarginOrderRequest struct {
 	AutoRepayAtCancel *bool
 }
 
-// PMNewMarginOrderResponse holds a new margin order
-type PMNewMarginOrderResponse struct {
+// PortfolioMarginNewMarginOrderResponse holds a new margin order
+type PortfolioMarginNewMarginOrderResponse struct {
 	Symbol                  string       `json:"symbol"`
 	OrderID                 uint64       `json:"orderId"`
 	ClientOrderID           string       `json:"clientOrderId"`
@@ -654,21 +659,21 @@ type PMNewMarginOrderResponse struct {
 	Type                    string       `json:"type"`
 	Side                    string       `json:"side"`
 	// MarginBuyBorrowAmount and MarginBuyBorrowAsset are only returned when the order borrowed
-	MarginBuyBorrowAmount types.Number        `json:"marginBuyBorrowAmount"`
-	MarginBuyBorrowAsset  currency.Code       `json:"marginBuyBorrowAsset"`
-	Fills                 []PMMarginOrderFill `json:"fills"`
+	MarginBuyBorrowAmount types.Number                     `json:"marginBuyBorrowAmount"`
+	MarginBuyBorrowAsset  currency.Code                    `json:"marginBuyBorrowAsset"`
+	Fills                 []PortfolioMarginMarginOrderFill `json:"fills"`
 }
 
-// PMMarginOrderFill holds a fill of a new margin order
-type PMMarginOrderFill struct {
+// PortfolioMarginMarginOrderFill holds a fill of a new margin order
+type PortfolioMarginMarginOrderFill struct {
 	Price           types.Number  `json:"price"`
 	Quantity        types.Number  `json:"qty"`
 	Commission      types.Number  `json:"commission"`
 	CommissionAsset currency.Code `json:"commissionAsset"`
 }
 
-// PMCancelMarginOrderRequest holds the parameters for cancelling a margin order
-type PMCancelMarginOrderRequest struct {
+// PortfolioMarginCancelMarginOrderRequest holds the parameters for cancelling a margin order
+type PortfolioMarginCancelMarginOrderRequest struct {
 	Symbol currency.Pair
 	// OrderID or OriginalClientOrderID identifies the order
 	OrderID               uint64
@@ -677,8 +682,8 @@ type PMCancelMarginOrderRequest struct {
 	NewClientOrderID string
 }
 
-// PMCancelMarginOrderResponse holds a cancelled margin order
-type PMCancelMarginOrderResponse struct {
+// PortfolioMarginCancelMarginOrderResponse holds a cancelled margin order
+type PortfolioMarginCancelMarginOrderResponse struct {
 	Symbol                  string       `json:"symbol"`
 	OrderID                 uint64       `json:"orderId"`
 	OriginalClientOrderID   string       `json:"origClientOrderId"`
@@ -693,8 +698,8 @@ type PMCancelMarginOrderResponse struct {
 	Side                    string       `json:"side"`
 }
 
-// UMOrderDetailResponse holds a UM order returned by the order query endpoints
-type UMOrderDetailResponse struct {
+// PortfolioMarginUSDTMarginedOrderDetailResponse holds a UM order returned by the order query endpoints
+type PortfolioMarginUSDTMarginedOrderDetailResponse struct {
 	AveragePrice            types.Number `json:"avgPrice"`
 	ClientOrderID           string       `json:"clientOrderId"`
 	CumulativeQuote         types.Number `json:"cumQuote"`
@@ -717,8 +722,8 @@ type UMOrderDetailResponse struct {
 	PriceMatch              string       `json:"priceMatch"`
 }
 
-// UMOrderRequest holds the parameters for a new UM order
-type UMOrderRequest struct {
+// PortfolioMarginUSDTMarginedOrderRequest holds the parameters for a new UM order
+type PortfolioMarginUSDTMarginedOrderRequest struct {
 	Symbol currency.Pair
 	Side   order.Side
 	// PositionSide is BOTH in one-way mode and LONG or SHORT in hedge mode, where it is required
@@ -740,8 +745,8 @@ type UMOrderRequest struct {
 	GoodTillDate time.Time
 }
 
-// UMOrderResponse holds a UM order returned when it is placed or cancelled
-type UMOrderResponse struct {
+// PortfolioMarginUSDTMarginedOrderResponse holds a UM order returned when it is placed or cancelled
+type PortfolioMarginUSDTMarginedOrderResponse struct {
 	ClientOrderID           string       `json:"clientOrderId"`
 	CumulativeQuantity      types.Number `json:"cumQty"`
 	ExecutedQuantity        types.Number `json:"executedQty"`
@@ -761,9 +766,9 @@ type UMOrderResponse struct {
 	PriceMatch              string       `json:"priceMatch"`
 }
 
-// CMAccountTradeListRequest holds the parameters for a CM account trade list query; Symbol and Pair are mutually
-// exclusive, and FromID cannot be combined with Pair or a time range
-type CMAccountTradeListRequest struct {
+// PortfolioMarginCoinMarginedAccountTradeListRequest holds the parameters for a CM account trade list query; Symbol and
+// Pair are mutually exclusive, and FromID cannot be combined with Pair or a time range
+type PortfolioMarginCoinMarginedAccountTradeListRequest struct {
 	Symbol currency.Pair
 	// Pair, such as BTCUSD, is the base of a COIN-M contract pair and returns trades of every symbol of the pair
 	Pair      currency.Code
@@ -773,43 +778,43 @@ type CMAccountTradeListRequest struct {
 	Limit     uint64
 }
 
-// CMAccountTradeResponse holds a CM account trade
-type CMAccountTradeResponse struct {
-	Symbol          string        `json:"symbol"`
-	ID              uint64        `json:"id"`
-	OrderID         uint64        `json:"orderId"`
-	Pair            string        `json:"pair"`
-	Side            string        `json:"side"`
-	Price           types.Number  `json:"price"`
-	Quantity        types.Number  `json:"qty"`
-	RealisedPNL     types.Number  `json:"realizedPnl"`
-	MarginAsset     currency.Code `json:"marginAsset"`
-	BaseQuantity    types.Number  `json:"baseQty"`
-	Commission      types.Number  `json:"commission"`
-	CommissionAsset currency.Code `json:"commissionAsset"`
-	Time            types.Time    `json:"time"`
-	PositionSide    string        `json:"positionSide"`
-	Buyer           bool          `json:"buyer"`
-	Maker           bool          `json:"maker"`
+// PortfolioMarginCoinMarginedAccountTradeResponse holds a CM account trade
+type PortfolioMarginCoinMarginedAccountTradeResponse struct {
+	Symbol              string        `json:"symbol"`
+	ID                  uint64        `json:"id"`
+	OrderID             uint64        `json:"orderId"`
+	Pair                string        `json:"pair"`
+	Side                string        `json:"side"`
+	Price               types.Number  `json:"price"`
+	QuantityInContracts types.Number  `json:"qty"`
+	RealisedPNL         types.Number  `json:"realizedPnl"`
+	MarginAsset         currency.Code `json:"marginAsset"`
+	BaseQuantity        types.Number  `json:"baseQty"`
+	Commission          types.Number  `json:"commission"`
+	CommissionAsset     currency.Code `json:"commissionAsset"`
+	Time                types.Time    `json:"time"`
+	PositionSide        string        `json:"positionSide"`
+	Buyer               bool          `json:"buyer"`
+	Maker               bool          `json:"maker"`
 }
 
-// CMADLQuantileEstimationResponse holds a CM symbol's auto-deleveraging quantiles
-type CMADLQuantileEstimationResponse struct {
-	Symbol      string        `json:"symbol"`
-	ADLQuantile CMADLQuantile `json:"adlQuantile"`
+// PortfolioMarginCoinMarginedAutoDeleveragingQuantileEstimationResponse holds a CM symbol's auto-deleveraging quantiles
+type PortfolioMarginCoinMarginedAutoDeleveragingQuantileEstimationResponse struct {
+	Symbol                   string                                              `json:"symbol"`
+	AutoDeleveragingQuantile PortfolioMarginCoinMarginedAutoDeleveragingQuantile `json:"adlQuantile"`
 }
 
-// CMADLQuantile holds auto-deleveraging queue quantiles from 0 (low) to 4 (high) per position side; a cross margined
-// hedge mode position reports HEDGE instead of BOTH
-type CMADLQuantile struct {
+// PortfolioMarginCoinMarginedAutoDeleveragingQuantile holds auto-deleveraging queue quantiles from 0 (low) to 4 (high)
+// per position side; a cross margined hedge mode position reports HEDGE instead of BOTH
+type PortfolioMarginCoinMarginedAutoDeleveragingQuantile struct {
 	Long  uint64 `json:"LONG"`
 	Short uint64 `json:"SHORT"`
 	Hedge uint64 `json:"HEDGE"` // only a sign, its value is meaningless
 	Both  uint64 `json:"BOTH"`
 }
 
-// PMMarginOCOOrderRequest holds the parameters for a new margin OCO order list
-type PMMarginOCOOrderRequest struct {
+// PortfolioMarginMarginOneCancelsTheOtherOrderRequest holds the parameters for a new margin OCO order list
+type PortfolioMarginMarginOneCancelsTheOtherOrderRequest struct {
 	Symbol            currency.Pair
 	ListClientOrderID string
 	Side              order.Side
@@ -829,17 +834,17 @@ type PMMarginOCOOrderRequest struct {
 	SideEffectType string
 }
 
-// PMNewMarginOCOOrderResponse holds a new margin OCO order list
-type PMNewMarginOCOOrderResponse struct {
-	PMMarginOCOOrderResponse
+// PortfolioMarginNewMarginOneCancelsTheOtherOrderResponse holds a new margin OCO order list
+type PortfolioMarginNewMarginOneCancelsTheOtherOrderResponse struct {
+	PortfolioMarginMarginOneCancelsTheOtherOrderResponse
 	// MarginBuyBorrowAmount and MarginBuyBorrowAsset are only returned when the order list borrowed
-	MarginBuyBorrowAmount types.Number                `json:"marginBuyBorrowAmount"`
-	MarginBuyBorrowAsset  currency.Code               `json:"marginBuyBorrowAsset"`
-	OrderReports          []PMNewMarginOCOOrderReport `json:"orderReports"`
+	MarginBuyBorrowAmount types.Number                                            `json:"marginBuyBorrowAmount"`
+	MarginBuyBorrowAsset  currency.Code                                           `json:"marginBuyBorrowAsset"`
+	OrderReports          []PortfolioMarginNewMarginOneCancelsTheOtherOrderReport `json:"orderReports"`
 }
 
-// PMNewMarginOCOOrderReport holds an order of a new margin OCO order list
-type PMNewMarginOCOOrderReport struct {
+// PortfolioMarginNewMarginOneCancelsTheOtherOrderReport holds an order of a new margin OCO order list
+type PortfolioMarginNewMarginOneCancelsTheOtherOrderReport struct {
 	Symbol                  string       `json:"symbol"`
 	OrderID                 uint64       `json:"orderId"`
 	OrderListID             uint64       `json:"orderListId"`
@@ -856,8 +861,8 @@ type PMNewMarginOCOOrderReport struct {
 	StopPrice               types.Number `json:"stopPrice"`
 }
 
-// PMMarginTradeListRequest holds the parameters for a margin account trade list query
-type PMMarginTradeListRequest struct {
+// PortfolioMarginMarginTradeListRequest holds the parameters for a margin account trade list query
+type PortfolioMarginMarginTradeListRequest struct {
 	Symbol    currency.Pair
 	OrderID   uint64
 	StartTime time.Time
@@ -866,8 +871,8 @@ type PMMarginTradeListRequest struct {
 	Limit     uint64
 }
 
-// PMMarginTradeResponse holds a margin account trade
-type PMMarginTradeResponse struct {
+// PortfolioMarginMarginTradeResponse holds a margin account trade
+type PortfolioMarginMarginTradeResponse struct {
 	Commission      types.Number  `json:"commission"`
 	CommissionAsset currency.Code `json:"commissionAsset"`
 	ID              uint64        `json:"id"`
@@ -881,8 +886,8 @@ type PMMarginTradeResponse struct {
 	Time            types.Time    `json:"time"`
 }
 
-// CMConditionalOrdersRequest holds the parameters for a query of all CM conditional orders
-type CMConditionalOrdersRequest struct {
+// PortfolioMarginCoinMarginedConditionalOrdersRequest holds the parameters for a query of all CM conditional orders
+type PortfolioMarginCoinMarginedConditionalOrdersRequest struct {
 	Symbol     currency.Pair
 	StrategyID uint64
 	StartTime  time.Time
@@ -890,9 +895,10 @@ type CMConditionalOrdersRequest struct {
 	Limit      uint64
 }
 
-// CMConditionalOrderRecordResponse holds a CM conditional order with the order it triggered, if any
-type CMConditionalOrderRecordResponse struct {
-	CMConditionalOrderResponse
+// PortfolioMarginCoinMarginedConditionalOrderRecordResponse holds a CM conditional order with the order it triggered,
+// if any
+type PortfolioMarginCoinMarginedConditionalOrderRecordResponse struct {
+	PortfolioMarginCoinMarginedConditionalOrderResponse
 	// OrderID, Status and Type describe the order placed when the strategy triggered
 	OrderID     uint64     `json:"orderId"`
 	Status      string     `json:"status"`
@@ -900,8 +906,9 @@ type CMConditionalOrderRecordResponse struct {
 	Type        string     `json:"type"`
 }
 
-// CMOrdersRequest holds the parameters for a query of all CM orders; Symbol or Pair is required
-type CMOrdersRequest struct {
+// PortfolioMarginCoinMarginedOrdersRequest holds the parameters for a query of all CM orders; Symbol or Pair is
+// required
+type PortfolioMarginCoinMarginedOrdersRequest struct {
 	Symbol currency.Pair
 	// Pair, such as BTCUSD, is the base of a COIN-M contract pair
 	Pair currency.Code
@@ -912,8 +919,8 @@ type CMOrdersRequest struct {
 	Limit     uint64
 }
 
-// PMMarginOrdersRequest holds the parameters for a query of all margin account orders
-type PMMarginOrdersRequest struct {
+// PortfolioMarginMarginOrdersRequest holds the parameters for a query of all margin account orders
+type PortfolioMarginMarginOrdersRequest struct {
 	Symbol currency.Pair
 	// OrderID returns orders from this order ID onwards
 	OrderID   uint64
@@ -922,8 +929,8 @@ type PMMarginOrdersRequest struct {
 	Limit     uint64
 }
 
-// UMOrdersRequest holds the parameters for a query of all UM orders
-type UMOrdersRequest struct {
+// PortfolioMarginUSDTMarginedOrdersRequest holds the parameters for a query of all UM orders
+type PortfolioMarginUSDTMarginedOrdersRequest struct {
 	Symbol currency.Pair
 	// OrderID returns orders from this order ID onwards
 	OrderID   uint64
@@ -932,24 +939,25 @@ type UMOrdersRequest struct {
 	Limit     uint64
 }
 
-// CMConditionalOrderHistoryResponse holds a CM conditional order from the order history
-type CMConditionalOrderHistoryResponse struct {
-	CMConditionalOrderRecordResponse
+// PortfolioMarginCoinMarginedConditionalOrderHistoryResponse holds a CM conditional order from the order history
+type PortfolioMarginCoinMarginedConditionalOrderHistoryResponse struct {
+	PortfolioMarginCoinMarginedConditionalOrderRecordResponse
 	WorkingType  string `json:"workingType"`
 	PriceProtect bool   `json:"priceProtect"`
 	PriceMatch   string `json:"priceMatch"`
 }
 
-// PMMarginAllOCORequest holds the parameters for a query of all margin OCO order lists
-type PMMarginAllOCORequest struct {
+// PortfolioMarginMarginAllOneCancelsTheOtherOrdersRequest holds the parameters for a query of all margin OCO order
+// lists
+type PortfolioMarginMarginAllOneCancelsTheOtherOrdersRequest struct {
 	FromID    uint64
 	StartTime time.Time
 	EndTime   time.Time
 	Limit     uint64
 }
 
-// PMForceOrdersRequest holds the parameters for a UM or CM force orders query
-type PMForceOrdersRequest struct {
+// PortfolioMarginForceOrdersRequest holds the parameters for a UM or CM force orders query
+type PortfolioMarginForceOrdersRequest struct {
 	Symbol currency.Pair
 	// AutoCloseType is LIQUIDATION or ADL; both are returned when it is empty
 	AutoCloseType string
@@ -958,8 +966,8 @@ type PMForceOrdersRequest struct {
 	Limit         uint64
 }
 
-// CMForceOrderResponse holds a CM liquidation or auto-deleveraging order
-type CMForceOrderResponse struct {
+// PortfolioMarginCoinMarginedForceOrderResponse holds a CM liquidation or auto-deleveraging order
+type PortfolioMarginCoinMarginedForceOrderResponse struct {
 	OrderID          uint64       `json:"orderId"`
 	Symbol           string       `json:"symbol"`
 	Pair             string       `json:"pair"`
@@ -980,22 +988,22 @@ type CMForceOrderResponse struct {
 	UpdateTime       types.Time   `json:"updateTime"`
 }
 
-// PMMarginForceOrdersRequest holds the parameters for a margin force orders query
-type PMMarginForceOrdersRequest struct {
+// PortfolioMarginMarginForceOrdersRequest holds the parameters for a margin force orders query
+type PortfolioMarginMarginForceOrdersRequest struct {
 	StartTime time.Time
 	EndTime   time.Time
 	Current   uint64
 	Size      uint64
 }
 
-// PMMarginForceOrderResponse holds a page of margin force orders
-type PMMarginForceOrderResponse struct {
-	Rows  []PMMarginForceOrder `json:"rows"`
-	Total uint64               `json:"total"`
+// PortfolioMarginMarginForceOrderResponse holds a page of margin force orders
+type PortfolioMarginMarginForceOrderResponse struct {
+	Rows  []PortfolioMarginMarginForceOrder `json:"rows"`
+	Total uint64                            `json:"total"`
 }
 
-// PMMarginForceOrder holds a margin liquidation order
-type PMMarginForceOrder struct {
+// PortfolioMarginMarginForceOrder holds a margin liquidation order
+type PortfolioMarginMarginForceOrder struct {
 	AveragePrice     types.Number `json:"avgPrice"`
 	ExecutedQuantity types.Number `json:"executedQty"`
 	OrderID          uint64       `json:"orderId"`
@@ -1007,8 +1015,8 @@ type PMMarginForceOrder struct {
 	UpdatedTime      types.Time   `json:"updatedTime"`
 }
 
-// UMForceOrderResponse holds a UM liquidation or auto-deleveraging order
-type UMForceOrderResponse struct {
+// PortfolioMarginUSDTMarginedForceOrderResponse holds a UM liquidation or auto-deleveraging order
+type PortfolioMarginUSDTMarginedForceOrderResponse struct {
 	OrderID          uint64       `json:"orderId"`
 	Symbol           string       `json:"symbol"`
 	Status           string       `json:"status"`
@@ -1028,9 +1036,9 @@ type UMForceOrderResponse struct {
 	UpdateTime       types.Time   `json:"updateTime"`
 }
 
-// UMAccountTradeListRequest holds the parameters for a UM account trade list query; FromID cannot be combined with
-// a time range
-type UMAccountTradeListRequest struct {
+// PortfolioMarginUSDTMarginedAccountTradeListRequest holds the parameters for a UM account trade list query; FromID
+// cannot be combined with a time range
+type PortfolioMarginUSDTMarginedAccountTradeListRequest struct {
 	Symbol    currency.Pair
 	StartTime time.Time
 	EndTime   time.Time
@@ -1038,8 +1046,8 @@ type UMAccountTradeListRequest struct {
 	Limit     uint64
 }
 
-// UMAccountTradeResponse holds a UM account trade
-type UMAccountTradeResponse struct {
+// PortfolioMarginUSDTMarginedAccountTradeResponse holds a UM account trade
+type PortfolioMarginUSDTMarginedAccountTradeResponse struct {
 	Symbol          string        `json:"symbol"`
 	ID              uint64        `json:"id"`
 	OrderID         uint64        `json:"orderId"`
@@ -1056,21 +1064,22 @@ type UMAccountTradeResponse struct {
 	PositionSide    string        `json:"positionSide"`
 }
 
-// UMADLQuantileEstimationResponse holds a UM symbol's auto-deleveraging quantiles
-type UMADLQuantileEstimationResponse struct {
-	Symbol      string        `json:"symbol"`
-	ADLQuantile UMADLQuantile `json:"adlQuantile"`
+// PortfolioMarginUSDTMarginedAutoDeleveragingQuantileEstimationResponse holds a UM symbol's auto-deleveraging quantiles
+type PortfolioMarginUSDTMarginedAutoDeleveragingQuantileEstimationResponse struct {
+	Symbol                   string                                              `json:"symbol"`
+	AutoDeleveragingQuantile PortfolioMarginUSDTMarginedAutoDeleveragingQuantile `json:"adlQuantile"`
 }
 
-// UMADLQuantile holds auto-deleveraging queue quantiles from 0 (low) to 4 (high) per position side
-type UMADLQuantile struct {
+// PortfolioMarginUSDTMarginedAutoDeleveragingQuantile holds auto-deleveraging queue quantiles from 0 (low) to 4 (high)
+// per position side
+type PortfolioMarginUSDTMarginedAutoDeleveragingQuantile struct {
 	Long  uint64 `json:"LONG"`
 	Short uint64 `json:"SHORT"`
 	Both  uint64 `json:"BOTH"`
 }
 
-// UMAlgoOrderRequest holds the parameters for a new UM algo (conditional) order
-type UMAlgoOrderRequest struct {
+// PortfolioMarginUSDTMarginedAlgoOrderRequest holds the parameters for a new UM algo (conditional) order
+type PortfolioMarginUSDTMarginedAlgoOrderRequest struct {
 	// AlgoType only supports CONDITIONAL
 	AlgoType string
 	Symbol   currency.Pair
@@ -1103,8 +1112,9 @@ type UMAlgoOrderRequest struct {
 	GoodTillDate time.Time
 }
 
-// UMAlgoOrderResponse holds a UM algo order as placing one and the open algo orders query return it
-type UMAlgoOrderResponse struct {
+// PortfolioMarginUSDTMarginedAlgoOrderResponse holds a UM algo order as placing one and the open algo orders query
+// return it
+type PortfolioMarginUSDTMarginedAlgoOrderResponse struct {
 	AlgoID                  uint64       `json:"algoId"`
 	ClientAlgoID            string       `json:"clientAlgoId"`
 	AlgoType                string       `json:"algoType"`
@@ -1131,21 +1141,21 @@ type UMAlgoOrderResponse struct {
 	GoodTillDate            types.Time   `json:"goodTillDate"`
 }
 
-// CancelUMAlgoOrderResponse holds the result of a UM algo order cancellation
-type CancelUMAlgoOrderResponse struct {
+// CancelPortfolioMarginUSDTMarginedAlgoOrderResponse holds the result of a UM algo order cancellation
+type CancelPortfolioMarginUSDTMarginedAlgoOrderResponse struct {
 	Complete bool `json:"complete"`
 }
 
-// UMAlgoOrderDetailResponse holds a UM algo order as the order and history queries return it, with the order its
-// trigger placed
-type UMAlgoOrderDetailResponse struct {
-	UMAlgoOrderResponse
+// PortfolioMarginUSDTMarginedAlgoOrderDetailResponse holds a UM algo order as the order and history queries return it,
+// with the order its trigger placed
+type PortfolioMarginUSDTMarginedAlgoOrderDetailResponse struct {
+	PortfolioMarginUSDTMarginedAlgoOrderResponse
 	ActualOrderID string       `json:"actualOrderId"` // empty until the algo order triggers
 	ActualPrice   types.Number `json:"actualPrice"`
 }
 
-// UMAlgoOrderHistoryRequest holds the parameters of Query UM Algo Order History
-type UMAlgoOrderHistoryRequest struct {
+// PortfolioMarginUSDTMarginedAlgoOrderHistoryRequest holds the parameters of Query UM Algo Order History
+type PortfolioMarginUSDTMarginedAlgoOrderHistoryRequest struct {
 	Symbol    currency.Pair
 	AlgoID    uint64 // returns orders from this algo ID on
 	StartTime time.Time

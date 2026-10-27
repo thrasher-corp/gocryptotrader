@@ -21,8 +21,9 @@ type OptionsAccountFundingFlowRequest struct {
 
 // OptionsAccountFundingResponse holds an options account funding flow
 type OptionsAccountFundingResponse struct {
-	ID    uint64        `json:"id"`
-	Asset currency.Code `json:"asset"`
+	ID     uint64        `json:"id"`
+	Asset  currency.Code `json:"asset"`
+	Symbol string        `json:"symbol"`
 	// Amount is positive for inflows and negative for outflows
 	Amount     types.Number `json:"amount"`
 	Type       string       `json:"type"`
@@ -65,9 +66,8 @@ type OptionsGreek struct {
 
 // OptionsTransactionHistoryDownloadIDResponse holds the download ID of an options transaction history file
 type OptionsTransactionHistoryDownloadIDResponse struct {
-	// AverageCostTimestampOfLast30Days is the average time in milliseconds a download took over the last 30 days
-	AverageCostTimestampOfLast30Days uint64 `json:"avgCostTimestampOfLast30d"`
-	DownloadID                       string `json:"downloadId"`
+	AverageDownloadMillisecondsOfLast30Days uint64 `json:"avgCostTimestampOfLast30d"`
+	DownloadID                              string `json:"downloadId"`
 }
 
 // OptionsTransactionHistoryDownloadLinkResponse holds the download link of an options transaction history file
@@ -261,11 +261,10 @@ type EOptionTickerResponse struct {
 	Open               types.Number `json:"open"`
 	High               types.Number `json:"high"`
 	Low                types.Number `json:"low"`
-	// Volume counts contracts and Amount is in the quote asset
-	Volume   types.Number `json:"volume"`
-	Amount   types.Number `json:"amount"`
-	BidPrice types.Number `json:"bidPrice"`
-	AskPrice types.Number `json:"askPrice"`
+	VolumeInContracts  types.Number `json:"volume"`
+	AmountInQuoteAsset types.Number `json:"amount"`
+	BidPrice           types.Number `json:"bidPrice"`
+	AskPrice           types.Number `json:"askPrice"`
 	// OpenTime and CloseTime are the times of the first and last trade in the window
 	OpenTime     types.Time   `json:"openTime"`
 	CloseTime    types.Time   `json:"closeTime"`
@@ -283,16 +282,14 @@ type OptionsAutoCancelAllOpenOrdersHeartbeatResponse struct {
 
 // OptionsAutoCancelAllOpenOrdersConfigResponse holds the auto-cancel countdown of an options underlying
 type OptionsAutoCancelAllOpenOrdersConfigResponse struct {
-	Underlying string `json:"underlying"`
-	// CountdownTime is in milliseconds
-	CountdownTime uint64 `json:"countdownTime"`
+	Underlying                  string `json:"underlying"`
+	CountdownTimeInMilliseconds uint64 `json:"countdownTime"`
 }
 
 // OptionsMarketMakerProtectionResponse holds the market maker protection config of an options underlying
 type OptionsMarketMakerProtectionResponse struct {
-	UnderlyingID uint64 `json:"underlyingId"`
-	Underlying   string `json:"underlying"`
-	// WindowTimeInMilliseconds and FrozenTimeInMilliseconds are durations in milliseconds
+	UnderlyingID             uint64       `json:"underlyingId"`
+	Underlying               string       `json:"underlying"`
 	WindowTimeInMilliseconds uint64       `json:"windowTimeInMilliseconds"`
 	FrozenTimeInMilliseconds uint64       `json:"frozenTimeInMilliseconds"`
 	QuantityLimit            types.Number `json:"qtyLimit"`

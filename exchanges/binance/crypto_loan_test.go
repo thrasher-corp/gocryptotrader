@@ -102,6 +102,28 @@ func TestFlexibleLoanAdjustLTVResponseUnmarshalJSON(t *testing.T) {
 	}
 	var got FlexibleLoanAdjustLTVResponse
 	assert.Error(t, json.Unmarshal([]byte(`{"amount":true}`), &got), "Unmarshal should reject a non-numeric amount")
+
+	// Which field holds the amount depends on which the reply sends, not on the value decoded so far
+	for _, tc := range []struct {
+		name    string
+		initial types.Number
+		data    string
+		exp     types.Number
+	}{
+		{"v1 amount into a reused value", 3.5, `{"amount":"7.5"}`, 7.5},
+		{"documented zero beside a v1 amount", 0, `{"adjustmentAmount":"0","amount":"7.5"}`, 0},
+		{"documented null into a reused value", 3.5, `{"adjustmentAmount":null}`, 0},
+		{"documented null beside a v1 amount", 3.5, `{"adjustmentAmount":null,"amount":"7.5"}`, 0},
+		{"v1 null into a reused value", 3.5, `{"amount":null}`, 0},
+		{"neither field", 3.5, `{"status":"Succeeds"}`, 3.5},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got := FlexibleLoanAdjustLTVResponse{AdjustmentAmount: tc.initial}
+			require.NoError(t, json.Unmarshal([]byte(tc.data), &got), "Unmarshal must not error")
+			assert.Equal(t, tc.exp, got.AdjustmentAmount, "Unmarshal should take the amount from the field the reply sends")
+		})
+	}
 }
 
 func TestFlexibleLoanBorrow(t *testing.T) {
@@ -472,7 +494,7 @@ func TestCryptoLoanBorrowHistory(t *testing.T) {
 					LoanCoin:                currency.USDT,
 					InitialLoanAmount:       10000,
 					HourlyInterestRate:      0.000057,
-					LoanTerm:                7,
+					LoanTermInDays:          7,
 					CollateralCoin:          currency.BTC,
 					InitialCollateralAmount: 0.2,
 					BorrowTime:              types.Time(time.Unix(1744156800, 0)),

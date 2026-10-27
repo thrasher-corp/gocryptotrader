@@ -131,19 +131,19 @@ func (e *Exchange) GetSpotOthersRebateRecentRecord(ctx context.Context, arg *Par
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/apiReferral/rebate/recentRecord", params, sapiDefaultRate, &resp)
 }
 
-// GetPAPIUsersCustomisedID returns the customer ID assigned to the user by a broker
-func (e *Exchange) GetPAPIUsersCustomisedID(ctx context.Context, brokerID string) (*PAPICustomisedIDResponse, error) {
+// GetPortfolioMarginUsersCustomisedID returns the customer ID assigned to the user by a broker
+func (e *Exchange) GetPortfolioMarginUsersCustomisedID(ctx context.Context, brokerID string) (*PortfolioMarginCustomisedIDResponse, error) {
 	if brokerID == "" {
 		return nil, errInvalidBrokerID
 	}
 	params := url.Values{}
 	params.Set("brokerId", brokerID)
-	var resp *PAPICustomisedIDResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/apiReferral/userCustomization", params, pmAPIReferralRate, &resp)
+	var resp *PortfolioMarginCustomisedIDResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/apiReferral/userCustomization", params, portfolioMarginAPIReferralRate, &resp)
 }
 
-// CustomisePAPIOwnClientID assigns a unique customer ID to a referred portfolio margin user
-func (e *Exchange) CustomisePAPIOwnClientID(ctx context.Context, customerID, brokerID string) (*PAPICustomisedIDResponse, error) {
+// CustomisePortfolioMarginOwnClientID assigns a unique customer ID to a referred portfolio margin user
+func (e *Exchange) CustomisePortfolioMarginOwnClientID(ctx context.Context, customerID, brokerID string) (*PortfolioMarginCustomisedIDResponse, error) {
 	if customerID == "" {
 		return nil, errCustomerIDRequired
 	}
@@ -153,8 +153,8 @@ func (e *Exchange) CustomisePAPIOwnClientID(ctx context.Context, customerID, bro
 	params := url.Values{}
 	params.Set("customerId", customerID)
 	params.Set("brokerId", brokerID)
-	var resp *PAPICustomisedIDResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodPost, "/papi/v1/apiReferral/userCustomization", params, pmAPIReferralRate, &resp)
+	var resp *PortfolioMarginCustomisedIDResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodPost, "/papi/v1/apiReferral/userCustomization", params, portfolioMarginAPIReferralRate, &resp)
 }
 
 // GetFuturesUsersCustomisedID calls Get User's Customize Id (Futures) (USER_DATA), returning the customer ID the
@@ -166,7 +166,7 @@ func (e *Exchange) GetFuturesUsersCustomisedID(ctx context.Context, brokerID str
 	params := url.Values{}
 	params.Set("brokerId", brokerID)
 	var resp *FuturesReferralCustomerIDResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/fapi/v1/apiReferral/userCustomization", params, uFuturesAPIReferralRate, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/fapi/v1/apiReferral/userCustomization", params, usdtMarginedFuturesAPIReferralRate, &resp)
 }
 
 // CustomiseFuturesOwnClientID calls Customize Id For Futures Client (USER_DATA), letting a referred user set the
@@ -182,7 +182,7 @@ func (e *Exchange) CustomiseFuturesOwnClientID(ctx context.Context, customerID, 
 	params.Set("customerId", customerID)
 	params.Set("brokerId", brokerID)
 	var resp *FuturesReferralCustomerIDResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, "/fapi/v1/apiReferral/userCustomization", params, uFuturesAPIReferralRate, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, "/fapi/v1/apiReferral/userCustomization", params, usdtMarginedFuturesAPIReferralRate, &resp)
 }
 
 // GetFuturesClientEmailCustomisedID calls Get Futures Client Email Customized Id (USER_DATA), filtering by customer ID
@@ -208,7 +208,7 @@ func (e *Exchange) GetFuturesClientEmailCustomisedID(ctx context.Context, arg *R
 		params.Set("limit", strconv.FormatUint(arg.Limit, 10))
 	}
 	var resp []ReferralCustomerEmailResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/fapi/v1/apiReferral/customization", params, uFuturesAPIReferralRate, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/fapi/v1/apiReferral/customization", params, usdtMarginedFuturesAPIReferralRate, &resp)
 }
 
 // CustomiseFuturesPartnerClientID calls Partner Customize Id For Futures Client (USER_DATA), setting the unique
@@ -219,7 +219,7 @@ func (e *Exchange) CustomiseFuturesPartnerClientID(ctx context.Context, customer
 		return nil, err
 	}
 	var resp *ReferralCustomerEmailResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, "/fapi/v1/apiReferral/customization", params, uFuturesAPIReferralRate, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, "/fapi/v1/apiReferral/customization", params, usdtMarginedFuturesAPIReferralRate, &resp)
 }
 
 // GetFuturesRebateDataOverview calls Get Rebate Data Overview (USER_DATA) for USDⓈ-M futures, or COIN-M futures when
@@ -230,7 +230,7 @@ func (e *Exchange) GetFuturesRebateDataOverview(ctx context.Context, coinMargine
 		params.Set("type", "2")
 	}
 	var resp *ReferralRebateOverviewResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/fapi/v1/apiReferral/overview", params, uFuturesAPIReferralRate, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/fapi/v1/apiReferral/overview", params, usdtMarginedFuturesAPIReferralRate, &resp)
 }
 
 // GetRebateVolume calls Get Rebate Volume (USER_DATA)
@@ -240,7 +240,7 @@ func (e *Exchange) GetRebateVolume(ctx context.Context, arg *ReferralVolumeReque
 		return nil, err
 	}
 	var resp []ReferralRebateVolumeResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/fapi/v1/apiReferral/rebateVol", params, uFuturesAPIReferralRate, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/fapi/v1/apiReferral/rebateVol", params, usdtMarginedFuturesAPIReferralRate, &resp)
 }
 
 // GetTraderDetail calls Get Trader Detail (USER_DATA), returning the trade and rebate volume of referred traders, or
@@ -254,7 +254,7 @@ func (e *Exchange) GetTraderDetail(ctx context.Context, customerID string, arg *
 		params.Set("customerId", customerID)
 	}
 	var resp []ReferralTraderDetailResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/fapi/v1/apiReferral/traderSummary", params, uFuturesAPIReferralRate, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/fapi/v1/apiReferral/traderSummary", params, usdtMarginedFuturesAPIReferralRate, &resp)
 }
 
 // GetFuturesReferredTradersNumber calls Get Trader Number (USER_DATA), returning the number of new and existing
@@ -265,7 +265,7 @@ func (e *Exchange) GetFuturesReferredTradersNumber(ctx context.Context, arg *Ref
 		return nil, err
 	}
 	var resp []ReferralTraderNumberResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/fapi/v1/apiReferral/traderNum", params, uFuturesAPIReferralRate, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/fapi/v1/apiReferral/traderNum", params, usdtMarginedFuturesAPIReferralRate, &resp)
 }
 
 // GetUserTradeVolume calls Get User Trade Volume (USER_DATA), returning referred users' trade volume
@@ -275,12 +275,12 @@ func (e *Exchange) GetUserTradeVolume(ctx context.Context, arg *ReferralVolumeRe
 		return nil, err
 	}
 	var resp []ReferralTradeVolumeResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/fapi/v1/apiReferral/tradeVol", params, uFuturesAPIReferralRate, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/fapi/v1/apiReferral/tradeVol", params, usdtMarginedFuturesAPIReferralRate, &resp)
 }
 
-// GetPAPIClientIfNewUser returns whether a referred portfolio margin user is new to the broker, for the USDⓈ-M
-// futures account or, when coinMargined is set, the COIN-M futures account
-func (e *Exchange) GetPAPIClientIfNewUser(ctx context.Context, brokerID string, coinMargined bool) (*PAPIClientNewUserStatusResponse, error) {
+// GetPortfolioMarginClientIfNewUser returns whether a referred portfolio margin user is new to the broker, for the
+// USDⓈ-M futures account or, when coinMargined is set, the COIN-M futures account
+func (e *Exchange) GetPortfolioMarginClientIfNewUser(ctx context.Context, brokerID string, coinMargined bool) (*PortfolioMarginClientNewUserStatusResponse, error) {
 	if brokerID == "" {
 		return nil, errInvalidBrokerID
 	}
@@ -289,8 +289,8 @@ func (e *Exchange) GetPAPIClientIfNewUser(ctx context.Context, brokerID string, 
 	if coinMargined {
 		params.Set("type", "2")
 	}
-	var resp *PAPIClientNewUserStatusResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/apiReferral/ifNewUser", params, pmAPIReferralRate, &resp)
+	var resp *PortfolioMarginClientNewUserStatusResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/apiReferral/ifNewUser", params, portfolioMarginAPIReferralRate, &resp)
 }
 
 // GetFuturesClientIfNewUser calls Query Futures Client New User Status (USER_DATA) for USDⓈ-M futures, or COIN-M
@@ -305,7 +305,7 @@ func (e *Exchange) GetFuturesClientIfNewUser(ctx context.Context, brokerID strin
 		params.Set("type", "2")
 	}
 	var resp *FuturesReferralNewUserResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/fapi/v1/apiReferral/ifNewUser", params, uFuturesAPIReferralRate, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/fapi/v1/apiReferral/ifNewUser", params, usdtMarginedFuturesAPIReferralRate, &resp)
 }
 
 // referralCustomerEmailParams builds the parameters both partner customer ID customisations require

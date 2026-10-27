@@ -3,6 +3,9 @@ package binance
 import (
 	"bytes"
 	"errors"
+	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -74,6 +77,8 @@ var (
 	errRewardTypeMissing           = errors.New("reward type is required")
 	errInvalidBrokerID             = errors.New("missing brokerID")
 	errBatchCancelRequiresSamePair = errors.New("batch cancellation requires a single asset type and pair")
+	errInvalidListElement          = errors.New("invalid comma separated list element")
+	errTooManyItems                = errors.New("list holds more items than Binance takes in one request")
 )
 
 // objectOrArray decodes a response that is a single object when one symbol is requested and an array otherwise
@@ -90,6 +95,43 @@ func (o *objectOrArray[T]) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 	return json.Unmarshal(data, (*[]T)(o))
+}
+
+// commaSeparatedElement is a type the elements of a CommaSeparated list decode into
+type commaSeparatedElement interface {
+	uint64 | currency.Code
+}
+
+// CommaSeparated holds a list Binance sends as one comma separated string, such as "BNB,BTC,ETH" or
+// "12345678,12345679"
+type CommaSeparated[T commaSeparatedElement] []T
+
+// UnmarshalJSON decodes a comma separated string into its elements, and an empty string into an empty list
+func (c *CommaSeparated[T]) UnmarshalJSON(data []byte) error {
+	var list string
+	if err := json.Unmarshal(data, &list); err != nil {
+		return err
+	}
+	if list == "" {
+		*c = nil
+		return nil
+	}
+	items := strings.Split(list, ",")
+	elements := make(CommaSeparated[T], len(items))
+	for i, item := range items {
+		switch element := any(&elements[i]).(type) {
+		case *uint64:
+			id, err := strconv.ParseUint(item, 10, 64)
+			if err != nil {
+				return fmt.Errorf("%w %q: %w", errInvalidListElement, item, err)
+			}
+			*element = id
+		case *currency.Code:
+			*element = currency.NewCode(item)
+		}
+	}
+	*c = elements
+	return nil
 }
 
 // ExchangeInfoRequest holds the optional filters of an exchange information request. Symbols cannot be combined with
@@ -148,8 +190,8 @@ type SymbolInfo struct {
 	QuoteCommissionPrecision        uint64         `json:"quoteCommissionPrecision"`
 	OrderTypes                      []string       `json:"orderTypes"`
 	IcebergAllowed                  bool           `json:"icebergAllowed"`
-	OCOAllowed                      bool           `json:"ocoAllowed"`
-	OTOAllowed                      bool           `json:"otoAllowed"`
+	OneCancelsTheOtherAllowed       bool           `json:"ocoAllowed"`
+	OneTriggersTheOtherAllowed      bool           `json:"otoAllowed"`
 	OPOAllowed                      bool           `json:"opoAllowed"`
 	QuoteOrderQuantityMarketAllowed bool           `json:"quoteOrderQtyMarketAllowed"`
 	AllowTrailingStop               bool           `json:"allowTrailingStop"`
@@ -247,9 +289,9 @@ type AggregatedTradeResponse struct {
 
 // AveragePriceResponse holds a symbol's current average price
 type AveragePriceResponse struct {
-	Minutes   uint64       `json:"mins"` // Interval the price is averaged over
-	Price     types.Number `json:"price"`
-	CloseTime types.Time   `json:"closeTime"` // Time of the last trade
+	IntervalInMinutes uint64       `json:"mins"`
+	Price             types.Number `json:"price"`
+	CloseTime         types.Time   `json:"closeTime"` // Time of the last trade
 }
 
 // OrderBookRequest holds the parameters of an order book request
@@ -409,13 +451,13 @@ type TradingDayTickerRequest struct {
 // such as an iceberg quantity, self-trade prevention, a stop price, a strategy, a trailing stop, smart order routing
 // (SOR), a price peg or an expiry
 type OrderConditionalFields struct {
-	IcebergQuantity   types.Number `json:"icebergQty"`
-	PreventedMatchID  uint64       `json:"preventedMatchId"`
-	PreventedQuantity types.Number `json:"preventedQuantity"`
-	StopPrice         types.Number `json:"stopPrice"`
-	StrategyID        uint64       `json:"strategyId"`
-	StrategyType      uint64       `json:"strategyType"`
-	TrailingDelta     uint64       `json:"trailingDelta"`
+	IcebergQuantity            types.Number `json:"icebergQty"`
+	PreventedMatchID           uint64       `json:"preventedMatchId"`
+	PreventedQuantity          types.Number `json:"preventedQuantity"`
+	StopPrice                  types.Number `json:"stopPrice"`
+	StrategyID                 uint64       `json:"strategyId"`
+	StrategyType               uint64       `json:"strategyType"`
+	TrailingDeltaInBasisPoints uint64       `json:"trailingDelta"`
 	// TrailingTime is the Unix time in milliseconds the trailing stop started tracking the price, -1 until then
 	TrailingTime   int64        `json:"trailingTime"`
 	UsedSOR        bool         `json:"usedSor"`
@@ -464,19 +506,19 @@ type CancelledOpenOrderResponse struct {
 // NewOrderRequest holds the parameters of a new order. Which quantity, price, stop and trailing parameters are
 // mandatory depends on Type
 type NewOrderRequest struct {
-	Symbol             currency.Pair
-	Side               string // BUY or SELL
-	Type               string
-	TimeInForce        string
-	Quantity           float64
-	QuoteOrderQuantity float64 // Quote asset amount a MARKET order spends or receives, instead of Quantity
-	Price              float64
-	NewClientOrderID   string
-	StrategyID         uint64
-	StrategyType       uint64 // At least 1000000; smaller values are reserved
-	StopPrice          float64
-	TrailingDelta      uint64 // In basis points
-	IcebergQuantity    float64
+	Symbol                     currency.Pair
+	Side                       string // BUY or SELL
+	Type                       string
+	TimeInForce                string
+	Quantity                   float64
+	QuoteOrderQuantity         float64 // Quote asset amount a MARKET order spends or receives, instead of Quantity
+	Price                      float64
+	NewClientOrderID           string
+	StrategyID                 uint64
+	StrategyType               uint64 // At least 1000000; smaller values are reserved
+	StopPrice                  float64
+	TrailingDeltaInBasisPoints uint64
+	IcebergQuantity            float64
 	// NewOrderResponseType selects the ACK, RESULT or FULL response; MARKET and LIMIT orders default to FULL and the
 	// others to ACK
 	NewOrderResponseType    string
@@ -537,8 +579,8 @@ type CancelOrderListRequest struct {
 	NewClientOrderID  string // Identifies the cancellation; generated when empty
 }
 
-// OCOOrderResponse holds an order list; placements and cancellations add the order reports
-type OCOOrderResponse struct {
+// OneCancelsTheOtherOrderResponse holds an order list; placements and cancellations add the order reports
+type OneCancelsTheOtherOrderResponse struct {
 	OrderListID       uint64           `json:"orderListId"`
 	ContingencyType   string           `json:"contingencyType"`
 	ListStatusType    string           `json:"listStatusType"`
@@ -602,7 +644,7 @@ type CancelReplaceOrderRequest struct {
 	StrategyID                  uint64
 	StrategyType                uint64 // At least 1000000; smaller values are reserved
 	StopPrice                   float64
-	TrailingDelta               uint64 // In basis points
+	TrailingDeltaInBasisPoints  uint64
 	IcebergQuantity             float64
 	NewOrderResponseType        string // ACK, RESULT or FULL
 	SelfTradePreventionMode     string
@@ -640,32 +682,32 @@ type CancelReplaceNewOrderResponse struct {
 	Message string `json:"msg"`
 }
 
-// OCOOrderListRequest holds the parameters of a one-cancels-the-other (OCO) order list
-type OCOOrderListRequest struct {
+// OneCancelsTheOtherOrderListRequest holds the parameters of a one-cancels-the-other (OCO) order list
+type OneCancelsTheOtherOrderListRequest struct {
 	Symbol                  currency.Pair
 	ListClientOrderID       string
 	Side                    string  // BUY or SELL
 	Quantity                float64 // Quantity of both orders
-	Above                   OCOOrderListLeg
-	Below                   OCOOrderListLeg
+	Above                   OneCancelsTheOtherOrderListLeg
+	Below                   OneCancelsTheOtherOrderListLeg
 	NewOrderResponseType    string // ACK, RESULT or FULL
 	SelfTradePreventionMode string
 }
 
-// OCOOrderListLeg holds the parameters of the above or below order of an OCO order list
-type OCOOrderListLeg struct {
-	Type            string
-	ClientOrderID   string
-	IcebergQuantity uint64  // A whole number, usable only with the GTC time in force
-	Price           float64 // Limit price of a LIMIT_MAKER, STOP_LOSS_LIMIT or TAKE_PROFIT_LIMIT order
-	StopPrice       float64
-	TrailingDelta   uint64 // In basis points
-	TimeInForce     string // Required by STOP_LOSS_LIMIT and TAKE_PROFIT_LIMIT orders
-	StrategyID      uint64
-	StrategyType    uint64 // At least 1000000; smaller values are reserved
-	PegPriceType    string
-	PegOffsetType   string
-	PegOffsetValue  uint64
+// OneCancelsTheOtherOrderListLeg holds the parameters of the above or below order of an OCO order list
+type OneCancelsTheOtherOrderListLeg struct {
+	Type                       string
+	ClientOrderID              string
+	IcebergQuantity            uint64  // A whole number, usable only with the GTC time in force
+	Price                      float64 // Limit price of a LIMIT_MAKER, STOP_LOSS_LIMIT or TAKE_PROFIT_LIMIT order
+	StopPrice                  float64
+	TrailingDeltaInBasisPoints uint64
+	TimeInForce                string // Required by STOP_LOSS_LIMIT and TAKE_PROFIT_LIMIT orders
+	StrategyID                 uint64
+	StrategyType               uint64 // At least 1000000; smaller values are reserved
+	PegPriceType               string
+	PegOffsetType              string
+	PegOffsetValue             uint64
 }
 
 // OrderTestResponse holds the commission rates a test order would pay, which are sent only when they are requested
@@ -801,25 +843,25 @@ type TradeOrderResponse struct {
 	OrderConditionalFields
 }
 
-// AccountResponse holds the account information. The commissions are in basis points and signed, since a liquidity
+// AccountResponse holds the account information. The commissions are signed, since a liquidity
 // provider's maker rebate is reported as a negative commission
 type AccountResponse struct {
-	MakerCommission            int64           `json:"makerCommission"`
-	TakerCommission            int64           `json:"takerCommission"`
-	BuyerCommission            int64           `json:"buyerCommission"`
-	SellerCommission           int64           `json:"sellerCommission"`
-	CommissionRates            CommissionRates `json:"commissionRates"`
-	CanTrade                   bool            `json:"canTrade"`
-	CanWithdraw                bool            `json:"canWithdraw"`
-	CanDeposit                 bool            `json:"canDeposit"`
-	Brokered                   bool            `json:"brokered"`
-	RequireSelfTradePrevention bool            `json:"requireSelfTradePrevention"`
-	PreventSOR                 bool            `json:"preventSor"`
-	UpdateTime                 types.Time      `json:"updateTime"`
-	AccountType                string          `json:"accountType"`
-	Balances                   []Balance       `json:"balances"`
-	Permissions                []string        `json:"permissions"`
-	UID                        uint64          `json:"uid"`
+	MakerCommissionInBasisPoints  int64           `json:"makerCommission"`
+	TakerCommissionInBasisPoints  int64           `json:"takerCommission"`
+	BuyerCommissionInBasisPoints  int64           `json:"buyerCommission"`
+	SellerCommissionInBasisPoints int64           `json:"sellerCommission"`
+	CommissionRates               CommissionRates `json:"commissionRates"`
+	CanTrade                      bool            `json:"canTrade"`
+	CanWithdraw                   bool            `json:"canWithdraw"`
+	CanDeposit                    bool            `json:"canDeposit"`
+	Brokered                      bool            `json:"brokered"`
+	RequireSelfTradePrevention    bool            `json:"requireSelfTradePrevention"`
+	PreventSOR                    bool            `json:"preventSor"`
+	UpdateTime                    types.Time      `json:"updateTime"`
+	AccountType                   string          `json:"accountType"`
+	Balances                      []Balance       `json:"balances"`
+	Permissions                   []string        `json:"permissions"`
+	UID                           uint64          `json:"uid"`
 }
 
 // Balance holds an asset's free and locked balance

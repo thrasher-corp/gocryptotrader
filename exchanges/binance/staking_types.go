@@ -57,7 +57,7 @@ type ETHStakingQuotaResponse struct {
 	LeftRedemptionPersonalQuota types.Number `json:"leftRedemptionPersonalQuota"`
 	MinimumStakeAmount          types.Number `json:"minStakeAmount"`
 	MinimumRedeemAmount         types.Number `json:"minRedeemAmount"`
-	RedeemPeriod                uint64       `json:"redeemPeriod"` // days
+	RedeemPeriodInDays          uint64       `json:"redeemPeriod"`
 	Stakeable                   bool         `json:"stakeable"`
 	Redeemable                  bool         `json:"redeemable"`
 	CommissionFee               types.Number `json:"commissionFee"`
@@ -293,7 +293,7 @@ type SOLStakingQuotaResponse struct {
 	LeftRedemptionPersonalQuota types.Number `json:"leftRedemptionPersonalQuota"`
 	MinimumStakeAmount          types.Number `json:"minStakeAmount"`
 	MinimumRedeemAmount         types.Number `json:"minRedeemAmount"`
-	RedeemPeriod                uint64       `json:"redeemPeriod"` // days
+	RedeemPeriodInDays          uint64       `json:"redeemPeriod"`
 	Stakeable                   bool         `json:"stakeable"`
 	Redeemable                  bool         `json:"redeemable"`
 	SoldOut                     bool         `json:"soldOut"`

@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
@@ -155,11 +156,11 @@ func TestVIPLoanBorrow(t *testing.T) {
 		req  *VIPLoanBorrowRequest
 		err  error
 	}{
-		{"loan account ID", &VIPLoanBorrowRequest{LoanCoin: currency.ETH, LoanAmount: 123, CollateralAccountIDs: []uint64{1234}, CollateralCoins: []currency.Code{currency.LTC}, LoanTerm: 30}, errAccountIDRequired},
-		{"loan coin", &VIPLoanBorrowRequest{LoanAccountID: 1234, LoanAmount: 123, CollateralAccountIDs: []uint64{1234}, CollateralCoins: []currency.Code{currency.LTC}, LoanTerm: 30}, currency.ErrCurrencyCodeEmpty},
-		{"loan amount", &VIPLoanBorrowRequest{LoanAccountID: 1234, LoanCoin: currency.ETH, CollateralAccountIDs: []uint64{1234}, CollateralCoins: []currency.Code{currency.LTC}, LoanTerm: 30}, limits.ErrAmountBelowMin},
-		{"collateral account IDs", &VIPLoanBorrowRequest{LoanAccountID: 1234, LoanCoin: currency.ETH, LoanAmount: 123, CollateralCoins: []currency.Code{currency.LTC}, LoanTerm: 30}, errAccountIDRequired},
-		{"collateral coins", &VIPLoanBorrowRequest{LoanAccountID: 1234, LoanCoin: currency.ETH, LoanAmount: 123, CollateralAccountIDs: []uint64{1234}, LoanTerm: 30}, currency.ErrCurrencyCodeEmpty},
+		{"loan account ID", &VIPLoanBorrowRequest{LoanCoin: currency.ETH, LoanAmount: 123, CollateralAccountIDs: []uint64{1234}, CollateralCoins: []currency.Code{currency.LTC}, LoanTermInDays: 30}, errAccountIDRequired},
+		{"loan coin", &VIPLoanBorrowRequest{LoanAccountID: 1234, LoanAmount: 123, CollateralAccountIDs: []uint64{1234}, CollateralCoins: []currency.Code{currency.LTC}, LoanTermInDays: 30}, currency.ErrCurrencyCodeEmpty},
+		{"loan amount", &VIPLoanBorrowRequest{LoanAccountID: 1234, LoanCoin: currency.ETH, CollateralAccountIDs: []uint64{1234}, CollateralCoins: []currency.Code{currency.LTC}, LoanTermInDays: 30}, limits.ErrAmountBelowMin},
+		{"collateral account IDs", &VIPLoanBorrowRequest{LoanAccountID: 1234, LoanCoin: currency.ETH, LoanAmount: 123, CollateralCoins: []currency.Code{currency.LTC}, LoanTermInDays: 30}, errAccountIDRequired},
+		{"collateral coins", &VIPLoanBorrowRequest{LoanAccountID: 1234, LoanCoin: currency.ETH, LoanAmount: 123, CollateralAccountIDs: []uint64{1234}, LoanTermInDays: 30}, currency.ErrCurrencyCodeEmpty},
 		{"fixed rate term", &VIPLoanBorrowRequest{LoanAccountID: 1234, LoanCoin: currency.ETH, LoanAmount: 123, CollateralAccountIDs: []uint64{1234}, CollateralCoins: []currency.Code{currency.LTC}}, errLoanTermMustBeSet},
 		{"zero collateral account ID", &VIPLoanBorrowRequest{LoanAccountID: 1234, LoanCoin: currency.ETH, LoanAmount: 123, CollateralAccountIDs: []uint64{1234, 0}, CollateralCoins: []currency.Code{currency.LTC}, IsFlexibleRate: true}, errAccountIDRequired},
 		{"empty collateral coin", &VIPLoanBorrowRequest{LoanAccountID: 1234, LoanCoin: currency.ETH, LoanAmount: 123, CollateralAccountIDs: []uint64{1234}, CollateralCoins: []currency.Code{currency.EMPTYCODE}, IsFlexibleRate: true}, currency.ErrCurrencyCodeEmpty},
@@ -177,19 +178,19 @@ func TestVIPLoanBorrow(t *testing.T) {
 		LoanAmount:           123,
 		CollateralAccountIDs: []uint64{1234},
 		CollateralCoins:      []currency.Code{currency.LTC},
-		LoanTerm:             30,
+		LoanTermInDays:       30,
 	})
 	require.NoError(t, err, "VIPLoanBorrow must not error")
 	if mockTests {
 		exp := &VIPLoanBorrowResponse{
-			LoanAccountID:       "1234",
-			RequestID:           "12345678",
-			LoanCoin:            currency.ETH,
-			IsFlexibleRate:      "No",
-			LoanAmount:          123,
-			CollateralAccountID: "1234",
-			CollateralCoin:      "LTC",
-			LoanTerm:            "30",
+			LoanAccountID:        "1234",
+			RequestID:            "12345678",
+			LoanCoin:             currency.ETH,
+			IsFlexibleRate:       "No",
+			LoanAmount:           123,
+			CollateralAccountIDs: CommaSeparated[uint64]{1234},
+			CollateralCoins:      CommaSeparated[currency.Code]{currency.LTC},
+			LoanTermInDays:       "30",
 		}
 		assert.Equal(t, exp, result, "VIPLoanBorrow should decode every field")
 		return
@@ -211,12 +212,12 @@ func TestVIPLoanRenew(t *testing.T) {
 	require.NoError(t, err, "VIPLoanRenew must not error")
 	if mockTests {
 		exp := &VIPLoanRenewResponse{
-			LoanAccountID:       "12345678",
-			LoanCoin:            currency.BTC,
-			LoanAmount:          100.55,
-			CollateralAccountID: "12345677,12345678,12345679",
-			CollateralCoin:      "BUSD,USDT,ETH",
-			LoanTerm:            "60",
+			LoanAccountID:        "12345678",
+			LoanCoin:             currency.BTC,
+			LoanAmount:           100.55,
+			CollateralAccountIDs: CommaSeparated[uint64]{12345677, 12345678, 12345679},
+			CollateralCoins:      CommaSeparated[currency.Code]{currency.BUSD, currency.USDT, currency.ETH},
+			LoanTermInDays:       "60",
 		}
 		assert.Equal(t, exp, result, "VIPLoanRenew should decode every field")
 		return
@@ -242,7 +243,7 @@ func TestVIPLoanRepay(t *testing.T) {
 			RepayAmount:        0.2,
 			RemainingPrincipal: 100.5,
 			RemainingInterest:  0.03,
-			CollateralCoin:     "BNB,BTC,ETH",
+			CollateralCoins:    CommaSeparated[currency.Code]{currency.BNB, currency.BTC, currency.ETH},
 			CurrentLTV:         0.25,
 			RepayStatus:        "Repaid",
 		}
@@ -264,7 +265,7 @@ func TestCheckVIPLoanCollateralAccount(t *testing.T) {
 			Rows: []VIPLoanCollateralAccount{
 				{
 					CollateralAccountID: "40",
-					CollateralCoin:      "BNB,BTC,ETH",
+					CollateralCoins:     CommaSeparated[currency.Code]{currency.BNB, currency.BTC, currency.ETH},
 				},
 			},
 			Total: 1,
@@ -339,8 +340,8 @@ func TestGetVIPLoanOngoingOrders(t *testing.T) {
 					TotalDebt:                        10000,
 					LoanRate:                         0.0123,
 					ResidualInterest:                 10.27687923,
-					CollateralAccountID:              "21231,23456789",
-					CollateralCoin:                   "ETH",
+					CollateralAccountIDs:             CommaSeparated[uint64]{21231, 23456789},
+					CollateralCoins:                  CommaSeparated[currency.Code]{currency.ETH},
 					TotalCollateralValueAfterHaircut: 25000.27565492,
 					LockedCollateralValue:            25000.27565492,
 					CurrentLTV:                       0.57,
@@ -359,6 +360,26 @@ func TestGetVIPLoanOngoingOrders(t *testing.T) {
 
 func TestGetVIPLoanRepaymentHistory(t *testing.T) {
 	t.Parallel()
+	for _, tc := range []struct {
+		name      string
+		payload   string
+		principal types.Number
+		interest  types.Number
+	}{
+		{name: "quoted fractional breakdown", payload: `{"repayPrincipal":"9999.75","repayInterest":"0.25"}`, principal: 9999.75, interest: 0.25},
+		{name: "numeric fractional breakdown", payload: `{"repayPrincipal":9999.75,"repayInterest":0.25}`, principal: 9999.75, interest: 0.25},
+		{name: "zero breakdown", payload: `{"repayPrincipal":"0","repayInterest":0}`},
+		{name: "omitted breakdown", payload: `{}`},
+		{name: "null breakdown", payload: `{"repayPrincipal":null,"repayInterest":null}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var response VIPLoanRepayment
+			require.NoError(t, json.Unmarshal([]byte(tc.payload), &response), "VIP loan repayment must decode")
+			assert.Equal(t, tc.principal, response.RepayPrincipal, "VIP loan repayment should retain the repaid principal")
+			assert.Equal(t, tc.interest, response.RepayInterest, "VIP loan repayment should retain the repaid interest")
+		})
+	}
 	_, err := e.GetVIPLoanRepaymentHistory(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetVIPLoanRepaymentHistory must reject a nil request")
 	startTime, endTime := getTime()
@@ -380,13 +401,15 @@ func TestGetVIPLoanRepaymentHistory(t *testing.T) {
 		exp := &VIPLoanRepaymentHistoryResponse{
 			Rows: []VIPLoanRepayment{
 				{
-					LoanCoin:       currency.ETH,
-					RepayAmount:    10000,
-					CollateralCoin: "BNB,BTC,ETH",
-					RepayStatus:    "Repaid",
-					LoanDate:       types.Time(time.Unix(1676851200, 0)),
-					RepayTime:      types.Time(time.Unix(1744156800, 0)),
-					OrderID:        "1234",
+					LoanCoin:        currency.ETH,
+					RepayAmount:     10000,
+					RepayPrincipal:  9500,
+					RepayInterest:   500,
+					CollateralCoins: CommaSeparated[currency.Code]{currency.BNB, currency.BTC, currency.ETH},
+					RepayStatus:     "Repaid",
+					LoanDate:        types.Time(time.Unix(1676851200, 0)),
+					RepayTime:       types.Time(time.Unix(1744156800, 0)),
+					OrderID:         "1234",
 				},
 			},
 			Total: 1,
@@ -408,16 +431,16 @@ func TestGetVIPApplicationStatus(t *testing.T) {
 		exp := &VIPLoanApplicationStatusResponse{
 			Rows: []VIPLoanApplication{
 				{
-					LoanAccountID:       "12345678",
-					OrderID:             "12345678",
-					RequestID:           "12345678",
-					LoanCoin:            currency.BTC,
-					LoanAmount:          100.55,
-					CollateralAccountID: "12345678,12345679",
-					CollateralCoin:      "BUSD,USDT,ETH",
-					LoanTerm:            "30",
-					Status:              "Accruing_Interest",
-					LoanDate:            types.Time(time.Unix(1676851200, 0)),
+					LoanAccountID:        "12345678",
+					OrderID:              "12345678",
+					RequestID:            "12345678",
+					LoanCoin:             currency.BTC,
+					LoanAmount:           100.55,
+					CollateralAccountIDs: CommaSeparated[uint64]{12345678, 12345679},
+					CollateralCoins:      CommaSeparated[currency.Code]{currency.BUSD, currency.USDT, currency.ETH},
+					LoanTermInDays:       "30",
+					Status:               "Accruing_Interest",
+					LoanDate:             types.Time(time.Unix(1676851200, 0)),
 				},
 			},
 			Total: 1,

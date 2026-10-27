@@ -35,6 +35,9 @@ func (e *Exchange) AdjustCrossMarginMaxLeverage(ctx context.Context, maxLeverage
 // GetIsolatedMarginAccountInfo returns the isolated margin account info of up to five symbols, or of every isolated
 // margin account when symbols is empty
 func (e *Exchange) GetIsolatedMarginAccountInfo(ctx context.Context, symbols currency.Pairs) (*IsolatedMarginAccountInfoResponse, error) {
+	if err := checkListLength("symbols", len(symbols), 5); err != nil {
+		return nil, err
+	}
 	params := url.Values{}
 	if len(symbols) > 0 {
 		symbolValues := make([]string, len(symbols))
@@ -187,11 +190,14 @@ func (e *Exchange) GetIsolatedMarginFeeData(ctx context.Context, vipLevel *uint6
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/isolatedMarginData", params, rateLimit, &resp)
 }
 
-// GetFutureHourlyInterestRate returns the next hourly interest rate estimate of each asset for cross or isolated
-// margin
+// GetFutureHourlyInterestRate returns the next hourly interest rate estimate of each of up to 20 assets for cross or
+// isolated margin
 func (e *Exchange) GetFutureHourlyInterestRate(ctx context.Context, assets []currency.Code, isIsolated bool) ([]HourlyInterestRateResponse, error) {
 	if len(assets) == 0 {
 		return nil, currency.ErrCurrencyCodesEmpty
+	}
+	if err := checkListLength("assets", len(assets), 20); err != nil {
+		return nil, err
 	}
 	assetNames := make([]string, len(assets))
 	for i := range assets {
@@ -513,6 +519,9 @@ func (e *Exchange) MarginSmallLiabilityExchange(ctx context.Context, assetNames 
 	if len(assetNames) == 0 {
 		return errEmptyCurrencyCodes
 	}
+	if err := checkListLength("assets", len(assetNames), 10); err != nil {
+		return err
+	}
 	names := make([]string, len(assetNames))
 	for i := range assetNames {
 		names[i] = assetNames[i].Upper().String()
@@ -591,8 +600,9 @@ func (e *Exchange) CancelAllOpenMarginAccountOrdersOnSymbol(ctx context.Context,
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodDelete, "/sapi/v1/margin/openOrders", params, sapiDefaultRate, &resp)
 }
 
-// GetMarginAccountOCOOrder returns one of the margin account's order lists by orderListID or originalClientOrderID
-func (e *Exchange) GetMarginAccountOCOOrder(ctx context.Context, symbol currency.Pair, isIsolated bool, orderListID uint64, originalClientOrderID string) (*MarginOrderListResponse, error) {
+// GetMarginAccountOneCancelsTheOtherOrder returns one of the margin account's order lists by orderListID or
+// originalClientOrderID
+func (e *Exchange) GetMarginAccountOneCancelsTheOtherOrder(ctx context.Context, symbol currency.Pair, isIsolated bool, orderListID uint64, originalClientOrderID string) (*MarginOrderListResponse, error) {
 	params := url.Values{}
 	if isIsolated {
 		params.Set("isIsolated", "TRUE")
@@ -611,12 +621,12 @@ func (e *Exchange) GetMarginAccountOCOOrder(ctx context.Context, symbol currency
 		params.Set("origClientOrderId", originalClientOrderID)
 	}
 	var resp *MarginOrderListResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/orderList", params, getMarginAccountOCOOrderRate, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/orderList", params, getMarginAccountOneCancelsTheOtherOrderRate, &resp)
 }
 
-// CancelMarginAccountOCOOrder cancels an entire order list in the margin account; cancelling one leg cancels the whole
-// list
-func (e *Exchange) CancelMarginAccountOCOOrder(ctx context.Context, req *MarginOCOCancelRequest) (*MarginOCOCancelResponse, error) {
+// CancelMarginAccountOneCancelsTheOtherOrder cancels an entire order list in the margin account; cancelling one leg
+// cancels the whole list
+func (e *Exchange) CancelMarginAccountOneCancelsTheOtherOrder(ctx context.Context, req *MarginOneCancelsTheOtherCancelRequest) (*MarginOneCancelsTheOtherCancelResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -641,7 +651,7 @@ func (e *Exchange) CancelMarginAccountOCOOrder(ctx context.Context, req *MarginO
 	if req.NewClientOrderID != "" {
 		params.Set("newClientOrderId", req.NewClientOrderID)
 	}
-	var resp *MarginOCOCancelResponse
+	var resp *MarginOneCancelsTheOtherCancelResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodDelete, "/sapi/v1/margin/orderList", params, sapiUIDDefaultRate, &resp)
 }
 
@@ -730,8 +740,8 @@ func (e *Exchange) PostMarginAccountOrder(ctx context.Context, req *MarginAccoun
 	if req.SelfTradePreventionMode != "" {
 		params.Set("selfTradePreventionMode", req.SelfTradePreventionMode)
 	}
-	if req.TrailingDelta != 0 {
-		params.Set("trailingDelta", strconv.FormatUint(req.TrailingDelta, 10))
+	if req.TrailingDeltaInBasisPoints != 0 {
+		params.Set("trailingDelta", strconv.FormatUint(req.TrailingDeltaInBasisPoints, 10))
 	}
 	if req.AutoRepayAtCancel != nil {
 		params.Set("autoRepayAtCancel", strconv.FormatBool(*req.AutoRepayAtCancel))
@@ -773,12 +783,12 @@ func (e *Exchange) CancelMarginAccountOrder(ctx context.Context, req *MarginOrde
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodDelete, "/sapi/v1/margin/order", params, marginAccountCancelOrderRate, &resp)
 }
 
-// NewMarginAccountOCOOrder places a new OCO order list in the margin account. Both legs share the quantity; a sell
-// needs limit price > last price > stop price and a buy the reverse, and the list counts as two orders against the
-// order rate limit. Binance weighs lists with a MARGIN_BUY or AUTO_BORROW_REPAY side effect at 1500 instead of 6, and
-// from 2026-10-14 rejects lists without StopLimitPrice and StopLimitTimeInForce with -3116 on accounts that do not
-// support STOP_LOSS orders
-func (e *Exchange) NewMarginAccountOCOOrder(ctx context.Context, req *MarginOCOOrderRequest) (*MarginOCOOrderResponse, error) {
+// NewMarginAccountOneCancelsTheOtherOrder places a new OCO order list in the margin account. Both legs share the
+// quantity; a sell needs limit price > last price > stop price and a buy the reverse, and the list counts as two orders
+// against the order rate limit. Binance weighs lists with a MARGIN_BUY or AUTO_BORROW_REPAY side effect at 1500 instead
+// of 6, and from 2026-10-14 rejects lists without StopLimitPrice and StopLimitTimeInForce with -3116 on accounts that
+// do not support STOP_LOSS orders
+func (e *Exchange) NewMarginAccountOneCancelsTheOtherOrder(ctx context.Context, req *MarginOneCancelsTheOtherOrderRequest) (*MarginOneCancelsTheOtherOrderResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -846,7 +856,7 @@ func (e *Exchange) NewMarginAccountOCOOrder(ctx context.Context, req *MarginOCOO
 	if req.AutoRepayAtCancel != nil {
 		params.Set("autoRepayAtCancel", strconv.FormatBool(*req.AutoRepayAtCancel))
 	}
-	var resp *MarginOCOOrderResponse
+	var resp *MarginOneCancelsTheOtherOrderResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, "/sapi/v1/margin/order/oco", params, marginNewOrderLimit(req.SideEffectType), &resp)
 }
 
@@ -890,8 +900,8 @@ func (e *Exchange) GetCurrentMarginOrderCountUsage(ctx context.Context, symbol c
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/rateLimit/order", params, marginCurrentOrderCountUsageRate, &resp)
 }
 
-// GetMarginAccountAllOCO returns the margin account's order lists
-func (e *Exchange) GetMarginAccountAllOCO(ctx context.Context, req *MarginAccountAllOCORequest) ([]MarginOrderListResponse, error) {
+// GetMarginAccountAllOneCancelsTheOtherOrders returns the margin account's order lists
+func (e *Exchange) GetMarginAccountAllOneCancelsTheOtherOrders(ctx context.Context, req *MarginAccountAllOneCancelsTheOtherOrdersRequest) ([]MarginOrderListResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -924,7 +934,7 @@ func (e *Exchange) GetMarginAccountAllOCO(ctx context.Context, req *MarginAccoun
 		params.Set("limit", strconv.FormatUint(req.Limit, 10))
 	}
 	var resp []MarginOrderListResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/allOrderList", params, getMarginAccountAllOCORate, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/allOrderList", params, getMarginAccountAllOneCancelsTheOtherRate, &resp)
 }
 
 // GetMarginAccountAllOrders returns the margin account's orders on a symbol from OrderID onwards, or from the last 24
@@ -966,8 +976,8 @@ func (e *Exchange) GetMarginAccountAllOrders(ctx context.Context, req *MarginAcc
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/allOrders", params, marginAccountsAllOrdersRate, &resp)
 }
 
-// GetMarginAccountsOpenOCOOrder returns the margin account's open OCO order lists
-func (e *Exchange) GetMarginAccountsOpenOCOOrder(ctx context.Context, symbol currency.Pair, isIsolated bool) ([]MarginOrderListResponse, error) {
+// GetMarginAccountsOpenOneCancelsTheOtherOrder returns the margin account's open OCO order lists
+func (e *Exchange) GetMarginAccountsOpenOneCancelsTheOtherOrder(ctx context.Context, symbol currency.Pair, isIsolated bool) ([]MarginOrderListResponse, error) {
 	params := url.Values{}
 	if isIsolated {
 		params.Set("isIsolated", "TRUE")
@@ -980,7 +990,7 @@ func (e *Exchange) GetMarginAccountsOpenOCOOrder(ctx context.Context, symbol cur
 		params.Set("symbol", symbolValue)
 	}
 	var resp []MarginOrderListResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/openOrderList", params, marginAccountOpenOCOOrdersRate, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/openOrderList", params, marginAccountOpenOneCancelsTheOtherOrdersRate, &resp)
 }
 
 // GetMarginAccountTradeList returns the margin account's trades on a symbol from FromID onwards, or from the last 24

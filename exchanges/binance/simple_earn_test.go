@@ -1,6 +1,8 @@
 package binance
 
 import (
+	"math"
+	"net/url"
 	"testing"
 	"time"
 
@@ -286,7 +288,7 @@ func TestGetLockedProductPosition(t *testing.T) {
 					Asset:                      currency.ETH,
 					Amount:                     1.22092029,
 					PurchaseTime:               types.Time(time.Unix(1744156800, 0)),
-					Duration:                   90,
+					DurationInDays:             90,
 					AccrualDays:                4,
 					RewardAsset:                currency.ETH,
 					APY:                        0.2032,
@@ -299,11 +301,11 @@ func TestGetLockedProductPosition(t *testing.T) {
 					TotalBoostRewardAmount:     0.00398201,
 					NextPay:                    0.00129295,
 					NextPayDate:                types.Time(time.Unix(1744243200, 0)),
-					PayPeriod:                  1,
+					PayPeriodInDays:            1,
 					RedeemAmountEarly:          1.21092029,
 					RewardsEndDate:             types.Time(time.Unix(1751932800, 0)),
 					DeliverDate:                types.Time(time.Unix(1752019200, 0)),
-					RedeemPeriod:               1,
+					RedeemPeriodInDays:         1,
 					RedeemingAmount:            0.2323,
 					RedeemTo:                   "FLEXIBLE",
 					PartialAmountDeliverDate:   types.Time(time.Unix(1752019200, 0)),
@@ -344,7 +346,7 @@ func TestGetLockedRedemptionRecord(t *testing.T) {
 					RedeemID:                   1234,
 					Time:                       types.Time(time.Unix(1744156800, 0)),
 					Asset:                      currency.LTC,
-					LockPeriod:                 30,
+					LockPeriodInDays:           30,
 					Amount:                     21.23223,
 					OriginalAmount:             21.23224232,
 					Type:                       "MATURE",
@@ -383,12 +385,12 @@ func TestGetLockedRewardHistory(t *testing.T) {
 		exp := &SimpleEarnLockedRewardHistoryResponse{
 			Rows: []SimpleEarnLockedReward{
 				{
-					PositionID: 12345,
-					Time:       types.Time(time.Unix(1744156800, 0)),
-					Asset:      currency.BTC,
-					LockPeriod: 30,
-					Amount:     0.00021312,
-					Type:       "Locked Rewards",
+					PositionID:       12345,
+					Time:             types.Time(time.Unix(1744156800, 0)),
+					Asset:            currency.BTC,
+					LockPeriodInDays: 30,
+					Amount:           0.00021312,
+					Type:             "Locked Rewards",
 				},
 			},
 			Total: 1,
@@ -457,7 +459,7 @@ func TestGetLockedSubscriptionRecord(t *testing.T) {
 					Time:              types.Time(time.Unix(1744156800, 0)),
 					Asset:             currency.ETH,
 					Amount:            1.22092029,
-					LockPeriod:        90,
+					LockPeriodInDays:  90,
 					Type:              "AUTO",
 					SourceAccount:     "SPOTANDFUNDING",
 					AmountFromSpot:    0.5,
@@ -577,7 +579,7 @@ func TestGetSimpleEarnLockedProducts(t *testing.T) {
 					Detail: SimpleEarnLockedProductDetail{
 						Asset:                 currency.BTC,
 						RewardAsset:           currency.BTC,
-						Duration:              90,
+						DurationInDays:        90,
 						Renewable:             true,
 						APR:                   0.0206,
 						Status:                "PURCHASING",
@@ -598,7 +600,7 @@ func TestGetSimpleEarnLockedProducts(t *testing.T) {
 					Detail: SimpleEarnLockedProductDetail{
 						Asset:                 currency.BTC,
 						RewardAsset:           currency.BTC,
-						Duration:              120,
+						DurationInDays:        120,
 						IsSoldOut:             true,
 						APR:                   0.0254,
 						Status:                "END",
@@ -808,4 +810,53 @@ func TestSubscribeToLockedProducts(t *testing.T) {
 		return
 	}
 	assert.True(t, result.Success, "SubscribeToLockedProducts should succeed")
+}
+
+func TestSetCurrentSizeParams(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name          string
+		current, size uint64
+		exp           url.Values
+	}{
+		{name: "neither", exp: url.Values{"existing": {"kept"}}},
+		{name: "current only", current: 2, exp: url.Values{"existing": {"kept"}, "current": {"2"}}},
+		{name: "size only", size: 100, exp: url.Values{"existing": {"kept"}, "size": {"100"}}},
+		{name: "both", current: 3, size: 50, exp: url.Values{"existing": {"kept"}, "current": {"3"}, "size": {"50"}}},
+		{name: "full width integers", current: math.MaxUint64, size: math.MaxUint64, exp: url.Values{"existing": {"kept"}, "current": {"18446744073709551615"}, "size": {"18446744073709551615"}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			params := url.Values{"existing": {"kept"}}
+			setCurrentSizeParams(params, tc.current, tc.size)
+			assert.Equal(t, tc.exp, params, "setCurrentSizeParams should add only non-zero pagination fields and preserve existing fields")
+		})
+	}
+}
+
+func TestHistoryPageParams(t *testing.T) {
+	t.Parallel()
+	start, end := time.UnixMilli(1744103854944), time.UnixMilli(1744190254944)
+	for _, tc := range []struct {
+		name          string
+		start, end    time.Time
+		current, size uint64
+		exp           url.Values
+		err           error
+	}{
+		{name: "empty", exp: url.Values{}},
+		{name: "start only", start: start, exp: url.Values{"startTime": {"1744103854944"}}},
+		{name: "end only", end: end, exp: url.Values{"endTime": {"1744190254944"}}},
+		{name: "pagination only", current: 2, size: 50, exp: url.Values{"current": {"2"}, "size": {"50"}}},
+		{name: "all fields", start: start, end: end, current: 2, size: 50, exp: url.Values{"startTime": {"1744103854944"}, "endTime": {"1744190254944"}, "current": {"2"}, "size": {"50"}}},
+		{name: "equal bounds", start: start, end: start, exp: url.Values{"startTime": {"1744103854944"}, "endTime": {"1744103854944"}}},
+		{name: "reversed bounds", start: end, end: start, current: 2, size: 50, err: common.ErrStartAfterEnd},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			params, err := historyPageParams(tc.start, tc.end, tc.current, tc.size)
+			require.ErrorIs(t, err, tc.err, "historyPageParams must return the expected error")
+			assert.Equal(t, tc.exp, params, "historyPageParams should combine inclusive millisecond bounds and pagination")
+		})
+	}
 }

@@ -1,6 +1,7 @@
 package binance
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
@@ -20,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -157,8 +159,8 @@ func TestGetExchangeInfo(t *testing.T) {
 						"TAKE_PROFIT_LIMIT",
 					},
 					IcebergAllowed:                  true,
-					OCOAllowed:                      true,
-					OTOAllowed:                      true,
+					OneCancelsTheOtherAllowed:       true,
+					OneTriggersTheOtherAllowed:      true,
 					OPOAllowed:                      true,
 					QuoteOrderQuantityMarketAllowed: true,
 					AllowTrailingStop:               true,
@@ -487,9 +489,9 @@ func TestGetAveragePrice(t *testing.T) {
 	require.NoError(t, err, "GetAveragePrice must not error")
 	if mockTests {
 		exp := &AveragePriceResponse{
-			Minutes:   5,
-			Price:     74098.46947828,
-			CloseTime: types.Time(time.UnixMilli(1773689051946)),
+			IntervalInMinutes: 5,
+			Price:             74098.46947828,
+			CloseTime:         types.Time(time.UnixMilli(1773689051946)),
 		}
 		assert.Equal(t, exp, result, "GetAveragePrice should decode every field")
 		return
@@ -1256,27 +1258,27 @@ func TestCancelAllOpenOrderOnSymbol(t *testing.T) {
 				WorkingFloor:            "SOR",
 			},
 			{
-				Symbol:                  "BTCUSDT",
-				OriginalClientOrderID:   "A3EF2HCwxgZPFMrfwbgrhv",
-				OrderID:                 13,
-				OrderListID:             -1,
-				ClientOrderID:           "pXLV6Hz6mprAcVYpVMTGgx",
-				TransactTime:            types.Time(time.UnixMilli(1791284811765)),
-				Price:                   86168.13,
-				OriginalQuantity:        0.01,
-				Status:                  "CANCELED",
-				TimeInForce:             "GTC",
-				Type:                    "STOP_LOSS_LIMIT",
-				Side:                    "SELL",
-				SelfTradePreventionMode: "EXPIRE_MAKER",
-				IcebergQuantity:         0.002,
-				StopPrice:               85000,
-				TrailingDelta:           200,
-				TrailingTime:            -1,
-				PegPriceType:            "PRIMARY_PEG",
-				PegOffsetType:           "PRICE_LEVEL",
-				PegOffsetValue:          5,
-				PeggedPrice:             86168.13,
+				Symbol:                     "BTCUSDT",
+				OriginalClientOrderID:      "A3EF2HCwxgZPFMrfwbgrhv",
+				OrderID:                    13,
+				OrderListID:                -1,
+				ClientOrderID:              "pXLV6Hz6mprAcVYpVMTGgx",
+				TransactTime:               types.Time(time.UnixMilli(1791284811765)),
+				Price:                      86168.13,
+				OriginalQuantity:           0.01,
+				Status:                     "CANCELED",
+				TimeInForce:                "GTC",
+				Type:                       "STOP_LOSS_LIMIT",
+				Side:                       "SELL",
+				SelfTradePreventionMode:    "EXPIRE_MAKER",
+				IcebergQuantity:            0.002,
+				StopPrice:                  85000,
+				TrailingDeltaInBasisPoints: 200,
+				TrailingTime:               -1,
+				PegPriceType:               "PRIMARY_PEG",
+				PegOffsetType:              "PRICE_LEVEL",
+				PegOffsetValue:             5,
+				PeggedPrice:                86168.13,
 			},
 			{
 				Symbol:            "BTCUSDT",
@@ -1300,25 +1302,25 @@ func TestCancelAllOpenOrderOnSymbol(t *testing.T) {
 				},
 				OrderReports: []OrderResponse{
 					{
-						Symbol:                  "BTCUSDT",
-						OriginalClientOrderID:   "CwOOIPHSmYywx6jZX77TdL",
-						OrderID:                 20,
-						OrderListID:             1929,
-						ClientOrderID:           "pXLV6Hz6mprAcVYpVMTGgx",
-						TransactTime:            types.Time(time.UnixMilli(1791284811766)),
-						Price:                   84000,
-						OriginalQuantity:        0.002,
-						Status:                  "CANCELED",
-						TimeInForce:             order.GoodTillCancel,
-						Type:                    "STOP_LOSS_LIMIT",
-						Side:                    "SELL",
-						SelfTradePreventionMode: "EXPIRE_MAKER",
-						IcebergQuantity:         0.001,
-						StopPrice:               84500,
-						StrategyID:              1,
-						StrategyType:            1000000,
-						TrailingDelta:           100,
-						TrailingTime:            1791284800000,
+						Symbol:                     "BTCUSDT",
+						OriginalClientOrderID:      "CwOOIPHSmYywx6jZX77TdL",
+						OrderID:                    20,
+						OrderListID:                1929,
+						ClientOrderID:              "pXLV6Hz6mprAcVYpVMTGgx",
+						TransactTime:               types.Time(time.UnixMilli(1791284811766)),
+						Price:                      84000,
+						OriginalQuantity:           0.002,
+						Status:                     "CANCELED",
+						TimeInForce:                order.GoodTillCancel,
+						Type:                       "STOP_LOSS_LIMIT",
+						Side:                       "SELL",
+						SelfTradePreventionMode:    "EXPIRE_MAKER",
+						IcebergQuantity:            0.001,
+						StopPrice:                  84500,
+						StrategyID:                 1,
+						StrategyType:               1000000,
+						TrailingDeltaInBasisPoints: 100,
+						TrailingTime:               1791284800000,
 					},
 					{
 						Symbol:                  "BTCUSDT",
@@ -1456,41 +1458,41 @@ func TestNewOrder(t *testing.T) {
 		{
 			name: "pegged trailing stop limit order",
 			req: &NewOrderRequest{
-				Symbol:               currency.NewBTCUSDT(),
-				Side:                 order.Sell.String(),
-				Type:                 "STOP_LOSS_LIMIT",
-				TimeInForce:          order.GoodTillCancel.String(),
-				Quantity:             0.01,
-				StopPrice:            85000,
-				TrailingDelta:        200,
-				IcebergQuantity:      0.002,
-				NewOrderResponseType: "RESULT",
-				PegPriceType:         "PRIMARY_PEG",
-				PegOffsetValue:       5,
-				PegOffsetType:        "PRICE_LEVEL",
+				Symbol:                     currency.NewBTCUSDT(),
+				Side:                       order.Sell.String(),
+				Type:                       "STOP_LOSS_LIMIT",
+				TimeInForce:                order.GoodTillCancel.String(),
+				Quantity:                   0.01,
+				StopPrice:                  85000,
+				TrailingDeltaInBasisPoints: 200,
+				IcebergQuantity:            0.002,
+				NewOrderResponseType:       "RESULT",
+				PegPriceType:               "PRIMARY_PEG",
+				PegOffsetValue:             5,
+				PegOffsetType:              "PRICE_LEVEL",
 			},
 			exp: &NewOrderResponse{
-				Symbol:                  "BTCUSDT",
-				OrderID:                 30,
-				OrderListID:             -1,
-				ClientOrderID:           "Rq3xvEJgCWrhxyHmmCp7I2",
-				TransactTime:            types.Time(time.UnixMilli(1791284811009)),
-				Price:                   86168.13,
-				OriginalQuantity:        0.01,
-				Status:                  "NEW",
-				TimeInForce:             "GTC",
-				Type:                    "STOP_LOSS_LIMIT",
-				Side:                    "SELL",
-				WorkingTime:             -1,
-				SelfTradePreventionMode: "EXPIRE_MAKER",
-				IcebergQuantity:         0.002,
-				StopPrice:               85000,
-				TrailingDelta:           200,
-				TrailingTime:            -1,
-				PegPriceType:            "PRIMARY_PEG",
-				PegOffsetType:           "PRICE_LEVEL",
-				PegOffsetValue:          5,
-				PeggedPrice:             86168.13,
+				Symbol:                     "BTCUSDT",
+				OrderID:                    30,
+				OrderListID:                -1,
+				ClientOrderID:              "Rq3xvEJgCWrhxyHmmCp7I2",
+				TransactTime:               types.Time(time.UnixMilli(1791284811009)),
+				Price:                      86168.13,
+				OriginalQuantity:           0.01,
+				Status:                     "NEW",
+				TimeInForce:                "GTC",
+				Type:                       "STOP_LOSS_LIMIT",
+				Side:                       "SELL",
+				WorkingTime:                -1,
+				SelfTradePreventionMode:    "EXPIRE_MAKER",
+				IcebergQuantity:            0.002,
+				StopPrice:                  85000,
+				TrailingDeltaInBasisPoints: 200,
+				TrailingTime:               -1,
+				PegPriceType:               "PRIMARY_PEG",
+				PegOffsetType:              "PRICE_LEVEL",
+				PegOffsetValue:             5,
+				PeggedPrice:                86168.13,
 			},
 		},
 	} {
@@ -1534,29 +1536,29 @@ func TestCancelExistingOrder(t *testing.T) {
 				CancelRestrictions:    "ONLY_NEW",
 			},
 			exp: &CancelOrderResponse{
-				Symbol:                  "BTCUSDT",
-				OriginalClientOrderID:   "myOrder1",
-				OrderID:                 28,
-				OrderListID:             -1,
-				ClientOrderID:           "cancelMyOrder1",
-				TransactTime:            types.Time(time.UnixMilli(1791284811765)),
-				Price:                   86168.13,
-				OriginalQuantity:        0.01,
-				Status:                  "CANCELED",
-				TimeInForce:             "GTC",
-				Type:                    "STOP_LOSS_LIMIT",
-				Side:                    "SELL",
-				SelfTradePreventionMode: "EXPIRE_MAKER",
-				IcebergQuantity:         0.002,
-				StopPrice:               85000,
-				StrategyID:              37463720,
-				StrategyType:            1000000,
-				TrailingDelta:           200,
-				TrailingTime:            -1,
-				PegPriceType:            "PRIMARY_PEG",
-				PegOffsetType:           "PRICE_LEVEL",
-				PegOffsetValue:          5,
-				PeggedPrice:             86168.13,
+				Symbol:                     "BTCUSDT",
+				OriginalClientOrderID:      "myOrder1",
+				OrderID:                    28,
+				OrderListID:                -1,
+				ClientOrderID:              "cancelMyOrder1",
+				TransactTime:               types.Time(time.UnixMilli(1791284811765)),
+				Price:                      86168.13,
+				OriginalQuantity:           0.01,
+				Status:                     "CANCELED",
+				TimeInForce:                "GTC",
+				Type:                       "STOP_LOSS_LIMIT",
+				Side:                       "SELL",
+				SelfTradePreventionMode:    "EXPIRE_MAKER",
+				IcebergQuantity:            0.002,
+				StopPrice:                  85000,
+				StrategyID:                 37463720,
+				StrategyType:               1000000,
+				TrailingDeltaInBasisPoints: 200,
+				TrailingTime:               -1,
+				PegPriceType:               "PRIMARY_PEG",
+				PegOffsetType:              "PRICE_LEVEL",
+				PegOffsetValue:             5,
+				PeggedPrice:                86168.13,
 			},
 		},
 		{
@@ -1598,27 +1600,27 @@ func TestCancelExistingOrder(t *testing.T) {
 	}
 }
 
-func TestCancelOCOOrder(t *testing.T) {
+func TestCancelOneCancelsTheOtherOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.CancelOCOOrder(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "CancelOCOOrder must reject a nil request")
-	_, err = e.CancelOCOOrder(t.Context(), &CancelOrderListRequest{ListClientOrderID: "newderID"})
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "CancelOCOOrder must reject an empty pair")
-	_, err = e.CancelOCOOrder(t.Context(), &CancelOrderListRequest{Symbol: currency.NewBTCUSDT()})
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "CancelOCOOrder must reject a request without an order list ID")
+	_, err := e.CancelOneCancelsTheOtherOrder(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "CancelOneCancelsTheOtherOrder must reject a nil request")
+	_, err = e.CancelOneCancelsTheOtherOrder(t.Context(), &CancelOrderListRequest{ListClientOrderID: "newderID"})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "CancelOneCancelsTheOtherOrder must reject an empty pair")
+	_, err = e.CancelOneCancelsTheOtherOrder(t.Context(), &CancelOrderListRequest{Symbol: currency.NewBTCUSDT()})
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "CancelOneCancelsTheOtherOrder must reject a request without an order list ID")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	result, err := e.CancelOCOOrder(t.Context(), &CancelOrderListRequest{
+	result, err := e.CancelOneCancelsTheOtherOrder(t.Context(), &CancelOrderListRequest{
 		Symbol:            currency.NewPair(currency.LTC, currency.BTC),
 		OrderListID:       1929,
 		ListClientOrderID: "C3wyj4WVEktd7u9aVBRXcN",
 		NewClientOrderID:  "cancelMyOrderList1",
 	})
-	require.NoError(t, err, "CancelOCOOrder must not error")
+	require.NoError(t, err, "CancelOneCancelsTheOtherOrder must not error")
 	if mockTests {
-		exp := &OCOOrderResponse{
+		exp := &OneCancelsTheOtherOrderResponse{
 			OrderListID:       1929,
 			ContingencyType:   "OCO",
 			ListStatusType:    "ALL_DONE",
@@ -1640,25 +1642,25 @@ func TestCancelOCOOrder(t *testing.T) {
 			},
 			OrderReports: []OrderResponse{
 				{
-					Symbol:                  "LTCBTC",
-					OriginalClientOrderID:   "pO9ufTiFGg3nw2fOdgeOXa",
-					OrderID:                 2,
-					OrderListID:             1929,
-					ClientOrderID:           "unfWT8ig8i0uj6lPuYLez6",
-					TransactTime:            types.Time(time.UnixMilli(1791284811766)),
-					Price:                   0.0009,
-					OriginalQuantity:        5,
-					Status:                  "CANCELED",
-					TimeInForce:             order.GoodTillCancel,
-					Type:                    "STOP_LOSS_LIMIT",
-					Side:                    "SELL",
-					SelfTradePreventionMode: "EXPIRE_MAKER",
-					IcebergQuantity:         1,
-					StopPrice:               0.00095,
-					StrategyID:              2,
-					StrategyType:            1000001,
-					TrailingDelta:           100,
-					TrailingTime:            -1,
+					Symbol:                     "LTCBTC",
+					OriginalClientOrderID:      "pO9ufTiFGg3nw2fOdgeOXa",
+					OrderID:                    2,
+					OrderListID:                1929,
+					ClientOrderID:              "unfWT8ig8i0uj6lPuYLez6",
+					TransactTime:               types.Time(time.UnixMilli(1791284811766)),
+					Price:                      0.0009,
+					OriginalQuantity:           5,
+					Status:                     "CANCELED",
+					TimeInForce:                order.GoodTillCancel,
+					Type:                       "STOP_LOSS_LIMIT",
+					Side:                       "SELL",
+					SelfTradePreventionMode:    "EXPIRE_MAKER",
+					IcebergQuantity:            1,
+					StopPrice:                  0.00095,
+					StrategyID:                 2,
+					StrategyType:               1000001,
+					TrailingDeltaInBasisPoints: 100,
+					TrailingTime:               -1,
 				},
 				{
 					Symbol:                  "LTCBTC",
@@ -1685,10 +1687,10 @@ func TestCancelOCOOrder(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, exp, result, "CancelOCOOrder should decode every field")
+		assert.Equal(t, exp, result, "CancelOneCancelsTheOtherOrder should decode every field")
 		return
 	}
-	assert.Equal(t, uint64(1929), result.OrderListID, "CancelOCOOrder should return the cancelled order list")
+	assert.Equal(t, uint64(1929), result.OrderListID, "CancelOneCancelsTheOtherOrder should return the cancelled order list")
 }
 
 func TestCancelExistingOrderAndSendNewOrder(t *testing.T) {
@@ -1790,19 +1792,19 @@ func TestCancelExistingOrderAndSendNewOrder(t *testing.T) {
 		{
 			name: "pegged trailing stop limit order",
 			req: &CancelReplaceOrderRequest{
-				Symbol:               currency.NewBTCUSDT(),
-				Side:                 order.Sell.String(),
-				Type:                 "STOP_LOSS_LIMIT",
-				CancelReplaceMode:    "ALLOW_FAILURE",
-				TimeInForce:          order.GoodTillCancel.String(),
-				Quantity:             0.04,
-				StopPrice:            85000,
-				TrailingDelta:        200,
-				CancelOrderID:        10,
-				NewOrderResponseType: "RESULT",
-				PegPriceType:         "PRIMARY_PEG",
-				PegOffsetValue:       5,
-				PegOffsetType:        "PRICE_LEVEL",
+				Symbol:                     currency.NewBTCUSDT(),
+				Side:                       order.Sell.String(),
+				Type:                       "STOP_LOSS_LIMIT",
+				CancelReplaceMode:          "ALLOW_FAILURE",
+				TimeInForce:                order.GoodTillCancel.String(),
+				Quantity:                   0.04,
+				StopPrice:                  85000,
+				TrailingDeltaInBasisPoints: 200,
+				CancelOrderID:              10,
+				NewOrderResponseType:       "RESULT",
+				PegPriceType:               "PRIMARY_PEG",
+				PegOffsetValue:             5,
+				PegOffsetType:              "PRICE_LEVEL",
 			},
 			exp: &CancelAndReplaceResponse{
 				CancelResult:   "SUCCESS",
@@ -1845,13 +1847,13 @@ func TestCancelExistingOrderAndSendNewOrder(t *testing.T) {
 					WorkingTime:             -1,
 					SelfTradePreventionMode: "EXPIRE_MAKER",
 					OrderConditionalFields: OrderConditionalFields{
-						StopPrice:      85000,
-						TrailingDelta:  200,
-						TrailingTime:   -1,
-						PegPriceType:   "PRIMARY_PEG",
-						PegOffsetType:  "PRICE_LEVEL",
-						PegOffsetValue: 5,
-						PeggedPrice:    86168.13,
+						StopPrice:                  85000,
+						TrailingDeltaInBasisPoints: 200,
+						TrailingTime:               -1,
+						PegPriceType:               "PRIMARY_PEG",
+						PegOffsetType:              "PRICE_LEVEL",
+						PegOffsetValue:             5,
+						PeggedPrice:                86168.13,
 					},
 				},
 			},
@@ -1884,14 +1886,14 @@ func TestCancelExistingOrderAndSendNewOrder(t *testing.T) {
 					Side:                    "SELL",
 					SelfTradePreventionMode: "EXPIRE_MAKER",
 					OrderConditionalFields: OrderConditionalFields{
-						IcebergQuantity: 0.002,
-						StopPrice:       85000,
-						TrailingDelta:   200,
-						TrailingTime:    -1,
-						PegPriceType:    "PRIMARY_PEG",
-						PegOffsetType:   "PRICE_LEVEL",
-						PegOffsetValue:  5,
-						PeggedPrice:     86168.13,
+						IcebergQuantity:            0.002,
+						StopPrice:                  85000,
+						TrailingDeltaInBasisPoints: 200,
+						TrailingTime:               -1,
+						PegPriceType:               "PRIMARY_PEG",
+						PegOffsetType:              "PRICE_LEVEL",
+						PegOffsetValue:             5,
+						PeggedPrice:                86168.13,
 					},
 				},
 				NewOrderResponse: CancelReplaceNewOrderResponse{
@@ -2026,35 +2028,35 @@ func TestAPIError(t *testing.T) {
 	assert.NotErrorIs(t, err, order.ErrOrderNotFound, "APIError should not match an unmapped error")
 }
 
-func TestNewOCOOrderList(t *testing.T) {
+func TestNewOneCancelsTheOtherOrderList(t *testing.T) {
 	t.Parallel()
-	_, err := e.NewOCOOrderList(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "NewOCOOrderList must reject a nil request")
-	req := &OCOOrderListRequest{Above: OCOOrderListLeg{TimeInForce: order.GoodTillCancel.String()}}
-	_, err = e.NewOCOOrderList(t.Context(), req)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "NewOCOOrderList must reject an empty pair")
+	_, err := e.NewOneCancelsTheOtherOrderList(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "NewOneCancelsTheOtherOrderList must reject a nil request")
+	req := &OneCancelsTheOtherOrderListRequest{Above: OneCancelsTheOtherOrderListLeg{TimeInForce: order.GoodTillCancel.String()}}
+	_, err = e.NewOneCancelsTheOtherOrderList(t.Context(), req)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "NewOneCancelsTheOtherOrderList must reject an empty pair")
 	req.Symbol = currency.NewPair(currency.LTC, currency.BTC)
-	_, err = e.NewOCOOrderList(t.Context(), req)
-	require.ErrorIs(t, err, order.ErrSideIsInvalid, "NewOCOOrderList must reject an empty side")
+	_, err = e.NewOneCancelsTheOtherOrderList(t.Context(), req)
+	require.ErrorIs(t, err, order.ErrSideIsInvalid, "NewOneCancelsTheOtherOrderList must reject an empty side")
 	req.Side = order.Sell.String()
-	_, err = e.NewOCOOrderList(t.Context(), req)
-	require.ErrorIs(t, err, limits.ErrAmountBelowMin, "NewOCOOrderList must reject a zero quantity")
+	_, err = e.NewOneCancelsTheOtherOrderList(t.Context(), req)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin, "NewOneCancelsTheOtherOrderList must reject a zero quantity")
 	req.Quantity = 1
-	_, err = e.NewOCOOrderList(t.Context(), req)
-	require.ErrorIs(t, err, order.ErrTypeIsInvalid, "NewOCOOrderList must reject an empty above type")
+	_, err = e.NewOneCancelsTheOtherOrderList(t.Context(), req)
+	require.ErrorIs(t, err, order.ErrTypeIsInvalid, "NewOneCancelsTheOtherOrderList must reject an empty above type")
 	req.Above.Type = "LIMIT_MAKER"
-	_, err = e.NewOCOOrderList(t.Context(), req)
-	require.ErrorIs(t, err, order.ErrTypeIsInvalid, "NewOCOOrderList must reject an empty below type")
+	_, err = e.NewOneCancelsTheOtherOrderList(t.Context(), req)
+	require.ErrorIs(t, err, order.ErrTypeIsInvalid, "NewOneCancelsTheOtherOrderList must reject an empty below type")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	result, err := e.NewOCOOrderList(t.Context(), &OCOOrderListRequest{
+	result, err := e.NewOneCancelsTheOtherOrderList(t.Context(), &OneCancelsTheOtherOrderListRequest{
 		Symbol:            currency.NewPair(currency.LTC, currency.BTC),
 		ListClientOrderID: "lH1YDkuQKWiXVXHPSKYEIp",
 		Side:              order.Sell.String(),
 		Quantity:          5,
-		Above: OCOOrderListLeg{
+		Above: OneCancelsTheOtherOrderListLeg{
 			Type:           "LIMIT_MAKER",
 			ClientOrderID:  "44nZvqpemY7sVYgPYbvPih",
 			Price:          0.0012,
@@ -2064,23 +2066,23 @@ func TestNewOCOOrderList(t *testing.T) {
 			PegOffsetType:  "PRICE_LEVEL",
 			PegOffsetValue: 5,
 		},
-		Below: OCOOrderListLeg{
-			Type:            "STOP_LOSS_LIMIT",
-			ClientOrderID:   "NuMp0nVYnciDiFmVqfpBqK",
-			IcebergQuantity: 1,
-			Price:           0.0009,
-			StopPrice:       0.00095,
-			TrailingDelta:   100,
-			TimeInForce:     order.GoodTillCancel.String(),
-			StrategyID:      2,
-			StrategyType:    1000001,
+		Below: OneCancelsTheOtherOrderListLeg{
+			Type:                       "STOP_LOSS_LIMIT",
+			ClientOrderID:              "NuMp0nVYnciDiFmVqfpBqK",
+			IcebergQuantity:            1,
+			Price:                      0.0009,
+			StopPrice:                  0.00095,
+			TrailingDeltaInBasisPoints: 100,
+			TimeInForce:                order.GoodTillCancel.String(),
+			StrategyID:                 2,
+			StrategyType:               1000001,
 		},
 		NewOrderResponseType:    "FULL",
 		SelfTradePreventionMode: "EXPIRE_MAKER",
 	})
-	require.NoError(t, err, "NewOCOOrderList must not error")
+	require.NoError(t, err, "NewOneCancelsTheOtherOrderList must not error")
 	if mockTests {
-		exp := &OCOOrderResponse{
+		exp := &OneCancelsTheOtherOrderResponse{
 			OrderListID:       1,
 			ContingencyType:   "OCO",
 			ListStatusType:    "EXEC_STARTED",
@@ -2102,26 +2104,26 @@ func TestNewOCOOrderList(t *testing.T) {
 			},
 			OrderReports: []OrderResponse{
 				{
-					Symbol:                  "LTCBTC",
-					OrderID:                 10,
-					OrderListID:             1,
-					ClientOrderID:           "NuMp0nVYnciDiFmVqfpBqK",
-					TransactTime:            types.Time(time.UnixMilli(1791284811009)),
-					Price:                   0.0009,
-					OriginalQuantity:        5,
-					Status:                  "NEW",
-					TimeInForce:             order.GoodTillCancel,
-					Type:                    "STOP_LOSS_LIMIT",
-					Side:                    "SELL",
-					WorkingTime:             -1,
-					SelfTradePreventionMode: "EXPIRE_MAKER",
-					Fills:                   []OrderFill{},
-					IcebergQuantity:         1,
-					StopPrice:               0.00095,
-					StrategyID:              2,
-					StrategyType:            1000001,
-					TrailingDelta:           100,
-					TrailingTime:            -1,
+					Symbol:                     "LTCBTC",
+					OrderID:                    10,
+					OrderListID:                1,
+					ClientOrderID:              "NuMp0nVYnciDiFmVqfpBqK",
+					TransactTime:               types.Time(time.UnixMilli(1791284811009)),
+					Price:                      0.0009,
+					OriginalQuantity:           5,
+					Status:                     "NEW",
+					TimeInForce:                order.GoodTillCancel,
+					Type:                       "STOP_LOSS_LIMIT",
+					Side:                       "SELL",
+					WorkingTime:                -1,
+					SelfTradePreventionMode:    "EXPIRE_MAKER",
+					Fills:                      []OrderFill{},
+					IcebergQuantity:            1,
+					StopPrice:                  0.00095,
+					StrategyID:                 2,
+					StrategyType:               1000001,
+					TrailingDeltaInBasisPoints: 100,
+					TrailingTime:               -1,
 				},
 				{
 					Symbol:                  "LTCBTC",
@@ -2147,10 +2149,10 @@ func TestNewOCOOrderList(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, exp, result, "NewOCOOrderList should decode every field")
+		assert.Equal(t, exp, result, "NewOneCancelsTheOtherOrderList should decode every field")
 		return
 	}
-	assert.Len(t, result.Orders, 2, "NewOCOOrderList should return both orders")
+	assert.Len(t, result.Orders, 2, "NewOneCancelsTheOtherOrderList should return both orders")
 }
 
 func TestNewOrderTest(t *testing.T) {
@@ -2423,21 +2425,21 @@ func TestGetCommissionRates(t *testing.T) {
 	assert.NotEmpty(t, result.Symbol, "GetCommissionRates should return the symbol")
 }
 
-func TestGetAllOCOOrders(t *testing.T) {
+func TestGetAllOneCancelsTheOtherOrders(t *testing.T) {
 	t.Parallel()
 	startTime, endTime := getTime()
-	_, err := e.GetAllOCOOrders(t.Context(), &AllOrderListsRequest{StartTime: endTime, EndTime: startTime, Limit: 10})
-	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetAllOCOOrders must reject a start after the end")
-	_, err = e.GetAllOCOOrders(t.Context(), &AllOrderListsRequest{FromID: 1, StartTime: startTime})
-	require.ErrorIs(t, err, errInvalidParameterCombination, "GetAllOCOOrders must reject fromId with a time window")
+	_, err := e.GetAllOneCancelsTheOtherOrders(t.Context(), &AllOrderListsRequest{StartTime: endTime, EndTime: startTime, Limit: 10})
+	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetAllOneCancelsTheOtherOrders must reject a start after the end")
+	_, err = e.GetAllOneCancelsTheOtherOrders(t.Context(), &AllOrderListsRequest{FromID: 1, StartTime: startTime})
+	require.ErrorIs(t, err, errInvalidParameterCombination, "GetAllOneCancelsTheOtherOrders must reject fromId with a time window")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetAllOCOOrders(t.Context(), &AllOrderListsRequest{StartTime: startTime, EndTime: endTime, Limit: 10})
-	require.NoError(t, err, "GetAllOCOOrders must not error")
+	result, err := e.GetAllOneCancelsTheOtherOrders(t.Context(), &AllOrderListsRequest{StartTime: startTime, EndTime: endTime, Limit: 10})
+	require.NoError(t, err, "GetAllOneCancelsTheOtherOrders must not error")
 	if mockTests {
-		exp := []OCOOrderResponse{
+		exp := []OneCancelsTheOtherOrderResponse{
 			{
 				OrderListID:       29,
 				ContingencyType:   "OCO",
@@ -2481,15 +2483,15 @@ func TestGetAllOCOOrders(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, exp, result, "GetAllOCOOrders should decode every field")
+		assert.Equal(t, exp, result, "GetAllOneCancelsTheOtherOrders should decode every field")
 	} else {
-		assert.NotNil(t, result, "GetAllOCOOrders should return the order lists")
+		assert.NotNil(t, result, "GetAllOneCancelsTheOtherOrders should return the order lists")
 	}
 
-	result, err = e.GetAllOCOOrders(t.Context(), &AllOrderListsRequest{FromID: 29})
-	require.NoError(t, err, "GetAllOCOOrders must not error")
+	result, err = e.GetAllOneCancelsTheOtherOrders(t.Context(), &AllOrderListsRequest{FromID: 29})
+	require.NoError(t, err, "GetAllOneCancelsTheOtherOrders must not error")
 	if mockTests {
-		exp := []OCOOrderResponse{
+		exp := []OneCancelsTheOtherOrderResponse{
 			{
 				OrderListID:       29,
 				ContingencyType:   "OCO",
@@ -2512,10 +2514,10 @@ func TestGetAllOCOOrders(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, exp, result, "GetAllOCOOrders should decode every field")
+		assert.Equal(t, exp, result, "GetAllOneCancelsTheOtherOrders should decode every field")
 		return
 	}
-	assert.NotNil(t, result, "GetAllOCOOrders should return the order lists")
+	assert.NotNil(t, result, "GetAllOneCancelsTheOtherOrders should return the order lists")
 }
 
 func TestAllOrders(t *testing.T) {
@@ -2563,23 +2565,23 @@ func TestAllOrders(t *testing.T) {
 				PeggedPrice:             86000,
 			},
 			{
-				Symbol:                  "BTCUSDT",
-				OrderID:                 2,
-				OrderListID:             -1,
-				ClientOrderID:           "myOrder2",
-				Price:                   84000,
-				OriginalQuantity:        0.01,
-				Status:                  "NEW",
-				TimeInForce:             order.GoodTillCancel,
-				Type:                    "STOP_LOSS_LIMIT",
-				Side:                    "SELL",
-				Time:                    types.Time(time.Unix(1744106000, 0)),
-				UpdateTime:              types.Time(time.Unix(1744106000, 0)),
-				WorkingTime:             -1,
-				SelfTradePreventionMode: "EXPIRE_MAKER",
-				StopPrice:               85000,
-				TrailingDelta:           200,
-				TrailingTime:            -1,
+				Symbol:                     "BTCUSDT",
+				OrderID:                    2,
+				OrderListID:                -1,
+				ClientOrderID:              "myOrder2",
+				Price:                      84000,
+				OriginalQuantity:           0.01,
+				Status:                     "NEW",
+				TimeInForce:                order.GoodTillCancel,
+				Type:                       "STOP_LOSS_LIMIT",
+				Side:                       "SELL",
+				Time:                       types.Time(time.Unix(1744106000, 0)),
+				UpdateTime:                 types.Time(time.Unix(1744106000, 0)),
+				WorkingTime:                -1,
+				SelfTradePreventionMode:    "EXPIRE_MAKER",
+				StopPrice:                  85000,
+				TrailingDeltaInBasisPoints: 200,
+				TrailingTime:               -1,
 			},
 			{
 				Symbol:                  "BTCUSDT",
@@ -2654,10 +2656,10 @@ func TestGetAccount(t *testing.T) {
 	require.NoError(t, err, "GetAccount must not error")
 	if mockTests {
 		exp := &AccountResponse{
-			MakerCommission:  9,
-			TakerCommission:  10,
-			BuyerCommission:  2,
-			SellerCommission: 3,
+			MakerCommissionInBasisPoints:  9,
+			TakerCommissionInBasisPoints:  10,
+			BuyerCommissionInBasisPoints:  2,
+			SellerCommissionInBasisPoints: 3,
 			CommissionRates: CommissionRates{
 				Maker:  0.0009,
 				Taker:  0.001,
@@ -2701,10 +2703,10 @@ func TestGetAccountNegativeCommissions(t *testing.T) {
 		field string
 		exp   AccountResponse
 	}{
-		{field: "makerCommission", exp: AccountResponse{MakerCommission: -1}},
-		{field: "takerCommission", exp: AccountResponse{TakerCommission: -1}},
-		{field: "buyerCommission", exp: AccountResponse{BuyerCommission: -1}},
-		{field: "sellerCommission", exp: AccountResponse{SellerCommission: -1}},
+		{field: "makerCommission", exp: AccountResponse{MakerCommissionInBasisPoints: -1}},
+		{field: "takerCommission", exp: AccountResponse{TakerCommissionInBasisPoints: -1}},
+		{field: "buyerCommission", exp: AccountResponse{BuyerCommissionInBasisPoints: -1}},
+		{field: "sellerCommission", exp: AccountResponse{SellerCommissionInBasisPoints: -1}},
 	} {
 		t.Run(tc.field, func(t *testing.T) {
 			t.Parallel()
@@ -2730,30 +2732,30 @@ func TestOpenOrders(t *testing.T) {
 	if mockTests {
 		exp := []TradeOrderResponse{
 			{
-				Symbol:                  "BTCUSDT",
-				OrderID:                 2,
-				OrderListID:             -1,
-				ClientOrderID:           "myOrder2",
-				Price:                   84000,
-				OriginalQuantity:        0.01,
-				Status:                  "NEW",
-				TimeInForce:             order.GoodTillCancel,
-				Type:                    "STOP_LOSS_LIMIT",
-				Side:                    "SELL",
-				Time:                    types.Time(time.Unix(1744106000, 0)),
-				UpdateTime:              types.Time(time.Unix(1744106000, 0)),
-				WorkingTime:             -1,
-				SelfTradePreventionMode: "EXPIRE_MAKER",
-				IcebergQuantity:         0.002,
-				StopPrice:               85000,
-				StrategyID:              37463720,
-				StrategyType:            1000000,
-				TrailingDelta:           200,
-				TrailingTime:            -1,
-				PegPriceType:            "MARKET_PEG",
-				PegOffsetType:           "PRICE_LEVEL",
-				PegOffsetValue:          1,
-				PeggedPrice:             84000,
+				Symbol:                     "BTCUSDT",
+				OrderID:                    2,
+				OrderListID:                -1,
+				ClientOrderID:              "myOrder2",
+				Price:                      84000,
+				OriginalQuantity:           0.01,
+				Status:                     "NEW",
+				TimeInForce:                order.GoodTillCancel,
+				Type:                       "STOP_LOSS_LIMIT",
+				Side:                       "SELL",
+				Time:                       types.Time(time.Unix(1744106000, 0)),
+				UpdateTime:                 types.Time(time.Unix(1744106000, 0)),
+				WorkingTime:                -1,
+				SelfTradePreventionMode:    "EXPIRE_MAKER",
+				IcebergQuantity:            0.002,
+				StopPrice:                  85000,
+				StrategyID:                 37463720,
+				StrategyType:               1000000,
+				TrailingDeltaInBasisPoints: 200,
+				TrailingTime:               -1,
+				PegPriceType:               "MARKET_PEG",
+				PegOffsetType:              "PRICE_LEVEL",
+				PegOffsetValue:             1,
+				PeggedPrice:                84000,
 			},
 			{
 				Symbol:                  "ETHUSDT",
@@ -2789,30 +2791,30 @@ func TestOpenOrders(t *testing.T) {
 	if mockTests {
 		exp := []TradeOrderResponse{
 			{
-				Symbol:                  "BTCUSDT",
-				OrderID:                 2,
-				OrderListID:             -1,
-				ClientOrderID:           "myOrder2",
-				Price:                   84000,
-				OriginalQuantity:        0.01,
-				Status:                  "NEW",
-				TimeInForce:             order.GoodTillCancel,
-				Type:                    "STOP_LOSS_LIMIT",
-				Side:                    "SELL",
-				Time:                    types.Time(time.Unix(1744106000, 0)),
-				UpdateTime:              types.Time(time.Unix(1744106000, 0)),
-				WorkingTime:             -1,
-				SelfTradePreventionMode: "EXPIRE_MAKER",
-				IcebergQuantity:         0.002,
-				StopPrice:               85000,
-				StrategyID:              37463720,
-				StrategyType:            1000000,
-				TrailingDelta:           200,
-				TrailingTime:            -1,
-				PegPriceType:            "MARKET_PEG",
-				PegOffsetType:           "PRICE_LEVEL",
-				PegOffsetValue:          1,
-				PeggedPrice:             84000,
+				Symbol:                     "BTCUSDT",
+				OrderID:                    2,
+				OrderListID:                -1,
+				ClientOrderID:              "myOrder2",
+				Price:                      84000,
+				OriginalQuantity:           0.01,
+				Status:                     "NEW",
+				TimeInForce:                order.GoodTillCancel,
+				Type:                       "STOP_LOSS_LIMIT",
+				Side:                       "SELL",
+				Time:                       types.Time(time.Unix(1744106000, 0)),
+				UpdateTime:                 types.Time(time.Unix(1744106000, 0)),
+				WorkingTime:                -1,
+				SelfTradePreventionMode:    "EXPIRE_MAKER",
+				IcebergQuantity:            0.002,
+				StopPrice:                  85000,
+				StrategyID:                 37463720,
+				StrategyType:               1000000,
+				TrailingDeltaInBasisPoints: 200,
+				TrailingTime:               -1,
+				PegPriceType:               "MARKET_PEG",
+				PegOffsetType:              "PRICE_LEVEL",
+				PegOffsetValue:             1,
+				PeggedPrice:                84000,
 			},
 			{
 				Symbol:                  "BTCUSDT",
@@ -2891,28 +2893,28 @@ func TestQueryOrder(t *testing.T) {
 		{
 			clientOrderID: "myOrder2",
 			exp: &TradeOrderResponse{
-				Symbol:                  "BTCUSDT",
-				OrderID:                 2,
-				OrderListID:             -1,
-				ClientOrderID:           "myOrder2",
-				Price:                   84000,
-				OriginalQuantity:        0.01,
-				Status:                  "NEW",
-				TimeInForce:             order.GoodTillCancel,
-				Type:                    "STOP_LOSS_LIMIT",
-				Side:                    "SELL",
-				Time:                    types.Time(time.Unix(1744106000, 0)),
-				UpdateTime:              types.Time(time.Unix(1744106000, 0)),
-				WorkingTime:             -1,
-				SelfTradePreventionMode: "EXPIRE_MAKER",
-				IcebergQuantity:         0.002,
-				StopPrice:               85000,
-				TrailingDelta:           200,
-				TrailingTime:            -1,
-				PegPriceType:            "MARKET_PEG",
-				PegOffsetType:           "PRICE_LEVEL",
-				PegOffsetValue:          1,
-				PeggedPrice:             84000,
+				Symbol:                     "BTCUSDT",
+				OrderID:                    2,
+				OrderListID:                -1,
+				ClientOrderID:              "myOrder2",
+				Price:                      84000,
+				OriginalQuantity:           0.01,
+				Status:                     "NEW",
+				TimeInForce:                order.GoodTillCancel,
+				Type:                       "STOP_LOSS_LIMIT",
+				Side:                       "SELL",
+				Time:                       types.Time(time.Unix(1744106000, 0)),
+				UpdateTime:                 types.Time(time.Unix(1744106000, 0)),
+				WorkingTime:                -1,
+				SelfTradePreventionMode:    "EXPIRE_MAKER",
+				IcebergQuantity:            0.002,
+				StopPrice:                  85000,
+				TrailingDeltaInBasisPoints: 200,
+				TrailingTime:               -1,
+				PegPriceType:               "MARKET_PEG",
+				PegOffsetType:              "PRICE_LEVEL",
+				PegOffsetValue:             1,
+				PeggedPrice:                84000,
 			},
 		},
 		{
@@ -2960,18 +2962,18 @@ func TestQueryOrder(t *testing.T) {
 	}
 }
 
-func TestGetOCOOrders(t *testing.T) {
+func TestGetOneCancelsTheOtherOrders(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetOCOOrders(t.Context(), 0, "")
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "GetOCOOrders must reject a request without an order list ID")
+	_, err := e.GetOneCancelsTheOtherOrders(t.Context(), 0, "")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "GetOneCancelsTheOtherOrders must reject a request without an order list ID")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetOCOOrders(t.Context(), 123456, "h2USkA5YQpaXHPIrkd96xE")
-	require.NoError(t, err, "GetOCOOrders must not error")
+	result, err := e.GetOneCancelsTheOtherOrders(t.Context(), 123456, "h2USkA5YQpaXHPIrkd96xE")
+	require.NoError(t, err, "GetOneCancelsTheOtherOrders must not error")
 	if mockTests {
-		exp := &OCOOrderResponse{
+		exp := &OneCancelsTheOtherOrderResponse{
 			OrderListID:       123456,
 			ContingencyType:   "OCO",
 			ListStatusType:    "EXEC_STARTED",
@@ -2992,10 +2994,10 @@ func TestGetOCOOrders(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, exp, result, "GetOCOOrders should decode every field")
+		assert.Equal(t, exp, result, "GetOneCancelsTheOtherOrders should decode every field")
 		return
 	}
-	assert.Equal(t, uint64(123456), result.OrderListID, "GetOCOOrders should return the order list")
+	assert.Equal(t, uint64(123456), result.OrderListID, "GetOneCancelsTheOtherOrders should return the order list")
 }
 
 func TestGetAllocations(t *testing.T) {
@@ -3188,15 +3190,15 @@ func TestGetAccountTradeList(t *testing.T) {
 	assert.NotNil(t, result, "GetAccountTradeList should return the trades")
 }
 
-func TestGetOpenOCOList(t *testing.T) {
+func TestGetOpenOneCancelsTheOtherList(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetOpenOCOList(t.Context())
-	require.NoError(t, err, "GetOpenOCOList must not error")
+	result, err := e.GetOpenOneCancelsTheOtherList(t.Context())
+	require.NoError(t, err, "GetOpenOneCancelsTheOtherList must not error")
 	if mockTests {
-		exp := []OCOOrderResponse{
+		exp := []OneCancelsTheOtherOrderResponse{
 			{
 				OrderListID:       31,
 				ContingencyType:   "OCO",
@@ -3219,10 +3221,10 @@ func TestGetOpenOCOList(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, exp, result, "GetOpenOCOList should decode every field")
+		assert.Equal(t, exp, result, "GetOpenOneCancelsTheOtherList should decode every field")
 		return
 	}
-	assert.NotNil(t, result, "GetOpenOCOList should return the open order lists")
+	assert.NotNil(t, result, "GetOpenOneCancelsTheOtherList should return the open order lists")
 }
 
 func TestGetCurrentOrderCountUsage(t *testing.T) {
@@ -3305,7 +3307,7 @@ func TestSendHTTPRequest(t *testing.T) {
 	})
 	var result *AveragePriceResponse
 	require.NoError(t, ex.SendHTTPRequest(t.Context(), exchange.RestSpotSupplementary, "/api/v3/avgPrice?symbol=BTCUSDT", spotDefaultRate, &result), "SendHTTPRequest must not error")
-	exp := &AveragePriceResponse{Minutes: 5, Price: 86164.33298681, CloseTime: types.Time(time.UnixMilli(1791284810512))}
+	exp := &AveragePriceResponse{IntervalInMinutes: 5, Price: 86164.33298681, CloseTime: types.Time(time.UnixMilli(1791284810512))}
 	assert.Equal(t, exp, result, "SendHTTPRequest should decode the response")
 }
 
@@ -3490,6 +3492,226 @@ func TestObjectOrArrayUnmarshalJSON(t *testing.T) {
 	assert.Error(t, json.Unmarshal([]byte(`{"symbol":1}`), &result), "Unmarshal should error for an invalid object")
 	assert.Error(t, json.Unmarshal([]byte(`"BTCUSDT"`), &result), "Unmarshal should error for neither an object nor an array")
 	assert.Error(t, json.Unmarshal([]byte(`[1]`), &result), "Unmarshal should error for an array of non-objects")
+}
+
+func TestCommaSeparatedUnmarshalJSON(t *testing.T) {
+	t.Parallel()
+	var ids CommaSeparated[uint64]
+	require.NoError(t, json.Unmarshal([]byte(`"12345677,12345678,12345679"`), &ids), "Unmarshal must not error for a list of IDs")
+	assert.Equal(t, CommaSeparated[uint64]{12345677, 12345678, 12345679}, ids, "Unmarshal should decode every ID")
+	require.NoError(t, json.Unmarshal([]byte(`"40"`), &ids), "Unmarshal must not error for a single ID")
+	assert.Equal(t, CommaSeparated[uint64]{40}, ids, "Unmarshal should decode a single ID into one element")
+	require.NoError(t, json.Unmarshal([]byte(`""`), &ids), "Unmarshal must not error for an empty list")
+	assert.Empty(t, ids, "Unmarshal should decode an empty string into an empty list")
+	assert.ErrorIs(t, json.Unmarshal([]byte(`"12345678,BTC"`), &ids), errInvalidListElement, "Unmarshal should reject an element that is not an ID")
+	assert.Error(t, json.Unmarshal([]byte(`12345678`), &ids), "Unmarshal should error for a value that is not a string")
+
+	var coins CommaSeparated[currency.Code]
+	require.NoError(t, json.Unmarshal([]byte(`"BNB,BTC,ETH"`), &coins), "Unmarshal must not error for a list of coins")
+	assert.Equal(t, CommaSeparated[currency.Code]{currency.BNB, currency.BTC, currency.ETH}, coins, "Unmarshal should decode every coin")
+}
+
+func TestCheckListLength(t *testing.T) {
+	t.Parallel()
+	assert.NoError(t, checkListLength("orders", 5, 5), "checkListLength should accept a list at its maximum")
+	err := checkListLength("orders", 6, 5)
+	assert.ErrorIs(t, err, errTooManyItems, "checkListLength should refuse a list past its maximum")
+	assert.ErrorContains(t, err, "6 orders, at most 5", "checkListLength should say how long the list is and may be")
+}
+
+// listLength returns the number of items in a list parameter, sent as a JSON array or comma separated
+func listLength(tb testing.TB, value string) int {
+	tb.Helper()
+	if value == "" {
+		return 0
+	}
+	if strings.HasPrefix(value, "[") {
+		var items []json.RawMessage
+		require.NoError(tb, json.Unmarshal([]byte(value), &items), "Unmarshal must not error for a JSON array parameter")
+		return len(items)
+	}
+	return len(strings.Split(value, ","))
+}
+
+func TestListLengthLimits(t *testing.T) {
+	t.Parallel()
+	// Each list parameter with a documented maximum, or one Binance enforces, is sent whole at its maximum and refused
+	// one item past it, before any request is made
+	pairs := func(n int) currency.Pairs {
+		p := make(currency.Pairs, n)
+		for i := range p {
+			p[i] = currency.NewPair(currency.NewCode("COIN"+strconv.Itoa(i)), currency.USDT)
+		}
+		return p
+	}
+	codes := func(n int) []currency.Code {
+		c := make([]currency.Code, n)
+		for i := range c {
+			c[i] = currency.NewCode("COIN" + strconv.Itoa(i))
+		}
+		return c
+	}
+	ids := func(n int) []uint64 {
+		id := make([]uint64, n)
+		for i := range id {
+			id[i] = uint64(i + 1)
+		}
+		return id
+	}
+	strs := func(n int) []string {
+		s := make([]string, n)
+		for i := range s {
+			s[i] = "id" + strconv.Itoa(i)
+		}
+		return s
+	}
+	for _, tc := range []struct {
+		name  string
+		param string
+		limit int
+		reply string
+		call  func(ctx context.Context, ex *Exchange, n int) error
+	}{
+		{"COIN-M Modify Multiple Orders", "batchOrders", 5, `[]`, func(ctx context.Context, ex *Exchange, n int) error {
+			orders := make([]CoinMarginedFuturesModifyOrderRequest, n)
+			for i := range orders {
+				orders[i] = CoinMarginedFuturesModifyOrderRequest{Symbol: coinmTradablePair, OrderID: uint64(i + 1), Side: order.Buy.String(), Quantity: 1, Price: 30005}
+			}
+			_, err := ex.CoinMarginedFuturesModifyMultipleOrders(ctx, orders)
+			return err
+		}},
+		{"COIN-M Place Multiple Orders", "batchOrders", 5, `[]`, func(ctx context.Context, ex *Exchange, n int) error {
+			orders := make([]CoinMarginedFuturesNewOrderRequest, n)
+			for i := range orders {
+				orders[i] = CoinMarginedFuturesNewOrderRequest{Symbol: coinmTradablePair, Side: "BUY", OrderType: "LIMIT", TimeInForce: "GTC", Quantity: 1, Price: 10001}
+			}
+			_, err := ex.CoinMarginedFuturesBatchOrder(ctx, orders)
+			return err
+		}},
+		{"COIN-M Cancel Multiple Orders by order ID", "orderIdList", 10, `[]`, func(ctx context.Context, ex *Exchange, n int) error {
+			_, err := ex.CoinMarginedFuturesBatchCancelOrders(ctx, coinmTradablePair, ids(n), nil)
+			return err
+		}},
+		{"COIN-M Cancel Multiple Orders by client order ID", "origClientOrderIdList", 10, `[]`, func(ctx context.Context, ex *Exchange, n int) error {
+			_, err := ex.CoinMarginedFuturesBatchCancelOrders(ctx, coinmTradablePair, nil, strs(n))
+			return err
+		}},
+		{"USDⓈ-M Modify Multiple Orders", "batchOrders", 5, `[]`, func(ctx context.Context, ex *Exchange, n int) error {
+			orders := make([]USDTMarginedFuturesModifyOrderRequest, n)
+			for i := range orders {
+				orders[i] = USDTMarginedFuturesModifyOrderRequest{OrderID: uint64(i + 1), Symbol: currency.NewBTCUSDT(), Side: "BUY", Quantity: 1, Price: 30005}
+			}
+			_, err := ex.USDTMarginedFuturesModifyMultipleOrders(ctx, orders)
+			return err
+		}},
+		{"USDⓈ-M Place Multiple Orders", "batchOrders", 5, `[]`, func(ctx context.Context, ex *Exchange, n int) error {
+			orders := make([]USDTMarginedFuturesNewOrderRequest, n)
+			for i := range orders {
+				orders[i] = USDTMarginedFuturesNewOrderRequest{Symbol: currency.NewBTCUSDT(), Side: "BUY", OrderType: "LIMIT", TimeInForce: "GTC", Quantity: 0.002, Price: 80000}
+			}
+			_, err := ex.USDTMarginedFuturesPlaceBatchOrders(ctx, orders)
+			return err
+		}},
+		{"USDⓈ-M Cancel Multiple Orders by order ID", "orderIdList", 10, `[]`, func(ctx context.Context, ex *Exchange, n int) error {
+			_, err := ex.USDTMarginedFuturesCancelBatchOrders(ctx, currency.NewBTCUSDT(), ids(n), nil)
+			return err
+		}},
+		{"USDⓈ-M Cancel Multiple Orders by client order ID", "origClientOrderIdList", 10, `[]`, func(ctx context.Context, ex *Exchange, n int) error {
+			_, err := ex.USDTMarginedFuturesCancelBatchOrders(ctx, currency.NewBTCUSDT(), nil, strs(n))
+			return err
+		}},
+		{"options Place Multiple Orders", "orders", 10, `[]`, func(ctx context.Context, ex *Exchange, n int) error {
+			orders := make([]OptionsOrderRequest, n)
+			for i := range orders {
+				orders[i] = OptionsOrderRequest{Symbol: optionsTradablePair, Side: "SELL", OrderType: "LIMIT", Quantity: 0.01, Price: 1300, TimeInForce: "GTC"}
+			}
+			_, err := ex.PlaceBatchEOptionsOrder(ctx, orders)
+			return err
+		}},
+		{"rolling window ticker", "symbols", 100, `[]`, func(ctx context.Context, ex *Exchange, n int) error {
+			_, err := ex.GetTickerData(ctx, &RollingWindowTickerRequest{Symbols: pairs(n)})
+			return err
+		}},
+		{"trading day ticker", "symbols", 100, `[]`, func(ctx context.Context, ex *Exchange, n int) error {
+			_, err := ex.GetTradingDayTicker(ctx, &TradingDayTickerRequest{Symbols: pairs(n)})
+			return err
+		}},
+		{"VIP loan borrow interest rate", "loanCoin", 10, `[]`, func(ctx context.Context, ex *Exchange, n int) error {
+			_, err := ex.GetVIPBorrowInterestRate(ctx, codes(n))
+			return err
+		}},
+		{"withdraw history", "idList", 45, `[]`, func(ctx context.Context, ex *Exchange, n int) error {
+			_, err := ex.WithdrawHistory(ctx, &WithdrawHistoryRequest{IDList: strs(n)})
+			return err
+		}},
+		{"travel rule withdraw history v2 by travel rule record ID", "trId", 45, `[]`, func(ctx context.Context, ex *Exchange, n int) error {
+			_, err := ex.WithdrawalHistoryV2(ctx, &LocalEntityWithdrawHistoryRequest{TravelRuleRecordIDs: ids(n)})
+			return err
+		}},
+		{"travel rule withdraw history v2 by transaction ID", "txId", 45, `[]`, func(ctx context.Context, ex *Exchange, n int) error {
+			_, err := ex.WithdrawalHistoryV2(ctx, &LocalEntityWithdrawHistoryRequest{TxIDs: strs(n)})
+			return err
+		}},
+		{"isolated margin account info", "symbols", 5, `{}`, func(ctx context.Context, ex *Exchange, n int) error {
+			_, err := ex.GetIsolatedMarginAccountInfo(ctx, pairs(n))
+			return err
+		}},
+		{"next hourly interest rate", "assets", 20, `[]`, func(ctx context.Context, ex *Exchange, n int) error {
+			_, err := ex.GetFutureHourlyInterestRate(ctx, codes(n), false)
+			return err
+		}},
+		{"small liability exchange", "assetNames", 10, `{}`, func(ctx context.Context, ex *Exchange, n int) error {
+			return ex.MarginSmallLiabilityExchange(ctx, codes(n))
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var requests atomic.Int32
+			ex := newTradingTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+				requests.Add(1)
+				assert.Equalf(t, tc.limit, listLength(t, r.URL.Query().Get(tc.param)), "%s should hold every item sent", tc.param)
+				_, err := w.Write([]byte(tc.reply))
+				assert.NoError(t, err, "Write should not error")
+			})
+			require.NoError(t, tc.call(t.Context(), ex, tc.limit), "a list at its maximum must be sent")
+			require.ErrorIs(t, tc.call(t.Context(), ex, tc.limit+1), errTooManyItems, "a list past its maximum must be refused")
+			assert.Equal(t, int32(1), requests.Load(), "a list past its maximum should not be sent")
+		})
+	}
+
+	t.Run("travel rule withdraw history v1", func(t *testing.T) {
+		t.Parallel()
+		// Version 1 documents no maximum, so it sends what version 2 refuses
+		var requests atomic.Int32
+		ex := newTradingTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+			requests.Add(1)
+			assert.Equal(t, 46, listLength(t, r.URL.Query().Get("trId")), "trId should hold every travel rule record ID")
+			_, err := w.Write([]byte(`[]`))
+			assert.NoError(t, err, "Write should not error")
+		})
+		_, err := ex.WithdrawalHistoryV1(t.Context(), &LocalEntityWithdrawHistoryRequest{TravelRuleRecordIDs: ids(46)})
+		require.NoError(t, err, "WithdrawalHistoryV1 must not error")
+		assert.Equal(t, int32(1), requests.Load(), "WithdrawalHistoryV1 should send the request")
+	})
+
+	t.Run("WebSocket API tickers", func(t *testing.T) {
+		t.Parallel()
+		// Without a WebSocket API connection, a list at its maximum is only refused for want of one
+		ex := newTestExchange(t)
+		for name, call := range map[string]func(n int) error{
+			"rolling window": func(n int) error {
+				_, err := ex.GetWebsocketRollingWindowPriceChanges(t.Context(), &WebsocketRollingWindowTickerRequest{Symbols: pairs(n)})
+				return err
+			},
+			"trading day": func(n int) error {
+				_, err := ex.GetWebsocketTradingDayTickers(t.Context(), &WebsocketTradingDayTickerRequest{Symbols: pairs(n)})
+				return err
+			},
+		} {
+			assert.ErrorIsf(t, call(100), websocket.ErrNotConnected, "the %s ticker should take 100 symbols", name)
+			assert.ErrorIsf(t, call(101), errTooManyItems, "the %s ticker should refuse 101 symbols", name)
+		}
+	})
 }
 
 func TestCandleStickResponseUnmarshalJSON(t *testing.T) {

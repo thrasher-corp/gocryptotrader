@@ -1,6 +1,9 @@
 package binance
 
 import (
+	"math"
+	"net/http"
+	"net/url"
 	"testing"
 	"time"
 
@@ -308,7 +311,7 @@ func TestUpdateIPRestrictionForSubAccountAPIKey(t *testing.T) {
 	t.Parallel()
 	_, err := e.UpdateIPRestrictionForSubAccountAPIKey(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "UpdateIPRestrictionForSubAccountAPIKey must reject a nil request")
-	arg := &BrokerIPRestrictionUpdateRequest{SubAccountAPIKey: testBrokerSubAccountAPIKey, Status: 2, IPAddress: "192.0.2.1"}
+	arg := &BrokerIPRestrictionUpdateRequest{SubAccountAPIKey: testBrokerSubAccountAPIKey, Status: 2, IPAddresses: []string{"192.0.2.1"}}
 	_, err = e.UpdateIPRestrictionForSubAccountAPIKey(t.Context(), arg)
 	require.ErrorIs(t, err, errSubAccountIDMissing, "UpdateIPRestrictionForSubAccountAPIKey must reject an empty sub-account ID")
 	arg.SubAccountID, arg.SubAccountAPIKey = "1", ""
@@ -335,6 +338,18 @@ func TestUpdateIPRestrictionForSubAccountAPIKey(t *testing.T) {
 		return
 	}
 	assert.Contains(t, result.IPList, "192.0.2.1", "UpdateIPRestrictionForSubAccountAPIKey should add the IP")
+}
+
+func TestUpdateIPRestrictionForSubAccountAPIKeyIPAddresses(t *testing.T) {
+	t.Parallel()
+	ex := newTestServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "192.0.2.1,192.0.2.2", r.URL.Query().Get("ipAddress"), "UpdateIPRestrictionForSubAccountAPIKey should send the IPs comma separated")
+		_, err := w.Write([]byte(`{"status":"2","ipList":["192.0.2.1","192.0.2.2"],"updateTime":1636371437000,"apiKey":"test-sub-account-key"}`))
+		assert.NoError(t, err, "Write should not error")
+	})
+	result, err := ex.UpdateIPRestrictionForSubAccountAPIKey(t.Context(), &BrokerIPRestrictionUpdateRequest{SubAccountID: "1", SubAccountAPIKey: "test-sub-account-key", Status: 2, IPAddresses: []string{"192.0.2.1", "192.0.2.2"}})
+	require.NoError(t, err, "UpdateIPRestrictionForSubAccountAPIKey must not error")
+	assert.Equal(t, []string{"192.0.2.1", "192.0.2.2"}, result.IPList, "UpdateIPRestrictionForSubAccountAPIKey should return both IPs")
 }
 
 func TestGetSubAccountDepositHistoryWithBroker(t *testing.T) {
@@ -868,4 +883,139 @@ func TestGetFuturesBrokerCommissionRebateRecentRecord(t *testing.T) {
 		return
 	}
 	assert.NotNil(t, result, "GetFuturesBrokerCommissionRebateRecentRecord should return a result")
+}
+
+func TestBrokerSubAccountAPIKeyParams(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name, accountID, apiKey string
+		exp                     url.Values
+		err                     error
+	}{
+		{name: "missing account", apiKey: "mock-api-key", err: errSubAccountIDMissing},
+		{name: "missing key", accountID: "123", err: errEmptySubAccountAPIKey},
+		{name: "both missing", err: errSubAccountIDMissing},
+		{name: "both supplied", accountID: "123", apiKey: "mock-api-key", exp: url.Values{"subAccountId": {"123"}, "subAccountApiKey": {"mock-api-key"}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			params, err := brokerSubAccountAPIKeyParams(tc.accountID, tc.apiKey)
+			require.ErrorIs(t, err, tc.err, "brokerSubAccountAPIKeyParams must return the expected error")
+			assert.Equal(t, tc.exp, params, "brokerSubAccountAPIKeyParams should return only the account and API key")
+		})
+	}
+}
+
+func TestBrokerTransferParams(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name, fromID, toID, clientTransferID string
+		asset                                currency.Code
+		amount                               float64
+		exp                                  url.Values
+		err                                  error
+	}{
+		{name: "missing asset", amount: 1, err: currency.ErrCurrencyCodeEmpty},
+		{name: "zero amount", asset: currency.BTC, err: limits.ErrAmountBelowMin},
+		{name: "negative amount", asset: currency.BTC, amount: -1, err: limits.ErrAmountBelowMin},
+		{name: "master accounts and normalised asset", asset: currency.NewCode("btc"), amount: 0.00000001, exp: url.Values{"asset": {"BTC"}, "amount": {"0.00000001"}}},
+		{name: "source account", fromID: "123", asset: currency.BTC, amount: 1, exp: url.Values{"fromId": {"123"}, "asset": {"BTC"}, "amount": {"1"}}},
+		{name: "destination account", toID: "456", asset: currency.ETH, amount: 2.5, exp: url.Values{"toId": {"456"}, "asset": {"ETH"}, "amount": {"2.5"}}},
+		{name: "every field", fromID: "123", toID: "456", clientTransferID: "client-transfer", asset: currency.USDT, amount: 123.45, exp: url.Values{"fromId": {"123"}, "toId": {"456"}, "asset": {"USDT"}, "amount": {"123.45"}, "clientTranId": {"client-transfer"}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			params, err := brokerTransferParams(tc.fromID, tc.toID, tc.asset, tc.amount, tc.clientTransferID)
+			require.ErrorIs(t, err, tc.err, "brokerTransferParams must return the expected error")
+			assert.Equal(t, tc.exp, params, "brokerTransferParams should encode the supplied fields without a decimal exponent")
+		})
+	}
+}
+
+func TestBrokerSubAccountPageParams(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name, accountID string
+		page, size      uint64
+		exp             url.Values
+	}{
+		{name: "empty", exp: url.Values{}},
+		{name: "account only", accountID: "123", exp: url.Values{"subAccountId": {"123"}}},
+		{name: "page only", page: 2, exp: url.Values{"page": {"2"}}},
+		{name: "size only", size: 500, exp: url.Values{"size": {"500"}}},
+		{name: "every field", accountID: "123", page: math.MaxUint64, size: 500, exp: url.Values{"subAccountId": {"123"}, "page": {"18446744073709551615"}, "size": {"500"}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.exp, brokerSubAccountPageParams(tc.accountID, tc.page, tc.size), "brokerSubAccountPageParams should encode only supplied fields")
+		})
+	}
+}
+
+func TestBrokerTimeWindowParams(t *testing.T) {
+	t.Parallel()
+	start, end := time.UnixMilli(1744103854944), time.UnixMilli(1744190254944)
+	for _, tc := range []struct {
+		name       string
+		start, end time.Time
+		exp        url.Values
+		err        error
+	}{
+		{name: "neither", exp: url.Values{}},
+		{name: "start only", start: start, exp: url.Values{"startTime": {"1744103854944"}}},
+		{name: "end only", end: end, exp: url.Values{"endTime": {"1744190254944"}}},
+		{name: "both", start: start, end: end, exp: url.Values{"startTime": {"1744103854944"}, "endTime": {"1744190254944"}}},
+		{name: "equal", start: start, end: start, exp: url.Values{"startTime": {"1744103854944"}, "endTime": {"1744103854944"}}},
+		{name: "reversed", start: end, end: start, err: common.ErrStartAfterEnd},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			params, err := brokerTimeWindowParams(tc.start, tc.end)
+			require.ErrorIs(t, err, tc.err, "brokerTimeWindowParams must return the expected error")
+			assert.Equal(t, tc.exp, params, "brokerTimeWindowParams should encode only supplied millisecond bounds")
+		})
+	}
+}
+
+func TestBrokerTransferHistoryParams(t *testing.T) {
+	t.Parallel()
+	start, end := time.UnixMilli(1744103854944), time.UnixMilli(1744190254944)
+	for _, tc := range []struct {
+		name, fromID, toID, clientTransferID string
+		allStatuses                          bool
+		start, end                           time.Time
+		page, limit                          uint64
+		exp                                  url.Values
+		err                                  error
+	}{
+		{name: "missing account", err: errFromOrToIDRequired},
+		{name: "source only", fromID: "123", exp: url.Values{"fromId": {"123"}}},
+		{name: "destination only", toID: "456", exp: url.Values{"toId": {"456"}}},
+		{name: "reversed window", fromID: "123", start: end, end: start, err: common.ErrStartAfterEnd},
+		{name: "every field", fromID: "123", toID: "456", clientTransferID: "client-transfer", allStatuses: true, start: start, end: end, page: 2, limit: 500, exp: url.Values{"fromId": {"123"}, "toId": {"456"}, "clientTranId": {"client-transfer"}, "showAllStatus": {"true"}, "startTime": {"1744103854944"}, "endTime": {"1744190254944"}, "page": {"2"}, "limit": {"500"}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			params, err := brokerTransferHistoryParams(tc.fromID, tc.toID, tc.clientTransferID, tc.allStatuses, tc.start, tc.end, tc.page, tc.limit)
+			require.ErrorIs(t, err, tc.err, "brokerTransferHistoryParams must return the expected error")
+			assert.Equal(t, tc.exp, params, "brokerTransferHistoryParams should encode the account filters and optional history fields")
+		})
+	}
+}
+
+func TestBrokerFuturesType(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name         string
+		coinMargined bool
+		exp          string
+	}{
+		{name: "USDT margined", exp: "1"},
+		{name: "coin margined", coinMargined: true, exp: "2"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.exp, brokerFuturesType(tc.coinMargined), "brokerFuturesType should return the documented futures type")
+		})
+	}
 }

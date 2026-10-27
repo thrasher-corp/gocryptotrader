@@ -417,6 +417,9 @@ func (e *Exchange) PlaceBatchEOptionsOrder(ctx context.Context, orders []Options
 	if len(orders) == 0 {
 		return nil, common.ErrEmptyParams
 	}
+	if err := checkListLength("orders", len(orders), optionsBatchOrdersLimit); err != nil {
+		return nil, err
+	}
 	batch := make([]map[string]string, len(orders))
 	for i := range orders {
 		params, err := e.optionsOrderParams(&orders[i])

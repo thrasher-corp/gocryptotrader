@@ -671,7 +671,7 @@ func (e *Exchange) processListStatus(ctx context.Context, a asset.Item, event []
 	if err := e.Websocket.DataHandler.Send(ctx, &resp); err != nil {
 		return err
 	}
-	if resp.ContingencyType != ocoContingencyType {
+	if resp.ContingencyType != oneCancelsTheOtherContingencyType {
 		return nil
 	}
 	pair, err := e.MatchSymbolWithAvailablePairs(resp.Symbol, a, false)
@@ -872,14 +872,17 @@ func (e *Exchange) getWsKlines(ctx context.Context, method string, arg *Websocke
 	return resp, e.SendWebsocketAPIRequest(ctx, getKlineRate, method, params, &resp)
 }
 
-// GetWebsocketRollingWindowPriceChanges returns price change statistics over a custom rolling window (Rolling window
-// price change statistics)
+// GetWebsocketRollingWindowPriceChanges returns price change statistics of up to 100 symbols over a custom rolling
+// window (Rolling window price change statistics)
 func (e *Exchange) GetWebsocketRollingWindowPriceChanges(ctx context.Context, arg *WebsocketRollingWindowTickerRequest) ([]PriceChangeStatsResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
 	if len(arg.Symbols) == 0 {
 		return nil, currency.ErrCurrencyPairsEmpty
+	}
+	if err := checkListLength("symbols", len(arg.Symbols), tickerSymbolsLimit); err != nil {
+		return nil, err
 	}
 	params := wsParams{}
 	if err := e.setSymbols(params, arg.Symbols); err != nil {
@@ -961,13 +964,17 @@ func (e *Exchange) GetWebsocketSymbolPriceTicker(ctx context.Context, symbols cu
 	return resp, e.SendWebsocketAPIRequest(ctx, epl, "ticker.price", params, &resp)
 }
 
-// GetWebsocketTradingDayTickers returns price change statistics for the current trading day (Trading Day Ticker)
+// GetWebsocketTradingDayTickers returns price change statistics of up to 100 symbols for the current trading day
+// (Trading Day Ticker)
 func (e *Exchange) GetWebsocketTradingDayTickers(ctx context.Context, arg *WebsocketTradingDayTickerRequest) ([]PriceChangeStatsResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
 	if len(arg.Symbols) == 0 {
 		return nil, currency.ErrCurrencyPairsEmpty
+	}
+	if err := checkListLength("symbols", len(arg.Symbols), tickerSymbolsLimit); err != nil {
+		return nil, err
 	}
 	params := wsParams{}
 	if err := e.setSymbols(params, arg.Symbols); err != nil {
@@ -1097,7 +1104,7 @@ func (e *Exchange) WebsocketCancelAndReplaceTradeOrder(ctx context.Context, arg 
 	params.setString("newClientOrderId", arg.NewClientOrderID)
 	params.setString("newOrderRespType", arg.NewOrderResponseType)
 	params.setFloat("stopPrice", arg.StopPrice)
-	params.setUint("trailingDelta", arg.TrailingDelta)
+	params.setUint("trailingDelta", arg.TrailingDeltaInBasisPoints)
 	params.setFloat("icebergQty", arg.IcebergQuantity)
 	params.setUint("strategyId", arg.StrategyID)
 	params.setUint("strategyType", arg.StrategyType)
@@ -1112,8 +1119,8 @@ func (e *Exchange) WebsocketCancelAndReplaceTradeOrder(ctx context.Context, arg 
 	return cancelReplaceOutcome(resp, err)
 }
 
-// WebsocketCancelOCOOrder cancels an order list (Cancel Order list)
-func (e *Exchange) WebsocketCancelOCOOrder(ctx context.Context, arg *WebsocketCancelOrderListRequest) (*WebsocketCancelOrderResponse, error) {
+// WebsocketCancelOneCancelsTheOtherOrder cancels an order list (Cancel Order list)
+func (e *Exchange) WebsocketCancelOneCancelsTheOtherOrder(ctx context.Context, arg *WebsocketCancelOrderListRequest) (*WebsocketCancelOrderResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -1131,10 +1138,10 @@ func (e *Exchange) WebsocketCancelOCOOrder(ctx context.Context, arg *WebsocketCa
 	return resp, e.SendSignedWebsocketAPIRequest(ctx, spotCancelRate, "orderList.cancel", params, &resp)
 }
 
-// WebsocketPlaceOCOOrder places a one-cancels-the-other order list: a LIMIT_MAKER order and a STOP_LOSS or
-// STOP_LOSS_LIMIT order, where the activation of one cancels the other (Place new OCO - Deprecated). Binance deprecated
-// the method in favour of orderList.place.oco but still serves it
-func (e *Exchange) WebsocketPlaceOCOOrder(ctx context.Context, arg *WebsocketPlaceOCOOrderRequest) (*WebsocketOrderListResponse, error) {
+// WebsocketPlaceOneCancelsTheOtherOrder places a one-cancels-the-other order list: a LIMIT_MAKER order and a STOP_LOSS
+// or STOP_LOSS_LIMIT order, where the activation of one cancels the other (Place new OCO - Deprecated). Binance
+// deprecated the method in favour of orderList.place.oco but still serves it
+func (e *Exchange) WebsocketPlaceOneCancelsTheOtherOrder(ctx context.Context, arg *WebsocketPlaceOneCancelsTheOtherOrderRequest) (*WebsocketOrderListResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -1147,7 +1154,7 @@ func (e *Exchange) WebsocketPlaceOCOOrder(ctx context.Context, arg *WebsocketPla
 	if arg.Quantity <= 0 {
 		return nil, limits.ErrAmountBelowMin
 	}
-	if arg.StopPrice <= 0 && arg.TrailingDelta == 0 {
+	if arg.StopPrice <= 0 && arg.TrailingDeltaInBasisPoints == 0 {
 		return nil, errStopPriceOrTrailingDeltaRequired
 	}
 	params := wsParams{}
@@ -1163,7 +1170,7 @@ func (e *Exchange) WebsocketPlaceOCOOrder(ctx context.Context, arg *WebsocketPla
 	params.setUint("limitStrategyId", arg.LimitStrategyID)
 	params.setUint("limitStrategyType", arg.LimitStrategyType)
 	params.setFloat("stopPrice", arg.StopPrice)
-	params.setUint("trailingDelta", arg.TrailingDelta)
+	params.setUint("trailingDelta", arg.TrailingDeltaInBasisPoints)
 	params.setString("stopClientOrderId", arg.StopClientOrderID)
 	params.setFloat("stopLimitPrice", arg.StopLimitPrice)
 	params.setString("stopLimitTimeInForce", arg.StopLimitTimeInForce)
@@ -1173,14 +1180,14 @@ func (e *Exchange) WebsocketPlaceOCOOrder(ctx context.Context, arg *WebsocketPla
 	params.setString("newOrderRespType", arg.NewOrderResponseType)
 	params.setString("selfTradePreventionMode", arg.SelfTradePreventionMode)
 	var resp *WebsocketOrderListResponse
-	return resp, e.SendSignedWebsocketAPIRequest(ctx, spotOCOOrderRate, "orderList.place", params, &resp)
+	return resp, e.SendSignedWebsocketAPIRequest(ctx, spotOneCancelsTheOtherOrderRate, "orderList.place", params, &resp)
 }
 
-// WebsocketPlaceOCOOrderList places a one-cancels-the-other order list of an above and a below order, where the
-// activation of one order cancels the other (Place new Order list - OCO). One order must be LIMIT_MAKER, TAKE_PROFIT or
-// TAKE_PROFIT_LIMIT and the other STOP_LOSS or STOP_LOSS_LIMIT, and the list counts as two orders against the unfilled
-// order count
-func (e *Exchange) WebsocketPlaceOCOOrderList(ctx context.Context, arg *OCOOrderListRequest) (*WebsocketOrderListResponse, error) {
+// WebsocketPlaceOneCancelsTheOtherOrderList places a one-cancels-the-other order list of an above and a below order,
+// where the activation of one order cancels the other (Place new Order list - OCO). One order must be LIMIT_MAKER,
+// TAKE_PROFIT or TAKE_PROFIT_LIMIT and the other STOP_LOSS or STOP_LOSS_LIMIT, and the list counts as two orders
+// against the unfilled order count
+func (e *Exchange) WebsocketPlaceOneCancelsTheOtherOrderList(ctx context.Context, arg *OneCancelsTheOtherOrderListRequest) (*WebsocketOrderListResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -1203,23 +1210,23 @@ func (e *Exchange) WebsocketPlaceOCOOrderList(ctx context.Context, arg *OCOOrder
 	params["side"] = arg.Side
 	params.setFloat("quantity", arg.Quantity)
 	params.setString("listClientOrderId", arg.ListClientOrderID)
-	setWsOCOLegParams(params, "above", &arg.Above)
-	setWsOCOLegParams(params, "below", &arg.Below)
+	setWsOneCancelsTheOtherLegParams(params, "above", &arg.Above)
+	setWsOneCancelsTheOtherLegParams(params, "below", &arg.Below)
 	params.setString("newOrderRespType", arg.NewOrderResponseType)
 	params.setString("selfTradePreventionMode", arg.SelfTradePreventionMode)
 	var resp *WebsocketOrderListResponse
-	return resp, e.SendSignedWebsocketAPIRequest(ctx, spotOCOOrderRate, "orderList.place.oco", params, &resp)
+	return resp, e.SendSignedWebsocketAPIRequest(ctx, spotOneCancelsTheOtherOrderRate, "orderList.place.oco", params, &resp)
 }
 
-// setWsOCOLegParams sets the parameters of an order list's above or below order, which carry the order's position as a
-// prefix
-func setWsOCOLegParams(params wsParams, leg string, arg *OCOOrderListLeg) {
+// setWsOneCancelsTheOtherLegParams sets the parameters of an order list's above or below order, which carry the order's
+// position as a prefix
+func setWsOneCancelsTheOtherLegParams(params wsParams, leg string, arg *OneCancelsTheOtherOrderListLeg) {
 	params[leg+"Type"] = arg.Type
 	params.setString(leg+"ClientOrderId", arg.ClientOrderID)
 	params.setUint(leg+"IcebergQty", arg.IcebergQuantity)
 	params.setFloat(leg+"Price", arg.Price)
 	params.setFloat(leg+"StopPrice", arg.StopPrice)
-	params.setUint(leg+"TrailingDelta", arg.TrailingDelta)
+	params.setUint(leg+"TrailingDelta", arg.TrailingDeltaInBasisPoints)
 	params.setString(leg+"TimeInForce", arg.TimeInForce)
 	params.setUint(leg+"StrategyId", arg.StrategyID)
 	params.setUint(leg+"StrategyType", arg.StrategyType)
@@ -1252,7 +1259,7 @@ func (e *Exchange) orderParams(arg *WebsocketPlaceOrderRequest) (wsParams, error
 	params.setString("newClientOrderId", arg.NewClientOrderID)
 	params.setString("newOrderRespType", arg.NewOrderResponseType)
 	params.setFloat("stopPrice", arg.StopPrice)
-	params.setUint("trailingDelta", arg.TrailingDelta)
+	params.setUint("trailingDelta", arg.TrailingDeltaInBasisPoints)
 	params.setFloat("icebergQty", arg.IcebergQuantity)
 	params.setUint("strategyId", arg.StrategyID)
 	params.setUint("strategyType", arg.StrategyType)
@@ -1372,9 +1379,9 @@ func (e *Exchange) GetWebsocketAccountInfo(ctx context.Context, omitZeroBalances
 	return resp, e.SendSignedWebsocketAPIRequest(ctx, spotAccountInformationRate, "account.status", params, &resp)
 }
 
-// WebsocketQueryAccountOCOOrderHistory returns the account's order lists, filtered by time range or starting from an
-// order list ID (Account order list history)
-func (e *Exchange) WebsocketQueryAccountOCOOrderHistory(ctx context.Context, arg *WebsocketOrderListHistoryRequest) ([]OCOOrderResponse, error) {
+// WebsocketQueryAccountOneCancelsTheOtherOrderHistory returns the account's order lists, filtered by time range or
+// starting from an order list ID (Account order list history)
+func (e *Exchange) WebsocketQueryAccountOneCancelsTheOtherOrderHistory(ctx context.Context, arg *WebsocketOrderListHistoryRequest) ([]OneCancelsTheOtherOrderResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -1388,8 +1395,8 @@ func (e *Exchange) WebsocketQueryAccountOCOOrderHistory(ctx context.Context, arg
 	params.setTime("startTime", arg.StartTime)
 	params.setTime("endTime", arg.EndTime)
 	params.setUint("limit", arg.Limit)
-	var resp []OCOOrderResponse
-	return resp, e.SendSignedWebsocketAPIRequest(ctx, getAllOCOOrdersRate, "allOrderLists", params, &resp)
+	var resp []OneCancelsTheOtherOrderResponse
+	return resp, e.SendSignedWebsocketAPIRequest(ctx, getAllOneCancelsTheOtherOrdersRate, "allOrderLists", params, &resp)
 }
 
 // WebsocketQueryAccountOrderHistory returns the account's orders of a symbol, filtered by time range or starting from
@@ -1486,10 +1493,10 @@ func (e *Exchange) WebsocketAccountTradeHistory(ctx context.Context, arg *Websoc
 	return resp, e.SendSignedWebsocketAPIRequest(ctx, spotAccountTradeListLimit(arg.OrderID), "myTrades", params, &resp)
 }
 
-// WebsocketCurrentOpenOCOOrders returns the account's open order lists (Current open Order lists)
-func (e *Exchange) WebsocketCurrentOpenOCOOrders(ctx context.Context) ([]OCOOrderResponse, error) {
-	var resp []OCOOrderResponse
-	return resp, e.SendSignedWebsocketAPIRequest(ctx, getOpenOCOListRate, "openOrderLists.status", nil, &resp)
+// WebsocketCurrentOpenOneCancelsTheOtherOrders returns the account's open order lists (Current open Order lists)
+func (e *Exchange) WebsocketCurrentOpenOneCancelsTheOtherOrders(ctx context.Context) ([]OneCancelsTheOtherOrderResponse, error) {
+	var resp []OneCancelsTheOtherOrderResponse
+	return resp, e.SendSignedWebsocketAPIRequest(ctx, getOpenOneCancelsTheOtherListRate, "openOrderLists.status", nil, &resp)
 }
 
 // WebsocketCurrentOpenOrders returns the account's open orders of a symbol, or of every symbol when symbol is empty
@@ -1513,8 +1520,9 @@ func (e *Exchange) wsCurrentOpenOrders(ctx context.Context, symbol currency.Pair
 	return resp, e.SendSignedWebsocketAPIRequest(ctx, epl, "openOrders.status", params, &resp)
 }
 
-// WebsocketQueryOCOOrder returns an order list by its order list ID or client order list ID (Query Order list)
-func (e *Exchange) WebsocketQueryOCOOrder(ctx context.Context, orderListID uint64, listClientOrderID string) (*OCOOrderResponse, error) {
+// WebsocketQueryOneCancelsTheOtherOrder returns an order list by its order list ID or client order list ID (Query Order
+// list)
+func (e *Exchange) WebsocketQueryOneCancelsTheOtherOrder(ctx context.Context, orderListID uint64, listClientOrderID string) (*OneCancelsTheOtherOrderResponse, error) {
 	if orderListID == 0 && listClientOrderID == "" {
 		return nil, errOrderListIDRequired
 	}
@@ -1522,8 +1530,8 @@ func (e *Exchange) WebsocketQueryOCOOrder(ctx context.Context, orderListID uint6
 	params.setUint("orderListId", orderListID)
 	// The method takes the client order list ID as origClientOrderId
 	params.setString("origClientOrderId", listClientOrderID)
-	var resp *OCOOrderResponse
-	return resp, e.SendSignedWebsocketAPIRequest(ctx, getOCOListRate, "orderList.status", params, &resp)
+	var resp *OneCancelsTheOtherOrderResponse
+	return resp, e.SendSignedWebsocketAPIRequest(ctx, getOneCancelsTheOtherListRate, "orderList.status", params, &resp)
 }
 
 // WebsocketQueryOrder returns an order by its order ID or client order ID (Query order)

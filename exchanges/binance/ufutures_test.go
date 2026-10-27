@@ -18,15 +18,15 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-func TestUAccountInformationV2(t *testing.T) {
+func TestUSDTMarginedFuturesAccountInformationV2(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.UAccountInformationV2(t.Context())
-	require.NoError(t, err, "UAccountInformationV2 must not error")
+	result, err := e.USDTMarginedFuturesAccountInformationV2(t.Context())
+	require.NoError(t, err, "USDTMarginedFuturesAccountInformationV2 must not error")
 	if mockTests {
-		exp := &UAccountInformationV2Response{
+		exp := &USDTMarginedFuturesAccountInformationV2Response{
 			FeeTier:                     1,
 			FeeBurn:                     true,
 			CanTrade:                    true,
@@ -46,7 +46,7 @@ func TestUAccountInformationV2(t *testing.T) {
 			TotalCrossUnrealisedPNL:     0.00211,
 			AvailableBalance:            126.26497206,
 			MaxWithdrawAmount:           126.26497206,
-			Assets: []UAsset{
+			Assets: []USDTMarginedFuturesAsset{
 				{
 					Asset:                  currency.USDT,
 					WalletBalance:          23.72469206,
@@ -64,7 +64,7 @@ func TestUAccountInformationV2(t *testing.T) {
 					UpdateTime:             types.Time(time.UnixMilli(1625474304765)),
 				},
 			},
-			Positions: []UPosition{
+			Positions: []USDTMarginedFuturesPosition{
 				{
 					Symbol:                 "BTCUSDT",
 					InitialMargin:          0.33683,
@@ -84,21 +84,21 @@ func TestUAccountInformationV2(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, exp, result, "UAccountInformationV2 should decode every field")
+		assert.Equal(t, exp, result, "USDTMarginedFuturesAccountInformationV2 should decode every field")
 		return
 	}
-	assert.NotNil(t, result, "UAccountInformationV2 should return account information")
+	assert.NotNil(t, result, "USDTMarginedFuturesAccountInformationV2 should return account information")
 }
 
-func TestUAccountInformationV3(t *testing.T) {
+func TestUSDTMarginedFuturesAccountInformationV3(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.UAccountInformationV3(t.Context())
-	require.NoError(t, err, "UAccountInformationV3 must not error")
+	result, err := e.USDTMarginedFuturesAccountInformationV3(t.Context())
+	require.NoError(t, err, "USDTMarginedFuturesAccountInformationV3 must not error")
 	if mockTests {
-		exp := &UAccountInformationV3Response{
+		exp := &USDTMarginedFuturesAccountInformationV3Response{
 			TotalInitialMargin:          0.33683,
 			TotalMaintenanceMargin:      0.02695,
 			TotalWalletBalance:          126.72469206,
@@ -110,7 +110,7 @@ func TestUAccountInformationV3(t *testing.T) {
 			TotalCrossUnrealisedPNL:     0.00211,
 			AvailableBalance:            126.26497206,
 			MaxWithdrawAmount:           126.26497206,
-			Assets: []UAssetV3{
+			Assets: []USDTMarginedFuturesAssetV3{
 				{
 					Asset:                  currency.USDT,
 					WalletBalance:          23.72469206,
@@ -127,7 +127,7 @@ func TestUAccountInformationV3(t *testing.T) {
 					UpdateTime:             types.Time(time.UnixMilli(1625474304765)),
 				},
 			},
-			Positions: []UPositionV3{
+			Positions: []USDTMarginedFuturesPositionV3{
 				{
 					Symbol:            "BTCUSDT",
 					PositionSide:      "BOTH",
@@ -142,21 +142,21 @@ func TestUAccountInformationV3(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, exp, result, "UAccountInformationV3 should decode every field")
+		assert.Equal(t, exp, result, "USDTMarginedFuturesAccountInformationV3 should decode every field")
 		return
 	}
-	assert.NotNil(t, result, "UAccountInformationV3 should return account information")
+	assert.NotNil(t, result, "USDTMarginedFuturesAccountInformationV3 should return account information")
 }
 
-func TestUAccountBalanceV3(t *testing.T) {
+func TestUSDTMarginedFuturesAccountBalanceV3(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.UAccountBalanceV3(t.Context())
-	require.NoError(t, err, "UAccountBalanceV3 must not error")
+	result, err := e.USDTMarginedFuturesAccountBalanceV3(t.Context())
+	require.NoError(t, err, "USDTMarginedFuturesAccountBalanceV3 must not error")
 	if mockTests {
-		exp := []UAccountBalanceResponse{
+		exp := []USDTMarginedFuturesAccountBalanceResponse{
 			{
 				AccountAlias:       "SgsR",
 				Asset:              currency.USDT,
@@ -169,19 +169,19 @@ func TestUAccountBalanceV3(t *testing.T) {
 				UpdateTime:         types.Time(time.UnixMilli(1617939110373)),
 			},
 		}
-		assert.Equal(t, exp, result, "UAccountBalanceV3 should decode every field")
+		assert.Equal(t, exp, result, "USDTMarginedFuturesAccountBalanceV3 should decode every field")
 		return
 	}
-	assert.NotEmpty(t, result, "UAccountBalanceV3 should return balances")
+	assert.NotEmpty(t, result, "USDTMarginedFuturesAccountBalanceV3 should return balances")
 }
 
-func TestUFuturesTradingQuantitativeRulesIndicators(t *testing.T) {
+func TestUSDTMarginedFuturesTradingQuantitativeRulesIndicators(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.UFuturesTradingQuantitativeRulesIndicators(t.Context(), currency.NewBTCUSDT())
-	require.NoError(t, err, "UFuturesTradingQuantitativeRulesIndicators must not error for a symbol")
+	result, err := e.USDTMarginedFuturesTradingQuantitativeRulesIndicators(t.Context(), currency.NewBTCUSDT())
+	require.NoError(t, err, "USDTMarginedFuturesTradingQuantitativeRulesIndicators must not error for a symbol")
 	if mockTests {
 		exp := &TradingQuantitativeRulesIndicatorsResponse{
 			Indicators: map[string][]TradingQuantitativeRulesIndicator{
@@ -206,10 +206,10 @@ func TestUFuturesTradingQuantitativeRulesIndicators(t *testing.T) {
 			},
 			UpdateTime: types.Time(time.UnixMilli(1644913304748)),
 		}
-		assert.Equal(t, exp, result, "UFuturesTradingQuantitativeRulesIndicators should decode every field for a symbol")
+		assert.Equal(t, exp, result, "USDTMarginedFuturesTradingQuantitativeRulesIndicators should decode every field for a symbol")
 	}
-	result, err = e.UFuturesTradingQuantitativeRulesIndicators(t.Context(), currency.EMPTYPAIR)
-	require.NoError(t, err, "UFuturesTradingQuantitativeRulesIndicators must not error for every symbol")
+	result, err = e.USDTMarginedFuturesTradingQuantitativeRulesIndicators(t.Context(), currency.EMPTYPAIR)
+	require.NoError(t, err, "USDTMarginedFuturesTradingQuantitativeRulesIndicators must not error for every symbol")
 	if mockTests {
 		exp := &TradingQuantitativeRulesIndicatorsResponse{
 			Indicators: map[string][]TradingQuantitativeRulesIndicator{
@@ -243,58 +243,58 @@ func TestUFuturesTradingQuantitativeRulesIndicators(t *testing.T) {
 			},
 			UpdateTime: types.Time(time.UnixMilli(1644913304748)),
 		}
-		assert.Equal(t, exp, result, "UFuturesTradingQuantitativeRulesIndicators should decode every field for every symbol")
+		assert.Equal(t, exp, result, "USDTMarginedFuturesTradingQuantitativeRulesIndicators should decode every field for every symbol")
 		return
 	}
-	assert.NotNil(t, result, "UFuturesTradingQuantitativeRulesIndicators should return indicators")
+	assert.NotNil(t, result, "USDTMarginedFuturesTradingQuantitativeRulesIndicators should return indicators")
 }
 
-func TestGetAssetsMode(t *testing.T) {
+func TestGetUSDTMarginedFuturesAssetsMode(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetAssetsMode(t.Context())
-	require.NoError(t, err, "GetAssetsMode must not error")
+	result, err := e.GetUSDTMarginedFuturesAssetsMode(t.Context())
+	require.NoError(t, err, "GetUSDTMarginedFuturesAssetsMode must not error")
 	if mockTests {
-		assert.True(t, result, "GetAssetsMode should report Multi-Assets Mode")
+		assert.True(t, result, "GetUSDTMarginedFuturesAssetsMode should report Multi-Assets Mode")
 	}
 }
 
-func TestGetCurrentPositionMode(t *testing.T) {
+func TestGetUSDTMarginedFuturesCurrentPositionMode(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetCurrentPositionMode(t.Context())
-	require.NoError(t, err, "GetCurrentPositionMode must not error")
+	result, err := e.GetUSDTMarginedFuturesCurrentPositionMode(t.Context())
+	require.NoError(t, err, "GetUSDTMarginedFuturesCurrentPositionMode must not error")
 	if mockTests {
-		exp := &UPositionModeResponse{
+		exp := &USDTMarginedFuturesPositionModeResponse{
 			DualSidePosition: true,
 		}
-		assert.Equal(t, exp, result, "GetCurrentPositionMode should decode every field")
+		assert.Equal(t, exp, result, "GetUSDTMarginedFuturesCurrentPositionMode should decode every field")
 		return
 	}
-	assert.NotNil(t, result, "GetCurrentPositionMode should return the position mode")
+	assert.NotNil(t, result, "GetUSDTMarginedFuturesCurrentPositionMode should return the position mode")
 }
 
-func TestUFuturesDownloadIDs(t *testing.T) {
+func TestUSDTMarginedFuturesDownloadIDs(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
 		name string
-		fn   func(*testing.T, time.Time, time.Time) (*UDownloadIDResponse, error)
+		fn   func(*testing.T, time.Time, time.Time) (*USDTMarginedFuturesDownloadIDResponse, error)
 	}{
-		{"UFuturesOrderHistoryDownloadID", func(t *testing.T, start, end time.Time) (*UDownloadIDResponse, error) {
+		{"USDTMarginedFuturesOrderHistoryDownloadID", func(t *testing.T, start, end time.Time) (*USDTMarginedFuturesDownloadIDResponse, error) {
 			t.Helper()
-			return e.UFuturesOrderHistoryDownloadID(t.Context(), start, end)
+			return e.USDTMarginedFuturesOrderHistoryDownloadID(t.Context(), start, end)
 		}},
-		{"UFuturesTradeHistoryDownloadID", func(t *testing.T, start, end time.Time) (*UDownloadIDResponse, error) {
+		{"USDTMarginedFuturesTradeHistoryDownloadID", func(t *testing.T, start, end time.Time) (*USDTMarginedFuturesDownloadIDResponse, error) {
 			t.Helper()
-			return e.UFuturesTradeHistoryDownloadID(t.Context(), start, end)
+			return e.USDTMarginedFuturesTradeHistoryDownloadID(t.Context(), start, end)
 		}},
-		{"UFuturesTransactionHistoryDownloadID", func(t *testing.T, start, end time.Time) (*UDownloadIDResponse, error) {
+		{"USDTMarginedFuturesTransactionHistoryDownloadID", func(t *testing.T, start, end time.Time) (*USDTMarginedFuturesDownloadIDResponse, error) {
 			t.Helper()
-			return e.UFuturesTransactionHistoryDownloadID(t.Context(), start, end)
+			return e.USDTMarginedFuturesTransactionHistoryDownloadID(t.Context(), start, end)
 		}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -311,9 +311,9 @@ func TestUFuturesDownloadIDs(t *testing.T) {
 			result, err := tc.fn(t, startTime, endTime)
 			require.NoError(t, err, "must not error")
 			if mockTests {
-				exp := &UDownloadIDResponse{
-					AverageCostTimestampOfLast30Days: 7241837,
-					DownloadID:                       "546975389218332672",
+				exp := &USDTMarginedFuturesDownloadIDResponse{
+					AverageDownloadMillisecondsOfLast30Days: 7241837,
+					DownloadID:                              "546975389218332672",
 				}
 				assert.Equal(t, exp, result, "should decode every field")
 				return
@@ -323,23 +323,23 @@ func TestUFuturesDownloadIDs(t *testing.T) {
 	}
 }
 
-func TestUFuturesDownloadLinks(t *testing.T) {
+func TestUSDTMarginedFuturesDownloadLinks(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
 		name string
-		fn   func(*testing.T, string) (*UDownloadLinkResponse, error)
+		fn   func(*testing.T, string) (*USDTMarginedFuturesDownloadLinkResponse, error)
 	}{
-		{"UFuturesOrderHistoryDownloadLink", func(t *testing.T, id string) (*UDownloadLinkResponse, error) {
+		{"USDTMarginedFuturesOrderHistoryDownloadLink", func(t *testing.T, id string) (*USDTMarginedFuturesDownloadLinkResponse, error) {
 			t.Helper()
-			return e.UFuturesOrderHistoryDownloadLink(t.Context(), id)
+			return e.USDTMarginedFuturesOrderHistoryDownloadLink(t.Context(), id)
 		}},
-		{"UFuturesTradeHistoryDownloadLink", func(t *testing.T, id string) (*UDownloadLinkResponse, error) {
+		{"USDTMarginedFuturesTradeHistoryDownloadLink", func(t *testing.T, id string) (*USDTMarginedFuturesDownloadLinkResponse, error) {
 			t.Helper()
-			return e.UFuturesTradeHistoryDownloadLink(t.Context(), id)
+			return e.USDTMarginedFuturesTradeHistoryDownloadLink(t.Context(), id)
 		}},
-		{"UFuturesTransactionHistoryDownloadLink", func(t *testing.T, id string) (*UDownloadLinkResponse, error) {
+		{"USDTMarginedFuturesTransactionHistoryDownloadLink", func(t *testing.T, id string) (*USDTMarginedFuturesDownloadLinkResponse, error) {
 			t.Helper()
-			return e.UFuturesTransactionHistoryDownloadLink(t.Context(), id)
+			return e.USDTMarginedFuturesTransactionHistoryDownloadLink(t.Context(), id)
 		}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -353,7 +353,7 @@ func TestUFuturesDownloadLinks(t *testing.T) {
 			result, err := tc.fn(t, "546975389218332672")
 			require.NoError(t, err, "must not error")
 			if mockTests {
-				exp := &UDownloadLinkResponse{
+				exp := &USDTMarginedFuturesDownloadLinkResponse{
 					DownloadID:          "546975389218332672",
 					Status:              "completed",
 					URL:                 "https://bin-prod-user-rebate-bucket.s3.amazonaws.com/future-order-history/example.csv",
@@ -369,18 +369,18 @@ func TestUFuturesDownloadLinks(t *testing.T) {
 	}
 }
 
-func TestUAccountIncomeHistory(t *testing.T) {
+func TestUSDTMarginedFuturesAccountIncomeHistory(t *testing.T) {
 	t.Parallel()
-	_, err := e.UAccountIncomeHistory(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "UAccountIncomeHistory must reject a nil request")
+	_, err := e.USDTMarginedFuturesAccountIncomeHistory(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "USDTMarginedFuturesAccountIncomeHistory must reject a nil request")
 	startTime, endTime := getTime()
-	_, err = e.UAccountIncomeHistory(t.Context(), &UIncomeHistoryRequest{StartTime: endTime, EndTime: startTime})
-	require.ErrorIs(t, err, common.ErrStartAfterEnd, "UAccountIncomeHistory must reject a start time after the end time")
+	_, err = e.USDTMarginedFuturesAccountIncomeHistory(t.Context(), &USDTMarginedFuturesIncomeHistoryRequest{StartTime: endTime, EndTime: startTime})
+	require.ErrorIs(t, err, common.ErrStartAfterEnd, "USDTMarginedFuturesAccountIncomeHistory must reject a start time after the end time")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.UAccountIncomeHistory(t.Context(), &UIncomeHistoryRequest{
+	result, err := e.USDTMarginedFuturesAccountIncomeHistory(t.Context(), &USDTMarginedFuturesIncomeHistoryRequest{
 		Symbol:     currency.NewBTCUSDT(),
 		IncomeType: "REALIZED_PNL",
 		StartTime:  startTime,
@@ -388,9 +388,9 @@ func TestUAccountIncomeHistory(t *testing.T) {
 		Page:       1,
 		Limit:      5,
 	})
-	require.NoError(t, err, "UAccountIncomeHistory must not error")
+	require.NoError(t, err, "USDTMarginedFuturesAccountIncomeHistory must not error")
 	if mockTests {
-		exp := []UAccountIncomeHistoryResponse{
+		exp := []USDTMarginedFuturesAccountIncomeHistoryResponse{
 			{
 				Symbol:        "BTCUSDT",
 				IncomeType:    "REALIZED_PNL",
@@ -402,23 +402,23 @@ func TestUAccountIncomeHistory(t *testing.T) {
 				TradeID:       "2059192",
 			},
 		}
-		assert.Equal(t, exp, result, "UAccountIncomeHistory should decode every field")
+		assert.Equal(t, exp, result, "USDTMarginedFuturesAccountIncomeHistory should decode every field")
 	}
 }
 
-func TestUGetNotionalAndLeverageBrackets(t *testing.T) {
+func TestUSDTMarginedFuturesGetNotionalAndLeverageBrackets(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.UGetNotionalAndLeverageBrackets(t.Context(), currency.NewBTCUSDT())
-	require.NoError(t, err, "UGetNotionalAndLeverageBrackets must not error for a symbol")
+	result, err := e.USDTMarginedFuturesGetNotionalAndLeverageBrackets(t.Context(), currency.NewBTCUSDT())
+	require.NoError(t, err, "USDTMarginedFuturesGetNotionalAndLeverageBrackets must not error for a symbol")
 	if mockTests {
-		exp := []UNotionalLeverageAndBracketsResponse{
+		exp := []USDTMarginedFuturesNotionalLeverageAndBracketsResponse{
 			{
 				Symbol:              "BTCUSDT",
 				NotionalCoefficient: 1.5,
-				Brackets: []UNotionalBracket{
+				Brackets: []USDTMarginedFuturesNotionalBracket{
 					{
 						Bracket:                1,
 						InitialLeverage:        75,
@@ -430,16 +430,16 @@ func TestUGetNotionalAndLeverageBrackets(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, exp, result, "UGetNotionalAndLeverageBrackets should decode the single symbol object")
+		assert.Equal(t, exp, result, "USDTMarginedFuturesGetNotionalAndLeverageBrackets should decode the single symbol object")
 	}
-	result, err = e.UGetNotionalAndLeverageBrackets(t.Context(), currency.EMPTYPAIR)
-	require.NoError(t, err, "UGetNotionalAndLeverageBrackets must not error for every symbol")
+	result, err = e.USDTMarginedFuturesGetNotionalAndLeverageBrackets(t.Context(), currency.EMPTYPAIR)
+	require.NoError(t, err, "USDTMarginedFuturesGetNotionalAndLeverageBrackets must not error for every symbol")
 	if mockTests {
-		exp := []UNotionalLeverageAndBracketsResponse{
+		exp := []USDTMarginedFuturesNotionalLeverageAndBracketsResponse{
 			{
 				Symbol:              "BTCUSDT",
 				NotionalCoefficient: 1.5,
-				Brackets: []UNotionalBracket{
+				Brackets: []USDTMarginedFuturesNotionalBracket{
 					{
 						Bracket:                1,
 						InitialLeverage:        75,
@@ -453,7 +453,7 @@ func TestUGetNotionalAndLeverageBrackets(t *testing.T) {
 			{
 				Symbol:              "ETHUSDT",
 				NotionalCoefficient: 1.5,
-				Brackets: []UNotionalBracket{
+				Brackets: []USDTMarginedFuturesNotionalBracket{
 					{
 						Bracket:                2,
 						InitialLeverage:        50,
@@ -465,19 +465,19 @@ func TestUGetNotionalAndLeverageBrackets(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, exp, result, "UGetNotionalAndLeverageBrackets should decode every symbol")
+		assert.Equal(t, exp, result, "USDTMarginedFuturesGetNotionalAndLeverageBrackets should decode every symbol")
 		return
 	}
-	assert.NotEmpty(t, result, "UGetNotionalAndLeverageBrackets should return brackets")
+	assert.NotEmpty(t, result, "USDTMarginedFuturesGetNotionalAndLeverageBrackets should return brackets")
 }
 
-func TestGetUSDTUserRateLimits(t *testing.T) {
+func TestGetUSDTMarginedFuturesUserRateLimits(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetUSDTUserRateLimits(t.Context())
-	require.NoError(t, err, "GetUSDTUserRateLimits must not error")
+	result, err := e.GetUSDTMarginedFuturesUserRateLimits(t.Context())
+	require.NoError(t, err, "GetUSDTMarginedFuturesUserRateLimits must not error")
 	if mockTests {
 		exp := []RateLimitInfoResponse{
 			{
@@ -493,59 +493,59 @@ func TestGetUSDTUserRateLimits(t *testing.T) {
 				Limit:          1200,
 			},
 		}
-		assert.Equal(t, exp, result, "GetUSDTUserRateLimits should decode every field")
+		assert.Equal(t, exp, result, "GetUSDTMarginedFuturesUserRateLimits should decode every field")
 		return
 	}
-	assert.NotEmpty(t, result, "GetUSDTUserRateLimits should return rate limits")
+	assert.NotEmpty(t, result, "GetUSDTMarginedFuturesUserRateLimits should return rate limits")
 }
 
-func TestUGetCommissionRates(t *testing.T) {
+func TestUSDTMarginedFuturesGetCommissionRates(t *testing.T) {
 	t.Parallel()
-	_, err := e.UGetCommissionRates(t.Context(), currency.EMPTYPAIR)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "UGetCommissionRates must reject an empty symbol")
+	_, err := e.USDTMarginedFuturesGetCommissionRates(t.Context(), currency.EMPTYPAIR)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "USDTMarginedFuturesGetCommissionRates must reject an empty symbol")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.UGetCommissionRates(t.Context(), currency.NewBTCUSDT())
-	require.NoError(t, err, "UGetCommissionRates must not error")
+	result, err := e.USDTMarginedFuturesGetCommissionRates(t.Context(), currency.NewBTCUSDT())
+	require.NoError(t, err, "USDTMarginedFuturesGetCommissionRates must not error")
 	if mockTests {
-		exp := &UCommissionRateResponse{
-			Symbol:              "BTCUSDT",
-			MakerCommissionRate: 0.0002,
-			TakerCommissionRate: 0.0004,
-			RPICommissionRate:   0.00005,
+		exp := &USDTMarginedFuturesCommissionRateResponse{
+			Symbol:                               "BTCUSDT",
+			MakerCommissionRate:                  0.0002,
+			TakerCommissionRate:                  0.0004,
+			RetailPriceImprovementCommissionRate: 0.00005,
 		}
-		assert.Equal(t, exp, result, "UGetCommissionRates should decode every field")
+		assert.Equal(t, exp, result, "USDTMarginedFuturesGetCommissionRates should decode every field")
 		return
 	}
-	assert.Equal(t, "BTCUSDT", result.Symbol, "UGetCommissionRates should return the requested symbol")
+	assert.Equal(t, "BTCUSDT", result.Symbol, "USDTMarginedFuturesGetCommissionRates should return the requested symbol")
 }
 
-func TestGetBasis(t *testing.T) {
+func TestGetUSDTMarginedFuturesBasis(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetBasis(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "GetBasis must reject a nil request")
-	arg := &UBasisRequest{ContractType: "CURRENT_QUARTER", Period: "15m"}
-	_, err = e.GetBasis(t.Context(), arg)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetBasis must reject an empty pair")
+	_, err := e.GetUSDTMarginedFuturesBasis(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "GetUSDTMarginedFuturesBasis must reject a nil request")
+	arg := &USDTMarginedFuturesBasisRequest{ContractType: "CURRENT_QUARTER", Period: "15m"}
+	_, err = e.GetUSDTMarginedFuturesBasis(t.Context(), arg)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetUSDTMarginedFuturesBasis must reject an empty pair")
 	arg.Pair = currency.NewBTCUSDT()
 	arg.ContractType = ""
-	_, err = e.GetBasis(t.Context(), arg)
-	require.ErrorIs(t, err, errContractTypeIsRequired, "GetBasis must reject an empty contract type")
+	_, err = e.GetUSDTMarginedFuturesBasis(t.Context(), arg)
+	require.ErrorIs(t, err, errContractTypeIsRequired, "GetUSDTMarginedFuturesBasis must reject an empty contract type")
 	arg.ContractType = "CURRENT_QUARTER"
 	arg.Period = ""
-	_, err = e.GetBasis(t.Context(), arg)
-	require.ErrorIs(t, err, errPeriodRequired, "GetBasis must reject an empty period")
+	_, err = e.GetUSDTMarginedFuturesBasis(t.Context(), arg)
+	require.ErrorIs(t, err, errPeriodRequired, "GetUSDTMarginedFuturesBasis must reject an empty period")
 	arg.Period = "15m"
 	startTime, endTime := getTime()
 	arg.StartTime, arg.EndTime = endTime, startTime
-	_, err = e.GetBasis(t.Context(), arg)
-	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetBasis must reject a start time after the end time")
+	_, err = e.GetUSDTMarginedFuturesBasis(t.Context(), arg)
+	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetUSDTMarginedFuturesBasis must reject a start time after the end time")
 
 	arg.StartTime, arg.EndTime, arg.Limit = startTime, endTime, 20
-	result, err := e.GetBasis(t.Context(), arg)
-	require.NoError(t, err, "GetBasis must not error")
+	result, err := e.GetUSDTMarginedFuturesBasis(t.Context(), arg)
+	require.NoError(t, err, "GetUSDTMarginedFuturesBasis must not error")
 	if mockTests {
 		exp := []BasisInfoResponse{
 			{
@@ -569,34 +569,34 @@ func TestGetBasis(t *testing.T) {
 				Timestamp:           types.Time(time.Unix(1791281700, 0)),
 			},
 		}
-		assert.Equal(t, exp, result, "GetBasis should decode every field")
+		assert.Equal(t, exp, result, "GetUSDTMarginedFuturesBasis should decode every field")
 		return
 	}
-	assert.NotEmpty(t, result, "GetBasis should return basis records")
+	assert.NotEmpty(t, result, "GetUSDTMarginedFuturesBasis should return basis records")
 }
 
-func TestUServerTime(t *testing.T) {
+func TestUSDTMarginedFuturesServerTime(t *testing.T) {
 	t.Parallel()
-	result, err := e.UServerTime(t.Context())
-	require.NoError(t, err, "UServerTime must not error")
+	result, err := e.USDTMarginedFuturesServerTime(t.Context())
+	require.NoError(t, err, "USDTMarginedFuturesServerTime must not error")
 	if mockTests {
-		assert.Equal(t, time.UnixMilli(1791283479731), result, "UServerTime should decode the server time")
+		assert.Equal(t, time.UnixMilli(1791283479731), result, "USDTMarginedFuturesServerTime should decode the server time")
 		return
 	}
-	assert.WithinDuration(t, time.Now(), result, time.Minute, "UServerTime should return the current time")
+	assert.WithinDuration(t, time.Now(), result, time.Minute, "USDTMarginedFuturesServerTime should return the current time")
 }
 
-func TestUCompositeIndexInfo(t *testing.T) {
+func TestUSDTMarginedFuturesCompositeIndexInfo(t *testing.T) {
 	t.Parallel()
-	result, err := e.UCompositeIndexInfo(t.Context(), currency.NewPair(currency.NewCode("SMALL"), currency.USDT))
-	require.NoError(t, err, "UCompositeIndexInfo must not error for a symbol")
+	result, err := e.USDTMarginedFuturesCompositeIndexInfo(t.Context(), currency.NewPair(currency.NewCode("SMALL"), currency.USDT))
+	require.NoError(t, err, "USDTMarginedFuturesCompositeIndexInfo must not error for a symbol")
 	if mockTests {
-		exp := []UCompositeIndexResponse{
+		exp := []USDTMarginedFuturesCompositeIndexResponse{
 			{
 				Symbol:    "SMALLUSDT",
 				Time:      types.Time(time.UnixMilli(1791283544001)),
 				Component: "baseAsset",
-				BaseAssetList: []UCompositeIndexBaseAsset{
+				BaseAssetList: []USDTMarginedFuturesCompositeIndexBaseAsset{
 					{
 						BaseAsset:          currency.NewCode("1000CAT"),
 						QuoteAsset:         currency.USDT,
@@ -612,17 +612,17 @@ func TestUCompositeIndexInfo(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, exp, result, "UCompositeIndexInfo should decode the single symbol object")
+		assert.Equal(t, exp, result, "USDTMarginedFuturesCompositeIndexInfo should decode the single symbol object")
 	}
-	result, err = e.UCompositeIndexInfo(t.Context(), currency.EMPTYPAIR)
-	require.NoError(t, err, "UCompositeIndexInfo must not error for every symbol")
+	result, err = e.USDTMarginedFuturesCompositeIndexInfo(t.Context(), currency.EMPTYPAIR)
+	require.NoError(t, err, "USDTMarginedFuturesCompositeIndexInfo must not error for every symbol")
 	if mockTests {
-		exp := []UCompositeIndexResponse{
+		exp := []USDTMarginedFuturesCompositeIndexResponse{
 			{
 				Symbol:    "ALLUSDT",
 				Time:      types.Time(time.Unix(1791283499, 0)),
 				Component: "baseAsset",
-				BaseAssetList: []UCompositeIndexBaseAsset{
+				BaseAssetList: []USDTMarginedFuturesCompositeIndexBaseAsset{
 					{
 						BaseAsset:          currency.NewCode("0G"),
 						QuoteAsset:         currency.USDT,
@@ -641,7 +641,7 @@ func TestUCompositeIndexInfo(t *testing.T) {
 				Symbol:    "BTCDOMUSDT",
 				Time:      types.Time(time.Unix(1791283499, 0)),
 				Component: "quoteAsset",
-				BaseAssetList: []UCompositeIndexBaseAsset{
+				BaseAssetList: []USDTMarginedFuturesCompositeIndexBaseAsset{
 					{
 						BaseAsset:          currency.BTC,
 						QuoteAsset:         currency.NewCode("AAVE"),
@@ -657,32 +657,32 @@ func TestUCompositeIndexInfo(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, exp, result, "UCompositeIndexInfo should decode every symbol")
+		assert.Equal(t, exp, result, "USDTMarginedFuturesCompositeIndexInfo should decode every symbol")
 		return
 	}
-	assert.NotEmpty(t, result, "UCompositeIndexInfo should return composite indexes")
+	assert.NotEmpty(t, result, "USDTMarginedFuturesCompositeIndexInfo should return composite indexes")
 }
 
-func TestUCompressedTrades(t *testing.T) {
+func TestUSDTMarginedFuturesCompressedTrades(t *testing.T) {
 	t.Parallel()
-	_, err := e.UCompressedTrades(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "UCompressedTrades must reject a nil request")
-	_, err = e.UCompressedTrades(t.Context(), &UCompressedTradesRequest{Limit: 5})
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "UCompressedTrades must reject an empty symbol")
+	_, err := e.USDTMarginedFuturesCompressedTrades(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "USDTMarginedFuturesCompressedTrades must reject a nil request")
+	_, err = e.USDTMarginedFuturesCompressedTrades(t.Context(), &USDTMarginedFuturesCompressedTradesRequest{Limit: 5})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "USDTMarginedFuturesCompressedTrades must reject an empty symbol")
 	startTime, endTime := getTime(true)
-	_, err = e.UCompressedTrades(t.Context(), &UCompressedTradesRequest{Symbol: currency.NewBTCUSDT(), StartTime: endTime, EndTime: startTime})
-	require.ErrorIs(t, err, common.ErrStartAfterEnd, "UCompressedTrades must reject a start time after the end time")
+	_, err = e.USDTMarginedFuturesCompressedTrades(t.Context(), &USDTMarginedFuturesCompressedTradesRequest{Symbol: currency.NewBTCUSDT(), StartTime: endTime, EndTime: startTime})
+	require.ErrorIs(t, err, common.ErrStartAfterEnd, "USDTMarginedFuturesCompressedTrades must reject a start time after the end time")
 
 	if !mockTests {
 		// Binance only serves the last 48 hours, and a window must be shorter than an hour
 		endTime = time.Now()
 		startTime = endTime.Add(-30 * time.Minute)
 	}
-	result, err := e.UCompressedTrades(t.Context(), &UCompressedTradesRequest{Symbol: currency.NewBTCUSDT(), StartTime: startTime, EndTime: endTime, Limit: 5})
-	require.NoError(t, err, "UCompressedTrades must not error for a time window")
-	require.NotEmpty(t, result, "UCompressedTrades must return trades")
+	result, err := e.USDTMarginedFuturesCompressedTrades(t.Context(), &USDTMarginedFuturesCompressedTradesRequest{Symbol: currency.NewBTCUSDT(), StartTime: startTime, EndTime: endTime, Limit: 5})
+	require.NoError(t, err, "USDTMarginedFuturesCompressedTrades must not error for a time window")
+	require.NotEmpty(t, result, "USDTMarginedFuturesCompressedTrades must return trades")
 	if mockTests {
-		exp := []UCompressedTradeResponse{
+		exp := []USDTMarginedFuturesCompressedTradeResponse{
 			{
 				AggregateTradeID: 3476467420,
 				Price:            86163.1,
@@ -703,38 +703,38 @@ func TestUCompressedTrades(t *testing.T) {
 				IsBuyerMaker:     true,
 			},
 		}
-		assert.Equal(t, exp, result, "UCompressedTrades should decode every field")
+		assert.Equal(t, exp, result, "USDTMarginedFuturesCompressedTrades should decode every field")
 	}
-	_, err = e.UCompressedTrades(t.Context(), &UCompressedTradesRequest{Symbol: currency.NewBTCUSDT(), FromID: result[0].AggregateTradeID, Limit: 5})
-	assert.NoError(t, err, "UCompressedTrades should not error from a trade ID")
+	_, err = e.USDTMarginedFuturesCompressedTrades(t.Context(), &USDTMarginedFuturesCompressedTradesRequest{Symbol: currency.NewBTCUSDT(), FromID: result[0].AggregateTradeID, Limit: 5})
+	assert.NoError(t, err, "USDTMarginedFuturesCompressedTrades should not error from a trade ID")
 }
 
-func TestGetUFuturesContinuousKlineData(t *testing.T) {
+func TestGetUSDTMarginedFuturesContinuousKlineData(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetUFuturesContinuousKlineData(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "GetUFuturesContinuousKlineData must reject a nil request")
-	arg := &UContinuousKlineRequest{ContractType: "PERPETUAL", Interval: "1d"}
-	_, err = e.GetUFuturesContinuousKlineData(t.Context(), arg)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetUFuturesContinuousKlineData must reject an empty pair")
+	_, err := e.GetUSDTMarginedFuturesContinuousKlineData(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "GetUSDTMarginedFuturesContinuousKlineData must reject a nil request")
+	arg := &USDTMarginedFuturesContinuousKlineRequest{ContractType: "PERPETUAL", Interval: "1d"}
+	_, err = e.GetUSDTMarginedFuturesContinuousKlineData(t.Context(), arg)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetUSDTMarginedFuturesContinuousKlineData must reject an empty pair")
 	arg.Pair = currency.NewBTCUSDT()
 	arg.ContractType = ""
-	_, err = e.GetUFuturesContinuousKlineData(t.Context(), arg)
-	require.ErrorIs(t, err, errContractTypeIsRequired, "GetUFuturesContinuousKlineData must reject an empty contract type")
+	_, err = e.GetUSDTMarginedFuturesContinuousKlineData(t.Context(), arg)
+	require.ErrorIs(t, err, errContractTypeIsRequired, "GetUSDTMarginedFuturesContinuousKlineData must reject an empty contract type")
 	arg.ContractType = "PERPETUAL"
 	arg.Interval = ""
-	_, err = e.GetUFuturesContinuousKlineData(t.Context(), arg)
-	require.ErrorIs(t, err, kline.ErrInvalidInterval, "GetUFuturesContinuousKlineData must reject an empty interval")
+	_, err = e.GetUSDTMarginedFuturesContinuousKlineData(t.Context(), arg)
+	require.ErrorIs(t, err, kline.ErrInvalidInterval, "GetUSDTMarginedFuturesContinuousKlineData must reject an empty interval")
 	arg.Interval = "1d"
 	startTime, endTime := getTime()
 	arg.StartTime, arg.EndTime = endTime, startTime
-	_, err = e.GetUFuturesContinuousKlineData(t.Context(), arg)
-	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetUFuturesContinuousKlineData must reject a start time after the end time")
+	_, err = e.GetUSDTMarginedFuturesContinuousKlineData(t.Context(), arg)
+	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetUSDTMarginedFuturesContinuousKlineData must reject a start time after the end time")
 
 	arg.StartTime, arg.EndTime, arg.Limit = startTime, endTime, 10
-	result, err := e.GetUFuturesContinuousKlineData(t.Context(), arg)
-	require.NoError(t, err, "GetUFuturesContinuousKlineData must not error")
+	result, err := e.GetUSDTMarginedFuturesContinuousKlineData(t.Context(), arg)
+	require.NoError(t, err, "GetUSDTMarginedFuturesContinuousKlineData must not error")
 	if mockTests {
-		exp := []UKlineResponse{
+		exp := []USDTMarginedFuturesKlineResponse{
 			{
 				OpenTime:                 types.Time(time.Unix(1744156800, 0)),
 				Open:                     76298,
@@ -749,18 +749,18 @@ func TestGetUFuturesContinuousKlineData(t *testing.T) {
 				TakerBuyQuoteAssetVolume: 21941548090.1517,
 			},
 		}
-		assert.Equal(t, exp, result, "GetUFuturesContinuousKlineData should decode every field")
+		assert.Equal(t, exp, result, "GetUSDTMarginedFuturesContinuousKlineData should decode every field")
 		return
 	}
-	assert.NotEmpty(t, result, "GetUFuturesContinuousKlineData should return klines")
+	assert.NotEmpty(t, result, "GetUSDTMarginedFuturesContinuousKlineData should return klines")
 }
 
-func TestUExchangeInfo(t *testing.T) {
+func TestUSDTMarginedFuturesExchangeInfo(t *testing.T) {
 	t.Parallel()
-	result, err := e.UExchangeInfo(t.Context())
-	require.NoError(t, err, "UExchangeInfo must not error")
+	result, err := e.USDTMarginedFuturesExchangeInfo(t.Context())
+	require.NoError(t, err, "USDTMarginedFuturesExchangeInfo must not error")
 	if mockTests {
-		exp := &UExchangeInfoResponse{
+		exp := &USDTMarginedFuturesExchangeInfoResponse{
 			Timezone:    "UTC",
 			ServerTime:  types.Time(time.UnixMilli(1791278101115)),
 			FuturesType: "U_MARGINED",
@@ -785,7 +785,7 @@ func TestUExchangeInfo(t *testing.T) {
 				},
 			},
 			ExchangeFilters: []string{},
-			Assets: []UExchangeInfoAsset{
+			Assets: []USDTMarginedFuturesExchangeInfoAsset{
 				{
 					Asset:             currency.USDT,
 					MarginAvailable:   true,
@@ -797,7 +797,7 @@ func TestUExchangeInfo(t *testing.T) {
 					AutoAssetExchange: -0.1,
 				},
 			},
-			Symbols: []UFuturesSymbolInfo{
+			Symbols: []USDTMarginedFuturesSymbolInfo{
 				{
 					Symbol:                   "BTCUSDT",
 					Pair:                     "BTCUSDT",
@@ -823,7 +823,7 @@ func TestUExchangeInfo(t *testing.T) {
 					LiquidationFee:    0.0125,
 					MarketTakeBound:   0.05,
 					MaxMoveOrderLimit: 10000,
-					Filters: []UFuturesSymbolFilter{
+					Filters: []USDTMarginedFuturesSymbolFilter{
 						{
 							FilterType: "PRICE_FILTER",
 							MinPrice:   556.8,
@@ -906,7 +906,7 @@ func TestUExchangeInfo(t *testing.T) {
 					LiquidationFee:           0.0125,
 					MarketTakeBound:          0.05,
 					MaxMoveOrderLimit:        10000,
-					Filters: []UFuturesSymbolFilter{
+					Filters: []USDTMarginedFuturesSymbolFilter{
 						{
 							FilterType: "PRICE_FILTER",
 							MinPrice:   576.3,
@@ -968,20 +968,20 @@ func TestUExchangeInfo(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, exp, result, "UExchangeInfo should decode every field")
+		assert.Equal(t, exp, result, "USDTMarginedFuturesExchangeInfo should decode every field")
 		return
 	}
-	assert.NotEmpty(t, result.Symbols, "UExchangeInfo should return symbols")
+	assert.NotEmpty(t, result.Symbols, "USDTMarginedFuturesExchangeInfo should return symbols")
 }
 
-func TestUGetFundingHistory(t *testing.T) {
+func TestUSDTMarginedFuturesGetFundingHistory(t *testing.T) {
 	t.Parallel()
 	startTime, endTime := getTime()
-	_, err := e.UGetFundingHistory(t.Context(), currency.NewBTCUSDT(), endTime, startTime, 1000)
-	require.ErrorIs(t, err, common.ErrStartAfterEnd, "UGetFundingHistory must reject a start time after the end time")
+	_, err := e.USDTMarginedFuturesGetFundingHistory(t.Context(), currency.NewBTCUSDT(), endTime, startTime, 1000)
+	require.ErrorIs(t, err, common.ErrStartAfterEnd, "USDTMarginedFuturesGetFundingHistory must reject a start time after the end time")
 
-	result, err := e.UGetFundingHistory(t.Context(), currency.NewBTCUSDT(), startTime, endTime, 1000)
-	require.NoError(t, err, "UGetFundingHistory must not error")
+	result, err := e.USDTMarginedFuturesGetFundingHistory(t.Context(), currency.NewBTCUSDT(), startTime, endTime, 1000)
+	require.NoError(t, err, "USDTMarginedFuturesGetFundingHistory must not error")
 	if mockTests {
 		exp := []FundingRateHistoryResponse{
 			{
@@ -999,16 +999,16 @@ func TestUGetFundingHistory(t *testing.T) {
 				RateType:    "Regular",
 			},
 		}
-		assert.Equal(t, exp, result, "UGetFundingHistory should decode every field")
+		assert.Equal(t, exp, result, "USDTMarginedFuturesGetFundingHistory should decode every field")
 		return
 	}
-	assert.NotEmpty(t, result, "UGetFundingHistory should return funding rates")
+	assert.NotEmpty(t, result, "USDTMarginedFuturesGetFundingHistory should return funding rates")
 }
 
-func TestUGetFundingRateInfo(t *testing.T) {
+func TestUSDTMarginedFuturesGetFundingRateInfo(t *testing.T) {
 	t.Parallel()
-	result, err := e.UGetFundingRateInfo(t.Context())
-	require.NoError(t, err, "UGetFundingRateInfo must not error")
+	result, err := e.USDTMarginedFuturesGetFundingRateInfo(t.Context())
+	require.NoError(t, err, "USDTMarginedFuturesGetFundingRateInfo must not error")
 	if mockTests {
 		exp := []FundingRateInfoResponse{
 			{
@@ -1027,34 +1027,34 @@ func TestUGetFundingRateInfo(t *testing.T) {
 				UpdateTime:               types.Time(time.UnixMilli(1758377721362)),
 			},
 		}
-		assert.Equal(t, exp, result, "UGetFundingRateInfo should decode every field")
+		assert.Equal(t, exp, result, "USDTMarginedFuturesGetFundingRateInfo should decode every field")
 		return
 	}
-	assert.NotEmpty(t, result, "UGetFundingRateInfo should return funding rate info")
+	assert.NotEmpty(t, result, "USDTMarginedFuturesGetFundingRateInfo should return funding rate info")
 }
 
-func TestGetIndexPriceKlineCandlesticks(t *testing.T) {
+func TestGetUSDTMarginedFuturesIndexPriceKlineCandlesticks(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetIndexPriceKlineCandlesticks(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "GetIndexPriceKlineCandlesticks must reject a nil request")
-	arg := &UIndexPriceKlineRequest{Interval: "1d"}
-	_, err = e.GetIndexPriceKlineCandlesticks(t.Context(), arg)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetIndexPriceKlineCandlesticks must reject an empty pair")
+	_, err := e.GetUSDTMarginedFuturesIndexPriceKlineCandlesticks(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "GetUSDTMarginedFuturesIndexPriceKlineCandlesticks must reject a nil request")
+	arg := &USDTMarginedFuturesIndexPriceKlineRequest{Interval: "1d"}
+	_, err = e.GetUSDTMarginedFuturesIndexPriceKlineCandlesticks(t.Context(), arg)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetUSDTMarginedFuturesIndexPriceKlineCandlesticks must reject an empty pair")
 	arg.Pair = currency.NewBTCUSDT()
 	arg.Interval = ""
-	_, err = e.GetIndexPriceKlineCandlesticks(t.Context(), arg)
-	require.ErrorIs(t, err, kline.ErrInvalidInterval, "GetIndexPriceKlineCandlesticks must reject an empty interval")
+	_, err = e.GetUSDTMarginedFuturesIndexPriceKlineCandlesticks(t.Context(), arg)
+	require.ErrorIs(t, err, kline.ErrInvalidInterval, "GetUSDTMarginedFuturesIndexPriceKlineCandlesticks must reject an empty interval")
 	arg.Interval = "1d"
 	startTime, endTime := getTime()
 	arg.StartTime, arg.EndTime = endTime, startTime
-	_, err = e.GetIndexPriceKlineCandlesticks(t.Context(), arg)
-	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetIndexPriceKlineCandlesticks must reject a start time after the end time")
+	_, err = e.GetUSDTMarginedFuturesIndexPriceKlineCandlesticks(t.Context(), arg)
+	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetUSDTMarginedFuturesIndexPriceKlineCandlesticks must reject a start time after the end time")
 
 	arg.StartTime, arg.EndTime, arg.Limit = startTime, endTime, 100
-	result, err := e.GetIndexPriceKlineCandlesticks(t.Context(), arg)
-	require.NoError(t, err, "GetIndexPriceKlineCandlesticks must not error")
+	result, err := e.GetUSDTMarginedFuturesIndexPriceKlineCandlesticks(t.Context(), arg)
+	require.NoError(t, err, "GetUSDTMarginedFuturesIndexPriceKlineCandlesticks must not error")
 	if mockTests {
-		exp := []UPriceKlineResponse{
+		exp := []USDTMarginedFuturesPriceKlineResponse{
 			{
 				OpenTime:  types.Time(time.Unix(1744156800, 0)),
 				Open:      76322.968,
@@ -1064,28 +1064,28 @@ func TestGetIndexPriceKlineCandlesticks(t *testing.T) {
 				CloseTime: types.Time(time.UnixMilli(1744243199999)),
 			},
 		}
-		assert.Equal(t, exp, result, "GetIndexPriceKlineCandlesticks should decode every field")
+		assert.Equal(t, exp, result, "GetUSDTMarginedFuturesIndexPriceKlineCandlesticks should decode every field")
 		return
 	}
-	assert.NotEmpty(t, result, "GetIndexPriceKlineCandlesticks should return klines")
+	assert.NotEmpty(t, result, "GetUSDTMarginedFuturesIndexPriceKlineCandlesticks should return klines")
 }
 
-func TestUKlineData(t *testing.T) {
+func TestUSDTMarginedFuturesKlineData(t *testing.T) {
 	t.Parallel()
-	_, err := e.UKlineData(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "UKlineData must reject a nil request")
-	_, err = e.UKlineData(t.Context(), &UKlineRequest{Interval: "1d", Limit: 5})
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "UKlineData must reject an empty symbol")
-	_, err = e.UKlineData(t.Context(), &UKlineRequest{Symbol: currency.NewBTCUSDT(), Limit: 5})
-	require.ErrorIs(t, err, kline.ErrInvalidInterval, "UKlineData must reject an empty interval")
+	_, err := e.USDTMarginedFuturesKlineData(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "USDTMarginedFuturesKlineData must reject a nil request")
+	_, err = e.USDTMarginedFuturesKlineData(t.Context(), &USDTMarginedFuturesKlineRequest{Interval: "1d", Limit: 5})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "USDTMarginedFuturesKlineData must reject an empty symbol")
+	_, err = e.USDTMarginedFuturesKlineData(t.Context(), &USDTMarginedFuturesKlineRequest{Symbol: currency.NewBTCUSDT(), Limit: 5})
+	require.ErrorIs(t, err, kline.ErrInvalidInterval, "USDTMarginedFuturesKlineData must reject an empty interval")
 	startTime, endTime := getTime()
-	_, err = e.UKlineData(t.Context(), &UKlineRequest{Symbol: currency.NewBTCUSDT(), Interval: "5m", StartTime: endTime, EndTime: startTime})
-	require.ErrorIs(t, err, common.ErrStartAfterEnd, "UKlineData must reject a start time after the end time")
+	_, err = e.USDTMarginedFuturesKlineData(t.Context(), &USDTMarginedFuturesKlineRequest{Symbol: currency.NewBTCUSDT(), Interval: "5m", StartTime: endTime, EndTime: startTime})
+	require.ErrorIs(t, err, common.ErrStartAfterEnd, "USDTMarginedFuturesKlineData must reject a start time after the end time")
 
-	result, err := e.UKlineData(t.Context(), &UKlineRequest{Symbol: currency.NewBTCUSDT(), Interval: "1d", StartTime: startTime, EndTime: endTime, Limit: 5})
-	require.NoError(t, err, "UKlineData must not error for a limit")
+	result, err := e.USDTMarginedFuturesKlineData(t.Context(), &USDTMarginedFuturesKlineRequest{Symbol: currency.NewBTCUSDT(), Interval: "1d", StartTime: startTime, EndTime: endTime, Limit: 5})
+	require.NoError(t, err, "USDTMarginedFuturesKlineData must not error for a limit")
 	if mockTests {
-		exp := []UKlineResponse{
+		exp := []USDTMarginedFuturesKlineResponse{
 			{
 				OpenTime:                 types.Time(time.Unix(1744156800, 0)),
 				Open:                     76298,
@@ -1100,12 +1100,12 @@ func TestUKlineData(t *testing.T) {
 				TakerBuyQuoteAssetVolume: 21941548090.1517,
 			},
 		}
-		assert.Equal(t, exp, result, "UKlineData should decode every field")
+		assert.Equal(t, exp, result, "USDTMarginedFuturesKlineData should decode every field")
 	}
-	result, err = e.UKlineData(t.Context(), &UKlineRequest{Symbol: currency.NewBTCUSDT(), Interval: "5m", StartTime: startTime, EndTime: endTime})
-	require.NoError(t, err, "UKlineData must not error without a limit")
+	result, err = e.USDTMarginedFuturesKlineData(t.Context(), &USDTMarginedFuturesKlineRequest{Symbol: currency.NewBTCUSDT(), Interval: "5m", StartTime: startTime, EndTime: endTime})
+	require.NoError(t, err, "USDTMarginedFuturesKlineData must not error without a limit")
 	if mockTests {
-		exp := []UKlineResponse{
+		exp := []USDTMarginedFuturesKlineResponse{
 			{
 				OpenTime:                 types.Time(time.Unix(1744104000, 0)),
 				Open:                     78966.3,
@@ -1133,20 +1133,20 @@ func TestUKlineData(t *testing.T) {
 				TakerBuyQuoteAssetVolume: 23646539.9461,
 			},
 		}
-		assert.Equal(t, exp, result, "UKlineData should decode every field without a limit")
+		assert.Equal(t, exp, result, "USDTMarginedFuturesKlineData should decode every field without a limit")
 		return
 	}
-	assert.NotEmpty(t, result, "UKlineData should return klines")
+	assert.NotEmpty(t, result, "USDTMarginedFuturesKlineData should return klines")
 }
 
-func TestUGlobalLongShortRatio(t *testing.T) {
+func TestUSDTMarginedFuturesGlobalLongShortRatio(t *testing.T) {
 	t.Parallel()
-	testUFuturesDataValidation(t, e.UGlobalLongShortRatio)
+	testUSDTMarginedFuturesDataValidation(t, e.USDTMarginedFuturesGlobalLongShortRatio)
 	startTime, endTime := getTime()
-	result, err := e.UGlobalLongShortRatio(t.Context(), &UFuturesDataRequest{Symbol: currency.NewBTCUSDT(), Period: "5m", StartTime: startTime, EndTime: endTime, Limit: 3})
-	require.NoError(t, err, "UGlobalLongShortRatio must not error")
+	result, err := e.USDTMarginedFuturesGlobalLongShortRatio(t.Context(), &USDTMarginedFuturesDataRequest{Symbol: currency.NewBTCUSDT(), Period: "5m", StartTime: startTime, EndTime: endTime, Limit: 3})
+	require.NoError(t, err, "USDTMarginedFuturesGlobalLongShortRatio must not error")
 	if mockTests {
-		exp := []ULongShortRatioResponse{
+		exp := []USDTMarginedFuturesLongShortRatioResponse{
 			{
 				Symbol:         "BTCUSDT",
 				LongShortRatio: 1.0593,
@@ -1162,32 +1162,32 @@ func TestUGlobalLongShortRatio(t *testing.T) {
 				Timestamp:      types.Time(time.Unix(1791283200, 0)),
 			},
 		}
-		assert.Equal(t, exp, result, "UGlobalLongShortRatio should decode every field")
+		assert.Equal(t, exp, result, "USDTMarginedFuturesGlobalLongShortRatio should decode every field")
 		return
 	}
-	assert.NotEmpty(t, result, "UGlobalLongShortRatio should return ratios")
+	assert.NotEmpty(t, result, "USDTMarginedFuturesGlobalLongShortRatio should return ratios")
 }
 
-// testUFuturesDataValidation checks the request validation the /futures/data statistics endpoints share
-func testUFuturesDataValidation[T any](t *testing.T, fn func(context.Context, *UFuturesDataRequest) ([]T, error)) {
+// testUSDTMarginedFuturesDataValidation checks the request validation the /futures/data statistics endpoints share
+func testUSDTMarginedFuturesDataValidation[T any](t *testing.T, fn func(context.Context, *USDTMarginedFuturesDataRequest) ([]T, error)) {
 	t.Helper()
 	_, err := fn(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "must reject a nil request")
-	_, err = fn(t.Context(), &UFuturesDataRequest{Period: "5m"})
+	_, err = fn(t.Context(), &USDTMarginedFuturesDataRequest{Period: "5m"})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "must reject an empty symbol")
-	_, err = fn(t.Context(), &UFuturesDataRequest{Symbol: currency.NewBTCUSDT()})
+	_, err = fn(t.Context(), &USDTMarginedFuturesDataRequest{Symbol: currency.NewBTCUSDT()})
 	require.ErrorIs(t, err, errPeriodRequired, "must reject an empty period")
 	startTime, endTime := getTime()
-	_, err = fn(t.Context(), &UFuturesDataRequest{Symbol: currency.NewBTCUSDT(), Period: "5m", StartTime: endTime, EndTime: startTime})
+	_, err = fn(t.Context(), &USDTMarginedFuturesDataRequest{Symbol: currency.NewBTCUSDT(), Period: "5m", StartTime: endTime, EndTime: startTime})
 	require.ErrorIs(t, err, common.ErrStartAfterEnd, "must reject a start time after the end time")
 }
 
-func TestUGetMarkPrice(t *testing.T) {
+func TestUSDTMarginedFuturesGetMarkPrice(t *testing.T) {
 	t.Parallel()
-	result, err := e.UGetMarkPrice(t.Context(), currency.NewBTCUSDT())
-	require.NoError(t, err, "UGetMarkPrice must not error for a symbol")
+	result, err := e.USDTMarginedFuturesGetMarkPrice(t.Context(), currency.NewBTCUSDT())
+	require.NoError(t, err, "USDTMarginedFuturesGetMarkPrice must not error for a symbol")
 	if mockTests {
-		exp := []UMarkPriceResponse{
+		exp := []USDTMarginedFuturesMarkPriceResponse{
 			{
 				Symbol:               "BTCUSDT",
 				MarkPrice:            86163,
@@ -1199,12 +1199,12 @@ func TestUGetMarkPrice(t *testing.T) {
 				Time:                 types.Time(time.Unix(1791283486, 0)),
 			},
 		}
-		assert.Equal(t, exp, result, "UGetMarkPrice should decode the single symbol object")
+		assert.Equal(t, exp, result, "USDTMarginedFuturesGetMarkPrice should decode the single symbol object")
 	}
-	result, err = e.UGetMarkPrice(t.Context(), currency.EMPTYPAIR)
-	require.NoError(t, err, "UGetMarkPrice must not error for every symbol")
+	result, err = e.USDTMarginedFuturesGetMarkPrice(t.Context(), currency.EMPTYPAIR)
+	require.NoError(t, err, "USDTMarginedFuturesGetMarkPrice must not error for every symbol")
 	if mockTests {
-		exp := []UMarkPriceResponse{
+		exp := []USDTMarginedFuturesMarkPriceResponse{
 			{
 				Symbol:               "BTCUSDT",
 				MarkPrice:            86163,
@@ -1226,28 +1226,28 @@ func TestUGetMarkPrice(t *testing.T) {
 				Time:                 types.Time(time.Unix(1791283487, 0)),
 			},
 		}
-		assert.Equal(t, exp, result, "UGetMarkPrice should decode every symbol")
+		assert.Equal(t, exp, result, "USDTMarginedFuturesGetMarkPrice should decode every symbol")
 		return
 	}
-	assert.NotEmpty(t, result, "UGetMarkPrice should return mark prices")
+	assert.NotEmpty(t, result, "USDTMarginedFuturesGetMarkPrice should return mark prices")
 }
 
-func TestGetMarkPriceKlineCandlesticks(t *testing.T) {
+func TestGetUSDTMarginedFuturesMarkPriceKlineCandlesticks(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetMarkPriceKlineCandlesticks(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "GetMarkPriceKlineCandlesticks must reject a nil request")
-	_, err = e.GetMarkPriceKlineCandlesticks(t.Context(), &UKlineRequest{Interval: "1d"})
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetMarkPriceKlineCandlesticks must reject an empty symbol")
-	_, err = e.GetMarkPriceKlineCandlesticks(t.Context(), &UKlineRequest{Symbol: currency.NewBTCUSDT()})
-	require.ErrorIs(t, err, kline.ErrInvalidInterval, "GetMarkPriceKlineCandlesticks must reject an empty interval")
+	_, err := e.GetUSDTMarginedFuturesMarkPriceKlineCandlesticks(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "GetUSDTMarginedFuturesMarkPriceKlineCandlesticks must reject a nil request")
+	_, err = e.GetUSDTMarginedFuturesMarkPriceKlineCandlesticks(t.Context(), &USDTMarginedFuturesKlineRequest{Interval: "1d"})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetUSDTMarginedFuturesMarkPriceKlineCandlesticks must reject an empty symbol")
+	_, err = e.GetUSDTMarginedFuturesMarkPriceKlineCandlesticks(t.Context(), &USDTMarginedFuturesKlineRequest{Symbol: currency.NewBTCUSDT()})
+	require.ErrorIs(t, err, kline.ErrInvalidInterval, "GetUSDTMarginedFuturesMarkPriceKlineCandlesticks must reject an empty interval")
 	startTime, endTime := getTime()
-	_, err = e.GetMarkPriceKlineCandlesticks(t.Context(), &UKlineRequest{Symbol: currency.NewBTCUSDT(), Interval: "1d", StartTime: endTime, EndTime: startTime})
-	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetMarkPriceKlineCandlesticks must reject a start time after the end time")
+	_, err = e.GetUSDTMarginedFuturesMarkPriceKlineCandlesticks(t.Context(), &USDTMarginedFuturesKlineRequest{Symbol: currency.NewBTCUSDT(), Interval: "1d", StartTime: endTime, EndTime: startTime})
+	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetUSDTMarginedFuturesMarkPriceKlineCandlesticks must reject a start time after the end time")
 
-	result, err := e.GetMarkPriceKlineCandlesticks(t.Context(), &UKlineRequest{Symbol: currency.NewBTCUSDT(), Interval: "1d", StartTime: startTime, EndTime: endTime, Limit: 10})
-	require.NoError(t, err, "GetMarkPriceKlineCandlesticks must not error")
+	result, err := e.GetUSDTMarginedFuturesMarkPriceKlineCandlesticks(t.Context(), &USDTMarginedFuturesKlineRequest{Symbol: currency.NewBTCUSDT(), Interval: "1d", StartTime: startTime, EndTime: endTime, Limit: 10})
+	require.NoError(t, err, "GetUSDTMarginedFuturesMarkPriceKlineCandlesticks must not error")
 	if mockTests {
-		exp := []UPriceKlineResponse{
+		exp := []USDTMarginedFuturesPriceKlineResponse{
 			{
 				OpenTime:  types.Time(time.Unix(1744156800, 0)),
 				Open:      76297.9,
@@ -1257,16 +1257,16 @@ func TestGetMarkPriceKlineCandlesticks(t *testing.T) {
 				CloseTime: types.Time(time.UnixMilli(1744243199999)),
 			},
 		}
-		assert.Equal(t, exp, result, "GetMarkPriceKlineCandlesticks should decode every field")
+		assert.Equal(t, exp, result, "GetUSDTMarginedFuturesMarkPriceKlineCandlesticks should decode every field")
 		return
 	}
-	assert.NotEmpty(t, result, "GetMarkPriceKlineCandlesticks should return klines")
+	assert.NotEmpty(t, result, "GetUSDTMarginedFuturesMarkPriceKlineCandlesticks should return klines")
 }
 
-func TestGetMultiAssetModeAssetIndex(t *testing.T) {
+func TestGetUSDTMarginedFuturesMultiAssetModeAssetIndex(t *testing.T) {
 	t.Parallel()
-	result, err := e.GetMultiAssetModeAssetIndex(t.Context(), currency.NewBTCUSD())
-	require.NoError(t, err, "GetMultiAssetModeAssetIndex must not error for a symbol")
+	result, err := e.GetUSDTMarginedFuturesMultiAssetModeAssetIndex(t.Context(), currency.NewBTCUSD())
+	require.NoError(t, err, "GetUSDTMarginedFuturesMultiAssetModeAssetIndex must not error for a symbol")
 	if mockTests {
 		exp := []AssetIndexResponse{
 			{
@@ -1283,10 +1283,10 @@ func TestGetMultiAssetModeAssetIndex(t *testing.T) {
 				AutoExchangeAskRate:   88322.58244799,
 			},
 		}
-		assert.Equal(t, exp, result, "GetMultiAssetModeAssetIndex should decode the single symbol object")
+		assert.Equal(t, exp, result, "GetUSDTMarginedFuturesMultiAssetModeAssetIndex should decode the single symbol object")
 	}
-	result, err = e.GetMultiAssetModeAssetIndex(t.Context(), currency.EMPTYPAIR)
-	require.NoError(t, err, "GetMultiAssetModeAssetIndex must not error for every symbol")
+	result, err = e.GetUSDTMarginedFuturesMultiAssetModeAssetIndex(t.Context(), currency.EMPTYPAIR)
+	require.NoError(t, err, "GetUSDTMarginedFuturesMultiAssetModeAssetIndex must not error for every symbol")
 	if mockTests {
 		exp := []AssetIndexResponse{
 			{
@@ -1312,25 +1312,25 @@ func TestGetMultiAssetModeAssetIndex(t *testing.T) {
 				AutoExchangeAskRate: 1.20147365,
 			},
 		}
-		assert.Equal(t, exp, result, "GetMultiAssetModeAssetIndex should decode every symbol")
+		assert.Equal(t, exp, result, "GetUSDTMarginedFuturesMultiAssetModeAssetIndex should decode every symbol")
 		return
 	}
-	assert.NotEmpty(t, result, "GetMultiAssetModeAssetIndex should return asset indexes")
+	assert.NotEmpty(t, result, "GetUSDTMarginedFuturesMultiAssetModeAssetIndex should return asset indexes")
 }
 
-func TestUFuturesHistoricalTrades(t *testing.T) {
+func TestUSDTMarginedFuturesHistoricalTrades(t *testing.T) {
 	t.Parallel()
-	_, err := e.UFuturesHistoricalTrades(t.Context(), currency.EMPTYPAIR, 0, 5)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "UFuturesHistoricalTrades must reject an empty symbol")
+	_, err := e.USDTMarginedFuturesHistoricalTrades(t.Context(), currency.EMPTYPAIR, 0, 5)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "USDTMarginedFuturesHistoricalTrades must reject an empty symbol")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
 	for _, fromID := range []uint64{0, 8149534980} {
-		result, err := e.UFuturesHistoricalTrades(t.Context(), currency.NewBTCUSDT(), fromID, 5)
-		require.NoErrorf(t, err, "UFuturesHistoricalTrades must not error from trade ID %d", fromID)
+		result, err := e.USDTMarginedFuturesHistoricalTrades(t.Context(), currency.NewBTCUSDT(), fromID, 5)
+		require.NoErrorf(t, err, "USDTMarginedFuturesHistoricalTrades must not error from trade ID %d", fromID)
 		if mockTests {
-			exp := []UPublicTradesResponse{
+			exp := []USDTMarginedFuturesPublicTradesResponse{
 				{
 					ID:            8149534980,
 					Price:         86065.5,
@@ -1340,48 +1340,48 @@ func TestUFuturesHistoricalTrades(t *testing.T) {
 					IsBuyerMaker:  true,
 				},
 				{
-					ID:            8149534981,
-					Price:         86065.4,
-					Quantity:      0.059,
-					QuoteQuantity: 5077.86,
-					Time:          types.Time(time.UnixMilli(1791283323999)),
-					IsRPITrade:    true,
+					ID:                            8149534981,
+					Price:                         86065.4,
+					Quantity:                      0.059,
+					QuoteQuantity:                 5077.86,
+					Time:                          types.Time(time.UnixMilli(1791283323999)),
+					IsRetailPriceImprovementTrade: true,
 				},
 			}
-			assert.Equal(t, exp, result, "UFuturesHistoricalTrades should decode every field")
+			assert.Equal(t, exp, result, "USDTMarginedFuturesHistoricalTrades should decode every field")
 			continue
 		}
-		assert.NotEmptyf(t, result, "UFuturesHistoricalTrades should return trades from trade ID %d", fromID)
+		assert.NotEmptyf(t, result, "USDTMarginedFuturesHistoricalTrades should return trades from trade ID %d", fromID)
 	}
 }
 
-func TestUOpenInterest(t *testing.T) {
+func TestUSDTMarginedFuturesOpenInterest(t *testing.T) {
 	t.Parallel()
-	_, err := e.UOpenInterest(t.Context(), currency.EMPTYPAIR)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "UOpenInterest must reject an empty symbol")
+	_, err := e.USDTMarginedFuturesOpenInterest(t.Context(), currency.EMPTYPAIR)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "USDTMarginedFuturesOpenInterest must reject an empty symbol")
 
-	result, err := e.UOpenInterest(t.Context(), currency.NewBTCUSDT())
-	require.NoError(t, err, "UOpenInterest must not error")
+	result, err := e.USDTMarginedFuturesOpenInterest(t.Context(), currency.NewBTCUSDT())
+	require.NoError(t, err, "USDTMarginedFuturesOpenInterest must not error")
 	if mockTests {
-		exp := &UOpenInterestResponse{
+		exp := &USDTMarginedFuturesOpenInterestResponse{
 			OpenInterest: 94598.71,
 			Symbol:       "BTCUSDT",
 			Time:         types.Time(time.UnixMilli(1791283485477)),
 		}
-		assert.Equal(t, exp, result, "UOpenInterest should decode every field")
+		assert.Equal(t, exp, result, "USDTMarginedFuturesOpenInterest should decode every field")
 		return
 	}
-	assert.Positive(t, result.OpenInterest.Float64(), "UOpenInterest should return open interest")
+	assert.Positive(t, result.OpenInterest.Float64(), "USDTMarginedFuturesOpenInterest should return open interest")
 }
 
-func TestUOpenInterestStats(t *testing.T) {
+func TestUSDTMarginedFuturesOpenInterestStats(t *testing.T) {
 	t.Parallel()
-	testUFuturesDataValidation(t, e.UOpenInterestStats)
+	testUSDTMarginedFuturesDataValidation(t, e.USDTMarginedFuturesOpenInterestStats)
 	startTime, endTime := getTime()
-	result, err := e.UOpenInterestStats(t.Context(), &UFuturesDataRequest{Symbol: currency.NewBTCUSDT(), Period: "5m", StartTime: startTime, EndTime: endTime, Limit: 1})
-	require.NoError(t, err, "UOpenInterestStats must not error")
+	result, err := e.USDTMarginedFuturesOpenInterestStats(t.Context(), &USDTMarginedFuturesDataRequest{Symbol: currency.NewBTCUSDT(), Period: "5m", StartTime: startTime, EndTime: endTime, Limit: 1})
+	require.NoError(t, err, "USDTMarginedFuturesOpenInterestStats must not error")
 	if mockTests {
-		exp := []UOpenInterestStatsResponse{
+		exp := []USDTMarginedFuturesOpenInterestStatsResponse{
 			{
 				Symbol:               "BTCUSDT",
 				SumOpenInterest:      94576.939,
@@ -1390,21 +1390,21 @@ func TestUOpenInterestStats(t *testing.T) {
 				Timestamp:            types.Time(time.Unix(1791282900, 0)),
 			},
 		}
-		assert.Equal(t, exp, result, "UOpenInterestStats should decode every field")
+		assert.Equal(t, exp, result, "USDTMarginedFuturesOpenInterestStats should decode every field")
 		return
 	}
-	assert.NotEmpty(t, result, "UOpenInterestStats should return statistics")
+	assert.NotEmpty(t, result, "USDTMarginedFuturesOpenInterestStats should return statistics")
 }
 
-func TestUFuturesOrderbook(t *testing.T) {
+func TestUSDTMarginedFuturesOrderbook(t *testing.T) {
 	t.Parallel()
-	_, err := e.UFuturesOrderbook(t.Context(), currency.EMPTYPAIR, 1000)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "UFuturesOrderbook must reject an empty symbol")
+	_, err := e.USDTMarginedFuturesOrderbook(t.Context(), currency.EMPTYPAIR, 1000)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "USDTMarginedFuturesOrderbook must reject an empty symbol")
 
-	result, err := e.UFuturesOrderbook(t.Context(), currency.NewBTCUSDT(), 1000)
-	require.NoError(t, err, "UFuturesOrderbook must not error")
+	result, err := e.USDTMarginedFuturesOrderbook(t.Context(), currency.NewBTCUSDT(), 1000)
+	require.NoError(t, err, "USDTMarginedFuturesOrderbook must not error")
 	if mockTests {
-		exp := &UOrderBookResponse{
+		exp := &USDTMarginedFuturesOrderBookResponse{
 			LastUpdateID:      11747025852863,
 			MessageOutputTime: types.Time(time.UnixMilli(1791283481760)),
 			TransactionTime:   types.Time(time.UnixMilli(1791283481757)),
@@ -1437,28 +1437,28 @@ func TestUFuturesOrderbook(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, exp, result, "UFuturesOrderbook should decode every field")
+		assert.Equal(t, exp, result, "USDTMarginedFuturesOrderbook should decode every field")
 		return
 	}
-	assert.NotEmpty(t, result.Bids, "UFuturesOrderbook should return bids")
+	assert.NotEmpty(t, result.Bids, "USDTMarginedFuturesOrderbook should return bids")
 }
 
-func TestGetPremiumIndexKlineCandlesticks(t *testing.T) {
+func TestGetUSDTMarginedFuturesPremiumIndexKlineCandlesticks(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetPremiumIndexKlineCandlesticks(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "GetPremiumIndexKlineCandlesticks must reject a nil request")
-	_, err = e.GetPremiumIndexKlineCandlesticks(t.Context(), &UKlineRequest{Interval: "1d"})
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetPremiumIndexKlineCandlesticks must reject an empty symbol")
-	_, err = e.GetPremiumIndexKlineCandlesticks(t.Context(), &UKlineRequest{Symbol: currency.NewBTCUSDT()})
-	require.ErrorIs(t, err, kline.ErrInvalidInterval, "GetPremiumIndexKlineCandlesticks must reject an empty interval")
+	_, err := e.GetUSDTMarginedFuturesPremiumIndexKlineCandlesticks(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "GetUSDTMarginedFuturesPremiumIndexKlineCandlesticks must reject a nil request")
+	_, err = e.GetUSDTMarginedFuturesPremiumIndexKlineCandlesticks(t.Context(), &USDTMarginedFuturesKlineRequest{Interval: "1d"})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetUSDTMarginedFuturesPremiumIndexKlineCandlesticks must reject an empty symbol")
+	_, err = e.GetUSDTMarginedFuturesPremiumIndexKlineCandlesticks(t.Context(), &USDTMarginedFuturesKlineRequest{Symbol: currency.NewBTCUSDT()})
+	require.ErrorIs(t, err, kline.ErrInvalidInterval, "GetUSDTMarginedFuturesPremiumIndexKlineCandlesticks must reject an empty interval")
 	startTime, endTime := getTime()
-	_, err = e.GetPremiumIndexKlineCandlesticks(t.Context(), &UKlineRequest{Symbol: currency.NewBTCUSDT(), Interval: "1d", StartTime: endTime, EndTime: startTime})
-	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetPremiumIndexKlineCandlesticks must reject a start time after the end time")
+	_, err = e.GetUSDTMarginedFuturesPremiumIndexKlineCandlesticks(t.Context(), &USDTMarginedFuturesKlineRequest{Symbol: currency.NewBTCUSDT(), Interval: "1d", StartTime: endTime, EndTime: startTime})
+	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetUSDTMarginedFuturesPremiumIndexKlineCandlesticks must reject a start time after the end time")
 
-	result, err := e.GetPremiumIndexKlineCandlesticks(t.Context(), &UKlineRequest{Symbol: currency.NewBTCUSDT(), Interval: "1d", StartTime: startTime, EndTime: endTime, Limit: 10})
-	require.NoError(t, err, "GetPremiumIndexKlineCandlesticks must not error")
+	result, err := e.GetUSDTMarginedFuturesPremiumIndexKlineCandlesticks(t.Context(), &USDTMarginedFuturesKlineRequest{Symbol: currency.NewBTCUSDT(), Interval: "1d", StartTime: startTime, EndTime: endTime, Limit: 10})
+	require.NoError(t, err, "GetUSDTMarginedFuturesPremiumIndexKlineCandlesticks must not error")
 	if mockTests {
-		exp := []UPriceKlineResponse{
+		exp := []USDTMarginedFuturesPriceKlineResponse{
 			{
 				OpenTime:  types.Time(time.Unix(1744156800, 0)),
 				Open:      -0.00032714,
@@ -1468,19 +1468,19 @@ func TestGetPremiumIndexKlineCandlesticks(t *testing.T) {
 				CloseTime: types.Time(time.UnixMilli(1744243199999)),
 			},
 		}
-		assert.Equal(t, exp, result, "GetPremiumIndexKlineCandlesticks should decode every field")
+		assert.Equal(t, exp, result, "GetUSDTMarginedFuturesPremiumIndexKlineCandlesticks should decode every field")
 		return
 	}
-	assert.NotEmpty(t, result, "GetPremiumIndexKlineCandlesticks should return klines")
+	assert.NotEmpty(t, result, "GetUSDTMarginedFuturesPremiumIndexKlineCandlesticks should return klines")
 }
 
-func TestGetQuarterlyContractSettlementPrice(t *testing.T) {
+func TestGetUSDTMarginedFuturesQuarterlyContractSettlementPrice(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetQuarterlyContractSettlementPrice(t.Context(), currency.EMPTYPAIR)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetQuarterlyContractSettlementPrice must reject an empty pair")
+	_, err := e.GetUSDTMarginedFuturesQuarterlyContractSettlementPrice(t.Context(), currency.EMPTYPAIR)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetUSDTMarginedFuturesQuarterlyContractSettlementPrice must reject an empty pair")
 
-	result, err := e.GetQuarterlyContractSettlementPrice(t.Context(), currency.NewBTCUSDT())
-	require.NoError(t, err, "GetQuarterlyContractSettlementPrice must not error")
+	result, err := e.GetUSDTMarginedFuturesQuarterlyContractSettlementPrice(t.Context(), currency.NewBTCUSDT())
+	require.NoError(t, err, "GetUSDTMarginedFuturesQuarterlyContractSettlementPrice must not error")
 	if mockTests {
 		exp := []SettlementPriceResponse{
 			{
@@ -1492,24 +1492,24 @@ func TestGetQuarterlyContractSettlementPrice(t *testing.T) {
 				DeliveryPrice: 68656.7,
 			},
 		}
-		assert.Equal(t, exp, result, "GetQuarterlyContractSettlementPrice should decode every field")
+		assert.Equal(t, exp, result, "GetUSDTMarginedFuturesQuarterlyContractSettlementPrice should decode every field")
 		return
 	}
-	assert.NotEmpty(t, result, "GetQuarterlyContractSettlementPrice should return settlement prices")
+	assert.NotEmpty(t, result, "GetUSDTMarginedFuturesQuarterlyContractSettlementPrice should return settlement prices")
 }
 
-func TestGetIndexPriceConstituents(t *testing.T) {
+func TestGetUSDTMarginedFuturesIndexPriceConstituents(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetIndexPriceConstituents(t.Context(), currency.EMPTYPAIR)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetIndexPriceConstituents must reject an empty symbol")
+	_, err := e.GetUSDTMarginedFuturesIndexPriceConstituents(t.Context(), currency.EMPTYPAIR)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetUSDTMarginedFuturesIndexPriceConstituents must reject an empty symbol")
 
-	result, err := e.GetIndexPriceConstituents(t.Context(), currency.NewBTCUSDT())
-	require.NoError(t, err, "GetIndexPriceConstituents must not error")
+	result, err := e.GetUSDTMarginedFuturesIndexPriceConstituents(t.Context(), currency.NewBTCUSDT())
+	require.NoError(t, err, "GetUSDTMarginedFuturesIndexPriceConstituents must not error")
 	if mockTests {
-		exp := &UIndexPriceConstituentsResponse{
+		exp := &USDTMarginedFuturesIndexPriceConstituentsResponse{
 			Symbol: "BTCUSDT",
 			Time:   types.Time(time.UnixMilli(1791283487198)),
-			Constituents: []UIndexPriceConstituent{
+			Constituents: []USDTMarginedFuturesIndexPriceConstituent{
 				{
 					Exchange: "binance",
 					Symbol:   "BTCUSDT",
@@ -1524,21 +1524,21 @@ func TestGetIndexPriceConstituents(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, exp, result, "GetIndexPriceConstituents should decode every field")
+		assert.Equal(t, exp, result, "GetUSDTMarginedFuturesIndexPriceConstituents should decode every field")
 		return
 	}
-	assert.NotEmpty(t, result.Constituents, "GetIndexPriceConstituents should return constituents")
+	assert.NotEmpty(t, result.Constituents, "GetUSDTMarginedFuturesIndexPriceConstituents should return constituents")
 }
 
-func TestURecentTrades(t *testing.T) {
+func TestUSDTMarginedFuturesRecentTrades(t *testing.T) {
 	t.Parallel()
-	_, err := e.URecentTrades(t.Context(), currency.EMPTYPAIR, 1000)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "URecentTrades must reject an empty symbol")
+	_, err := e.USDTMarginedFuturesRecentTrades(t.Context(), currency.EMPTYPAIR, 1000)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "USDTMarginedFuturesRecentTrades must reject an empty symbol")
 
-	result, err := e.URecentTrades(t.Context(), currency.NewBTCUSDT(), 1000)
-	require.NoError(t, err, "URecentTrades must not error")
+	result, err := e.USDTMarginedFuturesRecentTrades(t.Context(), currency.NewBTCUSDT(), 1000)
+	require.NoError(t, err, "USDTMarginedFuturesRecentTrades must not error")
 	if mockTests {
-		exp := []UPublicTradesResponse{
+		exp := []USDTMarginedFuturesPublicTradesResponse{
 			{
 				ID:            8149534980,
 				Price:         86065.5,
@@ -1548,29 +1548,29 @@ func TestURecentTrades(t *testing.T) {
 				IsBuyerMaker:  true,
 			},
 			{
-				ID:            8149534982,
-				Price:         86065.6,
-				Quantity:      0.001,
-				QuoteQuantity: 86.06,
-				Time:          types.Time(time.UnixMilli(1791283324072)),
-				IsRPITrade:    true,
+				ID:                            8149534982,
+				Price:                         86065.6,
+				Quantity:                      0.001,
+				QuoteQuantity:                 86.06,
+				Time:                          types.Time(time.UnixMilli(1791283324072)),
+				IsRetailPriceImprovementTrade: true,
 			},
 		}
-		assert.Equal(t, exp, result, "URecentTrades should decode every field")
+		assert.Equal(t, exp, result, "USDTMarginedFuturesRecentTrades should decode every field")
 		return
 	}
-	assert.NotEmpty(t, result, "URecentTrades should return trades")
+	assert.NotEmpty(t, result, "USDTMarginedFuturesRecentTrades should return trades")
 }
 
-func TestGetURPIOrderbook(t *testing.T) {
+func TestGetUSDTMarginedFuturesRetailPriceImprovementOrderbook(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetURPIOrderbook(t.Context(), currency.EMPTYPAIR, 1000)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetURPIOrderbook must reject an empty symbol")
+	_, err := e.GetUSDTMarginedFuturesRetailPriceImprovementOrderbook(t.Context(), currency.EMPTYPAIR, 1000)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetUSDTMarginedFuturesRetailPriceImprovementOrderbook must reject an empty symbol")
 
-	result, err := e.GetURPIOrderbook(t.Context(), currency.NewBTCUSDT(), 1000)
-	require.NoError(t, err, "GetURPIOrderbook must not error")
+	result, err := e.GetUSDTMarginedFuturesRetailPriceImprovementOrderbook(t.Context(), currency.NewBTCUSDT(), 1000)
+	require.NoError(t, err, "GetUSDTMarginedFuturesRetailPriceImprovementOrderbook must not error")
 	if mockTests {
-		exp := &UOrderBookResponse{
+		exp := &USDTMarginedFuturesOrderBookResponse{
 			LastUpdateID:      11747025896572,
 			MessageOutputTime: types.Time(time.UnixMilli(1791283482433)),
 			TransactionTime:   types.Time(time.UnixMilli(1791283482430)),
@@ -1603,18 +1603,18 @@ func TestGetURPIOrderbook(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, exp, result, "GetURPIOrderbook should decode every field")
+		assert.Equal(t, exp, result, "GetUSDTMarginedFuturesRetailPriceImprovementOrderbook should decode every field")
 		return
 	}
-	assert.NotEmpty(t, result.Bids, "GetURPIOrderbook should return bids")
+	assert.NotEmpty(t, result.Bids, "GetUSDTMarginedFuturesRetailPriceImprovementOrderbook should return bids")
 }
 
-func TestUSymbolOrderbookTicker(t *testing.T) {
+func TestUSDTMarginedFuturesSymbolOrderbookTicker(t *testing.T) {
 	t.Parallel()
-	result, err := e.USymbolOrderbookTicker(t.Context(), currency.NewBTCUSDT())
-	require.NoError(t, err, "USymbolOrderbookTicker must not error for a symbol")
+	result, err := e.USDTMarginedFuturesSymbolOrderbookTicker(t.Context(), currency.NewBTCUSDT())
+	require.NoError(t, err, "USDTMarginedFuturesSymbolOrderbookTicker must not error for a symbol")
 	if mockTests {
-		exp := []USymbolOrderbookTickerResponse{
+		exp := []USDTMarginedFuturesSymbolOrderbookTickerResponse{
 			{
 				Symbol:       "BTCUSDT",
 				BidPrice:     86163,
@@ -1625,12 +1625,12 @@ func TestUSymbolOrderbookTicker(t *testing.T) {
 				LastUpdateID: 11747026548280,
 			},
 		}
-		assert.Equal(t, exp, result, "USymbolOrderbookTicker should decode the single symbol object")
+		assert.Equal(t, exp, result, "USDTMarginedFuturesSymbolOrderbookTicker should decode the single symbol object")
 	}
-	result, err = e.USymbolOrderbookTicker(t.Context(), currency.EMPTYPAIR)
-	require.NoError(t, err, "USymbolOrderbookTicker must not error for every symbol")
+	result, err = e.USDTMarginedFuturesSymbolOrderbookTicker(t.Context(), currency.EMPTYPAIR)
+	require.NoError(t, err, "USDTMarginedFuturesSymbolOrderbookTicker must not error for every symbol")
 	if mockTests {
-		exp := []USymbolOrderbookTickerResponse{
+		exp := []USDTMarginedFuturesSymbolOrderbookTickerResponse{
 			{
 				Symbol:       "BTCUSDT",
 				BidPrice:     86163,
@@ -1650,30 +1650,30 @@ func TestUSymbolOrderbookTicker(t *testing.T) {
 				LastUpdateID: 11747026600753,
 			},
 		}
-		assert.Equal(t, exp, result, "USymbolOrderbookTicker should decode every symbol")
+		assert.Equal(t, exp, result, "USDTMarginedFuturesSymbolOrderbookTicker should decode every symbol")
 		return
 	}
-	assert.NotEmpty(t, result, "USymbolOrderbookTicker should return tickers")
+	assert.NotEmpty(t, result, "USDTMarginedFuturesSymbolOrderbookTicker should return tickers")
 }
 
-func TestUSymbolPriceTickerV2(t *testing.T) {
+func TestUSDTMarginedFuturesSymbolPriceTickerV2(t *testing.T) {
 	t.Parallel()
-	result, err := e.USymbolPriceTickerV2(t.Context(), currency.NewBTCUSDT())
-	require.NoError(t, err, "USymbolPriceTickerV2 must not error for a symbol")
+	result, err := e.USDTMarginedFuturesSymbolPriceTickerV2(t.Context(), currency.NewBTCUSDT())
+	require.NoError(t, err, "USDTMarginedFuturesSymbolPriceTickerV2 must not error for a symbol")
 	if mockTests {
-		exp := []USymbolPriceTickerResponse{
+		exp := []USDTMarginedFuturesSymbolPriceTickerResponse{
 			{
 				Symbol: "BTCUSDT",
 				Price:  86163,
 				Time:   types.Time(time.UnixMilli(1791283491172)),
 			},
 		}
-		assert.Equal(t, exp, result, "USymbolPriceTickerV2 should decode the single symbol object")
+		assert.Equal(t, exp, result, "USDTMarginedFuturesSymbolPriceTickerV2 should decode the single symbol object")
 	}
-	result, err = e.USymbolPriceTickerV2(t.Context(), currency.EMPTYPAIR)
-	require.NoError(t, err, "USymbolPriceTickerV2 must not error for every symbol")
+	result, err = e.USDTMarginedFuturesSymbolPriceTickerV2(t.Context(), currency.EMPTYPAIR)
+	require.NoError(t, err, "USDTMarginedFuturesSymbolPriceTickerV2 must not error for every symbol")
 	if mockTests {
-		exp := []USymbolPriceTickerResponse{
+		exp := []USDTMarginedFuturesSymbolPriceTickerResponse{
 			{
 				Symbol: "HUSDT",
 				Price:  0.06884,
@@ -1685,20 +1685,20 @@ func TestUSymbolPriceTickerV2(t *testing.T) {
 				Time:   types.Time(time.UnixMilli(1791283491196)),
 			},
 		}
-		assert.Equal(t, exp, result, "USymbolPriceTickerV2 should decode every symbol")
+		assert.Equal(t, exp, result, "USDTMarginedFuturesSymbolPriceTickerV2 should decode every symbol")
 		return
 	}
-	assert.NotEmpty(t, result, "USymbolPriceTickerV2 should return prices")
+	assert.NotEmpty(t, result, "USDTMarginedFuturesSymbolPriceTickerV2 should return prices")
 }
 
-func TestUTakerBuySellVolume(t *testing.T) {
+func TestUSDTMarginedFuturesTakerBuySellVolume(t *testing.T) {
 	t.Parallel()
-	testUFuturesDataValidation(t, e.UTakerBuySellVolume)
+	testUSDTMarginedFuturesDataValidation(t, e.USDTMarginedFuturesTakerBuySellVolume)
 	startTime, endTime := getTime()
-	result, err := e.UTakerBuySellVolume(t.Context(), &UFuturesDataRequest{Symbol: currency.NewBTCUSDT(), Period: "5m", StartTime: startTime, EndTime: endTime, Limit: 10})
-	require.NoError(t, err, "UTakerBuySellVolume must not error")
+	result, err := e.USDTMarginedFuturesTakerBuySellVolume(t.Context(), &USDTMarginedFuturesDataRequest{Symbol: currency.NewBTCUSDT(), Period: "5m", StartTime: startTime, EndTime: endTime, Limit: 10})
+	require.NoError(t, err, "USDTMarginedFuturesTakerBuySellVolume must not error")
 	if mockTests {
-		exp := []UTakerVolumeResponse{
+		exp := []USDTMarginedFuturesTakerVolumeResponse{
 			{
 				BuySellRatio: 0.5069,
 				BuyVolume:    63.747,
@@ -1712,18 +1712,18 @@ func TestUTakerBuySellVolume(t *testing.T) {
 				Timestamp:    types.Time(time.Unix(1791282900, 0)),
 			},
 		}
-		assert.Equal(t, exp, result, "UTakerBuySellVolume should decode every field")
+		assert.Equal(t, exp, result, "USDTMarginedFuturesTakerBuySellVolume should decode every field")
 		return
 	}
-	assert.NotEmpty(t, result, "UTakerBuySellVolume should return volumes")
+	assert.NotEmpty(t, result, "USDTMarginedFuturesTakerBuySellVolume should return volumes")
 }
 
-func TestU24HourTickerPriceChangeStats(t *testing.T) {
+func TestUSDTMarginedFutures24HourTickerPriceChangeStats(t *testing.T) {
 	t.Parallel()
-	result, err := e.U24HourTickerPriceChangeStats(t.Context(), currency.NewBTCUSDT())
-	require.NoError(t, err, "U24HourTickerPriceChangeStats must not error for a symbol")
+	result, err := e.USDTMarginedFutures24HourTickerPriceChangeStats(t.Context(), currency.NewBTCUSDT())
+	require.NoError(t, err, "USDTMarginedFutures24HourTickerPriceChangeStats must not error for a symbol")
 	if mockTests {
-		exp := []U24HourPriceChangeStatsResponse{
+		exp := []USDTMarginedFutures24HourPriceChangeStatsResponse{
 			{
 				Symbol:               "BTCUSDT",
 				PriceChange:          169.2,
@@ -1743,12 +1743,12 @@ func TestU24HourTickerPriceChangeStats(t *testing.T) {
 				Count:                2758000,
 			},
 		}
-		assert.Equal(t, exp, result, "U24HourTickerPriceChangeStats should decode the single symbol object")
+		assert.Equal(t, exp, result, "USDTMarginedFutures24HourTickerPriceChangeStats should decode the single symbol object")
 	}
-	result, err = e.U24HourTickerPriceChangeStats(t.Context(), currency.EMPTYPAIR)
-	require.NoError(t, err, "U24HourTickerPriceChangeStats must not error for every symbol")
+	result, err = e.USDTMarginedFutures24HourTickerPriceChangeStats(t.Context(), currency.EMPTYPAIR)
+	require.NoError(t, err, "USDTMarginedFutures24HourTickerPriceChangeStats must not error for every symbol")
 	if mockTests {
-		exp := []U24HourPriceChangeStatsResponse{
+		exp := []USDTMarginedFutures24HourPriceChangeStatsResponse{
 			{
 				Symbol:               "BTCUSDT",
 				PriceChange:          169.3,
@@ -1786,20 +1786,20 @@ func TestU24HourTickerPriceChangeStats(t *testing.T) {
 				Count:                2763052,
 			},
 		}
-		assert.Equal(t, exp, result, "U24HourTickerPriceChangeStats should decode every symbol")
+		assert.Equal(t, exp, result, "USDTMarginedFutures24HourTickerPriceChangeStats should decode every symbol")
 		return
 	}
-	assert.NotEmpty(t, result, "U24HourTickerPriceChangeStats should return statistics")
+	assert.NotEmpty(t, result, "USDTMarginedFutures24HourTickerPriceChangeStats should return statistics")
 }
 
-func TestUTopAccountsLongShortRatio(t *testing.T) {
+func TestUSDTMarginedFuturesTopAccountsLongShortRatio(t *testing.T) {
 	t.Parallel()
-	testUFuturesDataValidation(t, e.UTopAccountsLongShortRatio)
+	testUSDTMarginedFuturesDataValidation(t, e.USDTMarginedFuturesTopAccountsLongShortRatio)
 	startTime, endTime := getTime()
-	result, err := e.UTopAccountsLongShortRatio(t.Context(), &UFuturesDataRequest{Symbol: currency.NewBTCUSDT(), Period: "5m", StartTime: startTime, EndTime: endTime, Limit: 2})
-	require.NoError(t, err, "UTopAccountsLongShortRatio must not error")
+	result, err := e.USDTMarginedFuturesTopAccountsLongShortRatio(t.Context(), &USDTMarginedFuturesDataRequest{Symbol: currency.NewBTCUSDT(), Period: "5m", StartTime: startTime, EndTime: endTime, Limit: 2})
+	require.NoError(t, err, "USDTMarginedFuturesTopAccountsLongShortRatio must not error")
 	if mockTests {
-		exp := []ULongShortRatioResponse{
+		exp := []USDTMarginedFuturesLongShortRatioResponse{
 			{
 				Symbol:         "BTCUSDT",
 				LongShortRatio: 1.124,
@@ -1815,20 +1815,20 @@ func TestUTopAccountsLongShortRatio(t *testing.T) {
 				Timestamp:      types.Time(time.Unix(1791283200, 0)),
 			},
 		}
-		assert.Equal(t, exp, result, "UTopAccountsLongShortRatio should decode every field")
+		assert.Equal(t, exp, result, "USDTMarginedFuturesTopAccountsLongShortRatio should decode every field")
 		return
 	}
-	assert.NotEmpty(t, result, "UTopAccountsLongShortRatio should return ratios")
+	assert.NotEmpty(t, result, "USDTMarginedFuturesTopAccountsLongShortRatio should return ratios")
 }
 
-func TestUTopPositionsLongShortRatio(t *testing.T) {
+func TestUSDTMarginedFuturesTopPositionsLongShortRatio(t *testing.T) {
 	t.Parallel()
-	testUFuturesDataValidation(t, e.UTopPositionsLongShortRatio)
+	testUSDTMarginedFuturesDataValidation(t, e.USDTMarginedFuturesTopPositionsLongShortRatio)
 	startTime, endTime := getTime()
-	result, err := e.UTopPositionsLongShortRatio(t.Context(), &UFuturesDataRequest{Symbol: currency.NewBTCUSDT(), Period: "5m", StartTime: startTime, EndTime: endTime, Limit: 3})
-	require.NoError(t, err, "UTopPositionsLongShortRatio must not error")
+	result, err := e.USDTMarginedFuturesTopPositionsLongShortRatio(t.Context(), &USDTMarginedFuturesDataRequest{Symbol: currency.NewBTCUSDT(), Period: "5m", StartTime: startTime, EndTime: endTime, Limit: 3})
+	require.NoError(t, err, "USDTMarginedFuturesTopPositionsLongShortRatio must not error")
 	if mockTests {
-		exp := []ULongShortRatioResponse{
+		exp := []USDTMarginedFuturesLongShortRatioResponse{
 			{
 				Symbol:         "BTCUSDT",
 				LongShortRatio: 1.6782,
@@ -1844,47 +1844,47 @@ func TestUTopPositionsLongShortRatio(t *testing.T) {
 				Timestamp:      types.Time(time.Unix(1791283200, 0)),
 			},
 		}
-		assert.Equal(t, exp, result, "UTopPositionsLongShortRatio should decode every field")
+		assert.Equal(t, exp, result, "USDTMarginedFuturesTopPositionsLongShortRatio should decode every field")
 		return
 	}
-	assert.NotEmpty(t, result, "UTopPositionsLongShortRatio should return ratios")
+	assert.NotEmpty(t, result, "USDTMarginedFuturesTopPositionsLongShortRatio should return ratios")
 }
 
-func TestSetAssetsMode(t *testing.T) {
+func TestUSDTMarginedFuturesSetAssetsMode(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	assert.NoError(t, e.SetAssetsMode(t.Context(), true), "SetAssetsMode should not error")
+	assert.NoError(t, e.USDTMarginedFuturesSetAssetsMode(t.Context(), true), "USDTMarginedFuturesSetAssetsMode should not error")
 }
 
-func TestChangePositionMode(t *testing.T) {
+func TestUSDTMarginedFuturesChangePositionMode(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	assert.NoError(t, e.ChangePositionMode(t.Context(), false), "ChangePositionMode should not error")
+	assert.NoError(t, e.USDTMarginedFuturesChangePositionMode(t.Context(), false), "USDTMarginedFuturesChangePositionMode should not error")
 }
 
-func TestUAccountTradesHistory(t *testing.T) {
+func TestUSDTMarginedFuturesAccountTradesHistory(t *testing.T) {
 	t.Parallel()
-	_, err := e.UAccountTradesHistory(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "UAccountTradesHistory must reject a nil request")
-	_, err = e.UAccountTradesHistory(t.Context(), &UAccountTradeListRequest{Limit: 5})
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "UAccountTradesHistory must reject an empty symbol")
+	_, err := e.USDTMarginedFuturesAccountTradesHistory(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "USDTMarginedFuturesAccountTradesHistory must reject a nil request")
+	_, err = e.USDTMarginedFuturesAccountTradesHistory(t.Context(), &USDTMarginedFuturesAccountTradeListRequest{Limit: 5})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "USDTMarginedFuturesAccountTradesHistory must reject an empty symbol")
 	startTime, endTime := getTime()
-	_, err = e.UAccountTradesHistory(t.Context(), &UAccountTradeListRequest{Symbol: currency.NewBTCUSDT(), FromID: 698759, StartTime: startTime})
-	require.ErrorIs(t, err, errFromIDWithTimeWindow, "UAccountTradesHistory must reject a from ID with a start time")
-	_, err = e.UAccountTradesHistory(t.Context(), &UAccountTradeListRequest{Symbol: currency.NewBTCUSDT(), StartTime: endTime, EndTime: startTime})
-	require.ErrorIs(t, err, common.ErrStartAfterEnd, "UAccountTradesHistory must reject a start time after the end time")
+	_, err = e.USDTMarginedFuturesAccountTradesHistory(t.Context(), &USDTMarginedFuturesAccountTradeListRequest{Symbol: currency.NewBTCUSDT(), FromID: 698759, StartTime: startTime})
+	require.ErrorIs(t, err, errFromIDWithTimeWindow, "USDTMarginedFuturesAccountTradesHistory must reject a from ID with a start time")
+	_, err = e.USDTMarginedFuturesAccountTradesHistory(t.Context(), &USDTMarginedFuturesAccountTradeListRequest{Symbol: currency.NewBTCUSDT(), StartTime: endTime, EndTime: startTime})
+	require.ErrorIs(t, err, common.ErrStartAfterEnd, "USDTMarginedFuturesAccountTradesHistory must reject a start time after the end time")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.UAccountTradesHistory(t.Context(), &UAccountTradeListRequest{Symbol: currency.NewBTCUSDT(), StartTime: startTime, EndTime: endTime, Limit: 5})
-	require.NoError(t, err, "UAccountTradesHistory must not error")
+	result, err := e.USDTMarginedFuturesAccountTradesHistory(t.Context(), &USDTMarginedFuturesAccountTradeListRequest{Symbol: currency.NewBTCUSDT(), StartTime: startTime, EndTime: endTime, Limit: 5})
+	require.NoError(t, err, "USDTMarginedFuturesAccountTradesHistory must not error")
 	if mockTests {
-		exp := []UAccountTradeHistoryResponse{
+		exp := []USDTMarginedFuturesAccountTradeHistoryResponse{
 			{
 				Buyer:           true,
 				Commission:      -0.0781901,
@@ -1905,29 +1905,29 @@ func TestUAccountTradesHistory(t *testing.T) {
 				Time:            types.Time(time.Unix(1744118400, 0)),
 			},
 		}
-		assert.Equal(t, exp, result, "UAccountTradesHistory should decode every field")
+		assert.Equal(t, exp, result, "USDTMarginedFuturesAccountTradesHistory should decode every field")
 	}
 }
 
-func TestUAllAccountOrders(t *testing.T) {
+func TestUSDTMarginedFuturesAllAccountOrders(t *testing.T) {
 	t.Parallel()
-	_, err := e.UAllAccountOrders(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "UAllAccountOrders must reject a nil request")
+	_, err := e.USDTMarginedFuturesAllAccountOrders(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "USDTMarginedFuturesAllAccountOrders must reject a nil request")
 	startTime, endTime := getTime()
-	_, err = e.UAllAccountOrders(t.Context(), &UAllOrdersRequest{StartTime: endTime, EndTime: startTime})
-	require.ErrorIs(t, err, common.ErrStartAfterEnd, "UAllAccountOrders must reject a start time after the end time")
+	_, err = e.USDTMarginedFuturesAllAccountOrders(t.Context(), &USDTMarginedFuturesAllOrdersRequest{StartTime: endTime, EndTime: startTime})
+	require.ErrorIs(t, err, common.ErrStartAfterEnd, "USDTMarginedFuturesAllAccountOrders must reject a start time after the end time")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	for _, tc := range []*UAllOrdersRequest{
+	for _, tc := range []*USDTMarginedFuturesAllOrdersRequest{
 		{StartTime: startTime, EndTime: endTime},
 		{Symbol: currency.NewBTCUSDT(), StartTime: startTime, EndTime: endTime, Limit: 5},
 	} {
-		result, err := e.UAllAccountOrders(t.Context(), tc)
-		require.NoErrorf(t, err, "UAllAccountOrders must not error for symbol %q", tc.Symbol)
+		result, err := e.USDTMarginedFuturesAllAccountOrders(t.Context(), tc)
+		require.NoErrorf(t, err, "USDTMarginedFuturesAllAccountOrders must not error for symbol %q", tc.Symbol)
 		if mockTests {
-			exp := []UFuturesOrderResponse{
+			exp := []USDTMarginedFuturesAllOrdersResponse{
 				{
 					ClientOrderID:           "testOrder",
 					ExecutedQuantity:        0.001,
@@ -1959,42 +1959,42 @@ func TestUAllAccountOrders(t *testing.T) {
 					Pair:                    "BTCUSDT",
 				},
 			}
-			assert.Equal(t, exp, result, "UAllAccountOrders should decode every field")
+			assert.Equal(t, exp, result, "USDTMarginedFuturesAllAccountOrders should decode every field")
 		}
 	}
 }
 
-func TestUAutoCancelAllOpenOrders(t *testing.T) {
+func TestUSDTMarginedFuturesAutoCancelAllOpenOrders(t *testing.T) {
 	t.Parallel()
-	_, err := e.UAutoCancelAllOpenOrders(t.Context(), currency.EMPTYPAIR, 30*time.Second)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "UAutoCancelAllOpenOrders must reject an empty symbol")
+	_, err := e.USDTMarginedFuturesAutoCancelAllOpenOrders(t.Context(), currency.EMPTYPAIR, 30*time.Second)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "USDTMarginedFuturesAutoCancelAllOpenOrders must reject an empty symbol")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	result, err := e.UAutoCancelAllOpenOrders(t.Context(), currency.NewBTCUSDT(), 30*time.Second)
-	require.NoError(t, err, "UAutoCancelAllOpenOrders must not error")
+	result, err := e.USDTMarginedFuturesAutoCancelAllOpenOrders(t.Context(), currency.NewBTCUSDT(), 30*time.Second)
+	require.NoError(t, err, "USDTMarginedFuturesAutoCancelAllOpenOrders must not error")
 	if mockTests {
-		exp := &UAutoCancelAllOpenOrdersResponse{
-			Symbol:        "BTCUSDT",
-			CountdownTime: 30000,
+		exp := &USDTMarginedFuturesAutoCancelAllOpenOrdersResponse{
+			Symbol:                      "BTCUSDT",
+			CountdownTimeInMilliseconds: 30000,
 		}
-		assert.Equal(t, exp, result, "UAutoCancelAllOpenOrders should decode every field")
+		assert.Equal(t, exp, result, "USDTMarginedFuturesAutoCancelAllOpenOrders should decode every field")
 	}
 }
 
-func TestUQueryAlgoOrder(t *testing.T) {
+func TestUSDTMarginedFuturesQueryAlgoOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.UQueryAlgoOrder(t.Context(), 0, "")
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "UQueryAlgoOrder must reject a missing algo ID")
+	_, err := e.USDTMarginedFuturesQueryAlgoOrder(t.Context(), 0, "")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "USDTMarginedFuturesQueryAlgoOrder must reject a missing algo ID")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.UQueryAlgoOrder(t.Context(), 2146760, "")
-	require.NoError(t, err, "UQueryAlgoOrder must not error")
+	result, err := e.USDTMarginedFuturesQueryAlgoOrder(t.Context(), 2146760, "")
+	require.NoError(t, err, "USDTMarginedFuturesQueryAlgoOrder must not error")
 	if mockTests {
-		exp := &UAlgoOrderResponse{
+		exp := &USDTMarginedFuturesAlgoOrderResponse{
 			AlgoID:                  2146760,
 			ClientAlgoID:            "6B2I9XVcJpCjqPAJ4YoFX7",
 			AlgoType:                "CONDITIONAL",
@@ -2024,45 +2024,45 @@ func TestUQueryAlgoOrder(t *testing.T) {
 			ActualQuantity:          0.01,
 			TakeProfitOrderType:     "LIMIT",
 		}
-		assert.Equal(t, exp, result, "UQueryAlgoOrder should decode every field")
+		assert.Equal(t, exp, result, "USDTMarginedFuturesQueryAlgoOrder should decode every field")
 	}
 }
 
-func TestUNewAlgoOrder(t *testing.T) {
+func TestUSDTMarginedFuturesNewAlgoOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.UNewAlgoOrder(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "UNewAlgoOrder must reject a nil request")
-	arg := &UNewAlgoOrderRequest{}
-	_, err = e.UNewAlgoOrder(t.Context(), arg)
-	require.ErrorIs(t, err, errAlgoTypeRequired, "UNewAlgoOrder must reject an empty algo type")
+	_, err := e.USDTMarginedFuturesNewAlgoOrder(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "USDTMarginedFuturesNewAlgoOrder must reject a nil request")
+	arg := &USDTMarginedFuturesNewAlgoOrderRequest{}
+	_, err = e.USDTMarginedFuturesNewAlgoOrder(t.Context(), arg)
+	require.ErrorIs(t, err, errAlgoTypeRequired, "USDTMarginedFuturesNewAlgoOrder must reject an empty algo type")
 	arg.AlgoType = "CONDITIONAL"
-	_, err = e.UNewAlgoOrder(t.Context(), arg)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "UNewAlgoOrder must reject an empty symbol")
+	_, err = e.USDTMarginedFuturesNewAlgoOrder(t.Context(), arg)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "USDTMarginedFuturesNewAlgoOrder must reject an empty symbol")
 	arg.Symbol = currency.NewBTCUSDT()
-	_, err = e.UNewAlgoOrder(t.Context(), arg)
-	require.ErrorIs(t, err, order.ErrSideIsInvalid, "UNewAlgoOrder must reject an empty side")
+	_, err = e.USDTMarginedFuturesNewAlgoOrder(t.Context(), arg)
+	require.ErrorIs(t, err, order.ErrSideIsInvalid, "USDTMarginedFuturesNewAlgoOrder must reject an empty side")
 	arg.Side = order.Sell.String()
-	_, err = e.UNewAlgoOrder(t.Context(), arg)
-	require.ErrorIs(t, err, order.ErrTypeIsInvalid, "UNewAlgoOrder must reject an empty order type")
+	_, err = e.USDTMarginedFuturesNewAlgoOrder(t.Context(), arg)
+	require.ErrorIs(t, err, order.ErrTypeIsInvalid, "USDTMarginedFuturesNewAlgoOrder must reject an empty order type")
 	arg.OrderType = "STOP"
 	arg.Price = 80000
 	arg.PriceMatch = "QUEUE"
-	_, err = e.UNewAlgoOrder(t.Context(), arg)
-	require.ErrorIs(t, err, errPriceMatchWithPrice, "UNewAlgoOrder must reject a price match with a price")
+	_, err = e.USDTMarginedFuturesNewAlgoOrder(t.Context(), arg)
+	require.ErrorIs(t, err, errPriceMatchWithPrice, "USDTMarginedFuturesNewAlgoOrder must reject a price match with a price")
 	arg.PriceMatch = ""
 	arg.ClosePosition = true
 	arg.Quantity = 0.01
-	_, err = e.UNewAlgoOrder(t.Context(), arg)
-	require.ErrorIs(t, err, errClosePositionWithQuantity, "UNewAlgoOrder must reject a close position with a quantity")
+	_, err = e.USDTMarginedFuturesNewAlgoOrder(t.Context(), arg)
+	require.ErrorIs(t, err, errClosePositionWithQuantity, "USDTMarginedFuturesNewAlgoOrder must reject a close position with a quantity")
 	arg.Quantity = 0
 	arg.ReduceOnly = true
-	_, err = e.UNewAlgoOrder(t.Context(), arg)
-	require.ErrorIs(t, err, errClosePositionWithQuantity, "UNewAlgoOrder must reject a close position with reduce only")
+	_, err = e.USDTMarginedFuturesNewAlgoOrder(t.Context(), arg)
+	require.ErrorIs(t, err, errClosePositionWithQuantity, "USDTMarginedFuturesNewAlgoOrder must reject a close position with reduce only")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	for _, tc := range []*UNewAlgoOrderRequest{
+	for _, tc := range []*USDTMarginedFuturesNewAlgoOrderRequest{
 		{
 			AlgoType: "CONDITIONAL", Symbol: currency.NewBTCUSDT(), Side: "SELL", PositionSide: "LONG", OrderType: "TAKE_PROFIT",
 			TimeInForce: "GTD", Quantity: 0.01, TriggerPrice: 90000, WorkingType: "MARK_PRICE", PriceMatch: "QUEUE",
@@ -2076,10 +2076,10 @@ func TestUNewAlgoOrder(t *testing.T) {
 		{AlgoType: "CONDITIONAL", Symbol: currency.NewBTCUSDT(), Side: "SELL", OrderType: "STOP_MARKET", TriggerPrice: 80000, ClosePosition: true},
 		{AlgoType: "CONDITIONAL", Symbol: currency.NewBTCUSDT(), Side: "SELL", OrderType: "STOP", Quantity: 0.01, Price: 80000, TriggerPrice: 80500},
 	} {
-		result, err := e.UNewAlgoOrder(t.Context(), tc)
-		require.NoErrorf(t, err, "UNewAlgoOrder must not error for order type %s", tc.OrderType)
+		result, err := e.USDTMarginedFuturesNewAlgoOrder(t.Context(), tc)
+		require.NoErrorf(t, err, "USDTMarginedFuturesNewAlgoOrder must not error for order type %s", tc.OrderType)
 		if mockTests {
-			exp := &UNewAlgoOrderResponse{
+			exp := &USDTMarginedFuturesNewAlgoOrderResponse{
 				AlgoID:                  2146760,
 				ClientAlgoID:            "6B2I9XVcJpCjqPAJ4YoFX7",
 				AlgoType:                "CONDITIONAL",
@@ -2106,73 +2106,73 @@ func TestUNewAlgoOrder(t *testing.T) {
 				ActivatePrice:           89500,
 				CallbackRate:            0.5,
 			}
-			assert.Equal(t, exp, result, "UNewAlgoOrder should decode every field")
+			assert.Equal(t, exp, result, "USDTMarginedFuturesNewAlgoOrder should decode every field")
 		}
 	}
 }
 
-func TestUCancelAlgoOrder(t *testing.T) {
+func TestUSDTMarginedFuturesCancelAlgoOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.UCancelAlgoOrder(t.Context(), 0, "")
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "UCancelAlgoOrder must reject a missing algo ID")
+	_, err := e.USDTMarginedFuturesCancelAlgoOrder(t.Context(), 0, "")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "USDTMarginedFuturesCancelAlgoOrder must reject a missing algo ID")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	result, err := e.UCancelAlgoOrder(t.Context(), 2146760, "")
-	require.NoError(t, err, "UCancelAlgoOrder must not error")
+	result, err := e.USDTMarginedFuturesCancelAlgoOrder(t.Context(), 2146760, "")
+	require.NoError(t, err, "USDTMarginedFuturesCancelAlgoOrder must not error")
 	if mockTests {
-		exp := &UCancelAlgoOrderResponse{
+		exp := &USDTMarginedFuturesCancelAlgoOrderResponse{
 			AlgoID:       2146760,
 			ClientAlgoID: "6B2I9XVcJpCjqPAJ4YoFX7",
 			Code:         200,
 			Message:      "success",
 		}
-		assert.Equal(t, exp, result, "UCancelAlgoOrder should decode every field")
+		assert.Equal(t, exp, result, "USDTMarginedFuturesCancelAlgoOrder should decode every field")
 	}
 }
 
-func TestUCancelAllAlgoOpenOrders(t *testing.T) {
+func TestUSDTMarginedFuturesCancelAllAlgoOpenOrders(t *testing.T) {
 	t.Parallel()
-	err := e.UCancelAllAlgoOpenOrders(t.Context(), currency.EMPTYPAIR)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "UCancelAllAlgoOpenOrders must reject an empty symbol")
+	err := e.USDTMarginedFuturesCancelAllAlgoOpenOrders(t.Context(), currency.EMPTYPAIR)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "USDTMarginedFuturesCancelAllAlgoOpenOrders must reject an empty symbol")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	assert.NoError(t, e.UCancelAllAlgoOpenOrders(t.Context(), currency.NewBTCUSDT()), "UCancelAllAlgoOpenOrders should not error")
+	assert.NoError(t, e.USDTMarginedFuturesCancelAllAlgoOpenOrders(t.Context(), currency.NewBTCUSDT()), "USDTMarginedFuturesCancelAllAlgoOpenOrders should not error")
 }
 
-func TestUCancelAllOpenOrders(t *testing.T) {
+func TestUSDTMarginedFuturesCancelAllOpenOrders(t *testing.T) {
 	t.Parallel()
-	err := e.UCancelAllOpenOrders(t.Context(), currency.EMPTYPAIR)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "UCancelAllOpenOrders must reject an empty symbol")
+	err := e.USDTMarginedFuturesCancelAllOpenOrders(t.Context(), currency.EMPTYPAIR)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "USDTMarginedFuturesCancelAllOpenOrders must reject an empty symbol")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	assert.NoError(t, e.UCancelAllOpenOrders(t.Context(), currency.NewBTCUSDT()), "UCancelAllOpenOrders should not error")
+	assert.NoError(t, e.USDTMarginedFuturesCancelAllOpenOrders(t.Context(), currency.NewBTCUSDT()), "USDTMarginedFuturesCancelAllOpenOrders should not error")
 }
 
-func TestUModifyMultipleOrders(t *testing.T) {
+func TestUSDTMarginedFuturesModifyMultipleOrders(t *testing.T) {
 	t.Parallel()
-	_, err := e.UModifyMultipleOrders(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrEmptyParams, "UModifyMultipleOrders must reject an empty batch")
-	_, err = e.UModifyMultipleOrders(t.Context(), []UModifyOrderRequest{{}})
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "UModifyMultipleOrders must validate every order")
-	_, err = e.UModifyMultipleOrders(t.Context(), []UModifyOrderRequest{{OrderID: 1, ReduceOnly: true}})
-	require.ErrorIs(t, err, errBatchModifyReduceOnly, "UModifyMultipleOrders must reject reduce only")
+	_, err := e.USDTMarginedFuturesModifyMultipleOrders(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrEmptyParams, "USDTMarginedFuturesModifyMultipleOrders must reject an empty batch")
+	_, err = e.USDTMarginedFuturesModifyMultipleOrders(t.Context(), []USDTMarginedFuturesModifyOrderRequest{{}})
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "USDTMarginedFuturesModifyMultipleOrders must validate every order")
+	_, err = e.USDTMarginedFuturesModifyMultipleOrders(t.Context(), []USDTMarginedFuturesModifyOrderRequest{{OrderID: 1, ReduceOnly: true}})
+	require.ErrorIs(t, err, errBatchModifyReduceOnly, "USDTMarginedFuturesModifyMultipleOrders must reject reduce only")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	result, err := e.UModifyMultipleOrders(t.Context(), []UModifyOrderRequest{
+	result, err := e.USDTMarginedFuturesModifyMultipleOrders(t.Context(), []USDTMarginedFuturesModifyOrderRequest{
 		{OrderID: 20072994037, Symbol: currency.NewBTCUSDT(), Side: "BUY", Quantity: 1, Price: 30005, ModifyID: 1},
 		{OrigClientOrderID: "myOrder1", Symbol: currency.NewBTCUSDT(), Side: "SELL", Quantity: 0.5, PriceMatch: "QUEUE"},
 	})
-	require.NoError(t, err, "UModifyMultipleOrders must not error")
+	require.NoError(t, err, "USDTMarginedFuturesModifyMultipleOrders must not error")
 	if mockTests {
-		exp := []UModifyBatchOrderResponse{
+		exp := []USDTMarginedFuturesModifyBatchOrderResponse{
 			{
 				ClientOrderID:           "LJ9R4QZDihCaS8UAOOLpgW",
 				ExecutedQuantity:        0.5,
@@ -2204,27 +2204,27 @@ func TestUModifyMultipleOrders(t *testing.T) {
 				Message: "ReduceOnly Order is rejected.",
 			},
 		}
-		assert.Equal(t, exp, result, "UModifyMultipleOrders should decode every field")
+		assert.Equal(t, exp, result, "USDTMarginedFuturesModifyMultipleOrders should decode every field")
 	}
 }
 
-func TestUPlaceBatchOrders(t *testing.T) {
+func TestUSDTMarginedFuturesPlaceBatchOrders(t *testing.T) {
 	t.Parallel()
-	_, err := e.UPlaceBatchOrders(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrEmptyParams, "UPlaceBatchOrders must reject an empty batch")
-	_, err = e.UPlaceBatchOrders(t.Context(), []UFuturesNewOrderRequest{{}})
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "UPlaceBatchOrders must validate every order")
+	_, err := e.USDTMarginedFuturesPlaceBatchOrders(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrEmptyParams, "USDTMarginedFuturesPlaceBatchOrders must reject an empty batch")
+	_, err = e.USDTMarginedFuturesPlaceBatchOrders(t.Context(), []USDTMarginedFuturesNewOrderRequest{{}})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "USDTMarginedFuturesPlaceBatchOrders must validate every order")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	result, err := e.UPlaceBatchOrders(t.Context(), []UFuturesNewOrderRequest{
+	result, err := e.USDTMarginedFuturesPlaceBatchOrders(t.Context(), []USDTMarginedFuturesNewOrderRequest{
 		{Symbol: currency.NewBTCUSDT(), Side: "BUY", OrderType: "LIMIT", TimeInForce: "GTC", Quantity: 0.002, Price: 80000, NewClientOrderID: "testOrder"},
 		{Symbol: currency.NewBTCUSDT(), Side: "SELL", OrderType: "MARKET", Quantity: 0.002, ReduceOnly: true},
 	})
-	require.NoError(t, err, "UPlaceBatchOrders must not error")
+	require.NoError(t, err, "USDTMarginedFuturesPlaceBatchOrders must not error")
 	if mockTests {
-		exp := []UPlaceBatchOrderResponse{
+		exp := []USDTMarginedFuturesPlaceBatchOrderResponse{
 			{
 				ClientOrderID:           "testOrder",
 				ExecutedQuantity:        0.001,
@@ -2254,24 +2254,24 @@ func TestUPlaceBatchOrders(t *testing.T) {
 				Message: "ReduceOnly Order is rejected.",
 			},
 		}
-		assert.Equal(t, exp, result, "UPlaceBatchOrders should decode every field")
+		assert.Equal(t, exp, result, "USDTMarginedFuturesPlaceBatchOrders should decode every field")
 	}
 }
 
-func TestUCancelBatchOrders(t *testing.T) {
+func TestUSDTMarginedFuturesCancelBatchOrders(t *testing.T) {
 	t.Parallel()
-	_, err := e.UCancelBatchOrders(t.Context(), currency.EMPTYPAIR, []uint64{283194212}, nil)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "UCancelBatchOrders must reject an empty symbol")
-	_, err = e.UCancelBatchOrders(t.Context(), currency.NewBTCUSDT(), nil, nil)
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "UCancelBatchOrders must reject an empty ID list")
+	_, err := e.USDTMarginedFuturesCancelBatchOrders(t.Context(), currency.EMPTYPAIR, []uint64{283194212}, nil)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "USDTMarginedFuturesCancelBatchOrders must reject an empty symbol")
+	_, err = e.USDTMarginedFuturesCancelBatchOrders(t.Context(), currency.NewBTCUSDT(), nil, nil)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "USDTMarginedFuturesCancelBatchOrders must reject an empty ID list")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	result, err := e.UCancelBatchOrders(t.Context(), currency.NewBTCUSDT(), []uint64{283194212}, []string{"myOrder2"})
-	require.NoError(t, err, "UCancelBatchOrders must not error")
+	result, err := e.USDTMarginedFuturesCancelBatchOrders(t.Context(), currency.NewBTCUSDT(), []uint64{283194212}, []string{"myOrder2"})
+	require.NoError(t, err, "USDTMarginedFuturesCancelBatchOrders must not error")
 	if mockTests {
-		exp := []UCancelBatchOrderResponse{
+		exp := []USDTMarginedFuturesCancelBatchOrderResponse{
 			{
 				ClientOrderID:           "myOrder1",
 				ExecutedQuantity:        0.001,
@@ -2303,24 +2303,24 @@ func TestUCancelBatchOrders(t *testing.T) {
 				Message: "Unknown order sent.",
 			},
 		}
-		assert.Equal(t, exp, result, "UCancelBatchOrders should decode every field")
+		assert.Equal(t, exp, result, "USDTMarginedFuturesCancelBatchOrders should decode every field")
 	}
 }
 
-func TestUGetOrderData(t *testing.T) {
+func TestUSDTMarginedFuturesGetOrderData(t *testing.T) {
 	t.Parallel()
-	_, err := e.UGetOrderData(t.Context(), currency.EMPTYPAIR, 123, "")
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "UGetOrderData must reject an empty symbol")
-	_, err = e.UGetOrderData(t.Context(), currency.NewBTCUSDT(), 0, "")
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "UGetOrderData must reject a missing order ID")
+	_, err := e.USDTMarginedFuturesGetOrderData(t.Context(), currency.EMPTYPAIR, 123, "")
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "USDTMarginedFuturesGetOrderData must reject an empty symbol")
+	_, err = e.USDTMarginedFuturesGetOrderData(t.Context(), currency.NewBTCUSDT(), 0, "")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "USDTMarginedFuturesGetOrderData must reject a missing order ID")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.UGetOrderData(t.Context(), currency.NewBTCUSDT(), 123, "")
-	require.NoError(t, err, "UGetOrderData must not error")
+	result, err := e.USDTMarginedFuturesGetOrderData(t.Context(), currency.NewBTCUSDT(), 123, "")
+	require.NoError(t, err, "USDTMarginedFuturesGetOrderData must not error")
 	if mockTests {
-		exp := &UOrderResponse{
+		exp := &USDTMarginedFuturesOrderResponse{
 			ClientOrderID:           "testOrder",
 			ExecutedQuantity:        0.001,
 			OrderID:                 123,
@@ -2348,33 +2348,33 @@ func TestUGetOrderData(t *testing.T) {
 			ActivatePrice:           79500,
 			PriceRate:               0.3,
 		}
-		assert.Equal(t, exp, result, "UGetOrderData should decode every field")
+		assert.Equal(t, exp, result, "USDTMarginedFuturesGetOrderData should decode every field")
 	}
 }
 
-func TestUModifyOrder(t *testing.T) {
+func TestUSDTMarginedFuturesModifyOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.UModifyOrder(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "UModifyOrder must reject a nil request")
-	arg := &UModifyOrderRequest{}
-	_, err = e.UModifyOrder(t.Context(), arg)
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "UModifyOrder must reject a missing order ID")
+	_, err := e.USDTMarginedFuturesModifyOrder(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "USDTMarginedFuturesModifyOrder must reject a nil request")
+	arg := &USDTMarginedFuturesModifyOrderRequest{}
+	_, err = e.USDTMarginedFuturesModifyOrder(t.Context(), arg)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "USDTMarginedFuturesModifyOrder must reject a missing order ID")
 	arg.OrderID = 20072994037
-	_, err = e.UModifyOrder(t.Context(), arg)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "UModifyOrder must reject an empty symbol")
+	_, err = e.USDTMarginedFuturesModifyOrder(t.Context(), arg)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "USDTMarginedFuturesModifyOrder must reject an empty symbol")
 	arg.Symbol = currency.NewBTCUSDT()
-	_, err = e.UModifyOrder(t.Context(), arg)
-	require.ErrorIs(t, err, order.ErrSideIsInvalid, "UModifyOrder must reject an empty side")
+	_, err = e.USDTMarginedFuturesModifyOrder(t.Context(), arg)
+	require.ErrorIs(t, err, order.ErrSideIsInvalid, "USDTMarginedFuturesModifyOrder must reject an empty side")
 	arg.Side = order.Buy.String()
-	_, err = e.UModifyOrder(t.Context(), arg)
-	require.ErrorIs(t, err, limits.ErrAmountBelowMin, "UModifyOrder must reject an empty quantity")
+	_, err = e.USDTMarginedFuturesModifyOrder(t.Context(), arg)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin, "USDTMarginedFuturesModifyOrder must reject an empty quantity")
 	arg.Quantity = 1
-	_, err = e.UModifyOrder(t.Context(), arg)
-	require.ErrorIs(t, err, limits.ErrPriceBelowMin, "UModifyOrder must reject an empty price without a price match")
+	_, err = e.USDTMarginedFuturesModifyOrder(t.Context(), arg)
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin, "USDTMarginedFuturesModifyOrder must reject an empty price without a price match")
 	arg.Price = 30005
 	arg.PriceMatch = "QUEUE"
-	_, err = e.UModifyOrder(t.Context(), arg)
-	require.ErrorIs(t, err, errPriceMatchWithPrice, "UModifyOrder must reject a price match with a price")
+	_, err = e.USDTMarginedFuturesModifyOrder(t.Context(), arg)
+	require.ErrorIs(t, err, errPriceMatchWithPrice, "USDTMarginedFuturesModifyOrder must reject a price match with a price")
 	arg.PriceMatch = ""
 
 	if !mockTests {
@@ -2382,10 +2382,10 @@ func TestUModifyOrder(t *testing.T) {
 	}
 	arg.ModifyID = 1
 	arg.ReduceOnly = true
-	result, err := e.UModifyOrder(t.Context(), arg)
-	require.NoError(t, err, "UModifyOrder must not error")
+	result, err := e.USDTMarginedFuturesModifyOrder(t.Context(), arg)
+	require.NoError(t, err, "USDTMarginedFuturesModifyOrder must not error")
 	if mockTests {
-		exp := &UModifyOrderResponse{
+		exp := &USDTMarginedFuturesModifyOrderResponse{
 			ClientOrderID:           "LJ9R4QZDihCaS8UAOOLpgW",
 			ExecutedQuantity:        0.5,
 			OrderID:                 20072994037,
@@ -2411,33 +2411,33 @@ func TestUModifyOrder(t *testing.T) {
 			Pair:                    "BTCUSDT",
 			ModifyID:                1,
 		}
-		assert.Equal(t, exp, result, "UModifyOrder should decode every field")
+		assert.Equal(t, exp, result, "USDTMarginedFuturesModifyOrder should decode every field")
 	}
 }
 
-func TestUFuturesNewOrder(t *testing.T) {
+func TestUSDTMarginedFuturesNewOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.UFuturesNewOrder(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "UFuturesNewOrder must reject a nil request")
-	arg := &UFuturesNewOrderRequest{}
-	_, err = e.UFuturesNewOrder(t.Context(), arg)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "UFuturesNewOrder must reject an empty symbol")
+	_, err := e.USDTMarginedFuturesNewOrder(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "USDTMarginedFuturesNewOrder must reject a nil request")
+	arg := &USDTMarginedFuturesNewOrderRequest{}
+	_, err = e.USDTMarginedFuturesNewOrder(t.Context(), arg)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "USDTMarginedFuturesNewOrder must reject an empty symbol")
 	arg.Symbol = currency.NewBTCUSDT()
-	_, err = e.UFuturesNewOrder(t.Context(), arg)
-	require.ErrorIs(t, err, order.ErrSideIsInvalid, "UFuturesNewOrder must reject an empty side")
+	_, err = e.USDTMarginedFuturesNewOrder(t.Context(), arg)
+	require.ErrorIs(t, err, order.ErrSideIsInvalid, "USDTMarginedFuturesNewOrder must reject an empty side")
 	arg.Side = order.Buy.String()
-	_, err = e.UFuturesNewOrder(t.Context(), arg)
-	require.ErrorIs(t, err, order.ErrTypeIsInvalid, "UFuturesNewOrder must reject an empty order type")
+	_, err = e.USDTMarginedFuturesNewOrder(t.Context(), arg)
+	require.ErrorIs(t, err, order.ErrTypeIsInvalid, "USDTMarginedFuturesNewOrder must reject an empty order type")
 	arg.OrderType = order.Limit.String()
 	arg.Price = 80000
 	arg.PriceMatch = "QUEUE"
-	_, err = e.UFuturesNewOrder(t.Context(), arg)
-	require.ErrorIs(t, err, errPriceMatchWithPrice, "UFuturesNewOrder must reject a price match with a price")
+	_, err = e.USDTMarginedFuturesNewOrder(t.Context(), arg)
+	require.ErrorIs(t, err, errPriceMatchWithPrice, "USDTMarginedFuturesNewOrder must reject a price match with a price")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	for _, tc := range []*UFuturesNewOrderRequest{
+	for _, tc := range []*USDTMarginedFuturesNewOrderRequest{
 		{
 			Symbol: currency.NewBTCUSDT(), Side: "BUY", PositionSide: "LONG", OrderType: "LIMIT", TimeInForce: "GTD", Quantity: 0.002,
 			Price: 80000, NewClientOrderID: "testOrder", NewOrderResponseType: "RESULT", SelfTradePreventionMode: "EXPIRE_MAKER",
@@ -2445,10 +2445,10 @@ func TestUFuturesNewOrder(t *testing.T) {
 		},
 		{Symbol: currency.NewBTCUSDT(), Side: "SELL", OrderType: "LIMIT", TimeInForce: "GTC", ReduceOnly: true, Quantity: 0.002, PriceMatch: "QUEUE"},
 	} {
-		result, err := e.UFuturesNewOrder(t.Context(), tc)
-		require.NoErrorf(t, err, "UFuturesNewOrder must not error for side %s", tc.Side)
+		result, err := e.USDTMarginedFuturesNewOrder(t.Context(), tc)
+		require.NoErrorf(t, err, "USDTMarginedFuturesNewOrder must not error for side %s", tc.Side)
 		if mockTests {
-			exp := &UNewOrderResponse{
+			exp := &USDTMarginedFuturesNewOrderResponse{
 				ClientOrderID:           "testOrder",
 				ExecutedQuantity:        0.001,
 				OrderID:                 22542179,
@@ -2472,25 +2472,25 @@ func TestUFuturesNewOrder(t *testing.T) {
 				GoodTillDate:            types.Time(time.Unix(1744300800, 0)),
 				CumulativeQuantity:      0.001,
 			}
-			assert.Equal(t, exp, result, "UFuturesNewOrder should decode every field")
+			assert.Equal(t, exp, result, "USDTMarginedFuturesNewOrder should decode every field")
 		}
 	}
 }
 
-func TestUCancelOrder(t *testing.T) {
+func TestUSDTMarginedFuturesCancelOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.UCancelOrder(t.Context(), currency.EMPTYPAIR, 123, "")
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "UCancelOrder must reject an empty symbol")
-	_, err = e.UCancelOrder(t.Context(), currency.NewBTCUSDT(), 0, "")
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "UCancelOrder must reject a missing order ID")
+	_, err := e.USDTMarginedFuturesCancelOrder(t.Context(), currency.EMPTYPAIR, 123, "")
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "USDTMarginedFuturesCancelOrder must reject an empty symbol")
+	_, err = e.USDTMarginedFuturesCancelOrder(t.Context(), currency.NewBTCUSDT(), 0, "")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "USDTMarginedFuturesCancelOrder must reject a missing order ID")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	result, err := e.UCancelOrder(t.Context(), currency.NewBTCUSDT(), 123, "")
-	require.NoError(t, err, "UCancelOrder must not error")
+	result, err := e.USDTMarginedFuturesCancelOrder(t.Context(), currency.NewBTCUSDT(), 123, "")
+	require.NoError(t, err, "USDTMarginedFuturesCancelOrder must not error")
 	if mockTests {
-		exp := &UCancelOrderResponse{
+		exp := &USDTMarginedFuturesCancelOrderResponse{
 			ClientOrderID:           "myOrder1",
 			ExecutedQuantity:        0.001,
 			OrderID:                 123,
@@ -2516,54 +2516,54 @@ func TestUCancelOrder(t *testing.T) {
 			ActivatePrice:           79500,
 			PriceRate:               0.3,
 		}
-		assert.Equal(t, exp, result, "UCancelOrder should decode every field")
+		assert.Equal(t, exp, result, "USDTMarginedFuturesCancelOrder should decode every field")
 	}
 }
 
-func TestUChangeInitialLeverageRequest(t *testing.T) {
+func TestUSDTMarginedFuturesChangeInitialLeverageRequest(t *testing.T) {
 	t.Parallel()
-	_, err := e.UChangeInitialLeverageRequest(t.Context(), currency.EMPTYPAIR, 2)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "UChangeInitialLeverageRequest must reject an empty symbol")
-	_, err = e.UChangeInitialLeverageRequest(t.Context(), currency.NewBTCUSDT(), 0)
-	require.ErrorIs(t, err, errInvalidLeverage, "UChangeInitialLeverageRequest must reject zero leverage")
+	_, err := e.USDTMarginedFuturesChangeInitialLeverageRequest(t.Context(), currency.EMPTYPAIR, 2)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "USDTMarginedFuturesChangeInitialLeverageRequest must reject an empty symbol")
+	_, err = e.USDTMarginedFuturesChangeInitialLeverageRequest(t.Context(), currency.NewBTCUSDT(), 0)
+	require.ErrorIs(t, err, errInvalidLeverage, "USDTMarginedFuturesChangeInitialLeverageRequest must reject zero leverage")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	result, err := e.UChangeInitialLeverageRequest(t.Context(), currency.NewBTCUSDT(), 2)
-	require.NoError(t, err, "UChangeInitialLeverageRequest must not error")
+	result, err := e.USDTMarginedFuturesChangeInitialLeverageRequest(t.Context(), currency.NewBTCUSDT(), 2)
+	require.NoError(t, err, "USDTMarginedFuturesChangeInitialLeverageRequest must not error")
 	if mockTests {
-		exp := &UChangeInitialLeverageResponse{
+		exp := &USDTMarginedFuturesChangeInitialLeverageResponse{
 			Leverage:         2,
 			MaxNotionalValue: 1000000,
 			Symbol:           "BTCUSDT",
 		}
-		assert.Equal(t, exp, result, "UChangeInitialLeverageRequest should decode every field")
+		assert.Equal(t, exp, result, "USDTMarginedFuturesChangeInitialLeverageRequest should decode every field")
 	}
 }
 
-func TestUChangeInitialMarginType(t *testing.T) {
+func TestUSDTMarginedFuturesChangeInitialMarginType(t *testing.T) {
 	t.Parallel()
-	err := e.UChangeInitialMarginType(t.Context(), currency.EMPTYPAIR, "ISOLATED")
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "UChangeInitialMarginType must reject an empty symbol")
-	err = e.UChangeInitialMarginType(t.Context(), currency.NewBTCUSDT(), "")
-	require.ErrorIs(t, err, margin.ErrInvalidMarginType, "UChangeInitialMarginType must reject an empty margin type")
+	err := e.USDTMarginedFuturesChangeInitialMarginType(t.Context(), currency.EMPTYPAIR, "ISOLATED")
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "USDTMarginedFuturesChangeInitialMarginType must reject an empty symbol")
+	err = e.USDTMarginedFuturesChangeInitialMarginType(t.Context(), currency.NewBTCUSDT(), "")
+	require.ErrorIs(t, err, margin.ErrInvalidMarginType, "USDTMarginedFuturesChangeInitialMarginType must reject an empty margin type")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	assert.NoError(t, e.UChangeInitialMarginType(t.Context(), currency.NewBTCUSDT(), "ISOLATED"), "UChangeInitialMarginType should not error")
+	assert.NoError(t, e.USDTMarginedFuturesChangeInitialMarginType(t.Context(), currency.NewBTCUSDT(), "ISOLATED"), "USDTMarginedFuturesChangeInitialMarginType should not error")
 }
 
-func TestUCurrentAllAlgoOpenOrders(t *testing.T) {
+func TestUSDTMarginedFuturesCurrentAllAlgoOpenOrders(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.UCurrentAllAlgoOpenOrders(t.Context(), "CONDITIONAL", currency.NewBTCUSDT(), 2146760)
-	require.NoError(t, err, "UCurrentAllAlgoOpenOrders must not error for a symbol")
+	result, err := e.USDTMarginedFuturesCurrentAllAlgoOpenOrders(t.Context(), "CONDITIONAL", currency.NewBTCUSDT(), 2146760)
+	require.NoError(t, err, "USDTMarginedFuturesCurrentAllAlgoOpenOrders must not error for a symbol")
 	if mockTests {
-		exp := []UAlgoOrderResponse{
+		exp := []USDTMarginedFuturesAlgoOrderResponse{
 			{
 				AlgoID:                  2146760,
 				ClientAlgoID:            "6B2I9XVcJpCjqPAJ4YoFX7",
@@ -2597,12 +2597,12 @@ func TestUCurrentAllAlgoOpenOrders(t *testing.T) {
 				TakeProfitOrderType:     "LIMIT",
 			},
 		}
-		assert.Equal(t, exp, result, "UCurrentAllAlgoOpenOrders should decode every field")
+		assert.Equal(t, exp, result, "USDTMarginedFuturesCurrentAllAlgoOpenOrders should decode every field")
 	}
-	result, err = e.UCurrentAllAlgoOpenOrders(t.Context(), "", currency.EMPTYPAIR, 0)
-	require.NoError(t, err, "UCurrentAllAlgoOpenOrders must not error for every symbol")
+	result, err = e.USDTMarginedFuturesCurrentAllAlgoOpenOrders(t.Context(), "", currency.EMPTYPAIR, 0)
+	require.NoError(t, err, "USDTMarginedFuturesCurrentAllAlgoOpenOrders must not error for every symbol")
 	if mockTests {
-		exp := []UAlgoOrderResponse{
+		exp := []USDTMarginedFuturesAlgoOrderResponse{
 			{
 				AlgoID:                  2146760,
 				ClientAlgoID:            "6B2I9XVcJpCjqPAJ4YoFX7",
@@ -2636,20 +2636,20 @@ func TestUCurrentAllAlgoOpenOrders(t *testing.T) {
 				TakeProfitOrderType:     "LIMIT",
 			},
 		}
-		assert.Equal(t, exp, result, "UCurrentAllAlgoOpenOrders should decode every field for every symbol")
+		assert.Equal(t, exp, result, "USDTMarginedFuturesCurrentAllAlgoOpenOrders should decode every field for every symbol")
 	}
 }
 
-func TestUAllAccountOpenOrders(t *testing.T) {
+func TestUSDTMarginedFuturesAllAccountOpenOrders(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
 	for _, symbol := range []currency.Pair{currency.NewBTCUSDT(), currency.EMPTYPAIR} {
-		result, err := e.UAllAccountOpenOrders(t.Context(), symbol)
-		require.NoErrorf(t, err, "UAllAccountOpenOrders must not error for symbol %q", symbol)
+		result, err := e.USDTMarginedFuturesAllAccountOpenOrders(t.Context(), symbol)
+		require.NoErrorf(t, err, "USDTMarginedFuturesAllAccountOpenOrders must not error for symbol %q", symbol)
 		if mockTests {
-			exp := []UOrderResponse{
+			exp := []USDTMarginedFuturesOrderResponse{
 				{
 					ClientOrderID:           "testOrder",
 					ExecutedQuantity:        0.001,
@@ -2679,28 +2679,28 @@ func TestUAllAccountOpenOrders(t *testing.T) {
 					PriceRate:               0.3,
 				},
 			}
-			assert.Equal(t, exp, result, "UAllAccountOpenOrders should decode every field")
+			assert.Equal(t, exp, result, "USDTMarginedFuturesAllAccountOpenOrders should decode every field")
 		}
 	}
 }
 
-func TestGetUSDTOrderModifyHistory(t *testing.T) {
+func TestGetUSDTMarginedFuturesOrderModifyHistory(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetUSDTOrderModifyHistory(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "GetUSDTOrderModifyHistory must reject a nil request")
-	_, err = e.GetUSDTOrderModifyHistory(t.Context(), &UOrderModifyHistoryRequest{OrderID: 20072994037})
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetUSDTOrderModifyHistory must reject an empty symbol")
-	_, err = e.GetUSDTOrderModifyHistory(t.Context(), &UOrderModifyHistoryRequest{Symbol: currency.NewBTCUSDT()})
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "GetUSDTOrderModifyHistory must reject a missing order ID")
+	_, err := e.GetUSDTMarginedFuturesOrderModifyHistory(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "GetUSDTMarginedFuturesOrderModifyHistory must reject a nil request")
+	_, err = e.GetUSDTMarginedFuturesOrderModifyHistory(t.Context(), &USDTMarginedFuturesOrderModifyHistoryRequest{OrderID: 20072994037})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetUSDTMarginedFuturesOrderModifyHistory must reject an empty symbol")
+	_, err = e.GetUSDTMarginedFuturesOrderModifyHistory(t.Context(), &USDTMarginedFuturesOrderModifyHistoryRequest{Symbol: currency.NewBTCUSDT()})
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "GetUSDTMarginedFuturesOrderModifyHistory must reject a missing order ID")
 	startTime, endTime := getTime()
-	_, err = e.GetUSDTOrderModifyHistory(t.Context(), &UOrderModifyHistoryRequest{Symbol: currency.NewBTCUSDT(), OrderID: 20072994037, StartTime: endTime, EndTime: startTime})
-	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetUSDTOrderModifyHistory must reject a start time after the end time")
+	_, err = e.GetUSDTMarginedFuturesOrderModifyHistory(t.Context(), &USDTMarginedFuturesOrderModifyHistoryRequest{Symbol: currency.NewBTCUSDT(), OrderID: 20072994037, StartTime: endTime, EndTime: startTime})
+	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetUSDTMarginedFuturesOrderModifyHistory must reject a start time after the end time")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetUSDTOrderModifyHistory(t.Context(), &UOrderModifyHistoryRequest{Symbol: currency.NewBTCUSDT(), OrderID: 20072994037, StartTime: startTime, EndTime: endTime, Limit: 10})
-	require.NoError(t, err, "GetUSDTOrderModifyHistory must not error")
+	result, err := e.GetUSDTMarginedFuturesOrderModifyHistory(t.Context(), &USDTMarginedFuturesOrderModifyHistoryRequest{Symbol: currency.NewBTCUSDT(), OrderID: 20072994037, StartTime: startTime, EndTime: endTime, Limit: 10})
+	require.NoError(t, err, "GetUSDTMarginedFuturesOrderModifyHistory must not error")
 	if mockTests {
 		exp := []FuturesOrderAmendmentResponse{
 			{
@@ -2724,29 +2724,29 @@ func TestGetUSDTOrderModifyHistory(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, exp, result, "GetUSDTOrderModifyHistory should decode every field")
+		assert.Equal(t, exp, result, "GetUSDTMarginedFuturesOrderModifyHistory should decode every field")
 	}
 }
 
-func TestUPositionMarginChangeHistory(t *testing.T) {
+func TestUSDTMarginedFuturesPositionMarginChangeHistory(t *testing.T) {
 	t.Parallel()
-	_, err := e.UPositionMarginChangeHistory(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "UPositionMarginChangeHistory must reject a nil request")
-	_, err = e.UPositionMarginChangeHistory(t.Context(), &UPositionMarginChangeHistoryRequest{ChangeType: "add"})
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "UPositionMarginChangeHistory must reject an empty symbol")
-	_, err = e.UPositionMarginChangeHistory(t.Context(), &UPositionMarginChangeHistoryRequest{Symbol: currency.NewBTCUSDT(), ChangeType: "remove"})
-	require.ErrorIs(t, err, errMarginChangeTypeInvalid, "UPositionMarginChangeHistory must reject an unknown change type")
+	_, err := e.USDTMarginedFuturesPositionMarginChangeHistory(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "USDTMarginedFuturesPositionMarginChangeHistory must reject a nil request")
+	_, err = e.USDTMarginedFuturesPositionMarginChangeHistory(t.Context(), &USDTMarginedFuturesPositionMarginChangeHistoryRequest{ChangeType: "add"})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "USDTMarginedFuturesPositionMarginChangeHistory must reject an empty symbol")
+	_, err = e.USDTMarginedFuturesPositionMarginChangeHistory(t.Context(), &USDTMarginedFuturesPositionMarginChangeHistoryRequest{Symbol: currency.NewBTCUSDT(), ChangeType: "remove"})
+	require.ErrorIs(t, err, errMarginChangeTypeInvalid, "USDTMarginedFuturesPositionMarginChangeHistory must reject an unknown change type")
 	startTime, endTime := getTime()
-	_, err = e.UPositionMarginChangeHistory(t.Context(), &UPositionMarginChangeHistoryRequest{Symbol: currency.NewBTCUSDT(), ChangeType: "add", StartTime: endTime, EndTime: startTime})
-	require.ErrorIs(t, err, common.ErrStartAfterEnd, "UPositionMarginChangeHistory must reject a start time after the end time")
+	_, err = e.USDTMarginedFuturesPositionMarginChangeHistory(t.Context(), &USDTMarginedFuturesPositionMarginChangeHistoryRequest{Symbol: currency.NewBTCUSDT(), ChangeType: "add", StartTime: endTime, EndTime: startTime})
+	require.ErrorIs(t, err, common.ErrStartAfterEnd, "USDTMarginedFuturesPositionMarginChangeHistory must reject a start time after the end time")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.UPositionMarginChangeHistory(t.Context(), &UPositionMarginChangeHistoryRequest{Symbol: currency.NewBTCUSDT(), ChangeType: "add", StartTime: startTime, EndTime: endTime, Limit: 5})
-	require.NoError(t, err, "UPositionMarginChangeHistory must not error")
+	result, err := e.USDTMarginedFuturesPositionMarginChangeHistory(t.Context(), &USDTMarginedFuturesPositionMarginChangeHistoryRequest{Symbol: currency.NewBTCUSDT(), ChangeType: "add", StartTime: startTime, EndTime: endTime, Limit: 5})
+	require.NoError(t, err, "USDTMarginedFuturesPositionMarginChangeHistory must not error")
 	if mockTests {
-		exp := []UPositionMarginChangeResponse{
+		exp := []USDTMarginedFuturesPositionMarginChangeResponse{
 			{
 				Symbol:       "BTCUSDT",
 				Type:         1,
@@ -2757,47 +2757,47 @@ func TestUPositionMarginChangeHistory(t *testing.T) {
 				PositionSide: "LONG",
 			},
 		}
-		assert.Equal(t, exp, result, "UPositionMarginChangeHistory should decode every field")
+		assert.Equal(t, exp, result, "USDTMarginedFuturesPositionMarginChangeHistory should decode every field")
 	}
 }
 
-func TestUModifyIsolatedPositionMarginRequest(t *testing.T) {
+func TestUSDTMarginedFuturesModifyIsolatedPositionMarginRequest(t *testing.T) {
 	t.Parallel()
-	_, err := e.UModifyIsolatedPositionMarginRequest(t.Context(), currency.EMPTYPAIR, "LONG", "add", 5)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "UModifyIsolatedPositionMarginRequest must reject an empty symbol")
-	_, err = e.UModifyIsolatedPositionMarginRequest(t.Context(), currency.NewBTCUSDT(), "LONG", "", 5)
-	require.ErrorIs(t, err, errMarginChangeTypeInvalid, "UModifyIsolatedPositionMarginRequest must reject an empty change type")
-	_, err = e.UModifyIsolatedPositionMarginRequest(t.Context(), currency.NewBTCUSDT(), "LONG", "add", 0)
-	require.ErrorIs(t, err, errMarginAmountRequired, "UModifyIsolatedPositionMarginRequest must reject a zero amount")
+	_, err := e.USDTMarginedFuturesModifyIsolatedPositionMarginRequest(t.Context(), currency.EMPTYPAIR, "LONG", "add", 5)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "USDTMarginedFuturesModifyIsolatedPositionMarginRequest must reject an empty symbol")
+	_, err = e.USDTMarginedFuturesModifyIsolatedPositionMarginRequest(t.Context(), currency.NewBTCUSDT(), "LONG", "", 5)
+	require.ErrorIs(t, err, errMarginChangeTypeInvalid, "USDTMarginedFuturesModifyIsolatedPositionMarginRequest must reject an empty change type")
+	_, err = e.USDTMarginedFuturesModifyIsolatedPositionMarginRequest(t.Context(), currency.NewBTCUSDT(), "LONG", "add", 0)
+	require.ErrorIs(t, err, errMarginAmountRequired, "USDTMarginedFuturesModifyIsolatedPositionMarginRequest must reject a zero amount")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	result, err := e.UModifyIsolatedPositionMarginRequest(t.Context(), currency.NewBTCUSDT(), "LONG", "add", 5)
-	require.NoError(t, err, "UModifyIsolatedPositionMarginRequest must not error")
+	result, err := e.USDTMarginedFuturesModifyIsolatedPositionMarginRequest(t.Context(), currency.NewBTCUSDT(), "LONG", "add", 5)
+	require.NoError(t, err, "USDTMarginedFuturesModifyIsolatedPositionMarginRequest must not error")
 	if mockTests {
-		exp := &UModifyIsolatedPositionMarginResponse{
+		exp := &USDTMarginedFuturesModifyIsolatedPositionMarginResponse{
 			Amount:  5,
 			Code:    200,
 			Message: "Successfully modify position margin.",
 			Type:    1,
 		}
-		assert.Equal(t, exp, result, "UModifyIsolatedPositionMarginRequest should decode every field")
+		assert.Equal(t, exp, result, "USDTMarginedFuturesModifyIsolatedPositionMarginRequest should decode every field")
 	}
 }
 
-func TestUPositionsADLEstimate(t *testing.T) {
+func TestUSDTMarginedFuturesPositionsAutoDeleveragingEstimate(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.UPositionsADLEstimate(t.Context(), currency.NewBTCUSDT())
-	require.NoError(t, err, "UPositionsADLEstimate must not error")
+	result, err := e.USDTMarginedFuturesPositionsAutoDeleveragingEstimate(t.Context(), currency.NewBTCUSDT())
+	require.NoError(t, err, "USDTMarginedFuturesPositionsAutoDeleveragingEstimate must not error")
 	if mockTests {
-		exp := []UPositionADLQuantileResponse{
+		exp := []USDTMarginedFuturesPositionAutoDeleveragingQuantileResponse{
 			{
 				Symbol: "BTCUSDT",
-				ADLQuantile: UADLQuantile{
+				AutoDeleveragingQuantile: USDTMarginedFuturesAutoDeleveragingQuantile{
 					Long:  3,
 					Short: 2,
 					Hedge: 1,
@@ -2805,19 +2805,19 @@ func TestUPositionsADLEstimate(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, exp, result, "UPositionsADLEstimate should decode every field")
+		assert.Equal(t, exp, result, "USDTMarginedFuturesPositionsAutoDeleveragingEstimate should decode every field")
 	}
 }
 
-func TestUPositionsInfoV2(t *testing.T) {
+func TestUSDTMarginedFuturesPositionsInfoV2(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.UPositionsInfoV2(t.Context(), currency.NewBTCUSDT())
-	require.NoError(t, err, "UPositionsInfoV2 must not error")
+	result, err := e.USDTMarginedFuturesPositionsInfoV2(t.Context(), currency.NewBTCUSDT())
+	require.NoError(t, err, "USDTMarginedFuturesPositionsInfoV2 must not error")
 	if mockTests {
-		exp := []UPositionInformationV2Response{
+		exp := []USDTMarginedFuturesPositionInformationV2Response{
 			{
 				Symbol:           "BTCUSDT",
 				PositionAmount:   0.001,
@@ -2837,63 +2837,63 @@ func TestUPositionsInfoV2(t *testing.T) {
 				UpdateTime:       types.Time(time.UnixMilli(1625474304765)),
 			},
 		}
-		assert.Equal(t, exp, result, "UPositionsInfoV2 should decode every field")
+		assert.Equal(t, exp, result, "USDTMarginedFuturesPositionsInfoV2 should decode every field")
 	}
 }
 
-func TestUPositionsInfoV3(t *testing.T) {
+func TestUSDTMarginedFuturesPositionsInfoV3(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.UPositionsInfoV3(t.Context(), currency.NewBTCUSDT())
-	require.NoError(t, err, "UPositionsInfoV3 must not error")
+	result, err := e.USDTMarginedFuturesPositionsInfoV3(t.Context(), currency.NewBTCUSDT())
+	require.NoError(t, err, "USDTMarginedFuturesPositionsInfoV3 must not error")
 	if mockTests {
-		exp := []UPositionInformationV3Response{
+		exp := []USDTMarginedFuturesPositionInformationV3Response{
 			{
-				Symbol:                 "BTCUSDT",
-				PositionSide:           "BOTH",
-				PositionAmount:         0.001,
-				EntryPrice:             80000,
-				BreakEvenPrice:         80032,
-				MarkPrice:              81000,
-				UnrealisedProfit:       1,
-				LiquidationPrice:       72400.5,
-				IsolatedMargin:         8.1,
-				Notional:               81,
-				MarginAsset:            currency.USDT,
-				IsolatedWallet:         8,
-				InitialMargin:          8.1,
-				MaintenanceMargin:      0.405,
-				PositionInitialMargin:  8.1,
-				OpenOrderInitialMargin: 1.25,
-				ADL:                    2,
-				BidNotional:            12.5,
-				AskNotional:            6.25,
-				UpdateTime:             types.Time(time.UnixMilli(1720736417660)),
+				Symbol:                  "BTCUSDT",
+				PositionSide:            "BOTH",
+				PositionAmount:          0.001,
+				EntryPrice:              80000,
+				BreakEvenPrice:          80032,
+				MarkPrice:               81000,
+				UnrealisedProfit:        1,
+				LiquidationPrice:        72400.5,
+				IsolatedMargin:          8.1,
+				Notional:                81,
+				MarginAsset:             currency.USDT,
+				IsolatedWallet:          8,
+				InitialMargin:           8.1,
+				MaintenanceMargin:       0.405,
+				PositionInitialMargin:   8.1,
+				OpenOrderInitialMargin:  1.25,
+				AutoDeleveragingRanking: 2,
+				BidNotional:             12.5,
+				AskNotional:             6.25,
+				UpdateTime:              types.Time(time.UnixMilli(1720736417660)),
 			},
 		}
-		assert.Equal(t, exp, result, "UPositionsInfoV3 should decode every field")
+		assert.Equal(t, exp, result, "USDTMarginedFuturesPositionsInfoV3 should decode every field")
 	}
 }
 
-func TestUQueryAllAlgoOrders(t *testing.T) {
+func TestUSDTMarginedFuturesQueryAllAlgoOrders(t *testing.T) {
 	t.Parallel()
-	_, err := e.UQueryAllAlgoOrders(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "UQueryAllAlgoOrders must reject a nil request")
-	_, err = e.UQueryAllAlgoOrders(t.Context(), &UAllAlgoOrdersRequest{Limit: 10})
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "UQueryAllAlgoOrders must reject an empty symbol")
+	_, err := e.USDTMarginedFuturesQueryAllAlgoOrders(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "USDTMarginedFuturesQueryAllAlgoOrders must reject a nil request")
+	_, err = e.USDTMarginedFuturesQueryAllAlgoOrders(t.Context(), &USDTMarginedFuturesAllAlgoOrdersRequest{Limit: 10})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "USDTMarginedFuturesQueryAllAlgoOrders must reject an empty symbol")
 	startTime, endTime := getTime()
-	_, err = e.UQueryAllAlgoOrders(t.Context(), &UAllAlgoOrdersRequest{Symbol: currency.NewBTCUSDT(), StartTime: endTime, EndTime: startTime})
-	require.ErrorIs(t, err, common.ErrStartAfterEnd, "UQueryAllAlgoOrders must reject a start time after the end time")
+	_, err = e.USDTMarginedFuturesQueryAllAlgoOrders(t.Context(), &USDTMarginedFuturesAllAlgoOrdersRequest{Symbol: currency.NewBTCUSDT(), StartTime: endTime, EndTime: startTime})
+	require.ErrorIs(t, err, common.ErrStartAfterEnd, "USDTMarginedFuturesQueryAllAlgoOrders must reject a start time after the end time")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.UQueryAllAlgoOrders(t.Context(), &UAllAlgoOrdersRequest{Symbol: currency.NewBTCUSDT(), StartTime: startTime, EndTime: endTime, Limit: 10})
-	require.NoError(t, err, "UQueryAllAlgoOrders must not error")
+	result, err := e.USDTMarginedFuturesQueryAllAlgoOrders(t.Context(), &USDTMarginedFuturesAllAlgoOrdersRequest{Symbol: currency.NewBTCUSDT(), StartTime: startTime, EndTime: endTime, Limit: 10})
+	require.NoError(t, err, "USDTMarginedFuturesQueryAllAlgoOrders must not error")
 	if mockTests {
-		exp := []UAlgoOrderResponse{
+		exp := []USDTMarginedFuturesAlgoOrderResponse{
 			{
 				AlgoID:                  2146760,
 				ClientAlgoID:            "6B2I9XVcJpCjqPAJ4YoFX7",
@@ -2927,24 +2927,24 @@ func TestUQueryAllAlgoOrders(t *testing.T) {
 				TakeProfitOrderType:     "LIMIT",
 			},
 		}
-		assert.Equal(t, exp, result, "UQueryAllAlgoOrders should decode every field")
+		assert.Equal(t, exp, result, "USDTMarginedFuturesQueryAllAlgoOrders should decode every field")
 	}
 }
 
-func TestUFetchOpenOrder(t *testing.T) {
+func TestUSDTMarginedFuturesFetchOpenOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.UFetchOpenOrder(t.Context(), currency.EMPTYPAIR, 123, "")
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "UFetchOpenOrder must reject an empty symbol")
-	_, err = e.UFetchOpenOrder(t.Context(), currency.NewBTCUSDT(), 0, "")
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "UFetchOpenOrder must reject a missing order ID")
+	_, err := e.USDTMarginedFuturesFetchOpenOrder(t.Context(), currency.EMPTYPAIR, 123, "")
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "USDTMarginedFuturesFetchOpenOrder must reject an empty symbol")
+	_, err = e.USDTMarginedFuturesFetchOpenOrder(t.Context(), currency.NewBTCUSDT(), 0, "")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "USDTMarginedFuturesFetchOpenOrder must reject a missing order ID")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.UFetchOpenOrder(t.Context(), currency.NewBTCUSDT(), 123, "")
-	require.NoError(t, err, "UFetchOpenOrder must not error")
+	result, err := e.USDTMarginedFuturesFetchOpenOrder(t.Context(), currency.NewBTCUSDT(), 123, "")
+	require.NoError(t, err, "USDTMarginedFuturesFetchOpenOrder must not error")
 	if mockTests {
-		exp := &UOrderResponse{
+		exp := &USDTMarginedFuturesOrderResponse{
 			ClientOrderID:           "testOrder",
 			ExecutedQuantity:        0.001,
 			OrderID:                 123,
@@ -2972,25 +2972,25 @@ func TestUFetchOpenOrder(t *testing.T) {
 			ActivatePrice:           79500,
 			PriceRate:               0.3,
 		}
-		assert.Equal(t, exp, result, "UFetchOpenOrder should decode every field")
+		assert.Equal(t, exp, result, "USDTMarginedFuturesFetchOpenOrder should decode every field")
 	}
 }
 
-func TestUAccountForcedOrders(t *testing.T) {
+func TestUSDTMarginedFuturesAccountForcedOrders(t *testing.T) {
 	t.Parallel()
-	_, err := e.UAccountForcedOrders(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "UAccountForcedOrders must reject a nil request")
+	_, err := e.USDTMarginedFuturesAccountForcedOrders(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "USDTMarginedFuturesAccountForcedOrders must reject a nil request")
 	startTime, endTime := getTime()
-	_, err = e.UAccountForcedOrders(t.Context(), &UForceOrdersRequest{Symbol: currency.NewBTCUSDT(), StartTime: endTime, EndTime: startTime})
-	require.ErrorIs(t, err, common.ErrStartAfterEnd, "UAccountForcedOrders must reject a start time after the end time")
+	_, err = e.USDTMarginedFuturesAccountForcedOrders(t.Context(), &USDTMarginedFuturesForceOrdersRequest{Symbol: currency.NewBTCUSDT(), StartTime: endTime, EndTime: startTime})
+	require.ErrorIs(t, err, common.ErrStartAfterEnd, "USDTMarginedFuturesAccountForcedOrders must reject a start time after the end time")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.UAccountForcedOrders(t.Context(), &UForceOrdersRequest{Symbol: currency.NewBTCUSDT(), AutoCloseType: "ADL", StartTime: startTime, EndTime: endTime, Limit: 5})
-	require.NoError(t, err, "UAccountForcedOrders must not error")
+	result, err := e.USDTMarginedFuturesAccountForcedOrders(t.Context(), &USDTMarginedFuturesForceOrdersRequest{Symbol: currency.NewBTCUSDT(), AutoCloseType: "ADL", StartTime: startTime, EndTime: endTime, Limit: 5})
+	require.NoError(t, err, "USDTMarginedFuturesAccountForcedOrders must not error")
 	if mockTests {
-		exp := []UForceOrderResponse{
+		exp := []USDTMarginedFuturesForceOrderResponse{
 			{
 				OrderID:          6071832819,
 				Symbol:           "BTCUSDT",
@@ -3016,47 +3016,47 @@ func TestUAccountForcedOrders(t *testing.T) {
 				UpdateTime:       types.Time(time.UnixMilli(1744118400087)),
 			},
 		}
-		assert.Equal(t, exp, result, "UAccountForcedOrders should decode every field")
+		assert.Equal(t, exp, result, "USDTMarginedFuturesAccountForcedOrders should decode every field")
 	}
 }
 
-func TestKeepaliveUFuturesUserDataStream(t *testing.T) {
+func TestKeepaliveUSDTMarginedFuturesUserDataStream(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-		_, err := e.StartUFuturesUserDataStream(t.Context())
-		require.NoError(t, err, "StartUFuturesUserDataStream must not error")
+		_, err := e.StartUSDTMarginedFuturesUserDataStream(t.Context())
+		require.NoError(t, err, "StartUSDTMarginedFuturesUserDataStream must not error")
 	}
-	result, err := e.KeepaliveUFuturesUserDataStream(t.Context())
-	require.NoError(t, err, "KeepaliveUFuturesUserDataStream must not error")
+	result, err := e.KeepaliveUSDTMarginedFuturesUserDataStream(t.Context())
+	require.NoError(t, err, "KeepaliveUSDTMarginedFuturesUserDataStream must not error")
 	if mockTests {
 		exp := &FuturesListenKeyResponse{ListenKey: "pqia91ma19a5s61cv6a81va65sdf19v8a65a1a5s61cv6a81va65sdf19v8a65a1"}
-		assert.Equal(t, exp, result, "KeepaliveUFuturesUserDataStream should decode every field")
+		assert.Equal(t, exp, result, "KeepaliveUSDTMarginedFuturesUserDataStream should decode every field")
 		return
 	}
-	assert.NotEmpty(t, result.ListenKey, "KeepaliveUFuturesUserDataStream should return the listen key")
+	assert.NotEmpty(t, result.ListenKey, "KeepaliveUSDTMarginedFuturesUserDataStream should return the listen key")
 }
 
-func TestStartUFuturesUserDataStream(t *testing.T) {
+func TestStartUSDTMarginedFuturesUserDataStream(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.StartUFuturesUserDataStream(t.Context())
-	require.NoError(t, err, "StartUFuturesUserDataStream must not error")
+	result, err := e.StartUSDTMarginedFuturesUserDataStream(t.Context())
+	require.NoError(t, err, "StartUSDTMarginedFuturesUserDataStream must not error")
 	if mockTests {
 		exp := &FuturesListenKeyResponse{ListenKey: "pqia91ma19a5s61cv6a81va65sdf19v8a65a1a5s61cv6a81va65sdf19v8a65a1"}
-		assert.Equal(t, exp, result, "StartUFuturesUserDataStream should decode every field")
+		assert.Equal(t, exp, result, "StartUSDTMarginedFuturesUserDataStream should decode every field")
 		return
 	}
-	assert.NotEmpty(t, result.ListenKey, "StartUFuturesUserDataStream should return a listen key")
+	assert.NotEmpty(t, result.ListenKey, "StartUSDTMarginedFuturesUserDataStream should return a listen key")
 }
 
-func TestCloseUFuturesUserDataStream(t *testing.T) {
+func TestCloseUSDTMarginedFuturesUserDataStream(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		// Closing invalidates the listen key every client of the account shares
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	assert.NoError(t, e.CloseUFuturesUserDataStream(t.Context()), "CloseUFuturesUserDataStream should not error")
+	assert.NoError(t, e.CloseUSDTMarginedFuturesUserDataStream(t.Context()), "CloseUSDTMarginedFuturesUserDataStream should not error")
 }

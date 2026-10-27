@@ -539,9 +539,9 @@ func TestGetWebsocketAveragePrice(t *testing.T) {
 	require.NoError(t, err, "GetWebsocketAveragePrice must not error")
 	if mockTests {
 		exp := &WebsocketAveragePriceResponse{
-			Minutes:   5,
-			Price:     86109.15045074,
-			CloseTime: types.Time(time.Unix(1791285061, 0)),
+			IntervalInMinutes: 5,
+			Price:             86109.15045074,
+			CloseTime:         types.Time(time.Unix(1791285061, 0)),
 		}
 		assert.Equal(t, exp, got, "GetWebsocketAveragePrice should return the average price")
 	} else {
@@ -913,7 +913,7 @@ func TestWebsocketCancelOpenOrders(t *testing.T) {
 				Type:                       "STOP_LOSS_LIMIT",
 				Side:                       "SELL",
 				StopPrice:                  23400,
-				TrailingDelta:              10,
+				TrailingDeltaInBasisPoints: 10,
 				TrailingTime:               1684804350001,
 				IcebergQuantity:            0.001,
 				StrategyID:                 37463720,
@@ -1024,7 +1024,7 @@ func TestWebsocketCancelExistingOrder(t *testing.T) {
 			Type:                       "STOP_LOSS_LIMIT",
 			Side:                       "SELL",
 			StopPrice:                  23400,
-			TrailingDelta:              10,
+			TrailingDeltaInBasisPoints: 10,
 			TrailingTime:               1684804350001,
 			IcebergQuantity:            0.001,
 			StrategyID:                 37463720,
@@ -1139,7 +1139,7 @@ func TestWebsocketCancelAndReplaceTradeOrder(t *testing.T) {
 		NewClientOrderID:            "bX5wROblo6YeDwa9iTLeyY",
 		NewOrderResponseType:        "FULL",
 		StopPrice:                   23400,
-		TrailingDelta:               10,
+		TrailingDeltaInBasisPoints:  10,
 		IcebergQuantity:             0.001,
 		StrategyID:                  37463720,
 		StrategyType:                1000000,
@@ -1172,7 +1172,7 @@ func TestWebsocketCancelAndReplaceTradeOrder(t *testing.T) {
 				Type:                       "STOP_LOSS_LIMIT",
 				Side:                       "SELL",
 				StopPrice:                  23400,
-				TrailingDelta:              10,
+				TrailingDeltaInBasisPoints: 10,
 				TrailingTime:               1684804350001,
 				IcebergQuantity:            0.001,
 				StrategyID:                 37463720,
@@ -1221,21 +1221,21 @@ func TestWebsocketCancelAndReplaceTradeOrder(t *testing.T) {
 						TradeID:         1650422482,
 					},
 				},
-				IcebergQuantity:   0.001,
-				PreventedMatchID:  3,
-				PreventedQuantity: 1.2,
-				StopPrice:         23400,
-				StrategyID:        37463720,
-				StrategyType:      1000000,
-				TrailingDelta:     10,
-				TrailingTime:      -1,
-				UsedSOR:           true,
-				WorkingFloor:      "EXCHANGE",
-				PegPriceType:      "PRIMARY_PEG",
-				PegOffsetType:     "PRICE_LEVEL",
-				PegOffsetValue:    5,
-				PeggedPrice:       23416.1,
-				ExpiryReason:      "INSUFFICIENT_LIQUIDITY",
+				IcebergQuantity:            0.001,
+				PreventedMatchID:           3,
+				PreventedQuantity:          1.2,
+				StopPrice:                  23400,
+				StrategyID:                 37463720,
+				StrategyType:               1000000,
+				TrailingDeltaInBasisPoints: 10,
+				TrailingTime:               -1,
+				UsedSOR:                    true,
+				WorkingFloor:               "EXCHANGE",
+				PegPriceType:               "PRIMARY_PEG",
+				PegOffsetType:              "PRICE_LEVEL",
+				PegOffsetValue:             5,
+				PeggedPrice:                23416.1,
+				ExpiryReason:               "INSUFFICIENT_LIQUIDITY",
 			},
 		}
 		assert.Equal(t, exp, got, "WebsocketCancelAndReplaceTradeOrder should return the cancellation and the new order")
@@ -1263,23 +1263,23 @@ func TestWebsocketCancelAndReplaceTradeOrder(t *testing.T) {
 	assert.Equal(t, exp, got, "WebsocketCancelAndReplaceTradeOrder should return the outcome of both halves")
 }
 
-func TestWebsocketCancelOCOOrder(t *testing.T) {
+func TestWebsocketCancelOneCancelsTheOtherOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.WebsocketCancelOCOOrder(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "WebsocketCancelOCOOrder must reject a nil request")
-	_, err = e.WebsocketCancelOCOOrder(t.Context(), &WebsocketCancelOrderListRequest{Symbol: currency.NewBTCUSDT()})
-	require.ErrorIs(t, err, errOrderListIDRequired, "WebsocketCancelOCOOrder must require an order list ID or client order list ID")
-	_, err = e.WebsocketCancelOCOOrder(t.Context(), &WebsocketCancelOrderListRequest{OrderListID: 1274512})
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "WebsocketCancelOCOOrder must reject an empty pair")
+	_, err := e.WebsocketCancelOneCancelsTheOtherOrder(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "WebsocketCancelOneCancelsTheOtherOrder must reject a nil request")
+	_, err = e.WebsocketCancelOneCancelsTheOtherOrder(t.Context(), &WebsocketCancelOrderListRequest{Symbol: currency.NewBTCUSDT()})
+	require.ErrorIs(t, err, errOrderListIDRequired, "WebsocketCancelOneCancelsTheOtherOrder must require an order list ID or client order list ID")
+	_, err = e.WebsocketCancelOneCancelsTheOtherOrder(t.Context(), &WebsocketCancelOrderListRequest{OrderListID: 1274512})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "WebsocketCancelOneCancelsTheOtherOrder must reject an empty pair")
 
 	ex := newWsAPITestExchange(t, true, canManipulateRealOrders)
-	got, err := ex.WebsocketCancelOCOOrder(t.Context(), &WebsocketCancelOrderListRequest{
+	got, err := ex.WebsocketCancelOneCancelsTheOtherOrder(t.Context(), &WebsocketCancelOrderListRequest{
 		Symbol:            currency.NewBTCUSDT(),
 		OrderListID:       1274512,
 		ListClientOrderID: "6023531d7edaad348f5aff",
 		NewClientOrderID:  "tTHrs4n3dWgqWQ1mXFZrzQ",
 	})
-	require.NoError(t, err, "WebsocketCancelOCOOrder must not error")
+	require.NoError(t, err, "WebsocketCancelOneCancelsTheOtherOrder must not error")
 	if mockTests {
 		exp := &WebsocketCancelOrderResponse{
 			Symbol:            "BTCUSDT",
@@ -1335,53 +1335,53 @@ func TestWebsocketCancelOCOOrder(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, exp, got, "WebsocketCancelOCOOrder should return the cancelled order list")
+		assert.Equal(t, exp, got, "WebsocketCancelOneCancelsTheOtherOrder should return the cancelled order list")
 	}
 }
 
-func TestWebsocketPlaceOCOOrder(t *testing.T) {
+func TestWebsocketPlaceOneCancelsTheOtherOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.WebsocketPlaceOCOOrder(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "WebsocketPlaceOCOOrder must reject a nil request")
-	arg := &WebsocketPlaceOCOOrderRequest{}
-	_, err = e.WebsocketPlaceOCOOrder(t.Context(), arg)
-	require.ErrorIs(t, err, order.ErrSideIsInvalid, "WebsocketPlaceOCOOrder must require a side")
+	_, err := e.WebsocketPlaceOneCancelsTheOtherOrder(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "WebsocketPlaceOneCancelsTheOtherOrder must reject a nil request")
+	arg := &WebsocketPlaceOneCancelsTheOtherOrderRequest{}
+	_, err = e.WebsocketPlaceOneCancelsTheOtherOrder(t.Context(), arg)
+	require.ErrorIs(t, err, order.ErrSideIsInvalid, "WebsocketPlaceOneCancelsTheOtherOrder must require a side")
 	arg.Side = "SELL"
-	_, err = e.WebsocketPlaceOCOOrder(t.Context(), arg)
-	require.ErrorIs(t, err, limits.ErrPriceBelowMin, "WebsocketPlaceOCOOrder must require a price")
+	_, err = e.WebsocketPlaceOneCancelsTheOtherOrder(t.Context(), arg)
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin, "WebsocketPlaceOneCancelsTheOtherOrder must require a price")
 	arg.Price = 23420
-	_, err = e.WebsocketPlaceOCOOrder(t.Context(), arg)
-	require.ErrorIs(t, err, limits.ErrAmountBelowMin, "WebsocketPlaceOCOOrder must require a quantity")
+	_, err = e.WebsocketPlaceOneCancelsTheOtherOrder(t.Context(), arg)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin, "WebsocketPlaceOneCancelsTheOtherOrder must require a quantity")
 	arg.Quantity = 0.0065
-	_, err = e.WebsocketPlaceOCOOrder(t.Context(), arg)
-	require.ErrorIs(t, err, errStopPriceOrTrailingDeltaRequired, "WebsocketPlaceOCOOrder must require a stop price or trailing delta")
+	_, err = e.WebsocketPlaceOneCancelsTheOtherOrder(t.Context(), arg)
+	require.ErrorIs(t, err, errStopPriceOrTrailingDeltaRequired, "WebsocketPlaceOneCancelsTheOtherOrder must require a stop price or trailing delta")
 	arg.StopPrice = 23410
-	_, err = e.WebsocketPlaceOCOOrder(t.Context(), arg)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "WebsocketPlaceOCOOrder must reject an empty pair")
+	_, err = e.WebsocketPlaceOneCancelsTheOtherOrder(t.Context(), arg)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "WebsocketPlaceOneCancelsTheOtherOrder must reject an empty pair")
 
 	ex := newWsAPITestExchange(t, true, canManipulateRealOrders)
-	got, err := ex.WebsocketPlaceOCOOrder(t.Context(), &WebsocketPlaceOCOOrderRequest{
-		Symbol:                  currency.NewBTCUSDT(),
-		Side:                    "SELL",
-		Price:                   23420,
-		Quantity:                0.0065,
-		ListClientOrderID:       "08985fedd9ea2cf6b28996",
-		LimitClientOrderID:      "jLnZpj5enfMXTuhKB1d0us",
-		LimitIcebergQuantity:    0.001,
-		LimitStrategyID:         1,
-		LimitStrategyType:       1000000,
-		StopPrice:               23410,
-		TrailingDelta:           10,
-		StopClientOrderID:       "BqtFCj5odMoWtSqGk2X9tU",
-		StopLimitPrice:          23405,
-		StopLimitTimeInForce:    "GTC",
-		StopIcebergQuantity:     0.001,
-		StopStrategyID:          2,
-		StopStrategyType:        1000001,
-		NewOrderResponseType:    "RESULT",
-		SelfTradePreventionMode: "EXPIRE_TAKER",
+	got, err := ex.WebsocketPlaceOneCancelsTheOtherOrder(t.Context(), &WebsocketPlaceOneCancelsTheOtherOrderRequest{
+		Symbol:                     currency.NewBTCUSDT(),
+		Side:                       "SELL",
+		Price:                      23420,
+		Quantity:                   0.0065,
+		ListClientOrderID:          "08985fedd9ea2cf6b28996",
+		LimitClientOrderID:         "jLnZpj5enfMXTuhKB1d0us",
+		LimitIcebergQuantity:       0.001,
+		LimitStrategyID:            1,
+		LimitStrategyType:          1000000,
+		StopPrice:                  23410,
+		TrailingDeltaInBasisPoints: 10,
+		StopClientOrderID:          "BqtFCj5odMoWtSqGk2X9tU",
+		StopLimitPrice:             23405,
+		StopLimitTimeInForce:       "GTC",
+		StopIcebergQuantity:        0.001,
+		StopStrategyID:             2,
+		StopStrategyType:           1000001,
+		NewOrderResponseType:       "RESULT",
+		SelfTradePreventionMode:    "EXPIRE_TAKER",
 	})
-	require.NoError(t, err, "WebsocketPlaceOCOOrder must not error")
+	require.NoError(t, err, "WebsocketPlaceOneCancelsTheOtherOrder must not error")
 	if mockTests {
 		exp := &WebsocketOrderListResponse{
 			OrderListID:       1274512,
@@ -1437,37 +1437,37 @@ func TestWebsocketPlaceOCOOrder(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, exp, got, "WebsocketPlaceOCOOrder should return the order list")
+		assert.Equal(t, exp, got, "WebsocketPlaceOneCancelsTheOtherOrder should return the order list")
 	}
 }
 
-func TestWebsocketPlaceOCOOrderList(t *testing.T) {
+func TestWebsocketPlaceOneCancelsTheOtherOrderList(t *testing.T) {
 	t.Parallel()
-	_, err := e.WebsocketPlaceOCOOrderList(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "WebsocketPlaceOCOOrderList must reject a nil request")
-	arg := &OCOOrderListRequest{}
-	_, err = e.WebsocketPlaceOCOOrderList(t.Context(), arg)
-	require.ErrorIs(t, err, order.ErrSideIsInvalid, "WebsocketPlaceOCOOrderList must reject a request without a side")
+	_, err := e.WebsocketPlaceOneCancelsTheOtherOrderList(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "WebsocketPlaceOneCancelsTheOtherOrderList must reject a nil request")
+	arg := &OneCancelsTheOtherOrderListRequest{}
+	_, err = e.WebsocketPlaceOneCancelsTheOtherOrderList(t.Context(), arg)
+	require.ErrorIs(t, err, order.ErrSideIsInvalid, "WebsocketPlaceOneCancelsTheOtherOrderList must reject a request without a side")
 	arg.Side = "SELL"
-	_, err = e.WebsocketPlaceOCOOrderList(t.Context(), arg)
-	require.ErrorIs(t, err, limits.ErrAmountBelowMin, "WebsocketPlaceOCOOrderList must reject a request without a quantity")
+	_, err = e.WebsocketPlaceOneCancelsTheOtherOrderList(t.Context(), arg)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin, "WebsocketPlaceOneCancelsTheOtherOrderList must reject a request without a quantity")
 	arg.Quantity = 0.0065
-	_, err = e.WebsocketPlaceOCOOrderList(t.Context(), arg)
-	require.ErrorIs(t, err, order.ErrTypeIsInvalid, "WebsocketPlaceOCOOrderList must reject a request without an above order type")
+	_, err = e.WebsocketPlaceOneCancelsTheOtherOrderList(t.Context(), arg)
+	require.ErrorIs(t, err, order.ErrTypeIsInvalid, "WebsocketPlaceOneCancelsTheOtherOrderList must reject a request without an above order type")
 	arg.Above.Type = "TAKE_PROFIT_LIMIT"
-	_, err = e.WebsocketPlaceOCOOrderList(t.Context(), arg)
-	require.ErrorIs(t, err, order.ErrTypeIsInvalid, "WebsocketPlaceOCOOrderList must reject a request without a below order type")
+	_, err = e.WebsocketPlaceOneCancelsTheOtherOrderList(t.Context(), arg)
+	require.ErrorIs(t, err, order.ErrTypeIsInvalid, "WebsocketPlaceOneCancelsTheOtherOrderList must reject a request without a below order type")
 	arg.Below.Type = "STOP_LOSS"
-	_, err = e.WebsocketPlaceOCOOrderList(t.Context(), arg)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "WebsocketPlaceOCOOrderList must reject a request without a symbol")
+	_, err = e.WebsocketPlaceOneCancelsTheOtherOrderList(t.Context(), arg)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "WebsocketPlaceOneCancelsTheOtherOrderList must reject a request without a symbol")
 
 	ex := newWsAPITestExchange(t, true, canManipulateRealOrders)
-	got, err := ex.WebsocketPlaceOCOOrderList(t.Context(), &OCOOrderListRequest{
+	got, err := ex.WebsocketPlaceOneCancelsTheOtherOrderList(t.Context(), &OneCancelsTheOtherOrderListRequest{
 		Symbol:            currency.NewBTCUSDT(),
 		ListClientOrderID: "08985fedd9ea2cf6b28996",
 		Side:              "SELL",
 		Quantity:          0.0065,
-		Above: OCOOrderListLeg{
+		Above: OneCancelsTheOtherOrderListLeg{
 			Type:            "TAKE_PROFIT_LIMIT",
 			ClientOrderID:   "jLnZpj5enfMXTuhKB1d0us",
 			IcebergQuantity: 1,
@@ -1480,18 +1480,18 @@ func TestWebsocketPlaceOCOOrderList(t *testing.T) {
 			PegOffsetType:   "PRICE_LEVEL",
 			PegOffsetValue:  5,
 		},
-		Below: OCOOrderListLeg{
-			Type:          "STOP_LOSS",
-			ClientOrderID: "BqtFCj5odMoWtSqGk2X9tU",
-			StopPrice:     23405,
-			TrailingDelta: 10,
-			StrategyID:    2,
-			StrategyType:  1000001,
+		Below: OneCancelsTheOtherOrderListLeg{
+			Type:                       "STOP_LOSS",
+			ClientOrderID:              "BqtFCj5odMoWtSqGk2X9tU",
+			StopPrice:                  23405,
+			TrailingDeltaInBasisPoints: 10,
+			StrategyID:                 2,
+			StrategyType:               1000001,
 		},
 		NewOrderResponseType:    "RESULT",
 		SelfTradePreventionMode: "EXPIRE_TAKER",
 	})
-	require.NoError(t, err, "WebsocketPlaceOCOOrderList must not error")
+	require.NoError(t, err, "WebsocketPlaceOneCancelsTheOtherOrderList must not error")
 	if mockTests {
 		exp := &WebsocketOrderListResponse{
 			OrderListID:       1274513,
@@ -1507,23 +1507,23 @@ func TestWebsocketPlaceOCOOrderList(t *testing.T) {
 			},
 			OrderReports: []WebsocketOrderResponse{
 				{
-					Symbol:                  "BTCUSDT",
-					OrderID:                 12569138903,
-					OrderListID:             1274513,
-					ClientOrderID:           "BqtFCj5odMoWtSqGk2X9tU",
-					TransactTime:            types.Time(time.UnixMilli(1711062760648)),
-					OriginalQuantity:        0.0065,
-					Status:                  "NEW",
-					TimeInForce:             "GTC",
-					Type:                    "STOP_LOSS",
-					Side:                    "SELL",
-					WorkingTime:             -1,
-					SelfTradePreventionMode: "NONE",
-					StopPrice:               23405,
-					StrategyID:              2,
-					StrategyType:            1000001,
-					TrailingDelta:           10,
-					TrailingTime:            -1,
+					Symbol:                     "BTCUSDT",
+					OrderID:                    12569138903,
+					OrderListID:                1274513,
+					ClientOrderID:              "BqtFCj5odMoWtSqGk2X9tU",
+					TransactTime:               types.Time(time.UnixMilli(1711062760648)),
+					OriginalQuantity:           0.0065,
+					Status:                     "NEW",
+					TimeInForce:                "GTC",
+					Type:                       "STOP_LOSS",
+					Side:                       "SELL",
+					WorkingTime:                -1,
+					SelfTradePreventionMode:    "NONE",
+					StopPrice:                  23405,
+					StrategyID:                 2,
+					StrategyType:               1000001,
+					TrailingDeltaInBasisPoints: 10,
+					TrailingTime:               -1,
 				},
 				{
 					Symbol:                  "BTCUSDT",
@@ -1550,7 +1550,7 @@ func TestWebsocketPlaceOCOOrderList(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, exp, got, "WebsocketPlaceOCOOrderList should return the order list")
+		assert.Equal(t, exp, got, "WebsocketPlaceOneCancelsTheOtherOrderList should return the order list")
 	}
 }
 
@@ -1621,21 +1621,21 @@ func TestWebsocketPlaceNewOrder(t *testing.T) {
 					TradeID:         1650422482,
 				},
 			},
-			IcebergQuantity:   0.001,
-			PreventedMatchID:  3,
-			PreventedQuantity: 1.2,
-			StopPrice:         23400,
-			StrategyID:        37463720,
-			StrategyType:      1000000,
-			TrailingDelta:     10,
-			TrailingTime:      -1,
-			UsedSOR:           true,
-			WorkingFloor:      "EXCHANGE",
-			PegPriceType:      "PRIMARY_PEG",
-			PegOffsetType:     "PRICE_LEVEL",
-			PegOffsetValue:    5,
-			PeggedPrice:       23416.1,
-			ExpiryReason:      "INSUFFICIENT_LIQUIDITY",
+			IcebergQuantity:            0.001,
+			PreventedMatchID:           3,
+			PreventedQuantity:          1.2,
+			StopPrice:                  23400,
+			StrategyID:                 37463720,
+			StrategyType:               1000000,
+			TrailingDeltaInBasisPoints: 10,
+			TrailingTime:               -1,
+			UsedSOR:                    true,
+			WorkingFloor:               "EXCHANGE",
+			PegPriceType:               "PRIMARY_PEG",
+			PegOffsetType:              "PRICE_LEVEL",
+			PegOffsetValue:             5,
+			PeggedPrice:                23416.1,
+			ExpiryReason:               "INSUFFICIENT_LIQUIDITY",
 		}
 		assert.Equal(t, exp, got, "WebsocketPlaceNewOrder should return the order and its fills")
 	}
@@ -1643,13 +1643,13 @@ func TestWebsocketPlaceNewOrder(t *testing.T) {
 		return
 	}
 	got, err = ex.WebsocketPlaceNewOrder(t.Context(), &WebsocketPlaceOrderRequest{
-		Symbol:               currency.NewBTCUSDT(),
-		Side:                 "BUY",
-		Type:                 "STOP_LOSS",
-		Quantity:             0.00847,
-		StopPrice:            23400,
-		TrailingDelta:        10,
-		NewOrderResponseType: "ACK",
+		Symbol:                     currency.NewBTCUSDT(),
+		Side:                       "BUY",
+		Type:                       "STOP_LOSS",
+		Quantity:                   0.00847,
+		StopPrice:                  23400,
+		TrailingDeltaInBasisPoints: 10,
+		NewOrderResponseType:       "ACK",
 	})
 	require.NoError(t, err, "WebsocketPlaceNewOrder must not error for a stop order")
 	exp := &WebsocketOrderResponse{
@@ -1766,22 +1766,22 @@ func TestWebsocketPlaceNewSOROrder(t *testing.T) {
 						AllocationID:    7,
 					},
 				},
-				WorkingFloor:            "SOR",
-				SelfTradePreventionMode: "EXPIRE_MAKER",
-				UsedSOR:                 true,
-				StopPrice:               30900,
-				TrailingDelta:           10,
-				IcebergQuantity:         0.1,
-				StrategyID:              37463720,
-				StrategyType:            1000000,
-				PreventedMatchID:        3,
-				PreventedQuantity:       1.2,
-				TrailingTime:            -1,
-				PegPriceType:            "PRIMARY_PEG",
-				PegOffsetType:           "PRICE_LEVEL",
-				PegOffsetValue:          5,
-				PeggedPrice:             31000,
-				ExpiryReason:            "INSUFFICIENT_LIQUIDITY",
+				WorkingFloor:               "SOR",
+				SelfTradePreventionMode:    "EXPIRE_MAKER",
+				UsedSOR:                    true,
+				StopPrice:                  30900,
+				TrailingDeltaInBasisPoints: 10,
+				IcebergQuantity:            0.1,
+				StrategyID:                 37463720,
+				StrategyType:               1000000,
+				PreventedMatchID:           3,
+				PreventedQuantity:          1.2,
+				TrailingTime:               -1,
+				PegPriceType:               "PRIMARY_PEG",
+				PegOffsetType:              "PRICE_LEVEL",
+				PegOffsetValue:             5,
+				PeggedPrice:                31000,
+				ExpiryReason:               "INSUFFICIENT_LIQUIDITY",
 			},
 		}
 		assert.Equal(t, exp, got, "WebsocketPlaceNewSOROrder should return the order and its fills")
@@ -1905,24 +1905,24 @@ func TestGetWebsocketAccountInfo(t *testing.T) {
 	}
 }
 
-func TestWebsocketQueryAccountOCOOrderHistory(t *testing.T) {
+func TestWebsocketQueryAccountOneCancelsTheOtherOrderHistory(t *testing.T) {
 	t.Parallel()
 	start, end := wsAPITimeRange()
-	_, err := e.WebsocketQueryAccountOCOOrderHistory(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "WebsocketQueryAccountOCOOrderHistory must reject a nil request")
-	_, err = e.WebsocketQueryAccountOCOOrderHistory(t.Context(), &WebsocketOrderListHistoryRequest{StartTime: end, EndTime: start})
-	require.ErrorIs(t, err, common.ErrStartAfterEnd, "WebsocketQueryAccountOCOOrderHistory must reject a start time after the end time")
+	_, err := e.WebsocketQueryAccountOneCancelsTheOtherOrderHistory(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "WebsocketQueryAccountOneCancelsTheOtherOrderHistory must reject a nil request")
+	_, err = e.WebsocketQueryAccountOneCancelsTheOtherOrderHistory(t.Context(), &WebsocketOrderListHistoryRequest{StartTime: end, EndTime: start})
+	require.ErrorIs(t, err, common.ErrStartAfterEnd, "WebsocketQueryAccountOneCancelsTheOtherOrderHistory must reject a start time after the end time")
 
 	ex := newWsAPITestExchange(t, true)
-	got, err := ex.WebsocketQueryAccountOCOOrderHistory(t.Context(), &WebsocketOrderListHistoryRequest{StartTime: start, EndTime: end, Limit: 2})
-	require.NoError(t, err, "WebsocketQueryAccountOCOOrderHistory must not error for a time range")
+	got, err := ex.WebsocketQueryAccountOneCancelsTheOtherOrderHistory(t.Context(), &WebsocketOrderListHistoryRequest{StartTime: start, EndTime: end, Limit: 2})
+	require.NoError(t, err, "WebsocketQueryAccountOneCancelsTheOtherOrderHistory must not error for a time range")
 	if mockTests {
-		assert.Equal(t, wsAPIFixtureResult[[]OCOOrderResponse](t, "allOrderLists", 0), got, "WebsocketQueryAccountOCOOrderHistory should return the order lists in the time range")
+		assert.Equal(t, wsAPIFixtureResult[[]OneCancelsTheOtherOrderResponse](t, "allOrderLists", 0), got, "WebsocketQueryAccountOneCancelsTheOtherOrderHistory should return the order lists in the time range")
 	}
-	got, err = ex.WebsocketQueryAccountOCOOrderHistory(t.Context(), &WebsocketOrderListHistoryRequest{FromID: 1274512})
-	require.NoError(t, err, "WebsocketQueryAccountOCOOrderHistory must not error from an order list ID")
+	got, err = ex.WebsocketQueryAccountOneCancelsTheOtherOrderHistory(t.Context(), &WebsocketOrderListHistoryRequest{FromID: 1274512})
+	require.NoError(t, err, "WebsocketQueryAccountOneCancelsTheOtherOrderHistory must not error from an order list ID")
 	if mockTests {
-		assert.Equal(t, wsAPIFixtureResult[[]OCOOrderResponse](t, "allOrderLists", 1), got, "WebsocketQueryAccountOCOOrderHistory should return the order lists from the ID")
+		assert.Equal(t, wsAPIFixtureResult[[]OneCancelsTheOtherOrderResponse](t, "allOrderLists", 1), got, "WebsocketQueryAccountOneCancelsTheOtherOrderHistory should return the order lists from the ID")
 	}
 }
 
@@ -2065,13 +2065,13 @@ func TestWebsocketAccountTradeHistory(t *testing.T) {
 	}
 }
 
-func TestWebsocketCurrentOpenOCOOrders(t *testing.T) {
+func TestWebsocketCurrentOpenOneCancelsTheOtherOrders(t *testing.T) {
 	t.Parallel()
 	ex := newWsAPITestExchange(t, true)
-	got, err := ex.WebsocketCurrentOpenOCOOrders(t.Context())
-	require.NoError(t, err, "WebsocketCurrentOpenOCOOrders must not error")
+	got, err := ex.WebsocketCurrentOpenOneCancelsTheOtherOrders(t.Context())
+	require.NoError(t, err, "WebsocketCurrentOpenOneCancelsTheOtherOrders must not error")
 	if mockTests {
-		assert.Equal(t, wsAPIFixtureResult[[]OCOOrderResponse](t, "openOrderLists.status", 0), got, "WebsocketCurrentOpenOCOOrders should return the open order lists")
+		assert.Equal(t, wsAPIFixtureResult[[]OneCancelsTheOtherOrderResponse](t, "openOrderLists.status", 0), got, "WebsocketCurrentOpenOneCancelsTheOtherOrders should return the open order lists")
 	}
 }
 
@@ -2090,19 +2090,19 @@ func TestWebsocketCurrentOpenOrders(t *testing.T) {
 	}
 }
 
-func TestWebsocketQueryOCOOrder(t *testing.T) {
+func TestWebsocketQueryOneCancelsTheOtherOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.WebsocketQueryOCOOrder(t.Context(), 0, "")
-	require.ErrorIs(t, err, errOrderListIDRequired, "WebsocketQueryOCOOrder must require an order list ID or client order list ID")
+	_, err := e.WebsocketQueryOneCancelsTheOtherOrder(t.Context(), 0, "")
+	require.ErrorIs(t, err, errOrderListIDRequired, "WebsocketQueryOneCancelsTheOtherOrder must require an order list ID or client order list ID")
 
 	ex := newWsAPITestExchange(t, true)
-	got, err := ex.WebsocketQueryOCOOrder(t.Context(), 1274512, "")
-	require.NoError(t, err, "WebsocketQueryOCOOrder must not error for an order list ID")
+	got, err := ex.WebsocketQueryOneCancelsTheOtherOrder(t.Context(), 1274512, "")
+	require.NoError(t, err, "WebsocketQueryOneCancelsTheOtherOrder must not error for an order list ID")
 	if mockTests {
-		assert.Equal(t, wsAPIFixtureResult[*OCOOrderResponse](t, "orderList.status", 0), got, "WebsocketQueryOCOOrder should return the order list")
-		got, err = ex.WebsocketQueryOCOOrder(t.Context(), 0, "08985fedd9ea2cf6b28996")
-		require.NoError(t, err, "WebsocketQueryOCOOrder must not error for a client order list ID")
-		assert.Equal(t, wsAPIFixtureResult[*OCOOrderResponse](t, "orderList.status", 1), got, "WebsocketQueryOCOOrder should return the order list")
+		assert.Equal(t, wsAPIFixtureResult[*OneCancelsTheOtherOrderResponse](t, "orderList.status", 0), got, "WebsocketQueryOneCancelsTheOtherOrder should return the order list")
+		got, err = ex.WebsocketQueryOneCancelsTheOtherOrder(t.Context(), 0, "08985fedd9ea2cf6b28996")
+		require.NoError(t, err, "WebsocketQueryOneCancelsTheOtherOrder must not error for a client order list ID")
+		assert.Equal(t, wsAPIFixtureResult[*OneCancelsTheOtherOrderResponse](t, "orderList.status", 1), got, "WebsocketQueryOneCancelsTheOtherOrder should return the order list")
 	}
 }
 
@@ -2269,8 +2269,10 @@ func useAPIAndStreamWebsockets(tb testing.TB, ex *Exchange, apiURL string) {
 		if ex.Websocket.IsEnabled() {
 			assert.NoError(tb, ex.Websocket.Disable(), "Disable should not error")
 		}
-		if err := ex.Websocket.Shutdown(); err != nil {
-			assert.ErrorIs(tb, err, websocket.ErrNotConnected, "Shutdown should only fail once the monitor has shut the websocket down")
+		// Shutdown waits for the websocket's lock, which a connect that never returns keeps, so it is bounded for such a
+		// regression to fail the test rather than hold it until go test's timeout
+		if err := shutdownWithin(ex); err != nil {
+			assert.ErrorIs(tb, err, websocket.ErrNotConnected, "Shutdown should return, and only fail once the monitor has shut the websocket down")
 		}
 	})
 }
@@ -2327,6 +2329,92 @@ func TestClosedWebsocketAPIConnection(t *testing.T) {
 	case <-time.After(30 * time.Second):
 		assert.Fail(t, "retire should not wait for a request refused for a closed connection")
 	}
+}
+
+func TestOrdersSkipReconnectingWebsocketAPI(t *testing.T) {
+	t.Parallel()
+	// An order may be time sensitive, so while the WebSocket API connects again it is refused at once rather than held
+	// for the new connection, and the wrapper sends it over REST
+	var restOrders atomic.Int32
+	ex := newTradingTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v3/order" {
+			http.NotFound(w, r)
+			return
+		}
+		restOrders.Add(1)
+		assert.Equal(t, http.MethodPost, r.Method, "the order should be placed over REST")
+		_, err := w.Write([]byte(`{"symbol":"BTCUSDT","orderId":123,"clientOrderId":"rest-order","transactTime":1700000000000,"price":"0","origQty":"1","executedQty":"1","cummulativeQuoteQty":"100","status":"FILLED","timeInForce":"GTC","type":"MARKET","side":"BUY","fills":[]}`))
+		assert.NoError(t, err, "Write should not error")
+	})
+	// The WebSocket API mock checks signatures made with its own credentials
+	ex.SetCredentials(&accounts.Credentials{Key: "mock-api-key", Secret: "mock-api-secret"})
+	var dialOnce sync.Once
+	var dials atomic.Int32
+	redialling, release := make(chan struct{}), make(chan struct{})
+	upgrade := mockws.CurryWsMockUpgrader(t, wsAPIMock)
+	apiServer := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if dials.Add(1) > 1 {
+			dialOnce.Do(func() { close(redialling) })
+			<-release
+		}
+		upgrade(w, r)
+	}))
+	apiServer.Start()
+	useAPIAndStreamWebsockets(t, ex, "ws"+strings.TrimPrefix(apiServer.URL, "http"))
+	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
+	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	require.True(t, ex.canUseWebsocketAPIForOrders(), "orders must use the connected WebSocket API")
+
+	require.NoError(t, ex.Websocket.Shutdown(), "Shutdown must not error")
+	connected := make(chan error, 1)
+	go func() { connected <- ex.Websocket.Connect(t.Context()) }()
+	select {
+	case <-redialling:
+	case <-time.After(30 * time.Second):
+		close(release)
+		require.FailNow(t, "the WebSocket API must be dialled again")
+	}
+	// Every call runs off the test goroutine, so a regression that waits for the connection fails here instead of
+	// holding the test until the WebSocket API answers, which it only does once released
+	placed := make(chan error, 1)
+	go func() {
+		_, err := ex.WebsocketPlaceNewOrder(t.Context(), &WebsocketPlaceOrderRequest{Symbol: currency.NewBTCUSDT(), Side: order.Buy.String(), Type: order.Market.String(), Quantity: 1})
+		placed <- err
+	}()
+	routed := make(chan bool, 1)
+	go func() { routed <- ex.canUseWebsocketAPIForOrders() }()
+	submitted := make(chan error, 1)
+	go func() {
+		_, err := ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, AssetType: asset.Spot, Pair: currency.NewBTCUSDT(), Type: order.Market, Side: order.Buy, Amount: 1, ClientOrderID: "rest-order"})
+		submitted <- err
+	}()
+	select {
+	case err := <-placed:
+		assert.ErrorIs(t, err, websocket.ErrNotConnected, "an order sent while the WebSocket API reconnects should be refused")
+	case <-time.After(5 * time.Second):
+		assert.Fail(t, "an order should not wait for the WebSocket API to reconnect")
+	}
+	select {
+	case useWebsocketAPI := <-routed:
+		assert.False(t, useWebsocketAPI, "orders should go over REST while the WebSocket API reconnects")
+	case <-time.After(5 * time.Second):
+		assert.Fail(t, "canUseWebsocketAPIForOrders should not wait for the WebSocket API to reconnect")
+	}
+	select {
+	case err := <-submitted:
+		assert.NoError(t, err, "SubmitOrder should place the order over REST while the WebSocket API reconnects")
+	case <-time.After(5 * time.Second):
+		assert.Fail(t, "SubmitOrder should not wait for the WebSocket API to reconnect")
+	}
+	assert.Equal(t, int32(1), restOrders.Load(), "SubmitOrder should send the order over REST once")
+	close(release)
+	select {
+	case err := <-connected:
+		require.NoError(t, err, "Connect must not error once the WebSocket API answers")
+	case <-time.After(30 * time.Second):
+		require.FailNow(t, "Connect must return once the WebSocket API answers")
+	}
+	assert.True(t, ex.canUseWebsocketAPIForOrders(), "orders should use the WebSocket API once it has reconnected")
 }
 
 func TestSpotWebsocketAPIConnectionSetup(t *testing.T) {
@@ -2933,7 +3021,7 @@ func TestUserDataEventPayloads(t *testing.T) {
 			QuoteOrderQuantity:                     0.05,
 			WorkingTime:                            types.Time(time.UnixMilli(1499405658657)),
 			SelfTradePreventionMode:                "EXPIRE_TAKER",
-			TrailingDelta:                          4,
+			TrailingDeltaInBasisPoints:             4,
 			TrailingTime:                           1668680518494,
 			StrategyID:                             1,
 			StrategyType:                           1000000,

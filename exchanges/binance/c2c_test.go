@@ -13,26 +13,26 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-func TestGetC2CTradeHistory(t *testing.T) {
+func TestGetCustomerToCustomerTradeHistory(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetC2CTradeHistory(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "GetC2CTradeHistory must reject a nil request")
+	_, err := e.GetCustomerToCustomerTradeHistory(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "GetCustomerToCustomerTradeHistory must reject a nil request")
 	startTime, endTime := getTime()
-	arg := &C2CTradeHistoryRequest{TradeType: order.Sell.String(), StartTime: endTime, EndTime: startTime, Page: 1, Rows: 100}
-	_, err = e.GetC2CTradeHistory(t.Context(), arg)
-	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetC2CTradeHistory must reject a reversed window")
+	arg := &CustomerToCustomerTradeHistoryRequest{TradeType: order.Sell.String(), StartTime: endTime, EndTime: startTime, Page: 1, Rows: 100}
+	_, err = e.GetCustomerToCustomerTradeHistory(t.Context(), arg)
+	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetCustomerToCustomerTradeHistory must reject a reversed window")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
 	arg.StartTime, arg.EndTime = startTime, endTime
-	result, err := e.GetC2CTradeHistory(t.Context(), arg)
-	require.NoError(t, err, "GetC2CTradeHistory must not error")
+	result, err := e.GetCustomerToCustomerTradeHistory(t.Context(), arg)
+	require.NoError(t, err, "GetCustomerToCustomerTradeHistory must not error")
 	if mockTests {
-		exp := &C2CTradeHistoryResponse{
+		exp := &CustomerToCustomerTradeHistoryResponse{
 			Code:    "000000",
 			Message: "success",
-			Data: []C2CTrade{
+			Data: []CustomerToCustomerTrade{
 				{
 					OrderNumber:         "20219644646554779648",
 					AdvertisementNumber: "11218246497340923904",
@@ -40,12 +40,12 @@ func TestGetC2CTradeHistory(t *testing.T) {
 					Asset:               currency.USDT,
 					Fiat:                currency.NewCode("CNY"),
 					FiatSymbol:          "¥",
-					Amount:              5000,
-					TotalPrice:          36000,
-					UnitPrice:           7.2,
+					AmountInCrypto:      5000,
+					TotalPriceInFiat:    36000,
+					UnitPriceInFiat:     7.2,
 					OrderStatus:         "COMPLETED",
 					CreateTime:          types.Time(time.Unix(1744150000, 0)),
-					Commission:          5,
+					CommissionInCrypto:  5,
 					CounterPartNickName: "ab***",
 					PayMethodName:       "BANK",
 					AdditionalKYCVerify: 2,
@@ -58,8 +58,8 @@ func TestGetC2CTradeHistory(t *testing.T) {
 			Total:   1,
 			Success: true,
 		}
-		assert.Equal(t, exp, result, "GetC2CTradeHistory should decode every field")
+		assert.Equal(t, exp, result, "GetCustomerToCustomerTradeHistory should decode every field")
 		return
 	}
-	assert.True(t, result.Success, "GetC2CTradeHistory should succeed")
+	assert.True(t, result.Success, "GetCustomerToCustomerTradeHistory should succeed")
 }

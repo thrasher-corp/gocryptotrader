@@ -21,38 +21,38 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
-func TestGenerateCFuturesSubscriptions(t *testing.T) {
+func TestGenerateCoinMarginedFuturesSubscriptions(t *testing.T) {
 	t.Parallel()
 	ex := newDerivativesTestExchange(t)
-	subs, err := ex.generateCFuturesSubscriptions()
-	require.NoError(t, err, "generateCFuturesSubscriptions must not error")
+	subs, err := ex.generateCoinMarginedFuturesSubscriptions()
+	require.NoError(t, err, "generateCoinMarginedFuturesSubscriptions must not error")
 	testsubs.EqualLists(t, subscription.List{
-		{Channel: subscription.TickerChannel, Asset: asset.CoinMarginedFutures, Pairs: currency.Pairs{testCFuturesPair}, QualifiedChannel: "btcusd_perp@ticker"},
-		{Channel: subscription.AllTradesChannel, Asset: asset.CoinMarginedFutures, Pairs: currency.Pairs{testCFuturesPair}, QualifiedChannel: "btcusd_perp@aggTrade"},
-		{Channel: subscription.CandlesChannel, Asset: asset.CoinMarginedFutures, Pairs: currency.Pairs{testCFuturesPair}, Interval: kline.OneMin, QualifiedChannel: "btcusd_perp@kline_1m"},
-		{Channel: subscription.OrderbookChannel, Asset: asset.CoinMarginedFutures, Pairs: currency.Pairs{testCFuturesPair}, Interval: kline.HundredMilliseconds, QualifiedChannel: "btcusd_perp@depth@100ms"},
+		{Channel: subscription.TickerChannel, Asset: asset.CoinMarginedFutures, Pairs: currency.Pairs{testCoinMarginedFuturesPair}, QualifiedChannel: "btcusd_perp@ticker"},
+		{Channel: subscription.AllTradesChannel, Asset: asset.CoinMarginedFutures, Pairs: currency.Pairs{testCoinMarginedFuturesPair}, QualifiedChannel: "btcusd_perp@aggTrade"},
+		{Channel: subscription.CandlesChannel, Asset: asset.CoinMarginedFutures, Pairs: currency.Pairs{testCoinMarginedFuturesPair}, Interval: kline.OneMin, QualifiedChannel: "btcusd_perp@kline_1m"},
+		{Channel: subscription.OrderbookChannel, Asset: asset.CoinMarginedFutures, Pairs: currency.Pairs{testCoinMarginedFuturesPair}, Interval: kline.HundredMilliseconds, QualifiedChannel: "btcusd_perp@depth@100ms"},
 	}, subs)
 
 	require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.CoinMarginedFutures, false), "SetAssetEnabled must not error")
-	subs, err = ex.generateCFuturesSubscriptions()
-	require.NoError(t, err, "generateCFuturesSubscriptions must not error for a disabled asset")
+	subs, err = ex.generateCoinMarginedFuturesSubscriptions()
+	require.NoError(t, err, "generateCoinMarginedFuturesSubscriptions must not error for a disabled asset")
 	assert.Empty(t, subs, "a disabled asset should generate no subscriptions, so its connection is skipped")
 }
 
-func TestWebsocketHandleCFuturesData(t *testing.T) {
+func TestWebsocketHandleCoinMarginedFuturesData(t *testing.T) {
 	t.Parallel()
 	ex := newDerivativesTestExchange(t)
 	useTestOrderbookSync(ex, func(context.Context, currency.Pair, asset.Item) (*orderbook.Book, error) {
 		return nil, errTestNoSnapshot
 	})
-	require.NoError(t, handleFramesWithin(t.Context(), ex.wsHandleCFuturesData, fixtureFrames(t, "testdata/wsCFutures.json")), "handling the fixture must return")
+	require.NoError(t, handleFramesWithin(t.Context(), ex.wsHandleCoinMarginedFuturesData, fixtureFrames(t, "testdata/wsCFutures.json")), "handling the fixture must return")
 	miniTicker := ticker.Price{
-		Last: 86137.8, High: 86664.7, Low: 84911.4, Open: 85973.7, BaseVolume: 8584, Pair: testCFuturesPair, ExchangeName: ex.Name,
+		Last: 86137.8, High: 86664.7, Low: 84911.4, Open: 85973.7, BaseVolume: 8584, Pair: testCoinMarginedFuturesPair, ExchangeName: ex.Name,
 		AssetType: asset.CoinMarginedFutures, LastUpdated: time.UnixMilli(1791283463856),
 	}
 	tick := ticker.Price{
 		Last: 86137.8, LastSize: 4, VolumeWeightedAveragePrice: 85677.87248792, High: 86664.7, Low: 84911.4, Open: 85973.7, PercentChange24Hour: 0.191,
-		BaseVolume: 8584, Pair: testCFuturesPair, ExchangeName: ex.Name, AssetType: asset.CoinMarginedFutures, LastUpdated: time.UnixMilli(1791283463856),
+		BaseVolume: 8584, Pair: testCoinMarginedFuturesPair, ExchangeName: ex.Name, AssetType: asset.CoinMarginedFutures, LastUpdated: time.UnixMilli(1791283463856),
 	}
 	markPrice := FuturesMarkPrice{
 		EventType: "markPriceUpdate", EventTime: fixtureTime(1791283451000), Symbol: "BTCUSD_PERP", MarkPrice: 86135.5, IndexPrice: 86169.88180356,
@@ -60,7 +60,7 @@ func TestWebsocketHandleCFuturesData(t *testing.T) {
 	}
 	exp := []any{
 		[]trade.Data{{
-			TID: "499297335", Exchange: ex.Name, CurrencyPair: testCFuturesPair, AssetType: asset.CoinMarginedFutures, Side: order.Sell,
+			TID: "499297335", Exchange: ex.Name, CurrencyPair: testCoinMarginedFuturesPair, AssetType: asset.CoinMarginedFutures, Side: order.Sell,
 			Price: 86137.7, Amount: 3, Timestamp: time.UnixMilli(1791283466336),
 		}},
 		&FuturesBookTicker{
@@ -96,7 +96,7 @@ func TestWebsocketHandleCFuturesData(t *testing.T) {
 			SymbolType: 2,
 		},
 		kline.Item{
-			Exchange: ex.Name, Pair: testCFuturesPair, Asset: asset.CoinMarginedFutures, Interval: kline.OneMin,
+			Exchange: ex.Name, Pair: testCoinMarginedFuturesPair, Asset: asset.CoinMarginedFutures, Interval: kline.OneMin,
 			Candles: []kline.Candle{{
 				Time: time.UnixMilli(1791283440000), Open: 86111, High: 86137.8, Low: 86111, Close: 86137.7, Volume: 546, ValidationIssues: kline.PartialCandle,
 			}},
@@ -106,27 +106,27 @@ func TestWebsocketHandleCFuturesData(t *testing.T) {
 			EventType: "markPriceUpdate", EventTime: fixtureTime(1791283451000), Symbol: "BTCUSD_261225", MarkPrice: 87125.1, IndexPrice: 86169.88180356,
 			EstimatedSettlePrice: 87020.64151075, MarkPriceMovingAverage: 87124.9, SymbolType: 2,
 		}},
-		&CFuturesIndexPrice{EventType: "IndexUpdate", EventTime: fixtureTime(1791283451000), Pair: "BTCUSD", IndexPrice: 86169.89067719},
-		&CFuturesPriceKline{
+		&CoinMarginedFuturesIndexPrice{EventType: "IndexUpdate", EventTime: fixtureTime(1791283451000), Pair: "BTCUSD", IndexPrice: 86169.89067719},
+		&CoinMarginedFuturesPriceKline{
 			EventType: "indexPrice_kline", EventTime: fixtureTime(1791283451057), Pair: "BTCUSD",
-			Kline: CFuturesPriceCandle{
+			Kline: CoinMarginedFuturesPriceCandle{
 				StartTime: fixtureTime(1791283440000), CloseTime: fixtureTime(1791283499999), Symbol: "0", Interval: "1m", FirstTradeID: 1791283440000,
 				LastTradeID: 1791283451000, OpenPrice: 86151.64923644, ClosePrice: 86169.89067719, HighPrice: 86170.98258838, LowPrice: 86151.64923644,
 				Volume: 1, NumberOfBasicData: 12, IsClosed: true, QuoteAssetVolume: 2, TakerBuyBaseAssetVolume: 3, TakerBuyQuoteAssetVolume: 4, Ignore: 5,
 			},
 		},
-		&CFuturesPriceKline{
+		&CoinMarginedFuturesPriceKline{
 			EventType: "markPrice_kline", EventTime: fixtureTime(1791283451080), Pair: "BTCUSD",
-			Kline: CFuturesPriceCandle{
+			Kline: CoinMarginedFuturesPriceCandle{
 				StartTime: fixtureTime(1791283440000), CloseTime: fixtureTime(1791283499999), Symbol: "BTCUSD_PERP", Interval: "1m", FirstTradeID: 1791283440000,
 				LastTradeID: 1791283451000, OpenPrice: 86111, ClosePrice: 86135.5, HighPrice: 86135.6, LowPrice: 86110.9, Volume: 1, NumberOfBasicData: 12,
 				QuoteAssetVolume: 2, TakerBuyBaseAssetVolume: 3, TakerBuyQuoteAssetVolume: 4, Ignore: 5,
 			},
 		},
 	}
-	assert.Equal(t, exp, relayedPayloads(ex), "wsHandleCFuturesData should relay every stream of the connection's product and enabled pairs")
+	assert.Equal(t, exp, relayedPayloads(ex), "wsHandleCoinMarginedFuturesData should relay every stream of the connection's product and enabled pairs")
 
-	got, err := storedOrderbookState(ex, testCFuturesPair, asset.CoinMarginedFutures)
+	got, err := storedOrderbookState(ex, testCoinMarginedFuturesPair, asset.CoinMarginedFutures)
 	require.NoError(t, err, "the partial depth snapshot must be stored")
 	assert.Equal(t, &orderbookState{
 		Bids:         orderbook.Levels{{Price: 86135.4, Amount: 2649}, {Price: 86135.3, Amount: 21}},
@@ -137,14 +137,14 @@ func TestWebsocketHandleCFuturesData(t *testing.T) {
 	}, got, "partial depth should load the top levels into the COIN-M order book")
 }
 
-func TestWebsocketHandleCFuturesUserData(t *testing.T) {
+func TestWebsocketHandleCoinMarginedFuturesUserData(t *testing.T) {
 	t.Parallel()
 	ex := newDerivativesTestExchange(t)
 	for _, frame := range fixtureFrames(t, "testdata/wsCFuturesUserData.json") {
 		if isEventFrame(frame, "listenKeyExpired") {
 			continue // TestProcessListenKeyExpired renews the stream over a connection
 		}
-		require.NoErrorf(t, ex.wsHandleCFuturesUserData(t.Context(), nil, frame), "wsHandleCFuturesUserData must not error for %s", frame)
+		require.NoErrorf(t, ex.wsHandleCoinMarginedFuturesUserData(t.Context(), nil, frame), "wsHandleCoinMarginedFuturesUserData must not error for %s", frame)
 	}
 	payloads := relayedPayloads(ex)
 	normaliseBalanceTimes(t, payloads)
@@ -160,7 +160,7 @@ func TestWebsocketHandleCFuturesUserData(t *testing.T) {
 			currency.BTC: {Currency: currency.BTC, Total: 1.12345678, Free: 1.12345678},
 		}}},
 		[]futures.Position{{
-			Exchange: ex.Name, Asset: asset.CoinMarginedFutures, Pair: testCFuturesPair, PositionMargin: decimal.MustFromFloat(0.00002325),
+			Exchange: ex.Name, Asset: asset.CoinMarginedFutures, Pair: testCoinMarginedFuturesPair, PositionMargin: decimal.MustFromFloat(0.00002325),
 			RealisedPNL: decimal.MustFromFloat(0.0002), UnrealisedPNL: decimal.MustFromFloat(0.00001), Status: order.Open,
 			OpeningPrice: decimal.MustFromFloat(86000), OpeningDirection: order.Long, LatestSize: decimal.MustFromFloat(20).Abs(),
 			LatestDirection: order.Long, LastUpdated: time.UnixMilli(1564745798938),
@@ -169,7 +169,7 @@ func TestWebsocketHandleCFuturesUserData(t *testing.T) {
 			TimeInForce: order.PostOnly, ReduceOnly: true, Price: 86000.1, Amount: 2, TriggerPrice: 86100.1, AverageExecutedPrice: 86000.1,
 			ExecutedAmount: 2, FeeAsset: currency.BTC, Exchange: ex.Name, OrderID: "8888888", ClientOrderID: "TEST", Type: order.Limit,
 			Side: order.Buy, Status: order.Filled, AssetType: asset.CoinMarginedFutures, Date: time.UnixMilli(1591274595442),
-			LastUpdated: time.UnixMilli(1591274595442), Pair: testCFuturesPair,
+			LastUpdated: time.UnixMilli(1591274595442), Pair: testCoinMarginedFuturesPair,
 			Trades: []order.TradeHistory{{
 				Price: 86000.1, Amount: 1, Fee: 0.00000116, Exchange: ex.Name, TID: "1157454910", Type: order.Limit, Side: order.Buy,
 				Timestamp: time.UnixMilli(1591274595442), IsMaker: true, FeeAsset: "BTC",
@@ -191,7 +191,7 @@ func TestWebsocketHandleCFuturesUserData(t *testing.T) {
 			},
 		},
 	}
-	assert.Equal(t, exp, payloads, "wsHandleCFuturesUserData should relay every user data event")
+	assert.Equal(t, exp, payloads, "wsHandleCoinMarginedFuturesUserData should relay every user data event")
 	creds, err := ex.GetCredentials(t.Context())
 	require.NoError(t, err, "GetCredentials must not error")
 	stored, err := ex.Accounts.GetBalance("", creds, asset.CoinMarginedFutures, currency.BTC)

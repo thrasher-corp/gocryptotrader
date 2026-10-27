@@ -17,7 +17,7 @@ import (
 // Binance dropped Auto-Invest from its API reference without a retirement notice and its routes still answer, so
 // these endpoints follow the last published reference (developers.binance.com/docs/auto_invest, 2025-02)
 
-var errHistoricalROITypeRequired = errors.New("historical ROI type is required")
+var errHistoricalReturnOnInvestmentTypeRequired = errors.New("historical ROI type is required")
 
 // GetTargetAssetList returns the Auto-Invest target assets and their simulated returns
 func (e *Exchange) GetTargetAssetList(ctx context.Context, targetAsset currency.Code, size, current uint64) (*AutoInvestTargetAssetListResponse, error) {
@@ -30,18 +30,19 @@ func (e *Exchange) GetTargetAssetList(ctx context.Context, targetAsset currency.
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/lending/auto-invest/target-asset/list", params, sapiDefaultRate, &resp)
 }
 
-// GetTargetAssetROIData returns the simulated return history of a target asset over a period such as ONE_YEAR
-func (e *Exchange) GetTargetAssetROIData(ctx context.Context, targetAsset currency.Code, hisRoiType string) ([]AutoInvestTargetAssetROIResponse, error) {
+// GetTargetAssetReturnOnInvestmentData returns the simulated return history of a target asset over a period such as
+// ONE_YEAR
+func (e *Exchange) GetTargetAssetReturnOnInvestmentData(ctx context.Context, targetAsset currency.Code, historicalReturnOnInvestmentType string) ([]AutoInvestTargetAssetReturnOnInvestmentResponse, error) {
 	if targetAsset.IsEmpty() {
 		return nil, fmt.Errorf("%w: target asset", currency.ErrCurrencyCodeEmpty)
 	}
-	if hisRoiType == "" {
-		return nil, errHistoricalROITypeRequired
+	if historicalReturnOnInvestmentType == "" {
+		return nil, errHistoricalReturnOnInvestmentTypeRequired
 	}
 	params := url.Values{}
 	params.Set("targetAsset", targetAsset.Upper().String())
-	params.Set("hisRoiType", hisRoiType)
-	var resp []AutoInvestTargetAssetROIResponse
+	params.Set("hisRoiType", historicalReturnOnInvestmentType)
+	var resp []AutoInvestTargetAssetReturnOnInvestmentResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/lending/auto-invest/target-asset/roi/list", params, sapiDefaultRate, &resp)
 }
 
@@ -329,14 +330,14 @@ func setInvestmentPlanParams(params url.Values, s *InvestmentPlanSchedule) error
 	}
 	params.Set("subscriptionAmount", strconv.FormatFloat(s.SubscriptionAmount, 'f', -1, 64))
 	params.Set("subscriptionCycle", s.SubscriptionCycle)
-	if s.SubscriptionStartDay > 0 {
-		params.Set("subscriptionStartDay", strconv.FormatUint(s.SubscriptionStartDay, 10))
+	if s.SubscriptionStartDayOfMonth > 0 {
+		params.Set("subscriptionStartDay", strconv.FormatUint(s.SubscriptionStartDayOfMonth, 10))
 	}
 	if s.SubscriptionStartWeekday != "" {
 		params.Set("subscriptionStartWeekday", s.SubscriptionStartWeekday)
 	}
 	// Always sent, as the hour is required and hour 0 is valid
-	params.Set("subscriptionStartTime", strconv.FormatUint(s.SubscriptionStartTime, 10))
+	params.Set("subscriptionStartTime", strconv.FormatUint(s.SubscriptionStartHourOfDay, 10))
 	params.Set("sourceAsset", s.SourceAsset.Upper().String())
 	if s.FlexibleAllowedToUse {
 		params.Set("flexibleAllowedToUse", "true")
