@@ -574,14 +574,14 @@ func TestWebsocketUserBalance(t *testing.T) {
 			subAcct.Balances[c] = b
 		}
 	}
-	exp := make(accounts.SubAccounts, 0, 4)
-	for _, a := range []asset.Item{asset.Spot, asset.Margin, asset.Futures, asset.PerpetualSwap} {
-		exp = append(exp, &accounts.SubAccount{AssetType: a, Balances: accounts.CurrencyBalances{
-			currency.CRO: {Currency: currency.CRO, Total: 24422.72427884, Free: 24422.72427884},
-			currency.USD: {Currency: currency.USD, Total: 3113.50747209, Free: 3113.50747209},
-		}})
-	}
-	assert.Equal(t, exp, subAccts, "the balances should be relayed for each enabled asset, as every asset trades from the one wallet")
+	exp := accounts.SubAccounts{{AssetType: asset.Spot, Balances: accounts.CurrencyBalances{
+		currency.CRO: {Currency: currency.CRO, Total: 24422.72427884, Free: 24422.72427884},
+		currency.USD: {Currency: currency.USD, Total: 3113.50747209, Free: 3113.50747209},
+	}}}
+	assert.Equal(t, exp, subAccts, "the balances should be relayed once, as every asset trades from the one wallet")
+	all, err := ex.Accounts.CurrencyBalances(nil, asset.All)
+	require.NoError(t, err, "CurrencyBalances must not error")
+	assert.Equal(t, 3113.50747209, all[currency.USD].Total, "every asset's balances together should hold the one wallet once")
 
 	// Crypto.com's docs leave out whether a push holds every currency, so a push leaving one out keeps it
 	usdOnly := `{"id":-1,"method":"subscribe","code":0,"result":{"subscription":"user.balance","channel":"user.balance","data":[{"instrument_name":"USD","position_balances":[{"instrument_name":"USD","quantity":"3113.50747209","reserved_qty":"0.00000000"}]}]}}`
@@ -595,19 +595,17 @@ func TestWebsocketUserBalance(t *testing.T) {
 	} {
 		require.NoErrorf(t, ex.wsHandleChannelData(t.Context(), nil, tc.frame), "wsHandleChannelData must not error for %s", tc.name)
 		assert.Lenf(t, relayedData(ex), 1, "%s should be relayed once", tc.name)
-		for _, a := range []asset.Item{asset.Spot, asset.Margin, asset.Futures, asset.PerpetualSwap} {
-			stored, err := ex.Accounts.CurrencyBalances(creds, a)
-			require.NoErrorf(t, err, "the %s balances must be stored", a)
-			for c, b := range stored {
-				b.UpdatedAt = time.Time{}
-				stored[c] = b
-			}
-			exp := accounts.CurrencyBalances{
-				currency.CRO: {Currency: currency.CRO, Total: 24422.72427884, Free: 24422.72427884},
-				currency.USD: tc.usd,
-			}
-			assert.Equalf(t, exp, stored, "the %s balances should take %s, keeping any currency it leaves out", a, tc.name)
+		stored, err := ex.Accounts.CurrencyBalances(creds, asset.Spot)
+		require.NoError(t, err, "the balances must be stored")
+		for c, b := range stored {
+			b.UpdatedAt = time.Time{}
+			stored[c] = b
 		}
+		exp := accounts.CurrencyBalances{
+			currency.CRO: {Currency: currency.CRO, Total: 24422.72427884, Free: 24422.72427884},
+			currency.USD: tc.usd,
+		}
+		assert.Equalf(t, exp, stored, "the balances should take %s, keeping any currency it leaves out", tc.name)
 	}
 
 	require.NoError(t, ex.wsHandleChannelData(t.Context(), nil, []byte(`{"id":-1,"method":"subscribe","code":0,"result":{"subscription":"user.balance","channel":"user.balance","data":[]}}`)), "wsHandleChannelData must not error without balances")

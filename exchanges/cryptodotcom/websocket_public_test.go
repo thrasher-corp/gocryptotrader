@@ -409,11 +409,17 @@ func TestWebsocketBookResubscribesOutOfStep(t *testing.T) {
 		require.NoError(t, err, "GetConnection must not error")
 		requireBooksAt(t, ex, spotBTCUSD, recordedBookSnapshotUpdateID)
 		require.NoError(t, ex.Websocket.Orderbook.InvalidateOrderbook(spotBTCUSD, asset.Margin), "InvalidateOrderbook must not error")
+		// The mock holds back the resubscription, whose snapshot would make the books valid again, until they are checked
+		checked := make(chan struct{})
+		release := sync.OnceFunc(func() { close(checked) })
+		t.Cleanup(release)
+		venue.beforeAnswering(websocketMethodUnsubscribe, func() { <-checked })
 
 		err = ex.wsHandleData(t.Context(), conn, marketDataFrame(t, recordedBookChannel, 2))
 		require.ErrorIs(t, err, errBookOutOfSync, "wsHandleData must report books out of step")
 		_, err = ex.Websocket.Orderbook.LastUpdateID(spotBTCUSD, asset.Spot)
 		assert.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "the spot book should be invalidated with the margin book")
+		release()
 		requireBooksAt(t, ex, spotBTCUSD, resubscribedBookUpdateID)
 		assert.Len(t, venue.received(websocketMethodUnsubscribe), 1, "the book channel should be unsubscribed once")
 	})
@@ -558,6 +564,8 @@ func TestWebsocketBookRetryStops(t *testing.T) {
 	ex.retryBookSubscription(done, conn, s)
 	assert.Less(t, time.Since(start), ex.bookResubscribeDelay, "retryBookSubscription should stop at once for a context done")
 
+	// The mock can still be pushing the book channel's recorded frames, which it cannot write once the connection is shut
+	venue.closing()
 	require.NoError(t, ex.Websocket.Shutdown(), "Shutdown must not error")
 	start = time.Now()
 	ex.retryBookSubscription(t.Context(), conn, s)
@@ -604,18 +612,18 @@ func TestQualifiedChannelKey(t *testing.T) {
 func TestWebsocketTicker(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
-	btcUSDChange, btcUSDTChange, perpChange := -0.0002, 0.0, -0.0013
+	btcUSDChange, btcUSDTChange, perpChange := -0.02, 0.0, -0.13
 	for channel, exp := range map[string][]ticker.Price{
 		"ticker.BTC_USD": {
-			{Last: 80787.84, High: 81007.04, Low: 79128.21, Bid: 80787.84, BidSize: 0.05028, Ask: 80787.85, AskSize: 0.5319, BaseVolume: 2215.1469, QuoteVolume: 177736579.59, PercentChange24Hour: btcUSDChange * 100, Pair: spotBTCUSD, ExchangeName: ex.Name, AssetType: asset.Spot, LastUpdated: time.UnixMilli(1792892978711)},
-			{Last: 80787.84, High: 81007.04, Low: 79128.21, Bid: 80787.84, BidSize: 0.05028, Ask: 80787.85, AskSize: 0.5319, BaseVolume: 2215.1469, QuoteVolume: 177736579.59, PercentChange24Hour: btcUSDChange * 100, Pair: spotBTCUSD, ExchangeName: ex.Name, AssetType: asset.Margin, LastUpdated: time.UnixMilli(1792892978711)},
+			{Last: 80787.84, High: 81007.04, Low: 79128.21, Bid: 80787.84, BidSize: 0.05028, Ask: 80787.85, AskSize: 0.5319, BaseVolume: 2215.1469, QuoteVolume: 177736579.59, PercentChange24Hour: btcUSDChange, Pair: spotBTCUSD, ExchangeName: ex.Name, AssetType: asset.Spot, LastUpdated: time.UnixMilli(1792892978711)},
+			{Last: 80787.84, High: 81007.04, Low: 79128.21, Bid: 80787.84, BidSize: 0.05028, Ask: 80787.85, AskSize: 0.5319, BaseVolume: 2215.1469, QuoteVolume: 177736579.59, PercentChange24Hour: btcUSDChange, Pair: spotBTCUSD, ExchangeName: ex.Name, AssetType: asset.Margin, LastUpdated: time.UnixMilli(1792892978711)},
 		},
 		// The volume value is in USD, which is not this pair's quote currency
 		"ticker.BTC_USDT": {
-			{Last: 80956.49, High: 81099.29, Low: 79232.39, Bid: 80951.66, BidSize: 0.01872, Ask: 80951.67, AskSize: 0.20126, BaseVolume: 1071.3429, PercentChange24Hour: btcUSDTChange * 100, Pair: spotBTCUSDT, ExchangeName: ex.Name, AssetType: asset.Spot, LastUpdated: time.UnixMilli(1792894311364)},
+			{Last: 80956.49, High: 81099.29, Low: 79232.39, Bid: 80951.66, BidSize: 0.01872, Ask: 80951.67, AskSize: 0.20126, BaseVolume: 1071.3429, PercentChange24Hour: btcUSDTChange, Pair: spotBTCUSDT, ExchangeName: ex.Name, AssetType: asset.Spot, LastUpdated: time.UnixMilli(1792894311364)},
 		},
 		"ticker.BTCUSD-PERP": {
-			{Last: 80750.3, High: 81004.7, Low: 79117.7, Bid: 80750.3, BidSize: 0.0087, Ask: 80750.4, AskSize: 0.0331, BaseVolume: 2512.7932, QuoteVolume: 201559679.09, PercentChange24Hour: perpChange * 100, OpenInterest: 6179.573, Pair: perpBTCUSD, ExchangeName: ex.Name, AssetType: asset.PerpetualSwap, LastUpdated: time.UnixMilli(1792893199728)},
+			{Last: 80750.3, High: 81004.7, Low: 79117.7, Bid: 80750.3, BidSize: 0.0087, Ask: 80750.4, AskSize: 0.0331, BaseVolume: 2512.7932, QuoteVolume: 201559679.09, PercentChange24Hour: perpChange, OpenInterest: 6179.573, Pair: perpBTCUSD, ExchangeName: ex.Name, AssetType: asset.PerpetualSwap, LastUpdated: time.UnixMilli(1792893199728)},
 		},
 	} {
 		require.NoErrorf(t, ex.wsHandleChannelData(t.Context(), nil, marketDataFrame(t, channel, 0)), "wsHandleChannelData must not error for %s", channel)
@@ -645,10 +653,19 @@ func TestWebsocketTicker(t *testing.T) {
 	err = ex.wsHandleChannelData(t.Context(), nil, []byte(batch))
 	assert.ErrorIs(t, err, ticker.ErrBidEqualsAsk, "wsHandleChannelData should report the tickers of a batch it cannot store")
 	exp := []any{[]ticker.Price{
-		{Last: 80787.84, High: 81007.04, Low: 79128.21, Bid: 80787.84, BidSize: 0.0503, Ask: 80787.85, AskSize: 0.54183, BaseVolume: 2215.1469, QuoteVolume: 177736579.59, PercentChange24Hour: btcUSDChange * 100, Pair: spotBTCUSD, ExchangeName: ex.Name, AssetType: asset.Spot, LastUpdated: time.UnixMilli(1792892978822)},
-		{Last: 80787.84, High: 81007.04, Low: 79128.21, Bid: 80787.84, BidSize: 0.0503, Ask: 80787.85, AskSize: 0.54183, BaseVolume: 2215.1469, QuoteVolume: 177736579.59, PercentChange24Hour: btcUSDChange * 100, Pair: spotBTCUSD, ExchangeName: ex.Name, AssetType: asset.Margin, LastUpdated: time.UnixMilli(1792892978822)},
+		{Last: 80787.84, High: 81007.04, Low: 79128.21, Bid: 80787.84, BidSize: 0.0503, Ask: 80787.85, AskSize: 0.54183, BaseVolume: 2215.1469, QuoteVolume: 177736579.59, PercentChange24Hour: btcUSDChange, Pair: spotBTCUSD, ExchangeName: ex.Name, AssetType: asset.Spot, LastUpdated: time.UnixMilli(1792892978822)},
+		{Last: 80787.84, High: 81007.04, Low: 79128.21, Bid: 80787.84, BidSize: 0.0503, Ask: 80787.85, AskSize: 0.54183, BaseVolume: 2215.1469, QuoteVolume: 177736579.59, PercentChange24Hour: btcUSDChange, Pair: spotBTCUSD, ExchangeName: ex.Name, AssetType: asset.Margin, LastUpdated: time.UnixMilli(1792892978822)},
 	}}
 	assert.Equal(t, exp, relayedData(ex), "the tickers of a batch that are stored should be relayed alone")
+
+	// The change is taken as a percentage in decimal arithmetic, as the REST ticker takes it
+	changed := bytes.Replace(marketDataFrame(t, "ticker.BTC_USD", 1), []byte(`"c":"-0.0002"`), []byte(`"c":"-0.0078"`), 1)
+	require.NoError(t, ex.wsHandleChannelData(t.Context(), nil, changed), "wsHandleChannelData must not error for a ticker's change")
+	exp = []any{[]ticker.Price{
+		{Last: 80787.84, High: 81007.04, Low: 79128.21, Bid: 80787.84, BidSize: 0.0503, Ask: 80787.85, AskSize: 0.54183, BaseVolume: 2215.1469, QuoteVolume: 177736579.59, PercentChange24Hour: -0.78, Pair: spotBTCUSD, ExchangeName: ex.Name, AssetType: asset.Spot, LastUpdated: time.UnixMilli(1792892978822)},
+		{Last: 80787.84, High: 81007.04, Low: 79128.21, Bid: 80787.84, BidSize: 0.0503, Ask: 80787.85, AskSize: 0.54183, BaseVolume: 2215.1469, QuoteVolume: 177736579.59, PercentChange24Hour: -0.78, Pair: spotBTCUSD, ExchangeName: ex.Name, AssetType: asset.Margin, LastUpdated: time.UnixMilli(1792892978822)},
+	}}
+	assert.Equal(t, exp, relayedData(ex), "a ticker's change of -0.0078 should be relayed as -0.78")
 }
 
 func TestQuotedInUSD(t *testing.T) {

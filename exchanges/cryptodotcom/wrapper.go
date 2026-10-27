@@ -463,9 +463,13 @@ func (e *Exchange) tickerPrice(t *TickerResponse, a asset.Item, p currency.Pair)
 	return price
 }
 
-// percentFromFraction returns a fraction as a percentage, in decimal arithmetic so a fraction such as -0.0079 is -0.79
-// rather than the -0.7899999999999999 a float multiplication gives
+// percentFromFraction returns a fraction as a percentage, in decimal arithmetic so a fraction such as -0.0078 is -0.78
+// rather than the -0.7799999999999999 a float multiplication gives. A quoted "NaN" or "Inf" decodes to a fraction no
+// decimal holds, which is multiplied as a float instead
 func percentFromFraction(fraction types.Number) float64 {
+	if f := fraction.Float64(); math.IsNaN(f) || math.IsInf(f, 0) {
+		return f * 100
+	}
 	return fraction.Decimal().Mul(decimal.NewFromInt(100)).InexactFloat64()
 }
 
@@ -511,7 +515,8 @@ func orderbookLevels(levels []OrderbookLevel) orderbook.Levels {
 }
 
 // UpdateAccountBalances returns the account's balances, which every asset trades from, as Crypto.com keeps one wallet
-// for spot, margin and derivatives. A negative quantity is borrowed, and the reserved quantity is held by open orders
+// for spot, margin and derivatives. A negative quantity is borrowed, the reserved quantity is held by open orders, and
+// an isolated position's balances are held by that position
 func (e *Exchange) UpdateAccountBalances(ctx context.Context, a asset.Item) (accounts.SubAccounts, error) {
 	if !e.SupportsAsset(a) {
 		return nil, fmt.Errorf("%w: %s", asset.ErrNotSupported, a)
@@ -524,24 +529,62 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, a asset.Item) (acc
 	return subAccts, e.Accounts.Save(ctx, subAccts, true)
 }
 
-// balanceSubAccount returns an asset's sub account holding the account's position balances; the free quantity is taken
-// in decimal arithmetic, so it holds no float error
+// balanceSubAccount returns an asset's sub account holding the account's position balances. An isolated position's
+// balances are the account's too, but are allocated to that position rather than free in the wallet, so they are added
+// once every wallet balance is set, as held, or as borrowed when negative. A currency's amounts are summed in decimal
+// arithmetic and converted to floats once, so no rounding builds up as they are added
 func balanceSubAccount(a asset.Item, balances []UserBalanceResponse) *accounts.SubAccount {
-	subAcct := accounts.NewSubAccount(a, "")
+	type balanceSum struct {
+		total, hold, free, borrowed decimal.Decimal
+		updatedAt                   time.Time
+	}
+	sums := make(map[currency.Code]*balanceSum)
 	for i := range balances {
 		for j := range balances[i].PositionBalances {
 			pb := &balances[i].PositionBalances[j]
-			b := accounts.Balance{
-				Total:     pb.Quantity.Float64(),
-				Hold:      pb.ReservedQuantity.Float64(),
-				Free:      max(pb.Quantity.Decimal().Sub(pb.ReservedQuantity.Decimal()).InexactFloat64(), 0),
-				UpdatedAt: pb.UpdateTime.Time(),
+			quantity, reserved := pb.Quantity.Decimal(), pb.ReservedQuantity.Decimal()
+			s := &balanceSum{total: quantity, hold: reserved, free: quantity.Sub(reserved), updatedAt: pb.UpdateTime.Time()}
+			if s.free.IsNegative() {
+				s.free = decimal.Zero
 			}
-			if b.Total < 0 {
-				b.Borrowed = -b.Total
+			if quantity.IsNegative() {
+				s.borrowed = quantity.Neg()
 			}
-			subAcct.Balances.Set(currency.NewCode(pb.InstrumentName), b)
+			sums[currency.NewCode(pb.InstrumentName)] = s
 		}
+	}
+	for i := range balances {
+		for j := range balances[i].IsolatedPositions {
+			for k := range balances[i].IsolatedPositions[j].PositionBalances {
+				pb := &balances[i].IsolatedPositions[j].PositionBalances[k]
+				code := currency.NewCode(pb.InstrumentName)
+				s, ok := sums[code]
+				if !ok {
+					s = new(balanceSum)
+					sums[code] = s
+				}
+				quantity := pb.Quantity.Decimal()
+				s.total = s.total.Add(quantity)
+				if quantity.IsNegative() {
+					s.borrowed = s.borrowed.Sub(quantity)
+				} else {
+					s.hold = s.hold.Add(quantity)
+				}
+				if updatedAt := pb.UpdateTime.Time(); updatedAt.After(s.updatedAt) {
+					s.updatedAt = updatedAt
+				}
+			}
+		}
+	}
+	subAcct := accounts.NewSubAccount(a, "")
+	for code, s := range sums {
+		subAcct.Balances.Set(code, accounts.Balance{
+			Total:     s.total.InexactFloat64(),
+			Hold:      s.hold.InexactFloat64(),
+			Free:      s.free.InexactFloat64(),
+			Borrowed:  s.borrowed.InexactFloat64(),
+			UpdatedAt: s.updatedAt,
+		})
 	}
 	return subAcct
 }
@@ -902,8 +945,8 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, p currency.Pa
 }
 
 // candles returns an instrument's candles opening from the start time, inclusive, to the end time, exclusive. Crypto.com
-// returns the latest of the candles overlapping its window, so the window ends a millisecond early, or the candle opening
-// at the end would take the place of the first
+// returns the latest of the candles overlapping its window, which for monthly candles takes in the one opening at its
+// end, so the window ends a millisecond early, or that candle would take the place of the first
 func (e *Exchange) candles(ctx context.Context, instrumentName string, interval kline.Interval, start, end time.Time) ([]kline.Candle, error) {
 	resp, err := e.GetCandlestick(ctx, &CandlestickRequest{
 		InstrumentName: instrumentName,
@@ -1210,12 +1253,14 @@ func referencePriceType(t order.PriceType) (string, error) {
 }
 
 // submitResponse returns a placed order's submit response, with the client order ID Crypto.com gave an order placed
-// without one
+// without one. Crypto.com answers before its matching engine takes the order, so the order is new whatever its type,
+// rather than the filled DeriveSubmitResponse assumes of a market order
 func submitResponse(s *order.Submit, resp *OrderIDResponse) (*order.SubmitResponse, error) {
 	sr, err := s.DeriveSubmitResponse(resp.OrderID)
 	if err != nil {
 		return nil, err
 	}
+	sr.Status = order.New
 	if sr.ClientOrderID == "" {
 		sr.ClientOrderID = resp.ClientOrderID
 	}
@@ -1259,8 +1304,10 @@ func (e *Exchange) submitOrder(ctx context.Context, s *order.Submit, create func
 }
 
 // WebsocketSubmitOrders places orders over the websocket, in lists of up to 10, trigger orders in lists of their own;
-// an order Crypto.com rejects has its submission error set. Each list's margin orders are tracked as submitOrder tracks
-// an order, by their client order IDs before the list is sent and by their order IDs once it is answered
+// an order Crypto.com rejects has its submission error set. A list whose request fails, or whose answer cannot be read,
+// stops the orders after it, and the responses of the lists placed before it are returned with the error, the rest left
+// nil. Each list's margin orders are tracked as submitOrder tracks an order, by their client order IDs before the list is
+// sent and by their order IDs once it is answered
 func (e *Exchange) WebsocketSubmitOrders(ctx context.Context, orders []*order.Submit) ([]*order.SubmitResponse, error) {
 	if len(orders) == 0 {
 		return nil, errOrderListEmpty
@@ -1289,10 +1336,10 @@ func (e *Exchange) WebsocketSubmitOrders(ctx context.Context, orders []*order.Su
 		entries, err := e.WebsocketAPI().CreateOrderList(ctx, creates)
 		if err != nil {
 			e.trackListRefused(requests, list, err)
-			return nil, err
+			return responses, err
 		}
 		if err := listSubmitResponses(orders, list, entries, responses); err != nil {
-			return nil, err
+			return responses, err
 		}
 		e.trackListAnswered(orders, requests, list, responses)
 	}
@@ -1305,10 +1352,10 @@ func (e *Exchange) WebsocketSubmitOrders(ctx context.Context, orders []*order.Su
 		entries, err := e.WebsocketAPI().CreateAdvancedOrderList(ctx, creates)
 		if err != nil {
 			e.trackListRefused(requests, list, err)
-			return nil, err
+			return responses, err
 		}
 		if err := listSubmitResponses(orders, list, entries, responses); err != nil {
-			return nil, err
+			return responses, err
 		}
 		e.trackListAnswered(orders, requests, list, responses)
 	}
@@ -1346,10 +1393,12 @@ func (e *Exchange) trackListAnswered(orders []*order.Submit, requests []*orderRe
 }
 
 // listSubmitResponses sets the submit responses of a list of orders, by their indexes in the submitted orders, from the
-// list's entries, which give each order's outcome by its index in the list
+// list's entries, which give each order's outcome by its index in the list. An entry it cannot read leaves the list's
+// responses unset, rather than reporting rejected the orders whose entries it has not read
 func listSubmitResponses(orders []*order.Submit, list []int, entries []OrderListEntryResponse, responses []*order.SubmitResponse) error {
-	for _, i := range list {
-		responses[i] = &order.SubmitResponse{
+	listResponses := make([]*order.SubmitResponse, len(list))
+	for k, i := range list {
+		listResponses[k] = &order.SubmitResponse{
 			Exchange:        orders[i].Exchange,
 			Type:            orders[i].Type,
 			Side:            orders[i].Side,
@@ -1365,28 +1414,32 @@ func listSubmitResponses(orders []*order.Submit, list []int, entries []OrderList
 		if index < 0 || index >= int64(len(list)) {
 			continue
 		}
-		i := list[index]
 		if code := entries[j].Code.Int64(); code != 0 {
-			responses[i].SubmissionError = fmt.Errorf("%w: %w", order.ErrUnableToPlaceOrder, &APIError{Code: code, Message: entries[j].Message})
+			listResponses[index].SubmissionError = fmt.Errorf("%w: %w", order.ErrUnableToPlaceOrder, &APIError{Code: code, Message: entries[j].Message})
 			continue
 		}
-		sr, err := submitResponse(orders[i], &OrderIDResponse{OrderID: entries[j].OrderID, ClientOrderID: entries[j].ClientOrderID})
+		sr, err := submitResponse(orders[list[index]], &OrderIDResponse{OrderID: entries[j].OrderID, ClientOrderID: entries[j].ClientOrderID})
 		if err != nil {
 			return err
 		}
-		responses[i] = sr
+		listResponses[index] = sr
+	}
+	for k, i := range list {
+		responses[i] = listResponses[k]
 	}
 	return nil
 }
 
 // orderAmendment is an order modification as one of the two amend requests: a trigger order is amended by the advanced
-// order methods, any other by the trading methods. The time in force is the order's, known when it was fetched
+// order methods, any other by the trading methods. The time in force is the order's, known when it was fetched, as is
+// its type when the modification names none
 type orderAmendment struct {
 	order       *AmendOrderRequest
 	trigger     *AmendAdvancedOrderRequest
 	price       float64
 	amount      float64
 	timeInForce order.TimeInForce
+	orderType   order.Type
 }
 
 // newOrderAmendment returns the request amending an order. Crypto.com takes an amended order's quantity and limit price
@@ -1414,6 +1467,11 @@ func (e *Exchange) newOrderAmendment(ctx context.Context, m *order.Modify) (*ord
 			return nil, err
 		}
 		advanced = fromAdvanced || isTriggerOrder(orderType)
+		if m.Type == order.UnknownType || m.Type == order.AnyType {
+			// The order's own type decides, as a price sent for a trigger market order would make it a trigger limit order
+			marketTrigger = orderType == order.Stop || orderType == order.TakeProfit
+			a.orderType = orderType
+		}
 		if a.timeInForce, err = timeInForceFromResponse(o.TimeInForce, o.ExecutionInstructions); err != nil {
 			return nil, err
 		}
@@ -1458,7 +1516,8 @@ func (e *Exchange) newOrderAmendment(ctx context.Context, m *order.Modify) (*ord
 }
 
 // modifyResponse returns an amended order's modify response, with the quantity and price it was amended to, and the
-// order's time in force where it is known, which the amendment does not change
+// order's time in force where it is known, which the amendment does not change, as is its type where the modification
+// names none
 func modifyResponse(m *order.Modify, a *orderAmendment, resp *OrderIDResponse) (*order.ModifyResponse, error) {
 	mr, err := m.DeriveModifyResponse()
 	if err != nil {
@@ -1467,6 +1526,9 @@ func modifyResponse(m *order.Modify, a *orderAmendment, resp *OrderIDResponse) (
 	mr.Price = a.price
 	mr.Amount = a.amount
 	mr.TimeInForce = a.timeInForce
+	if a.orderType != order.UnknownType {
+		mr.Type = a.orderType
+	}
 	if resp.OrderID != "" {
 		mr.OrderID = resp.OrderID
 	}
@@ -1577,7 +1639,8 @@ type orderCancel struct {
 }
 
 // CancelBatchOrders cancels orders by their order IDs or client order IDs, in lists of up to 10, trigger orders, which
-// must have their type given, in lists the advanced order methods cancel
+// must have their type given, in lists the advanced order methods cancel. A list whose request fails stops the lists
+// after it, and the outcomes of those sent before it are returned with the error
 func (e *Exchange) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (*order.CancelBatchResponse, error) {
 	if len(orders) == 0 {
 		return nil, errOrderListEmpty
@@ -1590,10 +1653,7 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, orders []order.Cancel)
 		cancels[i] = orderCancel{OrderID: orders[i].OrderID, ClientOrderID: orders[i].ClientOrderID, Advanced: isTriggerOrder(orders[i].Type)}
 	}
 	status, err := e.cancelOrders(ctx, cancels)
-	if err != nil {
-		return nil, err
-	}
-	return &order.CancelBatchResponse{Status: status}, nil
+	return &order.CancelBatchResponse{Status: status}, err
 }
 
 // CancelAllOrders cancels the open orders of an asset, those of the pair given or of every pair, those the advanced
@@ -1629,15 +1689,13 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, o *order.Cancel) (order.
 		return order.CancelAllResponse{Status: map[string]string{}}, nil
 	}
 	status, err := e.cancelOrders(ctx, cancels)
-	if err != nil {
-		return order.CancelAllResponse{}, err
-	}
-	return order.CancelAllResponse{Status: status}, nil
+	return order.CancelAllResponse{Status: status}, err
 }
 
 // cancelOrders cancels orders in lists of up to 10, those the advanced order methods hold in lists they cancel, and
 // returns each order's outcome by its order ID, or its client order ID without one. Only the advanced order methods
-// cancel a leg of an order list, so an order the trading methods refuse to cancel is tried by them too
+// cancel a leg of an order list, so an order the trading methods refuse to cancel is tried by them too. A list whose
+// request fails stops the lists after it, and the outcomes of those sent before it are returned with the error
 func (e *Exchange) cancelOrders(ctx context.Context, cancels []orderCancel) (map[string]string, error) {
 	var regular, advanced []orderCancel
 	for i := range cancels {
@@ -1656,7 +1714,7 @@ func (e *Exchange) cancelOrders(ctx context.Context, cancels []orderCancel) (map
 		}
 		results, err := e.CancelOrderList(ctx, entries)
 		if err != nil {
-			return nil, err
+			return status, err
 		}
 		for _, i := range listCancelStatus(list, results, status) {
 			refused[list[i].cancelID()] = status[list[i].cancelID()]
@@ -1670,7 +1728,7 @@ func (e *Exchange) cancelOrders(ctx context.Context, cancels []orderCancel) (map
 		}
 		results, err := e.CancelAdvancedOrderList(ctx, entries)
 		if err != nil {
-			return nil, err
+			return status, err
 		}
 		listCancelStatus(list, results, status)
 		// An order both refused keeps the trading methods' refusal beside the advanced order methods' outcome
@@ -2554,16 +2612,25 @@ func findIsolatedPosition(balances []UserBalanceResponse, match func(*IsolatedPo
 	return nil
 }
 
-// isolatedPosition returns the account's isolated position on an instrument
+// isolatedPosition returns the account's isolated position on an instrument; an isolated position's balance names its
+// currency, such as USD, rather than its instrument, so it is found by the isolation ID of the instrument's position
 func (e *Exchange) isolatedPosition(ctx context.Context, instrumentName string) (*IsolatedPositionBalance, error) {
+	positions, err := e.GetPositions(ctx, &PositionsRequest{InstrumentName: instrumentName})
+	if err != nil {
+		return nil, err
+	}
+	i := slices.IndexFunc(positions, func(p PositionResponse) bool { return p.InstrumentName == instrumentName && isIsolated(p.IsolationID) })
+	if i < 0 {
+		return nil, fmt.Errorf("%w: %s", errNoIsolatedPosition, instrumentName)
+	}
 	balances, err := e.GetUserBalance(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if iso := findIsolatedPosition(balances, func(p *IsolatedPositionBalance) bool { return p.InstrumentName == instrumentName }); iso != nil {
+	if iso := findIsolatedPosition(balances, func(p *IsolatedPositionBalance) bool { return p.IsolationID == positions[i].IsolationID }); iso != nil {
 		return iso, nil
 	}
-	return nil, fmt.Errorf("%w: %s", errNoIsolatedPosition, instrumentName)
+	return nil, fmt.Errorf("%w: %s %s", errNoIsolatedPosition, instrumentName, positions[i].IsolationID)
 }
 
 // GetLeverage returns the leverage of a derivative's isolated position, or the account's leverage, which its cross

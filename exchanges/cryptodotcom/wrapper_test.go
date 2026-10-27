@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"maps"
+	"math"
 	"net/url"
 	"strconv"
 	"strings"
@@ -18,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -350,6 +352,25 @@ func TestTickerPrice(t *testing.T) {
 	assert.Equal(t, exp, got, "tickerPrice should leave out the USD volume of a pair not quoted in USD")
 }
 
+func TestPercentFromFraction(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		fraction types.Number
+		exp      float64
+	}{
+		{-0.0078, -0.78},
+		{-0.0156, -1.56},
+		{0, 0},
+		{types.Number(math.Inf(1)), math.Inf(1)},
+		{types.Number(math.Inf(-1)), math.Inf(-1)},
+	} {
+		assert.Equalf(t, tc.exp, percentFromFraction(tc.fraction), "percentFromFraction should return %s as a percentage", tc.fraction)
+	}
+	var fraction types.Number
+	require.NoError(t, json.Unmarshal([]byte(`"NaN"`), &fraction), "Unmarshal must not error")
+	assert.True(t, math.IsNaN(percentFromFraction(fraction)), "percentFromFraction should return NaN for a fraction that is not a number")
+}
+
 func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
@@ -432,6 +453,22 @@ func TestUpdateAccountBalances(t *testing.T) {
 		exp.Balances.Set(currency.USD, accounts.Balance{Total: 3113.50747209, Hold: 12.5, Free: 3101.00747209})
 		assert.Equalf(t, accounts.SubAccounts{exp}, got, "UpdateAccountBalances should return each position balance for %s, its free quantity in decimal arithmetic", a)
 	}
+	if !mockTests {
+		return
+	}
+	// The balances are saved as a snapshot, so a balance the response no longer holds is removed
+	creds, err := ex.GetCredentials(t.Context())
+	require.NoError(t, err, "GetCredentials must not error")
+	for _, a := range ex.GetAssetTypes(false) {
+		stale := accounts.NewSubAccount(a, "")
+		stale.Balances.Set(currency.BTC, accounts.Balance{Total: 1, Free: 1})
+		require.NoErrorf(t, ex.Accounts.Save(t.Context(), accounts.SubAccounts{stale}, false), "Save must not error for %s", a)
+		_, err = ex.UpdateAccountBalances(t.Context(), a)
+		require.NoErrorf(t, err, "UpdateAccountBalances must not error for %s", a)
+		stored, err := ex.Accounts.CurrencyBalances(creds, a)
+		require.NoErrorf(t, err, "CurrencyBalances must not error for %s", a)
+		assert.NotContainsf(t, stored, currency.BTC, "UpdateAccountBalances should remove a %s balance the response no longer holds", a)
+	}
 }
 
 func TestBalanceSubAccount(t *testing.T) {
@@ -444,6 +481,79 @@ func TestBalanceSubAccount(t *testing.T) {
 	exp.Balances.Set(currency.USD, accounts.Balance{Total: -120.5, Borrowed: 120.5, UpdatedAt: time.UnixMilli(1792894000000)})
 	exp.Balances.Set(currency.BTC, accounts.Balance{Total: 0.5, Hold: 0.6})
 	assert.Equal(t, exp, got, "balanceSubAccount should hold a negative quantity as borrowed, and no free balance below zero")
+
+	got = balanceSubAccount(asset.Spot, []UserBalanceResponse{{
+		PositionBalances:  []CollateralBalance{{InstrumentName: "USD", Quantity: preciseNumber("100"), ReservedQuantity: preciseNumber("10")}},
+		IsolatedPositions: []IsolatedPositionBalance{{IsolationID: "19848526", PositionBalances: []CollateralBalance{{InstrumentName: "USD", Quantity: preciseNumber("8.9632670590686")}}}},
+	}})
+	exp = accounts.NewSubAccount(asset.Spot, "")
+	exp.Balances.Set(currency.USD, accounts.Balance{Total: 108.9632670590686, Hold: 18.9632670590686, Free: 90})
+	assert.Equal(t, exp, got, "balanceSubAccount should add an isolated position's balance to the account's, as held")
+
+	got = balanceSubAccount(asset.Spot, []UserBalanceResponse{
+		{IsolatedPositions: []IsolatedPositionBalance{{IsolationID: "1", PositionBalances: []CollateralBalance{
+			{InstrumentName: "ETH", Quantity: preciseNumber("0.2"), UpdateTime: types.Time(time.UnixMilli(1792894002000))},
+			{InstrumentName: "XRP", Quantity: preciseNumber("-0.2")},
+			{InstrumentName: "CRO", Quantity: preciseNumber("20")},
+		}}}},
+		{
+			PositionBalances: []CollateralBalance{
+				{InstrumentName: "ETH", Quantity: preciseNumber("0.4"), ReservedQuantity: preciseNumber("0.1"), UpdateTime: types.Time(time.UnixMilli(1792894000000))},
+				{InstrumentName: "BTC", Quantity: preciseNumber("-0.5")},
+				{InstrumentName: "XRP", Quantity: preciseNumber("-0.1")},
+			},
+			IsolatedPositions: []IsolatedPositionBalance{
+				{IsolationID: "2", PositionBalances: []CollateralBalance{{InstrumentName: "ETH", Quantity: preciseNumber("0.3"), UpdateTime: types.Time(time.UnixMilli(1792894001000))}}},
+				{IsolationID: "3", PositionBalances: []CollateralBalance{{InstrumentName: "BTC", Quantity: preciseNumber("0.2")}}},
+			},
+		},
+	})
+	exp = accounts.NewSubAccount(asset.Spot, "")
+	exp.Balances.Set(currency.ETH, accounts.Balance{Total: 0.9, Hold: 0.6, Free: 0.3, UpdatedAt: time.UnixMilli(1792894002000)})
+	exp.Balances.Set(currency.BTC, accounts.Balance{Total: -0.3, Hold: 0.2, Borrowed: 0.5})
+	exp.Balances.Set(currency.XRP, accounts.Balance{Total: -0.3, Borrowed: 0.3})
+	exp.Balances.Set(currency.CRO, accounts.Balance{Total: 20, Hold: 20})
+	assert.Equal(t, exp, got, "balanceSubAccount should add every entry's isolated balances in decimal arithmetic, a negative one as borrowed, keeping the latest update time")
+
+	// A currency's amounts are summed exactly before they are converted, so amounts that cancel leave no total
+	got = balanceSubAccount(asset.Spot, []UserBalanceResponse{{
+		PositionBalances: []CollateralBalance{
+			{InstrumentName: "USD", Quantity: preciseNumber("10000")},
+			{InstrumentName: "EUR", Quantity: preciseNumber("10008.9632670590686")},
+		},
+		IsolatedPositions: []IsolatedPositionBalance{
+			{IsolationID: "1", PositionBalances: []CollateralBalance{{InstrumentName: "USD", Quantity: preciseNumber("8.9632670590686")}}},
+			{IsolationID: "2", PositionBalances: []CollateralBalance{
+				{InstrumentName: "USD", Quantity: preciseNumber("-10008.9632670590686")},
+				{InstrumentName: "EUR", Quantity: preciseNumber("-10008.9632670590686")},
+			}},
+		},
+	}})
+	exp = accounts.NewSubAccount(asset.Spot, "")
+	exp.Balances.Set(currency.USD, accounts.Balance{Hold: 8.9632670590686, Free: 10000, Borrowed: 10008.9632670590686})
+	exp.Balances.Set(currency.EUR, accounts.Balance{Free: 10008.9632670590686, Borrowed: 10008.9632670590686})
+	assert.Equal(t, exp, got, "balanceSubAccount should sum a currency's amounts exactly, leaving no total where they cancel")
+
+	got = balanceSubAccount(asset.Spot, []UserBalanceResponse{{
+		PositionBalances: []CollateralBalance{
+			{InstrumentName: "USD", Quantity: preciseNumber("10000"), ReservedQuantity: preciseNumber("10000")},
+			{InstrumentName: "EUR", Quantity: preciseNumber("-10000")},
+		},
+		IsolatedPositions: []IsolatedPositionBalance{
+			{IsolationID: "1", PositionBalances: []CollateralBalance{
+				{InstrumentName: "USD", Quantity: preciseNumber("8.9632670590686")},
+				{InstrumentName: "EUR", Quantity: preciseNumber("-8.9632670590686")},
+			}},
+			{IsolationID: "2", PositionBalances: []CollateralBalance{
+				{InstrumentName: "USD", Quantity: preciseNumber("0.003")},
+				{InstrumentName: "EUR", Quantity: preciseNumber("-0.003")},
+			}},
+		},
+	}})
+	exp = accounts.NewSubAccount(asset.Spot, "")
+	exp.Balances.Set(currency.USD, accounts.Balance{Total: 10008.9662670590686, Hold: 10008.9662670590686})
+	exp.Balances.Set(currency.EUR, accounts.Balance{Total: -10008.9662670590686, Borrowed: 10008.9662670590686})
+	assert.Equal(t, exp, got, "balanceSubAccount should sum a currency's held and borrowed amounts exactly")
 }
 
 func TestValidateAPICredentials(t *testing.T) {
@@ -573,6 +683,7 @@ func TestPageWalletHistory(t *testing.T) {
 	var pages []uint64
 	got, err := pageWalletHistory(t.Context(), func(_ context.Context, page uint64) ([]string, error) {
 		pages = append(pages, page)
+		require.LessOrEqual(t, len(pages), testServerRequestLimit, "pageWalletHistory must stop within the test server's request limit")
 		if page == 0 {
 			return ids(0, maxWalletHistoryPageSize), nil
 		}
@@ -585,13 +696,18 @@ func TestPageWalletHistory(t *testing.T) {
 	pages = nil
 	got, err = pageWalletHistory(t.Context(), func(_ context.Context, page uint64) ([]string, error) {
 		pages = append(pages, page)
+		require.LessOrEqual(t, len(pages), testServerRequestLimit, "pageWalletHistory must stop within the test server's request limit")
 		return ids(0, maxWalletHistoryPageSize), nil
 	}, func(id *string) string { return *id })
 	require.NoError(t, err, "pageWalletHistory must not error for a venue ignoring the page")
 	assert.Equal(t, ids(0, maxWalletHistoryPageSize), got, "pageWalletHistory should return a repeated page's records once")
 	assert.Equal(t, []uint64{0, 1}, pages, "pageWalletHistory should stop at a page holding nothing new")
 
-	_, err = pageWalletHistory(t.Context(), func(context.Context, uint64) ([]string, error) { return nil, errInvalidCount }, func(id *string) string { return *id })
+	_, err = pageWalletHistory(t.Context(), func(_ context.Context, page uint64) ([]string, error) {
+		pages = append(pages, page)
+		require.LessOrEqual(t, len(pages), testServerRequestLimit, "pageWalletHistory must stop within the test server's request limit")
+		return nil, errInvalidCount
+	}, func(id *string) string { return *id })
 	assert.ErrorIs(t, err, errInvalidCount, "pageWalletHistory should return a page's error")
 }
 
@@ -700,13 +816,16 @@ type testPagedRecord struct {
 }
 
 // testPager returns a history pager over records, which it serves newest first, limit at a time, as a history request
-// does, recording each window requested
-func testPager(records []testPagedRecord, limit int, windows *[][2]time.Time) *historyPager[testPagedRecord] {
+// does, recording each window requested; a pager asking for more windows than the test server would answer fails the
+// test there, so one that no longer stops ends its test rather than hanging it
+func testPager(t *testing.T, records []testPagedRecord, limit int, windows *[][2]time.Time) *historyPager[testPagedRecord] {
+	t.Helper()
 	return &historyPager[testPagedRecord]{
 		exchangeName: "test",
 		limit:        limit,
 		fetch: func(_ context.Context, start, end time.Time) ([]testPagedRecord, error) {
 			*windows = append(*windows, [2]time.Time{start, end})
+			require.LessOrEqual(t, len(*windows), testServerRequestLimit, "the pager must stop within the test server's request limit")
 			var page []testPagedRecord
 			for _, r := range records {
 				if !r.At.Before(start) && r.At.Before(end) && len(page) < limit {
@@ -728,7 +847,7 @@ func TestHistoryPagerBackwards(t *testing.T) {
 	// Two records share a time a page splits, and one falls before the window
 	records := []testPagedRecord{{"6", at(50)}, {"5", at(40)}, {"4", at(30)}, {"3", at(30)}, {"2", at(20)}, {"1", at(-10)}}
 	var windows [][2]time.Time
-	got, err := testPager(records, 3, &windows).backwards(t.Context(), start, end, make(map[string]struct{}))
+	got, err := testPager(t, records, 3, &windows).backwards(t.Context(), start, end, make(map[string]struct{}))
 	require.NoError(t, err, "backwards must not error")
 	assert.Equal(t, records[:5], got, "backwards should return every record in the window once")
 	expWindows := [][2]time.Time{{start, end}, {start, at(30).Add(time.Nanosecond)}, {start, at(20).Add(time.Nanosecond)}}
@@ -737,7 +856,7 @@ func TestHistoryPagerBackwards(t *testing.T) {
 	// A full page sharing one time holds nothing new when requested again, so its time is passed over
 	records = []testPagedRecord{{"C", at(30)}, {"B", at(30)}, {"A", at(30)}, {"D", at(10)}}
 	windows = nil
-	got, err = testPager(records, 2, &windows).backwards(t.Context(), start, end, make(map[string]struct{}))
+	got, err = testPager(t, records, 2, &windows).backwards(t.Context(), start, end, make(map[string]struct{}))
 	require.NoError(t, err, "backwards must not error for a time a page cannot page within")
 	assert.Equal(t, []testPagedRecord{records[0], records[1], records[3]}, got, "backwards should pass over a time holding more records than a page")
 	expWindows = [][2]time.Time{{start, end}, {start, at(30).Add(time.Nanosecond)}, {start, at(30)}}
@@ -747,16 +866,17 @@ func TestHistoryPagerBackwards(t *testing.T) {
 	// the page itself
 	records = []testPagedRecord{{"B", end.Add(-time.Nanosecond)}, {"A", end.Add(-time.Nanosecond)}, {"C", end.Add(-time.Nanosecond)}, {"D", at(10)}}
 	windows = nil
-	got, err = testPager(records, 2, &windows).backwards(t.Context(), start, end, make(map[string]struct{}))
+	got, err = testPager(t, records, 2, &windows).backwards(t.Context(), start, end, make(map[string]struct{}))
 	require.NoError(t, err, "backwards must not error for the window's last time holding a page of records")
 	assert.Equal(t, []testPagedRecord{records[0], records[1], records[3]}, got, "backwards should pass over the window's last time holding more records than a page")
 	assert.Equal(t, [][2]time.Time{{start, end}, {start, end.Add(-time.Nanosecond)}}, windows, "backwards should end the next page at the window's last time")
 
 	// A full page holding nothing before the window's end, as a venue ignoring it returns, holds none of the window
 	windows = nil
-	pager := testPager(nil, 2, &windows)
+	pager := testPager(t, nil, 2, &windows)
 	pager.fetch = func(_ context.Context, start, end time.Time) ([]testPagedRecord, error) {
 		windows = append(windows, [2]time.Time{start, end})
+		require.LessOrEqual(t, len(windows), testServerRequestLimit, "the pager must stop within the test server's request limit")
 		if len(windows) > 2 {
 			// A pager that does not stop would request the same window again without end
 			return nil, errInvalidCount
@@ -769,8 +889,10 @@ func TestHistoryPagerBackwards(t *testing.T) {
 	assert.Len(t, windows, 1, "backwards should stop at a page holding nothing before the window's end")
 
 	// Records seen before, and records outside the window a venue returns, are left out
-	pager = testPager(nil, 3, &windows)
-	pager.fetch = func(context.Context, time.Time, time.Time) ([]testPagedRecord, error) {
+	pager = testPager(t, nil, 3, &windows)
+	pager.fetch = func(_ context.Context, start, end time.Time) ([]testPagedRecord, error) {
+		windows = append(windows, [2]time.Time{start, end})
+		require.LessOrEqual(t, len(windows), testServerRequestLimit, "the pager must stop within the test server's request limit")
 		return []testPagedRecord{{"7", at(45)}, {"6", at(44)}, {"5", at(40)}, {"0", at(34)}}, nil
 	}
 	seen := map[string]struct{}{"6": {}}
@@ -779,7 +901,11 @@ func TestHistoryPagerBackwards(t *testing.T) {
 	assert.Equal(t, []testPagedRecord{{"5", at(40)}}, got, "backwards should leave out records seen before and outside the window")
 	assert.Equal(t, map[string]struct{}{"6": {}, "5": {}}, seen, "backwards should add the records it returns to those seen")
 
-	pager.fetch = func(context.Context, time.Time, time.Time) ([]testPagedRecord, error) { return nil, errInvalidCount }
+	pager.fetch = func(_ context.Context, start, end time.Time) ([]testPagedRecord, error) {
+		windows = append(windows, [2]time.Time{start, end})
+		require.LessOrEqual(t, len(windows), testServerRequestLimit, "the pager must stop within the test server's request limit")
+		return nil, errInvalidCount
+	}
 	_, err = pager.backwards(t.Context(), start, end, make(map[string]struct{}))
 	assert.ErrorIs(t, err, errInvalidCount, "backwards should return a page's error")
 }
@@ -835,7 +961,7 @@ func TestHistoryPagerWarnsOfPassedOverTimes(t *testing.T) {
 		{"the window's last time holding more records than a page", []testPagedRecord{{"B", end.Add(-time.Nanosecond)}, {"A", end.Add(-time.Nanosecond)}, {"C", end.Add(-time.Nanosecond)}}, 2, []string{warning(2, end.Add(-time.Nanosecond))}},
 	} {
 		var windows [][2]time.Time
-		_, err := testPager(tc.records, tc.limit, &windows).backwards(t.Context(), start, end, make(map[string]struct{}))
+		_, err := testPager(t, tc.records, tc.limit, &windows).backwards(t.Context(), start, end, make(map[string]struct{}))
 		require.NoErrorf(t, err, "backwards must not error for %s", tc.name)
 		assert.Equalf(t, tc.exp, takeWarnings(), "backwards should warn of each time it passes over for %s", tc.name)
 	}
@@ -847,9 +973,10 @@ func TestHistoryPagerPage(t *testing.T) {
 	start := testWindowStart.Add(-3 * privateHistoryWindow)
 	end := start.Add(2*privateHistoryWindow + time.Hour)
 	var windows [][2]time.Time
-	pager := testPager(nil, 100, &windows)
+	pager := testPager(t, nil, 100, &windows)
 	pager.fetch = func(_ context.Context, start, end time.Time) ([]testPagedRecord, error) {
 		windows = append(windows, [2]time.Time{start, end})
+		require.LessOrEqual(t, len(windows), testServerRequestLimit, "the pager must stop within the test server's request limit")
 		// Each span holds a record of its own and one shared with the others, which page returns once
 		return []testPagedRecord{{ID: end.String(), At: end.Add(-time.Minute)}, {ID: "shared", At: start}}, nil
 	}
@@ -934,6 +1061,28 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	require.Len(t, got.Candles, 450, "GetHistoricCandlesExtended must return a candle for every minute, padding those not returned")
 	assert.Equal(t, kline.Candle{Time: testWindowStart, Open: 1, High: 2, Low: 0.5, Close: 1.5, Volume: 10}, got.Candles[0], "GetHistoricCandlesExtended should return the first window's candle")
 	assert.Equal(t, kline.Candle{Time: testWindowStart.Add(300 * time.Minute), Open: 1, High: 2, Low: 0.5, Close: 1.5, Volume: 10}, got.Candles[300], "GetHistoricCandlesExtended should return the second window's candle")
+}
+
+func TestCandles(t *testing.T) {
+	t.Parallel()
+	if !mockTests {
+		t.Skip("the candle window is checked against a test server")
+	}
+	// Crypto.com takes in a monthly candle opening at a window's end, so the window ends a millisecond early; the reply was
+	// recorded live for this request
+	ex, received := newRoutesServerExchange(t, map[string]testRoute{
+		"public/get-candlestick": testResult(`{"interval":"1M","data":[{"o":"58562.87","h":"66925.83","l":"57737.07","c":"62840.00","v":"126396.4943","t":1782864000000},{"o":"62843.05","h":"81500.00","l":"62216.48","c":"78559.98","v":"122373.96006","t":1785542400000},{"o":"78571.17","h":"87427.66","l":"74897.07","c":"83564.32","v":"109085.85444","t":1788220800000}],"instrument_name":"BTC_USD"}`),
+	})
+	start, end := time.Date(2026, time.July, 1, 0, 0, 0, 0, time.UTC), time.Date(2026, time.October, 1, 0, 0, 0, 0, time.UTC)
+	got, err := ex.candles(t.Context(), "BTC_USD", kline.OneMonth, start, end)
+	require.NoError(t, err, "candles must not error")
+	exp := []kline.Candle{
+		{Time: time.UnixMilli(1782864000000), Open: 58562.87, High: 66925.83, Low: 57737.07, Close: 62840, Volume: 126396.4943},
+		{Time: time.UnixMilli(1785542400000), Open: 62843.05, High: 81500, Low: 62216.48, Close: 78559.98, Volume: 122373.96006},
+		{Time: time.UnixMilli(1788220800000), Open: 78571.17, High: 87427.66, Low: 74897.07, Close: 83564.32, Volume: 109085.85444},
+	}
+	assert.Equal(t, exp, got, "candles should return the monthly candles opening within the window")
+	assert.Equal(t, []testRequest{{Method: "public/get-candlestick", Params: "count=300&end_ts=1790812799999&instrument_name=BTC_USD&start_ts=1782864000000&timeframe=1M"}}, received(), "candles should end a monthly window a millisecond early")
 }
 
 func TestGetDepositAddress(t *testing.T) {
@@ -1158,6 +1307,20 @@ func TestNewOrderRequest(t *testing.T) {
 			}},
 		},
 		{
+			name:   "a take profit limit",
+			modify: func(s *order.Submit) { *s = *testTriggerSubmit(); s.Type = order.TakeProfitLimit },
+			exp: &orderRequest{clientOrderID: tradingTestOrderClientOrderID, trigger: &CreateAdvancedOrderRequest{
+				InstrumentName:     "CRO_USD",
+				Side:               SideSell,
+				OrderType:          OrderTypeTakeProfitLimit,
+				Quantity:           10,
+				Price:              0.0279,
+				ReferencePrice:     0.028,
+				ReferencePriceType: ReferencePriceTypeLastPrice,
+				ClientOrderID:      tradingTestOrderClientOrderID,
+			}},
+		},
+		{
 			name: "a margin take profit triggered by the mark price",
 			modify: func(s *order.Submit) {
 				*s = *testTriggerSubmit()
@@ -1222,6 +1385,9 @@ func TestNewOrderRequest(t *testing.T) {
 		{"an unknown trigger price type", func(s *order.Submit) { *s = *testTriggerSubmit(); s.TriggerPriceType = order.UnknownPriceType }, errInvalidPriceType},
 		{"a limit order with a trigger price", func(s *order.Submit) { s.TriggerPrice = 1 }, errTriggerPriceUnsupported},
 		{"a limit order by its quote amount", func(s *order.Submit) { s.Amount, s.QuoteAmount = 0, 5 }, errQuoteAmountUnsupported},
+		{"a market sell by its quote amount", func(s *order.Submit) {
+			s.Type, s.Side, s.Price, s.Amount, s.QuoteAmount, s.TimeInForce = order.Market, order.Sell, 0, 0, 5, order.UnknownTIF
+		}, errQuoteAmountUnsupported},
 		{"an order without an amount", func(s *order.Submit) { s.Amount = 0 }, order.ErrAmountIsInvalid},
 	} {
 		s := testSubmit()
@@ -1301,6 +1467,12 @@ func TestSubmitOrder(t *testing.T) {
 		Params: `{"instrument_name":"CRO_USD","side":"SELL","type":"STOP_LIMIT","quantity":"10","price":"0.0279","ref_price":"0.028","ref_price_type":"LAST_PRICE"}`,
 	}}
 	assert.Equal(t, expRequests, received(), "SubmitOrder should place a trigger order with the advanced order methods")
+
+	// Crypto.com answers before matching an order, so a market order is reported new rather than filled
+	ex, _ = newRoutesServerExchange(t, map[string]testRoute{"private/create-order": testResult(`{"order_id":"1","client_oid":"market"}`)})
+	got, err = ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, Type: order.Market, Side: order.Sell, Pair: testSpotPair, AssetType: asset.Spot, Amount: 0.001, ClientOrderID: "market"})
+	require.NoError(t, err, "SubmitOrder must not error for a market order")
+	assert.Equal(t, order.New, got.Status, "SubmitOrder should report a market order new, as Crypto.com answers before matching it")
 }
 
 func TestSubmitOrderTracksMarginOrders(t *testing.T) {
@@ -1417,6 +1589,63 @@ func TestWebsocketSubmitOrders(t *testing.T) {
 	require.Len(t, requests, 1, "WebsocketSubmitOrders must send the orders in one list")
 	assert.JSONEq(t, `{"contingency_type":"LIST","order_list":[`+tradingTestOrderParams+`,`+strings.Replace(tradingTestOrderParams, tradingTestOrderClientOrderID, "api_leg2", 1)+`]}`, string(requests[0].Params), "WebsocketSubmitOrders should list the orders other than trigger orders")
 	assert.Len(t, venue.received("private/advanced/create-order-list"), 1, "WebsocketSubmitOrders should send the trigger order in a list of its own")
+
+	// A list whose request fails stops the lists after it, and the responses of those placed before it come with the error
+	venue.fail("private/advanced/create-order-list", &APIError{Code: 50001, Message: "INTERNAL_SERVER_ERROR"})
+	got, err = ex.WebsocketSubmitOrders(t.Context(), orders)
+	require.ErrorAs(t, err, &apiErr, "WebsocketSubmitOrders must return the error of a list whose request failed")
+	require.Len(t, got, 3, "WebsocketSubmitOrders must return the orders' responses with the error")
+	require.NotNil(t, got[0], "WebsocketSubmitOrders must return the response of an order placed before a list failed")
+	assert.Equal(t, "5755600460443882762", got[0].OrderID, "WebsocketSubmitOrders should return the ID of an order placed before a list failed")
+	assert.Nil(t, got[1], "WebsocketSubmitOrders should leave the response of an order whose list failed unset")
+
+	// Eleven orders go in two lists, and the second failing keeps the first's responses
+	orders = make([]*order.Submit, 11)
+	entries := make([]string, 10)
+	for i := range orders {
+		orders[i] = testSubmit()
+		orders[i].Exchange = ex.Name
+	}
+	for i := range entries {
+		entries[i] = `{"code":0,"index":` + strconv.Itoa(i) + `,"order_id":"` + strconv.Itoa(100+i) + `"}`
+	}
+	venue.respond("private/create-order-list", "["+strings.Join(entries, ",")+"]")
+	venue.beforeAnswering("private/create-order-list", func() {
+		venue.fail("private/create-order-list", &APIError{Code: 50001, Message: "INTERNAL_SERVER_ERROR"})
+	})
+	got, err = ex.WebsocketSubmitOrders(t.Context(), orders)
+	require.ErrorAs(t, err, &apiErr, "WebsocketSubmitOrders must return the error of a later list whose request failed")
+	require.Len(t, got, 11, "WebsocketSubmitOrders must return the orders' responses with the error")
+	require.NotNil(t, got[9], "WebsocketSubmitOrders must return the responses of the list placed before one failed")
+	assert.Equal(t, "109", got[9].OrderID, "WebsocketSubmitOrders should return the IDs of the list placed before one failed")
+	assert.Nil(t, got[10], "WebsocketSubmitOrders should leave the response of an order whose list failed unset")
+
+	// A later list's answer accepting an order without its ID keeps the responses of the lists placed before it too
+	for _, tc := range []struct {
+		name   string
+		orders []*order.Submit
+		arm    func(*websocketVenue)
+	}{
+		{"the trading methods' second list", orders, func(v *websocketVenue) {
+			v.beforeAnswering("private/create-order-list", func() { v.respond("private/create-order-list", `[{"code":0,"index":0}]`) })
+		}},
+		{"the advanced order methods' list", []*order.Submit{orders[0], testTriggerSubmit()}, func(v *websocketVenue) {
+			v.respond("private/advanced/create-order-list", `[{"code":0,"index":0}]`)
+		}},
+	} {
+		ex, venue = newWebsocketTestExchange(t)
+		for _, s := range tc.orders {
+			s.Exchange = ex.Name
+		}
+		venue.respond("private/create-order-list", "["+strings.Join(entries, ",")+"]")
+		tc.arm(venue)
+		got, err = ex.WebsocketSubmitOrders(t.Context(), tc.orders)
+		require.ErrorIsf(t, err, order.ErrOrderIDNotSet, "WebsocketSubmitOrders must return the error reading %s's answer", tc.name)
+		require.Lenf(t, got, len(tc.orders), "WebsocketSubmitOrders must return the orders' responses with the error reading %s's answer", tc.name)
+		require.NotNilf(t, got[0], "WebsocketSubmitOrders must return the responses of the list placed before %s", tc.name)
+		assert.Equalf(t, "100", got[0].OrderID, "WebsocketSubmitOrders should return the IDs of the list placed before %s", tc.name)
+		assert.Nilf(t, got[len(got)-1], "WebsocketSubmitOrders should leave the response of the order in %s unset, as its answer cannot be read", tc.name)
+	}
 }
 
 func TestListSubmitResponses(t *testing.T) {
@@ -1428,6 +1657,14 @@ func TestListSubmitResponses(t *testing.T) {
 	assert.ErrorIs(t, responses[1].SubmissionError, order.ErrUnableToPlaceOrder, "listSubmitResponses should report an order without an entry")
 	err := listSubmitResponses(orders, []int{0}, []OrderListEntryResponse{{Index: 0}}, responses)
 	assert.ErrorIs(t, err, order.ErrOrderIDNotSet, "listSubmitResponses should refuse an accepted entry without an order ID")
+	assert.Nil(t, responses[0], "listSubmitResponses should leave a list's responses unset when it cannot read an entry")
+
+	// The orders after an entry it cannot read may have been placed, so none of the list is reported rejected
+	orders = []*order.Submit{testSubmit(), testSubmit(), testSubmit()}
+	responses = make([]*order.SubmitResponse, 3)
+	err = listSubmitResponses(orders, []int{0, 1, 2}, []OrderListEntryResponse{{Index: 0, OrderID: "100"}, {Index: 1}, {Index: 2, OrderID: "102"}}, responses)
+	assert.ErrorIs(t, err, order.ErrOrderIDNotSet, "listSubmitResponses should refuse an accepted entry without an order ID among others")
+	assert.Equal(t, make([]*order.SubmitResponse, 3), responses, "listSubmitResponses should leave every response of a list unset when it cannot read one of its entries")
 }
 
 func TestWebsocketSubmitOrdersTracksMarginOrders(t *testing.T) {
@@ -1508,8 +1745,8 @@ func TestModifyOrder(t *testing.T) {
 	m = &order.Modify{Exchange: ex.Name, OrderID: "5755600460443890101", AssetType: asset.Spot, Pair: testSpotPair, Price: 77000}
 	got, err = ex.ModifyOrder(t.Context(), m)
 	require.NoError(t, err, "ModifyOrder must not error for an order list's leg")
-	exp = &order.ModifyResponse{Exchange: ex.Name, OrderID: "5755600460443890101", ClientOrderID: "1792836351900", Pair: testSpotPair, AssetType: asset.Spot, Price: 77000, Amount: 0.01}
-	assert.Equal(t, exp, got, "ModifyOrder should restate the leg's quantity")
+	exp = &order.ModifyResponse{Exchange: ex.Name, OrderID: "5755600460443890101", ClientOrderID: "1792836351900", Pair: testSpotPair, Type: order.Limit, AssetType: asset.Spot, Price: 77000, Amount: 0.01}
+	assert.Equal(t, exp, got, "ModifyOrder should restate the leg's quantity, and report its type")
 	expRequests := []testRequest{
 		{Method: "private/get-order-detail", Params: `{"order_id":"5755600460443890101"}`},
 		{Method: "private/advanced/get-order-detail", Params: `{"order_id":"5755600460443890101"}`},
@@ -1576,6 +1813,44 @@ func TestModifyOrder(t *testing.T) {
 	assert.Equal(t, "private/amend-order", requests[0].Method, "ModifyOrder should first amend with the trading methods")
 	assert.Equal(t, "private/advanced/amend-order", requests[1].Method, "ModifyOrder should then amend with the advanced order methods")
 	assert.JSONEq(t, `{"order_id":"5755600460443890101","new_quantity":"0.01","new_price":"77000"}`, requests[1].Params, "ModifyOrder should restate the amendment for the advanced order methods")
+
+	// An order modified without its type, as the order manager modifies one, is amended as the type it has, which is
+	// reported, and a trigger market order is sent no limit price, which would make it a trigger limit order
+	for orderType, exp := range map[string]order.Type{"STOP_LOSS": order.Stop, "TAKE_PROFIT": order.TakeProfit} {
+		for _, typ := range []order.Type{order.UnknownType, order.AnyType} {
+			ex, received = newRoutesServerExchange(t, map[string]testRoute{
+				"private/get-order-detail":          notFound,
+				"private/advanced/get-order-detail": testResult(`{"order_id":"1","order_type":"` + orderType + `","side":"SELL","quantity":"10","limit_price":"0","ref_price":"0.028","status":"ACTIVE","instrument_name":"CRO_USD"}`),
+				"private/advanced/amend-order":      testResult(`{"order_id":"1"}`),
+			})
+			got, err = ex.ModifyOrder(t.Context(), &order.Modify{Exchange: ex.Name, OrderID: "1", Type: typ, AssetType: asset.Spot, Pair: cro, Price: 0.0279, Amount: 10})
+			require.NoErrorf(t, err, "ModifyOrder must not error for a %s order modified with type %s", orderType, typ)
+			requests = received()
+			require.Lenf(t, requests, 3, "ModifyOrder must look a %s order up among the advanced orders, then amend it, for type %s", orderType, typ)
+			assert.Equalf(t, testRequest{Method: "private/advanced/amend-order", Params: `{"order_id":"1","new_quantity":"10","new_price":"0"}`}, requests[2], "ModifyOrder should send no limit price for a %s order modified with type %s", orderType, typ)
+			assert.Equalf(t, exp, got.Type, "ModifyOrder should report a %s order's own type for a modification with type %s", orderType, typ)
+		}
+	}
+
+	// An order is amended by its order ID or its client order ID, and takes any new client order ID the modification gives
+	for _, tc := range []struct {
+		name string
+		m    order.Modify
+		exp  string
+	}{
+		{"named by its client order ID", order.Modify{ClientOrderID: "original"}, `{"orig_client_oid":"original","new_price":"77000","new_quantity":"0.01"}`},
+		{"named by its client order ID and given a new one", order.Modify{ClientOrderID: "original", NewClientOrderID: "renamed"}, `{"orig_client_oid":"original","client_oid":"renamed","new_price":"77000","new_quantity":"0.01"}`},
+		{"named by its order ID and given a client order ID", order.Modify{OrderID: "1", NewClientOrderID: "renamed"}, `{"order_id":"1","client_oid":"renamed","new_price":"77000","new_quantity":"0.01"}`},
+	} {
+		for a, p := range map[asset.Item]currency.Pair{asset.Spot: testSpotPair, asset.PerpetualSwap: testPerpetualPair} {
+			ex, received = newRoutesServerExchange(t, map[string]testRoute{"private/amend-order": testResult(`{"order_id":"1"}`)})
+			m := tc.m
+			m.Exchange, m.Type, m.AssetType, m.Pair, m.Price, m.Amount = ex.Name, order.Limit, a, p, 77000, 0.01
+			_, err = ex.ModifyOrder(t.Context(), &m)
+			require.NoErrorf(t, err, "ModifyOrder must not error for a %s order %s", a, tc.name)
+			assert.Equalf(t, []testRequest{{Method: "private/amend-order", Params: tc.exp}}, received(), "ModifyOrder should amend a %s order %s", a, tc.name)
+		}
+	}
 
 	ex, _ = newRoutesServerExchange(t, map[string]testRoute{"private/amend-order": notFound, "private/advanced/amend-order": notFound})
 	_, err = ex.ModifyOrder(t.Context(), m)
@@ -1749,6 +2024,23 @@ func TestCancelBatchOrders(t *testing.T) {
 	exp = &order.CancelBatchResponse{Status: map[string]string{"1": "42901 TOO_MANY_REQUESTS", "2": "CANCELLED"}}
 	assert.Equal(t, exp, got, "CancelBatchOrders should report an entry refused for the request")
 	assert.Len(t, received(), 1, "CancelBatchOrders should not retry an entry refused for the request with the advanced order methods")
+
+	// A list whose request fails stops the lists after it, and the outcomes of those sent before it come with the error
+	ex, _ = newRoutesServerExchange(t, map[string]testRoute{
+		"private/cancel-order-list": func(params string) (string, *APIError) {
+			if strings.Contains(params, `"order_id":"11"`) {
+				return "", &APIError{Code: 50001, Message: "INTERNAL_SERVER_ERROR"}
+			}
+			return `[{"code":0,"index":0},{"code":0,"index":1},{"code":0,"index":2},{"code":0,"index":3},{"code":0,"index":4},{"code":0,"index":5},{"code":0,"index":6},{"code":0,"index":7},{"code":0,"index":8},{"code":0,"index":9}]`, nil
+		},
+	})
+	got, err = ex.CancelBatchOrders(t.Context(), cancels[:len(cancels)-1])
+	var apiErr *APIError
+	require.ErrorAs(t, err, &apiErr, "CancelBatchOrders must return the error of a list whose request failed")
+	require.NotNil(t, got, "CancelBatchOrders must return the outcomes of the lists sent before one failed")
+	assert.Len(t, got.Status, 10, "CancelBatchOrders should return the outcome of each order of the lists sent before one failed")
+	assert.Equal(t, "CANCELLED", got.Status["10"], "CancelBatchOrders should report the orders cancelled before a list failed")
+	assert.NotContains(t, got.Status, "11", "CancelBatchOrders should report no outcome for an order whose list failed")
 }
 
 func TestCancelAllOrders(t *testing.T) {
@@ -1786,6 +2078,18 @@ func TestCancelAllOrders(t *testing.T) {
 	require.NoError(t, err, "CancelAllOrders must not error without orders to cancel")
 	assert.Equal(t, order.CancelAllResponse{Status: map[string]string{}}, got, "CancelAllOrders should cancel nothing when the asset has no open orders")
 	assert.Equal(t, testRequest{Method: "private/advanced/get-open-orders", Params: `{"instrument_name":"BTCUSD-261030"}`}, received()[5], "CancelAllOrders should list the pair's open orders")
+
+	// A list whose request fails stops the lists after it, and the outcomes of those sent before it come with the error
+	ex, _ = newRoutesServerExchange(t, map[string]testRoute{
+		"private/get-open-orders":            testResult(`{"data":[{"order_id":"1","order_type":"LIMIT","side":"BUY","status":"ACTIVE","instrument_name":"BTC_USD","exec_inst":[]}]}`),
+		"private/advanced/get-open-orders":   testResult(`{"data":[{"order_id":"4","order_type":"LIMIT","side":"BUY","status":"ACTIVE","instrument_name":"BTC_USD","list_id":"9"}]}`),
+		"private/cancel-order-list":          testResult(`[{"code":0,"index":0}]`),
+		"private/advanced/cancel-order-list": func(string) (string, *APIError) { return "", &APIError{Code: 50001, Message: "INTERNAL_SERVER_ERROR"} },
+	})
+	got, err = ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot})
+	var apiErr *APIError
+	require.ErrorAs(t, err, &apiErr, "CancelAllOrders must return the error of a list whose request failed")
+	assert.Equal(t, order.CancelAllResponse{Status: map[string]string{"1": "CANCELLED"}}, got, "CancelAllOrders should return the outcomes of the lists sent before one failed")
 }
 
 func TestListCancelStatus(t *testing.T) {
@@ -2353,7 +2657,7 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 	_, err = e.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{Asset: asset.PerpetualSwap, Pair: testPerpetualPair, StartDate: testWindowStart})
 	require.ErrorIs(t, err, common.ErrDateUnset, "GetHistoricalFundingRates must refuse a window without an end")
 	end := testWindowStart.Add(3 * time.Hour)
-	got, err := e.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{Asset: asset.PerpetualSwap, Pair: testPerpetualPair, StartDate: testWindowStart, EndDate: end})
+	got, err := e.GetHistoricalFundingRates(mockRequestContext(t), &fundingrate.HistoricalRatesRequest{Asset: asset.PerpetualSwap, Pair: testPerpetualPair, StartDate: testWindowStart, EndDate: end})
 	require.NoError(t, err, "GetHistoricalFundingRates must not error")
 	if !mockTests {
 		assert.NotEmpty(t, got.FundingRates, "GetHistoricalFundingRates should return rates")
@@ -2443,14 +2747,17 @@ func TestGetOpenInterest(t *testing.T) {
 
 // testPositionRoutes answer the requests of the position tests as REST does, without the margins, prices and leverage
 // only the websocket's position channels carry: a cross margin and an isolated BTCUSD-PERP position, the account's
-// balance holding the isolated position's, its settings and the instrument's mark price
+// balance holding another isolated position's and then the isolated position's, its settings and the instrument's mark
+// price
 var testPositionRoutes = map[string]testRoute{
 	"private/get-positions": testResult(`{"data":[
 		{"account_id":"858dbc8b-22fd-49fa-bff4-d342d98a8acb","quantity":"-0.1984","cost":"-10159.573500","open_position_pnl":"-497.743736","open_pos_cost":"-10159.352200","session_pnl":"2.236145","update_timestamp_ms":"1613552240770","instrument_name":"BTCUSD-PERP","type":"PERPETUAL_SWAP"},
 		{"account_id":"858dbc8b-22fd-49fa-bff4-d342d98a8acb","quantity":"0.0002","cost":"10.959000","open_position_pnl":"-0.003000","open_pos_cost":"10.959000","session_pnl":"-0.043000","update_timestamp_ms":"1613552240771","instrument_name":"BTCUSD-PERP","type":"PERPETUAL_SWAP","isolation_id":"19848526","isolation_type":"ISOLATED_MARGIN"}]}`),
 	"private/user-balance": testResult(`{"data":[{"instrument_name":"USD","total_available_balance":"4721.05898582","total_margin_balance":"7595.42571782","total_cash_balance":"7890.00320721","total_collateral_value":"7651.18811483","total_effective_leverage":"1.90401230",
 		"position_balances":[{"instrument_name":"USD","quantity":"3113.50747209","reserved_qty":"12.5"}],
-		"isolated_positions":[{"instrument_name":"BTCUSD-PERP","isolation_id":"19848526","isolation_type":"ISOLATED_MARGIN","leverage":"2","total_available_balance":"0.4","total_margin_balance":"5.397","total_initial_margin":"2.7","total_maintenance_margin":"1.35","total_cash_balance":"5.4","total_collateral_value":"5.4","total_effective_leverage":"0.4"}]}]}`),
+		"isolated_positions":[
+			{"instrument_name":"USD","isolation_id":"19848527","isolation_type":"ISOLATED_MARGIN","leverage":"5","total_available_balance":"1.1","total_margin_balance":"3.2","total_initial_margin":"0.64","total_maintenance_margin":"0.32","total_cash_balance":"3.2","total_collateral_value":"3.2","total_effective_leverage":"0.2"},
+			{"instrument_name":"USD","isolation_id":"19848526","isolation_type":"ISOLATED_MARGIN","leverage":"2","total_available_balance":"0.4","total_margin_balance":"5.397","total_initial_margin":"2.7","total_maintenance_margin":"1.35","total_cash_balance":"5.4","total_collateral_value":"5.4","total_effective_leverage":"0.4"}]}]}`),
 	"private/get-account-settings": testResult(`[{"leverage":"20","stp_id":"100","stp_scope":"S","stp_inst":"M"}]`),
 	"public/get-valuations":        testResult(`{"instrument_name":"BTCUSD-PERP","data":[{"v":"80819.5","t":1792899065000}]}`),
 }
@@ -2626,6 +2933,7 @@ func TestSetLeverage(t *testing.T) {
 	exp := []testRequest{
 		{Method: "private/get-accounts", Params: `{}`},
 		{Method: "private/change-account-leverage", Params: `{"account_id":"52e7c00f-1324-5a6a-bf6e-de445bde21a5","leverage":10}`},
+		{Method: "private/get-positions", Params: `{"instrument_name":"BTCUSD-PERP"}`},
 		{Method: "private/user-balance", Params: `{}`},
 		{Method: "private/change-isolated-margin-leverage", Params: `{"isolation_id":"19848526","leverage":"3.5"}`},
 	}

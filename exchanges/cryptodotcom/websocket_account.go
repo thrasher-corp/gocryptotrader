@@ -3,7 +3,6 @@ package cryptodotcom
 import (
 	"context"
 	"fmt"
-	"slices"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -221,9 +220,10 @@ func (e *Exchange) wsHandleTransactions(ctx context.Context, push *websocketChan
 	return relayUserData[TransactionResponse](ctx, e, push)
 }
 
-// wsHandleUserBalance saves the account's balances to the account store of each enabled asset, as Crypto.com keeps one
-// wallet for spot, margin and derivatives, and relays them. Crypto.com's docs leave out whether a push holds every
-// currency, so the currencies a push leaves out are kept
+// wsHandleUserBalance saves the account's balances to the account store and relays them. Crypto.com keeps one wallet
+// for spot, margin and derivatives, which is saved once, under spot, as the portfolio's balance refresh saves it, since
+// the account store adds up every asset's balances. Crypto.com's docs leave out whether a push holds every currency,
+// so the currencies a push leaves out are kept
 func (e *Exchange) wsHandleUserBalance(ctx context.Context, push *websocketChannelPush) error {
 	var balances []UserBalanceResponse
 	if err := decodePushData(push, &balances); err != nil {
@@ -232,12 +232,7 @@ func (e *Exchange) wsHandleUserBalance(ctx context.Context, push *websocketChann
 	if len(balances) == 0 {
 		return nil
 	}
-	assets := e.GetAssetTypes(true)
-	slices.Sort(assets)
-	subAccts := make(accounts.SubAccounts, len(assets))
-	for i, a := range assets {
-		subAccts[i] = balanceSubAccount(a, balances)
-	}
+	subAccts := accounts.SubAccounts{balanceSubAccount(asset.Spot, balances)}
 	if err := e.Accounts.Save(ctx, subAccts, false); err != nil {
 		return err
 	}

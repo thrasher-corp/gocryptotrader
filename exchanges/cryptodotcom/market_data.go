@@ -70,7 +70,8 @@ func (e *Exchange) GetOrderbook(ctx context.Context, req *OrderbookRequest) (*Or
 }
 
 // GetCandlestick returns an instrument's candles, oldest first: the latest Count whose periods overlap the window
-// from StartTime to EndTime, so a StartTime within a period includes that period's candle
+// from StartTime to EndTime, so a StartTime within a period includes that period's candle. The candle opening at
+// EndTime is left out, except for monthly candles
 func (e *Exchange) GetCandlestick(ctx context.Context, req *CandlestickRequest) (*CandlestickResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err

@@ -359,7 +359,7 @@ func (e *Exchange) wsHandleTicker(ctx context.Context, push *websocketChannelPus
 				Ask:                 tickers[i].BestAskPrice.Float64(),
 				AskSize:             tickers[i].BestAskSize.Float64(),
 				BaseVolume:          tickers[i].Volume24Hour.Float64(),
-				PercentChange24Hour: tickers[i].PriceChange24Hour.Float64() * 100,
+				PercentChange24Hour: percentFromFraction(tickers[i].PriceChange24Hour),
 				OpenInterest:        tickers[i].OpenInterest.Float64(),
 				Pair:                a.Pair,
 				ExchangeName:        e.Name,
