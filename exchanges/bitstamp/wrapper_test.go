@@ -2718,16 +2718,17 @@ func TestGetFuturesPositionOrders(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
+			// The orders are filtered to the requested range, so the trade falls inside it
+			traded := tc.start.Add(time.Hour).UTC()
 			ex := newTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
 				assert.Equal(t, "/api/v2/trade_history/btcusd-perp/", r.URL.Path, "path should be correct")
 				assert.Equal(t, strconv.FormatInt(tc.start.Unix(), 10), r.URL.Query().Get("since_timestamp"), "since_timestamp should be the start date")
 				assert.Equal(t, strconv.FormatInt(tc.end.Unix(), 10), r.URL.Query().Get("until_timestamp"), "until_timestamp should be the end date")
-				_, err := w.Write([]byte(`[{"trade_id":"1","order_id":"2","datetime":"2025-06-16 10:01:00","fee":"0.1","fee_currency":"USD","market":"BTC/USD-PERP","margin_mode":"CROSS","leverage":"2","side":"BUY","type":"TRADE","price":"84000","amount":"0.01"}]`))
+				_, err := w.Write([]byte(`[{"trade_id":"1","order_id":"2","datetime":"` + traded.Format(time.DateTime) + `","fee":"0.1","fee_currency":"USD","market":"BTC/USD-PERP","margin_mode":"CROSS","leverage":"2","side":"BUY","type":"TRADE","price":"84000","amount":"0.01"}]`))
 				assert.NoError(t, err, "Write should not error")
 			})
 			resp, err := ex.GetFuturesPositionOrders(t.Context(), &futures.PositionsRequest{Asset: asset.PerpetualContract, Pairs: currency.Pairs{perpetualPair}, StartDate: tc.start, EndDate: tc.end, RespectOrderHistoryLimits: tc.respect})
 			require.NoError(t, err, "GetFuturesPositionOrders must not error")
-			traded := time.Date(2025, 6, 16, 10, 1, 0, 0, time.UTC)
 			exp := []futures.PositionResponse{{
 				Pair:                   perpetualPair,
 				Asset:                  asset.PerpetualContract,
@@ -2755,6 +2756,137 @@ func TestGetFuturesPositionOrders(t *testing.T) {
 			}}
 			assert.Equal(t, exp, resp, "GetFuturesPositionOrders should aggregate the pair's trades into orders")
 		})
+	}
+}
+
+func TestGetFuturesPositionOrdersFractionalStart(t *testing.T) {
+	t.Parallel()
+	// The request's time bounds are whole seconds, so a fractional start can also return trades earlier in its second;
+	// this start is a nanosecond after the earlier trade, so truncating the start to microseconds or coarser lets that trade in
+	start := time.Now().Add(-24 * time.Hour).Truncate(time.Second).Add(900*time.Millisecond + time.Nanosecond)
+	before := start.Add(-time.Nanosecond).UTC().Format("2006-01-02 15:04:05.000000")
+	after := start.Add(time.Hour).UTC().Format(time.DateTime)
+	ex := newTestExchange(t, func(w http.ResponseWriter, _ *http.Request) {
+		_, err := w.Write([]byte(`[{"trade_id":"1","order_id":"2","datetime":"` + before + `","fee":"0.1","fee_currency":"USD","market":"BTC/USD-PERP","margin_mode":"CROSS","leverage":"2","side":"BUY","type":"TRADE","price":"84000","amount":"0.01"},` +
+			`{"trade_id":"3","order_id":"4","datetime":"` + after + `","fee":"0.1","fee_currency":"USD","market":"BTC/USD-PERP","margin_mode":"CROSS","leverage":"2","side":"BUY","type":"TRADE","price":"84000","amount":"0.01"}]`))
+		assert.NoError(t, err, "Write should not error")
+	})
+	resp, err := ex.GetFuturesPositionOrders(t.Context(), &futures.PositionsRequest{Asset: asset.PerpetualContract, Pairs: currency.Pairs{perpetualPair}, StartDate: start, EndDate: start.Add(12 * time.Hour)})
+	require.NoError(t, err, "GetFuturesPositionOrders must not error")
+	require.Len(t, resp, 1, "GetFuturesPositionOrders must return the pair's position")
+	orderIDs := make([]string, len(resp[0].Orders))
+	for i := range resp[0].Orders {
+		orderIDs[i] = resp[0].Orders[i].OrderID
+	}
+	assert.Equal(t, []string{"4"}, orderIDs, "GetFuturesPositionOrders should leave out an order traded before a fractional start")
+}
+
+func TestOrderHistoryTimeRange(t *testing.T) {
+	t.Parallel()
+	// The request's time bounds are whole seconds, so the API can also return trades from earlier in a fractional start's
+	// second; an order counts only its trades within the range, and is dated by the first of them
+	second := time.Now().Add(-24 * time.Hour).UTC().Truncate(time.Second)
+	first := second.Add(900 * time.Millisecond)
+	type trade struct {
+		id, orderID, selfTradeOrderID uint64
+		side                          string
+		at                            time.Time
+	}
+	buys := func(times ...time.Time) []trade {
+		trades := make([]trade, len(times))
+		for i, at := range times {
+			trades[i] = trade{id: uint64(2*i + 1), orderID: 2, side: "BUY", at: at}
+		}
+		return trades
+	}
+	for _, tc := range []struct {
+		name       string
+		start, end time.Time
+		// trades is nil when the API answers with trades at the request's since_timestamp and an hour later
+		trades []trade
+		assets []asset.Item
+		exp    map[string][]string
+	}{
+		// A nanosecond after the order's second trade, so truncating the start to microseconds or coarser lets that trade in
+		{name: "start after a trade", start: first.Add(time.Nanosecond), end: second.Add(12 * time.Hour), trades: buys(first.Add(-time.Millisecond), first, first.Add(time.Microsecond), second.Add(time.Hour)), exp: map[string][]string{"2": {"5", "7"}}},
+		{name: "start at a trade", start: first.Add(time.Microsecond), end: second.Add(12 * time.Hour), trades: buys(first.Add(-time.Millisecond), first, first.Add(time.Microsecond), second.Add(time.Hour)), exp: map[string][]string{"2": {"5", "7"}}},
+		{name: "end at a trade", start: second, end: second.Add(2 * time.Second), trades: buys(second.Add(time.Second), second.Add(2*time.Second)), exp: map[string][]string{"2": {"1", "3"}}},
+		{name: "fractional end", start: second, end: second.Add(2900 * time.Millisecond), trades: buys(second.Add(time.Second), second.Add(2*time.Second)), exp: map[string][]string{"2": {"1", "3"}}},
+		{
+			name: "self trade before the start", start: first.Add(time.Nanosecond), end: second.Add(12 * time.Hour), assets: []asset.Item{asset.PerpetualContract},
+			trades: []trade{{id: 1, orderID: 2, selfTradeOrderID: 4, side: TradeSideSelf, at: first}, {id: 3, orderID: 2, side: "BUY", at: first.Add(time.Microsecond)}, {id: 5, orderID: 4, side: "SELL", at: second.Add(time.Hour)}},
+			exp:    map[string][]string{"2": {"3"}, "4": {"5"}},
+		},
+		// Spot transactions only reach back 30 days, so the request's since_timestamp is moved forward, still within the range
+		{name: "start older than 30 days", start: second.Add(-45 * 24 * time.Hour), end: second.Add(12 * time.Hour), exp: map[string][]string{"2": {"1", "3"}}},
+	} {
+		assets := tc.assets
+		if assets == nil {
+			assets = []asset.Item{asset.Spot, asset.PerpetualContract}
+		}
+		for _, a := range assets {
+			for _, positions := range []bool{false, true} {
+				if positions && a != asset.PerpetualContract {
+					continue
+				}
+				name := "GetOrderHistory " + a.String()
+				if positions {
+					name = "GetFuturesPositionOrders"
+				}
+				var mu sync.Mutex
+				sent := tc.trades
+				ex := newTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+					assert.NoError(t, r.ParseForm(), "ParseForm should not error")
+					mu.Lock()
+					defer mu.Unlock()
+					if tc.trades == nil {
+						since, err := strconv.ParseInt(r.Form.Get("since_timestamp"), 10, 64)
+						assert.NoError(t, err, "since_timestamp should be a number")
+						sent = buys(time.Unix(since, 0).UTC(), time.Unix(since, 0).UTC().Add(time.Hour))
+					}
+					rows := make([]string, len(sent))
+					for i, tr := range sent {
+						datetime := tr.at.UTC().Format("2006-01-02 15:04:05.000000")
+						rows[i] = `{"trade_id":"` + strconv.FormatUint(tr.id, 10) + `","order_id":"` + strconv.FormatUint(tr.orderID, 10) + `","self_trade_order_id":"` + strconv.FormatUint(tr.selfTradeOrderID, 10) + `","datetime":"` + datetime + `","fee":"0.1","fee_currency":"USD","market":"BTC/USD-PERP","margin_mode":"CROSS","leverage":"2","side":"` + tr.side + `","type":"TRADE","price":"84000","amount":"0.01"}`
+						if a == asset.Spot {
+							rows[i] = `{"id":` + strconv.FormatUint(tr.id, 10) + `,"datetime":"` + datetime + `","type":"2","fee":"0.1","btc":"0.01","usd":"-840.0","btc_usd":84000,"order_id":` + strconv.FormatUint(tr.orderID, 10) + `}`
+						}
+					}
+					_, err := w.Write([]byte("[" + strings.Join(rows, ",") + "]"))
+					assert.NoError(t, err, "Write should not error")
+				})
+				var orders []order.Detail
+				if positions {
+					resp, err := ex.GetFuturesPositionOrders(t.Context(), &futures.PositionsRequest{Asset: a, Pairs: currency.Pairs{perpetualPair}, StartDate: tc.start, EndDate: tc.end})
+					require.NoErrorf(t, err, "%s must not error for %s", name, tc.name)
+					require.Lenf(t, resp, 1, "%s must return the pair's position for %s", name, tc.name)
+					orders = resp[0].Orders
+				} else {
+					var err error
+					orders, err = ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: a, Side: order.AnySide, Type: order.AnyType, StartTime: tc.start, EndTime: tc.end})
+					require.NoErrorf(t, err, "%s must not error for %s", name, tc.name)
+				}
+				mu.Lock()
+				executed := make(map[string]time.Time, len(sent))
+				for _, tr := range sent {
+					executed[strconv.FormatUint(tr.id, 10)] = tr.at
+				}
+				mu.Unlock()
+				require.Lenf(t, orders, len(tc.exp), "%s must return each order with a trade in the range for %s", name, tc.name)
+				for i := range orders {
+					exp, ok := tc.exp[orders[i].OrderID]
+					require.Truef(t, ok, "%s must not return order %s for %s", name, orders[i].OrderID, tc.name)
+					tradeIDs := make([]string, len(orders[i].Trades))
+					for j := range orders[i].Trades {
+						tradeIDs[j] = orders[i].Trades[j].TID
+					}
+					assert.Equalf(t, exp, tradeIDs, "%s should keep only order %s's trades in the range for %s", name, orders[i].OrderID, tc.name)
+					assert.Equalf(t, float64(len(exp))/100, orders[i].ExecutedAmount, "%s should count only order %s's trades in the range for %s", name, orders[i].OrderID, tc.name)
+					assert.Truef(t, orders[i].Date.Equal(executed[exp[0]]), "%s should date order %s by its first trade in the range for %s", name, orders[i].OrderID, tc.name)
+					assert.Truef(t, orders[i].LastUpdated.Equal(executed[exp[len(exp)-1]]), "%s should update order %s by its last trade in the range for %s", name, orders[i].OrderID, tc.name)
+				}
+			}
+		}
 	}
 }
 

@@ -1372,9 +1372,8 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 	return req.Filter(e.Name, orders), nil
 }
 
-// GetOrderHistory retrieves executed orders, aggregated from their trades
-// An order is returned when the span from its first to its last trade overlaps the request's time range, and a spot
-// start more than 30 days ago is moved to 30 days ago, as far back as the transactions' time filters reach
+// GetOrderHistory retrieves executed orders, aggregated from their trades within the request's time range
+// A spot start more than 30 days ago is moved to 30 days ago, as far back as the transactions' time filters reach
 func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	if err := req.Validate(); err != nil {
 		return nil, err
@@ -1446,6 +1445,10 @@ func (e *Exchange) spotOrderHistory(ctx context.Context, req *order.MultiOrderRe
 	for i := range txs {
 		tx := &txs[i]
 		if tx.Type != TransactionTypeMarketTrade || tx.OrderID == 0 {
+			continue
+		}
+		// The API's time bounds are whole seconds, so a fractional start can also return trades from earlier in its second
+		if (!req.StartTime.IsZero() && tx.DateTime.Before(req.StartTime)) || (!req.EndTime.IsZero() && tx.DateTime.After(req.EndTime)) {
 			continue
 		}
 		pair, price, ok := tradedPair(tx)
@@ -1559,6 +1562,10 @@ func (e *Exchange) derivativesOrderHistory(ctx context.Context, pairs currency.P
 		aggregated := make(map[uint64]*order.Detail)
 		for i := range trades {
 			t := &trades[i]
+			// The API's time bounds are whole seconds, so a fractional start can also return trades from earlier in its second
+			if executed := t.DateTime.Time(); (!start.IsZero() && executed.Before(start)) || (!end.IsZero() && executed.After(end)) {
+				continue
+			}
 			side := order.UnknownSide
 			if t.Side != TradeSideSelf {
 				if side, err = order.StringToOrderSide(t.Side); err != nil {
@@ -2197,7 +2204,7 @@ func (e *Exchange) GetFuturesPositionOrders(ctx context.Context, r *futures.Posi
 			Pair:                   p,
 			Asset:                  r.Asset,
 			ContractSettlementType: futures.Linear,
-			Orders:                 orders,
+			Orders:                 withinTimeRange(orders, r.StartDate, r.EndDate),
 		}
 	}
 	return resp, nil
