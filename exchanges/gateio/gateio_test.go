@@ -2650,6 +2650,7 @@ func TestFuturesExecutionResponseMappings(t *testing.T) {
 		{finishAs: "position_close", left: 4, status: order.Cancelled},
 		{finishAs: "position_closed", left: 4, status: order.Cancelled},
 		{finishAs: "auto_deleveraging", left: 0, status: order.AutoDeleverage},
+		{finishAs: "auto_deleveraged", left: 0, status: order.AutoDeleverage},
 		{finishAs: "filled", left: 0, status: order.Filled},
 		{finishAs: "liquidated", left: 4, status: order.Liquidated},
 	} {

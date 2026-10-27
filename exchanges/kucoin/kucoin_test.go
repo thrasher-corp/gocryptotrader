@@ -4200,7 +4200,7 @@ func TestStringToOrderStatus(t *testing.T) {
 		Result order.Status
 		HasErr bool
 	}{
-		{Input: "match", Result: order.Filled},
+		{Input: "match", Result: order.PartiallyFilled},
 		{Input: "open", Result: order.Open},
 		{Input: "done", Result: order.Closed},
 		{Input: "accepted", Result: order.New},

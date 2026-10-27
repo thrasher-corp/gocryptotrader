@@ -154,6 +154,24 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 	if m == nil {
 		return fmt.Errorf("incoming %w", ErrOrderDetailIsNil)
 	}
+	// Delayed snapshots must not rewind cumulative execution or replace newer
+	// state. Still retain previously unseen fills without overwriting known ones.
+	if (m.ExecutedAmount > 0 && m.ExecutedAmount < d.ExecutedAmount) ||
+		(!m.LastUpdated.IsZero() && !d.LastUpdated.IsZero() && m.LastUpdated.Before(d.LastUpdated) && m.ExecutedAmount <= d.ExecutedAmount) {
+		for i := range m.Trades {
+			found := false
+			for j := range d.Trades {
+				if d.Trades[j].TID == m.Trades[i].TID {
+					found = true
+					break
+				}
+			}
+			if !found {
+				d.Trades = append(d.Trades, m.Trades[i])
+			}
+		}
+		return nil
+	}
 
 	var updated bool
 	if m.TimeInForce != UnknownTIF && d.TimeInForce != m.TimeInForce {
@@ -328,9 +346,9 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 		updated = true
 	}
 	if updated {
-		if m.LastUpdated.IsZero() || d.LastUpdated.Equal(m.LastUpdated) {
+		if m.LastUpdated.IsZero() {
 			d.LastUpdated = time.Now()
-		} else {
+		} else if m.LastUpdated.After(d.LastUpdated) {
 			d.LastUpdated = m.LastUpdated
 		}
 	}

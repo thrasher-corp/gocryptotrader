@@ -1058,7 +1058,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		response.FeeAsset = currency.NewCode(sOrder.FeeCurrency)
 		response.Pair = s.Pair
 		response.Date = sOrder.CreateTime.Time()
-		response.ClientOrderID = sOrder.Text
+		response.ClientOrderID = getClientOrderIDFromText(sOrder.Text)
 		response.LastUpdated = sOrder.UpdateTime.Time()
 		return response, nil
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures:
@@ -1150,7 +1150,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		response.Status = status
 		response.Pair = s.Pair
 		response.Date = optionOrder.CreateTime.Time()
-		response.ClientOrderID = optionOrder.Text
+		response.ClientOrderID = getClientOrderIDFromText(optionOrder.Text)
 		return response, nil
 	default:
 		return nil, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, s.AssetType)
@@ -1408,7 +1408,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			Amount:               amount,
 			Exchange:             e.Name,
 			OrderID:              spotOrder.OrderID,
-			ClientOrderID:        spotOrder.Text,
+			ClientOrderID:        getClientOrderIDFromText(spotOrder.Text),
 			TimeInForce:          tif,
 			Side:                 side,
 			Type:                 orderType,
@@ -1646,7 +1646,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 					LastUpdated:          spotOrders[x].Orders[y].UpdateTime.Time(),
 					Exchange:             e.Name,
 					AssetType:            req.AssetType,
-					ClientOrderID:        spotOrders[x].Orders[y].Text,
+					ClientOrderID:        getClientOrderIDFromText(spotOrders[x].Orders[y].Text),
 					TimeInForce:          tif,
 					FeeAsset:             currency.NewCode(spotOrders[x].Orders[y].FeeCurrency),
 				})
@@ -1726,7 +1726,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 				Date:            optionsOrders[i].CreateTime.Time(),
 				Exchange:        e.Name,
 				AssetType:       req.AssetType,
-				ClientOrderID:   optionsOrders[i].Text,
+				ClientOrderID:   getClientOrderIDFromText(optionsOrders[i].Text),
 			})
 		}
 	default:
@@ -2932,7 +2932,7 @@ func (e *Exchange) deriveSpotWebsocketOrderResponses(responses []*WebsocketOrder
 		if resp.Label != "" { // batch only, denotes error type in string format
 			out[i] = &order.SubmitResponse{
 				Exchange:        e.Name,
-				ClientOrderID:   resp.Text,
+				ClientOrderID:   getClientOrderIDFromText(resp.Text),
 				SubmissionError: fmt.Errorf("%w reason label:%q message:%q", order.ErrUnableToPlaceOrder, resp.Label, resp.Message),
 			}
 			continue
@@ -2975,7 +2975,7 @@ func (e *Exchange) deriveSpotWebsocketOrderResponses(responses []*WebsocketOrder
 			OrderID:              resp.ID,
 			AssetType:            resp.Account,
 			Pair:                 resp.CurrencyPair,
-			ClientOrderID:        resp.Text,
+			ClientOrderID:        getClientOrderIDFromText(resp.Text),
 			Date:                 resp.CreateTimeMs.Time(),
 			LastUpdated:          resp.UpdateTimeMs.Time(),
 			RemainingAmount:      remainingAmount,

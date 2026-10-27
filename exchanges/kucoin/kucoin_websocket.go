@@ -375,6 +375,17 @@ func (e *Exchange) processFuturesPrivateTradeOrders(ctx context.Context, respDat
 	if err != nil {
 		return err
 	}
+	switch {
+	case resp.Type == "filled":
+		oStatus = order.Filled
+	case resp.Type == "canceled":
+		oStatus = order.Cancelled
+	case resp.Type == "match" || resp.Status == "match":
+		oStatus = order.PartiallyFilled
+		if resp.OrderSize > 0 && resp.FilledSize >= resp.OrderSize && resp.RemainSize == 0 {
+			oStatus = order.Filled
+		}
+	}
 	var enabledPairs currency.Pairs
 	enabledPairs, err = e.GetEnabledPairs(asset.Futures)
 	if err != nil {
@@ -399,9 +410,10 @@ func (e *Exchange) processFuturesPrivateTradeOrders(ctx context.Context, respDat
 		ExecutedAmount:  resp.FilledSize,
 		RemainingAmount: resp.RemainSize,
 		ClientOrderID:   resp.ClientOid,
-		OrderID:         resp.TradeID,
+		OrderID:         resp.OrderID,
 		AssetType:       asset.Futures,
-		LastUpdated:     resp.OrderTime.Time(),
+		Date:            resp.OrderTime.Time(),
+		LastUpdated:     resp.Timestamp.Time(),
 	})
 }
 

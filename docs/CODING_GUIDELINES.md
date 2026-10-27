@@ -297,6 +297,13 @@ Use `require` and `assert` appropriately:
     an average only from supplied fill values with matching units. Keep the fee
     and remaining quantity, and keep all fill values on a status-only update.
     Document which zero-valued fields mean unknown rather than none.
+    Do not roll cumulative execution or its metadata back when delayed snapshots
+    arrive. Test decreasing fills with older, equal and missing timestamps,
+    timestamp-only stale updates, and newer fill progress. Preserve previously
+    unseen individual trades without replacing newer snapshots or known fills.
+- When an API field multiplexes a caller identifier and exchange-generated
+    source markers, use its documented discriminator. Test both representations
+    through every affected REST and websocket mapping, not just the parser.
 - When an external API deprecates a mapped field, verify the replacement against
     current authoritative documentation and, where credentials are required,
     distinguish documented behaviour from live verification. If the replacement

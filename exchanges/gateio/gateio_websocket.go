@@ -493,6 +493,12 @@ func (e *Exchange) processSpotOrders(ctx context.Context, data []byte) error {
 		if err != nil {
 			return err
 		}
+		var tif order.TimeInForce
+		if resp.Result[x].TimeInForce != "" {
+			if tif, err = timeInForceFromString(resp.Result[x].TimeInForce); err != nil {
+				return err
+			}
+		}
 		a, err := asset.New(resp.Result[x].Account)
 		if err != nil {
 			return err
@@ -520,6 +526,8 @@ func (e *Exchange) processSpotOrders(ctx context.Context, data []byte) error {
 			QuoteAmount:          quoteAmount,
 			Exchange:             e.Name,
 			OrderID:              resp.Result[x].ID,
+			ClientOrderID:        getClientOrderIDFromText(resp.Result[x].Text),
+			TimeInForce:          tif,
 			Side:                 side,
 			Type:                 orderType,
 			Pair:                 resp.Result[x].CurrencyPair,
