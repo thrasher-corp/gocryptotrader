@@ -7,6 +7,7 @@ import (
 	"os"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/stretchr/testify/assert"
@@ -510,9 +511,9 @@ func TestWebsocketBookRetriesRefusedSubscription(t *testing.T) {
 	assert.Len(t, venue.received(websocketMethodSubscribe), 3, "the refused book channel should be subscribed once more")
 	assert.Len(t, venue.received(websocketMethodUnsubscribe), 1, "the refused book channel should not be unsubscribed again")
 
-	start := time.Now()
+	// TestWebsocketBookRetryStops checks how soon the retry stops on a synctest bubble's clock, which a stall of the test
+	// cannot move
 	ex.retryBookSubscription(t.Context(), conn, s)
-	assert.Less(t, time.Since(start), 2*ex.bookResubscribeDelay, "retryBookSubscription should stop at its first attempt for a book channel held again")
 	assert.Len(t, venue.received(websocketMethodSubscribe), 3, "retryBookSubscription should not subscribe a book channel held again")
 }
 
@@ -543,33 +544,91 @@ func TestWebsocketBookRetryLeavesOutUnconfiguredChannel(t *testing.T) {
 	assert.Len(t, venue.received(websocketMethodSubscribe), 3, "retryBookSubscription should not subscribe the book channel again")
 }
 
+// bookRetryConnection stands in for a connection to the mock websocket in the synctest bubbles timing
+// retryBookSubscription, as the reader of a connection to the mock blocks on its socket, which would keep a bubble's
+// clock from moving; it counts how often it is asked whether it is connected
+type bookRetryConnection struct {
+	websocket.Connection
+	connected     bool
+	connectChecks uint64
+}
+
+// IsConnected reports whether the connection is connected, counting each check
+func (c *bookRetryConnection) IsConnected() bool {
+	c.connectChecks++
+	return c.connected
+}
+
 func TestWebsocketBookRetryStops(t *testing.T) {
 	t.Parallel()
-	if !mockTests {
-		t.Skip("book resynchronisation is tested against the mock websocket")
+	const delay = 50 * time.Millisecond
+	for _, tc := range []struct {
+		name          string
+		done          bool
+		connected     bool
+		held          bool
+		elapsed       time.Duration
+		connectChecks uint64
+	}{
+		{name: "context done", done: true, connected: true},
+		{name: "connection lost", elapsed: delay, connectChecks: 1},
+		{name: "book channel held again", connected: true, held: true, elapsed: delay, connectChecks: 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := newTestExchange(t)
+			ex.Features.Subscriptions = recordedBookChannelSubscription()
+			ex.bookResubscribeDelay = delay
+			// The retry waits on a synctest bubble's clock, which moves only while everything in the bubble waits, so a
+			// stall of the test adds nothing to the time measured. The manager is made in the bubble, as a channel made
+			// outside it that the retry waited on would keep the clock from moving
+			synctest.Test(t, func(t *testing.T) {
+				ex.Websocket = websocket.NewManager()
+				var subscribes uint64
+				ex.Websocket.Subscriber = func(subscription.List) error {
+					subscribes++
+					return &APIError{Code: 42901, Message: "TOO_MANY_REQUESTS"}
+				}
+				s := &subscription.Subscription{QualifiedChannel: recordedBookChannel}
+				require.True(t, ex.isConfiguredMarketDataChannel(s.QualifiedChannel), "the book channel must be configured, so that only the stop under test can end the retry")
+				if tc.held {
+					require.NoError(t, ex.Websocket.AddSuccessfulSubscriptions(nil, s), "AddSuccessfulSubscriptions must not error")
+				}
+				ctx, cancel := context.WithCancel(t.Context())
+				defer cancel()
+				if tc.done {
+					cancel()
+				}
+				conn := &bookRetryConnection{connected: tc.connected}
+				start := time.Now()
+				ex.retryBookSubscription(ctx, conn, s)
+				assert.Equal(t, tc.elapsed, time.Since(start), "retryBookSubscription should stop after waiting as long as expected")
+				assert.Equal(t, tc.connectChecks, conn.connectChecks, "retryBookSubscription should check its connection as often as expected")
+				assert.Zero(t, subscribes, "retryBookSubscription should not subscribe the book channel")
+			})
+		})
 	}
-	venue := newMarketDataVenue(t)
-	ex, err := newMarketDataTestExchange(t, venue, recordedBookChannelSubscription(), func(ex *Exchange) {
-		ex.bookResubscribeDelay = 50 * time.Millisecond
+
+	t.Run("connection to the mock lost", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("a lost connection is tested against the mock websocket")
+		}
+		venue := newMarketDataVenue(t)
+		ex, err := newMarketDataTestExchange(t, venue, recordedBookChannelSubscription())
+		require.NoError(t, err, "Connect must not error")
+		conn, err := ex.Websocket.GetConnection(websocketMarketDataConnection)
+		require.NoError(t, err, "GetConnection must not error")
+		// The mock can still be pushing the book channel's recorded frames, which it cannot write once the connection is shut
+		venue.closing()
+		if err := ex.Websocket.Shutdown(); err != nil {
+			require.ErrorIs(t, err, websocket.ErrNotConnected, "Shutdown must only fail when the traffic monitor has shut the connection down first")
+		}
+		// retryBookSubscription asks its connection whether it is connected, as bookRetryConnection answers above
+		c, ok := conn.(interface{ IsConnected() bool })
+		require.True(t, ok, "the market data connection must report whether it is connected")
+		assert.False(t, c.IsConnected(), "the market data connection should report it is not connected once shut")
 	})
-	require.NoError(t, err, "Connect must not error")
-	conn, err := ex.Websocket.GetConnection(websocketMarketDataConnection)
-	require.NoError(t, err, "GetConnection must not error")
-	s := conn.Subscriptions().Get(qualifiedChannelKey{&subscription.Subscription{QualifiedChannel: recordedBookChannel}})
-	require.NotNil(t, s, "the book channel must be stored against its connection")
-
-	done, cancel := context.WithCancel(t.Context())
-	cancel()
-	start := time.Now()
-	ex.retryBookSubscription(done, conn, s)
-	assert.Less(t, time.Since(start), ex.bookResubscribeDelay, "retryBookSubscription should stop at once for a context done")
-
-	// The mock can still be pushing the book channel's recorded frames, which it cannot write once the connection is shut
-	venue.closing()
-	require.NoError(t, ex.Websocket.Shutdown(), "Shutdown must not error")
-	start = time.Now()
-	ex.retryBookSubscription(t.Context(), conn, s)
-	assert.Less(t, time.Since(start), 3*ex.bookResubscribeDelay, "retryBookSubscription should stop at its first attempt once its connection is lost, as connecting afresh subscribes every channel")
 }
 
 func TestWebsocketBookGivesUpRefusedSubscription(t *testing.T) {
