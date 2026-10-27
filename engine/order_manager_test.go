@@ -449,9 +449,10 @@ func TestCancelOrder(t *testing.T) {
 	}
 
 	o := &order.Detail{
-		Exchange: testExchange,
-		OrderID:  "1337",
-		Status:   order.New,
+		Exchange:    testExchange,
+		OrderID:     "1337",
+		Status:      order.New,
+		LastUpdated: time.Now().Add(-time.Hour),
 	}
 	err = m.orderStore.add(o)
 	if err != nil {
@@ -474,8 +475,13 @@ func TestCancelOrder(t *testing.T) {
 		AssetType: asset.Spot,
 		Pair:      btcusdPair,
 	}
+	beforeCancel := time.Now()
 	err = m.Cancel(t.Context(), cancel)
 	assert.NoError(t, err)
+	assert.False(t, o.LastUpdated.Before(beforeCancel), "successful local cancellation should stamp its update time")
+	closeTime := beforeCancel.Add(-30 * time.Millisecond)
+	require.NoError(t, m.orderStore.updateExisting(&order.Detail{Exchange: testExchange, OrderID: "1337", Status: order.Cancelled, CloseTime: closeTime, LastUpdated: closeTime}), "older exchange confirmation must enrich the locally cancelled order")
+	assert.Equal(t, closeTime, o.CloseTime, "exchange confirmation should preserve its close time despite the newer local stamp")
 
 	if o.Status != order.Cancelled {
 		t.Error("Failed to cancel")

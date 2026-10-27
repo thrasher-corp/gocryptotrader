@@ -301,6 +301,13 @@ Use `require` and `assert` appropriately:
     arrive. Test decreasing fills with older, equal and missing timestamps,
     timestamp-only stale updates, and newer fill progress. Preserve previously
     unseen individual trades without replacing newer snapshots or known fills.
+    Do not order snapshots by a timestamp that mixes local observation times
+    with exchange times or different timestamp resolutions. Use cumulative
+    execution and terminal lifecycle state, or a separate authoritative ordering
+    field. Allow only float rounding differences when comparing derived
+    cumulative quantities; do not use a fixed tolerance that hides small fills.
+    Test clock skew, coarse venue timestamps, equal-fill amendments, terminal
+    metadata enrichment and explicit timestamps for local state changes.
 - When an API field multiplexes a caller identifier and exchange-generated
     source markers, use its documented discriminator. Test both representations
     through every affected REST and websocket mapping, not just the parser.

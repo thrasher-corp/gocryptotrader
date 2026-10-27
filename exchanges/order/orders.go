@@ -5,6 +5,7 @@ import (
 	"cmp"
 	"errors"
 	"fmt"
+	"math"
 	"slices"
 	"strings"
 	"time"
@@ -154,10 +155,15 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 	if m == nil {
 		return fmt.Errorf("incoming %w", ErrOrderDetailIsNil)
 	}
-	// Delayed snapshots must not rewind cumulative execution or replace newer
-	// state. Still retain previously unseen fills without overwriting known ones.
-	if (m.ExecutedAmount > 0 && m.ExecutedAmount < d.ExecutedAmount) ||
-		(!m.LastUpdated.IsZero() && !d.LastUpdated.IsZero() && m.LastUpdated.Before(d.LastUpdated) && m.ExecutedAmount <= d.ExecutedAmount) {
+	// LastUpdated can be a local stamp or a coarse exchange timestamp, so it
+	// cannot order snapshots. Use cumulative execution and terminal state instead.
+	// Subtracting venue quantities can differ by a few float rounding steps.
+	executionTolerance := 8 * (math.Nextafter(d.ExecutedAmount, math.Inf(1)) - d.ExecutedAmount)
+	executionAdvanced := m.ExecutedAmount > d.ExecutedAmount
+	terminal := d.Status != UnknownStatus && d.Status.IsInactive() && d.Status != Cancelling && d.Status != AnyStatus
+	incomingTerminal := m.Status != UnknownStatus && m.Status.IsInactive() && m.Status != Cancelling && m.Status != AnyStatus
+	if (m.ExecutedAmount > 0 && m.ExecutedAmount < d.ExecutedAmount-executionTolerance) ||
+		(terminal && m.Status != UnknownStatus && !incomingTerminal && !executionAdvanced) {
 		for i := range m.Trades {
 			found := false
 			for j := range d.Trades {
@@ -171,6 +177,11 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 			}
 		}
 		return nil
+	}
+	if m.ExecutedAmount > 0 && m.ExecutedAmount < d.ExecutedAmount {
+		incoming := *m
+		incoming.ExecutedAmount = d.ExecutedAmount
+		m = &incoming
 	}
 
 	var updated bool
@@ -279,7 +290,7 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 		d.Side = m.Side
 		updated = true
 	}
-	if m.Status != UnknownStatus && m.Status != d.Status {
+	if m.Status != UnknownStatus && m.Status != d.Status && (!terminal || incomingTerminal) {
 		d.Status = m.Status
 		updated = true
 	}

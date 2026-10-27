@@ -1565,11 +1565,11 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			AssetType:            assetType,
 			Status:               oStatus,
 			Price:                resp.Price.Float64(),
-			ExecutedAmount:       resp.FillSize.Float64(),
+			ExecutedAmount:       resp.AccumulatedFillSize.Float64(),
 			Date:                 resp.CreationTime.Time(),
 			LastUpdated:          resp.UpdateTime.Time(),
 			AverageExecutedPrice: resp.AveragePrice.Float64(),
-			RemainingAmount:      resp.Size.Float64() - resp.FillSize.Float64(),
+			RemainingAmount:      resp.Size.Float64() - resp.AccumulatedFillSize.Float64(),
 		}, nil
 	}
 	if pair.IsEmpty() {
@@ -1744,8 +1744,8 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 				Amount:          spreads[x].Size.Float64(),
 				Pair:            pair,
 				Price:           spreads[x].Price.Float64(),
-				ExecutedAmount:  spreads[x].FillSize.Float64(),
-				RemainingAmount: spreads[x].Size.Float64() - spreads[x].FillSize.Float64(),
+				ExecutedAmount:  spreads[x].AccumulatedFillSize.Float64(),
+				RemainingAmount: spreads[x].Size.Float64() - spreads[x].AccumulatedFillSize.Float64(),
 				Exchange:        e.Name,
 				OrderID:         spreads[x].OrderID,
 				ClientOrderID:   spreads[x].ClientOrderID,
@@ -1896,7 +1896,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 				Price:                spreadOrders[x].Price.Float64(),
 				AverageExecutedPrice: spreadOrders[x].AveragePrice.Float64(),
 				Amount:               spreadOrders[x].Size.Float64(),
-				ExecutedAmount:       spreadOrders[x].FillSize.Float64(),
+				ExecutedAmount:       spreadOrders[x].AccumulatedFillSize.Float64(),
 				RemainingAmount:      spreadOrders[x].PendingFillSize.Float64(),
 				Exchange:             e.Name,
 				OrderID:              spreadOrders[x].OrderID,

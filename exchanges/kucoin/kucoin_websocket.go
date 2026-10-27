@@ -686,6 +686,18 @@ func (e *Exchange) processOrderChangeEvent(ctx context.Context, respData []byte,
 	if err != nil {
 		return err
 	}
+	switch response.Type {
+	case "canceled":
+		oStatus = order.Cancelled
+	case "filled":
+		oStatus = order.Filled
+	case "match":
+		oStatus = order.PartiallyFilled
+	case "update":
+		if response.Status == "done" {
+			oStatus = order.Cancelled
+		}
+	}
 	pair, err := currency.NewPairFromString(response.Symbol)
 	if err != nil {
 		return err
