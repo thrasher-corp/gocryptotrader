@@ -155,16 +155,19 @@ func DecimalDifferenceOfFloats(a, b float64) (decimal.Decimal, error) {
 	return x.Sub(y), nil
 }
 
-// FloatQuotientOfDecimals returns the float nearest to dividend divided by divisor, or zero for a zero divisor.
+// FloatQuotientOfDecimals returns the float nearest to dividend divided by divisor, or zero for a zero divisor or for a
+// dividend or divisor with more than a million fractional digits, which math/big does not parse.
 // Dividing the decimals' floats rounds twice, and dividing the decimals stops at a fixed number of decimal places, so
 // either can miss the nearest float
 func FloatQuotientOfDecimals(dividend, divisor decimal.Decimal) float64 {
 	if divisor.IsZero() {
 		return 0
 	}
-	// Decimal.String returns a valid, canonical decimal representation in both backends.
-	x, _ := new(big.Rat).SetString(dividend.String())
-	y, _ := new(big.Rat).SetString(divisor.String())
+	x, okDividend := new(big.Rat).SetString(dividend.String())
+	y, okDivisor := new(big.Rat).SetString(divisor.String())
+	if !okDividend || !okDivisor {
+		return 0
+	}
 	f, _ := x.Quo(x, y).Float64()
 	return f
 }

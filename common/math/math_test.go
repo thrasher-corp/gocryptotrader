@@ -253,6 +253,12 @@ func TestFloatQuotientOfDecimals(t *testing.T) {
 		got := FloatQuotientOfDecimals(decimal.MustFromString(tc.dividend), decimal.MustFromString(tc.divisor))
 		assert.Equalf(t, tc.exp, got, "FloatQuotientOfDecimals should return the nearest float to %s / %s", tc.dividend, tc.divisor)
 	}
+	// The default backend holds decimals with more fractional digits than math/big parses, which the other cannot hold
+	if decimal.MaxFractionalDigits == 0 {
+		tiny := decimal.MustFromString("3e-1000001")
+		assert.Zero(t, FloatQuotientOfDecimals(tiny, decimal.NewFromInt(1)), "FloatQuotientOfDecimals should return zero for a dividend math/big cannot parse")
+		assert.Zero(t, FloatQuotientOfDecimals(decimal.NewFromInt(1), tiny), "FloatQuotientOfDecimals should return zero for a divisor math/big cannot parse")
+	}
 }
 
 func TestCalculateNetProfit(t *testing.T) {
