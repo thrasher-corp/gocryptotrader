@@ -4038,134 +4038,150 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	assert.NotEmpty(t, resp.Url)
 }
 
-// batchCancelFake is a fake exchange wrapper that records the batches it is
-// asked to cancel so the RPC's splitting and reporting can be asserted.
-type batchCancelFake struct {
-	exchange.IBotExchange
-	batches      [][]order.Cancel
-	cancelledIDs []string
-	batchErr     error
-	singleErrs   map[string]error
-	statuses     map[string]string
-	reportStatus bool
+type batchCancelRPCFake struct {
+	fExchange
+	cancelsReceived []order.Cancel
+	resp            *order.CancelBatchResponse
+	err             error
 }
 
-func (f *batchCancelFake) CancelBatchOrders(_ context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
-	if f.batchErr != nil {
-		return nil, f.batchErr
-	}
-	f.batches = append(f.batches, o)
-	if !f.reportStatus {
-		return &order.CancelBatchResponse{}, nil
-	}
-	resp := &order.CancelBatchResponse{Status: make(map[string]string, len(o))}
-	for x := range o {
-		if s, ok := f.statuses[o[x].OrderID]; ok {
-			resp.Status[o[x].OrderID] = s
-		}
-	}
-	return resp, nil
+func (f *batchCancelRPCFake) CancelBatchOrders(_ context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
+	f.cancelsReceived = append(f.cancelsReceived, o...)
+	return f.resp, f.err
 }
 
-func (f *batchCancelFake) CancelOrder(_ context.Context, o *order.Cancel) error {
-	f.cancelledIDs = append(f.cancelledIDs, o.OrderID)
-	return f.singleErrs[o.OrderID]
-}
-
-// batchCancelLimitFake also advertises the largest batch its exchange accepts.
-type batchCancelLimitFake struct {
-	batchCancelFake
-	limit int
-}
-
-func (f *batchCancelLimitFake) CancelBatchLimit(asset.Item) int {
-	return f.limit
-}
-
-func newOrderCancels(n int) []order.Cancel {
-	orders := make([]order.Cancel, n)
-	for x := range orders {
-		orders[x] = order.Cancel{OrderID: strconv.Itoa(x), AssetType: asset.Spot}
-	}
-	return orders
-}
-
-func TestCancelBatchOrdersSplitsIntoExchangeBatches(t *testing.T) {
-	t.Parallel()
-
-	fake := &batchCancelLimitFake{limit: 20}
-	status, err := cancelBatchOrders(t.Context(), fake, newOrderCancels(21))
+func setupBatchCancelServer(t *testing.T, fake *batchCancelRPCFake) *RPCServer {
+	t.Helper()
+	em := NewExchangeManager()
+	exch, err := em.NewExchangeByName("binance")
 	require.NoError(t, err)
 
-	require.Len(t, fake.batches, 2, "21 orders must send a batch of 20, then one of 1")
-	assert.Len(t, fake.batches[0], 20)
-	assert.Len(t, fake.batches[1], 1)
-	assert.Empty(t, fake.cancelledIDs, "no single cancels when the batch call succeeded")
-
-	require.Len(t, status, 21)
-	for _, o := range fake.batches[0] {
-		assert.Equal(t, order.Cancelled.String(), status[o.OrderID])
-	}
-}
-
-func TestCancelBatchOrdersWithoutAdvertisedLimit(t *testing.T) {
-	t.Parallel()
-
-	fake := &batchCancelFake{}
-	status, err := cancelBatchOrders(t.Context(), fake, newOrderCancels(21))
+	exch.SetDefaults()
+	b := exch.GetBase()
+	b.Name = fakeExchangeName
+	b.Enabled = true
+	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	err = b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
+		AssetEnabled:  true,
+		Enabled:       []currency.Pair{currency.NewBTCUSDT()},
+		Available:     []currency.Pair{currency.NewBTCUSDT()},
+		RequestFormat: &currency.PairFormat{Uppercase: true},
+		ConfigFormat:  &currency.PairFormat{Uppercase: true},
+	})
 	require.NoError(t, err)
 
-	require.Len(t, fake.batches, 1, "an exchange without a limit gets every order at once")
-	assert.Len(t, fake.batches[0], 21)
-	assert.Len(t, status, 21)
-}
-
-func TestCancelBatchOrdersFallsBackToSingleCancels(t *testing.T) {
-	t.Parallel()
-
-	errBoom := errors.New("boom")
-	fake := &batchCancelFake{
-		batchErr:   common.ErrFunctionNotSupported,
-		singleErrs: map[string]error{"2": errBoom},
-	}
-	status, err := cancelBatchOrders(t.Context(), fake, newOrderCancels(3))
+	fake.IBotExchange = exch
+	err = em.Add(fake)
 	require.NoError(t, err)
 
-	assert.Empty(t, fake.batches)
-	assert.Equal(t, []string{"0", "1", "2"}, fake.cancelledIDs)
-	assert.Equal(t, order.Cancelled.String(), status["0"])
-	assert.Equal(t, order.Cancelled.String(), status["1"])
-	assert.Equal(t, errBoom.Error(), status["2"], "a failed single cancel is reported as an error, not as cancelled")
+	return &RPCServer{Engine: &Engine{ExchangeManager: em}}
 }
 
 func TestCancelBatchOrdersReportsWrapperStatuses(t *testing.T) {
 	t.Parallel()
 
-	fake := &batchCancelFake{
-		reportStatus: true,
-		statuses:     map[string]string{"0": order.Cancelled.String(), "1": "not supported"},
+	fake := &batchCancelRPCFake{
+		resp: &order.CancelBatchResponse{
+			Status: map[string]string{
+				"1": order.Cancelled.String(),
+				"2": "failed to cancel",
+			},
+		},
 	}
-	status, err := cancelBatchOrders(t.Context(), fake, newOrderCancels(3))
-	require.NoError(t, err)
+	server := setupBatchCancelServer(t, fake)
 
-	assert.Equal(t, order.Cancelled.String(), status["0"])
-	assert.Equal(t, "not supported", status["1"])
-	assert.Equal(t, order.UnknownStatus.String(), status["2"], "an omitted status is reported as unknown, not as cancelled")
+	res, err := server.CancelBatchOrders(t.Context(), &gctrpc.CancelBatchOrdersRequest{
+		Exchange:  fakeExchangeName,
+		AssetType: "spot",
+		Pair:      &gctrpc.CurrencyPair{Base: "btc", Quote: "usdt", Delimiter: "-"},
+		Side:      "buy",
+		OrdersId:  "1,2,3",
+	})
+	require.NoError(t, err)
+	require.Len(t, res.Orders, 1)
+
+	status := res.Orders[0].OrderStatus
+	assert.Equal(t, order.Cancelled.String(), status["1"])
+	assert.Equal(t, "failed to cancel", status["2"])
+	assert.Equal(t, order.UnknownStatus.String(), status["3"], "an omitted status is reported as unknown")
 }
 
-func TestCancelBatchOrdersPropagatesBatchError(t *testing.T) {
+func TestCancelBatchOrdersDefaultsWhenWrapperReportsNoStatus(t *testing.T) {
 	t.Parallel()
 
-	fake := &batchCancelFake{batchErr: errors.New("exchange down")}
-	status, err := cancelBatchOrders(t.Context(), fake, newOrderCancels(2))
-	assert.ErrorContains(t, err, "exchange down")
-	assert.Nil(t, status)
+	fake := &batchCancelRPCFake{
+		resp: &order.CancelBatchResponse{},
+	}
+	server := setupBatchCancelServer(t, fake)
+
+	res, err := server.CancelBatchOrders(t.Context(), &gctrpc.CancelBatchOrdersRequest{
+		Exchange:  fakeExchangeName,
+		AssetType: "spot",
+		Pair:      &gctrpc.CurrencyPair{Base: "btc", Quote: "usdt", Delimiter: "-"},
+		Side:      "buy",
+		OrdersId:  "10,20",
+	})
+	require.NoError(t, err)
+	require.Len(t, res.Orders, 1)
+
+	status := res.Orders[0].OrderStatus
+	assert.Equal(t, order.Cancelled.String(), status["10"])
+	assert.Equal(t, order.Cancelled.String(), status["20"])
+}
+
+func TestCancelBatchOrdersDeduplicatesAndTrims(t *testing.T) {
+	t.Parallel()
+
+	fake := &batchCancelRPCFake{
+		resp: &order.CancelBatchResponse{},
+	}
+	server := setupBatchCancelServer(t, fake)
+
+	res, err := server.CancelBatchOrders(t.Context(), &gctrpc.CancelBatchOrdersRequest{
+		Exchange:  fakeExchangeName,
+		AssetType: "spot",
+		Pair:      &gctrpc.CurrencyPair{Base: "btc", Quote: "usdt", Delimiter: "-"},
+		Side:      "buy",
+		OrdersId:  "1, 1, 2 , , ",
+	})
+	require.NoError(t, err)
+	require.Len(t, res.Orders, 1)
+
+	require.Len(t, fake.cancelsReceived, 2)
+	assert.Equal(t, "1", fake.cancelsReceived[0].OrderID)
+	assert.Equal(t, "2", fake.cancelsReceived[1].OrderID)
 }
 
 func TestCancelBatchOrdersWithoutOrders(t *testing.T) {
 	t.Parallel()
 
-	status, err := cancelBatchOrders(t.Context(), &batchCancelFake{}, nil)
+	fake := &batchCancelRPCFake{}
+	server := setupBatchCancelServer(t, fake)
+
+	_, err := server.CancelBatchOrders(t.Context(), &gctrpc.CancelBatchOrdersRequest{
+		Exchange:  fakeExchangeName,
+		AssetType: "spot",
+		Pair:      &gctrpc.CurrencyPair{Base: "btc", Quote: "usdt", Delimiter: "-"},
+		Side:      "buy",
+		OrdersId:  " , , ",
+	})
 	assert.ErrorIs(t, err, order.ErrCancelOrderIsNil)
-	assert.Nil(t, status)
+}
+
+func TestCancelBatchOrdersPropagatesError(t *testing.T) {
+	t.Parallel()
+
+	fake := &batchCancelRPCFake{
+		err: errors.New("exchange unavailable"),
+	}
+	server := setupBatchCancelServer(t, fake)
+
+	_, err := server.CancelBatchOrders(t.Context(), &gctrpc.CancelBatchOrdersRequest{
+		Exchange:  fakeExchangeName,
+		AssetType: "spot",
+		Pair:      &gctrpc.CurrencyPair{Base: "btc", Quote: "usdt", Delimiter: "-"},
+		Side:      "buy",
+		OrdersId:  "1,2",
+	})
+	assert.ErrorContains(t, err, "exchange unavailable")
 }

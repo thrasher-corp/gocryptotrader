@@ -302,15 +302,6 @@ type CancelBatchResponse struct {
 	Status map[string]string
 }
 
-// BatchCancelLimit is an optional interface for exchanges that restrict how many
-// orders a single CancelBatchOrders request can contain.
-type BatchCancelLimit interface {
-	// CancelBatchLimit returns the maximum number of orders the exchange accepts in
-	// one CancelBatchOrders request for that asset. A value of 0 or less means the
-	// exchange does not advertise a limit.
-	CancelBatchLimit(a asset.Item) int
-}
-
 // TradeHistory holds exchange history data
 type TradeHistory struct {
 	Price       float64
