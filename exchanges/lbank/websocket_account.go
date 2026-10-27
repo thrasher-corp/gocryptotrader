@@ -164,7 +164,8 @@ func connectionGone(conn websocket.Connection) bool {
 }
 
 // startSubscribeKey creates a connection's subscribe key and starts the renewer that keeps it alive until the websocket
-// shuts down or the connection ends. Its caller holds the account lock
+// shuts down or the connection ends. Its caller holds the account lock, and the manager's lock, which reading ShutdownC
+// and adding to Wg need
 func (e *Exchange) startSubscribeKey(ctx context.Context, conn websocket.Connection, timings subscribeKeyTimings) error {
 	shutdown := e.Websocket.ShutdownC
 	key, err := e.CreateSubscribeKey(ctx)

@@ -16,6 +16,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
@@ -268,13 +269,21 @@ var recordedFrames = sync.OnceValues(func() (map[string][][]byte, error) {
 	return frames, nil
 })
 
-// stopWebsocketTestExchange disables an exchange's websocket, so its connection monitor stops, then shuts it down
+// stopWebsocketTestExchange disables an exchange's websocket, so its connection monitor stops, then shuts it down.
+// Shutdown waits for every routine the websocket started, so one that ignores it fails the test rather than hanging it
 func stopWebsocketTestExchange(t *testing.T, ex *Exchange) {
 	t.Helper()
 	if ex.Websocket.IsEnabled() {
 		assert.NoError(t, ex.Websocket.Disable(), "Disable should not error")
 	}
-	if err := ex.Websocket.Shutdown(); err != nil {
-		assert.ErrorIs(t, err, websocket.ErrNotConnected, "Shutdown should only fail when the connection monitor has shut the connection down first")
+	stopped := make(chan error, 1)
+	go func() { stopped <- ex.Websocket.Shutdown() }()
+	select {
+	case err := <-stopped:
+		if err != nil {
+			assert.ErrorIs(t, err, websocket.ErrNotConnected, "Shutdown should only fail when the connection monitor has shut the connection down first")
+		}
+	case <-time.After(30 * time.Second):
+		assert.Fail(t, "Shutdown should stop every routine the websocket started")
 	}
 }

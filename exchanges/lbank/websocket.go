@@ -268,7 +268,10 @@ const subTplText = `
 // wsSubscribe subscribes to channels. LBank confirms no subscription, so each is recorded once its request is sent; it
 // reports a pair it doesn't trade, or a subscribe key it doesn't recognise, in an error frame the handler relays. The
 // account channels take a subscribe key of the connection's own, created with its first account subscription, so a key
-// LBank refuses fails only those subscriptions, which the next connect or flush retries, and leaves the market data up
+// LBank refuses fails only those subscriptions, which the next connect or flush retries, and leaves the market data up.
+// Starting a key's renewer reads the manager's ShutdownC and adds to its Wg, which would race a Shutdown without the
+// manager's lock, so the account channels are subscribed only by the manager's connects and flushes, which hold it, and
+// not through SubscribeToChannels or the resubscribe methods
 func (e *Exchange) wsSubscribe(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
 	if !slices.ContainsFunc(subs, isAccountChannel) {
 		return e.manageSubscriptions(ctx, conn, "subscribe", subs)

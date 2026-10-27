@@ -6,7 +6,9 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/stretchr/testify/assert"
@@ -33,16 +35,16 @@ const (
 )
 
 // subscribeKeyServer counts a test server's subscribe key requests by path, answering each as LBank does. It creates
-// key, or testSubscribeKey when key is empty, after getDelay unless failGet is set, refreshes a key after refreshDelay,
-// and refuses to refresh the expired key
+// key, or testSubscribeKey when key is empty, after getDelay unless failGet is set, holds each refresh until
+// refreshGate closes when it is set, and refuses to refresh the expired key
 type subscribeKeyServer struct {
-	mu           sync.Mutex
-	requests     map[string][]string
-	failGet      bool
-	getDelay     time.Duration
-	refreshDelay time.Duration
-	key          string
-	expired      string
+	mu          sync.Mutex
+	requests    map[string][]string
+	failGet     bool
+	getDelay    time.Duration
+	refreshGate chan struct{}
+	key         string
+	expired     string
 }
 
 func (s *subscribeKeyServer) handler(t *testing.T) http.HandlerFunc {
@@ -57,13 +59,19 @@ func (s *subscribeKeyServer) handler(t *testing.T) http.HandlerFunc {
 			s.requests = make(map[string][]string)
 		}
 		s.requests[r.URL.Path] = append(s.requests[r.URL.Path], key)
-		failGet, getDelay, refreshDelay, created, expired := s.failGet, s.getDelay, s.refreshDelay, cmp.Or(s.key, testSubscribeKey), s.expired
+		failGet, getDelay, refreshGate, created, expired := s.failGet, s.getDelay, s.refreshGate, cmp.Or(s.key, testSubscribeKey), s.expired
 		s.mu.Unlock()
 		switch r.URL.Path {
 		case "/v2/subscribe/get_key.do":
 			time.Sleep(getDelay)
 		case "/v2/subscribe/refresh_key.do":
-			time.Sleep(refreshDelay)
+			if refreshGate != nil {
+				select {
+				case <-refreshGate:
+				case <-r.Context().Done():
+					return
+				}
+			}
 		}
 		switch {
 		case r.URL.Path == "/v2/subscribe/get_key.do" && failGet:
@@ -84,6 +92,19 @@ func (s *subscribeKeyServer) sent(path string) []string {
 	return append([]string(nil), s.requests[path]...)
 }
 
+// waitFor returns what ch delivers, failing the test rather than hanging when nothing arrives
+func waitFor[T any](t *testing.T, ch <-chan T, msg string) T {
+	t.Helper()
+	select {
+	case v := <-ch:
+		return v
+	case <-time.After(5 * time.Second):
+		require.FailNow(t, msg)
+		var zero T
+		return zero
+	}
+}
+
 // waitForRenewers waits for an exchange's subscribe key renewers to stop, failing the test if they don't
 func waitForRenewers(t *testing.T, ex *Exchange) {
 	t.Helper()
@@ -92,11 +113,7 @@ func waitForRenewers(t *testing.T, ex *Exchange) {
 		ex.Websocket.Wg.Wait()
 		close(done)
 	}()
-	select {
-	case <-done:
-	case <-time.After(5 * time.Second):
-		require.FailNow(t, "the subscribe key renewer must stop")
-	}
+	waitFor(t, done, "the subscribe key renewer must stop")
 }
 
 // orderUpdateMessage decodes an order update frame
@@ -293,7 +310,12 @@ func TestWebsocketSubscribeAccountKey(t *testing.T) {
 				assert.NoErrorf(t, ex.wsSubscribe(t.Context(), conn, subscription.List{s}), "wsSubscribe should not error for %s", s)
 			})
 		}
-		wg.Wait()
+		subscribed := make(chan struct{})
+		go func() {
+			defer close(subscribed)
+			wg.Wait()
+		}()
+		waitFor(t, subscribed, "the concurrent subscriptions must finish")
 		assert.Equal(t, []string{""}, server.sent("/v2/subscribe/get_key.do"), "wsSubscribe should create one key for a connection subscribed to concurrently")
 		assert.ElementsMatch(t, accountSubscribeRequests(testSubscribeKey), conn.messages(), "wsSubscribe should subscribe each account channel with the connection's one key")
 		close(ex.Websocket.ShutdownC)
@@ -344,28 +366,43 @@ func TestWebsocketSubscribeAccountKey(t *testing.T) {
 
 func TestKeepSubscribeKeyAlive(t *testing.T) {
 	t.Parallel()
-	server := &subscribeKeyServer{}
-	ex := newTestServerExchange(t, server.handler(t))
-	conn := &recordingConnection{connected: true}
-	timings := subscribeKeyTimings{refresh: 10 * time.Millisecond, retry: 10 * time.Millisecond, lifetime: 200 * time.Millisecond}
-	start := time.Now()
-	shutdown := make(chan struct{})
-	ex.subscribeKeys.set(conn, testSubscribeKey)
-	ex.Websocket.Wg.Add(1)
-	go ex.keepSubscribeKeyAlive(t.Context(), conn, testSubscribeKey, shutdown, timings)
-	// The connection outlives the key's lifetime, which each refresh extends
-	require.Eventually(t, func() bool {
-		return time.Since(start) > 5*timings.lifetime/2 && len(server.sent("/v2/subscribe/refresh_key.do")) >= 2
-	}, 5*time.Second, 5*time.Millisecond, "the renewer must refresh the key while the connection lives")
-
-	conn.setConnected(false)
-	waitForRenewers(t, ex)
-	for _, key := range server.sent("/v2/subscribe/refresh_key.do") {
-		assert.Equal(t, testSubscribeKey, key, "the renewer should refresh the connection's own key")
-	}
-	assert.Equal(t, []string{testSubscribeKey}, server.sent("/v2/subscribe/destroy_key.do"), "the renewer should close the key once the connection has gone")
-	assert.Empty(t, ex.subscribeKeys.get(conn), "the renewer should forget the closed key")
-	assert.Empty(t, server.sent("/v2/subscribe/get_key.do"), "the renewer should not replace a key its refreshes keep alive")
+	// On the fake clock a stalled runner can't hold the renewer up for the key's lifetime, which would rightly replace it
+	synctest.Test(t, func(t *testing.T) {
+		server := &subscribeKeyServer{}
+		handler := server.handler(t)
+		conn := &recordingConnection{connected: true}
+		var requests atomic.Int64
+		ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// The fake clock stands still while a renewer runs without waiting, so one that does is stopped at the
+			// server's request limit rather than left to hang the test
+			if requests.Add(1) == testServerRequestLimit {
+				conn.setConnected(false)
+			}
+			handler.ServeHTTP(w, r)
+		}))
+		timings := subscribeKeyTimings{refresh: 10 * time.Millisecond, retry: 10 * time.Millisecond, lifetime: 200 * time.Millisecond}
+		shutdown := make(chan struct{})
+		// A renewer left running by a failed assertion would panic the bubble as it ends, aborting the package
+		defer func() {
+			close(shutdown)
+			waitForRenewers(t, ex)
+		}()
+		ex.subscribeKeys.set(conn, testSubscribeKey)
+		ex.Websocket.Wg.Add(1)
+		go ex.keepSubscribeKeyAlive(t.Context(), conn, testSubscribeKey, shutdown, timings)
+		// The connection outlives the key's lifetime, which each refresh extends
+		synctest.Sleep(5 * timings.lifetime / 2)
+		conn.setConnected(false)
+		waitForRenewers(t, ex)
+		refreshed := server.sent("/v2/subscribe/refresh_key.do")
+		assert.GreaterOrEqual(t, len(refreshed), 2, "the renewer should refresh the key while the connection lives")
+		for _, key := range refreshed {
+			assert.Equal(t, testSubscribeKey, key, "the renewer should refresh the connection's own key")
+		}
+		assert.Equal(t, []string{testSubscribeKey}, server.sent("/v2/subscribe/destroy_key.do"), "the renewer should close the key once the connection has gone")
+		assert.Empty(t, ex.subscribeKeys.get(conn), "the renewer should forget the closed key")
+		assert.Empty(t, server.sent("/v2/subscribe/get_key.do"), "the renewer should not replace a key its refreshes keep alive")
+	})
 }
 
 func TestKeepSubscribeKeyAliveShutdown(t *testing.T) {
@@ -544,23 +581,24 @@ func TestRenewSubscribeKey(t *testing.T) {
 
 func TestRenewSubscribeKeyLocking(t *testing.T) {
 	t.Parallel()
-	server := &subscribeKeyServer{key: replacementSubscribeKey, refreshDelay: time.Second}
+	release := make(chan struct{})
+	server := &subscribeKeyServer{key: replacementSubscribeKey, refreshGate: release}
 	ex := newTestServerExchange(t, server.handler(t))
 	conn := &recordingConnection{connected: true}
 	subs := subscribeAccountChannels(t, ex, conn)
-	refreshed := make(chan struct{})
+	refreshed := make(chan error, 1)
 	go func() {
-		defer close(refreshed)
 		r := &subscribeKeyRenewal{key: testSubscribeKey, renewed: time.Now()}
-		assert.NoError(t, ex.renewSubscribeKey(t.Context(), conn, r, time.Hour), "renewSubscribeKey should refresh the key")
+		refreshed <- ex.renewSubscribeKey(t.Context(), conn, r, time.Hour)
 	}()
 	require.Eventually(t, func() bool {
 		return len(server.sent("/v2/subscribe/refresh_key.do")) == 1
 	}, 5*time.Second, 5*time.Millisecond, "the refresh must be under way")
-	start := time.Now()
-	require.NoError(t, ex.wsUnsubscribe(t.Context(), conn, subs[:1]), "wsUnsubscribe must not error during a refresh")
-	assert.Less(t, time.Since(start), 500*time.Millisecond, "the account subscriptions should not wait for a slow refresh")
-	<-refreshed
+	unsubscribed := make(chan error, 1)
+	go func() { unsubscribed <- ex.wsUnsubscribe(t.Context(), conn, subs[:1]) }()
+	require.NoError(t, waitFor(t, unsubscribed, "the account subscriptions must not wait for a refresh"), "wsUnsubscribe must not error during a refresh")
+	close(release)
+	require.NoError(t, waitFor(t, refreshed, "the refresh must finish"), "renewSubscribeKey must refresh the key")
 
 	ex.subscribeKeys.account.Lock()
 	replaced := make(chan struct{})
@@ -575,7 +613,7 @@ func TestRenewSubscribeKeyLocking(t *testing.T) {
 	sent := len(conn.messages())
 	assert.Never(t, func() bool { return ex.subscribeKeys.get(conn) != testSubscribeKey || len(conn.messages()) > sent }, 100*time.Millisecond, 10*time.Millisecond, "the replacement should wait for the account subscriptions to change before it is installed")
 	ex.subscribeKeys.account.Unlock()
-	<-replaced
+	waitFor(t, replaced, "the replacement must be installed once the account subscriptions have changed")
 	assert.Equal(t, replacementSubscribeKey, ex.subscribeKeys.get(conn), "the replacement should be installed once the account subscriptions have changed")
 	assert.Equal(t, accountSubscribeRequests(replacementSubscribeKey)[1:], conn.messages()[sent:], "the replacement should subscribe again the account channel still subscribed")
 }
@@ -634,7 +672,9 @@ func TestWebsocketAccountSubscriptionsSerialised(t *testing.T) {
 	tick := &subscription.Subscription{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel, Pairs: currency.Pairs{spotTestPair}, QualifiedChannel: "tick:btc_usdt"}
 	subs := accountSubscriptions()
 	ex.subscribeKeys.account.Lock()
-	require.NoError(t, ex.wsSubscribe(t.Context(), conn, subscription.List{tick}), "wsSubscribe must not wait to subscribe market data")
+	ticked := make(chan error, 1)
+	go func() { ticked <- ex.wsSubscribe(t.Context(), conn, subscription.List{tick}) }()
+	require.NoError(t, waitFor(t, ticked, "wsSubscribe must not wait to subscribe market data"), "wsSubscribe must not error")
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
@@ -643,7 +683,7 @@ func TestWebsocketAccountSubscriptionsSerialised(t *testing.T) {
 	}()
 	assert.Never(t, func() bool { return len(conn.messages()) > 1 }, 100*time.Millisecond, 10*time.Millisecond, "the account channels should wait for a key's renewal")
 	ex.subscribeKeys.account.Unlock()
-	<-done
+	waitFor(t, done, "the account channels must be subscribed once the renewal ends")
 	exp := append([]any{&websocketSubscribeRequest{Action: "subscribe", Subscribe: "tick", Pair: "btc_usdt"}}, accountSubscribeRequests(testSubscribeKey)...)
 	exp = append(exp, &websocketSubscribeRequest{Action: "unsubscribe", Subscribe: wsOrderUpdateChannel, Pair: "all", SubscribeKey: testSubscribeKey})
 	assert.Equal(t, exp, conn.messages(), "the account channels should be subscribed and unsubscribed once the renewal ends")
@@ -656,7 +696,7 @@ func TestWebsocketAccountSubscriptionsSerialised(t *testing.T) {
 	}()
 	assert.Never(t, func() bool { return len(conn.messages()) > len(exp) }, 100*time.Millisecond, 10*time.Millisecond, "an account unsubscription should wait for a key's renewal")
 	ex.subscribeKeys.account.Unlock()
-	<-done
+	waitFor(t, done, "the account channel must be unsubscribed once the renewal ends")
 }
 
 func TestWebsocketAccountSubscribe(t *testing.T) {
@@ -881,6 +921,28 @@ func TestWebsocketOrderUpdateExecution(t *testing.T) {
 	ex.Websocket.DataHandler = stream.NewRelay(1)
 	require.NoError(t, ex.Websocket.DataHandler.Send(t.Context(), "filler"), "Send must fill the data handler")
 	assert.Error(t, ex.wsProcessOrderUpdate(t.Context(), orderUpdateMessage(t, frames[0])), "wsProcessOrderUpdate should report an update it couldn't relay")
+}
+
+// TestWebsocketOrderUpdateSellRemaining checks a sell's update carries the remaining amount LBank pushes, which differs
+// from its latest trade's amount
+func TestWebsocketOrderUpdateSellRemaining(t *testing.T) {
+	t.Parallel()
+	ex := newChannelTestExchange(t)
+	pair, err := ex.MatchSymbolWithAvailablePairs("btc_usdt", asset.Spot, true)
+	require.NoError(t, err, "MatchSymbolWithAvailablePairs must find btc_usdt")
+	frame := `{"orderUpdate":{"accAmt":"4","amount":"1","avgPrice":"21.75","symbol":"btc_usdt","type":"sell","orderAmt":"10","orderStatus":1,"orderPrice":"20","price":"21","role":"taker","remainAmt":"6","updateTime":1792888874775,"uuid":"o2","txUuid":"t3","volumePrice":"21"},"pair":"btc_usdt","type":"orderUpdate","SERVER":"V2","TS":"2026-10-25T08:41:14.816"}`
+	require.NoError(t, ex.wsProcessOrderUpdate(t.Context(), orderUpdateMessage(t, frame)), "wsProcessOrderUpdate must relay the order's update")
+	exp := []any{
+		&order.Detail{
+			Exchange: ex.Name, OrderID: "o2", Pair: pair, AssetType: asset.Spot, Side: order.Sell, Status: order.PartiallyFilled, Price: 20,
+			Amount: 10, ExecutedAmount: 4, RemainingAmount: 6, AverageExecutedPrice: 21.75, Cost: 87, LastUpdated: time.UnixMilli(1792888874775),
+		},
+		[]fill.Data{{
+			ID: "t3", TradeID: "t3", Exchange: ex.Name, AssetType: asset.Spot, CurrencyPair: pair, Side: order.Sell, OrderID: "o2",
+			Price: 21, Amount: 1, Timestamp: time.UnixMilli(1792888874775),
+		}},
+	}
+	assert.Equal(t, exp, relayedPayloads(ex), "wsProcessOrderUpdate should relay the sell's remaining amount and its fill")
 }
 
 func TestWebsocketAccountHandlerErrors(t *testing.T) {
