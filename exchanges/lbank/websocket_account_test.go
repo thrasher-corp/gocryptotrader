@@ -387,6 +387,9 @@ func TestKeepSubscribeKeyAlive(t *testing.T) {
 			close(shutdown)
 			waitForRenewers(t, ex)
 		}()
+		// The fake clock starts at midnight, where truncating a renewal time to the key's lifetime, or to the second,
+		// minute or hour, changes nothing, so the renewer starts a millisecond short of a whole second
+		time.Sleep(time.Second - time.Millisecond)
 		ex.subscribeKeys.set(conn, testSubscribeKey)
 		ex.Websocket.Wg.Add(1)
 		go ex.keepSubscribeKeyAlive(t.Context(), conn, testSubscribeKey, shutdown, timings)
