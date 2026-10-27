@@ -109,6 +109,9 @@ several needs its chain given. Bitfinex names Tether's USDT `UST`, which the wra
 + A cryptocurrency withdrawal's travel rule beneficiary is the account itself, or the person its beneficiary name gives,
   as first names and a last name split at the name's last space, which is how Bitfinex takes a name; its financial
   institution names the provider the withdrawal goes to.
++ `GetFeeByType` gives a cryptocurrency withdrawal the fee Bitfinex sets for its currency, or for a Tether token, which
+  Bitfinex prices by chain, the fee of the token's chain. A fee request names no chain, so a token withdrawn over
+  several, such as USDT, is refused.
 
 ### Market data
 
@@ -118,13 +121,17 @@ several needs its chain given. Bitfinex names Tether's USDT `UST`, which the wra
 + `GetHistoricTrades` pages back from the end of the window, 10,000 trades a request. It errors should a millisecond
   hold a page of trades, which no request can page past, as do the order, deposit and withdrawal histories.
 + Funding candles cover offers of 30 days, as the default websocket subscription's do.
++ `GetHistoricCandles` and `GetHistoricCandlesExtended` make two-week candles from weekly ones, as Bitfinex's 14D
+  candles, which `GetCandlesHistory` and two-week websocket candles give, open on Thursdays, where GCT's two weeks open
+  on Mondays.
 
 ### Websocket
 
-Market data goes over public connections of up to 25 channels each, Bitfinex's limit, and the account's events over an
-authenticated connection, which Bitfinex subscribes to the account channel. The standard channels use these Bitfinex
-channels: tickers `ticker`, order books `book`, candles `candles` and trades `trades`. Spot and margin trade the same
-markets, so a pair enabled for both has one channel, which updates both.
+Market data goes over public connections of up to 25 channels each, five fewer than the 30 Bitfinex allows, which leaves
+room for channels still being unsubscribed, and the account's events over an authenticated connection, which Bitfinex
+subscribes to the account channel. The standard channels use these Bitfinex channels: tickers `ticker`, order books
+`book`, candles `candles` and trades `trades`. Spot and margin trade the same markets, so a pair enabled for both has
+one channel, which updates both.
 
 + An order book subscription's `prec` parameter sets its precision: `R0` for a book of orders, or `P0` to `P4` for
   price levels aggregated to five down to one significant figure; its levels set the length Bitfinex sends, 1, 25, 100

@@ -32,7 +32,8 @@ import (
 )
 
 const (
-	// wsMaxChannelsPerConnection is how many channels Bitfinex lets one connection subscribe to
+	// wsMaxChannelsPerConnection is how many channels a public connection subscribes to, five fewer than the 30 Bitfinex
+	// allows, leaving room for channels a connection still carries while Bitfinex unsubscribes them
 	wsMaxChannelsPerConnection = 25
 	// wsConfFlags asks Bitfinex to append its time to every event and to send order book checksums
 	wsConfFlags = wsFlagTimestamp | wsFlagChecksum
@@ -78,6 +79,7 @@ var (
 	errWebsocketAuthentication   = errors.New("websocket authentication failed")
 	errWebsocketUnsubscribe      = errors.New("websocket unsubscribe failed")
 	errWebsocketChannelDropped   = errors.New("websocket channel unsubscribed during its renewal")
+	errWebsocketChannelAwaited   = errors.New("websocket channel awaits its subscription's confirmation")
 	errSubscriptionParamReserved = errors.New("subscription parameter is reserved")
 	errSubscriptionNotSinglePair = errors.New("subscription must have exactly one pair")
 	errStatusChannelAsset        = errors.New("status channel streams derivative pairs only")
@@ -349,17 +351,53 @@ func (e *Exchange) wsSubscribe(ctx context.Context, conn websocket.Connection, s
 	}, 1)
 }
 
-// wsSubscribeChannel subscribes to one channel, recording its subscription once Bitfinex confirms it
+// wsSubscribeChannel subscribes to one channel, recording its subscription once Bitfinex confirms it. The manager
+// records no subscription whose wait for its confirmation fails, so a channel the request's confirmation brings, as the
+// wait fails or after, is unsubscribed rather than left streaming without a subscription to unsubscribe it by
 func (e *Exchange) wsSubscribeChannel(ctx context.Context, conn websocket.Connection, s *subscription.Subscription) error {
-	if err := e.wsSendSubscribe(ctx, conn, s); err != nil {
-		return err
+	subID := e.MessageID()
+	e.wsChannels.await(subID)
+	if err := e.wsSendSubscribe(ctx, conn, s, subID); err != nil {
+		channelID, ok := e.wsChannels.abandon(subID)
+		if !ok {
+			return err
+		}
+		e.invalidateUnfedBooks(s)
+		// The wait may have failed for its context ending, which must not leave the channel subscribed
+		return common.AppendError(err, conn.SendJSONMessage(context.WithoutCancel(ctx), request.Unset, &wsUnsubscribeRequest{Event: "unsubscribe", ChannelID: channelID}))
 	}
+	e.wsChannels.settle(subID)
 	return e.Websocket.AddSuccessfulSubscriptions(conn, s)
+}
+
+// invalidateUnfedBooks invalidates the books a drained order book channel loaded, spot's and margin's when they share it,
+// as nothing updates them, unless a channel on an open connection carries them. No channel is mapped between the check
+// and the invalidation, so no newly carried book is invalidated, and a book an event of the drained channel loads
+// meanwhile is invalidated once the event is handled
+func (e *Exchange) invalidateUnfedBooks(s *subscription.Subscription) {
+	if s.Channel != subscription.OrderbookChannel {
+		return
+	}
+	assets := []asset.Item{s.Asset}
+	if e.wsSharedChannels.carriesMargin(s) {
+		assets = append(assets, asset.Margin)
+	}
+	e.wsChannels.withBooks(func(carried []*subscription.Subscription) {
+		for _, a := range assets {
+			if slices.ContainsFunc(carried, func(c *subscription.Subscription) bool {
+				return c.Pairs[0].Equal(s.Pairs[0]) && (c.Asset == a || a == asset.Margin && e.wsSharedChannels.carriesMargin(c))
+			}) {
+				continue
+			}
+			// A book not loaded has nothing to invalidate
+			_ = e.Websocket.Orderbook.InvalidateOrderbook(s.Pairs[0], a)
+		}
+	})
 }
 
 // wsSendSubscribe sends a subscription's request, which is keyed by its ID until Bitfinex confirms it, when the reader
 // maps the channel ID it is given before reading the channel's first event
-func (e *Exchange) wsSendSubscribe(ctx context.Context, conn websocket.Connection, s *subscription.Subscription) error {
+func (e *Exchange) wsSendSubscribe(ctx context.Context, conn websocket.Connection, s *subscription.Subscription, subID string) error {
 	if len(s.Pairs) != 1 {
 		return errSubscriptionNotSinglePair
 	}
@@ -367,11 +405,10 @@ func (e *Exchange) wsSendSubscribe(ctx context.Context, conn websocket.Connectio
 	if err := json.Unmarshal([]byte(s.QualifiedChannel), &req); err != nil {
 		return err
 	}
-	subID := e.MessageID()
 	req["event"] = "subscribe"
 	req["subId"] = subID
-	// The request stays pending until Bitfinex replies, which the reader handles, so that a confirmation arriving after
-	// the wait for it ended, by timing out or by its context ending, still maps its channel; a request never sent is
+	// The request stays pending until Bitfinex replies, which the reader handles, so that a renewal's confirmation arriving
+	// after the wait for it ended, by timing out or by its context ending, still maps its channel; a request never sent is
 	// forgotten with its connection
 	e.wsChannels.addPending(subID, conn, s)
 	resp, err := conn.SendMessageReturnResponse(ctx, request.Unset, wsSubscribeSignature(subID), req)
@@ -387,7 +424,7 @@ func (e *Exchange) wsSendSubscribe(ctx context.Context, conn websocket.Connectio
 	}
 	// Bitfinex refuses a second subscription to a channel, naming it; one already carrying an equal subscription,
 	// confirmed after its request stopped waiting, is this subscription
-	if event.Code == wsErrorDuplicate && e.wsChannels.adopt(conn, event.ChannelID, s) {
+	if event.Code == wsErrorDuplicate && e.wsChannels.adopt(conn, event.ChannelID, s, subID) {
 		return nil
 	}
 	return fmt.Errorf("%w: %s (code %d)", websocket.ErrSubscriptionFailure, event.Message, event.Code)
@@ -457,7 +494,10 @@ func (e *Exchange) resubscribeBook(ctx context.Context, conn websocket.Connectio
 			if errors.Is(err, errWebsocketChannelDropped) {
 				break
 			}
-			log.Errorf(log.WebsocketMgr, "%s error resubscribing %s: %v", e.Name, s, err)
+			// A channel whose subscription awaits its confirmation is renewed once it no longer does
+			if !errors.Is(err, errWebsocketChannelAwaited) {
+				log.Errorf(log.WebsocketMgr, "%s error resubscribing %s: %v", e.Name, s, err)
+			}
 			if !e.wsRenewWait(ctx, conn, delay) {
 				break
 			}
@@ -472,19 +512,22 @@ func (e *Exchange) resubscribeBook(ctx context.Context, conn websocket.Connectio
 
 // wsRenewChannel unsubscribes a subscription's channel and subscribes it again, leaving the manager's subscription as
 // it is. A channel an earlier attempt left unsubscribed is subscribed, and one the manager has unsubscribed meanwhile
-// is left alone. Bitfinex counts a connection's channels, so the channel is unsubscribed first
+// is left alone. A channel is not renewed while the request that mapped it is awaited, as its subscriber abandons it
+// should the wait fail. Bitfinex counts a connection's channels, so the channel is unsubscribed first
 func (e *Exchange) wsRenewChannel(ctx context.Context, conn websocket.Connection, s *subscription.Subscription) error {
 	e.wsRenewMu.Lock()
 	defer e.wsRenewMu.Unlock()
-	if channelID, ok := e.wsChannels.channelOf(conn, s); ok {
+	channelID, mapped, err := e.wsChannels.renewable(conn, s)
+	if err != nil {
+		return fmt.Errorf("%w: %s", err, s)
+	}
+	if mapped {
 		if err := e.wsSendUnsubscribe(ctx, conn, channelID); err != nil {
 			return err
 		}
 		e.wsChannels.park(conn, channelID)
-	} else if !e.wsChannels.isParked(conn, s) {
-		return fmt.Errorf("%w: %s", errWebsocketChannelDropped, s)
 	}
-	return e.wsSendSubscribe(ctx, conn, s)
+	return e.wsSendSubscribe(ctx, conn, s, e.MessageID())
 }
 
 // wsRenewWait waits to retry a channel's renewal, reporting false once the connection or the websocket has ended
@@ -544,14 +587,14 @@ func (e *Exchange) wsHandleEvent(ctx context.Context, conn websocket.Connection,
 	switch event.Event {
 	case "subscribed":
 		// The channel is mapped before the subscriber hears, so its first event, which follows, is not dropped. A
-		// confirmation arriving after its request stopped waiting maps its channel all the same
+		// renewal's confirmation arriving after its request stopped waiting maps its channel all the same
 		mapped, err := e.wsChannels.confirm(event.SubscriptionID, conn, event.ChannelID)
 		if err != nil {
 			return err
 		}
 		if !mapped {
-			// The subscription was unsubscribed before Bitfinex confirmed it, so its channel is unsubscribed in turn,
-			// without waiting, as the reader reads the reply
+			// The subscription was unsubscribed before Bitfinex confirmed it, or its request abandoned, so its channel is
+			// unsubscribed in turn, without waiting, as the reader reads the reply
 			return conn.SendJSONMessage(ctx, request.Unset, &wsUnsubscribeRequest{Event: "unsubscribe", ChannelID: event.ChannelID})
 		}
 		conn.IncomingWithData(wsSubscribeSignature(event.SubscriptionID), respRaw)

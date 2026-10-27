@@ -87,7 +87,12 @@ func (e *Exchange) wsHandleChannelEvent(ctx context.Context, conn websocket.Conn
 	case subscription.AllTradesChannel:
 		return e.wsHandleTradesSnapshot(s, data, respRaw)
 	case subscription.OrderbookChannel:
-		return e.wsHandleBook(ctx, conn, s, data, respRaw)
+		err := e.wsHandleBook(ctx, conn, s, data, respRaw)
+		// A channel abandoned as its event was handled no longer updates the books the event loaded
+		if e.wsChannels.get(conn, channelID) != s {
+			e.invalidateUnfedBooks(s)
+		}
+		return err
 	case subscription.CandlesChannel:
 		return e.wsHandleCandles(ctx, s, data, respRaw)
 	case wsStatusChannel:

@@ -2,7 +2,9 @@ package bitfinex
 
 import (
 	"cmp"
+	"context"
 	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"io"
 	"math"
@@ -17,6 +19,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
@@ -1711,6 +1714,10 @@ func TestGetOrderInfo(t *testing.T) {
 		assert.InDelta(t, 0.09868591, got.Fee, 1e-12, "GetOrderInfo should total the order's trading fees as positive")
 		_, err = e.GetOrderInfo(t.Context(), id, currency.NewBTCUSD(), asset.Empty)
 		assert.ErrorIs(t, err, order.ErrOrderNotFound, "GetOrderInfo should refuse an order on another pair")
+		for name, pair := range map[string]currency.Pair{"its pair": p, "no pair": currency.EMPTYPAIR} {
+			_, err = e.GetOrderInfo(t.Context(), id, pair, asset.Spot)
+			assert.ErrorIsf(t, err, order.ErrOrderNotFound, "GetOrderInfo should refuse an order of another asset given %s", name)
+		}
 		_, err = e.GetOrderInfo(t.Context(), "1", currency.EMPTYPAIR, asset.Empty)
 		assert.ErrorIs(t, err, order.ErrOrderNotFound, "GetOrderInfo should report an order neither open nor in the history")
 	}
@@ -1929,6 +1936,32 @@ func TestOrderDetails(t *testing.T) {
 
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
+	// Bitfinex returns every open order, so the request's pairs, side and type select from them
+	ethBuy := testOrderRecord{id: 1, symbol: "tETHUSD", orderType: "LIMIT", status: "ACTIVE", amount: 1, original: 1, price: 100}
+	btcSell := testOrderRecord{id: 2, symbol: "tBTCUSD", orderType: "LIMIT", status: "ACTIVE", amount: -1, original: -1, price: 70000}
+	btcStop := testOrderRecord{id: 3, symbol: "tBTCUSD", orderType: "STOP", status: "ACTIVE", amount: 1, original: 1, price: 80000}
+	ex := newResponseServerExchange(t, testOrderRecords([]testOrderRecord{ethBuy, btcSell, btcStop}))
+	for _, tc := range []struct {
+		name string
+		req  order.MultiOrderRequest
+		ids  []string
+	}{
+		{name: "a pair", req: order.MultiOrderRequest{AssetType: asset.Margin, Pairs: currency.Pairs{currency.NewBTCUSD()}, Side: order.AnySide, Type: order.AnyType}, ids: []string{"2", "3"}},
+		{name: "a side", req: order.MultiOrderRequest{AssetType: asset.Margin, Side: order.Sell, Type: order.AnyType}, ids: []string{"2"}},
+		{name: "a type", req: order.MultiOrderRequest{AssetType: asset.Margin, Side: order.AnySide, Type: order.Stop}, ids: []string{"3"}},
+	} {
+		orders, err := ex.GetActiveOrders(t.Context(), &tc.req)
+		require.NoErrorf(t, err, "GetActiveOrders must not error for %s", tc.name)
+		ids := make([]string, len(orders))
+		for i := range orders {
+			ids[i] = orders[i].OrderID
+		}
+		assert.ElementsMatchf(t, tc.ids, ids, "GetActiveOrders should return the open orders of %s alone", tc.name)
+	}
+	_, err := newRefusingServerExchange(t, `["error",10100,"apikey: invalid"]`).GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Margin, Side: order.AnySide, Type: order.AnyType})
+	var apiErr *APIError
+	assert.ErrorAs(t, err, &apiErr, "GetActiveOrders should return the error Bitfinex reports")
+
 	skipLiveWithoutCredentials(t)
 	for _, a := range []asset.Item{asset.Spot, asset.Margin} {
 		orders, err := e.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: a, Side: order.AnySide, Type: order.AnyType})
@@ -1983,6 +2016,48 @@ func TestGetOrderHistory(t *testing.T) {
 		for i := range orders {
 			assert.Equal(t, asset.Spot, orders[i].AssetType, "GetOrderHistory should return spot orders alone")
 		}
+	}
+}
+
+func TestGetOrderHistoryPaging(t *testing.T) {
+	t.Parallel()
+	// Bitfinex bounds the history by when its orders were created, so each page ends at its predecessor's oldest
+	// creation. These orders were updated an hour after they were created, so a page ending at an update time would
+	// return the same orders again rather than reach the oldest
+	const createdFrom = 1678987199446
+	records := make([]testOrderRecord, ordersHistoryPageLimit+1)
+	for i := range records {
+		createdAt := createdFrom + int64(i)
+		records[i] = testOrderRecord{
+			id: uint64(i) + 1, symbol: "tETHUSD", orderType: "EXCHANGE LIMIT", status: "CANCELED", amount: 1, original: 1, price: 100,
+			createdAt: strconv.FormatInt(createdAt, 10), updatedAt: strconv.FormatInt(createdAt+time.Hour.Milliseconds(), 10),
+		}
+	}
+	for path, pairs := range map[string]currency.Pairs{
+		"/v2/auth/r/orders/hist":         nil,
+		"/v2/auth/r/orders/tETHUSD/hist": {currency.NewPair(currency.ETH, currency.USD)},
+	} {
+		ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			var req map[string]any
+			if !assert.Equalf(t, path, r.URL.Path, "GetOrderHistory should read the history for pairs %s", pairs) ||
+				!assert.NoError(t, json.NewDecoder(r.Body).Decode(&req), "Decoding the request should not error") {
+				http.Error(w, "unexpected request", http.StatusBadRequest)
+				return
+			}
+			end, _ := req["end"].(float64)
+			limit, _ := req["limit"].(float64)
+			var page []testOrderRecord
+			for i := len(records) - 1; i >= 0 && float64(len(page)) < limit; i-- {
+				if end == 0 || float64(createdFrom+int64(i)) <= end {
+					page = append(page, records[i])
+				}
+			}
+			_, err := w.Write([]byte(testOrderRecords(page)))
+			assert.NoError(t, err, "Writing the response should not error")
+		}))
+		history, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Pairs: pairs, Side: order.AnySide, Type: order.AnyType})
+		require.NoErrorf(t, err, "GetOrderHistory must not error for pairs %s", pairs)
+		assert.Lenf(t, history, len(records), "GetOrderHistory should page back through every order for pairs %s", pairs)
 	}
 }
 
@@ -2102,10 +2177,24 @@ func TestRequestFiatWithdrawalPayload(t *testing.T) {
 	t.Parallel()
 	var payload map[string]any
 	ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		decoded, err := base64.StdEncoding.DecodeString(r.Header.Get("X-BFX-PAYLOAD"))
+		assert.Equal(t, "/v1/withdraw", r.URL.Path, "a wire should be sent to v1's withdraw endpoint")
+		assert.Equal(t, testAPIKey, r.Header.Get("X-BFX-APIKEY"), "a v1 request should send the API key")
+		encoded := r.Header.Get("X-BFX-PAYLOAD")
+		signature, err := crypto.GetHMAC(crypto.HashSHA512_384, []byte(encoded), []byte(testAPISecret))
+		if assert.NoError(t, err, "GetHMAC should not error") {
+			assert.Equal(t, hex.EncodeToString(signature), r.Header.Get("X-BFX-SIGNATURE"), "a v1 request should sign its base64 encoded payload")
+		}
+		decoded, err := base64.StdEncoding.DecodeString(encoded)
 		assert.NoError(t, err, "a v1 request's payload should be base64 encoded")
 		payload = nil
 		assert.NoError(t, json.Unmarshal(decoded, &payload), "a v1 request's payload should be JSON")
+		assert.Equal(t, "/v1/withdraw", payload["request"], "a v1 request's payload should name its path")
+		nonceText, _ := payload["nonce"].(string)
+		nonce, err := strconv.ParseInt(nonceText, 10, 64)
+		// v1 and v2 requests take their nonces from one counter, started at the time in nanoseconds
+		if assert.NoError(t, err, "a v1 request's nonce should be an integer") {
+			assert.Greater(t, nonce, time.Now().Add(-time.Hour).UnixNano(), "a v1 request should send a nanosecond nonce")
+		}
 		_, err = w.Write([]byte(`[{"status":"success","message":"Your withdrawal request has been successfully submitted.","withdrawal_id":586829}]`))
 		assert.NoError(t, err, "Writing the response should not error")
 	}))
@@ -2238,6 +2327,48 @@ func TestGetFeeByType(t *testing.T) {
 	}
 	_, err = e.GetFeeByType(t.Context(), &exchange.FeeBuilder{FeeType: exchange.CryptocurrencyWithdrawalFee, Pair: currency.NewPair(currency.NewCode("NOPE"), currency.USD)})
 	assert.ErrorIs(t, err, currency.ErrCurrencyNotSupported, "GetFeeByType should report a currency without a withdrawal fee")
+
+	// Bitfinex prices Tether's tokens by chain, each under its method less the TETHER prefix. These are its fee and method
+	// maps, trimmed to the rows used
+	withdrawalConfig := func(methods string) *Exchange {
+		return newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			reply, ok := map[string]string{
+				"/v2/conf/pub:map:currency:tx:fee": `[[["ADA",[0,0.3]],["CNHTE",[0,35.817]],["CNHTX",[0,0]],["EUE",[0,0.001]],["MXNTE",[0,7.0351]],["USE",[0,2.1479]],["USX",[0,0]],["XAUTE",[0,0.00046028]]]]`,
+				"/v2/conf/pub:map:tx:method":       methods,
+			}[r.URL.Path]
+			if !assert.Truef(t, ok, "GetFeeByType should read only the fee and method maps, not %s", r.URL.Path) {
+				http.Error(w, "unexpected request", http.StatusBadRequest)
+				return
+			}
+			_, err := w.Write([]byte(reply))
+			assert.NoError(t, err, "Writing the response should not error")
+		}))
+	}
+	tether := withdrawalConfig(`[[["WIRE",["USD","GBP","HKD","EUR","SGD","TWD","CHF"]],["TETHERUSE",["UST"]],["TETHEREUE",["EUT"]],["TETHERUSX",["UST"]],["TETHERCNHTE",["CNHT"]],["TETHERXAUTE",["XAUT"]],["TETHERMXNTE",["MXNT"]],["TETHERCNHTX",["CNHT"]]]]`)
+	for _, tc := range []struct {
+		c   currency.Code
+		exp float64
+		err error
+	}{
+		{c: currency.ADA, exp: 0.3},
+		{c: currency.NewCode("EUT"), exp: 0.001},
+		{c: currency.XAUT, exp: 0.00046028},
+		{c: currency.USDT, err: errTransferMethodNeeded},
+		{c: currency.USD, err: currency.ErrCurrencyNotSupported},
+		{c: currency.NewCode("NOPE"), err: currency.ErrCurrencyNotSupported},
+	} {
+		fee, err = tether.GetFeeByType(t.Context(), &exchange.FeeBuilder{FeeType: exchange.CryptocurrencyWithdrawalFee, Pair: currency.Pair{Base: tc.c}})
+		if tc.err != nil {
+			assert.ErrorIsf(t, err, tc.err, "GetFeeByType should refuse a withdrawal fee for %s", tc.c)
+			continue
+		}
+		require.NoErrorf(t, err, "GetFeeByType must not error for a withdrawal fee for %s", tc.c)
+		assert.Equalf(t, tc.exp, fee, "a withdrawal of %s should cost the fee Bitfinex sets for it", tc.c)
+	}
+	_, err = withdrawalConfig(`["error",10020,"symbol: invalid"]`).GetFeeByType(t.Context(), &exchange.FeeBuilder{FeeType: exchange.CryptocurrencyWithdrawalFee, Pair: currency.Pair{Base: currency.XAUT}})
+	var methodsErr *APIError
+	assert.ErrorAs(t, err, &methodsErr, "GetFeeByType should return the error Bitfinex reports for its method map")
+
 	refused := newResponseServerExchange(t, `["error",10020,"symbol: invalid"]`)
 	for _, feeType := range []exchange.FeeType{exchange.CryptocurrencyTradeFee, exchange.CryptocurrencyWithdrawalFee} {
 		_, err = refused.GetFeeByType(t.Context(), &exchange.FeeBuilder{FeeType: feeType, Pair: currency.NewBTCUSD(), PurchasePrice: 1, Amount: 1})
@@ -2325,6 +2456,64 @@ func TestHistoryRequestsEndNoLaterThanNow(t *testing.T) {
 	for _, end := range ends {
 		assert.LessOrEqual(t, end, time.Now().UnixMilli(), "a history request should end no later than now")
 	}
+}
+
+func TestGetHistoricCandlesTwoWeeks(t *testing.T) {
+	t.Parallel()
+	// Bitfinex's 14D candles open on Thursdays, where GCT's two weeks open on Mondays, so two-week candles are made from
+	// weekly ones. These are Bitfinex's weekly candles for the six weeks from 31 August 2026, and the next, as its end is
+	// inclusive
+	var paths []string
+	ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		paths = append(paths, r.URL.Path)
+		_, err := w.Write([]byte(`[[1788134400000,77683,80430,82320,76321,5293.42158328],[1788739200000,80450,76833,80542,76043,9418.91123549],[1789344000000,76881,81184,81922,74985,7700.72194816],[1789948800000,81184,84464,87392,80846,7312.9739249],[1790553600000,84451,86501,87197,82491,6971.19971307],[1791158400000,86504,83800,86969,80347,4323.98135151],[1791763200000,83777,82159,84378,79821,2889.43614902]]`))
+		assert.NoError(t, err, "Writing the response should not error")
+	}))
+	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{currency.NewBTCUSD()}, true), "StorePairs must not error")
+	start := time.Date(2026, 8, 31, 0, 0, 0, 0, time.UTC)
+	for name, getCandles := range map[string]func(context.Context, currency.Pair, asset.Item, kline.Interval, time.Time, time.Time) (*kline.Item, error){
+		"GetHistoricCandles":         ex.GetHistoricCandles,
+		"GetHistoricCandlesExtended": ex.GetHistoricCandlesExtended,
+	} {
+		paths = nil
+		item, err := getCandles(t.Context(), currency.NewBTCUSD(), asset.Spot, kline.TwoWeek, start, start.AddDate(0, 0, 42))
+		require.NoErrorf(t, err, "%s must not error", name)
+		assert.Equalf(t, []string{"/v2/candles/trade:1W:tBTCUSD/hist"}, paths, "%s should read weekly candles", name)
+		assert.Equalf(t, kline.TwoWeek, item.Interval, "%s should return two-week candles", name)
+		exp := []kline.Candle{
+			{Time: start, Open: 77683, Close: 76833, High: 82320, Low: 76043, Volume: 14712.33281877},
+			{Time: start.AddDate(0, 0, 14), Open: 76881, Close: 84464, High: 87392, Low: 74985, Volume: 15013.69587306},
+			{Time: start.AddDate(0, 0, 28), Open: 84451, Close: 83800, High: 87197, Low: 80347, Volume: 11295.18106458},
+		}
+		require.Lenf(t, item.Candles, len(exp), "%s must return each two weeks' candle", name)
+		for i := range exp {
+			assert.Truef(t, exp[i].Time.Equal(item.Candles[i].Time), "%s candle %d should open at %s, not %s", name, i, exp[i].Time, item.Candles[i].Time)
+			assert.InDeltaf(t, exp[i].Volume, item.Candles[i].Volume, 1e-8, "%s candle %d should total its weeks' volume", name, i)
+			exp[i].Time, exp[i].Volume = item.Candles[i].Time, item.Candles[i].Volume
+			assert.Equalf(t, exp[i], item.Candles[i], "%s candle %d should open with its first week, close with its second, and span both", name, i)
+		}
+	}
+
+	// A request returns at most its limit of weekly candles, two to a two-week candle, which an extended request pages
+	ex.Features.Enabled.Kline.GlobalResultLimit = 5
+	paths = nil
+	_, err := ex.GetHistoricCandles(t.Context(), currency.NewBTCUSD(), asset.Spot, kline.TwoWeek, start, start.AddDate(0, 0, 42))
+	assert.ErrorIs(t, err, kline.ErrRequestExceedsExchangeLimits, "GetHistoricCandles should refuse two-week candles needing more weekly ones than a request returns")
+	assert.Empty(t, paths, "GetHistoricCandles should send no request it cannot fill")
+	item, err := ex.GetHistoricCandlesExtended(t.Context(), currency.NewBTCUSD(), asset.Spot, kline.TwoWeek, start, start.AddDate(0, 0, 42))
+	require.NoError(t, err, "GetHistoricCandlesExtended must page the weekly candles")
+	assert.Len(t, paths, 2, "GetHistoricCandlesExtended should read the weekly candles over two requests")
+	assert.Len(t, item.Candles, 3, "GetHistoricCandlesExtended should return each two weeks' candle")
+
+	// The weekly candles' own limit applies, should it differ from the two-week candles'
+	ex.Features.Enabled.Kline.GlobalResultLimit = 10000
+	ex.Features.Enabled.Kline.Intervals = kline.DeployExchangeIntervals(kline.IntervalCapacity{Interval: kline.OneWeek, Capacity: 5}, kline.IntervalCapacity{Interval: kline.TwoWeek})
+	paths = nil
+	_, err = ex.GetHistoricCandles(t.Context(), currency.NewBTCUSD(), asset.Spot, kline.TwoWeek, start, start.AddDate(0, 0, 42))
+	assert.ErrorIs(t, err, kline.ErrRequestExceedsExchangeLimits, "GetHistoricCandles should refuse more weekly candles than their limit")
+	_, err = ex.GetHistoricCandlesExtended(t.Context(), currency.NewBTCUSD(), asset.Spot, kline.TwoWeek, start, start.AddDate(0, 0, 42))
+	require.NoError(t, err, "GetHistoricCandlesExtended must page the weekly candles")
+	assert.Len(t, paths, 2, "GetHistoricCandlesExtended should page the weekly candles by their limit")
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {

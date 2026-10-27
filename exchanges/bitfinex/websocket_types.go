@@ -113,16 +113,27 @@ type wsPendingSubscription struct {
 	sub  *subscription.Subscription
 }
 
+// wsMappedChannel is the subscription a channel carries, with the request that mapped the channel to it: the request
+// Bitfinex confirmed it for, or one refused as its duplicate that took it over
+type wsMappedChannel struct {
+	sub   *subscription.Subscription
+	subID string
+}
+
 // wsChannelRegistry maps each connection's channel IDs to the subscriptions they carry. Subscriptions keep their own
 // keys, which the manager matches when it compares the subscriptions it wants with those it has
 type wsChannelRegistry struct {
 	mu       sync.RWMutex
-	channels map[wsChannelKey]*subscription.Subscription
+	channels map[wsChannelKey]wsMappedChannel
 	pending  map[string]wsPendingSubscription
+	// awaited holds the requests whose subscribers still await their confirmation, as the manager records a
+	// subscription only once its subscriber hears
+	awaited map[string]struct{}
 	// parked holds the subscriptions whose channels a renewal has unsubscribed and not yet subscribed again
 	parked []wsPendingSubscription
-	// dropped holds the requests of subscriptions unsubscribed before Bitfinex confirmed them, and draining the
-	// channels such a confirmation brought, which are unsubscribed in turn
+	// dropped holds the requests no longer wanted before Bitfinex confirmed them, as their subscriptions were
+	// unsubscribed or their waits failed, and draining the channels such a confirmation brought, or an abandoned request
+	// had mapped, which are unsubscribed in turn
 	dropped  map[string]struct{}
 	draining map[wsChannelKey]struct{}
 }
@@ -135,6 +146,45 @@ func (r *wsChannelRegistry) addPending(subID string, conn websocket.Connection, 
 		r.pending = make(map[string]wsPendingSubscription)
 	}
 	r.pending[subID] = wsPendingSubscription{conn: conn, sub: s}
+}
+
+// await records a request whose subscriber awaits its confirmation, until settle or abandon is called with it
+func (r *wsChannelRegistry) await(subID string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.awaited == nil {
+		r.awaited = make(map[string]struct{})
+	}
+	r.awaited[subID] = struct{}{}
+}
+
+// settle forgets an awaited request, as its subscriber has heard Bitfinex confirm it
+func (r *wsChannelRegistry) settle(subID string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	delete(r.awaited, subID)
+}
+
+// renewable decides, in one look, how a renewal of the connection's channel carrying the subscription itself proceeds:
+// a channel mapped for a request no longer awaited is unsubscribed and subscribed again, and its ID returned, one whose
+// request is awaited waits, as the request's subscriber abandons it should the wait fail, one a renewal left
+// unsubscribed is subscribed again, and any other has been dropped. A subscriber's request is abandoned only while
+// awaited, and a renewal's request is never awaited
+func (r *wsChannelRegistry) renewable(conn websocket.Connection, s *subscription.Subscription) (channelID uint64, mapped bool, err error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	for k, c := range r.channels {
+		if k.conn == conn && c.sub == s {
+			if _, ok := r.awaited[c.subID]; ok {
+				return 0, false, errWebsocketChannelAwaited
+			}
+			return k.id, true, nil
+		}
+	}
+	if slices.Contains(r.parked, wsPendingSubscription{conn: conn, sub: s}) {
+		return 0, false, nil
+	}
+	return 0, false, errWebsocketChannelDropped
 }
 
 // removePending forgets a subscription request, as Bitfinex has replied to it or never received it
@@ -181,15 +231,43 @@ func (r *wsChannelRegistry) confirm(subID string, conn websocket.Connection, cha
 		return false, nil
 	}
 	if r.channels == nil {
-		r.channels = make(map[wsChannelKey]*subscription.Subscription)
+		r.channels = make(map[wsChannelKey]wsMappedChannel)
 	}
-	r.channels[k] = p.sub
+	r.channels[k] = wsMappedChannel{sub: p.sub, subID: subID}
 	r.parked = slices.DeleteFunc(r.parked, func(parked wsPendingSubscription) bool { return parked == p })
 	return true, nil
 }
 
-// isDraining reports whether a connection's channel is draining, its subscription unsubscribed before Bitfinex
-// confirmed it
+// abandon forgets an awaited request whose wait for its confirmation failed, as the manager records no subscription for
+// it, returning the ID of a channel its confirmation has already mapped, which drains until Bitfinex unsubscribes it. A
+// confirmation still to come drains in turn. A channel another request has taken over since is left to it, as the
+// manager may record that request's subscription. No renewal can have replaced the channel, as one is renewed only once
+// the request that mapped it is no longer awaited
+func (r *wsChannelRegistry) abandon(subID string) (uint64, bool) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	delete(r.awaited, subID)
+	if _, ok := r.pending[subID]; ok {
+		if r.dropped == nil {
+			r.dropped = make(map[string]struct{})
+		}
+		r.dropped[subID] = struct{}{}
+		return 0, false
+	}
+	for k, c := range r.channels {
+		if c.subID == subID {
+			delete(r.channels, k)
+			if r.draining == nil {
+				r.draining = make(map[wsChannelKey]struct{})
+			}
+			r.draining[k] = struct{}{}
+			return k.id, true
+		}
+	}
+	return 0, false
+}
+
+// isDraining reports whether a connection's channel is draining, its request no longer wanted
 func (r *wsChannelRegistry) isDraining(conn websocket.Connection, channelID uint64) bool {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -207,17 +285,18 @@ func (r *wsChannelRegistry) drained(conn websocket.Connection, channelID uint64)
 	return ok
 }
 
-// adopt maps a connection's channel to s when it carries a subscription equal to s, reporting whether it does: Bitfinex
-// refuses a second subscription to a channel it confirmed after the first's request stopped waiting
-func (r *wsChannelRegistry) adopt(conn websocket.Connection, channelID uint64, s *subscription.Subscription) bool {
+// adopt maps a connection's channel to s, for the request subID refused as its duplicate, when it carries a subscription
+// equal to s, reporting whether it does: Bitfinex refuses a second subscription to a channel it confirmed after the
+// first's request stopped waiting
+func (r *wsChannelRegistry) adopt(conn websocket.Connection, channelID uint64, s *subscription.Subscription, subID string) bool {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	k := wsChannelKey{conn: conn, id: channelID}
 	carried, ok := r.channels[k]
-	if !ok || !(subscription.ExactKey{Subscription: s}).Match(subscription.ExactKey{Subscription: carried}) {
+	if !ok || !(subscription.ExactKey{Subscription: s}).Match(subscription.ExactKey{Subscription: carried.sub}) {
 		return false
 	}
-	r.channels[k] = s
+	r.channels[k] = wsMappedChannel{sub: s, subID: subID}
 	r.parked = slices.DeleteFunc(r.parked, func(parked wsPendingSubscription) bool { return parked.conn == conn && parked.sub == s })
 	return true
 }
@@ -226,7 +305,7 @@ func (r *wsChannelRegistry) adopt(conn websocket.Connection, channelID uint64, s
 func (r *wsChannelRegistry) get(conn websocket.Connection, channelID uint64) *subscription.Subscription {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	return r.channels[wsChannelKey{conn: conn, id: channelID}]
+	return r.channels[wsChannelKey{conn: conn, id: channelID}].sub
 }
 
 // idOf returns the ID of the connection's channel carrying a subscription
@@ -234,8 +313,8 @@ func (r *wsChannelRegistry) idOf(conn websocket.Connection, s *subscription.Subs
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	key := subscription.ExactKey{Subscription: s}
-	for k, sub := range r.channels {
-		if k.conn == conn && key.Match(subscription.ExactKey{Subscription: sub}) {
+	for k, c := range r.channels {
+		if k.conn == conn && key.Match(subscription.ExactKey{Subscription: c.sub}) {
 			return k.id, true
 		}
 	}
@@ -247,12 +326,26 @@ func (r *wsChannelRegistry) idOf(conn websocket.Connection, s *subscription.Subs
 func (r *wsChannelRegistry) channelOf(conn websocket.Connection, s *subscription.Subscription) (uint64, bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	for k, sub := range r.channels {
-		if k.conn == conn && sub == s {
+	for k, c := range r.channels {
+		if k.conn == conn && c.sub == s {
 			return k.id, true
 		}
 	}
 	return 0, false
+}
+
+// withBooks calls fn with the order book subscriptions the channels of open connections carry, holding the registry
+// until it returns, so that no channel is mapped meanwhile
+func (r *wsChannelRegistry) withBooks(fn func([]*subscription.Subscription)) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	var books []*subscription.Subscription
+	for k, c := range r.channels {
+		if c.sub.Channel == subscription.OrderbookChannel && !isConnectionClosed(k.conn) {
+			books = append(books, c.sub)
+		}
+	}
+	fn(books)
 }
 
 // remove forgets a connection's channel
@@ -268,9 +361,9 @@ func (r *wsChannelRegistry) park(conn websocket.Connection, channelID uint64) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	k := wsChannelKey{conn: conn, id: channelID}
-	if s, ok := r.channels[k]; ok {
+	if c, ok := r.channels[k]; ok {
 		delete(r.channels, k)
-		r.parked = append(r.parked, wsPendingSubscription{conn: conn, sub: s})
+		r.parked = append(r.parked, wsPendingSubscription{conn: conn, sub: c.sub})
 	}
 }
 

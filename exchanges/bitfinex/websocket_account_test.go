@@ -558,9 +558,13 @@ func TestWebsocketWalletSnapshotReplacesWallets(t *testing.T) {
 	assert.Equal(t, []string{`[0,"calc",null,[["wallet_exchange_ETH"]]]`}, conn.messages(), "a wallet snapshot should ask for available balances though it cannot relay its balances")
 	held[asset.Spot][currency.ETH] = [3]float64{5, 0, 5}
 	assertWalletBalances(t, ex, held)
+	relayedPayloads(ex)
 	unusableCredentials := context.WithValue(t.Context(), accounts.ContextCredentialsFlag, "unusable")
 	assert.Error(t, ex.wsHandleData(unusableCredentials, conn, []byte(`[0,"ws",[["exchange","ETH",6,0,6,null,null]]]`)), "a wallet snapshot should report balances it cannot store")
+	assert.Empty(t, relayedPayloads(ex), "a wallet snapshot should relay no balances it cannot store")
 	assertWalletBalances(t, ex, held)
+	require.NoError(t, handle(`[0,"ws",[["exchange","ETH",6,0,6,null,null]]]`), "a snapshot of one wallet must be handled")
+	assert.Len(t, relayedPayloads(ex), 1, "a snapshot of one wallet should be relayed")
 
 	require.NoError(t, handle(`[0,"ws",[]]`), "an empty wallet snapshot must be handled")
 	assertRemoved("an empty wallet snapshot", map[asset.Item]currency.Code{asset.Spot: currency.ETH, asset.MarginFunding: currency.USD, asset.Margin: currency.UST, asset.USDTMarginedFutures: collateral})

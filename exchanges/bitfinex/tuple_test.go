@@ -230,6 +230,7 @@ func TestUnmarshalTupleErrors(t *testing.T) {
 		{data: `[true]`, field: "Float at position 0", err: errTupleElementType},
 		{data: `[1,1.5]`, field: "Int at position 1", err: errTupleElementType},
 		{data: `[1,"2.5"]`, field: "Int at position 1", err: errTupleElementType},
+		{data: `[1,true]`, field: "Int at position 1", err: errTupleElementType},
 		{data: `[1,2,-3]`, field: "Uint at position 2", err: errTupleElementType},
 		{data: `[1,2,"-3"]`, field: "Uint at position 2", err: errTupleElementType},
 		{data: `[1,2,18446744073709551616]`, field: "Uint at position 2", err: errTupleElementType},

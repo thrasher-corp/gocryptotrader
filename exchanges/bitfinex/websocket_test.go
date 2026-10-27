@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"hash/crc32"
 	"math"
@@ -1222,11 +1223,11 @@ func TestWebsocketChannelRegistryAdopt(t *testing.T) {
 	confirm("other renewal", other, 8, renewed)
 	r.park(other, 8)
 
-	assert.False(t, r.adopt(conn, 9, renewed), "adopt should refuse a channel the connection has not confirmed")
-	assert.False(t, r.adopt(other, 7, renewed), "adopt should keep each connection's channels apart")
-	assert.False(t, r.adopt(conn, 7, fixtureSubscription(t, "ticker:fUSD")), "adopt should refuse a channel carrying another subscription")
+	assert.False(t, r.adopt(conn, 9, renewed, "adopter"), "adopt should refuse a channel the connection has not confirmed")
+	assert.False(t, r.adopt(other, 7, renewed, "adopter"), "adopt should keep each connection's channels apart")
+	assert.False(t, r.adopt(conn, 7, fixtureSubscription(t, "ticker:fUSD"), "adopter"), "adopt should refuse a channel carrying another subscription")
 	assert.True(t, r.isParked(conn, renewed), "adopt should leave a subscription parked when it adopts no channel")
-	assert.True(t, r.adopt(conn, 7, renewed), "adopt should take over a channel carrying an equal subscription")
+	assert.True(t, r.adopt(conn, 7, renewed, "adopter"), "adopt should take over a channel carrying an equal subscription")
 	assert.Same(t, renewed, r.get(conn, 7), "adopt should map the channel to the subscription adopting it")
 	assert.False(t, r.isParked(conn, renewed), "adopt should unpark the subscription it maps")
 	assert.True(t, r.isParked(other, renewed), "adopt should leave another connection's parked subscription")
@@ -1268,6 +1269,144 @@ func TestWebsocketChannelRegistryDrained(t *testing.T) {
 	assert.True(t, r.drained(conn, 9), "drained should report a draining channel Bitfinex has unsubscribed")
 	assert.False(t, r.isDraining(conn, 9), "drained should forget the channel")
 	assert.False(t, r.drained(conn, 9), "drained should not report a channel it has forgotten")
+}
+
+func TestWebsocketChannelRegistryAbandon(t *testing.T) {
+	t.Parallel()
+	ex, conn := newChannelTestExchange(t)
+	other, err := ex.Websocket.CreateTestConnection(wsPublicConnection)
+	require.NoError(t, err, "CreateTestConnection must not error")
+	var r wsChannelRegistry
+	s := fixtureSubscription(t, "ticker:tBTCUSD")
+
+	r.addPending("unconfirmed", conn, s)
+	_, ok := r.abandon("unconfirmed")
+	assert.False(t, ok, "abandon should return no channel for a request Bitfinex has not confirmed")
+	mapped, err := r.confirm("unconfirmed", conn, 7)
+	require.NoError(t, err, "confirm must not error for an abandoned request")
+	assert.False(t, mapped, "confirm should not map the channel of an abandoned request")
+	assert.True(t, r.isDraining(conn, 7), "the channel of an abandoned request should drain")
+
+	r.addPending("confirmed", conn, s)
+	_, err = r.confirm("confirmed", conn, 8)
+	require.NoError(t, err, "confirm must not error")
+	r.addPending("other connection", other, s)
+	_, err = r.confirm("other connection", other, 8)
+	require.NoError(t, err, "confirm must not error")
+	channelID, ok := r.abandon("confirmed")
+	assert.True(t, ok, "abandon should return the channel its request's confirmation mapped")
+	assert.Equal(t, uint64(8), channelID, "abandon should return the channel's ID")
+	assert.Nil(t, r.get(conn, 8), "abandon should stop mapping the channel")
+	assert.True(t, r.isDraining(conn, 8), "the abandoned channel should drain")
+	assert.Same(t, s, r.get(other, 8), "abandon should leave another connection's channel")
+
+	r.addPending("taken over", conn, s)
+	_, err = r.confirm("taken over", conn, 9)
+	require.NoError(t, err, "confirm must not error")
+	equal := fixtureSubscription(t, "ticker:tBTCUSD")
+	require.True(t, r.adopt(conn, 9, equal, "adopter"), "adopt must take over a channel carrying an equal subscription")
+	_, ok = r.abandon("taken over")
+	assert.False(t, ok, "abandon should leave a channel another request has taken over")
+	assert.Same(t, equal, r.get(conn, 9), "the request that took the channel over should keep it")
+
+	_, ok = r.abandon("unknown")
+	assert.False(t, ok, "abandon should return no channel for an unknown request")
+}
+
+func TestWebsocketChannelRegistryRenewable(t *testing.T) {
+	t.Parallel()
+	_, conn := newChannelTestExchange(t)
+	var r wsChannelRegistry
+	confirmed := func(subID string, channelID uint64) *subscription.Subscription {
+		t.Helper()
+		s := fixtureSubscription(t, "ticker:tBTCUSD")
+		r.addPending(subID, conn, s)
+		_, err := r.confirm(subID, conn, channelID)
+		require.NoErrorf(t, err, "confirm must not error for channel %d", channelID)
+		return s
+	}
+
+	r.await("settled")
+	s := confirmed("settled", 7)
+	_, _, err := r.renewable(conn, s)
+	assert.ErrorIs(t, err, errWebsocketChannelAwaited, "renewable should hold back a channel whose request is awaited")
+	r.settle("settled")
+	channelID, mapped, err := r.renewable(conn, s)
+	require.NoError(t, err, "renewable must not error for a channel whose request has settled")
+	assert.True(t, mapped, "renewable should report a settled request's channel mapped")
+	assert.Equal(t, uint64(7), channelID, "renewable should return the channel's ID")
+	r.park(conn, 7)
+	_, mapped, err = r.renewable(conn, s)
+	require.NoError(t, err, "renewable must not error for a parked channel")
+	assert.False(t, mapped, "renewable should report a parked channel unmapped, to subscribe again")
+
+	r.await("abandoned")
+	s = confirmed("abandoned", 8)
+	_, ok := r.abandon("abandoned")
+	require.True(t, ok, "abandon must return the channel")
+	_, _, err = r.renewable(conn, s)
+	assert.ErrorIs(t, err, errWebsocketChannelDropped, "renewable should drop an abandoned request's channel")
+	s = confirmed("abandoned", 9)
+	_, mapped, err = r.renewable(conn, s)
+	require.NoError(t, err, "renewable must not error for a channel mapped since")
+	assert.True(t, mapped, "abandon should forget the request it abandons")
+
+	r.await("taken over")
+	confirmed("taken over", 10)
+	adopter := fixtureSubscription(t, "ticker:tBTCUSD")
+	require.True(t, r.adopt(conn, 10, adopter, "adopter"), "adopt must take over a channel carrying an equal subscription")
+	_, mapped, err = r.renewable(conn, adopter)
+	require.NoError(t, err, "renewable must not error for a channel taken over")
+	assert.True(t, mapped, "renewable should follow the request that took a channel over")
+}
+
+func TestWebsocketChannelRegistryWithBooks(t *testing.T) {
+	t.Parallel()
+	_, conn := newChannelTestExchange(t)
+	open, closed := &stateConnection{Connection: conn, connected: true}, &stateConnection{Connection: conn}
+	var r wsChannelRegistry
+	book := fixtureSubscription(t, "book:tBTCUSD:R0")
+	for _, c := range []struct {
+		conn      websocket.Connection
+		sub       *subscription.Subscription
+		channelID uint64
+	}{
+		{open, book, 1},
+		{open, fixtureSubscription(t, "ticker:tBTCUSD"), 2},
+		{closed, fixtureSubscription(t, "book:tETHUSD:P0"), 3},
+	} {
+		subID := strconv.FormatUint(c.channelID, 10)
+		r.addPending(subID, c.conn, c.sub)
+		_, err := r.confirm(subID, c.conn, c.channelID)
+		require.NoErrorf(t, err, "confirm must not error for channel %d", c.channelID)
+	}
+	r.addPending("late", open, fixtureSubscription(t, "book:tETHUSD:P0"))
+	confirmed := make(chan error, 1)
+	r.withBooks(func(books []*subscription.Subscription) {
+		assert.Equal(t, []*subscription.Subscription{book}, books, "withBooks should give the order books of open connections")
+		go func() {
+			_, err := r.confirm("late", open, 4)
+			confirmed <- err
+		}()
+		// A writer waiting for the registry turns new readers away, which shows the confirmation waiting
+		require.Eventually(t, func() bool {
+			if len(confirmed) != 0 {
+				return true
+			}
+			if r.mu.TryRLock() {
+				r.mu.RUnlock()
+				return false
+			}
+			return true
+		}, 10*time.Second, time.Millisecond, "confirm must wait for the registry or map its channel")
+		assert.Empty(t, confirmed, "withBooks should hold back mapping a channel until it returns")
+	})
+	select {
+	case err := <-confirmed:
+		assert.NoError(t, err, "confirm should not error once withBooks returns")
+	case <-time.After(10 * time.Second):
+		require.Fail(t, "a channel must be mapped once withBooks returns")
+	}
 }
 
 // stateConnection is a connection reporting itself connected or not
@@ -1477,7 +1616,8 @@ func TestWebsocketSubscribe(t *testing.T) {
 	if mockTests {
 		confs := venue.events("conf")
 		require.NotEmpty(t, confs, "each connection must configure its flags")
-		assert.Equal(t, map[string]any{"event": "conf", "flags": float64(wsConfFlags)}, confs[0], "the connection should ask for event times and checksums")
+		// TIMESTAMP 32768 and OB_CHECKSUM 131072, as the docs number them
+		assert.Equal(t, map[string]any{"event": "conf", "flags": float64(163840)}, confs[0], "the connection should ask for event times and checksums")
 		requests := venue.events("subscribe")
 		require.Len(t, requests, 2, "each subscription must be sent")
 		for _, req := range requests {
@@ -1513,6 +1653,9 @@ func TestWebsocketChecksumResubscribes(t *testing.T) {
 		assert.NoError(c, err, "the resubscribed book should be valid")
 	}, 30*time.Second, 50*time.Millisecond, "the book must recover")
 	assert.Len(t, venue.events("unsubscribe"), 1, "the failed channel should be unsubscribed before resubscribing")
+	// Until its resync ends, a book's checksums go unchecked
+	k := key.PairAsset{Base: currency.BTC.Item, Quote: currency.USD.Item, Asset: asset.Spot}
+	assert.Eventually(t, func() bool { return !ex.wsBookResync.pending(k) }, 10*time.Second, 10*time.Millisecond, "the fresh snapshot should end the book's resync")
 }
 
 func TestWebsocketChecksumResubscribeRetries(t *testing.T) {
@@ -1658,14 +1801,14 @@ func TestWebsocketLateSubscribeConfirmation(t *testing.T) {
 	assert.False(t, ex.wsChannels.isParked(conn, s), "a late confirmation should unpark its subscription")
 
 	equal := s.Clone()
-	require.NoError(t, ex.wsSendSubscribe(t.Context(), conn, equal), "a subscription Bitfinex refuses for its channel already carrying it must succeed")
+	require.NoError(t, ex.wsSendSubscribe(t.Context(), conn, equal, "equal"), "a subscription Bitfinex refuses for its channel already carrying it must succeed")
 	assert.Same(t, equal, ex.wsChannels.get(conn, 2), "a subscription refused as a duplicate should take its channel over")
 	other := fixtureSubscription(t, "ticker:fUSD")
 	other.QualifiedChannel = `{"channel":"ticker","symbol":"fUSD"}`
 	conn.script = append(conn.script, func(any) ([]byte, error) {
 		return []byte(`{"event":"error","msg":"subscribe: dup","code":10301,"chanId":2}`), nil
 	})
-	assert.ErrorIs(t, ex.wsSendSubscribe(t.Context(), conn, other), websocket.ErrSubscriptionFailure, "a duplicate of another subscription's channel should fail")
+	assert.ErrorIs(t, ex.wsSendSubscribe(t.Context(), conn, other, "other"), websocket.ErrSubscriptionFailure, "a duplicate of another subscription's channel should fail")
 
 	cancelled := fixtureSubscription(t, "trades:tBTCUSD")
 	cancelled.QualifiedChannel = `{"channel":"trades","symbol":"tBTCUSD"}`
@@ -1674,7 +1817,7 @@ func TestWebsocketLateSubscribeConfirmation(t *testing.T) {
 		cancelledID, _ = payload.(map[string]any)["subId"].(string)
 		return nil, context.Canceled
 	})
-	require.ErrorIs(t, ex.wsSendSubscribe(t.Context(), conn, cancelled), context.Canceled, "a subscription whose wait is cancelled must error")
+	require.ErrorIs(t, ex.wsSendSubscribe(t.Context(), conn, cancelled, "cancelled"), context.Canceled, "a subscription whose wait is cancelled must error")
 	require.NoError(t, ex.wsHandleData(t.Context(), conn, []byte(`{"event":"subscribed","channel":"trades","chanId":4,"symbol":"tBTCUSD","subId":"`+cancelledID+`"}`)), "a confirmation arriving after its wait was cancelled must be handled")
 	assert.Same(t, cancelled, ex.wsChannels.get(conn, 4), "a confirmation arriving after its wait was cancelled should map its channel")
 
@@ -1707,7 +1850,8 @@ func TestWebsocketLateConfirmationAfterUnsubscribe(t *testing.T) {
 	} {
 		s := fixtureSubscription(t, "ticker:tBTCUSD")
 		s.QualifiedChannel = `{"channel":"ticker","symbol":"tBTCUSD"}`
-		require.ErrorIs(t, ex.wsSendSubscribe(t.Context(), conn, s), websocket.ErrSignatureTimeout, "a subscription whose confirmation is late must error")
+		lateID := "late " + strconv.FormatUint(tc.channelID, 10)
+		require.ErrorIs(t, ex.wsSendSubscribe(t.Context(), conn, s, lateID), websocket.ErrSignatureTimeout, "a subscription whose confirmation is late must error")
 		require.NoError(t, ex.Websocket.AddSuccessfulSubscriptions(conn, s), "AddSuccessfulSubscriptions must not error")
 		require.NoError(t, ex.wsUnsubscribe(t.Context(), conn, subscription.List{s}), "wsUnsubscribe must not error for a subscription Bitfinex has not confirmed")
 		require.Empty(t, ex.Websocket.GetSubscriptions(), "unsubscribing must forget the subscription")
@@ -1722,6 +1866,385 @@ func TestWebsocketLateConfirmationAfterUnsubscribe(t *testing.T) {
 	}
 	_, err := ticker.GetTicker(ex.Name, currency.NewBTCUSD(), asset.Spot)
 	assert.Error(t, err, "a draining channel's events should not be stored")
+}
+
+// endedContextConnection is a scripted connection refusing to send a message once its context has ended, as a
+// connection waiting on its rate limit does
+type endedContextConnection struct {
+	*scriptedConnection
+}
+
+// SendJSONMessage refuses a message whose context has ended, and records the others
+func (c *endedContextConnection) SendJSONMessage(ctx context.Context, epl request.EndpointLimit, data any) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	return c.scriptedConnection.SendJSONMessage(ctx, epl, data)
+}
+
+func TestWebsocketSubscribeChannelUnconfirmed(t *testing.T) {
+	t.Parallel()
+	ex, test := newChannelTestExchange(t)
+	conn := &endedContextConnection{scriptedConnection: &scriptedConnection{Connection: test}}
+	confirmation := func(channelID, subID string) []byte {
+		return []byte(`{"event":"subscribed","channel":"ticker","chanId":` + channelID + `,"symbol":"tBTCUSD","subId":"` + subID + `"}`)
+	}
+	ended, cancel := context.WithCancel(t.Context())
+	cancel()
+	// The manager records no subscription whose wait fails, so its channel is unsubscribed however its confirmation
+	// arrives: after the wait timed out or its context ended, or as either happened
+	for _, tc := range []struct {
+		name      string
+		channelID string
+		ctx       context.Context //nolint:containedctx // Each case subscribes with its own context
+		waitErr   error
+		confirmed bool
+	}{
+		{name: "a confirmation after a timeout", channelID: "7", ctx: t.Context(), waitErr: websocket.ErrSignatureTimeout},
+		{name: "a confirmation after the context ended", channelID: "8", ctx: ended, waitErr: context.Canceled},
+		{name: "a confirmation as the wait timed out", channelID: "9", ctx: t.Context(), waitErr: websocket.ErrSignatureTimeout, confirmed: true},
+		{name: "a confirmation as the context ended", channelID: "10", ctx: ended, waitErr: context.Canceled, confirmed: true},
+	} {
+		var subID string
+		conn.script = append(conn.script, func(payload any) ([]byte, error) {
+			subID, _ = payload.(map[string]any)["subId"].(string)
+			if tc.confirmed {
+				require.NoErrorf(t, ex.wsHandleData(t.Context(), conn, confirmation(tc.channelID, subID)), "wsHandleData must not error for %s", tc.name)
+			}
+			return nil, tc.waitErr
+		})
+		s := fixtureSubscription(t, "ticker:tBTCUSD")
+		s.QualifiedChannel = `{"channel":"ticker","symbol":"tBTCUSD"}`
+		sent := len(conn.sent)
+		require.ErrorIsf(t, ex.wsSubscribeChannel(tc.ctx, conn, s), tc.waitErr, "wsSubscribeChannel must return the wait's error for %s", tc.name)
+		assert.Emptyf(t, ex.Websocket.GetSubscriptions(), "wsSubscribeChannel should record no subscription for %s", tc.name)
+		if !tc.confirmed {
+			require.NoErrorf(t, ex.wsHandleData(t.Context(), conn, confirmation(tc.channelID, subID)), "wsHandleData must not error for %s", tc.name)
+		}
+		id, err := strconv.ParseUint(tc.channelID, 10, 64)
+		require.NoError(t, err, "ParseUint must not error")
+		assert.Nilf(t, ex.wsChannels.get(conn, id), "the channel of %s should not be mapped", tc.name)
+		assert.Equalf(t, []string{`{"event":"unsubscribe","chanId":` + tc.channelID + `}`}, conn.sent[sent:], "the channel of %s should be unsubscribed", tc.name)
+		// Bitfinex's reply is the draining channel's, which no request awaits
+		require.NoErrorf(t, ex.wsHandleData(t.Context(), conn, []byte(`{"event":"unsubscribed","status":"OK","chanId":`+tc.channelID+`}`)), "wsHandleData must not error unsubscribing the channel of %s", tc.name)
+		assert.Falsef(t, ex.wsChannels.isDraining(conn, id), "the channel of %s should be forgotten once unsubscribed", tc.name)
+	}
+
+	// The same subscription on another connection, such as the one replacing this, keeps its request and its channel
+	other, err := ex.Websocket.CreateTestConnection(wsPublicConnection)
+	require.NoError(t, err, "CreateTestConnection must not error")
+	s := fixtureSubscription(t, "ticker:tBTCUSD")
+	s.QualifiedChannel = `{"channel":"ticker","symbol":"tBTCUSD"}`
+	ex.wsChannels.addPending("other confirmed", other, s)
+	_, err = ex.wsChannels.confirm("other confirmed", other, 11)
+	require.NoError(t, err, "confirm must not error for the other connection's request")
+	ex.wsChannels.addPending("other pending", other, s)
+	conn.script = append(conn.script, func(payload any) ([]byte, error) {
+		subID, _ := payload.(map[string]any)["subId"].(string)
+		require.NoError(t, ex.wsHandleData(t.Context(), conn, confirmation("11", subID)), "wsHandleData must not error")
+		return nil, websocket.ErrSignatureTimeout
+	})
+	sent := len(conn.sent)
+	require.ErrorIs(t, ex.wsSubscribeChannel(t.Context(), conn, s), websocket.ErrSignatureTimeout, "wsSubscribeChannel must return the wait's error")
+	assert.Equal(t, []string{`{"event":"unsubscribe","chanId":11}`}, conn.sent[sent:], "a failed wait should unsubscribe its own connection's channel alone")
+	assert.Same(t, s, ex.wsChannels.get(other, 11), "a failed wait should leave the same subscription's channel on another connection")
+	mapped, err := ex.wsChannels.confirm("other pending", other, 12)
+	require.NoError(t, err, "confirm must not error for the other connection's pending request")
+	assert.True(t, mapped, "a failed wait should leave the same subscription's request on another connection to map its channel")
+
+	errUnsent := errors.New("unsent")
+	unsendable := &unsendableConnection{scriptedConnection: &scriptedConnection{Connection: test}, err: errUnsent}
+	unsendable.script = append(unsendable.script, func(payload any) ([]byte, error) {
+		subID, _ := payload.(map[string]any)["subId"].(string)
+		require.NoError(t, ex.wsHandleData(t.Context(), unsendable, confirmation("13", subID)), "wsHandleData must not error")
+		return nil, websocket.ErrSignatureTimeout
+	})
+	err = ex.wsSubscribeChannel(t.Context(), unsendable, s)
+	assert.ErrorIs(t, err, websocket.ErrSignatureTimeout, "wsSubscribeChannel should return the wait's error")
+	assert.ErrorIs(t, err, errUnsent, "wsSubscribeChannel should report an unsubscribe it cannot send")
+}
+
+// unsendableConnection is a scripted connection failing to send any message without awaiting its reply
+type unsendableConnection struct {
+	*scriptedConnection
+	err error
+}
+
+// SendJSONMessage returns the connection's error
+func (c *unsendableConnection) SendJSONMessage(context.Context, request.EndpointLimit, any) error {
+	return c.err
+}
+
+func TestWebsocketSubscribeChannelTakenOver(t *testing.T) {
+	t.Parallel()
+	book := func(channelID, subID string) []byte {
+		return []byte(`{"event":"subscribed","channel":"book","chanId":` + channelID + `,"symbol":"tBTCUSD","prec":"R0","len":"25","subId":"` + subID + `"}`)
+	}
+	// A request refused as a duplicate of the channel confirmed as another's wait fails takes the channel over, and its
+	// subscription may renew it; the failed wait leaves both to it. The manager subscribes an equal subscription, or the
+	// same one, again while it records neither
+	for _, tc := range []struct {
+		name  string
+		same  bool
+		renew bool
+	}{
+		{name: "an equal subscription"},
+		{name: "an equal subscription renewing the channel", renew: true},
+		{name: "the same subscription", same: true},
+		{name: "the same subscription renewing the channel", same: true, renew: true},
+	} {
+		ex, test := newChannelTestExchange(t)
+		conn := &scriptedConnection{Connection: test}
+		require.NoError(t, ex.Websocket.TrackTestConnection(wsPublicConnection, conn), "TrackTestConnection must not error")
+		first := fixtureSubscription(t, "book:tBTCUSD:R0")
+		first.QualifiedChannel = `{"channel":"book","symbol":"tBTCUSD","prec":"R0","len":"25"}`
+		taker := first.Clone()
+		if tc.same {
+			taker = first
+		}
+		var renewalID string
+		conn.script = []func(any) ([]byte, error){
+			func(payload any) ([]byte, error) {
+				subID, _ := payload.(map[string]any)["subId"].(string)
+				require.NoErrorf(t, ex.wsHandleData(t.Context(), conn, book("7", subID)), "the first request's confirmation must be handled for %s", tc.name)
+				require.NoErrorf(t, ex.Websocket.SubscribeToChannels(t.Context(), conn, subscription.List{taker}), "%s refused as a duplicate must take the channel over", tc.name)
+				if tc.renew {
+					require.ErrorIsf(t, ex.wsRenewChannel(t.Context(), conn, taker), websocket.ErrSignatureTimeout, "the renewal must still await its confirmation for %s", tc.name)
+				}
+				return nil, websocket.ErrSignatureTimeout
+			},
+			func(payload any) ([]byte, error) {
+				// The reader forgets a refused request
+				subID, _ := payload.(map[string]any)["subId"].(string)
+				ex.wsChannels.removePending(subID)
+				return []byte(`{"event":"error","msg":"subscribe: dup","code":10301,"chanId":7}`), nil
+			},
+			func(any) ([]byte, error) { return []byte(`{"event":"unsubscribed","status":"OK","chanId":7}`), nil },
+			func(payload any) ([]byte, error) {
+				renewalID, _ = payload.(map[string]any)["subId"].(string)
+				return nil, websocket.ErrSignatureTimeout
+			},
+		}
+		require.ErrorIsf(t, ex.Websocket.SubscribeToChannels(t.Context(), conn, subscription.List{first}), websocket.ErrSignatureTimeout, "the first request's wait must fail for %s", tc.name)
+		assert.Samef(t, taker, ex.Websocket.GetSubscription(first), "the manager should keep %s recorded", tc.name)
+		channelID := uint64(7)
+		if tc.renew {
+			require.NoErrorf(t, ex.wsHandleData(t.Context(), conn, book("8", renewalID)), "the renewal's confirmation must be handled for %s", tc.name)
+			channelID = 8
+		}
+		assert.Samef(t, taker, ex.wsChannels.get(conn, channelID), "%s should keep the channel it took over", tc.name)
+		assert.Emptyf(t, conn.sent, "the failed wait should not unsubscribe the channel %s took over", tc.name)
+	}
+}
+
+func TestWebsocketSubscribeChannelAbandonedBook(t *testing.T) {
+	t.Parallel()
+	// A book loaded from the snapshot of a channel whose request is abandoned would no longer be updated, so it is
+	// invalidated, spot's and margin's when they share the channel, unless a channel on an open connection carries it
+	for _, tc := range []struct {
+		name    string
+		shared  bool
+		carried bool
+		closed  bool
+	}{
+		{name: "a spot book"},
+		{name: "spot and margin books sharing a channel", shared: true},
+		{name: "books another connection carries", shared: true, carried: true},
+		{name: "books a closed connection carried", shared: true, carried: true, closed: true},
+	} {
+		ex, test := newChannelTestExchange(t)
+		conn := &scriptedConnection{Connection: test}
+		s := fixtureSubscription(t, "book:tBTCUSD:R0")
+		s.QualifiedChannel = `{"channel":"book","symbol":"tBTCUSD","prec":"R0","len":"25"}`
+		assets := []asset.Item{asset.Spot}
+		if tc.shared {
+			ex.wsSharedChannels.set(map[string]*subscription.Subscription{s.QualifiedChannel: s})
+			assets = append(assets, asset.Margin)
+		}
+		if tc.carried {
+			created, err := ex.Websocket.CreateTestConnection(wsPublicConnection)
+			require.NoError(t, err, "CreateTestConnection must not error")
+			other := &stateConnection{Connection: created, connected: !tc.closed}
+			ex.wsChannels.addPending("other", other, s.Clone())
+			_, err = ex.wsChannels.confirm("other", other, 3)
+			require.NoError(t, err, "confirm must not error")
+		}
+		conn.script = []func(any) ([]byte, error){func(payload any) ([]byte, error) {
+			subID, _ := payload.(map[string]any)["subId"].(string)
+			require.NoErrorf(t, ex.wsHandleData(t.Context(), conn, []byte(`{"event":"subscribed","channel":"book","chanId":7,"symbol":"tBTCUSD","prec":"R0","len":"25","subId":"`+subID+`"}`)), "the confirmation must be handled for %s", tc.name)
+			require.NoErrorf(t, ex.wsHandleData(t.Context(), conn, []byte(`[7,[[1,100,0.5],[2,101,-0.25]],1792128962861]`)), "the snapshot must be handled for %s", tc.name)
+			return nil, websocket.ErrSignatureTimeout
+		}}
+		require.ErrorIsf(t, ex.wsSubscribeChannel(t.Context(), conn, s), websocket.ErrSignatureTimeout, "wsSubscribeChannel must return the wait's error for %s", tc.name)
+		for _, a := range assets {
+			_, err := ex.Websocket.Orderbook.GetOrderbook(currency.NewBTCUSD(), a)
+			if tc.carried && !tc.closed {
+				assert.NoErrorf(t, err, "the %s book should stay valid for %s", a, tc.name)
+			} else {
+				assert.ErrorIsf(t, err, orderbook.ErrOrderbookInvalid, "the %s book should be invalidated for %s", a, tc.name)
+			}
+		}
+	}
+}
+
+// pausingContextKey is the key whose first read pauses a pausingContext
+type pausingContextKey struct{}
+
+// pausingContext pauses the first read of its key, which relaying a book does once the book has loaded, until released
+type pausingContext struct {
+	context.Context //nolint:containedctx // The context is what the test hands the handler, to pause it mid relay
+	once            sync.Once
+	paused          chan struct{}
+	release         chan struct{}
+}
+
+// Value pauses the first read of pausingContextKey until the context is released or done
+func (c *pausingContext) Value(k any) any {
+	if k == (pausingContextKey{}) {
+		c.once.Do(func() {
+			close(c.paused)
+			select {
+			case <-c.release:
+			case <-c.Done():
+			}
+		})
+	}
+	return c.Context.Value(k)
+}
+
+func TestWebsocketBookLoadedAsChannelAbandoned(t *testing.T) {
+	t.Parallel()
+	// A snapshot handled as its channel is abandoned can load a book after the abandonment invalidated it: here the
+	// subscriber abandons the channel once spot's book has loaded, while the snapshot is relayed, and before margin's,
+	// which shares it, loads. The reader invalidates what the snapshot loaded once it sees the channel abandoned
+	common.RegisterContextKey(pausingContextKey{})
+	ex, test := newChannelTestExchange(t)
+	conn := &scriptedConnection{Connection: test}
+	s := fixtureSubscription(t, "book:tBTCUSD:R0")
+	s.QualifiedChannel = `{"channel":"book","symbol":"tBTCUSD","prec":"R0","len":"25"}`
+	ex.wsSharedChannels.set(map[string]*subscription.Subscription{s.QualifiedChannel: s})
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
+	pausing := &pausingContext{Context: ctx, paused: make(chan struct{}), release: make(chan struct{})}
+	handled := make(chan error, 1)
+	conn.script = []func(any) ([]byte, error){func(payload any) ([]byte, error) {
+		subID, _ := payload.(map[string]any)["subId"].(string)
+		if err := ex.wsHandleData(t.Context(), conn, []byte(`{"event":"subscribed","channel":"book","chanId":7,"symbol":"tBTCUSD","prec":"R0","len":"25","subId":"`+subID+`"}`)); err != nil {
+			return nil, err
+		}
+		go func() {
+			handled <- ex.wsHandleData(pausing, conn, []byte(`[7,[[1,100,0.5],[2,101,-0.25]],1792128962861]`))
+		}()
+		select {
+		case <-pausing.paused:
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+		return nil, websocket.ErrSignatureTimeout
+	}}
+	require.ErrorIs(t, ex.wsSubscribeChannel(t.Context(), conn, s), websocket.ErrSignatureTimeout, "wsSubscribeChannel must return the wait's error")
+	close(pausing.release)
+	select {
+	case err := <-handled:
+		require.NoError(t, err, "the snapshot must be handled")
+	case <-ctx.Done():
+		require.FailNow(t, "the snapshot must be handled before the deadline")
+	}
+	for _, a := range []asset.Item{asset.Spot, asset.Margin} {
+		_, err := ex.Websocket.Orderbook.GetOrderbook(currency.NewBTCUSD(), a)
+		assert.ErrorIsf(t, err, orderbook.ErrOrderbookInvalid, "the %s book the snapshot loaded as its channel was abandoned should be invalidated", a)
+	}
+}
+
+func TestWebsocketRenewChannelAwaited(t *testing.T) {
+	t.Parallel()
+	ex, test := newChannelTestExchange(t)
+	conn := &scriptedConnection{Connection: test}
+	s := fixtureSubscription(t, "book:tBTCUSD:R0")
+	s.QualifiedChannel = `{"channel":"book","symbol":"tBTCUSD","prec":"R0","len":"25"}`
+	// A channel confirmed while its subscriber still awaits the confirmation is not renewed, as the subscriber abandons it
+	// should its wait fail
+	ex.wsChannels.await("abandoned")
+	ex.wsChannels.addPending("abandoned", conn, s)
+	_, err := ex.wsChannels.confirm("abandoned", conn, 7)
+	require.NoError(t, err, "confirm must not error")
+	assert.ErrorIs(t, ex.wsRenewChannel(t.Context(), conn, s), errWebsocketChannelAwaited, "a channel whose request is awaited should not be renewed")
+	_, ok := ex.wsChannels.abandon("abandoned")
+	require.True(t, ok, "abandon must drain the channel")
+	assert.ErrorIs(t, ex.wsRenewChannel(t.Context(), conn, s), errWebsocketChannelDropped, "an abandoned channel should not be renewed")
+
+	ex.wsChannels.await("settled")
+	ex.wsChannels.addPending("settled", conn, s)
+	_, err = ex.wsChannels.confirm("settled", conn, 8)
+	require.NoError(t, err, "confirm must not error")
+	ex.wsChannels.settle("settled")
+	conn.script = []func(any) ([]byte, error){
+		func(any) ([]byte, error) { return []byte(`{"event":"unsubscribed","status":"OK","chanId":8}`), nil },
+		func(payload any) ([]byte, error) {
+			subID, _ := payload.(map[string]any)["subId"].(string)
+			resp := []byte(`{"event":"subscribed","channel":"book","chanId":9,"symbol":"tBTCUSD","prec":"R0","len":"25","subId":"` + subID + `"}`)
+			return resp, ex.wsHandleData(t.Context(), conn, resp)
+		},
+	}
+	require.NoError(t, ex.wsRenewChannel(t.Context(), conn, s), "wsRenewChannel must renew the channel of a request that has settled")
+	assert.Same(t, s, ex.wsChannels.get(conn, 9), "the renewed channel should be mapped")
+}
+
+func TestWebsocketRenewalAwaitsSubscription(t *testing.T) {
+	t.Parallel()
+	// A book whose checksum fails while its subscriber awaits the confirmation is not renewed then, and once the wait
+	// fails its channel is only unsubscribed
+	ex, test := newChannelTestExchange(t)
+	conn := &scriptedConnection{Connection: test}
+	s := fixtureSubscription(t, "book:tBTCUSD:R0")
+	s.QualifiedChannel = `{"channel":"book","symbol":"tBTCUSD","prec":"R0","len":"25"}`
+	var renewed bool
+	conn.script = []func(any) ([]byte, error){
+		func(payload any) ([]byte, error) {
+			subID, _ := payload.(map[string]any)["subId"].(string)
+			require.NoError(t, ex.wsHandleData(t.Context(), conn, []byte(`{"event":"subscribed","channel":"book","chanId":7,"symbol":"tBTCUSD","prec":"R0","len":"25","subId":"`+subID+`"}`)), "the confirmation must be handled")
+			require.NoError(t, ex.wsHandleData(t.Context(), conn, []byte(`[7,[[1,100,0.5],[2,101,-0.25]],1792128962861]`)), "the snapshot must be handled")
+			require.ErrorIs(t, ex.wsHandleData(t.Context(), conn, []byte(`[7,"cs",12345,1792128962862]`)), errChecksumMismatch, "a checksum the book does not match must be reported")
+			assert.ErrorIs(t, ex.wsRenewChannel(t.Context(), conn, s), errWebsocketChannelAwaited, "a renewal during the wait should await the subscription")
+			return nil, websocket.ErrSignatureTimeout
+		},
+		func(any) ([]byte, error) {
+			renewed = true
+			return nil, websocket.ErrSignatureTimeout
+		},
+	}
+	require.ErrorIs(t, ex.wsSubscribeChannel(t.Context(), conn, s), websocket.ErrSignatureTimeout, "wsSubscribeChannel must return the wait's error")
+	waitForRenewals(t, ex)
+	assert.False(t, renewed, "a channel whose subscription awaited its confirmation should not be renewed")
+	assert.Equal(t, []string{`{"event":"unsubscribe","chanId":7}`}, conn.sent, "the abandoned channel should be unsubscribed once")
+}
+
+func TestWebsocketRenewalAfterSubscription(t *testing.T) {
+	t.Parallel()
+	// A book whose checksum fails while its subscriber awaits the confirmation is renewed once the subscriber hears it
+	ex, test := newChannelTestExchange(t)
+	conn := &scriptedConnection{Connection: test}
+	s := fixtureSubscription(t, "book:tBTCUSD:R0")
+	s.QualifiedChannel = `{"channel":"book","symbol":"tBTCUSD","prec":"R0","len":"25"}`
+	ex.wsChannels.await("initial")
+	ex.wsChannels.addPending("initial", conn, s)
+	_, err := ex.wsChannels.confirm("initial", conn, 7)
+	require.NoError(t, err, "confirm must not error")
+	require.NoError(t, ex.wsHandleData(t.Context(), conn, []byte(`[7,[[1,100,0.5],[2,101,-0.25]],1792128962861]`)), "the snapshot must be handled")
+	conn.script = []func(any) ([]byte, error){
+		func(any) ([]byte, error) { return []byte(`{"event":"unsubscribed","status":"OK","chanId":7}`), nil },
+		func(payload any) ([]byte, error) {
+			subID, _ := payload.(map[string]any)["subId"].(string)
+			resp := []byte(`{"event":"subscribed","channel":"book","chanId":8,"symbol":"tBTCUSD","prec":"R0","len":"25","subId":"` + subID + `"}`)
+			return resp, ex.wsHandleData(t.Context(), conn, resp)
+		},
+	}
+	require.ErrorIs(t, ex.wsHandleData(t.Context(), conn, []byte(`[7,"cs",12345,1792128962862]`)), errChecksumMismatch, "a checksum the book does not match must be reported")
+	// The renewal's first attempt finds the request awaited, and its retry follows a second later
+	time.Sleep(100 * time.Millisecond)
+	ex.wsChannels.settle("initial")
+	waitForRenewals(t, ex)
+	assert.Same(t, s, ex.wsChannels.get(conn, 8), "the channel should be renewed once its subscription has settled")
 }
 
 func TestWebsocketUnsubscribeParkedChannel(t *testing.T) {
@@ -1786,4 +2309,5 @@ func TestWebsocketAuthenticate(t *testing.T) {
 	connectWebsocketTestExchange(t, bad, nil)
 	assert.False(t, bad.Websocket.CanUseAuthenticatedEndpoints(), "a rejected authentication should turn authenticated websocket use off")
 	assert.True(t, bad.Websocket.IsConnected(), "a rejected authentication should leave the public connection up")
+	assert.ErrorIs(t, bad.AuthenticateWebsocket(t.Context()), errWebsocketAuthentication, "AuthenticateWebsocket should report a rejected authentication")
 }

@@ -193,6 +193,7 @@ func (e *Exchange) SetDefaults() {
 					kline.IntervalCapacity{Interval: kline.TwelveHour},
 					kline.IntervalCapacity{Interval: kline.OneDay},
 					kline.IntervalCapacity{Interval: kline.OneWeek},
+					// Made from weekly candles, as readWeeklyForTwoWeeks says
 					kline.IntervalCapacity{Interval: kline.TwoWeek},
 					kline.IntervalCapacity{Interval: kline.OneMonth},
 				),
@@ -1441,16 +1442,10 @@ func (e *Exchange) GetFeeByType(ctx context.Context, f *exchange.FeeBuilder) (fl
 		}
 		fee = tradingFeeRate(&summary.FeeRates, f.Pair, f.IsMaker) * f.PurchasePrice * f.Amount
 	case exchange.CryptocurrencyWithdrawalFee:
-		fees, err := e.GetCurrencyWithdrawalFees(ctx)
-		if err != nil {
+		var err error
+		if fee, err = e.cryptocurrencyWithdrawalFee(ctx, f.Pair.Base); err != nil {
 			return 0, err
 		}
-		c := bitfinexCurrency(f.Pair.Base)
-		i := slices.IndexFunc(fees, func(w CurrencyWithdrawalFeeResponse) bool { return w.Currency.Equal(c) })
-		if i == -1 {
-			return 0, fmt.Errorf("%w: no withdrawal fee for %s", currency.ErrCurrencyNotSupported, c)
-		}
-		fee = fees[i].Fee.Amount
 	case exchange.InternationalBankDepositFee:
 		// Bitfinex charges 0.1% of a wire deposit, and at least 60 dollars or euros
 		fee = max(0.001*f.Amount, wireFeeMinimum(f.FiatCurrency, 60))
@@ -1462,6 +1457,37 @@ func (e *Exchange) GetFeeByType(ctx context.Context, f *exchange.FeeBuilder) (fl
 	}
 	// A maker rebate is no fee
 	return max(fee, 0), nil
+}
+
+// cryptocurrencyWithdrawalFee returns what Bitfinex charges to withdraw a currency. Bitfinex prices Tether's tokens by
+// chain instead, each under its method less the TETHER prefix, such as USE for tetheruse, so a token withdrawn over one
+// chain is charged that chain's fee, and one withdrawn over several needs its chain, which a fee request cannot give
+func (e *Exchange) cryptocurrencyWithdrawalFee(ctx context.Context, c currency.Code) (float64, error) {
+	fees, err := e.GetCurrencyWithdrawalFees(ctx)
+	if err != nil {
+		return 0, err
+	}
+	feeOf := func(key string) (float64, bool) {
+		i := slices.IndexFunc(fees, func(w CurrencyWithdrawalFeeResponse) bool { return strings.EqualFold(w.Currency.String(), key) })
+		if i == -1 {
+			return 0, false
+		}
+		return fees[i].Fee.Amount, true
+	}
+	c = bitfinexCurrency(c)
+	if fee, ok := feeOf(c.String()); ok {
+		return fee, nil
+	}
+	method, err := e.transferMethod(ctx, c, "")
+	if err != nil && !errors.Is(err, errTransferMethodUnknown) {
+		return 0, err
+	}
+	if chain, ok := strings.CutPrefix(method, "tether"); ok {
+		if fee, ok := feeOf(chain); ok {
+			return fee, nil
+		}
+	}
+	return 0, fmt.Errorf("%w: no withdrawal fee for %s", currency.ErrCurrencyNotSupported, c)
 }
 
 // wireFeeMinimum returns the least Bitfinex charges for a wire in a currency, which it sets for dollars and euros
@@ -1569,6 +1595,16 @@ func (e *Exchange) GetHistoricCandles(ctx context.Context, p currency.Pair, a as
 	if err != nil {
 		return nil, err
 	}
+	weekly, err := e.readWeeklyForTwoWeeks(req)
+	if err != nil {
+		return nil, err
+	}
+	if weekly {
+		// GetKlineRequest counted the two-week candles against the request's limit, which one request reads weekly
+		if count := kline.TotalCandlesPerInterval(req.Start, req.End, req.ExchangeInterval); count > req.RequestLimit {
+			return nil, fmt.Errorf("%w: %d weekly candles make the two-week candles requested, more than the %d a request returns", kline.ErrRequestExceedsExchangeLimits, count, req.RequestLimit)
+		}
+	}
 	candles, err := e.getCandles(ctx, req.Pair, req.Asset, req.ExchangeInterval, req.Start, req.End, req.RequestLimit)
 	if err != nil {
 		return nil, err
@@ -1582,6 +1618,16 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, p currency.Pa
 	if err != nil {
 		return nil, err
 	}
+	weekly, err := e.readWeeklyForTwoWeeks(req.Request)
+	if err != nil {
+		return nil, err
+	}
+	if weekly {
+		// The weekly candles are paged, and matched with the ranges they fill, a week at a time
+		if req.RangeHolder, err = req.GetRanges(req.RequestLimit); err != nil {
+			return nil, err
+		}
+	}
 	timeSeries := make([]kline.Candle, 0, req.Size())
 	for i := range req.RangeHolder.Ranges {
 		candles, err := e.getCandles(ctx, req.Pair, req.Asset, req.ExchangeInterval, req.RangeHolder.Ranges[i].Start.Time, req.RangeHolder.Ranges[i].End.Time, req.RequestLimit)
@@ -1591,6 +1637,22 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, p currency.Pa
 		timeSeries = append(timeSeries, candles...)
 	}
 	return req.ProcessResponse(timeSeries)
+}
+
+// readWeeklyForTwoWeeks has a request for two-week candles read weekly ones, up to their limit, from which its candles
+// are made, reporting whether it does: Bitfinex's 14D candles open every 14 days from the Unix epoch, on Thursdays,
+// where GCT's two weeks open on Mondays, as its weeks do. The request is then the one GCT builds to make candles from a
+// shorter interval, whose candles its callers count against the request's limit, and an extended request pages
+func (e *Exchange) readWeeklyForTwoWeeks(r *kline.Request) (bool, error) {
+	if r.ExchangeInterval != kline.TwoWeek {
+		return false, nil
+	}
+	limit, err := e.Features.Enabled.Kline.GetIntervalResultLimit(kline.OneWeek)
+	if err != nil {
+		return false, err
+	}
+	r.ExchangeInterval, r.RequestLimit = kline.OneWeek, limit
+	return true, nil
 }
 
 // getCandles returns a pair's, or a funding currency's, candles oldest first
