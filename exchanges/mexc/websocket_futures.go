@@ -126,7 +126,9 @@ func (e *Exchange) futuresWebsocketRequest(ctx context.Context, conn websocket.C
 	}
 	data, err := conn.SendMessageReturnResponse(ctx, request.Unset, futuresWebsocketReplySignature, req)
 	if err != nil {
-		if errors.Is(err, websocket.ErrSignatureTimeout) || errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+		// The connection returns the context's own error from its wait for a reply, and wraps one which ends while the
+		// request waits for the rate limiter; a request never sent gets no reply
+		if errors.Is(err, websocket.ErrSignatureTimeout) || err == context.DeadlineExceeded || err == context.Canceled {
 			awaitLateFuturesReply(ctx, conn)
 		}
 		return err

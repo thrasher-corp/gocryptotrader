@@ -686,6 +686,55 @@ func TestFuturesWebsocketRequestAwaitsLateReply(t *testing.T) {
 	}
 }
 
+func TestFuturesWebsocketRequestRateLimited(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		ctx  func(context.Context) (context.Context, context.CancelFunc)
+		err  error
+		// returned is when the request returns, on the test's fake clock
+		returned time.Duration
+	}{
+		{
+			name: "cancelled while rate limited",
+			ctx: func(ctx context.Context) (context.Context, context.CancelFunc) {
+				ctx, cancel := context.WithCancel(ctx)
+				time.AfterFunc(50*time.Millisecond, cancel)
+				return ctx, cancel
+			},
+			err:      context.Canceled,
+			returned: 50 * time.Millisecond,
+		},
+		{
+			name: "deadline before its turn",
+			ctx: func(ctx context.Context) (context.Context, context.CancelFunc) {
+				return context.WithTimeout(ctx, 50*time.Millisecond)
+			},
+			err: context.DeadlineExceeded,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			synctest.Test(t, func(t *testing.T) {
+				defer synctest.Sleep(time.Minute)
+				ex := newFuturesWebsocketTestExchange(t)
+				venue := &futuresLateReplyVenue{}
+				conn := dialFuturesTestVenue(t, ex, venue.handle)
+				// The first request takes the connection's rate limit token, so the next waits about 100 ms for its turn
+				require.NoError(t, ex.futuresWebsocketRequest(t.Context(), conn, &WebsocketFuturesRequest{Method: "sub.ticker", Param: &WebsocketFuturesChannelParams{Symbol: "BTC_USDT"}}),
+					"futuresWebsocketRequest must not error")
+				ctx, cancel := tc.ctx(t.Context())
+				defer cancel()
+				start := time.Now()
+				err := ex.futuresWebsocketRequest(ctx, conn, &WebsocketFuturesRequest{Method: "sub.ticker", Param: &WebsocketFuturesChannelParams{Symbol: "BTC_USD"}})
+				require.ErrorIs(t, err, tc.err, "a request whose context ends before its turn must return why")
+				assert.Equal(t, tc.returned, time.Since(start), "a request which was never sent should not wait for a reply")
+				assert.Equal(t, []string{"BTC_USDT"}, venue.sent(), "a request whose context ends before its turn should not be sent")
+			})
+		})
+	}
+}
+
 func TestWebsocketFuturesLogin(t *testing.T) {
 	t.Parallel()
 	ex := newFuturesWebsocketTestExchange(t)
