@@ -1379,14 +1379,11 @@ func TestGenerateSubscriptions(t *testing.T) {
 	require.NoError(t, err, "generateSubscriptions must not error")
 	require.NotEmpty(t, subs, "generateSubscriptions must return subscriptions")
 
-	seenChannels := make(map[string]struct{}, len(subs))
+	seenChannels := make(common.Seen[string], len(subs))
 	spotChannelPairs := make(map[string]struct{})
 	for _, sub := range subs {
 		assert.NotEmpty(t, sub.QualifiedChannel, "QualifiedChannel should not be empty")
-
-		_, found := seenChannels[sub.QualifiedChannel]
-		assert.Falsef(t, found, "QualifiedChannel should be unique, got duplicate %q", sub.QualifiedChannel)
-		seenChannels[sub.QualifiedChannel] = struct{}{}
+		assert.Falsef(t, seenChannels.CheckAndRecord(sub.QualifiedChannel), "QualifiedChannel should be unique, got duplicate %q", sub.QualifiedChannel)
 
 		if len(sub.Pairs) != 1 {
 			continue
