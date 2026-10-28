@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -25,8 +26,12 @@ func TestSpreadCumulativeExecution(t *testing.T) {
 	row := func(total, last int, state string) string {
 		return fmt.Sprintf(`{"sprdId":"BTC-USDT_BTC-USDT-SWAP","instId":"BTC-USDT_BTC-USDT-SWAP","ordId":"1","side":"buy","ordType":"limit","state":%q,"sz":"3","px":"100","avgPx":"99","fillSz":"%d","accFillSz":"%d","pendingFillSz":"%d","cTime":"1735720637000","uTime":"1735720638000"}`, state, last, total, 3-total)
 	}
-	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		_, err := fmt.Fprintf(w, `{"code":"0","msg":"","data":[%s]}`, row(2, 1, "partially_filled"))
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		payload := row(2, 1, "partially_filled")
+		if strings.HasSuffix(r.URL.Path, "/sprd/orders-history") {
+			payload = strings.Replace(row(2, 1, "canceled"), `"pendingFillSz":"1"`, `"pendingFillSz":"0","canceledSz":"1"`, 1)
+		}
+		_, err := fmt.Fprintf(w, `{"code":"0","msg":"","data":[%s]}`, payload)
 		assert.NoError(t, err, "mock spread order should be written")
 	}))
 	require.NoError(t, ex.SetHTTPClient(server.Client()), "mock client must be installed")
@@ -44,7 +49,8 @@ func TestSpreadCumulativeExecution(t *testing.T) {
 	require.NoError(t, err, "spread history lookup must succeed")
 	require.Len(t, history, 1, "history lookup must retain the mocked order")
 	assert.Equal(t, 2.0, history[0].ExecutedAmount, "history should use cumulative fills")
-	assert.Equal(t, 1.0, history[0].RemainingAmount, "history should retain the reported pending fill quantity")
+	assert.Equal(t, order.Cancelled, history[0].Status, "history should retain the cancelled lifecycle state")
+	assert.Equal(t, 1.0, history[0].RemainingAmount, "history should include cancelled unexecuted quantity rather than only pending fills")
 	stored := order.Detail{}
 	for _, step := range []struct {
 		total, last int

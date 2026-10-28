@@ -308,6 +308,14 @@ Use `require` and `assert` appropriately:
     cumulative quantities; do not use a fixed tolerance that hides small fills.
     Test clock skew, coarse venue timestamps, equal-fill amendments, terminal
     metadata enrichment and explicit timestamps for local state changes.
+    For execution derived by subtracting quantities, scale rounding allowances
+    to both operands on both snapshots. Test amendments that increase and
+    decrease the total, including a modify reply before the next venue update,
+    and repeated ingestion. Retaining rounding from a larger order after it
+    shrinks must not cause later confirmations to be rejected.
+    A modification that replaces an existing order ID starts a new execution
+    history: clear the old fills, totals, average and fees. Preserve them for
+    in-place modifications and when assigning an ID to an unidentified record.
 - When an API field multiplexes a caller identifier and exchange-generated
     source markers, use its documented discriminator. Test both representations
     through every affected REST and websocket mapping, not just the parser.

@@ -527,33 +527,24 @@ type instrumentMap struct {
 }
 
 type wsOrderContainer struct {
-	OrderID       int64      `json:"order_id"`
-	ClientOrderID int64      `json:"client_ord_id"`
-	InstrumentID  int64      `json:"inst_id"`
-	Nonce         int64      `json:"nonce"`
-	Timestamp     types.Time `json:"timestamp"`
-	TransactionID int64      `json:"trans_id"`
-	OpenQuantity  float64    `json:"open_qty,string"`
-	OrderPrice    float64    `json:"order_price,string"`
-	Quantity      float64    `json:"qty,string"`
-	FillPrice     float64    `json:"fill_price,string"`
-	FillQuantity  float64    `json:"fill_qty,string"`
-	Price         float64    `json:"price,string"`
-	Reply         string     `json:"reply"`
-	Side          string     `json:"side"`
-	Status        []string   `json:"status"`
-	Reasons       []string   `json:"reasons"`
-	Order         struct {
-		ClientOrderID int64      `json:"client_ord_id"`
-		InstrumentID  int64      `json:"inst_id"`
-		OrderID       int64      `json:"order_id"`
-		Timestamp     types.Time `json:"timestamp"`
-		Price         float64    `json:"price,string"`
-		Quantity      float64    `json:"qty,string"`
-		OpenQuantity  float64    `json:"open_qty,string"`
-		Side          string     `json:"side"`
-	} `json:"order"`
-	Commission struct {
+	OrderID       int64         `json:"order_id"`
+	ClientOrderID int64         `json:"client_ord_id"`
+	InstrumentID  int64         `json:"inst_id"`
+	Nonce         int64         `json:"nonce"`
+	Timestamp     types.Time    `json:"timestamp"`
+	TransactionID int64         `json:"trans_id"`
+	OpenQuantity  float64       `json:"open_qty,string"`
+	OrderPrice    float64       `json:"order_price,string"`
+	Quantity      float64       `json:"qty,string"`
+	FillPrice     float64       `json:"fill_price,string"`
+	FillQuantity  float64       `json:"fill_qty,string"`
+	Price         float64       `json:"price,string"`
+	Reply         string        `json:"reply"`
+	Side          string        `json:"side"`
+	Status        []string      `json:"status"`
+	Reasons       []string      `json:"reasons"`
+	Order         OrderResponse `json:"order"`
+	Commission    struct {
 		Amount   float64 `json:"amount,string"`
 		Currency string  `json:"currency"`
 	} `json:"commission"`

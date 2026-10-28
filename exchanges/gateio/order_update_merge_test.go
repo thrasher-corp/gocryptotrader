@@ -95,3 +95,29 @@ func TestSpotAmendmentRounding(t *testing.T) {
 		}
 	}
 }
+
+func TestSpotAmendmentShrinkingSequence(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "exchange setup must succeed")
+	stored := order.Detail{}
+	for _, step := range []struct{ amount, left, event string }{
+		{"10", "9.7", "update"},
+		{"5", "4.7", "update"},
+		{"0.9", "0.6", "update"},
+		{"0.9", "0.6", "finish"},
+	} {
+		push := fmt.Appendf(nil, `{"result":[{"id":"1","currency_pair":"BTC_USDT","account":"spot","side":"buy","type":"limit","event":%q,"finish_as":"cancelled","price":"60000","amount":%q,"left":%q}]}`, step.event, step.amount, step.left)
+		require.NoError(t, ex.processSpotOrders(t.Context(), push), "spot amendment push must decode")
+		require.Len(t, ex.Websocket.DataHandler.C, 1, "spot amendment push must emit one batch")
+		got, ok := (<-ex.Websocket.DataHandler.C).Data.([]order.Detail)
+		require.True(t, ok, "spot amendment push must emit order details")
+		require.Len(t, got, 1, "spot amendment batch must contain one order")
+		for range 2 {
+			require.NoError(t, stored.UpdateOrderFromDetail(&got[0]), "both websocket ingestion passes must retain the amendment")
+		}
+		assert.Equal(t, got[0].Amount, stored.Amount, "the smaller amount should remain reachable after repeated ingestion")
+		assert.Equal(t, got[0].RemainingAmount, stored.RemainingAmount, "remaining quantity should follow the smaller order")
+	}
+	assert.Equal(t, order.Cancelled, stored.Status, "cancellation should finish an order shrunk several times without more fills")
+}

@@ -2,13 +2,105 @@ package order
 
 import (
 	"math"
+	"math/rand/v2"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
+
+func TestUpdateOrderFromDetailDerivedExecution(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name                               string
+		amount, left, amended, amendedLeft float64
+		modified, keepsStored              bool
+	}{
+		{"amended down", 10, 9.7, 5, 4.7, false, false},
+		{"amended up", 232.31, 204.41, 7981.87, 7953.97, false, true},
+		{"amended well down", 4.2, 4.1, 0.9, 0.8, false, false},
+		{"modified well down", 16.1, 15.2, 1, 0.1, true, false},
+		{"modified up", 0.2, 0.1, 0.3, 0.2, true, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			stored := Detail{Amount: tc.amount, ExecutedAmount: tc.amount - tc.left, RemainingAmount: tc.left, Status: PartiallyFilled}
+			if tc.modified {
+				stored.UpdateOrderFromModifyResponse(&ModifyResponse{Amount: tc.amended})
+			}
+			for _, status := range []Status{PartiallyFilled, Cancelled} {
+				update := Detail{Amount: tc.amended, ExecutedAmount: tc.amended - tc.amendedLeft, RemainingAmount: tc.amendedLeft, Status: status}
+				original := update.Copy()
+				for range 2 {
+					require.NoError(t, stored.UpdateOrderFromDetail(&update), "amended order update must merge on both ingestion passes")
+				}
+				assert.Equal(t, original, update, "rounding adjustment should not mutate the incoming order")
+			}
+			assert.Equal(t, Cancelled, stored.Status, "cancellation should finish the amended order")
+			assert.Equal(t, tc.amended, stored.Amount, "amendment should replace the amount")
+			assert.Equal(t, tc.amendedLeft, stored.RemainingAmount, "amendment should replace the remaining quantity")
+			executed := tc.amended - tc.amendedLeft
+			if tc.keepsStored {
+				executed = tc.amount - tc.left
+			}
+			assert.Equal(t, executed, stored.ExecutedAmount, "execution should follow updates derived from smaller quantities")
+		})
+	}
+}
+
+func TestUpdateOrderFromModifyResponseReplacement(t *testing.T) {
+	t.Parallel()
+	filled := func(orderID string) Detail {
+		return Detail{OrderID: orderID, Amount: 10, ExecutedAmount: 6, RemainingAmount: 4, ExecutedQuoteAmount: 600, AverageExecutedPrice: 100, Fee: 0.6, FeeAsset: currency.AUD, Trades: []TradeHistory{{TID: "t-1", Price: 100, Amount: 6}}, Status: PartiallyFilled}
+	}
+	execution := func(d *Detail) []any {
+		return []any{d.ExecutedAmount, d.ExecutedQuoteAmount, d.AverageExecutedPrice, d.Fee, d.FeeAsset, d.Trades}
+	}
+	for _, storedID := range []string{"1", ""} {
+		d := filled(storedID)
+		d.UpdateOrderFromModifyResponse(&ModifyResponse{OrderID: "1", Amount: 12})
+		want := filled(storedID)
+		assert.Equalf(t, execution(&want), execution(&d), "an amendment of order %q in place should keep its execution", storedID)
+	}
+	d := filled("1")
+	d.UpdateOrderFromModifyResponse(&ModifyResponse{OrderID: "2", Amount: 10, RemainingAmount: 9})
+	assert.Equal(t, []any{0.0, 0.0, 0.0, 0.0, currency.EMPTYCODE, []TradeHistory(nil)}, execution(&d), "a replacement order should not inherit the replaced order's execution")
+	require.NoError(t, d.UpdateOrderFromDetail(&Detail{OrderID: "2", Amount: 10, ExecutedAmount: 1, RemainingAmount: 9, Status: Cancelled}), "replacement order update must merge")
+	assert.Equal(t, Cancelled, d.Status, "the replacement order's cancellation should finish it")
+	assert.Equal(t, 1.0, d.ExecutedAmount, "the replacement order's execution should be its own")
+}
+
+func TestUpdateOrderFromDetailAmendmentSequences(t *testing.T) {
+	t.Parallel()
+	rng := rand.New(rand.NewPCG(2375, 5665619267)) //nolint:gosec // Fixed seeds reproduce test quantities; this is not security-sensitive randomness.
+	for sequence := range 2000 {
+		filled := rng.Int64N(9999) + 1
+		total := filled + rng.Int64N(100000) + 1
+		amount, left := float64(total)/100, float64(total-filled)/100
+		stored := Detail{Amount: amount, RemainingAmount: left, ExecutedAmount: amount - left, Status: PartiallyFilled}
+		for step := range 4 {
+			total = filled + rng.Int64N(100000) + 1
+			amount, left = float64(total)/100, float64(total-filled)/100
+			if step == 1 {
+				stored.UpdateOrderFromModifyResponse(&ModifyResponse{Amount: amount})
+			}
+			status := PartiallyFilled
+			if step == 3 {
+				status = Cancelled
+			}
+			incoming := Detail{Amount: amount, RemainingAmount: left, ExecutedAmount: amount - left, Status: status}
+			for range 2 {
+				require.NoError(t, stored.UpdateOrderFromDetail(&incoming), "amendment sequence must merge through both ingestion passes")
+			}
+		}
+		assert.Equalf(t, Cancelled, stored.Status, "sequence %d should finish after quantity amendments without new fills", sequence)
+		assert.Equalf(t, amount, stored.Amount, "sequence %d should retain the last amended quantity", sequence)
+		assert.Equalf(t, left, stored.RemainingAmount, "sequence %d should retain the last unexecuted quantity", sequence)
+	}
+}
 
 func TestUpdateOrderFromDetailMixedClocks(t *testing.T) {
 	t.Parallel()
@@ -46,7 +138,7 @@ func TestUpdateOrderFromDetailMixedClocks(t *testing.T) {
 		stored := Detail{ExecutedAmount: filled, Amount: filled * 2, Status: PartiallyFilled}
 		before := stored.Copy()
 		lower := filled
-		for range 16 {
+		for range 128 {
 			lower = math.Nextafter(lower, 0)
 		}
 		require.NoError(t, stored.UpdateOrderFromDetail(&Detail{ExecutedAmount: lower, Amount: filled * 3, Status: Open}), "decreased fill snapshot must not error")

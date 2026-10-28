@@ -157,8 +157,12 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 	}
 	// LastUpdated can be a local stamp or a coarse exchange timestamp, so it
 	// cannot order snapshots. Use cumulative execution and terminal state instead.
-	// Subtracting venue quantities can differ by a few float rounding steps.
-	executionTolerance := 8 * (math.Nextafter(d.ExecutedAmount, math.Inf(1)) - d.ExecutedAmount)
+	// Venues often derive execution as amount - left, which rounds at the scale
+	// of the order's quantities rather than of the fill.
+	storedScale := max(d.Amount, d.RemainingAmount, d.ExecutedAmount)
+	incomingScale := max(m.Amount, m.RemainingAmount, m.ExecutedAmount)
+	executionTolerance := 2 * ((math.Nextafter(storedScale, math.Inf(1)) - storedScale) +
+		(math.Nextafter(incomingScale, math.Inf(1)) - incomingScale))
 	executionAdvanced := m.ExecutedAmount > d.ExecutedAmount
 	terminal := d.Status != UnknownStatus && d.Status.IsInactive() && d.Status != Cancelling && d.Status != AnyStatus
 	incomingTerminal := m.Status != UnknownStatus && m.Status.IsInactive() && m.Status != Cancelling && m.Status != AnyStatus
@@ -178,7 +182,9 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 		}
 		return nil
 	}
-	if m.ExecutedAmount > 0 && m.ExecutedAmount < d.ExecutedAmount {
+	// Keep the stored amount unless the update was derived from smaller
+	// quantities: rounding from a larger amount can exceed later allowances.
+	if m.ExecutedAmount > 0 && m.ExecutedAmount < d.ExecutedAmount && incomingScale >= storedScale {
 		incoming := *m
 		incoming.ExecutedAmount = d.ExecutedAmount
 		m = &incoming
@@ -380,6 +386,13 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 func (d *Detail) UpdateOrderFromModifyResponse(m *ModifyResponse) {
 	var updated bool
 	if m.OrderID != "" && d.OrderID != m.OrderID {
+		if d.OrderID != "" {
+			// A reply with another order ID describes a replacement order, which
+			// has its own execution.
+			d.ExecutedAmount, d.ExecutedQuoteAmount, d.AverageExecutedPrice, d.Fee = 0, 0, 0, 0
+			d.FeeAsset = currency.EMPTYCODE
+			d.Trades = nil
+		}
 		d.OrderID = m.OrderID
 		updated = true
 	}

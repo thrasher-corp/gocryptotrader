@@ -1897,7 +1897,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 				AverageExecutedPrice: spreadOrders[x].AveragePrice.Float64(),
 				Amount:               spreadOrders[x].Size.Float64(),
 				ExecutedAmount:       spreadOrders[x].AccumulatedFillSize.Float64(),
-				RemainingAmount:      spreadOrders[x].PendingFillSize.Float64(),
+				RemainingAmount:      spreadOrders[x].Size.Float64() - spreadOrders[x].AccumulatedFillSize.Float64(),
 				Exchange:             e.Name,
 				OrderID:              spreadOrders[x].OrderID,
 				ClientOrderID:        spreadOrders[x].ClientOrderID,
