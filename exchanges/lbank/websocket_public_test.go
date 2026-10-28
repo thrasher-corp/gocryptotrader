@@ -21,7 +21,7 @@ func TestWebsocketPublicHandlers(t *testing.T) {
 	t.Parallel()
 	ex := newChannelTestExchange(t)
 	conn := &recordingConnection{}
-	testexch.FixtureToDataHandler(t, "testdata/wsPublic.json", func(ctx context.Context, b []byte) error {
+	testexch.FixtureToDataHandler(t, "testdata/wsPublic.jsonl", func(ctx context.Context, b []byte) error {
 		return ex.wsHandleData(ctx, conn, b)
 	})
 	pair, err := ex.MatchSymbolWithAvailablePairs("btc_usdt", asset.Spot, true)

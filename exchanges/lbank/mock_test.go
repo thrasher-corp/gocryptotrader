@@ -112,7 +112,7 @@ func dialWebsocketTestExchange(t *testing.T, ex *Exchange, subs subscription.Lis
 }
 
 // websocketVenue mocks LBank's websocket. It answers pings, and follows a subscription with the frames
-// testdata/wsPublic.json and testdata/wsAccount.json recorded for its channel, or with the refusal LBank sends for a
+// testdata/wsPublic.jsonl and testdata/wsAccount.jsonl recorded for its channel, or with the refusal LBank sends for a
 // pair it doesn't list or a subscribe key it doesn't know. LBank confirms no subscription or unsubscription
 type websocketVenue struct {
 	mu       sync.Mutex
@@ -245,11 +245,11 @@ func (v *websocketVenue) subscribe(req *websocketSubscribeRequest, conn *gws.Con
 	return nil
 }
 
-// recordedFrames holds the frames testdata/wsPublic.json and testdata/wsAccount.json recorded, by the channel type they
-// carry
+// recordedFrames holds the frames testdata/wsPublic.jsonl and testdata/wsAccount.jsonl recorded, by the channel type
+// they carry
 var recordedFrames = sync.OnceValues(func() (map[string][][]byte, error) {
 	frames := make(map[string][][]byte)
-	for _, path := range []string{"testdata/wsPublic.json", "testdata/wsAccount.json"} {
+	for _, path := range []string{"testdata/wsPublic.jsonl", "testdata/wsAccount.jsonl"} {
 		recorded, err := os.ReadFile(path)
 		if err != nil {
 			return nil, err

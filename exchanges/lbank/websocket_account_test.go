@@ -783,7 +783,7 @@ func TestWebsocketAccountHandlers(t *testing.T) {
 	t.Parallel()
 	ex := newChannelTestExchange(t)
 	conn := &recordingConnection{}
-	testexch.FixtureToDataHandler(t, "testdata/wsAccount.json", func(ctx context.Context, b []byte) error {
+	testexch.FixtureToDataHandler(t, "testdata/wsAccount.jsonl", func(ctx context.Context, b []byte) error {
 		return ex.wsHandleData(ctx, conn, b)
 	})
 	pair, err := ex.MatchSymbolWithAvailablePairs("btc_usdt", asset.Spot, true)
