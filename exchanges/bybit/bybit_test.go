@@ -3304,7 +3304,7 @@ func TestWSHandleAuthenticatedData(t *testing.T) {
 		currency.NewBTCUSDT(),
 	})
 	storeFixturePairs(asset.Options, currency.Pairs{optionsTradablePair})
-	fErrs := testexch.FixtureToDataHandlerWithErrors(t, "testdata/wsAuth.json", func(ctx context.Context, r []byte) error {
+	fErrs := testexch.FixtureToDataHandlerWithErrors(t, "testdata/wsAuth.jsonl", func(ctx context.Context, r []byte) error {
 		if bytes.Contains(r, []byte("%s")) {
 			r = fmt.Appendf(nil, string(r), formattedOptionsPair.String())
 		}
@@ -3482,7 +3482,7 @@ func TestWsTicker(t *testing.T) {
 		asset.USDCMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures, asset.CoinMarginedFutures,
 	}
 	routingIndex := 0
-	testexch.FixtureToDataHandler(t, "testdata/wsTicker.json", func(_ context.Context, r []byte) error {
+	testexch.FixtureToDataHandler(t, "testdata/wsTicker.jsonl", func(_ context.Context, r []byte) error {
 		require.Less(t, routingIndex, len(assetRouting), "routingIndex must stay within ticker fixture asset routing bounds")
 		a := assetRouting[routingIndex]
 		routingIndex++

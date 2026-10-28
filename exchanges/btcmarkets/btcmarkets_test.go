@@ -521,7 +521,7 @@ func TestWSTrade(t *testing.T) {
 
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-	fErrs := testexch.FixtureToDataHandlerWithErrors(t, "testdata/wsAllTrades.json", e.wsHandleData)
+	fErrs := testexch.FixtureToDataHandlerWithErrors(t, "testdata/wsAllTrades.jsonl", e.wsHandleData)
 	require.Equal(t, 2, len(fErrs), "Must get correct number of errors from wsHandleData")
 	assert.ErrorIs(t, fErrs[0].Err, order.ErrSideIsInvalid, "Side.UnmarshalJSON errors should propagate correctly")
 	assert.ErrorContains(t, fErrs[0].Err, "WRONG", "Side.UnmarshalJSON errors should propagate correctly")
