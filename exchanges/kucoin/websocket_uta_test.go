@@ -285,7 +285,7 @@ func TestUTAPublicConnectionsInvalidateOrderbooks(t *testing.T) {
 	t.Parallel()
 	ex := newUTATestExchange(t)
 	spotConn, futuresConn := &utaFakeConnection{subs: subscription.NewStore()}, &utaFakeConnection{subs: subscription.NewStore()}
-	for i, msg := range utaFixtureMessages(t, "testdata/wsUTAOrderbook.json") {
+	for i, msg := range utaFixtureMessages(t, "testdata/wsUTAOrderbook.jsonl") {
 		_, market, _ := strings.Cut(msg.Topic, ".")
 		conn := spotConn
 		if market == "FUTURES" {
@@ -769,7 +769,7 @@ func TestUTAConnectWithDisabledAsset(t *testing.T) {
 	t.Parallel()
 	ex := newUTATestExchange(t)
 	require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.Margin, false), "SetAssetEnabled must not error")
-	push := utaFixtureLines(t, "testdata/wsUTATicker.json")[1]
+	push := utaFixtureLines(t, "testdata/wsUTATicker.jsonl")[1]
 	futuresURL := newUTAMockServer(t, true, func(msg map[string]any) []string { return []string{utaAck(msg), push} })
 	spotURL := newUTAMockServer(t, true, func(msg map[string]any) []string { return []string{utaAck(msg)} })
 	newUTAWebsocket(t, ex, ex.newUTASpotPublicConnection(ex.Config, spotURL), ex.newUTAFuturesPublicConnection(ex.Config, futuresURL))
@@ -1212,19 +1212,19 @@ func TestProcessUTAPush(t *testing.T) {
 	ex.SetFillsFeedStatus(true)
 	newUTAWebsocket(t, ex)
 	for _, path := range []string{
-		"testdata/wsUTATicker.json",
-		"testdata/wsUTAKline.json",
-		"testdata/wsUTATrade.json",
-		"testdata/wsUTAOrderbook.json",
-		"testdata/wsUTAMarkPrice.json",
-		"testdata/wsUTAFundingFee.json",
-		"testdata/wsUTACallAuctionInfo.json",
-		"testdata/wsUTAOrder.json",
-		"testdata/wsUTAExecution.json",
-		"testdata/wsUTABalance.json",
-		"testdata/wsUTAPosition.json",
-		"testdata/wsUTALiquidationWarning.json",
-		"testdata/wsUTALeverage.json",
+		"testdata/wsUTATicker.jsonl",
+		"testdata/wsUTAKline.jsonl",
+		"testdata/wsUTATrade.jsonl",
+		"testdata/wsUTAOrderbook.jsonl",
+		"testdata/wsUTAMarkPrice.jsonl",
+		"testdata/wsUTAFundingFee.jsonl",
+		"testdata/wsUTACallAuctionInfo.jsonl",
+		"testdata/wsUTAOrder.jsonl",
+		"testdata/wsUTAExecution.jsonl",
+		"testdata/wsUTABalance.jsonl",
+		"testdata/wsUTAPosition.jsonl",
+		"testdata/wsUTALiquidationWarning.jsonl",
+		"testdata/wsUTALeverage.jsonl",
 	} {
 		for i, line := range utaFixtureLines(t, path) {
 			var msg UTAWebsocketMessage
@@ -1272,7 +1272,7 @@ func TestUTASpotPublicConnection(t *testing.T) {
 	ex := newUTATestExchange(t)
 	wsURL := kucoinUTASpotPublicWebsocketURL
 	if mockTests {
-		push := utaFixtureLines(t, "testdata/wsUTATicker.json")[0]
+		push := utaFixtureLines(t, "testdata/wsUTATicker.jsonl")[0]
 		wsURL = newUTAMockServer(t, true, func(msg map[string]any) []string {
 			if msg["action"] == utaUnsubscribeAction {
 				return []string{utaAck(msg)}
@@ -1310,7 +1310,7 @@ func TestUTAFuturesPublicConnection(t *testing.T) {
 	ex := newUTATestExchange(t)
 	wsURL := kucoinUTAFuturesPublicWebsocketURL
 	if mockTests {
-		push := utaFixtureLines(t, "testdata/wsUTATicker.json")[1]
+		push := utaFixtureLines(t, "testdata/wsUTATicker.jsonl")[1]
 		wsURL = newUTAMockServer(t, true, func(msg map[string]any) []string { return []string{utaAck(msg), push} })
 	}
 	newUTAWebsocket(t, ex, ex.newUTAFuturesPublicConnection(ex.Config, wsURL))
@@ -1336,7 +1336,7 @@ func TestUTAPrivateConnection(t *testing.T) {
 	var mu sync.Mutex
 	var received []map[string]any
 	if mockTests {
-		push := utaFixtureLines(t, "testdata/wsUTAOrder.json")[0]
+		push := utaFixtureLines(t, "testdata/wsUTAOrder.jsonl")[0]
 		wsURL = newUTAMockServer(t, true, func(msg map[string]any) []string {
 			mu.Lock()
 			received = append(received, msg)

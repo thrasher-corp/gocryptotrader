@@ -89,7 +89,7 @@ func TestUTAWebsocketTickerDecoding(t *testing.T) {
 			MatchTimestamp:  types.Time(time.Unix(0, 1791899402314000000)),
 		},
 	}
-	assert.Equal(t, exp, utaFixtureData[UTAWebsocketTicker](t, "testdata/wsUTATicker.json"), "ticker pushes should decode every field, telling upper and lower case keys apart")
+	assert.Equal(t, exp, utaFixtureData[UTAWebsocketTicker](t, "testdata/wsUTATicker.jsonl"), "ticker pushes should decode every field, telling upper and lower case keys apart")
 }
 
 func TestProcessUTATicker(t *testing.T) {
@@ -97,7 +97,7 @@ func TestProcessUTATicker(t *testing.T) {
 	ex := newUTATestExchange(t)
 	stored := &ticker.Price{High: 84000.1, Low: 82000.2, BaseVolume: 1234.5, QuoteVolume: 102345678.9, Bid: 83000, Ask: 83000.1, Pair: utaSpotTestPair, ExchangeName: ex.Name, AssetType: asset.Spot, LastUpdated: time.Unix(1791899300, 0)}
 	require.NoError(t, ticker.ProcessTicker(stored), "ProcessTicker must not error")
-	for i, msg := range utaFixtureMessages(t, "testdata/wsUTATicker.json") {
+	for i, msg := range utaFixtureMessages(t, "testdata/wsUTATicker.jsonl") {
 		_, market, _ := strings.Cut(msg.Topic, ".")
 		require.NoErrorf(t, ex.processUTATicker(t.Context(), msg, market), "processUTATicker must not error for fixture line %d", i+1)
 	}
@@ -190,13 +190,13 @@ func TestUTAWebsocketKlineDecoding(t *testing.T) {
 		{Interval: "1min", Symbol: "XBTUSDTM", StartTime: types.Time(time.Unix(1791899340, 0)), EndTime: types.Time(time.Unix(1791899400, 0)), OpenPrice: 83365.4, ClosePrice: 83312.2, HighPrice: 83376.5, LowPrice: 83306.9, TransactionVolume: 2146, TransactionAmount: 178861.6938},
 		{Interval: "1min", Symbol: "XBTUSDTM", StartTime: types.Time(time.Unix(1791899400, 0)), EndTime: types.Time(time.Unix(1791899460, 0)), OpenPrice: 83327, ClosePrice: 83327, HighPrice: 83327, LowPrice: 83327, TransactionVolume: 2, TransactionAmount: 166.654, StartIndicator: true},
 	}
-	assert.Equal(t, exp, utaFixtureData[UTAWebsocketKline](t, "testdata/wsUTAKline.json"), "kline pushes should decode every field, telling upper and lower case keys apart")
+	assert.Equal(t, exp, utaFixtureData[UTAWebsocketKline](t, "testdata/wsUTAKline.jsonl"), "kline pushes should decode every field, telling upper and lower case keys apart")
 }
 
 func TestProcessUTAKline(t *testing.T) {
 	t.Parallel()
 	ex := newUTATestExchange(t)
-	msgs := utaFixtureMessages(t, "testdata/wsUTAKline.json")
+	msgs := utaFixtureMessages(t, "testdata/wsUTAKline.jsonl")
 	for i, msg := range msgs {
 		_, market, _ := strings.Cut(msg.Topic, ".")
 		require.NoErrorf(t, ex.processUTAKline(t.Context(), msg, market), "processUTAKline must not error for fixture line %d", i+1)
@@ -238,14 +238,14 @@ func TestUTAWebsocketTradeDecoding(t *testing.T) {
 		{Symbol: "BTC-USDT", Sequence: 24806820952031232, TradeID: "24806820952031232", Price: 83403.4, Size: 0.00221691, Side: "sell", MatchTimestamp: types.Time(time.Unix(0, 1791899366799000000))},
 		{Symbol: "XBTUSDTM", Sequence: 1947310281969, TradeID: "1947310281969", Price: 83327, Size: 1, Side: "sell", RPI: true, MatchTimestamp: types.Time(time.Unix(0, 1791899402314000000))},
 	}
-	assert.Equal(t, exp, utaFixtureData[UTAWebsocketTrade](t, "testdata/wsUTATrade.json"), "trade pushes should decode every field, telling upper and lower case keys apart")
+	assert.Equal(t, exp, utaFixtureData[UTAWebsocketTrade](t, "testdata/wsUTATrade.jsonl"), "trade pushes should decode every field, telling upper and lower case keys apart")
 }
 
 func TestProcessUTATrade(t *testing.T) {
 	t.Parallel()
 	ex := newUTATestExchange(t)
 	newUTAWebsocket(t, ex)
-	msgs := utaFixtureMessages(t, "testdata/wsUTATrade.json")
+	msgs := utaFixtureMessages(t, "testdata/wsUTATrade.jsonl")
 	for i, msg := range msgs {
 		_, market, _ := strings.Cut(msg.Topic, ".")
 		require.NoErrorf(t, ex.processUTATrade(msg, market), "processUTATrade must not error for fixture line %d while trades are neither saved nor fed", i+1)
@@ -287,7 +287,7 @@ func TestUTAWebsocketOrderbookDecoding(t *testing.T) {
 			{Price: 2508.98, Size: 666}, {Price: 2509.01, Size: 36}, {Price: 2509.08, Size: 129}, {Price: 2509.09, Size: 327, RPISize: 1736}, {Price: 2509.1, Size: 36, RPISize: 126},
 		},
 	}
-	assert.Equal(t, exp, utaFixtureData[UTAWebsocketOrderbook](t, "testdata/wsUTAOrderbook.json")[3], "an orderbook push including retail price improvement orders should decode every field")
+	assert.Equal(t, exp, utaFixtureData[UTAWebsocketOrderbook](t, "testdata/wsUTAOrderbook.jsonl")[3], "an orderbook push including retail price improvement orders should decode every field")
 }
 
 func TestUTAWebsocketOrderbookLevelUnmarshalJSON(t *testing.T) {
@@ -307,7 +307,7 @@ func TestProcessUTAOrderbook(t *testing.T) {
 	ex := newUTATestExchange(t)
 	ex.ValidateOrderbook = true
 	ethPair := currency.NewPairWithDelimiter("ETH", "USDTM", currency.UnderscoreDelimiter)
-	for i, msg := range utaFixtureMessages(t, "testdata/wsUTAOrderbook.json") {
+	for i, msg := range utaFixtureMessages(t, "testdata/wsUTAOrderbook.jsonl") {
 		_, market, _ := strings.Cut(msg.Topic, ".")
 		require.NoErrorf(t, ex.processUTAOrderbook(t.Context(), nil, msg, market), "processUTAOrderbook must not error for fixture line %d", i+1)
 	}
@@ -596,7 +596,7 @@ func TestUTAOrderbookLevels(t *testing.T) {
 func TestUTAWebsocketMarkPriceDecoding(t *testing.T) {
 	t.Parallel()
 	exp := []UTAWebsocketMarkPrice{{Symbol: "XBTUSDTM", MarkPrice: 83334.39, IndexPrice: 83370.16, OpenInterest: 9511786, Timestamp: types.Time(time.UnixMilli(1791899401000))}}
-	assert.Equal(t, exp, utaFixtureData[UTAWebsocketMarkPrice](t, "testdata/wsUTAMarkPrice.json"), "mark price pushes should decode every field")
+	assert.Equal(t, exp, utaFixtureData[UTAWebsocketMarkPrice](t, "testdata/wsUTAMarkPrice.jsonl"), "mark price pushes should decode every field")
 }
 
 func TestProcessUTAMarkPrice(t *testing.T) {
@@ -604,7 +604,7 @@ func TestProcessUTAMarkPrice(t *testing.T) {
 	ex := newUTATestExchange(t)
 	stored := &ticker.Price{Last: 83327, Bid: 83327, Ask: 83327.1, Pair: utaFuturesTestPair, ExchangeName: ex.Name, AssetType: asset.Futures, LastUpdated: time.Unix(0, 1791899400314000000)}
 	require.NoError(t, ticker.ProcessTicker(stored), "ProcessTicker must not error")
-	require.NoError(t, ex.processUTAMarkPrice(t.Context(), utaFixtureMessages(t, "testdata/wsUTAMarkPrice.json")[0]), "processUTAMarkPrice must not error")
+	require.NoError(t, ex.processUTAMarkPrice(t.Context(), utaFixtureMessages(t, "testdata/wsUTAMarkPrice.jsonl")[0]), "processUTAMarkPrice must not error")
 	exp := &ticker.Price{Last: 83327, Bid: 83327, Ask: 83327.1, MarkPrice: 83334.39, IndexPrice: 83370.16, OpenInterest: 9511786, Pair: utaFuturesTestPair, ExchangeName: ex.Name, AssetType: asset.Futures, LastUpdated: time.UnixMilli(1791899401000)}
 	assert.Equal(t, []any{exp}, drainUTARelay(ex), "processUTAMarkPrice should relay the mark price, index price and open interest, keeping the ticker's other fields")
 	got, err := ticker.GetTicker(ex.Name, utaFuturesTestPair, asset.Futures)
@@ -622,7 +622,7 @@ func TestProcessUTAMarkPrice(t *testing.T) {
 func TestProcessUTAFundingFee(t *testing.T) {
 	t.Parallel()
 	ex := newUTATestExchange(t)
-	require.NoError(t, ex.processUTAFundingFee(t.Context(), utaFixtureMessages(t, "testdata/wsUTAFundingFee.json")[0]), "processUTAFundingFee must not error")
+	require.NoError(t, ex.processUTAFundingFee(t.Context(), utaFixtureMessages(t, "testdata/wsUTAFundingFee.jsonl")[0]), "processUTAFundingFee must not error")
 	exp := []any{&UTAWebsocketFundingFee{
 		Symbol:             "XBTUSDTM",
 		FundingFeeRate:     0.000055,
@@ -640,7 +640,7 @@ func TestProcessUTAFundingFee(t *testing.T) {
 func TestProcessUTAAllFundingFeeRates(t *testing.T) {
 	t.Parallel()
 	ex := newUTATestExchange(t)
-	require.NoError(t, ex.processUTAAllFundingFeeRates(t.Context(), utaFixtureMessages(t, "testdata/wsUTAFundingFee.json")[1]), "processUTAAllFundingFeeRates must not error")
+	require.NoError(t, ex.processUTAAllFundingFeeRates(t.Context(), utaFixtureMessages(t, "testdata/wsUTAFundingFee.jsonl")[1]), "processUTAAllFundingFeeRates must not error")
 	exp := []any{[]UTAWebsocketFundingFee{
 		{
 			Symbol:             "ETHUSDTM",
@@ -670,7 +670,7 @@ func TestProcessUTAAllFundingFeeRates(t *testing.T) {
 func TestProcessUTACallAuctionInfo(t *testing.T) {
 	t.Parallel()
 	ex := newUTATestExchange(t)
-	require.NoError(t, ex.processUTACallAuctionInfo(t.Context(), utaFixtureMessages(t, "testdata/wsUTACallAuctionInfo.json")[0]), "processUTACallAuctionInfo must not error")
+	require.NoError(t, ex.processUTACallAuctionInfo(t.Context(), utaFixtureMessages(t, "testdata/wsUTACallAuctionInfo.jsonl")[0]), "processUTACallAuctionInfo must not error")
 	exp := []any{&UTAWebsocketCallAuctionInfo{
 		Symbol:                  "GROVE-USDT",
 		EstimatedPrice:          0.05568,
@@ -703,15 +703,15 @@ func TestUTAPublicChannels(t *testing.T) {
 	ex.SetTradeFeedStatus(true)
 	spotURL, futuresURL := kucoinUTASpotPublicWebsocketURL, kucoinUTAFuturesPublicWebsocketURL
 	if mockTests {
-		orderbooks := utaFixtureLines(t, "testdata/wsUTAOrderbook.json")
+		orderbooks := utaFixtureLines(t, "testdata/wsUTAOrderbook.jsonl")
 		spotPushes := map[any]string{
-			"kline": utaFixtureLines(t, "testdata/wsUTAKline.json")[0],
-			"trade": utaFixtureLines(t, "testdata/wsUTATrade.json")[0],
+			"kline": utaFixtureLines(t, "testdata/wsUTAKline.jsonl")[0],
+			"trade": utaFixtureLines(t, "testdata/wsUTATrade.jsonl")[0],
 			"obu":   orderbooks[0],
 		}
 		futuresPushes := map[any]string{
 			"obu":        orderbooks[4],
-			"mark-price": utaFixtureLines(t, "testdata/wsUTAMarkPrice.json")[0],
+			"mark-price": utaFixtureLines(t, "testdata/wsUTAMarkPrice.jsonl")[0],
 		}
 		spotURL = newUTAMockServer(t, true, func(msg map[string]any) []string { return []string{utaAck(msg), spotPushes[msg["channel"]]} })
 		futuresURL = newUTAMockServer(t, true, func(msg map[string]any) []string { return []string{utaAck(msg), futuresPushes[msg["channel"]]} })

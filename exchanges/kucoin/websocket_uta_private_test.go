@@ -159,13 +159,13 @@ func TestUTAWebsocketOrderDecoding(t *testing.T) {
 			UpdateTimestamp:   types.Time(time.Unix(0, 1776153224036325316)),
 		},
 	}
-	assert.Equal(t, exp, utaFixtureData[UTAWebsocketOrder](t, "testdata/wsUTAOrder.json"), "order pushes should decode every field, telling keys apart by case")
+	assert.Equal(t, exp, utaFixtureData[UTAWebsocketOrder](t, "testdata/wsUTAOrder.jsonl"), "order pushes should decode every field, telling keys apart by case")
 }
 
 func TestProcessUTAOrder(t *testing.T) {
 	t.Parallel()
 	ex := newUTATestExchange(t)
-	for i, msg := range utaFixtureMessages(t, "testdata/wsUTAOrder.json") {
+	for i, msg := range utaFixtureMessages(t, "testdata/wsUTAOrder.jsonl") {
 		require.NoErrorf(t, ex.processUTAOrder(t.Context(), msg), "processUTAOrder must not error for fixture line %d", i+1)
 	}
 	xrpPair := currency.NewPairWithDelimiter("XRP", "USDT", currency.DashDelimiter)
@@ -306,14 +306,14 @@ func TestUTAWebsocketExecutionDecoding(t *testing.T) {
 			FillPNL:            -12.5398,
 		},
 	}
-	assert.Equal(t, exp, utaFixtureData[UTAWebsocketExecution](t, "testdata/wsUTAExecution.json"), "execution pushes should decode every field, whether the trade ID is quoted or not")
+	assert.Equal(t, exp, utaFixtureData[UTAWebsocketExecution](t, "testdata/wsUTAExecution.jsonl"), "execution pushes should decode every field, whether the trade ID is quoted or not")
 }
 
 func TestProcessUTAExecutionLite(t *testing.T) {
 	t.Parallel()
 	ex := newUTATestExchange(t)
 	newUTAWebsocket(t, ex)
-	msgs := utaFixtureMessages(t, "testdata/wsUTAExecution.json")[:2]
+	msgs := utaFixtureMessages(t, "testdata/wsUTAExecution.jsonl")[:2]
 	for i, msg := range msgs {
 		require.NoErrorf(t, ex.processUTAExecutionLite(msg), "processUTAExecutionLite must not error for fixture line %d while fills are not fed", i+1)
 	}
@@ -338,8 +338,8 @@ func TestProcessUTAExecution(t *testing.T) {
 	t.Parallel()
 	ex := newUTATestExchange(t)
 	newUTAWebsocket(t, ex)
-	msgs := utaFixtureMessages(t, "testdata/wsUTAExecution.json")[2:]
-	executions := utaFixtureData[UTAWebsocketExecution](t, "testdata/wsUTAExecution.json")[2:]
+	msgs := utaFixtureMessages(t, "testdata/wsUTAExecution.jsonl")[2:]
+	executions := utaFixtureData[UTAWebsocketExecution](t, "testdata/wsUTAExecution.jsonl")[2:]
 	for i, msg := range msgs {
 		require.NoErrorf(t, ex.processUTAExecution(t.Context(), msg), "processUTAExecution must not error for fixture line %d while fills are not fed", i+3)
 	}
@@ -404,13 +404,13 @@ func TestUTAWebsocketBalanceDecoding(t *testing.T) {
 			CollateralStatus:         "2",
 		},
 	}
-	assert.Equal(t, exp, utaFixtureData[UTAWebsocketBalance](t, "testdata/wsUTABalance.json"), "balance pushes should decode every field")
+	assert.Equal(t, exp, utaFixtureData[UTAWebsocketBalance](t, "testdata/wsUTABalance.jsonl"), "balance pushes should decode every field")
 }
 
 func TestProcessUTABalance(t *testing.T) {
 	t.Parallel()
 	ex := newUTATestExchange(t)
-	msgs := utaFixtureMessages(t, "testdata/wsUTABalance.json")
+	msgs := utaFixtureMessages(t, "testdata/wsUTABalance.jsonl")
 	for i, msg := range msgs {
 		require.NoErrorf(t, ex.processUTABalance(t.Context(), msg, "UNIFIED"), "processUTABalance must not error for fixture line %d", i+1)
 	}
@@ -520,13 +520,13 @@ func TestUTAWebsocketPositionDecoding(t *testing.T) {
 			CreationTimestamp:     types.Time(time.Unix(0, 1770117062493000000)),
 		},
 	}
-	assert.Equal(t, exp, utaFixtureData[UTAWebsocketPosition](t, "testdata/wsUTAPosition.json"), "position pushes should decode every field")
+	assert.Equal(t, exp, utaFixtureData[UTAWebsocketPosition](t, "testdata/wsUTAPosition.jsonl"), "position pushes should decode every field")
 }
 
 func TestProcessUTAPosition(t *testing.T) {
 	t.Parallel()
 	ex := newUTATestExchange(t)
-	for i, msg := range utaFixtureMessages(t, "testdata/wsUTAPosition.json") {
+	for i, msg := range utaFixtureMessages(t, "testdata/wsUTAPosition.jsonl") {
 		require.NoErrorf(t, ex.processUTAPosition(t.Context(), msg), "processUTAPosition must not error for fixture line %d", i+1)
 	}
 	trumpPair := currency.NewPairWithDelimiter("TRUMP", "USDTM", currency.UnderscoreDelimiter)
@@ -610,7 +610,7 @@ func TestProcessUTAPosition(t *testing.T) {
 func TestProcessUTALiquidationWarning(t *testing.T) {
 	t.Parallel()
 	ex := newUTATestExchange(t)
-	for i, msg := range utaFixtureMessages(t, "testdata/wsUTALiquidationWarning.json") {
+	for i, msg := range utaFixtureMessages(t, "testdata/wsUTALiquidationWarning.jsonl") {
 		require.NoErrorf(t, ex.processUTALiquidationWarning(t.Context(), msg), "processUTALiquidationWarning must not error for fixture line %d", i+1)
 	}
 	exp := []any{
@@ -624,7 +624,7 @@ func TestProcessUTALiquidationWarning(t *testing.T) {
 func TestProcessUTALeverage(t *testing.T) {
 	t.Parallel()
 	ex := newUTATestExchange(t)
-	for i, msg := range utaFixtureMessages(t, "testdata/wsUTALeverage.json") {
+	for i, msg := range utaFixtureMessages(t, "testdata/wsUTALeverage.jsonl") {
 		require.NoErrorf(t, ex.processUTALeverage(t.Context(), msg), "processUTALeverage must not error for fixture line %d", i+1)
 	}
 	exp := []any{

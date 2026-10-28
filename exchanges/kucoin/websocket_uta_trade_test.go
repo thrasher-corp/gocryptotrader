@@ -78,7 +78,7 @@ func newUTATradeTestConnection(t *testing.T, ex *Exchange) *utaTradeServer {
 	server := new(utaTradeServer)
 	wsURL := kucoinUTATradeWebsocketURL
 	if mockTests {
-		wsURL = newUTAMockServer(t, false, server.reply(utaFixtureLines(t, "testdata/wsUTAOrderOperations.json")))
+		wsURL = newUTAMockServer(t, false, server.reply(utaFixtureLines(t, "testdata/wsUTAOrderOperations.jsonl")))
 	}
 	newUTAWebsocket(t, ex, ex.newUTATradeConnection(ex.Config, wsURL))
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
@@ -100,7 +100,7 @@ func wsPlaceUTALiveOrder(t *testing.T, ex *Exchange, r *PlaceUTAOrderRequest) *U
 func TestAuthenticateUTATradeWebsocket(t *testing.T) {
 	t.Parallel()
 	ex := newUTATestExchange(t)
-	welcome := utaFixtureLines(t, "testdata/wsUTAOrderOperations.json")[0]
+	welcome := utaFixtureLines(t, "testdata/wsUTAOrderOperations.jsonl")[0]
 	conn := &utaFakeConnection{reply: []byte(welcome)}
 	require.NoError(t, ex.AuthenticateUTATradeWebsocket(t.Context(), conn), "AuthenticateUTATradeWebsocket must not error")
 	require.Len(t, conn.sent, 1, "AuthenticateUTATradeWebsocket must send one message")
@@ -110,7 +110,7 @@ func TestAuthenticateUTATradeWebsocket(t *testing.T) {
 	assert.Equal(t, "auth", req.Operation, "the authentication message should be an auth operation")
 	assert.Equal(t, utaTradeAuthSignature, conn.signatures[0], "the reply should be matched as the authentication reply")
 
-	rejected := utaFixtureLines(t, "testdata/wsUTAOrderOperations.json")[5]
+	rejected := utaFixtureLines(t, "testdata/wsUTAOrderOperations.jsonl")[5]
 	err := ex.AuthenticateUTATradeWebsocket(t.Context(), &utaFakeConnection{reply: []byte(rejected)})
 	assert.ErrorIs(t, err, errUTAAuthenticationFailed, "AuthenticateUTATradeWebsocket should error when KuCoin rejects the sign-in")
 	assert.ErrorContains(t, err, "KC-API-KEY not exists.", "AuthenticateUTATradeWebsocket should report KuCoin's message")
@@ -126,7 +126,7 @@ func TestAuthenticateUTATradeWebsocket(t *testing.T) {
 
 func TestUTAWebsocketTradeAuthResponseDecoding(t *testing.T) {
 	t.Parallel()
-	lines := utaFixtureLines(t, "testdata/wsUTAOrderOperations.json")
+	lines := utaFixtureLines(t, "testdata/wsUTAOrderOperations.jsonl")
 	exp := []UTAWebsocketTradeAuthResponse{
 		{SessionID: "cbb32567-489d-4102-a35e-9dcd61dc0919", Data: "welcome", PingInterval: 18000, PingTimeout: 10000},
 		{Code: "400003", Message: "KC-API-KEY not exists.", InTime: types.Time(time.UnixMilli(1741589088843)), OutTime: types.Time(time.UnixMilli(1741589088848))},
@@ -144,7 +144,7 @@ func TestWebsocketHandleUTATradeData(t *testing.T) {
 	conn := &utaFakeConnection{}
 	require.NoError(t, ex.wsHandleUTATradeData(t.Context(), conn, []byte(`{"id":"ping","op":"pong","timestamp":1773135391743}`)), "wsHandleUTATradeData must ignore a pong")
 	assert.Empty(t, conn.matched, "wsHandleUTATradeData should not match a pong to a request")
-	lines := utaFixtureLines(t, "testdata/wsUTAOrderOperations.json")
+	lines := utaFixtureLines(t, "testdata/wsUTAOrderOperations.jsonl")
 	require.NoError(t, ex.wsHandleUTATradeData(t.Context(), conn, []byte(lines[1])), "wsHandleUTATradeData must route an operation reply")
 	require.NoError(t, ex.wsHandleUTATradeData(t.Context(), conn, []byte(lines[0])), "wsHandleUTATradeData must route the welcome frame")
 	require.NoError(t, ex.wsHandleUTATradeData(t.Context(), conn, []byte(lines[5])), "wsHandleUTATradeData must route an authentication rejection")
