@@ -126,7 +126,7 @@ func connectWebsocketTestExchange(t *testing.T, ex *Exchange, subs subscription.
 }
 
 // websocketVenue mocks Bitfinex's websocket. It confirms conf, auth, subscribe and unsubscribe requests, numbering
-// each connection's channels, and follows a subscription with the frames testdata/wsPublic.json recorded for its
+// each connection's channels, and follows a subscription with the frames testdata/wsPublic.jsonl recorded for its
 // channel. It answers input requests with the notifications and events Bitfinex documents
 type websocketVenue struct {
 	mu          sync.Mutex

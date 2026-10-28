@@ -65,10 +65,10 @@ func (c *sentConnection) messages() []string {
 	return sent
 }
 
-// accountFixtureFrames returns testdata/wsAccount.json's frames, Bitfinex's documented account events, one a line
+// accountFixtureFrames returns testdata/wsAccount.jsonl's frames, Bitfinex's documented account events, one a line
 func accountFixtureFrames(t *testing.T) [][]byte {
 	t.Helper()
-	f, err := os.Open("testdata/wsAccount.json")
+	f, err := os.Open("testdata/wsAccount.jsonl")
 	require.NoError(t, err, "Opening the account fixture must not error")
 	defer func() { assert.NoError(t, f.Close(), "Closing the account fixture should not error") }()
 	var frames [][]byte

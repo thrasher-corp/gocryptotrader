@@ -48,11 +48,11 @@ type wsFixture struct {
 	frames     map[string][][]byte
 }
 
-// wsPublicFixture holds testdata/wsPublic.json, trimmed from live recordings of Bitfinex's public channels: each
+// wsPublicFixture holds testdata/wsPublic.jsonl, trimmed from live recordings of Bitfinex's public channels: each
 // channel's subscribed event, labelled with its fixture key as its subscription ID, then its frames, each book's up to
 // a checksum of the book they leave
 var wsPublicFixture = sync.OnceValues(func() (*wsFixture, error) {
-	f, err := os.Open("testdata/wsPublic.json")
+	f, err := os.Open("testdata/wsPublic.jsonl")
 	if err != nil {
 		return nil, err
 	}
