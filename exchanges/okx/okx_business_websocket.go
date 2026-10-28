@@ -65,9 +65,10 @@ next:
 			}
 			for p := range pairs {
 				subscriptions = append(subscriptions, &subscription.Subscription{
-					Channel: subs[c],
-					Asset:   asset.Spread,
-					Pairs:   []currency.Pair{pairs[p]},
+					Channel:          subs[c],
+					QualifiedChannel: subs[c] + ":" + pairs[p].String(),
+					Asset:            asset.Spread,
+					Pairs:            []currency.Pair{pairs[p]},
 				})
 			}
 		case channelPublicBlockTrades,
@@ -81,14 +82,16 @@ next:
 			}
 			for p := range pairs {
 				subscriptions = append(subscriptions, &subscription.Subscription{
-					Channel: subs[c],
-					Asset:   asset.PerpetualSwap,
-					Pairs:   []currency.Pair{pairs[p]},
+					Channel:          subs[c],
+					QualifiedChannel: subs[c] + ":" + pairs[p].String(),
+					Asset:            asset.PerpetualSwap,
+					Pairs:            []currency.Pair{pairs[p]},
 				})
 			}
 		default:
 			subscriptions = append(subscriptions, &subscription.Subscription{
-				Channel: subs[c],
+				Channel:          subs[c],
+				QualifiedChannel: subs[c],
 			})
 		}
 	}
