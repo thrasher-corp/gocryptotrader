@@ -222,20 +222,6 @@ func TestDecimalSumOfFloats(t *testing.T) {
 	assert.ErrorIs(t, err, errNonFiniteFloat, "DecimalSumOfFloats should error for a non-finite second value")
 }
 
-func TestDecimalDifferenceOfFloats(t *testing.T) {
-	t.Parallel()
-	difference, err := DecimalDifferenceOfFloats(1, 0.9)
-	require.NoError(t, err, "DecimalDifferenceOfFloats must not error")
-	assert.Equal(t, "0.1", difference.String(), "DecimalDifferenceOfFloats should subtract without float rounding error")
-	difference, err = DecimalDifferenceOfFloats(0.000123, 1.5)
-	require.NoError(t, err, "DecimalDifferenceOfFloats must not error for a negative result")
-	assert.Equal(t, "-1.499877", difference.String(), "DecimalDifferenceOfFloats should return a negative result")
-	_, err = DecimalDifferenceOfFloats(math.NaN(), 1)
-	assert.ErrorIs(t, err, errNonFiniteFloat, "DecimalDifferenceOfFloats should error for a non-finite first value")
-	_, err = DecimalDifferenceOfFloats(1, math.Inf(-1))
-	assert.ErrorIs(t, err, errNonFiniteFloat, "DecimalDifferenceOfFloats should error for a non-finite second value")
-}
-
 func TestFloatQuotientOfDecimals(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {

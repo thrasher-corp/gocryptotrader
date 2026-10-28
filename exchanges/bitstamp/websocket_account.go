@@ -311,10 +311,9 @@ func (e *Exchange) setOrderEventCheckpoint(key string, checkpoint orderEventChec
 }
 
 // isOrderEventRetryable returns whether an order event which failed processing is retried by the next recovery
-// Only events the data handler refused are retried, since an event without an order ID or with a malformed amount is
-// recovered the same way
+// Only events the data handler refused are retried, since an event without an order ID is recovered the same way
 func isOrderEventRetryable(err error) bool {
-	return err != nil && !errors.Is(err, errOrderIDMissing) && !errors.Is(err, errMalformedOrderEvent)
+	return err != nil && !errors.Is(err, errOrderIDMissing)
 }
 
 // processOrderEvent relays an order event as order details; a replacement also reports the replaced order as cancelled,
@@ -326,11 +325,9 @@ func (e *Exchange) processOrderEvent(ctx context.Context, event string, o *Order
 
 	amount := o.AmountAtCreate.Float64()
 	remaining := o.RemainingAmount.Float64()
-	// AmountTraded only holds the amount executed by this event, so the total executed amount is derived instead
-	executedDecimal, err := gctmath.DecimalDifferenceOfFloats(amount, remaining)
-	if err != nil {
-		return fmt.Errorf("%w: %s %+v: %w", errMalformedOrderEvent, event, o, err)
-	}
+	// AmountTraded only holds the amount executed by this event, so the total executed amount is derived instead, from
+	// the amounts' exact decimals, as a float can lose a digit of an amount with more than 15 significant digits
+	executedDecimal := o.AmountAtCreate.Decimal().Sub(o.RemainingAmount.Decimal())
 	executed := executedDecimal.InexactFloat64()
 
 	var status order.Status
@@ -441,7 +438,9 @@ func (e *Exchange) fetchOrderTotals(ctx context.Context, closed *order.Detail, e
 			log.Warnf(log.WebsocketMgr, "%s closed order %s is still %s, so its totals are not relayed", e.Name, closed.OrderID, fetched.Status)
 			return
 		}
-		if fetchedExecuted.LessThan(executed) {
+		// The read's executed amount is a float, which can lose a digit of an amount with more than 15 significant digits,
+		// so the event's exact amount is compared as a float too
+		if fetched.ExecutedAmount < executed.InexactFloat64() {
 			log.Warnf(log.WebsocketMgr, "%s closed order %s has executed %s, less than its event's %s, so its totals are not relayed", e.Name, closed.OrderID, fetchedExecuted, executed)
 			return
 		}

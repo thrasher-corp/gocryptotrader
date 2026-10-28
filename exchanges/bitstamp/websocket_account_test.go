@@ -1,9 +1,9 @@
 package bitstamp
 
 import (
+	"cmp"
 	"context"
 	"fmt"
-	"math"
 	"net/http"
 	"net/url"
 	"slices"
@@ -78,7 +78,7 @@ func TestWebsocketOrderUpdate(t *testing.T) {
 func TestProcessOrderEvent(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestInstance(t)
-	err := ex.processOrderEvent(t.Context(), orderEventCreated, &OrderEventData{RemainingAmount: 1}, wsPerpetualPair, asset.PerpetualContract)
+	err := ex.processOrderEvent(t.Context(), orderEventCreated, &OrderEventData{RemainingAmount: preciseNumber(t, "1")}, wsPerpetualPair, asset.PerpetualContract)
 	assert.ErrorIs(t, err, errOrderIDMissing, "processOrderEvent should error without an order ID")
 	err = ex.handleWSAccountOrder(t.Context(), nil, orderEventCreated, []byte(`{"id":"wibble"}`), wsPerpetualPair, asset.PerpetualContract)
 	assert.Error(t, err, "handleWSAccountOrder should error on malformed data")
@@ -242,6 +242,8 @@ func TestProcessOrderEvent(t *testing.T) {
 	replacement, ok := (<-ex.Websocket.DataHandler.C).Data.([]order.Detail)
 	require.True(t, ok, "a replacement must be relayed as order details")
 	assert.Len(t, replacement, 2, "the payload should hold the replacement and the order it replaced")
+	ex.Websocket.DataHandler = fullDataHandler(t)
+	assert.Error(t, ex.processOrderEvent(t.Context(), orderEventReplaced, &OrderEventData{ID: 2, OriginalOrderID: 1}, wsPerpetualPair, asset.PerpetualContract), "processOrderEvent should error when the data handler refuses a replacement")
 }
 
 // orderEventsKey is the market and order source of the events orderEventFrame returns
@@ -969,17 +971,29 @@ func TestKeptOrderEvents(t *testing.T) {
 
 func TestProcessOrderEventAmounts(t *testing.T) {
 	t.Parallel()
-	ex := newWebsocketTestInstance(t)
-	require.NoError(t, ex.processOrderEvent(t.Context(), orderEventChanged, &OrderEventData{ID: 1, AmountAtCreate: 1, RemainingAmount: 0.7}, wsSpotPair, asset.Spot), "processOrderEvent must not error")
-	err := ex.processOrderEvent(t.Context(), orderEventChanged, &OrderEventData{ID: 2, AmountAtCreate: types.Number(math.NaN()), RemainingAmount: 0.7}, wsSpotPair, asset.Spot)
-	assert.ErrorIs(t, err, errMalformedOrderEvent, "processOrderEvent should error on an amount which is not a number")
-	assert.False(t, isOrderEventRetryable(err), "an event with a malformed amount should not be retried, as its recovered copy has the same amount")
-	payloads := dataHandlerPayloads(t, ex)
-	require.Len(t, payloads, 1, "the data handler must only receive the event with valid amounts")
-	d, ok := payloads[0].(*order.Detail)
-	require.True(t, ok, "the payload must be an order detail")
-	// A float subtraction leaves 0.30000000000000004
-	assert.Equal(t, 0.3, d.ExecutedAmount, "processOrderEvent should subtract the amounts without a float residue")
+	for _, tc := range []struct {
+		atCreate, remaining string
+		traded, executed    float64
+	}{
+		// A float subtraction leaves 0.30000000000000004
+		{atCreate: "1", remaining: "0.7", executed: 0.3},
+		// As floats, 67110000.00000002 and 67109999.00000002 lose their last digit, so subtracting floats leaves 1, 0 and 1
+		{atCreate: "67110000.00000002", remaining: "67109999.00000001", executed: 1.00000001},
+		{atCreate: "67110000.00000002", remaining: "67110000.00000001", executed: 0.00000001},
+		{atCreate: "67110000.00000001", remaining: "67109999.00000002", executed: 0.99999999},
+		// The amount executed by this event is already in the total, and the amounts may be sent to different scales
+		{atCreate: "1.00000000", remaining: "0.70000000", traded: 0.1, executed: 0.3},
+		{atCreate: "1.00000001", remaining: "1", executed: 0.00000001},
+	} {
+		ex := newWebsocketTestInstance(t)
+		require.NoErrorf(t, ex.processOrderEvent(t.Context(), orderEventChanged, &OrderEventData{ID: 1, AmountAtCreate: preciseNumber(t, tc.atCreate), RemainingAmount: preciseNumber(t, tc.remaining), AmountTraded: types.Number(tc.traded)}, wsSpotPair, asset.Spot), "processOrderEvent must not error for %s remaining of %s", tc.remaining, tc.atCreate)
+		payloads := dataHandlerPayloads(t, ex)
+		require.Lenf(t, payloads, 1, "the data handler must receive the event for %s remaining of %s", tc.remaining, tc.atCreate)
+		d, ok := payloads[0].(*order.Detail)
+		require.Truef(t, ok, "the payload must be an order detail for %s remaining of %s", tc.remaining, tc.atCreate)
+		assert.Equalf(t, tc.executed, d.ExecutedAmount, "processOrderEvent should subtract the exact amounts for %s remaining of %s", tc.remaining, tc.atCreate)
+		assert.Equalf(t, order.PartiallyFilled, d.Status, "processOrderEvent should report an executed amount as partially filled for %s remaining of %s", tc.remaining, tc.atCreate)
+	}
 }
 
 func TestFetchOrderTotals(t *testing.T) {
@@ -998,6 +1012,10 @@ func TestFetchOrderTotals(t *testing.T) {
 		replyCode int
 		requests  int64
 		totals    *order.Detail
+		// amount is the event's amount at creation when it is not 1
+		amount float64
+		// relayBuffer is the data handler's buffer when it is not 10
+		relayBuffer uint
 	}{
 		{
 			name: "filled", event: orderEventDeleted, data: fmt.Sprintf(deleted, "0"),
@@ -1020,6 +1038,23 @@ func TestFetchOrderTotals(t *testing.T) {
 		{name: "still open", event: orderEventDeleted, data: fmt.Sprintf(deleted, "0"), reply: fmt.Sprintf(status, "Open", transaction(1, "0.4", "0.5"), "0.6"), requests: 1},
 		{name: "still open with the event's executions", event: orderEventDeleted, data: fmt.Sprintf(deleted, "0.6"), reply: fmt.Sprintf(status, "Open", transaction(1, "0.4", "0.5"), "0.6"), requests: 1},
 		{name: "less executed", event: orderEventDeleted, data: fmt.Sprintf(deleted, "0"), reply: fmt.Sprintf(status, "Finished", transaction(1, "0.4", "0.5"), "0"), requests: 1},
+		// The event's executed amount is exact, though a float of either amount loses its last digit
+		{
+			name: "less executed than a large order's event", event: orderEventDeleted,
+			data:  `{"id":1001,"amount_str":"67109999.00000001","amount_at_create":"67110000.00000002","price_str":"100","order_type":0,"order_subtype":0,"microtimestamp":"1712131206000000"}`,
+			reply: fmt.Sprintf(status, "Canceled", transaction(1, "1", "0.5"), "67109999.00000001"), requests: 1,
+		},
+		// A float of the read's executed amount loses this order's last digit, so the event's exact amount is compared
+		// with it as a float
+		{
+			name: "as executed as a large order's event", event: orderEventDeleted, amount: 67110000.00000002,
+			data:     `{"id":1001,"amount_str":"0","amount_at_create":"67110000.00000002","price_str":"100","order_type":0,"order_subtype":0,"microtimestamp":"1712131206000000"}`,
+			reply:    fmt.Sprintf(status, "Finished", `{"tid":1,"price":"1","btc":"67110000.00000002","usd":"-67110000.00000002","fee":"0.5","datetime":"2024-04-03 08:00:01","type":2}`, "0"),
+			requests: 1,
+			totals:   &order.Detail{Status: order.Filled, ExecutedAmount: 67110000.00000002, Fee: 0.5, Cost: 67110000.00000002, AverageExecutedPrice: 1},
+		},
+		{name: "executed amount overflowing a float", event: orderEventDeleted, data: fmt.Sprintf(deleted, "0"), reply: fmt.Sprintf(status, "Finished", transaction(1, "1e308", "0.5")+","+transaction(2, "1e308", "0.5"), "0"), requests: 1},
+		{name: "totals refused", event: orderEventDeleted, data: fmt.Sprintf(deleted, "0"), reply: fmt.Sprintf(status, "Finished", transaction(1, "1", "0.5"), "0"), requests: 1, relayBuffer: 1},
 		{name: "status refused", event: orderEventDeleted, data: fmt.Sprintf(deleted, "0"), replyCode: http.StatusInternalServerError, requests: 1},
 		{name: "nothing executed", event: orderEventDeleted, data: fmt.Sprintf(deleted, "1")},
 		{name: "client order ID only", event: orderEventDeleted, data: `{"client_order_id":"my-order","amount_str":"0","amount_at_create":"1","price_str":"100","order_type":0,"microtimestamp":"1712131206000000"}`},
@@ -1040,7 +1075,7 @@ func TestFetchOrderTotals(t *testing.T) {
 				_, err := w.Write([]byte(tc.reply))
 				assert.NoError(t, err, "Write should not error")
 			})
-			ex.Websocket.DataHandler = stream.NewRelay(10)
+			ex.Websocket.DataHandler = stream.NewRelay(cmp.Or(tc.relayBuffer, 10))
 			var o OrderEventData
 			require.NoError(t, json.Unmarshal([]byte(tc.data), &o), "Unmarshal must not error")
 			require.NoError(t, ex.processOrderEvent(t.Context(), tc.event, &o, wsSpotPair, asset.Spot), "processOrderEvent must not error")
@@ -1065,7 +1100,7 @@ func TestFetchOrderTotals(t *testing.T) {
 				Date:            deletedAt,
 				LastUpdated:     deletedAt,
 				Price:           100,
-				Amount:          1,
+				Amount:          cmp.Or(tc.amount, 1),
 				RemainingAmount: tc.totals.RemainingAmount,
 				ExecutedAmount:  tc.totals.ExecutedAmount,
 			}
@@ -1081,6 +1116,20 @@ func TestFetchOrderTotals(t *testing.T) {
 			assert.Equal(t, exp, payloads[1], "the totals should be relayed with the event's detail, last update and no trades")
 		})
 	}
+	// The event's executed amount is exact, and a float of the read's loses the last digit of 67110000.00000002, so
+	// the read is as executed as an event of 67110000.00000001 or 67110000.00000002, and less than one of 67110000.00000003
+	t.Run("exact executed amount", func(t *testing.T) {
+		t.Parallel()
+		for executed, relayed := range map[string]int{"67110000.00000001": 1, "67110000.00000002": 1, "67110000.00000003": 0} {
+			ex := newTestExchange(t, func(w http.ResponseWriter, _ *http.Request) {
+				_, err := w.Write(fmt.Appendf(nil, status, "Finished", `{"tid":1,"price":"1","btc":"67110000.00000002","usd":"-67110000.00000002","fee":"0.5","datetime":"2024-04-03 08:00:01","type":2}`, "0"))
+				assert.NoError(t, err, "Write should not error")
+			})
+			ex.Websocket.DataHandler = stream.NewRelay(1)
+			ex.fetchOrderTotals(t.Context(), &order.Detail{Exchange: ex.Name, OrderID: "1001", AssetType: asset.Spot, Pair: wsSpotPair}, preciseNumber(t, executed).Decimal())
+			assert.Lenf(t, dataHandlerPayloads(t, ex), relayed, "fetchOrderTotals should relay the read's totals for an event which executed %s only if that is no more than the read as a float", executed)
+		}
+	})
 }
 
 func TestFetchOrderTotalsOneAtATime(t *testing.T) {
@@ -1104,7 +1153,7 @@ func TestFetchOrderTotalsOneAtATime(t *testing.T) {
 	})
 	ex.Websocket.DataHandler = stream.NewRelay(10)
 	for id := uint64(1); id <= 2; id++ {
-		require.NoErrorf(t, ex.processOrderEvent(t.Context(), orderEventDeleted, &OrderEventData{ID: id, AmountAtCreate: 1}, wsSpotPair, asset.Spot), "processOrderEvent must not error for order %d", id)
+		require.NoErrorf(t, ex.processOrderEvent(t.Context(), orderEventDeleted, &OrderEventData{ID: id, AmountAtCreate: preciseNumber(t, "1")}, wsSpotPair, asset.Spot), "processOrderEvent must not error for order %d", id)
 	}
 	require.Len(t, dataHandlerPayloads(t, ex), 4, "the data handler must receive each event and its totals")
 	// The fetches share the request rate limiter with order placements and cancellations, so a burst of them must not
@@ -1222,8 +1271,6 @@ func TestIsOrderEventRetryable(t *testing.T) {
 	assert.False(t, isOrderEventRetryable(nil), "a relayed event should not be retried")
 	missingOrderID := fmt.Errorf("%w: order_changed", errOrderIDMissing)
 	assert.False(t, isOrderEventRetryable(missingOrderID), "an event without an order ID should not be retried")
-	malformedAmount := fmt.Errorf("%w: order_changed", errMalformedOrderEvent)
-	assert.False(t, isOrderEventRetryable(malformedAmount), "an event with a malformed amount should not be retried")
 	assert.True(t, isOrderEventRetryable(fullDataHandler(t).Send(t.Context(), nil)), "an event the data handler refused should be retried")
 }
 

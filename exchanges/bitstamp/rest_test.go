@@ -86,6 +86,14 @@ func newTestExchange(t *testing.T, handler http.HandlerFunc) *Exchange {
 	return ex
 }
 
+// preciseNumber returns a PreciseNumber holding a decimal string
+func preciseNumber(t *testing.T, s string) types.PreciseNumber {
+	t.Helper()
+	n, err := types.NewPreciseNumberFromString(s)
+	require.NoErrorf(t, err, "NewPreciseNumberFromString must not error for %s", s)
+	return n
+}
+
 // newResponseTestExchange returns an exchange whose REST requests are all answered with the same status and body
 func newResponseTestExchange(t *testing.T, status int, body string) *Exchange {
 	t.Helper()

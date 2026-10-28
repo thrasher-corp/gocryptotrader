@@ -141,20 +141,6 @@ func DecimalSumOfFloats(a, b float64) (decimal.Decimal, error) {
 	return x.Add(y), nil
 }
 
-// DecimalDifferenceOfFloats returns a minus b, subtracted as the decimals DecimalFromFloat returns, so that the
-// difference carries no float rounding error
-func DecimalDifferenceOfFloats(a, b float64) (decimal.Decimal, error) {
-	x, err := DecimalFromFloat(a)
-	if err != nil {
-		return decimal.Zero, err
-	}
-	y, err := DecimalFromFloat(b)
-	if err != nil {
-		return decimal.Zero, err
-	}
-	return x.Sub(y), nil
-}
-
 // FloatQuotientOfDecimals returns the float nearest to dividend divided by divisor, or zero for a zero divisor or for a
 // dividend or divisor with more than a million fractional digits, which math/big does not parse.
 // Dividing the decimals' floats rounds twice, and dividing the decimals stops at a fixed number of decimal places, so

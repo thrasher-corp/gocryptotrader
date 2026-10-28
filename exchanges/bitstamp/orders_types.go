@@ -114,16 +114,16 @@ type OrderEventResponse struct {
 // OrderEventData holds the order details of an order event, from the websocket order channels or their REST recovery
 // RemainingAmount is the amount left to execute, and AmountTraded is the amount executed by the event rather than in total
 type OrderEventData struct {
-	ID              uint64       `json:"id"`
-	Side            OrderSide    `json:"order_type"`
-	OrderSubtype    uint8        `json:"order_subtype"`
-	DateTime        types.Time   `json:"datetime"`
-	Microtimestamp  types.Time   `json:"microtimestamp"`
-	RemainingAmount types.Number `json:"amount_str"`
-	AmountTraded    types.Number `json:"amount_traded"`
-	AmountAtCreate  types.Number `json:"amount_at_create"`
-	Price           types.Number `json:"price_str"`
-	IsLiquidation   bool         `json:"is_liquidation"`
+	ID              uint64              `json:"id"`
+	Side            OrderSide           `json:"order_type"`
+	OrderSubtype    uint8               `json:"order_subtype"`
+	DateTime        types.Time          `json:"datetime"`
+	Microtimestamp  types.Time          `json:"microtimestamp"`
+	RemainingAmount types.PreciseNumber `json:"amount_str"`
+	AmountTraded    types.Number        `json:"amount_traded"`
+	AmountAtCreate  types.PreciseNumber `json:"amount_at_create"`
+	Price           types.Number        `json:"price_str"`
+	IsLiquidation   bool                `json:"is_liquidation"`
 	// The following fields are only populated for account order events
 	TradeAccountID  uint64       `json:"trade_account_id"`
 	ClientOrderID   string       `json:"client_order_id"`
@@ -136,24 +136,24 @@ type OrderEventData struct {
 
 // OpenOrderResponse holds an open order
 type OpenOrderResponse struct {
-	ID              uint64         `json:"id,string"`
-	DateTime        types.DateTime `json:"datetime"`
-	Side            OrderSide      `json:"type"`
-	Subtype         string         `json:"subtype"`
-	Price           types.Number   `json:"price"`
-	RemainingAmount types.Number   `json:"amount"`
-	AmountAtCreate  types.Number   `json:"amount_at_create"`
-	Market          string         `json:"market"`
-	LimitPrice      types.Number   `json:"limit_price"`
-	ClientOrderID   string         `json:"client_order_id"`
-	MarginMode      string         `json:"margin_mode"`
-	Leverage        types.Number   `json:"leverage"`
-	ReservedMargin  types.Number   `json:"reserved_margin"`
-	StopPrice       types.Number   `json:"stop_price"`
-	Trigger         string         `json:"trigger"`
-	ActivationPrice types.Number   `json:"activation_price"`
-	TrailingDelta   uint64         `json:"trailing_delta"`
-	ReduceOnly      bool           `json:"reduce_only"`
+	ID              uint64              `json:"id,string"`
+	DateTime        types.DateTime      `json:"datetime"`
+	Side            OrderSide           `json:"type"`
+	Subtype         string              `json:"subtype"`
+	Price           types.Number        `json:"price"`
+	RemainingAmount types.PreciseNumber `json:"amount"`
+	AmountAtCreate  types.PreciseNumber `json:"amount_at_create"`
+	Market          string              `json:"market"`
+	LimitPrice      types.Number        `json:"limit_price"`
+	ClientOrderID   string              `json:"client_order_id"`
+	MarginMode      string              `json:"margin_mode"`
+	Leverage        types.Number        `json:"leverage"`
+	ReservedMargin  types.Number        `json:"reserved_margin"`
+	StopPrice       types.Number        `json:"stop_price"`
+	Trigger         string              `json:"trigger"`
+	ActivationPrice types.Number        `json:"activation_price"`
+	TrailingDelta   uint64              `json:"trailing_delta"`
+	ReduceOnly      bool                `json:"reduce_only"`
 }
 
 // LimitOrderRequest holds the parameters for placing a limit order

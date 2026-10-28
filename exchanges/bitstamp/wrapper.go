@@ -1336,15 +1336,14 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 		if a != req.AssetType {
 			continue
 		}
-		amount := o.AmountAtCreate.Float64()
-		if amount == 0 {
-			amount = o.RemainingAmount.Float64()
+		amountDecimal := o.AmountAtCreate.Decimal()
+		if amountDecimal.IsZero() {
+			amountDecimal = o.RemainingAmount.Decimal()
 		}
-		executedDecimal, err := gctmath.DecimalDifferenceOfFloats(amount, o.RemainingAmount.Float64())
-		if err != nil {
-			return nil, fmt.Errorf("%w for order %d: %w", order.ErrAmountIsInvalid, o.ID, err)
-		}
-		executed := executedDecimal.InexactFloat64()
+		// The executed amount is derived from the amounts' exact decimals, as a float can lose a digit of an amount with
+		// more than 15 significant digits
+		executed := amountDecimal.Sub(o.RemainingAmount.Decimal()).InexactFloat64()
+		amount := amountDecimal.InexactFloat64()
 		status := order.Open
 		if executed > 0 {
 			status = order.PartiallyFilled
@@ -1422,7 +1421,9 @@ func (e *Exchange) spotOrderHistory(ctx context.Context, req *order.MultiOrderRe
 	params := &UserTransactionsRequest{
 		Limit: maxResultLimit,
 		Sort:  SortAscending,
-		Until: req.EndTime,
+		// The API's time bounds are whole seconds, so an end is sent rounded up, and the trade filter leaves out the
+		// trades after it
+		Until: req.EndTime.Add(time.Second - time.Nanosecond).Truncate(time.Second),
 	}
 	if !req.StartTime.IsZero() {
 		params.Since = req.StartTime
@@ -1554,7 +1555,9 @@ func (e *Exchange) derivativesOrderHistory(ctx context.Context, pairs currency.P
 			Limit: maxResultLimit,
 			Sort:  SortAscending,
 			Since: start,
-			Until: end,
+			// The API's time bounds are whole seconds, so an end is sent rounded up, and the trade filter leaves out the
+			// trades after it
+			Until: end.Add(time.Second - time.Nanosecond).Truncate(time.Second),
 		})
 		if err != nil {
 			return nil, err

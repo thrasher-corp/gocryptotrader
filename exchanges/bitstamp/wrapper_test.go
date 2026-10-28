@@ -1682,7 +1682,29 @@ func TestGetActiveOrders(t *testing.T) {
 	assert.ErrorContains(t, err, "BTCUSD", "GetActiveOrders should error on a malformed market")
 	for _, amounts := range []string{`"amount":"NaN"`, `"amount":"NaN","amount_at_create":"0.40000000"`} {
 		_, err = newResponseTestExchange(t, http.StatusOK, `[{"id":"1","datetime":"2025-06-16 10:00:00","type":"0","subtype":"LIMIT","price":"84000",`+amounts+`,"market":"BTC/USD"}]`).GetActiveOrders(t.Context(), spotOrders)
-		assert.ErrorIsf(t, err, order.ErrAmountIsInvalid, "GetActiveOrders should error on a remaining amount which is not a number with %s", amounts)
+		assert.ErrorContainsf(t, err, "NaN", "GetActiveOrders should error on a remaining amount which is not a number with %s", amounts)
+	}
+	// As floats, 67110000.00000002 and 67109999.00000002 lose their last digit, so subtracting floats leaves 1, 0 and 1
+	for _, tc := range []struct {
+		atCreate, remaining string
+		executed            float64
+		status              order.Status
+	}{
+		{atCreate: "67110000.00000002", remaining: "67109999.00000001", executed: 1.00000001, status: order.PartiallyFilled},
+		{atCreate: "67110000.00000002", remaining: "67110000.00000001", executed: 0.00000001, status: order.PartiallyFilled},
+		{atCreate: "67110000.00000001", remaining: "67109999.00000002", executed: 0.99999999, status: order.PartiallyFilled},
+		// Without its amount at creation, the order's amount is its remaining amount
+		{remaining: "67110000.00000002", status: order.Open},
+	} {
+		amounts := `"amount":"` + tc.remaining + `"`
+		if tc.atCreate != "" {
+			amounts += `,"amount_at_create":"` + tc.atCreate + `"`
+		}
+		large, err := newResponseTestExchange(t, http.StatusOK, `[{"id":"1","datetime":"2025-06-16 10:00:00","type":"0","subtype":"LIMIT","price":"0.02263",`+amounts+`,"market":"GRT/USD"}]`).GetActiveOrders(t.Context(), spotOrders)
+		require.NoErrorf(t, err, "GetActiveOrders must not error for %s", amounts)
+		require.Lenf(t, large, 1, "GetActiveOrders must return the order for %s", amounts)
+		assert.Equalf(t, tc.executed, large[0].ExecutedAmount, "GetActiveOrders should subtract the exact amounts for %s", amounts)
+		assert.Equalf(t, tc.status, large[0].Status, "GetActiveOrders should report the order's status for %s", amounts)
 	}
 
 	ex = newResponseTestExchange(t, http.StatusOK, `[{"id":"1234123412341237","datetime":"2025-06-16 10:00:00","type":"0","subtype":"LIMIT","price":"84000","amount":"0.40000000","market":"BTC/USD"}]`)
@@ -1787,6 +1809,25 @@ func TestGetOrderHistory(t *testing.T) {
 
 func TestSpotOrderHistory(t *testing.T) {
 	t.Parallel()
+	ex := newTestExchange(t, func(http.ResponseWriter, *http.Request) {
+		assert.Fail(t, "spotOrderHistory should not request a range which ends before the transactions' time filters reach")
+	})
+	none, err := ex.spotOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, EndTime: time.Now().Add(-45 * 24 * time.Hour)})
+	require.NoError(t, err, "spotOrderHistory must not error for a range which ends more than 30 days ago")
+	assert.Empty(t, none, "spotOrderHistory should return no orders for a range which ends more than 30 days ago")
+	_, err = ex.spotOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Pairs: currency.Pairs{currency.EMPTYPAIR}})
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "spotOrderHistory should error on an empty pair")
+	_, err = newResponseTestExchange(t, http.StatusForbidden, `{"status":"error","reason":"Invalid signature","code":"API0005"}`).spotOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot})
+	assert.ErrorIs(t, err, errAPIResponse, "spotOrderHistory should error when the transactions cannot be fetched")
+	ex = newTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/api/v2/user_transactions/btcusd/", r.URL.Path, "a single pair's transactions should be requested for its market")
+		_, err := w.Write([]byte(`[{"id":1,"datetime":"2025-06-16 10:00:00","type":"2","fee":"0.1","btc":"0.01","usd":"-840.0","order_id":2}]`))
+		assert.NoError(t, err, "Write should not error")
+	})
+	withoutRate, err := ex.spotOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Pairs: currency.Pairs{spotPair}})
+	require.NoError(t, err, "spotOrderHistory must not error for a single pair")
+	assert.Empty(t, withoutRate, "spotOrderHistory should skip a trade without an exchange rate, which names no market")
+
 	skipIfLiveWithoutCredentials(t)
 	orders, err := e.spotOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot})
 	require.NoError(t, err, "spotOrderHistory must not error")
@@ -1864,6 +1905,15 @@ func TestDerivativesOrderHistory(t *testing.T) {
 		assert.Equal(t, 0.3, orders[0].Trades[0].Fee, "the trade's fee should include its liquidation fee without a float residue")
 		assert.Equal(t, 0.3, orders[0].Fee, "the order's fee should include the liquidation fee without a float residue")
 	}
+
+	_, err = ex.derivativesOrderHistory(t.Context(), currency.Pairs{currency.EMPTYPAIR}, time.Time{}, time.Time{})
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "derivativesOrderHistory should error on an empty pair")
+	_, err = newResponseTestExchange(t, http.StatusForbidden, `{"status":"error","reason":"Invalid signature","code":"API0005"}`).derivativesOrderHistory(t.Context(), currency.Pairs{perpetualPair}, time.Time{}, time.Time{})
+	assert.ErrorIs(t, err, errAPIResponse, "derivativesOrderHistory should error when the trades cannot be fetched")
+	_, err = newResponseTestExchange(t, http.StatusOK, `[{"trade_id":"1","order_id":"2","datetime":"2025-06-16 10:01:00","side":"buy","price":"100","amount":"1","fee":"0.1","fee_currency":"USD","market":"BTCUSD-PERP"}]`).derivativesOrderHistory(t.Context(), currency.Pairs{perpetualPair}, time.Time{}, time.Time{})
+	assert.ErrorContains(t, err, "BTCUSD-PERP", "derivativesOrderHistory should error on a malformed market")
+	_, err = newResponseTestExchange(t, http.StatusOK, `[{"trade_id":"1","order_id":"2","datetime":"2025-06-16 10:01:00","side":"buy","price":"100","amount":"NaN","fee":"0.1","fee_currency":"USD","market":"BTC/USD-PERP"}]`).derivativesOrderHistory(t.Context(), currency.Pairs{perpetualPair}, time.Time{}, time.Time{})
+	assert.ErrorIs(t, err, errMalformedTransaction, "derivativesOrderHistory should error on an amount which is not a number")
 
 	skipIfLiveWithoutCredentials(t)
 	orders, err := e.derivativesOrderHistory(recordedPagerContext(t), currency.Pairs{perpetualPair}, time.Time{}, time.Time{})
@@ -2806,12 +2856,22 @@ func TestOrderHistoryTimeRange(t *testing.T) {
 		trades []trade
 		assets []asset.Item
 		exp    map[string][]string
+		// until is the request's until_timestamp, when the row checks it
+		until time.Time
 	}{
 		// A nanosecond after the order's second trade, so truncating the start to microseconds or coarser lets that trade in
 		{name: "start after a trade", start: first.Add(time.Nanosecond), end: second.Add(12 * time.Hour), trades: buys(first.Add(-time.Millisecond), first, first.Add(time.Microsecond), second.Add(time.Hour)), exp: map[string][]string{"2": {"5", "7"}}},
 		{name: "start at a trade", start: first.Add(time.Microsecond), end: second.Add(12 * time.Hour), trades: buys(first.Add(-time.Millisecond), first, first.Add(time.Microsecond), second.Add(time.Hour)), exp: map[string][]string{"2": {"5", "7"}}},
 		{name: "end at a trade", start: second, end: second.Add(2 * time.Second), trades: buys(second.Add(time.Second), second.Add(2*time.Second)), exp: map[string][]string{"2": {"1", "3"}}},
 		{name: "fractional end", start: second, end: second.Add(2900 * time.Millisecond), trades: buys(second.Add(time.Second), second.Add(2*time.Second)), exp: map[string][]string{"2": {"1", "3"}}},
+		// The end is requested up to its next whole second, which returns trades after it too. It is a nanosecond before the
+		// order's third trade, so truncating it to milliseconds or coarser leaves out the second trade, and rounding it up
+		// to microseconds or coarser lets the third in
+		{
+			name: "end before a trade", start: second, end: second.Add(2400*time.Millisecond - time.Nanosecond), until: second.Add(3 * time.Second),
+			trades: buys(second.Add(time.Second), second.Add(2400*time.Millisecond-time.Microsecond), second.Add(2400*time.Millisecond), second.Add(3*time.Second)),
+			exp:    map[string][]string{"2": {"1", "3"}},
+		},
 		{
 			name: "self trade before the start", start: first.Add(time.Nanosecond), end: second.Add(12 * time.Hour), assets: []asset.Item{asset.PerpetualContract},
 			trades: []trade{{id: 1, orderID: 2, selfTradeOrderID: 4, side: TradeSideSelf, at: first}, {id: 3, orderID: 2, side: "BUY", at: first.Add(time.Microsecond)}, {id: 5, orderID: 4, side: "SELL", at: second.Add(time.Hour)}},
@@ -2837,6 +2897,9 @@ func TestOrderHistoryTimeRange(t *testing.T) {
 				sent := tc.trades
 				ex := newTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
 					assert.NoError(t, r.ParseForm(), "ParseForm should not error")
+					if !tc.until.IsZero() {
+						assert.Equalf(t, strconv.FormatInt(tc.until.Unix(), 10), r.Form.Get("until_timestamp"), "%s should request the end rounded up to a whole second for %s", name, tc.name)
+					}
 					mu.Lock()
 					defer mu.Unlock()
 					if tc.trades == nil {
