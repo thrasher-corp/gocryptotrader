@@ -157,19 +157,20 @@ engine stores an order it has not seen from its first update, so while `orderUpd
 an order no row has shown waits for the rows of its block; a `userEvents` message names no account, so its fills wait
 while `orderUpdates` is held for any account. The order's first row relays its trade; failing that, the fill is relayed
 alone once a row or fill of a later block arrives, as for an order that rested before the feed was held, once the
-account connection drops, as the rows sent while it is down are not resent, or at the account connection's first pong
-after it has waited 2 seconds, as a quiet account may send nothing else. TWAP slice fills go only to the fills feed, as
-their orders get no rows and are unknown to `orderStatus`. Once an order's fills are known to include all its
-executions, because its first row showed it unfilled or a row's executed size matched its fills, each fill reports the
-order's executed and remaining size, cost, average price and total fee, and its final row carries the cost, average
-price and total fee. The total fee is left out when the fills paid fees in different tokens, as a spot order's fills
-can: a spot fill pays its fee in the token it receives but takes a maker rebate in the token it gives. Otherwise a fill
-carries the trade alone, so it never lowers an executed size or fee learnt elsewhere. Fills from a `userFills` feed with
-`aggregateByTime` go only to the fills feed, as each combines an order's fills within a block under one of their trade
-IDs. Orders are remembered for a day after their last row or fill, the least recently touched forgotten beyond 10000,
-though not while their fills wait for their first row, and the trade IDs of finished orders' fills, 10000 at most, those
-of the orders that finished earliest dropped first, so a fill both feeds deliver after its order's final row is still
-relayed once. Outcome (HIP-4) orders and fills are skipped.
+account connection drops, as the rows sent while it is down are not resent, or at the account connection's first pong 2
+seconds or more after its order's held fills began to wait, as a quiet account may send nothing else. An order's held
+fills begin to wait when the first is held, and again when a later block's arrival releases some of them. TWAP slice
+fills go only to the fills feed, as their orders get no rows and are unknown to `orderStatus`. Once an order's fills are
+known to include all its executions, because its first row showed it unfilled or a row's executed size matched its
+fills, each fill reports the order's executed and remaining size, cost, average price and total fee, and its final row
+carries the cost, average price and total fee. The total fee is left out when the fills paid fees in different tokens,
+as a spot order's fills can: a spot fill pays its fee in the token it receives but takes a maker rebate in the token it
+gives. Otherwise a fill carries the trade alone, so it never lowers an executed size or fee learnt elsewhere. Fills from
+a `userFills` feed with `aggregateByTime` go only to the fills feed, as each combines an order's fills within a block
+under one of their trade IDs. Orders are remembered for a day after their last row or fill, the least recently touched
+forgotten beyond 10000, though not while their fills wait for their first row, and the trade IDs of finished orders'
+fills, 10000 at most, those of the orders that finished earliest dropped first, so a fill both feeds deliver after its
+order's final row is still relayed once. Outcome (HIP-4) orders and fills are skipped.
 
 `WebsocketAPI()` posts over the websocket instead of REST: its `PostInfo` sends an info request, and its `PlaceOrders`,
 `CancelOrders`, `CancelOrdersByClientOrderID`, `ModifySingleOrder` and `ModifyOrders` send the same signed actions as

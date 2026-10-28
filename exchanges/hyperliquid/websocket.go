@@ -35,8 +35,9 @@ import (
 const (
 	// websocketPingInterval keeps quiet connections inside the server's 60 second idle timeout
 	websocketPingInterval = 25 * time.Second
-	// websocketHeldFillLimit is how long a fill waits for its order's first row before the account connection's pong
-	// relays it alone: rows follow their block's fills within milliseconds, while a quiet account may send only pongs
+	// websocketHeldFillLimit is how long an order's held fills must have waited for its first row, since they began to
+	// wait, before the account connection's pong relays them alone: rows follow their block's fills within milliseconds,
+	// while a quiet account may send only pongs
 	websocketHeldFillLimit = 2 * time.Second
 	// websocketHandshakeTimeout bounds a dial, which holds the manager's lock while it retries the account connection
 	websocketHandshakeTimeout = 10 * time.Second
@@ -1197,22 +1198,24 @@ func (o *websocketOrders) unhold(record *websocketOrder) {
 
 // releaseHeldWebsocketFills returns the updates of the fills held from blocks before a time, or of every held fill, and
 // forgets them. Hyperliquid has sent those blocks' rows, and the orders of the fills got no first row in the blocks in
-// which they filled, so they rested before the orderUpdates feed was held; and no rows come once the feed is not held
+// which they filled, so they rested before the orderUpdates feed was held; and no held fill awaits rows once the
+// account connection drops, as the rows sent while it is down are not resent, or once the feed is not held, though
+// some may still come from a feed left sending but unheld, as after an abandoned subscribe or unsubscribe
 func (e *Exchange) releaseHeldWebsocketFills(before time.Time, all bool) []order.Detail {
 	return e.releaseWebsocketFills(func(_ *websocketOrder, update *order.Detail) bool {
 		return all || update.LastUpdated.Before(before)
 	})
 }
 
-// releaseStaleHeldWebsocketFills returns the updates of the orders whose fills have waited for websocketHeldFillLimit,
-// and forgets them
+// releaseStaleHeldWebsocketFills returns the updates of the orders whose held fills began to wait
+// websocketHeldFillLimit or more before now, and forgets them
 func (e *Exchange) releaseStaleHeldWebsocketFills(now time.Time) []order.Detail {
 	return e.releaseWebsocketFills(func(record *websocketOrder, _ *order.Detail) bool {
 		return now.Sub(record.heldSince) >= websocketHeldFillLimit
 	})
 }
 
-// relayStaleHeldFills relays alone the fills held for websocketHeldFillLimit
+// relayStaleHeldFills relays alone the held fills releaseStaleHeldWebsocketFills returns for the current time
 func (e *Exchange) relayStaleHeldFills(ctx context.Context) error {
 	if released := e.releaseStaleHeldWebsocketFills(time.Now()); len(released) > 0 {
 		return e.Websocket.DataHandler.Send(ctx, released)
@@ -1240,7 +1243,7 @@ func (e *Exchange) releaseWebsocketFills(release func(*websocketOrder, *order.De
 		case len(kept) == 0:
 			orders.unhold(record)
 		case len(kept) < len(record.held):
-			// The fills kept arrived after those released, so they wait from now
+			// The fills kept are of later blocks than those released, so they wait from now
 			record.held, record.heldSince = kept, time.Now()
 		}
 	}
@@ -1373,11 +1376,12 @@ func (e *Exchange) relayFills(ctx context.Context, user string, fills []FillResp
 	if !toOrders && !toFillsFeed {
 		return nil, nil
 	}
-	// While orderUpdates rows arrive, a fill of an order no row has shown waits for the rows of its block
+	// While orderUpdates is held for the account named, or for any account when none is, a fill of an order no row has
+	// shown waits for the rows of its block
 	holdUnseen := toOrders && e.receivesOrderRows(user)
 	orders := make([]order.Detail, 0, len(fills))
 	if toOrders {
-		// Hyperliquid sends a block's rows before a later block's fills, and no rows once no orderUpdates feed is held
+		// Hyperliquid sends a block's rows before a later block's fills; no rows are awaited once no orderUpdates feed is held
 		var earliest time.Time
 		for i := range fills {
 			if filled := fills[i].Time.Time(); earliest.IsZero() || filled.Before(earliest) {

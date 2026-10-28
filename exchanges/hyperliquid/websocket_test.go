@@ -2780,9 +2780,9 @@ func TestApplyWebsocketOrderFill(t *testing.T) {
 	assert.True(t, record.feeUnknown, "applyWebsocketOrderFill should keep an order's fee total unknown once its fills were paid in different tokens")
 	assert.Equal(t, 0.1, record.fee, "applyWebsocketOrderFill should stop summing fees once they were paid in different tokens")
 
-	// While orderUpdates rows arrive, a fill of an order no row has shown, taker or maker, waits for the rows of its block
+	// While orderUpdates is held, a fill of an order no row has shown, taker or maker, waits for the rows of its block
 	_, ok = ex.applyWebsocketOrderFill(source(4, 41, 85000, 0.01, 100, true), &mapping, asset.PerpetualContract, order.Buy, now, true)
-	assert.False(t, ok, "applyWebsocketOrderFill should hold a taker fill of an order no row has shown while rows arrive")
+	assert.False(t, ok, "applyWebsocketOrderFill should hold a taker fill of an order no row has shown while orderUpdates is held")
 	held := orders.byOrderID[4]
 	require.NotNil(t, held, "applyWebsocketOrderFill must record the order of a held fill")
 	assert.Equal(t, now, held.heldSince, "applyWebsocketOrderFill should note when the order's first fill was held")
@@ -2804,7 +2804,7 @@ func TestApplyWebsocketOrderFill(t *testing.T) {
 	held.rowSeen = true
 	orders.unhold(held)
 	update, ok = ex.applyWebsocketOrderFill(source(4, 42, 85010, 0.01, 200, true), &mapping, asset.PerpetualContract, order.Buy, now, true)
-	require.True(t, ok, "applyWebsocketOrderFill must relay the fill of an order a row has shown while rows arrive")
+	require.True(t, ok, "applyWebsocketOrderFill must relay the fill of an order a row has shown while orderUpdates is held")
 	assert.Equal(t, []order.TradeHistory{websocketOrderTrade(ex.Name, 42, 85010, 0.01, websocketOrderPlaced+200, true)}, update.Trades, "applyWebsocketOrderFill should relay the fill of an order a row has shown at once")
 	assert.Empty(t, held.held, "applyWebsocketOrderFill should hold no fill of an order a row has shown")
 }
@@ -3244,8 +3244,7 @@ func TestRelayFills(t *testing.T) {
 	assert.Empty(t, relayed, "relayFills should relay nothing when neither the order stream nor the fills feed takes fills")
 	assertNoWebsocketData(t, ex)
 
-	// While orderUpdates rows arrive, a fill of an order no row has shown reaches the fills feed and waits for the order's
-	// row
+	// While orderUpdates is held, a fill of an order no row has shown reaches the fills feed and waits for the order's row
 	rows := newWebsocketTestExchange(t)
 	require.NoError(t, subscribeWebsocketTest(t, rows, subscription.List{{Channel: wsChannelOrderUpdates, Authenticated: true}}), "Subscribe must not error for orderUpdates")
 	_, err = rows.relayFills(t.Context(), "", []FillResponse{testWebsocketFill()}, nil, true)
@@ -3286,7 +3285,7 @@ func TestRelayFills(t *testing.T) {
 	require.True(t, ok, "relayFills must relay the later block's fill to the fills feed")
 	assert.Len(t, nextBlockData, 1, "relayFills should relay the later block's fill to the fills feed")
 	assertNoWebsocketData(t, rows)
-	// No row comes once the orderUpdates feed is no longer held, so the next fills release every held fill
+	// No row is awaited once the orderUpdates feed is no longer held, so the next fills release every held fill
 	require.NoError(t, unsubscribeWebsocketTest(t, rows, subscription.List{{Channel: wsChannelOrderUpdates, Authenticated: true}}), "Unsubscribe must not error for orderUpdates")
 	sameBlock := nextBlock
 	sameBlock.OrderID, sameBlock.TradeID = 566617233809, 669583051366498
@@ -3295,7 +3294,7 @@ func TestRelayFills(t *testing.T) {
 	released, ok := receiveWebsocketData(t, rows).([]order.Detail)
 	require.True(t, ok, "relayFills must relay order updates")
 	require.Len(t, released, 2, "relayFills must relay the held fill and the new one")
-	assert.Equal(t, []string{"566617233808", "566617233809"}, []string{released[0].OrderID, released[1].OrderID}, "relayFills should relay the held fill, then the new one at once, once no rows come")
+	assert.Equal(t, []string{"566617233808", "566617233809"}, []string{released[0].OrderID, released[1].OrderID}, "relayFills should relay the held fill, then the new one at once, once no rows are awaited")
 
 	// A message's fills can span blocks, as a resubscription's snapshot does, so only a later block than all of them
 	// releases a held fill, which the row of a later status change of its order may still carry

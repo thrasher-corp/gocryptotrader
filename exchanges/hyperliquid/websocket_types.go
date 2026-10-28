@@ -256,7 +256,7 @@ type websocketOrder struct {
 	// held are the updates of fills that arrived before the order's first row, held until Hyperliquid has sent the rows of
 	// their block: the order's first row relays their trades, or they are relayed as they are
 	held []order.Detail
-	// heldSince is when the oldest held fill arrived
+	// heldSince is when the held fills began to wait: the first one's arrival, or the last release that kept some of them
 	heldSince time.Time
 }
 
