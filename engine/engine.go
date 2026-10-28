@@ -771,7 +771,7 @@ func (bot *Engine) UnloadExchange(exchName string) error {
 	}
 
 	if bot.WebsocketRoutineManager != nil {
-		bot.WebsocketRoutineManager.unregisterExchange(exchCfg.Name)
+		bot.WebsocketRoutineManager.unregisterExchange(exchName)
 	}
 
 	exchCfg.SetEnabled(false)

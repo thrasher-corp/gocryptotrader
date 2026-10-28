@@ -251,7 +251,10 @@ func (m *WebsocketRoutineManager) websocketDataReceiver(ctx context.Context, ws 
 		return errRoutineManagerNotStarted
 	}
 
-	receiverCtx, cancel := context.WithCancel(ctx)
+	// The receiver ignores ctx being cancelled: Engine.RequestShutdown cancels the runtime context before
+	// Engine.Stop stops the order manager, which still takes updates until then. Stop, unregisterExchange
+	// and a replacement registration cancel it instead.
+	receiverCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 
 	m.receiversMu.Lock()
 	if m.state.Load() == stoppedState {

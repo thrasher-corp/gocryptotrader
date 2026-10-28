@@ -17,11 +17,11 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bitfinex"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bitstamp"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 )
 
 // blockedCIExchanges are exchanges that are not able to be tested on CI
@@ -873,19 +873,77 @@ func TestSetupExchanges(t *testing.T) {
 	})
 }
 
+// refusedSubscriptionsBuilder builds the test exchange with a websocket that connects but has its
+// subscriptions refused, so Connect returns an error while the socket stays up
+type refusedSubscriptionsBuilder struct {
+	websocketTestExchangeBuilder
+}
+
+func (b *refusedSubscriptionsBuilder) NewExchangeByName(name string) (exchange.IBotExchange, error) {
+	exch, err := b.websocketTestExchangeBuilder.NewExchangeByName(name)
+	if err != nil {
+		return nil, err
+	}
+	ws, err := exch.GetWebsocket()
+	if err != nil {
+		return nil, err
+	}
+	ws.GenerateSubs = func() (subscription.List, error) {
+		return subscription.List{{Channel: subscription.TickerChannel}}, nil
+	}
+	ws.Subscriber = func(subscription.List) error { return errors.New("refused") }
+	return exch, nil
+}
+
+func TestLoadExchangeKeepsWebsocketAfterConnectError(t *testing.T) {
+	t.Parallel()
+	manager, err := setupWebsocketRoutineManager(NewExchangeManager(), &OrderManager{}, &SyncManager{}, &currency.Config{CurrencyPairFormat: &currency.PairFormat{}}, false)
+	require.NoError(t, err)
+	require.NoError(t, manager.Start(t.Context()))
+	t.Cleanup(func() { stopWebsocketRoutineManager(t, manager) })
+	received := make(chan any, 1)
+	require.NoError(t, manager.registerWebsocketDataHandler(func(_ string, data any) error {
+		received <- data
+		return nil
+	}, false))
+
+	e := &Engine{
+		ExchangeManager:         NewExchangeManager(),
+		Config:                  &config.Config{Exchanges: []config.Exchange{{Name: websocketTestExchangeName}}},
+		WebsocketRoutineManager: manager,
+		runtimeCtx:              t.Context(),
+	}
+	e.ExchangeManager.Builder = &refusedSubscriptionsBuilder{}
+	t.Cleanup(func() { _ = e.UnloadExchange(websocketTestExchangeName) })
+
+	require.NoError(t, e.LoadExchange(websocketTestExchangeName), "LoadExchange must not fail on a websocket connect error")
+	loaded, err := e.GetExchangeByName(websocketTestExchangeName)
+	require.NoError(t, err, "exchange must stay loaded after a websocket connect error")
+	ws, err := loaded.GetWebsocket()
+	require.NoError(t, err, "GetWebsocket must not error")
+	assert.True(t, ws.IsConnected(), "websocket should stay connected after a refused subscription")
+	require.NoError(t, ws.DataHandler.Send(t.Context(), "after connect error"))
+	select {
+	case data := <-received:
+		assert.Equal(t, "after connect error", data, "receiver should deliver after a connect error")
+	case <-time.After(time.Second):
+		require.FailNow(t, "receiver must stay registered after a connect error")
+	}
+}
+
 type websocketTestExchangeBuilder struct {
 	connects atomic.Int32
 }
 
 func (b *websocketTestExchangeBuilder) NewExchangeByName(name string) (exchange.IBotExchange, error) {
-	if name != websocketTestExchangeName {
+	if !strings.EqualFold(name, websocketTestExchangeName) {
 		return nil, fmt.Errorf("%s, %w", name, ErrExchangeNotFound)
 	}
-	ws, err := testWebsocketManager(name, &b.connects)
+	ws, err := testWebsocketManager(websocketTestExchangeName, &b.connects)
 	if err != nil {
 		return nil, err
 	}
-	return &websocketTestExchange{name: name, ws: ws, supportsWebsocket: true}, nil
+	return &websocketTestExchange{name: websocketTestExchangeName, ws: ws, supportsWebsocket: true}, nil
 }
 
 func TestLoadExchangeStartsWebsocketAfterRuntimeLoad(t *testing.T) {
@@ -893,11 +951,7 @@ func TestLoadExchangeStartsWebsocketAfterRuntimeLoad(t *testing.T) {
 	manager, err := setupWebsocketRoutineManager(NewExchangeManager(), &OrderManager{}, &SyncManager{}, &currency.Config{CurrencyPairFormat: &currency.PairFormat{}}, false)
 	require.NoError(t, err)
 	require.NoError(t, manager.Start(t.Context()))
-	t.Cleanup(func() {
-		if err := manager.Stop(); err != nil {
-			assert.ErrorIs(t, err, ErrSubSystemNotStarted, "Stop should only fail when already stopped")
-		}
-	})
+	t.Cleanup(func() { stopWebsocketRoutineManager(t, manager) })
 
 	received := make(chan any, 4)
 	require.NoError(t, manager.registerWebsocketDataHandler(func(_ string, data any) error {
@@ -944,9 +998,5 @@ func TestLoadExchangeStartsWebsocketAfterRuntimeLoad(t *testing.T) {
 	assert.NotSame(t, firstWS, secondWS, "reload should construct a new websocket")
 	assert.True(t, secondWS.IsConnected(), "reloaded websocket should connect")
 	assert.EqualValues(t, 2, builder.connects.Load(), "connector should be called for the replacement")
-	t.Cleanup(func() {
-		if err := reloaded.Shutdown(); err != nil {
-			assert.ErrorIs(t, err, websocket.ErrNotConnected, "reloaded websocket should shut down cleanly")
-		}
-	})
+	t.Cleanup(func() { assert.NoError(t, reloaded.Shutdown(), "reloaded websocket should shut down cleanly") })
 }
