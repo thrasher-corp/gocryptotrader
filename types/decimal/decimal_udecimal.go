@@ -175,14 +175,10 @@ func (d Decimal) Round(places int32) Decimal {
 	return Decimal{value: roundUdecimal(d.value, places)}
 }
 
-// Truncate removes fractional digits beyond precision without rounding.
+// Truncate removes digits beyond precision without rounding. Negative
+// precision truncates integer digits toward zero.
 func (d Decimal) Truncate(precision int32) Decimal {
-	// udecimal.Trunc accepts only unsigned precision, while Decimal.Truncate
-	// treats negative and out-of-range precision as no-ops.
-	if precision < 0 || precision >= maxPrecision {
-		return d
-	}
-	return Decimal{value: d.value.Trunc(uint8(precision))}
+	return Decimal{value: truncateUdecimal(d.value, precision)}
 }
 
 // Floor returns the greatest integer less than or equal to d.
