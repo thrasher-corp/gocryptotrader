@@ -115,3 +115,13 @@ func TestGetOldest(t *testing.T) {
 	k, _ := New(2).getOldest()
 	assert.Nil(t, k, "getOldest should return nil on an empty cache")
 }
+
+func TestAdd_MutexReleaseOnPanic(t *testing.T) {
+	t.Parallel()
+	lruCache := New(2)
+	require.Panics(t, func() { lruCache.Add([]int{1}, "val") }, "Add must panic on an unhashable key")
+	require.True(t, lruCache.m.TryLock(), "Add must release the mutex when it panics")
+	lruCache.m.Unlock()
+	lruCache.Add("key", "val")
+	assert.Equal(t, "val", lruCache.Get("key"), "Get should return the value added after the panic")
+}

@@ -26,21 +26,25 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 ```go
 package main
 
-import ("github.com/thrasher-corp/gocryptotrader/common/cache")
+import (
+	"fmt"
+
+	"github.com/thrasher-corp/gocryptotrader/common/cache"
+)
 
 func main() {
-    lruCache := cache.New(5)
-    lruCache.Add("hello", "world")
-    c := lruCache.Contains("hello")
-    if !c {
-        fmt.Println("expected cache to contain \"hello\" key")
-    }
+	lruCache := cache.New(5)
+	lruCache.Add("hello", "world")
+	c := lruCache.Contains("hello")
+	if !c {
+		fmt.Println("expected cache to contain \"hello\" key")
+	}
 
-    v := lruCache.Get("hello")
-    if v == nil {
-        fmt.Println("expected cache to contain \"hello\" key")
-    }
-    fmt.Println(v)
+	v := lruCache.Get("hello")
+	if v == nil {
+		fmt.Println("expected cache to contain \"hello\" key")
+	}
+	fmt.Println(v)
 }
 ```
 
