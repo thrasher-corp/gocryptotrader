@@ -770,6 +770,10 @@ func (bot *Engine) UnloadExchange(exchName string) error {
 		return err
 	}
 
+	if bot.WebsocketRoutineManager != nil {
+		bot.WebsocketRoutineManager.unregisterExchange(exchName)
+	}
+
 	exchCfg.SetEnabled(false)
 	return nil
 }
@@ -883,7 +887,16 @@ func (bot *Engine) LoadExchange(name string) error {
 		}
 	}
 
-	return exchange.Bootstrap(ctx, exch)
+	if err := exchange.Bootstrap(ctx, exch); err != nil {
+		return err
+	}
+
+	if bot.WebsocketRoutineManager != nil {
+		if err := bot.WebsocketRoutineManager.registerExchange(ctx, exch); err != nil {
+			gctlog.Errorf(gctlog.ExchangeSys, "%s unable to start websocket after runtime load: %v", exch.GetName(), err)
+		}
+	}
+	return nil
 }
 
 func validateAPICredentials(ctx context.Context, exchangeName string, enabledAssets asset.Items, validate func(context.Context, asset.Item) error) error {
