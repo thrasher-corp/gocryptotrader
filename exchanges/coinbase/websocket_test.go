@@ -156,7 +156,7 @@ func TestWebsocketHandleTickers(t *testing.T) {
 	ex := newWebsocketTestExchange(t)
 	conn, err := ex.Websocket.CreateTestConnection(websocketMarketDataConnection)
 	require.NoError(t, err, "CreateTestConnection must not error")
-	errs := replayWebsocketFixture(t, ex, conn, "wsPublic.json")
+	errs := replayWebsocketFixture(t, ex, conn, "wsPublic.jsonl")
 	require.Len(t, errs, 1, "replaying the public fixture must error only for its refused request")
 	assert.ErrorIs(t, errs[0], errWebsocketRequestRefused, "a refusal no request awaits should be reported")
 
@@ -221,7 +221,7 @@ func TestWebsocketHandleLevel2(t *testing.T) {
 	ex := newWebsocketTestExchange(t)
 	conn, err := ex.Websocket.CreateTestConnection(websocketMarketDataConnection)
 	require.NoError(t, err, "CreateTestConnection must not error")
-	require.Len(t, replayWebsocketFixture(t, ex, conn, "wsPublic.json"), 1, "replaying the public fixture must error only for its refused request")
+	require.Len(t, replayWebsocketFixture(t, ex, conn, "wsPublic.jsonl"), 1, "replaying the public fixture must error only for its refused request")
 
 	type book struct {
 		bids, asks  orderbook.Levels
@@ -383,7 +383,7 @@ func TestWebsocketHandleAccount(t *testing.T) {
 	ex.orderSizes.set("cccccccc-dddd-eeee-ffff-000000000000", 2, 0)
 	conn, err := ex.Websocket.CreateTestConnection(websocketUserConnection)
 	require.NoError(t, err, "CreateTestConnection must not error")
-	require.Empty(t, replayWebsocketFixture(t, ex, conn, "wsAccount.json"), "replaying the account fixture must not error")
+	require.Empty(t, replayWebsocketFixture(t, ex, conn, "wsAccount.jsonl"), "replaying the account fixture must not error")
 	_, ok := ex.orderSizes.get("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")
 	assert.False(t, ok, "the user channel should forget a closed order's size")
 

@@ -22,7 +22,7 @@ func TestWebsocketHandleDerivativesAccount(t *testing.T) {
 	ex.Websocket.Fills.Setup(true, ex.Websocket.DataHandler)
 	conn, err := ex.Websocket.CreateTestConnection(derivativesPrivateConnection)
 	require.NoError(t, err, "CreateTestConnection must not error")
-	require.Empty(t, replayDerivativesFixture(t, ex, conn, "wsDerivativesAccount.json"), "replaying the gateway's account fixture must not error")
+	require.Empty(t, replayDerivativesFixture(t, ex, conn, "wsDerivativesAccount.jsonl"), "replaying the gateway's account fixture must not error")
 
 	var gotOrders [][]order.Detail
 	var gotFills [][]fill.Data

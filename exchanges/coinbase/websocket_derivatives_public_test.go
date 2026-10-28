@@ -38,7 +38,7 @@ func TestWebsocketHandleDerivativesPublic(t *testing.T) {
 	ex := newWebsocketTestExchange(t)
 	conn, err := ex.Websocket.CreateTestConnection(derivativesStreamsConnection)
 	require.NoError(t, err, "CreateTestConnection must not error")
-	require.Empty(t, replayDerivativesFixture(t, ex, conn, "wsDerivativesPublic.json"), "replaying the gateway's public fixture must not error")
+	require.Empty(t, replayDerivativesFixture(t, ex, conn, "wsDerivativesPublic.jsonl"), "replaying the gateway's public fixture must not error")
 
 	tickers := map[currency.Pair]*ticker.Price{
 		testUSDCPerpetual: {
