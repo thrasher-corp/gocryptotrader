@@ -30,7 +30,7 @@ import (
 func TestWebsocketOrderUpdate(t *testing.T) {
 	t.Parallel()
 	ex := newWebsocketTestInstance(t)
-	testexch.FixtureToDataHandler(t, "testdata/wsMyOrders.json", func(ctx context.Context, b []byte) error { return ex.wsHandleData(ctx, nil, b) })
+	testexch.FixtureToDataHandler(t, "testdata/wsMyOrders.jsonl", func(ctx context.Context, b []byte) error { return ex.wsHandleData(ctx, nil, b) })
 	payloads := dataHandlerPayloads(t, ex)
 	require.Len(t, payloads, 8, "the data handler must receive an update for each order event")
 
