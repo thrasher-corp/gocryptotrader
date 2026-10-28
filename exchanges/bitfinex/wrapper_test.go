@@ -2,7 +2,6 @@ package bitfinex
 
 import (
 	"cmp"
-	"context"
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
@@ -2458,49 +2457,86 @@ func TestHistoryRequestsEndNoLaterThanNow(t *testing.T) {
 	}
 }
 
-func TestGetHistoricCandlesTwoWeeks(t *testing.T) {
-	t.Parallel()
-	// Bitfinex's 14D candles open on Thursdays, where GCT's two weeks open on Mondays, so two-week candles are made from
-	// weekly ones. These are Bitfinex's weekly candles for the six weeks from 31 August 2026, and the next, as its end is
-	// inclusive
-	var paths []string
+// newWeeklyCandlesExchange returns an exchange trading BTCUSD spot whose REST requests all receive Bitfinex's weekly
+// candles for the six weeks from 31 August 2026, and the next, as its end is inclusive, recording each request's path
+func newWeeklyCandlesExchange(t *testing.T, paths *[]string) *Exchange {
+	t.Helper()
 	ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		paths = append(paths, r.URL.Path)
+		*paths = append(*paths, r.URL.Path)
 		_, err := w.Write([]byte(`[[1788134400000,77683,80430,82320,76321,5293.42158328],[1788739200000,80450,76833,80542,76043,9418.91123549],[1789344000000,76881,81184,81922,74985,7700.72194816],[1789948800000,81184,84464,87392,80846,7312.9739249],[1790553600000,84451,86501,87197,82491,6971.19971307],[1791158400000,86504,83800,86969,80347,4323.98135151],[1791763200000,83777,82159,84378,79821,2889.43614902]]`))
 		assert.NoError(t, err, "Writing the response should not error")
 	}))
 	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{currency.NewBTCUSD()}, true), "StorePairs must not error")
+	return ex
+}
+
+// twoWeekCandlesFromWeekly returns the two-week candles newWeeklyCandlesExchange's weekly candles make from start, 31
+// August 2026
+func twoWeekCandlesFromWeekly(start time.Time) []kline.Candle {
+	return []kline.Candle{
+		{Time: start, Open: 77683, Close: 76833, High: 82320, Low: 76043, Volume: 14712.33281877},
+		{Time: start.AddDate(0, 0, 14), Open: 76881, Close: 84464, High: 87392, Low: 74985, Volume: 15013.69587306},
+		{Time: start.AddDate(0, 0, 28), Open: 84451, Close: 83800, High: 87197, Low: 80347, Volume: 11295.18106458},
+	}
+}
+
+func TestGetHistoricCandlesTwoWeeks(t *testing.T) {
+	t.Parallel()
+	// Bitfinex's 14D candles open on Thursdays, where GCT's two weeks open on Mondays, so two-week candles are made from
+	// weekly ones
+	var paths []string
+	ex := newWeeklyCandlesExchange(t, &paths)
 	start := time.Date(2026, 8, 31, 0, 0, 0, 0, time.UTC)
-	for name, getCandles := range map[string]func(context.Context, currency.Pair, asset.Item, kline.Interval, time.Time, time.Time) (*kline.Item, error){
-		"GetHistoricCandles":         ex.GetHistoricCandles,
-		"GetHistoricCandlesExtended": ex.GetHistoricCandlesExtended,
-	} {
-		paths = nil
-		item, err := getCandles(t.Context(), currency.NewBTCUSD(), asset.Spot, kline.TwoWeek, start, start.AddDate(0, 0, 42))
-		require.NoErrorf(t, err, "%s must not error", name)
-		assert.Equalf(t, []string{"/v2/candles/trade:1W:tBTCUSD/hist"}, paths, "%s should read weekly candles", name)
-		assert.Equalf(t, kline.TwoWeek, item.Interval, "%s should return two-week candles", name)
-		exp := []kline.Candle{
-			{Time: start, Open: 77683, Close: 76833, High: 82320, Low: 76043, Volume: 14712.33281877},
-			{Time: start.AddDate(0, 0, 14), Open: 76881, Close: 84464, High: 87392, Low: 74985, Volume: 15013.69587306},
-			{Time: start.AddDate(0, 0, 28), Open: 84451, Close: 83800, High: 87197, Low: 80347, Volume: 11295.18106458},
-		}
-		require.Lenf(t, item.Candles, len(exp), "%s must return each two weeks' candle", name)
-		for i := range exp {
-			assert.Truef(t, exp[i].Time.Equal(item.Candles[i].Time), "%s candle %d should open at %s, not %s", name, i, exp[i].Time, item.Candles[i].Time)
-			assert.InDeltaf(t, exp[i].Volume, item.Candles[i].Volume, 1e-8, "%s candle %d should total its weeks' volume", name, i)
-			exp[i].Time, exp[i].Volume = item.Candles[i].Time, item.Candles[i].Volume
-			assert.Equalf(t, exp[i], item.Candles[i], "%s candle %d should open with its first week, close with its second, and span both", name, i)
-		}
+	item, err := ex.GetHistoricCandles(t.Context(), currency.NewBTCUSD(), asset.Spot, kline.TwoWeek, start, start.AddDate(0, 0, 42))
+	require.NoError(t, err, "GetHistoricCandles must not error")
+	assert.Equal(t, []string{"/v2/candles/trade:1W:tBTCUSD/hist"}, paths, "GetHistoricCandles should read weekly candles")
+	assert.Equal(t, kline.TwoWeek, item.Interval, "GetHistoricCandles should return two-week candles")
+	exp := twoWeekCandlesFromWeekly(start)
+	require.Len(t, item.Candles, len(exp), "GetHistoricCandles must return each two weeks' candle")
+	for i := range exp {
+		assert.Truef(t, exp[i].Time.Equal(item.Candles[i].Time), "GetHistoricCandles candle %d should open at %s, not %s", i, exp[i].Time, item.Candles[i].Time)
+		assert.InDeltaf(t, exp[i].Volume, item.Candles[i].Volume, 1e-8, "GetHistoricCandles candle %d should total its weeks' volume", i)
+		exp[i].Time, exp[i].Volume = item.Candles[i].Time, item.Candles[i].Volume
+		assert.Equalf(t, exp[i], item.Candles[i], "GetHistoricCandles candle %d should open with its first week, close with its second, and span both", i)
 	}
 
-	// A request returns at most its limit of weekly candles, two to a two-week candle, which an extended request pages
+	// A request returns at most its limit of weekly candles, two to a two-week candle
 	ex.Features.Enabled.Kline.GlobalResultLimit = 5
 	paths = nil
-	_, err := ex.GetHistoricCandles(t.Context(), currency.NewBTCUSD(), asset.Spot, kline.TwoWeek, start, start.AddDate(0, 0, 42))
+	_, err = ex.GetHistoricCandles(t.Context(), currency.NewBTCUSD(), asset.Spot, kline.TwoWeek, start, start.AddDate(0, 0, 42))
 	assert.ErrorIs(t, err, kline.ErrRequestExceedsExchangeLimits, "GetHistoricCandles should refuse two-week candles needing more weekly ones than a request returns")
 	assert.Empty(t, paths, "GetHistoricCandles should send no request it cannot fill")
+
+	// The weekly candles' own limit applies, should it differ from the two-week candles'
+	ex.Features.Enabled.Kline.GlobalResultLimit = 10000
+	ex.Features.Enabled.Kline.Intervals = kline.DeployExchangeIntervals(kline.IntervalCapacity{Interval: kline.OneWeek, Capacity: 5}, kline.IntervalCapacity{Interval: kline.TwoWeek})
+	_, err = ex.GetHistoricCandles(t.Context(), currency.NewBTCUSD(), asset.Spot, kline.TwoWeek, start, start.AddDate(0, 0, 42))
+	assert.ErrorIs(t, err, kline.ErrRequestExceedsExchangeLimits, "GetHistoricCandles should refuse more weekly candles than their limit")
+	assert.Empty(t, paths, "GetHistoricCandles should send no request beyond the weekly candles' limit")
+}
+
+func TestGetHistoricCandlesExtendedTwoWeeks(t *testing.T) {
+	t.Parallel()
+	var paths []string
+	ex := newWeeklyCandlesExchange(t, &paths)
+	start := time.Date(2026, 8, 31, 0, 0, 0, 0, time.UTC)
 	item, err := ex.GetHistoricCandlesExtended(t.Context(), currency.NewBTCUSD(), asset.Spot, kline.TwoWeek, start, start.AddDate(0, 0, 42))
+	require.NoError(t, err, "GetHistoricCandlesExtended must not error")
+	assert.Equal(t, []string{"/v2/candles/trade:1W:tBTCUSD/hist"}, paths, "GetHistoricCandlesExtended should read weekly candles")
+	assert.Equal(t, kline.TwoWeek, item.Interval, "GetHistoricCandlesExtended should return two-week candles")
+	exp := twoWeekCandlesFromWeekly(start)
+	require.Len(t, item.Candles, len(exp), "GetHistoricCandlesExtended must return each two weeks' candle")
+	for i := range exp {
+		assert.Truef(t, exp[i].Time.Equal(item.Candles[i].Time), "GetHistoricCandlesExtended candle %d should open at %s, not %s", i, exp[i].Time, item.Candles[i].Time)
+		assert.InDeltaf(t, exp[i].Volume, item.Candles[i].Volume, 1e-8, "GetHistoricCandlesExtended candle %d should total its weeks' volume", i)
+		exp[i].Time, exp[i].Volume = item.Candles[i].Time, item.Candles[i].Volume
+		assert.Equalf(t, exp[i], item.Candles[i], "GetHistoricCandlesExtended candle %d should open with its first week, close with its second, and span both", i)
+	}
+
+	// A request returns at most its limit of weekly candles, two to a two-week candle, so they are paged
+	ex.Features.Enabled.Kline.GlobalResultLimit = 5
+	paths = nil
+	item, err = ex.GetHistoricCandlesExtended(t.Context(), currency.NewBTCUSD(), asset.Spot, kline.TwoWeek, start, start.AddDate(0, 0, 42))
 	require.NoError(t, err, "GetHistoricCandlesExtended must page the weekly candles")
 	assert.Len(t, paths, 2, "GetHistoricCandlesExtended should read the weekly candles over two requests")
 	assert.Len(t, item.Candles, 3, "GetHistoricCandlesExtended should return each two weeks' candle")
@@ -2509,11 +2545,92 @@ func TestGetHistoricCandlesTwoWeeks(t *testing.T) {
 	ex.Features.Enabled.Kline.GlobalResultLimit = 10000
 	ex.Features.Enabled.Kline.Intervals = kline.DeployExchangeIntervals(kline.IntervalCapacity{Interval: kline.OneWeek, Capacity: 5}, kline.IntervalCapacity{Interval: kline.TwoWeek})
 	paths = nil
-	_, err = ex.GetHistoricCandles(t.Context(), currency.NewBTCUSD(), asset.Spot, kline.TwoWeek, start, start.AddDate(0, 0, 42))
-	assert.ErrorIs(t, err, kline.ErrRequestExceedsExchangeLimits, "GetHistoricCandles should refuse more weekly candles than their limit")
 	_, err = ex.GetHistoricCandlesExtended(t.Context(), currency.NewBTCUSD(), asset.Spot, kline.TwoWeek, start, start.AddDate(0, 0, 42))
 	require.NoError(t, err, "GetHistoricCandlesExtended must page the weekly candles")
 	assert.Len(t, paths, 2, "GetHistoricCandlesExtended should page the weekly candles by their limit")
+}
+
+// currentTwoWeeksReplies returns the start of the current two weeks and replies in Bitfinex's format for their weekly
+// candles: the first week's alone, as before their second week trades, then both weeks'. Until their second week has a
+// candle, it is dropped as an empty partial candle, leaving one week, too few to make the two-week candle
+func currentTwoWeeksReplies() (start time.Time, firstWeek, bothWeeks string) {
+	start = time.Now().UTC().Truncate(kline.TwoWeek.Duration())
+	first := "[" + strconv.FormatInt(start.UnixMilli(), 10) + ",100,101,102,99,5]"
+	second := "[" + strconv.FormatInt(start.AddDate(0, 0, 7).UnixMilli(), 10) + ",101,103,104,98,3]"
+	return start, "[" + first + "]", "[" + first + "," + second + "]"
+}
+
+// skipIfTwoWeeksEnded skips a test whose request for the two weeks from start was made as or after they ended, when the
+// request could have fallen in the next two weeks
+func skipIfTwoWeeksEnded(t *testing.T, start time.Time) {
+	t.Helper()
+	if !time.Now().UTC().Truncate(kline.TwoWeek.Duration()).Equal(start) {
+		t.Skip("The current two weeks ended during the test, so its request could have fallen in the next two weeks")
+	}
+}
+
+func TestGetHistoricCandlesCurrentTwoWeeks(t *testing.T) {
+	t.Parallel()
+	start, firstWeek, bothWeeks := currentTwoWeeksReplies()
+	for _, tc := range []struct {
+		name  string
+		reply string
+		err   error
+	}{
+		{name: "first week has a candle", reply: firstWeek, err: kline.ErrInsufficientCandleData},
+		{name: "both weeks have a candle", reply: bothWeeks},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := newResponseServerExchange(t, tc.reply)
+			require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{currency.NewBTCUSD()}, true), "StorePairs must not error")
+			item, err := ex.GetHistoricCandles(t.Context(), currency.NewBTCUSD(), asset.Spot, kline.TwoWeek, start, start.Add(kline.TwoWeek.Duration()))
+			skipIfTwoWeeksEnded(t, start)
+			if tc.err != nil {
+				assert.ErrorIs(t, err, tc.err, "GetHistoricCandles should error with too few weeks for a two-week candle")
+				assert.Nil(t, item, "GetHistoricCandles should return no candles")
+				return
+			}
+			require.NoError(t, err, "GetHistoricCandles must not error")
+			require.Len(t, item.Candles, 1, "GetHistoricCandles must return the current two weeks' candle")
+			exp := kline.Candle{Time: start, Open: 100, High: 104, Low: 98, Close: 103, Volume: 8, ValidationIssues: kline.PartialCandle}
+			assert.Truef(t, exp.Time.Equal(item.Candles[0].Time), "GetHistoricCandles candle should open at %s, not %s", exp.Time, item.Candles[0].Time)
+			exp.Time = item.Candles[0].Time
+			assert.Equal(t, exp, item.Candles[0], "GetHistoricCandles should return the two weeks' candle, marked partial")
+		})
+	}
+}
+
+func TestGetHistoricCandlesExtendedCurrentTwoWeeks(t *testing.T) {
+	t.Parallel()
+	start, firstWeek, bothWeeks := currentTwoWeeksReplies()
+	for _, tc := range []struct {
+		name  string
+		reply string
+		err   error
+	}{
+		{name: "first week has a candle", reply: firstWeek, err: kline.ErrInsufficientCandleData},
+		{name: "both weeks have a candle", reply: bothWeeks},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := newResponseServerExchange(t, tc.reply)
+			require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{currency.NewBTCUSD()}, true), "StorePairs must not error")
+			item, err := ex.GetHistoricCandlesExtended(t.Context(), currency.NewBTCUSD(), asset.Spot, kline.TwoWeek, start, start.Add(kline.TwoWeek.Duration()))
+			skipIfTwoWeeksEnded(t, start)
+			if tc.err != nil {
+				assert.ErrorIs(t, err, tc.err, "GetHistoricCandlesExtended should error with too few weeks for a two-week candle")
+				assert.Nil(t, item, "GetHistoricCandlesExtended should return no candles")
+				return
+			}
+			require.NoError(t, err, "GetHistoricCandlesExtended must not error")
+			require.Len(t, item.Candles, 1, "GetHistoricCandlesExtended must return the current two weeks' candle")
+			exp := kline.Candle{Time: start, Open: 100, High: 104, Low: 98, Close: 103, Volume: 8, ValidationIssues: kline.PartialCandle}
+			assert.Truef(t, exp.Time.Equal(item.Candles[0].Time), "GetHistoricCandlesExtended candle should open at %s, not %s", exp.Time, item.Candles[0].Time)
+			exp.Time = item.Candles[0].Time
+			assert.Equal(t, exp, item.Candles[0], "GetHistoricCandlesExtended should return the two weeks' candle, marked partial")
+		})
+	}
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
