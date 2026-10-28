@@ -1443,8 +1443,8 @@ func TestGetHistoricCandles(t *testing.T) {
 	_, err := e.GetHistoricCandles(t.Context(), currency.EMPTYPAIR, asset.Spot, kline.FiveMin, time.Time{}, time.Time{})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	_, err = e.GetHistoricCandles(t.Context(), spotTradablePair, asset.Spot, kline.TenMin, startTime, endTime)
-	require.ErrorIs(t, err, kline.ErrUnsupportedInterval)
+	_, err = e.GetHistoricCandles(t.Context(), spotTradablePair, asset.Spot, kline.FifteenSecond, startTime, endTime)
+	require.ErrorIs(t, err, kline.ErrCannotConstructInterval, "an interval no spot interval builds must be refused")
 
 	_, err = e.GetHistoricCandles(t.Context(), spotTradablePair, asset.Spot, kline.FiveMin, endTime, startTime)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
@@ -1455,6 +1455,30 @@ func TestGetHistoricCandles(t *testing.T) {
 	for i := range result.Candles {
 		assert.NotZerof(t, result.Candles[i].Open, "candle %d should carry real data, not zero padding over a dropped interval", i)
 	}
+	dashed := currency.NewPairWithDelimiter(spotTradablePair.Base.String(), spotTradablePair.Quote.String(), currency.DashDelimiter)
+	fromDashed, err := e.GetHistoricCandles(t.Context(), dashed, asset.Spot, kline.FiveMin, startTime, endTime)
+	require.NoError(t, err, "GetHistoricCandles must not error for a dashed spot pair")
+	assert.Equal(t, result, fromDashed, "GetHistoricCandles should format a spot pair for the venue")
+
+	// Ten minute and two hour spot candles are built from the venue's five minute and hourly ones over the window widened to
+	// whole candles; the two hour window is moved back so that each of its candles has closed when run live
+	for _, tc := range []struct {
+		interval, source kline.Interval
+		start, end       time.Time
+	}{
+		{interval: kline.TenMin, source: kline.FiveMin, start: startTime, end: endTime},
+		{interval: kline.TwoHour, source: kline.OneHour, start: startTime.Add(-2 * time.Hour), end: endTime.Add(-2 * time.Hour)},
+	} {
+		req, err := e.GetKlineRequest(spotTradablePair, asset.Spot, tc.interval, tc.start, tc.end, false)
+		require.NoErrorf(t, err, "GetKlineRequest must not error for %s", tc.interval.Short())
+		source, err := e.GetHistoricCandles(t.Context(), spotTradablePair, asset.Spot, tc.source, req.Start, req.End)
+		require.NoErrorf(t, err, "GetHistoricCandles must not error for %s spot candles", tc.source.Short())
+		built, err := source.ConvertToNewInterval(tc.interval)
+		require.NoErrorf(t, err, "ConvertToNewInterval must not error for %s", tc.interval.Short())
+		result, err = e.GetHistoricCandles(t.Context(), spotTradablePair, asset.Spot, tc.interval, tc.start, tc.end)
+		require.NoErrorf(t, err, "GetHistoricCandles must build %s spot candles", tc.interval.Short())
+		assert.Equalf(t, built, result, "GetHistoricCandles should build %s spot candles", tc.interval.Short())
+	}
 
 	_, err = e.GetHistoricCandles(t.Context(), spotTradablePair, asset.Options, kline.FiveMin, startTime, endTime)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
@@ -1463,8 +1487,26 @@ func TestGetHistoricCandles(t *testing.T) {
 	require.ErrorIs(t, err, kline.ErrUnsupportedInterval, "the futures only eight hour interval must be refused for spot")
 
 	start, end := futuresWindow()
-	_, err = e.GetHistoricCandles(t.Context(), futuresTradablePair, asset.Futures, kline.TenMin, start, end)
-	require.ErrorIs(t, err, kline.ErrUnsupportedInterval)
+	_, err = e.GetHistoricCandles(t.Context(), futuresTradablePair, asset.Futures, kline.FifteenSecond, start, end)
+	require.ErrorIs(t, err, kline.ErrCannotConstructInterval, "an interval no futures interval builds must be refused")
+	// Ten minute and two hour candles are built from the venue's five minute and hourly ones, from the start of the candle a
+	// window starts in
+	for _, tc := range []struct{ interval, source kline.Interval }{{kline.TenMin, kline.FiveMin}, {kline.TwoHour, kline.OneHour}} {
+		source, err := e.GetHistoricCandles(t.Context(), futuresTradablePair, asset.Futures, tc.source, start, end)
+		require.NoErrorf(t, err, "GetHistoricCandles must not error for %s futures candles", tc.source.Short())
+		built, err := source.ConvertToNewInterval(tc.interval)
+		require.NoErrorf(t, err, "ConvertToNewInterval must not error for %s", tc.interval.Short())
+		for _, window := range [][2]time.Time{{start, end}, {start.Add(time.Minute), end.Add(-time.Minute)}} {
+			result, err = e.GetHistoricCandles(t.Context(), futuresTradablePair, asset.Futures, tc.interval, window[0], window[1])
+			require.NoErrorf(t, err, "GetHistoricCandles must build %s futures candles from %s to %s", tc.interval.Short(), window[0], window[1])
+			assert.Equalf(t, built, result, "GetHistoricCandles should build %s futures candles from %s to %s", tc.interval.Short(), window[0], window[1])
+		}
+	}
+	formatted, err := e.GetHistoricCandles(t.Context(), futuresTradablePair, asset.Futures, kline.OneHour, start, end)
+	require.NoError(t, err, "GetHistoricCandles must not error for futures candles")
+	result, err = e.GetHistoricCandles(t.Context(), currency.NewBTCUSDT(), asset.Futures, kline.OneHour, start, end)
+	require.NoError(t, err, "GetHistoricCandles must not error for an unformatted futures pair")
+	assert.Equal(t, formatted, result, "GetHistoricCandles should format a futures pair for the venue")
 	// A linear contract's volume is its contracts times their size, and an inverse contract's is its turnover
 	exp := map[currency.Pair]*kline.Item{
 		futuresTradablePair: {
@@ -1506,8 +1548,11 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	startTime, endTime := recentWindow()
-	_, err = e.GetHistoricCandlesExtended(t.Context(), spotTradablePair, asset.Spot, kline.TenMin, startTime, endTime)
-	require.ErrorIs(t, err, kline.ErrUnsupportedInterval)
+	_, err = e.GetHistoricCandlesExtended(t.Context(), spotTradablePair, asset.Spot, kline.FifteenSecond, startTime, endTime)
+	require.ErrorIs(t, err, kline.ErrCannotConstructInterval, "an interval no spot interval builds must be refused")
+
+	_, err = e.GetHistoricCandlesExtended(t.Context(), spotTradablePair, asset.Spot, kline.EightHour, startTime, endTime)
+	require.ErrorIs(t, err, kline.ErrUnsupportedInterval, "the futures only eight hour interval must be refused for spot")
 
 	_, err = e.GetHistoricCandlesExtended(t.Context(), spotTradablePair, asset.Options, kline.TenMin, startTime, endTime)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
@@ -1515,11 +1560,41 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	result, err := e.GetHistoricCandlesExtended(t.Context(), spotTradablePair, asset.Spot, kline.FiveMin, startTime, endTime)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
+	dashed := currency.NewPairWithDelimiter(spotTradablePair.Base.String(), spotTradablePair.Quote.String(), currency.DashDelimiter)
+	fromDashed, err := e.GetHistoricCandlesExtended(t.Context(), dashed, asset.Spot, kline.FiveMin, startTime, endTime)
+	require.NoError(t, err, "GetHistoricCandlesExtended must not error for a dashed spot pair")
+	assert.Equal(t, result.Candles, fromDashed.Candles, "GetHistoricCandlesExtended should format a spot pair for the venue")
+
+	for _, tc := range []struct {
+		interval   kline.Interval
+		start, end time.Time
+	}{
+		{interval: kline.TenMin, start: startTime, end: endTime},
+		{interval: kline.TwoHour, start: startTime.Add(-2 * time.Hour), end: endTime.Add(-2 * time.Hour)},
+	} {
+		regular, err := e.GetHistoricCandles(t.Context(), spotTradablePair, asset.Spot, tc.interval, tc.start, tc.end)
+		require.NoErrorf(t, err, "GetHistoricCandles must build %s spot candles", tc.interval.Short())
+		result, err = e.GetHistoricCandlesExtended(t.Context(), spotTradablePair, asset.Spot, tc.interval, tc.start, tc.end)
+		require.NoErrorf(t, err, "GetHistoricCandlesExtended must build %s spot candles", tc.interval.Short())
+		assert.Equalf(t, regular, result, "GetHistoricCandlesExtended should build the %s spot candles GetHistoricCandles does", tc.interval.Short())
+	}
 
 	_, err = e.GetHistoricCandlesExtended(t.Context(), spotTradablePair, asset.Options, kline.FiveMin, startTime, endTime)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	start, end := futuresWindow()
+	for _, interval := range []kline.Interval{kline.TenMin, kline.TwoHour} {
+		regular, err := e.GetHistoricCandles(t.Context(), futuresTradablePair, asset.Futures, interval, start, end)
+		require.NoErrorf(t, err, "GetHistoricCandles must build %s futures candles", interval.Short())
+		result, err = e.GetHistoricCandlesExtended(t.Context(), futuresTradablePair, asset.Futures, interval, start, end)
+		require.NoErrorf(t, err, "GetHistoricCandlesExtended must build %s futures candles", interval.Short())
+		assert.Equalf(t, regular, result, "GetHistoricCandlesExtended should build the %s futures candles GetHistoricCandles does", interval.Short())
+	}
+	hourly, err := e.GetHistoricCandles(t.Context(), futuresTradablePair, asset.Futures, kline.OneHour, start, end)
+	require.NoError(t, err, "GetHistoricCandles must not error for futures candles")
+	result, err = e.GetHistoricCandlesExtended(t.Context(), currency.NewBTCUSDT(), asset.Futures, kline.OneHour, start, end)
+	require.NoError(t, err, "GetHistoricCandlesExtended must not error for an unformatted futures pair")
+	assert.Equal(t, hourly.Candles, result.Candles, "GetHistoricCandlesExtended should format a futures pair for the venue")
 	result, err = e.GetHistoricCandlesExtended(t.Context(), futuresInversePair, asset.Futures, kline.OneHour, start, end)
 	require.NoError(t, err, "GetHistoricCandlesExtended must not error for futures")
 	if mockTests {

@@ -25,6 +25,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/types"
 	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
@@ -1626,16 +1627,247 @@ func TestChangePositionMargin(t *testing.T) {
 	}
 }
 
-func TestGetHistoricCandlesFuturesMalformed(t *testing.T) {
+type historicCandlesFailure struct {
+	name    string
+	handler func(*testing.T) http.HandlerFunc
+	// setup readies the exchange for the request, where it needs more than the test exchange holds
+	setup func(*testing.T, *Exchange)
+	pair  currency.Pair
+	a     asset.Item
+	err   error
+}
+
+func historicCandlesFailures() []historicCandlesFailure {
+	return []historicCandlesFailure{
+		{
+			name: "spot request refused",
+			handler: func(*testing.T) http.HandlerFunc {
+				return func(w http.ResponseWriter, _ *http.Request) {
+					http.Error(w, `{"msg":"Invalid symbol.","code":-1121,"_extend":null}`, http.StatusBadRequest)
+				}
+			},
+			pair: spotTradablePair,
+			a:    asset.Spot,
+			err:  request.ErrBadStatus,
+		},
+		{
+			name: "futures candle fields of unequal lengths",
+			handler: func(t *testing.T) http.HandlerFunc {
+				t.Helper()
+				return futuresHandler(t, futuresContractsRoute, futuresRoute{
+					method: http.MethodGet,
+					path:   "contract/kline/BTC_USDT",
+					data:   `{"time":[1792800000,1792803600],"open":[1],"close":[1,2],"high":[1,2],"low":[1,2],"vol":[1,2],"amount":[1,2]}`,
+				})
+			},
+			pair: futuresTradablePair,
+			a:    asset.Futures,
+			err:  errMalformedCandles,
+		},
+		{
+			name: "asset not handled",
+			handler: func(t *testing.T) http.HandlerFunc {
+				t.Helper()
+				return futuresHandler(t)
+			},
+			setup: func(t *testing.T, ex *Exchange) {
+				t.Helper()
+				require.NoError(t, ex.SetAssetPairStore(asset.Margin, currency.PairStore{
+					AssetEnabled:  true,
+					RequestFormat: &currency.PairFormat{Uppercase: true},
+					ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
+				}), "SetAssetPairStore must not error")
+				for _, enabled := range []bool{false, true} {
+					require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Margin, currency.Pairs{spotTradablePair}, enabled), "StorePairs must not error")
+				}
+			},
+			pair: spotTradablePair,
+			a:    asset.Margin,
+			err:  asset.ErrNotSupported,
+		},
+	}
+}
+
+func TestGetHistoricCandlesFailures(t *testing.T) {
 	t.Parallel()
-	ex := testExchangeFor(t, futuresHandler(t, futuresContractsRoute, futuresRoute{
+	for _, tc := range historicCandlesFailures() {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := testExchangeFor(t, tc.handler(t), liveUnavailable)
+			if tc.setup != nil {
+				tc.setup(t, ex)
+			}
+			start, end := futuresWindow()
+			_, err := ex.GetHistoricCandles(t.Context(), tc.pair, tc.a, kline.OneHour, start, end)
+			assert.ErrorIs(t, err, tc.err, "GetHistoricCandles should return why no candles were returned")
+		})
+	}
+}
+
+func TestGetHistoricCandlesExtendedFailures(t *testing.T) {
+	t.Parallel()
+	for _, tc := range historicCandlesFailures() {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := testExchangeFor(t, tc.handler(t), liveUnavailable)
+			if tc.setup != nil {
+				tc.setup(t, ex)
+			}
+			start, end := futuresWindow()
+			_, err := ex.GetHistoricCandlesExtended(t.Context(), tc.pair, tc.a, kline.OneHour, start, end)
+			assert.ErrorIs(t, err, tc.err, "GetHistoricCandlesExtended should return why no candles were returned")
+		})
+	}
+}
+
+func TestGetHistoricCandlesExtendedFuturesPages(t *testing.T) {
+	t.Parallel()
+	// The venue's replies, taken live, to futuresWindow's pages at four candles a request: a full page and a shorter last one
+	firstPage := futuresRoute{
 		method: http.MethodGet,
 		path:   "contract/kline/BTC_USDT",
-		data:   `{"time":[1792800000,1792803600],"open":[1],"close":[1,2],"high":[1,2],"low":[1,2],"vol":[1,2],"amount":[1,2]}`,
-	}), liveUnavailable)
+		query:  "end=1792814399&interval=Min60&start=1792800000",
+		data: `{"time":[1792800000,1792803600,1792807200,1792810800],"open":[81159.9,80588.3,80898.9,80963.4],` +
+			`"close":[80588.3,80898.9,80963.4,80943.9],"high":[81188.2,80935.0,80965.0,81068.6],` +
+			`"low":[80574.2,80586.4,80801.5,80811.0],"vol":[1.6499022E7,1.0006081E7,4030439.0,5675471.0],` +
+			`"amount":[1.3328937401748E8,8.081974471053E7,3.260778647078E7,4.592740441558E7],` +
+			`"realOpen":[81160.0,80588.3,80899.0,80963.5],"realClose":[80588.3,80898.9,80963.4,80943.9],` +
+			`"realHigh":[81188.2,80935.0,80965.0,81068.6],"realLow":[80574.2,80586.4,80801.5,80811.0]}`,
+	}
+	lastPage := futuresRoute{
+		method: http.MethodGet,
+		path:   "contract/kline/BTC_USDT",
+		query:  "end=1792821599&interval=Min60&start=1792814400",
+		data: `{"time":[1792814400,1792818000],"open":[80943.9,80857.2],"close":[80857.2,80732.4],"high":[81069.4,80859.8],` +
+			`"low":[80812.0,80681.7],"vol":[5345322.0,7363386.0],"amount":[4.32526066287E7,5.945572418861E7],` +
+			`"realOpen":[80943.9,80857.1],"realClose":[80857.2,80732.4],"realHigh":[81069.4,80859.8],` +
+			`"realLow":[80812.0,80681.7]}`,
+	}
+	ex := testExchangeFor(t, futuresHandler(t, futuresContractsRoute, firstPage, lastPage), liveUnavailable)
+	ex.Features.Enabled.Kline.GlobalResultLimit = 4
 	start, end := futuresWindow()
-	_, err := ex.GetHistoricCandles(t.Context(), futuresTradablePair, asset.Futures, kline.OneHour, start, end)
-	assert.ErrorIs(t, err, errMalformedCandles, "candle fields of unequal lengths should be refused")
+	exp, err := e.GetHistoricCandles(t.Context(), futuresTradablePair, asset.Futures, kline.OneHour, start, end)
+	require.NoError(t, err, "GetHistoricCandles must not error")
+	result, err := ex.GetHistoricCandlesExtended(t.Context(), futuresTradablePair, asset.Futures, kline.OneHour, start, end)
+	require.NoError(t, err, "GetHistoricCandlesExtended must request each page of the window")
+	assert.Equal(t, exp.Candles, result.Candles, "GetHistoricCandlesExtended should return the candles of every page")
+
+	serveFirstPage := futuresHandler(t, futuresContractsRoute, firstPage)
+	refused := testExchangeFor(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/v1/"+lastPage.path && r.URL.RawQuery == lastPage.query {
+			_, _ = w.Write([]byte(`{"success":false,"code":510,"message":"Requests are too frequent, please try again later"}`))
+			return
+		}
+		serveFirstPage(w, r)
+	}, liveUnavailable)
+	refused.Features.Enabled.Kline.GlobalResultLimit = 4
+	_, err = refused.GetHistoricCandlesExtended(t.Context(), futuresTradablePair, asset.Futures, kline.OneHour, start, end)
+	assert.ErrorIs(t, err, errFuturesRequestFailed, "GetHistoricCandlesExtended should return a later page's refusal rather than zero candles")
+
+	emptyFirstPage := firstPage
+	emptyFirstPage.data = futuresNoCandlesReply
+	gap := testExchangeFor(t, futuresHandler(t, futuresContractsRoute, emptyFirstPage, lastPage), liveUnavailable)
+	gap.Features.Enabled.Kline.GlobalResultLimit = 4
+	result, err = gap.GetHistoricCandlesExtended(t.Context(), futuresTradablePair, asset.Futures, kline.OneHour, start, end)
+	require.NoError(t, err, "GetHistoricCandlesExtended must request a later page after a page without candles")
+	require.Len(t, result.Candles, len(exp.Candles), "GetHistoricCandlesExtended must return as many candles as the window has hours")
+	assert.Equal(t, exp.Candles[4:], result.Candles[4:], "GetHistoricCandlesExtended should return a later page's candles after a page without any")
+}
+
+// futuresNoCandlesReply is the venue's candle data for a window without candles
+const futuresNoCandlesReply = `{"time":[],"open":[],"close":[],"high":[],"low":[],"vol":[],"amount":[],"realOpen":[],"realClose":[],` +
+	`"realHigh":[],"realLow":[]}`
+
+// candleSource is an interval the venue doesn't serve and the venue's name for the interval its candles are built from
+type candleSource struct {
+	a        asset.Item
+	pair     currency.Pair
+	interval kline.Interval
+	source   string
+}
+
+func candleSources() []candleSource {
+	return []candleSource{
+		{a: asset.Spot, pair: spotTradablePair, interval: kline.ThreeMin, source: "1m"},
+		{a: asset.Spot, pair: spotTradablePair, interval: kline.TenMin, source: "5m"},
+		{a: asset.Spot, pair: spotTradablePair, interval: kline.TwoHour, source: "60m"},
+		{a: asset.Spot, pair: spotTradablePair, interval: kline.TwelveHour, source: "4h"},
+		{a: asset.Spot, pair: spotTradablePair, interval: kline.ThreeDay, source: "1d"},
+		{a: asset.Spot, pair: spotTradablePair, interval: kline.TwoWeek, source: "1W"},
+		{a: asset.Spot, pair: spotTradablePair, interval: kline.ThreeMonth, source: "1M"},
+		{a: asset.Futures, pair: futuresTradablePair, interval: kline.ThreeMin, source: "Min1"},
+		{a: asset.Futures, pair: futuresTradablePair, interval: kline.TenMin, source: "Min5"},
+		{a: asset.Futures, pair: futuresTradablePair, interval: kline.TwoHour, source: "Min60"},
+		{a: asset.Futures, pair: futuresTradablePair, interval: kline.TwelveHour, source: "Hour4"},
+		{a: asset.Futures, pair: futuresTradablePair, interval: kline.ThreeDay, source: "Day1"},
+		{a: asset.Futures, pair: futuresTradablePair, interval: kline.TwoWeek, source: "Week1"},
+		{a: asset.Futures, pair: futuresTradablePair, interval: kline.ThreeMonth, source: "Month1"},
+	}
+}
+
+// candleIntervals records the interval each candle request asks for, serving the venue's replies for a window without
+// candles so that no interval needs recorded candles
+type candleIntervals struct {
+	mu        sync.Mutex
+	requested []string
+}
+
+func (c *candleIntervals) handler(t *testing.T) http.HandlerFunc {
+	t.Helper()
+	serveContracts := futuresHandler(t, futuresContractsRoute)
+	return func(w http.ResponseWriter, r *http.Request) {
+		var reply string
+		switch r.URL.Path {
+		case "/api/v3/klines":
+			reply = `[]`
+		case "/api/v1/contract/kline/BTC_USDT":
+			reply = `{"success":true,"code":0,"data":` + futuresNoCandlesReply + `}`
+		default:
+			serveContracts(w, r)
+			return
+		}
+		c.mu.Lock()
+		c.requested = append(c.requested, r.URL.Query().Get("interval"))
+		c.mu.Unlock()
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(reply))
+	}
+}
+
+func (c *candleIntervals) intervals() []string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.requested
+}
+
+func TestGetHistoricCandlesSourceIntervals(t *testing.T) {
+	t.Parallel()
+	for _, tc := range candleSources() {
+		t.Run(tc.a.String()+" "+tc.interval.Word(), func(t *testing.T) {
+			t.Parallel()
+			var venue candleIntervals
+			ex := testExchangeFor(t, venue.handler(t), liveUnavailable)
+			start, end := futuresWindow()
+			_, err := ex.GetHistoricCandles(t.Context(), tc.pair, tc.a, tc.interval, start, end)
+			require.ErrorIs(t, err, kline.ErrNoTimeSeriesDataToConvert, "GetHistoricCandles must return that the venue sent no candles")
+			assert.Equal(t, []string{tc.source}, venue.intervals(), "GetHistoricCandles should request the interval the candles are built from")
+		})
+	}
+}
+
+func TestGetHistoricCandlesExtendedSourceIntervals(t *testing.T) {
+	t.Parallel()
+	for _, tc := range candleSources() {
+		t.Run(tc.a.String()+" "+tc.interval.Word(), func(t *testing.T) {
+			t.Parallel()
+			var venue candleIntervals
+			ex := testExchangeFor(t, venue.handler(t), liveUnavailable)
+			start, end := futuresWindow()
+			_, err := ex.GetHistoricCandlesExtended(t.Context(), tc.pair, tc.a, tc.interval, start, end)
+			require.ErrorIs(t, err, kline.ErrNoTimeSeriesDataToConvert, "GetHistoricCandlesExtended must return that the venue sent no candles")
+			assert.Equal(t, []string{tc.source}, venue.intervals(), "GetHistoricCandlesExtended should request the interval the candles are built from")
+		})
+	}
 }
 
 func TestFuturesCapabilities(t *testing.T) {

@@ -2024,26 +2024,7 @@ func candlesFromCandlestick(result []*CandlestickData) []kline.Candle {
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	if a == asset.Futures {
-		fPair, err := e.FormatExchangeCurrency(pair, a)
-		if err != nil {
-			return nil, err
-		}
-		req, err := e.GetKlineRequest(fPair, a, interval, start, end, false)
-		if err != nil {
-			return nil, err
-		}
-		candles, err := e.futuresCandles(ctx, fPair, interval, req.Start, req.End)
-		if err != nil {
-			return nil, err
-		}
-		return req.ProcessResponse(candles)
-	}
-	intervalString, err := intervalToString(interval)
-	if err != nil {
-		return nil, err
-	}
-	pair, err = e.FormatExchangeCurrency(pair, a)
+	pair, err := e.FormatExchangeCurrency(pair, a)
 	if err != nil {
 		return nil, err
 	}
@@ -2053,6 +2034,10 @@ func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 	}
 	switch a {
 	case asset.Spot:
+		intervalString, err := intervalToString(req.ExchangeInterval)
+		if err != nil {
+			return nil, err
+		}
 		// Pass the request's aligned window: MEXC's klines endpoint drops a partially elapsed candle,
 		// so a start that is not on an interval boundary loses the first candle and ProcessResponse
 		// pads the gap with an all-zero candle indistinguishable from real data.
@@ -2061,6 +2046,12 @@ func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 			return nil, err
 		}
 		return req.ProcessResponse(candlesFromCandlestick(result))
+	case asset.Futures:
+		candles, err := e.futuresCandles(ctx, pair, req.ExchangeInterval, req.Start, req.End)
+		if err != nil {
+			return nil, err
+		}
+		return req.ProcessResponse(candles)
 	default:
 		return nil, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, a)
 	}
@@ -2078,7 +2069,7 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 	}
 	switch a {
 	case asset.Spot:
-		intervalString, err := intervalToString(interval)
+		intervalString, err := intervalToString(req.ExchangeInterval)
 		if err != nil {
 			return nil, err
 		}
@@ -2101,7 +2092,7 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 	case asset.Futures:
 		timeSeries := make([]kline.Candle, 0, req.Size())
 		for x := range req.RangeHolder.Ranges {
-			candles, err := e.futuresCandles(ctx, pair.Format(pFormat), interval, req.RangeHolder.Ranges[x].Start.Time, req.RangeHolder.Ranges[x].End.Time)
+			candles, err := e.futuresCandles(ctx, pair.Format(pFormat), req.ExchangeInterval, req.RangeHolder.Ranges[x].Start.Time, req.RangeHolder.Ranges[x].End.Time)
 			if err != nil {
 				return nil, err
 			}
