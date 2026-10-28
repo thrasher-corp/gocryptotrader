@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	reflects "reflect"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -1202,6 +1203,8 @@ func TestFiatHistoryForwardsOrderID(t *testing.T) {
 
 func TestFiatHistoryEndTimeAndNilParams(t *testing.T) {
 	t.Parallel()
+	start, past, future := time.Now().Add(-48*time.Hour), time.Now().Add(-time.Hour), time.Now().Add(time.Hour)
+	startMilli, pastMilli := strconv.FormatInt(start.UnixMilli(), 10), strconv.FormatInt(past.UnixMilli(), 10)
 	for _, tc := range []struct {
 		name    string
 		history func(*Exchange, context.Context, *FiatWithdrawalRequestParams) (FiatAssetsHistory, error)
@@ -1209,24 +1212,47 @@ func TestFiatHistoryEndTimeAndNilParams(t *testing.T) {
 		{name: "withdrawal", history: (*Exchange).FiatWithdrawalHistory},
 		{name: "deposit", history: (*Exchange).FiatDepositHistory},
 	} {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name+" nil params", func(t *testing.T) {
 			t.Parallel()
 			ex := new(Exchange)
 			require.NoError(t, testexch.Setup(ex), "Setup must not error")
 			_, err := tc.history(ex, t.Context(), nil)
 			require.ErrorIs(t, err, common.ErrNilPointer, "nil params must return ErrNilPointer")
-			ex.SkipAuthCheck = true
-			ex.SetCredentials(&accounts.Credentials{Key: "test-key", Secret: "test-secret"})
-			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				assert.True(t, r.URL.Query().Has("endTime"), "a past endTime should be sent")
-				_, err := w.Write([]byte(`{"assetLogRecordList":[]}`))
-				assert.NoError(t, err, "writing the response should not error")
-			}))
-			require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
-			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpotSupplementary.String(), server.URL), "SetRunningURL must not error")
-			_, err = tc.history(ex, t.Context(), &FiatWithdrawalRequestParams{EndTime: time.Now().Add(-time.Hour)})
-			require.NoError(t, err, "fiat history request must not error")
 		})
+		for _, row := range []struct {
+			name      string
+			params    FiatWithdrawalRequestParams
+			startTime []string
+			endTime   []string
+		}{
+			{name: "no times"},
+			{name: "past endTime", params: FiatWithdrawalRequestParams{EndTime: past}, endTime: []string{pastMilli}},
+			{name: "future endTime", params: FiatWithdrawalRequestParams{EndTime: future}},
+			{name: "past startTime", params: FiatWithdrawalRequestParams{StartTime: start}, startTime: []string{startMilli}},
+			{name: "past startTime and past endTime", params: FiatWithdrawalRequestParams{StartTime: start, EndTime: past}, startTime: []string{startMilli}, endTime: []string{pastMilli}},
+			{name: "past startTime and future endTime", params: FiatWithdrawalRequestParams{StartTime: start, EndTime: future}, startTime: []string{startMilli}},
+		} {
+			t.Run(tc.name+" "+row.name, func(t *testing.T) {
+				t.Parallel()
+				ex := new(Exchange)
+				require.NoError(t, testexch.Setup(ex), "Setup must not error")
+				ex.SkipAuthCheck = true
+				ex.SetCredentials(&accounts.Credentials{Key: "test-key", Secret: "test-secret"})
+				var requests atomic.Int64
+				server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					requests.Add(1)
+					assert.Equal(t, row.startTime, r.URL.Query()["startTime"], "startTime should match the expected values")
+					assert.Equal(t, row.endTime, r.URL.Query()["endTime"], "endTime should match the expected values")
+					_, err := w.Write([]byte(`{"assetLogRecordList":[]}`))
+					assert.NoError(t, err, "writing the response should not error")
+				}))
+				require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+				require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpotSupplementary.String(), server.URL), "SetRunningURL must not error")
+				_, err := tc.history(ex, t.Context(), &row.params)
+				require.NoError(t, err, "fiat history request must not error")
+				assert.Equal(t, int64(1), requests.Load(), "exactly one request should reach the server")
+			})
+		}
 	}
 }
 
