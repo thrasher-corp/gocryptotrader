@@ -163,7 +163,8 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 	incomingScale := max(m.Amount, m.RemainingAmount, m.ExecutedAmount)
 	executionTolerance := 2 * ((math.Nextafter(storedScale, math.Inf(1)) - storedScale) +
 		(math.Nextafter(incomingScale, math.Inf(1)) - incomingScale))
-	executionAdvanced := m.ExecutedAmount > d.ExecutedAmount
+	// Rounding-sized increases must not let a pre-amendment snapshot overwrite a terminal order.
+	executionAdvanced := m.ExecutedAmount > d.ExecutedAmount+executionTolerance
 	terminal := d.Status != UnknownStatus && d.Status.IsInactive() && d.Status != Cancelling && d.Status != AnyStatus
 	incomingTerminal := m.Status != UnknownStatus && m.Status.IsInactive() && m.Status != Cancelling && m.Status != AnyStatus
 	if (m.ExecutedAmount > 0 && m.ExecutedAmount < d.ExecutedAmount-executionTolerance) ||

@@ -24,6 +24,8 @@ func TestUpdateOrderFromDetailDerivedExecution(t *testing.T) {
 		{"amended well down", 4.2, 4.1, 0.9, 0.8, false, false},
 		{"modified well down", 16.1, 15.2, 1, 0.1, true, false},
 		{"modified up", 0.2, 0.1, 0.3, 0.2, true, true},
+		{"amended down, earlier execution rounds higher", 12.21, 8.87, 9.79, 6.45, false, false},
+		{"amended down a thousandfold", 1000, 999.9, 1, 0.9, false, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -39,6 +41,8 @@ func TestUpdateOrderFromDetailDerivedExecution(t *testing.T) {
 				}
 				assert.Equal(t, original, update, "rounding adjustment should not mutate the incoming order")
 			}
+			stale := Detail{Amount: tc.amount, ExecutedAmount: tc.amount - tc.left, RemainingAmount: tc.left, Status: PartiallyFilled}
+			require.NoError(t, stored.UpdateOrderFromDetail(&stale), "snapshot from before the amendment must not error")
 			assert.Equal(t, Cancelled, stored.Status, "cancellation should finish the amended order")
 			assert.Equal(t, tc.amended, stored.Amount, "amendment should replace the amount")
 			assert.Equal(t, tc.amendedLeft, stored.RemainingAmount, "amendment should replace the remaining quantity")
@@ -132,8 +136,13 @@ func TestUpdateOrderFromDetailMixedClocks(t *testing.T) {
 	for _, filled := range []float64{1e-12, 0.1, 1e12} {
 		progress := Detail{ExecutedAmount: filled, Amount: filled * 2, Status: Cancelled}
 		next := math.Nextafter(filled, math.Inf(1))
+		require.NoError(t, progress.UpdateOrderFromDetail(&Detail{ExecutedAmount: next, Status: PartiallyFilled}), "one-step execution increase after cancellation must not error")
+		assert.Equal(t, filled, progress.ExecutedAmount, "one representable step after cancellation should count as float rounding")
+		for range 128 {
+			next = math.Nextafter(next, math.Inf(1))
+		}
 		require.NoError(t, progress.UpdateOrderFromDetail(&Detail{ExecutedAmount: next, Status: PartiallyFilled}), "small positive progress must merge")
-		assert.Equal(t, next, progress.ExecutedAmount, "even one representable step of positive execution should be retained")
+		assert.Equal(t, next, progress.ExecutedAmount, "positive execution beyond float rounding should be retained")
 		assert.Equal(t, Cancelled, progress.Status, "small positive progress should not reopen the order")
 		stored := Detail{ExecutedAmount: filled, Amount: filled * 2, Status: PartiallyFilled}
 		before := stored.Copy()
