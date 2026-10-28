@@ -536,7 +536,7 @@ func (s *Storage) SeedForeignExchangeRate(from, to Code) (map[string]float64, er
 // GetDefaultForeignExchangeRates returns foreign exchange rates based off
 // default fiat currencies.
 func (s *Storage) GetDefaultForeignExchangeRates() (Conversions, error) {
-	if !s.updaterRunning.Load() {
+	if !s.updaterRunning.Load() || !s.fxRates.HasData() {
 		err := s.SeedDefaultForeignExchangeRates()
 		if err != nil {
 			return nil, err
@@ -563,7 +563,7 @@ func (s *Storage) SeedDefaultForeignExchangeRates() error {
 
 // GetExchangeRates returns storage seeded exchange rates
 func (s *Storage) GetExchangeRates() (Conversions, error) {
-	if !s.updaterRunning.Load() {
+	if !s.updaterRunning.Load() || !s.fxRates.HasData() {
 		err := s.SeedForeignExchangeRates()
 		if err != nil {
 			return nil, err
@@ -781,20 +781,5 @@ func (s *Storage) Shutdown() error {
 	close(s.shutdown)
 	s.wg.Wait()
 	s.shutdown = nil
-	s.updaterRunning.Store(false)
-	if s.path == "" {
-		return nil
-	}
 	return s.WriteCurrencyDataToFile(s.path, true)
 }
-
-// IsUpdaterRunning returns whether the foreign exchange updater is currently running
-func (s *Storage) IsUpdaterRunning() bool {
-	return s.updaterRunning.Load()
-}
-
-// IsUpdaterRunning returns whether the storage foreign exchange updater is currently running
-func IsUpdaterRunning() bool {
-	return storage.IsUpdaterRunning()
-}
-

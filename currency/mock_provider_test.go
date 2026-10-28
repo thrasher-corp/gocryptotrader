@@ -1,6 +1,7 @@
 package currency
 
 import (
+	"errors"
 	"math/rand/v2"
 	"strings"
 	"sync/atomic"
@@ -8,6 +9,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider"
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
 )
+
+var errCountingMockProvider = errors.New("counting mock provider error")
 
 type MockProvider struct{}
 
@@ -41,6 +44,7 @@ func (m *MockProvider) GetRates(baseCurrency, symbols string) (map[string]float6
 
 type CountingMockProvider struct {
 	calls atomic.Int64
+	fail  atomic.Bool
 }
 
 func newCountingMockProvider() (*forexprovider.ForexProviders, *CountingMockProvider) {
@@ -62,11 +66,14 @@ func (c *CountingMockProvider) GetSupportedCurrencies() ([]string, error) {
 }
 
 func (c *CountingMockProvider) GetRates(baseCurrency, symbols string) (map[string]float64, error) {
-	c.calls.Add(1)
+	call := c.calls.Add(1)
+	if c.fail.Load() {
+		return nil, errCountingMockProvider
+	}
 	res := map[string]float64{}
 	for s := range strings.SplitSeq(symbols, ",") {
-		res[baseCurrency+s] = 1.25
+		// A new rate on every call shows when the cache was refreshed
+		res[baseCurrency+s] = float64(call)
 	}
 	return res, nil
 }
-
