@@ -3073,7 +3073,8 @@ func TestCancelOrderUntyped(t *testing.T) {
 			}}
 			exp := map[string]string{"1": "CANCELED", "3000000123": tc.status}
 			if tc.status == "" {
-				steps = append(steps,
+				steps = append(
+					steps,
 					cancelStep{http.MethodGet, "/fapi/v1/algoOrder", map[string]string{"algoId": "3000000123"}, algo("BTCUSDT", 3000000123)},
 					cancelStep{http.MethodDelete, "/fapi/v1/algoOrder", map[string]string{"algoId": "3000000123"}, algoCancelled},
 				)
@@ -6829,7 +6830,7 @@ func TestRemainingAmountAndAveragePrice(t *testing.T) {
 
 func TestOrderSideString(t *testing.T) {
 	t.Parallel()
-	for side, exp := range map[order.Side]string{
+	for side, exp := range map[order.Side]Side{
 		order.Buy: "BUY", order.Bid: "BUY", order.Long: "BUY", order.Sell: "SELL", order.Ask: "SELL", order.Short: "SELL",
 	} {
 		got, err := orderSideString(side)
@@ -6845,7 +6846,7 @@ func TestSpotOrderTypeString(t *testing.T) {
 	for _, tc := range []struct {
 		orderType order.Type
 		tif       order.TimeInForce
-		exp       string
+		exp       OrderType
 	}{
 		{order.Limit, order.GoodTillCancel, "LIMIT"},
 		{order.Limit, order.PostOnly, "LIMIT_MAKER"},
@@ -6869,7 +6870,7 @@ func TestSpotOrderTypeString(t *testing.T) {
 
 func TestStringToSpotOrderType(t *testing.T) {
 	t.Parallel()
-	for in, exp := range map[string]order.Type{
+	for in, exp := range map[OrderType]order.Type{
 		"LIMIT": order.Limit, "MARKET": order.Market, "STOP_LOSS": order.StopMarket, "STOP_LOSS_LIMIT": order.StopLimit,
 		"TAKE_PROFIT": order.TakeProfitMarket, "TAKE_PROFIT_LIMIT": order.TakeProfitLimit, "LIMIT_MAKER": order.LimitMaker,
 	} {
@@ -6888,7 +6889,7 @@ func TestStringToSpotOrderType(t *testing.T) {
 
 func TestFuturesOrderTypeString(t *testing.T) {
 	t.Parallel()
-	for in, exp := range map[order.Type]string{
+	for in, exp := range map[order.Type]OrderType{
 		order.Limit: "LIMIT", order.Market: "MARKET", order.StopLimit: "STOP", order.StopMarket: "STOP_MARKET",
 		order.TakeProfitLimit: "TAKE_PROFIT", order.TakeProfitMarket: "TAKE_PROFIT_MARKET", order.TrailingStop: "TRAILING_STOP_MARKET",
 	} {
@@ -6991,7 +6992,7 @@ func TestTimeInForceString(t *testing.T) {
 	for _, tc := range []struct {
 		a   asset.Item
 		tif order.TimeInForce
-		exp string
+		exp TimeInForce
 		err error
 	}{
 		{asset.Spot, order.UnknownTIF, "GTC", nil},
@@ -7022,7 +7023,7 @@ func TestWorkingTypeString(t *testing.T) {
 	assert.Empty(t, got, "workingTypeString should leave the contract price, Binance's default, unsent")
 	got, err = workingTypeString(order.MarkPrice)
 	require.NoError(t, err, "workingTypeString must not error for the mark price")
-	assert.Equal(t, "MARK_PRICE", got, "workingTypeString should convert the mark price")
+	assert.Equal(t, WorkingTypeMarkPrice, got, "workingTypeString should convert the mark price")
 	_, err = workingTypeString(order.IndexPrice)
 	assert.ErrorIs(t, err, order.ErrUnknownPriceType, "workingTypeString should reject the index price")
 }
@@ -7190,9 +7191,9 @@ func TestNewSpotOneCancelsTheOtherLegs(t *testing.T) {
 func TestMarginSideEffect(t *testing.T) {
 	t.Parallel()
 	assert.Empty(t, marginSideEffect(&order.Submit{}), "marginSideEffect should send no side effect by default")
-	assert.Equal(t, "MARGIN_BUY", marginSideEffect(&order.Submit{AutoBorrow: true}), "marginSideEffect should borrow")
-	assert.Equal(t, "AUTO_REPAY", marginSideEffect(&order.Submit{AutoRepay: true}), "marginSideEffect should repay")
-	assert.Equal(t, "AUTO_BORROW_REPAY", marginSideEffect(&order.Submit{AutoBorrow: true, AutoRepay: true}), "marginSideEffect should borrow and repay")
+	assert.Equal(t, SideEffectTypeMarginBuy, marginSideEffect(&order.Submit{AutoBorrow: true}), "marginSideEffect should borrow")
+	assert.Equal(t, SideEffectTypeAutoRepay, marginSideEffect(&order.Submit{AutoRepay: true}), "marginSideEffect should repay")
+	assert.Equal(t, SideEffectTypeAutoBorrowRepay, marginSideEffect(&order.Submit{AutoBorrow: true, AutoRepay: true}), "marginSideEffect should borrow and repay")
 }
 
 func TestFuturesPositionSide(t *testing.T) {
@@ -7208,7 +7209,7 @@ func TestFuturesPositionSide(t *testing.T) {
 			for _, tc := range []struct {
 				side           order.Side
 				reduceOnly     bool
-				hedgedSide     string
+				hedgedSide     PositionSide
 				reduceOnlySent bool
 			}{
 				{side: order.Buy, reduceOnly: true, reduceOnlySent: true},
@@ -7220,7 +7221,8 @@ func TestFuturesPositionSide(t *testing.T) {
 			} {
 				positionSide, reduceOnly, err := ex.futuresPositionSide(t.Context(), &order.Submit{Side: tc.side, ReduceOnly: tc.reduceOnly})
 				require.NoErrorf(t, err, "futuresPositionSide must not error for %s reduce only %t", tc.side, tc.reduceOnly)
-				expSide, expReduceOnly := "", tc.reduceOnlySent
+				var expSide PositionSide
+				expReduceOnly := tc.reduceOnlySent
 				if hedgeMode && tc.hedgedSide != "" {
 					expSide, expReduceOnly = tc.hedgedSide, false
 				}
@@ -7351,7 +7353,7 @@ func TestFuturesPositionModeLookups(t *testing.T) {
 		wg.Go(func() {
 			side, _, err := ex.futuresPositionSide(hedgeCtx, &order.Submit{Side: order.Long})
 			assert.NoError(t, err, "futuresPositionSide should not error")
-			assert.Equal(t, "LONG", side, "futuresPositionSide should follow the hedge mode account's mode")
+			assert.Equal(t, PositionSideLong, side, "futuresPositionSide should follow the hedge mode account's mode")
 			side, _, err = ex.futuresPositionSide(oneWayCtx, &order.Submit{Side: order.Long})
 			assert.NoError(t, err, "futuresPositionSide should not error")
 			assert.Empty(t, side, "futuresPositionSide should follow the one-way mode account's mode")
@@ -7518,7 +7520,7 @@ func TestPositionModeChangeOverlappingLookup(t *testing.T) {
 	}
 	side, _, err := ex.futuresPositionSide(t.Context(), &order.Submit{Side: order.Long})
 	require.NoError(t, err, "futuresPositionSide must not error")
-	assert.Equal(t, "LONG", side, "futuresPositionSide should follow the changed mode, not a lookup made during the change")
+	assert.Equal(t, PositionSideLong, side, "futuresPositionSide should follow the changed mode, not a lookup made during the change")
 	mu.Lock()
 	defer mu.Unlock()
 	assert.Equal(t, 2, lookups, "futuresPositionSide should look the mode up again after the change")
@@ -7690,8 +7692,8 @@ func TestFuturesOrdersInWindow(t *testing.T) {
 
 func TestPositionSideFor(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, "LONG", positionSideFor(order.Long), "positionSideFor should return LONG for a long direction")
-	assert.Equal(t, "LONG", positionSideFor(order.Buy), "positionSideFor should return LONG for a buy direction")
-	assert.Equal(t, "SHORT", positionSideFor(order.Short), "positionSideFor should return SHORT for a short direction")
-	assert.Equal(t, "BOTH", positionSideFor(order.UnknownSide), "positionSideFor should return BOTH without a direction")
+	assert.Equal(t, PositionSideLong, positionSideFor(order.Long), "positionSideFor should return LONG for a long direction")
+	assert.Equal(t, PositionSideLong, positionSideFor(order.Buy), "positionSideFor should return LONG for a buy direction")
+	assert.Equal(t, PositionSideShort, positionSideFor(order.Short), "positionSideFor should return SHORT for a short direction")
+	assert.Equal(t, PositionSideBoth, positionSideFor(order.UnknownSide), "positionSideFor should return BOTH without a direction")
 }

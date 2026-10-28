@@ -1175,22 +1175,22 @@ func averagePrice(cumulativeQuote, executed types.Number) float64 {
 
 // Order type values that Binance's spot and derivatives products share
 const (
-	limitOrderType        = "LIMIT"
-	marketOrderType       = "MARKET"
-	takeProfitOrderType   = "TAKE_PROFIT"
-	trailingStopOrderType = "TRAILING_STOP_MARKET"
+	limitOrderType        = OrderTypeLimit
+	marketOrderType       = OrderTypeMarket
+	takeProfitOrderType   = OrderTypeTakeProfit
+	trailingStopOrderType = OrderTypeTrailingStopMarket
 )
 
 // limitMakerOrderType is the post only order type of Binance's spot and margin products
-const limitMakerOrderType = "LIMIT_MAKER"
+const limitMakerOrderType = OrderTypeLimitMaker
 
 // orderSideString returns the side Binance takes for an order's direction
-func orderSideString(side order.Side) (string, error) {
+func orderSideString(side order.Side) (Side, error) {
 	switch {
 	case side.IsLong():
-		return order.Buy.String(), nil
+		return SideBuy, nil
 	case side.IsShort():
-		return order.Sell.String(), nil
+		return SideSell, nil
 	default:
 		return "", fmt.Errorf("%w: %s", order.ErrSideIsInvalid, side)
 	}
@@ -1198,7 +1198,7 @@ func orderSideString(side order.Side) (string, error) {
 
 // spotOrderTypeString returns the spot and margin order type of t. A post only limit order is a LIMIT_MAKER order,
 // Binance's spot post only type
-func spotOrderTypeString(t order.Type, tif order.TimeInForce) (string, error) {
+func spotOrderTypeString(t order.Type, tif order.TimeInForce) (OrderType, error) {
 	switch t {
 	case order.Limit:
 		if tif.Is(order.PostOnly) {
@@ -1224,7 +1224,7 @@ func spotOrderTypeString(t order.Type, tif order.TimeInForce) (string, error) {
 
 // stringToSpotOrderType converts a spot or margin order type, the inverse of spotOrderTypeString; STOP_LOSS and
 // TAKE_PROFIT orders become market orders when they trigger
-func stringToSpotOrderType(orderType string) (order.Type, error) {
+func stringToSpotOrderType(orderType OrderType) (order.Type, error) {
 	switch orderType {
 	case limitOrderType:
 		return order.Limit, nil
@@ -1247,7 +1247,7 @@ func stringToSpotOrderType(orderType string) (order.Type, error) {
 
 // futuresOrderTypeString returns the USDⓈ-M and COIN-M order type of t, the inverse of derivativesOrderType: STOP and
 // TAKE_PROFIT are Binance's stop and take profit limit orders
-func futuresOrderTypeString(t order.Type) (string, error) {
+func futuresOrderTypeString(t order.Type) (OrderType, error) {
 	switch t {
 	case order.Limit:
 		return limitOrderType, nil
@@ -1311,7 +1311,7 @@ func isConditionalOrderType(t order.Type) bool {
 // timeInForceString returns the time in force a limit priced order on asset a is sent with: GTC unless another is
 // requested, post only as USDⓈ-M and COIN-M GTX, and good till day as USDⓈ-M GTD, which GCT's "GTD" string shares
 // and which expires at the order's end time
-func timeInForceString(a asset.Item, tif order.TimeInForce) (string, error) {
+func timeInForceString(a asset.Item, tif order.TimeInForce) (TimeInForce, error) {
 	switch tif {
 	case order.UnknownTIF, order.GoodTillCancel:
 		return "GTC", nil
@@ -1333,7 +1333,7 @@ func timeInForceString(a asset.Item, tif order.TimeInForce) (string, error) {
 
 // workingTypeString returns the price a USDⓈ-M or COIN-M conditional order triggers on: the contract price, Binance's
 // default, or the mark price
-func workingTypeString(t order.PriceType) (string, error) {
+func workingTypeString(t order.PriceType) (WorkingType, error) {
 	switch t {
 	case order.LastPrice:
 		return "", nil
@@ -1384,7 +1384,9 @@ func orderListStatus(status string) (order.Status, error) {
 
 // spotOrderValues holds the values a spot or margin order is sent with, whichever route places it
 type spotOrderValues struct {
-	side, orderType, timeInForce                   string
+	side                                           Side
+	orderType                                      OrderType
+	timeInForce                                    TimeInForce
 	price, stopPrice, quantity, quoteOrderQuantity float64
 }
 
@@ -1439,7 +1441,7 @@ func newSpotOrderValues(s *order.Submit) (*spotOrderValues, error) {
 // or TAKE_PROFIT order waits until it is cancelled or triggers a market order, and a MARKET order expires what it
 // cannot fill at once, as an IOC order does. A MARKET order also takes GTC, as Binance reports market orders with it
 // and their order details carry it
-func checkUntimedSpotTimeInForce(orderType string, tif order.TimeInForce) error {
+func checkUntimedSpotTimeInForce(orderType OrderType, tif order.TimeInForce) error {
 	accepted := order.GoodTillCancel
 	switch orderType {
 	case limitMakerOrderType:
@@ -1458,7 +1460,7 @@ func checkUntimedSpotTimeInForce(orderType string, tif order.TimeInForce) error 
 
 // spotOneCancelsTheOtherLegs holds the side and the two orders of an OCO order list
 type spotOneCancelsTheOtherLegs struct {
-	side                 string
+	side                 Side
 	limitMaker, stopLoss OneCancelsTheOtherOrderListLeg
 }
 
@@ -1498,7 +1500,7 @@ func newSpotOneCancelsTheOtherLegs(s *order.Submit) (*spotOneCancelsTheOtherLegs
 
 // marginSideEffect returns the side effect a margin order is placed with: AutoBorrow borrows what the order needs and
 // AutoRepay repays debt with what it receives
-func marginSideEffect(s *order.Submit) string {
+func marginSideEffect(s *order.Submit) SideEffectType {
 	switch {
 	case s.AutoBorrow && s.AutoRepay:
 		return "AUTO_BORROW_REPAY"
@@ -1516,7 +1518,7 @@ func marginSideEffect(s *order.Submit) string {
 // Hedge Mode they trade the position of their direction, or with ReduceOnly the other one, which Binance takes as the
 // position side since it rejects reduceOnly in Hedge Mode. COIN-M has the USDⓈ-M position mode, which Binance has kept
 // both products on since 2026-04-14
-func (e *Exchange) futuresPositionSide(ctx context.Context, s *order.Submit) (positionSide string, reduceOnly bool, err error) {
+func (e *Exchange) futuresPositionSide(ctx context.Context, s *order.Submit) (positionSide PositionSide, reduceOnly bool, err error) {
 	if s.Side != order.Long && s.Side != order.Short {
 		return "", s.ReduceOnly, nil
 	}
@@ -1772,7 +1774,7 @@ func (e *Exchange) submitSpotOneCancelsTheOtherOrder(ctx context.Context, s *ord
 		Above:             legs.limitMaker,
 		Below:             legs.stopLoss,
 	}
-	if legs.side == order.Buy.String() {
+	if legs.side == SideBuy {
 		req.Above, req.Below = legs.stopLoss, legs.limitMaker
 	}
 	if e.canUseWebsocketAPIForOrders() {
@@ -1838,10 +1840,13 @@ func (e *Exchange) orderListSubmitResponse(s *order.Submit, orderListID uint64, 
 
 // futuresOrderValues holds the values a USDⓈ-M or COIN-M order is sent with
 type futuresOrderValues struct {
-	side, positionSide, orderType, timeInForce string
-	price                                      float64
-	reduceOnly                                 bool
-	goodTillDate                               time.Time
+	side         Side
+	positionSide PositionSide
+	orderType    OrderType
+	timeInForce  TimeInForce
+	price        float64
+	reduceOnly   bool
+	goodTillDate time.Time
 }
 
 // newFuturesOrderValues works out the values of a USDⓈ-M or COIN-M order; only limit priced types take a price and a
@@ -2106,7 +2111,8 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 	}
 	var (
 		modifiedID                        uint64
-		clientOrderID, orderType, status  string
+		clientOrderID, status             string
+		orderType                         OrderType
 		price, originalQuantity, executed types.Number
 		updated                           types.Time
 	)
@@ -4138,13 +4144,13 @@ type OrderVars struct {
 // same way the websocket order updates are converted. Empty values are left unset, and a value that cannot be
 // converted is left unset with its error joined into the returned error, so a listing can keep the order and log the
 // error while a single order query returns it
-func compatibleOrderVars(a asset.Item, side, status, orderType, timeInForce string) (OrderVars, error) {
+func compatibleOrderVars(a asset.Item, side Side, status string, orderType OrderType, timeInForce TimeInForce) (OrderVars, error) {
 	var vars OrderVars
 	var errs error
 	isSpot := a == asset.Spot || a == asset.Margin
 	if side != "" {
 		var err error
-		vars.Side, err = order.StringToOrderSide(side)
+		vars.Side, err = order.StringToOrderSide(string(side))
 		errs = common.AppendError(errs, err)
 	}
 	if status != "" {
@@ -4168,7 +4174,7 @@ func compatibleOrderVars(a asset.Item, side, status, orderType, timeInForce stri
 	if timeInForce != "" {
 		var err error
 		if isSpot {
-			vars.TimeInForce, err = order.StringToTimeInForce(timeInForce)
+			vars.TimeInForce, err = order.StringToTimeInForce(string(timeInForce))
 		} else {
 			vars.TimeInForce, err = derivativesTimeInForce(timeInForce)
 		}
@@ -4961,7 +4967,7 @@ func (e *Exchange) ChangePositionMargin(ctx context.Context, req *margin.Positio
 		return nil, fmt.Errorf("%w: the new allocated margin equals the original", errMarginAmountRequired)
 	}
 	amount := change.Abs().InexactFloat64()
-	positionSide := strings.ToUpper(req.MarginSide)
+	positionSide := PositionSide(strings.ToUpper(req.MarginSide))
 	var err error
 	if req.Asset == asset.CoinMarginedFutures {
 		changeType := uint64(1) // 1 adds position margin and 2 reduces it
@@ -4989,10 +4995,10 @@ func (e *Exchange) ChangePositionMargin(ctx context.Context, req *margin.Positio
 }
 
 // marginTypeToString converts the GCT margin type to Binance's string
-func (e *Exchange) marginTypeToString(mt margin.Type) (string, error) {
+func (e *Exchange) marginTypeToString(mt margin.Type) (MarginType, error) {
 	switch mt {
 	case margin.Isolated:
-		return margin.Isolated.Upper(), nil
+		return MarginTypeIsolated, nil
 	case margin.Multi:
 		return "CROSSED", nil
 	}
@@ -5001,7 +5007,7 @@ func (e *Exchange) marginTypeToString(mt margin.Type) (string, error) {
 
 // positionSideFor returns the position side of a direction: LONG or SHORT, Hedge Mode's positions, or BOTH, the
 // one-way position, without a direction
-func positionSideFor(direction order.Side) string {
+func positionSideFor(direction order.Side) PositionSide {
 	switch {
 	case direction.IsLong():
 		return "LONG"
@@ -5016,7 +5022,7 @@ func positionSideFor(direction order.Side) string {
 // account reports for the symbol by side. A direction selects Hedge Mode's long or short position, and without one the
 // summary is of the one-way position. Hedge Mode has no one-way position, so without a direction its one open side is
 // taken, and a direction is required while both sides are open
-func summaryPositionSide(direction order.Side, symbol string, sides map[string]types.Number) (string, error) {
+func summaryPositionSide(direction order.Side, symbol string, sides map[PositionSide]types.Number) (PositionSide, error) {
 	positionSide := positionSideFor(direction)
 	if positionSide != "BOTH" {
 		return positionSide, nil
@@ -5071,7 +5077,7 @@ func (e *Exchange) usdtMarginedFuturesPositionSummary(ctx context.Context, req *
 	if err != nil {
 		return nil, err
 	}
-	sides := make(map[string]types.Number, 2)
+	sides := make(map[PositionSide]types.Number, 2)
 	for i := range account.Positions {
 		if account.Positions[i].Symbol == symbol {
 			sides[account.Positions[i].PositionSide] = account.Positions[i].PositionAmount
@@ -5176,7 +5182,7 @@ func (e *Exchange) coinMarginedFuturesPositionSummary(ctx context.Context, req *
 	if err != nil {
 		return nil, err
 	}
-	sides := make(map[string]types.Number, 2)
+	sides := make(map[PositionSide]types.Number, 2)
 	for i := range account.Positions {
 		if account.Positions[i].Symbol == symbol {
 			sides[account.Positions[i].PositionSide] = account.Positions[i].PositionAmount
@@ -5541,10 +5547,10 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 				Underlying:         currency.NewPair(s.BaseAsset, s.QuoteAsset),
 				Asset:              item,
 				StartDate:          s.OnboardDate.Time(),
-				EndDate:            contractEndDate(s.ContractType, s.DeliveryDate),
+				EndDate:            contractEndDate(string(s.ContractType), s.DeliveryDate),
 				IsActive:           s.Status == symbolStatusTrading,
 				Status:             s.Status,
-				Type:               e.futuresContractType(s.ContractType, s.Symbol),
+				Type:               e.futuresContractType(string(s.ContractType), s.Symbol),
 				SettlementType:     futures.Linear,
 				SettlementCurrency: s.MarginAsset,
 				MarginCurrency:     s.MarginAsset,
@@ -5584,10 +5590,10 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 			Underlying:         currency.NewPair(s.BaseAsset, s.QuoteAsset),
 			Asset:              item,
 			StartDate:          s.OnboardDate.Time(),
-			EndDate:            contractEndDate(s.ContractType, s.DeliveryDate),
+			EndDate:            contractEndDate(string(s.ContractType), s.DeliveryDate),
 			IsActive:           s.ContractStatus == symbolStatusTrading,
 			Status:             s.ContractStatus,
-			Type:               e.futuresContractType(s.ContractType, s.Symbol),
+			Type:               e.futuresContractType(string(s.ContractType), s.Symbol),
 			SettlementType:     futures.Inverse,
 			SettlementCurrency: s.MarginAsset,
 			MarginCurrency:     s.MarginAsset,
@@ -5693,7 +5699,7 @@ func (e *Exchange) GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp cur
 		}
 		for i := range info.Symbols {
 			if info.Symbols[i].Symbol == symbol {
-				return tradeBaseURL + "futures/" + info.Symbols[i].Pair + deliveryTradePageSuffix(info.Symbols[i].ContractType), nil
+				return tradeBaseURL + "futures/" + info.Symbols[i].Pair + deliveryTradePageSuffix(string(info.Symbols[i].ContractType)), nil
 			}
 		}
 	case asset.CoinMarginedFutures:
@@ -5706,7 +5712,7 @@ func (e *Exchange) GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp cur
 		}
 		for i := range info.Symbols {
 			if info.Symbols[i].Symbol == symbol {
-				return tradeBaseURL + "delivery/" + info.Symbols[i].Pair + deliveryTradePageSuffix(info.Symbols[i].ContractType), nil
+				return tradeBaseURL + "delivery/" + info.Symbols[i].Pair + deliveryTradePageSuffix(string(info.Symbols[i].ContractType)), nil
 			}
 		}
 	case asset.Options:

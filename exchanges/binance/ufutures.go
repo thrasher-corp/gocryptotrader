@@ -241,7 +241,7 @@ func (e *Exchange) USDTMarginedFuturesAccountIncomeHistory(ctx context.Context, 
 		params.Set("symbol", symbol)
 	}
 	if arg.IncomeType != "" {
-		params.Set("incomeType", arg.IncomeType)
+		params.Set("incomeType", string(arg.IncomeType))
 	}
 	if arg.Page > 0 {
 		params.Set("page", strconv.FormatUint(arg.Page, 10))
@@ -313,7 +313,7 @@ func (e *Exchange) GetUSDTMarginedFuturesBasis(ctx context.Context, arg *USDTMar
 		return nil, err
 	}
 	params.Set("pair", pair)
-	params.Set("contractType", arg.ContractType)
+	params.Set("contractType", string(arg.ContractType))
 	params.Set("period", arg.Period)
 	if arg.Limit > 0 {
 		params.Set("limit", strconv.FormatUint(arg.Limit, 10))
@@ -392,7 +392,7 @@ func (e *Exchange) GetUSDTMarginedFuturesContinuousKlineData(ctx context.Context
 	}
 	params := url.Values{}
 	params.Set("pair", pair)
-	params.Set("contractType", arg.ContractType)
+	params.Set("contractType", string(arg.ContractType))
 	var resp []USDTMarginedFuturesKlineResponse
 	return resp, e.usdtMarginedFuturesKlineData(ctx, "/fapi/v1/continuousKlines", params, arg.Interval, arg.StartTime, arg.EndTime, arg.Limit, &resp)
 }
@@ -936,15 +936,15 @@ func (e *Exchange) newAlgoOrderParams(arg *USDTMarginedFuturesNewAlgoOrderReques
 		return nil, err
 	}
 	params := url.Values{}
-	params.Set("algoType", arg.AlgoType)
+	params.Set("algoType", string(arg.AlgoType))
 	params.Set("symbol", symbol)
-	params.Set("side", arg.Side)
-	params.Set("type", arg.OrderType)
+	params.Set("side", string(arg.Side))
+	params.Set("type", string(arg.OrderType))
 	if arg.PositionSide != "" {
-		params.Set("positionSide", arg.PositionSide)
+		params.Set("positionSide", string(arg.PositionSide))
 	}
 	if arg.TimeInForce != "" {
-		params.Set("timeInForce", arg.TimeInForce)
+		params.Set("timeInForce", string(arg.TimeInForce))
 	}
 	if arg.Quantity != 0 {
 		params.Set("quantity", strconv.FormatFloat(arg.Quantity, 'f', -1, 64))
@@ -956,10 +956,10 @@ func (e *Exchange) newAlgoOrderParams(arg *USDTMarginedFuturesNewAlgoOrderReques
 		params.Set("triggerPrice", strconv.FormatFloat(arg.TriggerPrice, 'f', -1, 64))
 	}
 	if arg.WorkingType != "" {
-		params.Set("workingType", arg.WorkingType)
+		params.Set("workingType", string(arg.WorkingType))
 	}
 	if arg.PriceMatch != "" {
-		params.Set("priceMatch", arg.PriceMatch)
+		params.Set("priceMatch", string(arg.PriceMatch))
 	}
 	if arg.ClosePosition {
 		params.Set("closePosition", "true")
@@ -980,10 +980,10 @@ func (e *Exchange) newAlgoOrderParams(arg *USDTMarginedFuturesNewAlgoOrderReques
 		params.Set("clientAlgoId", arg.ClientAlgoID)
 	}
 	if arg.NewOrderResponseType != "" {
-		params.Set("newOrderRespType", arg.NewOrderResponseType)
+		params.Set("newOrderRespType", string(arg.NewOrderResponseType))
 	}
 	if arg.SelfTradePreventionMode != "" {
-		params.Set("selfTradePreventionMode", arg.SelfTradePreventionMode)
+		params.Set("selfTradePreventionMode", string(arg.SelfTradePreventionMode))
 	}
 	if !arg.GoodTillDate.IsZero() {
 		params.Set("goodTillDate", strconv.FormatInt(arg.GoodTillDate.UnixMilli(), 10))
@@ -1234,13 +1234,13 @@ func (e *Exchange) usdtMarginedFuturesModifyOrderParams(arg *USDTMarginedFutures
 		params.Set("origClientOrderId", arg.OrigClientOrderID)
 	}
 	params.Set("symbol", symbol)
-	params.Set("side", arg.Side)
+	params.Set("side", string(arg.Side))
 	params.Set("quantity", strconv.FormatFloat(arg.Quantity, 'f', -1, 64))
 	if arg.Price != 0 {
 		params.Set("price", strconv.FormatFloat(arg.Price, 'f', -1, 64))
 	}
 	if arg.PriceMatch != "" {
-		params.Set("priceMatch", arg.PriceMatch)
+		params.Set("priceMatch", string(arg.PriceMatch))
 	}
 	if arg.ModifyID > 0 {
 		params.Set("modifyId", strconv.FormatUint(arg.ModifyID, 10))
@@ -1286,13 +1286,13 @@ func (e *Exchange) usdtMarginedFuturesNewOrderParams(arg *USDTMarginedFuturesNew
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol)
-	params.Set("side", arg.Side)
-	params.Set("type", arg.OrderType)
+	params.Set("side", string(arg.Side))
+	params.Set("type", string(arg.OrderType))
 	if arg.PositionSide != "" {
-		params.Set("positionSide", arg.PositionSide)
+		params.Set("positionSide", string(arg.PositionSide))
 	}
 	if arg.TimeInForce != "" {
-		params.Set("timeInForce", arg.TimeInForce)
+		params.Set("timeInForce", string(arg.TimeInForce))
 	}
 	if arg.ReduceOnly {
 		params.Set("reduceOnly", "true")
@@ -1307,13 +1307,13 @@ func (e *Exchange) usdtMarginedFuturesNewOrderParams(arg *USDTMarginedFuturesNew
 		params.Set("newClientOrderId", arg.NewClientOrderID)
 	}
 	if arg.NewOrderResponseType != "" {
-		params.Set("newOrderRespType", arg.NewOrderResponseType)
+		params.Set("newOrderRespType", string(arg.NewOrderResponseType))
 	}
 	if arg.PriceMatch != "" {
-		params.Set("priceMatch", arg.PriceMatch)
+		params.Set("priceMatch", string(arg.PriceMatch))
 	}
 	if arg.SelfTradePreventionMode != "" {
-		params.Set("selfTradePreventionMode", arg.SelfTradePreventionMode)
+		params.Set("selfTradePreventionMode", string(arg.SelfTradePreventionMode))
 	}
 	if !arg.GoodTillDate.IsZero() {
 		params.Set("goodTillDate", strconv.FormatInt(arg.GoodTillDate.UnixMilli(), 10))
@@ -1354,7 +1354,7 @@ func (e *Exchange) USDTMarginedFuturesChangeInitialLeverageRequest(ctx context.C
 
 // USDTMarginedFuturesChangeInitialMarginType changes a symbol's margin type to ISOLATED or CROSSED with Change Margin
 // Type
-func (e *Exchange) USDTMarginedFuturesChangeInitialMarginType(ctx context.Context, symbol currency.Pair, marginType string) error {
+func (e *Exchange) USDTMarginedFuturesChangeInitialMarginType(ctx context.Context, symbol currency.Pair, marginType MarginType) error {
 	if symbol.IsEmpty() {
 		return currency.ErrCurrencyPairEmpty
 	}
@@ -1367,23 +1367,23 @@ func (e *Exchange) USDTMarginedFuturesChangeInitialMarginType(ctx context.Contex
 	}
 	params := url.Values{}
 	params.Set("symbol", symbolValue)
-	params.Set("marginType", marginType)
+	params.Set("marginType", string(marginType))
 	return e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, "/fapi/v1/marginType", params, usdtMarginedFuturesDefaultRate, nil)
 }
 
 // USDTMarginedFuturesCurrentAllAlgoOpenOrders returns open algo (conditional) orders from Current All Algo Open Orders;
 // each argument is an optional filter, and an empty symbol returns every symbol's orders
-func (e *Exchange) USDTMarginedFuturesCurrentAllAlgoOpenOrders(ctx context.Context, algoType string, symbol currency.Pair, algoID uint64) ([]USDTMarginedFuturesAlgoOrderResponse, error) {
+func (e *Exchange) USDTMarginedFuturesCurrentAllAlgoOpenOrders(ctx context.Context, algoType AlgoType, symbol currency.Pair, algoID uint64) ([]USDTMarginedFuturesAlgoOrderResponse, error) {
 	return e.usdtMarginedFuturesCurrentAllAlgoOpenOrders(ctx, algoType, symbol, algoID, usdtMarginedFuturesOpenAlgoOrdersAllRate)
 }
 
 // usdtMarginedFuturesCurrentAllAlgoOpenOrders lists open algo orders, drawing on allSymbols for a listing of every
 // symbol's, so the listing a cancellation of every symbol's orders makes can draw on the cancel pool
-func (e *Exchange) usdtMarginedFuturesCurrentAllAlgoOpenOrders(ctx context.Context, algoType string, symbol currency.Pair, algoID uint64, allSymbols request.EndpointLimit) ([]USDTMarginedFuturesAlgoOrderResponse, error) {
+func (e *Exchange) usdtMarginedFuturesCurrentAllAlgoOpenOrders(ctx context.Context, algoType AlgoType, symbol currency.Pair, algoID uint64, allSymbols request.EndpointLimit) ([]USDTMarginedFuturesAlgoOrderResponse, error) {
 	params := url.Values{}
 	rateLimit := allSymbols
 	if algoType != "" {
-		params.Set("algoType", algoType)
+		params.Set("algoType", string(algoType))
 	}
 	if !symbol.IsEmpty() {
 		symbolValue, err := e.FormatSymbol(symbol, asset.USDTMarginedFutures)
@@ -1477,7 +1477,7 @@ func (e *Exchange) USDTMarginedFuturesPositionMarginChangeHistory(ctx context.Co
 
 // USDTMarginedFuturesModifyIsolatedPositionMarginRequest adds margin to or reduces margin from an isolated position
 // with Modify Isolated Position Margin; changeType is add or reduce, and positionSide is required in Hedge Mode
-func (e *Exchange) USDTMarginedFuturesModifyIsolatedPositionMarginRequest(ctx context.Context, symbol currency.Pair, positionSide, changeType string, amount float64) (*USDTMarginedFuturesModifyIsolatedPositionMarginResponse, error) {
+func (e *Exchange) USDTMarginedFuturesModifyIsolatedPositionMarginRequest(ctx context.Context, symbol currency.Pair, positionSide PositionSide, changeType string, amount float64) (*USDTMarginedFuturesModifyIsolatedPositionMarginResponse, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -1495,7 +1495,7 @@ func (e *Exchange) USDTMarginedFuturesModifyIsolatedPositionMarginRequest(ctx co
 	params := url.Values{}
 	params.Set("symbol", symbolValue)
 	if positionSide != "" {
-		params.Set("positionSide", positionSide)
+		params.Set("positionSide", string(positionSide))
 	}
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	params.Set("type", strconv.FormatInt(marginChange, 10))
@@ -1607,7 +1607,7 @@ func (e *Exchange) USDTMarginedFuturesAccountForcedOrders(ctx context.Context, a
 		rateLimit = usdtMarginedFuturesSymbolForceOrdersRate
 	}
 	if arg.AutoCloseType != "" {
-		params.Set("autoCloseType", arg.AutoCloseType)
+		params.Set("autoCloseType", string(arg.AutoCloseType))
 	}
 	if arg.Limit > 0 {
 		params.Set("limit", strconv.FormatUint(arg.Limit, 10))

@@ -230,7 +230,7 @@ func (e *Exchange) portfolioMarginIncomeHistory(ctx context.Context, path string
 		return nil, err
 	}
 	if arg.IncomeType != "" {
-		params.Set("incomeType", arg.IncomeType)
+		params.Set("incomeType", string(arg.IncomeType))
 	}
 	if err := setTimeRangeParams(params, arg.StartTime, arg.EndTime); err != nil {
 		return nil, err
@@ -532,11 +532,11 @@ func (e *Exchange) NewPortfolioMarginCoinMarginedConditionalOrder(ctx context.Co
 	}
 	params.Set("side", side)
 	if arg.PositionSide != "" {
-		params.Set("positionSide", arg.PositionSide)
+		params.Set("positionSide", string(arg.PositionSide))
 	}
-	params.Set("strategyType", arg.StrategyType)
+	params.Set("strategyType", string(arg.StrategyType))
 	if arg.TimeInForce != "" {
-		params.Set("timeInForce", arg.TimeInForce)
+		params.Set("timeInForce", string(arg.TimeInForce))
 	}
 	if arg.Quantity > 0 {
 		params.Set("quantity", strconv.FormatFloat(arg.Quantity, 'f', -1, 64))
@@ -548,7 +548,7 @@ func (e *Exchange) NewPortfolioMarginCoinMarginedConditionalOrder(ctx context.Co
 		params.Set("price", strconv.FormatFloat(arg.Price, 'f', -1, 64))
 	}
 	if arg.WorkingType != "" {
-		params.Set("workingType", arg.WorkingType)
+		params.Set("workingType", string(arg.WorkingType))
 	}
 	if arg.PriceProtect {
 		params.Set("priceProtect", "true")
@@ -638,15 +638,15 @@ func (e *Exchange) NewPortfolioMarginCoinMarginedOrder(ctx context.Context, arg 
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
-	params, err := e.portfolioMarginNewFuturesOrderParams(arg.Symbol, asset.CoinMarginedFutures, arg.Side, arg.OrderType, arg.Price, arg.PriceMatch)
+	params, err := e.portfolioMarginNewFuturesOrderParams(arg.Symbol, asset.CoinMarginedFutures, arg.Side, string(arg.OrderType), arg.Price, string(arg.PriceMatch))
 	if err != nil {
 		return nil, err
 	}
 	if arg.PositionSide != "" {
-		params.Set("positionSide", arg.PositionSide)
+		params.Set("positionSide", string(arg.PositionSide))
 	}
 	if arg.TimeInForce != "" {
-		params.Set("timeInForce", arg.TimeInForce)
+		params.Set("timeInForce", string(arg.TimeInForce))
 	}
 	if arg.Quantity > 0 {
 		params.Set("quantity", strconv.FormatFloat(arg.Quantity, 'f', -1, 64))
@@ -658,7 +658,7 @@ func (e *Exchange) NewPortfolioMarginCoinMarginedOrder(ctx context.Context, arg 
 		params.Set("newClientOrderId", arg.NewClientOrderID)
 	}
 	if arg.NewOrderResponseType != "" {
-		params.Set("newOrderRespType", arg.NewOrderResponseType)
+		params.Set("newOrderRespType", string(arg.NewOrderResponseType))
 	}
 	var resp *PortfolioMarginCoinMarginedOrderResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodPost, "/papi/v1/cm/order", params, portfolioMarginOrderRate, &resp)
@@ -793,7 +793,7 @@ func (e *Exchange) NewPortfolioMarginMarginOrder(ctx context.Context, arg *Portf
 		return nil, err
 	}
 	params.Set("side", side)
-	params.Set("type", arg.OrderType)
+	params.Set("type", string(arg.OrderType))
 	if arg.Quantity > 0 {
 		params.Set("quantity", strconv.FormatFloat(arg.Quantity, 'f', -1, 64))
 	}
@@ -810,19 +810,19 @@ func (e *Exchange) NewPortfolioMarginMarginOrder(ctx context.Context, arg *Portf
 		params.Set("newClientOrderId", arg.NewClientOrderID)
 	}
 	if arg.NewOrderResponseType != "" {
-		params.Set("newOrderRespType", arg.NewOrderResponseType)
+		params.Set("newOrderRespType", string(arg.NewOrderResponseType))
 	}
 	if arg.IcebergQuantity > 0 {
 		params.Set("icebergQty", strconv.FormatFloat(arg.IcebergQuantity, 'f', -1, 64))
 	}
 	if arg.SideEffectType != "" {
-		params.Set("sideEffectType", arg.SideEffectType)
+		params.Set("sideEffectType", string(arg.SideEffectType))
 	}
 	if arg.TimeInForce != "" {
-		params.Set("timeInForce", arg.TimeInForce)
+		params.Set("timeInForce", string(arg.TimeInForce))
 	}
 	if arg.SelfTradePreventionMode != "" {
-		params.Set("selfTradePreventionMode", arg.SelfTradePreventionMode)
+		params.Set("selfTradePreventionMode", string(arg.SelfTradePreventionMode))
 	}
 	if arg.AutoRepayAtCancel != nil {
 		params.Set("autoRepayAtCancel", strconv.FormatBool(*arg.AutoRepayAtCancel))
@@ -863,7 +863,7 @@ func (e *Exchange) NewPortfolioMarginUSDTMarginedOrder(ctx context.Context, arg 
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
-	params, err := e.portfolioMarginNewFuturesOrderParams(arg.Symbol, asset.USDTMarginedFutures, arg.Side, arg.OrderType, arg.Price, arg.PriceMatch)
+	params, err := e.portfolioMarginNewFuturesOrderParams(arg.Symbol, asset.USDTMarginedFutures, arg.Side, string(arg.OrderType), arg.Price, string(arg.PriceMatch))
 	if err != nil {
 		return nil, err
 	}
@@ -871,10 +871,10 @@ func (e *Exchange) NewPortfolioMarginUSDTMarginedOrder(ctx context.Context, arg 
 		return nil, errGoodTillDateRequired
 	}
 	if arg.PositionSide != "" {
-		params.Set("positionSide", arg.PositionSide)
+		params.Set("positionSide", string(arg.PositionSide))
 	}
 	if arg.TimeInForce != "" {
-		params.Set("timeInForce", arg.TimeInForce)
+		params.Set("timeInForce", string(arg.TimeInForce))
 	}
 	if arg.Quantity > 0 {
 		params.Set("quantity", strconv.FormatFloat(arg.Quantity, 'f', -1, 64))
@@ -886,10 +886,10 @@ func (e *Exchange) NewPortfolioMarginUSDTMarginedOrder(ctx context.Context, arg 
 		params.Set("newClientOrderId", arg.NewClientOrderID)
 	}
 	if arg.NewOrderResponseType != "" {
-		params.Set("newOrderRespType", arg.NewOrderResponseType)
+		params.Set("newOrderRespType", string(arg.NewOrderResponseType))
 	}
 	if arg.SelfTradePreventionMode != "" {
-		params.Set("selfTradePreventionMode", arg.SelfTradePreventionMode)
+		params.Set("selfTradePreventionMode", string(arg.SelfTradePreventionMode))
 	}
 	if !arg.GoodTillDate.IsZero() {
 		params.Set("goodTillDate", strconv.FormatInt(arg.GoodTillDate.UnixMilli(), 10))
@@ -1032,13 +1032,13 @@ func (e *Exchange) PortfolioMarginMarginAccountNewOneCancelsTheOtherOrder(ctx co
 		params.Set("stopIcebergQty", strconv.FormatFloat(arg.StopIcebergQuantity, 'f', -1, 64))
 	}
 	if arg.StopLimitTimeInForce != "" {
-		params.Set("stopLimitTimeInForce", arg.StopLimitTimeInForce)
+		params.Set("stopLimitTimeInForce", string(arg.StopLimitTimeInForce))
 	}
 	if arg.NewOrderResponseType != "" {
-		params.Set("newOrderRespType", arg.NewOrderResponseType)
+		params.Set("newOrderRespType", string(arg.NewOrderResponseType))
 	}
 	if arg.SideEffectType != "" {
-		params.Set("sideEffectType", arg.SideEffectType)
+		params.Set("sideEffectType", string(arg.SideEffectType))
 	}
 	var resp *PortfolioMarginNewMarginOneCancelsTheOtherOrderResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodPost, "/papi/v1/margin/order/oco", params, portfolioMarginOneCancelsTheOtherOrderRate, &resp)
@@ -1339,7 +1339,7 @@ func (e *Exchange) portfolioMarginForceOrdersParams(arg *PortfolioMarginForceOrd
 		f = withSymbol
 	}
 	if arg.AutoCloseType != "" {
-		params.Set("autoCloseType", arg.AutoCloseType)
+		params.Set("autoCloseType", string(arg.AutoCloseType))
 	}
 	if err := setTimeRangeParams(params, arg.StartTime, arg.EndTime); err != nil {
 		return nil, 0, err
@@ -1427,7 +1427,7 @@ func (e *Exchange) NewPortfolioMarginUSDTMarginedAlgoOrder(ctx context.Context, 
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
-	params, err := e.portfolioMarginNewFuturesOrderParams(arg.Symbol, asset.USDTMarginedFutures, arg.Side, arg.OrderType, arg.Price, arg.PriceMatch)
+	params, err := e.portfolioMarginNewFuturesOrderParams(arg.Symbol, asset.USDTMarginedFutures, arg.Side, string(arg.OrderType), arg.Price, string(arg.PriceMatch))
 	if err != nil {
 		return nil, err
 	}
@@ -1440,12 +1440,12 @@ func (e *Exchange) NewPortfolioMarginUSDTMarginedAlgoOrder(ctx context.Context, 
 	if arg.ClosePosition && (arg.Quantity > 0 || arg.ReduceOnly) {
 		return nil, errClosePositionConflict
 	}
-	params.Set("algoType", arg.AlgoType)
+	params.Set("algoType", string(arg.AlgoType))
 	if arg.PositionSide != "" {
-		params.Set("positionSide", arg.PositionSide)
+		params.Set("positionSide", string(arg.PositionSide))
 	}
 	if arg.TimeInForce != "" {
-		params.Set("timeInForce", arg.TimeInForce)
+		params.Set("timeInForce", string(arg.TimeInForce))
 	}
 	if arg.Quantity > 0 {
 		params.Set("quantity", strconv.FormatFloat(arg.Quantity, 'f', -1, 64))
@@ -1454,7 +1454,7 @@ func (e *Exchange) NewPortfolioMarginUSDTMarginedAlgoOrder(ctx context.Context, 
 		params.Set("triggerPrice", strconv.FormatFloat(arg.TriggerPrice, 'f', -1, 64))
 	}
 	if arg.WorkingType != "" {
-		params.Set("workingType", arg.WorkingType)
+		params.Set("workingType", string(arg.WorkingType))
 	}
 	if arg.ClosePosition {
 		params.Set("closePosition", "true")
@@ -1475,10 +1475,10 @@ func (e *Exchange) NewPortfolioMarginUSDTMarginedAlgoOrder(ctx context.Context, 
 		params.Set("clientAlgoId", arg.ClientAlgoID)
 	}
 	if arg.NewOrderResponseType != "" {
-		params.Set("newOrderRespType", arg.NewOrderResponseType)
+		params.Set("newOrderRespType", string(arg.NewOrderResponseType))
 	}
 	if arg.SelfTradePreventionMode != "" {
-		params.Set("selfTradePreventionMode", arg.SelfTradePreventionMode)
+		params.Set("selfTradePreventionMode", string(arg.SelfTradePreventionMode))
 	}
 	if !arg.GoodTillDate.IsZero() {
 		params.Set("goodTillDate", strconv.FormatInt(arg.GoodTillDate.UnixMilli(), 10))
@@ -1527,13 +1527,13 @@ func (e *Exchange) GetPortfolioMarginUSDTMarginedAlgoOrder(ctx context.Context, 
 
 // GetPortfolioMarginUSDTMarginedOpenAlgoOrders returns the open UM algo orders of a symbol, or of every symbol when
 // symbol is empty; algoType and algoID narrow them when set
-func (e *Exchange) GetPortfolioMarginUSDTMarginedOpenAlgoOrders(ctx context.Context, symbol currency.Pair, algoType string, algoID uint64) ([]PortfolioMarginUSDTMarginedAlgoOrderResponse, error) {
+func (e *Exchange) GetPortfolioMarginUSDTMarginedOpenAlgoOrders(ctx context.Context, symbol currency.Pair, algoType AlgoType, algoID uint64) ([]PortfolioMarginUSDTMarginedAlgoOrderResponse, error) {
 	params := url.Values{}
 	if err := e.portfolioMarginSymbolParam(params, symbol, asset.USDTMarginedFutures); err != nil {
 		return nil, err
 	}
 	if algoType != "" {
-		params.Set("algoType", algoType)
+		params.Set("algoType", string(algoType))
 	}
 	if algoID > 0 {
 		params.Set("algoId", strconv.FormatUint(algoID, 10))

@@ -323,6 +323,6 @@ type IndexLinkedPlanRebalanceResponse struct {
 type IndexLinkedPlanRebalanceTransaction struct {
 	Asset               currency.Code `json:"asset"`
 	TransactionDateTime types.Time    `json:"transactionDateTime"`
-	RebalanceDirection  string        `json:"rebalanceDirection"`
+	RebalanceDirection  Side          `json:"rebalanceDirection"`
 	RebalanceAmount     types.Number  `json:"rebalanceAmount"`
 }

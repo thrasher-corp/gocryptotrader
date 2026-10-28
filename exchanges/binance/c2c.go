@@ -23,7 +23,7 @@ func (e *Exchange) GetCustomerToCustomerTradeHistory(ctx context.Context, arg *C
 	}
 	params := url.Values{}
 	if arg.TradeType != "" {
-		params.Set("tradeType", arg.TradeType)
+		params.Set("tradeType", string(arg.TradeType))
 	}
 	if !arg.StartTime.IsZero() {
 		params.Set("startTimestamp", strconv.FormatInt(arg.StartTime.UnixMilli(), 10))

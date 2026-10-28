@@ -10,7 +10,7 @@ import (
 // CustomerToCustomerTradeHistoryRequest holds the parameters of Get C2C Trade History
 type CustomerToCustomerTradeHistoryRequest struct {
 	// TradeType is BUY or SELL; both are returned when it is empty
-	TradeType string
+	TradeType Side
 	// StartTime and EndTime are at most 30 days apart
 	StartTime time.Time
 	EndTime   time.Time
@@ -32,7 +32,7 @@ type CustomerToCustomerTradeHistoryResponse struct {
 type CustomerToCustomerTrade struct {
 	OrderNumber         string        `json:"orderNumber"`
 	AdvertisementNumber string        `json:"advNo"`
-	TradeType           string        `json:"tradeType"`
+	TradeType           Side          `json:"tradeType"`
 	Asset               currency.Code `json:"asset"`
 	Fiat                currency.Code `json:"fiat"`
 	FiatSymbol          string        `json:"fiatSymbol"`

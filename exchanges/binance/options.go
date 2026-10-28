@@ -536,7 +536,7 @@ func (e *Exchange) optionsOrderParams(req *OptionsOrderRequest) (url.Values, err
 	if req.Quantity <= 0 {
 		return nil, order.ErrAmountIsInvalid
 	}
-	if strings.EqualFold(req.OrderType, order.Limit.String()) && req.Price <= 0 {
+	if strings.EqualFold(string(req.OrderType), order.Limit.String()) && req.Price <= 0 {
 		return nil, order.ErrPriceMustBeSetIfLimitOrder
 	}
 	symbol, err := e.FormatSymbol(req.Symbol, asset.Options)
@@ -545,14 +545,14 @@ func (e *Exchange) optionsOrderParams(req *OptionsOrderRequest) (url.Values, err
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol)
-	params.Set("side", req.Side)
-	params.Set("type", req.OrderType)
+	params.Set("side", string(req.Side))
+	params.Set("type", string(req.OrderType))
 	params.Set("quantity", strconv.FormatFloat(req.Quantity, 'f', -1, 64))
 	if req.Price != 0 {
 		params.Set("price", strconv.FormatFloat(req.Price, 'f', -1, 64))
 	}
 	if req.TimeInForce != "" {
-		params.Set("timeInForce", req.TimeInForce)
+		params.Set("timeInForce", string(req.TimeInForce))
 	}
 	if req.ReduceOnly {
 		params.Set("reduceOnly", "true")
@@ -561,7 +561,7 @@ func (e *Exchange) optionsOrderParams(req *OptionsOrderRequest) (url.Values, err
 		params.Set("postOnly", "true")
 	}
 	if req.NewOrderResponseType != "" {
-		params.Set("newOrderRespType", req.NewOrderResponseType)
+		params.Set("newOrderRespType", string(req.NewOrderResponseType))
 	}
 	if req.ClientOrderID != "" {
 		params.Set("clientOrderId", req.ClientOrderID)
@@ -570,7 +570,7 @@ func (e *Exchange) optionsOrderParams(req *OptionsOrderRequest) (url.Values, err
 		params.Set("isMmp", "true")
 	}
 	if req.SelfTradePreventionMode != "" {
-		params.Set("selfTradePreventionMode", req.SelfTradePreventionMode)
+		params.Set("selfTradePreventionMode", string(req.SelfTradePreventionMode))
 	}
 	return params, nil
 }

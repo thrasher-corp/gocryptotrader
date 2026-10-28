@@ -1234,7 +1234,7 @@ func TestPostMarginAccountOrder(t *testing.T) {
 	req.Symbol = currency.NewBTCUSDT()
 	_, err = e.PostMarginAccountOrder(t.Context(), req)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid, "PostMarginAccountOrder must reject an empty side")
-	req.Side = order.Buy.String()
+	req.Side = SideBuy
 	_, err = e.PostMarginAccountOrder(t.Context(), req)
 	require.ErrorIs(t, err, order.ErrTypeIsInvalid, "PostMarginAccountOrder must reject an empty order type")
 
@@ -1244,14 +1244,14 @@ func TestPostMarginAccountOrder(t *testing.T) {
 	result, err := e.PostMarginAccountOrder(t.Context(), &MarginAccountOrderRequest{
 		Symbol:                  currency.NewBTCUSDT(),
 		IsIsolated:              true,
-		Side:                    order.Buy.String(),
-		OrderType:               order.Limit.String(),
+		Side:                    SideBuy,
+		OrderType:               OrderTypeLimit,
 		Quantity:                0.001,
 		Price:                   65982.53,
 		NewClientOrderID:        "E156O3KP4gOif65bjuUK5V",
 		NewOrderResponseType:    "FULL",
 		SideEffectType:          "MARGIN_BUY",
-		TimeInForce:             order.GoodTillCancel.String(),
+		TimeInForce:             TimeInForceGoodTillCancel,
 		SelfTradePreventionMode: "EXPIRE_MAKER",
 		AutoRepayAtCancel:       new(bool),
 	})
@@ -1336,7 +1336,7 @@ func TestNewMarginAccountOneCancelsTheOtherOrder(t *testing.T) {
 	req.Symbol = currency.NewBTCUSDT()
 	_, err = e.NewMarginAccountOneCancelsTheOtherOrder(t.Context(), req)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid, "NewMarginAccountOneCancelsTheOtherOrder must reject an empty side")
-	req.Side = order.Sell.String()
+	req.Side = SideSell
 	_, err = e.NewMarginAccountOneCancelsTheOtherOrder(t.Context(), req)
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin, "NewMarginAccountOneCancelsTheOtherOrder must reject a zero quantity")
 	req.Quantity = 0.001
@@ -1357,12 +1357,12 @@ func TestNewMarginAccountOneCancelsTheOtherOrder(t *testing.T) {
 		Symbol:               currency.NewBTCUSDT(),
 		IsIsolated:           true,
 		ListClientOrderID:    "JYVpp3F0f5CAG15DhtrqLp",
-		Side:                 order.Sell.String(),
+		Side:                 SideSell,
 		Quantity:             0.001,
 		Price:                70000,
 		StopPrice:            60000,
 		StopLimitPrice:       59900,
-		StopLimitTimeInForce: order.GoodTillCancel.String(),
+		StopLimitTimeInForce: TimeInForceGoodTillCancel,
 		NewOrderResponseType: "FULL",
 		SideEffectType:       "MARGIN_BUY",
 	})

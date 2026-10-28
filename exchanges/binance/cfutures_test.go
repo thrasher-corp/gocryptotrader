@@ -405,7 +405,7 @@ func TestCoinMarginedFuturesExchangeInfo(t *testing.T) {
 							MultiplierDecimal: 4,
 						},
 					},
-					OrderTypes: []string{
+					OrderTypes: []OrderType{
 						"LIMIT",
 						"MARKET",
 						"STOP",
@@ -414,7 +414,7 @@ func TestCoinMarginedFuturesExchangeInfo(t *testing.T) {
 						"TAKE_PROFIT_MARKET",
 						"TRAILING_STOP_MARKET",
 					},
-					TimeInForce: []string{
+					TimeInForce: []TimeInForce{
 						"GTC",
 						"IOC",
 						"FOK",
@@ -483,7 +483,7 @@ func TestCoinMarginedFuturesExchangeInfo(t *testing.T) {
 							MultiplierDecimal: 4,
 						},
 					},
-					OrderTypes: []string{
+					OrderTypes: []OrderType{
 						"LIMIT",
 						"MARKET",
 						"STOP",
@@ -492,7 +492,7 @@ func TestCoinMarginedFuturesExchangeInfo(t *testing.T) {
 						"TAKE_PROFIT_MARKET",
 						"TRAILING_STOP_MARKET",
 					},
-					TimeInForce: []string{
+					TimeInForce: []TimeInForce{
 						"GTC",
 						"IOC",
 						"FOK",
@@ -734,7 +734,7 @@ func TestGetCoinMarginedFuturesKlineData(t *testing.T) {
 
 // futuresStatisticsTests checks the request validation shared by the coin margined futures statistics endpoints, and
 // returns the request their success case sends
-func futuresStatisticsTests(t *testing.T, contractType string, fn func(*CoinMarginedFuturesStatisticsRequest) error) *CoinMarginedFuturesStatisticsRequest {
+func futuresStatisticsTests(t *testing.T, contractType ContractType, fn func(*CoinMarginedFuturesStatisticsRequest) error) *CoinMarginedFuturesStatisticsRequest {
 	t.Helper()
 	require.ErrorIs(t, fn(nil), common.ErrNilPointer, "a nil request must be rejected")
 	require.ErrorIs(t, fn(&CoinMarginedFuturesStatisticsRequest{ContractType: contractType, Period: kline.FiveMin}), currency.ErrCurrencyPairEmpty, "an empty pair must be rejected")
@@ -1646,17 +1646,17 @@ func TestCoinMarginedFuturesModifyMultipleOrders(t *testing.T) {
 	_, err := e.CoinMarginedFuturesModifyMultipleOrders(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrEmptyParams, "CoinMarginedFuturesModifyMultipleOrders must reject no orders")
 	ensureTradablePairs(t)
-	_, err = e.CoinMarginedFuturesModifyMultipleOrders(t.Context(), []CoinMarginedFuturesModifyOrderRequest{{Symbol: coinmTradablePair, OrderID: 1, Side: order.Buy.String(), Quantity: 1, PriceMatch: "QUEUE"}})
+	_, err = e.CoinMarginedFuturesModifyMultipleOrders(t.Context(), []CoinMarginedFuturesModifyOrderRequest{{Symbol: coinmTradablePair, OrderID: 1, Side: SideBuy, Quantity: 1, PriceMatch: "QUEUE"}})
 	require.ErrorIs(t, err, errBatchModifyPriceMatch, "CoinMarginedFuturesModifyMultipleOrders must reject a price match")
-	_, err = e.CoinMarginedFuturesModifyMultipleOrders(t.Context(), []CoinMarginedFuturesModifyOrderRequest{{Symbol: coinmTradablePair, OrderID: 1, Side: order.Buy.String()}})
+	_, err = e.CoinMarginedFuturesModifyMultipleOrders(t.Context(), []CoinMarginedFuturesModifyOrderRequest{{Symbol: coinmTradablePair, OrderID: 1, Side: SideBuy}})
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin, "CoinMarginedFuturesModifyMultipleOrders must reject an order without a quantity")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
 	result, err := e.CoinMarginedFuturesModifyMultipleOrders(t.Context(), []CoinMarginedFuturesModifyOrderRequest{
-		{Symbol: coinmTradablePair, OrderID: 20072994037, Side: order.Buy.String(), Quantity: 2, Price: 30005, ModifyID: 1},
-		{Symbol: coinmTradablePair, OrigClientOrderID: "myOrder1", Side: order.Sell.String(), Quantity: 1, Price: 30006},
+		{Symbol: coinmTradablePair, OrderID: 20072994037, Side: SideBuy, Quantity: 2, Price: 30005, ModifyID: 1},
+		{Symbol: coinmTradablePair, OrigClientOrderID: "myOrder1", Side: SideSell, Quantity: 1, Price: 30006},
 	})
 	require.NoError(t, err, "CoinMarginedFuturesModifyMultipleOrders must not error")
 	if mockTests {
@@ -1867,7 +1867,7 @@ func TestCoinMarginedFuturesModifyOrder(t *testing.T) {
 	req.OrderID = 20072994037
 	_, err = e.CoinMarginedFuturesModifyOrder(t.Context(), req)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid, "CoinMarginedFuturesModifyOrder must reject an empty side")
-	req.Side = order.Buy.String()
+	req.Side = SideBuy
 	_, err = e.CoinMarginedFuturesModifyOrder(t.Context(), req)
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin, "CoinMarginedFuturesModifyOrder must reject an empty quantity")
 	req.Quantity = 2

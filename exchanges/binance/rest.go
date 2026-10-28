@@ -519,10 +519,10 @@ func (e *Exchange) newOrderParams(req *NewOrderRequest) (url.Values, error) {
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol)
-	params.Set("side", req.Side)
-	params.Set("type", req.Type)
+	params.Set("side", string(req.Side))
+	params.Set("type", string(req.Type))
 	if req.TimeInForce != "" {
-		params.Set("timeInForce", req.TimeInForce)
+		params.Set("timeInForce", string(req.TimeInForce))
 	}
 	if req.Quantity > 0 {
 		params.Set("quantity", strconv.FormatFloat(req.Quantity, 'f', -1, 64))
@@ -552,19 +552,19 @@ func (e *Exchange) newOrderParams(req *NewOrderRequest) (url.Values, error) {
 		params.Set("icebergQty", strconv.FormatFloat(req.IcebergQuantity, 'f', -1, 64))
 	}
 	if req.NewOrderResponseType != "" {
-		params.Set("newOrderRespType", req.NewOrderResponseType)
+		params.Set("newOrderRespType", string(req.NewOrderResponseType))
 	}
 	if req.SelfTradePreventionMode != "" {
-		params.Set("selfTradePreventionMode", req.SelfTradePreventionMode)
+		params.Set("selfTradePreventionMode", string(req.SelfTradePreventionMode))
 	}
 	if req.PegPriceType != "" {
-		params.Set("pegPriceType", req.PegPriceType)
+		params.Set("pegPriceType", string(req.PegPriceType))
 	}
 	if req.PegOffsetValue != 0 {
 		params.Set("pegOffsetValue", strconv.FormatUint(req.PegOffsetValue, 10))
 	}
 	if req.PegOffsetType != "" {
-		params.Set("pegOffsetType", req.PegOffsetType)
+		params.Set("pegOffsetType", string(req.PegOffsetType))
 	}
 	return params, nil
 }
@@ -596,7 +596,7 @@ func (e *Exchange) CancelExistingOrder(ctx context.Context, req *CancelOrderRequ
 		params.Set("newClientOrderId", req.NewClientOrderID)
 	}
 	if req.CancelRestrictions != "" {
-		params.Set("cancelRestrictions", req.CancelRestrictions)
+		params.Set("cancelRestrictions", string(req.CancelRestrictions))
 	}
 	var resp *CancelOrderResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodDelete, "/api/v3/order", params, spotCancelRate, &resp)
@@ -660,11 +660,11 @@ func (e *Exchange) CancelExistingOrderAndSendNewOrder(ctx context.Context, req *
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol)
-	params.Set("side", req.Side)
-	params.Set("type", req.Type)
-	params.Set("cancelReplaceMode", req.CancelReplaceMode)
+	params.Set("side", string(req.Side))
+	params.Set("type", string(req.Type))
+	params.Set("cancelReplaceMode", string(req.CancelReplaceMode))
 	if req.TimeInForce != "" {
-		params.Set("timeInForce", req.TimeInForce)
+		params.Set("timeInForce", string(req.TimeInForce))
 	}
 	if req.Quantity > 0 {
 		params.Set("quantity", strconv.FormatFloat(req.Quantity, 'f', -1, 64))
@@ -703,25 +703,25 @@ func (e *Exchange) CancelExistingOrderAndSendNewOrder(ctx context.Context, req *
 		params.Set("icebergQty", strconv.FormatFloat(req.IcebergQuantity, 'f', -1, 64))
 	}
 	if req.NewOrderResponseType != "" {
-		params.Set("newOrderRespType", req.NewOrderResponseType)
+		params.Set("newOrderRespType", string(req.NewOrderResponseType))
 	}
 	if req.SelfTradePreventionMode != "" {
-		params.Set("selfTradePreventionMode", req.SelfTradePreventionMode)
+		params.Set("selfTradePreventionMode", string(req.SelfTradePreventionMode))
 	}
 	if req.CancelRestrictions != "" {
-		params.Set("cancelRestrictions", req.CancelRestrictions)
+		params.Set("cancelRestrictions", string(req.CancelRestrictions))
 	}
 	if req.OrderRateLimitExceededMode != "" {
-		params.Set("orderRateLimitExceededMode", req.OrderRateLimitExceededMode)
+		params.Set("orderRateLimitExceededMode", string(req.OrderRateLimitExceededMode))
 	}
 	if req.PegPriceType != "" {
-		params.Set("pegPriceType", req.PegPriceType)
+		params.Set("pegPriceType", string(req.PegPriceType))
 	}
 	if req.PegOffsetValue != 0 {
 		params.Set("pegOffsetValue", strconv.FormatUint(req.PegOffsetValue, 10))
 	}
 	if req.PegOffsetType != "" {
-		params.Set("pegOffsetType", req.PegOffsetType)
+		params.Set("pegOffsetType", string(req.PegOffsetType))
 	}
 	var resp *CancelAndReplaceResponse
 	err = e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, "/api/v3/order/cancelReplace", params, spotOrderRate, &resp)
@@ -770,7 +770,7 @@ func (e *Exchange) NewOneCancelsTheOtherOrderList(ctx context.Context, req *OneC
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol)
-	params.Set("side", req.Side)
+	params.Set("side", string(req.Side))
 	params.Set("quantity", strconv.FormatFloat(req.Quantity, 'f', -1, 64))
 	if req.ListClientOrderID != "" {
 		params.Set("listClientOrderId", req.ListClientOrderID)
@@ -778,10 +778,10 @@ func (e *Exchange) NewOneCancelsTheOtherOrderList(ctx context.Context, req *OneC
 	setOneCancelsTheOtherLegParams(params, "above", &req.Above)
 	setOneCancelsTheOtherLegParams(params, "below", &req.Below)
 	if req.NewOrderResponseType != "" {
-		params.Set("newOrderRespType", req.NewOrderResponseType)
+		params.Set("newOrderRespType", string(req.NewOrderResponseType))
 	}
 	if req.SelfTradePreventionMode != "" {
-		params.Set("selfTradePreventionMode", req.SelfTradePreventionMode)
+		params.Set("selfTradePreventionMode", string(req.SelfTradePreventionMode))
 	}
 	var resp *OneCancelsTheOtherOrderResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, "/api/v3/orderList/oco", params, spotOneCancelsTheOtherOrderRate, &resp)
@@ -790,7 +790,7 @@ func (e *Exchange) NewOneCancelsTheOtherOrderList(ctx context.Context, req *OneC
 // setOneCancelsTheOtherLegParams sets the parameters of an order list's above or below order, which carry the leg's
 // name as a prefix
 func setOneCancelsTheOtherLegParams(params url.Values, leg string, arg *OneCancelsTheOtherOrderListLeg) {
-	params.Set(leg+"Type", arg.Type)
+	params.Set(leg+"Type", string(arg.Type))
 	if arg.ClientOrderID != "" {
 		params.Set(leg+"ClientOrderId", arg.ClientOrderID)
 	}
@@ -807,7 +807,7 @@ func setOneCancelsTheOtherLegParams(params url.Values, leg string, arg *OneCance
 		params.Set(leg+"TrailingDelta", strconv.FormatUint(arg.TrailingDeltaInBasisPoints, 10))
 	}
 	if arg.TimeInForce != "" {
-		params.Set(leg+"TimeInForce", arg.TimeInForce)
+		params.Set(leg+"TimeInForce", string(arg.TimeInForce))
 	}
 	if arg.StrategyID != 0 {
 		params.Set(leg+"StrategyId", strconv.FormatUint(arg.StrategyID, 10))
@@ -816,10 +816,10 @@ func setOneCancelsTheOtherLegParams(params url.Values, leg string, arg *OneCance
 		params.Set(leg+"StrategyType", strconv.FormatUint(arg.StrategyType, 10))
 	}
 	if arg.PegPriceType != "" {
-		params.Set(leg+"PegPriceType", arg.PegPriceType)
+		params.Set(leg+"PegPriceType", string(arg.PegPriceType))
 	}
 	if arg.PegOffsetType != "" {
-		params.Set(leg+"PegOffsetType", arg.PegOffsetType)
+		params.Set(leg+"PegOffsetType", string(arg.PegOffsetType))
 	}
 	if arg.PegOffsetValue != 0 {
 		params.Set(leg+"PegOffsetValue", strconv.FormatUint(arg.PegOffsetValue, 10))
@@ -892,11 +892,11 @@ func (e *Exchange) sorOrderParams(req *SOROrderRequest) (url.Values, error) {
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol)
-	params.Set("side", req.Side)
-	params.Set("type", req.Type)
+	params.Set("side", string(req.Side))
+	params.Set("type", string(req.Type))
 	params.Set("quantity", strconv.FormatFloat(req.Quantity, 'f', -1, 64))
 	if req.TimeInForce != "" {
-		params.Set("timeInForce", req.TimeInForce)
+		params.Set("timeInForce", string(req.TimeInForce))
 	}
 	if req.Price > 0 {
 		params.Set("price", strconv.FormatFloat(req.Price, 'f', -1, 64))
@@ -914,10 +914,10 @@ func (e *Exchange) sorOrderParams(req *SOROrderRequest) (url.Values, error) {
 		params.Set("icebergQty", strconv.FormatFloat(req.IcebergQuantity, 'f', -1, 64))
 	}
 	if req.NewOrderResponseType != "" {
-		params.Set("newOrderRespType", req.NewOrderResponseType)
+		params.Set("newOrderRespType", string(req.NewOrderResponseType))
 	}
 	if req.SelfTradePreventionMode != "" {
-		params.Set("selfTradePreventionMode", req.SelfTradePreventionMode)
+		params.Set("selfTradePreventionMode", string(req.SelfTradePreventionMode))
 	}
 	return params, nil
 }

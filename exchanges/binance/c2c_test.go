@@ -18,7 +18,7 @@ func TestGetCustomerToCustomerTradeHistory(t *testing.T) {
 	_, err := e.GetCustomerToCustomerTradeHistory(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetCustomerToCustomerTradeHistory must reject a nil request")
 	startTime, endTime := getTime()
-	arg := &CustomerToCustomerTradeHistoryRequest{TradeType: order.Sell.String(), StartTime: endTime, EndTime: startTime, Page: 1, Rows: 100}
+	arg := &CustomerToCustomerTradeHistoryRequest{TradeType: Side(order.Sell.String()), StartTime: endTime, EndTime: startTime, Page: 1, Rows: 100}
 	_, err = e.GetCustomerToCustomerTradeHistory(t.Context(), arg)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetCustomerToCustomerTradeHistory must reject a reversed window")
 

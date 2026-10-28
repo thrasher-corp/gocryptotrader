@@ -127,7 +127,7 @@ func (e *Exchange) PlaceLimitOrder(ctx context.Context, arg *ConvertLimitOrderRe
 	if arg.QuoteAmount > 0 {
 		params.Set("quoteAmount", strconv.FormatFloat(arg.QuoteAmount, 'f', -1, 64))
 	}
-	params.Set("side", arg.Side)
+	params.Set("side", string(arg.Side))
 	if arg.WalletType != "" {
 		params.Set("walletType", arg.WalletType)
 	}

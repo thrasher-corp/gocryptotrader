@@ -25,8 +25,8 @@ type FuturesAlgoOrdersResponse struct {
 type FuturesAlgoOrder struct {
 	AlgoID           uint64       `json:"algoId"`
 	Symbol           string       `json:"symbol"`
-	Side             string       `json:"side"`
-	PositionSide     string       `json:"positionSide"`
+	Side             Side         `json:"side"`
+	PositionSide     PositionSide `json:"positionSide"`
 	TotalQuantity    types.Number `json:"totalQty"`
 	ExecutedQuantity types.Number `json:"executedQty"`
 	ExecutedAmount   types.Number `json:"executedAmt"`
@@ -43,7 +43,7 @@ type FuturesAlgoOrder struct {
 type AlgoHistoricalOrdersRequest struct {
 	Symbol currency.Pair
 	// Side is BUY or SELL
-	Side      string
+	Side      Side
 	StartTime time.Time
 	EndTime   time.Time
 	Page      uint64
@@ -70,7 +70,7 @@ type AlgoSubOrder struct {
 	FeeAsset         currency.Code `json:"feeAsset"`
 	BookTime         types.Time    `json:"bookTime"`
 	AveragePrice     types.Number  `json:"avgPrice"`
-	Side             string        `json:"side"`
+	Side             Side          `json:"side"`
 	Symbol           string        `json:"symbol"`
 	SubID            uint64        `json:"subId"` // Execution sequence of the sub order
 	TimeInForce      string        `json:"timeInForce"`
@@ -81,9 +81,9 @@ type AlgoSubOrder struct {
 type FuturesTWAPOrderRequest struct {
 	Symbol currency.Pair
 	// Side is BUY or SELL
-	Side string
+	Side Side
 	// PositionSide is BOTH (default) in one-way mode, and LONG or SHORT, which it requires, in hedge mode
-	PositionSide string
+	PositionSide PositionSide
 	Quantity     float64
 	// Duration is sent in whole seconds and must be between 5 minutes and 24 hours
 	Duration time.Duration
@@ -107,9 +107,9 @@ type AlgoOrderResponse struct {
 type VolumeParticipationOrderRequest struct {
 	Symbol currency.Pair
 	// Side is BUY or SELL
-	Side string
+	Side Side
 	// PositionSide is BOTH (default) in one-way mode, and LONG or SHORT, which it requires, in hedge mode
-	PositionSide string
+	PositionSide PositionSide
 	Quantity     float64
 	// Urgency is the relative speed of execution: LOW, MEDIUM or HIGH
 	Urgency string
@@ -131,7 +131,7 @@ type SpotAlgoOrdersResponse struct {
 type SpotAlgoOrder struct {
 	AlgoID           uint64       `json:"algoId"`
 	Symbol           string       `json:"symbol"`
-	Side             string       `json:"side"`
+	Side             Side         `json:"side"`
 	TotalQuantity    types.Number `json:"totalQty"`
 	ExecutedQuantity types.Number `json:"executedQty"`
 	ExecutedAmount   types.Number `json:"executedAmt"`
@@ -148,7 +148,7 @@ type SpotAlgoOrder struct {
 type SpotTWAPOrderRequest struct {
 	Symbol currency.Pair
 	// Side is BUY or SELL
-	Side     string
+	Side     Side
 	Quantity float64
 	// Duration is sent in whole seconds and must be between 5 minutes and 24 hours
 	Duration time.Duration

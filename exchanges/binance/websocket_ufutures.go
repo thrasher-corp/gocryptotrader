@@ -1238,7 +1238,7 @@ func (e *Exchange) processFuturesAccountUpdate(ctx context.Context, data []byte,
 			log.Warnf(log.WebsocketMgr, "%s %s account update: skipping a position: %v", e.Name, a, err)
 			continue
 		}
-		position := futuresPosition(e.Name, a, pair, p.PositionSide, p.PositionAmount.Decimal(), resp.TransactionTime.Time())
+		position := futuresPosition(e.Name, a, pair, string(p.PositionSide), p.PositionAmount.Decimal(), resp.TransactionTime.Time())
 		position.OpeningPrice = p.EntryPrice.Decimal()
 		position.PositionMargin = p.IsolatedWallet.Decimal()
 		position.RealisedPNL = p.AccumulatedRealised.Decimal()
@@ -1627,7 +1627,7 @@ func (e *Exchange) processFuturesOrderTradeUpdate(ctx context.Context, data []by
 		log.Warnf(log.WebsocketMgr, "%s %s order update: skipping order %d: %v", e.Name, a, o.OrderID, err)
 		return nil
 	}
-	side, err := order.StringToOrderSide(o.Side)
+	side, err := order.StringToOrderSide(string(o.Side))
 	if err != nil {
 		return err
 	}
@@ -1740,7 +1740,7 @@ func (e *Exchange) processFuturesAlgoUpdate(ctx context.Context, data []byte, a 
 
 // derivativesOrderType converts a USDⓈ-M, COIN-M or options order type, matching the REST order conversions. STOP
 // and TAKE_PROFIT are Binance's stop and take profit limit orders
-func derivativesOrderType(orderType string) (order.Type, error) {
+func derivativesOrderType(orderType OrderType) (order.Type, error) {
 	switch orderType {
 	case "LIMIT":
 		return order.Limit, nil
@@ -1787,14 +1787,14 @@ func derivativesOrderStatus(status string) (order.Status, error) {
 // derivativesTimeInForce converts a time in force. GTX, Binance's post only time in force, and RPI orders are post
 // only, as SubmitOrder reports a post only order, and GTE_GTC, the time in force of close position orders, keeps an
 // order until it is cancelled or the position it closes is gone
-func derivativesTimeInForce(timeInForce string) (order.TimeInForce, error) {
+func derivativesTimeInForce(timeInForce TimeInForce) (order.TimeInForce, error) {
 	switch timeInForce {
 	case "GTX", "RPI":
 		return order.PostOnly, nil
 	case "GTE_GTC":
 		return order.GoodTillCancel, nil
 	default:
-		return order.StringToTimeInForce(timeInForce)
+		return order.StringToTimeInForce(string(timeInForce))
 	}
 }
 

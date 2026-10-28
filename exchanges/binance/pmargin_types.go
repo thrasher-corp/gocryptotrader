@@ -123,7 +123,7 @@ type PortfolioMarginCoinMarginedAccountDetailPosition struct {
 	PositionInitialMargin  types.Number `json:"positionInitialMargin"`
 	OpenOrderInitialMargin types.Number `json:"openOrderInitialMargin"`
 	Leverage               types.Number `json:"leverage"`
-	PositionSide           string       `json:"positionSide"`
+	PositionSide           PositionSide `json:"positionSide"`
 	EntryPrice             types.Number `json:"entryPrice"`
 	MaxQuantity            types.Number `json:"maxQty"` // maximum quantity of the base asset
 	UpdateTime             types.Time   `json:"updateTime"`
@@ -138,7 +138,7 @@ type PortfolioMarginCoinMarginedAccountDetailResponse struct {
 // PortfolioMarginIncomeHistoryRequest holds the parameters for a UM or CM income history query
 type PortfolioMarginIncomeHistoryRequest struct {
 	Symbol     currency.Pair
-	IncomeType string
+	IncomeType IncomeType
 	StartTime  time.Time
 	EndTime    time.Time
 	Page       uint64
@@ -148,7 +148,7 @@ type PortfolioMarginIncomeHistoryRequest struct {
 // IncomeItemResponse holds a UM or CM income history record
 type IncomeItemResponse struct {
 	Symbol     string        `json:"symbol"`
-	IncomeType string        `json:"incomeType"`
+	IncomeType IncomeType    `json:"incomeType"`
 	Income     types.Number  `json:"income"`
 	Asset      currency.Code `json:"asset"`
 	Info       string        `json:"info"`
@@ -202,7 +202,7 @@ type PortfolioMarginUSDTMarginedAccountDetailPosition struct {
 	MaxNotional    types.Number `json:"maxNotional"`
 	BidNotional    types.Number `json:"bidNotional"`
 	AskNotional    types.Number `json:"askNotional"`
-	PositionSide   string       `json:"positionSide"`
+	PositionSide   PositionSide `json:"positionSide"`
 	PositionAmount types.Number `json:"positionAmt"`
 	UpdateTime     types.Time   `json:"updateTime"`
 }
@@ -253,7 +253,7 @@ type PortfolioMarginCoinMarginedPositionInformationResponse struct {
 	UnrealisedProfit types.Number `json:"unRealizedProfit"`
 	LiquidationPrice types.Number `json:"liquidationPrice"`
 	Leverage         types.Number `json:"leverage"`
-	PositionSide     string       `json:"positionSide"`
+	PositionSide     PositionSide `json:"positionSide"`
 	UpdateTime       types.Time   `json:"updateTime"`
 	MaxQuantity      types.Number `json:"maxQty"` // maximum quantity of the base asset
 	NotionalValue    types.Number `json:"notionalValue"`
@@ -339,7 +339,7 @@ type PortfolioMarginUSDTMarginedPositionInformationResponse struct {
 	Symbol           string       `json:"symbol"`
 	UnrealisedProfit types.Number `json:"unRealizedProfit"`
 	LiquidationPrice types.Number `json:"liquidationPrice"`
-	PositionSide     string       `json:"positionSide"`
+	PositionSide     PositionSide `json:"positionSide"`
 	UpdateTime       types.Time   `json:"updateTime"`
 }
 
@@ -394,15 +394,15 @@ type PortfolioMarginCoinMarginedConditionalOrderRequest struct {
 	Symbol currency.Pair
 	Side   order.Side
 	// PositionSide is BOTH in one-way mode and LONG or SHORT in hedge mode, where it is required
-	PositionSide string
+	PositionSide PositionSide
 	// StrategyType is STOP, STOP_MARKET, TAKE_PROFIT, TAKE_PROFIT_MARKET or TRAILING_STOP_MARKET
-	StrategyType string
-	TimeInForce  string
+	StrategyType OrderType
+	TimeInForce  TimeInForce
 	Quantity     float64
 	ReduceOnly   bool
 	Price        float64
 	// WorkingType selects the price that triggers StopPrice: MARK_PRICE or CONTRACT_PRICE (default)
-	WorkingType         string
+	WorkingType         WorkingType
 	PriceProtect        bool
 	NewClientStrategyID string
 	StopPrice           float64
@@ -416,16 +416,16 @@ type PortfolioMarginCoinMarginedConditionalOrderResponse struct {
 	NewClientStrategyID string       `json:"newClientStrategyId"`
 	StrategyID          uint64       `json:"strategyId"`
 	StrategyStatus      string       `json:"strategyStatus"`
-	StrategyType        string       `json:"strategyType"`
+	StrategyType        OrderType    `json:"strategyType"`
 	OriginalQuantity    types.Number `json:"origQty"`
 	Price               types.Number `json:"price"`
 	ReduceOnly          bool         `json:"reduceOnly"`
-	Side                string       `json:"side"`
-	PositionSide        string       `json:"positionSide"`
+	Side                Side         `json:"side"`
+	PositionSide        PositionSide `json:"positionSide"`
 	// StopPrice does not apply to TRAILING_STOP_MARKET orders
 	StopPrice   types.Number `json:"stopPrice"`
 	Symbol      string       `json:"symbol"`
-	TimeInForce string       `json:"timeInForce"`
+	TimeInForce TimeInForce  `json:"timeInForce"`
 	// ActivatePrice and PriceRate (the callback rate) are only returned for TRAILING_STOP_MARKET orders
 	ActivatePrice types.Number `json:"activatePrice"`
 	PriceRate     types.Number `json:"priceRate"`
@@ -436,16 +436,16 @@ type PortfolioMarginCoinMarginedConditionalOrderResponse struct {
 // NewPortfolioMarginCoinMarginedConditionalOrderResponse holds a new CM conditional order
 type NewPortfolioMarginCoinMarginedConditionalOrderResponse struct {
 	PortfolioMarginCoinMarginedConditionalOrderResponse
-	Pair         string `json:"pair"`
-	WorkingType  string `json:"workingType"`
-	PriceProtect bool   `json:"priceProtect"`
+	Pair         string      `json:"pair"`
+	WorkingType  WorkingType `json:"workingType"`
+	PriceProtect bool        `json:"priceProtect"`
 }
 
 // CancelPortfolioMarginCoinMarginedConditionalOrderResponse holds a cancelled CM conditional order
 type CancelPortfolioMarginCoinMarginedConditionalOrderResponse struct {
 	PortfolioMarginCoinMarginedConditionalOrderResponse
-	WorkingType  string `json:"workingType"`
-	PriceProtect bool   `json:"priceProtect"`
+	WorkingType  WorkingType `json:"workingType"`
+	PriceProtect bool        `json:"priceProtect"`
 }
 
 // PortfolioMarginCoinMarginedOrderDetailResponse holds a CM order returned by the order query endpoints
@@ -456,17 +456,17 @@ type PortfolioMarginCoinMarginedOrderDetailResponse struct {
 	ExecutedQuantity types.Number `json:"executedQty"`
 	OrderID          uint64       `json:"orderId"`
 	OriginalQuantity types.Number `json:"origQty"`
-	OriginalType     string       `json:"origType"`
+	OriginalType     OrderType    `json:"origType"`
 	Price            types.Number `json:"price"`
 	ReduceOnly       bool         `json:"reduceOnly"`
-	Side             string       `json:"side"`
+	Side             Side         `json:"side"`
 	Status           string       `json:"status"`
 	Symbol           string       `json:"symbol"`
 	Pair             string       `json:"pair"`
-	PositionSide     string       `json:"positionSide"`
+	PositionSide     PositionSide `json:"positionSide"`
 	Time             types.Time   `json:"time"`
-	TimeInForce      string       `json:"timeInForce"`
-	Type             string       `json:"type"`
+	TimeInForce      TimeInForce  `json:"timeInForce"`
+	Type             OrderType    `json:"type"`
 	UpdateTime       types.Time   `json:"updateTime"`
 }
 
@@ -475,18 +475,18 @@ type PortfolioMarginCoinMarginedOrderRequest struct {
 	Symbol currency.Pair
 	Side   order.Side
 	// PositionSide is BOTH in one-way mode and LONG or SHORT in hedge mode, where it is required
-	PositionSide string
+	PositionSide PositionSide
 	// OrderType is LIMIT or MARKET
-	OrderType   string
-	TimeInForce string
+	OrderType   OrderType
+	TimeInForce TimeInForce
 	Quantity    float64
 	// ReduceOnly cannot be sent in hedge mode
 	ReduceOnly bool
 	Price      float64
 	// PriceMatch cannot be sent with Price
-	PriceMatch           string
+	PriceMatch           PriceMatch
 	NewClientOrderID     string
-	NewOrderResponseType string
+	NewOrderResponseType NewOrderResponseType
 }
 
 // PortfolioMarginCoinMarginedOrderResponse holds a CM order returned when it is placed or cancelled
@@ -498,13 +498,13 @@ type PortfolioMarginCoinMarginedOrderResponse struct {
 	OriginalQuantity   types.Number `json:"origQty"`
 	Price              types.Number `json:"price"`
 	ReduceOnly         bool         `json:"reduceOnly"`
-	Side               string       `json:"side"`
-	PositionSide       string       `json:"positionSide"`
+	Side               Side         `json:"side"`
+	PositionSide       PositionSide `json:"positionSide"`
 	Status             string       `json:"status"`
 	Symbol             string       `json:"symbol"`
 	Pair               string       `json:"pair"`
-	TimeInForce        string       `json:"timeInForce"`
-	Type               string       `json:"type"`
+	TimeInForce        TimeInForce  `json:"timeInForce"`
+	Type               OrderType    `json:"type"`
 	UpdateTime         types.Time   `json:"updateTime"`
 }
 
@@ -522,9 +522,9 @@ type PortfolioMarginCancelledMarginOrderResponse struct {
 	ExecutedQuantity        types.Number                                      `json:"executedQty"`
 	CumulativeQuoteQuantity types.Number                                      `json:"cummulativeQuoteQty"`
 	Status                  string                                            `json:"status"`
-	TimeInForce             string                                            `json:"timeInForce"`
-	Type                    string                                            `json:"type"`
-	Side                    string                                            `json:"side"`
+	TimeInForce             TimeInForce                                       `json:"timeInForce"`
+	Type                    OrderType                                         `json:"type"`
+	Side                    Side                                              `json:"side"`
 	ContingencyType         string                                            `json:"contingencyType"`
 	ListStatusType          string                                            `json:"listStatusType"`
 	ListOrderStatus         string                                            `json:"listOrderStatus"`
@@ -588,9 +588,9 @@ type PortfolioMarginCancelMarginOneCancelsTheOtherOrderReport struct {
 	ExecutedQuantity        types.Number `json:"executedQty"`
 	CumulativeQuoteQuantity types.Number `json:"cummulativeQuoteQty"`
 	Status                  string       `json:"status"`
-	TimeInForce             string       `json:"timeInForce"`
-	Type                    string       `json:"type"`
-	Side                    string       `json:"side"`
+	TimeInForce             TimeInForce  `json:"timeInForce"`
+	Type                    OrderType    `json:"type"`
+	Side                    Side         `json:"side"`
 	StopPrice               types.Number `json:"stopPrice"`
 }
 
@@ -598,23 +598,23 @@ type PortfolioMarginCancelMarginOneCancelsTheOtherOrderReport struct {
 type PortfolioMarginMarginOrderResponse struct {
 	ClientOrderID string `json:"clientOrderId"`
 	// CumulativeQuoteQuantity is negative for some historical orders whose data is unavailable
-	CumulativeQuoteQuantity types.Number `json:"cummulativeQuoteQty"`
-	ExecutedQuantity        types.Number `json:"executedQty"`
-	IcebergQuantity         types.Number `json:"icebergQty"`
-	IsWorking               bool         `json:"isWorking"`
-	OrderID                 uint64       `json:"orderId"`
-	OriginalQuantity        types.Number `json:"origQty"`
-	Price                   types.Number `json:"price"`
-	Side                    string       `json:"side"`
-	Status                  string       `json:"status"`
-	StopPrice               types.Number `json:"stopPrice"`
-	Symbol                  string       `json:"symbol"`
-	Time                    types.Time   `json:"time"`
-	TimeInForce             string       `json:"timeInForce"`
-	Type                    string       `json:"type"`
-	UpdateTime              types.Time   `json:"updateTime"`
-	AccountID               uint64       `json:"accountId"`
-	SelfTradePreventionMode string       `json:"selfTradePreventionMode"`
+	CumulativeQuoteQuantity types.Number            `json:"cummulativeQuoteQty"`
+	ExecutedQuantity        types.Number            `json:"executedQty"`
+	IcebergQuantity         types.Number            `json:"icebergQty"`
+	IsWorking               bool                    `json:"isWorking"`
+	OrderID                 uint64                  `json:"orderId"`
+	OriginalQuantity        types.Number            `json:"origQty"`
+	Price                   types.Number            `json:"price"`
+	Side                    Side                    `json:"side"`
+	Status                  string                  `json:"status"`
+	StopPrice               types.Number            `json:"stopPrice"`
+	Symbol                  string                  `json:"symbol"`
+	Time                    types.Time              `json:"time"`
+	TimeInForce             TimeInForce             `json:"timeInForce"`
+	Type                    OrderType               `json:"type"`
+	UpdateTime              types.Time              `json:"updateTime"`
+	AccountID               uint64                  `json:"accountId"`
+	SelfTradePreventionMode SelfTradePreventionMode `json:"selfTradePreventionMode"`
 	// PreventedMatchID and PreventedQuantity are null unless self-trade prevention expired the order
 	PreventedMatchID  types.Number `json:"preventedMatchId"`
 	PreventedQuantity types.Number `json:"preventedQuantity"`
@@ -625,20 +625,20 @@ type PortfolioMarginMarginOrderRequest struct {
 	Symbol currency.Pair
 	Side   order.Side
 	// OrderType is LIMIT, MARKET, STOP_LOSS, STOP_LOSS_LIMIT, TAKE_PROFIT, TAKE_PROFIT_LIMIT or LIMIT_MAKER
-	OrderType          string
+	OrderType          OrderType
 	Quantity           float64
 	QuoteOrderQuantity float64
 	Price              float64
 	// StopPrice is used with STOP_LOSS, STOP_LOSS_LIMIT, TAKE_PROFIT and TAKE_PROFIT_LIMIT orders
 	StopPrice            float64
 	NewClientOrderID     string
-	NewOrderResponseType string
+	NewOrderResponseType NewOrderResponseType
 	// IcebergQuantity is used with LIMIT, STOP_LOSS_LIMIT and TAKE_PROFIT_LIMIT orders
 	IcebergQuantity float64
 	// SideEffectType is NO_SIDE_EFFECT (default), MARGIN_BUY, AUTO_REPAY or AUTO_BORROW_REPAY
-	SideEffectType          string
-	TimeInForce             string
-	SelfTradePreventionMode string
+	SideEffectType          SideEffectType
+	TimeInForce             TimeInForce
+	SelfTradePreventionMode SelfTradePreventionMode
 	// AutoRepayAtCancel sets whether debt from a MARGIN_BUY or AUTO_BORROW_REPAY order is repaid when the order is
 	// cancelled; nil leaves the default of true
 	AutoRepayAtCancel *bool
@@ -655,9 +655,9 @@ type PortfolioMarginNewMarginOrderResponse struct {
 	ExecutedQuantity        types.Number `json:"executedQty"`
 	CumulativeQuoteQuantity types.Number `json:"cummulativeQuoteQty"`
 	Status                  string       `json:"status"`
-	TimeInForce             string       `json:"timeInForce"`
-	Type                    string       `json:"type"`
-	Side                    string       `json:"side"`
+	TimeInForce             TimeInForce  `json:"timeInForce"`
+	Type                    OrderType    `json:"type"`
+	Side                    Side         `json:"side"`
 	// MarginBuyBorrowAmount and MarginBuyBorrowAsset are only returned when the order borrowed
 	MarginBuyBorrowAmount types.Number                     `json:"marginBuyBorrowAmount"`
 	MarginBuyBorrowAsset  currency.Code                    `json:"marginBuyBorrowAsset"`
@@ -693,33 +693,33 @@ type PortfolioMarginCancelMarginOrderResponse struct {
 	ExecutedQuantity        types.Number `json:"executedQty"`
 	CumulativeQuoteQuantity types.Number `json:"cummulativeQuoteQty"`
 	Status                  string       `json:"status"`
-	TimeInForce             string       `json:"timeInForce"`
-	Type                    string       `json:"type"`
-	Side                    string       `json:"side"`
+	TimeInForce             TimeInForce  `json:"timeInForce"`
+	Type                    OrderType    `json:"type"`
+	Side                    Side         `json:"side"`
 }
 
 // PortfolioMarginUSDTMarginedOrderDetailResponse holds a UM order returned by the order query endpoints
 type PortfolioMarginUSDTMarginedOrderDetailResponse struct {
-	AveragePrice            types.Number `json:"avgPrice"`
-	ClientOrderID           string       `json:"clientOrderId"`
-	CumulativeQuote         types.Number `json:"cumQuote"`
-	ExecutedQuantity        types.Number `json:"executedQty"`
-	OrderID                 uint64       `json:"orderId"`
-	OriginalQuantity        types.Number `json:"origQty"`
-	OriginalType            string       `json:"origType"`
-	Price                   types.Number `json:"price"`
-	ReduceOnly              bool         `json:"reduceOnly"`
-	Side                    string       `json:"side"`
-	PositionSide            string       `json:"positionSide"`
-	Status                  string       `json:"status"`
-	Symbol                  string       `json:"symbol"`
-	Time                    types.Time   `json:"time"`
-	TimeInForce             string       `json:"timeInForce"`
-	Type                    string       `json:"type"`
-	UpdateTime              types.Time   `json:"updateTime"`
-	SelfTradePreventionMode string       `json:"selfTradePreventionMode"`
-	GoodTillDate            types.Time   `json:"goodTillDate"` // automatic cancellation time of a GTD order
-	PriceMatch              string       `json:"priceMatch"`
+	AveragePrice            types.Number            `json:"avgPrice"`
+	ClientOrderID           string                  `json:"clientOrderId"`
+	CumulativeQuote         types.Number            `json:"cumQuote"`
+	ExecutedQuantity        types.Number            `json:"executedQty"`
+	OrderID                 uint64                  `json:"orderId"`
+	OriginalQuantity        types.Number            `json:"origQty"`
+	OriginalType            OrderType               `json:"origType"`
+	Price                   types.Number            `json:"price"`
+	ReduceOnly              bool                    `json:"reduceOnly"`
+	Side                    Side                    `json:"side"`
+	PositionSide            PositionSide            `json:"positionSide"`
+	Status                  string                  `json:"status"`
+	Symbol                  string                  `json:"symbol"`
+	Time                    types.Time              `json:"time"`
+	TimeInForce             TimeInForce             `json:"timeInForce"`
+	Type                    OrderType               `json:"type"`
+	UpdateTime              types.Time              `json:"updateTime"`
+	SelfTradePreventionMode SelfTradePreventionMode `json:"selfTradePreventionMode"`
+	GoodTillDate            types.Time              `json:"goodTillDate"` // automatic cancellation time of a GTD order
+	PriceMatch              PriceMatch              `json:"priceMatch"`
 }
 
 // PortfolioMarginUSDTMarginedOrderRequest holds the parameters for a new UM order
@@ -727,43 +727,43 @@ type PortfolioMarginUSDTMarginedOrderRequest struct {
 	Symbol currency.Pair
 	Side   order.Side
 	// PositionSide is BOTH in one-way mode and LONG or SHORT in hedge mode, where it is required
-	PositionSide string
+	PositionSide PositionSide
 	// OrderType is LIMIT or MARKET
-	OrderType   string
-	TimeInForce string
+	OrderType   OrderType
+	TimeInForce TimeInForce
 	Quantity    float64
 	// ReduceOnly cannot be sent in hedge mode
 	ReduceOnly           bool
 	Price                float64
 	NewClientOrderID     string
-	NewOrderResponseType string
+	NewOrderResponseType NewOrderResponseType
 	// PriceMatch cannot be sent with Price
-	PriceMatch string
+	PriceMatch PriceMatch
 	// SelfTradePreventionMode is only effective with the IOC, GTC and GTD time in force values
-	SelfTradePreventionMode string
+	SelfTradePreventionMode SelfTradePreventionMode
 	// GoodTillDate is required for GTD orders; only its seconds are used
 	GoodTillDate time.Time
 }
 
 // PortfolioMarginUSDTMarginedOrderResponse holds a UM order returned when it is placed or cancelled
 type PortfolioMarginUSDTMarginedOrderResponse struct {
-	ClientOrderID           string       `json:"clientOrderId"`
-	CumulativeQuantity      types.Number `json:"cumQty"`
-	ExecutedQuantity        types.Number `json:"executedQty"`
-	OrderID                 uint64       `json:"orderId"`
-	OriginalQuantity        types.Number `json:"origQty"`
-	Price                   types.Number `json:"price"`
-	ReduceOnly              bool         `json:"reduceOnly"`
-	Side                    string       `json:"side"`
-	PositionSide            string       `json:"positionSide"`
-	Status                  string       `json:"status"`
-	Symbol                  string       `json:"symbol"`
-	TimeInForce             string       `json:"timeInForce"`
-	Type                    string       `json:"type"`
-	SelfTradePreventionMode string       `json:"selfTradePreventionMode"`
-	GoodTillDate            types.Time   `json:"goodTillDate"` // automatic cancellation time of a GTD order
-	UpdateTime              types.Time   `json:"updateTime"`
-	PriceMatch              string       `json:"priceMatch"`
+	ClientOrderID           string                  `json:"clientOrderId"`
+	CumulativeQuantity      types.Number            `json:"cumQty"`
+	ExecutedQuantity        types.Number            `json:"executedQty"`
+	OrderID                 uint64                  `json:"orderId"`
+	OriginalQuantity        types.Number            `json:"origQty"`
+	Price                   types.Number            `json:"price"`
+	ReduceOnly              bool                    `json:"reduceOnly"`
+	Side                    Side                    `json:"side"`
+	PositionSide            PositionSide            `json:"positionSide"`
+	Status                  string                  `json:"status"`
+	Symbol                  string                  `json:"symbol"`
+	TimeInForce             TimeInForce             `json:"timeInForce"`
+	Type                    OrderType               `json:"type"`
+	SelfTradePreventionMode SelfTradePreventionMode `json:"selfTradePreventionMode"`
+	GoodTillDate            types.Time              `json:"goodTillDate"` // automatic cancellation time of a GTD order
+	UpdateTime              types.Time              `json:"updateTime"`
+	PriceMatch              PriceMatch              `json:"priceMatch"`
 }
 
 // PortfolioMarginCoinMarginedAccountTradeListRequest holds the parameters for a CM account trade list query; Symbol and
@@ -784,7 +784,7 @@ type PortfolioMarginCoinMarginedAccountTradeResponse struct {
 	ID                  uint64        `json:"id"`
 	OrderID             uint64        `json:"orderId"`
 	Pair                string        `json:"pair"`
-	Side                string        `json:"side"`
+	Side                Side          `json:"side"`
 	Price               types.Number  `json:"price"`
 	QuantityInContracts types.Number  `json:"qty"`
 	RealisedPNL         types.Number  `json:"realizedPnl"`
@@ -793,7 +793,7 @@ type PortfolioMarginCoinMarginedAccountTradeResponse struct {
 	Commission          types.Number  `json:"commission"`
 	CommissionAsset     currency.Code `json:"commissionAsset"`
 	Time                types.Time    `json:"time"`
-	PositionSide        string        `json:"positionSide"`
+	PositionSide        PositionSide  `json:"positionSide"`
 	Buyer               bool          `json:"buyer"`
 	Maker               bool          `json:"maker"`
 }
@@ -828,10 +828,10 @@ type PortfolioMarginMarginOneCancelsTheOtherOrderRequest struct {
 	// StopLimitPrice requires StopLimitTimeInForce
 	StopLimitPrice       float64
 	StopIcebergQuantity  float64
-	StopLimitTimeInForce string
-	NewOrderResponseType string
+	StopLimitTimeInForce TimeInForce
+	NewOrderResponseType NewOrderResponseType
 	// SideEffectType is NO_SIDE_EFFECT (default), MARGIN_BUY or AUTO_REPAY
-	SideEffectType string
+	SideEffectType SideEffectType
 }
 
 // PortfolioMarginNewMarginOneCancelsTheOtherOrderResponse holds a new margin OCO order list
@@ -855,9 +855,9 @@ type PortfolioMarginNewMarginOneCancelsTheOtherOrderReport struct {
 	ExecutedQuantity        types.Number `json:"executedQty"`
 	CumulativeQuoteQuantity types.Number `json:"cummulativeQuoteQty"`
 	Status                  string       `json:"status"`
-	TimeInForce             string       `json:"timeInForce"`
-	Type                    string       `json:"type"`
-	Side                    string       `json:"side"`
+	TimeInForce             TimeInForce  `json:"timeInForce"`
+	Type                    OrderType    `json:"type"`
+	Side                    Side         `json:"side"`
 	StopPrice               types.Number `json:"stopPrice"`
 }
 
@@ -903,7 +903,7 @@ type PortfolioMarginCoinMarginedConditionalOrderRecordResponse struct {
 	OrderID     uint64     `json:"orderId"`
 	Status      string     `json:"status"`
 	TriggerTime types.Time `json:"triggerTime"`
-	Type        string     `json:"type"`
+	Type        OrderType  `json:"type"`
 }
 
 // PortfolioMarginCoinMarginedOrdersRequest holds the parameters for a query of all CM orders; Symbol or Pair is
@@ -942,9 +942,9 @@ type PortfolioMarginUSDTMarginedOrdersRequest struct {
 // PortfolioMarginCoinMarginedConditionalOrderHistoryResponse holds a CM conditional order from the order history
 type PortfolioMarginCoinMarginedConditionalOrderHistoryResponse struct {
 	PortfolioMarginCoinMarginedConditionalOrderRecordResponse
-	WorkingType  string `json:"workingType"`
-	PriceProtect bool   `json:"priceProtect"`
-	PriceMatch   string `json:"priceMatch"`
+	WorkingType  WorkingType `json:"workingType"`
+	PriceProtect bool        `json:"priceProtect"`
+	PriceMatch   PriceMatch  `json:"priceMatch"`
 }
 
 // PortfolioMarginMarginAllOneCancelsTheOtherOrdersRequest holds the parameters for a query of all margin OCO order
@@ -960,7 +960,7 @@ type PortfolioMarginMarginAllOneCancelsTheOtherOrdersRequest struct {
 type PortfolioMarginForceOrdersRequest struct {
 	Symbol currency.Pair
 	// AutoCloseType is LIQUIDATION or ADL; both are returned when it is empty
-	AutoCloseType string
+	AutoCloseType AutoCloseType
 	StartTime     time.Time
 	EndTime       time.Time
 	Limit         uint64
@@ -978,12 +978,12 @@ type PortfolioMarginCoinMarginedForceOrderResponse struct {
 	OriginalQuantity types.Number `json:"origQty"`
 	ExecutedQuantity types.Number `json:"executedQty"`
 	CumulativeBase   types.Number `json:"cumBase"`
-	TimeInForce      string       `json:"timeInForce"`
-	Type             string       `json:"type"`
+	TimeInForce      TimeInForce  `json:"timeInForce"`
+	Type             OrderType    `json:"type"`
 	ReduceOnly       bool         `json:"reduceOnly"`
-	Side             string       `json:"side"`
-	PositionSide     string       `json:"positionSide"`
-	OriginalType     string       `json:"origType"`
+	Side             Side         `json:"side"`
+	PositionSide     PositionSide `json:"positionSide"`
+	OriginalType     OrderType    `json:"origType"`
 	Time             types.Time   `json:"time"`
 	UpdateTime       types.Time   `json:"updateTime"`
 }
@@ -1009,9 +1009,9 @@ type PortfolioMarginMarginForceOrder struct {
 	OrderID          uint64       `json:"orderId"`
 	Price            types.Number `json:"price"`
 	Quantity         types.Number `json:"qty"`
-	Side             string       `json:"side"`
+	Side             Side         `json:"side"`
 	Symbol           string       `json:"symbol"`
-	TimeInForce      string       `json:"timeInForce"`
+	TimeInForce      TimeInForce  `json:"timeInForce"`
 	UpdatedTime      types.Time   `json:"updatedTime"`
 }
 
@@ -1026,12 +1026,12 @@ type PortfolioMarginUSDTMarginedForceOrderResponse struct {
 	OriginalQuantity types.Number `json:"origQty"`
 	ExecutedQuantity types.Number `json:"executedQty"`
 	CumulativeQuote  types.Number `json:"cumQuote"`
-	TimeInForce      string       `json:"timeInForce"`
-	Type             string       `json:"type"`
+	TimeInForce      TimeInForce  `json:"timeInForce"`
+	Type             OrderType    `json:"type"`
 	ReduceOnly       bool         `json:"reduceOnly"`
-	Side             string       `json:"side"`
-	PositionSide     string       `json:"positionSide"`
-	OriginalType     string       `json:"origType"`
+	Side             Side         `json:"side"`
+	PositionSide     PositionSide `json:"positionSide"`
+	OriginalType     OrderType    `json:"origType"`
 	Time             types.Time   `json:"time"`
 	UpdateTime       types.Time   `json:"updateTime"`
 }
@@ -1051,7 +1051,7 @@ type PortfolioMarginUSDTMarginedAccountTradeResponse struct {
 	Symbol          string        `json:"symbol"`
 	ID              uint64        `json:"id"`
 	OrderID         uint64        `json:"orderId"`
-	Side            string        `json:"side"`
+	Side            Side          `json:"side"`
 	Price           types.Number  `json:"price"`
 	Quantity        types.Number  `json:"qty"`
 	RealisedPNL     types.Number  `json:"realizedPnl"`
@@ -1061,7 +1061,7 @@ type PortfolioMarginUSDTMarginedAccountTradeResponse struct {
 	Time            types.Time    `json:"time"`
 	Buyer           bool          `json:"buyer"`
 	Maker           bool          `json:"maker"`
-	PositionSide    string        `json:"positionSide"`
+	PositionSide    PositionSide  `json:"positionSide"`
 }
 
 // PortfolioMarginUSDTMarginedAutoDeleveragingQuantileEstimationResponse holds a UM symbol's auto-deleveraging quantiles
@@ -1081,22 +1081,22 @@ type PortfolioMarginUSDTMarginedAutoDeleveragingQuantile struct {
 // PortfolioMarginUSDTMarginedAlgoOrderRequest holds the parameters for a new UM algo (conditional) order
 type PortfolioMarginUSDTMarginedAlgoOrderRequest struct {
 	// AlgoType only supports CONDITIONAL
-	AlgoType string
+	AlgoType AlgoType
 	Symbol   currency.Pair
 	Side     order.Side
 	// PositionSide is BOTH in one-way mode and LONG or SHORT in hedge mode
-	PositionSide string
+	PositionSide PositionSide
 	// OrderType is STOP, TAKE_PROFIT, STOP_MARKET, TAKE_PROFIT_MARKET or TRAILING_STOP_MARKET
-	OrderType   string
-	TimeInForce string
+	OrderType   OrderType
+	TimeInForce TimeInForce
 	// Quantity cannot be sent with ClosePosition
 	Quantity     float64
 	Price        float64
 	TriggerPrice float64
 	// WorkingType selects the price that triggers TriggerPrice: MARK_PRICE or CONTRACT_PRICE (default)
-	WorkingType string
+	WorkingType WorkingType
 	// PriceMatch cannot be sent with Price
-	PriceMatch string
+	PriceMatch PriceMatch
 	// ClosePosition closes the whole position with a STOP_MARKET or TAKE_PROFIT_MARKET order
 	ClosePosition bool
 	PriceProtect  bool
@@ -1106,8 +1106,8 @@ type PortfolioMarginUSDTMarginedAlgoOrderRequest struct {
 	ActivatePrice           float64
 	CallbackRate            float64
 	ClientAlgoID            string
-	NewOrderResponseType    string
-	SelfTradePreventionMode string
+	NewOrderResponseType    NewOrderResponseType
+	SelfTradePreventionMode SelfTradePreventionMode
 	// GoodTillDate is required for GTD orders
 	GoodTillDate time.Time
 }
@@ -1115,30 +1115,30 @@ type PortfolioMarginUSDTMarginedAlgoOrderRequest struct {
 // PortfolioMarginUSDTMarginedAlgoOrderResponse holds a UM algo order as placing one and the open algo orders query
 // return it
 type PortfolioMarginUSDTMarginedAlgoOrderResponse struct {
-	AlgoID                  uint64       `json:"algoId"`
-	ClientAlgoID            string       `json:"clientAlgoId"`
-	AlgoType                string       `json:"algoType"`
-	OrderType               string       `json:"orderType"`
-	Symbol                  string       `json:"symbol"`
-	Side                    string       `json:"side"`
-	PositionSide            string       `json:"positionSide"`
-	TimeInForce             string       `json:"timeInForce"`
-	Quantity                types.Number `json:"quantity"`
-	AlgoStatus              string       `json:"algoStatus"`
-	TriggerPrice            types.Number `json:"triggerPrice"`
-	Price                   types.Number `json:"price"`
-	SelfTradePreventionMode string       `json:"selfTradePreventionMode"`
-	WorkingType             string       `json:"workingType"`
-	PriceMatch              string       `json:"priceMatch"`
-	ClosePosition           bool         `json:"closePosition"`
-	PriceProtect            bool         `json:"priceProtect"`
-	ReduceOnly              bool         `json:"reduceOnly"`
-	ActivatePrice           types.Number `json:"activatePrice"`
-	CallbackRate            types.Number `json:"callbackRate"`
-	CreateTime              types.Time   `json:"createTime"`
-	UpdateTime              types.Time   `json:"updateTime"`
-	TriggerTime             types.Time   `json:"triggerTime"`
-	GoodTillDate            types.Time   `json:"goodTillDate"`
+	AlgoID                  uint64                  `json:"algoId"`
+	ClientAlgoID            string                  `json:"clientAlgoId"`
+	AlgoType                AlgoType                `json:"algoType"`
+	OrderType               OrderType               `json:"orderType"`
+	Symbol                  string                  `json:"symbol"`
+	Side                    Side                    `json:"side"`
+	PositionSide            PositionSide            `json:"positionSide"`
+	TimeInForce             TimeInForce             `json:"timeInForce"`
+	Quantity                types.Number            `json:"quantity"`
+	AlgoStatus              string                  `json:"algoStatus"`
+	TriggerPrice            types.Number            `json:"triggerPrice"`
+	Price                   types.Number            `json:"price"`
+	SelfTradePreventionMode SelfTradePreventionMode `json:"selfTradePreventionMode"`
+	WorkingType             WorkingType             `json:"workingType"`
+	PriceMatch              PriceMatch              `json:"priceMatch"`
+	ClosePosition           bool                    `json:"closePosition"`
+	PriceProtect            bool                    `json:"priceProtect"`
+	ReduceOnly              bool                    `json:"reduceOnly"`
+	ActivatePrice           types.Number            `json:"activatePrice"`
+	CallbackRate            types.Number            `json:"callbackRate"`
+	CreateTime              types.Time              `json:"createTime"`
+	UpdateTime              types.Time              `json:"updateTime"`
+	TriggerTime             types.Time              `json:"triggerTime"`
+	GoodTillDate            types.Time              `json:"goodTillDate"`
 }
 
 // CancelPortfolioMarginUSDTMarginedAlgoOrderResponse holds the result of a UM algo order cancellation

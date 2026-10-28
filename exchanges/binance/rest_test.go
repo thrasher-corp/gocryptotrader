@@ -149,7 +149,7 @@ func TestGetExchangeInfo(t *testing.T) {
 					QuoteAssetPrecision:      8,
 					BaseCommissionPrecision:  8,
 					QuoteCommissionPrecision: 8,
-					OrderTypes: []string{
+					OrderTypes: []OrderType{
 						"LIMIT",
 						"LIMIT_MAKER",
 						"MARKET",
@@ -267,7 +267,7 @@ func TestGetExchangeInfo(t *testing.T) {
 						},
 					},
 					DefaultSelfTradePreventionMode: "EXPIRE_MAKER",
-					AllowedSelfTradePreventionModes: []string{
+					AllowedSelfTradePreventionModes: []SelfTradePreventionMode{
 						"EXPIRE_TAKER",
 						"EXPIRE_MAKER",
 						"EXPIRE_BOTH",
@@ -1359,11 +1359,11 @@ func TestNewOrder(t *testing.T) {
 	t.Parallel()
 	_, err := e.NewOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "NewOrder must reject a nil request")
-	_, err = e.NewOrder(t.Context(), &NewOrderRequest{Side: order.Buy.String(), Type: order.Limit.String()})
+	_, err = e.NewOrder(t.Context(), &NewOrderRequest{Side: SideBuy, Type: OrderTypeLimit})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "NewOrder must reject an empty pair")
-	_, err = e.NewOrder(t.Context(), &NewOrderRequest{Symbol: currency.NewBTCUSDT(), Type: order.Limit.String()})
+	_, err = e.NewOrder(t.Context(), &NewOrderRequest{Symbol: currency.NewBTCUSDT(), Type: OrderTypeLimit})
 	require.ErrorIs(t, err, order.ErrSideIsInvalid, "NewOrder must reject an empty side")
-	_, err = e.NewOrder(t.Context(), &NewOrderRequest{Symbol: currency.NewBTCUSDT(), Side: order.Buy.String()})
+	_, err = e.NewOrder(t.Context(), &NewOrderRequest{Symbol: currency.NewBTCUSDT(), Side: SideBuy})
 	require.ErrorIs(t, err, order.ErrTypeIsInvalid, "NewOrder must reject an empty type")
 
 	if !mockTests {
@@ -1378,8 +1378,8 @@ func TestNewOrder(t *testing.T) {
 			name: "market order by quote quantity",
 			req: &NewOrderRequest{
 				Symbol:               currency.NewBTCUSDT(),
-				Side:                 order.Buy.String(),
-				Type:                 order.Market.String(),
+				Side:                 SideBuy,
+				Type:                 OrderTypeMarket,
 				QuoteOrderQuantity:   100,
 				NewOrderResponseType: "RESULT",
 			},
@@ -1407,9 +1407,9 @@ func TestNewOrder(t *testing.T) {
 			name: "limit order filled at once",
 			req: &NewOrderRequest{
 				Symbol:                  currency.NewBTCUSDT(),
-				Side:                    order.Sell.String(),
-				Type:                    order.Limit.String(),
-				TimeInForce:             order.ImmediateOrCancel.String(),
+				Side:                    SideSell,
+				Type:                    OrderTypeLimit,
+				TimeInForce:             TimeInForceImmediateOrCancel,
 				Quantity:                0.003,
 				Price:                   86000,
 				NewClientOrderID:        "gct-limit-1",
@@ -1459,9 +1459,9 @@ func TestNewOrder(t *testing.T) {
 			name: "pegged trailing stop limit order",
 			req: &NewOrderRequest{
 				Symbol:                     currency.NewBTCUSDT(),
-				Side:                       order.Sell.String(),
+				Side:                       SideSell,
 				Type:                       "STOP_LOSS_LIMIT",
-				TimeInForce:                order.GoodTillCancel.String(),
+				TimeInForce:                TimeInForceGoodTillCancel,
 				Quantity:                   0.01,
 				StopPrice:                  85000,
 				TrailingDeltaInBasisPoints: 200,
@@ -1697,16 +1697,16 @@ func TestCancelExistingOrderAndSendNewOrder(t *testing.T) {
 	t.Parallel()
 	_, err := e.CancelExistingOrderAndSendNewOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "CancelExistingOrderAndSendNewOrder must reject a nil request")
-	req := &CancelReplaceOrderRequest{TimeInForce: order.GoodTillCancel.String()}
+	req := &CancelReplaceOrderRequest{TimeInForce: TimeInForceGoodTillCancel}
 	_, err = e.CancelExistingOrderAndSendNewOrder(t.Context(), req)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "CancelExistingOrderAndSendNewOrder must reject an empty pair")
 	req.Symbol = currency.NewBTCUSDT()
 	_, err = e.CancelExistingOrderAndSendNewOrder(t.Context(), req)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid, "CancelExistingOrderAndSendNewOrder must reject an empty side")
-	req.Side = order.Buy.String()
+	req.Side = SideBuy
 	_, err = e.CancelExistingOrderAndSendNewOrder(t.Context(), req)
 	require.ErrorIs(t, err, order.ErrTypeIsInvalid, "CancelExistingOrderAndSendNewOrder must reject an empty type")
-	req.Type = order.Limit.String()
+	req.Type = OrderTypeLimit
 	_, err = e.CancelExistingOrderAndSendNewOrder(t.Context(), req)
 	require.ErrorIs(t, err, errCancelReplaceModeRequired, "CancelExistingOrderAndSendNewOrder must reject an empty cancel replace mode")
 	req.CancelReplaceMode = "STOP_ON_FAILURE"
@@ -1725,10 +1725,10 @@ func TestCancelExistingOrderAndSendNewOrder(t *testing.T) {
 			name: "limit order with every cancellation parameter",
 			req: &CancelReplaceOrderRequest{
 				Symbol:                      currency.NewBTCUSDT(),
-				Side:                        order.Buy.String(),
-				Type:                        order.Limit.String(),
+				Side:                        SideBuy,
+				Type:                        OrderTypeLimit,
 				CancelReplaceMode:           "STOP_ON_FAILURE",
-				TimeInForce:                 order.GoodTillCancel.String(),
+				TimeInForce:                 TimeInForceGoodTillCancel,
 				Quantity:                    0.04,
 				Price:                       84000,
 				CancelNewClientOrderID:      "osxN3JXAtJvKvCqGeMWMVR",
@@ -1793,10 +1793,10 @@ func TestCancelExistingOrderAndSendNewOrder(t *testing.T) {
 			name: "pegged trailing stop limit order",
 			req: &CancelReplaceOrderRequest{
 				Symbol:                     currency.NewBTCUSDT(),
-				Side:                       order.Sell.String(),
+				Side:                       SideSell,
 				Type:                       "STOP_LOSS_LIMIT",
 				CancelReplaceMode:          "ALLOW_FAILURE",
-				TimeInForce:                order.GoodTillCancel.String(),
+				TimeInForce:                TimeInForceGoodTillCancel,
 				Quantity:                   0.04,
 				StopPrice:                  85000,
 				TrailingDeltaInBasisPoints: 200,
@@ -1862,8 +1862,8 @@ func TestCancelExistingOrderAndSendNewOrder(t *testing.T) {
 			name: "market order by quote quantity",
 			req: &CancelReplaceOrderRequest{
 				Symbol:                      currency.NewBTCUSDT(),
-				Side:                        order.Buy.String(),
-				Type:                        order.Market.String(),
+				Side:                        SideBuy,
+				Type:                        OrderTypeMarket,
 				CancelReplaceMode:           "STOP_ON_FAILURE",
 				QuoteOrderQuantity:          100,
 				CancelOriginalClientOrderID: "DnLo3vTAQcjha43lAZhZ0y",
@@ -1980,7 +1980,7 @@ func TestCancelExistingOrderAndSendNewOrder(t *testing.T) {
 				_, err := w.Write([]byte(tc.body))
 				assert.NoError(t, err, "Write should not error")
 			})
-			result, err := ex.CancelExistingOrderAndSendNewOrder(t.Context(), &CancelReplaceOrderRequest{Symbol: currency.NewBTCUSDT(), Side: order.Buy.String(), Type: order.Market.String(), CancelReplaceMode: "ALLOW_FAILURE", CancelOrderID: 1, Quantity: 1})
+			result, err := ex.CancelExistingOrderAndSendNewOrder(t.Context(), &CancelReplaceOrderRequest{Symbol: currency.NewBTCUSDT(), Side: SideBuy, Type: OrderTypeMarket, CancelReplaceMode: "ALLOW_FAILURE", CancelOrderID: 1, Quantity: 1})
 			require.ErrorIs(t, err, errAPIResponse, "CancelExistingOrderAndSendNewOrder must return the API's error")
 			var apiErr *APIError
 			require.ErrorAs(t, err, &apiErr, "CancelExistingOrderAndSendNewOrder must return an APIError")
@@ -2032,13 +2032,13 @@ func TestNewOneCancelsTheOtherOrderList(t *testing.T) {
 	t.Parallel()
 	_, err := e.NewOneCancelsTheOtherOrderList(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "NewOneCancelsTheOtherOrderList must reject a nil request")
-	req := &OneCancelsTheOtherOrderListRequest{Above: OneCancelsTheOtherOrderListLeg{TimeInForce: order.GoodTillCancel.String()}}
+	req := &OneCancelsTheOtherOrderListRequest{Above: OneCancelsTheOtherOrderListLeg{TimeInForce: TimeInForceGoodTillCancel}}
 	_, err = e.NewOneCancelsTheOtherOrderList(t.Context(), req)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "NewOneCancelsTheOtherOrderList must reject an empty pair")
 	req.Symbol = currency.NewPair(currency.LTC, currency.BTC)
 	_, err = e.NewOneCancelsTheOtherOrderList(t.Context(), req)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid, "NewOneCancelsTheOtherOrderList must reject an empty side")
-	req.Side = order.Sell.String()
+	req.Side = SideSell
 	_, err = e.NewOneCancelsTheOtherOrderList(t.Context(), req)
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin, "NewOneCancelsTheOtherOrderList must reject a zero quantity")
 	req.Quantity = 1
@@ -2054,7 +2054,7 @@ func TestNewOneCancelsTheOtherOrderList(t *testing.T) {
 	result, err := e.NewOneCancelsTheOtherOrderList(t.Context(), &OneCancelsTheOtherOrderListRequest{
 		Symbol:            currency.NewPair(currency.LTC, currency.BTC),
 		ListClientOrderID: "lH1YDkuQKWiXVXHPSKYEIp",
-		Side:              order.Sell.String(),
+		Side:              SideSell,
 		Quantity:          5,
 		Above: OneCancelsTheOtherOrderListLeg{
 			Type:           "LIMIT_MAKER",
@@ -2073,7 +2073,7 @@ func TestNewOneCancelsTheOtherOrderList(t *testing.T) {
 			Price:                      0.0009,
 			StopPrice:                  0.00095,
 			TrailingDeltaInBasisPoints: 100,
-			TimeInForce:                order.GoodTillCancel.String(),
+			TimeInForce:                TimeInForceGoodTillCancel,
 			StrategyID:                 2,
 			StrategyType:               1000001,
 		},
@@ -2165,19 +2165,19 @@ func TestNewOrderTest(t *testing.T) {
 	}
 	result, err := e.NewOrderTest(t.Context(), &NewOrderRequest{
 		Symbol:      currency.NewPair(currency.LTC, currency.BTC),
-		Side:        order.Buy.String(),
-		Type:        order.Limit.String(),
+		Side:        SideBuy,
+		Type:        OrderTypeLimit,
 		Price:       0.0025,
 		Quantity:    100000,
-		TimeInForce: order.GoodTillCancel.String(),
+		TimeInForce: TimeInForceGoodTillCancel,
 	}, false)
 	require.NoError(t, err, "NewOrderTest must not error")
 	assert.Equal(t, &OrderTestResponse{}, result, "NewOrderTest should return no commission rates unless they are requested")
 
 	result, err = e.NewOrderTest(t.Context(), &NewOrderRequest{
 		Symbol:             currency.NewPair(currency.LTC, currency.BTC),
-		Side:               order.Sell.String(),
-		Type:               order.Market.String(),
+		Side:               SideSell,
+		Type:               OrderTypeMarket,
 		QuoteOrderQuantity: 10,
 	}, true)
 	require.NoError(t, err, "NewOrderTest must not error")
@@ -2212,16 +2212,16 @@ func TestNewOrderUsingSOR(t *testing.T) {
 	t.Parallel()
 	_, err := e.NewOrderUsingSOR(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "NewOrderUsingSOR must reject a nil request")
-	req := &SOROrderRequest{TimeInForce: order.GoodTillCancel.String()}
+	req := &SOROrderRequest{TimeInForce: TimeInForceGoodTillCancel}
 	_, err = e.NewOrderUsingSOR(t.Context(), req)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "NewOrderUsingSOR must reject an empty pair")
 	req.Symbol = currency.NewBTCUSDT()
 	_, err = e.NewOrderUsingSOR(t.Context(), req)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid, "NewOrderUsingSOR must reject an empty side")
-	req.Side = order.Sell.String()
+	req.Side = SideSell
 	_, err = e.NewOrderUsingSOR(t.Context(), req)
 	require.ErrorIs(t, err, order.ErrTypeIsInvalid, "NewOrderUsingSOR must reject an empty type")
-	req.Type = order.Limit.String()
+	req.Type = OrderTypeLimit
 	_, err = e.NewOrderUsingSOR(t.Context(), req)
 	require.ErrorIs(t, err, order.ErrAmountIsInvalid, "NewOrderUsingSOR must reject a zero quantity")
 
@@ -2237,9 +2237,9 @@ func TestNewOrderUsingSOR(t *testing.T) {
 			name: "limit order",
 			req: &SOROrderRequest{
 				Symbol:                  currency.NewBTCUSDT(),
-				Side:                    order.Buy.String(),
-				Type:                    order.Limit.String(),
-				TimeInForce:             order.GoodTillCancel.String(),
+				Side:                    SideBuy,
+				Type:                    OrderTypeLimit,
+				TimeInForce:             TimeInForceGoodTillCancel,
 				Quantity:                0.5,
 				Price:                   86200,
 				NewClientOrderID:        "sBI1KM6nNtOfj5tccZSKly",
@@ -2294,7 +2294,7 @@ func TestNewOrderUsingSOR(t *testing.T) {
 		},
 		{
 			name: "market order",
-			req:  &SOROrderRequest{Symbol: currency.NewBTCUSDT(), Side: order.Sell.String(), Type: order.Market.String(), Quantity: 0.2, NewOrderResponseType: "RESULT"},
+			req:  &SOROrderRequest{Symbol: currency.NewBTCUSDT(), Side: SideSell, Type: OrderTypeMarket, Quantity: 0.2, NewOrderResponseType: "RESULT"},
 			exp: &SOROrderResponse{
 				Symbol:                  "BTCUSDT",
 				OrderID:                 3,
@@ -2341,9 +2341,9 @@ func TestNewOrderUsingSORTest(t *testing.T) {
 	}
 	req := &SOROrderRequest{
 		Symbol:      currency.NewBTCUSDT(),
-		Side:        order.Buy.String(),
-		Type:        order.Limit.String(),
-		TimeInForce: order.GoodTillCancel.String(),
+		Side:        SideBuy,
+		Type:        OrderTypeLimit,
+		TimeInForce: TimeInForceGoodTillCancel,
 		Quantity:    0.001,
 		Price:       31000,
 	}
@@ -3575,7 +3575,7 @@ func TestListLengthLimits(t *testing.T) {
 		{"COIN-M Modify Multiple Orders", "batchOrders", 5, `[]`, func(ctx context.Context, ex *Exchange, n int) error {
 			orders := make([]CoinMarginedFuturesModifyOrderRequest, n)
 			for i := range orders {
-				orders[i] = CoinMarginedFuturesModifyOrderRequest{Symbol: coinmTradablePair, OrderID: uint64(i + 1), Side: order.Buy.String(), Quantity: 1, Price: 30005}
+				orders[i] = CoinMarginedFuturesModifyOrderRequest{Symbol: coinmTradablePair, OrderID: uint64(i + 1), Side: SideBuy, Quantity: 1, Price: 30005}
 			}
 			_, err := ex.CoinMarginedFuturesModifyMultipleOrders(ctx, orders)
 			return err

@@ -90,9 +90,9 @@ type FuturesLiquidationOrder struct {
 type FuturesLiquidationOrderDetail struct {
 	Symbol                         string       `json:"s"`
 	Pair                           string       `json:"ps"`
-	Side                           string       `json:"S"`
-	OrderType                      string       `json:"o"`
-	TimeInForce                    string       `json:"f"`
+	Side                           Side         `json:"S"`
+	OrderType                      OrderType    `json:"o"`
+	TimeInForce                    TimeInForce  `json:"f"`
 	OriginalQuantity               types.Number `json:"q"`
 	Price                          types.Number `json:"p"`
 	AveragePrice                   types.Number `json:"ap"`
@@ -172,7 +172,7 @@ type FuturesContinuousKline struct {
 	EventType    string                  `json:"e"`
 	EventTime    types.Time              `json:"E"`
 	Pair         string                  `json:"ps"`
-	ContractType string                  `json:"ct"`
+	ContractType ContractType            `json:"ct"`
 	Kline        FuturesContinuousCandle `json:"k"`
 }
 
@@ -203,7 +203,7 @@ type FuturesContractInfo struct {
 	EventTime        types.Time                   `json:"E"`
 	Symbol           string                       `json:"s"`
 	Pair             string                       `json:"ps"` // COIN-M only
-	ContractType     string                       `json:"ct"`
+	ContractType     ContractType                 `json:"ct"`
 	DeliveryDateTime types.Time                   `json:"dt"`
 	OnboardDateTime  types.Time                   `json:"ot"`
 	ContractStatus   string                       `json:"cs"`
@@ -346,9 +346,9 @@ type FuturesMarginCall struct {
 // FuturesMarginCallPosition is a position of a FuturesMarginCall
 type FuturesMarginCallPosition struct {
 	Symbol                    string       `json:"s"`
-	PositionSide              string       `json:"ps"`
+	PositionSide              PositionSide `json:"ps"`
 	PositionAmount            types.Number `json:"pa"`
-	MarginType                string       `json:"mt"`
+	MarginType                MarginType   `json:"mt"`
 	IsolatedWallet            types.Number `json:"iw"`
 	MarkPrice                 types.Number `json:"mp"`
 	UnrealisedPNL             types.Number `json:"up"`
@@ -390,7 +390,7 @@ type FuturesAccountUpdatePosition struct {
 	UnrealisedPNL       types.Number `json:"up"`
 	MarginType          string       `json:"mt"`
 	IsolatedWallet      types.Number `json:"iw"`
-	PositionSide        string       `json:"ps"`
+	PositionSide        PositionSide `json:"ps"`
 }
 
 // FuturesOrderTradeUpdate is a USDⓈ-M or COIN-M ORDER_TRADE_UPDATE user data event
@@ -405,45 +405,45 @@ type FuturesOrderTradeUpdate struct {
 // FuturesOrderTradeUpdateOrder is the order of a FuturesOrderTradeUpdate. COIN-M sends BidsNotional and AskNotional
 // as base asset quantities
 type FuturesOrderTradeUpdateOrder struct {
-	Symbol                         string        `json:"s"`
-	ClientOrderID                  string        `json:"c"`
-	Side                           string        `json:"S"`
-	OrderType                      string        `json:"o"`
-	TimeInForce                    string        `json:"f"`
-	OriginalQuantity               types.Number  `json:"q"`
-	OriginalPrice                  types.Number  `json:"p"`
-	AveragePrice                   types.Number  `json:"ap"`
-	StopPrice                      types.Number  `json:"sp"`
-	ExecutionType                  string        `json:"x"`
-	OrderStatus                    string        `json:"X"`
-	OrderID                        uint64        `json:"i"`
-	ModifyID                       string        `json:"M"` // only sent for AMENDMENT events of a modification with a modifyId
-	OrderLastFilledQuantity        types.Number  `json:"l"`
-	OrderFilledAccumulatedQuantity types.Number  `json:"z"`
-	LastFilledPrice                types.Number  `json:"L"`
-	MarginAsset                    currency.Code `json:"ma"` // COIN-M only
-	CommissionAsset                currency.Code `json:"N"`
-	Commission                     types.Number  `json:"n"`
-	OrderTradeTime                 types.Time    `json:"T"`
-	TradeID                        uint64        `json:"t"`
-	BidsNotional                   types.Number  `json:"b"`
-	AskNotional                    types.Number  `json:"a"`
-	IsMaker                        bool          `json:"m"`
-	IsReduceOnly                   bool          `json:"R"`
-	StopPriceWorkingType           string        `json:"wt"`
-	OriginalOrderType              string        `json:"ot"`
-	PositionSide                   string        `json:"ps"`
-	IsCloseAll                     bool          `json:"cp"`
-	ActivationPrice                types.Number  `json:"AP"`
-	CallbackRate                   types.Number  `json:"cr"`
-	IsPriceProtected               bool          `json:"pP"`
-	IgnoreSI                       int64         `json:"si"` // USDⓈ-M only, documented as ignore
-	IgnoreSS                       int64         `json:"ss"` // USDⓈ-M only, documented as ignore
-	RealisedProfit                 types.Number  `json:"rp"`
-	SelfTradePreventionMode        string        `json:"V"`
-	PriceMatchMode                 string        `json:"pm"`
-	GoodTillDate                   types.Time    `json:"gtd"` // USDⓈ-M only
-	ExpiryReason                   string        `json:"er"`
+	Symbol                         string                  `json:"s"`
+	ClientOrderID                  string                  `json:"c"`
+	Side                           Side                    `json:"S"`
+	OrderType                      OrderType               `json:"o"`
+	TimeInForce                    TimeInForce             `json:"f"`
+	OriginalQuantity               types.Number            `json:"q"`
+	OriginalPrice                  types.Number            `json:"p"`
+	AveragePrice                   types.Number            `json:"ap"`
+	StopPrice                      types.Number            `json:"sp"`
+	ExecutionType                  string                  `json:"x"`
+	OrderStatus                    string                  `json:"X"`
+	OrderID                        uint64                  `json:"i"`
+	ModifyID                       string                  `json:"M"` // only sent for AMENDMENT events of a modification with a modifyId
+	OrderLastFilledQuantity        types.Number            `json:"l"`
+	OrderFilledAccumulatedQuantity types.Number            `json:"z"`
+	LastFilledPrice                types.Number            `json:"L"`
+	MarginAsset                    currency.Code           `json:"ma"` // COIN-M only
+	CommissionAsset                currency.Code           `json:"N"`
+	Commission                     types.Number            `json:"n"`
+	OrderTradeTime                 types.Time              `json:"T"`
+	TradeID                        uint64                  `json:"t"`
+	BidsNotional                   types.Number            `json:"b"`
+	AskNotional                    types.Number            `json:"a"`
+	IsMaker                        bool                    `json:"m"`
+	IsReduceOnly                   bool                    `json:"R"`
+	StopPriceWorkingType           WorkingType             `json:"wt"`
+	OriginalOrderType              OrderType               `json:"ot"`
+	PositionSide                   PositionSide            `json:"ps"`
+	IsCloseAll                     bool                    `json:"cp"`
+	ActivationPrice                types.Number            `json:"AP"`
+	CallbackRate                   types.Number            `json:"cr"`
+	IsPriceProtected               bool                    `json:"pP"`
+	IgnoreSI                       int64                   `json:"si"` // USDⓈ-M only, documented as ignore
+	IgnoreSS                       int64                   `json:"ss"` // USDⓈ-M only, documented as ignore
+	RealisedProfit                 types.Number            `json:"rp"`
+	SelfTradePreventionMode        SelfTradePreventionMode `json:"V"`
+	PriceMatchMode                 PriceMatch              `json:"pm"`
+	GoodTillDate                   types.Time              `json:"gtd"` // USDⓈ-M only
+	ExpiryReason                   string                  `json:"er"`
 }
 
 // FuturesAccountConfigUpdate is a USDⓈ-M or COIN-M ACCOUNT_CONFIG_UPDATE user data event
@@ -476,7 +476,7 @@ type FuturesTradeLite struct {
 	OriginalPrice           types.Number `json:"p"`
 	IsMaker                 bool         `json:"m"`
 	ClientOrderID           string       `json:"c"`
-	Side                    string       `json:"S"`
+	Side                    Side         `json:"S"`
 	LastFilledPrice         types.Number `json:"L"`
 	OrderLastFilledQuantity types.Number `json:"l"`
 	TradeID                 uint64       `json:"t"`
@@ -550,32 +550,32 @@ type FuturesAlgoUpdate struct {
 // FuturesAlgoUpdateOrder is the algo order of a FuturesAlgoUpdate. The matching engine fields are only sent once the
 // order has been triggered
 type FuturesAlgoUpdateOrder struct {
-	ClientAlgoID            string       `json:"caid"`
-	AlgoID                  uint64       `json:"aid"`
-	AlgoType                string       `json:"at"`
-	OrderType               string       `json:"o"`
-	Symbol                  string       `json:"s"`
-	Side                    string       `json:"S"`
-	PositionSide            string       `json:"ps"`
-	TimeInForce             string       `json:"f"`
-	Quantity                types.Number `json:"q"`
-	AlgoStatus              string       `json:"X"`
-	OrderID                 string       `json:"ai"`
-	AverageFillPrice        types.Number `json:"ap"`
-	ExecutedQuantity        types.Number `json:"aq"`
-	ActualOrderType         string       `json:"act"`
-	TriggerPrice            types.Number `json:"tp"`
-	OrderPrice              types.Number `json:"p"`
-	SelfTradePreventionMode string       `json:"V"`
-	WorkingType             string       `json:"wt"`
-	PriceMatchMode          string       `json:"pm"`
-	IsCloseAll              bool         `json:"cp"`
-	IsPriceProtected        bool         `json:"pP"`
-	IsReduceOnly            bool         `json:"R"`
-	TriggerTime             types.Time   `json:"tt"`
-	GoodTillDate            types.Time   `json:"gtd"`
-	FailedReason            string       `json:"rm"`
-	IsActivated             bool         `json:"ia"` // only meaningful for trailing stop orders
+	ClientAlgoID            string                  `json:"caid"`
+	AlgoID                  uint64                  `json:"aid"`
+	AlgoType                AlgoType                `json:"at"`
+	OrderType               OrderType               `json:"o"`
+	Symbol                  string                  `json:"s"`
+	Side                    Side                    `json:"S"`
+	PositionSide            PositionSide            `json:"ps"`
+	TimeInForce             TimeInForce             `json:"f"`
+	Quantity                types.Number            `json:"q"`
+	AlgoStatus              string                  `json:"X"`
+	OrderID                 string                  `json:"ai"`
+	AverageFillPrice        types.Number            `json:"ap"`
+	ExecutedQuantity        types.Number            `json:"aq"`
+	ActualOrderType         OrderType               `json:"act"`
+	TriggerPrice            types.Number            `json:"tp"`
+	OrderPrice              types.Number            `json:"p"`
+	SelfTradePreventionMode SelfTradePreventionMode `json:"V"`
+	WorkingType             WorkingType             `json:"wt"`
+	PriceMatchMode          PriceMatch              `json:"pm"`
+	IsCloseAll              bool                    `json:"cp"`
+	IsPriceProtected        bool                    `json:"pP"`
+	IsReduceOnly            bool                    `json:"R"`
+	TriggerTime             types.Time              `json:"tt"`
+	GoodTillDate            types.Time              `json:"gtd"`
+	FailedReason            string                  `json:"rm"`
+	IsActivated             bool                    `json:"ia"` // only meaningful for trailing stop orders
 }
 
 // ListenKeyExpired is the listenKeyExpired user data event, after which no user data arrives until a valid listen key
@@ -645,7 +645,7 @@ type WebsocketOptionsTrade struct {
 	Price              types.Number `json:"p"`
 	Quantity           types.Number `json:"q"`
 	TradeType          string       `json:"X"` // MARKET for order book trades, BLOCK for block trades
-	Direction          string       `json:"S"`
+	Direction          Side         `json:"S"`
 	IsBuyerMaker       bool         `json:"m"`
 }
 
@@ -785,31 +785,31 @@ type OptionsOrderTradeUpdate struct {
 
 // OptionsOrderTradeUpdateOrder is the order of an OptionsOrderTradeUpdate
 type OptionsOrderTradeUpdateOrder struct {
-	Symbol                         string        `json:"s"`
-	ClientOrderID                  string        `json:"c"`
-	Side                           string        `json:"S"`
-	OrderType                      string        `json:"o"`
-	TimeInForce                    string        `json:"f"`
-	OriginalQuantity               types.Number  `json:"q"`
-	OriginalPrice                  types.Number  `json:"p"`
-	AveragePrice                   types.Number  `json:"ap"`
-	ExecutionType                  string        `json:"x"`
-	OrderStatus                    string        `json:"X"`
-	OrderID                        uint64        `json:"i"`
-	OrderLastFilledQuantity        types.Number  `json:"l"`
-	OrderFilledAccumulatedQuantity types.Number  `json:"z"`
-	LastFilledPrice                types.Number  `json:"L"`
-	CommissionAsset                currency.Code `json:"N"`
-	Commission                     types.Number  `json:"n"` // negative means a fee was charged
-	OrderTradeTime                 types.Time    `json:"T"`
-	TradeID                        uint64        `json:"t"`
-	BidsQuantity                   types.Number  `json:"b"`
-	AskQuantity                    types.Number  `json:"a"`
-	IsMaker                        bool          `json:"m"`
-	IsReduceOnly                   bool          `json:"R"`
-	OriginalOrderType              string        `json:"ot"`
-	RealisedProfit                 types.Number  `json:"rp"`
-	SelfTradePreventionMode        string        `json:"V"`
+	Symbol                         string                  `json:"s"`
+	ClientOrderID                  string                  `json:"c"`
+	Side                           Side                    `json:"S"`
+	OrderType                      OrderType               `json:"o"`
+	TimeInForce                    TimeInForce             `json:"f"`
+	OriginalQuantity               types.Number            `json:"q"`
+	OriginalPrice                  types.Number            `json:"p"`
+	AveragePrice                   types.Number            `json:"ap"`
+	ExecutionType                  string                  `json:"x"`
+	OrderStatus                    string                  `json:"X"`
+	OrderID                        uint64                  `json:"i"`
+	OrderLastFilledQuantity        types.Number            `json:"l"`
+	OrderFilledAccumulatedQuantity types.Number            `json:"z"`
+	LastFilledPrice                types.Number            `json:"L"`
+	CommissionAsset                currency.Code           `json:"N"`
+	Commission                     types.Number            `json:"n"` // negative means a fee was charged
+	OrderTradeTime                 types.Time              `json:"T"`
+	TradeID                        uint64                  `json:"t"`
+	BidsQuantity                   types.Number            `json:"b"`
+	AskQuantity                    types.Number            `json:"a"`
+	IsMaker                        bool                    `json:"m"`
+	IsReduceOnly                   bool                    `json:"R"`
+	OriginalOrderType              OrderType               `json:"ot"`
+	RealisedProfit                 types.Number            `json:"rp"`
+	SelfTradePreventionMode        SelfTradePreventionMode `json:"V"`
 }
 
 // OptionsGreekUpdate is an options GREEK_UPDATE user data event, pushed on position changes and every 10 seconds while

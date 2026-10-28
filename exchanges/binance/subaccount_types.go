@@ -52,7 +52,7 @@ type SubAccountDeliveryPositionRisk struct {
 	IsolatedWallet   types.Number  `json:"isolatedWallet"`
 	IsolatedMargin   types.Number  `json:"isolatedMargin"`
 	IsAutoAddMargin  types.Boolean `json:"isAutoAddMargin"` // Arrives as a quoted boolean
-	PositionSide     string        `json:"positionSide"`
+	PositionSide     PositionSide  `json:"positionSide"`
 	PositionAmount   types.Number  `json:"positionAmount"`
 	Symbol           string        `json:"symbol"`
 	UnrealisedProfit types.Number  `json:"unrealizedProfit"`

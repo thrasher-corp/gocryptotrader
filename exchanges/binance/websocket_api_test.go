@@ -199,6 +199,10 @@ func TestSignWebsocketAPIParams(t *testing.T) {
 	ex.SetCredentials(&accounts.Credentials{})
 	assert.ErrorIs(t, ex.signWsAPIParams(t.Context(), wsParams{}), exchange.ErrCredentialsAreEmpty, "signWsAPIParams should error without credentials")
 
+	payload, err = wsParams{"side": SideSell, "type": OrderTypeLimit}.signaturePayload()
+	require.NoError(t, err, "signaturePayload must not error for named string types")
+	assert.Equal(t, "side=SELL&type=LIMIT", payload, "signaturePayload should sign a named string type as its text")
+
 	_, err = wsParams{"invalid": func() {}}.signaturePayload()
 	assert.ErrorIs(t, err, errWebsocketAPIRequestFailed, "signaturePayload should reject a value JSON cannot encode")
 }
@@ -1249,7 +1253,7 @@ func TestWebsocketCancelAndReplaceTradeOrder(t *testing.T) {
 		return w.WriteMessage(gws.TextMessage, fmt.Appendf(nil, `{"id":%q,"status":409,"error":{"code":-2021,"msg":"Order cancel-replace partially failed.","data":{"cancelResult":"SUCCESS","newOrderResult":"FAILURE","cancelResponse":{"symbol":"BTCUSDT","origClientOrderId":"4d96324ff9d44481926157","orderId":125690984230,"orderListId":-1,"clientOrderId":"91fe37ce9e69c90d6358c0","transactTime":1684804350068},"newOrderResponse":{"code":-2010,"msg":"Order would immediately match and take."}}}}`, req.ID))
 	})
 	require.NoError(t, partial.Websocket.Connect(t.Context()), "Connect must not error")
-	got, err = partial.WebsocketCancelAndReplaceTradeOrder(t.Context(), &WebsocketCancelReplaceOrderRequest{Symbol: currency.NewBTCUSDT(), CancelReplaceMode: "ALLOW_FAILURE", CancelOrderID: 125690984230, Side: order.Sell.String(), Type: order.Limit.String(), TimeInForce: "GTC", Price: 23416.1, Quantity: 0.00847})
+	got, err = partial.WebsocketCancelAndReplaceTradeOrder(t.Context(), &WebsocketCancelReplaceOrderRequest{Symbol: currency.NewBTCUSDT(), CancelReplaceMode: "ALLOW_FAILURE", CancelOrderID: 125690984230, Side: SideSell, Type: OrderTypeLimit, TimeInForce: "GTC", Price: 23416.1, Quantity: 0.00847})
 	require.ErrorIs(t, err, errWebsocketAPIRequestFailed, "WebsocketCancelAndReplaceTradeOrder must return the API's error")
 	var apiErr *APIError
 	require.ErrorAs(t, err, &apiErr, "WebsocketCancelAndReplaceTradeOrder must return an APIError")
@@ -2378,7 +2382,7 @@ func TestOrdersSkipReconnectingWebsocketAPI(t *testing.T) {
 	// holding the test until the WebSocket API answers, which it only does once released
 	placed := make(chan error, 1)
 	go func() {
-		_, err := ex.WebsocketPlaceNewOrder(t.Context(), &WebsocketPlaceOrderRequest{Symbol: currency.NewBTCUSDT(), Side: order.Buy.String(), Type: order.Market.String(), Quantity: 1})
+		_, err := ex.WebsocketPlaceNewOrder(t.Context(), &WebsocketPlaceOrderRequest{Symbol: currency.NewBTCUSDT(), Side: SideBuy, Type: OrderTypeMarket, Quantity: 1})
 		placed <- err
 	}()
 	routed := make(chan bool, 1)
@@ -3364,7 +3368,7 @@ func TestServerShutdownLetsRequestsReturn(t *testing.T) {
 			var resp *WebsocketOrderResponse
 			go func() {
 				var err error
-				resp, err = ex.WebsocketPlaceNewOrder(t.Context(), &WebsocketPlaceOrderRequest{Symbol: currency.NewBTCUSDT(), Side: order.Buy.String(), Type: order.Market.String(), Quantity: 1})
+				resp, err = ex.WebsocketPlaceNewOrder(t.Context(), &WebsocketPlaceOrderRequest{Symbol: currency.NewBTCUSDT(), Side: SideBuy, Type: OrderTypeMarket, Quantity: 1})
 				placed <- err
 			}()
 			select {
@@ -3404,7 +3408,7 @@ func TestServerShutdownLeavesReconnectedWebsocket(t *testing.T) {
 	defer cancel()
 	placed := make(chan error, 1)
 	go func() {
-		_, err := ex.WebsocketPlaceNewOrder(ctx, &WebsocketPlaceOrderRequest{Symbol: currency.NewBTCUSDT(), Side: order.Buy.String(), Type: order.Market.String(), Quantity: 1})
+		_, err := ex.WebsocketPlaceNewOrder(ctx, &WebsocketPlaceOrderRequest{Symbol: currency.NewBTCUSDT(), Side: SideBuy, Type: OrderTypeMarket, Quantity: 1})
 		placed <- err
 	}()
 	select {

@@ -1045,7 +1045,7 @@ func TestDecodeStreamFrame(t *testing.T) {
 
 func TestDerivativesOrderConversions(t *testing.T) {
 	t.Parallel()
-	for in, exp := range map[string]order.Type{
+	for in, exp := range map[OrderType]order.Type{
 		"LIMIT": order.Limit, "MARKET": order.Market, "STOP": order.StopLimit, "STOP_MARKET": order.StopMarket, "TAKE_PROFIT": order.TakeProfitLimit,
 		"TAKE_PROFIT_MARKET": order.TakeProfitMarket, "TRAILING_STOP_MARKET": order.TrailingStop, "LIQUIDATION": order.Liquidation,
 	} {
@@ -1067,7 +1067,7 @@ func TestDerivativesOrderConversions(t *testing.T) {
 	_, err = derivativesOrderStatus("SUSPENDED")
 	assert.ErrorIs(t, err, errUnknownOrderStatus, "derivativesOrderStatus should reject an unknown status")
 
-	for in, exp := range map[string]order.TimeInForce{
+	for in, exp := range map[TimeInForce]order.TimeInForce{
 		"GTC": order.GoodTillCancel, "IOC": order.ImmediateOrCancel, "FOK": order.FillOrKill, "GTX": order.PostOnly, "GTD": order.GoodTillDay, "RPI": order.PostOnly,
 		"GTE_GTC": order.GoodTillCancel,
 	} {

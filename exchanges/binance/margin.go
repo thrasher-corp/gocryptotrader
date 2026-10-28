@@ -708,8 +708,8 @@ func (e *Exchange) PostMarginAccountOrder(ctx context.Context, req *MarginAccoun
 	if req.IsIsolated {
 		params.Set("isIsolated", "TRUE")
 	}
-	params.Set("side", req.Side)
-	params.Set("type", req.OrderType)
+	params.Set("side", string(req.Side))
+	params.Set("type", string(req.OrderType))
 	if req.Quantity != 0 {
 		params.Set("quantity", strconv.FormatFloat(req.Quantity, 'f', -1, 64))
 	}
@@ -729,16 +729,16 @@ func (e *Exchange) PostMarginAccountOrder(ctx context.Context, req *MarginAccoun
 		params.Set("icebergQty", strconv.FormatFloat(req.IcebergQuantity, 'f', -1, 64))
 	}
 	if req.NewOrderResponseType != "" {
-		params.Set("newOrderRespType", req.NewOrderResponseType)
+		params.Set("newOrderRespType", string(req.NewOrderResponseType))
 	}
 	if req.SideEffectType != "" {
-		params.Set("sideEffectType", req.SideEffectType)
+		params.Set("sideEffectType", string(req.SideEffectType))
 	}
 	if req.TimeInForce != "" {
-		params.Set("timeInForce", req.TimeInForce)
+		params.Set("timeInForce", string(req.TimeInForce))
 	}
 	if req.SelfTradePreventionMode != "" {
-		params.Set("selfTradePreventionMode", req.SelfTradePreventionMode)
+		params.Set("selfTradePreventionMode", string(req.SelfTradePreventionMode))
 	}
 	if req.TrailingDeltaInBasisPoints != 0 {
 		params.Set("trailingDelta", strconv.FormatUint(req.TrailingDeltaInBasisPoints, 10))
@@ -822,7 +822,7 @@ func (e *Exchange) NewMarginAccountOneCancelsTheOtherOrder(ctx context.Context, 
 	if req.ListClientOrderID != "" {
 		params.Set("listClientOrderId", req.ListClientOrderID)
 	}
-	params.Set("side", req.Side)
+	params.Set("side", string(req.Side))
 	params.Set("quantity", strconv.FormatFloat(req.Quantity, 'f', -1, 64))
 	if req.LimitClientOrderID != "" {
 		params.Set("limitClientOrderId", req.LimitClientOrderID)
@@ -842,16 +842,16 @@ func (e *Exchange) NewMarginAccountOneCancelsTheOtherOrder(ctx context.Context, 
 		params.Set("stopIcebergQty", strconv.FormatFloat(req.StopIcebergQuantity, 'f', -1, 64))
 	}
 	if req.StopLimitTimeInForce != "" {
-		params.Set("stopLimitTimeInForce", req.StopLimitTimeInForce)
+		params.Set("stopLimitTimeInForce", string(req.StopLimitTimeInForce))
 	}
 	if req.NewOrderResponseType != "" {
-		params.Set("newOrderRespType", req.NewOrderResponseType)
+		params.Set("newOrderRespType", string(req.NewOrderResponseType))
 	}
 	if req.SideEffectType != "" {
-		params.Set("sideEffectType", req.SideEffectType)
+		params.Set("sideEffectType", string(req.SideEffectType))
 	}
 	if req.SelfTradePreventionMode != "" {
-		params.Set("selfTradePreventionMode", req.SelfTradePreventionMode)
+		params.Set("selfTradePreventionMode", string(req.SelfTradePreventionMode))
 	}
 	if req.AutoRepayAtCancel != nil {
 		params.Set("autoRepayAtCancel", strconv.FormatBool(*req.AutoRepayAtCancel))

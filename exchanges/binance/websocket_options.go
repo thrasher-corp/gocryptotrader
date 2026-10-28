@@ -176,7 +176,7 @@ func (e *Exchange) processOptionsTrade(data []byte) error {
 	if err != nil || !enabled {
 		return err
 	}
-	side, err := order.StringToOrderSide(resp.Direction)
+	side, err := order.StringToOrderSide(string(resp.Direction))
 	if err != nil {
 		return err
 	}
@@ -335,7 +335,7 @@ func (e *Exchange) processOptionsOrderTradeUpdate(ctx context.Context, data []by
 		log.Warnf(log.WebsocketMgr, "%s %s order update: skipping order %d: %v", e.Name, asset.Options, o.OrderID, err)
 		return nil
 	}
-	side, err := order.StringToOrderSide(o.Side)
+	side, err := order.StringToOrderSide(string(o.Side))
 	if err != nil {
 		return err
 	}

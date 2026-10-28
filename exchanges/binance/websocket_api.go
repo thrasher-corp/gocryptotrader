@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"maps"
 	"net/http"
+	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -285,6 +286,11 @@ func (p wsParams) signaturePayload() (string, error) {
 		case bool:
 			sb.WriteString(strconv.FormatBool(v))
 		default:
+			// A named string type, such as an enum type, signs as its text, which is how the request sends it
+			if rv := reflect.ValueOf(v); rv.Kind() == reflect.String {
+				sb.WriteString(rv.String())
+				break
+			}
 			raw, err := json.Marshal(v)
 			if err != nil {
 				return "", fmt.Errorf("%w %q: %w", errWebsocketAPIRequestFailed, key, err)
@@ -599,11 +605,11 @@ func (e *Exchange) processExecutionReport(ctx context.Context, a asset.Item, eve
 	if err != nil {
 		return e.Websocket.DataHandler.Send(ctx, order.ClassificationError{Exchange: e.Name, OrderID: orderID, Err: err})
 	}
-	side, err := order.StringToOrderSide(resp.Side)
+	side, err := order.StringToOrderSide(string(resp.Side))
 	if err != nil {
 		return e.Websocket.DataHandler.Send(ctx, order.ClassificationError{Exchange: e.Name, OrderID: orderID, Err: err})
 	}
-	tif, err := order.StringToTimeInForce(resp.TimeInForce)
+	tif, err := order.StringToTimeInForce(string(resp.TimeInForce))
 	if err != nil {
 		return e.Websocket.DataHandler.Send(ctx, order.ClassificationError{Exchange: e.Name, OrderID: orderID, Err: err})
 	}
@@ -1065,7 +1071,7 @@ func (e *Exchange) WebsocketCancelExistingOrder(ctx context.Context, arg *Websoc
 	params.setUint("orderId", arg.OrderID)
 	params.setString("origClientOrderId", arg.OriginalClientOrderID)
 	params.setString("newClientOrderId", arg.NewClientOrderID)
-	params.setString("cancelRestrictions", arg.CancelRestrictions)
+	params.setString("cancelRestrictions", string(arg.CancelRestrictions))
 	var resp *WebsocketCancelOrderResponse
 	return resp, e.SendSignedWebsocketAPIRequest(ctx, spotCancelRate, "order.cancel", params, &resp)
 }
@@ -1097,23 +1103,23 @@ func (e *Exchange) WebsocketCancelAndReplaceTradeOrder(ctx context.Context, arg 
 	params.setString("cancelNewClientOrderId", arg.CancelNewClientOrderID)
 	params["side"] = arg.Side
 	params["type"] = arg.Type
-	params.setString("timeInForce", arg.TimeInForce)
+	params.setString("timeInForce", string(arg.TimeInForce))
 	params.setFloat("price", arg.Price)
 	params.setFloat("quantity", arg.Quantity)
 	params.setFloat("quoteOrderQty", arg.QuoteOrderQuantity)
 	params.setString("newClientOrderId", arg.NewClientOrderID)
-	params.setString("newOrderRespType", arg.NewOrderResponseType)
+	params.setString("newOrderRespType", string(arg.NewOrderResponseType))
 	params.setFloat("stopPrice", arg.StopPrice)
 	params.setUint("trailingDelta", arg.TrailingDeltaInBasisPoints)
 	params.setFloat("icebergQty", arg.IcebergQuantity)
 	params.setUint("strategyId", arg.StrategyID)
 	params.setUint("strategyType", arg.StrategyType)
-	params.setString("selfTradePreventionMode", arg.SelfTradePreventionMode)
-	params.setString("cancelRestrictions", arg.CancelRestrictions)
-	params.setString("orderRateLimitExceededMode", arg.OrderRateLimitExceededMode)
-	params.setString("pegPriceType", arg.PegPriceType)
+	params.setString("selfTradePreventionMode", string(arg.SelfTradePreventionMode))
+	params.setString("cancelRestrictions", string(arg.CancelRestrictions))
+	params.setString("orderRateLimitExceededMode", string(arg.OrderRateLimitExceededMode))
+	params.setString("pegPriceType", string(arg.PegPriceType))
 	params.setUint("pegOffsetValue", arg.PegOffsetValue)
-	params.setString("pegOffsetType", arg.PegOffsetType)
+	params.setString("pegOffsetType", string(arg.PegOffsetType))
 	var resp *WebsocketCancelReplaceOrderResponse
 	err := e.SendSignedWebsocketAPIRequest(ctx, spotOrderRate, "order.cancelReplace", params, &resp)
 	return cancelReplaceOutcome(resp, err)
@@ -1173,12 +1179,12 @@ func (e *Exchange) WebsocketPlaceOneCancelsTheOtherOrder(ctx context.Context, ar
 	params.setUint("trailingDelta", arg.TrailingDeltaInBasisPoints)
 	params.setString("stopClientOrderId", arg.StopClientOrderID)
 	params.setFloat("stopLimitPrice", arg.StopLimitPrice)
-	params.setString("stopLimitTimeInForce", arg.StopLimitTimeInForce)
+	params.setString("stopLimitTimeInForce", string(arg.StopLimitTimeInForce))
 	params.setFloat("stopIcebergQty", arg.StopIcebergQuantity)
 	params.setUint("stopStrategyId", arg.StopStrategyID)
 	params.setUint("stopStrategyType", arg.StopStrategyType)
-	params.setString("newOrderRespType", arg.NewOrderResponseType)
-	params.setString("selfTradePreventionMode", arg.SelfTradePreventionMode)
+	params.setString("newOrderRespType", string(arg.NewOrderResponseType))
+	params.setString("selfTradePreventionMode", string(arg.SelfTradePreventionMode))
 	var resp *WebsocketOrderListResponse
 	return resp, e.SendSignedWebsocketAPIRequest(ctx, spotOneCancelsTheOtherOrderRate, "orderList.place", params, &resp)
 }
@@ -1212,8 +1218,8 @@ func (e *Exchange) WebsocketPlaceOneCancelsTheOtherOrderList(ctx context.Context
 	params.setString("listClientOrderId", arg.ListClientOrderID)
 	setWsOneCancelsTheOtherLegParams(params, "above", &arg.Above)
 	setWsOneCancelsTheOtherLegParams(params, "below", &arg.Below)
-	params.setString("newOrderRespType", arg.NewOrderResponseType)
-	params.setString("selfTradePreventionMode", arg.SelfTradePreventionMode)
+	params.setString("newOrderRespType", string(arg.NewOrderResponseType))
+	params.setString("selfTradePreventionMode", string(arg.SelfTradePreventionMode))
 	var resp *WebsocketOrderListResponse
 	return resp, e.SendSignedWebsocketAPIRequest(ctx, spotOneCancelsTheOtherOrderRate, "orderList.place.oco", params, &resp)
 }
@@ -1227,11 +1233,11 @@ func setWsOneCancelsTheOtherLegParams(params wsParams, leg string, arg *OneCance
 	params.setFloat(leg+"Price", arg.Price)
 	params.setFloat(leg+"StopPrice", arg.StopPrice)
 	params.setUint(leg+"TrailingDelta", arg.TrailingDeltaInBasisPoints)
-	params.setString(leg+"TimeInForce", arg.TimeInForce)
+	params.setString(leg+"TimeInForce", string(arg.TimeInForce))
 	params.setUint(leg+"StrategyId", arg.StrategyID)
 	params.setUint(leg+"StrategyType", arg.StrategyType)
-	params.setString(leg+"PegPriceType", arg.PegPriceType)
-	params.setString(leg+"PegOffsetType", arg.PegOffsetType)
+	params.setString(leg+"PegPriceType", string(arg.PegPriceType))
+	params.setString(leg+"PegOffsetType", string(arg.PegOffsetType))
 	params.setUint(leg+"PegOffsetValue", arg.PegOffsetValue)
 }
 
@@ -1252,21 +1258,21 @@ func (e *Exchange) orderParams(arg *WebsocketPlaceOrderRequest) (wsParams, error
 	}
 	params["side"] = arg.Side
 	params["type"] = arg.Type
-	params.setString("timeInForce", arg.TimeInForce)
+	params.setString("timeInForce", string(arg.TimeInForce))
 	params.setFloat("price", arg.Price)
 	params.setFloat("quantity", arg.Quantity)
 	params.setFloat("quoteOrderQty", arg.QuoteOrderQuantity)
 	params.setString("newClientOrderId", arg.NewClientOrderID)
-	params.setString("newOrderRespType", arg.NewOrderResponseType)
+	params.setString("newOrderRespType", string(arg.NewOrderResponseType))
 	params.setFloat("stopPrice", arg.StopPrice)
 	params.setUint("trailingDelta", arg.TrailingDeltaInBasisPoints)
 	params.setFloat("icebergQty", arg.IcebergQuantity)
 	params.setUint("strategyId", arg.StrategyID)
 	params.setUint("strategyType", arg.StrategyType)
-	params.setString("selfTradePreventionMode", arg.SelfTradePreventionMode)
-	params.setString("pegPriceType", arg.PegPriceType)
+	params.setString("selfTradePreventionMode", string(arg.SelfTradePreventionMode))
+	params.setString("pegPriceType", string(arg.PegPriceType))
 	params.setUint("pegOffsetValue", arg.PegOffsetValue)
-	params.setString("pegOffsetType", arg.PegOffsetType)
+	params.setString("pegOffsetType", string(arg.PegOffsetType))
 	return params, nil
 }
 
@@ -1315,15 +1321,15 @@ func (e *Exchange) wsSOROrderParams(arg *WebsocketSOROrderRequest) (wsParams, er
 	}
 	params["side"] = arg.Side
 	params["type"] = arg.Type
-	params.setString("timeInForce", arg.TimeInForce)
+	params.setString("timeInForce", string(arg.TimeInForce))
 	params.setFloat("price", arg.Price)
 	params.setFloat("quantity", arg.Quantity)
 	params.setString("newClientOrderId", arg.NewClientOrderID)
-	params.setString("newOrderRespType", arg.NewOrderResponseType)
+	params.setString("newOrderRespType", string(arg.NewOrderResponseType))
 	params.setFloat("icebergQty", arg.IcebergQuantity)
 	params.setUint("strategyId", arg.StrategyID)
 	params.setUint("strategyType", arg.StrategyType)
-	params.setString("selfTradePreventionMode", arg.SelfTradePreventionMode)
+	params.setString("selfTradePreventionMode", string(arg.SelfTradePreventionMode))
 	return params, nil
 }
 

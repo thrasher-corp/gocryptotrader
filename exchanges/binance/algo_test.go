@@ -186,7 +186,7 @@ func TestFuturesTWAPOrder(t *testing.T) {
 	arg.Symbol = currency.NewBTCUSDT()
 	_, err = e.FuturesTWAPOrder(t.Context(), arg)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid, "FuturesTWAPOrder must reject an empty side")
-	arg.Side = order.Sell.String()
+	arg.Side = SideSell
 	_, err = e.FuturesTWAPOrder(t.Context(), arg)
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin, "FuturesTWAPOrder must reject an empty quantity")
 	arg.Quantity, arg.Duration = 0.012, 0
@@ -222,7 +222,7 @@ func TestVolumeParticipationNewOrder(t *testing.T) {
 	arg.Symbol = currency.NewBTCUSDT()
 	_, err = e.VolumeParticipationNewOrder(t.Context(), arg)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid, "VolumeParticipationNewOrder must reject an empty side")
-	arg.Side = order.Sell.String()
+	arg.Side = SideSell
 	_, err = e.VolumeParticipationNewOrder(t.Context(), arg)
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin, "VolumeParticipationNewOrder must reject an empty quantity")
 	arg.Quantity = 0.12
@@ -399,7 +399,7 @@ func TestSpotTWAPNewOrder(t *testing.T) {
 	arg.Symbol = currency.NewBTCUSDT()
 	_, err = e.SpotTWAPNewOrder(t.Context(), arg)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid, "SpotTWAPNewOrder must reject an empty side")
-	arg.Side = order.Sell.String()
+	arg.Side = SideSell
 	_, err = e.SpotTWAPNewOrder(t.Context(), arg)
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin, "SpotTWAPNewOrder must reject an empty quantity")
 	arg.Quantity, arg.Duration = 0.012, 0

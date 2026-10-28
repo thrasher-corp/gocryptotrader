@@ -861,7 +861,7 @@ func TestUSDTMarginedFuturesExchangeInfo(t *testing.T) {
 							PositionControlSide: "BOTH",
 						},
 					},
-					OrderTypes: []string{
+					OrderTypes: []OrderType{
 						"LIMIT",
 						"MARKET",
 						"STOP",
@@ -870,7 +870,7 @@ func TestUSDTMarginedFuturesExchangeInfo(t *testing.T) {
 						"TAKE_PROFIT_MARKET",
 						"TRAILING_STOP_MARKET",
 					},
-					TimeInForce: []string{
+					TimeInForce: []TimeInForce{
 						"GTC",
 						"IOC",
 						"FOK",
@@ -944,7 +944,7 @@ func TestUSDTMarginedFuturesExchangeInfo(t *testing.T) {
 							PositionControlSide: "BOTH",
 						},
 					},
-					OrderTypes: []string{
+					OrderTypes: []OrderType{
 						"LIMIT",
 						"MARKET",
 						"STOP",
@@ -953,7 +953,7 @@ func TestUSDTMarginedFuturesExchangeInfo(t *testing.T) {
 						"TAKE_PROFIT_MARKET",
 						"TRAILING_STOP_MARKET",
 					},
-					TimeInForce: []string{
+					TimeInForce: []TimeInForce{
 						"GTC",
 						"IOC",
 						"FOK",
@@ -2041,7 +2041,7 @@ func TestUSDTMarginedFuturesNewAlgoOrder(t *testing.T) {
 	arg.Symbol = currency.NewBTCUSDT()
 	_, err = e.USDTMarginedFuturesNewAlgoOrder(t.Context(), arg)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid, "USDTMarginedFuturesNewAlgoOrder must reject an empty side")
-	arg.Side = order.Sell.String()
+	arg.Side = SideSell
 	_, err = e.USDTMarginedFuturesNewAlgoOrder(t.Context(), arg)
 	require.ErrorIs(t, err, order.ErrTypeIsInvalid, "USDTMarginedFuturesNewAlgoOrder must reject an empty order type")
 	arg.OrderType = "STOP"
@@ -2365,7 +2365,7 @@ func TestUSDTMarginedFuturesModifyOrder(t *testing.T) {
 	arg.Symbol = currency.NewBTCUSDT()
 	_, err = e.USDTMarginedFuturesModifyOrder(t.Context(), arg)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid, "USDTMarginedFuturesModifyOrder must reject an empty side")
-	arg.Side = order.Buy.String()
+	arg.Side = SideBuy
 	_, err = e.USDTMarginedFuturesModifyOrder(t.Context(), arg)
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin, "USDTMarginedFuturesModifyOrder must reject an empty quantity")
 	arg.Quantity = 1
@@ -2425,10 +2425,10 @@ func TestUSDTMarginedFuturesNewOrder(t *testing.T) {
 	arg.Symbol = currency.NewBTCUSDT()
 	_, err = e.USDTMarginedFuturesNewOrder(t.Context(), arg)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid, "USDTMarginedFuturesNewOrder must reject an empty side")
-	arg.Side = order.Buy.String()
+	arg.Side = SideBuy
 	_, err = e.USDTMarginedFuturesNewOrder(t.Context(), arg)
 	require.ErrorIs(t, err, order.ErrTypeIsInvalid, "USDTMarginedFuturesNewOrder must reject an empty order type")
-	arg.OrderType = order.Limit.String()
+	arg.OrderType = OrderTypeLimit
 	arg.Price = 80000
 	arg.PriceMatch = "QUEUE"
 	_, err = e.USDTMarginedFuturesNewOrder(t.Context(), arg)

@@ -327,8 +327,8 @@ type OptionsAccountTradeItemResponse struct {
 	// Fee is negative when it was deducted
 	Fee            types.Number  `json:"fee"`
 	RealisedProfit types.Number  `json:"realizedProfit"`
-	Side           string        `json:"side"`
-	Type           string        `json:"type"`
+	Side           Side          `json:"side"`
+	Type           OrderType     `json:"type"`
 	Liquidity      string        `json:"liquidity"`
 	Time           types.Time    `json:"time"`
 	PriceScale     uint64        `json:"priceScale"`
@@ -340,17 +340,17 @@ type OptionsAccountTradeItemResponse struct {
 // OptionsOrderRequest holds the parameters for placing an options order
 type OptionsOrderRequest struct {
 	Symbol                  currency.Pair
-	Side                    string
-	OrderType               string
+	Side                    Side
+	OrderType               OrderType
 	Quantity                float64
 	Price                   float64
-	TimeInForce             string
+	TimeInForce             TimeInForce
 	ReduceOnly              bool
 	PostOnly                bool
-	NewOrderResponseType    string
+	NewOrderResponseType    NewOrderResponseType
 	ClientOrderID           string
 	IsMarketMakerProtection bool
-	SelfTradePreventionMode string
+	SelfTradePreventionMode SelfTradePreventionMode
 }
 
 // OptionsOrder holds the order fields every options order endpoint returns
@@ -360,9 +360,9 @@ type OptionsOrder struct {
 	Price            types.Number `json:"price"`
 	Quantity         types.Number `json:"quantity"`
 	ExecutedQuantity types.Number `json:"executedQty"`
-	Side             string       `json:"side"`
-	Type             string       `json:"type"`
-	TimeInForce      string       `json:"timeInForce"`
+	Side             Side         `json:"side"`
+	Type             OrderType    `json:"type"`
+	TimeInForce      TimeInForce  `json:"timeInForce"`
 	ReduceOnly       bool         `json:"reduceOnly"`
 	UpdateTime       types.Time   `json:"updateTime"`
 	Status           string       `json:"status"`
@@ -379,11 +379,11 @@ type OptionsOrder struct {
 // OptionsOrderResponse holds an options order as order placement returns it
 type OptionsOrderResponse struct {
 	OptionsOrder
-	Fee                     types.Number `json:"fee"`
-	PostOnly                bool         `json:"postOnly"`
-	CreateTime              types.Time   `json:"createTime"`
-	Source                  string       `json:"source"`
-	SelfTradePreventionMode string       `json:"selfTradePreventionMode"`
+	Fee                     types.Number            `json:"fee"`
+	PostOnly                bool                    `json:"postOnly"`
+	CreateTime              types.Time              `json:"createTime"`
+	Source                  string                  `json:"source"`
+	SelfTradePreventionMode SelfTradePreventionMode `json:"selfTradePreventionMode"`
 }
 
 // OptionsCancelledOrderResponse holds an entry of an options batch cancellation. Binance's options docs show no
@@ -391,35 +391,35 @@ type OptionsOrderResponse struct {
 // the order
 type OptionsCancelledOrderResponse struct {
 	OptionsOrder
-	Fee                     types.Number `json:"fee"`
-	CreateTime              types.Time   `json:"createTime"`
-	Source                  string       `json:"source"`
-	SelfTradePreventionMode string       `json:"selfTradePreventionMode"`
-	Code                    int64        `json:"code"` // negative when Binance rejected the entry
-	Message                 string       `json:"msg"`
+	Fee                     types.Number            `json:"fee"`
+	CreateTime              types.Time              `json:"createTime"`
+	Source                  string                  `json:"source"`
+	SelfTradePreventionMode SelfTradePreventionMode `json:"selfTradePreventionMode"`
+	Code                    int64                   `json:"code"` // negative when Binance rejected the entry
+	Message                 string                  `json:"msg"`
 }
 
 // OptionsOrderStatusResponse holds an options order as Query Single Order returns it
 type OptionsOrderStatusResponse struct {
 	OptionsOrder
-	PostOnly                bool       `json:"postOnly"`
-	CreateTime              types.Time `json:"createTime"`
-	SelfTradePreventionMode string     `json:"selfTradePreventionMode"`
+	PostOnly                bool                    `json:"postOnly"`
+	CreateTime              types.Time              `json:"createTime"`
+	SelfTradePreventionMode SelfTradePreventionMode `json:"selfTradePreventionMode"`
 }
 
 // OptionsCancelOrderResponse holds an options order as Cancel Option Order returns it
 type OptionsCancelOrderResponse struct {
 	OptionsOrder
-	CreateDate              types.Time `json:"createDate"`
-	Source                  string     `json:"source"`
-	SelfTradePreventionMode string     `json:"selfTradePreventionMode"`
+	CreateDate              types.Time              `json:"createDate"`
+	Source                  string                  `json:"source"`
+	SelfTradePreventionMode SelfTradePreventionMode `json:"selfTradePreventionMode"`
 }
 
 // OptionPositionResponse holds an options position
 type OptionPositionResponse struct {
 	EntryPrice types.Number `json:"entryPrice"`
 	Symbol     string       `json:"symbol"`
-	Side       string       `json:"side"`
+	Side       PositionSide `json:"side"`
 	// Quantity is positive for long positions and negative for short positions
 	Quantity      types.Number  `json:"quantity"`
 	MarkValue     types.Number  `json:"markValue"`
@@ -448,9 +448,9 @@ type OptionsOpenOrdersRequest struct {
 // OptionsOpenOrderResponse holds a current open options order
 type OptionsOpenOrderResponse struct {
 	OptionsOrder
-	PostOnly                bool       `json:"postOnly"` // not in Binance's documented reply; read in case it is sent
-	CreateTime              types.Time `json:"createTime"`
-	SelfTradePreventionMode string     `json:"selfTradePreventionMode"`
+	PostOnly                bool                    `json:"postOnly"` // not in Binance's documented reply; read in case it is sent
+	CreateTime              types.Time              `json:"createTime"`
+	SelfTradePreventionMode SelfTradePreventionMode `json:"selfTradePreventionMode"`
 }
 
 // OptionsOrderHistoryRequest holds the parameters for querying options order history
@@ -491,7 +491,7 @@ type UserOptionsExerciseRecordResponse struct {
 	PriceScale    uint64        `json:"priceScale"`
 	QuantityScale uint64        `json:"quantityScale"`
 	OptionSide    string        `json:"optionSide"`
-	PositionSide  string        `json:"positionSide"`
+	PositionSide  PositionSide  `json:"positionSide"`
 	QuoteAsset    currency.Code `json:"quoteAsset"`
 }
 

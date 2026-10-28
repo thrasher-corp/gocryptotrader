@@ -60,7 +60,7 @@ func (e *Exchange) CoinMarginedFuturesIncomeHistory(ctx context.Context, req *Co
 		params.Set("symbol", symbol)
 	}
 	if req.IncomeType != "" {
-		params.Set("incomeType", req.IncomeType)
+		params.Set("incomeType", string(req.IncomeType))
 	}
 	if req.Page != 0 {
 		params.Set("page", strconv.FormatUint(req.Page, 10))
@@ -115,7 +115,7 @@ func (e *Exchange) futuresStatisticsParams(req *CoinMarginedFuturesStatisticsReq
 	params := url.Values{}
 	params.Set("pair", req.Pair.Upper().String())
 	if req.ContractType != "" {
-		params.Set("contractType", req.ContractType)
+		params.Set("contractType", string(req.ContractType))
 	}
 	params.Set("period", e.FormatExchangeKlineInterval(req.Period))
 	if req.Limit != 0 {
@@ -191,7 +191,7 @@ func (e *Exchange) GetCoinMarginedFuturesContinuousKlineData(ctx context.Context
 		return nil, err
 	}
 	params.Set("pair", req.Pair.Upper().String())
-	params.Set("contractType", req.ContractType)
+	params.Set("contractType", string(req.ContractType))
 	var resp []CoinMarginedFuturesCandleStickResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestCoinMargined, common.EncodeURLValues("/dapi/v1/continuousKlines", params), coinMarginedFuturesKlineLimit(req.Limit), &resp)
 }
@@ -843,13 +843,13 @@ func (e *Exchange) futuresModifyOrderParams(req *CoinMarginedFuturesModifyOrderR
 	if req.PriceMatch == "" && req.Price <= 0 {
 		return nil, limits.ErrPriceBelowMin
 	}
-	params.Set("side", req.Side)
+	params.Set("side", string(req.Side))
 	params.Set("quantity", strconv.FormatFloat(req.Quantity, 'f', -1, 64))
 	if req.Price != 0 {
 		params.Set("price", strconv.FormatFloat(req.Price, 'f', -1, 64))
 	}
 	if req.PriceMatch != "" {
-		params.Set("priceMatch", req.PriceMatch)
+		params.Set("priceMatch", string(req.PriceMatch))
 	}
 	if req.ModifyID != 0 {
 		params.Set("modifyId", strconv.FormatUint(req.ModifyID, 10))
@@ -890,11 +890,11 @@ func (e *Exchange) futuresOrderParams(req *CoinMarginedFuturesNewOrderRequest) (
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol)
-	params.Set("side", req.Side)
+	params.Set("side", string(req.Side))
 	if req.PositionSide != "" {
-		params.Set("positionSide", req.PositionSide)
+		params.Set("positionSide", string(req.PositionSide))
 	}
-	params.Set("type", req.OrderType)
+	params.Set("type", string(req.OrderType))
 	if req.ReduceOnly {
 		params.Set("reduceOnly", "true")
 	}
@@ -920,22 +920,22 @@ func (e *Exchange) futuresOrderParams(req *CoinMarginedFuturesNewOrderRequest) (
 		params.Set("callbackRate", strconv.FormatFloat(req.CallbackRate, 'f', -1, 64))
 	}
 	if req.TimeInForce != "" {
-		params.Set("timeInForce", req.TimeInForce)
+		params.Set("timeInForce", string(req.TimeInForce))
 	}
 	if req.WorkingType != "" {
-		params.Set("workingType", req.WorkingType)
+		params.Set("workingType", string(req.WorkingType))
 	}
 	if req.PriceProtect {
 		params.Set("priceProtect", "true")
 	}
 	if req.NewOrderResponseType != "" {
-		params.Set("newOrderRespType", req.NewOrderResponseType)
+		params.Set("newOrderRespType", string(req.NewOrderResponseType))
 	}
 	if req.PriceMatch != "" {
-		params.Set("priceMatch", req.PriceMatch)
+		params.Set("priceMatch", string(req.PriceMatch))
 	}
 	if req.SelfTradePreventionMode != "" {
-		params.Set("selfTradePreventionMode", req.SelfTradePreventionMode)
+		params.Set("selfTradePreventionMode", string(req.SelfTradePreventionMode))
 	}
 	return params, nil
 }
@@ -1009,17 +1009,17 @@ func (e *Exchange) CoinMarginedFuturesCancelAllAlgoOpenOrders(ctx context.Contex
 
 // CoinMarginedFuturesCurrentAllAlgoOpenOrders returns open coin margined futures algo (conditional) orders from Current
 // All Algo Open Orders; each argument is an optional filter, and an empty symbol returns every symbol's orders
-func (e *Exchange) CoinMarginedFuturesCurrentAllAlgoOpenOrders(ctx context.Context, algoType string, symbol currency.Pair, algoID uint64) ([]USDTMarginedFuturesAlgoOrderResponse, error) {
+func (e *Exchange) CoinMarginedFuturesCurrentAllAlgoOpenOrders(ctx context.Context, algoType AlgoType, symbol currency.Pair, algoID uint64) ([]USDTMarginedFuturesAlgoOrderResponse, error) {
 	return e.futuresCurrentAllAlgoOpenOrders(ctx, algoType, symbol, algoID, coinMarginedFuturesOpenAlgoOrdersAllRate)
 }
 
 // futuresCurrentAllAlgoOpenOrders lists open coin margined futures algo orders, drawing on allSymbols for a listing of
 // every symbol's, so the listing a cancellation of every symbol's orders makes can draw on the cancel pool
-func (e *Exchange) futuresCurrentAllAlgoOpenOrders(ctx context.Context, algoType string, symbol currency.Pair, algoID uint64, allSymbols request.EndpointLimit) ([]USDTMarginedFuturesAlgoOrderResponse, error) {
+func (e *Exchange) futuresCurrentAllAlgoOpenOrders(ctx context.Context, algoType AlgoType, symbol currency.Pair, algoID uint64, allSymbols request.EndpointLimit) ([]USDTMarginedFuturesAlgoOrderResponse, error) {
 	params := url.Values{}
 	rateLimit := allSymbols
 	if algoType != "" {
-		params.Set("algoType", algoType)
+		params.Set("algoType", string(algoType))
 	}
 	if !symbol.IsEmpty() {
 		s, err := e.FormatSymbol(symbol, asset.CoinMarginedFutures)
@@ -1086,7 +1086,7 @@ func (e *Exchange) CoinMarginedFuturesChangeInitialLeverage(ctx context.Context,
 
 // CoinMarginedFuturesChangeMarginType sets the margin type, ISOLATED or CROSSED, of a coin margined futures symbol
 // through Change Margin Type
-func (e *Exchange) CoinMarginedFuturesChangeMarginType(ctx context.Context, symbol currency.Pair, marginType string) (*CoinMarginedFuturesStatusResponse, error) {
+func (e *Exchange) CoinMarginedFuturesChangeMarginType(ctx context.Context, symbol currency.Pair, marginType MarginType) (*CoinMarginedFuturesStatusResponse, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -1099,7 +1099,7 @@ func (e *Exchange) CoinMarginedFuturesChangeMarginType(ctx context.Context, symb
 	}
 	params := url.Values{}
 	params.Set("symbol", s)
-	params.Set("marginType", marginType)
+	params.Set("marginType", string(marginType))
 	var resp *CoinMarginedFuturesStatusResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, "/dapi/v1/marginType", params, coinMarginedFuturesDefaultRate, &resp)
 }
@@ -1215,7 +1215,7 @@ func (e *Exchange) CoinMarginedFuturesModifyIsolatedPositionMargin(ctx context.C
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	if req.PositionSide != "" {
-		params.Set("positionSide", req.PositionSide)
+		params.Set("positionSide", string(req.PositionSide))
 	}
 	params.Set("amount", strconv.FormatFloat(req.Amount, 'f', -1, 64))
 	params.Set("type", strconv.FormatUint(req.Type, 10))
@@ -1284,7 +1284,7 @@ func (e *Exchange) CoinMarginedFuturesForceOrders(ctx context.Context, req *Coin
 		params.Set("symbol", symbol)
 	}
 	if req.AutoCloseType != "" {
-		params.Set("autoCloseType", req.AutoCloseType)
+		params.Set("autoCloseType", string(req.AutoCloseType))
 	}
 	if !req.StartTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(req.StartTime.UnixMilli(), 10))

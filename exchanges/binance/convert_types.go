@@ -84,7 +84,7 @@ type ConvertLimitOrderRequest struct {
 	BaseAmount  float64
 	QuoteAmount float64
 	// Side is BUY or SELL
-	Side string
+	Side Side
 	// WalletType is SPOT (default), FUNDING, EARN or a combination such as SPOT_FUNDING
 	WalletType string
 	// ExpiredType is 1_D, 3_D, 7_D or 30_D

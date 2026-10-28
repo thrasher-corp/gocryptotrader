@@ -184,7 +184,7 @@ func TestPlaceLimitOrder(t *testing.T) {
 	_, err = e.PlaceLimitOrder(t.Context(), arg)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid, "PlaceLimitOrder must reject an empty side")
 
-	arg.Side = order.Sell.String()
+	arg.Side = SideSell
 	arg.ExpiredType = ""
 	_, err = e.PlaceLimitOrder(t.Context(), arg)
 	require.ErrorIs(t, err, errExpiredTypeRequired, "PlaceLimitOrder must reject an empty expiry type")

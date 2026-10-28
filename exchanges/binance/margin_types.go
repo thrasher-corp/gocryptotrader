@@ -348,9 +348,9 @@ type ForceLiquidationRecord struct {
 	OrderID          uint64       `json:"orderId"`
 	Price            types.Number `json:"price"`
 	Quantity         types.Number `json:"qty"`
-	Side             string       `json:"side"`
+	Side             Side         `json:"side"`
 	Symbol           string       `json:"symbol"`
-	TimeInForce      string       `json:"timeInForce"`
+	TimeInForce      TimeInForce  `json:"timeInForce"`
 	IsIsolated       bool         `json:"isIsolated"`
 	UpdatedTime      types.Time   `json:"updatedTime"`
 }
@@ -390,24 +390,24 @@ type SmallLiabilityExchangeRecord struct {
 
 // MarginTradeOrderResponse holds a margin account order as the order queries return it
 type MarginTradeOrderResponse struct {
-	ClientOrderID           string       `json:"clientOrderId"`
-	CumulativeQuoteQuantity types.Number `json:"cummulativeQuoteQty"` // Negative for some historical orders whose value is unavailable
-	ExecutedQuantity        types.Number `json:"executedQty"`
-	IcebergQuantity         types.Number `json:"icebergQty"`
-	IsWorking               bool         `json:"isWorking"`
-	OrderID                 uint64       `json:"orderId"`
-	OriginalQuantity        types.Number `json:"origQty"`
-	Price                   types.Number `json:"price"`
-	Side                    string       `json:"side"`
-	Status                  string       `json:"status"`
-	StopPrice               types.Number `json:"stopPrice"`
-	Symbol                  string       `json:"symbol"`
-	IsIsolated              bool         `json:"isIsolated"`
-	Time                    types.Time   `json:"time"`
-	TimeInForce             string       `json:"timeInForce"`
-	Type                    string       `json:"type"`
-	SelfTradePreventionMode string       `json:"selfTradePreventionMode"`
-	UpdateTime              types.Time   `json:"updateTime"`
+	ClientOrderID           string                  `json:"clientOrderId"`
+	CumulativeQuoteQuantity types.Number            `json:"cummulativeQuoteQty"` // Negative for some historical orders whose value is unavailable
+	ExecutedQuantity        types.Number            `json:"executedQty"`
+	IcebergQuantity         types.Number            `json:"icebergQty"`
+	IsWorking               bool                    `json:"isWorking"`
+	OrderID                 uint64                  `json:"orderId"`
+	OriginalQuantity        types.Number            `json:"origQty"`
+	Price                   types.Number            `json:"price"`
+	Side                    Side                    `json:"side"`
+	Status                  string                  `json:"status"`
+	StopPrice               types.Number            `json:"stopPrice"`
+	Symbol                  string                  `json:"symbol"`
+	IsIsolated              bool                    `json:"isIsolated"`
+	Time                    types.Time              `json:"time"`
+	TimeInForce             TimeInForce             `json:"timeInForce"`
+	Type                    OrderType               `json:"type"`
+	SelfTradePreventionMode SelfTradePreventionMode `json:"selfTradePreventionMode"`
+	UpdateTime              types.Time              `json:"updateTime"`
 }
 
 // MarginCancelledOrderResponse holds an order, or an order list such as OCO, cancelled by
@@ -424,10 +424,10 @@ type MarginCancelledOrderResponse struct {
 	ExecutedQuantity        types.Number                 `json:"executedQty"`
 	CumulativeQuoteQuantity types.Number                 `json:"cummulativeQuoteQty"`
 	Status                  string                       `json:"status"`
-	TimeInForce             string                       `json:"timeInForce"`
-	Type                    string                       `json:"type"`
-	Side                    string                       `json:"side"`
-	SelfTradePreventionMode string                       `json:"selfTradePreventionMode"`
+	TimeInForce             TimeInForce                  `json:"timeInForce"`
+	Type                    OrderType                    `json:"type"`
+	Side                    Side                         `json:"side"`
+	SelfTradePreventionMode SelfTradePreventionMode      `json:"selfTradePreventionMode"`
 	ContingencyType         string                       `json:"contingencyType"`
 	ListStatusType          string                       `json:"listStatusType"`
 	ListOrderStatus         string                       `json:"listOrderStatus"`
@@ -457,9 +457,9 @@ type MarginCancelledOrderReport struct {
 	ExecutedQuantity        types.Number `json:"executedQty"`
 	CumulativeQuoteQuantity types.Number `json:"cummulativeQuoteQty"`
 	Status                  string       `json:"status"`
-	TimeInForce             string       `json:"timeInForce"`
-	Type                    string       `json:"type"`
-	Side                    string       `json:"side"`
+	TimeInForce             TimeInForce  `json:"timeInForce"`
+	Type                    OrderType    `json:"type"`
+	Side                    Side         `json:"side"`
 	StopPrice               types.Number `json:"stopPrice"`
 	IcebergQuantity         types.Number `json:"icebergQty"`
 }
@@ -503,62 +503,62 @@ type MarginOneCancelsTheOtherCancelResponse struct {
 
 // MarginOneCancelsTheOtherCancelReport holds the report of an order cancelled with its order list
 type MarginOneCancelsTheOtherCancelReport struct {
-	Symbol                  string       `json:"symbol"`
-	OriginalClientOrderID   string       `json:"origClientOrderId"`
-	OrderID                 uint64       `json:"orderId"`
-	OrderListID             uint64       `json:"orderListId"`
-	ClientOrderID           string       `json:"clientOrderId"`
-	Price                   types.Number `json:"price"`
-	OriginalQuantity        types.Number `json:"origQty"`
-	ExecutedQuantity        types.Number `json:"executedQty"`
-	CumulativeQuoteQuantity types.Number `json:"cummulativeQuoteQty"`
-	Status                  string       `json:"status"`
-	TimeInForce             string       `json:"timeInForce"`
-	Type                    string       `json:"type"`
-	Side                    string       `json:"side"`
-	StopPrice               types.Number `json:"stopPrice"`
-	SelfTradePreventionMode string       `json:"selfTradePreventionMode"`
+	Symbol                  string                  `json:"symbol"`
+	OriginalClientOrderID   string                  `json:"origClientOrderId"`
+	OrderID                 uint64                  `json:"orderId"`
+	OrderListID             uint64                  `json:"orderListId"`
+	ClientOrderID           string                  `json:"clientOrderId"`
+	Price                   types.Number            `json:"price"`
+	OriginalQuantity        types.Number            `json:"origQty"`
+	ExecutedQuantity        types.Number            `json:"executedQty"`
+	CumulativeQuoteQuantity types.Number            `json:"cummulativeQuoteQty"`
+	Status                  string                  `json:"status"`
+	TimeInForce             TimeInForce             `json:"timeInForce"`
+	Type                    OrderType               `json:"type"`
+	Side                    Side                    `json:"side"`
+	StopPrice               types.Number            `json:"stopPrice"`
+	SelfTradePreventionMode SelfTradePreventionMode `json:"selfTradePreventionMode"`
 }
 
 // MarginAccountOrderRequest holds the parameters for PostMarginAccountOrder
 type MarginAccountOrderRequest struct {
 	Symbol                     currency.Pair
 	IsIsolated                 bool
-	Side                       string // BUY or SELL
-	OrderType                  string // LIMIT, MARKET, STOP_LOSS, STOP_LOSS_LIMIT, TAKE_PROFIT, TAKE_PROFIT_LIMIT or LIMIT_MAKER
+	Side                       Side      // BUY or SELL
+	OrderType                  OrderType // LIMIT, MARKET, STOP_LOSS, STOP_LOSS_LIMIT, TAKE_PROFIT, TAKE_PROFIT_LIMIT or LIMIT_MAKER
 	Quantity                   float64
 	QuoteOrderQuantity         float64
 	Price                      float64
 	StopPrice                  float64 // For STOP_LOSS, STOP_LOSS_LIMIT, TAKE_PROFIT and TAKE_PROFIT_LIMIT orders
 	NewClientOrderID           string
-	IcebergQuantity            float64 // For LIMIT, STOP_LOSS_LIMIT and TAKE_PROFIT_LIMIT orders
-	NewOrderResponseType       string  // ACK, RESULT or FULL
-	SideEffectType             string  // NO_SIDE_EFFECT, MARGIN_BUY, AUTO_REPAY or AUTO_BORROW_REPAY
-	TimeInForce                string
-	SelfTradePreventionMode    string
+	IcebergQuantity            float64              // For LIMIT, STOP_LOSS_LIMIT and TAKE_PROFIT_LIMIT orders
+	NewOrderResponseType       NewOrderResponseType // ACK, RESULT or FULL
+	SideEffectType             SideEffectType       // NO_SIDE_EFFECT, MARGIN_BUY, AUTO_REPAY or AUTO_BORROW_REPAY
+	TimeInForce                TimeInForce
+	SelfTradePreventionMode    SelfTradePreventionMode
 	TrailingDeltaInBasisPoints uint64 // For STOP_LOSS, STOP_LOSS_LIMIT, TAKE_PROFIT and TAKE_PROFIT_LIMIT orders
 	AutoRepayAtCancel          *bool  // Whether a MARGIN_BUY or AUTO_BORROW_REPAY order's debt is repaid when it is cancelled; nil leaves Binance's default of true
 }
 
 // MarginAccountNewOrderResponse holds a margin account order placed by PostMarginAccountOrder
 type MarginAccountNewOrderResponse struct {
-	Symbol                  string            `json:"symbol"`
-	OrderID                 uint64            `json:"orderId"`
-	ClientOrderID           string            `json:"clientOrderId"`
-	IsIsolated              bool              `json:"isIsolated"`
-	TransactTime            types.Time        `json:"transactTime"`
-	Price                   types.Number      `json:"price"`
-	OriginalQuantity        types.Number      `json:"origQty"`
-	ExecutedQuantity        types.Number      `json:"executedQty"`
-	CumulativeQuoteQuantity types.Number      `json:"cummulativeQuoteQty"`
-	Status                  string            `json:"status"`
-	TimeInForce             string            `json:"timeInForce"`
-	Type                    string            `json:"type"`
-	Side                    string            `json:"side"`
-	SelfTradePreventionMode string            `json:"selfTradePreventionMode"`
-	MarginBuyBorrowAmount   types.Number      `json:"marginBuyBorrowAmount"` // Documented as a number here and as a string for OCO orders; only returned when the order borrows
-	MarginBuyBorrowAsset    currency.Code     `json:"marginBuyBorrowAsset"`
-	Fills                   []MarginOrderFill `json:"fills"`
+	Symbol                  string                  `json:"symbol"`
+	OrderID                 uint64                  `json:"orderId"`
+	ClientOrderID           string                  `json:"clientOrderId"`
+	IsIsolated              bool                    `json:"isIsolated"`
+	TransactTime            types.Time              `json:"transactTime"`
+	Price                   types.Number            `json:"price"`
+	OriginalQuantity        types.Number            `json:"origQty"`
+	ExecutedQuantity        types.Number            `json:"executedQty"`
+	CumulativeQuoteQuantity types.Number            `json:"cummulativeQuoteQty"`
+	Status                  string                  `json:"status"`
+	TimeInForce             TimeInForce             `json:"timeInForce"`
+	Type                    OrderType               `json:"type"`
+	Side                    Side                    `json:"side"`
+	SelfTradePreventionMode SelfTradePreventionMode `json:"selfTradePreventionMode"`
+	MarginBuyBorrowAmount   types.Number            `json:"marginBuyBorrowAmount"` // Documented as a number here and as a string for OCO orders; only returned when the order borrows
+	MarginBuyBorrowAsset    currency.Code           `json:"marginBuyBorrowAsset"`
+	Fills                   []MarginOrderFill       `json:"fills"`
 }
 
 // MarginOrderFill holds a fill of a margin account order
@@ -590,9 +590,9 @@ type MarginOrderCancelResponse struct {
 	ExecutedQuantity        types.Number `json:"executedQty"`
 	CumulativeQuoteQuantity types.Number `json:"cummulativeQuoteQty"`
 	Status                  string       `json:"status"`
-	TimeInForce             string       `json:"timeInForce"`
-	Type                    string       `json:"type"`
-	Side                    string       `json:"side"`
+	TimeInForce             TimeInForce  `json:"timeInForce"`
+	Type                    OrderType    `json:"type"`
+	Side                    Side         `json:"side"`
 	IsIsolated              bool         `json:"isIsolated"`
 }
 
@@ -601,7 +601,7 @@ type MarginOneCancelsTheOtherOrderRequest struct {
 	Symbol                  currency.Pair
 	IsIsolated              bool
 	ListClientOrderID       string
-	Side                    string // BUY or SELL
+	Side                    Side // BUY or SELL
 	Quantity                float64
 	LimitClientOrderID      string
 	Price                   float64
@@ -610,10 +610,10 @@ type MarginOneCancelsTheOtherOrderRequest struct {
 	StopPrice               float64
 	StopLimitPrice          float64 // Requires StopLimitTimeInForce
 	StopIcebergQuantity     float64
-	StopLimitTimeInForce    string // GTC, FOK or IOC
-	NewOrderResponseType    string // ACK, RESULT or FULL
-	SideEffectType          string // NO_SIDE_EFFECT, MARGIN_BUY, AUTO_REPAY or AUTO_BORROW_REPAY
-	SelfTradePreventionMode string
+	StopLimitTimeInForce    TimeInForce          // GTC, FOK or IOC
+	NewOrderResponseType    NewOrderResponseType // ACK, RESULT or FULL
+	SideEffectType          SideEffectType       // NO_SIDE_EFFECT, MARGIN_BUY, AUTO_REPAY or AUTO_BORROW_REPAY
+	SelfTradePreventionMode SelfTradePreventionMode
 	AutoRepayAtCancel       *bool // Whether a MARGIN_BUY or AUTO_BORROW_REPAY list's debt is repaid when it is cancelled; nil leaves Binance's default of true
 }
 
@@ -635,21 +635,21 @@ type MarginOneCancelsTheOtherOrderResponse struct {
 
 // MarginOneCancelsTheOtherOrderReport holds the report of an order placed with its OCO order list
 type MarginOneCancelsTheOtherOrderReport struct {
-	Symbol                  string       `json:"symbol"`
-	OrderID                 uint64       `json:"orderId"`
-	OrderListID             uint64       `json:"orderListId"`
-	ClientOrderID           string       `json:"clientOrderId"`
-	TransactTime            types.Time   `json:"transactTime"`
-	Price                   types.Number `json:"price"`
-	OriginalQuantity        types.Number `json:"origQty"`
-	ExecutedQuantity        types.Number `json:"executedQty"`
-	CumulativeQuoteQuantity types.Number `json:"cummulativeQuoteQty"`
-	Status                  string       `json:"status"`
-	TimeInForce             string       `json:"timeInForce"`
-	Type                    string       `json:"type"`
-	Side                    string       `json:"side"`
-	StopPrice               types.Number `json:"stopPrice"`
-	SelfTradePreventionMode string       `json:"selfTradePreventionMode"`
+	Symbol                  string                  `json:"symbol"`
+	OrderID                 uint64                  `json:"orderId"`
+	OrderListID             uint64                  `json:"orderListId"`
+	ClientOrderID           string                  `json:"clientOrderId"`
+	TransactTime            types.Time              `json:"transactTime"`
+	Price                   types.Number            `json:"price"`
+	OriginalQuantity        types.Number            `json:"origQty"`
+	ExecutedQuantity        types.Number            `json:"executedQty"`
+	CumulativeQuoteQuantity types.Number            `json:"cummulativeQuoteQty"`
+	Status                  string                  `json:"status"`
+	TimeInForce             TimeInForce             `json:"timeInForce"`
+	Type                    OrderType               `json:"type"`
+	Side                    Side                    `json:"side"`
+	StopPrice               types.Number            `json:"stopPrice"`
+	SelfTradePreventionMode SelfTradePreventionMode `json:"selfTradePreventionMode"`
 }
 
 // MarginManualLiquidationResponse holds the liability repaid by a margin manual liquidation

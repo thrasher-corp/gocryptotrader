@@ -54,7 +54,7 @@ func (e *Exchange) FuturesTWAPOrder(ctx context.Context, arg *FuturesTWAPOrderRe
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
-	params, err := e.algoNewOrderParams(arg.Symbol, asset.USDTMarginedFutures, arg.Side, arg.Quantity, arg.ClientAlgoID, arg.LimitPrice)
+	params, err := e.algoNewOrderParams(arg.Symbol, asset.USDTMarginedFutures, string(arg.Side), arg.Quantity, arg.ClientAlgoID, arg.LimitPrice)
 	if err != nil {
 		return nil, err
 	}
@@ -62,7 +62,7 @@ func (e *Exchange) FuturesTWAPOrder(ctx context.Context, arg *FuturesTWAPOrderRe
 		return nil, fmt.Errorf("%w: TWAP duration must be between 5 minutes and 24 hours", errDurationRequired)
 	}
 	if arg.PositionSide != "" {
-		params.Set("positionSide", arg.PositionSide)
+		params.Set("positionSide", string(arg.PositionSide))
 	}
 	params.Set("duration", strconv.FormatInt(int64(arg.Duration/time.Second), 10))
 	if arg.ReduceOnly {
@@ -78,7 +78,7 @@ func (e *Exchange) VolumeParticipationNewOrder(ctx context.Context, arg *VolumeP
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
-	params, err := e.algoNewOrderParams(arg.Symbol, asset.USDTMarginedFutures, arg.Side, arg.Quantity, arg.ClientAlgoID, arg.LimitPrice)
+	params, err := e.algoNewOrderParams(arg.Symbol, asset.USDTMarginedFutures, string(arg.Side), arg.Quantity, arg.ClientAlgoID, arg.LimitPrice)
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +86,7 @@ func (e *Exchange) VolumeParticipationNewOrder(ctx context.Context, arg *VolumeP
 		return nil, errPossibleValuesRequired
 	}
 	if arg.PositionSide != "" {
-		params.Set("positionSide", arg.PositionSide)
+		params.Set("positionSide", string(arg.PositionSide))
 	}
 	params.Set("urgency", arg.Urgency)
 	if arg.ReduceOnly {
@@ -127,7 +127,7 @@ func (e *Exchange) SpotTWAPNewOrder(ctx context.Context, arg *SpotTWAPOrderReque
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
-	params, err := e.algoNewOrderParams(arg.Symbol, asset.Spot, arg.Side, arg.Quantity, arg.ClientAlgoID, arg.LimitPrice)
+	params, err := e.algoNewOrderParams(arg.Symbol, asset.Spot, string(arg.Side), arg.Quantity, arg.ClientAlgoID, arg.LimitPrice)
 	if err != nil {
 		return nil, err
 	}
@@ -202,7 +202,7 @@ func (e *Exchange) algoHistoricalOrdersParams(arg *AlgoHistoricalOrdersRequest, 
 		params.Set("symbol", symbolValue)
 	}
 	if arg.Side != "" {
-		params.Set("side", arg.Side)
+		params.Set("side", string(arg.Side))
 	}
 	if !arg.StartTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(arg.StartTime.UnixMilli(), 10))

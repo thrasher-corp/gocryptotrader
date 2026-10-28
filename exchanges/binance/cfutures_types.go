@@ -49,7 +49,7 @@ type CoinMarginedFuturesAccountInformationPosition struct {
 	OpenOrderInitialMargin types.Number `json:"openOrderInitialMargin"`
 	Leverage               types.Number `json:"leverage"`
 	Isolated               bool         `json:"isolated"`
-	PositionSide           string       `json:"positionSide"`
+	PositionSide           PositionSide `json:"positionSide"`
 	EntryPrice             types.Number `json:"entryPrice"`
 	BreakEvenPrice         types.Number `json:"breakEvenPrice"`
 	MaxQuantity            types.Number `json:"maxQty"`
@@ -75,7 +75,7 @@ type CoinMarginedFuturesAccountBalanceResponse struct {
 // CoinMarginedFuturesIncomeHistoryRequest holds the parameters for querying coin margined futures income history
 type CoinMarginedFuturesIncomeHistoryRequest struct {
 	Symbol     currency.Pair
-	IncomeType string
+	IncomeType IncomeType
 	StartTime  time.Time
 	EndTime    time.Time
 	Page       uint64
@@ -85,7 +85,7 @@ type CoinMarginedFuturesIncomeHistoryRequest struct {
 // CoinMarginedFuturesIncomeHistoryResponse holds a coin margined futures income record
 type CoinMarginedFuturesIncomeHistoryResponse struct {
 	Symbol     string        `json:"symbol"`
-	IncomeType string        `json:"incomeType"`
+	IncomeType IncomeType    `json:"incomeType"`
 	Income     types.Number  `json:"income"`
 	Asset      currency.Code `json:"asset"`
 	Info       string        `json:"info"`
@@ -116,7 +116,7 @@ type NotionalBracket struct {
 type CoinMarginedFuturesStatisticsRequest struct {
 	// Pair is the contract pair, such as BTCUSD
 	Pair         currency.Code
-	ContractType string
+	ContractType ContractType
 	Period       kline.Interval
 	Limit        uint64
 	StartTime    time.Time
@@ -126,7 +126,7 @@ type CoinMarginedFuturesStatisticsRequest struct {
 // CoinMarginedFuturesBasisResponse holds a coin margined futures basis record
 type CoinMarginedFuturesBasisResponse struct {
 	IndexPrice   types.Number `json:"indexPrice"`
-	ContractType string       `json:"contractType"`
+	ContractType ContractType `json:"contractType"`
 	BasisRate    types.Number `json:"basisRate"`
 	FuturesPrice types.Number `json:"futuresPrice"`
 	// AnnualisedBasisRate is empty for perpetual contracts
@@ -161,7 +161,7 @@ type CoinMarginedFuturesAggregatedTradeResponse struct {
 type CoinMarginedFuturesContinuousKlineRequest struct {
 	// Pair is the contract pair, such as BTCUSD
 	Pair         currency.Code
-	ContractType string
+	ContractType ContractType
 	Interval     kline.Interval
 	StartTime    time.Time
 	EndTime      time.Time
@@ -201,14 +201,14 @@ type CoinMarginedFuturesExchangeInfoResponse struct {
 // CoinMarginedFuturesSymbolInfo holds the trading rules of a coin margined futures symbol
 type CoinMarginedFuturesSymbolInfo struct {
 	Filters        []CoinMarginedFuturesSymbolFilter `json:"filters"`
-	OrderTypes     []string                          `json:"orderTypes"`
-	TimeInForce    []string                          `json:"timeInForce"`
+	OrderTypes     []OrderType                       `json:"orderTypes"`
+	TimeInForce    []TimeInForce                     `json:"timeInForce"`
 	LiquidationFee types.Number                      `json:"liquidationFee"`
 	// MarketTakeBound is the largest rate a market order's price may differ from the mark price
 	MarketTakeBound        types.Number  `json:"marketTakeBound"`
 	Symbol                 string        `json:"symbol"`
 	Pair                   string        `json:"pair"`
-	ContractType           string        `json:"contractType"`
+	ContractType           ContractType  `json:"contractType"`
 	DeliveryDate           types.Time    `json:"deliveryDate"`
 	OnboardDate            types.Time    `json:"onboardDate"`
 	ContractStatus         string        `json:"contractStatus"`
@@ -354,14 +354,14 @@ type CoinMarginedFuturesOpenInterestResponse struct {
 	Symbol       string       `json:"symbol"`
 	Pair         string       `json:"pair"`
 	OpenInterest types.Number `json:"openInterest"`
-	ContractType string       `json:"contractType"`
+	ContractType ContractType `json:"contractType"`
 	Time         types.Time   `json:"time"`
 }
 
 // OpenInterestStatsResponse holds a coin margined futures open interest statistic
 type OpenInterestStatsResponse struct {
 	Pair                            string       `json:"pair"`
-	ContractType                    string       `json:"contractType"`
+	ContractType                    ContractType `json:"contractType"`
 	SumOpenInterestInContracts      types.Number `json:"sumOpenInterest"`
 	SumOpenInterestValueInBaseAsset types.Number `json:"sumOpenInterestValue"`
 	Timestamp                       types.Time   `json:"timestamp"`
@@ -431,7 +431,7 @@ type SymbolPriceTickerResponse struct {
 // TakerBuySellVolumeResponse holds coin margined futures taker buy and sell volumes
 type TakerBuySellVolumeResponse struct {
 	Pair                            string       `json:"pair"`
-	ContractType                    string       `json:"contractType"`
+	ContractType                    ContractType `json:"contractType"`
 	TakerBuyVolumeInContracts       types.Number `json:"takerBuyVol"`
 	TakerSellVolumeInContracts      types.Number `json:"takerSellVol"`
 	TakerBuyVolumeValueInBaseAsset  types.Number `json:"takerBuyVolValue"`
@@ -488,7 +488,7 @@ type CoinMarginedFuturesAccountTradeListResponse struct {
 	ID          uint64        `json:"id"`
 	OrderID     uint64        `json:"orderId"`
 	Pair        string        `json:"pair"`
-	Side        string        `json:"side"`
+	Side        Side          `json:"side"`
 	Price       types.Number  `json:"price"`
 	Quantity    types.Number  `json:"qty"`
 	RealisedPNL types.Number  `json:"realizedPnl"`
@@ -500,7 +500,7 @@ type CoinMarginedFuturesAccountTradeListResponse struct {
 	Commission      types.Number  `json:"commission"`
 	CommissionAsset currency.Code `json:"commissionAsset"`
 	Time            types.Time    `json:"time"`
-	PositionSide    string        `json:"positionSide"`
+	PositionSide    PositionSide  `json:"positionSide"`
 	Buyer           bool          `json:"buyer"`
 	Maker           bool          `json:"maker"`
 }
@@ -524,27 +524,27 @@ type CoinMarginedFuturesOrderDetailResponse struct {
 	ExecutedQuantity types.Number `json:"executedQty"`
 	OrderID          uint64       `json:"orderId"`
 	OriginalQuantity types.Number `json:"origQty"`
-	OriginalType     string       `json:"origType"`
+	OriginalType     OrderType    `json:"origType"`
 	Price            types.Number `json:"price"`
 	ReduceOnly       bool         `json:"reduceOnly"`
-	Side             string       `json:"side"`
-	PositionSide     string       `json:"positionSide"`
+	Side             Side         `json:"side"`
+	PositionSide     PositionSide `json:"positionSide"`
 	Status           string       `json:"status"`
 	StopPrice        types.Number `json:"stopPrice"`
 	ClosePosition    bool         `json:"closePosition"`
 	Symbol           string       `json:"symbol"`
 	Pair             string       `json:"pair"`
 	Time             types.Time   `json:"time"`
-	TimeInForce      string       `json:"timeInForce"`
-	OrderType        string       `json:"type"`
+	TimeInForce      TimeInForce  `json:"timeInForce"`
+	OrderType        OrderType    `json:"type"`
 	// ActivatePrice and PriceRate are only set for TRAILING_STOP_MARKET orders
-	ActivatePrice           types.Number `json:"activatePrice"`
-	PriceRate               types.Number `json:"priceRate"`
-	UpdateTime              types.Time   `json:"updateTime"`
-	WorkingType             string       `json:"workingType"`
-	PriceProtect            bool         `json:"priceProtect"`
-	PriceMatch              string       `json:"priceMatch"`
-	SelfTradePreventionMode string       `json:"selfTradePreventionMode"`
+	ActivatePrice           types.Number            `json:"activatePrice"`
+	PriceRate               types.Number            `json:"priceRate"`
+	UpdateTime              types.Time              `json:"updateTime"`
+	WorkingType             WorkingType             `json:"workingType"`
+	PriceProtect            bool                    `json:"priceProtect"`
+	PriceMatch              PriceMatch              `json:"priceMatch"`
+	SelfTradePreventionMode SelfTradePreventionMode `json:"selfTradePreventionMode"`
 }
 
 // CoinMarginedFuturesAllOrdersResponse holds a coin margined futures order as the all orders endpoint returns it
@@ -577,23 +577,23 @@ type CoinMarginedFuturesOrderResponse struct {
 	Price              types.Number `json:"price"`
 	ReduceOnly         bool         `json:"reduceOnly"`
 	ClosePosition      bool         `json:"closePosition"`
-	Side               string       `json:"side"`
-	PositionSide       string       `json:"positionSide"`
+	Side               Side         `json:"side"`
+	PositionSide       PositionSide `json:"positionSide"`
 	Status             string       `json:"status"`
 	StopPrice          types.Number `json:"stopPrice"`
 	Symbol             string       `json:"symbol"`
 	Pair               string       `json:"pair"`
-	TimeInForce        string       `json:"timeInForce"`
-	OrderType          string       `json:"type"`
-	OriginalType       string       `json:"origType"`
+	TimeInForce        TimeInForce  `json:"timeInForce"`
+	OrderType          OrderType    `json:"type"`
+	OriginalType       OrderType    `json:"origType"`
 	// ActivatePrice and PriceRate are only set for TRAILING_STOP_MARKET orders
-	ActivatePrice           types.Number `json:"activatePrice"`
-	PriceRate               types.Number `json:"priceRate"`
-	UpdateTime              types.Time   `json:"updateTime"`
-	WorkingType             string       `json:"workingType"`
-	PriceProtect            bool         `json:"priceProtect"`
-	PriceMatch              string       `json:"priceMatch"`
-	SelfTradePreventionMode string       `json:"selfTradePreventionMode"`
+	ActivatePrice           types.Number            `json:"activatePrice"`
+	PriceRate               types.Number            `json:"priceRate"`
+	UpdateTime              types.Time              `json:"updateTime"`
+	WorkingType             WorkingType             `json:"workingType"`
+	PriceProtect            bool                    `json:"priceProtect"`
+	PriceMatch              PriceMatch              `json:"priceMatch"`
+	SelfTradePreventionMode SelfTradePreventionMode `json:"selfTradePreventionMode"`
 }
 
 // CoinMarginedFuturesModifyOrderRequest holds the parameters of Modify Order and one order of Modify Multiple Orders
@@ -601,38 +601,38 @@ type CoinMarginedFuturesModifyOrderRequest struct {
 	Symbol            currency.Pair
 	OrderID           uint64 // OrderID wins when both IDs are set
 	OrigClientOrderID string
-	Side              string
+	Side              Side
 	Quantity          float64
-	Price             float64 // required unless PriceMatch is set, and cannot be sent with it
-	PriceMatch        string  // Modify Multiple Orders does not take it
-	ModifyID          uint64  // returned unchanged in the reply
+	Price             float64    // required unless PriceMatch is set, and cannot be sent with it
+	PriceMatch        PriceMatch // Modify Multiple Orders does not take it
+	ModifyID          uint64     // returned unchanged in the reply
 }
 
 // CoinMarginedFuturesModifyOrderResponse holds a coin margined futures order as Modify Order returns it
 type CoinMarginedFuturesModifyOrderResponse struct {
-	OrderID                 uint64       `json:"orderId"`
-	Symbol                  string       `json:"symbol"`
-	Pair                    string       `json:"pair"`
-	Status                  string       `json:"status"`
-	ClientOrderID           string       `json:"clientOrderId"`
-	ModifyID                uint64       `json:"modifyId"` // only sent when the request set it
-	Price                   types.Number `json:"price"`
-	OriginalQuantity        types.Number `json:"origQty"`
-	ExecutedQuantity        types.Number `json:"executedQty"`
-	CumulativeQuantity      types.Number `json:"cumQty"`
-	TimeInForce             string       `json:"timeInForce"`
-	OrderType               string       `json:"type"`
-	ReduceOnly              bool         `json:"reduceOnly"`
-	ClosePosition           bool         `json:"closePosition"`
-	Side                    string       `json:"side"`
-	PositionSide            string       `json:"positionSide"`
-	StopPrice               types.Number `json:"stopPrice"`
-	WorkingType             string       `json:"workingType"`
-	PriceProtect            bool         `json:"priceProtect"`
-	OriginalType            string       `json:"origType"`
-	PriceMatch              string       `json:"priceMatch"`
-	SelfTradePreventionMode string       `json:"selfTradePreventionMode"`
-	UpdateTime              types.Time   `json:"updateTime"`
+	OrderID                 uint64                  `json:"orderId"`
+	Symbol                  string                  `json:"symbol"`
+	Pair                    string                  `json:"pair"`
+	Status                  string                  `json:"status"`
+	ClientOrderID           string                  `json:"clientOrderId"`
+	ModifyID                uint64                  `json:"modifyId"` // only sent when the request set it
+	Price                   types.Number            `json:"price"`
+	OriginalQuantity        types.Number            `json:"origQty"`
+	ExecutedQuantity        types.Number            `json:"executedQty"`
+	CumulativeQuantity      types.Number            `json:"cumQty"`
+	TimeInForce             TimeInForce             `json:"timeInForce"`
+	OrderType               OrderType               `json:"type"`
+	ReduceOnly              bool                    `json:"reduceOnly"`
+	ClosePosition           bool                    `json:"closePosition"`
+	Side                    Side                    `json:"side"`
+	PositionSide            PositionSide            `json:"positionSide"`
+	StopPrice               types.Number            `json:"stopPrice"`
+	WorkingType             WorkingType             `json:"workingType"`
+	PriceProtect            bool                    `json:"priceProtect"`
+	OriginalType            OrderType               `json:"origType"`
+	PriceMatch              PriceMatch              `json:"priceMatch"`
+	SelfTradePreventionMode SelfTradePreventionMode `json:"selfTradePreventionMode"`
+	UpdateTime              types.Time              `json:"updateTime"`
 }
 
 // CoinMarginedFuturesModifyBatchOrderResponse holds one order's reply from Modify Multiple Orders: the modified order,
@@ -664,10 +664,10 @@ type CoinMarginedFuturesBatchOrderResponse struct {
 // CoinMarginedFuturesNewOrderRequest holds the parameters for placing a coin margined futures order
 type CoinMarginedFuturesNewOrderRequest struct {
 	Symbol           currency.Pair
-	Side             string
-	PositionSide     string
-	OrderType        string
-	TimeInForce      string
+	Side             Side
+	PositionSide     PositionSide
+	OrderType        OrderType
+	TimeInForce      TimeInForce
 	Quantity         float64
 	Price            float64
 	ReduceOnly       bool
@@ -677,11 +677,11 @@ type CoinMarginedFuturesNewOrderRequest struct {
 	ActivationPrice  float64
 	// CallbackRate is a percentage, where 1 means 1%
 	CallbackRate            float64
-	WorkingType             string
+	WorkingType             WorkingType
 	PriceProtect            bool
-	NewOrderResponseType    string
-	PriceMatch              string
-	SelfTradePreventionMode string
+	NewOrderResponseType    NewOrderResponseType
+	PriceMatch              PriceMatch
+	SelfTradePreventionMode SelfTradePreventionMode
 }
 
 // CoinMarginedFuturesChangeLeverageResponse holds the initial leverage set for a coin margined futures symbol
@@ -709,15 +709,15 @@ type GetPositionMarginChangeHistoryResponse struct {
 	Symbol string        `json:"symbol"`
 	Time   types.Time    `json:"time"`
 	// Type is 1 when margin was added and 2 when it was reduced
-	Type         uint64 `json:"type"`
-	PositionSide string `json:"positionSide"`
+	Type         uint64       `json:"type"`
+	PositionSide PositionSide `json:"positionSide"`
 }
 
 // CoinMarginedFuturesModifyIsolatedPositionMarginRequest holds the parameters for changing a coin margined futures
 // isolated position's margin
 type CoinMarginedFuturesModifyIsolatedPositionMarginRequest struct {
 	Symbol       currency.Pair
-	PositionSide string
+	PositionSide PositionSide
 	Amount       float64
 	// Type is 1 to add position margin and 2 to reduce it
 	Type uint64
@@ -764,7 +764,7 @@ type CoinMarginedFuturesPositionInformationResponse struct {
 	IsolatedMargin   types.Number `json:"isolatedMargin"`
 	// IsAutoAddMargin is quoted on the wire
 	IsAutoAddMargin types.Boolean `json:"isAutoAddMargin"`
-	PositionSide    string        `json:"positionSide"`
+	PositionSide    PositionSide  `json:"positionSide"`
 	UpdateTime      types.Time    `json:"updateTime"`
 	// NotionalValue and IsolatedWallet are missing from the REST docs, but the WebSocket API's account.position schema
 	// for the same position data documents them
@@ -776,7 +776,7 @@ type CoinMarginedFuturesPositionInformationResponse struct {
 // forced
 type CoinMarginedFuturesForceOrdersRequest struct {
 	Symbol        currency.Pair
-	AutoCloseType string
+	AutoCloseType AutoCloseType
 	StartTime     time.Time
 	EndTime       time.Time
 	Limit         uint64
@@ -795,16 +795,16 @@ type ForcedOrdersResponse struct {
 	ExecutedQuantity types.Number `json:"executedQty"`
 	CumulativeBase   types.Number `json:"cumBase"`
 	CumulativeQuote  types.Number `json:"cumQuote"`
-	TimeInForce      string       `json:"timeInForce"`
-	OrderType        string       `json:"type"`
+	TimeInForce      TimeInForce  `json:"timeInForce"`
+	OrderType        OrderType    `json:"type"`
 	ReduceOnly       bool         `json:"reduceOnly"`
 	ClosePosition    bool         `json:"closePosition"`
-	Side             string       `json:"side"`
-	PositionSide     string       `json:"positionSide"`
+	Side             Side         `json:"side"`
+	PositionSide     PositionSide `json:"positionSide"`
 	StopPrice        types.Number `json:"stopPrice"`
-	WorkingType      string       `json:"workingType"`
+	WorkingType      WorkingType  `json:"workingType"`
 	PriceProtect     bool         `json:"priceProtect"`
-	OriginalType     string       `json:"origType"`
+	OriginalType     OrderType    `json:"origType"`
 	Time             types.Time   `json:"time"`
 	UpdateTime       types.Time   `json:"updateTime"`
 	GoodTillDate     types.Time   `json:"goodTillDate"`

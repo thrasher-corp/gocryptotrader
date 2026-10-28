@@ -16,6 +16,249 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
+// Side is the side parameter of an order
+type Side string
+
+// Order sides, the side parameter of the order endpoints; the portfolio margin requests that take an order.Side take
+// order.Buy or order.Sell instead
+const (
+	SideBuy  Side = "BUY"
+	SideSell Side = "SELL"
+)
+
+// OrderType is the type parameter of an order, and the strategyType parameter of a portfolio margin COIN-M
+// conditional order
+type OrderType string
+
+// Order types, the type parameter of the order endpoints. Spot and margin orders, portfolio margin's included, take
+// LIMIT, MARKET, STOP_LOSS, STOP_LOSS_LIMIT, TAKE_PROFIT, TAKE_PROFIT_LIMIT and LIMIT_MAKER. USDⓈ-M and COIN-M
+// orders take LIMIT, MARKET, STOP, STOP_MARKET, TAKE_PROFIT, TAKE_PROFIT_MARKET and TRAILING_STOP_MARKET, the
+// conditional ones as algo orders; portfolio margin futures orders take LIMIT and MARKET, and its algo and conditional
+// orders the conditional ones. Options orders take LIMIT only. TAKE_PROFIT differs by product: a spot or margin
+// TAKE_PROFIT order places a market order when it triggers, while a futures one places a limit order
+const (
+	OrderTypeLimit              OrderType = "LIMIT"
+	OrderTypeMarket             OrderType = "MARKET"
+	OrderTypeStopLoss           OrderType = "STOP_LOSS"
+	OrderTypeStopLossLimit      OrderType = "STOP_LOSS_LIMIT"
+	OrderTypeTakeProfit         OrderType = "TAKE_PROFIT"
+	OrderTypeTakeProfitLimit    OrderType = "TAKE_PROFIT_LIMIT"
+	OrderTypeLimitMaker         OrderType = "LIMIT_MAKER"
+	OrderTypeStop               OrderType = "STOP"
+	OrderTypeStopMarket         OrderType = "STOP_MARKET"
+	OrderTypeTakeProfitMarket   OrderType = "TAKE_PROFIT_MARKET"
+	OrderTypeTrailingStopMarket OrderType = "TRAILING_STOP_MARKET"
+)
+
+// TimeInForce is how long an order stays on the order book, the timeInForce parameter of an order
+type TimeInForce string
+
+// Time in force values. Every product takes GTC, IOC and FOK; GTX (post only) applies to USDⓈ-M, COIN-M, options and
+// portfolio margin futures orders, GTD to USDⓈ-M and portfolio margin USDⓈ-M orders, and RPI (retail price
+// improvement) to USDⓈ-M orders
+const (
+	TimeInForceGoodTillCancel         TimeInForce = "GTC"
+	TimeInForceImmediateOrCancel      TimeInForce = "IOC"
+	TimeInForceFillOrKill             TimeInForce = "FOK"
+	TimeInForceGoodTillCrossing       TimeInForce = "GTX"
+	TimeInForceGoodTillDate           TimeInForce = "GTD"
+	TimeInForceRetailPriceImprovement TimeInForce = "RPI"
+)
+
+// SelfTradePreventionMode is the selfTradePreventionMode parameter of an order
+type SelfTradePreventionMode string
+
+// Self-trade prevention modes. Not every endpoint takes every mode: DECREMENT and TRANSFER are spot only, and some
+// futures endpoints do not take NONE
+const (
+	SelfTradePreventionModeNone        SelfTradePreventionMode = "NONE"
+	SelfTradePreventionModeExpireTaker SelfTradePreventionMode = "EXPIRE_TAKER"
+	SelfTradePreventionModeExpireMaker SelfTradePreventionMode = "EXPIRE_MAKER"
+	SelfTradePreventionModeExpireBoth  SelfTradePreventionMode = "EXPIRE_BOTH"
+	SelfTradePreventionModeDecrement   SelfTradePreventionMode = "DECREMENT"
+	SelfTradePreventionModeTransfer    SelfTradePreventionMode = "TRANSFER"
+)
+
+// NewOrderResponseType is the newOrderRespType parameter of an order
+type NewOrderResponseType string
+
+// New order response types. A spot or margin ACK response carries the order's identifiers, RESULT adds its state and
+// FULL, which only spot and margin orders take, adds its fills. Futures and options orders take ACK and RESULT: a
+// futures ACK response carries the order as accepted, and RESULT returns a MARKET order, or a LIMIT order that cannot
+// rest, in its final status
+const (
+	NewOrderResponseTypeAcknowledgement NewOrderResponseType = "ACK"
+	NewOrderResponseTypeResult          NewOrderResponseType = "RESULT"
+	NewOrderResponseTypeFull            NewOrderResponseType = "FULL"
+)
+
+// PegPriceType is the pegPriceType parameter of a spot pegged order
+type PegPriceType string
+
+// Peg price types of spot pegged orders, which follow the best price on the order's own side (PRIMARY_PEG) or on the
+// other side (MARKET_PEG)
+const (
+	PegPriceTypePrimaryPeg PegPriceType = "PRIMARY_PEG"
+	PegPriceTypeMarketPeg  PegPriceType = "MARKET_PEG"
+)
+
+// PegOffsetType is the pegOffsetType parameter of a spot pegged order
+type PegOffsetType string
+
+// PegOffsetTypePriceLevel is the only peg offset type of spot pegged orders, which offsets the pegged price by order
+// book levels
+const PegOffsetTypePriceLevel PegOffsetType = "PRICE_LEVEL"
+
+// CancelReplaceMode is the cancelReplaceMode parameter of a spot cancel replace order
+type CancelReplaceMode string
+
+// Cancel replace modes: STOP_ON_FAILURE does not attempt the new order when the cancel fails, and ALLOW_FAILURE
+// attempts it regardless
+const (
+	CancelReplaceModeStopOnFailure CancelReplaceMode = "STOP_ON_FAILURE"
+	CancelReplaceModeAllowFailure  CancelReplaceMode = "ALLOW_FAILURE"
+)
+
+// CancelRestrictions is the cancelRestrictions parameter of a spot cancel or cancel replace order
+type CancelRestrictions string
+
+// Cancel restrictions, which cancel a spot order only while it is new or only while it is partially filled
+const (
+	CancelRestrictionsOnlyNew             CancelRestrictions = "ONLY_NEW"
+	CancelRestrictionsOnlyPartiallyFilled CancelRestrictions = "ONLY_PARTIALLY_FILLED"
+)
+
+// OrderRateLimitExceededMode is the orderRateLimitExceededMode parameter of a spot cancel replace order
+type OrderRateLimitExceededMode string
+
+// Order rate limit exceeded modes of cancel replace orders: DO_NOTHING, the default, attempts the cancel only while the
+// account is within its unfilled order count limit, and CANCEL_ONLY attempts it regardless
+const (
+	OrderRateLimitExceededModeDoNothing  OrderRateLimitExceededMode = "DO_NOTHING"
+	OrderRateLimitExceededModeCancelOnly OrderRateLimitExceededMode = "CANCEL_ONLY"
+)
+
+// SideEffectType is the sideEffectType parameter of a margin order
+type SideEffectType string
+
+// Side effect types of margin orders, which borrow for the order (MARGIN_BUY), repay debt with its proceeds
+// (AUTO_REPAY) or both (AUTO_BORROW_REPAY)
+const (
+	SideEffectTypeNoSideEffect    SideEffectType = "NO_SIDE_EFFECT"
+	SideEffectTypeMarginBuy       SideEffectType = "MARGIN_BUY"
+	SideEffectTypeAutoRepay       SideEffectType = "AUTO_REPAY"
+	SideEffectTypeAutoBorrowRepay SideEffectType = "AUTO_BORROW_REPAY"
+)
+
+// The values below are for USDⓈ-M, COIN-M and portfolio margin futures endpoints
+
+// WorkingType is the workingType parameter of a conditional futures order
+type WorkingType string
+
+// Working types, the price that triggers a USDⓈ-M, COIN-M or portfolio margin conditional order
+const (
+	WorkingTypeContractPrice WorkingType = "CONTRACT_PRICE" // Binance's default
+	WorkingTypeMarkPrice     WorkingType = "MARK_PRICE"
+)
+
+// PositionSide is the positionSide parameter of a futures order
+type PositionSide string
+
+// Position sides of USDⓈ-M, COIN-M and portfolio margin futures orders: BOTH in one-way mode, LONG or SHORT in hedge
+// mode
+const (
+	PositionSideBoth  PositionSide = "BOTH"
+	PositionSideLong  PositionSide = "LONG"
+	PositionSideShort PositionSide = "SHORT"
+)
+
+// PriceMatch is the priceMatch parameter of a futures order
+type PriceMatch string
+
+// Price match modes of USDⓈ-M, COIN-M and portfolio margin futures orders, which price an order at the best, 5th, 10th
+// or 20th best price on the opposite side of the order book (OPPONENT) or on its own side (QUEUE) instead of at a given
+// price. NONE is what responses report for an order without one; the order endpoints do not list it
+const (
+	PriceMatchNone       PriceMatch = "NONE"
+	PriceMatchOpponent   PriceMatch = "OPPONENT"
+	PriceMatchOpponent5  PriceMatch = "OPPONENT_5"
+	PriceMatchOpponent10 PriceMatch = "OPPONENT_10"
+	PriceMatchOpponent20 PriceMatch = "OPPONENT_20"
+	PriceMatchQueue      PriceMatch = "QUEUE"
+	PriceMatchQueue5     PriceMatch = "QUEUE_5"
+	PriceMatchQueue10    PriceMatch = "QUEUE_10"
+	PriceMatchQueue20    PriceMatch = "QUEUE_20"
+)
+
+// AlgoType is the algoType parameter of a futures algo order
+type AlgoType string
+
+// AlgoTypeConditional is the only algo type of USDⓈ-M, COIN-M and portfolio margin algo orders
+const AlgoTypeConditional AlgoType = "CONDITIONAL"
+
+// MarginType is the marginType parameter of a futures margin type change
+type MarginType string
+
+// Margin types of USDⓈ-M and COIN-M positions
+const (
+	MarginTypeIsolated MarginType = "ISOLATED"
+	MarginTypeCrossed  MarginType = "CROSSED"
+)
+
+// ContractType is the contractType parameter of futures market data
+type ContractType string
+
+// Contract types of USDⓈ-M and COIN-M continuous klines and futures data. TRADIFI_PERPETUAL is USDⓈ-M only, and ALL
+// is for COIN-M taker buy and sell volume only
+const (
+	ContractTypeAll                         ContractType = "ALL"
+	ContractTypePerpetual                   ContractType = "PERPETUAL"
+	ContractTypeCurrentQuarter              ContractType = "CURRENT_QUARTER"
+	ContractTypeNextQuarter                 ContractType = "NEXT_QUARTER"
+	ContractTypeTraditionalFinancePerpetual ContractType = "TRADIFI_PERPETUAL"
+)
+
+// AutoCloseType is the autoCloseType parameter of futures forced order queries
+type AutoCloseType string
+
+// Auto close types of USDⓈ-M, COIN-M and portfolio margin forced orders: LIQUIDATION for liquidations and ADL for
+// auto-deleveraging
+const (
+	AutoCloseTypeLiquidation      AutoCloseType = "LIQUIDATION"
+	AutoCloseTypeAutoDeleveraging AutoCloseType = "ADL"
+)
+
+// IncomeType is the incomeType parameter of futures income history queries
+type IncomeType string
+
+// Income types of the USDⓈ-M, COIN-M and portfolio margin income history. COIN-M accounts, portfolio margin's
+// included, take the first seven; USDⓈ-M accounts take more
+const (
+	IncomeTypeTransfer                            IncomeType = "TRANSFER"
+	IncomeTypeWelcomeBonus                        IncomeType = "WELCOME_BONUS"
+	IncomeTypeRealisedPNL                         IncomeType = "REALIZED_PNL"
+	IncomeTypeFundingFee                          IncomeType = "FUNDING_FEE"
+	IncomeTypeCommission                          IncomeType = "COMMISSION"
+	IncomeTypeInsuranceClear                      IncomeType = "INSURANCE_CLEAR"
+	IncomeTypeDeliveredSettlement                 IncomeType = "DELIVERED_SETTELMENT" //nolint:misspell // Binance's spelling of the wire value
+	IncomeTypeReferralKickback                    IncomeType = "REFERRAL_KICKBACK"
+	IncomeTypeCommissionRebate                    IncomeType = "COMMISSION_REBATE"
+	IncomeTypeAPIRebate                           IncomeType = "API_REBATE"
+	IncomeTypeContestReward                       IncomeType = "CONTEST_REWARD"
+	IncomeTypeCrossCollateralTransfer             IncomeType = "CROSS_COLLATERAL_TRANSFER"
+	IncomeTypeOptionsPremiumFee                   IncomeType = "OPTIONS_PREMIUM_FEE"
+	IncomeTypeOptionsSettleProfit                 IncomeType = "OPTIONS_SETTLE_PROFIT"
+	IncomeTypeInternalTransfer                    IncomeType = "INTERNAL_TRANSFER"
+	IncomeTypeAutoExchange                        IncomeType = "AUTO_EXCHANGE"
+	IncomeTypeCoinSwapDeposit                     IncomeType = "COIN_SWAP_DEPOSIT"
+	IncomeTypeCoinSwapWithdraw                    IncomeType = "COIN_SWAP_WITHDRAW" //nolint:gosec // An income type, not a credential
+	IncomeTypePositionLimitIncreaseFee            IncomeType = "POSITION_LIMIT_INCREASE_FEE"
+	IncomeTypeStrategyUSDTMarginedFuturesTransfer IncomeType = "STRATEGY_UMFUTURES_TRANSFER"
+	IncomeTypeFeeReturn                           IncomeType = "FEE_RETURN"
+	IncomeTypeBFUSDReward                         IncomeType = "BFUSD_REWARD"
+	IncomeTypeSpecialFundingFee                   IncomeType = "SPECIAL_FUNDING_FEE"
+)
+
 var (
 	errAPIResponse                 = errors.New("API error response")
 	errAlgoTypeRequired            = errors.New("algo type is required")
@@ -184,27 +427,27 @@ type SymbolInfo struct {
 	BaseAssetPrecision uint64        `json:"baseAssetPrecision"`
 	QuoteAsset         currency.Code `json:"quoteAsset"`
 	// QuotePrecision is to be removed in a future API version in favour of QuoteAssetPrecision
-	QuotePrecision                  uint64         `json:"quotePrecision"`
-	QuoteAssetPrecision             uint64         `json:"quoteAssetPrecision"`
-	BaseCommissionPrecision         uint64         `json:"baseCommissionPrecision"`
-	QuoteCommissionPrecision        uint64         `json:"quoteCommissionPrecision"`
-	OrderTypes                      []string       `json:"orderTypes"`
-	IcebergAllowed                  bool           `json:"icebergAllowed"`
-	OneCancelsTheOtherAllowed       bool           `json:"ocoAllowed"`
-	OneTriggersTheOtherAllowed      bool           `json:"otoAllowed"`
-	OPOAllowed                      bool           `json:"opoAllowed"`
-	QuoteOrderQuantityMarketAllowed bool           `json:"quoteOrderQtyMarketAllowed"`
-	AllowTrailingStop               bool           `json:"allowTrailingStop"`
-	CancelReplaceAllowed            bool           `json:"cancelReplaceAllowed"`
-	AmendAllowed                    bool           `json:"amendAllowed"`
-	PegInstructionsAllowed          bool           `json:"pegInstructionsAllowed"`
-	IsSpotTradingAllowed            bool           `json:"isSpotTradingAllowed"`
-	IsMarginTradingAllowed          bool           `json:"isMarginTradingAllowed"`
-	Filters                         []SymbolFilter `json:"filters"`
-	Permissions                     []string       `json:"permissions"`
-	PermissionSets                  [][]string     `json:"permissionSets"`
-	DefaultSelfTradePreventionMode  string         `json:"defaultSelfTradePreventionMode"`
-	AllowedSelfTradePreventionModes []string       `json:"allowedSelfTradePreventionModes"`
+	QuotePrecision                  uint64                    `json:"quotePrecision"`
+	QuoteAssetPrecision             uint64                    `json:"quoteAssetPrecision"`
+	BaseCommissionPrecision         uint64                    `json:"baseCommissionPrecision"`
+	QuoteCommissionPrecision        uint64                    `json:"quoteCommissionPrecision"`
+	OrderTypes                      []OrderType               `json:"orderTypes"`
+	IcebergAllowed                  bool                      `json:"icebergAllowed"`
+	OneCancelsTheOtherAllowed       bool                      `json:"ocoAllowed"`
+	OneTriggersTheOtherAllowed      bool                      `json:"otoAllowed"`
+	OPOAllowed                      bool                      `json:"opoAllowed"`
+	QuoteOrderQuantityMarketAllowed bool                      `json:"quoteOrderQtyMarketAllowed"`
+	AllowTrailingStop               bool                      `json:"allowTrailingStop"`
+	CancelReplaceAllowed            bool                      `json:"cancelReplaceAllowed"`
+	AmendAllowed                    bool                      `json:"amendAllowed"`
+	PegInstructionsAllowed          bool                      `json:"pegInstructionsAllowed"`
+	IsSpotTradingAllowed            bool                      `json:"isSpotTradingAllowed"`
+	IsMarginTradingAllowed          bool                      `json:"isMarginTradingAllowed"`
+	Filters                         []SymbolFilter            `json:"filters"`
+	Permissions                     []string                  `json:"permissions"`
+	PermissionSets                  [][]string                `json:"permissionSets"`
+	DefaultSelfTradePreventionMode  SelfTradePreventionMode   `json:"defaultSelfTradePreventionMode"`
+	AllowedSelfTradePreventionModes []SelfTradePreventionMode `json:"allowedSelfTradePreventionModes"`
 }
 
 // SymbolFilter holds a symbol filter, whose type determines which of the fields it sets
@@ -459,34 +702,34 @@ type OrderConditionalFields struct {
 	StrategyType               uint64       `json:"strategyType"`
 	TrailingDeltaInBasisPoints uint64       `json:"trailingDelta"`
 	// TrailingTime is the Unix time in milliseconds the trailing stop started tracking the price, -1 until then
-	TrailingTime   int64        `json:"trailingTime"`
-	UsedSOR        bool         `json:"usedSor"`
-	WorkingFloor   string       `json:"workingFloor"`
-	PegPriceType   string       `json:"pegPriceType"`
-	PegOffsetType  string       `json:"pegOffsetType"`
-	PegOffsetValue uint64       `json:"pegOffsetValue"`
-	PeggedPrice    types.Number `json:"peggedPrice"`
-	ExpiryReason   string       `json:"expiryReason"`
+	TrailingTime   int64         `json:"trailingTime"`
+	UsedSOR        bool          `json:"usedSor"`
+	WorkingFloor   string        `json:"workingFloor"`
+	PegPriceType   PegPriceType  `json:"pegPriceType"`
+	PegOffsetType  PegOffsetType `json:"pegOffsetType"`
+	PegOffsetValue uint64        `json:"pegOffsetValue"`
+	PeggedPrice    types.Number  `json:"peggedPrice"`
+	ExpiryReason   string        `json:"expiryReason"`
 }
 
 // CancelOrderResponse holds a cancelled order
 type CancelOrderResponse struct {
-	Symbol                     string       `json:"symbol"`
-	OriginalClientOrderID      string       `json:"origClientOrderId"`
-	OrderID                    uint64       `json:"orderId"`
-	OrderListID                int64        `json:"orderListId"` // -1 unless the order is part of an order list
-	ClientOrderID              string       `json:"clientOrderId"`
-	TransactTime               types.Time   `json:"transactTime"`
-	Price                      types.Number `json:"price"`
-	OriginalQuantity           types.Number `json:"origQty"`
-	ExecutedQuantity           types.Number `json:"executedQty"`
-	OriginalQuoteOrderQuantity types.Number `json:"origQuoteOrderQty"`
-	CumulativeQuoteQuantity    types.Number `json:"cummulativeQuoteQty"`
-	Status                     string       `json:"status"`
-	TimeInForce                string       `json:"timeInForce"`
-	Type                       string       `json:"type"`
-	Side                       string       `json:"side"`
-	SelfTradePreventionMode    string       `json:"selfTradePreventionMode"`
+	Symbol                     string                  `json:"symbol"`
+	OriginalClientOrderID      string                  `json:"origClientOrderId"`
+	OrderID                    uint64                  `json:"orderId"`
+	OrderListID                int64                   `json:"orderListId"` // -1 unless the order is part of an order list
+	ClientOrderID              string                  `json:"clientOrderId"`
+	TransactTime               types.Time              `json:"transactTime"`
+	Price                      types.Number            `json:"price"`
+	OriginalQuantity           types.Number            `json:"origQty"`
+	ExecutedQuantity           types.Number            `json:"executedQty"`
+	OriginalQuoteOrderQuantity types.Number            `json:"origQuoteOrderQty"`
+	CumulativeQuoteQuantity    types.Number            `json:"cummulativeQuoteQty"`
+	Status                     string                  `json:"status"`
+	TimeInForce                TimeInForce             `json:"timeInForce"`
+	Type                       OrderType               `json:"type"`
+	Side                       Side                    `json:"side"`
+	SelfTradePreventionMode    SelfTradePreventionMode `json:"selfTradePreventionMode"`
 	OrderConditionalFields
 }
 
@@ -507,9 +750,9 @@ type CancelledOpenOrderResponse struct {
 // mandatory depends on Type
 type NewOrderRequest struct {
 	Symbol                     currency.Pair
-	Side                       string // BUY or SELL
-	Type                       string
-	TimeInForce                string
+	Side                       Side // BUY or SELL
+	Type                       OrderType
+	TimeInForce                TimeInForce
 	Quantity                   float64
 	QuoteOrderQuantity         float64 // Quote asset amount a MARKET order spends or receives, instead of Quantity
 	Price                      float64
@@ -521,11 +764,11 @@ type NewOrderRequest struct {
 	IcebergQuantity            float64
 	// NewOrderResponseType selects the ACK, RESULT or FULL response; MARKET and LIMIT orders default to FULL and the
 	// others to ACK
-	NewOrderResponseType    string
-	SelfTradePreventionMode string
-	PegPriceType            string // PRIMARY_PEG or MARKET_PEG, which makes Price optional
-	PegOffsetValue          uint64 // Price level to peg to, at most 100
-	PegOffsetType           string
+	NewOrderResponseType    NewOrderResponseType
+	SelfTradePreventionMode SelfTradePreventionMode
+	PegPriceType            PegPriceType // PRIMARY_PEG or MARKET_PEG, which makes Price optional
+	PegOffsetValue          uint64       // Price level to peg to, at most 100
+	PegOffsetType           PegOffsetType
 }
 
 // NewOrderResponse holds a new order in the ACK, RESULT or FULL format: ACK sets only the identifiers and transaction
@@ -542,13 +785,13 @@ type NewOrderResponse struct {
 	OriginalQuoteOrderQuantity types.Number `json:"origQuoteOrderQty"`
 	CumulativeQuoteQuantity    types.Number `json:"cummulativeQuoteQty"`
 	Status                     string       `json:"status"`
-	TimeInForce                string       `json:"timeInForce"`
-	Type                       string       `json:"type"`
-	Side                       string       `json:"side"`
+	TimeInForce                TimeInForce  `json:"timeInForce"`
+	Type                       OrderType    `json:"type"`
+	Side                       Side         `json:"side"`
 	// WorkingTime is the Unix time in milliseconds the order started working on the order book, -1 until then
-	WorkingTime             int64       `json:"workingTime"`
-	SelfTradePreventionMode string      `json:"selfTradePreventionMode"`
-	Fills                   []OrderFill `json:"fills"`
+	WorkingTime             int64                   `json:"workingTime"`
+	SelfTradePreventionMode SelfTradePreventionMode `json:"selfTradePreventionMode"`
+	Fills                   []OrderFill             `json:"fills"`
 	OrderConditionalFields
 }
 
@@ -566,8 +809,8 @@ type CancelOrderRequest struct {
 	Symbol                currency.Pair
 	OrderID               uint64
 	OriginalClientOrderID string
-	NewClientOrderID      string // Identifies the cancellation; generated when empty
-	CancelRestrictions    string // ONLY_NEW or ONLY_PARTIALLY_FILLED cancels only orders with that status
+	NewClientOrderID      string             // Identifies the cancellation; generated when empty
+	CancelRestrictions    CancelRestrictions // ONLY_NEW or ONLY_PARTIALLY_FILLED cancels only orders with that status
 }
 
 // CancelOrderListRequest holds the parameters of an order list cancellation; OrderListID or ListClientOrderID is
@@ -615,12 +858,12 @@ type OrderResponse struct {
 	CumulativeQuoteQuantity    types.Number      `json:"cummulativeQuoteQty"`
 	Status                     string            `json:"status"`
 	TimeInForce                order.TimeInForce `json:"timeInForce"`
-	Type                       string            `json:"type"`
-	Side                       string            `json:"side"`
+	Type                       OrderType         `json:"type"`
+	Side                       Side              `json:"side"`
 	// WorkingTime is the Unix time in milliseconds the order started working on the order book, -1 until then
-	WorkingTime             int64       `json:"workingTime"`
-	SelfTradePreventionMode string      `json:"selfTradePreventionMode"`
-	Fills                   []OrderFill `json:"fills"`
+	WorkingTime             int64                   `json:"workingTime"`
+	SelfTradePreventionMode SelfTradePreventionMode `json:"selfTradePreventionMode"`
+	Fills                   []OrderFill             `json:"fills"`
 	OrderConditionalFields
 }
 
@@ -628,12 +871,12 @@ type OrderResponse struct {
 // CancelOriginalClientOrderID, and the new order, whose mandatory parameters depend on Type
 type CancelReplaceOrderRequest struct {
 	Symbol currency.Pair
-	Side   string // BUY or SELL
-	Type   string
+	Side   Side // BUY or SELL
+	Type   OrderType
 	// CancelReplaceMode STOP_ON_FAILURE places the new order only if the cancellation succeeds, and ALLOW_FAILURE places
 	// it either way
-	CancelReplaceMode           string
-	TimeInForce                 string
+	CancelReplaceMode           CancelReplaceMode
+	TimeInForce                 TimeInForce
 	Quantity                    float64
 	QuoteOrderQuantity          float64
 	Price                       float64
@@ -646,15 +889,15 @@ type CancelReplaceOrderRequest struct {
 	StopPrice                   float64
 	TrailingDeltaInBasisPoints  uint64
 	IcebergQuantity             float64
-	NewOrderResponseType        string // ACK, RESULT or FULL
-	SelfTradePreventionMode     string
-	CancelRestrictions          string // ONLY_NEW or ONLY_PARTIALLY_FILLED cancels only orders with that status
+	NewOrderResponseType        NewOrderResponseType // ACK, RESULT or FULL
+	SelfTradePreventionMode     SelfTradePreventionMode
+	CancelRestrictions          CancelRestrictions // ONLY_NEW or ONLY_PARTIALLY_FILLED cancels only orders with that status
 	// OrderRateLimitExceededMode DO_NOTHING, the default, cancels only within the unfilled order count limit, and
 	// CANCEL_ONLY always cancels
-	OrderRateLimitExceededMode string
-	PegPriceType               string
+	OrderRateLimitExceededMode OrderRateLimitExceededMode
+	PegPriceType               PegPriceType
 	PegOffsetValue             uint64
-	PegOffsetType              string
+	PegOffsetType              PegOffsetType
 }
 
 // CancelAndReplaceResponse holds the outcome of a cancel-replace. Binance replies with it when both halves succeed and
@@ -686,27 +929,27 @@ type CancelReplaceNewOrderResponse struct {
 type OneCancelsTheOtherOrderListRequest struct {
 	Symbol                  currency.Pair
 	ListClientOrderID       string
-	Side                    string  // BUY or SELL
+	Side                    Side    // BUY or SELL
 	Quantity                float64 // Quantity of both orders
 	Above                   OneCancelsTheOtherOrderListLeg
 	Below                   OneCancelsTheOtherOrderListLeg
-	NewOrderResponseType    string // ACK, RESULT or FULL
-	SelfTradePreventionMode string
+	NewOrderResponseType    NewOrderResponseType // ACK, RESULT or FULL
+	SelfTradePreventionMode SelfTradePreventionMode
 }
 
 // OneCancelsTheOtherOrderListLeg holds the parameters of the above or below order of an OCO order list
 type OneCancelsTheOtherOrderListLeg struct {
-	Type                       string
+	Type                       OrderType
 	ClientOrderID              string
 	IcebergQuantity            uint64  // A whole number, usable only with the GTC time in force
 	Price                      float64 // Limit price of a LIMIT_MAKER, STOP_LOSS_LIMIT or TAKE_PROFIT_LIMIT order
 	StopPrice                  float64
 	TrailingDeltaInBasisPoints uint64
-	TimeInForce                string // Required by STOP_LOSS_LIMIT and TAKE_PROFIT_LIMIT orders
+	TimeInForce                TimeInForce // Required by STOP_LOSS_LIMIT and TAKE_PROFIT_LIMIT orders
 	StrategyID                 uint64
 	StrategyType               uint64 // At least 1000000; smaller values are reserved
-	PegPriceType               string
-	PegOffsetType              string
+	PegPriceType               PegPriceType
+	PegOffsetType              PegOffsetType
 	PegOffsetValue             uint64
 }
 
@@ -736,17 +979,17 @@ type CommissionDiscount struct {
 // MARKET orders without a quote order quantity
 type SOROrderRequest struct {
 	Symbol                  currency.Pair
-	Side                    string // BUY or SELL
-	Type                    string // LIMIT or MARKET
-	TimeInForce             string
+	Side                    Side      // BUY or SELL
+	Type                    OrderType // LIMIT or MARKET
+	TimeInForce             TimeInForce
 	Quantity                float64
 	Price                   float64
 	NewClientOrderID        string
 	StrategyID              uint64
 	StrategyType            uint64 // At least 1000000; smaller values are reserved
 	IcebergQuantity         float64
-	NewOrderResponseType    string // ACK, RESULT or FULL; FULL when empty
-	SelfTradePreventionMode string
+	NewOrderResponseType    NewOrderResponseType // ACK, RESULT or FULL; FULL when empty
+	SelfTradePreventionMode SelfTradePreventionMode
 }
 
 // SOROrderResponse holds an order placed using smart order routing (SOR)
@@ -762,13 +1005,13 @@ type SOROrderResponse struct {
 	OriginalQuoteOrderQuantity types.Number `json:"origQuoteOrderQty"`
 	CumulativeQuoteQuantity    types.Number `json:"cummulativeQuoteQty"`
 	Status                     string       `json:"status"`
-	TimeInForce                string       `json:"timeInForce"`
-	Type                       string       `json:"type"`
-	Side                       string       `json:"side"`
+	TimeInForce                TimeInForce  `json:"timeInForce"`
+	Type                       OrderType    `json:"type"`
+	Side                       Side         `json:"side"`
 	// WorkingTime is the Unix time in milliseconds the order started working on the order book, -1 until then
-	WorkingTime             int64     `json:"workingTime"`
-	Fills                   []SORFill `json:"fills"`
-	SelfTradePreventionMode string    `json:"selfTradePreventionMode"`
+	WorkingTime             int64                   `json:"workingTime"`
+	Fills                   []SORFill               `json:"fills"`
+	SelfTradePreventionMode SelfTradePreventionMode `json:"selfTradePreventionMode"`
 	OrderConditionalFields
 }
 
@@ -832,14 +1075,14 @@ type TradeOrderResponse struct {
 	CumulativeQuoteQuantity    types.Number      `json:"cummulativeQuoteQty"` // Negative when unavailable for some historical orders
 	Status                     string            `json:"status"`
 	TimeInForce                order.TimeInForce `json:"timeInForce"`
-	Type                       string            `json:"type"`
-	Side                       string            `json:"side"`
+	Type                       OrderType         `json:"type"`
+	Side                       Side              `json:"side"`
 	Time                       types.Time        `json:"time"`
 	UpdateTime                 types.Time        `json:"updateTime"`
 	IsWorking                  bool              `json:"isWorking"`
 	// WorkingTime is the Unix time in milliseconds the order started working on the order book, -1 until then
-	WorkingTime             int64  `json:"workingTime"`
-	SelfTradePreventionMode string `json:"selfTradePreventionMode"`
+	WorkingTime             int64                   `json:"workingTime"`
+	SelfTradePreventionMode SelfTradePreventionMode `json:"selfTradePreventionMode"`
 	OrderConditionalFields
 }
 
@@ -912,16 +1155,16 @@ type PreventedMatchesRequest struct {
 
 // PreventedMatchResponse holds a match that self-trade prevention (STP) prevented, expiring the orders involved
 type PreventedMatchResponse struct {
-	Symbol                  string       `json:"symbol"`
-	PreventedMatchID        uint64       `json:"preventedMatchId"`
-	TakerOrderID            uint64       `json:"takerOrderId"`
-	MakerSymbol             string       `json:"makerSymbol"`
-	MakerOrderID            uint64       `json:"makerOrderId"`
-	TradeGroupID            uint64       `json:"tradeGroupId"`
-	SelfTradePreventionMode string       `json:"selfTradePreventionMode"`
-	Price                   types.Number `json:"price"`
-	MakerPreventedQuantity  types.Number `json:"makerPreventedQuantity"`
-	TransactTime            types.Time   `json:"transactTime"`
+	Symbol                  string                  `json:"symbol"`
+	PreventedMatchID        uint64                  `json:"preventedMatchId"`
+	TakerOrderID            uint64                  `json:"takerOrderId"`
+	MakerSymbol             string                  `json:"makerSymbol"`
+	MakerOrderID            uint64                  `json:"makerOrderId"`
+	TradeGroupID            uint64                  `json:"tradeGroupId"`
+	SelfTradePreventionMode SelfTradePreventionMode `json:"selfTradePreventionMode"`
+	Price                   types.Number            `json:"price"`
+	MakerPreventedQuantity  types.Number            `json:"makerPreventedQuantity"`
+	TransactTime            types.Time              `json:"transactTime"`
 }
 
 // AccountTradeListRequest holds the parameters of an account trade list request; StartTime and EndTime can be at most

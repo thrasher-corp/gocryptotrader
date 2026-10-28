@@ -1108,7 +1108,7 @@ func spotAccountTradeListLimit(orderID uint64) request.EndpointLimit {
 }
 
 // marginNewOrderLimit returns the limit of a new margin order or OCO, which costs 1500 instead of 6 when it borrows
-func marginNewOrderLimit(sideEffectType string) request.EndpointLimit {
+func marginNewOrderLimit(sideEffectType SideEffectType) request.EndpointLimit {
 	if sideEffectType == "MARGIN_BUY" || sideEffectType == "AUTO_BORROW_REPAY" {
 		return marginAccountNewOrderBorrowRate
 	}
