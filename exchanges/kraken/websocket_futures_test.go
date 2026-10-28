@@ -384,7 +384,7 @@ func TestWebsocketFuturesHandleData(t *testing.T) {
 	ex.Websocket.Fills.Setup(true, ex.Websocket.DataHandler)
 	conn, err := ex.Websocket.CreateTestConnection(wsFuturesConnection)
 	require.NoError(t, err, "CreateTestConnection must not error")
-	testexch.FixtureToDataHandler(t, "testdata/wsFutures.json", func(ctx context.Context, b []byte) error {
+	testexch.FixtureToDataHandler(t, "testdata/wsFutures.jsonl", func(ctx context.Context, b []byte) error {
 		return ex.wsFuturesHandleData(ctx, conn, b)
 	})
 	got := relayed(ex)
@@ -1155,7 +1155,7 @@ func TestWebsocketFuturesProcessTicker(t *testing.T) {
 func TestWebsocketFuturesLoadBookSnapshot(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
-	require.NoError(t, ex.wsFuturesLoadBookSnapshot(t.Context(), fixtureLines(t, "testdata/wsFutures.json")[3]), "wsFuturesLoadBookSnapshot must not error")
+	require.NoError(t, ex.wsFuturesLoadBookSnapshot(t.Context(), fixtureLines(t, "testdata/wsFutures.jsonl")[3]), "wsFuturesLoadBookSnapshot must not error")
 	book, err := ex.Websocket.Orderbook.GetOrderbook(futuresTestPair, asset.Futures)
 	require.NoError(t, err, "GetOrderbook must not error")
 	assert.Equal(t, orderbook.Levels{{Price: 82380, Amount: 0.0003}, {Price: 82379, Amount: 0.0012}, {Price: 82378, Amount: 0.0003}}, book.Bids, "wsFuturesLoadBookSnapshot should load the bids")
@@ -1173,7 +1173,7 @@ func TestWebsocketFuturesUpdateBook(t *testing.T) {
 	s := futuresSubscription(subscription.OrderbookChannel, wsFuturesFeedBook, futuresTestPair)
 	require.NoError(t, ex.futuresSubscribe(t.Context(), conn, subscription.List{s}), "futuresSubscribe must not error")
 	server.takeRequests()
-	lines := fixtureLines(t, "testdata/wsFutures.json")
+	lines := fixtureLines(t, "testdata/wsFutures.jsonl")
 	assert.ErrorIs(t, ex.wsFuturesUpdateBook(t.Context(), conn, lines[4]), orderbook.ErrDepthNotFound, "wsFuturesUpdateBook should reject an update before a snapshot")
 	require.NoError(t, ex.wsFuturesLoadBookSnapshot(t.Context(), lines[3]), "wsFuturesLoadBookSnapshot must not error")
 	require.NoError(t, ex.wsFuturesUpdateBook(t.Context(), conn, lines[4]), "wsFuturesUpdateBook must not error for a bid update")
@@ -1614,7 +1614,7 @@ func TestWebsocketFuturesProcessBalances(t *testing.T) {
 	stored.UpdatedAt = time.Time{}
 	assert.Equal(t, accounts.Balance{Currency: currency.XBT, Total: 0.5, Hold: 0.5}, stored, "wsFuturesProcessBalances should store the wallets' balances")
 
-	require.NoError(t, ex.wsFuturesProcessBalances(t.Context(), wsFuturesFeedBalances, fixtureLines(t, "testdata/wsFutures.json")[16]), "wsFuturesProcessBalances must not error for a margin account update")
+	require.NoError(t, ex.wsFuturesProcessBalances(t.Context(), wsFuturesFeedBalances, fixtureLines(t, "testdata/wsFutures.jsonl")[16]), "wsFuturesProcessBalances must not error for a margin account update")
 	got = relayed(ex)
 	require.Len(t, got, 1, "wsFuturesProcessBalances must relay a margin account update as the message alone")
 	assert.IsType(t, &WebsocketFuturesBalances{}, got[0], "wsFuturesProcessBalances should relay a margin account update as the message")

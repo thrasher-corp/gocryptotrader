@@ -634,7 +634,7 @@ func TestChannelPayloads(t *testing.T) {
 		fixture string
 		exp     []any
 	}{
-		{"testdata/wsPublic.json", []any{
+		{"testdata/wsPublic.jsonl", []any{
 			&[]WebsocketStatus{{
 				System:       "online",
 				APIVersion:   "v2",
@@ -739,7 +739,7 @@ func TestChannelPayloads(t *testing.T) {
 				}},
 			},
 		}},
-		{"testdata/wsPrivate.json", []any{
+		{"testdata/wsPrivate.jsonl", []any{
 			&[]WebsocketExecution{{
 				OrderID:                  "OAIYAU-LGI3M-PFM5VW",
 				OrderUserReference:       100054,
@@ -917,7 +917,7 @@ func TestWebsocketHandleData(t *testing.T) {
 	ex.setBookDepth(wsTestPair, 10)
 	ex.Features.Enabled.TradeFeed = true
 	ex.Websocket.Trade.Setup(true, ex.Websocket.DataHandler)
-	testexch.FixtureToDataHandler(t, "testdata/wsPublic.json", func(ctx context.Context, b []byte) error {
+	testexch.FixtureToDataHandler(t, "testdata/wsPublic.jsonl", func(ctx context.Context, b []byte) error {
 		return ex.wsHandleData(ctx, nil, b)
 	})
 	got := relayed(ex)
@@ -1006,7 +1006,7 @@ func TestWebsocketBookSequence(t *testing.T) {
 	ex := newTestExchange(t)
 	seedTestAssetNames(ex)
 	ex.setBookDepth(wsTestPair, 10)
-	testexch.FixtureToDataHandler(t, "testdata/wsBook.json", func(ctx context.Context, b []byte) error {
+	testexch.FixtureToDataHandler(t, "testdata/wsBook.jsonl", func(ctx context.Context, b []byte) error {
 		return ex.wsHandleData(ctx, nil, b)
 	})
 	assert.Len(t, relayed(ex), 20, "every snapshot and update should relay the order book")
@@ -1036,7 +1036,7 @@ func TestWebsocketHandleDataPrivate(t *testing.T) {
 	useTestCredentials(ex)
 	ex.Features.Enabled.FillsFeed = true
 	ex.Websocket.Fills.Setup(true, ex.Websocket.DataHandler)
-	testexch.FixtureToDataHandler(t, "testdata/wsPrivate.json", func(ctx context.Context, b []byte) error {
+	testexch.FixtureToDataHandler(t, "testdata/wsPrivate.jsonl", func(ctx context.Context, b []byte) error {
 		return ex.wsHandleData(ctx, nil, b)
 	})
 	got := relayed(ex)
@@ -1597,7 +1597,7 @@ func level3Order(t *testing.T, event, orderID, price, qty string) WebsocketLevel
 func TestLevel3Checksum(t *testing.T) {
 	t.Parallel()
 	// Kraken's documented example, whose numbers are strings
-	lines := fixtureLines(t, "testdata/wsLevel3.json")
+	lines := fixtureLines(t, "testdata/wsLevel3.jsonl")
 	var snapshot struct {
 		Data []WebsocketLevel3Book `json:"data"`
 	}
@@ -1687,7 +1687,7 @@ func TestWebsocketProcessLevel3(t *testing.T) {
 	ex := newTestExchange(t)
 	seedTestAssetNames(ex)
 	ex.setBookDepth(wsTestPair, 10)
-	testexch.FixtureToDataHandler(t, "testdata/wsLevel3.json", func(ctx context.Context, b []byte) error {
+	testexch.FixtureToDataHandler(t, "testdata/wsLevel3.jsonl", func(ctx context.Context, b []byte) error {
 		var msg wsChannelMessage
 		if err := json.Unmarshal(b, &msg); err != nil {
 			return err
@@ -2206,7 +2206,7 @@ func TestWebsocketProcessBook(t *testing.T) {
 	seedTestAssetNames(ex)
 	// The fixture's book was recorded with a depth of 10
 	ex.setBookDepth(wsTestPair, 10)
-	lines := fixtureLines(t, "testdata/wsBook.json")
+	lines := fixtureLines(t, "testdata/wsBook.jsonl")
 	for i, line := range lines[:3] {
 		msg, _ := bookMessage(t, line)
 		require.NoErrorf(t, ex.wsProcessBook(t.Context(), nil, msg), "wsProcessBook must not error for line %d", i+1)
@@ -2232,7 +2232,7 @@ func TestWebsocketLoadBookSnapshot(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
 	ex.setBookDepth(wsTestPair, 10)
-	_, snapshot := bookMessage(t, fixtureLines(t, "testdata/wsBook.json")[0])
+	_, snapshot := bookMessage(t, fixtureLines(t, "testdata/wsBook.jsonl")[0])
 	require.NoError(t, ex.wsLoadBookSnapshot(t.Context(), wsTestPair, snapshot), "wsLoadBookSnapshot must not error")
 	book, err := ex.Websocket.Orderbook.GetOrderbook(wsTestPair, asset.Spot)
 	require.NoError(t, err, "GetOrderbook must not error")
@@ -2279,7 +2279,7 @@ func TestWebsocketUpdateBook(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
 	ex.setBookDepth(wsTestPair, 10)
-	lines := fixtureLines(t, "testdata/wsBook.json")
+	lines := fixtureLines(t, "testdata/wsBook.jsonl")
 	_, snapshot := bookMessage(t, lines[0])
 	_, update := bookMessage(t, lines[1])
 	assert.ErrorIs(t, ex.wsUpdateBook(t.Context(), wsTestPair, update), orderbook.ErrDepthNotFound, "wsUpdateBook should reject an update before a snapshot")
@@ -2385,8 +2385,8 @@ func TestWebsocketLevel3BookRoundTrip(t *testing.T) {
 	ex := newTestExchange(t)
 	// The pair's book moves from the level3 channel to the book channel and back, at a depth of 10 on each
 	ex.setBookDepth(wsTestPair, 10)
-	level3 := level3Message(t, fixtureLines(t, "testdata/wsLevel3.json")[0])
-	_, level2 := bookMessage(t, fixtureLines(t, "testdata/wsBook.json")[0])
+	level3 := level3Message(t, fixtureLines(t, "testdata/wsLevel3.jsonl")[0])
+	_, level2 := bookMessage(t, fixtureLines(t, "testdata/wsBook.jsonl")[0])
 	require.NoError(t, ex.wsLevel3Book(t.Context(), wsTestPair, true, level3), "wsLevel3Book must load the level 3 snapshot")
 	require.NoError(t, ex.wsLoadBookSnapshot(t.Context(), wsTestPair, level2), "wsLoadBookSnapshot must load the level 2 snapshot")
 	book, err := ex.Websocket.Orderbook.GetOrderbook(wsTestPair, asset.Spot)
@@ -2407,7 +2407,7 @@ func TestWebsocketLoadBookSnapshotWithoutTime(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
 	ex.setBookDepth(wsTestPair, 10)
-	_, first := bookMessage(t, fixtureLines(t, "testdata/wsBook.json")[0])
+	_, first := bookMessage(t, fixtureLines(t, "testdata/wsBook.jsonl")[0])
 	require.NoError(t, ex.wsLoadBookSnapshot(t.Context(), wsTestPair, first), "wsLoadBookSnapshot must load the first snapshot")
 	loaded, err := ex.Websocket.Orderbook.GetOrderbook(wsTestPair, asset.Spot)
 	require.NoError(t, err, "GetOrderbook must not error")
@@ -2658,7 +2658,7 @@ func TestWebsocketLevel3Book(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
 	ex.setBookDepth(wsTestPair, 10)
-	lines := fixtureLines(t, "testdata/wsLevel3.json")
+	lines := fixtureLines(t, "testdata/wsLevel3.jsonl")
 	assert.ErrorIs(t, ex.wsLevel3Book(t.Context(), wsTestPair, false, level3Message(t, lines[1])), errLevel3OutOfSync, "wsLevel3Book should reject an update before a snapshot")
 	snapshot := level3Message(t, lines[0])
 	require.NoError(t, ex.wsLevel3Book(t.Context(), wsTestPair, true, snapshot), "wsLevel3Book must load a snapshot")
