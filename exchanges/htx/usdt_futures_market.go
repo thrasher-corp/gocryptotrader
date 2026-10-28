@@ -21,28 +21,22 @@ func (e *Exchange) GetV5OpenInterest(ctx context.Context, code currency.Pair) (*
 	params := url.Values{}
 	params.Set("contract_code", codeValue)
 	var resp *V5OpenInterestResponse
-	if err := e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/v5/market/open_interest", params), &resp); err != nil {
-		return nil, err
-	}
-	return resp, nil
+	err = e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/v5/market/open_interest", params), &resp)
+	return resp, err
 }
 
 // GetV5AssetsDeductionCurrencies gets currencies supported for fee deduction.
 func (e *Exchange) GetV5AssetsDeductionCurrencies(ctx context.Context) (*V5AssetsDeductionCurrenciesResponse, error) {
 	var resp *V5AssetsDeductionCurrenciesResponse
-	if err := e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, "/v5/market/assets_deduction_currency", &resp); err != nil {
-		return nil, err
-	}
-	return resp, nil
+	err := e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, "/v5/market/assets_deduction_currency", &resp)
+	return resp, err
 }
 
 // GetV5MultiAssetsMarginCurrencies gets currencies supported by multi-assets margin.
 func (e *Exchange) GetV5MultiAssetsMarginCurrencies(ctx context.Context) (*V5MultiAssetsMarginCurrenciesResponse, error) {
 	var resp *V5MultiAssetsMarginCurrenciesResponse
-	if err := e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, "/v5/market/multi_assets_margin", &resp); err != nil {
-		return nil, err
-	}
-	return resp, nil
+	err := e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, "/v5/market/multi_assets_margin", &resp)
+	return resp, err
 }
 
 // GetV5EliteAccountRatio gets the elite-account long/short ratio.
@@ -55,10 +49,8 @@ func (e *Exchange) GetV5EliteAccountRatio(ctx context.Context, code currency.Pai
 	params.Set("contract_code", codeValue)
 	params.Set("period", period)
 	var resp *V5EliteRatioResponse
-	if err := e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/v5/market/elite_account_ratio", params), &resp); err != nil {
-		return nil, err
-	}
-	return resp, nil
+	err = e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/v5/market/elite_account_ratio", params), &resp)
+	return resp, err
 }
 
 // GetV5ElitePositionRatio gets the elite-position long/short ratio.
@@ -71,10 +63,8 @@ func (e *Exchange) GetV5ElitePositionRatio(ctx context.Context, code currency.Pa
 	params.Set("contract_code", codeValue)
 	params.Set("period", period)
 	var resp *V5EliteRatioResponse
-	if err := e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/v5/market/elite_position_ratio", params), &resp); err != nil {
-		return nil, err
-	}
-	return resp, nil
+	err = e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/v5/market/elite_position_ratio", params), &resp)
+	return resp, err
 }
 
 // GetV5EstimatedSettlementPrice gets estimated settlement prices.
@@ -88,10 +78,8 @@ func (e *Exchange) GetV5EstimatedSettlementPrice(ctx context.Context, code curre
 		params.Set("contract_code", codeValue)
 	}
 	var resp *V5EstimatedSettlementPriceResponse
-	if err := e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/v5/market/estimated_settlement_price", params), &resp); err != nil {
-		return nil, err
-	}
-	return resp, nil
+	err := e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/v5/market/estimated_settlement_price", params), &resp)
+	return resp, err
 }
 
 // GetV5FundingRates gets current funding rates for up to 10 contracts.
@@ -113,10 +101,8 @@ func (e *Exchange) GetV5FundingRates(ctx context.Context, req *V5FundingRatesReq
 	params := url.Values{}
 	params.Set("contract_code", strings.Join(codes, ","))
 	var resp *V5FundingRatesResponse
-	if err := e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/v5/market/funding_rate", params), &resp); err != nil {
-		return nil, err
-	}
-	return resp, nil
+	err := e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/v5/market/funding_rate", params), &resp)
+	return resp, err
 }
 
 // GetV5FundingRateHistory gets historical funding rates for one contract.
@@ -142,10 +128,8 @@ func (e *Exchange) GetV5FundingRateHistory(ctx context.Context, req *V5FundingRa
 		params.Set("direct", req.Direction)
 	}
 	var resp *V5FundingRateHistoryResponse
-	if err := e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/v5/market/funding_rate_history", params), &resp); err != nil {
-		return nil, err
-	}
-	return resp, nil
+	err := e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/v5/market/funding_rate_history", params), &resp)
+	return resp, err
 }
 
 // GetV5PriceLimits gets the current price limits for one or all contracts.
@@ -159,10 +143,8 @@ func (e *Exchange) GetV5PriceLimits(ctx context.Context, code currency.Pair) (*V
 		params.Set("contract_code", codeValue)
 	}
 	var resp *V5PriceLimitsResponse
-	if err := e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/v5/market/price_limit", params), &resp); err != nil {
-		return nil, err
-	}
-	return resp, nil
+	err := e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/v5/market/price_limit", params), &resp)
+	return resp, err
 }
 
 // GetV5LiquidationOrders gets public liquidation orders.
@@ -193,10 +175,8 @@ func (e *Exchange) GetV5LiquidationOrders(ctx context.Context, req *V5Liquidatio
 		params.Set(orderPriceTypeLimit, strconv.FormatUint(req.Limit, 10))
 	}
 	var resp *V5LiquidationOrdersResponse
-	if err := e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/v5/market/liquidation_orders", params), &resp); err != nil {
-		return nil, err
-	}
-	return resp, nil
+	err := e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/v5/market/liquidation_orders", params), &resp)
+	return resp, err
 }
 
 // GetV5MarketRiskLimit gets contract risk limits.
@@ -214,10 +194,8 @@ func (e *Exchange) GetV5MarketRiskLimit(ctx context.Context, code currency.Pair,
 		params.Set("tier", tier)
 	}
 	var resp *V5RiskLimitResponse
-	if err := e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/v5/market/risk/limit", params), &resp); err != nil {
-		return nil, err
-	}
-	return resp, nil
+	err = e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/v5/market/risk/limit", params), &resp)
+	return resp, err
 }
 
 // GetV5SettlementHistory gets public settlement history.
@@ -243,8 +221,6 @@ func (e *Exchange) GetV5SettlementHistory(ctx context.Context, req *V5Settlement
 		params.Set(orderPriceTypeLimit, strconv.FormatUint(req.Limit, 10))
 	}
 	var resp *V5SettlementHistoryResponse
-	if err := e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/v5/market/settlement_history", params), &resp); err != nil {
-		return nil, err
-	}
-	return resp, nil
+	err := e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/v5/market/settlement_history", params), &resp)
+	return resp, err
 }

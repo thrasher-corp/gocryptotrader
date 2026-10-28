@@ -58,15 +58,15 @@ func getSignatureHost(endpoint string) (string, error) {
 
 // GetMarginRates gets margin rates
 func (e *Exchange) GetMarginRates(ctx context.Context, symbol currency.Pair) (*MarginRatesResponse, error) {
-	resp := new(MarginRatesResponse)
 	vals := url.Values{}
 	if !symbol.IsEmpty() {
 		symbolValue, err := e.FormatSymbol(symbol, asset.Spot)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		vals.Set("symbol", symbolValue)
 	}
+	resp := new(MarginRatesResponse)
 	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/margin/loan-info", vals, nil, resp, false)
 	return resp, err
 }
@@ -89,20 +89,19 @@ func (e *Exchange) GetSpotKline(ctx context.Context, arg *KlinesRequest) ([]Klin
 	}
 
 	result := new(SpotKlineResponse)
-
 	err = e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("/market/history/kline", vals), result)
 	return result.Candles, err
 }
 
 // Get24HourMarketSummary returns the rolling 24-hour summary for a spot symbol
 func (e *Exchange) Get24HourMarketSummary(ctx context.Context, symbol currency.Pair) (*MarketSummary24HourResponse, error) {
-	result := new(MarketSummary24HourResponse)
 	params := url.Values{}
 	symbolValue, err := e.FormatSymbol(symbol, asset.Spot)
 	if err != nil {
-		return result, err
+		return nil, err
 	}
 	params.Set("symbol", symbolValue)
+	result := new(MarketSummary24HourResponse)
 	err = e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("/market/detail", params), result)
 	return result, err
 }
@@ -145,7 +144,6 @@ func (e *Exchange) GetMarketDetailMerged(ctx context.Context, symbol currency.Pa
 	vals.Set("symbol", symbolValue)
 
 	result := new(MarketDetailMergedResponse)
-
 	err = e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("/market/detail/merged", vals), result)
 	// the tick carries no time of its own on this endpoint, only the envelope does
 	result.Tick.Timestamp = result.Timestamp
@@ -182,7 +180,6 @@ func (e *Exchange) GetTrades(ctx context.Context, symbol currency.Pair) ([]Trade
 	vals.Set("symbol", symbolValue)
 
 	result := new(TradesResponse)
-
 	err = e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("/market/trade", vals), result)
 	return result.Tick.Trades, err
 }
@@ -216,7 +213,6 @@ func (e *Exchange) GetTradeHistory(ctx context.Context, symbol currency.Pair, si
 	}
 
 	result := new(TradeHistoryResponse)
-
 	err = e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("/market/history/trade", vals), result)
 	return result.TradeHistory, err
 }
@@ -231,7 +227,6 @@ func (e *Exchange) GetMarketDetail(ctx context.Context, symbol currency.Pair) (*
 	vals.Set("symbol", symbolValue)
 
 	result := new(MarketDetailResponse)
-
 	err = e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("/market/detail", vals), result)
 	return &result.Tick, err
 }
@@ -239,7 +234,6 @@ func (e *Exchange) GetMarketDetail(ctx context.Context, symbol currency.Pair) (*
 // GetSymbols returns an array of symbols supported by HTX
 func (e *Exchange) GetSymbols(ctx context.Context) ([]Symbol, error) {
 	result := new(SymbolsResponse)
-
 	err := e.SendHTTPRequest(ctx, exchange.RestSpot, "/v1/common/symbols", result)
 	return result.Symbols, err
 }
@@ -247,24 +241,20 @@ func (e *Exchange) GetSymbols(ctx context.Context) ([]Symbol, error) {
 // GetCurrencies returns a list of currencies supported by HTX
 func (e *Exchange) GetCurrencies(ctx context.Context) ([]currency.Code, error) {
 	result := new(CurrenciesResponse)
-
 	err := e.SendHTTPRequest(ctx, exchange.RestSpot, "/v1/common/currencys", result)
 	return result.Currencies, err
 }
 
 // GetCurrenciesIncludingChains returns currency and chain data
 func (e *Exchange) GetCurrenciesIncludingChains(ctx context.Context, curr currency.Code) ([]CurrencyChains, error) {
-	resp := new(CurrenciesIncludingChainsResponse)
-
 	vals := url.Values{}
 	if !curr.IsEmpty() {
 		vals.Set("currency", curr.Lower().String())
 	}
 	path := common.EncodeURLValues("/v2/reference/currencies", vals)
-	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, path, resp); err != nil {
-		return nil, err
-	}
-	return resp.Currencies, nil
+	resp := new(CurrenciesIncludingChainsResponse)
+	err := e.SendHTTPRequest(ctx, exchange.RestSpot, path, resp)
+	return resp.Currencies, err
 }
 
 // GetCurrentServerTime returns the HTX server time
@@ -283,10 +273,10 @@ func (e *Exchange) GetAccounts(ctx context.Context) ([]Account, error) {
 
 // GetAccountBalance returns the users HTX account balance
 func (e *Exchange) GetAccountBalance(ctx context.Context, accountID string) ([]AccountBalanceDetail, error) {
-	result := new(AccountBalanceResponse)
 	endpoint := "/account/accounts/" + accountID + "/balance"
 	v := url.Values{}
 	v.Set("account-id", accountID)
+	result := new(AccountBalanceResponse)
 	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, endpoint, v, nil, result, false)
 	return result.Balance.CurrencyBalances, err
 }
@@ -344,8 +334,8 @@ func (e *Exchange) SpotNewOrder(ctx context.Context, arg *SpotOrderRequest) (uin
 
 // CancelExistingOrder cancels an order on HTX
 func (e *Exchange) CancelExistingOrder(ctx context.Context, orderID uint64) (uint64, error) {
-	resp := new(SpotOrderIDResponse)
 	endpoint := "/order/orders/" + strconv.FormatUint(orderID, 10) + "/submitcancel"
+	resp := new(SpotOrderIDResponse)
 	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, endpoint, url.Values{}, nil, resp, false)
 	return resp.OrderID, err
 }
@@ -361,8 +351,8 @@ func (e *Exchange) CancelOrderBatch(ctx context.Context, orderIDs, clientOrderID
 	if len(orderIDs) > 50 || len(clientOrderIDs) > 50 {
 		return nil, fmt.Errorf("%w: maximum 50 orders", errCancelOrderLimitExceeded)
 	}
-	resp := new(CancelOrderBatchResponse)
 	data := &cancelOrderBatchRequest{OrderIDs: orderIDs, ClientOrderIDs: clientOrderIDs}
+	resp := new(CancelOrderBatchResponse)
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/order/orders/batchcancel", nil, data, resp, false); err != nil {
 		return nil, err
 	}
@@ -380,13 +370,12 @@ func (e *Exchange) CancelOpenOrdersBatch(ctx context.Context, accountID string, 
 		return nil, err
 	}
 	params.Set("account-id", accountID)
-	result := new(CancelOpenOrdersBatchResponse)
-
 	data := &cancelOpenOrdersBatchRequest{
 		AccountID: accountID,
 		Symbol:    symbolValue,
 	}
 
+	result := new(CancelOpenOrdersBatchResponse)
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/order/orders/batchCancelOpenOrders", url.Values{}, data, result, false); err != nil {
 		return result, err
 	}
@@ -408,8 +397,8 @@ func validateCancelOpenOrdersBatchResponse(result *CancelOpenOrdersBatchResponse
 
 // GetOrder returns order information for the specified order
 func (e *Exchange) GetOrder(ctx context.Context, orderID uint64) (*OrderInfo, error) {
-	resp := new(OrderResponse)
 	endpoint := "/order/orders/" + strconv.FormatUint(orderID, 10)
+	resp := new(OrderResponse)
 	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
 		endpoint,
 		nil,
@@ -421,16 +410,14 @@ func (e *Exchange) GetOrder(ctx context.Context, orderID uint64) (*OrderInfo, er
 
 // GetOrderMatchResults returns matched order info for the specified order
 func (e *Exchange) GetOrderMatchResults(ctx context.Context, orderID uint64) ([]OrderMatchInfo, error) {
-	resp := new(OrderMatchResultsResponse)
 	endpoint := "/order/orders/" + strconv.FormatUint(orderID, 10) + "/matchresults"
+	resp := new(OrderMatchResultsResponse)
 	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, endpoint, url.Values{}, nil, resp, false)
 	return resp.Orders, err
 }
 
 // GetOrders returns a list of orders
 func (e *Exchange) GetOrders(ctx context.Context, symbol currency.Pair, orderTypes, start, end, states, from, direct, size string) ([]OrderInfo, error) {
-	resp := new(OrdersResponse)
-
 	vals := url.Values{}
 	symbolValue, err := e.FormatSymbol(symbol, asset.Spot)
 	if err != nil {
@@ -463,14 +450,13 @@ func (e *Exchange) GetOrders(ctx context.Context, symbol currency.Pair, orderTyp
 		vals.Set("size", size)
 	}
 
+	resp := new(OrdersResponse)
 	err = e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/order/orders", vals, nil, resp, false)
 	return resp.Orders, err
 }
 
 // GetOpenOrders returns a list of orders
 func (e *Exchange) GetOpenOrders(ctx context.Context, symbol currency.Pair, accountID, side string, size uint64) ([]OrderInfo, error) {
-	resp := new(OrdersResponse)
-
 	vals := url.Values{}
 	symbolValue, err := e.FormatSymbol(symbol, asset.Spot)
 	if err != nil {
@@ -483,14 +469,13 @@ func (e *Exchange) GetOpenOrders(ctx context.Context, symbol currency.Pair, acco
 	}
 	vals.Set("size", strconv.FormatUint(size, 10))
 
+	resp := new(OrdersResponse)
 	err = e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/order/openOrders", vals, nil, resp, false)
 	return resp.Orders, err
 }
 
 // GetOrdersMatch returns a list of matched orders
 func (e *Exchange) GetOrdersMatch(ctx context.Context, symbol currency.Pair, orderTypes, start, end, from, direct, size string) ([]OrderMatchInfo, error) {
-	resp := new(OrderMatchResultsResponse)
-
 	vals := url.Values{}
 	symbolValue, err := e.FormatSymbol(symbol, asset.Spot)
 	if err != nil {
@@ -522,6 +507,7 @@ func (e *Exchange) GetOrdersMatch(ctx context.Context, symbol currency.Pair, ord
 		vals.Set("size", size)
 	}
 
+	resp := new(OrderMatchResultsResponse)
 	err = e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/order/matchresults", vals, nil, resp, false)
 	return resp.Orders, err
 }
@@ -571,9 +557,8 @@ func (e *Exchange) MarginRepayment(ctx context.Context, orderID uint64, amount f
 		Amount: strconv.FormatFloat(amount, 'f', -1, 64),
 	}
 
-	resp := new(MarginOrderResponse)
-
 	endpoint := "/margin/orders/" + strconv.FormatUint(orderID, 10) + "/repay"
+	resp := new(MarginOrderResponse)
 	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, endpoint, nil, data, resp, false)
 	return resp.MarginOrderID, err
 }
@@ -619,15 +604,15 @@ func (e *Exchange) GetMarginLoanOrders(ctx context.Context, symbol currency.Pair
 
 // GetMarginAccountBalance returns the margin account balances
 func (e *Exchange) GetMarginAccountBalance(ctx context.Context, symbol currency.Pair) ([]MarginAccountBalance, error) {
-	resp := new(MarginAccountBalanceResponse)
 	vals := url.Values{}
 	if !symbol.IsEmpty() {
 		symbolValue, err := e.FormatSymbol(symbol, asset.Spot)
 		if err != nil {
-			return resp.Balances, err
+			return nil, err
 		}
 		vals.Set("symbol", symbolValue)
 	}
+	resp := new(MarginAccountBalanceResponse)
 	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/margin/accounts/balance", vals, nil, resp, false)
 	return resp.Balances, err
 }
@@ -637,8 +622,6 @@ func (e *Exchange) Withdraw(ctx context.Context, c currency.Code, address, addrT
 	if c.IsEmpty() || address == "" || amount <= 0 {
 		return 0, errWithdrawDetailsUnset
 	}
-
-	resp := new(WithdrawResponse)
 
 	data := &withdrawalRequest{
 		Address:  address,
@@ -658,28 +641,28 @@ func (e *Exchange) Withdraw(ctx context.Context, c currency.Code, address, addrT
 		data.Chain = strings.ToLower(chain)
 	}
 
+	resp := new(WithdrawResponse)
 	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/dw/withdraw/api/create", nil, data, resp, false)
 	return resp.WithdrawID, err
 }
 
 // CancelWithdraw cancels a withdraw request
 func (e *Exchange) CancelWithdraw(ctx context.Context, withdrawID uint64) (uint64, error) {
-	resp := new(WithdrawResponse)
 	vals := url.Values{}
 	vals.Set("withdraw-id", strconv.FormatUint(withdrawID, 10))
 
 	endpoint := "/dw/withdraw-virtual/" + strconv.FormatUint(withdrawID, 10) + "/cancel"
+	resp := new(WithdrawResponse)
 	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, endpoint, vals, nil, resp, false)
 	return resp.WithdrawID, err
 }
 
 // QueryDepositAddress returns the deposit address for a specified currency
 func (e *Exchange) QueryDepositAddress(ctx context.Context, cryptocurrency currency.Code) ([]DepositAddress, error) {
-	resp := new(DepositAddressResponse)
-
 	vals := url.Values{}
 	vals.Set("currency", cryptocurrency.Lower().String())
 
+	resp := new(DepositAddressResponse)
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/account/deposit/address", vals, nil, resp, true); err != nil {
 		return nil, err
 	}
@@ -691,11 +674,10 @@ func (e *Exchange) QueryDepositAddress(ctx context.Context, cryptocurrency curre
 
 // QueryWithdrawQuotas returns the users cryptocurrency withdraw quotas
 func (e *Exchange) QueryWithdrawQuotas(ctx context.Context, cryptocurrency string) (*WithdrawQuota, error) {
-	resp := new(WithdrawQuotasResponse)
-
 	vals := url.Values{}
 	vals.Set("currency", cryptocurrency)
 
+	resp := new(WithdrawQuotasResponse)
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/account/withdraw/quota", vals, nil, resp, true); err != nil {
 		return nil, err
 	}
@@ -704,7 +686,6 @@ func (e *Exchange) QueryWithdrawQuotas(ctx context.Context, cryptocurrency strin
 
 // SearchForExistedWithdrawsAndDeposits returns withdrawal and deposit data
 func (e *Exchange) SearchForExistedWithdrawsAndDeposits(ctx context.Context, c currency.Code, transferType, direction string, fromID, limit uint64) (*WithdrawalHistoryResponse, error) {
-	resp := new(WithdrawalHistoryResponse)
 	vals := url.Values{}
 	vals.Set("type", transferType)
 	if !c.IsEmpty() {
@@ -719,6 +700,7 @@ func (e *Exchange) SearchForExistedWithdrawsAndDeposits(ctx context.Context, c c
 	if limit > 0 {
 		vals.Set("size", strconv.FormatUint(limit, 10))
 	}
+	resp := new(WithdrawalHistoryResponse)
 	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/query/deposit-withdraw", vals, nil, resp, false)
 	return resp, err
 }

@@ -30,10 +30,8 @@ func (e *Exchange) GetV5Leverage(ctx context.Context, code currency.Pair, margin
 		params.Set("position_side", positionSide)
 	}
 	var resp *V5LeverageResponse
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/v5/position/lever", params, nil, &resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/v5/position/lever", params, nil, &resp)
+	return resp, err
 }
 
 // SetV5Leverage sets the leverage for a position.
@@ -42,10 +40,8 @@ func (e *Exchange) SetV5Leverage(ctx context.Context, req *V5SetLeverageRequest)
 		return nil, common.ErrNilPointer
 	}
 	var resp *V5SetLeverageResponse
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, "/v5/position/lever", nil, req, &resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, "/v5/position/lever", nil, req, &resp)
+	return resp, err
 }
 
 // AdjustV5PositionMargin adds or removes isolated-position margin.
@@ -54,29 +50,23 @@ func (e *Exchange) AdjustV5PositionMargin(ctx context.Context, req *V5AdjustPosi
 		return nil, common.ErrNilPointer
 	}
 	var resp *V5Response
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, "/v5/position/margin", nil, req, &resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, "/v5/position/margin", nil, req, &resp)
+	return resp, err
 }
 
 // GetV5PositionMode gets the account position mode.
 func (e *Exchange) GetV5PositionMode(ctx context.Context) (*V5PositionModeResponse, error) {
 	var resp *V5PositionModeResponse
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/v5/position/mode", nil, nil, &resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/v5/position/mode", nil, nil, &resp)
+	return resp, err
 }
 
 // SetV5PositionMode sets the account position mode.
 func (e *Exchange) SetV5PositionMode(ctx context.Context, positionMode string) (*V5PositionModeResponse, error) {
 	req := &V5SetPositionModeRequest{PositionMode: positionMode}
 	var resp *V5PositionModeResponse
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, "/v5/position/mode", nil, req, &resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, "/v5/position/mode", nil, req, &resp)
+	return resp, err
 }
 
 // GetV5PositionRiskLimit gets current position risk limits.
@@ -96,10 +86,8 @@ func (e *Exchange) GetV5PositionRiskLimit(ctx context.Context, code currency.Pai
 		params.Set("position_side", positionSide)
 	}
 	var resp *V5RiskLimitResponse
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/v5/position/risk/limit", params, nil, &resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/v5/position/risk/limit", params, nil, &resp)
+	return resp, err
 }
 
 // GetV5PositionRiskLimitTiers gets all risk-limit tiers for a contract.
@@ -114,10 +102,8 @@ func (e *Exchange) GetV5PositionRiskLimitTiers(ctx context.Context, code currenc
 		params.Set("margin_mode", marginMode)
 	}
 	var resp *V5RiskLimitResponse
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/v5/position/risk/limit_tier", params, nil, &resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	err = e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/v5/position/risk/limit_tier", params, nil, &resp)
+	return resp, err
 }
 
 // SwitchLinearSwapLeverage changes leverage through the current V5 endpoint.

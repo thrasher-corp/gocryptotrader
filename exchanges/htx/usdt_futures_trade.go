@@ -18,10 +18,8 @@ func (e *Exchange) PlaceV5Order(ctx context.Context, req *V5OrderRequest) (*V5Or
 		return nil, common.ErrNilPointer
 	}
 	var resp *V5OrderResponse
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, "/v5/trade/order", nil, req, &resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, "/v5/trade/order", nil, req, &resp)
+	return resp, err
 }
 
 // PlaceV5BatchOrders places multiple USDT-margined orders.
@@ -30,10 +28,8 @@ func (e *Exchange) PlaceV5BatchOrders(ctx context.Context, req []*V5OrderRequest
 		return nil, common.ErrEmptyParams
 	}
 	var resp *V5BatchOrderResponse
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, "/v5/trade/batch_orders", nil, req, &resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, "/v5/trade/batch_orders", nil, req, &resp)
+	return resp, err
 }
 
 // CancelV5Order cancels a USDT-margined order.
@@ -48,10 +44,8 @@ func (e *Exchange) CancelV5Order(ctx context.Context, code currency.Pair, orderI
 		ClientOrderID: clientOrderID,
 	}
 	var resp *V5OrderResponse
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, "/v5/trade/cancel_order", nil, req, &resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	err = e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, "/v5/trade/cancel_order", nil, req, &resp)
+	return resp, err
 }
 
 // CancelV5BatchOrders cancels multiple USDT-margined orders.
@@ -60,10 +54,8 @@ func (e *Exchange) CancelV5BatchOrders(ctx context.Context, req *V5CancelBatchOr
 		return nil, err
 	}
 	var resp *V5BatchOrderResponse
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, "/v5/trade/cancel_batch_orders", nil, req, &resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, "/v5/trade/cancel_batch_orders", nil, req, &resp)
+	return resp, err
 }
 
 // CancelAllV5Orders cancels all matching USDT-margined orders.
@@ -80,10 +72,8 @@ func (e *Exchange) CancelAllV5Orders(ctx context.Context, code currency.Pair, si
 		req.ContractCode = codeValue
 	}
 	var resp *V5CancelAllOrdersResponse
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, "/v5/trade/cancel_all_orders", nil, req, &resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, "/v5/trade/cancel_all_orders", nil, req, &resp)
+	return resp, err
 }
 
 // SetV5CancelAfter enables or disables automatic order cancellation.
@@ -92,10 +82,8 @@ func (e *Exchange) SetV5CancelAfter(ctx context.Context, req *V5CancelAfterReque
 		return nil, common.ErrNilPointer
 	}
 	var resp *V5CancelAfterResponse
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, "/v5/trade/cancel-after", nil, req, &resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, "/v5/trade/cancel-after", nil, req, &resp)
+	return resp, err
 }
 
 // CloseV5Position closes a position at market.
@@ -104,19 +92,15 @@ func (e *Exchange) CloseV5Position(ctx context.Context, req *V5ClosePositionRequ
 		return nil, common.ErrNilPointer
 	}
 	var resp *V5OrderResponse
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, "/v5/trade/position", nil, req, &resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, "/v5/trade/position", nil, req, &resp)
+	return resp, err
 }
 
 // CloseAllV5Positions closes all positions at market.
 func (e *Exchange) CloseAllV5Positions(ctx context.Context) (*V5BatchOrderResponse, error) {
 	var resp *V5BatchOrderResponse
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, "/v5/trade/position_all", nil, nil, &resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, "/v5/trade/position_all", nil, nil, &resp)
+	return resp, err
 }
 
 // GetV5Order gets a USDT-margined order.
@@ -137,10 +121,8 @@ func (e *Exchange) GetV5Order(ctx context.Context, code currency.Pair, marginMod
 		params.Set("client_order_id", clientOrderID)
 	}
 	var resp *V5OrderQueryResponse
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/v5/trade/order", params, nil, &resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	err = e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/v5/trade/order", params, nil, &resp)
+	return resp, err
 }
 
 // GetV5OpenOrders gets open USDT-margined orders.
@@ -172,10 +154,8 @@ func (e *Exchange) GetV5OpenOrders(ctx context.Context, code currency.Pair, marg
 		params.Set("direct", direct)
 	}
 	var resp *V5OrdersQueryResponse
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/v5/trade/order/opens", params, nil, &resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/v5/trade/order/opens", params, nil, &resp)
+	return resp, err
 }
 
 // GetV5OrderHistory gets historical USDT-margined orders.
@@ -214,10 +194,8 @@ func (e *Exchange) GetV5OrderHistory(ctx context.Context, req *V5OrderHistoryReq
 		params.Set("direct", req.Direction)
 	}
 	var resp *V5OrdersQueryResponse
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/v5/trade/order/history", params, nil, &resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/v5/trade/order/history", params, nil, &resp)
+	return resp, err
 }
 
 // GetV5OrderDetails gets recent execution details for a USDT-margined contract.
@@ -246,10 +224,8 @@ func (e *Exchange) GetV5OrderDetails(ctx context.Context, req *V5OrderDetailsReq
 		params.Set("direct", req.Direction)
 	}
 	var resp *V5OrderDetailsResponse
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/v5/trade/order/details", params, nil, &resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/v5/trade/order/details", params, nil, &resp)
+	return resp, err
 }
 
 // GetV5OpenPositions gets current USDT-margined positions.
@@ -263,8 +239,6 @@ func (e *Exchange) GetV5OpenPositions(ctx context.Context, code currency.Pair) (
 		params.Set("contract_code", codeValue)
 	}
 	var resp *V5OpenPositionsResponse
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/v5/trade/position/opens", params, nil, &resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/v5/trade/position/opens", params, nil, &resp)
+	return resp, err
 }

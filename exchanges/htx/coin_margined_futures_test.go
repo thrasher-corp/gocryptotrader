@@ -2,6 +2,7 @@ package htx
 
 import (
 	"io"
+	"maps"
 	"math"
 	"net/http"
 	"net/http/httptest"
@@ -636,7 +637,8 @@ func TestSwitchCoinMarginedLeverage(t *testing.T) {
 		var sent atomic.Int32
 		h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_switch_lever_rate", `{"status":"ok","data":{}}`, func(*http.Request) { sent.Add(1) })
 		// A long refill interval makes routing observable without timing assertions or sleeps.
-		limits := h.Requester.GetRateLimiterDefinitions()
+		limits := maps.Clone(h.Requester.GetRateLimiterDefinitions())
+		request.WithLimiter(limits)(h.Requester)
 		limits[htxSwapSwitchLeverage] = request.NewRateLimitWithWeight(time.Hour, 1, 1)
 		require.NoError(t, limits[htxSwapSwitchLeverage].RateLimit(t.Context()), "dedicated allowance must be exhausted")
 		err := h.SwitchCoinMarginedLeverage(request.WithDelayNotAllowed(t.Context()), btcusdPair, 5)

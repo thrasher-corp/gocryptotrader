@@ -1,6 +1,7 @@
 package htx
 
 import (
+	"maps"
 	"net/http"
 	"sync/atomic"
 	"testing"
@@ -89,7 +90,8 @@ func TestV5UniversalTransfer(t *testing.T) {
 		var sent atomic.Int32
 		h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodPost, "/v5/account/universal_transfer", `{"code":200,"data":{}}`, func(*http.Request) { sent.Add(1) })
 		// A long refill interval makes routing observable without timing assertions or sleeps.
-		limits := h.Requester.GetRateLimiterDefinitions()
+		limits := maps.Clone(h.Requester.GetRateLimiterDefinitions())
+		request.WithLimiter(limits)(h.Requester)
 		limits[htxUniversalTransfer] = request.NewRateLimitWithWeight(time.Hour, 1, 1)
 		require.NoError(t, limits[htxUniversalTransfer].RateLimit(t.Context()), "dedicated allowance must be exhausted")
 		_, err := h.V5UniversalTransfer(request.WithDelayNotAllowed(t.Context()), &V5UniversalTransferRequest{Amount: 1, Currency: currency.USDT, FromAccountType: "spot", ToAccountType: "linear-swap"})

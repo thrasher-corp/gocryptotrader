@@ -10,9 +10,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
-func TestGetRateLimit(t *testing.T) {
+func TestRateLimits(t *testing.T) {
 	t.Parallel()
-	definitions := GetRateLimit()
+	definitions := rateLimits
 	assert.Contains(t, definitions, request.Unset, "spot limiter should be defined")
 	assert.Contains(t, definitions, htxFuturesAuth, "delivery authenticated limiter should be defined")
 	assert.Contains(t, definitions, htxFuturesUnAuth, "delivery public limiter should be defined")
@@ -40,6 +40,39 @@ func TestGetRateLimit(t *testing.T) {
 			}
 		})
 	}
+	t.Run("shared across exchange instances", func(t *testing.T) {
+		t.Parallel()
+		first := new(Exchange)
+		first.SetDefaults()
+		second := new(Exchange)
+		second.SetDefaults()
+		require.NotNil(t, first.Requester, "first exchange requester must be configured")
+		require.NotNil(t, second.Requester, "second exchange requester must be configured")
+		assert.NotSame(t, first.Requester, second.Requester, "separate exchange instances should own separate requesters")
+		firstDefinitions := first.Requester.GetRateLimiterDefinitions()
+		secondDefinitions := second.Requester.GetRateLimiterDefinitions()
+		require.Len(t, firstDefinitions, len(rateLimits), "first requester must receive all rate limits")
+		require.Len(t, secondDefinitions, len(rateLimits), "second requester must receive all rate limits")
+		for endpoint, limiter := range rateLimits {
+			require.Contains(t, firstDefinitions, endpoint, "first requester must define the endpoint")
+			require.Contains(t, secondDefinitions, endpoint, "second requester must define the endpoint")
+			assert.Truef(t, limiter.SharesBudgetWith(firstDefinitions[endpoint]), "first requester should share the package budget for endpoint %v", endpoint)
+			assert.Truef(t, firstDefinitions[endpoint].SharesBudgetWith(secondDefinitions[endpoint]), "separate exchanges should share the budget for endpoint %v", endpoint)
+		}
+	})
+	t.Run("shared after requester reinitialisation", func(t *testing.T) {
+		t.Parallel()
+		h := new(Exchange)
+		h.SetDefaults()
+		require.NotNil(t, h.Requester, "initial requester must be configured")
+		previous := h.Requester
+		h.SetDefaults()
+		require.NotNil(t, h.Requester, "reinitialised requester must be configured")
+		assert.NotSame(t, previous, h.Requester, "reinitialisation should replace the requester")
+		for endpoint, limiter := range previous.GetRateLimiterDefinitions() {
+			assert.Truef(t, limiter.SharesBudgetWith(h.Requester.GetRateLimiterDefinitions()[endpoint]), "reinitialisation should preserve the budget for endpoint %v", endpoint)
+		}
+	})
 }
 
 func TestGetRateLimitID(t *testing.T) {

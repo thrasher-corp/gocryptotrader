@@ -16,10 +16,8 @@ func (e *Exchange) PlaceV5AlgoOrder(ctx context.Context, req *V5AlgoOrderRequest
 		return nil, common.ErrNilPointer
 	}
 	var resp *V5AlgoAcknowledgementsResponse
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, "/v5/algo/order", nil, req, &resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, "/v5/algo/order", nil, req, &resp)
+	return resp, err
 }
 
 // CancelV5AlgoOrders cancels strategy orders.
@@ -28,10 +26,8 @@ func (e *Exchange) CancelV5AlgoOrders(ctx context.Context, req []*V5CancelAlgoOr
 		return nil, common.ErrEmptyParams
 	}
 	var resp *V5AlgoAcknowledgementsResponse
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, "/v5/algo/cancel_orders", nil, req, &resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, "/v5/algo/cancel_orders", nil, req, &resp)
+	return resp, err
 }
 
 // GetV5AlgoOrder gets a strategy order.
@@ -45,10 +41,8 @@ func (e *Exchange) GetV5AlgoOrder(ctx context.Context, algoID, clientOrderID, or
 	}
 	params.Set("type", orderType)
 	var resp *V5AlgoOrdersResponse
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/v5/algo/order", params, nil, &resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/v5/algo/order", params, nil, &resp)
+	return resp, err
 }
 
 // GetV5OpenAlgoOrders gets open strategy orders.
@@ -77,10 +71,8 @@ func (e *Exchange) GetV5OpenAlgoOrders(ctx context.Context, req *V5OpenAlgoOrder
 		params.Set("direct", req.Direction)
 	}
 	var resp *V5AlgoOrdersResponse
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/v5/algo/order/opens", params, nil, &resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/v5/algo/order/opens", params, nil, &resp)
+	return resp, err
 }
 
 // GetV5AlgoOrderHistory gets historical strategy orders.
@@ -115,8 +107,6 @@ func (e *Exchange) GetV5AlgoOrderHistory(ctx context.Context, req *V5AlgoOrderHi
 		params.Set("direct", req.Direction)
 	}
 	var resp *V5AlgoOrdersResponse
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/v5/algo/order/history", params, nil, &resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/v5/algo/order/history", params, nil, &resp)
+	return resp, err
 }

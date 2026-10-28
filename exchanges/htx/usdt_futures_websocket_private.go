@@ -135,10 +135,8 @@ func (e *Exchange) WSPlaceV5Order(ctx context.Context, req *V5OrderRequest) (*V5
 		return nil, common.ErrNilPointer
 	}
 	var resp *V5WebsocketOrderResponse
-	if err := e.sendV5TradeRequest(ctx, "place_order", req, &resp); err != nil {
-		return nil, err
-	}
-	return resp, nil
+	err := e.sendV5TradeRequest(ctx, "place_order", req, &resp)
+	return resp, err
 }
 
 // WSPlaceV5BatchOrders places multiple orders through the dedicated V5 trade connection.
@@ -147,10 +145,8 @@ func (e *Exchange) WSPlaceV5BatchOrders(ctx context.Context, req []*V5OrderReque
 		return nil, common.ErrEmptyParams
 	}
 	var resp *V5WebsocketBatchOrderResponse
-	if err := e.sendV5TradeRequest(ctx, "place_batch_orders", req, &resp); err != nil {
-		return nil, err
-	}
-	return resp, nil
+	err := e.sendV5TradeRequest(ctx, "place_batch_orders", req, &resp)
+	return resp, err
 }
 
 // WSCancelV5Order cancels an order through the dedicated V5 trade connection.
@@ -159,10 +155,8 @@ func (e *Exchange) WSCancelV5Order(ctx context.Context, req *V5CancelOrderReques
 		return nil, common.ErrNilPointer
 	}
 	var resp *V5WebsocketOrderResponse
-	if err := e.sendV5TradeRequest(ctx, "cancel_order", req, &resp); err != nil {
-		return nil, err
-	}
-	return resp, nil
+	err := e.sendV5TradeRequest(ctx, "cancel_order", req, &resp)
+	return resp, err
 }
 
 // WSCancelV5BatchOrders cancels multiple orders through the dedicated V5 trade connection.
@@ -171,10 +165,8 @@ func (e *Exchange) WSCancelV5BatchOrders(ctx context.Context, req *V5CancelBatch
 		return nil, err
 	}
 	var resp *V5WebsocketBatchOrderResponse
-	if err := e.sendV5TradeRequest(ctx, "cancel_batch_orders", req, &resp); err != nil {
-		return nil, err
-	}
-	return resp, nil
+	err := e.sendV5TradeRequest(ctx, "cancel_batch_orders", req, &resp)
+	return resp, err
 }
 
 // WSCancelAllV5Orders cancels all matching orders through the dedicated V5 trade connection.
@@ -183,10 +175,8 @@ func (e *Exchange) WSCancelAllV5Orders(ctx context.Context, req *V5CancelAllOrde
 		return nil, common.ErrNilPointer
 	}
 	var resp *V5WebsocketBatchOrderResponse
-	if err := e.sendV5TradeRequest(ctx, "cancel_all_orders", req, &resp); err != nil {
-		return nil, err
-	}
-	return resp, nil
+	err := e.sendV5TradeRequest(ctx, "cancel_all_orders", req, &resp)
+	return resp, err
 }
 
 // sendV5TradeRequest centralises response correlation and exchange error

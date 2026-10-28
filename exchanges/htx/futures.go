@@ -27,117 +27,107 @@ const v3HistoryDirectionNext = "next"
 
 // FuturesGetContractInfo gets contract info for futures
 func (e *Exchange) FuturesGetContractInfo(ctx context.Context, symbol, contractType string, code currency.Pair) (*FuturesContractInfoResponse, error) {
-	resp := new(FuturesContractInfoResponse)
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
 	}
 	if t := strings.ToLower(contractType); t != "" {
 		if _, ok := contractExpiryNames[t]; !ok {
-			return resp, fmt.Errorf("%w: %v", errInvalidContractType, t)
+			return nil, fmt.Errorf("%w: %v", errInvalidContractType, t)
 		}
 		params.Set("contract_type", t)
 	}
 	if !code.IsEmpty() {
 		codeValue, err := e.FormatSymbol(code, asset.Futures)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		params.Set("contract_code", codeValue)
 	}
 	path := common.EncodeURLValues("/api/v1/contract_contract_info", params)
-	if err := e.SendHTTPRequest(ctx, exchange.RestFutures, path, resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	resp := new(FuturesContractInfoResponse)
+	err := e.SendHTTPRequest(ctx, exchange.RestFutures, path, resp)
+	return resp, err
 }
 
 // FuturesIndexPriceInfo gets index price info for a futures contract
 func (e *Exchange) FuturesIndexPriceInfo(ctx context.Context, symbol currency.Code) (*FuturesContractIndexPriceInfoResponse, error) {
-	resp := new(FuturesContractIndexPriceInfoResponse)
 	params := url.Values{}
 	if !symbol.IsEmpty() {
 		codeValue, err := e.formatFuturesCode(symbol)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		params.Set("symbol", codeValue)
 	}
 	path := common.EncodeURLValues("/api/v1/contract_index", params)
-	if err := e.SendHTTPRequest(ctx, exchange.RestFutures, path, resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	resp := new(FuturesContractIndexPriceInfoResponse)
+	err := e.SendHTTPRequest(ctx, exchange.RestFutures, path, resp)
+	return resp, err
 }
 
 // FuturesContractPriceLimitations gets price limits for a futures contract
 func (e *Exchange) FuturesContractPriceLimitations(ctx context.Context, symbol, contractType string, code currency.Pair) (*FuturesContractIndexPriceInfoResponse, error) {
-	resp := new(FuturesContractIndexPriceInfoResponse)
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
 	}
 	if t := strings.ToLower(contractType); t != "" {
 		if _, ok := contractExpiryNames[t]; !ok {
-			return resp, fmt.Errorf("%w: %v", errInvalidContractType, t)
+			return nil, fmt.Errorf("%w: %v", errInvalidContractType, t)
 		}
 		params.Set("contract_type", t)
 	}
 	if !code.IsEmpty() {
 		codeValue, err := e.FormatSymbol(code, asset.Futures)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		params.Set("contract_code", codeValue)
 	}
 	path := common.EncodeURLValues("/api/v1/contract_price_limit", params)
-	if err := e.SendHTTPRequest(ctx, exchange.RestFutures, path, resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	resp := new(FuturesContractIndexPriceInfoResponse)
+	err := e.SendHTTPRequest(ctx, exchange.RestFutures, path, resp)
+	return resp, err
 }
 
 // FuturesContractOpenInterest gets open interest data for futures contracts
 func (e *Exchange) FuturesContractOpenInterest(ctx context.Context, symbol, contractType string, code currency.Pair) (*FuturesContractOpenInterestResponse, error) {
-	resp := new(FuturesContractOpenInterestResponse)
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
 	}
 	if t := strings.ToLower(contractType); t != "" {
 		if _, ok := contractExpiryNames[t]; !ok {
-			return resp, fmt.Errorf("%w: %v", errInvalidContractType, t)
+			return nil, fmt.Errorf("%w: %v", errInvalidContractType, t)
 		}
 		params.Set("contract_type", t)
 	}
 	if !code.IsEmpty() {
 		codeValue, err := e.formatFuturesPair(code, true)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		params.Set("contract_code", codeValue)
 	}
 	path := common.EncodeURLValues("/api/v1/contract_open_interest", params)
-	if err := e.SendHTTPRequest(ctx, exchange.RestFutures, path, resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	resp := new(FuturesContractOpenInterestResponse)
+	err := e.SendHTTPRequest(ctx, exchange.RestFutures, path, resp)
+	return resp, err
 }
 
 // FuturesGetEstimatedDeliveryPrice gets estimated delivery price info for futures
 func (e *Exchange) FuturesGetEstimatedDeliveryPrice(ctx context.Context, symbol currency.Code) (*FuturesEstimatedDeliveryPriceResponse, error) {
-	resp := new(FuturesEstimatedDeliveryPriceResponse)
 	params := url.Values{}
 	codeValue, err := e.formatFuturesCode(symbol)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 	params.Set("symbol", codeValue)
 	path := common.EncodeURLValues("/api/v1/contract_delivery_price", params)
-	if err := e.SendHTTPRequest(ctx, exchange.RestFutures, path, resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	resp := new(FuturesEstimatedDeliveryPriceResponse)
+	err = e.SendHTTPRequest(ctx, exchange.RestFutures, path, resp)
+	return resp, err
 }
 
 // FuturesGetMarketDepth gets market depth data for futures contracts
@@ -178,15 +168,14 @@ func (e *Exchange) FuturesGetMarketDepth(ctx context.Context, symbol currency.Pa
 
 // FuturesGetKline gets kline data for futures
 func (e *Exchange) FuturesGetKline(ctx context.Context, symbol currency.Pair, period string, size uint64, startTime, endTime time.Time) (*FuturesKlineResponse, error) {
-	resp := new(FuturesKlineResponse)
 	params := url.Values{}
 	symbolValue, err := e.formatFuturesPair(symbol, false)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 	params.Set("symbol", symbolValue)
 	if !common.StringSliceCompareInsensitive(validFuturesPeriods, period) {
-		return resp, common.ErrInvalidPeriod
+		return nil, common.ErrInvalidPeriod
 	}
 	params.Set("period", period)
 	if size > 0 {
@@ -194,48 +183,43 @@ func (e *Exchange) FuturesGetKline(ctx context.Context, symbol currency.Pair, pe
 	}
 	if !startTime.IsZero() || !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
-			return resp, err
+			return nil, err
 		}
 		params.Set("from", strconv.FormatInt(startTime.Unix(), 10))
 		params.Set("to", strconv.FormatInt(endTime.Unix(), 10))
 	}
 	path := common.EncodeURLValues("/market/history/kline", params)
-	if err := e.SendHTTPRequest(ctx, exchange.RestFutures, path, resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	resp := new(FuturesKlineResponse)
+	err = e.SendHTTPRequest(ctx, exchange.RestFutures, path, resp)
+	return resp, err
 }
 
 // FuturesGetMarketOverview gets market overview data for futures
 func (e *Exchange) FuturesGetMarketOverview(ctx context.Context, symbol currency.Pair) (*FuturesMarketOverviewResponse, error) {
-	resp := new(FuturesMarketOverviewResponse)
 	params := url.Values{}
 	symbolValue, err := e.formatFuturesPair(symbol, false)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 	params.Set("symbol", symbolValue)
 	path := common.EncodeURLValues("/market/detail/merged", params)
-	if err := e.SendHTTPRequest(ctx, exchange.RestFutures, path, resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	resp := new(FuturesMarketOverviewResponse)
+	err = e.SendHTTPRequest(ctx, exchange.RestFutures, path, resp)
+	return resp, err
 }
 
 // FuturesLastTrade gets last trade data for a futures contract
 func (e *Exchange) FuturesLastTrade(ctx context.Context, symbol currency.Pair) (*FuturesLastTradeResponse, error) {
-	resp := new(FuturesLastTradeResponse)
 	params := url.Values{}
 	symbolValue, err := e.formatFuturesPair(symbol, false)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 	params.Set("symbol", symbolValue)
 	path := common.EncodeURLValues("/market/trade", params)
-	if err := e.SendHTTPRequest(ctx, exchange.RestFutures, path, resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	resp := new(FuturesLastTradeResponse)
+	err = e.SendHTTPRequest(ctx, exchange.RestFutures, path, resp)
+	return resp, err
 }
 
 // FuturesRequestPublicBatchTrades gets public batch trades for a futures contract
@@ -249,124 +233,111 @@ func (e *Exchange) FuturesRequestPublicBatchTrades(ctx context.Context, symbol c
 	if size > 0 {
 		params.Set("size", strconv.FormatUint(size, 10))
 	}
-	resp := new(FuturesBatchTradesForContractResponse)
 	path := common.EncodeURLValues("/market/history/trade", params)
-	if err := e.SendHTTPRequest(ctx, exchange.RestFutures, path, resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	resp := new(FuturesBatchTradesForContractResponse)
+	err = e.SendHTTPRequest(ctx, exchange.RestFutures, path, resp)
+	return resp, err
 }
 
 // FuturesQueryTieredAdjustmentFactor gets tiered adjustment factor for futures contracts
 func (e *Exchange) FuturesQueryTieredAdjustmentFactor(ctx context.Context, symbol currency.Code) (*FuturesTieredAdjustmentFactorInfoResponse, error) {
-	resp := new(FuturesTieredAdjustmentFactorInfoResponse)
 	params := url.Values{}
 	if !symbol.IsEmpty() {
 		codeValue, err := e.formatFuturesCode(symbol)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		params.Set("symbol", codeValue)
 	}
 	path := common.EncodeURLValues("/api/v1/contract_adjustfactor", params)
-	if err := e.SendHTTPRequest(ctx, exchange.RestFutures, path, resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	resp := new(FuturesTieredAdjustmentFactorInfoResponse)
+	err := e.SendHTTPRequest(ctx, exchange.RestFutures, path, resp)
+	return resp, err
 }
 
 // FuturesQueryHisOpenInterest gets open interest for futures contract
 func (e *Exchange) FuturesQueryHisOpenInterest(ctx context.Context, symbol, contractType, period, amountType string, size uint64) (*FuturesOpenInterestResponse, error) {
-	resp := new(FuturesOpenInterestResponse)
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
 	}
 	contractType = strings.ToLower(contractType)
 	if _, ok := contractExpiryNames[contractType]; !ok {
-		return resp, fmt.Errorf("%w: %v", errInvalidContractType, contractType)
+		return nil, fmt.Errorf("%w: %v", errInvalidContractType, contractType)
 	}
 	params.Set("contract_type", contractType)
 	if !common.StringSliceCompareInsensitive(validPeriods, period) {
-		return resp, common.ErrInvalidPeriod
+		return nil, common.ErrInvalidPeriod
 	}
 	params.Set("period", period)
 	if size == 0 || size > 200 {
-		return resp, errInvalidSize
+		return nil, errInvalidSize
 	}
 	params.Set("size", strconv.FormatUint(size, 10))
 	validAmount, ok := validAmountType[amountType]
 	if !ok {
-		return resp, errInvalidAmountType
+		return nil, errInvalidAmountType
 	}
 	params.Set("amount_type", strconv.FormatUint(validAmount, 10))
 	path := common.EncodeURLValues("/api/v1/contract_his_open_interest", params)
-	if err := e.SendHTTPRequest(ctx, exchange.RestFutures, path, resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	resp := new(FuturesOpenInterestResponse)
+	err := e.SendHTTPRequest(ctx, exchange.RestFutures, path, resp)
+	return resp, err
 }
 
 // FuturesQuerySystemStatus gets system status data
 func (e *Exchange) FuturesQuerySystemStatus(ctx context.Context, symbol currency.Code) (*FuturesContractOpenInterestResponse, error) {
-	resp := new(FuturesContractOpenInterestResponse)
 	params := url.Values{}
 	if !symbol.IsEmpty() {
 		codeValue, err := e.formatFuturesCode(symbol)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		params.Set("symbol", codeValue)
 	}
 	path := common.EncodeURLValues("/api/v1/contract_api_state", params)
-	if err := e.SendHTTPRequest(ctx, exchange.RestFutures, path, resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	resp := new(FuturesContractOpenInterestResponse)
+	err := e.SendHTTPRequest(ctx, exchange.RestFutures, path, resp)
+	return resp, err
 }
 
 // FuturesQueryTopAccountsRatio gets top accounts' ratio
 func (e *Exchange) FuturesQueryTopAccountsRatio(ctx context.Context, symbol, period string) (*FuturesTopAccountsLongShortRatioResponse, error) {
-	resp := new(FuturesTopAccountsLongShortRatioResponse)
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
 	}
 	if !common.StringSliceCompareInsensitive(validPeriods, period) {
-		return resp, common.ErrInvalidPeriod
+		return nil, common.ErrInvalidPeriod
 	}
 	params.Set("period", period)
 	path := common.EncodeURLValues("/api/v1/contract_elite_account_ratio", params)
-	if err := e.SendHTTPRequest(ctx, exchange.RestFutures, path, resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	resp := new(FuturesTopAccountsLongShortRatioResponse)
+	err := e.SendHTTPRequest(ctx, exchange.RestFutures, path, resp)
+	return resp, err
 }
 
 // FuturesQueryTopPositionsRatio gets top positions' long/short ratio for futures
 func (e *Exchange) FuturesQueryTopPositionsRatio(ctx context.Context, symbol, period string) (*FuturesTopPositionsLongShortRatioResponse, error) {
-	resp := new(FuturesTopPositionsLongShortRatioResponse)
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
 	}
 	if !common.StringSliceCompareInsensitive(validPeriods, period) {
-		return resp, common.ErrInvalidPeriod
+		return nil, common.ErrInvalidPeriod
 	}
 	params.Set("period", period)
 	path := common.EncodeURLValues("/api/v1/contract_elite_position_ratio", params)
-	if err := e.SendHTTPRequest(ctx, exchange.RestFutures, path, resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	resp := new(FuturesTopPositionsLongShortRatioResponse)
+	err := e.SendHTTPRequest(ctx, exchange.RestFutures, path, resp)
+	return resp, err
 }
 
 // FuturesLiquidationOrders gets liquidation orders for futures contracts
 func (e *Exchange) FuturesLiquidationOrders(ctx context.Context, symbol currency.Code, tradeType string, startTime, endTime uint64, direction string, fromID uint64) (*SwapLiquidationOrdersResponse, error) {
-	resp := new(SwapLiquidationOrdersResponse)
 	tType, ok := validTradeTypes[tradeType]
 	if !ok {
-		return resp, errInvalidTradeType
+		return nil, errInvalidTradeType
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol.String())
@@ -385,47 +356,43 @@ func (e *Exchange) FuturesLiquidationOrders(ctx context.Context, symbol currency
 		params.Set("from_id", strconv.FormatUint(fromID, 10))
 	}
 	path := common.EncodeURLValues("/api/v3/contract_liquidation_orders", params)
-	if err := e.SendHTTPRequest(ctx, exchange.RestFutures, path, resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	resp := new(SwapLiquidationOrdersResponse)
+	err := e.SendHTTPRequest(ctx, exchange.RestFutures, path, resp)
+	return resp, err
 }
 
 // FuturesIndexKline gets index kline data for futures contracts
 func (e *Exchange) FuturesIndexKline(ctx context.Context, symbol currency.Pair, period string, size uint64) (*FuturesIndexKlineResponse, error) {
-	resp := new(FuturesIndexKlineResponse)
 	params := url.Values{}
 	symbolValue, err := e.formatFuturesPair(symbol, false)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 	params.Set("symbol", symbolValue)
 	if !common.StringSliceCompareInsensitive(validFuturesPeriods, period) {
-		return resp, common.ErrInvalidPeriod
+		return nil, common.ErrInvalidPeriod
 	}
 	params.Set("period", period)
 	if size == 0 || size > 2000 {
-		return resp, errInvalidSize
+		return nil, errInvalidSize
 	}
 	params.Set("size", strconv.FormatUint(size, 10))
 	path := common.EncodeURLValues("/index/market/history/index", params)
-	if err := e.SendHTTPRequest(ctx, exchange.RestFutures, path, resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	resp := new(FuturesIndexKlineResponse)
+	err = e.SendHTTPRequest(ctx, exchange.RestFutures, path, resp)
+	return resp, err
 }
 
 // FuturesGetBasis gets basis data futures contracts
 func (e *Exchange) FuturesGetBasis(ctx context.Context, symbol currency.Pair, period, basisPriceType string, size uint64) (*FuturesBasisResponse, error) {
-	resp := new(FuturesBasisResponse)
 	params := url.Values{}
 	symbolValue, err := e.formatFuturesPair(symbol, false)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 	params.Set("symbol", symbolValue)
 	if !common.StringSliceCompareInsensitive(validFuturesPeriods, period) {
-		return resp, common.ErrInvalidPeriod
+		return nil, common.ErrInvalidPeriod
 	}
 	params.Set("period", period)
 	if basisPriceType != "" {
@@ -437,94 +404,82 @@ func (e *Exchange) FuturesGetBasis(ctx context.Context, symbol currency.Pair, pe
 		params.Set("size", strconv.FormatUint(size, 10))
 	}
 	path := common.EncodeURLValues("/index/market/history/basis", params)
-	if err := e.SendHTTPRequest(ctx, exchange.RestFutures, path, resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	resp := new(FuturesBasisResponse)
+	err = e.SendHTTPRequest(ctx, exchange.RestFutures, path, resp)
+	return resp, err
 }
 
 // FuturesGetAccountInfo gets user info for futures account
 func (e *Exchange) FuturesGetAccountInfo(ctx context.Context, symbol currency.Code) (*FuturesUserAccountResponse, error) {
-	resp := new(FuturesUserAccountResponse)
 	req := make(map[string]any)
 	if !symbol.IsEmpty() {
 		codeValue, err := e.formatFuturesCode(symbol)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		req["symbol"] = codeValue
 	}
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/api/v1/contract_account_info", nil, req, resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	resp := new(FuturesUserAccountResponse)
+	err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/api/v1/contract_account_info", nil, req, resp)
+	return resp, err
 }
 
 // FuturesGetPositionsInfo gets positions info for futures account
 func (e *Exchange) FuturesGetPositionsInfo(ctx context.Context, symbol currency.Code) (*FuturesUsersPositionsInfoResponse, error) {
-	resp := new(FuturesUsersPositionsInfoResponse)
 	req := make(map[string]any)
 	if !symbol.IsEmpty() {
 		codeValue, err := e.formatFuturesCode(symbol)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		req["symbol"] = codeValue
 	}
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/api/v1/contract_position_info", nil, req, resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	resp := new(FuturesUsersPositionsInfoResponse)
+	err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/api/v1/contract_position_info", nil, req, resp)
+	return resp, err
 }
 
 // FuturesGetAllSubAccountAssets gets assets info for all futures subaccounts
 func (e *Exchange) FuturesGetAllSubAccountAssets(ctx context.Context, symbol currency.Code) (*FuturesSubAccountAssetsInfoResponse, error) {
-	resp := new(FuturesSubAccountAssetsInfoResponse)
 	req := make(map[string]any)
 	if !symbol.IsEmpty() {
 		codeValue, err := e.formatFuturesCode(symbol)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		req["symbol"] = codeValue
 	}
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/api/v1/contract_sub_account_list", nil, req, resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	resp := new(FuturesSubAccountAssetsInfoResponse)
+	err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/api/v1/contract_sub_account_list", nil, req, resp)
+	return resp, err
 }
 
 // FuturesGetSingleSubAccountInfo gets assets info for a futures subaccount
 func (e *Exchange) FuturesGetSingleSubAccountInfo(ctx context.Context, symbol, subUID string) (*FuturesSingleSubAccountAssetsInfoResponse, error) {
-	resp := new(FuturesSingleSubAccountAssetsInfoResponse)
 	req := make(map[string]any)
 	if symbol != "" {
 		req["symbol"] = symbol
 	}
 	req["sub_uid"] = subUID
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/api/v1/contract_sub_account_info", nil, req, resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	resp := new(FuturesSingleSubAccountAssetsInfoResponse)
+	err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/api/v1/contract_sub_account_info", nil, req, resp)
+	return resp, err
 }
 
 // FuturesGetSingleSubPositions gets positions info for a single sub account
 func (e *Exchange) FuturesGetSingleSubPositions(ctx context.Context, symbol, subUID string) (*FuturesSingleSubAccountPositionsInfoResponse, error) {
-	resp := new(FuturesSingleSubAccountPositionsInfoResponse)
 	req := make(map[string]any)
 	if symbol != "" {
 		req["symbol"] = symbol
 	}
 	req["sub_uid"] = subUID
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/api/v1/contract_sub_position_info", nil, req, resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	resp := new(FuturesSingleSubAccountPositionsInfoResponse)
+	err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/api/v1/contract_sub_position_info", nil, req, resp)
+	return resp, err
 }
 
 // FuturesGetFinancialRecords gets financial records for futures
 func (e *Exchange) FuturesGetFinancialRecords(ctx context.Context, symbol, recordType string, lookbackDays, fromID, limit uint64) (*FuturesFinancialRecordsResponse, error) {
-	resp := new(FuturesFinancialRecordsResponse)
 	req := make(map[string]any)
 	if symbol != "" {
 		req["symbol"] = symbol
@@ -532,12 +487,12 @@ func (e *Exchange) FuturesGetFinancialRecords(ctx context.Context, symbol, recor
 	if recordType != "" {
 		rType, ok := validFuturesRecordTypes[recordType]
 		if !ok {
-			return resp, errInvalidRecordType
+			return nil, errInvalidRecordType
 		}
 		req["type"] = rType
 	}
 	if err := addV3HistoryTimeRange(req, lookbackDays); err != nil {
-		return resp, err
+		return nil, err
 	}
 	if fromID != 0 {
 		req["from_id"] = fromID
@@ -546,15 +501,13 @@ func (e *Exchange) FuturesGetFinancialRecords(ctx context.Context, symbol, recor
 		req[orderPriceTypeLimit] = limit
 	}
 	req["direct"] = v3HistoryDirectionNext
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/api/v3/contract_financial_record", nil, req, resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	resp := new(FuturesFinancialRecordsResponse)
+	err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/api/v3/contract_financial_record", nil, req, resp)
+	return resp, err
 }
 
 // FuturesGetSettlementRecords gets settlement records for futures
 func (e *Exchange) FuturesGetSettlementRecords(ctx context.Context, symbol currency.Code, pageIndex, pageSize uint64, startTime, endTime time.Time) (*FuturesSettlementRecordsResponse, error) {
-	resp := new(FuturesSettlementRecordsResponse)
 	req := make(map[string]any)
 	req["symbol"] = symbol
 	if pageIndex != 0 {
@@ -565,128 +518,114 @@ func (e *Exchange) FuturesGetSettlementRecords(ctx context.Context, symbol curre
 	}
 	if !startTime.IsZero() || !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
-			return resp, err
+			return nil, err
 		}
 		req["start_time"] = strconv.FormatInt(startTime.Unix()*1000, 10)
 		req["end_time"] = strconv.FormatInt(endTime.Unix()*1000, 10)
 	}
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/api/v1/contract_user_settlement_records", nil, req, resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	resp := new(FuturesSettlementRecordsResponse)
+	err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/api/v1/contract_user_settlement_records", nil, req, resp)
+	return resp, err
 }
 
 // FuturesGetOrderLimits gets order limits for futures contracts
 func (e *Exchange) FuturesGetOrderLimits(ctx context.Context, symbol, orderPriceType string) (*FuturesContractOrderLimitResponse, error) {
-	resp := new(FuturesContractOrderLimitResponse)
 	req := make(map[string]any)
 	if symbol != "" {
 		req["symbol"] = symbol
 	}
 	if orderPriceType != "" {
 		if !common.StringSliceCompareInsensitive(validFuturesOrderPriceTypes, orderPriceType) {
-			return resp, errInvalidOrderPriceType
+			return nil, errInvalidOrderPriceType
 		}
 		req["order_price_type"] = orderPriceType
 	}
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/api/v1/contract_order_limit", nil, req, resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	resp := new(FuturesContractOrderLimitResponse)
+	err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/api/v1/contract_order_limit", nil, req, resp)
+	return resp, err
 }
 
 // FuturesContractTradingFee gets futures contract trading fees
 func (e *Exchange) FuturesContractTradingFee(ctx context.Context, symbol currency.Code) (*FuturesContractTradingFeeResponse, error) {
-	resp := new(FuturesContractTradingFeeResponse)
 	req := make(map[string]any)
 	if !symbol.IsEmpty() {
 		codeValue, err := e.formatFuturesCode(symbol)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		req["symbol"] = codeValue
 	}
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/api/v1/contract_fee", nil, req, resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	resp := new(FuturesContractTradingFeeResponse)
+	err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/api/v1/contract_fee", nil, req, resp)
+	return resp, err
 }
 
 // FuturesGetTransferLimits gets transfer limits for futures
 func (e *Exchange) FuturesGetTransferLimits(ctx context.Context, symbol currency.Code) (*FuturesTransferLimitResponse, error) {
-	resp := new(FuturesTransferLimitResponse)
 	req := make(map[string]any)
 	if !symbol.IsEmpty() {
 		codeValue, err := e.formatFuturesCode(symbol)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		req["symbol"] = codeValue
 	}
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/api/v1/contract_transfer_limit", nil, req, resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	resp := new(FuturesTransferLimitResponse)
+	err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/api/v1/contract_transfer_limit", nil, req, resp)
+	return resp, err
 }
 
 // FuturesGetPositionLimits gets position limits for futures
 func (e *Exchange) FuturesGetPositionLimits(ctx context.Context, symbol currency.Code) (*FuturesPositionLimitResponse, error) {
-	resp := new(FuturesPositionLimitResponse)
 	req := make(map[string]any)
 	if !symbol.IsEmpty() {
 		codeValue, err := e.formatFuturesCode(symbol)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		req["symbol"] = codeValue
 	}
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/api/v1/contract_position_limit", nil, req, resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	resp := new(FuturesPositionLimitResponse)
+	err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/api/v1/contract_position_limit", nil, req, resp)
+	return resp, err
 }
 
 // FuturesGetAssetsAndPositions gets assets and positions for futures
 func (e *Exchange) FuturesGetAssetsAndPositions(ctx context.Context, symbol currency.Code) (*FuturesAssetsAndPositionsResponse, error) {
-	resp := new(FuturesAssetsAndPositionsResponse)
 	req := make(map[string]any)
 	req["symbol"] = symbol
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/api/v1/contract_account_position_info", nil, req, resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	resp := new(FuturesAssetsAndPositionsResponse)
+	err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/api/v1/contract_account_position_info", nil, req, resp)
+	return resp, err
 }
 
 // FuturesTransfer transfers assets between master and subaccounts
 func (e *Exchange) FuturesTransfer(ctx context.Context, subUID, symbol, transferType string, amount float64) (*FuturesAccountTransferResponse, error) {
-	resp := new(FuturesAccountTransferResponse)
 	req := make(map[string]any)
 	req["symbol"] = symbol
 	req["subUid"] = subUID
 	req["amount"] = amount
 	if !common.StringSliceCompareInsensitive(validTransferType, transferType) {
-		return resp, errInvalidTransferType
+		return nil, errInvalidTransferType
 	}
 	req["type"] = transferType
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/api/v1/contract_master_sub_transfer", nil, req, resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	resp := new(FuturesAccountTransferResponse)
+	err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/api/v1/contract_master_sub_transfer", nil, req, resp)
+	return resp, err
 }
 
 // FuturesGetTransferRecords gets transfer records data for futures
 func (e *Exchange) FuturesGetTransferRecords(ctx context.Context, symbol, transferType string, createDate, pageIndex, pageSize uint64) (*FuturesTransferRecordsResponse, error) {
-	resp := new(FuturesTransferRecordsResponse)
 	req := make(map[string]any)
 	if symbol != "" {
 		req["symbol"] = symbol
 	}
 	if !common.StringSliceCompareInsensitive(validTransferType, transferType) {
-		return resp, errInvalidTransferType
+		return nil, errInvalidTransferType
 	}
 	req["type"] = transferType
 	if createDate > 90 {
-		return resp, errInvalidCreateDate
+		return nil, errInvalidCreateDate
 	}
 	req["create_date"] = strconv.FormatUint(createDate, 10)
 	if pageIndex != 0 {
@@ -695,27 +634,24 @@ func (e *Exchange) FuturesGetTransferRecords(ctx context.Context, symbol, transf
 	if pageSize > 0 && pageSize <= 50 {
 		req["page_size"] = pageSize
 	}
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/api/v1/contract_master_sub_transfer_record", nil, req, resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	resp := new(FuturesTransferRecordsResponse)
+	err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/api/v1/contract_master_sub_transfer_record", nil, req, resp)
+	return resp, err
 }
 
 // FuturesGetAvailableLeverage gets available leverage data for futures
 func (e *Exchange) FuturesGetAvailableLeverage(ctx context.Context, symbol currency.Code) (*FuturesAvailableLeverageResponse, error) {
-	resp := new(FuturesAvailableLeverageResponse)
 	req := make(map[string]any)
 	if !symbol.IsEmpty() {
 		codeValue, err := e.formatFuturesCode(symbol)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		req["symbol"] = codeValue
 	}
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/api/v1/contract_available_level_rate", nil, req, resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	resp := new(FuturesAvailableLeverageResponse)
+	err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/api/v1/contract_available_level_rate", nil, req, resp)
+	return resp, err
 }
 
 // FuturesSwitchLeverage changes the leverage used by coin-margined delivery contracts.
@@ -730,21 +666,20 @@ func (e *Exchange) FuturesSwitchLeverage(ctx context.Context, symbol currency.Co
 
 // FuturesOrder places an order for futures
 func (e *Exchange) FuturesOrder(ctx context.Context, contractCode currency.Pair, symbol, contractType, clientOrderID, direction, offset, orderPriceType string, price, volume float64, leverageRate uint64) (*FuturesOrderResponse, error) {
-	resp := new(FuturesOrderResponse)
 	req := make(map[string]any)
 	if symbol != "" {
 		req["symbol"] = symbol
 	}
 	if t := strings.ToLower(contractType); t != "" {
 		if _, ok := contractExpiryNames[t]; !ok {
-			return resp, fmt.Errorf("%w: %v", errInvalidContractType, t)
+			return nil, fmt.Errorf("%w: %v", errInvalidContractType, t)
 		}
 		req["contract_type"] = t
 	}
 	if !contractCode.IsEmpty() {
 		codeValue, err := e.FormatSymbol(contractCode, asset.Futures)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		req["contract_code"] = codeValue
 	}
@@ -752,40 +687,38 @@ func (e *Exchange) FuturesOrder(ctx context.Context, contractCode currency.Pair,
 		// HTX accepts client order IDs from 1 to the largest signed 64-bit integer.
 		id, err := strconv.ParseUint(clientOrderID, 10, 63)
 		if err != nil {
-			return resp, fmt.Errorf("%w: %w", errInvalidClientOrderID, err)
+			return nil, fmt.Errorf("%w: %w", errInvalidClientOrderID, err)
 		}
 		if id == 0 {
-			return resp, errInvalidClientOrderID
+			return nil, errInvalidClientOrderID
 		}
 		req["client_order_id"] = id
 	}
 	req["direction"] = direction
 	if !common.StringSliceCompareInsensitive(validOffsetTypes, offset) {
-		return resp, errInvalidOffsetAmounts
+		return nil, errInvalidOffsetAmounts
 	}
 	if !common.StringSliceCompareInsensitive(validFuturesOrderPriceTypes, orderPriceType) {
-		return resp, errInvalidOrderPriceType
+		return nil, errInvalidOrderPriceType
 	}
 	req["order_price_type"] = orderPriceType
 	req["lever_rate"] = leverageRate
 	req["volume"] = volume
 	req["price"] = price
 	req["offset"] = offset
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/api/v1/contract_order", nil, req, resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	resp := new(FuturesOrderResponse)
+	err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/api/v1/contract_order", nil, req, resp)
+	return resp, err
 }
 
 // FuturesPlaceBatchOrder places a batch of orders for futures
 func (e *Exchange) FuturesPlaceBatchOrder(ctx context.Context, data []*FuturesBatchOrderRequest) (*FuturesBatchOrderResponse, error) {
-	resp := new(FuturesBatchOrderResponse)
 	req := make(map[string]any)
 	if len(data) == 0 {
 		return nil, errEmptyOrderBatch
 	}
 	if len(data) > 10 {
-		return resp, errBatchOrderLimitExceeded
+		return nil, errBatchOrderLimitExceeded
 	}
 	for x := range data {
 		if data[x] == nil {
@@ -794,48 +727,46 @@ func (e *Exchange) FuturesPlaceBatchOrder(ctx context.Context, data []*FuturesBa
 		if data[x].ContractCode != "" {
 			unformattedPair, err := currency.NewPairFromString(data[x].ContractCode)
 			if err != nil {
-				return resp, err
+				return nil, err
 			}
 			formattedPair, err := e.FormatExchangeCurrency(unformattedPair, asset.Futures)
 			if err != nil {
-				return resp, err
+				return nil, err
 			}
 			data[x].ContractCode = formattedPair.String()
 		}
 		if data[x].ContractType != "" {
 			if _, ok := contractExpiryNames[strings.ToLower(data[x].ContractType)]; !ok {
-				return resp, fmt.Errorf("%w %v", errInvalidContractType, data[x].ContractType)
+				return nil, fmt.Errorf("%w %v", errInvalidContractType, data[x].ContractType)
 			}
 		}
 		if !common.StringSliceCompareInsensitive(validOffsetTypes, data[x].Offset) {
-			return resp, errInvalidOffsetAmounts
+			return nil, errInvalidOffsetAmounts
 		}
 		if !common.StringSliceCompareInsensitive(validFuturesOrderPriceTypes, data[x].OrderPriceType) {
-			return resp, errInvalidOrderPriceType
+			return nil, errInvalidOrderPriceType
 		}
 	}
 	req["orders_data"] = data
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/api/v1/contract_batchorder", nil, req, resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	resp := new(FuturesBatchOrderResponse)
+	err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/api/v1/contract_batchorder", nil, req, resp)
+	return resp, err
 }
 
 // FuturesCancelOrder cancels a futures order
 func (e *Exchange) FuturesCancelOrder(ctx context.Context, baseCurrency currency.Code, orderID, clientOrderID string) (*FuturesCancelOrderResponse, error) {
-	resp := new(FuturesCancelOrderResponse)
 	if orderID == "" && clientOrderID == "" {
-		return resp, order.ErrOrderIDNotSet
+		return nil, order.ErrOrderIDNotSet
 	}
 	if orderID != "" && clientOrderID != "" {
-		return resp, errMixedOrderIdentifiers
+		return nil, errMixedOrderIdentifiers
 	}
 	if strings.Count(orderID+clientOrderID, ",") >= 10 {
-		return resp, errCancelOrderLimitExceeded
+		return nil, errCancelOrderLimitExceeded
 	}
 	req := make(map[string]any)
 	if baseCurrency.IsEmpty() {
-		return resp, fmt.Errorf("cannot cancel futures order %w", currency.ErrCurrencyCodeEmpty)
+		return nil, fmt.Errorf("cannot cancel futures order %w", currency.ErrCurrencyCodeEmpty)
 	}
 	req["symbol"] = baseCurrency.String() // Upper and lower case are supported
 	if orderID != "" {
@@ -844,53 +775,49 @@ func (e *Exchange) FuturesCancelOrder(ctx context.Context, baseCurrency currency
 	if clientOrderID != "" {
 		req["client_order_id"] = clientOrderID
 	}
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/api/v1/contract_cancel", nil, req, resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	resp := new(FuturesCancelOrderResponse)
+	err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/api/v1/contract_cancel", nil, req, resp)
+	return resp, err
 }
 
 // FuturesCancelAllOrders cancels all futures order for a given symbol
 func (e *Exchange) FuturesCancelAllOrders(ctx context.Context, contractCode currency.Pair, symbol, contractType string) (*FuturesCancelOrderResponse, error) {
-	resp := new(FuturesCancelOrderResponse)
 	req := make(map[string]any)
 	if symbol != "" {
 		req["symbol"] = symbol
 	}
 	if t := strings.ToLower(contractType); t != "" {
 		if _, ok := contractExpiryNames[t]; !ok {
-			return resp, fmt.Errorf("%w: %v", errInvalidContractType, t)
+			return nil, fmt.Errorf("%w: %v", errInvalidContractType, t)
 		}
 		req["contract_type"] = t
 	}
 	if !contractCode.IsEmpty() {
 		codeValue, err := e.FormatSymbol(contractCode, asset.Futures)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		req["contract_code"] = codeValue
 	}
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/api/v1/contract_cancelall", nil, req, resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	resp := new(FuturesCancelOrderResponse)
+	err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/api/v1/contract_cancelall", nil, req, resp)
+	return resp, err
 }
 
 // FuturesFlashCloseOrder flash closes a futures order
 func (e *Exchange) FuturesFlashCloseOrder(ctx context.Context, contractCode currency.Pair, symbol, contractType, direction, orderPriceType, clientOrderID string, volume float64) (*FuturesOrderResponse, error) {
-	resp := new(FuturesOrderResponse)
 	req := make(map[string]any)
 	req["symbol"] = symbol
 	if t := strings.ToLower(contractType); t != "" {
 		if _, ok := contractExpiryNames[t]; !ok {
-			return resp, fmt.Errorf("%w: %v", errInvalidContractType, t)
+			return nil, fmt.Errorf("%w: %v", errInvalidContractType, t)
 		}
 		req["contract_type"] = t
 	}
 	if !contractCode.IsEmpty() {
 		codeValue, err := e.FormatSymbol(contractCode, asset.Futures)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		req["contract_code"] = codeValue
 	}
@@ -901,19 +828,17 @@ func (e *Exchange) FuturesFlashCloseOrder(ctx context.Context, contractCode curr
 	}
 	if orderPriceType != "" {
 		if !common.StringSliceCompareInsensitive(validOPTypes, orderPriceType) {
-			return resp, errInvalidOrderPriceType
+			return nil, errInvalidOrderPriceType
 		}
 		req["orderPriceType"] = orderPriceType
 	}
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/api/v1/lightning_close_position", nil, req, resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	resp := new(FuturesOrderResponse)
+	err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/api/v1/lightning_close_position", nil, req, resp)
+	return resp, err
 }
 
 // FuturesGetOrderInfo gets order info for futures
 func (e *Exchange) FuturesGetOrderInfo(ctx context.Context, symbol, clientOrderID, orderID string) (*FuturesOrderInfoResponse, error) {
-	resp := new(FuturesOrderInfoResponse)
 	req := make(map[string]any)
 	req["symbol"] = symbol
 	if orderID != "" {
@@ -922,22 +847,20 @@ func (e *Exchange) FuturesGetOrderInfo(ctx context.Context, symbol, clientOrderI
 	if clientOrderID != "" {
 		req["client_order_id"] = clientOrderID
 	}
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/api/v1/contract_order_info", nil, req, resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	resp := new(FuturesOrderInfoResponse)
+	err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/api/v1/contract_order_info", nil, req, resp)
+	return resp, err
 }
 
 // FuturesOrderDetails gets order details for futures orders
 func (e *Exchange) FuturesOrderDetails(ctx context.Context, symbol, orderID, orderType string, createdAt time.Time, pageIndex, pageSize uint64) (*FuturesOrderDetailsResponse, error) {
-	resp := new(FuturesOrderDetailsResponse)
 	req := make(map[string]any)
 	req["symbol"] = symbol
 	req["order_id"] = orderID
 	req["created_at"] = strconv.FormatInt(createdAt.Unix(), 10)
 	oType, ok := validOrderType[orderType]
 	if !ok {
-		return resp, errInvalidOrderType
+		return nil, errInvalidOrderType
 	}
 	req["order_type"] = oType
 	if pageIndex != 0 {
@@ -946,15 +869,13 @@ func (e *Exchange) FuturesOrderDetails(ctx context.Context, symbol, orderID, ord
 	if pageSize != 0 {
 		req["page_size"] = pageSize
 	}
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/api/v1/contract_order_detail", nil, req, resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	resp := new(FuturesOrderDetailsResponse)
+	err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/api/v1/contract_order_detail", nil, req, resp)
+	return resp, err
 }
 
 // FuturesGetOpenOrders gets order details for futures orders
 func (e *Exchange) FuturesGetOpenOrders(ctx context.Context, symbol currency.Code, pageIndex, pageSize uint64) (*FuturesOpenOrdersResponse, error) {
-	resp := new(FuturesOpenOrdersResponse)
 	req := make(map[string]any)
 	req["symbol"] = symbol
 	if pageIndex != 0 {
@@ -963,10 +884,9 @@ func (e *Exchange) FuturesGetOpenOrders(ctx context.Context, symbol currency.Cod
 	if pageSize != 0 {
 		req["page_size"] = pageSize
 	}
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/api/v1/contract_openorders", nil, req, resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	resp := new(FuturesOpenOrdersResponse)
+	err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/api/v1/contract_openorders", nil, req, resp)
+	return resp, err
 }
 
 // FuturesGetOrderHistory gets order history for futures using a lookback of at most two days.
@@ -984,33 +904,32 @@ func (e *Exchange) FuturesGetOrderHistory(ctx context.Context, contractCode curr
 
 // FuturesGetOrderHistoryByTimeRange gets futures order history for an explicit interval.
 func (e *Exchange) FuturesGetOrderHistoryByTimeRange(ctx context.Context, contractCode currency.Pair, symbol, tradeType, reqType, orderType string, status []order.Status, startTime, endTime time.Time, fromID, limit uint64) (*FuturesOrderHistoryResponse, error) {
-	resp := new(FuturesOrderHistoryResponse)
 	req := make(map[string]any)
 	req["symbol"] = symbol
 	tType, ok := validFuturesTradeType[tradeType]
 	if !ok {
-		return resp, errInvalidTradeType
+		return nil, errInvalidTradeType
 	}
 	req["trade_type"] = tType
 	rType, ok := validFuturesReqType[reqType]
 	if !ok {
-		return resp, errInvalidRequestType
+		return nil, errInvalidRequestType
 	}
 	req["type"] = rType
 	reqStatus, err := formatFuturesOrderStatuses(status)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 	req["status"] = reqStatus
 	if startTime.IsZero() != endTime.IsZero() {
-		return resp, errInvalidCreateDate
+		return nil, errInvalidCreateDate
 	}
 	if !startTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
-			return resp, err
+			return nil, err
 		}
 		if endTime.Sub(startTime) > 48*time.Hour {
-			return resp, errHistoryTimeRangeExceeded
+			return nil, errHistoryTimeRangeExceeded
 		}
 		req["start_time"] = startTime.UTC().UnixMilli()
 		req["end_time"] = endTime.UTC().UnixMilli()
@@ -1019,14 +938,14 @@ func (e *Exchange) FuturesGetOrderHistoryByTimeRange(ctx context.Context, contra
 	if !contractCode.IsEmpty() {
 		codeValue, err := e.FormatSymbol(contractCode, asset.Futures)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		req["contract"] = codeValue
 	}
 	if orderType != "" {
 		oType, ok := validFuturesOrderTypes[orderType]
 		if !ok {
-			return resp, errInvalidOrderType
+			return nil, errInvalidOrderType
 		}
 		req["order_type"] = oType
 	}
@@ -1036,34 +955,32 @@ func (e *Exchange) FuturesGetOrderHistoryByTimeRange(ctx context.Context, contra
 	if limit != 0 {
 		req[orderPriceTypeLimit] = limit
 	}
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/api/v3/contract_hisorders", nil, req, resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	resp := new(FuturesOrderHistoryResponse)
+	err = e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/api/v3/contract_hisorders", nil, req, resp)
+	return resp, err
 }
 
 // FuturesTradeHistory gets trade history data for futures
 func (e *Exchange) FuturesTradeHistory(ctx context.Context, contractCode currency.Pair, symbol, tradeType string, lookbackDays, fromID, limit uint64) (*FuturesTradeHistoryResponse, error) {
-	resp := new(FuturesTradeHistoryResponse)
 	req := make(map[string]any)
 	req["symbol"] = symbol
 	tType, ok := validTradeType[tradeType]
 	if !ok {
-		return resp, errInvalidTradeType
+		return nil, errInvalidTradeType
 	}
 	req["trade_type"] = tType
 	if !contractCode.IsEmpty() {
 		codeValue, err := e.FormatSymbol(contractCode, asset.Futures)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		req["contract"] = codeValue
 	}
 	if lookbackDays == 0 {
-		return resp, errInvalidLookbackDays
+		return nil, errInvalidLookbackDays
 	}
 	if err := addV3HistoryTimeRange(req, lookbackDays); err != nil {
-		return resp, err
+		return nil, err
 	}
 	req["direct"] = v3HistoryDirectionNext
 	if fromID != 0 {
@@ -1072,10 +989,9 @@ func (e *Exchange) FuturesTradeHistory(ctx context.Context, contractCode currenc
 	if limit != 0 {
 		req[orderPriceTypeLimit] = limit
 	}
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/api/v3/contract_matchresults", nil, req, resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	resp := new(FuturesTradeHistoryResponse)
+	err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/api/v3/contract_matchresults", nil, req, resp)
+	return resp, err
 }
 
 func addV3HistoryTimeRange(req map[string]any, lookbackDays uint64) error {
@@ -1108,32 +1024,31 @@ func formatFuturesOrderStatuses(statuses []order.Status) (string, error) {
 
 // FuturesPlaceTriggerOrder places a trigger order for futures
 func (e *Exchange) FuturesPlaceTriggerOrder(ctx context.Context, contractCode currency.Pair, symbol, contractType, triggerType, orderPriceType, direction, offset string, triggerPrice, orderPrice, volume float64, leverageRate uint64) (*FuturesTriggerOrderResponse, error) {
-	resp := new(FuturesTriggerOrderResponse)
 	req := make(map[string]any)
 	if symbol != "" {
 		req["symbol"] = symbol
 	}
 	if t := strings.ToLower(contractType); t != "" {
 		if _, ok := contractExpiryNames[t]; !ok {
-			return resp, fmt.Errorf("%w: %v", errInvalidContractType, t)
+			return nil, fmt.Errorf("%w: %v", errInvalidContractType, t)
 		}
 		req["contract_type"] = t
 	}
 	if !contractCode.IsEmpty() {
 		codeValue, err := e.FormatSymbol(contractCode, asset.Futures)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		req["contract_code"] = codeValue
 	}
 	tType, ok := validTriggerType[triggerType]
 	if !ok {
-		return resp, errInvalidTriggerType
+		return nil, errInvalidTriggerType
 	}
 	req["trigger_type"] = tType
 	req["direction"] = direction
 	if !common.StringSliceCompareInsensitive(validOffsetTypes, offset) {
-		return resp, errInvalidOffset
+		return nil, errInvalidOffset
 	}
 	req["offset"] = offset
 	req["trigger_price"] = triggerPrice
@@ -1141,60 +1056,54 @@ func (e *Exchange) FuturesPlaceTriggerOrder(ctx context.Context, contractCode cu
 	req["lever_rate"] = leverageRate
 	req["order_price"] = orderPrice
 	if !common.StringSliceCompareInsensitive(validOrderPriceType, orderPriceType) {
-		return resp, errInvalidOrderPriceType
+		return nil, errInvalidOrderPriceType
 	}
 	req["order_price_type"] = orderPriceType
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/api/v1/contract_trigger_order", nil, req, resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	resp := new(FuturesTriggerOrderResponse)
+	err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/api/v1/contract_trigger_order", nil, req, resp)
+	return resp, err
 }
 
 // FuturesCancelTriggerOrder cancels trigger order for futures
 func (e *Exchange) FuturesCancelTriggerOrder(ctx context.Context, symbol, orderID string) (*FuturesCancelOrderResponse, error) {
-	resp := new(FuturesCancelOrderResponse)
 	req := make(map[string]any)
 	req["symbol"] = symbol
 	req["order_id"] = orderID
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/api/v1/contract_trigger_cancel", nil, req, resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	resp := new(FuturesCancelOrderResponse)
+	err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/api/v1/contract_trigger_cancel", nil, req, resp)
+	return resp, err
 }
 
 // FuturesCancelAllTriggerOrders cancels all trigger order for futures
 func (e *Exchange) FuturesCancelAllTriggerOrders(ctx context.Context, contractCode currency.Pair, symbol, contractType string) (*FuturesCancelOrderResponse, error) {
-	resp := new(FuturesCancelOrderResponse)
 	req := make(map[string]any)
 	req["symbol"] = symbol
 	if !contractCode.IsEmpty() {
 		codeValue, err := e.FormatSymbol(contractCode, asset.Futures)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		req["contract_code"] = codeValue
 	}
 	if t := strings.ToLower(contractType); t != "" {
 		if _, ok := contractExpiryNames[t]; !ok {
-			return resp, fmt.Errorf("%w: %v", errInvalidContractType, t)
+			return nil, fmt.Errorf("%w: %v", errInvalidContractType, t)
 		}
 		req["contract_type"] = t
 	}
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/api/v1/contract_trigger_cancelall", nil, req, resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	resp := new(FuturesCancelOrderResponse)
+	err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/api/v1/contract_trigger_cancelall", nil, req, resp)
+	return resp, err
 }
 
 // FuturesQueryTriggerOpenOrders queries open trigger orders for futures
 func (e *Exchange) FuturesQueryTriggerOpenOrders(ctx context.Context, contractCode currency.Pair, symbol string, pageIndex, pageSize uint64) (*FuturesTriggerOpenOrdersResponse, error) {
-	resp := new(FuturesTriggerOpenOrdersResponse)
 	req := make(map[string]any)
 	req["symbol"] = symbol
 	if !contractCode.IsEmpty() {
 		codeValue, err := e.FormatSymbol(contractCode, asset.Futures)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		req["contract_code"] = codeValue
 	}
@@ -1204,38 +1113,36 @@ func (e *Exchange) FuturesQueryTriggerOpenOrders(ctx context.Context, contractCo
 	if pageSize != 0 {
 		req["page_size"] = pageSize
 	}
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/api/v1/contract_trigger_openorders", nil, req, resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	resp := new(FuturesTriggerOpenOrdersResponse)
+	err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/api/v1/contract_trigger_openorders", nil, req, resp)
+	return resp, err
 }
 
 // FuturesQueryTriggerOrderHistory queries trigger order history for futures
 func (e *Exchange) FuturesQueryTriggerOrderHistory(ctx context.Context, contractCode currency.Pair, symbol, tradeType, status string, createDate, pageIndex, pageSize uint64) (*FuturesTriggerOrderHistoryResponse, error) {
-	resp := new(FuturesTriggerOrderHistoryResponse)
 	req := make(map[string]any)
 	req["symbol"] = symbol
 	if !contractCode.IsEmpty() {
 		codeValue, err := e.FormatSymbol(contractCode, asset.Futures)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		req["contract_code"] = codeValue
 	}
 	if tradeType != "" {
 		tType, ok := validTradeType[tradeType]
 		if !ok {
-			return resp, errInvalidTradeType
+			return nil, errInvalidTradeType
 		}
 		req["trade_type"] = tType
 	}
 	validStatus, ok := validStatusTypes[status]
 	if !ok {
-		return resp, errInvalidOrderStatus
+		return nil, errInvalidOrderStatus
 	}
 	req["status"] = validStatus
 	if createDate == 0 || createDate > 90 {
-		return resp, errInvalidCreateDate
+		return nil, errInvalidCreateDate
 	}
 	req["create_date"] = createDate
 	if pageIndex != 0 {
@@ -1244,10 +1151,9 @@ func (e *Exchange) FuturesQueryTriggerOrderHistory(ctx context.Context, contract
 	if pageSize != 0 {
 		req["page_size"] = pageSize
 	}
-	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/api/v1/contract_trigger_hisorders", nil, req, resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+	resp := new(FuturesTriggerOrderHistoryResponse)
+	err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/api/v1/contract_trigger_hisorders", nil, req, resp)
+	return resp, err
 }
 
 // FuturesAuthenticatedHTTPRequest sends authenticated requests to the HTX API
