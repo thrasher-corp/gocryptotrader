@@ -15,6 +15,14 @@ This document outlines the coding, formatting, and testing standards for impleme
     reports an American spelling, use the replacement in the
     [custom dictionary](../contrib/spellcheck/codespell_custom_dictionary.txt)
     unless an external contract requires the original spelling.
+- Apply these guidelines to the code being changed and test the behaviour the
+    change affects. When review feedback or implementation work reveals a
+    missing or ambiguous reusable standard, update these guidelines when the
+    appropriate wording is clear. If the proposed rule or related implementation
+    would materially broaden the current change, identify that scope and confirm
+    whether it belongs here or in separate work. Keep domain-specific behaviour
+    in the relevant implementation and tests rather than presenting it as a
+    project-wide rule.
 
 ## Security
 
@@ -45,6 +53,9 @@ Never relay an empty batch.
 - Use the most appropriate native Go types for struct fields:
   - If the API always returns a number as a bare JSON number, use `float64`.
   - If the API returns a number as a quoted JSON string, or may return either a string or a bare number, use `types.Number` — **do not** use `float64` with the `json:",string"` tag.
+    Use `types.PreciseNumber` instead when accounting or reconciliation needs
+    exact wire-decimal arithmetic. `types.Number.Decimal()` converts through
+    float64 and cannot recover digits lost during decoding.
   - For timestamps, use `time.Time` if Go's JSON unmarshalling supports the format directly; otherwise use `types.Time` for Unix timestamps that require custom unmarshalling.
 - Always use full and descriptive field names for clarity and consistency. Avoid short API-provided aliases unless compatibility requires it.
 - Default to `uint64` for exchange API parameters and structs for integers where appropriate.
@@ -73,6 +84,45 @@ Never relay an empty batch.
         } `json:"brackets"`
     }
 ```
+
+### Exchange Adapter Boundary
+
+- Copy the exchange's reported order information into fields with matching
+  meanings and units. If the generic order type cannot hold some information,
+  explain what is missing and why, or add a suitable field.
+- Exchange code should report what the exchange says happened. The engine or
+  consuming application should calculate trading exposure, profit, hedge
+  results and recovery actions. For example, report a fill of 1 BTC and a fee
+  of 0.001 BTC separately; do not replace the fill with 0.999 BTC for a
+  strategy that wants the amount after fees.
+- Simple conversions are allowed when they keep the same meaning. Examples
+  include reading a status string, separating direction from a signed contract
+  count, and subtracting reported remaining quantity from reported total
+  quantity when their units match. An order request or acknowledgement does
+  not prove a fill.
+  Derive remaining quantity only from authoritative quantities in the same
+  unit. Do not estimate it by converting an outstanding quote budget using
+  the order price, latest fill price or historical average: those prices do
+  not establish the price of future fills. Such estimates belong in consuming
+  applications, not exchange-reported order state.
+- Use the exchange's reported value before reconstructing an equivalent value.
+  If the generic contract cannot represent an authoritative field without
+  losing information, extend it or document exactly what is omitted and how a
+  caller can obtain the full response. Do not overload a field with different
+  units or semantics. In particular, fees belong in fee fields, not execution
+  totals.
+- A quantity field must use the same unit for buys and sells. If an exchange
+  field changes unit with the side, put its values into separate fields with
+  clear units. For example, a buy that fills 1 BTC for 60,000 USDT and a sell
+  that fills 1 BTC for 61,000 USDT both have an executed base amount of 1 BTC;
+  their executed quote amounts are 60,000 and 61,000 USDT respectively. Do not
+  use one field for purchased BTC on buys and received USDT on sells.
+- REST and websocket code must use each generic field for the same kind of
+  information. Keep each fee with its reported currency and distinguish a
+  cumulative fee from a fee for the latest fill. If an update replaces a stored
+  fee, replace its currency with it; do not combine amounts in different
+  currencies. Leave unavailable execution information unknown rather than
+  calculating it from the order request.
 
 ### TestMain usage
 
@@ -223,9 +273,83 @@ Use `require` and `assert` appropriately:
 - When resolving review feedback, fix the underlying source of truth, add
     focused regression coverage, regenerate derived files when applicable and
     avoid unrelated behavioural or formatting changes.
+- Test affected order fields at each conversion boundary where an exchange
+    response is mapped into the generic order type. A shared decoder test is
+    sufficient only when every transport uses that decoder without subsequently
+    reassigning the fields. If REST and websocket decode or assign fields
+    separately, test both paths directly. Test shared helpers once, then add
+    caller tests where inputs, units or post-processing differ. Use distinct
+    fixture values that fail when an assignment is removed or reads the wrong
+    field, and include omitted optional fields where practical. Unaffected
+    transports and unrelated fields need no new coverage.
+    When pinning an authoritative execution total, include realistic contract
+    units or a rounded average so quantity times average cannot reproduce that
+    total. Cover zero fills wherever a derived average divides by filled quantity.
+    For completion reasons with multiple documented spellings, test the aliases
+    through each affected transport and keep their mapped semantics consistent.
+    Fee-currency fixtures must distinguish the reported currency from both
+    pair currencies where supported. Otherwise cover reported base and quote
+    fees separately, so guessing either currency from the pair fails a test.
+- In merge and upsert logic, keep a stored value when an update omits it unless
+    a newer fill makes the value stale. For example, when a stored order has
+    filled 0.01 BTC for 600 USDT and a new update reports 0.02 BTC filled without
+    a quote total or average, clear only the old total and average. Recalculate
+    an average only from supplied fill values with matching units. Keep the fee
+    and remaining quantity, and keep all fill values on a status-only update.
+    Document which zero-valued fields mean unknown rather than none.
+    Do not roll cumulative execution or its metadata back when delayed snapshots
+    arrive. Test decreasing fills with older, equal and missing timestamps,
+    timestamp-only stale updates, and newer fill progress. Preserve previously
+    unseen individual trades without replacing newer snapshots or known fills.
+    Do not order snapshots by a timestamp that mixes local observation times
+    with exchange times or different timestamp resolutions. Use cumulative
+    execution and terminal lifecycle state, or a separate authoritative ordering
+    field. Allow only float rounding differences when comparing derived
+    cumulative quantities; do not use a fixed tolerance that hides small fills.
+    Test clock skew, coarse venue timestamps, equal-fill amendments, terminal
+    metadata enrichment and explicit timestamps for local state changes.
+    For execution derived by subtracting quantities, scale rounding allowances
+    to both operands on both snapshots. Test amendments that increase and
+    decrease the total, including a modify reply before the next venue update,
+    and repeated ingestion. Retaining rounding from a larger order after it
+    shrinks must not cause later confirmations to be rejected.
+    A modification that replaces an existing order ID starts a new execution
+    history: clear the old fills, totals, average and fees. Preserve them for
+    in-place modifications and when assigning an ID to an unidentified record.
+- When an API field multiplexes a caller identifier and exchange-generated
+    source markers, use its documented discriminator. Test both representations
+    through every affected REST and websocket mapping, not just the parser.
+- When an external API deprecates a mapped field, verify the replacement against
+    current authoritative documentation and, where credentials are required,
+    distinguish documented behaviour from live verification. If the replacement
+    contains more information than the generic type can hold, preserve it in a
+    suitable field or explain exactly what is omitted and how callers can get
+    it. For example, fees of 0.001 BTC and 0.20 USDT cannot be added or stored in
+    one `Fee` and `FeeAsset` pair without losing their currencies.
 - Full test coverage is preferable; mock external calls as needed.
+- For order mappings fed by per-fill records, include a later fill of an
+    already partially filled order. Use different fill prices, quantities and
+    fees to distinguish the latest fill from cumulative execution, and verify
+    unavailable cumulative values remain unknown.
+    Preserve individual fills in `Trades`; a fill alone does not establish the
+    order's total quantity, status, average price or cumulative fee. When the
+    payload includes cumulative quantities, decode them and the fill quantity
+    as `types.PreciseNumber` and compare their `Decimal()` values to distinguish
+    a sole fill from a later fill, not float equality or a tolerance that could
+    hide earlier fills on large orders.
 - Distinguish mocked verification from live API verification when reporting results. A credential-gated test that skips does not establish endpoint compatibility; explicitly report the unverified behaviour without exposing credentials.
 - All unit tests must pass before finalising changes.
+- Prefer `testing/synctest` for self-contained concurrent unit tests rather
+    than real-time sleeps, polling or arbitrary deadlines. Create the relevant
+    goroutines, channels, timers and other synchronisation resources inside
+    the bubble. Use `synctest.Wait()` to establish quiescence, then assert the
+    expected events or state; quiescence alone does not prove success. Keep
+    running these tests with race detection.
+- When real network I/O, external processes or goroutines outside the bubble
+    prevent isolation, use bounded waits rather than unbounded receives or
+    arbitrary sleeps. Synchronous tests do not need a bubble merely to inspect
+    completed work: for a test-owned buffered channel, assert the event count
+    after the handler returns and before receiving.
 - For interface-valued inputs with nil guards, cover both a nil interface and
     a typed-nil concrete value. For format detection and segmented-name rules,
     include missing metadata, malformed inputs and multiple separators so the
@@ -282,6 +406,7 @@ Use `require` and `assert` appropriately:
 ## Comments
 
 - API methods and public types must have comments for GoDoc.
+- Start doc comments with the declaration's name, including those on unexported helpers.
 - Comments should explain **why** the code is doing something, not **what** it's doing, which should be self-explanatory.
 - Self-explanatory comments must be avoided.
 - Only retain comments for complex logic or where external behaviour needs clarification.

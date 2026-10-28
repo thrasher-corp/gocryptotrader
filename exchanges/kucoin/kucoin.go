@@ -2560,7 +2560,7 @@ func IntervalFromString(interval string) (kline.Interval, error) {
 func (e *Exchange) StringToOrderStatus(status string) (order.Status, error) {
 	switch status {
 	case "match":
-		return order.Filled, nil
+		return order.PartiallyFilled, nil
 	case "open":
 		return order.Open, nil
 	case "done":

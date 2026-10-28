@@ -819,7 +819,8 @@ func (e *Exchange) readBackMarketOrder(ctx context.Context, resp *order.SubmitRe
 		resp.RemainingAmount = quantity - placed.ExecutedQty.Float64()
 	}
 	resp.AverageExecutedPrice = averageExecutedPrice(placed)
-	resp.Cost = placed.CummulativeQuoteQty.Float64()
+	resp.ExecutedAmount = placed.ExecutedQty.Float64()
+	resp.ExecutedQuoteAmount = placed.CummulativeQuoteQty.Float64()
 	if updated := placed.UpdateTime.Time(); !updated.IsZero() {
 		resp.LastUpdated = updated
 	}
@@ -1108,14 +1109,9 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			lastUpdated = result.Time.Time()
 		}
 		detail := &order.Detail{
-			Price:       result.Price.Float64(),
-			Amount:      result.OrigQty.Float64(),
-			QuoteAmount: result.CummulativeQuoteQty.Float64(),
-			// Cost is the quote actually spent (cumulative filled value); the rpc server maps
-			// Detail.Cost to the proto cost field, so a market order's real executed cost reaches
-			// the caller instead of a zero. Price alone is the protective limit, not the average.
-			Cost:                 result.CummulativeQuoteQty.Float64(),
-			CostAsset:            pair.Quote,
+			Price:                result.Price.Float64(),
+			Amount:               result.OrigQty.Float64(),
+			ExecutedQuoteAmount:  result.CummulativeQuoteQty.Float64(),
 			AverageExecutedPrice: averageExecutedPrice(result),
 			TriggerPrice:         result.StopPrice.Float64(),
 			ExecutedAmount:       result.ExecutedQty.Float64(),
@@ -1272,24 +1268,20 @@ func (e *Exchange) orderDetailFromRESTOrder(o *OrderDetail, fallbackPair currenc
 		Amount:               o.OrigQty.Float64(),
 		AverageExecutedPrice: averageExecutedPrice(o),
 		TriggerPrice:         o.StopPrice.Float64(),
-		QuoteAmount:          o.CummulativeQuoteQty.Float64(),
-		// Cost is the quote actually spent (cumulative filled value), mapped to the proto cost
-		// field by the rpc server; without it a market order reports a zero cost to the caller.
-		Cost:            o.CummulativeQuoteQty.Float64(),
-		CostAsset:       pair.Quote,
-		ExecutedAmount:  o.ExecutedQty.Float64(),
-		RemainingAmount: o.OrigQty.Float64() - o.ExecutedQty.Float64(),
-		Exchange:        e.Name,
-		OrderID:         o.OrderID,
-		ClientOrderID:   o.ClientOrderID,
-		Type:            oType,
-		Side:            oSide,
-		Status:          oStatus,
-		AssetType:       asset.Spot,
-		Date:            o.Time.Time(),
-		LastUpdated:     lastUpdated,
-		Pair:            pair,
-		TimeInForce:     tif,
+		ExecutedQuoteAmount:  o.CummulativeQuoteQty.Float64(),
+		ExecutedAmount:       o.ExecutedQty.Float64(),
+		RemainingAmount:      o.OrigQty.Float64() - o.ExecutedQty.Float64(),
+		Exchange:             e.Name,
+		OrderID:              o.OrderID,
+		ClientOrderID:        o.ClientOrderID,
+		Type:                 oType,
+		Side:                 oSide,
+		Status:               oStatus,
+		AssetType:            asset.Spot,
+		Date:                 o.Time.Time(),
+		LastUpdated:          lastUpdated,
+		Pair:                 pair,
+		TimeInForce:          tif,
 	}, nil
 }
 

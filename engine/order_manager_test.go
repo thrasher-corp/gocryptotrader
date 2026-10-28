@@ -449,9 +449,10 @@ func TestCancelOrder(t *testing.T) {
 	}
 
 	o := &order.Detail{
-		Exchange: testExchange,
-		OrderID:  "1337",
-		Status:   order.New,
+		Exchange:    testExchange,
+		OrderID:     "1337",
+		Status:      order.New,
+		LastUpdated: time.Now().Add(-time.Hour),
 	}
 	err = m.orderStore.add(o)
 	if err != nil {
@@ -474,8 +475,13 @@ func TestCancelOrder(t *testing.T) {
 		AssetType: asset.Spot,
 		Pair:      btcusdPair,
 	}
+	beforeCancel := time.Now()
 	err = m.Cancel(t.Context(), cancel)
 	assert.NoError(t, err)
+	assert.False(t, o.LastUpdated.Before(beforeCancel), "successful local cancellation should stamp its update time")
+	closeTime := beforeCancel.Add(-30 * time.Millisecond)
+	require.NoError(t, m.orderStore.updateExisting(&order.Detail{Exchange: testExchange, OrderID: "1337", Status: order.Cancelled, CloseTime: closeTime, LastUpdated: closeTime}), "older exchange confirmation must enrich the locally cancelled order")
+	assert.Equal(t, closeTime, o.CloseTime, "exchange confirmation should preserve its close time despite the newer local stamp")
 
 	if o.Status != order.Cancelled {
 		t.Error("Failed to cancel")
@@ -747,6 +753,31 @@ func TestSubmitOrderAlreadyInStore(t *testing.T) {
 	if assert.NoError(t, err, "SumbitFakeOrder should not error that the order is already in the store") {
 		assert.Equal(t, d.ClientOrderID, resp.ClientOrderID, "resp should contain the ClientOrderID from the store")
 	}
+}
+
+func TestOrderManagerModifyReplacementExecution(t *testing.T) {
+	m := OrdersSetup(t)
+	require.NoError(t, m.orderStore.add(&order.Detail{
+		Exchange: testExchange, AssetType: asset.Spot, Pair: btcusdPair, OrderID: "original", Price: 100,
+		Amount: 10, ExecutedAmount: 6, RemainingAmount: 4, ExecutedQuoteAmount: 600,
+		AverageExecutedPrice: 100, Fee: 0.6, FeeAsset: currency.USD,
+		Trades: []order.TradeHistory{{TID: "old-fill", Amount: 6}}, Status: order.PartiallyFilled,
+	}), "original partially filled order must be stored")
+	response, err := m.Modify(t.Context(), &order.Modify{Exchange: testExchange, OrderID: "original", AssetType: asset.Spot, Type: order.Limit, Price: 100, Amount: 10})
+	require.NoError(t, err, "order manager modification must succeed")
+	stored, err := m.orderStore.getByExchangeAndID(testExchange, response.OrderID)
+	require.NoError(t, err, "replacement must be reachable under its new order ID")
+	assert.Zero(t, stored.ExecutedAmount, "replacement should start its own execution history")
+	assert.Zero(t, stored.ExecutedQuoteAmount, "replacement should not inherit the old quote total")
+	assert.Zero(t, stored.AverageExecutedPrice, "replacement should not inherit the old average")
+	assert.Zero(t, stored.Fee, "replacement should not inherit the old fee")
+	assert.True(t, stored.FeeAsset.IsEmpty(), "replacement should not inherit the old fee currency")
+	assert.Empty(t, stored.Trades, "replacement should not inherit the old trades")
+	require.NoError(t, m.orderStore.updateExisting(&order.Detail{Exchange: testExchange, OrderID: response.OrderID, Amount: 10, ExecutedAmount: 1, RemainingAmount: 9, Status: order.Cancelled}), "replacement cancellation with a smaller cumulative fill must merge")
+	stored, err = m.orderStore.getByExchangeAndID(testExchange, response.OrderID)
+	require.NoError(t, err, "updated replacement must remain reachable")
+	assert.Equal(t, order.Cancelled, stored.Status, "replacement should reach its own terminal state")
+	assert.Equal(t, 1.0, stored.ExecutedAmount, "replacement should retain only its own cumulative execution")
 }
 
 func TestOrderManager_Modify(t *testing.T) {
