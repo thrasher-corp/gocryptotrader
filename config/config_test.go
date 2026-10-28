@@ -1575,7 +1575,7 @@ func TestReadVersion14ConfigFromFile(t *testing.T) {
 	require.NoError(t, err, "ReadFile must load the config fixture")
 	var expected Config
 	require.NoError(t, json.Unmarshal(data, &expected), "Unmarshal must decode the current config fixture")
-	require.Equal(t, 17, expected.Version, "Config.Version must use version 17")
+	require.Equal(t, 18, expected.Version, "Config.Version must use version 18")
 
 	var saved map[string]json.RawMessage
 	require.NoError(t, json.Unmarshal(data, &saved), "Unmarshal must preserve saved config fields")
@@ -1592,7 +1592,7 @@ func TestReadVersion14ConfigFromFile(t *testing.T) {
 
 	var migrated Config
 	require.NoError(t, migrated.ReadConfigFromFile(path, true), "ReadConfigFromFile must upgrade the version 14 config")
-	assert.Equal(t, expected.Version, migrated.Version, "ReadConfigFromFile should advance the config to version 17")
+	assert.Equal(t, expected.Version, migrated.Version, "ReadConfigFromFile should advance the config to version 18")
 	assert.Equal(t, expected.Exchanges, migrated.Exchanges, "ReadConfigFromFile should remove BitMEX credentials while preserving all other exchanges")
 	assert.Equal(t, expected.Currency, migrated.Currency, "ReadConfigFromFile should preserve currency settings")
 }
@@ -1604,7 +1604,7 @@ func TestReadVersion16OrderbookBufferConfigFromFile(t *testing.T) {
 	require.NoError(t, err, "ReadFile must load the current config fixture")
 	var expected Config
 	require.NoError(t, json.Unmarshal(data, &expected), "Unmarshal must decode the current config fixture")
-	require.Equal(t, 17, expected.Version, "Config.Version must use version 17")
+	require.Equal(t, 18, expected.Version, "Config.Version must use version 18")
 
 	var saved map[string]json.RawMessage
 	require.NoError(t, json.Unmarshal(data, &saved), "Unmarshal must preserve saved config fields")
@@ -1634,13 +1634,73 @@ func TestReadVersion16OrderbookBufferConfigFromFile(t *testing.T) {
 
 	var migrated Config
 	require.NoError(t, migrated.ReadConfigFromFile(path, true), "ReadConfigFromFile must upgrade the version 16 config")
-	assert.Equal(t, expected.Version, migrated.Version, "ReadConfigFromFile should advance the config to version 17")
+	assert.Equal(t, expected.Version, migrated.Version, "ReadConfigFromFile should advance the config to version 18")
 	assert.Equal(t, expected.Exchanges, migrated.Exchanges, "ReadConfigFromFile should preserve exchanges apart from obsolete buffer settings")
 
 	var output bytes.Buffer
 	require.NoError(t, migrated.Save(func() (io.Writer, error) { return &output, nil }), "Save must serialise the migrated config")
 	assert.NotContains(t, output.String(), `"websocketBufferEnabled"`, "Save should omit removed buffer enabled settings")
 	assert.NotContains(t, output.String(), `"websocketBufferLimit"`, "Save should omit removed buffer limit settings")
+}
+
+// TestReadVersion17LbankEndpointFromFile checks a version 17 config saved with LBank's previous default REST host loads
+// without it, so the current default applies, while a custom host and every other exchange are kept
+func TestReadVersion17LbankEndpointFromFile(t *testing.T) {
+	t.Parallel()
+
+	data, err := os.ReadFile(TestFile)
+	require.NoError(t, err, "ReadFile must load the config fixture")
+	var expected Config
+	require.NoError(t, json.Unmarshal(data, &expected), "Unmarshal must decode the current config fixture")
+
+	for _, tc := range []struct {
+		name     string
+		endpoint string
+		exp      map[string]string
+	}{
+		{name: "previous default", endpoint: "https://api.lbkex.com", exp: map[string]string{}},
+		{name: "custom", endpoint: "https://proxy.example/lbank", exp: map[string]string{"RestSpotURL": "https://proxy.example/lbank"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var saved map[string]json.RawMessage
+			require.NoError(t, json.Unmarshal(data, &saved), "Unmarshal must preserve saved config fields")
+			var exchanges []map[string]json.RawMessage
+			require.NoError(t, json.Unmarshal(saved["exchanges"], &exchanges), "Unmarshal must preserve saved exchanges")
+			var lbank int
+			for i := range exchanges {
+				if string(exchanges[i]["name"]) == `"Lbank"` {
+					lbank = i
+				}
+			}
+			var api map[string]json.RawMessage
+			require.NoError(t, json.Unmarshal(exchanges[lbank]["api"], &api), "Unmarshal must decode LBank's API settings")
+			endpoints, err := json.Marshal(map[string]string{"RestSpotURL": tc.endpoint})
+			require.NoError(t, err, "Marshal must encode LBank's endpoints")
+			api["urlEndpoints"] = endpoints
+			exchanges[lbank]["api"], err = json.Marshal(api)
+			require.NoError(t, err, "Marshal must encode LBank's API settings")
+			saved["exchanges"], err = json.Marshal(exchanges)
+			require.NoError(t, err, "Marshal must encode the saved exchanges")
+			saved["version"] = json.RawMessage(`17`)
+			v17, err := json.Marshal(saved)
+			require.NoError(t, err, "Marshal must encode the version 17 config")
+			path := filepath.Join(t.TempDir(), "config.json")
+			require.NoError(t, os.WriteFile(path, v17, 0o600), "WriteFile must save the version 17 config")
+
+			var migrated Config
+			require.NoError(t, migrated.ReadConfigFromFile(path, true), "ReadConfigFromFile must upgrade the version 17 config")
+			assert.Equal(t, 18, migrated.Version, "ReadConfigFromFile should advance the config to version 18")
+			exch, err := migrated.GetExchangeConfig("Lbank")
+			require.NoError(t, err, "GetExchangeConfig must find LBank")
+			assert.Equal(t, tc.exp, exch.API.Endpoints, "ReadConfigFromFile should drop only the previous default REST host")
+			for i := range migrated.Exchanges {
+				if migrated.Exchanges[i].Name != "Lbank" {
+					assert.Equalf(t, expected.Exchanges[i], migrated.Exchanges[i], "ReadConfigFromFile should leave %s unchanged", migrated.Exchanges[i].Name)
+				}
+			}
+		})
+	}
 }
 
 func TestReadVersion15ConfigRetainsSafeGCTScriptSubLogger(t *testing.T) {
@@ -1652,7 +1712,7 @@ func TestReadVersion15ConfigRetainsSafeGCTScriptSubLogger(t *testing.T) {
 
 	var migrated Config
 	require.NoError(t, migrated.ReadConfigFromFile(path, true), "ReadConfigFromFile must upgrade the version 15 config")
-	assert.Equal(t, 17, migrated.Version, "ReadConfigFromFile should advance the config to version 17")
+	assert.Equal(t, 18, migrated.Version, "ReadConfigFromFile should advance the config to version 18")
 	require.Len(t, migrated.Logging.SubLoggers, 1, "ReadConfigFromFile must preserve the obsolete GCTScript sublogger")
 	assert.Equal(t, "GCTSCRIPT", migrated.Logging.SubLoggers[0].Name, "ReadConfigFromFile should preserve the obsolete sublogger name")
 	require.NoError(t, log.SetupSubLoggers(migrated.Logging.SubLoggers), "SetupSubLoggers must safely ignore the obsolete GCTScript sublogger")
