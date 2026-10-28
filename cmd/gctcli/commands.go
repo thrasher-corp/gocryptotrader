@@ -1331,6 +1331,10 @@ var submitOrderCommand = &cli.Command{
 		},
 		&cli.StringFlag{
 			Name:  "client_id",
+			Usage: "the optional exchange client or account ID",
+		},
+		&cli.StringFlag{
+			Name:  "client_order_id",
 			Usage: "the optional client order ID",
 		},
 		&cli.StringFlag{
@@ -1442,13 +1446,14 @@ func submitOrder(c *cli.Context) error {
 			Base:      p.Base.String(),
 			Quote:     p.Quote.String(),
 		},
-		Side:       orderSide,
-		OrderType:  orderType,
-		Amount:     amount,
-		Price:      price,
-		ClientId:   clientID,
-		AssetType:  assetType,
-		MarginType: marginType,
+		Side:          orderSide,
+		OrderType:     orderType,
+		Amount:        amount,
+		Price:         price,
+		ClientId:      clientID,
+		ClientOrderId: c.String("client_order_id"),
+		AssetType:     assetType,
+		MarginType:    marginType,
 	})
 	if err != nil {
 		return err

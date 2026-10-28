@@ -3686,6 +3686,7 @@ type SubmitOrderRequest struct {
 	ClientId      string                 `protobuf:"bytes,7,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
 	AssetType     string                 `protobuf:"bytes,8,opt,name=asset_type,json=assetType,proto3" json:"asset_type,omitempty"`
 	MarginType    string                 `protobuf:"bytes,9,opt,name=margin_type,json=marginType,proto3" json:"margin_type,omitempty"`
+	ClientOrderId string                 `protobuf:"bytes,10,opt,name=client_order_id,json=clientOrderId,proto3" json:"client_order_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3779,6 +3780,13 @@ func (x *SubmitOrderRequest) GetAssetType() string {
 func (x *SubmitOrderRequest) GetMarginType() string {
 	if x != nil {
 		return x.MarginType
+	}
+	return ""
+}
+
+func (x *SubmitOrderRequest) GetClientOrderId() string {
+	if x != nil {
+		return x.ClientOrderId
 	}
 	return ""
 }
@@ -14982,7 +14990,7 @@ const file_rpc_proto_rawDesc = "" +
 	"\bexchange\x18\x01 \x01(\tR\bexchange\x12\x19\n" +
 	"\border_id\x18\x02 \x01(\tR\aorderId\x12(\n" +
 	"\x04pair\x18\x03 \x01(\v2\x14.gctrpc.CurrencyPairR\x04pair\x12\x14\n" +
-	"\x05asset\x18\x04 \x01(\tR\x05asset\"\x98\x02\n" +
+	"\x05asset\x18\x04 \x01(\tR\x05asset\"\xc0\x02\n" +
 	"\x12SubmitOrderRequest\x12\x1a\n" +
 	"\bexchange\x18\x01 \x01(\tR\bexchange\x12(\n" +
 	"\x04pair\x18\x02 \x01(\v2\x14.gctrpc.CurrencyPairR\x04pair\x12\x12\n" +
@@ -14995,7 +15003,9 @@ const file_rpc_proto_rawDesc = "" +
 	"\n" +
 	"asset_type\x18\b \x01(\tR\tassetType\x12\x1f\n" +
 	"\vmargin_type\x18\t \x01(\tR\n" +
-	"marginType\"e\n" +
+	"marginType\x12&\n" +
+	"\x0fclient_order_id\x18\n" +
+	" \x01(\tR\rclientOrderId\"e\n" +
 	"\x06Trades\x12\x16\n" +
 	"\x06amount\x18\x01 \x01(\x01R\x06amount\x12\x14\n" +
 	"\x05price\x18\x02 \x01(\x01R\x05price\x12\x10\n" +

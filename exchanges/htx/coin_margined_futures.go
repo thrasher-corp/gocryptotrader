@@ -733,7 +733,10 @@ func (e *Exchange) PlaceSwapBatchOrders(ctx context.Context, data *SwapBatchOrde
 	}
 	resp := new(SwapBatchOrderResponse)
 	req := make(map[string]any)
-	if len(data.Orders) > 10 || len(data.Orders) == 0 {
+	if len(data.Orders) == 0 {
+		return nil, errEmptyOrderBatch
+	}
+	if len(data.Orders) > 10 {
 		return resp, errBatchOrderLimitExceeded
 	}
 	for x := range data.Orders {

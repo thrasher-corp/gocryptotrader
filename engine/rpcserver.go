@@ -1214,7 +1214,7 @@ func (s *RPCServer) SubmitOrder(ctx context.Context, r *gctrpc.SubmitOrderReques
 		Amount:        r.Amount,
 		Price:         r.Price,
 		ClientID:      r.ClientId,
-		ClientOrderID: r.ClientId,
+		ClientOrderID: r.ClientOrderId,
 		Exchange:      r.Exchange,
 		AssetType:     a,
 	}

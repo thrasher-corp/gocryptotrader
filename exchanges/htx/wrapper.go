@@ -1298,7 +1298,6 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	}
 
 	var orderID string
-	clientOrderID := s.ClientOrderID
 	switch s.AssetType {
 	case asset.Spot:
 		accountID, err := strconv.ParseUint(s.ClientID, 10, 64)
@@ -1309,12 +1308,9 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		if s.Side.IsShort() {
 			direction = "sell"
 		}
-		if clientOrderID == s.ClientID { // RPC copies the account ID into both fields; HTX requires unique client order IDs.
-			clientOrderID = ""
-		}
 		params := SpotOrderRequest{
 			AccountID:     accountID,
-			ClientOrderID: clientOrderID,
+			ClientOrderID: s.ClientOrderID,
 			Amount:        s.GetTradeAmount(e.GetTradingRequirements()),
 			Source:        "api",
 			Symbol:        s.Pair,
@@ -1501,7 +1497,6 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	if err != nil {
 		return nil, err
 	}
-	resp.ClientOrderID = clientOrderID
 	resp.Status = order.New
 	return resp, nil
 }

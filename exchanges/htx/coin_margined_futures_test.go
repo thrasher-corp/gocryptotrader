@@ -298,12 +298,14 @@ func TestPlaceSwapBatchOrders(t *testing.T) {
 		name       string
 		count      int
 		nilRequest bool
+		nilOrders  bool
 		priceType  string
 		wantErr    error
 	}
 	for _, tc := range []testCase{
 		{name: "nil request", nilRequest: true, wantErr: common.ErrNilPointer},
-		{name: "empty batch", wantErr: errBatchOrderLimitExceeded},
+		{name: "nil orders", nilOrders: true, wantErr: errEmptyOrderBatch},
+		{name: "empty batch", wantErr: errEmptyOrderBatch},
 		{name: "too many orders", count: 11, wantErr: errBatchOrderLimitExceeded},
 		{name: "limit order", count: 1, priceType: "limit"},
 		{name: "post-only order", count: 1, priceType: "post_only"},
@@ -337,6 +339,9 @@ func TestPlaceSwapBatchOrders(t *testing.T) {
 			var req *SwapBatchOrderRequest
 			if !tc.nilRequest {
 				req = &SwapBatchOrderRequest{Orders: make([]SwapBatchOrder, tc.count)}
+				if tc.nilOrders {
+					req.Orders = nil
+				}
 				for i := range req.Orders {
 					req.Orders[i] = SwapBatchOrder{ContractCode: "ETH-USD", Price: 5, Volume: 1, Direction: "buy", Offset: "open", LeverageRate: 1, OrderPriceType: tc.priceType}
 				}

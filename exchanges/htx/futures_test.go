@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strconv"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -507,23 +508,71 @@ func TestFuturesOrder(t *testing.T) {
 
 func TestFuturesPlaceBatchOrder(t *testing.T) {
 	t.Parallel()
-	t.Run("nil order", func(t *testing.T) {
-		t.Parallel()
-		_, err := e.FuturesPlaceBatchOrder(t.Context(), []*FuturesBatchOrderRequest{nil})
-		require.ErrorIs(t, err, common.ErrNilPointer, "batch placement must reject a nil order")
-	})
-	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/api/v1/contract_batchorder", emptySuccessResponse, nil)
-	_, err := h.FuturesPlaceBatchOrder(t.Context(), []*FuturesBatchOrderRequest{{
-		Symbol:         "BTC",
-		ContractType:   "quarter",
-		Price:          5,
-		Volume:         1,
-		Direction:      "buy",
-		Offset:         "open",
-		LeverageRate:   1,
-		OrderPriceType: "limit",
-	}})
-	require.NoError(t, err, "FPlaceBatchOrder must not error")
+	type testCase struct {
+		name     string
+		count    int
+		nilBatch bool
+		nilOrder bool
+		wantErr  error
+	}
+	for _, tc := range []testCase{
+		{name: "nil batch", nilBatch: true, wantErr: errEmptyOrderBatch},
+		{name: "empty batch", wantErr: errEmptyOrderBatch},
+		{name: "too many orders", count: 11, wantErr: errBatchOrderLimitExceeded},
+		{name: "nil order", count: 1, nilOrder: true, wantErr: common.ErrNilPointer},
+		{name: "single order", count: 1},
+		{name: "maximum batch", count: 10},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var calls atomic.Int32
+			h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/api/v1/contract_batchorder", emptySuccessResponse, func(r *http.Request) {
+				calls.Add(1)
+				type batchPayload struct {
+					Orders []map[string]any `json:"orders_data"`
+				}
+				var payload batchPayload
+				if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&payload), "batch payload should decode") {
+					return
+				}
+				assert.Len(t, payload.Orders, tc.count, "batch payload should retain every order")
+				for _, row := range payload.Orders {
+					assert.Equal(t, "BTC", row["symbol"], "underlying currency should be retained")
+					assert.Equal(t, "quarter", row["contract_type"], "contract type should be retained")
+					assert.Equal(t, float64(5), row["price"], "order price should be retained")
+					assert.Equal(t, float64(1), row["volume"], "order volume should be retained")
+					assert.Equal(t, "buy", row["direction"], "order direction should be retained")
+					assert.Equal(t, "open", row["offset"], "order offset should be retained")
+				}
+			})
+			var orders []*FuturesBatchOrderRequest
+			if !tc.nilBatch {
+				orders = make([]*FuturesBatchOrderRequest, tc.count)
+				if !tc.nilOrder {
+					for i := range orders {
+						orders[i] = &FuturesBatchOrderRequest{
+							Symbol:         "BTC",
+							ContractType:   "quarter",
+							Price:          5,
+							Volume:         1,
+							Direction:      "buy",
+							Offset:         "open",
+							LeverageRate:   1,
+							OrderPriceType: "limit",
+						}
+					}
+				}
+			}
+			_, err := h.FuturesPlaceBatchOrder(t.Context(), orders)
+			if tc.wantErr != nil {
+				require.ErrorIs(t, err, tc.wantErr, "invalid batch must return the expected validation error")
+				assert.Zero(t, calls.Load(), "invalid batch should not send a request")
+				return
+			}
+			require.NoError(t, err, "valid batch must be accepted")
+			assert.Equal(t, int32(1), calls.Load(), "valid batch should send one request")
+		})
+	}
 }
 
 func TestFuturesCancelOrder(t *testing.T) {

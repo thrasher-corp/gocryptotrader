@@ -27,6 +27,7 @@ var (
 	errUnexpectedBatchResponseCount  = errors.New("unexpected batch response count")
 	errInvalidOrderPriceType         = errors.New("invalid order price type")
 	errBatchOrderLimitExceeded       = errors.New("a maximum of 10 batch orders is supported")
+	errEmptyOrderBatch               = errors.New("order batch must not be empty")
 	errMixedOrderIdentifiers         = errors.New("order IDs and client order IDs must not be supplied together")
 	errCancelOrderLimitExceeded      = errors.New("cancellation order limit exceeded")
 	errContractCodeLimitExceeded     = errors.New("between 1 and 10 contract codes must be supplied")

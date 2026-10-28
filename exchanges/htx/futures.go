@@ -781,7 +781,10 @@ func (e *Exchange) FuturesOrder(ctx context.Context, contractCode currency.Pair,
 func (e *Exchange) FuturesPlaceBatchOrder(ctx context.Context, data []*FuturesBatchOrderRequest) (*FuturesBatchOrderResponse, error) {
 	resp := new(FuturesBatchOrderResponse)
 	req := make(map[string]any)
-	if len(data) > 10 || len(data) == 0 {
+	if len(data) == 0 {
+		return nil, errEmptyOrderBatch
+	}
+	if len(data) > 10 {
 		return resp, errBatchOrderLimitExceeded
 	}
 	for x := range data {
