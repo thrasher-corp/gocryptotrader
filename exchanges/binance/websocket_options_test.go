@@ -57,7 +57,7 @@ func TestWebsocketHandleOptionsData(t *testing.T) {
 	useTestOrderbookSync(ex, func(context.Context, currency.Pair, asset.Item) (*orderbook.Book, error) {
 		return nil, errTestNoSnapshot
 	})
-	require.NoError(t, handleFramesWithin(t.Context(), ex.wsHandleOptionsData, fixtureFrames(t, "testdata/wsOptions.json")), "handling the fixture must return")
+	require.NoError(t, handleFramesWithin(t.Context(), ex.wsHandleOptionsData, fixtureFrames(t, "testdata/wsOptions.jsonl")), "handling the fixture must return")
 	exp := []any{
 		&OptionsBookTicker{
 			EventType: "bookTicker", UpdateID: 42788078076, Symbol: "BTC-261030-85000-C", BestBidPrice: 3645, BestBidQuantity: 2.17, BestAskPrice: 3675,
@@ -233,7 +233,7 @@ func TestHandleOptionsErrors(t *testing.T) {
 func TestWebsocketHandleOptionsUserData(t *testing.T) {
 	t.Parallel()
 	ex := newDerivativesTestExchange(t)
-	for _, frame := range fixtureFrames(t, "testdata/wsOptionsUserData.json") {
+	for _, frame := range fixtureFrames(t, "testdata/wsOptionsUserData.jsonl") {
 		if isEventFrame(frame, "listenKeyExpired") {
 			continue // TestProcessListenKeyExpired renews the stream over a connection
 		}
@@ -353,7 +353,7 @@ func TestOptionsPayloadDecoding(t *testing.T) {
 		exp     any
 	}{
 		{
-			name: "diff depth", fixture: "testdata/wsOptions.json", key: "btc-261030-85000-c@depth@100ms", target: new(OptionsDepthUpdate),
+			name: "diff depth", fixture: "testdata/wsOptions.jsonl", key: "btc-261030-85000-c@depth@100ms", target: new(OptionsDepthUpdate),
 			exp: &OptionsDepthUpdate{
 				EventType: "depthUpdate", EventTime: fixtureTime(1791283337817), TransactionTime: fixtureTime(1791283337764), Symbol: "BTC-261030-85000-C",
 				FirstUpdateID: 42788077974, FinalUpdateID: 42788078076, PreviousFinalUpdateID: 42788074837,
@@ -362,7 +362,7 @@ func TestOptionsPayloadDecoding(t *testing.T) {
 			},
 		},
 		{
-			name: "ticker", fixture: "testdata/wsOptions.json", key: "btc-261030-85000-c@optionTicker", target: new(OptionsTicker),
+			name: "ticker", fixture: "testdata/wsOptions.jsonl", key: "btc-261030-85000-c@optionTicker", target: new(OptionsTicker),
 			exp: &OptionsTicker{
 				EventType: "24hrTicker", EventTime: fixtureTime(1791283461766), Symbol: "BTC-261030-85000-C", PriceChange: -244, PriceChangePercent: -0.0625,
 				WeightedAveragePrice: 3650.092, LastPrice: 3660, LastQuantity: 1.25, OpenPrice: 3904, HighPrice: 4085, LowPrice: 3540, TradingVolumeInContracts: 175,
@@ -371,14 +371,14 @@ func TestOptionsPayloadDecoding(t *testing.T) {
 			},
 		},
 		{
-			name: "trade", fixture: "testdata/wsOptions.json", key: "btcusdt@optionTrade", target: new(WebsocketOptionsTrade),
+			name: "trade", fixture: "testdata/wsOptions.jsonl", key: "btcusdt@optionTrade", target: new(WebsocketOptionsTrade),
 			exp: &WebsocketOptionsTrade{
 				EventType: "trade", EventTime: fixtureTime(1791283461747), TradeCompletedTime: fixtureTime(1791283461746), Symbol: "BTC-261030-85000-C",
 				TradeID: 467, Price: 3660, Quantity: 1, TradeType: "MARKET", Direction: "BUY", IsBuyerMaker: true,
 			},
 		},
 		{
-			name: "kline", fixture: "testdata/wsOptions.json", key: "btc-261030-85000-c@kline_1m", target: new(OptionsKline),
+			name: "kline", fixture: "testdata/wsOptions.jsonl", key: "btc-261030-85000-c@kline_1m", target: new(OptionsKline),
 			exp: &OptionsKline{
 				EventType: "kline", EventTime: fixtureTime(1791283502013), Symbol: "BTC-261030-85000-C",
 				Kline: OptionsCandle{
@@ -389,7 +389,7 @@ func TestOptionsPayloadDecoding(t *testing.T) {
 			},
 		},
 		{
-			name: "balance and position update", fixture: "testdata/wsOptionsUserData.json", key: "BALANCE_POSITION_UPDATE", target: new(OptionsBalancePositionUpdate),
+			name: "balance and position update", fixture: "testdata/wsOptionsUserData.jsonl", key: "BALANCE_POSITION_UPDATE", target: new(OptionsBalancePositionUpdate),
 			exp: &OptionsBalancePositionUpdate{
 				EventType: "BALANCE_POSITION_UPDATE", EventTime: fixtureTime(1762917544216), TransactionTime: fixtureTime(1762917544206), EventReasonType: "ORDER",
 				Balances:  []OptionsBalanceUpdate{{MarginAsset: currency.USDT, AccountBalance: 10000471.379409, BalanceChange: -120.5}},
@@ -397,7 +397,7 @@ func TestOptionsPayloadDecoding(t *testing.T) {
 			},
 		},
 		{
-			name: "order trade update", fixture: "testdata/wsOptionsUserData.json", key: "ORDER_TRADE_UPDATE", target: new(OptionsOrderTradeUpdate),
+			name: "order trade update", fixture: "testdata/wsOptionsUserData.jsonl", key: "ORDER_TRADE_UPDATE", target: new(OptionsOrderTradeUpdate),
 			exp: &OptionsOrderTradeUpdate{
 				EventType: "ORDER_TRADE_UPDATE", EventTime: fixtureTime(1762917544216), TransactionTime: fixtureTime(1762917544206),
 				Order: OptionsOrderTradeUpdateOrder{

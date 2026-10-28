@@ -45,7 +45,7 @@ func TestWebsocketHandleCoinMarginedFuturesData(t *testing.T) {
 	useTestOrderbookSync(ex, func(context.Context, currency.Pair, asset.Item) (*orderbook.Book, error) {
 		return nil, errTestNoSnapshot
 	})
-	require.NoError(t, handleFramesWithin(t.Context(), ex.wsHandleCoinMarginedFuturesData, fixtureFrames(t, "testdata/wsCFutures.json")), "handling the fixture must return")
+	require.NoError(t, handleFramesWithin(t.Context(), ex.wsHandleCoinMarginedFuturesData, fixtureFrames(t, "testdata/wsCFutures.jsonl")), "handling the fixture must return")
 	miniTicker := ticker.Price{
 		Last: 86137.8, High: 86664.7, Low: 84911.4, Open: 85973.7, BaseVolume: 8584, Pair: testCoinMarginedFuturesPair, ExchangeName: ex.Name,
 		AssetType: asset.CoinMarginedFutures, LastUpdated: time.UnixMilli(1791283463856),
@@ -140,7 +140,7 @@ func TestWebsocketHandleCoinMarginedFuturesData(t *testing.T) {
 func TestWebsocketHandleCoinMarginedFuturesUserData(t *testing.T) {
 	t.Parallel()
 	ex := newDerivativesTestExchange(t)
-	for _, frame := range fixtureFrames(t, "testdata/wsCFuturesUserData.json") {
+	for _, frame := range fixtureFrames(t, "testdata/wsCFuturesUserData.jsonl") {
 		if isEventFrame(frame, "listenKeyExpired") {
 			continue // TestProcessListenKeyExpired renews the stream over a connection
 		}

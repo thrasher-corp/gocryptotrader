@@ -178,7 +178,7 @@ func returnWithin(fn func() error) error {
 
 func BenchmarkWebsocketHandleData(b *testing.B) {
 	b.ReportAllocs()
-	lines := fixtureLines(b, "testdata/wsSpot.json")
+	lines := fixtureLines(b, "testdata/wsSpot.jsonl")
 	ex := newTestExchange(b)
 	useTestOrderbookSync(ex, func(context.Context, currency.Pair, asset.Item) (*orderbook.Book, error) {
 		return nil, errTestNoSnapshot
@@ -320,7 +320,7 @@ func TestStreamPayloads(t *testing.T) {
 			Asks:          orderbook.LevelsArrayPriceAmount{{Price: 86104.02, Amount: 5.48779}, {Price: 86104.05, Amount: 0.12}},
 		}},
 	}
-	lines := fixtureLines(t, "testdata/wsSpot.json")
+	lines := fixtureLines(t, "testdata/wsSpot.jsonl")
 	require.Len(t, lines, len(exp), "fixture must have one frame per expected payload")
 	for i, line := range lines {
 		name, err := jsonparser.GetString(line, "stream")
@@ -343,7 +343,7 @@ func TestWebsocketHandleData(t *testing.T) {
 	useTestOrderbookSync(ex, func(context.Context, currency.Pair, asset.Item) (*orderbook.Book, error) {
 		return nil, errTestNoSnapshot
 	})
-	for _, line := range fixtureLines(t, "testdata/wsSpot.json") {
+	for _, line := range fixtureLines(t, "testdata/wsSpot.jsonl") {
 		require.NoErrorf(t, ex.wsHandleData(t.Context(), nil, line), "wsHandleData must not error for %s", line)
 	}
 	pair := currency.NewPairWithDelimiter("BTC", "USDT", "-")
@@ -513,7 +513,7 @@ func TestSpotOrderbookSync(t *testing.T) {
 		}, nil
 	})
 	var depthFrames [][]byte
-	for _, line := range fixtureLines(t, "testdata/wsSpot.json") {
+	for _, line := range fixtureLines(t, "testdata/wsSpot.jsonl") {
 		if name, err := jsonparser.GetString(line, "stream"); err == nil && name == "btcusdt@depth@100ms" {
 			depthFrames = append(depthFrames, line)
 		}

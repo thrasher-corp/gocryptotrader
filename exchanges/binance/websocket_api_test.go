@@ -2520,7 +2520,7 @@ func TestWebsocketHandleSpotAPIData(t *testing.T) {
 	ex.userData.expect("margin", asset.Margin)
 	ex.userData.recordResponse("spot", []byte(`{"id":"spot","status":200,"result":{"subscriptionId":0}}`))
 	ex.userData.recordResponse("margin", []byte(`{"id":"margin","status":200,"result":{"subscriptionId":1,"expirationTime":1749094553955907}}`))
-	for _, line := range fixtureLines(t, "testdata/wsSpotUserData.json") {
+	for _, line := range fixtureLines(t, "testdata/wsSpotUserData.jsonl") {
 		require.NoErrorf(t, ex.wsHandleSpotAPIData(t.Context(), nil, line), "wsHandleSpotAPIData must not error for %s", line)
 	}
 	pair := currency.NewPairWithDelimiter("BTC", "USDT", "-")
@@ -3079,7 +3079,7 @@ func TestUserDataEventPayloads(t *testing.T) {
 			TransactionTime: types.Time(time.UnixMilli(1581557507268)),
 		},
 	}
-	lines := fixtureLines(t, "testdata/wsSpotUserData.json")
+	lines := fixtureLines(t, "testdata/wsSpotUserData.jsonl")
 	require.Len(t, lines, len(exp), "fixture must hold an event per expected payload")
 	for i, line := range lines {
 		event, _, _, err := jsonparser.Get(line, "event")

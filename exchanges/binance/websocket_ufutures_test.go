@@ -671,9 +671,9 @@ func TestProcessListenKeyExpired(t *testing.T) {
 		handle  func(context.Context, websocket.Connection, []byte) error
 		exp     *ListenKeyExpired
 	}{
-		{usdtmPrivateFilter, "testdata/wsUFuturesUserData.json", ex.wsHandleUSDTMarginedFuturesUserData, &ListenKeyExpired{EventType: "listenKeyExpired", EventTime: fixtureTime(1736996475556), ListenKey: testListenKey}},
-		{coinmPrivateFilter, "testdata/wsCFuturesUserData.json", ex.wsHandleCoinMarginedFuturesUserData, &ListenKeyExpired{EventType: "listenKeyExpired", EventTime: fixtureTime(1576653824250), ListenKey: testListenKey}},
-		{optionsPrivateFilter, "testdata/wsOptionsUserData.json", ex.wsHandleOptionsUserData, &ListenKeyExpired{EventType: "listenKeyExpired", EventTime: fixtureTime(1736996475556), ListenKey: testListenKey}},
+		{usdtmPrivateFilter, "testdata/wsUFuturesUserData.jsonl", ex.wsHandleUSDTMarginedFuturesUserData, &ListenKeyExpired{EventType: "listenKeyExpired", EventTime: fixtureTime(1736996475556), ListenKey: testListenKey}},
+		{coinmPrivateFilter, "testdata/wsCFuturesUserData.jsonl", ex.wsHandleCoinMarginedFuturesUserData, &ListenKeyExpired{EventType: "listenKeyExpired", EventTime: fixtureTime(1576653824250), ListenKey: testListenKey}},
+		{optionsPrivateFilter, "testdata/wsOptionsUserData.jsonl", ex.wsHandleOptionsUserData, &ListenKeyExpired{EventType: "listenKeyExpired", EventTime: fixtureTime(1736996475556), ListenKey: testListenKey}},
 	}
 	for _, tc := range expiries {
 		conn, err := ex.Websocket.GetConnection(tc.filter)
@@ -832,7 +832,7 @@ func TestDerivativesOrderbookSync(t *testing.T) {
 		exp      *orderbookState
 	}{
 		{
-			name: "USDⓈ-M", fixture: "testdata/wsUFuturesPublic.json", stream: "btcusdt@depth@100ms", a: asset.USDTMarginedFutures, pair: testUSDTMarginedFuturesPair,
+			name: "USDⓈ-M", fixture: "testdata/wsUFuturesPublic.jsonl", stream: "btcusdt@depth@100ms", a: asset.USDTMarginedFutures, pair: testUSDTMarginedFuturesPair,
 			handle: func(ex *Exchange) func(context.Context, websocket.Connection, []byte) error {
 				return ex.wsHandleUSDTMarginedFuturesData
 			},
@@ -850,7 +850,7 @@ func TestDerivativesOrderbookSync(t *testing.T) {
 			},
 		},
 		{
-			name: "COIN-M", fixture: "testdata/wsCFutures.json", stream: "btcusd_perp@depth@100ms", a: asset.CoinMarginedFutures, pair: testCoinMarginedFuturesPair,
+			name: "COIN-M", fixture: "testdata/wsCFutures.jsonl", stream: "btcusd_perp@depth@100ms", a: asset.CoinMarginedFutures, pair: testCoinMarginedFuturesPair,
 			handle: func(ex *Exchange) func(context.Context, websocket.Connection, []byte) error {
 				return ex.wsHandleCoinMarginedFuturesData
 			},
@@ -868,7 +868,7 @@ func TestDerivativesOrderbookSync(t *testing.T) {
 			},
 		},
 		{
-			name: "options", fixture: "testdata/wsOptions.json", stream: "btc-261030-85000-c@depth@100ms", a: asset.Options, pair: testOptionsPair,
+			name: "options", fixture: "testdata/wsOptions.jsonl", stream: "btc-261030-85000-c@depth@100ms", a: asset.Options, pair: testOptionsPair,
 			handle: func(ex *Exchange) func(context.Context, websocket.Connection, []byte) error {
 				return ex.wsHandleOptionsData
 			},
@@ -929,7 +929,7 @@ func TestDerivativesOrderbookSync(t *testing.T) {
 func TestFuturesPartialDepth(t *testing.T) {
 	t.Parallel()
 	ex := newDerivativesTestExchange(t)
-	require.NoError(t, ex.wsHandleUSDTMarginedFuturesData(t.Context(), nil, fixtureFrame(t, "testdata/wsUFuturesPublic.json", "btcusdt@depth5@100ms")), "wsHandleUSDTMarginedFuturesData must not error")
+	require.NoError(t, ex.wsHandleUSDTMarginedFuturesData(t.Context(), nil, fixtureFrame(t, "testdata/wsUFuturesPublic.jsonl", "btcusdt@depth5@100ms")), "wsHandleUSDTMarginedFuturesData must not error")
 	got, err := storedOrderbookState(ex, testUSDTMarginedFuturesPair, asset.USDTMarginedFutures)
 	require.NoError(t, err, "the partial depth snapshot must be stored")
 	exp := &orderbookState{
@@ -1218,7 +1218,7 @@ func TestWebsocketHandleUSDTMarginedFuturesData(t *testing.T) {
 	useTestOrderbookSync(ex, func(context.Context, currency.Pair, asset.Item) (*orderbook.Book, error) {
 		return nil, errTestNoSnapshot
 	})
-	for _, path := range []string{"testdata/wsUFuturesPublic.json", "testdata/wsUFuturesMarket.json"} {
+	for _, path := range []string{"testdata/wsUFuturesPublic.jsonl", "testdata/wsUFuturesMarket.jsonl"} {
 		require.NoError(t, handleFramesWithin(t.Context(), ex.wsHandleUSDTMarginedFuturesData, fixtureFrames(t, path)), "handling the fixture must return")
 	}
 	miniTicker := ticker.Price{
@@ -1335,7 +1335,7 @@ func isEventFrame(frame []byte, event string) bool {
 func TestWebsocketHandleUSDTMarginedFuturesUserData(t *testing.T) {
 	t.Parallel()
 	ex := newDerivativesTestExchange(t)
-	for _, frame := range fixtureFrames(t, "testdata/wsUFuturesUserData.json") {
+	for _, frame := range fixtureFrames(t, "testdata/wsUFuturesUserData.jsonl") {
 		if isEventFrame(frame, "listenKeyExpired") {
 			continue // TestProcessListenKeyExpired renews the stream over a connection
 		}
@@ -2802,7 +2802,7 @@ func TestFuturesPayloadDecoding(t *testing.T) {
 		exp     any
 	}{
 		{
-			name: "ticker", fixture: "testdata/wsUFuturesMarket.json", key: "btcusdt@ticker", target: new(FuturesTicker),
+			name: "ticker", fixture: "testdata/wsUFuturesMarket.jsonl", key: "btcusdt@ticker", target: new(FuturesTicker),
 			exp: &FuturesTicker{
 				EventType: "24hrTicker", EventTime: fixtureTime(1791283239234), Symbol: "BTCUSDT", Pair: "BTCUSDT", PriceChange: 9.9, PriceChangePercent: 0.012,
 				WeightedAveragePrice: 85685.71, LastPrice: 86026.4, LastQuantity: 0.05, OpenPrice: 86016.5, HighPrice: 86683.9, LowPrice: 84910,
@@ -2811,21 +2811,21 @@ func TestFuturesPayloadDecoding(t *testing.T) {
 			},
 		},
 		{
-			name: "mini ticker", fixture: "testdata/wsCFutures.json", key: "btcusd_perp@miniTicker", target: new(FuturesMiniTicker),
+			name: "mini ticker", fixture: "testdata/wsCFutures.jsonl", key: "btcusd_perp@miniTicker", target: new(FuturesMiniTicker),
 			exp: &FuturesMiniTicker{
 				EventType: "24hrMiniTicker", EventTime: fixtureTime(1791283463856), Symbol: "BTCUSD_PERP", Pair: "BTCUSD", ClosePrice: 86137.8,
 				OpenPrice: 85973.7, HighPrice: 86664.7, LowPrice: 84911.4, TotalTradedBaseAssetVolume: 7354554, TotalTradedQuoteAssetVolume: 8584, SymbolType: 2,
 			},
 		},
 		{
-			name: "aggregate trade", fixture: "testdata/wsUFuturesMarket.json", key: "btcusdt@aggTrade", target: new(FuturesAggregateTrade),
+			name: "aggregate trade", fixture: "testdata/wsUFuturesMarket.jsonl", key: "btcusdt@aggTrade", target: new(FuturesAggregateTrade),
 			exp: &FuturesAggregateTrade{
 				EventType: "aggTrade", EventTime: fixtureTime(1791283227690), Symbol: "BTCUSDT", AggregateTradeID: 3476465318, Price: 86000, Quantity: 4.577,
 				NormalQuantity: 4.571, FirstTradeID: 8149533714, LastTradeID: 8149533773, TradeTime: fixtureTime(1791283227688), IsBuyerMaker: true, SymbolType: 1,
 			},
 		},
 		{
-			name: "diff depth", fixture: "testdata/wsCFutures.json", key: "btcusd_perp@depth@100ms", target: new(FuturesDepthUpdate),
+			name: "diff depth", fixture: "testdata/wsCFutures.jsonl", key: "btcusd_perp@depth@100ms", target: new(FuturesDepthUpdate),
 			exp: &FuturesDepthUpdate{
 				EventType: "depthUpdate", EventTime: fixtureTime(1791283450270), TransactionTime: fixtureTime(1791283450264), Symbol: "BTCUSD_PERP", Pair: "BTCUSD",
 				FirstUpdateID: 11747023537518, FinalUpdateID: 11747023543725, PreviousFinalUpdateID: 11747023536504,
@@ -2835,7 +2835,7 @@ func TestFuturesPayloadDecoding(t *testing.T) {
 			},
 		},
 		{
-			name: "kline", fixture: "testdata/wsUFuturesMarket.json", key: "btcusdt@kline_1m", target: new(FuturesKline),
+			name: "kline", fixture: "testdata/wsUFuturesMarket.jsonl", key: "btcusdt@kline_1m", target: new(FuturesKline),
 			exp: &FuturesKline{
 				EventType: "kline", EventTime: fixtureTime(1791283227688), Symbol: "BTCUSDT",
 				Kline: FuturesCandle{
@@ -2846,7 +2846,7 @@ func TestFuturesPayloadDecoding(t *testing.T) {
 			},
 		},
 		{
-			name: "account update", fixture: "testdata/wsUFuturesUserData.json", key: "ACCOUNT_UPDATE", target: new(FuturesAccountUpdate),
+			name: "account update", fixture: "testdata/wsUFuturesUserData.jsonl", key: "ACCOUNT_UPDATE", target: new(FuturesAccountUpdate),
 			exp: &FuturesAccountUpdate{
 				EventType: "ACCOUNT_UPDATE", EventTime: fixtureTime(1564745798939), TransactionTime: fixtureTime(1564745798938),
 				UpdateData: FuturesAccountChange{
@@ -2864,7 +2864,7 @@ func TestFuturesPayloadDecoding(t *testing.T) {
 			},
 		},
 		{
-			name: "COIN-M account update", fixture: "testdata/wsCFuturesUserData.json", key: "ACCOUNT_UPDATE", target: new(FuturesAccountUpdate),
+			name: "COIN-M account update", fixture: "testdata/wsCFuturesUserData.jsonl", key: "ACCOUNT_UPDATE", target: new(FuturesAccountUpdate),
 			exp: &FuturesAccountUpdate{
 				EventType: "ACCOUNT_UPDATE", EventTime: fixtureTime(1564745798939), TransactionTime: fixtureTime(1564745798938), AccountAlias: "SfsR",
 				UpdateData: FuturesAccountChange{
@@ -2879,7 +2879,7 @@ func TestFuturesPayloadDecoding(t *testing.T) {
 			},
 		},
 		{
-			name: "order trade update", fixture: "testdata/wsUFuturesUserData.json", key: "ORDER_TRADE_UPDATE", target: new(FuturesOrderTradeUpdate),
+			name: "order trade update", fixture: "testdata/wsUFuturesUserData.jsonl", key: "ORDER_TRADE_UPDATE", target: new(FuturesOrderTradeUpdate),
 			exp: &FuturesOrderTradeUpdate{
 				EventType: "ORDER_TRADE_UPDATE", EventTime: fixtureTime(1568879465651), TransactionTime: fixtureTime(1568879465650),
 				Order: FuturesOrderTradeUpdateOrder{
@@ -2894,7 +2894,7 @@ func TestFuturesPayloadDecoding(t *testing.T) {
 			},
 		},
 		{
-			name: "COIN-M order trade update", fixture: "testdata/wsCFuturesUserData.json", key: "ORDER_TRADE_UPDATE", target: new(FuturesOrderTradeUpdate),
+			name: "COIN-M order trade update", fixture: "testdata/wsCFuturesUserData.jsonl", key: "ORDER_TRADE_UPDATE", target: new(FuturesOrderTradeUpdate),
 			exp: &FuturesOrderTradeUpdate{
 				EventType: "ORDER_TRADE_UPDATE", EventTime: fixtureTime(1591274595442), TransactionTime: fixtureTime(1591274595441), AccountAlias: "SfsR",
 				Order: FuturesOrderTradeUpdateOrder{
