@@ -129,9 +129,9 @@ func (e *Exchange) PlaceLimitOrder(ctx context.Context, arg *ConvertLimitOrderRe
 	}
 	params.Set("side", string(arg.Side))
 	if arg.WalletType != "" {
-		params.Set("walletType", arg.WalletType)
+		params.Set("walletType", string(arg.WalletType))
 	}
-	params.Set("expiredType", arg.ExpiredType)
+	params.Set("expiredType", string(arg.ExpiredType))
 	var resp *ConvertLimitOrderResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, "/sapi/v1/convert/limit/placeOrder", params, placeLimitOrderRate, &resp)
 }
@@ -167,10 +167,10 @@ func (e *Exchange) SendQuoteRequest(ctx context.Context, arg *ConvertQuoteReques
 		params.Set("toAmount", strconv.FormatFloat(arg.ToAmount, 'f', -1, 64))
 	}
 	if arg.WalletType != "" {
-		params.Set("walletType", arg.WalletType)
+		params.Set("walletType", string(arg.WalletType))
 	}
 	if arg.ValidTime != "" {
-		params.Set("validTime", arg.ValidTime)
+		params.Set("validTime", string(arg.ValidTime))
 	}
 	var resp *ConvertQuoteResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, "/sapi/v1/convert/getQuote", params, sendQuoteRequestRate, &resp)

@@ -45,7 +45,7 @@ type AccountStatusResponse struct {
 
 // AccountSnapshotRequest holds the parameters for an account snapshot query
 type AccountSnapshotRequest struct {
-	Type      string // SPOT, MARGIN or FUTURES
+	Type      AccountSnapshotType // SPOT, MARGIN or FUTURES
 	StartTime time.Time
 	EndTime   time.Time
 	Limit     uint64 // 7 to 30, default 7
@@ -266,7 +266,7 @@ type UserDelegationHistoryRequest struct {
 	Email     string
 	StartTime time.Time
 	EndTime   time.Time
-	Type      string // DELEGATE or UNDELEGATE
+	Type      DelegationType // DELEGATE or UNDELEGATE
 	Asset     currency.Code
 	Current   uint64
 	Size      uint64 // Up to 100, default 10
@@ -289,7 +289,7 @@ type UserDelegation struct {
 
 // UserUniversalTransferHistoryRequest holds the parameters for a user universal transfer history query
 type UserUniversalTransferHistoryRequest struct {
-	Type       string
+	Type       UniversalTransferType
 	StartTime  time.Time
 	EndTime    time.Time
 	Current    uint64
@@ -306,17 +306,17 @@ type UserUniversalTransferHistoryResponse struct {
 
 // UserUniversalTransferRecord holds one user universal transfer
 type UserUniversalTransferRecord struct {
-	Asset         currency.Code `json:"asset"`
-	Amount        types.Number  `json:"amount"`
-	Type          string        `json:"type"`
-	Status        string        `json:"status"`
-	TransactionID uint64        `json:"tranId"`
-	Timestamp     types.Time    `json:"timestamp"`
+	Asset         currency.Code         `json:"asset"`
+	Amount        types.Number          `json:"amount"`
+	Type          UniversalTransferType `json:"type"`
+	Status        string                `json:"status"`
+	TransactionID uint64                `json:"tranId"`
+	Timestamp     types.Time            `json:"timestamp"`
 }
 
 // UserUniversalTransferRequest holds the parameters for a user universal transfer
 type UserUniversalTransferRequest struct {
-	Type       string // Transfer type such as MAIN_UMFUTURE or FUNDING_MAIN
+	Type       UniversalTransferType // Transfer type such as MAIN_UMFUTURE or FUNDING_MAIN
 	Asset      currency.Code
 	Amount     float64
 	FromSymbol currency.Pair // Isolated margin symbol, required for ISOLATEDMARGIN_MARGIN and ISOLATEDMARGIN_ISOLATEDMARGIN
@@ -644,7 +644,7 @@ type LocalEntityWithdrawalRecordResponse struct {
 // HistoricalDataDownloadLinkRequest holds the parameters for a futures tick-level order book download link query
 type HistoricalDataDownloadLinkRequest struct {
 	Symbol    currency.Pair
-	DataType  string // T_DEPTH for tick-level order book data, S_DEPTH for order book snapshots
+	DataType  HistoricalDataType // T_DEPTH for tick-level order book data, S_DEPTH for order book snapshots
 	StartTime time.Time
 	EndTime   time.Time
 }

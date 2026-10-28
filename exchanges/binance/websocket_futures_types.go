@@ -717,7 +717,7 @@ type OptionsNewSymbol struct {
 	Symbol           string        `json:"s"`
 	Underlying       string        `json:"ps"`
 	QuotationAsset   currency.Code `json:"qa"`
-	OptionType       string        `json:"d"`
+	OptionType       OptionType    `json:"d"`
 	StrikePrice      types.Number  `json:"sp"`
 	DeliveryDateTime types.Time    `json:"dt"`
 	Unit             uint64        `json:"u"` // quantity of the underlying asset one contract represents

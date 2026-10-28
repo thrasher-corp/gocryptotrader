@@ -95,7 +95,7 @@ func (e *Exchange) GetFlexibleRewardHistory(ctx context.Context, req *SimpleEarn
 		params.Set("asset", req.Asset.Upper().String())
 	}
 	if req.Type != "" {
-		params.Set("type", req.Type)
+		params.Set("type", string(req.Type))
 	}
 	var resp *SimpleEarnFlexibleRewardHistoryResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/simple-earn/flexible/history/rewardsRecord", params, getRewardHistoryRate, &resp)
@@ -260,7 +260,7 @@ func (e *Exchange) GetSimpleEarnRateHistory(ctx context.Context, req *SimpleEarn
 	}
 	params.Set("productId", req.ProductID)
 	if req.APRPeriod != "" {
-		params.Set("aprPeriod", req.APRPeriod)
+		params.Set("aprPeriod", string(req.APRPeriod))
 	}
 	var resp *SimpleEarnRateHistoryResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/simple-earn/flexible/history/rateHistory", params, simpleEarnRateHistoryRate, &resp)
@@ -308,7 +308,7 @@ func (e *Exchange) RedeemFlexibleProduct(ctx context.Context, req *RedeemFlexibl
 		params.Set("amount", strconv.FormatFloat(req.Amount, 'f', -1, 64))
 	}
 	if req.DestinationAccount != "" {
-		params.Set("destAccount", req.DestinationAccount)
+		params.Set("destAccount", string(req.DestinationAccount))
 	}
 	var resp *SimpleEarnRedemptionResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, "/sapi/v1/simple-earn/flexible/redeem", params, sapiDefaultRate, &resp)
@@ -350,7 +350,7 @@ func (e *Exchange) SetLockedAutoSubscribe(ctx context.Context, positionID uint64
 }
 
 // SetLockedProductRedeemOption sets where a locked product position is paid out at maturity, SPOT or FLEXIBLE
-func (e *Exchange) SetLockedProductRedeemOption(ctx context.Context, positionID uint64, redeemTo string) (*EarnSuccessResponse, error) {
+func (e *Exchange) SetLockedProductRedeemOption(ctx context.Context, positionID uint64, redeemTo RedeemTo) (*EarnSuccessResponse, error) {
 	if positionID == 0 {
 		return nil, errPositionIDRequired
 	}
@@ -359,7 +359,7 @@ func (e *Exchange) SetLockedProductRedeemOption(ctx context.Context, positionID 
 	}
 	params := url.Values{}
 	params.Set("positionId", strconv.FormatUint(positionID, 10))
-	params.Set("redeemTo", redeemTo)
+	params.Set("redeemTo", string(redeemTo))
 	var resp *EarnSuccessResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, "/sapi/v1/simple-earn/locked/setRedeemOption", params, setRedeemOptionRate, &resp)
 }
@@ -388,7 +388,7 @@ func (e *Exchange) SubscribeToFlexibleProducts(ctx context.Context, req *Subscri
 		params.Set("autoSubscribe", strconv.FormatBool(*req.AutoSubscribe))
 	}
 	if req.SourceAccount != "" {
-		params.Set("sourceAccount", req.SourceAccount)
+		params.Set("sourceAccount", string(req.SourceAccount))
 	}
 	var resp *SimpleEarnFlexibleSubscriptionResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, "/sapi/v1/simple-earn/flexible/subscribe", params, sapiDefaultRate, &resp)
@@ -412,10 +412,10 @@ func (e *Exchange) SubscribeToLockedProducts(ctx context.Context, req *Subscribe
 		params.Set("autoSubscribe", strconv.FormatBool(*req.AutoSubscribe))
 	}
 	if req.SourceAccount != "" {
-		params.Set("sourceAccount", req.SourceAccount)
+		params.Set("sourceAccount", string(req.SourceAccount))
 	}
 	if req.RedeemTo != "" {
-		params.Set("redeemTo", req.RedeemTo)
+		params.Set("redeemTo", string(req.RedeemTo))
 	}
 	var resp *SimpleEarnLockedSubscriptionResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, "/sapi/v1/simple-earn/locked/subscribe", params, sapiDefaultRate, &resp)

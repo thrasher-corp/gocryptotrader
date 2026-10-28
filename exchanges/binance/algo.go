@@ -88,7 +88,7 @@ func (e *Exchange) VolumeParticipationNewOrder(ctx context.Context, arg *VolumeP
 	if arg.PositionSide != "" {
 		params.Set("positionSide", string(arg.PositionSide))
 	}
-	params.Set("urgency", arg.Urgency)
+	params.Set("urgency", string(arg.Urgency))
 	if arg.ReduceOnly {
 		params.Set("reduceOnly", "true")
 	}

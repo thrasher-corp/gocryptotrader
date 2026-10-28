@@ -62,7 +62,7 @@ func accountSnapshotParams(req *AccountSnapshotRequest) (url.Values, error) {
 		return nil, errSnapshotTypeRequired
 	}
 	params := url.Values{}
-	params.Set("type", req.Type)
+	params.Set("type", string(req.Type))
 	if err := setTimeRangeParams(params, req.StartTime, req.EndTime); err != nil {
 		return nil, err
 	}
@@ -119,10 +119,10 @@ func (e *Exchange) GetAssetDividendRecord(ctx context.Context, req *AssetDividen
 }
 
 // GetDustLog returns the DustLog: the last 100 dust conversions since 2020-12-01. accountType is SPOT or MARGIN
-func (e *Exchange) GetDustLog(ctx context.Context, accountType string, startTime, endTime time.Time) (*DustLogResponse, error) {
+func (e *Exchange) GetDustLog(ctx context.Context, accountType AccountType, startTime, endTime time.Time) (*DustLogResponse, error) {
 	params := url.Values{}
 	if accountType != "" {
-		params.Set("accountType", accountType)
+		params.Set("accountType", string(accountType))
 	}
 	if err := setTimeRangeParams(params, startTime, endTime); err != nil {
 		return nil, err
@@ -133,7 +133,7 @@ func (e *Exchange) GetDustLog(ctx context.Context, accountType string, startTime
 
 // DustTransfer calls Dust Transfer, converting the dust of assets to BNB. accountType is SPOT, the default, or MARGIN.
 // The API key needs the Enable Spot & Margin Trading permission
-func (e *Exchange) DustTransfer(ctx context.Context, assets []currency.Code, accountType string) (*DustTransferResponse, error) {
+func (e *Exchange) DustTransfer(ctx context.Context, assets []currency.Code, accountType AccountType) (*DustTransferResponse, error) {
 	if len(assets) == 0 {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -147,7 +147,7 @@ func (e *Exchange) DustTransfer(ctx context.Context, assets []currency.Code, acc
 	params := url.Values{}
 	params.Set("asset", strings.Join(codes, ","))
 	if accountType != "" {
-		params.Set("accountType", accountType)
+		params.Set("accountType", string(accountType))
 	}
 	var resp *DustTransferResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, "/sapi/v1/asset/dust", params, dustTransferRate, &resp)
@@ -169,10 +169,10 @@ func (e *Exchange) GetFundingAssets(ctx context.Context, ccy currency.Code, need
 
 // GetAssetsThatCanBeConvertedIntoBNB returns the Assets That Can Be Converted Into BNB. accountType is SPOT, the
 // default, or MARGIN
-func (e *Exchange) GetAssetsThatCanBeConvertedIntoBNB(ctx context.Context, accountType string) (*AssetsConvertibleToBNBResponse, error) {
+func (e *Exchange) GetAssetsThatCanBeConvertedIntoBNB(ctx context.Context, accountType AccountType) (*AssetsConvertibleToBNBResponse, error) {
 	params := url.Values{}
 	if accountType != "" {
-		params.Set("accountType", accountType)
+		params.Set("accountType", string(accountType))
 	}
 	var resp *AssetsConvertibleToBNBResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, "/sapi/v1/asset/dust-btc", params, sapiDefaultRate, &resp)
@@ -224,7 +224,7 @@ func (e *Exchange) GetUserDelegationHistory(ctx context.Context, req *UserDelega
 	params.Set("startTime", strconv.FormatInt(req.StartTime.UnixMilli(), 10))
 	params.Set("endTime", strconv.FormatInt(req.EndTime.UnixMilli(), 10))
 	if req.Type != "" {
-		params.Set("type", req.Type)
+		params.Set("type", string(req.Type))
 	}
 	if !req.Asset.IsEmpty() {
 		params.Set("asset", req.Asset.Upper().String())
@@ -249,7 +249,7 @@ func (e *Exchange) GetUserUniversalTransferHistory(ctx context.Context, req *Use
 		return nil, errTransferTypeRequired
 	}
 	params := url.Values{}
-	params.Set("type", req.Type)
+	params.Set("type", string(req.Type))
 	if err := setTimeRangeParams(params, req.StartTime, req.EndTime); err != nil {
 		return nil, err
 	}
@@ -282,7 +282,7 @@ func (e *Exchange) UserUniversalTransfer(ctx context.Context, req *UserUniversal
 		return nil, limits.ErrAmountBelowMin
 	}
 	params := url.Values{}
-	params.Set("type", req.Type)
+	params.Set("type", string(req.Type))
 	params.Set("asset", req.Asset.Upper().String())
 	params.Set("amount", strconv.FormatFloat(req.Amount, 'f', -1, 64))
 	if err := e.setIsolatedSymbols(params, req.FromSymbol, req.ToSymbol); err != nil {
@@ -699,7 +699,7 @@ func (e *Exchange) GetFutureTickLevelOrderbookHistoricalDataDownloadLink(ctx con
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol)
-	params.Set("dataType", req.DataType)
+	params.Set("dataType", string(req.DataType))
 	if err := setTimeRangeParams(params, req.StartTime, req.EndTime); err != nil {
 		return nil, err
 	}

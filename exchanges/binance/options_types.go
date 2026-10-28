@@ -118,7 +118,7 @@ type OptionsSymbolDetail struct {
 	Filters    []OptionsSymbolFilter `json:"filters"`
 	Symbol     string                `json:"symbol"`
 	// Side is CALL or PUT
-	Side        string       `json:"side"`
+	Side        OptionType   `json:"side"`
 	StrikePrice types.Number `json:"strikePrice"`
 	Underlying  string       `json:"underlying"`
 	// Unit is the quantity of the underlying a contract represents

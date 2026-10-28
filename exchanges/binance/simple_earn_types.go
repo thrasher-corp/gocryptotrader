@@ -89,20 +89,20 @@ type SimpleEarnFlexibleRedemptionRecordResponse struct {
 
 // SimpleEarnFlexibleRedemption holds a flexible product redemption
 type SimpleEarnFlexibleRedemption struct {
-	Amount             types.Number  `json:"amount"`
-	Asset              currency.Code `json:"asset"`
-	Time               types.Time    `json:"time"`
-	ProjectID          string        `json:"projectId"`
-	RedeemID           uint64        `json:"redeemId"`
-	DestinationAccount string        `json:"destAccount"`
-	Status             string        `json:"status"`
+	Amount             types.Number      `json:"amount"`
+	Asset              currency.Code     `json:"asset"`
+	Time               types.Time        `json:"time"`
+	ProjectID          string            `json:"projectId"`
+	RedeemID           uint64            `json:"redeemId"`
+	DestinationAccount SimpleEarnAccount `json:"destAccount"`
+	Status             string            `json:"status"`
 }
 
 // SimpleEarnFlexibleRewardHistoryRequest holds the parameters of GetFlexibleRewardHistory
 type SimpleEarnFlexibleRewardHistoryRequest struct {
 	ProductID string
 	Asset     currency.Code
-	Type      string // BONUS, REALTIME, REWARDS or ALL; ALL when empty
+	Type      FlexibleRewardType // BONUS, REALTIME, REWARDS or ALL; ALL when empty
 	StartTime time.Time
 	EndTime   time.Time
 	Current   uint64
@@ -117,11 +117,11 @@ type SimpleEarnFlexibleRewardHistoryResponse struct {
 
 // SimpleEarnFlexibleReward holds a flexible product reward
 type SimpleEarnFlexibleReward struct {
-	Asset     currency.Code `json:"asset"`
-	Rewards   types.Number  `json:"rewards"`
-	ProjectID string        `json:"projectId"`
-	Type      string        `json:"type"`
-	Time      types.Time    `json:"time"`
+	Asset     currency.Code      `json:"asset"`
+	Rewards   types.Number       `json:"rewards"`
+	ProjectID string             `json:"projectId"`
+	Type      FlexibleRewardType `json:"type"`
+	Time      types.Time         `json:"time"`
 }
 
 // SimpleEarnFlexibleSubscriptionPreviewResponse holds the estimated rewards of a flexible product subscription
@@ -207,7 +207,7 @@ type SimpleEarnLockedPosition struct {
 	DeliverDate                types.Time    `json:"deliverDate"`
 	RedeemPeriodInDays         types.Number  `json:"redeemPeriod"`
 	RedeemingAmount            types.Number  `json:"redeemingAmt"`
-	RedeemTo                   string        `json:"redeemTo"`
+	RedeemTo                   RedeemTo      `json:"redeemTo"`
 	PartialAmountDeliverDate   types.Time    `json:"partialAmtDeliverDate"`
 	CanRedeemEarly             bool          `json:"canRedeemEarly"`
 	CanFastRedemption          bool          `json:"canFastRedemption"`
@@ -331,7 +331,7 @@ type SimpleEarnLockedSubscription struct {
 // SimpleEarnRateHistoryRequest holds the parameters of GetSimpleEarnRateHistory
 type SimpleEarnRateHistoryRequest struct {
 	ProductID string
-	APRPeriod string // DAY or YEAR; DAY when empty
+	APRPeriod APRPeriod // DAY or YEAR; DAY when empty
 	StartTime time.Time
 	EndTime   time.Time
 	Current   uint64
@@ -414,8 +414,8 @@ type SimpleEarnLockedProductQuota struct {
 type RedeemFlexibleProductRequest struct {
 	ProductID          string
 	RedeemAll          bool
-	Amount             float64 // required unless RedeemAll is set
-	DestinationAccount string  // SPOT or FUND; SPOT when empty
+	Amount             float64           // required unless RedeemAll is set
+	DestinationAccount SimpleEarnAccount // SPOT or FUND; SPOT when empty
 }
 
 // SimpleEarnRedemptionResponse holds the outcome of a Simple Earn redemption
@@ -440,7 +440,7 @@ type SubscribeFlexibleProductRequest struct {
 	Amount    float64
 	// AutoSubscribe is sent only when set; the endpoint turns auto-subscription on when it is left out
 	AutoSubscribe *bool
-	SourceAccount string // SPOT, FUND or ALL; SPOT when empty
+	SourceAccount SimpleEarnAccount // SPOT, FUND or ALL; SPOT when empty
 }
 
 // SimpleEarnFlexibleSubscriptionResponse holds the outcome of a flexible product subscription
@@ -455,8 +455,8 @@ type SubscribeLockedProductRequest struct {
 	Amount    float64
 	// AutoSubscribe is sent only when set; the endpoint turns auto-subscription on when it is left out
 	AutoSubscribe *bool
-	SourceAccount string // SPOT, FUND or ALL; SPOT when empty
-	RedeemTo      string // SPOT or FLEXIBLE; SPOT when empty
+	SourceAccount SimpleEarnAccount // SPOT, FUND or ALL; SPOT when empty
+	RedeemTo      RedeemTo          // SPOT or FLEXIBLE; SPOT when empty
 }
 
 // SimpleEarnLockedSubscriptionResponse holds the outcome of a locked product subscription

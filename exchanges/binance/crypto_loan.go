@@ -53,7 +53,7 @@ func (e *Exchange) FlexibleLoanAdjustLTV(ctx context.Context, req *FlexibleLoanA
 	params.Set("loanCoin", req.LoanCoin.Upper().String())
 	params.Set("collateralCoin", req.CollateralCoin.Upper().String())
 	params.Set("adjustmentAmount", strconv.FormatFloat(req.AdjustmentAmount, 'f', -1, 64))
-	params.Set("direction", req.Direction)
+	params.Set("direction", string(req.Direction))
 	var resp *FlexibleLoanAdjustLTVResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, "/sapi/v2/loan/flexible/adjust/ltv", params, adjustFlexibleLoanRate, &resp)
 }
@@ -212,7 +212,7 @@ func (e *Exchange) CryptoLoanIncomeHistory(ctx context.Context, req *CryptoLoanI
 		params.Set("asset", req.Asset.Upper().String())
 	}
 	if req.Type != "" {
-		params.Set("type", req.Type)
+		params.Set("type", string(req.Type))
 	}
 	if req.Limit > 0 {
 		params.Set("limit", strconv.FormatUint(req.Limit, 10))

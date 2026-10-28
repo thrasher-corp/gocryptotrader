@@ -2,7 +2,6 @@ package binance
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -14,8 +13,6 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
-
-var errAutoCompoundPlanRequired = errors.New("auto-compound plan is required")
 
 // GetDualInvestmentProductList returns the Dual Investment products for an option type and asset pair. The schema
 // lists this endpoint without security, but Binance rejects it without an API key and earlier docs titled it
@@ -34,7 +31,7 @@ func (e *Exchange) GetDualInvestmentProductList(ctx context.Context, req *DualIn
 		return nil, fmt.Errorf("%w: invest coin", currency.ErrCurrencyCodeEmpty)
 	}
 	params := url.Values{}
-	params.Set("optionType", req.OptionType)
+	params.Set("optionType", string(req.OptionType))
 	params.Set("exercisedCoin", req.ExercisedCoin.Upper().String())
 	params.Set("investCoin", req.InvestCoin.Upper().String())
 	if req.PageSize > 0 {
@@ -54,10 +51,10 @@ func (e *Exchange) CheckDualInvestmentAccounts(ctx context.Context) (*DualInvest
 }
 
 // GetDualInvestmentPositions returns Dual Investment positions, filtered by purchase status when one is given
-func (e *Exchange) GetDualInvestmentPositions(ctx context.Context, status string, pageSize, pageIndex uint64) (*DualInvestmentPositionsResponse, error) {
+func (e *Exchange) GetDualInvestmentPositions(ctx context.Context, status DualInvestmentPositionStatus, pageSize, pageIndex uint64) (*DualInvestmentPositionsResponse, error) {
 	params := url.Values{}
 	if status != "" {
-		params.Set("status", status)
+		params.Set("status", string(status))
 	}
 	if pageSize > 0 {
 		params.Set("pageSize", strconv.FormatUint(pageSize, 10))
@@ -83,14 +80,10 @@ func (e *Exchange) SubscribeDualInvestmentProducts(ctx context.Context, req *Sub
 	if req.DepositAmount <= 0 {
 		return nil, limits.ErrAmountBelowMin
 	}
-	if req.AutoCompoundPlan == "" {
-		return nil, errAutoCompoundPlanRequired
-	}
 	params := url.Values{}
 	params.Set("id", req.ID)
 	params.Set("orderId", strconv.FormatUint(req.OrderID, 10))
 	params.Set("depositAmount", strconv.FormatFloat(req.DepositAmount, 'f', -1, 64))
-	params.Set("autoCompoundPlan", req.AutoCompoundPlan)
 	var resp *DualInvestmentSubscriptionResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, "/sapi/v1/dci/product/subscribe", params, sapiDefaultRate, &resp)
 }

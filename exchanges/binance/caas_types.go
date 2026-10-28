@@ -358,8 +358,8 @@ type BrokerUniversalTransferHistoryResponse struct {
 	Status           string        `json:"status"`
 	TransactionID    string        `json:"txnId"`
 	ClientTransferID string        `json:"clientTranId"`
-	FromAccountType  string        `json:"fromAccountType"`
-	ToAccountType    string        `json:"toAccountType"`
+	FromAccountType  AccountType   `json:"fromAccountType"`
+	ToAccountType    AccountType   `json:"toAccountType"`
 }
 
 // BrokerUniversalTransferRequest holds the parameters of a universal transfer between link accounts
@@ -368,8 +368,8 @@ type BrokerUniversalTransferRequest struct {
 	FromID string
 	ToID   string
 	// FromAccountType and ToAccountType are SPOT, USDT_FUTURE or COIN_FUTURE
-	FromAccountType string
-	ToAccountType   string
+	FromAccountType AccountType
+	ToAccountType   AccountType
 	// ClientTransferID must be unique and at most 32 characters
 	ClientTransferID string
 	Asset            currency.Code

@@ -72,11 +72,11 @@ func (e *Exchange) GetPortfolioMarginAccountInformation(ctx context.Context) (*P
 
 // PortfolioMarginBNBTransfer transfers BNB into or out of the UM account; transferSide is TO_UM or FROM_UM. The
 // endpoint can be called 10 times per 10 minutes
-func (e *Exchange) PortfolioMarginBNBTransfer(ctx context.Context, amount float64, transferSide string) (*PortfolioMarginTransactionResponse, error) {
+func (e *Exchange) PortfolioMarginBNBTransfer(ctx context.Context, amount float64, transferSide BNBTransferSide) (*PortfolioMarginTransactionResponse, error) {
 	return e.portfolioMarginTransferBNB(ctx, exchange.RestFuturesSupplementary, "/papi/v1/bnb-transfer", amount, transferSide, portfolioMarginBNBTransferRate)
 }
 
-func (e *Exchange) portfolioMarginTransferBNB(ctx context.Context, ePath exchange.URL, path string, amount float64, transferSide string, f request.EndpointLimit) (*PortfolioMarginTransactionResponse, error) {
+func (e *Exchange) portfolioMarginTransferBNB(ctx context.Context, ePath exchange.URL, path string, amount float64, transferSide BNBTransferSide, f request.EndpointLimit) (*PortfolioMarginTransactionResponse, error) {
 	if amount <= 0 {
 		return nil, limits.ErrAmountBelowMin
 	}
@@ -85,7 +85,7 @@ func (e *Exchange) portfolioMarginTransferBNB(ctx context.Context, ePath exchang
 	}
 	params := url.Values{}
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
-	params.Set("transferSide", transferSide)
+	params.Set("transferSide", string(transferSide))
 	var resp *PortfolioMarginTransactionResponse
 	return resp, e.SendAuthHTTPRequest(ctx, ePath, http.MethodPost, path, params, f, &resp)
 }

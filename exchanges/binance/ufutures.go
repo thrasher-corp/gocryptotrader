@@ -301,7 +301,7 @@ func (e *Exchange) GetUSDTMarginedFuturesBasis(ctx context.Context, arg *USDTMar
 	if arg.ContractType == "" {
 		return nil, errContractTypeIsRequired
 	}
-	if arg.Period == "" {
+	if arg.Period == 0 {
 		return nil, errPeriodRequired
 	}
 	params := url.Values{}
@@ -314,7 +314,7 @@ func (e *Exchange) GetUSDTMarginedFuturesBasis(ctx context.Context, arg *USDTMar
 	}
 	params.Set("pair", pair)
 	params.Set("contractType", string(arg.ContractType))
-	params.Set("period", arg.Period)
+	params.Set("period", e.FormatExchangeKlineInterval(arg.Period))
 	if arg.Limit > 0 {
 		params.Set("limit", strconv.FormatUint(arg.Limit, 10))
 	}
@@ -474,14 +474,14 @@ func (e *Exchange) usdtMarginedFuturesSymbolKlineData(ctx context.Context, path 
 }
 
 // usdtMarginedFuturesKlineData validates and sends a kline request whose params already identify the instrument
-func (e *Exchange) usdtMarginedFuturesKlineData(ctx context.Context, path string, params url.Values, interval string, startTime, endTime time.Time, limit uint64, result any) error {
-	if interval == "" {
+func (e *Exchange) usdtMarginedFuturesKlineData(ctx context.Context, path string, params url.Values, interval kline.Interval, startTime, endTime time.Time, limit uint64, result any) error {
+	if interval == 0 {
 		return kline.ErrInvalidInterval
 	}
 	if err := setTimeRangeParams(params, startTime, endTime); err != nil {
 		return err
 	}
-	params.Set("interval", interval)
+	params.Set("interval", e.FormatExchangeKlineInterval(interval))
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
@@ -757,7 +757,7 @@ func (e *Exchange) usdtMarginedFuturesData(ctx context.Context, path string, arg
 	if arg.Symbol.IsEmpty() {
 		return currency.ErrCurrencyPairEmpty
 	}
-	if arg.Period == "" {
+	if arg.Period == 0 {
 		return errPeriodRequired
 	}
 	params := url.Values{}
@@ -769,7 +769,7 @@ func (e *Exchange) usdtMarginedFuturesData(ctx context.Context, path string, arg
 		return err
 	}
 	params.Set("symbol", symbol)
-	params.Set("period", arg.Period)
+	params.Set("period", e.FormatExchangeKlineInterval(arg.Period))
 	if arg.Limit > 0 {
 		params.Set("limit", strconv.FormatUint(arg.Limit, 10))
 	}

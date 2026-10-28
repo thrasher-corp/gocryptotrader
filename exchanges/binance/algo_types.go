@@ -36,7 +36,7 @@ type FuturesAlgoOrder struct {
 	EndTime          types.Time   `json:"endTime"`
 	AlgoStatus       string       `json:"algoStatus"`
 	AlgoType         string       `json:"algoType"`
-	Urgency          string       `json:"urgency"`
+	Urgency          Urgency      `json:"urgency"`
 }
 
 // AlgoHistoricalOrdersRequest holds the parameters of the futures and spot historical algo order queries
@@ -112,7 +112,7 @@ type VolumeParticipationOrderRequest struct {
 	PositionSide PositionSide
 	Quantity     float64
 	// Urgency is the relative speed of execution: LOW, MEDIUM or HIGH
-	Urgency string
+	Urgency Urgency
 	// ClientAlgoID must be 32 characters long; the API generates one when it is not sent
 	ClientAlgoID string
 	// ReduceOnly cannot be sent in hedge mode or when opening a position
@@ -141,7 +141,7 @@ type SpotAlgoOrder struct {
 	EndTime          types.Time   `json:"endTime"`
 	AlgoStatus       string       `json:"algoStatus"`
 	AlgoType         string       `json:"algoType"`
-	Urgency          string       `json:"urgency"`
+	Urgency          Urgency      `json:"urgency"`
 }
 
 // SpotTWAPOrderRequest holds the parameters of a spot TWAP order

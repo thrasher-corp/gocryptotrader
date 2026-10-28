@@ -186,7 +186,7 @@ func (e *Exchange) GetBoostRewardsHistory(ctx context.Context, req *BoostRewards
 	if err != nil {
 		return nil, err
 	}
-	params.Set("type", req.Type)
+	params.Set("type", string(req.Type))
 	var resp *BoostRewardsHistoryResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/sol-staking/sol/history/boostRewardsHistory", params, boostRewardsHistoryRate, &resp)
 }

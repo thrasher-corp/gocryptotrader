@@ -86,9 +86,9 @@ type ConvertLimitOrderRequest struct {
 	// Side is BUY or SELL
 	Side Side
 	// WalletType is SPOT (default), FUNDING, EARN or a combination such as SPOT_FUNDING
-	WalletType string
+	WalletType ConvertWalletType
 	// ExpiredType is 1_D, 3_D, 7_D or 30_D
-	ExpiredType string
+	ExpiredType ExpiredType
 }
 
 // ConvertLimitOpenOrdersResponse holds the open convert limit orders
@@ -119,9 +119,9 @@ type ConvertQuoteRequest struct {
 	FromAmount float64
 	ToAmount   float64
 	// WalletType is SPOT (default), FUNDING, EARN or a combination such as SPOT_FUNDING
-	WalletType string
+	WalletType ConvertWalletType
 	// ValidTime is how long the quote is valid: 10s (default), 30s or 1m
-	ValidTime string
+	ValidTime QuoteValidTime
 }
 
 // ConvertQuoteResponse is a convert quote; QuoteID is empty when the account cannot fund the conversion

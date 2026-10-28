@@ -32,7 +32,7 @@ func (e *Exchange) GetTargetAssetList(ctx context.Context, targetAsset currency.
 
 // GetTargetAssetReturnOnInvestmentData returns the simulated return history of a target asset over a period such as
 // ONE_YEAR
-func (e *Exchange) GetTargetAssetReturnOnInvestmentData(ctx context.Context, targetAsset currency.Code, historicalReturnOnInvestmentType string) ([]AutoInvestTargetAssetReturnOnInvestmentResponse, error) {
+func (e *Exchange) GetTargetAssetReturnOnInvestmentData(ctx context.Context, targetAsset currency.Code, historicalReturnOnInvestmentType HistoricalReturnOnInvestmentType) ([]AutoInvestTargetAssetReturnOnInvestmentResponse, error) {
 	if targetAsset.IsEmpty() {
 		return nil, fmt.Errorf("%w: target asset", currency.ErrCurrencyCodeEmpty)
 	}
@@ -41,7 +41,7 @@ func (e *Exchange) GetTargetAssetReturnOnInvestmentData(ctx context.Context, tar
 	}
 	params := url.Values{}
 	params.Set("targetAsset", targetAsset.Upper().String())
-	params.Set("hisRoiType", historicalReturnOnInvestmentType)
+	params.Set("hisRoiType", string(historicalReturnOnInvestmentType))
 	var resp []AutoInvestTargetAssetReturnOnInvestmentResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/lending/auto-invest/target-asset/roi/list", params, sapiDefaultRate, &resp)
 }
@@ -67,12 +67,12 @@ func (e *Exchange) GetSourceAssetList(ctx context.Context, req *AutoInvestSource
 	if req.IndexID > 0 {
 		params.Set("indexId", strconv.FormatUint(req.IndexID, 10))
 	}
-	params.Set("usageType", req.UsageType)
+	params.Set("usageType", string(req.UsageType))
 	if req.FlexibleAllowedToUse {
 		params.Set("flexibleAllowedToUse", "true")
 	}
 	if req.SourceType != "" {
-		params.Set("sourceType", req.SourceType)
+		params.Set("sourceType", string(req.SourceType))
 	}
 	var resp *AutoInvestSourceAssetListResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/lending/auto-invest/source-asset/list", params, sapiDefaultRate, &resp)
@@ -90,11 +90,11 @@ func (e *Exchange) InvestmentPlanCreation(ctx context.Context, req *InvestmentPl
 		return nil, errPlanTypeRequired
 	}
 	params := url.Values{}
-	params.Set("sourceType", req.SourceType)
+	params.Set("sourceType", string(req.SourceType))
 	if req.RequestID != "" {
 		params.Set("requestId", req.RequestID)
 	}
-	params.Set("planType", req.PlanType)
+	params.Set("planType", string(req.PlanType))
 	if req.IndexID > 0 {
 		params.Set("indexId", strconv.FormatUint(req.IndexID, 10))
 	}
@@ -123,7 +123,7 @@ func (e *Exchange) InvestmentPlanAdjustment(ctx context.Context, req *Investment
 }
 
 // ChangePlanStatus sets an Auto-Invest plan's status to ONGOING, PAUSED or REMOVED
-func (e *Exchange) ChangePlanStatus(ctx context.Context, planID uint64, status string) (*AutoInvestPlanStatusResponse, error) {
+func (e *Exchange) ChangePlanStatus(ctx context.Context, planID uint64, status AutoInvestPlanStatus) (*AutoInvestPlanStatusResponse, error) {
 	if planID == 0 {
 		return nil, errPlanIDRequired
 	}
@@ -132,18 +132,18 @@ func (e *Exchange) ChangePlanStatus(ctx context.Context, planID uint64, status s
 	}
 	params := url.Values{}
 	params.Set("planId", strconv.FormatUint(planID, 10))
-	params.Set("status", status)
+	params.Set("status", string(status))
 	var resp *AutoInvestPlanStatusResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, "/sapi/v1/lending/auto-invest/plan/edit-status", params, autoInvestPlanStatusRate, &resp)
 }
 
 // GetListOfPlans returns the account's Auto-Invest plans of a plan type
-func (e *Exchange) GetListOfPlans(ctx context.Context, planType string) (*AutoInvestPlanListResponse, error) {
+func (e *Exchange) GetListOfPlans(ctx context.Context, planType AutoInvestPlanType) (*AutoInvestPlanListResponse, error) {
 	if planType == "" {
 		return nil, errPlanTypeRequired
 	}
 	params := url.Values{}
-	params.Set("planType", planType)
+	params.Set("planType", string(planType))
 	var resp *AutoInvestPlanListResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/lending/auto-invest/plan/list", params, autoInvestPlanListRate, &resp)
 }
@@ -177,7 +177,7 @@ func (e *Exchange) GetSubscriptionsTransactionHistory(ctx context.Context, req *
 		params.Set("targetAsset", req.TargetAsset.Upper().String())
 	}
 	if req.PlanType != "" {
-		params.Set("planType", req.PlanType)
+		params.Set("planType", string(req.PlanType))
 	}
 	var resp []AutoInvestSubscriptionTransactionResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/lending/auto-invest/history/list", params, sapiDefaultRate, &resp)
@@ -223,7 +223,7 @@ func (e *Exchange) OneTimeTransaction(ctx context.Context, req *OneTimeTransacti
 		return nil, fmt.Errorf("%w: give a plan ID, an index ID or portfolio details", errPortfolioDetailRequired)
 	}
 	params := url.Values{}
-	params.Set("sourceType", req.SourceType)
+	params.Set("sourceType", string(req.SourceType))
 	if req.RequestID != "" {
 		params.Set("requestId", req.RequestID)
 	}
@@ -329,12 +329,12 @@ func setInvestmentPlanParams(params url.Values, s *InvestmentPlanSchedule) error
 		return errPortfolioDetailRequired
 	}
 	params.Set("subscriptionAmount", strconv.FormatFloat(s.SubscriptionAmount, 'f', -1, 64))
-	params.Set("subscriptionCycle", s.SubscriptionCycle)
+	params.Set("subscriptionCycle", string(s.SubscriptionCycle))
 	if s.SubscriptionStartDayOfMonth > 0 {
 		params.Set("subscriptionStartDay", strconv.FormatUint(s.SubscriptionStartDayOfMonth, 10))
 	}
 	if s.SubscriptionStartWeekday != "" {
-		params.Set("subscriptionStartWeekday", s.SubscriptionStartWeekday)
+		params.Set("subscriptionStartWeekday", string(s.SubscriptionStartWeekday))
 	}
 	// Always sent, as the hour is required and hour 0 is valid
 	params.Set("subscriptionStartTime", strconv.FormatUint(s.SubscriptionStartHourOfDay, 10))

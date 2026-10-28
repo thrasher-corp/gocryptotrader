@@ -83,42 +83,44 @@ type VIPLoanBorrowRequest struct {
 	LoanCoin             currency.Code
 	LoanAmount           float64
 	CollateralAccountIDs []uint64
-	CollateralCoins      []currency.Code
-	IsFlexibleRate       bool
-	LoanTermInDays       uint64 // required at a fixed rate
+	// CollateralCoins are sent as given: Binance names a coin's Simple Earn Flexible position <ASSET>-Earn, such as
+	// USDT-Earn, which goes with its spot coin, USDT
+	CollateralCoins []string
+	IsFlexibleRate  bool
+	LoanTermInDays  uint64 // required at a fixed rate
 }
 
 // VIPLoanBorrowResponse holds the application a VIP loan borrow made
 type VIPLoanBorrowResponse struct {
-	LoanAccountID        string                        `json:"loanAccountId"`
-	RequestID            string                        `json:"requestId"`
-	LoanCoin             currency.Code                 `json:"loanCoin"`
-	IsFlexibleRate       string                        `json:"isFlexibleRate"` // Yes or No
-	LoanAmount           types.Number                  `json:"loanAmount"`
-	CollateralAccountIDs CommaSeparated[uint64]        `json:"collateralAccountId"`
-	CollateralCoins      CommaSeparated[currency.Code] `json:"collateralCoin"`
-	LoanTermInDays       string                        `json:"loanTerm"`
+	LoanAccountID        string                 `json:"loanAccountId"`
+	RequestID            string                 `json:"requestId"`
+	LoanCoin             currency.Code          `json:"loanCoin"`
+	IsFlexibleRate       string                 `json:"isFlexibleRate"` // Yes or No
+	LoanAmount           types.Number           `json:"loanAmount"`
+	CollateralAccountIDs CommaSeparated[uint64] `json:"collateralAccountId"`
+	CollateralCoins      CommaSeparated[string] `json:"collateralCoin"`
+	LoanTermInDays       string                 `json:"loanTerm"`
 }
 
 // VIPLoanRenewResponse holds a renewed VIP loan
 type VIPLoanRenewResponse struct {
-	LoanAccountID        string                        `json:"loanAccountId"`
-	LoanCoin             currency.Code                 `json:"loanCoin"`
-	LoanAmount           types.Number                  `json:"loanAmount"`
-	CollateralAccountIDs CommaSeparated[uint64]        `json:"collateralAccountId"`
-	CollateralCoins      CommaSeparated[currency.Code] `json:"collateralCoin"`
-	LoanTermInDays       string                        `json:"loanTerm"`
+	LoanAccountID        string                 `json:"loanAccountId"`
+	LoanCoin             currency.Code          `json:"loanCoin"`
+	LoanAmount           types.Number           `json:"loanAmount"`
+	CollateralAccountIDs CommaSeparated[uint64] `json:"collateralAccountId"`
+	CollateralCoins      CommaSeparated[string] `json:"collateralCoin"`
+	LoanTermInDays       string                 `json:"loanTerm"`
 }
 
 // VIPLoanRepayResponse holds the outcome of a VIP loan repayment
 type VIPLoanRepayResponse struct {
-	LoanCoin           currency.Code                 `json:"loanCoin"`
-	RepayAmount        types.Number                  `json:"repayAmount"`
-	RemainingPrincipal types.Number                  `json:"remainingPrincipal"`
-	RemainingInterest  types.Number                  `json:"remainingInterest"`
-	CollateralCoins    CommaSeparated[currency.Code] `json:"collateralCoin"`
-	CurrentLTV         types.Number                  `json:"currentLTV"`
-	RepayStatus        string                        `json:"repayStatus"`
+	LoanCoin           currency.Code          `json:"loanCoin"`
+	RepayAmount        types.Number           `json:"repayAmount"`
+	RemainingPrincipal types.Number           `json:"remainingPrincipal"`
+	RemainingInterest  types.Number           `json:"remainingInterest"`
+	CollateralCoins    CommaSeparated[string] `json:"collateralCoin"`
+	CurrentLTV         types.Number           `json:"currentLTV"`
+	RepayStatus        string                 `json:"repayStatus"`
 }
 
 // VIPLoanCollateralAccountResponse holds VIP loan collateral accounts
@@ -129,8 +131,8 @@ type VIPLoanCollateralAccountResponse struct {
 
 // VIPLoanCollateralAccount holds a VIP loan collateral account and its collateral coins
 type VIPLoanCollateralAccount struct {
-	CollateralAccountID string                        `json:"collateralAccountId"`
-	CollateralCoins     CommaSeparated[currency.Code] `json:"collateralCoin"`
+	CollateralAccountID string                 `json:"collateralAccountId"`
+	CollateralCoins     CommaSeparated[string] `json:"collateralCoin"`
 }
 
 // VIPLoanHistoryRequest holds the parameters of GetVIPLoanAccruedInterest and GetVIPLoanRepaymentHistory
@@ -177,19 +179,19 @@ type VIPLoanOngoingOrdersResponse struct {
 
 // VIPLoanOngoingOrder holds an ongoing VIP loan order
 type VIPLoanOngoingOrder struct {
-	OrderID                          uint64                        `json:"orderId"`
-	LoanCoin                         currency.Code                 `json:"loanCoin"`
-	TotalDebt                        types.Number                  `json:"totalDebt"`
-	LoanRate                         types.Number                  `json:"loanRate"`
-	ResidualInterest                 types.Number                  `json:"residualInterest"`
-	CollateralAccountIDs             CommaSeparated[uint64]        `json:"collateralAccountId"`
-	CollateralCoins                  CommaSeparated[currency.Code] `json:"collateralCoin"`
-	TotalCollateralValueAfterHaircut types.Number                  `json:"totalCollateralValueAfterHaircut"`
-	LockedCollateralValue            types.Number                  `json:"lockedCollateralValue"`
-	CurrentLTV                       types.Number                  `json:"currentLTV"`
-	ExpirationTime                   types.Time                    `json:"expirationTime"` // zero for a flexible rate loan
-	LoanDate                         types.Time                    `json:"loanDate"`
-	LoanTerm                         string                        `json:"loanTerm"` // such as "30days", or "open term" for a flexible rate loan
+	OrderID                          uint64                 `json:"orderId"`
+	LoanCoin                         currency.Code          `json:"loanCoin"`
+	TotalDebt                        types.Number           `json:"totalDebt"`
+	LoanRate                         types.Number           `json:"loanRate"`
+	ResidualInterest                 types.Number           `json:"residualInterest"`
+	CollateralAccountIDs             CommaSeparated[uint64] `json:"collateralAccountId"`
+	CollateralCoins                  CommaSeparated[string] `json:"collateralCoin"`
+	TotalCollateralValueAfterHaircut types.Number           `json:"totalCollateralValueAfterHaircut"`
+	LockedCollateralValue            types.Number           `json:"lockedCollateralValue"`
+	CurrentLTV                       types.Number           `json:"currentLTV"`
+	ExpirationTime                   types.Time             `json:"expirationTime"` // zero for a flexible rate loan
+	LoanDate                         types.Time             `json:"loanDate"`
+	LoanTerm                         string                 `json:"loanTerm"` // such as "30days", or "open term" for a flexible rate loan
 }
 
 // VIPLoanRepaymentHistoryResponse holds a page of VIP loan repayments
@@ -200,15 +202,15 @@ type VIPLoanRepaymentHistoryResponse struct {
 
 // VIPLoanRepayment holds a VIP loan repayment
 type VIPLoanRepayment struct {
-	LoanCoin        currency.Code                 `json:"loanCoin"`
-	RepayAmount     types.Number                  `json:"repayAmount"`
-	RepayPrincipal  types.Number                  `json:"repayPrincipal"`
-	RepayInterest   types.Number                  `json:"repayInterest"`
-	CollateralCoins CommaSeparated[currency.Code] `json:"collateralCoin"`
-	RepayStatus     string                        `json:"repayStatus"`
-	LoanDate        types.Time                    `json:"loanDate"`
-	RepayTime       types.Time                    `json:"repayTime"`
-	OrderID         string                        `json:"orderId"`
+	LoanCoin        currency.Code          `json:"loanCoin"`
+	RepayAmount     types.Number           `json:"repayAmount"`
+	RepayPrincipal  types.Number           `json:"repayPrincipal"`
+	RepayInterest   types.Number           `json:"repayInterest"`
+	CollateralCoins CommaSeparated[string] `json:"collateralCoin"`
+	RepayStatus     string                 `json:"repayStatus"`
+	LoanDate        types.Time             `json:"loanDate"`
+	RepayTime       types.Time             `json:"repayTime"`
+	OrderID         string                 `json:"orderId"`
 }
 
 // VIPLoanApplicationStatusResponse holds a page of VIP loan applications
@@ -219,14 +221,14 @@ type VIPLoanApplicationStatusResponse struct {
 
 // VIPLoanApplication holds a VIP loan application and its status
 type VIPLoanApplication struct {
-	LoanAccountID        string                        `json:"loanAccountId"`
-	OrderID              string                        `json:"orderId"`
-	RequestID            string                        `json:"requestId"`
-	LoanCoin             currency.Code                 `json:"loanCoin"`
-	LoanAmount           types.Number                  `json:"loanAmount"`
-	CollateralAccountIDs CommaSeparated[uint64]        `json:"collateralAccountId"`
-	CollateralCoins      CommaSeparated[currency.Code] `json:"collateralCoin"`
-	LoanTermInDays       string                        `json:"loanTerm"`
-	Status               string                        `json:"status"`
-	LoanDate             types.Time                    `json:"loanDate"`
+	LoanAccountID        string                 `json:"loanAccountId"`
+	OrderID              string                 `json:"orderId"`
+	RequestID            string                 `json:"requestId"`
+	LoanCoin             currency.Code          `json:"loanCoin"`
+	LoanAmount           types.Number           `json:"loanAmount"`
+	CollateralAccountIDs CommaSeparated[uint64] `json:"collateralAccountId"`
+	CollateralCoins      CommaSeparated[string] `json:"collateralCoin"`
+	LoanTermInDays       string                 `json:"loanTerm"`
+	Status               string                 `json:"status"`
+	LoanDate             types.Time             `json:"loanDate"`
 }

@@ -21,17 +21,17 @@ type FlexibleLoanAdjustLTVRequest struct {
 	LoanCoin         currency.Code
 	CollateralCoin   currency.Code
 	AdjustmentAmount float64
-	Direction        string // ADDITIONAL or REDUCED
+	Direction        LTVAdjustmentDirection // ADDITIONAL or REDUCED
 }
 
 // FlexibleLoanAdjustLTVResponse holds the outcome of a flexible loan LTV adjustment
 type FlexibleLoanAdjustLTVResponse struct {
-	LoanCoin         currency.Code `json:"loanCoin"`
-	CollateralCoin   currency.Code `json:"collateralCoin"`
-	Direction        string        `json:"direction"`
-	AdjustmentAmount types.Number  `json:"adjustmentAmount"`
-	CurrentLTV       types.Number  `json:"currentLTV"`
-	Status           string        `json:"status"`
+	LoanCoin         currency.Code          `json:"loanCoin"`
+	CollateralCoin   currency.Code          `json:"collateralCoin"`
+	Direction        LTVAdjustmentDirection `json:"direction"`
+	AdjustmentAmount types.Number           `json:"adjustmentAmount"`
+	CurrentLTV       types.Number           `json:"currentLTV"`
+	Status           string                 `json:"status"`
 }
 
 type flexibleLoanAdjustLTVResponseAlias FlexibleLoanAdjustLTVResponse
@@ -196,13 +196,13 @@ type FlexibleLoanLTVAdjustmentHistoryResponse struct {
 
 // FlexibleLoanLTVAdjustment holds a flexible loan LTV adjustment
 type FlexibleLoanLTVAdjustment struct {
-	LoanCoin         currency.Code `json:"loanCoin"`
-	CollateralCoin   currency.Code `json:"collateralCoin"`
-	Direction        string        `json:"direction"`
-	CollateralAmount types.Number  `json:"collateralAmount"`
-	PreLTV           types.Number  `json:"preLTV"`
-	AfterLTV         types.Number  `json:"afterLTV"`
-	AdjustTime       types.Time    `json:"adjustTime"`
+	LoanCoin         currency.Code          `json:"loanCoin"`
+	CollateralCoin   currency.Code          `json:"collateralCoin"`
+	Direction        LTVAdjustmentDirection `json:"direction"`
+	CollateralAmount types.Number           `json:"collateralAmount"`
+	PreLTV           types.Number           `json:"preLTV"`
+	AfterLTV         types.Number           `json:"afterLTV"`
+	AdjustTime       types.Time             `json:"adjustTime"`
 }
 
 // FlexibleLoanOngoingOrdersRequest holds the parameters of FlexibleLoanOngoingOrders
@@ -247,7 +247,7 @@ type FlexibleLoanRepayment struct {
 // CryptoLoanIncomeHistoryRequest holds the parameters of CryptoLoanIncomeHistory
 type CryptoLoanIncomeHistoryRequest struct {
 	Asset     currency.Code
-	Type      string // such as borrowIn or collateralSpent; every type when empty
+	Type      CryptoLoanIncomeType // such as borrowIn or collateralSpent; every type when empty
 	StartTime time.Time
 	EndTime   time.Time
 	Limit     uint64
@@ -255,11 +255,11 @@ type CryptoLoanIncomeHistoryRequest struct {
 
 // CryptoLoanIncomeResponse holds a stable rate crypto loan asset movement
 type CryptoLoanIncomeResponse struct {
-	Asset         currency.Code `json:"asset"`
-	Type          string        `json:"type"`
-	Amount        types.Number  `json:"amount"`
-	Timestamp     types.Time    `json:"timestamp"`
-	TransactionID string        `json:"tranId"`
+	Asset         currency.Code        `json:"asset"`
+	Type          CryptoLoanIncomeType `json:"type"`
+	Amount        types.Number         `json:"amount"`
+	Timestamp     types.Time           `json:"timestamp"`
+	TransactionID string               `json:"tranId"`
 }
 
 // CryptoLoanHistoryRequest holds the parameters of the stable rate crypto loan borrow, LTV adjustment and repayment
@@ -301,14 +301,14 @@ type CryptoLoanLTVAdjustmentHistoryResponse struct {
 
 // CryptoLoanLTVAdjustment holds a stable rate crypto loan LTV adjustment
 type CryptoLoanLTVAdjustment struct {
-	LoanCoin       currency.Code `json:"loanCoin"`
-	CollateralCoin currency.Code `json:"collateralCoin"`
-	Direction      string        `json:"direction"`
-	Amount         types.Number  `json:"amount"`
-	PreLTV         types.Number  `json:"preLTV"`
-	AfterLTV       types.Number  `json:"afterLTV"`
-	AdjustTime     types.Time    `json:"adjustTime"`
-	OrderID        uint64        `json:"orderId"`
+	LoanCoin       currency.Code          `json:"loanCoin"`
+	CollateralCoin currency.Code          `json:"collateralCoin"`
+	Direction      LTVAdjustmentDirection `json:"direction"`
+	Amount         types.Number           `json:"amount"`
+	PreLTV         types.Number           `json:"preLTV"`
+	AfterLTV       types.Number           `json:"afterLTV"`
+	AdjustTime     types.Time             `json:"adjustTime"`
+	OrderID        uint64                 `json:"orderId"`
 }
 
 // CryptoLoanRepaymentHistoryResponse holds a page of stable rate crypto loan repayments

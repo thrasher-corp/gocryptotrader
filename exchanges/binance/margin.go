@@ -122,7 +122,7 @@ func (e *Exchange) GetCrossOrIsolatedMarginCapitalFlow(ctx context.Context, req 
 		params.Set("symbol", symbolValue)
 	}
 	if req.Type != "" {
-		params.Set("type", req.Type)
+		params.Set("type", string(req.Type))
 	}
 	if !req.StartTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(req.StartTime.UnixMilli(), 10))
@@ -263,7 +263,7 @@ func (e *Exchange) GetBorrowOrRepayRecordsInMarginAccount(ctx context.Context, r
 		}
 	}
 	params := url.Values{}
-	params.Set("type", req.Type)
+	params.Set("type", string(req.Type))
 	if !req.Asset.IsEmpty() {
 		params.Set("asset", req.Asset.Upper().String())
 	}
@@ -324,7 +324,7 @@ func (e *Exchange) MarginAccountBorrowRepay(ctx context.Context, req *MarginAcco
 		params.Set("symbol", symbolValue)
 	}
 	params.Set("amount", strconv.FormatFloat(req.Amount, 'f', -1, 64))
-	params.Set("type", req.Type)
+	params.Set("type", string(req.Type))
 	var resp *MarginAccountBorrowRepayResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, "/sapi/v1/margin/borrow-repay", params, marginAccountBorrowRepayRate, &resp)
 }
@@ -447,12 +447,12 @@ func (e *Exchange) GetIsolatedMarginTierData(ctx context.Context, symbol currenc
 }
 
 // GetMarginAvailableInventory returns the inventory available to borrow for marginType, MARGIN or ISOLATED
-func (e *Exchange) GetMarginAvailableInventory(ctx context.Context, marginType string) (*MarginAvailableInventoryResponse, error) {
+func (e *Exchange) GetMarginAvailableInventory(ctx context.Context, marginType MarginAccountType) (*MarginAvailableInventoryResponse, error) {
 	if marginType == "" {
 		return nil, margin.ErrInvalidMarginType
 	}
 	params := url.Values{}
-	params.Set("type", marginType)
+	params.Set("type", string(marginType))
 	var resp *MarginAvailableInventoryResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/available-inventory", params, marginAvailableInventoryRate, &resp)
 }
@@ -862,7 +862,7 @@ func (e *Exchange) NewMarginAccountOneCancelsTheOtherOrder(ctx context.Context, 
 
 // MarginManualLiquidation liquidates the margin account of marginType, MARGIN or ISOLATED; ISOLATED requires symbol
 // and Binance supports it only in restricted regions
-func (e *Exchange) MarginManualLiquidation(ctx context.Context, marginType string, symbol currency.Pair) (*MarginManualLiquidationResponse, error) {
+func (e *Exchange) MarginManualLiquidation(ctx context.Context, marginType MarginAccountType, symbol currency.Pair) (*MarginManualLiquidationResponse, error) {
 	if marginType == "" {
 		return nil, margin.ErrInvalidMarginType
 	}
@@ -870,7 +870,7 @@ func (e *Exchange) MarginManualLiquidation(ctx context.Context, marginType strin
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	params := url.Values{}
-	params.Set("type", marginType)
+	params.Set("type", string(marginType))
 	if !symbol.IsEmpty() {
 		symbolValue, err := e.FormatSymbol(symbol, asset.Margin)
 		if err != nil {
@@ -1051,7 +1051,7 @@ func (e *Exchange) GetCrossMarginTransferHistory(ctx context.Context, req *Cross
 		params.Set("asset", req.Asset.Upper().String())
 	}
 	if req.Type != "" {
-		params.Set("type", req.Type)
+		params.Set("type", string(req.Type))
 	}
 	if !req.StartTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(req.StartTime.UnixMilli(), 10))

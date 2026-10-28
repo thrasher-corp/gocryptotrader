@@ -230,7 +230,7 @@ type BNSOLReward struct {
 
 // BoostRewardsHistoryRequest holds the parameters of GetBoostRewardsHistory
 type BoostRewardsHistoryRequest struct {
-	Type      string // CLAIM or DISTRIBUTE
+	Type      BoostRewardsType // CLAIM or DISTRIBUTE
 	StartTime time.Time
 	EndTime   time.Time
 	Current   uint64

@@ -475,8 +475,8 @@ type SubAccountUniversalTransfer struct {
 	Asset               currency.Code `json:"asset"`
 	Amount              types.Number  `json:"amount"`
 	CreateTimeStamp     types.Time    `json:"createTimeStamp"`
-	FromAccountType     string        `json:"fromAccountType"`
-	ToAccountType       string        `json:"toAccountType"`
+	FromAccountType     AccountType   `json:"fromAccountType"`
+	ToAccountType       AccountType   `json:"toAccountType"`
 	Status              string        `json:"status"`
 	ClientTransactionID string        `json:"clientTranId"`
 }
@@ -484,11 +484,11 @@ type SubAccountUniversalTransfer struct {
 // SubAccountUniversalTransferRequest holds the parameters for a universal transfer between the master account and
 // sub-accounts
 type SubAccountUniversalTransferRequest struct {
-	FromEmail           string // The master account when empty
-	ToEmail             string // The master account when empty
-	FromAccountType     string // SPOT, USDT_FUTURE, COIN_FUTURE, MARGIN, ISOLATED_MARGIN or ALPHA
-	ToAccountType       string // SPOT, USDT_FUTURE, COIN_FUTURE, MARGIN, ISOLATED_MARGIN or ALPHA
-	ClientTransactionID string // Must be unique
+	FromEmail           string      // The master account when empty
+	ToEmail             string      // The master account when empty
+	FromAccountType     AccountType // SPOT, USDT_FUTURE, COIN_FUTURE, MARGIN, ISOLATED_MARGIN or ALPHA
+	ToAccountType       AccountType // SPOT, USDT_FUTURE, COIN_FUTURE, MARGIN, ISOLATED_MARGIN or ALPHA
+	ClientTransactionID string      // Must be unique
 	Symbol              currency.Pair
 	Asset               currency.Code
 	Amount              float64
@@ -517,8 +517,8 @@ type SubAccountTransferHistoryRecordResponse struct {
 	Type            uint64        `json:"type"` // 1 transfer in, 2 transfer out
 	Asset           currency.Code `json:"asset"`
 	Quantity        types.Number  `json:"qty"`
-	FromAccountType string        `json:"fromAccountType"`
-	ToAccountType   string        `json:"toAccountType"`
+	FromAccountType AccountType   `json:"fromAccountType"`
+	ToAccountType   AccountType   `json:"toAccountType"`
 	Status          string        `json:"status"`
 	TransactionID   uint64        `json:"tranId"`
 	Time            types.Time    `json:"time"`
@@ -609,9 +609,9 @@ type ManagedSubAccountTransferLogRequest struct {
 	StartTime                   time.Time // The window cannot exceed half a year
 	EndTime                     time.Time
 	Page                        uint64
-	Limit                       uint64 // Up to 500
-	Transfers                   string // Transfer direction, FROM or TO
-	TransferFunctionAccountType string // SPOT, MARGIN, ISOLATED_MARGIN, USDT_FUTURE or COIN_FUTURE
+	Limit                       uint64            // Up to 500
+	Transfers                   TransferDirection // Transfer direction, FROM or TO
+	TransferFunctionAccountType AccountType       // SPOT, MARGIN, ISOLATED_MARGIN, USDT_FUTURE or COIN_FUTURE
 }
 
 // ManagedSubAccountTransferLogResponse holds managed sub-account transfers
@@ -623,9 +623,9 @@ type ManagedSubAccountTransferLogResponse struct {
 // ManagedSubAccountTransfer holds one transfer of a managed sub-account
 type ManagedSubAccountTransfer struct {
 	FromEmail       string        `json:"fromEmail"`
-	FromAccountType string        `json:"fromAccountType"`
+	FromAccountType AccountType   `json:"fromAccountType"`
 	ToEmail         string        `json:"toEmail"`
-	ToAccountType   string        `json:"toAccountType"`
+	ToAccountType   AccountType   `json:"toAccountType"`
 	Asset           currency.Code `json:"asset"`
 	Amount          types.Number  `json:"amount"`
 	ScheduledData   types.Time    `json:"scheduledData"`

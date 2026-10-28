@@ -6,6 +6,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -252,8 +253,8 @@ type USDTMarginedFuturesCommissionRateResponse struct {
 // USDTMarginedFuturesBasisRequest holds the parameters of Basis
 type USDTMarginedFuturesBasisRequest struct {
 	Pair         currency.Pair
-	ContractType ContractType // PERPETUAL, CURRENT_QUARTER or NEXT_QUARTER
-	Period       string       // 5m, 15m, 30m, 1h, 2h, 4h, 6h, 12h or 1d
+	ContractType ContractType   // PERPETUAL, CURRENT_QUARTER or NEXT_QUARTER
+	Period       kline.Interval // 5m, 15m, 30m, 1h, 2h, 4h, 6h, 12h or 1d
 	StartTime    time.Time
 	EndTime      time.Time
 	Limit        uint64
@@ -318,7 +319,7 @@ type USDTMarginedFuturesCompressedTradeResponse struct {
 type USDTMarginedFuturesContinuousKlineRequest struct {
 	Pair         currency.Pair
 	ContractType ContractType // PERPETUAL, CURRENT_QUARTER, NEXT_QUARTER or TRADIFI_PERPETUAL
-	Interval     string
+	Interval     kline.Interval
 	StartTime    time.Time
 	EndTime      time.Time
 	Limit        uint64
@@ -431,7 +432,7 @@ type FundingRateInfoResponse struct {
 // USDTMarginedFuturesIndexPriceKlineRequest holds the parameters of Index Price Kline/Candlestick Data
 type USDTMarginedFuturesIndexPriceKlineRequest struct {
 	Pair      currency.Pair
-	Interval  string
+	Interval  kline.Interval
 	StartTime time.Time
 	EndTime   time.Time
 	Limit     uint64
@@ -457,7 +458,7 @@ func (k *USDTMarginedFuturesPriceKlineResponse) UnmarshalJSON(data []byte) error
 // Premium Index Kline Data
 type USDTMarginedFuturesKlineRequest struct {
 	Symbol    currency.Pair
-	Interval  string
+	Interval  kline.Interval
 	StartTime time.Time
 	EndTime   time.Time
 	Limit     uint64
@@ -467,7 +468,7 @@ type USDTMarginedFuturesKlineRequest struct {
 // Statistics, Long/Short Ratio, Top Trader Long/Short Account and Position Ratios, and Taker Buy/Sell Volume
 type USDTMarginedFuturesDataRequest struct {
 	Symbol    currency.Pair
-	Period    string // 5m, 15m, 30m, 1h, 2h, 4h, 6h, 12h or 1d
+	Period    kline.Interval // 5m, 15m, 30m, 1h, 2h, 4h, 6h, 12h or 1d
 	StartTime time.Time
 	EndTime   time.Time
 	Limit     uint64

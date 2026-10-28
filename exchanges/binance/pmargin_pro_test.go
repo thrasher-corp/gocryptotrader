@@ -135,7 +135,7 @@ func TestRepayPortfolioMarginProBankruptcyLoan(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	result, err := e.RepayPortfolioMarginProBankruptcyLoan(t.Context(), "SPOT")
+	result, err := e.RepayPortfolioMarginProBankruptcyLoan(t.Context())
 	require.NoError(t, err, "RepayPortfolioMarginProBankruptcyLoan must not error")
 	if mockTests {
 		exp := &PortfolioMarginTransactionResponse{
@@ -199,7 +199,7 @@ func TestRepayPortfolioMarginProFuturesNegativeBalance(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	result, err := e.RepayPortfolioMarginProFuturesNegativeBalance(t.Context(), "MARGIN")
+	result, err := e.RepayPortfolioMarginProFuturesNegativeBalance(t.Context())
 	require.NoError(t, err, "RepayPortfolioMarginProFuturesNegativeBalance must not error")
 	if mockTests {
 		exp := &PortfolioMarginMessageResponse{

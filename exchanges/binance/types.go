@@ -10,6 +10,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/types"
@@ -150,6 +151,402 @@ const (
 	SideEffectTypeAutoBorrowRepay SideEffectType = "AUTO_BORROW_REPAY"
 )
 
+// SymbolStatus is the symbolStatus parameter of spot market data requests
+type SymbolStatus string
+
+// Spot symbol trading statuses, which filter the symbols a market data request returns
+const (
+	SymbolStatusTrading    SymbolStatus = "TRADING"
+	SymbolStatusHalt       SymbolStatus = "HALT"
+	SymbolStatusBreak      SymbolStatus = "BREAK"
+	SymbolStatusCancelOnly SymbolStatus = "CANCEL_ONLY"
+)
+
+// TickerType is the type parameter of the spot ticker requests
+type TickerType string
+
+// Ticker types of the 24hr, rolling window and trading day tickers, over REST and the WebSocket API: FULL, the
+// default, or MINI, which leaves out the bid, ask and weighted average price fields
+const (
+	TickerTypeFull TickerType = "FULL"
+	TickerTypeMini TickerType = "MINI"
+)
+
+// MarginAccountType is the type parameter of the margin available inventory and manual liquidation requests
+type MarginAccountType string
+
+// Margin account types: MARGIN for the cross margin account or ISOLATED for isolated margin accounts
+const (
+	MarginAccountTypeMargin   MarginAccountType = "MARGIN"
+	MarginAccountTypeIsolated MarginAccountType = "ISOLATED"
+)
+
+// BorrowRepayType is the type parameter of margin borrow and repay requests and of their history queries
+type BorrowRepayType string
+
+// Margin borrow and repay types
+const (
+	BorrowRepayTypeBorrow BorrowRepayType = "BORROW"
+	BorrowRepayTypeRepay  BorrowRepayType = "REPAY"
+)
+
+// CrossMarginTransferType is the type parameter of the cross margin transfer history, and the direction its records
+// report
+type CrossMarginTransferType string
+
+// Cross margin transfer types: into (ROLL_IN) or out of (ROLL_OUT) the cross margin account
+const (
+	CrossMarginTransferTypeRollIn  CrossMarginTransferType = "ROLL_IN"
+	CrossMarginTransferTypeRollOut CrossMarginTransferType = "ROLL_OUT"
+)
+
+// MarginCapitalFlowType is the type parameter of the margin capital flow, and the type its records report
+type MarginCapitalFlowType string
+
+// Margin capital flow types
+const (
+	MarginCapitalFlowTypeTransfer            MarginCapitalFlowType = "TRANSFER"
+	MarginCapitalFlowTypeBorrow              MarginCapitalFlowType = "BORROW"
+	MarginCapitalFlowTypeRepay               MarginCapitalFlowType = "REPAY"
+	MarginCapitalFlowTypeBuyIncome           MarginCapitalFlowType = "BUY_INCOME"
+	MarginCapitalFlowTypeBuyExpense          MarginCapitalFlowType = "BUY_EXPENSE"
+	MarginCapitalFlowTypeSellIncome          MarginCapitalFlowType = "SELL_INCOME"
+	MarginCapitalFlowTypeSellExpense         MarginCapitalFlowType = "SELL_EXPENSE"
+	MarginCapitalFlowTypeTradingCommission   MarginCapitalFlowType = "TRADING_COMMISSION"
+	MarginCapitalFlowTypeBuyLiquidation      MarginCapitalFlowType = "BUY_LIQUIDATION"
+	MarginCapitalFlowTypeSellLiquidation     MarginCapitalFlowType = "SELL_LIQUIDATION"
+	MarginCapitalFlowTypeRepayLiquidation    MarginCapitalFlowType = "REPAY_LIQUIDATION"
+	MarginCapitalFlowTypeOtherLiquidation    MarginCapitalFlowType = "OTHER_LIQUIDATION"
+	MarginCapitalFlowTypeLiquidationFee      MarginCapitalFlowType = "LIQUIDATION_FEE"
+	MarginCapitalFlowTypeSmallBalanceConvert MarginCapitalFlowType = "SMALL_BALANCE_CONVERT"
+	MarginCapitalFlowTypeCommissionReturn    MarginCapitalFlowType = "COMMISSION_RETURN"
+	MarginCapitalFlowTypeSmallConvert        MarginCapitalFlowType = "SMALL_CONVERT"
+)
+
+// The values below are for wallet, sub-account and broker endpoints
+
+// AccountType is an account type parameter of the wallet, sub-account and broker endpoints
+type AccountType string
+
+// Account types. The dust endpoints take SPOT or MARGIN; managed sub-account transfer logs take SPOT, MARGIN,
+// ISOLATED_MARGIN, USDT_FUTURE or COIN_FUTURE, and sub-account universal transfers those or ALPHA, which moves funds
+// between Alpha accounts only; managed sub-account futures asset details take USDT_FUTURE or COIN_FUTURE, and margin
+// asset details MARGIN or ISOLATED_MARGIN; broker universal transfers take SPOT, USDT_FUTURE or COIN_FUTURE
+const (
+	AccountTypeSpot           AccountType = "SPOT"
+	AccountTypeMargin         AccountType = "MARGIN"
+	AccountTypeIsolatedMargin AccountType = "ISOLATED_MARGIN"
+	AccountTypeUSDTFuture     AccountType = "USDT_FUTURE"
+	AccountTypeCoinFuture     AccountType = "COIN_FUTURE"
+	AccountTypeAlpha          AccountType = "ALPHA"
+)
+
+// AccountSnapshotType is the type parameter of the daily account snapshot request; snapshots report it in lowercase
+type AccountSnapshotType string
+
+// Account snapshot types
+const (
+	AccountSnapshotTypeSpot    AccountSnapshotType = "SPOT"
+	AccountSnapshotTypeMargin  AccountSnapshotType = "MARGIN"
+	AccountSnapshotTypeFutures AccountSnapshotType = "FUTURES"
+)
+
+// UniversalTransferType is the type parameter of user universal transfers and their history, naming the account
+// transferred from and the account transferred to
+type UniversalTransferType string
+
+// Universal transfer types. MAIN is the spot account, UMFUTURE and CMFUTURE the USDⓈ-M and COIN-M futures accounts,
+// ISOLATEDMARGIN an isolated margin account, and OPTION the options account
+const (
+	UniversalTransferTypeMainUSDTMarginedFutures      UniversalTransferType = "MAIN_UMFUTURE"
+	UniversalTransferTypeMainCoinMarginedFutures      UniversalTransferType = "MAIN_CMFUTURE"
+	UniversalTransferTypeMainMargin                   UniversalTransferType = "MAIN_MARGIN"
+	UniversalTransferTypeUSDTMarginedFuturesMain      UniversalTransferType = "UMFUTURE_MAIN"
+	UniversalTransferTypeUSDTMarginedFuturesMargin    UniversalTransferType = "UMFUTURE_MARGIN"
+	UniversalTransferTypeCoinMarginedFuturesMain      UniversalTransferType = "CMFUTURE_MAIN"
+	UniversalTransferTypeCoinMarginedFuturesMargin    UniversalTransferType = "CMFUTURE_MARGIN"
+	UniversalTransferTypeMarginMain                   UniversalTransferType = "MARGIN_MAIN"
+	UniversalTransferTypeMarginUSDTMarginedFutures    UniversalTransferType = "MARGIN_UMFUTURE"
+	UniversalTransferTypeMarginCoinMarginedFutures    UniversalTransferType = "MARGIN_CMFUTURE"
+	UniversalTransferTypeIsolatedMarginMargin         UniversalTransferType = "ISOLATEDMARGIN_MARGIN"
+	UniversalTransferTypeMarginIsolatedMargin         UniversalTransferType = "MARGIN_ISOLATEDMARGIN"
+	UniversalTransferTypeIsolatedMarginIsolatedMargin UniversalTransferType = "ISOLATEDMARGIN_ISOLATEDMARGIN"
+	UniversalTransferTypeMainFunding                  UniversalTransferType = "MAIN_FUNDING"
+	UniversalTransferTypeFundingMain                  UniversalTransferType = "FUNDING_MAIN"
+	UniversalTransferTypeFundingUSDTMarginedFutures   UniversalTransferType = "FUNDING_UMFUTURE"
+	UniversalTransferTypeUSDTMarginedFuturesFunding   UniversalTransferType = "UMFUTURE_FUNDING"
+	UniversalTransferTypeMarginFunding                UniversalTransferType = "MARGIN_FUNDING"
+	UniversalTransferTypeFundingMargin                UniversalTransferType = "FUNDING_MARGIN"
+	UniversalTransferTypeFundingCoinMarginedFutures   UniversalTransferType = "FUNDING_CMFUTURE"
+	UniversalTransferTypeCoinMarginedFuturesFunding   UniversalTransferType = "CMFUTURE_FUNDING"
+	UniversalTransferTypeMainOption                   UniversalTransferType = "MAIN_OPTION"
+	UniversalTransferTypeOptionMain                   UniversalTransferType = "OPTION_MAIN"
+	UniversalTransferTypeUSDTMarginedFuturesOption    UniversalTransferType = "UMFUTURE_OPTION"
+	UniversalTransferTypeOptionUSDTMarginedFutures    UniversalTransferType = "OPTION_UMFUTURE"
+	UniversalTransferTypeMarginOption                 UniversalTransferType = "MARGIN_OPTION"
+	UniversalTransferTypeOptionMargin                 UniversalTransferType = "OPTION_MARGIN"
+	UniversalTransferTypeFundingOption                UniversalTransferType = "FUNDING_OPTION"
+	UniversalTransferTypeOptionFunding                UniversalTransferType = "OPTION_FUNDING"
+	UniversalTransferTypeMainPortfolioMargin          UniversalTransferType = "MAIN_PORTFOLIO_MARGIN"
+	UniversalTransferTypePortfolioMarginMain          UniversalTransferType = "PORTFOLIO_MARGIN_MAIN"
+)
+
+// TransferDirection is the transfers parameter of the managed sub-account transfer logs
+type TransferDirection string
+
+// Transfer directions: transfers out of (FROM) or into (TO) the managed sub-account. The investor and trading parent
+// logs document them in upper case, and the trading team sub-account's own log in lower case, from or to
+const (
+	TransferDirectionFrom TransferDirection = "FROM"
+	TransferDirectionTo   TransferDirection = "TO"
+)
+
+// DelegationType is the type parameter of the user delegation history
+type DelegationType string
+
+// Delegation types
+const (
+	DelegationTypeDelegate   DelegationType = "DELEGATE"
+	DelegationTypeUndelegate DelegationType = "UNDELEGATE"
+)
+
+// HistoricalDataType is the dataType parameter of the futures historical order book data download link request
+type HistoricalDataType string
+
+// Historical data types: tick level order book data (T_DEPTH) or order book snapshots (S_DEPTH)
+const (
+	HistoricalDataTypeTickDepth     HistoricalDataType = "T_DEPTH"
+	HistoricalDataTypeSnapshotDepth HistoricalDataType = "S_DEPTH"
+)
+
+// The values below are for earn, loan, convert, auto-invest and algo trading endpoints
+
+// SimpleEarnAccount is the sourceAccount parameter of Simple Earn subscriptions and the destAccount parameter of
+// flexible product redemptions
+type SimpleEarnAccount string
+
+// Simple Earn accounts: subscriptions take SPOT (the default), FUND or ALL, and redemptions SPOT (the default) or FUND
+const (
+	SimpleEarnAccountSpot SimpleEarnAccount = "SPOT"
+	SimpleEarnAccountFund SimpleEarnAccount = "FUND"
+	SimpleEarnAccountAll  SimpleEarnAccount = "ALL"
+)
+
+// RedeemTo is the redeemTo parameter of locked Simple Earn subscriptions and redemption options
+type RedeemTo string
+
+// Where a locked product is redeemed to when it ends: the spot account or a flexible product
+const (
+	RedeemToSpot     RedeemTo = "SPOT"
+	RedeemToFlexible RedeemTo = "FLEXIBLE"
+)
+
+// APRPeriod is the aprPeriod parameter of the Simple Earn rate history
+type APRPeriod string
+
+// Annual percentage rate periods
+const (
+	APRPeriodDay  APRPeriod = "DAY"
+	APRPeriodYear APRPeriod = "YEAR"
+)
+
+// FlexibleRewardType is the type parameter of the flexible Simple Earn rewards history
+type FlexibleRewardType string
+
+// Flexible reward types
+const (
+	FlexibleRewardTypeBonus    FlexibleRewardType = "BONUS"
+	FlexibleRewardTypeRealtime FlexibleRewardType = "REALTIME"
+	FlexibleRewardTypeRewards  FlexibleRewardType = "REWARDS"
+	FlexibleRewardTypeAll      FlexibleRewardType = "ALL"
+)
+
+// BoostRewardsType is the type parameter of the SOL staking boost rewards history
+type BoostRewardsType string
+
+// Boost rewards types
+const (
+	BoostRewardsTypeClaim      BoostRewardsType = "CLAIM"
+	BoostRewardsTypeDistribute BoostRewardsType = "DISTRIBUTE"
+)
+
+// LTVAdjustmentDirection is the direction parameter of a flexible loan LTV adjustment, and the direction its result
+// reports
+type LTVAdjustmentDirection string
+
+// LTV adjustment directions: adding collateral (ADDITIONAL) or removing it (REDUCED)
+const (
+	LTVAdjustmentDirectionAdditional LTVAdjustmentDirection = "ADDITIONAL"
+	LTVAdjustmentDirectionReduced    LTVAdjustmentDirection = "REDUCED"
+)
+
+// CryptoLoanIncomeType is the type parameter of the crypto loan income history, and the type its records report
+type CryptoLoanIncomeType string
+
+// Crypto loan income types, in Binance's camel case
+const (
+	CryptoLoanIncomeTypeBorrowIn                         CryptoLoanIncomeType = "borrowIn"
+	CryptoLoanIncomeTypeCollateralSpent                  CryptoLoanIncomeType = "collateralSpent"
+	CryptoLoanIncomeTypeRepayAmount                      CryptoLoanIncomeType = "repayAmount"
+	CryptoLoanIncomeTypeCollateralReturn                 CryptoLoanIncomeType = "collateralReturn"
+	CryptoLoanIncomeTypeAddCollateral                    CryptoLoanIncomeType = "addCollateral"
+	CryptoLoanIncomeTypeRemoveCollateral                 CryptoLoanIncomeType = "removeCollateral"
+	CryptoLoanIncomeTypeCollateralReturnAfterLiquidation CryptoLoanIncomeType = "collateralReturnAfterLiquidation"
+)
+
+// ConvertWalletType is the walletType parameter of convert quotes and limit orders, the wallets paid from
+type ConvertWalletType string
+
+// Convert wallet types: SPOT, the default, FUNDING, EARN, or a combination of them
+const (
+	ConvertWalletTypeSpot            ConvertWalletType = "SPOT"
+	ConvertWalletTypeFunding         ConvertWalletType = "FUNDING"
+	ConvertWalletTypeEarn            ConvertWalletType = "EARN"
+	ConvertWalletTypeSpotFunding     ConvertWalletType = "SPOT_FUNDING"
+	ConvertWalletTypeFundingEarn     ConvertWalletType = "FUNDING_EARN"
+	ConvertWalletTypeSpotFundingEarn ConvertWalletType = "SPOT_FUNDING_EARN"
+	ConvertWalletTypeSpotEarn        ConvertWalletType = "SPOT_EARN"
+)
+
+// ExpiredType is the expiredType parameter of a convert limit order, how long it lasts
+type ExpiredType string
+
+// Convert limit order expiries
+const (
+	ExpiredType1Day   ExpiredType = "1_D"
+	ExpiredType3Days  ExpiredType = "3_D"
+	ExpiredType7Days  ExpiredType = "7_D"
+	ExpiredType30Days ExpiredType = "30_D"
+)
+
+// QuoteValidTime is the validTime parameter of a convert quote request, how long the quote is valid
+type QuoteValidTime string
+
+// Convert quote validity periods; 10s is the default
+const (
+	QuoteValidTime10Seconds QuoteValidTime = "10s"
+	QuoteValidTime30Seconds QuoteValidTime = "30s"
+	QuoteValidTime1Minute   QuoteValidTime = "1m"
+)
+
+// OptionType is the optionType parameter of the dual investment product list, and the option type dual investment
+// products and positions, options exchange information and the options new symbol stream report
+type OptionType string
+
+// Option types
+const (
+	OptionTypeCall OptionType = "CALL"
+	OptionTypePut  OptionType = "PUT"
+)
+
+// DualInvestmentPositionStatus is the status parameter of the dual investment positions request, and the status
+// positions report
+type DualInvestmentPositionStatus string
+
+// Dual investment position statuses
+const (
+	DualInvestmentPositionStatusPending         DualInvestmentPositionStatus = "PENDING"
+	DualInvestmentPositionStatusPurchaseSuccess DualInvestmentPositionStatus = "PURCHASE_SUCCESS"
+	DualInvestmentPositionStatusSettled         DualInvestmentPositionStatus = "SETTLED"
+	DualInvestmentPositionStatusPurchaseFail    DualInvestmentPositionStatus = "PURCHASE_FAIL"
+	DualInvestmentPositionStatusRefunding       DualInvestmentPositionStatus = "REFUNDING"
+	DualInvestmentPositionStatusRefundSuccess   DualInvestmentPositionStatus = "REFUND_SUCCESS"
+	DualInvestmentPositionStatusSettling        DualInvestmentPositionStatus = "SETTLING"
+)
+
+// AutoInvestPlanType is the planType parameter of the auto-invest endpoints, and the plan type plans report
+type AutoInvestPlanType string
+
+// Auto-invest plan types; ALL is for the subscription transaction history only
+const (
+	AutoInvestPlanTypeSingle    AutoInvestPlanType = "SINGLE"
+	AutoInvestPlanTypePortfolio AutoInvestPlanType = "PORTFOLIO"
+	AutoInvestPlanTypeIndex     AutoInvestPlanType = "INDEX"
+	AutoInvestPlanTypeAll       AutoInvestPlanType = "ALL"
+)
+
+// AutoInvestPlanStatus is the status parameter of an auto-invest plan status change, and the status plans report
+type AutoInvestPlanStatus string
+
+// Auto-invest plan statuses
+const (
+	AutoInvestPlanStatusOngoing AutoInvestPlanStatus = "ONGOING"
+	AutoInvestPlanStatusPaused  AutoInvestPlanStatus = "PAUSED"
+	AutoInvestPlanStatusRemoved AutoInvestPlanStatus = "REMOVED"
+)
+
+// AutoInvestSourceType is the sourceType parameter of the auto-invest endpoints, the site a plan's funds come from
+type AutoInvestSourceType string
+
+// Auto-invest source types: Binance (MAIN_SITE) or Binance Turkey (TR)
+const (
+	AutoInvestSourceTypeMainSite AutoInvestSourceType = "MAIN_SITE"
+	AutoInvestSourceTypeTurkey   AutoInvestSourceType = "TR"
+)
+
+// SourceAssetUsageType is the usageType parameter of the auto-invest source asset list
+type SourceAssetUsageType string
+
+// Source asset usage types
+const (
+	SourceAssetUsageTypeRecurring SourceAssetUsageType = "RECURRING"
+	SourceAssetUsageTypeOneTime   SourceAssetUsageType = "ONE_TIME"
+)
+
+// SubscriptionCycle is the subscriptionCycle parameter of an auto-invest plan, and the cycle plans report
+type SubscriptionCycle string
+
+// Auto-invest subscription cycles
+const (
+	SubscriptionCycle1Hour    SubscriptionCycle = "H1"
+	SubscriptionCycle4Hours   SubscriptionCycle = "H4"
+	SubscriptionCycle8Hours   SubscriptionCycle = "H8"
+	SubscriptionCycle12Hours  SubscriptionCycle = "H12"
+	SubscriptionCycleDaily    SubscriptionCycle = "DAILY"
+	SubscriptionCycleWeekly   SubscriptionCycle = "WEEKLY"
+	SubscriptionCycleBiWeekly SubscriptionCycle = "BI_WEEKLY"
+	SubscriptionCycleMonthly  SubscriptionCycle = "MONTHLY"
+)
+
+// Weekday is the subscriptionStartWeekday parameter of a weekly or fortnightly auto-invest plan, and the weekday
+// plans report
+type Weekday string
+
+// Weekdays, in UTC
+const (
+	WeekdayMonday    Weekday = "MON"
+	WeekdayTuesday   Weekday = "TUE"
+	WeekdayWednesday Weekday = "WED"
+	WeekdayThursday  Weekday = "THU"
+	WeekdayFriday    Weekday = "FRI"
+	WeekdaySaturday  Weekday = "SAT"
+	WeekdaySunday    Weekday = "SUN"
+)
+
+// HistoricalReturnOnInvestmentType is the hisRoiType parameter of the auto-invest target asset return on investment
+// data, the period it covers
+type HistoricalReturnOnInvestmentType string
+
+// Historical return on investment periods
+const (
+	HistoricalReturnOnInvestmentTypeFiveYear   HistoricalReturnOnInvestmentType = "FIVE_YEAR"
+	HistoricalReturnOnInvestmentTypeThreeYear  HistoricalReturnOnInvestmentType = "THREE_YEAR"
+	HistoricalReturnOnInvestmentTypeOneYear    HistoricalReturnOnInvestmentType = "ONE_YEAR"
+	HistoricalReturnOnInvestmentTypeSixMonth   HistoricalReturnOnInvestmentType = "SIX_MONTH"
+	HistoricalReturnOnInvestmentTypeThreeMonth HistoricalReturnOnInvestmentType = "THREE_MONTH"
+	HistoricalReturnOnInvestmentTypeSevenDay   HistoricalReturnOnInvestmentType = "SEVEN_DAY"
+)
+
+// Urgency is the urgency parameter of a volume participation algo order, the relative speed of execution
+type Urgency string
+
+// Volume participation urgencies
+const (
+	UrgencyLow    Urgency = "LOW"
+	UrgencyMedium Urgency = "MEDIUM"
+	UrgencyHigh   Urgency = "HIGH"
+)
+
 // The values below are for USDⓈ-M, COIN-M and portfolio margin futures endpoints
 
 // WorkingType is the workingType parameter of a conditional futures order
@@ -259,6 +656,15 @@ const (
 	IncomeTypeSpecialFundingFee                   IncomeType = "SPECIAL_FUNDING_FEE"
 )
 
+// BNBTransferSide is the transferSide parameter of the portfolio margin and portfolio margin pro BNB transfers
+type BNBTransferSide string
+
+// BNB transfer sides: into (TO_UM) or out of (FROM_UM) the USDⓈ-M futures account
+const (
+	BNBTransferSideToUSDTMargined   BNBTransferSide = "TO_UM"
+	BNBTransferSideFromUSDTMargined BNBTransferSide = "FROM_UM"
+)
+
 var (
 	errAPIResponse                 = errors.New("API error response")
 	errAlgoTypeRequired            = errors.New("algo type is required")
@@ -342,7 +748,7 @@ func (o *objectOrArray[T]) UnmarshalJSON(data []byte) error {
 
 // commaSeparatedElement is a type the elements of a CommaSeparated list decode into
 type commaSeparatedElement interface {
-	uint64 | currency.Code
+	uint64 | currency.Code | string
 }
 
 // CommaSeparated holds a list Binance sends as one comma separated string, such as "BNB,BTC,ETH" or
@@ -371,6 +777,8 @@ func (c *CommaSeparated[T]) UnmarshalJSON(data []byte) error {
 			*element = id
 		case *currency.Code:
 			*element = currency.NewCode(item)
+		case *string:
+			*element = item
 		}
 	}
 	*c = elements
@@ -386,7 +794,7 @@ type ExchangeInfoRequest struct {
 	Permissions []string
 	// ShowPermissionSets false leaves each symbol's permission sets empty; the endpoint defaults it to true
 	ShowPermissionSets *bool
-	SymbolStatus       string
+	SymbolStatus       SymbolStatus
 }
 
 // ExchangeInfoResponse holds the exchange trading rules and symbol information
@@ -422,7 +830,7 @@ type ExchangeFilter struct {
 // SymbolInfo holds a symbol's trading rules and filters
 type SymbolInfo struct {
 	Symbol             string        `json:"symbol"`
-	Status             string        `json:"status"`
+	Status             string        `json:"status"` // TRADING, END_OF_DAY, HALT, BREAK or CANCEL_ONLY; Binance rejects END_OF_DAY as a SymbolStatus filter
 	BaseAsset          currency.Code `json:"baseAsset"`
 	BaseAssetPrecision uint64        `json:"baseAssetPrecision"`
 	QuoteAsset         currency.Code `json:"quoteAsset"`
@@ -543,7 +951,7 @@ type OrderBookRequest struct {
 	// Limit is the number of levels on each side, 100 when zero and at most 5000
 	Limit uint64
 	// SymbolStatus rejects the request when the symbol's trading status differs
-	SymbolStatus string
+	SymbolStatus SymbolStatus
 }
 
 // OrderBookResponse holds an order book
@@ -573,7 +981,7 @@ type RecentTradeResponse struct {
 // KlinesRequest holds the parameters of a klines or UIKlines request
 type KlinesRequest struct {
 	Symbol   currency.Pair
-	Interval string
+	Interval kline.Interval
 	Limit    uint64 // 500 when zero, at most 1000
 	// StartTime and EndTime are always in UTC
 	StartTime time.Time
@@ -609,8 +1017,8 @@ type RollingWindowTickerRequest struct {
 	Symbols currency.Pairs // At most 100
 	// WindowSize is sent as whole minutes from 1 to 59, hours from 1 to 23 or days from 1 to 7; one day when zero
 	WindowSize   time.Duration
-	Type         string // FULL when empty, or MINI
-	SymbolStatus string
+	Type         TickerType // FULL when empty, or MINI
+	SymbolStatus SymbolStatus
 }
 
 // TickerStatisticsResponse holds a symbol's price change statistics over a trading day or a rolling window. The MINI
@@ -636,8 +1044,8 @@ type TickerStatisticsResponse struct {
 // PriceChangeStatsRequest holds the parameters of a 24hr ticker price change statistics request
 type PriceChangeStatsRequest struct {
 	Symbols      currency.Pairs // Every symbol when empty
-	Type         string         // FULL when empty, or MINI
-	SymbolStatus string
+	Type         TickerType     // FULL when empty, or MINI
+	SymbolStatus SymbolStatus
 }
 
 // PriceChangeStatsResponse holds 24hr ticker price change statistics; the MINI type leaves out the price change,
@@ -686,8 +1094,8 @@ type TradingDayTickerRequest struct {
 	Symbols currency.Pairs // At most 100
 	// TimeZone sets the time zone the trading day starts in, as hours and minutes or hours alone; UTC when empty
 	TimeZone     string
-	Type         string // FULL when empty, or MINI
-	SymbolStatus string
+	Type         TickerType // FULL when empty, or MINI
+	SymbolStatus SymbolStatus
 }
 
 // OrderConditionalFields holds the order response fields that appear only when an order uses the feature behind them,

@@ -17061,7 +17061,7 @@
       "purchaseTime": 1708677583874,
       "optionType": "CALL"
      },
-     "queryString": "autoCompoundPlan=STANDARD\u0026depositAmount=0.1\u0026id=741590\u0026orderId=8257205859\u0026recvWindow=5000\u0026signature=x\u0026timestamp=1",
+     "queryString": "depositAmount=0.1\u0026id=741590\u0026orderId=8257205859\u0026recvWindow=5000\u0026signature=x\u0026timestamp=1",
      "bodyParams": "",
      "headers": {}
     }
@@ -21161,7 +21161,7 @@
      "data": {
       "tranId": 58203331886213500
      },
-     "queryString": "from=SPOT\u0026recvWindow=5000\u0026signature=x\u0026timestamp=1",
+     "queryString": "recvWindow=5000\u0026signature=x\u0026timestamp=1",
      "bodyParams": "",
      "headers": {}
     }
@@ -21173,7 +21173,7 @@
      "data": {
       "msg": "success"
      },
-     "queryString": "from=MARGIN\u0026recvWindow=5000\u0026signature=x\u0026timestamp=1",
+     "queryString": "recvWindow=5000\u0026signature=x\u0026timestamp=1",
      "bodyParams": "",
      "headers": {}
     }

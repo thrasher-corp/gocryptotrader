@@ -79,7 +79,7 @@ func TestGetAccountStatus(t *testing.T) {
 }
 
 // expAccountSnapshots holds the snapshots the daily and managed sub-account snapshot fixtures record, by type
-var expAccountSnapshots = map[string]*AccountSnapshotResponse{
+var expAccountSnapshots = map[AccountSnapshotType]*AccountSnapshotResponse{
 	"SPOT": {
 		Code:    200,
 		Message: "OK",
@@ -174,8 +174,8 @@ func TestGetDailyAccountSnapshot(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	for _, snapshotType := range []string{"SPOT", "MARGIN", "FUTURES"} {
-		t.Run(snapshotType, func(t *testing.T) {
+	for _, snapshotType := range []AccountSnapshotType{"SPOT", "MARGIN", "FUTURES"} {
+		t.Run(string(snapshotType), func(t *testing.T) {
 			t.Parallel()
 			result, err := e.GetDailyAccountSnapshot(t.Context(), &AccountSnapshotRequest{Type: snapshotType, StartTime: startTime, EndTime: endTime, Limit: 7})
 			require.NoError(t, err, "GetDailyAccountSnapshot must not error")

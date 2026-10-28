@@ -42,9 +42,9 @@ type AutoInvestAllAssetsResponse struct {
 type AutoInvestSourceAssetListRequest struct {
 	TargetAsset          currency.Code
 	IndexID              uint64
-	UsageType            string // RECURRING or ONE_TIME
+	UsageType            SourceAssetUsageType // RECURRING or ONE_TIME
 	FlexibleAllowedToUse bool
-	SourceType           string // MAIN_SITE for Binance or TR for Binance Turkey
+	SourceType           AutoInvestSourceType // MAIN_SITE for Binance or TR for Binance Turkey
 }
 
 // AutoInvestSourceAssetListResponse holds the Auto-Invest source assets and the fee and tax rates
@@ -66,10 +66,10 @@ type AutoInvestSourceAsset struct {
 // InvestmentPlanSchedule holds the subscription schedule and portfolio of an Auto-Invest plan
 type InvestmentPlanSchedule struct {
 	SubscriptionAmount          float64
-	SubscriptionCycle           string // such as H1, H4, DAILY, WEEKLY, BI_WEEKLY or MONTHLY
-	SubscriptionStartDayOfMonth uint64 // in UTC; required for MONTHLY
-	SubscriptionStartWeekday    string // MON to SUN in UTC; required for WEEKLY and BI_WEEKLY
-	SubscriptionStartHourOfDay  uint64 // in UTC, 0 to 23
+	SubscriptionCycle           SubscriptionCycle // such as H1, H4, DAILY, WEEKLY, BI_WEEKLY or MONTHLY
+	SubscriptionStartDayOfMonth uint64            // in UTC; required for MONTHLY
+	SubscriptionStartWeekday    Weekday           // MON to SUN in UTC; required for WEEKLY and BI_WEEKLY
+	SubscriptionStartHourOfDay  uint64            // in UTC, 0 to 23
 	SourceAsset                 currency.Code
 	FlexibleAllowedToUse        bool
 	Details                     []PortfolioDetail // percentages must sum to 100
@@ -83,10 +83,10 @@ type PortfolioDetail struct {
 
 // InvestmentPlanCreationRequest holds the parameters of InvestmentPlanCreation
 type InvestmentPlanCreationRequest struct {
-	SourceType string // MAIN_SITE for Binance or TR for Binance Turkey
-	RequestID  string // the source type followed by a unique string, such as TR12354859
-	PlanType   string // SINGLE, PORTFOLIO or INDEX
-	IndexID    uint64 // INDEX plans only
+	SourceType AutoInvestSourceType // MAIN_SITE for Binance or TR for Binance Turkey
+	RequestID  string               // the source type followed by a unique string, such as TR12354859
+	PlanType   AutoInvestPlanType   // SINGLE, PORTFOLIO or INDEX
+	IndexID    uint64               // INDEX plans only
 	InvestmentPlanSchedule
 }
 
@@ -104,9 +104,9 @@ type InvestmentPlanAdjustmentRequest struct {
 
 // AutoInvestPlanStatusResponse holds an Auto-Invest plan's status after a change
 type AutoInvestPlanStatusResponse struct {
-	PlanID                uint64     `json:"planId"`
-	NextExecutionDateTime types.Time `json:"nextExecutionDateTime"`
-	Status                string     `json:"status"`
+	PlanID                uint64               `json:"planId"`
+	NextExecutionDateTime types.Time           `json:"nextExecutionDateTime"`
+	Status                AutoInvestPlanStatus `json:"status"`
 }
 
 // AutoInvestPlanListResponse holds the account's Auto-Invest plans of a plan type and their total value
@@ -120,40 +120,40 @@ type AutoInvestPlanListResponse struct {
 
 // AutoInvestPlan holds an Auto-Invest plan
 type AutoInvestPlan struct {
-	PlanID                      uint64        `json:"planId"`
-	PlanType                    string        `json:"planType"`
-	EditAllowed                 types.Boolean `json:"editAllowed"`
-	CreationDateTime            types.Time    `json:"creationDateTime"`
-	FirstExecutionDateTime      types.Time    `json:"firstExecutionDateTime"`
-	NextExecutionDateTime       types.Time    `json:"nextExecutionDateTime"`
-	Status                      string        `json:"status"`
-	LastUpdatedDateTime         types.Time    `json:"lastUpdatedDateTime"`
-	TargetAsset                 currency.Code `json:"targetAsset"`
-	TotalTargetAmount           types.Number  `json:"totalTargetAmount"`
-	SourceAsset                 currency.Code `json:"sourceAsset"`
-	TotalInvestedInUSD          types.Number  `json:"totalInvestedInUSD"`
-	SubscriptionAmount          types.Number  `json:"subscriptionAmount"`
-	SubscriptionCycle           string        `json:"subscriptionCycle"`
-	SubscriptionStartDayOfMonth types.Number  `json:"subscriptionStartDay"`     // null unless the cycle is monthly
-	SubscriptionStartWeekday    string        `json:"subscriptionStartWeekday"` // null unless the cycle is weekly
-	SubscriptionStartHourOfDay  types.Number  `json:"subscriptionStartTime"`    // in UTC
-	SourceWallet                string        `json:"sourceWallet"`
-	FlexibleAllowedToUse        types.Boolean `json:"flexibleAllowedToUse"`
-	PlanValueInUSD              types.Number  `json:"planValueInUSD"`
-	PNLInUSD                    types.Number  `json:"pnlInUSD"`
-	ReturnOnInvestment          types.Number  `json:"roi"`
+	PlanID                      uint64               `json:"planId"`
+	PlanType                    AutoInvestPlanType   `json:"planType"`
+	EditAllowed                 types.Boolean        `json:"editAllowed"`
+	CreationDateTime            types.Time           `json:"creationDateTime"`
+	FirstExecutionDateTime      types.Time           `json:"firstExecutionDateTime"`
+	NextExecutionDateTime       types.Time           `json:"nextExecutionDateTime"`
+	Status                      AutoInvestPlanStatus `json:"status"`
+	LastUpdatedDateTime         types.Time           `json:"lastUpdatedDateTime"`
+	TargetAsset                 currency.Code        `json:"targetAsset"`
+	TotalTargetAmount           types.Number         `json:"totalTargetAmount"`
+	SourceAsset                 currency.Code        `json:"sourceAsset"`
+	TotalInvestedInUSD          types.Number         `json:"totalInvestedInUSD"`
+	SubscriptionAmount          types.Number         `json:"subscriptionAmount"`
+	SubscriptionCycle           SubscriptionCycle    `json:"subscriptionCycle"`
+	SubscriptionStartDayOfMonth types.Number         `json:"subscriptionStartDay"`     // null unless the cycle is monthly
+	SubscriptionStartWeekday    Weekday              `json:"subscriptionStartWeekday"` // null unless the cycle is weekly
+	SubscriptionStartHourOfDay  types.Number         `json:"subscriptionStartTime"`    // in UTC
+	SourceWallet                string               `json:"sourceWallet"`
+	FlexibleAllowedToUse        types.Boolean        `json:"flexibleAllowedToUse"`
+	PlanValueInUSD              types.Number         `json:"planValueInUSD"`
+	PNLInUSD                    types.Number         `json:"pnlInUSD"`
+	ReturnOnInvestment          types.Number         `json:"roi"`
 }
 
 // AutoInvestPlanHoldingResponse holds an Auto-Invest plan's holdings
 type AutoInvestPlanHoldingResponse struct {
 	PlanID                 uint64                        `json:"planId"`
-	PlanType               string                        `json:"planType"`
+	PlanType               AutoInvestPlanType            `json:"planType"`
 	EditAllowed            types.Boolean                 `json:"editAllowed"`
 	FlexibleAllowedToUse   types.Boolean                 `json:"flexibleAllowedToUse"`
 	CreationDateTime       types.Time                    `json:"creationDateTime"`
 	FirstExecutionDateTime types.Time                    `json:"firstExecutionDateTime"`
 	NextExecutionDateTime  types.Time                    `json:"nextExecutionDateTime"`
-	Status                 string                        `json:"status"`
+	Status                 AutoInvestPlanStatus          `json:"status"`
 	TargetAsset            currency.Code                 `json:"targetAsset"`
 	SourceAsset            currency.Code                 `json:"sourceAsset"`
 	PlanValueInUSD         types.Number                  `json:"planValueInUSD"`
@@ -188,31 +188,31 @@ type AutoInvestSubscriptionHistoryRequest struct {
 	StartTime   time.Time
 	EndTime     time.Time
 	TargetAsset currency.Code
-	PlanType    string // SINGLE, PORTFOLIO, INDEX or ALL
+	PlanType    AutoInvestPlanType // SINGLE, PORTFOLIO, INDEX or ALL
 	Size        uint64
 	Current     uint64
 }
 
 // AutoInvestSubscriptionTransactionResponse holds an Auto-Invest subscription transaction
 type AutoInvestSubscriptionTransactionResponse struct {
-	ID                  uint64        `json:"id"`
-	TargetAsset         currency.Code `json:"targetAsset"`
-	PlanType            string        `json:"planType"`
-	PlanName            string        `json:"planName"`
-	PlanID              uint64        `json:"planId"`
-	TransactionDateTime types.Time    `json:"transactionDateTime"`
-	TransactionStatus   string        `json:"transactionStatus"`
-	FailedType          string        `json:"failedType"`
-	SourceAsset         currency.Code `json:"sourceAsset"`
-	SourceAssetAmount   types.Number  `json:"sourceAssetAmount"`
-	TargetAssetAmount   types.Number  `json:"targetAssetAmount"`
-	SourceWallet        string        `json:"sourceWallet"`
-	FlexibleUsed        types.Boolean `json:"flexibleUsed"`
-	TransactionFee      types.Number  `json:"transactionFee"`
-	TransactionFeeUnit  currency.Code `json:"transactionFeeUnit"`
-	ExecutionPrice      types.Number  `json:"executionPrice"` // source asset per target asset
-	ExecutionType       string        `json:"executionType"`
-	SubscriptionCycle   string        `json:"subscriptionCycle"`
+	ID                  uint64             `json:"id"`
+	TargetAsset         currency.Code      `json:"targetAsset"`
+	PlanType            AutoInvestPlanType `json:"planType"`
+	PlanName            string             `json:"planName"`
+	PlanID              uint64             `json:"planId"`
+	TransactionDateTime types.Time         `json:"transactionDateTime"`
+	TransactionStatus   string             `json:"transactionStatus"`
+	FailedType          string             `json:"failedType"`
+	SourceAsset         currency.Code      `json:"sourceAsset"`
+	SourceAssetAmount   types.Number       `json:"sourceAssetAmount"`
+	TargetAssetAmount   types.Number       `json:"targetAssetAmount"`
+	SourceWallet        string             `json:"sourceWallet"`
+	FlexibleUsed        types.Boolean      `json:"flexibleUsed"`
+	TransactionFee      types.Number       `json:"transactionFee"`
+	TransactionFeeUnit  currency.Code      `json:"transactionFeeUnit"`
+	ExecutionPrice      types.Number       `json:"executionPrice"` // source asset per target asset
+	ExecutionType       string             `json:"executionType"`
+	SubscriptionCycle   SubscriptionCycle  `json:"subscriptionCycle"`
 }
 
 // AutoInvestIndexDetailResponse holds an Auto-Invest index and its asset allocation
@@ -257,8 +257,8 @@ type IndexLinkedPlanAsset struct {
 
 // OneTimeTransactionRequest holds the parameters of OneTimeTransaction; one of PlanID, IndexID and Details is required
 type OneTimeTransactionRequest struct {
-	SourceType           string // MAIN_SITE for Binance or TR for Binance Turkey
-	RequestID            string // the source type followed by a unique string, such as TR12354859
+	SourceType           AutoInvestSourceType // MAIN_SITE for Binance or TR for Binance Turkey
+	RequestID            string               // the source type followed by a unique string, such as TR12354859
 	SubscriptionAmount   float64
 	SourceAsset          currency.Code
 	FlexibleAllowedToUse bool

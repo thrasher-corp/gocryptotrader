@@ -84,7 +84,7 @@ func (e *Exchange) GetExchangeInfo(ctx context.Context, req *ExchangeInfoRequest
 			params.Set("showPermissionSets", strconv.FormatBool(*req.ShowPermissionSets))
 		}
 		if req.SymbolStatus != "" {
-			params.Set("symbolStatus", req.SymbolStatus)
+			params.Set("symbolStatus", string(req.SymbolStatus))
 		}
 	}
 	var resp *ExchangeInfoResponse
@@ -212,7 +212,7 @@ func (e *Exchange) GetOrderBook(ctx context.Context, req *OrderBookRequest) (*Or
 		params.Set("limit", strconv.FormatUint(req.Limit, 10))
 	}
 	if req.SymbolStatus != "" {
-		params.Set("symbolStatus", req.SymbolStatus)
+		params.Set("symbolStatus", string(req.SymbolStatus))
 	}
 	var resp *OrderBookResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues("/api/v3/depth", params), spotOrderbookLimit(req.Limit), &resp)
@@ -291,10 +291,10 @@ func (e *Exchange) GetTickerData(ctx context.Context, req *RollingWindowTickerRe
 		params.Set("windowSize", windowSize)
 	}
 	if req.Type != "" {
-		params.Set("type", req.Type)
+		params.Set("type", string(req.Type))
 	}
 	if req.SymbolStatus != "" {
-		params.Set("symbolStatus", req.SymbolStatus)
+		params.Set("symbolStatus", string(req.SymbolStatus))
 	}
 	var resp objectOrArray[TickerStatisticsResponse]
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues("/api/v3/ticker", params), spotTickerSymbolsLimit(len(req.Symbols)), &resp)
@@ -311,10 +311,10 @@ func (e *Exchange) GetPriceChangeStats(ctx context.Context, req *PriceChangeStat
 		return nil, err
 	}
 	if req.Type != "" {
-		params.Set("type", req.Type)
+		params.Set("type", string(req.Type))
 	}
 	if req.SymbolStatus != "" {
-		params.Set("symbolStatus", req.SymbolStatus)
+		params.Set("symbolStatus", string(req.SymbolStatus))
 	}
 	var resp objectOrArray[PriceChangeStatsResponse]
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues("/api/v3/ticker/24hr", params), spotTicker24HourLimit(len(req.Symbols)), &resp)
@@ -322,13 +322,13 @@ func (e *Exchange) GetPriceChangeStats(ctx context.Context, req *PriceChangeStat
 
 // GetBestPrice returns the symbol order book ticker: the best bid and ask price and quantity of each symbol, or of
 // every symbol when none are given
-func (e *Exchange) GetBestPrice(ctx context.Context, symbols currency.Pairs, symbolStatus string) ([]BookTickerResponse, error) {
+func (e *Exchange) GetBestPrice(ctx context.Context, symbols currency.Pairs, symbolStatus SymbolStatus) ([]BookTickerResponse, error) {
 	params := url.Values{}
 	if err := e.setSymbolParams(params, symbols); err != nil {
 		return nil, err
 	}
 	if symbolStatus != "" {
-		params.Set("symbolStatus", symbolStatus)
+		params.Set("symbolStatus", string(symbolStatus))
 	}
 	rateLimit := spotOrderbookTickerAllRate
 	if len(symbols) == 1 {
@@ -340,13 +340,13 @@ func (e *Exchange) GetBestPrice(ctx context.Context, symbols currency.Pairs, sym
 
 // GetLatestSpotPrice returns the symbol price ticker: the latest price of each symbol, or of every symbol when none are
 // given
-func (e *Exchange) GetLatestSpotPrice(ctx context.Context, symbols currency.Pairs, symbolStatus string) ([]SymbolPriceResponse, error) {
+func (e *Exchange) GetLatestSpotPrice(ctx context.Context, symbols currency.Pairs, symbolStatus SymbolStatus) ([]SymbolPriceResponse, error) {
 	params := url.Values{}
 	if err := e.setSymbolParams(params, symbols); err != nil {
 		return nil, err
 	}
 	if symbolStatus != "" {
-		params.Set("symbolStatus", symbolStatus)
+		params.Set("symbolStatus", string(symbolStatus))
 	}
 	rateLimit := spotSymbolPriceAllRate
 	if len(symbols) == 1 {
@@ -375,10 +375,10 @@ func (e *Exchange) GetTradingDayTicker(ctx context.Context, req *TradingDayTicke
 		params.Set("timeZone", req.TimeZone)
 	}
 	if req.Type != "" {
-		params.Set("type", req.Type)
+		params.Set("type", string(req.Type))
 	}
 	if req.SymbolStatus != "" {
-		params.Set("symbolStatus", req.SymbolStatus)
+		params.Set("symbolStatus", string(req.SymbolStatus))
 	}
 	var resp objectOrArray[TickerStatisticsResponse]
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues("/api/v3/ticker/tradingDay", params), spotTickerSymbolsLimit(len(req.Symbols)), &resp)
@@ -397,7 +397,7 @@ func (e *Exchange) getKlines(ctx context.Context, req *KlinesRequest, path strin
 	if req.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if req.Interval == "" {
+	if req.Interval == 0 {
 		return nil, kline.ErrInvalidInterval
 	}
 	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
@@ -411,7 +411,7 @@ func (e *Exchange) getKlines(ctx context.Context, req *KlinesRequest, path strin
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol)
-	params.Set("interval", req.Interval)
+	params.Set("interval", e.FormatExchangeKlineInterval(req.Interval))
 	if !req.StartTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(req.StartTime.UnixMilli(), 10))
 	}

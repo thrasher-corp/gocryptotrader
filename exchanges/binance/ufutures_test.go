@@ -2,6 +2,8 @@ package binance
 
 import (
 	"context"
+	"net/http"
+	"net/url"
 	"testing"
 	"time"
 
@@ -526,7 +528,7 @@ func TestGetUSDTMarginedFuturesBasis(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetUSDTMarginedFuturesBasis(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetUSDTMarginedFuturesBasis must reject a nil request")
-	arg := &USDTMarginedFuturesBasisRequest{ContractType: "CURRENT_QUARTER", Period: "15m"}
+	arg := &USDTMarginedFuturesBasisRequest{ContractType: "CURRENT_QUARTER", Period: kline.FifteenMin}
 	_, err = e.GetUSDTMarginedFuturesBasis(t.Context(), arg)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetUSDTMarginedFuturesBasis must reject an empty pair")
 	arg.Pair = currency.NewBTCUSDT()
@@ -534,14 +536,16 @@ func TestGetUSDTMarginedFuturesBasis(t *testing.T) {
 	_, err = e.GetUSDTMarginedFuturesBasis(t.Context(), arg)
 	require.ErrorIs(t, err, errContractTypeIsRequired, "GetUSDTMarginedFuturesBasis must reject an empty contract type")
 	arg.ContractType = "CURRENT_QUARTER"
-	arg.Period = ""
+	arg.Period = 0
 	_, err = e.GetUSDTMarginedFuturesBasis(t.Context(), arg)
 	require.ErrorIs(t, err, errPeriodRequired, "GetUSDTMarginedFuturesBasis must reject an empty period")
-	arg.Period = "15m"
+	arg.Period = kline.FifteenMin
 	startTime, endTime := getTime()
 	arg.StartTime, arg.EndTime = endTime, startTime
 	_, err = e.GetUSDTMarginedFuturesBasis(t.Context(), arg)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetUSDTMarginedFuturesBasis must reject a start time after the end time")
+	_, err = new(Exchange).GetUSDTMarginedFuturesBasis(t.Context(), &USDTMarginedFuturesBasisRequest{Pair: currency.NewBTCUSDT(), ContractType: "CURRENT_QUARTER", Period: kline.FifteenMin})
+	require.ErrorIs(t, err, currency.ErrPairManagerNotInitialised, "GetUSDTMarginedFuturesBasis must return the error formatting the pair")
 
 	arg.StartTime, arg.EndTime, arg.Limit = startTime, endTime, 20
 	result, err := e.GetUSDTMarginedFuturesBasis(t.Context(), arg)
@@ -713,7 +717,7 @@ func TestGetUSDTMarginedFuturesContinuousKlineData(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetUSDTMarginedFuturesContinuousKlineData(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetUSDTMarginedFuturesContinuousKlineData must reject a nil request")
-	arg := &USDTMarginedFuturesContinuousKlineRequest{ContractType: "PERPETUAL", Interval: "1d"}
+	arg := &USDTMarginedFuturesContinuousKlineRequest{ContractType: "PERPETUAL", Interval: kline.OneDay}
 	_, err = e.GetUSDTMarginedFuturesContinuousKlineData(t.Context(), arg)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetUSDTMarginedFuturesContinuousKlineData must reject an empty pair")
 	arg.Pair = currency.NewBTCUSDT()
@@ -721,10 +725,10 @@ func TestGetUSDTMarginedFuturesContinuousKlineData(t *testing.T) {
 	_, err = e.GetUSDTMarginedFuturesContinuousKlineData(t.Context(), arg)
 	require.ErrorIs(t, err, errContractTypeIsRequired, "GetUSDTMarginedFuturesContinuousKlineData must reject an empty contract type")
 	arg.ContractType = "PERPETUAL"
-	arg.Interval = ""
+	arg.Interval = 0
 	_, err = e.GetUSDTMarginedFuturesContinuousKlineData(t.Context(), arg)
 	require.ErrorIs(t, err, kline.ErrInvalidInterval, "GetUSDTMarginedFuturesContinuousKlineData must reject an empty interval")
-	arg.Interval = "1d"
+	arg.Interval = kline.OneDay
 	startTime, endTime := getTime()
 	arg.StartTime, arg.EndTime = endTime, startTime
 	_, err = e.GetUSDTMarginedFuturesContinuousKlineData(t.Context(), arg)
@@ -1037,14 +1041,14 @@ func TestGetUSDTMarginedFuturesIndexPriceKlineCandlesticks(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetUSDTMarginedFuturesIndexPriceKlineCandlesticks(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetUSDTMarginedFuturesIndexPriceKlineCandlesticks must reject a nil request")
-	arg := &USDTMarginedFuturesIndexPriceKlineRequest{Interval: "1d"}
+	arg := &USDTMarginedFuturesIndexPriceKlineRequest{Interval: kline.OneDay}
 	_, err = e.GetUSDTMarginedFuturesIndexPriceKlineCandlesticks(t.Context(), arg)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetUSDTMarginedFuturesIndexPriceKlineCandlesticks must reject an empty pair")
 	arg.Pair = currency.NewBTCUSDT()
-	arg.Interval = ""
+	arg.Interval = 0
 	_, err = e.GetUSDTMarginedFuturesIndexPriceKlineCandlesticks(t.Context(), arg)
 	require.ErrorIs(t, err, kline.ErrInvalidInterval, "GetUSDTMarginedFuturesIndexPriceKlineCandlesticks must reject an empty interval")
-	arg.Interval = "1d"
+	arg.Interval = kline.OneDay
 	startTime, endTime := getTime()
 	arg.StartTime, arg.EndTime = endTime, startTime
 	_, err = e.GetUSDTMarginedFuturesIndexPriceKlineCandlesticks(t.Context(), arg)
@@ -1074,15 +1078,15 @@ func TestUSDTMarginedFuturesKlineData(t *testing.T) {
 	t.Parallel()
 	_, err := e.USDTMarginedFuturesKlineData(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "USDTMarginedFuturesKlineData must reject a nil request")
-	_, err = e.USDTMarginedFuturesKlineData(t.Context(), &USDTMarginedFuturesKlineRequest{Interval: "1d", Limit: 5})
+	_, err = e.USDTMarginedFuturesKlineData(t.Context(), &USDTMarginedFuturesKlineRequest{Interval: kline.OneDay, Limit: 5})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "USDTMarginedFuturesKlineData must reject an empty symbol")
 	_, err = e.USDTMarginedFuturesKlineData(t.Context(), &USDTMarginedFuturesKlineRequest{Symbol: currency.NewBTCUSDT(), Limit: 5})
 	require.ErrorIs(t, err, kline.ErrInvalidInterval, "USDTMarginedFuturesKlineData must reject an empty interval")
 	startTime, endTime := getTime()
-	_, err = e.USDTMarginedFuturesKlineData(t.Context(), &USDTMarginedFuturesKlineRequest{Symbol: currency.NewBTCUSDT(), Interval: "5m", StartTime: endTime, EndTime: startTime})
+	_, err = e.USDTMarginedFuturesKlineData(t.Context(), &USDTMarginedFuturesKlineRequest{Symbol: currency.NewBTCUSDT(), Interval: kline.FiveMin, StartTime: endTime, EndTime: startTime})
 	require.ErrorIs(t, err, common.ErrStartAfterEnd, "USDTMarginedFuturesKlineData must reject a start time after the end time")
 
-	result, err := e.USDTMarginedFuturesKlineData(t.Context(), &USDTMarginedFuturesKlineRequest{Symbol: currency.NewBTCUSDT(), Interval: "1d", StartTime: startTime, EndTime: endTime, Limit: 5})
+	result, err := e.USDTMarginedFuturesKlineData(t.Context(), &USDTMarginedFuturesKlineRequest{Symbol: currency.NewBTCUSDT(), Interval: kline.OneDay, StartTime: startTime, EndTime: endTime, Limit: 5})
 	require.NoError(t, err, "USDTMarginedFuturesKlineData must not error for a limit")
 	if mockTests {
 		exp := []USDTMarginedFuturesKlineResponse{
@@ -1102,7 +1106,7 @@ func TestUSDTMarginedFuturesKlineData(t *testing.T) {
 		}
 		assert.Equal(t, exp, result, "USDTMarginedFuturesKlineData should decode every field")
 	}
-	result, err = e.USDTMarginedFuturesKlineData(t.Context(), &USDTMarginedFuturesKlineRequest{Symbol: currency.NewBTCUSDT(), Interval: "5m", StartTime: startTime, EndTime: endTime})
+	result, err = e.USDTMarginedFuturesKlineData(t.Context(), &USDTMarginedFuturesKlineRequest{Symbol: currency.NewBTCUSDT(), Interval: kline.FiveMin, StartTime: startTime, EndTime: endTime})
 	require.NoError(t, err, "USDTMarginedFuturesKlineData must not error without a limit")
 	if mockTests {
 		exp := []USDTMarginedFuturesKlineResponse{
@@ -1139,11 +1143,43 @@ func TestUSDTMarginedFuturesKlineData(t *testing.T) {
 	assert.NotEmpty(t, result, "USDTMarginedFuturesKlineData should return klines")
 }
 
+func TestUSDTMarginedFuturesKlineDataRequest(t *testing.T) {
+	t.Parallel()
+	var resp []any
+	err := e.usdtMarginedFuturesKlineData(t.Context(), "/fapi/v1/klines", url.Values{"symbol": {"BTCUSDT"}}, 0, time.Time{}, time.Time{}, 0, &resp)
+	require.ErrorIs(t, err, kline.ErrInvalidInterval, "usdtMarginedFuturesKlineData must reject an empty interval")
+	startTime, endTime := getTime()
+	err = e.usdtMarginedFuturesKlineData(t.Context(), "/fapi/v1/klines", url.Values{"symbol": {"BTCUSDT"}}, kline.OneMin, endTime, startTime, 0, &resp)
+	require.ErrorIs(t, err, common.ErrStartAfterEnd, "usdtMarginedFuturesKlineData must reject a start time after the end time")
+
+	for _, tc := range []struct {
+		name     string
+		interval kline.Interval
+		limit    uint64
+		exp      url.Values
+	}{
+		{"one month with a limit", kline.OneMonth, 3, url.Values{"symbol": {"BTCUSDT"}, "interval": {"1M"}, "limit": {"3"}}},
+		{"one minute without a limit", kline.OneMin, 0, url.Values{"symbol": {"BTCUSDT"}, "interval": {"1m"}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := newTestServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, "/fapi/v1/klines", r.URL.Path, "usdtMarginedFuturesKlineData should request the given path")
+				assert.Equal(t, tc.exp, r.URL.Query(), "usdtMarginedFuturesKlineData should send the interval as Binance writes it, and any limit")
+				_, err := w.Write([]byte(`[]`))
+				assert.NoError(t, err, "Write should not error")
+			})
+			var result []any
+			require.NoError(t, ex.usdtMarginedFuturesKlineData(t.Context(), "/fapi/v1/klines", url.Values{"symbol": {"BTCUSDT"}}, tc.interval, time.Time{}, time.Time{}, tc.limit, &result), "usdtMarginedFuturesKlineData must not error")
+		})
+	}
+}
+
 func TestUSDTMarginedFuturesGlobalLongShortRatio(t *testing.T) {
 	t.Parallel()
 	testUSDTMarginedFuturesDataValidation(t, e.USDTMarginedFuturesGlobalLongShortRatio)
 	startTime, endTime := getTime()
-	result, err := e.USDTMarginedFuturesGlobalLongShortRatio(t.Context(), &USDTMarginedFuturesDataRequest{Symbol: currency.NewBTCUSDT(), Period: "5m", StartTime: startTime, EndTime: endTime, Limit: 3})
+	result, err := e.USDTMarginedFuturesGlobalLongShortRatio(t.Context(), &USDTMarginedFuturesDataRequest{Symbol: currency.NewBTCUSDT(), Period: kline.FiveMin, StartTime: startTime, EndTime: endTime, Limit: 3})
 	require.NoError(t, err, "USDTMarginedFuturesGlobalLongShortRatio must not error")
 	if mockTests {
 		exp := []USDTMarginedFuturesLongShortRatioResponse{
@@ -1168,17 +1204,55 @@ func TestUSDTMarginedFuturesGlobalLongShortRatio(t *testing.T) {
 	assert.NotEmpty(t, result, "USDTMarginedFuturesGlobalLongShortRatio should return ratios")
 }
 
+func TestUSDTMarginedFuturesData(t *testing.T) {
+	t.Parallel()
+	var resp []any
+	err := e.usdtMarginedFuturesData(t.Context(), "/futures/data/openInterestHist", nil, &resp)
+	require.ErrorIs(t, err, common.ErrNilPointer, "usdtMarginedFuturesData must reject a nil request")
+	err = e.usdtMarginedFuturesData(t.Context(), "/futures/data/openInterestHist", &USDTMarginedFuturesDataRequest{Period: kline.FiveMin}, &resp)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "usdtMarginedFuturesData must reject an empty symbol")
+	err = e.usdtMarginedFuturesData(t.Context(), "/futures/data/openInterestHist", &USDTMarginedFuturesDataRequest{Symbol: currency.NewBTCUSDT()}, &resp)
+	require.ErrorIs(t, err, errPeriodRequired, "usdtMarginedFuturesData must reject an empty period")
+	startTime, endTime := getTime()
+	err = e.usdtMarginedFuturesData(t.Context(), "/futures/data/openInterestHist", &USDTMarginedFuturesDataRequest{Symbol: currency.NewBTCUSDT(), Period: kline.FiveMin, StartTime: endTime, EndTime: startTime}, &resp)
+	require.ErrorIs(t, err, common.ErrStartAfterEnd, "usdtMarginedFuturesData must reject a start time after the end time")
+	err = new(Exchange).usdtMarginedFuturesData(t.Context(), "/futures/data/openInterestHist", &USDTMarginedFuturesDataRequest{Symbol: currency.NewBTCUSDT(), Period: kline.FiveMin}, &resp)
+	require.ErrorIs(t, err, currency.ErrPairManagerNotInitialised, "usdtMarginedFuturesData must return the error formatting the symbol")
+
+	for _, tc := range []struct {
+		name   string
+		period kline.Interval
+		limit  uint64
+		exp    url.Values
+	}{
+		{"five minutes with a limit", kline.FiveMin, 3, url.Values{"symbol": {"BTCUSDT"}, "period": {"5m"}, "limit": {"3"}}},
+		{"one day without a limit", kline.OneDay, 0, url.Values{"symbol": {"BTCUSDT"}, "period": {"1d"}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := newTestServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, "/futures/data/openInterestHist", r.URL.Path, "usdtMarginedFuturesData should request the given path")
+				assert.Equal(t, tc.exp, r.URL.Query(), "usdtMarginedFuturesData should send the symbol, the period as Binance writes it and any limit")
+				_, err := w.Write([]byte(`[]`))
+				assert.NoError(t, err, "Write should not error")
+			})
+			var result []any
+			require.NoError(t, ex.usdtMarginedFuturesData(t.Context(), "/futures/data/openInterestHist", &USDTMarginedFuturesDataRequest{Symbol: currency.NewBTCUSDT(), Period: tc.period, Limit: tc.limit}, &result), "usdtMarginedFuturesData must not error")
+		})
+	}
+}
+
 // testUSDTMarginedFuturesDataValidation checks the request validation the /futures/data statistics endpoints share
 func testUSDTMarginedFuturesDataValidation[T any](t *testing.T, fn func(context.Context, *USDTMarginedFuturesDataRequest) ([]T, error)) {
 	t.Helper()
 	_, err := fn(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "must reject a nil request")
-	_, err = fn(t.Context(), &USDTMarginedFuturesDataRequest{Period: "5m"})
+	_, err = fn(t.Context(), &USDTMarginedFuturesDataRequest{Period: kline.FiveMin})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "must reject an empty symbol")
 	_, err = fn(t.Context(), &USDTMarginedFuturesDataRequest{Symbol: currency.NewBTCUSDT()})
 	require.ErrorIs(t, err, errPeriodRequired, "must reject an empty period")
 	startTime, endTime := getTime()
-	_, err = fn(t.Context(), &USDTMarginedFuturesDataRequest{Symbol: currency.NewBTCUSDT(), Period: "5m", StartTime: endTime, EndTime: startTime})
+	_, err = fn(t.Context(), &USDTMarginedFuturesDataRequest{Symbol: currency.NewBTCUSDT(), Period: kline.FiveMin, StartTime: endTime, EndTime: startTime})
 	require.ErrorIs(t, err, common.ErrStartAfterEnd, "must reject a start time after the end time")
 }
 
@@ -1236,15 +1310,15 @@ func TestGetUSDTMarginedFuturesMarkPriceKlineCandlesticks(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetUSDTMarginedFuturesMarkPriceKlineCandlesticks(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetUSDTMarginedFuturesMarkPriceKlineCandlesticks must reject a nil request")
-	_, err = e.GetUSDTMarginedFuturesMarkPriceKlineCandlesticks(t.Context(), &USDTMarginedFuturesKlineRequest{Interval: "1d"})
+	_, err = e.GetUSDTMarginedFuturesMarkPriceKlineCandlesticks(t.Context(), &USDTMarginedFuturesKlineRequest{Interval: kline.OneDay})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetUSDTMarginedFuturesMarkPriceKlineCandlesticks must reject an empty symbol")
 	_, err = e.GetUSDTMarginedFuturesMarkPriceKlineCandlesticks(t.Context(), &USDTMarginedFuturesKlineRequest{Symbol: currency.NewBTCUSDT()})
 	require.ErrorIs(t, err, kline.ErrInvalidInterval, "GetUSDTMarginedFuturesMarkPriceKlineCandlesticks must reject an empty interval")
 	startTime, endTime := getTime()
-	_, err = e.GetUSDTMarginedFuturesMarkPriceKlineCandlesticks(t.Context(), &USDTMarginedFuturesKlineRequest{Symbol: currency.NewBTCUSDT(), Interval: "1d", StartTime: endTime, EndTime: startTime})
+	_, err = e.GetUSDTMarginedFuturesMarkPriceKlineCandlesticks(t.Context(), &USDTMarginedFuturesKlineRequest{Symbol: currency.NewBTCUSDT(), Interval: kline.OneDay, StartTime: endTime, EndTime: startTime})
 	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetUSDTMarginedFuturesMarkPriceKlineCandlesticks must reject a start time after the end time")
 
-	result, err := e.GetUSDTMarginedFuturesMarkPriceKlineCandlesticks(t.Context(), &USDTMarginedFuturesKlineRequest{Symbol: currency.NewBTCUSDT(), Interval: "1d", StartTime: startTime, EndTime: endTime, Limit: 10})
+	result, err := e.GetUSDTMarginedFuturesMarkPriceKlineCandlesticks(t.Context(), &USDTMarginedFuturesKlineRequest{Symbol: currency.NewBTCUSDT(), Interval: kline.OneDay, StartTime: startTime, EndTime: endTime, Limit: 10})
 	require.NoError(t, err, "GetUSDTMarginedFuturesMarkPriceKlineCandlesticks must not error")
 	if mockTests {
 		exp := []USDTMarginedFuturesPriceKlineResponse{
@@ -1378,7 +1452,7 @@ func TestUSDTMarginedFuturesOpenInterestStats(t *testing.T) {
 	t.Parallel()
 	testUSDTMarginedFuturesDataValidation(t, e.USDTMarginedFuturesOpenInterestStats)
 	startTime, endTime := getTime()
-	result, err := e.USDTMarginedFuturesOpenInterestStats(t.Context(), &USDTMarginedFuturesDataRequest{Symbol: currency.NewBTCUSDT(), Period: "5m", StartTime: startTime, EndTime: endTime, Limit: 1})
+	result, err := e.USDTMarginedFuturesOpenInterestStats(t.Context(), &USDTMarginedFuturesDataRequest{Symbol: currency.NewBTCUSDT(), Period: kline.FiveMin, StartTime: startTime, EndTime: endTime, Limit: 1})
 	require.NoError(t, err, "USDTMarginedFuturesOpenInterestStats must not error")
 	if mockTests {
 		exp := []USDTMarginedFuturesOpenInterestStatsResponse{
@@ -1447,15 +1521,15 @@ func TestGetUSDTMarginedFuturesPremiumIndexKlineCandlesticks(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetUSDTMarginedFuturesPremiumIndexKlineCandlesticks(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetUSDTMarginedFuturesPremiumIndexKlineCandlesticks must reject a nil request")
-	_, err = e.GetUSDTMarginedFuturesPremiumIndexKlineCandlesticks(t.Context(), &USDTMarginedFuturesKlineRequest{Interval: "1d"})
+	_, err = e.GetUSDTMarginedFuturesPremiumIndexKlineCandlesticks(t.Context(), &USDTMarginedFuturesKlineRequest{Interval: kline.OneDay})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetUSDTMarginedFuturesPremiumIndexKlineCandlesticks must reject an empty symbol")
 	_, err = e.GetUSDTMarginedFuturesPremiumIndexKlineCandlesticks(t.Context(), &USDTMarginedFuturesKlineRequest{Symbol: currency.NewBTCUSDT()})
 	require.ErrorIs(t, err, kline.ErrInvalidInterval, "GetUSDTMarginedFuturesPremiumIndexKlineCandlesticks must reject an empty interval")
 	startTime, endTime := getTime()
-	_, err = e.GetUSDTMarginedFuturesPremiumIndexKlineCandlesticks(t.Context(), &USDTMarginedFuturesKlineRequest{Symbol: currency.NewBTCUSDT(), Interval: "1d", StartTime: endTime, EndTime: startTime})
+	_, err = e.GetUSDTMarginedFuturesPremiumIndexKlineCandlesticks(t.Context(), &USDTMarginedFuturesKlineRequest{Symbol: currency.NewBTCUSDT(), Interval: kline.OneDay, StartTime: endTime, EndTime: startTime})
 	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetUSDTMarginedFuturesPremiumIndexKlineCandlesticks must reject a start time after the end time")
 
-	result, err := e.GetUSDTMarginedFuturesPremiumIndexKlineCandlesticks(t.Context(), &USDTMarginedFuturesKlineRequest{Symbol: currency.NewBTCUSDT(), Interval: "1d", StartTime: startTime, EndTime: endTime, Limit: 10})
+	result, err := e.GetUSDTMarginedFuturesPremiumIndexKlineCandlesticks(t.Context(), &USDTMarginedFuturesKlineRequest{Symbol: currency.NewBTCUSDT(), Interval: kline.OneDay, StartTime: startTime, EndTime: endTime, Limit: 10})
 	require.NoError(t, err, "GetUSDTMarginedFuturesPremiumIndexKlineCandlesticks must not error")
 	if mockTests {
 		exp := []USDTMarginedFuturesPriceKlineResponse{
@@ -1695,7 +1769,7 @@ func TestUSDTMarginedFuturesTakerBuySellVolume(t *testing.T) {
 	t.Parallel()
 	testUSDTMarginedFuturesDataValidation(t, e.USDTMarginedFuturesTakerBuySellVolume)
 	startTime, endTime := getTime()
-	result, err := e.USDTMarginedFuturesTakerBuySellVolume(t.Context(), &USDTMarginedFuturesDataRequest{Symbol: currency.NewBTCUSDT(), Period: "5m", StartTime: startTime, EndTime: endTime, Limit: 10})
+	result, err := e.USDTMarginedFuturesTakerBuySellVolume(t.Context(), &USDTMarginedFuturesDataRequest{Symbol: currency.NewBTCUSDT(), Period: kline.FiveMin, StartTime: startTime, EndTime: endTime, Limit: 10})
 	require.NoError(t, err, "USDTMarginedFuturesTakerBuySellVolume must not error")
 	if mockTests {
 		exp := []USDTMarginedFuturesTakerVolumeResponse{
@@ -1796,7 +1870,7 @@ func TestUSDTMarginedFuturesTopAccountsLongShortRatio(t *testing.T) {
 	t.Parallel()
 	testUSDTMarginedFuturesDataValidation(t, e.USDTMarginedFuturesTopAccountsLongShortRatio)
 	startTime, endTime := getTime()
-	result, err := e.USDTMarginedFuturesTopAccountsLongShortRatio(t.Context(), &USDTMarginedFuturesDataRequest{Symbol: currency.NewBTCUSDT(), Period: "5m", StartTime: startTime, EndTime: endTime, Limit: 2})
+	result, err := e.USDTMarginedFuturesTopAccountsLongShortRatio(t.Context(), &USDTMarginedFuturesDataRequest{Symbol: currency.NewBTCUSDT(), Period: kline.FiveMin, StartTime: startTime, EndTime: endTime, Limit: 2})
 	require.NoError(t, err, "USDTMarginedFuturesTopAccountsLongShortRatio must not error")
 	if mockTests {
 		exp := []USDTMarginedFuturesLongShortRatioResponse{
@@ -1825,7 +1899,7 @@ func TestUSDTMarginedFuturesTopPositionsLongShortRatio(t *testing.T) {
 	t.Parallel()
 	testUSDTMarginedFuturesDataValidation(t, e.USDTMarginedFuturesTopPositionsLongShortRatio)
 	startTime, endTime := getTime()
-	result, err := e.USDTMarginedFuturesTopPositionsLongShortRatio(t.Context(), &USDTMarginedFuturesDataRequest{Symbol: currency.NewBTCUSDT(), Period: "5m", StartTime: startTime, EndTime: endTime, Limit: 3})
+	result, err := e.USDTMarginedFuturesTopPositionsLongShortRatio(t.Context(), &USDTMarginedFuturesDataRequest{Symbol: currency.NewBTCUSDT(), Period: kline.FiveMin, StartTime: startTime, EndTime: endTime, Limit: 3})
 	require.NoError(t, err, "USDTMarginedFuturesTopPositionsLongShortRatio must not error")
 	if mockTests {
 		exp := []USDTMarginedFuturesLongShortRatioResponse{

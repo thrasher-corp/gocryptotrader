@@ -836,13 +836,13 @@ func (e *Exchange) GetWebsocketAveragePrice(ctx context.Context, symbol currency
 
 // GetWebsocketOrderbook returns the order book of a symbol (Order book); limit defaults to 100 levels when zero, and
 // symbolStatus filters by trading status (TRADING, HALT or BREAK) when set
-func (e *Exchange) GetWebsocketOrderbook(ctx context.Context, symbol currency.Pair, limit uint64, symbolStatus string) (*OrderBookResponse, error) {
+func (e *Exchange) GetWebsocketOrderbook(ctx context.Context, symbol currency.Pair, limit uint64, symbolStatus SymbolStatus) (*OrderBookResponse, error) {
 	params := wsParams{}
 	if err := e.setSymbol(params, symbol); err != nil {
 		return nil, err
 	}
 	params.setUint("limit", limit)
-	params.setString("symbolStatus", symbolStatus)
+	params.setString("symbolStatus", string(symbolStatus))
 	var resp *OrderBookResponse
 	return resp, e.SendWebsocketAPIRequest(ctx, spotOrderbookLimit(limit), "depth", params, &resp)
 }
@@ -901,8 +901,8 @@ func (e *Exchange) GetWebsocketRollingWindowPriceChanges(ctx context.Context, ar
 		}
 		params["windowSize"] = windowSize
 	}
-	params.setString("type", arg.Type)
-	params.setString("symbolStatus", arg.SymbolStatus)
+	params.setString("type", string(arg.Type))
+	params.setString("symbolStatus", string(arg.SymbolStatus))
 	var resp objectOrArray[PriceChangeStatsResponse]
 	return resp, e.SendWebsocketAPIRequest(ctx, spotTickerSymbolsLimit(len(arg.Symbols)), "ticker", params, &resp)
 }
@@ -932,20 +932,20 @@ func (e *Exchange) GetWebsocket24HourPriceChanges(ctx context.Context, arg *Webs
 	if err := e.setSymbols(params, arg.Symbols); err != nil {
 		return nil, err
 	}
-	params.setString("type", arg.Type)
-	params.setString("symbolStatus", arg.SymbolStatus)
+	params.setString("type", string(arg.Type))
+	params.setString("symbolStatus", string(arg.SymbolStatus))
 	var resp objectOrArray[PriceChangeStatsResponse]
 	return resp, e.SendWebsocketAPIRequest(ctx, spotTicker24HourLimit(len(arg.Symbols)), "ticker.24hr", params, &resp)
 }
 
 // GetWebsocketSymbolOrderbookTicker returns the best bid and ask of symbols (Symbol order book ticker); every symbol's
 // when symbols is empty. symbolStatus filters by trading status (TRADING, HALT or BREAK) when set
-func (e *Exchange) GetWebsocketSymbolOrderbookTicker(ctx context.Context, symbols currency.Pairs, symbolStatus string) ([]WebsocketBookTickerResponse, error) {
+func (e *Exchange) GetWebsocketSymbolOrderbookTicker(ctx context.Context, symbols currency.Pairs, symbolStatus SymbolStatus) ([]WebsocketBookTickerResponse, error) {
 	params := wsParams{}
 	if err := e.setSymbols(params, symbols); err != nil {
 		return nil, err
 	}
-	params.setString("symbolStatus", symbolStatus)
+	params.setString("symbolStatus", string(symbolStatus))
 	epl := spotOrderbookTickerAllRate
 	if len(symbols) == 1 {
 		epl = spotBookTickerRate
@@ -956,12 +956,12 @@ func (e *Exchange) GetWebsocketSymbolOrderbookTicker(ctx context.Context, symbol
 
 // GetWebsocketSymbolPriceTicker returns the latest price of symbols (Symbol price ticker); every symbol's when symbols
 // is empty. symbolStatus filters by trading status (TRADING, HALT or BREAK) when set
-func (e *Exchange) GetWebsocketSymbolPriceTicker(ctx context.Context, symbols currency.Pairs, symbolStatus string) ([]WebsocketPriceTickerResponse, error) {
+func (e *Exchange) GetWebsocketSymbolPriceTicker(ctx context.Context, symbols currency.Pairs, symbolStatus SymbolStatus) ([]WebsocketPriceTickerResponse, error) {
 	params := wsParams{}
 	if err := e.setSymbols(params, symbols); err != nil {
 		return nil, err
 	}
-	params.setString("symbolStatus", symbolStatus)
+	params.setString("symbolStatus", string(symbolStatus))
 	epl := spotSymbolPriceAllRate
 	if len(symbols) == 1 {
 		epl = spotSymbolPriceRate
@@ -987,8 +987,8 @@ func (e *Exchange) GetWebsocketTradingDayTickers(ctx context.Context, arg *Webso
 		return nil, err
 	}
 	params.setString("timeZone", arg.TimeZone)
-	params.setString("type", arg.Type)
-	params.setString("symbolStatus", arg.SymbolStatus)
+	params.setString("type", string(arg.Type))
+	params.setString("symbolStatus", string(arg.SymbolStatus))
 	var resp objectOrArray[PriceChangeStatsResponse]
 	return resp, e.SendWebsocketAPIRequest(ctx, spotTickerSymbolsLimit(len(arg.Symbols)), "ticker.tradingDay", params, &resp)
 }

@@ -182,9 +182,9 @@ type WebsocketRollingWindowTickerRequest struct {
 	// WindowSize is a whole number of minutes (1 to 59), hours (1 to 23) or days (1 to 7); 1 day when zero
 	WindowSize time.Duration
 	// Type is FULL (the default) or MINI
-	Type string
+	Type TickerType
 	// SymbolStatus filters the symbols by trading status: TRADING, HALT or BREAK
-	SymbolStatus string
+	SymbolStatus SymbolStatus
 }
 
 // WebsocketTickerRequest holds the parameters of the 24hr ticker price change statistics (ticker.24hr) request
@@ -192,9 +192,9 @@ type WebsocketTickerRequest struct {
 	// Symbols are sent as symbol when there is one and as symbols when there are several; every symbol when empty
 	Symbols currency.Pairs
 	// Type is FULL (the default) or MINI
-	Type string
+	Type TickerType
 	// SymbolStatus filters the symbols by trading status: TRADING, HALT or BREAK
-	SymbolStatus string
+	SymbolStatus SymbolStatus
 }
 
 // WebsocketBookTickerResponse is a Symbol order book ticker (ticker.book) result entry
@@ -219,9 +219,9 @@ type WebsocketTradingDayTickerRequest struct {
 	// TimeZone is the offset the trading day starts in, e.g. "-1:00", "05:45" or "8"; UTC when empty
 	TimeZone string
 	// Type is FULL (the default) or MINI
-	Type string
+	Type TickerType
 	// SymbolStatus filters the symbols by trading status: TRADING, HALT or BREAK
-	SymbolStatus string
+	SymbolStatus SymbolStatus
 }
 
 // WebsocketAggregatedTradesRequest holds the parameters of the Aggregate trades (trades.aggregate) request; FromID

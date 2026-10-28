@@ -67,8 +67,8 @@ type MarginAccountSummaryResponse struct {
 // MarginCapitalFlowRequest holds the filters for GetCrossOrIsolatedMarginCapitalFlow
 type MarginCapitalFlowRequest struct {
 	Asset     currency.Code
-	Symbol    currency.Pair // Selects isolated margin flows
-	Type      string        // For example TRANSFER, BORROW or REPAY
+	Symbol    currency.Pair         // Selects isolated margin flows
+	Type      MarginCapitalFlowType // For example TRANSFER, BORROW or REPAY
 	StartTime time.Time
 	EndTime   time.Time
 	FromID    uint64 // Returns flows with a greater ID within the window
@@ -77,14 +77,14 @@ type MarginCapitalFlowRequest struct {
 
 // MarginCapitalFlowResponse holds one cross or isolated margin capital flow
 type MarginCapitalFlowResponse struct {
-	ID            uint64        `json:"id"`
-	TransactionID uint64        `json:"tranId"`
-	Timestamp     types.Time    `json:"timestamp"`
-	Asset         currency.Code `json:"asset"`
-	Symbol        string        `json:"symbol"`
-	Type          string        `json:"type"`
-	Amount        types.Number  `json:"amount"`
-	Note          string        `json:"note"` // INSTITUTIONAL_LOAN_TRANSFER, INSTITUTIONAL_LOAN_BORROW or INSTITUTIONAL_LOAN_REPAY for institutional loan flows
+	ID            uint64                `json:"id"`
+	TransactionID uint64                `json:"tranId"`
+	Timestamp     types.Time            `json:"timestamp"`
+	Asset         currency.Code         `json:"asset"`
+	Symbol        string                `json:"symbol"`
+	Type          MarginCapitalFlowType `json:"type"`
+	Amount        types.Number          `json:"amount"`
+	Note          string                `json:"note"` // INSTITUTIONAL_LOAN_TRANSFER, INSTITUTIONAL_LOAN_BORROW or INSTITUTIONAL_LOAN_REPAY for institutional loan flows
 }
 
 // CrossMarginAccountDetailResponse holds the cross margin account details
@@ -184,7 +184,7 @@ type UserMarginInterestHistory struct {
 
 // MarginBorrowRepayRecordsRequest holds the filters for GetBorrowOrRepayRecordsInMarginAccount
 type MarginBorrowRepayRecordsRequest struct {
-	Type           string // BORROW or REPAY
+	Type           BorrowRepayType // BORROW or REPAY
 	Asset          currency.Code
 	IsolatedSymbol currency.Pair // Empty for cross margin
 	TransactionID  uint64
@@ -219,7 +219,7 @@ type MarginAccountBorrowRepayRequest struct {
 	IsIsolated bool
 	Symbol     currency.Pair // Required for isolated margin and not sent for cross margin
 	Amount     float64
-	Type       string // BORROW or REPAY
+	Type       BorrowRepayType // BORROW or REPAY
 }
 
 // MarginAccountBorrowRepayResponse holds the transaction ID of a margin borrow or repayment
@@ -720,7 +720,7 @@ type MarginAccountTradeResponse struct {
 // CrossMarginTransferHistoryRequest holds the filters for GetCrossMarginTransferHistory
 type CrossMarginTransferHistoryRequest struct {
 	Asset          currency.Code
-	Type           string // ROLL_IN or ROLL_OUT
+	Type           CrossMarginTransferType // ROLL_IN or ROLL_OUT
 	StartTime      time.Time
 	EndTime        time.Time
 	Current        uint64 // Page number, from 1
@@ -736,16 +736,16 @@ type CrossMarginTransferHistoryResponse struct {
 
 // CrossMarginTransfer holds one transfer into or out of a margin account
 type CrossMarginTransfer struct {
-	Amount        types.Number  `json:"amount"`
-	Asset         currency.Code `json:"asset"`
-	Status        string        `json:"status"`
-	Timestamp     types.Time    `json:"timestamp"`
-	TransactionID uint64        `json:"txId"`
-	Type          string        `json:"type"`      // ROLL_IN or ROLL_OUT
-	TransferFrom  string        `json:"transFrom"` // An account type such as SPOT, ISOLATED_MARGIN or CROSS_MARGIN
-	TransferTo    string        `json:"transTo"`   // An account type such as SPOT, ISOLATED_MARGIN or CROSS_MARGIN
-	FromSymbol    string        `json:"fromSymbol"`
-	ToSymbol      string        `json:"toSymbol"`
+	Amount        types.Number            `json:"amount"`
+	Asset         currency.Code           `json:"asset"`
+	Status        string                  `json:"status"`
+	Timestamp     types.Time              `json:"timestamp"`
+	TransactionID uint64                  `json:"txId"`
+	Type          CrossMarginTransferType `json:"type"`      // ROLL_IN or ROLL_OUT
+	TransferFrom  string                  `json:"transFrom"` // An account type such as SPOT, ISOLATED_MARGIN or CROSS_MARGIN
+	TransferTo    string                  `json:"transTo"`   // An account type such as SPOT, ISOLATED_MARGIN or CROSS_MARGIN
+	FromSymbol    string                  `json:"fromSymbol"`
+	ToSymbol      string                  `json:"toSymbol"`
 }
 
 // MaxTransferOutAmountResponse holds the maximum amount of an asset that can be transferred out of a margin account

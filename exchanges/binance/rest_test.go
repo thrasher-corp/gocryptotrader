@@ -778,16 +778,16 @@ func TestGetSpotKline(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetSpotKline(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetSpotKline must reject a nil request")
-	_, err = e.GetSpotKline(t.Context(), &KlinesRequest{Interval: kline.FiveMin.Short()})
+	_, err = e.GetSpotKline(t.Context(), &KlinesRequest{Interval: kline.FiveMin})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetSpotKline must reject an empty pair")
 	_, err = e.GetSpotKline(t.Context(), &KlinesRequest{Symbol: currency.NewBTCUSDT()})
 	require.ErrorIs(t, err, kline.ErrInvalidInterval, "GetSpotKline must reject an empty interval")
 	startTime, endTime := getTime()
-	_, err = e.GetSpotKline(t.Context(), &KlinesRequest{Symbol: currency.NewBTCUSDT(), Interval: kline.FiveMin.Short(), Limit: 24, StartTime: endTime, EndTime: startTime})
+	_, err = e.GetSpotKline(t.Context(), &KlinesRequest{Symbol: currency.NewBTCUSDT(), Interval: kline.FiveMin, Limit: 24, StartTime: endTime, EndTime: startTime})
 	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetSpotKline must reject a start after the end")
 
 	ensureTradablePairs(t)
-	result, err := e.GetSpotKline(t.Context(), &KlinesRequest{Symbol: spotTradablePair, Interval: kline.FiveMin.Short(), Limit: 24, StartTime: startTime, EndTime: endTime})
+	result, err := e.GetSpotKline(t.Context(), &KlinesRequest{Symbol: spotTradablePair, Interval: kline.FiveMin, Limit: 24, StartTime: startTime, EndTime: endTime})
 	require.NoError(t, err, "GetSpotKline must not error")
 	if mockTests {
 		exp := []CandleStickResponse{
@@ -1167,11 +1167,11 @@ func TestGetUIKline(t *testing.T) {
 	_, err := e.GetUIKline(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetUIKline must reject a nil request")
 	startTime, endTime := getTime()
-	_, err = e.GetUIKline(t.Context(), &KlinesRequest{Symbol: currency.NewBTCUSDT(), Interval: kline.FiveMin.Short(), Limit: 3, StartTime: endTime, EndTime: startTime})
+	_, err = e.GetUIKline(t.Context(), &KlinesRequest{Symbol: currency.NewBTCUSDT(), Interval: kline.FiveMin, Limit: 3, StartTime: endTime, EndTime: startTime})
 	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetUIKline must reject a start after the end")
 
 	ensureTradablePairs(t)
-	result, err := e.GetUIKline(t.Context(), &KlinesRequest{Symbol: spotTradablePair, Interval: kline.FiveMin.Short(), Limit: 3, StartTime: startTime, EndTime: endTime, TimeZone: "8"})
+	result, err := e.GetUIKline(t.Context(), &KlinesRequest{Symbol: spotTradablePair, Interval: kline.FiveMin, Limit: 3, StartTime: startTime, EndTime: endTime, TimeZone: "8"})
 	require.NoError(t, err, "GetUIKline must not error")
 	if mockTests {
 		exp := []CandleStickResponse{
@@ -1219,6 +1219,43 @@ func TestGetUIKline(t *testing.T) {
 		return
 	}
 	assert.Len(t, result, 3, "GetUIKline should return the limit of klines")
+}
+
+func TestGetKlines(t *testing.T) {
+	t.Parallel()
+	_, err := e.getKlines(t.Context(), nil, "/api/v3/klines")
+	require.ErrorIs(t, err, common.ErrNilPointer, "getKlines must reject a nil request")
+	_, err = e.getKlines(t.Context(), &KlinesRequest{Interval: kline.OneMin}, "/api/v3/klines")
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "getKlines must reject an empty symbol")
+	_, err = e.getKlines(t.Context(), &KlinesRequest{Symbol: currency.NewBTCUSDT()}, "/api/v3/klines")
+	require.ErrorIs(t, err, kline.ErrInvalidInterval, "getKlines must reject an empty interval")
+	startTime, endTime := getTime()
+	_, err = e.getKlines(t.Context(), &KlinesRequest{Symbol: currency.NewBTCUSDT(), Interval: kline.OneMin, StartTime: endTime, EndTime: startTime}, "/api/v3/klines")
+	require.ErrorIs(t, err, common.ErrStartAfterEnd, "getKlines must reject a start time after the end time")
+	_, err = new(Exchange).getKlines(t.Context(), &KlinesRequest{Symbol: currency.NewBTCUSDT(), Interval: kline.OneMin}, "/api/v3/klines")
+	require.ErrorIs(t, err, currency.ErrPairManagerNotInitialised, "getKlines must return the error formatting the symbol")
+
+	start, end := time.UnixMilli(1700000000000), time.UnixMilli(1700003600000)
+	for _, tc := range []struct {
+		name string
+		req  *KlinesRequest
+		exp  url.Values
+	}{
+		{"every parameter", &KlinesRequest{Symbol: currency.NewBTCUSDT(), Interval: kline.ThousandMilliseconds, StartTime: start, EndTime: end, TimeZone: "8", Limit: 24}, url.Values{"symbol": {"BTCUSDT"}, "interval": {"1s"}, "startTime": {"1700000000000"}, "endTime": {"1700003600000"}, "timeZone": {"8"}, "limit": {"24"}}},
+		{"symbol and interval only", &KlinesRequest{Symbol: currency.NewBTCUSDT(), Interval: kline.OneMonth}, url.Values{"symbol": {"BTCUSDT"}, "interval": {"1M"}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := newTestServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, "/api/v3/uiKlines", r.URL.Path, "getKlines should request the given path")
+				assert.Equal(t, tc.exp, r.URL.Query(), "getKlines should send the interval as Binance writes it, with the other parameters set")
+				_, err := w.Write([]byte(`[]`))
+				assert.NoError(t, err, "Write should not error")
+			})
+			_, err := ex.getKlines(t.Context(), tc.req, "/api/v3/uiKlines")
+			require.NoError(t, err, "getKlines must not error")
+		})
+	}
 }
 
 func TestCancelAllOpenOrderOnSymbol(t *testing.T) {
@@ -3509,6 +3546,10 @@ func TestCommaSeparatedUnmarshalJSON(t *testing.T) {
 	var coins CommaSeparated[currency.Code]
 	require.NoError(t, json.Unmarshal([]byte(`"BNB,BTC,ETH"`), &coins), "Unmarshal must not error for a list of coins")
 	assert.Equal(t, CommaSeparated[currency.Code]{currency.BNB, currency.BTC, currency.ETH}, coins, "Unmarshal should decode every coin")
+
+	var names CommaSeparated[string]
+	require.NoError(t, names.UnmarshalJSON([]byte(`"BUSD,USDT,USDT-Earn,ETH"`)), "UnmarshalJSON must not error for a list of names")
+	assert.Equal(t, CommaSeparated[string]{"BUSD", "USDT", "USDT-Earn", "ETH"}, names, "UnmarshalJSON should keep each name as sent")
 }
 
 func TestCheckListLength(t *testing.T) {

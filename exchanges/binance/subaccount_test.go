@@ -1384,7 +1384,7 @@ func TestGetManagedSubAccountFuturesAssetDetails(t *testing.T) {
 	}
 	for _, tc := range []struct {
 		name        string
-		accountType string
+		accountType AccountType
 		exp         *ManagedSubAccountFuturesAssetDetailsResponse
 	}{
 		{
@@ -1541,8 +1541,8 @@ func TestGetManagedSubAccountSnapshot(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	for _, snapshotType := range []string{"SPOT", "MARGIN", "FUTURES"} {
-		t.Run(snapshotType, func(t *testing.T) {
+	for _, snapshotType := range []AccountSnapshotType{"SPOT", "MARGIN", "FUTURES"} {
+		t.Run(string(snapshotType), func(t *testing.T) {
 			t.Parallel()
 			result, err := e.GetManagedSubAccountSnapshot(t.Context(), "address@example.com", &AccountSnapshotRequest{Type: snapshotType, StartTime: startTime, EndTime: endTime, Limit: 10})
 			require.NoError(t, err, "GetManagedSubAccountSnapshot must not error")

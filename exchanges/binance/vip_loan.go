@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -114,19 +115,15 @@ func (e *Exchange) VIPLoanBorrow(ctx context.Context, req *VIPLoanBorrowRequest)
 		}
 		accountIDs[i] = strconv.FormatUint(req.CollateralAccountIDs[i], 10)
 	}
-	collateralCoins := make([]string, len(req.CollateralCoins))
-	for i := range req.CollateralCoins {
-		if req.CollateralCoins[i].IsEmpty() {
-			return nil, fmt.Errorf("%w: collateral coin", currency.ErrCurrencyCodeEmpty)
-		}
-		collateralCoins[i] = req.CollateralCoins[i].Upper().String()
+	if slices.Contains(req.CollateralCoins, "") {
+		return nil, fmt.Errorf("%w: collateral coin", currency.ErrCurrencyCodeEmpty)
 	}
 	params := url.Values{}
 	params.Set("loanAccountId", strconv.FormatUint(req.LoanAccountID, 10))
 	params.Set("loanCoin", req.LoanCoin.Upper().String())
 	params.Set("loanAmount", strconv.FormatFloat(req.LoanAmount, 'f', -1, 64))
 	params.Set("collateralAccountId", strings.Join(accountIDs, ","))
-	params.Set("collateralCoin", strings.Join(collateralCoins, ","))
+	params.Set("collateralCoin", strings.Join(req.CollateralCoins, ","))
 	params.Set("isFlexibleRate", strconv.FormatBool(req.IsFlexibleRate))
 	if req.LoanTermInDays > 0 {
 		params.Set("loanTerm", strconv.FormatUint(req.LoanTermInDays, 10))

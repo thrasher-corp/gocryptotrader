@@ -360,8 +360,8 @@ func (e *Exchange) UniversalTransferWithBroker(ctx context.Context, arg *BrokerU
 	if err != nil {
 		return nil, err
 	}
-	params.Set("fromAccountType", arg.FromAccountType)
-	params.Set("toAccountType", arg.ToAccountType)
+	params.Set("fromAccountType", string(arg.FromAccountType))
+	params.Set("toAccountType", string(arg.ToAccountType))
 	var resp *BrokerUniversalTransferResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, "/sapi/v1/broker/universalTransfer", params, sapiDefaultRate, &resp)
 }

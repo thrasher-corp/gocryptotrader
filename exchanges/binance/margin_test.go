@@ -1442,7 +1442,7 @@ func TestMarginManualLiquidation(t *testing.T) {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
 	for _, tc := range []struct {
-		marginType string
+		marginType MarginAccountType
 		symbol     currency.Pair
 		exp        *MarginManualLiquidationResponse
 	}{
@@ -1468,7 +1468,7 @@ func TestMarginManualLiquidation(t *testing.T) {
 			},
 		},
 	} {
-		t.Run(tc.marginType, func(t *testing.T) {
+		t.Run(string(tc.marginType), func(t *testing.T) {
 			t.Parallel()
 			result, err := e.MarginManualLiquidation(t.Context(), tc.marginType, tc.symbol)
 			require.NoError(t, err, "MarginManualLiquidation must not error")

@@ -12,7 +12,7 @@ import (
 
 // PortfolioMarginProBNBTransfer transfers BNB between the portfolio margin pro margin and USDⓈ-M accounts; transferSide
 // is TO_UM or FROM_UM. The endpoint can be called twice per 10 minutes
-func (e *Exchange) PortfolioMarginProBNBTransfer(ctx context.Context, amount float64, transferSide string) (*PortfolioMarginTransactionResponse, error) {
+func (e *Exchange) PortfolioMarginProBNBTransfer(ctx context.Context, amount float64, transferSide BNBTransferSide) (*PortfolioMarginTransactionResponse, error) {
 	return e.portfolioMarginTransferBNB(ctx, exchange.RestSpotSupplementary, "/sapi/v1/portfolio/bnb-transfer", amount, transferSide, transferBNBRate)
 }
 
@@ -48,15 +48,11 @@ func (e *Exchange) GetPortfolioMarginProAccountInfo(ctx context.Context) (*Portf
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/portfolio/account", nil, classicPortfolioMarginAccountInfoRate, &resp)
 }
 
-// RepayPortfolioMarginProBankruptcyLoan repays the portfolio margin pro bankruptcy loan from the SPOT (default) or
-// MARGIN account; the API key needs spot and margin trading permissions
-func (e *Exchange) RepayPortfolioMarginProBankruptcyLoan(ctx context.Context, from string) (*PortfolioMarginTransactionResponse, error) {
-	params := url.Values{}
-	if from != "" {
-		params.Set("from", from)
-	}
+// RepayPortfolioMarginProBankruptcyLoan repays the portfolio margin pro bankruptcy loan with USDT that Binance moves from
+// the spot account to the cross margin account; the API key needs spot and margin trading permissions
+func (e *Exchange) RepayPortfolioMarginProBankruptcyLoan(ctx context.Context) (*PortfolioMarginTransactionResponse, error) {
 	var resp *PortfolioMarginTransactionResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, "/sapi/v1/portfolio/repay", params, repayClassicPortfolioMarginBankruptcyLoanRate, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, "/sapi/v1/portfolio/repay", nil, repayClassicPortfolioMarginBankruptcyLoanRate, &resp)
 }
 
 // GetPortfolioMarginProBankruptcyLoanAmount returns the portfolio margin pro bankruptcy loan amount
@@ -76,15 +72,11 @@ func (e *Exchange) GetPortfolioMarginProNegativeBalanceInterestHistory(ctx conte
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/portfolio/interest-history", params, classicPortfolioMarginNegativeBalanceInterestHistoryRate, &resp)
 }
 
-// RepayPortfolioMarginProFuturesNegativeBalance repays portfolio margin pro futures negative balances from the SPOT
-// (default) or MARGIN account
-func (e *Exchange) RepayPortfolioMarginProFuturesNegativeBalance(ctx context.Context, from string) (*PortfolioMarginMessageResponse, error) {
-	params := url.Values{}
-	if from != "" {
-		params.Set("from", from)
-	}
+// RepayPortfolioMarginProFuturesNegativeBalance repays portfolio margin pro futures negative balances from the cross
+// margin account
+func (e *Exchange) RepayPortfolioMarginProFuturesNegativeBalance(ctx context.Context) (*PortfolioMarginMessageResponse, error) {
 	var resp *PortfolioMarginMessageResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, "/sapi/v1/portfolio/repay-futures-negative-balance", params, repayFuturesNegativeBalanceRate, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, "/sapi/v1/portfolio/repay-futures-negative-balance", nil, repayFuturesNegativeBalanceRate, &resp)
 }
 
 // GetPortfolioMarginAssetLeverage returns the leverage of every portfolio margin asset

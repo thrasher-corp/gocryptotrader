@@ -555,8 +555,8 @@ func (e *Exchange) UniversalTransferForMasterAccount(ctx context.Context, req *S
 	if req.ToEmail != "" {
 		params.Set("toEmail", req.ToEmail)
 	}
-	params.Set("fromAccountType", req.FromAccountType)
-	params.Set("toAccountType", req.ToAccountType)
+	params.Set("fromAccountType", string(req.FromAccountType))
+	params.Set("toAccountType", string(req.ToAccountType))
 	if req.ClientTransactionID != "" {
 		params.Set("clientTranId", req.ClientTransactionID)
 	}
@@ -676,13 +676,13 @@ func (e *Exchange) GetManagedSubAccountAssetsDetails(ctx context.Context, email 
 
 // GetManagedSubAccountFuturesAssetDetails returns the Managed Sub-account Futures Asset Details (For Investor Master
 // Account). accountType is USDT_FUTURE, the default, or COIN_FUTURE
-func (e *Exchange) GetManagedSubAccountFuturesAssetDetails(ctx context.Context, email, accountType string) (*ManagedSubAccountFuturesAssetDetailsResponse, error) {
+func (e *Exchange) GetManagedSubAccountFuturesAssetDetails(ctx context.Context, email string, accountType AccountType) (*ManagedSubAccountFuturesAssetDetailsResponse, error) {
 	params, err := subAccountEmailParams(email)
 	if err != nil {
 		return nil, err
 	}
 	if accountType != "" {
-		params.Set("accountType", accountType)
+		params.Set("accountType", string(accountType))
 	}
 	var resp *ManagedSubAccountFuturesAssetDetailsResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/managed-subaccount/fetch-future-asset", params, managedSubAccountFuturesAssetDetailRate, &resp)
@@ -706,13 +706,13 @@ func (e *Exchange) GetManagedSubAccountList(ctx context.Context, email string, p
 
 // GetManagedSubAccountMarginAssetDetails returns the Managed Sub-account Margin Asset Details (For Investor Master
 // Account). accountType is MARGIN, the default, or ISOLATED_MARGIN
-func (e *Exchange) GetManagedSubAccountMarginAssetDetails(ctx context.Context, email, accountType string) (*ManagedSubAccountMarginAssetDetailsResponse, error) {
+func (e *Exchange) GetManagedSubAccountMarginAssetDetails(ctx context.Context, email string, accountType AccountType) (*ManagedSubAccountMarginAssetDetailsResponse, error) {
 	params, err := subAccountEmailParams(email)
 	if err != nil {
 		return nil, err
 	}
 	if accountType != "" {
-		params.Set("accountType", accountType)
+		params.Set("accountType", string(accountType))
 	}
 	var resp *ManagedSubAccountMarginAssetDetailsResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/managed-subaccount/marginAsset", params, sapiDefaultRate, &resp)
@@ -772,10 +772,10 @@ func managedSubAccountTransferLogParams(req *ManagedSubAccountTransferLogRequest
 	params.Set("page", strconv.FormatUint(req.Page, 10))
 	params.Set("limit", strconv.FormatUint(req.Limit, 10))
 	if req.Transfers != "" {
-		params.Set("transfers", req.Transfers)
+		params.Set("transfers", string(req.Transfers))
 	}
 	if req.TransferFunctionAccountType != "" {
-		params.Set("transferFunctionAccountType", req.TransferFunctionAccountType)
+		params.Set("transferFunctionAccountType", string(req.TransferFunctionAccountType))
 	}
 	return params, nil
 }

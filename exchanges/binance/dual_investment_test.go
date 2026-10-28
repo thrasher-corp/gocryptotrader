@@ -127,23 +127,20 @@ func TestSubscribeDualInvestmentProducts(t *testing.T) {
 	t.Parallel()
 	_, err := e.SubscribeDualInvestmentProducts(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "SubscribeDualInvestmentProducts must reject a nil request")
-	_, err = e.SubscribeDualInvestmentProducts(t.Context(), &SubscribeDualInvestmentProductsRequest{OrderID: 8257205859, DepositAmount: 0.1, AutoCompoundPlan: "STANDARD"})
+	_, err = e.SubscribeDualInvestmentProducts(t.Context(), &SubscribeDualInvestmentProductsRequest{OrderID: 8257205859, DepositAmount: 0.1})
 	require.ErrorIs(t, err, errProductIDRequired, "SubscribeDualInvestmentProducts must reject an empty product ID")
-	_, err = e.SubscribeDualInvestmentProducts(t.Context(), &SubscribeDualInvestmentProductsRequest{ID: "741590", DepositAmount: 0.1, AutoCompoundPlan: "STANDARD"})
+	_, err = e.SubscribeDualInvestmentProducts(t.Context(), &SubscribeDualInvestmentProductsRequest{ID: "741590", DepositAmount: 0.1})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "SubscribeDualInvestmentProducts must reject an empty order ID")
-	_, err = e.SubscribeDualInvestmentProducts(t.Context(), &SubscribeDualInvestmentProductsRequest{ID: "741590", OrderID: 8257205859, AutoCompoundPlan: "STANDARD"})
+	_, err = e.SubscribeDualInvestmentProducts(t.Context(), &SubscribeDualInvestmentProductsRequest{ID: "741590", OrderID: 8257205859})
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin, "SubscribeDualInvestmentProducts must reject a zero deposit amount")
-	_, err = e.SubscribeDualInvestmentProducts(t.Context(), &SubscribeDualInvestmentProductsRequest{ID: "741590", OrderID: 8257205859, DepositAmount: 0.1})
-	require.ErrorIs(t, err, errAutoCompoundPlanRequired, "SubscribeDualInvestmentProducts must reject an empty plan")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
 	result, err := e.SubscribeDualInvestmentProducts(t.Context(), &SubscribeDualInvestmentProductsRequest{
-		ID:               "741590",
-		OrderID:          8257205859,
-		DepositAmount:    0.1,
-		AutoCompoundPlan: "STANDARD",
+		ID:            "741590",
+		OrderID:       8257205859,
+		DepositAmount: 0.1,
 	})
 	require.NoError(t, err, "SubscribeDualInvestmentProducts must not error")
 	if mockTests {

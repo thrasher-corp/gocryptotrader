@@ -4040,7 +4040,7 @@ func (e *Exchange) klineCandles(ctx context.Context, a asset.Item, pair currency
 	case asset.Spot, asset.Margin:
 		resp, err := e.GetSpotKline(ctx, &KlinesRequest{
 			Symbol:    pair,
-			Interval:  e.FormatExchangeKlineInterval(interval),
+			Interval:  interval,
 			StartTime: start,
 			EndTime:   end,
 			Limit:     limit,
@@ -4062,7 +4062,7 @@ func (e *Exchange) klineCandles(ctx context.Context, a asset.Item, pair currency
 	case asset.USDTMarginedFutures:
 		resp, err := e.USDTMarginedFuturesKlineData(ctx, &USDTMarginedFuturesKlineRequest{
 			Symbol:    pair,
-			Interval:  e.FormatExchangeKlineInterval(interval),
+			Interval:  interval,
 			StartTime: start,
 			EndTime:   end,
 			Limit:     limit,
