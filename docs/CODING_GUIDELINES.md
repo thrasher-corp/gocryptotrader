@@ -58,10 +58,12 @@ Never relay an empty batch.
 
 ```go
     // Preferred
+    // NotionalBracket describes a notional value bracket.
     type NotionalBracket struct {
-        Bracket int64 `json:"bracket"`
+        Bracket uint64 `json:"bracket"`
     }
 
+    // NotionalBracketData contains the available notional brackets.
     type NotionalBracketData struct {
         Brackets []NotionalBracket `json:"brackets"`
     }
@@ -216,7 +218,7 @@ Use `require` and `assert` appropriately:
 
 ```go
     // Correct — format verb %s requires the f variant:
-    assert.NoErrorf(t, err, "UpdateAccountInfo should not error for asset %s", a)
+    assert.NoErrorf(t, err, "UpdateAccountBalances should not error for asset %s", a)
 
     // Correct — plain message, no format verbs:
     assert.ErrorIs(t, err, errInvalidOrderSize, "validate should return expected error")
@@ -251,6 +253,64 @@ Use `require` and `assert` appropriately:
     indefinitely if the implementation regresses, such as `errors.Is`,
     `errors.As` or recursive error formatting. Assert the expected termination
     point without following the potentially cyclic remainder.
+- When adding a regression test or another scenario, add a `t.Run` inside the existing test for the function or method:
+  - This also applies to helpers, parsers and validators.
+  - Do not create a separate test function for each scenario or bug.
+  - If no test exists, create one named after the function.
+  - For table-driven tests, add a row to the existing table and run each row with `t.Run`.
+  - For tests using `synctest.Test`, put each `t.Run` outside the bubble and give each case its own `synctest.Test` call. Call `t.Parallel()` outside the bubble too; Go does not allow either call inside it.
+- Tests that check several components working together may stay in a separate integration test. Add new scenarios to that test using `t.Run`.
+- Give each `t.Run` a clear name that helps readers understand the case in the context of the parent test:
+  - The name may describe the behaviour, input, expected outcome or test mode, such as "live" or "mocked".
+  - A separate comment is usually not needed if the name and test already explain the case. Add a comment when extra context is useful.
+- Use `t.Parallel()` where tests can safely run in parallel:
+  - Call it inside each `t.Run` when safe.
+  - Keep data and setup separate where cases could affect each other.
+  - If a case must run serially, leave it out of that case and any parent tests that must also run serially. Add a comment explaining why.
+  - If the `tparallel` linter reports an issue, either keep the whole test serial, including its subtests, or add `//nolint:tparallel // reason` to the test function when a mix of serial and parallel cases is needed. Do not enable parallel execution just to satisfy lint.
+  - Only add the suppression when the linter reports an issue.
+- Use `t.Cleanup` to release resources needed by parallel subtests:
+  - A parent test's `defer` may release them before those subtests run.
+  - If cleanup needs a context, create a separate one because `t.Context()` is cancelled before cleanup starts.
+- For functions that call an exchange API, keep live testing available through either a live case in the same function test or the existing mock/live test mode. Do not rely only on a mock HTTP server.
+- If live requests cannot run in GitHub Actions, run mocked tests in CI and keep live testing available locally:
+  - Use the existing test settings and credential checks.
+  - Put checks that skip only a live case inside its `t.Run`, so the other cases still run.
+- Functions that do not call an exchange API do not need a live API case.
+
+#### Regression test example
+
+**Desirable:** Add the new scenario inside the existing function test.
+
+```go
+func TestGetOrderBookDepth(t *testing.T) {
+    t.Parallel()
+
+    t.Run("live API", func(t *testing.T) {
+        t.Parallel()
+        result, err := e.GetOrderBookDepth(t.Context(), "BTC-USDT", 400)
+        require.NoError(t, err, "GetOrderBookDepth must not error")
+        assert.NotNil(t, result, "order book should be returned")
+    })
+
+    t.Run("missing instrument ID returns an error", func(t *testing.T) {
+        t.Parallel()
+        _, err := e.GetOrderBookDepth(t.Context(), "", 400)
+        require.ErrorIs(t, err, errMissingInstrumentID, "missing ID must return the expected error")
+    })
+}
+```
+
+**Less desirable:** A separate test function for the new scenario.
+
+```go
+// TestGetOrderBookDepthMissingID checks for a missing instrument ID.
+func TestGetOrderBookDepthMissingID(t *testing.T) {
+    t.Parallel()
+    _, err := e.GetOrderBookDepth(t.Context(), "", 400)
+    require.ErrorIs(t, err, errMissingInstrumentID, "missing ID must return the expected error")
+}
+```
 
 ### Interface Contracts
 
@@ -261,37 +321,20 @@ Use `require` and `assert` appropriately:
 
 ### Test deduplication
 
-- Test deduplication should be the default approach for exchanges and across the codebase, an example can be seen below:
+- Test deduplication should be the default approach for exchanges and across the codebase. Use a loop or table to avoid repeated checks, with a named `t.Run` for each case. Use `t.Parallel()` where safe, following the parallel testing guidance above.
 
-```diff
---- a/gateio_test.go
-+++ b/gateio_test.go
-@@ -89,19 +89,11 @@ func TestGetAccountInfo(t *testing.T) {
-     t.Parallel()
-     sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
--    _, err := g.UpdateAccountInfo(t.Context(), asset.Spot)
--    if err != nil {
--        t.Error("GetAccountInfo() error", err)
--    }
--    if _, err := g.UpdateAccountInfo(t.Context(), asset.Margin); err != nil {
--        t.Errorf("%s UpdateAccountInfo() error %v", g.Name, err)
--    }
--    if _, err := g.UpdateAccountInfo(t.Context(), asset.CrossMargin); err != nil {
--        t.Error("%s UpdateAccountInfo() error %v", g.Name, err)
--    }
--    if _, err := g.UpdateAccountInfo(t.Context(), asset.Options); err != nil {
--        t.Error("%s UpdateAccountInfo() error %v", g.Name, err)
--    }
--    if _, err := g.UpdateAccountInfo(t.Context(), asset.Futures); err != nil {
--        t.Error("%s UpdateAccountInfo() error %v", g.Name, err)
--    }
--    if _, err := g.UpdateAccountInfo(t.Context(), asset.DeliveryFutures); err != nil {
--        t.Error("%s UpdateAccountInfo() error %v", g.Name, err)
--    }
-+    for _, a := range g.GetAssetTypes(false) {
-+        _, err := g.UpdateAccountInfo(t.Context(), a)
-+        assert.NoErrorf(t, err, "UpdateAccountInfo should not error for asset %s", a)
-+    }
+```go
+func TestUpdateAccountBalances(t *testing.T) {
+    t.Parallel()
+
+    for _, a := range e.GetAssetTypes(false) {
+        t.Run(a.String(), func(t *testing.T) {
+            t.Parallel()
+            sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+            _, err := e.UpdateAccountBalances(t.Context(), a)
+            assert.NoErrorf(t, err, "UpdateAccountBalances should not error for asset %s", a)
+        })
+    }
 }
 ```
 
@@ -371,7 +414,7 @@ This ensures proper formatting across the codebase.
 Run the following to check for linting issues:
 
 ```console
-    golangci-lint run ./... (or make lint)
+    make lint
 ```
 
 Run the miscellaneous repository checks locally with:
