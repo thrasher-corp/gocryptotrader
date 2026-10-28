@@ -112,7 +112,7 @@ func TestGetCurrencyData(t *testing.T) {
 		assert.Empty(t, support.requested, "support provider should not be called")
 	})
 
-	t.Run("spillover currencies are requested from support", func(t *testing.T) {
+	t.Run("spillover currencies are not requested from support", func(t *testing.T) {
 		t.Parallel()
 		support := &stubProvider{name: "support", rates: map[string]float64{"USDEUR": 0.9}}
 		f := &FXHandler{
@@ -127,8 +127,8 @@ func TestGetCurrencyData(t *testing.T) {
 		}
 		rates, err := f.GetCurrencyData("USD", []string{"AUD", "EUR"})
 		require.NoError(t, err, "GetCurrencyData must not error")
-		assert.Equal(t, []string{"EUR"}, support.requested, "support provider should receive the spillover currencies")
-		assert.Equal(t, map[string]float64{"USDAUD": 1.5, "USDEUR": 0.9}, rates, "rates should merge primary and support results")
+		assert.Empty(t, support.requested, "support provider should not be called")
+		assert.Equal(t, map[string]float64{"USDAUD": 1.5}, rates, "rates should come from the primary provider")
 	})
 
 	t.Run("primary error is preserved without support", func(t *testing.T) {
