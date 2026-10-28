@@ -3,9 +3,12 @@ package currency
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/database/testhelpers"
 )
 
@@ -136,4 +139,126 @@ func overrideForProvider(n string) BotOverrides {
 		b.FXMacroData = true
 	}
 	return b
+}
+
+func TestStorageUpdaterLifecycleAndCachedReads(t *testing.T) {
+	fxProviders, mock := newCountingMockProvider()
+
+	var s Storage
+	s.SetupConversionRates()
+	s.defaultBaseCurrency = USD
+	s.baseCurrency = USD
+	s.defaultFiatCurrencies = Currencies{USD, EUR, AUD}
+	s.fiatCurrencies = Currencies{USD, EUR, AUD}
+	s.fiatExchangeMarkets = fxProviders
+	s.foreignExchangeUpdateDelay = time.Hour
+	s.currencyFileUpdateDelay = time.Hour
+	s.shutdown = make(chan struct{})
+	s.path = filepath.Join(t.TempDir(), DefaultStorageFile)
+
+	// 1. Before updater is started, updaterRunning is false
+	assert.False(t, s.updaterRunning.Load())
+
+	// 2. Initial reads without background updater trigger one-off seeding
+	r1, err := s.GetExchangeRates()
+	assert.NoError(t, err)
+	assert.NotEmpty(t, r1)
+	assert.Equal(t, int64(1), mock.calls.Load(), "initial GetExchangeRates should call provider")
+
+	r2, err := s.GetDefaultForeignExchangeRates()
+	assert.NoError(t, err)
+	assert.NotEmpty(t, r2)
+	assert.Equal(t, int64(2), mock.calls.Load(), "initial GetDefaultForeignExchangeRates should call provider")
+
+	// 3. Start ForeignExchangeUpdater in background
+	s.mtx.Lock()
+	s.wg.Add(1)
+	go s.ForeignExchangeUpdater()
+
+	// Wait for initial seed in ForeignExchangeUpdater to complete
+	assert.Eventually(t, s.updaterRunning.Load, 5*time.Second, 10*time.Millisecond)
+
+	initialCalls := mock.calls.Load()
+
+	// 4. Repeated reads while updater is running should use cached rates without extra provider calls
+	_, err = s.GetExchangeRates()
+	assert.NoError(t, err)
+	assert.Equal(t, initialCalls, mock.calls.Load(), "GetExchangeRates should read from cache while updater is running")
+
+	_, err = s.GetDefaultForeignExchangeRates()
+	assert.NoError(t, err)
+	assert.Equal(t, initialCalls, mock.calls.Load(), "GetDefaultForeignExchangeRates should read from cache while updater is running")
+
+	// 5. Shutdown transitions IsUpdaterRunning to false
+	err = s.Shutdown()
+	assert.NoError(t, err)
+	assert.False(t, s.updaterRunning.Load(), "updaterRunning should be false after Shutdown")
+}
+
+// newCountingStorage returns a Storage set up as RunUpdater leaves it, using the counting mock provider
+func newCountingStorage(t *testing.T, foreignExchangeUpdateDelay time.Duration) (*Storage, *CountingMockProvider) {
+	t.Helper()
+	fxProviders, mock := newCountingMockProvider()
+	s := &Storage{
+		baseCurrency:               USD,
+		defaultBaseCurrency:        USD,
+		fiatCurrencies:             Currencies{USD, EUR, AUD},
+		defaultFiatCurrencies:      Currencies{USD, EUR, AUD},
+		fiatExchangeMarkets:        fxProviders,
+		path:                       filepath.Join(t.TempDir(), DefaultStorageFile),
+		currencyFileUpdateDelay:    time.Hour,
+		foreignExchangeUpdateDelay: foreignExchangeUpdateDelay,
+		shutdown:                   make(chan struct{}),
+	}
+	s.SetupConversionRates()
+	return s, mock
+}
+
+// startForeignExchangeUpdater starts the updater as RunUpdater does and waits for its initial seed
+func startForeignExchangeUpdater(t *testing.T, s *Storage) {
+	t.Helper()
+	s.mtx.Lock()
+	s.wg.Add(1)
+	go s.ForeignExchangeUpdater()
+	t.Cleanup(func() { assert.NoError(t, s.Shutdown(), "Shutdown should not error") })
+	require.Eventually(t, s.updaterRunning.Load, 5*time.Second, 10*time.Millisecond, "updater must finish its initial seed")
+}
+
+func TestStorageUpdaterFailedInitialSeed(t *testing.T) {
+	s, mock := newCountingStorage(t, time.Hour)
+	mock.fail.Store(true)
+	startForeignExchangeUpdater(t, s)
+	require.Equal(t, int64(1), mock.calls.Load(), "initial seed must call the provider once")
+
+	_, err := s.GetDefaultForeignExchangeRates()
+	assert.Error(t, err, "GetDefaultForeignExchangeRates should retry the seed and return its error while no rates are cached")
+	_, err = s.GetExchangeRates()
+	assert.Error(t, err, "GetExchangeRates should retry the seed and return its error while no rates are cached")
+	assert.Equal(t, int64(3), mock.calls.Load(), "each read should retry the seed while no rates are cached")
+
+	mock.fail.Store(false)
+	rates, err := s.GetExchangeRates()
+	require.NoError(t, err, "GetExchangeRates must not error once the provider recovers")
+	assert.NotEmpty(t, rates, "GetExchangeRates should return the rates it seeded")
+	rates, err = s.GetDefaultForeignExchangeRates()
+	require.NoError(t, err, "GetDefaultForeignExchangeRates must not error once rates are cached")
+	assert.NotEmpty(t, rates, "GetDefaultForeignExchangeRates should return the cached rates")
+	assert.Equal(t, int64(4), mock.calls.Load(), "reads should use the cache once a seed has succeeded")
+}
+
+func TestStorageUpdaterTickRefreshesRates(t *testing.T) {
+	s, mock := newCountingStorage(t, 10*time.Millisecond)
+	startForeignExchangeUpdater(t, s)
+	seeded, err := s.fxRates.GetRate(USD, EUR)
+	require.NoError(t, err, "GetRate must not error after the initial seed")
+	assert.Eventually(t, func() bool {
+		rate, err := s.fxRates.GetRate(USD, EUR)
+		return err == nil && rate > seeded
+	}, 5*time.Second, 10*time.Millisecond, "a foreign exchange tick should refresh the cached rates")
+
+	// Tick goroutines outlive Shutdown and update rates through the package storage: fail those still to
+	// fetch, and let HasData's lock wait out one already updating, before another test uses that storage
+	mock.fail.Store(true)
+	require.NoError(t, s.Shutdown(), "Shutdown must not error")
+	assert.True(t, s.fxRates.HasData(), "rates should stay cached after Shutdown")
 }
