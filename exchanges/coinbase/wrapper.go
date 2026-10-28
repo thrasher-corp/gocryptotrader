@@ -99,6 +99,7 @@ var (
 	errTrailingStopDistance      = errors.New("a trailing stop needs a distance tracking value")
 	errOrderLabelNotUnique       = errors.New("label does not identify one open order")
 	errReduceOnlyNotSupported    = errors.New("reduce only orders are not supported")
+	errClientOrderIDInUse        = errors.New("client order ID already names another order")
 	// errProofTokenRequired is the EU's strong customer authentication asking for a proof token, which only the account
 	// holder can give, in place of the list asked for
 	errProofTokenRequired = errors.New("a strong customer authentication proof token is required")
@@ -1423,6 +1424,9 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		if created.SuccessResponse == nil {
 			return nil, common.ErrNoResponse
 		}
+		if e.namesAnotherOrder(s.AssetType, s.Pair, req, created) {
+			return nil, fmt.Errorf("%w: Coinbase returned order %s for %q rather than placing this one", errClientOrderIDInUse, created.SuccessResponse.OrderID, req.ClientOrderID)
+		}
 		resp, err := s.DeriveSubmitResponse(created.SuccessResponse.OrderID)
 		if err != nil {
 			return nil, err
@@ -1443,12 +1447,56 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 				return resp, fmt.Errorf("order %s placed, but error reading its status: %w", resp.OrderID, err)
 			}
 			resp.Fee = placed.TotalFees.Float64()
+			resp.AverageExecutedPrice = placed.AverageFilledPrice.Float64()
+			resp.Cost = placed.FilledValue.Float64()
+			// The order as read, which an edit since it was placed may have resized; a filled order with no base size
+			// takes what it executed as its size, as orderDetail gives it
+			if values := orderConfigurationValues(placed.OrderConfiguration); !placed.SizeInQuote && values.baseSize > 0 {
+				resp.Amount = values.baseSize
+				resp.RemainingAmount = max(values.baseSize-placed.FilledSize.Float64(), 0)
+			} else if resp.Status == order.Filled && resp.Amount == 0 {
+				resp.Amount = placed.FilledSize.Float64()
+			}
 		}
 		return resp, nil
 	case isDerivativesAsset(s.AssetType):
 		return e.submitDerivativesOrder(ctx, s)
 	}
 	return nil, fmt.Errorf("%w: %s", asset.ErrNotSupported, s.AssetType)
+}
+
+// namesAnotherOrder reports whether Coinbase's reply to a new order of a pair names another order than the request, as
+// it returns the order a client order ID already used identifies rather than placing another. Only what both name is
+// compared, the product's book, side, sizes and prices, as a reply can leave its configuration out; a USDC alias and
+// its USD product share one book
+func (e *Exchange) namesAnotherOrder(a asset.Item, p currency.Pair, req *CreateOrderRequest, created *CreateOrderResponse) bool {
+	placed := created.SuccessResponse
+	if placed.Side != "" && placed.Side != req.Side {
+		return true
+	}
+	if placed.ProductID != "" && placed.ProductID != req.ProductID {
+		if replied, err := currency.NewPairDelimiter(placed.ProductID, currency.DashDelimiter); err == nil && e.websocketStreamProduct(a, replied) != e.websocketStreamProduct(a, p) {
+			return true
+		}
+	}
+	if created.OrderConfiguration == nil || req.OrderConfiguration == nil {
+		return false
+	}
+	_, leg, err := req.OrderConfiguration.orderConfiguration()
+	if err != nil {
+		return false
+	}
+	requested := func(v string) float64 {
+		f, err := strconv.ParseFloat(v, 64)
+		if err != nil {
+			return 0
+		}
+		return f
+	}
+	differs := func(a, b float64) bool { return a > 0 && b > 0 && !sameOrderSize(a, b) }
+	got := orderConfigurationValues(created.OrderConfiguration)
+	return differs(got.baseSize, requested(leg.BaseSize)) || differs(got.quoteSize, requested(leg.QuoteSize)) ||
+		differs(got.limitPrice, requested(leg.LimitPrice)) || differs(got.stopPrice, requested(cmp.Or(leg.StopPrice, leg.StopTriggerPrice)))
 }
 
 // placedOrder returns an Advanced Trade order after a delay, as Coinbase's response to a new order holds neither its
@@ -2228,13 +2276,16 @@ func anySideFor(s order.Side) order.Side {
 
 // derivativesCancelType returns the category of order types a gateway cancel all request cancels for an order type,
 // and whether the category is exactly that type: stop orders are the stop limit and stop market orders, and take
-// profit orders the take limit and take market orders. Market orders never rest
+// profit orders the take limit and take market orders. A market order's unfilled remainder can rest, which the gateway
+// holds as a limit order, so no category holds market orders alone
 func derivativesCancelType(t order.Type) (category string, exact bool, err error) {
 	switch t {
 	case order.AnyType, order.UnknownType:
 		return DerivativesCancelOrderTypeAll, true, nil
 	case order.Limit:
 		return DerivativesCancelOrderTypeLimit, true, nil
+	case order.Market:
+		return DerivativesCancelOrderTypeLimit, false, nil
 	case order.Stop:
 		return DerivativesCancelOrderTypeStop, true, nil
 	case order.StopLimit, order.StopMarket:
@@ -2443,6 +2494,11 @@ func (e *Exchange) orderDetail(o *Order, listed listStamp) (*order.Detail, error
 	}
 	if !o.SizeInQuote && values.baseSize > 0 {
 		d.RemainingAmount = max(values.baseSize-d.ExecutedAmount, 0)
+	}
+	// A filled order with no base size, as one sized in the quote currency alone, takes the base amount it executed as
+	// its size, as the user channel relays it
+	if status == order.Filled && d.Amount == 0 {
+		d.Amount = d.ExecutedAmount
 	}
 	// Coinbase reports no time an order was cancelled; a filled order closed at its last fill, and an expired one at its
 	// end time

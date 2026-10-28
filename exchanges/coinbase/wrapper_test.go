@@ -977,6 +977,147 @@ func TestSubmitOrderRetrieveFees(t *testing.T) {
 	assert.Equal(t, orderID, resp.OrderID, "SubmitOrder should return the placed order's ID when its fees cannot be read")
 }
 
+func TestSubmitOrderClientOrderIDInUse(t *testing.T) {
+	t.Parallel()
+	const orderID = "e3b0c442-98fc-4c14-9afb-f4c8996fb924"
+	limit := order.Submit{Side: order.Buy, Type: order.Limit, Amount: 1, Price: 90000}
+	// A USDC alias trades on its USD product's book, which a reply could name in its place
+	usdcLimit := order.Submit{Pair: currency.NewPair(currency.BTC, currency.USDC), Side: order.Buy, Type: order.Limit, Amount: 1, Price: 90000}
+	quoteSized := order.Submit{Side: order.Buy, Type: order.Market, QuoteAmount: 100}
+	stopLimit := order.Submit{Side: order.Buy, Type: order.StopLimit, Amount: 1, Price: 90000, TriggerPrice: 89000, StopDirection: order.StopUp}
+	bracket := order.Submit{Side: order.Sell, Type: order.Bracket, Amount: 1, Price: 95000, TriggerPrice: 85000}
+	for _, tc := range []struct {
+		name                   string
+		submit                 order.Submit
+		product, side, replied string
+		inUse                  bool
+	}{
+		{"another side", limit, "BTC-USD", "SELL", `null`, true},
+		{"another product", limit, "ETH-USD", "BUY", `null`, true},
+		{"the product's book", usdcLimit, "BTC-USD", "BUY", `null`, false},
+		{"the alias's book", limit, "BTC-USDC", "BUY", `null`, false},
+		{"another base size", limit, "BTC-USD", "BUY", `{"limit_limit_gtc":{"base_size":"2","limit_price":"90000"}}`, true},
+		{"another limit price", limit, "BTC-USD", "BUY", `{"limit_limit_gtc":{"base_size":"1","limit_price":"80000"}}`, true},
+		{"another quote size", quoteSized, "BTC-USD", "BUY", `{"market_market_ioc":{"quote_size":"50"}}`, true},
+		{"another stop price", stopLimit, "BTC-USD", "BUY", `{"stop_limit_stop_limit_gtc":{"base_size":"1","limit_price":"90000","stop_price":"88000","stop_direction":"STOP_DIRECTION_STOP_UP"}}`, true},
+		{"another trigger price", bracket, "BTC-USD", "SELL", `{"trigger_bracket_gtc":{"base_size":"1","limit_price":"95000","stop_trigger_price":"84000"}}`, true},
+		{"the same order", limit, "BTC-USD", "BUY", `{"limit_limit_gtc":{"base_size":"1.0","limit_price":"90000.00","post_only":false,"rfq_disabled":false}}`, false},
+		{"no configuration", limit, "BTC-USD", "BUY", `null`, false},
+		{"a size the request leaves out", quoteSized, "BTC-USD", "BUY", `{"market_market_ioc":{"quote_size":"100","base_size":"0.001"}}`, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if !assert.Equal(t, http.MethodPost+" /api/v3/brokerage/orders", r.Method+" "+r.URL.Path, "SubmitOrder should only place the order") {
+					http.NotFound(w, r)
+					return
+				}
+				_, err := w.Write([]byte(`{"success":true,"success_response":{"order_id":"` + orderID + `","product_id":"` + tc.product + `","side":"` + tc.side + `","client_order_id":"reused"},"order_configuration":` + tc.replied + `}`))
+				assert.NoError(t, err, "writing the response should not error")
+			}))
+			// The record holds the order the client order ID already names
+			ex.orderSizes.set(orderID, 3, 0)
+			s := tc.submit
+			s.Exchange, s.AssetType, s.ClientOrderID = ex.Name, asset.Spot, "reused"
+			if s.Pair.IsEmpty() {
+				s.Pair = currency.NewBTCUSD()
+			}
+			resp, err := ex.SubmitOrder(t.Context(), &s)
+			size, ok := ex.orderSizes.get(orderID)
+			require.True(t, ok, "the order's size must stay recorded")
+			if tc.inUse {
+				require.ErrorIs(t, err, errClientOrderIDInUse, "SubmitOrder must refuse a reply naming another order than the one asked for")
+				assert.Nil(t, resp, "SubmitOrder should return no order for one it did not place")
+				assert.Equal(t, 3.0, size.base, "SubmitOrder should keep the size of the order the reply names")
+				return
+			}
+			require.NoError(t, err, "SubmitOrder must not error for a reply naming the order asked for")
+			assert.Equal(t, orderID, resp.OrderID, "SubmitOrder should return the order's ID")
+			assert.Equal(t, s.Amount, size.base, "SubmitOrder should record the order's base size")
+			assert.Equal(t, s.QuoteAmount, size.quote, "SubmitOrder should record the order's quote size")
+		})
+	}
+}
+
+func TestSubmitOrderRetrieveFeesExecution(t *testing.T) {
+	t.Parallel()
+	limit := order.Submit{Type: order.Limit, Amount: 2, Price: 90000}
+	for _, tc := range []struct {
+		name                                  string
+		submit                                order.Submit
+		read                                  string
+		status                                order.Status
+		amount, remaining, average, cost, fee float64
+	}{
+		{
+			name:   "partly filled",
+			submit: limit,
+			read:   `"order_type":"LIMIT","status":"OPEN","time_in_force":"GOOD_UNTIL_CANCELLED","order_configuration":{"limit_limit_gtc":{"base_size":"2","limit_price":"90000"}},"filled_size":"0.5","filled_value":"44950","average_filled_price":"89900","total_fees":"12"`,
+			status: order.PartiallyFilled, amount: 2, remaining: 1.5, average: 89900, cost: 44950, fee: 12,
+		},
+		{
+			name:   "resized by an edit before it was read",
+			submit: limit,
+			read:   `"order_type":"LIMIT","status":"OPEN","time_in_force":"GOOD_UNTIL_CANCELLED","order_configuration":{"limit_limit_gtc":{"base_size":"3","limit_price":"90000"}},"filled_size":"0.5","filled_value":"44950","average_filled_price":"89900","total_fees":"12"`,
+			status: order.PartiallyFilled, amount: 3, remaining: 2.5, average: 89900, cost: 44950, fee: 12,
+		},
+		{
+			name:   "unfilled",
+			submit: limit,
+			read:   `"order_type":"LIMIT","status":"OPEN","time_in_force":"GOOD_UNTIL_CANCELLED","order_configuration":{"limit_limit_gtc":{"base_size":"2","limit_price":"90000"}},"filled_size":"0","total_fees":"0"`,
+			status: order.Open, amount: 2, remaining: 2,
+		},
+		{
+			name:   "a filled market buy sized in the quote currency",
+			submit: order.Submit{Type: order.Market, QuoteAmount: 100},
+			read:   `"order_type":"MARKET","status":"FILLED","time_in_force":"IMMEDIATE_OR_CANCEL","order_configuration":{"market_market_ioc":{"quote_size":"100"}},"size_in_quote":true,"filled_size":"0.001","filled_value":"99.9","average_filled_price":"99900","total_fees":"0.1"`,
+			status: order.Filled, amount: 0.001, average: 99900, cost: 99.9, fee: 0.1,
+		},
+		{
+			name:   "a filled limit buy sized in the quote currency",
+			submit: order.Submit{Type: order.Limit, QuoteAmount: 100, Price: 100000},
+			read:   `"order_type":"LIMIT","status":"FILLED","time_in_force":"GOOD_UNTIL_CANCELLED","order_configuration":{"limit_limit_gtc":{"quote_size":"100","limit_price":"100000"}},"size_in_quote":true,"filled_size":"0.001","filled_value":"100","average_filled_price":"100000","total_fees":"0.1"`,
+			status: order.Filled, amount: 0.001, average: 100000, cost: 100, fee: 0.1,
+		},
+		{
+			name:   "a partly filled limit buy sized in the quote currency",
+			submit: order.Submit{Type: order.Limit, QuoteAmount: 100, Price: 100000},
+			read:   `"order_type":"LIMIT","status":"OPEN","time_in_force":"GOOD_UNTIL_CANCELLED","order_configuration":{"limit_limit_gtc":{"quote_size":"100","limit_price":"100000"}},"size_in_quote":true,"filled_size":"0.0005","filled_value":"49.95","average_filled_price":"99900","total_fees":"0.05"`,
+			status: order.PartiallyFilled, average: 99900, cost: 49.95, fee: 0.05,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			const orderID = "c7a1b2d3-4e5f-4a6b-9c8d-7e6f5a4b3c2d"
+			ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				var body string
+				switch r.Method + " " + r.URL.Path {
+				case http.MethodPost + " /api/v3/brokerage/orders":
+					body = `{"success":true,"success_response":{"order_id":"` + orderID + `","product_id":"BTC-USD","side":"BUY","client_order_id":"gct-read"}}`
+				case http.MethodGet + " /api/v3/brokerage/orders/historical/" + orderID:
+					body = `{"order":{"order_id":"` + orderID + `","product_id":"BTC-USD","product_type":"SPOT","side":"BUY",` + tc.read + `}}`
+				default:
+					assert.Failf(t, "SubmitOrder should only place the order and read it", "%s %s", r.Method, r.URL.Path)
+					http.NotFound(w, r)
+					return
+				}
+				_, err := w.Write([]byte(body))
+				assert.NoError(t, err, "writing the response should not error")
+			}))
+			s := tc.submit
+			s.Exchange, s.Pair, s.AssetType, s.Side, s.ClientOrderID, s.RetrieveFees = ex.Name, currency.NewBTCUSD(), asset.Spot, order.Buy, "gct-read", true
+			resp, err := ex.SubmitOrder(t.Context(), &s)
+			require.NoError(t, err, "SubmitOrder must not error reading the order")
+			assert.Equal(t, tc.status, resp.Status, "SubmitOrder should return the status of the order it read")
+			assert.Equal(t, tc.amount, resp.Amount, "SubmitOrder should return the size of the order it read")
+			assert.Equal(t, tc.remaining, resp.RemainingAmount, "SubmitOrder should return what remains of the order it read")
+			assert.Equal(t, tc.average, resp.AverageExecutedPrice, "SubmitOrder should return the average price the order it read filled at")
+			assert.Equal(t, tc.cost, resp.Cost, "SubmitOrder should return what the order it read cost")
+			assert.Equal(t, tc.fee, resp.Fee, "SubmitOrder should return the fees of the order it read")
+		})
+	}
+}
+
 func TestPlacedOrder(t *testing.T) {
 	t.Parallel()
 	ctx, cancel := context.WithCancel(t.Context())
@@ -1209,6 +1350,7 @@ func TestDerivativesOrderParams(t *testing.T) {
 		order.AnyType:          {DerivativesCancelOrderTypeAll, true},
 		order.UnknownType:      {DerivativesCancelOrderTypeAll, true},
 		order.Limit:            {DerivativesCancelOrderTypeLimit, true},
+		order.Market:           {DerivativesCancelOrderTypeLimit, false},
 		order.Stop:             {DerivativesCancelOrderTypeStop, true},
 		order.StopLimit:        {DerivativesCancelOrderTypeStop, false},
 		order.StopMarket:       {DerivativesCancelOrderTypeStop, false},
@@ -1220,8 +1362,8 @@ func TestDerivativesOrderParams(t *testing.T) {
 		require.NoErrorf(t, err, "derivativesCancelType must not error for %s", orderType)
 		assert.Equalf(t, exp, cancelType{category, exact}, "derivativesCancelType should convert %s", orderType)
 	}
-	_, _, err := derivativesCancelType(order.Market)
-	assert.ErrorIs(t, err, order.ErrUnsupportedOrderType, "derivativesCancelType should refuse a market order, which never rests")
+	_, _, err := derivativesCancelType(order.Bracket)
+	assert.ErrorIs(t, err, order.ErrUnsupportedOrderType, "derivativesCancelType should refuse an order type the gateway does not place")
 	for _, tc := range []struct {
 		cancel, orderType order.Type
 		exp               bool
@@ -1780,6 +1922,36 @@ func TestCancelAllOrdersDerivativesFilters(t *testing.T) {
 	}
 }
 
+func TestCancelAllOrdersDerivativesMarketLimitRemainder(t *testing.T) {
+	t.Parallel()
+	// A market limit order's unfilled remainder rests as a limit order, which the gateway lists as the market order placed
+	const open = `[{"order_id":"USDC-8","order_state":"open","order_type":"limit","original_order_type":"market_limit","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"buy","price":90000,"amount":0.002,"filled_amount":0.001,"creation_timestamp":1792281600000,"last_update_timestamp":1792281600001},` +
+		`{"order_id":"USDC-9","order_state":"open","order_type":"limit","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"buy","price":80000,"amount":0.001,"creation_timestamp":1792281600000,"last_update_timestamp":1792281600000}]`
+	ex, sent := newDerivativesMethodServer(t, func(req receivedJSONRPC) string {
+		switch req.Method {
+		case "private/get_open_orders":
+			return `{"jsonrpc":"2.0","result":` + open + `}`
+		case "private/cancel":
+			return `{"jsonrpc":"2.0","result":{"order_id":"USDC-8","order_state":"cancelled","order_type":"limit","original_order_type":"market_limit","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"buy","price":90000,"amount":0.002,"filled_amount":0.001}}`
+		}
+		assert.Failf(t, "CancelAllOrders should list the open orders and cancel the market order alone", "sent %s", req.Method)
+		return `{"jsonrpc":"2.0","error":{"code":-32601,"message":"Method not found"}}`
+	})
+	orders, err := ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.USDCMarginedFutures, Type: order.Market, Side: order.AnySide})
+	require.NoError(t, err, "GetActiveOrders must not error")
+	require.Len(t, orders, 1, "GetActiveOrders must list the market limit order's resting remainder as a market order")
+	sent()
+	resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.USDCMarginedFutures, Pair: testUSDCPerpetual, Type: orders[0].Type})
+	require.NoError(t, err, "CancelAllOrders must not error for market orders")
+	requests := sent()
+	methods := make([]string, len(requests))
+	for i, req := range requests {
+		methods[i] = req.Method + " " + string(req.Params)
+	}
+	assert.Equal(t, []string{`private/get_open_orders {"kind":"future","include_isolated":true}`, `private/cancel {"order_id":"USDC-8"}`}, methods, "CancelAllOrders should cancel the resting market order alone, leaving the limit order")
+	assert.Equal(t, map[string]string{"USDC-8": order.PartiallyFilledCancelled.String()}, resp.Status, "CancelAllOrders should report the market order's remainder cancelled")
+}
+
 func TestCancelAllOrdersDerivativesDocumentedReports(t *testing.T) {
 	t.Parallel()
 	ex, _ := newDerivativesMethodServer(t, func(req receivedJSONRPC) string {
@@ -2329,8 +2501,8 @@ func TestCancelAllOrders(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrNilPointer, "CancelAllOrders must refuse a nil request")
 	_, err = ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Options})
 	require.ErrorIs(t, err, asset.ErrNotSupported, "CancelAllOrders must refuse an asset Coinbase does not trade")
-	_, err = ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.USDCMarginedFutures, Pair: testUSDCPerpetual, Type: order.Market})
-	require.ErrorIs(t, err, order.ErrUnsupportedOrderType, "CancelAllOrders must refuse to cancel market orders, which never rest")
+	_, err = ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.USDCMarginedFutures, Pair: testUSDCPerpetual, Type: order.Bracket})
+	require.ErrorIs(t, err, order.ErrUnsupportedOrderType, "CancelAllOrders must refuse to cancel an order type the gateway does not place")
 	if !mockTests {
 		sharedTestCredentials(t, ex)
 		if !canManipulateRealOrders {
@@ -2551,6 +2723,22 @@ func TestOrderDetail(t *testing.T) {
 	d, err = ex.orderDetail(&quoteSized, ex.orderSizes.stamp())
 	require.NoError(t, err, "orderDetail must not error for an order sized in the quote currency")
 	assert.Zero(t, d.RemainingAmount, "orderDetail should report no remaining base amount for an order sized in the quote currency")
+	assert.Equal(t, 2.0, d.Amount, "orderDetail should take the base amount a filled order sized in the quote currency alone executed as its size")
+	quoteMarket := quoteSized
+	quoteMarket.OrderType, quoteMarket.TimeInForce, quoteMarket.FilledSize = OrderTypeMarket, TimeInForceImmediateOrCancel, 0.001
+	d, err = ex.orderDetail(&quoteMarket, ex.orderSizes.stamp())
+	require.NoError(t, err, "orderDetail must not error for a market order sized in the quote currency")
+	assert.Equal(t, 0.001, d.Amount, "orderDetail should take the base amount a filled market order sized in the quote currency executed as its size")
+	quoteCancelled := quoteSized
+	quoteCancelled.Status = OrderStatusCancelled
+	d, err = ex.orderDetail(&quoteCancelled, ex.orderSizes.stamp())
+	require.NoError(t, err, "orderDetail must not error for a cancelled order sized in the quote currency")
+	assert.Zero(t, d.Amount, "orderDetail should report no base size for a cancelled order sized in the quote currency")
+	dust := *o
+	dust.FilledSize = 1.99999999
+	d, err = ex.orderDetail(&dust, ex.orderSizes.stamp())
+	require.NoError(t, err, "orderDetail must not error for a filled order leaving dust")
+	assert.Equal(t, 2.0, d.Amount, "orderDetail should keep the base size of a filled order leaving dust")
 	for _, broken := range []Order{
 		{ProductType: ProductTypeEquity},
 		{ProductType: ProductTypeSpot, ProductID: "BTCUSD!", Side: OrderSideBuy},
