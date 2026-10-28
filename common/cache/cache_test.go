@@ -91,15 +91,9 @@ func TestGetOldest(t *testing.T) {
 func TestAdd_MutexReleaseOnPanic(t *testing.T) {
 	t.Parallel()
 	lruCache := New(2)
-	assert.Panics(t, func() {
-		// Passing an unhashable key (slice) causes panic in lru.Add
-		lruCache.Add([]int{1}, "val")
-	})
-
-	// Mutex should be released, allowing subsequent operations
-	assert.NotPanics(t, func() {
-		lruCache.Add("key", "val")
-	})
-	assert.Equal(t, "val", lruCache.Get("key"))
+	require.Panics(t, func() { lruCache.Add([]int{1}, "val") }, "Add must panic on an unhashable key")
+	require.True(t, lruCache.m.TryLock(), "Add must release the mutex when it panics")
+	lruCache.m.Unlock()
+	lruCache.Add("key", "val")
+	assert.Equal(t, "val", lruCache.Get("key"), "Get should return the value added after the panic")
 }
-

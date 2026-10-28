@@ -33,18 +33,18 @@ import (
 )
 
 func main() {
-    lruCache := cache.New(5)
-    lruCache.Add("hello", "world")
-    c := lruCache.Contains("hello")
-    if !c {
-        fmt.Println("expected cache to contain \"hello\" key")
-    }
+	lruCache := cache.New(5)
+	lruCache.Add("hello", "world")
+	c := lruCache.Contains("hello")
+	if !c {
+		fmt.Println("expected cache to contain \"hello\" key")
+	}
 
-    v := lruCache.Get("hello")
-    if v == nil {
-        fmt.Println("expected cache to contain \"hello\" key")
-    }
-    fmt.Println(v)
+	v := lruCache.Get("hello")
+	if v == nil {
+		fmt.Println("expected cache to contain \"hello\" key")
+	}
+	fmt.Println(v)
 }
 ```
 

@@ -10,6 +10,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/database"
+	dbexchange "github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
+	dbwithdraw "github.com/thrasher-corp/gocryptotrader/database/repository/withdraw"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/okx"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
@@ -143,24 +146,43 @@ func TestWithdrawEventByID(t *testing.T) {
 	assert.NotNil(t, v, "WithdrawalEventByID should return a non-nil value when the request is cached")
 }
 
-func TestWithdrawalCacheConsistency(t *testing.T) {
-	t.Parallel()
-	em, pm := withdrawManagerTestHelper(t)
-	m, err := SetupWithdrawManager(em, pm, false)
-	require.NoError(t, err)
+func TestWithdrawalEventByIDAfterSubmit(t *testing.T) {
+	engerino := RPCTestSetup(t)
+	defer CleanRPCTest(t, engerino)
+	// UUIDByName would otherwise return exchange IDs cached from an earlier test's database
+	dbexchange.ResetExchangeCache()
+	t.Cleanup(dbexchange.ResetExchangeCache)
+	exch, err := engerino.ExchangeManager.GetExchangeByName(testExchange)
+	require.NoError(t, err, "GetExchangeByName must not error")
+	em := NewExchangeManager()
+	require.NoError(t, em.Add(fExchange{IBotExchange: exch}), "Add must not error")
+	m, err := SetupWithdrawManager(em, nil, true)
+	require.NoError(t, err, "SetupWithdrawManager must not error")
 
-	reqID := uuid.NewV4()
-	resp := &withdraw.Response{ID: reqID}
-	withdraw.Cache.Add(resp.ID.String(), resp)
-	t.Cleanup(func() {
-		withdraw.Cache.Remove(resp.ID.String())
+	resp, err := m.SubmitWithdrawal(t.Context(), &withdraw.Request{
+		Exchange: testExchange,
+		Currency: currency.BTC,
+		Amount:   1,
+		Type:     withdraw.Crypto,
+		Crypto:   withdraw.CryptoRequest{Address: "1337"},
 	})
+	require.NoError(t, err, "SubmitWithdrawal must not error")
+	t.Cleanup(func() { withdraw.Cache.Remove(resp.ID.String()) })
+	resp.RequestDetails.Description = "edited by the caller"
 
-	got, err := m.WithdrawalEventByID(reqID.String())
-	require.NoError(t, err)
-	assert.Equal(t, resp, got)
+	recorded, err := dbwithdraw.GetEventByUUID(resp.ID.String())
+	require.NoError(t, err, "GetEventByUUID must find the submitted withdrawal")
+	got, err := m.WithdrawalEventByID(resp.ID.String())
+	require.NoError(t, err, "WithdrawalEventByID must find the submitted withdrawal")
+	assert.Equal(t, recorded, got, "WithdrawalEventByID should report the withdrawal as the database recorded it")
+
+	require.NoError(t, database.DB.SQL.Close(), "closing the database must not error")
+	for range 2 {
+		got, err = m.WithdrawalEventByID(resp.ID.String())
+		require.NoError(t, err, "WithdrawalEventByID must answer a looked-up withdrawal from the cache without the database")
+		assert.Equal(t, recorded, got, "WithdrawalEventByID should report the cached withdrawal as the database recorded it")
+	}
 }
-
 
 func TestWithdrawalEventByExchange(t *testing.T) {
 	t.Parallel()
