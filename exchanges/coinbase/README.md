@@ -73,8 +73,8 @@ is replaced before it expires; its private websocket connection authenticates wi
   client order ID it already holds, Coinbase returns that order rather than placing another, so a reply naming another
   side, size or price than the request, or a product on another book, is refused. `RFQDisabled` turns smart order
   routing off. Coinbase's response only acknowledges an order, so it is reported new; `RetrieveFees` reads the order
-  after `RetrieveFeeDelay` for its state, fees, average price and cost, and what remains of one sized in the base
-  currency.
+  after `RetrieveFeeDelay` for its state, fees, average price and cost, its size and prices, which an edit since it was
+  placed can change, and what remains of one sized in the base currency.
 + A gateway order is placed through the gateway's websocket where the wrapper may use it, and otherwise over HTTP. It
   takes limit, market, stop limit, stop market, take profit, take profit market and trailing stop orders, whose trigger
   price type sets their trigger; a trailing stop takes its distance from the `TrackingValue`. A post only order is

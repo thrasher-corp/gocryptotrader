@@ -1004,6 +1004,11 @@ func TestSubmitOrderClientOrderIDInUse(t *testing.T) {
 		{"the same order", limit, "BTC-USD", "BUY", `{"limit_limit_gtc":{"base_size":"1.0","limit_price":"90000.00","post_only":false,"rfq_disabled":false}}`, false},
 		{"no configuration", limit, "BTC-USD", "BUY", `null`, false},
 		{"a size the request leaves out", quoteSized, "BTC-USD", "BUY", `{"market_market_ioc":{"quote_size":"100","base_size":"0.001"}}`, false},
+		{"no side", limit, "BTC-USD", "", `null`, false},
+		{"no size or price", limit, "BTC-USD", "BUY", `{"limit_limit_gtc":{}}`, false},
+		{"no quote size", quoteSized, "BTC-USD", "BUY", `{"market_market_ioc":{}}`, false},
+		{"no stop price", stopLimit, "BTC-USD", "BUY", `{"stop_limit_stop_limit_gtc":{"base_size":"1","limit_price":"90000"}}`, false},
+		{"no limit price", stopLimit, "BTC-USD", "BUY", `{"stop_limit_stop_limit_gtc":{"base_size":"1","stop_price":"89000"}}`, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -1043,29 +1048,35 @@ func TestSubmitOrderRetrieveFeesExecution(t *testing.T) {
 	t.Parallel()
 	limit := order.Submit{Type: order.Limit, Amount: 2, Price: 90000}
 	for _, tc := range []struct {
-		name                                  string
-		submit                                order.Submit
-		read                                  string
-		status                                order.Status
-		amount, remaining, average, cost, fee float64
+		name                                                  string
+		submit                                                order.Submit
+		read                                                  string
+		status                                                order.Status
+		amount, remaining, average, cost, fee, price, trigger float64
 	}{
 		{
 			name:   "partly filled",
 			submit: limit,
 			read:   `"order_type":"LIMIT","status":"OPEN","time_in_force":"GOOD_UNTIL_CANCELLED","order_configuration":{"limit_limit_gtc":{"base_size":"2","limit_price":"90000"}},"filled_size":"0.5","filled_value":"44950","average_filled_price":"89900","total_fees":"12"`,
-			status: order.PartiallyFilled, amount: 2, remaining: 1.5, average: 89900, cost: 44950, fee: 12,
+			status: order.PartiallyFilled, amount: 2, remaining: 1.5, average: 89900, cost: 44950, fee: 12, price: 90000,
 		},
 		{
 			name:   "resized by an edit before it was read",
 			submit: limit,
 			read:   `"order_type":"LIMIT","status":"OPEN","time_in_force":"GOOD_UNTIL_CANCELLED","order_configuration":{"limit_limit_gtc":{"base_size":"3","limit_price":"90000"}},"filled_size":"0.5","filled_value":"44950","average_filled_price":"89900","total_fees":"12"`,
-			status: order.PartiallyFilled, amount: 3, remaining: 2.5, average: 89900, cost: 44950, fee: 12,
+			status: order.PartiallyFilled, amount: 3, remaining: 2.5, average: 89900, cost: 44950, fee: 12, price: 90000,
+		},
+		{
+			name:   "repriced by an edit before it was read",
+			submit: limit,
+			read:   `"order_type":"LIMIT","status":"OPEN","time_in_force":"GOOD_UNTIL_CANCELLED","order_configuration":{"limit_limit_gtc":{"base_size":"2","limit_price":"91000"}},"filled_size":"0","total_fees":"0"`,
+			status: order.Open, amount: 2, remaining: 2, price: 91000,
 		},
 		{
 			name:   "unfilled",
 			submit: limit,
 			read:   `"order_type":"LIMIT","status":"OPEN","time_in_force":"GOOD_UNTIL_CANCELLED","order_configuration":{"limit_limit_gtc":{"base_size":"2","limit_price":"90000"}},"filled_size":"0","total_fees":"0"`,
-			status: order.Open, amount: 2, remaining: 2,
+			status: order.Open, amount: 2, remaining: 2, price: 90000,
 		},
 		{
 			name:   "a filled market buy sized in the quote currency",
@@ -1077,13 +1088,37 @@ func TestSubmitOrderRetrieveFeesExecution(t *testing.T) {
 			name:   "a filled limit buy sized in the quote currency",
 			submit: order.Submit{Type: order.Limit, QuoteAmount: 100, Price: 100000},
 			read:   `"order_type":"LIMIT","status":"FILLED","time_in_force":"GOOD_UNTIL_CANCELLED","order_configuration":{"limit_limit_gtc":{"quote_size":"100","limit_price":"100000"}},"size_in_quote":true,"filled_size":"0.001","filled_value":"100","average_filled_price":"100000","total_fees":"0.1"`,
-			status: order.Filled, amount: 0.001, average: 100000, cost: 100, fee: 0.1,
+			status: order.Filled, amount: 0.001, average: 100000, cost: 100, fee: 0.1, price: 100000,
 		},
 		{
 			name:   "a partly filled limit buy sized in the quote currency",
 			submit: order.Submit{Type: order.Limit, QuoteAmount: 100, Price: 100000},
 			read:   `"order_type":"LIMIT","status":"OPEN","time_in_force":"GOOD_UNTIL_CANCELLED","order_configuration":{"limit_limit_gtc":{"quote_size":"100","limit_price":"100000"}},"size_in_quote":true,"filled_size":"0.0005","filled_value":"49.95","average_filled_price":"99900","total_fees":"0.05"`,
-			status: order.PartiallyFilled, average: 99900, cost: 49.95, fee: 0.05,
+			status: order.PartiallyFilled, average: 99900, cost: 49.95, fee: 0.05, price: 100000,
+		},
+		{
+			name:   "a stop limit order whose stop an edit moved before it was read",
+			submit: order.Submit{Type: order.StopLimit, Amount: 2, Price: 90000, TriggerPrice: 89000, StopDirection: order.StopDown},
+			read:   `"order_type":"STOP_LIMIT","status":"OPEN","time_in_force":"GOOD_UNTIL_CANCELLED","order_configuration":{"stop_limit_stop_limit_gtc":{"base_size":"2","limit_price":"90000","stop_price":"88500","stop_direction":"STOP_DIRECTION_STOP_DOWN"}},"filled_size":"0","total_fees":"0"`,
+			status: order.Open, amount: 2, remaining: 2, price: 90000, trigger: 88500,
+		},
+		{
+			name:   "a stop limit order an edit repriced down and its stop moved up before it was read",
+			submit: order.Submit{Type: order.StopLimit, Amount: 2, Price: 90000, TriggerPrice: 89000, StopDirection: order.StopDown},
+			read:   `"order_type":"STOP_LIMIT","status":"OPEN","time_in_force":"GOOD_UNTIL_CANCELLED","order_configuration":{"stop_limit_stop_limit_gtc":{"base_size":"2","limit_price":"89500","stop_price":"89200","stop_direction":"STOP_DIRECTION_STOP_DOWN"}},"filled_size":"0","total_fees":"0"`,
+			status: order.Open, amount: 2, remaining: 2, price: 89500, trigger: 89200,
+		},
+		{
+			name:   "a filled market buy priced by the caller",
+			submit: order.Submit{Type: order.Market, Amount: 0.001, Price: 99000},
+			read:   `"order_type":"MARKET","status":"FILLED","time_in_force":"IMMEDIATE_OR_CANCEL","order_configuration":{"market_market_ioc":{"base_size":"0.001"}},"filled_size":"0.001","filled_value":"99.9","average_filled_price":"99900","total_fees":"0.1"`,
+			status: order.Filled, amount: 0.001, average: 99900, cost: 99.9, fee: 0.1, price: 99000,
+		},
+		{
+			name:   "a stop limit order read with a configuration this package does not decode",
+			submit: order.Submit{Type: order.StopLimit, Amount: 2, Price: 90000, TriggerPrice: 89000, StopDirection: order.StopDown},
+			read:   `"order_type":"STOP_LIMIT","status":"OPEN","time_in_force":"GOOD_UNTIL_CANCELLED","order_configuration":{},"filled_size":"0","total_fees":"0"`,
+			status: order.Open, amount: 2, price: 90000, trigger: 89000,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -1114,6 +1149,8 @@ func TestSubmitOrderRetrieveFeesExecution(t *testing.T) {
 			assert.Equal(t, tc.average, resp.AverageExecutedPrice, "SubmitOrder should return the average price the order it read filled at")
 			assert.Equal(t, tc.cost, resp.Cost, "SubmitOrder should return what the order it read cost")
 			assert.Equal(t, tc.fee, resp.Fee, "SubmitOrder should return the fees of the order it read")
+			assert.Equal(t, tc.price, resp.Price, "SubmitOrder should return the price of the order it read")
+			assert.Equal(t, tc.trigger, resp.TriggerPrice, "SubmitOrder should return the trigger price of the order it read")
 		})
 	}
 }
@@ -1926,7 +1963,12 @@ func TestCancelAllOrdersDerivativesMarketLimitRemainder(t *testing.T) {
 	t.Parallel()
 	// A market limit order's unfilled remainder rests as a limit order, which the gateway lists as the market order placed
 	const open = `[{"order_id":"USDC-8","order_state":"open","order_type":"limit","original_order_type":"market_limit","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"buy","price":90000,"amount":0.002,"filled_amount":0.001,"creation_timestamp":1792281600000,"last_update_timestamp":1792281600001},` +
-		`{"order_id":"USDC-9","order_state":"open","order_type":"limit","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"buy","price":80000,"amount":0.001,"creation_timestamp":1792281600000,"last_update_timestamp":1792281600000}]`
+		`{"order_id":"USDC-9","order_state":"open","order_type":"limit","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"buy","price":80000,"amount":0.001,"creation_timestamp":1792281600000,"last_update_timestamp":1792281600000},` +
+		`{"order_id":"USDC-10","order_state":"untriggered","order_type":"stop_limit","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"sell","price":83900,"trigger":"mark_price","trigger_price":84000,"amount":0.001,"creation_timestamp":1792281600000,"last_update_timestamp":1792281600000},` +
+		`{"order_id":"USDC-11","order_state":"untriggered","order_type":"stop_market","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"sell","price":"market_price","trigger":"mark_price","trigger_price":84000,"amount":0.001,"creation_timestamp":1792281600000,"last_update_timestamp":1792281600000},` +
+		`{"order_id":"USDC-12","order_state":"untriggered","order_type":"take_limit","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"sell","price":96100,"trigger":"mark_price","trigger_price":96000,"amount":0.001,"creation_timestamp":1792281600000,"last_update_timestamp":1792281600000},` +
+		`{"order_id":"USDC-13","order_state":"untriggered","order_type":"take_market","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"sell","price":"market_price","trigger":"mark_price","trigger_price":96000,"amount":0.001,"creation_timestamp":1792281600000,"last_update_timestamp":1792281600000},` +
+		`{"order_id":"USDC-14","order_state":"untriggered","order_type":"trailing_stop","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"sell","price":"market_price","trigger":"mark_price","trigger_price":83000,"trigger_offset":500,"amount":0.001,"creation_timestamp":1792281600000,"last_update_timestamp":1792281600000}]`
 	ex, sent := newDerivativesMethodServer(t, func(req receivedJSONRPC) string {
 		switch req.Method {
 		case "private/get_open_orders":
@@ -1950,6 +1992,37 @@ func TestCancelAllOrdersDerivativesMarketLimitRemainder(t *testing.T) {
 	}
 	assert.Equal(t, []string{`private/get_open_orders {"kind":"future","include_isolated":true}`, `private/cancel {"order_id":"USDC-8"}`}, methods, "CancelAllOrders should cancel the resting market order alone, leaving the limit order")
 	assert.Equal(t, map[string]string{"USDC-8": order.PartiallyFilledCancelled.String()}, resp.Status, "CancelAllOrders should report the market order's remainder cancelled")
+}
+
+func TestCancelAllOrdersDerivativesCancelRefused(t *testing.T) {
+	t.Parallel()
+	// An order can close between the list and its cancellation, which the gateway then refuses, and the orders after it
+	// are still cancelled
+	const open = `[{"order_id":"USDC-8","order_state":"open","order_type":"limit","original_order_type":"market_limit","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"buy","price":90000,"amount":0.002,"filled_amount":0.001,"creation_timestamp":1792281600000,"last_update_timestamp":1792281600001},` +
+		`{"order_id":"USDC-15","order_state":"open","order_type":"limit","original_order_type":"market","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"sell","price":95000,"amount":0.002,"filled_amount":0.001,"creation_timestamp":1792281600000,"last_update_timestamp":1792281600001}]`
+	ex, sent := newDerivativesMethodServer(t, func(req receivedJSONRPC) string {
+		switch {
+		case req.Method == "private/get_open_orders":
+			return `{"jsonrpc":"2.0","result":` + open + `}`
+		case req.Method == "private/cancel" && string(req.Params) == `{"order_id":"USDC-8"}`:
+			return `{"jsonrpc":"2.0","error":{"code":11044,"message":"not_open_order"}}`
+		case req.Method == "private/cancel" && string(req.Params) == `{"order_id":"USDC-15"}`:
+			return `{"jsonrpc":"2.0","result":{"order_id":"USDC-15","order_state":"cancelled","order_type":"limit","original_order_type":"market","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"sell","price":95000,"amount":0.002,"filled_amount":0.001}}`
+		}
+		assert.Failf(t, "CancelAllOrders should list the open orders and cancel the market orders", "sent %s %s", req.Method, req.Params)
+		return `{"jsonrpc":"2.0","error":{"code":-32601,"message":"Method not found"}}`
+	})
+	resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.USDCMarginedFutures, Pair: testUSDCPerpetual, Type: order.Market})
+	require.NoError(t, err, "CancelAllOrders must not error when the gateway refuses one order's cancellation")
+	var cancels []string
+	for _, req := range sent() {
+		if req.Method == "private/cancel" {
+			cancels = append(cancels, string(req.Params))
+		}
+	}
+	assert.Equal(t, []string{`{"order_id":"USDC-8"}`, `{"order_id":"USDC-15"}`}, cancels, "CancelAllOrders should go on to cancel the orders after one the gateway refused")
+	assert.Contains(t, resp.Status["USDC-8"], "not_open_order", "CancelAllOrders should report why the gateway refused an order's cancellation")
+	assert.Equal(t, order.PartiallyFilledCancelled.String(), resp.Status["USDC-15"], "CancelAllOrders should report the order after it cancelled")
 }
 
 func TestCancelAllOrdersDerivativesDocumentedReports(t *testing.T) {
@@ -2729,6 +2802,16 @@ func TestOrderDetail(t *testing.T) {
 	d, err = ex.orderDetail(&quoteMarket, ex.orderSizes.stamp())
 	require.NoError(t, err, "orderDetail must not error for a market order sized in the quote currency")
 	assert.Equal(t, 0.001, d.Amount, "orderDetail should take the base amount a filled market order sized in the quote currency executed as its size")
+	quoteLimit := quoteSized
+	quoteLimit.OrderConfiguration, quoteLimit.FilledSize, quoteLimit.FilledValue, quoteLimit.AverageFilledPrice = &OrderConfiguration{LimitLimitGTC: &LimitLimitGTC{QuoteSize: 100, LimitPrice: 100000}}, 0.001, 99, 99000
+	d, err = ex.orderDetail(&quoteLimit, ex.orderSizes.stamp())
+	require.NoError(t, err, "orderDetail must not error for a limit order sized in the quote currency")
+	assert.Equal(t, 0.001, d.Amount, "orderDetail should take the base amount a filled limit order sized in the quote currency executed as its size")
+	undecoded := *o
+	undecoded.OrderConfiguration = &OrderConfiguration{}
+	d, err = ex.orderDetail(&undecoded, ex.orderSizes.stamp())
+	require.NoError(t, err, "orderDetail must not error for an order whose configuration it does not decode")
+	assert.Equal(t, 2.0, d.Amount, "orderDetail should take the base amount a filled order whose configuration it does not decode executed as its size")
 	quoteCancelled := quoteSized
 	quoteCancelled.Status = OrderStatusCancelled
 	d, err = ex.orderDetail(&quoteCancelled, ex.orderSizes.stamp())

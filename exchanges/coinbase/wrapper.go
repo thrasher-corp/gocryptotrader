@@ -1449,9 +1449,16 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			resp.Fee = placed.TotalFees.Float64()
 			resp.AverageExecutedPrice = placed.AverageFilledPrice.Float64()
 			resp.Cost = placed.FilledValue.Float64()
-			// The order as read, which an edit since it was placed may have resized; a filled order with no base size
-			// takes what it executed as its size, as orderDetail gives it
-			if values := orderConfigurationValues(placed.OrderConfiguration); !placed.SizeInQuote && values.baseSize > 0 {
+			// The order as read, which an edit since it was placed may have resized or repriced; a filled order with no base
+			// size takes what it executed as its size, as orderDetail gives it
+			values := orderConfigurationValues(placed.OrderConfiguration)
+			if values.limitPrice > 0 {
+				resp.Price = values.limitPrice
+			}
+			if values.stopPrice > 0 {
+				resp.TriggerPrice = values.stopPrice
+			}
+			if !placed.SizeInQuote && values.baseSize > 0 {
 				resp.Amount = values.baseSize
 				resp.RemainingAmount = max(values.baseSize-placed.FilledSize.Float64(), 0)
 			} else if resp.Status == order.Filled && resp.Amount == 0 {
