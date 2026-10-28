@@ -1451,18 +1451,17 @@ func (s *RPCServer) CancelBatchOrders(ctx context.Context, r *gctrpc.CancelBatch
 	}
 
 	status := make(map[string]string, len(orders))
-	if resp != nil && len(resp.Status) > 0 {
-		for _, o := range req {
-			if s, ok := resp.Status[o.OrderID]; ok {
-				status[o.OrderID] = s
-			} else {
-				status[o.OrderID] = order.UnknownStatus.String()
-			}
+	for _, id := range orders {
+		if resp == nil {
+			// A wrapper that returns no response reports any failed cancel through its error
+			status[id] = order.Cancelled.String()
+			continue
 		}
-	} else {
-		for _, o := range req {
-			status[o.OrderID] = order.Cancelled.String()
+		reported, ok := resp.Status[id]
+		if !ok {
+			reported = order.UnknownStatus.String()
 		}
+		status[id] = reported
 	}
 
 	return &gctrpc.CancelBatchOrdersResponse{

@@ -4109,9 +4109,7 @@ func TestCancelBatchOrdersReportsWrapperStatuses(t *testing.T) {
 func TestCancelBatchOrdersDefaultsWhenWrapperReportsNoStatus(t *testing.T) {
 	t.Parallel()
 
-	fake := &batchCancelRPCFake{
-		resp: &order.CancelBatchResponse{},
-	}
+	fake := &batchCancelRPCFake{}
 	server := setupBatchCancelServer(t, fake)
 
 	res, err := server.CancelBatchOrders(t.Context(), &gctrpc.CancelBatchOrdersRequest{
@@ -4127,6 +4125,44 @@ func TestCancelBatchOrdersDefaultsWhenWrapperReportsNoStatus(t *testing.T) {
 	status := res.Orders[0].OrderStatus
 	assert.Equal(t, order.Cancelled.String(), status["10"])
 	assert.Equal(t, order.Cancelled.String(), status["20"])
+}
+
+func TestCancelBatchOrdersReportsRequestedStatuses(t *testing.T) {
+	t.Parallel()
+
+	cancelled, unknown := order.Cancelled.String(), order.UnknownStatus.String()
+	for _, tc := range []struct {
+		name     string
+		statuses map[string]string
+		expected map[string]string
+	}{
+		{name: "no status map", expected: map[string]string{"10": unknown, "20": unknown}},
+		{name: "empty status map", statuses: map[string]string{}, expected: map[string]string{"10": unknown, "20": unknown}},
+		{name: "unrequested order only", statuses: map[string]string{"30": cancelled}, expected: map[string]string{"10": unknown, "20": unknown}},
+		{name: "one requested order", statuses: map[string]string{"10": cancelled}, expected: map[string]string{"10": cancelled, "20": unknown}},
+		{name: "requested and unrequested orders", statuses: map[string]string{"10": cancelled, "30": cancelled}, expected: map[string]string{"10": cancelled, "20": unknown}},
+		{name: "every requested order", statuses: map[string]string{"10": cancelled, "20": "failed to cancel"}, expected: map[string]string{"10": cancelled, "20": "failed to cancel"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			fake := &batchCancelRPCFake{
+				resp: &order.CancelBatchResponse{Status: tc.statuses},
+			}
+			server := setupBatchCancelServer(t, fake)
+
+			res, err := server.CancelBatchOrders(t.Context(), &gctrpc.CancelBatchOrdersRequest{
+				Exchange:  fakeExchangeName,
+				AssetType: "spot",
+				Pair:      &gctrpc.CurrencyPair{Base: "btc", Quote: "usdt", Delimiter: "-"},
+				Side:      "buy",
+				OrdersId:  "10,20",
+			})
+			require.NoError(t, err)
+			require.Len(t, res.Orders, 1)
+			assert.Equal(t, tc.expected, res.Orders[0].OrderStatus, "order statuses should cover exactly the requested orders")
+		})
+	}
 }
 
 func TestCancelBatchOrdersDeduplicatesAndTrims(t *testing.T) {
