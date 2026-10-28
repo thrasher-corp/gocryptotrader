@@ -27,7 +27,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-const advancedEarnOffersFixture = "testdata/wsAdvancedEarnOffers.json"
+const advancedEarnOffersFixture = "testdata/wsAdvancedEarnOffers.jsonl"
 
 var advancedEarnChannels = []string{
 	AdvancedEarnDualAssetsOffersChannel, AdvancedEarnSmartLeverageOffersChannel, AdvancedEarnDiscountBuyOffersChannel, AdvancedEarnDoubleWinOffersChannel,

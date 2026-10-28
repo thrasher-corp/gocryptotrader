@@ -87,9 +87,9 @@ func TestWebsocketHandleAuthenticatedDataTopics(t *testing.T) {
 		fixture string
 		exp     []any // the frame each push should be relayed as, decoded from the push
 	}{
-		{fixture: "testdata/wsSpreadPrivate.json", exp: []any{new(WebsocketSpreadOrderUpdate), new(WebsocketSpreadExecutionUpdate)}},
-		{fixture: "testdata/wsRFQPrivate.json", exp: []any{new(WebsocketRFQQuoteUpdate), new(WebsocketRFQQuoteUpdate), new(WebsocketRFQTradeUpdate), new(WebsocketRFQInquiryUpdate)}},
-		{fixture: "testdata/wsEventPrivate.json", exp: []any{new(WebsocketEventPositionUpdate), new(WebsocketEventExecutionUpdate), new(WebsocketEventExecutionUpdate), new(WebsocketEventOrderUpdate), new(WebsocketEventOrderUpdate)}},
+		{fixture: "testdata/wsSpreadPrivate.jsonl", exp: []any{new(WebsocketSpreadOrderUpdate), new(WebsocketSpreadExecutionUpdate)}},
+		{fixture: "testdata/wsRFQPrivate.jsonl", exp: []any{new(WebsocketRFQQuoteUpdate), new(WebsocketRFQQuoteUpdate), new(WebsocketRFQTradeUpdate), new(WebsocketRFQInquiryUpdate)}},
+		{fixture: "testdata/wsEventPrivate.jsonl", exp: []any{new(WebsocketEventPositionUpdate), new(WebsocketEventExecutionUpdate), new(WebsocketEventExecutionUpdate), new(WebsocketEventOrderUpdate), new(WebsocketEventOrderUpdate)}},
 	} {
 		frames := fixtureFrames(t, tc.fixture)
 		require.Lenf(t, frames, len(tc.exp), "%s must hold one push per expected frame", tc.fixture)
@@ -109,7 +109,7 @@ func TestWebsocketPosition(t *testing.T) {
 		return
 	}
 	ex := streamTestInstance(t)
-	frames := fixtureFrames(t, "testdata/wsPrivatePosition.json")
+	frames := fixtureFrames(t, "testdata/wsPrivatePosition.jsonl")
 	pushes := decodeFramesStrictly[WebsocketPositionUpdate](t, frames)
 	expPushes := []WebsocketPositionUpdate{
 		{
@@ -390,7 +390,7 @@ func TestWebsocketExecution(t *testing.T) {
 		return
 	}
 	ex := streamTestInstance(t)
-	frames := fixtureFrames(t, "testdata/wsPrivateExecution.json")
+	frames := fixtureFrames(t, "testdata/wsPrivateExecution.jsonl")
 	pushes := decodeFramesStrictly[WebsocketExecutionUpdate](t, frames)
 	expPushes := []WebsocketExecutionUpdate{
 		{
@@ -562,7 +562,7 @@ func TestWebsocketExecution(t *testing.T) {
 
 func TestWebsocketProcessExecution(t *testing.T) {
 	t.Parallel()
-	frames := fixtureFrames(t, "testdata/wsPrivateExecution.json")
+	frames := fixtureFrames(t, "testdata/wsPrivateExecution.jsonl")
 	require.Len(t, frames, 3, "the execution fixture must hold a linear, a spot and an option push")
 	ex := fixtureStreamInstance(t)
 	for i, frame := range frames {
@@ -748,7 +748,7 @@ func TestWebsocketFastExecution(t *testing.T) {
 		return
 	}
 	ex := streamTestInstance(t)
-	frames := fixtureFrames(t, "testdata/wsPrivateFastExecution.json")
+	frames := fixtureFrames(t, "testdata/wsPrivateFastExecution.jsonl")
 	pushes := decodeFramesStrictly[WebsocketFastExecutionUpdate](t, frames)
 	expPushes := []WebsocketFastExecutionUpdate{
 		{
@@ -820,7 +820,7 @@ func TestWebsocketFastExecution(t *testing.T) {
 
 func TestWebsocketProcessFastExecution(t *testing.T) {
 	t.Parallel()
-	frames := fixtureFrames(t, "testdata/wsPrivateFastExecution.json")
+	frames := fixtureFrames(t, "testdata/wsPrivateFastExecution.jsonl")
 	require.Len(t, frames, 1, "the fast execution fixture must hold one push")
 	ex := fixtureStreamInstance(t)
 	require.NoError(t, ex.wsProcessFastExecution(t.Context(), frames[0]), "wsProcessFastExecution must not error")
@@ -930,7 +930,7 @@ func TestWebsocketOrder(t *testing.T) {
 		return
 	}
 	ex := streamTestInstance(t)
-	frames := fixtureFrames(t, "testdata/wsPrivateOrder.json")
+	frames := fixtureFrames(t, "testdata/wsPrivateOrder.jsonl")
 	pushes := decodeFramesStrictly[WebsocketOrderUpdate](t, frames)
 	assert.Equal(t, fixtureWebsocketOrders(), pushes, "fixture frames should decode every order field")
 	conn := &FixtureConnection{match: websocket.NewMatch()}
@@ -1022,7 +1022,7 @@ func TestWebsocketOrder(t *testing.T) {
 
 func TestWebsocketProcessOrder(t *testing.T) {
 	t.Parallel()
-	frames := fixtureFrames(t, "testdata/wsPrivateOrder.json")
+	frames := fixtureFrames(t, "testdata/wsPrivateOrder.jsonl")
 	require.Len(t, frames, 3, "the order fixture must hold a linear, a spot and an option push")
 	ex := fixtureStreamInstance(t)
 	for i, frame := range frames {
@@ -1194,7 +1194,7 @@ func mustFees(tb testing.TB, amounts ...order.FeeAmount) order.Fees {
 	return fees
 }
 
-// fixtureWebsocketOrders returns the order pushes testdata/wsPrivateOrder.json holds
+// fixtureWebsocketOrders returns the order pushes testdata/wsPrivateOrder.jsonl holds
 func fixtureWebsocketOrders() []WebsocketOrderUpdate {
 	return []WebsocketOrderUpdate{
 		{
@@ -1368,7 +1368,7 @@ func TestWebsocketWallet(t *testing.T) {
 		return
 	}
 	ex := streamTestInstance(t)
-	frames := fixtureFrames(t, "testdata/wsPrivateWallet.json")
+	frames := fixtureFrames(t, "testdata/wsPrivateWallet.jsonl")
 	pushes := decodeFramesStrictly[WebsocketWalletUpdate](t, frames)
 	expPushes := []WebsocketWalletUpdate{
 		{
@@ -1509,7 +1509,7 @@ func TestWebsocketGreeks(t *testing.T) {
 		livePrivateSubscription(t, "greeks")
 		return
 	}
-	testRelayedPrivateStream[WebsocketGreeksUpdate](t, "testdata/wsPrivateGreeks.json", []WebsocketGreeksUpdate{
+	testRelayedPrivateStream[WebsocketGreeksUpdate](t, "testdata/wsPrivateGreeks.jsonl", []WebsocketGreeksUpdate{
 		{
 			ID:           "592324fa945a30-2603-49a5-b865-21668c29f2a6",
 			Topic:        "greeks",
@@ -1548,7 +1548,7 @@ func TestWebsocketStrategy(t *testing.T) {
 		livePrivateSubscription(t, "strategy")
 		return
 	}
-	testRelayedPrivateStream[WebsocketStrategyUpdate](t, "testdata/wsPrivateStrategy.json", []WebsocketStrategyUpdate{
+	testRelayedPrivateStream[WebsocketStrategyUpdate](t, "testdata/wsPrivateStrategy.jsonl", []WebsocketStrategyUpdate{
 		{
 			ID:           "62f79ebea4794f767cad0bd937f7ad01",
 			Topic:        "strategy",

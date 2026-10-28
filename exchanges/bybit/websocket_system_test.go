@@ -94,7 +94,7 @@ func TestWebsocketSystemStatus(t *testing.T) {
 		}
 		return
 	}
-	frames := fixtureFrames(t, "testdata/wsSystemStatus.json")
+	frames := fixtureFrames(t, "testdata/wsSystemStatus.jsonl")
 	pushes := decodeFramesStrictly[WebsocketSystemStatusUpdate](t, frames)
 	expPushes := []WebsocketSystemStatusUpdate{
 		{

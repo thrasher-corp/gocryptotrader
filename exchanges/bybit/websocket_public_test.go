@@ -126,7 +126,7 @@ func TestWebsocketHandleDataTopics(t *testing.T) {
 func TestRelayWebsocketResponse(t *testing.T) {
 	t.Parallel()
 	ex := websocketTestInstance(t)
-	frames := fixtureFrames(t, "testdata/wsPublicPriceLimit.json")
+	frames := fixtureFrames(t, "testdata/wsPublicPriceLimit.jsonl")
 	require.NoError(t, relayWebsocketResponse[WebsocketPriceLimitUpdate](t.Context(), ex, frames[0]), "relayWebsocketResponse must not error")
 	exp := []any{
 		&WebsocketPriceLimitUpdate{
@@ -177,7 +177,7 @@ func TestWebsocketOrderbook(t *testing.T) {
 		}
 		return
 	}
-	frames := fixtureFrames(t, "testdata/wsPublicOrderbook.json")
+	frames := fixtureFrames(t, "testdata/wsPublicOrderbook.jsonl")
 	pushes := decodeFramesStrictly[WebsocketOrderbookUpdate](t, frames)
 	expPushes := []WebsocketOrderbookUpdate{
 		{
@@ -362,7 +362,7 @@ func TestWebsocketOrderbook(t *testing.T) {
 
 func TestWebsocketProcessOrderbook(t *testing.T) {
 	t.Parallel()
-	frames := fixtureFrames(t, "testdata/wsPublicOrderbook.json")
+	frames := fixtureFrames(t, "testdata/wsPublicOrderbook.jsonl")
 	require.Len(t, frames, 3, "the orderbook fixture must hold a spot snapshot, a spot delta and an option snapshot")
 	ex := fixtureStreamInstance(t)
 	for i, a := range []asset.Item{asset.Spot, asset.Spot, asset.Options} {
@@ -466,7 +466,7 @@ func TestWebsocketProcessOrderbook(t *testing.T) {
 func TestWebsocketRPIOrderbook(t *testing.T) {
 	t.Parallel()
 	ex := streamTestInstance(t)
-	frames := liveOrFixtureFrames(t, spotPublic, "testdata/wsPublicRPIOrderbook.json", "orderbook.rpi.BTCUSDT")
+	frames := liveOrFixtureFrames(t, spotPublic, "testdata/wsPublicRPIOrderbook.jsonl", "orderbook.rpi.BTCUSDT")
 	for _, frame := range frames {
 		require.NoError(t, ex.wsHandleData(t.Context(), nil, asset.Spot, frame), "wsHandleData must not error")
 	}
@@ -559,7 +559,7 @@ func liveOrFixtureFrames(t *testing.T, streamURL, fixture, topic string) [][]byt
 func TestWebsocketFullOrderbook(t *testing.T) {
 	t.Parallel()
 	ex := streamTestInstance(t)
-	frames := liveOrFixtureFrames(t, linearPublic, "testdata/wsPublicFullOrderbook.json", "orderbook.full.BTCUSDT")
+	frames := liveOrFixtureFrames(t, linearPublic, "testdata/wsPublicFullOrderbook.jsonl", "orderbook.full.BTCUSDT")
 	for _, frame := range frames {
 		require.NoError(t, ex.wsHandleData(t.Context(), nil, asset.USDTMarginedFutures, frame), "wsHandleData must not error")
 	}
@@ -629,7 +629,7 @@ func TestWebsocketPublicTrade(t *testing.T) {
 		require.NoError(t, ex.wsHandleData(t.Context(), nil, asset.Options, frames[0]), "wsHandleData must not error for option trades")
 		return
 	}
-	frames := fixtureFrames(t, "testdata/wsPublicTrade.json")
+	frames := fixtureFrames(t, "testdata/wsPublicTrade.jsonl")
 	pushes := decodeFramesStrictly[WebsocketPublicTradeUpdate](t, frames)
 	expPushes := []WebsocketPublicTradeUpdate{
 		{
@@ -761,7 +761,7 @@ func TestWebsocketPublicTrade(t *testing.T) {
 
 func TestWebsocketProcessPublicTrade(t *testing.T) {
 	t.Parallel()
-	frames := fixtureFrames(t, "testdata/wsPublicTrade.json")
+	frames := fixtureFrames(t, "testdata/wsPublicTrade.jsonl")
 	require.Len(t, frames, 3, "the trade fixture must hold a spot, a linear and an option push")
 	ex := fixtureStreamInstance(t)
 	err := ex.wsProcessPublicTrade(asset.Spot, []byte(`{"topic":"publicTrade.BTCUSDT","data":"not decoded while trades are neither relayed nor saved"}`))
@@ -904,7 +904,7 @@ func TestWebsocketTicker(t *testing.T) {
 		}
 		return
 	}
-	frames := fixtureFrames(t, "testdata/wsPublicTicker.json")
+	frames := fixtureFrames(t, "testdata/wsPublicTicker.jsonl")
 	pushes := decodeFramesStrictly[WebsocketTickerUpdate](t, frames)
 	expPushes := []WebsocketTickerUpdate{
 		{
@@ -1231,7 +1231,7 @@ func TestWebsocketTicker(t *testing.T) {
 
 func TestWebsocketProcessPublicTicker(t *testing.T) {
 	t.Parallel()
-	frames := fixtureFrames(t, "testdata/wsPublicTicker.json")
+	frames := fixtureFrames(t, "testdata/wsPublicTicker.jsonl")
 	require.GreaterOrEqual(t, len(frames), 3, "the ticker fixture must start with a spot snapshot and a linear snapshot and delta")
 	ex := fixtureStreamInstance(t)
 	for i, a := range []asset.Item{asset.Spot, asset.USDTMarginedFutures, asset.USDTMarginedFutures} {
@@ -1446,7 +1446,7 @@ func TestWebsocketKline(t *testing.T) {
 		assert.IsType(t, kline.Item{}, data[0], "candles should be relayed as kline items")
 		return
 	}
-	frames := fixtureFrames(t, "testdata/wsPublicKline.json")
+	frames := fixtureFrames(t, "testdata/wsPublicKline.jsonl")
 	pushes := decodeFramesStrictly[WebsocketKlineUpdate](t, frames)
 	expPushes := []WebsocketKlineUpdate{
 		{
@@ -1539,7 +1539,7 @@ func TestWebsocketKline(t *testing.T) {
 
 func TestWebsocketProcessKline(t *testing.T) {
 	t.Parallel()
-	frames := fixtureFrames(t, "testdata/wsPublicKline.json")
+	frames := fixtureFrames(t, "testdata/wsPublicKline.jsonl")
 	require.Len(t, frames, 2, "the kline fixture must hold a spot and an inverse push")
 	ex := fixtureStreamInstance(t)
 	for i, a := range []asset.Item{asset.Spot, asset.CoinMarginedFutures} {
@@ -1641,7 +1641,7 @@ func TestWebsocketAllLiquidation(t *testing.T) {
 		}
 		return
 	}
-	testRelayedPublicStream[WebsocketAllLiquidationUpdate](t, ex, "testdata/wsPublicAllLiquidation.json", asset.USDTMarginedFutures, []WebsocketAllLiquidationUpdate{
+	testRelayedPublicStream[WebsocketAllLiquidationUpdate](t, ex, "testdata/wsPublicAllLiquidation.jsonl", asset.USDTMarginedFutures, []WebsocketAllLiquidationUpdate{
 		{
 			Topic:     "allLiquidation.BTCUSDT",
 			Type:      "snapshot",
@@ -1668,7 +1668,7 @@ func TestWebsocketInsurancePool(t *testing.T) {
 		require.NoError(t, ex.wsHandleData(t.Context(), nil, asset.USDTMarginedFutures, frames[0]), "wsHandleData must not error")
 		return
 	}
-	testRelayedPublicStream[WebsocketInsurancePoolUpdate](t, ex, "testdata/wsPublicInsurancePool.json", asset.USDTMarginedFutures, []WebsocketInsurancePoolUpdate{
+	testRelayedPublicStream[WebsocketInsurancePoolUpdate](t, ex, "testdata/wsPublicInsurancePool.jsonl", asset.USDTMarginedFutures, []WebsocketInsurancePoolUpdate{
 		{
 			Topic:     "insurance.USDT",
 			Type:      "snapshot",
@@ -1713,7 +1713,7 @@ func TestWebsocketPriceLimit(t *testing.T) {
 		require.NoError(t, ex.wsHandleData(t.Context(), nil, asset.Spot, frames[0]), "wsHandleData must not error")
 		return
 	}
-	testRelayedPublicStream[WebsocketPriceLimitUpdate](t, ex, "testdata/wsPublicPriceLimit.json", asset.Spot, []WebsocketPriceLimitUpdate{
+	testRelayedPublicStream[WebsocketPriceLimitUpdate](t, ex, "testdata/wsPublicPriceLimit.jsonl", asset.Spot, []WebsocketPriceLimitUpdate{
 		{
 			Topic:     "priceLimit.BTCUSDT",
 			Timestamp: types.Time(time.UnixMilli(1791535781983)),
@@ -1735,7 +1735,7 @@ func TestWebsocketADLAlert(t *testing.T) {
 		require.NoError(t, ex.wsHandleData(t.Context(), nil, asset.CoinMarginedFutures, frames[0]), "wsHandleData must not error")
 		return
 	}
-	testRelayedPublicStream[WebsocketADLAlertUpdate](t, ex, "testdata/wsPublicADLAlert.json", asset.USDTMarginedFutures, []WebsocketADLAlertUpdate{
+	testRelayedPublicStream[WebsocketADLAlertUpdate](t, ex, "testdata/wsPublicADLAlert.jsonl", asset.USDTMarginedFutures, []WebsocketADLAlertUpdate{
 		{
 			Topic:     "adlAlert.USDT",
 			Type:      "snapshot",

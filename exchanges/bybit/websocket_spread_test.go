@@ -672,7 +672,7 @@ func TestWebsocketHandleSpreadPublicData(t *testing.T) {
 		return
 	}
 
-	testexch.FixtureToDataHandler(t, "testdata/wsSpreadPublic.json", handle)
+	testexch.FixtureToDataHandler(t, "testdata/wsSpreadPublic.jsonl", handle)
 	exp := []any{
 		&WebsocketSpreadOrderbookUpdate{
 			Topic:     "orderbook.25.BTCUSDT_BTC/USDT",
@@ -762,7 +762,7 @@ func TestWebsocketProcessSpreadTicker(t *testing.T) {
 	t.Parallel()
 	ex := testInstance(t)
 	ex.Name = t.Name()
-	frames := fixtureFrames(t, "testdata/wsSpreadPublic.json")
+	frames := fixtureFrames(t, "testdata/wsSpreadPublic.jsonl")
 	require.Len(t, frames, 4, "the spread fixture must hold two orderbook pushes, a trade push and a ticker push")
 	require.NoError(t, ex.wsProcessSpreadTicker(t.Context(), frames[3]), "wsProcessSpreadTicker must not error")
 	pair, err := currency.NewPairFromString(spreadTestSymbol)
@@ -853,7 +853,7 @@ func TestWebsocketProcessSpreadTicker(t *testing.T) {
 func TestRelayFrame(t *testing.T) {
 	t.Parallel()
 	ex := testInstance(t)
-	frames := fixtureFrames(t, "testdata/wsSpreadPublic.json")
+	frames := fixtureFrames(t, "testdata/wsSpreadPublic.jsonl")
 	require.Len(t, frames, 4, "the spread fixture must hold two orderbook pushes, a trade push and a ticker push")
 	require.NoError(t, ex.relayFrame(t.Context(), frames[3], new(WebsocketSpreadTickerUpdate)), "relayFrame must not error")
 	exp := []any{
@@ -893,7 +893,7 @@ func TestWebsocketHandleSpreadPrivateData(t *testing.T) {
 		return
 	}
 	ex := testInstance(t)
-	testexch.FixtureToDataHandler(t, "testdata/wsSpreadPrivate.json", ex.wsHandleSpreadPrivateData)
+	testexch.FixtureToDataHandler(t, "testdata/wsSpreadPrivate.jsonl", ex.wsHandleSpreadPrivateData)
 	exp := []any{
 		&WebsocketSpreadOrderUpdate{
 			ID:           "1448939_BTCUSDT_28732003549",

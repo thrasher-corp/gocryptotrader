@@ -1088,7 +1088,7 @@ func TestSetup(t *testing.T) {
 			require.NoErrorf(t, ex.CurrencyPairs.StorePairs(a, currency.Pairs{p}, true), "StorePairs must not error for %s enabled pairs", a)
 		}
 		pushes := make(map[string][]byte)
-		for _, frame := range fixtureFrames(t, "testdata/wsSetupTickers.json") {
+		for _, frame := range fixtureFrames(t, "testdata/wsSetupTickers.jsonl") {
 			var push WebsocketTickerUpdate
 			require.NoError(t, json.Unmarshal(frame, &push), "Unmarshal must not error")
 			pushes[push.Topic] = frame

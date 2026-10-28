@@ -112,7 +112,7 @@ func TestWebsocketHandleEventPublicData(t *testing.T) {
 		return
 	}
 
-	testexch.FixtureToDataHandler(t, "testdata/wsEventPublic.json", handle)
+	testexch.FixtureToDataHandler(t, "testdata/wsEventPublic.jsonl", handle)
 	exp := []any{
 		&WebsocketEventOrderbookUpdate{
 			Topic:     "orderbook.25.ETHUSDT-6NOV26-2200-BELOW",
@@ -176,7 +176,7 @@ func TestWebsocketHandleEventPrivateData(t *testing.T) {
 		return
 	}
 	ex := testInstance(t)
-	testexch.FixtureToDataHandler(t, "testdata/wsEventPrivate.json", ex.wsHandleEventPrivateData)
+	testexch.FixtureToDataHandler(t, "testdata/wsEventPrivate.jsonl", ex.wsHandleEventPrivateData)
 	exp := []any{
 		&WebsocketEventPositionUpdate{
 			ID:           "592324d2bce751-ad38-48eb-8f42-4671d1fb4d4e",

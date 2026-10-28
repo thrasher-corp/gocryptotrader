@@ -168,7 +168,7 @@ func TestWebsocketHandleRFQPublicData(t *testing.T) {
 		return
 	}
 
-	testexch.FixtureToDataHandler(t, "testdata/wsRFQPublic.json", handle)
+	testexch.FixtureToDataHandler(t, "testdata/wsRFQPublic.jsonl", handle)
 	exp := []any{
 		&WebsocketRFQPublicTradeUpdate{
 			ID:           "rfq_public_trades_1791008130310",
@@ -228,7 +228,7 @@ func TestWebsocketHandleRFQPrivateData(t *testing.T) {
 		return
 	}
 	ex := testInstance(t)
-	testexch.FixtureToDataHandler(t, "testdata/wsRFQPrivate.json", ex.wsHandleRFQPrivateData)
+	testexch.FixtureToDataHandler(t, "testdata/wsRFQPrivate.jsonl", ex.wsHandleRFQPrivateData)
 	exp := []any{
 		&WebsocketRFQQuoteUpdate{
 			ID:           "rfq_quotes_1791008120140",
