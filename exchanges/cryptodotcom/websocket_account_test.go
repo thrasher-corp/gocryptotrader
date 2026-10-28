@@ -2,10 +2,12 @@ package cryptodotcom
 
 import (
 	"bytes"
+	"context"
 	"slices"
 	"testing"
 	"time"
 
+	"github.com/buger/jsonparser"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -374,6 +376,28 @@ func TestWebsocketAdvancedOrders(t *testing.T) {
 	advanced := bytes.ReplaceAll(frame, []byte(`"channel":"user.advance.order"`), []byte(`"channel":"user.advanced.order"`))
 	require.NoError(t, ex.wsHandleChannelData(t.Context(), nil, advanced), "wsHandleChannelData must not error for a push of the user.advanced.order channel")
 	assert.Equal(t, []any{legs}, relayedData(ex), "a push of the user.advanced.order channel should be relayed as an advanced order's")
+
+	// Crypto.com's AsyncAPI document gives the list and leg IDs as bare integers, the list ID one a float cannot hold
+	bare := frame
+	for quoted, integer := range map[string]string{
+		`"list_id":"6498090546073120152"`: `"list_id":6498090546073120152`,
+		`"leg_id":"1"`:                    `"leg_id":1`,
+		`"leg_id":"2"`:                    `"leg_id":2`,
+		`"leg_id":"3"`:                    `"leg_id":3`,
+	} {
+		bare = bytes.ReplaceAll(bare, []byte(quoted), []byte(integer))
+	}
+	require.NoError(t, ex.wsHandleChannelData(t.Context(), nil, bare), "wsHandleChannelData must not error for bare list and leg IDs")
+	assert.Equal(t, []any{legs}, relayedData(ex), "the legs of an advanced order with bare list and leg IDs should be relayed")
+	data, _, _, err := jsonparser.Get(bare, "result", "data")
+	require.NoError(t, err, "the push must hold its legs")
+	var orders []OrderResponse
+	require.NoError(t, json.Unmarshal(data, &orders), "Unmarshal must not error for bare list and leg IDs")
+	require.Len(t, orders, len(legs), "the push must hold every leg")
+	for i, legID := range []NumericID{"1", "2", "3"} {
+		assert.Equalf(t, NumericID("6498090546073120152"), orders[i].ListID, "leg %d should keep its list ID digit for digit", i)
+		assert.Equalf(t, legID, orders[i].LegID, "leg %d should keep its leg ID", i)
+	}
 }
 
 func TestWebsocketUserTrades(t *testing.T) {
@@ -469,6 +493,35 @@ func TestWebsocketUserTrades(t *testing.T) {
 	}
 	assert.Empty(t, relayedData(ex), "nothing should be relayed without trades")
 	assert.ErrorIs(t, ex.wsHandleChannelData(t.Context(), nil, []byte(`{"id":-1,"method":"subscribe","code":0,"result":{"subscription":"user.trade","channel":"user.trade","data":{}}}`)), errMalformedWebsocketMessage, "wsHandleChannelData should refuse trades it cannot decode")
+
+	// The order channel tracks a margin order by its order ID too, so its trades naming no client order ID are margin's
+	withoutClientOrderID := bytes.ReplaceAll(accountFrame(t, "user.trade", 1), []byte(`"client_oid":"1613571154910"`), []byte(`"client_oid":""`))
+	require.NoError(t, ex.wsHandleChannelData(t.Context(), nil, withoutClientOrderID), "wsHandleChannelData must not error for a margin order's trade naming no client order ID")
+	marginOrderFill.ClientOrderID = ""
+	assert.Equal(t, []any{[]fill.Data{marginOrderFill}}, relayedData(ex), "the trade of an order tracked as a margin order by its order ID should be filled as margin")
+
+	// A margin order's trade can arrive while the order is placed, before its order ID, and is filled as margin by the
+	// client order ID it is placed with
+	placing := func(_ context.Context, r *CreateOrderRequest) (*OrderIDResponse, error) {
+		trade := `{"id":-1,"method":"subscribe","code":0,"result":{"subscription":"user.trade","channel":"user.trade","data":[{"trade_id":"38554671","order_id":"19848531","client_oid":"` + r.ClientOrderID + `","traded_quantity":"0.0010","traded_price":"51000.00","side":"BUY","instrument_name":"BTC_USD","create_time":1613575617290}]}}`
+		require.NoError(t, ex.wsHandleChannelData(t.Context(), nil, []byte(trade)), "wsHandleChannelData must not error for the trade of an order being placed")
+		return &OrderIDResponse{OrderID: "19848531", ClientOrderID: r.ClientOrderID}, nil
+	}
+	_, err = ex.submitOrder(t.Context(), &order.Submit{Exchange: ex.Name, Type: order.Market, Side: order.Buy, Pair: spotBTCUSD, AssetType: asset.Margin, Amount: 0.001, ClientOrderID: "margin_placing"}, placing, nil)
+	require.NoError(t, err, "submitOrder must not error")
+	exp = []any{[]fill.Data{{
+		Timestamp:     time.UnixMilli(1613575617290),
+		Exchange:      ex.Name,
+		AssetType:     asset.Margin,
+		CurrencyPair:  spotBTCUSD,
+		Side:          order.Buy,
+		OrderID:       "19848531",
+		ClientOrderID: "margin_placing",
+		TradeID:       "38554671",
+		Price:         51000,
+		Amount:        0.001,
+	}}}
+	assert.Equal(t, exp, relayedData(ex), "a margin order's trade arriving while the order is placed should be filled as margin")
 }
 
 func TestTrackMarginOrder(t *testing.T) {
@@ -550,6 +603,19 @@ func TestWebsocketTransactions(t *testing.T) {
 		},
 	}}
 	assert.Equal(t, exp, relayedData(ex), "the transactions should be relayed")
+
+	// Crypto.com's AsyncAPI document gives a transaction's journal ID as a bare integer
+	push := `{"id":-1,"method":"subscribe","code":0,"result":{"subscription":"user.transactions","channel":"user.transactions","data":[{"journal_id":55512345,"instrument_name":"BTCUSD-PERP","transaction_qty":"-1.0","transaction_cost":"62500.00","realized_pnl":"120.25","journal_type":"TRADING"}]}}`
+	require.NoError(t, ex.wsHandleChannelData(t.Context(), nil, []byte(push)), "wsHandleChannelData must not error for a bare journal ID")
+	exp = []any{[]TransactionResponse{{
+		JournalType:         JournalTypeTrading,
+		JournalID:           "55512345",
+		TransactionQuantity: preciseNumber("-1.0"),
+		TransactionCost:     preciseNumber("62500.00"),
+		RealisedPNL:         preciseNumber("120.25"),
+		InstrumentName:      "BTCUSD-PERP",
+	}}}
+	assert.Equal(t, exp, relayedData(ex), "a transaction with a bare journal ID should be relayed")
 	require.NoError(t, ex.wsHandleChannelData(t.Context(), nil, []byte(`{"id":-1,"method":"subscribe","code":0,"result":{"subscription":"user.transactions","channel":"user.transactions","data":[]}}`)), "wsHandleChannelData must not error without transactions")
 	assert.Empty(t, relayedData(ex), "nothing should be relayed without transactions")
 }

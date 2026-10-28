@@ -1027,6 +1027,45 @@ func TestGetHistoricCandles(t *testing.T) {
 	assert.Equal(t, exp, got, "GetHistoricCandles should return the window's candles")
 	_, err = e.GetHistoricCandles(t.Context(), p, asset.Spot, kline.OneMin, testWindowStart, testWindowStart.Add(301*time.Minute))
 	assert.ErrorIs(t, err, kline.ErrRequestExceedsExchangeLimits, "GetHistoricCandles should refuse a window of more candles than one request returns")
+
+	// Crypto.com's 14D candles open on alternate Mondays, a week from GoCryptoTrader's two-week boundaries, so two-week
+	// candles are built from 7D ones; each timeframe is answered with the candles Crypto.com returned live on 2026-10-28
+	recorded := map[string]string{
+		"7D": `{"interval":"7D","instrument_name":"BTC_USD","data":[
+			{"o":"84467.87","h":"87240.82","l":"82513.99","c":"86510.00","v":"24803.36193","t":1790553600000},
+			{"o":"86510.02","h":"86992.01","l":"80320.41","c":"83687.77","v":"23733.03674","t":1791158400000},
+			{"o":"83687.78","h":"84276.15","l":"79688.01","c":"82015.65","v":"26721.30058","t":1791763200000},
+			{"o":"82014.96","h":"84889.90","l":"79128.21","c":"80054.34","v":"22655.15212","t":1792368000000}]}`,
+		"14D": `{"interval":"14D","instrument_name":"BTC_USD","data":[
+			{"o":"86510.02","h":"86992.01","l":"79688.01","c":"82015.65","v":"50454.33732","t":1791158400000},
+			{"o":"82014.96","h":"84889.90","l":"79128.21","c":"80833.01","v":"29548.97771","t":1792368000000}]}`,
+	}
+	ex, received := newRoutesServerExchange(t, map[string]testRoute{
+		"public/get-candlestick": func(params string) (string, *APIError) {
+			query, err := url.ParseQuery(params)
+			if err != nil {
+				return "", &APIError{Code: 40001, Message: err.Error()}
+			}
+			return recorded[query.Get("timeframe")], nil
+		},
+	})
+	start, end := time.UnixMilli(1790553600000), time.UnixMilli(1792972800000)
+	got, err = ex.GetHistoricCandles(t.Context(), testSpotPair, asset.Spot, kline.TwoWeek, start, end)
+	require.NoError(t, err, "GetHistoricCandles must not error for two-week candles")
+	firstVolume, secondVolume := 24803.36193, 26721.30058
+	exp = &kline.Item{
+		Exchange: ex.Name,
+		Pair:     testSpotPair,
+		Asset:    asset.Spot,
+		Interval: kline.TwoWeek,
+		Candles: []kline.Candle{
+			{Time: start, Open: 84467.87, High: 87240.82, Low: 80320.41, Close: 83687.77, Volume: firstVolume + 23733.03674},
+			{Time: start.Add(kline.TwoWeek.Duration()), Open: 83687.78, High: 84889.9, Low: 79128.21, Close: 80054.34, Volume: secondVolume + 22655.15212},
+		},
+	}
+	assert.Equal(t, exp, got, "GetHistoricCandles should build each two-week candle from two weekly ones")
+	expRequests := []testRequest{{Method: "public/get-candlestick", Params: "count=300&end_ts=1792972799999&instrument_name=BTC_USD&start_ts=1790553600000&timeframe=7D"}}
+	assert.Equal(t, expRequests, received(), "GetHistoricCandles should request weekly candles for two-week ones")
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
@@ -1109,6 +1148,7 @@ func TestGetDepositAddress(t *testing.T) {
 		{"currency":"USDC","address":"Gh7?memo","status":"1","network":"SOL"}]}}`)
 	_, err = ex.GetDepositAddress(t.Context(), currency.USDC, "", "")
 	assert.ErrorIs(t, err, errChainRequired, "GetDepositAddress should refuse a currency with active addresses on several chains without a chain")
+	assert.True(t, ex.Features.Supports.RESTCapabilities.MultiChainDepositRequiresChainSet, "Crypto.com should require a chain for a currency deposited on several networks, so the deposit address sync asks for each")
 	got, err = ex.GetDepositAddress(t.Context(), currency.USDC, "", "SOL")
 	require.NoError(t, err, "GetDepositAddress must not error for one of several chains")
 	assert.Equal(t, &deposit.Address{Address: "Gh7", Tag: "memo", Chain: "SOL"}, got, "GetDepositAddress should split the address tag")
@@ -1152,6 +1192,21 @@ func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 	})
 	require.NoError(t, err, "WithdrawCryptocurrencyFunds must not error")
 	assert.Equal(t, &withdraw.ExchangeResponse{Name: e.Name, ID: "2220"}, got, "WithdrawCryptocurrencyFunds should return the withdrawal's ID")
+
+	// The address tag, which currencies such as XRP need, is sent with the address
+	ex, sent := newSignedRecorder(t, "private/create-withdrawal", `{"id":"2221"}`)
+	_, err = ex.WithdrawCryptocurrencyFunds(t.Context(), &withdraw.Request{
+		Exchange:      ex.Name,
+		Currency:      currency.XRP,
+		Amount:        25.5,
+		Type:          withdraw.Crypto,
+		ClientOrderID: "my_withdrawal_003",
+		Crypto:        withdraw.CryptoRequest{Address: "rAddress", AddressTag: "1234567890", Chain: "XRP"},
+	})
+	require.NoError(t, err, "WithdrawCryptocurrencyFunds must not error for an address with a tag")
+	params := sent()
+	require.Len(t, params, 1, "WithdrawCryptocurrencyFunds must send one withdrawal")
+	assert.JSONEq(t, `{"client_wid":"my_withdrawal_003","currency":"XRP","amount":"25.5","address":"rAddress","address_tag":"1234567890","network_id":"XRP"}`, params[0], "WithdrawCryptocurrencyFunds should send the address tag and chain")
 }
 
 func TestWithdrawFiatFunds(t *testing.T) {
@@ -1389,12 +1444,86 @@ func TestNewOrderRequest(t *testing.T) {
 			s.Type, s.Side, s.Price, s.Amount, s.QuoteAmount, s.TimeInForce = order.Market, order.Sell, 0, 0, 5, order.UnknownTIF
 		}, errQuoteAmountUnsupported},
 		{"an order without an amount", func(s *order.Submit) { s.Amount = 0 }, order.ErrAmountIsInvalid},
+		{"a client order ID of 37 characters", func(s *order.Submit) { s.ClientOrderID = strings.Repeat("c", 37) }, errClientOrderIDTooLong},
+		{"a trigger order without a trigger price", func(s *order.Submit) { *s = *testTriggerSubmit(); s.TriggerPrice = 0 }, errInvalidReferencePrice},
+		// Validate accepts sides combined, which name no side to place
+		{"a side both buy and sell", func(s *order.Submit) { s.Side = order.Buy | order.Sell }, order.ErrSideIsInvalid},
 	} {
 		s := testSubmit()
 		tc.modify(s)
 		_, err := e.newOrderRequest(s)
 		assert.ErrorIsf(t, err, tc.err, "newOrderRequest should refuse %s", tc.name)
 	}
+
+	// An asset whose pairs have no request format names no instrument
+	ex := newTestExchange(t)
+	require.NoError(t, ex.CurrencyPairs.Store(asset.PerpetualSwap, &currency.PairStore{AssetEnabled: true}), "Store must store perpetual swaps without a request format")
+	_, err = ex.newOrderRequest(testSubmit())
+	assert.ErrorIs(t, err, currency.ErrPairFormatIsNil, "newOrderRequest should refuse a pair whose instrument it cannot name")
+}
+
+func TestSetIsolationID(t *testing.T) {
+	t.Parallel()
+	closing := func() *orderRequest {
+		return &orderRequest{clientOrderID: "close", order: &CreateOrderRequest{
+			InstrumentName:        "BTCUSD-PERP",
+			Side:                  SideSell,
+			OrderType:             OrderTypeMarket,
+			Quantity:              0.0002,
+			ClientOrderID:         "close",
+			ExecutionInstructions: []string{ExecutionInstructionReduceOnly, ExecutionInstructionIsolatedMargin},
+		}}
+	}
+	onPosition := closing()
+	onPosition.order.IsolationID = "19848526"
+	stopLoss := func() *orderRequest {
+		return &orderRequest{clientOrderID: "stop", trigger: &CreateAdvancedOrderRequest{InstrumentName: "BTCUSD-PERP", Side: SideSell, OrderType: OrderTypeStopLoss, Quantity: 0.0002, ReferencePrice: 70000, ClientOrderID: "stop"}}
+	}
+	submit := func(marginType margin.Type) *order.Submit {
+		return &order.Submit{Exchange: e.Name, Type: order.Market, Side: order.Sell, Pair: testPerpetualPair, AssetType: asset.PerpetualSwap, Amount: 0.0002, ReduceOnly: true, MarginType: marginType, ClientOrderID: "close"}
+	}
+	lookup := []testRequest{{Method: "private/get-positions", Params: `{"instrument_name":"BTCUSD-PERP"}`}}
+	for _, tc := range []struct {
+		name       string
+		marginType margin.Type
+		req        *orderRequest
+		positions  testRoute
+		exp        *orderRequest
+		requests   []testRequest
+	}{
+		{name: "a cross margin order", marginType: margin.Multi, req: closing(), exp: closing()},
+		{name: "an isolated margin trigger order", marginType: margin.Isolated, req: stopLoss(), exp: stopLoss()},
+		{
+			name:       "an isolated margin order with an isolated position open",
+			marginType: margin.Isolated,
+			req:        closing(),
+			positions:  testPositionRoutes["private/get-positions"],
+			exp:        onPosition,
+			requests:   lookup,
+		},
+		{
+			name:       "an isolated margin order without an isolated position",
+			marginType: margin.Isolated,
+			req:        closing(),
+			positions:  testResult(`{"data":[{"quantity":"-0.1984","instrument_name":"BTCUSD-PERP","type":"PERPETUAL_SWAP","isolation_id":"0"}]}`),
+			exp:        closing(),
+			requests:   lookup,
+		},
+	} {
+		routes := make(map[string]testRoute)
+		if tc.positions != nil {
+			routes["private/get-positions"] = tc.positions
+		}
+		ex, received := newRoutesServerExchange(t, routes)
+		require.NoErrorf(t, ex.setIsolationID(t.Context(), submit(tc.marginType), tc.req), "setIsolationID must not error for %s", tc.name)
+		assert.Equalf(t, tc.exp, tc.req, "setIsolationID should name the isolated position expected for %s", tc.name)
+		assert.Equalf(t, tc.requests, received(), "setIsolationID should send the position lookups expected for %s", tc.name)
+	}
+
+	r := closing()
+	err := newUnavailableServerExchange(t).setIsolationID(t.Context(), submit(margin.Isolated), r)
+	assert.ErrorIs(t, err, request.ErrBadStatus, "setIsolationID should return the error looking up the isolated position")
+	assert.Equal(t, closing(), r, "setIsolationID should leave the order unchanged when it cannot look up the isolated position")
 }
 
 func TestReferencePriceType(t *testing.T) {
@@ -1473,6 +1602,47 @@ func TestSubmitOrder(t *testing.T) {
 	got, err = ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, Type: order.Market, Side: order.Sell, Pair: testSpotPair, AssetType: asset.Spot, Amount: 0.001, ClientOrderID: "market"})
 	require.NoError(t, err, "SubmitOrder must not error for a market order")
 	assert.Equal(t, order.New, got.Status, "SubmitOrder should report a market order new, as Crypto.com answers before matching it")
+
+	// An isolated margin order names the instrument's isolated position, listed after its cross margin position, as
+	// Crypto.com opens a new isolated position for an order naming none
+	for _, tc := range []struct {
+		name      string
+		positions testRoute
+		params    string
+	}{
+		{
+			name:      "with an isolated position open",
+			positions: testPositionRoutes["private/get-positions"],
+			params:    `{"instrument_name":"BTCUSD-PERP","side":"SELL","type":"MARKET","quantity":"0.0002","client_oid":"close","exec_inst":["REDUCE_ONLY","ISOLATED_MARGIN"],"isolation_id":"19848526"}`,
+		},
+		{
+			name:      "without an isolated position",
+			positions: testResult(`{"data":[{"quantity":"-0.1984","instrument_name":"BTCUSD-PERP","type":"PERPETUAL_SWAP","isolation_id":"0"}]}`),
+			params:    `{"instrument_name":"BTCUSD-PERP","side":"SELL","type":"MARKET","quantity":"0.0002","client_oid":"close","exec_inst":["REDUCE_ONLY","ISOLATED_MARGIN"]}`,
+		},
+	} {
+		ex, received = newRoutesServerExchange(t, map[string]testRoute{
+			"private/get-positions": tc.positions,
+			"private/create-order":  testResult(`{"order_id":"1","client_oid":"close"}`),
+		})
+		_, err = ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, Type: order.Market, Side: order.Sell, Pair: testPerpetualPair, AssetType: asset.PerpetualSwap, Amount: 0.0002, ReduceOnly: true, MarginType: margin.Isolated, ClientOrderID: "close"})
+		require.NoErrorf(t, err, "SubmitOrder must not error for an isolated margin order %s", tc.name)
+		expRequests = []testRequest{
+			{Method: "private/get-positions", Params: `{"instrument_name":"BTCUSD-PERP"}`},
+			{Method: "private/create-order", Params: tc.params},
+		}
+		assert.Equalf(t, expRequests, received(), "SubmitOrder should look up the instrument's isolated position for an isolated margin order %s", tc.name)
+	}
+
+	// An isolated margin order whose isolated position cannot be looked up is not placed, as it could open a second one
+	ex, received = newRoutesServerExchange(t, map[string]testRoute{
+		"private/get-positions": func(string) (string, *APIError) { return "", &APIError{Code: 50001, Message: "INTERNAL_SERVER_ERROR"} },
+		"private/create-order":  testResult(`{"order_id":"1","client_oid":"close"}`),
+	})
+	_, err = ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, Type: order.Market, Side: order.Sell, Pair: testPerpetualPair, AssetType: asset.PerpetualSwap, Amount: 0.0002, ReduceOnly: true, MarginType: margin.Isolated, ClientOrderID: "close"})
+	var lookupErr *APIError
+	require.ErrorAs(t, err, &lookupErr, "SubmitOrder must return the error looking up the isolated position")
+	assert.Equal(t, []testRequest{{Method: "private/get-positions", Params: `{"instrument_name":"BTCUSD-PERP"}`}}, received(), "SubmitOrder should not place an isolated margin order whose isolated position it could not look up")
 }
 
 func TestSubmitOrderTracksMarginOrders(t *testing.T) {
@@ -1514,6 +1684,12 @@ func TestSubmitOrderTracksMarginOrders(t *testing.T) {
 	require.ErrorAs(t, err, &apiErr, "submitOrder must return Crypto.com's refusal")
 	assert.True(t, trackedWhenSent, "submitOrder should track a margin order by its client order ID before placing it")
 	assert.False(t, ex.isMarginOrder("", "refused"), "submitOrder should stop tracking the client order ID of an order Crypto.com refused")
+
+	// A margin order its own checks refuse is neither sent nor tracked by its client order ID
+	s.ClientOrderID = strings.Repeat("c", 37)
+	_, err = ex.submitOrder(t.Context(), s, placing("", nil), nil)
+	require.ErrorIs(t, err, errClientOrderIDTooLong, "submitOrder must refuse a client order ID of 37 characters")
+	assert.False(t, ex.isMarginOrder("", s.ClientOrderID), "submitOrder should not track the client order ID of an order its checks refuse")
 
 	// A margin order whose request fails otherwise may have been placed, so is still tracked
 	s.ClientOrderID = "unknown"
@@ -1646,6 +1822,116 @@ func TestWebsocketSubmitOrders(t *testing.T) {
 		assert.Equalf(t, "100", got[0].OrderID, "WebsocketSubmitOrders should return the IDs of the list placed before %s", tc.name)
 		assert.Nilf(t, got[len(got)-1], "WebsocketSubmitOrders should leave the response of the order in %s unset, as its answer cannot be read", tc.name)
 	}
+
+	// Every order is checked before any list is sent, so an order Crypto.com would refuse stops the lists before its own,
+	// and is named by its index among the orders
+	ex, venue = newWebsocketTestExchange(t)
+	marginOrders := make([]*order.Submit, 11)
+	for i := range marginOrders {
+		marginOrders[i] = &order.Submit{Exchange: ex.Name, Type: order.Limit, Side: order.Buy, Pair: testSpotPair, AssetType: asset.Margin, Price: 50000, Amount: 0.001, ClientOrderID: "margin_" + strconv.Itoa(i)}
+	}
+	marginOrders[10].ClientOrderID = strings.Repeat("c", 37)
+	noTriggerPrice := testTriggerSubmit()
+	noTriggerPrice.Exchange, noTriggerPrice.TriggerPrice = ex.Name, 0
+	for _, tc := range []struct {
+		name   string
+		orders []*order.Submit
+		err    error
+		named  string
+	}{
+		{"ten orders then one with a client order ID of 37 characters", marginOrders, errClientOrderIDTooLong, "order 10: "},
+		{"an order then a trigger order without a trigger price", []*order.Submit{marginOrders[0], noTriggerPrice}, errInvalidReferencePrice, "order 1: "},
+	} {
+		_, err = ex.WebsocketSubmitOrders(t.Context(), tc.orders)
+		require.ErrorIsf(t, err, tc.err, "WebsocketSubmitOrders must refuse %s", tc.name)
+		assert.ErrorContainsf(t, err, tc.named, "WebsocketSubmitOrders should name the order it refuses by its index among %s", tc.name)
+		for _, s := range tc.orders {
+			assert.Falsef(t, ex.isMarginOrder("", s.ClientOrderID), "WebsocketSubmitOrders should not track client order ID %q of %s, sending none of them", s.ClientOrderID, tc.name)
+		}
+	}
+	assert.Empty(t, venue.received("private/create-order-list"), "WebsocketSubmitOrders should send no list of orders holding one it refuses")
+	assert.Empty(t, venue.received("private/advanced/create-order-list"), "WebsocketSubmitOrders should send no list of trigger orders beside one it refuses")
+
+	// An isolated margin order is listed on the instrument's isolated position, which the recorded positions hold
+	ex, venue = newWebsocketTestExchange(t)
+	isolated := testSubmit()
+	isolated.Exchange, isolated.MarginType = ex.Name, margin.Isolated
+	venue.respond("private/create-order-list", `[{"code":0,"index":0,"order_id":"1"}]`)
+	_, err = ex.WebsocketSubmitOrders(t.Context(), []*order.Submit{isolated})
+	require.NoError(t, err, "WebsocketSubmitOrders must not error for an isolated margin order")
+	requests = venue.received("private/create-order-list")
+	require.Len(t, requests, 1, "WebsocketSubmitOrders must send the isolated margin order in a list")
+	isolatedParams := strings.Replace(tradingTestOrderParams, `"exec_inst":["POST_ONLY"]`, `"exec_inst":["POST_ONLY","ISOLATED_MARGIN"],"isolation_id":"19848526"`, 1)
+	assert.JSONEq(t, `{"contingency_type":"LIST","order_list":[`+isolatedParams+`]}`, string(requests[0].Params), "WebsocketSubmitOrders should list an isolated margin order on the instrument's isolated position")
+
+	// With the instrument's isolated position open, every isolated margin order on it is listed on that position
+	ex, venue = newWebsocketTestExchange(t)
+	first, second := testSubmit(), testSubmit()
+	first.Exchange, first.MarginType = ex.Name, margin.Isolated
+	second.Exchange, second.MarginType, second.ClientOrderID = ex.Name, margin.Isolated, "api_leg2"
+	venue.respond("private/create-order-list", `[{"code":0,"index":0,"order_id":"1"},{"code":0,"index":1,"order_id":"2"}]`)
+	_, err = ex.WebsocketSubmitOrders(t.Context(), []*order.Submit{first, second})
+	require.NoError(t, err, "WebsocketSubmitOrders must not error for isolated margin orders on an open isolated position")
+	requests = venue.received("private/create-order-list")
+	require.Len(t, requests, 1, "WebsocketSubmitOrders must send both isolated margin orders in a list")
+	assert.JSONEq(t, `{"contingency_type":"LIST","order_list":[`+isolatedParams+`,`+strings.Replace(isolatedParams, tradingTestOrderClientOrderID, "api_leg2", 1)+`]}`, string(requests[0].Params), "WebsocketSubmitOrders should list every isolated margin order on the instrument's open isolated position")
+
+	// Crypto.com opens a new isolated position for each order naming none, and refuses a second on one instrument, so a
+	// second isolated margin order on an instrument without one is refused before any order is sent
+	routesEx, lookedUp := newRoutesServerExchange(t, map[string]testRoute{"private/get-positions": testResult(`{"data":[]}`)})
+	dependent := []*order.Submit{testSubmit(), testSubmit(), testSubmit()}
+	for i, pair := range []currency.Pair{testPerpetualPair, perpETHUSD, testPerpetualPair} {
+		dependent[i].Exchange, dependent[i].Pair, dependent[i].MarginType, dependent[i].ClientOrderID = routesEx.Name, pair, margin.Isolated, "isolated_"+strconv.Itoa(i)
+	}
+	_, err = routesEx.WebsocketSubmitOrders(t.Context(), dependent)
+	require.ErrorIs(t, err, errIsolatedPositionNotOpen, "WebsocketSubmitOrders must refuse a second isolated margin order on an instrument without an isolated position")
+	assert.ErrorContains(t, err, "order 2: isolated position not open yet: order 0 opens the one on BTCUSD-PERP", "WebsocketSubmitOrders should name the order it refuses and the order opening the position")
+	expLookups := []testRequest{
+		{Method: "private/get-positions", Params: `{"instrument_name":"BTCUSD-PERP"}`},
+		{Method: "private/get-positions", Params: `{"instrument_name":"ETHUSD-PERP"}`},
+		{Method: "private/get-positions", Params: `{"instrument_name":"BTCUSD-PERP"}`},
+	}
+	assert.Equal(t, expLookups, lookedUp(), "WebsocketSubmitOrders should look up each isolated margin order's position and place none")
+
+	// The refusal spans the lists the orders are sent in, and covers a reduce-only close, which names no position either
+	ex, lookedUp = newRoutesServerExchange(t, map[string]testRoute{"private/get-positions": testResult(`{"data":[]}`)})
+	venue = newWebsocketVenue(t)
+	connectWebsocketVenue(t, ex, venue)
+	acrossLists := make([]*order.Submit, 11)
+	for i := range acrossLists {
+		acrossLists[i] = testSubmit()
+		acrossLists[i].Exchange, acrossLists[i].ClientOrderID = ex.Name, "order_"+strconv.Itoa(i)
+	}
+	opener, closer := acrossLists[0], acrossLists[10]
+	opener.Type, opener.Price, opener.TimeInForce, opener.MarginType = order.Market, 0, order.UnknownTIF, margin.Isolated
+	closer.Type, closer.Side, closer.Price, closer.TimeInForce, closer.ReduceOnly, closer.MarginType = order.Market, order.Sell, 0, order.UnknownTIF, true, margin.Isolated
+	responses, err := ex.WebsocketSubmitOrders(t.Context(), acrossLists)
+	require.ErrorIs(t, err, errIsolatedPositionNotOpen, "WebsocketSubmitOrders must refuse an isolated margin close in a later list than the order opening its position")
+	assert.ErrorContains(t, err, "order 10: isolated position not open yet: order 0 opens the one on BTCUSD-PERP", "WebsocketSubmitOrders should name the close and the order opening the position")
+	assert.Nil(t, responses, "WebsocketSubmitOrders should return no responses for orders refused before any list is sent")
+	expLookups = []testRequest{
+		{Method: "private/get-positions", Params: `{"instrument_name":"BTCUSD-PERP"}`},
+		{Method: "private/get-positions", Params: `{"instrument_name":"BTCUSD-PERP"}`},
+	}
+	assert.Equal(t, expLookups, lookedUp(), "WebsocketSubmitOrders should look up the isolated position of each isolated margin order only")
+	assert.Empty(t, venue.received("private/create-order-list"), "WebsocketSubmitOrders should send no list of orders holding one it refuses")
+
+	// An isolated margin order whose isolated position cannot be looked up is refused before any order is sent, as it could
+	// open a second one
+	unknownEx, unknownLookups := newRoutesServerExchange(t, map[string]testRoute{
+		"private/get-positions": func(string) (string, *APIError) { return "", &APIError{Code: 50001, Message: "INTERNAL_SERVER_ERROR"} },
+	})
+	unknown := []*order.Submit{testSubmit(), testSubmit()}
+	for _, s := range unknown {
+		s.Exchange = unknownEx.Name
+	}
+	unknown[1].MarginType = margin.Isolated
+	got, err = unknownEx.WebsocketSubmitOrders(t.Context(), unknown)
+	require.ErrorAs(t, err, &apiErr, "WebsocketSubmitOrders must return the error looking up an isolated margin order's position")
+	assert.Equal(t, &APIError{Code: 50001, Message: "INTERNAL_SERVER_ERROR"}, apiErr, "WebsocketSubmitOrders should return Crypto.com's error looking up the position")
+	assert.ErrorContains(t, err, "order 1: ", "WebsocketSubmitOrders should name the order whose position it could not look up by its index")
+	assert.Nil(t, got, "WebsocketSubmitOrders should return no responses, sending no order")
+	assert.Equal(t, []testRequest{{Method: "private/get-positions", Params: `{"instrument_name":"BTCUSD-PERP"}`}}, unknownLookups(), "WebsocketSubmitOrders should look up only the isolated margin order's position")
 }
 
 func TestListSubmitResponses(t *testing.T) {
@@ -1711,6 +1997,153 @@ func TestWebsocketSubmitOrdersTracksMarginOrders(t *testing.T) {
 	_, err = ex.WebsocketSubmitOrders(done, []*order.Submit{marginOrder("margin_unknown")})
 	require.ErrorIs(t, err, context.Canceled, "WebsocketSubmitOrders must return the request's error")
 	assert.True(t, ex.isMarginOrder("", "margin_unknown"), "WebsocketSubmitOrders should go on tracking the client order IDs of a list whose outcome is unknown")
+
+	// An order an answered list gives no outcome for may have been placed, so is still tracked
+	venue.fail("private/create-order-list", nil)
+	venue.respond("private/create-order-list", `[{"code":0,"index":0,"client_oid":"margin_answered","order_id":"31"}]`)
+	got, err := ex.WebsocketSubmitOrders(t.Context(), []*order.Submit{marginOrder("margin_answered"), marginOrder("margin_unanswered")})
+	require.NoError(t, err, "WebsocketSubmitOrders must not error for a list answered for one of its orders")
+	require.Len(t, got, 2, "WebsocketSubmitOrders must return a response for every order")
+	assert.ErrorIs(t, got[1].SubmissionError, order.ErrUnableToPlaceOrder, "WebsocketSubmitOrders should report an order the answer gives no outcome for")
+	assert.True(t, ex.isMarginOrder("", "margin_unanswered"), "WebsocketSubmitOrders should go on tracking the client order ID of an order the answer gives no outcome for")
+}
+
+func TestNewOrderAmendment(t *testing.T) {
+	t.Parallel()
+	cro := currency.NewPairWithDelimiter("CRO", "USD", currency.UnderscoreDelimiter)
+	notFound := func(string) (string, *APIError) { return "", &APIError{Code: 40401, Message: "NOT_FOUND"} }
+	const limitOrder = `{"order_id":"1","order_type":"LIMIT","time_in_force":"GOOD_TILL_CANCEL","exec_inst":["POST_ONLY"],"side":"BUY","quantity":"0.0100","limit_price":"78000.0","status":"ACTIVE","instrument_name":"BTC_USD"}`
+	orderLookup := []testRequest{{Method: "private/get-order-detail", Params: `{"order_id":"1"}`}}
+	advancedLookup := []testRequest{
+		{Method: "private/get-order-detail", Params: `{"order_id":"1"}`},
+		{Method: "private/advanced/get-order-detail", Params: `{"order_id":"1"}`},
+	}
+	for _, tc := range []struct {
+		name     string
+		m        order.Modify
+		routes   map[string]testRoute
+		exp      *orderAmendment
+		requests []testRequest
+	}{
+		{
+			name: "a limit order given its price and quantity",
+			m:    order.Modify{OrderID: "1", Type: order.Limit, AssetType: asset.Spot, Pair: testSpotPair, Price: 77000, Amount: 0.02},
+			exp:  &orderAmendment{order: &AmendOrderRequest{OrderID: "1", NewPrice: 77000, NewQuantity: 0.02}, price: 77000, amount: 0.02},
+		},
+		{
+			name: "a limit order named by its client order ID and given a new one",
+			m:    order.Modify{ClientOrderID: "original", NewClientOrderID: "renamed", Type: order.Limit, AssetType: asset.PerpetualSwap, Pair: testPerpetualPair, Price: 77000, Amount: 0.02},
+			exp:  &orderAmendment{order: &AmendOrderRequest{OriginalClientOrderID: "original", ClientOrderID: "renamed", NewPrice: 77000, NewQuantity: 0.02}, price: 77000, amount: 0.02},
+		},
+		{
+			name: "a stop limit order given its prices and quantity",
+			m:    order.Modify{OrderID: "5755600460443882762", Type: order.StopLimit, AssetType: asset.Spot, Pair: cro, Price: 0.0278, Amount: 10, TriggerPrice: 0.0279},
+			exp:  &orderAmendment{trigger: &AmendAdvancedOrderRequest{OrderID: "5755600460443882762", NewQuantity: 10, NewPrice: new(types.Number(0.0278)), NewReferencePrice: 0.0279}, price: 0.0278, amount: 10},
+		},
+		{
+			name: "a stop limit order named by its client order ID",
+			m:    order.Modify{ClientOrderID: "stop", Type: order.StopLimit, AssetType: asset.Spot, Pair: cro, Price: 0.0278, Amount: 10, TriggerPrice: 0.0279},
+			exp:  &orderAmendment{trigger: &AmendAdvancedOrderRequest{ClientOrderID: "stop", NewQuantity: 10, NewPrice: new(types.Number(0.0278)), NewReferencePrice: 0.0279}, price: 0.0278, amount: 10},
+		},
+		{
+			name: "a stop order given a limit price, which would make it a stop limit order",
+			m:    order.Modify{OrderID: "5755600460443882762", Type: order.Stop, AssetType: asset.Spot, Pair: cro, Price: 0.0278, Amount: 10, TriggerPrice: 0.0279},
+			exp:  &orderAmendment{trigger: &AmendAdvancedOrderRequest{OrderID: "5755600460443882762", NewQuantity: 10, NewPrice: new(types.Number(0)), NewReferencePrice: 0.0279}, amount: 10},
+		},
+		{
+			name: "a stop market order given its quantity alone",
+			m:    order.Modify{OrderID: "5755600460443882762", Type: order.StopMarket, AssetType: asset.Spot, Pair: cro, Amount: 10, TriggerPrice: 0.0279},
+			exp:  &orderAmendment{trigger: &AmendAdvancedOrderRequest{OrderID: "5755600460443882762", NewQuantity: 10, NewPrice: new(types.Number(0)), NewReferencePrice: 0.0279}, amount: 10},
+		},
+		{
+			name: "a take profit order given its quantity alone",
+			m:    order.Modify{OrderID: "5755600460443882762", Type: order.TakeProfit, AssetType: asset.Spot, Pair: cro, Amount: 10, TriggerPrice: 0.0281},
+			exp:  &orderAmendment{trigger: &AmendAdvancedOrderRequest{OrderID: "5755600460443882762", NewQuantity: 10, NewPrice: new(types.Number(0)), NewReferencePrice: 0.0281}, amount: 10},
+		},
+		{
+			name: "a take profit market order given a limit price, which would make it a take profit limit order",
+			m:    order.Modify{OrderID: "5755600460443882762", Type: order.TakeProfitMarket, AssetType: asset.Spot, Pair: cro, Price: 0.0282, Amount: 10, TriggerPrice: 0.0281},
+			exp:  &orderAmendment{trigger: &AmendAdvancedOrderRequest{OrderID: "5755600460443882762", NewQuantity: 10, NewPrice: new(types.Number(0)), NewReferencePrice: 0.0281}, amount: 10},
+		},
+		{
+			name:     "a limit order given its price, its quantity restated",
+			m:        order.Modify{OrderID: "1", Type: order.Limit, AssetType: asset.Spot, Pair: testSpotPair, Price: 77000},
+			routes:   map[string]testRoute{"private/get-order-detail": testResult(limitOrder)},
+			exp:      &orderAmendment{order: &AmendOrderRequest{OrderID: "1", NewPrice: 77000, NewQuantity: 0.01}, price: 77000, amount: 0.01, timeInForce: order.GoodTillCancel | order.PostOnly},
+			requests: orderLookup,
+		},
+		{
+			name:     "a limit order given its quantity, its price restated",
+			m:        order.Modify{OrderID: "1", Type: order.Limit, AssetType: asset.Spot, Pair: testSpotPair, Amount: 0.02},
+			routes:   map[string]testRoute{"private/get-order-detail": testResult(limitOrder)},
+			exp:      &orderAmendment{order: &AmendOrderRequest{OrderID: "1", NewPrice: 78000, NewQuantity: 0.02}, price: 78000, amount: 0.02, timeInForce: order.GoodTillCancel | order.PostOnly},
+			requests: orderLookup,
+		},
+		{
+			name:     "a limit order given its price, quantity and own time in force",
+			m:        order.Modify{OrderID: "1", Type: order.Limit, AssetType: asset.Spot, Pair: testSpotPair, Price: 77000, Amount: 0.02, TimeInForce: order.PostOnly},
+			routes:   map[string]testRoute{"private/get-order-detail": testResult(limitOrder)},
+			exp:      &orderAmendment{order: &AmendOrderRequest{OrderID: "1", NewPrice: 77000, NewQuantity: 0.02}, price: 77000, amount: 0.02, timeInForce: order.GoodTillCancel | order.PostOnly},
+			requests: orderLookup,
+		},
+		{
+			name: "a stop loss order modified without its type, which only the advanced order methods hold",
+			m:    order.Modify{OrderID: "1", AssetType: asset.Spot, Pair: cro, Price: 0.0279, Amount: 10},
+			routes: map[string]testRoute{
+				"private/get-order-detail":          notFound,
+				"private/advanced/get-order-detail": testResult(`{"order_id":"1","order_type":"STOP_LOSS","side":"SELL","quantity":"10","limit_price":"0","ref_price":"0.028","status":"ACTIVE","instrument_name":"CRO_USD"}`),
+			},
+			exp:      &orderAmendment{trigger: &AmendAdvancedOrderRequest{OrderID: "1", NewQuantity: 10, NewPrice: new(types.Number(0))}, amount: 10, orderType: order.Stop},
+			requests: advancedLookup,
+		},
+		{
+			name:     "a take profit order modified as any type, which the trading methods report",
+			m:        order.Modify{OrderID: "1", Type: order.AnyType, AssetType: asset.Spot, Pair: cro, Price: 0.0279, Amount: 10},
+			routes:   map[string]testRoute{"private/get-order-detail": testResult(`{"order_id":"1","order_type":"TAKE_PROFIT","side":"SELL","quantity":"10","limit_price":"0","ref_price":"0.03","status":"ACTIVE","instrument_name":"CRO_USD"}`)},
+			exp:      &orderAmendment{trigger: &AmendAdvancedOrderRequest{OrderID: "1", NewQuantity: 10, NewPrice: new(types.Number(0))}, amount: 10, orderType: order.TakeProfit},
+			requests: orderLookup,
+		},
+		{
+			name: "an order list's limit leg, which only the advanced order methods hold",
+			m:    order.Modify{OrderID: "1", Type: order.Limit, AssetType: asset.Spot, Pair: testSpotPair, Price: 77000},
+			routes: map[string]testRoute{
+				"private/get-order-detail":          notFound,
+				"private/advanced/get-order-detail": testResult(`{"order_id":"1","order_type":"LIMIT","side":"BUY","quantity":"0.0100","limit_price":"78000.0","status":"ACTIVE","instrument_name":"BTC_USD"}`),
+			},
+			exp:      &orderAmendment{trigger: &AmendAdvancedOrderRequest{OrderID: "1", NewQuantity: 0.01, NewPrice: new(types.Number(77000))}, price: 77000, amount: 0.01},
+			requests: advancedLookup,
+		},
+	} {
+		ex, received := newRoutesServerExchange(t, tc.routes)
+		got, err := ex.newOrderAmendment(t.Context(), &tc.m)
+		require.NoErrorf(t, err, "newOrderAmendment must not error for %s", tc.name)
+		assert.Equalf(t, tc.exp, got, "newOrderAmendment should amend %s", tc.name)
+		assert.Equalf(t, tc.requests, received(), "newOrderAmendment should send the order lookups expected for %s", tc.name)
+	}
+
+	refuser, _ := newRoutesServerExchange(t, nil)
+	answering := func(detail string) *Exchange {
+		ex, _ := newRoutesServerExchange(t, map[string]testRoute{"private/get-order-detail": testResult(detail)})
+		return ex
+	}
+	for _, tc := range []struct {
+		name string
+		ex   *Exchange
+		m    *order.Modify
+		err  error
+	}{
+		{"a nil modification", refuser, nil, order.ErrModifyOrderIsNil},
+		{"an unsupported asset", refuser, &order.Modify{OrderID: "1", Type: order.Limit, AssetType: asset.Options, Pair: testPerpetualPair, Price: 77000, Amount: 0.02}, asset.ErrNotSupported},
+		{"an order whose lookup fails", newUnavailableServerExchange(t), &order.Modify{OrderID: "1", Type: order.Limit, AssetType: asset.Spot, Pair: testSpotPair, Price: 77000}, request.ErrBadStatus},
+		{"an order of an unknown type", answering(strings.Replace(limitOrder, `"LIMIT"`, `"TRAILING_STOP"`, 1)), &order.Modify{OrderID: "1", Type: order.Limit, AssetType: asset.Spot, Pair: testSpotPair, Price: 77000}, order.ErrUnrecognisedOrderType},
+		{"an order of an unknown time in force", answering(strings.Replace(limitOrder, `"GOOD_TILL_CANCEL"`, `"GOOD_TILL_DATE"`, 1)), &order.Modify{OrderID: "1", Type: order.Limit, AssetType: asset.Spot, Pair: testSpotPair, Price: 77000}, order.ErrInvalidTimeInForce},
+		{"a time in force other than the order's", answering(limitOrder), &order.Modify{OrderID: "1", Type: order.Limit, AssetType: asset.Spot, Pair: testSpotPair, Price: 77000, Amount: 0.02, TimeInForce: order.ImmediateOrCancel}, errTimeInForceNotAmendable},
+		{"a new client order ID for a trigger order", refuser, &order.Modify{OrderID: "5755600460443882762", NewClientOrderID: "renamed", Type: order.StopLimit, AssetType: asset.Spot, Pair: cro, Price: 0.0278, Amount: 10, TriggerPrice: 0.0279}, errClientOrderIDNotAmendable},
+		{"a trigger price for a limit order", refuser, &order.Modify{OrderID: "1", Type: order.Limit, AssetType: asset.Spot, Pair: testSpotPair, Price: 77000, Amount: 0.02, TriggerPrice: 78000}, errTriggerPriceUnsupported},
+	} {
+		_, err := tc.ex.newOrderAmendment(t.Context(), tc.m)
+		assert.ErrorIsf(t, err, tc.err, "newOrderAmendment should refuse %s", tc.name)
+	}
 }
 
 func TestModifyOrder(t *testing.T) {
@@ -1852,6 +2285,46 @@ func TestModifyOrder(t *testing.T) {
 		}
 	}
 
+	// The advanced order methods' amend takes a client order ID only to name the order, so neither a trigger order nor an
+	// order the trading methods refuse is given a new one
+	ex, received = newRoutesServerExchange(t, map[string]testRoute{"private/amend-order": notFound})
+	_, err = ex.ModifyOrder(t.Context(), &order.Modify{Exchange: ex.Name, OrderID: "5755600460443882762", NewClientOrderID: "renamed", Type: order.StopLimit, AssetType: asset.Spot, Pair: cro, Price: 0.0278, Amount: 10, TriggerPrice: 0.0279})
+	assert.ErrorIs(t, err, errClientOrderIDNotAmendable, "ModifyOrder should refuse a new client order ID for a trigger order")
+	_, err = ex.ModifyOrder(t.Context(), &order.Modify{Exchange: ex.Name, OrderID: "5755600460443890101", NewClientOrderID: "renamed", Type: order.Limit, AssetType: asset.Spot, Pair: testSpotPair, Price: 77000, Amount: 0.01})
+	assert.ErrorIs(t, err, errClientOrderIDNotAmendable, "ModifyOrder should refuse a new client order ID for an order the trading methods refuse")
+	expRequests = []testRequest{{Method: "private/amend-order", Params: `{"order_id":"5755600460443890101","client_oid":"renamed","new_price":"77000","new_quantity":"0.01"}`}}
+	assert.Equal(t, expRequests, received(), "ModifyOrder should not amend an order it is to rename with the advanced order methods")
+
+	// A trigger order, and an order the trading methods refuse, are named to the advanced order methods by the client order
+	// ID the modification names them by
+	ex, received = newRoutesServerExchange(t, map[string]testRoute{
+		"private/amend-order":          notFound,
+		"private/advanced/amend-order": testResult(`{"order_id":"1"}`),
+	})
+	_, err = ex.ModifyOrder(t.Context(), &order.Modify{Exchange: ex.Name, ClientOrderID: "stop", Type: order.StopLimit, AssetType: asset.Spot, Pair: cro, Price: 0.0278, Amount: 10, TriggerPrice: 0.0279})
+	require.NoError(t, err, "ModifyOrder must not error for a trigger order named by its client order ID")
+	_, err = ex.ModifyOrder(t.Context(), &order.Modify{Exchange: ex.Name, ClientOrderID: "leg", Type: order.Limit, AssetType: asset.Spot, Pair: testSpotPair, Price: 77000, Amount: 0.01})
+	require.NoError(t, err, "ModifyOrder must not error for an order list's leg named by its client order ID")
+	expRequests = []testRequest{
+		{Method: "private/advanced/amend-order", Params: `{"client_oid":"stop","new_quantity":"10","new_price":"0.0278","new_ref_price":"0.0279"}`},
+		{Method: "private/amend-order", Params: `{"orig_client_oid":"leg","new_price":"77000","new_quantity":"0.01"}`},
+		{Method: "private/advanced/amend-order", Params: `{"client_oid":"leg","new_quantity":"0.01","new_price":"77000"}`},
+	}
+	assert.Equal(t, expRequests, received(), "ModifyOrder should name an order to the advanced order methods by its client order ID")
+
+	// A trigger order the trading methods' order detail reports is amended by the advanced order methods
+	ex, received = newRoutesServerExchange(t, map[string]testRoute{
+		"private/get-order-detail":     testResult(`{"order_id":"1","order_type":"STOP_LOSS","side":"SELL","quantity":"10","limit_price":"0","ref_price":"0.028","status":"ACTIVE","instrument_name":"CRO_USD"}`),
+		"private/advanced/amend-order": testResult(`{"order_id":"1"}`),
+	})
+	_, err = ex.ModifyOrder(t.Context(), &order.Modify{Exchange: ex.Name, OrderID: "1", AssetType: asset.Spot, Pair: cro, Price: 0.0279, Amount: 10})
+	require.NoError(t, err, "ModifyOrder must not error for a trigger order the trading methods report")
+	expRequests = []testRequest{
+		{Method: "private/get-order-detail", Params: `{"order_id":"1"}`},
+		{Method: "private/advanced/amend-order", Params: `{"order_id":"1","new_quantity":"10","new_price":"0"}`},
+	}
+	assert.Equal(t, expRequests, received(), "ModifyOrder should amend a trigger order the trading methods report with the advanced order methods")
+
 	ex, _ = newRoutesServerExchange(t, map[string]testRoute{"private/amend-order": notFound, "private/advanced/amend-order": notFound})
 	_, err = ex.ModifyOrder(t.Context(), m)
 	var apiErr *APIError
@@ -1859,6 +2332,17 @@ func TestModifyOrder(t *testing.T) {
 	assert.Equal(t, int64(212), apiErr.Code, "ModifyOrder should return Crypto.com's code")
 	_, err = newUnavailableServerExchange(t).ModifyOrder(t.Context(), m)
 	assert.ErrorIs(t, err, request.ErrBadStatus, "ModifyOrder should return a failed request's error without falling back")
+
+	ex, received = newRoutesServerExchange(t, map[string]testRoute{
+		"private/amend-order": func(string) (string, *APIError) {
+			return "", &APIError{Code: codeTooManyRequests, Message: "TOO_MANY_REQUESTS"}
+		},
+		"private/advanced/amend-order": notFound,
+	})
+	_, err = ex.ModifyOrder(t.Context(), m)
+	require.ErrorAs(t, err, &apiErr, "ModifyOrder must return Crypto.com's refusal of the request")
+	assert.Equal(t, int64(codeTooManyRequests), apiErr.Code, "ModifyOrder should return the rate limit's code")
+	assert.Len(t, received(), 1, "ModifyOrder should not retry a request Crypto.com refused as a whole with the advanced order methods")
 }
 
 func TestWebsocketModifyOrder(t *testing.T) {
@@ -1886,6 +2370,103 @@ func TestWebsocketModifyOrder(t *testing.T) {
 	requests = venue.received("private/advanced/amend-order")
 	require.Len(t, requests, 1, "WebsocketModifyOrder must amend a trigger order with the advanced order methods")
 	assert.JSONEq(t, `{"order_id":"5755600460443882762","new_quantity":"0.0002","new_price":"0","new_ref_price":"0.0279"}`, string(requests[0].Params), "WebsocketModifyOrder should amend a stop market order without a limit price, which would make it a stop limit order")
+}
+
+func TestAmendOrderFallback(t *testing.T) {
+	t.Parallel()
+	notFound := func(string) (string, *APIError) { return "", &APIError{Code: 212, Message: "INVALID_ORDERID"} }
+	legAmended := testResult(`{"order_id":"5755600460443890101","client_oid":"leg"}`)
+	leg := func() *orderAmendment {
+		return &orderAmendment{order: &AmendOrderRequest{OrderID: "5755600460443890101", OriginalClientOrderID: "leg", NewPrice: 77000, NewQuantity: 0.01}}
+	}
+	amendment := testRequest{Method: "private/amend-order", Params: `{"order_id":"5755600460443890101","orig_client_oid":"leg","new_price":"77000","new_quantity":"0.01"}`}
+	advancedAmendment := testRequest{Method: "private/advanced/amend-order", Params: `{"order_id":"5755600460443890101","client_oid":"leg","new_quantity":"0.01","new_price":"77000"}`}
+	for _, tc := range []struct {
+		name      string
+		amendment *orderAmendment
+		routes    map[string]testRoute
+		exp       *OrderIDResponse
+		requests  []testRequest
+	}{
+		{
+			name:      "a trigger order, which only the advanced order methods amend",
+			amendment: &orderAmendment{trigger: &AmendAdvancedOrderRequest{OrderID: "5755600460443882762", NewQuantity: 10, NewPrice: new(types.Number(0.0278)), NewReferencePrice: 0.0279}},
+			routes:    map[string]testRoute{"private/amend-order": legAmended, "private/advanced/amend-order": testResult(advancedOrderIDResult)},
+			exp:       &OrderIDResponse{OrderID: "5755600460443882762", ClientOrderID: "c5f682ed-7108-4f1c-b755-972fcdca0f02"},
+			requests:  []testRequest{{Method: "private/advanced/amend-order", Params: `{"order_id":"5755600460443882762","new_quantity":"10","new_price":"0.0278","new_ref_price":"0.0279"}`}},
+		},
+		{
+			name:      "an order the trading methods amend",
+			amendment: leg(),
+			routes:    map[string]testRoute{"private/amend-order": legAmended, "private/advanced/amend-order": testResult(advancedOrderIDResult)},
+			exp:       &OrderIDResponse{OrderID: "5755600460443890101", ClientOrderID: "leg"},
+			requests:  []testRequest{amendment},
+		},
+		{
+			name:      "an order list's leg, which the trading methods refuse",
+			amendment: leg(),
+			routes:    map[string]testRoute{"private/amend-order": notFound, "private/advanced/amend-order": legAmended},
+			exp:       &OrderIDResponse{OrderID: "5755600460443890101", ClientOrderID: "leg"},
+			requests:  []testRequest{amendment, advancedAmendment},
+		},
+	} {
+		ex, received := newRoutesServerExchange(t, tc.routes)
+		got, err := amendOrder(t.Context(), tc.amendment, ex.AmendOrder, ex.AmendAdvancedOrder)
+		require.NoErrorf(t, err, "amendOrder must not error for %s", tc.name)
+		assert.Equalf(t, tc.exp, got, "amendOrder should return the amended order's IDs for %s", tc.name)
+		assert.Equalf(t, tc.requests, received(), "amendOrder should send the amendments expected for %s", tc.name)
+	}
+
+	renamed := leg()
+	renamed.order.ClientOrderID = "renamed"
+	for _, tc := range []struct {
+		name      string
+		amendment *orderAmendment
+		routes    map[string]testRoute
+		apiErr    *APIError
+		err       error
+		requests  []testRequest
+	}{
+		{
+			name:      "an order whose amendment Crypto.com refuses as a whole",
+			amendment: leg(),
+			routes: map[string]testRoute{
+				"private/amend-order": func(string) (string, *APIError) {
+					return "", &APIError{Code: codeTooManyRequests, Message: "TOO_MANY_REQUESTS"}
+				},
+				"private/advanced/amend-order": legAmended,
+			},
+			apiErr:   &APIError{Code: codeTooManyRequests, Message: "TOO_MANY_REQUESTS"},
+			requests: []testRequest{amendment},
+		},
+		{
+			name:      "an order list's leg given a new client order ID",
+			amendment: renamed,
+			routes:    map[string]testRoute{"private/amend-order": notFound, "private/advanced/amend-order": legAmended},
+			apiErr:    &APIError{Code: 212, Message: "INVALID_ORDERID"},
+			err:       errClientOrderIDNotAmendable,
+			requests:  []testRequest{{Method: "private/amend-order", Params: `{"order_id":"5755600460443890101","orig_client_oid":"leg","client_oid":"renamed","new_price":"77000","new_quantity":"0.01"}`}},
+		},
+		{
+			name:      "an order list's leg the advanced order methods answer without a result",
+			amendment: leg(),
+			routes:    map[string]testRoute{"private/amend-order": notFound, "private/advanced/amend-order": testResult("")},
+			apiErr:    &APIError{Code: 212, Message: "INVALID_ORDERID"},
+			err:       common.ErrNoResponse,
+			requests:  []testRequest{amendment, advancedAmendment},
+		},
+	} {
+		ex, received := newRoutesServerExchange(t, tc.routes)
+		got, err := amendOrder(t.Context(), tc.amendment, ex.AmendOrder, ex.AmendAdvancedOrder)
+		assert.Nilf(t, got, "amendOrder should return no IDs for %s", tc.name)
+		var apiErr *APIError
+		require.ErrorAsf(t, err, &apiErr, "amendOrder must return the trading methods' refusal of %s", tc.name)
+		assert.Equalf(t, tc.apiErr, apiErr, "amendOrder should return Crypto.com's code and message for %s", tc.name)
+		if tc.err != nil {
+			assert.ErrorIsf(t, err, tc.err, "amendOrder should return why it did not amend %s", tc.name)
+		}
+		assert.Equalf(t, tc.requests, received(), "amendOrder should send the amendments expected for %s", tc.name)
+	}
 }
 
 func TestIsTriggerOrder(t *testing.T) {
@@ -1939,6 +2520,21 @@ func TestCancelOrder(t *testing.T) {
 	require.ErrorAs(t, err, &apiErr, "CancelOrder must return Crypto.com's refusal of the request")
 	assert.Equal(t, int64(codeTooManyRequests), apiErr.Code, "CancelOrder should return the rate limit's code")
 	assert.Len(t, received(), 1, "CancelOrder should not retry a request Crypto.com refused as a whole with the advanced order methods")
+
+	// A trigger order, and an order the trading methods refuse, are named to the advanced order methods by the client order
+	// ID the cancel names them by
+	ex, received = newRoutesServerExchange(t, map[string]testRoute{
+		"private/cancel-order":          notFound,
+		"private/advanced/cancel-order": testResult(`{"order_id":"1"}`),
+	})
+	require.NoError(t, ex.CancelOrder(t.Context(), &order.Cancel{ClientOrderID: "stop", Type: order.Stop}), "CancelOrder must cancel a trigger order named by its client order ID")
+	require.NoError(t, ex.CancelOrder(t.Context(), &order.Cancel{ClientOrderID: "leg"}), "CancelOrder must cancel an order list's leg named by its client order ID")
+	expRequests = []testRequest{
+		{Method: "private/advanced/cancel-order", Params: `{"client_oid":"stop"}`},
+		{Method: "private/cancel-order", Params: `{"client_oid":"leg"}`},
+		{Method: "private/advanced/cancel-order", Params: `{"client_oid":"leg"}`},
+	}
+	assert.Equal(t, expRequests, received(), "CancelOrder should name an order to the advanced order methods by its client order ID")
 }
 
 func TestRefusedForOrder(t *testing.T) {
@@ -2195,6 +2791,15 @@ func TestGetActiveOrders(t *testing.T) {
 		{TriggerPrice: 74000, Amount: 0.01, RemainingAmount: 0.01, CostAsset: currency.USD, Exchange: ex.Name, OrderID: "5755600460443890102", Type: order.Stop, Side: order.Sell, Status: order.Active, AssetType: asset.Spot, Date: time.UnixMilli(1792836351902), LastUpdated: time.UnixMilli(1792836351902), Pair: testSpotPair},
 	}
 	assert.Equal(t, exp, got, "GetActiveOrders should return the spot orders, those the advanced order methods hold included")
+	got, err = ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.Sell, Type: order.AnyType})
+	require.NoError(t, err, "GetActiveOrders must not error for a side")
+	assert.Equal(t, exp[1:], got, "GetActiveOrders should return only the orders of the side requested")
+	got, err = ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.Stop})
+	require.NoError(t, err, "GetActiveOrders must not error for a type")
+	assert.Equal(t, exp[1:], got, "GetActiveOrders should return only the orders of the type requested")
+	got, err = ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Pairs: currency.Pairs{spotETHUSD, currency.NewPairWithDelimiter("CRO", "USD", currency.UnderscoreDelimiter)}, Side: order.AnySide, Type: order.AnyType})
+	require.NoError(t, err, "GetActiveOrders must not error for pairs")
+	assert.Empty(t, got, "GetActiveOrders should return only the orders of the pairs requested")
 
 	got, err = ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.PerpetualSwap, Pairs: currency.Pairs{testPerpetualPair}, Side: order.Buy, Type: order.Limit})
 	require.NoError(t, err, "GetActiveOrders must not error for a pair")
@@ -2267,6 +2872,43 @@ func TestGetOrderHistory(t *testing.T) {
 		assert.Equalf(t, expRequests[i].Method, requests[i].Method, "GetOrderHistory request %d should be for its method", i)
 		assert.JSONEqf(t, expRequests[i].Params, requests[i].Params, "GetOrderHistory request %d should request its day", i)
 	}
+
+	// Without a start time each history is requested for the day before the end, the advanced order methods' trigger
+	// orders with the trading methods' orders, which the request's filters choose from
+	ex, received = newRoutesServerExchange(t, map[string]testRoute{
+		"private/get-order-history":          testResult(`{"data":[{"order_id":"1","order_type":"LIMIT","side":"BUY","quantity":"1","limit_price":"80000","cumulative_quantity":"1","status":"FILLED","instrument_name":"BTC_USD","create_time":"1792634400000","update_time":"1792634400100"}]}`),
+		"private/advanced/get-order-history": testResult(`{"data":[{"order_id":"2","order_type":"STOP_LOSS","side":"SELL","quantity":"1","ref_price":"79000","status":"CANCELED","instrument_name":"BTC_USD","create_time":"1792634400200","update_time":"1792634400300"}]}`),
+	})
+	end = time.UnixMilli(1792634400000).Add(time.Hour)
+	got, err = ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType, EndTime: end})
+	require.NoError(t, err, "GetOrderHistory must not error without a start time")
+	orderIDs := make([]string, len(got))
+	for i := range got {
+		orderIDs[i] = got[i].OrderID
+	}
+	assert.Equal(t, []string{"1", "2"}, orderIDs, "GetOrderHistory should return the trading methods' orders and the advanced order methods' trigger orders")
+	day = end.Add(-privateHistoryWindow)
+	expRequests = []testRequest{
+		{Method: "private/get-order-history", Params: `{"start_time":` + ns(day) + `,"end_time":` + ns(end) + `,"limit":100}`},
+		{Method: "private/advanced/get-order-history", Params: `{"start_time":` + ns(day) + `,"end_time":` + ns(end) + `,"limit":"100"}`},
+	}
+	requests = received()
+	require.Len(t, requests, len(expRequests), "GetOrderHistory must request each history's day before the end without a start time")
+	for i := range expRequests {
+		assert.Equalf(t, expRequests[i].Method, requests[i].Method, "GetOrderHistory request %d should be for its method without a start time", i)
+		assert.JSONEqf(t, expRequests[i].Params, requests[i].Params, "GetOrderHistory request %d should request the day before the end without a start time", i)
+	}
+	got, err = ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.Sell, Type: order.AnyType, EndTime: end})
+	require.NoError(t, err, "GetOrderHistory must not error for a side")
+	require.Len(t, got, 1, "GetOrderHistory must return only the orders of the side requested")
+	assert.Equal(t, "2", got[0].OrderID, "GetOrderHistory should return the sell of the side requested")
+	got, err = ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.Stop, EndTime: end})
+	require.NoError(t, err, "GetOrderHistory must not error for a type")
+	require.Len(t, got, 1, "GetOrderHistory must return only the orders of the type requested")
+	assert.Equal(t, "2", got[0].OrderID, "GetOrderHistory should return the stop loss of the type requested")
+	got, err = ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Pairs: currency.Pairs{spotETHUSD, currency.NewPairWithDelimiter("CRO", "USD", currency.UnderscoreDelimiter)}, Side: order.AnySide, Type: order.AnyType, EndTime: end})
+	require.NoError(t, err, "GetOrderHistory must not error for pairs")
+	assert.Empty(t, got, "GetOrderHistory should return only the orders of the pairs requested")
 }
 
 func TestOrderRecord(t *testing.T) {
@@ -2521,6 +3163,20 @@ func TestOrderDetail(t *testing.T) {
 	require.NoError(t, err, "orderDetail must not error for a market buy by notional")
 	exp = &order.Detail{Exchange: e.Name, OrderID: "1", Pair: testSpotPair, AssetType: asset.Spot, Side: order.Buy, Type: order.Market, Status: order.Filled, ExecutedAmount: 0.002, QuoteAmount: 100, Cost: 100, CostAsset: currency.USD}
 	assert.Equal(t, exp, got, "orderDetail should give a market buy by notional its notional as the quote amount, its quantity unset")
+	// A stop loss or take profit buy is a market buy once triggered, which can spend a notional too
+	for orderType, typ := range map[string]order.Type{OrderTypeStopLoss: order.Stop, OrderTypeTakeProfit: order.TakeProfit} {
+		trigger := &OrderResponse{OrderID: "2", OrderType: orderType, Side: SideBuy, Status: OrderStatusPending, Quantity: preciseNumber("0"), OrderValue: preciseNumber("7600"), ReferencePrice: preciseNumber("76000")}
+		got, err := e.orderDetail(trigger, asset.Spot, testSpotPair)
+		require.NoErrorf(t, err, "orderDetail must not error for a %s buy by notional", orderType)
+		expTrigger := &order.Detail{Exchange: e.Name, OrderID: "2", Pair: testSpotPair, AssetType: asset.Spot, Side: order.Buy, Type: typ, Status: order.Pending, TriggerPrice: 76000, QuoteAmount: 7600, CostAsset: currency.USD}
+		assert.Equalf(t, expTrigger, got, "orderDetail should give a %s buy by notional its notional as the quote amount", orderType)
+	}
+	// A trigger buy placed by its quantity keeps its quantity, and its order value is no quote amount
+	byQuantity := &OrderResponse{OrderID: "3", OrderType: OrderTypeStopLoss, Side: SideBuy, Status: OrderStatusPending, Quantity: preciseNumber("0.1"), OrderValue: preciseNumber("7600"), ReferencePrice: preciseNumber("76000")}
+	quantityDetail, quantityErr := e.orderDetail(byQuantity, asset.Spot, testSpotPair)
+	require.NoError(t, quantityErr, "orderDetail must not error for a stop loss buy by quantity")
+	assert.Equal(t, 0.1, quantityDetail.Amount, "orderDetail should give a stop loss buy by quantity its quantity")
+	assert.Zero(t, quantityDetail.QuoteAmount, "orderDetail should give a stop loss buy by quantity no quote amount")
 
 	for _, tc := range []struct {
 		o   OrderResponse
@@ -2724,6 +3380,58 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 	}, windows, "GetHistoricalFundingRates should request the window 14 days at a time from its end")
 }
 
+func TestFundingPayments(t *testing.T) {
+	t.Parallel()
+	ex, received := newRoutesServerExchange(t, map[string]testRoute{
+		"private/get-transactions": testResult(`{"data":[
+			{"journal_id":"3","journal_type":"FUNDING","transaction_qty":"0.004","instrument_name":"BTCUSD-PERP","event_timestamp_ms":"1792803900000"},
+			{"journal_id":"2","journal_type":"FUNDING","transaction_qty":"0.012","instrument_name":"BTCUSD-PERP","event_timestamp_ms":"1792800300000"},
+			{"journal_id":"1","journal_type":"FUNDING","transaction_qty":"-0.0805","instrument_name":"BTCUSD-PERP","event_timestamp_ms":"1792800000123","event_timestamp_ns":"1792800000123456789"}]}`),
+	})
+	end := testWindowStart.Add(2 * time.Hour)
+	history := func() *fundingrate.HistoricalRates {
+		return &fundingrate.HistoricalRates{
+			Exchange:     ex.Name,
+			Asset:        asset.PerpetualSwap,
+			Pair:         testPerpetualPair,
+			StartDate:    testWindowStart,
+			EndDate:      end,
+			FundingRates: []fundingrate.Rate{{Time: testWindowStart, Rate: numberDecimal(0.00001)}},
+		}
+	}
+	got := history()
+	require.NoError(t, ex.fundingPayments(t.Context(), "BTCUSD-PERP", got), "fundingPayments must not error")
+	exp := history()
+	exp.FundingRates[0].Payment = decimal.Decimal{}.Add(preciseNumber("0.012").Decimal()).Add(preciseNumber("-0.0805").Decimal())
+	// The payment of 0.004 is made in an hour whose rate the history does not hold, so it is summed but paid to no rate
+	exp.PaymentSum = decimal.Decimal{}.Add(preciseNumber("0.004").Decimal()).Add(preciseNumber("0.012").Decimal()).Add(preciseNumber("-0.0805").Decimal())
+	exp.PaymentCurrency = currency.USD
+	assert.Equal(t, exp, got, "fundingPayments should sum the window's funding payments and pay each to the rate of its hour")
+	expRequests := []testRequest{{Method: "private/get-transactions", Params: `{"instrument_name":"BTCUSD-PERP","journal_type":"FUNDING","start_time":"1792800000000000000","end_time":"1792807200000000000","limit":100}`}}
+	assert.Equal(t, expRequests, received(), "fundingPayments should request the instrument's funding transactions over the window")
+
+	// Crypto.com sends a journal ID bare or quoted, and above 2^53, so a payment is known by every digit of its ID: one ID
+	// in both forms is one payment, and the ID after it another
+	ex, _ = newRoutesServerExchange(t, map[string]testRoute{
+		"private/get-transactions": testResult(`{"data":[
+			{"journal_id":9007199254740992,"journal_type":"FUNDING","transaction_qty":"1","instrument_name":"BTCUSD-PERP","event_timestamp_ms":"1792800060000"},
+			{"journal_id":"9007199254740992","journal_type":"FUNDING","transaction_qty":"1","instrument_name":"BTCUSD-PERP","event_timestamp_ms":"1792800060000"},
+			{"journal_id":9007199254740993,"journal_type":"FUNDING","transaction_qty":"2","instrument_name":"BTCUSD-PERP","event_timestamp_ms":"1792800060000"}]}`),
+	})
+	got = history()
+	require.NoError(t, ex.fundingPayments(t.Context(), "BTCUSD-PERP", got), "fundingPayments must not error for journal IDs in both forms")
+	exp = history()
+	exp.FundingRates[0].Payment = decimal.Decimal{}.Add(preciseNumber("1").Decimal()).Add(preciseNumber("2").Decimal())
+	exp.PaymentSum = exp.FundingRates[0].Payment
+	exp.PaymentCurrency = currency.USD
+	assert.Equal(t, exp, got, "fundingPayments should count a payment once whichever form its journal ID takes, and tell apart IDs above 2^53")
+
+	got = history()
+	err := newUnavailableServerExchange(t).fundingPayments(t.Context(), "BTCUSD-PERP", got)
+	assert.ErrorIs(t, err, request.ErrBadStatus, "fundingPayments should return the error requesting the funding transactions")
+	assert.Equal(t, history(), got, "fundingPayments should leave the history unchanged when it cannot request the funding transactions")
+}
+
 func TestGetOpenInterest(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetOpenInterest(t.Context(), key.PairAsset{Base: currency.BTC.Item, Quote: currency.USD.Item, Asset: asset.Spot})
@@ -2776,7 +3484,12 @@ func TestGetFuturesPositionSummary(t *testing.T) {
 		}
 		return
 	}
-	ex, _ := newRoutesServerExchange(t, testPositionRoutes)
+	// The isolated position is listed first, so that only the preference for the cross margin position finds that
+	cross := maps.Clone(testPositionRoutes)
+	cross["private/get-positions"] = testResult(`{"data":[
+		{"account_id":"858dbc8b-22fd-49fa-bff4-d342d98a8acb","quantity":"0.0002","cost":"10.959000","open_position_pnl":"-0.003000","open_pos_cost":"10.959000","session_pnl":"-0.043000","update_timestamp_ms":"1613552240771","instrument_name":"BTCUSD-PERP","type":"PERPETUAL_SWAP","isolation_id":"19848526","isolation_type":"ISOLATED_MARGIN"},
+		{"account_id":"858dbc8b-22fd-49fa-bff4-d342d98a8acb","quantity":"-0.1984","cost":"-10159.573500","open_position_pnl":"-497.743736","open_pos_cost":"-10159.352200","session_pnl":"2.236145","update_timestamp_ms":"1613552240770","instrument_name":"BTCUSD-PERP","type":"PERPETUAL_SWAP"}]}`)
+	ex, _ := newRoutesServerExchange(t, cross)
 	got, err := ex.GetFuturesPositionSummary(t.Context(), &futures.PositionSummaryRequest{Asset: asset.PerpetualSwap, Pair: testPerpetualPair})
 	require.NoError(t, err, "GetFuturesPositionSummary must not error")
 	exp := &futures.PositionSummary{
@@ -2896,6 +3609,87 @@ func TestIsIsolated(t *testing.T) {
 	}
 }
 
+func TestIsolatedPositionID(t *testing.T) {
+	t.Parallel()
+	const (
+		isolated      = `{"quantity":"0.0002","instrument_name":"BTCUSD-PERP","type":"PERPETUAL_SWAP","isolation_id":"19848526","isolation_type":"ISOLATED_MARGIN"}`
+		otherIsolated = `{"quantity":"0.01","instrument_name":"ETHUSD-PERP","type":"PERPETUAL_SWAP","isolation_id":"19848530","isolation_type":"ISOLATED_MARGIN"}`
+	)
+	for _, tc := range []struct {
+		name      string
+		positions testRoute
+		exp       string
+	}{
+		{"an isolated position listed after the cross margin position", testPositionRoutes["private/get-positions"], "19848526"},
+		{"an isolated position listed first", testResult(`{"data":[` + isolated + `,{"quantity":"-0.1984","instrument_name":"BTCUSD-PERP","type":"PERPETUAL_SWAP"}]}`), "19848526"},
+		{"an isolated position listed after another instrument's", testResult(`{"data":[` + otherIsolated + `,` + isolated + `]}`), "19848526"},
+		{"a cross margin position of isolation ID 0", testResult(`{"data":[{"quantity":"-0.1984","instrument_name":"BTCUSD-PERP","type":"PERPETUAL_SWAP","isolation_id":"0"}]}`), ""},
+		{"a cross margin position without an isolation ID", testResult(`{"data":[{"quantity":"-0.1984","instrument_name":"BTCUSD-PERP","type":"PERPETUAL_SWAP"}]}`), ""},
+		{"another instrument's isolated position", testResult(`{"data":[` + otherIsolated + `]}`), ""},
+		{"no position", testResult(`{"data":[]}`), ""},
+	} {
+		ex, received := newRoutesServerExchange(t, map[string]testRoute{"private/get-positions": tc.positions})
+		got, err := ex.isolatedPositionID(t.Context(), "BTCUSD-PERP")
+		require.NoErrorf(t, err, "isolatedPositionID must not error for %s", tc.name)
+		assert.Equalf(t, tc.exp, got, "isolatedPositionID should return the isolation ID of the instrument's isolated position, if any, for %s", tc.name)
+		assert.Equalf(t, []testRequest{{Method: "private/get-positions", Params: `{"instrument_name":"BTCUSD-PERP"}`}}, received(), "isolatedPositionID should request the instrument's positions for %s", tc.name)
+	}
+	_, err := newUnavailableServerExchange(t).isolatedPositionID(t.Context(), "BTCUSD-PERP")
+	assert.ErrorIs(t, err, request.ErrBadStatus, "isolatedPositionID should return the error requesting the positions")
+}
+
+func TestIsolatedPosition(t *testing.T) {
+	t.Parallel()
+	ex, received := newRoutesServerExchange(t, testPositionRoutes)
+	got, err := ex.isolatedPosition(t.Context(), "BTCUSD-PERP")
+	require.NoError(t, err, "isolatedPosition must not error")
+	exp := &IsolatedPositionBalance{
+		InstrumentName:         "USD",
+		TotalAvailableBalance:  preciseNumber("0.4"),
+		TotalMarginBalance:     preciseNumber("5.397"),
+		TotalInitialMargin:     preciseNumber("2.7"),
+		TotalMaintenanceMargin: preciseNumber("1.35"),
+		TotalCashBalance:       preciseNumber("5.4"),
+		TotalCollateralValue:   preciseNumber("5.4"),
+		TotalEffectiveLeverage: 0.4,
+		IsolationID:            "19848526",
+		Leverage:               2,
+		IsolationType:          "ISOLATED_MARGIN",
+	}
+	assert.Equal(t, exp, got, "isolatedPosition should return the balance of the instrument's isolated position, found by its isolation ID")
+	lookups := []testRequest{
+		{Method: "private/get-positions", Params: `{"instrument_name":"BTCUSD-PERP"}`},
+		{Method: "private/user-balance", Params: `{}`},
+	}
+	assert.Equal(t, lookups, received(), "isolatedPosition should look up the instrument's positions, then the account's balance")
+
+	_, err = newUnavailableServerExchange(t).isolatedPosition(t.Context(), "BTCUSD-PERP")
+	assert.ErrorIs(t, err, request.ErrBadStatus, "isolatedPosition should return the error requesting the positions")
+
+	cross := maps.Clone(testPositionRoutes)
+	cross["private/get-positions"] = testResult(`{"data":[{"quantity":"-0.1984","instrument_name":"BTCUSD-PERP","type":"PERPETUAL_SWAP","isolation_id":"0"}]}`)
+	ex, received = newRoutesServerExchange(t, cross)
+	_, err = ex.isolatedPosition(t.Context(), "BTCUSD-PERP")
+	assert.ErrorIs(t, err, errNoIsolatedPosition, "isolatedPosition should error without an isolated position")
+	assert.Equal(t, lookups[:1], received(), "isolatedPosition should not request the balance without an isolated position")
+
+	balanceFails := maps.Clone(testPositionRoutes)
+	balanceFails["private/user-balance"] = func(string) (string, *APIError) { return "", &APIError{Code: 50001, Message: "INTERNAL_SERVER_ERROR"} }
+	ex, _ = newRoutesServerExchange(t, balanceFails)
+	_, err = ex.isolatedPosition(t.Context(), "BTCUSD-PERP")
+	var apiErr *APIError
+	require.ErrorAs(t, err, &apiErr, "isolatedPosition must return the error requesting the balance")
+	assert.Equal(t, &APIError{Code: 50001, Message: "INTERNAL_SERVER_ERROR"}, apiErr, "isolatedPosition should return Crypto.com's error requesting the balance")
+
+	orphan := maps.Clone(testPositionRoutes)
+	orphan["private/user-balance"] = testResult(`{"data":[{"instrument_name":"USD","isolated_positions":[{"instrument_name":"USD","isolation_id":"19848527","isolation_type":"ISOLATED_MARGIN","leverage":"5"}]}]}`)
+	ex, received = newRoutesServerExchange(t, orphan)
+	_, err = ex.isolatedPosition(t.Context(), "BTCUSD-PERP")
+	assert.ErrorIs(t, err, errNoIsolatedPosition, "isolatedPosition should error for an isolated position the balance does not hold")
+	assert.ErrorContains(t, err, "19848526", "isolatedPosition should name the isolated position the balance does not hold")
+	assert.Equal(t, lookups, received(), "isolatedPosition should look the isolated position up in the account's balance")
+}
+
 func TestGetLeverage(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetLeverage(t.Context(), asset.Spot, testSpotPair, margin.Multi, order.UnknownSide)
@@ -2957,6 +3751,26 @@ func TestChangePositionMargin(t *testing.T) {
 		_, err := e.ChangePositionMargin(t.Context(), tc.req)
 		require.ErrorIsf(t, err, tc.err, "ChangePositionMargin must refuse %s", tc.name)
 	}
+	// gctcli's float flags parse NaN and infinities, which are refused before any request
+	refuser, refused := newRoutesServerExchange(t, nil)
+	for _, tc := range []struct {
+		name                            string
+		originalMargin, allocatedMargin float64
+	}{
+		{"a new margin of NaN", 5.4, math.NaN()},
+		{"a new margin of +Inf", 5.4, math.Inf(1)},
+		{"an original margin of NaN", math.NaN(), 8},
+		{"an original margin of +Inf", math.Inf(1), 8},
+		{"a new margin of -Inf", 5.4, math.Inf(-1)},
+		{"an original margin of -Inf", math.Inf(-1), 8},
+	} {
+		_, err := refuser.ChangePositionMargin(t.Context(), &margin.PositionChangeRequest{Asset: asset.PerpetualSwap, Pair: testPerpetualPair, MarginType: margin.Isolated, OriginalAllocatedMargin: tc.originalMargin, NewAllocatedMargin: tc.allocatedMargin})
+		assert.ErrorIsf(t, err, errMarginNotFinite, "ChangePositionMargin should refuse %s", tc.name)
+	}
+	assert.Empty(t, refused(), "ChangePositionMargin should send no request for a margin that is not a finite number")
+	_, err = refuser.ChangePositionMargin(t.Context(), &margin.PositionChangeRequest{Asset: asset.PerpetualSwap, MarginType: margin.Isolated, OriginalAllocatedMargin: 5.4, NewAllocatedMargin: 8})
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "ChangePositionMargin should refuse a request without a pair")
+	assert.Empty(t, refused(), "ChangePositionMargin should send no request without a pair")
 	if !mockTests {
 		t.Skip("changing a position's margin is checked against a test server")
 	}
@@ -2979,4 +3793,23 @@ func TestChangePositionMargin(t *testing.T) {
 		`{"isolation_id":"19848526","direction":"CREDIT","amount":"2.6"}`,
 		`{"isolation_id":"19848526","direction":"DEBIT","amount":"2"}`,
 	}, transfers, "ChangePositionMargin should credit or debit the position the margin's difference")
+
+	noIsolated := maps.Clone(routes)
+	noIsolated["private/get-positions"] = testResult(`{"data":[{"quantity":"-0.1984","instrument_name":"BTCUSD-PERP","type":"PERPETUAL_SWAP","isolation_id":"0"}]}`)
+	ex, received = newRoutesServerExchange(t, noIsolated)
+	got, err := ex.ChangePositionMargin(t.Context(), &margin.PositionChangeRequest{Asset: asset.PerpetualSwap, Pair: testPerpetualPair, MarginType: margin.Isolated, OriginalAllocatedMargin: 5.4, NewAllocatedMargin: 8})
+	assert.ErrorIs(t, err, errNoIsolatedPosition, "ChangePositionMargin should refuse a pair without an isolated position")
+	assert.Nil(t, got, "ChangePositionMargin should return no response for a pair without an isolated position")
+	assert.Equal(t, []testRequest{{Method: "private/get-positions", Params: `{"instrument_name":"BTCUSD-PERP"}`}}, received(), "ChangePositionMargin should transfer no margin without an isolated position")
+
+	transferRefused := maps.Clone(routes)
+	transferRefused["private/create-isolated-margin-transfer"] = func(string) (string, *APIError) {
+		return "", &APIError{Code: 306, Message: "INSUFFICIENT_AVAILABLE_BALANCE"}
+	}
+	ex, _ = newRoutesServerExchange(t, transferRefused)
+	got, err = ex.ChangePositionMargin(t.Context(), &margin.PositionChangeRequest{Asset: asset.PerpetualSwap, Pair: testPerpetualPair, MarginType: margin.Isolated, OriginalAllocatedMargin: 5.4, NewAllocatedMargin: 8})
+	var apiErr *APIError
+	require.ErrorAs(t, err, &apiErr, "ChangePositionMargin must return Crypto.com's refusal of the transfer")
+	assert.Equal(t, &APIError{Code: 306, Message: "INSUFFICIENT_AVAILABLE_BALANCE"}, apiErr, "ChangePositionMargin should return Crypto.com's code and message")
+	assert.Nil(t, got, "ChangePositionMargin should return no response for a transfer Crypto.com refuses")
 }

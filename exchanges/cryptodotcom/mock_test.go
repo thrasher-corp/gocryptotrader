@@ -180,6 +180,14 @@ func newWebsocketTestExchange(t *testing.T) (*Exchange, *websocketVenue) {
 	t.Helper()
 	venue := newWebsocketVenue(t)
 	ex := newTestExchange(t)
+	connectWebsocketVenue(t, ex, venue)
+	return ex, venue
+}
+
+// connectWebsocketVenue connects an exchange's trade connection to a mock of Crypto.com's user API websocket and
+// authenticates it
+func connectWebsocketVenue(t *testing.T, ex *Exchange, venue *websocketVenue) {
+	t.Helper()
 	require.NoError(t, ex.Websocket.SetAllConnectionURLs(venue.url), "SetAllConnectionURLs must not error")
 	ex.Features.Subscriptions = subscription.List{}
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
@@ -195,7 +203,6 @@ func newWebsocketTestExchange(t *testing.T) (*Exchange, *websocketVenue) {
 	// Cleanups run in reverse, so the mock stops reporting errors before the exchange shuts its connections down
 	t.Cleanup(venue.closing)
 	require.True(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "the mock websocket must authenticate the trade connection")
-	return ex, venue
 }
 
 // websocketVenueRequest is a request the mock websocket received

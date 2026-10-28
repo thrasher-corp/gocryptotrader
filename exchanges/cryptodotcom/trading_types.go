@@ -262,7 +262,7 @@ type TransactionResponse struct {
 	// EventDate is the day of the transaction as YYYY-MM-DD, which EventTime times
 	EventDate           string              `json:"event_date"`
 	JournalType         string              `json:"journal_type"`
-	JournalID           string              `json:"journal_id"`
+	JournalID           NumericID           `json:"journal_id"`
 	TransactionQuantity types.PreciseNumber `json:"transaction_qty"`
 	TransactionCost     types.PreciseNumber `json:"transaction_cost"`
 	RealisedPNL         types.PreciseNumber `json:"realized_pnl"`

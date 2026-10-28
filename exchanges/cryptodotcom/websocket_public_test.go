@@ -327,6 +327,16 @@ func TestWebsocketBookUpdate(t *testing.T) {
 	}
 	assert.Len(t, relayedData(ex), 8, "the snapshot and each delta should relay the book of each asset its instrument trades as")
 
+	// A delta changing a level the book holds gives it the delta's order count as well as its amount
+	countDelta := `{"id":-1,"method":"subscribe","code":0,"result":{"instrument_name":"BTC_USD","subscription":"book.BTC_USD.10","channel":"book.update","depth":10,"data":[{"update":{"asks":[],"bids":[["80775.53","0.5","13"]]},"t":1792893127409,"tt":1792893127400,"u":382097464465089,"pu":382097464465088,"cs":0}]}}`
+	require.NoError(t, ex.wsHandleChannelData(t.Context(), nil, []byte(countDelta)), "wsHandleChannelData must not error for a delta changing a level")
+	for _, a := range []asset.Item{asset.Spot, asset.Margin} {
+		book, err := ex.Websocket.Orderbook.GetOrderbook(spotBTCUSD, a)
+		require.NoErrorf(t, err, "GetOrderbook must not error for %s", a)
+		require.NotEmptyf(t, book.Bids, "the %s book must hold bids", a)
+		assert.Equalf(t, orderbook.Level{Price: 80775.53, Amount: 0.5, OrderCount: 13}, book.Bids[0], "the %s book's changed level should take the delta's amount and order count", a)
+	}
+
 	// A delta without levels, which Crypto.com pushes when a book has not changed, moves the book on to its update alone
 	for i := 1; i < recordedEmptyDeltaFrame; i++ {
 		require.NoErrorf(t, ex.wsHandleChannelData(t.Context(), nil, marketDataFrame(t, recordedEmptyDeltaBookChannel, i)), "wsHandleChannelData must not error for frame %d", i)
@@ -373,6 +383,23 @@ func TestWebsocketBookResubscribesOutOfSequence(t *testing.T) {
 		s := conn.Subscriptions().Get(qualifiedChannelKey{&subscription.Subscription{QualifiedChannel: recordedBookChannel}})
 		return s != nil && s.State() == subscription.SubscribedState
 	}, 10*time.Second, 10*time.Millisecond, "the book channel should be stored against its connection again, subscribed")
+
+	t.Run("a delta following a missed one", func(t *testing.T) {
+		t.Parallel()
+		venue := newMarketDataVenue(t)
+		answerBookSnapshotFirst(t, venue)
+		ex, err := newMarketDataTestExchange(t, venue, recordedBookChannelSubscription())
+		require.NoError(t, err, "Connect must not error")
+		conn, err := ex.Websocket.GetConnection(websocketMarketDataConnection)
+		require.NoError(t, err, "GetConnection must not error")
+		requireBooksAt(t, ex, spotBTCUSD, recordedBookSnapshotUpdateID)
+
+		// The second recorded delta, which follows the first, never taken
+		err = ex.wsHandleData(t.Context(), conn, marketDataFrame(t, recordedBookChannel, 3))
+		require.ErrorIs(t, err, errBookOutOfSync, "wsHandleData must report a delta following an update the books never took")
+		requireBooksAt(t, ex, spotBTCUSD, resubscribedBookUpdateID)
+		assert.Len(t, venue.received(websocketMethodUnsubscribe), 1, "the book channel should be unsubscribed once")
+	})
 }
 
 func TestWebsocketBookResubscribesOutOfStep(t *testing.T) {
@@ -497,12 +524,13 @@ func TestWebsocketBookRetriesRefusedSubscription(t *testing.T) {
 	s := conn.Subscriptions().Get(key)
 	require.NotNil(t, s, "the book channel must be stored against its connection")
 
-	// The channel is unsubscribed for a new snapshot, then refused when subscribed again, leaving no delta to retry it
+	// The channel is unsubscribed for a new snapshot, then refused when subscribed again, leaving no delta to retry it. The
+	// mock clears the refusal as it answers that subscription, so that the retry is accepted whatever the test's timing
 	venue.rejectSubscriptions(recordedBookChannel, &APIError{Code: 42901, Message: "TOO_MANY_REQUESTS"})
+	venue.beforeAnswering(websocketMethodSubscribe, func() { venue.rejectSubscriptions(recordedBookChannel, nil) })
 	err = ex.wsHandleData(t.Context(), conn, marketDataFrame(t, recordedBookChannel, 3))
 	require.ErrorIs(t, err, errBookOutOfSync, "wsHandleData must report a delta out of sequence")
-	require.Eventually(t, func() bool { return len(venue.received(websocketMethodSubscribe)) == 2 }, 10*time.Second, 10*time.Millisecond, "the book channel must be subscribed again")
-	venue.rejectSubscriptions(recordedBookChannel, nil)
+	require.Eventually(t, func() bool { return len(venue.received(websocketMethodSubscribe)) >= 2 }, 10*time.Second, 10*time.Millisecond, "the book channel must be subscribed again")
 	requireBooksAt(t, ex, spotBTCUSD, resubscribedBookUpdateID)
 	require.Eventually(t, func() bool {
 		stored := conn.Subscriptions().Get(key)
@@ -565,6 +593,7 @@ func TestWebsocketBookRetryStops(t *testing.T) {
 	for _, tc := range []struct {
 		name          string
 		done          bool
+		doneAfter     time.Duration
 		connected     bool
 		held          bool
 		elapsed       time.Duration
@@ -573,6 +602,7 @@ func TestWebsocketBookRetryStops(t *testing.T) {
 		{name: "context done", done: true, connected: true},
 		{name: "connection lost", elapsed: delay, connectChecks: 1},
 		{name: "book channel held again", connected: true, held: true, elapsed: delay, connectChecks: 1},
+		{name: "context done while waiting", doneAfter: delay / 2, connected: true, elapsed: delay / 2},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -598,6 +628,9 @@ func TestWebsocketBookRetryStops(t *testing.T) {
 				defer cancel()
 				if tc.done {
 					cancel()
+				}
+				if tc.doneAfter != 0 {
+					time.AfterFunc(tc.doneAfter, cancel)
 				}
 				conn := &bookRetryConnection{connected: tc.connected}
 				start := time.Now()

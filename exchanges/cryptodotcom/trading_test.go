@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -1305,4 +1306,36 @@ func TestValidateSelfTradePrevention(t *testing.T) {
 		err := validateSelfTradePrevention(tc.scope, tc.instruction, tc.id)
 		assert.ErrorIsf(t, err, tc.err, "validateSelfTradePrevention should return the expected error for scope %q, instruction %q and ID %d", tc.scope, tc.instruction, tc.id)
 	}
+}
+
+func TestNumericIDUnmarshalJSON(t *testing.T) {
+	t.Parallel()
+	for data, exp := range map[string]NumericID{
+		`"6498090546073120152"`: "6498090546073120152",
+		`6498090546073120152`:   "6498090546073120152",
+		// 2^53 + 1, which a float cannot hold
+		`9007199254740993`: "9007199254740993",
+		`1`:                "1",
+		`""`:               "",
+	} {
+		var direct NumericID
+		require.NoErrorf(t, direct.UnmarshalJSON([]byte(data)), "UnmarshalJSON must not error for %s", data)
+		assert.Equalf(t, exp, direct, "UnmarshalJSON should decode %s digit for digit", data)
+		var n NumericID
+		require.NoErrorf(t, json.Unmarshal([]byte(data), &n), "Unmarshal must not error for %s", data)
+		assert.Equalf(t, exp, n, "Unmarshal should decode %s digit for digit", data)
+	}
+	unchanged := NumericID("7")
+	require.NoError(t, unchanged.UnmarshalJSON([]byte(`null`)), "UnmarshalJSON must not error for null")
+	assert.Equal(t, NumericID("7"), unchanged, "UnmarshalJSON should leave an identifier unchanged for null")
+	n := NumericID("7")
+	require.NoError(t, json.Unmarshal([]byte(`null`), &n), "Unmarshal must not error for null")
+	assert.Equal(t, NumericID("7"), n, "Unmarshal should leave an identifier unchanged for null")
+	for _, data := range []string{`1.5`, `1e3`, `true`, `{}`, `[]`} {
+		refused := NumericID("7")
+		assert.ErrorIsf(t, refused.UnmarshalJSON([]byte(data)), errInvalidInteger, "UnmarshalJSON should refuse %s", data)
+		assert.Equalf(t, NumericID("7"), refused, "UnmarshalJSON should leave an identifier unchanged refusing %s", data)
+		assert.ErrorIsf(t, json.Unmarshal([]byte(data), &n), errInvalidInteger, "Unmarshal should refuse %s", data)
+	}
+	assert.ErrorIs(t, n.UnmarshalJSON([]byte(`"6498`)), errInvalidInteger, "UnmarshalJSON should refuse a string it cannot decode")
 }

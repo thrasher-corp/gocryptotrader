@@ -30,7 +30,7 @@ type CreateAdvancedOrderRequest struct {
 	TimeInForce                    string        `json:"time_in_force,omitempty"`
 	ExecutionInstructions          []string      `json:"exec_inst,omitempty"`
 	FeeInstrumentName              currency.Code `json:"fee_instrument_name,omitzero"`
-	SelfTradePreventionID          string        `json:"stp_id,omitempty"`
+	SelfTradePreventionID          uint64        `json:"stp_id,string,omitempty"`
 	SelfTradePreventionInstruction string        `json:"stp_inst,omitempty"`
 	SelfTradePreventionScope       string        `json:"stp_scope,omitempty"`
 	// IsolationID places a derivative order that attaches to neither an order nor a position on the isolated position it
@@ -89,7 +89,7 @@ type AdvancedOrderLegRequest struct {
 	TimeInForce                    string        `json:"time_in_force,omitempty"`
 	ExecutionInstructions          []string      `json:"exec_inst,omitempty"`
 	FeeInstrumentName              currency.Code `json:"fee_instrument_name,omitzero"`
-	SelfTradePreventionID          string        `json:"stp_id,omitempty"`
+	SelfTradePreventionID          uint64        `json:"stp_id,string,omitempty"`
 	SelfTradePreventionInstruction string        `json:"stp_inst,omitempty"`
 	SelfTradePreventionScope       string        `json:"stp_scope,omitempty"`
 	SpotMargin                     string        `json:"spot_margin,omitempty"`
@@ -108,7 +108,7 @@ type advancedOrderListParams[T any] struct {
 
 // AdvancedOrderListIDResponse identifies an OCO, OTO or OTOCO by the list ID its orders share
 type AdvancedOrderListIDResponse struct {
-	ListID string `json:"list_id"`
+	ListID NumericID `json:"list_id"`
 }
 
 // advancedListIDParams is the params of a request naming an OCO, OTO or OTOCO by its list ID

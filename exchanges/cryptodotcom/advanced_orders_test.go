@@ -85,7 +85,6 @@ var triggerOrderRefusals = []struct {
 	{name: "a self-trade prevention scope without an instruction", change: func(r *CreateAdvancedOrderRequest) {
 		r.SelfTradePreventionScope = SelfTradePreventionScopeMasterOrSubAccount
 	}, err: errInvalidSelfTradePreventionInstruction},
-	{name: "a self-trade prevention ID that is not a number", change: func(r *CreateAdvancedOrderRequest) { r.SelfTradePreventionID = "first" }, err: errInvalidSelfTradePreventionID},
 	{name: "an order without a side", change: func(r *CreateAdvancedOrderRequest) { r.Side = "" }, err: errInvalidSide},
 	{name: "an order with an unknown side", change: func(r *CreateAdvancedOrderRequest) { r.Side = "HOLD" }, err: errInvalidSide},
 	{name: "a LIMIT order", change: func(r *CreateAdvancedOrderRequest) { r.OrderType = OrderTypeLimit }, err: errInvalidOrderType},
@@ -137,7 +136,6 @@ var advancedOrderLegChanges = []struct {
 		o.TimeInForce, o.ExecutionInstructions = TimeInForceFillOrKill, []string{ExecutionInstructionPostOnly}
 	}, err: errInvalidTimeInForce},
 	{name: "an order with an unknown execution instruction", change: func(o *AdvancedOrderLegRequest) { o.ExecutionInstructions = []string{"HIDDEN"} }, err: errInvalidExecutionInstruction},
-	{name: "a self-trade prevention ID that is not a number", change: func(o *AdvancedOrderLegRequest) { o.SelfTradePreventionID = "first" }, err: errInvalidSelfTradePreventionID},
 	{name: "an order without a side", change: func(o *AdvancedOrderLegRequest) { o.Side = "" }, err: errInvalidSide},
 	{name: "an order with an unknown type", change: func(o *AdvancedOrderLegRequest) { o.OrderType = "STOP" }, err: errInvalidOrderType},
 	{name: "an order without a quantity", change: func(o *AdvancedOrderLegRequest) { o.Quantity = 0 }, err: errInvalidQuantity},
@@ -295,6 +293,20 @@ func TestCreateAdvancedOrder(t *testing.T) {
 			params: `{"instrument_name":"BTC_USD","side":"SELL","type":"STOP_LOSS","quantity":"0.1","ref_price":"45000"}`,
 		},
 		{
+			name: "a STOP_LOSS order with a self-trade prevention ID",
+			req: &CreateAdvancedOrderRequest{
+				InstrumentName:                 "BTC_USD",
+				Side:                           SideSell,
+				OrderType:                      OrderTypeStopLoss,
+				Quantity:                       0.1,
+				ReferencePrice:                 45000,
+				SelfTradePreventionID:          100,
+				SelfTradePreventionInstruction: SelfTradePreventionCancelBoth,
+				SelfTradePreventionScope:       SelfTradePreventionScopeMasterOrSubAccount,
+			},
+			params: `{"instrument_name":"BTC_USD","side":"SELL","type":"STOP_LOSS","quantity":"0.1","ref_price":"45000","stp_id":"100","stp_inst":"B","stp_scope":"M"}`,
+		},
+		{
 			name: "a TAKE_PROFIT_LIMIT order attached to an order, with every option",
 			req: &CreateAdvancedOrderRequest{
 				InstrumentName:                 "SHIB_USD",
@@ -308,12 +320,12 @@ func TestCreateAdvancedOrder(t *testing.T) {
 				TimeInForce:                    TimeInForceGoodTillCancel,
 				ExecutionInstructions:          []string{ExecutionInstructionPostOnly},
 				FeeInstrumentName:              currency.CRO,
-				SelfTradePreventionID:          "0",
+				SelfTradePreventionID:          0,
 				SelfTradePreventionInstruction: SelfTradePreventionCancelBoth,
 				SelfTradePreventionScope:       SelfTradePreventionScopeMasterOrSubAccount,
 				AttachOrderID:                  "5755600460443890101",
 			},
-			params: `{"instrument_name":"SHIB_USD","side":"BUY","type":"TAKE_PROFIT_LIMIT","quantity":"1000000","price":"0.00001234","ref_price":"0.00001235","ref_price_type":"LAST_PRICE","client_oid":"shib-take-profit","time_in_force":"GOOD_TILL_CANCEL","exec_inst":["POST_ONLY"],"fee_instrument_name":"CRO","stp_id":"0","stp_inst":"B","stp_scope":"M","attach_order_id":"5755600460443890101"}`,
+			params: `{"instrument_name":"SHIB_USD","side":"BUY","type":"TAKE_PROFIT_LIMIT","quantity":"1000000","price":"0.00001234","ref_price":"0.00001235","ref_price_type":"LAST_PRICE","client_oid":"shib-take-profit","time_in_force":"GOOD_TILL_CANCEL","exec_inst":["POST_ONLY"],"fee_instrument_name":"CRO","stp_inst":"B","stp_scope":"M","attach_order_id":"5755600460443890101"}`,
 		},
 		{
 			name: "a STOP_LIMIT order attached to the cross margin position",
@@ -444,7 +456,7 @@ func TestCreateOCO(t *testing.T) {
 					TimeInForce:                    TimeInForceGoodTillCancel,
 					ExecutionInstructions:          []string{ExecutionInstructionPostOnly},
 					FeeInstrumentName:              currency.CRO,
-					SelfTradePreventionID:          "7",
+					SelfTradePreventionID:          7,
 					SelfTradePreventionInstruction: SelfTradePreventionCancelTaker,
 					SelfTradePreventionScope:       SelfTradePreventionScopeSubAccount,
 					SpotMargin:                     SpotMarginMargin,
@@ -540,7 +552,7 @@ func TestCreateOTO(t *testing.T) {
 					TimeInForce:                    TimeInForceGoodTillCancel,
 					ExecutionInstructions:          []string{ExecutionInstructionIsolatedMargin, ExecutionInstructionPostOnly},
 					FeeInstrumentName:              currency.USD,
-					SelfTradePreventionID:          "32767",
+					SelfTradePreventionID:          32767,
 					SelfTradePreventionInstruction: SelfTradePreventionCancelMaker,
 					SelfTradePreventionScope:       SelfTradePreventionScopeMasterOrSubAccount,
 					IsolationID:                    "5755600460443891277",
@@ -556,6 +568,10 @@ func TestCreateOTO(t *testing.T) {
 
 	_, err := newResponseServerExchange(t, `{"id":1,"method":"private/advanced/create-oto","code":0,"result":null}`).CreateOTO(t.Context(), otoOrders())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "CreateOTO should error for a null result")
+	// Crypto.com's docs give the list ID as a bare integer, one a float cannot hold
+	bare, err := newResponseServerExchange(t, `{"id":1,"method":"private/advanced/create-oto","code":0,"result":{"list_id":6498090546073120199}}`).CreateOTO(t.Context(), otoOrders())
+	require.NoError(t, err, "CreateOTO must not error for a bare list ID")
+	assert.Equal(t, &AdvancedOrderListIDResponse{ListID: "6498090546073120199"}, bare, "CreateOTO should keep a bare list ID digit for digit")
 	_, err = newUnavailableServerExchange(t).CreateOTO(t.Context(), otoOrders())
 	assert.ErrorIs(t, err, request.ErrBadStatus, "CreateOTO should error for an unavailable server")
 
@@ -1243,7 +1259,7 @@ func TestGetAdvancedOrderListDetail(t *testing.T) {
 		if i < 0 {
 			t.Skip("the account has no OCO, SPOT_ATTACH or DERIV_ATTACH in the past day to look up")
 		}
-		listIDs = []string{history[i].ListID}
+		listIDs = []string{string(history[i].ListID)}
 	}
 	result, err := e.GetAdvancedOrderListDetail(t.Context(), listIDs)
 	require.NoError(t, err, "GetAdvancedOrderListDetail must not error")
@@ -1311,7 +1327,94 @@ func TestGetAdvancedOrderListDetail(t *testing.T) {
 		assert.Equal(t, exp, result, "GetAdvancedOrderListDetail should decode every field")
 	} else {
 		for i := range result {
-			assert.Equalf(t, listIDs[0], result[i].ListID, "GetAdvancedOrderListDetail should return order %d of the list asked for", i)
+			assert.Equalf(t, listIDs[0], string(result[i].ListID), "GetAdvancedOrderListDetail should return order %d of the list asked for", i)
 		}
+	}
+}
+
+func TestCreateAdvancedOrderRequestValidate(t *testing.T) {
+	t.Parallel()
+	assert.ErrorIs(t, (*CreateAdvancedOrderRequest)(nil).validate(), common.ErrNilPointer, "validate should refuse a nil request")
+	for _, tc := range triggerOrderRefusals {
+		req := advancedTriggerOrder()
+		tc.change(&req)
+		assert.ErrorIsf(t, req.validate(), tc.err, "validate should refuse %s", tc.name)
+	}
+	for _, tc := range []struct {
+		name   string
+		change func(*CreateAdvancedOrderRequest)
+	}{
+		{"a self-trade prevention ID above 32767", func(r *CreateAdvancedOrderRequest) {
+			r.SelfTradePreventionScope, r.SelfTradePreventionInstruction, r.SelfTradePreventionID = SelfTradePreventionScopeMasterOrSubAccount, SelfTradePreventionCancelBoth, 32768
+		}},
+		{"a self-trade prevention ID without a scope", func(r *CreateAdvancedOrderRequest) { r.SelfTradePreventionID = 100 }},
+	} {
+		req := advancedTriggerOrder()
+		tc.change(&req)
+		assert.ErrorIsf(t, req.validate(), errInvalidSelfTradePreventionID, "validate should refuse %s", tc.name)
+	}
+	for _, tc := range []struct {
+		name   string
+		change func(*CreateAdvancedOrderRequest)
+	}{
+		{"the docs' trigger order", func(*CreateAdvancedOrderRequest) {}},
+		{"an order attached to the cross margin position with REDUCE_ONLY", func(r *CreateAdvancedOrderRequest) {
+			r.InstrumentName, r.AttachIsolationID, r.ExecutionInstructions = "BTCUSD-PERP", "0", []string{ExecutionInstructionReduceOnly}
+		}},
+		{"an order with a self-trade prevention ID", func(r *CreateAdvancedOrderRequest) {
+			r.SelfTradePreventionScope, r.SelfTradePreventionInstruction, r.SelfTradePreventionID = SelfTradePreventionScopeMasterOrSubAccount, SelfTradePreventionCancelBoth, 100
+		}},
+	} {
+		req := advancedTriggerOrder()
+		tc.change(&req)
+		assert.NoErrorf(t, req.validate(), "validate should accept %s", tc.name)
+	}
+}
+
+func TestAdvancedOrderLegRequestValidate(t *testing.T) {
+	t.Parallel()
+	for _, tc := range advancedOrderLegChanges {
+		leg := ocoOrders()[1]
+		tc.change(&leg)
+		assert.ErrorIsf(t, leg.validate(), tc.err, "validate should refuse %s", tc.name)
+	}
+	for _, tc := range []struct {
+		name   string
+		change func(*AdvancedOrderLegRequest)
+		err    error
+	}{
+		{"a MARKET buy spending neither a quantity nor a notional", func(o *AdvancedOrderLegRequest) {
+			o.Side, o.OrderType, o.Quantity, o.ReferencePrice = SideBuy, OrderTypeMarket, 0, 0
+		}, errInvalidQuantity},
+		{"a self-trade prevention ID above 32767", func(o *AdvancedOrderLegRequest) {
+			o.SelfTradePreventionScope, o.SelfTradePreventionInstruction, o.SelfTradePreventionID = SelfTradePreventionScopeSubAccount, SelfTradePreventionCancelMaker, 32768
+		}, errInvalidSelfTradePreventionID},
+		{"a self-trade prevention ID without a scope", func(o *AdvancedOrderLegRequest) { o.SelfTradePreventionID = 7 }, errInvalidSelfTradePreventionID},
+	} {
+		leg := ocoOrders()[1]
+		tc.change(&leg)
+		assert.ErrorIsf(t, leg.validate(), tc.err, "validate should refuse %s", tc.name)
+	}
+	for _, tc := range []struct {
+		name   string
+		change func(*AdvancedOrderLegRequest)
+	}{
+		{"an OCO's STOP_LOSS sell", func(*AdvancedOrderLegRequest) {}},
+		{"a MARKET buy spending a notional", func(o *AdvancedOrderLegRequest) {
+			o.Side, o.OrderType, o.Quantity, o.Notional, o.ReferencePrice = SideBuy, OrderTypeMarket, 0, 8000, 0
+		}},
+		{"a STOP_LOSS buy spending a notional", func(o *AdvancedOrderLegRequest) {
+			o.Side, o.Quantity, o.Notional, o.ReferencePrice = SideBuy, 0, 8300, 83000
+		}},
+		{"a TAKE_PROFIT buy spending a notional", func(o *AdvancedOrderLegRequest) {
+			o.Side, o.OrderType, o.Quantity, o.Notional, o.ReferencePrice = SideBuy, OrderTypeTakeProfit, 0, 7600, 76000
+		}},
+		{"an order with a self-trade prevention ID", func(o *AdvancedOrderLegRequest) {
+			o.SelfTradePreventionScope, o.SelfTradePreventionInstruction, o.SelfTradePreventionID = SelfTradePreventionScopeSubAccount, SelfTradePreventionCancelMaker, 32767
+		}},
+	} {
+		leg := ocoOrders()[1]
+		tc.change(&leg)
+		assert.NoErrorf(t, leg.validate(), "validate should accept %s", tc.name)
 	}
 }

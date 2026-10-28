@@ -74,6 +74,9 @@ var (
 	errTriggerPriceUnsupported   = errors.New("trigger price unsupported for orders other than trigger orders")
 	errInvalidPriceType          = errors.New("invalid trigger price type")
 	errTimeInForceNotAmendable   = errors.New("time in force cannot be amended")
+	errClientOrderIDNotAmendable = errors.New("an advanced order's client order ID cannot be amended")
+	errMarginNotFinite           = errors.New("margin must be a finite number")
+	errIsolatedPositionNotOpen   = errors.New("isolated position not open yet")
 )
 
 // SetDefaults sets the basic defaults for Crypto.com
@@ -130,6 +133,9 @@ func (e *Exchange) SetDefaults() {
 				PredictedFundingRate:  true,
 				MultiChainDeposits:    true,
 				MultiChainWithdrawals: true,
+				// GetDepositAddress needs a chain for a currency deposited on several networks, so the engine's deposit address
+				// sync asks for each of its chains rather than for an address without one
+				MultiChainDepositRequiresChainSet: true,
 			},
 			WebsocketCapabilities: protocol.Features{
 				AccountBalance:         true,
@@ -183,7 +189,8 @@ func (e *Exchange) SetDefaults() {
 					kline.IntervalCapacity{Interval: kline.TwelveHour},
 					kline.IntervalCapacity{Interval: kline.OneDay},
 					kline.IntervalCapacity{Interval: kline.SevenDay},
-					kline.IntervalCapacity{Interval: kline.TwoWeek},
+					// Crypto.com's 14D candles open on alternate Mondays, a week from GoCryptoTrader's two-week boundaries,
+					// so two-week candles are built from 7D ones
 					kline.IntervalCapacity{Interval: kline.OneMonth},
 				),
 				GlobalResultLimit: candlesPageLimit,
@@ -1126,7 +1133,8 @@ type orderRequest struct {
 // states by its MARGIN_ORDER execution instruction, and an isolated margin order a derivative order on an isolated
 // position with its own leverage. A margin order without a client order ID is given a unique one, by which its trades,
 // which can arrive before its order ID does, are told apart as margin; Crypto.com would give it the request's nonce,
-// which other orders can share
+// which other orders can share. The request is checked as creating it checks it, so that orders placed in lists are
+// all checked before any list is sent
 func (e *Exchange) newOrderRequest(s *order.Submit) (*orderRequest, error) {
 	if err := s.Validate(e.GetTradingRequirements()); err != nil {
 		return nil, err
@@ -1206,6 +1214,9 @@ func (e *Exchange) newOrderRequest(s *order.Submit) (*orderRequest, error) {
 		if s.Type == order.StopLimit || s.Type == order.TakeProfitLimit {
 			r.Price = types.Number(s.Price)
 		}
+		if err := r.validate(); err != nil {
+			return nil, err
+		}
 		return &orderRequest{trigger: r, clientOrderID: clientOrderID}, nil
 	}
 	if s.TriggerPrice != 0 {
@@ -1234,7 +1245,24 @@ func (e *Exchange) newOrderRequest(s *order.Submit) (*orderRequest, error) {
 	if s.AssetType == asset.Margin {
 		r.SpotMargin = SpotMarginMargin
 	}
+	if _, err := newCreateOrderParams(r); err != nil {
+		return nil, err
+	}
 	return &orderRequest{order: r, clientOrderID: clientOrderID}, nil
+}
+
+// setIsolationID names the isolated position an isolated margin order trades, the account's on the order's instrument,
+// if any; Crypto.com opens a new isolated position for an order naming none, and refuses that while one is open there
+func (e *Exchange) setIsolationID(ctx context.Context, s *order.Submit, r *orderRequest) error {
+	if s.MarginType != margin.Isolated || r.order == nil {
+		return nil
+	}
+	id, err := e.isolatedPositionID(ctx, r.order.InstrumentName)
+	if err != nil {
+		return err
+	}
+	r.order.IsolationID = id
+	return nil
 }
 
 // referencePriceType returns the Crypto.com reference price type of a trigger price type; GoCryptoTrader's zero price
@@ -1280,10 +1308,14 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 // submitOrder places an order with the advanced order methods' create for a trigger order, and otherwise with the
 // trading methods'. A margin order is tracked by its client order ID before it is placed, as its trades can arrive
 // before its order ID does, until Crypto.com refuses it; one whose outcome is unknown, as when the request fails or is
-// cancelled, may have been placed, so is still tracked
+// cancelled, may have been placed, so is still tracked. An isolated margin order is placed on its instrument's isolated
+// position, when the account holds one
 func (e *Exchange) submitOrder(ctx context.Context, s *order.Submit, create func(context.Context, *CreateOrderRequest) (*OrderIDResponse, error), createAdvanced func(context.Context, *CreateAdvancedOrderRequest) (*OrderIDResponse, error)) (*order.SubmitResponse, error) {
 	r, err := e.newOrderRequest(s)
 	if err != nil {
+		return nil, err
+	}
+	if err := e.setIsolationID(ctx, s, r); err != nil {
 		return nil, err
 	}
 	e.trackMarginOrder(s.AssetType, "", r.clientOrderID)
@@ -1307,17 +1339,30 @@ func (e *Exchange) submitOrder(ctx context.Context, s *order.Submit, create func
 // an order Crypto.com rejects has its submission error set. A list whose request fails, or whose answer cannot be read,
 // stops the orders after it, and the responses of the lists placed before it are returned with the error, the rest left
 // nil. Each list's margin orders are tracked as submitOrder tracks an order, by their client order IDs before the list is
-// sent and by their order IDs once it is answered
+// sent and by their order IDs once it is answered, and an isolated margin order is placed as submitOrder places one, on
+// its instrument's isolated position. Orders naming none open a new isolated position each, and Crypto.com refuses a
+// second on one instrument, so a second isolated margin order on an instrument without one is refused before any list
+// is sent
 func (e *Exchange) WebsocketSubmitOrders(ctx context.Context, orders []*order.Submit) ([]*order.SubmitResponse, error) {
 	if len(orders) == 0 {
 		return nil, errOrderListEmpty
 	}
 	var regular, triggers []int
 	requests := make([]*orderRequest, len(orders))
+	opening := make(map[string]int)
 	for i, s := range orders {
 		r, err := e.newOrderRequest(s)
 		if err != nil {
 			return nil, fmt.Errorf("order %d: %w", i, err)
+		}
+		if err := e.setIsolationID(ctx, s, r); err != nil {
+			return nil, fmt.Errorf("order %d: %w", i, err)
+		}
+		if s.MarginType == margin.Isolated && r.order != nil && r.order.IsolationID == "" {
+			if j, ok := opening[r.order.InstrumentName]; ok {
+				return nil, fmt.Errorf("order %d: %w: order %d opens the one on %s, so place it first", i, errIsolatedPositionNotOpen, j, r.order.InstrumentName)
+			}
+			opening[r.order.InstrumentName] = i
 		}
 		requests[i] = r
 		if r.trigger != nil {
@@ -1492,6 +1537,10 @@ func (e *Exchange) newOrderAmendment(ctx context.Context, m *order.Modify) (*ord
 		a.price = 0
 	}
 	if advanced {
+		// The advanced order methods' amend takes a client order ID only to name the order, so a new one would be dropped
+		if m.NewClientOrderID != "" {
+			return nil, fmt.Errorf("%w: %q", errClientOrderIDNotAmendable, m.NewClientOrderID)
+		}
 		price := types.Number(a.price)
 		a.trigger = &AmendAdvancedOrderRequest{
 			OrderID:           m.OrderID,
@@ -1567,7 +1616,7 @@ func (e *Exchange) WebsocketModifyOrder(ctx context.Context, m *order.Modify) (*
 
 // amendOrder amends an order with the advanced order methods' amend for an order they hold, and otherwise with the
 // trading methods' amend, falling back to the advanced order methods' should Crypto.com refuse it, as only they amend a
-// leg of an order list
+// leg of an order list; an amendment giving the order a new client order ID, which they cannot, does not fall back
 func amendOrder(ctx context.Context, a *orderAmendment, amend func(context.Context, *AmendOrderRequest) (*OrderIDResponse, error), amendAdvanced func(context.Context, *AmendAdvancedOrderRequest) (*OrderIDResponse, error)) (*OrderIDResponse, error) {
 	if a.trigger != nil {
 		return amendAdvanced(ctx, a.trigger)
@@ -1575,6 +1624,9 @@ func amendOrder(ctx context.Context, a *orderAmendment, amend func(context.Conte
 	resp, err := amend(ctx, a.order)
 	if !refusedForOrder(err) {
 		return resp, err
+	}
+	if a.order.ClientOrderID != "" {
+		return nil, common.AppendError(err, errClientOrderIDNotAmendable)
 	}
 	price := a.order.NewPrice
 	resp, advancedErr := amendAdvanced(ctx, &AmendAdvancedOrderRequest{
@@ -2179,7 +2231,8 @@ func (e *Exchange) orderDetail(o *OrderResponse, a asset.Item, p currency.Pair) 
 	}
 	if d.Amount > 0 {
 		d.RemainingAmount = max(d.Amount-d.ExecutedAmount, 0)
-	} else if d.Type == order.Market && d.Side == order.Buy {
+	} else if d.Side == order.Buy && (d.Type == order.Market || d.Type == order.Stop || d.Type == order.TakeProfit) {
+		// A stop loss or take profit buy is a market buy once triggered, so it can spend a notional as a market buy does
 		d.QuoteAmount = o.OrderValue.Float64()
 	}
 	if status.IsInactive() {
@@ -2402,7 +2455,7 @@ func (e *Exchange) fundingPayments(ctx context.Context, instrumentName string, r
 		fetch: func(ctx context.Context, start, end time.Time) ([]TransactionResponse, error) {
 			return e.GetTransactions(ctx, &TransactionsRequest{InstrumentName: instrumentName, JournalType: JournalTypeFunding, StartTime: start, EndTime: end, Limit: maxTradingHistoryLimit})
 		},
-		record: func(t *TransactionResponse) (string, time.Time) { return t.JournalID, transactionTime(t) },
+		record: func(t *TransactionResponse) (string, time.Time) { return string(t.JournalID), transactionTime(t) },
 	}
 	payments, err := pager.page(ctx, resp.StartDate, resp.EndDate, privateHistoryWindow)
 	if err != nil {
@@ -2612,25 +2665,37 @@ func findIsolatedPosition(balances []UserBalanceResponse, match func(*IsolatedPo
 	return nil
 }
 
+// isolatedPositionID returns the isolation ID of the account's isolated position on an instrument, or nothing when it
+// holds none
+func (e *Exchange) isolatedPositionID(ctx context.Context, instrumentName string) (string, error) {
+	positions, err := e.GetPositions(ctx, &PositionsRequest{InstrumentName: instrumentName})
+	if err != nil {
+		return "", err
+	}
+	if i := slices.IndexFunc(positions, func(p PositionResponse) bool { return p.InstrumentName == instrumentName && isIsolated(p.IsolationID) }); i >= 0 {
+		return positions[i].IsolationID, nil
+	}
+	return "", nil
+}
+
 // isolatedPosition returns the account's isolated position on an instrument; an isolated position's balance names its
 // currency, such as USD, rather than its instrument, so it is found by the isolation ID of the instrument's position
 func (e *Exchange) isolatedPosition(ctx context.Context, instrumentName string) (*IsolatedPositionBalance, error) {
-	positions, err := e.GetPositions(ctx, &PositionsRequest{InstrumentName: instrumentName})
+	id, err := e.isolatedPositionID(ctx, instrumentName)
 	if err != nil {
 		return nil, err
 	}
-	i := slices.IndexFunc(positions, func(p PositionResponse) bool { return p.InstrumentName == instrumentName && isIsolated(p.IsolationID) })
-	if i < 0 {
+	if id == "" {
 		return nil, fmt.Errorf("%w: %s", errNoIsolatedPosition, instrumentName)
 	}
 	balances, err := e.GetUserBalance(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if iso := findIsolatedPosition(balances, func(p *IsolatedPositionBalance) bool { return p.IsolationID == positions[i].IsolationID }); iso != nil {
+	if iso := findIsolatedPosition(balances, func(p *IsolatedPositionBalance) bool { return p.IsolationID == id }); iso != nil {
 		return iso, nil
 	}
-	return nil, fmt.Errorf("%w: %s %s", errNoIsolatedPosition, instrumentName, positions[i].IsolationID)
+	return nil, fmt.Errorf("%w: %s %s", errNoIsolatedPosition, instrumentName, id)
 }
 
 // GetLeverage returns the leverage of a derivative's isolated position, or the account's leverage, which its cross
@@ -2704,6 +2769,12 @@ func (e *Exchange) ChangePositionMargin(ctx context.Context, r *margin.PositionC
 	}
 	if r.OriginalAllocatedMargin == 0 {
 		return nil, margin.ErrOriginalPositionMarginRequired
+	}
+	// gctcli's float flags parse NaN and infinities, which have no decimal to take the difference in
+	for _, m := range []float64{r.OriginalAllocatedMargin, r.NewAllocatedMargin} {
+		if math.IsNaN(m) || math.IsInf(m, 0) {
+			return nil, fmt.Errorf("%w: %v", errMarginNotFinite, m)
+		}
 	}
 	name, err := e.instrumentName(r.Asset, r.Pair)
 	if err != nil {

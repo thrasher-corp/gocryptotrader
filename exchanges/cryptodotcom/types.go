@@ -1,7 +1,11 @@
 package cryptodotcom
 
 import (
+	"fmt"
+	"strconv"
+
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -150,9 +154,9 @@ type OrderResponse struct {
 	Reason               string              `json:"reason"`
 	IsolationID          string              `json:"isolation_id"`
 	IsolationType        string              `json:"isolation_type"`
-	ListID               string              `json:"list_id"`
+	ListID               NumericID           `json:"list_id"`
 	ContingencyType      string              `json:"contingency_type"`
-	LegID                string              `json:"leg_id"`
+	LegID                NumericID           `json:"leg_id"`
 	ReferencePrice       types.PreciseNumber `json:"ref_price"`
 	ReferencePriceType   string              `json:"ref_price_type"`
 	AttachOrderID        string              `json:"attach_order_id"`
@@ -177,4 +181,29 @@ type OrderListEntryResponse struct {
 	OrderID       string       `json:"order_id"`
 	ClientOrderID string       `json:"client_oid"`
 	Message       string       `json:"message"`
+}
+
+// NumericID is an identifier Crypto.com's docs give both as a JSON string and as a bare JSON integer, such as an
+// advanced order's list and leg IDs and a transaction's journal ID; it is kept digit for digit, as a list ID exceeds
+// what a float holds exactly
+type NumericID string
+
+// UnmarshalJSON decodes an identifier from a JSON string or a bare JSON integer, leaving it unchanged for null
+func (n *NumericID) UnmarshalJSON(data []byte) error {
+	if string(data) == "null" {
+		return nil
+	}
+	if len(data) != 0 && data[0] == '"' {
+		var s string
+		if err := json.Unmarshal(data, &s); err != nil {
+			return fmt.Errorf("%w: %w", errInvalidInteger, err)
+		}
+		*n = NumericID(s)
+		return nil
+	}
+	if _, err := strconv.ParseInt(string(data), 10, 64); err != nil {
+		return fmt.Errorf("%w: %w", errInvalidInteger, err)
+	}
+	*n = NumericID(data)
+	return nil
 }

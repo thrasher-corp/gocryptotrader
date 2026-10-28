@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"slices"
-	"strconv"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/types"
@@ -290,7 +289,7 @@ func (r *CreateAdvancedOrderRequest) validate() error {
 	if r.Quantity <= 0 {
 		return errInvalidQuantity
 	}
-	if err := validateAdvancedOrderInstructions(r.ClientOrderID, r.TimeInForce, r.ExecutionInstructions, r.SelfTradePreventionScope, r.SelfTradePreventionInstruction, r.SelfTradePreventionID); err != nil {
+	if err := validateOrderInstructions(r.ClientOrderID, r.TimeInForce, r.ExecutionInstructions, r.SelfTradePreventionScope, r.SelfTradePreventionInstruction, r.SelfTradePreventionID); err != nil {
 		return err
 	}
 	if r.AttachIsolationID == "" {
@@ -311,7 +310,7 @@ func (r *AdvancedOrderLegRequest) validate() error {
 	if err := validateAdvancedOrder(r.InstrumentName, r.Side, r.OrderType, r.Price, r.ReferencePrice, r.ReferencePriceType); err != nil {
 		return err
 	}
-	if err := validateAdvancedOrderInstructions(r.ClientOrderID, r.TimeInForce, r.ExecutionInstructions, r.SelfTradePreventionScope, r.SelfTradePreventionInstruction, r.SelfTradePreventionID); err != nil {
+	if err := validateOrderInstructions(r.ClientOrderID, r.TimeInForce, r.ExecutionInstructions, r.SelfTradePreventionScope, r.SelfTradePreventionInstruction, r.SelfTradePreventionID); err != nil {
 		return err
 	}
 	if r.Quantity > 0 {
@@ -353,20 +352,6 @@ func validateAdvancedOrder(instrumentName, side, orderType string, price, refere
 		return nil
 	}
 	return fmt.Errorf("%w: %q", errInvalidReferencePriceType, referencePriceType)
-}
-
-// validateAdvancedOrderInstructions checks an advanced order's client order ID, time in force, execution instructions
-// and self-trade prevention settings as a regular order's are; its self-trade prevention ID is text, which must be a
-// number
-func validateAdvancedOrderInstructions(clientOrderID, timeInForce string, instructions []string, stpScope, stpInstruction, stpID string) error {
-	var id uint64
-	if stpID != "" {
-		var err error
-		if id, err = strconv.ParseUint(stpID, 10, 64); err != nil {
-			return fmt.Errorf("%w: %q", errInvalidSelfTradePreventionID, stpID)
-		}
-	}
-	return validateOrderInstructions(clientOrderID, timeInForce, instructions, stpScope, stpInstruction, id)
 }
 
 // isTriggerOrderType reports whether an order type is a trigger order's, which Crypto.com places once its reference
