@@ -1127,7 +1127,7 @@ func TestGenerateSubscriptionsExpandsConfiguredList(t *testing.T) {
 	t.Parallel()
 	ex := newSignedTestExchange(t, http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
 	ex.Features.Subscriptions = subscription.List{}
-	subs, err := ex.generateSubscriptions()
+	subs, err := ex.generateSubscriptions(nil)
 	require.NoError(t, err, "generateSubscriptions must not error")
 	assert.Empty(t, subs, "an empty configured list should expand to no subscriptions, not the hardcoded defaults")
 }
@@ -1622,7 +1622,7 @@ func TestGenerateSubscriptionsSplitsPrivateChannels(t *testing.T) {
 	t.Parallel()
 	ex := newSignedTestExchange(t, http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	all, err := ex.generateSubscriptions()
+	all, err := ex.generateSubscriptions(nil)
 	require.NoError(t, err, "generateSubscriptions must not error")
 	public, err := ex.generatePublicSubscriptions()
 	require.NoError(t, err, "generatePublicSubscriptions must not error")
@@ -1746,7 +1746,7 @@ func TestWebsocketTakesOneListenKeyForThePrivateChannels(t *testing.T) {
 		assert.NoError(t, ex.Websocket.Disable(), "Disable should not error")
 	})
 
-	subs, err := ex.generateSubscriptions()
+	subs, err := ex.generateSubscriptions(nil)
 	require.NoError(t, err, "generateSubscriptions must not error")
 	want := make(map[string][]bool, len(subs))
 	for _, s := range subs {

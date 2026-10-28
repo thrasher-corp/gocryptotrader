@@ -33,6 +33,9 @@ func TestValidateFuturesOrder(t *testing.T) {
 		"no symbol":            {func(o *FuturesOrderRequest) { o.Symbol = "" }, currency.ErrSymbolStringEmpty},
 		"no side":              {func(o *FuturesOrderRequest) { o.Side = 0 }, errInvalidOrderSide},
 		"unknown side":         {func(o *FuturesOrderRequest) { o.Side = 5 }, errInvalidOrderSide},
+		"unknown side type":    {func(o *FuturesOrderRequest) { o.SideType = "BUY" }, errInvalidSideType},
+		"suffixed side type":   {func(o *FuturesOrderRequest) { o.SideType = "buyer" }, errInvalidSideType},
+		"side type of a close": {func(o *FuturesOrderRequest) { o.Side, o.SideType = FuturesSideCloseLong, "sold" }, errInvalidSideType},
 		"unknown type":         {func(o *FuturesOrderRequest) { o.Type = 7 }, order.ErrUnsupportedOrderType},
 		"no open type":         {func(o *FuturesOrderRequest) { o.OpenType = 0 }, errInvalidOpenType},
 		"no volume":            {func(o *FuturesOrderRequest) { o.Volume = 0 }, limits.ErrAmountBelowMin},
@@ -59,6 +62,8 @@ func TestValidateFuturesOrder(t *testing.T) {
 		"take-profit at fair":     func(o *FuturesOrderRequest) { o.ProfitTrend = FuturesPriceTypeFair },
 		"one-way mode":            func(o *FuturesOrderRequest) { o.PositionMode = FuturesPositionModeOneWay },
 		"cancel taker on a cross": func(o *FuturesOrderRequest) { o.SelfTradePreventionMode = 3 },
+		"buy side type":           func(o *FuturesOrderRequest) { o.SideType = FuturesSideTypeBuy },
+		"sell side type":          func(o *FuturesOrderRequest) { o.SideType = FuturesSideTypeSell },
 	} {
 		o := valid()
 		change(o)
@@ -89,11 +94,15 @@ func TestPlaceFuturesOrder(t *testing.T) {
 	t.Parallel()
 	_, err := e.PlaceFuturesOrder(t.Context(), &FuturesOrderRequest{})
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+	for _, side := range []uint8{FuturesSideOpenLong, FuturesSideCloseShort, FuturesSideOpenShort, FuturesSideCloseLong} {
+		_, err = e.PlaceFuturesOrder(t.Context(), &FuturesOrderRequest{Symbol: "BTC_USDT", Volume: 1, Side: side, Type: FuturesOrderTypeMarket, OpenType: FuturesOpenTypeCross})
+		require.ErrorIsf(t, err, errInvalidSideType, "an order of side %d without a side type must be refused before it is sent", side)
+	}
 
 	ex := testExchangeFor(t, futuresHandler(t, futuresRoute{
 		method: http.MethodPost,
 		path:   "private/order/create",
-		body:   `{"symbol":"BTC_USDT","vol":1,"leverage":20,"side":3,"type":5,"openType":1,"stopLossPrice":120000,"lossTrend":2,"stpMode":1}`,
+		body:   `{"symbol":"BTC_USDT","vol":1,"leverage":20,"side":3,"sideType":"sell","type":5,"openType":1,"stopLossPrice":120000,"lossTrend":2,"stpMode":1}`,
 		data:   `{"orderId":"739113577038255616","ts":1761888808839}`,
 	}), liveUnavailable)
 	result, err := ex.PlaceFuturesOrder(t.Context(), &FuturesOrderRequest{
@@ -101,6 +110,7 @@ func TestPlaceFuturesOrder(t *testing.T) {
 		Volume:                  1,
 		Leverage:                20,
 		Side:                    FuturesSideOpenShort,
+		SideType:                FuturesSideTypeSell,
 		Type:                    FuturesOrderTypeMarket,
 		OpenType:                FuturesOpenTypeIsolated,
 		StopLossPrice:           120000,
@@ -120,6 +130,8 @@ func TestPlaceFuturesBatchOrders(t *testing.T) {
 	require.ErrorIs(t, err, errTooManyOrders)
 	_, err = e.PlaceFuturesBatchOrders(t.Context(), []FuturesOrderRequest{{Symbol: "BTC_USDT"}})
 	require.ErrorIs(t, err, errInvalidOrderSide, "an invalid order must fail the batch before it is sent")
+	_, err = e.PlaceFuturesBatchOrders(t.Context(), []FuturesOrderRequest{{Symbol: "BTC_USDT", Volume: 1, Side: FuturesSideOpenShort, SideType: "short", Type: FuturesOrderTypeMarket, OpenType: FuturesOpenTypeCross}})
+	require.ErrorIs(t, err, errInvalidSideType, "an order with an unknown side type must fail the batch before it is sent")
 
 	ex := testExchangeFor(t, futuresHandler(t, futuresRoute{
 		method: http.MethodPost,
@@ -519,7 +531,7 @@ func TestGetFuturesPlanOrders(t *testing.T) {
 	_, err := e.GetFuturesPlanOrders(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
 	_, err = e.GetFuturesPlanOrders(t.Context(), &FuturesPlanOrdersRequest{})
-	require.ErrorIs(t, err, common.ErrDateUnset, "the venue requires both bounds of the window")
+	require.ErrorIs(t, err, common.ErrDateUnset, "GetFuturesPlanOrders must refuse a window without both bounds, which the venue requires")
 	_, err = e.GetFuturesPlanOrders(t.Context(), &FuturesPlanOrdersRequest{StartTime: start, EndTime: start.Add(time.Hour), Side: 9})
 	require.ErrorIs(t, err, errInvalidOrderSide)
 
@@ -675,7 +687,7 @@ func TestPlaceFuturesTakeProfitStopLossOrder(t *testing.T) {
 	_, err = e.PlaceFuturesTakeProfitStopLossOrder(t.Context(), &FuturesTakeProfitStopLossRequest{PositionID: 1, Volume: 1, LossTrend: 1, ProfitTrend: 1})
 	require.ErrorIs(t, err, errInvalidTakeProfitStopLoss)
 	_, err = e.PlaceFuturesTakeProfitStopLossOrder(t.Context(), &FuturesTakeProfitStopLossRequest{PositionID: 1, Volume: 1, StopLossPrice: 1, ProfitTrend: 1})
-	require.ErrorIs(t, err, errInvalidPriceType, "the venue requires both price types")
+	require.ErrorIs(t, err, errInvalidPriceType, "PlaceFuturesTakeProfitStopLossOrder must refuse a request without both price types, which the venue requires")
 
 	ex := testExchangeFor(t, futuresHandler(t, futuresRoute{
 		method: http.MethodPost,

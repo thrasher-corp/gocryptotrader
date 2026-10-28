@@ -90,6 +90,7 @@ var (
 	errInvalidLeverage              = errors.New("leverage must be positive")
 	errInvalidOpenType              = errors.New("invalid open type")
 	errInvalidOrderSide             = errors.New("invalid futures order side")
+	errInvalidSideType              = errors.New("invalid futures order side type")
 	errInvalidPositionType          = errors.New("invalid position type")
 	errInvalidPositionMode          = errors.New("invalid position mode")
 	errInvalidPriceType             = errors.New("invalid trigger price type")

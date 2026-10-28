@@ -92,6 +92,8 @@ func TestFeaturesMatchImplementation(t *testing.T) {
 		MultiChainWithdrawals: true,
 		AutoPairUpdates:       true,
 		FundingRateFetching:   true,
+		// Spot and futures are separate wallets
+		HasAssetTypeAccountSegregation: true,
 	}, ex.Features.Supports.RESTCapabilities, "the REST capabilities should match the implemented wrapper methods")
 	assert.Equal(t, protocol.Features{
 		TickerFetching:         true,

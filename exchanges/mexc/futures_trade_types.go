@@ -15,6 +15,12 @@ const (
 	FuturesSideCloseLong  = 4
 )
 
+// Futures order directions, the sideType a single order names
+const (
+	FuturesSideTypeBuy  = "buy"
+	FuturesSideTypeSell = "sell"
+)
+
 // Futures order types
 const (
 	FuturesOrderTypeLimit             = 1
@@ -72,11 +78,14 @@ const (
 // FuturesOrderRequest holds the parameters of a futures order. Price is unused by market orders, and Volume is in
 // contracts
 type FuturesOrderRequest struct {
-	Symbol          string  `json:"symbol"`
-	Price           float64 `json:"price,omitempty"`
-	Volume          float64 `json:"vol"`
-	Leverage        uint64  `json:"leverage,omitempty"`
-	Side            uint8   `json:"side"`
+	Symbol   string  `json:"symbol"`
+	Price    float64 `json:"price,omitempty"`
+	Volume   float64 `json:"vol"`
+	Leverage uint64  `json:"leverage,omitempty"`
+	Side     uint8   `json:"side"`
+	// SideType is FuturesSideTypeBuy for an order opening a long or closing a short and FuturesSideTypeSell for one
+	// opening a short or closing a long. The single order endpoint requires it; the batch endpoint doesn't list it
+	SideType        string  `json:"sideType,omitempty"`
 	Type            uint8   `json:"type"`
 	OpenType        uint8   `json:"openType"`
 	ExternalOrderID string  `json:"externalOid,omitempty"`

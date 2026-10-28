@@ -231,9 +231,33 @@ var defaultSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.Futures, Channel: FuturesPositionsChannel, Authenticated: true},
 }
 
-// generateSubscriptions returns a list of subscriptions from the configured subscriptions feature
-func (e *Exchange) generateSubscriptions() (subscription.List, error) {
-	return e.Features.Subscriptions.ExpandTemplates(e)
+// generateSubscriptions returns the configured subscriptions, each expanded on its own so that one which can't be, such
+// as a futures channel or interval the venue doesn't serve, leaves the others. Why one failed is returned with
+// websocket.ErrSubscriptionPartial when reports names it, or for every one when reports is nil, so that only the
+// connection serving a subscription reports it
+func (e *Exchange) generateSubscriptions(reports func(*subscription.Subscription) bool) (subscription.List, error) {
+	var subs subscription.List
+	var errs error
+	for _, s := range e.Features.Subscriptions {
+		expanded, err := subscription.List{s}.ExpandTemplates(e)
+		if err != nil {
+			if reports == nil || reports(s) {
+				errs = common.AppendError(errs, err)
+			}
+			continue
+		}
+		subs = append(subs, expanded...)
+	}
+	if errs != nil {
+		return subs, fmt.Errorf("%w: %w", websocket.ErrSubscriptionPartial, errs)
+	}
+	return subs, nil
+}
+
+// isSpotSubscription reports whether a configured subscription is to a spot channel, whose failure to expand the spot
+// connections report
+func isSpotSubscription(s *subscription.Subscription) bool {
+	return s.Asset == asset.Spot
 }
 
 // isPrivateChannel reports whether an expanded subscription is to a private channel, which is only served
@@ -249,7 +273,7 @@ func isPrivateChannel(s *subscription.Subscription) bool {
 
 // generatePublicSubscriptions returns the configured subscriptions to the public spot channels
 func (e *Exchange) generatePublicSubscriptions() (subscription.List, error) {
-	subs, err := e.generateSubscriptions()
+	subs, err := e.generateSubscriptions(isSpotSubscription)
 	return slices.DeleteFunc(subs, func(s *subscription.Subscription) bool { return s.Asset != asset.Spot || isPrivateChannel(s) }), err
 }
 
@@ -259,7 +283,7 @@ func (e *Exchange) generatePrivateSubscriptions() (subscription.List, error) {
 	if !e.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, nil
 	}
-	subs, err := e.generateSubscriptions()
+	subs, err := e.generateSubscriptions(isSpotSubscription)
 	return slices.DeleteFunc(subs, func(s *subscription.Subscription) bool { return s.Asset != asset.Spot || !isPrivateChannel(s) }), err
 }
 

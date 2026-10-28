@@ -468,7 +468,7 @@ func TestGetFuturesInsuranceFundBalances(t *testing.T) {
 	t.Parallel()
 	result, err := e.GetFuturesInsuranceFundBalances(t.Context(), futuresTradablePair)
 	require.NoError(t, err, "GetFuturesInsuranceFundBalances must not error")
-	require.Len(t, result, 1, "the venue answers a symbol with one balance, though its docs show a list")
+	require.Len(t, result, 1, "GetFuturesInsuranceFundBalances must return one balance for a symbol, though the docs show a list")
 	if mockTests {
 		exp := &FuturesInsuranceFundResponse{Symbol: "BTC_USDT", Currency: currency.USDT, Available: 118554864.79198489, Timestamp: types.Time(time.UnixMilli(1792843039451))}
 		assert.Equal(t, exp, result[0], "GetFuturesInsuranceFundBalances should decode every field")

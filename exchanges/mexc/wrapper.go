@@ -83,6 +83,8 @@ func (e *Exchange) SetDefaults() {
 				MultiChainWithdrawals: true,
 				AutoPairUpdates:       true,
 				FundingRateFetching:   true,
+				// Spot and futures are separate wallets, funded by transfers, so each is polled for balances
+				HasAssetTypeAccountSegregation: true,
 			},
 			// The spot websocket carries market data and account pushes only; orders are placed over REST.
 			// Subscribe and Unsubscribe are left off, so a flush reconnects from scratch: the websocket
@@ -1086,6 +1088,7 @@ func (e *Exchange) submitFuturesOrder(ctx context.Context, s *order.Submit) (*or
 		Volume:          s.Amount,
 		Leverage:        leverage,
 		Side:            side,
+		SideType:        futuresSideType(side),
 		Type:            orderType,
 		OpenType:        openType,
 		ExternalOrderID: s.ClientOrderID,
@@ -1873,7 +1876,8 @@ func (e *Exchange) appendFuturesOrders(ctx context.Context, details *[]order.Det
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status. Without a start and end time the venue returns the
-// last 24 hours of orders, and it serves at most the last 7 days.
+// last 24 hours of spot orders, and it serves at most the last 7 days of them. Futures orders are read
+// in 90 day parts up to now, and without a start and end time the venue returns the last 7 days.
 func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	if err := getOrdersRequest.Validate(); err != nil {
 		return nil, err
@@ -1952,8 +1956,13 @@ func futuresHistoryWindows(start, end time.Time) []historyWindow {
 	if start.IsZero() || end.IsZero() || !end.After(start) {
 		return []historyWindow{{start: start, end: end}}
 	}
+	now := time.Now()
 	var windows []historyWindow
 	for from := start; from.Before(end); from = from.Add(futuresHistoryWindow) {
+		if len(windows) > 0 && from.After(now) {
+			// A later window starting after now could hold no orders, and its request would be refused
+			break
+		}
 		to := from.Add(futuresHistoryWindow)
 		if to.After(end) {
 			to = end
@@ -2931,6 +2940,18 @@ func futuresOrderSide(side order.Side, reduceOnly bool) (uint8, error) {
 		return FuturesSideOpenShort, nil
 	}
 	return 0, fmt.Errorf("%w: %v", order.ErrSideIsInvalid, side)
+}
+
+// futuresSideType returns the side type the venue names a futures side by: buy for opening a long or closing a short,
+// and sell for opening a short or closing a long. An unknown side has none
+func futuresSideType(side uint8) string {
+	switch side {
+	case FuturesSideOpenLong, FuturesSideCloseShort:
+		return FuturesSideTypeBuy
+	case FuturesSideOpenShort, FuturesSideCloseLong:
+		return FuturesSideTypeSell
+	}
+	return ""
 }
 
 // orderSideFromFuturesSide returns an order's side and whether it only reduces a position

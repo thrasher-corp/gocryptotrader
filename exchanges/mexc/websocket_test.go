@@ -214,13 +214,21 @@ func TestSubscriptionAccepted(t *testing.T) {
 	assert.True(t, subscriptionAccepted("UNSUBSCRIPTION", ch, ch), "an echoed channel means the unsubscribe was accepted")
 }
 
+func TestIsSpotSubscription(t *testing.T) {
+	t.Parallel()
+	assert.True(t, isSpotSubscription(&subscription.Subscription{Asset: asset.Spot}), "a spot subscription should be served by the spot connections")
+	for _, a := range []asset.Item{asset.Futures, asset.All, asset.Empty} {
+		assert.Falsef(t, isSpotSubscription(&subscription.Subscription{Asset: a}), "a subscription for asset %q should not be served by the spot connections", a)
+	}
+}
+
 func TestGenerateSubscriptionsIncludesMiniTicker(t *testing.T) {
 	t.Parallel()
 	// A fresh instance: the live websocket tests' testexch.SetupWs empties the shared one's subscriptions.
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Setup must not error")
 	require.NoError(t, ex.setEnabledPairs(spotTradablePair), "setEnabledPairs must not error")
-	subs, err := ex.generateSubscriptions()
+	subs, err := ex.generateSubscriptions(nil)
 	require.NoError(t, err, "generateSubscriptions must not error")
 	var found bool
 	for _, s := range subs {

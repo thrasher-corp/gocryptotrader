@@ -56,6 +56,9 @@ func validateFuturesOrder(o *FuturesOrderRequest) error {
 	if !validFuturesSide(o.Side) {
 		return fmt.Errorf("%w: %d", errInvalidOrderSide, o.Side)
 	}
+	if o.SideType != "" && o.SideType != FuturesSideTypeBuy && o.SideType != FuturesSideTypeSell {
+		return fmt.Errorf("%w: %q", errInvalidSideType, o.SideType)
+	}
 	if o.Type < FuturesOrderTypeLimit || o.Type > FuturesOrderTypeMarketToLimit {
 		return fmt.Errorf("%w: %d", order.ErrUnsupportedOrderType, o.Type)
 	}
@@ -115,10 +118,13 @@ func joinFuturesStates(states []uint8) string {
 	return strings.Join(parts, ",")
 }
 
-// PlaceFuturesOrder places a futures order
+// PlaceFuturesOrder places a futures order, which must name its side type
 func (e *Exchange) PlaceFuturesOrder(ctx context.Context, req *FuturesOrderRequest) (*FuturesOrderPlacementResponse, error) {
 	if err := validateFuturesOrder(req); err != nil {
 		return nil, err
+	}
+	if req.SideType == "" {
+		return nil, fmt.Errorf("%w: unset", errInvalidSideType)
 	}
 	var resp *FuturesOrderPlacementResponse
 	return resp, e.SendFuturesHTTPRequest(ctx, futuresPlaceOrderEPL, http.MethodPost, "private/order/create", nil, req, &resp, true)

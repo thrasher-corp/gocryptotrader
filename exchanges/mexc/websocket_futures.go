@@ -210,8 +210,9 @@ func (e *Exchange) WebsocketFuturesSubscribe(ctx context.Context, conn websocket
 	return errs
 }
 
-// WebsocketFuturesUnsubscribe unsubscribes from public futures channels. The venue does not answer an
-// unsubscription, so it is sent with the parameters the subscription was, which the venue needs to match them
+// WebsocketFuturesUnsubscribe unsubscribes from public futures channels, with the parameters each subscription was sent
+// with, which the venue needs to match them. No answer is waited for, as the venue sends none for a listed contract; it
+// does refuse an unsubscription naming a contract it doesn't list
 func (e *Exchange) WebsocketFuturesUnsubscribe(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
 	var errs error
 	for _, s := range subs {
@@ -280,7 +281,7 @@ func isFuturesPrivateChannel(s *subscription.Subscription) bool {
 
 // generateFuturesPublicSubscriptions returns the configured subscriptions to the public futures channels
 func (e *Exchange) generateFuturesPublicSubscriptions() (subscription.List, error) {
-	subs, err := e.generateSubscriptions()
+	subs, err := e.generateSubscriptions(func(s *subscription.Subscription) bool { return s.Asset == asset.Futures && isFuturesPairChannel(s) })
 	return slices.DeleteFunc(subs, func(s *subscription.Subscription) bool {
 		return s.Asset != asset.Futures || isFuturesPrivateChannel(s)
 	}), err
@@ -292,23 +293,23 @@ func (e *Exchange) generateFuturesPrivateSubscriptions() (subscription.List, err
 	if !e.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, nil
 	}
-	subs, err := e.generateSubscriptions()
+	subs, err := e.generateSubscriptions(func(s *subscription.Subscription) bool { return s.Asset == asset.Futures && !isFuturesPairChannel(s) })
 	return slices.DeleteFunc(subs, func(s *subscription.Subscription) bool {
 		return s.Asset != asset.Futures || !isFuturesPrivateChannel(s)
 	}), err
 }
 
 // futuresQualifiedChannel returns a futures subscription's qualified channel for a pair, the venue's channel and
-// its parameters; it is empty for a channel the venue does not serve, which fails the subscription's expansion
-func futuresQualifiedChannel(s *subscription.Subscription, pair currency.Pair) string {
+// its parameters; a channel the venue does not serve fails the subscription's expansion with the reason
+func futuresQualifiedChannel(s *subscription.Subscription, pair currency.Pair) (string, error) {
 	if private, ok := futuresPrivateChannels[s.Channel]; ok {
-		return private
+		return private, nil
 	}
 	sub := s.Clone()
 	sub.Pairs = currency.Pairs{pair}
 	method, params, err := futuresChannelRequest(sub)
 	if err != nil {
-		return ""
+		return "", err
 	}
 	qualified := method + futuresQualifiedSeparator + params.Symbol
 	switch {
@@ -317,7 +318,7 @@ func futuresQualifiedChannel(s *subscription.Subscription, pair currency.Pair) s
 	case params.Limit != 0:
 		qualified += futuresQualifiedSeparator + strconv.FormatUint(params.Limit, 10)
 	}
-	return qualified
+	return qualified, nil
 }
 
 // isFuturesPairChannel reports whether a futures subscription is made per pair

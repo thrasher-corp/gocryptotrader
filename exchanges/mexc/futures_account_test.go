@@ -683,7 +683,7 @@ func TestChangeFuturesMultiAssetMode(t *testing.T) {
 	t.Parallel()
 	replay := futuresHandler(t, futuresRoute{method: http.MethodPost, path: "private/multiAssets/changeMultiAssetMode/true"})
 	ex := testExchangeFor(t, func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "application/x-www-form-urlencoded", r.Header.Get("Content-Type"), "the venue documents a form request")
+		assert.Equal(t, "application/x-www-form-urlencoded", r.Header.Get("Content-Type"), "ChangeFuturesMultiAssetMode should send a form request, as the venue documents")
 		replay(w, r)
 	}, liveUnavailable)
 	require.NoError(t, ex.ChangeFuturesMultiAssetMode(t.Context(), true), "ChangeFuturesMultiAssetMode must not error")

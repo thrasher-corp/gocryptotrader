@@ -545,6 +545,31 @@ func TestFuturesHistoryWindows(t *testing.T) {
 		{start: start.Add(2 * futuresHistoryWindow), end: end},
 	}
 	assert.Equal(t, exp, futuresHistoryWindows(start, end), "a 200 day window should be read in parts of at most 90 days, each following on from the one before")
+
+	now := time.Now()
+	day := 24 * time.Hour
+	for _, tc := range []struct {
+		name       string
+		start, end time.Time
+		parts      int
+	}{
+		{name: "a window ending in the future", start: now.Add(-30 * day), end: now.Add(61 * day), parts: 1},
+		{name: "a later part starting before now and ending after it", start: now.Add(-100 * day), end: now.Add(100 * day), parts: 2},
+		{name: "a later part starting a minute before now", start: now.Add(-futuresHistoryWindow - time.Minute), end: now.Add(10 * day), parts: 2},
+		{name: "a later part starting a minute after now", start: now.Add(-futuresHistoryWindow + time.Minute), end: now.Add(10 * day), parts: 1},
+		{name: "a window starting after now, for the request to refuse", start: now.Add(day), end: now.Add(2 * day), parts: 1},
+	} {
+		exp := make([]historyWindow, tc.parts)
+		for i := range exp {
+			from := tc.start.Add(time.Duration(i) * futuresHistoryWindow)
+			to := from.Add(futuresHistoryWindow)
+			if to.After(tc.end) {
+				to = tc.end
+			}
+			exp[i] = historyWindow{start: from, end: to}
+		}
+		assert.Equalf(t, exp, futuresHistoryWindows(tc.start, tc.end), "%s should be read in its parts starting before now", tc.name)
+	}
 }
 
 func TestFuturesOrderSide(t *testing.T) {
@@ -573,6 +598,20 @@ func TestFuturesOrderSide(t *testing.T) {
 	side, reduceOnly := orderSideFromFuturesSide(9)
 	assert.Equal(t, order.UnknownSide, side, "an unknown side should not be guessed")
 	assert.False(t, reduceOnly, "an unknown side should not reduce")
+}
+
+func TestFuturesSideType(t *testing.T) {
+	t.Parallel()
+	for side, exp := range map[uint8]string{
+		FuturesSideOpenLong:   FuturesSideTypeBuy,
+		FuturesSideCloseShort: FuturesSideTypeBuy,
+		FuturesSideOpenShort:  FuturesSideTypeSell,
+		FuturesSideCloseLong:  FuturesSideTypeSell,
+		0:                     "",
+		5:                     "",
+	} {
+		assert.Equalf(t, exp, futuresSideType(side), "side %d should have side type %q", side, exp)
+	}
 }
 
 func TestFuturesPositionSide(t *testing.T) {
@@ -826,7 +865,7 @@ func TestSubmitOrderFutures(t *testing.T) {
 		}, futuresRoute{
 			method: http.MethodPost,
 			path:   "private/order/create",
-			body:   `{"symbol":"BTC_USDT","price":50000,"vol":1,"leverage":20,"side":1,"type":1,"openType":1,"externalOid":"gct-1","stpMode":0}`,
+			body:   `{"symbol":"BTC_USDT","price":50000,"vol":1,"leverage":20,"side":1,"sideType":"buy","type":1,"openType":1,"externalOid":"gct-1","stpMode":0}`,
 			data:   `{"orderId":"739113577038255616","ts":1761888808839}`,
 		}), liveUnavailable)
 		resp, err := submit(ex, order.Submit{Side: order.Buy, Type: order.Limit, Price: 50000, Amount: 1, ClientOrderID: "gct-1"})
@@ -875,15 +914,15 @@ func TestSubmitOrderFutures(t *testing.T) {
 	}{
 		"cross close": {
 			positions: "[" + isolatedLong + "," + crossLong + "]", marginType: margin.Multi,
-			body: `{"symbol":"BTC_USDT","vol":2,"side":4,"type":5,"openType":2,"positionId":1109973832,"stpMode":0}`, exp: margin.Multi,
+			body: `{"symbol":"BTC_USDT","vol":2,"side":4,"sideType":"sell","type":5,"openType":2,"positionId":1109973832,"stpMode":0}`, exp: margin.Multi,
 		},
 		"close of the position's margin mode": {
 			positions: "[" + crossLong + "]",
-			body:      `{"symbol":"BTC_USDT","vol":2,"side":4,"type":5,"openType":2,"positionId":1109973832,"stpMode":0}`, exp: margin.Multi,
+			body:      `{"symbol":"BTC_USDT","vol":2,"side":4,"sideType":"sell","type":5,"openType":2,"positionId":1109973832,"stpMode":0}`, exp: margin.Multi,
 		},
 		"close without a position": {
 			positions: "[]",
-			body:      `{"symbol":"BTC_USDT","vol":2,"side":4,"type":5,"openType":1,"stpMode":0}`, exp: margin.Isolated,
+			body:      `{"symbol":"BTC_USDT","vol":2,"side":4,"sideType":"sell","type":5,"openType":1,"stpMode":0}`, exp: margin.Isolated,
 		},
 		"close of either margin mode": {positions: "[" + isolatedLong + "," + crossLong + "]", err: errMarginTypeAmbiguous},
 	} {
@@ -915,6 +954,101 @@ func TestSubmitOrderFutures(t *testing.T) {
 				MarginType:  tc.exp,
 			}
 			assert.Equal(t, exp, resp, "the closing order should be returned with the closed position's margin type")
+		})
+	}
+}
+
+func TestSubmitFuturesOrder(t *testing.T) {
+	t.Parallel()
+	// Each side's order names its side type: buy to open a long or close a short, and sell otherwise
+	for _, tc := range []struct {
+		side       order.Side
+		reduceOnly bool
+		body       string
+	}{
+		{side: order.Buy, body: `{"symbol":"BTC_USDT","vol":1,"side":1,"sideType":"buy","type":5,"openType":2,"stpMode":0}`},
+		{side: order.Sell, body: `{"symbol":"BTC_USDT","vol":1,"side":3,"sideType":"sell","type":5,"openType":2,"stpMode":0}`},
+		{side: order.Buy, reduceOnly: true, body: `{"symbol":"BTC_USDT","vol":1,"side":2,"sideType":"buy","type":5,"openType":2,"stpMode":0}`},
+		{side: order.Sell, reduceOnly: true, body: `{"symbol":"BTC_USDT","vol":1,"side":4,"sideType":"sell","type":5,"openType":2,"stpMode":0}`},
+	} {
+		t.Run(tc.side.String()+" reducing "+strconv.FormatBool(tc.reduceOnly), func(t *testing.T) {
+			t.Parallel()
+			ex := testExchangeFor(t, futuresHandler(
+				t,
+				futuresRoute{method: http.MethodGet, path: "private/position/open_positions", query: "symbol=BTC_USDT", data: "[]"},
+				futuresRoute{method: http.MethodPost, path: "private/order/create", body: tc.body, data: `{"orderId":"739113577038255618","ts":1761888808841}`},
+			), liveUnavailable)
+			resp, err := ex.submitFuturesOrder(t.Context(), &order.Submit{
+				Exchange:   ex.Name,
+				AssetType:  asset.Futures,
+				Pair:       futuresTradablePair,
+				Side:       tc.side,
+				Type:       order.Market,
+				Amount:     1,
+				ReduceOnly: tc.reduceOnly,
+				MarginType: margin.Multi,
+			})
+			require.NoError(t, err, "submitFuturesOrder must not error")
+			assert.Equal(t, "739113577038255618", resp.OrderID, "submitFuturesOrder should return the placed order's ID")
+		})
+	}
+
+	unidentifiedLong := strings.NewReplacer(`"positionId":1109973831`, `"positionId":0`, `"openType":1`, `"openType":2`).Replace(futuresOpenPositionReply)
+	for _, tc := range []struct {
+		name    string
+		side    order.Side
+		handler func(*testing.T) http.HandlerFunc
+		err     error
+	}{
+		{
+			name:    "unknown side",
+			side:    order.AnySide,
+			handler: func(t *testing.T) http.HandlerFunc { t.Helper(); return futuresHandler(t) },
+			err:     order.ErrSideIsInvalid,
+		},
+		{
+			name: "closed position without an ID",
+			side: order.Sell,
+			handler: func(t *testing.T) http.HandlerFunc {
+				t.Helper()
+				return futuresHandler(t, futuresRoute{method: http.MethodGet, path: "private/position/open_positions", query: "symbol=BTC_USDT", data: "[" + unidentifiedLong + "]"})
+			},
+			err: errInvalidFuturesID,
+		},
+		{
+			name: "order refused",
+			side: order.Buy,
+			handler: func(*testing.T) http.HandlerFunc {
+				return func(w http.ResponseWriter, _ *http.Request) {
+					_, _ = w.Write([]byte(`{"success":false,"code":2005,"message":"Insufficient balance"}`))
+				}
+			},
+			err: errFuturesRequestFailed,
+		},
+		{
+			name: "order without an ID",
+			side: order.Buy,
+			handler: func(t *testing.T) http.HandlerFunc {
+				t.Helper()
+				return futuresHandler(t, futuresRoute{method: http.MethodPost, path: "private/order/create", data: `{}`})
+			},
+			err: common.ErrNoResponse,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := testExchangeFor(t, tc.handler(t), liveUnavailable)
+			_, err := ex.submitFuturesOrder(t.Context(), &order.Submit{
+				Exchange:   ex.Name,
+				AssetType:  asset.Futures,
+				Pair:       futuresTradablePair,
+				Side:       tc.side,
+				Type:       order.Market,
+				Amount:     1,
+				ReduceOnly: tc.name == "closed position without an ID",
+				MarginType: margin.Multi,
+			})
+			assert.ErrorIs(t, err, tc.err, "submitFuturesOrder should return why the order was not placed")
 		})
 	}
 }
@@ -1772,6 +1906,54 @@ func TestGetHistoricCandlesExtendedFuturesPages(t *testing.T) {
 	require.NoError(t, err, "GetHistoricCandlesExtended must request a later page after a page without candles")
 	require.Len(t, result.Candles, len(exp.Candles), "GetHistoricCandlesExtended must return as many candles as the window has hours")
 	assert.Equal(t, exp.Candles[4:], result.Candles[4:], "GetHistoricCandlesExtended should return a later page's candles after a page without any")
+
+	// A contract listed part-way through a page: the venue returns only that page's later candles
+	shortFirstPage := firstPage
+	shortFirstPage.data = `{"time":[1792807200,1792810800],"open":[80898.9,80963.4],"close":[80963.4,80943.9],` +
+		`"high":[80965.0,81068.6],"low":[80801.5,80811.0],"vol":[4030439.0,5675471.0],` +
+		`"amount":[3.260778647078E7,4.592740441558E7],"realOpen":[80899.0,80963.5],"realClose":[80963.4,80943.9],` +
+		`"realHigh":[80965.0,81068.6],"realLow":[80801.5,80811.0]}`
+	listed := testExchangeFor(t, futuresHandler(t, futuresContractsRoute, shortFirstPage, lastPage), liveUnavailable)
+	listed.Features.Enabled.Kline.GlobalResultLimit = 4
+	result, err = listed.GetHistoricCandlesExtended(t.Context(), futuresTradablePair, asset.Futures, kline.OneHour, start, end)
+	require.NoError(t, err, "GetHistoricCandlesExtended must request a later page after a short one")
+	require.Len(t, result.Candles, len(exp.Candles), "GetHistoricCandlesExtended must return as many candles as the window has hours")
+	assert.Equal(t, exp.Candles[2:], result.Candles[2:], "GetHistoricCandlesExtended should return a short page's candles and a later page's")
+}
+
+func TestGetHistoricCandlesExtendedSpotPages(t *testing.T) {
+	t.Parallel()
+	// The venue's replies, taken live, to futuresWindow's hourly spot candles in one request, and in pages of four
+	// candles: a full page and a shorter last one
+	const (
+		firstHours = `[1792800000000,"81191.74","81212.9","80620","80630","147.64025561",1792803600000,"11935230.06"],` +
+			`[1792803600000,"80630","80953","80630","80933.23","80.673352",1792807200000,"6517384.56"],` +
+			`[1792807200000,"80933.23","80983.04","80850","80983.04","49.38711222",1792810800000,"3996840.34"],` +
+			`[1792810800000,"80983.04","81085.32","80850","80969.06","111.40396556",1792814400000,"9018551.56"]`
+		lastHours = `[1792814400000,"80969.06","81080.49","80843.25","80876.59","111.92291902",1792818000000,"9056775.13"],` +
+			`[1792818000000,"80876.59","80889.6","80735.77","80769.99","227.05720215",1792821600000,"18342770.26"]`
+	)
+	replies := map[string]string{
+		"endTime=1792821600000&interval=60m&startTime=1792800000000&symbol=BTCUSDT":         "[" + firstHours + "," + lastHours + "]",
+		"endTime=1792814400000&interval=60m&limit=4&startTime=1792800000000&symbol=BTCUSDT": "[" + firstHours + "]",
+		"endTime=1792821600000&interval=60m&limit=4&startTime=1792814400000&symbol=BTCUSDT": "[" + lastHours + "]",
+	}
+	ex := testExchangeFor(t, func(w http.ResponseWriter, r *http.Request) {
+		reply, ok := replies[r.URL.RawQuery]
+		if r.URL.Path != "/api/v3/klines" || !ok {
+			http.Error(w, `{"msg":"unexpected request","code":-1}`, http.StatusBadRequest)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(reply))
+	}, liveUnavailable)
+	start, end := futuresWindow()
+	exp, err := ex.GetHistoricCandles(t.Context(), spotTradablePair, asset.Spot, kline.OneHour, start, end)
+	require.NoError(t, err, "GetHistoricCandles must not error")
+	ex.Features.Enabled.Kline.GlobalResultLimit = 4
+	result, err := ex.GetHistoricCandlesExtended(t.Context(), spotTradablePair, asset.Spot, kline.OneHour, start, end)
+	require.NoError(t, err, "GetHistoricCandlesExtended must request each spot page of the window")
+	assert.Equal(t, exp.Candles, result.Candles, "GetHistoricCandlesExtended should return the candles of every spot page")
 }
 
 // futuresNoCandlesReply is the venue's candle data for a window without candles
@@ -1791,6 +1973,7 @@ func candleSources() []candleSource {
 		{a: asset.Spot, pair: spotTradablePair, interval: kline.ThreeMin, source: "1m"},
 		{a: asset.Spot, pair: spotTradablePair, interval: kline.TenMin, source: "5m"},
 		{a: asset.Spot, pair: spotTradablePair, interval: kline.TwoHour, source: "60m"},
+		{a: asset.Spot, pair: spotTradablePair, interval: kline.SixHour, source: "60m"},
 		{a: asset.Spot, pair: spotTradablePair, interval: kline.TwelveHour, source: "4h"},
 		{a: asset.Spot, pair: spotTradablePair, interval: kline.ThreeDay, source: "1d"},
 		{a: asset.Spot, pair: spotTradablePair, interval: kline.TwoWeek, source: "1W"},
@@ -1798,6 +1981,7 @@ func candleSources() []candleSource {
 		{a: asset.Futures, pair: futuresTradablePair, interval: kline.ThreeMin, source: "Min1"},
 		{a: asset.Futures, pair: futuresTradablePair, interval: kline.TenMin, source: "Min5"},
 		{a: asset.Futures, pair: futuresTradablePair, interval: kline.TwoHour, source: "Min60"},
+		{a: asset.Futures, pair: futuresTradablePair, interval: kline.SixHour, source: "Min60"},
 		{a: asset.Futures, pair: futuresTradablePair, interval: kline.TwelveHour, source: "Hour4"},
 		{a: asset.Futures, pair: futuresTradablePair, interval: kline.ThreeDay, source: "Day1"},
 		{a: asset.Futures, pair: futuresTradablePair, interval: kline.TwoWeek, source: "Week1"},

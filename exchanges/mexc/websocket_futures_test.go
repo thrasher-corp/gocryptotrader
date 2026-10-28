@@ -791,6 +791,35 @@ func TestFuturesChannelRequest(t *testing.T) {
 	assert.ErrorIs(t, err, kline.ErrUnsupportedInterval)
 }
 
+func TestFuturesQualifiedChannel(t *testing.T) {
+	t.Parallel()
+	pair := currency.NewBTCUSDT()
+	for _, tc := range []struct {
+		sub *subscription.Subscription
+		exp string
+	}{
+		{&subscription.Subscription{Channel: subscription.TickerChannel}, "ticker@BTC_USDT"},
+		{&subscription.Subscription{Channel: subscription.OrderbookChannel, Levels: 5}, "depth.full@BTC_USDT@5"},
+		{&subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.FourHour}, "kline@BTC_USDT@Hour4"},
+		{&subscription.Subscription{Channel: subscription.MyOrdersChannel}, "personal.order"},
+	} {
+		qualified, err := futuresQualifiedChannel(tc.sub, pair)
+		require.NoErrorf(t, err, "futuresQualifiedChannel must not error for %s", tc.sub.Channel)
+		assert.Equalf(t, tc.exp, qualified, "%s should be qualified as the venue names it", tc.sub.Channel)
+	}
+	for _, tc := range []struct {
+		sub *subscription.Subscription
+		err error
+	}{
+		{&subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.TenMin}, kline.ErrUnsupportedInterval},
+		{&subscription.Subscription{Channel: subscription.MyWalletChannel}, subscription.ErrNotSupported},
+	} {
+		qualified, err := futuresQualifiedChannel(tc.sub, pair)
+		assert.ErrorIsf(t, err, tc.err, "futuresQualifiedChannel should return why the venue does not serve %s", tc.sub.Channel)
+		assert.Emptyf(t, qualified, "futuresQualifiedChannel should qualify no channel for %s", tc.sub.Channel)
+	}
+}
+
 func TestGenerateFuturesSubscriptions(t *testing.T) {
 	t.Parallel()
 	ex := newFuturesWebsocketTestExchange(t)
@@ -829,6 +858,79 @@ func TestGenerateFuturesSubscriptions(t *testing.T) {
 	require.NoError(t, err, "generatePublicSubscriptions must not error")
 	for _, s := range spot {
 		assert.Equalf(t, asset.Spot, s.Asset, "the spot connection should not carry %s", s.QualifiedChannel)
+	}
+}
+
+func TestGenerateFuturesSubscriptionsUnserved(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		sub *subscription.Subscription
+		err error
+	}{
+		{sub: &subscription.Subscription{Enabled: true, Asset: asset.Futures, Channel: subscription.CandlesChannel, Interval: kline.TenMin}, err: kline.ErrUnsupportedInterval},
+		{sub: &subscription.Subscription{Enabled: true, Asset: asset.Futures, Channel: subscription.MyWalletChannel}, err: subscription.ErrNotSupported},
+	} {
+		for _, pairs := range []currency.Pairs{{futuresTradablePair}, {futuresTradablePair, futuresInversePair}} {
+			ex := newFuturesWebsocketTestExchange(t)
+			require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Futures, pairs, true), "StorePairs must not error")
+			ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+			ex.Features.Subscriptions = subscription.List{
+				{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel, Interval: kline.HundredMilliseconds},
+				{Enabled: true, Asset: asset.Futures, Channel: subscription.TickerChannel},
+				tc.sub,
+			}
+			public, err := ex.generateFuturesPublicSubscriptions()
+			require.ErrorIsf(t, err, websocket.ErrSubscriptionPartial, "a %s subscription the venue does not serve must leave the others for %s", tc.sub.Channel, pairs.Join())
+			assert.ErrorIsf(t, err, tc.err, "the expansion should say why the venue does not serve %s", tc.sub.Channel)
+			exp := make([]string, len(pairs))
+			for i, p := range pairs {
+				exp[i] = "ticker@" + p.String()
+			}
+			got := make([]string, len(public))
+			for i, s := range public {
+				got[i] = s.QualifiedChannel
+			}
+			assert.ElementsMatchf(t, exp, got, "the futures ticker should still be subscribed for %s", pairs.Join())
+			_, err = ex.generateFuturesPrivateSubscriptions()
+			assert.NoError(t, err, "the private futures connection should not report a public subscription")
+			spot, err := ex.generatePublicSubscriptions()
+			assert.NoError(t, err, "the spot connection should not report a futures subscription")
+			assert.Len(t, spot, 1, "the spot ticker should still be subscribed")
+			_, err = ex.generatePrivateSubscriptions()
+			assert.NoError(t, err, "the private spot connection should not report a futures subscription")
+		}
+	}
+}
+
+func TestGenerateSubscriptionsWildcardAsset(t *testing.T) {
+	t.Parallel()
+	ex := newFuturesWebsocketTestExchange(t)
+	ex.Features.Subscriptions = subscription.List{
+		{Enabled: true, Asset: asset.All, Channel: channelMiniTickerV3},
+		{Enabled: true, Asset: asset.Futures, Channel: subscription.CandlesChannel, Interval: kline.TenMin},
+	}
+	spot, err := ex.generatePublicSubscriptions()
+	require.NoError(t, err, "the spot connection must not report a futures subscription")
+	require.Len(t, spot, 1, "a subscription for every asset must still be expanded for spot")
+	assert.Equal(t, "spot@"+channelMiniTickerV3+"@BTCUSDT@"+miniTickerTimezone, spot[0].QualifiedChannel, "the spot mini ticker should be subscribed")
+}
+
+func TestWebsocketFuturesConnectUnservedSubscription(t *testing.T) {
+	t.Parallel()
+	for _, pairs := range []currency.Pairs{{futuresTradablePair}, {futuresTradablePair, futuresInversePair}} {
+		t.Run(pairs.Join(), func(t *testing.T) {
+			t.Parallel()
+			ex := newFuturesWebsocketTestExchange(t)
+			require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Futures, pairs, true), "StorePairs must not error")
+			err := connectFuturesVenue(t, ex, new(futuresVenue), subscription.List{
+				{Enabled: true, Asset: asset.Futures, Channel: subscription.TickerChannel},
+				{Enabled: true, Asset: asset.Futures, Channel: subscription.CandlesChannel, Interval: kline.TenMin},
+			})
+			require.ErrorIs(t, err, websocket.ErrSubscriptionPartial, "Connect must report the subscription the venue does not serve")
+			assert.ErrorIs(t, err, kline.ErrUnsupportedInterval, "Connect should say why the venue does not serve it")
+			assert.True(t, ex.Websocket.IsConnected(), "the websocket should stay connected for the subscriptions the venue serves")
+			assert.Len(t, ex.Websocket.GetSubscriptions(), len(pairs), "the futures ticker should be subscribed for each contract")
+		})
 	}
 }
 
