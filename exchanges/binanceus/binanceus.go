@@ -1416,8 +1416,11 @@ func (e *Exchange) WithdrawalHistory(ctx context.Context, c currency.Code, statu
 // returns FiatAssetHistory containing list of fiat asset records.
 func (e *Exchange) FiatWithdrawalHistory(ctx context.Context, arg *FiatWithdrawalRequestParams) (FiatAssetsHistory, error) {
 	var response FiatAssetsHistory
+	if arg == nil {
+		return response, common.ErrNilPointer
+	}
 	params := url.Values{}
-	if !arg.EndTime.IsZero() && !arg.EndTime.Before(time.Now()) {
+	if !arg.EndTime.IsZero() && !arg.EndTime.After(time.Now()) {
 		params.Set("endTime", strconv.FormatInt(arg.EndTime.UnixMilli(), 10))
 	}
 	if !arg.StartTime.IsZero() && !arg.StartTime.After(time.Now()) {
@@ -1548,8 +1551,11 @@ func (e *Exchange) DepositHistory(ctx context.Context, coin currency.Code, statu
 
 // FiatDepositHistory fetch your fiat (USD) deposit history as Fiat Assets History
 func (e *Exchange) FiatDepositHistory(ctx context.Context, arg *FiatWithdrawalRequestParams) (FiatAssetsHistory, error) {
+	if arg == nil {
+		return FiatAssetsHistory{}, common.ErrNilPointer
+	}
 	params := url.Values{}
-	if !arg.EndTime.IsZero() && !arg.EndTime.Before(time.Now()) {
+	if !arg.EndTime.IsZero() && !arg.EndTime.After(time.Now()) {
 		params.Set("endTime", strconv.FormatInt(arg.EndTime.UnixMilli(), 10))
 	}
 	if !arg.StartTime.IsZero() && !arg.StartTime.After(time.Now()) {
