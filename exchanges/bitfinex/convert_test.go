@@ -145,7 +145,7 @@ func TestOrderStatusFromBitfinex(t *testing.T) {
 		"POSTONLY CANCELED":                                 order.Cancelled,
 		"FILLORKILL CANCELED":                               order.Cancelled,
 		"IOC CANCELED was: PARTIALLY FILLED @ 1(-1)":        order.PartiallyFilledCancelled,
-		"INSUFFICIENT MARGIN was: PARTIALLY FILLED @ 1(-1)": order.InsufficientBalance,
+		"INSUFFICIENT MARGIN was: PARTIALLY FILLED @ 1(-1)": order.PartiallyFilledCancelled,
 		"EXECUTED @ 140.0(0.02) was ACTIVE (note:POSCLOSE)": order.Filled,
 		"RSN_DUST was: ACTIVE (note: POSCLOSE)":             order.Cancelled,
 		"INSUFFICIENT BALANCE (U1)":                         order.InsufficientBalance,
@@ -156,7 +156,8 @@ func TestOrderStatusFromBitfinex(t *testing.T) {
 		// An order closing a position keeps its note ahead of its fills, while open and once closed
 		"ACTIVE (note:POSCLOSE), PARTIALLY FILLED @ 0.008049(-0.41291886)":                                    order.PartiallyFilled,
 		"ACTIVE (note: POSCLOSE), PARTIALLY FILLED @ 0.008049(-0.2), PARTIALLY FILLED @ 0.00805(-0.21291886)": order.PartiallyFilled,
-		"INSUFFICIENT BALANCE (G1) was: ACTIVE (note:POSCLOSE), PARTIALLY FILLED @ 0.008049(-0.41291886)":     order.InsufficientBalance,
+		"INSUFFICIENT BALANCE (G1) was: ACTIVE (note:POSCLOSE), PARTIALLY FILLED @ 0.008049(-0.41291886)":     order.PartiallyFilledCancelled,
+		"INSUFFICIENT BALANCE (U1) was: ACTIVE (note:POSCLOSE)":                                               order.InsufficientBalance,
 		"CANCELED was: ACTIVE (note:POSCLOSE), PARTIALLY FILLED @ 0.008049(-0.2)":                             order.PartiallyFilledCancelled,
 		// Bitfinex cuts a status listing many fills short, keeping its end, and earlier cut one without marking it
 		"... 2365.3(53.94146517), PARTIALLY FILLED @ 2365.3(45.58642898), PARTIALLY FILLED @ 2365.3(100.0)":    order.PartiallyFilled,
@@ -165,8 +166,11 @@ func TestOrderStatusFromBitfinex(t *testing.T) {
 		"EXECUTED @ 2365.3(594.14534185): was ...LLED @ 2365.3(45.58642898), PARTIALLY FILLED @ 2365.3(100.0)": order.Filled,
 		"(-41.37139577), PARTIALLY FILLED @ 12.58(-15.53), PARTIALLY FILLED @ 12.58(-41.34952975)":             order.PartiallyFilled,
 		"LLED @ 12.58(-15.53), PARTIALLY FILLED @ 12.58(-41.34952975)":                                         order.PartiallyFilled,
-		"CANCELED was:  12.58(-15.53)":  order.PartiallyFilledCancelled,
-		"...LLED @ 2365.3(45.58642898)": order.UnknownStatus,
+		"CANCELED was:  12.58(-15.53)":                                 order.PartiallyFilledCancelled,
+		"INSUFFICIENT BALANCE (G1) was:  12.58(-15.53)":                order.PartiallyFilledCancelled,
+		"INSUFFICIENT BALANCE (G1) was: ...LLED @ 2365.3(45.58642898)": order.PartiallyFilledCancelled,
+		"INSUFFICIENT BALANCE (G1) was: LLED @ 12.58(-15.53)":          order.PartiallyFilledCancelled,
+		"...LLED @ 2365.3(45.58642898)":                                order.UnknownStatus,
 	} {
 		assert.Equalf(t, exp, orderStatusFromBitfinex(status), "orderStatusFromBitfinex should give %q's status", status)
 	}

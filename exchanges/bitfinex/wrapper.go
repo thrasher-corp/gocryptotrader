@@ -514,9 +514,13 @@ func addBookLevel(book *orderbook.Book, level wsBookLevel) {
 	book.Asks = append(book.Asks, l)
 }
 
-// UpdateAccountBalances stores and returns the balances of the wallet an asset trades from: exchange for spot, margin
-// for margin and funding for margin funding. The futures assets trade from the derivatives wallet, the margin wallet's
-// derivative currencies, each from the collateral it margins
+// UpdateAccountBalances stores the balances of every wallet and returns those of the wallet an asset trades from:
+// exchange for spot, margin for margin and funding for margin funding. The futures assets trade from the derivatives
+// wallet, the margin wallet's derivative currencies, each from the collateral it margins. Every wallet is stored, from
+// one read in one save, as the engine's portfolio manager updates spot alone, and wallets read apart could count a
+// transfer between them twice, or not at all. A wallet of a type it doesn't know funds no asset and is left out without
+// an error, as this read also validates the credentials. One of a type it knows but without a currency is reported, and
+// the read then removes no balance, as it cannot be taken to list every one
 func (e *Exchange) UpdateAccountBalances(ctx context.Context, a asset.Item) (accounts.SubAccounts, error) {
 	switch a {
 	case asset.Spot, asset.Margin, asset.MarginFunding, asset.USDTMarginedFutures, asset.CoinMarginedFutures:
@@ -527,15 +531,24 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, a asset.Item) (acc
 	if err != nil {
 		return nil, err
 	}
-	subAcct := accounts.NewSubAccount(a, "")
+	snapshot := make(accounts.SubAccounts, len(walletAssets))
+	for i, wa := range walletAssets {
+		snapshot[i] = accounts.NewSubAccount(wa, "")
+	}
+	var errs error
 	for i := range wallets {
-		if wa, err := walletAsset(wallets[i].Type, wallets[i].Currency); err != nil || wa != a {
+		wa, err := walletAsset(wallets[i].Type, wallets[i].Currency)
+		if err != nil {
 			continue
 		}
-		subAcct.Balances.Set(wallets[i].Currency, walletBalance(&wallets[i]))
+		if wallets[i].Currency.IsEmpty() {
+			errs = common.AppendError(errs, fmt.Errorf("%w: %s wallet", currency.ErrCurrencyCodeEmpty, wallets[i].Type))
+			continue
+		}
+		snapshot[slices.Index(walletAssets, wa)].Balances.Set(wallets[i].Currency, walletBalance(&wallets[i]))
 	}
-	subAccts := accounts.SubAccounts{subAcct}
-	return subAccts, e.Accounts.Save(ctx, subAccts, true)
+	errs = common.AppendError(errs, e.Accounts.Save(ctx, snapshot, errs == nil))
+	return accounts.SubAccounts{snapshot[slices.Index(walletAssets, a)]}, errs
 }
 
 // GetAccountFundingHistory returns the account's deposits and withdrawals in every currency

@@ -191,6 +191,10 @@ func orderStatusFromBitfinex(status string) order.Status {
 	case primary == "FORCED EXECUTED":
 		return order.Liquidated
 	case strings.HasPrefix(primary, "INSUFFICIENT"):
+		// Bitfinex fills what the balance affords, then cancels the rest
+		if partiallyFilled {
+			return order.PartiallyFilledCancelled
+		}
 		return order.InsufficientBalance
 	case strings.HasSuffix(primary, "CANCELED"), strings.HasPrefix(primary, "RSN_"):
 		if partiallyFilled {

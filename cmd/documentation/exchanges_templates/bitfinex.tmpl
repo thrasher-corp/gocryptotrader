@@ -86,13 +86,15 @@ Bitfinex's derivatives are all perpetual contracts, on pairs whose currencies Bi
 
 ### Balances
 
-`UpdateAccountBalances` returns the wallet an asset trades from: the exchange wallet for spot, the margin wallet for
-margin and the funding wallet for margin funding. The perpetual contracts trade from the derivatives wallet, which
-Bitfinex keeps in the margin wallet as derivative currencies, such as `USTF0`. The websocket replaces them with the
-wallet snapshot Bitfinex sends the account connection once it authenticates, then updates them as they change; a
-snapshot holding a wallet of an unknown type or without a currency is merged into them instead, removing none. Bitfinex
-sends no available balance until it has calculated it, and until then none of the balance is free; the websocket asks
-Bitfinex to calculate it.
+`UpdateAccountBalances` stores every wallet from one read, whichever asset it is given, so the engine's portfolio
+manager, which updates spot alone, holds them all. It returns the wallet the asset trades from: the exchange wallet for
+spot, the margin wallet for margin and the funding wallet for margin funding. The perpetual contracts trade from the
+derivatives wallet, which Bitfinex keeps in the margin wallet as derivative currencies, such as `USTF0`. A wallet of a
+type GCT doesn't know is left out, and a read holding one of a known type but without a currency reports it and removes
+no balance. The websocket replaces the stored wallets with the wallet snapshot Bitfinex sends the account connection
+once it authenticates, then updates them as they change; a snapshot holding a wallet of an unknown type or without a
+currency is merged into them instead, removing none. Bitfinex sends no available balance until it has calculated it, and
+until then none of the balance is free; the websocket asks Bitfinex to calculate it.
 
 ### Deposits and withdrawals
 

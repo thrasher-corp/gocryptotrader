@@ -355,6 +355,13 @@ func TestUpdateAccountBalances(t *testing.T) {
 	t.Parallel()
 	_, err := e.UpdateAccountBalances(t.Context(), asset.Options)
 	require.ErrorIs(t, err, asset.ErrNotSupported, "UpdateAccountBalances must refuse an asset Bitfinex has no wallet for")
+	_, err = newRefusingServerExchange(t, `["error",10100,"apikey: invalid"]`).UpdateAccountBalances(t.Context(), asset.Spot)
+	var apiErr *APIError
+	assert.ErrorAs(t, err, &apiErr, "UpdateAccountBalances should return the error Bitfinex reports")
+	unsaved := newResponseServerExchange(t, `[["exchange","BTC",1,0,1]]`)
+	unsaved.Accounts.Exchange = failedCredentialLookup{Exchange: unsaved}
+	_, err = unsaved.UpdateAccountBalances(t.Context(), asset.Spot)
+	assert.ErrorIs(t, err, errCredentialLookup, "UpdateAccountBalances should return the error saving the balances")
 	skipLiveWithoutCredentials(t)
 	ex := newWrapperTestExchange(t)
 	for _, a := range []asset.Item{asset.Spot, asset.Margin, asset.MarginFunding, asset.USDTMarginedFutures, asset.CoinMarginedFutures} {
@@ -382,6 +389,76 @@ func TestUpdateAccountBalances(t *testing.T) {
 			c := testCoinMarginedPair.Quote
 			assert.Equal(t, accounts.CurrencyBalances{c: {Currency: c, Total: 0.01, Free: 0.01, UpdatedAt: subAccts[0].Balances[c].UpdatedAt}}, subAccts[0].Balances, "the derivatives wallet should fund coin margined futures with its BTCF0")
 		}
+	}
+}
+
+func TestUpdateAccountBalancesStoresEveryWallet(t *testing.T) {
+	t.Parallel()
+	replies := []string{
+		// Led by a wallet of a type Bitfinex may yet add, which funds no asset GCT knows, with a zero balance, a negative
+		// available balance, and interest the funding wallet has yet to settle, which is no part of its balance
+		`[["novel","XRP",4,0,4],["exchange","BTC",1,0,1],["exchange","ETH",0,0,0],["margin","ETH",2,0,2],["margin","UST",1,0,-0.5],["funding","USD",3,0.5,3],["margin","USTF0",500,0,300],["margin","BTCF0",0.01,0,0.01]]`,
+		// The ETH has since moved from the margin wallet to the exchange wallet, beside the same unknown wallet
+		`[["exchange","BTC",1,0,1],["exchange","ETH",2,0,2],["novel","XRP",4,0,4],["funding","USD",3,0,3],["margin","USTF0",500,0,300],["margin","BTCF0",0.01,0,0.01]]`,
+		// The exchange wallet's BTC has since grown, behind a wallet of each known type without a currency
+		`[["exchange","",1,0,1],["margin","",1,0,1],["funding","",1,0,1],["exchange","BTC",5,0,5]]`,
+		// And every wallet has since been emptied
+		`[]`,
+	}
+	var requests int
+	ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, err := w.Write([]byte(replies[min(requests, len(replies)-1)]))
+		requests++
+		assert.NoError(t, err, "Writing the response should not error")
+	}))
+	counter := &credentialLookupCounter{Exchange: ex}
+	ex.Accounts.Exchange = counter
+	creds := &accounts.Credentials{Key: testAPIKey, Secret: testAPISecret}
+	// The engine's portfolio manager updates spot alone
+	subAccts, err := ex.UpdateAccountBalances(t.Context(), asset.Spot)
+	require.NoError(t, err, "UpdateAccountBalances must not error")
+	require.Len(t, subAccts, 1, "UpdateAccountBalances must return one wallet")
+	assert.Equal(t, asset.Spot, subAccts[0].AssetType, "UpdateAccountBalances should return the spot wallet")
+	assert.Equal(t, 1, requests, "UpdateAccountBalances should read the wallets once")
+	assert.Equal(t, 1, counter.lookups, "UpdateAccountBalances should store every wallet in one save")
+	stored, err := ex.Accounts.SubAccounts(creds, asset.Spot)
+	require.NoError(t, err, "SubAccounts must not error")
+	assert.Equal(t, stored, subAccts, "UpdateAccountBalances should return the spot wallet as stored")
+	assertWalletBalances(t, ex, map[asset.Item]map[currency.Code][3]float64{
+		asset.Spot:                {currency.BTC: {1, 1, 0}, currency.ETH: {0, 0, 0}},
+		asset.Margin:              {currency.ETH: {2, 2, 0}, currency.UST: {1, -0.5, 1.5}},
+		asset.MarginFunding:       {currency.USD: {3, 3, 0}},
+		asset.USDTMarginedFutures: {testDerivativePair.Quote: {500, 300, 200}},
+		asset.CoinMarginedFutures: {testCoinMarginedPair.Quote: {0.01, 0.01, 0}},
+	})
+	for _, a := range walletAssets {
+		_, err = ex.Accounts.GetBalance("", creds, a, currency.XRP)
+		assert.ErrorIsf(t, err, accounts.ErrNoBalances, "UpdateAccountBalances should store no %s balance from a wallet of an unknown type", a)
+	}
+
+	_, err = ex.UpdateAccountBalances(t.Context(), asset.MarginFunding)
+	require.NoError(t, err, "UpdateAccountBalances must not error")
+	assert.Equal(t, 2, requests, "UpdateAccountBalances should read the wallets once an update")
+	assert.Equal(t, 2, counter.lookups, "UpdateAccountBalances should store every wallet in one save an update")
+	assertWalletBalances(t, ex, map[asset.Item]map[currency.Code][3]float64{asset.Spot: {currency.BTC: {1, 1, 0}, currency.ETH: {2, 2, 0}}})
+	_, err = ex.Accounts.GetBalance("", creds, asset.Margin, currency.ETH)
+	assert.ErrorIs(t, err, accounts.ErrNoBalances, "UpdateAccountBalances should remove a balance a wallet no longer holds, whichever asset it updates")
+
+	_, err = ex.UpdateAccountBalances(t.Context(), asset.Spot)
+	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "UpdateAccountBalances should report a wallet without a currency")
+	// The read cannot be taken to list every balance, so it removes none
+	assertWalletBalances(t, ex, map[asset.Item]map[currency.Code][3]float64{
+		asset.Spot:          {currency.BTC: {5, 5, 0}, currency.ETH: {2, 2, 0}},
+		asset.MarginFunding: {currency.USD: {3, 3, 0}},
+	})
+	_, err = ex.Accounts.CurrencyBalances(nil, asset.All)
+	assert.NoError(t, err, "the stored balances should collate, as UpdateAccountBalances should store none without a currency")
+
+	_, err = ex.UpdateAccountBalances(t.Context(), asset.Spot)
+	require.NoError(t, err, "UpdateAccountBalances must not error")
+	for a, c := range map[asset.Item]currency.Code{asset.Spot: currency.BTC, asset.MarginFunding: currency.USD, asset.USDTMarginedFutures: testDerivativePair.Quote} {
+		_, err = ex.Accounts.GetBalance("", creds, a, c)
+		assert.ErrorIsf(t, err, accounts.ErrNoBalances, "UpdateAccountBalances should remove the %s %s balance once no wallet is listed", a, c)
 	}
 }
 

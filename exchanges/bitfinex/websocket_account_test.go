@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"os"
 	"strconv"
 	"sync"
@@ -580,6 +581,19 @@ type credentialLookupCounter struct {
 func (c *credentialLookupCounter) GetCredentials(ctx context.Context) (*accounts.Credentials, error) {
 	c.lookups++
 	return c.Exchange.GetCredentials(ctx)
+}
+
+// errCredentialLookup is the error failedCredentialLookup returns
+var errCredentialLookup = errors.New("credential lookup failed")
+
+// failedCredentialLookup fails the account store's credential lookups, so that every save of balances fails
+type failedCredentialLookup struct {
+	*Exchange
+}
+
+// GetCredentials returns errCredentialLookup
+func (failedCredentialLookup) GetCredentials(context.Context) (*accounts.Credentials, error) {
+	return nil, errCredentialLookup
 }
 
 func TestWebsocketWalletSnapshotStoredInOneSave(t *testing.T) {
