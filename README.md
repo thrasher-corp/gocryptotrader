@@ -29,7 +29,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | Coinbase | Yes | Yes | No|
 | COINUT | Yes | Yes | NA |
 | Deribit | Yes | Yes | No |
-| GateIO | Yes | Yes | NA |
+| Gate | Yes | Yes | NA |
 | Gemini | Yes | Yes | No |
 | HitBTC | Yes | Yes | No |
 | Huobi.Pro | Yes | Yes | NA |

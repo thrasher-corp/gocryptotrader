@@ -4009,7 +4009,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 
 	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	subs, err := e.generateSubscriptions()
+	subs, err := e.generateSubscriptions(t.Context())
 	require.NoError(t, err, "generateSubscriptions must not error")
 	require.NotEmpty(t, subs, "generateSubscriptions must return subscriptions")
 
@@ -4074,12 +4074,12 @@ func TestAuthSubscribe(t *testing.T) {
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	require.NoError(t, e.authSubscribe(t.Context(), &FixtureConnection{}, subscription.List{}))
 
-	authsubs, err := e.generateAuthSubscriptions()
+	authsubs, err := e.generateAuthSubscriptions(t.Context())
 	require.NoError(t, err, "generateAuthSubscriptions must not error")
 	require.Empty(t, authsubs, "generateAuthSubscriptions must not return subs")
 
 	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	authsubs, err = e.generateAuthSubscriptions()
+	authsubs, err = e.generateAuthSubscriptions(t.Context())
 	require.NoError(t, err, "generateAuthSubscriptions must not error")
 	require.NotEmpty(t, authsubs, "generateAuthSubscriptions must return subs")
 	var positionSubscriptions subscription.List

@@ -40,7 +40,7 @@ var (
 )
 
 // GenerateDefaultBusinessSubscriptions returns a list of default subscriptions to business websocket.
-func (e *Exchange) GenerateDefaultBusinessSubscriptions() (subscription.List, error) {
+func (e *Exchange) GenerateDefaultBusinessSubscriptions(_ context.Context) (subscription.List, error) {
 	var subs []string
 	var subscriptions []*subscription.Subscription
 	subs = append(subs, defaultBusinessSubscribedChannels...)

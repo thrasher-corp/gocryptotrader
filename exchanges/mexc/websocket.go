@@ -239,14 +239,14 @@ func isPrivateChannel(s *subscription.Subscription) bool {
 }
 
 // generatePublicSubscriptions returns the configured subscriptions to the public channels
-func (e *Exchange) generatePublicSubscriptions() (subscription.List, error) {
+func (e *Exchange) generatePublicSubscriptions(_ context.Context) (subscription.List, error) {
 	subs, err := e.generateSubscriptions()
 	return slices.DeleteFunc(subs, isPrivateChannel), err
 }
 
 // generatePrivateSubscriptions returns the configured subscriptions to the private channels, none unless the
 // authenticated websocket can be used
-func (e *Exchange) generatePrivateSubscriptions() (subscription.List, error) {
+func (e *Exchange) generatePrivateSubscriptions(_ context.Context) (subscription.List, error) {
 	if !e.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, nil
 	}
@@ -816,7 +816,7 @@ func (e *Exchange) WsHandleData(ctx context.Context, conn websocket.Connection, 
 		if err != nil {
 			return err
 		}
-		// The account's own fills are published as fill.Data, as bybit and gateio do, so that they are not
+		// The account's own fills are published as fill.Data, as bybit and gate do, so that they are not
 		// mistaken for the market's trades and keep the order they belong to.
 		side := order.Sell
 		if body.TradeType == 1 {

@@ -1068,7 +1068,7 @@ func collapseSubscriptionList(subs subscription.List) map[*subscription.List]*su
 }
 
 // generateSubscriptions returns a list of subscriptions from the configured subscriptions feature
-func (e *Exchange) generateSubscriptions() (subscription.List, error) {
+func (e *Exchange) generateSubscriptions(_ context.Context) (subscription.List, error) {
 	subs, err := e.Features.Subscriptions.ExpandTemplates(e)
 	if err != nil {
 		return subs, err

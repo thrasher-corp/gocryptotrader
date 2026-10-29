@@ -103,7 +103,7 @@ type Manager struct {
 	rateLimitDefinitions          request.RateLimitDefinitions // rate limiters shared between Websocket and REST connections
 	Subscriber                    func(subscription.List) error
 	Unsubscriber                  func(subscription.List) error
-	GenerateSubs                  func() (subscription.List, error)
+	GenerateSubs                  func(context.Context) (subscription.List, error)
 	useMultiConnectionManagement  bool
 	DataHandler                   *stream.Relay
 	Match                         *Match
@@ -137,7 +137,7 @@ type ManagerSetup struct {
 	PreConnect            func(context.Context)
 	Subscriber            func(subscription.List) error
 	Unsubscriber          func(subscription.List) error
-	GenerateSubscriptions func() (subscription.List, error)
+	GenerateSubscriptions func(context.Context) (subscription.List, error)
 	Features              *protocol.Features
 	// UseMultiConnectionManagement allows the connections to be managed by the
 	// connection manager. If false, this will default to the global fields
@@ -360,8 +360,8 @@ func (m *Manager) SetupNewConnection(c *ConnectionSetup) error {
 		defer m.connectionManagerMu.Unlock()
 		for x := range m.connectionManager {
 			// Below allows for multiple connections to the same URL with different outbound request signatures. This
-			// allows for easier determination of inbound and outbound messages. e.g. Gateio cross_margin, margin on
-			// a spot connection.
+			// allows for easier determination of inbound and outbound messages. e.g. MEXC's public and private spot
+			// connections.
 			if m.connectionManager[x].setup.URL == c.URL && c.MessageFilter == m.connectionManager[x].setup.MessageFilter {
 				return fmt.Errorf("%w: %w", errConnSetup, errDuplicateConnectionSetup)
 			}
@@ -500,7 +500,7 @@ func (m *Manager) connect(ctx context.Context) error {
 			go m.monitorFrame(ctx, nil, m.monitorConnection)
 		}
 
-		subs, err := m.GenerateSubs() // regenerate state on new connection
+		subs, err := m.GenerateSubs(ctx) // regenerate state on new connection
 		if err != nil {
 			return fmt.Errorf("%s websocket: %w", m.exchangeName, common.AppendError(ErrSubscriptionFailure, err))
 		}
@@ -539,7 +539,7 @@ func (m *Manager) connect(ctx context.Context) error {
 			}
 
 			var err error
-			subs, err = ws.setup.GenerateSubscriptions() // regenerate state on new connection
+			subs, err = ws.setup.GenerateSubscriptions(ctx) // regenerate state on new connection
 			var generationError error
 			if err != nil {
 				generationError = fmt.Errorf("subscription error on [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, err)
