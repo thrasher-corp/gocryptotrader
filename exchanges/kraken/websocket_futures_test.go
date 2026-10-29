@@ -1299,6 +1299,10 @@ func TestWebsocketFuturesProcessOpenOrders(t *testing.T) {
 	require.NoError(t, ex.wsFuturesProcessOpenOrders(t.Context(), nil, wsFuturesFeedOpenOrders, []byte(cancelled)), "wsFuturesProcessOpenOrders must not error for a cancellation")
 	assert.Equal(t, []any{&order.Detail{Exchange: t.Name(), AssetType: asset.Futures, OrderID: "660c6b23-8007-48c1-a7c9-4893f4572e8c", Status: order.Cancelled}}, relayed(ex), "wsFuturesProcessOpenOrders should relay a cancelled order by its ID alone")
 
+	rejected := `{"feed":"open_orders","order_id":"9f1b2c47-5e43-4d19-8f7a-2c3e8d6b1a05","is_cancel":true,"reason":"order_for_edit_not_found"}`
+	require.NoError(t, ex.wsFuturesProcessOpenOrders(t.Context(), nil, wsFuturesFeedOpenOrders, []byte(rejected)), "wsFuturesProcessOpenOrders must not error for an edit's rejection")
+	assert.Equal(t, []any{&order.Detail{Exchange: t.Name(), AssetType: asset.Futures, OrderID: "9f1b2c47-5e43-4d19-8f7a-2c3e8d6b1a05", Status: order.Rejected}}, relayed(ex), "wsFuturesProcessOpenOrders should relay an order it has no removal of as rejected when an edit of it is rejected")
+
 	// Orders on a contract missing from the available pairs, such as an expired one, and of a type that cannot be decoded
 	// come ahead of an order on a listed contract
 	unrelayable := `{"feed":"open_orders_snapshot","account":"DemoUser","orders":[` + strings.Replace(futuresOpenOrder("unlisted", 5, 2), `"PF_XBTUSD"`, `"FF_XBTUSD_250926"`, 1) + `,` +

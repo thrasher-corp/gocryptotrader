@@ -2,6 +2,7 @@ package kraken
 
 import (
 	"context"
+	"math"
 	"net/http"
 	"slices"
 	"strconv"
@@ -555,6 +556,46 @@ func TestFuturesOrderRemovedWithOrder(t *testing.T) {
 	assert.Equal(t, "full_fill", state.reason, "a removal carrying the order should record why it was removed")
 }
 
+func TestFuturesOrderEditRejectedAfterItsRemoval(t *testing.T) {
+	t.Parallel()
+	placement := futuresOpenOrderMessage("o-66", 10, 0, "new_placed_order_by_user")
+	fill := futuresFillMessage(wsFuturesFeedFills, "o-66", "f-1", "PF_XBTUSD", 4, 6, 20000, 0.2, "USD")
+	// An edit arriving after open_orders removed the order is rejected as the order cannot be found
+	for _, tc := range []struct {
+		name  string
+		msgs  []string
+		after []string
+		exp   order.Status
+	}{
+		{name: "cancelled", msgs: []string{placement, futuresRemovalMessage("o-66", "cancelled_by_user")}, exp: order.Cancelled},
+		{
+			name:  "cancelled after a fill",
+			msgs:  []string{placement, fill, futuresRemovalMessage("o-66", "cancelled_by_user")},
+			after: []string{futuresFillMessage(wsFuturesFeedFillsSnapshot, "o-66", "f-1", "PF_XBTUSD", 4, 6, 20000, 0.2, "USD")},
+			exp:   order.PartiallyFilledCancelled,
+		},
+		{name: "expired", msgs: []string{placement, futuresRemovalMessage("o-66", "contract_expired")}, exp: order.Expired},
+		{name: "removed as filled", msgs: []string{placement, futuresRemovalMessage("o-66", "full_fill")}, exp: order.Filled},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := newTestExchange(t)
+			seedTestAssetNames(ex)
+			details := futuresOrderUpdates(t, ex, tc.msgs...)
+			require.Len(t, details, len(tc.msgs), "each message must relay an order update")
+			later := futuresOrderUpdates(t, ex, append([]string{futuresRemovalMessage("o-66", "order_for_edit_not_found")}, tc.after...)...)
+			require.Len(t, later, len(tc.after)+1, "the rejection and each report after it must relay an order update")
+			for i, d := range later {
+				assert.Equalf(t, tc.exp, d.Status, "update %d from the rejection on should relay the order as it was removed", i)
+			}
+			stored := details[0]
+			mergeOrderUpdates(t, stored, details[1:])
+			mergeOrderUpdates(t, stored, later)
+			assert.Equal(t, tc.exp, stored.Status, "the order should stay stored as it was removed")
+		})
+	}
+}
+
 func TestFuturesOrderStopTriggered(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
@@ -614,6 +655,102 @@ func TestFuturesOrderAmendedQuantity(t *testing.T) {
 	assert.Equal(t, 20.0, details[3].Amount, "a fill should relay the order's amended quantity")
 	assert.Equal(t, 16.0, details[2].RemainingAmount, "the amendment should relay what remains of the amended quantity")
 	assert.Equal(t, 16.0, details[3].RemainingAmount, "a fill should relay what remains of the amended quantity, not what remained when it filled")
+}
+
+func TestFuturesOrderAmendedBeforeItsLastFill(t *testing.T) {
+	t.Parallel()
+	type quantities struct {
+		amount, executed, remaining float64
+	}
+	last := func(quantity float64) string {
+		return futuresFillMessage(wsFuturesFeedFills, "o-65", "f-2", "PF_XBTUSD", quantity, 0, 20000, 0.15, "USD")
+	}
+	removal := futuresRemovalMessage("o-65", "full_fill")
+	// Fills can follow an amendment open_orders has yet to report
+	for _, tc := range []struct {
+		name string
+		msgs []string
+		exp  []quantities
+	}{
+		{
+			name: "amended down, the amendment reported before the removal",
+			msgs: []string{last(3), futuresOpenOrderMessage("o-65", 7, 4, "edited_by_user"), removal},
+			exp:  []quantities{{10, 4, 6}, {7, 7, 0}, {7, 7, 0}, {7, 7, 0}},
+		},
+		{
+			name: "amended down, removed without the amendment reported",
+			msgs: []string{last(3), removal},
+			exp:  []quantities{{10, 4, 6}, {7, 7, 0}, {7, 7, 0}},
+		},
+		{
+			name: "amended down after a partial_fill update",
+			msgs: []string{futuresOpenOrderMessage("o-65", 10, 4, "partial_fill"), last(3), removal},
+			exp:  []quantities{{10, 4, 6}, {10, 4, 6}, {7, 7, 0}, {7, 7, 0}},
+		},
+		{
+			name: "amended down, then listed by an open_orders snapshot taken before the amendment",
+			msgs: []string{last(3), `{"feed":"open_orders_snapshot","account":"DemoUser","orders":[` + futuresOpenOrder("o-65", 10, 4) + `]}`, removal},
+			exp:  []quantities{{10, 4, 6}, {7, 7, 0}, {7, 7, 0}, {7, 7, 0}},
+		},
+		{
+			name: "amended down, then listed by an open_orders snapshot reporting nothing filled",
+			msgs: []string{last(3), `{"feed":"open_orders_snapshot","account":"DemoUser","orders":[` + futuresOpenOrder("o-65", 10, 0) + `]}`, removal},
+			exp:  []quantities{{10, 4, 6}, {7, 7, 0}, {7, 7, 0}, {7, 7, 0}},
+		},
+		{
+			name: "amended down, the last fill repeated by a fills snapshot before an open_orders snapshot taken before the amendment",
+			msgs: []string{
+				last(3),
+				futuresFillMessage(wsFuturesFeedFillsSnapshot, "o-65", "f-2", "PF_XBTUSD", 3, 0, 20000, 0.15, "USD"),
+				`{"feed":"open_orders_snapshot","account":"DemoUser","orders":[` + futuresOpenOrder("o-65", 10, 4) + `]}`,
+				removal,
+			},
+			exp: []quantities{{10, 4, 6}, {7, 7, 0}, {7, 7, 0}, {7, 7, 0}, {7, 7, 0}},
+		},
+		{
+			name: "amended up",
+			msgs: []string{last(9), removal},
+			exp:  []quantities{{10, 4, 6}, {13, 13, 0}, {13, 13, 0}},
+		},
+		{
+			name: "amended up, then listed by an open_orders snapshot taken before the amendment",
+			msgs: []string{last(9), `{"feed":"open_orders_snapshot","account":"DemoUser","orders":[` + futuresOpenOrder("o-65", 10, 4) + `]}`, removal},
+			exp:  []quantities{{10, 4, 6}, {13, 13, 0}, {13, 13, 0}, {13, 13, 0}},
+		},
+		{
+			name: "not amended, removed as filled before its last fill",
+			msgs: []string{removal, last(6)},
+			exp:  []quantities{{10, 4, 6}, {10, 10, 0}, {10, 10, 0}},
+		},
+		{
+			name: "amended up and reported, then amended down",
+			msgs: []string{futuresOpenOrderMessage("o-65", 20, 4, "edited_by_user"), last(3), removal},
+			exp:  []quantities{{10, 4, 6}, {20, 4, 16}, {7, 7, 0}, {7, 7, 0}},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := newTestExchange(t)
+			seedTestAssetNames(ex)
+			msgs := append([]string{
+				futuresEmptySnapshot,
+				futuresEmptyFillsSnapshot,
+				futuresOpenOrderMessage("o-65", 10, 0, "new_placed_order_by_user"),
+				futuresFillMessage(wsFuturesFeedFills, "o-65", "f-1", "PF_XBTUSD", 4, 6, 20000, 0.2, "USD"),
+			}, tc.msgs...)
+			details := futuresOrderUpdates(t, ex, msgs...)
+			require.Len(t, details, len(tc.exp)+1, "the placement, each fill and each report must relay an order update")
+			got := make([]quantities, 0, len(tc.exp))
+			for _, d := range details[1:] {
+				got = append(got, quantities{d.Amount, d.ExecutedAmount, d.RemainingAmount})
+			}
+			assert.Equal(t, tc.exp, got, "each update from the first fill on should relay the order's quantities as its fills have executed it")
+			stored := details[0]
+			mergeOrderUpdates(t, stored, details[1:])
+			assert.Equal(t, order.Filled, stored.Status, "the order should be stored filled")
+			assert.Equal(t, tc.exp[len(tc.exp)-1].executed, stored.ExecutedAmount, "the order should be stored with what its fills executed")
+		})
+	}
 }
 
 func TestFuturesOrderFillsSnapshot(t *testing.T) {
@@ -825,6 +962,53 @@ func TestFuturesOrderFilledBeforeOpenOrdersUnsubscribed(t *testing.T) {
 	assert.Zero(t, repeated[0].RemainingAmount, "a fill repeated after open_orders was unsubscribed should relay nothing remaining")
 }
 
+func TestFuturesOrderFilledBeforeAFeedIsUnsubscribed(t *testing.T) {
+	t.Parallel()
+	earlier := futuresFillMessage(wsFuturesFeedFillsSnapshot, "o-69", "f-1", "PF_XBTUSD", 4, 6, 20000, 0.2, "USD")
+	rejected := futuresRemovalMessage("o-69", "order_for_edit_not_found")
+	for _, tc := range []struct {
+		name    string
+		feed    string
+		msgs    []string
+		updates int
+	}{
+		{name: "open_orders, an edit rejected after its snapshot", feed: wsFuturesFeedOpenOrders, msgs: []string{futuresEmptySnapshot, rejected}, updates: 1},
+		{name: "fills, the earlier fill repeated before a partial_fill update", feed: wsFuturesFeedFills, msgs: []string{earlier, futuresOpenOrderMessage("o-69", 10, 4, "partial_fill")}, updates: 2},
+		{name: "fills, an edit rejected after its snapshot", feed: wsFuturesFeedFills, msgs: []string{futuresEmptyFillsSnapshot, rejected}, updates: 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex, conn := newFuturesTestExchange(t, new(mockFuturesServer))
+			seedTestAssetNames(ex)
+			subs := map[string]*subscription.Subscription{
+				wsFuturesFeedOpenOrders: futuresSubscription(subscription.MyOrdersChannel, wsFuturesFeedOpenOrders),
+				wsFuturesFeedFills:      futuresSubscription(subscription.MyTradesChannel, wsFuturesFeedFills),
+			}
+			require.NoError(t, ex.futuresSubscribe(t.Context(), conn, subscription.List{subs[wsFuturesFeedOpenOrders], subs[wsFuturesFeedFills]}), "futuresSubscribe must not error")
+			details := futuresOrderUpdatesOn(t, ex, conn,
+				futuresEmptySnapshot,
+				futuresEmptyFillsSnapshot,
+				futuresOpenOrderMessage("o-69", 10, 0, "new_placed_order_by_user"),
+				futuresFillMessage(wsFuturesFeedFills, "o-69", "f-1", "PF_XBTUSD", 4, 6, 20000, 0.2, "USD"),
+				futuresFillMessage(wsFuturesFeedFills, "o-69", "f-2", "PF_XBTUSD", 6, 0, 20000, 0.3, "USD"),
+			)
+			require.Len(t, details, 3, "the placement and each fill must relay an order update")
+			require.NoError(t, ex.futuresUnsubscribe(t.Context(), conn, subscription.List{subs[tc.feed]}), "futuresUnsubscribe must not error")
+			later := futuresOrderUpdatesOn(t, ex, conn, tc.msgs...)
+			require.Len(t, later, tc.updates, "each report of the order must relay an order update")
+			for i, d := range later {
+				assert.Equalf(t, order.Filled, d.Status, "update %d after the feed was unsubscribed should relay the order its fills filled", i)
+				assert.Equalf(t, 10.0, d.ExecutedAmount, "update %d after the feed was unsubscribed should relay every fill executed", i)
+				assert.Zerof(t, d.RemainingAmount, "update %d after the feed was unsubscribed should relay nothing remaining", i)
+			}
+			stored := details[0]
+			mergeOrderUpdates(t, stored, details[1:])
+			mergeOrderUpdates(t, stored, later)
+			assert.Equal(t, order.Filled, stored.Status, "the order should stay stored filled")
+		})
+	}
+}
+
 func TestFuturesOrderFillsPartlyUnsubscribed(t *testing.T) {
 	t.Parallel()
 	server := new(mockFuturesServer)
@@ -868,17 +1052,40 @@ func TestFuturesOrderInverseContract(t *testing.T) {
 
 func TestFuturesOrderFillsAddUp(t *testing.T) {
 	t.Parallel()
-	ex := newTestExchange(t)
-	seedTestAssetNames(ex)
 	// 0.1 and 0.7 add up to 0.7999999999999999 in floating point, short of the order's 0.8
-	details := futuresOrderUpdates(t, ex,
-		futuresOpenOrderMessage("o-14", 0.8, 0, "new_placed_order_by_user"),
-		futuresFillMessage(wsFuturesFeedFills, "o-14", "f-1", "PF_XBTUSD", 0.1, 0.7, 20000, 0.01, "USD"),
-		futuresFillMessage(wsFuturesFeedFills, "o-14", "f-2", "PF_XBTUSD", 0.7, 0, 20000, 0.07, "USD"),
-	)
-	require.Len(t, details, 3, "each message must relay an order update")
-	assert.Equal(t, 0.1, details[1].ExecutedAmount, "a fill leaving some of the order remaining should relay what it executed")
-	assert.Equal(t, 0.8, details[2].ExecutedAmount, "a fill leaving nothing remaining should relay the order's quantity as executed")
+	for _, tc := range []struct {
+		name string
+		// covered has both feeds' snapshots come first, so the order's fills make up its quantities
+		covered       bool
+		placed        bool
+		firstExecuted float64
+	}{
+		{name: "placed", placed: true, firstExecuted: 0.1},
+		{name: "placed after both snapshots", covered: true, placed: true, firstExecuted: 0.1},
+		{name: "reported by its fills alone after both snapshots", covered: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := newTestExchange(t)
+			seedTestAssetNames(ex)
+			if tc.covered {
+				futuresOrderUpdates(t, ex, futuresEmptySnapshot, futuresEmptyFillsSnapshot)
+			}
+			msgs := []string{
+				futuresFillMessage(wsFuturesFeedFills, "o-14", "f-1", "PF_XBTUSD", 0.1, 0.7, 20000, 0.01, "USD"),
+				futuresFillMessage(wsFuturesFeedFills, "o-14", "f-2", "PF_XBTUSD", 0.7, 0, 20000, 0.07, "USD"),
+			}
+			if tc.placed {
+				msgs = append([]string{futuresOpenOrderMessage("o-14", 0.8, 0, "new_placed_order_by_user")}, msgs...)
+			}
+			details := futuresOrderUpdates(t, ex, msgs...)
+			require.Len(t, details, len(msgs), "each message must relay an order update")
+			fills := details[len(details)-2:]
+			assert.Equal(t, tc.firstExecuted, fills[0].ExecutedAmount, "a fill leaving some of the order remaining should relay what it executed, as far as the feeds have reported the order")
+			assert.Equal(t, 0.8, fills[1].Amount, "a fill leaving nothing remaining should relay the order's quantity")
+			assert.Equal(t, 0.8, fills[1].ExecutedAmount, "a fill leaving nothing remaining should relay the order's quantity as executed")
+		})
+	}
 }
 
 func TestFuturesOrderFillBeyondReportedQuantity(t *testing.T) {
@@ -954,6 +1161,203 @@ func TestFuturesOrderFillReportedAfterTheLast(t *testing.T) {
 	}
 }
 
+func TestFuturesOrderReportedOpenAfterItsFills(t *testing.T) {
+	t.Parallel()
+	placement := futuresOpenOrderMessage("o-63", 10, 0, "new_placed_order_by_user")
+	// open_orders can report the order's earlier changes after the fills feed reports a later fill
+	for _, report := range []struct {
+		name   string
+		placed bool
+		msg    string
+	}{
+		{name: "partial_fill update", placed: true, msg: futuresOpenOrderMessage("o-63", 10, 4, "partial_fill")},
+		{name: "amendment", placed: true, msg: futuresOpenOrderMessage("o-63", 10, 4, "edited_by_user")},
+		{name: "placement", msg: placement},
+		{name: "order a stop placed", msg: futuresOpenOrderMessage("o-63", 10, 0, "limit_order_from_stop")},
+		{name: "open_orders snapshot", placed: true, msg: `{"feed":"open_orders_snapshot","account":"DemoUser","orders":[` + futuresOpenOrder("o-63", 10, 4) + `]}`},
+	} {
+		for _, tc := range []struct {
+			name                        string
+			fillQuantity, fillRemaining float64
+			status                      order.Status
+			executed                    float64
+		}{
+			{name: "after the last fill", fillQuantity: 6, status: order.Filled, executed: 10},
+			// The second fill follows an amendment open_orders has yet to report, so its quantity is the amended one's
+			{name: "after the last fill, beyond its quantity", fillQuantity: 9, status: order.Filled, executed: 13},
+			{name: "after a fill beyond its quantity", fillQuantity: 8, fillRemaining: 8, status: order.PartiallyFilled, executed: 12},
+		} {
+			t.Run(report.name+" "+tc.name, func(t *testing.T) {
+				t.Parallel()
+				ex := newTestExchange(t)
+				seedTestAssetNames(ex)
+				msgs := []string{
+					futuresFillMessage(wsFuturesFeedFills, "o-63", "f-1", "PF_XBTUSD", 4, 6, 20000, 0.2, "USD"),
+					futuresFillMessage(wsFuturesFeedFills, "o-63", "f-2", "PF_XBTUSD", tc.fillQuantity, tc.fillRemaining, 20000, 0.3, "USD"),
+					report.msg,
+				}
+				if report.placed {
+					msgs = append([]string{placement}, msgs...)
+				}
+				details := futuresOrderUpdates(t, ex, msgs...)
+				require.Len(t, details, len(msgs), "each message must relay an order update")
+				last := details[len(details)-1]
+				assert.Equal(t, tc.status, last.Status, "a report of the order open should relay it filled only once a fill has left nothing of it remaining")
+				assert.Equal(t, tc.executed, last.ExecutedAmount, "a report of the order open should relay the fills counted executed")
+				assert.Zero(t, last.RemainingAmount, "a report of the order open should relay no more remaining than its fills leave of the quantity it reports")
+				stored := details[0]
+				mergeOrderUpdates(t, stored, details[1:])
+				assert.Equal(t, tc.status, stored.Status, "the order should be stored as its last report relays it")
+			})
+		}
+	}
+}
+
+func TestFuturesOrderRemovedAfterItsLastFill(t *testing.T) {
+	t.Parallel()
+	stop := `{"feed":"open_orders","order":{"instrument":"PF_XBTUSD","time":1612275024153,"last_update_time":1612275178153,"qty":10,"filled":0,` +
+		`"limit_price":0,"stop_price":19000,"type":"stop","order_id":"o-64","direction":0,"reduce_only":false},"is_cancel":false,"reason":"new_placed_order_by_user"}`
+	placement := futuresOpenOrderMessage("o-64", 10, 0, "new_placed_order_by_user")
+	first := futuresFillMessage(wsFuturesFeedFills, "o-64", "f-1", "PF_XBTUSD", 4, 6, 20000, 0.2, "USD")
+	last := futuresFillMessage(wsFuturesFeedFills, "o-64", "f-2", "PF_XBTUSD", 6, 0, 20000, 0.3, "USD")
+	repeated := futuresFillMessage(wsFuturesFeedFillsSnapshot, "o-64", "f-2", "PF_XBTUSD", 6, 0, 20000, 0.3, "USD")
+	triggered := futuresRemovalMessage("o-64", "stop_order_triggered")
+	rejected := futuresRemovalMessage("o-64", "order_for_edit_not_found")
+	for _, tc := range []struct {
+		name string
+		// covered has both feeds' snapshots come first, so fills alone show a market order's quantity
+		covered     bool
+		msgs        []string
+		reconnected []string
+	}{
+		// The fills feed can report the fills of the order a stop places before open_orders reports the stop triggered
+		{name: "stop triggered after the fills", msgs: []string{stop, first, last, triggered}},
+		{name: "stop triggered before the fills", msgs: []string{stop, triggered, first, last}},
+		{name: "stop triggered before the fills, the last repeated on a new connection", msgs: []string{stop, triggered, first, last}, reconnected: []string{repeated}},
+		// An edit arriving after the order filled is rejected as the order cannot be found
+		{name: "edit rejected after the fills", msgs: []string{placement, first, last, rejected}},
+		// A market order rests in no book, so open_orders reports nothing of it until it removes it as filled
+		{name: "edit rejected after a market order's removal, the last fill repeated", covered: true, msgs: []string{first, last, futuresRemovalMessage("o-64", "full_fill"), rejected, repeated}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := newTestExchange(t)
+			seedTestAssetNames(ex)
+			if tc.covered {
+				futuresOrderUpdates(t, ex, futuresEmptySnapshot, futuresEmptyFillsSnapshot)
+			}
+			details := futuresOrderUpdates(t, ex, tc.msgs...)
+			details = append(details, futuresOrderUpdatesOn(t, ex, &futuresTestConn{name: "new"}, tc.reconnected...)...)
+			require.Len(t, details, len(tc.msgs)+len(tc.reconnected), "each message must relay an order update")
+			for i, d := range details[slices.Index(tc.msgs, last):] {
+				assert.Equalf(t, order.Filled, d.Status, "update %d from the last fill on should relay the order its fills filled", i)
+				assert.Equalf(t, 10.0, d.ExecutedAmount, "update %d from the last fill on should relay every fill executed", i)
+				assert.Zerof(t, d.RemainingAmount, "update %d from the last fill on should relay nothing remaining", i)
+			}
+			stored := details[0]
+			mergeOrderUpdates(t, stored, details[1:])
+			assert.Equal(t, order.Filled, stored.Status, "the order should be stored filled")
+			assert.Zero(t, stored.RemainingAmount, "the order should be stored with nothing remaining")
+		})
+	}
+}
+
+func TestFuturesOrderPlacedBetweenTheSnapshots(t *testing.T) {
+	t.Parallel()
+	placement := futuresOpenOrderMessage("o-67", 10, 0, "new_placed_order_by_user")
+	partialFill := futuresOpenOrderMessage("o-67", 10, 4, "partial_fill")
+	last := futuresFillMessage(wsFuturesFeedFills, "o-67", "f-2", "PF_XBTUSD", 6, 0, 20000, 0.3, "USD")
+	// 4 of the order filled before the fills snapshot, which left the fill out, and open_orders reported the order after it
+	for _, tc := range []struct {
+		name     string
+		msgs     []string
+		from     int
+		quantity float64
+	}{
+		{name: "partial_fill update reported before the last fill", msgs: []string{placement, partialFill, last}, from: 2, quantity: 10},
+		// The last fill alone cannot show that the fill before it went unseen
+		{name: "partial_fill update reported after the last fill", msgs: []string{placement, last, partialFill}, from: 2, quantity: 10},
+		{
+			name: "listed by an open_orders snapshot between its fills",
+			msgs: []string{
+				futuresOpenOrderMessage("o-67", 20, 0, "new_placed_order_by_user"),
+				futuresOpenOrderMessage("o-67", 20, 4, "partial_fill"),
+				futuresFillMessage(wsFuturesFeedFills, "o-67", "f-2", "PF_XBTUSD", 8, 8, 20000, 0.4, "USD"),
+				`{"feed":"open_orders_snapshot","account":"DemoUser","orders":[` + futuresOpenOrder("o-67", 20, 4) + `]}`,
+				futuresFillMessage(wsFuturesFeedFills, "o-67", "f-3", "PF_XBTUSD", 8, 0, 20000, 0.4, "USD"),
+			},
+			from:     4,
+			quantity: 20,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := newTestExchange(t)
+			seedTestAssetNames(ex)
+			futuresOrderUpdates(t, ex, futuresEmptySnapshot, futuresEmptyFillsSnapshot)
+			msgs := append(slices.Clone(tc.msgs), futuresRemovalMessage("o-67", "full_fill"))
+			details := futuresOrderUpdates(t, ex, msgs...)
+			require.Len(t, details, len(msgs), "each message must relay an order update")
+			for i, d := range details[tc.from:] {
+				assert.Equalf(t, order.Filled, d.Status, "update %d from the report showing the earlier fill and the last fill on should relay the order filled", i)
+				assert.Equalf(t, tc.quantity, d.Amount, "update %d from the report showing the earlier fill and the last fill on should relay the order's quantity", i)
+				assert.Equalf(t, tc.quantity, d.ExecutedAmount, "update %d from the report showing the earlier fill and the last fill on should relay the order's quantity executed rather than the fills seen", i)
+				assert.Zerof(t, d.RemainingAmount, "update %d from the report showing the earlier fill and the last fill on should relay nothing remaining", i)
+			}
+			stored := details[0]
+			mergeOrderUpdates(t, stored, details[1:])
+			assert.Equal(t, order.Filled, stored.Status, "the order should be stored filled")
+			assert.Equal(t, tc.quantity, stored.Amount, "the order should be stored with its quantity")
+			assert.Equal(t, tc.quantity, stored.ExecutedAmount, "the order should be stored with its quantity executed")
+		})
+	}
+}
+
+func TestFuturesOrderFilledBeforeANewConnection(t *testing.T) {
+	t.Parallel()
+	listed := `{"feed":"open_orders_snapshot","account":"DemoUser","orders":[` + futuresOpenOrder("o-68", 10, 4) + `]}`
+	stop := `{"feed":"open_orders","order":{"instrument":"PF_XBTUSD","time":1612275024153,"last_update_time":1612275178153,"qty":10,"filled":0,` +
+		`"limit_price":0,"stop_price":19000,"type":"stop","order_id":"o-68","direction":0,"reduce_only":false},"is_cancel":false,"reason":"new_placed_order_by_user"}`
+	first := futuresFillMessage(wsFuturesFeedFills, "o-68", "f-1", "PF_XBTUSD", 4, 6, 20000, 0.2, "USD")
+	last := futuresFillMessage(wsFuturesFeedFills, "o-68", "f-2", "PF_XBTUSD", 6, 0, 20000, 0.3, "USD")
+	repeated := futuresFillMessage(wsFuturesFeedFillsSnapshot, "o-68", "f-2", "PF_XBTUSD", 6, 0, 20000, 0.3, "USD")
+	rejected := futuresRemovalMessage("o-68", "order_for_edit_not_found")
+	listedThenFilled := []string{listed, futuresEmptyFillsSnapshot, last}
+	reportedByFills := []string{futuresEmptySnapshot, futuresEmptyFillsSnapshot, first, last}
+	// The order a stop places takes its ID, and open_orders reports it open
+	placedByStop := []string{stop, futuresRemovalMessage("o-68", "stop_order_triggered"), futuresOpenOrderMessage("o-68", 10, 0, "limit_order_from_stop"), first, last}
+	for _, tc := range []struct {
+		name        string
+		msgs        []string
+		reconnected []string
+	}{
+		{name: "last fill repeated", msgs: listedThenFilled, reconnected: []string{repeated}},
+		{name: "edit rejected", msgs: listedThenFilled, reconnected: []string{rejected}},
+		{name: "left out of the open_orders snapshot, the last fill repeated", msgs: listedThenFilled, reconnected: []string{futuresEmptySnapshot, repeated}},
+		{name: "left out of the open_orders snapshot, an edit rejected", msgs: listedThenFilled, reconnected: []string{futuresEmptySnapshot, rejected}},
+		{name: "placed by a stop, its last fill repeated", msgs: placedByStop, reconnected: []string{repeated}},
+		{name: "reported by its fills alone after both snapshots, its last fill repeated", msgs: reportedByFills, reconnected: []string{repeated}},
+		{name: "reported by its fills alone after both snapshots, an edit rejected", msgs: reportedByFills, reconnected: []string{rejected}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := newTestExchange(t)
+			seedTestAssetNames(ex)
+			details := futuresOrderUpdates(t, ex, tc.msgs...)
+			require.NotEmpty(t, details, "the order's reports must relay order updates")
+			later := futuresOrderUpdatesOn(t, ex, &futuresTestConn{name: "new"}, tc.reconnected...)
+			require.Len(t, later, 1, "the report of the order on the new connection must relay an order update")
+			assert.Equal(t, order.Filled, later[0].Status, "a report on the new connection should relay the order its fills filled")
+			assert.Equal(t, 10.0, later[0].ExecutedAmount, "a report on the new connection should relay the order's quantity executed")
+			assert.Zero(t, later[0].RemainingAmount, "a report on the new connection should relay nothing remaining")
+			stored := details[0]
+			mergeOrderUpdates(t, stored, details[1:])
+			mergeOrderUpdates(t, stored, later)
+			assert.Equal(t, order.Filled, stored.Status, "the order should stay stored filled")
+		})
+	}
+}
+
 func TestFuturesOrderFillsOfOrdersInOneMessage(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
@@ -983,11 +1387,12 @@ func TestFuturesOrderTracker(t *testing.T) {
 	open := func(orderID string) WebsocketFuturesOpenOrder {
 		return WebsocketFuturesOpenOrder{Instrument: "PF_XBTUSD", Quantity: 10, OrderID: orderID}
 	}
-	tracker.snapshot(nil, []WebsocketFuturesOpenOrder{open("left"), open("finished"), open("stale")})
+	tracker.snapshot(nil, []WebsocketFuturesOpenOrder{open("left"), open("filled in full"), open("finished"), open("stale")})
 	assert.Equal(t, 10.0, tracker.get("left").quantity, "a snapshot should record its orders")
 	tracker.finish(nil, "finished", "cancelled_by_user")
 	tracker.finish(nil, "stale", "cancelled_by_user")
 	tracker.fill(nil, &WebsocketFuturesFill{Instrument: "PF_XBTUSD", OrderID: "filled only", FillID: "f-1", Quantity: 1, RemainingOrderQuantity: 1}, true)
+	tracker.fill(nil, &WebsocketFuturesFill{Instrument: "PF_XBTUSD", OrderID: "filled in full", FillID: "f-0", Quantity: 10}, true)
 	tracker.mu.Lock()
 	tracker.orders["stale"].updated = time.Now().Add(-futuresOrderRetention - time.Second)
 	tracker.mu.Unlock()
@@ -995,6 +1400,9 @@ func TestFuturesOrderTracker(t *testing.T) {
 	// An open order missing from a later snapshot left the open orders unseen
 	tracker.snapshot(nil, nil)
 	assert.Zero(t, tracker.get("left").quantity, "a snapshot should forget an open order it leaves out")
+	filledInFull := tracker.get("filled in full")
+	assert.Equal(t, 10.0, filledInFull.quantity, "a snapshot should keep an open order a fill has left nothing of, for its later reports")
+	assert.False(t, filledInFull.open, "a snapshot should take an open order a fill has left nothing of as finished once it leaves it out")
 	assert.Equal(t, 10.0, tracker.get("finished").quantity, "a snapshot should keep a removed order for its later fills")
 	assert.Equal(t, 1.0, tracker.get("filled only").fillQuantity, "a snapshot should keep an order known only by its fills")
 	assert.Zero(t, tracker.get("stale").quantity, "a removed order should be forgotten after futuresOrderRetention")
@@ -1010,9 +1418,17 @@ func TestFuturesOrderTracker(t *testing.T) {
 	require.True(t, fill("f-2", true).liveOnly, "a fill reported as it happened on a covered connection must be counted live")
 	assert.False(t, fill("f-3", false).liveOnly, "a fill not reported as it happened should end an order's live fills")
 
-	// An order an open_orders snapshot holds can have filled before the fills feed's snapshot
-	tracker.snapshot(nil, []WebsocketFuturesOpenOrder{open("listed")})
+	filled := tracker.fill(nil, &WebsocketFuturesFill{Instrument: "PF_XBTUSD", OrderID: "filled live", FillID: "f-4", Quantity: 10}, true)
+	require.True(t, filled.liveOnly, "a fill reported as it happened on a covered connection must be counted live")
+	placed := tracker.update(nil, &WebsocketFuturesOpenOrder{Instrument: "PF_XBTUSD", Quantity: 10, OrderID: "placed live"})
+	require.True(t, placed.liveOnly, "an order an update first reports on a covered connection must be taken as reported live")
+
+	// An order an open_orders snapshot holds can have filled before the fills feed's snapshot, unless fills reported as
+	// they happened have already left nothing of it remaining, as a snapshot can be taken before an order's last fill
+	tracker.snapshot(nil, []WebsocketFuturesOpenOrder{open("listed"), open("placed live"), open("filled live")})
 	assert.False(t, tracker.get("listed").liveOnly, "a snapshot should not take an order it holds as having all its fills reported as they happened")
+	assert.False(t, tracker.get("placed live").liveOnly, "a snapshot should not take an order it holds while some of it remains as having all its fills reported as they happened, though an update reported it before")
+	assert.True(t, tracker.get("filled live").liveOnly, "a snapshot should keep taking an order it holds as having all its fills reported as they happened once they have filled it in full")
 }
 
 // futuresTrackerCoverage is what an order tracker holds of the connection the feeds last reported on, and the quantity
@@ -1085,8 +1501,11 @@ func TestFuturesOrderTrackerForgetQuantities(t *testing.T) {
 	open := func(orderID string) WebsocketFuturesOpenOrder {
 		return WebsocketFuturesOpenOrder{Instrument: "PF_XBTUSD", Quantity: 10, Filled: 4, OrderID: orderID}
 	}
-	tracker.snapshot(nil, []WebsocketFuturesOpenOrder{open("open"), open("triggered"), open("filled"), open("cancelled")})
+	tracker.snapshot(nil, []WebsocketFuturesOpenOrder{open("open"), open("open and filled"), open("triggered"), open("triggered and filled"), open("filled"), open("cancelled")})
+	tracker.fill(nil, &WebsocketFuturesFill{Instrument: "PF_XBTUSD", OrderID: "open and filled", FillID: "f-2", Quantity: 6}, true)
 	tracker.finish(nil, "triggered", "stop_order_triggered")
+	tracker.finish(nil, "triggered and filled", "stop_order_triggered")
+	tracker.fill(nil, &WebsocketFuturesFill{Instrument: "PF_XBTUSD", OrderID: "triggered and filled", FillID: "f-1", Quantity: 6}, true)
 	tracker.finish(nil, "filled", "full_fill")
 	tracker.finish(nil, "cancelled", "cancelled_by_user")
 	tracker.mu.Lock()
@@ -1096,9 +1515,76 @@ func TestFuturesOrderTrackerForgetQuantities(t *testing.T) {
 		got[id] = [2]float64{s.quantity, s.filled}
 	}
 	tracker.mu.Unlock()
-	// The order a stop places when it triggers takes its ID, so its quantity can still change; a finished order's cannot
-	exp := map[string][2]float64{"open": {0, 4}, "triggered": {0, 4}, "filled": {10, 4}, "cancelled": {10, 4}}
+	// The order a stop places when it triggers takes its ID, so its quantity, like an open order's, can still change
+	// until a fill leaves nothing of it remaining; a finished order's cannot
+	exp := map[string][2]float64{"open": {0, 4}, "open and filled": {10, 4}, "triggered": {0, 4}, "triggered and filled": {10, 4}, "filled": {10, 4}, "cancelled": {10, 4}}
 	assert.Equal(t, exp, got, "forgetQuantities should forget the quantity of each order whose quantity can still change, keeping what filled")
+}
+
+func TestFuturesOrderTrackerFill(t *testing.T) {
+	t.Parallel()
+	var tracker futuresOrderTracker
+	fill := func(orderID, fillID string, quantity, remaining float64) futuresOrderState {
+		return tracker.fill(nil, &WebsocketFuturesFill{Instrument: "PF_XBTUSD", OrderID: orderID, FillID: fillID, Quantity: quantity, RemainingOrderQuantity: remaining}, true)
+	}
+	state := fill("o-1", "f-1", 0.1, 0.7)
+	assert.Equal(t, 0.1, state.fillQuantity, "fill should count the order's first fill")
+	assert.False(t, state.filledInFull, "a fill leaving some of the order remaining should not fill it in full")
+	// 0.1 and 0.7 add up to 0.7999999999999999 in floating point
+	state = fill("o-1", "f-2", 0.7, 0)
+	assert.Equal(t, 0.8, state.fillQuantity, "fill should add up the order's fills as decimals")
+	assert.True(t, state.filledInFull, "a fill leaving nothing of the order remaining should fill it in full")
+	assert.Equal(t, 0.1, state.fillsBeforeLast, "fill should record what the fills before the one leaving nothing remaining add up to")
+	repeated := fill("o-1", "f-2", 0.7, 0)
+	assert.Equal(t, 0.8, repeated.fillQuantity, "fill should count a repeated fill once")
+	assert.Equal(t, 0.1, repeated.fillsBeforeLast, "a repeated fill should keep what the fills before the one leaving nothing remaining add up to")
+
+	fill("o-3", "f-6", 0.0001, 0.0002)
+	assert.Equal(t, 0.0003, fill("o-3", "f-7", 0.0002, 0).fillQuantity, "fill should add up fills of 0.0001 and 0.0002 as decimals")
+
+	// A total beyond float64's range is infinite as a float, which the decimal facade cannot take
+	fill("o-2", "f-3", math.MaxFloat64, 1)
+	fill("o-2", "f-4", math.MaxFloat64, 1)
+	require.NotPanics(t, func() { state = fill("o-2", "f-5", 1, 1) }, "fill must count a fill once the fills' total is beyond float64's range")
+	assert.True(t, math.IsInf(state.fillQuantity, 1), "fill should give a total beyond float64's range as infinite")
+}
+
+func TestFuturesOrderTrackerFinish(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name     string
+		placed   bool
+		removals []string
+		exp      string
+	}{
+		{name: "an order not yet recorded", removals: []string{"cancelled_by_user"}, exp: "cancelled_by_user"},
+		{name: "an open order", placed: true, removals: []string{"cancelled_by_user"}, exp: "cancelled_by_user"},
+		// The order a stop places takes its ID, and can be removed without open_orders reporting it open
+		{name: "the order a stop placed", placed: true, removals: []string{"stop_order_triggered", "full_fill"}, exp: "full_fill"},
+		// An edit's rejection names an order Kraken cannot find
+		{name: "a removed order whose edit was rejected", placed: true, removals: []string{"cancelled_by_user", "order_for_edit_not_found"}, exp: "cancelled_by_user"},
+		{name: "an open order whose edit was rejected", placed: true, removals: []string{"order_for_edit_not_found"}, exp: "order_for_edit_not_found"},
+		{name: "an order not yet recorded, removed as filled before its edit was rejected", removals: []string{"full_fill", "order_for_edit_not_found"}, exp: "full_fill"},
+		{name: "the order a stop placed, cancelled", placed: true, removals: []string{"stop_order_triggered", "cancelled_by_user"}, exp: "cancelled_by_user"},
+	} {
+		var tracker futuresOrderTracker
+		if tc.placed {
+			tracker.update(nil, &WebsocketFuturesOpenOrder{Instrument: "PF_XBTUSD", Quantity: 10, OrderID: "o-1"})
+		}
+		var state futuresOrderState
+		for _, reason := range tc.removals {
+			state = tracker.finish(nil, "o-1", reason)
+		}
+		assert.Falsef(t, state.open, "finish should record %s as removed", tc.name)
+		assert.Equalf(t, tc.exp, state.reason, "finish should record why open_orders removed %s, or why it rejected an edit of it when it reported no removal", tc.name)
+	}
+
+	var tracker futuresOrderTracker
+	tracker.finish(nil, "o-2", "cancelled_by_user")
+	tracker.mu.Lock()
+	tracker.orders["o-2"].updated = time.Now().Add(-futuresOrderRetention)
+	tracker.mu.Unlock()
+	assert.WithinDuration(t, time.Now(), tracker.finish(nil, "o-2", "order_for_edit_not_found").updated, time.Minute, "finish should record an edit's rejection as the order's latest report, which keeps it for its late fills")
 }
 
 func TestFuturesOrderTrackerState(t *testing.T) {
@@ -1116,6 +1602,93 @@ func TestFuturesOrderTrackerState(t *testing.T) {
 	got.updated = time.Time{}
 	assert.Equal(t, futuresOrderState{fillIDs: map[string]struct{}{}, fillsCoverage: 1}, got, "state should make the record of an order first reported on a new connection as not reported live")
 	assert.Equal(t, futuresTrackerCoverage{second, false, false, 0}, trackerCoverage(tracker), "a report on a new connection should start its coverage, forgetting the open orders' quantities")
+}
+
+func TestFuturesOrderStateKnownFilled(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name  string
+		state futuresOrderState
+		exp   bool
+	}{
+		{name: "an order some of which remains", state: futuresOrderState{quantity: 10, fillQuantity: 4}},
+		{name: "an order a fill filled whose quantity open_orders reported", state: futuresOrderState{quantity: 10, fillQuantity: 10, filledInFull: true}, exp: true},
+		{name: "an order filled by fills all reported as they happened", state: futuresOrderState{fillQuantity: 10, filledInFull: true, liveOnly: true}, exp: true},
+		{name: "an order a fill filled whose quantity is unknown", state: futuresOrderState{fillQuantity: 6, filledInFull: true}},
+	} {
+		assert.Equalf(t, tc.exp, tc.state.knownFilled(), "knownFilled should report whether %s is filled in full with its quantities known", tc.name)
+	}
+}
+
+func TestFuturesOrderStateReportStatus(t *testing.T) {
+	t.Parallel()
+	filled := futuresOrderState{quantity: 10, fillQuantity: 10, filledInFull: true}
+	partlyFilled := futuresOrderState{quantity: 10, fillQuantity: 4}
+	unknownQuantity := futuresOrderState{fillQuantity: 6, filledInFull: true}
+	for _, tc := range []struct {
+		name     string
+		state    futuresOrderState
+		reason   string
+		isCancel bool
+		exp      order.Status
+	}{
+		{name: "a partial_fill update after the last fill", state: filled, reason: "partial_fill", exp: order.Filled},
+		{name: "a stop's trigger after the last fill of the order it placed", state: filled, reason: "stop_order_triggered", isCancel: true, exp: order.Filled},
+		{name: "an edit's rejection after the last fill", state: filled, reason: "order_for_edit_not_found", isCancel: true, exp: order.Filled},
+		{name: "a placement", state: futuresOrderState{quantity: 10}, reason: "new_placed_order_by_user", exp: order.Open},
+		{name: "a partial_fill update", state: partlyFilled, reason: "partial_fill", exp: order.PartiallyFilled},
+		{name: "a cancellation after a fill", state: partlyFilled, reason: "cancelled_by_user", isCancel: true, exp: order.PartiallyFilledCancelled},
+		{name: "a stop's trigger after the last fill of an order of unknown quantity", state: unknownQuantity, reason: "stop_order_triggered", isCancel: true, exp: order.Closed},
+	} {
+		assert.Equalf(t, tc.exp, tc.state.reportStatus(tc.reason, tc.isCancel), "reportStatus should return the status %s relays", tc.name)
+	}
+}
+
+func TestFuturesOrderStateFillStatus(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name  string
+		state futuresOrderState
+		exp   order.Status
+	}{
+		{name: "an order a fill filled after the stop that placed it triggered", state: futuresOrderState{quantity: 10, fillQuantity: 10, filledInFull: true, reason: "stop_order_triggered"}, exp: order.Filled},
+		{name: "an order filled by fills all reported as they happened", state: futuresOrderState{fillQuantity: 10, filledInFull: true, liveOnly: true}, exp: order.Filled},
+		{name: "an order removed as filled", state: futuresOrderState{quantity: 10, fillQuantity: 4, reason: "full_fill"}, exp: order.Filled},
+		{name: "a cancelled order", state: futuresOrderState{quantity: 10, fillQuantity: 4, reason: "cancelled_by_user"}, exp: order.PartiallyFilledCancelled},
+		{name: "an order a stop placed, some of which remains", state: futuresOrderState{quantity: 10, fillQuantity: 4, reason: "stop_order_triggered"}, exp: order.Closed},
+		{name: "an open order", state: futuresOrderState{quantity: 10, fillQuantity: 4}, exp: order.UnknownStatus},
+		{name: "an order a fill filled whose quantity is unknown", state: futuresOrderState{fillQuantity: 6, filledInFull: true}, exp: order.UnknownStatus},
+	} {
+		assert.Equalf(t, tc.exp, tc.state.fillStatus(), "fillStatus should return the status a fill relays of %s", tc.name)
+	}
+}
+
+func TestFuturesOrderStateAddTo(t *testing.T) {
+	t.Parallel()
+	type quantities struct {
+		amount, executed, remaining float64
+	}
+	for _, tc := range []struct {
+		name  string
+		state futuresOrderState
+		exp   quantities
+	}{
+		// open_orders can report an amendment after the fill that left nothing remaining
+		{name: "filled by fills all reported as they happened, after an amendment down", state: futuresOrderState{quantity: 10, filled: 4, fillQuantity: 7, fillsBeforeLast: 4, filledInFull: true, liveOnly: true}, exp: quantities{7, 7, 0}},
+		// open_orders reporting more filled than the fills before the last shows that a fill went unseen
+		{name: "filled by fills taken as all reported as they happened, one of them unseen", state: futuresOrderState{quantity: 10, filled: 4, fillQuantity: 6, filledInFull: true, liveOnly: true}, exp: quantities{10, 10, 0}},
+		{name: "filled by fills all reported as they happened, its quantity unknown", state: futuresOrderState{fillQuantity: 10, filledInFull: true, liveOnly: true}, exp: quantities{10, 10, 0}},
+		{name: "filled", state: futuresOrderState{quantity: 10, filled: 4, fillQuantity: 7, filledInFull: true}, exp: quantities{10, 10, 0}},
+		{name: "partly filled", state: futuresOrderState{quantity: 10, filled: 2, fillQuantity: 4}, exp: quantities{10, 4, 6}},
+		{name: "filled beyond its reported quantity, some of it remaining", state: futuresOrderState{quantity: 10, fillQuantity: 12}, exp: quantities{10, 12, 0}},
+		// The update keeps the quantities it carries when the feeds have reported too little of the order
+		{name: "partly filled by fills all reported as they happened, its quantity unknown", state: futuresOrderState{fillQuantity: 4, liveOnly: true}, exp: quantities{3, 2, 1}},
+		{name: "filled, its quantity unknown", state: futuresOrderState{fillQuantity: 6, filledInFull: true}, exp: quantities{3, 2, 1}},
+	} {
+		d := &order.Detail{Amount: 3, ExecutedAmount: 2, RemainingAmount: 1}
+		tc.state.addTo(d)
+		assert.Equalf(t, tc.exp, quantities{d.Amount, d.ExecutedAmount, d.RemainingAmount}, "addTo should add the quantities of an order %s as far as the feeds have reported them", tc.name)
+	}
 }
 
 func TestFuturesOrderQuantityCoverage(t *testing.T) {

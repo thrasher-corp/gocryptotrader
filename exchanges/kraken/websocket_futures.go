@@ -493,7 +493,7 @@ func (e *Exchange) wsFuturesProcessOpenOrders(ctx context.Context, conn websocke
 		var errs error
 		for i := range snapshot.Orders {
 			state := e.futuresOrders.get(snapshot.Orders[i].OrderID)
-			d, err := e.futuresWsOrderDetail(&snapshot.Orders[i], futuresOrderUpdateStatus("", false, state.executed()))
+			d, err := e.futuresWsOrderDetail(&snapshot.Orders[i], state.reportStatus("", false))
 			if err != nil {
 				errs = common.AppendError(errs, err)
 				continue
@@ -514,7 +514,7 @@ func (e *Exchange) wsFuturesProcessOpenOrders(ctx context.Context, conn websocke
 			Exchange:  e.Name,
 			AssetType: asset.Futures,
 			OrderID:   u.OrderID,
-			Status:    futuresOrderUpdateStatus(u.Reason, u.IsCancel, state.executed()),
+			Status:    state.reportStatus(state.reason, u.IsCancel),
 		}
 		state.addTo(d)
 		return e.Websocket.DataHandler.Send(ctx, d)
@@ -523,7 +523,7 @@ func (e *Exchange) wsFuturesProcessOpenOrders(ctx context.Context, conn websocke
 	if u.IsCancel {
 		state = e.futuresOrders.finish(conn, u.Order.OrderID, u.Reason)
 	}
-	d, err := e.futuresWsOrderDetail(u.Order, futuresOrderUpdateStatus(u.Reason, u.IsCancel, state.executed()))
+	d, err := e.futuresWsOrderDetail(u.Order, state.reportStatus(u.Reason, u.IsCancel))
 	if err != nil {
 		return err
 	}
