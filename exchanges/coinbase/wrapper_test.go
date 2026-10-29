@@ -1109,6 +1109,18 @@ func TestSubmitOrderRetrieveFeesExecution(t *testing.T) {
 			status: order.Open, amount: 2, remaining: 2, price: 89500, trigger: 89200,
 		},
 		{
+			name:   "a bracket order an edit repriced up and its stop moved down before it was read",
+			submit: order.Submit{Type: order.Bracket, Amount: 2, Price: 85000, TriggerPrice: 95000},
+			read:   `"order_type":"BRACKET","status":"OPEN","time_in_force":"GOOD_UNTIL_CANCELLED","order_configuration":{"trigger_bracket_gtc":{"base_size":"2","limit_price":"86000","stop_trigger_price":"94500"}},"filled_size":"0","total_fees":"0"`,
+			status: order.Open, amount: 2, remaining: 2, price: 86000, trigger: 94500,
+		},
+		{
+			name:   "a bracket order an edit repriced down and its stop moved up before it was read",
+			submit: order.Submit{Type: order.Bracket, Amount: 2, Price: 85000, TriggerPrice: 95000},
+			read:   `"order_type":"BRACKET","status":"OPEN","time_in_force":"GOOD_UNTIL_CANCELLED","order_configuration":{"trigger_bracket_gtc":{"base_size":"2","limit_price":"84000","stop_trigger_price":"95500"}},"filled_size":"0","total_fees":"0"`,
+			status: order.Open, amount: 2, remaining: 2, price: 84000, trigger: 95500,
+		},
+		{
 			name:   "a filled market buy priced by the caller",
 			submit: order.Submit{Type: order.Market, Amount: 0.001, Price: 99000},
 			read:   `"order_type":"MARKET","status":"FILLED","time_in_force":"IMMEDIATE_OR_CANCEL","order_configuration":{"market_market_ioc":{"base_size":"0.001"}},"filled_size":"0.001","filled_value":"99.9","average_filled_price":"99900","total_fees":"0.1"`,
