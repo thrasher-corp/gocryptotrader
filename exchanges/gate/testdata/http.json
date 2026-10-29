@@ -203,6 +203,15 @@
   "/api/v4/alpha/currencies": {
    "GET": [
     {
+     "data": {
+      "Label": "BAD_REQUEST",
+      "Message": "meme token not found"
+     },
+     "queryString": "currency=MEMEBOXTUT",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
      "data": [
       {
        "address": "5MAYDfq5yxtudAhtfyuMBuHZjgAbaS9tbEyEQYAhDS5y",
@@ -371,6 +380,15 @@
   },
   "/api/v4/alpha/tickers": {
    "GET": [
+    {
+     "data": {
+      "Label": "BAD_REQUEST",
+      "Message": "meme token not found"
+     },
+     "queryString": "currency=MEMEBOXTUT",
+     "bodyParams": "",
+     "headers": {}
+    },
     {
      "data": [
       {
@@ -11446,14 +11464,14 @@
       {
        "status": 1,
        "currency_pair": "BTC_USDT",
-       "currency": "USDT",
+       "currency": "BTC",
        "actual_rate": "0.00000236",
        "interest": "0.00006136",
        "type": "margin",
        "create_time": 1744150000000
       }
      ],
-     "queryString": "",
+     "queryString": "currency=BTC\u0026currency_pair=BTC_USDT\u0026from=1744103854\u0026limit=10\u0026page=1\u0026to=1744190254",
      "bodyParams": "",
      "headers": {}
     }

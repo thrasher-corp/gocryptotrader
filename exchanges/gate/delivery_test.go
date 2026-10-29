@@ -353,6 +353,7 @@ func TestCreatePriceTriggeredDeliveryOrder(t *testing.T) {
 		{name: "rule", settle: currency.USDT, modify: func(p *FuturesPriceTriggeredOrderRequest) { p.Trigger.Rule = 0 }, err: errInvalidTriggerRule},
 		{name: "trigger price", settle: currency.USDT, modify: func(p *FuturesPriceTriggeredOrderRequest) { p.Trigger.Price = 0 }, err: limits.ErrPriceBelowMin},
 		{name: "trigger expiry", settle: currency.USDT, modify: func(p *FuturesPriceTriggeredOrderRequest) { p.Trigger.ExpireAfter = fractionalSeconds }, err: errNotWholeSeconds},
+		{name: "negative trigger expiry", settle: currency.USDT, modify: func(p *FuturesPriceTriggeredOrderRequest) { p.Trigger.ExpireAfter = negativeSeconds }, err: errNotWholeSeconds},
 		{name: "read only order type", settle: currency.USDT, modify: func(p *FuturesPriceTriggeredOrderRequest) { p.OrderType = "close-long-order" }, err: errInvalidAutoOrderType},
 	} {
 		arg := newRequest()

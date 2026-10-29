@@ -2338,6 +2338,7 @@ func TestCreatePriceTriggeredFuturesOrder(t *testing.T) {
 		{"missing trigger price", func(p *FuturesPriceTriggeredOrderRequest) { p.Trigger.Price = 0 }, limits.ErrPriceBelowMin},
 		{"unknown rule", func(p *FuturesPriceTriggeredOrderRequest) { p.Trigger.Rule = 3 }, errInvalidTriggerRule},
 		{"fractional trigger expiry", func(p *FuturesPriceTriggeredOrderRequest) { p.Trigger.ExpireAfter = fractionalSeconds }, errNotWholeSeconds},
+		{"negative trigger expiry", func(p *FuturesPriceTriggeredOrderRequest) { p.Trigger.ExpireAfter = negativeSeconds }, errNotWholeSeconds},
 		{"unknown order type", func(p *FuturesPriceTriggeredOrderRequest) { p.OrderType = "close-all" }, errInvalidAutoOrderType},
 	} {
 		invalid := *arg

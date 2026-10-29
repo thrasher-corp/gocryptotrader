@@ -253,6 +253,9 @@ func TestModifyDualCurrencyOrderReinvest(t *testing.T) {
 	err = e.ModifyDualCurrencyOrderReinvest(t.Context(), &DualModifyOrderReinvestRequest{OrderID: 9497, Status: 1, EffectiveDuration: fractionalSeconds})
 	require.ErrorIs(t, err, errNotWholeSeconds, "ModifyDualCurrencyOrderReinvest must reject an effective duration with a fraction of a second")
 
+	err = e.ModifyDualCurrencyOrderReinvest(t.Context(), &DualModifyOrderReinvestRequest{OrderID: 9497, Status: 1, EffectiveDuration: negativeSeconds})
+	require.ErrorIs(t, err, errNotWholeSeconds, "ModifyDualCurrencyOrderReinvest must reject a negative effective duration")
+
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}

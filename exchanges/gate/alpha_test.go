@@ -249,6 +249,10 @@ func TestGetAlphaCurrenciesDetail(t *testing.T) {
 		exp := &AlphaCurrencyDetailResponse{Currency: "memeboxTUT", Name: "TUT", Chain: "BSC", Address: "0xcaae2a2f939f51d97cdfa9a86e79e3f085b799f3", Status: 1, Precision: 5, AmountPrecision: 4}
 		assert.Equal(t, exp, result[0], "GetAlphaCurrenciesDetail should decode every field")
 	}
+
+	// Gate answers a symbol it doesn't list with HTTP 200 and a labelled error in place of the list
+	_, err = e.GetAlphaCurrenciesDetail(t.Context(), "MEMEBOXTUT", 0, 0)
+	assert.ErrorContains(t, err, "label: BAD_REQUEST message: meme token not found", "GetAlphaCurrenciesDetail should return Gate's reason for refusing the symbol")
 }
 
 func TestGetAlphaCurrencyTicker(t *testing.T) {
@@ -271,6 +275,10 @@ func TestGetAlphaCurrencyTicker(t *testing.T) {
 		exp := &AlphaCurrencyTickerInfoResponse{Currency: "memeboxTUT", PercentageChange24Hour: -6.5, Last: 0.02047, USDTVolume24Hour: 108404.86, MarketCap: 17010203.55}
 		assert.Equal(t, exp, result[0], "GetAlphaCurrencyTicker should decode every field")
 	}
+
+	// Gate answers a symbol it doesn't list with HTTP 200 and a labelled error in place of the list
+	_, err = e.GetAlphaCurrencyTicker(t.Context(), "MEMEBOXTUT", 0, 0)
+	assert.ErrorContains(t, err, "label: BAD_REQUEST message: meme token not found", "GetAlphaCurrencyTicker should return Gate's reason for refusing the symbol")
 }
 
 func TestGetAlphaTokens(t *testing.T) {

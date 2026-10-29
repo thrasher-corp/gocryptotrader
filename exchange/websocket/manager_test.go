@@ -1766,6 +1766,9 @@ func TestSetupNewConnection(t *testing.T) {
 	assert.ErrorContains(t, err, "nil pointer: *websocket.Manager")
 
 	nonsenseWebsock = &Manager{}
+	err = nonsenseWebsock.SetupNewConnection(&ConnectionSetup{})
+	assert.ErrorIs(t, err, errExchangeConfigEmpty, "SetupNewConnection should error on an empty connection setup")
+
 	err = nonsenseWebsock.SetupNewConnection(&ConnectionSetup{URL: "urlstring"})
 	assert.ErrorIs(t, err, errExchangeConfigNameEmpty, "SetupNewConnection should error correctly")
 

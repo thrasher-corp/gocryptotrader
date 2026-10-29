@@ -80,6 +80,7 @@ func TestFuturesPriceTriggeredOrderParamValidate(t *testing.T) {
 		{"unknown rule", func(p *FuturesPriceTriggeredOrderRequest) { p.Trigger.Rule = 3 }, errInvalidTriggerRule},
 		{"whole second trigger expiry", func(p *FuturesPriceTriggeredOrderRequest) { p.Trigger.ExpireAfter = types.DurationSeconds(time.Minute) }, nil},
 		{"fractional trigger expiry", func(p *FuturesPriceTriggeredOrderRequest) { p.Trigger.ExpireAfter = fractionalSeconds }, errNotWholeSeconds},
+		{"negative trigger expiry", func(p *FuturesPriceTriggeredOrderRequest) { p.Trigger.ExpireAfter = negativeSeconds }, errNotWholeSeconds},
 		{"unknown order type", func(p *FuturesPriceTriggeredOrderRequest) { p.OrderType = "close-all" }, errInvalidAutoOrderType},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

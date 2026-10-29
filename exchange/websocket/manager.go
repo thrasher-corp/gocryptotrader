@@ -360,8 +360,8 @@ func (m *Manager) SetupNewConnection(c *ConnectionSetup) error {
 		defer m.connectionManagerMu.Unlock()
 		for x := range m.connectionManager {
 			// Below allows for multiple connections to the same URL with different outbound request signatures. This
-			// allows for easier determination of inbound and outbound messages. e.g. Gateio cross_margin, margin on
-			// a spot connection.
+			// allows for easier determination of inbound and outbound messages. e.g. MEXC's public and private spot
+			// connections.
 			if m.connectionManager[x].setup.URL == c.URL && c.MessageFilter == m.connectionManager[x].setup.MessageFilter {
 				return fmt.Errorf("%w: %w", errConnSetup, errDuplicateConnectionSetup)
 			}

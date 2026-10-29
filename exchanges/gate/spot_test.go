@@ -1332,6 +1332,10 @@ func TestCreatePriceTriggeredOrder(t *testing.T) {
 	_, err = e.CreatePriceTriggeredOrder(t.Context(), arg)
 	require.ErrorIs(t, err, errNotWholeSeconds, "CreatePriceTriggeredOrder must reject a trigger expiry with a fraction of a second")
 
+	arg.Trigger.ExpireAfter = negativeSeconds
+	_, err = e.CreatePriceTriggeredOrder(t.Context(), arg)
+	require.ErrorIs(t, err, errNotWholeSeconds, "CreatePriceTriggeredOrder must reject a negative trigger expiry")
+
 	arg.Trigger.ExpireAfter = types.DurationSeconds(time.Hour)
 	_, err = e.CreatePriceTriggeredOrder(t.Context(), arg)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid, "CreatePriceTriggeredOrder must reject an invalid side")

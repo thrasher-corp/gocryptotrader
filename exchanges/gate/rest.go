@@ -80,7 +80,7 @@ var (
 	errInvalidAutoSize                  = errors.New("invalid autoSize")
 	errTooManyOrderRequest              = errors.New("too many order creation request")
 	errInvalidTimeout                   = errors.New("invalid countdown timeout, which must be whole seconds of at least 5, or zero to stop the countdown")
-	errNotWholeSeconds                  = errors.New("duration must be whole seconds")
+	errNotWholeSeconds                  = errors.New("duration must be a non-negative whole number of seconds")
 	errNoTickerData                     = errors.New("no ticker data available")
 	errInvalidTimezone                  = errors.New("invalid timezone")
 	errTooManyBatchOrders               = errors.New("too many orders in batch request")
@@ -319,10 +319,10 @@ func validateCountdownTimeout(timeout time.Duration) error {
 	return nil
 }
 
-// checkWholeSeconds refuses a duration Gate takes as an integer number of seconds when it holds a fraction of one, as
-// marshalling it would send a decimal Gate rejects
+// checkWholeSeconds refuses a duration Gate takes as a whole number of seconds when it is negative, which Gate gives no
+// meaning, or holds a fraction of one, as marshalling it would send a decimal Gate rejects
 func checkWholeSeconds(d types.DurationSeconds, field string) error {
-	if d.Duration()%time.Second != 0 {
+	if d < 0 || d.Duration()%time.Second != 0 {
 		return fmt.Errorf("%w: %s is %s", errNotWholeSeconds, field, d)
 	}
 	return nil
@@ -487,12 +487,12 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 	}
 	var errCap codedErrorReply
 	if err := json.Unmarshal(intermediary, &errCap); err == nil && errCap.Code != "" {
-		return fmt.Errorf("%s auth request error, code: %s message: %s", e.Name, errCap.Label, errCap.Message)
+		return fmt.Errorf("%s auth request error, label: %s code: %s message: %s", e.Name, errCap.Label, errCap.Code, errCap.Message)
 	}
 	if result == nil {
 		return nil
 	}
-	if err := json.Unmarshal(intermediary, result); err != nil {
+	if err := decodeReply(intermediary, result); err != nil {
 		return fmt.Errorf("%w: %w", request.ErrAuthRequestFailed, err)
 	}
 	if err := responseError(result); err != nil {
@@ -519,6 +519,21 @@ func responseError(result any) error {
 		}
 	}
 	return nil
+}
+
+// decodeReply decodes a reply into result. Gate answers some requests it refuses, such as an alpha read of a symbol it
+// doesn't list, with HTTP 200 and a labelled error where the result would be, so a reply that fails to decode has its
+// label and message added to the decode error
+func decodeReply(reply json.RawMessage, result any) error {
+	err := json.Unmarshal(reply, result)
+	if err == nil {
+		return nil
+	}
+	var errCap errorReply
+	if json.Unmarshal(reply, &errCap) == nil && errCap.Label != "" {
+		return fmt.Errorf("label: %s message: %s: %w", errCap.Label, errCap.Message, err)
+	}
+	return err
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
@@ -554,7 +569,7 @@ func (e *Exchange) sendPublicPostRequest(ctx context.Context, epl request.Endpoi
 	}
 	var errCap errorReply
 	if err := json.Unmarshal(intermediary, &errCap); err == nil && errCap.Label != "" {
-		return fmt.Errorf("%s request error, code: %s message: %s", e.Name, errCap.Label, errCap.Message)
+		return fmt.Errorf("%s request error, label: %s message: %s", e.Name, errCap.Label, errCap.Message)
 	}
 	if err := json.Unmarshal(intermediary, result); err != nil {
 		return fmt.Errorf("%s: %w", e.Name, err)
@@ -587,12 +602,12 @@ func (e *Exchange) sendUnversionedHTTPRequest(ctx context.Context, ep exchange.U
 
 	var errCap codedErrorReply
 	if err := json.Unmarshal(intermediary, &errCap); err == nil && errCap.Code != "" {
-		return fmt.Errorf("%s request error, code: %s message: %s", e.Name, errCap.Label, errCap.Message)
+		return fmt.Errorf("%s request error, label: %s code: %s message: %s", e.Name, errCap.Label, errCap.Code, errCap.Message)
 	}
 	if result == nil {
 		return nil
 	}
-	if err := json.Unmarshal(intermediary, result); err != nil {
+	if err := decodeReply(intermediary, result); err != nil {
 		return fmt.Errorf("%s: %w", e.Name, err)
 	}
 	return responseError(result)

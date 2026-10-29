@@ -816,7 +816,7 @@ func (e *Exchange) WsHandleData(ctx context.Context, conn websocket.Connection, 
 		if err != nil {
 			return err
 		}
-		// The account's own fills are published as fill.Data, as bybit and gateio do, so that they are not
+		// The account's own fills are published as fill.Data, as bybit and gate do, so that they are not
 		// mistaken for the market's trades and keep the order they belong to.
 		side := order.Sell
 		if body.TradeType == 1 {

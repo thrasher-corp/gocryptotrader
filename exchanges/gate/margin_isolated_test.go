@@ -408,13 +408,14 @@ func TestGetIsolatedMarginInterestDeductionRecords(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetIsolatedMarginInterestDeductionRecords(t.Context(), currency.EMPTYCODE, currency.EMPTYPAIR, 0, 0, time.Time{}, time.Time{})
+	startTime, endTime := getTime()
+	result, err := e.GetIsolatedMarginInterestDeductionRecords(t.Context(), currency.BTC, BTCUSDT, 1, 10, startTime, endTime)
 	require.NoError(t, err, "GetIsolatedMarginInterestDeductionRecords must not error")
 	if mockTests {
 		exp := []InterestDeductionRecordResponse{{
 			Status:       1,
 			CurrencyPair: BTCUSDT,
-			Currency:     currency.USDT,
+			Currency:     currency.BTC,
 			ActualRate:   0.00000236,
 			Interest:     0.00006136,
 			LoanType:     "margin",

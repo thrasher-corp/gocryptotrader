@@ -3,6 +3,7 @@ package gate
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -34,8 +35,22 @@ import (
 
 const canManipulateRealOrders = false
 
-// fractionalSeconds holds part of a second, which Gate refuses where it reads a duration in whole seconds
-const fractionalSeconds = types.DurationSeconds(1500 * time.Millisecond)
+// errRefusedDecode is what refusingDecoder returns, so a test can follow a decode error through a sender
+var errRefusedDecode = errors.New("decode refused")
+
+// refusingDecoder refuses every reply, standing in for a result a reply cannot decode into
+type refusingDecoder struct{}
+
+func (*refusingDecoder) UnmarshalJSON([]byte) error {
+	return errRefusedDecode
+}
+
+const (
+	// fractionalSeconds holds part of a second, which Gate refuses where it reads a duration in whole seconds
+	fractionalSeconds = types.DurationSeconds(1500 * time.Millisecond)
+	// negativeSeconds is a whole number of seconds below zero, which Gate gives no meaning where it reads a duration
+	negativeSeconds = types.DurationSeconds(-time.Second)
+)
 
 // apiCredentials holds the credentials used for due diligence testing; please supply your own
 var apiCredentials = &accounts.Credentials{
@@ -183,6 +198,8 @@ func TestSendUnversionedHTTPRequest(t *testing.T) {
 			body = `{"value":"pool"}`
 		case "/apiw/v2/coded":
 			body = `{"label":"INVALID_KEY","code":"10001","message":"invalid key"}`
+		case "/apiw/v2/labelled":
+			body = `{"Label":"BAD_REQUEST","Message":"meme token not found"}`
 		case "/apiw/v2/status":
 			body = `{"code":4,"msg":"boom","trace_id":"trace-1","data":null}`
 		default:
@@ -207,13 +224,26 @@ func TestSendUnversionedHTTPRequest(t *testing.T) {
 	for _, res := range []any{&result, nil} {
 		err := ex.sendUnversionedHTTPRequest(t.Context(), exchange.EdgeCase1, publicIsolatedMarginPoolLoansEPL, "/apiw/v2/coded", res)
 		require.Error(t, err, "sendUnversionedHTTPRequest must error on a coded error body")
-		assert.Contains(t, err.Error(), "INVALID_KEY", "error should carry the error label")
+		assert.Contains(t, err.Error(), "label: INVALID_KEY code: 10001", "error should carry the error label and code")
 	}
 
+	var list []struct {
+		Value string `json:"value"`
+	}
+	err := ex.sendUnversionedHTTPRequest(t.Context(), exchange.EdgeCase1, publicIsolatedMarginPoolLoansEPL, "/apiw/v2/labelled", &list)
+	require.Error(t, err, "sendUnversionedHTTPRequest must error on a labelled error body in place of the result")
+	assert.Contains(t, err.Error(), "label: BAD_REQUEST message: meme token not found", "error should carry the error label and message")
+
+	err = ex.sendUnversionedHTTPRequest(t.Context(), exchange.EdgeCase1, publicIsolatedMarginPoolLoansEPL, "/apiw/v2/labelled", new(refusingDecoder))
+	assert.ErrorIs(t, err, errRefusedDecode, "sendUnversionedHTTPRequest should keep the decode error of a labelled error body")
+
 	var status *BotCreateResponse
-	err := ex.sendUnversionedHTTPRequest(t.Context(), exchange.EdgeCase1, publicIsolatedMarginPoolLoansEPL, "/apiw/v2/status", &status)
+	err = ex.sendUnversionedHTTPRequest(t.Context(), exchange.EdgeCase1, publicIsolatedMarginPoolLoansEPL, "/apiw/v2/status", &status)
 	require.Error(t, err, "sendUnversionedHTTPRequest must surface an error carried in the response body")
 	assert.Contains(t, err.Error(), "trace-1", "error should carry the trace ID")
+
+	err = ex.sendUnversionedHTTPRequest(t.Context(), exchange.RestUSDCMargined, publicIsolatedMarginPoolLoansEPL, "/apiw/v2/ok", &result)
+	assert.ErrorIs(t, err, exchange.ErrEndpointPathNotFound, "sendUnversionedHTTPRequest should error on an endpoint the exchange has no URL for")
 }
 
 func TestSendPublicPostRequest(t *testing.T) {
@@ -236,6 +266,8 @@ func TestSendPublicPostRequest(t *testing.T) {
 			resp = `{"label":"INVALID_PARAM_VALUE","message":"invalid contract"}`
 		case "/api/v4/coded":
 			resp = `{"code":4,"msg":"boom","trace_id":"trace-1"}`
+		case "/api/v4/mistyped":
+			resp = `[{"contract":1}]`
 		default:
 			resp = `{`
 		}
@@ -258,7 +290,7 @@ func TestSendPublicPostRequest(t *testing.T) {
 
 	err := ex.sendPublicPostRequest(t.Context(), publicBatchFundingRatesEPL, "label", body, &result)
 	require.Error(t, err, "sendPublicPostRequest must error on a labelled error body")
-	assert.Contains(t, err.Error(), "INVALID_PARAM_VALUE", "error should carry the error label")
+	assert.Contains(t, err.Error(), "label: INVALID_PARAM_VALUE message: invalid contract", "error should carry the error label and message")
 
 	var coded *BotCreateResponse
 	err = ex.sendPublicPostRequest(t.Context(), publicBatchFundingRatesEPL, "coded", body, &coded)
@@ -266,6 +298,123 @@ func TestSendPublicPostRequest(t *testing.T) {
 	assert.Contains(t, err.Error(), "trace-1", "error should carry the trace ID")
 
 	require.Error(t, ex.sendPublicPostRequest(t.Context(), publicBatchFundingRatesEPL, "malformed", body, &result), "sendPublicPostRequest must error on a malformed response")
+
+	err = ex.sendPublicPostRequest(t.Context(), publicBatchFundingRatesEPL, "mistyped", body, &result)
+	require.Error(t, err, "sendPublicPostRequest must error on a response that does not decode")
+	assert.NotContains(t, err.Error(), "label:", "error should not carry a label the reply lacks")
+
+	assert.Error(t, ex.sendPublicPostRequest(t.Context(), publicBatchFundingRatesEPL, "ok", make(chan int), &result), "sendPublicPostRequest should error on a body it cannot marshal")
+
+	unset := new(Exchange)
+	require.NoError(t, testexch.Setup(unset), "Setup must not error")
+	unset.API.Endpoints = unset.NewEndpoints()
+	err = unset.sendPublicPostRequest(t.Context(), publicBatchFundingRatesEPL, "ok", body, &result)
+	assert.ErrorIs(t, err, exchange.ErrEndpointPathNotFound, "sendPublicPostRequest should error without a REST URL")
+}
+
+func TestSendAuthenticatedHTTPRequest(t *testing.T) {
+	t.Parallel()
+	ex := newRoutedExchange(t, map[string]string{
+		"/api/v4/ok":       `{"value":"pool"}`,
+		"/api/v4/coded":    `{"label":"INVALID_KEY","code":"10001","message":"invalid key"}`,
+		"/api/v4/labelled": `{"Label":"BAD_REQUEST","Message":"meme token not found"}`,
+		"/api/v4/mistyped": `{"value":1}`,
+	})
+	var result struct {
+		Value string `json:"value"`
+	}
+	require.NoError(t, ex.SendAuthenticatedHTTPRequest(t.Context(), exchange.RestSpot, spotAccountsEPL, http.MethodGet, "ok", nil, nil, &result), "SendAuthenticatedHTTPRequest must not error")
+	assert.Equal(t, "pool", result.Value, "SendAuthenticatedHTTPRequest should decode the response")
+
+	err := ex.SendAuthenticatedHTTPRequest(t.Context(), exchange.RestSpot, spotAccountsEPL, http.MethodGet, "coded", nil, nil, &result)
+	require.Error(t, err, "SendAuthenticatedHTTPRequest must error on a coded error body")
+	assert.Contains(t, err.Error(), "label: INVALID_KEY code: 10001 message: invalid key", "error should carry the error label, code and message")
+
+	var list []struct {
+		Value string `json:"value"`
+	}
+	err = ex.SendAuthenticatedHTTPRequest(t.Context(), exchange.RestSpot, spotAccountsEPL, http.MethodGet, "labelled", nil, nil, &list)
+	require.ErrorIs(t, err, request.ErrAuthRequestFailed, "SendAuthenticatedHTTPRequest must fail a labelled error body in place of the result")
+	assert.Contains(t, err.Error(), "label: BAD_REQUEST message: meme token not found", "error should carry the error label and message")
+
+	err = ex.SendAuthenticatedHTTPRequest(t.Context(), exchange.RestSpot, spotAccountsEPL, http.MethodGet, "labelled", nil, nil, new(refusingDecoder))
+	require.ErrorIs(t, err, request.ErrAuthRequestFailed, "SendAuthenticatedHTTPRequest must fail a labelled error body the result refuses")
+	assert.ErrorIs(t, err, errRefusedDecode, "SendAuthenticatedHTTPRequest should keep the decode error of a labelled error body")
+
+	err = ex.SendAuthenticatedHTTPRequest(t.Context(), exchange.RestSpot, spotAccountsEPL, http.MethodGet, "mistyped", nil, nil, &result)
+	require.ErrorIs(t, err, request.ErrAuthRequestFailed, "SendAuthenticatedHTTPRequest must fail a reply that does not decode")
+	assert.NotContains(t, err.Error(), "label:", "error should not carry a label the reply lacks")
+
+	err = ex.SendAuthenticatedHTTPRequest(t.Context(), exchange.RestUSDCMargined, spotAccountsEPL, http.MethodGet, "ok", nil, nil, &result)
+	assert.ErrorIs(t, err, exchange.ErrEndpointPathNotFound, "SendAuthenticatedHTTPRequest should error on an endpoint the exchange has no URL for")
+
+	assert.Error(t, ex.SendAuthenticatedHTTPRequest(t.Context(), exchange.RestSpot, spotAccountsEPL, http.MethodPost, "ok", nil, make(chan int), &result), "SendAuthenticatedHTTPRequest should error on a body it cannot marshal")
+
+	noCredentials := new(Exchange)
+	require.NoError(t, testexch.Setup(noCredentials), "Setup must not error")
+	noCredentials.API.AuthenticatedSupport = true
+	err = noCredentials.SendAuthenticatedHTTPRequest(t.Context(), exchange.RestSpot, spotAccountsEPL, http.MethodGet, "ok", nil, nil, &result)
+	assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "SendAuthenticatedHTTPRequest should error without credentials")
+
+	noContent := newRoutedExchange(t, nil)
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Status", "204")
+		if r.URL.Path == "/api/v4/stray-body" {
+			_, err := fmt.Fprint(w, `{"value":"pool"}`)
+			assert.NoError(t, err, "writing the response should not error")
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	require.NoError(t, noContent.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	require.NoError(t, noContent.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
+	assert.NoError(t, noContent.SendAuthenticatedHTTPRequest(t.Context(), exchange.RestSpot, spotAccountsEPL, http.MethodDelete, "empty", nil, nil, nil), "SendAuthenticatedHTTPRequest should accept an empty reply when it expects no result")
+	err = noContent.SendAuthenticatedHTTPRequest(t.Context(), exchange.RestSpot, spotAccountsEPL, http.MethodDelete, "empty", nil, nil, &result)
+	assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "SendAuthenticatedHTTPRequest should fail an empty reply when it expects a result")
+	err = noContent.SendAuthenticatedHTTPRequest(t.Context(), exchange.RestSpot, spotAccountsEPL, http.MethodDelete, "stray-body", nil, nil, nil)
+	assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "SendAuthenticatedHTTPRequest should fail a reply marked empty that carries a body")
+}
+
+func TestDecodeReply(t *testing.T) {
+	t.Parallel()
+	var list []string
+	require.NoError(t, decodeReply(json.RawMessage(`["a"]`), &list), "decodeReply must not error on a reply that decodes")
+	assert.Equal(t, []string{"a"}, list, "decodeReply should decode the reply into the result")
+
+	var labelled struct {
+		Label string `json:"label"`
+	}
+	require.NoError(t, decodeReply(json.RawMessage(`{"label":"BAD_REQUEST"}`), &labelled), "decodeReply must not error on a labelled reply that decodes into the result")
+	assert.Equal(t, "BAD_REQUEST", labelled.Label, "decodeReply should decode a labelled reply the result can hold")
+
+	reply := json.RawMessage(`{"Label":"BAD_REQUEST","Message":"meme token not found"}`)
+	var unwanted []string
+	decodeErr := json.Unmarshal(reply, &unwanted)
+	require.Error(t, decodeErr, "a labelled object must not decode into a list")
+	var refused []string
+	err := decodeReply(reply, &refused)
+	require.Error(t, err, "decodeReply must error on a labelled reply that does not decode")
+	assert.Equal(t, "label: BAD_REQUEST message: meme token not found: "+decodeErr.Error(), err.Error(), "decodeReply should add the label and message to the decode error")
+	wrapped := errors.Unwrap(err)
+	require.Error(t, wrapped, "decodeReply must wrap the decode error")
+	assert.Equal(t, decodeErr.Error(), wrapped.Error(), "decodeReply should wrap the decode error unchanged")
+
+	assert.ErrorIs(t, decodeReply(reply, new(refusingDecoder)), errRefusedDecode, "decodeReply should keep the decode error of a labelled reply")
+
+	var mistyped []string
+	err = decodeReply(json.RawMessage(`{"value":1}`), &mistyped)
+	require.Error(t, err, "decodeReply must error on a reply that does not decode")
+	assert.NotContains(t, err.Error(), "label:", "decodeReply should not add a label the reply lacks")
+
+	// An error reply that doesn't decode itself, here with a numeric message, is not trusted for its label
+	var malformed []string
+	err = decodeReply(json.RawMessage(`{"label":"BAD_REQUEST","message":1}`), &malformed)
+	require.Error(t, err, "decodeReply must error on a malformed error reply")
+	assert.NotContains(t, err.Error(), "label:", "decodeReply should not add the label of an error reply that does not decode")
+
+	for _, unlabelled := range []string{`{"value":1}`, `{"label":"BAD_REQUEST","message":1}`} {
+		assert.ErrorIsf(t, decodeReply(json.RawMessage(unlabelled), new(refusingDecoder)), errRefusedDecode, "decodeReply should keep the decode error of %s", unlabelled)
+	}
 }
 
 // newFixedResponseExchange returns an exchange whose REST requests reach a server answering path with body, signing
@@ -637,10 +786,10 @@ func TestValidateCountdownTimeout(t *testing.T) {
 
 func TestCheckWholeSeconds(t *testing.T) {
 	t.Parallel()
-	for _, d := range []time.Duration{0, time.Second, -time.Second, 24 * time.Hour} {
+	for _, d := range []time.Duration{0, time.Second, 24 * time.Hour} {
 		assert.NoErrorf(t, checkWholeSeconds(types.DurationSeconds(d), "expiry"), "checkWholeSeconds should accept %s", d)
 	}
-	for _, d := range []time.Duration{time.Nanosecond, 1500 * time.Millisecond, -1500 * time.Millisecond} {
+	for _, d := range []time.Duration{time.Nanosecond, 1500 * time.Millisecond, -time.Nanosecond, -time.Second, -1500 * time.Millisecond} {
 		assert.ErrorIsf(t, checkWholeSeconds(types.DurationSeconds(d), "expiry"), errNotWholeSeconds, "checkWholeSeconds should reject %s", d)
 	}
 }
