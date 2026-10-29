@@ -5757,6 +5757,8 @@ func TestChangePositionMargin(t *testing.T) {
 	arg.OriginalAllocatedMargin = arg.NewAllocatedMargin
 	_, err = e.ChangePositionMargin(t.Context(), arg)
 	require.ErrorIs(t, err, errMarginAmountRequired, "ChangePositionMargin must reject an unchanged margin")
+	_, err = new(Exchange).ChangePositionMargin(t.Context(), &margin.PositionChangeRequest{Pair: currency.NewBTCUSDT(), Asset: asset.USDTMarginedFutures, MarginType: margin.Isolated, OriginalAllocatedMargin: 10, NewAllocatedMargin: 15})
+	require.ErrorIs(t, err, currency.ErrPairManagerNotInitialised, "ChangePositionMargin must return the error changing the margin")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)

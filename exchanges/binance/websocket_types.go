@@ -183,7 +183,7 @@ type WebsocketRollingWindowTickerRequest struct {
 	WindowSize time.Duration
 	// Type is FULL (the default) or MINI
 	Type TickerType
-	// SymbolStatus filters the symbols by trading status: TRADING, HALT or BREAK
+	// SymbolStatus filters the symbols by trading status: TRADING, HALT, BREAK or CANCEL_ONLY
 	SymbolStatus SymbolStatus
 }
 
@@ -193,7 +193,7 @@ type WebsocketTickerRequest struct {
 	Symbols currency.Pairs
 	// Type is FULL (the default) or MINI
 	Type TickerType
-	// SymbolStatus filters the symbols by trading status: TRADING, HALT or BREAK
+	// SymbolStatus filters the symbols by trading status: TRADING, HALT, BREAK or CANCEL_ONLY
 	SymbolStatus SymbolStatus
 }
 
@@ -220,7 +220,7 @@ type WebsocketTradingDayTickerRequest struct {
 	TimeZone string
 	// Type is FULL (the default) or MINI
 	Type TickerType
-	// SymbolStatus filters the symbols by trading status: TRADING, HALT or BREAK
+	// SymbolStatus filters the symbols by trading status: TRADING, HALT, BREAK or CANCEL_ONLY
 	SymbolStatus SymbolStatus
 }
 

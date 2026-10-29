@@ -1453,12 +1453,8 @@ func (e *Exchange) USDTMarginedFuturesPositionMarginChangeHistory(ctx context.Co
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	params := url.Values{}
-	if arg.ChangeType != "" {
-		changeType, ok := validMarginChange[arg.ChangeType]
-		if !ok {
-			return nil, errMarginChangeTypeInvalid
-		}
-		params.Set("type", strconv.FormatInt(changeType, 10))
+	if arg.Type != 0 {
+		params.Set("type", strconv.FormatUint(arg.Type, 10))
 	}
 	if err := setTimeRangeParams(params, arg.StartTime, arg.EndTime); err != nil {
 		return nil, err
@@ -1476,13 +1472,13 @@ func (e *Exchange) USDTMarginedFuturesPositionMarginChangeHistory(ctx context.Co
 }
 
 // USDTMarginedFuturesModifyIsolatedPositionMarginRequest adds margin to or reduces margin from an isolated position
-// with Modify Isolated Position Margin; changeType is add or reduce, and positionSide is required in Hedge Mode
-func (e *Exchange) USDTMarginedFuturesModifyIsolatedPositionMarginRequest(ctx context.Context, symbol currency.Pair, positionSide PositionSide, changeType string, amount float64) (*USDTMarginedFuturesModifyIsolatedPositionMarginResponse, error) {
+// with Modify Isolated Position Margin; changeType is 1 to add margin or 2 to reduce it, and positionSide is required in
+// Hedge Mode
+func (e *Exchange) USDTMarginedFuturesModifyIsolatedPositionMarginRequest(ctx context.Context, symbol currency.Pair, positionSide PositionSide, changeType uint64, amount float64) (*USDTMarginedFuturesModifyIsolatedPositionMarginResponse, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	marginChange, ok := validMarginChange[changeType]
-	if !ok {
+	if changeType == 0 {
 		return nil, errMarginChangeTypeInvalid
 	}
 	if amount <= 0 {
@@ -1498,7 +1494,7 @@ func (e *Exchange) USDTMarginedFuturesModifyIsolatedPositionMarginRequest(ctx co
 		params.Set("positionSide", string(positionSide))
 	}
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
-	params.Set("type", strconv.FormatInt(marginChange, 10))
+	params.Set("type", strconv.FormatUint(changeType, 10))
 	var resp *USDTMarginedFuturesModifyIsolatedPositionMarginResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, "/fapi/v1/positionMargin", params, usdtMarginedFuturesDefaultRate, &resp)
 }

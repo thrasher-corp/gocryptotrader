@@ -72,7 +72,7 @@ func (e *Exchange) GetExchangeInfo(ctx context.Context, req *ExchangeInfoRequest
 		switch len(req.Permissions) {
 		case 0:
 		case 1:
-			params.Set("permissions", req.Permissions[0])
+			params.Set("permissions", string(req.Permissions[0]))
 		default:
 			permissions, err := json.Marshal(req.Permissions)
 			if err != nil {

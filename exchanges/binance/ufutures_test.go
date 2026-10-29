@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/url"
+	"strconv"
 	"testing"
 	"time"
 
@@ -577,6 +578,36 @@ func TestGetUSDTMarginedFuturesBasis(t *testing.T) {
 		return
 	}
 	assert.NotEmpty(t, result, "GetUSDTMarginedFuturesBasis should return basis records")
+}
+
+func TestGetUSDTMarginedFuturesBasisPeriod(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		period kline.Interval
+		exp    string
+	}{
+		{kline.FiveMin, "5m"},
+		{kline.FifteenMin, "15m"},
+		{kline.ThirtyMin, "30m"},
+		{kline.OneHour, "1h"},
+		{kline.TwoHour, "2h"},
+		{kline.FourHour, "4h"},
+		{kline.SixHour, "6h"},
+		{kline.TwelveHour, "12h"},
+		{kline.OneDay, "1d"},
+	} {
+		t.Run(tc.exp, func(t *testing.T) {
+			t.Parallel()
+			ex := newTestServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, "/futures/data/basis", r.URL.Path, "GetUSDTMarginedFuturesBasis should request the basis path")
+				assert.Equal(t, url.Values{"pair": {"BTCUSDT"}, "contractType": {"PERPETUAL"}, "period": {tc.exp}}, r.URL.Query(), "GetUSDTMarginedFuturesBasis should send the period as Binance writes it")
+				_, err := w.Write([]byte(`[]`))
+				assert.NoError(t, err, "Write should not error")
+			})
+			_, err := ex.GetUSDTMarginedFuturesBasis(t.Context(), &USDTMarginedFuturesBasisRequest{Pair: currency.NewBTCUSDT(), ContractType: ContractTypePerpetual, Period: tc.period})
+			require.NoError(t, err, "GetUSDTMarginedFuturesBasis must not error")
+		})
+	}
 }
 
 func TestUSDTMarginedFuturesServerTime(t *testing.T) {
@@ -2806,18 +2837,18 @@ func TestUSDTMarginedFuturesPositionMarginChangeHistory(t *testing.T) {
 	t.Parallel()
 	_, err := e.USDTMarginedFuturesPositionMarginChangeHistory(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "USDTMarginedFuturesPositionMarginChangeHistory must reject a nil request")
-	_, err = e.USDTMarginedFuturesPositionMarginChangeHistory(t.Context(), &USDTMarginedFuturesPositionMarginChangeHistoryRequest{ChangeType: "add"})
+	_, err = e.USDTMarginedFuturesPositionMarginChangeHistory(t.Context(), &USDTMarginedFuturesPositionMarginChangeHistoryRequest{Type: 1})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "USDTMarginedFuturesPositionMarginChangeHistory must reject an empty symbol")
-	_, err = e.USDTMarginedFuturesPositionMarginChangeHistory(t.Context(), &USDTMarginedFuturesPositionMarginChangeHistoryRequest{Symbol: currency.NewBTCUSDT(), ChangeType: "remove"})
-	require.ErrorIs(t, err, errMarginChangeTypeInvalid, "USDTMarginedFuturesPositionMarginChangeHistory must reject an unknown change type")
 	startTime, endTime := getTime()
-	_, err = e.USDTMarginedFuturesPositionMarginChangeHistory(t.Context(), &USDTMarginedFuturesPositionMarginChangeHistoryRequest{Symbol: currency.NewBTCUSDT(), ChangeType: "add", StartTime: endTime, EndTime: startTime})
+	_, err = e.USDTMarginedFuturesPositionMarginChangeHistory(t.Context(), &USDTMarginedFuturesPositionMarginChangeHistoryRequest{Symbol: currency.NewBTCUSDT(), Type: 1, StartTime: endTime, EndTime: startTime})
 	require.ErrorIs(t, err, common.ErrStartAfterEnd, "USDTMarginedFuturesPositionMarginChangeHistory must reject a start time after the end time")
+	_, err = new(Exchange).USDTMarginedFuturesPositionMarginChangeHistory(t.Context(), &USDTMarginedFuturesPositionMarginChangeHistoryRequest{Symbol: currency.NewBTCUSDT(), Type: 1})
+	require.ErrorIs(t, err, currency.ErrPairManagerNotInitialised, "USDTMarginedFuturesPositionMarginChangeHistory must return the error formatting the symbol")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.USDTMarginedFuturesPositionMarginChangeHistory(t.Context(), &USDTMarginedFuturesPositionMarginChangeHistoryRequest{Symbol: currency.NewBTCUSDT(), ChangeType: "add", StartTime: startTime, EndTime: endTime, Limit: 5})
+	result, err := e.USDTMarginedFuturesPositionMarginChangeHistory(t.Context(), &USDTMarginedFuturesPositionMarginChangeHistoryRequest{Symbol: currency.NewBTCUSDT(), Type: 1, StartTime: startTime, EndTime: endTime, Limit: 5})
 	require.NoError(t, err, "USDTMarginedFuturesPositionMarginChangeHistory must not error")
 	if mockTests {
 		exp := []USDTMarginedFuturesPositionMarginChangeResponse{
@@ -2835,19 +2866,50 @@ func TestUSDTMarginedFuturesPositionMarginChangeHistory(t *testing.T) {
 	}
 }
 
+func TestUSDTMarginedFuturesPositionMarginChangeHistoryType(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name       string
+		changeType uint64
+		exp        url.Values
+	}{
+		{"both directions", 0, url.Values{"symbol": {"BTCUSDT"}}},
+		{"added", 1, url.Values{"symbol": {"BTCUSDT"}, "type": {"1"}}},
+		{"reduced", 2, url.Values{"symbol": {"BTCUSDT"}, "type": {"2"}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := newTestServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, "/fapi/v1/positionMargin/history", r.URL.Path, "USDTMarginedFuturesPositionMarginChangeHistory should request the history path")
+				query := r.URL.Query()
+				for _, signed := range []string{"recvWindow", "signature", "timestamp"} {
+					query.Del(signed)
+				}
+				assert.Equal(t, tc.exp, query, "USDTMarginedFuturesPositionMarginChangeHistory should send the type only when it is set")
+				_, err := w.Write([]byte(`[]`))
+				assert.NoError(t, err, "Write should not error")
+			})
+			_, err := ex.USDTMarginedFuturesPositionMarginChangeHistory(t.Context(), &USDTMarginedFuturesPositionMarginChangeHistoryRequest{Symbol: currency.NewBTCUSDT(), Type: tc.changeType})
+			require.NoError(t, err, "USDTMarginedFuturesPositionMarginChangeHistory must not error")
+		})
+	}
+}
+
 func TestUSDTMarginedFuturesModifyIsolatedPositionMarginRequest(t *testing.T) {
 	t.Parallel()
-	_, err := e.USDTMarginedFuturesModifyIsolatedPositionMarginRequest(t.Context(), currency.EMPTYPAIR, "LONG", "add", 5)
+	_, err := e.USDTMarginedFuturesModifyIsolatedPositionMarginRequest(t.Context(), currency.EMPTYPAIR, "LONG", 1, 5)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "USDTMarginedFuturesModifyIsolatedPositionMarginRequest must reject an empty symbol")
-	_, err = e.USDTMarginedFuturesModifyIsolatedPositionMarginRequest(t.Context(), currency.NewBTCUSDT(), "LONG", "", 5)
+	_, err = e.USDTMarginedFuturesModifyIsolatedPositionMarginRequest(t.Context(), currency.NewBTCUSDT(), "LONG", 0, 5)
 	require.ErrorIs(t, err, errMarginChangeTypeInvalid, "USDTMarginedFuturesModifyIsolatedPositionMarginRequest must reject an empty change type")
-	_, err = e.USDTMarginedFuturesModifyIsolatedPositionMarginRequest(t.Context(), currency.NewBTCUSDT(), "LONG", "add", 0)
+	_, err = e.USDTMarginedFuturesModifyIsolatedPositionMarginRequest(t.Context(), currency.NewBTCUSDT(), "LONG", 1, 0)
 	require.ErrorIs(t, err, errMarginAmountRequired, "USDTMarginedFuturesModifyIsolatedPositionMarginRequest must reject a zero amount")
+	_, err = new(Exchange).USDTMarginedFuturesModifyIsolatedPositionMarginRequest(t.Context(), currency.NewBTCUSDT(), "LONG", 1, 5)
+	require.ErrorIs(t, err, currency.ErrPairManagerNotInitialised, "USDTMarginedFuturesModifyIsolatedPositionMarginRequest must return the error formatting the symbol")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	result, err := e.USDTMarginedFuturesModifyIsolatedPositionMarginRequest(t.Context(), currency.NewBTCUSDT(), "LONG", "add", 5)
+	result, err := e.USDTMarginedFuturesModifyIsolatedPositionMarginRequest(t.Context(), currency.NewBTCUSDT(), "LONG", 1, 5)
 	require.NoError(t, err, "USDTMarginedFuturesModifyIsolatedPositionMarginRequest must not error")
 	if mockTests {
 		exp := &USDTMarginedFuturesModifyIsolatedPositionMarginResponse{
@@ -2857,6 +2919,24 @@ func TestUSDTMarginedFuturesModifyIsolatedPositionMarginRequest(t *testing.T) {
 			Type:    1,
 		}
 		assert.Equal(t, exp, result, "USDTMarginedFuturesModifyIsolatedPositionMarginRequest should decode every field")
+	}
+}
+
+func TestUSDTMarginedFuturesModifyIsolatedPositionMarginRequestType(t *testing.T) {
+	t.Parallel()
+	for _, changeType := range []uint64{1, 2} {
+		t.Run(strconv.FormatUint(changeType, 10), func(t *testing.T) {
+			t.Parallel()
+			ex := newTestServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, "/fapi/v1/positionMargin", r.URL.Path, "USDTMarginedFuturesModifyIsolatedPositionMarginRequest should request the position margin path")
+				assert.NoError(t, r.ParseForm(), "ParseForm should not error")
+				assert.Equal(t, strconv.FormatUint(changeType, 10), r.Form.Get("type"), "USDTMarginedFuturesModifyIsolatedPositionMarginRequest should send the type as given")
+				_, err := w.Write([]byte(`{"amount":5,"code":200,"msg":"Successfully modify position margin.","type":` + strconv.FormatUint(changeType, 10) + `}`))
+				assert.NoError(t, err, "Write should not error")
+			})
+			_, err := ex.USDTMarginedFuturesModifyIsolatedPositionMarginRequest(t.Context(), currency.NewBTCUSDT(), "LONG", changeType, 5)
+			require.NoError(t, err, "USDTMarginedFuturesModifyIsolatedPositionMarginRequest must not error")
+		})
 	}
 }
 

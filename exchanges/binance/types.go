@@ -172,6 +172,42 @@ const (
 	TickerTypeMini TickerType = "MINI"
 )
 
+// Permission is a value of the permissions parameter of exchange information requests, and an account or symbol
+// permission the replies report
+type Permission string
+
+// Account and symbol permissions. Exchange information lists the symbols with SPOT, MARGIN or LEVERAGED permission when
+// no permission is requested
+const (
+	PermissionSpot            Permission = "SPOT"
+	PermissionMargin          Permission = "MARGIN"
+	PermissionLeveraged       Permission = "LEVERAGED"
+	PermissionTradingGroup002 Permission = "TRD_GRP_002"
+	PermissionTradingGroup003 Permission = "TRD_GRP_003"
+	PermissionTradingGroup004 Permission = "TRD_GRP_004"
+	PermissionTradingGroup005 Permission = "TRD_GRP_005"
+	PermissionTradingGroup006 Permission = "TRD_GRP_006"
+	PermissionTradingGroup007 Permission = "TRD_GRP_007"
+	PermissionTradingGroup008 Permission = "TRD_GRP_008"
+	PermissionTradingGroup009 Permission = "TRD_GRP_009"
+	PermissionTradingGroup010 Permission = "TRD_GRP_010"
+	PermissionTradingGroup011 Permission = "TRD_GRP_011"
+	PermissionTradingGroup012 Permission = "TRD_GRP_012"
+	PermissionTradingGroup013 Permission = "TRD_GRP_013"
+	PermissionTradingGroup014 Permission = "TRD_GRP_014"
+	PermissionTradingGroup015 Permission = "TRD_GRP_015"
+	PermissionTradingGroup016 Permission = "TRD_GRP_016"
+	PermissionTradingGroup017 Permission = "TRD_GRP_017"
+	PermissionTradingGroup018 Permission = "TRD_GRP_018"
+	PermissionTradingGroup019 Permission = "TRD_GRP_019"
+	PermissionTradingGroup020 Permission = "TRD_GRP_020"
+	PermissionTradingGroup021 Permission = "TRD_GRP_021"
+	PermissionTradingGroup022 Permission = "TRD_GRP_022"
+	PermissionTradingGroup023 Permission = "TRD_GRP_023"
+	PermissionTradingGroup024 Permission = "TRD_GRP_024"
+	PermissionTradingGroup025 Permission = "TRD_GRP_025"
+)
+
 // MarginAccountType is the type parameter of the margin available inventory and manual liquidation requests
 type MarginAccountType string
 
@@ -791,7 +827,7 @@ type ExchangeInfoRequest struct {
 	Symbols currency.Pairs
 	// Permissions defaults to SPOT, MARGIN and LEVERAGED; symbols with any other permission are listed only when it is
 	// requested
-	Permissions []string
+	Permissions []Permission
 	// ShowPermissionSets false leaves each symbol's permission sets empty; the endpoint defaults it to true
 	ShowPermissionSets *bool
 	SymbolStatus       SymbolStatus
@@ -852,8 +888,8 @@ type SymbolInfo struct {
 	IsSpotTradingAllowed            bool                      `json:"isSpotTradingAllowed"`
 	IsMarginTradingAllowed          bool                      `json:"isMarginTradingAllowed"`
 	Filters                         []SymbolFilter            `json:"filters"`
-	Permissions                     []string                  `json:"permissions"`
-	PermissionSets                  [][]string                `json:"permissionSets"`
+	Permissions                     []Permission              `json:"permissions"`
+	PermissionSets                  [][]Permission            `json:"permissionSets"`
 	DefaultSelfTradePreventionMode  SelfTradePreventionMode   `json:"defaultSelfTradePreventionMode"`
 	AllowedSelfTradePreventionModes []SelfTradePreventionMode `json:"allowedSelfTradePreventionModes"`
 }
@@ -1511,7 +1547,7 @@ type AccountResponse struct {
 	UpdateTime                    types.Time      `json:"updateTime"`
 	AccountType                   string          `json:"accountType"`
 	Balances                      []Balance       `json:"balances"`
-	Permissions                   []string        `json:"permissions"`
+	Permissions                   []Permission    `json:"permissions"`
 	UID                           uint64          `json:"uid"`
 }
 

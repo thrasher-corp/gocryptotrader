@@ -11,14 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-// validMarginChange maps add and reduce to Binance's margin change types; other enums are left to the server to
-// validate, so a stale list cannot reject a valid value
 var (
-	validMarginChange = map[string]int64{
-		"add":    1,
-		"reduce": 2,
-	}
-
 	errContractTypeIsRequired  = errors.New("contract type is required")
 	errInvalidPeriodOrInterval = errors.New("invalid period")
 )
@@ -908,11 +901,12 @@ type AmendmentChange struct {
 
 // USDTMarginedFuturesPositionMarginChangeHistoryRequest holds the parameters of Get Position Margin Change History
 type USDTMarginedFuturesPositionMarginChangeHistoryRequest struct {
-	Symbol     currency.Pair
-	ChangeType string // add or reduce; empty for both
-	StartTime  time.Time
-	EndTime    time.Time
-	Limit      uint64
+	Symbol currency.Pair
+	// Type filters by direction: 1 adds position margin and 2 reduces it; both when zero
+	Type      uint64
+	StartTime time.Time
+	EndTime   time.Time
+	Limit     uint64
 }
 
 // USDTMarginedFuturesPositionMarginChangeResponse holds one isolated position margin change

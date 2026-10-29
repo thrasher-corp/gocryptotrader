@@ -4969,17 +4969,13 @@ func (e *Exchange) ChangePositionMargin(ctx context.Context, req *margin.Positio
 	amount := change.Abs().InexactFloat64()
 	positionSide := PositionSide(strings.ToUpper(req.MarginSide))
 	var err error
+	changeType := uint64(1) // 1 adds position margin and 2 reduces it
+	if change.IsNegative() {
+		changeType = 2
+	}
 	if req.Asset == asset.CoinMarginedFutures {
-		changeType := uint64(1) // 1 adds position margin and 2 reduces it
-		if change.IsNegative() {
-			changeType = 2
-		}
 		_, err = e.CoinMarginedFuturesModifyIsolatedPositionMargin(ctx, &CoinMarginedFuturesModifyIsolatedPositionMarginRequest{Symbol: req.Pair, PositionSide: positionSide, Amount: amount, Type: changeType})
 	} else {
-		changeType := "add"
-		if change.IsNegative() {
-			changeType = "reduce"
-		}
 		_, err = e.USDTMarginedFuturesModifyIsolatedPositionMarginRequest(ctx, req.Pair, positionSide, changeType, amount)
 	}
 	if err != nil {

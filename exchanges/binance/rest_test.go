@@ -81,7 +81,7 @@ func TestGetExchangeInfo(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetExchangeInfo(t.Context(), &ExchangeInfoRequest{Symbols: currency.Pairs{currency.NewBTCUSDT()}, SymbolStatus: "TRADING"})
 	require.ErrorIs(t, err, errInvalidParameterCombination, "GetExchangeInfo must reject symbolStatus with symbols")
-	_, err = e.GetExchangeInfo(t.Context(), &ExchangeInfoRequest{Symbols: currency.Pairs{currency.NewBTCUSDT()}, Permissions: []string{"SPOT"}})
+	_, err = e.GetExchangeInfo(t.Context(), &ExchangeInfoRequest{Symbols: currency.Pairs{currency.NewBTCUSDT()}, Permissions: []Permission{PermissionSpot}})
 	require.ErrorIs(t, err, errInvalidParameterCombination, "GetExchangeInfo must reject permissions with symbols")
 	_, err = e.GetExchangeInfo(t.Context(), &ExchangeInfoRequest{Symbols: currency.Pairs{currency.EMPTYPAIR}})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetExchangeInfo must reject an empty pair")
@@ -254,11 +254,11 @@ func TestGetExchangeInfo(t *testing.T) {
 							EndTime:    types.Time(time.UnixMilli(1741672924895)),
 						},
 					},
-					Permissions: []string{
+					Permissions: []Permission{
 						"SPOT",
 						"MARGIN",
 					},
-					PermissionSets: [][]string{
+					PermissionSets: [][]Permission{
 						{
 							"SPOT",
 							"MARGIN",
@@ -297,12 +297,36 @@ func TestGetExchangeInfo(t *testing.T) {
 func TestGetExchangeInfoFilters(t *testing.T) {
 	t.Parallel()
 	result, err := e.GetExchangeInfo(t.Context(), &ExchangeInfoRequest{
-		Permissions:        []string{"SPOT", "MARGIN"},
+		Permissions:        []Permission{PermissionSpot, PermissionMargin},
 		ShowPermissionSets: new(false),
 		SymbolStatus:       "HALT",
 	})
 	require.NoError(t, err, "GetExchangeInfo must not error")
 	assert.NotEmpty(t, result.RateLimits, "GetExchangeInfo should return the rate limits")
+}
+
+func TestGetExchangeInfoPermissions(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name        string
+		permissions []Permission
+		exp         string
+	}{
+		{"one", []Permission{PermissionSpot}, "SPOT"},
+		{"several", []Permission{PermissionMargin, PermissionTradingGroup025}, `["MARGIN","TRD_GRP_025"]`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := newTestServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, "/api/v3/exchangeInfo", r.URL.Path, "GetExchangeInfo should request the exchange information path")
+				assert.Equal(t, url.Values{"permissions": {tc.exp}}, r.URL.Query(), "GetExchangeInfo should send one permission as it is and several as a JSON list")
+				_, err := w.Write([]byte(`{}`))
+				assert.NoError(t, err, "Write should not error")
+			})
+			_, err := ex.GetExchangeInfo(t.Context(), &ExchangeInfoRequest{Permissions: tc.permissions})
+			require.NoError(t, err, "GetExchangeInfo must not error")
+		})
+	}
 }
 
 func TestGetExchangeServerTime(t *testing.T) {
@@ -2723,7 +2747,7 @@ func TestGetAccount(t *testing.T) {
 					Locked: jsonDecimal(t, "120.50000000"),
 				},
 			},
-			Permissions: []string{
+			Permissions: []Permission{
 				"SPOT",
 			},
 			UID: 354937868,

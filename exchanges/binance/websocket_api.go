@@ -835,7 +835,7 @@ func (e *Exchange) GetWebsocketAveragePrice(ctx context.Context, symbol currency
 }
 
 // GetWebsocketOrderbook returns the order book of a symbol (Order book); limit defaults to 100 levels when zero, and
-// symbolStatus filters by trading status (TRADING, HALT or BREAK) when set
+// symbolStatus filters by trading status (TRADING, HALT, BREAK or CANCEL_ONLY) when set
 func (e *Exchange) GetWebsocketOrderbook(ctx context.Context, symbol currency.Pair, limit uint64, symbolStatus SymbolStatus) (*OrderBookResponse, error) {
 	params := wsParams{}
 	if err := e.setSymbol(params, symbol); err != nil {
@@ -939,7 +939,7 @@ func (e *Exchange) GetWebsocket24HourPriceChanges(ctx context.Context, arg *Webs
 }
 
 // GetWebsocketSymbolOrderbookTicker returns the best bid and ask of symbols (Symbol order book ticker); every symbol's
-// when symbols is empty. symbolStatus filters by trading status (TRADING, HALT or BREAK) when set
+// when symbols is empty. symbolStatus filters by trading status (TRADING, HALT, BREAK or CANCEL_ONLY) when set
 func (e *Exchange) GetWebsocketSymbolOrderbookTicker(ctx context.Context, symbols currency.Pairs, symbolStatus SymbolStatus) ([]WebsocketBookTickerResponse, error) {
 	params := wsParams{}
 	if err := e.setSymbols(params, symbols); err != nil {
@@ -955,7 +955,7 @@ func (e *Exchange) GetWebsocketSymbolOrderbookTicker(ctx context.Context, symbol
 }
 
 // GetWebsocketSymbolPriceTicker returns the latest price of symbols (Symbol price ticker); every symbol's when symbols
-// is empty. symbolStatus filters by trading status (TRADING, HALT or BREAK) when set
+// is empty. symbolStatus filters by trading status (TRADING, HALT, BREAK or CANCEL_ONLY) when set
 func (e *Exchange) GetWebsocketSymbolPriceTicker(ctx context.Context, symbols currency.Pairs, symbolStatus SymbolStatus) ([]WebsocketPriceTickerResponse, error) {
 	params := wsParams{}
 	if err := e.setSymbols(params, symbols); err != nil {
