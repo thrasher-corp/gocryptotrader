@@ -95,8 +95,8 @@ func (f *FXHandler) GetCurrencyData(baseCurrency string, currencies []string) (m
 		return backupRates, nil
 	}
 
-	// On success, currencies the primary lacks are not passed on: backupGetRate keeps nothing once one is left that no
-	// provider lists
+	// Spillover stays with the primary: support results cannot be merged safely yet, as a provider sent an empty list
+	// answers with every rate it has and would overwrite the primary's quotes.
 	return rates, nil
 }
 
