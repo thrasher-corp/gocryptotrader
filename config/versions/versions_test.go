@@ -1,6 +1,7 @@
 package versions
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"testing"
@@ -111,6 +112,20 @@ func TestExchangeDeploy(t *testing.T) {
 	in = []byte(`{"version":0,"exchanges":[{"name":"Juan"},{"name":"Megashaft"}]}`)
 	_, err = exchangeDeploy(t.Context(), v, ExchangeVersion.UpgradeExchange, in)
 	require.NoError(t, err)
+	for _, name := range []string{"Juan", "JUAN", "juan", "jUaN", "Other"} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			input := []byte(`{"exchanges":[{"name":"` + name + `"}]}`)
+			for _, method := range []func(ExchangeVersion, context.Context, []byte) ([]byte, error){ExchangeVersion.UpgradeExchange, ExchangeVersion.DowngradeExchange} {
+				_, err := exchangeDeploy(t.Context(), &TestVersion2{ExchErr: true}, method, input)
+				if name == "Other" {
+					require.NoError(t, err, "unrelated exchanges must not be selected")
+				} else {
+					require.ErrorIs(t, err, errModifyingExchange, "all accepted capitalisations must select the migration")
+				}
+			}
+		})
+	}
 }
 
 func TestRegisterVersion(t *testing.T) {

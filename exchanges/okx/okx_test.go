@@ -8187,6 +8187,17 @@ func TestOptionalNumberUnmarshalJSON(t *testing.T) {
 
 func TestTradeFeeRateUnmarshalJSON(t *testing.T) {
 	t.Parallel()
+	t.Run("reused response", func(t *testing.T) {
+		t.Parallel()
+		var row TradeFeeRate
+		require.NoError(t, json.Unmarshal([]byte(`{"level":"1","maker":"0","feeGroup":[{"groupId":"4","maker":"0"}]}`), &row), "initial response must decode")
+		require.NotEqual(t, TradeFeeRate{}, row, "initial response must populate fields")
+		expected := row
+		expected.FeeRateMaker = nil
+		require.NoError(t, json.Unmarshal([]byte(`{}`), &row), "reused response must decode")
+		assert.Equal(t, expected, row, "ordinary fields should be retained while omitted presence-aware rates should clear")
+	})
+
 	for _, tc := range []struct {
 		name, payload string
 		present       bool
@@ -8242,6 +8253,17 @@ func TestTradeFeeRateUnmarshalJSON(t *testing.T) {
 
 func TestTradeFeeGroupUnmarshalJSON(t *testing.T) {
 	t.Parallel()
+	t.Run("reused response", func(t *testing.T) {
+		t.Parallel()
+		var row TradeFeeGroup
+		require.NoError(t, json.Unmarshal([]byte(`{"groupId":"4","maker":"0"}`), &row), "initial response must decode")
+		require.NotEqual(t, TradeFeeGroup{}, row, "initial response must populate fields")
+		expected := row
+		expected.MakerRate = nil
+		require.NoError(t, json.Unmarshal([]byte(`{}`), &row), "reused response must decode")
+		assert.Equal(t, expected, row, "ordinary fields should be retained while omitted presence-aware rates should clear")
+	})
+
 	for _, tc := range []struct {
 		name, payload                       string
 		makerPresent, takerPresent, invalid bool
@@ -8283,6 +8305,17 @@ func TestTradeFeeGroupUnmarshalJSON(t *testing.T) {
 
 func TestFundingRateResponseUnmarshalJSON(t *testing.T) {
 	t.Parallel()
+	t.Run("reused response", func(t *testing.T) {
+		t.Parallel()
+		var row FundingRateResponse
+		require.NoError(t, json.Unmarshal([]byte(`{"instId":"BTC-USDT-SWAP","fundingRate":"0.001","realizedRate":"0"}`), &row), "initial response must decode")
+		require.NotEqual(t, FundingRateResponse{}, row, "initial response must populate fields")
+		expected := row
+		expected.RealisedRate = nil
+		require.NoError(t, json.Unmarshal([]byte(`{}`), &row), "reused response must decode")
+		assert.Equal(t, expected, row, "ordinary fields should be retained while omitted presence-aware rates should clear")
+	})
+
 	for _, tc := range []struct {
 		name, payload string
 		present       bool

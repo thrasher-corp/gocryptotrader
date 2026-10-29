@@ -252,6 +252,35 @@ func TestRefreshEquivalentOrderbookSnapshot(t *testing.T) {
 }
 
 func TestTrackEquivalentSubscriptionsOnExistingConnection(t *testing.T) {
+	t.Parallel()
+	for _, channel := range []string{channelInstruments, liquidationOrders, channelOrders, subscription.MyOrdersChannel} {
+		for _, a := range []asset.Item{asset.Spot, asset.Margin} {
+			t.Run(channel+"/"+a.String(), func(t *testing.T) {
+				t.Parallel()
+				tracked := new(Exchange)
+				require.NoError(t, testexch.Setup(tracked), "exchange must initialise")
+				other := asset.Margin
+				if a == asset.Margin {
+					other = asset.Spot
+				}
+				incoming := &subscription.Subscription{
+					Asset: a, Channel: channel, Pairs: currency.Pairs{currency.NewBTCUSDT()},
+					QualifiedChannel: fmt.Sprintf(`{"channel":%q,"instType":%q}`, channelName(&subscription.Subscription{Channel: channel}), GetInstrumentTypeFromAssetItem(a)),
+				}
+				existing := incoming.Clone()
+				existing.Asset = other
+				conn := &subscriptionRecorderConnection{subscriptions: subscription.NewStore()}
+				require.NoError(t, tracked.Websocket.AddSuccessfulSubscriptions(conn, existing), "existing asset must be tracked by the manager")
+				require.NoError(t, conn.subscriptions.Add(existing), "existing asset must belong to the connection")
+				remaining, attached, err := tracked.trackEquivalentSubscriptionsOnExistingConnection(t.Context(), conn, subscription.List{incoming})
+				require.NoError(t, err, "asset-scoped subscription must be evaluated")
+				require.Equal(t, subscription.List{incoming}, remaining, "different instrument type must remain for outbound subscription")
+				require.Empty(t, attached, "asset-scoped subscriptions must not be attached as equivalents")
+				require.Empty(t, conn.Requests(), "equivalence hook must leave outbound handling to the caller")
+			})
+		}
+	}
+
 	newEquivalentSubs := func() (*subscription.Subscription, *subscription.Subscription) {
 		pair := currency.NewBTCUSDT()
 		marginSub := &subscription.Subscription{Asset: asset.Margin, Pairs: []currency.Pair{pair}, Channel: subscription.TickerChannel}
@@ -262,6 +291,7 @@ func TestTrackEquivalentSubscriptionsOnExistingConnection(t *testing.T) {
 	}
 
 	t.Run("TracksEquivalentOnOwningConnection", func(t *testing.T) {
+		t.Parallel()
 		tracked := new(Exchange)
 		require.NoError(t, testexch.Setup(tracked))
 		marginSub, spotSub := newEquivalentSubs()
@@ -281,6 +311,7 @@ func TestTrackEquivalentSubscriptionsOnExistingConnection(t *testing.T) {
 	})
 
 	t.Run("SkipsConnectionWithoutInverse", func(t *testing.T) {
+		t.Parallel()
 		tracked := new(Exchange)
 		require.NoError(t, testexch.Setup(tracked))
 		marginSub, spotSub := newEquivalentSubs()
@@ -302,6 +333,7 @@ func TestTrackEquivalentSubscriptionsOnExistingConnection(t *testing.T) {
 	})
 
 	t.Run("RefreshesOrderbookSnapshotWhenTrackingEquivalentReenable", func(t *testing.T) {
+		t.Parallel()
 		tracked := new(Exchange)
 		require.NoError(t, testexch.Setup(tracked))
 
@@ -466,5 +498,64 @@ func TestIsAssetChannel(t *testing.T) {
 			require.Len(t, subs, 1, "all enabled instruments must share one asset subscription")
 			require.JSONEq(t, fmt.Sprintf(`{"channel":%q,"instType":"SWAP"}`, channelName(ex.Features.Subscriptions[0])), subs[0].QualifiedChannel, "asset channels must omit instrument-specific arguments")
 		})
+	}
+}
+
+func TestHandleSubscription(t *testing.T) {
+	t.Parallel()
+	for _, channel := range []string{channelInstruments, liquidationOrders, channelOrders, subscription.MyOrdersChannel} {
+		for _, batch := range []bool{false, true} {
+			for _, withPairs := range []bool{false, true} {
+				for _, first := range []asset.Item{asset.Spot, asset.Margin} {
+					t.Run(fmt.Sprintf("%s/batch=%t/pairs=%t/first=%s", channel, batch, withPairs, first), func(t *testing.T) {
+						t.Parallel()
+						tracked := new(Exchange)
+						require.NoError(t, testexch.Setup(tracked), "exchange must initialise")
+						second := asset.Margin
+						if first == asset.Margin {
+							second = asset.Spot
+						}
+						var subs subscription.List
+						for _, a := range []asset.Item{first, second} {
+							sub := &subscription.Subscription{
+								Channel: channel, Asset: a,
+								QualifiedChannel: fmt.Sprintf(`{"channel":%q,"instType":%q}`, channelName(&subscription.Subscription{Channel: channel}), GetInstrumentTypeFromAssetItem(a)),
+							}
+							if withPairs {
+								sub.Pairs = currency.Pairs{currency.NewBTCUSDT()}
+							}
+							subs = append(subs, sub)
+						}
+						conn := &subscriptionRecorderConnection{subscriptions: subscription.NewStore()}
+						for _, operation := range []string{operationSubscribe, operationUnsubscribe} {
+							before := len(conn.Requests())
+							if batch {
+								require.NoError(t, tracked.handleSubscription(t.Context(), conn, operation, subs), "both assets must be sent together")
+							} else {
+								for _, sub := range subs {
+									require.NoError(t, tracked.handleSubscription(t.Context(), conn, operation, subscription.List{sub}), "each asset must be sent independently")
+								}
+							}
+							var arguments []SubscriptionInfo
+							for _, req := range conn.Requests()[before:] {
+								require.Equal(t, operation, req.Operation, "outbound operation must match")
+								arguments = append(arguments, req.Arguments...)
+							}
+							require.Equal(t, []SubscriptionInfo{
+								{Channel: channelName(subs[0]), InstrumentType: GetInstrumentTypeFromAssetItem(first)},
+								{Channel: channelName(subs[1]), InstrumentType: GetInstrumentTypeFromAssetItem(second)},
+							}, arguments, "outbound requests must retain both instrument types")
+							for _, sub := range subs {
+								if operation == operationSubscribe {
+									require.NotNil(t, tracked.Websocket.GetSubscription(sub), "sent subscriptions must be tracked")
+								} else {
+									require.Nil(t, tracked.Websocket.GetSubscription(sub), "unsubscribed assets must be removed")
+								}
+							}
+						}
+					})
+				}
+			}
+		}
 	}
 }

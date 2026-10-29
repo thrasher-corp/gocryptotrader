@@ -60,7 +60,7 @@ func (n *OptionalNumber) UnmarshalJSON(data []byte) error {
 func (r *TradeFeeRate) UnmarshalJSON(data []byte) error {
 	type rate TradeFeeRate
 	type response struct {
-		rate
+		*rate
 		Maker     OptionalNumber `json:"maker"`
 		Taker     OptionalNumber `json:"taker"`
 		MakerUSDT OptionalNumber `json:"makerU"`
@@ -68,7 +68,7 @@ func (r *TradeFeeRate) UnmarshalJSON(data []byte) error {
 		MakerUSDC OptionalNumber `json:"makerUSDC"`
 		TakerUSDC OptionalNumber `json:"takerUSDC"`
 	}
-	var decoded response
+	decoded := response{rate: (*rate)(r)}
 	if err := json.Unmarshal(data, &decoded); err != nil {
 		return err
 	}
@@ -78,7 +78,6 @@ func (r *TradeFeeRate) UnmarshalJSON(data []byte) error {
 	decoded.FeeRateTakerUSDT = decoded.TakerUSDT.Value
 	decoded.FeeRateMakerUSDC = decoded.MakerUSDC.Value
 	decoded.FeeRateTakerUSDC = decoded.TakerUSDC.Value
-	*r = TradeFeeRate(decoded.rate)
 	return nil
 }
 
@@ -86,17 +85,16 @@ func (r *TradeFeeRate) UnmarshalJSON(data []byte) error {
 func (r *TradeFeeGroup) UnmarshalJSON(data []byte) error {
 	type feeGroup TradeFeeGroup
 	type response struct {
-		feeGroup
+		*feeGroup
 		Maker OptionalNumber `json:"maker"`
 		Taker OptionalNumber `json:"taker"`
 	}
-	var decoded response
+	decoded := response{feeGroup: (*feeGroup)(r)}
 	if err := json.Unmarshal(data, &decoded); err != nil {
 		return err
 	}
 	decoded.MakerRate = decoded.Maker.Value
 	decoded.TakerRate = decoded.Taker.Value
-	*r = TradeFeeGroup(decoded.feeGroup)
 	return nil
 }
 
@@ -104,14 +102,13 @@ func (r *TradeFeeGroup) UnmarshalJSON(data []byte) error {
 func (r *FundingRateResponse) UnmarshalJSON(data []byte) error {
 	type rate FundingRateResponse
 	type response struct {
-		rate
+		*rate
 		RealisedRate OptionalNumber `json:"realizedRate"`
 	}
-	var decoded response
+	decoded := response{rate: (*rate)(r)}
 	if err := json.Unmarshal(data, &decoded); err != nil {
 		return err
 	}
 	decoded.rate.RealisedRate = decoded.RealisedRate.Value
-	*r = FundingRateResponse(decoded.rate)
 	return nil
 }
