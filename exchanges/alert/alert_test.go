@@ -93,8 +93,6 @@ func isLeaky(t *testing.T, a *Notice, ch chan struct{}) {
 	}
 }
 
-// 120801772	         9.334 ns/op	       0 B/op	       0 allocs/op // PREV
-// 146173060	         9.154 ns/op	       0 B/op	       0 allocs/op // CURRENT
 func BenchmarkAlert(b *testing.B) {
 	n := Notice{}
 	for b.Loop() {
@@ -102,14 +100,33 @@ func BenchmarkAlert(b *testing.B) {
 	}
 }
 
-// BenchmarkWait benchmark
-//
-// 150352	      9916 ns/op	     681 B/op	       4 allocs/op // PREV
-// 87436	     14724 ns/op	     682 B/op	       4 allocs/op // CURRENT
+// BenchmarkWait kicks every waiter, since one never alerted nor kicked leaks its routine, and receives
+// each reply, which returns the channel to the pool
 func BenchmarkWait(b *testing.B) {
 	n := Notice{}
+	kick := make(chan struct{})
+	close(kick)
+	// go test's -timeout does not cover benchmarks, so a reply that never comes must fail the run
+	deadline := time.NewTimer(time.Minute)
+	defer deadline.Stop()
 	for b.Loop() {
-		n.Wait(nil)
+		reply := n.Wait(kick)
+		deadline.Reset(time.Minute)
+		var kicked bool
+		select {
+		case kicked = <-reply:
+		case <-deadline.C:
+			// The reply can be ready too once the timer fires, and select picks between them at random
+			select {
+			case kicked = <-reply:
+			default:
+				b.Fatal("Wait must reply to a kick")
+			}
+		}
+		deadline.Stop()
+		if !kicked {
+			b.Fatal("Wait must report the kick rather than an alert")
+		}
 	}
 }
 

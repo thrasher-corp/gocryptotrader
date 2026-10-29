@@ -1,0 +1,55 @@
+name: benchmark comparison
+# Advisory: reports a pull request's benchmark timings and allocations beside its base's in the job
+# summary. Keep it out of required checks, since a timing on a shared runner is evidence, not a verdict.
+on:
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compare:
+    name: timing comparison
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The merge commit and its first parent, the base it merges into
+          fetch-depth: 2
+          persist-credentials: false
+
+      # Keeps this job's build cache separate, as merge-check.yml does
+      - name: Record Go cache key
+        run: echo "benchmark-comparison" > .go-cache-key
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: |
+            go.sum
+            .go-cache-key
+
+      - name: Compare with the base
+        # go test's -timeout does not cover benchmarks, and benchcheck bounds each process itself; this
+        # bounds the whole comparison
+        timeout-minutes: 25
+        run: make bench_compare BASE=HEAD^1 BENCH_COMPARE_OUT=bench-compare
+
+      - name: Publish the report
+        if: ${{ !cancelled() }}
+        run: |
+          if [ -f bench-compare/summary.md ]; then
+            cat bench-compare/summary.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      # Each revision's raw output, which benchstat reads, beside the report
+      - name: Upload the comparison
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: bench-compare
+          path: bench-compare/
+          if-no-files-found: ignore
