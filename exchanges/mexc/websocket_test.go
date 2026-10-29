@@ -216,10 +216,10 @@ func TestSubscriptionAccepted(t *testing.T) {
 
 func TestIsSpotSubscription(t *testing.T) {
 	t.Parallel()
-	assert.True(t, isSpotSubscription(&subscription.Subscription{Asset: asset.Spot}), "a spot subscription should be served by the spot connections")
-	for _, a := range []asset.Item{asset.Futures, asset.All, asset.Empty} {
-		assert.Falsef(t, isSpotSubscription(&subscription.Subscription{Asset: a}), "a subscription for asset %q should not be served by the spot connections", a)
+	for _, a := range []asset.Item{asset.Spot, asset.All, asset.Empty} {
+		assert.Truef(t, isSpotSubscription(&subscription.Subscription{Asset: a}), "a subscription for asset %q should be expanded with the spot template", a)
 	}
+	assert.False(t, isSpotSubscription(&subscription.Subscription{Asset: asset.Futures}), "a futures subscription should not be expanded with the spot template")
 }
 
 func TestGenerateSubscriptionsIncludesMiniTicker(t *testing.T) {

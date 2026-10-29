@@ -915,6 +915,108 @@ func TestGenerateSubscriptionsWildcardAsset(t *testing.T) {
 	assert.Equal(t, "spot@"+channelMiniTickerV3+"@BTCUSDT@"+miniTickerTimezone, spot[0].QualifiedChannel, "the spot mini ticker should be subscribed")
 }
 
+func TestGenerateSubscriptionsFailureReportedOnce(t *testing.T) {
+	t.Parallel()
+	// A subscription for every asset to a channel without a symbol yields one record where spot and futures need one
+	// each, so it can't be expanded with both enabled; the venue serves no 10 minute futures candles
+	for _, tc := range []struct {
+		name     string
+		sub      *subscription.Subscription
+		auth     bool
+		reporter string
+	}{
+		{name: "every asset", sub: &subscription.Subscription{Enabled: true, Asset: asset.All, Channel: channelMiniTickersV3}, auth: true, reporter: "spot public"},
+		{name: "every asset without authentication", sub: &subscription.Subscription{Enabled: true, Asset: asset.All, Channel: channelMiniTickersV3}, reporter: "spot public"},
+		{name: "every asset authenticated", sub: &subscription.Subscription{Enabled: true, Asset: asset.All, Channel: channelAccountV3, Authenticated: true}, auth: true, reporter: "spot private"},
+		{name: "every asset authenticated without authentication", sub: &subscription.Subscription{Enabled: true, Asset: asset.All, Channel: channelAccountV3, Authenticated: true}},
+		{name: "every asset private without the authenticated flag", sub: &subscription.Subscription{Enabled: true, Asset: asset.All, Channel: channelAccountV3}, reporter: "spot public"},
+		{name: "futures", sub: &subscription.Subscription{Enabled: true, Asset: asset.Futures, Channel: subscription.CandlesChannel, Interval: kline.TenMin}, auth: true, reporter: "futures public"},
+		{name: "futures authenticated", sub: &subscription.Subscription{Enabled: true, Asset: asset.Futures, Channel: subscription.CandlesChannel, Interval: kline.TenMin, Authenticated: true}, auth: true, reporter: "futures private"},
+		{name: "futures authenticated without authentication", sub: &subscription.Subscription{Enabled: true, Asset: asset.Futures, Channel: subscription.CandlesChannel, Interval: kline.TenMin, Authenticated: true}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			for _, pairs := range []currency.Pairs{nil, {futuresTradablePair}} {
+				ex := newFuturesWebsocketTestExchange(t)
+				ex.Websocket.SetCanUseAuthenticatedEndpoints(tc.auth)
+				sub := tc.sub.Clone()
+				sub.Pairs = pairs
+				ex.Features.Subscriptions = subscription.List{
+					{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel, Interval: kline.HundredMilliseconds},
+					sub,
+				}
+				for _, g := range connectionGenerators(ex) {
+					subs, err := g.generate()
+					if g.name == "spot public" {
+						assert.Lenf(t, subs, 1, "the spot ticker should still be subscribed with %d explicit pairs", len(pairs))
+					}
+					if g.name != tc.reporter {
+						assert.NoErrorf(t, err, "the %s connection should not report a failure %q reports, with %d explicit pairs", g.name, tc.reporter, len(pairs))
+						continue
+					}
+					assert.ErrorIsf(t, err, websocket.ErrSubscriptionPartial, "the %s connection should report the subscription which can't be expanded, with %d explicit pairs", g.name, len(pairs))
+					assert.ErrorContainsf(t, err, sub.Channel, "the %s connection should name the subscription which can't be expanded, with %d explicit pairs", g.name, len(pairs))
+				}
+			}
+		})
+	}
+}
+
+func TestGenerateSubscriptionsPairListFailureReportedOnce(t *testing.T) {
+	t.Parallel()
+	// Without a request format the futures pairs can't be listed, which fails a futures subscription before its template
+	// is executed, a private channel's included
+	for _, tc := range []struct {
+		name          string
+		authenticated bool
+		auth          bool
+		reporter      string
+	}{
+		{name: "unflagged", reporter: "futures public"},
+		{name: "unflagged with authentication", auth: true, reporter: "futures public"},
+		{name: "authenticated", authenticated: true, auth: true, reporter: "futures private"},
+		{name: "authenticated without authentication", authenticated: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := newFuturesWebsocketTestExchange(t)
+			ex.Websocket.SetCanUseAuthenticatedEndpoints(tc.auth)
+			futuresStore := *ex.CurrencyPairs.Pairs[asset.Futures]
+			futuresStore.RequestFormat = nil
+			ex.CurrencyPairs.Pairs[asset.Futures] = &futuresStore
+			ex.Features.Subscriptions = subscription.List{
+				{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel, Interval: kline.HundredMilliseconds},
+				{Enabled: true, Asset: asset.Futures, Channel: subscription.MyOrdersChannel, Authenticated: tc.authenticated},
+			}
+			for _, g := range connectionGenerators(ex) {
+				_, err := g.generate()
+				if g.name != tc.reporter {
+					assert.NoErrorf(t, err, "the %s connection should not report a failure %q reports", g.name, tc.reporter)
+					continue
+				}
+				assert.ErrorIsf(t, err, websocket.ErrSubscriptionPartial, "the %s connection should report the subscription which can't be expanded", g.name)
+				assert.ErrorIsf(t, err, currency.ErrPairFormatIsNil, "the %s connection should say why the subscription can't be expanded", g.name)
+			}
+		})
+	}
+}
+
+// connectionGenerator is one of an exchange's connections' subscription generators, by the connection's name
+type connectionGenerator struct {
+	name     string
+	generate func() (subscription.List, error)
+}
+
+// connectionGenerators returns the subscription generators of an exchange's four connections
+func connectionGenerators(ex *Exchange) []connectionGenerator {
+	return []connectionGenerator{
+		{name: "spot public", generate: ex.generatePublicSubscriptions},
+		{name: "spot private", generate: ex.generatePrivateSubscriptions},
+		{name: "futures public", generate: ex.generateFuturesPublicSubscriptions},
+		{name: "futures private", generate: ex.generateFuturesPrivateSubscriptions},
+	}
+}
+
 func TestWebsocketFuturesConnectUnservedSubscription(t *testing.T) {
 	t.Parallel()
 	for _, pairs := range []currency.Pairs{{futuresTradablePair}, {futuresTradablePair, futuresInversePair}} {
