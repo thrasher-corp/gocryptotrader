@@ -4168,24 +4168,44 @@ func TestCancelBatchOrdersReportsRequestedStatuses(t *testing.T) {
 func TestCancelBatchOrdersDeduplicatesAndTrims(t *testing.T) {
 	t.Parallel()
 
-	fake := &batchCancelRPCFake{
-		resp: &order.CancelBatchResponse{},
+	unknown, cancelled := order.UnknownStatus.String(), order.Cancelled.String()
+	for _, tc := range []struct {
+		name     string
+		ordersID string
+		statuses map[string]string
+		sent     []string
+		reply    map[string]string
+	}{
+		{name: "adjacent repeat and trailing empty fragments", ordersID: "1, 1, 2 , , ", sent: []string{"1", "2"}, reply: map[string]string{"1": unknown, "2": unknown}},
+		{name: "inner empty fragment and padded repeat", ordersID: "2,,1,\t2", statuses: map[string]string{"1": "failed to cancel", "2": cancelled}, sent: []string{"2", "1"}, reply: map[string]string{"1": "failed to cancel", "2": cancelled}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			fake := &batchCancelRPCFake{
+				resp: &order.CancelBatchResponse{Status: tc.statuses},
+			}
+			server := setupBatchCancelServer(t, fake)
+
+			res, err := server.CancelBatchOrders(t.Context(), &gctrpc.CancelBatchOrdersRequest{
+				Exchange:  fakeExchangeName,
+				AssetType: "spot",
+				Pair:      &gctrpc.CurrencyPair{Base: "btc", Quote: "usdt", Delimiter: "-"},
+				Side:      "buy",
+				OrdersId:  tc.ordersID,
+			})
+			require.NoError(t, err)
+			require.Len(t, res.Orders, 1)
+			assert.Equal(t, tc.reply, res.Orders[0].OrderStatus, "the reply should be keyed by the trimmed order IDs")
+
+			pair := currency.NewPairWithDelimiter("btc", "usdt", "-")
+			sent := make([]order.Cancel, len(tc.sent))
+			for i, id := range tc.sent {
+				sent[i] = order.Cancel{OrderID: id, Side: order.Buy, Pair: pair, AssetType: asset.Spot}
+			}
+			assert.Equal(t, sent, fake.cancelsReceived, "each order ID should reach the exchange once, trimmed and in the order given")
+		})
 	}
-	server := setupBatchCancelServer(t, fake)
-
-	res, err := server.CancelBatchOrders(t.Context(), &gctrpc.CancelBatchOrdersRequest{
-		Exchange:  fakeExchangeName,
-		AssetType: "spot",
-		Pair:      &gctrpc.CurrencyPair{Base: "btc", Quote: "usdt", Delimiter: "-"},
-		Side:      "buy",
-		OrdersId:  "1, 1, 2 , , ",
-	})
-	require.NoError(t, err)
-	require.Len(t, res.Orders, 1)
-
-	require.Len(t, fake.cancelsReceived, 2)
-	assert.Equal(t, "1", fake.cancelsReceived[0].OrderID)
-	assert.Equal(t, "2", fake.cancelsReceived[1].OrderID)
 }
 
 func TestCancelBatchOrdersWithoutOrders(t *testing.T) {
