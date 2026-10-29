@@ -3762,9 +3762,24 @@ func TestWebsocketAPIPostInfo(t *testing.T) {
 		assert.Positive(t, book.Spread.Float64(), "WebsocketAPI.PostInfo should return the aggregated book's spread")
 	}
 	book = nil
-	require.NoError(t, venue.WebsocketAPI().PostInfo(t.Context(), &InfoRequest{Type: "l2Book", Coin: "NOTACOIN"}, &book), "WebsocketAPI.PostInfo must not error for an unknown coin")
+	err := venue.WebsocketAPI().PostInfo(t.Context(), &InfoRequest{Type: "l2Book", Coin: "NOTACOIN"}, &book)
+	assert.ErrorIs(t, err, errWebsocketPost, "WebsocketAPI.PostInfo should return the error Hyperliquid answers an unknown coin with")
+	assert.ErrorContains(t, err, "500 Internal Server Error", "WebsocketAPI.PostInfo should return the server's message")
 	assert.Nil(t, book, "WebsocketAPI.PostInfo should leave the result unset for an unknown coin")
 	assert.ErrorIs(t, venue.WebsocketAPI().PostInfo(t.Context(), &InfoRequest{Type: "l2Book", Coin: "BTC", NumberOfSignificantFigures: 7}, &book), errWebsocketPost, "WebsocketAPI.PostInfo should return a rejected request's error")
+	var mids map[string]types.Number
+	require.NoError(t, venue.WebsocketAPI().PostInfo(t.Context(), &InfoRequest{Type: "allMids"}, &mids), "WebsocketAPI.PostInfo must not error for an allMids request")
+	if mockTests {
+		assert.Equal(t, map[string]types.Number{"BTC": 81074.5, "ETH": 2350.65}, mids, "WebsocketAPI.PostInfo should decode the allMids response")
+	} else {
+		assert.Positive(t, mids["BTC"].Float64(), "WebsocketAPI.PostInfo should return BTC's mid price")
+	}
+	annotation := &PerpetualAnnotationResponse{Category: "other"}
+	require.NoError(t, venue.WebsocketAPI().PostInfo(t.Context(), &InfoRequest{Type: "perpAnnotation", Coin: "BTC"}, &annotation), "WebsocketAPI.PostInfo must not error for an info response without data")
+	assert.Nil(t, annotation, "WebsocketAPI.PostInfo should leave no result for an info response without data")
+	orders := []BasicOrderResponse{{Coin: "BTC"}}
+	require.NoError(t, venue.WebsocketAPI().PostInfo(t.Context(), &InfoRequest{Type: "openOrders", User: testZeroAddress}, &orders), "WebsocketAPI.PostInfo must not error for an empty list")
+	assert.Equal(t, []BasicOrderResponse{}, orders, "WebsocketAPI.PostInfo should replace the result with the empty list")
 
 	// The venue sends only well-formed info payloads, so a fixture connection supplies malformed ones
 	ex := newWebsocketTestExchange(t)
@@ -3773,8 +3788,10 @@ func TestWebsocketAPIPostInfo(t *testing.T) {
 	assert.ErrorContains(t, ex.WebsocketAPI().PostInfo(t.Context(), &InfoRequest{Type: "l2Book", Coin: "ETH"}, &book), "decoding info post payload", "WebsocketAPI.PostInfo should reject an invalid info payload")
 	connection.reply = replyToPost(`{"type":"info","payload":{"type":"l2Book","data":"invalid"}}`)
 	assert.ErrorContains(t, ex.WebsocketAPI().PostInfo(t.Context(), &InfoRequest{Type: "l2Book", Coin: "ETH"}, &book), "decoding l2Book info response", "WebsocketAPI.PostInfo should reject a response that does not fit the result")
+	book = nil
 	connection.reply = replyToPost(`{"type":"info","payload":null}`)
 	assert.ErrorIs(t, ex.WebsocketAPI().PostInfo(t.Context(), &InfoRequest{Type: "l2Book", Coin: "ETH"}, &book), common.ErrNoResponse, "WebsocketAPI.PostInfo should reject an empty info payload")
+	assert.Nil(t, book, "WebsocketAPI.PostInfo should leave the result unset for an empty info payload")
 }
 
 func TestWebsocketAPIPlaceOrders(t *testing.T) {

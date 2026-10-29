@@ -45,11 +45,8 @@
    }
   },
   "response": {
-   "type": "info",
-   "payload": {
-    "type": "l2Book",
-    "data": null
-   }
+   "type": "error",
+   "payload": "500 Internal Server Error"
   }
  },
  {
@@ -99,6 +96,56 @@
   "response": {
    "type": "error",
    "payload": "500 Internal Server Error"
+  }
+ },
+ {
+  "request": {
+   "type": "info",
+   "payload": {
+    "type": "allMids"
+   }
+  },
+  "response": {
+   "type": "info",
+   "payload": {
+    "type": "allMids",
+    "data": {
+     "BTC": "81074.5",
+     "ETH": "2350.65"
+    }
+   }
+  }
+ },
+ {
+  "request": {
+   "type": "info",
+   "payload": {
+    "type": "perpAnnotation",
+    "coin": "BTC"
+   }
+  },
+  "response": {
+   "type": "info",
+   "payload": {
+    "type": "perpAnnotation",
+    "data": null
+   }
+  }
+ },
+ {
+  "request": {
+   "type": "info",
+   "payload": {
+    "type": "openOrders",
+    "user": "0x0000000000000000000000000000000000000000"
+   }
+  },
+  "response": {
+   "type": "info",
+   "payload": {
+    "type": "openOrders",
+    "data": []
+   }
   }
  },
  {
