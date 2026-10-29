@@ -705,6 +705,44 @@ func TestExecuteSubAccountTransfer(t *testing.T) {
 	assert.ErrorContains(t, err, "You are not authorized to execute this request.")
 }
 
+func TestExecuteSubAccountTransferPreservesFractionalAmount(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name   string
+		amount float64
+		want   string
+	}{
+		{name: "fraction", amount: 1.9, want: "1.9"},
+		{name: "small fraction", amount: 0.00001234, want: "0.00001234"},
+		{name: "whole amount", amount: 2, want: "2"},
+		{name: "seventeen significant digits", amount: 0.12345678912345678, want: "0.12345678912345678"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "exchange setup must succeed")
+			ex.SkipAuthCheck = true
+			ex.SetCredentials(&accounts.Credentials{Key: "test-key", Secret: "test-secret"})
+			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, http.MethodPost, r.Method, "method should be POST")
+				assert.Equal(t, "/sapi/v3/sub-account/transfer", r.URL.Path, "path should match the transfer endpoint")
+				assert.Equal(t, tc.want, r.URL.Query().Get("amount"), "amount should retain its precision")
+				_, err := w.Write([]byte(`{"success":true,"txnId":"123"}`))
+				assert.NoError(t, err, "response should be written")
+			}))
+			require.NoError(t, ex.SetHTTPClient(server.Client()), "HTTP client must be set")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpotSupplementary.String(), server.URL), "local endpoint must be set")
+			response, err := ex.ExecuteSubAccountTransfer(t.Context(), &SubAccountTransferRequestParams{
+				FromEmail: "sender@example.com", ToEmail: "receiver@example.com", Asset: "BTC", Amount: tc.amount,
+			})
+			require.NoError(t, err, "transfer must succeed")
+			require.NotNil(t, response, "response must not be nil")
+			assert.True(t, response.Success, "transfer should be successful")
+			assert.Equal(t, uint64(123), response.TxnID, "transaction ID should match the response")
+		})
+	}
+}
+
 func TestGetSubaccountAssets(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetSubaccountAssets(t.Context(), "")
@@ -1130,6 +1168,44 @@ func TestWithdrawCrypto(t *testing.T) {
 	params.Amount = -0.1
 	_, err = e.WithdrawCrypto(t.Context(), params)
 	assert.ErrorContains(t, err, "You are not authorized to execute this request.")
+}
+
+func TestWithdrawCryptoPreservesFractionalAmount(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name   string
+		amount float64
+		want   string
+	}{
+		{name: "fraction", amount: 1.9, want: "1.9"},
+		{name: "small fraction", amount: 0.00001234, want: "0.00001234"},
+		{name: "whole amount", amount: 2, want: "2"},
+		{name: "seventeen significant digits", amount: 0.12345678912345678, want: "0.12345678912345678"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex))
+			ex.SkipAuthCheck = true
+			ex.SetCredentials(&accounts.Credentials{Key: "test-key", Secret: "test-secret"})
+			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, http.MethodPost, r.Method)
+				assert.Equal(t, "/sapi/v1/capital/withdraw/apply", r.URL.Path)
+				assert.Equal(t, tc.want, r.URL.Query().Get("amount"))
+				_, err := w.Write([]byte(`{"id":"withdrawal-id"}`))
+				assert.NoError(t, err)
+			}))
+			require.NoError(t, ex.SetHTTPClient(server.Client()))
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpotSupplementary.String(), server.URL))
+			id, err := ex.WithdrawCrypto(t.Context(), &withdraw.Request{
+				Currency: currency.BTC,
+				Crypto:   withdraw.CryptoRequest{Chain: "BTC", Address: "test-address"},
+				Amount:   tc.amount,
+			})
+			require.NoError(t, err)
+			assert.Equal(t, "withdrawal-id", id)
+		})
+	}
 }
 
 func TestFiatWithdrawalHistory(t *testing.T) {
