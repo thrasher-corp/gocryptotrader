@@ -2098,7 +2098,7 @@ func BenchmarkWsHandleData(b *testing.B) {
 		jobs: make(chan job, maxWSOrderbookJobs),
 	}
 
-	data, err := os.ReadFile("testdata/wsHandleData.json")
+	data, err := os.ReadFile("testdata/wsHandleData.jsonl")
 	require.NoError(b, err, "ReadFile must not error")
 	lines := bytes.Split(data, []byte("\n"))
 	require.Len(b, lines, 8, "the fixture must hold one line per message type")
