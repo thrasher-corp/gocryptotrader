@@ -984,6 +984,10 @@ func TestProcessOrderEventAmounts(t *testing.T) {
 		// The amount executed by this event is already in the total, and the amounts may be sent to different scales
 		{atCreate: "1.00000000", remaining: "0.70000000", traded: 0.1, executed: 0.3},
 		{atCreate: "1.00000001", remaining: "1", executed: 0.00000001},
+		// Floats of 67110000.00000001 and 67110000.00000002 are equal, as are floats of 92233720367.999995 and
+		// 92233720368, so an order with that little left executed the float below its amount
+		{atCreate: "67110000.00000002", remaining: "0.00000001", executed: 67110000},
+		{atCreate: "92233720368", remaining: "0.000005", executed: 92233720367.99998},
 	} {
 		ex := newWebsocketTestInstance(t)
 		require.NoErrorf(t, ex.processOrderEvent(t.Context(), orderEventChanged, &OrderEventData{ID: 1, AmountAtCreate: preciseNumber(t, tc.atCreate), RemainingAmount: preciseNumber(t, tc.remaining), AmountTraded: types.Number(tc.traded)}, wsSpotPair, asset.Spot), "processOrderEvent must not error for %s remaining of %s", tc.remaining, tc.atCreate)
@@ -993,6 +997,7 @@ func TestProcessOrderEventAmounts(t *testing.T) {
 		require.Truef(t, ok, "the payload must be an order detail for %s remaining of %s", tc.remaining, tc.atCreate)
 		assert.Equalf(t, tc.executed, d.ExecutedAmount, "processOrderEvent should subtract the exact amounts for %s remaining of %s", tc.remaining, tc.atCreate)
 		assert.Equalf(t, order.PartiallyFilled, d.Status, "processOrderEvent should report an executed amount as partially filled for %s remaining of %s", tc.remaining, tc.atCreate)
+		assert.Truef(t, d.IsActive(), "processOrderEvent should relay an order with some amount left as active for %s remaining of %s", tc.remaining, tc.atCreate)
 	}
 }
 
@@ -1052,6 +1057,15 @@ func TestFetchOrderTotals(t *testing.T) {
 			reply:    fmt.Sprintf(status, "Finished", `{"tid":1,"price":"1","btc":"67110000.00000002","usd":"-67110000.00000002","fee":"0.5","datetime":"2024-04-03 08:00:01","type":2}`, "0"),
 			requests: 1,
 			totals:   &order.Detail{Status: order.Filled, ExecutedAmount: 67110000.00000002, Fee: 0.5, Cost: 67110000.00000002, AverageExecutedPrice: 1},
+		},
+		// A cancelled order is not active either way, so it keeps the float of what it executed, though that is the float of
+		// its amount
+		{
+			name: "partly cancelled large order", event: orderEventDeleted, amount: 67110000.00000002,
+			data:     `{"id":1001,"amount_str":"0.00000001","amount_at_create":"67110000.00000002","price_str":"100","order_type":0,"order_subtype":0,"microtimestamp":"1712131206000000"}`,
+			reply:    fmt.Sprintf(status, "Canceled", `{"tid":1,"price":"1","btc":"67110000.00000001","usd":"-67110000.00000001","fee":"0.5","datetime":"2024-04-03 08:00:01","type":2}`, "0.00000001"),
+			requests: 1,
+			totals:   &order.Detail{Status: order.PartiallyCancelled, ExecutedAmount: 67110000.00000001, RemainingAmount: 0.00000001, Fee: 0.5, Cost: 67110000.00000001, AverageExecutedPrice: 1},
 		},
 		{name: "executed amount overflowing a float", event: orderEventDeleted, data: fmt.Sprintf(deleted, "0"), reply: fmt.Sprintf(status, "Finished", transaction(1, "1e308", "0.5")+","+transaction(2, "1e308", "0.5"), "0"), requests: 1},
 		{name: "totals refused", event: orderEventDeleted, data: fmt.Sprintf(deleted, "0"), reply: fmt.Sprintf(status, "Finished", transaction(1, "1", "0.5"), "0"), requests: 1, relayBuffer: 1},

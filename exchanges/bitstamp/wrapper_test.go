@@ -1220,6 +1220,20 @@ func TestExecutedAmount(t *testing.T) {
 	assert.ErrorIs(t, err, errMalformedTransaction, "executedAmount should error on a base amount which is not a number")
 }
 
+func TestOpenExecutedAmount(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct{ executed, amount, remaining, exp float64 }{
+		{executed: 0.3, amount: 1, remaining: 0.7, exp: 0.3},
+		// A float of 67110000.00000001 is the float of 67110000.00000002
+		{executed: 67110000.00000001, amount: 67110000.00000002, remaining: 0.00000001, exp: 67110000},
+		{executed: 92233720368, amount: 92233720368, remaining: 0.000005, exp: 92233720367.99998},
+		// An order with nothing left executed its amount
+		{executed: 1, amount: 1, exp: 1},
+	} {
+		assert.Equalf(t, tc.exp, openExecutedAmount(tc.executed, tc.amount, tc.remaining), "openExecutedAmount should return %v for %v executed of %v with %v left", tc.exp, tc.executed, tc.amount, tc.remaining)
+	}
+}
+
 func TestCancelOrder(t *testing.T) {
 	t.Parallel()
 	assert.ErrorIs(t, e.CancelOrder(t.Context(), nil), order.ErrCancelOrderIsNil, "CancelOrder should error on a nil request")
@@ -1356,6 +1370,14 @@ func TestGetOrderInfo(t *testing.T) {
 	require.NoError(t, err, "GetOrderInfo must not error for a large order")
 	assert.Equal(t, "110000000.2", strconv.FormatFloat(large.Amount, 'f', -1, 64), "GetOrderInfo should sum the executed and remaining amounts without a float residue")
 	assert.Equal(t, "100000000.1", strconv.FormatFloat(large.ExecutedAmount, 'f', -1, 64), "GetOrderInfo should return the executed amount")
+	// Floats of 67110000.00000001 and 67110000.00000002 are equal, so an open order with 0.00000001 left executed the
+	// float below its amount, while a cancelled one, not active either way, keeps the float of what it executed
+	for status, executed := range map[string]float64{"Open": 67110000, "Canceled": 67110000.00000001} {
+		d, err := newResponseTestExchange(t, http.StatusOK, `{"id":1,"datetime":"2025-06-16 10:00:00","type":"0","status":"`+status+`","market":"GRT/USD","transactions":[{"tid":7,"price":"0.02263","grt":"67110000.00000001","usd":"-1518699.3","fee":"1","datetime":"2025-06-16 10:00:01","type":2}],"amount_remaining":"0.00000001"}`).GetOrderInfo(t.Context(), "1", spotPair, asset.Spot)
+		require.NoErrorf(t, err, "GetOrderInfo must not error for a %s order with 0.00000001 left", status)
+		assert.Equalf(t, executed, d.ExecutedAmount, "GetOrderInfo should return the executed amount of a %s order with 0.00000001 left", status)
+		assert.Equalf(t, status == "Open", d.IsActive(), "GetOrderInfo should return an order with 0.00000001 left as active only while it is open, for a %s order", status)
+	}
 	// Float sums of these transactions carry a residue into the cost, fee and average price
 	for name, tc := range map[string]struct {
 		transactions []string
@@ -1695,6 +1717,10 @@ func TestGetActiveOrders(t *testing.T) {
 		{atCreate: "67110000.00000001", remaining: "67109999.00000002", executed: 0.99999999, status: order.PartiallyFilled},
 		// Without its amount at creation, the order's amount is its remaining amount
 		{remaining: "67110000.00000002", status: order.Open},
+		// Floats of 67110000.00000001 and 67110000.00000002 are equal, as are floats of 92233720367.999995 and
+		// 92233720368, so an order with that little left executed the float below its amount
+		{atCreate: "67110000.00000002", remaining: "0.00000001", executed: 67110000, status: order.PartiallyFilled},
+		{atCreate: "92233720368", remaining: "0.000005", executed: 92233720367.99998, status: order.PartiallyFilled},
 	} {
 		amounts := `"amount":"` + tc.remaining + `"`
 		if tc.atCreate != "" {
@@ -1705,6 +1731,7 @@ func TestGetActiveOrders(t *testing.T) {
 		require.Lenf(t, large, 1, "GetActiveOrders must return the order for %s", amounts)
 		assert.Equalf(t, tc.executed, large[0].ExecutedAmount, "GetActiveOrders should subtract the exact amounts for %s", amounts)
 		assert.Equalf(t, tc.status, large[0].Status, "GetActiveOrders should report the order's status for %s", amounts)
+		assert.Truef(t, large[0].IsActive(), "GetActiveOrders should return an open order as active for %s", amounts)
 	}
 
 	ex = newResponseTestExchange(t, http.StatusOK, `[{"id":"1234123412341237","datetime":"2025-06-16 10:00:00","type":"0","subtype":"LIMIT","price":"84000","amount":"0.40000000","market":"BTC/USD"}]`)
@@ -2870,6 +2897,13 @@ func TestOrderHistoryTimeRange(t *testing.T) {
 		{
 			name: "end before a trade", start: second, end: second.Add(2400*time.Millisecond - time.Nanosecond), until: second.Add(3 * time.Second),
 			trades: buys(second.Add(time.Second), second.Add(2400*time.Millisecond-time.Microsecond), second.Add(2400*time.Millisecond), second.Add(3*time.Second)),
+			exp:    map[string][]string{"2": {"1", "3"}},
+		},
+		// A nanosecond past a whole second, so an end rounded up from any precision coarser than nanoseconds is requested
+		// as that second
+		{
+			name: "end just after a second", start: second, end: second.Add(2*time.Second + time.Nanosecond), until: second.Add(3 * time.Second),
+			trades: buys(second.Add(time.Second), second.Add(2*time.Second), second.Add(2*time.Second+time.Microsecond)),
 			exp:    map[string][]string{"2": {"1", "3"}},
 		},
 		{

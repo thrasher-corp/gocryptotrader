@@ -338,6 +338,7 @@ func (e *Exchange) processOrderEvent(ctx context.Context, event string, o *Order
 		status = order.Open
 		if executed > 0 {
 			status = order.PartiallyFilled
+			executed = openExecutedAmount(executed, amount, remaining)
 		}
 	case orderEventDeleted:
 		switch {

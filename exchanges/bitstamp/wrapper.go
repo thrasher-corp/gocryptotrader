@@ -1117,11 +1117,24 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, _ currency.
 	}
 	d.ExecutedAmount = executed.InexactFloat64()
 	d.Amount = executed.Add(remaining).InexactFloat64()
+	if status.Status == OrderStatusOpen {
+		d.ExecutedAmount = openExecutedAmount(d.ExecutedAmount, d.Amount, d.RemainingAmount)
+	}
 	d.Cost = totals.cost.InexactFloat64()
 	d.Fee = totals.fee.InexactFloat64()
 	d.AverageExecutedPrice = totals.averagePrice()
 	d.Status = orderStatus(status.Status, d.ExecutedAmount > 0)
 	return d, nil
+}
+
+// openExecutedAmount returns an open order's executed amount, below its amount while some of it remains: an order
+// reads as active only while its executed amount is below its amount, and the floats of both are equal when what
+// remains is too small for floats of that size to tell apart
+func openExecutedAmount(executed, amount, remaining float64) float64 {
+	if remaining > 0 && executed >= amount {
+		return math.Nextafter(amount, 0)
+	}
+	return executed
 }
 
 // triggerPrice returns the price which triggers an order: the stop price of a stop order, or the activation price of a
@@ -1347,6 +1360,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 		status := order.Open
 		if executed > 0 {
 			status = order.PartiallyFilled
+			executed = openExecutedAmount(executed, amount, o.RemainingAmount.Float64())
 		}
 		orders = append(orders, order.Detail{
 			Exchange:        e.Name,

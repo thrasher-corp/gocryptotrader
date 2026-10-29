@@ -736,6 +736,10 @@ func (m *mockWsSubscriptions) handle(tb testing.TB, msg []byte, c *gws.Conn) err
 	if err := json.Unmarshal(msg, &req); err != nil {
 		return err
 	}
+	if req.Event == "bts:heartbeat" {
+		// Heartbeats go unanswered, as a reply still queued when the test shuts its connection down fails the test
+		return nil
+	}
 	event := "bts:subscription_succeeded"
 	m.mu.Lock()
 	if req.Event == "bts:unsubscribe" {
@@ -782,6 +786,8 @@ func newMockWsInstance(t *testing.T, tokenAvailable bool) (*Exchange, *mockWsSub
 	ex.API.AuthenticatedSupport = true
 	ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	// The mock server asserts with the test's own t, so its connection must end with the test
+	t.Cleanup(func() { shutdownWebsocketTestInstance(t, ex) })
 	return ex, m
 }
 
@@ -849,7 +855,10 @@ func TestSubscribeSeedsOrderbooks(t *testing.T) {
 		if err := json.Unmarshal(msg, &req); err != nil {
 			return err
 		}
-		record(req.Event + " " + req.Data.Channel)
+		// Heartbeats go out on a timer, so a slow run would record one among the subscriptions
+		if req.Event != "bts:heartbeat" {
+			record(req.Event + " " + req.Data.Channel)
+		}
 		return m.handle(tb, msg, c)
 	})
 	ex := testexch.MockWsInstance[Exchange](t, func(w http.ResponseWriter, r *http.Request) {
@@ -877,6 +886,7 @@ func TestSubscribeSeedsOrderbooks(t *testing.T) {
 	})
 	// The orderbook store is global, so the books are stored under the test's own exchange name
 	ex.Name = t.Name()
+	t.Cleanup(func() { shutdownWebsocketTestInstance(t, ex) })
 	subs, err := subscription.List{
 		{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel, Pairs: currency.Pairs{spotPair, currency.NewPair(currency.BTC, currency.EUR)}},
 		{Enabled: true, Asset: asset.PerpetualContract, Channel: channelDetailOrderbook},
