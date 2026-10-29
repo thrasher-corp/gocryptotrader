@@ -1511,7 +1511,12 @@ func TestGetOrdersSnapshot(t *testing.T) {
 		time.Sleep(20 * time.Millisecond)
 		stored.Status = order.Filled
 		m.orderStore.m.Unlock()
-		assert.Equal(t, []order.Detail{{OrderID: "1", Status: order.Filled}}, <-snapshot, "GetOrdersSnapshot should wait for the order store's lock")
+		select {
+		case got := <-snapshot:
+			assert.Equal(t, []order.Detail{{OrderID: "1", Status: order.Filled}}, got, "GetOrdersSnapshot should wait for the order store's lock")
+		case <-time.After(5 * time.Second):
+			require.FailNow(t, "GetOrdersSnapshot must return once the order store's lock is released")
+		}
 	})
 
 	t.Run("reads alongside another reader", func(t *testing.T) {
@@ -1536,16 +1541,35 @@ func TestGetOrdersSnapshot(t *testing.T) {
 		m := &OrderManager{}
 		m.started.Store(true)
 		m.orderStore.Orders = map[string][]*order.Detail{strings.ToLower(testExchange): {{Exchange: testExchange, OrderID: "1", Status: order.Open}}}
+		// The workers report to the test, so one finishing after a failed wait cannot fail a test that has ended
+		updateErrs, snapshotLens := make(chan error, 100), make(chan int, 100)
 		var wg sync.WaitGroup
 		for i := range 100 {
 			wg.Go(func() {
-				assert.NoError(t, m.orderStore.updateExisting(&order.Detail{Exchange: testExchange, OrderID: "1", Price: float64(i + 1)}), "updateExisting should not error")
+				updateErrs <- m.orderStore.updateExisting(&order.Detail{Exchange: testExchange, OrderID: "1", Price: float64(i + 1)})
 			})
 			wg.Go(func() {
-				assert.Len(t, m.GetOrdersSnapshot(order.AnyStatus), 1, "GetOrdersSnapshot should return the stored order")
+				snapshotLens <- len(m.GetOrdersSnapshot(order.AnyStatus))
 			})
 		}
-		wg.Wait()
+		done := make(chan struct{})
+		go func() {
+			wg.Wait()
+			close(done)
+		}()
+		select {
+		case <-done:
+		case <-time.After(10 * time.Second):
+			require.FailNow(t, "GetOrdersSnapshot and the order store's updates must not deadlock")
+		}
+		close(updateErrs)
+		close(snapshotLens)
+		for err := range updateErrs {
+			assert.NoError(t, err, "updateExisting should not error")
+		}
+		for n := range snapshotLens {
+			assert.Equal(t, 1, n, "GetOrdersSnapshot should return the stored order")
+		}
 	})
 }
 

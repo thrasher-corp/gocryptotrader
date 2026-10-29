@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 // Spot margin errors
@@ -364,4 +365,39 @@ func (e *Exchange) GetSpotMarginFixedRateAvailableInventory(ctx context.Context,
 	params.Set("annualRate", strconv.FormatFloat(r.AnnualRate, 'f', -1, 64))
 	var resp *SpotMarginFixedRateAvailableInventoryResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/v5/spot-margin-trade/fixed-available-inventory", params, nil, &resp, defaultEPL)
+}
+
+// GetSpotMarginFixedRateBorrowPenaltyInterest returns the penalty interest charged on the account's fixed-rate loans,
+// newest first; without a cursor it returns the last 30 days' records (Query Fixed-Rate Borrow Penalty Interest)
+func (e *Exchange) GetSpotMarginFixedRateBorrowPenaltyInterest(ctx context.Context, r *SpotMarginFixedRateBorrowPenaltyInterestRequest) (*SpotMarginFixedRateBorrowPenaltyInterestResponse, error) {
+	if err := common.NilGuard(r); err != nil {
+		return nil, err
+	}
+	params := url.Values{}
+	if r.OrderID != "" {
+		params.Set("orderId", r.OrderID)
+	}
+	if !r.OrderCurrency.IsEmpty() {
+		params.Set("orderCurrency", r.OrderCurrency.Upper().String())
+	}
+	if r.Limit != 0 {
+		params.Set("limit", strconv.FormatUint(r.Limit, 10))
+	}
+	if r.Cursor != "" {
+		params.Set("cursor", r.Cursor)
+	}
+	var resp *SpotMarginFixedRateBorrowPenaltyInterestResponse
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/v5/spot-margin-trade/fixedborrow-interest-accrued", params, nil, &resp, getSpotMarginFixedRateBorrowPenaltyInterestEPL)
+}
+
+// CancelSpotMarginFixedRateBorrowOrder asks Bybit to cancel a fixed-rate borrow order that is still cancellable. Its
+// reply only confirms the request was accepted, so the order's state shows whether it was cancelled (Cancel
+// Fixed-Rate Borrow Order)
+func (e *Exchange) CancelSpotMarginFixedRateBorrowOrder(ctx context.Context, orderID string) error {
+	if orderID == "" {
+		return order.ErrOrderIDNotSet
+	}
+	return e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/v5/spot-margin-trade/fixedborrow-order-cancel", nil, map[string]any{
+		"orderId": orderID,
+	}, nil, cancelSpotMarginFixedRateBorrowOrderEPL)
 }

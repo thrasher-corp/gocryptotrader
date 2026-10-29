@@ -48,6 +48,10 @@ const (
 	// limit so a rejected request costs at most ten topics a resend
 	subscriptionBatchSize = 10
 
+	// publicConnectionArgsLimit is the most args, or topics, Bybit lets one connection to the spot or futures public
+	// streams subscribe to from 26 Nov 2026; the option stream allows 2000 and the spread stream any number
+	publicConnectionArgsLimit = 100
+
 	subscribeOperation   = "subscribe"
 	unsubscribeOperation = "unsubscribe"
 	authOperation        = "auth"

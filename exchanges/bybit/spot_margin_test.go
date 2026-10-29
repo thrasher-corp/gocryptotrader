@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/types"
@@ -1019,4 +1020,88 @@ func TestGetSpotMarginFixedRateAvailableInventory(t *testing.T) {
 		return
 	}
 	assert.Equal(t, currency.USDT, result.Currency, "GetSpotMarginFixedRateAvailableInventory should return the requested currency")
+}
+
+func TestGetSpotMarginFixedRateBorrowPenaltyInterest(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetSpotMarginFixedRateBorrowPenaltyInterest(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "GetSpotMarginFixedRateBorrowPenaltyInterest must reject a nil request")
+
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	}
+	for _, tc := range []struct {
+		name string
+		req  *SpotMarginFixedRateBorrowPenaltyInterestRequest
+		// mockOnly marks requests with a placeholder cursor that Bybit could reject live
+		mockOnly bool
+		exp      *SpotMarginFixedRateBorrowPenaltyInterestResponse
+	}{
+		{
+			name: "coin",
+			req:  &SpotMarginFixedRateBorrowPenaltyInterestRequest{OrderCurrency: currency.NewCode("usdt"), Limit: 10},
+			exp: &SpotMarginFixedRateBorrowPenaltyInterestResponse{
+				List: []SpotMarginFixedRateBorrowPenaltyInterest{
+					{
+						ReferenceID:  "26",
+						Currency:     currency.USDT,
+						OrderID:      "FIXED_BORROW_example",
+						LoanAmount:   6.019203532535780822,
+						Interest:     0.000206137107278623,
+						InterestRate: 0.3,
+						Timestamp:    types.Time(time.UnixMilli(1792117143000)),
+					},
+				},
+				NextPageCursor: "eyJ0aW1lIjoxNzkyMTE3MTQzLCJpZCI6MjZ9",
+			},
+		},
+		{
+			name:     "next page of an order",
+			req:      &SpotMarginFixedRateBorrowPenaltyInterestRequest{OrderID: "FIXED_BORROW_example", OrderCurrency: currency.USDT, Limit: 1, Cursor: "eyJ0aW1lIjoxNzkyMTE3MTQzLCJpZCI6MjZ9"},
+			mockOnly: true,
+			exp: &SpotMarginFixedRateBorrowPenaltyInterestResponse{
+				List: []SpotMarginFixedRateBorrowPenaltyInterest{
+					{
+						ReferenceID:  "25",
+						Currency:     currency.USDT,
+						OrderID:      "FIXED_BORROW_example",
+						LoanAmount:   6.019203532535780822,
+						Interest:     0.000206137107278623,
+						InterestRate: 0.3,
+						Timestamp:    types.Time(time.UnixMilli(1792030743000)),
+					},
+				},
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			if tc.mockOnly && !mockTests {
+				t.Skip("request carries a placeholder cursor")
+			}
+			result, err := e.GetSpotMarginFixedRateBorrowPenaltyInterest(t.Context(), tc.req)
+			require.NoError(t, err, "GetSpotMarginFixedRateBorrowPenaltyInterest must not error")
+			if mockTests {
+				assert.Equal(t, tc.exp, result, "GetSpotMarginFixedRateBorrowPenaltyInterest should decode every field")
+				return
+			}
+			assert.NotNil(t, result, "GetSpotMarginFixedRateBorrowPenaltyInterest should return a page")
+		})
+	}
+}
+
+func TestCancelSpotMarginFixedRateBorrowOrder(t *testing.T) {
+	t.Parallel()
+	err := e.CancelSpotMarginFixedRateBorrowOrder(t.Context(), "")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "CancelSpotMarginFixedRateBorrowOrder must reject an empty order ID")
+
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	}
+	if mockTests {
+		// A fully filled order is no longer cancellable
+		err = e.CancelSpotMarginFixedRateBorrowOrder(t.Context(), "FIXED_BORROW_a17089fc526441faa52eb99b0b9feb69185")
+		require.ErrorIs(t, err, request.ErrAuthRequestFailed, "CancelSpotMarginFixedRateBorrowOrder must return a refused cancellation as an error")
+	}
+	assert.NoError(t, e.CancelSpotMarginFixedRateBorrowOrder(t.Context(), "FIXED_BORROW_9b0c2b8f6a4d4e1b8f3c2a1d0e9f8a7b112"), "CancelSpotMarginFixedRateBorrowOrder should not error")
 }

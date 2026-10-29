@@ -106,6 +106,10 @@ type ConnectionSetup struct {
 	// MessageFilter defines the criteria used to match messages to a specific connection.
 	// The filter enables precise routing and handling of messages for distinct connection contexts.
 	MessageFilter any
+	// MaxSubscriptionsPerConnection, when above zero, caps the subscriptions each connection of this setup carries in
+	// place of the manager's MaxSubscriptionsPerConnection, for a stream whose limit differs from the exchange's other
+	// streams. It is used only with multi-connection management
+	MaxSubscriptionsPerConnection int
 }
 
 // Inspector is used to verify messages via SendMessageReturnResponsesWithInspection

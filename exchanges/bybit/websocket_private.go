@@ -194,13 +194,16 @@ func (e *Exchange) wsProcessExecution(ctx context.Context, respRaw []byte) error
 	return common.AppendError(errs, e.Websocket.DataHandler.Send(ctx, fills))
 }
 
+// privatePushEntries is a private push whose data entries websocketEntries decodes one at a time
+type privatePushEntries struct {
+	CreationTime types.Time        `json:"creationTime"`
+	Data         []json.RawMessage `json:"data"`
+}
+
 // websocketEntries decodes each entry of a private push's data on its own, so that an entry that cannot be decoded is
 // reported, named by its category, symbol and the value of idKey, without losing the push's other entries
 func websocketEntries[T any](respRaw []byte, kind, idKey string) ([]T, error) {
-	var resp struct {
-		CreationTime types.Time        `json:"creationTime"`
-		Data         []json.RawMessage `json:"data"`
-	}
+	var resp privatePushEntries
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return nil, err
 	}

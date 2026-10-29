@@ -241,6 +241,52 @@ type AuctionFeeInfo struct {
 	MakerFeeRate   types.Number `json:"makerFeeRate"`
 }
 
+// InstrumentSummaryRequest holds the parameters for GetInstrumentSummary
+type InstrumentSummaryRequest struct {
+	// Category is required: linear or option
+	Category string
+	Symbol   string
+	// SymbolType is the instrument type, such as stock, ETF or commodity
+	SymbolType string
+	// MarketRegion is the market of the underlying asset: HK, US, CN or KR
+	MarketRegion string
+	BaseCoin     currency.Code
+	// Limit is the page size, from 1 to 1000 and 500 by default
+	Limit  uint64
+	Cursor string
+}
+
+// InstrumentSummaryResponse holds a page of instrument summaries
+type InstrumentSummaryResponse struct {
+	Category       string              `json:"category"`
+	List           []InstrumentSummary `json:"list"`
+	NextPageCursor string              `json:"nextPageCursor"`
+}
+
+// InstrumentSummary holds a linear or option instrument's names, underlying asset and trading increments
+type InstrumentSummary struct {
+	Symbol string `json:"symbol"`
+	// SymbolType is the instrument type, such as stock or innovation; it is empty for most crypto perpetual contracts and
+	// crypto for crypto options
+	SymbolType  string        `json:"symbolType"`
+	DisplayName string        `json:"displayName"`
+	BaseCoin    currency.Code `json:"baseCoin"`
+	SettleCoin  currency.Code `json:"settleCoin"`
+	// FullName and UnderlyingTicker are empty for options; UnderlyingTicker is the asset's code in its own market, such
+	// as a stock ticker or security code
+	FullName string `json:"fullName"`
+	// MarketRegion is the market of the underlying asset, which sets its trading calendar and hours: US, CN, HK or KR,
+	// or empty where none applies. The docs say options send it empty, but Bybit sends US for NVDA options
+	MarketRegion     string `json:"marketRegion"`
+	UnderlyingTicker string `json:"underlyingTicker"`
+	// PriceIndex is the symbol whose price an option follows, such as NVDAUSDT for NVDA options; it is empty for linear
+	PriceIndex   string       `json:"priceIndex"`
+	QuantityStep types.Number `json:"qtyStep"`
+	TickSize     types.Number `json:"tickSize"`
+	// DeliveryTime is an option's delivery time, and zero for linear
+	DeliveryTime types.Time `json:"deliveryTime"`
+}
+
 // OrderbookResponse holds an orderbook snapshot, which excludes retail price improvement orders
 type OrderbookResponse struct {
 	Symbol string                           `json:"s"`
@@ -678,4 +724,63 @@ type OptionBaseCoin struct {
 	HasSymbol types.Boolean `json:"hasSymbol"`
 	// UnderlyingType is 0 for crypto, 1 commodity, 2 stock, 3 forex and 4 oil
 	UnderlyingType uint64 `json:"underlyingType"`
+}
+
+// CorporateActionsRequest holds the parameters for GetCorporateActions; every field is optional
+type CorporateActionsRequest struct {
+	// Category is option
+	Category string
+	// BaseCoin is the underlying asset's ticker, such as AAPL
+	BaseCoin currency.Code
+	// ActionType is ForwardSplit, ReverseSplit or Dividend
+	ActionType string
+	Limit      uint64
+	Cursor     string
+}
+
+// CorporateActionsResponse holds a page of corporate actions, newest effective time first
+type CorporateActionsResponse struct {
+	List           []CorporateAction `json:"list"`
+	NextPageCursor string            `json:"nextPageCursor"`
+}
+
+// CorporateAction holds a forward split, reverse split or dividend of a TradFi option's underlying asset. Its numbers
+// decode whether quoted or bare, since its shape is known only from the docs
+type CorporateAction struct {
+	Category string `json:"category"`
+	// Symbol is the asset's TradFi perpetual contract, such as NVDAUSDT
+	Symbol   string        `json:"symbol"`
+	BaseCoin currency.Code `json:"baseCoin"`
+	// ActionType is ForwardSplit, ReverseSplit or Dividend
+	ActionType string `json:"actionType"`
+	Status     string `json:"status"`
+	// EffectiveTime is a split's limit start time, or a dividend's first settlement time, while the action is
+	// PROCESSING
+	EffectiveTime types.Time             `json:"effectiveTime"`
+	Details       CorporateActionDetails `json:"details"`
+}
+
+// CorporateActionDetails holds the terms of a corporate action: a split sends only the split fields and a dividend only
+// the dividend fields
+type CorporateActionDetails struct {
+	SplitFactor types.Number `json:"splitFactor"`
+	// SplitType is FORWARD or REVERSE
+	SplitType              string        `json:"splitType"`
+	DividendAmountPerShare types.Number  `json:"dividendAmountPerShare"`
+	DividendCurrency       currency.Code `json:"dividendCurrency"`
+	// InstallmentCount is the number of instalments the dividend is paid in, and InstallmentAmountPerShare what each
+	// pays a share, in InstallmentCoin
+	InstallmentCount          types.Number                 `json:"installmentCount"`
+	InstallmentAmountPerShare types.Number                 `json:"installmentAmountPerShare"`
+	InstallmentCoin           currency.Code                `json:"installmentCoin"`
+	FirstSettlementTimeUTC    types.Time                   `json:"firstSettlementTimeUtc"`
+	Installments              []CorporateActionInstallment `json:"installments"`
+}
+
+// CorporateActionInstallment holds one instalment of a dividend
+type CorporateActionInstallment struct {
+	InstallmentNumber types.Number `json:"installmentNo"`
+	SettlementTimeUTC types.Time   `json:"settlementTimeUtc"`
+	// Status is SUCCESS once paid, or WAITING
+	Status string `json:"status"`
 }

@@ -15606,6 +15606,134 @@
     }
    ]
   },
+  "/v5/market/corporate-action": {
+   "GET": [
+    {
+     "data": {
+      "retCode": 0,
+      "retMsg": "OK",
+      "result": {
+       "list": [
+        {
+         "category": "option",
+         "symbol": "AAPLUSDT",
+         "baseCoin": "AAPL",
+         "actionType": "ForwardSplit",
+         "status": "Completed",
+         "effectiveTime": 1788278400000,
+         "details": {
+          "splitFactor": "4",
+          "splitType": "FORWARD"
+         }
+        }
+       ],
+       "nextPageCursor": "eyJpZCI6MTJ9"
+      },
+      "retExtInfo": {},
+      "time": 1788300000000
+     },
+     "queryString": "baseCoin=AAPL\u0026category=option\u0026limit=1",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "retCode": 0,
+      "retMsg": "OK",
+      "result": {
+       "list": [
+        {
+         "symbol": "AAPLUSDT",
+         "baseCoin": "AAPL",
+         "actionType": "Dividend",
+         "status": "Announced",
+         "effectiveTime": 1788278400000,
+         "details": {
+          "dividendAmountPerShare": "0.25",
+          "dividendCurrency": "USD",
+          "installmentCount": 4,
+          "installmentAmountPerShare": "5.00000",
+          "installmentCoin": "USDT",
+          "firstSettlementTimeUtc": 1788134400000,
+          "installments": [
+           {
+            "installmentNo": 1,
+            "settlementTimeUtc": 1788134400000,
+            "status": "SUCCESS"
+           },
+           {
+            "installmentNo": 2,
+            "settlementTimeUtc": 1788138000000,
+            "status": "WAITING"
+           },
+           {
+            "installmentNo": 3,
+            "settlementTimeUtc": 1788141600000,
+            "status": "WAITING"
+           },
+           {
+            "installmentNo": 4,
+            "settlementTimeUtc": 1788145200000,
+            "status": "WAITING"
+           }
+          ]
+         }
+        }
+       ],
+       "nextPageCursor": ""
+      },
+      "retExtInfo": {},
+      "time": 1788300000000
+     },
+     "queryString": "baseCoin=AAPL\u0026category=option\u0026cursor=eyJpZCI6MTJ9\u0026limit=1",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "retCode": 0,
+      "retMsg": "OK",
+      "result": {
+       "list": [
+        {
+         "category": "option",
+         "symbol": "GMEUSDT",
+         "baseCoin": "GME",
+         "actionType": "ReverseSplit",
+         "status": "PROCESSING",
+         "effectiveTime": "1790000000000",
+         "details": {
+          "splitFactor": 0.25,
+          "splitType": "REVERSE"
+         }
+        }
+       ],
+       "nextPageCursor": ""
+      },
+      "retExtInfo": {},
+      "time": 1789990000000
+     },
+     "queryString": "actionType=ReverseSplit",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "retCode": 0,
+      "retMsg": "success",
+      "result": {
+       "nextPageCursor": "",
+       "list": []
+      },
+      "retExtInfo": {},
+      "time": 1793276510036
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
   "/v5/market/delivery-price": {
    "GET": [
     {
@@ -15979,6 +16107,103 @@
       "time": 1791535201995
      },
      "queryString": "category=inverse\u0026end=1790816400000\u0026interval=60\u0026limit=1\u0026start=1790812800000\u0026symbol=BTCUSD",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/v5/market/instrument-summary": {
+   "GET": [
+    {
+     "data": {
+      "retCode": 0,
+      "retMsg": "OK",
+      "result": {
+       "category": "linear",
+       "list": [
+        {
+         "symbol": "ABBVUSDT",
+         "symbolType": "stock",
+         "displayName": "ABBVUSDT",
+         "baseCoin": "ABBV",
+         "settleCoin": "USDT",
+         "fullName": "AbbVie Inc",
+         "marketRegion": "US",
+         "underlyingTicker": "ABBV",
+         "qtyStep": "0.01",
+         "tickSize": "0.01",
+         "priceIndex": "",
+         "deliveryTime": "0"
+        }
+       ],
+       "nextPageCursor": "first%3DABBVUSDT%26last%3DABBVUSDT"
+      },
+      "retExtInfo": {},
+      "time": 1793279722197
+     },
+     "queryString": "category=linear\u0026cursor=first%253DAALUSDT%2526last%253DAAPLUSDT\u0026limit=1\u0026marketRegion=US\u0026symbolType=stock",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "retCode": 0,
+      "retMsg": "success",
+      "result": {
+       "category": "option",
+       "list": [
+        {
+         "symbol": "NVDA-20NOV26-160-P-USDT",
+         "symbolType": "stock",
+         "displayName": "NVDAUSDT-20NOV26-160-P",
+         "baseCoin": "NVDA",
+         "settleCoin": "USDT",
+         "fullName": "",
+         "marketRegion": "US",
+         "underlyingTicker": "",
+         "qtyStep": "1",
+         "tickSize": "0.01",
+         "priceIndex": "NVDAUSDT",
+         "deliveryTime": "1795208400000"
+        }
+       ],
+       "nextPageCursor": "0%2C1"
+      },
+      "retExtInfo": {},
+      "time": 1793277157170
+     },
+     "queryString": "baseCoin=NVDA\u0026category=option\u0026limit=1",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "retCode": 0,
+      "retMsg": "OK",
+      "result": {
+       "category": "linear",
+       "list": [
+        {
+         "symbol": "BTCUSDT",
+         "symbolType": "",
+         "displayName": "BTCUSDT",
+         "baseCoin": "BTC",
+         "settleCoin": "USDT",
+         "fullName": "Bitcoin",
+         "marketRegion": "",
+         "underlyingTicker": "",
+         "qtyStep": "0.001",
+         "tickSize": "0.10",
+         "priceIndex": "",
+         "deliveryTime": "0"
+        }
+       ],
+       "nextPageCursor": ""
+      },
+      "retExtInfo": {},
+      "time": 1793277158354
+     },
+     "queryString": "category=linear\u0026symbol=BTCUSDT",
      "bodyParams": "",
      "headers": {}
     }
@@ -27830,6 +28055,252 @@
     }
    ]
   },
+  "/v5/referral/campaign/rewards": {
+   "POST": [
+    {
+     "data": {
+      "retCode": 0,
+      "retMsg": "",
+      "result": {
+       "rebateRule": {
+        "depositAmount": 100,
+        "tradeAmount": 500,
+        "rebateRatioRules": [
+         {
+          "rebateRatio": 20,
+          "referralCount": 1,
+          "hasTradeCondition": false,
+          "tradeAmountCondition": 0
+         },
+         {
+          "rebateRatio": 30,
+          "referralCount": 10,
+          "hasTradeCondition": true,
+          "tradeAmountCondition": 100000
+         }
+        ],
+        "rebateDurationDays": 30,
+        "tradefiDepositAmount": 200,
+        "tradefiTradeAmount": 1000
+       },
+       "tasks": [
+        "{\"schemaVersion\":2,\"source\":\"base\",\"campaignId\":\"sample\",\"tasks\":[{\"id\":7,\"awardType\":100,\"ruleTitle\":[\"Deposit\"],\"ruleDescription\":[\"Deposit $100\"],\"ruleParam\":[\"100\"],\"taskAwards\":[{\"id\":92,\"name\":\"EARN 10\",\"type\":\"Packet\",\"productLine\":\"\",\"startTime\":\"\",\"endTime\":\"\"}],\"m1Awards\":[]}]}",
+        "{\"schemaVersion\":2,\"source\":\"fiat\",\"campaignId\":\"fiat-first-purchase\",\"tasks\":[{\"id\":12,\"awardType\":1,\"ruleTitle\":[\"First fiat purchase\",\"Spot trade\"],\"ruleDescription\":[\"Buy at least $50 of crypto with fiat\",\"Trade at least $500 in spot\"],\"ruleParam\":[\"50\",\"500\"],\"taskAwards\":[{\"id\":405,\"name\":\"10 USDT Trial Fund\",\"type\":\"Trial Fund\",\"productLine\":\"Derivatives\",\"startTime\":\"2026-10-01T00:00:00Z\",\"endTime\":\"2026-10-31T23:59:59Z\"}],\"m1Awards\":[{\"id\":406,\"name\":\"5 USDT Coupon\",\"type\":\"Coupon\",\"productLine\":\"Spot\",\"startTime\":\"2026-10-01T00:00:00Z\",\"endTime\":\"\"}]},{\"id\":13,\"awardType\":95,\"ruleTitle\":null,\"ruleDescription\":null,\"ruleParam\":null,\"taskAwards\":[],\"m1Awards\":[]}]}",
+        "{\"schemaVersion\":2,\"source\":\"earn\",\"campaignId\":\"earn-boost\",\"tasks\":[]}"
+       ]
+      },
+      "retExtInfo": {},
+      "time": 1753286400000
+     },
+     "queryString": "",
+     "bodyParams": "{}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v5/referral/commission/records": {
+   "POST": [
+    {
+     "data": {
+      "retCode": 0,
+      "retMsg": "",
+      "result": {
+       "records": [
+        {
+         "userId": "2***1",
+         "paymentTime": 1740916800,
+         "rate": "0.20",
+         "businessUnit": 1,
+         "commissionOriginCoin": "BTC",
+         "commissionOriginAmount": "1.25",
+         "commissionUsdtAmount": "250",
+         "commissionStatus": 2
+        },
+        {
+         "userId": "2***2",
+         "paymentTime": 1741003200,
+         "rate": "0.30",
+         "businessUnit": 1,
+         "commissionOriginCoin": "USDT",
+         "commissionOriginAmount": "12.5",
+         "commissionUsdtAmount": "12.5",
+         "commissionStatus": 1,
+         "isBoostM2": true
+        }
+       ],
+       "total": 29
+      },
+      "retExtInfo": {},
+      "time": 1753286400000
+     },
+     "queryString": "",
+     "bodyParams": "{\"userIdList\":[{\"userId\":201},{\"userId\":202}],\"startTime\":\"2025-03-01 10:20:30\",\"endTime\":\"2025-03-08 11:22:33\",\"page\":3,\"pageSize\":200,\"productLine\":1}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "retCode": 0,
+      "retMsg": "",
+      "result": {
+       "records": [
+        {
+         "userId": "1***6",
+         "paymentTime": "1740916800",
+         "rate": "0.20",
+         "businessUnit": 2,
+         "commissionOriginCoin": "USDT",
+         "commissionOriginAmount": "3.5",
+         "commissionUsdtAmount": "3.5",
+         "commissionStatus": 2
+        }
+       ],
+       "total": "1"
+      },
+      "retExtInfo": {},
+      "time": 1753286400001
+     },
+     "queryString": "",
+     "bodyParams": "{}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v5/referral/user/identity-profile": {
+   "POST": [
+    {
+     "data": {
+      "retCode": 0,
+      "retMsg": "OK",
+      "result": {
+       "isAffiliate": false,
+       "isM1": true,
+       "inviterAffiliateId": 10001,
+       "inviterAffiliateUserId": 1,
+       "inviterUserId": 1,
+       "commissionInfo": {
+        "totalCommission": "152.35",
+        "yesterdayCommission": "3.2",
+        "totalFriends": 12,
+        "qualifiedFriends": 5,
+        "walletBalance": "48.5",
+        "qualifiedFriendsQuarterTotalTradeVolume": "250000",
+        "curQuarterActiveFriendsCount": 3,
+        "hasOldReferral": 1,
+        "degradeType": 1,
+        "commissionRate": "0.3",
+        "upgradeUnifiedAccount": 1,
+        "withdrawalSwitch": 1,
+        "lastQuarterQualifiedFriendsCount": 4
+       }
+      },
+      "retExtInfo": {},
+      "time": 1672211918471
+     },
+     "queryString": "",
+     "bodyParams": "{}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v5/referral/user/invitations": {
+   "POST": [
+    {
+     "data": {
+      "retCode": 0,
+      "retMsg": "",
+      "result": {
+       "records": [
+        {
+         "userIdMask": "1***1",
+         "signTime": 1767312000000,
+         "userStatus": 4,
+         "totalCommission": "12.34567891",
+         "userId": "100000001",
+         "taskProgress": "3/5",
+         "notShowCommission": true,
+         "totalBaseRewards": "5"
+        }
+       ],
+       "total": 1
+      },
+      "retExtInfo": {},
+      "time": 1769904000000
+     },
+     "queryString": "",
+     "bodyParams": "{\"userIdList\":[{\"userId\":100000001}],\"startTime\":\"2026-01-01 00:00:00\",\"endTime\":\"2026-01-31 23:59:59\",\"page\":1,\"pageSize\":10,\"friendStatus\":4}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "retCode": 0,
+      "retMsg": "",
+      "result": {
+       "records": [
+        {
+         "userIdMask": "1***9",
+         "signTime": "1767398400",
+         "userStatus": 1,
+         "totalCommission": "0",
+         "userId": "100000009",
+         "taskProgress": "0/5",
+         "notShowCommission": false,
+         "totalBaseRewards": ""
+        }
+       ],
+       "total": "11"
+      },
+      "retExtInfo": {},
+      "time": 1769904000001
+     },
+     "queryString": "",
+     "bodyParams": "{\"page\":2}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "retCode": 0,
+      "retMsg": "",
+      "result": {
+       "records": [],
+       "total": 0
+      },
+      "retExtInfo": {},
+      "time": 1769904000002
+     },
+     "queryString": "",
+     "bodyParams": "{}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
   "/v5/rfq/accept-other-quote": {
    "POST": [
     {
@@ -29527,6 +29998,96 @@
      "queryString": "cursor=0\u0026limit=1\u0026orderCurrency=ETH\u0026orderId=FIXED_BORROW_4563567182f746ec9f73e4357264d8c7187\u0026term=7",
      "bodyParams": "",
      "headers": {}
+    }
+   ]
+  },
+  "/v5/spot-margin-trade/fixedborrow-interest-accrued": {
+   "GET": [
+    {
+     "data": {
+      "retCode": 0,
+      "retMsg": "OK",
+      "result": {
+       "list": [
+        {
+         "refId": "26",
+         "currency": "USDT",
+         "orderId": "FIXED_BORROW_example",
+         "loanAmt": "6.019203532535780822",
+         "interest": "0.000206137107278623",
+         "interestRate": "0.30",
+         "ts": "1792117143000"
+        }
+       ],
+       "nextPageCursor": "eyJ0aW1lIjoxNzkyMTE3MTQzLCJpZCI6MjZ9"
+      },
+      "retExtInfo": {},
+      "time": 1792117143000
+     },
+     "queryString": "limit=10\u0026orderCurrency=USDT",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "retCode": 0,
+      "retMsg": "OK",
+      "result": {
+       "list": [
+        {
+         "refId": "25",
+         "currency": "USDT",
+         "orderId": "FIXED_BORROW_example",
+         "loanAmt": "6.019203532535780822",
+         "interest": "0.000206137107278623",
+         "interestRate": "0.30",
+         "ts": "1792030743000"
+        }
+       ],
+       "nextPageCursor": ""
+      },
+      "retExtInfo": {},
+      "time": 1792117143001
+     },
+     "queryString": "cursor=eyJ0aW1lIjoxNzkyMTE3MTQzLCJpZCI6MjZ9\u0026limit=1\u0026orderCurrency=USDT\u0026orderId=FIXED_BORROW_example",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/v5/spot-margin-trade/fixedborrow-order-cancel": {
+   "POST": [
+    {
+     "data": {
+      "retCode": 0,
+      "retMsg": "OK",
+      "result": {},
+      "retExtInfo": {},
+      "time": 1792117143000
+     },
+     "queryString": "",
+     "bodyParams": "{\"orderId\":\"FIXED_BORROW_9b0c2b8f6a4d4e1b8f3c2a1d0e9f8a7b112\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "retCode": 10001,
+      "retMsg": "order status does not allow cancellation",
+      "result": {},
+      "retExtInfo": {},
+      "time": 1792117143001
+     },
+     "queryString": "",
+     "bodyParams": "{\"orderId\":\"FIXED_BORROW_a17089fc526441faa52eb99b0b9feb69185\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
     }
    ]
   },

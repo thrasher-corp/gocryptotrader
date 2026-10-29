@@ -612,7 +612,7 @@ func (e *Exchange) wsProcessSpreadOrders(ctx context.Context, respRaw []byte) er
 		if err != nil {
 			return err
 		}
-		oType, err := order.StringToOrderType(resp.Data[x].OrderType)
+		oType, tif, err := orderTypeFromString(resp.Data[x].OrderType)
 		if err != nil {
 			return err
 		}
@@ -631,6 +631,7 @@ func (e *Exchange) wsProcessSpreadOrders(ctx context.Context, respRaw []byte) er
 			RemainingAmount:      resp.Data[x].Size.Float64() - resp.Data[x].FillSize.Float64(),
 			Side:                 oSide,
 			Status:               oStatus,
+			TimeInForce:          tif,
 			Type:                 oType,
 			LastUpdated:          resp.Data[x].UpdateTime.Time(),
 		}
@@ -1164,7 +1165,7 @@ func (e *Exchange) wsProcessOrders(ctx context.Context, respRaw []byte) error {
 		return err
 	}
 	for x := range response.Data {
-		orderType, err := order.StringToOrderType(response.Data[x].OrderType)
+		orderType, tif, err := orderTypeFromString(response.Data[x].OrderType)
 		if err != nil {
 			return err
 		}
@@ -1223,6 +1224,7 @@ func (e *Exchange) wsProcessOrders(ctx context.Context, respRaw []byte) error {
 			RemainingAmount:      remainingAmount,
 			Side:                 response.Data[x].Side,
 			Status:               orderStatus,
+			TimeInForce:          tif,
 			Type:                 orderType,
 		}
 		if orderStatus == order.Filled {

@@ -143,6 +143,43 @@ func (e *Exchange) GetInstrumentInfo(ctx context.Context, req *InstrumentInfoReq
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("/v5/market/instruments-info", params), defaultEPL, &resp)
 }
 
+// GetInstrumentSummary returns a page of the names, underlying assets and trading increments of linear perpetual
+// contracts or options (Get Instrument Summary)
+func (e *Exchange) GetInstrumentSummary(ctx context.Context, req *InstrumentSummaryRequest) (*InstrumentSummaryResponse, error) {
+	if err := common.NilGuard(req); err != nil {
+		return nil, err
+	}
+	if req.Category == "" {
+		return nil, errCategoryNotSet
+	}
+	// Bybit answers any other category, and these in another case, with 10001
+	if req.Category != cLinear && req.Category != cOption {
+		return nil, fmt.Errorf("%w: %q", errUnsupportedCategory, req.Category)
+	}
+	params := url.Values{}
+	params.Set("category", req.Category)
+	if req.Symbol != "" {
+		params.Set("symbol", req.Symbol)
+	}
+	if req.SymbolType != "" {
+		params.Set("symbolType", req.SymbolType)
+	}
+	if req.MarketRegion != "" {
+		params.Set("marketRegion", req.MarketRegion)
+	}
+	if !req.BaseCoin.IsEmpty() {
+		params.Set("baseCoin", req.BaseCoin.Upper().String())
+	}
+	if req.Limit != 0 {
+		params.Set("limit", strconv.FormatUint(req.Limit, 10))
+	}
+	if req.Cursor != "" {
+		params.Set("cursor", req.Cursor)
+	}
+	var resp *InstrumentSummaryResponse
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("/v5/market/instrument-summary", params), defaultEPL, &resp)
+}
+
 // GetOrderBook returns a symbol's orderbook, without retail price improvement orders (Get Orderbook)
 func (e *Exchange) GetOrderBook(ctx context.Context, category, symbol string, limit uint64) (*OrderbookResponse, error) {
 	if category == "" {
@@ -547,6 +584,32 @@ func (e *Exchange) GetOptionBaseCoins(ctx context.Context, underlyingTypes []uin
 	}
 	var resp *OptionBaseCoinsResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("/v5/market/option-base-coins", params), defaultEPL, &resp)
+}
+
+// GetCorporateActions returns a page of the forward splits, reverse splits and dividends of TradFi options'
+// underlying assets, newest effective time first; Bybit keeps them for 14 days (Query Corporate Action)
+func (e *Exchange) GetCorporateActions(ctx context.Context, req *CorporateActionsRequest) (*CorporateActionsResponse, error) {
+	if err := common.NilGuard(req); err != nil {
+		return nil, err
+	}
+	params := url.Values{}
+	if req.Category != "" {
+		params.Set("category", req.Category)
+	}
+	if !req.BaseCoin.IsEmpty() {
+		params.Set("baseCoin", req.BaseCoin.Upper().String())
+	}
+	if req.ActionType != "" {
+		params.Set("actionType", req.ActionType)
+	}
+	if req.Limit != 0 {
+		params.Set("limit", strconv.FormatUint(req.Limit, 10))
+	}
+	if req.Cursor != "" {
+		params.Set("cursor", req.Cursor)
+	}
+	var resp *CorporateActionsResponse
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("/v5/market/corporate-action", params), defaultEPL, &resp)
 }
 
 func intervalToString(interval kline.Interval) (string, error) {

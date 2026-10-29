@@ -691,6 +691,20 @@ func TestCreateConnectAndSubscribe(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrFatal, "must return fatal error when exceeding max subscriptions")
 	assert.ErrorIs(t, err, errSubscriptionsExceedsLimit, "should return the subscriptions exceeds limit error")
 
+	// A setup's own cap applies in place of the manager's, above or below it
+	ws.setup.MaxSubscriptionsPerConnection = 2
+	ws.setup.Connector = func(context.Context, Connection) error { return errConnectionFault }
+	err = mgr.createConnectAndSubscribe(t.Context(), ws, subs)
+	require.ErrorIs(t, err, errConnectionFault, "must connect when the subscriptions fit the setup's own cap above the manager's")
+	assert.NotErrorIs(t, err, errSubscriptionsExceedsLimit, "should not refuse subscriptions within the setup's own cap")
+	mgr.MaxSubscriptionsPerConnection = 0
+	ws.setup.MaxSubscriptionsPerConnection = 1
+	err = mgr.createConnectAndSubscribe(t.Context(), ws, subs)
+	require.ErrorIs(t, err, common.ErrFatal, "must return fatal error when exceeding the setup's own max subscriptions")
+	assert.ErrorIs(t, err, errSubscriptionsExceedsLimit, "should return the subscriptions exceeds limit error for the setup's own cap")
+	assert.ErrorContains(t, err, "max subs allowed 1", "should report the setup's own cap")
+	ws.setup.MaxSubscriptionsPerConnection = 0
+
 	mgr.MaxSubscriptionsPerConnection = 0
 	ws.setup.Connector = func(context.Context, Connection) error { return errConnectionFault }
 	err = mgr.createConnectAndSubscribe(t.Context(), ws, subs)
@@ -796,6 +810,29 @@ func TestCreateConnectAndSubscribe(t *testing.T) {
 	delete(mgr.connections, ws.connections[0])
 	ws.connections = nil
 	mgr.Wg.Wait()
+
+	// A subscriber that has already recorded the subscriptions on the connection's own store makes recording them there
+	// again fail
+	ws.subscriptions = subscription.NewStore()
+	ws.setup.Subscriber = func(_ context.Context, conn Connection, _ subscription.List) error {
+		for _, sub := range subs {
+			if err := ws.subscriptions.Add(sub); err != nil {
+				return err
+			}
+			if err := conn.Subscriptions().Add(sub); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	err = mgr.createConnectAndSubscribe(t.Context(), ws, subs)
+	require.ErrorIs(t, err, ErrSubscriptionFailure, "a failure recording on the connection's store must return a subscription failure")
+	assert.ErrorIs(t, err, subscription.ErrDuplicate, "should wrap the connection store's error")
+	require.Len(t, ws.connections, 1, "connection must be tracked by websocket")
+	require.NoError(t, ws.connections[0].Shutdown())
+	delete(mgr.connections, ws.connections[0])
+	ws.connections = nil
+	mgr.Wg.Wait()
 }
 
 // newConnectionCountingServer returns a mock server URL and dialer, along with the number of websocket connections the
@@ -809,6 +846,144 @@ func newConnectionCountingServer(t *testing.T) (string, *gws.Dialer, *atomic.Int
 		mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
 	}))
 	return "ws" + server.URL[len("http"):] + "/ws", dialer, &open
+}
+
+// TestConnect drives connect, which Connect calls holding the manager's lock, through the paths the other connect tests
+// leave: a single connection without a connector or whose subscriptions fail, setups that generate nothing, need no
+// subscriptions or have their subscriptions tracked on a connection, with verbose logging, a tracking error before and
+// after batching, and a rollback in which a connection fails to shut down
+func TestConnect(t *testing.T) {
+	t.Parallel()
+
+	t.Run("single connection without a connector", func(t *testing.T) {
+		t.Parallel()
+		m := NewManager()
+		m.setEnabled(true)
+		require.ErrorIs(t, m.connect(t.Context()), errNoConnectFunc, "connect must refuse a single connection without a connector")
+	})
+
+	for _, tc := range []struct {
+		name       string
+		generate   func() (subscription.List, error)
+		subscriber func(subscription.List) error
+	}{
+		{name: "single connection subscription generation error", generate: func() (subscription.List, error) { return nil, errDastardlyReason }},
+		{
+			name:       "single connection subscriber error",
+			generate:   func() (subscription.List, error) { return subscription.List{{Channel: "A"}}, nil },
+			subscriber: func(subscription.List) error { return errDastardlyReason },
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			m := NewManager()
+			m.exchangeName = "test"
+			m.trafficTimeout = time.Minute
+			m.setEnabled(true)
+			m.connector = func() error { return nil }
+			m.GenerateSubs = tc.generate
+			m.Subscriber = tc.subscriber
+			t.Cleanup(func() { cleanupManagerMonitors(t, m) })
+			err := m.connect(t.Context())
+			require.ErrorIs(t, err, ErrSubscriptionFailure, "connect must report the subscription failure")
+			assert.ErrorIs(t, err, errDastardlyReason, "connect should keep the cause of the subscription failure")
+		})
+	}
+
+	t.Run("multiple connections with verbose logging", func(t *testing.T) {
+		t.Parallel()
+		m := NewManager()
+		m.exchangeName = "test"
+		m.verbose = true
+		m.useMultiConnectionManagement = true
+		m.MaxSubscriptionsPerConnection = 1
+		m.trafficTimeout = time.Minute
+		m.setEnabled(true)
+		srv, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
+		}))
+		t.Cleanup(func() { cleanupManagerMonitors(t, m) })
+		url := "ws" + srv.URL[len("http"):] + "/ws"
+		connector := func(ctx context.Context, conn Connection) error { return conn.Dial(ctx, dialer, nil, nil) }
+		subscriber := func(_ context.Context, c Connection, subs subscription.List) error {
+			return m.AddSuccessfulSubscriptions(c, subs...)
+		}
+		handler := func(context.Context, Connection, []byte) error { return nil }
+		generate := func(channels ...string) func() (subscription.List, error) {
+			return func() (subscription.List, error) {
+				subs := make(subscription.List, len(channels))
+				for i, c := range channels {
+					subs[i] = &subscription.Subscription{Channel: c}
+				}
+				return subs, nil
+			}
+		}
+		track := func(err error) func(context.Context, Connection, subscription.List) (subscription.List, subscription.List, error) {
+			return func(_ context.Context, _ Connection, subs subscription.List) (subscription.List, subscription.List, error) {
+				if err != nil {
+					return nil, nil, err
+				}
+				return nil, subs, nil
+			}
+		}
+		// The setups in turn: one generating nothing, one needing no subscriptions, two whose subscriptions meet a
+		// connection already open, tracked or failing to track, and two whose second batch meets the connection the
+		// first opened, tracked or failing to track
+		for _, setup := range []*ConnectionSetup{
+			{URL: url, Connector: connector, GenerateSubscriptions: generate(), Subscriber: subscriber, Handler: handler},
+			{URL: url, Connector: connector, SubscriptionsNotRequired: true, Handler: handler},
+			{URL: url, Connector: connector, GenerateSubscriptions: generate("tracked first"), Subscriber: subscriber, TrackOnExistingConnection: track(nil), Handler: handler},
+			{URL: url, Connector: connector, GenerateSubscriptions: generate("refused first"), Subscriber: subscriber, TrackOnExistingConnection: track(errDastardlyReason), Handler: handler},
+			{URL: url, Connector: connector, GenerateSubscriptions: generate("connected", "tracked second"), Subscriber: subscriber, TrackOnExistingConnection: track(nil), Handler: handler},
+			{URL: url, Connector: connector, GenerateSubscriptions: generate("connected too", "refused second"), Subscriber: subscriber, TrackOnExistingConnection: track(errSubscriptionRejected), Handler: handler},
+		} {
+			setup.MessageFilter = len(m.connectionManager) // Setups sharing a URL differ only by their filter
+			require.NoError(t, m.SetupNewConnection(setup), "SetupNewConnection must not error")
+		}
+		// The two setups meeting an open connection are given one before connect
+		for _, i := range []int{2, 3} {
+			open := &fakeConnection{subscriptions: subscription.NewStore()}
+			m.connectionManager[i].connections = []Connection{open}
+			m.connections[open] = m.connectionManager[i]
+		}
+
+		err := m.connect(t.Context())
+		require.ErrorIs(t, err, errDastardlyReason, "connect must report the tracking error before batching")
+		require.ErrorIs(t, err, errSubscriptionRejected, "connect must report the tracking error for a later batch")
+		assert.True(t, m.IsConnected(), "connect should stay connected after tracking errors, which are not fatal")
+		for i, exp := range []int{0, 1, 1, 1, 1, 1} {
+			assert.Lenf(t, m.connectionManager[i].connections, exp, "setup %d should hold the expected connections", i)
+		}
+		assert.NotNil(t, m.connectionManager[2].subscriptions.Get(&subscription.Subscription{Channel: "tracked first"}), "connect should store a subscription tracked before batching")
+		assert.NotNil(t, m.connectionManager[4].subscriptions.Get(&subscription.Subscription{Channel: "tracked second"}), "connect should store a subscription tracked for a later batch")
+	})
+
+	t.Run("rollback with a connection failing to shut down", func(t *testing.T) {
+		t.Parallel()
+		m := NewManager()
+		m.exchangeName = "test"
+		m.useMultiConnectionManagement = true
+		m.setEnabled(true)
+		require.NoError(t, m.SetupNewConnection(&ConnectionSetup{
+			URL:                   "wss://rollback.invalid",
+			Connector:             func(context.Context, Connection) error { return errDastardlyReason },
+			GenerateSubscriptions: func() (subscription.List, error) { return subscription.List{{Channel: "A"}}, nil },
+			Subscriber:            func(context.Context, Connection, subscription.List) error { return nil },
+			Handler:               func(context.Context, Connection, []byte) error { return nil },
+		}), "SetupNewConnection must not error")
+		stale := &fakeConnection{subscriptions: subscription.NewStore(), shutdownErr: errSubscriptionRejected}
+		require.NoError(t, stale.subscriptions.Add(&subscription.Subscription{Channel: "held"}), "Add must not error")
+		m.connectionManager[0].connections = []Connection{stale}
+		m.connections[stale] = m.connectionManager[0]
+
+		err := m.connect(t.Context())
+		require.ErrorIs(t, err, errDastardlyReason, "connect must return the fatal connection error")
+		assert.True(t, stale.shutdownCalled, "connect should shut down every connection when rolling back")
+		assert.Empty(t, m.connectionManager[0].connections, "connect should drop every connection when rolling back")
+		assert.Zero(t, stale.subscriptions.Len(), "connect should clear a rolled back connection's subscriptions")
+		assert.Empty(t, m.connections, "connect should forget every connection when rolling back")
+		assert.False(t, m.IsConnected(), "connect should leave the websocket disconnected after rolling back")
+	})
 }
 
 func TestConnectReleasesConnectionWhenConnectorFails(t *testing.T) {
@@ -1135,6 +1310,34 @@ func TestSetAllConnectionURLsErrorsAfterConnect(t *testing.T) {
 	err = ws.SetAllConnectionURLs("ws://mock.example.com/ws")
 	require.ErrorIs(t, err, errAlreadyConnected, "SetAllConnectionURLs must error after connect")
 	require.ErrorContains(t, err, "SetAllConnectionURLs must be called before Connect")
+}
+
+func TestConnectionSubscriptionCaps(t *testing.T) {
+	t.Parallel()
+
+	_, err := (*Manager)(nil).ConnectionSubscriptionCaps("wss://one.example/ws")
+	require.ErrorIs(t, err, common.ErrNilPointer, "ConnectionSubscriptionCaps must error on a nil manager")
+
+	m := NewManager()
+	m.MaxSubscriptionsPerConnection = 3
+	m.connectionManager = []*websocket{
+		{setup: nil},
+		{setup: &ConnectionSetup{URL: "wss://one.example/ws"}},
+		{setup: &ConnectionSetup{URL: "wss://one.example/ws", MessageFilter: "capped", MaxSubscriptionsPerConnection: 5}},
+		{setup: &ConnectionSetup{URL: "wss://two.example/ws", MaxSubscriptionsPerConnection: 2}},
+	}
+	for _, tc := range []struct {
+		url string
+		exp map[any]int
+	}{
+		{url: "wss://one.example/ws", exp: map[any]int{nil: 3, "capped": 5}},
+		{url: "wss://two.example/ws", exp: map[any]int{nil: 2}},
+		{url: "wss://unregistered.example/ws", exp: map[any]int{}},
+	} {
+		caps, err := m.ConnectionSubscriptionCaps(tc.url)
+		require.NoErrorf(t, err, "ConnectionSubscriptionCaps must not error for %s", tc.url)
+		assert.Equalf(t, tc.exp, caps, "ConnectionSubscriptionCaps should return the cap applying to each setup registered for %s", tc.url)
+	}
 }
 
 func TestManager(t *testing.T) {
@@ -1732,6 +1935,9 @@ func TestSetupNewConnection(t *testing.T) {
 	assert.ErrorContains(t, err, "nil pointer: *websocket.Manager")
 
 	nonsenseWebsock = &Manager{}
+	err = nonsenseWebsock.SetupNewConnection(&ConnectionSetup{})
+	assert.ErrorIs(t, err, errExchangeConfigEmpty, "SetupNewConnection should refuse a setup without any configuration")
+
 	err = nonsenseWebsock.SetupNewConnection(&ConnectionSetup{URL: "urlstring"})
 	assert.ErrorIs(t, err, errExchangeConfigNameEmpty, "SetupNewConnection should error correctly")
 
@@ -1788,6 +1994,12 @@ func TestSetupNewConnection(t *testing.T) {
 	require.ErrorIs(t, err, errWebsocketDataHandlerUnset)
 
 	connSetup.Handler = func(context.Context, Connection, []byte) error { return nil }
+	connSetup.MaxSubscriptionsPerConnection = -1
+	err = multi.SetupNewConnection(connSetup)
+	require.ErrorIs(t, err, errInvalidMaxSubscriptions, "SetupNewConnection must refuse a negative subscription cap")
+	require.Empty(t, multi.connectionManager, "SetupNewConnection must not register a setup it refuses")
+	connSetup.MaxSubscriptionsPerConnection = 0
+
 	connSetup.MessageFilter = []string{"slices are super naughty and not comparable"}
 	err = multi.SetupNewConnection(connSetup)
 	require.ErrorIs(t, err, errMessageFilterNotComparable)

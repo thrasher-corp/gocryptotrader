@@ -781,8 +781,8 @@ func TestSpotSharedTopic(t *testing.T) {
 	s := httptest.NewTestServer(t, mockws.CurryWsMockUpgrader(t, handler))
 	s.Start()
 	require.NoError(t, ex.Websocket.SetAllConnectionURLs("ws"+strings.TrimPrefix(s.URL, "http")), "SetAllConnectionURLs must not error")
-	require.NoError(t, ex.Websocket.Connect(context.WithoutCancel(t.Context())), "Connect must not error")
 	t.Cleanup(func() { stopWebsocket(t, ex) })
+	require.NoError(t, ex.Websocket.Connect(context.WithoutCancel(t.Context())), "Connect must not error")
 	state := func() (stored, sent, held []string) {
 		for _, s := range ex.Websocket.GetSubscriptions() {
 			stored = append(stored, s.Channel+" "+s.QualifiedChannel)
@@ -859,8 +859,8 @@ func TestSpotOrderbookDepthFlush(t *testing.T) {
 	s := httptest.NewTestServer(t, mockws.CurryWsMockUpgrader(t, handler))
 	s.Start()
 	require.NoError(t, ex.Websocket.SetAllConnectionURLs("ws"+strings.TrimPrefix(s.URL, "http")), "SetAllConnectionURLs must not error")
-	require.NoError(t, ex.Websocket.Connect(context.WithoutCancel(t.Context())), "Connect must not error")
 	t.Cleanup(func() { stopWebsocket(t, ex) })
+	require.NoError(t, ex.Websocket.Connect(context.WithoutCancel(t.Context())), "Connect must not error")
 	state := func() (stored, sent, carried []string) {
 		stored = ex.Websocket.GetSubscriptions().QualifiedChannels()
 		mu.Lock()
@@ -888,6 +888,109 @@ func TestSpotOrderbookDepthFlush(t *testing.T) {
 	assert.Equal(t, []string{"orderbook.200.BTCUSDT"}, stored, "FlushChannels should not store the refused depth")
 	assert.Equal(t, []string{"subscribe orderbook.50.BTCUSDT", "unsubscribe orderbook.50.BTCUSDT", "subscribe orderbook.200.BTCUSDT"}, sent, "FlushChannels should not send the refused depth")
 	assert.Equal(t, []string{"orderbook.200.BTCUSDT"}, carried, "the stream should carry the held depth only")
+}
+
+// TestPublicConnectionArgsLimit checks through the websocket manager that spot topics beyond Bybit's per-connection args
+// limit are spread over connections holding at most that many, when connecting and when flushing, while the option
+// topics, which are left uncapped so that option subscriptions sharing a topic are never split, stay on one connection
+func TestPublicConnectionArgsLimit(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	for _, a := range []asset.Item{asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures} {
+		require.NoErrorf(t, ex.CurrencyPairs.SetAssetEnabled(a, false), "SetAssetEnabled must not error for %s", a)
+	}
+	spot := make(currency.Pairs, 230)
+	for i := range spot {
+		spot[i] = currency.NewPair(currency.NewCode("ARGS"+strconv.Itoa(i)), currency.USDT)
+	}
+	options := make(currency.Pairs, 60)
+	for i := range options {
+		options[i] = currency.NewPairWithDelimiter("BTC", "10OCT26-"+strconv.Itoa(80000+500*i)+"-C-USDT", currency.DashDelimiter)
+	}
+	enable := func(a asset.Item, pairs currency.Pairs) {
+		require.NoErrorf(t, ex.CurrencyPairs.StorePairs(a, pairs, false), "StorePairs must not error for the available %s pairs", a)
+		require.NoErrorf(t, ex.CurrencyPairs.StorePairs(a, pairs, true), "StorePairs must not error for the enabled %s pairs", a)
+	}
+	enable(asset.Spot, spot[:150])
+	enable(asset.Options, options)
+	ex.Features.Subscriptions = subscription.List{{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel}}
+	optionSubs, err := ex.GenerateOptionsDefaultSubscriptions()
+	require.NoError(t, err, "GenerateOptionsDefaultSubscriptions must not error")
+	optionTopics := optionSubs.QualifiedChannels()
+	require.Greater(t, len(optionTopics), publicConnectionArgsLimit, "the option topics must exceed the args limit")
+	isOption := func(topic string) bool { return slices.Contains(optionTopics, topic) }
+
+	var (
+		mu      sync.Mutex
+		held    = make(map[*gws.Conn][]string) // The topics each connection to the mock stream holds
+		largest int                            // The most topics one request carries
+	)
+	s := httptest.NewTestServer(t, mockws.CurryWsMockUpgrader(t, func(_ testing.TB, msg []byte, c *gws.Conn) error {
+		var req SubscriptionRequest
+		if err := json.Unmarshal(msg, &req); err != nil {
+			return err
+		}
+		if req.Operation != subscribeOperation && req.Operation != unsubscribeOperation {
+			return nil
+		}
+		mu.Lock()
+		largest = max(largest, len(req.Arguments))
+		for _, topic := range req.Arguments {
+			if req.Operation == subscribeOperation {
+				held[c] = append(held[c], topic)
+			} else {
+				held[c] = slices.DeleteFunc(held[c], func(h string) bool { return h == topic })
+			}
+		}
+		mu.Unlock()
+		// The option stream answers with the topics it applied, and the spot stream with the request ID
+		if slices.ContainsFunc(req.Arguments, isOption) {
+			return c.WriteJSON(&CommandResponse{Success: true, ConnectionID: "dat42tru7geqm1secqg0-1k55h", Type: commandResponseType, Data: CommandResponseTopics{FailTopics: []string{}, SuccessTopics: req.Arguments}})
+		}
+		return c.WriteJSON(&SubscriptionResponse{Success: true, ConnectionID: "d9avrat34tmf5pih98i0-gsmne", RequestID: req.RequestID, Operation: req.Operation})
+	}))
+	s.Start()
+	require.NoError(t, ex.Websocket.SetAllConnectionURLs("ws"+strings.TrimPrefix(s.URL, "http")), "SetAllConnectionURLs must not error")
+	// loads returns the number of topics each spot and option connection holds, the most topics a request carried, and
+	// any topic held more than once
+	loads := func() (spotLoads, optionLoads []int, requestSize int, repeated []string) {
+		mu.Lock()
+		defer mu.Unlock()
+		seen := make(map[string]bool)
+		for _, topics := range held {
+			if slices.ContainsFunc(topics, isOption) {
+				optionLoads = append(optionLoads, len(topics))
+			} else {
+				spotLoads = append(spotLoads, len(topics))
+			}
+			for _, topic := range topics {
+				if seen[topic] {
+					repeated = append(repeated, topic)
+				}
+				seen[topic] = true
+			}
+		}
+		slices.Sort(spotLoads)
+		return spotLoads, optionLoads, largest, repeated
+	}
+
+	t.Cleanup(func() { stopWebsocket(t, ex) })
+	require.NoError(t, ex.Websocket.Connect(context.WithoutCancel(t.Context())), "Connect must not error")
+	spotLoads, optionLoads, requestSize, repeated := loads()
+	assert.Equal(t, []int{50, publicConnectionArgsLimit}, spotLoads, "Connect should spread the spot topics over connections of at most the args limit")
+	assert.Equal(t, []int{len(optionTopics)}, optionLoads, "Connect should keep every option topic on one connection")
+	assert.LessOrEqual(t, requestSize, 10, "Connect should send at most the 10 topics a request that Bybit's spot stream accepts")
+	assert.Empty(t, repeated, "Connect should subscribe each topic on one connection only")
+
+	enable(asset.Spot, spot)
+	require.NoError(t, ex.Websocket.FlushChannels(t.Context()), "FlushChannels must not error")
+	spotLoads, optionLoads, requestSize, repeated = loads()
+	assert.Equal(t, []int{30, publicConnectionArgsLimit, publicConnectionArgsLimit}, spotLoads, "FlushChannels should fill the spot connections to the args limit before adding one")
+	assert.Equal(t, []int{len(optionTopics)}, optionLoads, "FlushChannels should keep every option topic on one connection")
+	assert.LessOrEqual(t, requestSize, 10, "FlushChannels should send at most the 10 topics a request that Bybit's spot stream accepts")
+	assert.Empty(t, repeated, "FlushChannels should subscribe each topic on one connection only")
+	assert.Len(t, ex.Websocket.GetSubscriptions(), len(spot)+len(optionTopics), "the websocket should store every spot and option subscription")
 }
 
 func TestSplitRejectedSubscriptions(t *testing.T) {

@@ -197,6 +197,12 @@ const (
 	deleteSubUIDEPL
 	getFriendReferralsEPL
 
+	// Referral
+	getReferralCommissionRecordsEPL
+	getReferralCampaignRewardsEPL
+	getReferralUserIdentityProfileEPL
+	getReferralUserInvitationsEPL
+
 	// Spot margin trade
 	toggleMarginTradeEPL
 	setSpotMarginTradeLeverageEPL
@@ -212,6 +218,8 @@ const (
 	getSpotMarginFixedRateBorrowOrderInfoEPL
 	getSpotMarginFixedRateBorrowContractInfoEPL
 	getSpotMarginLiabilityEPL
+	getSpotMarginFixedRateBorrowPenaltyInterestEPL
+	cancelSpotMarginFixedRateBorrowOrderEPL
 
 	// Spread trading
 	createSpreadOrderEPL
@@ -556,21 +564,29 @@ var endpointBudgets = map[request.EndpointLimit]rateLimitBudget{
 	deleteSubUIDEPL:                {time.Second, 5},
 	getFriendReferralsEPL:          {time.Second, 10},
 
+	// Referral
+	getReferralCommissionRecordsEPL:   {time.Second, 5},
+	getReferralCampaignRewardsEPL:     {time.Second, 5},
+	getReferralUserIdentityProfileEPL: {time.Second, 5},
+	getReferralUserInvitationsEPL:     {time.Second, 5},
+
 	// Spot margin trade
-	toggleMarginTradeEPL:                        {time.Second, 5},
-	setSpotMarginTradeLeverageEPL:               {time.Second, 5},
-	getSpotMarginStatusAndLeverageEPL:           {time.Second, 50},
-	getMaxBorrowableAmountEPL:                   {time.Second, 50},
-	getSpotMarginCoinStateEPL:                   {time.Second, 50},
-	getSpotMarginAvailableAmountToRepayEPL:      {time.Second, 50},
-	setSpotMarginAutoRepayModeEPL:               {time.Second, 5},
-	getSpotMarginAutoRepayModeEPL:               {time.Second, 50},
-	getSpotMarginFixedRateBorrowOrderQuoteEPL:   {time.Second, 5},
-	spotMarginFixedRateBorrowEPL:                {time.Second, 1},
-	renewSpotMarginFixedRateBorrowEPL:           {time.Second, 1},
-	getSpotMarginFixedRateBorrowOrderInfoEPL:    {time.Second, 5},
-	getSpotMarginFixedRateBorrowContractInfoEPL: {time.Second, 5},
-	getSpotMarginLiabilityEPL:                   {time.Second, 5},
+	toggleMarginTradeEPL:                           {time.Second, 5},
+	setSpotMarginTradeLeverageEPL:                  {time.Second, 5},
+	getSpotMarginStatusAndLeverageEPL:              {time.Second, 50},
+	getMaxBorrowableAmountEPL:                      {time.Second, 50},
+	getSpotMarginCoinStateEPL:                      {time.Second, 50},
+	getSpotMarginAvailableAmountToRepayEPL:         {time.Second, 50},
+	setSpotMarginAutoRepayModeEPL:                  {time.Second, 5},
+	getSpotMarginAutoRepayModeEPL:                  {time.Second, 50},
+	getSpotMarginFixedRateBorrowOrderQuoteEPL:      {time.Second, 5},
+	spotMarginFixedRateBorrowEPL:                   {time.Second, 1},
+	renewSpotMarginFixedRateBorrowEPL:              {time.Second, 1},
+	getSpotMarginFixedRateBorrowOrderInfoEPL:       {time.Second, 5},
+	getSpotMarginFixedRateBorrowContractInfoEPL:    {time.Second, 5},
+	getSpotMarginLiabilityEPL:                      {time.Second, 5},
+	getSpotMarginFixedRateBorrowPenaltyInterestEPL: {time.Second, 5},
+	cancelSpotMarginFixedRateBorrowOrderEPL:        {time.Second, 1},
 
 	// Spread trading
 	createSpreadOrderEPL:     {time.Second, 20},

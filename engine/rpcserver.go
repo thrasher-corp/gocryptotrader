@@ -1399,7 +1399,7 @@ func (s *RPCServer) CancelOrder(ctx context.Context, r *gctrpc.CancelOrderReques
 }
 
 // CancelBatchOrders cancels orders specified by exchange, currency pair and asset type, and returns each order's status
-// as the exchange reports it, or every order as cancelled when the exchange reports no statuses for a batch it accepted
+// as the exchange reports it, or every order as cancelled when the exchange returns no response for a batch it accepted
 func (s *RPCServer) CancelBatchOrders(ctx context.Context, r *gctrpc.CancelBatchOrdersRequest) (*gctrpc.CancelBatchOrdersResponse, error) {
 	if r.Pair == nil {
 		return nil, errCurrencyPairUnset

@@ -893,6 +893,101 @@ func TestGetInstrumentInfo(t *testing.T) {
 	}
 }
 
+func TestGetInstrumentSummary(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetInstrumentSummary(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "GetInstrumentSummary must reject a nil request")
+	_, err = e.GetInstrumentSummary(t.Context(), &InstrumentSummaryRequest{})
+	require.ErrorIs(t, err, errCategoryNotSet, "GetInstrumentSummary must reject an empty category")
+	// Bybit answers these with 10001, its own categories in another case among them
+	for _, category := range []string{cSpot, cInverse, "LINEAR", "Option"} {
+		_, err = e.GetInstrumentSummary(t.Context(), &InstrumentSummaryRequest{Category: category})
+		require.ErrorIsf(t, err, errUnsupportedCategory, "GetInstrumentSummary must reject category %q", category)
+	}
+
+	for _, tc := range []struct {
+		name string
+		req  *InstrumentSummaryRequest
+		exp  *InstrumentSummaryResponse
+	}{
+		{
+			name: "next page of US stock perpetuals",
+			req:  &InstrumentSummaryRequest{Category: cLinear, SymbolType: "stock", MarketRegion: "US", Limit: 1, Cursor: "first%3DAALUSDT%26last%3DAAPLUSDT"},
+			exp: &InstrumentSummaryResponse{
+				Category: "linear",
+				List: []InstrumentSummary{
+					{
+						Symbol:           "ABBVUSDT",
+						SymbolType:       "stock",
+						DisplayName:      "ABBVUSDT",
+						BaseCoin:         currency.NewCode("ABBV"),
+						SettleCoin:       currency.USDT,
+						FullName:         "AbbVie Inc",
+						MarketRegion:     "US",
+						UnderlyingTicker: "ABBV",
+						QuantityStep:     0.01,
+						TickSize:         0.01,
+					},
+				},
+				NextPageCursor: "first%3DABBVUSDT%26last%3DABBVUSDT",
+			},
+		},
+		{
+			// Bybit refuses a lower case base coin, so it is sent upper case
+			name: "options of a base coin",
+			req:  &InstrumentSummaryRequest{Category: cOption, BaseCoin: currency.NewCode("nvda"), Limit: 1},
+			exp: &InstrumentSummaryResponse{
+				Category: "option",
+				List: []InstrumentSummary{
+					{
+						Symbol:       "NVDA-20NOV26-160-P-USDT",
+						SymbolType:   "stock",
+						DisplayName:  "NVDAUSDT-20NOV26-160-P",
+						BaseCoin:     currency.NewCode("NVDA"),
+						SettleCoin:   currency.USDT,
+						MarketRegion: "US",
+						PriceIndex:   "NVDAUSDT",
+						QuantityStep: 1,
+						TickSize:     0.01,
+						DeliveryTime: types.Time(time.UnixMilli(1795208400000)),
+					},
+				},
+				NextPageCursor: "0%2C1",
+			},
+		},
+		{
+			name: "symbol",
+			req:  &InstrumentSummaryRequest{Category: cLinear, Symbol: "BTCUSDT"},
+			exp: &InstrumentSummaryResponse{
+				Category: "linear",
+				List: []InstrumentSummary{
+					{
+						Symbol:       "BTCUSDT",
+						DisplayName:  "BTCUSDT",
+						BaseCoin:     currency.BTC,
+						SettleCoin:   currency.USDT,
+						FullName:     "Bitcoin",
+						QuantityStep: 0.001,
+						TickSize:     0.1,
+					},
+				},
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			result, err := e.GetInstrumentSummary(t.Context(), tc.req)
+			require.NoError(t, err, "GetInstrumentSummary must not error")
+			if mockTests {
+				assert.Equal(t, tc.exp, result, "GetInstrumentSummary should decode every field")
+				return
+			}
+			assert.Equal(t, tc.req.Category, result.Category, "GetInstrumentSummary should return the requested category")
+			assert.NotEmpty(t, result.List, "GetInstrumentSummary should return instruments")
+		})
+	}
+}
+
 func TestGetOrderBook(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetOrderBook(t.Context(), "", "BTCUSDT", 2)
@@ -2094,6 +2189,112 @@ func TestGetOptionBaseCoins(t *testing.T) {
 		return
 	}
 	assert.NotEmpty(t, result.List, "GetOptionBaseCoins should return base coins")
+}
+
+func TestGetCorporateActions(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetCorporateActions(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "GetCorporateActions must reject a nil request")
+
+	for _, tc := range []struct {
+		name string
+		req  *CorporateActionsRequest
+		// mockOnly marks requests with a placeholder cursor that Bybit could reject live
+		mockOnly bool
+		exp      *CorporateActionsResponse
+	}{
+		{
+			name: "base coin",
+			req:  &CorporateActionsRequest{Category: cOption, BaseCoin: currency.NewCode("aapl"), Limit: 1},
+			exp: &CorporateActionsResponse{
+				List: []CorporateAction{
+					{
+						Category:      "option",
+						Symbol:        "AAPLUSDT",
+						BaseCoin:      currency.NewCode("AAPL"),
+						ActionType:    "ForwardSplit",
+						Status:        "Completed",
+						EffectiveTime: types.Time(time.UnixMilli(1788278400000)),
+						Details: CorporateActionDetails{
+							SplitFactor: 4,
+							SplitType:   "FORWARD",
+						},
+					},
+				},
+				NextPageCursor: "eyJpZCI6MTJ9",
+			},
+		},
+		{
+			name:     "next page of a base coin",
+			req:      &CorporateActionsRequest{Category: cOption, BaseCoin: currency.NewCode("AAPL"), Limit: 1, Cursor: "eyJpZCI6MTJ9"},
+			mockOnly: true,
+			exp: &CorporateActionsResponse{
+				List: []CorporateAction{
+					{
+						Symbol:        "AAPLUSDT",
+						BaseCoin:      currency.NewCode("AAPL"),
+						ActionType:    "Dividend",
+						Status:        "Announced",
+						EffectiveTime: types.Time(time.UnixMilli(1788278400000)),
+						Details: CorporateActionDetails{
+							DividendAmountPerShare:    0.25,
+							DividendCurrency:          currency.USD,
+							InstallmentCount:          4,
+							InstallmentAmountPerShare: 5,
+							InstallmentCoin:           currency.USDT,
+							FirstSettlementTimeUTC:    types.Time(time.UnixMilli(1788134400000)),
+							Installments: []CorporateActionInstallment{
+								{InstallmentNumber: 1, SettlementTimeUTC: types.Time(time.UnixMilli(1788134400000)), Status: "SUCCESS"},
+								{InstallmentNumber: 2, SettlementTimeUTC: types.Time(time.UnixMilli(1788138000000)), Status: "WAITING"},
+								{InstallmentNumber: 3, SettlementTimeUTC: types.Time(time.UnixMilli(1788141600000)), Status: "WAITING"},
+								{InstallmentNumber: 4, SettlementTimeUTC: types.Time(time.UnixMilli(1788145200000)), Status: "WAITING"},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			// Only the docs show the shape, so a quoted time and a bare split factor must decode as well
+			name: "action type",
+			req:  &CorporateActionsRequest{ActionType: "ReverseSplit"},
+			exp: &CorporateActionsResponse{
+				List: []CorporateAction{
+					{
+						Category:      "option",
+						Symbol:        "GMEUSDT",
+						BaseCoin:      currency.NewCode("GME"),
+						ActionType:    "ReverseSplit",
+						Status:        "PROCESSING",
+						EffectiveTime: types.Time(time.UnixMilli(1790000000000)),
+						Details: CorporateActionDetails{
+							SplitFactor: 0.25,
+							SplitType:   "REVERSE",
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "every action",
+			req:  &CorporateActionsRequest{},
+			exp:  &CorporateActionsResponse{List: []CorporateAction{}},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			if tc.mockOnly && !mockTests {
+				t.Skip("request carries a placeholder cursor")
+			}
+			result, err := e.GetCorporateActions(t.Context(), tc.req)
+			require.NoError(t, err, "GetCorporateActions must not error")
+			if mockTests {
+				assert.Equal(t, tc.exp, result, "GetCorporateActions should decode every field")
+				return
+			}
+			assert.NotNil(t, result, "GetCorporateActions should return a page")
+		})
+	}
 }
 
 func TestKlineItemUnmarshalJSON(t *testing.T) {

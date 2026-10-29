@@ -857,49 +857,77 @@ func TestSetDefaultsKlineIntervals(t *testing.T) {
 	}
 }
 
+// firstRequestTransport answers the first request it is sent with first and the others with an empty result, and
+// counts them
+type firstRequestTransport struct {
+	first    func(*http.Request) (*http.Response, error)
+	requests atomic.Int64
+}
+
+func (f *firstRequestTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	if r.Body != nil {
+		if err := r.Body.Close(); err != nil {
+			return nil, err
+		}
+	}
+	if f.requests.Add(1) == 1 {
+		return f.first(r)
+	}
+	return &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{"Content-Type": {"application/json"}},
+		Body:       io.NopCloser(strings.NewReader(`{"retCode":0,"retMsg":"OK","result":{},"retExtInfo":{},"time":1760000000000}`)),
+		Request:    r,
+	}, nil
+}
+
 func TestSetDefaultsRetryPolicy(t *testing.T) {
 	t.Parallel()
-	// stalled returns an exchange with the requester SetDefaults builds and a short client timeout, whose server holds the
-	// first request until the client gives up on it and answers the others, and the number of requests the server got
-	stalled := func(t *testing.T) (*Exchange, *atomic.Int64) {
-		t.Helper()
-		hits := new(atomic.Int64)
-		ex := newTransportTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
-			// The server notices the client leave only once the request body is read
-			_, err := io.Copy(io.Discard, r.Body)
-			assert.NoError(t, err, "reading the request body should not error")
-			if hits.Add(1) == 1 {
-				select {
-				case <-r.Context().Done():
-				case <-time.After(10 * time.Second):
-					assert.Fail(t, "the client should give up on the stalled request")
-				}
-				return
-			}
-			_, err = fmt.Fprint(w, `{"retCode":0,"retMsg":"OK","result":{},"retExtInfo":{},"time":1760000000000}`)
-			assert.NoError(t, err, "writing the reply should not error")
-		})
-		require.NoError(t, ex.SetHTTPClientTimeout(250*time.Millisecond), "SetHTTPClientTimeout must not error")
-		return ex, hits
+	// stall holds a request until the HTTP client gives up on it, as a real timeout does
+	stall := func(r *http.Request) (*http.Response, error) {
+		<-r.Context().Done()
+		return nil, r.Context().Err()
 	}
-
-	t.Run("POST", func(t *testing.T) {
-		t.Parallel()
-		ex, hits := stalled(t)
-		_, err := ex.PlaceOrder(t.Context(), &PlaceOrderRequest{Category: cSpot, Symbol: "BTCUSDT", Side: sideBuy, OrderType: "Limit", Quantity: 0.001, Price: 80000, TimeInForce: "GTC"})
-		var urlErr *url.Error
-		require.ErrorAs(t, err, &urlErr, "PlaceOrder must return the HTTP client's error")
-		assert.True(t, urlErr.Timeout(), "PlaceOrder should return the client's timeout")
-		assert.Equal(t, int64(1), hits.Load(), "a POST that timed out should be sent once, as Bybit may have applied it")
-	})
-
-	t.Run("GET", func(t *testing.T) {
-		t.Parallel()
-		ex, hits := stalled(t)
-		_, err := ex.GetBybitServerTime(t.Context())
-		require.NoError(t, err, "GetBybitServerTime must not error once a retry is answered")
-		assert.Greater(t, hits.Load(), int64(1), "a GET that timed out should be sent again")
-	})
+	rateLimited := func(r *http.Request) (*http.Response, error) {
+		return &http.Response{StatusCode: http.StatusTooManyRequests, Header: http.Header{}, Body: http.NoBody, Request: r}, nil
+	}
+	placeOrder := func(ctx context.Context, ex *Exchange) error {
+		_, err := ex.PlaceOrder(ctx, &PlaceOrderRequest{Category: cSpot, Symbol: "BTCUSDT", Side: sideBuy, OrderType: "Limit", Quantity: 0.001, Price: 80000, TimeInForce: "GTC"})
+		return err
+	}
+	serverTime := func(ctx context.Context, ex *Exchange) error {
+		_, err := ex.GetBybitServerTime(ctx)
+		return err
+	}
+	for _, tc := range []struct {
+		name     string
+		first    func(*http.Request) (*http.Response, error)
+		send     func(context.Context, *Exchange) error
+		requests int64 // Requests sent: 1 if the first is not retried
+		timedOut bool  // Whether the caller gets the client's timeout
+	}{
+		// Bybit may have applied a POST that timed out, so it is sent once
+		{name: "POST timed out", first: stall, send: placeOrder, requests: 1, timedOut: true},
+		{name: "GET timed out", first: stall, send: serverTime, requests: 2},
+		// Bybit applied no POST it turned away with 429
+		{name: "POST rate limited", first: rateLimited, send: placeOrder, requests: 2},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := newTransportTestExchange(t, func(http.ResponseWriter, *http.Request) {})
+			transport := &firstRequestTransport{first: tc.first}
+			require.NoError(t, ex.SetHTTPClient(&http.Client{Transport: transport, Timeout: 50 * time.Millisecond}), "SetHTTPClient must not error")
+			err := tc.send(t.Context(), ex)
+			if tc.timedOut {
+				var urlErr *url.Error
+				require.ErrorAs(t, err, &urlErr, "the request must return the HTTP client's error")
+				assert.True(t, urlErr.Timeout(), "the request should return the client's timeout")
+			} else {
+				require.NoError(t, err, "the request must not error once a retry is answered")
+			}
+			assert.Equal(t, tc.requests, transport.requests.Load(), "SetDefaults' retry policy should send the expected requests")
+		})
+	}
 }
 
 func TestSetup(t *testing.T) {
@@ -1019,6 +1047,37 @@ func TestSetup(t *testing.T) {
 		}
 	})
 
+	// Bybit limits the topics of one spot or futures public connection, but not those of an option connection
+	t.Run("subscription caps", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		ex.SetDefaults()
+		cfg, err := ex.GetStandardConfig()
+		require.NoError(t, err, "GetStandardConfig must not error")
+		require.NoError(t, ex.Setup(cfg), "Setup must not error")
+		registered, err := ex.Websocket.GetConfiguredWebsocketURLs()
+		require.NoError(t, err, "GetConfiguredWebsocketURLs must not error")
+		caps := make(map[string]map[any]int, len(registered))
+		for _, u := range registered {
+			caps[u], err = ex.Websocket.ConnectionSubscriptionCaps(u)
+			require.NoErrorf(t, err, "ConnectionSubscriptionCaps must not error for %s", u)
+		}
+		exp := map[string]map[any]int{
+			spotPublic:                             {nil: publicConnectionArgsLimit},
+			optionPublic:                           {nil: 0},
+			linearPublic:                           {asset.USDTMarginedFutures: publicConnectionArgsLimit, asset.USDCMarginedFutures: publicConnectionArgsLimit},
+			inversePublic:                          {nil: publicConnectionArgsLimit},
+			mainnetStreamOrigin + systemStatusPath: {SystemStatusConnection: 0},
+			mainnetStreamOrigin + advancedEarnPath: {AdvancedEarnOffersConnection: 0},
+			mainnetStreamOrigin + spreadPublicPath: {nil: 0},
+			mainnetStreamOrigin + rfqPublicPath:    {nil: 0},
+			mainnetStreamOrigin + eventPublicPath:  {nil: 0},
+			websocketTrade:                         {OutboundTradeConnection: 0},
+			websocketPrivate:                       {InboundPrivateConnection: 0},
+		}
+		assert.Equal(t, exp, caps, "Setup should cap the spot and futures public connections at Bybit's args limit and leave the others uncapped")
+	})
+
 	// The streams without an endpoint of their own follow the configured spot stream to testnet or another host, but
 	// not to a regional host, which does not serve them
 	t.Run("spot stream origin", func(t *testing.T) {
@@ -1120,8 +1179,8 @@ func TestSetup(t *testing.T) {
 		}))
 		server.Start()
 		require.NoError(t, ex.Websocket.SetAllConnectionURLs("ws"+strings.TrimPrefix(server.URL, "http")), "SetAllConnectionURLs must not error")
-		require.NoError(t, ex.Websocket.Connect(context.WithoutCancel(t.Context())), "Connect must not error")
 		t.Cleanup(func() { stopWebsocket(t, ex) })
+		require.NoError(t, ex.Websocket.Connect(context.WithoutCancel(t.Context())), "Connect must not error")
 
 		subscribed := func() map[asset.Item][]string {
 			topics := make(map[asset.Item][]string)

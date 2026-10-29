@@ -191,6 +191,11 @@ func TestEndpointBudgets(t *testing.T) {
 		{getUIDWalletTypeEPL, time.Second, 10, "GET /v5/user/get-member-type"},
 		{deleteSubUIDEPL, time.Second, 5, "POST /v5/user/del-submember"},
 		{getFriendReferralsEPL, time.Second, 10, "GET /v5/user/invitation/referrals"},
+		// Referral
+		{getReferralCommissionRecordsEPL, time.Second, 5, "POST /v5/referral/commission/records"},
+		{getReferralCampaignRewardsEPL, time.Second, 5, "POST /v5/referral/campaign/rewards"},
+		{getReferralUserIdentityProfileEPL, time.Second, 5, "POST /v5/referral/user/identity-profile"},
+		{getReferralUserInvitationsEPL, time.Second, 5, "POST /v5/referral/user/invitations"},
 		// Spot margin trade
 		{toggleMarginTradeEPL, time.Second, 5, "POST /v5/spot-margin-trade/switch-mode"},
 		{setSpotMarginTradeLeverageEPL, time.Second, 5, "POST /v5/spot-margin-trade/set-leverage"},
@@ -206,6 +211,8 @@ func TestEndpointBudgets(t *testing.T) {
 		{getSpotMarginFixedRateBorrowOrderInfoEPL, time.Second, 5, "GET /v5/spot-margin-trade/fixedborrow-order-info"},
 		{getSpotMarginFixedRateBorrowContractInfoEPL, time.Second, 5, "GET /v5/spot-margin-trade/fixedborrow-contract-info"},
 		{getSpotMarginLiabilityEPL, time.Second, 5, "GET /v5/spot-margin-trade/liability"},
+		{getSpotMarginFixedRateBorrowPenaltyInterestEPL, time.Second, 5, "GET /v5/spot-margin-trade/fixedborrow-interest-accrued"},
+		{cancelSpotMarginFixedRateBorrowOrderEPL, time.Second, 1, "POST /v5/spot-margin-trade/fixedborrow-order-cancel"},
 		// Spread trading
 		{createSpreadOrderEPL, time.Second, 20, "POST /v5/spread/order/create"},
 		{amendSpreadOrderEPL, time.Second, 20, "POST /v5/spread/order/amend"},

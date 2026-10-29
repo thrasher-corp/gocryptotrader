@@ -335,8 +335,8 @@ func TestGenerateSpreadPublicSubscriptions(t *testing.T) {
 		}))
 		server.Start()
 		require.NoError(t, ex.Websocket.SetAllConnectionURLs("ws"+strings.TrimPrefix(server.URL, "http")), "SetAllConnectionURLs must not error")
-		require.NoError(t, ex.Websocket.Connect(context.WithoutCancel(t.Context())), "Connect must not error")
 		t.Cleanup(func() { stopWebsocket(t, ex) })
+		require.NoError(t, ex.Websocket.Connect(context.WithoutCancel(t.Context())), "Connect must not error")
 		assert.True(t, ex.Websocket.IsConnected(), "the websocket should be connected")
 		exp := []string{"orderbook.25." + eventTestTargetSymbol, "tickers." + spreadTestSymbol, "tickers.ETHUSDT"}
 		assert.Equal(t, exp, ex.Websocket.GetSubscriptions().QualifiedChannels(), "Connect should subscribe every subscription with a symbol")

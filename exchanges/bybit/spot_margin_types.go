@@ -337,3 +337,34 @@ type SpotMarginFixedRateAvailableInventoryResponse struct {
 	AvailableInventory types.Number `json:"availableInventory"`
 	UpdateTime         types.Time   `json:"updateTime"`
 }
+
+// SpotMarginFixedRateBorrowPenaltyInterestRequest holds the parameters of Query Fixed-Rate Borrow Penalty Interest;
+// every field is optional
+type SpotMarginFixedRateBorrowPenaltyInterestRequest struct {
+	OrderID       string
+	OrderCurrency currency.Code
+	// Limit is the page size, from 1 to 100 and 10 by default
+	Limit  uint64
+	Cursor string
+}
+
+// SpotMarginFixedRateBorrowPenaltyInterestResponse holds a page of penalty interest records, newest first, from Query
+// Fixed-Rate Borrow Penalty Interest
+type SpotMarginFixedRateBorrowPenaltyInterestResponse struct {
+	List           []SpotMarginFixedRateBorrowPenaltyInterest `json:"list"`
+	NextPageCursor string                                     `json:"nextPageCursor"`
+}
+
+// SpotMarginFixedRateBorrowPenaltyInterest is the penalty interest charged on a fixed-rate loan for one period, from
+// Query Fixed-Rate Borrow Penalty Interest
+type SpotMarginFixedRateBorrowPenaltyInterest struct {
+	ReferenceID string        `json:"refId"`
+	Currency    currency.Code `json:"currency"`
+	OrderID     string        `json:"orderId"`
+	// LoanAmount is the outstanding principal the period's penalty interest is charged on
+	LoanAmount types.Number `json:"loanAmt"`
+	Interest   types.Number `json:"interest"`
+	// InterestRate is the annual penalty rate: the loan's annual rate times the penalty multiplier
+	InterestRate types.Number `json:"interestRate"`
+	Timestamp    types.Time   `json:"ts"`
+}

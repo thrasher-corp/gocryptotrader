@@ -40,7 +40,9 @@ func orderTypeFromString(orderType string) (order.Type, order.TimeInForce, error
 	}
 }
 
-// orderTypeString returns a string representation of order.Type instance
+// orderTypeString returns the OKX order type for an order type and time in force. A time in force alone selects the
+// OKX order type only for a plain order, given as UnknownType or as a post only LimitMaker order, so that a type with
+// no OKX order type of its own, such as a stop or take profit order, is refused instead of losing its trigger
 func orderTypeString(orderType order.Type, tif order.TimeInForce) (string, error) {
 	switch orderType {
 	case order.MarketMakerProtection:
@@ -72,7 +74,7 @@ func orderTypeString(orderType order.Type, tif order.TimeInForce) (string, error
 		return orderConditional, nil
 	case order.TrailingStop:
 		return orderMoveOrderStop, nil
-	default:
+	case order.UnknownType, order.LimitMaker:
 		switch tif {
 		case order.PostOnly:
 			return orderPostOnly, nil
@@ -81,8 +83,8 @@ func orderTypeString(orderType order.Type, tif order.TimeInForce) (string, error
 		case order.ImmediateOrCancel:
 			return orderIOC, nil
 		}
-		return "", fmt.Errorf("%w: %q", order.ErrUnsupportedOrderType, orderType)
 	}
+	return "", fmt.Errorf("%w: %q with time in force %q", order.ErrUnsupportedOrderType, orderType, tif)
 }
 
 // getAssetsFromInstrumentID parses an instrument ID and returns a list of assets types

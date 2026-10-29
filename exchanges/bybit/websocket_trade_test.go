@@ -119,9 +119,9 @@ func newTradeStreamExchange(t *testing.T, m *tradeStreamMock) *Exchange {
 	require.NoError(t, ex.Websocket.SetAllConnectionURLs("ws"+strings.TrimPrefix(s.URL, "http")), "SetAllConnectionURLs must not error")
 	ex.Websocket.SetSubscriptionsNotRequired()
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	t.Cleanup(func() { stopWebsocket(t, ex) })
 	// The connections outlive the test context until the cleanup stops them, so its end sets off no reconnection
 	require.NoError(t, ex.Websocket.Connect(context.WithoutCancel(t.Context())), "Connect must not error")
-	t.Cleanup(func() { stopWebsocket(t, ex) })
 	return ex
 }
 

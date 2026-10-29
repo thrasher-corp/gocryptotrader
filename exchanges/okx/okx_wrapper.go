@@ -1299,17 +1299,6 @@ func (e *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 	}
 	instrumentID := pairFormat.Format(ord.Pair)
 	switch ord.Type {
-	case order.UnknownType, order.Market, order.Limit, order.OptimalLimit, order.MarketMakerProtection:
-		req := CancelOrderRequestParam{
-			InstrumentID:  instrumentID,
-			OrderID:       ord.OrderID,
-			ClientOrderID: ord.ClientOrderID,
-		}
-		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			_, err = e.WSCancelOrder(ctx, &req)
-		} else {
-			_, err = e.CancelSingleOrder(ctx, &req)
-		}
 	case order.Trigger, order.OCO, order.ConditionalStop, order.TWAP, order.TrailingStop, order.Chase:
 		var response *AlgoOrder
 		response, err = e.CancelAdvanceAlgoOrder(ctx, []AlgoOrderCancelParams{
@@ -1323,7 +1312,18 @@ func (e *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 		}
 		return getStatusError(response.StatusCode, response.StatusMessage)
 	default:
-		return fmt.Errorf("%w, order type %v", order.ErrUnsupportedOrderType, ord.Type)
+		// Every order that is not an algo order is a regular order, a post only LimitMaker order for instance, and so is
+		// an order a caller tracks under a type SubmitOrder refuses
+		req := CancelOrderRequestParam{
+			InstrumentID:  instrumentID,
+			OrderID:       ord.OrderID,
+			ClientOrderID: ord.ClientOrderID,
+		}
+		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+			_, err = e.WSCancelOrder(ctx, &req)
+		} else {
+			_, err = e.CancelSingleOrder(ctx, &req)
+		}
 	}
 	return err
 }
@@ -1861,9 +1861,12 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 	var resp []order.Detail
 	// For Spread orders.
 	if req.AssetType == asset.Spread {
-		oType, err := orderTypeString(req.Type, req.TimeInForce)
-		if err != nil {
-			return nil, err
+		var oType string
+		if req.Type != order.AnyType {
+			var err error
+			if oType, err = orderTypeString(req.Type, req.TimeInForce); err != nil {
+				return nil, err
+			}
 		}
 		spreadOrders, err := e.GetCompletedSpreadOrdersLast7Days(ctx, "", oType, "", req.FromOrderID, "", req.StartTime, req.EndTime, 0)
 		if err != nil {
@@ -1985,7 +1988,7 @@ allOrders:
 					LastUpdated:          orderList[i].UpdateTime.Time(),
 					Pair:                 pair,
 					Cost:                 orderList[i].AveragePrice.Float64() * orderList[i].AccumulatedFillSize.Float64(),
-					CostAsset:            orderList[i].RebateCurrency,
+					CostAsset:            pair.Quote,
 					TimeInForce:          tif,
 				})
 			}
@@ -2761,7 +2764,7 @@ func (e *Exchange) GetFuturesPositionOrders(ctx context.Context, req *futures.Po
 				LastUpdated:          positions[j].UpdateTime.Time(),
 				Pair:                 req.Pairs[i],
 				Cost:                 cost,
-				CostAsset:            positions[j].RebateCurrency,
+				CostAsset:            req.Pairs[i].Quote,
 				TimeInForce:          tif,
 			})
 		}

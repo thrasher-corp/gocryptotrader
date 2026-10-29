@@ -27,7 +27,7 @@ var (
 	errConnectionNotFound        = errors.New("connection not found")
 )
 
-// UnsubscribeChannels unsubscribes from a list of websocket channel
+// UnsubscribeChannels unsubscribes from a list of websocket channels.
 // A managed connection's own store, which flushing uses to tell what to unsubscribe from the connection and whether it
 // is still in use, drops the channels too, and on error those the unsubscriber removed
 func (m *Manager) UnsubscribeChannels(ctx context.Context, conn Connection, channels subscription.List) error {
@@ -134,8 +134,8 @@ func (m *Manager) ResubscribeToChannel(ctx context.Context, conn Connection, s *
 	return m.SubscribeToChannels(ctx, conn, l)
 }
 
-// SubscribeToChannels subscribes to websocket channels using the exchange specific Subscriber method
-// Errors are returned for duplicates or exceeding max Subscriptions
+// SubscribeToChannels subscribes to websocket channels using the exchange specific Subscriber method.
+// Errors are returned for duplicates or exceeding max Subscriptions.
 // A managed connection's own store, which flushing uses to tell what to unsubscribe from the connection and whether it
 // is still in use, records the subscriptions too, and on error those the subscriber added
 func (m *Manager) SubscribeToChannels(ctx context.Context, conn Connection, subs subscription.List) error {
@@ -289,12 +289,23 @@ func (m *Manager) GetSubscriptions() subscription.List {
 	return subs
 }
 
+// maxSubscriptionsPerConnection returns the most subscriptions each connection of ws may carry: the cap its setup sets,
+// otherwise the manager's, which also applies to a connection the manager does not manage, for which ws is nil. Zero
+// means no cap
+func (m *Manager) maxSubscriptionsPerConnection(ws *websocket) int {
+	if ws != nil && ws.setup != nil && ws.setup.MaxSubscriptionsPerConnection > 0 {
+		return ws.setup.MaxSubscriptionsPerConnection
+	}
+	return m.MaxSubscriptionsPerConnection
+}
+
 // checkSubscriptions checks subscriptions against the max subscription limit and if the subscription already exists
 // The subscription state is not considered when counting existing subscriptions
 func (m *Manager) checkSubscriptions(conn Connection, subs subscription.List) error {
 	var subscriptionStore *subscription.Store
 	var usedCapacity int
-	if ws, ok := m.managedWebsocket(conn); ok {
+	ws, managed := m.managedWebsocket(conn)
+	if managed {
 		if ws.subscriptions == nil {
 			return fmt.Errorf("%w: Websocket.subscriptions", common.ErrNilPointer)
 		}
@@ -318,12 +329,12 @@ func (m *Manager) checkSubscriptions(conn Connection, subs subscription.List) er
 		usedCapacity = subscriptionStore.Len()
 	}
 
-	if m.MaxSubscriptionsPerConnection > 0 && usedCapacity+len(subs) > m.MaxSubscriptionsPerConnection {
+	if limit := m.maxSubscriptionsPerConnection(ws); limit > 0 && usedCapacity+len(subs) > limit {
 		return fmt.Errorf("%w: current subscriptions: %v, incoming subscriptions: %v, max subscriptions per connection: %v",
 			errSubscriptionsExceedsLimit,
 			usedCapacity,
 			len(subs),
-			m.MaxSubscriptionsPerConnection)
+			limit)
 	}
 
 	for _, s := range subs {
@@ -381,7 +392,7 @@ func (m *Manager) flushChannels(ctx context.Context) error {
 		var fatalErr error
 		subscriptionError, fatalErr = collectSubscriptionGenerationError(subscriptionError, err)
 		if fatalErr != nil {
-			return fatalErr
+			return common.AppendError(subscriptionError, fatalErr)
 		}
 
 		// Case if there is nothing to unsubscribe from and the connection is nil
@@ -552,7 +563,7 @@ func (m *Manager) scaleConnectionsToSubscriptions(ctx context.Context, ws *webso
 		}
 
 		// Spawn new connections if there are still subscriptions left to process
-		for _, batch := range common.Batch(currentSubs, m.MaxSubscriptionsPerConnection) {
+		for _, batch := range common.Batch(currentSubs, m.maxSubscriptionsPerConnection(ws)) {
 			toConnect, err := m.absorbTrackableSubscriptionsAndValidate(ctx, ws, batch)
 			if err != nil {
 				return err
@@ -670,14 +681,16 @@ func (m *Manager) subscribeToConnection(ctx context.Context, conn Connection, su
 		return nil, fmt.Errorf("websocket connection %w", err)
 	}
 
+	ws, _ := m.managedWebsocket(conn)
+	limit := m.maxSubscriptionsPerConnection(ws)
 	usedCap := store.Len()
-	if m.MaxSubscriptionsPerConnection > 0 && usedCap >= m.MaxSubscriptionsPerConnection {
+	if limit > 0 && usedCap >= limit {
 		return subs, nil // No capacity left for this connection
 	}
 
 	availableCap := len(subs)
-	if m.MaxSubscriptionsPerConnection > 0 {
-		availableCap = m.MaxSubscriptionsPerConnection - usedCap
+	if limit > 0 {
+		availableCap = limit - usedCap
 	}
 
 	if availableCap > len(subs) {
