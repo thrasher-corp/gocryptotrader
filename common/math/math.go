@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"strconv"
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/types/decimal"
@@ -26,6 +27,7 @@ var (
 	errCAGRNoIntervals         = errors.New("cannot calculate CAGR with no intervals")
 	errCAGRZeroOpenValue       = errors.New("cannot calculate CAGR with an open value of 0")
 	errInformationBadLength    = errors.New("benchmark rates length does not match returns rates")
+	errNonFiniteFloat          = errors.New("cannot convert a non-finite float to a decimal")
 
 	one        = decimal.NewFromInt(1)
 	two        = decimal.NewFromInt(2)
@@ -112,6 +114,48 @@ func fractionalDigits(value decimal.Decimal) int {
 		return 0
 	}
 	return len(text) - point - 1
+}
+
+// DecimalFromFloat returns the shortest decimal which rounds to value, or an error when value is not finite or the
+// selected decimal implementation cannot hold every digit. For a normal float parsed from a decimal string of up to 15
+// significant digits, as exchanges send amounts and prices, that is the string's value, which the float's exact binary
+// value is not
+func DecimalFromFloat(value float64) (decimal.Decimal, error) {
+	if math.IsNaN(value) || math.IsInf(value, 0) {
+		return decimal.Zero, fmt.Errorf("%w: %v", errNonFiniteFloat, value)
+	}
+	return decimal.NewFromString(strconv.FormatFloat(value, 'f', -1, 64))
+}
+
+// DecimalSumOfFloats returns a plus b, added as the decimals DecimalFromFloat returns, so that the sum carries no float
+// rounding error
+func DecimalSumOfFloats(a, b float64) (decimal.Decimal, error) {
+	x, err := DecimalFromFloat(a)
+	if err != nil {
+		return decimal.Zero, err
+	}
+	y, err := DecimalFromFloat(b)
+	if err != nil {
+		return decimal.Zero, err
+	}
+	return x.Add(y), nil
+}
+
+// FloatQuotientOfDecimals returns the float nearest to dividend divided by divisor, or zero for a zero divisor or for a
+// dividend or divisor with more than a million fractional digits, which math/big does not parse.
+// Dividing the decimals' floats rounds twice, and dividing the decimals stops at a fixed number of decimal places, so
+// either can miss the nearest float
+func FloatQuotientOfDecimals(dividend, divisor decimal.Decimal) float64 {
+	if divisor.IsZero() {
+		return 0
+	}
+	x, okDividend := new(big.Rat).SetString(dividend.String())
+	y, okDivisor := new(big.Rat).SetString(divisor.String())
+	if !okDividend || !okDivisor {
+		return 0
+	}
+	f, _ := x.Quo(x, y).Float64()
+	return f
 }
 
 // CalculateNetProfit returns net profit
