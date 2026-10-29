@@ -281,15 +281,36 @@ func TestMatchAndGetResponseJSONSlice(t *testing.T) {
 
 func TestMatchAndGetResponse(t *testing.T) {
 	t.Parallel()
-	type mockResponseAndMatch struct {
+	for _, tc := range []struct {
 		name        string
 		mockData    []HTTPResponse
 		requestVals url.Values
+		// requestBody is a JSON request body, whose values are derived as the server derives them
+		requestBody string
 		isQueryData bool
 		wantResult  string
 		wantErr     error
-	}
-	tcs := []*mockResponseAndMatch{
+		decodeError bool
+	}{
+		{
+			name:        "valid JSON with an overflowing number",
+			mockData:    []HTTPResponse{{BodyParams: `{"amount":1e1000}`, Data: json.RawMessage(`{"match":"overflow"}`)}},
+			requestVals: url.Values{"amount": {"1e1000"}},
+			decodeError: true,
+		},
+		{
+			name:        "invalid query escape",
+			mockData:    []HTTPResponse{{QueryString: "currency=%ZZ", Data: json.RawMessage(`{"match":"invalid"}`)}},
+			requestVals: url.Values{"currency": {"%ZZ"}},
+			isQueryData: true,
+			wantErr:     url.EscapeError("%ZZ"),
+		},
+		{
+			name:        "invalid body escape",
+			mockData:    []HTTPResponse{{BodyParams: "currency=%ZZ", Data: json.RawMessage(`{"match":"invalid"}`)}},
+			requestVals: url.Values{"currency": {"%ZZ"}},
+			wantErr:     url.EscapeError("%ZZ"),
+		},
 		{
 			name:        "query string match",
 			mockData:    []HTTPResponse{{QueryString: "currency=btc&amount=1", Data: json.RawMessage(`{"match":"query"}`)}},
@@ -326,6 +347,69 @@ func TestMatchAndGetResponse(t *testing.T) {
 			wantResult:  `{"match":"float"}`,
 		},
 		{
+			name:        "json object body with nested object value",
+			mockData:    []HTTPResponse{{BodyParams: `{"type":"candleSnapshot","req":{"coin":"BTC","interval":"1m","startTime":1,"endTime":2}}`, Data: json.RawMessage(`{"match":"nested object"}`)}},
+			requestBody: `{"type":"candleSnapshot","req":{"coin":"BTC","endTime":2,"interval":"1m","startTime":1}}`,
+			isQueryData: false,
+			wantResult:  `{"match":"nested object"}`,
+		},
+		{
+			name:        "json object body with nested object value returns errNoDataMatched for a string holding its JSON",
+			mockData:    []HTTPResponse{{BodyParams: `{"type":"candleSnapshot","req":{"coin":"BTC","interval":"1m","startTime":1,"endTime":2}}`, Data: json.RawMessage(`{"match":"nested object"}`)}},
+			requestBody: `{"type":"candleSnapshot","req":"{\"coin\":\"BTC\",\"endTime\":2,\"interval\":\"1m\",\"startTime\":1}"}`,
+			isQueryData: false,
+			wantErr:     errNoDataMatched,
+		},
+		{
+			name:        "json object body with string value returns errNoDataMatched for a nested object of the same JSON",
+			mockData:    []HTTPResponse{{BodyParams: `{"type":"candleSnapshot","req":"{\"coin\":\"BTC\"}"}`, Data: json.RawMessage(`{"match":"string"}`)}},
+			requestBody: `{"type":"candleSnapshot","req":{"coin":"BTC"}}`,
+			isQueryData: false,
+			wantErr:     errNoDataMatched,
+		},
+		{
+			name:        "json object body with reordered and spaced nested object",
+			mockData:    []HTTPResponse{{BodyParams: `{ "req": { "endTime": 2, "startTime": 1, "interval": "1m", "coin": "BTC" }, "type": "candleSnapshot" }`, Data: json.RawMessage(`{"match":"reordered"}`)}},
+			requestBody: `{"type":"candleSnapshot","req":{"coin":"BTC","endTime":2,"interval":"1m","startTime":1}}`,
+			isQueryData: false,
+			wantResult:  `{"match":"reordered"}`,
+		},
+		{
+			name:        "json object body with different nested object value returns errNoDataMatched",
+			mockData:    []HTTPResponse{{BodyParams: `{"type":"candleSnapshot","req":{"coin":"ETH","interval":"1m","startTime":1,"endTime":2}}`, Data: json.RawMessage(`{"match":"eth"}`)}},
+			requestBody: `{"type":"candleSnapshot","req":{"coin":"BTC","endTime":2,"interval":"1m","startTime":1}}`,
+			isQueryData: false,
+			wantErr:     errNoDataMatched,
+		},
+		{
+			name:        "json object body with nested array value",
+			mockData:    []HTTPResponse{{BodyParams: `{"type":"cancel","cancels":[{"a":0,"o":1}]}`, Data: json.RawMessage(`{"match":"nested array"}`)}},
+			requestBody: `{"type":"cancel","cancels":[{"a":0,"o":1}]}`,
+			isQueryData: false,
+			wantResult:  `{"match":"nested array"}`,
+		},
+		{
+			name:        "json object body with nested array value returns errNoDataMatched for a string holding its JSON",
+			mockData:    []HTTPResponse{{BodyParams: `{"type":"cancel","cancels":[{"a":0,"o":1}]}`, Data: json.RawMessage(`{"match":"nested array"}`)}},
+			requestBody: `{"type":"cancel","cancels":"[{\"a\":0,\"o\":1}]"}`,
+			isQueryData: false,
+			wantErr:     errNoDataMatched,
+		},
+		{
+			name:        "json object body with null value",
+			mockData:    []HTTPResponse{{BodyParams: `{"type":"meta","dex":null}`, Data: json.RawMessage(`{"match":"null"}`)}},
+			requestBody: `{"type":"meta","dex":null}`,
+			isQueryData: false,
+			wantResult:  `{"match":"null"}`,
+		},
+		{
+			name:        "json object body with null value returns errNoDataMatched for the string null",
+			mockData:    []HTTPResponse{{BodyParams: `{"type":"meta","dex":null}`, Data: json.RawMessage(`{"match":"null"}`)}},
+			requestBody: `{"type":"meta","dex":"null"}`,
+			isQueryData: false,
+			wantErr:     errNoDataMatched,
+		},
+		{
 			name: "json array body params entry skipped falling through to next",
 			mockData: []HTTPResponse{
 				{BodyParams: `[1,2,3]`, Data: json.RawMessage(`{"match":"should-not-reach"}`)},
@@ -355,14 +439,29 @@ func TestMatchAndGetResponse(t *testing.T) {
 			isQueryData: false,
 			wantResult:  `{"match":"empty"}`,
 		},
-	}
-
-	for _, tc := range tcs {
+	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			got, err := MatchAndGetResponse(tc.mockData, tc.requestVals, tc.isQueryData)
+			requestVals := tc.requestVals
+			if tc.requestBody != "" {
+				var err error
+				requestVals, err = DeriveURLValsFromJSONMap([]byte(tc.requestBody))
+				require.NoError(t, err, "DeriveURLValsFromJSONMap must not error for the request body")
+			}
+			got, err := MatchAndGetResponse(tc.mockData, requestVals, tc.isQueryData)
+			if tc.decodeError {
+				body := []byte(tc.mockData[0].BodyParams)
+				require.True(t, json.Valid(body), "Valid must accept the overflow fixture's JSON syntax")
+				var decoded map[string]any
+				decodeErr := json.Unmarshal(body, &decoded)
+				require.Error(t, decodeErr, "Unmarshal must reject the overflowing number")
+				assert.EqualError(t, err, decodeErr.Error(), "MatchAndGetResponse should propagate the JSON decoding error")
+				assert.Nil(t, got, "MatchAndGetResponse should return no data after a decoding error")
+				return
+			}
 			if tc.wantErr != nil {
 				require.ErrorIs(t, err, tc.wantErr, "MatchAndGetResponse must return expected error")
+				assert.Nil(t, got, "MatchAndGetResponse should return no data after a matching error")
 				return
 			}
 			require.NoError(t, err, "MatchAndGetResponse must not error")

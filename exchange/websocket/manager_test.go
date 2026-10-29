@@ -31,6 +31,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
+	gctlog "github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const (
@@ -1449,7 +1450,49 @@ func (r *reporter) Latency(name string, payload []byte, t time.Duration) {
 	r.t = t
 }
 
-// readMessages helper func
+func TestVerboseMessagesRedactCredentials(t *testing.T) {
+	// Not parallel: the log hook and log config are process-wide, and cleanup returns both to the package defaults
+	var mu sync.Mutex
+	var logged strings.Builder
+	require.NoError(t, gctlog.SetGlobalLogConfig(gctlog.GenDefaultSettings()), "SetGlobalLogConfig must not error")
+	gctlog.SetCustomLogHook(func(_, _ string, a ...any) bool {
+		mu.Lock()
+		fmt.Fprintln(&logged, a...)
+		mu.Unlock()
+		return true
+	})
+	t.Cleanup(func() {
+		gctlog.SetCustomLogHook(nil)
+		assert.NoError(t, gctlog.SetGlobalLogConfig(&gctlog.Config{}), "SetGlobalLogConfig should not error")
+	})
+
+	mock, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
+	wc := &connection{ExchangeName: "test", Verbose: true, URL: "ws" + mock.URL[len("http"):] + "/ws", ResponseMaxLimit: 5 * time.Second, Match: NewMatch()}
+	require.NoError(t, wc.Dial(t.Context(), dialer, http.Header{}, nil), "Dial must not error")
+	payload := map[string]any{"reqid": 7, "params": map[string]string{"authorization_data": "602051", "access_token": "secret-token"}}
+	raw, err := json.Marshal(payload)
+	require.NoError(t, err, "Marshal must not error")
+
+	require.NoError(t, wc.SendJSONMessage(t.Context(), request.Unset, payload), "SendJSONMessage must not error")
+	require.NotNil(t, wc.ReadMessage().Raw, "ReadMessage must read the echoed JSON message")
+	require.NoError(t, wc.SendRawMessage(t.Context(), request.Unset, gws.TextMessage, raw), "SendRawMessage must not error")
+	require.NotNil(t, wc.ReadMessage().Raw, "ReadMessage must read the echoed raw message")
+	require.NoError(t, wc.SendRawMessage(t.Context(), request.Unset, gws.TextMessage, []byte(Ping)), "SendRawMessage must not error for a ping")
+	require.NotNil(t, wc.ReadMessage().Raw, "ReadMessage must read the echoed ping")
+	go readMessages(t, wc)
+	_, err = wc.SendMessageReturnResponse(request.WithVerbose(t.Context()), request.Unset, int64(7), payload)
+	require.NoError(t, err, "SendMessageReturnResponse must not error")
+
+	mu.Lock()
+	defer mu.Unlock()
+	for _, line := range []string{"Sending message: ", "Message received: ", "Received response [1/1]: "} {
+		assert.Containsf(t, logged.String(), line+`{"params":{"access_token":"[REDACTED]","authorization_data":"[REDACTED]"},"reqid":7}`, "verbose logging should redact the credentials of each %q line", line)
+	}
+	assert.Contains(t, logged.String(), "Sending message: ping", "verbose logging should log a message that is not JSON as sent")
+	assert.NotContains(t, logged.String(), "602051", "verbose logging should never log a security key code")
+	assert.NotContains(t, logged.String(), "secret-token", "verbose logging should never log a token")
+}
+
 func readMessages(t *testing.T, wc *connection) {
 	t.Helper()
 	timer := time.NewTimer(20 * time.Second)

@@ -21,8 +21,14 @@ func headerValuesForLog(name string, values []string) []string {
 
 // isSensitiveLogKey matches name suffixes rather than substrings, so OK-ACCESS-KEY, X-BAPI-SIGN and listenKey are
 // caught while KC-API-KEY-VERSION, SignatureMethod and signTimestamp stay readable. BTSE sends its API key as btse-api,
-// and Bitstamp's v2 authentication sends it as X-Auth.
+// and Bitstamp's v2 authentication sends it as X-Auth. Deribit sends a security key's one-time code as
+// authorization_data, whose final segment alone is too common to match, so the whole suffix is matched.
 func isSensitiveLogKey(name string) bool {
+	for _, suffix := range sensitiveLogKeyNameSuffixes {
+		if len(name) >= len(suffix) && strings.EqualFold(name[len(name)-len(suffix):], suffix) {
+			return true
+		}
+	}
 	// None of the suffixes span a separator, so only normalise the final segment.
 	separator := strings.LastIndexAny(name, "-_")
 	name = strings.ToLower(name[separator+1:])
@@ -38,6 +44,8 @@ func isSensitiveLogKey(name string) bool {
 }
 
 var sensitiveLogKeySuffixes = []string{"key", "keyid", "sign", "signature", "authent", "authorization", "passphrase", "password", "secret", "token", "cookie", "tfa", "user"}
+
+var sensitiveLogKeyNameSuffixes = []string{"authorization_data"}
 
 // redactEncodedValues keeps field order and non-sensitive values so a redacted query or form body still reads like the request that was sent.
 func redactEncodedValues(encoded string) string {
@@ -90,6 +98,19 @@ func isJSONEncoded(contentType string) bool {
 	mediaType, _, _ := strings.Cut(contentType, ";")
 	mediaType = strings.ToLower(strings.TrimSpace(mediaType))
 	return mediaType == "application/json" || strings.HasSuffix(mediaType, "+json")
+}
+
+// MessageForLog returns a websocket message with its credential values redacted for logging: a JSON message has them
+// replaced, one that only looks like JSON is replaced whole, and any other is returned as sent
+func MessageForLog(message []byte) []byte {
+	trimmed := bytes.TrimSpace(message)
+	if len(trimmed) == 0 || (trimmed[0] != '{' && trimmed[0] != '[') {
+		return message
+	}
+	if redacted, err := redactJSONBody(message); err == nil {
+		return redacted
+	}
+	return []byte("[REDACTED INVALID JSON BODY]")
 }
 
 func bodyForLog(payload []byte, contentType string) []byte {
