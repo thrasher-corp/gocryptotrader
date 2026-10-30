@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/buger/jsonparser"
@@ -215,6 +216,48 @@ func TestWebsocketWalletCalcs(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(sent[0][len(`[0,"calc",null,`):len(sent[0])-1]), &requests), "the first calc request's calculations must decode")
 	assert.Len(t, requests, wsMaxCalcRequests, "a calc request should ask for as many calculations as Bitfinex takes")
 	assert.Equal(t, `[0,"calc",null,[["wallet_funding_C30"]]]`, sent[1], "the calculations left over should be asked for in the next request")
+}
+
+func TestWebsocketWalletCalcsAskAgainAfterWait(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, 10*time.Second, wsWalletCalcWait, "the wait before a calc request is asked for again should be the README's 10 seconds")
+	// Bitfinex can answer a calc request sent too quickly with an error, which leaves the request unanswered
+	synctest.Test(t, func(t *testing.T) {
+		// The fake clock starts on a whole second, which would hide a wait kept in whole seconds or milliseconds
+		time.Sleep(750500500 * time.Nanosecond)
+		var calcs wsWalletCalcs
+		btc, eth := []string{"wallet_exchange_BTC"}, []string{"wallet_exchange_ETH"}
+		btcFirst, ethFirst := []string{btc[0], eth[0]}, []string{eth[0], btc[0]}
+		assert.Equal(t, btc, calcs.request(btc), "an available balance should be asked for")
+		time.Sleep(wsWalletCalcWait / 2)
+		assert.Equal(t, eth, calcs.request(eth), "another wallet's available balance should be asked for")
+		assert.Empty(t, calcs.request(nil), "no available balance should be asked for when none is wanted")
+		assert.Empty(t, calcs.request(btc), "an available balance asked for within the wait should not be asked for again")
+		assert.Empty(t, calcs.request(btc), "an available balance asked for within the wait should not be asked for again")
+		time.Sleep(wsWalletCalcWait/2 - time.Nanosecond)
+		assert.Empty(t, calcs.request(btcFirst), "available balances asked for within the wait should not be asked for again")
+		time.Sleep(time.Nanosecond)
+		assert.Equal(t, btc, calcs.request(ethFirst), "only the available balance whose request has gone unanswered for the wait should be asked for again")
+		assert.Empty(t, calcs.request(btc), "an available balance asked for again should not be asked for at once")
+		time.Sleep(wsWalletCalcWait / 2)
+		assert.Equal(t, eth, calcs.request(btcFirst), "an available balance whose request has gone unanswered for the wait should be asked for again")
+		time.Sleep(wsWalletCalcWait/2 - time.Nanosecond)
+		assert.Empty(t, calcs.request(btc), "an available balance asked for again within the wait should not be asked for again")
+		time.Sleep(time.Nanosecond)
+		assert.Equal(t, btc, calcs.request(btc), "an available balance asked for again should be asked for once more after another wait")
+		assert.Empty(t, calcs.request(eth), "another wallet's available balance asked for within the wait should not be asked for again when one is asked for again")
+		time.Sleep(3*wsWalletCalcWait + wsWalletCalcWait/2)
+		assert.Equal(t, btcFirst, calcs.request(btcFirst), "available balances whose requests went unanswered long ago should be asked for again")
+		time.Sleep(wsWalletCalcWait / 2)
+		assert.Empty(t, calcs.request(btcFirst), "available balances asked for again within the wait should not be asked for again")
+		time.Sleep(wsWalletCalcWait / 2)
+		withNew := []string{btc[0], "wallet_exchange_SOL", eth[0]}
+		assert.Equal(t, withNew, calcs.request(withNew), "a new wallet's available balance and those whose requests have gone unanswered for the wait, past a minute's end, should all be asked for")
+		time.Sleep(6*wsWalletCalcWait + wsWalletCalcWait/2)
+		assert.Empty(t, calcs.request(nil), "no available balance should be asked for when none is wanted, even with requests gone unanswered for the wait")
+		assert.Equal(t, btc, calcs.request(btc), "an available balance whose request has gone unanswered for over a minute should be asked for again")
+		assert.Equal(t, eth, calcs.request(eth), "another wallet's available balance whose request has gone unanswered for the wait should still be asked for after one is asked for again")
+	})
 }
 
 func TestWebsocketDerivativesWallet(t *testing.T) {

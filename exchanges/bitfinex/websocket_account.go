@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/buger/jsonparser"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -20,24 +21,30 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
+// wsWalletCalcWait is how long a wallet's calc request goes unanswered before its next update asks again, as Bitfinex can
+// answer calc requests sent too quickly with an error rather than a calculation; it performs at most 8 calculations a
+// second, and a request holds up to 30
+const wsWalletCalcWait = 10 * time.Second
+
 // wsWalletCalcs holds the wallets Bitfinex has been asked to calculate the available balances of, by their calc request
-// names, until it sends them
+// names, with when each was asked, until it sends them
 type wsWalletCalcs struct {
 	mu      sync.Mutex
-	pending map[string]struct{}
+	pending map[string]time.Time
 }
 
-// request returns the calc requests of the wallets not already asked about, marking them asked
+// request returns the calc requests of the wallets not asked about within wsWalletCalcWait, marking them asked
 func (w *wsWalletCalcs) request(calcs []string) []string {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	if w.pending == nil {
-		w.pending = make(map[string]struct{})
+		w.pending = make(map[string]time.Time)
 	}
+	now := time.Now()
 	var asked []string
 	for _, c := range calcs {
-		if _, ok := w.pending[c]; !ok {
-			w.pending[c] = struct{}{}
+		if at, ok := w.pending[c]; !ok || now.Sub(at) >= wsWalletCalcWait {
+			w.pending[c] = now
 			asked = append(asked, c)
 		}
 	}
@@ -316,7 +323,7 @@ func (e *Exchange) wsWalletCalc(w *WalletResponse, calcs []string) []string {
 }
 
 // wsRequestWalletCalcs asks Bitfinex to calculate the available balances of wallets it has yet to, once each until it
-// sends one
+// sends one or the request has gone unanswered for wsWalletCalcWait
 func (e *Exchange) wsRequestWalletCalcs(ctx context.Context, conn websocket.Connection, calcs []string) error {
 	calcs = e.wsWalletCalcs.request(calcs)
 	var errs error

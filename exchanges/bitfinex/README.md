@@ -108,7 +108,8 @@ type GCT doesn't know is left out, and a read holding one of a known type but wi
 no balance. The websocket replaces the stored wallets with the wallet snapshot Bitfinex sends the account connection
 once it authenticates, then updates them as they change; a snapshot holding a wallet of an unknown type or without a
 currency is merged into them instead, removing none. Bitfinex sends no available balance until it has calculated it, and
-until then none of the balance is free; the websocket asks Bitfinex to calculate it.
+until then none of the balance is free; the websocket asks Bitfinex to calculate it, and asks again when a later update
+still lacks it 10 seconds or more after the last request.
 
 ### Deposits and withdrawals
 
