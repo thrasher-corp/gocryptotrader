@@ -13,18 +13,6 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-var (
-	taStartTime         string
-	taEndTime           string
-	taGranularity       int64
-	taPeriod            int64
-	taFastPeriod        int64
-	taSlowPeriod        int64
-	taMovingAverageType string
-	taStdDevUp          float64
-	taStdDevDown        float64
-)
-
 var commonFlag = []cli.Flag{
 	&cli.StringFlag{
 		Name:     exchangeFlag,
@@ -42,62 +30,53 @@ var commonFlag = []cli.Flag{
 		Usage:    assetFlagUsage,
 	},
 	&cli.Int64Flag{
-		Name:        "granularity",
-		Aliases:     []string{"g"},
-		Usage:       klineMessage,
-		Value:       86400,
-		Destination: &taGranularity,
+		Name:    "granularity",
+		Aliases: []string{"g"},
+		Usage:   klineMessage,
+		Value:   86400,
 	},
 	&cli.StringFlag{
-		Name:        startFlag,
-		Usage:       "the start date",
-		Value:       time.Now().AddDate(0, -1, 0).Format(time.DateTime),
-		Destination: &taStartTime,
+		Name:  startFlag,
+		Usage: "the start date",
+		Value: time.Now().AddDate(0, -1, 0).Format(time.DateTime),
 	},
 	&cli.StringFlag{
-		Name:        endFlag,
-		Usage:       "the end date",
-		Value:       time.Now().Format(time.DateTime),
-		Destination: &taEndTime,
+		Name:  endFlag,
+		Usage: "the end date",
+		Value: time.Now().Format(time.DateTime),
 	},
 }
 
 var (
 	periodFlag = &cli.Int64Flag{
-		Name:        "period",
-		Usage:       "denotes period (rolling window) for technical analysis",
-		Value:       9,
-		Destination: &taPeriod,
+		Name:  "period",
+		Usage: "denotes period (rolling window) for technical analysis",
+		Value: 9,
 	}
 	fastFlag = &cli.Int64Flag{
-		Name:        "fastperiod",
-		Usage:       "denotes fast period (ema) for macd generation",
-		Value:       12,
-		Destination: &taFastPeriod,
+		Name:  "fastperiod",
+		Usage: "denotes fast period (ema) for macd generation",
+		Value: 12,
 	}
 	slowFlag = &cli.Int64Flag{
-		Name:        "slowperiod",
-		Usage:       "denotes slow period (ema) for macd generation",
-		Value:       26,
-		Destination: &taSlowPeriod,
+		Name:  "slowperiod",
+		Usage: "denotes slow period (ema) for macd generation",
+		Value: 26,
 	}
 	stdDevUpFlag = &cli.Float64Flag{
-		Name:        "stddevup",
-		Usage:       "standard deviation limit for upper band",
-		Value:       1.5,
-		Destination: &taStdDevUp,
+		Name:  "stddevup",
+		Usage: "standard deviation limit for upper band",
+		Value: 1.5,
 	}
 	stdDevDownFlag = &cli.Float64Flag{
-		Name:        "stddevdown",
-		Usage:       "standard deviation limit for lower band",
-		Value:       1.5,
-		Destination: &taStdDevDown,
+		Name:  "stddevdown",
+		Usage: "standard deviation limit for lower band",
+		Value: 1.5,
 	}
 	maTypeFlag = &cli.StringFlag{
-		Name:        "movingaveragetype",
-		Usage:       "defines the moving average type for underlying calculation ('ema'/'sma')",
-		Value:       "sma",
-		Destination: &taMovingAverageType,
+		Name:  "movingaveragetype",
+		Usage: "defines the moving average type for underlying calculation ('ema'/'sma')",
+		Value: "sma",
 	}
 
 	otherAssetFlag = []cli.Flag{
@@ -232,58 +211,26 @@ func getTecnicalAnalysis(c *cli.Context, algo string) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	var exchange string
-	if c.IsSet(exchangeFlag) {
-		exchange = c.String(exchangeFlag)
-	}
-
-	var cpString string
-	if c.IsSet(pairFlag) {
-		cpString = c.String(pairFlag)
-	}
-
-	pair, err := currency.NewPairFromString(cpString)
+	pair, err := currency.NewPairFromString(c.String(pairFlag))
 	if err != nil {
 		return err
 	}
 
-	var asset string
-	if c.IsSet(assetFlag) {
-		asset = c.String(assetFlag)
-	}
-
-	asset = strings.ToLower(asset)
+	asset := strings.ToLower(c.String(assetFlag))
 	if !validAsset(asset) {
 		return errInvalidAsset
 	}
 
-	if c.IsSet("granularity") {
-		taGranularity = c.Int64("granularity")
-	}
-
-	if c.IsSet(startFlag) {
-		taStartTime, _ = c.Value(startFlag).(string)
-	}
-
-	if c.IsSet(endFlag) {
-		taEndTime, _ = c.Value(endFlag).(string)
-	}
-
-	s, err := time.ParseInLocation(time.DateTime, taStartTime, time.Local)
+	s, err := time.ParseInLocation(time.DateTime, c.String(startFlag), time.Local)
 	if err != nil {
-		return fmt.Errorf("invalid time format for start: %v", err)
+		return fmt.Errorf("invalid time format for start: %w", err)
 	}
-	e, err := time.ParseInLocation(time.DateTime, taEndTime, time.Local)
+	e, err := time.ParseInLocation(time.DateTime, c.String(endFlag), time.Local)
 	if err != nil {
-		return fmt.Errorf("invalid time format for end: %v", err)
+		return fmt.Errorf("invalid time format for end: %w", err)
 	}
-	err = common.StartEndTimeCheck(s, e)
-	if err != nil {
+	if err := common.StartEndTimeCheck(s, e); err != nil {
 		return err
-	}
-
-	if c.IsSet("period") {
-		taPeriod, _ = c.Value("period").(int64)
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -293,17 +240,17 @@ func getTecnicalAnalysis(c *cli.Context, algo string) error {
 	defer closeConn(conn, cancel)
 
 	req := &gctrpc.GetTechnicalAnalysisRequest{
-		Exchange: exchange,
+		Exchange: c.String(exchangeFlag),
 		Pair: &gctrpc.CurrencyPair{
 			Base:  pair.Base.String(),
 			Quote: pair.Quote.String(),
 		},
 		AssetType:     asset,
 		AlgorithmType: algo,
-		Interval:      taGranularity * int64(time.Second),
+		Interval:      c.Int64("granularity") * int64(time.Second),
 		Start:         timestamppb.New(s),
 		End:           timestamppb.New(e),
-		Period:        taPeriod,
+		Period:        c.Int64("period"),
 	}
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
@@ -321,75 +268,31 @@ func getBollingerBands(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	var exchange string
-	if c.IsSet(exchangeFlag) {
-		exchange = c.String(exchangeFlag)
-	}
-
-	var cpString string
-	if c.IsSet(pairFlag) {
-		cpString = c.String(pairFlag)
-	}
-
-	pair, err := currency.NewPairFromString(cpString)
+	pair, err := currency.NewPairFromString(c.String(pairFlag))
 	if err != nil {
 		return err
 	}
 
-	var asset string
-	if c.IsSet(assetFlag) {
-		asset = c.String(assetFlag)
-	}
-
-	asset = strings.ToLower(asset)
+	asset := strings.ToLower(c.String(assetFlag))
 	if !validAsset(asset) {
 		return errInvalidAsset
 	}
 
-	if c.IsSet("granularity") {
-		taGranularity = c.Int64("granularity")
-	}
-
-	if c.IsSet(startFlag) {
-		taStartTime, _ = c.Value(startFlag).(string)
-	}
-
-	if c.IsSet(endFlag) {
-		taEndTime, _ = c.Value(endFlag).(string)
-	}
-
-	s, err := time.ParseInLocation(time.DateTime, taStartTime, time.Local)
+	s, err := time.ParseInLocation(time.DateTime, c.String(startFlag), time.Local)
 	if err != nil {
-		return fmt.Errorf("invalid time format for start: %v", err)
+		return fmt.Errorf("invalid time format for start: %w", err)
 	}
-	e, err := time.ParseInLocation(time.DateTime, taEndTime, time.Local)
+	e, err := time.ParseInLocation(time.DateTime, c.String(endFlag), time.Local)
 	if err != nil {
-		return fmt.Errorf("invalid time format for end: %v", err)
+		return fmt.Errorf("invalid time format for end: %w", err)
 	}
 
-	err = common.StartEndTimeCheck(s, e)
-	if err != nil {
+	if err := common.StartEndTimeCheck(s, e); err != nil {
 		return err
 	}
 
-	if c.IsSet("period") {
-		taPeriod, _ = c.Value("period").(int64)
-	}
-
-	if c.IsSet("stddevup") {
-		taStdDevUp, _ = c.Value("stddevup").(float64)
-	}
-
-	if c.IsSet("stddevdown") {
-		taStdDevDown, _ = c.Value("stddevdown").(float64)
-	}
-
-	if c.IsSet("movingaveragetype") {
-		taMovingAverageType, _ = c.Value("movingaveragetype").(string)
-	}
-
 	var maType int64
-	switch strings.ToLower(taMovingAverageType) {
+	switch strings.ToLower(c.String("movingaveragetype")) {
 	case "sma":
 	case "ema":
 		maType = 1
@@ -404,19 +307,19 @@ func getBollingerBands(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	req := &gctrpc.GetTechnicalAnalysisRequest{
-		Exchange: exchange,
+		Exchange: c.String(exchangeFlag),
 		Pair: &gctrpc.CurrencyPair{
 			Base:  pair.Base.String(),
 			Quote: pair.Quote.String(),
 		},
 		AssetType:             asset,
 		AlgorithmType:         "BBANDS",
-		Interval:              taGranularity * int64(time.Second),
+		Interval:              c.Int64("granularity") * int64(time.Second),
 		Start:                 timestamppb.New(s),
 		End:                   timestamppb.New(e),
-		Period:                taPeriod,
-		StandardDeviationUp:   taStdDevUp,
-		StandardDeviationDown: taStdDevDown,
+		Period:                c.Int64("period"),
+		StandardDeviationUp:   c.Float64("stddevup"),
+		StandardDeviationDown: c.Float64("stddevdown"),
 		MovingAverageType:     maType,
 	}
 
@@ -435,67 +338,27 @@ func getMACD(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	var exchange string
-	if c.IsSet(exchangeFlag) {
-		exchange = c.String(exchangeFlag)
-	}
-
-	var cpString string
-	if c.IsSet(pairFlag) {
-		cpString = c.String(pairFlag)
-	}
-
-	pair, err := currency.NewPairFromString(cpString)
+	pair, err := currency.NewPairFromString(c.String(pairFlag))
 	if err != nil {
 		return err
 	}
 
-	var asset string
-	if c.IsSet(assetFlag) {
-		asset = c.String(assetFlag)
-	}
-
-	asset = strings.ToLower(asset)
+	asset := strings.ToLower(c.String(assetFlag))
 	if !validAsset(asset) {
 		return errInvalidAsset
 	}
 
-	if c.IsSet("granularity") {
-		taGranularity = c.Int64("granularity")
-	}
-
-	if c.IsSet(startFlag) {
-		taStartTime, _ = c.Value(startFlag).(string)
-	}
-
-	if c.IsSet(endFlag) {
-		taEndTime, _ = c.Value(endFlag).(string)
-	}
-
-	s, err := time.ParseInLocation(time.DateTime, taStartTime, time.Local)
+	s, err := time.ParseInLocation(time.DateTime, c.String(startFlag), time.Local)
 	if err != nil {
-		return fmt.Errorf("invalid time format for start: %v", err)
+		return fmt.Errorf("invalid time format for start: %w", err)
 	}
-	e, err := time.ParseInLocation(time.DateTime, taEndTime, time.Local)
+	e, err := time.ParseInLocation(time.DateTime, c.String(endFlag), time.Local)
 	if err != nil {
-		return fmt.Errorf("invalid time format for end: %v", err)
+		return fmt.Errorf("invalid time format for end: %w", err)
 	}
 
-	err = common.StartEndTimeCheck(s, e)
-	if err != nil {
+	if err := common.StartEndTimeCheck(s, e); err != nil {
 		return err
-	}
-
-	if c.IsSet("period") {
-		taPeriod, _ = c.Value("period").(int64)
-	}
-
-	if c.IsSet("fastperiod") {
-		taFastPeriod, _ = c.Value("fastperiod").(int64)
-	}
-
-	if c.IsSet("slowperiod") {
-		taSlowPeriod, _ = c.Value("slowperiod").(int64)
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -505,19 +368,19 @@ func getMACD(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	req := &gctrpc.GetTechnicalAnalysisRequest{
-		Exchange: exchange,
+		Exchange: c.String(exchangeFlag),
 		Pair: &gctrpc.CurrencyPair{
 			Base:  pair.Base.String(),
 			Quote: pair.Quote.String(),
 		},
 		AssetType:     asset,
 		AlgorithmType: "MACD",
-		Interval:      taGranularity * int64(time.Second),
+		Interval:      c.Int64("granularity") * int64(time.Second),
 		Start:         timestamppb.New(s),
 		End:           timestamppb.New(e),
-		Period:        taPeriod,
-		SlowPeriod:    taSlowPeriod,
-		FastPeriod:    taFastPeriod,
+		Period:        c.Int64("period"),
+		SlowPeriod:    c.Int64("slowperiod"),
+		FastPeriod:    c.Int64("fastperiod"),
 	}
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
@@ -535,70 +398,30 @@ func getCoco(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	var exchange string
-	if c.IsSet(exchangeFlag) {
-		exchange = c.String(exchangeFlag)
-	}
-
-	var cpString string
-	if c.IsSet(pairFlag) {
-		cpString = c.String(pairFlag)
-	}
-
-	pair, err := currency.NewPairFromString(cpString)
+	pair, err := currency.NewPairFromString(c.String(pairFlag))
 	if err != nil {
 		return err
 	}
 
-	var asset string
-	if c.IsSet(assetFlag) {
-		asset = c.String(assetFlag)
-	}
-
-	asset = strings.ToLower(asset)
+	asset := strings.ToLower(c.String(assetFlag))
 	if !validAsset(asset) {
 		return errInvalidAsset
 	}
 
-	if c.IsSet("granularity") {
-		taGranularity = c.Int64("granularity")
-	}
-
-	if c.IsSet(startFlag) {
-		taStartTime, _ = c.Value(startFlag).(string)
-	}
-
-	if c.IsSet(endFlag) {
-		taEndTime, _ = c.Value(endFlag).(string)
-	}
-
-	s, err := time.ParseInLocation(time.DateTime, taStartTime, time.Local)
+	s, err := time.ParseInLocation(time.DateTime, c.String(startFlag), time.Local)
 	if err != nil {
-		return fmt.Errorf("invalid time format for start: %v", err)
+		return fmt.Errorf("invalid time format for start: %w", err)
 	}
-	e, err := time.ParseInLocation(time.DateTime, taEndTime, time.Local)
+	e, err := time.ParseInLocation(time.DateTime, c.String(endFlag), time.Local)
 	if err != nil {
-		return fmt.Errorf("invalid time format for end: %v", err)
+		return fmt.Errorf("invalid time format for end: %w", err)
 	}
 
-	err = common.StartEndTimeCheck(s, e)
-	if err != nil {
+	if err := common.StartEndTimeCheck(s, e); err != nil {
 		return err
 	}
 
-	if c.IsSet("period") {
-		taPeriod, _ = c.Value("period").(int64)
-	}
-
-	var otherExchange string
-	if c.IsSet("comparisonexchange") {
-		otherExchange = c.String("comparisonexchange")
-	}
-
-	var oCpString string
-	if c.IsSet("comparisonpair") {
-		oCpString = c.String("comparisonpair")
-	}
+	oCpString := c.String("comparisonpair")
 
 	if oCpString == "" {
 		return errors.New("other pair is empty, to compare this must be specified")
@@ -608,12 +431,7 @@ func getCoco(c *cli.Context) error {
 		return err
 	}
 
-	var otherAsset string
-	if c.IsSet("comparisonasset") {
-		otherAsset = c.String("comparisonasset")
-	}
-
-	otherAsset = strings.ToLower(otherAsset)
+	otherAsset := strings.ToLower(c.String("comparisonasset"))
 	if otherAsset != "" && !validAsset(otherAsset) {
 		return errInvalidAsset
 	}
@@ -625,18 +443,18 @@ func getCoco(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	req := &gctrpc.GetTechnicalAnalysisRequest{
-		Exchange: exchange,
+		Exchange: c.String(exchangeFlag),
 		Pair: &gctrpc.CurrencyPair{
 			Base:  pair.Base.String(),
 			Quote: pair.Quote.String(),
 		},
 		AssetType:      asset,
 		AlgorithmType:  "COCO",
-		Interval:       taGranularity * int64(time.Second),
+		Interval:       c.Int64("granularity") * int64(time.Second),
 		Start:          timestamppb.New(s),
 		End:            timestamppb.New(e),
-		Period:         taPeriod,
-		OtherExchange:  otherExchange,
+		Period:         c.Int64("period"),
+		OtherExchange:  c.String("comparisonexchange"),
 		OtherPair:      &gctrpc.CurrencyPair{Base: otherPair.Base.String(), Quote: otherPair.Quote.String()},
 		OtherAssetType: otherAsset,
 	}

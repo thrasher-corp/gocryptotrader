@@ -15,9 +15,10 @@ import (
 )
 
 var (
-	errStrategyPathRequired = errors.New("strategy path must be set")
-	errTaskIDRequired       = errors.New("task ID must be set")
-	doNotRunFlag            = &cli.BoolFlag{
+	errStrategyPathRequired     = errors.New("strategy path must be set")
+	errTaskIDRequired           = errors.New("task ID must be set")
+	errNegativeIntervalOverride = errors.New("interval override duration cannot be less than 0")
+	doNotRunFlag                = &cli.BoolFlag{
 		Name:    "donotrunimmediately",
 		Aliases: []string{"dnr"},
 		Usage:   "if true, will load the strategy, but will not execute until another command is sent",
@@ -69,66 +70,44 @@ func executeStrategyFromFile(c *cli.Context) error {
 		return errStrategyPathRequired
 	}
 
+	var s, e time.Time
+	var err error
+	if startTimeOverride := c.String("starttimeoverride"); startTimeOverride != "" {
+		s, err = time.ParseInLocation(time.DateTime, startTimeOverride, time.Local)
+		if err != nil {
+			return fmt.Errorf("invalid time format for start: %w", err)
+		}
+	}
+	if endTimeOverride := c.String("endtimeoverride"); endTimeOverride != "" {
+		e, err = time.ParseInLocation(time.DateTime, endTimeOverride, time.Local)
+		if err != nil {
+			return fmt.Errorf("invalid time format for end: %w", err)
+		}
+	}
+	if !s.IsZero() && !e.IsZero() {
+		if err := common.StartEndTimeCheck(s, e); err != nil {
+			return err
+		}
+	}
+
+	intervalOverride := c.Duration("intervaloverride")
+	if intervalOverride < 0 {
+		return errNegativeIntervalOverride
+	}
+
 	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
 	defer closeConn(conn, cancel)
 
-	var dnr bool
-	if c.IsSet("donotrunimmediately") {
-		dnr = c.Bool("donotrunimmediately")
-	}
-	var dns bool
-	if c.IsSet("donotstore") {
-		dns = c.Bool("donotstore")
-	}
-
-	var startTimeOverride string
-	if c.IsSet("starttimeoverride") {
-		startTimeOverride = c.String("starttimeoverride")
-	}
-
-	var endTimeOverride string
-	if c.IsSet("endtimeoverride") {
-		endTimeOverride = c.String("endtimeoverride")
-	}
-
-	var s, e time.Time
-	if startTimeOverride != "" {
-		s, err = time.ParseInLocation(time.DateTime, startTimeOverride, time.Local)
-		if err != nil {
-			return fmt.Errorf("invalid time format for start: %v", err)
-		}
-	}
-	if endTimeOverride != "" {
-		e, err = time.ParseInLocation(time.DateTime, endTimeOverride, time.Local)
-		if err != nil {
-			return fmt.Errorf("invalid time format for end: %v", err)
-		}
-	}
-	if !s.IsZero() && !e.IsZero() {
-		err = common.StartEndTimeCheck(s, e)
-		if err != nil {
-			return err
-		}
-	}
-
-	var intervalOverride time.Duration
-	if c.IsSet("intervaloverride") {
-		intervalOverride = c.Duration("intervaloverride")
-	}
-	if intervalOverride < 0 {
-		return errors.New("interval override duration cannot be less than 0")
-	}
-
 	client := btrpc.NewBacktesterServiceClient(conn)
 	result, err := client.ExecuteStrategyFromFile(
 		c.Context,
 		&btrpc.ExecuteStrategyFromFileRequest{
 			StrategyFilePath:    path,
-			DoNotRunImmediately: dnr,
-			DoNotStore:          dns,
+			DoNotRunImmediately: c.Bool("donotrunimmediately"),
+			DoNotStore:          c.Bool("donotstore"),
 			StartTimeOverride:   timestamppb.New(s),
 			EndTimeOverride:     timestamppb.New(e),
 			IntervalOverride:    durationpb.New(intervalOverride),
@@ -578,22 +557,13 @@ func executeStrategyFromConfig(c *cli.Context) error {
 		},
 	}
 
-	var dnr bool
-	if c.IsSet("donotrunimmediately") {
-		dnr = c.Bool("donotrunimmediately")
-	}
-	var dns bool
-	if c.IsSet("donotstore") {
-		dns = c.Bool("donotstore")
-	}
-
 	client := btrpc.NewBacktesterServiceClient(conn)
 	result, err := client.ExecuteStrategyFromConfig(
 		c.Context,
 		&btrpc.ExecuteStrategyFromConfigRequest{
 			Config:              cfg,
-			DoNotRunImmediately: dnr,
-			DoNotStore:          dns,
+			DoNotRunImmediately: c.Bool("donotrunimmediately"),
+			DoNotStore:          c.Bool("donotstore"),
 		},
 	)
 	if err != nil {
