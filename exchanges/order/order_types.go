@@ -397,6 +397,7 @@ const (
 	StopLimit         = Stop | Limit
 	StopMarket        = Stop | Market
 	TakeProfitMarket  = TakeProfit | Market
+	TakeProfitLimit   = TakeProfit | Limit
 	TrailingStopLimit = TrailingStop | Limit
 	Bracket           = Stop | TakeProfit
 )
@@ -413,6 +414,7 @@ const (
 	orderChase                 = "CHASE"
 	orderTakeProfit            = "TAKE PROFIT"
 	orderTakeProfitMarket      = "TAKE PROFIT MARKET"
+	orderTakeProfitLimit       = "TAKE PROFIT LIMIT"
 	orderTrailingStop          = "TRAILING_STOP"
 	orderTrailingStopLimit     = "TRAILING_STOP_LIMIT"
 	orderIOS                   = "IOS"

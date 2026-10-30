@@ -619,8 +619,11 @@ func (m *OrderManager) processSubmittedOrder(newOrderResp *order.SubmitResponse)
 	}
 
 	if err := m.orderStore.add(detail.CopyToPointer()); errors.Is(err, ErrOrdersAlreadyExists) {
-		// Streamed by ws before we got here. Details from ws supersede since they are more recent.
-		detail = m.orderStore.getByDetail(detail)
+		// Streamed by ws before we got here. Details from ws supersede since they are more recent, but an update need not
+		// carry what was submitted, so that is filled in where the stream left it unset
+		if stored := m.orderStore.fillSubmitted(detail); stored != nil {
+			detail = stored
+		}
 	} else if err != nil {
 		// Non-fatal error: Unable to store order, but error does not need to be returned to caller
 		log.Errorf(log.OrderMgr, "Unable to add %v order %v to orderStore: %s", detail.Exchange, detail.OrderID, err)
@@ -1097,6 +1100,65 @@ func (s *store) getByDetail(det *order.Detail) *order.Detail {
 		if o.OrderID == det.OrderID {
 			return o.CopyToPointer()
 		}
+	}
+	return nil
+}
+
+// fillSubmitted returns a copy of the stored order with det's exchange and ID, or nil when there is none, having filled
+// in the submitted values it lacks, as an order list's updates carry no side, amounts or prices. The stored order's
+// status, fills and times stand, since an update streamed before the submission returned is as new. Only an order of
+// det's asset and pair is filled in: venues number some orders alike, such as Binance's spot order lists and
+// derivatives orders, while a stream can label the submitted order with another asset, as Bitfinex's can a margin one,
+// so an order that differs is returned as it is stored
+func (s *store) fillSubmitted(det *order.Detail) *order.Detail {
+	if det == nil {
+		return nil
+	}
+	s.m.Lock()
+	defer s.m.Unlock()
+	orders := s.Orders[strings.ToLower(det.Exchange)]
+	for i, stored := range orders {
+		if stored.OrderID != det.OrderID {
+			continue
+		}
+		if stored.AssetType != det.AssetType || !stored.Pair.Equal(det.Pair) {
+			return stored.CopyToPointer()
+		}
+		// The stored order can be the one a websocket handler added and still reads, so the submitted values go into a
+		// copy that takes its place
+		o := stored.CopyToPointer()
+		if o.Side == order.UnknownSide {
+			o.Side = det.Side
+		}
+		if o.Type == order.UnknownType {
+			o.Type = det.Type
+		}
+		if o.TimeInForce == order.UnknownTIF {
+			o.TimeInForce = det.TimeInForce
+		}
+		if o.Price == 0 {
+			o.Price = det.Price
+		}
+		if o.Amount == 0 {
+			o.Amount = det.Amount
+		}
+		if o.QuoteAmount == 0 {
+			o.QuoteAmount = det.QuoteAmount
+		}
+		if o.TriggerPrice == 0 {
+			o.TriggerPrice = det.TriggerPrice
+		}
+		if o.Leverage == 0 {
+			o.Leverage = det.Leverage
+		}
+		if o.ClientOrderID == "" {
+			o.ClientOrderID = det.ClientOrderID
+		}
+		if o.ClientID == "" {
+			o.ClientID = det.ClientID
+		}
+		orders[i] = o
+		return o.CopyToPointer()
 	}
 	return nil
 }

@@ -44,6 +44,8 @@ type UpdateManager struct {
 	fetchOrderbook     func(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error)
 	checkPendingUpdate func(lastUpdateID, firstUpdateID int64, update *orderbook.Update) (skip bool, err error)
 	ob                 *Orderbook
+	// loadSnapshotsAtOnce loads a snapshot no queued update follows yet instead of waiting for one
+	loadSnapshotsAtOnce bool
 }
 
 type updateCache struct {
@@ -51,6 +53,12 @@ type updateCache struct {
 	ch      chan int64
 	m       sync.Mutex
 	state   cacheState
+	// withdrawnUpdateID is the last update ID of a published book that was invalidated, kept until the book is
+	// synchronised again. When snapshots load at once, an update the book already holds can invalidate it and REST
+	// snapshots can lag the stream, so a snapshot no queued update reaches past is not loaded when it is older. One a
+	// queued update reaches past is, as that update shows the stream is at its level, which is also how a stream whose
+	// update IDs restart synchronises again
+	withdrawnUpdateID int64
 }
 
 type cacheState uint32
@@ -60,6 +68,10 @@ const (
 	cacheStateInitialised
 	cacheStateQueuing
 	cacheStateSynced
+	// cacheStateSnapshotLoaded holds a book loaded at once from a snapshot that no queued update followed. A snapshot's
+	// update ID need not end an update, so the next update is checked the way queued updates are before the book is in
+	// sequence
+	cacheStateSnapshotLoaded
 )
 
 type pendingUpdate struct {
@@ -83,6 +95,11 @@ type UpdateManagerParams struct {
 	CheckPendingUpdate func(lastUpdateID, firstUpdateID int64, update *orderbook.Update) (skip bool, err error)
 	// Orderbook stores the snapshots and updates managed by UpdateManager.
 	Orderbook *Orderbook
+	// LoadSnapshotsAtOnce loads a fetched snapshot that no queued update follows yet, and checks the first update to
+	// arrive against it, as Binance documents its local order book procedure; otherwise a snapshot waits for a queued
+	// update past it before loading, so a book that changes rarely is withheld until its next change. A snapshot older
+	// than a book already published is still only loaded once a queued update is past it
+	LoadSnapshotsAtOnce bool
 }
 
 // NewUpdateManager creates a new websocket orderbook update manager
@@ -97,12 +114,13 @@ func NewUpdateManager(params *UpdateManagerParams) *UpdateManager {
 		panic(err)
 	}
 	return &UpdateManager{
-		lookup:             make(map[key.PairAsset]*updateCache),
-		deadline:           params.FetchDeadline,
-		delay:              params.FetchDelay,
-		fetchOrderbook:     params.FetchOrderbook,
-		checkPendingUpdate: params.CheckPendingUpdate,
-		ob:                 params.Orderbook,
+		lookup:              make(map[key.PairAsset]*updateCache),
+		deadline:            params.FetchDeadline,
+		delay:               params.FetchDelay,
+		fetchOrderbook:      params.FetchOrderbook,
+		checkPendingUpdate:  params.CheckPendingUpdate,
+		ob:                  params.Orderbook,
+		loadSnapshotsAtOnce: params.LoadSnapshotsAtOnce,
 	}
 }
 
@@ -118,6 +136,8 @@ func (m *UpdateManager) ProcessOrderbookUpdate(ctx context.Context, firstUpdateI
 	switch cache.state {
 	case cacheStateSynced:
 		return m.applyUpdate(ctx, cache, firstUpdateID, update)
+	case cacheStateSnapshotLoaded:
+		return m.applyFirstUpdate(ctx, cache, firstUpdateID, update)
 	case cacheStateInitialised:
 		m.initialiseOrderbookCache(ctx, firstUpdateID, update, cache)
 	case cacheStateQueuing:
@@ -159,18 +179,46 @@ func (m *UpdateManager) applyUpdate(ctx context.Context, cache *updateCache, fir
 	lastUpdateID, err := m.ob.LastUpdateID(update.Pair, update.Asset)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%s websocket orderbook manager: failed to sync orderbook for %v %v: %v", m.ob.exchangeName, update.Pair, update.Asset, err)
-		return m.invalidateCache(ctx, firstUpdateID, update, cache)
+		return m.invalidateCache(ctx, firstUpdateID, update, cache, 0)
 	}
 	if lastUpdateID+1 != firstUpdateID {
 		if m.ob.verbose { // disconnection will pollute logs
 			log.Warnf(log.ExchangeSys, "%s websocket orderbook manager: failed to sync orderbook for %v %v: desync detected", m.ob.exchangeName, update.Pair, update.Asset)
 		}
-		return m.invalidateCache(ctx, firstUpdateID, update, cache)
+		return m.invalidateCache(ctx, firstUpdateID, update, cache, lastUpdateID)
 	}
 	if err := m.ob.Update(ctx, update); err != nil {
 		log.Errorf(log.ExchangeSys, "%s websocket orderbook manager: failed to sync orderbook for %v %v: %v", m.ob.exchangeName, update.Pair, update.Asset, err)
-		return m.invalidateCache(ctx, firstUpdateID, update, cache)
+		return m.invalidateCache(ctx, firstUpdateID, update, cache, lastUpdateID)
 	}
+	return nil
+}
+
+// applyFirstUpdate applies the first update after a snapshot no queued update followed, checked as a queued update is:
+// an update the snapshot already holds is skipped, and one that does not follow it invalidates the book and
+// synchronises it again
+// assumes lock already active on cache
+func (m *UpdateManager) applyFirstUpdate(ctx context.Context, cache *updateCache, firstUpdateID int64, update *orderbook.Update) error {
+	lastUpdateID, err := m.ob.LastUpdateID(update.Pair, update.Asset)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s websocket orderbook manager: failed to sync orderbook for %v %v: %v", m.ob.exchangeName, update.Pair, update.Asset, err)
+		return m.invalidateCache(ctx, firstUpdateID, update, cache, 0)
+	}
+	skip, err := m.checkPendingUpdate(lastUpdateID, firstUpdateID, update)
+	if err != nil {
+		if m.ob.verbose { // disconnection will pollute logs
+			log.Warnf(log.ExchangeSys, "%s websocket orderbook manager: failed to sync orderbook for %v %v: %v", m.ob.exchangeName, update.Pair, update.Asset, err)
+		}
+		return m.invalidateCache(ctx, firstUpdateID, update, cache, lastUpdateID)
+	}
+	if skip {
+		return nil
+	}
+	if err := m.ob.Update(ctx, update); err != nil {
+		log.Errorf(log.ExchangeSys, "%s websocket orderbook manager: failed to sync orderbook for %v %v: %v", m.ob.exchangeName, update.Pair, update.Asset, err)
+		return m.invalidateCache(ctx, firstUpdateID, update, cache, lastUpdateID)
+	}
+	cache.state = cacheStateSynced
 	return nil
 }
 
@@ -187,15 +235,23 @@ func (m *UpdateManager) initialiseOrderbookCache(ctx context.Context, firstUpdat
 	}()
 }
 
-// invalidateCache invalidates the existing orderbook, clears the update queue and reinitialises the orderbook cache
+// invalidateCache invalidates the existing orderbook, keeping the update ID it was published at, clears the update queue
+// and reinitialises the orderbook cache. The update ID is the one read before the update that failed, which may have
+// invalidated the book and its update ID with it, or zero when no book was published; or the book's own, when the
+// update was published and then failed to reach the data handler
 // assumes lock already active on cache
-func (m *UpdateManager) invalidateCache(ctx context.Context, firstUpdateID int64, update *orderbook.Update, cache *updateCache) error {
+func (m *UpdateManager) invalidateCache(ctx context.Context, firstUpdateID int64, update *orderbook.Update, cache *updateCache, publishedUpdateID int64) error {
+	if lastUpdateID, err := m.ob.LastUpdateID(update.Pair, update.Asset); err == nil {
+		publishedUpdateID = max(publishedUpdateID, lastUpdateID)
+	}
+	cache.withdrawnUpdateID = max(cache.withdrawnUpdateID, publishedUpdateID)
 	err := m.ob.InvalidateOrderbook(update.Pair, update.Asset)
 	m.initialiseOrderbookCache(ctx, firstUpdateID, update, cache)
 	return err
 }
 
-// syncOrderbook fetches and synchronises an orderbook snapshot so that pending updates can be applied to the orderbook.
+// syncOrderbook fetches an orderbook snapshot, loads it and applies the pending updates that follow it. Unless snapshots
+// load at once, the snapshot waits for a queued update past it before loading
 func (m *UpdateManager) syncOrderbook(ctx context.Context, cache *updateCache, pair currency.Pair, a asset.Item) error {
 	// REST requests can be behind websocket updates by a large margin, so we wait here to allow the cache to fill with
 	// updates before we fetch the orderbook snapshot.
@@ -217,7 +273,11 @@ func (m *UpdateManager) syncOrderbook(ctx context.Context, cache *updateCache, p
 		return err
 	}
 
-	if err := cache.waitForUpdate(ctx, book.LastUpdateID+1); err != nil {
+	if m.loadSnapshotsAtOnce {
+		if err := m.checkSnapshot(cache, pair, a, book); err != nil {
+			return err
+		}
+	} else if err := cache.waitForUpdate(ctx, book.LastUpdateID+1); err != nil {
 		cache.clearWithLock()
 		return err
 	}
@@ -241,7 +301,8 @@ func (m *UpdateManager) syncOrderbook(ctx context.Context, cache *updateCache, p
 	return nil
 }
 
-// applyPendingUpdates applies all pending updates to the orderbook
+// applyPendingUpdates applies the pending updates that follow the loaded snapshot. When none does and snapshots load at
+// once, the next update to arrive is checked against the snapshot
 // assumes lock already active on cache
 func (m *UpdateManager) applyPendingUpdates(cache *updateCache) error {
 	if len(cache.updates) == 0 {
@@ -271,37 +332,77 @@ func (m *UpdateManager) applyPendingUpdates(cache *updateCache) error {
 		return fmt.Errorf("%s %w: %s.%s", m.ob.exchangeName, orderbook.ErrDepthNotFound, firstUpdate.Asset, firstUpdate.Pair)
 	}
 
+	// The book is published at each update ID it passes through, which a failure keeps for the synchronisation after:
+	// an update that fails to apply can invalidate the book, and its update ID with it, while one published before it
+	// failed to reach the data handler leaves the book at that update
+	var published int64
+	withdraw := func(err error) error {
+		if lastUpdateID, idErr := depth.LastUpdateID(); idErr == nil {
+			published = max(published, lastUpdateID)
+		}
+		cache.withdrawnUpdateID = max(cache.withdrawnUpdateID, published)
+		return err
+	}
 	var updated bool
 	for _, data := range cache.updates {
 		bookLastUpdateID, err := depth.LastUpdateID()
 		if err != nil {
-			return err
+			return withdraw(err)
 		}
+		published = bookLastUpdateID
 
 		if !updated {
 			skip, err := m.checkPendingUpdate(bookLastUpdateID, data.firstUpdateID, data.update)
 			if err != nil {
-				return err
+				return withdraw(err)
 			}
 			if skip {
 				continue
 			}
 		} else if bookLastUpdateID+1 != data.firstUpdateID {
-			return fmt.Errorf("apply pending updates %w: last update ID %d, first update ID %d", ErrOrderbookSnapshotOutdated, bookLastUpdateID, data.firstUpdateID)
+			return withdraw(fmt.Errorf("apply pending updates %w: last update ID %d, first update ID %d", ErrOrderbookSnapshotOutdated, bookLastUpdateID, data.firstUpdateID))
 		}
 
 		if err := m.ob.updateDepth(common.ThawContext(data.ctx), depth, data.update); err != nil {
-			return err
+			return withdraw(err)
 		}
 
 		updated = true
 	}
 
-	if !updated {
+	if !updated && !m.loadSnapshotsAtOnce {
 		return errPendingUpdatesNotApplied
 	}
-	cache.state = cacheStateSynced
+	cache.state, cache.withdrawnUpdateID = cacheStateSynced, 0
+	if !updated {
+		cache.state = cacheStateSnapshotLoaded
+	}
 	return nil
+}
+
+// checkSnapshot rejects a snapshot older than the book last published when no queued update reaches past it, and resets
+// the cache, in the same lock, for the next update to synchronise again. Nothing then shows the stream is at the
+// snapshot's level, so it is not loaded, which would show the book rolled back; a queued update past it is checked as
+// it is applied. The book last published is the one the cache withdrew, or one still published, such as a REST
+// snapshot or a snapshot loaded before its delivery to the data handler failed
+func (m *UpdateManager) checkSnapshot(cache *updateCache, pair currency.Pair, a asset.Item, book *orderbook.Book) error {
+	cache.m.Lock()
+	defer cache.m.Unlock()
+	published := cache.withdrawnUpdateID
+	if lastUpdateID, err := m.ob.publishedUpdateID(pair, a); err == nil {
+		published = max(published, lastUpdateID)
+	}
+	if book.LastUpdateID >= published {
+		return nil
+	}
+	for i := range cache.updates {
+		if cache.updates[i].update.UpdateID > book.LastUpdateID {
+			return nil
+		}
+	}
+	cache.resetStateNoLock()
+	cache.clearNoLock()
+	return fmt.Errorf("%w: snapshot update ID %d precedes published update ID %d, and no queued update follows it", ErrOrderbookSnapshotOutdated, book.LastUpdateID, published)
 }
 
 // waitForUpdate waits for an update with an ID >= nextUpdateID

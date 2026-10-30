@@ -3,7 +3,9 @@ package orderbookmanager
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -389,8 +391,9 @@ func TestInvalidateCache(t *testing.T) {
 		AllowEmpty: true,
 		UpdateID:   1338,
 		UpdateTime: time.Now(),
-	}, cache)
+	}, cache, 1336)
 	require.ErrorIs(t, err, orderbook.ErrDepthNotFound, "invalidateCache must error but still trigger syncOrderbook")
+	assert.Equal(t, int64(1336), cache.withdrawnUpdateID, "invalidateCache should keep the update ID the book was published to")
 
 	require.Equal(t, cacheStateQueuing, cache.state, "state must be uninitialised after invalidateCache")
 	require.NotEmpty(t, cache.updates, "updates must not be empty after invalidateCache")
@@ -463,6 +466,451 @@ func TestSyncOrderbookApplyPendingUpdatesFailure(t *testing.T) {
 	require.ErrorIs(t, err, errPendingUpdatesNotApplied, "syncOrderbook must surface applyPendingUpdates errors")
 	assert.Equal(t, cacheStateInitialised, cache.state, "syncOrderbook should reset cache state on pending update failures")
 	assert.Empty(t, cache.updates, "syncOrderbook should clear pending updates after failure")
+	_, err = m.ob.LastUpdateID(pair, asset.USDTMarginedFutures)
+	assert.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "syncOrderbook should invalidate the book after pending update failures")
+}
+
+func TestSyncOrderbookWithoutFollowingUpdate(t *testing.T) {
+	t.Parallel()
+
+	// A snapshot newer than every queued update is loaded at once rather than withheld until an update follows it
+	tp := newTestParams()
+	tp.LoadSnapshotsAtOnce = true
+	m := NewUpdateManager(&tp)
+	m.fetchOrderbook = fetchOrderbookMock
+	m.checkPendingUpdate = func(lastUpdateID, _ int64, update *orderbook.Update) (bool, error) {
+		return update.UpdateID <= lastUpdateID, nil
+	}
+	pair, err := currency.NewPairFromStrings("SYNCQUIET", "BTC")
+	require.NoError(t, err)
+	cache := &updateCache{
+		updates: []pendingUpdate{{
+			firstUpdateID: 1300,
+			update:        &orderbook.Update{Pair: pair, Asset: asset.Spot, UpdateID: 1300, AllowEmpty: true, UpdateTime: time.Now()},
+		}},
+		state: cacheStateQueuing,
+	}
+	require.NoError(t, m.syncOrderbook(t.Context(), cache, pair, asset.Spot), "syncOrderbook must load a snapshot no queued update follows")
+	assert.Equal(t, cacheStateSnapshotLoaded, cache.state, "syncOrderbook should await the update following the snapshot")
+	assert.Empty(t, cache.updates, "syncOrderbook should clear the queued updates")
+	lastUpdateID, err := m.ob.LastUpdateID(pair, asset.Spot)
+	require.NoError(t, err, "LastUpdateID must not error for the loaded snapshot")
+	assert.Equal(t, int64(1336), lastUpdateID, "syncOrderbook should load the snapshot")
+}
+
+func TestApplyFirstUpdate(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name          string
+		base          string // the order book store is shared by every test, so each case has a pair of its own
+		check         func(lastUpdateID, firstUpdateID int64, update *orderbook.Update) (bool, error)
+		update        orderbook.Update
+		state         cacheState
+		lastUpdateID  int64
+		queuedUpdates int
+	}{
+		{
+			name: "held by the snapshot",
+			base: "FIRSTHELD",
+			check: func(lastUpdateID, _ int64, update *orderbook.Update) (bool, error) {
+				return update.UpdateID <= lastUpdateID, nil
+			},
+			update:       orderbook.Update{UpdateID: 1336, AllowEmpty: true},
+			state:        cacheStateSnapshotLoaded,
+			lastUpdateID: 1336,
+		},
+		{
+			name:         "following the snapshot",
+			base:         "FIRSTNEXT",
+			check:        func(int64, int64, *orderbook.Update) (bool, error) { return false, nil },
+			update:       orderbook.Update{UpdateID: 1340, AllowEmpty: true},
+			state:        cacheStateSynced,
+			lastUpdateID: 1340,
+		},
+		{
+			name:          "after a gap",
+			base:          "FIRSTGAP",
+			check:         func(int64, int64, *orderbook.Update) (bool, error) { return false, ErrOrderbookSnapshotOutdated },
+			update:        orderbook.Update{UpdateID: 1340, AllowEmpty: true},
+			state:         cacheStateQueuing,
+			queuedUpdates: 1,
+		},
+		{
+			name:          "failing to apply",
+			base:          "FIRSTFAIL",
+			check:         func(int64, int64, *orderbook.Update) (bool, error) { return false, nil },
+			update:        orderbook.Update{UpdateID: 1340},
+			state:         cacheStateQueuing,
+			queuedUpdates: 1,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			tp := newTestParams()
+			tp.LoadSnapshotsAtOnce = true
+			m := NewUpdateManager(&tp)
+			m.delay = time.Hour
+			m.checkPendingUpdate = tc.check
+			pair, err := currency.NewPairFromStrings(tc.base, "USDT")
+			require.NoError(t, err, "NewPairFromStrings must not error")
+			require.NoError(t, m.ob.LoadSnapshot(t.Context(), &orderbook.Book{Pair: pair, Asset: asset.Spot, Exchange: m.ob.exchangeName, LastUpdated: time.Now(), LastUpdateID: 1336}), "LoadSnapshot must not error")
+			cache, err := m.loadCache(pair, asset.Spot)
+			require.NoError(t, err, "loadCache must not error")
+			cache.m.Lock()
+			cache.state = cacheStateSnapshotLoaded
+			cache.m.Unlock()
+
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			update := tc.update
+			update.Pair, update.Asset, update.UpdateTime = pair, asset.Spot, time.Now()
+			require.NoError(t, m.ProcessOrderbookUpdate(ctx, 1337, &update), "ProcessOrderbookUpdate must not error")
+			cache.m.Lock()
+			assert.Equal(t, tc.state, cache.state, "ProcessOrderbookUpdate should leave the expected state")
+			assert.Len(t, cache.updates, tc.queuedUpdates, "ProcessOrderbookUpdate should queue the update for a new snapshot only after invalidating")
+			cache.m.Unlock()
+			lastUpdateID, err := m.ob.LastUpdateID(pair, asset.Spot)
+			if tc.lastUpdateID == 0 {
+				assert.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "ProcessOrderbookUpdate should invalidate a book the update does not follow")
+				return
+			}
+			require.NoError(t, err, "LastUpdateID must not error")
+			assert.Equal(t, tc.lastUpdateID, lastUpdateID, "ProcessOrderbookUpdate should apply only an update following the snapshot")
+		})
+	}
+}
+
+func TestQuietBookLoads(t *testing.T) {
+	t.Parallel()
+
+	// One update, then a snapshot newer than it, then nothing for a while: the book loads from the snapshot, and the next
+	// update applies to it
+	tp := newTestParams()
+	tp.Orderbook.exchangeName = uniqueTestExchange(t)
+	tp.FetchOrderbook = func(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error) {
+		book, err := fetchOrderbookMock(ctx, p, a)
+		book.Exchange = tp.Orderbook.exchangeName
+		return book, err
+	}
+	tp.CheckPendingUpdate = checkSequencedUpdate
+	tp.LoadSnapshotsAtOnce = true
+	m := NewUpdateManager(&tp)
+	pair, err := currency.NewPairFromStrings("QUIET", "USDT")
+	require.NoError(t, err, "NewPairFromStrings must not error")
+	newUpdate := func(id int64) *orderbook.Update {
+		return &orderbook.Update{Pair: pair, Asset: asset.Spot, UpdateID: id, AllowEmpty: true, UpdateTime: time.Now()}
+	}
+	require.NoError(t, m.ProcessOrderbookUpdate(t.Context(), 1300, newUpdate(1300)), "ProcessOrderbookUpdate must not error")
+	cache, err := m.loadCache(pair, asset.Spot)
+	require.NoError(t, err, "loadCache must not error")
+	require.Eventually(t, func() bool {
+		cache.m.Lock()
+		defer cache.m.Unlock()
+		return cache.state == cacheStateSnapshotLoaded
+	}, 5*time.Second, 10*time.Millisecond, "the synchronisation must finish without a later update")
+	lastUpdateID, err := m.ob.LastUpdateID(pair, asset.Spot)
+	require.NoError(t, err, "LastUpdateID must not error")
+	assert.Equal(t, int64(1336), lastUpdateID, "the snapshot should load without a later update")
+	require.NoError(t, m.ProcessOrderbookUpdate(t.Context(), 1330, newUpdate(1337)), "ProcessOrderbookUpdate must not error")
+	lastUpdateID, err = m.ob.LastUpdateID(pair, asset.Spot)
+	require.NoError(t, err, "LastUpdateID must not error")
+	assert.Equal(t, int64(1337), lastUpdateID, "the update following the snapshot should apply")
+	require.NoError(t, m.ProcessOrderbookUpdate(t.Context(), 1338, newUpdate(1338)), "ProcessOrderbookUpdate must not error")
+	lastUpdateID, err = m.ob.LastUpdateID(pair, asset.Spot)
+	require.NoError(t, err, "LastUpdateID must not error")
+	assert.Equal(t, int64(1338), lastUpdateID, "later updates should apply in sequence")
+}
+
+func TestSyncAfterStaleUpdate(t *testing.T) {
+	t.Parallel()
+
+	// An update the book already holds invalidates it, and the REST snapshot fetched to synchronise it again can lag the
+	// published book, whose later updates are no longer queued
+	for _, tc := range []struct {
+		name     string
+		base     string // the order book store is shared by every test, so each case has a pair of its own
+		stale    int64  // the update ID of the update the book already holds
+		snapshot int64
+		loaded   int64 // the book's update ID after the synchronisation, zero when it stays invalid
+	}{
+		{name: "older than the published book", base: "ROLLBACK", stale: 1330, snapshot: 1336},
+		{name: "brought level by the queued update", base: "BRIDGED", stale: 1337, snapshot: 1336, loaded: 1337},
+		{name: "as new as the published book", base: "CAUGHTUP", stale: 1330, snapshot: 1337, loaded: 1337},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			f := newSyncFixture(t, tc.base)
+			f.publish(t)
+			f.process(t, 1337, 1337)
+			f.process(t, tc.stale, tc.stale)
+			f.synchronise(t, tc.snapshot)
+			f.requireLastUpdateID(t, tc.loaded)
+		})
+	}
+}
+
+func TestSyncKeepsWithdrawnBook(t *testing.T) {
+	t.Parallel()
+
+	// A published book's update ID outlasts synchronisations that fail, so a lagging snapshot cannot roll it back later
+	t.Run("stale updates in turn", func(t *testing.T) {
+		t.Parallel()
+		f := newSyncFixture(t, "STALETWICE")
+		f.publish(t)
+		f.process(t, 1337, 1337)
+		for _, stale := range []int64{1330, 1331} {
+			f.process(t, stale, stale)
+			published := len(f.m.ob.dataHandler.C)
+			f.synchronise(t, 1336)
+			f.requireLastUpdateID(t, 0)
+			assert.Equal(t, published, len(f.m.ob.dataHandler.C), "a rejected snapshot should never be published")
+		}
+		// An update that follows its snapshot shows the stream is at that level, which is how a stream whose update IDs
+		// restart synchronises again
+		f.process(t, 7, 7)
+		f.synchronise(t, 6)
+		f.requireLastUpdateID(t, 7)
+		// Synchronised again, the book is held to its new update ID alone
+		f.process(t, 20, 20)
+		f.synchronise(t, 21)
+		f.requireLastUpdateID(t, 21)
+		assert.Equal(t, int32(4), f.fetches.Load(), "each synchronisation should fetch one snapshot")
+	})
+
+	t.Run("update failing to apply", func(t *testing.T) {
+		t.Parallel()
+		// A failed update invalidates the book, and its update ID with it, before the manager invalidates it
+		f := newSyncFixture(t, "FAILAPPLY")
+		f.publish(t)
+		f.process(t, 1337, 1337)
+		f.processFailing(t, 1338, 1338)
+		f.synchronise(t, 1336)
+		f.requireLastUpdateID(t, 0)
+		f.process(t, 1330, 1330)
+		f.synchronise(t, 1336)
+		f.requireLastUpdateID(t, 0)
+	})
+
+	t.Run("update ending at the snapshot", func(t *testing.T) {
+		t.Parallel()
+		// Binance's derivatives streams apply an update whose final update ID is the snapshot's, which does not take
+		// the book past the snapshot
+		f := newSyncFixture(t, "EQUALUPDATE")
+		f.m.checkPendingUpdate = func(lastUpdateID, firstUpdateID int64, update *orderbook.Update) (bool, error) {
+			if update.UpdateID < lastUpdateID {
+				return true, nil
+			}
+			if firstUpdateID > lastUpdateID+1 {
+				return false, ErrOrderbookSnapshotOutdated
+			}
+			return false, nil
+		}
+		f.publish(t)
+		f.process(t, 1337, 1337)
+		f.process(t, 1336, 1336)
+		f.synchronise(t, 1336)
+		f.requireLastUpdateID(t, 0)
+	})
+
+	t.Run("update published before its delivery failed", func(t *testing.T) {
+		t.Parallel()
+		// A full data handler fails an update the book has already published
+		f := newSyncFixture(t, "RELAYFULL")
+		f.useRelay()
+		f.publish(t)
+		f.drainRelay()
+		f.process(t, 1337, 1337)
+		f.process(t, 1338, 1338)
+		f.drainRelay()
+		f.synchronise(t, 1330)
+		f.requireLastUpdateID(t, 0)
+		f.drainRelay()
+		f.process(t, 1335, 1335)
+		f.synchronise(t, 1337)
+		f.requireLastUpdateID(t, 0)
+	})
+
+	t.Run("replayed update published before its delivery failed", func(t *testing.T) {
+		t.Parallel()
+		f := newSyncFixture(t, "RELAYREPLAY")
+		f.useRelay()
+		f.process(t, 1337, 1337)
+		f.process(t, 1338, 1338)
+		f.synchronise(t, 1336)
+		f.requireLastUpdateID(t, 0)
+		f.drainRelay()
+		f.process(t, 1330, 1330)
+		f.synchronise(t, 1336)
+		f.requireLastUpdateID(t, 0)
+	})
+
+	t.Run("snapshot published before its delivery failed", func(t *testing.T) {
+		t.Parallel()
+		// The book stays published at the snapshot, which a later snapshot must not roll back
+		f := newSyncFixture(t, "SNAPFULL")
+		f.useRelay()
+		f.fillRelay(t)
+		f.process(t, 1300, 1300)
+		f.synchronise(t, 1336)
+		f.requireLastUpdateID(t, 1336)
+		f.drainRelay()
+		f.process(t, 1301, 1301)
+		f.synchronise(t, 1330)
+		f.requireLastUpdateID(t, 1336)
+	})
+
+	t.Run("book published by REST before the stream synchronised", func(t *testing.T) {
+		t.Parallel()
+		// A REST request publishes to the exchange's order book store, before this manager has loaded a book of its own
+		f := newSyncFixture(t, "RESTBOOK")
+		rest := &orderbook.Book{Pair: f.pair, Asset: asset.Spot, Exchange: f.m.ob.exchangeName, LastUpdated: time.Now(), LastUpdateID: 1340}
+		require.NoError(t, rest.Process(), "Process must not error")
+		f.process(t, 1335, 1335)
+		f.synchronise(t, 1338)
+		depth, err := orderbook.GetDepth(f.m.ob.exchangeName, f.pair, asset.Spot)
+		require.NoError(t, err, "GetDepth must not error")
+		lastUpdateID, err := depth.LastUpdateID()
+		require.NoError(t, err, "LastUpdateID must not error for the REST book")
+		assert.Equal(t, int64(1340), lastUpdateID, "the older snapshot should not replace the REST book")
+	})
+
+	t.Run("synchronisation failing after it published updates", func(t *testing.T) {
+		t.Parallel()
+		f := newSyncFixture(t, "PARTSYNC")
+		f.process(t, 1337, 1337)
+		f.process(t, 1340, 1340)
+		f.synchronise(t, 1336)
+		f.requireLastUpdateID(t, 0)
+		f.process(t, 1330, 1330)
+		f.synchronise(t, 1336)
+		f.requireLastUpdateID(t, 0)
+		f.process(t, 1341, 1341)
+		f.synchronise(t, 1341)
+		f.requireLastUpdateID(t, 1341)
+	})
+}
+
+// syncFixture drives an update manager whose snapshots are the update IDs sent to it, for a pair of its own, as the
+// order book store is shared by every test
+type syncFixture struct {
+	m         *UpdateManager
+	pair      currency.Pair
+	cache     *updateCache
+	snapshots chan int64
+	fetches   atomic.Int32
+}
+
+func newSyncFixture(t *testing.T, base string) *syncFixture {
+	t.Helper()
+	f := &syncFixture{snapshots: make(chan int64)}
+	tp := newTestParams()
+	tp.Orderbook.exchangeName = uniqueTestExchange(t)
+	tp.FetchOrderbook = func(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error) {
+		f.fetches.Add(1)
+		select {
+		case id := <-f.snapshots:
+			return &orderbook.Book{Exchange: tp.Orderbook.exchangeName, Pair: p, Asset: a, LastUpdated: time.Now(), LastUpdateID: id}, nil
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
+	tp.CheckPendingUpdate = checkSequencedUpdate
+	tp.LoadSnapshotsAtOnce = true
+	f.m = NewUpdateManager(&tp)
+	var err error
+	f.pair, err = currency.NewPairFromStrings(base, "USDT")
+	require.NoError(t, err, "NewPairFromStrings must not error")
+	f.cache, err = f.m.loadCache(f.pair, asset.Spot)
+	require.NoError(t, err, "loadCache must not error")
+	return f
+}
+
+// publish loads a snapshot at update ID 1336 as the synchronised book a synchronisation leaves
+func (f *syncFixture) publish(t *testing.T) {
+	t.Helper()
+	require.NoError(t, f.m.ob.LoadSnapshot(t.Context(), &orderbook.Book{Pair: f.pair, Asset: asset.Spot, Exchange: f.m.ob.exchangeName, LastUpdated: time.Now(), LastUpdateID: 1336}), "LoadSnapshot must not error")
+	f.cache.m.Lock()
+	f.cache.state = cacheStateSynced
+	f.cache.m.Unlock()
+}
+
+func (f *syncFixture) process(t *testing.T, firstUpdateID, updateID int64) {
+	t.Helper()
+	update := &orderbook.Update{Pair: f.pair, Asset: asset.Spot, UpdateID: updateID, AllowEmpty: true, UpdateTime: time.Now()}
+	require.NoError(t, f.m.ProcessOrderbookUpdate(t.Context(), firstUpdateID, update), "ProcessOrderbookUpdate must not error")
+}
+
+// useRelay gives the order books a data handler holding one delivery, so a test can fill it; set before any update
+func (f *syncFixture) useRelay() {
+	f.m.ob.dataHandler = stream.NewRelay(1)
+}
+
+// fillRelay fills the data handler, so the next delivery to it fails
+func (f *syncFixture) fillRelay(t *testing.T) {
+	t.Helper()
+	require.NoError(t, f.m.ob.dataHandler.Send(t.Context(), nil), "Send must not error")
+}
+
+// drainRelay empties the data handler
+func (f *syncFixture) drainRelay() {
+	for len(f.m.ob.dataHandler.C) > 0 {
+		<-f.m.ob.dataHandler.C
+	}
+}
+
+// processFailing passes an update the book rejects, which invalidates it
+func (f *syncFixture) processFailing(t *testing.T, firstUpdateID, updateID int64) {
+	t.Helper()
+	update := &orderbook.Update{Pair: f.pair, Asset: asset.Spot, UpdateID: updateID, UpdateTime: time.Now()}
+	require.NoError(t, f.m.ProcessOrderbookUpdate(t.Context(), firstUpdateID, update), "ProcessOrderbookUpdate must not error")
+}
+
+// synchronise serves the synchronisation in progress its snapshot and waits for it to finish
+func (f *syncFixture) synchronise(t *testing.T, snapshot int64) {
+	t.Helper()
+	select {
+	case f.snapshots <- snapshot:
+	case <-time.After(5 * time.Second):
+		require.FailNow(t, "the synchronisation must request a snapshot")
+	}
+	require.Eventually(t, func() bool {
+		f.cache.m.Lock()
+		defer f.cache.m.Unlock()
+		return f.cache.state != cacheStateQueuing
+	}, 5*time.Second, 10*time.Millisecond, "the synchronisation must finish")
+}
+
+// requireLastUpdateID checks the book's update ID, or that it is invalid when exp is zero
+func (f *syncFixture) requireLastUpdateID(t *testing.T, exp int64) {
+	t.Helper()
+	lastUpdateID, err := f.m.ob.LastUpdateID(f.pair, asset.Spot)
+	if exp == 0 {
+		require.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "the book must stay invalid")
+		return
+	}
+	require.NoError(t, err, "LastUpdateID must not error for a synchronised book")
+	require.Equal(t, exp, lastUpdateID, "the book must be synchronised to the expected update")
+}
+
+var testExchangeRuns atomic.Int64
+
+// uniqueTestExchange returns an exchange name no other test run uses: order books persist in a store every test and
+// every -count iteration shares, and a run's book is a floor for the next run's snapshots
+func uniqueTestExchange(t *testing.T) string {
+	t.Helper()
+	return fmt.Sprintf("%s%d", t.Name(), testExchangeRuns.Add(1))
+}
+
+// checkSequencedUpdate skips an update the book holds and rejects one that does not follow it, as sequenced streams do
+func checkSequencedUpdate(lastUpdateID, firstUpdateID int64, update *orderbook.Update) (bool, error) {
+	if update.UpdateID <= lastUpdateID {
+		return true, nil
+	}
+	if firstUpdateID > lastUpdateID+1 {
+		return false, ErrOrderbookSnapshotOutdated
+	}
+	return false, nil
 }
 
 func TestApplyPendingUpdates(t *testing.T) {
@@ -509,6 +957,13 @@ func TestApplyPendingUpdates(t *testing.T) {
 		{update: &orderbook.Update{Pair: pair, Asset: asset.Spot}},
 	}})
 	require.ErrorIs(t, err, errPendingUpdatesNotApplied, "applyPendingUpdates must error when every pending update is skipped")
+	m.loadSnapshotsAtOnce = true
+	skipped := &updateCache{updates: []pendingUpdate{
+		{update: &orderbook.Update{Pair: pair, Asset: asset.Spot}},
+	}}
+	require.NoError(t, m.applyPendingUpdates(skipped), "applyPendingUpdates must not error when every pending update is skipped and snapshots load at once")
+	assert.Equal(t, cacheStateSnapshotLoaded, skipped.state, "applyPendingUpdates should await the update following the snapshot when snapshots load at once")
+	m.loadSnapshotsAtOnce = false
 
 	m.checkPendingUpdate = func(_, _ int64, _ *orderbook.Update) (bool, error) {
 		return false, nil

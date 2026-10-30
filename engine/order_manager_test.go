@@ -749,6 +749,266 @@ func TestSubmitOrderAlreadyInStore(t *testing.T) {
 	}
 }
 
+// TestSubmitOrderStreamedWithoutSubmittedValues ensures that an order the WS stored before processSubmittedOrder, from an
+// update without the values submitted, as an order list's updates are, takes them from the submission while keeping its
+// own status, fills and times
+func TestSubmitOrderStreamedWithoutSubmittedValues(t *testing.T) {
+	streamedAt := time.Date(2026, 10, 16, 1, 2, 3, 0, time.UTC)
+	submitted := &order.SubmitResponse{
+		Exchange:      testExchange,
+		OrderID:       "1930",
+		ClientOrderID: "submitted-client",
+		ClientID:      "gct",
+		Type:          order.Limit,
+		Side:          order.Sell,
+		TimeInForce:   order.GoodTillCancel,
+		Pair:          btcusdPair,
+		AssetType:     asset.Spot,
+		Price:         3,
+		Amount:        2,
+		QuoteAmount:   6,
+		TriggerPrice:  1,
+		Leverage:      1,
+		Status:        order.New,
+		Date:          streamedAt.Add(-time.Second),
+		LastUpdated:   streamedAt.Add(-time.Second),
+		Fee:           0.2,
+		Cost:          9,
+		Trades:        []order.TradeHistory{{TID: "submitted-trade", Price: 3, Amount: 2}},
+	}
+	for _, tc := range []struct {
+		name     string
+		streamed *order.Detail
+		exp      *order.Detail
+		active   int
+	}{
+		{
+			name: "order list",
+			streamed: &order.Detail{
+				Exchange:       testExchange,
+				OrderID:        "1930",
+				ClientOrderID:  "streamed-list",
+				Type:           order.OCO,
+				Status:         order.Active,
+				AssetType:      asset.Spot,
+				Pair:           btcusdPair,
+				ExecutedAmount: 0.5,
+				Date:           streamedAt,
+				LastUpdated:    streamedAt,
+			},
+			exp: &order.Detail{
+				Exchange:       testExchange,
+				OrderID:        "1930",
+				ClientOrderID:  "streamed-list",
+				ClientID:       "gct",
+				Type:           order.OCO,
+				Side:           order.Sell,
+				TimeInForce:    order.GoodTillCancel,
+				Status:         order.Active,
+				AssetType:      asset.Spot,
+				Pair:           btcusdPair,
+				Price:          3,
+				Amount:         2,
+				QuoteAmount:    6,
+				TriggerPrice:   1,
+				Leverage:       1,
+				ExecutedAmount: 0.5,
+				Date:           streamedAt,
+				LastUpdated:    streamedAt,
+			},
+			active: 1,
+		},
+		{
+			name: "order without a type, its pair formatted otherwise",
+			streamed: &order.Detail{
+				Exchange:             testExchange,
+				OrderID:              "1930",
+				ClientID:             "streamed-client",
+				Side:                 order.Buy,
+				TimeInForce:          order.ImmediateOrCancel,
+				Status:               order.PartiallyFilled,
+				AssetType:            asset.Spot,
+				Pair:                 btcusdPair.Format(currency.PairFormat{Delimiter: "/"}),
+				Price:                5,
+				Amount:               4,
+				QuoteAmount:          20,
+				TriggerPrice:         7,
+				Leverage:             2,
+				ExecutedAmount:       1,
+				AverageExecutedPrice: 5,
+				Cost:                 5,
+				Fee:                  0.01,
+				Trades:               []order.TradeHistory{{TID: "streamed-trade", Price: 5, Amount: 1}},
+				Date:                 streamedAt,
+				LastUpdated:          streamedAt,
+			},
+			exp: &order.Detail{
+				Exchange:             testExchange,
+				OrderID:              "1930",
+				ClientOrderID:        "submitted-client",
+				ClientID:             "streamed-client",
+				Type:                 order.Limit,
+				Side:                 order.Buy,
+				TimeInForce:          order.ImmediateOrCancel,
+				Status:               order.PartiallyFilled,
+				AssetType:            asset.Spot,
+				Pair:                 btcusdPair.Format(currency.PairFormat{Delimiter: "/"}),
+				Price:                5,
+				Amount:               4,
+				QuoteAmount:          20,
+				TriggerPrice:         7,
+				Leverage:             2,
+				ExecutedAmount:       1,
+				AverageExecutedPrice: 5,
+				Cost:                 5,
+				Fee:                  0.01,
+				Trades:               []order.TradeHistory{{TID: "streamed-trade", Price: 5, Amount: 1}},
+				Date:                 streamedAt,
+				LastUpdated:          streamedAt,
+			},
+			active: 1,
+		},
+		{
+			name: "filled order without its side or amounts",
+			streamed: &order.Detail{
+				Exchange:             testExchange,
+				OrderID:              "1930",
+				Type:                 order.Limit,
+				Status:               order.Filled,
+				AssetType:            asset.Spot,
+				Pair:                 btcusdPair,
+				ExecutedAmount:       2,
+				AverageExecutedPrice: 3,
+				Cost:                 6,
+				Fee:                  0.1,
+				Trades:               []order.TradeHistory{{TID: "streamed-fill", Price: 3, Amount: 2}},
+				Date:                 streamedAt,
+				LastUpdated:          streamedAt,
+			},
+			exp: &order.Detail{
+				Exchange:             testExchange,
+				OrderID:              "1930",
+				ClientOrderID:        "submitted-client",
+				ClientID:             "gct",
+				Type:                 order.Limit,
+				Side:                 order.Sell,
+				TimeInForce:          order.GoodTillCancel,
+				Status:               order.Filled,
+				AssetType:            asset.Spot,
+				Pair:                 btcusdPair,
+				Price:                3,
+				Amount:               2,
+				QuoteAmount:          6,
+				TriggerPrice:         1,
+				Leverage:             1,
+				ExecutedAmount:       2,
+				AverageExecutedPrice: 3,
+				Cost:                 6,
+				Fee:                  0.1,
+				Trades:               []order.TradeHistory{{TID: "streamed-fill", Price: 3, Amount: 2}},
+				Date:                 streamedAt,
+				LastUpdated:          streamedAt,
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			m := OrdersSetup(t)
+			require.NoError(t, m.orderStore.add(tc.streamed), "add must not error")
+			resp, err := m.processSubmittedOrder(submitted)
+			require.NoError(t, err, "processSubmittedOrder must not error")
+			stored, err := m.orderStore.getByExchangeAndID(testExchange, "1930")
+			require.NoError(t, err, "getByExchangeAndID must not error")
+			tc.exp.InternalOrderID = stored.InternalOrderID
+			assert.Equal(t, tc.exp, stored, "the stored order should take only the submitted values the stream left unset")
+			assert.Equal(t, tc.exp, resp.Detail, "processSubmittedOrder should return the stored order")
+			assert.Len(t, m.orderStore.getActiveOrders(nil), tc.active, "the order should be active only while it is open")
+			resp.Detail.Price = 99
+			after, err := m.orderStore.getByExchangeAndID(testExchange, "1930")
+			require.NoError(t, err, "reading the stored order after changing the response must not error")
+			assert.Equal(t, tc.exp, after, "changing the returned copy should leave the stored order unchanged")
+		})
+	}
+}
+
+// TestSubmitOrderStoredForAnotherAssetOrPair ensures that a submission whose ID a stored order of another asset or pair
+// has, as venues number some orders alike and streams can label an order with another asset, leaves that order as it is
+// stored and returns it, as the order manager did before submissions filled in streamed orders
+func TestSubmitOrderStoredForAnotherAssetOrPair(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		asset asset.Item
+		pair  currency.Pair
+	}{
+		{name: "another asset", asset: asset.Futures, pair: btcusdPair},
+		{name: "another pair", asset: asset.Spot, pair: currency.NewPair(currency.ETH, currency.USD)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			m := OrdersSetup(t)
+			streamed := &order.Detail{Exchange: testExchange, OrderID: "77", ClientOrderID: "spot-list", Type: order.OCO, Status: order.Active, AssetType: asset.Spot, Pair: btcusdPair}
+			require.NoError(t, m.orderStore.add(streamed.CopyToPointer()), "add must not error")
+			resp, err := m.processSubmittedOrder(&order.SubmitResponse{Exchange: testExchange, OrderID: "77", ClientOrderID: "submitted", Type: order.Limit, Side: order.Sell, AssetType: tc.asset, Pair: tc.pair, Price: 3, Amount: 2, Status: order.New})
+			require.NoError(t, err, "processSubmittedOrder must not error")
+			stored, err := m.orderStore.getByExchangeAndID(testExchange, "77")
+			require.NoError(t, err, "getByExchangeAndID must not error")
+			streamed.InternalOrderID = stored.InternalOrderID
+			assert.Equal(t, streamed, stored, "the stored order should be left as it is")
+			assert.Equal(t, streamed, resp.Detail, "processSubmittedOrder should return the stored order")
+			resp.Detail.Price = 99
+			after, err := m.orderStore.getByExchangeAndID(testExchange, "77")
+			require.NoError(t, err, "reading the stored order after changing the response must not error")
+			assert.Equal(t, streamed, after, "changing the returned copy should leave the stored order unchanged")
+		})
+	}
+}
+
+// TestFillSubmittedConcurrently ensures that a submission fills the stored order under the store's lock, as updates do
+func TestFillSubmittedConcurrently(t *testing.T) {
+	m := OrdersSetup(t)
+	require.NoError(t, m.orderStore.add(&order.Detail{Exchange: testExchange, OrderID: "1930", Status: order.Active, AssetType: asset.Spot, Pair: btcusdPair}), "add must not error")
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		<-start
+		// Each update changes the price, so it writes the stored order the submission reads
+		for i := range 100 {
+			assert.NoError(t, m.orderStore.updateExisting(&order.Detail{Exchange: testExchange, OrderID: "1930", Status: order.Active, AssetType: asset.Spot, Pair: btcusdPair, Side: order.Buy, Price: float64(i + 1), Amount: 2}), "updateExisting should not error")
+		}
+	})
+	wg.Go(func() {
+		<-start
+		for range 100 {
+			assert.NotNil(t, m.orderStore.fillSubmitted(&order.Detail{Exchange: testExchange, OrderID: "1930", AssetType: asset.Spot, Pair: btcusdPair, Type: order.Limit, Side: order.Buy, Price: 3, Amount: 2}), "fillSubmitted should find the stored order")
+		}
+	})
+	close(start)
+	wg.Wait()
+}
+
+// TestProcessSubmittedOrderStreamedFirst ensures that a submission filling in an order a websocket update stored first
+// leaves the order the websocket handler added alone, as the handler reads it after storing it
+func TestProcessSubmittedOrderStreamedFirst(t *testing.T) {
+	m := OrdersSetup(t)
+	wr, err := setupWebsocketRoutineManager(m.orderStore.exchangeManager, m, &SyncManager{}, &currency.Config{CurrencyPairFormat: &currency.PairFormat{}}, false)
+	require.NoError(t, err, "setupWebsocketRoutineManager must not error")
+	wr.state.Store(readyState)
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		streamed := &order.Detail{Exchange: testExchange, OrderID: "1930", Type: order.OCO, Status: order.Active, AssetType: asset.Spot, Pair: btcusdPair}
+		assert.NoError(t, wr.websocketDataHandler(testExchange, streamed), "websocketDataHandler should not error")
+	})
+	wg.Go(func() {
+		// The submission returns once the stream has stored the order, whether or not the handler has finished with it
+		if !assert.Eventually(t, func() bool {
+			return m.orderStore.exists(&order.Detail{Exchange: testExchange, OrderID: "1930"})
+		}, 5*time.Second, time.Millisecond, "the websocket handler should store the order") {
+			return
+		}
+		_, err := m.processSubmittedOrder(&order.SubmitResponse{Exchange: testExchange, OrderID: "1930", Type: order.OCO, Side: order.Sell, AssetType: asset.Spot, Pair: btcusdPair, Price: 3, Amount: 2, Status: order.Active})
+		assert.NoError(t, err, "processSubmittedOrder should not error")
+	})
+	wg.Wait()
+}
+
 func TestOrderManager_Modify(t *testing.T) {
 	pair := currency.Pair{
 		Base:  currency.NewCode("XXXXX"),
