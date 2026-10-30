@@ -23,7 +23,7 @@ func TestWSPushSchemasDecode(t *testing.T) {
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup must not error")
 
-	testexch.FixtureToDataHandler(t, "testdata/wsPushSchemas.json", func(ctx context.Context, b []byte) error {
+	testexch.FixtureToDataHandler(t, "testdata/wsPushSchemas.jsonl", func(ctx context.Context, b []byte) error {
 		return e.wsHandleData(ctx, nil, b)
 	})
 
