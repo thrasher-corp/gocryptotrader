@@ -28,6 +28,7 @@ type Provider struct {
 // BotOverrides defines a bot overriding factor for quick running currency
 // subsystems
 type BotOverrides struct {
+	AllRatesToday     bool
 	Coinmarketcap     bool
 	CurrencyConverter bool
 	CurrencyLayer     bool
@@ -42,6 +43,7 @@ type CoinmarketcapSettings coinmarketcap.Settings
 
 // SystemsSettings defines incoming system settings
 type SystemsSettings struct {
+	AllRatesToday     FXSettings
 	Coinmarketcap     coinmarketcap.Settings
 	Currencyconverter FXSettings
 	Currencylayer     FXSettings

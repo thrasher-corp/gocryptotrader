@@ -17,6 +17,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 ## Current Features for forexprovider
 
++ AllRatesToday support
 + Currency Converter API support
 + Currency Layer support
 + Exchange Rates support
