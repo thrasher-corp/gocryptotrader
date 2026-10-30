@@ -57,8 +57,10 @@ func newTestExchange(tb testing.TB) *Exchange {
 }
 
 // websocketTestExchange connects, on first use, the websocket of the exchange every live test shares, so the tests do
-// not open a connection each
+// not open a connection each; it subscribes to nothing, as they use only the trade connection and Connect returns an
+// error for a default subscription to an enabled contract that has expired
 var websocketTestExchange = sync.OnceValues(func() (*Exchange, error) {
+	e.Features.Subscriptions = subscription.List{}
 	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	return e, e.Websocket.Connect(context.Background())
 })

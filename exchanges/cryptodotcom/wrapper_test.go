@@ -240,12 +240,17 @@ func TestUpdateTickers(t *testing.T) {
 	require.ErrorIs(t, ex.UpdateTickers(t.Context(), asset.Options), asset.ErrNotSupported, "UpdateTickers must refuse an unsupported asset")
 	achUSD := currency.NewPairWithDelimiter("ACH", "USD", currency.UnderscoreDelimiter)
 	shazPerpetual := currency.NewPairWithDelimiter("SHAZUSD", "PERP", currency.DashDelimiter)
-	if mockTests {
-		// The recorded tickers of every instrument hold ACH_USD's and SHAZUSD-PERP's, so those pairs are the ones enabled
-		for a, p := range map[asset.Item]currency.Pair{asset.Spot: achUSD, asset.PerpetualSwap: shazPerpetual} {
-			require.NoErrorf(t, ex.CurrencyPairs.StorePairs(a, currency.Pairs{p}, false), "StorePairs must store %s's available pair", a)
-			require.NoErrorf(t, ex.CurrencyPairs.StorePairs(a, currency.Pairs{p}, true), "StorePairs must store %s's enabled pair", a)
+	// The recorded tickers of every instrument hold ACH_USD's and SHAZUSD-PERP's, so those pairs are the ones enabled; live,
+	// each asset's is one Crypto.com still trades, as it sends no ticker for a futures contract once that expires
+	enabled := map[asset.Item]currency.Pair{asset.Spot: achUSD, asset.PerpetualSwap: shazPerpetual}
+	if !mockTests {
+		for _, a := range ex.GetAssetTypes(true) {
+			enabled[a] = testPair(t, a)
 		}
+	}
+	for a, p := range enabled {
+		require.NoErrorf(t, ex.CurrencyPairs.StorePairs(a, currency.Pairs{p}, false), "StorePairs must store %s's available pair", a)
+		require.NoErrorf(t, ex.CurrencyPairs.StorePairs(a, currency.Pairs{p}, true), "StorePairs must store %s's enabled pair", a)
 	}
 	for _, a := range ex.GetAssetTypes(true) {
 		require.NoErrorf(t, ex.UpdateTickers(t.Context(), a), "UpdateTickers must not error for %s", a)

@@ -594,3 +594,53 @@ func TestUnixNanoParam(t *testing.T) {
 		assert.Equalf(t, tc.exp, got, "unixNanoParam should give %s in Unix nanoseconds", tc.t)
 	}
 }
+
+// TestUnrecordedResponseFields decodes the response fields the recorded responses leave zero or out, each on its own, so
+// that a wrong JSON tag on one fails a test
+func TestUnrecordedResponseFields(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		data string
+		got  any
+		exp  any
+	}{
+		{`{"suspended":true}`, new(Account), &Account{Suspended: true}},
+		{`{"terminated":true}`, new(Account), &Account{Terminated: true}},
+		{`{"is_liquidating":true}`, new(BalanceSummary), &BalanceSummary{IsLiquidating: true}},
+		{`{"terminatable":true}`, new(BalanceSummary), &BalanceSummary{Terminatable: true}},
+		{`{"ok":"true"}`, new(FiatBankAccountResponse), &FiatBankAccountResponse{OK: "true"}},
+		{`{"code":"0"}`, new(FiatBankAccountResponse), &FiatBankAccountResponse{Code: "0"}},
+		{`{"message":"success"}`, new(FiatBankAccountResponse), &FiatBankAccountResponse{Message: "success"}},
+		{`{"bank_city":"West Reading"}`, new(FiatBankAccountResponse), &FiatBankAccountResponse{BankCity: "West Reading"}},
+		{`{"bank_account_holder_name":"Smoke Test Co"}`, new(FiatBankAccountResponse), &FiatBankAccountResponse{BankAccountHolderName: "Smoke Test Co"}},
+		{`{"account_type":"business"}`, new(FiatBankAccountResponse), &FiatBankAccountResponse{AccountType: "business"}},
+		{`{"withdrawal_payment_networks":["usd_cubix"]}`, new(FiatBankAccountResponse), &FiatBankAccountResponse{WithdrawalPaymentNetworks: []string{PaymentNetworkUSDCubix}}},
+		{`{"intermediate_bank_options":[{"bank_name":"Example Bank"}]}`, new(FiatBankAccountDetails), &FiatBankAccountDetails{IntermediateBankOptions: []json.RawMessage{json.RawMessage(`{"bank_name":"Example Bank"}`)}}},
+		{`{"page":"3"}`, new(FiatTransactionHistoryResponse), &FiatTransactionHistoryResponse{Page: 3}},
+		{`{"currency_transactions_per_month":200}`, new(FiatTransactionQuotaResponse), &FiatTransactionQuotaResponse{CurrencyTransactionsPerMonth: new(types.Number(200))}},
+		{`{"currency_remaining_transactions_monthly_count":189}`, new(FiatTransactionQuotaResponse), &FiatTransactionQuotaResponse{CurrencyRemainingTransactionsMonthlyCount: new(types.Number(189))}},
+		{`{"default_collateral_cap":"5000000.0"}`, new(RiskParametersResponse), &RiskParametersResponse{DefaultCollateralCap: 5000000}},
+		{`{"max_product_leverage_for_futures":"25.0"}`, new(BaseCurrencyRiskConfig), &BaseCurrencyRiskConfig{MaxProductLeverageForFutures: 25}},
+		{`{"beta_product":true}`, new(InstrumentResponse), &InstrumentResponse{BetaProduct: true}},
+		{`{"tradable":true}`, new(DepositInstrumentResponse), &DepositInstrumentResponse{Tradable: true}},
+		{`{"expiry_timestamp_ms":1793347200000}`, new(DepositInstrumentResponse), &DepositInstrumentResponse{ExpiryTime: types.Time(time.UnixMilli(1793347200000))}},
+		{`{"beta_product":true}`, new(DepositInstrumentResponse), &DepositInstrumentResponse{BetaProduct: true}},
+		{`{"margin_buy_enabled":true}`, new(DepositInstrumentResponse), &DepositInstrumentResponse{MarginBuyEnabled: true}},
+		{`{"margin_sell_enabled":true}`, new(DepositInstrumentResponse), &DepositInstrumentResponse{MarginSellEnabled: true}},
+		{`{"inst_id":501}`, new(DepositInstrumentResponse), &DepositInstrumentResponse{InstrumentID: 501}},
+		{`{"firm_quote":true}`, new(OTCQuoteRequestResponse), &OTCQuoteRequestResponse{FirmQuote: true}},
+		{`{"notional":"1000"}`, new(OTCQuoteLeg), &OTCQuoteLeg{Notional: 1000}},
+		{`{"notional":"1000"}`, new(OTCDealLeg), &OTCDealLeg{Notional: preciseNumber("1000")}},
+		{`{"out_of_stock":true}`, new(StakingInstrumentResponse), &StakingInstrumentResponse{OutOfStock: true}},
+		{`{"block_unstake":true}`, new(StakingInstrumentResponse), &StakingInstrumentResponse{BlockUnstake: true}},
+		{`{"pre_stake_charge_enable":true}`, new(StakingInstrumentResponse), &StakingInstrumentResponse{PreStakeChargeEnabled: true}},
+		{`{"pre_stake_charge_rate_in_bps":"50"}`, new(StakingInstrumentResponse), &StakingInstrumentResponse{PreStakeChargeRateBasisPoints: 50}},
+		{`{"is_restaked":true}`, new(StakingInstrumentResponse), &StakingInstrumentResponse{IsRestaked: true}},
+		{`{"match_index":"1"}`, new(UserTradeResponse), &UserTradeResponse{MatchIndex: 1}},
+		{`{"isolation_id":"6530219466236720402"}`, new(UserTradeResponse), &UserTradeResponse{IsolationID: "6530219466236720402"}},
+		{`{"isolation_type":"ISOLATED_MARGIN"}`, new(UserTradeResponse), &UserTradeResponse{IsolationType: IsolationTypeIsolatedMargin}},
+	} {
+		require.NoErrorf(t, json.Unmarshal([]byte(tc.data), tc.got), "Unmarshal must not error for %T %s", tc.exp, tc.data)
+		assert.Equalf(t, tc.exp, tc.got, "Unmarshal should decode %T %s", tc.exp, tc.data)
+	}
+}
