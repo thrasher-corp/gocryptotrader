@@ -190,3 +190,31 @@ func TestRateLimitsAreSharedAcrossInstances(t *testing.T) {
 		assert.Truef(t, limiter.SharesBudgetWith(secondLimits[epl]), "endpoint %d should draw on the same budget in both instances", epl)
 	}
 }
+
+// TestFuturesRateLimitsMatchDocumentation pins the futures budgets to the documentation, which gives each endpoint a
+// budget of its own rather than a share of a weighted pool
+func TestFuturesRateLimitsMatchDocumentation(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		epl  request.EndpointLimit
+		rate rate.Limit
+	}{
+		{"server time at 20 per 2 seconds", futuresServerTimeEPL, 10},
+		{"contracts at 10 per 2 seconds", futuresContractsEPL, 5},
+		{"order book at 10 per 2 seconds", futuresOrderbookEPL, 5},
+		{"tickers at 10 per 2 seconds", futuresTickersEPL, 5},
+		{"open positions at 20 per 2 seconds", futuresOpenPositionsEPL, 10},
+		{"leverage changes at 10 per 10 seconds", futuresChangeLeverageEPL, 1},
+		{"order placement at 4 per 2 seconds", futuresPlaceOrderEPL, 2},
+		{"order queries by ID at 5 per 2 seconds", futuresOrdersByIDEPL, 2.5},
+		{"take-profit and stop-loss placement at 5 per 2 seconds", futuresPlaceTakeProfitStopLossEPL, 2.5},
+		{"cancellations at 20 per 2 seconds", futuresCancelOrdersEPL, 10},
+	} {
+		limiter, ok := rateLimits[tc.epl]
+		require.Truef(t, ok, "%s must have a rate limiter", tc.name)
+		assert.Equalf(t, tc.rate, limiter.Limit(), "%s should be limited to %v requests per second", tc.name, tc.rate)
+	}
+	assert.False(t, rateLimits[futuresPlaceOrderEPL].SharesBudgetWith(rateLimits[futuresBatchPlaceOrdersEPL]), "each futures endpoint should be limited on its own")
+	assert.False(t, rateLimits[futuresServerTimeEPL].SharesBudgetWith(rateLimits[systemTimeEPL]), "the futures API should be limited apart from the spot IP pool")
+}

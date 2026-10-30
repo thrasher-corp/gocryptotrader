@@ -1127,7 +1127,7 @@ func TestGenerateSubscriptionsExpandsConfiguredList(t *testing.T) {
 	t.Parallel()
 	ex := newSignedTestExchange(t, http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
 	ex.Features.Subscriptions = subscription.List{}
-	subs, err := ex.generateSubscriptions()
+	subs, err := ex.generateSubscriptions(nil)
 	require.NoError(t, err, "generateSubscriptions must not error")
 	assert.Empty(t, subs, "an empty configured list should expand to no subscriptions, not the hardcoded defaults")
 }
@@ -1622,20 +1622,28 @@ func TestGenerateSubscriptionsSplitsPrivateChannels(t *testing.T) {
 	t.Parallel()
 	ex := newSignedTestExchange(t, http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	all, err := ex.generateSubscriptions()
+	all, err := ex.generateSubscriptions(nil)
 	require.NoError(t, err, "generateSubscriptions must not error")
 	public, err := ex.generatePublicSubscriptions()
 	require.NoError(t, err, "generatePublicSubscriptions must not error")
 	private, err := ex.generatePrivateSubscriptions()
 	require.NoError(t, err, "generatePrivateSubscriptions must not error")
+	futuresPublic, err := ex.generateFuturesPublicSubscriptions()
+	require.NoError(t, err, "generateFuturesPublicSubscriptions must not error")
+	futuresPrivate, err := ex.generateFuturesPrivateSubscriptions()
+	require.NoError(t, err, "generateFuturesPrivateSubscriptions must not error")
 	require.NotEmpty(t, public, "the public channels must be subscribed")
 	require.NotEmpty(t, private, "the private channels must be subscribed")
-	assert.Len(t, all, len(public)+len(private), "every channel should be on one connection or the other")
+	require.NotEmpty(t, futuresPublic, "the public futures channels must be subscribed")
+	require.NotEmpty(t, futuresPrivate, "the private futures channels must be subscribed")
+	assert.Len(t, all, len(public)+len(private)+len(futuresPublic)+len(futuresPrivate), "every channel should be on one connection")
 	for _, s := range public {
 		assert.Falsef(t, isPrivateChannel(s), "%s should be public to go on a public connection", s.QualifiedChannel)
+		assert.Equalf(t, asset.Spot, s.Asset, "%s should be spot to go on a spot connection", s.QualifiedChannel)
 	}
 	for _, s := range private {
 		assert.Truef(t, isPrivateChannel(s), "%s should be private to go on the private connection", s.QualifiedChannel)
+		assert.Equalf(t, asset.Spot, s.Asset, "%s should be spot to go on a spot connection", s.QualifiedChannel)
 	}
 
 	// A private channel is only served with the key, however it is configured: by its generic name or the venue's,
@@ -1738,7 +1746,7 @@ func TestWebsocketTakesOneListenKeyForThePrivateChannels(t *testing.T) {
 		assert.NoError(t, ex.Websocket.Disable(), "Disable should not error")
 	})
 
-	subs, err := ex.generateSubscriptions()
+	subs, err := ex.generateSubscriptions(nil)
 	require.NoError(t, err, "generateSubscriptions must not error")
 	want := make(map[string][]bool, len(subs))
 	for _, s := range subs {

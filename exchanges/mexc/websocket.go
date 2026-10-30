@@ -220,11 +220,44 @@ var defaultSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.MyTradesChannel, Authenticated: true},
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.MyOrdersChannel, Authenticated: true},
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.MyAccountChannel, Authenticated: true},
+
+	{Enabled: true, Asset: asset.Futures, Channel: subscription.TickerChannel},
+	{Enabled: true, Asset: asset.Futures, Channel: subscription.OrderbookChannel, Levels: futuresDefaultDepthLevels},
+	{Enabled: true, Asset: asset.Futures, Channel: subscription.AllTradesChannel},
+	{Enabled: true, Asset: asset.Futures, Channel: subscription.CandlesChannel, Interval: kline.FifteenMin},
+	{Enabled: true, Asset: asset.Futures, Channel: subscription.MyOrdersChannel, Authenticated: true},
+	{Enabled: true, Asset: asset.Futures, Channel: subscription.MyTradesChannel, Authenticated: true},
+	{Enabled: true, Asset: asset.Futures, Channel: subscription.MyAccountChannel, Authenticated: true},
+	{Enabled: true, Asset: asset.Futures, Channel: FuturesPositionsChannel, Authenticated: true},
 }
 
-// generateSubscriptions returns a list of subscriptions from the configured subscriptions feature
-func (e *Exchange) generateSubscriptions() (subscription.List, error) {
-	return e.Features.Subscriptions.ExpandTemplates(e)
+// generateSubscriptions returns the configured subscriptions, each expanded on its own so that one which can't be, such
+// as a futures channel or interval the venue doesn't serve, leaves the others. Why one failed is returned with
+// websocket.ErrSubscriptionPartial when reports names it, or for every one when reports is nil, so that one connection
+// reports each failure
+func (e *Exchange) generateSubscriptions(reports func(*subscription.Subscription) bool) (subscription.List, error) {
+	var subs subscription.List
+	var errs error
+	for _, s := range e.Features.Subscriptions {
+		expanded, err := subscription.List{s}.ExpandTemplates(e)
+		if err != nil {
+			if reports == nil || reports(s) {
+				errs = common.AppendError(errs, err)
+			}
+			continue
+		}
+		subs = append(subs, expanded...)
+	}
+	if errs != nil {
+		return subs, fmt.Errorf("%w: %w", websocket.ErrSubscriptionPartial, errs)
+	}
+	return subs, nil
+}
+
+// isSpotSubscription reports whether a configured subscription is expanded with the spot template, as every one but a
+// futures one is, one for every asset included, so that the spot connections report its failure to expand
+func isSpotSubscription(s *subscription.Subscription) bool {
+	return s.Asset != asset.Futures
 }
 
 // isPrivateChannel reports whether an expanded subscription is to a private channel, which is only served
@@ -238,24 +271,30 @@ func isPrivateChannel(s *subscription.Subscription) bool {
 	return false
 }
 
-// generatePublicSubscriptions returns the configured subscriptions to the public channels
+// generatePublicSubscriptions returns the configured subscriptions to the public spot channels. Of the spot subscriptions
+// which can't be expanded it reports those without the Authenticated flag; the private connection reports the others,
+// which are only expanded when it can be used
 func (e *Exchange) generatePublicSubscriptions() (subscription.List, error) {
-	subs, err := e.generateSubscriptions()
-	return slices.DeleteFunc(subs, isPrivateChannel), err
+	subs, err := e.generateSubscriptions(func(s *subscription.Subscription) bool { return isSpotSubscription(s) && !s.Authenticated })
+	return slices.DeleteFunc(subs, func(s *subscription.Subscription) bool { return s.Asset != asset.Spot || isPrivateChannel(s) }), err
 }
 
-// generatePrivateSubscriptions returns the configured subscriptions to the private channels, none unless the
-// authenticated websocket can be used
+// generatePrivateSubscriptions returns the configured subscriptions to the private spot channels, none unless the
+// authenticated websocket can be used, and reports the spot subscriptions with the Authenticated flag which can't be
+// expanded
 func (e *Exchange) generatePrivateSubscriptions() (subscription.List, error) {
 	if !e.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, nil
 	}
-	subs, err := e.generateSubscriptions()
-	return slices.DeleteFunc(subs, func(s *subscription.Subscription) bool { return !isPrivateChannel(s) }), err
+	subs, err := e.generateSubscriptions(func(s *subscription.Subscription) bool { return isSpotSubscription(s) && s.Authenticated })
+	return slices.DeleteFunc(subs, func(s *subscription.Subscription) bool { return s.Asset != asset.Spot || !isPrivateChannel(s) }), err
 }
 
 // GetSubscriptionTemplate returns a subscription channel template
-func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
+func (e *Exchange) GetSubscriptionTemplate(s *subscription.Subscription) (*template.Template, error) {
+	if s != nil && s.Asset == asset.Futures {
+		return e.futuresSubscriptionTemplate()
+	}
 	return template.New("master.tmpl").
 		Funcs(template.FuncMap{
 			"channelName":       channelName,

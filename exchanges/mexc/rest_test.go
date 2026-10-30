@@ -2,14 +2,21 @@ package mexc
 
 import (
 	"context"
+	"encoding/hex"
+	"io"
 	"math"
+	"net/http"
+	"net/url"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/crypto"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
@@ -18,8 +25,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
 // Please supply your own keys here to do authenticated endpoint testing
@@ -35,11 +46,14 @@ var (
 
 	assetsAndErrors = map[asset.Item]error{
 		asset.Spot:    nil,
-		asset.Futures: asset.ErrNotSupported,
+		asset.Futures: nil,
 		asset.Options: asset.ErrNotSupported,
 	}
 
 	spotTradablePair currency.Pair
+
+	futuresTradablePair = currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter)
+	futuresInversePair  = currency.NewPairWithDelimiter("BTC", "USD", currency.UnderscoreDelimiter)
 )
 
 // recentWindow returns a query window that stays inside the history endpoints' limits. Several of
@@ -83,7 +97,29 @@ func (e *Exchange) setEnabledPairs(spotTradablePair currency.Pair) error {
 	if err := e.CurrencyPairs.StorePairs(asset.Spot, []currency.Pair{spotTradablePair}, false); err != nil {
 		return err
 	}
-	return e.CurrencyPairs.StorePairs(asset.Spot, []currency.Pair{spotTradablePair}, true)
+	if err := e.CurrencyPairs.StorePairs(asset.Spot, []currency.Pair{spotTradablePair}, true); err != nil {
+		return err
+	}
+	futuresPairs := currency.Pairs{futuresTradablePair, futuresInversePair}
+	if err := e.CurrencyPairs.StorePairs(asset.Futures, futuresPairs, false); err != nil {
+		return err
+	}
+	return e.CurrencyPairs.StorePairs(asset.Futures, futuresPairs, true)
+}
+
+// newIsolatedTestExchange returns an exchange named for the test, serving the recorded responses under the mock. The
+// tickers and books it stores are keyed by its name, so a test reading them back cannot pass on what another test
+// stored
+func newIsolatedTestExchange(t *testing.T) *Exchange {
+	t.Helper()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.Name = t.Name()
+	if mockTests {
+		require.NoError(t, testexch.MockHTTPInstance(ex), "MockHTTPInstance must not error")
+	}
+	require.NoError(t, ex.setEnabledPairs(spotTradablePair), "setEnabledPairs must not error")
+	return ex
 }
 
 func TestGetSymbols(t *testing.T) {
@@ -359,7 +395,7 @@ func TestUniversalTransfer(t *testing.T) {
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 	_, err = e.SubAccountUniversalTransfer(t.Context(), "master@test.com", "subaccount@test.com", asset.Spot, asset.Empty, currency.USDT, 1234.)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
-	_, err = e.SubAccountUniversalTransfer(t.Context(), "master@test.com", "subaccount@test.com", asset.Spot, asset.Futures, currency.USDT, 1234.)
+	_, err = e.SubAccountUniversalTransfer(t.Context(), "master@test.com", "subaccount@test.com", asset.Spot, asset.Options, currency.USDT, 1234.)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 	_, err = e.SubAccountUniversalTransfer(t.Context(), "master@test.com", "subaccount@test.com", asset.Spot, asset.Spot, currency.EMPTYCODE, 1234.)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
@@ -378,7 +414,7 @@ func TestGetSubAccountUniversalTransferHistory(t *testing.T) {
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 	_, err = e.GetSubAccountUniversalTransferHistory(t.Context(), "master@test.com", "subaccount@test.com", asset.Spot, asset.Empty, time.Now().Add(-time.Hour*50), time.Now().Add(-time.Hour*20), 10, 20)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
-	_, err = e.GetSubAccountUniversalTransferHistory(t.Context(), "master@test.com", "subaccount@test.com", asset.Spot, asset.Futures, time.Now().Add(-time.Hour*50), time.Now().Add(-time.Hour*20), 10, 20)
+	_, err = e.GetSubAccountUniversalTransferHistory(t.Context(), "master@test.com", "subaccount@test.com", asset.Spot, asset.Options, time.Now().Add(-time.Hour*50), time.Now().Add(-time.Hour*20), 10, 20)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -1208,6 +1244,16 @@ func TestFetchTradablePairs(t *testing.T) {
 			assert.False(t, result.Contains(currency.NewBTCUSDT(), false),
 				"a symbol the venue does not allow for spot trading should be excluded from the tradable pairs")
 		}
+		if k == asset.Futures {
+			if mockTests {
+				// HOOKED_USDT is listed with apiAllowed:false in the fixture: it trades on the website only
+				exp := currency.Pairs{futuresTradablePair, currency.NewPairWithDelimiter("ETH", "USDT", currency.UnderscoreDelimiter), futuresInversePair}
+				assert.Equal(t, exp, result, "the contracts open to API trading should be tradable")
+			} else {
+				assert.True(t, result.Contains(futuresTradablePair, true), "a linear contract should be tradable")
+				assert.True(t, result.Contains(futuresInversePair, true), "an inverse contract should be tradable")
+			}
+		}
 	}
 }
 
@@ -1223,8 +1269,61 @@ func TestUpdateTicker(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 
-	_, err = e.UpdateTicker(t.Context(), spotTradablePair, asset.Futures)
+	_, err = e.UpdateTicker(t.Context(), spotTradablePair, asset.Options)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
+
+	ex := newIsolatedTestExchange(t)
+	// A linear contract's base volume and open interest are its contracts times their size; an inverse contract's base
+	// volume is its turnover, and its quote volume and open interest are its contracts times their size
+	exp := map[currency.Pair]*ticker.Price{
+		futuresTradablePair: {
+			Last:         80563,
+			High:         82032.7,
+			Low:          80409.4,
+			Bid:          80563,
+			Ask:          80563.1,
+			BaseVolume:   36384.836500000005,
+			QuoteVolume:  2955827156.60217,
+			OpenInterest: 48989.418000000005,
+			MarkPrice:    80564.6,
+			IndexPrice:   80602.6,
+			Pair:         futuresTradablePair,
+			ExchangeName: ex.Name,
+			AssetType:    asset.Futures,
+			LastUpdated:  time.UnixMilli(1792843033884),
+		},
+		futuresInversePair: {
+			Last:         80467.9,
+			High:         81923.7,
+			Low:          80331.9,
+			Bid:          80467.8,
+			Ask:          80467.9,
+			BaseVolume:   134.1655007433945,
+			QuoteVolume:  10871000,
+			OpenInterest: 172493300,
+			MarkPrice:    80468,
+			IndexPrice:   80499.4,
+			Pair:         futuresInversePair,
+			ExchangeName: ex.Name,
+			AssetType:    asset.Futures,
+			LastUpdated:  time.UnixMilli(1792843034088),
+		},
+	}
+	for _, p := range []currency.Pair{futuresTradablePair, futuresInversePair} {
+		result, err = ex.UpdateTicker(t.Context(), p, asset.Futures)
+		require.NoErrorf(t, err, "UpdateTicker must not error for %s", p)
+		if mockTests {
+			assert.Equalf(t, exp[p], result, "the %s ticker should be mapped", p)
+			continue
+		}
+		assert.Truef(t, result.Pair.Equal(p), "the %s ticker should carry its pair", p)
+		assert.Positivef(t, result.Last, "the %s ticker should carry the last price", p)
+		assert.Positivef(t, result.BaseVolume, "the %s ticker should carry its base volume", p)
+		assert.Positivef(t, result.QuoteVolume, "the %s ticker should carry its quote volume", p)
+		assert.Positivef(t, result.OpenInterest, "the %s ticker should carry its open interest", p)
+		assert.Positivef(t, result.MarkPrice, "the %s ticker should carry its mark price", p)
+		assert.Positivef(t, result.IndexPrice, "the %s ticker should carry its index price", p)
+	}
 }
 
 func TestUpdateTickers(t *testing.T) {
@@ -1232,6 +1331,52 @@ func TestUpdateTickers(t *testing.T) {
 	for k, v := range assetsAndErrors {
 		err := e.UpdateTickers(t.Context(), k)
 		require.ErrorIs(t, err, v)
+	}
+	ex := newIsolatedTestExchange(t)
+	require.NoError(t, ex.UpdateTickers(t.Context(), asset.Futures), "UpdateTickers must not error for futures")
+	exp := map[currency.Pair]*ticker.Price{
+		futuresTradablePair: {
+			Last:         80563,
+			High:         82032.7,
+			Low:          80409.4,
+			Bid:          80563,
+			Ask:          80563.1,
+			BaseVolume:   36395.3187,
+			QuoteVolume:  2956671651.56431,
+			OpenInterest: 49021.712400000004,
+			MarkPrice:    80564.1,
+			IndexPrice:   80602.7,
+			Pair:         futuresTradablePair,
+			ExchangeName: ex.Name,
+			AssetType:    asset.Futures,
+			LastUpdated:  time.UnixMilli(1792843113905),
+		},
+		futuresInversePair: {
+			Last:         80467.8,
+			High:         81923.7,
+			Low:          80331.9,
+			Bid:          80467.8,
+			Ask:          80467.9,
+			BaseVolume:   134.1779280668535,
+			QuoteVolume:  10872000,
+			OpenInterest: 172493300,
+			MarkPrice:    80467.8,
+			IndexPrice:   80494,
+			Pair:         futuresInversePair,
+			ExchangeName: ex.Name,
+			AssetType:    asset.Futures,
+			LastUpdated:  time.UnixMilli(1792843114110),
+		},
+	}
+	for _, p := range []currency.Pair{futuresTradablePair, futuresInversePair} {
+		result, err := ticker.GetTicker(ex.Name, p, asset.Futures)
+		require.NoErrorf(t, err, "GetTicker must not error for %s", p)
+		if mockTests {
+			assert.Equalf(t, exp[p], result, "the %s ticker should be stored", p)
+			continue
+		}
+		assert.Positivef(t, result.Last, "the %s ticker should carry the last price", p)
+		assert.Positivef(t, result.OpenInterest, "the %s ticker should carry its open interest", p)
 	}
 }
 
@@ -1250,8 +1395,46 @@ func TestUpdateOrderbook(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 
-	_, err = e.UpdateOrderbook(t.Context(), spotTradablePair, asset.Futures)
+	_, err = e.UpdateOrderbook(t.Context(), spotTradablePair, asset.Options)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
+
+	ex := newIsolatedTestExchange(t)
+	result, err = ex.UpdateOrderbook(t.Context(), futuresTradablePair, asset.Futures)
+	require.NoError(t, err, "UpdateOrderbook must not error for futures")
+	if !mockTests {
+		require.NotEmpty(t, result.Bids, "the futures book must have bids")
+		require.NotEmpty(t, result.Asks, "the futures book must have asks")
+		assert.Positive(t, result.LastUpdateID, "the futures book should carry the venue's version")
+		assert.False(t, result.LastUpdated.IsZero(), "the futures book should carry the venue's time")
+		return
+	}
+	assert.False(t, result.InsertedAt.IsZero(), "the futures book should record when it was loaded")
+	result.InsertedAt = time.Time{}
+	// The book's amounts are in contracts, and it carries the venue's version and time
+	exp := &orderbook.Book{
+		Bids: orderbook.Levels{
+			{Price: 80563.2, Amount: 10563, OrderCount: 5},
+			{Price: 80563.1, Amount: 306, OrderCount: 1},
+			{Price: 80563, Amount: 213, OrderCount: 2},
+			{Price: 80562.9, Amount: 184, OrderCount: 1},
+			{Price: 80562.8, Amount: 184, OrderCount: 1},
+		},
+		Asks: orderbook.Levels{
+			{Price: 80563.3, Amount: 13502, OrderCount: 3},
+			{Price: 80563.4, Amount: 184, OrderCount: 1},
+			{Price: 80563.7, Amount: 184, OrderCount: 1},
+			{Price: 80564.3, Amount: 306, OrderCount: 1},
+			{Price: 80564.7, Amount: 306, OrderCount: 1},
+		},
+		Exchange:          ex.Name,
+		Pair:              futuresTradablePair,
+		Asset:             asset.Futures,
+		LastUpdated:       time.UnixMilli(1792843031070),
+		LastUpdateID:      42904904540,
+		ValidateOrderbook: true,
+		RestSnapshot:      true,
+	}
+	assert.Equal(t, exp, result, "the futures book should be loaded")
 }
 
 func TestGetHistoricCandles(t *testing.T) {
@@ -1260,8 +1443,8 @@ func TestGetHistoricCandles(t *testing.T) {
 	_, err := e.GetHistoricCandles(t.Context(), currency.EMPTYPAIR, asset.Spot, kline.FiveMin, time.Time{}, time.Time{})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	_, err = e.GetHistoricCandles(t.Context(), spotTradablePair, asset.Spot, kline.TenMin, startTime, endTime)
-	require.ErrorIs(t, err, kline.ErrUnsupportedInterval)
+	_, err = e.GetHistoricCandles(t.Context(), spotTradablePair, asset.Spot, kline.FifteenSecond, startTime, endTime)
+	require.ErrorIs(t, err, kline.ErrCannotConstructInterval, "an interval no spot interval builds must be refused")
 
 	_, err = e.GetHistoricCandles(t.Context(), spotTradablePair, asset.Spot, kline.FiveMin, endTime, startTime)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
@@ -1272,9 +1455,91 @@ func TestGetHistoricCandles(t *testing.T) {
 	for i := range result.Candles {
 		assert.NotZerof(t, result.Candles[i].Open, "candle %d should carry real data, not zero padding over a dropped interval", i)
 	}
+	dashed := currency.NewPairWithDelimiter(spotTradablePair.Base.String(), spotTradablePair.Quote.String(), currency.DashDelimiter)
+	fromDashed, err := e.GetHistoricCandles(t.Context(), dashed, asset.Spot, kline.FiveMin, startTime, endTime)
+	require.NoError(t, err, "GetHistoricCandles must not error for a dashed spot pair")
+	assert.Equal(t, result, fromDashed, "GetHistoricCandles should format a spot pair for the venue")
 
-	_, err = e.GetHistoricCandles(t.Context(), spotTradablePair, asset.Futures, kline.FiveMin, startTime, endTime)
+	// Ten minute and two hour spot candles are built from the venue's five minute and hourly ones over the window widened to
+	// whole candles; the two hour window is moved back so that each of its candles has closed when run live
+	for _, tc := range []struct {
+		interval, source kline.Interval
+		start, end       time.Time
+	}{
+		{interval: kline.TenMin, source: kline.FiveMin, start: startTime, end: endTime},
+		{interval: kline.TwoHour, source: kline.OneHour, start: startTime.Add(-2 * time.Hour), end: endTime.Add(-2 * time.Hour)},
+	} {
+		req, err := e.GetKlineRequest(spotTradablePair, asset.Spot, tc.interval, tc.start, tc.end, false)
+		require.NoErrorf(t, err, "GetKlineRequest must not error for %s", tc.interval.Short())
+		source, err := e.GetHistoricCandles(t.Context(), spotTradablePair, asset.Spot, tc.source, req.Start, req.End)
+		require.NoErrorf(t, err, "GetHistoricCandles must not error for %s spot candles", tc.source.Short())
+		built, err := source.ConvertToNewInterval(tc.interval)
+		require.NoErrorf(t, err, "ConvertToNewInterval must not error for %s", tc.interval.Short())
+		result, err = e.GetHistoricCandles(t.Context(), spotTradablePair, asset.Spot, tc.interval, tc.start, tc.end)
+		require.NoErrorf(t, err, "GetHistoricCandles must build %s spot candles", tc.interval.Short())
+		assert.Equalf(t, built, result, "GetHistoricCandles should build %s spot candles", tc.interval.Short())
+	}
+
+	_, err = e.GetHistoricCandles(t.Context(), spotTradablePair, asset.Options, kline.FiveMin, startTime, endTime)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
+
+	_, err = e.GetHistoricCandles(t.Context(), spotTradablePair, asset.Spot, kline.EightHour, startTime, endTime)
+	require.ErrorIs(t, err, kline.ErrUnsupportedInterval, "the futures only eight hour interval must be refused for spot")
+
+	start, end := futuresWindow()
+	_, err = e.GetHistoricCandles(t.Context(), futuresTradablePair, asset.Futures, kline.FifteenSecond, start, end)
+	require.ErrorIs(t, err, kline.ErrCannotConstructInterval, "an interval no futures interval builds must be refused")
+	// Ten minute and two hour candles are built from the venue's five minute and hourly ones, from the start of the candle a
+	// window starts in
+	for _, tc := range []struct{ interval, source kline.Interval }{{kline.TenMin, kline.FiveMin}, {kline.TwoHour, kline.OneHour}} {
+		source, err := e.GetHistoricCandles(t.Context(), futuresTradablePair, asset.Futures, tc.source, start, end)
+		require.NoErrorf(t, err, "GetHistoricCandles must not error for %s futures candles", tc.source.Short())
+		built, err := source.ConvertToNewInterval(tc.interval)
+		require.NoErrorf(t, err, "ConvertToNewInterval must not error for %s", tc.interval.Short())
+		for _, window := range [][2]time.Time{{start, end}, {start.Add(time.Minute), end.Add(-time.Minute)}} {
+			result, err = e.GetHistoricCandles(t.Context(), futuresTradablePair, asset.Futures, tc.interval, window[0], window[1])
+			require.NoErrorf(t, err, "GetHistoricCandles must build %s futures candles from %s to %s", tc.interval.Short(), window[0], window[1])
+			assert.Equalf(t, built, result, "GetHistoricCandles should build %s futures candles from %s to %s", tc.interval.Short(), window[0], window[1])
+		}
+	}
+	formatted, err := e.GetHistoricCandles(t.Context(), futuresTradablePair, asset.Futures, kline.OneHour, start, end)
+	require.NoError(t, err, "GetHistoricCandles must not error for futures candles")
+	result, err = e.GetHistoricCandles(t.Context(), currency.NewBTCUSDT(), asset.Futures, kline.OneHour, start, end)
+	require.NoError(t, err, "GetHistoricCandles must not error for an unformatted futures pair")
+	assert.Equal(t, formatted, result, "GetHistoricCandles should format a futures pair for the venue")
+	// A linear contract's volume is its contracts times their size, and an inverse contract's is its turnover
+	exp := map[currency.Pair]*kline.Item{
+		futuresTradablePair: {
+			Exchange: "MEXC",
+			Pair:     futuresTradablePair,
+			Asset:    asset.Futures,
+			Interval: kline.OneHour,
+			Candles: []kline.Candle{
+				{Time: time.Unix(1792800000, 0), Open: 81159.9, High: 81188.2, Low: 80574.2, Close: 80588.3, Volume: 1649.9022},
+				{Time: time.Unix(1792803600, 0), Open: 80588.3, High: 80935, Low: 80586.4, Close: 80898.9, Volume: 1000.6081},
+				{Time: time.Unix(1792807200, 0), Open: 80898.9, High: 80965, Low: 80801.5, Close: 80963.4, Volume: 403.0439},
+				{Time: time.Unix(1792810800, 0), Open: 80963.4, High: 81068.6, Low: 80811, Close: 80943.9, Volume: 567.5471},
+				{Time: time.Unix(1792814400, 0), Open: 80943.9, High: 81069.4, Low: 80812, Close: 80857.2, Volume: 534.5322},
+				{Time: time.Unix(1792818000, 0), Open: 80857.2, High: 80859.8, Low: 80681.7, Close: 80732.4, Volume: 736.3386},
+			},
+		},
+		futuresInversePair: futuresInverseCandles(),
+	}
+	for _, p := range []currency.Pair{futuresTradablePair, futuresInversePair} {
+		result, err = e.GetHistoricCandles(t.Context(), p, asset.Futures, kline.OneHour, start, end)
+		require.NoErrorf(t, err, "GetHistoricCandles must not error for %s", p)
+		if mockTests {
+			assert.Equalf(t, exp[p], result, "the %s candles should be mapped", p)
+			continue
+		}
+		require.NotEmptyf(t, result.Candles, "candles must be returned for %s", p)
+		for i := range result.Candles {
+			assert.NotZerof(t, result.Candles[i].Open, "%s candle %d should carry real data", p, i)
+			assert.Positivef(t, result.Candles[i].Volume, "%s candle %d should carry its base volume", p, i)
+			assert.Falsef(t, result.Candles[i].Time.Before(start), "%s candle %d should not open before the window", p, i)
+			assert.Truef(t, result.Candles[i].Time.Before(end), "%s candle %d should open before the window's end", p, i)
+		}
+	}
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
@@ -1283,8 +1548,11 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	startTime, endTime := recentWindow()
-	_, err = e.GetHistoricCandlesExtended(t.Context(), spotTradablePair, asset.Spot, kline.TenMin, startTime, endTime)
-	require.ErrorIs(t, err, kline.ErrUnsupportedInterval)
+	_, err = e.GetHistoricCandlesExtended(t.Context(), spotTradablePair, asset.Spot, kline.FifteenSecond, startTime, endTime)
+	require.ErrorIs(t, err, kline.ErrCannotConstructInterval, "an interval no spot interval builds must be refused")
+
+	_, err = e.GetHistoricCandlesExtended(t.Context(), spotTradablePair, asset.Spot, kline.EightHour, startTime, endTime)
+	require.ErrorIs(t, err, kline.ErrUnsupportedInterval, "the futures only eight hour interval must be refused for spot")
 
 	_, err = e.GetHistoricCandlesExtended(t.Context(), spotTradablePair, asset.Options, kline.TenMin, startTime, endTime)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
@@ -1292,9 +1560,67 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	result, err := e.GetHistoricCandlesExtended(t.Context(), spotTradablePair, asset.Spot, kline.FiveMin, startTime, endTime)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
+	dashed := currency.NewPairWithDelimiter(spotTradablePair.Base.String(), spotTradablePair.Quote.String(), currency.DashDelimiter)
+	fromDashed, err := e.GetHistoricCandlesExtended(t.Context(), dashed, asset.Spot, kline.FiveMin, startTime, endTime)
+	require.NoError(t, err, "GetHistoricCandlesExtended must not error for a dashed spot pair")
+	assert.Equal(t, result.Candles, fromDashed.Candles, "GetHistoricCandlesExtended should format a spot pair for the venue")
 
-	_, err = e.GetHistoricCandlesExtended(t.Context(), spotTradablePair, asset.Futures, kline.FiveMin, startTime, endTime)
+	for _, tc := range []struct {
+		interval   kline.Interval
+		start, end time.Time
+	}{
+		{interval: kline.TenMin, start: startTime, end: endTime},
+		{interval: kline.TwoHour, start: startTime.Add(-2 * time.Hour), end: endTime.Add(-2 * time.Hour)},
+	} {
+		regular, err := e.GetHistoricCandles(t.Context(), spotTradablePair, asset.Spot, tc.interval, tc.start, tc.end)
+		require.NoErrorf(t, err, "GetHistoricCandles must build %s spot candles", tc.interval.Short())
+		result, err = e.GetHistoricCandlesExtended(t.Context(), spotTradablePair, asset.Spot, tc.interval, tc.start, tc.end)
+		require.NoErrorf(t, err, "GetHistoricCandlesExtended must build %s spot candles", tc.interval.Short())
+		assert.Equalf(t, regular, result, "GetHistoricCandlesExtended should build the %s spot candles GetHistoricCandles does", tc.interval.Short())
+	}
+
+	_, err = e.GetHistoricCandlesExtended(t.Context(), spotTradablePair, asset.Options, kline.FiveMin, startTime, endTime)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
+
+	start, end := futuresWindow()
+	for _, interval := range []kline.Interval{kline.TenMin, kline.TwoHour} {
+		regular, err := e.GetHistoricCandles(t.Context(), futuresTradablePair, asset.Futures, interval, start, end)
+		require.NoErrorf(t, err, "GetHistoricCandles must build %s futures candles", interval.Short())
+		result, err = e.GetHistoricCandlesExtended(t.Context(), futuresTradablePair, asset.Futures, interval, start, end)
+		require.NoErrorf(t, err, "GetHistoricCandlesExtended must build %s futures candles", interval.Short())
+		assert.Equalf(t, regular, result, "GetHistoricCandlesExtended should build the %s futures candles GetHistoricCandles does", interval.Short())
+	}
+	hourly, err := e.GetHistoricCandles(t.Context(), futuresTradablePair, asset.Futures, kline.OneHour, start, end)
+	require.NoError(t, err, "GetHistoricCandles must not error for futures candles")
+	result, err = e.GetHistoricCandlesExtended(t.Context(), currency.NewBTCUSDT(), asset.Futures, kline.OneHour, start, end)
+	require.NoError(t, err, "GetHistoricCandlesExtended must not error for an unformatted futures pair")
+	assert.Equal(t, hourly.Candles, result.Candles, "GetHistoricCandlesExtended should format a futures pair for the venue")
+	result, err = e.GetHistoricCandlesExtended(t.Context(), futuresInversePair, asset.Futures, kline.OneHour, start, end)
+	require.NoError(t, err, "GetHistoricCandlesExtended must not error for futures")
+	if mockTests {
+		assert.Equal(t, futuresInverseCandles(), result, "the futures candles should be mapped")
+		return
+	}
+	require.NotEmpty(t, result.Candles, "futures candles must be returned")
+	assert.False(t, result.Candles[0].Time.Before(start), "no futures candle should open before the window")
+}
+
+// futuresInverseCandles returns the recorded hourly BTC_USD candles of futuresWindow as the wrapper maps them
+func futuresInverseCandles() *kline.Item {
+	return &kline.Item{
+		Exchange: "MEXC",
+		Pair:     futuresInversePair,
+		Asset:    asset.Futures,
+		Interval: kline.OneHour,
+		Candles: []kline.Candle{
+			{Time: time.Unix(1792800000, 0), Open: 81056.1, High: 81079.9, Low: 80477.2, Close: 80493, Volume: 6.476927305570522},
+			{Time: time.Unix(1792803600, 0), Open: 80493, High: 80840.1, Low: 80488.6, Close: 80803.1, Volume: 2.661336822224324},
+			{Time: time.Unix(1792807200, 0), Open: 80803.1, High: 80866.3, Low: 80720, Close: 80866.3, Volume: 2.377179236252418},
+			{Time: time.Unix(1792810800, 0), Open: 80866.3, High: 80960.1, Low: 80722.5, Close: 80845.5, Volume: 4.291749117604468},
+			{Time: time.Unix(1792814400, 0), Open: 80845.5, High: 80963.5, Low: 80719.5, Close: 80755.5, Volume: 2.006685669693846},
+			{Time: time.Unix(1792818000, 0), Open: 80755.5, High: 80761.5, Low: 80598, Close: 80633.4, Volume: 2.8458177805402807},
+		},
+	}
 }
 
 // TestKlineGlobalResultLimit pins the kline page size. MEXC's /api/v3/klines returns at most 500 rows
@@ -1310,6 +1636,14 @@ func TestGetServerTime(t *testing.T) {
 	sTime, err := e.GetServerTime(t.Context(), asset.Empty)
 	require.NoError(t, err)
 	assert.NotEmpty(t, sTime)
+
+	sTime, err = e.GetServerTime(t.Context(), asset.Futures)
+	require.NoError(t, err, "GetServerTime must not error for futures")
+	if mockTests {
+		assert.Equal(t, time.UnixMilli(1792843031176), sTime, "GetServerTime should return the futures API's time")
+	} else {
+		assert.False(t, sTime.IsZero(), "GetServerTime should return the futures API's time")
+	}
 }
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
@@ -1338,6 +1672,39 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	assert.Equal(t, math.Pow(10, -symbolDetail.BaseAssetPrecision), lms.AmountStepIncrementSize, "base amount step should be 10^-baseAssetPrecision")
 	assert.Equal(t, symbolDetail.BaseSizePrecision.Float64(), lms.MinimumBaseAmount)
 	assert.Equal(t, symbolDetail.MaxQuoteAmount.Float64(), lms.MaximumQuoteAmount)
+
+	require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), asset.Futures), "UpdateOrderExecutionLimits must not error for futures")
+	contracts, err := e.GetFuturesContracts(t.Context(), futuresTradablePair)
+	require.NoError(t, err, "GetFuturesContracts must not error")
+	require.Len(t, contracts, 1, "the contract must be returned")
+	lms, err = e.GetOrderExecutionLimits(asset.Futures, futuresTradablePair)
+	require.NoError(t, err, "GetOrderExecutionLimits must not error for futures")
+	if mockTests {
+		assert.False(t, lms.UpdatedAt.IsZero(), "the futures limits should record when they were loaded")
+		lms.UpdatedAt = time.Time{}
+		// The contract's price unit is the price tick and its volume unit the amount step; limit orders are capped at the
+		// larger of its order caps and market orders at its maximum volume, and its size is the multiplier
+		exp := limits.MinMaxLevel{
+			Key:                     key.NewExchangeAssetPair("MEXC", asset.Futures, futuresTradablePair),
+			PriceStepIncrementSize:  0.1,
+			MultiplierDecimal:       0.0001,
+			MinimumBaseAmount:       1,
+			MaximumBaseAmount:       2500000,
+			AmountStepIncrementSize: 1,
+			MarketMinQty:            1,
+			MarketMaxQty:            400000,
+			MarketStepIncrementSize: 1,
+		}
+		assert.Equal(t, exp, lms, "the futures limits should be the contract's")
+		return
+	}
+	c := contracts[0]
+	assert.Equal(t, c.PriceUnit, lms.PriceStepIncrementSize, "the price tick should be the contract's price unit")
+	assert.Equal(t, c.VolumeUnit, lms.AmountStepIncrementSize, "the amount step should be the contract's volume unit")
+	assert.Equal(t, c.MinVolume, lms.MinimumBaseAmount, "the minimum amount should be the contract's minimum volume")
+	assert.Equal(t, max(c.LimitMaxVolume, c.MaxVolume), lms.MaximumBaseAmount, "the maximum amount should be the larger limit order cap")
+	assert.Equal(t, c.MaxVolume, lms.MarketMaxQty, "the market order cap should be the contract's maximum volume")
+	assert.Equal(t, c.ContractSize, lms.MultiplierDecimal, "the multiplier should be the contract size")
 }
 
 func TestUpdateAccountInfo(t *testing.T) {
@@ -1347,7 +1714,7 @@ func TestUpdateAccountInfo(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 
-	_, err = e.UpdateAccountBalances(t.Context(), asset.Futures)
+	_, err = e.UpdateAccountBalances(t.Context(), asset.Options)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 }
 
@@ -1379,8 +1746,32 @@ func TestGetRecentTrades(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 
-	_, err = e.GetRecentTrades(t.Context(), spotTradablePair, asset.Futures)
+	_, err = e.GetRecentTrades(t.Context(), spotTradablePair, asset.Options)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
+
+	result, err = e.GetRecentTrades(t.Context(), futuresTradablePair, asset.Futures)
+	require.NoError(t, err, "GetRecentTrades must not error for futures")
+	if mockTests {
+		// The taker's side is the trade's, and the amounts are in contracts
+		recorded := func(id string, side order.Side, price, amount float64, ms int64) trade.Data {
+			return trade.Data{TID: id, Exchange: "MEXC", CurrencyPair: futuresTradablePair, AssetType: asset.Futures, Side: side, Price: price, Amount: amount, Timestamp: time.UnixMilli(ms)}
+		}
+		exp := []trade.Data{
+			recorded("16745174629", order.Sell, 80565, 50, 1792843027529),
+			recorded("16745174619", order.Buy, 80565.1, 6, 1792843027337),
+			recorded("16745174618", order.Buy, 80565.1, 4, 1792843027337),
+			recorded("16745174489", order.Sell, 80565, 6, 1792843026337),
+			recorded("16745174482", order.Sell, 80565, 4, 1792843026336),
+		}
+		assert.Equal(t, exp, result, "the futures trades should be mapped")
+		return
+	}
+	require.NotEmpty(t, result, "futures trades must be returned")
+	for i := range result {
+		assert.NotEmptyf(t, result[i].TID, "futures trade %d should carry its ID", i)
+		assert.NotEqualf(t, order.UnknownSide, result[i].Side, "futures trade %d should carry the taker's side", i)
+		assert.Positivef(t, result[i].Amount, "futures trade %d should carry its amount", i)
+	}
 }
 
 func TestGetHistoricTrades(t *testing.T) {
@@ -1397,7 +1788,7 @@ func TestGetHistoricTrades(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 
-	_, err = e.GetHistoricTrades(t.Context(), spotTradablePair, asset.Futures, startTime, endTime)
+	_, err = e.GetHistoricTrades(t.Context(), spotTradablePair, asset.Options, startTime, endTime)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 }
 
@@ -1447,8 +1838,8 @@ func TestGetOrderInfo(t *testing.T) {
 		assert.ErrorContains(t, err, "Order does not exist", "the only acceptable failure is the order being absent")
 	}
 
-	// Not ErrAssetNotSet: the asset is set, it is futures, which this exchange does not support.
-	_, err = e.GetOrderInfo(t.Context(), "12342", spotTradablePair, asset.Futures)
+	// Not ErrAssetNotSet: the asset is set, it is options, which this exchange does not support.
+	_, err = e.GetOrderInfo(t.Context(), "12342", spotTradablePair, asset.Options)
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
 }
 
@@ -1475,7 +1866,7 @@ func TestSubmitOrder(t *testing.T) {
 	// SubmitOrder assigns the formatted pair back onto the submission, so a failed format leaves it
 	// empty for the next call.
 	arg.Pair = spotTradablePair
-	arg.AssetType = asset.Futures
+	arg.AssetType = asset.Options
 	_, err = e.SubmitOrder(t.Context(), arg)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
@@ -1510,7 +1901,7 @@ func TestSubmitOrder(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 
-	arg.AssetType = asset.Futures
+	arg.AssetType = asset.Options
 	_, err = e.SubmitOrder(t.Context(), arg)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 }
@@ -1533,7 +1924,7 @@ func TestCancelOrder(t *testing.T) {
 	err = e.CancelOrder(t.Context(), &order.Cancel{OrderID: "987654", Pair: spotTradablePair, AssetType: asset.Spot})
 	assert.NoError(t, err)
 
-	err = e.CancelOrder(t.Context(), &order.Cancel{OrderID: "987654", Pair: spotTradablePair, AssetType: asset.Futures})
+	err = e.CancelOrder(t.Context(), &order.Cancel{OrderID: "987654", Pair: spotTradablePair, AssetType: asset.Options})
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
 }
 
@@ -1558,7 +1949,7 @@ func TestCancelAllOrders(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 
-	_, err = e.CancelAllOrders(t.Context(), &order.Cancel{OrderID: "12345", AssetType: asset.Futures, Pair: spotTradablePair})
+	_, err = e.CancelAllOrders(t.Context(), &order.Cancel{OrderID: "12345", AssetType: asset.Options, Pair: spotTradablePair})
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 }
 
@@ -1589,6 +1980,91 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	require.NoError(t, err, "GetCurrencyTradeURL must not error")
 	assert.Equal(t, "https://www.mexc.com/exchange/"+spotTradablePair.Base.Upper().String()+"_"+spotTradablePair.Quote.Upper().String(), resp, "the spot trade URL should name the pair as BASE_QUOTE")
 
-	_, err = e.GetCurrencyTradeURL(t.Context(), asset.Futures, spotTradablePair)
-	assert.ErrorIs(t, err, asset.ErrNotSupported, "a non-spot asset should be reported as unsupported")
+	_, err = e.GetCurrencyTradeURL(t.Context(), asset.Options, spotTradablePair)
+	assert.ErrorIs(t, err, asset.ErrNotSupported, "an unsupported asset should be reported as unsupported")
+
+	resp, err = e.GetCurrencyTradeURL(t.Context(), asset.Futures, futuresTradablePair)
+	require.NoError(t, err, "GetCurrencyTradeURL must not error for futures")
+	assert.Equal(t, "https://www.mexc.com/futures/BTC_USDT", resp, "the futures trade URL should name the contract")
+}
+
+func TestSendFuturesHTTPRequest(t *testing.T) {
+	t.Parallel()
+	// signature returns what the venue verifies a request's Signature header against
+	signature := func(t *testing.T, r *http.Request, signed string) string {
+		t.Helper()
+		mac, err := crypto.GetHMAC(crypto.HashSHA256, []byte("test-key"+r.Header.Get("Request-Time")+signed), []byte("test-secret"))
+		assert.NoError(t, err, "GetHMAC should not error")
+		return hex.EncodeToString(mac)
+	}
+	for _, method := range []string{http.MethodGet, http.MethodDelete, http.MethodPost} {
+		t.Run("signs a "+method, func(t *testing.T) {
+			t.Parallel()
+			values, body := url.Values{"z": {"1,2"}, "a": {"x y"}}, any(nil)
+			if method == http.MethodPost {
+				values, body = nil, map[string]any{"b": 2, "a": "x y"}
+			}
+			ex := newPrivateTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+				sent, err := io.ReadAll(r.Body)
+				assert.NoError(t, err, "reading the request body should not error")
+				signed := r.URL.RawQuery
+				if method == http.MethodPost {
+					signed = string(sent)
+					assert.JSONEq(t, `{"a":"x y","b":2}`, signed, "a POST should carry its parameters as a JSON body")
+				} else {
+					const sorted = "a=x%20y&z=1%2C2"
+					assert.Equal(t, sorted, signed, "the query should be sorted, with a space encoded as the venue signs it")
+					assert.Empty(t, sent, "a request without a body should send none")
+				}
+				assert.Equal(t, "test-key", r.Header.Get("ApiKey"), "the API key should be sent")
+				assert.Equal(t, signature(t, r, signed), r.Header.Get("Signature"), "the request should be signed over what it sends")
+				_, _ = w.Write([]byte(`{"success":true,"code":0}`))
+			})
+			require.NoError(t, ex.SendFuturesHTTPRequest(t.Context(), futuresAccountAssetsEPL, method, "private/probe", values, body, nil, true), "SendFuturesHTTPRequest must not error")
+		})
+	}
+
+	for reply, exp := range map[string]struct {
+		err     error
+		message string
+	}{
+		`{"success":false,"code":1001,"message":"contract not activated"}`: {errFuturesRequestFailed, "code 1001: contract not activated"},
+		`{"success":false,"code":600,"msg":"parameter error"}`:             {errFuturesRequestFailed, "code 600: parameter error"},
+		// As ccxt reads the envelope, a reply is refused only when it carries neither success nor a success code
+		`{"success":true,"code":200,"msg":"success"}`: {},
+		`{"success":false,"code":0}`:                  {},
+	} {
+		ex := newPrivateTestExchange(t, func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte(reply)) })
+		err := ex.SendFuturesHTTPRequest(t.Context(), futuresServerTimeEPL, http.MethodGet, "contract/ping", nil, nil, nil, false)
+		assert.ErrorIsf(t, err, exp.err, "the reply %s should be read", reply)
+		if exp.err != nil {
+			assert.ErrorContainsf(t, err, exp.message, "the refusal %s should carry its code and message", reply)
+		}
+	}
+
+	ex := newPrivateTestExchange(t, func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+		_, _ = w.Write([]byte(`{"success":false,"code":401,"message":"Not logged in"}`))
+	})
+	err := ex.SendFuturesHTTPRequest(t.Context(), futuresAccountAssetsEPL, http.MethodGet, "private/account/assets", nil, nil, nil, true)
+	assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "a refused key should fail the authenticated request")
+
+	// A retry is signed afresh, since the venue refuses a request time outside its window
+	var mu sync.Mutex
+	var times, signatures []string
+	ex = newPrivateTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		times, signatures = append(times, r.Header.Get("Request-Time")), append(signatures, r.Header.Get("Signature"))
+		attempt := len(times)
+		mu.Unlock()
+		if attempt == 1 {
+			w.WriteHeader(http.StatusTooManyRequests)
+			return
+		}
+		_, _ = w.Write([]byte(`{"success":true,"code":0}`))
+	})
+	require.NoError(t, ex.SendFuturesHTTPRequest(t.Context(), futuresAccountAssetsEPL, http.MethodGet, "private/account/assets", nil, nil, nil, true), "a retried request must succeed")
+	require.Len(t, times, 2, "the request must be retried once")
+	assert.NotEqual(t, times[0], times[1], "the retry should carry a new request time")
+	assert.NotEqual(t, signatures[0], signatures[1], "the retry should be signed again")
 }
