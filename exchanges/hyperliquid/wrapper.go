@@ -83,6 +83,7 @@ var (
 	errModifyOrderTypeUnsupported = errors.New("only resting limit orders can be modified")
 	errOrderNotModifiable         = errors.New("order is not open for modification")
 	errPairMappingNotFound        = errors.New("pair mapping not found")
+	errPositionSizesUnread        = errors.New("position TP/SL sizes could not be read")
 	errPricePrecision             = errors.New("price exceeds market precision")
 	errQuoteAmountUnsupported     = errors.New("quote amounts are unsupported")
 	errRiskManagementUnsupported  = errors.New("unsupported risk management configuration")
@@ -1009,7 +1010,9 @@ func (e *Exchange) SubmitOrder(ctx context.Context, submit *order.Submit) (*orde
 // which becomes the total for subsequent amendments of the replacement order. A take profit or stop loss is refused,
 // as the replacement cannot carry one.
 // Without always place, Hyperliquid only accepts a replacement that rests: it must not be a trigger order and must be
-// ALO or a GTC that would not execute, which then rests as ALO
+// ALO or a GTC that would not execute, which then rests as ALO. It cancels the order before it places the replacement, so
+// an error does not mean the order still rests: a replacement that would match is rejected with the order already
+// cancelled
 func (e *Exchange) ModifyOrder(ctx context.Context, modify *order.Modify) (*order.ModifyResponse, error) {
 	if err := modify.Validate(); err != nil {
 		return nil, err
@@ -1085,7 +1088,7 @@ func (e *Exchange) ModifyOrder(ctx context.Context, modify *order.Modify) (*orde
 		return nil, err
 	}
 	if statuses[0].Error != "" {
-		return nil, fmt.Errorf("%w: %s", order.ErrUnableToPlaceOrder, statuses[0].Error)
+		return nil, fmt.Errorf("%w: %s: order %s may no longer be open", order.ErrUnableToPlaceOrder, statuses[0].Error, identifier)
 	}
 	status := order.New
 	remainingAmount := amount
@@ -1396,6 +1399,10 @@ func (e *Exchange) findOpenOrder(ctx context.Context, identifier *OrderStatusReq
 				continue
 			}
 			if (identifier.OrderID != 0 && orders[i].OrderID == orderID) || (identifier.ClientOrderID != "" && strings.EqualFold(orders[i].ClientOrderID, identifier.ClientOrderID)) {
+				// A failed position read leaves a position TP/SL order without its size, which only the error reports
+				if orders[i].Amount == 0 && errors.Is(err, errPositionSizesUnread) {
+					return nil, err
+				}
 				return &orders[i], nil
 			}
 		}
@@ -1529,7 +1536,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, filter *order.MultiOrder
 		}
 		if len(positionCoins) != 0 {
 			if err := e.sizePositionOrders(ctx, address, dex, converted, positionCoins); err != nil {
-				errs = common.AppendError(errs, fmt.Errorf("DEX %q position TP/SL sizes: %w", dex, err))
+				errs = common.AppendError(errs, fmt.Errorf("%w: DEX %q: %w", errPositionSizesUnread, dex, err))
 			}
 		}
 	}

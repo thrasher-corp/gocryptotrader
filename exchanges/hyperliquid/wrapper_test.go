@@ -2847,6 +2847,25 @@ func TestModifyOrder(t *testing.T) {
 		assert.Equalf(t, tc.exp, modified.Status, "ModifyOrder should derive the status of %s", tc.status)
 		assert.InDeltaf(t, tc.remaining, modified.RemainingAmount, 1e-12, "ModifyOrder should derive the remaining amount of %s", tc.status)
 	}
+	// A rejected replacement can leave the order cancelled
+	for _, rejection := range []string{"Post only order would have immediately matched, bbo was 99.9@100.", "Cannot modify canceled or filled order"} {
+		_, err = newTradingServerExchange(t, map[string]string{"orderStatus": openOrderStatus, "frontendOpenOrders": listedOpenOrder(openOrderStatus)}, respondWith(statusesResponse("order", `{"error":"`+rejection+`"}`))).ModifyOrder(t.Context(), &order.Modify{OrderID: "7", Pair: perpetualPair, AssetType: asset.PerpetualContract, Price: 101})
+		assert.ErrorIsf(t, err, order.ErrUnableToPlaceOrder, "ModifyOrder should return ErrUnableToPlaceOrder for rejection %s", rejection)
+		assert.ErrorContainsf(t, err, rejection, "ModifyOrder should keep rejection %s", rejection)
+		assert.ErrorContainsf(t, err, "order 7 may no longer be open", "ModifyOrder should say rejection %s can leave the order cancelled", rejection)
+	}
+	for _, tc := range []struct {
+		orderID, clientOrderID, newClientOrderID, exp string
+	}{
+		{orderID: "7", exp: "7"},
+		{orderID: "7", clientOrderID: "0x00000000000000000000000000000099", exp: "7"},
+		{orderID: "7", newClientOrderID: "0x00000000000000000000000000000002", exp: "7"},
+		{clientOrderID: "0X00000000000000000000000000000001", exp: "0x00000000000000000000000000000001"},
+		{clientOrderID: "0X00000000000000000000000000000001", newClientOrderID: "0x00000000000000000000000000000002", exp: "0x00000000000000000000000000000001"},
+	} {
+		_, err = newTradingServerExchange(t, map[string]string{"orderStatus": openOrderStatus, "frontendOpenOrders": listedOpenOrder(openOrderStatus)}, respondWith(statusesResponse("order", `{"error":"Post only order would have immediately matched, bbo was 99.9@100."}`))).ModifyOrder(t.Context(), &order.Modify{OrderID: tc.orderID, ClientOrderID: tc.clientOrderID, NewClientOrderID: tc.newClientOrderID, Pair: perpetualPair, AssetType: asset.PerpetualContract, Price: 101})
+		assert.ErrorContainsf(t, err, "order "+tc.exp+" may no longer be open", "ModifyOrder should name the amended order for order ID %q, client order ID %q and new client order ID %q", tc.orderID, tc.clientOrderID, tc.newClientOrderID)
+	}
 	_, err = newTradingServerExchange(t, map[string]string{"orderStatus": openOrderStatus, "frontendOpenOrders": listedOpenOrder(openOrderStatus)}, respondWith(statusesResponse("order"))).ModifyOrder(t.Context(), &order.Modify{OrderID: "7", Pair: perpetualPair, AssetType: asset.PerpetualContract})
 	assert.ErrorIs(t, err, errActionStatusCount, "ModifyOrder should reject a response without a status")
 	_, err = newTradingServerExchange(t, map[string]string{"orderStatus": openOrderStatus, "frontendOpenOrders": listedOpenOrder(openOrderStatus)}, respondWith(`{"status":"err","response":"modify failed"}`)).ModifyOrder(t.Context(), &order.Modify{OrderID: "7", Pair: perpetualPair, AssetType: asset.PerpetualContract})
@@ -3322,6 +3341,46 @@ func TestGetOrderInfo(t *testing.T) {
 	assert.Equal(t, expPositionOrder, positionOrder, "GetOrderInfo should size an open position TP/SL order from its position")
 	_, err = newTradingServerExchange(t, map[string]string{"orderStatus": positionOrderStatus}, nil).GetOrderInfo(t.Context(), "14", perpetualPair, asset.PerpetualContract)
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetOrderInfo should return the positions failure of an open position TP/SL order")
+	// A closed position also leaves its TP/SL order at size 0, which a failure other than a position read must not hide
+	listedPositionOrder := listedOpenOrder(positionOrderStatus)
+	unreadPositionOrder, err := newTradingServerExchange(t, map[string]string{"orderStatus": `{"status":"unknownOid"}`, "frontendOpenOrders:": listedPositionOrder}, nil).GetOrderInfo(t.Context(), "14", currency.EMPTYPAIR, asset.Empty)
+	assert.ErrorIs(t, err, request.ErrBadStatus, "GetOrderInfo should return the positions failure of an open position TP/SL order orderStatus reports as unknown")
+	assert.ErrorIs(t, err, errPositionSizesUnread, "GetOrderInfo should report an unknown position TP/SL order it cannot size as such")
+	assert.Nil(t, unreadPositionOrder, "GetOrderInfo should return no order it cannot size")
+	const positionClientOrderID = "0x00000000000000000000000000000014"
+	_, err = newTradingServerExchange(t, map[string]string{"orderStatus": `{"status":"unknownOid"}`, "frontendOpenOrders:": strings.Replace(listedPositionOrder, `"tif":null`, `"tif":null,"cloid":"`+positionClientOrderID+`"`, 1)}, nil).GetOrderInfo(t.Context(), positionClientOrderID, currency.EMPTYPAIR, asset.Empty)
+	assert.ErrorIs(t, err, errPositionSizesUnread, "GetOrderInfo should report an unknown position TP/SL order found by its client order ID that it cannot size as such")
+	_, err = newTradingServerExchange(t, map[string]string{"orderStatus": `{"status":"unknownOid"}`, "frontendOpenOrders:": listedPositionOrder, "clearinghouseState:": `{`}, nil).GetOrderInfo(t.Context(), "14", currency.EMPTYPAIR, asset.Empty)
+	assert.ErrorIs(t, err, errPositionSizesUnread, "GetOrderInfo should report any failure of the position read of an unknown position TP/SL order")
+	_, err = newTradingServerExchange(t, map[string]string{"orderStatus": `{"status":"unknownOid"}`, "frontendOpenOrders:": "[" + strings.Join(cappedOrders, ",") + "]", "openOrders:": `[{"coin":"BTC","side":"B","limitPx":"99000.0","sz":"0.0","origSz":"0.0","oid":14,"timestamp":1791275926947}]`}, nil).GetOrderInfo(t.Context(), "14", currency.EMPTYPAIR, asset.Empty)
+	assert.ErrorIs(t, err, errPositionSizesUnread, "GetOrderInfo should report an unknown position TP/SL order past frontendOpenOrders' limit it cannot size as such")
+	unknownPositionOrder, err := newTradingServerExchange(t, map[string]string{"orderStatus": `{"status":"unknownOid"}`, "frontendOpenOrders:": listedPositionOrder, "clearinghouseState:": btcShortPosition}, nil).GetOrderInfo(t.Context(), "14", currency.EMPTYPAIR, asset.Empty)
+	require.NoError(t, err, "GetOrderInfo must not error for an open position TP/SL order orderStatus reports as unknown")
+	assert.Equal(t, 0.25, unknownPositionOrder.Amount, "GetOrderInfo should size an open position TP/SL order orderStatus reports as unknown from its position")
+	positionRow := strings.Trim(listedPositionOrder, "[]")
+	unconvertibleRow := `{"coin":"NOTACOIN","side":"B","limitPx":"90","sz":"1","origSz":"1","oid":15,"timestamp":1791275926947}`
+	cappedBesidePosition := "[" + positionRow + "," + strings.Join(cappedOrders[1:], ",") + "]"
+	for _, tc := range []struct {
+		failure   string
+		responses map[string]string
+	}{
+		{failure: "another DEX's listing", responses: map[string]string{"frontendOpenOrders:": listedPositionOrder, "frontendOpenOrders:xyz": `{`}},
+		{failure: "an order that cannot convert", responses: map[string]string{"frontendOpenOrders:": "[" + positionRow + "," + unconvertibleRow + "]"}},
+		{failure: "the open orders past frontendOpenOrders' limit", responses: map[string]string{"frontendOpenOrders:": cappedBesidePosition}},
+		{failure: "an order past frontendOpenOrders' limit that cannot convert", responses: map[string]string{"frontendOpenOrders:": cappedBesidePosition, "openOrders:": "[" + unconvertibleRow + "]"}},
+	} {
+		tc.responses["orderStatus"] = `{"status":"unknownOid"}`
+		tc.responses["clearinghouseState:"] = `{"assetPositions":[]}`
+		closedPositionOrder, err := newTradingServerExchange(t, tc.responses, nil).GetOrderInfo(t.Context(), "14", currency.EMPTYPAIR, asset.Empty)
+		require.NoErrorf(t, err, "GetOrderInfo must not return the failure of %s for a position TP/SL order whose position has closed", tc.failure)
+		assert.Zerof(t, closedPositionOrder.Amount, "GetOrderInfo should leave a position TP/SL order unsized beside the failure of %s once its position has closed", tc.failure)
+	}
+	for _, remaining := range []string{"1", "2"} {
+		listed := strings.Replace(listedOpenOrder(openOrderStatus), `"sz":"1"`, `"sz":"`+remaining+`"`, 1)
+		sizedBesideUnread, err := newTradingServerExchange(t, map[string]string{"orderStatus": `{"status":"unknownOid"}`, "frontendOpenOrders:": listed, "frontendOpenOrders:xyz": strings.Replace(listedPositionOrder, `"coin":"BTC"`, `"coin":"xyz:XYZ100"`, 1)}, nil).GetOrderInfo(t.Context(), "7", currency.EMPTYPAIR, asset.Empty)
+		require.NoErrorf(t, err, "GetOrderInfo must not return another DEX's positions failure for a sized order with %s left", remaining)
+		assert.Equalf(t, 2.0, sizedBesideUnread.Amount, "GetOrderInfo should keep the size of an order with %s left, listed beside one it cannot size", remaining)
+	}
 	cancelledPositionOrder, err := newTradingServerExchange(t, map[string]string{"orderStatus": strings.Replace(positionOrderStatus, `"status":"open"`, `"status":"canceled"`, 1)}, nil).GetOrderInfo(t.Context(), "14", perpetualPair, asset.PerpetualContract)
 	require.NoError(t, err, "GetOrderInfo must not read positions for a cancelled position TP/SL order")
 	assert.Zero(t, cancelledPositionOrder.Amount, "GetOrderInfo should leave a cancelled position TP/SL order unsized")
@@ -3599,6 +3658,7 @@ func TestGetActiveOrders(t *testing.T) {
 	assert.Equal(t, exp, orders[maximumFrontendOpenOrders], "GetActiveOrders should size an openOrders order without a size from its position")
 	orders, err = newTradingServerExchange(t, map[string]string{"frontendOpenOrders": `[` + positionOrder + `]`}, nil).GetActiveOrders(t.Context(), perpetualRequest)
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetActiveOrders should return a positions failure")
+	assert.ErrorIs(t, err, errPositionSizesUnread, "GetActiveOrders should report a positions failure as such")
 	require.Len(t, orders, 1, "GetActiveOrders must still return a position TP/SL order whose position cannot be read")
 	assert.Zero(t, orders[0].Amount, "GetActiveOrders should leave a position TP/SL order unsized when its position cannot be read")
 

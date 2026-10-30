@@ -213,7 +213,8 @@ func (e *Exchange) ScheduleCancel(ctx context.Context, arg *ScheduleCancelReques
 }
 
 // ModifySingleOrder replaces one order with the modify action, which reports no status for the replacement; ModifyOrders
-// returns one
+// returns one. A reduce-only trigger replacement without a size covers the whole position. Hyperliquid tries to cancel
+// the order before it places the replacement, so an error does not mean the order still rests
 func (e *Exchange) ModifySingleOrder(ctx context.Context, arg *ModifyOrderRequest) error {
 	return e.modifySingleOrder(ctx, arg, false)
 }
@@ -227,7 +228,7 @@ func (e *Exchange) modifySingleOrder(ctx context.Context, arg *ModifyOrderReques
 	if err != nil {
 		return err
 	}
-	wire, err := arg.Order.ToWire()
+	wire, err := arg.Order.toWire(arg.Order.Trigger != nil && arg.Order.ReduceOnly)
 	if err != nil {
 		return err
 	}
@@ -236,7 +237,9 @@ func (e *Exchange) modifySingleOrder(ctx context.Context, arg *ModifyOrderReques
 	return err
 }
 
-// ModifyOrders replaces a batch of orders and returns each replacement's status, in request order
+// ModifyOrders replaces a batch of orders and returns each replacement's status, in request order. A reduce-only trigger
+// replacement without a size covers the whole position. Hyperliquid tries to cancel an order before it places the
+// replacement, so a replacement's error does not mean the order still rests
 func (e *Exchange) ModifyOrders(ctx context.Context, arg *ModifyOrdersRequest) ([]OrderActionStatusResponse, error) {
 	return e.modifyOrders(ctx, arg, false)
 }
@@ -255,7 +258,7 @@ func (e *Exchange) modifyOrders(ctx context.Context, arg *ModifyOrdersRequest, o
 		if err != nil {
 			return nil, fmt.Errorf("modify %d: %w", i, err)
 		}
-		wire, err := arg.Modifies[i].Order.ToWire()
+		wire, err := arg.Modifies[i].Order.toWire(arg.Modifies[i].Order.Trigger != nil && arg.Modifies[i].Order.ReduceOnly)
 		if err != nil {
 			return nil, fmt.Errorf("modify %d: %w", i, err)
 		}

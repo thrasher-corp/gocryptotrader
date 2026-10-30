@@ -75,9 +75,11 @@ custom endpoints are kept, so `useSandbox` must match the environment behind a c
   take-profit or stop-loss children must set `TriggerPriceType` to `order.MarkPrice`. A market trigger order or child
   without a limit price is priced `SlippageTolerance` away from its trigger price, which defaults to 10%, as for
   Hyperliquid's own TP/SL market orders.
-+ `ModifyOrder` replaces resting limit orders only, and cannot add a take profit or stop loss. Hyperliquid replaces an
-  order only when the replacement rests, so a GTC replacement that would match is rejected and trigger and IOC
-  replacements are not supported.
++ `ModifyOrder` replaces resting limit orders only, and cannot add a take profit or stop loss. It leaves `always_place`
+  unset, so Hyperliquid accepts only a replacement that rests, and cancels the order before placing it: a replacement
+  that would match is rejected with the order already cancelled, and an error from `ModifyOrder` does not mean the order
+  still rests. A placed replacement rests as ALO, whatever its time in force, and trigger and IOC replacements are not
+  supported.
 + Fee estimates follow Hyperliquid's fee formula, from the account's rates and referral discount when credentials are
   set, and the base tier rates otherwise. A spot pair between two spot quote assets, the tokens that quote a listed spot
   market, pays a fifth of the rate. A builder-deployed perpetual market's deployer fee scale raises its fees, and growth

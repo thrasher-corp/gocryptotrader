@@ -756,6 +756,9 @@ func TestModifySingleOrderInternal(t *testing.T) {
 			{name: "conflicting identifiers", arg: &ModifyOrderRequest{OrderID: 1, ClientOrderID: testClientOrderID, Order: replacement}, err: errOrderIdentifiersConflict},
 			{name: "invalid client identifier", arg: &ModifyOrderRequest{ClientOrderID: "0x1", Order: replacement}, err: errClientOrderIDInvalid},
 			{name: "invalid replacement", arg: &ModifyOrderRequest{OrderID: 1}, err: order.ErrAmountIsInvalid},
+			{name: "a limit replacement without a size", arg: &ModifyOrderRequest{OrderID: 1, AlwaysPlace: true, Order: OrderRequest{Price: 84500, ReduceOnly: true, Limit: &LimitOrderType{TimeInForce: TimeInForceGTC}}}, err: order.ErrAmountIsInvalid},
+			{name: "a trigger replacement without a size that can open a position", arg: &ModifyOrderRequest{OrderID: 1, AlwaysPlace: true, Order: OrderRequest{Price: 84500, Trigger: &TriggerOrderType{IsMarket: true, TriggerPrice: 84000, TakeProfitStopLoss: TriggerStopLoss}}}, err: order.ErrAmountIsInvalid},
+			{name: "a reduce-only trigger replacement with a negative size", arg: &ModifyOrderRequest{OrderID: 1, Order: OrderRequest{Price: 84500, Size: -1, ReduceOnly: true, Trigger: &TriggerOrderType{IsMarket: true, TriggerPrice: 84000, TakeProfitStopLoss: TriggerStopLoss}}}, err: order.ErrAmountIsInvalid},
 			{name: "expired action", arg: &ModifyOrderRequest{OrderID: 1, Order: replacement, ExpiresAfter: time.Unix(1, 0)}, err: errExpiresAfterPassed},
 		} {
 			t.Run(tc.name+"/websocket="+strconv.FormatBool(overWebsocket), func(t *testing.T) {
@@ -816,6 +819,10 @@ func TestModifyOrdersInternal(t *testing.T) {
 			{name: "empty batch", arg: &ModifyOrdersRequest{}, err: errNoActionItems},
 			{name: "invalid second identifier", arg: &ModifyOrdersRequest{Modifies: []OrderModification{{OrderID: 1, Order: replacement}, {Order: replacement}}}, err: order.ErrOrderIDNotSet},
 			{name: "invalid second replacement", arg: &ModifyOrdersRequest{Modifies: []OrderModification{{OrderID: 1, Order: replacement}, {OrderID: 2}}}, err: order.ErrAmountIsInvalid},
+			{name: "a limit replacement without a size", arg: &ModifyOrdersRequest{AlwaysPlace: true, Modifies: []OrderModification{{OrderID: 1, Order: OrderRequest{Price: 79500, ReduceOnly: true, Limit: &LimitOrderType{TimeInForce: TimeInForceGTC}}}}}, err: order.ErrAmountIsInvalid},
+			{name: "a trigger replacement without a size that can open a position", arg: &ModifyOrdersRequest{AlwaysPlace: true, Modifies: []OrderModification{{OrderID: 1, Order: OrderRequest{Price: 79500, Trigger: replacement.Trigger}}}}, err: order.ErrAmountIsInvalid},
+			{name: "a reduce-only trigger replacement with a negative size", arg: &ModifyOrdersRequest{Modifies: []OrderModification{{OrderID: 1, Order: OrderRequest{Price: 79500, Size: -1, ReduceOnly: true, Trigger: replacement.Trigger}}}}, err: order.ErrAmountIsInvalid},
+			{name: "a second trigger replacement without a size that can open a position", arg: &ModifyOrdersRequest{AlwaysPlace: true, Modifies: []OrderModification{{OrderID: 1, Order: replacement}, {OrderID: 2, Order: OrderRequest{Price: 79500, Trigger: replacement.Trigger}}}}, err: order.ErrAmountIsInvalid},
 			{name: "expired action", arg: &ModifyOrdersRequest{Modifies: []OrderModification{{OrderID: 1, Order: replacement}}, ExpiresAfter: time.Unix(1, 0)}, err: errExpiresAfterPassed},
 		} {
 			t.Run(tc.name+"/websocket="+strconv.FormatBool(overWebsocket), func(t *testing.T) {
@@ -859,6 +866,63 @@ func TestModifyOrdersInternal(t *testing.T) {
 				assert.Equal(t, testSubAccountAddress, captured.VaultAddress, "modifyOrders should act for the configured subaccount")
 				assert.Equal(t, new(unixMilli(expires)), captured.ExpiresAfter, "modifyOrders should preserve the expiry")
 			})
+		}
+	}
+}
+
+// A replaced position TP/SL order keeps the zero size with which it covers the whole position: as a market stop loss,
+// this replacement is the wire order of a modify Hyperliquid accepted live
+func TestModifyWholePositionInternal(t *testing.T) {
+	t.Parallel()
+	for _, trigger := range []TriggerOrderType{
+		{IsMarket: true, TriggerPrice: 0.004603, TakeProfitStopLoss: TriggerStopLoss},
+		{TriggerPrice: 0.004603, TakeProfitStopLoss: TriggerStopLoss},
+		{IsMarket: true, TriggerPrice: 0.004603, TakeProfitStopLoss: TriggerTakeProfit},
+		{TriggerPrice: 0.004603, TakeProfitStopLoss: TriggerTakeProfit},
+	} {
+		replacement := OrderRequest{Asset: 15, Price: 0.004142, ReduceOnly: true, Trigger: &trigger}
+		wire := `{"a":15,"b":false,"p":"0.004142","s":"0","r":true,"t":{"trigger":{"isMarket":` + strconv.FormatBool(trigger.IsMarket) + `,"triggerPx":"0.004603","tpsl":"` + trigger.TakeProfitStopLoss + `"}}}`
+		for _, tc := range []struct {
+			name, response, action string
+			send                   func(ctx context.Context, ex *Exchange, overWebsocket bool) error
+		}{
+			{
+				name:     "single",
+				response: defaultActionResponse,
+				action:   `{"type":"modify","oid":590614445410,"order":` + wire + `,"a":true}`,
+				send: func(ctx context.Context, ex *Exchange, overWebsocket bool) error {
+					return ex.modifySingleOrder(ctx, &ModifyOrderRequest{OrderID: 590614445410, Order: replacement, AlwaysPlace: true}, overWebsocket)
+				},
+			},
+			{
+				name:     "batch",
+				response: statusesResponse("order", `{"resting":{"oid":8}}`, `{"resting":{"oid":590614517098}}`),
+				action:   `{"type":"batchModify","modifies":[{"oid":7,"order":{"a":0,"b":true,"p":"84500","s":"0.001","r":false,"t":{"limit":{"tif":"Gtc"}}}},{"oid":590614445410,"order":` + wire + `}],"a":true}`,
+				send: func(ctx context.Context, ex *Exchange, overWebsocket bool) error {
+					limit := OrderRequest{Asset: 0, IsBuy: true, Price: 84500, Size: 0.001, Limit: &LimitOrderType{TimeInForce: TimeInForceGTC}}
+					_, err := ex.modifyOrders(ctx, &ModifyOrdersRequest{Modifies: []OrderModification{{OrderID: 7, Order: limit}, {OrderID: 590614445410, Order: replacement}}, AlwaysPlace: true}, overWebsocket)
+					return err
+				},
+			},
+		} {
+			for _, overWebsocket := range []bool{false, true} {
+				t.Run(tc.name+"/market="+strconv.FormatBool(trigger.IsMarket)+"/"+trigger.TakeProfitStopLoss+"/websocket="+strconv.FormatBool(overWebsocket), func(t *testing.T) {
+					t.Parallel()
+					var captured SignedActionRequest
+					ex := newActionServerExchange(t, subAccountCredentials(), &captured, tc.response)
+					connection := &websocketConnectionFixture{exchange: ex, reply: replyToPost(`{"type":"action","payload":` + tc.response + `}`)}
+					ex.websocketPostConnection = connection
+					require.NoError(t, tc.send(t.Context(), ex, overWebsocket), "the modify must send a whole-position replacement")
+					if overWebsocket {
+						sent := connection.sentRequests()
+						require.Len(t, sent, 1, "the modify must post one websocket action")
+						var post websocketVenueRequest
+						require.NoError(t, json.Unmarshal([]byte(sent[0]), &post), "Unmarshal must decode the websocket post")
+						require.NoError(t, json.Unmarshal(post.Request.Payload, &captured), "Unmarshal must decode the signed action")
+					}
+					assert.JSONEq(t, tc.action, capturedAction(t, &captured), "the modify should keep the replacement's zero size")
+				})
+			}
 		}
 	}
 }
@@ -2078,6 +2142,7 @@ func TestOrderRequestToWire(t *testing.T) {
 		err  error
 	}{
 		{name: "no size", arg: OrderRequest{Price: 1, Limit: &LimitOrderType{TimeInForce: TimeInForceGTC}}, err: order.ErrAmountIsInvalid},
+		{name: "a reduce-only trigger and no size", arg: OrderRequest{Price: 1, ReduceOnly: true, Trigger: &TriggerOrderType{TriggerPrice: 1, TakeProfitStopLoss: TriggerStopLoss}}, err: order.ErrAmountIsInvalid},
 		{name: "no price", arg: OrderRequest{Size: 1, Limit: &LimitOrderType{TimeInForce: TimeInForceGTC}}, err: errOrderPriceInvalid},
 		{name: "a size beyond 8 decimals", arg: OrderRequest{Price: 1, Size: 0.000000001, Limit: &LimitOrderType{TimeInForce: TimeInForceGTC}}, err: errWireNumberRounding},
 		{name: "a size that rounds to zero", arg: OrderRequest{Price: 1, Size: 1e-13, Limit: &LimitOrderType{TimeInForce: TimeInForceGTC}}, err: errWireNumberRounding},

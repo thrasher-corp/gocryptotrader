@@ -770,11 +770,24 @@ func newAccountRecoveryTestExchange(t *testing.T, refuse func(attempt int) bool,
 
 func TestWebsocketAccountConnectionRecovery(t *testing.T) {
 	t.Parallel()
-	// The public connection dials first and is accepted; the account connection's first dial and first retry are refused
-	ex, attempts := newAccountRecoveryTestExchange(t, func(attempt int) bool { return attempt == 2 || attempt == 3 }, 20*time.Millisecond)
+	// The public connection dials first and is accepted; the account connection's first dial and first retry are refused.
+	// Retries run while the test reads the state Connect leaves, so the accepted retry waits for that read
+	stateRead := make(chan struct{})
+	releaseRetry := sync.OnceFunc(func() { close(stateRead) })
+	ex, attempts := newAccountRecoveryTestExchange(t, func(attempt int) bool {
+		if attempt == 4 {
+			select {
+			case <-stateRead:
+			case <-time.After(10 * time.Second):
+			}
+		}
+		return attempt == 2 || attempt == 3
+	}, 20*time.Millisecond)
+	t.Cleanup(releaseRetry)
 	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must keep the public connection when the account connection fails")
 	assert.True(t, ex.Websocket.IsConnected(), "Connect should leave the public connection up")
 	assert.False(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "Connect should not make account feeds usable while the account connection is down")
+	releaseRetry()
 	// The connector makes account feeds usable before the feeds are subscribed
 	accountFeed := newWebsocketSubscriptionKey(&subscription.Subscription{Channel: subscription.MyOrdersChannel, Authenticated: true})
 	require.Eventually(t, func() bool {
