@@ -605,7 +605,7 @@ func TestGetUSDTMarginedFuturesBasisPeriod(t *testing.T) {
 				assert.NoError(t, err, "Write should not error")
 			})
 			_, err := ex.GetUSDTMarginedFuturesBasis(t.Context(), &USDTMarginedFuturesBasisRequest{Pair: currency.NewBTCUSDT(), ContractType: ContractTypePerpetual, Period: tc.period})
-			require.NoError(t, err, "GetUSDTMarginedFuturesBasis must not error")
+			assert.NoError(t, err, "GetUSDTMarginedFuturesBasis should not error")
 		})
 	}
 }

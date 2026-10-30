@@ -897,6 +897,10 @@ func TestGetTickerData(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetTickerData must reject an empty pair")
 	_, err = e.GetTickerData(t.Context(), &RollingWindowTickerRequest{Symbols: currency.Pairs{currency.NewBTCUSDT()}, WindowSize: 30 * time.Second})
 	require.ErrorIs(t, err, errInvalidWindowSize, "GetTickerData must reject a window size that is not whole minutes")
+	for _, windowSize := range []time.Duration{-time.Minute, time.Minute + time.Second, time.Minute + 400*time.Millisecond} {
+		_, err = e.GetTickerData(t.Context(), &RollingWindowTickerRequest{Symbols: currency.Pairs{currency.NewBTCUSDT()}, WindowSize: windowSize})
+		require.ErrorIsf(t, err, errInvalidWindowSize, "GetTickerData must reject window size %s, which is not a positive whole number of minutes", windowSize)
+	}
 	for _, windowSize := range []time.Duration{90 * time.Minute, 25 * time.Hour, 8 * 24 * time.Hour} {
 		_, err = e.GetTickerData(t.Context(), &RollingWindowTickerRequest{Symbols: currency.Pairs{currency.NewBTCUSDT()}, WindowSize: windowSize})
 		require.ErrorIsf(t, err, errInvalidWindowSize, "GetTickerData must reject window size %s, which Binance rejects with -1102", windowSize)
@@ -930,6 +934,36 @@ func TestGetTickerData(t *testing.T) {
 	}
 	require.Len(t, result, 1, "GetTickerData must return the requested symbol")
 	assert.Equal(t, 20*time.Minute, result[0].CloseTime.Time().Sub(result[0].OpenTime.Time()).Truncate(time.Minute), "GetTickerData should return statistics over the window size")
+}
+
+func TestGetTickerDataWindowSize(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		req  *RollingWindowTickerRequest
+		exp  url.Values
+	}{
+		{"no window", &RollingWindowTickerRequest{Symbols: currency.Pairs{currency.NewBTCUSDT()}}, url.Values{"symbol": {"BTCUSDT"}}},
+		{"1m", &RollingWindowTickerRequest{Symbols: currency.Pairs{currency.NewBTCUSDT()}, WindowSize: time.Minute}, url.Values{"symbol": {"BTCUSDT"}, "windowSize": {"1m"}}},
+		{"59m", &RollingWindowTickerRequest{Symbols: currency.Pairs{currency.NewBTCUSDT()}, WindowSize: 59 * time.Minute}, url.Values{"symbol": {"BTCUSDT"}, "windowSize": {"59m"}}},
+		{"1h", &RollingWindowTickerRequest{Symbols: currency.Pairs{currency.NewBTCUSDT()}, WindowSize: time.Hour}, url.Values{"symbol": {"BTCUSDT"}, "windowSize": {"1h"}}},
+		{"23h", &RollingWindowTickerRequest{Symbols: currency.Pairs{currency.NewBTCUSDT()}, WindowSize: 23 * time.Hour}, url.Values{"symbol": {"BTCUSDT"}, "windowSize": {"23h"}}},
+		{"1d", &RollingWindowTickerRequest{Symbols: currency.Pairs{currency.NewBTCUSDT()}, WindowSize: 24 * time.Hour}, url.Values{"symbol": {"BTCUSDT"}, "windowSize": {"1d"}}},
+		{"7d", &RollingWindowTickerRequest{Symbols: currency.Pairs{currency.NewBTCUSDT()}, WindowSize: 7 * 24 * time.Hour}, url.Values{"symbol": {"BTCUSDT"}, "windowSize": {"7d"}}},
+		{"1d for two symbols", &RollingWindowTickerRequest{Symbols: currency.Pairs{currency.NewBTCUSDT(), currency.NewPair(currency.ETH, currency.USDT)}, WindowSize: 24 * time.Hour}, url.Values{"symbols": {`["BTCUSDT","ETHUSDT"]`}, "windowSize": {"1d"}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := newTestServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, "/api/v3/ticker", r.URL.Path, "GetTickerData should request the rolling window ticker path")
+				assert.Equal(t, tc.exp, r.URL.Query(), "GetTickerData should send the window size as Binance writes it")
+				_, err := w.Write([]byte(`[]`))
+				assert.NoError(t, err, "Write should not error")
+			})
+			_, err := ex.GetTickerData(t.Context(), tc.req)
+			assert.NoError(t, err, "GetTickerData should not error")
+		})
+	}
 }
 
 func TestGetPriceChangeStats(t *testing.T) {

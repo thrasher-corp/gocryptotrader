@@ -232,6 +232,36 @@ func TestGetCoinMarginedFuturesBasisData(t *testing.T) {
 	assert.NotEmpty(t, result, "GetCoinMarginedFuturesBasisData should return basis records")
 }
 
+func TestGetCoinMarginedFuturesBasisDataPeriod(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		period kline.Interval
+		exp    string
+	}{
+		{kline.FiveMin, "5m"},
+		{kline.FifteenMin, "15m"},
+		{kline.ThirtyMin, "30m"},
+		{kline.OneHour, "1h"},
+		{kline.TwoHour, "2h"},
+		{kline.FourHour, "4h"},
+		{kline.SixHour, "6h"},
+		{kline.TwelveHour, "12h"},
+		{kline.OneDay, "1d"},
+	} {
+		t.Run(tc.exp, func(t *testing.T) {
+			t.Parallel()
+			ex := newTestServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, "/futures/data/basis", r.URL.Path, "GetCoinMarginedFuturesBasisData should request the basis path")
+				assert.Equal(t, url.Values{"pair": {"BTCUSD"}, "contractType": {"PERPETUAL"}, "period": {tc.exp}}, r.URL.Query(), "GetCoinMarginedFuturesBasisData should send the period as Binance writes it")
+				_, err := w.Write([]byte(`[]`))
+				assert.NoError(t, err, "Write should not error")
+			})
+			_, err := ex.GetCoinMarginedFuturesBasisData(t.Context(), &CoinMarginedFuturesStatisticsRequest{Pair: currency.NewCode("BTCUSD"), ContractType: ContractTypePerpetual, Period: tc.period})
+			assert.NoError(t, err, "GetCoinMarginedFuturesBasisData should not error")
+		})
+	}
+}
+
 func TestCoinMarginedFuturesServerTime(t *testing.T) {
 	t.Parallel()
 	result, err := e.CoinMarginedFuturesServerTime(t.Context())
@@ -730,6 +760,42 @@ func TestGetCoinMarginedFuturesKlineData(t *testing.T) {
 		return
 	}
 	assert.NotEmpty(t, result, "GetCoinMarginedFuturesKlineData should return klines")
+}
+
+func TestGetCoinMarginedFuturesKlineDataInterval(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		interval kline.Interval
+		exp      string
+	}{
+		{kline.OneMin, "1m"},
+		{kline.ThreeMin, "3m"},
+		{kline.FiveMin, "5m"},
+		{kline.FifteenMin, "15m"},
+		{kline.ThirtyMin, "30m"},
+		{kline.OneHour, "1h"},
+		{kline.TwoHour, "2h"},
+		{kline.FourHour, "4h"},
+		{kline.SixHour, "6h"},
+		{kline.EightHour, "8h"},
+		{kline.TwelveHour, "12h"},
+		{kline.OneDay, "1d"},
+		{kline.ThreeDay, "3d"},
+		{kline.OneWeek, "1w"},
+		{kline.OneMonth, "1M"},
+	} {
+		t.Run(tc.exp, func(t *testing.T) {
+			t.Parallel()
+			ex := newTestServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, "/dapi/v1/klines", r.URL.Path, "GetCoinMarginedFuturesKlineData should request the klines path")
+				assert.Equal(t, url.Values{"symbol": {"BTCUSD_PERP"}, "interval": {tc.exp}}, r.URL.Query(), "GetCoinMarginedFuturesKlineData should send the interval as Binance writes it")
+				_, err := w.Write([]byte(`[]`))
+				assert.NoError(t, err, "Write should not error")
+			})
+			_, err := ex.GetCoinMarginedFuturesKlineData(t.Context(), &CoinMarginedFuturesKlineRequest{Symbol: testCoinMarginedFuturesPair, Interval: tc.interval})
+			assert.NoError(t, err, "GetCoinMarginedFuturesKlineData should not error")
+		})
+	}
 }
 
 // futuresStatisticsTests checks the request validation shared by the coin margined futures statistics endpoints, and
