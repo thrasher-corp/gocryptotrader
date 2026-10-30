@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+
+	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 // var error definitions
@@ -40,6 +42,9 @@ const (
 	iocStr      = "IOC"
 	postonlyStr = "POSTONLY"
 	sorStr      = "SOR"
+
+	// unknownTIFStr is the string of a TimeInForce with no supported flag
+	unknownTIFStr = "UNKNOWN"
 )
 
 // Is checks to see if the enum contains the flag
@@ -119,7 +124,7 @@ func (t TimeInForce) String() string {
 		tifStrings = append(tifStrings, sorStr)
 	}
 	if len(tifStrings) == 0 {
-		return "UNKNOWN"
+		return unknownTIFStr
 	}
 	return strings.Join(tifStrings, ",")
 }
@@ -144,4 +149,36 @@ func (t *TimeInForce) UnmarshalJSON(data []byte) error {
 // MarshalJSON returns the JSON-encoded order time-in-force value
 func (t TimeInForce) MarshalJSON() ([]byte, error) {
 	return []byte(`"` + t.String() + `"`), nil
+}
+
+// MarshalBSONValue implements bson.ValueMarshaler, storing the TimeInForce as its string
+func (t TimeInForce) MarshalBSONValue() (typ byte, data []byte, err error) {
+	bt, data, err := bson.MarshalValue(t.String())
+	return byte(bt), data, err
+}
+
+// UnmarshalBSONValue implements bson.ValueUnmarshaler. A TimeInForce with no supported flag is stored as
+// unknownTIFStr, which StringToTimeInForce rejects as exchange input, and reads back as UnknownTIF.
+func (t *TimeInForce) UnmarshalBSONValue(typ byte, data []byte) error {
+	if bson.Type(typ) != bson.TypeString {
+		return fmt.Errorf("%w: expected a BSON string, got %s", ErrInvalidTimeInForce, bson.Type(typ))
+	}
+	var str string
+	if err := bson.UnmarshalValue(bson.TypeString, data, &str); err != nil {
+		return fmt.Errorf("%w: %w", ErrInvalidTimeInForce, err)
+	}
+	if str == unknownTIFStr {
+		*t = UnknownTIF
+		return nil
+	}
+	var tif TimeInForce
+	for flag := range strings.SplitSeq(str, ",") {
+		f, err := StringToTimeInForce(flag)
+		if err != nil {
+			return err
+		}
+		tif |= f
+	}
+	*t = tif
+	return nil
 }
