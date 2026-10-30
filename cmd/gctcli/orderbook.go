@@ -67,31 +67,17 @@ var nominal = &cli.Command{
 }
 
 func getNominal(c *cli.Context) error {
-	isSelling := c.Bool("sell")
 	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	var exchangeName string
-	if c.IsSet(exchangeFlag) {
-		exchangeName = c.String(exchangeFlag)
-	}
-
-	var currencyPair string
-	if c.IsSet(pairFlag) {
-		currencyPair = c.String(pairFlag)
-	}
+	currencyPair := c.String(pairFlag)
 
 	if !validPair(currencyPair) {
 		return errInvalidPair
 	}
 
-	var assetType string
-	if c.IsSet(assetFlag) {
-		assetType = c.String(assetFlag)
-	}
-
-	assetType = strings.ToLower(assetType)
+	assetType := strings.ToLower(c.String(assetFlag))
 	if !validAsset(assetType) {
 		return errInvalidAsset
 	}
@@ -99,11 +85,6 @@ func getNominal(c *cli.Context) error {
 	p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)
 	if err != nil {
 		return err
-	}
-
-	var percentage float64
-	if c.IsSet("percent") {
-		percentage = c.Float64("percent")
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -115,14 +96,14 @@ func getNominal(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.GetOrderbookAmountByNominal(c.Context,
 		&gctrpc.GetOrderbookAmountByNominalRequest{
-			Exchange: exchangeName,
+			Exchange: c.String(exchangeFlag),
 			Pair: &gctrpc.CurrencyPair{
 				Base:  p.Base.String(),
 				Quote: p.Quote.String(),
 			},
 			Asset:             assetType,
-			Sell:              isSelling,
-			NominalPercentage: percentage,
+			Sell:              c.Bool("sell"),
+			NominalPercentage: c.Float64("percent"),
 		})
 	if err != nil {
 		return err
@@ -144,31 +125,17 @@ var impact = &cli.Command{
 }
 
 func getImpact(c *cli.Context) error {
-	isSelling := c.Bool("sell")
 	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	var exchangeName string
-	if c.IsSet(exchangeFlag) {
-		exchangeName = c.String(exchangeFlag)
-	}
-
-	var currencyPair string
-	if c.IsSet(pairFlag) {
-		currencyPair = c.String(pairFlag)
-	}
+	currencyPair := c.String(pairFlag)
 
 	if !validPair(currencyPair) {
 		return errInvalidPair
 	}
 
-	var assetType string
-	if c.IsSet(assetFlag) {
-		assetType = c.String(assetFlag)
-	}
-
-	assetType = strings.ToLower(assetType)
+	assetType := strings.ToLower(c.String(assetFlag))
 	if !validAsset(assetType) {
 		return errInvalidAsset
 	}
@@ -176,11 +143,6 @@ func getImpact(c *cli.Context) error {
 	p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)
 	if err != nil {
 		return err
-	}
-
-	var percentage float64
-	if c.IsSet("percent") {
-		percentage = c.Float64("percent")
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -192,14 +154,14 @@ func getImpact(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.GetOrderbookAmountByImpact(c.Context,
 		&gctrpc.GetOrderbookAmountByImpactRequest{
-			Exchange: exchangeName,
+			Exchange: c.String(exchangeFlag),
 			Pair: &gctrpc.CurrencyPair{
 				Base:  p.Base.String(),
 				Quote: p.Quote.String(),
 			},
 			Asset:            assetType,
-			Sell:             isSelling,
-			ImpactPercentage: percentage,
+			Sell:             c.Bool("sell"),
+			ImpactPercentage: c.Float64("percent"),
 		})
 	if err != nil {
 		return err
@@ -264,26 +226,13 @@ func getMovement(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	var exchangeName string
-	if c.IsSet(exchangeFlag) {
-		exchangeName = c.String(exchangeFlag)
-	}
-
-	var currencyPair string
-	if c.IsSet(pairFlag) {
-		currencyPair = c.String(pairFlag)
-	}
+	currencyPair := c.String(pairFlag)
 
 	if !validPair(currencyPair) {
 		return errInvalidPair
 	}
 
-	var assetType string
-	if c.IsSet(assetFlag) {
-		assetType = c.String(assetFlag)
-	}
-
-	assetType = strings.ToLower(assetType)
+	assetType := strings.ToLower(c.String(assetFlag))
 	if !validAsset(assetType) {
 		return errInvalidAsset
 	}
@@ -291,11 +240,6 @@ func getMovement(c *cli.Context) error {
 	p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)
 	if err != nil {
 		return err
-	}
-
-	var amount float64
-	if c.IsSet(amountFlag) {
-		amount = c.Float64(amountFlag)
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -306,14 +250,14 @@ func getMovement(c *cli.Context) error {
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.GetOrderbookMovement(c.Context, &gctrpc.GetOrderbookMovementRequest{
-		Exchange: exchangeName,
+		Exchange: c.String(exchangeFlag),
 		Pair: &gctrpc.CurrencyPair{
 			Base:  p.Base.String(),
 			Quote: p.Quote.String(),
 		},
 		Asset:    assetType,
 		Sell:     c.Bool("sell"),
-		Amount:   amount,
+		Amount:   c.Float64(amountFlag),
 		Purchase: c.Bool("purchase"),
 	})
 	if err != nil {
@@ -345,31 +289,14 @@ func getOrderbook(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	var (
-		exchangeName, pair, assetType string
-		exchangeStyle                 bool
-		err                           error
-	)
-
-	if c.IsSet(exchangeFlag) {
-		exchangeName = c.String(exchangeFlag)
-	}
-
-	if c.IsSet(pairFlag) {
-		pair = c.String(pairFlag)
-	}
+	exchangeName := c.String(exchangeFlag)
+	pair := c.String(pairFlag)
 
 	if !validPair(pair) {
 		return errInvalidPair
 	}
 
-	if c.IsSet(assetFlag) {
-		assetType = c.String(assetFlag)
-	}
-
-	if c.IsSet("exchangestyle") {
-		exchangeStyle = c.Bool("exchangestyle")
-	}
+	assetType := c.String(assetFlag)
 
 	const depthCeiling uint64 = 100 // The maximum the depth can be regardless of user entry
 	depthLimit := depthCeiling
@@ -409,7 +336,7 @@ func getOrderbook(c *cli.Context) error {
 		return err
 	}
 
-	if exchangeStyle {
+	if c.Bool("exchangestyle") {
 		bidLen := uint64(len(result.Bids) - 1) //nolint:gosec // Can fit in uint64
 		askLen := uint64(len(result.Asks) - 1) //nolint:gosec // Can fit in uint64
 		maxLen := min(max(bidLen, askLen), depthLimit)
@@ -463,31 +390,14 @@ func getOrderbookStream(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	var (
-		exchangeName, pair, assetType string
-		exchangeStyle                 bool
-		err                           error
-	)
-
-	if c.IsSet(exchangeFlag) {
-		exchangeName = c.String(exchangeFlag)
-	}
-
-	if c.IsSet(pairFlag) {
-		pair = c.String(pairFlag)
-	}
+	exchangeName := c.String(exchangeFlag)
+	pair := c.String(pairFlag)
 
 	if !validPair(pair) {
 		return errInvalidPair
 	}
 
-	if c.IsSet(assetFlag) {
-		assetType = c.String(assetFlag)
-	}
-
-	if c.IsSet("exchangestyle") {
-		exchangeStyle = c.Bool("exchangestyle")
-	}
+	assetType := c.String(assetFlag)
 
 	const depthCeiling uint64 = 50 // The maximum the depth can be regardless of user entry
 	depthLimit := depthCeiling
@@ -534,8 +444,7 @@ func getOrderbookStream(c *cli.Context) error {
 			return err
 		}
 
-		err = clearScreen()
-		if err != nil {
+		if err := clearScreen(); err != nil {
 			return err
 		}
 
@@ -548,7 +457,7 @@ func getOrderbookStream(c *cli.Context) error {
 		askLen := uint64(len(resp.Asks) - 1) //nolint:gosec // Can fit in uint64
 		maxLen := min(max(bidLen, askLen), depthLimit)
 
-		if exchangeStyle {
+		if c.Bool("exchangestyle") {
 			renderOrderbookExchangeStyle(resp, exchangeName, assetType, maxLen, askLen, bidLen)
 		} else {
 			fmt.Printf("Orderbook stream for %s %s:\n\n", exchangeName, resp.Pair)
@@ -631,10 +540,7 @@ func getExchangeOrderbookStream(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	var exchangeName string
-	if c.IsSet(exchangeFlag) {
-		exchangeName = c.String(exchangeFlag)
-	}
+	exchangeName := c.String(exchangeFlag)
 
 	conn, cancel, err := setupClient(c)
 	if err != nil {
@@ -657,8 +563,7 @@ func getExchangeOrderbookStream(c *cli.Context) error {
 			return err
 		}
 
-		err = clearScreen()
-		if err != nil {
+		if err := clearScreen(); err != nil {
 			return err
 		}
 
@@ -706,38 +611,16 @@ func whaleBomb(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	var exchangeName string
-	var currencyPair string
-	var orderSide string
-	var price float64
-
-	if c.IsSet(exchangeFlag) {
-		exchangeName = c.String(exchangeFlag)
-	}
-
-	if c.IsSet(pairFlag) {
-		currencyPair = c.String(pairFlag)
-	}
+	currencyPair := c.String(pairFlag)
 
 	if !validPair(currencyPair) {
 		return errInvalidPair
 	}
 
-	if c.IsSet(sideFlag) {
-		orderSide = c.String(sideFlag)
-	}
+	orderSide := c.String(sideFlag)
 
 	if orderSide == "" {
 		return errors.New("order side must be set")
-	}
-
-	var assetType string
-	if c.IsSet(assetFlag) {
-		assetType = c.String(assetFlag)
-	}
-
-	if c.IsSet("price") {
-		price = c.Float64("price")
 	}
 
 	p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)
@@ -753,15 +636,15 @@ func whaleBomb(c *cli.Context) error {
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.WhaleBomb(c.Context, &gctrpc.WhaleBombRequest{
-		Exchange: exchangeName,
+		Exchange: c.String(exchangeFlag),
 		Pair: &gctrpc.CurrencyPair{
 			Delimiter: p.Delimiter,
 			Base:      p.Base.String(),
 			Quote:     p.Quote.String(),
 		},
 		Side:        orderSide,
-		PriceTarget: price,
-		AssetType:   assetType,
+		PriceTarget: c.Float64("price"),
+		AssetType:   c.String(assetFlag),
 	})
 	if err != nil {
 		return err

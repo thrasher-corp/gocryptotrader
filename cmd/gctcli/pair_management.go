@@ -175,33 +175,16 @@ var exchangePairManagerCommand = &cli.Command{
 }
 
 func enableDisableExchangePair(c *cli.Context) error {
-	enable := c.Bool(enableFlag)
 	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	var exchange string
-	var pairs string
-	var asset string
-
-	if c.IsSet(exchangeFlag) {
-		exchange = c.String(exchangeFlag)
-	}
-
-	if c.IsSet("pairs") {
-		pairs = c.String("pairs")
-	}
-
-	if c.IsSet(assetFlag) {
-		asset = c.String(assetFlag)
-	}
-
-	asset = strings.ToLower(asset)
+	asset := strings.ToLower(c.String(assetFlag))
 	if !validAsset(asset) {
 		return errInvalidAsset
 	}
 
-	pairList := strings.Split(pairs, ",")
+	pairList := strings.Split(c.String("pairs"), ",")
 
 	validPairs := make([]*gctrpc.CurrencyPair, len(pairList))
 	for i := range pairList {
@@ -231,10 +214,10 @@ func enableDisableExchangePair(c *cli.Context) error {
 
 	result, err := client.SetExchangePair(c.Context,
 		&gctrpc.SetExchangePairRequest{
-			Exchange:  exchange,
+			Exchange:  c.String(exchangeFlag),
 			Pairs:     validPairs,
 			AssetType: asset,
-			Enable:    enable,
+			Enable:    c.Bool(enableFlag),
 		},
 	)
 	if err != nil {
@@ -250,18 +233,7 @@ func getExchangePairs(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	var exchange string
-	var asset string
-
-	if c.IsSet(exchangeFlag) {
-		exchange = c.String(exchangeFlag)
-	}
-
-	if c.IsSet(assetFlag) {
-		asset = c.String(assetFlag)
-	}
-
-	asset = strings.ToLower(asset)
+	asset := strings.ToLower(c.String(assetFlag))
 	if !validAsset(asset) {
 		return errInvalidAsset
 	}
@@ -275,7 +247,7 @@ func getExchangePairs(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.GetExchangePairs(c.Context,
 		&gctrpc.GetExchangePairsRequest{
-			Exchange: exchange,
+			Exchange: c.String(exchangeFlag),
 			Asset:    asset,
 		},
 	)
@@ -287,23 +259,11 @@ func getExchangePairs(c *cli.Context) error {
 }
 
 func enableDisableExchangeAsset(c *cli.Context) error {
-	enable := c.Bool(enableFlag)
 	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	var exchange string
-	var asset string
-
-	if c.IsSet(exchangeFlag) {
-		exchange = c.String(exchangeFlag)
-	}
-
-	if c.IsSet(assetFlag) {
-		asset = c.String(assetFlag)
-	}
-
-	asset = strings.ToLower(asset)
+	asset := strings.ToLower(c.String(assetFlag))
 	if !validAsset(asset) {
 		return errInvalidAsset
 	}
@@ -317,9 +277,9 @@ func enableDisableExchangeAsset(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.SetExchangeAsset(c.Context,
 		&gctrpc.SetExchangeAssetRequest{
-			Exchange: exchange,
+			Exchange: c.String(exchangeFlag),
 			Asset:    asset,
-			Enable:   enable,
+			Enable:   c.Bool(enableFlag),
 		},
 	)
 	if err != nil {
@@ -330,14 +290,8 @@ func enableDisableExchangeAsset(c *cli.Context) error {
 }
 
 func enableDisableAllExchangePairs(c *cli.Context) error {
-	enable := c.Bool(enableFlag)
 	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
-	}
-
-	var exchange string
-	if c.IsSet(exchangeFlag) {
-		exchange = c.String(exchangeFlag)
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -349,8 +303,8 @@ func enableDisableAllExchangePairs(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.SetAllExchangePairs(c.Context,
 		&gctrpc.SetExchangeAllPairsRequest{
-			Exchange: exchange,
-			Enable:   enable,
+			Exchange: c.String(exchangeFlag),
+			Enable:   c.Bool(enableFlag),
 		},
 	)
 	if err != nil {
@@ -365,11 +319,6 @@ func updateExchangeSupportedPairs(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	var exchange string
-	if c.IsSet(exchangeFlag) {
-		exchange = c.String(exchangeFlag)
-	}
-
 	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
@@ -379,7 +328,7 @@ func updateExchangeSupportedPairs(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.UpdateExchangeSupportedPairs(c.Context,
 		&gctrpc.UpdateExchangeSupportedPairsRequest{
-			Exchange: exchange,
+			Exchange: c.String(exchangeFlag),
 		},
 	)
 	if err != nil {
@@ -394,11 +343,6 @@ func getExchangeAssets(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	var exchange string
-	if c.IsSet(exchangeFlag) {
-		exchange = c.String(exchangeFlag)
-	}
-
 	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
@@ -408,7 +352,7 @@ func getExchangeAssets(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.GetExchangeAssets(c.Context,
 		&gctrpc.GetExchangeAssetsRequest{
-			Exchange: exchange,
+			Exchange: c.String(exchangeFlag),
 		},
 	)
 	if err != nil {

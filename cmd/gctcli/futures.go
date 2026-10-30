@@ -156,18 +156,16 @@ var futuresCommands = &cli.Command{
 					Usage:    "currency pair",
 				},
 				&cli.StringFlag{
-					Name:        startFlag,
-					Aliases:     []string{"sd"},
-					Usage:       "<start> rounded down to the nearest hour",
-					Value:       time.Now().AddDate(0, -1, 0).Truncate(time.Hour).Format(time.DateTime),
-					Destination: &startTime,
+					Name:    startFlag,
+					Aliases: []string{"sd"},
+					Usage:   "<start> rounded down to the nearest hour",
+					Value:   time.Now().AddDate(0, -1, 0).Truncate(time.Hour).Format(time.DateTime),
 				},
 				&cli.StringFlag{
-					Name:        endFlag,
-					Aliases:     []string{"ed"},
-					Usage:       "<end>",
-					Value:       time.Now().Format(time.DateTime),
-					Destination: &endTime,
+					Name:    endFlag,
+					Aliases: []string{"ed"},
+					Usage:   "<end>",
+					Value:   time.Now().Format(time.DateTime),
 				},
 				&cli.StringFlag{
 					Name:    "paymentcurrency",
@@ -449,18 +447,16 @@ var futuresCommands = &cli.Command{
 					Usage:    pairUsage,
 				},
 				&cli.StringFlag{
-					Name:        startFlag,
-					Aliases:     []string{"sd"},
-					Usage:       "<start> rounded down to the nearest hour",
-					Value:       time.Now().AddDate(0, 0, -7).Truncate(time.Hour).Format(time.DateTime),
-					Destination: &startTime,
+					Name:    startFlag,
+					Aliases: []string{"sd"},
+					Usage:   "<start> rounded down to the nearest hour",
+					Value:   time.Now().AddDate(0, 0, -7).Truncate(time.Hour).Format(time.DateTime),
 				},
 				&cli.StringFlag{
-					Name:        endFlag,
-					Aliases:     []string{"ed"},
-					Usage:       "<end>",
-					Value:       time.Now().Format(time.DateTime),
-					Destination: &endTime,
+					Name:    endFlag,
+					Aliases: []string{"ed"},
+					Usage:   "<end>",
+					Value:   time.Now().Format(time.DateTime),
 				},
 				&cli.BoolFlag{
 					Name:    "respectorderhistorylimits",
@@ -543,23 +539,11 @@ func getManagedPosition(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	var exchangeName string
-	if c.IsSet(exchangeFlag) {
-		exchangeName = c.String(exchangeFlag)
-	}
-
-	var assetType string
-	if c.IsSet(assetFlag) {
-		assetType = c.String(assetFlag)
-	}
-	err := isFuturesAsset(assetType)
-	if err != nil {
+	assetType := c.String(assetFlag)
+	if err := isFuturesAsset(assetType); err != nil {
 		return err
 	}
-	var currencyPair string
-	if c.IsSet(pairFlag) {
-		currencyPair = c.String(pairFlag)
-	}
+	currencyPair := c.String(pairFlag)
 	if !validPair(currencyPair) {
 		return errInvalidPair
 	}
@@ -569,28 +553,12 @@ func getManagedPosition(c *cli.Context) error {
 		return err
 	}
 
-	var includeOrderDetails bool
-	if c.IsSet("includeorderdetails") {
-		includeOrderDetails = c.Bool("includeorderdetails")
-	}
+	getFundingData := c.Bool("getfundingdata")
+	includeFundingEntries := c.Bool("includefundingentries")
 
-	var getFundingData bool
-	if c.IsSet("getfundingdata") {
-		getFundingData = c.Bool("getfundingdata")
-	}
+	includePredictedRate := c.Bool("includepredictedrate")
 
-	var includeFundingEntries bool
-	if c.IsSet("includefundingentries") {
-		includeFundingEntries = c.Bool("includefundingentries")
-	}
-
-	var includePredictedRate bool
-	if c.IsSet("includepredictedrate") {
-		includePredictedRate = c.Bool("includepredictedrate")
-	}
-
-	err = futures.CheckFundingRatePrerequisites(getFundingData, includePredictedRate, includeFundingEntries)
-	if err != nil {
+	if err := futures.CheckFundingRatePrerequisites(getFundingData, includePredictedRate, includeFundingEntries); err != nil {
 		return err
 	}
 
@@ -603,14 +571,14 @@ func getManagedPosition(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.GetManagedPosition(c.Context,
 		&gctrpc.GetManagedPositionRequest{
-			Exchange: exchangeName,
+			Exchange: c.String(exchangeFlag),
 			Asset:    assetType,
 			Pair: &gctrpc.CurrencyPair{
 				Delimiter: p.Delimiter,
 				Base:      p.Base.String(),
 				Quote:     p.Quote.String(),
 			},
-			IncludeFullOrderData:    includeOrderDetails,
+			IncludeFullOrderData:    c.Bool("includeorderdetails"),
 			GetFundingPayments:      getFundingData,
 			IncludeFullFundingRates: includeFundingEntries,
 			IncludePredictedRate:    includePredictedRate,
@@ -624,31 +592,12 @@ func getManagedPosition(c *cli.Context) error {
 }
 
 func getAllManagedPositions(c *cli.Context) error {
-	var (
-		err                   error
-		includeOrderDetails   bool
-		getFundingData        bool
-		includeFundingEntries bool
-		includePredictedRate  bool
-	)
-	if c.IsSet("includeorderdetails") {
-		includeOrderDetails = c.Bool("includeorderdetails")
-	}
+	getFundingData := c.Bool("getfundingdata")
+	includeFundingEntries := c.Bool("includefundingentries")
 
-	if c.IsSet("getfundingdata") {
-		getFundingData = c.Bool("getfundingdata")
-	}
+	includePredictedRate := c.Bool("includepredictedrate")
 
-	if c.IsSet("includefundingentries") {
-		includeFundingEntries = c.Bool("includefundingentries")
-	}
-
-	if c.IsSet("includepredictedrate") {
-		includePredictedRate = c.Bool("includepredictedrate")
-	}
-
-	err = futures.CheckFundingRatePrerequisites(getFundingData, includePredictedRate, includeFundingEntries)
-	if err != nil {
+	if err := futures.CheckFundingRatePrerequisites(getFundingData, includePredictedRate, includeFundingEntries); err != nil {
 		return err
 	}
 
@@ -661,7 +610,7 @@ func getAllManagedPositions(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.GetAllManagedPositions(c.Context,
 		&gctrpc.GetAllManagedPositionsRequest{
-			IncludeFullOrderData:    includeOrderDetails,
+			IncludeFullOrderData:    c.Bool("includeorderdetails"),
 			GetFundingPayments:      getFundingData,
 			IncludeFullFundingRates: includeFundingEntries,
 			IncludePredictedRate:    includePredictedRate,
@@ -678,32 +627,9 @@ func getCollateral(c *cli.Context) error {
 	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
-	var (
-		exchangeName, assetType                               string
-		calculateOffline, includeBreakdown, includeZeroValues bool
-		err                                                   error
-	)
-	if c.IsSet(exchangeFlag) {
-		exchangeName = c.String(exchangeFlag)
-	}
-	if c.IsSet(assetFlag) {
-		assetType = c.String(assetFlag)
-	}
-	err = isFuturesAsset(assetType)
-	if err != nil {
+	assetType := c.String(assetFlag)
+	if err := isFuturesAsset(assetType); err != nil {
 		return err
-	}
-
-	if c.IsSet("calculateoffline") {
-		calculateOffline = c.Bool("calculateoffline")
-	}
-
-	if c.IsSet("includebreakdown") {
-		includeBreakdown = c.Bool("includebreakdown")
-	}
-
-	if c.IsSet("includezerovalues") {
-		includeZeroValues = c.Bool("includezerovalues")
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -715,11 +641,11 @@ func getCollateral(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.GetCollateral(c.Context,
 		&gctrpc.GetCollateralRequest{
-			Exchange:          exchangeName,
+			Exchange:          c.String(exchangeFlag),
 			Asset:             assetType,
-			IncludeBreakdown:  includeBreakdown,
-			CalculateOffline:  calculateOffline,
-			IncludeZeroValues: includeZeroValues,
+			IncludeBreakdown:  c.Bool("includebreakdown"),
+			CalculateOffline:  c.Bool("calculateoffline"),
+			IncludeZeroValues: c.Bool("includezerovalues"),
 		})
 	if err != nil {
 		return err
@@ -734,27 +660,17 @@ func getFundingRates(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 	var (
-		exchangeName, assetType, currencyPair, paymentCurrency             string
-		includePredicted, includePayments, respectFundingRateHistoryLimits bool
-		p                                                                  currency.Pair
-		s, e                                                               time.Time
-		err                                                                error
+		p    currency.Pair
+		s, e time.Time
+		err  error
 	)
-	if c.IsSet(exchangeFlag) {
-		exchangeName = c.String(exchangeFlag)
-	}
 
-	if c.IsSet(assetFlag) {
-		assetType = c.String(assetFlag)
-	}
+	assetType := c.String(assetFlag)
 
-	err = isFuturesAsset(assetType)
-	if err != nil {
+	if err := isFuturesAsset(assetType); err != nil {
 		return err
 	}
-	if c.IsSet(pairFlag) {
-		currencyPair = c.String(pairFlag)
-	}
+	currencyPair := c.String(pairFlag)
 	if !validPair(currencyPair) {
 		return errInvalidPair
 	}
@@ -763,27 +679,13 @@ func getFundingRates(c *cli.Context) error {
 		return err
 	}
 
-	if c.IsSet("paymentcurrency") {
-		paymentCurrency = c.String("paymentcurrency")
-	}
-
-	if c.IsSet("includepredicted") {
-		includePredicted = c.Bool("includepredicted")
-	}
-	if c.IsSet("includepayments") {
-		includePayments = c.Bool("includepayments")
-	}
-	if c.IsSet("respecthistorylimits") {
-		respectFundingRateHistoryLimits = c.Bool("respecthistorylimits")
-	}
-
-	s, err = time.ParseInLocation(time.DateTime, startTime, time.Local)
+	s, err = time.ParseInLocation(time.DateTime, c.String(startFlag), time.Local)
 	if err != nil {
-		return fmt.Errorf("invalid time format for start: %v", err)
+		return fmt.Errorf("invalid time format for start: %w", err)
 	}
-	e, err = time.ParseInLocation(time.DateTime, endTime, time.Local)
+	e, err = time.ParseInLocation(time.DateTime, c.String(endFlag), time.Local)
 	if err != nil {
-		return fmt.Errorf("invalid time format for end: %v", err)
+		return fmt.Errorf("invalid time format for end: %w", err)
 	}
 
 	if e.Before(s) {
@@ -799,7 +701,7 @@ func getFundingRates(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.GetFundingRates(c.Context,
 		&gctrpc.GetFundingRatesRequest{
-			Exchange: exchangeName,
+			Exchange: c.String(exchangeFlag),
 			Asset:    assetType,
 			Pair: &gctrpc.CurrencyPair{
 				Delimiter: p.Delimiter,
@@ -808,10 +710,10 @@ func getFundingRates(c *cli.Context) error {
 			},
 			StartDate:            s.Format(common.SimpleTimeFormatWithTimezone),
 			EndDate:              e.Format(common.SimpleTimeFormatWithTimezone),
-			IncludePredicted:     includePredicted,
-			IncludePayments:      includePayments,
-			RespectHistoryLimits: respectFundingRateHistoryLimits,
-			PaymentCurrency:      paymentCurrency,
+			IncludePredicted:     c.Bool("includepredicted"),
+			IncludePayments:      c.Bool("includepayments"),
+			RespectHistoryLimits: c.Bool("respecthistorylimits"),
+			PaymentCurrency:      c.String("paymentcurrency"),
 		})
 	if err != nil {
 		return err
@@ -826,36 +728,22 @@ func getLatestFundingRate(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 	var (
-		exchangeName, assetType, currencyPair string
-		includePredicted                      bool
-		p                                     currency.Pair
-		err                                   error
+		p   currency.Pair
+		err error
 	)
-	if c.IsSet(exchangeFlag) {
-		exchangeName = c.String(exchangeFlag)
-	}
 
-	if c.IsSet(assetFlag) {
-		assetType = c.String(assetFlag)
-	}
+	assetType := c.String(assetFlag)
 
-	err = isFuturesAsset(assetType)
-	if err != nil {
+	if err := isFuturesAsset(assetType); err != nil {
 		return err
 	}
-	if c.IsSet(pairFlag) {
-		currencyPair = c.String(pairFlag)
-	}
+	currencyPair := c.String(pairFlag)
 	if !validPair(currencyPair) {
 		return errInvalidPair
 	}
 	p, err = currency.NewPairDelimiter(currencyPair, pairDelimiter)
 	if err != nil {
 		return err
-	}
-
-	if c.IsSet("includepredicted") {
-		includePredicted = c.Bool("includepredicted")
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -867,14 +755,14 @@ func getLatestFundingRate(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.GetLatestFundingRate(c.Context,
 		&gctrpc.GetLatestFundingRateRequest{
-			Exchange: exchangeName,
+			Exchange: c.String(exchangeFlag),
 			Asset:    assetType,
 			Pair: &gctrpc.CurrencyPair{
 				Delimiter: p.Delimiter,
 				Base:      p.Base.String(),
 				Quote:     p.Quote.String(),
 			},
-			IncludePredicted: includePredicted,
+			IncludePredicted: c.Bool("includepredicted"),
 		})
 	if err != nil {
 		return err
@@ -888,20 +776,10 @@ func getCollateralMode(c *cli.Context) error {
 	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
-	var (
-		exchangeName, assetType string
-		err                     error
-	)
-	if c.IsSet(exchangeFlag) {
-		exchangeName = c.String(exchangeFlag)
-	}
 
-	if c.IsSet(assetFlag) {
-		assetType = c.String(assetFlag)
-	}
+	assetType := c.String(assetFlag)
 
-	err = isFuturesAsset(assetType)
-	if err != nil {
+	if err := isFuturesAsset(assetType); err != nil {
 		return err
 	}
 
@@ -914,7 +792,7 @@ func getCollateralMode(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.GetCollateralMode(c.Context,
 		&gctrpc.GetCollateralModeRequest{
-			Exchange: exchangeName,
+			Exchange: c.String(exchangeFlag),
 			Asset:    assetType,
 		})
 	if err != nil {
@@ -929,26 +807,14 @@ func setCollateralMode(c *cli.Context) error {
 	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
-	var (
-		exchangeName, assetType, collateralMode string
-		err                                     error
-	)
-	if c.IsSet(exchangeFlag) {
-		exchangeName = c.String(exchangeFlag)
-	}
 
-	if c.IsSet(assetFlag) {
-		assetType = c.String(assetFlag)
-	}
+	assetType := c.String(assetFlag)
 
-	err = isFuturesAsset(assetType)
-	if err != nil {
+	if err := isFuturesAsset(assetType); err != nil {
 		return err
 	}
 
-	if c.IsSet("collateralmode") {
-		collateralMode = c.String("collateralmode")
-	}
+	collateralMode := c.String("collateralmode")
 
 	if !collateral.IsValidCollateralModeString(collateralMode) {
 		return fmt.Errorf("invalid collateral mode: %v", collateralMode)
@@ -963,7 +829,7 @@ func setCollateralMode(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.SetCollateralMode(c.Context,
 		&gctrpc.SetCollateralModeRequest{
-			Exchange:       exchangeName,
+			Exchange:       c.String(exchangeFlag),
 			Asset:          assetType,
 			CollateralMode: collateralMode,
 		})
@@ -979,27 +845,14 @@ func setLeverage(c *cli.Context) error {
 	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
-	var (
-		exchangeName, assetType, currencyPair, marginType, orderSide string
-		leverage                                                     float64
-		err                                                          error
-	)
-	if c.IsSet(exchangeFlag) {
-		exchangeName = c.String(exchangeFlag)
-	}
 
-	if c.IsSet(assetFlag) {
-		assetType = c.String(assetFlag)
-	}
+	assetType := c.String(assetFlag)
 
-	err = isFuturesAsset(assetType)
-	if err != nil {
+	if err := isFuturesAsset(assetType); err != nil {
 		return err
 	}
 
-	if c.IsSet(pairFlag) {
-		currencyPair = c.String(pairFlag)
-	}
+	currencyPair := c.String(pairFlag)
 	if !validPair(currencyPair) {
 		return fmt.Errorf("%w currencypair:%v", errInvalidPair, currencyPair)
 	}
@@ -1008,20 +861,12 @@ func setLeverage(c *cli.Context) error {
 		return err
 	}
 
-	if c.IsSet("margintype") {
-		marginType = c.String("margintype")
-	}
+	marginType := c.String("margintype")
 	if !margin.IsValidString(marginType) {
 		return fmt.Errorf("%w margintype:%v", margin.ErrInvalidMarginType, marginType)
 	}
 
-	if c.IsSet("leverage") {
-		leverage = c.Float64("leverage")
-	}
-
-	if c.IsSet("orderside") {
-		orderSide = c.String("orderside")
-	}
+	orderSide := c.String("orderside")
 	if orderSide != "" {
 		_, err = order.StringToOrderSide(orderSide)
 		if err != nil {
@@ -1038,7 +883,7 @@ func setLeverage(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.SetLeverage(c.Context,
 		&gctrpc.SetLeverageRequest{
-			Exchange: exchangeName,
+			Exchange: c.String(exchangeFlag),
 			Asset:    assetType,
 			Pair: &gctrpc.CurrencyPair{
 				Delimiter: pair.Delimiter,
@@ -1046,7 +891,7 @@ func setLeverage(c *cli.Context) error {
 				Quote:     pair.Quote.String(),
 			},
 			MarginType: marginType,
-			Leverage:   leverage,
+			Leverage:   c.Float64("leverage"),
 			OrderSide:  orderSide,
 		})
 	if err != nil {
@@ -1061,26 +906,14 @@ func getLeverage(c *cli.Context) error {
 	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
-	var (
-		exchangeName, assetType, currencyPair, marginType, orderSide string
-		err                                                          error
-	)
-	if c.IsSet(exchangeFlag) {
-		exchangeName = c.String(exchangeFlag)
-	}
 
-	if c.IsSet(assetFlag) {
-		assetType = c.String(assetFlag)
-	}
+	assetType := c.String(assetFlag)
 
-	err = isFuturesAsset(assetType)
-	if err != nil {
+	if err := isFuturesAsset(assetType); err != nil {
 		return err
 	}
 
-	if c.IsSet(pairFlag) {
-		currencyPair = c.String(pairFlag)
-	}
+	currencyPair := c.String(pairFlag)
 	if !validPair(currencyPair) {
 		return fmt.Errorf("%w currencypair:%v", errInvalidPair, currencyPair)
 	}
@@ -1089,16 +922,12 @@ func getLeverage(c *cli.Context) error {
 		return err
 	}
 
-	if c.IsSet("margintype") {
-		marginType = c.String("margintype")
-	}
+	marginType := c.String("margintype")
 	if !margin.IsValidString(marginType) {
 		return fmt.Errorf("%w margintype:%v", margin.ErrInvalidMarginType, marginType)
 	}
 
-	if c.IsSet("orderside") {
-		orderSide = c.String("orderside")
-	}
+	orderSide := c.String("orderside")
 	if orderSide != "" {
 		_, err = order.StringToOrderSide(orderSide)
 		if err != nil {
@@ -1115,7 +944,7 @@ func getLeverage(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.GetLeverage(c.Context,
 		&gctrpc.GetLeverageRequest{
-			Exchange: exchangeName,
+			Exchange: c.String(exchangeFlag),
 			Asset:    assetType,
 			Pair: &gctrpc.CurrencyPair{
 				Delimiter: pair.Delimiter,
@@ -1137,27 +966,14 @@ func changePositionMargin(c *cli.Context) error {
 	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
-	var (
-		exchangeName, assetType, currencyPair, marginType, marginSide string
-		originalAllocatedMargin, newAllocatedMargin                   float64
-		err                                                           error
-	)
-	if c.IsSet(exchangeFlag) {
-		exchangeName = c.String(exchangeFlag)
-	}
 
-	if c.IsSet(assetFlag) {
-		assetType = c.String(assetFlag)
-	}
+	assetType := c.String(assetFlag)
 
-	err = isFuturesAsset(assetType)
-	if err != nil {
+	if err := isFuturesAsset(assetType); err != nil {
 		return err
 	}
 
-	if c.IsSet(pairFlag) {
-		currencyPair = c.String(pairFlag)
-	}
+	currencyPair := c.String(pairFlag)
 	if !validPair(currencyPair) {
 		return fmt.Errorf("%w currencypair:%v", errInvalidPair, currencyPair)
 	}
@@ -1166,23 +982,9 @@ func changePositionMargin(c *cli.Context) error {
 		return err
 	}
 
-	if c.IsSet("margintype") {
-		marginType = c.String("margintype")
-	}
+	marginType := c.String("margintype")
 	if !margin.IsValidString(marginType) {
 		return fmt.Errorf("%w margintype:%v", margin.ErrInvalidMarginType, marginType)
-	}
-
-	if c.IsSet("originalallocatedmargin") {
-		originalAllocatedMargin = c.Float64("originalallocatedmargin")
-	}
-
-	if c.IsSet("newallocatedmargin") {
-		newAllocatedMargin = c.Float64("newallocatedmargin")
-	}
-
-	if c.IsSet("marginside") {
-		marginSide = c.String("marginside")
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -1194,7 +996,7 @@ func changePositionMargin(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.ChangePositionMargin(c.Context,
 		&gctrpc.ChangePositionMarginRequest{
-			Exchange: exchangeName,
+			Exchange: c.String(exchangeFlag),
 			Asset:    assetType,
 			Pair: &gctrpc.CurrencyPair{
 				Delimiter: pair.Delimiter,
@@ -1202,9 +1004,9 @@ func changePositionMargin(c *cli.Context) error {
 				Quote:     pair.Quote.String(),
 			},
 			MarginType:              marginType,
-			OriginalAllocatedMargin: originalAllocatedMargin,
-			NewAllocatedMargin:      newAllocatedMargin,
-			MarginSide:              marginSide,
+			OriginalAllocatedMargin: c.Float64("originalallocatedmargin"),
+			NewAllocatedMargin:      c.Float64("newallocatedmargin"),
+			MarginSide:              c.String("marginside"),
 		})
 	if err != nil {
 		return err
@@ -1218,26 +1020,14 @@ func getFuturesPositionSummary(c *cli.Context) error {
 	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
-	var (
-		exchangeName, assetType, currencyPair, underlyingPair string
-		err                                                   error
-	)
-	if c.IsSet(exchangeFlag) {
-		exchangeName = c.String(exchangeFlag)
-	}
 
-	if c.IsSet(assetFlag) {
-		assetType = c.String(assetFlag)
-	}
+	assetType := c.String(assetFlag)
 
-	err = isFuturesAsset(assetType)
-	if err != nil {
+	if err := isFuturesAsset(assetType); err != nil {
 		return err
 	}
 
-	if c.IsSet(pairFlag) {
-		currencyPair = c.String(pairFlag)
-	}
+	currencyPair := c.String(pairFlag)
 	if !validPair(currencyPair) {
 		return fmt.Errorf("%w currencypair:%v", errInvalidPair, currencyPair)
 	}
@@ -1246,9 +1036,7 @@ func getFuturesPositionSummary(c *cli.Context) error {
 		return err
 	}
 
-	if c.IsSet("underlyingpair") {
-		underlyingPair = c.String("underlyingpair")
-	}
+	underlyingPair := c.String("underlyingpair")
 	var underlying currency.Pair
 	if underlyingPair != "" {
 		underlying, err = currency.NewPairDelimiter(underlyingPair, pairDelimiter)
@@ -1266,7 +1054,7 @@ func getFuturesPositionSummary(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.GetFuturesPositionsSummary(c.Context,
 		&gctrpc.GetFuturesPositionsSummaryRequest{
-			Exchange: exchangeName,
+			Exchange: c.String(exchangeFlag),
 			Asset:    assetType,
 			Pair: &gctrpc.CurrencyPair{
 				Delimiter: pair.Delimiter,
@@ -1292,26 +1080,16 @@ func getFuturePositionOrders(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 	var (
-		exchangeName, assetType, currencyPair, underlyingPair string
-		respectOrderHistoryLimits, syncWithOrderManager       bool
-		s, e                                                  time.Time
-		err                                                   error
+		s, e time.Time
+		err  error
 	)
-	if c.IsSet(exchangeFlag) {
-		exchangeName = c.String(exchangeFlag)
-	}
 
-	if c.IsSet(assetFlag) {
-		assetType = c.String(assetFlag)
-	}
+	assetType := c.String(assetFlag)
 
-	err = isFuturesAsset(assetType)
-	if err != nil {
+	if err := isFuturesAsset(assetType); err != nil {
 		return err
 	}
-	if c.IsSet(pairFlag) {
-		currencyPair = c.String(pairFlag)
-	}
+	currencyPair := c.String(pairFlag)
 	if !validPair(currencyPair) {
 		return fmt.Errorf("%w currencypair:%v", errInvalidPair, currencyPair)
 	}
@@ -1320,36 +1098,26 @@ func getFuturePositionOrders(c *cli.Context) error {
 		return err
 	}
 
-	s, err = time.ParseInLocation(time.DateTime, startTime, time.Local)
+	s, err = time.ParseInLocation(time.DateTime, c.String(startFlag), time.Local)
 	if err != nil {
-		return fmt.Errorf("invalid time format for start: %v", err)
+		return fmt.Errorf("invalid time format for start: %w", err)
 	}
 
-	e, err = time.ParseInLocation(time.DateTime, endTime, time.Local)
+	e, err = time.ParseInLocation(time.DateTime, c.String(endFlag), time.Local)
 	if err != nil {
-		return fmt.Errorf("invalid time format for start: %v", err)
+		return fmt.Errorf("invalid time format for start: %w", err)
 	}
-	err = common.StartEndTimeCheck(s, e)
-	if err != nil {
+	if err := common.StartEndTimeCheck(s, e); err != nil {
 		return err
 	}
 
-	if c.IsSet("respectorderhistorylimits") {
-		respectOrderHistoryLimits = c.Bool("respectorderhistorylimits")
-	}
-
-	if c.IsSet("underlyingpair") {
-		underlyingPair = c.String("underlyingpair")
-	}
+	underlyingPair := c.String("underlyingpair")
 	var underlying currency.Pair
 	if underlyingPair != "" {
 		underlying, err = currency.NewPairDelimiter(underlyingPair, pairDelimiter)
 		if err != nil {
 			return err
 		}
-	}
-	if c.IsSet("syncwithordermanager") {
-		syncWithOrderManager = c.Bool("syncwithordermanager")
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -1361,7 +1129,7 @@ func getFuturePositionOrders(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.GetFuturesPositionsOrders(c.Context,
 		&gctrpc.GetFuturesPositionsOrdersRequest{
-			Exchange: exchangeName,
+			Exchange: c.String(exchangeFlag),
 			Asset:    assetType,
 			Pair: &gctrpc.CurrencyPair{
 				Delimiter: pair.Delimiter,
@@ -1375,8 +1143,8 @@ func getFuturePositionOrders(c *cli.Context) error {
 				Base:      underlying.Base.Upper().String(),
 				Quote:     underlying.Quote.Upper().String(),
 			},
-			SyncWithOrderManager:      syncWithOrderManager,
-			RespectOrderHistoryLimits: respectOrderHistoryLimits,
+			SyncWithOrderManager:      c.Bool("syncwithordermanager"),
+			RespectOrderHistoryLimits: c.Bool("respectorderhistorylimits"),
 		})
 	if err != nil {
 		return err
@@ -1390,26 +1158,14 @@ func setMarginType(c *cli.Context) error {
 	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
-	var (
-		exchangeName, assetType, currencyPair, marginType string
-		err                                               error
-	)
-	if c.IsSet(exchangeFlag) {
-		exchangeName = c.String(exchangeFlag)
-	}
 
-	if c.IsSet(assetFlag) {
-		assetType = c.String(assetFlag)
-	}
+	assetType := c.String(assetFlag)
 
-	err = isFuturesAsset(assetType)
-	if err != nil {
+	if err := isFuturesAsset(assetType); err != nil {
 		return err
 	}
 
-	if c.IsSet(pairFlag) {
-		currencyPair = c.String(pairFlag)
-	}
+	currencyPair := c.String(pairFlag)
 	if !validPair(currencyPair) {
 		return fmt.Errorf("%w currencypair:%v", errInvalidPair, currencyPair)
 	}
@@ -1418,9 +1174,7 @@ func setMarginType(c *cli.Context) error {
 		return err
 	}
 
-	if c.IsSet("margintype") {
-		marginType = c.String("margintype")
-	}
+	marginType := c.String("margintype")
 	if !margin.IsValidString(marginType) {
 		return fmt.Errorf("%w margintype:%v", margin.ErrInvalidMarginType, marginType)
 	}
@@ -1434,7 +1188,7 @@ func setMarginType(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.SetMarginType(c.Context,
 		&gctrpc.SetMarginTypeRequest{
-			Exchange: exchangeName,
+			Exchange: c.String(exchangeFlag),
 			Asset:    assetType,
 			Pair: &gctrpc.CurrencyPair{
 				Delimiter: pair.Delimiter,
@@ -1455,33 +1209,22 @@ func getOpenInterest(c *cli.Context) error {
 	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
-	var (
-		exchangeName, assetType, currencyPair string
-		err                                   error
-	)
-	if c.IsSet(exchangeFlag) {
-		exchangeName = c.String(exchangeFlag)
-	}
 
-	if c.IsSet(assetFlag) {
-		assetType = c.String(assetFlag)
-	}
+	assetType := c.String(assetFlag)
 
 	if assetType != "" {
-		err = isFuturesAsset(assetType)
-		if err != nil {
+		if err := isFuturesAsset(assetType); err != nil {
 			return err
 		}
 	}
 
-	if c.IsSet(pairFlag) {
-		currencyPair = c.String(pairFlag)
-	}
+	currencyPair := c.String(pairFlag)
 	var pair currency.Pair
 	if currencyPair != "" {
 		if !validPair(currencyPair) {
 			return fmt.Errorf("%w currencypair:%v", errInvalidPair, currencyPair)
 		}
+		var err error
 		pair, err = currency.NewPairDelimiter(currencyPair, pairDelimiter)
 		if err != nil {
 			return err
@@ -1509,7 +1252,7 @@ func getOpenInterest(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.GetOpenInterest(c.Context,
 		&gctrpc.GetOpenInterestRequest{
-			Exchange: exchangeName,
+			Exchange: c.String(exchangeFlag),
 			Data:     data,
 		})
 	if err != nil {
