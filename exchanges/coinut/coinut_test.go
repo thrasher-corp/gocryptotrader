@@ -26,6 +26,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
@@ -682,6 +683,54 @@ func TestGetOrderHistory(t *testing.T) {
 
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
+	for _, clientOrderID := range []string{"", "bogus", "-1", "4294967296"} {
+		t.Run("invalid client order ID "+clientOrderID, func(t *testing.T) {
+			t.Parallel()
+			h := new(Exchange)
+			require.NoError(t, testexch.Setup(h), "exchange must initialise")
+			_, err := h.SubmitOrder(t.Context(), &order.Submit{Exchange: h.Name, Pair: currency.NewBTCUSD(), AssetType: asset.Spot, Side: order.Buy, Type: order.Limit, Price: 100, Amount: 1, ClientID: "123", ClientOrderID: clientOrderID})
+			require.ErrorIs(t, err, errInvalidClientOrderID, "invalid unsigned client order IDs must be rejected")
+		})
+	}
+
+	for _, tc := range []struct {
+		name, body string
+		wantErr    error
+	}{
+		{name: "accepted", body: `{"status":["OK"],"reply":"order_accepted","order_id":123}`},
+		{name: "rejected", body: `{"status":["OK"],"reply":"order_rejected","reasons":["invalid-order"]}`, wantErr: request.ErrAuthRequestFailed},
+	} {
+		t.Run("client order identifier on the wire "+tc.name, func(t *testing.T) {
+			t.Parallel()
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				var payload map[string]any
+				if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&payload), "order payload should decode") {
+					return
+				}
+				assert.Equal(t, 4242.0, payload["client_ord_id"], "dedicated client order ID should reach the exchange")
+				_, err := w.Write([]byte(tc.body))
+				assert.NoError(t, err, "mock response should write")
+			}))
+			t.Cleanup(server.Close)
+			h := new(Exchange)
+			require.NoError(t, testexch.Setup(h), "exchange must initialise")
+			h.SkipAuthCheck = true
+			h.SetCredentials(&accounts.Credentials{Key: "key", Secret: "c2VjcmV0", ClientID: "account"})
+			require.NoError(t, h.SetHTTPClient(server.Client()), "mock HTTP client must install")
+			require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "mock endpoint must install")
+			h.instrumentMap.Seed("BTCUSD", 1)
+			submission := &order.Submit{Exchange: h.Name, Pair: currency.NewBTCUSD(), AssetType: asset.Spot, Side: order.Buy, Type: order.Limit, Price: 100, Amount: 1, ClientID: "account", ClientOrderID: "4242"}
+			response, err := h.SubmitOrder(t.Context(), submission)
+			if tc.wantErr != nil {
+				require.ErrorIs(t, err, tc.wantErr, "rejected orders must preserve the request sentinel")
+				assert.Nil(t, response, "rejected orders should not return a successful response")
+				return
+			}
+			require.NoError(t, err, "order must accept the dedicated client order ID")
+			assert.Equal(t, "4242", response.ClientOrderID, "response should retain the client order ID")
+			assert.Equal(t, "account", submission.ClientID, "submission should retain its account identifier")
+		})
+	}
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
 
 	orderSubmission := &order.Submit{
@@ -690,12 +739,12 @@ func TestSubmitOrder(t *testing.T) {
 			Base:  currency.BTC,
 			Quote: currency.USD,
 		},
-		Side:      order.Buy,
-		Type:      order.Limit,
-		Price:     1,
-		Amount:    1,
-		ClientID:  "123",
-		AssetType: asset.Spot,
+		Side:          order.Buy,
+		Type:          order.Limit,
+		Price:         1,
+		Amount:        1,
+		ClientOrderID: "123",
+		AssetType:     asset.Spot,
 	}
 	response, err := e.SubmitOrder(t.Context(), orderSubmission)
 	if sharedtestvalues.AreAPICredentialsSet(e) && (err != nil || response.Status != order.New) {
@@ -1543,4 +1592,22 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotEmpty(t, resp)
 	}
+}
+
+func TestNewOrder(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, err := w.Write([]byte(`{"status":["OK"],"reply":"order_accepted","order_id":123}`))
+		assert.NoError(t, err, "mock response should write")
+	}))
+	t.Cleanup(server.Close)
+	h := new(Exchange)
+	require.NoError(t, testexch.Setup(h), "exchange must initialise")
+	h.SkipAuthCheck = true
+	h.SetCredentials(&accounts.Credentials{Key: "key", ClientID: "account"})
+	require.NoError(t, h.SetHTTPClient(server.Client()), "mock client must install")
+	require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "mock endpoint must install")
+	response, err := h.NewOrder(t.Context(), 1, 1, 100, true, 4242)
+	require.NoError(t, err, "successful order must decode")
+	require.NotNil(t, response, "decoded response must be returned after the request finishes")
 }

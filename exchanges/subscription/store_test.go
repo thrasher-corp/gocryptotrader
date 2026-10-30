@@ -70,6 +70,25 @@ func TestAdd(t *testing.T) {
 // TestGet exercises Get and get methods
 // Ensures that key's Match is used, but does not exercise subscription.Match; See TestMatch for that coverage
 func TestGet(t *testing.T) {
+	t.Run("qualified topic index lifecycle", func(t *testing.T) {
+		t.Parallel()
+		first := &Subscription{Channel: "orders", QualifiedChannel: "orders.first"}
+		first.SetKey(qualifiedChannelTestKey{ExactKey{Subscription: first}})
+		second := &Subscription{Channel: "orders", QualifiedChannel: "orders.second"}
+		second.SetKey(qualifiedChannelTestKey{ExactKey{Subscription: second}})
+		s := NewStore()
+		require.NoError(t, s.Add(first), "first topic must register")
+		require.NoError(t, s.Add(second), "distinct topic must register despite identical logical settings")
+		assert.Same(t, second, s.Get(second.Key), "topic index should select the requested wire topic")
+		require.NoError(t, s.Remove(first.Key), "first topic must be removable")
+		assert.Nil(t, s.Get(first.Key), "removed topic should not resolve")
+		assert.Same(t, second, s.Get(second.Key), "other topics should survive removal")
+		s.Clear()
+		assert.Nil(t, s.Get(second.Key), "cleared topic should not resolve")
+		require.NoError(t, s.Add(first), "topic must register after clear")
+		assert.Same(t, first, s.Get(first.Key), "new registration should resolve")
+	})
+
 	t.Parallel()
 	assert.Nil(t, (*Store)(nil).Get(&Subscription{}), "Should return nil when called on nil")
 	assert.Nil(t, (&Store{}).Get(&Subscription{}), "Should return nil when called with no subscription map")
@@ -258,4 +277,13 @@ func TestMissing(t *testing.T) {
 
 	unmatched = s.Missing(List{{Channel: TickerChannel}})
 	assert.Nil(t, unmatched)
+}
+
+// qualifiedChannelTestKey exercises the optional exact-topic matching contract.
+type qualifiedChannelTestKey struct{ ExactKey }
+
+func (k qualifiedChannelTestKey) GetQualifiedChannel() string { return k.QualifiedChannel }
+
+func (k qualifiedChannelTestKey) Match(other MatchableKey) bool {
+	return other != nil && other.GetSubscription() != nil && k.QualifiedChannel == other.GetSubscription().QualifiedChannel && k.ExactKey.Match(other)
 }

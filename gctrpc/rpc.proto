@@ -372,6 +372,7 @@ message SubmitOrderRequest {
   string client_id = 7;
   string asset_type = 8;
   string margin_type = 9;
+  string client_order_id = 10;
 }
 
 message Trades {

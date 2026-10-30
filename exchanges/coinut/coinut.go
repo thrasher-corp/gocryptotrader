@@ -47,7 +47,10 @@ const (
 
 )
 
-var errLookupInstrumentID = errors.New("unable to lookup instrument ID")
+var (
+	errLookupInstrumentID   = errors.New("unable to lookup instrument ID")
+	errInvalidClientOrderID = errors.New("client order ID must be an unsigned 32-bit number")
+)
 
 // Exchange implements exchange.IBotExchange and contains additional specific api methods for interacting with COINUT
 type Exchange struct {
@@ -126,7 +129,10 @@ func (e *Exchange) NewOrder(ctx context.Context, instrumentID int64, quantity, p
 	}
 	params["client_ord_id"] = orderID
 
-	return result, e.SendHTTPRequest(ctx, exchange.RestSpot, coinutOrder, params, true, &result)
+	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, coinutOrder, params, true, &result); err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
 // NewOrders places multiple orders on the exchange
