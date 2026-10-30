@@ -908,6 +908,20 @@ func TestHistoryPagerBackwards(t *testing.T) {
 	}
 	_, err = pager.backwards(t.Context(), start, end, make(map[string]struct{}))
 	assert.ErrorIs(t, err, errInvalidCount, "backwards should return a page's error")
+
+	windows = nil
+	pager.fetch = func(_ context.Context, start, end time.Time) ([]testPagedRecord, error) {
+		windows = append(windows, [2]time.Time{start, end})
+		require.LessOrEqual(t, len(windows), testServerRequestLimit, "the pager must stop within the test server's request limit")
+		if len(windows) == 1 {
+			return []testPagedRecord{{"C", at(50)}, {"B", at(40)}, {"A", at(30)}}, nil
+		}
+		return nil, errInvalidCount
+	}
+	got, err = pager.backwards(t.Context(), start, end, make(map[string]struct{}))
+	assert.ErrorIs(t, err, errInvalidCount, "backwards should return the error of a page following a full one")
+	assert.Nil(t, got, "backwards should return no records when a later page fails")
+	assert.Len(t, windows, 2, "backwards should not request a failed page again")
 }
 
 // captureWarnings has the log hand the warnings logged to the function returned, which takes those logged since it was
@@ -1001,6 +1015,20 @@ func TestHistoryPagerPage(t *testing.T) {
 	require.NoError(t, err, "page must not error for a window ending after the current time")
 	require.Len(t, windows, 1, "page must request a window ending after the current time once")
 	assert.WithinDuration(t, time.Now(), windows[0][1], time.Minute, "page should end a window ending after the current time at it")
+
+	windows = nil
+	pager.fetch = func(_ context.Context, start, end time.Time) ([]testPagedRecord, error) {
+		windows = append(windows, [2]time.Time{start, end})
+		require.LessOrEqual(t, len(windows), testServerRequestLimit, "the pager must stop within the test server's request limit")
+		if len(windows) == 1 {
+			return []testPagedRecord{{ID: "1", At: end.Add(-time.Minute)}}, nil
+		}
+		return nil, errInvalidCount
+	}
+	got, err = pager.page(t.Context(), start, end, privateHistoryWindow)
+	assert.ErrorIs(t, err, errInvalidCount, "page should return the error of a span following one that returned records")
+	assert.Nil(t, got, "page should return no records when a later span fails")
+	assert.Len(t, windows, 2, "page should not request a failed span again")
 }
 
 func TestGetHistoricCandles(t *testing.T) {
@@ -1100,6 +1128,87 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	require.Len(t, got.Candles, 450, "GetHistoricCandlesExtended must return a candle for every minute, padding those not returned")
 	assert.Equal(t, kline.Candle{Time: testWindowStart, Open: 1, High: 2, Low: 0.5, Close: 1.5, Volume: 10}, got.Candles[0], "GetHistoricCandlesExtended should return the first window's candle")
 	assert.Equal(t, kline.Candle{Time: testWindowStart.Add(300 * time.Minute), Open: 1, High: 2, Low: 0.5, Close: 1.5, Volume: 10}, got.Candles[300], "GetHistoricCandlesExtended should return the second window's candle")
+}
+
+// currentTwoWeeksReplies returns the start of the current two weeks and Crypto.com's candlestick results holding its
+// first week's 7D candle alone, and both weeks'. A request for the two weeks pads a result holding the first week alone
+// with an empty second week, then drops that as an empty partial candle, leaving one week, too few to make the
+// two-week candle
+func currentTwoWeeksReplies() (start time.Time, firstWeek, bothWeeks string) {
+	start = time.Now().UTC().Truncate(kline.TwoWeek.Duration())
+	first := `{"o":"100","h":"102","l":"99","c":"101","v":"5","t":` + strconv.FormatInt(start.UnixMilli(), 10) + `}`
+	second := `{"o":"101","h":"104","l":"98","c":"103","v":"3","t":` + strconv.FormatInt(start.AddDate(0, 0, 7).UnixMilli(), 10) + `}`
+	reply := func(candles string) string {
+		return `{"interval":"7D","instrument_name":"BTC_USD","data":[` + candles + `]}`
+	}
+	return start, reply(first), reply(first + "," + second)
+}
+
+// skipIfTwoWeeksEnded skips a test whose request for the two weeks from start was made as or after they ended, when the
+// request could have fallen in the next two weeks
+func skipIfTwoWeeksEnded(t *testing.T, start time.Time) {
+	t.Helper()
+	if !time.Now().UTC().Truncate(kline.TwoWeek.Duration()).Equal(start) {
+		t.Skip("The current two weeks ended during the test, so its request could have fallen in the next two weeks")
+	}
+}
+
+func TestGetHistoricCandlesCurrentTwoWeeks(t *testing.T) {
+	t.Parallel()
+	start, firstWeek, bothWeeks := currentTwoWeeksReplies()
+	for _, tc := range []struct {
+		name  string
+		reply string
+		err   error
+	}{
+		{name: "first week has a candle", reply: firstWeek, err: kline.ErrInsufficientCandleData},
+		{name: "both weeks have a candle", reply: bothWeeks},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex, _ := newRoutesServerExchange(t, map[string]testRoute{"public/get-candlestick": testResult(tc.reply)})
+			item, err := ex.GetHistoricCandles(t.Context(), testSpotPair, asset.Spot, kline.TwoWeek, start, start.Add(kline.TwoWeek.Duration()))
+			skipIfTwoWeeksEnded(t, start)
+			if tc.err != nil {
+				assert.ErrorIs(t, err, tc.err, "GetHistoricCandles should error with too few weeks for a two-week candle")
+				assert.Nil(t, item, "GetHistoricCandles should return no candles")
+				return
+			}
+			require.NoError(t, err, "GetHistoricCandles must not error")
+			require.Len(t, item.Candles, 1, "GetHistoricCandles must return the current two weeks' candle")
+			exp := kline.Candle{Time: time.UnixMilli(start.UnixMilli()), Open: 100, High: 104, Low: 98, Close: 103, Volume: 8, ValidationIssues: kline.PartialCandle}
+			assert.Equal(t, exp, item.Candles[0], "GetHistoricCandles should return the two weeks' candle, marked partial")
+		})
+	}
+}
+
+func TestGetHistoricCandlesExtendedCurrentTwoWeeks(t *testing.T) {
+	t.Parallel()
+	start, firstWeek, bothWeeks := currentTwoWeeksReplies()
+	for _, tc := range []struct {
+		name  string
+		reply string
+		err   error
+	}{
+		{name: "first week has a candle", reply: firstWeek, err: kline.ErrInsufficientCandleData},
+		{name: "both weeks have a candle", reply: bothWeeks},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex, _ := newRoutesServerExchange(t, map[string]testRoute{"public/get-candlestick": testResult(tc.reply)})
+			item, err := ex.GetHistoricCandlesExtended(t.Context(), testSpotPair, asset.Spot, kline.TwoWeek, start, start.Add(kline.TwoWeek.Duration()))
+			skipIfTwoWeeksEnded(t, start)
+			if tc.err != nil {
+				assert.ErrorIs(t, err, tc.err, "GetHistoricCandlesExtended should error with too few weeks for a two-week candle")
+				assert.Nil(t, item, "GetHistoricCandlesExtended should return no candles")
+				return
+			}
+			require.NoError(t, err, "GetHistoricCandlesExtended must not error")
+			require.Len(t, item.Candles, 1, "GetHistoricCandlesExtended must return the current two weeks' candle")
+			exp := kline.Candle{Time: time.UnixMilli(start.UnixMilli()), Open: 100, High: 104, Low: 98, Close: 103, Volume: 8, ValidationIssues: kline.PartialCandle}
+			assert.Equal(t, exp, item.Candles[0], "GetHistoricCandlesExtended should return the two weeks' candle, marked partial")
+		})
+	}
 }
 
 func TestCandles(t *testing.T) {
@@ -3426,10 +3535,41 @@ func TestFundingPayments(t *testing.T) {
 	exp.PaymentCurrency = currency.USD
 	assert.Equal(t, exp, got, "fundingPayments should count a payment once whichever form its journal ID takes, and tell apart IDs above 2^53")
 
+	ex, _ = newRoutesServerExchange(t, map[string]testRoute{"private/get-transactions": testResult(`{"data":[]}`)})
 	got = history()
-	err := newUnavailableServerExchange(t).fundingPayments(t.Context(), "BTCUSD-PERP", got)
+	require.NoError(t, ex.fundingPayments(t.Context(), "BTCUSD-PERP", got), "fundingPayments must not error for a window without payments")
+	exp = history()
+	exp.PaymentCurrency = currency.USD
+	assert.Equal(t, exp, got, "fundingPayments should report a window without payments in USD")
+
+	got = history()
+	err := newRefusingServerExchange(t).fundingPayments(t.Context(), "BTCUSD-PERP", got)
 	assert.ErrorIs(t, err, request.ErrBadStatus, "fundingPayments should return the error requesting the funding transactions")
 	assert.Equal(t, history(), got, "fundingPayments should leave the history unchanged when it cannot request the funding transactions")
+
+	// A span failing after one that returned a payment to the history's rate fails the window, which then keeps none of
+	// its payments; later requests get an empty list, so a pager retrying the failure returns rather than hangs the test
+	var requests atomic.Int64
+	ex, _ = newRoutesServerExchange(t, map[string]testRoute{
+		"private/get-transactions": func(string) (string, *APIError) {
+			switch requests.Add(1) {
+			case 1:
+				return `{"data":[{"journal_id":"1","journal_type":"FUNDING","transaction_qty":"3","instrument_name":"BTCUSD-PERP","event_timestamp_ms":"1792800060000"}]}`, nil
+			case 2:
+				return "", &APIError{Code: 50001, Message: "INTERNAL_SERVER_ERROR"}
+			default:
+				return `{"data":[]}`, nil
+			}
+		},
+	})
+	got = history()
+	got.StartDate = end.Add(-2 * privateHistoryWindow)
+	exp = history()
+	exp.StartDate = got.StartDate
+	err = ex.fundingPayments(t.Context(), "BTCUSD-PERP", got)
+	var apiErr *APIError
+	assert.ErrorAs(t, err, &apiErr, "fundingPayments should return the error requesting a later span of the window")
+	assert.Equal(t, exp, got, "fundingPayments should leave the history unchanged when a later span of the window fails")
 }
 
 func TestGetOpenInterest(t *testing.T) {

@@ -92,6 +92,9 @@ func newWebsocketVenue(t *testing.T) *websocketVenue {
 	return nil
 }
 
+// connectWebsocketVenue stands in for connecting to the mock of Crypto.com's websocket, which the live tests do not use
+func connectWebsocketVenue(*testing.T, *Exchange, *websocketVenue) {}
+
 func (*websocketVenue) closing() {}
 
 func (*websocketVenue) respond(string, string) {}

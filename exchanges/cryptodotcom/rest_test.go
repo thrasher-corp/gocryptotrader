@@ -128,6 +128,22 @@ func newResponseServerExchange(t *testing.T, body string) *Exchange {
 	}))
 }
 
+// newRefusingServerExchange returns an exchange whose first REST request fails without a body Crypto.com would send,
+// and whose later ones receive an empty list, so a pager retrying the failure returns without it rather than hangs its
+// test
+func newRefusingServerExchange(t *testing.T) *Exchange {
+	t.Helper()
+	var requests atomic.Int64
+	return newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		if requests.Add(1) == 1 {
+			http.Error(w, "unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		_, err := w.Write([]byte(`{"id":1,"code":0,"result":{"data":[]}}`))
+		assert.NoError(t, err, "Writing the response should not error")
+	}))
+}
+
 // newUnavailableServerExchange returns an exchange whose REST requests all fail without a body Crypto.com would send
 func newUnavailableServerExchange(t *testing.T) *Exchange {
 	t.Helper()
