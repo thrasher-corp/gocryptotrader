@@ -222,7 +222,7 @@ func TestWSHandleChannelMsgs(t *testing.T) {
 		Interval:         kline.OneMin,
 		QualifiedChannel: "market.btcusdt.kline.1min",
 	}
-	testexch.FixtureToDataHandler(t, "testdata/wsCandles.json", func(ctx context.Context, data []byte) error {
+	testexch.FixtureToDataHandler(t, "testdata/wsCandles.jsonl", func(ctx context.Context, data []byte) error {
 		return h.wsHandleChannelMsgs(ctx, sub, data)
 	})
 }

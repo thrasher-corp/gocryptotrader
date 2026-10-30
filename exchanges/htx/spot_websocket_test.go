@@ -37,7 +37,7 @@ func TestWSHandleCandleMsg(t *testing.T) {
 	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
 	err := e.Websocket.AddSubscriptions(e.Websocket.Conn, &subscription.Subscription{Key: "market.btcusdt.kline.1min", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.CandlesChannel})
 	require.NoError(t, err, "AddSubscriptions must not error")
-	testexch.FixtureToDataHandler(t, "testdata/wsCandles.json", func(ctx context.Context, data []byte) error { return e.wsHandleData(ctx, e.Websocket.Conn, data) })
+	testexch.FixtureToDataHandler(t, "testdata/wsCandles.jsonl", func(ctx context.Context, data []byte) error { return e.wsHandleData(ctx, e.Websocket.Conn, data) })
 	e.Websocket.DataHandler.Close()
 	require.Len(t, e.Websocket.DataHandler.C, 1, "Must see correct number of records")
 	cAny := <-e.Websocket.DataHandler.C
@@ -90,7 +90,7 @@ func TestWSHandleOrderbookMsg(t *testing.T) {
 	e.Name = t.Name()
 	err := e.Websocket.AddSubscriptions(e.Websocket.Conn, &subscription.Subscription{Key: "market.btcusdt.depth.step0", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.OrderbookChannel})
 	require.NoError(t, err, "AddSubscriptions must not error")
-	testexch.FixtureToDataHandler(t, "testdata/wsOrderbook.json", func(ctx context.Context, data []byte) error { return e.wsHandleData(ctx, e.Websocket.Conn, data) })
+	testexch.FixtureToDataHandler(t, "testdata/wsOrderbook.jsonl", func(ctx context.Context, data []byte) error { return e.wsHandleData(ctx, e.Websocket.Conn, data) })
 	e.Websocket.DataHandler.Close()
 	require.Len(t, e.Websocket.DataHandler.C, 1, "Must see correct number of records")
 	dAny := <-e.Websocket.DataHandler.C
@@ -119,7 +119,7 @@ func TestWSHandleAllTradesMsg(t *testing.T) {
 	err := e.Websocket.AddSubscriptions(e.Websocket.Conn, &subscription.Subscription{Key: "market.btcusdt.trade.detail", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.AllTradesChannel})
 	require.NoError(t, err, "AddSubscriptions must not error")
 	e.SetSaveTradeDataStatus(true)
-	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.json", func(ctx context.Context, data []byte) error { return e.wsHandleData(ctx, e.Websocket.Conn, data) })
+	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.jsonl", func(ctx context.Context, data []byte) error { return e.wsHandleData(ctx, e.Websocket.Conn, data) })
 	e.Websocket.DataHandler.Close()
 	exp := []trade.Data{
 		{
@@ -225,7 +225,7 @@ func TestWSHandleTickerMsg(t *testing.T) {
 	e.Name = t.Name()
 	err := e.Websocket.AddSubscriptions(e.Websocket.Conn, &subscription.Subscription{Key: "market.btcusdt.detail", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.TickerChannel})
 	require.NoError(t, err, "AddSubscriptions must not error")
-	testexch.FixtureToDataHandler(t, "testdata/wsTicker.json", func(ctx context.Context, data []byte) error { return e.wsHandleData(ctx, e.Websocket.Conn, data) })
+	testexch.FixtureToDataHandler(t, "testdata/wsTicker.jsonl", func(ctx context.Context, data []byte) error { return e.wsHandleData(ctx, e.Websocket.Conn, data) })
 	e.Websocket.DataHandler.Close()
 	require.Len(t, e.Websocket.DataHandler.C, 1, "Must see correct number of records")
 	tickAny := <-e.Websocket.DataHandler.C

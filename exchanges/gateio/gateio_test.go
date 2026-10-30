@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"cmp"
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -2531,14 +2532,14 @@ func TestUpdateOrderbook(t *testing.T) {
 	_, err := e.UpdateOrderbook(t.Context(), currency.EMPTYPAIR, 1336)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 	for _, a := range e.GetAssetTypes(false) {
-		pair := getPair(t, a)
-		t.Run(a.String()+" "+pair.String(), func(t *testing.T) {
+		t.Run(a.String(), func(t *testing.T) {
 			t.Parallel()
-			o, err := e.UpdateOrderbook(t.Context(), pair, a)
-			require.NoError(t, err)
+			ex, pair := getMarketDataPair(t, a, hasTwoSidedDeliveryBook)
+			o, err := ex.UpdateOrderbook(t.Context(), pair, a)
+			require.NoErrorf(t, err, "UpdateOrderbook must not error for %s", pair)
 			if a != asset.Options { // Options orderbooks can be empty
-				assert.NotEmpty(t, o.Bids)
-				assert.NotEmpty(t, o.Asks)
+				assert.NotEmptyf(t, o.Bids, "UpdateOrderbook should return bids for %s", pair)
+				assert.NotEmptyf(t, o.Asks, "UpdateOrderbook should return asks for %s", pair)
 			}
 		})
 	}
@@ -2766,12 +2767,16 @@ func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
 	startTime := time.Now().Add(-time.Hour * 10)
 	for _, a := range e.GetAssetTypes(false) {
-		_, err := e.GetHistoricCandles(t.Context(), getPair(t, a), a, kline.OneDay, startTime, time.Now())
-		if a == asset.Options {
-			assert.ErrorIs(t, err, asset.ErrNotSupported, "GetHistoricCandles should error correctly for options")
-		} else {
-			assert.NoErrorf(t, err, "GetHistoricCandles should not error for %s", a)
-		}
+		t.Run(a.String(), func(t *testing.T) {
+			t.Parallel()
+			ex, pair := getMarketDataPair(t, a, hasDeliveryCandles(kline.OneDay, startTime))
+			_, err := ex.GetHistoricCandles(t.Context(), pair, a, kline.OneDay, startTime, time.Now())
+			if a == asset.Options {
+				assert.ErrorIs(t, err, asset.ErrNotSupported, "GetHistoricCandles should error correctly for options")
+			} else {
+				assert.NoErrorf(t, err, "GetHistoricCandles should not error for %s", pair)
+			}
+		})
 	}
 }
 
@@ -2779,12 +2784,16 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
 	startTime := time.Now().Add(-time.Hour * 5)
 	for _, a := range e.GetAssetTypes(false) {
-		_, err := e.GetHistoricCandlesExtended(t.Context(), getPair(t, a), a, kline.OneMin, startTime, time.Now())
-		if a == asset.Options {
-			assert.ErrorIs(t, err, asset.ErrNotSupported, "GetHistoricCandlesExtended should error correctly for options")
-		} else {
-			assert.NoErrorf(t, err, "GetHistoricCandlesExtended should not error for %s", a)
-		}
+		t.Run(a.String(), func(t *testing.T) {
+			t.Parallel()
+			ex, pair := getMarketDataPair(t, a, hasDeliveryCandles(kline.OneMin, startTime))
+			_, err := ex.GetHistoricCandlesExtended(t.Context(), pair, a, kline.OneMin, startTime, time.Now())
+			if a == asset.Options {
+				assert.ErrorIs(t, err, asset.ErrNotSupported, "GetHistoricCandlesExtended should error correctly for options")
+			} else {
+				assert.NoErrorf(t, err, "GetHistoricCandlesExtended should not error for %s", pair)
+			}
+		})
 	}
 }
 
@@ -2951,7 +2960,7 @@ func TestFuturesDataHandler(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-	testexch.FixtureToDataHandler(t, "testdata/wsFutures.json", func(ctx context.Context, m []byte) error {
+	testexch.FixtureToDataHandler(t, "testdata/wsFutures.jsonl", func(ctx context.Context, m []byte) error {
 		if strings.Contains(string(m), "futures.balances") {
 			ctx = accounts.DeployCredentialsToContext(ctx, &accounts.Credentials{Key: "test", Secret: "test"})
 		}
@@ -4124,7 +4133,13 @@ func TestGetOpenInterest(t *testing.T) {
 	var resp []futures.OpenInterest
 	validPairs := make(map[asset.Item]key.PairAsset, 3)
 	for _, a := range []asset.Item{asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.DeliveryFutures} {
-		pair, response := getPairWithOpenInterest(t, a)
+		pairs := getPairs(t, a)
+		if a == asset.DeliveryFutures {
+			// The enabled delivery contract is picked at random and may have no open positions
+			pairs, err = e.GetAvailablePairs(a)
+			require.NoErrorf(t, err, "GetAvailablePairs must not error for %s", a)
+		}
+		pair, response := getPairWithOpenInterest(t, a, pairs)
 		validPairs[a] = pair
 		resp = response
 		require.Lenf(t, resp, 1, "GetOpenInterest must return 1 item for %s asset", a)
@@ -4922,11 +4937,11 @@ func getPair(tb testing.TB, a asset.Item) currency.Pair {
 	return currency.EMPTYPAIR
 }
 
-func getPairWithOpenInterest(t *testing.T, a asset.Item) (key.PairAsset, []futures.OpenInterest) {
+func getPairWithOpenInterest(t *testing.T, a asset.Item, pairs currency.Pairs) (key.PairAsset, []futures.OpenInterest) {
 	t.Helper()
 	var lastErr error
 	var receivedResponse bool
-	for _, pair := range getPairs(t, a) {
+	for _, pair := range pairs {
 		pairAsset := key.PairAsset{Base: pair.Base.Item, Quote: pair.Quote.Item, Asset: a}
 		response, err := e.GetOpenInterest(t.Context(), pairAsset)
 		if err != nil {
@@ -4974,6 +4989,79 @@ func getPairs(tb testing.TB, a asset.Item) currency.Pairs {
 	pairMap[a] = enabledPairs
 
 	return enabledPairs
+}
+
+// getMarketDataPair uses the most active delivery contract with the data the test asserts on, rather than the enabled
+// one, because most of Gate's delivery contracts can go hours without a trade, often with one side of the book empty,
+// and the enabled contract is picked at random once the configured one expires. Delivery gets an instance of its own
+// because candle requests need the contract enabled, and enabling it on e would not last: testexch.UpdatePairsOnce
+// reloads e's cached pairs.
+func getMarketDataPair(t *testing.T, a asset.Item, hasData deliveryDataCheck) (*Exchange, currency.Pair) {
+	t.Helper()
+	if a != asset.DeliveryFutures {
+		return e, getPair(t, a)
+	}
+	pair := getActiveDeliveryPair(t, hasData)
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.Name = t.Name()
+	require.NoError(t, ex.CurrencyPairs.StorePairs(a, currency.Pairs{pair}, false), "StorePairs must not error for available pairs")
+	require.NoError(t, ex.CurrencyPairs.StorePairs(a, currency.Pairs{pair}, true), "StorePairs must not error for enabled pairs")
+	return ex, pair
+}
+
+// deliveryDataCheck returns why a delivery contract lacks the data a test asserts on, or nil if it has it. Each test
+// checks only its own need, because a contract with a two-sided book can go hours without a trade while another trades
+// with one side of its book empty
+type deliveryDataCheck func(context.Context, currency.Pair) error
+
+func hasTwoSidedDeliveryBook(ctx context.Context, p currency.Pair) error {
+	book, err := e.GetDeliveryOrderbook(ctx, currency.USDT, "", p, 1, false)
+	switch {
+	case err != nil:
+		return err
+	case book == nil || len(book.Bids) == 0:
+		return errors.New("no bids")
+	case len(book.Asks) == 0:
+		return errors.New("no asks")
+	}
+	return nil
+}
+
+// hasDeliveryCandles checks with the test's own interval and start, because Gate returns no candles unless a trade
+// falls in a candle the window overlaps, and a contract's 24-hour volume does not show when it traded
+func hasDeliveryCandles(interval kline.Interval, start time.Time) deliveryDataCheck {
+	return func(ctx context.Context, p currency.Pair) error {
+		candles, err := e.GetDeliveryFuturesCandlesticks(ctx, currency.USDT, p, start, time.Now(), 0, interval)
+		if err == nil && len(candles) == 0 {
+			return errors.New("no candles")
+		}
+		return err
+	}
+}
+
+// getActiveDeliveryPair returns the contract with the most 24-hour volume that passes hasData. It selects afresh on
+// each call, as each test checks for different data and a contract's book and recent trades can change between tests
+func getActiveDeliveryPair(tb testing.TB, hasData deliveryDataCheck) currency.Pair {
+	tb.Helper()
+	tickers, err := e.GetDeliveryFutureTickers(tb.Context(), currency.USDT, currency.EMPTYPAIR)
+	require.NoError(tb, err, "GetDeliveryFutureTickers must not error")
+	slices.SortFunc(tickers, func(a, b FuturesTicker) int {
+		return cmp.Compare(b.Volume24HourQuote.Float64(), a.Volume24HourQuote.Float64())
+	})
+	// A contract can expire mid-selection, so a failed request moves on to the next one
+	var errs error
+	for i := range tickers {
+		pair, err := currency.NewPairFromString(tickers[i].Contract)
+		require.NoErrorf(tb, err, "NewPairFromString must not error for %q", tickers[i].Contract)
+		if err := hasData(tb.Context(), pair); err != nil {
+			errs = common.AppendError(errs, fmt.Errorf("%s: %w", pair, err))
+			continue
+		}
+		return pair
+	}
+	require.FailNowf(tb, "must find a delivery contract with the data this test asserts on", "%d contracts checked: %v", len(tickers), errs)
+	return currency.EMPTYPAIR
 }
 
 func BenchmarkTimeInForceFromString(b *testing.B) {
