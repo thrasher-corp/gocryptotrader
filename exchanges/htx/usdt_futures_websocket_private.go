@@ -129,8 +129,8 @@ func (e *Exchange) sendV5WSOrderUpdate(ctx context.Context, sub *subscription.Su
 	return e.Websocket.DataHandler.Send(ctx, &detail)
 }
 
-// WSPlaceV5Order places an order through the dedicated V5 trade connection.
-func (e *Exchange) WSPlaceV5Order(ctx context.Context, req *V5OrderRequest) (*V5WebsocketOrderResponse, error) {
+// WebsocketPlaceV5Order places an order through the dedicated V5 trade connection.
+func (e *Exchange) WebsocketPlaceV5Order(ctx context.Context, req *V5OrderRequest) (*V5WebsocketOrderResponse, error) {
 	if req == nil {
 		return nil, common.ErrNilPointer
 	}
@@ -139,8 +139,8 @@ func (e *Exchange) WSPlaceV5Order(ctx context.Context, req *V5OrderRequest) (*V5
 	return resp, err
 }
 
-// WSPlaceV5BatchOrders places multiple orders through the dedicated V5 trade connection.
-func (e *Exchange) WSPlaceV5BatchOrders(ctx context.Context, req []*V5OrderRequest) (*V5WebsocketBatchOrderResponse, error) {
+// WebsocketPlaceV5BatchOrders places multiple orders through the dedicated V5 trade connection.
+func (e *Exchange) WebsocketPlaceV5BatchOrders(ctx context.Context, req []*V5OrderRequest) (*V5WebsocketBatchOrderResponse, error) {
 	if len(req) == 0 {
 		return nil, common.ErrEmptyParams
 	}
@@ -149,8 +149,8 @@ func (e *Exchange) WSPlaceV5BatchOrders(ctx context.Context, req []*V5OrderReque
 	return resp, err
 }
 
-// WSCancelV5Order cancels an order through the dedicated V5 trade connection.
-func (e *Exchange) WSCancelV5Order(ctx context.Context, req *V5CancelOrderRequest) (*V5WebsocketOrderResponse, error) {
+// WebsocketCancelV5Order cancels an order through the dedicated V5 trade connection.
+func (e *Exchange) WebsocketCancelV5Order(ctx context.Context, req *V5CancelOrderRequest) (*V5WebsocketOrderResponse, error) {
 	if req == nil {
 		return nil, common.ErrNilPointer
 	}
@@ -159,8 +159,8 @@ func (e *Exchange) WSCancelV5Order(ctx context.Context, req *V5CancelOrderReques
 	return resp, err
 }
 
-// WSCancelV5BatchOrders cancels multiple orders through the dedicated V5 trade connection.
-func (e *Exchange) WSCancelV5BatchOrders(ctx context.Context, req *V5CancelBatchOrdersRequest) (*V5WebsocketBatchOrderResponse, error) {
+// WebsocketCancelV5BatchOrders cancels multiple orders through the dedicated V5 trade connection.
+func (e *Exchange) WebsocketCancelV5BatchOrders(ctx context.Context, req *V5CancelBatchOrdersRequest) (*V5WebsocketBatchOrderResponse, error) {
 	if err := req.Validate(); err != nil {
 		return nil, err
 	}
@@ -169,8 +169,8 @@ func (e *Exchange) WSCancelV5BatchOrders(ctx context.Context, req *V5CancelBatch
 	return resp, err
 }
 
-// WSCancelAllV5Orders cancels all matching orders through the dedicated V5 trade connection.
-func (e *Exchange) WSCancelAllV5Orders(ctx context.Context, req *V5CancelAllOrdersRequest) (*V5WebsocketBatchOrderResponse, error) {
+// WebsocketCancelAllV5Orders cancels all matching orders through the dedicated V5 trade connection.
+func (e *Exchange) WebsocketCancelAllV5Orders(ctx context.Context, req *V5CancelAllOrdersRequest) (*V5WebsocketBatchOrderResponse, error) {
 	if req == nil {
 		return nil, common.ErrNilPointer
 	}

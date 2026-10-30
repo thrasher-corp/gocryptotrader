@@ -3,6 +3,7 @@ package htx
 import (
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"sync/atomic"
 	"testing"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
@@ -60,6 +62,50 @@ func TestGetV5PositionMode(t *testing.T) {
 
 func TestSetV5PositionMode(t *testing.T) {
 	t.Parallel()
+	t.Run("exclude overlapping submissions and mode changes", func(t *testing.T) {
+		t.Parallel()
+		started, release := make(chan struct{}), make(chan struct{})
+		var calls atomic.Int32
+		h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodPost, "/v5/position/mode", `{"code":200,"data":{"position_mode":"single_side"}}`, func(*http.Request) {
+			if calls.Add(1) == 1 {
+				close(started)
+				<-release
+			}
+		})
+		// Registered after the server cleanup so a failed assertion cannot strand its handler.
+		var releaseOnce sync.Once
+		t.Cleanup(func() { releaseOnce.Do(func() { close(release) }) })
+		h.Websocket.SetCanUseAuthenticatedEndpoints(true)
+		result := make(chan error, 1)
+		go func() { _, err := h.SetV5PositionMode(t.Context(), "single_side"); result <- err }()
+		select {
+		case <-started:
+		case <-t.Context().Done():
+			require.FailNow(t, "mode request must start")
+		}
+		submission := &order.Submit{Exchange: h.Name, Pair: btcusdtPair, AssetType: asset.USDTMarginedFutures, Side: order.Buy, Type: order.Limit, Price: 100, Amount: 1}
+		_, err := h.SubmitOrder(t.Context(), submission)
+		require.ErrorIs(t, err, errPositionModeInUse, "REST submission must not race a mode change")
+		_, err = h.WebsocketSubmitOrder(t.Context(), submission)
+		require.ErrorIs(t, err, errPositionModeInUse, "websocket submission must not race a mode change")
+		_, err = h.WebsocketSubmitOrders(t.Context(), []*order.Submit{submission})
+		require.ErrorIs(t, err, errPositionModeInUse, "batch submission must not race a mode change")
+		_, err = h.SetV5PositionMode(t.Context(), "dual_side")
+		require.ErrorIs(t, err, errPositionModeInUse, "mode changes must exclude each other")
+		releaseOnce.Do(func() { close(release) })
+		require.NoError(t, <-result, "initial mode change must complete")
+		assert.False(t, h.positionModeInUse.Load(), "successful mode change should release the guard")
+		_, err = h.SetV5PositionMode(t.Context(), "dual_side")
+		require.NoError(t, err, "later mode changes must remain usable")
+	})
+	t.Run("release after failure", func(t *testing.T) {
+		t.Parallel()
+		h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodPost, "/v5/position/mode", `{"code":400,"message":"rejected"}`, nil)
+		_, err := h.SetV5PositionMode(t.Context(), "dual_side")
+		require.Error(t, err, "rejected mode change must fail")
+		assert.False(t, h.positionModeInUse.Load(), "failed mode change should release the guard")
+	})
+
 	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodPost, "/v5/position/mode", `{"code":200,"data":{"position_mode":"single_side"}}`, nil)
 	resp, err := h.SetV5PositionMode(t.Context(), "single_side")
 	require.NoError(t, err, "SetV5PositionMode must not error")

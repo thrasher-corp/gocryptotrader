@@ -659,6 +659,28 @@ func bookLevel(level []float64) (price, size float64) {
 	return price, size
 }
 
+// inverseContractQuoteVolume converts inverse contracts to their fixed quote-currency face value.
+func (e *Exchange) inverseContractQuoteVolume(ctx context.Context, p currency.Pair, a asset.Item, contracts float64) (float64, error) {
+	if contracts == 0 {
+		return 0, nil
+	}
+	k := key.NewExchangeAssetPair(e.Name, a, p)
+	level, err := limits.GetOrderExecutionLimits(k)
+	if err != nil {
+		if err := e.UpdateOrderExecutionLimits(ctx, a); err != nil {
+			return 0, err
+		}
+		level, err = limits.GetOrderExecutionLimits(k)
+		if err != nil {
+			return 0, err
+		}
+	}
+	if level.MultiplierDecimal <= 0 {
+		return 0, fmt.Errorf("%w: inverse contract multiplier must be positive", common.ErrInvalidResponse)
+	}
+	return contracts * level.MultiplierDecimal, nil
+}
+
 // UpdateTicker updates and returns the ticker for a currency pair
 func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
 	if p.IsEmpty() {
@@ -703,15 +725,19 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 		}
 		bid, bidSize := bookLevel(marketData.Tick.Bid)
 		ask, askSize := bookLevel(marketData.Tick.Ask)
-		// vol counts contracts on this endpoint, so it cannot supply quote volume.
+		quoteVolume, err := e.inverseContractQuoteVolume(ctx, p, a, marketData.Tick.Volume.Float64())
+		if err != nil {
+			return nil, err
+		}
 		if err := ticker.ProcessTicker(&ticker.Price{
-			High:       marketData.Tick.High.Float64(),
-			Low:        marketData.Tick.Low.Float64(),
-			BaseVolume: marketData.Tick.Amount.Float64(),
-			Open:       marketData.Tick.Open.Float64(),
-			Last:       marketData.Tick.Close.Float64(),
-			Close:      marketData.Tick.Close.Float64(),
-			Pair:       p, Bid: bid, BidSize: bidSize, Ask: ask, AskSize: askSize,
+			High:        marketData.Tick.High.Float64(),
+			Low:         marketData.Tick.Low.Float64(),
+			BaseVolume:  marketData.Tick.Amount.Float64(),
+			QuoteVolume: quoteVolume,
+			Open:        marketData.Tick.Open.Float64(),
+			Last:        marketData.Tick.Close.Float64(),
+			Close:       marketData.Tick.Close.Float64(),
+			Pair:        p, Bid: bid, BidSize: bidSize, Ask: ask, AskSize: askSize,
 			ExchangeName: e.Name, AssetType: a,
 		}); err != nil {
 			return nil, err
@@ -744,15 +770,19 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 		}
 		bid, bidSize := bookLevel(marketData.Tick.Bid)
 		ask, askSize := bookLevel(marketData.Tick.Ask)
-		// vol counts contracts on this endpoint, so it cannot supply quote volume.
+		quoteVolume, err := e.inverseContractQuoteVolume(ctx, p, a, marketData.Tick.Volume.Float64())
+		if err != nil {
+			return nil, err
+		}
 		if err := ticker.ProcessTicker(&ticker.Price{
-			High:       marketData.Tick.High.Float64(),
-			Low:        marketData.Tick.Low.Float64(),
-			BaseVolume: marketData.Tick.Amount.Float64(),
-			Open:       marketData.Tick.Open.Float64(),
-			Last:       marketData.Tick.Close.Float64(),
-			Close:      marketData.Tick.Close.Float64(),
-			Pair:       p, Bid: bid, BidSize: bidSize, Ask: ask, AskSize: askSize,
+			High:        marketData.Tick.High.Float64(),
+			Low:         marketData.Tick.Low.Float64(),
+			BaseVolume:  marketData.Tick.Amount.Float64(),
+			QuoteVolume: quoteVolume,
+			Open:        marketData.Tick.Open.Float64(),
+			Last:        marketData.Tick.Close.Float64(),
+			Close:       marketData.Tick.Close.Float64(),
+			Pair:        p, Bid: bid, BidSize: bidSize, Ask: ask, AskSize: askSize,
 			ExchangeName: e.Name, AssetType: a,
 		}); err != nil {
 			return nil, err
@@ -1407,6 +1437,10 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		}
 		orderID = orderResp.Order.OrderIDString
 	case asset.USDTMarginedFutures:
+		if !e.positionModeInUse.CompareAndSwap(false, true) {
+			return nil, errPositionModeInUse
+		}
+		defer e.positionModeInUse.Store(false)
 		positionMode, err := e.getV5PositionModeName(ctx)
 		if err != nil {
 			return nil, err
@@ -1517,6 +1551,10 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 	if !e.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, request.ErrAuthRequestFailed
 	}
+	if !e.positionModeInUse.CompareAndSwap(false, true) {
+		return nil, errPositionModeInUse
+	}
+	defer e.positionModeInUse.Store(false)
 	positionMode, err := e.getV5PositionModeName(ctx)
 	if err != nil {
 		return nil, err
@@ -1525,7 +1563,7 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 	if err != nil {
 		return nil, err
 	}
-	orderResp, err := e.WSPlaceV5Order(ctx, req)
+	orderResp, err := e.WebsocketPlaceV5Order(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -1558,6 +1596,10 @@ func (e *Exchange) WebsocketSubmitOrders(ctx context.Context, orders []*order.Su
 	if !e.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, request.ErrAuthRequestFailed
 	}
+	if !e.positionModeInUse.CompareAndSwap(false, true) {
+		return nil, errPositionModeInUse
+	}
+	defer e.positionModeInUse.Store(false)
 	positionMode, err := e.getV5PositionModeName(ctx)
 	if err != nil {
 		return nil, err
@@ -1568,7 +1610,7 @@ func (e *Exchange) WebsocketSubmitOrders(ctx context.Context, orders []*order.Su
 			return nil, err
 		}
 	}
-	orderResp, err := e.WSPlaceV5BatchOrders(ctx, requests)
+	orderResp, err := e.WebsocketPlaceV5BatchOrders(ctx, requests)
 	if err != nil {
 		return nil, err
 	}
@@ -1619,7 +1661,7 @@ func (e *Exchange) WebsocketCancelOrder(ctx context.Context, ord *order.Cancel) 
 	if err != nil {
 		return err
 	}
-	resp, err := e.WSCancelV5Order(ctx, &V5CancelOrderRequest{
+	resp, err := e.WebsocketCancelV5Order(ctx, &V5CancelOrderRequest{
 		ContractCode:  formattedPair,
 		OrderID:       ord.OrderID,
 		ClientOrderID: ord.ClientOrderID,
@@ -2873,11 +2915,6 @@ func setOrderSideStatusAndType(orderState, requestType string, orderDetail *orde
 	case strings.HasSuffix(requestType, "-ioc"):
 		orderDetail.TimeInForce = order.ImmediateOrCancel
 	}
-}
-
-// AuthenticateWebsocket sends an authentication message to the websocket
-func (e *Exchange) AuthenticateWebsocket(ctx context.Context) error {
-	return e.wsLogin(ctx, e.Websocket.AuthConn)
 }
 
 // ValidateAPICredentials validates current credentials used for wrapper functionality

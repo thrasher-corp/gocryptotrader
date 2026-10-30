@@ -74,7 +74,7 @@ type legacyFuturesWSOrder struct {
 	tradeVolume    float64
 	tradeTurnover  float64
 	averagePrice   float64
-	trades         []LegacyFuturesWSTrade
+	trades         []LegacyFuturesWebsocketTrade
 	fee            float64
 	leverage       float64
 	createdAt      types.Time
@@ -84,60 +84,60 @@ type legacyFuturesWSOrder struct {
 
 // FuturesWebsocketSubOrder stores subscribed order data for futures websocket
 type FuturesWebsocketSubOrder struct {
-	Operation         string                 `json:"op"`
-	Topic             string                 `json:"topic"`
-	UID               string                 `json:"uid"`
-	Timestamp         types.Time             `json:"ts"`
-	Symbol            string                 `json:"symbol"`
-	ContractType      string                 `json:"contract_type"`
-	ContractCode      string                 `json:"contract_code"`
-	Volume            float64                `json:"volume"`
-	Price             float64                `json:"price"`
-	OrderPriceType    string                 `json:"order_price_type"`
-	Direction         string                 `json:"direction"`
-	Offset            string                 `json:"offset"`
-	Status            uint64                 `json:"status"`
-	LeverageRate      uint64                 `json:"lever_rate"`
-	OrderID           uint64                 `json:"order_id"`
-	OrderIDString     string                 `json:"order_id_str"`
-	ClientOrderID     uint64                 `json:"client_order_id"`
-	OrderSource       string                 `json:"order_source"`
-	OrderType         uint64                 `json:"order_type"`
-	CreatedAt         types.Time             `json:"created_at"`
-	TradeVolume       float64                `json:"trade_volume"`
-	TradeTurnover     float64                `json:"trade_turnover"`
-	Fee               float64                `json:"fee"`
-	TradeAveragePrice float64                `json:"trade_avg_price"`
-	MarginFrozen      float64                `json:"margin_frozen"`
-	Profit            float64                `json:"profit"`
-	FeeAsset          currency.Code          `json:"fee_asset"`
-	CancelledAt       types.Time             `json:"canceled_at"`
-	Trade             []LegacyFuturesWSTrade `json:"trade"`
+	Operation         string                        `json:"op"`
+	Topic             string                        `json:"topic"`
+	UID               string                        `json:"uid"`
+	Timestamp         types.Time                    `json:"ts"`
+	Symbol            string                        `json:"symbol"`
+	ContractType      string                        `json:"contract_type"`
+	ContractCode      string                        `json:"contract_code"`
+	Volume            float64                       `json:"volume"`
+	Price             float64                       `json:"price"`
+	OrderPriceType    string                        `json:"order_price_type"`
+	Direction         string                        `json:"direction"`
+	Offset            string                        `json:"offset"`
+	Status            uint64                        `json:"status"`
+	LeverageRate      uint64                        `json:"lever_rate"`
+	OrderID           uint64                        `json:"order_id"`
+	OrderIDString     string                        `json:"order_id_str"`
+	ClientOrderID     uint64                        `json:"client_order_id"`
+	OrderSource       string                        `json:"order_source"`
+	OrderType         uint64                        `json:"order_type"`
+	CreatedAt         types.Time                    `json:"created_at"`
+	TradeVolume       float64                       `json:"trade_volume"`
+	TradeTurnover     float64                       `json:"trade_turnover"`
+	Fee               float64                       `json:"fee"`
+	TradeAveragePrice float64                       `json:"trade_avg_price"`
+	MarginFrozen      float64                       `json:"margin_frozen"`
+	Profit            float64                       `json:"profit"`
+	FeeAsset          currency.Code                 `json:"fee_asset"`
+	CancelledAt       types.Time                    `json:"canceled_at"`
+	Trade             []LegacyFuturesWebsocketTrade `json:"trade"`
 }
 
 // FuturesWebsocketSubMatchOrder stores subscribed match order data for futures websocket
 type FuturesWebsocketSubMatchOrder struct {
-	Operation      string                 `json:"op"`
-	Topic          string                 `json:"topic"`
-	UID            string                 `json:"uid"`
-	Timestamp      types.Time             `json:"ts"`
-	Symbol         string                 `json:"symbol"`
-	ContractType   string                 `json:"contract_type"`
-	ContractCode   string                 `json:"contract_code"`
-	Status         uint64                 `json:"status"`
-	OrderID        uint64                 `json:"order_id"`
-	OrderIDString  string                 `json:"order_id_str"`
-	OrderType      uint64                 `json:"order_type"`
-	Direction      string                 `json:"direction"`
-	Offset         string                 `json:"offset"`
-	OrderPriceType string                 `json:"order_price_type"`
-	Price          float64                `json:"price"`
-	LeverageRate   uint64                 `json:"lever_rate"`
-	CreatedAt      types.Time             `json:"created_at"`
-	Volume         float64                `json:"volume"`
-	TradeVolume    float64                `json:"trade_volume"`
-	ClientOrderID  uint64                 `json:"client_order_id"`
-	Trade          []LegacyFuturesWSTrade `json:"trade"`
+	Operation      string                        `json:"op"`
+	Topic          string                        `json:"topic"`
+	UID            string                        `json:"uid"`
+	Timestamp      types.Time                    `json:"ts"`
+	Symbol         string                        `json:"symbol"`
+	ContractType   string                        `json:"contract_type"`
+	ContractCode   string                        `json:"contract_code"`
+	Status         uint64                        `json:"status"`
+	OrderID        uint64                        `json:"order_id"`
+	OrderIDString  string                        `json:"order_id_str"`
+	OrderType      uint64                        `json:"order_type"`
+	Direction      string                        `json:"direction"`
+	Offset         string                        `json:"offset"`
+	OrderPriceType string                        `json:"order_price_type"`
+	Price          float64                       `json:"price"`
+	LeverageRate   uint64                        `json:"lever_rate"`
+	CreatedAt      types.Time                    `json:"created_at"`
+	Volume         float64                       `json:"volume"`
+	TradeVolume    float64                       `json:"trade_volume"`
+	ClientOrderID  uint64                        `json:"client_order_id"`
+	Trade          []LegacyFuturesWebsocketTrade `json:"trade"`
 }
 
 // FuturesWebsocketSubEquityUpdates stores account equity updates data for futures websocket
@@ -169,8 +169,8 @@ type FuturesWebsocketSubTriggerOrderUpdates struct {
 	Orders    []FuturesWebsocketTriggerOrder `json:"data"`
 }
 
-// LegacyFuturesWSTrade contains one fill in a delivery or coin-margined private notification.
-type LegacyFuturesWSTrade struct {
+// LegacyFuturesWebsocketTrade contains one fill in a delivery or coin-margined private notification.
+type LegacyFuturesWebsocketTrade struct {
 	ID            string        `json:"id"`
 	TradeID       uint64        `json:"trade_id"`
 	TradeVolume   float64       `json:"trade_volume"`

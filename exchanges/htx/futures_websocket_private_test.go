@@ -208,9 +208,9 @@ func TestWSFuturesLogin(t *testing.T) {
 
 			err := h.Websocket.Connect(t.Context())
 			require.ErrorIs(t, err, tc.connectErr, "connection setup must match the login result")
-			_, err = h.WSPlaceV5Order(t.Context(), &V5OrderRequest{ContractCode: "BTC-USDT"})
+			_, err = h.WebsocketPlaceV5Order(t.Context(), &V5OrderRequest{ContractCode: "BTC-USDT"})
 			assert.ErrorIs(t, err, tc.tradeErr, "order submission should require successful login")
-			_, err = h.WSCancelV5Order(t.Context(), &V5CancelOrderRequest{ContractCode: "BTC-USDT", OrderID: "1"})
+			_, err = h.WebsocketCancelV5Order(t.Context(), &V5CancelOrderRequest{ContractCode: "BTC-USDT", OrderID: "1"})
 			assert.ErrorIs(t, err, tc.tradeErr, "order cancellation should require successful login")
 		})
 	}

@@ -2331,9 +2331,7 @@
     }
    ],
    "orderbook": {
-    "verificationBypass": false,
-    "websocketBufferLimit": 5,
-    "websocketBufferEnabled": false
+    "verificationBypass": false
    }
   },
   {

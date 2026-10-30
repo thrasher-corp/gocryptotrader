@@ -125,5 +125,5 @@ type WebsocketTradeExecution struct {
 
 // websocketPong echoes the public feed's heartbeat timestamp.
 type websocketPong struct {
-	Pong int64 `json:"pong"`
+	Pong int64 `json:"pong"` // Signed to echo the ping exactly as jsonparser.GetInt reads it.
 }

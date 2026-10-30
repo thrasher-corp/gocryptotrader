@@ -367,6 +367,12 @@ func TestFuturesGetSingleSubPositions(t *testing.T) {
 
 func TestFuturesGetFinancialRecords(t *testing.T) {
 	t.Parallel()
+	t.Run("invalid record type", func(t *testing.T) {
+		t.Parallel()
+		_, err := new(Exchange).FuturesGetFinancialRecords(t.Context(), "BTC", "bogus", 1, 0, 0)
+		require.ErrorIs(t, err, errInvalidRecordType, "invalid record types must fail before transport")
+	})
+
 	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/api/v3/contract_financial_record", emptySuccessResponse, func(r *http.Request) {
 		body, err := io.ReadAll(r.Body)
 		require.NoError(t, err, "request body must be readable")
@@ -458,6 +464,16 @@ func TestFuturesGetAvailableLeverage(t *testing.T) {
 
 func TestFuturesOrder(t *testing.T) {
 	t.Parallel()
+	for _, offset := range []string{"bogus", ""} {
+		t.Run("invalid offset "+offset, func(t *testing.T) {
+			t.Parallel()
+			h := new(Exchange)
+			require.NoError(t, testexch.Setup(h), "setup must succeed")
+			_, err := h.FuturesOrder(t.Context(), currency.EMPTYPAIR, "BTC", "quarter", "", "buy", offset, orderPriceTypeLimit, 1, 1, 1)
+			require.ErrorIs(t, err, errInvalidOffsetAmounts, "invalid offsets must fail before transport")
+		})
+	}
+
 	type testCase struct {
 		name             string
 		priceType        string
@@ -508,6 +524,16 @@ func TestFuturesOrder(t *testing.T) {
 
 func TestFuturesPlaceBatchOrder(t *testing.T) {
 	t.Parallel()
+	for _, offset := range []string{"bogus", ""} {
+		t.Run("invalid offset "+offset, func(t *testing.T) {
+			t.Parallel()
+			h := new(Exchange)
+			require.NoError(t, testexch.Setup(h), "setup must succeed")
+			_, err := h.FuturesPlaceBatchOrder(t.Context(), []*FuturesBatchOrderRequest{{Symbol: "BTC", ContractType: "quarter", Price: 5, Volume: 1, Direction: "buy", Offset: offset, LeverageRate: 1, OrderPriceType: "limit"}})
+			require.ErrorIs(t, err, errInvalidOffsetAmounts, "invalid offsets must fail before transport")
+		})
+	}
+
 	type testCase struct {
 		name     string
 		count    int
@@ -707,6 +733,16 @@ func TestFuturesTradeHistory(t *testing.T) {
 
 func TestFuturesPlaceTriggerOrder(t *testing.T) {
 	t.Parallel()
+	for _, offset := range []string{"bogus", ""} {
+		t.Run("invalid offset "+offset, func(t *testing.T) {
+			t.Parallel()
+			h := new(Exchange)
+			require.NoError(t, testexch.Setup(h), "setup must succeed")
+			_, err := h.FuturesPlaceTriggerOrder(t.Context(), currency.EMPTYPAIR, "BTC", "quarter", "greaterOrEqual", "limit", "buy", offset, 1.1, 1.05, 5, 2)
+			require.ErrorIs(t, err, errInvalidOffset, "invalid offsets must fail before transport")
+		})
+	}
+
 	h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, "/api/v1/contract_trigger_order", emptySuccessResponse, nil)
 	_, err := h.FuturesPlaceTriggerOrder(t.Context(), currency.EMPTYPAIR, "BTC", "quarter", "greaterOrEqual", "limit", "buy", "close", 1.1, 1.05, 5, 2)
 	require.NoError(t, err, "FPlaceTriggerOrder must not error")

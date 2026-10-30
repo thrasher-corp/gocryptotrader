@@ -155,6 +155,12 @@ func (e *Exchange) wsHandleTickerMsg(ctx context.Context, s *subscription.Subscr
 		tickPrice.QuoteVolume = wsTicker.Tick.Volume
 	case asset.USDTMarginedFutures:
 		tickPrice.QuoteVolume = wsTicker.Tick.TradeTurnover
+	case asset.Futures, asset.CoinMarginedFutures:
+		quoteVolume, err := e.inverseContractQuoteVolume(ctx, s.Pairs[0], s.Asset, wsTicker.Tick.Volume)
+		if err != nil {
+			return err
+		}
+		tickPrice.QuoteVolume = quoteVolume
 	}
 	if err := ticker.ProcessTicker(tickPrice); err != nil {
 		return err

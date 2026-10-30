@@ -140,6 +140,14 @@ func (e *Exchange) wsHandleSubscriptionResponse(conn websocket.Connection, opera
 	return conn.RequireMatchWithData(operation+":"+channel, raw)
 }
 
+// GetQualifiedChannel enables indexed lookups while Match still enforces connection ownership.
+func (k wsSubscriptionKey) GetQualifiedChannel() string {
+	if k.ExactKey == nil || k.Subscription == nil {
+		return ""
+	}
+	return k.QualifiedChannel
+}
+
 // Match scopes wire-topic lookups to their connection; ordinary ExactKey lookups
 // still compare subscription settings during a refresh.
 func (k wsSubscriptionKey) Match(other subscription.MatchableKey) bool {

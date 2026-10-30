@@ -110,5 +110,5 @@ type websocketPrivatePong struct {
 
 // websocketHeartbeat contains the timestamp required by a private heartbeat.
 type websocketHeartbeat struct {
-	Timestamp int64 `json:"ts"`
+	Timestamp int64 `json:"ts"` // Signed to echo the ping exactly as jsonparser.GetInt reads it.
 }

@@ -356,11 +356,10 @@ func (e *Exchange) NewOrder(ctx context.Context, price, amount, triggerPrice, ta
 		req["clientOrderID"] = clientOrderID
 	}
 	var resp OrderData
-	return resp, e.SendAuthenticatedRequest(ctx, http.MethodPost,
-		btcMarketsOrders,
-		req,
-		&resp,
-		orderFunc)
+	if err := e.SendAuthenticatedRequest(ctx, http.MethodPost, btcMarketsOrders, req, &resp, orderFunc); err != nil {
+		return OrderData{}, err
+	}
+	return resp, nil
 }
 
 // GetOrders returns current order information on the exchange

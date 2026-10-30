@@ -498,7 +498,7 @@ func (e *Exchange) FuturesGetFinancialRecords(ctx context.Context, symbol, recor
 		req["from_id"] = fromID
 	}
 	if limit != 0 {
-		req[orderPriceTypeLimit] = limit
+		req["limit"] = limit
 	}
 	req["direct"] = v3HistoryDirectionNext
 	resp := new(FuturesFinancialRecordsResponse)
@@ -953,7 +953,7 @@ func (e *Exchange) FuturesGetOrderHistoryByTimeRange(ctx context.Context, contra
 		req["from_id"] = fromID
 	}
 	if limit != 0 {
-		req[orderPriceTypeLimit] = limit
+		req["limit"] = limit
 	}
 	resp := new(FuturesOrderHistoryResponse)
 	err = e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/api/v3/contract_hisorders", nil, req, resp)
@@ -987,7 +987,7 @@ func (e *Exchange) FuturesTradeHistory(ctx context.Context, contractCode currenc
 		req["from_id"] = fromID
 	}
 	if limit != 0 {
-		req[orderPriceTypeLimit] = limit
+		req["limit"] = limit
 	}
 	resp := new(FuturesTradeHistoryResponse)
 	err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/api/v3/contract_matchresults", nil, req, resp)

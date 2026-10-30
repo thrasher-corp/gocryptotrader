@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -40,7 +41,10 @@ const (
 // Exchange implements exchange.IBotExchange and contains additional API methods for interacting with HTX.
 type Exchange struct {
 	exchange.Base
-	AccountID                string
+	AccountID string
+	// positionModeInUse excludes overlapping mode changes and wrapper submissions on this instance.
+	// It cannot account for exchange-side modifications or changes made by other clients or instances.
+	positionModeInUse        atomic.Bool
 	futureContractCodesMutex sync.RWMutex
 	futureContractCodes      map[string]currency.Code
 }

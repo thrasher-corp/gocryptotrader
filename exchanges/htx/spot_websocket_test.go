@@ -9,7 +9,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -69,6 +71,10 @@ func TestWSHandleOrderbookMsg(t *testing.T) {
 		err  error
 	}
 	for _, tc := range []testCase{
+		{name: "bid price type", raw: `{"tick":{"bids":[["100",2]]}}`, err: errBidPriceTypeAssertion},
+		{name: "bid amount type", raw: `{"tick":{"bids":[[100,"2"]]}}`, err: errBidAmountTypeAssertion},
+		{name: "ask price type", raw: `{"tick":{"asks":[["100",2]]}}`, err: errAskPriceTypeAssertion},
+		{name: "ask amount type", raw: `{"tick":{"asks":[[100,"2"]]}}`, err: errAskAmountTypeAssertion},
 		{name: "empty bid", raw: `{"tick":{"bids":[[]]}}`, err: errInvalidBidData},
 		{name: "short bid", raw: `{"tick":{"bids":[[100]]}}`, err: errInvalidBidData},
 		{name: "long bid", raw: `{"tick":{"bids":[[100,2,3]]}}`, err: errInvalidBidData},
@@ -165,6 +171,7 @@ func TestWSHandleTickerMsg(t *testing.T) {
 		e := new(Exchange)
 		require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
 		e.Name = t.Name()
+		require.NoError(t, limits.Load([]limits.MinMaxLevel{{Key: key.NewExchangeAssetPair(e.Name, asset.CoinMarginedFutures, currency.NewBTCUSD()), MultiplierDecimal: 100}}), "inverse multiplier must be loaded")
 		sub := &subscription.Subscription{Key: "market.BTC-USD.detail", Asset: asset.CoinMarginedFutures, Pairs: currency.Pairs{currency.NewBTCUSD()}, Channel: subscription.TickerChannel}
 		require.NoError(t, e.Websocket.AddSubscriptions(e.Websocket.Conn, sub), "AddSubscriptions must not error")
 
@@ -178,7 +185,7 @@ func TestWSHandleTickerMsg(t *testing.T) {
 		tick, ok := tickAny.Data.(*ticker.Price)
 		require.True(t, ok, "Must get the correct type from DataHandler")
 		assert.Equal(t, 13991.028076056185, tick.BaseVolume, "amount should be recorded as the base volume")
-		assert.Zero(t, tick.QuoteVolume, "vol counts contracts here, so no quote volume should be recorded")
+		assert.Equal(t, 72767600.0, tick.QuoteVolume, "contract count times USD face value should record quote turnover")
 		stored, err := ticker.GetTicker(e.Name, tick.Pair, tick.AssetType)
 		require.NoError(t, err, "websocket ticker must reach the shared store")
 		assert.Equal(t, tick, stored, "stored ticker should match the dispatched ticker")
@@ -192,8 +199,8 @@ func TestWSHandleTickerMsg(t *testing.T) {
 	}
 	for _, tc := range []testCase{
 		{name: "spot quotes", asset: asset.Spot, raw: `{"tick":{"bid":[100,2],"ask":[101,3],"vol":40,"trade_turnover":50}}`, quote: 40},
-		{name: "delivery volume", asset: asset.Futures, raw: `{"tick":{"bid":[100,2],"ask":[101,3],"amount":2,"vol":40}}`, quote: 0},
-		{name: "coin volume", asset: asset.CoinMarginedFutures, raw: `{"tick":{"bid":[100,2],"ask":[101,3],"amount":2,"vol":40}}`, quote: 0},
+		{name: "delivery volume", asset: asset.Futures, raw: `{"tick":{"bid":[100,2],"ask":[101,3],"amount":2,"vol":40}}`, quote: 4000},
+		{name: "coin volume", asset: asset.CoinMarginedFutures, raw: `{"tick":{"bid":[100,2],"ask":[101,3],"amount":2,"vol":40}}`, quote: 4000},
 		{name: "USDT turnover", asset: asset.USDTMarginedFutures, raw: `{"tick":{"bid":[100,2],"ask":[101,3],"vol":40,"trade_turnover":50}}`, quote: 50},
 		{name: "short bid", asset: asset.Spot, raw: `{"tick":{"bid":[100]}}`, err: errInvalidBidData},
 		{name: "long ask", asset: asset.Spot, raw: `{"tick":{"ask":[101,3,4]}}`, err: errInvalidAskData},
@@ -203,6 +210,9 @@ func TestWSHandleTickerMsg(t *testing.T) {
 			h := new(Exchange)
 			require.NoError(t, testexch.Setup(h), "exchange setup must succeed")
 			h.Name = t.Name()
+			if tc.asset == asset.CoinMarginedFutures || tc.asset == asset.Futures {
+				require.NoError(t, limits.Load([]limits.MinMaxLevel{{Key: key.NewExchangeAssetPair(h.Name, tc.asset, btcusdtPair), MultiplierDecimal: 100}}), "inverse multiplier must be loaded")
+			}
 			err := h.wsHandleTickerMsg(t.Context(), &subscription.Subscription{Asset: tc.asset, Pairs: currency.Pairs{btcusdtPair}}, []byte(tc.raw))
 			if tc.err != nil {
 				require.ErrorIs(t, err, tc.err, "invalid quote tuple must be rejected")

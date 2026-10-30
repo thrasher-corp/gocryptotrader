@@ -33,6 +33,7 @@ var (
 	errContractCodeLimitExceeded     = errors.New("between 1 and 10 contract codes must be supplied")
 	errInvalidRequestType            = errors.New("invalid request type")
 	errInvalidOrderStatus            = errors.New("invalid order status")
+	errPositionModeInUse             = errors.New("position mode is in use by another operation")
 	errInvalidPositionMode           = errors.New("invalid position mode")
 	errInvalidTriggerType            = errors.New("invalid trigger type")
 	errInvalidOffset                 = errors.New("invalid offset")

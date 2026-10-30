@@ -26,8 +26,10 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 - Latest and historical perpetual funding rates over REST, open interest and leverage management
 - Single-asset and multi-asset collateral modes, and one-way and hedge position modes
 
-Position mode is fetched using each order call's credentials. Avoid changing account
-position mode concurrently with order submission, including through other clients.
+Position mode is fetched using each order call's credentials. An atomic guard rejects
+overlapping position-mode changes and wrapper order submissions on the same exchange
+instance. It cannot account for exchange-side modifications or changes made through
+other clients or exchange instances.
 
 Configuration version 18 renames Huobi to HTX, adds derivative pairs and subscriptions,
 preserves implicit spot defaults and removes unsupported funding defaults.

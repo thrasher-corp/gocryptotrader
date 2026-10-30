@@ -468,7 +468,7 @@ func (e *Exchange) GetAccountFinancialRecords(ctx context.Context, code currency
 		req["from_id"] = fromID
 	}
 	if limit != 0 {
-		req[orderPriceTypeLimit] = limit
+		req["limit"] = limit
 	}
 	req["direct"] = v3HistoryDirectionNext
 	resp := new(SwapFinancialRecordsResponse)
@@ -882,7 +882,7 @@ func (e *Exchange) GetSwapOrderHistoryByTimeRange(ctx context.Context, contractC
 		req["from_id"] = fromID
 	}
 	if limit != 0 {
-		req[orderPriceTypeLimit] = limit
+		req["limit"] = limit
 	}
 	resp := new(SwapOrderHistoryResponse)
 	err = e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/swap-api/v3/swap_hisorders", nil, req, resp)
@@ -910,7 +910,7 @@ func (e *Exchange) GetSwapTradeHistory(ctx context.Context, contractCode currenc
 		req["from_id"] = fromID
 	}
 	if limit != 0 {
-		req[orderPriceTypeLimit] = limit
+		req["limit"] = limit
 	}
 	resp := new(SwapTradeHistoryResponse)
 	err = e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/swap-api/v3/swap_matchresults", nil, req, resp)

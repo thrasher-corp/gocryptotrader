@@ -63,6 +63,10 @@ func (e *Exchange) GetV5PositionMode(ctx context.Context) (*V5PositionModeRespon
 
 // SetV5PositionMode sets the account position mode.
 func (e *Exchange) SetV5PositionMode(ctx context.Context, positionMode string) (*V5PositionModeResponse, error) {
+	if !e.positionModeInUse.CompareAndSwap(false, true) {
+		return nil, errPositionModeInUse
+	}
+	defer e.positionModeInUse.Store(false)
 	req := &V5SetPositionModeRequest{PositionMode: positionMode}
 	var resp *V5PositionModeResponse
 	err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, "/v5/position/mode", nil, req, &resp)

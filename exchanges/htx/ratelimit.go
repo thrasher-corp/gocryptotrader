@@ -36,16 +36,21 @@ const (
 )
 
 // Share rate-limit budgets across exchange instances and requester reinitialisation.
-var rateLimits = request.RateLimitDefinitions{
-	htxSwapSwitchLeverage: request.NewRateLimitWithWeight(3*time.Second, 1, 1),
-	htxUniversalTransfer:  request.NewRateLimitWithWeight(2*time.Second, 5, 1),
-	htxSetAssetMode:       request.NewRateLimitWithWeight(10*time.Second, 1, 1),
-	request.Unset:         request.NewRateLimitWithWeight(htxSpotRateInterval, htxSpotRequestRate, 1),
-	htxFuturesAuth:        request.NewRateLimitWithWeight(htxFuturesRateInterval, htxFuturesAuthRequestRate, 1),
-	htxFuturesUnAuth:      request.NewRateLimitWithWeight(htxFuturesRateInterval, htxFuturesUnAuthRequestRate, 1),
-	htxSwapAuth:           request.NewRateLimitWithWeight(htxSwapRateInterval, htxSwapAuthRequestRate, 1),
-	htxSwapUnAuth:         request.NewRateLimitWithWeight(htxSwapRateInterval, htxSwapUnauthRequestRate, 1),
-	htxFuturesTransfer:    request.NewRateLimitWithWeight(htxFuturesTransferRateInterval, htxFuturesTransferReqRate, 1),
+var rateLimits = newRateLimits()
+
+// newRateLimits allocates independent budgets for production initialisation and isolated tests.
+func newRateLimits() request.RateLimitDefinitions {
+	return request.RateLimitDefinitions{
+		htxSwapSwitchLeverage: request.NewRateLimitWithWeight(3*time.Second, 1, 1),
+		htxUniversalTransfer:  request.NewRateLimitWithWeight(2*time.Second, 5, 1),
+		htxSetAssetMode:       request.NewRateLimitWithWeight(10*time.Second, 1, 1),
+		request.Unset:         request.NewRateLimitWithWeight(htxSpotRateInterval, htxSpotRequestRate, 1),
+		htxFuturesAuth:        request.NewRateLimitWithWeight(htxFuturesRateInterval, htxFuturesAuthRequestRate, 1),
+		htxFuturesUnAuth:      request.NewRateLimitWithWeight(htxFuturesRateInterval, htxFuturesUnAuthRequestRate, 1),
+		htxSwapAuth:           request.NewRateLimitWithWeight(htxSwapRateInterval, htxSwapAuthRequestRate, 1),
+		htxSwapUnAuth:         request.NewRateLimitWithWeight(htxSwapRateInterval, htxSwapUnauthRequestRate, 1),
+		htxFuturesTransfer:    request.NewRateLimitWithWeight(htxFuturesTransferRateInterval, htxFuturesTransferReqRate, 1),
+	}
 }
 
 func getRateLimitID(ep exchange.URL, path, method string, authenticated bool) request.EndpointLimit {

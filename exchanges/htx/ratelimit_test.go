@@ -113,3 +113,16 @@ func TestGetRateLimitID(t *testing.T) {
 		})
 	}
 }
+
+func TestNewRateLimits(t *testing.T) {
+	t.Parallel()
+	first, second := newRateLimits(), newRateLimits()
+	require.Len(t, first, len(rateLimits), "fresh budgets must cover every production endpoint")
+	for endpoint, limiter := range first {
+		require.Contains(t, second, endpoint, "independent budgets must define the same endpoints")
+		assert.False(t, limiter.SharesBudgetWith(second[endpoint]), "test budgets should be independent")
+		assert.False(t, limiter.SharesBudgetWith(rateLimits[endpoint]), "test budgets should not consume production allowances")
+		assert.Equal(t, rateLimits[endpoint].Limit(), limiter.Limit(), "fresh budgets should retain production rates")
+		assert.Equal(t, rateLimits[endpoint].Weight(), limiter.Weight(), "fresh budgets should retain production weights")
+	}
+}

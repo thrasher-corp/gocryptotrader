@@ -58,7 +58,7 @@ func TestStringToOrderType(t *testing.T) {
 			t.Parallel()
 			result, err := stringToOrderType(tc.input)
 			if tc.expected == order.UnknownType {
-				require.Error(t, err, "unknown type must fail")
+				require.ErrorIs(t, err, errUnrecognisedOrderType, "unknown type must fail")
 			} else {
 				require.NoError(t, err, "documented type must decode")
 			}
@@ -954,4 +954,45 @@ func TestUnsubscribeConnection(t *testing.T) {
 	require.NoError(t, h.subscribeConnection(t.Context(), conn, subscription.List{sub}), "subscribeConnection must not error")
 	require.NoError(t, h.unsubscribeConnection(t.Context(), conn, subscription.List{sub}), "unsubscribeConnection must not error")
 	assert.Nil(t, conn.Subscriptions().Get(sub), "subscription should be removed")
+}
+
+func TestWSSubscriptionKeyGetQualifiedChannel(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		key  wsSubscriptionKey
+		want string
+	}{
+		{name: "nil exact key"},
+		{name: "nil subscription", key: wsSubscriptionKey{ExactKey: &subscription.ExactKey{}}},
+		{name: "topic", key: wsSubscriptionKey{ExactKey: &subscription.ExactKey{Subscription: &subscription.Subscription{QualifiedChannel: "orders.*"}}}, want: "orders.*"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.want, tc.key.GetQualifiedChannel(), "key should expose only its exact wire topic")
+		})
+	}
+}
+
+func BenchmarkWSSubscriptionKeyLookup(b *testing.B) {
+	for _, count := range []int{16, 400, 2660} {
+		for _, indexed := range []bool{false, true} {
+			b.Run(fmt.Sprintf("subscriptions=%d/indexed=%t", count, indexed), func(b *testing.B) {
+				store := subscription.NewStore()
+				for i := range count {
+					sub := &subscription.Subscription{QualifiedChannel: fmt.Sprintf("market.%d.detail", i)}
+					sub.SetKey(wsSubscriptionKey{ExactKey: &subscription.ExactKey{Subscription: sub}})
+					require.NoError(b, store.Add(sub), "benchmark subscriptions must register")
+				}
+				query := wsSubscriptionKey{ExactKey: &subscription.ExactKey{Subscription: &subscription.Subscription{QualifiedChannel: fmt.Sprintf("market.%d.detail", count-1)}}}
+				var lookup any = query
+				if !indexed {
+					lookup = struct{ subscription.MatchableKey }{query}
+				}
+				for b.Loop() {
+					store.Get(lookup)
+				}
+			})
+		}
+	}
 }

@@ -42,6 +42,22 @@ func TestGetSwapMarketDepth(t *testing.T) {
 
 func TestGetSwapKlineData(t *testing.T) {
 	t.Parallel()
+	for _, tc := range []struct {
+		name       string
+		start, end time.Time
+		want       error
+	}{
+		{name: "missing start", end: time.Now(), want: common.ErrDateUnset},
+		{name: "reversed range", start: time.Unix(200, 0), end: time.Unix(100, 0), want: common.ErrStartAfterEnd},
+		{name: "equal range", start: time.Unix(100, 0), end: time.Unix(100, 0), want: common.ErrStartEqualsEnd},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := e.GetSwapKlineData(t.Context(), btcusdPair, "5min", 5, tc.start, tc.end)
+			require.ErrorIs(t, err, tc.want, "invalid ranges must fail before transport")
+		})
+	}
+
 	r, err := e.GetSwapKlineData(t.Context(), btcusdPair, "5min", 5, time.Now().Add(-time.Hour), time.Now())
 	require.NoError(t, err)
 	assert.NotEmpty(t, r.Candles, "GetSwapKlineData should return some data")
@@ -77,6 +93,11 @@ func TestGetTieredAjustmentFactorInfo(t *testing.T) {
 
 func TestGetOpenInterestInfo(t *testing.T) {
 	t.Parallel()
+	t.Run("above maximum size", func(t *testing.T) {
+		t.Parallel()
+		_, err := e.GetOpenInterestInfo(t.Context(), btcusdPair, "5min", "cryptocurrency", 1201)
+		require.ErrorIs(t, err, errInvalidSize, "size above the maximum must be rejected")
+	})
 	updatePairsOnce(t, e)
 	_, err := e.GetOpenInterestInfo(t.Context(), btcusdPair, "5min", "cryptocurrency", 50)
 	require.NoError(t, err)
@@ -90,12 +111,22 @@ func TestGetOpenInterestInfo(t *testing.T) {
 
 func TestGetTraderSentimentIndexAccount(t *testing.T) {
 	t.Parallel()
+	t.Run("invalid period", func(t *testing.T) {
+		t.Parallel()
+		_, err := e.GetTraderSentimentIndexAccount(t.Context(), btcusdPair, "bogus")
+		require.ErrorIs(t, err, common.ErrInvalidPeriod, "invalid periods must be rejected")
+	})
 	_, err := e.GetTraderSentimentIndexAccount(t.Context(), btcusdPair, "5min")
 	require.NoError(t, err)
 }
 
 func TestGetTraderSentimentIndexPosition(t *testing.T) {
 	t.Parallel()
+	t.Run("invalid period", func(t *testing.T) {
+		t.Parallel()
+		_, err := e.GetTraderSentimentIndexPosition(t.Context(), btcusdPair, "bogus")
+		require.ErrorIs(t, err, common.ErrInvalidPeriod, "invalid periods must be rejected")
+	})
 	_, err := e.GetTraderSentimentIndexPosition(t.Context(), btcusdPair, "5min")
 	require.NoError(t, err)
 }
@@ -110,6 +141,11 @@ func TestGetLiquidationOrders(t *testing.T) {
 
 func TestGetPremiumIndexKlineData(t *testing.T) {
 	t.Parallel()
+	t.Run("above maximum size", func(t *testing.T) {
+		t.Parallel()
+		_, err := e.GetPremiumIndexKlineData(t.Context(), btcusdPair, "5min", 1201)
+		require.ErrorIs(t, err, errInvalidSize, "size above the maximum must be rejected")
+	})
 	_, err := e.GetPremiumIndexKlineData(t.Context(), btcusdPair, "5min", 15)
 	require.NoError(t, err)
 	_, err = e.GetPremiumIndexKlineData(t.Context(), btcusdPair, "invalid", 15)
@@ -120,6 +156,11 @@ func TestGetPremiumIndexKlineData(t *testing.T) {
 
 func TestGetEstimatedFundingRates(t *testing.T) {
 	t.Parallel()
+	t.Run("above maximum size", func(t *testing.T) {
+		t.Parallel()
+		_, err := e.GetEstimatedFundingRates(t.Context(), btcusdPair, "5min", 1201)
+		require.ErrorIs(t, err, errInvalidSize, "size above the maximum must be rejected")
+	})
 	_, err := e.GetEstimatedFundingRates(t.Context(), btcusdPair, "5min", 15)
 	require.NoError(t, err)
 
@@ -131,6 +172,11 @@ func TestGetEstimatedFundingRates(t *testing.T) {
 
 func TestGetBasisData(t *testing.T) {
 	t.Parallel()
+	t.Run("above maximum size", func(t *testing.T) {
+		t.Parallel()
+		_, err := e.GetBasisData(t.Context(), btcusdPair, "5min", "open", 1201)
+		require.ErrorIs(t, err, errInvalidSize, "size above the maximum must be rejected")
+	})
 	_, err := e.GetBasisData(t.Context(), btcusdPair, "5min", "close", 5)
 	require.NoError(t, err)
 	_, err = e.GetBasisData(t.Context(), btcusdPair, "invalid", "close", 5)
