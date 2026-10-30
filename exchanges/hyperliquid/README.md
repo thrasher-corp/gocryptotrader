@@ -92,13 +92,16 @@ custom endpoints are kept, so `useSandbox` must match the environment behind a c
 + HIP-4 outcome orders, which the first perpetual DEX lists beside spot and perpetual orders, are skipped by
   `GetActiveOrders` and `GetOrderHistory` and left open by `CancelAllOrders`, as no supported asset type covers them.
 + `GetOrderHistory` covers the account's 2000 most recent order status changes, and returns each order once, with its
-  latest status and, for a triggered order, the trigger price and placement time of its earlier changes. `GetOrderInfo`
-  reads only the latest status, so a trigger order that has triggered and filled is returned without its trigger price
-  and dated when it triggered. Hyperliquid reports some older open orders as unknown to `orderStatus`, so
-  `GetOrderInfo` looks an unknown order up among the open orders. It gives an open position TP/SL order the size of the
-  position it closes, as `GetActiveOrders` does, and a finished order that executed something its cost, average price
-  and fee from the account's fills, which `orderStatus` omits; that costs a `userFillsByTime` request, and leaves them
-  unset for an order whose fills Hyperliquid no longer keeps, as it keeps an account's 10000 most recent.
+  latest status and, for a triggered order, the trigger price and placement time of its earlier changes. An open order
+  keeps the sizes of its latest status change, which can predate its partial fills; `GetActiveOrders` gives its
+  remaining size. `GetOrderInfo` reads only the latest status, so a trigger order that has triggered and filled is
+  returned without its trigger price and dated when it triggered. `orderStatus` can answer an open order with its status
+  record from before its partial fills, so `GetOrderInfo` takes an open order's remaining size from the open orders,
+  where it also finds an older open order Hyperliquid reports as unknown to `orderStatus`. It sizes a zero-size open
+  position TP/SL order from the position it closes, as `GetActiveOrders` does, and gives a finished order that executed
+  something its cost and average price from the account's fills, which `orderStatus` omits, and its fee when they paid
+  it in one token; that costs `userFillsByTime` requests, and leaves them unset for an order whose fills Hyperliquid no
+  longer keeps, as it keeps an account's 10000 most recent.
 + Hyperliquid cuts a reduce-only order down to the position it closes, when it is placed for more or other orders
   shrink the position, without a fill for the size it removes. An order's executed size is its original size less its
   remaining size, so `GetActiveOrders`, `GetOrderHistory` and `orderUpdates` rows count the size cut from a reduce-only

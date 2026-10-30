@@ -2260,6 +2260,19 @@ func TestLedgerDEXName(t *testing.T) {
 	assert.Equal(t, "xyz", ledgerDEXName("xyz"), "ledgerDEXName should keep a builder DEX's name")
 }
 
+// listedOpenOrder returns the open orders listing of the order an orderStatus reply holds
+func listedOpenOrder(statusReply string) string {
+	listed, _, _ := strings.Cut(strings.TrimPrefix(statusReply, `{"status":"order","order":{"order":`), `,"status":`)
+	return "[" + listed + "]"
+}
+
+// orderStatus answers with an open order's status record, which a partial fill does not update: live, order
+// 590283728884 had 0.00016 BTC filled, which frontendOpenOrders showed and a later orderStatus reply did not
+const (
+	partlyFilledOrderStatus = `{"status":"order","order":{"order":{"coin":"BTC","side":"A","limitPx":"77548.0","sz":"0.10316","oid":590283728884,"timestamp":1793328290928,"triggerCondition":"N/A","isTrigger":false,"triggerPx":"0.0","children":[],"isPositionTpsl":false,"reduceOnly":false,"orderType":"Limit","origSz":"0.10316","tif":"Alo","cloid":"0x3431564378e884e0000000008ab21bc4"},"status":"open","statusTimestamp":1793328290928}}`
+	partlyFilledOpenOrders  = `[{"coin":"BTC","side":"A","limitPx":"77548.0","sz":"0.103","oid":590283728884,"timestamp":1793328290928,"triggerCondition":"N/A","isTrigger":false,"triggerPx":"0.0","children":[],"isPositionTpsl":false,"reduceOnly":false,"orderType":"Limit","origSz":"0.10316","tif":"Alo","cloid":"0x3431564378e884e0000000008ab21bc4"}]`
+)
+
 // newTradingServerExchange returns an info server exchange with the BTC, xyz:XYZ100 and HYPE spot markets mapped; its
 // metadata lists the same markets, so a refetch keeps the mappings, and the xyz DEX has no open orders, unless responses
 // replaces them
@@ -2677,13 +2690,14 @@ func TestModifyOrder(t *testing.T) {
 	}
 	_, err = unavailable.ModifyOrder(t.Context(), &order.Modify{OrderID: "7", Pair: perpetualPair, AssetType: asset.PerpetualContract, RiskManagementModes: order.RiskManagementModes{TakeProfit: order.RiskManagement{TriggerPriceType: order.MarkPrice, Price: 110}}})
 	assert.ErrorIs(t, err, request.ErrBadStatus, "ModifyOrder should accept a take profit that is not enabled and look the order up")
-	_, err = newTradingServerExchange(t, map[string]string{"orderStatus": openOrderStatus}, nil).ModifyOrder(t.Context(), &order.Modify{OrderID: "7", Pair: perpetualPair, AssetType: asset.PerpetualContract, Amount: 1.000001})
+	_, err = newTradingServerExchange(t, map[string]string{"orderStatus": openOrderStatus, "frontendOpenOrders": listedOpenOrder(openOrderStatus)}, nil).ModifyOrder(t.Context(), &order.Modify{OrderID: "7", Pair: perpetualPair, AssetType: asset.PerpetualContract, Amount: 1.000001})
 	assert.ErrorIs(t, err, errSizePrecision, "ModifyOrder should reject a size beyond the market's precision")
-	_, err = newTradingServerExchange(t, map[string]string{"orderStatus": openOrderStatus}, nil).ModifyOrder(t.Context(), &order.Modify{OrderID: "7", Pair: perpetualPair, AssetType: asset.PerpetualContract, Amount: 1})
+	_, err = newTradingServerExchange(t, map[string]string{"orderStatus": openOrderStatus, "frontendOpenOrders": listedOpenOrder(openOrderStatus)}, nil).ModifyOrder(t.Context(), &order.Modify{OrderID: "7", Pair: perpetualPair, AssetType: asset.PerpetualContract, Amount: 1})
 	assert.ErrorIs(t, err, order.ErrAmountIsInvalid, "ModifyOrder should reject an amount the executed size already reaches")
 	_, err = unavailable.ModifyOrder(t.Context(), &order.Modify{OrderID: "7", Pair: perpetualPair, AssetType: asset.PerpetualContract})
 	assert.ErrorIs(t, err, request.ErrBadStatus, "ModifyOrder should return an order status failure")
-	triggerOrder := newTradingServerExchange(t, map[string]string{"orderStatus": `{"status":"order","order":{"order":{"coin":"BTC","side":"A","limitPx":"80","sz":"1","origSz":"1","oid":12,"timestamp":1791275926947,"isTrigger":true,"triggerPx":"90","reduceOnly":true,"orderType":"Stop Market","tif":null},"status":"open","statusTimestamp":1791275930650}}`}, nil)
+	const triggerOrderStatus = `{"status":"order","order":{"order":{"coin":"BTC","side":"A","limitPx":"80","sz":"1","origSz":"1","oid":12,"timestamp":1791275926947,"isTrigger":true,"triggerPx":"90","reduceOnly":true,"orderType":"Stop Market","tif":null},"status":"open","statusTimestamp":1791275930650}}`
+	triggerOrder := newTradingServerExchange(t, map[string]string{"orderStatus": triggerOrderStatus, "frontendOpenOrders": listedOpenOrder(triggerOrderStatus)}, nil)
 	_, err = triggerOrder.ModifyOrder(t.Context(), &order.Modify{OrderID: "12", Pair: perpetualPair, AssetType: asset.PerpetualContract})
 	assert.ErrorIs(t, err, errModifyOrderTypeUnsupported, "ModifyOrder should reject a trigger order, which only always-place modifies replace")
 	_, err = newTradingServerExchange(t, map[string]string{"orderStatus": `{"status":"unknownOid"}`, "frontendOpenOrders": `[]`}, nil).ModifyOrder(t.Context(), &order.Modify{OrderID: "7", Pair: perpetualPair, AssetType: asset.PerpetualContract})
@@ -2697,7 +2711,7 @@ func TestModifyOrder(t *testing.T) {
 	assert.NotContains(t, requests(), "userFillsByTime:", "ModifyOrder should not read the fills of the order it looks up")
 
 	var action string
-	explicit := newTradingServerExchange(t, map[string]string{"orderStatus": openOrderStatus}, captureAction(t, &action, statusesResponse("order", `{"resting":{"oid":8}}`)))
+	explicit := newTradingServerExchange(t, map[string]string{"orderStatus": openOrderStatus, "frontendOpenOrders": listedOpenOrder(openOrderStatus)}, captureAction(t, &action, statusesResponse("order", `{"resting":{"oid":8}}`)))
 	result, err := explicit.ModifyOrder(t.Context(), &order.Modify{
 		OrderID:          "7",
 		Pair:             perpetualPair,
@@ -2750,7 +2764,7 @@ func TestModifyOrder(t *testing.T) {
 			t.Parallel()
 			status := strings.ReplaceAll(strings.ReplaceAll(openOrderStatus, `"origSz":"2"`, `"origSz":"`+tc.original+`"`), `"sz":"1"`, `"sz":"`+tc.remaining+`"`)
 			var calls atomic.Int32
-			ex := newTradingServerExchange(t, map[string]string{"orderStatus": status}, func(action map[string]any) string {
+			ex := newTradingServerExchange(t, map[string]string{"orderStatus": status, "frontendOpenOrders": listedOpenOrder(status)}, func(action map[string]any) string {
 				calls.Add(1)
 				encoded, err := json.Marshal(action)
 				assert.NoError(t, err, "Marshal should encode the replacement")
@@ -2794,7 +2808,7 @@ func TestModifyOrder(t *testing.T) {
 				{status: strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(openOrderStatus, `"origSz":"2"`, `"origSz":"1"`), `"sz":"1"`, `"sz":"`+tc.remaining+`"`), `"oid":7`, `"oid":8`), replacement: 9, exp: tc.exp},
 			} {
 				var replacementAction string
-				ex := newTradingServerExchange(t, map[string]string{"orderStatus": tc.status}, captureAction(t, &replacementAction, statusesResponse("order", `{"resting":{"oid":`+strconv.FormatUint(tc.replacement, 10)+`}}`)))
+				ex := newTradingServerExchange(t, map[string]string{"orderStatus": tc.status, "frontendOpenOrders": listedOpenOrder(tc.status)}, captureAction(t, &replacementAction, statusesResponse("order", `{"resting":{"oid":`+strconv.FormatUint(tc.replacement, 10)+`}}`)))
 				modified, err := ex.ModifyOrder(t.Context(), &order.Modify{OrderID: stored.OrderID, Pair: perpetualPair, AssetType: asset.PerpetualContract, Price: 99, Amount: stored.Amount})
 				require.NoError(t, err, "ModifyOrder must accept consecutive engine amendments")
 				assert.Contains(t, replacementAction, `"s":"`+strconv.FormatFloat(tc.exp, 'f', -1, 64)+`"`, "ModifyOrder should subtract only the current venue order's execution")
@@ -2805,7 +2819,7 @@ func TestModifyOrder(t *testing.T) {
 		})
 	}
 
-	inherited := newTradingServerExchange(t, map[string]string{"orderStatus": openOrderStatus}, captureAction(t, &action, statusesResponse("order", `{"resting":{"oid":8}}`)))
+	inherited := newTradingServerExchange(t, map[string]string{"orderStatus": openOrderStatus, "frontendOpenOrders": listedOpenOrder(openOrderStatus)}, captureAction(t, &action, statusesResponse("order", `{"resting":{"oid":8}}`)))
 	result, err = inherited.ModifyOrder(t.Context(), &order.Modify{ClientOrderID: "0X00000000000000000000000000000001", Pair: perpetualPair, AssetType: asset.PerpetualContract})
 	require.NoError(t, err, "ModifyOrder must not error by client order ID")
 	assert.JSONEq(t, `{"type":"batchModify","modifies":[{"oid":"0x00000000000000000000000000000001","order":{"a":0,"b":true,"p":"100","s":"1","r":true,"t":{"limit":{"tif":"Gtc"}},"c":"0x00000000000000000000000000000001"}}]}`, action, "ModifyOrder should replace the order with its own remaining size and fields")
@@ -2823,7 +2837,7 @@ func TestModifyOrder(t *testing.T) {
 		{status: `{"filled":{"oid":7,"totalSz":"0.400001","avgPx":"100"}}`, err: errInvalidFilledSize},
 		{status: `{"error":"Cannot modify canceled or filled order"}`, err: order.ErrUnableToPlaceOrder},
 	} {
-		ex := newTradingServerExchange(t, map[string]string{"orderStatus": openOrderStatus}, respondWith(statusesResponse("order", tc.status)))
+		ex := newTradingServerExchange(t, map[string]string{"orderStatus": openOrderStatus, "frontendOpenOrders": listedOpenOrder(openOrderStatus)}, respondWith(statusesResponse("order", tc.status)))
 		modified, err := ex.ModifyOrder(t.Context(), &order.Modify{OrderID: "7", Pair: perpetualPair, AssetType: asset.PerpetualContract})
 		if tc.err != nil {
 			assert.ErrorIsf(t, err, tc.err, "ModifyOrder should reject status %s", tc.status)
@@ -2833,10 +2847,17 @@ func TestModifyOrder(t *testing.T) {
 		assert.Equalf(t, tc.exp, modified.Status, "ModifyOrder should derive the status of %s", tc.status)
 		assert.InDeltaf(t, tc.remaining, modified.RemainingAmount, 1e-12, "ModifyOrder should derive the remaining amount of %s", tc.status)
 	}
-	_, err = newTradingServerExchange(t, map[string]string{"orderStatus": openOrderStatus}, respondWith(statusesResponse("order"))).ModifyOrder(t.Context(), &order.Modify{OrderID: "7", Pair: perpetualPair, AssetType: asset.PerpetualContract})
+	_, err = newTradingServerExchange(t, map[string]string{"orderStatus": openOrderStatus, "frontendOpenOrders": listedOpenOrder(openOrderStatus)}, respondWith(statusesResponse("order"))).ModifyOrder(t.Context(), &order.Modify{OrderID: "7", Pair: perpetualPair, AssetType: asset.PerpetualContract})
 	assert.ErrorIs(t, err, errActionStatusCount, "ModifyOrder should reject a response without a status")
-	_, err = newTradingServerExchange(t, map[string]string{"orderStatus": openOrderStatus}, respondWith(`{"status":"err","response":"modify failed"}`)).ModifyOrder(t.Context(), &order.Modify{OrderID: "7", Pair: perpetualPair, AssetType: asset.PerpetualContract})
+	_, err = newTradingServerExchange(t, map[string]string{"orderStatus": openOrderStatus, "frontendOpenOrders": listedOpenOrder(openOrderStatus)}, respondWith(`{"status":"err","response":"modify failed"}`)).ModifyOrder(t.Context(), &order.Modify{OrderID: "7", Pair: perpetualPair, AssetType: asset.PerpetualContract})
 	assert.ErrorIs(t, err, errActionResponse, "ModifyOrder should return a rejected action")
+
+	// The engine fills a price-only amendment's amount with the order's total, of which only what is left is replaced
+	partlyFilled := newTradingServerExchange(t, map[string]string{"orderStatus": partlyFilledOrderStatus, "frontendOpenOrders": partlyFilledOpenOrders}, captureAction(t, &action, statusesResponse("order", `{"resting":{"oid":590283728885}}`)))
+	result, err = partlyFilled.ModifyOrder(t.Context(), &order.Modify{OrderID: "590283728884", Pair: perpetualPair, AssetType: asset.PerpetualContract, Price: 77549, Amount: 0.10316})
+	require.NoError(t, err, "ModifyOrder must not error for a partly filled order")
+	assert.JSONEq(t, `{"type":"batchModify","modifies":[{"oid":590283728884,"order":{"a":0,"b":false,"p":"77549","s":"0.103","r":false,"t":{"limit":{"tif":"Alo"}},"c":"0x3431564378e884e0000000008ab21bc4"}}]}`, action, "ModifyOrder should replace only what is left of a partly filled order")
+	assert.Equal(t, 0.103, result.Amount, "ModifyOrder should report the replacement size")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -3089,17 +3110,140 @@ func TestGetOrderInfo(t *testing.T) {
 	require.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "GetOrderInfo must require an account address")
 
 	const openOrderStatus = `{"status":"order","order":{"order":{"coin":"BTC","side":"B","limitPx":"100","sz":"1","origSz":"2","oid":7,"timestamp":1791275926947,"isTrigger":false,"reduceOnly":false,"orderType":"Limit","tif":"Gtc"},"status":"open","statusTimestamp":1791275930650}}`
-	ex := newTradingServerExchange(t, map[string]string{"orderStatus": openOrderStatus}, nil)
+	ex := newTradingServerExchange(t, map[string]string{"orderStatus": openOrderStatus, "frontendOpenOrders": listedOpenOrder(openOrderStatus)}, nil)
 	_, err = ex.GetOrderInfo(t.Context(), "invalid", currency.EMPTYPAIR, asset.Empty)
 	assert.ErrorIs(t, err, errClientOrderIDInvalid, "GetOrderInfo should reject an identifier that is neither an order ID nor a client order ID")
 	_, err = ex.GetOrderInfo(t.Context(), "7", spotPair, asset.Empty)
 	assert.ErrorIs(t, err, order.ErrOrderNotFound, "GetOrderInfo should not return an order of another pair")
 	_, err = ex.GetOrderInfo(t.Context(), "7", currency.EMPTYPAIR, asset.Spot)
 	assert.ErrorIs(t, err, order.ErrOrderNotFound, "GetOrderInfo should not return an order of another asset")
-	spotStatusOrder, err := newTradingServerExchange(t, map[string]string{"orderStatus": strings.Replace(openOrderStatus, `"coin":"BTC"`, `"coin":"@107"`, 1)}, nil).GetOrderInfo(t.Context(), "7", currency.EMPTYPAIR, asset.Empty)
+	spotOrderStatus := strings.Replace(openOrderStatus, `"coin":"BTC"`, `"coin":"@107"`, 1)
+	spotStatusOrder, err := newTradingServerExchange(t, map[string]string{"orderStatus": spotOrderStatus, "frontendOpenOrders": listedOpenOrder(spotOrderStatus)}, nil).GetOrderInfo(t.Context(), "7", currency.EMPTYPAIR, asset.Empty)
 	require.NoError(t, err, "GetOrderInfo must not error for a spot order")
 	assert.Equal(t, asset.Spot, spotStatusOrder.AssetType, "GetOrderInfo should return a spot order under the spot asset")
 	assert.Equal(t, spotPair, spotStatusOrder.Pair, "GetOrderInfo should return a spot order under its spot pair")
+	partlyFilledOrder, err := newTradingServerExchange(t, map[string]string{"orderStatus": partlyFilledOrderStatus, "frontendOpenOrders": partlyFilledOpenOrders}, nil).GetOrderInfo(t.Context(), "590283728884", perpetualPair, asset.PerpetualContract)
+	require.NoError(t, err, "GetOrderInfo must not error for a partly filled open order")
+	partlyFilledPlaced := time.UnixMilli(1793328290928).UTC()
+	// Sizes are subtracted in float64, as the conversion subtracts them
+	partlyFilledSize, partlyFilledLeft := 0.10316, 0.103
+	expPartlyFilled := &order.Detail{TimeInForce: order.PostOnly, Price: 77548, Amount: partlyFilledSize, ExecutedAmount: partlyFilledSize - partlyFilledLeft, RemainingAmount: partlyFilledLeft, Exchange: partlyFilledOrder.Exchange, OrderID: "590283728884", ClientOrderID: "0x3431564378e884e0000000008ab21bc4", Type: order.Limit, Side: order.Sell, Status: order.PartiallyFilled, AssetType: asset.PerpetualContract, Date: partlyFilledPlaced, LastUpdated: partlyFilledPlaced, Pair: perpetualPair}
+	assert.Equal(t, expPartlyFilled, partlyFilledOrder, "GetOrderInfo should return a partly filled open order's sizes as the open orders list it")
+	counted, requests := newCountingServerExchange(t, map[string]string{"orderStatus": partlyFilledOrderStatus, "frontendOpenOrders": partlyFilledOpenOrders})
+	counted.setPairMappings(asset.PerpetualContract, []pairMapping{testPerpetualMapping, testBuilderMapping})
+	counted.setPairMappings(asset.Spot, []pairMapping{testSpotMapping})
+	_, err = counted.GetOrderInfo(t.Context(), "590283728884", currency.EMPTYPAIR, asset.Empty)
+	require.NoError(t, err, "GetOrderInfo must not error for an open order looked up without its pair or asset")
+	assert.Equal(t, map[string]int{"orderStatus:": 1, "frontendOpenOrders:": 1}, requests(), "GetOrderInfo should read only the open orders of the order's own market")
+	spotRecord := strings.NewReplacer(`"coin":"BTC"`, `"coin":"@107"`, `"sz":"1"`, `"sz":"2"`).Replace(openOrderStatus)
+	countedSpot, spotRequests := newCountingServerExchange(t, map[string]string{"orderStatus": spotRecord, "frontendOpenOrders": listedOpenOrder(strings.Replace(spotRecord, `"sz":"2"`, `"sz":"0.4"`, 1))})
+	countedSpot.setPairMappings(asset.PerpetualContract, []pairMapping{testPerpetualMapping, testBuilderMapping})
+	countedSpot.setPairMappings(asset.Spot, []pairMapping{testSpotMapping})
+	spotListed, err := countedSpot.GetOrderInfo(t.Context(), "7", currency.EMPTYPAIR, asset.Empty)
+	require.NoError(t, err, "GetOrderInfo must not error for an open spot order looked up without its pair or asset")
+	assert.Equal(t, 0.4, spotListed.RemainingAmount, "GetOrderInfo should take an open spot order's remaining size from the open orders")
+	assert.Equal(t, map[string]int{"orderStatus:": 1, "frontendOpenOrders:": 1}, spotRequests(), "GetOrderInfo should read only the open orders of a spot order's market")
+	// A client order ID passes to an order's replacement, so the open orders are searched by the record's order ID
+	const replacedRecord = `{"status":"order","order":{"order":{"coin":"BTC","side":"A","limitPx":"100","sz":"2","origSz":"2","oid":7,"timestamp":1791275926947,"reduceOnly":false,"orderType":"Limit","tif":"Alo","cloid":"0x00000000000000000000000000000007"},"status":"open","statusTimestamp":1791275930650}}`
+	const replacementRow = `{"coin":"BTC","side":"B","limitPx":"110","sz":"0.4","origSz":"1","oid":8,"timestamp":1791275935000,"reduceOnly":true,"orderType":"Limit","tif":"Gtc","cloid":"0x00000000000000000000000000000007"}`
+	_, err = newTradingServerExchange(t, map[string]string{"orderStatus": replacedRecord, "frontendOpenOrders": "[" + replacementRow + "]"}, nil).GetOrderInfo(t.Context(), "0x00000000000000000000000000000007", perpetualPair, asset.PerpetualContract)
+	assert.ErrorIs(t, err, order.ErrOrderNotFound, "GetOrderInfo should not combine an order's record with its replacement's listing")
+	bothListed, err := newTradingServerExchange(t, map[string]string{"orderStatus": replacedRecord, "frontendOpenOrders": "[" + replacementRow + "," + strings.Replace(listedOpenOrder(replacedRecord)[1:], `"sz":"2"`, `"sz":"1.2"`, 1)}, nil).GetOrderInfo(t.Context(), "0x00000000000000000000000000000007", perpetualPair, asset.PerpetualContract)
+	require.NoError(t, err, "GetOrderInfo must not error for an open order listed beside another with its client order ID")
+	recordSize, listedLeft := 2.0, 1.2
+	assert.Equal(t, "7", bothListed.OrderID, "GetOrderInfo should return the order its record names")
+	assert.Equal(t, listedLeft, bothListed.RemainingAmount, "GetOrderInfo should take the remaining size of the order its record names")
+	assert.Equal(t, recordSize-listedLeft, bothListed.ExecutedAmount, "GetOrderInfo should derive the executed size of the order its record names")
+	// An open order's remaining size comes from the open orders whatever its market, status or recorded execution, and
+	// its other fields from its record
+	for _, market := range []struct {
+		coin, dex string
+		pair      currency.Pair
+		a         asset.Item
+	}{
+		{coin: "BTC", pair: perpetualPair, a: asset.PerpetualContract},
+		{coin: "@107", pair: spotPair, a: asset.Spot},
+		{coin: "xyz:XYZ100", dex: "xyz", pair: testBuilderPair, a: asset.PerpetualContract},
+	} {
+		for _, tc := range []struct {
+			status, orderType string
+			exp               order.Type
+		}{
+			{status: "open", orderType: "Limit", exp: order.Limit},
+			{status: "triggered", orderType: "Stop Limit", exp: order.StopLimit},
+		} {
+			for _, recorded := range []string{"2", "0.6"} {
+				record := `{"coin":"` + market.coin + `","side":"A","limitPx":"100","sz":"` + recorded + `","origSz":"2","oid":7,"timestamp":1791275926947,"isTrigger":false,"triggerPx":"0.0","reduceOnly":false,"orderType":"` + tc.orderType + `","tif":"Alo","cloid":"0x00000000000000000000000000000007"}`
+				ex := newTradingServerExchange(t, map[string]string{
+					"orderStatus":                      `{"status":"order","order":{"order":` + record + `,"status":"` + tc.status + `","statusTimestamp":1791275930650}}`,
+					"frontendOpenOrders:" + market.dex: "[" + strings.Replace(record, `"sz":"`+recorded+`"`, `"sz":"0.4"`, 1) + "]",
+				}, nil)
+				result, err := ex.GetOrderInfo(t.Context(), "7", market.pair, market.a)
+				require.NoErrorf(t, err, "GetOrderInfo must not error for a %s %s order recorded with %s left", market.coin, tc.status, recorded)
+				exp := &order.Detail{Price: 100, Amount: 2, ExecutedAmount: 1.6, RemainingAmount: 0.4, Exchange: ex.Name, OrderID: "7", ClientOrderID: "0x00000000000000000000000000000007", Type: tc.exp, TimeInForce: order.PostOnly, Side: order.Sell, Status: order.PartiallyFilled, AssetType: market.a, Date: time.UnixMilli(1791275926947).UTC(), LastUpdated: time.UnixMilli(1791275930650).UTC(), Pair: market.pair}
+				assert.Equalf(t, exp, result, "GetOrderInfo should take a %s %s order's sizes from the open orders though its record shows %s left", market.coin, tc.status, recorded)
+			}
+		}
+	}
+	// Past frontendOpenOrders' limit, the open orders come from openOrders, without the type, time in force or trigger
+	// price the order's record keeps
+	cappedOrders := make([]string, maximumFrontendOpenOrders)
+	for i := range cappedOrders {
+		cappedOrders[i] = `{"coin":"BTC","side":"B","limitPx":"90","sz":"1","origSz":"1","oid":` + strconv.Itoa(1000+i) + `,"timestamp":1791275926947,"orderType":"Limit","tif":"Gtc"}`
+	}
+	cappedRecord := func(orderType, trigger, tif string) string {
+		return `{"status":"order","order":{"order":{"coin":"BTC","side":"A","limitPx":"100","sz":"2","origSz":"2","oid":7,"timestamp":1791275926947,"isTrigger":` + strconv.FormatBool(trigger != "0.0") + `,"triggerPx":"` + trigger + `","reduceOnly":true,"orderType":"` + orderType + `","tif":` + tif + `,"cloid":"0x00000000000000000000000000000007"},"status":"open","statusTimestamp":1791275930650}}`
+	}
+	cappedResponses := func(record string) map[string]string {
+		return map[string]string{
+			"orderStatus":         record,
+			"frontendOpenOrders:": "[" + strings.Join(cappedOrders, ",") + "]",
+			"openOrders:":         `[{"coin":"BTC","side":"A","limitPx":"100","sz":"0.4","origSz":"2","oid":7,"timestamp":1791275926947,"reduceOnly":true,"cloid":"0x00000000000000000000000000000007"}]`,
+		}
+	}
+	var cappedAction string
+	capped := newTradingServerExchange(t, cappedResponses(cappedRecord("Limit", "0.0", `"Alo"`)), captureAction(t, &cappedAction, statusesResponse("order", `{"resting":{"oid":8}}`)))
+	cappedOrder, err := capped.GetOrderInfo(t.Context(), "7", perpetualPair, asset.PerpetualContract)
+	require.NoError(t, err, "GetOrderInfo must not error for an open order past frontendOpenOrders' limit")
+	expCapped := &order.Detail{ReduceOnly: true, Price: 100, Amount: 2, ExecutedAmount: 1.6, RemainingAmount: 0.4, Exchange: capped.Name, OrderID: "7", ClientOrderID: "0x00000000000000000000000000000007", Type: order.Limit, TimeInForce: order.PostOnly, Side: order.Sell, Status: order.PartiallyFilled, AssetType: asset.PerpetualContract, Date: time.UnixMilli(1791275926947).UTC(), LastUpdated: time.UnixMilli(1791275930650).UTC(), Pair: perpetualPair}
+	assert.Equal(t, expCapped, cappedOrder, "GetOrderInfo should keep the record's fields of an open order past frontendOpenOrders' limit")
+	_, err = capped.ModifyOrder(t.Context(), &order.Modify{OrderID: "7", Pair: perpetualPair, AssetType: asset.PerpetualContract, Price: 101, Amount: 2})
+	require.NoError(t, err, "ModifyOrder must not error for an open order past frontendOpenOrders' limit")
+	assert.JSONEq(t, `{"type":"batchModify","modifies":[{"oid":7,"order":{"a":0,"b":false,"p":"101","s":"0.4","r":true,"t":{"limit":{"tif":"Alo"}},"c":"0x00000000000000000000000000000007"}}]}`, cappedAction, "ModifyOrder should replace what is left of an order past frontendOpenOrders' limit with its own fields")
+	cappedTrigger, err := newTradingServerExchange(t, cappedResponses(cappedRecord("Stop Limit", "90.0", "null")), nil).GetOrderInfo(t.Context(), "7", perpetualPair, asset.PerpetualContract)
+	require.NoError(t, err, "GetOrderInfo must not error for a trigger order past frontendOpenOrders' limit")
+	assert.Equal(t, order.StopLimit, cappedTrigger.Type, "GetOrderInfo should keep the record's type of a trigger order past frontendOpenOrders' limit")
+	assert.Equal(t, 90.0, cappedTrigger.TriggerPrice, "GetOrderInfo should keep the record's trigger price of a trigger order past frontendOpenOrders' limit")
+	const unlistedTrigger = `{"status":"order","order":{"order":{"coin":"BTC","side":"A","limitPx":"80","sz":"1","origSz":"1","oid":12,"timestamp":1791275926947,"isTrigger":true,"triggerPx":"90","reduceOnly":true,"orderType":"Stop Limit","tif":null},"status":"open","statusTimestamp":1791275930650}}`
+	for _, tc := range []struct{ id, record string }{
+		{id: "590283728884", record: partlyFilledOrderStatus},
+		{id: "7", record: openOrderStatus},
+		{id: "7", record: strings.Replace(openOrderStatus, `"status":"open"`, `"status":"triggered"`, 1)},
+		{id: "12", record: unlistedTrigger},
+	} {
+		_, err = newTradingServerExchange(t, map[string]string{"orderStatus": tc.record, "frontendOpenOrders": `[]`}, nil).GetOrderInfo(t.Context(), tc.id, currency.EMPTYPAIR, asset.Empty)
+		assert.ErrorIsf(t, err, order.ErrOrderNotFound, "GetOrderInfo should not return the record of open order %s, which the open orders no longer list", tc.id)
+	}
+	_, err = newTradingServerExchange(t, map[string]string{"orderStatus": openOrderStatus, "frontendOpenOrders": `{`}, nil).GetOrderInfo(t.Context(), "7", perpetualPair, asset.PerpetualContract)
+	require.Error(t, err, "GetOrderInfo must return the open orders' failure for an open order")
+	assert.NotErrorIs(t, err, order.ErrOrderNotFound, "GetOrderInfo should not report an open order as not found when its open orders cannot be read")
+	_, err = newTradingServerExchange(t, map[string]string{"orderStatus": openOrderStatus}, nil).GetOrderInfo(t.Context(), "7", perpetualPair, asset.PerpetualContract)
+	assert.ErrorIs(t, err, request.ErrBadStatus, "GetOrderInfo should return the open orders' request failure for an open order")
+	_, err = newTradingServerExchange(t, map[string]string{"orderStatus": openOrderStatus, "frontendOpenOrders": `{}`}, nil).GetOrderInfo(t.Context(), "7", perpetualPair, asset.PerpetualContract)
+	require.Error(t, err, "GetOrderInfo must return an open orders reply that is not a list")
+	assert.NotErrorIs(t, err, order.ErrOrderNotFound, "GetOrderInfo should not report an open order as not found when its open orders do not decode")
+	_, err = newTradingServerExchange(t, map[string]string{"orderStatus": openOrderStatus, "frontendOpenOrders": `[{"coin":"MISSING","side":"B","limitPx":"1","sz":"1","origSz":"1","oid":8,"timestamp":1791275926947,"orderType":"Limit","tif":"Gtc"}]`}, nil).GetOrderInfo(t.Context(), "7", perpetualPair, asset.PerpetualContract)
+	assert.ErrorIs(t, err, errPairMappingNotFound, "GetOrderInfo should return the open orders' conversion failure for an open order it does not find")
+	rejected, err := newTradingServerExchange(t, map[string]string{"orderStatus": strings.Replace(openOrderStatus, `"status":"open"`, `"status":"rejected"`, 1)}, nil).GetOrderInfo(t.Context(), "7", perpetualPair, asset.PerpetualContract)
+	require.NoError(t, err, "GetOrderInfo must not read the open orders for a rejected order")
+	assert.Equal(t, order.Rejected, rejected.Status, "GetOrderInfo should return a rejected order's record")
+	// One size unit filled of a BTC order still makes it partly filled
+	unitRecord := strings.NewReplacer(`"sz":"1"`, `"sz":"0.01"`, `"origSz":"2"`, `"origSz":"0.01"`).Replace(openOrderStatus)
+	unitFilled, err := newTradingServerExchange(t, map[string]string{"orderStatus": unitRecord, "frontendOpenOrders": listedOpenOrder(strings.Replace(unitRecord, `"sz":"0.01"`, `"sz":"0.00999"`, 1))}, nil).GetOrderInfo(t.Context(), "7", perpetualPair, asset.PerpetualContract)
+	require.NoError(t, err, "GetOrderInfo must not error for an order one size unit filled")
+	unitSize, unitLeft := 0.01, 0.00999
+	assert.Equal(t, order.PartiallyFilled, unitFilled.Status, "GetOrderInfo should report an order one size unit filled as partly filled")
+	assert.Equal(t, unitSize-unitLeft, unitFilled.ExecutedAmount, "GetOrderInfo should report the size unit an order executed")
 	for _, response := range []string{`{"status":"unknownOid"}`, `{"status":"order","order":null}`} {
 		_, err = newTradingServerExchange(t, map[string]string{"orderStatus": response, "frontendOpenOrders": `[]`}, nil).GetOrderInfo(t.Context(), "7", currency.EMPTYPAIR, asset.Empty)
 		assert.ErrorIsf(t, err, order.ErrOrderNotFound, "GetOrderInfo should report %s as not found", response)
@@ -3181,10 +3325,15 @@ func TestGetOrderInfo(t *testing.T) {
 	cancelledPositionOrder, err := newTradingServerExchange(t, map[string]string{"orderStatus": strings.Replace(positionOrderStatus, `"status":"open"`, `"status":"canceled"`, 1)}, nil).GetOrderInfo(t.Context(), "14", perpetualPair, asset.PerpetualContract)
 	require.NoError(t, err, "GetOrderInfo must not read positions for a cancelled position TP/SL order")
 	assert.Zero(t, cancelledPositionOrder.Amount, "GetOrderInfo should leave a cancelled position TP/SL order unsized")
-	sizedPositionOrder, err := newTradingServerExchange(t, map[string]string{"orderStatus": strings.NewReplacer(`"sz":"0.0"`, `"sz":"0.1"`, `"origSz":"0.0"`, `"origSz":"0.1"`).Replace(positionOrderStatus)}, nil).GetOrderInfo(t.Context(), "14", perpetualPair, asset.PerpetualContract)
+	sizedPositionStatus := strings.NewReplacer(`"sz":"0.0"`, `"sz":"0.1"`, `"origSz":"0.0"`, `"origSz":"0.1"`).Replace(positionOrderStatus)
+	partlyFilledPosition, err := newTradingServerExchange(t, map[string]string{"orderStatus": sizedPositionStatus, "frontendOpenOrders": listedOpenOrder(strings.Replace(sizedPositionStatus, `"sz":"0.1"`, `"sz":"0.04"`, 1))}, nil).GetOrderInfo(t.Context(), "14", perpetualPair, asset.PerpetualContract)
+	require.NoError(t, err, "GetOrderInfo must not error for a partly filled position TP/SL order placed with a size")
+	assert.Equal(t, 0.04, partlyFilledPosition.RemainingAmount, "GetOrderInfo should take a sized position TP/SL order's remaining size from the open orders")
+	sizedPositionOrder, err := newTradingServerExchange(t, map[string]string{"orderStatus": sizedPositionStatus, "frontendOpenOrders": listedOpenOrder(sizedPositionStatus)}, nil).GetOrderInfo(t.Context(), "14", perpetualPair, asset.PerpetualContract)
 	require.NoError(t, err, "GetOrderInfo must not read positions for a position TP/SL order with a size")
 	assert.Equal(t, 0.1, sizedPositionOrder.Amount, "GetOrderInfo should keep the size of a position TP/SL order placed with one")
-	unsizedOrder, err := newTradingServerExchange(t, map[string]string{"orderStatus": strings.Replace(positionOrderStatus, `"isPositionTpsl":true`, `"isPositionTpsl":false`, 1)}, nil).GetOrderInfo(t.Context(), "14", perpetualPair, asset.PerpetualContract)
+	unsizedStatus := strings.Replace(positionOrderStatus, `"isPositionTpsl":true`, `"isPositionTpsl":false`, 1)
+	unsizedOrder, err := newTradingServerExchange(t, map[string]string{"orderStatus": unsizedStatus, "frontendOpenOrders": listedOpenOrder(unsizedStatus)}, nil).GetOrderInfo(t.Context(), "14", perpetualPair, asset.PerpetualContract)
 	require.NoError(t, err, "GetOrderInfo must not read positions for an order that is not a position TP/SL")
 	assert.Zero(t, unsizedOrder.Amount, "GetOrderInfo should size only position TP/SL orders from their positions")
 	builderPositioned := newInfoServerExchange(t, map[string]string{
@@ -3505,7 +3654,8 @@ func TestGetOrderInfoExecution(t *testing.T) {
 				return
 			}
 			response := orderStatus
-			if body.Type == "userFillsByTime" {
+			switch body.Type {
+			case "userFillsByTime":
 				mu.Lock()
 				fillRequests = append(fillRequests, body)
 				requests := len(fillRequests)
@@ -3521,7 +3671,10 @@ func TestGetOrderInfoExecution(t *testing.T) {
 					http.Error(w, "unexpected fills request", http.StatusBadRequest)
 					return
 				}
-			} else if body.Type != "orderStatus" {
+			case "frontendOpenOrders":
+				response = listedOpenOrder(orderStatus)
+			case "orderStatus":
+			default:
 				http.Error(w, "unexpected info request "+body.Type, http.StatusBadRequest)
 				return
 			}
@@ -3776,6 +3929,57 @@ func TestGetOrderInfoExecution(t *testing.T) {
 	require.NoError(t, err, "GetOrderInfo must not read fills for an open order")
 	assert.Zero(t, result.AverageExecutedPrice, "GetOrderInfo should leave an open order's average price unset")
 	assert.Empty(t, fillRequests(), "GetOrderInfo should not read fills for an open order")
+}
+
+func TestGetOrderInfoInternal(t *testing.T) {
+	t.Parallel()
+	newExchange := func(t *testing.T, responses map[string]string) (*Exchange, func() map[string]int) {
+		t.Helper()
+		ex, requests := newCountingServerExchange(t, responses)
+		ex.setPairMappings(asset.PerpetualContract, []pairMapping{testPerpetualMapping, testBuilderMapping})
+		ex.setPairMappings(asset.Spot, []pairMapping{testSpotMapping})
+		return ex, requests
+	}
+	// ModifyOrder looks an order up without its fills, which only a finished order that executed something reads
+	const filledOrderStatus = `{"status":"order","order":{"order":{"coin":"BTC","side":"B","limitPx":"89924.0","sz":"0.0","origSz":"0.5","oid":21,"timestamp":1791275926000,"orderType":"Market","tif":"FrontendMarket"},"status":"filled","statusTimestamp":1791275926500}}`
+	const filledOrderFills = `[{"coin":"BTC","px":"80000","sz":"0.5","side":"B","time":1791275926100,"oid":21,"crossed":true,"fee":"8","tid":1,"feeToken":"USDC"}]`
+	for _, tc := range []struct {
+		withExecution bool
+		cost, fee     float64
+		requests      map[string]int
+	}{
+		{withExecution: false, requests: map[string]int{"orderStatus:": 1}},
+		{withExecution: true, cost: 40000, fee: 8, requests: map[string]int{"orderStatus:": 1, "userFillsByTime:": 1}},
+	} {
+		ex, requests := newExchange(t, map[string]string{"orderStatus": filledOrderStatus, "userFillsByTime": filledOrderFills})
+		filled, err := ex.getOrderInfo(t.Context(), "21", perpetualPair, asset.PerpetualContract, tc.withExecution)
+		require.NoErrorf(t, err, "getOrderInfo must not error for a filled order with execution %t", tc.withExecution)
+		assert.Equalf(t, order.Filled, filled.Status, "getOrderInfo should return a filled order as filled with execution %t", tc.withExecution)
+		assert.Equalf(t, tc.cost, filled.Cost, "getOrderInfo should take a filled order's cost from its fills only with execution, here %t", tc.withExecution)
+		assert.Equalf(t, tc.fee, filled.Fee, "getOrderInfo should take a filled order's fee from its fills only with execution, here %t", tc.withExecution)
+		assert.Equalf(t, tc.requests, requests(), "getOrderInfo should read a filled order's fills only with execution, here %t", tc.withExecution)
+	}
+	// An open order's remaining size comes from the open orders whether or not fills are read
+	for _, withExecution := range []bool{false, true} {
+		ex, requests := newExchange(t, map[string]string{"orderStatus": partlyFilledOrderStatus, "frontendOpenOrders": partlyFilledOpenOrders})
+		partlyFilled, err := ex.getOrderInfo(t.Context(), "590283728884", perpetualPair, asset.PerpetualContract, withExecution)
+		require.NoErrorf(t, err, "getOrderInfo must not error for a partly filled open order with execution %t", withExecution)
+		// Sizes are subtracted in float64, as the conversion subtracts them
+		size, left := 0.10316, 0.103
+		assert.Equalf(t, order.PartiallyFilled, partlyFilled.Status, "getOrderInfo should return a partly filled open order as partly filled with execution %t", withExecution)
+		assert.Equalf(t, left, partlyFilled.RemainingAmount, "getOrderInfo should take an open order's remaining size from the open orders with execution %t", withExecution)
+		assert.Equalf(t, size-left, partlyFilled.ExecutedAmount, "getOrderInfo should derive an open order's executed size from the open orders with execution %t", withExecution)
+		assert.Equalf(t, map[string]int{"orderStatus:": 1, "frontendOpenOrders:": 1}, requests(), "getOrderInfo should read the open orders of an open order's market and no fills with execution %t", withExecution)
+		unlisted, _ := newExchange(t, map[string]string{"orderStatus": partlyFilledOrderStatus, "frontendOpenOrders": `[]`})
+		_, err = unlisted.getOrderInfo(t.Context(), "590283728884", perpetualPair, asset.PerpetualContract, withExecution)
+		assert.ErrorIsf(t, err, order.ErrOrderNotFound, "getOrderInfo should not return an open order the open orders no longer list with execution %t", withExecution)
+		unlistable, _ := newExchange(t, map[string]string{"orderStatus": partlyFilledOrderStatus})
+		_, err = unlistable.getOrderInfo(t.Context(), "590283728884", perpetualPair, asset.PerpetualContract, withExecution)
+		assert.ErrorIsf(t, err, request.ErrBadStatus, "getOrderInfo should return the open orders' request failure with execution %t", withExecution)
+	}
+	unconvertible, _ := newExchange(t, map[string]string{"orderStatus": strings.Replace(partlyFilledOrderStatus, `"status":"open"`, `"status":"unlisted"`, 1)})
+	_, err := unconvertible.getOrderInfo(t.Context(), "590283728884", perpetualPair, asset.PerpetualContract, false)
+	assert.ErrorIs(t, err, errUnsupportedOrderStatus, "getOrderInfo should return a status record's conversion failure")
 }
 
 func TestGetOrderHistory(t *testing.T) {

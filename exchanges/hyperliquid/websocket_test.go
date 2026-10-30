@@ -5349,7 +5349,7 @@ func TestSubscribe(t *testing.T) {
 }
 
 func TestUnsubscribe(t *testing.T) {
-	t.Parallel()
+	// Not parallel: live, TestSubscribe shares this exchange, and its BTC book is a variant exclusive of this test's
 	_, validates := any(e).(subscription.ListValidator)
 	assert.True(t, validates, "the exchange should validate the subscriptions it expands")
 	_, validates = any(websocketTemplateExpander{e}).(subscription.ListValidator)

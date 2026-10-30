@@ -1201,10 +1201,12 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, cancel *order.Cancel) (o
 // GetOrderInfo returns one order by order ID or client order ID
 // orderStatus returns only an order's latest status change, and once a trigger order has triggered and filled that
 // change has no trigger price and gives the trigger time as the order's timestamp, so such an order is returned without
-// its trigger price and dated when it triggered; GetOrderHistory recovers both from the order's earlier changes. An open
-// position TP/SL order, which Hyperliquid lists without a size, takes the size of the position it closes, as
-// GetActiveOrders sizes it. A finished order that executed something takes its cost, average price and fee from its
-// fills, and a reduce-only one, which Hyperliquid cuts down to its position without a fill, takes its executed size
+// its trigger price and dated when it triggered; GetOrderHistory recovers both from the order's earlier changes.
+// orderStatus can answer an open order with its status record from before its partial fills, so an open order takes its
+// remaining size from the open orders, where an older open order orderStatus reports as unknown is found too. A
+// zero-size open position TP/SL order takes the size of the position it closes, as GetActiveOrders sizes it. A finished
+// order that executed something takes its cost and average price from its fills, and its fee when they paid it in one
+// token, and a reduce-only one, which Hyperliquid cuts down to its position without a fill, takes its executed size
 // from them too once they are shown to be all of its fills, with its size as that plus its remaining size when it
 // executed something
 func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, a asset.Item) (*order.Detail, error) {
@@ -1247,12 +1249,25 @@ func (e *Exchange) getOrderInfo(ctx context.Context, orderID string, pair curren
 	if (!pair.IsEmpty() && !converted.Pair.Equal(pair)) || (a != asset.Empty && converted.AssetType != a) {
 		return nil, order.ErrOrderNotFound
 	}
-	if response.Order.Order.IsPositionTPSL && converted.Amount == 0 && converted.Status == order.Open {
+	switch {
+	case response.Order.Order.IsPositionTPSL && converted.Amount == 0 && converted.Status == order.Open:
 		sized := []order.Detail{converted}
 		if err := e.sizePositionOrders(ctx, address, mapping.dex, sized, map[int]string{0: response.Order.Order.Coin}); err != nil {
 			return nil, err
 		}
 		converted = sized[0]
+	case !converted.Status.IsInactive():
+		// orderStatus can answer an open order with its status record from before its partial fills, so the size it has
+		// left comes from the open orders, found by the record's order ID, as a client order ID passes to an order's
+		// replacement; the record's other fields stay, as past frontendOpenOrders' limit the open orders come from
+		// openOrders without their type, time in force or trigger price
+		listed, err := e.findOpenOrder(ctx, &OrderStatusRequest{OrderID: response.Order.Order.OrderID}, converted.Pair, converted.AssetType)
+		if err != nil {
+			return nil, err
+		}
+		converted.RemainingAmount = listed.RemainingAmount
+		converted.ExecutedAmount = max(0, converted.Amount-listed.RemainingAmount)
+		converted.Status = executionStatus(order.Open, converted.ExecutedAmount, converted.RemainingAmount)
 	}
 	if withExecution && converted.ExecutedAmount > 0 && converted.IsInactive() {
 		// The order's status stands without its fills, and the engine looks an order up again every 10 seconds while its
@@ -1573,9 +1588,11 @@ func (e *Exchange) convertOpenOrder(ctx context.Context, source *BasicOrderRespo
 // request
 // Hyperliquid returns the account's 2000 most recent status changes, which list an order once per change, so each order
 // is converted once, from its latest status, with the trigger price and placement time of its earlier changes; HIP-4
-// outcome orders are skipped, as no supported asset type covers them. A reduce-only order's executed size, its original
-// size less its remaining size, includes any size Hyperliquid cut from the order to fit its position; GetOrderInfo takes
-// a finished one's executed size from its fills once they are shown to be all of them
+// outcome orders are skipped, as no supported asset type covers them. An open order keeps the sizes of its latest status
+// change, which can predate its partial fills; GetActiveOrders and GetOrderInfo give an open order's current remaining
+// size, from the open orders or, for a zero-size position TP/SL order, from its position. A reduce-only order's executed
+// size, its original size less its remaining size, includes any size Hyperliquid cut from the order to fit its
+// position; GetOrderInfo takes a finished one's executed size from its fills once they are shown to be all of them
 func (e *Exchange) GetOrderHistory(ctx context.Context, filter *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	if err := filter.Validate(); err != nil {
 		return nil, err
