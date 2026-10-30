@@ -902,33 +902,48 @@ func TestSubmitOrderFutures(t *testing.T) {
 		assert.ErrorIs(t, err, errInvalidLeverage, "an isolated open without leverage should be refused before it is sent")
 	})
 
-	// A close names the position it closes, and takes the position's margin mode when it names none
+	// A close names the position it closes, when one is open, and takes that position's margin mode when it names none.
+	// On a one-way account it is also sent reduce-only
 	isolatedLong := futuresOpenPositionReply
 	crossLong := strings.NewReplacer(`"positionId":1109973831`, `"positionId":1109973832`, `"openType":1`, `"openType":2`).Replace(futuresOpenPositionReply)
 	for name, tc := range map[string]struct {
-		positions  string
-		marginType margin.Type
-		body       string
-		exp        margin.Type
-		err        error
+		positionMode string
+		positions    string
+		marginType   margin.Type
+		body         string
+		exp          margin.Type
+		err          error
 	}{
 		"cross close": {
-			positions: "[" + isolatedLong + "," + crossLong + "]", marginType: margin.Multi,
+			positionMode: "1", positions: "[" + isolatedLong + "," + crossLong + "]", marginType: margin.Multi,
 			body: `{"symbol":"BTC_USDT","vol":2,"side":4,"sideType":"sell","type":5,"openType":2,"positionId":1109973832,"stpMode":0}`, exp: margin.Multi,
 		},
 		"close of the position's margin mode": {
-			positions: "[" + crossLong + "]",
-			body:      `{"symbol":"BTC_USDT","vol":2,"side":4,"sideType":"sell","type":5,"openType":2,"positionId":1109973832,"stpMode":0}`, exp: margin.Multi,
+			positionMode: "1", positions: "[" + crossLong + "]",
+			body: `{"symbol":"BTC_USDT","vol":2,"side":4,"sideType":"sell","type":5,"openType":2,"positionId":1109973832,"stpMode":0}`, exp: margin.Multi,
 		},
 		"close without a position": {
-			positions: "[]",
-			body:      `{"symbol":"BTC_USDT","vol":2,"side":4,"sideType":"sell","type":5,"openType":1,"stpMode":0}`, exp: margin.Isolated,
+			positionMode: "1", positions: "[]",
+			body: `{"symbol":"BTC_USDT","vol":2,"side":4,"sideType":"sell","type":5,"openType":1,"stpMode":0}`, exp: margin.Isolated,
 		},
-		"close of either margin mode": {positions: "[" + isolatedLong + "," + crossLong + "]", err: errMarginTypeAmbiguous},
+		"close of either margin mode": {positionMode: "1", positions: "[" + isolatedLong + "," + crossLong + "]", err: errMarginTypeAmbiguous},
+		"one-way cross close": {
+			positionMode: "2", positions: "[" + crossLong + "]", marginType: margin.Multi,
+			body: `{"symbol":"BTC_USDT","vol":2,"side":4,"sideType":"sell","type":5,"openType":2,"positionId":1109973832,"positionMode":2,"reduceOnly":true,"stpMode":0}`,
+			exp:  margin.Multi,
+		},
+		"one-way close without a position": {
+			positionMode: "2", positions: "[]",
+			body: `{"symbol":"BTC_USDT","vol":2,"side":4,"sideType":"sell","type":5,"openType":1,"positionMode":2,"reduceOnly":true,"stpMode":0}`,
+			exp:  margin.Isolated,
+		},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			routes := []futuresRoute{{method: http.MethodGet, path: "private/position/open_positions", query: "symbol=BTC_USDT", data: tc.positions}}
+			routes := []futuresRoute{
+				{method: http.MethodGet, path: "private/position/position_mode", data: tc.positionMode},
+				{method: http.MethodGet, path: "private/position/open_positions", query: "symbol=BTC_USDT", data: tc.positions},
+			}
 			if tc.body != "" {
 				routes = append(routes, futuresRoute{method: http.MethodPost, path: "private/order/create", body: tc.body, data: `{"orderId":"739113577038255617","ts":1761888808840}`})
 			}
@@ -938,7 +953,7 @@ func TestSubmitOrderFutures(t *testing.T) {
 			if tc.err != nil {
 				return
 			}
-			// A closing order reduces only, and sends no leverage
+			// A closing order is returned as reduce-only, and sends no leverage
 			exp := &order.SubmitResponse{
 				Exchange:    ex.Name,
 				Type:        order.Market,
@@ -960,40 +975,349 @@ func TestSubmitOrderFutures(t *testing.T) {
 
 func TestSubmitFuturesOrder(t *testing.T) {
 	t.Parallel()
-	// Each side's order names its side type: buy to open a long or close a short, and sell otherwise
+	submit := func(ex *Exchange, s order.Submit) (*order.SubmitResponse, error) {
+		s.Exchange, s.AssetType, s.Pair, s.Amount = ex.Name, asset.Futures, futuresTradablePair, 1
+		if s.Type == order.Limit {
+			s.Price = 100.5
+		}
+		return ex.submitFuturesOrder(t.Context(), &s)
+	}
+	const placed = `{"orderId":"739113577038255618","ts":1761888808841}`
+	const (
+		readMode      = "GET private/position/position_mode"
+		readPositions = "GET private/position/open_positions"
+		place         = "POST private/order/create"
+	)
+	// record passes each request to next, and returns the requests it received, as method and path, and the body of the
+	// last order placement
+	record := func(next http.HandlerFunc) (http.HandlerFunc, func() ([]string, []byte)) {
+		var mu sync.Mutex
+		var requests []string
+		var body []byte
+		return func(w http.ResponseWriter, r *http.Request) {
+				sent, err := io.ReadAll(r.Body)
+				assert.NoError(t, err, "reading the request body should not error")
+				r.Body = io.NopCloser(bytes.NewReader(sent))
+				mu.Lock()
+				requests = append(requests, r.Method+" "+strings.TrimPrefix(r.URL.Path, "/api/v1/"))
+				if r.URL.Path == "/api/v1/private/order/create" {
+					body = sent
+				}
+				mu.Unlock()
+				next(w, r)
+			}, func() ([]string, []byte) {
+				mu.Lock()
+				defer mu.Unlock()
+				return append([]string(nil), requests...), body
+			}
+	}
+	// refuse answers requests to path as the venue refuses one, and passes the rest to next
+	refuse := func(path string, next http.HandlerFunc) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/api/v1/"+path {
+				next(w, r)
+				return
+			}
+			_, _ = w.Write([]byte(`{"success":false,"code":510,"message":"Requests are too frequent, please try again later"}`))
+		}
+	}
+
+	// An opening order names its side type, buy to open a long and sell to open a short, and reads no position mode
 	for _, tc := range []struct {
-		side       order.Side
-		reduceOnly bool
-		body       string
+		name string
+		s    order.Submit
+		body string
 	}{
-		{side: order.Buy, body: `{"symbol":"BTC_USDT","vol":1,"side":1,"sideType":"buy","type":5,"openType":2,"stpMode":0}`},
-		{side: order.Sell, body: `{"symbol":"BTC_USDT","vol":1,"side":3,"sideType":"sell","type":5,"openType":2,"stpMode":0}`},
-		{side: order.Buy, reduceOnly: true, body: `{"symbol":"BTC_USDT","vol":1,"side":2,"sideType":"buy","type":5,"openType":2,"stpMode":0}`},
-		{side: order.Sell, reduceOnly: true, body: `{"symbol":"BTC_USDT","vol":1,"side":4,"sideType":"sell","type":5,"openType":2,"stpMode":0}`},
+		{
+			name: "cross market long", s: order.Submit{Side: order.Buy, Type: order.Market, MarginType: margin.Multi},
+			body: `{"symbol":"BTC_USDT","vol":1,"side":1,"sideType":"buy","type":5,"openType":2,"stpMode":0}`,
+		},
+		{
+			name: "cross market short", s: order.Submit{Side: order.Sell, Type: order.Market, MarginType: margin.Multi},
+			body: `{"symbol":"BTC_USDT","vol":1,"side":3,"sideType":"sell","type":5,"openType":2,"stpMode":0}`,
+		},
+		{
+			name: "cross limit long", s: order.Submit{Side: order.Buy, Type: order.Limit, MarginType: margin.Multi},
+			body: `{"symbol":"BTC_USDT","price":100.5,"vol":1,"side":1,"sideType":"buy","type":1,"openType":2,"stpMode":0}`,
+		},
+		{
+			name: "cross limit short", s: order.Submit{Side: order.Sell, Type: order.Limit, MarginType: margin.Multi},
+			body: `{"symbol":"BTC_USDT","price":100.5,"vol":1,"side":3,"sideType":"sell","type":1,"openType":2,"stpMode":0}`,
+		},
+		{
+			name: "isolated market long", s: order.Submit{Side: order.Buy, Type: order.Market, MarginType: margin.Isolated, Leverage: 5},
+			body: `{"symbol":"BTC_USDT","vol":1,"leverage":5,"side":1,"sideType":"buy","type":5,"openType":1,"stpMode":0}`,
+		},
+		{
+			name: "isolated market short", s: order.Submit{Side: order.Sell, Type: order.Market, MarginType: margin.Isolated, Leverage: 5},
+			body: `{"symbol":"BTC_USDT","vol":1,"leverage":5,"side":3,"sideType":"sell","type":5,"openType":1,"stpMode":0}`,
+		},
 	} {
-		t.Run(tc.side.String()+" reducing "+strconv.FormatBool(tc.reduceOnly), func(t *testing.T) {
+		t.Run("open "+tc.name, func(t *testing.T) {
 			t.Parallel()
-			ex := testExchangeFor(t, futuresHandler(
-				t,
-				futuresRoute{method: http.MethodGet, path: "private/position/open_positions", query: "symbol=BTC_USDT", data: "[]"},
-				futuresRoute{method: http.MethodPost, path: "private/order/create", body: tc.body, data: `{"orderId":"739113577038255618","ts":1761888808841}`},
-			), liveUnavailable)
-			resp, err := ex.submitFuturesOrder(t.Context(), &order.Submit{
-				Exchange:   ex.Name,
-				AssetType:  asset.Futures,
-				Pair:       futuresTradablePair,
-				Side:       tc.side,
-				Type:       order.Market,
-				Amount:     1,
-				ReduceOnly: tc.reduceOnly,
-				MarginType: margin.Multi,
-			})
+			handler, requests := record(futuresHandler(t, futuresRoute{method: http.MethodPost, path: "private/order/create", body: tc.body, data: placed}))
+			ex := testExchangeFor(t, handler, liveUnavailable)
+			resp, err := submit(ex, tc.s)
 			require.NoError(t, err, "submitFuturesOrder must not error")
 			assert.Equal(t, "739113577038255618", resp.OrderID, "submitFuturesOrder should return the placed order's ID")
+			sent, _ := requests()
+			assert.Equal(t, []string{place}, sent, "an opening order should only be placed")
 		})
 	}
 
-	unidentifiedLong := strings.NewReplacer(`"positionId":1109973831`, `"positionId":0`, `"openType":1`, `"openType":2`).Replace(futuresOpenPositionReply)
+	// A reducing order reads the account's position mode once, then the position it closes. On a hedge account its body
+	// is the one listed; on a one-way account it also carries positionMode 2 and reduceOnly
+	position := func(id, positionType, openType string) string {
+		return strings.NewReplacer(`"positionId":1109973831`, `"positionId":`+id, `"positionType":1`, `"positionType":`+positionType, `"openType":1`, `"openType":`+openType).Replace(futuresOpenPositionReply)
+	}
+	isolatedLong, crossLong := position("1109973831", "1", "1"), position("1109973832", "1", "2")
+	isolatedShort, crossShort := position("1109973833", "2", "1"), position("1109973834", "2", "2")
+	for _, tc := range []struct {
+		name      string
+		side      order.Side
+		orderType order.Type
+		positions string
+		body      string
+	}{
+		{
+			name: "market close of no short", side: order.Buy, orderType: order.Market, positions: "[]",
+			body: `{"symbol":"BTC_USDT","vol":1,"side":2,"sideType":"buy","type":5,"openType":1,"stpMode":0}`,
+		},
+		{
+			name: "market close of an isolated short", side: order.Buy, orderType: order.Market, positions: "[" + isolatedShort + "]",
+			body: `{"symbol":"BTC_USDT","vol":1,"side":2,"sideType":"buy","type":5,"openType":1,"positionId":1109973833,"stpMode":0}`,
+		},
+		{
+			name: "market close of a cross short", side: order.Buy, orderType: order.Market, positions: "[" + crossShort + "]",
+			body: `{"symbol":"BTC_USDT","vol":1,"side":2,"sideType":"buy","type":5,"openType":2,"positionId":1109973834,"stpMode":0}`,
+		},
+		{
+			name: "limit close of no short", side: order.Buy, orderType: order.Limit, positions: "[]",
+			body: `{"symbol":"BTC_USDT","price":100.5,"vol":1,"side":2,"sideType":"buy","type":1,"openType":1,"stpMode":0}`,
+		},
+		{
+			name: "limit close of an isolated short", side: order.Buy, orderType: order.Limit, positions: "[" + isolatedShort + "]",
+			body: `{"symbol":"BTC_USDT","price":100.5,"vol":1,"side":2,"sideType":"buy","type":1,"openType":1,"positionId":1109973833,"stpMode":0}`,
+		},
+		{
+			name: "limit close of a cross short", side: order.Buy, orderType: order.Limit, positions: "[" + crossShort + "]",
+			body: `{"symbol":"BTC_USDT","price":100.5,"vol":1,"side":2,"sideType":"buy","type":1,"openType":2,"positionId":1109973834,"stpMode":0}`,
+		},
+		{
+			name: "market close of no long", side: order.Sell, orderType: order.Market, positions: "[]",
+			body: `{"symbol":"BTC_USDT","vol":1,"side":4,"sideType":"sell","type":5,"openType":1,"stpMode":0}`,
+		},
+		{
+			name: "market close of an isolated long", side: order.Sell, orderType: order.Market, positions: "[" + isolatedLong + "]",
+			body: `{"symbol":"BTC_USDT","vol":1,"side":4,"sideType":"sell","type":5,"openType":1,"positionId":1109973831,"stpMode":0}`,
+		},
+		{
+			name: "market close of a cross long", side: order.Sell, orderType: order.Market, positions: "[" + crossLong + "]",
+			body: `{"symbol":"BTC_USDT","vol":1,"side":4,"sideType":"sell","type":5,"openType":2,"positionId":1109973832,"stpMode":0}`,
+		},
+		{
+			name: "limit close of no long", side: order.Sell, orderType: order.Limit, positions: "[]",
+			body: `{"symbol":"BTC_USDT","price":100.5,"vol":1,"side":4,"sideType":"sell","type":1,"openType":1,"stpMode":0}`,
+		},
+		{
+			name: "limit close of an isolated long", side: order.Sell, orderType: order.Limit, positions: "[" + isolatedLong + "]",
+			body: `{"symbol":"BTC_USDT","price":100.5,"vol":1,"side":4,"sideType":"sell","type":1,"openType":1,"positionId":1109973831,"stpMode":0}`,
+		},
+		{
+			name: "limit close of a cross long", side: order.Sell, orderType: order.Limit, positions: "[" + crossLong + "]",
+			body: `{"symbol":"BTC_USDT","price":100.5,"vol":1,"side":4,"sideType":"sell","type":1,"openType":2,"positionId":1109973832,"stpMode":0}`,
+		},
+	} {
+		for positionMode, body := range map[string]string{
+			"1": tc.body,
+			"2": strings.Replace(tc.body, `"stpMode":0}`, `"positionMode":2,"reduceOnly":true,"stpMode":0}`, 1),
+		} {
+			t.Run("position mode "+positionMode+" "+tc.name, func(t *testing.T) {
+				t.Parallel()
+				handler, requests := record(futuresHandler(t,
+					futuresRoute{method: http.MethodGet, path: "private/position/position_mode", data: positionMode},
+					futuresRoute{method: http.MethodGet, path: "private/position/open_positions", query: "symbol=BTC_USDT", data: tc.positions},
+					futuresRoute{method: http.MethodPost, path: "private/order/create", body: body, data: placed},
+				))
+				ex := testExchangeFor(t, handler, liveUnavailable)
+				resp, err := submit(ex, order.Submit{Side: tc.side, Type: tc.orderType, ReduceOnly: true})
+				require.NoError(t, err, "submitFuturesOrder must not error")
+				assert.Equal(t, "739113577038255618", resp.OrderID, "submitFuturesOrder should return the placed order's ID")
+				sent, _ := requests()
+				assert.Equal(t, []string{readMode, readPositions, place}, sent, "a reducing order should read the position mode once, then its position, before it is placed")
+			})
+		}
+	}
+
+	// Whatever else a reducing order names, both position modes send it with its own type, side, price and closing
+	// position, the one-way body adding only positionMode 2 and reduceOnly, and both fail it alike. One exchange serves
+	// each subtest's submissions in turn, as one for each would double the package's race run
+	for _, side := range []order.Side{order.Buy, order.Sell} {
+		isolatedID, crossID, wantSide, wantSideType := "1109973831", "1109973832", "4", "sell"
+		closing, other := isolatedLong, crossLong
+		if side == order.Buy {
+			isolatedID, crossID, wantSide, wantSideType = "1109973833", "1109973834", "2", "buy"
+			closing, other = isolatedShort, crossShort
+		}
+		for _, kind := range []struct {
+			name        string
+			orderType   order.Type
+			timeInForce order.TimeInForce
+			wantType    string
+		}{
+			{"market", order.Market, order.UnknownTIF, "5"},
+			{"limit", order.Limit, order.UnknownTIF, "1"},
+			{"post-only", order.Limit, order.PostOnly, "2"},
+			{"immediate-or-cancel", order.Limit, order.ImmediateOrCancel, "3"},
+			{"fill-or-kill", order.Limit, order.FillOrKill, "4"},
+		} {
+			for marginName, marginType := range map[string]margin.Type{"unnamed margin": margin.Unset, "isolated": margin.Isolated, "cross": margin.Multi} {
+				t.Run("position modes agree "+side.String()+" "+kind.name+" "+marginName, func(t *testing.T) {
+					t.Parallel()
+					var serving atomic.Pointer[http.HandlerFunc]
+					ex := testExchangeFor(t, func(w http.ResponseWriter, r *http.Request) { (*serving.Load())(w, r) }, liveUnavailable)
+					for _, venue := range []struct {
+						name      string
+						positions string
+						held      string
+						refuse    string
+					}{
+						{name: "no position", positions: "[]"},
+						{name: "isolated position", positions: "[" + closing + "]", held: "isolated"},
+						{name: "cross position", positions: "[" + other + "]", held: "cross"},
+						{name: "positions refused", refuse: "private/position/open_positions"},
+						{name: "placement refused", positions: "[]", refuse: "private/order/create"},
+					} {
+						send := func(positionMode string) ([]string, []byte, error) {
+							handler := futuresHandler(t,
+								futuresRoute{method: http.MethodGet, path: "private/position/position_mode", data: positionMode},
+								futuresRoute{method: http.MethodGet, path: "private/position/open_positions", query: "symbol=BTC_USDT", data: venue.positions},
+								futuresRoute{method: http.MethodPost, path: "private/order/create", data: placed},
+							)
+							if venue.refuse != "" {
+								handler = refuse(venue.refuse, handler)
+							}
+							handler, requests := record(handler)
+							serving.Store(&handler)
+							_, err := submit(ex, order.Submit{Side: side, Type: kind.orderType, TimeInForce: kind.timeInForce, MarginType: marginType, ReduceOnly: true})
+							sent, body := requests()
+							return sent, body, err
+						}
+						hedgeRequests, hedgeBody, hedgeErr := send("1")
+						oneWayRequests, oneWayBody, oneWayErr := send("2")
+						wantRequests := []string{readMode, readPositions, place}
+						if venue.refuse != "" {
+							require.ErrorIsf(t, hedgeErr, errFuturesRequestFailed, "with %s, the refusal must be returned in hedge mode", venue.name)
+							require.ErrorIsf(t, oneWayErr, errFuturesRequestFailed, "with %s, the refusal must be returned in one-way mode", venue.name)
+							assert.Equalf(t, hedgeErr.Error(), oneWayErr.Error(), "with %s, both position modes should return the same error", venue.name)
+							if venue.refuse == "private/position/open_positions" {
+								wantRequests = wantRequests[:2]
+							}
+						} else {
+							require.NoErrorf(t, hedgeErr, "with %s, submitFuturesOrder must not error in hedge mode", venue.name)
+							require.NoErrorf(t, oneWayErr, "with %s, submitFuturesOrder must not error in one-way mode", venue.name)
+						}
+						assert.Equalf(t, wantRequests, hedgeRequests, "with %s, a hedge mode reducing order should read the mode, then its position, before it is placed", venue.name)
+						assert.Equalf(t, wantRequests, oneWayRequests, "with %s, a one-way mode reducing order should read the mode, then its position, before it is placed", venue.name)
+						if venue.refuse == "private/position/open_positions" {
+							continue
+						}
+						// A position of the margin type named, or of either when none is, is named and lends its margin type
+						openType := map[margin.Type]string{margin.Unset: "1", margin.Isolated: "1", margin.Multi: "2"}[marginType]
+						positionID := ""
+						switch {
+						case venue.held == "isolated" && marginType != margin.Multi:
+							openType, positionID = "1", isolatedID
+						case venue.held == "cross" && marginType != margin.Isolated:
+							openType, positionID = "2", crossID
+						}
+						exp := map[string]any{
+							"symbol":   "BTC_USDT",
+							"vol":      exactNumber("1"),
+							"side":     exactNumber(wantSide),
+							"sideType": wantSideType,
+							"type":     exactNumber(kind.wantType),
+							"openType": exactNumber(openType),
+							"stpMode":  exactNumber("0"),
+						}
+						if kind.orderType == order.Limit {
+							exp["price"] = exactNumber("201/2")
+						}
+						if positionID != "" {
+							exp["positionId"] = exactNumber(positionID)
+						}
+						hedge, err := exactJSON(hedgeBody)
+						require.NoErrorf(t, err, "with %s, the hedge mode body must be JSON", venue.name)
+						assert.Equalf(t, exp, hedge, "with %s, the hedge mode body should be sent", venue.name)
+						exp["positionMode"], exp["reduceOnly"] = exactNumber("2"), true
+						oneWay, err := exactJSON(oneWayBody)
+						require.NoErrorf(t, err, "with %s, the one-way mode body must be JSON", venue.name)
+						assert.Equalf(t, exp, oneWay, "with %s, the one-way mode body should add positionMode 2 and reduceOnly", venue.name)
+					}
+				})
+			}
+		}
+	}
+
+	// A reducing order makes no other request where the position mode can't be read or is neither hedge nor one-way
+	for positionMode, exp := range map[string]error{
+		"refused": errFuturesRequestFailed,
+		"0":       errInvalidPositionMode,
+		"3":       errInvalidPositionMode,
+		"4":       errInvalidPositionMode,
+		"255":     errInvalidPositionMode,
+		"null":    errInvalidPositionMode,
+	} {
+		t.Run("position mode "+positionMode, func(t *testing.T) {
+			t.Parallel()
+			handler := futuresHandler(t, futuresRoute{method: http.MethodGet, path: "private/position/position_mode", data: positionMode})
+			if positionMode == "refused" {
+				handler = refuse("private/position/position_mode", futuresHandler(t))
+			}
+			var serving atomic.Pointer[http.HandlerFunc]
+			ex := testExchangeFor(t, func(w http.ResponseWriter, r *http.Request) { (*serving.Load())(w, r) }, liveUnavailable)
+			for _, side := range []order.Side{order.Buy, order.Sell} {
+				for _, orderType := range []order.Type{order.Market, order.Limit} {
+					for marginName, marginType := range map[string]margin.Type{"unnamed margin": margin.Unset, "isolated": margin.Isolated, "cross": margin.Multi} {
+						recorded, requests := record(handler)
+						serving.Store(&recorded)
+						_, err := submit(ex, order.Submit{Side: side, Type: orderType, MarginType: marginType, ReduceOnly: true})
+						assert.ErrorIsf(t, err, exp, "a %s %s order with %s should be stopped by the position mode", side, orderType, marginName)
+						sent, _ := requests()
+						assert.Equalf(t, []string{readMode}, sent, "a %s %s order with %s should make no request after the position mode stops it", side, orderType, marginName)
+					}
+				}
+			}
+		})
+	}
+
+	// A reducing order is not sent in either position mode when its matching position has no ID or two positions match
+	// it. The venue holds one margin type a side (its error 2027), so the isolated and cross positions are a reply it
+	// shouldn't send
+	for _, positionMode := range []string{"1", "2"} {
+		for _, tc := range []struct {
+			name      string
+			positions string
+			err       error
+		}{
+			{name: "position without an ID", positions: "[" + position("0", "1", "2") + "]", err: errInvalidFuturesID},
+			{name: "isolated and cross positions", positions: "[" + isolatedLong + "," + crossLong + "]", err: errMarginTypeAmbiguous},
+		} {
+			t.Run("position mode "+positionMode+" "+tc.name, func(t *testing.T) {
+				t.Parallel()
+				handler, requests := record(futuresHandler(t,
+					futuresRoute{method: http.MethodGet, path: "private/position/position_mode", data: positionMode},
+					futuresRoute{method: http.MethodGet, path: "private/position/open_positions", query: "symbol=BTC_USDT", data: tc.positions},
+				))
+				ex := testExchangeFor(t, handler, liveUnavailable)
+				_, err := submit(ex, order.Submit{Side: order.Sell, Type: order.Market, ReduceOnly: true})
+				assert.ErrorIs(t, err, tc.err, "submitFuturesOrder should return why the closing position stops the order")
+				sent, _ := requests()
+				assert.Equal(t, []string{readMode, readPositions}, sent, "a reducing order should not be placed when its position can't be named")
+			})
+		}
+	}
+
 	for _, tc := range []struct {
 		name    string
 		side    order.Side
@@ -1007,21 +1331,11 @@ func TestSubmitFuturesOrder(t *testing.T) {
 			err:     order.ErrSideIsInvalid,
 		},
 		{
-			name: "closed position without an ID",
-			side: order.Sell,
-			handler: func(t *testing.T) http.HandlerFunc {
-				t.Helper()
-				return futuresHandler(t, futuresRoute{method: http.MethodGet, path: "private/position/open_positions", query: "symbol=BTC_USDT", data: "[" + unidentifiedLong + "]"})
-			},
-			err: errInvalidFuturesID,
-		},
-		{
 			name: "order refused",
 			side: order.Buy,
-			handler: func(*testing.T) http.HandlerFunc {
-				return func(w http.ResponseWriter, _ *http.Request) {
-					_, _ = w.Write([]byte(`{"success":false,"code":2005,"message":"Insufficient balance"}`))
-				}
+			handler: func(t *testing.T) http.HandlerFunc {
+				t.Helper()
+				return refuse("private/order/create", futuresHandler(t))
 			},
 			err: errFuturesRequestFailed,
 		},
@@ -1038,16 +1352,7 @@ func TestSubmitFuturesOrder(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			ex := testExchangeFor(t, tc.handler(t), liveUnavailable)
-			_, err := ex.submitFuturesOrder(t.Context(), &order.Submit{
-				Exchange:   ex.Name,
-				AssetType:  asset.Futures,
-				Pair:       futuresTradablePair,
-				Side:       tc.side,
-				Type:       order.Market,
-				Amount:     1,
-				ReduceOnly: tc.name == "closed position without an ID",
-				MarginType: margin.Multi,
-			})
+			_, err := submit(ex, order.Submit{Side: tc.side, Type: order.Market, MarginType: margin.Multi})
 			assert.ErrorIs(t, err, tc.err, "submitFuturesOrder should return why the order was not placed")
 		})
 	}

@@ -1043,8 +1043,10 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 
 // submitFuturesOrder places a futures order sized in contracts. An order without a margin type is isolated, and an
 // isolated order opening a position without leverage takes the account's leverage for that side, since the venue
-// needs one and order submissions through RPC carry none. A reducing order names the position it closes, as the venue
-// recommends, and takes that position's margin mode when it names none
+// needs one and order submissions through RPC carry none. A reducing order names the position it closes, when one is
+// open, and takes that position's margin mode, not the isolated default, when it names none. On an account in one-way
+// position mode it is also sent reduce-only, since the venue documents that mode as opening or closing by the side
+// type and the position held
 func (e *Exchange) submitFuturesOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if s.QuoteAmount != 0 {
 		return nil, fmt.Errorf("%w: futures orders are sized in contracts by Amount", order.ErrAmountIsInvalid)
@@ -1066,7 +1068,14 @@ func (e *Exchange) submitFuturesOrder(ctx context.Context, s *order.Submit) (*or
 	}
 	leverage := uint64(s.Leverage)
 	var positionID uint64
+	var positionMode uint8
 	if s.ReduceOnly {
+		if positionMode, err = e.GetFuturesPositionMode(ctx); err != nil {
+			return nil, fmt.Errorf("reading the position mode for a reduce-only order: %w", err)
+		}
+		if positionMode != FuturesPositionModeHedge && positionMode != FuturesPositionModeOneWay {
+			return nil, fmt.Errorf("%w: %d, a reduce-only order is sent only in hedge or one-way mode", errInvalidPositionMode, positionMode)
+		}
 		position, err := e.futuresClosingPosition(ctx, s.Pair, side, s.MarginType)
 		if err != nil {
 			return nil, err
@@ -1093,6 +1102,10 @@ func (e *Exchange) submitFuturesOrder(ctx context.Context, s *order.Submit) (*or
 		OpenType:        openType,
 		ExternalOrderID: s.ClientOrderID,
 		PositionID:      positionID,
+	}
+	if positionMode == FuturesPositionModeOneWay {
+		req.PositionMode = FuturesPositionModeOneWay
+		req.ReduceOnly = true
 	}
 	if isFuturesLimitOrderType(orderType) {
 		req.Price = s.Price

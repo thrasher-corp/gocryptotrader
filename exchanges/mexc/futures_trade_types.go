@@ -98,7 +98,9 @@ type FuturesOrderRequest struct {
 	ProfitTrend  uint8 `json:"profitTrend,omitempty"`
 	PriceProtect uint8 `json:"priceProtect,omitempty"`
 	PositionMode uint8 `json:"positionMode,omitempty"`
-	ReduceOnly   bool  `json:"reduceOnly,omitempty"`
+	// ReduceOnly applies in one-way position mode only, where an order opens or closes by its side type and the
+	// position held; in hedge mode the close sides reduce
+	ReduceOnly bool `json:"reduceOnly,omitempty"`
 	// MarketCeiling opens a position with all of the available balance
 	MarketCeiling bool `json:"marketCeiling,omitempty"`
 	FlashClose    bool `json:"flashClose,omitempty"`

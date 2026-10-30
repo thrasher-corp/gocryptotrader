@@ -29,7 +29,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 + Order, order book and trade amounts are in contracts, as the venue counts them; a contract's size is in its details, the `Multiplier` of `GetFuturesContractDetails`
 + Ticker volumes, candle volumes and open interest are restated in currency with each contract's size
 + An order without a margin type is isolated, and an isolated order opening a position without leverage takes the account's leverage for that side of the contract
-+ A reduce-only order names the position it closes, and takes that position's margin type when it names none
++ A reduce-only order names the position it closes, and takes that position's margin type when it names none. It reads the account's position mode first and, in one-way mode, which opens or closes by the order's side type and the position held, is also sent reduce-only
 + `GetHistoricTrades` is not supported for futures, since the venue serves only the latest trades, which `GetRecentTrades` returns
 
 ### Subscriptions
