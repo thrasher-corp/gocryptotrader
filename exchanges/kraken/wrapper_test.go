@@ -5,6 +5,7 @@ import (
 	"context"
 	"io"
 	"maps"
+	"math"
 	"net/http"
 	"net/url"
 	"os"
@@ -2067,6 +2068,26 @@ func TestSaveFuturesBalances(t *testing.T) {
 	assert.Equal(t, expStored, ex.futuresWalletsStored[*creds], "saveFuturesBalances should record the read each wallet it stored came from")
 	ex.futuresBalancesMu.Unlock()
 
+	// The balances feed's word that the multi-collateral wallet is the unified wallet empties it, whatever was stored
+	// after the read was requested, as spot lists its funds
+	ex.futuresBalancesMu.Lock()
+	ex.futuresUnifiedWallets = map[accounts.Credentials]bool{*creds: true}
+	ex.futuresBalancesMu.Unlock()
+	unifiedRead := accounts.SubAccounts{{ID: "flex", AssetType: asset.Futures, Balances: accounts.CurrencyBalances{currency.USD: {Currency: currency.USD, Total: 10, Free: 10}}}}
+	require.NoError(t, ex.saveFuturesBalances(t.Context(), requested, unifiedRead), "saveFuturesBalances must not error for the unified wallet")
+	assert.Equal(t, map[string]accounts.CurrencyBalances{"flex": {}}, futuresWalletBalances(unifiedRead), "saveFuturesBalances should replace the read's unified wallet with the emptied one it stores")
+	assert.Empty(t, storedFuturesWallets(t, ex)["flex"], "saveFuturesBalances should store the unified wallet emptied")
+	ex.futuresBalancesMu.Lock()
+	assert.Equal(t, futuresWalletStores{currencies: map[currency.Code]uint64{}}, *ex.futuresWalletStored(creds, "flex"),
+		"saveFuturesBalances should forget the reads and messages the emptied wallet's balances came from")
+	ex.futuresBalancesMu.Unlock()
+	onceCtx := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: "once-key", Secret: testSecret})
+	onceCreds, err := noCreds.GetCredentials(onceCtx)
+	require.NoError(t, err, "GetCredentials must not error for context credentials")
+	noCreds.futuresUnifiedWallets = map[accounts.Credentials]bool{*onceCreds: true}
+	assert.ErrorIs(t, noCreds.saveFuturesBalances(&credentialsOnceContext{Context: onceCtx}, requested, accounts.SubAccounts{accounts.NewSubAccount(asset.Futures, "flex")}),
+		exchange.ErrCredentialsAreEmpty, "saveFuturesBalances should return the error storing the unified wallet emptied")
+
 	unsupported := accounts.SubAccounts{{ID: "unsupported", AssetType: asset.Empty, Balances: accounts.CurrencyBalances{currency.USD: {Total: 10, Free: 10}}}}
 	assert.ErrorIs(t, ex.saveFuturesBalances(t.Context(), requested, unsupported), asset.ErrNotSupported, "saveFuturesBalances should return the error saving the read")
 	ex.futuresBalancesMu.Lock()
@@ -3631,6 +3652,32 @@ func TestSubmitFuturesOrder(t *testing.T) {
 	assert.ErrorContains(t, err, "insufficientAvailableFunds", "the error should carry Kraken's status")
 }
 
+func TestSubmitSpotOrderInvalidSide(t *testing.T) {
+	t.Parallel()
+	ex := newHTTPTestExchange(t, func(_ http.ResponseWriter, r *http.Request) {
+		assert.Failf(t, "no spot order should be placed", "%s", r.URL.Path)
+	})
+	_, err := ex.submitSpotOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: spotTestPair, AssetType: asset.Spot, Type: order.Limit, Side: order.UnknownSide, Price: 80000, Amount: 0.5})
+	assert.ErrorIs(t, err, order.ErrSideIsInvalid, "submitSpotOrder should reject a side that is neither long nor short")
+}
+
+func TestSubmitFuturesOrderInvalidSide(t *testing.T) {
+	t.Parallel()
+	ex := newHTTPTestExchange(t, func(_ http.ResponseWriter, r *http.Request) {
+		assert.Failf(t, "no futures order should be placed", "%s", r.URL.Path)
+	})
+	_, err := ex.submitFuturesOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: futuresTestPair, AssetType: asset.Futures, Type: order.Limit, Side: order.UnknownSide, Price: 80000, Amount: 0.001})
+	assert.ErrorIs(t, err, order.ErrSideIsInvalid, "submitFuturesOrder should reject a side that is neither long nor short")
+}
+
+func TestSubmitFuturesOrderWithoutOrderID(t *testing.T) {
+	t.Parallel()
+	ex := newOrdersRequestCheckExchange(t, "/derivatives/api/v3/sendorder", "limitPrice=80000&orderType=lmt&side=buy&size=0.001&symbol=PF_XBTUSD",
+		`{"result":"success","sendStatus":{"orderEvents":[],"receivedTime":"2026-10-09T08:33:01.104Z","status":"placed"},"serverTime":"2026-10-09T08:33:01.107Z"}`)
+	_, err := ex.submitFuturesOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: futuresTestPair, AssetType: asset.Futures, Type: order.Limit, Side: order.Buy, Price: 80000, Amount: 0.001})
+	assert.ErrorIs(t, err, order.ErrOrderIDNotSet, "submitFuturesOrder should reject a placement Kraken reports without an order ID")
+}
+
 func TestFuturesOrderTypeString(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
@@ -3883,14 +3930,16 @@ func TestModifyOrder(t *testing.T) {
 			name:   "futures order's prices",
 			modify: &order.Modify{Exchange: e.Name, ClientOrderID: "gct-stop-3", Type: order.StopLimit, Side: order.Sell, AssetType: asset.Futures, Pair: futuresTestPair, Price: 79000, TriggerPrice: 79100},
 			exp: &order.ModifyResponse{
-				Exchange:      e.Name,
-				ClientOrderID: "gct-stop-3",
-				Pair:          futuresTestPair,
-				Type:          order.StopLimit,
-				Side:          order.Sell,
-				AssetType:     asset.Futures,
-				Price:         79000,
-				TriggerPrice:  79100,
+				Exchange:        e.Name,
+				ClientOrderID:   "gct-stop-3",
+				Pair:            futuresTestPair,
+				Type:            order.StopLimit,
+				Side:            order.Sell,
+				AssetType:       asset.Futures,
+				Price:           79000,
+				Amount:          0.0005,
+				TriggerPrice:    79100,
+				RemainingAmount: 0.0003,
 			},
 		},
 	} {
@@ -6238,6 +6287,140 @@ func TestSubmitOrderQuoteSizedMarketBuy(t *testing.T) {
 	assert.Equal(t, exp, resp, "SubmitOrder should place a quote-sized market buy over REST while the private websocket is connected")
 }
 
+func TestSubmitOrderLeveragedSpotOrder(t *testing.T) {
+	t.Parallel()
+	ex := newOrdersRequestCheckExchange(t, "/0/private/AddOrder",
+		`{"leverage":"3","ordertype":"limit","pair":"XBTUSD","price":"80000","type":"buy","volume":"0.5"}`,
+		`{"error":[],"result":{"descr":{"order":"buy 0.50000000 XBTUSD @ limit 80000.0 with 3:1 leverage"},"txid":["OLV3TB-ZQ9KD-4XWBRM"]}}`)
+	// Without round trips the mock fails the test on any websocket request
+	useOrdersTestWebsocket(t, ex)
+	submitted := time.Now()
+	resp, err := ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: spotTestPair, AssetType: asset.Spot, Type: order.Limit, Side: order.Buy, Price: 80000, Amount: 0.5, Leverage: 3})
+	require.NoError(t, err, "SubmitOrder must not error")
+	ordersClearSubmitTimes(t, resp, submitted)
+	exp := &order.SubmitResponse{
+		Exchange:  ex.Name,
+		Type:      order.Limit,
+		Side:      order.Buy,
+		Pair:      spotTestPair,
+		AssetType: asset.Spot,
+		Leverage:  3,
+		Price:     80000,
+		Amount:    0.5,
+		Status:    order.New,
+		OrderID:   "OLV3TB-ZQ9KD-4XWBRM",
+	}
+	assert.Equal(t, exp, resp, "SubmitOrder should place a leveraged spot order over REST, which takes its leverage, while the private websocket is connected")
+}
+
+func TestSubmitOrderSpotLeverageRejected(t *testing.T) {
+	t.Parallel()
+	ex := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+		assert.Failf(t, "no spot order should be placed", "%s", r.URL.Path)
+		_, _ = w.Write([]byte(`{"error":["EGeneral:Invalid arguments"]}`))
+	})
+	for _, leverage := range []float64{0.5, 2.5, -2, math.NaN(), math.Inf(1), math.MaxUint32 + 1} {
+		_, err := ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: spotTestPair, AssetType: asset.Spot, Type: order.Limit, Side: order.Buy, Price: 80000, Amount: 0.5, Leverage: leverage})
+		assert.ErrorIsf(t, err, errInvalidLeverage, "SubmitOrder should reject leverage %v, as Kraken takes a whole number", leverage)
+	}
+	_, err := ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: spotTestPair, AssetType: asset.Spot, Type: order.Market, Side: order.Buy, QuoteAmount: 100, Leverage: 2})
+	assert.ErrorIs(t, err, order.ErrSubmitLeverageNotSupported, "SubmitOrder should reject a leveraged market buy sized in the quote currency, which Kraken does not take")
+}
+
+func TestAddFuturesExecutions(t *testing.T) {
+	t.Parallel()
+	received := time.Date(2026, 10, 30, 1, 2, 3, 0, time.UTC)
+	// execution is an execution of an order of quantity of which filled had executed before it
+	execution := func(orderID, executionID string, quantity, filled, amount, price float64) FuturesOrderEvent {
+		return FuturesOrderEvent{
+			Type:                "EXECUTION",
+			ExecutionID:         executionID,
+			ExecutionPrice:      price,
+			ExecutedAmount:      amount,
+			OrderPriorExecution: &FuturesOrder{OrderID: orderID, Quantity: quantity, FilledQuantity: filled},
+		}
+	}
+	placed := func(quantity, filled float64) FuturesOrderEvent {
+		return FuturesOrderEvent{Type: "PLACE", Order: &FuturesOrder{OrderID: "o-1", Quantity: quantity, FilledQuantity: filled}}
+	}
+	executedTrade := func(executionID string, amount, price float64) order.TradeHistory {
+		return order.TradeHistory{TID: executionID, Price: price, Amount: amount, Exchange: "Kraken", Type: order.Limit, Side: order.Buy, Timestamp: received}
+	}
+	for _, tc := range []struct {
+		name      string
+		orderType string
+		events    []FuturesOrderEvent
+		exp       order.SubmitResponse
+	}{
+		{name: "placed without executing", orderType: "lmt", events: []FuturesOrderEvent{placed(0.3, 0)}, exp: order.SubmitResponse{Amount: 0.3, Status: order.New}},
+		{
+			name:      "filled by two executions, which add up as decimals",
+			orderType: "lmt",
+			events:    []FuturesOrderEvent{execution("o-1", "e-1", 0.3, 0, 0.1, 100), execution("o-1", "e-2", 0.3, 0.1, 0.2, 103)},
+			exp: order.SubmitResponse{
+				Amount:               0.3,
+				ExecutedAmount:       0.3,
+				AverageExecutedPrice: 102,
+				Status:               order.Filled,
+				Trades:               []order.TradeHistory{executedTrade("e-1", 0.1, 100), executedTrade("e-2", 0.2, 103)},
+			},
+		},
+		{
+			name:      "partly executed, the rest resting in the book",
+			orderType: "lmt",
+			events:    []FuturesOrderEvent{execution("o-1", "e-1", 0.3, 0, 0.1, 100), placed(0.3, 0.1)},
+			exp:       order.SubmitResponse{Amount: 0.3, ExecutedAmount: 0.1, RemainingAmount: 0.2, AverageExecutedPrice: 100, Status: order.PartiallyFilled, Trades: []order.TradeHistory{executedTrade("e-1", 0.1, 100)}},
+		},
+		{
+			name:      "immediate or cancel order partly executed",
+			orderType: "ioc",
+			events:    []FuturesOrderEvent{execution("o-1", "e-1", 0.3, 0, 0.1, 100)},
+			exp:       order.SubmitResponse{Amount: 0.3, ExecutedAmount: 0.1, RemainingAmount: 0.2, AverageExecutedPrice: 100, Status: order.PartiallyFilledCancelled, Trades: []order.TradeHistory{executedTrade("e-1", 0.1, 100)}},
+		},
+		{
+			name:      "market order partly executed",
+			orderType: "mkt",
+			events:    []FuturesOrderEvent{execution("o-1", "e-1", 0.3, 0, 0.1, 100)},
+			exp:       order.SubmitResponse{Amount: 0.3, ExecutedAmount: 0.1, RemainingAmount: 0.2, AverageExecutedPrice: 100, Status: order.PartiallyFilledCancelled, Trades: []order.TradeHistory{executedTrade("e-1", 0.1, 100)}},
+		},
+		{
+			name:      "executions of other orders",
+			orderType: "lmt",
+			events:    []FuturesOrderEvent{execution("o-2", "e-1", 0.3, 0, 0.1, 100), {Type: "EXECUTION", ExecutionID: "e-2", ExecutedAmount: 0.1, ExecutionPrice: 100}, placed(0.3, 0)},
+			exp:       order.SubmitResponse{Amount: 0.3, Status: order.New},
+		},
+		// Kraken reports a reduce-only order less what it took off to fit the position, in both events of the
+		// recorded reply that also give the reduction
+		{
+			name:      "reduce-only order reduced, then executed in part, its rest resting",
+			orderType: "lmt",
+			events: []FuturesOrderEvent{
+				{Type: "EXECUTION", ExecutionID: "e-1", ExecutionPrice: 100, ExecutedAmount: 0.1, TakerReducedQuantity: 0.1, OrderPriorExecution: &FuturesOrder{OrderID: "o-1", Quantity: 0.2}},
+				{Type: "PLACE", Order: &FuturesOrder{OrderID: "o-1", Quantity: 0.2, FilledQuantity: 0.1}, ReducedQuantity: 0.1},
+			},
+			exp: order.SubmitResponse{Amount: 0.2, ExecutedAmount: 0.1, RemainingAmount: 0.1, AverageExecutedPrice: 100, Status: order.PartiallyFilled, Trades: []order.TradeHistory{executedTrade("e-1", 0.1, 100)}},
+		},
+		{
+			name:      "reduce-only order reduced, then executed in full",
+			orderType: "lmt",
+			events:    []FuturesOrderEvent{{Type: "EXECUTION", ExecutionID: "e-1", ExecutionPrice: 100, ExecutedAmount: 0.2, TakerReducedQuantity: 0.1, OrderPriorExecution: &FuturesOrder{OrderID: "o-1", Quantity: 0.2}}},
+			exp:       order.SubmitResponse{Amount: 0.2, ExecutedAmount: 0.2, AverageExecutedPrice: 100, Status: order.Filled, Trades: []order.TradeHistory{executedTrade("e-1", 0.2, 100)}},
+		},
+		{
+			name:      "reduce-only order reduced as placed, without executing",
+			orderType: "lmt",
+			events:    []FuturesOrderEvent{{Type: "PLACE", Order: &FuturesOrder{OrderID: "o-1", Quantity: 0.2}, ReducedQuantity: 0.1}},
+			exp:       order.SubmitResponse{Amount: 0.2, Status: order.New},
+		},
+		{name: "no events about the order", orderType: "stp", exp: order.SubmitResponse{Amount: 0.3, Status: order.New}},
+	} {
+		resp := &order.SubmitResponse{Exchange: "Kraken", Type: order.Limit, Side: order.Buy, Amount: 0.3, Status: order.New, OrderID: "o-1"}
+		addFuturesExecutions(resp, tc.orderType, &FuturesSendOrderStatus{OrderID: "o-1", Status: "placed", ReceivedTime: received, OrderEvents: tc.events})
+		tc.exp.Exchange, tc.exp.Type, tc.exp.Side, tc.exp.OrderID = "Kraken", order.Limit, order.Buy, "o-1"
+		assert.Equalf(t, &tc.exp, resp, "addFuturesExecutions should add what an order %s executed as placed", tc.name)
+	}
+}
+
 func TestSubmitOrderWebsocketToken(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
@@ -6355,6 +6538,17 @@ func TestSubmitOrderUntriggeredOrders(t *testing.T) {
 	spotPlaced := func(txid, descr string) string {
 		return `{"error":[],"result":{"descr":{"order":"` + descr + `"},"txid":["` + txid + `"]}}`
 	}
+	// executed is the trade futuresExecuted reports, its exchange set by each test
+	executed := func(orderType order.Type, side order.Side, price, amount float64) []order.TradeHistory {
+		return []order.TradeHistory{{
+			TID:       "0c7d1e5a-3f2b-4a96-8e1d-6b4c9a2f7e30",
+			Price:     price,
+			Amount:    amount,
+			Type:      orderType,
+			Side:      side,
+			Timestamp: time.Date(2026, 10, 9, 8, 34, 12, 551000000, time.UTC),
+		}}
+	}
 	for _, tc := range []struct {
 		name    string
 		submit  *order.Submit
@@ -6451,7 +6645,18 @@ func TestSubmitOrderUntriggeredOrders(t *testing.T) {
 			path:    "/derivatives/api/v3/sendorder",
 			request: "limitPrice=81600&orderType=ioc&side=buy&size=0.0005&symbol=PF_XBTUSD",
 			reply:   futuresExecuted("1cd7f466-fba0-4fbc-84e6-6c72fe725b6f", "", "ioc", "buy", 0.0005, 81600, 81588, false),
-			exp:     &order.SubmitResponse{Type: order.Limit, Side: order.Buy, TimeInForce: order.ImmediateOrCancel, Price: 81600, Amount: 0.0005, Status: order.New, OrderID: "1cd7f466-fba0-4fbc-84e6-6c72fe725b6f"},
+			exp: &order.SubmitResponse{
+				Type:                 order.Limit,
+				Side:                 order.Buy,
+				TimeInForce:          order.ImmediateOrCancel,
+				Price:                81600,
+				Amount:               0.0005,
+				ExecutedAmount:       0.0005,
+				AverageExecutedPrice: 81588,
+				Status:               order.Filled,
+				OrderID:              "1cd7f466-fba0-4fbc-84e6-6c72fe725b6f",
+				Trades:               executed(order.Limit, order.Buy, 81588, 0.0005),
+			},
 		},
 		{
 			name:    "futures fill or kill order",
@@ -6459,7 +6664,18 @@ func TestSubmitOrderUntriggeredOrders(t *testing.T) {
 			path:    "/derivatives/api/v3/sendorder",
 			request: "limitPrice=81600&orderType=fok&side=buy&size=0.0005&symbol=PF_XBTUSD",
 			reply:   futuresExecuted("25f378e1-7598-40f4-a5e0-0ac669661081", "", "fok", "buy", 0.0005, 81600, 81591, false),
-			exp:     &order.SubmitResponse{Type: order.Limit, Side: order.Buy, TimeInForce: order.FillOrKill, Price: 81600, Amount: 0.0005, Status: order.New, OrderID: "25f378e1-7598-40f4-a5e0-0ac669661081"},
+			exp: &order.SubmitResponse{
+				Type:                 order.Limit,
+				Side:                 order.Buy,
+				TimeInForce:          order.FillOrKill,
+				Price:                81600,
+				Amount:               0.0005,
+				ExecutedAmount:       0.0005,
+				AverageExecutedPrice: 81591,
+				Status:               order.Filled,
+				OrderID:              "25f378e1-7598-40f4-a5e0-0ac669661081",
+				Trades:               executed(order.Limit, order.Buy, 81591, 0.0005),
+			},
 		},
 		{
 			name:    "futures reduce only market order with a client order ID",
@@ -6467,7 +6683,18 @@ func TestSubmitOrderUntriggeredOrders(t *testing.T) {
 			path:    "/derivatives/api/v3/sendorder",
 			request: "cliOrdId=gct-market-1&orderType=mkt&reduceOnly=true&side=sell&size=0.001&symbol=PF_XBTUSD",
 			reply:   futuresExecuted("4a762a34-dffa-48db-b7f1-4cce43a94fa1", "gct-market-1", "ioc", "sell", 0.001, 80784, 81590, true),
-			exp:     &order.SubmitResponse{Type: order.Market, Side: order.Sell, ReduceOnly: true, Amount: 0.001, ClientOrderID: "gct-market-1", Status: order.Filled, OrderID: "4a762a34-dffa-48db-b7f1-4cce43a94fa1"},
+			exp: &order.SubmitResponse{
+				Type:                 order.Market,
+				Side:                 order.Sell,
+				ReduceOnly:           true,
+				Amount:               0.001,
+				ExecutedAmount:       0.001,
+				ClientOrderID:        "gct-market-1",
+				AverageExecutedPrice: 81590,
+				Status:               order.Filled,
+				OrderID:              "4a762a34-dffa-48db-b7f1-4cce43a94fa1",
+				Trades:               executed(order.Market, order.Sell, 81590, 0.001),
+			},
 		},
 		{
 			name:    "futures post only order that would execute",
@@ -6497,7 +6724,10 @@ func TestSubmitOrderUntriggeredOrders(t *testing.T) {
 			require.NoError(t, err, "SubmitOrder must not error")
 			ordersClearSubmitTimes(t, resp, submitted)
 			tc.exp.Exchange, tc.exp.Pair, tc.exp.AssetType = ex.Name, tc.submit.Pair, tc.submit.AssetType
-			assert.Equal(t, tc.exp, resp, "SubmitOrder should place the order without a trigger reference")
+			for i := range tc.exp.Trades {
+				tc.exp.Trades[i].Exchange = ex.Name
+			}
+			assert.Equal(t, tc.exp, resp, "SubmitOrder should place the order without a trigger reference, with what it executed as placed")
 		})
 	}
 }
@@ -6682,8 +6912,51 @@ func TestModifyOrderFuturesSize(t *testing.T) {
 				Price:         81520,
 				Amount:        0.0006,
 			}
-			assert.Equal(t, exp, resp, "ModifyOrder should set the futures order's total size, as a spot amend does")
+			// An edit that filled the order is reported filled, and an edited order's remaining size is the edited order's
+			if tc.status == "filled" {
+				exp.Status = order.Filled
+			} else {
+				exp.RemainingAmount = 0.0004
+			}
+			assert.Equal(t, exp, resp, "ModifyOrder should set the futures order's total size, as a spot amend does, and return what remains of it")
 		})
+	}
+}
+
+func TestAddFuturesEditedOrder(t *testing.T) {
+	t.Parallel()
+	edited := func(orderID, clientOrderID string, quantity, filled float64) FuturesOrderEvent {
+		return FuturesOrderEvent{Type: "EDIT", NewOrder: &FuturesOrder{OrderID: orderID, ClientOrderID: clientOrderID, Quantity: quantity, FilledQuantity: filled}}
+	}
+	executed := func(orderID string, quantity, filled, amount float64) FuturesOrderEvent {
+		return FuturesOrderEvent{Type: "EXECUTION", ExecutedAmount: amount, OrderPriorExecution: &FuturesOrder{OrderID: orderID, Quantity: quantity, FilledQuantity: filled}}
+	}
+	for _, tc := range []struct {
+		name          string
+		orderID       string
+		clientOrderID string
+		// requested is the order's total size the modification asked for, 0 for one leaving the size as it was
+		requested float64
+		status    string
+		events    []FuturesOrderEvent
+		exp       order.ModifyResponse
+	}{
+		{name: "edited, partly filled", orderID: "o-1", requested: 0.7, status: "edited", events: []FuturesOrderEvent{edited("o-1", "", 0.7, 0.4)}, exp: order.ModifyResponse{Amount: 0.7, RemainingAmount: 0.3}},
+		{name: "edited by its client order ID", clientOrderID: "c-1", requested: 0.7, status: "edited", events: []FuturesOrderEvent{edited("o-1", "c-1", 0.7, 0.4)}, exp: order.ModifyResponse{Amount: 0.7, RemainingAmount: 0.3}},
+		// Kraken takes what does not fit the position off a reduce-only order
+		{name: "edited and reduced to fit the position", orderID: "o-1", requested: 0.7, status: "edited", events: []FuturesOrderEvent{edited("o-1", "", 0.6, 0.4)}, exp: order.ModifyResponse{Amount: 0.6, RemainingAmount: 0.2}},
+		{name: "edited in price alone", orderID: "o-1", status: "edited", events: []FuturesOrderEvent{edited("o-1", "", 0.7, 0.4)}, exp: order.ModifyResponse{Amount: 0.7, RemainingAmount: 0.3}},
+		{name: "edited, then executing in part", orderID: "o-1", requested: 0.7, status: "edited", events: []FuturesOrderEvent{edited("o-1", "", 0.7, 0.4), executed("o-1", 0.7, 0.4, 0.1)}, exp: order.ModifyResponse{Amount: 0.7, RemainingAmount: 0.2}},
+		{name: "edited down to what it filled", orderID: "o-1", requested: 0.4, status: "edited", events: []FuturesOrderEvent{edited("o-1", "", 0.4, 0.4)}, exp: order.ModifyResponse{Amount: 0.4, Status: order.Filled}},
+		{name: "filled by the edit", orderID: "o-1", requested: 0.7, status: "filled", events: []FuturesOrderEvent{edited("o-1", "", 0.7, 0.4), executed("o-1", 0.7, 0.4, 0.3)}, exp: order.ModifyResponse{Amount: 0.7, Status: order.Filled}},
+		{name: "filled by the edit, without events", orderID: "o-1", requested: 0.7, status: "filled", exp: order.ModifyResponse{Amount: 0.7, Status: order.Filled}},
+		{name: "edited, the events about another order", orderID: "o-1", requested: 0.7, status: "edited", events: []FuturesOrderEvent{edited("o-2", "", 0.6, 0.4), {Type: "PLACE", Order: &FuturesOrder{OrderID: "o-1", Quantity: 1}}}, exp: order.ModifyResponse{Amount: 0.7}},
+		{name: "edited without events", orderID: "o-1", requested: 0.7, status: "edited", exp: order.ModifyResponse{Amount: 0.7}},
+	} {
+		mod := &order.ModifyResponse{OrderID: tc.orderID, ClientOrderID: tc.clientOrderID, Amount: tc.requested}
+		addFuturesEditedOrder(mod, &FuturesEditOrderStatus{Status: tc.status, OrderEvents: tc.events})
+		tc.exp.OrderID, tc.exp.ClientOrderID = tc.orderID, tc.clientOrderID
+		assert.Equalf(t, &tc.exp, mod, "addFuturesEditedOrder should add the order an edit %s leaves", tc.name)
 	}
 }
 

@@ -1,6 +1,7 @@
 package kraken
 
 import (
+	"slices"
 	"sync"
 	"time"
 
@@ -56,10 +57,23 @@ type futuresOrderState struct {
 	// counted before that fill add up to
 	filledInFull    bool
 	fillsBeforeLast float64
+	// reports holds each quantity and filled quantity open_orders has reported of the order together, while a later fill
+	// can match it. Its report of a fill carries the quantity in force when the order filled, which the fill's remaining
+	// quantity is of
+	reports []futuresOrderReport
+	// reportedAhead is set once open_orders has reported more of the order filled than the fills counted add up to,
+	// which a fill that went unseen explains as well as one the fills feed has yet to report. A later fill clears it
+	// once fillsComplete takes the fills counted as complete, as it does once the fill a report was ahead of arrives
+	reportedAhead bool
 	// reason is why open_orders removed the order, empty while it has not
 	reason string
 	// updated is when the feeds last reported the order
 	updated time.Time
+}
+
+// futuresOrderReport is an order's quantity and filled quantity as one open_orders report gave them
+type futuresOrderReport struct {
+	quantity, filled float64
 }
 
 // get returns what the feeds have reported of an order
@@ -87,6 +101,7 @@ func (t *futuresOrderTracker) snapshot(conn websocket.Connection, orders []Webso
 		listed[orders[i].OrderID] = true
 		s := t.record(conn, &orders[i])
 		s.liveOnly = s.liveOnly && s.filledInFull
+		s.forgetReports()
 	}
 	for id, s := range t.orders {
 		switch {
@@ -159,6 +174,11 @@ func (t *futuresOrderTracker) update(conn websocket.Connection, o *WebsocketFutu
 func (t *futuresOrderTracker) record(conn websocket.Connection, o *WebsocketFuturesOpenOrder) *futuresOrderState {
 	s := t.state(o.OrderID, conn)
 	s.quantity, s.filled, s.open, s.reason = o.Quantity, o.Filled, true, ""
+	if r := (futuresOrderReport{o.Quantity, o.Filled}); !slices.Contains(s.reports, r) {
+		s.reports = append(s.reports, r)
+		s.forgetReports()
+	}
+	s.reportedAhead = s.reportedAhead || o.Filled > s.fillQuantity
 	s.updated = time.Now()
 	return s
 }
@@ -193,9 +213,36 @@ func (t *futuresOrderTracker) fill(conn websocket.Connection, f *WebsocketFuture
 		}
 		s.fillTotal = s.fillTotal.Add(decimal.MustFromFloat(f.Quantity))
 		s.fillQuantity = s.fillTotal.InexactFloat64()
+		s.reportedAhead = s.reportedAhead && !s.fillsComplete(f.RemainingOrderQuantity)
+		s.forgetReports()
 	}
 	s.updated = time.Now()
 	return *s
+}
+
+// fillsComplete reports whether the fills counted, up to one leaving remaining of the order, reach what open_orders
+// last reported filled and match its report of that fill: one of the order filled by what they add up to, at a quantity
+// of which the fill leaves the rest. An unseen fill is in every filled quantity open_orders reports after it, so fills
+// that miss one match no report, unless they add up to an earlier report's filled quantity and an amendment
+// open_orders has yet to report makes the fill's remaining quantity agree with that report's quantity
+func (s *futuresOrderState) fillsComplete(remaining float64) bool {
+	return s.fillQuantity >= s.filled && slices.ContainsFunc(s.reports, func(r futuresOrderReport) bool {
+		return decimal.MustFromFloat(r.filled).Equal(s.fillTotal) && decimal.MustFromFloat(r.quantity).Sub(decimal.MustFromFloat(remaining)).Equal(s.fillTotal)
+	})
+}
+
+// forgetReports forgets the reports no later fill can match: every report once the order's fills are not all taken as
+// reported as they happened, as fillsMakeUpQuantity then never takes them, and otherwise each report of what the fills
+// counted already add up to, or less
+func (s *futuresOrderState) forgetReports() {
+	if s.liveOnly {
+		s.reports = slices.DeleteFunc(s.reports, func(r futuresOrderReport) bool {
+			return !decimal.MustFromFloat(r.filled).GreaterThan(s.fillTotal)
+		})
+	}
+	if !s.liveOnly || len(s.reports) == 0 {
+		s.reports = nil
+	}
 }
 
 // state returns the record of an order reported on conn, making one when there is none
@@ -275,21 +322,28 @@ func (s *futuresOrderState) fillStatus() order.Status {
 	}
 }
 
+// fillsMakeUpQuantity reports whether an order whose fills the tracker takes as all reported as they happened, and
+// which they have filled in full, takes its quantity from them, as open_orders can report an amendment of its quantity
+// after the fill that left nothing remaining. The fills feed reports an order's fills in turn, so open_orders reporting
+// more of it filled than the fills before that one add up to shows that a fill went unseen, as one of an order placed
+// between the two feeds' snapshots can. Reporting more filled than the fills counted at the time can show that too, so
+// the reported quantity is taken unless fillsComplete takes a later fill's fills as complete, as when the fills feed
+// was only behind, or the fills reach the reported quantity
+func (s *futuresOrderState) fillsMakeUpQuantity() bool {
+	return s.liveOnly && s.filledInFull && s.fillsBeforeLast >= s.filled && (!s.reportedAhead || s.fillQuantity >= s.quantity)
+}
+
 // addTo adds to an order update the order's quantities, as far as the feeds have reported them. An order whose fills
-// the tracker takes as all reported as they happened, and which they have filled in full, gets them from its fills, as
-// open_orders can report an amendment of its quantity after the fill that left nothing remaining, unless open_orders has
-// reported more of it filled than the fills before that one add up to. The fills feed reports an order's fills in turn,
-// so such a report either already holds that fill, and with it the order's quantity, or shows that a fill went unseen,
-// as one of an order placed between the two feeds' snapshots can. Any other order whose
-// quantity open_orders has reported, and which the tracker has not forgotten since, gets its quantity and executed
-// quantity; the rest, such as a market order, which rests in no book, get none, as fills alone tell neither an order's
-// quantity nor whether earlier fills were missed. The order's average price, cost and fee are left unset, each fill's
-// price and fee staying on its trade: the fills counted can add up to all the feeds have reported filled while fills
-// from before the feeds subscribed, which the fills snapshot can leave out, are missing, as when a fill is reported
-// before open_orders reports it, and Kraken's futures order reads carry no totals that would correct partial ones
+// make up its quantity gets them from its fills. Any other order whose quantity open_orders has reported, and which the
+// tracker has not forgotten since, gets its quantity and executed quantity; the rest, such as a market order, which
+// rests in no book, get none, as fills alone tell neither an order's quantity nor whether earlier fills were missed.
+// The order's average price, cost and fee are left unset, each fill's price and fee staying on its trade: the fills
+// counted can add up to all the feeds have reported filled while fills from before the feeds subscribed, which the
+// fills snapshot can leave out, are missing, as when a fill is reported before open_orders reports it, and Kraken's
+// futures order reads carry no totals that would correct partial ones
 func (s *futuresOrderState) addTo(d *order.Detail) {
 	switch {
-	case s.liveOnly && s.filledInFull && s.fillsBeforeLast >= s.filled:
+	case s.fillsMakeUpQuantity():
 		d.Amount, d.ExecutedAmount, d.RemainingAmount = s.fillQuantity, s.fillQuantity, 0
 	case s.quantity > 0:
 		d.Amount, d.ExecutedAmount = s.quantity, s.executed()

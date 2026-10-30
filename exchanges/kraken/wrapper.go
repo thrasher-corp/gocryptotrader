@@ -44,6 +44,7 @@ var (
 	errDepositMethodUnknown       = errors.New("deposit method not offered")
 	errNoWithdrawalMethods        = errors.New("no withdrawal methods")
 	errTradeFeeMissing            = errors.New("trade fee missing")
+	errInvalidLeverage            = errors.New("invalid leverage")
 )
 
 // offlineTakerFee is the taker fee of Kraken Pro's lowest volume tier, the most a spot trade is charged
@@ -631,7 +632,8 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, a asset.Item) (acc
 			subAccts = append(subAccts, margin)
 		}
 		e.saveFuturesMarginCurrencies(creds, requested, marginCurrencies)
-		return subAccts, e.saveFuturesBalances(ctx, requested, subAccts)
+		err = e.saveFuturesBalances(ctx, requested, subAccts)
+		return subAccts, err
 	default:
 		return nil, fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
@@ -662,7 +664,8 @@ func (e *Exchange) saveSpotBalances(ctx context.Context, requested uint64, subAc
 
 // saveFuturesBalances stores the futures wallets a read numbered requested in balancesSequence returned, except for
 // balances stored after it was requested: the balances feed stores them as they change and other reads run
-// concurrently, so a read that started first can finish last
+// concurrently, so a read that started first can finish last. A multi-collateral wallet storeUnifiedFlexWallet stores
+// emptied, as the spot balances list the unified wallet's funds, replaces the read's in subAccts
 func (e *Exchange) saveFuturesBalances(ctx context.Context, requested uint64, subAccts accounts.SubAccounts) error {
 	creds, err := e.GetCredentials(ctx)
 	if err != nil {
@@ -671,7 +674,17 @@ func (e *Exchange) saveFuturesBalances(ctx context.Context, requested uint64, su
 	e.futuresBalancesMu.Lock()
 	defer e.futuresBalancesMu.Unlock()
 	save := make(accounts.SubAccounts, 0, len(subAccts))
-	for _, read := range subAccts {
+	for i, read := range subAccts {
+		if read.ID == "flex" {
+			unified, err := e.storeUnifiedFlexWallet(ctx, creds)
+			if err != nil {
+				return err
+			}
+			if unified != nil {
+				subAccts[i] = unified
+				continue
+			}
+		}
 		s, err := e.futuresWalletToStore(creds, requested, read)
 		if err != nil {
 			return err
@@ -717,6 +730,25 @@ func (e *Exchange) futuresWalletToStore(creds *accounts.Credentials, n uint64, w
 		}
 	}
 	return s, nil
+}
+
+// storeUnifiedFlexWallet stores the multi-collateral wallet emptied, returning it, while the balances feed last
+// reported it as the credentials' unified wallet and spot is enabled, so that spot reads keep its funds current; it
+// returns nil otherwise, leaving the funds under futures. Balances stored for spot before it was disabled stay stored,
+// as any disabled asset's do. The emptied wallet replaces whatever balances were stored, however recently, and forgets
+// the reads and messages they came from, so they hold back none of the balances a separate wallet reports once the feed
+// reports it separate. futuresBalancesMu must be held
+func (e *Exchange) storeUnifiedFlexWallet(ctx context.Context, creds *accounts.Credentials) (*accounts.SubAccount, error) {
+	if !e.futuresUnifiedWallets[*creds] || !slices.Contains(e.GetAssetTypes(true), asset.Spot) {
+		return nil, nil
+	}
+	flex := accounts.NewSubAccount(asset.Futures, "flex")
+	if err := e.Accounts.Save(ctx, accounts.SubAccounts{flex}, true); err != nil {
+		return nil, err
+	}
+	stored := e.futuresWalletStored(creds, flex.ID)
+	stored.whole, stored.currencies = 0, make(map[currency.Code]uint64)
+	return flex, nil
 }
 
 // recordWhole records a store of the whole wallet numbered n, keeping the highest number recorded
@@ -1064,10 +1096,17 @@ func (e *Exchange) submitSpotOrder(ctx context.Context, s *order.Submit) (*order
 	if s.Type == order.TrailingStop && s.TrackingMode != order.Percentage && s.TrackingMode != order.Distance {
 		return nil, fmt.Errorf("%w: %v", order.ErrUnknownTrackingMode, s.TrackingMode)
 	}
+	if s.Leverage != 0 && (s.Leverage < 1 || s.Leverage > math.MaxUint32 || s.Leverage != math.Trunc(s.Leverage)) {
+		return nil, fmt.Errorf("%w: %v, Kraken takes a whole number, such as 2 for 2:1", errInvalidLeverage, s.Leverage)
+	}
 	// Add Order takes a quote quantity for market buys alone, while websocket v2 requires a base quantity, so a market
 	// buy sized in the quote currency goes over REST
 	quoteSized := s.Type == order.Market && s.Side.IsLong() && s.QuoteAmount > 0
-	if !quoteSized && e.privateWebsocketAvailable() {
+	if quoteSized && s.Leverage != 0 {
+		return nil, fmt.Errorf("%w: a market buy sized in the quote currency", order.ErrSubmitLeverageNotSupported)
+	}
+	// Websocket v2 places a margin order at the pair's maximum leverage alone, so a leveraged order goes over REST too
+	if !quoteSized && s.Leverage == 0 && e.privateWebsocketAvailable() {
 		o := WebsocketOrder{
 			OrderType:     orderType,
 			Side:          side,
@@ -1115,6 +1154,7 @@ func (e *Exchange) submitSpotOrder(ctx context.Context, s *order.Submit) (*order
 		PostOnly:      s.TimeInForce.Is(order.PostOnly),
 		ReduceOnly:    s.ReduceOnly,
 		ClientOrderID: s.ClientOrderID,
+		Leverage:      uint64(s.Leverage),
 	}
 	if tif == timeInForceGTD {
 		o.ExpireTime = s.EndTime
@@ -1258,7 +1298,62 @@ func (e *Exchange) submitFuturesOrder(ctx context.Context, s *order.Submit) (*or
 	if resp.SendStatus.Status != "placed" {
 		return nil, fmt.Errorf("%w: %s", order.ErrPlaceFailed, resp.SendStatus.Status)
 	}
-	return s.DeriveSubmitResponse(resp.SendStatus.OrderID)
+	submitted, err := s.DeriveSubmitResponse(resp.SendStatus.OrderID)
+	if err != nil {
+		return nil, err
+	}
+	addFuturesExecutions(submitted, req.OrderType, &resp.SendStatus)
+	return submitted, nil
+}
+
+// addFuturesExecutions adds to a submitted futures order the executions its placement reports, as an order that crosses
+// the book executes as it is placed, and the status they leave it in: filled once nothing of it remains, and otherwise
+// partly filled, or partly filled and cancelled for a market or immediate or cancel order, whose unfilled part is
+// cancelled rather than left in the book. The order's quantity and what remains of it are the latest event's, as
+// Kraken reports the order with each placement and execution, already less what it took off a reduce-only order to fit
+// the position. Kraken reports the executions without their fees
+func addFuturesExecutions(resp *order.SubmitResponse, orderType string, status *FuturesSendOrderStatus) {
+	var executed, cost, quantity, remaining decimal.Decimal
+	for i := range status.OrderEvents {
+		ev := &status.OrderEvents[i]
+		switch {
+		case ev.Type == "PLACE" && ev.Order != nil && ev.Order.OrderID == resp.OrderID:
+			quantity = decimal.MustFromFloat(ev.Order.Quantity)
+			remaining = quantity.Sub(decimal.MustFromFloat(ev.Order.FilledQuantity))
+		case ev.Type == "EXECUTION" && ev.OrderPriorExecution != nil && ev.OrderPriorExecution.OrderID == resp.OrderID:
+			amount := decimal.MustFromFloat(ev.ExecutedAmount)
+			executed = executed.Add(amount)
+			cost = cost.Add(amount.Mul(decimal.MustFromFloat(ev.ExecutionPrice)))
+			quantity = decimal.MustFromFloat(ev.OrderPriorExecution.Quantity)
+			remaining = quantity.Sub(decimal.MustFromFloat(ev.OrderPriorExecution.FilledQuantity)).Sub(amount)
+			resp.Trades = append(resp.Trades, order.TradeHistory{
+				TID:       ev.ExecutionID,
+				Price:     ev.ExecutionPrice,
+				Amount:    ev.ExecutedAmount,
+				Exchange:  resp.Exchange,
+				Type:      resp.Type,
+				Side:      resp.Side,
+				Timestamp: status.ReceivedTime,
+			})
+		}
+	}
+	if quantity.IsPositive() {
+		resp.Amount = quantity.InexactFloat64()
+	}
+	if !executed.IsPositive() {
+		return
+	}
+	resp.ExecutedAmount = executed.InexactFloat64()
+	resp.RemainingAmount = max(remaining.InexactFloat64(), 0)
+	resp.AverageExecutedPrice = cost.Div(executed).InexactFloat64()
+	switch {
+	case !remaining.IsPositive():
+		resp.Status = order.Filled
+	case orderType == "mkt" || orderType == "ioc":
+		resp.Status = order.PartiallyFilledCancelled
+	default:
+		resp.Status = order.PartiallyFilled
+	}
 }
 
 // futuresOrderTypeString returns the Kraken order type of a futures order, whose limit orders carry their time in
@@ -1382,10 +1477,47 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 		default:
 			return nil, fmt.Errorf("%w: %s", errOrderEditFailed, resp.EditStatus.Status)
 		}
+		mod, err := action.DeriveModifyResponse()
+		if err == nil {
+			addFuturesEditedOrder(mod, &resp.EditStatus)
+		}
+		return mod, err
 	default:
 		return nil, fmt.Errorf("%w %q", asset.ErrNotSupported, action.AssetType)
 	}
 	return action.DeriveModifyResponse()
+}
+
+// addFuturesEditedOrder adds to a futures order's modification the order as its edit's events report it: its quantity,
+// as Kraken can take some off a reduce-only order to fit the position, and what remains of it once edited, less what
+// an execution the edit caused filled. An edit that filled the order in full, or left nothing of it remaining, fills it
+func addFuturesEditedOrder(mod *order.ModifyResponse, status *FuturesEditOrderStatus) {
+	var quantity, remaining decimal.Decimal
+	var reported bool
+	for i := range status.OrderEvents {
+		ev := &status.OrderEvents[i]
+		o, executed := ev.NewOrder, 0.0
+		if ev.Type == "EXECUTION" {
+			o, executed = ev.OrderPriorExecution, ev.ExecutedAmount
+		} else if ev.Type != "EDIT" {
+			continue
+		}
+		if o == nil || (o.OrderID != mod.OrderID && (mod.OrderID != "" || o.ClientOrderID != mod.ClientOrderID)) {
+			continue
+		}
+		quantity = decimal.MustFromFloat(o.Quantity)
+		remaining = quantity.Sub(decimal.MustFromFloat(o.FilledQuantity)).Sub(decimal.MustFromFloat(executed))
+		reported = true
+	}
+	if quantity.IsPositive() {
+		mod.Amount = quantity.InexactFloat64()
+	}
+	switch {
+	case status.Status == "filled", reported && !remaining.IsPositive():
+		mod.Status = order.Filled
+	case reported:
+		mod.RemainingAmount = remaining.InexactFloat64()
+	}
 }
 
 // clientOrderIDWithoutOrderID returns the client order ID when there is no order ID, as Kraken takes one identifier

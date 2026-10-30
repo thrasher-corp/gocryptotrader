@@ -262,7 +262,7 @@ type WebsocketFuturesFlexAccount struct {
 	MarginEquity               float64                                       `json:"margin_equity"`
 	AvailableMargin            float64                                       `json:"available_margin"`
 	TotalPositionSize          float64                                       `json:"total_position_size"`
-	UnifiedBalances            bool                                          `json:"unified_balances"`
+	UnifiedBalances            *bool                                         `json:"unified_balances"`
 	Isolated                   map[string]WebsocketFuturesFlexIsolatedMargin `json:"isolated"`
 	Cross                      *WebsocketFuturesFlexCrossMargin              `json:"cross"`
 }

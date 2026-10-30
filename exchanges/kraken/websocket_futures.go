@@ -678,8 +678,9 @@ func (e *Exchange) wsFuturesProcessFills(ctx context.Context, conn websocket.Con
 // wsFuturesProcessBalances stores the wallet balances a balances message holds, and relays those it stores with the
 // message. A snapshot holds every balance of each wallet it carries, so the cash and multi-collateral wallets it
 // carries are stored whole, and a currency they no longer list is removed, while an update holds only the balances that
-// changed. Kraken names a single-collateral margin account differently over REST, so one is stored only under the name
-// of the REST account with its pair and currency, as UpdateAccountBalances stores it; the others are left to REST
+// changed. A multi-collateral wallet the feed reports as the unified wallet is stored emptied while spot is enabled.
+// Kraken names a single-collateral margin account differently over REST, so one is stored only under the name of the
+// REST account with its pair and currency, as UpdateAccountBalances stores it; the others are left to REST
 func (e *Exchange) wsFuturesProcessBalances(ctx context.Context, feed string, respRaw []byte) error {
 	arrived := e.balancesSequence.Add(1)
 	var b WebsocketFuturesBalances
@@ -715,7 +716,11 @@ func (e *Exchange) wsFuturesProcessBalances(ctx context.Context, feed string, re
 		margin.Balances.Set(currency.NewCode(m.Unit).Upper(), accounts.Balance{Total: m.Balance, Hold: m.Balance - free, Free: free})
 		wallets = append(wallets, margin)
 	}
-	subAccts, err := e.saveFuturesFeedBalances(ctx, arrived, snapshot, wallets)
+	var unified *bool
+	if b.FlexFutures != nil {
+		unified = b.FlexFutures.UnifiedBalances
+	}
+	subAccts, err := e.saveFuturesFeedBalances(ctx, arrived, snapshot, unified, wallets)
 	if err != nil {
 		return err
 	}
@@ -731,9 +736,11 @@ func (e *Exchange) wsFuturesProcessBalances(ctx context.Context, feed string, re
 // balances stored after it arrived, as a read requested since already reflects the message, and returns what it
 // stored. A snapshot's cash and multi-collateral wallets are stored whole, as a read's are; other wallets are stored a
 // currency at a time, as an update holds only the balances that changed and a margin account holds other currencies
-// than the one the message reports
-func (e *Exchange) saveFuturesFeedBalances(ctx context.Context, arrived uint64, snapshot bool, wallets accounts.SubAccounts) (accounts.SubAccounts, error) {
-	if len(wallets) == 0 {
+// than the one the message reports. unified records whether the message reports the multi-collateral wallet as the
+// account's unified wallet, and is nil when it does not say; the unified wallet holds the account's spot and futures
+// funds as one balance, which the spot balances list, so storeUnifiedFlexWallet stores it emptied
+func (e *Exchange) saveFuturesFeedBalances(ctx context.Context, arrived uint64, snapshot bool, unified *bool, wallets accounts.SubAccounts) (accounts.SubAccounts, error) {
+	if len(wallets) == 0 && unified == nil {
 		return nil, nil
 	}
 	creds, err := e.GetCredentials(ctx)
@@ -742,8 +749,30 @@ func (e *Exchange) saveFuturesFeedBalances(ctx context.Context, arrived uint64, 
 	}
 	e.futuresBalancesMu.Lock()
 	defer e.futuresBalancesMu.Unlock()
+	if unified != nil {
+		// A read requested before the wallet turned separate holds the unified wallet's funds
+		if e.futuresUnifiedWallets[*creds] && !*unified {
+			e.futuresWalletStored(creds, "flex").recordWhole(arrived)
+		}
+		if e.futuresUnifiedWallets == nil {
+			e.futuresUnifiedWallets = make(map[accounts.Credentials]bool)
+		}
+		e.futuresUnifiedWallets[*creds] = *unified
+	}
+	var emptied *accounts.SubAccount
+	if unified != nil || slices.ContainsFunc(wallets, func(w *accounts.SubAccount) bool { return w.ID == "flex" }) {
+		if emptied, err = e.storeUnifiedFlexWallet(ctx, creds); err != nil {
+			return nil, err
+		}
+	}
 	var subAccts accounts.SubAccounts
+	if emptied != nil {
+		subAccts = append(subAccts, emptied)
+	}
 	for _, w := range wallets {
+		if emptied != nil && w.ID == emptied.ID {
+			continue
+		}
 		if snapshot && (w.ID == "cash" || w.ID == "flex") {
 			s, err := e.futuresWalletToStore(creds, arrived, w)
 			if err != nil {

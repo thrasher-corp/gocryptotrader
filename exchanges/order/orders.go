@@ -603,7 +603,7 @@ func (s *SubmitResponse) DeriveDetail(internal uuid.UUID) (*Detail, error) {
 		return nil, errOrderSubmitResponseIsNil
 	}
 
-	return &Detail{
+	d := &Detail{
 		Exchange:  s.Exchange,
 		Type:      s.Type,
 		Side:      s.Side,
@@ -620,6 +620,8 @@ func (s *SubmitResponse) DeriveDetail(internal uuid.UUID) (*Detail, error) {
 		ClientID:      s.ClientID,
 		ClientOrderID: s.ClientOrderID,
 
+		ExecutedAmount: s.ExecutedAmount,
+
 		InternalOrderID: internal,
 
 		LastUpdated: s.LastUpdated,
@@ -629,7 +631,13 @@ func (s *SubmitResponse) DeriveDetail(internal uuid.UUID) (*Detail, error) {
 		Trades:      s.Trades,
 		Fee:         s.Fee,
 		Cost:        s.Cost,
-	}, nil
+	}
+	// A submission reporting what it executed reports what remains of it and its average price with that; others can
+	// set RemainingAmount in another unit, such as what remains of a market buy's quote amount
+	if s.ExecutedAmount > 0 {
+		d.RemainingAmount, d.AverageExecutedPrice = s.RemainingAmount, s.AverageExecutedPrice
+	}
+	return d, nil
 }
 
 // CopyPointerOrderSlice returns a copy of all order detail and returns a slice

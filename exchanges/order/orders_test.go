@@ -281,6 +281,19 @@ func TestSubmitResponse_DeriveDetail(t *testing.T) {
 	deets, err := s.DeriveDetail(id)
 	require.NoError(t, err)
 	assert.Equal(t, id, deets.InternalOrderID)
+
+	s = &SubmitResponse{Amount: 10, ExecutedAmount: 4, RemainingAmount: 6, AverageExecutedPrice: 9, Status: PartiallyFilled}
+	deets, err = s.DeriveDetail(id)
+	require.NoError(t, err, "DeriveDetail must not error")
+	exp := &Detail{Amount: 10, ExecutedAmount: 4, RemainingAmount: 6, AverageExecutedPrice: 9, Status: PartiallyFilled, InternalOrderID: id}
+	assert.Equal(t, exp, deets, "DeriveDetail should carry what a submission executed, what remains of it and its average price")
+
+	// A remaining amount reported without what executed can be in another unit, such as a market buy's quote amount
+	s = &SubmitResponse{Type: Market, Side: Buy, QuoteAmount: 70, RemainingAmount: 0.143511, AverageExecutedPrice: 23360, Status: Filled}
+	deets, err = s.DeriveDetail(id)
+	require.NoError(t, err, "DeriveDetail must not error")
+	exp = &Detail{Type: Market, Side: Buy, QuoteAmount: 70, Status: Filled, InternalOrderID: id}
+	assert.Equal(t, exp, deets, "DeriveDetail should leave out a remaining amount and average price reported without what executed")
 }
 
 func TestOrderSides(t *testing.T) {

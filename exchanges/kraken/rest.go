@@ -78,6 +78,10 @@ type Exchange struct {
 	// its store are atomic. It is never held together with futuresMarginCurrenciesMu
 	futuresWalletsStored map[accounts.Credentials]map[string]*futuresWalletStores
 	futuresBalancesMu    sync.Mutex
+	// futuresUnifiedWallets holds, by credentials, whether the balances feed last reported the multi-collateral wallet as
+	// the account's unified wallet, whose funds the spot balances list. Kraken's futures accounts reply does not say, so a
+	// REST read relies on the feed's word. futuresBalancesMu guards it
+	futuresUnifiedWallets map[accounts.Credentials]bool
 }
 
 // futuresMarginRead holds the currency of each single-collateral margin account a futures REST read listed, by its REST

@@ -142,7 +142,12 @@ These reads are retried only while the websocket is connected, or still connecti
 
 + The futures balances feed names single-collateral margin accounts differently from REST, so one is stored only
 under the REST account it matches, such as `fi_xbtusd` for `F-XBT:USD`, once `UpdateAccountBalances` has stored that
-account; other margin accounts follow REST.
+account; other margin accounts follow REST. Once the feed reports the multi-collateral wallet as the account's unified
+wallet, whose funds the spot balances list, the `flex` wallet is stored empty while spot is enabled, as spot reads
+then keep those funds current, so they are counted once, under spot; with spot disabled they stay under futures. Spot
+balances stored before spot was disabled stay stored, as any disabled asset's do. Kraken's futures REST reply does not
+say whether the wallet is unified, so `UpdateAccountBalances` stores the `flex` wallet as read until the feed does, and
+again once the feed reports it separate.
 
 + A level 3 order book lists each order rather than the total at each price. It is subscribed to with the `allOrders`
 channel at a depth of 10, 100 or 1000 price levels:

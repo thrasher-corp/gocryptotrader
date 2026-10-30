@@ -63,9 +63,9 @@ type PostTradeDataRequest struct {
 type PostTradeDataResponse struct {
 	// LastTime is the time of the latest trade returned, to poll with as PostTradeDataRequest's From, and is zero when
 	// none is returned
-	LastTime time.Time       `json:"last_ts"`
-	Count    uint64          `json:"count"`
-	Trades   []PostTradeData `json:"trades"`
+	LastTime time.Time   `json:"last_ts"`
+	Count    uint64      `json:"count"`
+	Trades   []PostTrade `json:"trades"`
 }
 
 // UnmarshalJSON decodes post-trade data, whose last_ts Kraken sends empty when no trade is returned
@@ -93,8 +93,8 @@ func (p *PostTradeDataResponse) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// PostTradeData is a trade as published for regulatory transparency
-type PostTradeData struct {
+// PostTrade is a trade as published for regulatory transparency
+type PostTrade struct {
 	TradeID           string        `json:"trade_id"`
 	Price             types.Number  `json:"price"`
 	Quantity          types.Number  `json:"quantity"`

@@ -94,7 +94,7 @@ func TestGetPostTradeData(t *testing.T) {
 		})
 		result, err := ex.GetPostTradeData(t.Context(), &PostTradeDataRequest{Pair: spotTestPair, From: time.Date(2030, 1, 1, 0, 0, 0, 0, time.UTC), Count: 3})
 		require.NoError(t, err, "GetPostTradeData must not error")
-		assert.Equal(t, &PostTradeDataResponse{Trades: []PostTradeData{}}, result, "GetPostTradeData should decode a page holding no trades")
+		assert.Equal(t, &PostTradeDataResponse{Trades: []PostTrade{}}, result, "GetPostTradeData should decode a page holding no trades")
 	})
 
 	result, err := e.GetPostTradeData(t.Context(), &PostTradeDataRequest{Pair: currency.NewPair(currency.ETH, currency.XBT), From: from, To: to, Count: 1})
@@ -103,7 +103,7 @@ func TestGetPostTradeData(t *testing.T) {
 		exp := &PostTradeDataResponse{
 			LastTime: time.Date(2026, 10, 9, 0, 7, 53, 340172214, time.UTC),
 			Count:    1,
-			Trades: []PostTradeData{
+			Trades: []PostTrade{
 				{
 					TradeID:           "OJUSHU-KIV2Z-DAOLPU",
 					Price:             0.030286,
@@ -143,9 +143,9 @@ func TestPostTradeDataResponseUnmarshalJSON(t *testing.T) {
 		{
 			name: "page holding trades",
 			data: `{"last_ts":"2026-10-09T00:07:53.340172214Z","count":1,"trades":[{"trade_id":"OJUSHU-KIV2Z-DAOLPU"}]}`,
-			exp:  PostTradeDataResponse{LastTime: time.Date(2026, 10, 9, 0, 7, 53, 340172214, time.UTC), Count: 1, Trades: []PostTradeData{{TradeID: "OJUSHU-KIV2Z-DAOLPU"}}},
+			exp:  PostTradeDataResponse{LastTime: time.Date(2026, 10, 9, 0, 7, 53, 340172214, time.UTC), Count: 1, Trades: []PostTrade{{TradeID: "OJUSHU-KIV2Z-DAOLPU"}}},
 		},
-		{name: "page holding no trades", data: `{"last_ts":"","count":0,"trades":[]}`, exp: PostTradeDataResponse{Trades: []PostTradeData{}}},
+		{name: "page holding no trades", data: `{"last_ts":"","count":0,"trades":[]}`, exp: PostTradeDataResponse{Trades: []PostTrade{}}},
 		{name: "empty last time after a decoded one", prev: decoded, data: `{"last_ts":""}`},
 		{name: "absent last time", prev: decoded, data: `{"count":0}`, exp: PostTradeDataResponse{LastTime: decoded}},
 		{name: "null last time", prev: decoded, data: `{"last_ts":null}`, exp: PostTradeDataResponse{LastTime: decoded}},
