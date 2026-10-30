@@ -1250,8 +1250,12 @@ func spotTriggerReference(p order.PriceType) (string, error) {
 	}
 }
 
-// submitFuturesOrder places a futures order
+// submitFuturesOrder places a futures order. Kraken's Send order takes no leverage, as SetFuturesLeverageSetting sets a
+// contract's, so an order asking for more than 1 is refused rather than placed without it
 func (e *Exchange) submitFuturesOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
+	if s.Leverage != 0 && s.Leverage != 1 {
+		return nil, fmt.Errorf("%w received '%v'", order.ErrSubmitLeverageNotSupported, s.Leverage)
+	}
 	side, err := orderSideString(s.Side)
 	if err != nil {
 		return nil, err
@@ -1311,7 +1315,8 @@ func (e *Exchange) submitFuturesOrder(ctx context.Context, s *order.Submit) (*or
 // partly filled, or partly filled and cancelled for a market or immediate or cancel order, whose unfilled part is
 // cancelled rather than left in the book. The order's quantity and what remains of it are the latest event's, as
 // Kraken reports the order with each placement and execution, already less what it took off a reduce-only order to fit
-// the position. Kraken reports the executions without their fees
+// the position. An order left in the book gets no average price, as the feeds that report its later fills relay none.
+// Kraken reports the executions without their fees
 func addFuturesExecutions(resp *order.SubmitResponse, orderType string, status *FuturesSendOrderStatus) {
 	var executed, cost, quantity, remaining decimal.Decimal
 	for i := range status.OrderEvents {
@@ -1345,7 +1350,6 @@ func addFuturesExecutions(resp *order.SubmitResponse, orderType string, status *
 	}
 	resp.ExecutedAmount = executed.InexactFloat64()
 	resp.RemainingAmount = max(remaining.InexactFloat64(), 0)
-	resp.AverageExecutedPrice = cost.Div(executed).InexactFloat64()
 	switch {
 	case !remaining.IsPositive():
 		resp.Status = order.Filled
@@ -1353,7 +1357,9 @@ func addFuturesExecutions(resp *order.SubmitResponse, orderType string, status *
 		resp.Status = order.PartiallyFilledCancelled
 	default:
 		resp.Status = order.PartiallyFilled
+		return
 	}
+	resp.AverageExecutedPrice = cost.Div(executed).InexactFloat64()
 }
 
 // futuresOrderTypeString returns the Kraken order type of a futures order, whose limit orders carry their time in
@@ -1410,7 +1416,8 @@ func futuresTriggerSignal(p order.PriceType) (string, error) {
 }
 
 // ModifyOrder changes an order's quantity and prices. A spot order is amended in place, keeping its ID and, where
-// possible, its queue priority
+// possible, its queue priority. An edit of a futures stop order should carry its trigger price even when that stays the
+// same, as Kraken documents the stop price as required and OrderManager.Modify fills in only the amount and price
 func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
 	if err := action.Validate(); err != nil {
 		return nil, err
@@ -1489,10 +1496,11 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 }
 
 // addFuturesEditedOrder adds to a futures order's modification the order as its edit's events report it: its quantity,
-// as Kraken can take some off a reduce-only order to fit the position, and what remains of it once edited, less what
-// an execution the edit caused filled. An edit that filled the order in full, or left nothing of it remaining, fills it
+// as Kraken can take some off a reduce-only order to fit the position, what it has executed, and what remains of it
+// once edited, less what an execution the edit caused filled. An edit that filled the order in full, or left nothing of
+// it remaining, fills it
 func addFuturesEditedOrder(mod *order.ModifyResponse, status *FuturesEditOrderStatus) {
-	var quantity, remaining decimal.Decimal
+	var quantity, filled decimal.Decimal
 	var reported bool
 	for i := range status.OrderEvents {
 		ev := &status.OrderEvents[i]
@@ -1506,17 +1514,18 @@ func addFuturesEditedOrder(mod *order.ModifyResponse, status *FuturesEditOrderSt
 			continue
 		}
 		quantity = decimal.MustFromFloat(o.Quantity)
-		remaining = quantity.Sub(decimal.MustFromFloat(o.FilledQuantity)).Sub(decimal.MustFromFloat(executed))
+		filled = decimal.MustFromFloat(o.FilledQuantity).Add(decimal.MustFromFloat(executed))
 		reported = true
 	}
 	if quantity.IsPositive() {
 		mod.Amount = quantity.InexactFloat64()
 	}
+	remaining := quantity.Sub(filled)
 	switch {
 	case status.Status == "filled", reported && !remaining.IsPositive():
-		mod.Status = order.Filled
+		mod.Status, mod.ExecutedAmount = order.Filled, mod.Amount
 	case reported:
-		mod.RemainingAmount = remaining.InexactFloat64()
+		mod.ExecutedAmount, mod.RemainingAmount = filled.InexactFloat64(), remaining.InexactFloat64()
 	}
 }
 
@@ -1779,7 +1788,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, _ currency.
 }
 
 // spotOrderDetail converts a spot order. An order on a pair no longer listed returns currency.ErrPairNotFound
-func (e *Exchange) spotOrderDetail(orderID string, info *OrderInfo) (*order.Detail, error) {
+func (e *Exchange) spotOrderDetail(orderID string, info *OrderInfoResponse) (*order.Detail, error) {
 	pair, err := e.MatchSymbolWithAvailablePairs(info.Description.Pair, asset.Spot, false)
 	if err != nil {
 		return nil, err
@@ -1858,7 +1867,7 @@ func (e *Exchange) spotOrderDetail(orderID string, info *OrderInfo) (*order.Deta
 }
 
 // spotOrderTrades returns a spot order's fills
-func (e *Exchange) spotOrderTrades(ctx context.Context, info *OrderInfo, d *order.Detail) ([]order.TradeHistory, error) {
+func (e *Exchange) spotOrderTrades(ctx context.Context, info *OrderInfoResponse, d *order.Detail) ([]order.TradeHistory, error) {
 	resp := make([]order.TradeHistory, 0, len(info.TradeIDs))
 	for chunk := range slices.Chunk(info.TradeIDs, 20) {
 		trades, err := e.QueryTradesInfo(ctx, &QueryTradesRequest{TradeIDs: chunk})

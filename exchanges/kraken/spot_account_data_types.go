@@ -139,7 +139,7 @@ type OpenOrdersRequest struct {
 
 // OpenOrdersResponse holds open orders keyed by order ID
 type OpenOrdersResponse struct {
-	Open map[string]OrderInfo `json:"open"`
+	Open map[string]OrderInfoResponse `json:"open"`
 	// Cursor is only set with cursor pagination while more orders remain
 	Cursor PageCursor `json:"cursor"`
 }
@@ -150,8 +150,8 @@ type PageCursor struct {
 	Next string `json:"next"`
 }
 
-// OrderInfo holds an order's details. CloseTime and Reason are only set for a closed order
-type OrderInfo struct {
+// OrderInfoResponse holds an order's details. CloseTime and Reason are only set for a closed order
+type OrderInfoResponse struct {
 	// ReferralOrderID is the order that created this one
 	ReferralOrderID string `json:"refid"`
 	// UserReference is signed, as Kraken's user references are 32-bit integers that may be negative
@@ -252,7 +252,7 @@ type ClosedOrdersRequest struct {
 
 // ClosedOrdersResponse holds a page of up to 50 closed orders keyed by order ID
 type ClosedOrdersResponse struct {
-	Closed map[string]OrderInfo `json:"closed"`
+	Closed map[string]OrderInfoResponse `json:"closed"`
 	// Count is the number of matching orders, 0 with WithoutCount or cursor pagination
 	Count uint64 `json:"count"`
 	// Cursor is only set with cursor pagination while more orders remain
@@ -350,16 +350,16 @@ type TradesHistoryRequest struct {
 // TradesHistoryResponse holds a page of trades keyed by trade ID
 type TradesHistoryResponse struct {
 	// Count is the number of matching trades, 0 with WithoutCount or cursor pagination
-	Count  uint64               `json:"count"`
-	Trades map[string]TradeInfo `json:"trades"`
+	Count  uint64                       `json:"count"`
+	Trades map[string]TradeInfoResponse `json:"trades"`
 	// Cursor is only set with cursor pagination while more trades remain
 	Cursor PageCursor `json:"cursor"`
 }
 
-// TradeInfo holds a trade's details. Amounts are in the pair's precision rather than its assets'. The fields from
-// PositionStatus on are only set for a trade that opened a position; the Closed fields, NetPNL and ClosingTradeIDs
+// TradeInfoResponse holds a trade's details. Amounts are in the pair's precision rather than its assets'. The fields
+// from PositionStatus on are only set for a trade that opened a position; the Closed fields, NetPNL and ClosingTradeIDs
 // describe the part of it since closed
-type TradeInfo struct {
+type TradeInfoResponse struct {
 	OrderID    string     `json:"ordertxid"`
 	PositionID string     `json:"postxid"`
 	Pair       string     `json:"pair"`

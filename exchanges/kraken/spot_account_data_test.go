@@ -21,7 +21,7 @@ import (
 
 // The orders, trades and ledger entries the account data fixtures serve, which several endpoints return
 var (
-	accountDataStopLossOrder = OrderInfo{
+	accountDataStopLossOrder = OrderInfoResponse{
 		ReferralOrderID: "OB5VMB-B4U2U-DK2WRW",
 		UserReference:   45326,
 		Status:          "open",
@@ -57,7 +57,7 @@ var (
 		OrderFlags:      "fciq",
 		TradeIDs:        []string{"TCCCTY-WE2O6-P3NB37", "TJUW2K-FLX2N-AR2FLU"},
 	}
-	accountDataIcebergOrder = OrderInfo{
+	accountDataIcebergOrder = OrderInfoResponse{
 		ClientOrderID: "6d1b345e-2821-40e2-ad83-4ecb18a06876",
 		Status:        "open",
 		OpenTime:      types.Time(time.UnixMicro(1780582311512449)),
@@ -83,7 +83,7 @@ var (
 		OrderFlags:             "post,fcib",
 		TradeIDs:               []string{"THVRQM-33VKH-UCI7BS"},
 	}
-	accountDataCancelledOrder = OrderInfo{
+	accountDataCancelledOrder = OrderInfoResponse{
 		ReferralOrderID: "OSGGLD-7L567-4KBIUT",
 		UserReference:   36493663,
 		Status:          "canceled",
@@ -121,7 +121,7 @@ var (
 		CloseTime:       types.Time(time.UnixMicro(1688148610048200)),
 		Reason:          "User requested",
 	}
-	accountDataFilledOrder = OrderInfo{
+	accountDataFilledOrder = OrderInfoResponse{
 		ClientOrderID: "arb-20240509-00010",
 		Status:        "closed",
 		OpenTime:      types.Time(time.UnixMicro(1688592012231700)),
@@ -147,7 +147,7 @@ var (
 		TradeIDs:        []string{"TJUW2K-FLX2N-AR2FLU", "TCWJEG-FL4SZ-3FKGH6"},
 		CloseTime:       types.Time(time.UnixMicro(1688592012233500)),
 	}
-	accountDataClosingTrade = TradeInfo{
+	accountDataClosingTrade = TradeInfoResponse{
 		OrderID:             "OQCLML-BW3P3-BUCMWZ",
 		PositionID:          "TF5GVO-T7ZZ2-6NBKBI",
 		Pair:                "XXBTZUSD",
@@ -168,7 +168,7 @@ var (
 		ExternalExecutionID: "EXEC-55120",
 		TradeOrderType:      "limit",
 	}
-	accountDataOpeningTrade = TradeInfo{
+	accountDataOpeningTrade = TradeInfoResponse{
 		OrderID:             "OH76VO-UKWAD-PSBDX6",
 		PositionID:          "TKH2SE-M7IF5-CFI7LT",
 		Pair:                "XXBTZUSD",
@@ -335,14 +335,14 @@ func TestGetOpenOrders(t *testing.T) {
 				RebaseMultiplier:          "base",
 			},
 			exp: &OpenOrdersResponse{
-				Open:   map[string]OrderInfo{"OQCLML-BW3P3-BUCMWZ": accountDataStopLossOrder},
+				Open:   map[string]OrderInfoResponse{"OQCLML-BW3P3-BUCMWZ": accountDataStopLossOrder},
 				Cursor: PageCursor{Next: "gqNrZXm-T3BlbjM"},
 			},
 		},
 		{
 			name: "client order ID",
 			req:  &OpenOrdersRequest{ClientOrderID: "6d1b345e-2821-40e2-ad83-4ecb18a06876", Limit: 10},
-			exp:  &OpenOrdersResponse{Open: map[string]OrderInfo{"OHYO67-6LP66-HMQ437": accountDataIcebergOrder}},
+			exp:  &OpenOrdersResponse{Open: map[string]OrderInfoResponse{"OHYO67-6LP66-HMQ437": accountDataIcebergOrder}},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -390,7 +390,7 @@ func TestGetClosedOrders(t *testing.T) {
 				WithoutTakerConsolidation: true,
 				RebaseMultiplier:          "base",
 			},
-			exp: &ClosedOrdersResponse{Closed: map[string]OrderInfo{"O37652-RJWRT-IMO74O": accountDataCancelledOrder}, Count: 51},
+			exp: &ClosedOrdersResponse{Closed: map[string]OrderInfoResponse{"O37652-RJWRT-IMO74O": accountDataCancelledOrder}, Count: 51},
 		},
 		{
 			name: "cursor page",
@@ -403,7 +403,7 @@ func TestGetClosedOrders(t *testing.T) {
 				WithoutCount:  true,
 			},
 			exp: &ClosedOrdersResponse{
-				Closed: map[string]OrderInfo{"OMMDB2-FSB6Z-7W3HPO": accountDataFilledOrder},
+				Closed: map[string]OrderInfoResponse{"OMMDB2-FSB6Z-7W3HPO": accountDataFilledOrder},
 				Cursor: PageCursor{Next: "gqNrZXm-Q2xvc2VkMw"},
 			},
 		},
@@ -438,7 +438,7 @@ func TestQueryOrdersInfo(t *testing.T) {
 	for _, tc := range []struct {
 		name string
 		req  *QueryOrdersRequest
-		exp  map[string]OrderInfo
+		exp  map[string]OrderInfoResponse
 	}{
 		{
 			name: "open and closed orders",
@@ -448,17 +448,17 @@ func TestQueryOrdersInfo(t *testing.T) {
 				WithoutTakerConsolidation: true,
 				RebaseMultiplier:          "base",
 			},
-			exp: map[string]OrderInfo{"OQCLML-BW3P3-BUCMWZ": accountDataStopLossOrder, "O37652-RJWRT-IMO74O": accountDataCancelledOrder},
+			exp: map[string]OrderInfoResponse{"OQCLML-BW3P3-BUCMWZ": accountDataStopLossOrder, "O37652-RJWRT-IMO74O": accountDataCancelledOrder},
 		},
 		{
 			name: "user reference",
 			req:  &QueryOrdersRequest{OrderIDs: []string{"OQCLML-BW3P3-BUCMWZ", "O37652-RJWRT-IMO74O"}, UserReference: 36493663},
-			exp:  map[string]OrderInfo{"O37652-RJWRT-IMO74O": accountDataCancelledOrder},
+			exp:  map[string]OrderInfoResponse{"O37652-RJWRT-IMO74O": accountDataCancelledOrder},
 		},
 		{
 			name: "client order ID",
 			req:  &QueryOrdersRequest{OrderIDs: []string{"OHYO67-6LP66-HMQ437", "OMMDB2-FSB6Z-7W3HPO"}, ClientOrderID: "arb-20240509-00010"},
-			exp:  map[string]OrderInfo{"OMMDB2-FSB6Z-7W3HPO": accountDataFilledOrder},
+			exp:  map[string]OrderInfoResponse{"OMMDB2-FSB6Z-7W3HPO": accountDataFilledOrder},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -569,7 +569,7 @@ func TestGetTradesHistory(t *testing.T) {
 			},
 			exp: &TradesHistoryResponse{
 				Count:  4,
-				Trades: map[string]TradeInfo{"THVRQM-33VKH-UCI7BS": accountDataClosingTrade, "TCWJEG-FL4SZ-3FKGH6": accountDataOpeningTrade},
+				Trades: map[string]TradeInfoResponse{"THVRQM-33VKH-UCI7BS": accountDataClosingTrade, "TCWJEG-FL4SZ-3FKGH6": accountDataOpeningTrade},
 			},
 		},
 		{
@@ -582,7 +582,7 @@ func TestGetTradesHistory(t *testing.T) {
 				Cursor:       "gqNrZXm-VHJhZGVzMg",
 			},
 			exp: &TradesHistoryResponse{
-				Trades: map[string]TradeInfo{"TCWJEG-FL4SZ-3FKGH6": accountDataOpeningTrade},
+				Trades: map[string]TradeInfoResponse{"TCWJEG-FL4SZ-3FKGH6": accountDataOpeningTrade},
 				Cursor: PageCursor{Next: "gqNrZXm-VHJhZGVzMw"},
 			},
 		},
@@ -620,7 +620,7 @@ func TestQueryTradesInfo(t *testing.T) {
 	})
 	require.NoError(t, err, "QueryTradesInfo must not error")
 	if mockTests {
-		exp := map[string]TradeInfo{"THVRQM-33VKH-UCI7BS": accountDataClosingTrade, "TCWJEG-FL4SZ-3FKGH6": accountDataOpeningTrade}
+		exp := map[string]TradeInfoResponse{"THVRQM-33VKH-UCI7BS": accountDataClosingTrade, "TCWJEG-FL4SZ-3FKGH6": accountDataOpeningTrade}
 		assert.Equal(t, exp, result, "QueryTradesInfo should decode every field")
 		return
 	}

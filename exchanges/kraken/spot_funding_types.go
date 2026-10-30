@@ -71,8 +71,8 @@ type DepositAddressesRequest struct {
 	Amount float64
 }
 
-// DepositAddress is a deposit address
-type DepositAddress struct {
+// DepositAddressResponse is a deposit address
+type DepositAddressResponse struct {
 	Address string `json:"address"`
 	// ExpireTime is zero when the address does not expire
 	ExpireTime types.Time `json:"expiretm"`

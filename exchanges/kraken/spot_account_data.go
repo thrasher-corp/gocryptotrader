@@ -109,7 +109,7 @@ func (e *Exchange) GetClosedOrders(ctx context.Context, req *ClosedOrdersRequest
 }
 
 // QueryOrdersInfo calls Query Orders Info, returning up to 50 open or closed orders keyed by order ID
-func (e *Exchange) QueryOrdersInfo(ctx context.Context, req *QueryOrdersRequest) (map[string]OrderInfo, error) {
+func (e *Exchange) QueryOrdersInfo(ctx context.Context, req *QueryOrdersRequest) (map[string]OrderInfoResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -120,7 +120,7 @@ func (e *Exchange) QueryOrdersInfo(ctx context.Context, req *QueryOrdersRequest)
 	query, body := accountDataParams(req.AccountID, req.RebaseMultiplier)
 	body["txid"] = orderIDs
 	accountDataOrderParams(body, req.IncludeTrades, req.UserReference, req.ClientOrderID, req.WithoutTakerConsolidation)
-	var resp map[string]OrderInfo
+	var resp map[string]OrderInfoResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, "/0/private/QueryOrders", query, body, &resp)
 }
 
@@ -188,7 +188,7 @@ func (e *Exchange) GetTradesHistory(ctx context.Context, req *TradesHistoryReque
 }
 
 // QueryTradesInfo calls Query Trades Info, returning up to 20 trades keyed by trade ID
-func (e *Exchange) QueryTradesInfo(ctx context.Context, req *QueryTradesRequest) (map[string]TradeInfo, error) {
+func (e *Exchange) QueryTradesInfo(ctx context.Context, req *QueryTradesRequest) (map[string]TradeInfoResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -204,7 +204,7 @@ func (e *Exchange) QueryTradesInfo(ctx context.Context, req *QueryTradesRequest)
 	if req.IncludeLedgers {
 		body["ledgers"] = true
 	}
-	var resp map[string]TradeInfo
+	var resp map[string]TradeInfoResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, "/0/private/QueryTrades", query, body, &resp)
 }
 

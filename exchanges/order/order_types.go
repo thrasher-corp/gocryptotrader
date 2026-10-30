@@ -212,6 +212,7 @@ type ModifyResponse struct {
 
 	// Fields that need to be handled in scope after DeriveModifyResponse()
 	// if applicable
+	ExecutedAmount  float64
 	RemainingAmount float64
 	Date            time.Time
 	LastUpdated     time.Time

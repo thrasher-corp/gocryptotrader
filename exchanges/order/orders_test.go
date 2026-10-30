@@ -1020,6 +1020,102 @@ func TestUpdateOrderFromModifyResponse(t *testing.T) {
 
 	od.UpdateOrderFromModifyResponse(&ModifyResponse{OrderID: "2"})
 	assert.Equal(t, "2", od.OrderID, "OrderID should be the ID a modify response replaces the order with")
+
+	od = Detail{OrderID: "1", Status: PartiallyFilled, Amount: 10, ExecutedAmount: 4, RemainingAmount: 6, LastUpdated: lastUpdated}
+	od.UpdateOrderFromModifyResponse(&ModifyResponse{OrderID: "1", ExecutedAmount: 5})
+	assert.Equal(t, 5.0, od.ExecutedAmount, "ExecutedAmount should be the one a response supplies")
+	assert.True(t, od.LastUpdated.After(lastUpdated), "LastUpdated should move when only what executed changes")
+	od.LastUpdated = lastUpdated
+	od.UpdateOrderFromModifyResponse(&ModifyResponse{OrderID: "1", ExecutedAmount: 3})
+	assert.Equal(t, 5.0, od.ExecutedAmount, "ExecutedAmount should not step back to an older figure a response supplies")
+	assert.Equal(t, lastUpdated, od.LastUpdated, "LastUpdated should stay when a response's executed amount changes nothing")
+	od.UpdateOrderFromModifyResponse(&ModifyResponse{OrderID: "1", Price: 3})
+	assert.Equal(t, 5.0, od.ExecutedAmount, "ExecutedAmount should be kept when the response supplies none")
+
+	od = Detail{OrderID: "1", Status: Filled, Amount: 7, ExecutedAmount: 7}
+	od.UpdateOrderFromModifyResponse(&ModifyResponse{OrderID: "1", ExecutedAmount: 5, RemainingAmount: 2})
+	assert.Equal(t, 7.0, od.ExecutedAmount, "ExecutedAmount should be kept by a response older than the fills that filled the order")
+	assert.Zero(t, od.RemainingAmount, "RemainingAmount should stay zero after a response older than the fills that filled the order")
+	od.UpdateOrderFromModifyResponse(&ModifyResponse{OrderID: "1", RemainingAmount: 7})
+	assert.Zero(t, od.RemainingAmount, "RemainingAmount should stay zero after a response reporting nothing executed that arrives once the order has filled")
+
+	for _, s := range []Status{Filled, Cancelled, PartiallyFilledCancelled, PartiallyCancelled, Rejected, Expired, Closed} {
+		// The replies report less executed than stored, as much, and more, as a reply can arrive after any of the fills
+		for _, executed := range []float64{0, 1, 2, 3} {
+			od = Detail{OrderID: "1", Status: s, Price: 100, TriggerPrice: 110, Amount: 9, ExecutedAmount: 2, RemainingAmount: 7}
+			od.UpdateOrderFromModifyResponse(&ModifyResponse{OrderID: "1", Price: 99, TriggerPrice: 109, Amount: 8, ExecutedAmount: executed, RemainingAmount: 8 - executed})
+			exp := Detail{OrderID: "1", Status: s, Price: 100, TriggerPrice: 110, Amount: 9, ExecutedAmount: max(2, executed), RemainingAmount: 7}
+			od.LastUpdated = time.Time{}
+			assert.Equalf(t, exp, od, "a response reporting %v executed and what remains, without a status, should leave an order %s", executed, s)
+		}
+
+		od.UpdateOrderFromModifyResponse(&ModifyResponse{OrderID: "1", Status: Open, Price: 99, TriggerPrice: 109, Amount: 8, RemainingAmount: 6})
+		od.LastUpdated = time.Time{}
+		exp := Detail{OrderID: "1", Status: Open, Price: 99, TriggerPrice: 109, Amount: 8, ExecutedAmount: 3, RemainingAmount: 6}
+		assert.Equalf(t, exp, od, "a response with a status should update an order %s", s)
+
+		// A replacement's reply reports no quantities, and can arrive after the feeds have cancelled the order it replaces
+		od = Detail{OrderID: "1", Status: s, Price: 100, TriggerPrice: 110, Amount: 9, ExecutedAmount: 2, RemainingAmount: 7}
+		od.UpdateOrderFromModifyResponse(&ModifyResponse{OrderID: "2", Price: 99, TriggerPrice: 109, Amount: 8})
+		od.LastUpdated = time.Time{}
+		exp = Detail{OrderID: "2", Status: s, Price: 99, TriggerPrice: 109, Amount: 8, ExecutedAmount: 2, RemainingAmount: 7}
+		assert.Equalf(t, exp, od, "a response without quantities should update an order %s", s)
+	}
+	for _, s := range []Status{UnknownStatus, New, Open, Active, PartiallyFilled} {
+		od = Detail{OrderID: "1", Status: s, Price: 100, TriggerPrice: 110, Amount: 10, ExecutedAmount: 2, RemainingAmount: 8}
+		od.UpdateOrderFromModifyResponse(&ModifyResponse{OrderID: "1", Price: 99, TriggerPrice: 109, Amount: 7, ExecutedAmount: 2, RemainingAmount: 5})
+		exp := Detail{OrderID: "1", Status: s, Price: 99, TriggerPrice: 109, Amount: 7, ExecutedAmount: 2, RemainingAmount: 5}
+		od.LastUpdated = time.Time{}
+		assert.Equalf(t, exp, od, "a response without a status should update an order %s", s)
+	}
+
+	for _, tc := range []struct {
+		name string
+		od   Detail
+		m    ModifyResponse
+		exp  Detail
+	}{
+		{
+			name: "moving the price to what the trigger price is",
+			od:   Detail{OrderID: "1", Status: Open, Price: 90, TriggerPrice: 100, Amount: 7, RemainingAmount: 7},
+			m:    ModifyResponse{OrderID: "1", Price: 100, TriggerPrice: 100, Amount: 7, RemainingAmount: 7},
+			exp:  Detail{OrderID: "1", Status: Open, Price: 100, TriggerPrice: 100, Amount: 7, RemainingAmount: 7},
+		},
+		{
+			name: "reporting more executed than stored",
+			od:   Detail{OrderID: "1", Status: PartiallyFilled, Amount: 10, ExecutedAmount: 4, RemainingAmount: 6},
+			m:    ModifyResponse{OrderID: "1", Amount: 7, ExecutedAmount: 5, RemainingAmount: 2},
+			exp:  Detail{OrderID: "1", Status: PartiallyFilled, Amount: 7, ExecutedAmount: 5, RemainingAmount: 2},
+		},
+		{
+			name: "reporting nothing executed, older than a fill stored",
+			od:   Detail{OrderID: "1", Status: PartiallyFilled, Amount: 7, ExecutedAmount: 2, RemainingAmount: 5},
+			m:    ModifyResponse{OrderID: "1", Amount: 7, RemainingAmount: 7},
+			exp:  Detail{OrderID: "1", Status: PartiallyFilled, Amount: 7, ExecutedAmount: 2, RemainingAmount: 5},
+		},
+		{
+			name: "older than a fill stored at the amount the order had before",
+			od:   Detail{OrderID: "1", Status: PartiallyFilled, Amount: 10, ExecutedAmount: 6, RemainingAmount: 4},
+			m:    ModifyResponse{OrderID: "1", Amount: 7, ExecutedAmount: 5, RemainingAmount: 2},
+			exp:  Detail{OrderID: "1", Status: PartiallyFilled, Amount: 7, ExecutedAmount: 6, RemainingAmount: 1},
+		},
+		{
+			name: "older than fills stored beyond the amount it reports",
+			od:   Detail{OrderID: "1", Status: PartiallyFilled, Amount: 10, ExecutedAmount: 6, RemainingAmount: 4},
+			m:    ModifyResponse{OrderID: "1", Amount: 5, ExecutedAmount: 1, RemainingAmount: 4},
+			exp:  Detail{OrderID: "1", Status: PartiallyFilled, Amount: 5, ExecutedAmount: 6},
+		},
+		{
+			name: "with a status, which reports what remains whatever is stored as executed",
+			od:   Detail{OrderID: "1", Status: PartiallyFilled, Amount: 7, ExecutedAmount: 2, RemainingAmount: 5},
+			m:    ModifyResponse{OrderID: "1", Status: Open, Amount: 7, RemainingAmount: 7},
+			exp:  Detail{OrderID: "1", Status: Open, Amount: 7, ExecutedAmount: 2, RemainingAmount: 7},
+		},
+	} {
+		tc.od.UpdateOrderFromModifyResponse(&tc.m)
+		tc.od.LastUpdated = time.Time{}
+		assert.Equalf(t, tc.exp, tc.od, "a response %s should leave the order as expected", tc.name)
+	}
 }
 
 func TestUpdateOrderFromDetail(t *testing.T) {

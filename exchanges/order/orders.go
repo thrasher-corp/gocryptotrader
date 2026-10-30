@@ -344,6 +344,10 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 // by comparing passed in and existing values
 func (d *Detail) UpdateOrderFromModifyResponse(m *ModifyResponse) {
 	var updated bool
+	// A reply reporting what remains but not the status can arrive after the order has finished, when no later report
+	// would correct what it changed. One without quantities can be of a replacement, as on Poloniex, whose reply can
+	// arrive after the feeds have cancelled the order it replaces
+	finished := m.RemainingAmount > 0 && m.Status == UnknownStatus && d.Status != UnknownStatus && d.Status.IsInactive()
 	if m.OrderID != "" && d.OrderID != m.OrderID {
 		d.OrderID = m.OrderID
 		updated = true
@@ -352,15 +356,15 @@ func (d *Detail) UpdateOrderFromModifyResponse(m *ModifyResponse) {
 		d.TimeInForce = m.TimeInForce
 		updated = true
 	}
-	if m.Price > 0 && m.Price != d.Price {
+	if m.Price > 0 && m.Price != d.Price && !finished {
 		d.Price = m.Price
 		updated = true
 	}
-	if m.Amount > 0 && m.Amount != d.Amount {
+	if m.Amount > 0 && m.Amount != d.Amount && !finished {
 		d.Amount = m.Amount
 		updated = true
 	}
-	if m.TriggerPrice > 0 && m.TriggerPrice != d.TriggerPrice {
+	if m.TriggerPrice > 0 && m.TriggerPrice != d.TriggerPrice && !finished {
 		d.TriggerPrice = m.TriggerPrice
 		updated = true
 	}
@@ -386,9 +390,20 @@ func (d *Detail) UpdateOrderFromModifyResponse(m *ModifyResponse) {
 		d.AssetType = m.AssetType
 		updated = true
 	}
-	if m.RemainingAmount > 0 && m.RemainingAmount != d.RemainingAmount {
-		d.RemainingAmount = m.RemainingAmount
+	if m.ExecutedAmount > d.ExecutedAmount {
+		d.ExecutedAmount = m.ExecutedAmount
 		updated = true
+	}
+	if m.RemainingAmount > 0 && !finished {
+		remaining := m.RemainingAmount
+		// Such a reply can also be older than fills stored of an open order, which its remainder would count again
+		if m.Status == UnknownStatus && d.ExecutedAmount > m.ExecutedAmount {
+			remaining = max(d.Amount-d.ExecutedAmount, 0)
+		}
+		if remaining != d.RemainingAmount {
+			d.RemainingAmount = remaining
+			updated = true
+		}
 	}
 	// Nothing remains of an order an update reports filled without a remaining amount; one it reports is kept above, as
 	// some exchanges report a partial fill as filled
@@ -632,7 +647,7 @@ func (s *SubmitResponse) DeriveDetail(internal uuid.UUID) (*Detail, error) {
 		Fee:         s.Fee,
 		Cost:        s.Cost,
 	}
-	// A submission reporting what it executed reports what remains of it and its average price with that; others can
+	// A submission reporting what it executed reports what remains of it and any average price with that; others can
 	// set RemainingAmount in another unit, such as what remains of a market buy's quote amount
 	if s.ExecutedAmount > 0 {
 		d.RemainingAmount, d.AverageExecutedPrice = s.RemainingAmount, s.AverageExecutedPrice

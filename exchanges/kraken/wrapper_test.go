@@ -16,6 +16,7 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+	"uuid"
 
 	"github.com/buger/jsonparser"
 	gws "github.com/gorilla/websocket"
@@ -3670,6 +3671,26 @@ func TestSubmitFuturesOrderInvalidSide(t *testing.T) {
 	assert.ErrorIs(t, err, order.ErrSideIsInvalid, "submitFuturesOrder should reject a side that is neither long nor short")
 }
 
+func TestSubmitOrderFuturesLeverageRejected(t *testing.T) {
+	t.Parallel()
+	ex := newHTTPTestExchange(t, func(_ http.ResponseWriter, r *http.Request) {
+		assert.Failf(t, "no futures order should be placed", "%s", r.URL.Path)
+	})
+	for _, leverage := range []float64{3, 2.5, 1.5, 0.5, -2, math.NaN(), math.Inf(1)} {
+		_, err := ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: futuresTestPair, AssetType: asset.Futures, Type: order.Limit, Side: order.Buy, Price: 80000, Amount: 0.001, Leverage: leverage})
+		assert.ErrorIsf(t, err, order.ErrSubmitLeverageNotSupported, "SubmitOrder should reject leverage %v, as Kraken's Send order takes none", leverage)
+	}
+}
+
+func TestSubmitOrderFuturesLeverageOfOne(t *testing.T) {
+	t.Parallel()
+	ex := newOrdersRequestCheckExchange(t, "/derivatives/api/v3/sendorder", "limitPrice=80000&orderType=lmt&side=buy&size=0.001&symbol=PF_XBTUSD",
+		`{"result":"success","sendStatus":{"order_id":"o-1","orderEvents":[],"receivedTime":"2026-10-09T08:33:01.104Z","status":"placed"},"serverTime":"2026-10-09T08:33:01.107Z"}`)
+	resp, err := ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: futuresTestPair, AssetType: asset.Futures, Type: order.Limit, Side: order.Buy, Price: 80000, Amount: 0.001, Leverage: 1})
+	require.NoError(t, err, "SubmitOrder must place an order asking for a leverage of 1, as other exchanges do")
+	assert.Equal(t, "o-1", resp.OrderID, "SubmitOrder should return the placed order's ID")
+}
+
 func TestSubmitFuturesOrderWithoutOrderID(t *testing.T) {
 	t.Parallel()
 	ex := newOrdersRequestCheckExchange(t, "/derivatives/api/v3/sendorder", "limitPrice=80000&orderType=lmt&side=buy&size=0.001&symbol=PF_XBTUSD",
@@ -3939,6 +3960,7 @@ func TestModifyOrder(t *testing.T) {
 				Price:           79000,
 				Amount:          0.0005,
 				TriggerPrice:    79100,
+				ExecutedAmount:  0.0002,
 				RemainingAmount: 0.0003,
 			},
 		},
@@ -4623,12 +4645,12 @@ func TestSpotOrderDetail(t *testing.T) {
 	openTime, closeTime := time.UnixMicro(1791421234551200), time.UnixMicro(1791421301012700)
 	for _, tc := range []struct {
 		name string
-		info *OrderInfo
+		info *OrderInfoResponse
 		exp  *order.Detail
 	}{
 		{
 			name: "partly filled open post only order",
-			info: &OrderInfo{
+			info: &OrderInfoResponse{
 				ClientOrderID:  "gct-detail-1",
 				Status:         "open",
 				OpenTime:       types.Time(openTime),
@@ -4666,7 +4688,7 @@ func TestSpotOrderDetail(t *testing.T) {
 		},
 		{
 			name: "partly filled cancelled stop loss order without a time in force",
-			info: &OrderInfo{
+			info: &OrderInfoResponse{
 				Status:         "canceled",
 				OpenTime:       types.Time(openTime),
 				CloseTime:      types.Time(closeTime),
@@ -4703,7 +4725,7 @@ func TestSpotOrderDetail(t *testing.T) {
 		},
 		{
 			name: "closed take profit limit order",
-			info: &OrderInfo{
+			info: &OrderInfoResponse{
 				Status:         "closed",
 				OpenTime:       types.Time(openTime),
 				CloseTime:      types.Time(closeTime),
@@ -4767,7 +4789,7 @@ func TestSpotOrderDetail(t *testing.T) {
 			exp:            &order.Detail{Type: order.TrailingStopLimit, TriggerPrice: 0.23424, Price: 0.46847},
 		},
 	} {
-		var info OrderInfo
+		var info OrderInfoResponse
 		require.NoErrorf(t, json.Unmarshal([]byte(`{"refid":null,"userref":0,"status":"open","opentm":1706893367.4656649,"starttm":0,"expiretm":0,`+
 			`"descr":{"pair":"XRPEUR","type":"sell","ordertype":"`+tc.orderType+`","price":"`+tc.price+`","price2":"`+cmp.Or(tc.secondaryPrice, "0")+`","leverage":"none",`+
 			`"order":"sell 10.00000000 XRPEUR @ trailing stop `+tc.price+`","close":""},"vol":"10.00000000","vol_exec":"0.00000000","cost":"0.00000000",`+
@@ -4795,17 +4817,17 @@ func TestSpotOrderDetail(t *testing.T) {
 		assert.Equalf(t, exp, got, "spotOrderDetail should convert a %s", tc.name)
 	}
 
-	valid := OrderInfo{Status: "open", Description: OrderDescription{Pair: "XBTUSD", Side: "buy", OrderType: "limit", Price: OrderPrice{Value: 81250}}, TimeInForce: "gtc"}
+	valid := OrderInfoResponse{Status: "open", Description: OrderDescription{Pair: "XBTUSD", Side: "buy", OrderType: "limit", Price: OrderPrice{Value: 81250}}, TimeInForce: "gtc"}
 	for _, tc := range []struct {
 		name   string
-		modify func(*OrderInfo)
+		modify func(*OrderInfoResponse)
 		err    error
 	}{
-		{"an order on a pair no longer listed", func(o *OrderInfo) { o.Description.Pair = "WAVESUSD" }, currency.ErrPairNotFound},
-		{"an order without a side", func(o *OrderInfo) { o.Description.Side = "" }, order.ErrSideIsInvalid},
-		{"an unknown order type", func(o *OrderInfo) { o.Description.OrderType = "moon" }, errUnknownOrderType},
-		{"an unknown status", func(o *OrderInfo) { o.Status = "moon" }, errUnknownOrderStatus},
-		{"an unknown time in force", func(o *OrderInfo) { o.TimeInForce = "gtx" }, order.ErrInvalidTimeInForce},
+		{"an order on a pair no longer listed", func(o *OrderInfoResponse) { o.Description.Pair = "WAVESUSD" }, currency.ErrPairNotFound},
+		{"an order without a side", func(o *OrderInfoResponse) { o.Description.Side = "" }, order.ErrSideIsInvalid},
+		{"an unknown order type", func(o *OrderInfoResponse) { o.Description.OrderType = "moon" }, errUnknownOrderType},
+		{"an unknown status", func(o *OrderInfoResponse) { o.Status = "moon" }, errUnknownOrderStatus},
+		{"an unknown time in force", func(o *OrderInfoResponse) { o.TimeInForce = "gtx" }, order.ErrInvalidTimeInForce},
 	} {
 		info := valid
 		tc.modify(&info)
@@ -4852,7 +4874,7 @@ func TestSpotOrderTrades(t *testing.T) {
 		_, _ = w.Write(resp)
 	})
 	d := &order.Detail{Type: order.Limit, Side: order.Buy, FeeAsset: currency.USD}
-	got, err := ex.spotOrderTrades(t.Context(), &OrderInfo{TradeIDs: ids}, d)
+	got, err := ex.spotOrderTrades(t.Context(), &OrderInfoResponse{TradeIDs: ids}, d)
 	require.NoError(t, err, "spotOrderTrades must not error")
 	exp := make([]order.TradeHistory, 0, len(ids)-1)
 	for i, id := range ids {
@@ -4881,7 +4903,7 @@ func TestSpotOrderTrades(t *testing.T) {
 	ex = newHTTPTestExchange(t, func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte(`{"error":["EGeneral:Invalid arguments"]}`))
 	})
-	_, err = ex.spotOrderTrades(t.Context(), &OrderInfo{TradeIDs: ids[:1]}, d)
+	_, err = ex.spotOrderTrades(t.Context(), &OrderInfoResponse{TradeIDs: ids[:1]}, d)
 	assert.ErrorIs(t, err, errAPIResponse, "spotOrderTrades should return Query Trades Info's error")
 }
 
@@ -6366,10 +6388,40 @@ func TestAddFuturesExecutions(t *testing.T) {
 			},
 		},
 		{
+			name:      "filled by three executions",
+			orderType: "lmt",
+			events:    []FuturesOrderEvent{execution("o-1", "e-1", 0.3, 0, 0.1, 100), execution("o-1", "e-2", 0.3, 0.1, 0.1, 101), execution("o-1", "e-3", 0.3, 0.2, 0.1, 102)},
+			exp: order.SubmitResponse{
+				Amount:               0.3,
+				ExecutedAmount:       0.3,
+				AverageExecutedPrice: 101,
+				Status:               order.Filled,
+				Trades:               []order.TradeHistory{executedTrade("e-1", 0.1, 100), executedTrade("e-2", 0.1, 101), executedTrade("e-3", 0.1, 102)},
+			},
+		},
+		{
+			name:      "filled at an average that is not a whole number",
+			orderType: "lmt",
+			events:    []FuturesOrderEvent{execution("o-1", "e-1", 0.2, 0, 0.1, 100), execution("o-1", "e-2", 0.2, 0.1, 0.1, 101)},
+			exp: order.SubmitResponse{
+				Amount:               0.2,
+				ExecutedAmount:       0.2,
+				AverageExecutedPrice: 100.5,
+				Status:               order.Filled,
+				Trades:               []order.TradeHistory{executedTrade("e-1", 0.1, 100), executedTrade("e-2", 0.1, 101)},
+			},
+		},
+		{
+			name:      "partly executed by two executions, the rest resting in the book",
+			orderType: "lmt",
+			events:    []FuturesOrderEvent{execution("o-1", "e-1", 0.3, 0, 0.1, 100), execution("o-1", "e-2", 0.3, 0.1, 0.1, 102), placed(0.3, 0.2)},
+			exp:       order.SubmitResponse{Amount: 0.3, ExecutedAmount: 0.2, RemainingAmount: 0.1, Status: order.PartiallyFilled, Trades: []order.TradeHistory{executedTrade("e-1", 0.1, 100), executedTrade("e-2", 0.1, 102)}},
+		},
+		{
 			name:      "partly executed, the rest resting in the book",
 			orderType: "lmt",
 			events:    []FuturesOrderEvent{execution("o-1", "e-1", 0.3, 0, 0.1, 100), placed(0.3, 0.1)},
-			exp:       order.SubmitResponse{Amount: 0.3, ExecutedAmount: 0.1, RemainingAmount: 0.2, AverageExecutedPrice: 100, Status: order.PartiallyFilled, Trades: []order.TradeHistory{executedTrade("e-1", 0.1, 100)}},
+			exp:       order.SubmitResponse{Amount: 0.3, ExecutedAmount: 0.1, RemainingAmount: 0.2, Status: order.PartiallyFilled, Trades: []order.TradeHistory{executedTrade("e-1", 0.1, 100)}},
 		},
 		{
 			name:      "immediate or cancel order partly executed",
@@ -6398,7 +6450,7 @@ func TestAddFuturesExecutions(t *testing.T) {
 				{Type: "EXECUTION", ExecutionID: "e-1", ExecutionPrice: 100, ExecutedAmount: 0.1, TakerReducedQuantity: 0.1, OrderPriorExecution: &FuturesOrder{OrderID: "o-1", Quantity: 0.2}},
 				{Type: "PLACE", Order: &FuturesOrder{OrderID: "o-1", Quantity: 0.2, FilledQuantity: 0.1}, ReducedQuantity: 0.1},
 			},
-			exp: order.SubmitResponse{Amount: 0.2, ExecutedAmount: 0.1, RemainingAmount: 0.1, AverageExecutedPrice: 100, Status: order.PartiallyFilled, Trades: []order.TradeHistory{executedTrade("e-1", 0.1, 100)}},
+			exp: order.SubmitResponse{Amount: 0.2, ExecutedAmount: 0.1, RemainingAmount: 0.1, Status: order.PartiallyFilled, Trades: []order.TradeHistory{executedTrade("e-1", 0.1, 100)}},
 		},
 		{
 			name:      "reduce-only order reduced, then executed in full",
@@ -6419,6 +6471,25 @@ func TestAddFuturesExecutions(t *testing.T) {
 		tc.exp.Exchange, tc.exp.Type, tc.exp.Side, tc.exp.OrderID = "Kraken", order.Limit, order.Buy, "o-1"
 		assert.Equalf(t, &tc.exp, resp, "addFuturesExecutions should add what an order %s executed as placed", tc.name)
 	}
+}
+
+func TestFuturesOrderPartlyExecutedAsPlacedStored(t *testing.T) {
+	t.Parallel()
+	resp := &order.SubmitResponse{Exchange: "Kraken", Type: order.Limit, Side: order.Buy, Amount: 0.3, Status: order.New, OrderID: "o-1"}
+	addFuturesExecutions(resp, "lmt", &FuturesSendOrderStatus{OrderID: "o-1", Status: "placed", OrderEvents: []FuturesOrderEvent{
+		{Type: "EXECUTION", ExecutionID: "e-1", ExecutionPrice: 100, ExecutedAmount: 0.1, OrderPriorExecution: &FuturesOrder{OrderID: "o-1", Quantity: 0.3}},
+		{Type: "PLACE", Order: &FuturesOrder{OrderID: "o-1", Quantity: 0.3, FilledQuantity: 0.1}},
+	}})
+	stored, err := resp.DeriveDetail(uuid.Nil())
+	require.NoError(t, err, "DeriveDetail must not error")
+	assert.Equal(t, order.PartiallyFilled, stored.Status, "Status should be partly filled while the rest rests")
+	assert.Equal(t, 0.1, stored.ExecutedAmount, "ExecutedAmount should be what the placement executed")
+	assert.Equal(t, 0.2, stored.RemainingAmount, "RemainingAmount should be what rests")
+
+	// The feeds relay no average price, so one stored here would stand for all the fills to come
+	require.NoError(t, stored.UpdateOrderFromDetail(&order.Detail{OrderID: "o-1", Status: order.Filled, Amount: 0.3, ExecutedAmount: 0.3}), "UpdateOrderFromDetail must not error")
+	assert.Equal(t, order.Filled, stored.Status, "Status should be filled after the feeds report it")
+	assert.Zero(t, stored.AverageExecutedPrice, "AverageExecutedPrice should stay unset once fills the placement did not report have filled the order")
 }
 
 func TestSubmitOrderWebsocketToken(t *testing.T) {
@@ -6912,13 +6983,13 @@ func TestModifyOrderFuturesSize(t *testing.T) {
 				Price:         81520,
 				Amount:        0.0006,
 			}
-			// An edit that filled the order is reported filled, and an edited order's remaining size is the edited order's
+			// An edit that filled the order is reported filled, and an edited order's sizes are the edited order's
 			if tc.status == "filled" {
-				exp.Status = order.Filled
+				exp.Status, exp.ExecutedAmount = order.Filled, 0.0006
 			} else {
-				exp.RemainingAmount = 0.0004
+				exp.ExecutedAmount, exp.RemainingAmount = 0.0002, 0.0004
 			}
-			assert.Equal(t, exp, resp, "ModifyOrder should set the futures order's total size, as a spot amend does, and return what remains of it")
+			assert.Equal(t, exp, resp, "ModifyOrder should set the futures order's total size, as a spot amend does, and return what has executed and what remains of it")
 		})
 	}
 }
@@ -6941,15 +7012,18 @@ func TestAddFuturesEditedOrder(t *testing.T) {
 		events    []FuturesOrderEvent
 		exp       order.ModifyResponse
 	}{
-		{name: "edited, partly filled", orderID: "o-1", requested: 0.7, status: "edited", events: []FuturesOrderEvent{edited("o-1", "", 0.7, 0.4)}, exp: order.ModifyResponse{Amount: 0.7, RemainingAmount: 0.3}},
-		{name: "edited by its client order ID", clientOrderID: "c-1", requested: 0.7, status: "edited", events: []FuturesOrderEvent{edited("o-1", "c-1", 0.7, 0.4)}, exp: order.ModifyResponse{Amount: 0.7, RemainingAmount: 0.3}},
+		{name: "edited before any of it filled", orderID: "o-1", requested: 0.7, status: "edited", events: []FuturesOrderEvent{edited("o-1", "", 0.7, 0)}, exp: order.ModifyResponse{Amount: 0.7, RemainingAmount: 0.7}},
+		{name: "edited, partly filled", orderID: "o-1", requested: 0.7, status: "edited", events: []FuturesOrderEvent{edited("o-1", "", 0.7, 0.4)}, exp: order.ModifyResponse{Amount: 0.7, ExecutedAmount: 0.4, RemainingAmount: 0.3}},
+		{name: "edited by its client order ID", clientOrderID: "c-1", requested: 0.7, status: "edited", events: []FuturesOrderEvent{edited("o-1", "c-1", 0.7, 0.4)}, exp: order.ModifyResponse{Amount: 0.7, ExecutedAmount: 0.4, RemainingAmount: 0.3}},
 		// Kraken takes what does not fit the position off a reduce-only order
-		{name: "edited and reduced to fit the position", orderID: "o-1", requested: 0.7, status: "edited", events: []FuturesOrderEvent{edited("o-1", "", 0.6, 0.4)}, exp: order.ModifyResponse{Amount: 0.6, RemainingAmount: 0.2}},
-		{name: "edited in price alone", orderID: "o-1", status: "edited", events: []FuturesOrderEvent{edited("o-1", "", 0.7, 0.4)}, exp: order.ModifyResponse{Amount: 0.7, RemainingAmount: 0.3}},
-		{name: "edited, then executing in part", orderID: "o-1", requested: 0.7, status: "edited", events: []FuturesOrderEvent{edited("o-1", "", 0.7, 0.4), executed("o-1", 0.7, 0.4, 0.1)}, exp: order.ModifyResponse{Amount: 0.7, RemainingAmount: 0.2}},
-		{name: "edited down to what it filled", orderID: "o-1", requested: 0.4, status: "edited", events: []FuturesOrderEvent{edited("o-1", "", 0.4, 0.4)}, exp: order.ModifyResponse{Amount: 0.4, Status: order.Filled}},
-		{name: "filled by the edit", orderID: "o-1", requested: 0.7, status: "filled", events: []FuturesOrderEvent{edited("o-1", "", 0.7, 0.4), executed("o-1", 0.7, 0.4, 0.3)}, exp: order.ModifyResponse{Amount: 0.7, Status: order.Filled}},
-		{name: "filled by the edit, without events", orderID: "o-1", requested: 0.7, status: "filled", exp: order.ModifyResponse{Amount: 0.7, Status: order.Filled}},
+		{name: "edited and reduced to fit the position", orderID: "o-1", requested: 0.7, status: "edited", events: []FuturesOrderEvent{edited("o-1", "", 0.6, 0.4)}, exp: order.ModifyResponse{Amount: 0.6, ExecutedAmount: 0.4, RemainingAmount: 0.2}},
+		{name: "edited in price alone", orderID: "o-1", status: "edited", events: []FuturesOrderEvent{edited("o-1", "", 0.7, 0.4)}, exp: order.ModifyResponse{Amount: 0.7, ExecutedAmount: 0.4, RemainingAmount: 0.3}},
+		{name: "edited, then executing in part", orderID: "o-1", requested: 0.7, status: "edited", events: []FuturesOrderEvent{edited("o-1", "", 0.7, 0.4), executed("o-1", 0.7, 0.4, 0.1)}, exp: order.ModifyResponse{Amount: 0.7, ExecutedAmount: 0.5, RemainingAmount: 0.2}},
+		{name: "edited, then executing in part, which adds up as decimals", orderID: "o-1", requested: 0.7, status: "edited", events: []FuturesOrderEvent{edited("o-1", "", 0.7, 0.1), executed("o-1", 0.7, 0.1, 0.2)}, exp: order.ModifyResponse{Amount: 0.7, ExecutedAmount: 0.3, RemainingAmount: 0.4}},
+		{name: "edited, then executing twice", orderID: "o-1", requested: 0.8, status: "edited", events: []FuturesOrderEvent{edited("o-1", "", 0.8, 0.4), executed("o-1", 0.8, 0.4, 0.1), executed("o-1", 0.8, 0.5, 0.1)}, exp: order.ModifyResponse{Amount: 0.8, ExecutedAmount: 0.6, RemainingAmount: 0.2}},
+		{name: "edited down to what it filled", orderID: "o-1", requested: 0.4, status: "edited", events: []FuturesOrderEvent{edited("o-1", "", 0.4, 0.4)}, exp: order.ModifyResponse{Amount: 0.4, ExecutedAmount: 0.4, Status: order.Filled}},
+		{name: "filled by the edit", orderID: "o-1", requested: 0.7, status: "filled", events: []FuturesOrderEvent{edited("o-1", "", 0.7, 0.4), executed("o-1", 0.7, 0.4, 0.3)}, exp: order.ModifyResponse{Amount: 0.7, ExecutedAmount: 0.7, Status: order.Filled}},
+		{name: "filled by the edit, without events", orderID: "o-1", requested: 0.7, status: "filled", exp: order.ModifyResponse{Amount: 0.7, ExecutedAmount: 0.7, Status: order.Filled}},
 		{name: "edited, the events about another order", orderID: "o-1", requested: 0.7, status: "edited", events: []FuturesOrderEvent{edited("o-2", "", 0.6, 0.4), {Type: "PLACE", Order: &FuturesOrder{OrderID: "o-1", Quantity: 1}}}, exp: order.ModifyResponse{Amount: 0.7}},
 		{name: "edited without events", orderID: "o-1", requested: 0.7, status: "edited", exp: order.ModifyResponse{Amount: 0.7}},
 	} {
@@ -6957,6 +7031,124 @@ func TestAddFuturesEditedOrder(t *testing.T) {
 		addFuturesEditedOrder(mod, &FuturesEditOrderStatus{Status: tc.status, OrderEvents: tc.events})
 		tc.exp.OrderID, tc.exp.ClientOrderID = tc.orderID, tc.clientOrderID
 		assert.Equalf(t, &tc.exp, mod, "addFuturesEditedOrder should add the order an edit %s leaves", tc.name)
+	}
+}
+
+func TestFuturesEditMergedIntoStoredOrder(t *testing.T) {
+	t.Parallel()
+	edited := func(quantity, filled float64) FuturesOrderEvent {
+		return FuturesOrderEvent{Type: "EDIT", NewOrder: &FuturesOrder{OrderID: "o-1", Quantity: quantity, FilledQuantity: filled}}
+	}
+	executed := func(quantity, filled, amount float64) FuturesOrderEvent {
+		return FuturesOrderEvent{Type: "EXECUTION", ExecutedAmount: amount, OrderPriorExecution: &FuturesOrder{OrderID: "o-1", Quantity: quantity, FilledQuantity: filled}}
+	}
+	stored := func(status order.Status, amount, executedAmount, remaining float64) order.Detail {
+		return order.Detail{OrderID: "o-1", Status: status, Amount: amount, ExecutedAmount: executedAmount, RemainingAmount: remaining}
+	}
+	for _, tc := range []struct {
+		name   string
+		stored order.Detail
+		status string
+		events []FuturesOrderEvent
+		exp    order.Detail
+	}{
+		{
+			name:   "filled by the edit",
+			stored: stored(order.PartiallyFilled, 10, 4, 6),
+			status: "filled",
+			events: []FuturesOrderEvent{edited(7, 4), executed(7, 4, 3)},
+			exp:    stored(order.Filled, 7, 7, 0),
+		},
+		{
+			name:   "filled by the edit, without events",
+			stored: stored(order.PartiallyFilled, 10, 4, 6),
+			status: "filled",
+			exp:    stored(order.Filled, 7, 7, 0),
+		},
+		{
+			name:   "executing in part",
+			stored: stored(order.PartiallyFilled, 10, 4, 6),
+			status: "edited",
+			events: []FuturesOrderEvent{edited(7, 4), executed(7, 4, 1)},
+			exp:    stored(order.PartiallyFilled, 7, 5, 2),
+		},
+		{
+			name:   "before any of it filled",
+			stored: stored(order.Open, 10, 0, 10),
+			status: "edited",
+			events: []FuturesOrderEvent{edited(7, 0)},
+			exp:    stored(order.Open, 7, 0, 7),
+		},
+		{
+			name:   "executing in part, its reply after the feeds reported it filled",
+			stored: stored(order.Filled, 7, 7, 0),
+			status: "edited",
+			events: []FuturesOrderEvent{edited(7, 4), executed(7, 4, 1)},
+			exp:    stored(order.Filled, 7, 7, 0),
+		},
+		{
+			name:   "before any of it filled, its reply after the feeds reported it filled",
+			stored: stored(order.Filled, 7, 7, 0),
+			status: "edited",
+			events: []FuturesOrderEvent{edited(7, 0)},
+			exp:    stored(order.Filled, 7, 7, 0),
+		},
+		{
+			name:   "before any of it filled, its reply after the feeds reported it cancelled",
+			stored: stored(order.Cancelled, 7, 2, 5),
+			status: "edited",
+			events: []FuturesOrderEvent{edited(7, 0)},
+			exp:    stored(order.Cancelled, 7, 2, 5),
+		},
+		{
+			name:   "older than another edit, the two replies out of turn and the order filled by then",
+			stored: stored(order.Filled, 9, 9, 0),
+			status: "edited",
+			events: []FuturesOrderEvent{edited(7, 4)},
+			exp:    stored(order.Filled, 9, 9, 0),
+		},
+		{
+			name:   "older than another edit before any of it filled, the two replies out of turn and the order filled by then",
+			stored: stored(order.Filled, 9, 9, 0),
+			status: "edited",
+			events: []FuturesOrderEvent{edited(7, 0)},
+			exp:    stored(order.Filled, 9, 9, 0),
+		},
+		{
+			name:   "as much filled as stored, its reply after the feeds reported another edit and a cancel",
+			stored: stored(order.Cancelled, 9, 4, 5),
+			status: "edited",
+			events: []FuturesOrderEvent{edited(7, 4)},
+			exp:    stored(order.Cancelled, 9, 4, 5),
+		},
+		{
+			name:   "before any of it filled, its reply after a fill of 2 was stored",
+			stored: stored(order.PartiallyFilled, 7, 2, 5),
+			status: "edited",
+			events: []FuturesOrderEvent{edited(7, 0)},
+			exp:    stored(order.PartiallyFilled, 7, 2, 5),
+		},
+		{
+			name:   "executing in part, its reply after that fill and another were stored",
+			stored: stored(order.PartiallyFilled, 7, 6, 1),
+			status: "edited",
+			events: []FuturesOrderEvent{edited(7, 4), executed(7, 4, 1)},
+			exp:    stored(order.PartiallyFilled, 7, 6, 1),
+		},
+		{
+			name:   "executing in part, its reply after those fills but before the feeds reported the edit",
+			stored: stored(order.PartiallyFilled, 10, 6, 4),
+			status: "edited",
+			events: []FuturesOrderEvent{edited(7, 4), executed(7, 4, 1)},
+			exp:    stored(order.PartiallyFilled, 7, 6, 1),
+		},
+	} {
+		mod := &order.ModifyResponse{OrderID: "o-1", Amount: 7}
+		addFuturesEditedOrder(mod, &FuturesEditOrderStatus{Status: tc.status, OrderEvents: tc.events})
+		got := tc.stored
+		got.UpdateOrderFromModifyResponse(mod)
+		got.LastUpdated = time.Time{}
+		assert.Equalf(t, tc.exp, got, "the stored order should be right after an edit %s", tc.name)
 	}
 }
 

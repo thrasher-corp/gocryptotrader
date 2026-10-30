@@ -79,12 +79,12 @@ func TestGetDepositAddresses(t *testing.T) {
 	for _, tc := range []struct {
 		name string
 		req  *DepositAddressesRequest
-		exp  []DepositAddress
+		exp  []DepositAddressResponse
 	}{
 		{
 			name: "tagged addresses",
 			req:  &DepositAddressesRequest{Asset: currency.XRP, AssetClass: "currency", Method: "Ripple XRP"},
-			exp: []DepositAddress{
+			exp: []DepositAddressResponse{
 				{Address: "rLHzPsX3oXdzU2qP17kHCH2G4csZv1rAJh", New: true, Tag: "1361101127"},
 				{Address: "rLHzPsX3oXdzU2qP17kHCH2G4csZv1rAJh", Tag: "2730947812"},
 			},
@@ -92,12 +92,12 @@ func TestGetDepositAddresses(t *testing.T) {
 		{
 			name: "memo address",
 			req:  &DepositAddressesRequest{Asset: currency.EOS, Method: "EOS"},
-			exp:  []DepositAddress{{Address: "krakenkraken", Memo: "4150096490"}},
+			exp:  []DepositAddressResponse{{Address: "krakenkraken", Memo: "4150096490"}},
 		},
 		{
 			name: "new Lightning invoice",
 			req:  &DepositAddressesRequest{Asset: currency.XBT, Method: "Bitcoin Lightning", New: true, Amount: 0.0005},
-			exp: []DepositAddress{
+			exp: []DepositAddressResponse{
 				{
 					Address:    "lnbc500u1p5kr4kenpp5q8m2z7d3x9c4v6b8n0l2k4j6h8g0f2d4s6a8p0o2i4u6y8t0r2e4w6q8",
 					ExpireTime: types.Time(time.Unix(1791508202, 0)),

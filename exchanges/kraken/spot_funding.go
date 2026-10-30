@@ -33,7 +33,7 @@ func (e *Exchange) GetDepositMethods(ctx context.Context, req *DepositMethodsReq
 
 // GetDepositAddresses calls Get Deposit Addresses, returning an asset's deposit addresses for a method, generating a
 // new one when New is set. Kraken no longer updates this legacy endpoint and recommends Funding (Beta) instead
-func (e *Exchange) GetDepositAddresses(ctx context.Context, req *DepositAddressesRequest) ([]DepositAddress, error) {
+func (e *Exchange) GetDepositAddresses(ctx context.Context, req *DepositAddressesRequest) ([]DepositAddressResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -58,7 +58,7 @@ func (e *Exchange) GetDepositAddresses(ctx context.Context, req *DepositAddresse
 	if req.Amount > 0 {
 		body["amount"] = strconv.FormatFloat(req.Amount, 'f', -1, 64)
 	}
-	var resp []DepositAddress
+	var resp []DepositAddressResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, "/0/private/DepositAddresses", nil, body, &resp)
 }
 
