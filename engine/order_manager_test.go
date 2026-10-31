@@ -863,13 +863,14 @@ func (f modifyRecordingExchange) ModifyOrder(ctx context.Context, action *order.
 // newModifyTestManager returns a started order manager holding the order, whose only exchange is the one given, or none
 func newModifyTestManager(t *testing.T, stored *order.Detail, ex exchange.IBotExchange) *OrderManager {
 	t.Helper()
-	m := OrdersSetup(t)
-	require.NoError(t, m.orderStore.add(stored), "add must not error")
 	em := NewExchangeManager()
 	if ex != nil {
 		require.NoError(t, em.Add(ex), "Add must not error")
 	}
-	m.orderStore.exchangeManager = em
+	m, err := SetupOrderManager(em, &CommunicationManager{}, &sync.WaitGroup{}, &config.OrderManager{})
+	require.NoError(t, err, "SetupOrderManager must not error")
+	m.started.Store(true)
+	m.orderStore.Orders[strings.ToLower(stored.Exchange)] = []*order.Detail{stored}
 	return m
 }
 

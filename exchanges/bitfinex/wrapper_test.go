@@ -273,12 +273,14 @@ func TestUpdateTickers(t *testing.T) {
 		asset.USDTMarginedFutures: {testDerivativePair},
 		asset.CoinMarginedFutures: {testCoinMarginedPair},
 	} {
+		before := time.Now()
 		require.NoErrorf(t, ex.UpdateTickers(t.Context(), a), "UpdateTickers must not error for %s", a)
+		after := time.Now()
 		for _, p := range pairs {
 			got, err := ticker.GetTicker(ex.Name, p, a)
 			require.NoErrorf(t, err, "UpdateTickers must store %s %s's ticker", a, p)
 			assert.Positivef(t, got.Last, "the %s %s ticker should have a last price", a, p)
-			assert.WithinDurationf(t, time.Now(), got.LastUpdated, time.Minute, "the %s %s ticker should be stamped when received, not with its first trade", a, p)
+			assert.WithinRangef(t, got.LastUpdated, before, after, "the %s %s ticker should be stamped when received, not with its first trade", a, p)
 		}
 	}
 	if mockTests {
@@ -2943,6 +2945,7 @@ func TestGetFuturesContractDetails(t *testing.T) {
 	_, err = newPathResponseServerExchange(t, map[string]string{"/v2/conf/pub:info:pair:futures": info("BTCF0")}).GetFuturesContractDetails(t.Context(), asset.USDTMarginedFutures)
 	assert.ErrorIs(t, err, errSymbolUnparsable, "GetFuturesContractDetails should refuse a contract it cannot read")
 	for a, p := range map[asset.Item]currency.Pair{asset.USDTMarginedFutures: testDerivativePair, asset.CoinMarginedFutures: testCoinMarginedPair} {
+		before := time.Now()
 		contracts, err := e.GetFuturesContractDetails(t.Context(), a)
 		require.NoErrorf(t, err, "GetFuturesContractDetails must not error for %s", a)
 		i := slices.IndexFunc(contracts, func(c futures.Contract) bool { return c.Name.Equal(p) })
@@ -2956,7 +2959,7 @@ func TestGetFuturesContractDetails(t *testing.T) {
 			assert.Equalf(t, futures.Perpetual, c.Type, "%s should be perpetual", p)
 			assert.Equalf(t, p.Quote.Upper(), c.SettlementCurrency, "%s should settle in its collateral", p)
 			assert.Positivef(t, c.MaxLeverage, "%s should have a maximum leverage", p)
-			assert.WithinDurationf(t, time.Now(), c.LatestRate.Time, derivativeFundingInterval, "%s's latest funding rate should be from its last funding event", p)
+			assert.WithinDurationf(t, before, c.LatestRate.Time, derivativeFundingInterval, "%s's latest funding rate should be from its last funding event", p)
 			continue
 		}
 		collateral := p.Quote.Upper()
@@ -3018,14 +3021,16 @@ func TestGetLatestFundingRates(t *testing.T) {
 		// The asset's enabled pairs, without a pair
 		asset.CoinMarginedFutures: {Asset: asset.CoinMarginedFutures},
 	} {
+		before := time.Now()
 		rates, err := ex.GetLatestFundingRates(t.Context(), req)
+		after := time.Now()
 		require.NoErrorf(t, err, "GetLatestFundingRates must not error for %s", a)
 		require.Lenf(t, rates, 1, "GetLatestFundingRates must return %s's rate", a)
-		assert.WithinDurationf(t, time.Now(), rates[0].TimeChecked, time.Minute, "the %s rate should be checked now", a)
+		assert.WithinRangef(t, rates[0].TimeChecked, before, after, "the %s rate should be checked now", a)
 		rates[0].TimeChecked = time.Time{}
 		if !mockTests {
 			assert.Equalf(t, derivativeFundingInterval, rates[0].TimeOfNextRate.Sub(rates[0].LatestRate.Time), "the %s rate should be set a funding interval before the next", a)
-			assert.Truef(t, rates[0].TimeOfNextRate.After(time.Now()), "the %s rate's next funding event should be to come", a)
+			assert.Truef(t, rates[0].TimeOfNextRate.After(before), "the %s rate's next funding event should be to come", a)
 			continue
 		}
 		exp := fundingrate.LatestRateResponse{Exchange: ex.Name, Asset: a, Pair: testDerivativePair, TimeOfNextRate: testDerivativeNextFunding}
@@ -3101,18 +3106,25 @@ func TestGetHistoricalFundingRatesWindowEnd(t *testing.T) {
 	past := time.UnixMilli(1792022400000)
 	for _, tc := range []struct {
 		start, end time.Time
-		exp        func() int64
+		// exp is the end the request should give, or now when unset
+		exp int64
 	}{
 		// The snapshots a funding interval after the window carry the rates of its last events
-		{start: past, end: past.Add(16 * time.Hour), exp: func() int64 { return past.Add(24 * time.Hour).UnixMilli() }},
+		{start: past, end: past.Add(16 * time.Hour), exp: past.Add(24 * time.Hour).UnixMilli()},
 		// Bitfinex refuses a window ending after the current UTC day, so one ending now goes no later
-		{start: time.Now().Add(-16 * time.Hour), end: time.Now(), exp: func() int64 { return time.Now().UnixMilli() }},
+		{start: time.Now().Add(-16 * time.Hour), end: time.Now()},
 	} {
 		ends = nil
+		earliest := time.Now().UnixMilli()
 		_, err := ex.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{Asset: asset.USDTMarginedFutures, Pair: testDerivativePair, StartDate: tc.start, EndDate: tc.end})
+		latest := time.Now().UnixMilli()
 		require.ErrorIs(t, err, fundingrate.ErrNoFundingRatesFound, "GetHistoricalFundingRates must find no rates in an empty history")
 		require.Len(t, ends, 1, "GetHistoricalFundingRates must request one page of the status history")
-		assert.InDeltaf(t, tc.exp(), ends[0], float64(time.Minute.Milliseconds()), "a window ending at %s should request the status history up to the window's end and a funding interval, but not past now", tc.end)
+		if tc.exp != 0 {
+			earliest, latest = tc.exp, tc.exp
+		}
+		assert.GreaterOrEqualf(t, ends[0], earliest, "a window ending at %s should request the status history up to the window's end and a funding interval, but not past now", tc.end)
+		assert.LessOrEqualf(t, ends[0], latest, "a window ending at %s should request the status history up to the window's end and a funding interval, but not past now", tc.end)
 	}
 }
 
@@ -3282,12 +3294,15 @@ func TestGetFuturesPositionOrders(t *testing.T) {
 	assert.Equal(t, map[string]any{"start": float64(now.Add(-time.Hour).UnixMilli()), "end": float64(now.UnixMilli()), "limit": float64(ordersHistoryPageLimit)}, historyBodies[0], "the order history should be read for the window")
 
 	historyBodies = nil
+	earliest := time.Now().Add(-orderHistoryReach).UnixMilli()
 	_, err = ex.GetFuturesPositionOrders(t.Context(), &futures.PositionsRequest{Asset: asset.USDTMarginedFutures, Pairs: currency.Pairs{testDerivativePair}, StartDate: now.AddDate(0, 0, -20), EndDate: now, RespectOrderHistoryLimits: true})
+	latest := time.Now().Add(-orderHistoryReach).UnixMilli()
 	require.NoError(t, err, "GetFuturesPositionOrders must not error for a window starting before the order history")
 	require.Len(t, historyBodies, 1, "GetFuturesPositionOrders must read the order history")
 	historyStart, ok := historyBodies[0]["start"].(float64)
 	require.True(t, ok, "the order history request must have a start")
-	assert.InDelta(t, float64(time.Now().Add(-orderHistoryReach).UnixMilli()), historyStart, float64(time.Minute.Milliseconds()), "a window starting before the order history should start as far back as it reaches")
+	assert.GreaterOrEqual(t, historyStart, float64(earliest), "a window starting before the order history should start as far back as it reaches")
+	assert.LessOrEqual(t, historyStart, float64(latest), "a window starting before the order history should start as far back as it reaches")
 }
 
 func TestChangePositionMargin(t *testing.T) {
