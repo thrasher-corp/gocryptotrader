@@ -80,6 +80,8 @@ type websocketVenueRequest struct {
 	ID     int64
 	Method string
 	Params json.RawMessage
+	Nonce  uint64
+	Bytes  int
 }
 
 // websocketVenue stands in for the mock of Crypto.com's websocket, which the live tests do not use; it records nothing

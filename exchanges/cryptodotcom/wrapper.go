@@ -56,6 +56,10 @@ const (
 	fundingInterval = time.Hour
 	// basisPoints is the number of basis points in one
 	basisPoints = 10000
+	// offlineMakerFeeRate and offlineTakerFeeRate are the highest rates of Crypto.com's spot fee schedule, its first level
+	// without a CRO balance
+	offlineMakerFeeRate = 0.0025
+	offlineTakerFeeRate = 0.005
 )
 
 var (
@@ -1075,13 +1079,19 @@ func (e *Exchange) WithdrawFiatFundsToInternationalBank(context.Context, *withdr
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetFeeByType returns a trading fee, at the account's fee rate for the pair, or a withdrawal fee, on the currency's
-// default network or its only one
+// GetFeeByType returns a trading fee, at the account's fee rate for the pair, an estimate of a trading fee, at the highest
+// rate of Crypto.com's spot fee schedule, or a withdrawal fee, on the currency's default network or its only one
 func (e *Exchange) GetFeeByType(ctx context.Context, f *exchange.FeeBuilder) (float64, error) {
 	if f == nil {
 		return 0, common.ErrNilPointer
 	}
 	switch f.FeeType {
+	case exchange.OfflineTradeFee:
+		rate := offlineTakerFeeRate
+		if f.IsMaker {
+			rate = offlineMakerFeeRate
+		}
+		return rate * f.PurchasePrice * f.Amount, nil
 	case exchange.CryptocurrencyTradeFee:
 		a, err := e.GetPairAssetType(f.Pair)
 		if err != nil {

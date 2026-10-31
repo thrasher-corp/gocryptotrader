@@ -1335,8 +1335,22 @@ func TestGetFeeByType(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetFeeByType(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetFeeByType must refuse a nil fee builder")
-	_, err = e.GetFeeByType(t.Context(), &exchange.FeeBuilder{FeeType: exchange.OfflineTradeFee})
+	_, err = e.GetFeeByType(t.Context(), &exchange.FeeBuilder{FeeType: exchange.InternationalBankDepositFee})
 	require.ErrorIs(t, err, common.ErrFunctionNotSupported, "GetFeeByType must refuse an unsupported fee type")
+	// An estimate needs no credentials, which a backtest may not have
+	offline := new(Exchange)
+	offline.SetDefaults()
+	offlineTaker, err := offline.GetFeeByType(t.Context(), &exchange.FeeBuilder{FeeType: exchange.OfflineTradeFee, PurchasePrice: 80000, Amount: 0.5})
+	require.NoError(t, err, "GetFeeByType must not error for an offline taker fee")
+	assert.Equal(t, 200.0, offlineTaker, "GetFeeByType should estimate a taker trade's fee at the schedule's highest taker rate")
+	offlineMaker, err := offline.GetFeeByType(t.Context(), &exchange.FeeBuilder{FeeType: exchange.OfflineTradeFee, PurchasePrice: 80000, Amount: 0.5, IsMaker: true})
+	require.NoError(t, err, "GetFeeByType must not error for an offline maker fee")
+	assert.Equal(t, 100.0, offlineMaker, "GetFeeByType should estimate a maker trade's fee at the schedule's highest maker rate")
+	_, err = offline.GetFeeByType(t.Context(), &exchange.FeeBuilder{FeeType: exchange.CryptocurrencyTradeFee, Pair: testSpotPair})
+	assert.Error(t, err, "GetFeeByType should refuse a trade fee for a pair of no asset")
+	require.NoError(t, offline.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{currency.EMPTYPAIR}, false), "StorePairs must store the available pairs")
+	_, err = offline.GetFeeByType(t.Context(), &exchange.FeeBuilder{FeeType: exchange.CryptocurrencyTradeFee})
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetFeeByType should refuse a trade fee for an empty pair")
 	skipLiveWithoutCredentials(t)
 	taker, err := e.GetFeeByType(t.Context(), &exchange.FeeBuilder{FeeType: exchange.CryptocurrencyTradeFee, Pair: testSpotPair, PurchasePrice: 80000, Amount: 0.5})
 	require.NoError(t, err, "GetFeeByType must not error for a taker fee")
@@ -1356,6 +1370,15 @@ func TestGetFeeByType(t *testing.T) {
 	ex := newResponseServerExchange(t, `{"id":1,"method":"private/get-currency-networks","code":0,"result":{"currency_map":{"USDC":{"default_network":"SOL","network_list":[{"network_id":"ETH"},{"network_id":"BNB"}]}}}}`)
 	_, err = ex.GetFeeByType(t.Context(), &exchange.FeeBuilder{FeeType: exchange.CryptocurrencyWithdrawalFee, Pair: currency.NewPair(currency.USDC, currency.EMPTYCODE)})
 	assert.ErrorIs(t, err, errNoDefaultNetwork, "GetFeeByType should refuse a currency whose default network it does not list")
+	ex = newResponseServerExchange(t, `{"id":1,"code":40101,"message":"Unauthorized"}`)
+	var apiErr *APIError
+	_, err = ex.GetFeeByType(t.Context(), &exchange.FeeBuilder{FeeType: exchange.CryptocurrencyTradeFee, Pair: testSpotPair})
+	require.ErrorAs(t, err, &apiErr, "GetFeeByType must report a refused fee rate lookup")
+	assert.Equal(t, &APIError{Code: 40101, Message: "Unauthorized"}, apiErr, "GetFeeByType should report the fee rate lookup's error")
+	apiErr = nil
+	_, err = ex.GetFeeByType(t.Context(), &exchange.FeeBuilder{FeeType: exchange.CryptocurrencyWithdrawalFee, Pair: currency.NewPair(currency.USDC, currency.EMPTYCODE)})
+	require.ErrorAs(t, err, &apiErr, "GetFeeByType must report a refused network lookup")
+	assert.Equal(t, &APIError{Code: 40101, Message: "Unauthorized"}, apiErr, "GetFeeByType should report the network lookup's error")
 }
 
 func TestGetServerTime(t *testing.T) {

@@ -210,6 +210,9 @@ type websocketVenueRequest struct {
 	ID     int64
 	Method string
 	Params json.RawMessage
+	Nonce  uint64
+	// Bytes is the length of the request as it was received
+	Bytes int
 }
 
 // websocketVenue mocks Crypto.com's user API websocket. It authenticates a public/auth request signed with the
@@ -358,7 +361,7 @@ func (v *websocketVenue) answer(conn *gws.Conn, msg []byte) error {
 		}
 	}
 	v.mu.Lock()
-	v.requests = append(v.requests, websocketVenueRequest{ID: req.ID, Method: req.Method, Params: req.Params})
+	v.requests = append(v.requests, websocketVenueRequest{ID: req.ID, Method: req.Method, Params: req.Params, Nonce: req.Nonce, Bytes: len(msg)})
 	result, hasResult := v.results[req.Method]
 	apiErr := v.errs[req.Method]
 	var answers []subscriptionAnswer

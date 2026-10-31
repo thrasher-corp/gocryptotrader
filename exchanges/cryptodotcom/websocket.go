@@ -46,7 +46,10 @@ const (
 	defaultWebsocketConnectDelay = time.Second
 	// websocketMaxSubscriptionsPerConnection is how many channels Crypto.com subscribes on one connection before it
 	// answers 40107, maximum subscriptions exceeded
-	websocketMaxSubscriptionsPerConnection = 500
+	websocketMaxSubscriptionsPerConnection = 400
+	// websocketMaxChannelBytes is how many bytes of channel names, with their quotes and commas, a subscribe or unsubscribe
+	// request holds: Crypto.com does not answer a request over 4096 bytes, and the rest of a request takes under 200
+	websocketMaxChannelBytes = 3900
 
 	// defaultBookDepth is the depth of a book subscription that names none; Crypto.com serves books 10 or 50 levels deep
 	defaultBookDepth = 50
@@ -70,7 +73,7 @@ var (
 )
 
 // defaultSubscriptions are the market data GoCryptoTrader keeps for every enabled pair: tickers, books 50 levels deep
-// with deltas every 100 milliseconds, trades and one minute candles. Each takes one of the 500 subscriptions a connection
+// with deltas every 100 milliseconds, trades and one minute candles. Each takes one of the 400 subscriptions a connection
 // carries for every enabled pair, so the mark, index, funding and settlement channels are left to configuration.
 // Authenticated, they also keep the order manager, the fills feed and the account store current with the account's
 // orders, advanced orders, trades, balances and positions, each one subscription for every instrument; the transactions,
@@ -300,6 +303,12 @@ func (e *Exchange) SendWebsocketRequest(ctx context.Context, method string, para
 	if !e.Websocket.CanUseAuthenticatedEndpoints() {
 		return fmt.Errorf("%w: %s", errWebsocketNotAuthenticated, method)
 	}
+	return e.sendConnectionRequest(ctx, conn, method, params, result)
+}
+
+// sendConnectionRequest sends a method's request over conn, with params, which may be nil, as its params object, and
+// decodes its result
+func (e *Exchange) sendConnectionRequest(ctx context.Context, conn websocket.Connection, method string, params, result any) error {
 	encodedParams, err := encodeParams(params)
 	if err != nil {
 		return err
@@ -648,8 +657,8 @@ type subscriptionRequest struct {
 	BookUpdateFrequency  uint64   `json:"book_update_frequency,omitempty"`
 }
 
-// wsSubscribe subscribes to channels, with a request for each book_subscription_type and book_update_frequency their
-// subscriptions need, as Crypto.com applies a request's to every book channel it names
+// wsSubscribe subscribes to channels, with requests for each book_subscription_type and book_update_frequency their
+// subscriptions need, as Crypto.com applies a request's to every book channel it names, each naming as many as it holds
 func (e *Exchange) wsSubscribe(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
 	type batch struct {
 		params *subscriptionRequest
@@ -673,13 +682,40 @@ func (e *Exchange) wsSubscribe(ctx context.Context, conn websocket.Connection, s
 			i = len(batches)
 			batches = append(batches, &batch{params: &params})
 		}
-		batches[i].params.Channels = append(batches[i].params.Channels, s.QualifiedChannel)
 		batches[i].subs = append(batches[i].subs, s)
 	}
 	for _, b := range batches {
-		errs = common.AppendError(errs, e.wsSubscribeBatch(ctx, conn, b.params, b.subs))
+		for _, list := range channelLists(b.subs) {
+			params := *b.params
+			params.Channels = qualifiedChannels(list)
+			errs = common.AppendError(errs, e.wsSubscribeBatch(ctx, conn, &params, list))
+		}
 	}
 	return errs
+}
+
+// channelLists splits subscriptions into the lists one subscribe or unsubscribe request holds
+func channelLists(subs subscription.List) []subscription.List {
+	var lists []subscription.List
+	var start, channelBytes int
+	for i, s := range subs {
+		size := len(s.QualifiedChannel) + len(`"",`)
+		if channelBytes+size > websocketMaxChannelBytes {
+			lists = append(lists, subs[start:i])
+			start, channelBytes = i, 0
+		}
+		channelBytes += size
+	}
+	return append(lists, subs[start:])
+}
+
+// qualifiedChannels returns the channels subscriptions name
+func qualifiedChannels(subs subscription.List) []string {
+	channels := make([]string, len(subs))
+	for i, s := range subs {
+		channels[i] = s.QualifiedChannel
+	}
+	return channels
 }
 
 // wsSubscribeBatch sends a subscribe request for channels and waits for each channel's answer, or for an answer refusing
@@ -731,26 +767,21 @@ func (e *Exchange) wsSubscribeBatch(ctx context.Context, conn websocket.Connecti
 	return errs
 }
 
-// wsUnsubscribe unsubscribes from channels, one request for all of them, which Crypto.com acknowledges once
+// wsUnsubscribe unsubscribes from channels, with as many requests as they take
 func (e *Exchange) wsUnsubscribe(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
 	if len(subs) == 0 {
 		return nil
 	}
-	channels := make([]string, len(subs))
-	for i, s := range subs {
-		channels[i] = s.QualifiedChannel
+	var errs error
+	for _, list := range channelLists(subs) {
+		errs = common.AppendError(errs, e.wsUnsubscribeBatch(ctx, conn, list))
 	}
-	params, err := json.Marshal(&subscriptionRequest{Channels: channels})
-	if err != nil {
-		return err
-	}
-	id := e.nextWebsocketRequestID()
-	req := &websocketRequest{ID: id, Method: websocketMethodUnsubscribe, Params: params, Nonce: requestNonce()}
-	data, err := conn.SendMessageReturnResponse(ctx, request.Unset, id, req)
-	if err != nil {
-		return err
-	}
-	if err := decodeWebsocketResponse(data, nil); err != nil {
+	return errs
+}
+
+// wsUnsubscribeBatch sends an unsubscribe request for channels, which Crypto.com acknowledges once, and removes them
+func (e *Exchange) wsUnsubscribeBatch(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
+	if err := e.sendConnectionRequest(ctx, conn, websocketMethodUnsubscribe, &subscriptionRequest{Channels: qualifiedChannels(subs)}, nil); err != nil {
 		return err
 	}
 	return e.Websocket.RemoveSubscriptions(conn, subs...)
