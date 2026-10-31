@@ -1703,7 +1703,11 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 
 	var orderType string
 	if req.Type != order.UnknownType && req.Type != order.AnyType {
-		orderType, err = orderTypeString(req.Type, req.TimeInForce)
+		if req.AssetType == asset.Spread {
+			orderType, err = spreadOrderTypeString(req.Type, req.TimeInForce)
+		} else {
+			orderType, err = orderTypeString(req.Type, req.TimeInForce)
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -1862,7 +1866,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 		var oType string
 		if req.Type != order.AnyType {
 			var err error
-			if oType, err = orderTypeString(req.Type, req.TimeInForce); err != nil {
+			if oType, err = spreadOrderTypeString(req.Type, req.TimeInForce); err != nil {
 				return nil, err
 			}
 		}
@@ -1987,7 +1991,7 @@ allOrders:
 					LastUpdated:          orderList[i].UpdateTime.Time(),
 					Pair:                 pair,
 					Cost:                 orderList[i].AveragePrice.Float64() * orderList[i].AccumulatedFillSize.Float64(),
-					CostAsset:            pair.Quote,
+					CostAsset:            costCurrency(pair),
 					TimeInForce:          tif,
 				})
 			}
@@ -2763,7 +2767,7 @@ func (e *Exchange) GetFuturesPositionOrders(ctx context.Context, req *futures.Po
 				LastUpdated:          positions[j].UpdateTime.Time(),
 				Pair:                 req.Pairs[i],
 				Cost:                 cost,
-				CostAsset:            req.Pairs[i].Quote,
+				CostAsset:            costCurrency(req.Pairs[i]),
 				TimeInForce:          tif,
 			})
 		}

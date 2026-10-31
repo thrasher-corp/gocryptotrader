@@ -3902,7 +3902,7 @@ func newRecordingExchange(t *testing.T, connected, authenticated bool, result st
 
 // TestSubmitOrderByOrderType checks that SubmitOrder refuses a type with no OKX order type of its own, such as a stop or
 // take profit order with a trigger price, before sending anything whatever its time in force, while a post only
-// LimitMaker order is still placed as a post_only order
+// LimitMaker order is still placed as a post_only order and a FOK or IOC Limit order as a fok or ioc order
 func TestSubmitOrderByOrderType(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
@@ -3918,6 +3918,9 @@ func TestSubmitOrderByOrderType(t *testing.T) {
 		{orderType: order.TakeProfit, tif: order.PostOnly, triggerPrice: 110},
 		{orderType: order.TakeProfit, tif: order.FillOrKill, triggerPrice: 110},
 		{orderType: order.LimitMaker, tif: order.PostOnly, exp: []string{`/trade/order {"instId":"BTC-USDT","tdMode":"cash","side":"buy","ordType":"post_only","sz":"1","px":"100"}`}},
+		{orderType: order.Limit, tif: order.FillOrKill, exp: []string{`/trade/order {"instId":"BTC-USDT","tdMode":"cash","side":"buy","ordType":"fok","sz":"1","px":"100"}`}},
+		{orderType: order.Limit, tif: order.ImmediateOrCancel, exp: []string{`/trade/order {"instId":"BTC-USDT","tdMode":"cash","side":"buy","ordType":"ioc","sz":"1","px":"100"}`}},
+		{orderType: order.Limit, tif: order.GoodTillCancel | order.PostOnly, exp: []string{`/trade/order {"instId":"BTC-USDT","tdMode":"cash","side":"buy","ordType":"post_only","sz":"1","px":"100"}`}},
 	} {
 		t.Run(tc.orderType.String()+"/"+tc.tif.String(), func(t *testing.T) {
 			t.Parallel()
@@ -4798,6 +4801,7 @@ func TestGetActiveOrdersMocked(t *testing.T) {
 		{name: "any pair", req: &order.MultiOrderRequest{AssetType: asset.Spot, Type: order.AnyType, Side: order.AnySide}, replies: []string{mockOrdersReply(liveOrder)}, requests: []string{spotPending}, exp: order.FilteredOrders{live}},
 		{name: "a full page", req: spotRequest(), replies: []string{mockOrdersReply(fullPage...), mockOrdersReply(liveOrder)}, requests: []string{spotPending, spotPending}, exp: order.FilteredOrders{live}},
 		{name: "spread type with no OKX order type", req: spreadRequest(order.Stop, order.ImmediateOrCancel), err: order.ErrUnsupportedOrderType},
+		{name: "spread type with no OKX spread order type", req: spreadRequest(order.Limit, order.FillOrKill), err: order.ErrUnsupportedOrderType},
 		{name: "spread request fails", req: spreadRequest(order.Limit, order.UnknownTIF), replies: []string{mockFailureReply}, requests: []string{spreadPending}, err: request.ErrAuthRequestFailed},
 		{
 			name:            "spread pair format missing",
@@ -4857,7 +4861,8 @@ func TestGetActiveOrdersMocked(t *testing.T) {
 }
 
 // TestGetOrderHistoryMocked drives GetOrderHistory through canned order history replies, checking every order it
-// returns, with each cost labelled in the quote currency it is computed in rather than the rebate currency
+// returns, with each cost labelled in the quote currency on spot and in the settle coin on a derivative rather than
+// the rebate currency
 func TestGetOrderHistoryMocked(t *testing.T) {
 	t.Parallel()
 	const (
@@ -4969,6 +4974,15 @@ func TestGetOrderHistoryMocked(t *testing.T) {
 	soldPostOnly.TimeInForce = order.PostOnly
 	soldImmediateOrCancel := sold
 	soldImmediateOrCancel.TimeInForce = order.ImmediateOrCancel
+	inverseSwapPair := currency.NewPairWithDelimiter("BTC", "USD-SWAP", "-")
+	soldSwap := func(instrument string) string {
+		return strings.Replace(strings.Replace(soldOrder, `"instId":"BTC-USDT"`, `"instId":"`+instrument+`"`, 1), `"instType":"SPOT"`, `"instType":"SWAP"`, 1)
+	}
+	soldDerivative := func(pair currency.Pair, costAsset currency.Code) order.Detail {
+		d := sold
+		d.AssetType, d.Pair, d.CostAsset = asset.PerpetualSwap, pair, costAsset
+		return d
+	}
 
 	// A full page of another pair's orders makes GetOrderHistory ask for the orders before the page's last one
 	fullPage := make([]string, 100)
@@ -5027,7 +5041,15 @@ func TestGetOrderHistoryMocked(t *testing.T) {
 			requests: []string{spotHistory, "/trade/orders-history-archive?end=1761699901000&instType=SPOT"},
 			exp:      order.FilteredOrders{quoteSized},
 		},
+		{
+			name:     "cost of each perpetual swap in its settle coin",
+			req:      &order.MultiOrderRequest{AssetType: asset.PerpetualSwap, Type: order.AnyType, Side: order.AnySide, Pairs: []currency.Pair{perpetualSwapPair, inverseSwapPair}},
+			replies:  []string{mockOrdersReply(soldSwap("BTC-USDT-SWAP"), soldSwap("BTC-USD-SWAP"))},
+			requests: []string{"/trade/orders-history-archive?instType=SWAP"},
+			exp:      order.FilteredOrders{soldDerivative(perpetualSwapPair, currency.USDT), soldDerivative(inverseSwapPair, currency.BTC)},
+		},
 		{name: "spread type with no OKX order type", req: spreadRequest(order.Stop, order.ImmediateOrCancel), err: order.ErrUnsupportedOrderType},
+		{name: "spread type with no OKX spread order type", req: spreadRequest(order.Limit, order.FillOrKill), err: order.ErrUnsupportedOrderType},
 		{name: "spread history request fails", req: spreadRequest(order.Limit, order.UnknownTIF), replies: []string{mockFailureReply}, requests: []string{spreadHistory}, err: request.ErrAuthRequestFailed},
 		{
 			name:            "spread pair format missing",
@@ -6636,7 +6658,7 @@ func TestGetFuturesPositions(t *testing.T) {
 }
 
 // TestGetFuturesPositionOrdersMocked drives GetFuturesPositionOrders through canned contract and order history
-// replies, checking every order it returns, with each cost labelled in the requested pair's quote currency rather than
+// replies, checking every order it returns, with each cost labelled in the requested pair's settle coin rather than
 // the rebate currency
 func TestGetFuturesPositionOrdersMocked(t *testing.T) {
 	t.Parallel()
@@ -6679,7 +6701,7 @@ func TestGetFuturesPositionOrdersMocked(t *testing.T) {
 		LastUpdated:          time.UnixMilli(1761700001000),
 		Pair:                 perpetualSwapPair,
 		Cost:                 1200,
-		CostAsset:            currency.NewCode("USDT-SWAP"),
+		CostAsset:            currency.USDT,
 	}
 	quoteSized := order.Detail{
 		Price:                31000,
@@ -6701,7 +6723,7 @@ func TestGetFuturesPositionOrdersMocked(t *testing.T) {
 		LastUpdated:          time.UnixMilli(1761699901000),
 		Pair:                 perpetualSwapPair,
 		Cost:                 310,
-		CostAsset:            currency.NewCode("USDT-SWAP"),
+		CostAsset:            currency.USDT,
 		TimeInForce:          order.PostOnly,
 	}
 	unknownState := order.Detail{
@@ -6720,7 +6742,7 @@ func TestGetFuturesPositionOrdersMocked(t *testing.T) {
 		Date:            time.UnixMilli(1761699700000),
 		LastUpdated:     time.UnixMilli(1761699701000),
 		Pair:            perpetualSwapPair,
-		CostAsset:       currency.NewCode("USDT-SWAP"),
+		CostAsset:       currency.USDT,
 		TimeInForce:     order.ImmediateOrCancel,
 	}
 	sol := order.Detail{
@@ -6741,7 +6763,7 @@ func TestGetFuturesPositionOrdersMocked(t *testing.T) {
 		LastUpdated:          time.UnixMilli(1761699601000),
 		Pair:                 solSwapPair,
 		Cost:                 300,
-		CostAsset:            currency.NewCode("USDT-SWAP"),
+		CostAsset:            currency.USDT,
 	}
 
 	for _, tc := range []struct {
@@ -6846,6 +6868,33 @@ func TestGetFuturesPositionOrdersMocked(t *testing.T) {
 				assert.Equal(t, tc.exp, result, "GetFuturesPositionOrders should return the expected position orders")
 			}
 		})
+	}
+}
+
+// TestGetFuturesPositionOrdersCostAsset checks that each swap's cost is labelled with its settle coin, written as the
+// requested pair is written, with no fee or rebate currency in the reply to take it from
+func TestGetFuturesPositionOrdersCostAsset(t *testing.T) {
+	t.Parallel()
+	const instruments = `{"code":"0","msg":"","data":[{"instType":"SWAP","instId":"BTC-USDT-SWAP","uly":"BTC-USDT","instFamily":"BTC-USDT","baseCcy":"","quoteCcy":"","settleCcy":"USDT","ctVal":"0.01","ctMult":"1","ctValCcy":"BTC","ctType":"linear","lever":"100","listTime":"1573557408000","expTime":"","alias":"","state":"live"},{"instType":"SWAP","instId":"BTC-USD-SWAP","uly":"BTC-USD","instFamily":"BTC-USD","baseCcy":"","quoteCcy":"","settleCcy":"BTC","ctVal":"100","ctMult":"1","ctValCcy":"USD","ctType":"inverse","lever":"100","listTime":"1573557408000","expTime":"","alias":"","state":"live"}]}`
+	reply := func(instrument string) string {
+		return `{"code":"0","msg":"","data":[{"instType":"SWAP","instId":"` + instrument + `","tgtCcy":"","ccy":"","ordId":"2001","clOrdId":"long2001","tag":"","px":"30000","sz":"4","ordType":"limit","side":"buy","posSide":"long","tdMode":"cross","accFillSz":"0","fillPx":"","fillSz":"0","avgPx":"","state":"canceled","lever":"10","feeCcy":"","fee":"0","rebateCcy":"","rebate":"0","category":"normal","uTime":"1761700001000","cTime":"1761700000000"}]}`
+	}
+	history := map[string]string{"BTC-USDT-SWAP": reply("BTC-USDT-SWAP"), "BTC-USD-SWAP": reply("BTC-USD-SWAP")}
+	ex := newMockServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Path == "/public/instruments" {
+			_, _ = w.Write([]byte(instruments))
+			return
+		}
+		_, _ = w.Write([]byte(history[r.URL.Query().Get("instId")]))
+	})
+	end := time.Now()
+	result, err := ex.GetFuturesPositionOrders(t.Context(), &futures.PositionsRequest{Asset: asset.PerpetualSwap, Pairs: currency.Pairs{perpetualSwapPair, currency.NewPairWithDelimiter("BTC", "USD-SWAP", "-"), currency.NewPairWithDelimiter("btc", "usdt-swap", "-")}, StartDate: end.Add(-time.Hour), EndDate: end})
+	require.NoError(t, err, "GetFuturesPositionOrders must not error")
+	require.Len(t, result, 3, "GetFuturesPositionOrders must return each requested pair")
+	for i, exp := range []currency.Code{currency.USDT, currency.BTC, currency.NewCode("usdt")} {
+		require.Lenf(t, result[i].Orders, 1, "GetFuturesPositionOrders must return the order of %s", result[i].Pair)
+		assert.Equalf(t, exp, result[i].Orders[0].CostAsset, "CostAsset should be the settle coin of %s", result[i].Pair)
 	}
 }
 
@@ -8113,6 +8162,9 @@ func TestFilterListedOrders(t *testing.T) {
 		{name: "any type", orderType: order.AnyType, side: order.AnySide, exp: []string{"market", "limit", "post_only", "fok", "ioc", "optimal_limit_ioc", "mmp", "mmp_and_post_only", "post_only", "trigger", "stop"}},
 		{name: "limit", orderType: order.Limit, side: order.AnySide, exp: []string{"limit", "post_only", "fok", "ioc", "post_only"}},
 		{name: "limit post only", orderType: order.Limit, tif: order.PostOnly, side: order.AnySide, exp: []string{"post_only", "post_only"}},
+		{name: "limit fill or kill", orderType: order.Limit, tif: order.FillOrKill, side: order.AnySide, exp: []string{"fok"}},
+		{name: "limit immediate or cancel", orderType: order.Limit, tif: order.ImmediateOrCancel, side: order.AnySide, exp: []string{"ioc"}},
+		{name: "limit good till cancel post only", orderType: order.Limit, tif: order.GoodTillCancel | order.PostOnly, side: order.AnySide, exp: []string{"post_only", "post_only"}},
 		{name: "limit maker post only", orderType: order.LimitMaker, tif: order.PostOnly, side: order.AnySide, exp: []string{"post_only", "post_only"}},
 		{name: "limit maker post only on one side", orderType: order.LimitMaker, tif: order.PostOnly, side: order.Sell, exp: []string{"post_only"}},
 		{name: "limit maker fill or kill", orderType: order.LimitMaker, tif: order.FillOrKill, side: order.AnySide, exp: []string{"fok"}},
@@ -8140,6 +8192,31 @@ func TestFilterListedOrders(t *testing.T) {
 	}
 }
 
+func TestCostCurrency(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		pair currency.Pair
+		exp  currency.Code
+	}{
+		{pair: mainPair, exp: currency.USDT},
+		{pair: currency.NewPairWithDelimiter("ETH", "BTC", "-"), exp: currency.BTC},
+		{pair: currency.NewBTCUSD(), exp: currency.USD},
+		{pair: perpetualSwapPair, exp: currency.USDT},
+		{pair: currency.NewPairWithDelimiter("BTC", "USDC-SWAP", "-"), exp: currency.USDC},
+		{pair: currency.NewPairWithDelimiter("ETH", "USD-SWAP", "-"), exp: currency.ETH},
+		{pair: currency.NewPairWithDelimiter("ETH", "USD-261225", "-"), exp: currency.ETH},
+		{pair: currency.NewPairWithDelimiter("ETH", "USD-261225-1950-C", "-"), exp: currency.ETH},
+		{pair: currency.NewPairWithDelimiter("ETH", "USD_UM-261225", "-"), exp: currency.USD},
+		{pair: currency.NewPairWithDelimiter("ETH", "USD_UM-261225-1950-C", "-"), exp: currency.USD},
+		{pair: currency.NewPairWithDelimiter("ETH", "USD_UM_XPERP-310404", "-"), exp: currency.USD},
+		{pair: currency.NewPairWithDelimiter("eth", "usd-swap", "-"), exp: currency.NewCode("eth")},
+		{pair: currency.NewPairWithDelimiter("eth", "usdt-swap", "-"), exp: currency.NewCode("usdt")},
+		{pair: currency.NewPairWithDelimiter("ETH", "USD-SWAP", "/"), exp: currency.ETH},
+	} {
+		assert.Equalf(t, tc.exp, costCurrency(tc.pair), "costCurrency should return the expected currency for %s", tc.pair)
+	}
+}
+
 func TestOrderTypeString(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
@@ -8151,11 +8228,16 @@ func TestOrderTypeString(t *testing.T) {
 		{orderType: order.Market, exp: orderMarket},
 		{orderType: order.Limit, exp: orderLimit},
 		{orderType: order.Limit, tif: order.PostOnly, exp: orderPostOnly},
+		{orderType: order.Limit, tif: order.FillOrKill, exp: orderFOK},
+		{orderType: order.Limit, tif: order.ImmediateOrCancel, exp: orderIOC},
+		{orderType: order.Limit, tif: order.GoodTillCancel, exp: orderLimit},
+		{orderType: order.Limit, tif: order.GoodTillCancel | order.PostOnly, exp: orderPostOnly},
 		{orderType: order.Market, tif: order.FillOrKill, exp: orderFOK},
 		{orderType: order.Market, tif: order.ImmediateOrCancel, exp: orderIOC},
 		{orderType: order.OptimalLimit, tif: order.ImmediateOrCancel, exp: orderOptimalLimitIOC},
 		{orderType: order.MarketMakerProtection, exp: orderMarketMakerProtection},
 		{orderType: order.MarketMakerProtection, tif: order.PostOnly, exp: orderMarketMakerProtectionAndPostOnly},
+		{orderType: order.MarketMakerProtection, tif: order.GoodTillCancel | order.PostOnly, exp: orderMarketMakerProtectionAndPostOnly},
 		{orderType: order.OCO, exp: orderOCO},
 		{orderType: order.TrailingStop, exp: orderMoveOrderStop},
 		{orderType: order.Chase, exp: orderChase},
@@ -8167,10 +8249,12 @@ func TestOrderTypeString(t *testing.T) {
 		{orderType: order.Trigger, exp: orderTrigger},
 		{orderType: order.UnknownType, err: order.ErrUnsupportedOrderType},
 		{orderType: order.UnknownType, tif: order.PostOnly, exp: orderPostOnly},
+		{orderType: order.UnknownType, tif: order.GoodTillCancel | order.PostOnly, exp: orderPostOnly},
 		{orderType: order.UnknownType, tif: order.FillOrKill, exp: orderFOK},
 		{orderType: order.UnknownType, tif: order.ImmediateOrCancel, exp: orderIOC},
 		{orderType: order.LimitMaker, err: order.ErrUnsupportedOrderType},
 		{orderType: order.LimitMaker, tif: order.PostOnly, exp: orderPostOnly},
+		{orderType: order.LimitMaker, tif: order.GoodTillCancel | order.PostOnly, exp: orderPostOnly},
 		{orderType: order.LimitMaker, tif: order.FillOrKill, exp: orderFOK},
 		{orderType: order.LimitMaker, tif: order.ImmediateOrCancel, exp: orderIOC},
 	} {
@@ -8193,6 +8277,59 @@ func TestOrderTypeString(t *testing.T) {
 				assert.Empty(t, got, "orderTypeString should not return an OKX order type for a refused type")
 			})
 		}
+	}
+}
+
+// TestSpreadOrderTypeString checks that a spread order listing filters only with OKX's spread order types, refusing any
+// other type before sending
+func TestSpreadOrderTypeString(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		orderType order.Type
+		tif       order.TimeInForce
+		exp       string
+	}{
+		{orderType: order.Market, exp: orderMarket},
+		{orderType: order.Market, tif: order.ImmediateOrCancel, exp: orderIOC},
+		{orderType: order.Limit, exp: orderLimit},
+		{orderType: order.Limit, tif: order.PostOnly, exp: orderPostOnly},
+		{orderType: order.Limit, tif: order.ImmediateOrCancel, exp: orderIOC},
+		{orderType: order.LimitMaker, tif: order.PostOnly, exp: orderPostOnly},
+		{orderType: order.LimitMaker, tif: order.ImmediateOrCancel, exp: orderIOC},
+		{orderType: order.UnknownType, tif: order.PostOnly, exp: orderPostOnly},
+	} {
+		t.Run(tc.orderType.String()+"/"+tc.tif.String(), func(t *testing.T) {
+			t.Parallel()
+			got, err := spreadOrderTypeString(tc.orderType, tc.tif)
+			require.NoError(t, err, "spreadOrderTypeString must not error for a spread order type")
+			assert.Equal(t, tc.exp, got, "spreadOrderTypeString should return the expected OKX order type")
+		})
+	}
+	for _, tc := range []struct {
+		orderType order.Type
+		tif       order.TimeInForce
+	}{
+		{orderType: order.Market, tif: order.FillOrKill},
+		{orderType: order.Limit, tif: order.FillOrKill},
+		{orderType: order.LimitMaker, tif: order.FillOrKill},
+		{orderType: order.OptimalLimit, tif: order.ImmediateOrCancel},
+		{orderType: order.MarketMakerProtection},
+		{orderType: order.MarketMakerProtection, tif: order.PostOnly},
+		{orderType: order.Trigger},
+		{orderType: order.Chase},
+		{orderType: order.TWAP},
+		{orderType: order.OCO},
+		{orderType: order.ConditionalStop},
+		{orderType: order.TrailingStop},
+		{orderType: order.Stop, tif: order.ImmediateOrCancel},
+		{orderType: order.LimitMaker},
+	} {
+		t.Run(tc.orderType.String()+"/"+tc.tif.String(), func(t *testing.T) {
+			t.Parallel()
+			got, err := spreadOrderTypeString(tc.orderType, tc.tif)
+			assert.ErrorIs(t, err, order.ErrUnsupportedOrderType, "spreadOrderTypeString should refuse a type with no OKX spread order type")
+			assert.Empty(t, got, "spreadOrderTypeString should not return an OKX order type for a refused type")
+		})
 	}
 }
 
