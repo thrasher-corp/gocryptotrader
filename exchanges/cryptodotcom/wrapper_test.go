@@ -704,10 +704,9 @@ var testWalletRoutes = map[string]testRoute{
 
 func TestGetAccountFundingHistory(t *testing.T) {
 	t.Parallel()
-	refused := func(string) (string, *APIError) { return "", &APIError{Code: 50001, Message: "INTERNAL_SERVER_ERROR"} }
 	for history, routes := range map[string]map[string]testRoute{
-		"deposit":    {"private/get-deposit-history": refused, "private/get-withdrawal-history": testResult(`{"withdrawal_list":[]}`)},
-		"withdrawal": {"private/get-deposit-history": testResult(`{"deposit_list":[]}`), "private/get-withdrawal-history": refused},
+		"deposit":    {"private/get-deposit-history": testRefusedOnce(`{"deposit_list":[]}`), "private/get-withdrawal-history": testResult(`{"withdrawal_list":[]}`)},
+		"withdrawal": {"private/get-deposit-history": testResult(`{"deposit_list":[]}`), "private/get-withdrawal-history": testRefusedOnce(`{"withdrawal_list":[]}`)},
 	} {
 		refusing, _ := newRoutesServerExchange(t, routes)
 		_, err := refusing.GetAccountFundingHistory(t.Context())
@@ -773,7 +772,7 @@ func TestGetAccountFundingHistory(t *testing.T) {
 
 func TestGetWithdrawalsHistory(t *testing.T) {
 	t.Parallel()
-	_, err := newUnavailableServerExchange(t).GetWithdrawalsHistory(t.Context(), currency.XRP, asset.Spot)
+	_, err := newRefusingServerExchange(t).GetWithdrawalsHistory(t.Context(), currency.XRP, asset.Spot)
 	require.ErrorIs(t, err, request.ErrBadStatus, "GetWithdrawalsHistory must return the request's failure")
 	ex := e
 	var received func() []testRequest
@@ -842,7 +841,7 @@ func TestWithdrawalHistory(t *testing.T) {
 		{Method: "private/get-withdrawal-history", Params: `{"currency":"XRP","page_size":"200","page":"1"}`},
 	}, received(), "withdrawalHistory should request the currency's withdrawals a full page at a time")
 
-	_, err = newUnavailableServerExchange(t).withdrawalHistory(t.Context(), currency.XRP)
+	_, err = newRefusingServerExchange(t).withdrawalHistory(t.Context(), currency.XRP)
 	assert.ErrorIs(t, err, request.ErrBadStatus, "withdrawalHistory should return the request's failure")
 }
 
@@ -2359,7 +2358,12 @@ func TestWebsocketSubmitOrdersTracksMarginOrders(t *testing.T) {
 	// A list whose request fails otherwise may have been placed, so its orders are still tracked
 	done, cancel := context.WithCancel(t.Context())
 	cancel()
+	// A frame can be sent with its context already ended, so its refusal waits until the request has given up on it
+	answered := make(chan struct{})
+	venue.beforeAnswering("private/create-order-list", func() { <-answered })
 	_, err = ex.WebsocketSubmitOrders(done, []*order.Submit{marginOrder("margin_unknown")})
+	close(answered)
+	venue.beforeAnswering("private/create-order-list", nil)
 	require.ErrorIs(t, err, context.Canceled, "WebsocketSubmitOrders must return the request's error")
 	assert.True(t, ex.isMarginOrder("", "margin_unknown"), "WebsocketSubmitOrders should go on tracking the client order IDs of a list whose outcome is unknown")
 
@@ -2735,6 +2739,12 @@ func TestWebsocketModifyOrder(t *testing.T) {
 	requests = venue.received("private/advanced/amend-order")
 	require.Len(t, requests, 1, "WebsocketModifyOrder must amend a trigger order with the advanced order methods")
 	assert.JSONEq(t, `{"order_id":"5755600460443882762","new_quantity":"0.0002","new_price":"0","new_ref_price":"0.0279"}`, string(requests[0].Params), "WebsocketModifyOrder should amend a stop market order without a limit price, which would make it a stop limit order")
+
+	venue.fail("private/advanced/amend-order", &APIError{Code: 50001, Message: "INTERNAL_SERVER_ERROR"})
+	_, err = ex.WebsocketModifyOrder(t.Context(), m)
+	var apiErr *APIError
+	require.ErrorAs(t, err, &apiErr, "WebsocketModifyOrder must return Crypto.com's refusal")
+	assert.Equal(t, int64(50001), apiErr.Code, "WebsocketModifyOrder should return Crypto.com's refusal")
 }
 
 func TestAmendOrderFallback(t *testing.T) {
@@ -4208,4 +4218,179 @@ func TestChangePositionMargin(t *testing.T) {
 	require.ErrorAs(t, err, &apiErr, "ChangePositionMargin must return Crypto.com's refusal of the transfer")
 	assert.Equal(t, &APIError{Code: 306, Message: "INSUFFICIENT_AVAILABLE_BALANCE"}, apiErr, "ChangePositionMargin should return Crypto.com's code and message")
 	assert.Nil(t, got, "ChangePositionMargin should return no response for a transfer Crypto.com refuses")
+}
+
+// TestOrderAndAccountRequestFailures holds the order and account paths to the failure of each request they make. Each row
+// answers the other requests and refuses the one it names, once, so a path retrying the refusal fails its row rather than
+// hangs the test
+func TestOrderAndAccountRequestFailures(t *testing.T) {
+	t.Parallel()
+	listing := &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType}
+	activeOrders := func(ex *Exchange) error {
+		_, err := ex.GetActiveOrders(t.Context(), listing)
+		return err
+	}
+	cancelAll := func(ex *Exchange) error {
+		_, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot})
+		return err
+	}
+	orderHistory := func(ex *Exchange) error {
+		_, err := ex.GetOrderHistory(t.Context(), listing)
+		return err
+	}
+	positionOrders := func(ex *Exchange) error {
+		_, err := ex.GetFuturesPositionOrders(t.Context(), &futures.PositionsRequest{Asset: asset.PerpetualSwap, Pairs: currency.Pairs{testPerpetualPair}})
+		return err
+	}
+	positionSummary := func(ex *Exchange) error {
+		_, err := ex.GetFuturesPositionSummary(t.Context(), &futures.PositionSummaryRequest{Asset: asset.PerpetualSwap, Pair: testPerpetualPair})
+		return err
+	}
+	leverage := func(ex *Exchange) error {
+		_, err := ex.GetLeverage(t.Context(), asset.PerpetualSwap, testPerpetualPair, margin.Multi, order.UnknownSide)
+		return err
+	}
+	setLeverage := func(marginType margin.Type) func(*Exchange) error {
+		return func(ex *Exchange) error {
+			return ex.SetLeverage(t.Context(), asset.PerpetualSwap, testPerpetualPair, marginType, 2, order.UnknownSide)
+		}
+	}
+	depositAddress := func(ex *Exchange) error {
+		_, err := ex.GetDepositAddress(t.Context(), currency.BTC, "", "")
+		return err
+	}
+	// The listings answered before a refusal hold an order, so a path returning what it has despite the refusal fails its
+	// row; an hour ago lies within the window a history request defaults to
+	listed := testResult(`{"data":[{"order_id":"1","order_type":"LIMIT","side":"BUY","status":"ACTIVE","instrument_name":"BTC_USD","create_time":` + strconv.FormatInt(time.Now().Add(-time.Hour).UnixMilli(), 10) + `}]}`)
+	open := map[string]testRoute{"private/get-open-orders": listed, "private/advanced/get-open-orders": listed}
+	history := map[string]testRoute{"private/get-order-history": listed, "private/advanced/get-order-history": listed}
+	for name, tc := range map[string]struct {
+		routes  map[string]testRoute
+		refused string
+		call    func(*Exchange) error
+	}{
+		"GetActiveOrders' open orders":               {open, "private/get-open-orders", activeOrders},
+		"GetActiveOrders' open trigger orders":       {open, "private/advanced/get-open-orders", activeOrders},
+		"CancelAllOrders' open orders":               {open, "private/get-open-orders", cancelAll},
+		"GetOrderHistory's orders":                   {history, "private/get-order-history", orderHistory},
+		"GetOrderHistory's trigger orders":           {history, "private/advanced/get-order-history", orderHistory},
+		"GetFuturesPositionOrders' orders":           {history, "private/get-order-history", positionOrders},
+		"GetFuturesPositionSummary's positions":      {testPositionRoutes, "private/get-positions", positionSummary},
+		"GetFuturesPositionSummary's balances":       {testPositionRoutes, "private/user-balance", positionSummary},
+		"GetFuturesPositionSummary's mark price":     {testPositionRoutes, "public/get-valuations", positionSummary},
+		"GetFuturesPositionSummary's settings":       {testPositionRoutes, "private/get-account-settings", positionSummary},
+		"GetLeverage's settings":                     {testPositionRoutes, "private/get-account-settings", leverage},
+		"SetLeverage's accounts":                     {testPositionRoutes, "private/get-accounts", setLeverage(margin.Multi)},
+		"SetLeverage's isolated position's balances": {testPositionRoutes, "private/user-balance", setLeverage(margin.Isolated)},
+		"GetDepositAddress' addresses":               {map[string]testRoute{}, "private/get-deposit-address", depositAddress},
+	} {
+		routes := maps.Clone(tc.routes)
+		routes[tc.refused] = testRefusedOnce(`{"data":[]}`)
+		ex, _ := newRoutesServerExchange(t, routes)
+		var apiErr *APIError
+		require.ErrorAsf(t, tc.call(ex), &apiErr, "%s must return the request's failure", name)
+		assert.Equalf(t, int64(50001), apiErr.Code, "%s should return Crypto.com's refusal", name)
+	}
+
+	// An order neither the trading methods nor the advanced order methods know reports both refusals
+	ex, _ := newRoutesServerExchange(t, map[string]testRoute{
+		"private/get-order-detail":          func(string) (string, *APIError) { return "", &APIError{Code: 212, Message: "INVALID_ORDERID"} },
+		"private/advanced/get-order-detail": testRefusedOnce(`{}`),
+	})
+	_, err := ex.GetOrderInfo(t.Context(), "1", currency.EMPTYPAIR, asset.Spot)
+	assert.ErrorContains(t, err, "INVALID_ORDERID", "GetOrderInfo should report the trading methods' refusal")
+	assert.ErrorContains(t, err, "INTERNAL_SERVER_ERROR", "GetOrderInfo should report the advanced order methods' refusal")
+}
+
+// TestWrapperRefusals holds the wrapper to the sentinel errors of what it cannot use: an asset, a pair or a reply
+func TestWrapperRefusals(t *testing.T) {
+	t.Parallel()
+	listing := func(a asset.Item, pairs ...currency.Pair) *order.MultiOrderRequest {
+		return &order.MultiOrderRequest{AssetType: a, Pairs: pairs, Side: order.AnySide, Type: order.AnyType}
+	}
+	activeOrders := func(req *order.MultiOrderRequest) func(*Exchange) error {
+		return func(ex *Exchange) error {
+			_, err := ex.GetActiveOrders(t.Context(), req)
+			return err
+		}
+	}
+	orderHistory := func(req *order.MultiOrderRequest) func(*Exchange) error {
+		return func(ex *Exchange) error {
+			_, err := ex.GetOrderHistory(t.Context(), req)
+			return err
+		}
+	}
+	positionOrders := func(a asset.Item, p currency.Pair) func(*Exchange) error {
+		return func(ex *Exchange) error {
+			_, err := ex.GetFuturesPositionOrders(t.Context(), &futures.PositionsRequest{Asset: a, Pairs: currency.Pairs{p}})
+			return err
+		}
+	}
+	positionSummary := func(p currency.Pair) func(*Exchange) error {
+		return func(ex *Exchange) error {
+			_, err := ex.GetFuturesPositionSummary(t.Context(), &futures.PositionSummaryRequest{Asset: asset.PerpetualSwap, Pair: p})
+			return err
+		}
+	}
+	leverage := func(p currency.Pair, marginType margin.Type) func(*Exchange) error {
+		return func(ex *Exchange) error {
+			_, err := ex.GetLeverage(t.Context(), asset.PerpetualSwap, p, marginType, order.UnknownSide)
+			return err
+		}
+	}
+	orderInfo := func(ex *Exchange) error {
+		_, err := ex.GetOrderInfo(t.Context(), "1", currency.EMPTYPAIR, asset.Spot)
+		return err
+	}
+	// An hour ago lies within the window a history request defaults to
+	created := strconv.FormatInt(time.Now().Add(-time.Hour).UnixMilli(), 10)
+	orders := func(instrument, side string) testRoute {
+		return testResult(`{"data":[{"order_id":"1","order_type":"LIMIT","side":"` + side + `","status":"ACTIVE","instrument_name":"` + instrument + `","create_time":` + created + `}]}`)
+	}
+	empty := testResult(`{"data":[]}`)
+	withOrders := func(method string, route testRoute) map[string]testRoute {
+		routes := map[string]testRoute{"private/get-open-orders": empty, "private/advanced/get-open-orders": empty, "private/get-order-history": empty, "private/advanced/get-order-history": empty}
+		routes[method] = route
+		return routes
+	}
+	noValuation := maps.Clone(testPositionRoutes)
+	noValuation["public/get-valuations"] = empty
+	noSettings := maps.Clone(testPositionRoutes)
+	noSettings["private/get-account-settings"] = testResult(`[]`)
+	for name, tc := range map[string]struct {
+		routes map[string]testRoute
+		call   func(*Exchange) error
+		exp    error
+	}{
+		"GetActiveOrders an unsupported asset":            {nil, activeOrders(listing(asset.Options)), asset.ErrNotSupported},
+		"GetOrderHistory an unsupported asset":            {nil, orderHistory(listing(asset.Options)), asset.ErrNotSupported},
+		"GetActiveOrders an empty pair":                   {nil, activeOrders(listing(asset.Spot, currency.EMPTYPAIR)), currency.ErrCurrencyPairEmpty},
+		"GetOrderHistory an empty pair":                   {nil, orderHistory(listing(asset.Spot, currency.EMPTYPAIR)), currency.ErrCurrencyPairEmpty},
+		"GetActiveOrders a malformed instrument":          {withOrders("private/get-open-orders", orders("_USD", "BUY")), activeOrders(listing(asset.Spot)), errMalformedInstrumentName},
+		"GetActiveOrders an unknown side":                 {withOrders("private/get-open-orders", orders("BTC_USD", "SIDEWAYS")), activeOrders(listing(asset.Spot)), order.ErrSideIsInvalid},
+		"GetOrderHistory a malformed instrument":          {withOrders("private/get-order-history", orders("_USD", "BUY")), orderHistory(listing(asset.Spot)), errMalformedInstrumentName},
+		"GetOrderHistory an unknown side":                 {withOrders("private/get-order-history", orders("BTC_USD", "SIDEWAYS")), orderHistory(listing(asset.Spot)), order.ErrSideIsInvalid},
+		"GetFuturesPositionOrders a spot asset":           {nil, positionOrders(asset.Spot, testSpotPair), futures.ErrNotFuturesAsset},
+		"GetFuturesPositionOrders an empty pair":          {nil, positionOrders(asset.PerpetualSwap, currency.EMPTYPAIR), currency.ErrCurrencyPairEmpty},
+		"GetFuturesPositionOrders a malformed instrument": {withOrders("private/get-order-history", orders("-PERP", "BUY")), positionOrders(asset.PerpetualSwap, testPerpetualPair), errMalformedInstrumentName},
+		"GetOrderInfo a malformed instrument":             {map[string]testRoute{"private/get-order-detail": testResult(`{"order_id":"1","order_type":"LIMIT","side":"BUY","status":"ACTIVE","instrument_name":"_USD"}`)}, orderInfo, errMalformedInstrumentName},
+		"GetFuturesPositionSummary an empty pair":         {nil, positionSummary(currency.EMPTYPAIR), currency.ErrCurrencyPairEmpty},
+		"GetFuturesPositionSummary no mark price":         {noValuation, positionSummary(testPerpetualPair), common.ErrNoResponse},
+		"GetLeverage an isolated position's empty pair":   {nil, leverage(currency.EMPTYPAIR, margin.Isolated), currency.ErrCurrencyPairEmpty},
+		"GetLeverage no settings":                         {noSettings, leverage(testPerpetualPair, margin.Multi), common.ErrNoResponse},
+		"SetLeverage an isolated position's empty pair": {nil, func(ex *Exchange) error {
+			return ex.SetLeverage(t.Context(), asset.PerpetualSwap, currency.EMPTYPAIR, margin.Isolated, 2, order.UnknownSide)
+		}, currency.ErrCurrencyPairEmpty},
+		"UpdateTicker a reply without the instrument": {map[string]testRoute{"public/get-tickers": testResult(`{"data":[{"i":"ETH_USD","a":"1"}]}`)}, func(ex *Exchange) error {
+			_, err := ex.UpdateTicker(t.Context(), testSpotPair, asset.Spot)
+			return err
+		}, ticker.ErrTickerNotFound},
+		"GetDepositAddress a reply without an address": {map[string]testRoute{"private/get-deposit-address": testResult(`{"deposit_address_list":[]}`)}, func(ex *Exchange) error {
+			_, err := ex.GetDepositAddress(t.Context(), currency.BTC, "", "")
+			return err
+		}, errNoDepositAddress},
+	} {
+		ex, _ := newRoutesServerExchange(t, tc.routes)
+		assert.ErrorIsf(t, tc.call(ex), tc.exp, "%s should be refused", name)
+	}
 }

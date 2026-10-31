@@ -245,6 +245,9 @@ func TestIntegerUnmarshalJSON(t *testing.T) {
 	for _, data := range []string{`"x"`, `1.5`, `"1.5"`, `""`, `true`} {
 		assert.ErrorIsf(t, json.Unmarshal([]byte(data), &i), errInvalidInteger, "Unmarshal should refuse %s", data)
 	}
+	assert.ErrorIs(t, i.UnmarshalJSON([]byte(`"6498`)), errInvalidInteger, "UnmarshalJSON should refuse a string it cannot decode")
+	// Sonic keeps a string it has read when it refuses what follows it, so the string must not then be parsed
+	assert.ErrorIs(t, i.UnmarshalJSON([]byte(`"6498"x`)), errInvalidInteger, "UnmarshalJSON should refuse a string followed by other data")
 }
 
 func TestWebsocketBook(t *testing.T) {
@@ -574,11 +577,13 @@ func TestWebsocketBookRetryLeavesOutUnconfiguredChannel(t *testing.T) {
 
 // bookRetryConnection stands in for a connection to the mock websocket in the synctest bubbles timing
 // retryBookSubscription, as the reader of a connection to the mock blocks on its socket, which would keep a bubble's
-// clock from moving; it counts how often it is asked whether it is connected
+// clock from moving; it counts how often it is asked whether it is connected, and holds the subscriptions stored
+// against it
 type bookRetryConnection struct {
 	websocket.Connection
 	connected     bool
 	connectChecks uint64
+	subscriptions *subscription.Store
 }
 
 // IsConnected reports whether the connection is connected, counting each check
@@ -587,22 +592,46 @@ func (c *bookRetryConnection) IsConnected() bool {
 	return c.connected
 }
 
+// Subscriptions returns the subscriptions stored against the connection
+func (c *bookRetryConnection) Subscriptions() *subscription.Store {
+	return c.subscriptions
+}
+
 func TestWebsocketBookRetryStops(t *testing.T) {
 	t.Parallel()
 	const delay = 50 * time.Millisecond
+	refuse := func(*Exchange, *bookRetryConnection) error {
+		return &APIError{Code: 42901, Message: "TOO_MANY_REQUESTS"}
+	}
 	for _, tc := range []struct {
-		name          string
-		done          bool
-		doneAfter     time.Duration
-		connected     bool
-		held          bool
+		name      string
+		done      bool
+		doneAfter time.Duration
+		connected bool
+		held      bool
+		// answer answers each attempt's subscription, and can change what the retry checks before its next attempt
+		answer        func(*Exchange, *bookRetryConnection) error
 		elapsed       time.Duration
 		connectChecks uint64
+		// subscribed holds when each attempt subscribed, from the retry's start
+		subscribed []time.Duration
+		stored     bool
 	}{
-		{name: "context done", done: true, connected: true},
-		{name: "connection lost", elapsed: delay, connectChecks: 1},
-		{name: "book channel held again", connected: true, held: true, elapsed: delay, connectChecks: 1},
-		{name: "context done while waiting", doneAfter: delay / 2, connected: true, elapsed: delay / 2},
+		{name: "context done", done: true, connected: true, answer: refuse},
+		{name: "connection lost", answer: refuse, elapsed: delay, connectChecks: 1},
+		{name: "book channel held again", connected: true, held: true, answer: refuse, elapsed: delay, connectChecks: 1},
+		{name: "context done while waiting", doneAfter: delay / 2, connected: true, answer: refuse, elapsed: delay / 2},
+		// The attempts wait 1, 2, 4, 8 and 16 times the first delay
+		{name: "attempts run out", connected: true, answer: refuse, elapsed: 31 * delay, connectChecks: bookResubscribeAttempts, subscribed: []time.Duration{delay, 3 * delay, 7 * delay, 15 * delay, 31 * delay}},
+		{name: "subscribed", connected: true, answer: func(*Exchange, *bookRetryConnection) error { return nil }, elapsed: delay, connectChecks: 1, subscribed: []time.Duration{delay}, stored: true},
+		{name: "configuration removed after a refusal", connected: true, answer: func(ex *Exchange, conn *bookRetryConnection) error {
+			ex.Features.Subscriptions = nil
+			return refuse(ex, conn)
+		}, elapsed: 3 * delay, connectChecks: 2, subscribed: []time.Duration{delay}},
+		{name: "connection lost after a refusal", connected: true, answer: func(ex *Exchange, conn *bookRetryConnection) error {
+			conn.connected = false
+			return refuse(ex, conn)
+		}, elapsed: 3 * delay, connectChecks: 2, subscribed: []time.Duration{delay}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -614,10 +643,12 @@ func TestWebsocketBookRetryStops(t *testing.T) {
 			// outside it that the retry waited on would keep the clock from moving
 			synctest.Test(t, func(t *testing.T) {
 				ex.Websocket = websocket.NewManager()
-				var subscribes uint64
+				conn := &bookRetryConnection{connected: tc.connected, subscriptions: subscription.NewStore()}
+				start := time.Now()
+				var subscribed []time.Duration
 				ex.Websocket.Subscriber = func(subscription.List) error {
-					subscribes++
-					return &APIError{Code: 42901, Message: "TOO_MANY_REQUESTS"}
+					subscribed = append(subscribed, time.Since(start))
+					return tc.answer(ex, conn)
 				}
 				s := &subscription.Subscription{QualifiedChannel: recordedBookChannel}
 				require.True(t, ex.isConfiguredMarketDataChannel(s.QualifiedChannel), "the book channel must be configured, so that only the stop under test can end the retry")
@@ -632,12 +663,11 @@ func TestWebsocketBookRetryStops(t *testing.T) {
 				if tc.doneAfter != 0 {
 					time.AfterFunc(tc.doneAfter, cancel)
 				}
-				conn := &bookRetryConnection{connected: tc.connected}
-				start := time.Now()
 				ex.retryBookSubscription(ctx, conn, s)
 				assert.Equal(t, tc.elapsed, time.Since(start), "retryBookSubscription should stop after waiting as long as expected")
 				assert.Equal(t, tc.connectChecks, conn.connectChecks, "retryBookSubscription should check its connection as often as expected")
-				assert.Zero(t, subscribes, "retryBookSubscription should not subscribe the book channel")
+				assert.Equal(t, tc.subscribed, subscribed, "retryBookSubscription should subscribe the book channel when expected")
+				assert.Equal(t, tc.stored, conn.subscriptions.Get(s) != nil, "retryBookSubscription should store only a book channel it subscribed against its connection")
 			})
 		})
 	}
@@ -968,8 +998,11 @@ func TestWebsocketMarketDataConnect(t *testing.T) {
 	for _, a := range []asset.Item{asset.Spot, asset.Margin} {
 		_, err := ticker.GetTicker(ex.Name, spotBTCUSD, a)
 		assert.NoErrorf(t, err, "the %s ticker should be stored", a)
-		_, err = ex.Websocket.Orderbook.GetOrderbook(spotBTCUSD, a)
-		assert.NoErrorf(t, err, "the %s book should be loaded", a)
+		// A book is relayed as it loads, ahead of the next asset's
+		assert.Eventuallyf(t, func() bool {
+			_, err := ex.Websocket.Orderbook.GetOrderbook(spotBTCUSD, a)
+			return err == nil
+		}, 30*time.Second, 10*time.Millisecond, "the %s book should be loaded", a)
 	}
 	_, err = ticker.GetTicker(ex.Name, perpBTCUSD, asset.PerpetualSwap)
 	assert.NoError(t, err, "the perpetual swap ticker should be stored")
@@ -1035,6 +1068,18 @@ func TestWebsocketSubscribeRefused(t *testing.T) {
 	require.ErrorAs(t, err, &apiErr, "Connect must report the refused subscribe request")
 	assert.Equal(t, &APIError{Code: 40001, Message: "BAD_REQUEST"}, apiErr, "Connect should report why the subscribe request was refused")
 	assert.Less(t, time.Since(start), ex.Config.WebsocketResponseMaxLimit, "Connect should not wait for answers to a subscribe request refused as a whole")
+	assert.Empty(t, ex.Websocket.GetSubscriptions(), "no subscription should be stored")
+}
+
+func TestWebsocketSubscribeAcknowledgementNamesNoChannel(t *testing.T) {
+	t.Parallel()
+	if !mockTests {
+		t.Skip("a malformed acknowledgement is tested against the mock websocket")
+	}
+	venue := newMarketDataVenue(t)
+	venue.answerSubscriptions("ticker.BTC_USD", []json.RawMessage{json.RawMessage(`{"id":1,"method":"subscribe","code":0}`)})
+	ex, err := newMarketDataTestExchange(t, venue, subscription.List{{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel, Pairs: currency.Pairs{spotBTCUSD}}})
+	require.ErrorIs(t, err, errMalformedWebsocketMessage, "Connect must report an acknowledgement naming no channel")
 	assert.Empty(t, ex.Websocket.GetSubscriptions(), "no subscription should be stored")
 }
 

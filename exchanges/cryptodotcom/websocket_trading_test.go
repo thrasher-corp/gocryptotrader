@@ -368,3 +368,61 @@ func TestWebsocketAPISendBatchOrderRequest(t *testing.T) {
 	_, err = ex.WebsocketAPI().SendBatchOrderRequest(t.Context(), req)
 	assert.ErrorIs(t, err, common.ErrNoResponse, "SendBatchOrderRequest should error for a null result")
 }
+
+func TestWebsocketAPIRefusedRequests(t *testing.T) {
+	t.Parallel()
+	if !mockTests {
+		t.Skip("refused requests are tested against the mock websocket")
+	}
+	ex, venue := newWebsocketTestExchange(t)
+	api := ex.WebsocketAPI()
+	for method, call := range map[string]func() error{
+		"private/create-order": func() error {
+			_, err := api.CreateOrder(t.Context(), tradingTestOrder())
+			return err
+		},
+		"private/amend-order": func() error {
+			_, err := api.AmendOrder(t.Context(), &AmendOrderRequest{OrderID: tradingTestOrderID, NewPrice: 50000, NewQuantity: 0.0002})
+			return err
+		},
+		"private/cancel-order": func() error {
+			_, err := api.CancelExistingOrder(t.Context(), &CancelOrderRequest{OrderID: tradingTestOrderID})
+			return err
+		},
+		"private/close-position": func() error {
+			_, err := api.ClosePosition(t.Context(), &ClosePositionRequest{InstrumentName: "BTCUSD-PERP", OrderType: OrderTypeLimit, Price: 30000, Quantity: 0.0001})
+			return err
+		},
+		"private/cancel-order-list": func() error {
+			_, err := api.CancelOrderList(t.Context(), []CancelOrderListEntryRequest{{InstrumentName: "CRO_USD", ClientOrderID: "api_leg1"}})
+			return err
+		},
+		"private/batch-order-request": func() error {
+			_, err := api.SendBatchOrderRequest(t.Context(), tradingTestBatch())
+			return err
+		},
+		"private/set-cancel-on-disconnect": func() error {
+			_, err := api.SetCancelOnDisconnect(t.Context(), CancelOnDisconnectScopeConnection)
+			return err
+		},
+		"private/get-cancel-on-disconnect": func() error {
+			_, err := api.GetCancelOnDisconnect(t.Context())
+			return err
+		},
+		"private/otc/request-quote": func() error {
+			_, err := api.RequestOTCQuote(t.Context(), validOTCQuoteRequest())
+			return err
+		},
+		"private/otc/request-deal": func() error {
+			_, err := api.RequestOTCDeal(t.Context(), validOTCDealRequest())
+			return err
+		},
+	} {
+		venue.fail(method, &APIError{Code: 50001, Message: "INTERNAL_SERVER_ERROR"})
+		var apiErr *APIError
+		require.ErrorAsf(t, call(), &apiErr, "%s must return Crypto.com's refusal", method)
+		assert.Equalf(t, int64(50001), apiErr.Code, "%s should return Crypto.com's refusal", method)
+		// The mock keeps refusing each method already called, so a request sent under another's name would be refused too
+		assert.Lenf(t, venue.received(method), 1, "%s should be requested once", method)
+	}
+}

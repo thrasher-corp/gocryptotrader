@@ -177,6 +177,18 @@ func testResult(result string) testRoute {
 	return func(string) (string, *APIError) { return result, nil }
 }
 
+// testRefusedOnce returns a route refusing its first request and answering later ones with result, so a caller retrying
+// the refusal goes on and fails its test rather than hangs it
+func testRefusedOnce(result string) testRoute {
+	var requests atomic.Int64
+	return func(string) (string, *APIError) {
+		if requests.Add(1) == 1 {
+			return "", &APIError{Code: 50001, Message: "INTERNAL_SERVER_ERROR"}
+		}
+		return result, nil
+	}
+}
+
 // newRoutesServerExchange returns an exchange whose REST requests a test server answers by method, from routes, after
 // checking a private request is a signed POST; a request for a method routes does not hold fails the test. The function
 // returned gives the requests received, in arrival order

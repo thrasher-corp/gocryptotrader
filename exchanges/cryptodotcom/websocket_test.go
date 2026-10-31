@@ -373,6 +373,8 @@ func TestWebsocketHeartbeat(t *testing.T) {
 	ex, venue := newWebsocketTestExchange(t)
 	conn, err := ex.Websocket.GetConnection(websocketTradeConnection)
 	require.NoError(t, err, "GetConnection must not error")
+	assert.ErrorIs(t, ex.wsHandleData(t.Context(), conn, []byte(`{"id":1,"method":"public/heartbeat`)), errMalformedWebsocketMessage, "wsHandleData should refuse an unterminated method")
+	assert.ErrorIs(t, ex.wsHandleData(t.Context(), conn, []byte(`{"id":true,"method":"public/heartbeat"}`)), errMalformedWebsocketMessage, "wsHandleData should refuse an ID that is neither a number nor a string")
 	require.NoError(t, ex.wsHandleData(t.Context(), conn, []byte(`{"id":1792891216162,"method":"public/heartbeat","code":0}`)), "wsHandleData must not error for a heartbeat")
 	require.Eventually(t, func() bool { return len(venue.received(websocketMethodRespondHeartbeat)) == 1 }, 5*time.Second, 10*time.Millisecond, "the heartbeat must be answered")
 	reply := venue.received(websocketMethodRespondHeartbeat)[0]
