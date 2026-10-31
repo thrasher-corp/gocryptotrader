@@ -48,7 +48,7 @@ type WithdrawalRequest struct {
 // WithdrawalResponse is a crypto withdrawal. A created withdrawal reports only its ID, client withdrawal ID, currency,
 // amount, fee, address, network and creation time
 type WithdrawalResponse struct {
-	ID                 string        `json:"id"`
+	ID                 NumericID     `json:"id"`
 	ClientWithdrawalID string        `json:"client_wid"`
 	Currency           currency.Code `json:"currency"`
 	// Symbol is the currency as create-withdrawal's documented example names it, where its schema names it currency

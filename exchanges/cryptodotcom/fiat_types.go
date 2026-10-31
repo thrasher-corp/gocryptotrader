@@ -133,9 +133,9 @@ type fiatHistoryParams struct {
 
 // FiatTransactionHistoryResponse is a page of fiat deposits or withdrawals
 type FiatTransactionHistoryResponse struct {
-	Page         uint64            `json:"page,string"`
-	PageSize     uint64            `json:"page_size,string"`
-	Total        uint64            `json:"total,string"`
+	Page         types.Number      `json:"page"`
+	PageSize     types.Number      `json:"page_size"`
+	Total        types.Number      `json:"total"`
 	Transactions []FiatTransaction `json:"transaction_history_list"`
 }
 

@@ -1308,6 +1308,30 @@ func TestValidateSelfTradePrevention(t *testing.T) {
 	}
 }
 
+func TestBareIntegerFields(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		data      string
+		into, exp any
+	}{
+		{`{"reason":43012}`, new(OrderResponse), &OrderResponse{Reason: "43012"}},
+		{`{"reason":"43012"}`, new(OrderResponse), &OrderResponse{Reason: "43012"}},
+		{`{"stp_id":100}`, new(AccountSettingsResponse), &AccountSettingsResponse{SelfTradePreventionID: 100}},
+		{`{"stp_id":"100"}`, new(AccountSettingsResponse), &AccountSettingsResponse{SelfTradePreventionID: 100}},
+		{`{"isolation_id":19848526}`, new(TransactionResponse), &TransactionResponse{IsolationID: "19848526"}},
+		{`{"isolation_id":"19848526"}`, new(TransactionResponse), &TransactionResponse{IsolationID: "19848526"}},
+		{`{"convert_id":1}`, new(ConvertStakedTokenResponse), &ConvertStakedTokenResponse{ConvertID: "1"}},
+		{`{"convert_id":"1"}`, new(ConvertStakedTokenResponse), &ConvertStakedTokenResponse{ConvertID: "1"}},
+		{`{"convert_id":1}`, new(StakingConvertRequestResponse), &StakingConvertRequestResponse{ConvertID: "1"}},
+		{`{"convert_id":"1"}`, new(StakingConvertRequestResponse), &StakingConvertRequestResponse{ConvertID: "1"}},
+		{`{"page":2,"page_size":10,"total":30}`, new(FiatTransactionHistoryResponse), &FiatTransactionHistoryResponse{Page: 2, PageSize: 10, Total: 30}},
+		{`{"page":"2","page_size":"10","total":"30"}`, new(FiatTransactionHistoryResponse), &FiatTransactionHistoryResponse{Page: 2, PageSize: 10, Total: 30}},
+	} {
+		require.NoErrorf(t, json.Unmarshal([]byte(tc.data), tc.into), "Unmarshal must not error for %s into %T", tc.data, tc.into)
+		assert.Equalf(t, tc.exp, tc.into, "Unmarshal should decode %s into %T", tc.data, tc.into)
+	}
+}
+
 func TestNumericIDUnmarshalJSON(t *testing.T) {
 	t.Parallel()
 	for data, exp := range map[string]NumericID{

@@ -205,7 +205,7 @@ type BatchOrderRequest struct {
 // AccountSettingsResponse is the account's maximum leverage and self-trade prevention settings
 type AccountSettingsResponse struct {
 	Leverage                       types.Number `json:"leverage"`
-	SelfTradePreventionID          uint64       `json:"stp_id,string"`
+	SelfTradePreventionID          types.Number `json:"stp_id"`
 	SelfTradePreventionScope       string       `json:"stp_scope"`
 	SelfTradePreventionInstruction string       `json:"stp_inst"`
 }
@@ -275,7 +275,7 @@ type TransactionResponse struct {
 	TakerSide           string              `json:"taker_side"`
 	Side                string              `json:"side"`
 	InstrumentName      string              `json:"instrument_name"`
-	IsolationID         string              `json:"isolation_id"`
+	IsolationID         NumericID           `json:"isolation_id"`
 	IsolationType       string              `json:"isolation_type"`
 }
 

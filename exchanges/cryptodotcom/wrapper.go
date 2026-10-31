@@ -526,8 +526,9 @@ func orderbookLevels(levels []OrderbookLevel) orderbook.Levels {
 }
 
 // UpdateAccountBalances returns the account's balances, which every asset trades from, as Crypto.com keeps one wallet
-// for spot, margin and derivatives. A negative quantity is borrowed, the reserved quantity is held by open orders, and
-// an isolated position's balances are held by that position
+// for spot, margin and derivatives, saved under spot whichever asset asks, as a push saves it, so that the store holds
+// and counts it once. A negative quantity is borrowed, the reserved quantity is held by open orders, and an isolated
+// position's balances are held by that position
 func (e *Exchange) UpdateAccountBalances(ctx context.Context, a asset.Item) (accounts.SubAccounts, error) {
 	if !e.SupportsAsset(a) {
 		return nil, fmt.Errorf("%w: %s", asset.ErrNotSupported, a)
@@ -536,8 +537,41 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, a asset.Item) (acc
 	if err != nil {
 		return nil, err
 	}
-	subAccts := accounts.SubAccounts{balanceSubAccount(a, balances)}
-	return subAccts, e.Accounts.Save(ctx, subAccts, true)
+	wallet := balanceSubAccount(asset.Spot, balances)
+	if err := e.Accounts.Save(ctx, accounts.SubAccounts{wallet}, true); err != nil {
+		return nil, err
+	}
+	// The store publishes the wallet it saves to its subscribers, so the asset that asked labels a copy
+	subAcct := *wallet
+	subAcct.AssetType = a
+	return accounts.SubAccounts{&subAcct}, nil
+}
+
+// GetCachedSubAccounts returns the account's wallet as an asset's sub accounts, as every asset trades from the one wallet
+// saved under spot
+func (e *Exchange) GetCachedSubAccounts(ctx context.Context, a asset.Item) (accounts.SubAccounts, error) {
+	if a != asset.All && !e.SupportsAsset(a) {
+		return nil, fmt.Errorf("%w: %s", asset.ErrNotSupported, a)
+	}
+	subAccts, err := e.Base.GetCachedSubAccounts(ctx, asset.Spot)
+	if err != nil {
+		return nil, err
+	}
+	if a != asset.All {
+		for _, s := range subAccts {
+			s.AssetType = a
+		}
+	}
+	return subAccts, nil
+}
+
+// GetCachedCurrencyBalances returns the balances of the account's wallet by currency, the same for every asset, as every
+// asset trades from the one wallet saved under spot
+func (e *Exchange) GetCachedCurrencyBalances(ctx context.Context, a asset.Item) (accounts.CurrencyBalances, error) {
+	if a != asset.All && !e.SupportsAsset(a) {
+		return nil, fmt.Errorf("%w: %s", asset.ErrNotSupported, a)
+	}
+	return e.Base.GetCachedCurrencyBalances(ctx, asset.Spot)
 }
 
 // balanceSubAccount returns an asset's sub account holding the account's position balances. An isolated position's
@@ -640,7 +674,7 @@ func (e *Exchange) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fun
 		resp = append(resp, exchange.FundingHistory{
 			ExchangeName:    e.Name,
 			Status:          withdrawalStatus(withdrawals[i].Status),
-			TransferID:      withdrawals[i].ID,
+			TransferID:      string(withdrawals[i].ID),
 			Timestamp:       withdrawals[i].CreateTime.Time(),
 			Currency:        withdrawalCurrency(&withdrawals[i]).String(),
 			Amount:          withdrawals[i].Amount.Float64(),
@@ -666,7 +700,7 @@ func (e *Exchange) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _
 		address, _ := splitAddressTag(withdrawals[i].Address)
 		resp[i] = exchange.WithdrawalHistory{
 			Status:          withdrawalStatus(withdrawals[i].Status),
-			TransferID:      withdrawals[i].ID,
+			TransferID:      string(withdrawals[i].ID),
 			Timestamp:       withdrawals[i].CreateTime.Time(),
 			Currency:        withdrawalCurrency(&withdrawals[i]).String(),
 			Amount:          withdrawals[i].Amount.Float64(),
@@ -684,7 +718,7 @@ func (e *Exchange) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _
 func (e *Exchange) withdrawalHistory(ctx context.Context, c currency.Code) ([]WithdrawalResponse, error) {
 	return pageWalletHistory(ctx, func(ctx context.Context, page uint64) ([]WithdrawalResponse, error) {
 		return e.GetWithdrawalHistory(ctx, &WalletHistoryRequest{Currency: c, PageSize: maxWalletHistoryPageSize, Page: page})
-	}, func(w *WithdrawalResponse) string { return w.ID })
+	}, func(w *WithdrawalResponse) string { return string(w.ID) })
 }
 
 // pageWalletHistory returns every page of a deposit or withdrawal history, stopping at a short page, or at a page
@@ -1065,7 +1099,7 @@ func (e *Exchange) WithdrawCryptocurrencyFunds(ctx context.Context, w *withdraw.
 	if err != nil {
 		return nil, err
 	}
-	return &withdraw.ExchangeResponse{Name: e.Name, ID: resp.ID, Status: withdrawalStatus(resp.Status)}, nil
+	return &withdraw.ExchangeResponse{Name: e.Name, ID: string(resp.ID), Status: withdrawalStatus(resp.Status)}, nil
 }
 
 // WithdrawFiatFunds is not supported, as Crypto.com withdraws fiat only to a bank account it holds, by its own ID,

@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
@@ -439,6 +440,15 @@ func TestUpdateAccountBalances(t *testing.T) {
 	ex := newTestExchange(t)
 	_, err := ex.UpdateAccountBalances(t.Context(), asset.Options)
 	require.ErrorIs(t, err, asset.ErrNotSupported, "UpdateAccountBalances must refuse an unsupported asset")
+	_, err = newUnavailableServerExchange(t).UpdateAccountBalances(t.Context(), asset.Spot)
+	require.ErrorIs(t, err, request.ErrBadStatus, "UpdateAccountBalances must return the request's failure")
+	older := newResponseServerExchange(t, `{"id":1,"code":0,"result":{"data":[{"position_balances":[{"instrument_name":"BTC","quantity":"1","update_timestamp_ms":1607063412000}]}]}}`)
+	newer := accounts.NewSubAccount(asset.Spot, "")
+	newer.Balances.Set(currency.BTC, accounts.Balance{Total: 2, Free: 2, UpdatedAt: time.UnixMilli(1607063412001)})
+	require.NoError(t, older.Accounts.Save(t.Context(), accounts.SubAccounts{newer}, false), "Save must not error")
+	refused, err := older.UpdateAccountBalances(t.Context(), asset.Margin)
+	require.ErrorContains(t, err, "out of sequence", "UpdateAccountBalances must return the store's refusal of an older reply")
+	assert.Nil(t, refused, "UpdateAccountBalances should return no wallet the store refused")
 	skipLiveWithoutCredentials(t)
 	for _, a := range ex.GetAssetTypes(false) {
 		got, err := ex.UpdateAccountBalances(t.Context(), a)
@@ -465,15 +475,130 @@ func TestUpdateAccountBalances(t *testing.T) {
 	creds, err := ex.GetCredentials(t.Context())
 	require.NoError(t, err, "GetCredentials must not error")
 	for _, a := range ex.GetAssetTypes(false) {
-		stale := accounts.NewSubAccount(a, "")
+		stale := accounts.NewSubAccount(asset.Spot, "")
 		stale.Balances.Set(currency.BTC, accounts.Balance{Total: 1, Free: 1})
 		require.NoErrorf(t, ex.Accounts.Save(t.Context(), accounts.SubAccounts{stale}, false), "Save must not error for %s", a)
 		_, err = ex.UpdateAccountBalances(t.Context(), a)
 		require.NoErrorf(t, err, "UpdateAccountBalances must not error for %s", a)
-		stored, err := ex.Accounts.CurrencyBalances(creds, a)
+		stored, err := ex.Accounts.CurrencyBalances(creds, asset.Spot)
 		require.NoErrorf(t, err, "CurrencyBalances must not error for %s", a)
 		assert.NotContainsf(t, stored, currency.BTC, "UpdateAccountBalances should remove a %s balance the response no longer holds", a)
 	}
+}
+
+func TestUpdateAccountBalancesPublishesUnderSpot(t *testing.T) {
+	// Not parallel: while a subscriber holds the global dispatcher open, every test's ticker and book publishes queue on it,
+	// and a full queue returns them an error
+	require.NoError(t, dispatch.EnsureRunning(dispatch.DefaultMaxWorkers, dispatch.DefaultJobsLimit), "dispatch.EnsureRunning must not error")
+	ex := newResponseServerExchange(t, `{"id":1,"code":0,"result":{"data":[{"position_balances":[{"instrument_name":"BTC","quantity":"1"}]}]}}`)
+	pipe, err := ex.SubscribeAccountBalances()
+	require.NoError(t, err, "SubscribeAccountBalances must not error")
+	t.Cleanup(func() { assert.NoError(t, pipe.Release(), "Release should not error") })
+	got, err := ex.UpdateAccountBalances(t.Context(), asset.Margin)
+	require.NoError(t, err, "UpdateAccountBalances must not error")
+	require.Len(t, got, 1, "UpdateAccountBalances must return the one wallet")
+	select {
+	case published := <-pipe.Channel():
+		wallet, ok := published.(*accounts.SubAccount)
+		require.True(t, ok, "the store must publish a sub account")
+		assert.Equal(t, asset.Spot, wallet.AssetType, "the store should publish the wallet under spot, whichever asset asks")
+		assert.Equal(t, asset.Margin, got[0].AssetType, "UpdateAccountBalances should still label its copy for the asset that asked")
+	case <-time.After(time.Minute):
+		require.Fail(t, "the store must publish the wallet it saves")
+	}
+}
+
+// TestAccountWallet holds every asset to the one wallet Crypto.com keeps: whichever asset refreshes it, each asset reads
+// the wallet as the last refresh or push left it, and the store counts it once
+func TestAccountWallet(t *testing.T) {
+	t.Parallel()
+	var refreshes atomic.Int64
+	assets := asset.Items{asset.Spot, asset.Margin, asset.PerpetualSwap, asset.Futures}
+	ex, _ := newRoutesServerExchange(t, map[string]testRoute{"private/user-balance": func(string) (string, *APIError) {
+		switch n := refreshes.Add(1); {
+		case n <= int64(len(assets)):
+			return `{"data":[{"position_balances":[{"instrument_name":"BTC","quantity":"10","reserved_qty":"2"},{"instrument_name":"ETH","quantity":"3"}]}]}`, nil
+		case n == int64(len(assets))+1:
+			return `{"data":[{"position_balances":[{"instrument_name":"BTC","quantity":"5","reserved_qty":"1"}]}]}`, nil
+		default:
+			return `{"data":[{"position_balances":[]}]}`, nil
+		}
+	}})
+	ctx := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: testAPIKey, Secret: testAPISecret, SubAccount: "sub-42"})
+	requireWallet := func(step string, exp map[currency.Code]accounts.Balance) {
+		t.Helper()
+		for _, a := range append(assets, asset.All) {
+			subAccts, err := ex.GetCachedSubAccounts(ctx, a)
+			require.NoErrorf(t, err, "GetCachedSubAccounts must not error for %s %s", a, step)
+			require.Lenf(t, subAccts, 1, "GetCachedSubAccounts must return the one wallet for %s %s", a, step)
+			expAsset := a
+			if a == asset.All {
+				expAsset = asset.Spot
+			}
+			assert.Equalf(t, expAsset, subAccts[0].AssetType, "GetCachedSubAccounts should label the wallet for %s %s", a, step)
+			currencies, err := ex.GetCachedCurrencyBalances(ctx, a)
+			require.NoErrorf(t, err, "GetCachedCurrencyBalances must not error for %s %s", a, step)
+			require.Lenf(t, subAccts[0].Balances, len(exp), "GetCachedSubAccounts must hold the wallet's currencies for %s %s", a, step)
+			require.Lenf(t, currencies, len(exp), "GetCachedCurrencyBalances must hold the wallet's currencies for %s %s", a, step)
+			for c, want := range exp {
+				for name, got := range map[string]accounts.Balance{"GetCachedSubAccounts": subAccts[0].Balances[c], "GetCachedCurrencyBalances": currencies[c]} {
+					assert.Equalf(t, want.Total, got.Total, "%s should hold %s's total for %s %s", name, c, a, step)
+					assert.Equalf(t, want.Hold, got.Hold, "%s should hold %s's hold for %s %s", name, c, a, step)
+					assert.Equalf(t, want.Free, got.Free, "%s should hold %s's free balance for %s %s", name, c, a, step)
+				}
+			}
+		}
+		stored, err := ex.Accounts.CurrencyBalances(nil, asset.All)
+		require.NoErrorf(t, err, "CurrencyBalances must not error %s", step)
+		require.Lenf(t, stored, len(exp), "the store must hold the wallet's currencies %s", step)
+		for c, want := range exp {
+			assert.Equalf(t, want.Total, stored[c].Total, "the store should count %s once %s", c, step)
+		}
+	}
+	for _, a := range assets {
+		got, err := ex.UpdateAccountBalances(ctx, a)
+		require.NoErrorf(t, err, "UpdateAccountBalances must not error for %s", a)
+		require.Lenf(t, got, 1, "UpdateAccountBalances must return the one wallet for %s", a)
+		assert.Equalf(t, a, got[0].AssetType, "UpdateAccountBalances should label the wallet for %s", a)
+	}
+	requireWallet("after a refresh of each asset", map[currency.Code]accounts.Balance{
+		currency.BTC: {Total: 10, Hold: 2, Free: 8},
+		currency.ETH: {Total: 3, Free: 3},
+	})
+	require.NoError(t, ex.wsHandleUserBalance(ctx, &websocketChannelPush{Data: []byte(`[{"position_balances":[{"instrument_name":"BTC","quantity":"7","reserved_qty":"1"}]}]`)}), "wsHandleUserBalance must not error")
+	requireWallet("after a push", map[currency.Code]accounts.Balance{
+		currency.BTC: {Total: 7, Hold: 1, Free: 6},
+		currency.ETH: {Total: 3, Free: 3},
+	})
+	_, err := ex.UpdateAccountBalances(ctx, asset.PerpetualSwap)
+	require.NoError(t, err, "UpdateAccountBalances must not error")
+	requireWallet("after a refresh that no longer holds a currency", map[currency.Code]accounts.Balance{
+		currency.BTC: {Total: 5, Hold: 1, Free: 4},
+	})
+	require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.Futures, false), "SetAssetEnabled must not error")
+	requireWallet("with an asset disabled", map[currency.Code]accounts.Balance{
+		currency.BTC: {Total: 5, Hold: 1, Free: 4},
+	})
+
+	_, err = ex.GetCachedSubAccounts(ctx, asset.Options)
+	assert.ErrorIs(t, err, asset.ErrNotSupported, "GetCachedSubAccounts should refuse an unsupported asset")
+	_, err = ex.GetCachedCurrencyBalances(ctx, asset.Options)
+	assert.ErrorIs(t, err, asset.ErrNotSupported, "GetCachedCurrencyBalances should refuse an unsupported asset")
+
+	other := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: testAPIKey, Secret: testAPISecret, SubAccount: "sub-43"})
+	_, err = ex.GetCachedSubAccounts(other, asset.Margin)
+	assert.ErrorIs(t, err, accounts.ErrNoSubAccounts, "GetCachedSubAccounts should hold other credentials' wallet apart")
+	_, err = ex.GetCachedCurrencyBalances(other, asset.Margin)
+	assert.ErrorIs(t, err, accounts.ErrNoBalances, "GetCachedCurrencyBalances should hold other credentials' wallet apart")
+
+	_, err = ex.UpdateAccountBalances(ctx, asset.Margin)
+	require.NoError(t, err, "UpdateAccountBalances must not error for an empty wallet")
+	emptied, err := ex.GetCachedSubAccounts(ctx, asset.Spot)
+	require.NoError(t, err, "GetCachedSubAccounts must not error for an empty wallet")
+	require.Len(t, emptied, 1, "GetCachedSubAccounts must return the one wallet when it is empty")
+	assert.Empty(t, emptied[0].Balances, "GetCachedSubAccounts should hold nothing of a wallet refreshed empty")
+	_, err = ex.GetCachedCurrencyBalances(ctx, asset.Spot)
+	assert.ErrorIs(t, err, accounts.ErrNoBalances, "GetCachedCurrencyBalances should hold nothing of a wallet refreshed empty")
 }
 
 func TestBalanceSubAccount(t *testing.T) {
@@ -579,6 +704,17 @@ var testWalletRoutes = map[string]testRoute{
 
 func TestGetAccountFundingHistory(t *testing.T) {
 	t.Parallel()
+	refused := func(string) (string, *APIError) { return "", &APIError{Code: 50001, Message: "INTERNAL_SERVER_ERROR"} }
+	for history, routes := range map[string]map[string]testRoute{
+		"deposit":    {"private/get-deposit-history": refused, "private/get-withdrawal-history": testResult(`{"withdrawal_list":[]}`)},
+		"withdrawal": {"private/get-deposit-history": testResult(`{"deposit_list":[]}`), "private/get-withdrawal-history": refused},
+	} {
+		refusing, _ := newRoutesServerExchange(t, routes)
+		_, err := refusing.GetAccountFundingHistory(t.Context())
+		var apiErr *APIError
+		require.ErrorAsf(t, err, &apiErr, "GetAccountFundingHistory must return a refused %s history's error", history)
+		assert.Equalf(t, int64(50001), apiErr.Code, "GetAccountFundingHistory should return Crypto.com's refusal of the %s history", history)
+	}
 	ex := e
 	var received func() []testRequest
 	if mockTests {
@@ -637,6 +773,8 @@ func TestGetAccountFundingHistory(t *testing.T) {
 
 func TestGetWithdrawalsHistory(t *testing.T) {
 	t.Parallel()
+	_, err := newUnavailableServerExchange(t).GetWithdrawalsHistory(t.Context(), currency.XRP, asset.Spot)
+	require.ErrorIs(t, err, request.ErrBadStatus, "GetWithdrawalsHistory must return the request's failure")
 	ex := e
 	var received func() []testRequest
 	if mockTests {
@@ -674,6 +812,84 @@ func TestGetWithdrawalsHistory(t *testing.T) {
 	}
 	assert.Equal(t, exp, got, "GetWithdrawalsHistory should return every withdrawal")
 	assert.Equal(t, []testRequest{{Method: "private/get-withdrawal-history", Params: `{"currency":"XRP","page_size":"200"}`}}, received(), "GetWithdrawalsHistory should request a full page of the currency's withdrawals")
+}
+
+func TestWithdrawalHistory(t *testing.T) {
+	t.Parallel()
+	expIDs := make([]string, maxWalletHistoryPageSize+1)
+	fullPage := make([]string, maxWalletHistoryPageSize)
+	for i := range expIDs {
+		expIDs[i] = strconv.Itoa(2220 + i)
+		if i < maxWalletHistoryPageSize {
+			fullPage[i] = `{"id":` + expIDs[i] + `}`
+		}
+	}
+	ex, received := newRoutesServerExchange(t, map[string]testRoute{"private/get-withdrawal-history": func(params string) (string, *APIError) {
+		if strings.Contains(params, `"page":"1"`) {
+			return `{"withdrawal_list":[{"id":"` + expIDs[maxWalletHistoryPageSize] + `"}]}`, nil
+		}
+		return `{"withdrawal_list":[` + strings.Join(fullPage, ",") + `]}`, nil
+	}})
+	got, err := ex.withdrawalHistory(t.Context(), currency.XRP)
+	require.NoError(t, err, "withdrawalHistory must not error")
+	gotIDs := make([]string, len(got))
+	for i := range got {
+		gotIDs[i] = string(got[i].ID)
+	}
+	assert.Equal(t, expIDs, gotIDs, "withdrawalHistory should return every page's withdrawals, whichever way each sends its ID")
+	assert.Equal(t, []testRequest{
+		{Method: "private/get-withdrawal-history", Params: `{"currency":"XRP","page_size":"200"}`},
+		{Method: "private/get-withdrawal-history", Params: `{"currency":"XRP","page_size":"200","page":"1"}`},
+	}, received(), "withdrawalHistory should request the currency's withdrawals a full page at a time")
+
+	_, err = newUnavailableServerExchange(t).withdrawalHistory(t.Context(), currency.XRP)
+	assert.ErrorIs(t, err, request.ErrBadStatus, "withdrawalHistory should return the request's failure")
+}
+
+func TestWalletRequestsUseContextCredentials(t *testing.T) {
+	t.Parallel()
+	ctx := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: "context-key", Secret: testAPISecret})
+	for name, tc := range map[string]struct {
+		call func(*Exchange) error
+		keys []string
+	}{
+		"UpdateAccountBalances": {
+			func(ex *Exchange) error { _, err := ex.UpdateAccountBalances(ctx, asset.Margin); return err },
+			[]string{"context-key"},
+		},
+		"GetAccountFundingHistory": {
+			func(ex *Exchange) error { _, err := ex.GetAccountFundingHistory(ctx); return err },
+			[]string{"context-key", "context-key"},
+		},
+		"GetWithdrawalsHistory": {
+			func(ex *Exchange) error {
+				_, err := ex.GetWithdrawalsHistory(ctx, currency.XRP, asset.Spot)
+				return err
+			},
+			[]string{"context-key"},
+		},
+		"withdrawalHistory": {
+			func(ex *Exchange) error { _, err := ex.withdrawalHistory(ctx, currency.XRP); return err },
+			[]string{"context-key"},
+		},
+		"WithdrawCryptocurrencyFunds": {
+			func(ex *Exchange) error {
+				_, err := ex.WithdrawCryptocurrencyFunds(ctx, &withdraw.Request{
+					Exchange: ex.Name,
+					Currency: currency.BTC,
+					Amount:   1,
+					Type:     withdraw.Crypto,
+					Crypto:   withdraw.CryptoRequest{Address: "2NBqqD5GRJ8wHy1PYyCXTe9ke5226FhavBf"},
+				})
+				return err
+			},
+			[]string{"context-key"},
+		},
+	} {
+		ex, keys := newAPIKeyRecorder(t, `{"id":1,"code":0,"result":{"data":[],"deposit_list":[],"withdrawal_list":[],"id":"2220"}}`)
+		require.NoErrorf(t, tc.call(ex), "%s must not error", name)
+		assert.Equalf(t, tc.keys, keys(), "%s should send each request with the context's credentials", name)
+	}
 }
 
 func TestPageWalletHistory(t *testing.T) {
@@ -1292,6 +1508,18 @@ func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 	t.Parallel()
 	_, err := e.WithdrawCryptocurrencyFunds(t.Context(), nil)
 	require.ErrorIs(t, err, withdraw.ErrRequestCannotBeNil, "WithdrawCryptocurrencyFunds must validate the request")
+	req := &withdraw.Request{
+		Exchange: e.Name,
+		Currency: currency.BTC,
+		Amount:   1,
+		Type:     withdraw.Crypto,
+		Crypto:   withdraw.CryptoRequest{Address: "2NBqqD5GRJ8wHy1PYyCXTe9ke5226FhavBf"},
+	}
+	_, err = newUnavailableServerExchange(t).WithdrawCryptocurrencyFunds(t.Context(), req)
+	require.ErrorIs(t, err, request.ErrBadStatus, "WithdrawCryptocurrencyFunds must return the request's failure")
+	placed, err := newResponseServerExchange(t, `{"id":-1,"method":"private/create-withdrawal","code":0,"result":{"id":2220,"amount":1,"fee":0.0004,"symbol":"BTC","address":"2NBqqD5GRJ8wHy1PYyCXTe9ke5226FhavBf","client_wid":"my_withdrawal_002","create_time":1607063412000,"network_id":null}}`).WithdrawCryptocurrencyFunds(t.Context(), req)
+	require.NoError(t, err, "WithdrawCryptocurrencyFunds must not report a withdrawal Crypto.com took, with a bare ID, as failed")
+	assert.Equal(t, "2220", placed.ID, "WithdrawCryptocurrencyFunds should return a bare withdrawal ID")
 	skipLiveUnlessCanManipulate(t)
 	if !mockTests {
 		t.Skip("a live withdrawal would move funds")

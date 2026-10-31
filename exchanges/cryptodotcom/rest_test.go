@@ -281,6 +281,32 @@ func newSignedParamsServer(t *testing.T, method, expParams, response string) *Ex
 	}))
 }
 
+// newAPIKeyRecorder returns an exchange whose REST requests all receive one fixed response body. The function returned
+// gives each request's API key, in arrival order; no signature is checked, as a request carrying other credentials is
+// signed with them
+func newAPIKeyRecorder(t *testing.T, body string) (ex *Exchange, keys func() []string) {
+	t.Helper()
+	var mu sync.Mutex
+	var received []string
+	ex = newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		raw, err := io.ReadAll(r.Body)
+		assert.NoError(t, err, "Reading the request body should not error")
+		var sent requestBody
+		assert.NoError(t, json.Unmarshal(raw, &sent), "The request body should decode")
+		mu.Lock()
+		received = append(received, sent.APIKey)
+		mu.Unlock()
+		_, err = w.Write([]byte(body))
+		assert.NoError(t, err, "Writing the response should not error")
+	}))
+	keys = func() []string {
+		mu.Lock()
+		defer mu.Unlock()
+		return slices.Clone(received)
+	}
+	return ex, keys
+}
+
 // readSignedRequest decodes a test server's POST request body, checking its signature against the placeholder
 // secret, and returns it; a failed check fails the test and returns false
 func readSignedRequest(t *testing.T, r *http.Request) (requestBody, bool) {

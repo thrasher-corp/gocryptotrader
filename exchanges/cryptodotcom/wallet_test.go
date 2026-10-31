@@ -44,6 +44,17 @@ func TestCreateWithdrawal(t *testing.T) {
 	assert.ErrorIs(t, err, common.ErrNoResponse, "CreateWithdrawal should error for a null result")
 	_, err = newUnavailableServerExchange(t).CreateWithdrawal(t.Context(), req)
 	assert.ErrorIs(t, err, request.ErrBadStatus, "CreateWithdrawal should return the request's failure")
+	bare, err := newResponseServerExchange(t, `{"id":-1,"method":"private/create-withdrawal","code":0,"result":{"id":2220,"amount":1,"fee":0.0004,"symbol":"BTC","address":"2NBqqD5GRJ8wHy1PYyCXTe9ke5226FhavBf","client_wid":"my_withdrawal_002","create_time":1607063412000,"network_id":null}}`).CreateWithdrawal(t.Context(), req)
+	require.NoError(t, err, "CreateWithdrawal must not error for a bare withdrawal ID")
+	assert.Equal(t, &WithdrawalResponse{
+		ID:                 "2220",
+		ClientWithdrawalID: "my_withdrawal_002",
+		Symbol:             currency.BTC,
+		Amount:             preciseNumber("1"),
+		Fee:                preciseNumber("0.0004"),
+		Address:            "2NBqqD5GRJ8wHy1PYyCXTe9ke5226FhavBf",
+		CreateTime:         types.Time(time.UnixMilli(1607063412000)),
+	}, bare, "CreateWithdrawal should decode a reply with a bare withdrawal ID")
 
 	skipLiveUnlessCanManipulate(t)
 	if !mockTests {

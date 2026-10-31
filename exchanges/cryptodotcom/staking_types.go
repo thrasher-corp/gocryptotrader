@@ -201,7 +201,7 @@ type ConvertStakedTokenResponse struct {
 	ExpectedRate                 types.Number        `json:"expected_rate"`
 	FromQuantity                 types.PreciseNumber `json:"from_quantity"`
 	SlippageToleranceBasisPoints types.Number        `json:"slippage_tolerance_bps"`
-	ConvertID                    string              `json:"convert_id"`
+	ConvertID                    NumericID           `json:"convert_id"`
 	Reason                       string              `json:"reason"`
 }
 
@@ -223,7 +223,7 @@ type StakingConvertRequestResponse struct {
 	SlippageToleranceBasisPoints types.Number        `json:"slippage_tolerance_bps"`
 	ActualRate                   types.Number        `json:"actual_rate"`
 	ToQuantity                   types.PreciseNumber `json:"to_quantity"`
-	ConvertID                    string              `json:"convert_id"`
+	ConvertID                    NumericID           `json:"convert_id"`
 	Status                       string              `json:"status"`
 	CreateTime                   types.Time          `json:"create_timestamp_ms"`
 }

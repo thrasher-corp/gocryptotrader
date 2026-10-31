@@ -151,7 +151,7 @@ type OrderResponse struct {
 	UpdateTime           types.Time          `json:"update_time"`
 	TransactionTime      types.Time          `json:"transaction_time"`
 	TransactionTimeNano  types.Time          `json:"transaction_time_ns"`
-	Reason               string              `json:"reason"`
+	Reason               NumericID           `json:"reason"`
 	IsolationID          string              `json:"isolation_id"`
 	IsolationType        string              `json:"isolation_type"`
 	ListID               NumericID           `json:"list_id"`

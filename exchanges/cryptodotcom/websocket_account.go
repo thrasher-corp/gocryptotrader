@@ -221,9 +221,9 @@ func (e *Exchange) wsHandleTransactions(ctx context.Context, push *websocketChan
 }
 
 // wsHandleUserBalance saves the account's balances to the account store and relays them. Crypto.com keeps one wallet
-// for spot, margin and derivatives, which is saved once, under spot, as the portfolio's balance refresh saves it, since
-// the account store adds up every asset's balances. Crypto.com's docs leave out whether a push holds every currency,
-// so the currencies a push leaves out are kept
+// for spot, margin and derivatives, which is saved once, under spot, as UpdateAccountBalances saves it whichever asset
+// asks, since the account store adds up every asset's balances. Crypto.com's docs leave out whether a push holds every
+// currency, so the currencies a push leaves out are kept
 func (e *Exchange) wsHandleUserBalance(ctx context.Context, push *websocketChannelPush) error {
 	var balances []UserBalanceResponse
 	if err := decodePushData(push, &balances); err != nil {
