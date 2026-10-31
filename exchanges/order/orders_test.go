@@ -1757,7 +1757,15 @@ func TestDetail_Copy(t *testing.T) {
 				{Price: 1},
 			},
 		},
+		{
+			Exchange: "Binance",
+			Trades:   []TradeHistory{},
+		},
 	}
+	spareCapacity := Detail{Trades: make([]TradeHistory, 0, 1)}
+	copied := spareCapacity.Copy()
+	copied.Trades = append(copied.Trades, TradeHistory{TID: "copied"})
+	assert.Empty(t, spareCapacity.Trades[:1][0].TID, "Copy should not share an empty trade list's spare capacity")
 	for i := range d {
 		r := d[i].Copy()
 		assert.Truef(t, reflect.DeepEqual(d[i], r), "[%d] Copy does not contain same elements, expected: %v\ngot:%v", i, d[i], r)

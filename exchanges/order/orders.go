@@ -501,7 +501,7 @@ func (d *Detail) CopyToPointer() *Detail {
 // Copy makes a full copy of underlying details NOTE: This is Addressable.
 func (d *Detail) Copy() Detail {
 	c := *d
-	if len(d.Trades) > 0 {
+	if d.Trades != nil {
 		c.Trades = make([]TradeHistory, len(d.Trades))
 		copy(c.Trades, d.Trades)
 	}

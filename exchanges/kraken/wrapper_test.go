@@ -1010,9 +1010,15 @@ func TestGetHistoricCandlesCurrentPeriod(t *testing.T) {
 		assert.NoError(t, err, "ParseInt should not error for the time requested from")
 		_, _ = w.Write([]byte(`{"candles":[{"time":` + strconv.FormatInt(from*1000, 10) + `,"open":"100","high":"101","low":"99","close":"100","volume":"1"}],"more_candles":false}`))
 	})
-	start := time.Now().UTC().Truncate(12 * time.Hour)
-	_, err := ex.GetHistoricCandles(t.Context(), futuresTestPair, asset.Futures, kline.TwelveHour, start, start.Add(12*time.Hour))
-	assert.ErrorIs(t, err, kline.ErrInsufficientCandleData, "GetHistoricCandles should return an error for a converted interval's current period")
+	// A period that turned while the request was made leaves it a past period's, which holds enough, so it is made again
+	for {
+		start := time.Now().UTC().Truncate(12 * time.Hour)
+		_, err := ex.GetHistoricCandles(t.Context(), futuresTestPair, asset.Futures, kline.TwelveHour, start, start.Add(12*time.Hour))
+		if time.Now().UTC().Truncate(12 * time.Hour).Equal(start) {
+			assert.ErrorIs(t, err, kline.ErrInsufficientCandleData, "GetHistoricCandles should return an error for a converted interval's current period")
+			return
+		}
+	}
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
@@ -1058,10 +1064,11 @@ func TestGetServerTime(t *testing.T) {
 	assert.ErrorIs(t, err, errAPIResponse, "GetServerTime should return the request's error")
 	// Kraken's server time is the same for every asset
 	for _, a := range []asset.Item{asset.Spot, asset.Futures} {
+		asked := time.Now()
 		result, err := e.GetServerTime(t.Context(), a)
 		require.NoErrorf(t, err, "GetServerTime must not error for %s", a)
 		if !mockTests {
-			assert.WithinDurationf(t, time.Now(), result, time.Minute, "GetServerTime should return the current time for %s", a)
+			assert.WithinRangef(t, result, asked.Add(-time.Minute), time.Now().Add(time.Minute), "GetServerTime should return the current time for %s", a)
 			continue
 		}
 		assert.Equalf(t, time.Unix(1791504602, 0), result, "GetServerTime should return the server time for %s", a)

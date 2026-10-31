@@ -13,6 +13,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/buger/jsonparser"
@@ -1969,6 +1970,15 @@ func TestGenerateSubscriptionsAllAssets(t *testing.T) {
 		{name: "my orders", sub: &subscription.Subscription{Enabled: true, Asset: asset.All, Channel: subscription.MyOrdersChannel}, futuresStream: true},
 		{name: "my trades", sub: &subscription.Subscription{Enabled: true, Asset: asset.All, Channel: subscription.MyTradesChannel}, futuresStream: true},
 		{name: "my wallet", sub: &subscription.Subscription{Enabled: true, Asset: asset.All, Channel: subscription.MyWalletChannel}, futuresStream: true},
+		{name: "a pair's ticker", sub: &subscription.Subscription{Enabled: true, Asset: asset.All, Channel: subscription.TickerChannel, Pairs: currency.Pairs{wsTestPair}}},
+		{name: "two pairs' ticker", sub: &subscription.Subscription{Enabled: true, Asset: asset.All, Channel: subscription.TickerChannel, Pairs: currency.Pairs{wsTestPair, wsTestDOGEPair}}},
+		{name: "a pair's trades", sub: &subscription.Subscription{Enabled: true, Asset: asset.All, Channel: subscription.AllTradesChannel, Pairs: currency.Pairs{wsTestPair}}},
+		{name: "a pair's trades by Kraken's name", sub: &subscription.Subscription{Enabled: true, Asset: asset.All, Channel: wsChannelTrade, Pairs: currency.Pairs{wsTestPair}}},
+		{name: "my orders naming a pair", sub: &subscription.Subscription{Enabled: true, Asset: asset.All, Channel: subscription.MyOrdersChannel, Pairs: currency.Pairs{wsTestPair}}, futuresStream: true},
+		{name: "my trades naming a pair", sub: &subscription.Subscription{Enabled: true, Asset: asset.All, Channel: subscription.MyTradesChannel, Pairs: currency.Pairs{wsTestPair}}, futuresStream: true},
+		{name: "my wallet naming a pair", sub: &subscription.Subscription{Enabled: true, Asset: asset.All, Channel: subscription.MyWalletChannel, Pairs: currency.Pairs{wsTestPair}}, futuresStream: true},
+		{name: "open orders by Kraken's name naming a pair", sub: &subscription.Subscription{Enabled: true, Asset: asset.All, Channel: wsFuturesFeedOpenOrders, Pairs: currency.Pairs{wsTestPair}}, futuresStream: true},
+		{name: "a heartbeat naming a pair", sub: &subscription.Subscription{Enabled: true, Asset: asset.All, Channel: wsFuturesFeedHeartbeat, Pairs: currency.Pairs{wsTestPair}}, futuresStream: true},
 	} {
 		ex := newTestExchange(t)
 		configured := tc.sub.Clone()
@@ -2043,6 +2053,83 @@ func TestManageSubsRequestLimit(t *testing.T) {
 
 	require.NoError(t, ex.manageSubs(t.Context(), conn, wsMethodUnsubscribe, subs[1:]), "manageSubs must not error when unsubscribing")
 	assert.Len(t, server.takeRequests(), 4, "manageSubs should split an unsubscription into requests of 400 symbols")
+}
+
+// immediateSubscriptionConnection accepts each symbol of a subscribe or unsubscribe request as soon as it is sent
+type immediateSubscriptionConnection struct {
+	websocket.Connection
+}
+
+// SendMessageReturnResponses returns a successful reply for each symbol of a request, or the context's error
+func (c *immediateSubscriptionConnection) SendMessageReturnResponses(ctx context.Context, _ request.EndpointLimit, _, payload any, _ int) ([][]byte, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	req, ok := payload.(*wsRequest)
+	if !ok {
+		return nil, assert.AnError
+	}
+	params, ok := req.Params.(*wsSubscriptionParams)
+	if !ok {
+		return nil, assert.AnError
+	}
+	replies := make([][]byte, len(params.Symbols))
+	for i, symbol := range params.Symbols {
+		replies[i] = []byte(`{"method":"` + req.Method + `","success":true,"result":{"channel":"ticker","symbol":"` + symbol + `"}}`)
+	}
+	return replies, nil
+}
+
+func TestManageSubsRequestPause(t *testing.T) {
+	t.Parallel()
+	subscriptions := func(n int, channels ...string) subscription.List {
+		subs := make(subscription.List, n)
+		for i := range subs {
+			channel := channels[i%len(channels)]
+			subs[i] = &subscription.Subscription{Channel: channel, QualifiedChannel: channel, Asset: asset.Spot, Pairs: currency.Pairs{currency.NewPair(currency.NewCode("PAUSE"+strconv.Itoa(i)), currency.USD)}}
+		}
+		return subs
+	}
+	// The fake clock has no window for a stall to fall in, and each request answered at once leaves it only the pauses. The
+	// context's deadline ends a pause that never ends, as the bubble would otherwise end the package's run
+	for _, tc := range []struct {
+		subscriptions int
+		channels      []string
+		pause         time.Duration
+	}{
+		{subscriptions: 1, channels: []string{wsChannelTicker}},
+		{subscriptions: 400, channels: []string{wsChannelTicker}},
+		{subscriptions: 401, channels: []string{wsChannelTicker}, pause: time.Second},
+		{subscriptions: 401, channels: []string{wsChannelTicker, wsChannelTrade}, pause: time.Second},
+		{subscriptions: 1342, channels: []string{wsChannelTicker}, pause: 2 * time.Second},
+	} {
+		synctest.Test(t, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(t.Context(), time.Minute)
+			defer cancel()
+			ex := newTestExchange(t)
+			seedTestAssetNames(ex)
+			subs := subscriptions(tc.subscriptions, tc.channels...)
+			for _, method := range []string{wsMethodSubscribe, wsMethodUnsubscribe} {
+				started := time.Now()
+				require.NoErrorf(t, ex.manageSubs(ctx, new(immediateSubscriptionConnection), method, subs), "manageSubs must not error to %s", method)
+				assert.Equalf(t, tc.pause, time.Since(started), "manageSubs should pause after each request of a change of more than 400 subscriptions alone, to %s %d on %d channels", method, tc.subscriptions, len(tc.channels))
+			}
+		})
+	}
+
+	synctest.Test(t, func(t *testing.T) {
+		ex := newTestExchange(t)
+		seedTestAssetNames(ex)
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+		go func() {
+			time.Sleep(100 * time.Millisecond)
+			cancel()
+		}()
+		started := time.Now()
+		assert.ErrorIs(t, ex.manageSubs(ctx, new(immediateSubscriptionConnection), wsMethodSubscribe, subscriptions(1342, wsChannelTicker)), context.Canceled, "manageSubs should return the context's error")
+		assert.Equal(t, 100*time.Millisecond, time.Since(started), "manageSubs should end a pause when its context ends")
+	})
 }
 
 func TestManageSubs(t *testing.T) {
@@ -2856,10 +2943,11 @@ func TestWebsocketLevel3Book(t *testing.T) {
 	assert.Len(t, book.Asks, len(snapshot.Asks), "wsLevel3Book should load each ask order as a level")
 	assert.Equal(t, snapshot.Timestamp, book.LastUpdated, "wsLevel3Book should stamp the book with the snapshot's time")
 	snapshot.Timestamp = time.Time{}
+	loading := time.Now()
 	require.NoError(t, ex.wsLevel3Book(t.Context(), wsTestPair, true, snapshot), "wsLevel3Book must load a snapshot without a timestamp")
 	book, err = ex.Websocket.Orderbook.GetOrderbook(wsTestPair, asset.Spot)
 	require.NoError(t, err, "GetOrderbook must not error")
-	assert.WithinDuration(t, time.Now(), book.LastUpdated, time.Minute, "wsLevel3Book should stamp a book without a timestamp when it is loaded")
+	assert.WithinRange(t, book.LastUpdated, loading, time.Now(), "wsLevel3Book should stamp a book without a timestamp when it is loaded")
 	bids := len(snapshot.Bids)
 	snapshot.Bids = append(snapshot.Bids, level3Order(t, "", "B0", "0.0", "8000000"))
 	require.NoError(t, ex.wsLevel3Book(t.Context(), wsTestPair, true, snapshot), "wsLevel3Book must load a snapshot holding an order priced 0")

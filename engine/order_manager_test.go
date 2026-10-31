@@ -282,6 +282,21 @@ func OrdersSetup(t *testing.T) *OrderManager {
 	return m
 }
 
+// newOrderStoreTestManager returns a started order manager holding the test exchange with only its defaults set, for a test
+// that needs no pairs, which OrdersSetup requests from the exchange
+func newOrderStoreTestManager(t *testing.T) *OrderManager {
+	t.Helper()
+	em := NewExchangeManager()
+	exch, err := em.NewExchangeByName(testExchange)
+	require.NoError(t, err, "NewExchangeByName must not error")
+	exch.SetDefaults()
+	require.NoError(t, em.Add(omfExchange{IBotExchange: exch}), "Add must not error")
+	m, err := SetupOrderManager(em, &CommunicationManager{}, &sync.WaitGroup{}, &config.OrderManager{})
+	require.NoError(t, err, "SetupOrderManager must not error")
+	m.started.Store(true)
+	return m
+}
+
 func TestOrdersGet(t *testing.T) {
 	m := OrdersSetup(t)
 	if m.orderStore.get() == nil {
@@ -784,7 +799,7 @@ func TestSubmitOrderStreamedFirst(t *testing.T) {
 	} {
 		for _, a := range []asset.Item{asset.Spot, asset.Futures, asset.USDTMarginedFutures} {
 			t.Run(a.String()+" "+tc.name, func(t *testing.T) {
-				m := OrdersSetup(t)
+				m := newOrderStoreTestManager(t)
 				other := &order.Detail{Exchange: testExchange, OrderID: "o-2", Pair: btcusdPair, AssetType: a, Side: order.Buy, Status: order.Open, Amount: 9, Date: placed}
 				require.NoError(t, m.orderStore.add(other), "add must not error")
 				streamed := tc.streamed
@@ -794,6 +809,7 @@ func TestSubmitOrderStreamedFirst(t *testing.T) {
 					require.NoError(t, err, "add must not error for a spot order")
 				}
 				internalID := streamed.InternalOrderID
+				report := streamed.Copy()
 
 				submit := &order.Submit{Type: order.Limit, Pair: btcusdPair, AssetType: a, Side: order.Buy, Amount: 3, Price: 1, ReduceOnly: true, Exchange: testExchange}
 				submitResp, err := submit.DeriveSubmitResponse("o-1")
@@ -802,6 +818,7 @@ func TestSubmitOrderStreamedFirst(t *testing.T) {
 				submitResp.QuoteAmount, submitResp.AverageExecutedPrice, submitResp.Fee = 100, 50, 0.7
 				resp, err := m.SubmitFakeOrder(submit, submitResp, false)
 				require.NoError(t, err, "SubmitFakeOrder must not error for an order the WS stored first")
+				assert.Equal(t, report, streamed, "SubmitFakeOrder should not write to the report the websocket routine stored, which it can still be reading")
 
 				stored, err := m.GetByExchangeAndID(testExchange, "o-1")
 				require.NoError(t, err, "GetByExchangeAndID must not error")
@@ -835,7 +852,7 @@ func TestSubmitOrderStreamedFirst(t *testing.T) {
 		}
 	}
 
-	m := OrdersSetup(t)
+	m := newOrderStoreTestManager(t)
 	reported := time.Date(2026, 10, 31, 1, 2, 2, 0, time.UTC)
 	streamed := &order.Detail{Exchange: testExchange, OrderID: "o-3", Pair: btcusdPair, AssetType: asset.Spot, Side: order.Buy, Status: order.Open, Date: reported, ReduceOnly: true, CostAsset: currency.USDT, SettlementCurrency: currency.USDC, MarginType: margin.Isolated, Fee: -0.4, Trades: []order.TradeHistory{trade}}
 	require.NoError(t, m.orderStore.add(streamed), "add must not error")
@@ -883,7 +900,7 @@ func TestSubmitOrderStreamedFirst(t *testing.T) {
 }
 
 func TestProcessSubmittedOrder(t *testing.T) {
-	m := OrdersSetup(t)
+	m := newOrderStoreTestManager(t)
 	_, err := m.processSubmittedOrder(nil)
 	assert.ErrorIs(t, err, order.ErrOrderDetailIsNil, "processSubmittedOrder should error for a nil response")
 
@@ -1345,7 +1362,7 @@ func (f *orderLookupExchange) lookedUp() []string {
 
 func TestProcessMatchingOrdersFutures(t *testing.T) {
 	t.Parallel()
-	m := OrdersSetup(t)
+	m := newOrderStoreTestManager(t)
 	exch, err := m.orderStore.exchangeManager.GetExchangeByName(testExchange)
 	require.NoError(t, err, "GetExchangeByName must not error")
 	f := &orderLookupExchange{IBotExchange: exch}
@@ -1637,6 +1654,22 @@ func TestGetOrdersSnapshot(t *testing.T) {
 	}
 }
 
+func TestGetOrdersSnapshotHoldsStoreLock(t *testing.T) {
+	t.Parallel()
+	m := newOrderStoreTestManager(t)
+	stored := &order.Detail{Exchange: testExchange, OrderID: "o-1", Pair: btcusdPair, AssetType: asset.Spot, Side: order.Buy, Status: order.Open, Trades: []order.TradeHistory{{TID: "t-1", Amount: 1}}}
+	require.NoError(t, m.orderStore.add(stored), "add must not error")
+	m.orderStore.m.Lock()
+	snapshots := make(chan []order.Detail, 1)
+	go func() { snapshots <- m.GetOrdersSnapshot(order.AnyStatus) }()
+	assert.Never(t, func() bool { return len(snapshots) != 0 }, 50*time.Millisecond, 5*time.Millisecond, "GetOrdersSnapshot should wait for a write to the store")
+	m.orderStore.m.Unlock()
+	snapshot := <-snapshots
+	require.Len(t, snapshot, 1, "GetOrdersSnapshot must return the stored order")
+	snapshot[0].Trades[0].Amount = 99
+	assert.Equal(t, 1.0, stored.Trades[0].Amount, "GetOrdersSnapshot should not share a stored order's trades")
+}
+
 func TestUpdateExisting(t *testing.T) {
 	t.Parallel()
 	s := &store{}
@@ -1682,7 +1715,7 @@ func TestUpdateExisting(t *testing.T) {
 // tracked as positions, as the order store's filters, such as RPC GetManagedOrders', match orders by that name
 func TestStoreFuturesOrdersKeepExchangeName(t *testing.T) {
 	t.Parallel()
-	m := OrdersSetup(t)
+	m := newOrderStoreTestManager(t)
 	newOrder := func(id string) *order.Detail {
 		return &order.Detail{
 			Exchange:  testExchange,

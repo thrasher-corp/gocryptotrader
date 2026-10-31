@@ -568,13 +568,15 @@ func (m *OrderManager) GetOrdersSnapshot(s order.Status) []order.Detail {
 	if m == nil || !m.started.Load() {
 		return nil
 	}
+	m.orderStore.m.RLock()
+	defer m.orderStore.m.RUnlock()
 	var os []order.Detail
 	for _, v := range m.orderStore.Orders {
 		for i := range v {
 			if s != v[i].Status && s != order.AnyStatus && s != order.UnknownStatus {
 				continue
 			}
-			os = append(os, *v[i])
+			os = append(os, v[i].Copy())
 		}
 	}
 
@@ -1110,7 +1112,8 @@ func (s *store) getByDetail(det *order.Detail) *order.Detail {
 func (s *store) mergeStreamed(det *order.Detail) (*order.Detail, error) {
 	s.m.Lock()
 	defer s.m.Unlock()
-	for _, o := range s.Orders[strings.ToLower(det.Exchange)] {
+	orders := s.Orders[strings.ToLower(det.Exchange)]
+	for i, o := range orders {
 		if o.OrderID != det.OrderID {
 			continue
 		}
@@ -1127,11 +1130,13 @@ func (s *store) mergeStreamed(det *order.Detail) (*order.Detail, error) {
 		if !o.Date.IsZero() {
 			merged.Date = o.Date
 		}
-		*o = merged
-		if o.AssetType.IsFutures() {
-			err = common.AppendError(err, s.futuresPositionController.TrackNewOrder(o))
+		// The websocket routine can still be reading the report it stored, so the merged order replaces it rather than
+		// writing over it
+		orders[i] = &merged
+		if merged.AssetType.IsFutures() {
+			err = common.AppendError(err, s.futuresPositionController.TrackNewOrder(&merged))
 		}
-		return o.CopyToPointer(), err
+		return merged.CopyToPointer(), err
 	}
 	return det, ErrOrderNotFound
 }

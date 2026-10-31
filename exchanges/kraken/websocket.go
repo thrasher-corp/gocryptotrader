@@ -166,12 +166,14 @@ func (e *Exchange) GetSubscriptionTemplate(*subscription.Subscription) (*templat
 	return template.New("master.tmpl").Funcs(template.FuncMap{"channelName": channelName, "perPair": perPair}).Parse(subTplText)
 }
 
-// generateSubscriptions expands the configured subscriptions. A subscription for all assets that futures refuses, whether
-// it names the standard channel or Kraken's, is spot's alone, as one saved before futures websocket support was
+// generateSubscriptions expands the configured subscriptions. A subscription for all assets is spot's alone, as one saved
+// before futures websocket support was, when futures refuses it, whether it names the standard channel or Kraken's, or
+// when it names pairs for a feed taking products, as a symbol of one asset is no symbol of the other. An account feed
+// drops any pairs it names, so these leave it for both assets
 func (e *Exchange) generateSubscriptions() (subscription.List, error) {
 	subs := e.Features.Subscriptions.Clone()
 	for _, s := range subs {
-		if s.Asset == asset.All && validateFuturesSubscription(&subscription.Subscription{QualifiedChannel: channelName(s, asset.Futures), Levels: s.Levels}) != nil {
+		if s.Asset == asset.All && ((len(s.Pairs) != 0 && perPair(s, asset.Futures)) || validateFuturesSubscription(&subscription.Subscription{QualifiedChannel: channelName(s, asset.Futures), Levels: s.Levels}) != nil) {
 			s.Asset = asset.Spot
 		}
 	}
@@ -312,6 +314,10 @@ func (e *Exchange) unsubscribeForConnection(ctx context.Context, conn websocket.
 // Kraken closes a connection sent a message over 8 KB or so without replying, which leaves each symbol 20 bytes
 const wsSubscriptionRequestLimit = 400
 
+// wsSubscriptionRequestPause spaces the requests of a change too large for one, as Kraken closes a connection changing
+// its subscriptions too quickly with "Maximum subscription rate violated"
+const wsSubscriptionRequestPause = 500 * time.Millisecond
+
 // manageSubs subscribes or unsubscribes, sending one request for up to wsSubscriptionRequestLimit subscriptions that
 // differ only by pair. Kraken answers each symbol of a request on its own, so each subscription succeeds or fails alone
 func (e *Exchange) manageSubs(ctx context.Context, conn websocket.Connection, method string, subs subscription.List) error {
@@ -319,6 +325,13 @@ func (e *Exchange) manageSubs(ctx context.Context, conn websocket.Connection, me
 	for _, group := range groupSubscriptions(subs) {
 		for requested := range slices.Chunk(group, wsSubscriptionRequestLimit) {
 			errs = common.AppendError(errs, e.manageSubGroup(ctx, conn, method, requested))
+			if len(subs) <= wsSubscriptionRequestLimit {
+				continue
+			}
+			select {
+			case <-time.After(wsSubscriptionRequestPause):
+			case <-ctx.Done():
+			}
 		}
 	}
 	return errs

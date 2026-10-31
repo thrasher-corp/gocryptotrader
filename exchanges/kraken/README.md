@@ -167,7 +167,8 @@ one interval: Kraken rejects a subscription to a second.
 + Default subscriptions are configured in the exchange's `features.subscriptions` config. Upgrading a config that
 holds the previous default subscriptions adds the futures subscriptions to them; other subscriptions are kept as they
 are. A subscription with `"asset": "all"` to a channel futures does not stream, which candles, the `allOrders` channel
-and an order book at a depth are, is subscribed to for spot alone.
+and an order book at a depth are, is subscribed to for spot alone. So is one to a ticker, trades or order book that names
+`pairs`, as a symbol of one asset is no symbol of the other, so a futures product is named with `"asset": "futures"`.
 
 + Orders can be managed over the private connection. The wrapper's spot order functions use it while it is connected
 and holds a subscription, and REST otherwise, such as when Kraken refuses the websocket token:

@@ -1851,7 +1851,9 @@ func TestFuturesOrderTrackerFinish(t *testing.T) {
 	tracker.mu.Lock()
 	tracker.orders["o-2"].updated = time.Now().Add(-futuresOrderRetention)
 	tracker.mu.Unlock()
-	assert.WithinDuration(t, time.Now(), tracker.finish(nil, "o-2", "order_for_edit_not_found").updated, time.Minute, "finish should record an edit's rejection as the order's latest report, which keeps it for its late fills")
+	rejecting := time.Now()
+	updated := tracker.finish(nil, "o-2", "order_for_edit_not_found").updated
+	assert.WithinRange(t, updated, rejecting, time.Now(), "finish should record an edit's rejection as the order's latest report, which keeps it for its late fills")
 }
 
 func TestFuturesOrderTrackerState(t *testing.T) {
