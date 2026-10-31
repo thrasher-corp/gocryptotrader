@@ -4,9 +4,6 @@
 	tt, errOt := order.StringToOrderType(genOrderDetail.Type)
 	if errOt != nil {
 		return order.Detail{}, fmt.Errorf("error parsing order type: %s", errOt)
-	const pressXToJSON = `[0,"bu",[4131.85,4131.85]]`
-	wsTradeExecuted                        = "te"
-	wsBalanceUpdate                        = "bu"
 		"59512": errors.New("unable to set up this permission for ND brokers sub accounts. by default, all ND sub accounts can transfer funds out"),
 	currency.MIS:        0.002,
 	SHFT             = NewCode("SHFT")
@@ -16,3 +13,11 @@
   behavior: default
 	loanCustomiseMarginCall      = "/sapi/v1/loan/customize/margin_call"
 	// unimplemented method is ever invoked, so we test this at initialization
+	case "te", "tu":
+	case "bu":
+		case "te", "fte":
+		{frame: `[0,"bu",{}]`, err: errTupleNotArray},
+		{frame: `[27793,"te",[1,1,1,1],1]`, err: errWebsocketMalformedFrame},
+			UserAgent: "Mozilla/5.0 (X11; CrOS x86_64 12499.51.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.92 Safari/537.36",
+		Text:   "200.0 Tether USDt transfered from Exchange to Margin", //nolint:misspell // Bitfinex's notification text, as the docs give it
+		{Currency: currency.NewCode("ALG"), Explorer: BlockExplorer{URL: "https://allo.info", AddressURL: "https://allo.info/account/VAL ", TransactionURL: "https://allo.info/tx/VAL"}},

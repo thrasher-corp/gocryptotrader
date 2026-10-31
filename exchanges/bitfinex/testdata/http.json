@@ -1,0 +1,6739 @@
+{
+ "routes": {
+  "/v1/withdraw": {
+   "POST": [
+    {
+     "data": [
+      {
+       "status": "success",
+       "message": "Your withdrawal request has been successfully submitted.",
+       "withdrawal_id": 586829
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/v2/auth/calc/deriv/collateral/limits": {
+   "POST": [
+    {
+     "data": [
+      18.289,
+      896.67400419
+     ],
+     "queryString": "",
+     "bodyParams": "{\"symbol\":\"tBTCF0:USTF0\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/calc/order/avail": {
+   "POST": [
+    {
+     "data": [
+      0.8056309
+     ],
+     "queryString": "",
+     "bodyParams": "{\"symbol\":\"tBTCUSD\",\"dir\":1,\"rate\":\"800\",\"type\":\"EXCHANGE\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      0.8056309
+     ],
+     "queryString": "",
+     "bodyParams": "{\"symbol\":\"tBTCF0:USTF0\",\"dir\":-1,\"rate\":\"30000\",\"type\":\"DERIV\",\"lev\":\"10\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/r/alerts": {
+   "POST": [
+    {
+     "data": [
+      [
+       "price:tETHUSD:220",
+       "price",
+       "tETHUSD",
+       220,
+       100
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "{\"type\":\"price\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/r/audit/hist": {
+   "POST": [
+    {
+     "data": [
+      [
+       1574332100000,
+       null,
+       "settings: api key created",
+       null,
+       null,
+       "182.64.34.9",
+       "Mozilla/5.0 (X11; CrOS x86_64 12499.51.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.92 Safari/537.36"
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "{\"start\":1574300000000,\"end\":1574400000000,\"limit\":10}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/r/deposit/address/all": {
+   "POST": [
+    {
+     "data": [
+      [
+       "0x6C20eBD2222CE0F809713EF06AE400C2445B72B7",
+       "exchange"
+      ],
+      [
+       "0xcd752F90494d103F993aB91472129e9DF4987ED0",
+       "margin"
+      ],
+      [
+       "0x01Dd2e1E9bE8C4667C645c8FA694aB89B894d734",
+       "exchange"
+      ],
+      [
+       "0x542BECa0Fc09d2478118b0E777Ee2928F01acC0a",
+       "funding"
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "{\"method\":\"tetheruse\",\"page\":3,\"pageSize\":25}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/r/ext/invoice/payments": {
+   "POST": [
+    {
+     "data": {
+      "invoices": [
+       {
+        "payment_hash": "05f589c28838e8f08d83ed6419ab54a6e58cfc125e1e7f63c2d350f504ed34d0",
+        "created_at": 1732125293487,
+        "invoice_expiry": 1732128893487,
+        "invoice": "lnbc10m1p0rn2fkpp5ng8cq7084jssenhcmdl2sczgtvja26ufz47rx4n7azsr03dk6evqdp5xy6kzwfsvfjrzd3cxcux2wfexcmrxcek8psnjdpkvyurxef38y6scqzpgxqzjcyrp0kymmeqejdelm3r586ehz5cs5ntxx96hr3ec49q70rlnljzcpag5pynsalrwmd0w8serwmmtjru6g6z3a607kqw47mqgm6m4ztkqqxgkujx",
+        "recipient_pub_key": "022bd67d43b0b27d6bbef581d8d4ba214efe16307cff001b2bf10d0642ed89a973",
+        "memo": "Bitfinex deposit",
+        "amount": 1000000,
+        "bfx_amount": "0.01",
+        "state": "completed"
+       }
+      ]
+     },
+     "queryString": "",
+     "bodyParams": "{\"action\":\"getInvoicesByUser\",\"query\":{}}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "payments": [
+       {
+        "payment_hash": "05f589c28838e8f08d83ed6419ab54a6e58cfc125e1e7f63c2d350f504ed34d0",
+        "created_at": 1732125293487,
+        "invoice_expiry": 1732128893487,
+        "invoice": "lnbc10m1p0rn2fkpp5ng8cq7084jssenhcmdl2sczgtvja26ufz47rx4n7azsr03dk6evqdp5xy6kzwfsvfjrzd3cxcux2wfexcmrxcek8psnjdpkvyurxef38y6scqzpgxqzjcyrp0kymmeqejdelm3r586ehz5cs5ntxx96hr3ec49q70rlnljzcpag5pynsalrwmd0w8serwmmtjru6g6z3a607kqw47mqgm6m4ztkqqxgkujx",
+        "recipient_pub_key": "022bd67d43b0b27d6bbef581d8d4ba214efe16307cff001b2bf10d0642ed89a973",
+        "memo": "Bitfinex deposit",
+        "amount": 1000000,
+        "bfx_amount": "0.01",
+        "state": "completed"
+       }
+      ]
+     },
+     "queryString": "",
+     "bodyParams": "{\"action\":\"getPaymentsByUser\",\"query\":{\"offset\":10}}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "payment_hash": "05f589c28838e8f08d83ed6419ab54a6e58cfc125e1e7f63c2d350f504ed34d0",
+      "created_at": 1732125293487,
+      "invoice_expiry": 1732128893487,
+      "invoice": "lnbc10m1p0rn2fkpp5ng8cq7084jssenhcmdl2sczgtvja26ufz47rx4n7azsr03dk6evqdp5xy6kzwfsvfjrzd3cxcux2wfexcmrxcek8psnjdpkvyurxef38y6scqzpgxqzjcyrp0kymmeqejdelm3r586ehz5cs5ntxx96hr3ec49q70rlnljzcpag5pynsalrwmd0w8serwmmtjru6g6z3a607kqw47mqgm6m4ztkqqxgkujx",
+      "recipient_pub_key": "022bd67d43b0b27d6bbef581d8d4ba214efe16307cff001b2bf10d0642ed89a973",
+      "memo": "Bitfinex deposit",
+      "amount": 1000000,
+      "bfx_amount": "0.01",
+      "state": "completed"
+     },
+     "queryString": "",
+     "bodyParams": "{\"action\":\"getInvoiceById\",\"query\":{\"txid\":\"05f589c28838e8f08d83ed6419ab54a6e58cfc125e1e7f63c2d350f504ed34d0\"}}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": {
+      "payment_hash": "05f589c28838e8f08d83ed6419ab54a6e58cfc125e1e7f63c2d350f504ed34d0",
+      "created_at": 1732125293487,
+      "invoice_expiry": 1732128893487,
+      "invoice": "lnbc10m1p0rn2fkpp5ng8cq7084jssenhcmdl2sczgtvja26ufz47rx4n7azsr03dk6evqdp5xy6kzwfsvfjrzd3cxcux2wfexcmrxcek8psnjdpkvyurxef38y6scqzpgxqzjcyrp0kymmeqejdelm3r586ehz5cs5ntxx96hr3ec49q70rlnljzcpag5pynsalrwmd0w8serwmmtjru6g6z3a607kqw47mqgm6m4ztkqqxgkujx",
+      "recipient_pub_key": "022bd67d43b0b27d6bbef581d8d4ba214efe16307cff001b2bf10d0642ed89a973",
+      "memo": "Bitfinex deposit",
+      "amount": 1000000,
+      "bfx_amount": "0.01",
+      "state": "completed"
+     },
+     "queryString": "",
+     "bodyParams": "{\"action\":\"getPaymentById\",\"query\":{\"txid\":\"05f589c28838e8f08d83ed6419ab54a6e58cfc125e1e7f63c2d350f504ed34d0\"}}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/r/ext/wallets/transfers/free/count": {
+   "POST": [
+    {
+     "data": {
+      "deposits": {
+       "available": 1,
+       "resetsAt": 1732147200000
+      },
+      "withdrawals": {
+       "available": 0,
+       "resetsAt": null
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"provider\":\"thalex\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/r/funding/credits/fUSD/hist": {
+   "POST": [
+    {
+     "data": [
+      [
+       171988300,
+       "fUSD",
+       1,
+       1574230085000,
+       1574402835000,
+       50.70511182,
+       null,
+       "CLOSED (expired)",
+       "FIXED",
+       null,
+       null,
+       0.00024799,
+       2,
+       1574230085000,
+       1574403364000,
+       null,
+       0,
+       null,
+       0,
+       null,
+       0,
+       "tEOSUSD"
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "{\"start\":1574200000000,\"end\":1574500000000,\"limit\":25}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/r/funding/credits/fUST": {
+   "POST": [
+    {
+     "data": [
+      [
+       26222883,
+       "fUST",
+       1,
+       1574013661000,
+       1574079687000,
+       350,
+       null,
+       "ACTIVE",
+       "FIXED",
+       null,
+       null,
+       0.0024,
+       2,
+       1574013661000,
+       1574078487000,
+       0,
+       null,
+       null,
+       0,
+       null,
+       0,
+       "tBTCUST"
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "{}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/r/funding/loans/fUST": {
+   "POST": [
+    {
+     "data": [
+      [
+       2995368,
+       "fUST",
+       0,
+       1574077517000,
+       1574077517000,
+       100,
+       null,
+       "ACTIVE",
+       "FIXED",
+       null,
+       null,
+       0.0024,
+       2,
+       1574077517000,
+       1574077517000,
+       0,
+       null,
+       null,
+       0,
+       null,
+       0
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "{}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/r/funding/loans/fUST/hist": {
+   "POST": [
+    {
+     "data": [
+      [
+       3027653,
+       "fUST",
+       -1,
+       1702649922000,
+       1702649922000,
+       402.10731456,
+       null,
+       "CLOSED",
+       null,
+       null,
+       null,
+       0,
+       2,
+       1702649922000,
+       1702649958000,
+       null,
+       0,
+       null,
+       0,
+       null,
+       0
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "{\"start\":1702600000000,\"end\":1702700000000,\"limit\":25}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/r/funding/offers/fETH": {
+   "POST": [
+    {
+     "data": [
+      [
+       652606505,
+       "fETH",
+       1574000611000,
+       1574000611000,
+       0.29797676,
+       0.29797676,
+       "LIMIT",
+       null,
+       null,
+       0,
+       "ACTIVE",
+       null,
+       null,
+       null,
+       0.0002,
+       2,
+       0,
+       null,
+       null,
+       0,
+       null
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "{}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/r/funding/offers/fUSD/hist": {
+   "POST": [
+    {
+     "data": [
+      [
+       653170899,
+       "fUSD",
+       1574072620000,
+       1574072620000,
+       0,
+       -57.9,
+       null,
+       null,
+       null,
+       null,
+       "EXECUTED at 0.0368% (57.9)",
+       null,
+       null,
+       null,
+       0.000369,
+       2,
+       0,
+       0,
+       null,
+       null,
+       null
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "{\"start\":1574000000000,\"end\":1574100000000,\"limit\":25}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/r/funding/trades/fUST/hist": {
+   "POST": [
+    {
+     "data": [
+      [
+       636040,
+       "fUST",
+       1574077528000,
+       41237922,
+       -100,
+       0.0024,
+       2,
+       null
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "{\"start\":1574000000000,\"end\":1574100000000,\"limit\":25}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/r/info/funding/fUST": {
+   "POST": [
+    {
+     "data": [
+      "sym",
+      "fUST",
+      [
+       0.0024,
+       0.0024,
+       1.9522164351851852,
+       1.4818560606060607
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "{}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/r/info/margin/base": {
+   "POST": [
+    {
+     "data": [
+      "base",
+      [
+       -3631.798995959999,
+       5.6376,
+       299933.09380832,
+       296301.29481236,
+       4975.291049394
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "{}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/r/info/margin/sym_all": {
+   "POST": [
+    {
+     "data": [
+      [
+       "sym",
+       "tBTCUSD",
+       [
+        909998.8707081091,
+        909998.8707081091,
+        54.66115273354812,
+        61.63633640667225,
+        null,
+        null,
+        null,
+        null
+       ]
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "{}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/r/info/margin/tBTCUSD": {
+   "POST": [
+    {
+     "data": [
+      "sym",
+      "tBTCUSD",
+      [
+       854774.7939165855,
+       909999.9796645334,
+       52.08334097688924,
+       62.676711921295684,
+       null,
+       null,
+       null,
+       null
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "{}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/r/info/user": {
+   "POST": [
+    {
+     "data": [
+      123456,
+      "email@email.com",
+      "AccountName",
+      1613492801000,
+      1,
+      3,
+      null,
+      "Lisbon",
+      "en",
+      "bitfinex",
+      1,
+      null,
+      null,
+      null,
+      1613492801000,
+      79,
+      123456,
+      1,
+      1,
+      1,
+      null,
+      null,
+      0,
+      null,
+      null,
+      null,
+      [
+       "u2f"
+      ],
+      null,
+      0,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      0,
+      0,
+      null,
+      null,
+      null,
+      null,
+      "2022-09-06T12:14:14.600Z",
+      null,
+      null,
+      null,
+      null,
+      [
+       "FR",
+       "FR_Paris"
+      ],
+      [
+       "FR",
+       "FR_Paris"
+      ],
+      null,
+      null,
+      null,
+      1
+     ],
+     "queryString": "",
+     "bodyParams": "{}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/r/ledgers/USD/hist": {
+   "POST": [
+    {
+     "data": [
+      [
+       2531822314,
+       "USD",
+       "margin",
+       1573521810000,
+       null,
+       0.01644445,
+       0,
+       null,
+       "Settlement @ 185.79 on wallet margin"
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "{\"start\":1573500000000,\"end\":1573530000000,\"limit\":25,\"category\":31,\"wallet\":\"margin\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/r/ledgers/hist": {
+   "POST": [
+    {
+     "data": [
+      [
+       2531822314,
+       "USD",
+       "margin",
+       1573521810000,
+       null,
+       0.01644445,
+       0,
+       null,
+       "Settlement @ 185.79 on wallet margin"
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "{}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/r/logins/hist": {
+   "POST": [
+    {
+     "data": [
+      [
+       78404724,
+       null,
+       1579202754000,
+       null,
+       "184.214.55.220",
+       null,
+       null,
+       "{\"asn\": \"28545, Cablemas Telecomunicaciones SA de CV\", \"geo\": \"Cancún, MX\", \"user_agent\":   {\"os\": \"Windows 10\", \"raw\": \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.117 Safari/537.36\", \"browser\": \"Chrome\", \"version\": \"79.0.3945.117\", \"platform\": \"Windows\", \"is_mobile\": false}}"
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "{\"start\":1579000000000,\"end\":1579300000000,\"limit\":25}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/r/movements/ETH/hist": {
+   "POST": [
+    {
+     "data": [
+      [
+       13105603,
+       "ETH",
+       "ETHEREUM",
+       null,
+       null,
+       1569348774000,
+       1569348774000,
+       null,
+       null,
+       "COMPLETED",
+       null,
+       null,
+       "0.26300954",
+       "-0.00135",
+       null,
+       null,
+       "DESTINATION_ADDRESS",
+       null,
+       null,
+       null,
+       "TRANSACTION_ID",
+       null
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "{\"start\":1569340000000,\"end\":1569350000000,\"limit\":25,\"address\":\"DESTINATION_ADDRESS\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      [
+       13105603,
+       "ETH",
+       "ETHEREUM",
+       null,
+       null,
+       1569348774000,
+       1569348774000,
+       null,
+       null,
+       "COMPLETED",
+       null,
+       null,
+       "-0.26300954",
+       "-0.00135",
+       null,
+       null,
+       "DESTINATION_ADDRESS",
+       null,
+       null,
+       null,
+       "TRANSACTION_ID",
+       null
+      ],
+      [
+       13293039,
+       "ETH",
+       "ETHEREUM",
+       null,
+       null,
+       1574175052000,
+       1574181326000,
+       null,
+       null,
+       "COMPLETED",
+       null,
+       null,
+       "0.24",
+       "0",
+       null,
+       null,
+       "DEPOSIT_ADDRESS",
+       null,
+       null,
+       null,
+       "TRANSACTION_ID",
+       null
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "{\"limit\":2500}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/r/movements/hist": {
+   "POST": [
+    {
+     "data": [
+      [
+       13293039,
+       "ETH",
+       "ETHEREUM",
+       null,
+       null,
+       1574175052000,
+       1574181326000,
+       null,
+       null,
+       "CANCELED",
+       null,
+       null,
+       "-0.24",
+       "-0.00135",
+       null,
+       null,
+       "DESTINATION_ADDRESS",
+       null,
+       null,
+       null,
+       "TRANSACTION_ID",
+       "Purchase of 100 pizzas"
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "{\"id\":[13293039]}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      [
+       13105603,
+       "ETH",
+       "ETHEREUM",
+       null,
+       null,
+       1569348774000,
+       1569348774000,
+       null,
+       null,
+       "COMPLETED",
+       null,
+       null,
+       "-0.26300954",
+       "-0.00135",
+       null,
+       null,
+       "DESTINATION_ADDRESS",
+       null,
+       null,
+       null,
+       "TRANSACTION_ID",
+       null
+      ],
+      [
+       13293039,
+       "ETH",
+       "ETHEREUM",
+       null,
+       null,
+       1574175052000,
+       1574181326000,
+       null,
+       null,
+       "COMPLETED",
+       null,
+       null,
+       "0.24",
+       "0",
+       null,
+       null,
+       "DEPOSIT_ADDRESS",
+       null,
+       null,
+       null,
+       "TRANSACTION_ID",
+       null
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "{\"limit\":2500}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/r/movements/info": {
+   "POST": [
+    {
+     "data": [
+      24,
+      "EUR",
+      "WIRE",
+      null,
+      "remark related to bank details",
+      1677086074000,
+      1677086210000,
+      null,
+      null,
+      "COMPLETED",
+      null,
+      null,
+      -29.5,
+      -0.5,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      "testing note",
+      null,
+      null,
+      0,
+      123,
+      null,
+      null,
+      "abcd-1234",
+      "COMPLETED",
+      "finished withdrawal in platform",
+      {
+       "router": "my-router",
+       "meta": {
+        "foo": "bar"
+       }
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "{\"id\":24}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/r/order/tETHUSD:33950998275/trades": {
+   "POST": [
+    {
+     "data": [
+      [
+       399251013,
+       "tETHUSD",
+       1573485493000,
+       33950998275,
+       -0.26334268,
+       220,
+       "LIMIT",
+       220,
+       1,
+       -0.09868591,
+       "USD",
+       1573476747887
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "{}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/r/order/tETHUSD:33963608932/trades": {
+   "POST": [
+    {
+     "data": [
+      [
+       399251013,
+       "tETHUSD",
+       1573485493000,
+       33963608932,
+       0.26334268,
+       187.37,
+       "EXCHANGE MARKET",
+       null,
+       -1,
+       -0.09868591,
+       "USD",
+       1234
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "{}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/r/orders": {
+   "POST": [
+    {
+     "data": [
+      [
+       33950998275,
+       null,
+       1573476747887,
+       "tETHUSD",
+       1573476748000,
+       1573476748000,
+       -0.5,
+       -0.5,
+       "LIMIT",
+       null,
+       null,
+       null,
+       0,
+       "ACTIVE",
+       null,
+       null,
+       220,
+       0,
+       0,
+       0,
+       null,
+       null,
+       null,
+       0,
+       0,
+       null,
+       null,
+       null,
+       "BFX",
+       null,
+       null,
+       null
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "{\"id\":[33950998275],\"cid\":1573476747887,\"cid_date\":\"2019-11-11\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      [
+       33950998275,
+       null,
+       1573476747887,
+       "tETHUSD",
+       1573476748000,
+       1573476748000,
+       -0.5,
+       -0.5,
+       "LIMIT",
+       null,
+       null,
+       null,
+       0,
+       "ACTIVE",
+       null,
+       null,
+       220,
+       0,
+       0,
+       0,
+       null,
+       null,
+       null,
+       0,
+       0,
+       null,
+       null,
+       null,
+       "BFX",
+       null,
+       null,
+       null
+      ],
+      [
+       1747566428,
+       null,
+       1678987199446,
+       "tBTCUSD",
+       1678987199446,
+       1678987199448,
+       0.1,
+       0.1,
+       "EXCHANGE LIMIT",
+       null,
+       null,
+       null,
+       0,
+       "ACTIVE",
+       null,
+       null,
+       10000,
+       0,
+       0,
+       0,
+       null,
+       null,
+       null,
+       0,
+       0,
+       null,
+       null,
+       null,
+       "API\u003eBFX",
+       null,
+       null,
+       null
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "{}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      [
+       33950998275,
+       null,
+       1573476747887,
+       "tETHUSD",
+       1573476748000,
+       1573476748000,
+       -0.5,
+       -0.5,
+       "LIMIT",
+       null,
+       null,
+       null,
+       0,
+       "ACTIVE",
+       null,
+       null,
+       220,
+       0,
+       0,
+       0,
+       null,
+       null,
+       null,
+       0,
+       0,
+       null,
+       null,
+       null,
+       "BFX",
+       null,
+       null,
+       null
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "{\"id\":[33950998275]}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [],
+     "queryString": "",
+     "bodyParams": "{\"id\":[1]}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      [
+       1747566430,
+       null,
+       1678987199447,
+       "tBTCF0:USTF0",
+       1678987199447,
+       1678987199449,
+       0.001,
+       0.001,
+       "LIMIT",
+       null,
+       null,
+       null,
+       0,
+       "ACTIVE",
+       null,
+       null,
+       70000,
+       0,
+       0,
+       0,
+       null,
+       null,
+       null,
+       0,
+       0,
+       null,
+       null,
+       null,
+       "API\u003eBFX",
+       null,
+       null,
+       {
+        "$F33": 20
+       }
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "{\"id\":[1747566430]}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      [
+       1747566428,
+       null,
+       1678987199446,
+       "tBTCUSD",
+       1678987199446,
+       1678987199448,
+       0.1,
+       0.1,
+       "EXCHANGE LIMIT",
+       null,
+       null,
+       null,
+       0,
+       "ACTIVE",
+       null,
+       null,
+       10000,
+       0,
+       0,
+       0,
+       null,
+       null,
+       null,
+       0,
+       0,
+       null,
+       null,
+       null,
+       "API\u003eBFX",
+       null,
+       null,
+       null
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "{\"id\":[1747566428]}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/r/orders/hist": {
+   "POST": [
+    {
+     "data": [
+      [
+       33961681942,
+       1227,
+       1337,
+       "tBTCUSD",
+       1573482478000,
+       1573485373000,
+       0.001,
+       0.001,
+       "EXCHANGE LIMIT",
+       null,
+       null,
+       null,
+       0,
+       "CANCELED",
+       null,
+       null,
+       15,
+       0,
+       0,
+       0,
+       null,
+       null,
+       null,
+       0,
+       0,
+       null,
+       null,
+       null,
+       "API\u003eBFX",
+       null,
+       null,
+       null
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "{\"start\":1573482000000,\"end\":1573486000000,\"limit\":25,\"id\":[33961681942]}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [],
+     "queryString": "",
+     "bodyParams": "{\"id\":[1]}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      [
+       33961681942,
+       1227,
+       1337,
+       "tBTCUSD",
+       1573482478000,
+       1573485373000,
+       0.001,
+       0.001,
+       "EXCHANGE LIMIT",
+       null,
+       null,
+       null,
+       0,
+       "CANCELED",
+       null,
+       null,
+       15,
+       0,
+       0,
+       0,
+       null,
+       null,
+       null,
+       0,
+       0,
+       null,
+       null,
+       null,
+       "API\u003eBFX",
+       null,
+       null,
+       null
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "{\"limit\":2500}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/r/orders/otc/hist": {
+   "POST": [
+    {
+     "data": [
+      [
+       123,
+       "tBTCUSD",
+       1669126974000,
+       1670596411000,
+       null,
+       1,
+       "john-doe",
+       "jane-btc",
+       null,
+       0.025,
+       26325,
+       null,
+       "REJECTED"
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "{}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/r/orders/otc/tBTCUSD/hist": {
+   "POST": [
+    {
+     "data": [
+      [
+       123,
+       "tBTCUSD",
+       1669126974000,
+       1670596411000,
+       null,
+       1,
+       "john-doe",
+       "jane-btc",
+       null,
+       0.025,
+       26325,
+       null,
+       "REJECTED"
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "{\"start\":1669000000000,\"end\":1670600000000,\"limit\":25,\"id\":[123]}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/r/orders/tBTCUSD": {
+   "POST": [
+    {
+     "data": [
+      [
+       1747566428,
+       null,
+       1678987199446,
+       "tBTCUSD",
+       1678987199446,
+       1678987199448,
+       0.1,
+       0.1,
+       "EXCHANGE LIMIT",
+       null,
+       null,
+       null,
+       0,
+       "ACTIVE",
+       null,
+       null,
+       10000,
+       0,
+       0,
+       0,
+       null,
+       null,
+       null,
+       0,
+       0,
+       null,
+       null,
+       null,
+       "API\u003eBFX",
+       null,
+       null,
+       null
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "{}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/r/orders/tBTCUSD/hist": {
+   "POST": [
+    {
+     "data": [
+      [
+       33961681942,
+       1227,
+       1337,
+       "tBTCUSD",
+       1573482478000,
+       1573485373000,
+       0.001,
+       0.001,
+       "EXCHANGE LIMIT",
+       null,
+       null,
+       null,
+       0,
+       "CANCELED",
+       null,
+       null,
+       15,
+       0,
+       0,
+       0,
+       null,
+       null,
+       null,
+       0,
+       0,
+       null,
+       null,
+       null,
+       "API\u003eBFX",
+       null,
+       null,
+       null
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "{\"limit\":25}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      [
+       33961681942,
+       1227,
+       1337,
+       "tBTCUSD",
+       1573482478000,
+       1573485373000,
+       0.001,
+       0.001,
+       "EXCHANGE LIMIT",
+       null,
+       null,
+       null,
+       0,
+       "CANCELED",
+       null,
+       null,
+       15,
+       0,
+       0,
+       0,
+       null,
+       null,
+       null,
+       0,
+       0,
+       null,
+       null,
+       null,
+       "API\u003eBFX",
+       null,
+       null,
+       null
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "{\"limit\":2500}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/r/orders/tETHUSD": {
+   "POST": [
+    {
+     "data": [
+      [
+       33950998275,
+       null,
+       1573476747887,
+       "tETHUSD",
+       1573476748000,
+       1573476748000,
+       -0.5,
+       -0.5,
+       "LIMIT",
+       null,
+       null,
+       null,
+       0,
+       "ACTIVE",
+       null,
+       null,
+       220,
+       0,
+       0,
+       0,
+       null,
+       null,
+       null,
+       0,
+       0,
+       null,
+       null,
+       null,
+       "BFX",
+       null,
+       null,
+       null
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "{}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/r/permissions": {
+   "POST": [
+    {
+     "data": [
+      [
+       "account",
+       1,
+       1
+      ],
+      [
+       "history",
+       1,
+       1
+      ],
+      [
+       "orders",
+       1,
+       1
+      ],
+      [
+       "positions",
+       0,
+       0
+      ],
+      [
+       "funding",
+       1,
+       1
+      ],
+      [
+       "settings",
+       0,
+       0
+      ],
+      [
+       "wallets",
+       1,
+       1
+      ],
+      [
+       "withdraw",
+       0,
+       1
+      ],
+      [
+       "ui_withdraw",
+       0,
+       0
+      ],
+      [
+       "bfxpay",
+       0,
+       0
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "{}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/r/position/increase/info": {
+   "POST": [
+    {
+     "data": [
+      [
+       10,
+       0.1
+      ],
+      [
+       1.09965743,
+       [
+        516734.60048924293,
+        518415.66409424297,
+        11.5085657124553,
+        11.702877580552862,
+        null,
+        null,
+        null,
+        null
+       ],
+       6843080.04050819
+      ],
+      null,
+      null,
+      [
+       1.5,
+       63345
+      ],
+      [
+       "BTC",
+       "USD"
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "{\"symbol\":\"tBTCUSD\",\"amount\":\"1.5\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/r/positions": {
+   "POST": [
+    {
+     "data": [
+      [
+       "tBTCUSD",
+       "ACTIVE",
+       0.0195,
+       8565.0267019,
+       0,
+       0,
+       -0.33455568705000516,
+       -0.0003117550117425625,
+       7045.876419249083,
+       3.0673001895895604,
+       null,
+       142355652,
+       1574002216000,
+       1574002216000,
+       null,
+       0,
+       null,
+       0,
+       0,
+       {
+        "reason": "TRADE",
+        "order_id": 34271018124,
+        "liq_stage": null,
+        "trade_price": "8565.0267019",
+        "trade_amount": "0.0195",
+        "order_id_oppo": 34277498022
+       }
+      ],
+      [
+       "tBTCF0:USTF0",
+       "ACTIVE",
+       0.2,
+       80000,
+       0,
+       0,
+       -12.5,
+       -0.0625,
+       79400,
+       80,
+       null,
+       142355653,
+       1792022400000,
+       1792026000000,
+       null,
+       1,
+       null,
+       200,
+       160,
+       {
+        "reason": "TRADE",
+        "order_id": 1747566430,
+        "liq_stage": null,
+        "trade_price": "80000",
+        "trade_amount": "0.2",
+        "order_id_oppo": 1747566431
+       }
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "{}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/r/positions/audit": {
+   "POST": [
+    {
+     "data": [
+      [
+       "tETHUSD",
+       "ACTIVE",
+       0.9682,
+       182.76,
+       0,
+       0,
+       null,
+       null,
+       null,
+       null,
+       null,
+       142358085,
+       1574088504000,
+       1574088504000,
+       null,
+       null,
+       null,
+       0,
+       null,
+       {
+        "reason": "TRADE",
+        "order_id": 34319724780,
+        "liq_stage": null,
+        "trade_price": "182.76",
+        "trade_amount": "0.9682",
+        "user_id_oppo": 411107,
+        "order_id_oppo": 34326729830
+       }
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "{\"start\":1574000000000,\"end\":1574100000000,\"limit\":250,\"id\":[142358085]}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/r/positions/hist": {
+   "POST": [
+    {
+     "data": [
+      [
+       "tBTCUSD",
+       "CLOSED",
+       0,
+       8639.50216298,
+       0,
+       0,
+       null,
+       null,
+       null,
+       null,
+       null,
+       142355652,
+       1574002216000,
+       1574003099000,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "{\"start\":1574000000000,\"end\":1574100000000,\"limit\":50,\"id\":142355652}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/r/positions/snap": {
+   "POST": [
+    {
+     "data": [
+      [
+       "tETHUSD",
+       "ACTIVE",
+       -0.2,
+       167.01,
+       0,
+       0,
+       null,
+       null,
+       null,
+       null,
+       null,
+       142661142,
+       1579552390000,
+       1579552390000,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "{\"start\":1579500000000,\"end\":1579600000000,\"limit\":500,\"id\":142661142}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/r/settings": {
+   "POST": [
+    {
+     "data": [
+      [
+       "bit",
+       "finex"
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "{\"keys\":[\"api:bit\"]}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/r/summary": {
+   "POST": [
+    {
+     "data": [
+      null,
+      null,
+      null,
+      null,
+      [
+       [
+        0.001,
+        0.001,
+        0.001,
+        null,
+        null,
+        0.0002
+       ],
+       [
+        0.002,
+        0.002,
+        0.002,
+        null,
+        null,
+        0.0065
+       ]
+      ],
+      [
+       [
+        {
+         "curr": "BTCF0",
+         "vol": 0.016
+        },
+        {
+         "curr": "BTC",
+         "vol": 0.765
+        },
+        {
+         "curr": "Total (USD)",
+         "vol": 52069.01928633,
+         "vol_safe": 52069.01928633,
+         "vol_maker": 11362.82692633,
+         "vol_BFX": 52069.01928633,
+         "vol_BFX_safe": 52069.01928633,
+         "vol_BFX_maker": 11362.82692633
+        }
+       ],
+       {
+        "USTF0": 0.17569482,
+        "USD": 38.95555663,
+        "BTC": 0.0005152
+       },
+       51.12300602
+      ],
+      [
+       null,
+       {
+        "USD": 21.87,
+        "BTC": 0.04
+       },
+       82.1078
+      ],
+      null,
+      null,
+      {
+       "leo_lev": 0,
+       "leo_amount_avg": 0
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "{}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/r/trades/hist": {
+   "POST": [
+    {
+     "data": [
+      [
+       402088407,
+       "tETHUST",
+       1574963975602,
+       34938060782,
+       -0.2,
+       153.57,
+       "MARKET",
+       0,
+       -1,
+       -0.061668,
+       "USD",
+       1234
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "{\"start\":1574960000000,\"end\":1574970000000,\"limit\":25,\"sort\":-1}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/r/trades/tETHUST/hist": {
+   "POST": [
+    {
+     "data": [
+      [
+       402088407,
+       "tETHUST",
+       1574963975602,
+       34938060782,
+       -0.2,
+       153.57,
+       "MARKET",
+       0,
+       -1,
+       -0.061668,
+       "USD",
+       1234
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "{\"sort\":1}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/r/wallets": {
+   "POST": [
+    {
+     "data": [
+      [
+       "exchange",
+       "UST",
+       19788.6529257,
+       0,
+       19788.6529257,
+       "Exchange 2.0 UST for USD @ 11.696",
+       {
+        "reason": "TRADE",
+        "order_id": 1189740779,
+        "order_id_oppo": 1189785673,
+        "trade_price": "11.696",
+        "trade_amount": "-2.0",
+        "order_cid": 1598516362757,
+        "order_gid": 1598516362629
+       }
+      ],
+      [
+       "funding",
+       "BTC",
+       0.5,
+       0,
+       null,
+       null,
+       null
+      ],
+      [
+       "margin",
+       "USTF0",
+       500,
+       0,
+       300,
+       null,
+       null
+      ],
+      [
+       "margin",
+       "BTCF0",
+       0.01,
+       0,
+       0.01,
+       null,
+       null
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "{}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/w/alert/price:tBTCUSD:600/del": {
+   "POST": [
+    {
+     "data": [
+      true
+     ],
+     "queryString": "",
+     "bodyParams": "{}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/w/alert/set": {
+   "POST": [
+    {
+     "data": [
+      "price:tETHUSD:185",
+      "price",
+      "tETHUSD",
+      185,
+      100
+     ],
+     "queryString": "",
+     "bodyParams": "{\"type\":\"price\",\"symbol\":\"tETHUSD\",\"price\":\"185\",\"count\":100}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/w/deposit/address": {
+   "POST": [
+    {
+     "data": [
+      1568738594687,
+      "acc_dep",
+      null,
+      null,
+      [
+       null,
+       "BITCOIN",
+       "BTC",
+       null,
+       "YOURADDRESS",
+       null
+      ],
+      null,
+      "SUCCESS",
+      "success"
+     ],
+     "queryString": "",
+     "bodyParams": "{\"wallet\":\"exchange\",\"method\":\"bitcoin\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      1568738594687,
+      "acc_dep",
+      null,
+      null,
+      [
+       null,
+       "BITCOIN",
+       "BTC",
+       null,
+       "YOURADDRESS",
+       null
+      ],
+      null,
+      "SUCCESS",
+      "success"
+     ],
+     "queryString": "",
+     "bodyParams": "{\"wallet\":\"exchange\",\"method\":\"bitcoin\",\"op_renew\":1}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/w/deposit/invoice": {
+   "POST": [
+    {
+     "data": [
+      "9a0f8079e7aca10ccef8db7ea860485b25d56b89157c33567ee8a037c5b6d658",
+      "lnbc10m1p0rn2fkpp5ng8cq7084jssenhcmdl2sczgtvja26ufz47rx4n7azsr03dk6evqdp5xy6kzwfsvfjrzd3cxcux2wfexcmrxcek8psnjdpkvyurxef38y6scqzpgxqzjcyrp0kymmeqejdelm3r586ehz5cs5ntxx96hr3ec49q70rlnljzcpag5pynsalrwmd0w8serwmmtjru6g6z3a607kqw47mqgm6m4ztkqqxgkujx",
+      null,
+      null,
+      "0.01"
+     ],
+     "queryString": "",
+     "bodyParams": "{\"wallet\":\"exchange\",\"currency\":\"LNX\",\"amount\":\"0.01\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/w/deriv/collateral/set": {
+   "POST": [
+    {
+     "data": [
+      [
+       1
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "{\"symbol\":\"tBTCF0:USTF0\",\"collateral\":1150.61}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      "error",
+      10020,
+      "collateral: insufficient"
+     ],
+     "queryString": "",
+     "bodyParams": "{\"symbol\":\"tBTCF0:USTF0\",\"collateral\":1000000000}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/w/ext/wallets/deposits/request": {
+   "POST": [
+    {
+     "data": {
+      "type": "deposit",
+      "addressDest": "0x1d341cR1512C6s1984da95C15BfF2B9F3A29345e1",
+      "amount": "1000",
+      "ccy": "USE",
+      "createdAt": 1732125293487,
+      "updatedAt": 1732125295060,
+      "id": "f1e86378-d5fb-420f-b429-716b88c64c23",
+      "status": "PENDING",
+      "fee": "0"
+     },
+     "queryString": "",
+     "bodyParams": "{\"provider\":\"thalex\",\"amount\":\"1000\",\"ccy\":\"USE\",\"tfaToken\":{\"method\":\"otp\",\"token\":\"123456\"}}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/w/ext/wallets/withdrawals/request": {
+   "POST": [
+    {
+     "data": {
+      "type": "withdraw",
+      "addressDest": "0x1d341cR1512C6s1984da95C15BfF2B9F3A29345e1",
+      "amount": "90",
+      "ccy": "USE",
+      "createdAt": 1732126385718,
+      "updatedAt": 1732126385718,
+      "id": "f70a4286-6f7c-4af8-931f-3e89f74ebdf3",
+      "status": "PENDING",
+      "fee": "0"
+     },
+     "queryString": "",
+     "bodyParams": "{\"provider\":\"thalex\",\"amount\":\"90\",\"ccy\":\"USE\",\"tfaToken\":{\"method\":\"otp\",\"token\":\"123456\"}}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/w/funding/auto": {
+   "POST": [
+    {
+     "data": [
+      1574075756185,
+      "fa-req",
+      null,
+      null,
+      [
+       "UST",
+       2,
+       0,
+       350
+      ],
+      null,
+      "SUCCESS",
+      "Auto-renew of UST offers activated at FRR for 2 days periods"
+     ],
+     "queryString": "",
+     "bodyParams": "{\"status\":1,\"currency\":\"UST\",\"amount\":\"350\",\"period\":2}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/w/funding/close": {
+   "POST": [
+    {
+     "data": [
+      1574075056449,
+      "fr-req",
+      null,
+      null,
+      null,
+      null,
+      "SUCCESS",
+      null
+     ],
+     "queryString": "",
+     "bodyParams": "{\"id\":2995368}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/w/funding/keep": {
+   "POST": [
+    {
+     "data": [
+      1573914639029,
+      "fk-req",
+      null,
+      null,
+      null,
+      null,
+      "SUCCESS",
+      "Credit updated"
+     ],
+     "queryString": "",
+     "bodyParams": "{\"type\":\"credit\",\"id\":[26222883],\"changes\":{\"26222883\":1}}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/w/funding/offer/cancel": {
+   "POST": [
+    {
+     "data": [
+      1568716652310,
+      "foc-req",
+      null,
+      null,
+      [
+       604393839,
+       "fUSD",
+       1568716545000,
+       1568716545000,
+       50,
+       50,
+       "LIMIT",
+       null,
+       null,
+       null,
+       "ACTIVE",
+       null,
+       null,
+       null,
+       0.06,
+       2,
+       false,
+       null,
+       null,
+       false,
+       null
+      ],
+      null,
+      "SUCCESS",
+      null
+     ],
+     "queryString": "",
+     "bodyParams": "{\"id\":604393839}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/w/funding/offer/cancel/all": {
+   "POST": [
+    {
+     "data": [
+      1573911972518,
+      "foc_all-req",
+      null,
+      null,
+      null,
+      null,
+      "SUCCESS",
+      "All (8) submitted for cancellation; waiting for confirmation."
+     ],
+     "queryString": "",
+     "bodyParams": "{\"currency\":\"USD\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      1573911972518,
+      "foc_all-req",
+      null,
+      null,
+      null,
+      null,
+      "SUCCESS",
+      "All (8) submitted for cancellation; waiting for confirmation."
+     ],
+     "queryString": "",
+     "bodyParams": "{}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/w/funding/offer/submit": {
+   "POST": [
+    {
+     "data": [
+      1568713496510,
+      "fon-req",
+      null,
+      null,
+      [
+       604366339,
+       "fUSD",
+       1568713496502,
+       1568713496502,
+       50,
+       50,
+       "LIMIT",
+       null,
+       null,
+       null,
+       "ACTIVE",
+       null,
+       null,
+       null,
+       0.00002,
+       2,
+       false,
+       null,
+       null,
+       false,
+       null
+      ],
+      null,
+      "SUCCESS",
+      "Submitting funding offer of 50.0 USD at 0.002000 for 2 days."
+     ],
+     "queryString": "",
+     "bodyParams": "{\"type\":\"LIMIT\",\"symbol\":\"fUSD\",\"amount\":\"50\",\"rate\":\"0.00002\",\"period\":2}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/w/order/cancel": {
+   "POST": [
+    {
+     "data": [
+      1678989283488,
+      "oc-req",
+      null,
+      null,
+      [
+       1747566428,
+       null,
+       1678987199446,
+       "tBTCUSD",
+       1678987199446,
+       1678989283489,
+       0.25,
+       0.1,
+       "EXCHANGE LIMIT",
+       "EXCHANGE LIMIT",
+       null,
+       null,
+       0,
+       "CANCELED",
+       null,
+       null,
+       25000,
+       0,
+       0,
+       0,
+       null,
+       null,
+       null,
+       0,
+       0,
+       null,
+       null,
+       null,
+       "API\u003eBFX",
+       null,
+       null,
+       null
+      ],
+      null,
+      "SUCCESS",
+      "Submitted for cancellation; waiting for confirmation (ID: 1747566428)."
+     ],
+     "queryString": "",
+     "bodyParams": "{\"id\":1747566428}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      1678989283488,
+      "oc-req",
+      null,
+      null,
+      [
+       1747566428,
+       null,
+       1678987199446,
+       "tBTCUSD",
+       1678987199446,
+       1678989283489,
+       0.25,
+       0.1,
+       "EXCHANGE LIMIT",
+       "EXCHANGE LIMIT",
+       null,
+       null,
+       0,
+       "CANCELED",
+       null,
+       null,
+       25000,
+       0,
+       0,
+       0,
+       null,
+       null,
+       null,
+       0,
+       0,
+       null,
+       null,
+       null,
+       "API\u003eBFX",
+       null,
+       null,
+       null
+      ],
+      null,
+      "SUCCESS",
+      "Submitted for cancellation; waiting for confirmation (ID: 1747566428)."
+     ],
+     "queryString": "",
+     "bodyParams": "{\"cid\":1678987199446,\"cid_date\":\"2023-03-16\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/w/order/cancel/multi": {
+   "POST": [
+    {
+     "data": [
+      1568711312683,
+      "oc_multi-req",
+      null,
+      null,
+      [
+       [
+        1747566428,
+        null,
+        1678987199446,
+        "tBTCUSD",
+        1678987199446,
+        1678987199448,
+        0.1,
+        0.1,
+        "EXCHANGE LIMIT",
+        null,
+        null,
+        null,
+        0,
+        "ACTIVE",
+        null,
+        null,
+        10000,
+        0,
+        0,
+        0,
+        null,
+        null,
+        null,
+        0,
+        0,
+        null,
+        null,
+        null,
+        "API\u003eBFX",
+        null,
+        null,
+        null
+       ]
+      ],
+      null,
+      "SUCCESS",
+      "Submitting 2 order cancellations."
+     ],
+     "queryString": "",
+     "bodyParams": "{\"id\":[1747566428],\"cid\":[[1678987199446,\"2023-03-16\"]]}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      1568711312683,
+      "oc_multi-req",
+      null,
+      null,
+      [
+       [
+        1747566428,
+        null,
+        1678987199446,
+        "tBTCUSD",
+        1678987199446,
+        1678987199448,
+        0.1,
+        0.1,
+        "EXCHANGE LIMIT",
+        null,
+        null,
+        null,
+        0,
+        "ACTIVE",
+        null,
+        null,
+        10000,
+        0,
+        0,
+        0,
+        null,
+        null,
+        null,
+        0,
+        0,
+        null,
+        null,
+        null,
+        "API\u003eBFX",
+        null,
+        null,
+        null
+       ]
+      ],
+      null,
+      "SUCCESS",
+      "Submitting 1 order cancellations."
+     ],
+     "queryString": "",
+     "bodyParams": "{\"id\":[1747566428]}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      1568711312683,
+      "oc_multi-req",
+      null,
+      null,
+      [
+       [
+        1747566428,
+        null,
+        1678987199446,
+        "tBTCUSD",
+        1678987199446,
+        1678987199448,
+        0.1,
+        0.1,
+        "EXCHANGE LIMIT",
+        null,
+        null,
+        null,
+        0,
+        "ACTIVE",
+        null,
+        null,
+        10000,
+        0,
+        0,
+        0,
+        null,
+        null,
+        null,
+        0,
+        0,
+        null,
+        null,
+        null,
+        "API\u003eBFX",
+        null,
+        null,
+        null
+       ]
+      ],
+      null,
+      "SUCCESS",
+      "Submitting 2 order cancellations."
+     ],
+     "queryString": "",
+     "bodyParams": "{\"id\":[1747566428,1747566429]}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/w/order/multi": {
+   "POST": [
+    {
+     "data": [
+      1569347312984,
+      "ox_multi-req",
+      null,
+      null,
+      [
+       [
+        1569347312.977,
+        "on-req",
+        null,
+        null,
+        [
+         [
+          31492970019,
+          null,
+          1569347312970,
+          "tBTCUSD",
+          1569347312971,
+          1569347312971,
+          0.001,
+          0.001,
+          "LIMIT",
+          null,
+          null,
+          null,
+          4096,
+          "ACTIVE",
+          null,
+          null,
+          15,
+          0,
+          0,
+          0,
+          null,
+          null,
+          null,
+          0,
+          null,
+          null,
+          null,
+          null,
+          "API\u003eBFX",
+          null,
+          null,
+          {
+           "$F7": 1
+          }
+         ]
+        ],
+        null,
+        "SUCCESS",
+        "Submitting 1 orders."
+       ],
+       [
+        1569347312.984,
+        "on-req",
+        null,
+        null,
+        [
+         [
+          31492970020,
+          null,
+          1569347312977,
+          "tBTCUSD",
+          1569347312978,
+          1569347312978,
+          0.001,
+          0.001,
+          "LIMIT",
+          null,
+          null,
+          null,
+          0,
+          "ACTIVE",
+          null,
+          null,
+          15,
+          0,
+          0,
+          0,
+          null,
+          null,
+          null,
+          0,
+          null,
+          null,
+          null,
+          null,
+          "API\u003eBFX",
+          null,
+          null,
+          null
+         ]
+        ],
+        null,
+        "SUCCESS",
+        "Submitting 1 orders."
+       ],
+       [
+        1678988263842,
+        "ou-req",
+        null,
+        null,
+        [
+         1747566428,
+         null,
+         1678987199446,
+         "tBTCUSD",
+         1678987199446,
+         1678988263843,
+         0.25,
+         0.1,
+         "EXCHANGE LIMIT",
+         "EXCHANGE LIMIT",
+         null,
+         null,
+         0,
+         "ACTIVE",
+         null,
+         null,
+         25000,
+         0,
+         0,
+         0,
+         null,
+         null,
+         null,
+         0,
+         0,
+         null,
+         null,
+         null,
+         "API\u003eBFX",
+         null,
+         null,
+         null
+        ],
+        null,
+        "SUCCESS",
+        "Submitting update to exchange limit buy order for 0.1 BTC."
+       ],
+       [
+        1678989283488,
+        "oc-req",
+        null,
+        null,
+        [
+         1747566428,
+         null,
+         1678987199446,
+         "tBTCUSD",
+         1678987199446,
+         1678989283489,
+         0.25,
+         0.1,
+         "EXCHANGE LIMIT",
+         "EXCHANGE LIMIT",
+         null,
+         null,
+         0,
+         "CANCELED",
+         null,
+         null,
+         25000,
+         0,
+         0,
+         0,
+         null,
+         null,
+         null,
+         0,
+         0,
+         null,
+         null,
+         null,
+         "API\u003eBFX",
+         null,
+         null,
+         null
+        ],
+        null,
+        "SUCCESS",
+        "Submitted for cancellation; waiting for confirmation (ID: 1747566428)."
+       ],
+       [
+        1568711312683,
+        "oc_multi-req",
+        null,
+        null,
+        [
+         [
+          1747566428,
+          null,
+          1678987199446,
+          "tBTCUSD",
+          1678987199446,
+          1678987199448,
+          0.1,
+          0.1,
+          "EXCHANGE LIMIT",
+          null,
+          null,
+          null,
+          0,
+          "ACTIVE",
+          null,
+          null,
+          10000,
+          0,
+          0,
+          0,
+          null,
+          null,
+          null,
+          0,
+          0,
+          null,
+          null,
+          null,
+          "API\u003eBFX",
+          null,
+          null,
+          null
+         ]
+        ],
+        null,
+        "SUCCESS",
+        "Submitting 2 order cancellations."
+       ]
+      ],
+      null,
+      "SUCCESS",
+      "Submitting 5 order operations."
+     ],
+     "queryString": "",
+     "bodyParams": "{\"ops\":[[\"on\",{\"type\":\"LIMIT\",\"symbol\":\"tBTCUSD\",\"amount\":\"0.001\",\"price\":\"15\",\"cid\":1569347312970,\"flags\":4096}],[\"on\",{\"type\":\"LIMIT\",\"symbol\":\"tBTCUSD\",\"amount\":\"0.001\",\"price\":\"15\",\"cid\":1569347312977}],[\"ou\",{\"id\":1747566428,\"amount\":\"0.25\",\"price\":\"25000\"}],[\"oc\",{\"id\":1747566428}],[\"oc_multi\",{\"id\":[1747566428]}]]}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/w/order/submit": {
+   "POST": [
+    {
+     "data": [
+      1678987199,
+      "on-req",
+      null,
+      null,
+      [
+       [
+        1747566428,
+        null,
+        1678987199446,
+        "tBTCUSD",
+        1678987199446,
+        1678987199448,
+        0.1,
+        0.1,
+        "EXCHANGE LIMIT",
+        null,
+        null,
+        null,
+        0,
+        "ACTIVE",
+        null,
+        null,
+        10000,
+        0,
+        0,
+        0,
+        null,
+        null,
+        null,
+        0,
+        0,
+        null,
+        null,
+        null,
+        "API\u003eBFX",
+        null,
+        null,
+        null
+       ]
+      ],
+      null,
+      "SUCCESS",
+      "Submitting exchange limit buy order for 0.1 BTC."
+     ],
+     "queryString": "",
+     "bodyParams": "{\"type\":\"EXCHANGE LIMIT\",\"symbol\":\"tBTCUSD\",\"amount\":\"0.1\",\"price\":\"10000\",\"cid\":1678987199446}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      1678987199447,
+      "on-req",
+      null,
+      null,
+      [
+       [
+        1747566430,
+        null,
+        1678987199447,
+        "tBTCF0:USTF0",
+        1678987199447,
+        1678987199449,
+        0.001,
+        0.001,
+        "LIMIT",
+        null,
+        null,
+        null,
+        0,
+        "ACTIVE",
+        null,
+        null,
+        70000,
+        0,
+        0,
+        0,
+        null,
+        null,
+        null,
+        0,
+        0,
+        null,
+        null,
+        null,
+        "API\u003eBFX",
+        null,
+        null,
+        {
+         "$F33": 20
+        }
+       ]
+      ],
+      null,
+      "SUCCESS",
+      "Submitting 1 orders."
+     ],
+     "queryString": "",
+     "bodyParams": "{\"type\":\"LIMIT\",\"symbol\":\"tBTCF0:USTF0\",\"amount\":\"0.001\",\"price\":\"70000\",\"lev\":20}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/w/order/update": {
+   "POST": [
+    {
+     "data": [
+      1678988263842,
+      "ou-req",
+      null,
+      null,
+      [
+       1747566428,
+       null,
+       1678987199446,
+       "tBTCUSD",
+       1678987199446,
+       1678988263843,
+       0.25,
+       0.1,
+       "EXCHANGE LIMIT",
+       "EXCHANGE LIMIT",
+       null,
+       null,
+       0,
+       "ACTIVE",
+       null,
+       null,
+       25000,
+       0,
+       0,
+       0,
+       null,
+       null,
+       null,
+       0,
+       0,
+       null,
+       null,
+       null,
+       "API\u003eBFX",
+       null,
+       null,
+       null
+      ],
+      null,
+      "SUCCESS",
+      "Submitting update to exchange limit buy order for 0.1 BTC."
+     ],
+     "queryString": "",
+     "bodyParams": "{\"id\":1747566428,\"amount\":\"0.25\",\"price\":\"25000\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      1678988263842,
+      "ou-req",
+      null,
+      null,
+      [
+       1747566430,
+       null,
+       1678987199447,
+       "tBTCF0:USTF0",
+       1678987199447,
+       1678988263843,
+       0.002,
+       0.002,
+       "LIMIT",
+       "LIMIT",
+       null,
+       null,
+       0,
+       "ACTIVE",
+       null,
+       null,
+       75000,
+       0,
+       0,
+       0,
+       null,
+       null,
+       null,
+       0,
+       0,
+       null,
+       null,
+       null,
+       "API\u003eBFX",
+       null,
+       null,
+       {
+        "$F33": 20
+       }
+      ],
+      null,
+      "SUCCESS",
+      "Submitting update to limit buy order for 0.002 BTCF0."
+     ],
+     "queryString": "",
+     "bodyParams": "{\"id\":1747566430,\"amount\":\"0.002\",\"price\":\"75000\",\"lev\":20}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/w/position/claim": {
+   "POST": [
+    {
+     "data": [
+      1568650414540,
+      "pm-req",
+      null,
+      null,
+      [
+       "tBTCUSD",
+       "ACTIVE",
+       -0.001,
+       10119,
+       0,
+       0,
+       null,
+       null,
+       null,
+       null,
+       null,
+       142031891,
+       1568650294000,
+       1568650294000,
+       null,
+       0,
+       null,
+       0,
+       null,
+       "{\"reason\": \"TRADE\", \"order_id\": 31089337681, \"liq_stage\": null, \"trade_price\": \"10119.0\", \"trade_amount\": \"-0.001\", \"user_id_oppo\": 183923, \"order_id_oppo\": 31089692490}"
+      ],
+      null,
+      "SUCCESS",
+      null
+     ],
+     "queryString": "",
+     "bodyParams": "{\"id\":142031891,\"amount\":\"0.001\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/w/position/increase": {
+   "POST": [
+    {
+     "data": [
+      1612447904081,
+      "pmi-req",
+      null,
+      null,
+      [
+       "tBTCUSD",
+       null,
+       1,
+       100,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null
+      ],
+      null,
+      "SUCCESS",
+      "Submitting position increase."
+     ],
+     "queryString": "",
+     "bodyParams": "{\"symbol\":\"tBTCUSD\",\"amount\":\"1\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/w/position/update/funding/type": {
+   "POST": [
+    {
+     "data": [
+      1753796568064,
+      "puft-req",
+      null,
+      null,
+      null,
+      null,
+      "SUCCESS",
+      "Submitting position funding type update."
+     ],
+     "queryString": "",
+     "bodyParams": "{\"symbol\":\"tBTCUSD\",\"type\":1}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/w/settings/del": {
+   "POST": [
+    {
+     "data": [
+      1617005634199,
+      "acc_sd",
+      null,
+      null,
+      [
+       1
+      ],
+      null,
+      "SUCCESS",
+      null
+     ],
+     "queryString": "",
+     "bodyParams": "{\"keys\":[\"api:key1\",\"api:key2\"]}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/w/settings/set": {
+   "POST": [
+    {
+     "data": [
+      1574340932016,
+      "acc_ss",
+      null,
+      null,
+      [
+       2
+      ],
+      null,
+      "SUCCESS",
+      null
+     ],
+     "queryString": "",
+     "bodyParams": "{\"settings\":{\"api:key1\":\"foo\",\"api:key2\":{\"bar\":2}}}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/w/token": {
+   "POST": [
+    {
+     "data": [
+      "pub:api:665b6328-cc1e-4627-8caf-9ea5ddb8dfb0-caps:a:o:f-write"
+     ],
+     "queryString": "",
+     "bodyParams": "{\"scope\":\"api\",\"ttl\":300,\"caps\":[\"a\",\"o\",\"f\"],\"writePermission\":true,\"_cust_ip\":\"192.0.2.1\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/w/transfer": {
+   "POST": [
+    {
+     "data": [
+      1568736745789,
+      "acc_tf",
+      null,
+      null,
+      [
+       1568736745790,
+       "margin",
+       "exchange",
+       null,
+       "USD",
+       null,
+       null,
+       50
+      ],
+      null,
+      "SUCCESS",
+      "50.0 US Dollar transferred from Margin to Exchange"
+     ],
+     "queryString": "",
+     "bodyParams": "{\"from\":\"margin\",\"to\":\"exchange\",\"currency\":\"USD\",\"amount\":\"50\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      1574173088379,
+      "acc_tf",
+      null,
+      null,
+      [
+       1574173088379,
+       "exchange",
+       "margin",
+       null,
+       "UST",
+       "USTF0",
+       null,
+       200
+      ],
+      null,
+      "SUCCESS",
+      "200.0 Tether USDt transfered from Exchange to Margin"
+     ],
+     "queryString": "",
+     "bodyParams": "{\"from\":\"exchange\",\"to\":\"margin\",\"currency\":\"UST\",\"currency_to\":\"USTF0\",\"amount\":\"200\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/auth/w/withdraw": {
+   "POST": [
+    {
+     "data": [
+      1568742390999,
+      "acc_wd-req",
+      null,
+      null,
+      [
+       13080092,
+       null,
+       "ethereum",
+       null,
+       "exchange",
+       0.01,
+       null,
+       null,
+       0.00135
+      ],
+      null,
+      "SUCCESS",
+      "Your withdrawal request has been successfully submitted."
+     ],
+     "queryString": "",
+     "bodyParams": "{\"wallet\":\"exchange\",\"method\":\"ethereum\",\"amount\":\"0.01\",\"address\":\"0x6C20eBD2222CE0F809713EF06AE400C2445B72B7\",\"fee_deduct\":1,\"note\":\"Purchase of 100 pizzas\",\"travel_rule_tos\":true,\"vasp_did\":\"did:ethr:0x36c12a3d41698534463a6dcda1c549b8f178249b\",\"dest_firstname\":\"John\",\"dest_lastname\":\"Doe\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      1568742390999,
+      "acc_wd-req",
+      null,
+      null,
+      [
+       13080092,
+       null,
+       "ethereum",
+       null,
+       "exchange",
+       0.01,
+       null,
+       null,
+       0.00135
+      ],
+      null,
+      "SUCCESS",
+      "Your withdrawal request has been successfully submitted."
+     ],
+     "queryString": "",
+     "bodyParams": "{\"wallet\":\"exchange\",\"method\":\"ethereum\",\"amount\":\"0.01\",\"address\":\"0x6C20eBD2222CE0F80971A5D2C4Da29e70a0B9b23\",\"note\":\"test\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/book/fUSD/P1": {
+   "GET": [
+    {
+     "data": [
+      [
+       0.0001712,
+       120,
+       1,
+       -20000
+      ],
+      [
+       0.0001252,
+       2,
+       1,
+       500
+      ]
+     ],
+     "queryString": "len=1",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/v2/book/fUSD/R0": {
+   "GET": [
+    {
+     "data": [
+      [
+       5038297953,
+       120,
+       0.0001712,
+       -20000
+      ],
+      [
+       5149012082,
+       2,
+       0.000125120548,
+       500
+      ]
+     ],
+     "queryString": "len=1",
+     "bodyParams": "",
+     "headers": null
+    },
+    {
+     "data": [
+      [
+       5038297953,
+       120,
+       0.0001712,
+       -20000
+      ],
+      [
+       5060560620,
+       120,
+       0.00017111,
+       -2000000
+      ],
+      [
+       5146215392,
+       60,
+       0.000165,
+       -2967.10636983
+      ],
+      [
+       5149057652,
+       2,
+       0.00013466,
+       850
+      ],
+      [
+       5149057625,
+       4,
+       0.000137,
+       5000
+      ],
+      [
+       5149057753,
+       2,
+       0.00013706114570361143,
+       2001
+      ]
+     ],
+     "queryString": "len=100",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/v2/book/tBTCF0:USTF0/R0": {
+   "GET": [
+    {
+     "data": [
+      [
+       246807492592,
+       81643,
+       0.02841688
+      ],
+      [
+       246807492670,
+       81632,
+       0.0662
+      ],
+      [
+       246801938473,
+       81627,
+       0.01
+      ],
+      [
+       246807492527,
+       81661,
+       -0.00512638
+      ],
+      [
+       246801938474,
+       81672,
+       -0.01
+      ],
+      [
+       246807225913,
+       81680,
+       -0.1102187
+      ]
+     ],
+     "queryString": "len=100",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/book/tBTCUSD/P0": {
+   "GET": [
+    {
+     "data": [
+      [
+       82159,
+       2,
+       0.00216011
+      ],
+      [
+       82171,
+       1,
+       -0.00022
+      ]
+     ],
+     "queryString": "len=1",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/v2/book/tBTCUSD/R0": {
+   "GET": [
+    {
+     "data": [
+      [
+       246603709470,
+       82149,
+       0.00009406
+      ],
+      [
+       246646973663,
+       82156,
+       -0.06086039
+      ]
+     ],
+     "queryString": "len=1",
+     "bodyParams": "",
+     "headers": null
+    },
+    {
+     "data": [
+      [
+       246639013014,
+       82126,
+       0.0098052
+      ],
+      [
+       246646843319,
+       82126,
+       0.00609503
+      ],
+      [
+       246648850601,
+       82125,
+       0.023
+      ],
+      [
+       246648790755,
+       82139,
+       -0.0002691
+      ],
+      [
+       246633270509,
+       82143,
+       -0.00022
+      ],
+      [
+       246648850441,
+       82146,
+       -0.06086769
+      ]
+     ],
+     "queryString": "len=100",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/v2/book/tNOPEUSD/P0": {
+   "GET": [
+    {
+     "data": [
+      "error",
+      10020,
+      "symbol: invalid"
+     ],
+     "queryString": "len=1",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/v2/calc/fx": {
+   "POST": [
+    {
+     "data": [
+      82172.5
+     ],
+     "queryString": "",
+     "bodyParams": "{\"ccy1\":\"BTC\",\"ccy2\":\"USD\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      null
+     ],
+     "queryString": "",
+     "bodyParams": "{\"ccy1\":\"NOPE\",\"ccy2\":\"USD\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/calc/trade/avg": {
+   "POST": [
+    {
+     "data": [
+      82203.72844229743,
+      1.123
+     ],
+     "queryString": "amount=1.123\u0026symbol=tBTCUSD",
+     "bodyParams": "",
+     "headers": null
+    },
+    {
+     "data": [
+      0.0001712,
+      -1.123
+     ],
+     "queryString": "amount=-1.123\u0026period=2\u0026symbol=fUSD",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/v2/candles/trade:1D:fUSD:p30/last": {
+   "GET": [
+    {
+     "data": [
+      1792108800000,
+      0.00016,
+      0.000132,
+      0.00016,
+      0.00013,
+      19052.79981827
+     ],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/v2/candles/trade:1D:tBTCUSD/last": {
+   "GET": [
+    {
+     "data": [
+      1792108800000,
+      82233,
+      82179,
+      82547,
+      81692,
+      33.39572295
+     ],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/v2/candles/trade:1D:tNOPEUSD/last": {
+   "GET": [
+    {
+     "data": null,
+     "queryString": "",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/v2/candles/trade:1h:fUSD:a30:p2:p30/hist": {
+   "GET": [
+    {
+     "data": [
+      [
+       1792022400000,
+       0.000133,
+       0.00014384,
+       0.00017987,
+       0.00012051,
+       3074226.6222474203
+      ],
+      [
+       1792026000000,
+       0.00013346,
+       0.00014,
+       0.00017087,
+       0.00012281,
+       880889.47972334
+      ],
+      [
+       1792029600000,
+       0.000133,
+       0.00014,
+       0.0001784,
+       0.0001244,
+       4190168.7710503098
+      ]
+     ],
+     "queryString": "end=1792108800000\u0026limit=3\u0026sort=1\u0026start=1792022400000",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/v2/candles/trade:1h:fUSD:p30/hist": {
+   "GET": [
+    {
+     "data": [
+      [
+       1792036800000,
+       0.00019179,
+       0.00022151,
+       0.00022151,
+       0.00019179,
+       119250.81208678
+      ],
+      [
+       1792047600000,
+       0.00019179,
+       0.00019968,
+       0.00019968,
+       0.00019179,
+       15762.1
+      ],
+      [
+       1792054800000,
+       0.00019179,
+       0.00019179,
+       0.00019179,
+       0.00016,
+       15728.789999999999
+      ],
+      [
+       1792058400000,
+       0.00016,
+       0.00016,
+       0.00016,
+       0.00016,
+       883.1700000000001
+      ],
+      [
+       1792069200000,
+       0.00013055,
+       0.00013055,
+       0.00013055,
+       0.00013055,
+       402.63
+      ],
+      [
+       1792076400000,
+       0.0001511,
+       0.0001511,
+       0.0001511,
+       0.0001511,
+       14000
+      ],
+      [
+       1792083600000,
+       0.0001511,
+       0.00018001,
+       0.00018001,
+       0.0001511,
+       203495.5745481
+      ],
+      [
+       1792094400000,
+       0.0001511,
+       0.0001511,
+       0.0001511,
+       0.0001511,
+       987
+      ],
+      [
+       1792098000000,
+       0.0001511,
+       0.00016,
+       0.00016,
+       0.0001511,
+       87003.42727405
+      ],
+      [
+       1792101600000,
+       0.0001511,
+       0.0001511,
+       0.0001511,
+       0.0001511,
+       465.04197894
+      ],
+      [
+       1792105200000,
+       0.00016,
+       0.0001511,
+       0.00016,
+       0.0001511,
+       1071.05197894
+      ],
+      [
+       1792108800000,
+       0.00016,
+       0.00016,
+       0.00016,
+       0.00016,
+       606.01
+      ]
+     ],
+     "queryString": "end=1792108800000\u0026limit=10000\u0026sort=1\u0026start=1792022400000",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/v2/candles/trade:1h:tBTCF0:USTF0/hist": {
+   "GET": [
+    {
+     "data": [
+      [
+       1792022400000,
+       81723,
+       81660,
+       81893,
+       81444,
+       16.47487258
+      ],
+      [
+       1792026000000,
+       81716,
+       81678,
+       81985,
+       81547,
+       25.49210907
+      ],
+      [
+       1792029600000,
+       81703,
+       81583,
+       81841,
+       80246,
+       33.11713157
+      ],
+      [
+       1792033200000,
+       81594,
+       80974,
+       81594,
+       80770,
+       19.98734281
+      ],
+      [
+       1792036800000,
+       80927,
+       81646,
+       81792,
+       80895,
+       13.16373057
+      ]
+     ],
+     "queryString": "end=1792108800000\u0026limit=10000\u0026sort=1\u0026start=1792022400000",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/candles/trade:1h:tBTCUSD/hist": {
+   "GET": [
+    {
+     "data": [
+      [
+       1792022400000,
+       81678,
+       81659,
+       81845,
+       81368,
+       7.16225303
+      ],
+      [
+       1792026000000,
+       81675,
+       81663,
+       81930,
+       81504,
+       6.00131924
+      ],
+      [
+       1792029600000,
+       81640,
+       81557,
+       81808,
+       80210,
+       53.38772928
+      ]
+     ],
+     "queryString": "end=1792108800000\u0026limit=3\u0026sort=1\u0026start=1792022400000",
+     "bodyParams": "",
+     "headers": null
+    },
+    {
+     "data": [
+      [
+       1792022400000,
+       81678,
+       81659,
+       81845,
+       81368,
+       7.16225303
+      ],
+      [
+       1792026000000,
+       81675,
+       81663,
+       81930,
+       81504,
+       6.00131924
+      ],
+      [
+       1792029600000,
+       81640,
+       81557,
+       81808,
+       80210,
+       53.38772928
+      ],
+      [
+       1792033200000,
+       81565,
+       80934,
+       81566,
+       80733,
+       32.6475864
+      ],
+      [
+       1792036800000,
+       80931,
+       81626,
+       81779,
+       80855,
+       36.3722608
+      ],
+      [
+       1792040400000,
+       81622,
+       80639,
+       81719,
+       80566,
+       28.23346775
+      ],
+      [
+       1792044000000,
+       80642,
+       80931,
+       81109,
+       80547,
+       19.14286107
+      ],
+      [
+       1792047600000,
+       80938,
+       81556,
+       81600,
+       80862,
+       14.82860205
+      ],
+      [
+       1792051200000,
+       81549,
+       81397,
+       81609,
+       81200,
+       11.5699313
+      ],
+      [
+       1792054800000,
+       81397,
+       81300,
+       81438,
+       81223,
+       8.51774013
+      ],
+      [
+       1792058400000,
+       81300,
+       81060,
+       81311,
+       80878,
+       19.84993838
+      ],
+      [
+       1792062000000,
+       81064,
+       80995,
+       81213,
+       80853,
+       8.81153517
+      ],
+      [
+       1792065600000,
+       81002,
+       80588,
+       81188,
+       80550,
+       33.763714
+      ],
+      [
+       1792069200000,
+       80612,
+       80235,
+       80812,
+       79821,
+       63.87041449
+      ],
+      [
+       1792072800000,
+       80235,
+       81912,
+       82076,
+       80144,
+       46.85765856
+      ],
+      [
+       1792076400000,
+       81893,
+       82397,
+       82641,
+       81781,
+       103.97490212
+      ],
+      [
+       1792080000000,
+       82402,
+       82120,
+       82550,
+       81951,
+       60.93964887
+      ],
+      [
+       1792083600000,
+       82120,
+       82422,
+       82635,
+       82068,
+       41.86997681
+      ],
+      [
+       1792087200000,
+       82422,
+       82422,
+       82422,
+       82084,
+       11.84965745
+      ],
+      [
+       1792090800000,
+       82422,
+       82369,
+       82602,
+       82343,
+       16.27776207
+      ],
+      [
+       1792094400000,
+       82372,
+       82110,
+       82436,
+       81932,
+       7.62187622
+      ],
+      [
+       1792098000000,
+       82094,
+       82418,
+       82446,
+       82007,
+       4.53036484
+      ],
+      [
+       1792101600000,
+       82423,
+       82459,
+       82587,
+       82376,
+       8.09876804
+      ],
+      [
+       1792105200000,
+       82461,
+       82233,
+       82461,
+       82141,
+       3.23324847
+      ],
+      [
+       1792108800000,
+       82233,
+       82333,
+       82480,
+       82211,
+       4.60332601
+      ]
+     ],
+     "queryString": "end=1792108800000\u0026limit=10000\u0026sort=1\u0026start=1792022400000",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/v2/conf/pub:fees": {
+   "GET": [
+    {
+     "data": [
+      {
+       "deriv_perp": {
+        "correction_clamp_min": 0.0025,
+        "correction_clamp_insurance": 0.0015,
+        "correction_slope": 0.2
+       }
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/v2/conf/pub:info:pair": {
+   "GET": [
+    {
+     "data": [
+      [
+       [
+        "AAVE:USD",
+        [
+         1612517298684,
+         null,
+         null,
+         "0.02",
+         "5000.0",
+         null,
+         null,
+         null,
+         null,
+         null,
+         null,
+         null
+        ]
+       ],
+       [
+        "AAVE:UST",
+        [
+         1612518415535,
+         null,
+         null,
+         "0.02",
+         "5000.0",
+         null,
+         null,
+         null,
+         null,
+         null,
+         null,
+         null
+        ]
+       ],
+       [
+        "ADABTC",
+        [
+         1596710520048,
+         null,
+         null,
+         "4.0",
+         "250000.0",
+         null,
+         null,
+         null,
+         0.3,
+         0.15,
+         null,
+         null
+        ]
+       ],
+       [
+        "ADAUSD",
+        [
+         1596708663880,
+         null,
+         null,
+         "4.0",
+         "250000.0",
+         null,
+         null,
+         null,
+         0.3,
+         0.15,
+         null,
+         null
+        ]
+       ],
+       [
+        "ADAUST",
+        [
+         1596708684324,
+         null,
+         null,
+         "4.0",
+         "250000.0",
+         null,
+         null,
+         null,
+         0.3,
+         0.15,
+         null,
+         null
+        ]
+       ]
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/v2/conf/pub:info:pair:futures": {
+   "GET": [
+    {
+     "data": [
+      [
+       [
+        "AAVEF0:USTF0",
+        [
+         1633350178515,
+         null,
+         null,
+         "0.02",
+         "5000.0",
+         null,
+         null,
+         null,
+         0.01,
+         0.005
+        ]
+       ],
+       [
+        "ADAF0:USTF0",
+        [
+         1612351549219,
+         null,
+         null,
+         "4.0",
+         "250000.0",
+         null,
+         null,
+         null,
+         0.01,
+         0.005
+        ]
+       ],
+       [
+        "ALGF0:USTF0",
+        [
+         1631890038807,
+         null,
+         null,
+         "8.0",
+         "250000.0",
+         null,
+         null,
+         null,
+         0.01,
+         0.005
+        ]
+       ],
+       [
+        "ALLOF0:USTF0",
+        [
+         1787576315252,
+         null,
+         null,
+         "0.001",
+         "500000.0",
+         null,
+         null,
+         null,
+         0.05,
+         0.025
+        ]
+       ],
+       [
+        "APEF0:USTF0",
+        [
+         1648035593066,
+         null,
+         null,
+         "0.8",
+         "50000.0",
+         null,
+         null,
+         null,
+         0.01,
+         0.005
+        ]
+       ],
+       [
+        "BTCF0:USTF0",
+        [
+         1562164542332,
+         null,
+         null,
+         "0.00004",
+         "100.0",
+         null,
+         null,
+         null,
+         0.01,
+         0.005
+        ]
+       ],
+       [
+        "ETHF0:BTCF0",
+        [
+         1608633542930,
+         null,
+         null,
+         "0.0008",
+         "100.0",
+         null,
+         null,
+         null,
+         0.01,
+         0.005
+        ]
+       ],
+       [
+        "TESTBTCF0:TESTUSDTF0",
+        [
+         1594021206659,
+         null,
+         null,
+         "0.00004",
+         "1000.0",
+         null,
+         null,
+         null,
+         0.01,
+         0.005
+        ]
+       ]
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/v2/conf/pub:info:tx:status": {
+   "GET": [
+    {
+     "data": [
+      [
+       [
+        "BITCOIN",
+        1,
+        1,
+        null,
+        null,
+        null,
+        null,
+        0,
+        0,
+        null,
+        null,
+        3
+       ],
+       [
+        "LITECOIN",
+        1,
+        1,
+        null,
+        null,
+        null,
+        null,
+        0,
+        0,
+        null,
+        null,
+        24
+       ],
+       [
+        "ETHEREUM",
+        1,
+        1,
+        null,
+        null,
+        null,
+        null,
+        0,
+        0,
+        null,
+        null,
+        5
+       ],
+       [
+        "ETHEREUMC",
+        1,
+        1,
+        null,
+        null,
+        null,
+        null,
+        0,
+        0,
+        null,
+        null,
+        5
+       ],
+       [
+        "ZCASH",
+        0,
+        0,
+        null,
+        null,
+        null,
+        null,
+        0,
+        0,
+        null,
+        null,
+        15
+       ]
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/v2/conf/pub:list:competitions": {
+   "GET": [
+    {
+     "data": [
+      [
+       "plu_diff:1w:tGLOBAL:USD",
+       "plu_diff:1M:tGLOBAL:USD",
+       "plu:1w:tGLOBAL:USD",
+       "plu:3h:tGLOBAL:USD",
+       "vol:1w:tGLOBAL:USD"
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/v2/conf/pub:list:currency": {
+   "GET": [
+    {
+     "data": [
+      [
+       "AAVE",
+       "AAVEF0",
+       "ADA",
+       "ADAF0",
+       "ALG"
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/v2/conf/pub:list:currency:margin": {
+   "GET": [
+    {
+     "data": [
+      [
+       "ADA",
+       "ALG",
+       "APT",
+       "AVAX",
+       "BCHN"
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/v2/conf/pub:list:pair:exchange": {
+   "GET": [
+    {
+     "data": [
+      [
+       "AAVE:USD",
+       "AAVE:UST",
+       "ADABTC",
+       "ADAUSD",
+       "ADAUST"
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/v2/conf/pub:list:pair:futures": {
+   "GET": [
+    {
+     "data": [
+      [
+       "AAVEF0:USTF0",
+       "ADAF0:USTF0",
+       "ALGF0:USTF0",
+       "ALLOF0:USTF0",
+       "APEF0:USTF0",
+       "BTCF0:USTF0",
+       "ETHF0:BTCF0",
+       "TESTBTCF0:TESTUSDTF0"
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/v2/conf/pub:list:pair:margin": {
+   "GET": [
+    {
+     "data": [
+      [
+       "ADABTC",
+       "ADAUSD",
+       "ADAUST",
+       "ALGUSD",
+       "APTUSD"
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/v2/conf/pub:list:pair:securities": {
+   "GET": [
+    {
+     "data": [
+      [
+       "ALKN:USD",
+       "ALT2612:USD",
+       "ALT2612:UST",
+       "BMN2:BTC",
+       "BMN2:USD"
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/v2/conf/pub:map:currency:explorer": {
+   "GET": [
+    {
+     "data": [
+      [
+       [
+        "ADA",
+        [
+         "https://adastat.net",
+         "https://adastat.net/addresses/VAL",
+         "https://adastat.net/transactions/VAL"
+        ]
+       ],
+       [
+        "ALG",
+        [
+         "https://allo.info",
+         "https://allo.info/account/VAL ",
+         "https://allo.info/tx/VAL"
+        ]
+       ],
+       [
+        "APT",
+        [
+         "https://explorer.aptoslabs.com",
+         "https://explorer.aptoslabs.com/account/VAL",
+         "https://explorer.aptoslabs.com/txn/VAL"
+        ]
+       ],
+       [
+        "ARBETH",
+        [
+         "https://arbiscan.io",
+         "https://arbiscan.io/address/VAL",
+         "https://arbiscan.io/tx/VAL"
+        ]
+       ],
+       [
+        "ATO",
+        [
+         "https://www.mintscan.io/cosmos",
+         "https://www.mintscan.io/cosmos/account/VAL",
+         "https://www.mintscan.io/cosmos/txs/VAL"
+        ]
+       ]
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/v2/conf/pub:map:currency:label": {
+   "GET": [
+    {
+     "data": [
+      [
+       [
+        "AAVE",
+        "Aave"
+       ],
+       [
+        "ADA",
+        "Cardano ADA"
+       ],
+       [
+        "ALG",
+        "Algorand"
+       ],
+       [
+        "ALKN",
+        "ALKN"
+       ],
+       [
+        "ALT11M2507",
+        "ALT11M2507"
+       ]
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/v2/conf/pub:map:currency:pool": {
+   "GET": [
+    {
+     "data": [
+      [
+       [
+        "AAVE",
+        "ETH"
+       ],
+       [
+        "ALKN",
+        "ETH"
+       ],
+       [
+        "ARB",
+        "ARBETH"
+       ],
+       [
+        "AUSDT",
+        "ETH"
+       ],
+       [
+        "B2M",
+        "ETH"
+       ]
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/v2/conf/pub:map:currency:sym": {
+   "GET": [
+    {
+     "data": [
+      [
+       [
+        "ALG",
+        "ALGO"
+       ],
+       [
+        "ATO",
+        "ATOM"
+       ],
+       [
+        "AUSDT",
+        "aUSDT"
+       ],
+       [
+        "BTCF0",
+        "BTC"
+       ],
+       [
+        "CHZF0",
+        "CHZ"
+       ]
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/v2/conf/pub:map:currency:tx:fee": {
+   "GET": [
+    {
+     "data": [
+      [
+       [
+        "AAVE",
+        [
+         0,
+         0.018825
+        ]
+       ],
+       [
+        "ADA",
+        [
+         0,
+         0.3
+        ]
+       ],
+       [
+        "ALG",
+        [
+         0,
+         0
+        ]
+       ],
+       [
+        "ALKN",
+        [
+         0,
+         0
+        ]
+       ],
+       [
+        "ALT11M2507",
+        [
+         0,
+         0
+        ]
+       ]
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/v2/conf/pub:map:currency:undl": {
+   "GET": [
+    {
+     "data": [
+      [
+       [
+        "AAVEF0",
+        "AAVE"
+       ],
+       [
+        "ADAF0",
+        "ADA"
+       ],
+       [
+        "ALGF0",
+        "ALG"
+       ],
+       [
+        "APEF0",
+        "APE"
+       ],
+       [
+        "APTF0",
+        "APT"
+       ]
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/v2/conf/pub:map:currency:unit": {
+   "GET": [
+    {
+     "data": [
+      [
+       [
+        "IOT",
+        "Mi|MegaIOTA"
+       ]
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/v2/conf/pub:map:tx:method": {
+   "GET": [
+    {
+     "data": [
+      [
+       [
+        "BITCOIN",
+        [
+         "BTC"
+        ]
+       ],
+       [
+        "LITECOIN",
+        [
+         "LTC"
+        ]
+       ],
+       [
+        "ETHEREUM",
+        [
+         "ETH"
+        ]
+       ],
+       [
+        "ETHEREUMC",
+        [
+         "ETC"
+        ]
+       ],
+       [
+        "ZCASH",
+        [
+         "ZEC"
+        ]
+       ]
+      ]
+     ],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/v2/conf/pub:spec:margin": {
+   "GET": [
+    {
+     "data": [
+      {
+       "conf": {
+        "base_xmarg_mul": 1,
+        "base_xmarg_step_mul": 1,
+        "base_size_thres": 0,
+        "base_size_incr": 1,
+        "base_step": 0,
+        "base_haircut": 1,
+        "base_tradable_penalty": 0.05,
+        "XRP_haircut": 0.5
+       },
+       "initial": {
+        "base": 0.3,
+        "base_cap": 1,
+        "BTCUSD": 0.1,
+        "LTCUSD": 0.2,
+        "LTCBTC": 0.3
+       },
+       "minimum": {
+        "base": 0.15,
+        "base_cap": 1,
+        "BTCUSD": 0.05,
+        "LTCUSD": 0.1,
+        "LTCBTC": 0.15
+       }
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/v2/ext/vasps": {
+   "GET": [
+    {
+     "data": [
+      {
+       "id": "did:ethr:0xf2bd35dc59cbbe3efb15a5bd411ac84e7c86d25a",
+       "name": "100s Holdings Limited (IM)"
+      },
+      {
+       "id": "did:ethr:0xdf41ef7dcb92ab5aed72e284db3766ace5026948",
+       "name": "1Money (US)"
+      },
+      {
+       "id": "did:ethr:0xfeb4f99829a9acdf52979abee87e83addf22a7e1",
+       "name": "1xBet"
+      },
+      {
+       "id": "did:ethr:0x5d598bbc15fd01dce280ac65d8d3a9b8b748d202",
+       "name": "1xSlots"
+      },
+      {
+       "id": "did:ethr:0xc6423fb22b31148b0de37051a98241ba2487269e",
+       "name": "21bitcoin (AT)"
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/v2/funding/stats/fUSD/hist": {
+   "GET": [
+    {
+     "data": [
+      [
+       1792105500000,
+       null,
+       null,
+       8.2e-7,
+       82.01,
+       null,
+       null,
+       5950334298.556745,
+       5758174671.332418,
+       null,
+       null,
+       402445978.86773586
+      ],
+      [
+       1792101900000,
+       null,
+       null,
+       8.2e-7,
+       81.16,
+       null,
+       null,
+       5942068272.108026,
+       5758506652.673497,
+       null,
+       null,
+       410051733.793576
+      ],
+      [
+       1792098300000,
+       null,
+       null,
+       8.2e-7,
+       81.62,
+       null,
+       null,
+       5941551577.016957,
+       5758004731.183161,
+       null,
+       null,
+       413009916.16160125
+      ]
+     ],
+     "queryString": "end=1792108800000\u0026limit=3\u0026start=1792022400000",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/v2/liquidations/hist": {
+   "GET": [
+    {
+     "data": [
+      [
+       [
+        "pos",
+        194460875,
+        1792030515850,
+        null,
+        "tDEXEF0:USTF0",
+        52.3842728,
+        1.8957,
+        null,
+        0,
+        1,
+        null,
+        null
+       ]
+      ],
+      [
+       [
+        "pos",
+        194460875,
+        1792030515852,
+        null,
+        "tDEXEF0:USTF0",
+        52.3842728,
+        1.8957,
+        null,
+        1,
+        1,
+        null,
+        1.7488
+       ]
+      ],
+      [
+       [
+        "pos",
+        194320977,
+        1792030726016,
+        null,
+        "tZECUSD",
+        2.00001238,
+        1276.159368523508,
+        null,
+        0,
+        1,
+        null,
+        null
+       ]
+      ]
+     ],
+     "queryString": "end=1792108800000\u0026limit=3\u0026sort=1\u0026start=1792022400000",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/v2/platform/status": {
+   "GET": [
+    {
+     "data": [
+      1
+     ],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/v2/rankings/plu_diff:1w:tGLOBAL:USD/hist": {
+   "GET": [
+    {
+     "data": [
+      [
+       1791763200000,
+       null,
+       "countyourmoney",
+       1,
+       null,
+       null,
+       4234382.58,
+       null,
+       1,
+       null,
+       null,
+       null,
+       null
+      ],
+      [
+       1791763200000,
+       null,
+       "Bobby-Big-Size",
+       2,
+       null,
+       null,
+       4066612.79,
+       null,
+       1,
+       null,
+       null,
+       null,
+       null
+      ],
+      [
+       1791763200000,
+       null,
+       "EGAF",
+       3,
+       null,
+       null,
+       2585259.28,
+       null,
+       1,
+       null,
+       null,
+       null,
+       null
+      ]
+     ],
+     "queryString": "end=1792108800000\u0026limit=3\u0026start=1790812800000",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/v2/stats1/credits.size.sym:1m:fUSD:tBTCUSD/hist": {
+   "GET": [
+    {
+     "data": [
+      [
+       1792022400000,
+       5600850891.1279125
+      ],
+      [
+       1792022460000,
+       5600850891.1279125
+      ],
+      [
+       1792022520000,
+       5600850891.1279125
+      ]
+     ],
+     "queryString": "end=1792108800000\u0026limit=3\u0026sort=1\u0026start=1792022400000",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/v2/stats1/pos.size:1m:tBTCUSD:long/last": {
+   "GET": [
+    {
+     "data": [
+      1792129680000,
+      89621.97322647
+     ],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/v2/stats1/pos.size:1m:tNOPEUSD:long/last": {
+   "GET": [
+    {
+     "data": null,
+     "queryString": "",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/v2/status/deriv": {
+   "GET": [
+    {
+     "data": [
+      [
+       "tBTCF0:USTF0",
+       1792129748000,
+       null,
+       82189.30837992,
+       82135,
+       null,
+       61340784.36117272,
+       null,
+       1792137600000,
+       0.00042072,
+       6688,
+       null,
+       0.00010884,
+       null,
+       null,
+       82139.1843,
+       null,
+       null,
+       9254.32427008,
+       null,
+       null,
+       null,
+       0.0005,
+       0.0025
+      ],
+      [
+       "tETHF0:USTF0",
+       1792129748000,
+       null,
+       2448.245538685,
+       2446.8,
+       null,
+       61340784.36117272,
+       null,
+       1792137600000,
+       0.00036349,
+       6688,
+       null,
+       0.00004981,
+       null,
+       null,
+       2447.0178,
+       null,
+       null,
+       10858.12719944,
+       null,
+       null,
+       null,
+       0.0005,
+       0.0025
+      ]
+     ],
+     "queryString": "keys=tBTCF0%3AUSTF0%2CtETHF0%3AUSTF0",
+     "bodyParams": "",
+     "headers": null
+    },
+    {
+     "data": [
+      [
+       "tTESTXAUTF0:TESTUSDTF0",
+       1792129748000,
+       null,
+       4168.4,
+       4169.4,
+       null,
+       -42639023.94357969,
+       null,
+       1792137600000,
+       0.00004114,
+       6688,
+       null,
+       0,
+       null,
+       null,
+       4169.4,
+       null,
+       null,
+       10.70616022,
+       null,
+       null,
+       null,
+       0.0005,
+       0.0025
+      ],
+      [
+       "tTESTETHF0:TESTUSDTF0",
+       1792129748000,
+       null,
+       2449.6,
+       2447.4,
+       null,
+       -42639023.94357969,
+       null,
+       1792137600000,
+       -0.00000918,
+       6688,
+       null,
+       0,
+       null,
+       null,
+       2447.4,
+       null,
+       null,
+       200892.8438779,
+       null,
+       null,
+       null,
+       0.0005,
+       0.0025
+      ],
+      [
+       "tTESTAVAXF0:TESTUSDTF0",
+       1792129748000,
+       null,
+       10.074,
+       10.104,
+       null,
+       -42639023.94357969,
+       null,
+       1792137600000,
+       -0.00159571,
+       6688,
+       null,
+       -0.0014087,
+       null,
+       null,
+       10.104,
+       null,
+       null,
+       182.58745952,
+       null,
+       null,
+       null,
+       0.0005,
+       0.0025
+      ],
+      [
+       "tTESTDOGEF0:TESTUSDTF0",
+       1792129748000,
+       null,
+       0.0823555,
+       0.082383,
+       null,
+       -42639023.94357969,
+       null,
+       1792137600000,
+       -0.00072436,
+       6688,
+       null,
+       -0.00032597,
+       null,
+       null,
+       0.082383,
+       null,
+       null,
+       557435.41621917,
+       null,
+       null,
+       null,
+       0.0005,
+       0.0025
+      ],
+      [
+       "tTESTALGOF0:TESTUSDTF0",
+       1792129748000,
+       null,
+       0.18389,
+       0.11669,
+       null,
+       -42639023.94357969,
+       null,
+       1792137600000,
+       0.39162415,
+       6688,
+       null,
+       0.0025,
+       null,
+       null,
+       0.11669,
+       null,
+       null,
+       8084312.75580215,
+       null,
+       null,
+       null,
+       0.0005,
+       0.0025
+      ],
+      [
+       "tBTCF0:USTF0",
+       1792362917000,
+       null,
+       81662.081820475,
+       81609,
+       null,
+       61230742.63264047,
+       null,
+       1792368000000,
+       0.00042229,
+       7570,
+       null,
+       0.00003859,
+       null,
+       null,
+       81612.3963,
+       null,
+       null,
+       9268.71813464,
+       null,
+       null,
+       null,
+       0.0005,
+       0.0025
+      ],
+      [
+       "tETHF0:BTCF0",
+       1792362917000,
+       null,
+       0.029255,
+       0.0292565,
+       null,
+       33.41357453,
+       null,
+       1792368000000,
+       -0.00020369,
+       7570,
+       null,
+       0,
+       null,
+       null,
+       0.02925136,
+       null,
+       null,
+       6061.94360798,
+       null,
+       null,
+       null,
+       0.0005,
+       0.0025
+      ]
+     ],
+     "queryString": "keys=ALL",
+     "bodyParams": "",
+     "headers": null
+    },
+    {
+     "data": [
+      [
+       "tBTCF0:USTF0",
+       1792362917000,
+       null,
+       81662.081820475,
+       81609,
+       null,
+       61230742.63264047,
+       null,
+       1792368000000,
+       0.00042229,
+       7570,
+       null,
+       0.00003859,
+       null,
+       null,
+       81612.3963,
+       null,
+       null,
+       9268.71813464,
+       null,
+       null,
+       null,
+       0.0005,
+       0.0025
+      ],
+      [
+       "tETHF0:BTCF0",
+       1792362917000,
+       null,
+       0.029255,
+       0.0292565,
+       null,
+       33.41357453,
+       null,
+       1792368000000,
+       -0.00020369,
+       7570,
+       null,
+       0,
+       null,
+       null,
+       0.02925136,
+       null,
+       null,
+       6061.94360798,
+       null,
+       null,
+       null,
+       0.0005,
+       0.0025
+      ]
+     ],
+     "queryString": "keys=tBTCF0%3AUSTF0%2CtETHF0%3ABTCF0",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      [
+       "tBTCF0:USTF0",
+       1792362917000,
+       null,
+       81662.081820475,
+       81609,
+       null,
+       61230742.63264047,
+       null,
+       1792368000000,
+       0.00042229,
+       7570,
+       null,
+       0.00003859,
+       null,
+       null,
+       81612.3963,
+       null,
+       null,
+       9268.71813464,
+       null,
+       null,
+       null,
+       0.0005,
+       0.0025
+      ]
+     ],
+     "queryString": "keys=tBTCF0%3AUSTF0",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    },
+    {
+     "data": [
+      [
+       "tETHF0:BTCF0",
+       1792362917000,
+       null,
+       0.029255,
+       0.0292565,
+       null,
+       33.41357453,
+       null,
+       1792368000000,
+       -0.00020369,
+       7570,
+       null,
+       0,
+       null,
+       null,
+       0.02925136,
+       null,
+       null,
+       6061.94360798,
+       null,
+       null,
+       null,
+       0.0005,
+       0.0025
+      ]
+     ],
+     "queryString": "keys=tETHF0%3ABTCF0",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/status/deriv/tBTCF0:USTF0/hist": {
+   "GET": [
+    {
+     "data": [
+      [
+       1792022457000,
+       null,
+       81735.99909449,
+       81690,
+       null,
+       61384568.96803488,
+       null,
+       1792051200000,
+       0.00000111,
+       17,
+       null,
+       0.0001331,
+       null,
+       null,
+       81689.5573,
+       null,
+       null,
+       9235.50464195,
+       null,
+       null,
+       null,
+       0.0005,
+       0.0025
+      ],
+      [
+       1792022516000,
+       null,
+       81715.14533084,
+       81665.5,
+       null,
+       61384568.96803488,
+       null,
+       1792051200000,
+       0.00000236,
+       36,
+       null,
+       0.0001331,
+       null,
+       null,
+       81660.9393,
+       null,
+       null,
+       9235.4417504,
+       null,
+       null,
+       null,
+       0.0005,
+       0.0025
+      ],
+      [
+       1792022576000,
+       null,
+       81790.141911965,
+       81733.5,
+       null,
+       61384568.96803488,
+       null,
+       1792051200000,
+       0.00000391,
+       55,
+       null,
+       0.0001331,
+       null,
+       null,
+       81730.472,
+       null,
+       null,
+       9235.40582521,
+       null,
+       null,
+       null,
+       0.0005,
+       0.0025
+      ]
+     ],
+     "queryString": "end=1792108800000\u0026limit=3\u0026sort=1\u0026start=1792022400000",
+     "bodyParams": "",
+     "headers": null
+    },
+    {
+     "data": [
+      [
+       1792108856000,
+       null,
+       82291.718514215,
+       82240,
+       null,
+       61340770.40252984,
+       null,
+       1792137600000,
+       0.0000011,
+       17,
+       null,
+       0.00010884,
+       null,
+       null,
+       82241.8288,
+       null,
+       null,
+       9253.52541157,
+       null,
+       null,
+       null,
+       0.0005,
+       0.0025
+      ],
+      [
+       1792108799000,
+       null,
+       82312.450444105,
+       82237,
+       null,
+       61353627.75281737,
+       null,
+       1792108800000,
+       0.00060878,
+       9196,
+       null,
+       0.0000682,
+       null,
+       null,
+       82236.7163,
+       null,
+       null,
+       9253.51878373,
+       null,
+       null,
+       null,
+       0.0005,
+       0.0025
+      ],
+      [
+       1792108739000,
+       null,
+       82293.72148607,
+       82246.5,
+       null,
+       61353627.75281737,
+       null,
+       1792108800000,
+       0.00060744,
+       9177,
+       null,
+       0.0000682,
+       null,
+       null,
+       82242.5807,
+       null,
+       null,
+       9253.52040292,
+       null,
+       null,
+       null,
+       0.0005,
+       0.0025
+      ],
+      [
+       1792079999000,
+       null,
+       82469.07898833,
+       82415.5,
+       null,
+       61360027.29850575,
+       null,
+       1792080000000,
+       0.00056815,
+       9184,
+       null,
+       0.00003394,
+       null,
+       null,
+       82429.3943,
+       null,
+       null,
+       9253.70929407,
+       null,
+       null,
+       null,
+       0.0005,
+       0.0025
+      ],
+      [
+       1792079936000,
+       null,
+       82512.60292769,
+       82463.5,
+       null,
+       61360027.29850575,
+       null,
+       1792080000000,
+       0.00056713,
+       9164,
+       null,
+       0.00003394,
+       null,
+       null,
+       82481.0261,
+       null,
+       null,
+       9253.80180486,
+       null,
+       null,
+       null,
+       0.0005,
+       0.0025
+      ],
+      [
+       1792051199000,
+       null,
+       81577.285708645,
+       81533.5,
+       null,
+       61384826.65183971,
+       null,
+       1792051200000,
+       0.00053389,
+       9185,
+       null,
+       0.0001331,
+       null,
+       null,
+       81546.3562,
+       null,
+       null,
+       9238.02759494,
+       null,
+       null,
+       null,
+       0.0005,
+       0.0025
+      ],
+      [
+       1792051137000,
+       null,
+       81527.269564585,
+       81492,
+       null,
+       61384826.65183971,
+       null,
+       1792051200000,
+       0.00053305,
+       9165,
+       null,
+       0.0001331,
+       null,
+       null,
+       81496.2243,
+       null,
+       null,
+       9237.97344229,
+       null,
+       null,
+       null,
+       0.0005,
+       0.0025
+      ]
+     ],
+     "queryString": "end=1792108800000\u0026limit=5000\u0026sort=-1\u0026start=1792022400000",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/ticker/fUSD": {
+   "GET": [
+    {
+     "data": [
+      0.00030070958904109587,
+      0.0001712,
+      120,
+      18938194.36843404,
+      0.0001258336,
+      2,
+      40993.865045,
+      -0.000075,
+      -0.375,
+      0.000125,
+      95383739.75889896,
+      0.0002,
+      0.000001,
+      null,
+      null,
+      220861838.82944623,
+      1469734163000
+     ],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/v2/ticker/tBTCF0:USTF0": {
+   "GET": [
+    {
+     "data": [
+      81654,
+      7.86008264,
+      81671,
+      10.53353406,
+      147,
+      0.00180335,
+      81662,
+      137.03537844,
+      82345,
+      80694,
+      1562164542332
+     ],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/ticker/tBTCUSD": {
+   "GET": [
+    {
+     "data": [
+      82402,
+      1.65150279,
+      82423,
+      2.78348726,
+      1100,
+      0.01352614,
+      82424,
+      540.71148817,
+      82641,
+      79821,
+      1358182043000
+     ],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/v2/ticker/tNOPEUSD": {
+   "GET": [
+    {
+     "data": [
+      "error",
+      10020,
+      "symbol: invalid"
+     ],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/v2/tickers": {
+   "GET": [
+    {
+     "data": [
+      [
+       "tBTCUSD",
+       82402,
+       1.65150279,
+       82423,
+       2.78348726,
+       1100,
+       0.01352614,
+       82424,
+       540.71148817,
+       82641,
+       79821,
+       1358182043000
+      ],
+      [
+       "tTESTBTC:TESTUSD",
+       82345,
+       39.43474446,
+       82427,
+       93.60610432,
+       1065,
+       0.01309625,
+       82386,
+       146.73022923,
+       82644,
+       79845,
+       1592991523941
+      ],
+      [
+       "fUSD",
+       0.00030070958904109587,
+       0.0001712,
+       120,
+       18938194.36843404,
+       0.0001258336,
+       2,
+       40993.865045,
+       -0.000075,
+       -0.375,
+       0.000125,
+       95383739.75889896,
+       0.0002,
+       0.000001,
+       null,
+       null,
+       220861838.82944623,
+       1469734163000
+      ],
+      [
+       "fBTC",
+       2.1917808219178083e-8,
+       0.002,
+       2,
+       0.202,
+       1e-8,
+       2,
+       842.19826519,
+       0,
+       0,
+       2e-8,
+       101.13070526,
+       2e-8,
+       1e-8,
+       null,
+       null,
+       841.40737511,
+       1469734183000
+      ]
+     ],
+     "queryString": "symbols=tBTCUSD%2CtTESTBTC%3ATESTUSD%2CfUSD%2CfBTC",
+     "bodyParams": "",
+     "headers": null
+    },
+    {
+     "data": [
+      [
+       "tBTCUSD",
+       82109,
+       1.49200629,
+       82121,
+       1.90605581,
+       1108,
+       0.01367597,
+       82126,
+       505.79793186,
+       82641,
+       79821,
+       1358182043000
+      ],
+      [
+       "tETHUSD",
+       2446.5,
+       203.68845489,
+       2447.1,
+       857.92772146,
+       83.5,
+       0.03533195,
+       2446.8,
+       18254.03055323,
+       2466.9,
+       2325.1,
+       1457539475000
+      ],
+      [
+       "tTESTBTC:TESTUSD",
+       82058,
+       38.673737,
+       82140,
+       40.25679044,
+       1065,
+       0.01314263,
+       82099,
+       147.73203595,
+       82644,
+       79845,
+       1592991523941
+      ],
+      [
+       "tADAUSD",
+       0.22979,
+       410118.30445901,
+       0.23005,
+       259669.41139533,
+       0.00904,
+       0.04098286,
+       0.22962,
+       531164.35538114,
+       0.23222,
+       0.21776,
+       1596708663880
+      ],
+      [
+       "fUSD",
+       0.00030067123287671235,
+       0.0001712,
+       120,
+       16493558.82841548,
+       0.00013991,
+       3,
+       2354809.80956753,
+       -0.00000302,
+       -0.0211,
+       0.00013991,
+       103796586.6035899,
+       0.0002,
+       0.000001,
+       null,
+       null,
+       224642543.77073973,
+       1469734163000
+      ],
+      [
+       "fBTC",
+       2.1917808219178083e-8,
+       0.002,
+       2,
+       0.202,
+       2e-8,
+       7,
+       1038.15342128,
+       0,
+       0,
+       2e-8,
+       95.30736767,
+       2e-8,
+       1e-8,
+       null,
+       null,
+       841.95310443,
+       1469734183000
+      ],
+      [
+       "fTESTUSD",
+       0.00022194794520547946,
+       0,
+       0,
+       0,
+       0.00017729,
+       2,
+       809234.92222631,
+       -0.00004687,
+       -0.2091,
+       0.00017729,
+       146062.85321338,
+       0.00022492,
+       0.00006,
+       null,
+       null,
+       755798.66185366,
+       1593502084776
+      ],
+      [
+       "tBTCF0:USTF0",
+       81654,
+       7.86008264,
+       81671,
+       10.53353406,
+       147,
+       0.00180335,
+       81662,
+       137.03537844,
+       82345,
+       80694,
+       1562164542332
+      ],
+      [
+       "tETHF0:BTCF0",
+       0.029248,
+       563.98914949,
+       0.029262,
+       601.58160767,
+       -0.00016,
+       -0.00543774,
+       0.029264,
+       940.8099709,
+       0.029597,
+       0.028879,
+       1608633542930
+      ]
+     ],
+     "queryString": "symbols=ALL",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/v2/tickers/hist": {
+   "GET": [
+    {
+     "data": [
+      [
+       "tETHUSD",
+       2423.1,
+       null,
+       2423.5,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       1792022415000
+      ],
+      [
+       "tBTCUSD",
+       81700,
+       null,
+       81715,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       1792022415000
+      ],
+      [
+       "tETHUSD",
+       2420.1,
+       null,
+       2420.2,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       null,
+       1792026015000
+      ]
+     ],
+     "queryString": "end=1792108800000\u0026limit=3\u0026sort=1\u0026start=1792022400000\u0026symbols=tBTCUSD%2CtETHUSD",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/v2/trades/fUSD/hist": {
+   "GET": [
+    {
+     "data": [
+      [
+       434057819,
+       1792022451000,
+       773.566735,
+       0.00026938,
+       120
+      ],
+      [
+       434058034,
+       1792023032000,
+       -599.18397559,
+       0.00016127,
+       2
+      ],
+      [
+       434058030,
+       1792023032000,
+       -500,
+       0.00016127,
+       2
+      ]
+     ],
+     "queryString": "end=1792108800000\u0026limit=3\u0026sort=1\u0026start=1792022400000",
+     "bodyParams": "",
+     "headers": null
+    },
+    {
+     "data": [
+      [
+       434123073,
+       1792132273000,
+       -150,
+       0.00013466,
+       2
+      ],
+      [
+       434123072,
+       1792132270000,
+       5525,
+       0.000102,
+       5
+      ],
+      [
+       434123044,
+       1792132246000,
+       -747.70607952,
+       0.00013991,
+       2
+      ],
+      [
+       434123043,
+       1792132246000,
+       -6241.97894555,
+       0.00013991,
+       3
+      ],
+      [
+       434123054,
+       1792132246000,
+       -705.47,
+       0.00013998,
+       2
+      ]
+     ],
+     "queryString": "limit=10000",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/v2/trades/tBTCF0:USTF0/hist": {
+   "GET": [
+    {
+     "data": [
+      [
+       1995834854,
+       1792362913619,
+       0.01245553,
+       81662
+      ],
+      [
+       1995834843,
+       1792362903819,
+       0.00433383,
+       81641
+      ],
+      [
+       1995834831,
+       1792362875545,
+       0.00342078,
+       81605
+      ],
+      [
+       1995834826,
+       1792362862607,
+       0.00234439,
+       81598
+      ],
+      [
+       1995834813,
+       1792362827226,
+       0.00723283,
+       81603
+      ]
+     ],
+     "queryString": "limit=10000",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/v2/trades/tBTCUSD/hist": {
+   "GET": [
+    {
+     "data": [
+      [
+       1993816156,
+       1792022401421,
+       -0.00020198,
+       81678
+      ],
+      [
+       1993816158,
+       1792022402063,
+       0.00000329,
+       81688
+      ],
+      [
+       1993816159,
+       1792022402064,
+       0.00003671,
+       81688
+      ]
+     ],
+     "queryString": "end=1792108800000\u0026limit=3\u0026sort=1\u0026start=1792022400000",
+     "bodyParams": "",
+     "headers": null
+    },
+    {
+     "data": [
+      [
+       1994625183,
+       1792132291426,
+       0.00022,
+       82139
+      ],
+      [
+       1994625180,
+       1792132285969,
+       0.00022,
+       82143
+      ],
+      [
+       1994625181,
+       1792132285969,
+       0.0010927,
+       82144
+      ],
+      [
+       1994625179,
+       1792132285968,
+       0.0002691,
+       82139
+      ],
+      [
+       1994625174,
+       1792132281218,
+       0.00052275,
+       82136
+      ]
+     ],
+     "queryString": "limit=10000",
+     "bodyParams": "",
+     "headers": null
+    },
+    {
+     "data": [
+      [
+       1993838588,
+       1792025996071,
+       0.00017596,
+       81659
+      ],
+      [
+       1993838587,
+       1792025996070,
+       0.00022,
+       81659
+      ],
+      [
+       1993838586,
+       1792025996064,
+       0.00033101,
+       81658
+      ],
+      [
+       1993838585,
+       1792025994509,
+       0.00050719,
+       81658
+      ],
+      [
+       1993838584,
+       1792025994494,
+       0.00050721,
+       81656
+      ]
+     ],
+     "queryString": "end=1792026000000\u0026limit=10000\u0026sort=-1\u0026start=1792022400000",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/v2/trades/tNOPEUSD/hist": {
+   "GET": [
+    {
+     "data": [],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  }
+ }
+}

@@ -6,256 +6,182 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
+// Bitfinex limits each REST endpoint separately, per IP, in requests a minute, and blocks an IP that exceeds a limit
+// for 60 seconds; see https://docs.bitfinex.com/docs/requirements-and-limitations. Endpoints whose docs give no limit
+// use undocumentedRate, the lowest of the 10 to 90 a minute the docs give as the general policy
+const undocumentedRate = 10
+
+// Endpoint rate limits, in the order the docs list the endpoints
 const (
-	// Bitfinex rate limits - Public
-	requestLimitInterval = time.Minute
-
-	undocumentedFallback5ReqRate  = 5  // Fallback for undocumented legacy V1 endpoints that have historically used 5 req/min.
-	undocumentedFallback10ReqRate = 10 // Fallback for undocumented legacy V1 endpoints that have historically used 10 req/min.
-	undocumentedFallback15ReqRate = 15 // Fallback for undocumented legacy V1 endpoints that have historically used 15 req/min.
-	undocumentedFallback45ReqRate = 45 // Fallback for endpoints with no explicit per-endpoint value in current Bitfinex docs.
-
-	platformStatusReqRate     = 15
-	tickerBatchReqRate        = 30
-	tickerReqRate             = 30
-	tradeReqRate              = 30
-	orderbookReqRate          = 30
-	statsReqRate              = 90
-	candleReqRate             = 30
-	configsReqRate            = 15
-	statusReqRate             = undocumentedFallback15ReqRate
-	liquidReqRate             = undocumentedFallback15ReqRate
-	leaderBoardReqRate        = 90
-	marketAveragePriceReqRate = 20
-	fxReqRate                 = 90
-
-	// Bitfinex rate limits - Authenticated
-	// Wallets -
-	accountWalletBalanceReqRate = undocumentedFallback45ReqRate
-	accountWalletHistoryReqRate = undocumentedFallback45ReqRate
-	// Orders -
-	retrieveOrderReqRate  = undocumentedFallback45ReqRate
-	submitOrderReqRate    = undocumentedFallback45ReqRate
-	updateOrderReqRate    = undocumentedFallback45ReqRate
-	cancelOrderReqRate    = undocumentedFallback45ReqRate
-	orderBatchReqRate     = undocumentedFallback45ReqRate
-	cancelBatchReqRate    = undocumentedFallback45ReqRate
-	orderHistoryReqRate   = undocumentedFallback45ReqRate
-	getOrderTradesReqRate = undocumentedFallback45ReqRate
-	getTradesReqRate      = undocumentedFallback45ReqRate
-	getLedgersReqRate     = undocumentedFallback45ReqRate
-	// Positions -
-	getAccountMarginInfoReqRate       = undocumentedFallback45ReqRate
-	getActivePositionsReqRate         = undocumentedFallback45ReqRate
-	claimPositionReqRate              = undocumentedFallback45ReqRate
-	getPositionHistoryReqRate         = undocumentedFallback45ReqRate
-	getPositionAuditReqRate           = undocumentedFallback45ReqRate
-	updateCollateralOnPositionReqRate = undocumentedFallback45ReqRate
-	// Margin funding -
-	getMarginInfoRate               = 90
-	getActiveFundingOffersReqRate   = undocumentedFallback45ReqRate
-	submitFundingOfferReqRate       = undocumentedFallback45ReqRate
-	cancelFundingOfferReqRate       = undocumentedFallback45ReqRate
-	cancelAllFundingOfferReqRate    = undocumentedFallback45ReqRate
-	closeFundingReqRate             = undocumentedFallback45ReqRate
-	fundingAutoRenewReqRate         = undocumentedFallback45ReqRate
-	keepFundingReqRate              = undocumentedFallback45ReqRate
-	getOffersHistoryReqRate         = undocumentedFallback45ReqRate
-	getFundingLoansReqRate          = undocumentedFallback45ReqRate
-	getFundingLoanHistoryReqRate    = undocumentedFallback45ReqRate
-	getFundingCreditsReqRate        = undocumentedFallback45ReqRate
-	getFundingCreditsHistoryReqRate = undocumentedFallback45ReqRate
-	getFundingTradesReqRate         = undocumentedFallback45ReqRate
-	getFundingInfoReqRate           = undocumentedFallback45ReqRate
-	// Account actions
-	getUserInfoReqRate               = undocumentedFallback45ReqRate
-	transferBetweenWalletsReqRate    = undocumentedFallback45ReqRate
-	getDepositAddressReqRate         = undocumentedFallback45ReqRate
-	withdrawalReqRate                = undocumentedFallback45ReqRate
-	getMovementsReqRate              = undocumentedFallback45ReqRate
-	getAlertListReqRate              = undocumentedFallback45ReqRate
-	setPriceAlertReqRate             = 90
-	deletePriceAlertReqRate          = 90
-	getBalanceForOrdersOffersReqRate = 90
-	userSettingsWriteReqRate         = 90
-	userSettingsReadReqRate          = 90
-	userSettingsDeleteReqRate        = 90
-	// Account V1 endpoints
-	getAccountFeesReqRate    = 5
-	getWithdrawalFeesReqRate = 5
-	getAccountSummaryReqRate = undocumentedFallback5ReqRate
-	newDepositAddressReqRate = undocumentedFallback5ReqRate
-	getKeyPermissionsReqRate = undocumentedFallback5ReqRate
-	getMarginInfoReqRate     = undocumentedFallback5ReqRate
-	getAccountBalanceReqRate = 10
-	walletTransferReqRate    = undocumentedFallback10ReqRate
-	withdrawV1ReqRate        = undocumentedFallback10ReqRate
-	orderV1ReqRate           = undocumentedFallback10ReqRate
-	orderMultiReqRate        = undocumentedFallback10ReqRate
-	statsV1ReqRate           = 10
-	fundingBookReqRate       = 15
-	lendsReqRate             = 30
-
-	// Rate limit endpoint functionality declaration
-	platformStatus request.EndpointLimit = iota
-	tickerBatch
-	tickerFunction
-	tradeRateLimit
-	orderbookFunction
-	stats
-	candle
-	configs
-	status
-	liquid
-	leaderBoard
-	marketAveragePrice
-	fx
-
-	// Bitfinex rate limits - Authenticated
-	// Wallets -
-	accountWalletBalance
-	accountWalletHistory
-	// Orders -
-	retrieveOrder
-	submitOrder
-	updateOrder
-	cancelOrder
-	orderBatch
-	cancelBatch
-	orderHistory
-	getOrderTrades
-	getTrades
-	getLedgers
-	// Positions -
-	getAccountMarginInfo
-	getActivePositions
-	claimPosition
-	getPositionHistory
-	getPositionAudit
-	updateCollateralOnPosition
-	// Margin funding -
-	getActiveFundingOffers
-	submitFundingOffer
-	cancelFundingOffer
-	cancelAllFundingOffer
-	closeFunding
-	fundingAutoRenew
-	keepFunding
-	getOffersHistory
-	getFundingLoans
-	getFundingLoanHistory
-	getFundingCredits
-	getFundingCreditsHistory
-	getFundingTrades
-	getFundingInfo
-	// Account actions
-	getUserInfo
-	transferBetweenWallets
-	getDepositAddress
-	withdrawal
-	getMovements
-	getAlertList
-	setPriceAlert
-	deletePriceAlert
-	getBalanceForOrdersOffers
-	userSettingsWrite
-	userSettingsRead
-	userSettingsDelete
-	// Account V1 endpoints
-	getAccountFees
-	getWithdrawalFees
-	getAccountSummary
-	newDepositAddress
-	getKeyPermissions
-	getMarginInfo
-	getAccountBalance
-	walletTransfer
-	withdrawV1
-	orderV1
-	orderMulti
-	statsV1
-	fundingBook
-	lends
+	platformStatusEPL request.EndpointLimit = iota
+	tickerEPL
+	tickersEPL
+	tickersHistoryEPL
+	publicTradesEPL
+	bookEPL
+	statsEPL
+	candlesEPL
+	derivativesStatusEPL
+	derivativesStatusHistoryEPL
+	liquidationsEPL
+	leaderboardsEPL
+	fundingStatisticsEPL
+	configsEPL
+	virtualAssetServiceProvidersEPL
+	marketAveragePriceEPL
+	foreignExchangeRateEPL
+	walletsEPL
+	retrieveOrdersEPL
+	retrieveOrdersBySymbolEPL
+	submitOrderEPL
+	updateOrderEPL
+	cancelOrderEPL
+	cancelOrdersEPL
+	orderMultiOpEPL
+	ordersHistoryEPL
+	ordersHistoryBySymbolEPL
+	orderTradesEPL
+	tradesEPL
+	tradesBySymbolEPL
+	otcOrdersHistoryEPL
+	ledgersEPL
+	marginInfoEPL
+	positionsEPL
+	claimPositionEPL
+	increasePositionEPL
+	increasePositionInfoEPL
+	positionsHistoryEPL
+	positionsSnapshotEPL
+	positionsAuditEPL
+	updatePositionFundingTypeEPL
+	derivativePositionCollateralEPL
+	derivativePositionCollateralLimitsEPL
+	fundingOffersEPL
+	submitFundingOfferEPL
+	cancelFundingOfferEPL
+	cancelAllFundingOffersEPL
+	fundingCloseEPL
+	fundingAutoRenewEPL
+	keepFundingEPL
+	fundingOffersHistoryEPL
+	fundingLoansEPL
+	fundingLoansHistoryEPL
+	fundingCreditsEPL
+	fundingCreditsHistoryEPL
+	fundingTradesEPL
+	fundingInfoEPL
+	userInfoEPL
+	summaryEPL
+	loginHistoryEPL
+	keyPermissionsEPL
+	generateTokenEPL
+	changelogEPL
+	transferEPL
+	depositAddressEPL
+	depositAddressListEPL
+	generateInvoiceEPL
+	lnxInvoicePaymentsEPL
+	withdrawalEPL
+	movementsEPL
+	movementInfoEPL
+	alertListEPL
+	alertSetEPL
+	alertDeleteEPL
+	balanceAvailableEPL
+	userSettingsWriteEPL
+	userSettingsReadEPL
+	userSettingsDeleteEPL
+	thalexDepositEPL
+	thalexWithdrawalEPL
+	thalexFreeTransferCountEPL
+	// fiatWithdrawalEPL is the v1 withdrawal, which wire withdrawals still use
+	fiatWithdrawalEPL
 )
 
-// GetRateLimit returns the rate limit for the exchange
+// GetRateLimit returns the rate limit of every REST endpoint
 func GetRateLimit() request.RateLimitDefinitions {
 	return request.RateLimitDefinitions{
-		platformStatus:       request.NewRateLimitWithWeight(requestLimitInterval, platformStatusReqRate, 1),
-		tickerBatch:          request.NewRateLimitWithWeight(requestLimitInterval, tickerBatchReqRate, 1),
-		tickerFunction:       request.NewRateLimitWithWeight(requestLimitInterval, tickerReqRate, 1),
-		tradeRateLimit:       request.NewRateLimitWithWeight(requestLimitInterval, tradeReqRate, 1),
-		orderbookFunction:    request.NewRateLimitWithWeight(requestLimitInterval, orderbookReqRate, 1),
-		stats:                request.NewRateLimitWithWeight(requestLimitInterval, statsReqRate, 1),
-		candle:               request.NewRateLimitWithWeight(requestLimitInterval, candleReqRate, 1),
-		configs:              request.NewRateLimitWithWeight(requestLimitInterval, configsReqRate, 1),
-		status:               request.NewRateLimitWithWeight(requestLimitInterval, statusReqRate, 1),
-		liquid:               request.NewRateLimitWithWeight(requestLimitInterval, liquidReqRate, 1),
-		leaderBoard:          request.NewRateLimitWithWeight(requestLimitInterval, leaderBoardReqRate, 1),
-		marketAveragePrice:   request.NewRateLimitWithWeight(requestLimitInterval, marketAveragePriceReqRate, 1),
-		fx:                   request.NewRateLimitWithWeight(requestLimitInterval, fxReqRate, 1),
-		accountWalletBalance: request.NewRateLimitWithWeight(requestLimitInterval, accountWalletBalanceReqRate, 1),
-		accountWalletHistory: request.NewRateLimitWithWeight(requestLimitInterval, accountWalletHistoryReqRate, 1),
-		// Orders -
-		retrieveOrder:  request.NewRateLimitWithWeight(requestLimitInterval, retrieveOrderReqRate, 1),
-		submitOrder:    request.NewRateLimitWithWeight(requestLimitInterval, submitOrderReqRate, 1),
-		updateOrder:    request.NewRateLimitWithWeight(requestLimitInterval, updateOrderReqRate, 1),
-		cancelOrder:    request.NewRateLimitWithWeight(requestLimitInterval, cancelOrderReqRate, 1),
-		orderBatch:     request.NewRateLimitWithWeight(requestLimitInterval, orderBatchReqRate, 1),
-		cancelBatch:    request.NewRateLimitWithWeight(requestLimitInterval, cancelBatchReqRate, 1),
-		orderHistory:   request.NewRateLimitWithWeight(requestLimitInterval, orderHistoryReqRate, 1),
-		getOrderTrades: request.NewRateLimitWithWeight(requestLimitInterval, getOrderTradesReqRate, 1),
-		getTrades:      request.NewRateLimitWithWeight(requestLimitInterval, getTradesReqRate, 1),
-		getLedgers:     request.NewRateLimitWithWeight(requestLimitInterval, getLedgersReqRate, 1),
-		// Positions -
-		getAccountMarginInfo:       request.NewRateLimitWithWeight(requestLimitInterval, getAccountMarginInfoReqRate, 1),
-		getActivePositions:         request.NewRateLimitWithWeight(requestLimitInterval, getActivePositionsReqRate, 1),
-		claimPosition:              request.NewRateLimitWithWeight(requestLimitInterval, claimPositionReqRate, 1),
-		getPositionHistory:         request.NewRateLimitWithWeight(requestLimitInterval, getPositionHistoryReqRate, 1),
-		getPositionAudit:           request.NewRateLimitWithWeight(requestLimitInterval, getPositionAuditReqRate, 1),
-		updateCollateralOnPosition: request.NewRateLimitWithWeight(requestLimitInterval, updateCollateralOnPositionReqRate, 1),
-		// Margin funding -
-		getActiveFundingOffers:   request.NewRateLimitWithWeight(requestLimitInterval, getActiveFundingOffersReqRate, 1),
-		submitFundingOffer:       request.NewRateLimitWithWeight(requestLimitInterval, submitFundingOfferReqRate, 1),
-		cancelFundingOffer:       request.NewRateLimitWithWeight(requestLimitInterval, cancelFundingOfferReqRate, 1),
-		cancelAllFundingOffer:    request.NewRateLimitWithWeight(requestLimitInterval, cancelAllFundingOfferReqRate, 1),
-		closeFunding:             request.NewRateLimitWithWeight(requestLimitInterval, closeFundingReqRate, 1),
-		fundingAutoRenew:         request.NewRateLimitWithWeight(requestLimitInterval, fundingAutoRenewReqRate, 1),
-		keepFunding:              request.NewRateLimitWithWeight(requestLimitInterval, keepFundingReqRate, 1),
-		getOffersHistory:         request.NewRateLimitWithWeight(requestLimitInterval, getOffersHistoryReqRate, 1),
-		getFundingLoans:          request.NewRateLimitWithWeight(requestLimitInterval, getFundingLoansReqRate, 1),
-		getFundingLoanHistory:    request.NewRateLimitWithWeight(requestLimitInterval, getFundingLoanHistoryReqRate, 1),
-		getFundingCredits:        request.NewRateLimitWithWeight(requestLimitInterval, getFundingCreditsReqRate, 1),
-		getFundingCreditsHistory: request.NewRateLimitWithWeight(requestLimitInterval, getFundingCreditsHistoryReqRate, 1),
-		getFundingTrades:         request.NewRateLimitWithWeight(requestLimitInterval, getFundingTradesReqRate, 1),
-		getFundingInfo:           request.NewRateLimitWithWeight(requestLimitInterval, getFundingInfoReqRate, 1),
-		// Account actions
-		getUserInfo:               request.NewRateLimitWithWeight(requestLimitInterval, getUserInfoReqRate, 1),
-		transferBetweenWallets:    request.NewRateLimitWithWeight(requestLimitInterval, transferBetweenWalletsReqRate, 1),
-		getDepositAddress:         request.NewRateLimitWithWeight(requestLimitInterval, getDepositAddressReqRate, 1),
-		withdrawal:                request.NewRateLimitWithWeight(requestLimitInterval, withdrawalReqRate, 1),
-		getMovements:              request.NewRateLimitWithWeight(requestLimitInterval, getMovementsReqRate, 1),
-		getAlertList:              request.NewRateLimitWithWeight(requestLimitInterval, getAlertListReqRate, 1),
-		setPriceAlert:             request.NewRateLimitWithWeight(requestLimitInterval, setPriceAlertReqRate, 1),
-		deletePriceAlert:          request.NewRateLimitWithWeight(requestLimitInterval, deletePriceAlertReqRate, 1),
-		getBalanceForOrdersOffers: request.NewRateLimitWithWeight(requestLimitInterval, getBalanceForOrdersOffersReqRate, 1),
-		userSettingsWrite:         request.NewRateLimitWithWeight(requestLimitInterval, userSettingsWriteReqRate, 1),
-		userSettingsRead:          request.NewRateLimitWithWeight(requestLimitInterval, userSettingsReadReqRate, 1),
-		userSettingsDelete:        request.NewRateLimitWithWeight(requestLimitInterval, userSettingsDeleteReqRate, 1),
-		// Account V1 endpoints
-		getAccountFees:    request.NewRateLimitWithWeight(requestLimitInterval, getAccountFeesReqRate, 1),
-		getWithdrawalFees: request.NewRateLimitWithWeight(requestLimitInterval, getWithdrawalFeesReqRate, 1),
-		getAccountSummary: request.NewRateLimitWithWeight(requestLimitInterval, getAccountSummaryReqRate, 1),
-		newDepositAddress: request.NewRateLimitWithWeight(requestLimitInterval, newDepositAddressReqRate, 1),
-		getKeyPermissions: request.NewRateLimitWithWeight(requestLimitInterval, getKeyPermissionsReqRate, 1),
-		getMarginInfo:     request.NewRateLimitWithWeight(requestLimitInterval, getMarginInfoReqRate, 1),
-		getAccountBalance: request.NewRateLimitWithWeight(requestLimitInterval, getAccountBalanceReqRate, 1),
-		walletTransfer:    request.NewRateLimitWithWeight(requestLimitInterval, walletTransferReqRate, 1),
-		withdrawV1:        request.NewRateLimitWithWeight(requestLimitInterval, withdrawV1ReqRate, 1),
-		orderV1:           request.NewRateLimitWithWeight(requestLimitInterval, orderV1ReqRate, 1),
-		orderMulti:        request.NewRateLimitWithWeight(requestLimitInterval, orderMultiReqRate, 1),
-		statsV1:           request.NewRateLimitWithWeight(requestLimitInterval, statsV1ReqRate, 1),
-		fundingBook:       request.NewRateLimitWithWeight(requestLimitInterval, fundingBookReqRate, 1),
-		lends:             request.NewRateLimitWithWeight(requestLimitInterval, lendsReqRate, 1),
+		platformStatusEPL:                     request.NewRateLimitWithWeight(time.Minute, 30, 1),
+		tickerEPL:                             request.NewRateLimitWithWeight(time.Minute, 90, 1),
+		tickersEPL:                            request.NewRateLimitWithWeight(time.Minute, 30, 1),
+		tickersHistoryEPL:                     request.NewRateLimitWithWeight(time.Minute, undocumentedRate, 1),
+		publicTradesEPL:                       request.NewRateLimitWithWeight(time.Minute, 15, 1),
+		bookEPL:                               request.NewRateLimitWithWeight(time.Minute, 240, 1),
+		statsEPL:                              request.NewRateLimitWithWeight(time.Minute, 15, 1),
+		candlesEPL:                            request.NewRateLimitWithWeight(time.Minute, 30, 1),
+		derivativesStatusEPL:                  request.NewRateLimitWithWeight(time.Minute, 90, 1),
+		derivativesStatusHistoryEPL:           request.NewRateLimitWithWeight(time.Minute, 90, 1),
+		liquidationsEPL:                       request.NewRateLimitWithWeight(time.Minute, 3, 1),
+		leaderboardsEPL:                       request.NewRateLimitWithWeight(time.Minute, 90, 1),
+		fundingStatisticsEPL:                  request.NewRateLimitWithWeight(time.Minute, undocumentedRate, 1),
+		configsEPL:                            request.NewRateLimitWithWeight(time.Minute, 90, 1),
+		virtualAssetServiceProvidersEPL:       request.NewRateLimitWithWeight(time.Minute, undocumentedRate, 1),
+		marketAveragePriceEPL:                 request.NewRateLimitWithWeight(time.Minute, 90, 1),
+		foreignExchangeRateEPL:                request.NewRateLimitWithWeight(time.Minute, 90, 1),
+		walletsEPL:                            request.NewRateLimitWithWeight(time.Minute, 90, 1),
+		retrieveOrdersEPL:                     request.NewRateLimitWithWeight(time.Minute, 90, 1),
+		retrieveOrdersBySymbolEPL:             request.NewRateLimitWithWeight(time.Minute, 90, 1),
+		submitOrderEPL:                        request.NewRateLimitWithWeight(time.Minute, 90, 1),
+		updateOrderEPL:                        request.NewRateLimitWithWeight(time.Minute, 90, 1),
+		cancelOrderEPL:                        request.NewRateLimitWithWeight(time.Minute, 90, 1),
+		cancelOrdersEPL:                       request.NewRateLimitWithWeight(time.Minute, 90, 1),
+		orderMultiOpEPL:                       request.NewRateLimitWithWeight(time.Minute, 90, 1),
+		ordersHistoryEPL:                      request.NewRateLimitWithWeight(time.Minute, 90, 1),
+		ordersHistoryBySymbolEPL:              request.NewRateLimitWithWeight(time.Minute, 90, 1),
+		orderTradesEPL:                        request.NewRateLimitWithWeight(time.Minute, 90, 1),
+		tradesEPL:                             request.NewRateLimitWithWeight(time.Minute, 90, 1),
+		tradesBySymbolEPL:                     request.NewRateLimitWithWeight(time.Minute, 90, 1),
+		otcOrdersHistoryEPL:                   request.NewRateLimitWithWeight(time.Minute, 90, 1),
+		ledgersEPL:                            request.NewRateLimitWithWeight(time.Minute, 90, 1),
+		marginInfoEPL:                         request.NewRateLimitWithWeight(time.Minute, 90, 1),
+		positionsEPL:                          request.NewRateLimitWithWeight(time.Minute, 90, 1),
+		claimPositionEPL:                      request.NewRateLimitWithWeight(time.Minute, 90, 1),
+		increasePositionEPL:                   request.NewRateLimitWithWeight(time.Minute, 90, 1),
+		increasePositionInfoEPL:               request.NewRateLimitWithWeight(time.Minute, 90, 1),
+		positionsHistoryEPL:                   request.NewRateLimitWithWeight(time.Minute, 90, 1),
+		positionsSnapshotEPL:                  request.NewRateLimitWithWeight(time.Minute, 90, 1),
+		positionsAuditEPL:                     request.NewRateLimitWithWeight(time.Minute, 90, 1),
+		updatePositionFundingTypeEPL:          request.NewRateLimitWithWeight(time.Minute, undocumentedRate, 1),
+		derivativePositionCollateralEPL:       request.NewRateLimitWithWeight(time.Minute, 90, 1),
+		derivativePositionCollateralLimitsEPL: request.NewRateLimitWithWeight(time.Minute, 90, 1),
+		fundingOffersEPL:                      request.NewRateLimitWithWeight(time.Minute, 90, 1),
+		submitFundingOfferEPL:                 request.NewRateLimitWithWeight(time.Minute, 90, 1),
+		cancelFundingOfferEPL:                 request.NewRateLimitWithWeight(time.Minute, 90, 1),
+		cancelAllFundingOffersEPL:             request.NewRateLimitWithWeight(time.Minute, 90, 1),
+		fundingCloseEPL:                       request.NewRateLimitWithWeight(time.Minute, 90, 1),
+		fundingAutoRenewEPL:                   request.NewRateLimitWithWeight(time.Minute, 90, 1),
+		keepFundingEPL:                        request.NewRateLimitWithWeight(time.Minute, 90, 1),
+		fundingOffersHistoryEPL:               request.NewRateLimitWithWeight(time.Minute, 90, 1),
+		fundingLoansEPL:                       request.NewRateLimitWithWeight(time.Minute, 90, 1),
+		fundingLoansHistoryEPL:                request.NewRateLimitWithWeight(time.Minute, 90, 1),
+		fundingCreditsEPL:                     request.NewRateLimitWithWeight(time.Minute, 90, 1),
+		fundingCreditsHistoryEPL:              request.NewRateLimitWithWeight(time.Minute, 90, 1),
+		fundingTradesEPL:                      request.NewRateLimitWithWeight(time.Minute, 90, 1),
+		fundingInfoEPL:                        request.NewRateLimitWithWeight(time.Minute, 90, 1),
+		userInfoEPL:                           request.NewRateLimitWithWeight(time.Minute, 90, 1),
+		summaryEPL:                            request.NewRateLimitWithWeight(time.Minute, 90, 1),
+		loginHistoryEPL:                       request.NewRateLimitWithWeight(time.Minute, 90, 1),
+		keyPermissionsEPL:                     request.NewRateLimitWithWeight(time.Minute, 90, 1),
+		generateTokenEPL:                      request.NewRateLimitWithWeight(time.Minute, undocumentedRate, 1),
+		changelogEPL:                          request.NewRateLimitWithWeight(time.Minute, 90, 1),
+		transferEPL:                           request.NewRateLimitWithWeight(time.Minute, undocumentedRate, 1),
+		depositAddressEPL:                     request.NewRateLimitWithWeight(time.Minute, 10, 1),
+		depositAddressListEPL:                 request.NewRateLimitWithWeight(time.Minute, 10, 1),
+		generateInvoiceEPL:                    request.NewRateLimitWithWeight(time.Minute, undocumentedRate, 1),
+		lnxInvoicePaymentsEPL:                 request.NewRateLimitWithWeight(time.Minute, undocumentedRate, 1),
+		withdrawalEPL:                         request.NewRateLimitWithWeight(time.Minute, undocumentedRate, 1),
+		movementsEPL:                          request.NewRateLimitWithWeight(time.Minute, 90, 1),
+		movementInfoEPL:                       request.NewRateLimitWithWeight(time.Minute, 90, 1),
+		alertListEPL:                          request.NewRateLimitWithWeight(time.Minute, 45, 1),
+		alertSetEPL:                           request.NewRateLimitWithWeight(time.Minute, 90, 1),
+		alertDeleteEPL:                        request.NewRateLimitWithWeight(time.Minute, 90, 1),
+		balanceAvailableEPL:                   request.NewRateLimitWithWeight(time.Minute, 90, 1),
+		userSettingsWriteEPL:                  request.NewRateLimitWithWeight(time.Minute, 90, 1),
+		userSettingsReadEPL:                   request.NewRateLimitWithWeight(time.Minute, 90, 1),
+		userSettingsDeleteEPL:                 request.NewRateLimitWithWeight(time.Minute, 90, 1),
+		thalexDepositEPL:                      request.NewRateLimitWithWeight(time.Minute, undocumentedRate, 1),
+		thalexWithdrawalEPL:                   request.NewRateLimitWithWeight(time.Minute, undocumentedRate, 1),
+		thalexFreeTransferCountEPL:            request.NewRateLimitWithWeight(time.Minute, undocumentedRate, 1),
+		fiatWithdrawalEPL:                     request.NewRateLimitWithWeight(time.Minute, undocumentedRate, 1),
 	}
 }

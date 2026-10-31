@@ -179,7 +179,15 @@ func (r *Request) ProcessResponse(timeSeries []Candle) (*Item, error) {
 		copy(r.ProcessedCandles, holder.Candles)
 	}
 	if r.ClientRequired != r.ExchangeInterval {
-		holder, err = holder.ConvertToNewInterval(r.ClientRequired)
+		if holder, err = holder.ConvertToNewInterval(r.ClientRequired); err != nil {
+			return nil, err
+		}
+	}
+
+	// Purging an empty partial candle can leave nothing behind when every
+	// returned candle fell outside the request range
+	if len(holder.Candles) == 0 {
+		return nil, ErrNoTimeSeriesDataToConvert
 	}
 
 	if r.PartialCandle {
@@ -191,7 +199,7 @@ func (r *Request) ProcessResponse(timeSeries []Candle) (*Item, error) {
 		}
 	}
 
-	return holder, err
+	return holder, nil
 }
 
 // Size returns the max length of return for pre-allocation.

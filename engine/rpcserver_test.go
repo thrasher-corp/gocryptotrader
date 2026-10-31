@@ -436,6 +436,22 @@ func (f fExchange) CanDeposit(_ currency.Code, _ asset.Item) error {
 	return nil
 }
 
+// CancelBatchOrders overrides interface function, accepting the first order's cancellation pending, refusing the
+// second's and reporting no other; it fails for a first order named fail and reports nothing for one named none
+func (f fExchange) CancelBatchOrders(_ context.Context, cancels []order.Cancel) (*order.CancelBatchResponse, error) {
+	switch cancels[0].OrderID {
+	case "fail":
+		return nil, errExpectedTestError
+	case "none":
+		return nil, nil
+	}
+	resp := &order.CancelBatchResponse{Status: map[string]string{cancels[0].OrderID: order.PendingCancel.String()}}
+	if len(cancels) > 1 {
+		resp.Status[cancels[1].OrderID] = "refused"
+	}
+	return resp, nil
+}
+
 // RPCTestSetup sets up everything required to run any function inside rpcserver
 // Only use if you require a database, this makes tests slow
 func RPCTestSetup(t *testing.T) *Engine {
@@ -4036,4 +4052,56 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	resp, err := s.GetCurrencyTradeURL(t.Context(), req)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp.Url)
+}
+
+func TestCancelBatchOrders(t *testing.T) {
+	t.Parallel()
+	em := NewExchangeManager()
+	exch, err := em.NewExchangeByName("binance")
+	require.NoError(t, err, "NewExchangeByName must not error")
+	exch.SetDefaults()
+	b := exch.GetBase()
+	b.Name = fakeExchangeName
+	b.Enabled = true
+	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	err = b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
+		AssetEnabled:  true,
+		Enabled:       []currency.Pair{currency.NewBTCUSDT()},
+		Available:     []currency.Pair{currency.NewBTCUSDT()},
+		RequestFormat: &currency.PairFormat{Uppercase: true},
+		ConfigFormat:  &currency.PairFormat{Uppercase: true},
+	})
+	require.NoError(t, err, "Store must not error")
+	require.NoError(t, em.Add(fExchange{IBotExchange: exch}), "Add must not error")
+
+	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
+	newRequest := func(ids string) *gctrpc.CancelBatchOrdersRequest {
+		return &gctrpc.CancelBatchOrdersRequest{Exchange: fakeExchangeName, OrdersId: ids, AssetType: "spot", Side: "BUY", Pair: &gctrpc.CurrencyPair{Base: "BTC", Quote: "USDT"}}
+	}
+	for ids, exp := range map[string]map[string]string{
+		"1,2,3":  {"1": order.PendingCancel.String(), "2": "refused", "3": order.UnknownStatus.String()},
+		"none,2": {"none": order.UnknownStatus.String(), "2": order.UnknownStatus.String()},
+	} {
+		resp, err := s.CancelBatchOrders(t.Context(), newRequest(ids))
+		require.NoErrorf(t, err, "CancelBatchOrders must not error for orders %s", ids)
+		require.Lenf(t, resp.Orders, 1, "CancelBatchOrders must report the exchange's orders for orders %s", ids)
+		assert.Equalf(t, exp, resp.Orders[0].OrderStatus, "CancelBatchOrders should report each of orders %s as the exchange did, and unknown when it reported none", ids)
+	}
+	_, err = s.CancelBatchOrders(t.Context(), newRequest("fail"))
+	assert.ErrorIs(t, err, errExpectedTestError, "CancelBatchOrders should return the exchange's error")
+	for _, tc := range []struct {
+		name   string
+		modify func(*gctrpc.CancelBatchOrdersRequest)
+		err    error
+	}{
+		{name: "an unknown asset", modify: func(r *gctrpc.CancelBatchOrdersRequest) { r.AssetType = "novel" }, err: asset.ErrNotSupported},
+		{name: "an unknown exchange", modify: func(r *gctrpc.CancelBatchOrdersRequest) { r.Exchange = "novel" }, err: ErrExchangeNotFound},
+		{name: "a pair the exchange does not list", modify: func(r *gctrpc.CancelBatchOrdersRequest) { r.Pair.Base = "ETH" }, err: errCurrencyPairInvalid},
+		{name: "an unknown side", modify: func(r *gctrpc.CancelBatchOrdersRequest) { r.Side = "novel" }, err: order.ErrSideIsInvalid},
+	} {
+		r := newRequest("1")
+		tc.modify(r)
+		_, err := s.CancelBatchOrders(t.Context(), r)
+		assert.ErrorIsf(t, err, tc.err, "CancelBatchOrders should refuse %s", tc.name)
+	}
 }
