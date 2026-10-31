@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -32,6 +33,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
@@ -934,19 +936,21 @@ func TestModifyOrder(t *testing.T) {
 			testOrderRecord{id: 7, symbol: "tBTCUSD", orderType: "LIMIT", status: "PARTIALLY FILLED @ 100.0(0.4)", amount: 0.6, original: 1, price: 100},
 			testOrderRecord{id: 14, symbol: "tBTCUSD", orderType: "LIMIT", status: "PARTIALLY FILLED @ 100.0(-0.4)", amount: -0.6, original: -1, price: 100},
 			testOrderRecord{id: 20, symbol: "tBTCUSD", orderType: "LIMIT", status: "ACTIVE", amount: 10000000.12345678, original: 10000000.12345678, price: 100},
+			testOrderRecord{id: 22, symbol: "tBTCUSD", orderType: "LIMIT", status: "PARTIALLY FILLED @ 100.0(0.2), PARTIALLY FILLED @ 100.0(0.3)", amount: 0.3, original: 1, price: 100},
 		)
 		// The order manager fills a modification's amount from the stored order, its whole amount
 		resp, err := ex.ModifyOrder(t.Context(), &order.Modify{OrderID: "7", AssetType: asset.Margin, Pair: currency.NewBTCUSD(), Side: order.Buy, Amount: 1, Price: 101})
 		require.NoError(t, err, "ModifyOrder must not error for a price change")
 		require.Len(t, updates(), 1, "ModifyOrder must send the price change")
 		assert.Equal(t, map[string]any{"id": 7.0, "price": "101"}, updates()[0], "ModifyOrder should send no amount for a partly filled order whose whole amount is unchanged, leaving what remains to Bitfinex")
-		assert.Equal(t, 0.6, resp.RemainingAmount, "ModifyOrder should report what remains of the order")
+		assert.Zero(t, resp.RemainingAmount, "ModifyOrder should report no remainder for a price change, as the one it looked up can be older than a fill the order store holds")
 		assert.Equal(t, 1.0, resp.Amount, "ModifyOrder should report the order's whole amount")
 
-		_, err = ex.ModifyOrder(t.Context(), &order.Modify{OrderID: "7", AssetType: asset.Margin, Pair: currency.NewBTCUSD(), Side: order.Buy, Amount: 0.5})
+		resp, err = ex.ModifyOrder(t.Context(), &order.Modify{OrderID: "7", AssetType: asset.Margin, Pair: currency.NewBTCUSD(), Side: order.Buy, Amount: 0.5})
 		require.NoError(t, err, "ModifyOrder must not error for an amount change")
 		require.Len(t, updates(), 2, "ModifyOrder must send the amount change")
 		assert.Equal(t, map[string]any{"id": 7.0, "amount": "0.1"}, updates()[1], "ModifyOrder should send what remains of the new amount, worked out without rounding error")
+		assert.Equal(t, 0.1, resp.RemainingAmount, "ModifyOrder should report what remains of the amount it sends")
 
 		_, err = ex.ModifyOrder(t.Context(), &order.Modify{OrderID: "7", AssetType: asset.Margin, Pair: currency.NewBTCUSD(), Side: order.Buy, Amount: 0.4})
 		assert.ErrorIs(t, err, errInvalidAmount, "ModifyOrder should refuse an amount no more than the order has executed")
@@ -966,6 +970,26 @@ func TestModifyOrder(t *testing.T) {
 		require.NoError(t, err, "ModifyOrder must not error for a change of a large amount by its smallest step")
 		require.Len(t, updates(), 5, "ModifyOrder must send a change of a large amount by its smallest step")
 		assert.Equal(t, map[string]any{"id": 20.0, "amount": "10000000.12345679"}, updates()[4], "ModifyOrder should send a large amount changed by its smallest step")
+
+		resp, err = ex.ModifyOrder(t.Context(), &order.Modify{OrderID: "14", AssetType: asset.Margin, Pair: currency.NewBTCUSD(), Side: order.Sell, Amount: 0.5})
+		require.NoError(t, err, "ModifyOrder must not error for a sell's amount change")
+		require.Len(t, updates(), 6, "ModifyOrder must send the sell's amount change")
+		assert.Equal(t, map[string]any{"id": 14.0, "amount": "-0.1"}, updates()[5], "ModifyOrder should send what remains of a sell as negative")
+		assert.Equal(t, 0.1, resp.RemainingAmount, "ModifyOrder should report what remains of a sell as positive")
+
+		// A new whole amount can equal what remains of the old one
+		resp, err = ex.ModifyOrder(t.Context(), &order.Modify{OrderID: "7", AssetType: asset.Margin, Pair: currency.NewBTCUSD(), Side: order.Buy, Amount: 0.6})
+		require.NoError(t, err, "ModifyOrder must not error for a new amount equal to what remains")
+		require.Len(t, updates(), 7, "ModifyOrder must send a new amount equal to what remains")
+		assert.Equal(t, map[string]any{"id": 7.0, "amount": "0.2"}, updates()[6], "ModifyOrder should send what remains of a new amount equal to what remains")
+		assert.Equal(t, 0.2, resp.RemainingAmount, "ModifyOrder should report what remains of a new amount equal to what remains")
+
+		// Bitfinex keeps an order's original amount from before any update, so its original amount less what remains, 0.7, is more than it executed
+		resp, err = ex.ModifyOrder(t.Context(), &order.Modify{OrderID: "22", AssetType: asset.Margin, Pair: currency.NewBTCUSD(), Side: order.Buy, Amount: 1.2})
+		require.NoError(t, err, "ModifyOrder must not error for an amount change of an order updated before")
+		require.Len(t, updates(), 8, "ModifyOrder must send an amount change of an order updated before")
+		assert.Equal(t, map[string]any{"id": 22.0, "amount": "0.7"}, updates()[7], "ModifyOrder should send the new amount less the fills the order's status lists")
+		assert.Equal(t, 0.7, resp.RemainingAmount, "ModifyOrder should report the new amount less the fills the order's status lists")
 	})
 
 	t.Run("an order whose status was cut short", func(t *testing.T) {
@@ -1014,14 +1038,16 @@ func TestModifyOrder(t *testing.T) {
 			amount     float64
 			exp        map[string]any
 			tradeReads int
+			remaining  float64
 		}{
 			{name: "the whole amount the order is reported with, as the order manager sends", amount: 1, exp: map[string]any{"id": 18.0, "price": "101"}},
 			{name: "the whole amount the order is reported with, carried as a float", amount: math.Nextafter(1, 2), exp: map[string]any{"id": 18.0, "price": "101"}},
 			{name: "the whole amount the order has, by its trades", amount: 0.8, exp: map[string]any{"id": 18.0, "price": "101"}, tradeReads: 1},
-			{name: "a new whole amount, less what its trades executed", amount: 1.2, exp: map[string]any{"id": 18.0, "amount": "0.7", "price": "101"}, tradeReads: 2},
+			{name: "a new whole amount, less what its trades executed", amount: 1.2, exp: map[string]any{"id": 18.0, "amount": "0.7", "price": "101"}, tradeReads: 2, remaining: 0.7},
 		} {
-			_, err := ex.ModifyOrder(t.Context(), &order.Modify{OrderID: "18", AssetType: asset.Margin, Pair: currency.NewBTCUSD(), Side: order.Buy, Amount: tc.amount, Price: 101})
+			resp, err := ex.ModifyOrder(t.Context(), &order.Modify{OrderID: "18", AssetType: asset.Margin, Pair: currency.NewBTCUSD(), Side: order.Buy, Amount: tc.amount, Price: 101})
 			require.NoErrorf(t, err, "ModifyOrder must not error for %s", tc.name)
+			assert.Equalf(t, tc.remaining, resp.RemainingAmount, "ModifyOrder should report what remains only of an amount it sends, for %s", tc.name)
 			mu.Lock()
 			assert.Equalf(t, tc.exp, sent[len(sent)-1], "ModifyOrder should send what remains of %s, unsent when unchanged", tc.name)
 			assert.Equalf(t, tc.tradeReads, tradeReads, "ModifyOrder should read the order's trades only for an amount it changes, for %s", tc.name)
@@ -1111,15 +1137,68 @@ func TestModifyOrder(t *testing.T) {
 	require.NoError(t, err, "ModifyOrder must not error for a derivative order")
 	assert.Equal(t, testDerivativeOrderID, resp.OrderID, "ModifyOrder should return the derivative order modified")
 
-	wsEx, venue := newWebsocketTestExchange(t, subscription.List{})
+	wsEx, updates := newOrderUpdateTestExchange(t,
+		testOrderRecord{id: 1747566428, symbol: "tBTCUSD", orderType: "EXCHANGE LIMIT", status: "ACTIVE", amount: 0.4, original: 0.4, price: 24000},
+		testOrderRecord{id: 1747566429, symbol: "tBTCUSD", orderType: "EXCHANGE LIMIT", status: "ACTIVE", amount: -0.4, original: -0.4, price: 26000},
+	)
+	venue := connectWebsocketTestExchange(t, wsEx, subscription.List{})
 	require.True(t, wsEx.Websocket.CanUseAuthenticatedWebsocketForWrapper(), "the wrapper must be able to use the authenticated websocket")
-	_, err = wsEx.ModifyOrder(t.Context(), &order.Modify{OrderID: testWrapperOrderID, AssetType: asset.Spot, Pair: currency.NewBTCUSD(), Side: order.Buy, Amount: 0.25, Price: 25000})
-	require.NoError(t, err, "ModifyOrder must not error through the websocket")
-	inputs := venue.inputs(wsOrderUpdate)
-	require.Len(t, inputs, 1, "ModifyOrder must send one update through the websocket")
-	assert.JSONEq(t, `{"id":1747566428,"amount":"0.25","price":"25000"}`, string(inputs[0]), "ModifyOrder should send the update through the websocket")
+	for i, tc := range []struct {
+		id   string
+		side order.Side
+		exp  map[string]any
+	}{
+		{id: "1747566428", side: order.Buy, exp: map[string]any{"id": 1747566428.0, "amount": "0.25", "price": "25000"}},
+		{id: "1747566429", side: order.Sell, exp: map[string]any{"id": 1747566429.0, "amount": "-0.25", "price": "25000"}},
+	} {
+		resp, err = wsEx.ModifyOrder(t.Context(), &order.Modify{OrderID: tc.id, AssetType: asset.Spot, Pair: currency.NewBTCUSD(), Side: tc.side, Amount: 0.25, Price: 25000})
+		require.NoErrorf(t, err, "ModifyOrder must not error for a %s with the websocket connected", tc.side)
+		require.Lenf(t, updates(), i+1, "ModifyOrder must send the update of a %s over REST with the websocket connected", tc.side)
+		assert.Equalf(t, tc.exp, updates()[i], "ModifyOrder should send a %s's update over REST with the websocket connected", tc.side)
+		assert.Zerof(t, resp.RemainingAmount, "ModifyOrder should leave what remains of a %s to the websocket's order events, which can reach the order store ahead of its reply", tc.side)
+	}
+	assert.Empty(t, venue.inputs(wsOrderUpdate), "ModifyOrder should send nothing through the websocket, where a late notification would answer the order's next update")
 	_, err = wsEx.ModifyOrder(t.Context(), &order.Modify{OrderID: testWrapperOrderID, AssetType: asset.Spot, Pair: currency.NewBTCUSD(), Side: order.Buy, Price: -1})
-	assert.ErrorIs(t, err, errInvalidPrice, "ModifyOrder should return the websocket update's error")
+	assert.ErrorIs(t, err, errInvalidPrice, "ModifyOrder should return the update's error with the websocket connected")
+}
+
+func TestModifyOrderSendsOnce(t *testing.T) {
+	t.Parallel()
+	o := testOrderRecord{id: 21, symbol: "tBTCUSD", orderType: "LIMIT", status: "ACTIVE", amount: 1, original: 1, price: 100}
+	for _, tc := range []struct {
+		name   string
+		status int
+		reply  string
+		err    error
+	}{
+		{name: "a rate limit refusal", status: http.StatusTooManyRequests, reply: `{"message":"ratelimit"}`, err: request.ErrAuthRequestFailed},
+		{name: "a refused update", status: http.StatusOK, reply: `[1678988263842,"ou-req",null,null,[21],null,"ERROR","Update refused"]`, err: errNotificationFailed},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var updates atomic.Int64
+			ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == "/v2/auth/r/orders" {
+					_, err := w.Write([]byte(`[` + o.String() + `]`))
+					assert.NoError(t, err, "Writing the response should not error")
+					return
+				}
+				assert.Equal(t, "/v2/auth/w/order/update", r.URL.Path, "the test server should receive only the order's lookup and its update")
+				// Only the first update is refused, so a repeat of it would succeed
+				if updates.Add(1) > 1 {
+					_, err := w.Write([]byte(`[1678988263842,"ou-req",null,null,[21],null,"SUCCESS","Submitting update"]`))
+					assert.NoError(t, err, "Writing the response should not error")
+					return
+				}
+				w.WriteHeader(tc.status)
+				_, err := w.Write([]byte(tc.reply))
+				assert.NoError(t, err, "Writing the response should not error")
+			}))
+			_, err := ex.ModifyOrder(t.Context(), &order.Modify{OrderID: "21", AssetType: asset.Margin, Pair: currency.NewBTCUSD(), Side: order.Buy, Amount: 2})
+			assert.ErrorIsf(t, err, tc.err, "ModifyOrder should return %s", tc.name)
+			assert.Equalf(t, int64(1), updates.Load(), "ModifyOrder should send an update once for %s, as a repeat of its amount would put back a fill made since", tc.name)
+		})
+	}
 }
 
 func TestSameAmount(t *testing.T) {
@@ -1337,19 +1416,33 @@ func TestSubmitOrderCancellations(t *testing.T) {
 	var apiErr *APIError
 	assert.ErrorAs(t, err, &apiErr, "submitOrderCancellations should return the error Bitfinex reports")
 
-	skipLiveUnlessCanManipulate(t)
+	var cancels atomic.Int64
+	limited := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		// Only the first request is refused, so a repeat of it would succeed
+		if cancels.Add(1) > 1 {
+			_, err := w.Write([]byte(`[1678987199,"oc_multi-req",null,null,[],null,"SUCCESS","Submitting order cancellations."]`))
+			assert.NoError(t, err, "Writing the response should not error")
+			return
+		}
+		w.WriteHeader(http.StatusTooManyRequests)
+	}))
+	_, err = limited.submitOrderCancellations(t.Context(), &CancelOrdersRequest{All: true}, nil)
+	assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "submitOrderCancellations should return a rate limit refusal")
+	assert.Equal(t, int64(1), cancels.Load(), "submitOrderCancellations should send a request once, as a repeat of one cancelling every order would reach an order placed since")
+
 	if !mockTests {
-		t.Skip("Cancelling every order through the websocket would reach the account's own")
+		return
 	}
-	wsEx, venue := newWebsocketTestExchange(t, subscription.List{})
+	wsEx, wsCancellations := newCancelTestExchange(t, nil, []testOrderRecord{spot})
+	venue := connectWebsocketTestExchange(t, wsEx, subscription.List{})
+	require.True(t, wsEx.Websocket.CanUseAuthenticatedWebsocketForWrapper(), "the wrapper must be able to use the authenticated websocket")
 	got, err = wsEx.submitOrderCancellations(t.Context(), &CancelOrdersRequest{All: true}, []uint64{1747566428, 1747566429})
-	require.NoError(t, err, "submitOrderCancellations must not error through the websocket")
-	assert.Equal(t, map[string]string{"1747566428": order.PendingCancel.String(), "1747566429": order.PendingCancel.String()}, got, "submitOrderCancellations should report each order listed pending cancellation through the websocket, whose notification names none")
-	inputs := venue.inputs(wsOrderCancelMulti)
-	require.Len(t, inputs, 1, "submitOrderCancellations must send one cancellation through the websocket")
-	assert.JSONEq(t, `{"all":1}`, string(inputs[0]), "submitOrderCancellations should send the request it is given through the websocket")
+	require.NoError(t, err, "submitOrderCancellations must not error with the websocket connected")
+	assert.Equal(t, map[string]string{"1747566428": order.PendingCancel.String(), "1747566429": order.UnknownStatus.String()}, got, "submitOrderCancellations should report by Bitfinex's reply with the websocket connected")
+	assert.Equal(t, []map[string]any{{"all": 1.0}}, wsCancellations(), "submitOrderCancellations should send the request over REST with the websocket connected")
+	assert.Empty(t, venue.inputs(wsOrderCancelMulti), "submitOrderCancellations should send nothing through the websocket, where a late notification would answer the next request")
 	_, err = wsEx.submitOrderCancellations(t.Context(), &CancelOrdersRequest{}, nil)
-	assert.ErrorIs(t, err, errOrdersToCancelRequired, "submitOrderCancellations should return the websocket cancellation's error")
+	assert.ErrorIs(t, err, errOrdersToCancelRequired, "submitOrderCancellations should return the cancellation's error with the websocket connected")
 }
 
 func TestCancelAllOrders(t *testing.T) {
@@ -1386,6 +1479,10 @@ func TestCancelAllOrders(t *testing.T) {
 		{
 			name: "a pair", c: &order.Cancel{AssetType: asset.USDTMarginedFutures, Pair: testDerivativePair}, open: []testOrderRecord{spot, derivative},
 			replied: []testOrderRecord{derivative}, exp: map[string]string{"1747566430": pending}, expSent: []map[string]any{{"id": []any{1747566430.0}}},
+		},
+		{
+			name: "an asset, the reply naming none of its orders", c: &order.Cancel{AssetType: asset.Spot}, open: []testOrderRecord{spot, derivative},
+			exp: map[string]string{"1747566428": unknown}, expSent: []map[string]any{{"id": []any{1747566428.0}}},
 		},
 		{name: "an asset with nothing open", c: &order.Cancel{AssetType: asset.Margin}, open: []testOrderRecord{spot, derivative}, exp: map[string]string{}},
 	} {
@@ -2509,7 +2606,9 @@ func TestHistoryEnd(t *testing.T) {
 	t.Parallel()
 	past := time.Now().Add(-time.Hour)
 	assert.Equal(t, past, historyEnd(past), "historyEnd should keep a window ending in the past")
-	assert.WithinDuration(t, time.Now(), historyEnd(time.Now().Add(25*time.Hour)), time.Second, "historyEnd should end a window ending in the future now")
+	before := time.Now()
+	end := historyEnd(before.Add(25 * time.Hour))
+	assert.WithinRange(t, end, before, time.Now(), "historyEnd should end a window ending in the future now")
 }
 
 func TestHistoryRequestsEndNoLaterThanNow(t *testing.T) {
@@ -2753,7 +2852,7 @@ func TestUnsupportedWrapperMethods(t *testing.T) {
 	assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "SetLeverage should not be supported, as Bitfinex takes leverage with each order")
 }
 
-func TestCancelBatchOrdersThroughWebsocket(t *testing.T) {
+func TestCancelBatchOrdersWithWebsocketConnected(t *testing.T) {
 	t.Parallel()
 	skipLiveUnlessCanManipulate(t)
 	ex, venue := newWebsocketTestExchange(t, subscription.List{})
@@ -2767,12 +2866,11 @@ func TestCancelBatchOrdersThroughWebsocket(t *testing.T) {
 		cancels[i] = order.Cancel{OrderID: ids[i], AssetType: asset.Spot, Pair: currency.NewBTCUSD()}
 	}
 	resp, err := ex.CancelBatchOrders(t.Context(), cancels)
-	require.NoError(t, err, "CancelBatchOrders must not error through the websocket")
-	for _, id := range ids {
-		assert.Equalf(t, order.PendingCancel.String(), resp.Status[id], "order %s should be pending cancellation until its close event confirms it", id)
-	}
+	require.NoError(t, err, "CancelBatchOrders must not error with the websocket connected")
+	assert.Equal(t, order.PendingCancel.String(), resp.Status[ids[0]], "an order Bitfinex's reply names should be pending cancellation until its close event confirms it")
 	if mockTests {
-		assert.Len(t, venue.inputs(wsOrderCancelMulti), 1, "CancelBatchOrders should cancel the orders in one websocket request")
+		assert.Equal(t, order.UnknownStatus.String(), resp.Status["1747566429"], "an order Bitfinex's reply leaves out should be unknown")
+		assert.Empty(t, venue.inputs(wsOrderCancelMulti), "CancelBatchOrders should send nothing through the websocket, where a late notification would answer the next request")
 	}
 }
 
@@ -3123,7 +3221,7 @@ func TestGetFuturesPositionSummary(t *testing.T) {
 	require.NoError(t, err, "GetFuturesPositionSummary must not error")
 	assert.Equal(t, &futures.PositionSummary{
 		Pair: testDerivativePair, Asset: asset.USDTMarginedFutures, MarginType: margin.Isolated, Currency: testDerivativePair.Quote.Upper(),
-		StartDate: time.UnixMilli(1792022400000), IsolatedMargin: decimal.MustFromFloat(200), Leverage: decimal.MustFromFloat(80),
+		StartDate: time.UnixMilli(1792022400000), IsolatedMargin: decimal.MustFromFloat(200), CollateralUsed: decimal.MustFromFloat(200), Leverage: decimal.MustFromFloat(80),
 		EstimatedLiquidationPrice: decimal.MustFromFloat(79400), CurrentSize: decimal.MustFromFloat(0.2), ContractSettlementType: futures.Linear,
 		AverageOpenPrice: decimal.MustFromFloat(80000), UnrealisedPNL: decimal.MustFromFloat(-12.5),
 	}, summary, "GetFuturesPositionSummary should summarise the derivative position")

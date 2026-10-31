@@ -872,7 +872,9 @@ func derivativeLeverage(leverage float64) (uint64, error) {
 	return uint64(leverage), nil
 }
 
-// ModifyOrder updates an order's amount and prices through the authenticated websocket, or over REST without it. A
+// ModifyOrder updates an order's amount and prices over REST whichever connection is up, where a reply answers its own
+// request, as an update's websocket notification names only the order, so one arriving after its wait has ended would
+// answer the order's next update. It sends an update once, as a repeat of an amount would put back a fill made since. A
 // modification carries none of what Bitfinex reads an update by: the order's type, which its prices follow, what the
 // order has executed, as Bitfinex takes the amount an update gives as what remains of the order, and a derivative
 // order's leverage, which Bitfinex needs to update it, so the order is looked up for each. A stop moves by its trigger
@@ -907,13 +909,10 @@ func (e *Exchange) ModifyOrder(ctx context.Context, m *order.Modify) (*order.Mod
 	}
 	req := &UpdateOrderRequest{ID: id}
 	var remaining float64
-	// What remains as looked up is left unsent, as Bitfinex would set what remains to it, undoing a fill made since; the
-	// order manager sends the order's own amount with a price change
-	switch {
-	case m.Amount == 0:
-	case sameAmount(m.Amount, d.Amount):
-		remaining = d.RemainingAmount
-	default:
+	// What remains as looked up is neither sent, as Bitfinex would set what remains to it, undoing a fill made since, nor
+	// reported, as the order store would take it, undoing a fill it holds by then; the order manager sends the order's own
+	// amount with a price change
+	if m.Amount != 0 && !sameAmount(m.Amount, d.Amount) {
 		executed := orderExecutedAmount(o)
 		if isOrderStatusCut(o.Status) {
 			trades, err := e.GetOrderTrades(ctx, &OrderTradesRequest{Symbol: o.Symbol, OrderID: id})
@@ -940,16 +939,16 @@ func (e *Exchange) ModifyOrder(ctx context.Context, m *order.Modify) (*order.Mod
 			return nil, err
 		}
 	}
-	if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		if _, err := e.WebsocketUpdateOrder(ctx, req); err != nil {
-			return nil, err
-		}
-	} else if _, err := e.UpdateOrder(ctx, req); err != nil {
+	if _, err := e.UpdateOrder(request.WithRetryNotAllowed(ctx), req); err != nil {
 		return nil, err
 	}
 	resp, err := m.DeriveModifyResponse()
 	if err == nil {
-		resp.Type, resp.TimeInForce, resp.RemainingAmount = d.Type, d.TimeInForce, remaining
+		resp.Type, resp.TimeInForce = d.Type, d.TimeInForce
+		// The websocket's order events carry what remains, and can reach the order store ahead of this reply
+		if req.Amount != 0 && !e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+			resp.RemainingAmount = remaining
+		}
 		if d.Type == order.Stop {
 			resp.Price = 0
 		}
@@ -1106,25 +1105,17 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, c *order.Cancel) (order.
 	return order.CancelAllResponse{Status: statuses}, err
 }
 
-// submitOrderCancellations submits orders for cancellation, through the authenticated websocket or over REST,
-// reporting the orders listed for it, and any other Bitfinex's reply names, pending cancellation, as Bitfinex confirms
-// each cancellation with the order's close event. The websocket's notification names none of the orders; over REST, a
-// listed order its reply leaves out is reported unknown
+// submitOrderCancellations submits orders for cancellation over REST whichever connection is up, where a reply answers
+// its own request, as the websocket's notification names none of the orders, so one arriving after its wait has ended
+// would answer the next request. It sends a request once, as a repeat of one cancelling every order would reach an
+// order placed since. It reports the orders Bitfinex's reply names pending cancellation, as Bitfinex confirms each
+// cancellation with the order's close event, and any other listed for it unknown
 func (e *Exchange) submitOrderCancellations(ctx context.Context, req *CancelOrdersRequest, ids []uint64) (map[string]string, error) {
-	statuses := make(map[string]string, len(ids))
-	if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		if err := e.WebsocketCancelOrders(ctx, req); err != nil {
-			return nil, err
-		}
-		for _, id := range ids {
-			statuses[strconv.FormatUint(id, 10)] = order.PendingCancel.String()
-		}
-		return statuses, nil
-	}
-	n, err := e.CancelOrders(ctx, req)
+	n, err := e.CancelOrders(request.WithRetryNotAllowed(ctx), req)
 	if err != nil {
 		return nil, err
 	}
+	statuses := make(map[string]string, len(ids))
 	for _, id := range ids {
 		statuses[strconv.FormatUint(id, 10)] = order.UnknownStatus.String()
 	}
@@ -1991,6 +1982,7 @@ func (e *Exchange) GetFuturesPositionSummary(ctx context.Context, r *futures.Pos
 		Currency:                  r.Pair.Quote.Upper(),
 		StartDate:                 pos.CreatedAt.Time(),
 		IsolatedMargin:            decimal.MustFromFloat(pos.Collateral),
+		CollateralUsed:            decimal.MustFromFloat(pos.Collateral),
 		Leverage:                  decimal.MustFromFloat(pos.Leverage),
 		EstimatedLiquidationPrice: decimal.MustFromFloat(pos.LiquidationPrice),
 		CurrentSize:               decimal.MustFromFloat(pos.Amount),

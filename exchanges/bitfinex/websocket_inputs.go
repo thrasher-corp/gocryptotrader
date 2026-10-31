@@ -70,7 +70,9 @@ func (e *Exchange) WebsocketPlaceOrder(ctx context.Context, req *PlaceOrderReque
 	return &n.Data, nil
 }
 
-// WebsocketUpdateOrder updates an order through the authenticated websocket, returning the order as Bitfinex updated it
+// WebsocketUpdateOrder updates an order through the authenticated websocket, returning the order as Bitfinex updated
+// it. Its notification names only the order, so an update sent after another of the order timed out can be answered by
+// the earlier one's
 func (e *Exchange) WebsocketUpdateOrder(ctx context.Context, req *UpdateOrderRequest) (*OrderResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
@@ -87,7 +89,8 @@ func (e *Exchange) WebsocketUpdateOrder(ctx context.Context, req *UpdateOrderReq
 }
 
 // WebsocketCancelExistingOrder submits an order for cancellation through the authenticated websocket; Bitfinex confirms
-// the cancellation afterwards with the order's close event
+// the cancellation afterwards with the order's close event. Its notification names only the order, so a request
+// repeated after a timeout can be answered by the earlier one's
 func (e *Exchange) WebsocketCancelExistingOrder(ctx context.Context, orderID uint64) (*OrderResponse, error) {
 	if orderID == 0 {
 		return nil, errOrderIDRequired
@@ -101,7 +104,8 @@ func (e *Exchange) WebsocketCancelExistingOrder(ctx context.Context, orderID uin
 
 // WebsocketCancelOrders submits orders for cancellation through the authenticated websocket, by their IDs, group IDs or
 // client order IDs, or every open order, trading and derivative alike; Bitfinex confirms each cancellation afterwards
-// with the order's close event
+// with the order's close event. Its notification names none of the orders, so a request sent after another timed out
+// can be answered by the earlier one's
 func (e *Exchange) WebsocketCancelOrders(ctx context.Context, req *CancelOrdersRequest) error {
 	if err := common.NilGuard(req); err != nil {
 		return err
@@ -118,7 +122,8 @@ func (e *Exchange) WebsocketCancelOrders(ctx context.Context, req *CancelOrdersR
 }
 
 // WebsocketSubmitFundingOffer submits a funding offer through the authenticated websocket, returning the offer as
-// Bitfinex accepted it, which holds its ID, amount, rate and period
+// Bitfinex accepted it, which holds its ID, amount, rate and period. Its notification names only the offer Bitfinex
+// numbered, so a request sent after another timed out can be answered by the earlier one's
 func (e *Exchange) WebsocketSubmitFundingOffer(ctx context.Context, req *SubmitFundingOfferRequest) (*FundingOfferResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
@@ -137,7 +142,8 @@ func (e *Exchange) WebsocketSubmitFundingOffer(ctx context.Context, req *SubmitF
 	return &n.Data, nil
 }
 
-// WebsocketCancelFundingOffer cancels a funding offer through the authenticated websocket
+// WebsocketCancelFundingOffer cancels a funding offer through the authenticated websocket. Its notification names only
+// the offer, so a request repeated after a timeout can be answered by the earlier one's
 func (e *Exchange) WebsocketCancelFundingOffer(ctx context.Context, offerID uint64) (*FundingOfferResponse, error) {
 	if offerID == 0 {
 		return nil, errFundingOfferIDRequired

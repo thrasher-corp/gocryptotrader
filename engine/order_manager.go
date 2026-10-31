@@ -424,6 +424,9 @@ func (m *OrderManager) Modify(ctx context.Context, mod *order.Modify) (*order.Mo
 	mod.Pair = det.Pair
 	mod.Side = det.Side
 	mod.TimeInForce = det.TimeInForce
+	if det.AssetType != asset.Empty {
+		mod.AssetType = det.AssetType
+	}
 
 	// Following is just a precaution to not modify orders by mistake if exchange
 	// implementations do not check fields of the Modify struct for zero values.
