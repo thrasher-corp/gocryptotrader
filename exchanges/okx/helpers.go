@@ -2,6 +2,7 @@ package okx
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -87,6 +88,22 @@ func orderTypeString(orderType order.Type, tif order.TimeInForce) (string, error
 		}
 	}
 	return "", fmt.Errorf("%w: %q with time in force %q", order.ErrUnsupportedOrderType, orderType, tif)
+}
+
+// filterListedOrders narrows a listing to the orders its request asks for. orderTypeString can select an OKX order type
+// that reads back as another type than the one requested, such as ioc for Market or post_only for LimitMaker, so orders
+// are matched on what that OKX order type reads back as, and on its time in force where it has one
+func (e *Exchange) filterListedOrders(req *order.MultiOrderRequest, orders []order.Detail) order.FilteredOrders {
+	filter := *req
+	if okxType, err := orderTypeString(req.Type, req.TimeInForce); err == nil {
+		if orderType, tif, err := orderTypeFromString(okxType); err == nil {
+			filter.Type = orderType
+			if tif != order.UnknownTIF {
+				orders = slices.DeleteFunc(orders, func(d order.Detail) bool { return d.TimeInForce != tif })
+			}
+		}
+	}
+	return filter.Filter(e.Name, orders)
 }
 
 // getAssetsFromInstrumentID parses an instrument ID and returns a list of assets types

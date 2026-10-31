@@ -640,10 +640,10 @@ func TestWebsocketPublicTrade(t *testing.T) {
 		data := relayed(ex)
 		require.Len(t, data, 1, "trades must be relayed")
 		assert.IsType(t, []trade.Data{}, data[0], "trades should be relayed as trade data")
-		// Option trades are pushed by base coin, for contracts that may not be enabled here. They can be more than 20
-		// seconds apart, and the option stream accepts any topic name, so the wait is longer and only a pushed trade
-		// proves the topic
-		frames, _ = liveStreamFrames(t, optionPublic, time.Minute, 1, "publicTrade."+liveOptionPair(t, ex).Base.Upper().String())
+		// Option trades are pushed by base coin, for contracts that may not be enabled here, so this reads BTC's, among the
+		// most frequent. Option trades can be more than 20 seconds apart, and the option stream acknowledges any topic name,
+		// so the wait is longer and only a pushed trade proves the topic
+		frames, _ = liveStreamFrames(t, optionPublic, time.Minute, 1, "publicTrade.BTC")
 		require.NotEmpty(t, frames, "the option trade topic must push")
 		require.NoError(t, ex.wsHandleData(t.Context(), nil, asset.Options, frames[0]), "wsHandleData must not error for option trades")
 		return
@@ -892,6 +892,19 @@ func TestPublicTradePair(t *testing.T) {
 		require.ErrorIsf(t, err, tc.err, "publicTradePair must return the expected error for %s %q", tc.asset, tc.symbol)
 		assert.Equalf(t, tc.exp, p, "publicTradePair should return the pair of %s %q, or an empty pair for an option trade to skip", tc.asset, tc.symbol)
 	}
+}
+
+// TestWebsocketTickerDelistedContract checks that the snapshot of a delisted contract, whose cs is -1, is read
+func TestWebsocketTickerDelistedContract(t *testing.T) {
+	t.Parallel()
+	ex := fixtureStreamInstance(t)
+	frame := []byte(`{"topic":"tickers.BTCUSDT","type":"snapshot","data":{"symbol":"BTCUSDT","tickDirection":"ZeroMinusTick","price24hPcnt":"0","lastPrice":"0.00000","prevPrice24h":"0.00000","highPrice24h":"0.00000","lowPrice24h":"0.00000","prevPrice1h":"0.00000","markPrice":"0.00000","indexPrice":"0.00000","openInterest":"0","openInterestValue":"0.00","turnover24h":"0.0000","volume24h":"0.0000","fundingIntervalHour":"8","fundingCap":"0.02","singleOpenInterest":"0","singleOpenInterestValue":"0.00","nextFundingTime":"1791648000000","fundingRate":"0","bid1Price":"","bid1Size":"","ask1Price":"","ask1Size":"","preOpenPrice":"","preQty":"","curPreListingPhase":""},"cs":-1,"ts":1792227602562}`)
+	pushes := decodeFramesStrictly[WebsocketTickerUpdate](t, [][]byte{frame})
+	assert.Equal(t, int64(-1), pushes[0].CrossSequence, "CrossSequence should hold the snapshot's cs")
+	require.NoError(t, ex.wsHandleData(t.Context(), nil, asset.USDTMarginedFutures, frame), "wsHandleData must read a snapshot whose cs is -1")
+	tick, err := ticker.GetTicker(ex.Name, currency.NewBTCUSDT(), asset.USDTMarginedFutures)
+	require.NoError(t, err, "GetTicker must return the stored ticker")
+	assert.Equal(t, time.UnixMilli(1792227602562), tick.LastUpdated, "the ticker should hold the push time")
 }
 
 func TestWebsocketTicker(t *testing.T) {

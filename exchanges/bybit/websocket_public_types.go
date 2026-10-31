@@ -83,10 +83,11 @@ type WebsocketPublicTrade struct {
 // WebsocketTickerUpdate is a push from the tickers.{symbol} topic (Ticker). Linear and inverse tickers send a snapshot
 // followed by deltas that hold only the fields that changed; spot and option tickers send snapshots only
 type WebsocketTickerUpdate struct {
-	Topic         string     `json:"topic"`
-	Type          string     `json:"type"`
-	Timestamp     types.Time `json:"ts"`
-	CrossSequence uint64     `json:"cs"`
+	Topic     string     `json:"topic"`
+	Type      string     `json:"type"`
+	Timestamp types.Time `json:"ts"`
+	// CrossSequence can be -1 on the snapshot of a delisted contract
+	CrossSequence int64 `json:"cs"`
 	// ID is set on option pushes only
 	ID   string          `json:"id"`
 	Data WebsocketTicker `json:"data"`

@@ -1161,9 +1161,6 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 		return nil, err
 	}
 	var err error
-	if math.Trunc(action.Amount) != action.Amount {
-		return nil, errors.New("contract amount can not be decimal")
-	}
 	// When asset type is asset.Spread
 	if action.AssetType == asset.Spread {
 		amendSpreadOrder := &AmendSpreadOrderParam{
@@ -1766,7 +1763,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 				TimeInForce:     tif,
 			})
 		}
-		return req.Filter(e.Name, resp), nil
+		return e.filterListedOrders(req, resp), nil
 	}
 
 	instrumentType := GetInstrumentTypeFromAssetItem(req.AssetType)
@@ -1845,7 +1842,7 @@ allOrders:
 		}
 		endTime = orderList[len(orderList)-1].CreationTime.Time()
 	}
-	return req.Filter(e.Name, resp), nil
+	return e.filterListedOrders(req, resp), nil
 }
 
 // GetOrderHistory retrieves account order information Can Limit response to specific order status
@@ -1915,7 +1912,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 				TimeInForce:          tif,
 			})
 		}
-		return req.Filter(e.Name, resp), nil
+		return e.filterListedOrders(req, resp), nil
 	}
 
 	if len(req.Pairs) == 0 {
@@ -2000,7 +1997,7 @@ allOrders:
 		}
 		endTime = orderList[len(orderList)-1].CreationTime.Time()
 	}
-	return req.Filter(e.Name, resp), nil
+	return e.filterListedOrders(req, resp), nil
 }
 
 // GetFeeByType returns an estimate of fee based on the type of transaction

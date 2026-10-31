@@ -4271,6 +4271,17 @@ func TestModifyOrderRequests(t *testing.T) {
 	spread := order.Modify{OrderID: "123", ClientOrderID: "client", Pair: spreadPair, AssetType: asset.Spread, Price: 3.5, Amount: 2}
 	swap := modify(order.Limit, 3.5, 2)
 	swap.Pair, swap.AssetType = perpetualSwapPair, asset.PerpetualSwap
+	decimalOnAsset := func(pair currency.Pair, a asset.Item) *order.Modify {
+		m := modify(order.Limit, 3.5, 0.25)
+		m.Pair, m.AssetType = pair, a
+		return m
+	}
+	decimalSpread := spread
+	decimalSpread.Amount = 0.25
+	decimalTrigger := *trigger
+	decimalTrigger.Amount = 0.25
+	decimalOCO := *oco
+	decimalOCO.Amount = 0.25
 	for _, tc := range []struct {
 		name       string
 		modify     *order.Modify
@@ -4279,6 +4290,8 @@ func TestModifyOrderRequests(t *testing.T) {
 		{name: "new price and size", modify: modify(order.Limit, 3.5, 2), rest: `/trade/amend-order {` + fields + `,"newSz":"2","newPx":"3.5"}`, sock: `amend-order [{` + fields + `,"newSz":"2","newPx":"3.5"}]`},
 		{name: "new price only", modify: modify(order.Limit, 3.5, 0), rest: `/trade/amend-order {` + fields + `,"newPx":"3.5"}`, sock: `amend-order [{` + fields + `,"newPx":"3.5"}]`},
 		{name: "new size only", modify: modify(order.Limit, 0, 2), rest: `/trade/amend-order {` + fields + `,"newSz":"2"}`, sock: `amend-order [{` + fields + `,"newSz":"2"}]`},
+		{name: "decimal size", modify: modify(order.Limit, 3.5, 1.5), rest: `/trade/amend-order {` + fields + `,"newSz":"1.5","newPx":"3.5"}`, sock: `amend-order [{` + fields + `,"newSz":"1.5","newPx":"3.5"}]`},
+		{name: "decimal size at OKX's smallest BTC-USDT lot", modify: modify(order.Limit, 3.5, 0.12345678), rest: `/trade/amend-order {` + fields + `,"newSz":"0.12345678","newPx":"3.5"}`, sock: `amend-order [{` + fields + `,"newSz":"0.12345678","newPx":"3.5"}]`},
 		{name: "no order type given", modify: modify(order.UnknownType, 3.5, 2), rest: `/trade/amend-order {` + fields + `,"newSz":"2","newPx":"3.5"}`, sock: `amend-order [{` + fields + `,"newSz":"2","newPx":"3.5"}]`},
 		{name: "market order", modify: modify(order.Market, 0, 2), rest: `/trade/amend-order {` + fields + `,"newSz":"2"}`, sock: `amend-order [{` + fields + `,"newSz":"2"}]`},
 		{name: "optimal limit order", modify: modify(order.OptimalLimit, 3.5, 2), rest: `/trade/amend-order {` + fields + `,"newSz":"2","newPx":"3.5"}`, sock: `amend-order [{` + fields + `,"newSz":"2","newPx":"3.5"}]`},
@@ -4288,6 +4301,33 @@ func TestModifyOrderRequests(t *testing.T) {
 			rest: `/trade/amend-order {"instId":"BTC-USDT-SWAP","ordId":"123","clOrdId":"client","newSz":"2","newPx":"3.5"}`,
 			sock: `amend-order [{"instId":"BTC-USDT-SWAP","ordId":"123","clOrdId":"client","newSz":"2","newPx":"3.5"}]`,
 		},
+		{
+			name: "decimal size on a perpetual swap", modify: decimalOnAsset(perpetualSwapPair, asset.PerpetualSwap),
+			rest: `/trade/amend-order {"instId":"BTC-USDT-SWAP","ordId":"123","clOrdId":"client","newSz":"0.25","newPx":"3.5"}`,
+			sock: `amend-order [{"instId":"BTC-USDT-SWAP","ordId":"123","clOrdId":"client","newSz":"0.25","newPx":"3.5"}]`,
+		},
+		{
+			name: "decimal size on margin", modify: decimalOnAsset(mainPair, asset.Margin),
+			rest: `/trade/amend-order {` + fields + `,"newSz":"0.25","newPx":"3.5"}`,
+			sock: `amend-order [{` + fields + `,"newSz":"0.25","newPx":"3.5"}]`,
+		},
+		{
+			name: "decimal size on a future", modify: decimalOnAsset(futuresPair, asset.Futures),
+			rest: `/trade/amend-order {"instId":"BTC-USD","ordId":"123","clOrdId":"client","newSz":"0.25","newPx":"3.5"}`,
+			sock: `amend-order [{"instId":"BTC-USD","ordId":"123","clOrdId":"client","newSz":"0.25","newPx":"3.5"}]`,
+		},
+		{
+			name: "decimal size on an option", modify: decimalOnAsset(optionsPair, asset.Options),
+			rest: `/trade/amend-order {"instId":"BTC-USD","ordId":"123","clOrdId":"client","newSz":"0.25","newPx":"3.5"}`,
+			sock: `amend-order [{"instId":"BTC-USD","ordId":"123","clOrdId":"client","newSz":"0.25","newPx":"3.5"}]`,
+		},
+		{
+			name: "decimal size on a spread order", modify: &decimalSpread,
+			rest: `/sprd/amend-order {"ordId":"123","clOrdId":"client","reqId":"","newSz":"0.25","newPx":"3.5"}`,
+			sock: `sprd-amend-order [{"ordId":"123","clOrdId":"client","reqId":"","newSz":"0.25","newPx":"3.5"}]`,
+		},
+		{name: "decimal size on a trigger order", modify: &decimalTrigger, rest: `/trade/amend-algos ` + algo + `,"newSz":"0.25","newTriggerPx":4,"newOrdPx":3.5,"newTriggerPxType":"mark"}`},
+		{name: "decimal size on a one cancels the other order", modify: &decimalOCO, rest: `/trade/amend-algos ` + algo + `,"newSz":"0.25","newTpTriggerPx":"5","newTpOrdPx":"5.5","newSlTriggerPx":"2","newTpTriggerPxType":"last","newSlTriggerPxType":"index"}`},
 		{
 			name: "spread order", modify: &spread,
 			rest: `/sprd/amend-order {"ordId":"123","clOrdId":"client","reqId":"","newSz":"2","newPx":"3.5"}`,
@@ -4325,14 +4365,6 @@ func TestModifyOrderRequests(t *testing.T) {
 			assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "ModifyOrder should return a refused amendment's error")
 		})
 	}
-
-	t.Run("decimal amount", func(t *testing.T) {
-		t.Parallel()
-		ex, requests := newRecordingExchange(t, false, false, result)
-		_, err := ex.ModifyOrder(t.Context(), modify(order.Limit, 3.5, 1.5))
-		assert.ErrorContains(t, err, "contract amount can not be decimal", "ModifyOrder should refuse a decimal amount")
-		assert.Empty(t, requests(), "ModifyOrder should send nothing for a decimal amount")
-	})
 
 	t.Run("pair format missing", func(t *testing.T) {
 		t.Parallel()
@@ -4708,6 +4740,11 @@ func TestGetActiveOrdersMocked(t *testing.T) {
 	recent := time.UnixMilli(time.Now().Add(-time.Hour).UnixMilli())
 	recentLive := live
 	recentLive.Date, recentLive.LastUpdated = recent, recent.Add(time.Second)
+	withOrderType := func(orderType string) string {
+		return strings.Replace(liveOrder, `"ordType":"post_only"`, `"ordType":"`+orderType+`"`, 1)
+	}
+	liveImmediateOrCancel := live
+	liveImmediateOrCancel.TimeInForce = order.ImmediateOrCancel
 
 	// A full page of another pair's orders makes GetActiveOrders ask again
 	fullPage := make([]string, 100)
@@ -4800,6 +4837,22 @@ func TestGetActiveOrdersMocked(t *testing.T) {
 		},
 		{name: "spread orders of each type", req: spreadRequest(order.AnyType, order.UnknownTIF), replies: []string{mockOrdersReply(spreadTypes...)}, requests: []string{anyPending}, exp: spreadDetails},
 		{name: "spread orders of the requested type", req: spreadRequest(order.Limit, order.PostOnly), replies: []string{mockOrdersReply(spreadTypes[2])}, requests: []string{"/sprd/orders-pending?ordType=post_only"}, exp: spreadDetails[2:3]},
+		{name: "spread post only orders requested as limit maker", req: spreadRequest(order.LimitMaker, order.PostOnly), replies: []string{mockOrdersReply(spreadTypes[2])}, requests: []string{"/sprd/orders-pending?ordType=post_only"}, exp: spreadDetails[2:3]},
+		{name: "spread immediate or cancel orders requested as market", req: spreadRequest(order.Market, order.ImmediateOrCancel), replies: []string{mockOrdersReply(spreadTypes[3])}, requests: []string{"/sprd/orders-pending?ordType=ioc"}, exp: spreadDetails[3:4]},
+		{
+			name:     "post only orders requested as limit maker",
+			req:      &order.MultiOrderRequest{AssetType: asset.Spot, Type: order.LimitMaker, TimeInForce: order.PostOnly, Side: order.AnySide, Pairs: []currency.Pair{mainPair}},
+			replies:  []string{mockOrdersReply(liveOrder, withOrderType("limit"), withOrderType("ioc"))},
+			requests: []string{"/trade/orders-pending?instType=SPOT&orderType=post_only"},
+			exp:      order.FilteredOrders{live},
+		},
+		{
+			name:     "immediate or cancel orders requested as market",
+			req:      &order.MultiOrderRequest{AssetType: asset.Spot, Type: order.Market, TimeInForce: order.ImmediateOrCancel, Side: order.AnySide, Pairs: []currency.Pair{mainPair}},
+			replies:  []string{mockOrdersReply(withOrderType("market"), withOrderType("ioc"), withOrderType("limit"), liveOrder)},
+			requests: []string{"/trade/orders-pending?instType=SPOT&orderType=ioc"},
+			exp:      order.FilteredOrders{liveImmediateOrCancel},
+		},
 	})
 }
 
@@ -4909,6 +4962,13 @@ func TestGetOrderHistoryMocked(t *testing.T) {
 	recent := time.UnixMilli(time.Now().Add(-time.Hour).UnixMilli())
 	recentSold := sold
 	recentSold.Date, recentSold.LastUpdated = recent, recent.Add(time.Second)
+	withOrderType := func(orderType string) string {
+		return strings.Replace(soldOrder, `"ordType":"limit"`, `"ordType":"`+orderType+`"`, 1)
+	}
+	soldPostOnly := sold
+	soldPostOnly.TimeInForce = order.PostOnly
+	soldImmediateOrCancel := sold
+	soldImmediateOrCancel.TimeInForce = order.ImmediateOrCancel
 
 	// A full page of another pair's orders makes GetOrderHistory ask for the orders before the page's last one
 	fullPage := make([]string, 100)
@@ -5025,6 +5085,22 @@ func TestGetOrderHistoryMocked(t *testing.T) {
 			replies:  []string{mockOrdersReply(mockSpreadOrderTypes()...)},
 			requests: []string{"/sprd/orders-history"},
 			exp:      spreadDetails,
+		},
+		{name: "spread post only orders requested as limit maker", req: spreadRequest(order.LimitMaker, order.PostOnly), replies: []string{mockOrdersReply(mockSpreadOrderTypes()[2])}, requests: []string{"/sprd/orders-history?ordType=post_only"}, exp: spreadDetails[2:3]},
+		{name: "spread immediate or cancel orders requested as market", req: spreadRequest(order.Market, order.ImmediateOrCancel), replies: []string{mockOrdersReply(mockSpreadOrderTypes()[3])}, requests: []string{"/sprd/orders-history?ordType=ioc"}, exp: spreadDetails[3:4]},
+		{
+			name:     "post only orders requested as limit maker",
+			req:      &order.MultiOrderRequest{AssetType: asset.Spot, Type: order.LimitMaker, TimeInForce: order.PostOnly, Side: order.AnySide, Pairs: []currency.Pair{mainPair}},
+			replies:  []string{mockOrdersReply(soldOrder, withOrderType("post_only"), withOrderType("ioc"))},
+			requests: []string{spotHistory},
+			exp:      order.FilteredOrders{soldPostOnly},
+		},
+		{
+			name:     "immediate or cancel orders requested as market",
+			req:      &order.MultiOrderRequest{AssetType: asset.Spot, Type: order.Market, TimeInForce: order.ImmediateOrCancel, Side: order.AnySide, Pairs: []currency.Pair{mainPair}},
+			replies:  []string{mockOrdersReply(withOrderType("market"), soldOrder, withOrderType("ioc"), withOrderType("post_only"))},
+			requests: []string{spotHistory},
+			exp:      order.FilteredOrders{soldImmediateOrCancel},
 		},
 	})
 }
@@ -8004,6 +8080,64 @@ func TestGetAccountInstruments(t *testing.T) {
 	result, err = e.GetAccountInstruments(contextGenerate(), asset.Options, instFamily, p[0].String())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
+}
+
+// TestFilterListedOrders checks which orders a listing keeps for each order type and time in force it can be asked for
+func TestFilterListedOrders(t *testing.T) {
+	t.Parallel()
+	listed := func(okxType string, side order.Side) order.Detail {
+		orderType, tif, err := orderTypeFromString(okxType)
+		require.NoError(t, err, "orderTypeFromString must not error")
+		return order.Detail{OrderID: okxType, Type: orderType, TimeInForce: tif, Side: side, Pair: mainPair}
+	}
+	orders := []order.Detail{
+		listed(orderMarket, order.Buy),
+		listed(orderLimit, order.Buy),
+		listed(orderPostOnly, order.Buy),
+		listed(orderFOK, order.Buy),
+		listed(orderIOC, order.Buy),
+		listed(orderOptimalLimitIOC, order.Buy),
+		listed(orderMarketMakerProtection, order.Buy),
+		listed(orderMarketMakerProtectionAndPostOnly, order.Buy),
+		listed(orderPostOnly, order.Sell),
+		{OrderID: "trigger", Type: order.Trigger, Side: order.Buy, Pair: mainPair},
+		{OrderID: "stop", Type: order.Stop, Side: order.Buy, Pair: mainPair},
+	}
+	for _, tc := range []struct {
+		name      string
+		orderType order.Type
+		tif       order.TimeInForce
+		side      order.Side
+		exp       []string
+	}{
+		{name: "any type", orderType: order.AnyType, side: order.AnySide, exp: []string{"market", "limit", "post_only", "fok", "ioc", "optimal_limit_ioc", "mmp", "mmp_and_post_only", "post_only", "trigger", "stop"}},
+		{name: "limit", orderType: order.Limit, side: order.AnySide, exp: []string{"limit", "post_only", "fok", "ioc", "post_only"}},
+		{name: "limit post only", orderType: order.Limit, tif: order.PostOnly, side: order.AnySide, exp: []string{"post_only", "post_only"}},
+		{name: "limit maker post only", orderType: order.LimitMaker, tif: order.PostOnly, side: order.AnySide, exp: []string{"post_only", "post_only"}},
+		{name: "limit maker post only on one side", orderType: order.LimitMaker, tif: order.PostOnly, side: order.Sell, exp: []string{"post_only"}},
+		{name: "limit maker fill or kill", orderType: order.LimitMaker, tif: order.FillOrKill, side: order.AnySide, exp: []string{"fok"}},
+		{name: "limit maker immediate or cancel", orderType: order.LimitMaker, tif: order.ImmediateOrCancel, side: order.AnySide, exp: []string{"ioc"}},
+		{name: "market", orderType: order.Market, side: order.AnySide, exp: []string{"market"}},
+		{name: "market fill or kill", orderType: order.Market, tif: order.FillOrKill, side: order.AnySide, exp: []string{"fok"}},
+		{name: "market immediate or cancel", orderType: order.Market, tif: order.ImmediateOrCancel, side: order.AnySide, exp: []string{"ioc"}},
+		{name: "optimal limit", orderType: order.OptimalLimit, side: order.AnySide, exp: []string{"optimal_limit_ioc"}},
+		{name: "market maker protection", orderType: order.MarketMakerProtection, side: order.AnySide, exp: []string{"mmp", "mmp_and_post_only"}},
+		{name: "market maker protection post only", orderType: order.MarketMakerProtection, tif: order.PostOnly, side: order.AnySide, exp: []string{"mmp_and_post_only"}},
+		{name: "OKX type that does not read back", orderType: order.Trigger, side: order.AnySide, exp: []string{"trigger"}},
+		{name: "no OKX type", orderType: order.Stop, side: order.AnySide, exp: []string{"stop"}},
+		{name: "limit maker without a time in force", orderType: order.LimitMaker, side: order.AnySide, exp: []string{}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			req := &order.MultiOrderRequest{AssetType: asset.Spot, Type: tc.orderType, TimeInForce: tc.tif, Side: tc.side}
+			kept := []string{}
+			for _, o := range e.filterListedOrders(req, slices.Clone(orders)) {
+				kept = append(kept, o.OrderID)
+			}
+			assert.Equal(t, tc.exp, kept, "filterListedOrders should keep the orders the request asks for")
+			assert.Equal(t, tc.orderType, req.Type, "filterListedOrders should leave the request's type unchanged")
+		})
+	}
 }
 
 func TestOrderTypeString(t *testing.T) {
