@@ -5339,11 +5339,9 @@ func TestSubscribe(t *testing.T) {
 		}, venue.received(), "SubscribeToWebsocketChannels should send each subscription request")
 	}
 
-	t.Run("account feed", func(t *testing.T) {
-		t.Parallel()
-		if !mockTests {
-			sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-		}
+	// Not a parallel subtest: this connection would wait for the subtest's slot, where a traffic check that finds no pong
+	// yet shuts it down and forgets the subscriptions above
+	if mockTests || sharedtestvalues.AreAPICredentialsSet(e) {
 		accountSubs := subscription.List{{Channel: wsChannelUserFills, Authenticated: true, Params: map[string]any{"aggregateByTime": true}}}
 		require.NoError(t, ex.SubscribeToWebsocketChannels(accountSubs), "SubscribeToWebsocketChannels must not error for an account feed")
 		t.Cleanup(func() {
@@ -5358,7 +5356,7 @@ func TestSubscribe(t *testing.T) {
 			received := venue.received()
 			assert.JSONEq(t, `{"method":"subscribe","subscription":{"type":"userFills","user":"`+testAccountAddress+`","aggregateByTime":true}}`, received[len(received)-1], "SubscribeToWebsocketChannels should send the account feed's subscription request")
 		}
-	})
+	}
 }
 
 func TestUnsubscribe(t *testing.T) {

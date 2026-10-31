@@ -420,7 +420,7 @@ func TestFetchPerpetualPairMappings(t *testing.T) {
 		assert.Equal(t, testPerpetualMappings, mappings, "fetchPerpetualPairMappings should map every active market with its DEX's asset ID offset and fees")
 		assert.Equal(t, []pairMapping{testDelistedMapping}, delisted, "fetchPerpetualPairMappings should keep the delisted market")
 	} else {
-		assert.Contains(t, mappings, testPerpetualMapping, "fetchPerpetualPairMappings should map BTC")
+		assert.True(t, listsMarket(mappings, &testPerpetualMapping), "fetchPerpetualPairMappings should map BTC")
 		assert.True(t, slices.ContainsFunc(delisted, func(m pairMapping) bool { return m.coin == "MATIC" }), "fetchPerpetualPairMappings should keep delisted MATIC")
 	}
 
@@ -522,7 +522,7 @@ func TestFetchSpotPairMappings(t *testing.T) {
 		}
 		assert.Equal(t, exp, mappings, "fetchSpotPairMappings should map every spot market")
 	} else {
-		assert.Contains(t, mappings, testSpotMapping, "fetchSpotPairMappings should map HYPE-USDC")
+		assert.True(t, listsMarket(mappings, &testSpotMapping), "fetchSpotPairMappings should map HYPE-USDC")
 	}
 
 	purr := pairMapping{pair: currency.NewPair(currency.NewCode("PURR"), currency.USDC), coin: "@2", assetID: 10002}
@@ -645,12 +645,13 @@ func TestGetPairMapping(t *testing.T) {
 	_, err = e.getPairMapping(t.Context(), currency.EMPTYPAIR, asset.PerpetualContract)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "getPairMapping must reject an empty pair")
 
-	mapping, err := e.getPairMapping(t.Context(), testBuilderPair, asset.PerpetualContract)
+	builder := builderTestMarket(t)
+	mapping, err := e.getPairMapping(t.Context(), builder.pair, asset.PerpetualContract)
 	require.NoError(t, err, "getPairMapping must not error for a builder DEX market")
 	if mockTests {
 		assert.Equal(t, testBuilderMapping, mapping, "getPairMapping should fetch the builder DEX market's mapping")
 	} else {
-		assert.Equal(t, "xyz", mapping.dex, "getPairMapping should return the builder DEX market's DEX")
+		assert.Equal(t, builder.dex, mapping.dex, "getPairMapping should return the builder DEX market's DEX")
 	}
 
 	ex := new(Exchange)
@@ -892,7 +893,7 @@ func TestGetPerpetualPairMappings(t *testing.T) {
 	if mockTests {
 		assert.Equal(t, testPerpetualMappings, mappings, "getPerpetualPairMappings should return every active perpetual market")
 	} else {
-		assert.Contains(t, mappings, testPerpetualMapping, "getPerpetualPairMappings should include BTC")
+		assert.True(t, listsMarket(mappings, &testPerpetualMapping), "getPerpetualPairMappings should include BTC")
 	}
 
 	ex := new(Exchange)
@@ -908,7 +909,7 @@ func TestGetPerpetualPairMappings(t *testing.T) {
 
 func TestGetPerpetualAssetContexts(t *testing.T) {
 	t.Parallel()
-	contexts, err := e.getPerpetualAssetContexts(t.Context(), []pairMapping{testPerpetualMapping, testBuilderMapping})
+	contexts, err := e.getPerpetualAssetContexts(t.Context(), []pairMapping{testPerpetualMapping, builderTestMarket(t)})
 	require.NoError(t, err, "getPerpetualAssetContexts must not error")
 	require.Len(t, contexts, 2, "getPerpetualAssetContexts must return a context per mapping")
 	if mockTests {
@@ -1134,7 +1135,7 @@ func TestUpdateTicker(t *testing.T) {
 		assert.Positive(t, price.MarkPrice, "UpdateTicker should return the ticker of an available pair that is not enabled")
 	}
 	ethPair := currency.NewPair(currency.ETH, currency.USDC)
-	_, err = ex.UpdateTicker(t.Context(), ethPair, asset.Spot)
+	_, err = ex.UpdateTicker(t.Context(), currency.NewPair(currency.NewCode("NOTACOIN"), currency.USDC), asset.Spot)
 	assert.ErrorIs(t, err, errPairMappingNotFound, "UpdateTicker should report a pair without a market")
 
 	sibling := newInfoServerExchange(t, map[string]string{"metaAndAssetCtxs": `[{"universe":[{"name":"BTC"}]},[{"markPx":"101","midPx":"100.5"}]]`}, nil)
@@ -1189,7 +1190,7 @@ func TestUpdateOrderbook(t *testing.T) {
 		{
 			Bids:        orderbook.Levels{{Price: 31122, Amount: 0.215, OrderCount: 3}},
 			Asks:        orderbook.Levels{{Price: 31123, Amount: 0.8411, OrderCount: 5}},
-			Pair:        testBuilderPair,
+			Pair:        builderTestMarket(t).pair,
 			Asset:       asset.PerpetualContract,
 			LastUpdated: time.UnixMilli(1791275813002).UTC(),
 		},
@@ -2346,6 +2347,30 @@ func captureAction(t *testing.T, captured *string, body string) func(map[string]
 		*captured = string(encoded)
 		return body
 	}
+}
+
+// listsMarket reports whether mappings hold a market under its pair, coin and asset ID, leaving out its leverage cap and
+// size step, which Hyperliquid can change
+func listsMarket(mappings []pairMapping, market *pairMapping) bool {
+	return slices.ContainsFunc(mappings, func(m pairMapping) bool {
+		return m.pair.Equal(market.pair) && m.coin == market.coin && m.assetID == market.assetID
+	})
+}
+
+// builderTestMarket returns the builder DEX market to look up: the recorded one in mock mode, or, live, one Hyperliquid
+// still lists, as builder DEXs delist their markets
+func builderTestMarket(t *testing.T) pairMapping {
+	t.Helper()
+	if mockTests {
+		return testBuilderMapping
+	}
+	mappings, err := e.getPerpetualPairMappings(t.Context())
+	require.NoError(t, err, "getPerpetualPairMappings must not error")
+	index := slices.IndexFunc(mappings, func(m pairMapping) bool { return m.dex != "" })
+	if index < 0 {
+		t.Skip("Hyperliquid lists no builder DEX market")
+	}
+	return mappings[index]
 }
 
 // perpetualTestMarket returns the mapping and current mid price of perpetualPair's market
