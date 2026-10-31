@@ -1819,7 +1819,7 @@ func TestInvalidatePendingNonce(t *testing.T) {
 	}
 
 	var captured SignedActionRequest
-	expiresAfter := time.Now().Add(time.Minute)
+	expiresAfter := time.Now().Add(time.Hour)
 	require.NoError(t, newActionServerExchange(t, subAccountCredentials(), &captured, defaultActionResponse).InvalidatePendingNonce(t.Context(), &InvalidatePendingNonceRequest{Nonce: vectorNonce, ExpiresAfter: expiresAfter}), "InvalidatePendingNonce must not error")
 	assert.JSONEq(t, `{"type":"noop"}`, capturedAction(t, &captured), "InvalidatePendingNonce should send a noop")
 	assert.Equal(t, uint64(vectorNonce), captured.Nonce, "InvalidatePendingNonce should sign the pending nonce")
@@ -1973,7 +1973,7 @@ func TestSplitOutcome(t *testing.T) {
 	}
 
 	var captured SignedActionRequest
-	expiresAfter := time.Now().Add(time.Minute)
+	expiresAfter := time.Now().Add(time.Hour)
 	require.NoError(t, newActionServerExchange(t, subAccountCredentials(), &captured, defaultActionResponse).SplitOutcome(t.Context(), &SplitOutcomeRequest{Outcome: 3, Amount: 4, ExpiresAfter: expiresAfter}), "SplitOutcome must not error")
 	assert.JSONEq(t, `{"type":"userOutcome","splitOutcome":{"outcome":3,"amount":"4"}}`, capturedAction(t, &captured), "SplitOutcome should send the split")
 	assert.Empty(t, captured.VaultAddress, "SplitOutcome should not act for the configured subaccount")
@@ -1998,7 +1998,7 @@ func TestMergeOutcome(t *testing.T) {
 	assert.ErrorIs(t, e.MergeOutcome(t.Context(), &MergeOutcomeRequest{Amount: -1}), errOutcomeAmountInvalid, "MergeOutcome should reject a negative amount")
 
 	var captured SignedActionRequest
-	expiresAfter := time.Now().Add(time.Minute)
+	expiresAfter := time.Now().Add(time.Hour)
 	require.NoError(t, newActionServerExchange(t, subAccountCredentials(), &captured, defaultActionResponse).MergeOutcome(t.Context(), &MergeOutcomeRequest{Outcome: 1, ExpiresAfter: expiresAfter}), "MergeOutcome must not error")
 	assert.JSONEq(t, `{"type":"userOutcome","mergeOutcome":{"outcome":1,"amount":null}}`, capturedAction(t, &captured), "MergeOutcome should send a null amount to merge the maximum")
 	assert.Empty(t, captured.VaultAddress, "MergeOutcome should not act for the configured subaccount")
@@ -2022,7 +2022,7 @@ func TestMergeQuestion(t *testing.T) {
 	assert.ErrorIs(t, e.MergeQuestion(t.Context(), &MergeQuestionRequest{Amount: -1}), errOutcomeAmountInvalid, "MergeQuestion should reject a negative amount")
 
 	var captured SignedActionRequest
-	expiresAfter := time.Now().Add(time.Minute)
+	expiresAfter := time.Now().Add(time.Hour)
 	require.NoError(t, newActionServerExchange(t, subAccountCredentials(), &captured, defaultActionResponse).MergeQuestion(t.Context(), &MergeQuestionRequest{Question: 2, Amount: 3, ExpiresAfter: expiresAfter}), "MergeQuestion must not error")
 	assert.JSONEq(t, `{"type":"userOutcome","mergeQuestion":{"question":2,"amount":"3"}}`, capturedAction(t, &captured), "MergeQuestion should send the merge")
 	assert.Empty(t, captured.VaultAddress, "MergeQuestion should not act for the configured subaccount")
@@ -2050,7 +2050,7 @@ func TestNegateOutcome(t *testing.T) {
 	}
 
 	var captured SignedActionRequest
-	expiresAfter := time.Now().Add(time.Minute)
+	expiresAfter := time.Now().Add(time.Hour)
 	require.NoError(t, newActionServerExchange(t, subAccountCredentials(), &captured, defaultActionResponse).NegateOutcome(t.Context(), &NegateOutcomeRequest{Question: 5, Outcome: 6, Amount: 7, ExpiresAfter: expiresAfter}), "NegateOutcome must not error")
 	assert.JSONEq(t, `{"type":"userOutcome","negateOutcome":{"question":5,"outcome":6,"amount":"7"}}`, capturedAction(t, &captured), "NegateOutcome should send the negation")
 	assert.Empty(t, captured.VaultAddress, "NegateOutcome should not act for the configured subaccount")

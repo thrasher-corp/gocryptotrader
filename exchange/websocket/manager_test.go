@@ -2437,8 +2437,9 @@ func lifecycleDropServer(t *testing.T) (wsURL string, dial func(context.Context,
 	return "ws" + mock.URL[len("http"):] + "/ws", func(ctx context.Context, conn Connection) error { return conn.Dial(ctx, dialer, nil, nil) }
 }
 
-// newLifecycleTestManager returns a multi-connection manager with the given setups and an hour's monitor delay. Its
-// connection monitor never starts, so tests drive optional retries themselves, and it shuts down when the test ends
+// newLifecycleTestManager returns a multi-connection manager with the given setups, and an hour's monitor delay and
+// traffic timeout. Its connection monitor never starts, so tests drive optional retries themselves, and it shuts down
+// when the test ends
 func newLifecycleTestManager(t *testing.T, setups ...*ConnectionSetup) *Manager {
 	t.Helper()
 	m := NewManager()
@@ -2460,6 +2461,8 @@ func newLifecycleTestManager(t *testing.T, setups ...*ConnectionSetup) *Manager 
 	setup := newDefaultSetup()
 	setup.UseMultiConnectionManagement = true
 	setup.ExchangeConfig.ConnectionMonitorDelay = time.Hour
+	// A traffic check finding a silent connection would shut the manager down under a stalled test
+	setup.ExchangeConfig.WebsocketTrafficTimeout = time.Hour
 	require.NoError(t, m.Setup(setup), "Setup must not error")
 	for _, s := range setups {
 		require.NoError(t, m.SetupNewConnection(s), "SetupNewConnection must not error")
@@ -2569,20 +2572,24 @@ func TestConnectOptionalSetup(t *testing.T) {
 func TestConnectionMonitorRetriesOptionalSetup(t *testing.T) {
 	t.Parallel()
 	wsURL, dial := lifecycleTestServer(t)
-	var accountUp atomic.Bool
+	var accountDials atomic.Int32
 	var m *Manager
 	account := lifecycleTestSetup(&m, wsURL, "account", func(ctx context.Context, conn Connection) error {
-		if !accountUp.Load() {
+		// Only Connect's dial fails, as retries failing under a stalled test would back off past the bound below
+		if accountDials.Add(1) == 1 {
 			return errDastardlyReason
 		}
 		return dial(ctx, conn)
 	}, func() (subscription.List, error) { return subscription.List{{Channel: "account"}}, nil })
 	account.Optional = true
-	m = newLifecycleTestManager(t, lifecycleTestSetup(&m, wsURL, "public", dial, func() (subscription.List, error) {
+	var publicDials atomic.Int32
+	m = newLifecycleTestManager(t, lifecycleTestSetup(&m, wsURL, "public", func(ctx context.Context, conn Connection) error {
+		publicDials.Add(1)
+		return dial(ctx, conn)
+	}, func() (subscription.List, error) {
 		return subscription.List{{Channel: "public"}}, nil
 	}), account)
 	m.connectionMonitorDelay = 10 * time.Millisecond
-	m.trafficTimeout = time.Minute // A reconnection would also connect the optional setup
 	m.connectionMonitorRunning.Store(false)
 	t.Cleanup(func() {
 		m.setEnabled(false)
@@ -2591,14 +2598,13 @@ func TestConnectionMonitorRetriesOptionalSetup(t *testing.T) {
 	public, optional := m.connectionManager[0], m.connectionManager[1]
 
 	require.NoError(t, m.Connect(t.Context()), "Connect must not fail for an optional connection's failure")
-	publicConnections := m.snapshotManagedConnections(public)
-	accountUp.Store(true)
 	assert.Eventually(t, func() bool {
 		m.m.Lock()
 		defer m.m.Unlock()
 		return optional.retryFailures == 0 && len(m.snapshotManagedConnections(optional)) == 1
 	}, 5*time.Second, 10*time.Millisecond, "the connection monitor should connect an optional setup once its retry is due")
-	assert.Equal(t, publicConnections, m.snapshotManagedConnections(public), "the connection monitor should connect an optional setup without reconnecting the others")
+	assert.Equal(t, int32(1), publicDials.Load(), "the connection monitor should connect an optional setup without reconnecting the others")
+	assert.Len(t, m.snapshotManagedConnections(public), 1, "the connection monitor should leave the other setups' connections up")
 }
 
 func TestObserveConnectionIsolatesFaults(t *testing.T) {
@@ -2652,7 +2658,6 @@ func TestObserveConnectionReconcilesDroppedFaults(t *testing.T) {
 	m = newLifecycleTestManager(t, lifecycleTestSetup(&m, wsURL, "public", dial, func() (subscription.List, error) {
 		return subscription.List{{Channel: "public"}}, nil
 	}), account)
-	m.trafficTimeout = time.Minute
 	public, optional := m.connectionManager[0], m.connectionManager[1]
 	require.NoError(t, m.Connect(t.Context()), "Connect must not error")
 	publicConnections, accountConnections := m.snapshotManagedConnections(public), m.snapshotManagedConnections(optional)

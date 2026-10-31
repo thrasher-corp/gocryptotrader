@@ -1923,6 +1923,22 @@ func TestGetAccountFundingHistory(t *testing.T) {
 	assert.Equal(t, "HYPE", fees[0].Currency, "GetAccountFundingHistory should return the transfer in its own currency")
 	assert.Equal(t, "USDC", fees[1].Currency, "GetAccountFundingHistory should return the fee in its own currency")
 	assert.Equal(t, 1.0, fees[1].Fee, "GetAccountFundingHistory should return the fee the account paid")
+	// Live shape: older rewards claims send an empty token
+	const claimWithoutToken = `[{"time":1791200000000,"hash":"0x3","delta":{"type":"rewardsClaim","amount":"69.900422","token":""}}]`
+	claimant := newInfoServerExchange(t, map[string]string{"userNonFundingLedgerUpdates": claimWithoutToken}, nil)
+	claims, err := claimant.GetAccountFundingHistory(t.Context())
+	require.NoError(t, err, "GetAccountFundingHistory must not error for a rewards claim naming no token")
+	assert.Equal(t, []exchange.FundingHistory{{
+		ExchangeName: claimant.Name,
+		Status:       "processed",
+		TransferID:   "0x3",
+		Description:  "rewardsClaim",
+		Timestamp:    time.UnixMilli(1791200000000).UTC(),
+		Currency:     "USDC",
+		Amount:       69.900422,
+		TransferType: "rewardsClaim",
+		CryptoTxID:   "0x3",
+	}}, claims, "GetAccountFundingHistory should return a rewards claim naming no token in USDC")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -2208,6 +2224,8 @@ func TestConvertUserLedgerUpdate(t *testing.T) {
 		{delta: UserLedgerDelta{Type: "send", Token: currency.USDC, Amount: 4, SourceDEX: "spot"}, currency: "USDC", amount: 4, description: "send: spot to perpetual"},
 		{delta: UserLedgerDelta{Type: "send", Token: currency.USDC, Amount: 4, DestinationDEX: "xyz"}, currency: "USDC", amount: 4, description: "send: perpetual to xyz"},
 		{delta: UserLedgerDelta{Type: "rewardsClaim", Token: currency.USDC, Amount: 5}, currency: "USDC", amount: 5, description: "rewardsClaim"},
+		{delta: UserLedgerDelta{Type: "rewardsClaim", Token: currency.USDE, Amount: 1.75}, currency: "USDE", amount: 1.75, description: "rewardsClaim"},
+		{delta: UserLedgerDelta{Type: "rewardsClaim", Amount: 6}, currency: "USDC", amount: 6, description: "rewardsClaim"},
 		{delta: UserLedgerDelta{Type: "deployGasAuction", Token: currency.HYPE, Amount: 9}, currency: "HYPE", amount: 9, description: "deployGasAuction"},
 		{delta: UserLedgerDelta{Type: "vaultWithdraw", NetWithdrawnUSD: 6, RequestedUSD: 6.5}, currency: "USDC", amount: 6, description: "vaultWithdraw"},
 		{delta: UserLedgerDelta{Type: "accountClassTransfer", USDC: 7}, currency: "USDC", amount: 7, description: "perpetual to spot"},

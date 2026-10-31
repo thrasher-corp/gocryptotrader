@@ -2361,6 +2361,9 @@ func (e *Exchange) convertUserLedgerUpdate(account string, update *UserLedgerUpd
 		// Token transfers, staking, borrowing and lending, rewards, gas auction bids and DEX abstraction activations are
 		// denominated in their own token
 		ccy, amount = update.Delta.Token, update.Delta.Amount.Float64()
+	case deltaType == "rewardsClaim":
+		// Older claims name no token, and were paid in USDC
+		amount = update.Delta.Amount.Float64()
 	}
 	description := deltaType
 	switch {
