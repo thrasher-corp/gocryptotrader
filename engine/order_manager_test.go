@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
@@ -412,74 +413,133 @@ func TestStore_modifyOrder(t *testing.T) {
 	}
 }
 
+// cancelRecordingExchange records each cancellation it receives and returns err for it
+type cancelRecordingExchange struct {
+	exchange.IBotExchange
+	err       error
+	cancelled []order.Cancel
+}
+
+func (c *cancelRecordingExchange) CancelOrder(_ context.Context, o *order.Cancel) error {
+	c.cancelled = append(c.cancelled, *o)
+	return c.err
+}
+
+// cancelRecordingSetup returns a started order manager for a cancelRecordingExchange, set up without API calls
+func cancelRecordingSetup(t *testing.T) (*OrderManager, *cancelRecordingExchange) {
+	t.Helper()
+	em := NewExchangeManager()
+	exch, err := em.NewExchangeByName(testExchange)
+	require.NoError(t, err, "NewExchangeByName must not error")
+	exch.SetDefaults()
+	fake := &cancelRecordingExchange{IBotExchange: exch}
+	require.NoError(t, em.Add(fake), "Add must not error")
+	m, err := SetupOrderManager(em, &CommunicationManager{}, &sync.WaitGroup{}, &config.OrderManager{})
+	require.NoError(t, err, "SetupOrderManager must not error")
+	m.started.Store(true)
+	return m, fake
+}
+
 func TestCancelOrder(t *testing.T) {
-	m := OrdersSetup(t)
+	t.Parallel()
+	var nilManager *OrderManager
+	assert.ErrorIs(t, nilManager.Cancel(t.Context(), nil), ErrNilSubsystem, "Cancel should error for a nil order manager")
+	assert.ErrorIs(t, new(OrderManager).Cancel(t.Context(), nil), ErrSubSystemNotStarted, "Cancel should error before the order manager starts")
 
-	err := m.Cancel(t.Context(), nil)
-	if err == nil {
-		t.Error("Expected error due to empty order")
+	m, exch := cancelRecordingSetup(t)
+	assert.ErrorContains(t, m.Cancel(t.Context(), nil), "order cancel param is nil", "Cancel should error for a nil cancellation")
+	assert.ErrorContains(t, m.Cancel(t.Context(), &order.Cancel{}), "order exchange name is empty", "Cancel should error for an empty cancellation")
+	assert.ErrorContains(t, m.Cancel(t.Context(), &order.Cancel{Exchange: testExchange}), "order id is empty", "Cancel should error without an order ID")
+	assert.ErrorContains(t, m.Cancel(t.Context(), &order.Cancel{OrderID: "ID"}), "order exchange name is empty", "Cancel should error without an exchange")
+	assert.ErrorIs(t, m.Cancel(t.Context(), &order.Cancel{OrderID: "ID", Exchange: "unloaded"}), ErrExchangeNotFound, "Cancel should error for an exchange that is not loaded")
+	assert.ErrorIs(t, m.Cancel(t.Context(), &order.Cancel{OrderID: "ID", Exchange: testExchange, AssetType: asset.Binary}), asset.ErrNotSupported, "Cancel should error for an asset the exchange does not support")
+	assert.Empty(t, exch.cancelled, "Cancel should not send an invalid cancellation to the exchange")
+
+	stop := order.Detail{Exchange: testExchange, OrderID: "stop", Pair: btcusdPair, AssetType: asset.Spot, Type: order.StopLimit, Side: order.Sell, Status: order.New}
+	stored := []order.Detail{
+		{Exchange: testExchange, OrderID: "1337", Status: order.New},
+		stop,
+		{Exchange: testExchange, OrderID: "futures without a pair", AssetType: asset.Futures, Type: order.Limit, Side: order.Buy, Status: order.New},
+	}
+	for _, tc := range []struct {
+		name         string
+		cancel       order.Cancel
+		exchangeErr  error
+		sent         order.Cancel
+		err          error
+		storedStatus map[string]order.Status
+	}{
+		{
+			name:         "a stored order",
+			cancel:       order.Cancel{Exchange: testExchange, OrderID: "1337", Side: order.Sell, AssetType: asset.Spot, Pair: btcusdPair},
+			sent:         order.Cancel{Exchange: testExchange, OrderID: "1337", Side: order.Sell, AssetType: asset.Spot, Pair: btcusdPair},
+			storedStatus: map[string]order.Status{"1337": order.Cancelled, "stop": order.New, "futures without a pair": order.New},
+		},
+		{
+			name:         "a stored order without a type in the cancellation",
+			cancel:       order.Cancel{Exchange: testExchange, OrderID: "stop", Side: order.Sell, AssetType: asset.Spot, Pair: btcusdPair},
+			sent:         order.Cancel{Exchange: testExchange, OrderID: "stop", Type: order.StopLimit, Side: order.Sell, AssetType: asset.Spot, Pair: btcusdPair},
+			storedStatus: map[string]order.Status{"1337": order.New, "stop": order.Cancelled, "futures without a pair": order.New},
+		},
+		{
+			name:         "a stored order with a type in the cancellation",
+			cancel:       order.Cancel{Exchange: testExchange, OrderID: "stop", Type: order.Limit, Side: order.Sell, AssetType: asset.Spot, Pair: btcusdPair},
+			sent:         order.Cancel{Exchange: testExchange, OrderID: "stop", Type: order.Limit, Side: order.Sell, AssetType: asset.Spot, Pair: btcusdPair},
+			storedStatus: map[string]order.Status{"1337": order.New, "stop": order.Cancelled, "futures without a pair": order.New},
+		},
+		{
+			name:         "an order the store does not hold",
+			cancel:       order.Cancel{Exchange: testExchange, OrderID: "Unknown", AssetType: asset.Spot},
+			sent:         order.Cancel{Exchange: testExchange, OrderID: "Unknown", AssetType: asset.Spot},
+			err:          ErrOrderNotFound,
+			storedStatus: map[string]order.Status{"1337": order.New, "stop": order.New, "futures without a pair": order.New},
+		},
+		{
+			name:         "a cancellation the exchange rejects",
+			cancel:       order.Cancel{Exchange: testExchange, OrderID: "stop", Side: order.Sell, AssetType: asset.Spot, Pair: btcusdPair},
+			exchangeErr:  errExpectedTestError,
+			sent:         order.Cancel{Exchange: testExchange, OrderID: "stop", Type: order.StopLimit, Side: order.Sell, AssetType: asset.Spot, Pair: btcusdPair},
+			err:          errExpectedTestError,
+			storedStatus: map[string]order.Status{"1337": order.New, "stop": order.New, "futures without a pair": order.New},
+		},
+		{
+			name:         "an order the store cannot track",
+			cancel:       order.Cancel{Exchange: testExchange, OrderID: "futures without a pair"},
+			sent:         order.Cancel{Exchange: testExchange, OrderID: "futures without a pair", Type: order.Limit},
+			err:          order.ErrPairIsEmpty,
+			storedStatus: map[string]order.Status{"1337": order.New, "stop": order.New, "futures without a pair": order.Cancelled},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			m, exch := cancelRecordingSetup(t)
+			exch.err = tc.exchangeErr
+			for i := range stored {
+				m.orderStore.Orders[strings.ToLower(testExchange)] = append(m.orderStore.Orders[strings.ToLower(testExchange)], stored[i].CopyToPointer())
+			}
+			cancel := tc.cancel
+			assert.ErrorIs(t, m.Cancel(t.Context(), &cancel), tc.err, "Cancel should return the expected error")
+			assert.Equal(t, []order.Cancel{tc.sent}, exch.cancelled, "Cancel should send the exchange the expected cancellation")
+			assert.Equal(t, tc.cancel, cancel, "Cancel should not change the caller's cancellation")
+			statuses := make(map[string]order.Status)
+			for _, d := range m.orderStore.get()[strings.ToLower(testExchange)] {
+				statuses[d.OrderID] = d.Status
+			}
+			assert.Equal(t, tc.storedStatus, statuses, "Cancel should leave the stored orders with the expected statuses")
+		})
 	}
 
-	err = m.Cancel(t.Context(), &order.Cancel{})
-	if err == nil {
-		t.Error("Expected error due to empty order")
-	}
-
-	err = m.Cancel(t.Context(), &order.Cancel{
-		Exchange: testExchange,
+	t.Run("a stopped order manager when running is not required", func(t *testing.T) {
+		t.Parallel()
+		m, exch := cancelRecordingSetup(t)
+		m.started.Store(false)
+		m.orderStore.Orders[strings.ToLower(testExchange)] = []*order.Detail{stop.CopyToPointer()}
+		require.NoError(t, m.cancel(t.Context(), &order.Cancel{Exchange: testExchange, OrderID: "stop"}, false), "cancel must not error when running is not required")
+		assert.Equal(t, []order.Cancel{{Exchange: testExchange, OrderID: "stop", Type: order.StopLimit}}, exch.cancelled, "cancel should send the exchange the stored order's type")
+		got, err := m.orderStore.getByExchangeAndID(testExchange, "stop")
+		require.NoError(t, err, "getByExchangeAndID must not error")
+		assert.Equal(t, order.Cancelled, got.Status, "cancel should mark the stored order cancelled")
 	})
-	if err == nil {
-		t.Error("Expected error due to no order ID")
-	}
-
-	err = m.Cancel(t.Context(), &order.Cancel{
-		OrderID: "ID",
-	})
-	if err == nil {
-		t.Error("Expected error due to no Exchange")
-	}
-
-	err = m.Cancel(t.Context(), &order.Cancel{
-		OrderID:   "ID",
-		Exchange:  testExchange,
-		AssetType: asset.Binary,
-	})
-	if err == nil {
-		t.Error("Expected error due to bad asset type")
-	}
-
-	o := &order.Detail{
-		Exchange: testExchange,
-		OrderID:  "1337",
-		Status:   order.New,
-	}
-	err = m.orderStore.add(o)
-	if err != nil {
-		t.Error(err)
-	}
-
-	err = m.Cancel(t.Context(), &order.Cancel{
-		OrderID:   "Unknown",
-		Exchange:  testExchange,
-		AssetType: asset.Spot,
-	})
-	if err == nil {
-		t.Error("Expected error due to no order found")
-	}
-
-	cancel := &order.Cancel{
-		Exchange:  testExchange,
-		OrderID:   "1337",
-		Side:      order.Sell,
-		AssetType: asset.Spot,
-		Pair:      btcusdPair,
-	}
-	err = m.Cancel(t.Context(), cancel)
-	assert.NoError(t, err)
-
-	if o.Status != order.Cancelled {
-		t.Error("Failed to cancel")
-	}
 }
 
 func TestGetOrderInfo(t *testing.T) {
@@ -1410,23 +1470,107 @@ func TestSubmitFakeOrder(t *testing.T) {
 
 func TestGetOrdersSnapshot(t *testing.T) {
 	t.Parallel()
+	var nilManager *OrderManager
+	assert.Nil(t, nilManager.GetOrdersSnapshot(order.AnyStatus), "GetOrdersSnapshot should return no orders for a nil order manager")
 	o := &OrderManager{}
-	o.GetOrdersSnapshot(order.AnyStatus)
+	assert.Nil(t, o.GetOrdersSnapshot(order.AnyStatus), "GetOrdersSnapshot should return no orders before the order manager starts")
 	o.started.Store(true)
 	o.orderStore.Orders = make(map[string][]*order.Detail)
 	o.orderStore.Orders[testExchange] = []*order.Detail{
 		{
 			Status: order.Open,
 		},
+		{
+			OrderID: "filled",
+			Status:  order.Filled,
+		},
 	}
-	snap := o.GetOrdersSnapshot(order.Open)
-	if len(snap) != 1 {
-		t.Error("expected 1")
+	all := []order.Detail{{Status: order.Open}, {OrderID: "filled", Status: order.Filled}}
+	for _, tc := range []struct {
+		status order.Status
+		exp    []order.Detail
+	}{
+		{status: order.Open, exp: []order.Detail{{Status: order.Open}}},
+		{status: order.Closed},
+		{status: order.AnyStatus, exp: all},
+		{status: order.UnknownStatus, exp: all},
+	} {
+		assert.Equalf(t, tc.exp, o.GetOrdersSnapshot(tc.status), "GetOrdersSnapshot should return the orders for status %s", tc.status)
 	}
-	snap = o.GetOrdersSnapshot(order.Closed)
-	if len(snap) != 0 {
-		t.Error("expected 0")
-	}
+
+	t.Run("waits for the order store's lock", func(t *testing.T) {
+		t.Parallel()
+		m := &OrderManager{}
+		m.started.Store(true)
+		stored := &order.Detail{OrderID: "1", Status: order.Open}
+		m.orderStore.Orders = map[string][]*order.Detail{testExchange: {stored}}
+		m.orderStore.m.Lock()
+		snapshot := make(chan []order.Detail, 1)
+		go func() { snapshot <- m.GetOrdersSnapshot(order.AnyStatus) }()
+		// Gives a snapshot that ignores the lock time to read the order before it changes
+		time.Sleep(20 * time.Millisecond)
+		stored.Status = order.Filled
+		m.orderStore.m.Unlock()
+		select {
+		case got := <-snapshot:
+			assert.Equal(t, []order.Detail{{OrderID: "1", Status: order.Filled}}, got, "GetOrdersSnapshot should wait for the order store's lock")
+		case <-time.After(5 * time.Second):
+			require.FailNow(t, "GetOrdersSnapshot must return once the order store's lock is released")
+		}
+	})
+
+	t.Run("reads alongside another reader", func(t *testing.T) {
+		t.Parallel()
+		m := &OrderManager{}
+		m.started.Store(true)
+		m.orderStore.Orders = map[string][]*order.Detail{testExchange: {{OrderID: "1", Status: order.Open}}}
+		m.orderStore.m.RLock()
+		defer m.orderStore.m.RUnlock()
+		snapshot := make(chan []order.Detail, 1)
+		go func() { snapshot <- m.GetOrdersSnapshot(order.AnyStatus) }()
+		select {
+		case got := <-snapshot:
+			assert.Equal(t, []order.Detail{{OrderID: "1", Status: order.Open}}, got, "GetOrdersSnapshot should return the stored order")
+		case <-time.After(5 * time.Second):
+			require.FailNow(t, "GetOrdersSnapshot must not wait for another reader of the order store")
+		}
+	})
+
+	t.Run("concurrent store updates", func(t *testing.T) {
+		t.Parallel()
+		m := &OrderManager{}
+		m.started.Store(true)
+		m.orderStore.Orders = map[string][]*order.Detail{strings.ToLower(testExchange): {{Exchange: testExchange, OrderID: "1", Status: order.Open}}}
+		// The workers report to the test, so one finishing after a failed wait cannot fail a test that has ended
+		updateErrs, snapshotLens := make(chan error, 100), make(chan int, 100)
+		var wg sync.WaitGroup
+		for i := range 100 {
+			wg.Go(func() {
+				updateErrs <- m.orderStore.updateExisting(&order.Detail{Exchange: testExchange, OrderID: "1", Price: float64(i + 1)})
+			})
+			wg.Go(func() {
+				snapshotLens <- len(m.GetOrdersSnapshot(order.AnyStatus))
+			})
+		}
+		done := make(chan struct{})
+		go func() {
+			wg.Wait()
+			close(done)
+		}()
+		select {
+		case <-done:
+		case <-time.After(10 * time.Second):
+			require.FailNow(t, "GetOrdersSnapshot and the order store's updates must not deadlock")
+		}
+		close(updateErrs)
+		close(snapshotLens)
+		for err := range updateErrs {
+			assert.NoError(t, err, "updateExisting should not error")
+		}
+		for n := range snapshotLens {
+			assert.Equal(t, 1, n, "GetOrdersSnapshot should return the stored order")
+		}
+	})
 }
 
 func TestUpdateExisting(t *testing.T) {
@@ -1725,4 +1869,154 @@ func TestGetByDetail(t *testing.T) {
 		assert.NotSame(t, byID, od, "Retrieve by new pointer should return a different new pointer than the original object")
 		assert.Equal(t, od.ClientOrderID, byID.ClientOrderID, "Retrieve by id pointer should contain the correct ClientOrderID")
 	}
+}
+
+// feesExchange serves programmed order lookups, active orders, submissions and position orders, and records the last
+// submission it receives, so tests can follow fees and orders through the order manager and RPC server without API calls
+type feesExchange struct {
+	exchange.IBotExchange
+	orderInfo      *order.Detail
+	activeOrders   []order.Detail
+	submitted      *order.SubmitResponse
+	submission     *order.Submit
+	positionOrders []order.Detail
+}
+
+func (f *feesExchange) GetOrderInfo(context.Context, string, currency.Pair, asset.Item) (*order.Detail, error) {
+	return f.orderInfo.CopyToPointer(), nil
+}
+
+func (f *feesExchange) GetActiveOrders(context.Context, *order.MultiOrderRequest) (order.FilteredOrders, error) {
+	return f.activeOrders, nil
+}
+
+func (f *feesExchange) SubmitOrder(_ context.Context, s *order.Submit) (*order.SubmitResponse, error) {
+	f.submission = s
+	return f.submitted, nil
+}
+
+func (f *feesExchange) GetFuturesPositionOrders(_ context.Context, req *futures.PositionsRequest) ([]futures.PositionResponse, error) {
+	return []futures.PositionResponse{{Asset: req.Asset, Pair: req.Pairs[0], Orders: f.positionOrders}}, nil
+}
+
+// setupFeesExchange returns an RPC server whose order manager tracks orders from a feesExchange trading BTCUSDT spot
+// and USDT margined futures, set up without API calls
+func setupFeesExchange(t *testing.T) (*RPCServer, *feesExchange) {
+	t.Helper()
+	em := NewExchangeManager()
+	exch, err := em.NewExchangeByName("Binance")
+	require.NoError(t, err, "NewExchangeByName must not error")
+	exch.SetDefaults()
+	b := exch.GetBase()
+	b.States = currencystate.NewCurrencyStates()
+	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	for _, a := range []asset.Item{asset.Spot, asset.USDTMarginedFutures} {
+		b.CurrencyPairs.Pairs[a] = &currency.PairStore{
+			Available:     currency.Pairs{currency.NewBTCUSDT()},
+			Enabled:       currency.Pairs{currency.NewBTCUSDT()},
+			AssetEnabled:  true,
+			ConfigFormat:  &currency.PairFormat{Uppercase: true},
+			RequestFormat: &currency.PairFormat{Uppercase: true},
+		}
+	}
+	fake := &feesExchange{IBotExchange: exch}
+	require.NoError(t, em.Add(fake), "Add must not error")
+	var wg sync.WaitGroup
+	om, err := SetupOrderManager(em, &CommunicationManager{}, &wg, &config.OrderManager{})
+	require.NoError(t, err, "SetupOrderManager must not error")
+	om.started.Store(true)
+	return &RPCServer{Engine: &Engine{Config: &config.Config{}, ExchangeManager: em, OrderManager: om}}, fake
+}
+
+func newTestFees(t *testing.T, amounts ...order.FeeAmount) order.Fees {
+	t.Helper()
+	f, err := order.NewFees(amounts...)
+	require.NoError(t, err, "NewFees must not error")
+	return f
+}
+
+// TestOrderManagerFees follows #2456's lookups through the order manager's REST paths, GetOrderInfo and
+// FetchAndUpdateExchangeOrder: a second currency must replace the stored single fee, a lookup without fees keeps the
+// stored ones even when it carries a single fee, and an empty snapshot clears them
+func TestOrderManagerFees(t *testing.T) {
+	t.Parallel()
+	s, exch := setupFeesExchange(t)
+	btc := newTestFees(t, order.FeeAmount{Currency: currency.BTC, Amount: 0.001})
+	btcUSDT := newTestFees(t, order.FeeAmount{Currency: currency.BTC, Amount: 0.001}, order.FeeAmount{Currency: currency.USDT, Amount: 0.2})
+	none := newTestFees(t)
+	for _, step := range []struct {
+		name     string
+		fees     order.Fees
+		fee      float64
+		expFees  order.Fees
+		expFee   float64
+		expAsset currency.Code
+	}{
+		{name: "one currency", fees: btc, expFees: btc, expFee: 0.001, expAsset: currency.BTC},
+		{name: "two currencies", fees: btcUSDT, expFees: btcUSDT},
+		{name: "a single fee without fees", fee: 0.3, expFees: btcUSDT},
+		{name: "no fees", fees: none, expFees: none},
+	} {
+		exch.orderInfo = &order.Detail{Exchange: exch.GetName(), OrderID: "1", Pair: currency.NewBTCUSDT(), AssetType: asset.Spot, Status: order.PartiallyFilled, Fee: step.fee}
+		exch.orderInfo.SetFees(step.fees)
+		got, err := s.OrderManager.GetOrderInfo(t.Context(), exch.GetName(), "1", currency.NewBTCUSDT(), asset.Spot)
+		require.NoErrorf(t, err, "GetOrderInfo must not error for %s", step.name)
+		stored, err := s.OrderManager.GetByExchangeAndID(exch.GetName(), "1")
+		require.NoErrorf(t, err, "GetByExchangeAndID must not error for %s", step.name)
+		for _, d := range []*order.Detail{&got, stored} {
+			assert.Equalf(t, step.expFees, d.Fees, "the order should have the expected fees for %s", step.name)
+			assert.Equalf(t, step.expFee, d.Fee, "the order should have the expected single fee for %s", step.name)
+			assert.Equalf(t, step.expAsset, d.FeeAsset, "the order should have the expected single fee asset for %s", step.name)
+		}
+	}
+
+	exch.orderInfo.SetFees(btcUSDT)
+	err := s.OrderManager.FetchAndUpdateExchangeOrder(t.Context(), exch, &order.Detail{OrderID: "1", Pair: currency.NewBTCUSDT()}, asset.Spot)
+	require.NoError(t, err, "FetchAndUpdateExchangeOrder must not error")
+	stored, err := s.OrderManager.GetByExchangeAndID(exch.GetName(), "1")
+	require.NoError(t, err, "GetByExchangeAndID must not error")
+	assert.Equal(t, btcUSDT, stored.Fees, "FetchAndUpdateExchangeOrder should replace the stored fees")
+	assert.Zero(t, stored.Fee, "FetchAndUpdateExchangeOrder should not leave a single fee for fees in two currencies")
+}
+
+// TestOrderStoreFeesIsolation checks that an order's fees in the order store cannot be changed from outside it: not
+// through the update that was merged into it, nor through any order the store returns
+func TestOrderStoreFeesIsolation(t *testing.T) {
+	t.Parallel()
+	s, exch := setupFeesExchange(t)
+	m := s.OrderManager
+	exp := []order.FeeAmount{{Currency: currency.BTC, Amount: 0.001}, {Currency: currency.USDT, Amount: 0.2}}
+	fees := newTestFees(t, exp...)
+	other := newTestFees(t, order.FeeAmount{Currency: currency.ETH, Amount: 1})
+
+	_, err := m.UpsertOrder(&order.Detail{Exchange: exch.GetName(), OrderID: "1", Pair: currency.NewBTCUSDT(), AssetType: asset.Spot, Status: order.Active, Amount: 1})
+	require.NoError(t, err, "UpsertOrder must not error adding the order")
+	update := &order.Detail{Exchange: exch.GetName(), OrderID: "1", Trades: []order.TradeHistory{{TID: "1"}}}
+	update.SetFees(fees)
+	update.Trades[0].SetFees(fees)
+	upserted, err := m.UpsertOrder(update)
+	require.NoError(t, err, "UpsertOrder must not error updating the order")
+	byID, err := m.GetByExchangeAndID(exch.GetName(), "1")
+	require.NoError(t, err, "GetByExchangeAndID must not error")
+	filtered, err := m.GetOrdersFiltered(&order.Filter{Exchange: exch.GetName()})
+	require.NoError(t, err, "GetOrdersFiltered must not error")
+	require.Len(t, filtered, 1, "GetOrdersFiltered must return the order")
+	active, err := m.GetOrdersActive(&order.Filter{Exchange: exch.GetName()})
+	require.NoError(t, err, "GetOrdersActive must not error")
+	require.Len(t, active, 1, "GetOrdersActive must return the order")
+	snapshot := m.GetOrdersSnapshot(order.AnyStatus)
+	require.Len(t, snapshot, 1, "GetOrdersSnapshot must return the order")
+	all := m.orderStore.get()[strings.ToLower(exch.GetName())]
+	require.Len(t, all, 1, "get must return the order")
+
+	for _, d := range []*order.Detail{update, &upserted.OrderDetails, byID, &filtered[0], &active[0], &snapshot[0], all[0]} {
+		require.Len(t, d.Trades, 1, "every copy must hold the fill")
+		d.SetFees(other)
+		d.Trades[0].SetFees(other)
+	}
+	stored, err := m.GetByExchangeAndID(exch.GetName(), "1")
+	require.NoError(t, err, "GetByExchangeAndID must not error")
+	assert.Equal(t, exp, stored.Fees.Amounts(), "the stored order's fees should not change from outside the store")
+	require.Len(t, stored.Trades, 1, "the stored order must hold the fill")
+	assert.Equal(t, exp, stored.Trades[0].Fees.Amounts(), "the stored fill's fees should not change from outside the store")
 }

@@ -1,6 +1,7 @@
 package accounts
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -24,9 +25,10 @@ var (
 )
 
 var (
-	errCredentialsEmpty = errors.New("no credentials provided")
-	errUpdatingBalance  = errors.New("error updating balance")
-	errPublish          = errors.New("error publishing account changes")
+	errCredentialsEmpty         = errors.New("no credentials provided")
+	errUpdatingBalance          = errors.New("error updating balance")
+	errPublish                  = errors.New("error publishing account changes")
+	errSnapshotRequestTimeUnset = errors.New("snapshot request time unset")
 )
 
 // Accounts holds a stream ID and a map to the exchange holdings.
@@ -272,6 +274,25 @@ func (a *Accounts) UpdateBalance(ctx context.Context, subAccount string, aType a
 // Credentials will be retrieved from ctx, Use DeployCredentialsToContext.
 // Changes to balances are published individually.
 func (a *Accounts) Save(ctx context.Context, subAccts SubAccounts, isSnapshot bool) error {
+	return a.save(ctx, subAccts, isSnapshot, time.Time{})
+}
+
+// SaveSnapshot saves subAccts as a snapshot of the account balances requested at requested, which may not be zero. A
+// balance without an UpdatedAt takes requested as its own, and replaces the stored balance unless that was stored
+// after it, such as by a websocket push while the request was in flight. A currency the snapshot leaves out is removed
+// unless stored after requested. A stored balance kept is written to subAccts in place of the snapshot's, so that
+// subAccts hold what is stored.
+// Credentials will be retrieved from ctx, Use DeployCredentialsToContext.
+// Changes to balances are published individually.
+func (a *Accounts) SaveSnapshot(ctx context.Context, subAccts SubAccounts, requested time.Time) error {
+	if requested.IsZero() {
+		return fmt.Errorf("cannot save snapshot: %w", errSnapshotRequestTimeUnset)
+	}
+	return a.save(ctx, subAccts, true, requested)
+}
+
+// save stores subAccts; a non-zero requested is the time a snapshot was requested, as SaveSnapshot describes
+func (a *Accounts) save(ctx context.Context, subAccts SubAccounts, isSnapshot bool, requested time.Time) error {
 	if err := common.NilGuard(a); err != nil {
 		return fmt.Errorf("cannot save holdings: %w", err)
 	}
@@ -305,20 +326,32 @@ func (a *Accounts) Save(ctx context.Context, subAccts SubAccounts, isSnapshot bo
 		for curr, newBal := range s.Balances {
 			delete(missing, curr.Item)
 			if newBal.UpdatedAt.IsZero() {
-				newBal.UpdatedAt = time.Now()
+				newBal.UpdatedAt = cmp.Or(requested, time.Now())
 			}
 			if newBal.Currency.IsEmpty() {
 				newBal.Currency = curr
 			}
+			stored := accBalances.balance(curr.Item)
+			if kept := stored.Balance(); !requested.IsZero() && kept.UpdatedAt.After(newBal.UpdatedAt) {
+				s.Balances[curr] = kept
+				continue
+			}
 			s.Balances[curr] = newBal
-			if u, err := accBalances.balance(curr.Item).update(newBal); err != nil {
+			if u, err := stored.update(newBal); err != nil {
 				errs = common.AppendError(errs, fmt.Errorf("%w for account ID %q [%s %s]: %w", errUpdatingBalance, s.ID, s.AssetType, curr, err))
 			} else if u {
 				updated = true
 			}
 		}
 		if isSnapshot {
-			for cur := range missing {
+			for cur, b := range missing {
+				if kept := b.Balance(); !requested.IsZero() && kept.UpdatedAt.After(requested) {
+					if s.Balances == nil {
+						s.Balances = CurrencyBalances{}
+					}
+					s.Balances[cur.Currency()] = kept
+					continue
+				}
 				delete(accBalances, cur)
 				updated = true
 			}

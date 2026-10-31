@@ -106,12 +106,26 @@ type ConnectionSetup struct {
 	// MessageFilter defines the criteria used to match messages to a specific connection.
 	// The filter enables precise routing and handling of messages for distinct connection contexts.
 	MessageFilter any
+	// MaxSubscriptionsPerConnection, when above zero, caps the subscriptions each connection of this setup carries in
+	// place of the manager's MaxSubscriptionsPerConnection, for a stream whose limit differs from the exchange's other
+	// streams. It is used only with multi-connection management
+	MaxSubscriptionsPerConnection int
 }
 
 // Inspector is used to verify messages via SendMessageReturnResponsesWithInspection
 // It inspects the []bytes websocket message and returns true if the message is the final message in a sequence of expected messages
 type Inspector interface {
 	IsFinal([]byte) bool
+}
+
+// SendTimeStamper is implemented by a JSON payload that carries the time it is sent, such as a request that an exchange
+// refuses once its timestamp is older than a receive window. A connection stamps it after any rate limit wait, just
+// before it writes it, so a request queued behind its rate limit is not sent with the time it was built.
+// StampSendTime is called while the connection holds its write lock, so it must not use the connection
+type SendTimeStamper interface {
+	// StampSendTime returns a copy of the payload carrying the time it is sent, which the connection writes in its
+	// place. The payload itself must not change, since its caller may be sending it elsewhere at the same time
+	StampSendTime(time.Time) any
 }
 
 // Response defines generalised data from the websocket connection
@@ -186,6 +200,9 @@ func (c *connection) Dial(ctx context.Context, dialer *gws.Dialer, headers http.
 // SendJSONMessage sends a JSON encoded message over the connection
 func (c *connection) SendJSONMessage(ctx context.Context, epl request.EndpointLimit, data any) error {
 	return c.writeToConn(ctx, epl, func() error {
+		if timed, ok := data.(SendTimeStamper); ok {
+			data = timed.StampSendTime(time.Now())
+		}
 		if request.IsVerbose(ctx, c.Verbose) {
 			if msg, err := json.Marshal(data); err == nil { // WriteJSON will error for us anyway
 				log.Debugf(log.WebsocketMgr, "%v %v: Sending message: %v", c.ExchangeName, removeURLQueryString(c.URL), string(msg))
@@ -198,11 +215,16 @@ func (c *connection) SendJSONMessage(ctx context.Context, epl request.EndpointLi
 // SendRawMessage sends a message over the connection without JSON encoding it
 func (c *connection) SendRawMessage(ctx context.Context, epl request.EndpointLimit, messageType int, message []byte) error {
 	return c.writeToConn(ctx, epl, func() error {
-		if request.IsVerbose(ctx, c.Verbose) {
-			log.Debugf(log.WebsocketMgr, "%v %v: Sending message: %v", c.ExchangeName, removeURLQueryString(c.URL), string(message))
-		}
-		return c.Connection.WriteMessage(messageType, message)
+		return c.writeMessage(ctx, messageType, message)
 	})
+}
+
+// writeMessage writes a message once writeToConn admits it
+func (c *connection) writeMessage(ctx context.Context, messageType int, message []byte) error {
+	if request.IsVerbose(ctx, c.Verbose) {
+		log.Debugf(log.WebsocketMgr, "%v %v: Sending message: %v", c.ExchangeName, removeURLQueryString(c.URL), string(message))
+	}
+	return c.Connection.WriteMessage(messageType, message)
 }
 
 func (c *connection) writeToConn(ctx context.Context, epl request.EndpointLimit, writeConn func() error) error {
@@ -411,7 +433,18 @@ func (c *connection) SendMessageReturnResponsesWithInspector(ctx context.Context
 	}
 
 	start := time.Now()
-	err = c.SendRawMessage(ctx, epl, gws.TextMessage, outbound)
+	if timed, ok := payload.(SendTimeStamper); ok {
+		// Marshalling the payload above still refuses one that cannot be marshalled before it takes any rate limit budget
+		err = c.writeToConn(ctx, epl, func() error {
+			var marshalErr error
+			if outbound, marshalErr = json.Marshal(timed.StampSendTime(time.Now())); marshalErr != nil {
+				return fmt.Errorf("error marshaling json for %s: %w", signature, marshalErr)
+			}
+			return c.writeMessage(ctx, gws.TextMessage, outbound)
+		})
+	} else {
+		err = c.SendRawMessage(ctx, epl, gws.TextMessage, outbound)
+	}
 	if err != nil {
 		c.Match.RemoveSignature(signature)
 		return nil, err

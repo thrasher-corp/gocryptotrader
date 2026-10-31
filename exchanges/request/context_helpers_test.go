@@ -28,6 +28,22 @@ func TestWithDelayNotAllowed(t *testing.T) {
 	assert.False(t, hasDelayNotAllowed(WithRetryNotAllowed(WithVerbose(t.Context()))))
 }
 
+func TestWithWeight(t *testing.T) {
+	t.Parallel()
+	weight, ok := weightFromContext(t.Context())
+	assert.False(t, ok, "a context without a weight should report none")
+	assert.Zero(t, weight, "a context without a weight should report a zero weight")
+	ctx := WithWeight(t.Context(), 10)
+	weight, ok = weightFromContext(ctx)
+	assert.True(t, ok, "a weighted context should report its weight")
+	assert.Equal(t, Weight(10), weight, "a weighted context should report the weight it was given")
+	weight, ok = weightFromContext(WithWeight(WithDelayNotAllowed(ctx), 0))
+	assert.True(t, ok, "a context weighted zero should report its weight, which RateLimit refuses")
+	assert.Zero(t, weight, "the latest weight should take the place of an earlier one")
+	_, ok = weightFromContext(common.ThawContext(common.FreezeContext(ctx)))
+	assert.False(t, ok, "a weight belongs to one request, so a frozen context should not carry it")
+}
+
 func TestNewRateLimitBarrierContexts(t *testing.T) {
 	t.Parallel()
 
@@ -104,10 +120,116 @@ func TestAbortRateLimitBarrier(t *testing.T) {
 	contexts, err := NewRateLimitBarrierContexts(t.Context(), 2)
 	require.NoError(t, err)
 	AbortRateLimitBarrier(contexts[0])
-	_, err = rateLimitBarrierParticipantFromContext(contexts[1]).wait(t.Context(), nil)
+	_, err = rateLimitBarrierParticipantFromContext(contexts[1]).wait(t.Context(), nil, 0)
 	require.ErrorIs(t, err, ErrRateLimitBarrierRejected)
 	AbortRateLimitBarrier(contexts[0])
 	AbortRateLimitBarrier(t.Context())
+}
+
+func TestRateLimitBarrierParticipantWait(t *testing.T) {
+	t.Parallel()
+	limiter := NewRateLimitWithWeight(time.Hour, 1, 1)
+
+	t.Run("a group is planned at the weights its participants arrived with", func(t *testing.T) {
+		t.Parallel()
+		contexts, err := NewRateLimitBarrierContexts(t.Context(), 2)
+		require.NoError(t, err, "barrier contexts must be created")
+		parked := rateLimitBarrierParticipantFromContext(contexts[0])
+		errs := make(chan error, 1)
+		go func() {
+			admitted, err := parked.wait(contexts[0], nil, 0)
+			assert.True(t, admitted, "a participant resolved by its barrier should report it")
+			errs <- err
+		}()
+		require.Eventually(t, parked.used.Load, time.Second, time.Millisecond, "the first participant must reach the barrier")
+		final := rateLimitBarrierParticipantFromContext(contexts[1])
+		admitted, err := final.wait(contexts[1], limiter, 3)
+		assert.True(t, admitted, "the final participant should resolve the barrier")
+		assert.ErrorIs(t, err, ErrDelayNotAllowed, "a weight its limiter cannot grant at once should reject the group")
+		assert.Equal(t, Weight(3), final.weight, "a participant should be admitted at the weight it arrived with")
+		assert.Same(t, limiter, final.limiter, "a participant should be admitted on the limiter it arrived with")
+		assert.ErrorIs(t, <-errs, ErrDelayNotAllowed, "a parked participant should share the group's outcome")
+		admitted, err = final.wait(contexts[1], limiter, 1)
+		assert.False(t, admitted, "a participant already resolved should not be resolved again")
+		assert.ErrorIs(t, err, ErrDelayNotAllowed, "a participant already resolved should report its group's outcome")
+	})
+
+	t.Run("a participant of a closed barrier reports its outcome", func(t *testing.T) {
+		t.Parallel()
+		contexts, err := NewRateLimitBarrierContexts(t.Context(), 2)
+		require.NoError(t, err, "barrier contexts must be created")
+		AbortRateLimitBarrier(contexts[0])
+		admitted, err := rateLimitBarrierParticipantFromContext(contexts[1]).wait(contexts[1], limiter, 1)
+		assert.True(t, admitted, "a participant of a closed barrier should be resolved")
+		assert.ErrorIs(t, err, ErrRateLimitBarrierRejected, "a participant of a rejected barrier should be rejected")
+	})
+
+	t.Run("a participant whose context is done rejects its peers", func(t *testing.T) {
+		t.Parallel()
+		parent, cancel := context.WithCancel(t.Context())
+		contexts, err := NewRateLimitBarrierContexts(parent, 2)
+		require.NoError(t, err, "barrier contexts must be created")
+		cancel()
+		admitted, err := rateLimitBarrierParticipantFromContext(contexts[0]).wait(contexts[0], limiter, 1)
+		assert.True(t, admitted, "a cancelled participant should be resolved")
+		assert.ErrorIs(t, err, context.Canceled, "a cancelled participant should report its cancellation")
+		assert.ErrorIs(t, WaitForRateLimitBarrier(contexts[1]), ErrRateLimitBarrierRejected, "a cancelled participant should reject its peers")
+	})
+
+	t.Run("a participant cancelled while parked rejects its peers", func(t *testing.T) {
+		t.Parallel()
+		contexts, err := NewRateLimitBarrierContexts(t.Context(), 2)
+		require.NoError(t, err, "barrier contexts must be created")
+		ctx, cancel := context.WithCancel(contexts[0])
+		parked := rateLimitBarrierParticipantFromContext(contexts[0])
+		errs := make(chan error, 1)
+		go func() {
+			_, err := parked.wait(ctx, limiter, 1)
+			errs <- err
+		}()
+		require.Eventually(t, parked.used.Load, time.Second, time.Millisecond, "the first participant must reach the barrier")
+		cancel()
+		assert.ErrorIs(t, <-errs, context.Canceled, "a participant cancelled while parked should report its cancellation")
+		assert.ErrorIs(t, WaitForRateLimitBarrier(contexts[1]), ErrRateLimitBarrierRejected, "a participant cancelled while parked should reject its peers")
+	})
+
+	t.Run("a participant reaching a barrier closed meanwhile shares its outcome", func(t *testing.T) {
+		t.Parallel()
+		contexts, err := NewRateLimitBarrierContexts(t.Context(), 2)
+		require.NoError(t, err, "barrier contexts must be created")
+		arriving := rateLimitBarrierParticipantFromContext(contexts[0])
+		arriving.barrier.mu.Lock()
+		errs := make(chan error, 1)
+		go func() {
+			admitted, err := arriving.wait(contexts[0], limiter, 1)
+			assert.True(t, admitted, "a participant of a closed barrier should be resolved")
+			errs <- err
+		}()
+		require.Eventually(t, arriving.used.Load, time.Second, time.Millisecond, "the participant must start waiting before its barrier closes")
+		arriving.barrier.rejection, arriving.barrier.closed = ErrRateLimitBarrierRejected, true
+		close(arriving.barrier.done)
+		arriving.barrier.mu.Unlock()
+		assert.ErrorIs(t, <-errs, ErrRateLimitBarrierRejected, "a participant reaching a barrier closed meanwhile should share its outcome")
+		assert.Nil(t, arriving.limiter, "a participant reaching a closed barrier should not be recorded")
+	})
+}
+
+func TestRateLimitBarrierArrive(t *testing.T) {
+	t.Parallel()
+	limiter := NewRateLimitWithWeight(time.Hour, 1, 1)
+	contexts, err := NewRateLimitBarrierContexts(t.Context(), 2)
+	require.NoError(t, err, "barrier contexts must be created")
+	first, final := rateLimitBarrierParticipantFromContext(contexts[0]), rateLimitBarrierParticipantFromContext(contexts[1])
+	b := first.barrier
+	assert.False(t, b.arrive(contexts[0], first, limiter, 2), "a participant with peers still to come should not resolve the barrier")
+	assert.Equal(t, Weight(2), first.weight, "arrive should record the participant's weight")
+	assert.Same(t, limiter, first.limiter, "arrive should record the participant's limiter")
+	assert.NotNil(t, first.done, "arrive should record the participant's cancellation")
+	assert.True(t, b.arrive(contexts[1], final, nil, 0), "the final participant should resolve the barrier")
+	assert.ErrorIs(t, b.result(), ErrDelayNotAllowed, "the final arrival should admit the group at the weights recorded, here more than the limiter grants at once")
+	late := &rateLimitBarrierParticipant{barrier: b}
+	assert.True(t, b.arrive(t.Context(), late, limiter, 1), "a participant of a closed barrier should be resolved")
+	assert.Zero(t, late.weight, "a participant of a closed barrier should not be recorded")
 }
 
 func TestRateLimitBarrierTerminalResults(t *testing.T) {

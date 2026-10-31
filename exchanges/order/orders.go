@@ -145,7 +145,10 @@ func (s *Submit) GetTradeAmount(tr protocol.TradingRequirements) float64 {
 }
 
 // UpdateOrderFromDetail Will update an order detail (used in order management)
-// by comparing passed in and existing values
+// by comparing passed in and existing values. Fees that m reports, for the
+// order or for a fill, replace the stored fees rather than adding to them, and
+// fees that m leaves out are kept. A zero RemainingAmount in m clears the
+// stored one only when m's status is Filled.
 func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 	if d == nil {
 		return ErrOrderDetailIsNil
@@ -204,12 +207,11 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 		d.Cost = m.Cost
 		updated = true
 	}
-	if m.Fee > 0 && m.Fee != d.Fee {
-		d.Fee = m.Fee
+	if !m.CostAsset.IsEmpty() && !m.CostAsset.Equal(d.CostAsset) {
+		d.CostAsset = m.CostAsset
 		updated = true
 	}
-	if !m.FeeAsset.IsEmpty() && !m.FeeAsset.Equal(d.FeeAsset) {
-		d.FeeAsset = m.FeeAsset
+	if d.mergeFees(m) {
 		updated = true
 	}
 	if m.AccountID != "" && m.AccountID != d.AccountID {
@@ -250,6 +252,10 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 		d.AssetType = m.AssetType
 		updated = true
 	}
+	if !m.SettlementCurrency.IsEmpty() && !m.SettlementCurrency.Equal(d.SettlementCurrency) {
+		d.SettlementCurrency = m.SettlementCurrency
+		updated = true
+	}
 	if !m.CloseTime.IsZero() && !m.CloseTime.Equal(d.CloseTime) {
 		d.CloseTime = m.CloseTime
 		updated = true
@@ -261,8 +267,7 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 				continue
 			}
 			found = true
-			if d.Trades[y].Fee != m.Trades[x].Fee {
-				d.Trades[y].Fee = m.Trades[x].Fee
+			if d.Trades[y].mergeFees(&m.Trades[x]) {
 				updated = true
 			}
 			if m.Trades[x].Price != 0 && d.Trades[y].Price != m.Trades[x].Price {
@@ -295,14 +300,22 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 			}
 		}
 		if !found {
-			d.Trades = append(d.Trades, m.Trades[x])
+			fill := m.Trades[x]
+			// A new fill's Fee and FeeAsset follow its reported fees just as a stored fill's do after mergeFees
+			fill.SetFees(fill.Fees)
+			d.Trades = append(d.Trades, fill)
 			updated = true
 		}
 	}
-	// Do not derive RemainingAmount from Trades: trade lists may be cumulative
-	// or from a different snapshot. A supplied non-zero value is preserved.
-	if m.RemainingAmount > 0 && m.RemainingAmount != d.RemainingAmount {
+	// RemainingAmount is not derived from Trades, which may be cumulative or
+	// from a different snapshot, and a zero is applied only to a filled order
+	// because feeds that report fills alone leave the remainder unset
+	switch {
+	case m.RemainingAmount > 0 && m.RemainingAmount != d.RemainingAmount:
 		d.RemainingAmount = m.RemainingAmount
+		updated = true
+	case m.RemainingAmount == 0 && m.Status == Filled && d.RemainingAmount != 0:
+		d.RemainingAmount = 0
 		updated = true
 	}
 	if updated {
@@ -415,19 +428,19 @@ func (d *Detail) MatchFilter(f *Filter) bool {
 }
 
 // IsActive returns true if an order has a status that indicates it is currently
-// available on the exchange
+// available on the exchange, with some of its amount, or of the quote amount it is
+// sized by, left to fill
 func (d *Detail) IsActive() bool {
 	return d.Status != UnknownStatus &&
-		d.Amount > 0 &&
-		d.Amount > d.ExecutedAmount &&
+		((d.Amount > 0 && d.Amount > d.ExecutedAmount) || (d.QuoteAmount > 0 && d.QuoteAmount > d.Cost)) &&
 		activeStatuses&d.Status == d.Status
 }
 
 // IsInactive returns true if an order has a status that indicates it is
-// currently not available on the exchange
+// currently not available on the exchange, or nothing of its amount or quote
+// amount left to fill
 func (d *Detail) IsInactive() bool {
-	return d.Amount <= 0 ||
-		d.Amount <= d.ExecutedAmount ||
+	return ((d.Amount <= 0 || d.Amount <= d.ExecutedAmount) && (d.QuoteAmount <= 0 || d.QuoteAmount <= d.Cost)) ||
 		d.Status.IsInactive()
 }
 
@@ -580,7 +593,7 @@ func (s *SubmitResponse) DeriveDetail(internal uuid.UUID) (*Detail, error) {
 		return nil, errOrderSubmitResponseIsNil
 	}
 
-	return &Detail{
+	d := &Detail{
 		Exchange:  s.Exchange,
 		Type:      s.Type,
 		Side:      s.Side,
@@ -605,8 +618,11 @@ func (s *SubmitResponse) DeriveDetail(internal uuid.UUID) (*Detail, error) {
 		OrderID:     s.OrderID,
 		Trades:      s.Trades,
 		Fee:         s.Fee,
+		FeeAsset:    s.FeeAsset,
 		Cost:        s.Cost,
-	}, nil
+	}
+	d.SetFees(s.Fees)
+	return d, nil
 }
 
 // CopyPointerOrderSlice returns a copy of all order detail and returns a slice

@@ -84,6 +84,31 @@ func (m *Manager) TrackTestConnection(messageFilter any, conn Connection) error 
 	return nil
 }
 
+// ConnectionSubscriptionCaps returns, by message filter, the most subscriptions
+// each connection of the setups registered for url may carry; zero means no
+// cap.
+//
+// This exported helper exists for cross-package test harnesses only. It lets
+// exchange-package tests check the cap each of their connection setups applies
+// without connecting.
+func (m *Manager) ConnectionSubscriptionCaps(url string) (map[any]int, error) {
+	if err := common.NilGuard(m); err != nil {
+		return nil, err
+	}
+
+	m.m.Lock()
+	defer m.m.Unlock()
+
+	caps := make(map[any]int)
+	for _, ws := range m.snapshotConnectionManager() {
+		if ws.setup == nil || ws.setup.URL != url {
+			continue
+		}
+		caps[ws.setup.MessageFilter] = m.maxSubscriptionsPerConnection(ws)
+	}
+	return caps, nil
+}
+
 // SetAllConnectionURLs configures every managed websocket connection to use the
 // same URL.
 //

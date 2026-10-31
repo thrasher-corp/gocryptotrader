@@ -1161,9 +1161,6 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 		return nil, err
 	}
 	var err error
-	if math.Trunc(action.Amount) != action.Amount {
-		return nil, errors.New("contract amount can not be decimal")
-	}
 	// When asset type is asset.Spread
 	if action.AssetType == asset.Spread {
 		amendSpreadOrder := &AmendSpreadOrderParam{
@@ -1188,14 +1185,12 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 	if err != nil {
 		return nil, err
 	}
-	if action.Pair.IsEmpty() {
-		return nil, currency.ErrCurrencyPairEmpty
-	}
 	switch action.Type {
 	case order.UnknownType, order.Market, order.Limit, order.OptimalLimit, order.MarketMakerProtection:
 		amendRequest := AmendOrderRequestParams{
 			InstrumentID:  pairFormat.Format(action.Pair),
 			NewQuantity:   action.Amount,
+			NewPrice:      action.Price,
 			OrderID:       action.OrderID,
 			ClientOrderID: action.ClientOrderID,
 		}
@@ -1299,17 +1294,6 @@ func (e *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 	}
 	instrumentID := pairFormat.Format(ord.Pair)
 	switch ord.Type {
-	case order.UnknownType, order.Market, order.Limit, order.OptimalLimit, order.MarketMakerProtection:
-		req := CancelOrderRequestParam{
-			InstrumentID:  instrumentID,
-			OrderID:       ord.OrderID,
-			ClientOrderID: ord.ClientOrderID,
-		}
-		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			_, err = e.WSCancelOrder(ctx, &req)
-		} else {
-			_, err = e.CancelSingleOrder(ctx, &req)
-		}
 	case order.Trigger, order.OCO, order.ConditionalStop, order.TWAP, order.TrailingStop, order.Chase:
 		var response *AlgoOrder
 		response, err = e.CancelAdvanceAlgoOrder(ctx, []AlgoOrderCancelParams{
@@ -1323,7 +1307,18 @@ func (e *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 		}
 		return getStatusError(response.StatusCode, response.StatusMessage)
 	default:
-		return fmt.Errorf("%w, order type %v", order.ErrUnsupportedOrderType, ord.Type)
+		// Every order that is not an algo order is a regular order, a post only LimitMaker order for instance, and so is
+		// an order a caller tracks under a type SubmitOrder refuses
+		req := CancelOrderRequestParam{
+			InstrumentID:  instrumentID,
+			OrderID:       ord.OrderID,
+			ClientOrderID: ord.ClientOrderID,
+		}
+		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+			_, err = e.WSCancelOrder(ctx, &req)
+		} else {
+			_, err = e.CancelSingleOrder(ctx, &req)
+		}
 	}
 	return err
 }
@@ -1539,7 +1534,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		if err != nil {
 			return nil, err
 		}
-		oType, err := order.StringToOrderType(resp.OrderType)
+		oType, tif, err := orderTypeFromString(resp.OrderType)
 		if err != nil {
 			return nil, err
 		}
@@ -1571,6 +1566,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			LastUpdated:          resp.UpdateTime.Time(),
 			AverageExecutedPrice: resp.AveragePrice.Float64(),
 			RemainingAmount:      resp.Size.Float64() - resp.FillSize.Float64(),
+			TimeInForce:          tif,
 		}, nil
 	}
 	if pair.IsEmpty() {
@@ -1705,11 +1701,18 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, req.AssetType)
 	}
 
+	var orderType string
+	if req.Type != order.UnknownType && req.Type != order.AnyType {
+		orderType, err = orderTypeString(req.Type, req.TimeInForce)
+		if err != nil {
+			return nil, err
+		}
+	}
 	var resp []order.Detail
 	var format currency.PairFormat
 	if req.AssetType == asset.Spread {
 		var spreads []SpreadOrder
-		spreads, err = e.GetActiveSpreadOrders(ctx, "", req.Type.String(), "", req.FromOrderID, "", 0)
+		spreads, err = e.GetActiveSpreadOrders(ctx, "", orderType, "", req.FromOrderID, "", 0)
 		if err != nil {
 			return nil, err
 		}
@@ -1721,6 +1724,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 			var (
 				pair    currency.Pair
 				oType   order.Type
+				tif     order.TimeInForce
 				oSide   order.Side
 				oStatus order.Status
 			)
@@ -1729,7 +1733,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 			if err != nil {
 				return nil, err
 			}
-			oType, err = order.StringToOrderType(spreads[x].OrderType)
+			oType, tif, err = orderTypeFromString(spreads[x].OrderType)
 			if err != nil {
 				return nil, err
 			}
@@ -1756,19 +1760,13 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 				AssetType:       req.AssetType,
 				Date:            spreads[x].CreationTime.Time(),
 				LastUpdated:     spreads[x].UpdateTime.Time(),
+				TimeInForce:     tif,
 			})
 		}
-		return req.Filter(e.Name, resp), nil
+		return e.filterListedOrders(req, resp), nil
 	}
 
 	instrumentType := GetInstrumentTypeFromAssetItem(req.AssetType)
-	var orderType string
-	if req.Type != order.UnknownType && req.Type != order.AnyType {
-		orderType, err = orderTypeString(req.Type, req.TimeInForce)
-		if err != nil {
-			return nil, err
-		}
-	}
 	endTime := req.EndTime
 allOrders:
 	for {
@@ -1844,7 +1842,7 @@ allOrders:
 		}
 		endTime = orderList[len(orderList)-1].CreationTime.Time()
 	}
-	return req.Filter(e.Name, resp), nil
+	return e.filterListedOrders(req, resp), nil
 }
 
 // GetOrderHistory retrieves account order information Can Limit response to specific order status
@@ -1861,9 +1859,12 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 	var resp []order.Detail
 	// For Spread orders.
 	if req.AssetType == asset.Spread {
-		oType, err := orderTypeString(req.Type, req.TimeInForce)
-		if err != nil {
-			return nil, err
+		var oType string
+		if req.Type != order.AnyType {
+			var err error
+			if oType, err = orderTypeString(req.Type, req.TimeInForce); err != nil {
+				return nil, err
+			}
 		}
 		spreadOrders, err := e.GetCompletedSpreadOrdersLast7Days(ctx, "", oType, "", req.FromOrderID, "", req.StartTime, req.EndTime, 0)
 		if err != nil {
@@ -1880,7 +1881,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 			if err != nil {
 				return nil, err
 			}
-			oType, err := order.StringToOrderType(spreadOrders[x].OrderType)
+			oType, tif, err := orderTypeFromString(spreadOrders[x].OrderType)
 			if err != nil {
 				return nil, err
 			}
@@ -1908,9 +1909,10 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 				Date:                 spreadOrders[x].CreationTime.Time(),
 				LastUpdated:          spreadOrders[x].UpdateTime.Time(),
 				Pair:                 pair,
+				TimeInForce:          tif,
 			})
 		}
-		return req.Filter(e.Name, resp), nil
+		return e.filterListedOrders(req, resp), nil
 	}
 
 	if len(req.Pairs) == 0 {
@@ -1985,7 +1987,7 @@ allOrders:
 					LastUpdated:          orderList[i].UpdateTime.Time(),
 					Pair:                 pair,
 					Cost:                 orderList[i].AveragePrice.Float64() * orderList[i].AccumulatedFillSize.Float64(),
-					CostAsset:            orderList[i].RebateCurrency,
+					CostAsset:            pair.Quote,
 					TimeInForce:          tif,
 				})
 			}
@@ -1995,7 +1997,7 @@ allOrders:
 		}
 		endTime = orderList[len(orderList)-1].CreationTime.Time()
 	}
-	return req.Filter(e.Name, resp), nil
+	return e.filterListedOrders(req, resp), nil
 }
 
 // GetFeeByType returns an estimate of fee based on the type of transaction
@@ -2761,7 +2763,7 @@ func (e *Exchange) GetFuturesPositionOrders(ctx context.Context, req *futures.Po
 				LastUpdated:          positions[j].UpdateTime.Time(),
 				Pair:                 req.Pairs[i],
 				Cost:                 cost,
-				CostAsset:            positions[j].RebateCurrency,
+				CostAsset:            req.Pairs[i].Quote,
 				TimeInForce:          tif,
 			})
 		}

@@ -1137,6 +1137,112 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 	err = od.UpdateOrderFromDetail(om)
 	require.NoError(t, err)
 	assert.NotEqual(t, id, od.InternalOrderID, "Should not be able to update the internal order ID after initialisation")
+
+	t.Run("fill side and type", func(t *testing.T) {
+		t.Parallel()
+		stored := &Detail{OrderID: "1", LastUpdated: updated, Trades: []TradeHistory{{TID: "1", Price: 100, Amount: 1, Side: Buy, Type: Limit}}}
+		correction := stored.Copy()
+		correction.Trades[0].Side = Sell
+		correction.LastUpdated = updated.Add(time.Minute)
+		require.NoError(t, stored.UpdateOrderFromDetail(&correction), "UpdateOrderFromDetail must not error for a fill's side")
+		assert.Equal(t, correction.Trades, stored.Trades, "UpdateOrderFromDetail should update a fill's side")
+		assert.Equal(t, correction.LastUpdated, stored.LastUpdated, "UpdateOrderFromDetail should mark the order updated when only a fill's side changes")
+
+		correction.Trades[0].Type = Market
+		correction.LastUpdated = correction.LastUpdated.Add(time.Minute)
+		require.NoError(t, stored.UpdateOrderFromDetail(&correction), "UpdateOrderFromDetail must not error for a fill's type")
+		assert.Equal(t, correction.Trades, stored.Trades, "UpdateOrderFromDetail should update a fill's type")
+		assert.Equal(t, correction.LastUpdated, stored.LastUpdated, "UpdateOrderFromDetail should mark the order updated when only a fill's type changes")
+	})
+
+	before := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+	after := before.Add(time.Minute)
+	for _, tc := range []struct {
+		name     string
+		stored   Detail
+		incoming Detail
+		exp      Detail
+	}{
+		{
+			name:     "a filled order clears the remainder",
+			stored:   Detail{Amount: 2, ExecutedAmount: 0.5, RemainingAmount: 1.5, Status: PartiallyFilled, LastUpdated: before},
+			incoming: Detail{ExecutedAmount: 2, Status: Filled, LastUpdated: after},
+			exp:      Detail{Amount: 2, ExecutedAmount: 2, Status: Filled, LastUpdated: after},
+		},
+		{
+			name:     "a cleared remainder alone marks the order updated",
+			stored:   Detail{RemainingAmount: 1.5, Status: Filled, LastUpdated: before},
+			incoming: Detail{Status: Filled, LastUpdated: after},
+			exp:      Detail{Status: Filled, LastUpdated: after},
+		},
+		{
+			name:     "a filled order applies a reported remainder",
+			stored:   Detail{Amount: 2, ExecutedAmount: 0.5, RemainingAmount: 1.5, Status: PartiallyFilled, LastUpdated: before},
+			incoming: Detail{ExecutedAmount: 1.9, RemainingAmount: 0.1, Status: Filled, LastUpdated: after},
+			exp:      Detail{Amount: 2, ExecutedAmount: 1.9, RemainingAmount: 0.1, Status: Filled, LastUpdated: after},
+		},
+		{
+			name:     "a partially filled order keeps the remainder",
+			stored:   Detail{RemainingAmount: 1.5, Status: PartiallyFilled, LastUpdated: before},
+			incoming: Detail{Status: PartiallyFilled, LastUpdated: after},
+			exp:      Detail{RemainingAmount: 1.5, Status: PartiallyFilled, LastUpdated: before},
+		},
+		{
+			name:     "a cancelled order keeps the remainder",
+			stored:   Detail{RemainingAmount: 1.5, Status: PartiallyFilled, LastUpdated: before},
+			incoming: Detail{Status: Cancelled, LastUpdated: after},
+			exp:      Detail{RemainingAmount: 1.5, Status: Cancelled, LastUpdated: after},
+		},
+		{
+			name:     "an update without a status keeps a filled order's remainder",
+			stored:   Detail{RemainingAmount: 1.5, Status: Filled, LastUpdated: before},
+			incoming: Detail{LastUpdated: after},
+			exp:      Detail{RemainingAmount: 1.5, Status: Filled, LastUpdated: before},
+		},
+		{
+			name:     "a filled order without a remainder is not marked updated",
+			stored:   Detail{Status: Filled, LastUpdated: before},
+			incoming: Detail{Status: Filled, LastUpdated: after},
+			exp:      Detail{Status: Filled, LastUpdated: before},
+		},
+		{
+			name:     "reported currencies fill an inverse order's empty ones",
+			stored:   Detail{Pair: currency.NewBTCUSD(), AssetType: asset.CoinMarginedFutures, LastUpdated: before},
+			incoming: Detail{CostAsset: currency.BTC, SettlementCurrency: currency.BTC, LastUpdated: after},
+			exp:      Detail{Pair: currency.NewBTCUSD(), AssetType: asset.CoinMarginedFutures, CostAsset: currency.BTC, SettlementCurrency: currency.BTC, LastUpdated: after},
+		},
+		{
+			name:     "a cost asset replaces the stored one",
+			stored:   Detail{CostAsset: currency.USDT, SettlementCurrency: currency.USDT, LastUpdated: before},
+			incoming: Detail{CostAsset: currency.BTC, LastUpdated: after},
+			exp:      Detail{CostAsset: currency.BTC, SettlementCurrency: currency.USDT, LastUpdated: after},
+		},
+		{
+			name:     "a settlement currency replaces the stored one",
+			stored:   Detail{CostAsset: currency.USDT, SettlementCurrency: currency.USDT, LastUpdated: before},
+			incoming: Detail{SettlementCurrency: currency.BTC, LastUpdated: after},
+			exp:      Detail{CostAsset: currency.USDT, SettlementCurrency: currency.BTC, LastUpdated: after},
+		},
+		{
+			name:     "empty currencies keep the stored ones",
+			stored:   Detail{CostAsset: currency.USDT, SettlementCurrency: currency.BTC, LastUpdated: before},
+			incoming: Detail{LastUpdated: after},
+			exp:      Detail{CostAsset: currency.USDT, SettlementCurrency: currency.BTC, LastUpdated: before},
+		},
+		{
+			name:     "the stored currencies do not mark the order updated",
+			stored:   Detail{CostAsset: currency.USDT, SettlementCurrency: currency.BTC, LastUpdated: before},
+			incoming: Detail{CostAsset: currency.USDT, SettlementCurrency: currency.BTC, LastUpdated: after},
+			exp:      Detail{CostAsset: currency.USDT, SettlementCurrency: currency.BTC, LastUpdated: before},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got := tc.stored
+			require.NoError(t, got.UpdateOrderFromDetail(&tc.incoming), "UpdateOrderFromDetail must not error")
+			assert.Equal(t, tc.exp, got, "UpdateOrderFromDetail should merge the incoming detail")
+		})
+	}
 }
 
 // TestUpdateOrderFromDetailMergesFeeAsset asserts the commission currency propagates through order
@@ -1368,6 +1474,13 @@ func TestIsActive(t *testing.T) {
 		1: {orders[1], true},
 		2: {orders[2], false},
 		3: {orders[3], false},
+		// An order sized by its quote amount, such as a market buy by value, has a base amount only of what it has bought
+		4: {Detail{QuoteAmount: 100, Status: Pending}, true},
+		5: {Detail{Amount: 0.4, ExecutedAmount: 0.4, QuoteAmount: 100, Cost: 40, Status: PartiallyFilled}, true},
+		6: {Detail{Amount: 1, ExecutedAmount: 1, QuoteAmount: 100, Cost: 100, Status: PartiallyFilled}, false},
+		7: {Detail{QuoteAmount: 100, Status: Filled}, false},
+		// An order without a quote amount is judged by its base amount alone, whatever its cost
+		8: {Detail{Amount: 1, ExecutedAmount: 1, Cost: -1, Status: PartiallyFilled}, false},
 	}
 	// specific tests
 	for num, tt := range amountTests {
@@ -1433,6 +1546,13 @@ func TestIsInactive(t *testing.T) {
 		1: {orders[1], false},
 		2: {orders[2], true},
 		3: {orders[3], true},
+		// An order sized by its quote amount, such as a market buy by value, has a base amount only of what it has bought
+		4: {Detail{QuoteAmount: 100, Status: Pending}, false},
+		5: {Detail{Amount: 0.4, ExecutedAmount: 0.4, QuoteAmount: 100, Cost: 40, Status: PartiallyFilled}, false},
+		6: {Detail{Amount: 1, ExecutedAmount: 1, QuoteAmount: 100, Cost: 100, Status: PartiallyFilled}, true},
+		7: {Detail{QuoteAmount: 100, Status: Filled}, true},
+		// An order without a quote amount is judged by its base amount alone, whatever its cost
+		8: {Detail{Amount: 1, ExecutedAmount: 1, Cost: -1, Status: PartiallyFilled}, true},
 	}
 	// specific tests
 	for num, tt := range amountTests {

@@ -2,6 +2,7 @@ package okx
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -19,7 +20,9 @@ func orderTypeFromString(orderType string) (order.Type, order.TimeInForce, error
 		return order.Limit, order.UnknownTIF, nil
 	case orderPostOnly:
 		return order.Limit, order.PostOnly, nil
-	case orderFOK:
+	case orderRetailPriceImprovement, orderEnhancedLiquidityProgram: // Both rest as maker orders that never cross the book
+		return order.Limit, order.PostOnly, nil
+	case orderFOK, orderSimpleOptionFOK:
 		return order.Limit, order.FillOrKill, nil
 	case orderIOC:
 		return order.Limit, order.ImmediateOrCancel, nil
@@ -40,7 +43,9 @@ func orderTypeFromString(orderType string) (order.Type, order.TimeInForce, error
 	}
 }
 
-// orderTypeString returns a string representation of order.Type instance
+// orderTypeString returns the OKX order type for an order type and time in force. A time in force alone selects the
+// OKX order type only for a plain order, given as UnknownType or as a post only LimitMaker order, so that a type with
+// no OKX order type of its own, such as a stop or take profit order, is refused instead of losing its trigger
 func orderTypeString(orderType order.Type, tif order.TimeInForce) (string, error) {
 	switch orderType {
 	case order.MarketMakerProtection:
@@ -72,7 +77,7 @@ func orderTypeString(orderType order.Type, tif order.TimeInForce) (string, error
 		return orderConditional, nil
 	case order.TrailingStop:
 		return orderMoveOrderStop, nil
-	default:
+	case order.UnknownType, order.LimitMaker:
 		switch tif {
 		case order.PostOnly:
 			return orderPostOnly, nil
@@ -81,8 +86,24 @@ func orderTypeString(orderType order.Type, tif order.TimeInForce) (string, error
 		case order.ImmediateOrCancel:
 			return orderIOC, nil
 		}
-		return "", fmt.Errorf("%w: %q", order.ErrUnsupportedOrderType, orderType)
 	}
+	return "", fmt.Errorf("%w: %q with time in force %q", order.ErrUnsupportedOrderType, orderType, tif)
+}
+
+// filterListedOrders narrows a listing to the orders its request asks for. orderTypeString can select an OKX order type
+// that reads back as another type than the one requested, such as ioc for Market or post_only for LimitMaker, so orders
+// are matched on what that OKX order type reads back as, and on its time in force where it has one
+func (e *Exchange) filterListedOrders(req *order.MultiOrderRequest, orders []order.Detail) order.FilteredOrders {
+	filter := *req
+	if okxType, err := orderTypeString(req.Type, req.TimeInForce); err == nil {
+		if orderType, tif, err := orderTypeFromString(okxType); err == nil {
+			filter.Type = orderType
+			if tif != order.UnknownTIF {
+				orders = slices.DeleteFunc(orders, func(d order.Detail) bool { return d.TimeInForce != tif })
+			}
+		}
+	}
+	return filter.Filter(e.Name, orders)
 }
 
 // getAssetsFromInstrumentID parses an instrument ID and returns a list of assets types

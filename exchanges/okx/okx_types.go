@@ -48,6 +48,7 @@ const (
 	orderMarket                           = "market"
 	orderPostOnly                         = "post_only"
 	orderFOK                              = "fok"
+	orderSimpleOptionFOK                  = "op_fok"
 	orderIOC                              = "ioc"
 	orderOptimalLimitIOC                  = "optimal_limit_ioc"
 	orderConditional                      = "conditional"
@@ -58,6 +59,8 @@ const (
 	orderMarketMakerProtectionAndPostOnly = "mmp_and_post_only"
 	orderMarketMakerProtection            = "mmp"
 	orderOCO                              = "oco"
+	orderRetailPriceImprovement           = "rpi"
+	orderEnhancedLiquidityProgram         = "elp"
 
 	// represents a margin balance type
 	marginBalanceReduce = "reduce"
