@@ -882,7 +882,7 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 		Pair:              p,
 		Asset:             assetType,
 		LastUpdated:       orderbookNew.Timestamp.Time(),
-		LastUpdateID:      int64(orderbookNew.UpdateID), //nolint:gosec // Update IDs stay far below the int64 limit
+		LastUpdateID:      orderbookNew.UpdateID,
 		ValidateOrderbook: e.ValidateOrderbook,
 		Bids:              make([]orderbook.Level, len(orderbookNew.Bids)),
 		Asks:              make([]orderbook.Level, len(orderbookNew.Asks)),

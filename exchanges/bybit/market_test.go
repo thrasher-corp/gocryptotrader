@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -986,6 +987,89 @@ func TestGetInstrumentSummary(t *testing.T) {
 			assert.NotEmpty(t, result.List, "GetInstrumentSummary should return instruments")
 		})
 	}
+}
+
+// TestUpdateOrderbookWithoutOrders checks that the reply for an option's book that has no orders, whose u and seq are
+// -1, replaces a book stored earlier with an empty one
+func TestUpdateOrderbookWithoutOrders(t *testing.T) {
+	t.Parallel()
+	ex := newTransportTestExchange(t, func(w http.ResponseWriter, _ *http.Request) {
+		_, err := fmt.Fprint(w, `{"retCode":0,"retMsg":"SUCCESS","result":{"s":"BTC-24SEP27-170000-P-USDT","b":[],"a":[],"u":-1,"ts":1793406613771,"seq":-1,"cts":1793406613771},"retExtInfo":{},"time":1793406621231}`)
+		assert.NoError(t, err, "writing the reply should not error")
+	})
+	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Options, currency.Pairs{fixtureOptionPair}, false), "StorePairs must not error for the available pairs")
+	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Options, currency.Pairs{fixtureOptionPair}, true), "StorePairs must not error for the enabled pairs")
+	stored := &orderbook.Book{
+		Exchange:     ex.Name,
+		Pair:         fixtureOptionPair,
+		Asset:        asset.Options,
+		LastUpdated:  time.UnixMilli(1793406600000),
+		LastUpdateID: 99,
+		Bids:         []orderbook.Level{{Price: 1, Amount: 1}},
+		Asks:         []orderbook.Level{{Price: 2, Amount: 1}},
+	}
+	require.NoError(t, stored.Process(), "Process must store the earlier book")
+	book, err := ex.UpdateOrderbook(t.Context(), fixtureOptionPair, asset.Options)
+	require.NoError(t, err, "UpdateOrderbook must not error for a book without orders")
+	stored, err = orderbook.Get(ex.Name, fixtureOptionPair, asset.Options)
+	require.NoError(t, err, "Get must return the stored book")
+	for _, b := range []*orderbook.Book{book, stored} {
+		assert.Empty(t, b.Bids, "the book should hold no bids")
+		assert.Empty(t, b.Asks, "the book should hold no asks")
+		assert.Equal(t, int64(-1), b.LastUpdateID, "the book should hold the reply's update ID")
+	}
+}
+
+// TestOrderbooksWithoutOrdersUnmarshal checks the RPI, spread and event books read the -1 Bybit sends for a book that has
+// no orders on options and event contracts
+func TestOrderbooksWithoutOrdersUnmarshal(t *testing.T) {
+	t.Parallel()
+	const (
+		rest = `{"s":"BTCUSDT","b":[],"a":[],"ts":1793406613771,"u":-1,"seq":-1,"cts":1793406613770}`
+		push = `{"s":"BTCUSDT","b":[],"a":[],"u":1,"seq":-1}`
+	)
+	var event EventOrderbookResponse
+	require.NoError(t, json.Unmarshal([]byte(`{"s":"BTCUSDT","r":[],"ts":1793406613771,"u":-1,"seq":-1,"cts":1793406613770}`), &event), "Unmarshal must not error for an event book")
+	assert.Equal(t, EventOrderbookResponse{
+		Symbol:            "BTCUSDT",
+		Entries:           []EventOrderbookEntry{},
+		Timestamp:         types.Time(time.UnixMilli(1793406613771)),
+		UpdateID:          -1,
+		Sequence:          -1,
+		CreationTimestamp: types.Time(time.UnixMilli(1793406613770)),
+	}, event, "an event book should decode every field")
+
+	var rpi RPIOrderbookResponse
+	require.NoError(t, json.Unmarshal([]byte(rest), &rpi), "Unmarshal must not error for an RPI book")
+	assert.Equal(t, RPIOrderbookResponse{
+		Symbol:            "BTCUSDT",
+		Bids:              []RPIOrderbookLevel{},
+		Asks:              []RPIOrderbookLevel{},
+		Timestamp:         types.Time(time.UnixMilli(1793406613771)),
+		UpdateID:          -1,
+		Sequence:          -1,
+		CreationTimestamp: types.Time(time.UnixMilli(1793406613770)),
+	}, rpi, "an RPI book should decode every field")
+
+	var spread SpreadOrderbookResponse
+	require.NoError(t, json.Unmarshal([]byte(rest), &spread), "Unmarshal must not error for a spread book")
+	assert.Equal(t, SpreadOrderbookResponse{
+		Symbol:            "BTCUSDT",
+		Bids:              orderbook.LevelsArrayPriceAmount{},
+		Asks:              orderbook.LevelsArrayPriceAmount{},
+		Timestamp:         types.Time(time.UnixMilli(1793406613771)),
+		UpdateID:          -1,
+		Sequence:          -1,
+		CreationTimestamp: types.Time(time.UnixMilli(1793406613770)),
+	}, spread, "a spread book should decode every field")
+
+	var rpiPush WebsocketRPIOrderbook
+	require.NoError(t, json.Unmarshal([]byte(push), &rpiPush), "Unmarshal must not error for an RPI push")
+	assert.Equal(t, WebsocketRPIOrderbook{Symbol: "BTCUSDT", Bids: []RPIOrderbookLevel{}, Asks: []RPIOrderbookLevel{}, UpdateID: 1, Sequence: -1}, rpiPush, "an RPI push should decode every field")
+
+	var spreadPush SpreadOrderbookData
+	require.NoError(t, json.Unmarshal([]byte(push), &spreadPush), "Unmarshal must not error for a spread push")
+	assert.Equal(t, SpreadOrderbookData{Symbol: "BTCUSDT", Bids: orderbook.LevelsArrayPriceAmount{}, Asks: orderbook.LevelsArrayPriceAmount{}, UpdateID: 1, Sequence: -1}, spreadPush, "a spread push should decode every field")
 }
 
 func TestGetOrderBook(t *testing.T) {

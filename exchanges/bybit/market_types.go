@@ -294,23 +294,26 @@ type OrderbookResponse struct {
 	Asks   orderbook.LevelsArrayPriceAmount `json:"a"`
 	// Timestamp is when the system generated the data
 	Timestamp types.Time `json:"ts"`
-	// UpdateID matches the u of the websocket orderbook stream at the same depth
-	UpdateID uint64 `json:"u"`
-	// Sequence is the cross sequence, which orders data across orderbook depths
-	Sequence uint64 `json:"seq"`
+	// UpdateID matches the u of the websocket orderbook stream at the same depth; it can be -1 for a book that has no
+	// orders, as on some options
+	UpdateID int64 `json:"u"`
+	// Sequence is the cross sequence, which orders data across orderbook depths; it can be -1 for a book that has no
+	// orders, as on some options
+	Sequence int64 `json:"seq"`
 	// CreationTimestamp is when the matching engine produced the data; it correlates with the T of public trades
 	CreationTimestamp types.Time `json:"cts"`
 }
 
 // RPIOrderbookResponse holds an orderbook snapshot that separates retail price improvement (RPI) order sizes
 type RPIOrderbookResponse struct {
-	Symbol            string              `json:"s"`
-	Bids              []RPIOrderbookLevel `json:"b"`
-	Asks              []RPIOrderbookLevel `json:"a"`
-	Timestamp         types.Time          `json:"ts"`
-	UpdateID          uint64              `json:"u"`
-	Sequence          uint64              `json:"seq"`
-	CreationTimestamp types.Time          `json:"cts"`
+	Symbol    string              `json:"s"`
+	Bids      []RPIOrderbookLevel `json:"b"`
+	Asks      []RPIOrderbookLevel `json:"a"`
+	Timestamp types.Time          `json:"ts"`
+	// UpdateID and Sequence are signed as OrderbookResponse's are, since Bybit can send -1 for a book that has no orders
+	UpdateID          int64      `json:"u"`
+	Sequence          int64      `json:"seq"`
+	CreationTimestamp types.Time `json:"cts"`
 }
 
 // RPIOrderbookLevel is a price level that splits its size between ordinary and Retail Price Improvement orders. Bybit

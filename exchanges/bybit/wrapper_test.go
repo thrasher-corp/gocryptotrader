@@ -1834,6 +1834,10 @@ func TestUpdateAccountBalancesKeepsNewerWalletPush(t *testing.T) {
 		pushed, listed := push, coins
 		mu.Unlock()
 		if pushed != "" {
+			// Only a push stored after the request is kept, and Windows' clock can read the same time for both
+			for start := time.Now(); !time.Now().After(start); {
+				time.Sleep(time.Millisecond)
+			}
 			assert.NoError(t, ex.wsProcessWalletPushData(t.Context(), []byte(`{"id":"wallet-push","topic":"wallet","creationTime":1787197420650,"data":[{"accountType":"UNIFIED","coin":[`+pushed+`]}]}`)), "a wallet push arriving during the request should not error")
 		}
 		_, err := fmt.Fprint(w, `{"retCode":0,"retMsg":"OK","result":{"list":[{"accountType":"UNIFIED","coin":[`+listed+`]}]},"retExtInfo":{},"time":1760000000000}`)

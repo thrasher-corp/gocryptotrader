@@ -38,7 +38,8 @@ type SpreadOrderbookData struct {
 	Asks   orderbook.LevelsArrayPriceAmount `json:"a"`
 	// UpdateID is 1 for a snapshot Bybit sends after a service restart, which replaces the local book
 	UpdateID uint64 `json:"u"`
-	Sequence uint64 `json:"seq"`
+	// Sequence is signed as WebsocketOrderbook's is, since Bybit can send -1 on the snapshot of a book that has no orders
+	Sequence int64 `json:"seq"`
 }
 
 // WebsocketSpreadPublicTradeUpdate holds public trades of a spread combination, oldest first

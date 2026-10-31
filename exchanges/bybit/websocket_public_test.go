@@ -463,6 +463,25 @@ func TestWebsocketProcessOrderbook(t *testing.T) {
 	}
 }
 
+// TestWebsocketProcessOrderbookWithoutOrders checks that the snapshot of an option's book that has no orders, whose seq
+// is -1, loads a book the first quote's delta can update
+func TestWebsocketProcessOrderbookWithoutOrders(t *testing.T) {
+	t.Parallel()
+	ex := fixtureStreamInstance(t)
+	snapshot := []byte(`{"topic":"orderbook.25.BTC-24SEP27-170000-P-USDT","ts":1793406411577,"type":"snapshot","id":"orderbook.25.BTC-24SEP27-170000-P-USDT--1-1793406411571","data":{"s":"BTC-24SEP27-170000-P-USDT","b":[],"a":[],"u":1,"seq":-1},"cts":1791874180568}`)
+	require.NoError(t, ex.wsProcessOrderbook(t.Context(), asset.Options, snapshot), "wsProcessOrderbook must load a snapshot whose seq is -1")
+	book, err := ex.Websocket.Orderbook.GetOrderbook(fixtureOptionPair, asset.Options)
+	require.NoError(t, err, "GetOrderbook must return the empty book")
+	assert.Empty(t, book.Bids, "the book should hold no bids")
+	assert.Empty(t, book.Asks, "the book should hold no asks")
+
+	delta := []byte(`{"topic":"orderbook.25.BTC-24SEP27-170000-P-USDT","ts":1793406412577,"type":"delta","id":"orderbook.25.BTC-24SEP27-170000-P-USDT-77-1793406412571","data":{"s":"BTC-24SEP27-170000-P-USDT","b":[["0.5","10"]],"a":[],"u":2,"seq":77},"cts":1793406412570}`)
+	require.NoError(t, ex.wsProcessOrderbook(t.Context(), asset.Options, delta), "wsProcessOrderbook must apply the first quote's delta")
+	book, err = ex.Websocket.Orderbook.GetOrderbook(fixtureOptionPair, asset.Options)
+	require.NoError(t, err, "GetOrderbook must return the updated book")
+	assert.Equal(t, []orderbook.Level{{Price: 0.5, Amount: 10}}, []orderbook.Level(book.Bids), "the delta should add the quote to the book")
+}
+
 func TestWebsocketRPIOrderbook(t *testing.T) {
 	t.Parallel()
 	ex := streamTestInstance(t)

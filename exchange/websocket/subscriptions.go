@@ -550,12 +550,17 @@ func (m *Manager) scaleConnectionsToSubscriptions(ctx context.Context, ws *webso
 			return err
 		}
 
+		// A connection refusing subscriptions does not stop the rest, as in connect: each connection only takes what fits
+		// its capacity, so those after a refused subscription may be on another
+		var subscribeErrs error
+
 		// Subscribe to existing connections to use up existing capacity
 		for _, conn := range m.snapshotManagedConnections(ws) {
-			leftOver, err := m.subscribeToConnection(ctx, conn, currentSubs)
-			if err != nil {
-				return err
+			if err := ctx.Err(); err != nil {
+				return common.AppendError(subscribeErrs, err)
 			}
+			leftOver, err := m.subscribeToConnection(ctx, conn, currentSubs)
+			subscribeErrs = common.AppendError(subscribeErrs, err)
 			currentSubs = leftOver
 			if len(currentSubs) == 0 {
 				break
@@ -564,18 +569,37 @@ func (m *Manager) scaleConnectionsToSubscriptions(ctx context.Context, ws *webso
 
 		// Spawn new connections if there are still subscriptions left to process
 		for _, batch := range common.Batch(currentSubs, m.maxSubscriptionsPerConnection(ws)) {
+			if err := ctx.Err(); err != nil {
+				return common.AppendError(subscribeErrs, err)
+			}
 			toConnect, err := m.absorbTrackableSubscriptionsAndValidate(ctx, ws, batch)
 			if err != nil {
-				return err
+				return common.AppendError(subscribeErrs, err)
+			}
+			// Tracking can send requests of its own, so the context can end during it
+			if err := ctx.Err(); err != nil {
+				return common.AppendError(subscribeErrs, err)
 			}
 			if len(toConnect) == 0 {
 				continue
 			}
+			// A connection that refused a whole batch takes the next one, so that refusals leave at most one connection empty
+			if conn := m.emptyConnection(ws); conn != nil {
+				_, err := m.subscribeToConnection(ctx, conn, toConnect)
+				subscribeErrs = common.AppendError(subscribeErrs, err)
+				continue
+			}
 			if err := m.createConnectAndSubscribe(ctx, ws, toConnect); err != nil {
-				return err
+				subscribeErrs = common.AppendError(subscribeErrs, err)
+				if errors.Is(err, common.ErrFatal) {
+					return subscribeErrs
+				}
 			}
 		}
 
+		if subscribeErrs != nil {
+			return subscribeErrs
+		}
 		if missing := ws.subscriptions.Missing(subs); len(missing) > 0 {
 			return fmt.Errorf("%v %w %q", m.exchangeName, ErrSubscriptionsNotAdded, missing)
 		}
@@ -615,6 +639,16 @@ func (m *Manager) scaleConnectionsToSubscriptions(ctx context.Context, ws *webso
 	for _, conn := range stale {
 		if err := conn.Shutdown(); err != nil {
 			log.Warnf(log.WebsocketMgr, "%v websocket: failed to shutdown connection: %v", m.exchangeName, err)
+		}
+	}
+	return nil
+}
+
+// emptyConnection returns a connection of ws that holds no subscriptions, or nil if each holds some
+func (m *Manager) emptyConnection(ws *websocket) Connection {
+	for _, conn := range m.snapshotManagedConnections(ws) {
+		if conn.Subscriptions().Len() == 0 {
+			return conn
 		}
 	}
 	return nil
@@ -704,7 +738,7 @@ func (m *Manager) subscribeToConnection(ctx context.Context, conn Connection, su
 		return nil, err
 	}
 	if err := m.subscribeChannels(ctx, conn, toSubscribe); err != nil {
-		return nil, common.AppendError(err, recordConnectionSubscriptions(store, managerStore, pending))
+		return subs[availableCap:], common.AppendError(err, recordConnectionSubscriptions(store, managerStore, pending))
 	}
 
 	for _, s := range toSubscribe {

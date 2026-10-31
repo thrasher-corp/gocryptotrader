@@ -158,6 +158,18 @@ func TestWebsocketHandleEventPublicData(t *testing.T) {
 				},
 			},
 		},
+		&WebsocketEventOrderbookUpdate{
+			Topic:     "orderbook.25.ETHUSDT-30OCT26-2100-ABOVE",
+			Type:      "snapshot",
+			Timestamp: types.Time(time.UnixMilli(1793347198806)),
+			Data: EventOrderbookData{
+				Symbol:   "ETHUSDT-30OCT26-2100-ABOVE",
+				Entries:  []EventOrderbookEntry{},
+				UpdateID: 1,
+				Sequence: -1,
+			},
+			CreationTimestamp: types.Time(time.UnixMilli(1793326244226)),
+		},
 	}
 	assert.Equal(t, exp, relayedFrames(ex), "wsHandleEventPublicData should relay every frame")
 

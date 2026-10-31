@@ -19,7 +19,9 @@ func orderTypeFromString(orderType string) (order.Type, order.TimeInForce, error
 		return order.Limit, order.UnknownTIF, nil
 	case orderPostOnly:
 		return order.Limit, order.PostOnly, nil
-	case orderFOK:
+	case orderRetailPriceImprovement, orderEnhancedLiquidityProgram: // Both rest as maker orders that never cross the book
+		return order.Limit, order.PostOnly, nil
+	case orderFOK, orderSimpleOptionFOK:
 		return order.Limit, order.FillOrKill, nil
 	case orderIOC:
 		return order.Limit, order.ImmediateOrCancel, nil

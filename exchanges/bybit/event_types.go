@@ -87,8 +87,10 @@ type EventOrderbookResponse struct {
 	// Entries holds up to 25 levels
 	Entries   []EventOrderbookEntry `json:"r"`
 	Timestamp types.Time            `json:"ts"`
-	UpdateID  uint64                `json:"u"`
-	Sequence  uint64                `json:"seq"`
+	// UpdateID and Sequence are signed as OrderbookResponse's are, since Bybit can send -1 for a book that has no orders,
+	// such as a closed contract's
+	UpdateID int64 `json:"u"`
+	Sequence int64 `json:"seq"`
 	// CreationTimestamp is when the data was created
 	CreationTimestamp types.Time `json:"cts"`
 }

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -1373,6 +1374,218 @@ func TestScaleConnectionsToSubscriptions(t *testing.T) {
 		require.ErrorIs(t, err, ErrSubscriptionsNotAdded, "scaleConnectionsToSubscriptions must report a subscription its subscriber did not store")
 	})
 
+	// A connection refusing a subscription, wherever it falls, does not stop those after it, which other connections take.
+	// A connection left with nothing takes the next batch, so that refusals leave at most one connection empty
+	for _, tc := range []struct {
+		name    string
+		refused []int
+		loads   []int
+	}{
+		{name: "On An Existing Connection", refused: []int{0}, loads: []int{1, 2, 2, 2}},
+		{name: "On A New Connection", refused: []int{1}, loads: []int{2, 1, 2, 2}},
+		{name: "On Every Connection", refused: []int{0, 1, 2, 3, 4, 5, 6}, loads: []int{1, 0}},
+	} {
+		t.Run("Refused Subscription "+tc.name, func(t *testing.T) {
+			t.Parallel()
+			m, ws := setup(t, true)
+			held := &subscription.Subscription{Channel: "held"}
+			require.NoError(t, m.scaleConnectionsToSubscriptions(t.Context(), ws, subscription.List{held}), "scaleConnectionsToSubscriptions must not error")
+			incoming := make(subscription.List, 7)
+			refused := make(subscription.List, 0, len(tc.refused))
+			for i := range incoming {
+				incoming[i] = &subscription.Subscription{Channel: fmt.Sprint("incoming-", i)}
+				if slices.Contains(tc.refused, i) {
+					refused = append(refused, incoming[i])
+				}
+			}
+			ws.setup.Subscriber = func(_ context.Context, c Connection, subs subscription.List) error {
+				var errs error
+				for _, s := range subs {
+					if slices.Contains(refused, s) {
+						errs = common.AppendError(errs, fmt.Errorf("%w: %s", errSubscriptionRejected, s.Channel))
+						continue
+					}
+					errs = common.AppendError(errs, m.AddSuccessfulSubscriptions(c, s))
+				}
+				return errs
+			}
+			for range 2 { // A flush while the subscription is still refused changes nothing
+				err := m.scaleConnectionsToSubscriptions(t.Context(), ws, append(subscription.List{held}, incoming...))
+				require.ErrorIs(t, err, errSubscriptionRejected, "scaleConnectionsToSubscriptions must report the refused subscription")
+				for _, s := range incoming {
+					if slices.Contains(refused, s) {
+						assert.Nilf(t, ws.subscriptions.Get(s), "refused %s should not be stored", s.Channel)
+						assert.ErrorContainsf(t, err, s.Channel, "scaleConnectionsToSubscriptions should report refused %s", s.Channel)
+					} else {
+						assert.Samef(t, s, ws.subscriptions.Get(s), "%s should be subscribed despite the refused subscription", s.Channel)
+					}
+				}
+				conns := m.snapshotManagedConnections(ws)
+				loads := make([]int, 0, len(conns))
+				for _, conn := range conns {
+					loads = append(loads, conn.Subscriptions().Len())
+				}
+				assert.Equal(t, tc.loads, loads, "each connection should hold the subscriptions it took")
+			}
+		})
+	}
+
+	// A flush whose context ends sends nothing more, to an existing connection or a new one
+	for _, tc := range []struct {
+		name string
+		held int
+		kept []int
+	}{
+		{name: "With Room On Two Existing Connections", held: 4, kept: []int{0, 2}},
+		{name: "With Only New Connections", held: 2, kept: []int{0, 1}},
+	} {
+		t.Run("Context Ending During A Subscribe "+tc.name, func(t *testing.T) {
+			t.Parallel()
+			m, ws := setup(t, true)
+			held := make(subscription.List, tc.held)
+			for i := range held {
+				held[i] = &subscription.Subscription{Channel: fmt.Sprint("held-", i)}
+			}
+			require.NoError(t, m.scaleConnectionsToSubscriptions(t.Context(), ws, held), "scaleConnectionsToSubscriptions must not error")
+			kept := make(subscription.List, 0, len(tc.kept))
+			for _, i := range tc.kept {
+				kept = append(kept, held[i])
+			}
+			require.NoError(t, m.scaleConnectionsToSubscriptions(t.Context(), ws, kept), "scaleConnectionsToSubscriptions must not error")
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			var subscribes, tracks int
+			ws.setup.Subscriber = func(context.Context, Connection, subscription.List) error {
+				subscribes++
+				cancel()
+				return errSubscriptionRejected
+			}
+			// Tracking can send requests of its own, so it stops with the context too
+			ws.setup.TrackOnExistingConnection = func(_ context.Context, _ Connection, subs subscription.List) (subscription.List, subscription.List, error) {
+				tracks++
+				return subs, nil, nil
+			}
+			incoming := append(slices.Clone(kept), &subscription.Subscription{Channel: "A"}, &subscription.Subscription{Channel: "B"}, &subscription.Subscription{Channel: "C"}, &subscription.Subscription{Channel: "D"})
+			err := m.scaleConnectionsToSubscriptions(ctx, ws, incoming)
+			require.ErrorIs(t, err, errSubscriptionRejected, "scaleConnectionsToSubscriptions must report the subscribe that failed")
+			require.ErrorIs(t, err, context.Canceled, "scaleConnectionsToSubscriptions must report the context ending")
+			assert.Equal(t, 1, subscribes, "scaleConnectionsToSubscriptions should send nothing after the context ends")
+			assert.Equal(t, 2, tracks, "scaleConnectionsToSubscriptions should track nothing after the context ends")
+		})
+	}
+
+	for _, tc := range []struct {
+		name    string
+		tracked bool
+	}{
+		{name: "With A Batch Left To Send"},
+		{name: "Which Took The Last Batch", tracked: true},
+	} {
+		t.Run("Context Ending During Tracking "+tc.name, func(t *testing.T) {
+			t.Parallel()
+			m, ws := setup(t, true)
+			var subscribes int
+			ws.setup.Subscriber = func(context.Context, Connection, subscription.List) error {
+				subscribes++
+				return errSubscriptionRejected
+			}
+			a := &subscription.Subscription{Channel: "A"}
+			require.ErrorIs(t, m.scaleConnectionsToSubscriptions(t.Context(), ws, subscription.List{a}), errSubscriptionRejected, "scaleConnectionsToSubscriptions must leave a connection empty")
+			require.Len(t, m.snapshotManagedConnections(ws), 1, "scaleConnectionsToSubscriptions must leave one connection")
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			var tracks int
+			ws.setup.TrackOnExistingConnection = func(_ context.Context, _ Connection, subs subscription.List) (subscription.List, subscription.List, error) {
+				tracks++
+				if tracks != 2 {
+					return subs, nil, nil
+				}
+				cancel()
+				if tc.tracked {
+					return nil, subs, nil
+				}
+				return subs, nil, nil
+			}
+			subscribes = 0
+			err := m.scaleConnectionsToSubscriptions(ctx, ws, subscription.List{a, {Channel: "B"}, {Channel: "C"}, {Channel: "D"}})
+			require.ErrorIs(t, err, errSubscriptionRejected, "scaleConnectionsToSubscriptions must report the subscribe that failed")
+			require.ErrorIs(t, err, context.Canceled, "scaleConnectionsToSubscriptions must report the context ending")
+			assert.Equal(t, 1, subscribes, "scaleConnectionsToSubscriptions should send nothing after the context ends")
+		})
+	}
+
+	t.Run("Connection Failure After A Refused Subscription", func(t *testing.T) {
+		t.Parallel()
+		m, ws := setup(t, true)
+		connect := ws.setup.Connector
+		var dials int
+		ws.setup.Connector = func(ctx context.Context, c Connection) error {
+			dials++
+			if dials > 1 {
+				return errDastardlyReason
+			}
+			return connect(ctx, c)
+		}
+		refused := &subscription.Subscription{Channel: "refused"}
+		ws.setup.Subscriber = func(_ context.Context, c Connection, subs subscription.List) error {
+			var errs error
+			for _, s := range subs {
+				if s == refused {
+					errs = common.AppendError(errs, errSubscriptionRejected)
+					continue
+				}
+				errs = common.AppendError(errs, m.AddSuccessfulSubscriptions(c, s))
+			}
+			return errs
+		}
+		err := m.scaleConnectionsToSubscriptions(t.Context(), ws, subscription.List{refused, {Channel: "A"}, {Channel: "B"}, {Channel: "C"}})
+		require.ErrorIs(t, err, errSubscriptionRejected, "scaleConnectionsToSubscriptions must keep the earlier refusal")
+		require.ErrorIs(t, err, errDastardlyReason, "scaleConnectionsToSubscriptions must report the connection failure")
+		assert.Equal(t, 2, dials, "scaleConnectionsToSubscriptions should not dial again after a connection failure")
+	})
+
+	t.Run("Tracking Failure After A Refused Subscription", func(t *testing.T) {
+		t.Parallel()
+		m, ws := setup(t, true)
+		held := &subscription.Subscription{Channel: "held"}
+		require.NoError(t, m.scaleConnectionsToSubscriptions(t.Context(), ws, subscription.List{held}), "scaleConnectionsToSubscriptions must not error")
+		var tracks int
+		ws.setup.TrackOnExistingConnection = func(_ context.Context, _ Connection, subs subscription.List) (subscription.List, subscription.List, error) {
+			tracks++
+			if tracks > 1 {
+				return nil, nil, errDastardlyReason
+			}
+			return subs, nil, nil
+		}
+		ws.setup.Subscriber = func(context.Context, Connection, subscription.List) error {
+			return errSubscriptionRejected
+		}
+		err := m.scaleConnectionsToSubscriptions(t.Context(), ws, subscription.List{held, {Channel: "A"}, {Channel: "B"}, {Channel: "C"}})
+		require.ErrorIs(t, err, errSubscriptionRejected, "scaleConnectionsToSubscriptions must keep the earlier refusal")
+		require.ErrorIs(t, err, errDastardlyReason, "scaleConnectionsToSubscriptions must report the tracking failure")
+		assert.Len(t, m.snapshotManagedConnections(ws), 1, "scaleConnectionsToSubscriptions should open no connection after a tracking failure")
+	})
+
+	t.Run("Connection Failure Stops Later Connections", func(t *testing.T) {
+		t.Parallel()
+		m := NewManager()
+		m.MaxSubscriptionsPerConnection = 1
+		var dials int
+		ws := &websocket{
+			setup: &ConnectionSetup{
+				Connector: func(context.Context, Connection) error {
+					dials++
+					return errDastardlyReason
+				},
+			},
+			subscriptions: subscription.NewStore(),
+		}
+		err := m.scaleConnectionsToSubscriptions(t.Context(), ws, subscription.List{{Channel: "A"}, {Channel: "B"}, {Channel: "C"}})
+		require.ErrorIs(t, err, common.ErrFatal, "scaleConnectionsToSubscriptions must return a connection failure as fatal")
+		require.ErrorIs(t, err, errDastardlyReason, "scaleConnectionsToSubscriptions must keep the connection failure's cause")
+		assert.Equal(t, 1, dials, "scaleConnectionsToSubscriptions should not dial again after a connection failure")
+	})
+
 	t.Run("Stale Connection Shutdown Error", func(t *testing.T) {
 		t.Parallel()
 		m := NewManager()
@@ -2175,6 +2388,20 @@ func partialUnsubscriber(m *Manager) func(context.Context, Connection, subscript
 	}
 }
 
+func TestEmptyConnection(t *testing.T) {
+	t.Parallel()
+	m := NewManager()
+	ws := &websocket{}
+	assert.Nil(t, m.emptyConnection(ws), "emptyConnection should return nothing when there are no connections")
+	holding := &fakeConnection{subscriptions: subscription.NewStore()}
+	require.NoError(t, holding.subscriptions.Add(&subscription.Subscription{Channel: "held"}), "Add must not error")
+	m.trackConnection(holding, ws)
+	assert.Nil(t, m.emptyConnection(ws), "emptyConnection should return nothing when each connection holds subscriptions")
+	empty := &fakeConnection{subscriptions: subscription.NewStore()}
+	m.trackConnection(empty, ws)
+	assert.Same(t, empty, m.emptyConnection(ws), "emptyConnection should return the connection holding no subscriptions")
+}
+
 func TestSubscribeToConnectionRecordsPartialSubscriptions(t *testing.T) {
 	t.Parallel()
 
@@ -2190,7 +2417,7 @@ func TestSubscribeToConnectionRecordsPartialSubscriptions(t *testing.T) {
 		rejected := &subscription.Subscription{Channel: "rejected"}
 		remaining, err := m.subscribeToConnection(t.Context(), conn, subscription.List{accepted, rejected})
 		require.ErrorIs(t, err, errSubscriptionRejected, "subscribeToConnection must return the subscriber error")
-		assert.Nil(t, remaining, "remaining should be nil on error")
+		assert.Empty(t, remaining, "remaining should hold only what was not attempted")
 		require.NotNil(t, ws.subscriptions.Get(accepted), "accepted subscription must be in the websocket store")
 		assert.NotNil(t, conn.subscriptions.Get(accepted), "accepted subscription should be recorded against the connection")
 		assert.Nil(t, conn.subscriptions.Get(rejected), "rejected subscription should not be recorded against the connection")

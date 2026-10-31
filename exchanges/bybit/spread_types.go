@@ -55,8 +55,9 @@ type SpreadOrderbookResponse struct {
 	Bids      orderbook.LevelsArrayPriceAmount `json:"b"`
 	Asks      orderbook.LevelsArrayPriceAmount `json:"a"`
 	Timestamp types.Time                       `json:"ts"`
-	UpdateID  uint64                           `json:"u"`
-	Sequence  uint64                           `json:"seq"`
+	// UpdateID and Sequence are signed as OrderbookResponse's are, since Bybit can send -1 for a book that has no orders
+	UpdateID int64 `json:"u"`
+	Sequence int64 `json:"seq"`
 	// CreationTimestamp is when the matching engine produced the depth, comparable with public trade times
 	CreationTimestamp types.Time `json:"cts"`
 }

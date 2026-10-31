@@ -27,7 +27,8 @@ type WebsocketOrderbook struct {
 	Asks   orderbook.LevelsArrayPriceAmount `json:"a"`
 	// UpdateID restarts at 1 when Bybit restarts the service, which always comes with a snapshot
 	UpdateID uint64 `json:"u"`
-	Sequence uint64 `json:"seq"`
+	// Sequence can be -1 on the snapshot of a book that has no orders, as on some options
+	Sequence int64 `json:"seq"`
 }
 
 // WebsocketRPIOrderbookUpdate is a push from the orderbook.rpi.{symbol} topic (RPI Orderbook)
@@ -45,7 +46,8 @@ type WebsocketRPIOrderbook struct {
 	Bids     []RPIOrderbookLevel `json:"b"`
 	Asks     []RPIOrderbookLevel `json:"a"`
 	UpdateID uint64              `json:"u"`
-	Sequence uint64              `json:"seq"`
+	// Sequence is signed as WebsocketOrderbook's is, since Bybit can send -1 on the snapshot of a book that has no orders
+	Sequence int64 `json:"seq"`
 }
 
 // WebsocketPublicTradeUpdate is a push from the publicTrade.{symbol} topic, which options subscribe to by base coin

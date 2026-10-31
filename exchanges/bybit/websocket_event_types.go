@@ -21,7 +21,8 @@ type EventOrderbookData struct {
 	Entries []EventOrderbookEntry `json:"r"`
 	// UpdateID is 1 for a snapshot Bybit sends after a service restart, which replaces the local book
 	UpdateID uint64 `json:"u"`
-	Sequence uint64 `json:"seq"`
+	// Sequence can be -1 on the snapshot of a book that has no orders, such as a closed contract's
+	Sequence int64 `json:"seq"`
 }
 
 // WebsocketEventPublicTradeUpdate holds public trades of an event contract, oldest first
