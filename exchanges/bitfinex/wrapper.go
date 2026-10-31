@@ -86,6 +86,7 @@ var (
 	errTriggerPriceUnsupported  = errors.New("trigger price not supported")
 	errPriceUnsupported         = errors.New("price not supported")
 	errOrderTypeUnchangeable    = errors.New("order type cannot be changed")
+	errQuoteAmountUnsupported   = errors.New("quote amount not supported, as Bitfinex sizes orders in the base currency")
 	errTrackingModeUnsupported  = errors.New("tracking mode not supported")
 )
 
@@ -786,6 +787,19 @@ func placeOrderRequest(s *order.Submit) (*PlaceOrderRequest, error) {
 	default:
 		return nil, fmt.Errorf("%w: %s", asset.ErrNotSupported, s.AssetType)
 	}
+	// An order has no margin mode to choose: a derivative position holds its own collateral, a margin order draws on the
+	// whole margin wallet and a spot order on no margin at all
+	switch {
+	case s.MarginType == margin.Unset,
+		isDerivativeAsset(s.AssetType) && s.MarginType == margin.Isolated,
+		s.AssetType == asset.Margin && s.MarginType == margin.Multi,
+		s.AssetType == asset.Spot && s.MarginType == margin.NoMargin:
+	default:
+		return nil, fmt.Errorf("%w: %s for a %s order", margin.ErrMarginTypeUnsupported, s.MarginType, s.AssetType)
+	}
+	if s.QuoteAmount != 0 {
+		return nil, fmt.Errorf("%w: %v", errQuoteAmountUnsupported, s.QuoteAmount)
+	}
 	symbol, err := orderSymbol(s.AssetType, s.Pair)
 	if err != nil {
 		return nil, err
@@ -1074,9 +1088,10 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, cancels []order.Cancel
 	return &order.CancelBatchResponse{Status: statuses}, nil
 }
 
-// CancelAllOrders submits the account's open orders of an asset, on a pair when one is given, for cancellation. A
-// request naming neither, such as the nil one the cancel all orders RPC sends, cancels every open order through
-// Bitfinex's own cancellation of them all, which also reaches an order placed after they are listed
+// CancelAllOrders submits the account's open orders of an asset, on a pair and of a side and order type when they are
+// given, for cancellation. A request naming none of them, such as the nil one the cancel all orders RPC sends, cancels
+// every open order through Bitfinex's own cancellation of them all, which also reaches an order placed after they are
+// listed
 func (e *Exchange) CancelAllOrders(ctx context.Context, c *order.Cancel) (order.CancelAllResponse, error) {
 	if c == nil {
 		c = new(order.Cancel)
@@ -1085,18 +1100,28 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, c *order.Cancel) (order.
 	if !everyAsset && !c.AssetType.IsValid() {
 		return order.CancelAllResponse{}, fmt.Errorf("%w: %s", asset.ErrNotSupported, c.AssetType)
 	}
+	oneSide := c.Side != order.UnknownSide && c.Side != order.AnySide
+	if oneSide && !c.Side.IsLong() && !c.Side.IsShort() {
+		return order.CancelAllResponse{}, fmt.Errorf("%w: %s", order.ErrSideIsInvalid, c.Side)
+	}
+	oneType := c.Type != order.UnknownType && c.Type != order.AnyType
 	open, err := e.openOrderDetails(ctx, c.Pair, c.AssetType)
 	if err != nil {
 		return order.CancelAllResponse{}, err
 	}
-	ids := make([]uint64, len(open))
+	ids := make([]uint64, 0, len(open))
 	for i := range open {
-		if ids[i], err = parseOrderID(open[i].OrderID); err != nil {
+		if (oneSide && open[i].Side.IsLong() != c.Side.IsLong()) || (oneType && open[i].Type != c.Type) {
+			continue
+		}
+		id, err := parseOrderID(open[i].OrderID)
+		if err != nil {
 			return order.CancelAllResponse{}, err
 		}
+		ids = append(ids, id)
 	}
 	req := &CancelOrdersRequest{IDs: ids}
-	if c.Pair.IsEmpty() && everyAsset {
+	if c.Pair.IsEmpty() && everyAsset && !oneSide && !oneType {
 		req = &CancelOrdersRequest{All: true}
 	} else if len(ids) == 0 {
 		return order.CancelAllResponse{Status: map[string]string{}}, nil
@@ -1379,6 +1404,10 @@ func (e *Exchange) WithdrawCryptocurrencyFunds(ctx context.Context, w *withdraw.
 		return nil, err
 	}
 	req := &WithdrawalRequest{Wallet: wallet, Method: method, Amount: w.Amount, Address: w.Crypto.Address, PaymentID: w.Crypto.AddressTag, Note: w.Description, TravelRule: travel}
+	// A Lightning withdrawal pays an invoice, which takes the address's place and sets the amount
+	if method == TransactionMethodLightning {
+		req.Invoice, req.Address, req.Amount = w.Crypto.Address, "", 0
+	}
 	n, err := e.RequestWithdrawal(ctx, req)
 	if err != nil {
 		return nil, err

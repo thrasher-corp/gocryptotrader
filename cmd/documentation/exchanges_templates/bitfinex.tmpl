@@ -43,6 +43,9 @@ refused.
   or tracking mode Bitfinex has no order for, such as good till day without an end time, is refused rather than left
   out.
 + Client order IDs must be numbers, as Bitfinex's are.
++ An order has no margin mode to choose, so `SubmitOrder` refuses a `MarginType` other than a derivative's isolated
+  margin, a margin order's cross margin and a spot order's no margin. It also refuses a `QuoteAmount`, as Bitfinex sizes
+  orders in the base currency.
 + `ModifyOrder` looks the order up, as Bitfinex reads an update by the order's type and takes its amount as what remains
   of the order. It moves a stop by its `TriggerPrice`, refusing a `Price` without one, such as the modify order RPC
   sends; a stop limit by its `TriggerPrice` and its `Price`, its limit; a trailing stop, which trails the market, by
@@ -61,10 +64,11 @@ refused.
   after its wait has ended would answer the next request. Their updates and cancellations, which Bitfinex limits to 90
   a minute each, are sent once, with no retry, as a repeated amount would put back a fill made since, and a repeated
   cancellation of every order would reach an order placed since, so a rate-limit refusal comes back as an error.
-+ `CancelAllOrders` cancels the open orders of the requested asset, and of its pair when one is given; a request naming
-  neither, or the nil one the cancel all orders RPC sends, cancels every open order through Bitfinex's own cancellation
-  of them all. `CancelBatchOrders` cancels its orders in one request. Both report the orders Bitfinex's reply names
-  pending cancellation, as Bitfinex confirms each when the order closes, and any other they listed unknown.
++ `CancelAllOrders` cancels the open orders of the requested asset, and of its pair, side and order type when they are
+  given; a request naming none of them, or the nil one the cancel all orders RPC sends, cancels every open order through
+  Bitfinex's own cancellation of them all. `CancelBatchOrders` cancels its orders in one request. Both report the orders
+  Bitfinex's reply names pending cancellation, as Bitfinex confirms each when the order closes, and any other they
+  listed unknown.
 + `GetOrderInfo` returns an order with its trades and their fees, reading the order again when its trades show a fill
   the first read does not. `GetOrderHistory` returns the orders of the last two weeks, as Bitfinex keeps them. What an
   order has executed is read from the fills its status lists. Bitfinex cuts a status listing many fills short, keeping
@@ -119,6 +123,8 @@ several needs its chain given. Bitfinex names Tether's USDT `UST`, which the wra
 + A cryptocurrency withdrawal's travel rule beneficiary is the account itself, or the person its beneficiary name gives,
   as first names and a last name split at the name's last space, which is how Bitfinex takes a name; its financial
   institution names the provider the withdrawal goes to.
++ A Lightning withdrawal, over Bitfinex's `lnx` method, sends the request's address as its invoice and leaves out the
+  amount, which Bitfinex does not use for one.
 + `GetFeeByType` gives a cryptocurrency withdrawal the fee Bitfinex sets for its currency, or for a Tether token, which
   Bitfinex prices by chain, the fee of the token's chain. A fee request names no chain, so a token withdrawn over
   several, such as USDT, is refused.

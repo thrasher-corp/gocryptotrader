@@ -15,6 +15,13 @@ import (
 // mockOrderRequest is the order the mock websocket places and the mock tests place, an EXCHANGE LIMIT buy
 var mockOrderRequest = PlaceOrderRequest{Type: ExchangeOrderTypePrefix + OrderTypeLimit, Symbol: "tBTCUSD", Amount: 0.0002, Price: 40000}
 
+const (
+	// venueSilentSymbol is an order the mock websocket does not answer
+	venueSilentSymbol = "tSILENT"
+	// venueUnreadableSymbol is an order the mock websocket answers with a notification whose order cannot be read
+	venueUnreadableSymbol = "tUNREADABLE"
+)
+
 // wsTestOrderRequest returns the order a websocket test places: the mock's, or live a buy far from the market
 func wsTestOrderRequest(t *testing.T) *PlaceOrderRequest {
 	t.Helper()
@@ -210,11 +217,29 @@ func TestWebsocketCancelFundingOffer(t *testing.T) {
 	}
 }
 
+func TestWebsocketInputFailures(t *testing.T) {
+	t.Parallel()
+	if !mockTests {
+		t.Skip("these replies need the mock")
+	}
+	ex, _ := newWebsocketTestExchange(t, nil)
+	req := mockOrderRequest
+	req.Symbol = venueSilentSymbol
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	_, err := ex.WebsocketPlaceOrder(ctx, &req)
+	assert.ErrorIs(t, err, context.Canceled, "WebsocketPlaceOrder should return why its request failed")
+	req.Symbol = venueUnreadableSymbol
+	_, err = ex.WebsocketPlaceOrder(t.Context(), &req)
+	assert.ErrorIs(t, err, errTupleElementType, "WebsocketPlaceOrder should report a notification it cannot read")
+}
+
 func TestWebsocketCalc(t *testing.T) {
 	t.Parallel()
 	require.ErrorIs(t, e.WebsocketCalc(t.Context()), errCalcRequestsRequired, "WebsocketCalc must need a calculation")
 	tooMany := make([]string, wsMaxCalcRequests+1)
 	require.ErrorIs(t, e.WebsocketCalc(t.Context(), tooMany...), errTooManyCalcRequests, "WebsocketCalc must refuse more calculations than a request takes")
+	require.ErrorIs(t, newUnauthenticatedWebsocketExchange(t).WebsocketCalc(t.Context(), "balance"), errWebsocketNotAuthenticated, "WebsocketCalc must need an authenticated websocket")
 
 	skipLiveWithoutCredentials(t)
 	ex, venue := newWebsocketTestExchange(t, nil)

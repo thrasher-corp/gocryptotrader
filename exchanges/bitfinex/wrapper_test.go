@@ -474,6 +474,9 @@ func TestValidateAPICredentials(t *testing.T) {
 
 func TestGetAccountFundingHistory(t *testing.T) {
 	t.Parallel()
+	_, err := newRefusingServerExchange(t, `["error",10100,"apikey: invalid"]`).GetAccountFundingHistory(t.Context())
+	var apiErr *APIError
+	assert.ErrorAs(t, err, &apiErr, "GetAccountFundingHistory should return the error Bitfinex reports")
 	skipLiveWithoutCredentials(t)
 	history, err := e.GetAccountFundingHistory(mockRequestContext(t))
 	require.NoError(t, err, "GetAccountFundingHistory must not error")
@@ -490,6 +493,9 @@ func TestGetAccountFundingHistory(t *testing.T) {
 
 func TestGetWithdrawalsHistory(t *testing.T) {
 	t.Parallel()
+	_, err := newRefusingServerExchange(t, `["error",10100,"apikey: invalid"]`).GetWithdrawalsHistory(t.Context(), currency.ETH, asset.Spot)
+	var apiErr *APIError
+	assert.ErrorAs(t, err, &apiErr, "GetWithdrawalsHistory should return the error Bitfinex reports")
 	skipLiveWithoutCredentials(t)
 	ctx := mockRequestContext(t)
 	for _, c := range []currency.Code{currency.ETH, currency.EMPTYCODE} {
@@ -773,6 +779,58 @@ func TestPlaceOrderRequest(t *testing.T) {
 			assert.Equal(t, tc.exp, got, "placeOrderRequest should map the order to Bitfinex's request")
 		})
 	}
+}
+
+func TestPlaceOrderRequestRefusals(t *testing.T) {
+	t.Parallel()
+	pairs := map[asset.Item]currency.Pair{
+		asset.Spot:                currency.NewBTCUSD(),
+		asset.Margin:              currency.NewBTCUSD(),
+		asset.USDTMarginedFutures: testDerivativePair,
+		asset.CoinMarginedFutures: testCoinMarginedPair,
+	}
+	// Every order type placeOrderRequest takes, and every name for a side, as neither refusal depends on them
+	orders := []order.Submit{
+		{Type: order.Limit, Side: order.Buy, Amount: 1, Price: 100},
+		{Type: order.Market, Side: order.Sell, Amount: 1},
+		{Type: order.Stop, Side: order.Bid, Amount: 1, TriggerPrice: 100},
+		{Type: order.StopLimit, Side: order.Ask, Amount: 1, Price: 90, TriggerPrice: 95},
+		{Type: order.TrailingStop, Side: order.Long, Amount: 1, TrackingValue: 10},
+		{Type: order.Limit, Side: order.Short, Amount: 1, Price: 100},
+	}
+	for _, tc := range []struct {
+		a       asset.Item
+		applied margin.Type
+	}{
+		{a: asset.Spot, applied: margin.NoMargin},
+		{a: asset.Margin, applied: margin.Multi},
+		{a: asset.USDTMarginedFutures, applied: margin.Isolated},
+		{a: asset.CoinMarginedFutures, applied: margin.Isolated},
+	} {
+		for _, s := range orders {
+			s.AssetType, s.Pair = tc.a, pairs[tc.a]
+			exp, err := placeOrderRequest(&s)
+			require.NoErrorf(t, err, "placeOrderRequest must not error for a %s %s %s order without a margin type", tc.a, s.Side, s.Type)
+			for _, m := range []margin.Type{margin.Unset, margin.Isolated, margin.Multi, margin.NoMargin, margin.SpotIsolated, margin.Unknown, margin.Isolated | margin.Multi | margin.NoMargin} {
+				s.MarginType = m
+				got, err := placeOrderRequest(&s)
+				if m == margin.Unset || m == tc.applied {
+					require.NoErrorf(t, err, "placeOrderRequest must not error for a %s %s %s order of margin type %s", tc.a, s.Side, s.Type, m)
+					assert.Equalf(t, exp, got, "a %s %s %s order of margin type %s should send the same request", tc.a, s.Side, s.Type, m)
+					continue
+				}
+				assert.ErrorIsf(t, err, margin.ErrMarginTypeUnsupported, "placeOrderRequest should refuse a %s %s %s order of margin type %s", tc.a, s.Side, s.Type, m)
+				assert.Nilf(t, got, "placeOrderRequest should return no request for a %s %s %s order of margin type %s", tc.a, s.Side, s.Type, m)
+			}
+			s.MarginType, s.QuoteAmount = margin.Unset, 0.5
+			got, err := placeOrderRequest(&s)
+			assert.ErrorIsf(t, err, errQuoteAmountUnsupported, "placeOrderRequest should refuse a quote amount for a %s %s %s order", tc.a, s.Side, s.Type)
+			assert.Nilf(t, got, "placeOrderRequest should return no request for a %s %s %s order with a quote amount", tc.a, s.Side, s.Type)
+		}
+	}
+	got, err := placeOrderRequest(&order.Submit{AssetType: asset.Spot, Pair: currency.NewBTCUSD(), Type: order.Market, Side: order.Buy, QuoteAmount: 50})
+	assert.ErrorIs(t, err, errQuoteAmountUnsupported, "placeOrderRequest should refuse a quote amount given in place of an amount")
+	assert.Nil(t, got, "placeOrderRequest should return no request for a quote amount given in place of an amount")
 }
 
 func TestSubmitOrder(t *testing.T) {
@@ -1324,6 +1382,8 @@ func TestDerivativeLeverage(t *testing.T) {
 
 func TestCancelOrder(t *testing.T) {
 	t.Parallel()
+	require.ErrorIs(t, e.CancelOrder(t.Context(), nil), order.ErrCancelOrderIsNil, "CancelOrder must reject a nil request")
+	require.ErrorIs(t, e.CancelOrder(t.Context(), &order.Cancel{AssetType: asset.Spot}), order.ErrOrderIDNotSet, "CancelOrder must need an order ID")
 	require.ErrorIs(t, e.CancelOrder(t.Context(), &order.Cancel{OrderID: "x", AssetType: asset.Spot}), errOrderIDRequired, "CancelOrder must need a numeric order ID")
 	skipLiveUnlessCanManipulate(t)
 	ex := newWrapperTestExchange(t)
@@ -1519,6 +1579,64 @@ func TestCancelAllOrders(t *testing.T) {
 	for id, status := range resp.Status {
 		assert.Equalf(t, order.PendingCancel.String(), status, "CancelAllOrders should report order %s pending cancellation until it closes", id)
 	}
+}
+
+func TestCancelAllOrdersSideAndType(t *testing.T) {
+	t.Parallel()
+	buy := testOrderRecord{id: 101, symbol: "tBTCUSD", orderType: "EXCHANGE LIMIT", status: "ACTIVE", amount: 1, original: 1, price: 100}
+	sell := testOrderRecord{id: 102, symbol: "tBTCUSD", orderType: "EXCHANGE LIMIT", status: "ACTIVE", amount: -1, original: -1, price: 120}
+	stop := testOrderRecord{id: 103, symbol: "tBTCUSD", orderType: "EXCHANGE STOP", status: "ACTIVE", amount: 1, original: 1, price: 130}
+	margined := testOrderRecord{id: 104, symbol: "tETHUSD", orderType: "LIMIT", status: "ACTIVE", amount: -1, original: -1, price: 200}
+	stopLimit := testOrderRecord{id: 105, symbol: "tBTCUSD", orderType: "EXCHANGE STOP LIMIT", status: "ACTIVE", amount: -1, original: -1, price: 90, auxiliaryLimit: 85}
+	spotPair := currency.NewBTCUSD()
+	for _, tc := range []struct {
+		name string
+		c    order.Cancel
+		exp  []testOrderRecord
+	}{
+		{name: "buys", c: order.Cancel{AssetType: asset.Spot, Side: order.Buy}, exp: []testOrderRecord{buy, stop}},
+		{name: "bids", c: order.Cancel{AssetType: asset.Spot, Side: order.Bid}, exp: []testOrderRecord{buy, stop}},
+		{name: "longs", c: order.Cancel{AssetType: asset.Spot, Side: order.Long}, exp: []testOrderRecord{buy, stop}},
+		{name: "sells", c: order.Cancel{AssetType: asset.Spot, Side: order.Sell}, exp: []testOrderRecord{sell, stopLimit}},
+		{name: "asks", c: order.Cancel{AssetType: asset.Spot, Side: order.Ask}, exp: []testOrderRecord{sell, stopLimit}},
+		{name: "shorts", c: order.Cancel{AssetType: asset.Spot, Side: order.Short}, exp: []testOrderRecord{sell, stopLimit}},
+		{name: "any side", c: order.Cancel{AssetType: asset.Spot, Side: order.AnySide}, exp: []testOrderRecord{buy, sell, stop, stopLimit}},
+		{name: "limit orders", c: order.Cancel{AssetType: asset.Spot, Type: order.Limit}, exp: []testOrderRecord{buy, sell}},
+		{name: "stop orders", c: order.Cancel{AssetType: asset.Spot, Type: order.Stop}, exp: []testOrderRecord{stop}},
+		{name: "stop limit orders", c: order.Cancel{AssetType: asset.Spot, Type: order.StopLimit}, exp: []testOrderRecord{stopLimit}},
+		{name: "any type", c: order.Cancel{AssetType: asset.Spot, Type: order.AnyType}, exp: []testOrderRecord{buy, sell, stop, stopLimit}},
+		{name: "a side and type", c: order.Cancel{AssetType: asset.Spot, Side: order.Buy, Type: order.Limit}, exp: []testOrderRecord{buy}},
+		{name: "a side of a pair", c: order.Cancel{AssetType: asset.Spot, Pair: spotPair, Side: order.Sell}, exp: []testOrderRecord{sell, stopLimit}},
+		{name: "a type of a pair", c: order.Cancel{AssetType: asset.Spot, Pair: spotPair, Type: order.Stop}, exp: []testOrderRecord{stop}},
+		{name: "a side of every asset", c: order.Cancel{AssetType: asset.All, Side: order.Sell}, exp: []testOrderRecord{sell, margined, stopLimit}},
+		{name: "a side with no asset", c: order.Cancel{Side: order.Sell}, exp: []testOrderRecord{sell, margined, stopLimit}},
+		{name: "a type of every asset", c: order.Cancel{AssetType: asset.All, Type: order.Limit}, exp: []testOrderRecord{buy, sell, margined}},
+		{name: "a type with no asset", c: order.Cancel{Type: order.Stop}, exp: []testOrderRecord{stop}},
+		{name: "a side and type matching nothing", c: order.Cancel{AssetType: asset.Spot, Side: order.Sell, Type: order.Stop}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex, cancellations := newCancelTestExchange(t, []testOrderRecord{buy, sell, stop, margined, stopLimit}, tc.exp)
+			resp, err := ex.CancelAllOrders(t.Context(), &tc.c)
+			require.NoError(t, err, "CancelAllOrders must not error")
+			status := map[string]string{}
+			var ids []any
+			for i := range tc.exp {
+				status[strconv.FormatUint(tc.exp[i].id, 10)] = order.PendingCancel.String()
+				ids = append(ids, float64(tc.exp[i].id))
+			}
+			assert.Equal(t, status, resp.Status, "CancelAllOrders should report the orders of the side and type asked for")
+			if len(ids) == 0 {
+				assert.Empty(t, cancellations(), "CancelAllOrders should send no cancellation when nothing matches")
+				return
+			}
+			assert.Equal(t, []map[string]any{{"id": ids}}, cancellations(), "CancelAllOrders should cancel only the orders of the side and type asked for, by their IDs")
+		})
+	}
+	refused, cancellations := newCancelTestExchange(t, []testOrderRecord{buy}, []testOrderRecord{buy})
+	_, err := refused.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot, Side: order.ClosePosition})
+	assert.ErrorIs(t, err, order.ErrSideIsInvalid, "CancelAllOrders should refuse a side no order has")
+	assert.Empty(t, cancellations(), "CancelAllOrders should cancel nothing for a side it refuses")
 }
 
 // newPathResponseServerExchange returns an exchange whose REST requests each receive the body given for their path, or
@@ -2136,6 +2254,11 @@ func TestGetActiveOrders(t *testing.T) {
 	_, err := newRefusingServerExchange(t, `["error",10100,"apikey: invalid"]`).GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Margin, Side: order.AnySide, Type: order.AnyType})
 	var apiErr *APIError
 	assert.ErrorAs(t, err, &apiErr, "GetActiveOrders should return the error Bitfinex reports")
+	_, err = e.GetActiveOrders(t.Context(), nil)
+	assert.ErrorIs(t, err, order.ErrGetOrdersRequestIsNil, "GetActiveOrders should reject a nil request")
+	unreadable := testOrderRecord{id: 1, symbol: "tX", orderType: "LIMIT", status: "ACTIVE", amount: 1, original: 1, price: 100}
+	_, err = newResponseServerExchange(t, testOrderRecords([]testOrderRecord{unreadable})).GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Margin, Side: order.AnySide, Type: order.AnyType})
+	assert.ErrorIs(t, err, errSymbolUnparsable, "GetActiveOrders should report an order it cannot read")
 
 	skipLiveWithoutCredentials(t)
 	for _, a := range []asset.Item{asset.Spot, asset.Margin} {
@@ -2278,6 +2401,17 @@ func TestGetDepositAddressTagsAndChains(t *testing.T) {
 	assert.Equal(t, []string{"tetheruse", "tetherusx"}, chains, "USDT, which Bitfinex names UST, should have both its chains")
 	_, err = ex.GetDepositAddress(t.Context(), currency.BTC, "", "dogecoin")
 	assert.ErrorIs(t, err, errTransferMethodUnknown, "GetDepositAddress should refuse a chain the currency has not")
+	got, err = ex.GetDepositAddress(t.Context(), currency.USDT, "", "TetherUSX")
+	require.NoError(t, err, "GetDepositAddress must not error for a chain the currency has")
+	assert.Equal(t, "tetherusx", got.Chain, "GetDepositAddress should return the chain the address deposits over")
+	assert.JSONEq(t, `{"wallet":"funding","method":"tetherusx"}`, deposits[len(deposits)-1], "GetDepositAddress should deposit over the chain named, as Bitfinex names it")
+
+	var apiErr *APIError
+	_, err = newPathResponseServerExchange(t, map[string]string{
+		"/v2/conf/pub:map:tx:method": `[[["RIPPLE",["XRP"]]]]`,
+		"/v2/auth/w/deposit/address": `["error",10100,"apikey: invalid"]`,
+	}).GetDepositAddress(t.Context(), currency.XRP, "", "")
+	assert.ErrorAs(t, err, &apiErr, "GetDepositAddress should return the error Bitfinex reports")
 }
 
 func TestGetAvailableTransferChains(t *testing.T) {
@@ -2304,6 +2438,28 @@ func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 	assert.Equal(t, &withdraw.ExchangeResponse{ID: "13080092", Status: NotificationStatusSuccess}, resp, "WithdrawCryptocurrencyFunds should return the withdrawal's ID")
 }
 
+func TestWithdrawCryptocurrencyFundsLightning(t *testing.T) {
+	t.Parallel()
+	var sent []string
+	ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		response := `[[["LNX",["LNX"]]]]`
+		if r.URL.Path == "/v2/auth/w/withdraw" {
+			body, err := io.ReadAll(r.Body)
+			assert.NoError(t, err, "Reading the withdrawal's body should not error")
+			sent = append(sent, string(body))
+			response = `[1568742390999,"acc_wd-req",null,null,[13080092,null,"lnx",null,"exchange",0.001,null,null,0],null,"SUCCESS","Your withdrawal request has been successfully submitted."]`
+		}
+		_, err := w.Write([]byte(response))
+		assert.NoError(t, err, "Writing the response should not error")
+	}))
+	req := &withdraw.Request{Exchange: ex.Name, Currency: currency.NewCode("LNX"), Amount: 0.001, Type: withdraw.Crypto, Crypto: withdraw.CryptoRequest{Address: "lnbc1invoice"}}
+	resp, err := ex.WithdrawCryptocurrencyFunds(t.Context(), req)
+	require.NoError(t, err, "WithdrawCryptocurrencyFunds must not error for a Lightning withdrawal")
+	assert.Equal(t, "13080092", resp.ID, "WithdrawCryptocurrencyFunds should return the withdrawal's ID")
+	require.Len(t, sent, 1, "WithdrawCryptocurrencyFunds must send one withdrawal")
+	assert.JSONEq(t, `{"wallet":"exchange","method":"lnx","invoice":"lnbc1invoice"}`, sent[0], "a Lightning withdrawal should send its invoice in place of an address and an amount")
+}
+
 func TestWithdrawCryptocurrencyFundsTravelRule(t *testing.T) {
 	t.Parallel()
 	var sent []byte
@@ -2326,6 +2482,49 @@ func TestWithdrawCryptocurrencyFundsTravelRule(t *testing.T) {
 	_, err := ex.WithdrawCryptocurrencyFunds(t.Context(), w)
 	require.NoError(t, err, "WithdrawCryptocurrencyFunds must not error")
 	assert.JSONEq(t, `{"wallet":"exchange","method":"ethereum","amount":"0.01","address":"0x6C20eBD2222CE0F80971A5D2C4Da29e70a0B9b23","note":"test","travel_rule_tos":true,"vasp_name":"Strawb Exchange Ltd","dest_firstname":"Mary Ann","dest_lastname":"Smith"}`, string(sent), "a withdrawal should send its beneficiary's names and provider")
+}
+
+func TestWithdrawCryptocurrencyFundsChain(t *testing.T) {
+	t.Parallel()
+	var sent []string
+	ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		response := `[[["TETHERUSE",["UST"]],["TETHERUSX",["UST"]]]]`
+		if r.URL.Path == "/v2/auth/w/withdraw" {
+			body, err := io.ReadAll(r.Body)
+			assert.NoError(t, err, "Reading the withdrawal's body should not error")
+			sent = append(sent, string(body))
+			response = `[1568742390999,"acc_wd-req",null,null,[13080092,null,"tetherusx",null,"exchange",1,null,null,0.00135],null,"SUCCESS","Your withdrawal request has been successfully submitted."]`
+		}
+		_, err := w.Write([]byte(response))
+		assert.NoError(t, err, "Writing the response should not error")
+	}))
+	req := &withdraw.Request{Exchange: ex.Name, Currency: currency.USDT, Amount: 1, Type: withdraw.Crypto, Crypto: withdraw.CryptoRequest{Address: "TQ1", Chain: "TetherUSX"}}
+	resp, err := ex.WithdrawCryptocurrencyFunds(t.Context(), req)
+	require.NoError(t, err, "WithdrawCryptocurrencyFunds must not error for a chain the currency has")
+	assert.Equal(t, "13080092", resp.ID, "WithdrawCryptocurrencyFunds should return the withdrawal's ID")
+	require.Len(t, sent, 1, "WithdrawCryptocurrencyFunds must send one withdrawal")
+	assert.JSONEq(t, `{"wallet":"exchange","method":"tetherusx","amount":"1","address":"TQ1"}`, sent[0], "a withdrawal should go over the chain named, as Bitfinex names it")
+}
+
+func TestWithdrawCryptocurrencyFundsFailures(t *testing.T) {
+	t.Parallel()
+	_, err := e.WithdrawCryptocurrencyFunds(t.Context(), nil)
+	require.ErrorIs(t, err, withdraw.ErrRequestCannotBeNil, "WithdrawCryptocurrencyFunds must reject a nil request")
+	ex := newPathResponseServerExchange(t, map[string]string{
+		"/v2/conf/pub:map:tx:method": `[[["TETHERUSE",["UST"]],["TETHERUSX",["UST"]]]]`,
+		"/v2/auth/w/withdraw":        `["error",10100,"apikey: invalid"]`,
+	})
+	req := withdraw.Request{Exchange: ex.Name, Currency: currency.USDT, Amount: 1, Type: withdraw.Crypto, Crypto: withdraw.CryptoRequest{Address: "TQ1", Chain: "dogecoin"}}
+	_, err = ex.WithdrawCryptocurrencyFunds(t.Context(), &req)
+	assert.ErrorIs(t, err, errTransferMethodUnknown, "WithdrawCryptocurrencyFunds should refuse a chain the currency has not")
+	req.Crypto.Chain = "tetherusx"
+	req.Travel.BeneficiaryName = "Satoshi"
+	_, err = ex.WithdrawCryptocurrencyFunds(t.Context(), &req)
+	assert.ErrorIs(t, err, errTravelRuleNameIncomplete, "WithdrawCryptocurrencyFunds should refuse a beneficiary without a last name")
+	req.Travel.BeneficiaryName = ""
+	var apiErr *APIError
+	_, err = ex.WithdrawCryptocurrencyFunds(t.Context(), &req)
+	assert.ErrorAs(t, err, &apiErr, "WithdrawCryptocurrencyFunds should return the error Bitfinex reports")
 }
 
 func TestWithdrawalTravelRule(t *testing.T) {
@@ -2393,6 +2592,12 @@ func TestRequestFiatWithdrawalPayload(t *testing.T) {
 	assert.Equal(t, "33 Liberty Street", payload["bank_address"], "a wire should send the bank's address")
 	assert.Equal(t, 1.0, payload["expressWire"], "an express wire should be flagged 1, as the docs ask")
 	assert.Equal(t, "123456789", payload["intermediary_bank_account"], "a wire should send its intermediary bank's account number exactly")
+	assert.Equal(t, WalletTypeExchange, payload["walletselected"], "a wire should name the exchange wallet as v1 does")
+	for wallet, exp := range map[string]string{WalletTypeMargin: "trading", WalletTypeFunding: "deposit"} {
+		_, err = ex.RequestFiatWithdrawal(t.Context(), &FiatWithdrawalRequest{Wallet: wallet, Withdrawal: newWithdrawal()})
+		require.NoErrorf(t, err, "RequestFiatWithdrawal must not error for the %s wallet", wallet)
+		assert.Equalf(t, exp, payload["walletselected"], "a wire should name the %s wallet as v1 does", wallet)
+	}
 
 	w = newWithdrawal()
 	w.Fiat.IsExpressWire = false
@@ -2416,6 +2621,13 @@ func TestRequestFiatWithdrawalPayload(t *testing.T) {
 		w.Fiat.IntermediaryBankAccountNumber = tc.account
 		_, err = ex.RequestFiatWithdrawal(t.Context(), &FiatWithdrawalRequest{Wallet: WalletTypeExchange, Withdrawal: w})
 		assert.ErrorIsf(t, err, tc.err, "RequestFiatWithdrawal should refuse intermediary account number %v", tc.account)
+	}
+}
+
+func TestLegacyWallet(t *testing.T) {
+	t.Parallel()
+	for wallet, exp := range map[string]string{WalletTypeExchange: "exchange", WalletTypeMargin: "trading", WalletTypeFunding: "deposit"} {
+		assert.Equalf(t, exp, legacyWallet(wallet), "legacyWallet should name the %s wallet as v1 does", wallet)
 	}
 }
 
@@ -2466,6 +2678,33 @@ func TestWithdrawFiatFunds(t *testing.T) {
 	resp, err = e.WithdrawFiatFundsToInternationalBank(t.Context(), w)
 	require.NoError(t, err, "WithdrawFiatFundsToInternationalBank must not error")
 	assert.Equal(t, "586829", resp.ID, "WithdrawFiatFundsToInternationalBank should withdraw by wire")
+}
+
+func TestWithdrawFiatFundsFailures(t *testing.T) {
+	t.Parallel()
+	_, err := e.WithdrawFiatFunds(t.Context(), nil)
+	require.ErrorIs(t, err, withdraw.ErrRequestCannotBeNil, "WithdrawFiatFunds must reject a nil request")
+	_, err = e.RequestFiatWithdrawal(t.Context(), &FiatWithdrawalRequest{Wallet: WalletTypeExchange})
+	require.ErrorIs(t, err, common.ErrNilPointer, "RequestFiatWithdrawal must reject a request without its withdrawal")
+	req := &withdraw.Request{
+		Exchange: e.Name, Currency: currency.USD, Amount: 1000, Description: "test", Type: withdraw.Fiat,
+		Fiat: withdraw.FiatRequest{Bank: banking.Account{
+			Enabled: true, AccountName: "Satoshi Nakamoto", AccountNumber: "12345", BankName: "Federal Reserve Bank", BankAddress: "33 Liberty Street",
+			BankPostalCity: "New York", BankCountry: "United States", SWIFTCode: "FRNYUS33", SupportedCurrencies: "USD", SupportedExchanges: e.Name,
+		}},
+	}
+	var apiErr *APIError
+	_, err = newResponseServerExchange(t, `["error",10100,"apikey: invalid"]`).WithdrawFiatFunds(t.Context(), req)
+	assert.ErrorAs(t, err, &apiErr, "WithdrawFiatFunds should return the error Bitfinex reports")
+	_, err = newResponseServerExchange(t, `[]`).WithdrawFiatFunds(t.Context(), req)
+	assert.ErrorIs(t, err, common.ErrNoResponse, "WithdrawFiatFunds should report a reply without the withdrawal")
+	_, err = newResponseServerExchange(t, `[{"status":"error","message":"Invalid bank details","withdrawal_id":0}]`).WithdrawFiatFunds(t.Context(), req)
+	assert.ErrorIs(t, err, errFiatWithdrawalFailed, "WithdrawFiatFunds should report a withdrawal Bitfinex did not make")
+	uncredentialed := newResponseServerExchange(t, `[]`)
+	uncredentialed.SetCredentials(&accounts.Credentials{})
+	uncredentialed.SkipAuthCheck = false
+	_, err = uncredentialed.RequestFiatWithdrawal(t.Context(), &FiatWithdrawalRequest{Wallet: WalletTypeExchange, Withdrawal: req})
+	assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "RequestFiatWithdrawal should need credentials")
 }
 
 func TestGetFeeByType(t *testing.T) {
@@ -2924,6 +3163,10 @@ func TestSetDefaultsDerivatives(t *testing.T) {
 	assert.Equal(t, exchange.OpenInterestSupport{Supported: true, SupportsRestBatch: true}, f.OpenInterest, "open interest should come in one request")
 }
 
+// testStatusReplyAge allows for a live status reply taken before a funding event and read just after it, as the replies
+// have been read up to 9 seconds old
+const testStatusReplyAge = 30 * time.Second
+
 func TestGetFuturesContractDetails(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetFuturesContractDetails(t.Context(), asset.Spot)
@@ -2959,7 +3202,7 @@ func TestGetFuturesContractDetails(t *testing.T) {
 			assert.Equalf(t, futures.Perpetual, c.Type, "%s should be perpetual", p)
 			assert.Equalf(t, p.Quote.Upper(), c.SettlementCurrency, "%s should settle in its collateral", p)
 			assert.Positivef(t, c.MaxLeverage, "%s should have a maximum leverage", p)
-			assert.WithinDurationf(t, before, c.LatestRate.Time, derivativeFundingInterval, "%s's latest funding rate should be from its last funding event", p)
+			assert.WithinDurationf(t, before, c.LatestRate.Time, derivativeFundingInterval+testStatusReplyAge, "%s's latest funding rate should be from its last funding event", p)
 			continue
 		}
 		collateral := p.Quote.Upper()
@@ -3030,7 +3273,7 @@ func TestGetLatestFundingRates(t *testing.T) {
 		rates[0].TimeChecked = time.Time{}
 		if !mockTests {
 			assert.Equalf(t, derivativeFundingInterval, rates[0].TimeOfNextRate.Sub(rates[0].LatestRate.Time), "the %s rate should be set a funding interval before the next", a)
-			assert.Truef(t, rates[0].TimeOfNextRate.After(before), "the %s rate's next funding event should be to come", a)
+			assert.Truef(t, rates[0].TimeOfNextRate.After(before.Add(-testStatusReplyAge)), "the %s rate's next funding event should be to come", a)
 			continue
 		}
 		exp := fundingrate.LatestRateResponse{Exchange: ex.Name, Asset: a, Pair: testDerivativePair, TimeOfNextRate: testDerivativeNextFunding}
@@ -3303,6 +3546,14 @@ func TestGetFuturesPositionOrders(t *testing.T) {
 	require.True(t, ok, "the order history request must have a start")
 	assert.GreaterOrEqual(t, historyStart, float64(earliest), "a window starting before the order history should start as far back as it reaches")
 	assert.LessOrEqual(t, historyStart, float64(latest), "a window starting before the order history should start as far back as it reaches")
+
+	req := &futures.PositionsRequest{Asset: asset.USDTMarginedFutures, Pairs: currency.Pairs{testDerivativePair}, StartDate: now.Add(-time.Hour), EndDate: now}
+	var apiErr *APIError
+	_, err = newRefusingServerExchange(t, `["error",10100,"apikey: invalid"]`).GetFuturesPositionOrders(t.Context(), req)
+	assert.ErrorAs(t, err, &apiErr, "GetFuturesPositionOrders should return the order history's refusal")
+	apiErr = nil
+	_, err = newPathResponseServerExchange(t, map[string]string{"/v2/auth/r/orders/tBTCF0:USTF0": `["error",10100,"apikey: invalid"]`}).GetFuturesPositionOrders(t.Context(), req)
+	assert.ErrorAs(t, err, &apiErr, "GetFuturesPositionOrders should return the open orders' refusal")
 }
 
 func TestChangePositionMargin(t *testing.T) {
@@ -3323,6 +3574,9 @@ func TestChangePositionMargin(t *testing.T) {
 	}
 	_, err = newResponseServerExchange(t, `[[0]]`).ChangePositionMargin(t.Context(), &margin.PositionChangeRequest{Asset: asset.USDTMarginedFutures, Pair: testDerivativePair, MarginType: margin.Isolated, NewAllocatedMargin: 1})
 	assert.ErrorIs(t, err, errPositionCollateralNotSet, "ChangePositionMargin should report collateral Bitfinex did not set")
+	var apiErr *APIError
+	_, err = newResponseServerExchange(t, `["error",10100,"apikey: invalid"]`).ChangePositionMargin(t.Context(), &margin.PositionChangeRequest{Asset: asset.USDTMarginedFutures, Pair: testDerivativePair, MarginType: margin.Isolated, NewAllocatedMargin: 1})
+	assert.ErrorAs(t, err, &apiErr, "ChangePositionMargin should return the error Bitfinex reports")
 	skipLiveUnlessCanManipulate(t)
 	if !mockTests {
 		t.Skip("Setting a live position's collateral needs a position, which the tests do not open")

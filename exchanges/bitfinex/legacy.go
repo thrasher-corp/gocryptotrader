@@ -93,7 +93,7 @@ func (e *Exchange) RequestFiatWithdrawal(ctx context.Context, req *FiatWithdrawa
 	}
 	body := &fiatWithdrawalBody{
 		WithdrawType:   "wire",
-		WalletSelected: req.Wallet,
+		WalletSelected: legacyWallet(req.Wallet),
 		Amount:         strconv.FormatFloat(w.Amount, 'f', -1, 64),
 		Currency:       w.Currency.Upper().String(),
 		AccountName:    w.Fiat.Bank.AccountName,
@@ -131,6 +131,17 @@ func (e *Exchange) RequestFiatWithdrawal(ctx context.Context, req *FiatWithdrawa
 		return nil, fmt.Errorf("%w: %s: %s", errFiatWithdrawalFailed, resp[0].Status, resp[0].Message)
 	}
 	return &resp[0], nil
+}
+
+// legacyWallet returns a wallet as Bitfinex's v1 API names it
+func legacyWallet(wallet string) string {
+	switch wallet {
+	case WalletTypeMargin:
+		return "trading"
+	case WalletTypeFunding:
+		return "deposit"
+	}
+	return wallet
 }
 
 // intermediaryBankAccount returns the intermediary bank account a wire goes through: its IBAN, or else its account

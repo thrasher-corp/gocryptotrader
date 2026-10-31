@@ -1581,6 +1581,7 @@ func TestSubToMap(t *testing.T) {
 
 func TestWebsocketSubscribeErrors(t *testing.T) {
 	t.Parallel()
+	assert.ErrorIs(t, newUnauthenticatedWebsocketExchange(t).wsSubscribeAccount(t.Context(), nil, nil), websocket.ErrSubscriptionFailure, "wsSubscribeAccount should refuse a connection that is not authenticated")
 	ex, conn := newChannelTestExchange(t)
 	err := ex.wsSubscribe(t.Context(), conn, subscription.List{{Channel: subscription.TickerChannel, Asset: asset.Spot, Pairs: currency.Pairs{currency.NewBTCUSD(), testETHUSD}, QualifiedChannel: `{"channel":"ticker"}`}})
 	assert.ErrorIs(t, err, errSubscriptionNotSinglePair, "wsSubscribe should refuse a subscription to several pairs")
@@ -1638,6 +1639,26 @@ func TestWebsocketSubscribe(t *testing.T) {
 	if mockTests {
 		assert.Len(t, venue.events("unsubscribe"), 2, "each channel should be unsubscribed")
 	}
+}
+
+func TestWebsocketChecksumMarginBookMissing(t *testing.T) {
+	t.Parallel()
+	ex, conn := newChannelTestExchange(t)
+	s := subscribeFixtureChannel(t, ex, conn, "book:tBTCUSD:R0")
+	channelID, ok := ex.wsChannels.idOf(conn, s)
+	require.True(t, ok, "the book's channel must be confirmed")
+	frame := func(data string) []byte { return []byte("[" + strconv.FormatUint(channelID, 10) + "," + data + "]") }
+	require.NoError(t, ex.wsHandleData(t.Context(), conn, frame(`[[1,100,1],[2,101,-1]],1792128962861`)), "a snapshot must load")
+	book, err := ex.Websocket.Orderbook.GetOrderbook(currency.NewBTCUSD(), asset.Spot)
+	require.NoError(t, err, "GetOrderbook must not error")
+	// Margin enables the pair once the channel has sent its snapshot
+	s.QualifiedChannel = "book:tBTCUSD:R0"
+	ex.wsSharedChannels.set(map[string]*subscription.Subscription{s.QualifiedChannel: s})
+	checksum := strconv.FormatUint(uint64(bookChecksum(book, true)), 10)
+	err = ex.wsHandleData(t.Context(), conn, frame(`"cs",`+checksum+`,1792128962862`))
+	require.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "a checksum for a margin book without a snapshot must call for one")
+	assert.ErrorIs(t, err, orderbook.ErrDepthNotFound, "a checksum for a margin book without a snapshot should report it missing")
+	waitForRenewals(t, ex)
 }
 
 func TestWebsocketChecksumResubscribes(t *testing.T) {

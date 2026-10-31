@@ -388,6 +388,13 @@ func (v *websocketVenue) answerInput(msg []byte, conn *gws.Conn) error {
 			order[0] = nil
 			return writeVenueFrame(conn, venueNotification(wsOrderNewRequest, order, "ERROR", "Invalid order: symbol"))
 		}
+		switch data["symbol"] {
+		case venueSilentSymbol:
+			return nil
+		case venueUnreadableSymbol:
+			order[16] = "x"
+			return writeVenueFrame(conn, venueNotification(wsOrderNewRequest, order, "SUCCESS", "Submitting limit order."))
+		}
 		if err := writeVenueFrame(conn, venueNotification(wsOrderNewRequest, order, "SUCCESS", "Submitting limit order.")); err != nil {
 			return err
 		}

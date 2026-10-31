@@ -310,6 +310,8 @@ func TestWebsocketHandleAccountEventErrors(t *testing.T) {
 		{frame: `[0,"hb`, err: errWebsocketMalformedFrame},
 		{frame: `[0,"miu",["novel",[1]]]`, err: errWebsocketMalformedFrame},
 		{frame: `[0,"miu",[]]`, err: errWebsocketMalformedFrame},
+		{frame: `[0,"ps",[1]]`, err: errTupleNotArray},
+		{frame: `[0,"n",{}]`, err: errTupleNotArray},
 		{frame: `[0,"on",[1,null,null,"tETHUSD",null,null,1,1,"NOVEL"]]`, err: errUnknownOrderType},
 		{frame: `[0,"os",[[1,null,null,"tETHUSD",null,null,0,0,"LIMIT"]]]`, err: errOrderSideUnresolved},
 		{frame: `[0,"wu",["novel","BTC",1,0,null,null,null]]`, err: errUnknownWalletType},
