@@ -547,6 +547,9 @@ func (k *Item) ConvertToNewInterval(newInterval Interval) (*Item, error) {
 			ErrWholeNumberScaling,
 			newInterval)
 	}
+	if len(k.Candles) == 0 {
+		return nil, fmt.Errorf("%w to %v no candle data", ErrInsufficientCandleData, newInterval)
+	}
 
 	start := k.Candles[0].Time
 	end := k.Candles[len(k.Candles)-1].Time.Add(k.Interval.Duration())

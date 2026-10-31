@@ -114,6 +114,10 @@ Never relay an empty batch.
 
   to append query parameters efficiently. This handles both empty and set params and will automatically handle the "?" for you.
 
+### Rate Limits
+
+- Define an exchange's rate limits once, as a package-level `rateLimits` variable passed to `request.WithLimiter(rateLimits)`, so that every instance of the exchange shares them. Venues apply their limits per IP address or account, not per client instance.
+
 ## Error Handling
 
 - Wrap external errors using fmt.Errorf with context, using the following format:

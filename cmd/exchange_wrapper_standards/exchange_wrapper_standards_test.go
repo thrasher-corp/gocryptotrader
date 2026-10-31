@@ -636,6 +636,7 @@ var acceptableErrors = []error{
 	request.ErrRateLimiterAlreadyEnabled, // If the rate limiter is already enabled, it is not an error
 	context.DeadlineExceeded,             // If the context deadline is exceeded, it is not an error as only blockedCIExchanges use expired contexts by design
 	order.ErrPairIsEmpty,                 // Is thrown when the empty pair and asset scenario for an order submission is sent in the Validate() function
+	order.ErrOrderNotFound,               // Is thrown when the placeholder order ID 1337 of an order lookup does not exist
 	deposit.ErrAddressNotFound,           // Is thrown when an address is not found due to the exchange requiring valid API keys
 	futures.ErrNotFuturesAsset,           // Is thrown when a futures function receives a non-futures asset
 	currency.ErrSymbolStringEmpty,        // Is thrown when a symbol string is empty for blank MatchSymbol func checks
@@ -736,6 +737,10 @@ func disruptFormatting(t *testing.T, p currency.Pair) (currency.Pair, error) {
 func getExchangeCredentials(exchangeName string) config.APICredentialsConfig {
 	var resp config.APICredentialsConfig
 	switch exchangeName {
+	case "hyperliquid":
+		// A valid watch-only address prevents the standards suite from issuing
+		// any signed action while still exercising account information wrappers.
+		resp.Key = "0x1111111111111111111111111111111111111111"
 	case "lbank":
 		// these are just random keys, they are not usable
 		resp.Key = `MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3R2vuz3cpQUbCX0TgYZL
