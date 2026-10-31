@@ -951,6 +951,14 @@ func (e *Exchange) SubmitOrder(ctx context.Context, submit *order.Submit) (*orde
 	if _, _, err := e.getSigningCredentials(ctx); err != nil {
 		return nil, err
 	}
+	// A perpetual order takes the leverage and margin mode set for its market, which SetLeverage changes, and a spot order
+	// has neither
+	if submit.Leverage != 0 {
+		return nil, fmt.Errorf("%w received '%v'", order.ErrSubmitLeverageNotSupported, submit.Leverage)
+	}
+	if submit.MarginType != margin.Unset {
+		return nil, fmt.Errorf("%w: %s", margin.ErrMarginTypeUnsupported, submit.MarginType)
+	}
 	orders, mapping, grouping, err := e.buildOrderRequests(ctx, submit)
 	if err != nil {
 		return nil, err
@@ -1147,14 +1155,19 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, cancels []order.Cancel
 	return &order.CancelBatchResponse{Status: statuses}, err
 }
 
-// CancelAllOrders cancels every open order of an asset type, optionally limited to one pair; HIP-4 outcome orders, which
-// the first perpetual DEX lists beside spot and perpetual orders, are left open, as no supported asset type covers them
+// CancelAllOrders cancels every open order of an asset type, optionally limited to one pair and one side; HIP-4 outcome
+// orders, which the first perpetual DEX lists beside spot and perpetual orders, are left open, as no supported asset type
+// covers them
 func (e *Exchange) CancelAllOrders(ctx context.Context, cancel *order.Cancel) (order.CancelAllResponse, error) {
 	if cancel == nil {
 		return order.CancelAllResponse{}, order.ErrCancelOrderIsNil
 	}
 	if !cancel.AssetType.IsValid() || !e.SupportsAsset(cancel.AssetType) {
 		return order.CancelAllResponse{}, fmt.Errorf("%w: %s", asset.ErrNotSupported, cancel.AssetType)
+	}
+	oneSide := cancel.Side != order.UnknownSide && cancel.Side != order.AnySide
+	if oneSide && !cancel.Side.IsLong() && !cancel.Side.IsShort() {
+		return order.CancelAllResponse{}, fmt.Errorf("%w: %s", order.ErrSideIsInvalid, cancel.Side)
 	}
 	address, err := e.getWatchAddress(ctx)
 	if err != nil {
@@ -1185,6 +1198,16 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, cancel *order.Cancel) (o
 		}
 		if a != cancel.AssetType || (!cancel.Pair.IsEmpty() && !mapping.pair.Equal(cancel.Pair)) {
 			continue
+		}
+		if oneSide {
+			side, err := parseSide(openOrders[i].Side)
+			if err != nil {
+				errs = common.AppendError(errs, fmt.Errorf("order %d: %w", openOrders[i].OrderID, err))
+				continue
+			}
+			if side.IsLong() != cancel.Side.IsLong() {
+				continue
+			}
 		}
 		cancels = append(cancels, order.Cancel{
 			OrderID:   strconv.FormatUint(openOrders[i].OrderID, 10),

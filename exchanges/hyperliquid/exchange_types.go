@@ -1010,35 +1010,6 @@ type InvalidatePendingNonceRequest struct {
 	ExpiresAfter time.Time
 }
 
-// UserDEXAbstractionRequest enables or disables HIP-3 DEX abstraction; SetUserAbstraction supersedes it
-type UserDEXAbstractionRequest struct {
-	// User is the account or one of its subaccounts; empty selects the configured subaccount, else the account
-	User    string
-	Enabled bool
-}
-
-// UserDEXAbstractionAction is the userDexAbstraction action payload
-type UserDEXAbstractionAction struct {
-	Type             string `json:"type"`
-	SignatureChainID string `json:"signatureChainId"`
-	HyperliquidChain string `json:"hyperliquidChain"`
-	User             string `json:"user"`
-	Enabled          bool   `json:"enabled"`
-	Nonce            uint64 `json:"nonce"`
-}
-
-func (a *UserDEXAbstractionAction) setEnvelope(chain string, nonce uint64) {
-	a.Type, a.SignatureChainID, a.HyperliquidChain, a.Nonce = "userDexAbstraction", userSignedChainIDHex, chain, nonce
-}
-
-func (a *UserDEXAbstractionAction) signingFields() (primaryType string, fields []eip712Field) {
-	return "HyperliquidTransaction:UserDexAbstraction", userSignedFields(
-		a.HyperliquidChain, nonceFieldNonce, a.Nonce,
-		eip712Field{Name: "user", Type: eip712TypeAddress, Value: a.User},
-		eip712Field{Name: "enabled", Type: eip712TypeBool, Value: a.Enabled},
-	)
-}
-
 // SetUserAbstractionRequest sets how an account shares balances across spot and perpetual DEXs
 type SetUserAbstractionRequest struct {
 	// User is the account or one of its subaccounts; empty selects the configured subaccount, else the account

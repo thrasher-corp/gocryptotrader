@@ -782,30 +782,6 @@ func (e *Exchange) InvalidatePendingNonce(ctx context.Context, arg *InvalidatePe
 	return err
 }
 
-// SetUserDEXAbstraction enables or disables HIP-3 DEX abstraction for the account or one of its subaccounts, and returns
-// the action's nonce; SetUserAbstraction supersedes it
-func (e *Exchange) SetUserDEXAbstraction(ctx context.Context, arg *UserDEXAbstractionRequest) (uint64, error) {
-	if arg == nil {
-		return 0, common.ErrNilPointer
-	}
-	credentials, subAccount, err := e.getUserSigningCredentials(ctx)
-	if err != nil {
-		return 0, err
-	}
-	user, err := e.abstractionUser(ctx, credentials, subAccount, arg.User)
-	if err != nil {
-		return 0, err
-	}
-	return e.sendUserSignedAction(ctx, credentials, &UserDEXAbstractionAction{User: user, Enabled: arg.Enabled})
-}
-
-// AgentEnableDEXAbstraction enables HIP-3 DEX abstraction for an account that has never set it, as an L1 action that an
-// approved API wallet can sign; AgentSetUserAbstraction supersedes it
-func (e *Exchange) AgentEnableDEXAbstraction(ctx context.Context) error {
-	_, err := e.SendSignedAction(ctx, EmptyAction{Type: "agentEnableDexAbstraction"}, &L1ActionOptionsRequest{BatchLength: 1})
-	return err
-}
-
 // SetUserAbstraction sets how the account or one of its subaccounts shares balances across spot and perpetual DEXs, and
 // returns the action's nonce
 func (e *Exchange) SetUserAbstraction(ctx context.Context, arg *SetUserAbstractionRequest) (uint64, error) {

@@ -295,14 +295,6 @@ func liveApprovedBuilderFee(t *testing.T) *ApproveBuilderFeeRequest {
 	return &ApproveBuilderFeeRequest{Builder: builders[0], MaxFee: maximumFee}
 }
 
-// liveDEXAbstraction returns whether the live account has HIP-3 DEX abstraction enabled, or nil when it never set it
-func liveDEXAbstraction(t *testing.T) *bool {
-	t.Helper()
-	enabled, err := e.GetUserDEXAbstraction(t.Context(), liveAccountAddress(t))
-	require.NoError(t, err, "GetUserDEXAbstraction must not error")
-	return enabled
-}
-
 // liveSettableAbstraction returns the live account's abstraction mode, skipping the test unless an abstraction action
 // can set that mode back
 func liveSettableAbstraction(t *testing.T) AccountAbstraction {
@@ -1187,7 +1179,7 @@ func TestAgentSendAsset(t *testing.T) {
 	ex := newActionServerExchange(t, subAccountCredentials(), &captured, defaultActionResponse)
 	_, err = ex.AgentSendAsset(t.Context(), &AgentSendAssetRequest{Destination: testWithdrawalAddress, SourceDEX: "xyz", Token: currency.HYPE, Amount: 1})
 	assert.ErrorIs(t, err, errTransferTokenInvalid, "AgentSendAsset should reject a token that is not the DEX's collateral")
-	expiresAfter := time.Now().Add(time.Minute)
+	expiresAfter := time.Now().Add(time.Hour)
 	nonce, err := ex.AgentSendAsset(t.Context(), &AgentSendAssetRequest{Destination: testWithdrawalAddress, SourceDEX: "xyz", DestinationDEX: "spot", Token: currency.USDC, Amount: 2, ExpiresAfter: expiresAfter})
 	require.NoError(t, err, "AgentSendAsset must not error")
 	exp := `{"type":"agentSendAsset","destination":"` + testWithdrawalAddress + `","sourceDex":"xyz","destinationDex":"spot","token":"USDC","amount":"2","fromSubAccount":"` + testSubAccountAddress + `","nonce":` + strconv.FormatUint(nonce, 10) + `}`
@@ -1840,66 +1832,6 @@ func TestInvalidatePendingNonce(t *testing.T) {
 	assert.NoError(t, e.InvalidatePendingNonce(t.Context(), &InvalidatePendingNonceRequest{Nonce: nonce}), "InvalidatePendingNonce should not error")
 }
 
-func TestSetUserDEXAbstraction(t *testing.T) {
-	t.Parallel()
-	_, err := e.SetUserDEXAbstraction(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "SetUserDEXAbstraction must reject a nil request")
-	_, err = newActionServerExchange(t, agentCredentials(), new(SignedActionRequest), defaultActionResponse).SetUserDEXAbstraction(t.Context(), &UserDEXAbstractionRequest{})
-	require.ErrorIs(t, err, errUserSignedMasterRequired, "SetUserDEXAbstraction must require the account's own key")
-
-	for _, subAccount := range []string{"", testSubAccountAddress} {
-		rejected, lookups := newRoleServerExchange(t, map[string]string{testTraderAddress: `{"role":"user"}`}, nil, nil)
-		credentials := signingCredentials()
-		credentials.SubAccount = subAccount
-		setTestCredentials(rejected, credentials)
-		_, err := rejected.SetUserDEXAbstraction(t.Context(), &UserDEXAbstractionRequest{User: testTraderAddress})
-		assert.ErrorIs(t, err, errOwnedSubAccountRequired, "SetUserDEXAbstraction should reject an unowned target before signing")
-		assert.Equal(t, int32(1), lookups.Load(), "SetUserDEXAbstraction should validate the target irrespective of configuration")
-		assert.Zero(t, rejected.lastNonce.Load(), "SetUserDEXAbstraction should not sign an unowned target")
-	}
-
-	var captured SignedActionRequest
-	ex := newActionServerExchange(t, subAccountCredentials(), &captured, defaultActionResponse)
-	_, err = ex.SetUserDEXAbstraction(t.Context(), &UserDEXAbstractionRequest{User: "invalid"})
-	require.ErrorIs(t, err, errInvalidAddress, "SetUserDEXAbstraction must reject an invalid user")
-	nonce, err := ex.SetUserDEXAbstraction(t.Context(), &UserDEXAbstractionRequest{})
-	require.NoError(t, err, "SetUserDEXAbstraction must not error for the configured subaccount")
-	exp := `{"type":"userDexAbstraction","signatureChainId":"0x66eee","hyperliquidChain":"Mainnet","user":"` + testSubAccountAddress + `","enabled":false,"nonce":` + strconv.FormatUint(nonce, 10) + `}`
-	assert.JSONEq(t, exp, capturedAction(t, &captured), "SetUserDEXAbstraction should default to the configured subaccount")
-
-	arg := &UserDEXAbstractionRequest{Enabled: true}
-	if !mockTests {
-		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-		skipLiveUnlessAccountSigner(t)
-		// Setting the account's current value leaves it as it was
-		enabled := liveDEXAbstraction(t)
-		if enabled == nil {
-			t.Skip("Live SetUserDEXAbstraction sets the account's current value again, and the live account has never set one")
-		}
-		arg.Enabled = *enabled
-	}
-	nonce, err = newUserSignedTestExchange(t).SetUserDEXAbstraction(t.Context(), arg)
-	require.NoError(t, err, "SetUserDEXAbstraction must not error")
-	assertUserSignedNonce(t, nonce)
-}
-
-func TestAgentEnableDEXAbstraction(t *testing.T) {
-	t.Parallel()
-	var captured SignedActionRequest
-	require.NoError(t, newActionServerExchange(t, subAccountCredentials(), &captured, defaultActionResponse).AgentEnableDEXAbstraction(t.Context()), "AgentEnableDEXAbstraction must not error")
-	assert.JSONEq(t, `{"type":"agentEnableDexAbstraction"}`, capturedAction(t, &captured), "AgentEnableDEXAbstraction should send the action")
-	assert.Empty(t, captured.VaultAddress, "AgentEnableDEXAbstraction should not act for the configured subaccount")
-
-	if !mockTests {
-		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-		skipLiveWithoutPrivateKey(t)
-		if liveDEXAbstraction(t) != nil {
-			t.Skip("AgentEnableDEXAbstraction only enables a DEX abstraction that was never set, and the live account has set it")
-		}
-	}
-	assert.NoError(t, e.AgentEnableDEXAbstraction(t.Context()), "AgentEnableDEXAbstraction should not error")
-}
-
 func TestSetUserAbstraction(t *testing.T) {
 	t.Parallel()
 	_, err := e.SetUserAbstraction(t.Context(), nil)
@@ -1930,6 +1862,10 @@ func TestSetUserAbstraction(t *testing.T) {
 	require.NoError(t, err, "SetUserAbstraction must not error")
 	exp := `{"type":"userSetAbstraction","signatureChainId":"0x66eee","hyperliquidChain":"Mainnet","user":"` + testAccountAddress + `","abstraction":"portfolioMargin","nonce":` + strconv.FormatUint(nonce, 10) + `}`
 	assert.JSONEq(t, exp, capturedAction(t, &captured), "SetUserAbstraction should apply to the requested user")
+	nonce, err = ex.SetUserAbstraction(t.Context(), &SetUserAbstractionRequest{Abstraction: AccountAbstractionDisabled})
+	require.NoError(t, err, "SetUserAbstraction must not error for the configured subaccount")
+	exp = `{"type":"userSetAbstraction","signatureChainId":"0x66eee","hyperliquidChain":"Mainnet","user":"` + testSubAccountAddress + `","abstraction":"disabled","nonce":` + strconv.FormatUint(nonce, 10) + `}`
+	assert.JSONEq(t, exp, capturedAction(t, &captured), "SetUserAbstraction should default to the configured subaccount")
 
 	arg := &SetUserAbstractionRequest{Abstraction: AccountAbstractionUnifiedAccount}
 	if !mockTests {
@@ -2676,29 +2612,6 @@ func TestApproveBuilderFeeActionSigningFields(t *testing.T) {
 	}
 	assert.Equal(t, exp, fields, "signingFields should list the fields in EIP-712 type order")
 	assertSignedFieldsSent(t, action, "approveBuilderFee", fields)
-}
-
-func TestUserDEXAbstractionActionSetEnvelope(t *testing.T) {
-	t.Parallel()
-	action := &UserDEXAbstractionAction{User: testSubAccountAddress, Enabled: true}
-	action.setEnvelope("Testnet", vectorNonce)
-	exp := &UserDEXAbstractionAction{Type: "userDexAbstraction", SignatureChainID: userSignedChainIDHex, HyperliquidChain: "Testnet", User: testSubAccountAddress, Enabled: true, Nonce: vectorNonce}
-	assert.Equal(t, exp, action, "setEnvelope should set the userDexAbstraction type, signature chain ID, chain and nonce")
-}
-
-func TestUserDEXAbstractionActionSigningFields(t *testing.T) {
-	t.Parallel()
-	action := &UserDEXAbstractionAction{Type: "userDexAbstraction", SignatureChainID: userSignedChainIDHex, HyperliquidChain: "Mainnet", User: testSubAccountAddress, Enabled: true, Nonce: vectorNonce}
-	primaryType, fields := action.signingFields()
-	assert.Equal(t, "HyperliquidTransaction:UserDexAbstraction", primaryType, "signingFields should return the UserDexAbstraction primary type")
-	exp := []eip712Field{
-		{Name: "hyperliquidChain", Type: "string", Value: "Mainnet"},
-		{Name: "user", Type: "address", Value: testSubAccountAddress},
-		{Name: "enabled", Type: "bool", Value: true},
-		{Name: "nonce", Type: "uint64", Value: uint64(vectorNonce)},
-	}
-	assert.Equal(t, exp, fields, "signingFields should list the fields in EIP-712 type order")
-	assertSignedFieldsSent(t, action, "userDexAbstraction", fields)
 }
 
 func TestUserSetAbstractionActionSetEnvelope(t *testing.T) {

@@ -572,17 +572,6 @@ func (e *Exchange) GetDelegatorRewards(ctx context.Context, user string) ([]Dele
 	return resp, e.SendHTTPRequest(ctx, infoStakingHistoryEPL, &InfoRequest{Type: "delegatorRewards", User: user}, &resp)
 }
 
-// GetUserDEXAbstraction returns whether an account has HIP-3 DEX abstraction enabled, or nil when it has never been set;
-// GetUserAbstraction supersedes it
-func (e *Exchange) GetUserDEXAbstraction(ctx context.Context, user string) (*bool, error) {
-	user, _, err := normaliseAddress(user)
-	if err != nil {
-		return nil, err
-	}
-	var resp *bool
-	return resp, e.SendHTTPRequest(ctx, infoStandardEPL, &InfoRequest{Type: "userDexAbstraction", User: user}, &resp)
-}
-
 // GetUserAbstraction returns an account's abstraction mode
 func (e *Exchange) GetUserAbstraction(ctx context.Context, user string) (AccountAbstraction, error) {
 	user, _, err := normaliseAddress(user)

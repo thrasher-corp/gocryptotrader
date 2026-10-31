@@ -47,9 +47,8 @@ const (
 	// abstraction settings again, and move funds between its own balances and positions, outcome tokens and, 1000 quote
 	// tokens at a time, a HIP-3 backstop liquidator. Some actions last: 0.01 HYPE staked, 0.01 HYPE unstaked through the
 	// 7 day queue, 0.01 HYPE delegated to a validator for at least a day, a 1 hour API wallet for a discarded key, 0.0005
-	// USDC of request weight, any unclaimed referral rewards claimed, and DEX abstraction enabled for good if it was never
-	// set. Funds only reach other addresses and vaults, and gossip priority is only bid for, when the live constants above
-	// are set
+	// USDC of request weight, and any unclaimed referral rewards claimed. Funds only reach other addresses and vaults, and
+	// gossip priority is only bid for, when the live constants above are set
 	canManipulateRealOrders = false
 	// testPrivateKey is the Python SDK's public signing test key, which mock mode signs with; testAccountAddress is its
 	// account address
@@ -1222,27 +1221,6 @@ func TestGetDelegatorRewards(t *testing.T) {
 	} else {
 		assert.NotEmpty(t, result, "GetDelegatorRewards should return the validator's staking rewards")
 	}
-}
-
-func TestGetUserDEXAbstraction(t *testing.T) {
-	t.Parallel()
-	_, err := e.GetUserDEXAbstraction(t.Context(), "invalid")
-	require.ErrorIs(t, err, errInvalidAddress, "GetUserDEXAbstraction must reject an invalid address")
-
-	result, err := e.GetUserDEXAbstraction(t.Context(), testAccountAddress)
-	require.NoError(t, err, "GetUserDEXAbstraction must not error")
-	if mockTests {
-		require.NotNil(t, result, "GetUserDEXAbstraction must return a state once set")
-		assert.True(t, *result, "GetUserDEXAbstraction should return an enabled state")
-	}
-
-	result, err = newResponseServerExchange(t, `false`).GetUserDEXAbstraction(t.Context(), testAccountAddress)
-	require.NoError(t, err, "GetUserDEXAbstraction must not error for a disabled state")
-	require.NotNil(t, result, "GetUserDEXAbstraction must return a disabled state")
-	assert.False(t, *result, "GetUserDEXAbstraction should return a disabled state")
-	result, err = newResponseServerExchange(t, `null`).GetUserDEXAbstraction(t.Context(), testAccountAddress)
-	require.NoError(t, err, "GetUserDEXAbstraction must not error for a state never set")
-	assert.Nil(t, result, "GetUserDEXAbstraction should return no state when it has never been set")
 }
 
 func TestGetUserAbstraction(t *testing.T) {

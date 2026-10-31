@@ -47,10 +47,10 @@ Hyperliquid accounts are EVM addresses, so the credentials hold addresses and pr
 
 Account data and account websocket feeds need only `Key`. Signed actions need `Secret`, and an approved API wallet is
 recommended for trading. Transfers, withdrawals, staking, approvals and abstraction settings are user-signed, so they
-need `Secret` to be the account's own private key, except `AgentSendAsset`, `AgentEnableDEXAbstraction`,
-`AgentSetUserAbstraction`, `TransferVaultUSDC` and `TransferHIP3BackstopLiquidator`, which an API wallet can sign.
-`SendAsset`, `AgentSendAsset`, `TransferUSDCBetweenSpotAndPerp`, `SetUserDEXAbstraction` and `SetUserAbstraction` act
-for a configured subaccount and are refused when `SubAccount` is a vault, while the other user-signed actions,
+need `Secret` to be the account's own private key, except `AgentSendAsset`, `AgentSetUserAbstraction`,
+`TransferVaultUSDC` and `TransferHIP3BackstopLiquidator`, which an API wallet can sign. `SendAsset`, `AgentSendAsset`,
+`TransferUSDCBetweenSpotAndPerp` and `SetUserAbstraction` act for a configured subaccount and are refused when
+`SubAccount` is a vault, while the other user-signed actions,
 including `WithdrawCryptocurrencyFunds`, are refused whenever `SubAccount` is set. The remaining actions act for the
 account itself. The account, signer and subaccount or vault are checked against Hyperliquid's records before the first
 signed action for each combination of them, and again after Hyperliquid rejects the signer; checked combinations are
@@ -67,6 +67,8 @@ custom endpoints are kept, so `useSandbox` must match the environment behind a c
 ### Orders
 
 + Orders are sized in the base currency, so `QuoteAmount` is not supported.
++ A perpetual order takes the leverage and margin mode set for its market, which `SetLeverage` changes, and a spot order
+  has neither, so `SubmitOrder` refuses a `Leverage` or `MarginType`.
 + Market orders are sent as IOC limit orders priced `SlippageTolerance` away from the mid price, so they accept only IOC
   or no time in force. `SlippageTolerance` must be above zero and below one, and defaults to 5%, as in Hyperliquid's
   Python SDK. The price is rounded towards the mid price, so the order never executes beyond its tolerance.

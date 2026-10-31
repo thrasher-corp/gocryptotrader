@@ -3288,16 +3288,6 @@
      }
     },
     {
-     "data": true,
-     "queryString": "",
-     "bodyParams": "{\"type\":\"userDexAbstraction\",\"user\":\"0x14791697260e4c9a71f18484c9f997b308e59325\"}",
-     "headers": {
-      "Content-Type": [
-       "application/json"
-      ]
-     }
-    },
-    {
      "data": {
       "tokenToState": [
        [
@@ -5244,36 +5234,6 @@
      },
      "queryString": "",
      "bodyParams": "{\"action\":{\"type\":\"noop\"},\"nonce\":0,\"signature\":{\"r\":\"0x0\",\"s\":\"0x0\",\"v\":27}}",
-     "headers": {
-      "Content-Type": [
-       "application/json"
-      ]
-     }
-    },
-    {
-     "data": {
-      "status": "ok",
-      "response": {
-       "type": "default"
-      }
-     },
-     "queryString": "",
-     "bodyParams": "{\"action\":{\"type\":\"userDexAbstraction\",\"signatureChainId\":\"0x66eee\",\"hyperliquidChain\":\"Mainnet\",\"nonce\":4102444800000,\"user\":\"0x14791697260e4c9a71f18484c9f997b308e59325\",\"enabled\":true},\"nonce\":0,\"signature\":{\"r\":\"0x0\",\"s\":\"0x0\",\"v\":27}}",
-     "headers": {
-      "Content-Type": [
-       "application/json"
-      ]
-     }
-    },
-    {
-     "data": {
-      "status": "ok",
-      "response": {
-       "type": "default"
-      }
-     },
-     "queryString": "",
-     "bodyParams": "{\"action\":{\"type\":\"agentEnableDexAbstraction\"},\"nonce\":0,\"signature\":{\"r\":\"0x0\",\"s\":\"0x0\",\"v\":27}}",
      "headers": {
       "Content-Type": [
        "application/json"

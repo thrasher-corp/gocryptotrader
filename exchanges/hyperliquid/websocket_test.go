@@ -2950,11 +2950,12 @@ func TestWebsocketOrdersFinish(t *testing.T) {
 	assert.Contains(t, orders.finishedTrades, websocketFinishedTrade{orderID: 2, tradeID: 12}, "finish should keep another order's trade with the same trade ID apart")
 
 	// Once full, each trade ID kept replaces the oldest
-	for tradeID := uint64(100); len(orders.finishedTradeOrder) < maximumFinishedTrades; tradeID++ {
+	for tradeID := uint64(100); tradeID < 100+maximumFinishedTrades && len(orders.finishedTradeOrder) < maximumFinishedTrades; tradeID++ {
 		full := orders.touch(tradeID, now)
 		full.tradeIDs = map[uint64]struct{}{tradeID: {}}
 		orders.finish(full)
 	}
+	require.Len(t, orders.finishedTradeOrder, maximumFinishedTrades, "finish must keep each new trade ID until it is full")
 	oldest := orders.finishedTradeOrder[0]
 	overflow := orders.touch(1, now)
 	overflow.tradeIDs = map[uint64]struct{}{99999: {}}

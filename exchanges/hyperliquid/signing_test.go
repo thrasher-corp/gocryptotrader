@@ -824,16 +824,6 @@ func TestL1ActionVectors(t *testing.T) {
 			testnet:      ActionSignature{R: "0x4b9af944e3380469044c5ec5d33a9da8cfb406c8e06d5b758f7b9d5bc4d095f", S: "0x862f995ef927f761c5dadc2c7a91d39dab55e6991c9b01e10b5f6ab1d3cfaeb", V: 27},
 		},
 		{
-			name:         "agentEnableDexAbstraction",
-			key:          testPrivateKey,
-			nonce:        vectorNonce,
-			action:       EmptyAction{Type: "agentEnableDexAbstraction"},
-			msgpack:      "81a474797065b96167656e74456e61626c654465784162737472616374696f6e",
-			connectionID: "0x22fcc93b98d265d62f3ffe5ec83f14d24a85bc3ed0c003615bf57aa0243101f1",
-			mainnet:      ActionSignature{R: "0x6f4c06bd5aacfbfb98a877bf9058c8483ded16c8051e9e71ecce38e83963b551", S: "0x454486824bc1e47e295b895f8e46f8a359149a0a71bd76e507faab59f86b6cc2", V: 28},
-			testnet:      ActionSignature{R: "0x4e1636932a93e5a5b1dc07944e7f087204ffd0a41a975eb1cd8729cf7bb4710c", S: "0x2e49aa19622c0546592b800f74e0d07d34e7f3cb37084ca6cfd0a9beaf0ae01c", V: 27},
-		},
-		{
 			name:         "agentSetAbstraction",
 			key:          testPrivateKey,
 			nonce:        vectorNonce,
@@ -1284,20 +1274,6 @@ func TestUserSignedActionVectors(t *testing.T) {
 			mainnet:       ActionSignature{R: "0x301dbe4e59f964826818b1d04d2cabc3e96790fabf5eb0b62215765b41dcc251", S: "0x23dcd50dda91a33bf163efc355b98a30dcd05075bbc2db83d59469178fd6f422", V: 27},
 			testnetDigest: "0xdc903b0c9a4f96015a8866fcfe590efa91fd7e0cb91dfa80f72d967dbb47515d",
 			testnet:       ActionSignature{R: "0xab62ac03bcd8e075cfb9c429d9e1f42e8d057c7bca345d794efd60adbac621e2", S: "0x26aac9bef7df7e13f7254fefa1432e39164ea445bdd73d098fd519958c3b224d", V: 27},
-		},
-		{
-			name:        "userDexAbstraction",
-			key:         testPrivateKey,
-			primaryType: "HyperliquidTransaction:UserDexAbstraction",
-			fields: []eip712Field{
-				{Name: "user", Type: "address", Value: "0x5e9ee1089755c3435139848e47e6635505d5a13a"},
-				{Name: "enabled", Type: "bool", Value: true},
-				{Name: "nonce", Type: "uint64", Value: uint64(1700000000000)},
-			},
-			mainnetDigest: "0xa19081574c062f40a5b6a687488b31e7553d6e41c0c55c3201378fb9f34b8745",
-			mainnet:       ActionSignature{R: "0x2ced5c5561f3aa87fdd39655082a30de86133458a9dc456bdf0a1e125cfeadb1", S: "0x2147d908677a03ece096fce643501bb0c001e9574959ee6992cb04710faa6d1d", V: 28},
-			testnetDigest: "0x25b34250cbdaf9cdaacb7d65b0140ead678f3f9bcfd9b4855c6aa408aa62e392",
-			testnet:       ActionSignature{R: "0x575896e1ae7307faef4bee049402ba3c8f6ea2fb78549a776724c0baf93700bb", S: "0x348de7f369713ce21c35133a30f8d929156e620a7573c5da456418c21b5e595f", V: 27},
 		},
 		{
 			name:        "userSetAbstraction",

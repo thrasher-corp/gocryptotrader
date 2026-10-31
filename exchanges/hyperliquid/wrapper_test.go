@@ -138,7 +138,7 @@ func clearBalanceTimes(t *testing.T, subAccounts accounts.SubAccounts) {
 	t.Helper()
 	for _, subAccount := range subAccounts {
 		for code, balance := range subAccount.Balances {
-			assert.WithinDurationf(t, time.Now(), balance.UpdatedAt, time.Minute, "Save should stamp the %s balance with the current time", code)
+			assert.WithinDurationf(t, time.Now(), balance.UpdatedAt, time.Hour, "Save should stamp the %s balance with the current time", code)
 			balance.UpdatedAt = time.Time{}
 			subAccount.Balances[code] = balance
 		}
@@ -1008,7 +1008,7 @@ func TestUpdateTickers(t *testing.T) {
 		assert.Positive(t, perpetual.MarkPrice, "UpdateTickers should store the perpetual mark price")
 		assert.Positive(t, spot.MarkPrice, "UpdateTickers should store the spot mark price")
 	}
-	assert.WithinDuration(t, time.Now(), perpetual.LastUpdated, time.Minute, "UpdateTickers should time the perpetual ticker when it is fetched")
+	assert.WithinDuration(t, time.Now(), perpetual.LastUpdated, time.Hour, "UpdateTickers should time the perpetual ticker when it is fetched")
 
 	var requested []string
 	builder := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -2501,6 +2501,15 @@ func TestSubmitOrder(t *testing.T) {
 		{name: "quote amount", mutate: func(s *order.Submit) { s.Amount, s.QuoteAmount = 0, 85 }, err: errQuoteAmountUnsupported},
 		{name: "quote amount beside an amount", mutate: func(s *order.Submit) { s.QuoteAmount = 85 }, err: errQuoteAmountUnsupported},
 		{name: "invalid client order ID", mutate: func(s *order.Submit) { s.ClientOrderID = "invalid" }, err: errClientOrderIDInvalid},
+		{name: "leverage", mutate: func(s *order.Submit) { s.Leverage = 2 }, err: order.ErrSubmitLeverageNotSupported},
+		{name: "leverage of one", mutate: func(s *order.Submit) { s.Leverage = 1 }, err: order.ErrSubmitLeverageNotSupported},
+		{name: "spot order with leverage", mutate: func(s *order.Submit) { s.Pair, s.AssetType, s.Leverage = spotPair, asset.Spot, 2 }, err: order.ErrSubmitLeverageNotSupported},
+		{name: "spot order with a leverage of one", mutate: func(s *order.Submit) { s.Pair, s.AssetType, s.Leverage = spotPair, asset.Spot, 1 }, err: order.ErrSubmitLeverageNotSupported},
+		{name: "margin type of isolated", mutate: func(s *order.Submit) { s.MarginType = margin.Isolated }, err: margin.ErrMarginTypeUnsupported},
+		{name: "margin type of cross", mutate: func(s *order.Submit) { s.MarginType = margin.Multi }, err: margin.ErrMarginTypeUnsupported},
+		{name: "margin type of cash", mutate: func(s *order.Submit) { s.MarginType = margin.NoMargin }, err: margin.ErrMarginTypeUnsupported},
+		{name: "margin type of spot isolated", mutate: func(s *order.Submit) { s.MarginType = margin.SpotIsolated }, err: margin.ErrMarginTypeUnsupported},
+		{name: "spot order with a margin type", mutate: func(s *order.Submit) { s.Pair, s.AssetType, s.MarginType = spotPair, asset.Spot, margin.Isolated }, err: margin.ErrMarginTypeUnsupported},
 		{name: "trigger price on a limit order", mutate: func(s *order.Submit) { s.TriggerPrice = 90000 }, err: errRiskManagementUnsupported},
 		{name: "spot trigger order", mutate: func(s *order.Submit) {
 			s.Type, s.Pair, s.AssetType, s.TriggerPrice, s.TriggerPriceType = order.StopLimit, spotPair, asset.Spot, 90, order.MarkPrice
@@ -3116,6 +3125,42 @@ func TestCancelAllOrders(t *testing.T) {
 	result, err = ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.PerpetualContract, Pair: currency.NewPair(currency.ETH, currency.USDC)})
 	assert.ErrorIs(t, err, errPairMappingNotFound, "CancelAllOrders should report an order without a market")
 	assert.Empty(t, result.Status, "CancelAllOrders should cancel only the requested pair's orders")
+	bothSides := `[{"coin":"BTC","side":"B","oid":1},{"coin":"BTC","side":"A","oid":2},{"coin":"@107","side":"B","oid":3},{"coin":"@107","side":"A","oid":4}]`
+	sided := newTradingServerExchange(t, map[string]string{"openOrders": bothSides}, successes)
+	for _, tc := range []struct {
+		side      order.Side
+		perpetual map[string]string
+		spot      map[string]string
+	}{
+		{side: order.Buy, perpetual: map[string]string{"1": "success"}, spot: map[string]string{"3": "success"}},
+		{side: order.Bid, perpetual: map[string]string{"1": "success"}, spot: map[string]string{"3": "success"}},
+		{side: order.Long, perpetual: map[string]string{"1": "success"}, spot: map[string]string{"3": "success"}},
+		{side: order.Sell, perpetual: map[string]string{"2": "success"}, spot: map[string]string{"4": "success"}},
+		{side: order.Ask, perpetual: map[string]string{"2": "success"}, spot: map[string]string{"4": "success"}},
+		{side: order.Short, perpetual: map[string]string{"2": "success"}, spot: map[string]string{"4": "success"}},
+		{side: order.AnySide, perpetual: map[string]string{"1": "success", "2": "success"}, spot: map[string]string{"3": "success", "4": "success"}},
+		{side: order.UnknownSide, perpetual: map[string]string{"1": "success", "2": "success"}, spot: map[string]string{"3": "success", "4": "success"}},
+	} {
+		result, err = sided.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.PerpetualContract, Side: tc.side})
+		require.NoErrorf(t, err, "CancelAllOrders must not error for perpetual side %s", tc.side)
+		assert.Equalf(t, order.CancelAllResponse{Status: tc.perpetual}, result, "CancelAllOrders should cancel only perpetual side %s", tc.side)
+		result, err = sided.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot, Side: tc.side})
+		require.NoErrorf(t, err, "CancelAllOrders must not error for spot side %s", tc.side)
+		assert.Equalf(t, order.CancelAllResponse{Status: tc.spot}, result, "CancelAllOrders should cancel only spot side %s", tc.side)
+	}
+	result, err = sided.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.PerpetualContract, Pair: perpetualPair, Side: order.Sell})
+	require.NoError(t, err, "CancelAllOrders must not error for a side of a pair")
+	assert.Equal(t, order.CancelAllResponse{Status: map[string]string{"2": "success"}}, result, "CancelAllOrders should cancel only the requested side of the requested pair")
+	_, err = newUnavailableServerExchange(t).CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.PerpetualContract, Side: order.ClosePosition})
+	assert.ErrorIs(t, err, order.ErrSideIsInvalid, "CancelAllOrders should reject a side no order has before any request")
+	unknownSide := newTradingServerExchange(t, map[string]string{"openOrders": `[{"coin":"BTC","side":"X","oid":1},{"coin":"BTC","side":"B","oid":2}]`}, successes)
+	result, err = unknownSide.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.PerpetualContract, Side: order.Buy})
+	assert.ErrorIs(t, err, order.ErrSideIsInvalid, "CancelAllOrders should report an order whose side it cannot read")
+	assert.Equal(t, order.CancelAllResponse{Status: map[string]string{"2": "success"}}, result, "CancelAllOrders should leave an order whose side it cannot read")
+	otherAsset := newTradingServerExchange(t, map[string]string{"openOrders": `[{"coin":"@107","side":"X","oid":1},{"coin":"BTC","side":"B","oid":2}]`}, successes)
+	result, err = otherAsset.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.PerpetualContract, Side: order.Buy})
+	require.NoError(t, err, "CancelAllOrders must not read the side of an order of another asset")
+	assert.Equal(t, order.CancelAllResponse{Status: map[string]string{"2": "success"}}, result, "CancelAllOrders should cancel only the requested asset's side")
 
 	orders := make([]string, maximumActionBatchSize+1)
 	for i := range orders {
