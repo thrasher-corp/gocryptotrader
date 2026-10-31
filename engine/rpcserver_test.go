@@ -416,6 +416,23 @@ func (f fExchange) GetCurrencyStateSnapshot() ([]currencystate.Snapshot, error) 
 	}, nil
 }
 
+// CancelBatchOrders overrides interface function
+func (f fExchange) CancelBatchOrders(_ context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
+	resp := &order.CancelBatchResponse{Status: make(map[string]string, len(o))}
+	for i := range o {
+		switch o[i].OrderID {
+		case "error":
+			return nil, errExpectedTestError
+		case "filled":
+			resp.Status[o[i].OrderID] = order.ErrCancelFailed.Error()
+		case "unreported":
+		default:
+			resp.Status[o[i].OrderID] = order.Cancelled.String()
+		}
+	}
+	return resp, nil
+}
+
 // CanTradePair overrides interface function
 func (f fExchange) CanTradePair(_ currency.Pair, _ asset.Item) error {
 	return nil
@@ -1227,6 +1244,47 @@ func TestGetAccountBalances(t *testing.T) {
 	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
 	_, err = s.GetAccountBalances(ctx, &gctrpc.GetAccountBalancesRequest{Exchange: fakeExchangeName, AssetType: asset.Spot.String()})
 	assert.NoError(t, err)
+}
+
+func TestRPCServerCancelBatchOrders(t *testing.T) {
+	t.Parallel()
+	em := NewExchangeManager()
+	exch, err := em.NewExchangeByName(testExchange)
+	require.NoError(t, err, "NewExchangeByName must not error")
+	b := exch.GetBase()
+	b.Name = fakeExchangeName
+	b.Enabled = true
+	pair := currency.NewBTCUSDT()
+	b.CurrencyPairs.Pairs = map[asset.Item]*currency.PairStore{
+		asset.Spot:    {AssetEnabled: true, Available: currency.Pairs{pair}, Enabled: currency.Pairs{pair}, ConfigFormat: &currency.PairFormat{Uppercase: true}, RequestFormat: &currency.PairFormat{Uppercase: true}},
+		asset.Futures: {ConfigFormat: &currency.PairFormat{Uppercase: true}, RequestFormat: &currency.PairFormat{Uppercase: true}},
+	}
+	require.NoError(t, em.Add(fExchange{IBotExchange: exch}), "Add must not error")
+	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
+	rpcPair := &gctrpc.CurrencyPair{Base: pair.Base.String(), Quote: pair.Quote.String()}
+
+	resp, err := s.CancelBatchOrders(t.Context(), &gctrpc.CancelBatchOrdersRequest{Exchange: fakeExchangeName, AssetType: asset.Spot.String(), Pair: rpcPair, Side: order.Buy.String(), OrdersId: "cancelled,filled,unreported"})
+	require.NoError(t, err, "CancelBatchOrders must not error")
+	exp := &gctrpc.CancelBatchOrdersResponse{Orders: []*gctrpc.Orders{{
+		Exchange:    fakeExchangeName,
+		OrderStatus: map[string]string{"cancelled": order.Cancelled.String(), "filled": order.ErrCancelFailed.Error()},
+	}}}
+	assert.Equal(t, exp, resp, "CancelBatchOrders should answer with the statuses the exchange reports")
+
+	for _, tc := range []struct {
+		name string
+		req  *gctrpc.CancelBatchOrdersRequest
+		err  error
+	}{
+		{"an invalid asset", &gctrpc.CancelBatchOrdersRequest{Exchange: fakeExchangeName, AssetType: "hello", Pair: rpcPair, Side: order.Buy.String(), OrdersId: "cancelled"}, asset.ErrNotSupported},
+		{"an unknown exchange", &gctrpc.CancelBatchOrdersRequest{Exchange: "unknown", AssetType: asset.Spot.String(), Pair: rpcPair, Side: order.Buy.String(), OrdersId: "cancelled"}, ErrExchangeNotFound},
+		{"a disabled asset", &gctrpc.CancelBatchOrdersRequest{Exchange: fakeExchangeName, AssetType: asset.Futures.String(), Pair: rpcPair, Side: order.Buy.String(), OrdersId: "cancelled"}, asset.ErrNotEnabled},
+		{"an invalid side", &gctrpc.CancelBatchOrdersRequest{Exchange: fakeExchangeName, AssetType: asset.Spot.String(), Pair: rpcPair, Side: "sideways", OrdersId: "cancelled"}, order.ErrSideIsInvalid},
+		{"the exchange's error", &gctrpc.CancelBatchOrdersRequest{Exchange: fakeExchangeName, AssetType: asset.Spot.String(), Pair: rpcPair, Side: order.Buy.String(), OrdersId: "cancelled,error"}, errExpectedTestError},
+	} {
+		_, err := s.CancelBatchOrders(t.Context(), tc.req)
+		assert.ErrorIsf(t, err, tc.err, "CancelBatchOrders should return the expected error for %s", tc.name)
+	}
 }
 
 func TestUpdateAccountBalances(t *testing.T) {

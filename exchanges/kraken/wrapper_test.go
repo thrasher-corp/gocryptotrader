@@ -1002,6 +1002,19 @@ func TestGetHistoricCandles(t *testing.T) {
 	}
 }
 
+func TestGetHistoricCandlesCurrentPeriod(t *testing.T) {
+	t.Parallel()
+	// A 12 hour candle is built from 4 hour candles, of which the current period holds too few
+	ex := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+		from, err := strconv.ParseInt(r.URL.Query().Get("from"), 10, 64)
+		assert.NoError(t, err, "ParseInt should not error for the time requested from")
+		_, _ = w.Write([]byte(`{"candles":[{"time":` + strconv.FormatInt(from*1000, 10) + `,"open":"100","high":"101","low":"99","close":"100","volume":"1"}],"more_candles":false}`))
+	})
+	start := time.Now().UTC().Truncate(12 * time.Hour)
+	_, err := ex.GetHistoricCandles(t.Context(), futuresTestPair, asset.Futures, kline.TwelveHour, start, start.Add(12*time.Hour))
+	assert.ErrorIs(t, err, kline.ErrInsufficientCandleData, "GetHistoricCandles should return an error for a converted interval's current period")
+}
+
 func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
 	start, end := time.Unix(1791489600, 0), time.Unix(1791504000, 0)

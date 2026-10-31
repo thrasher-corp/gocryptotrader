@@ -86,6 +86,9 @@ var channelNames = map[string]string{
 	subscription.MyWalletChannel:  wsChannelBalances,
 }
 
+// spotAccountChannels are the account's websocket v2 channels, which take no symbols
+var spotAccountChannels = []string{wsChannelExecutions, wsChannelBalances}
+
 var defaultSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel},
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.AllTradesChannel},
@@ -158,13 +161,21 @@ func (e *Exchange) wsConnect(ctx context.Context, conn websocket.Connection) err
 }
 
 // GetSubscriptionTemplate returns a subscription channel template, which makes one subscription for each pair as Kraken
-// acknowledges each pair of a request on its own, except for a futures feed without products
+// acknowledges each pair of a request on its own, except for an account channel or a futures feed without products
 func (e *Exchange) GetSubscriptionTemplate(*subscription.Subscription) (*template.Template, error) {
 	return template.New("master.tmpl").Funcs(template.FuncMap{"channelName": channelName, "perPair": perPair}).Parse(subTplText)
 }
 
+// generateSubscriptions expands the configured subscriptions. A subscription for all assets that futures refuses, whether
+// it names the standard channel or Kraken's, is spot's alone, as one saved before futures websocket support was
 func (e *Exchange) generateSubscriptions() (subscription.List, error) {
-	return e.Features.Subscriptions.ExpandTemplates(e)
+	subs := e.Features.Subscriptions.Clone()
+	for _, s := range subs {
+		if s.Asset == asset.All && validateFuturesSubscription(&subscription.Subscription{QualifiedChannel: channelName(s, asset.Futures), Levels: s.Levels}) != nil {
+			s.Asset = asset.Spot
+		}
+	}
+	return subs.ExpandTemplates(e)
 }
 
 // ValidateSubscriptions rejects order book depths, candle intervals and futures feeds Kraken does not stream, and a
@@ -262,6 +273,10 @@ func (e *Exchange) generatePrivateSubscriptions() (subscription.List, error) {
 		if s.Asset == asset.Futures || s.QualifiedChannel == wsChannelLevel3 {
 			continue
 		}
+		// An account channel drops the pairs templating gave one saved for an asset
+		if slices.Contains(spotAccountChannels, s.QualifiedChannel) {
+			s.Pairs = nil
+		}
 		if s.QualifiedChannel != wsChannelExecutions {
 			private = append(private, s)
 			continue
@@ -277,9 +292,6 @@ func (e *Exchange) generatePrivateSubscriptions() (subscription.List, error) {
 		}
 	}
 	if executions != nil {
-		// A subscription whose channel is already qualified is not copied by template expansion, so it is cloned
-		// rather than changed
-		executions = executions.Clone()
 		executions.Params = map[string]any{"snap_orders": snapOrders, "snap_trades": snapTrades}
 		private = append(private, executions)
 	}
@@ -296,12 +308,18 @@ func (e *Exchange) unsubscribeForConnection(ctx context.Context, conn websocket.
 	return e.manageSubs(ctx, conn, wsMethodUnsubscribe, subs)
 }
 
-// manageSubs subscribes or unsubscribes, sending one request for the subscriptions that differ only by pair. Kraken
-// answers each symbol of a request on its own, so each subscription succeeds or fails alone
+// wsSubscriptionRequestLimit bounds the subscriptions a request holds, each of one pair as the template makes them, as
+// Kraken closes a connection sent a message over 8 KB or so without replying, which leaves each symbol 20 bytes
+const wsSubscriptionRequestLimit = 400
+
+// manageSubs subscribes or unsubscribes, sending one request for up to wsSubscriptionRequestLimit subscriptions that
+// differ only by pair. Kraken answers each symbol of a request on its own, so each subscription succeeds or fails alone
 func (e *Exchange) manageSubs(ctx context.Context, conn websocket.Connection, method string, subs subscription.List) error {
 	var errs error
 	for _, group := range groupSubscriptions(subs) {
-		errs = common.AppendError(errs, e.manageSubGroup(ctx, conn, method, group))
+		for requested := range slices.Chunk(group, wsSubscriptionRequestLimit) {
+			errs = common.AppendError(errs, e.manageSubGroup(ctx, conn, method, requested))
+		}
 	}
 	return errs
 }
@@ -728,12 +746,17 @@ func (e *Exchange) wsLoadBookSnapshot(ctx context.Context, pair currency.Pair, b
 }
 
 func (e *Exchange) wsUpdateBook(ctx context.Context, pair currency.Pair, book *WebsocketBook) error {
+	bids, asks := wsBookLevels(book.Bids), wsBookLevels(book.Asks)
+	// An update of a level priced 0 alone changes nothing the book holds, and the book refuses an update without levels
+	if len(bids) == 0 && len(asks) == 0 {
+		return nil
+	}
 	var mismatch bool
 	err := e.Websocket.Orderbook.Update(ctx, &orderbook.Update{
 		Pair:             pair,
 		Asset:            asset.Spot,
-		Bids:             wsBookLevels(book.Bids),
-		Asks:             wsBookLevels(book.Asks),
+		Bids:             bids,
+		Asks:             asks,
 		UpdateTime:       book.Timestamp,
 		ExpectedChecksum: book.Checksum,
 		GenerateChecksum: func(b *orderbook.Book) uint32 {
@@ -983,30 +1006,38 @@ func (b *level3Book) checksum() uint32 {
 	return crc32.ChecksumIEEE([]byte(s.String()))
 }
 
-// level3Levels converts a side's orders to order book levels, one for each order, keeping the digits Kraken sent
+// level3Levels converts a side's orders to order book levels, one for each order, keeping the digits Kraken sent. An
+// order priced 0 is left out for the reason wsBookLevels leaves out such a level
 func level3Levels(orders []WebsocketLevel3Order) orderbook.Levels {
-	l := make(orderbook.Levels, len(orders))
+	l := make(orderbook.Levels, 0, len(orders))
 	for i := range orders {
-		l[i] = orderbook.Level{
+		if orders[i].LimitPrice.Float64() == 0 {
+			continue
+		}
+		l = append(l, orderbook.Level{
 			Price:     orders[i].LimitPrice.Float64(),
 			StrPrice:  orders[i].LimitPrice.String(),
 			Amount:    orders[i].Quantity.Float64(),
 			StrAmount: orders[i].Quantity.String(),
-		}
+		})
 	}
 	return l
 }
 
-// wsBookLevels converts order book levels, keeping the digits Kraken sent for the checksum
+// wsBookLevels converts order book levels, keeping the digits Kraken sent for the checksum. A level priced 0, as an order
+// resting below the pair's precision arrives, is left out, as an order book refuses such a level
 func wsBookLevels(levels []WebsocketBookLevel) orderbook.Levels {
-	l := make(orderbook.Levels, len(levels))
+	l := make(orderbook.Levels, 0, len(levels))
 	for i := range levels {
-		l[i] = orderbook.Level{
+		if levels[i].Price.Float64() == 0 {
+			continue
+		}
+		l = append(l, orderbook.Level{
 			Price:     levels[i].Price.Float64(),
 			StrPrice:  levels[i].Price.String(),
 			Amount:    levels[i].Quantity.Float64(),
 			StrAmount: levels[i].Quantity.String(),
-		}
+		})
 	}
 	return l
 }
@@ -1388,9 +1419,13 @@ func channelName(s *subscription.Subscription, a asset.Item) string {
 	return s.Channel
 }
 
-// perPair reports whether a subscription is made for each pair: any but a futures feed without products
+// perPair reports whether a subscription is made for each pair: any but an account channel or a futures feed without
+// products
 func perPair(s *subscription.Subscription, a asset.Item) bool {
-	return a != asset.Futures || slices.Contains(futuresProductFeeds, channelName(s, a))
+	if a == asset.Futures {
+		return slices.Contains(futuresProductFeeds, channelName(s, a))
+	}
+	return !slices.Contains(spotAccountChannels, channelName(s, a))
 }
 
 // formatTradeID formats a numeric trade ID

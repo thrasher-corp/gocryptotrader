@@ -150,7 +150,7 @@ say whether the wallet is unified, so `UpdateAccountBalances` stores the `flex` 
 again once the feed reports it separate.
 
 + A level 3 order book lists each order rather than the total at each price. It is subscribed to with the `allOrders`
-channel at a depth of 10, 100 or 1000 price levels:
+channel at a depth of 10, 100 or 1000 price levels, for up to 200 pairs, the symbols Kraken allows on a connection:
 
 ```json
 {"enabled": true, "channel": "allOrders", "asset": "spot", "levels": 100}
@@ -166,7 +166,8 @@ one interval: Kraken rejects a subscription to a second.
 
 + Default subscriptions are configured in the exchange's `features.subscriptions` config. Upgrading a config that
 holds the previous default subscriptions adds the futures subscriptions to them; other subscriptions are kept as they
-are.
+are. A subscription with `"asset": "all"` to a channel futures does not stream, which candles, the `allOrders` channel
+and an order book at a depth are, is subscribed to for spot alone.
 
 + Orders can be managed over the private connection. The wrapper's spot order functions use it while it is connected
 and holds a subscription, and REST otherwise, such as when Kraken refuses the websocket token:

@@ -376,11 +376,19 @@ func TestGeneratePrivateSubscriptions(t *testing.T) {
 		}
 	}
 	balances := &subscription.Subscription{Enabled: true, Channel: subscription.MyWalletChannel, Authenticated: true, QualifiedChannel: wsChannelBalances}
+	ofAsset := func(s *subscription.Subscription, a asset.Item) *subscription.Subscription {
+		s = s.Clone()
+		s.Asset = a
+		return s
+	}
 	for _, tc := range []struct {
 		name string
 		subs subscription.List
 		exp  subscription.List
 	}{
+		{"my trades, my orders and my wallet for spot", subscription.List{ofAsset(myTrades, asset.Spot), ofAsset(myOrders, asset.Spot), ofAsset(myWallet, asset.Spot)}, subscription.List{ofAsset(executions(subscription.MyOrdersChannel, true, true), asset.Spot), ofAsset(balances, asset.Spot)}},
+		{"my trades, my orders and my wallet for all assets", subscription.List{ofAsset(myTrades, asset.All), ofAsset(myOrders, asset.All), ofAsset(myWallet, asset.All)}, subscription.List{ofAsset(executions(subscription.MyOrdersChannel, true, true), asset.Spot), ofAsset(balances, asset.Spot)}},
+		{"my orders and my wallet for a pair", subscription.List{{Enabled: true, Channel: subscription.MyOrdersChannel, Authenticated: true, Pairs: currency.Pairs{wsTestPair}}, {Enabled: true, Channel: subscription.MyWalletChannel, Authenticated: true, Pairs: currency.Pairs{wsTestPair}}}, subscription.List{executions(subscription.MyOrdersChannel, true, false), balances.Clone()}},
 		{"my orders", subscription.List{myOrders}, subscription.List{executions(subscription.MyOrdersChannel, true, false)}},
 		{"my trades", subscription.List{myTrades}, subscription.List{executions(subscription.MyTradesChannel, false, true)}},
 		{"my trades, my orders and my wallet", subscription.List{myTrades, myOrders, myWallet}, subscription.List{executions(subscription.MyOrdersChannel, true, true), balances}},
@@ -395,10 +403,49 @@ func TestGeneratePrivateSubscriptions(t *testing.T) {
 			got, err := ex.generatePrivateSubscriptions()
 			require.NoError(t, err, "generatePrivateSubscriptions must not error")
 			testsubs.EqualLists(t, tc.exp, got)
+			for _, s := range got {
+				assert.Emptyf(t, s.Pairs, "generatePrivateSubscriptions should give the %s subscription no pairs", s.Channel)
+			}
 			for _, s := range ex.Features.Subscriptions {
 				assert.Nilf(t, s.Params, "generatePrivateSubscriptions should not change the configured %s subscription", s.Channel)
 			}
 		})
+	}
+
+	ex := newTestExchange(t)
+	useTestCredentials(ex)
+	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	ex.Features.Subscriptions = subscription.List{{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel, Levels: 5}}
+	_, err := ex.generatePrivateSubscriptions()
+	assert.ErrorIs(t, err, errInvalidDepth, "generatePrivateSubscriptions should return an error from generating the subscriptions")
+}
+
+func TestSubscribeAccountChannelsForAnAsset(t *testing.T) {
+	t.Parallel()
+	server := new(mockSubscriptionServer)
+	ex := newHTTPTestExchange(t, serveWebsocketToken(t))
+	seedTestAssetNames(ex)
+	useTestCredentials(ex)
+	ex.Features.Subscriptions = subscription.List{}
+	useTestWebsocket(t, ex, newMockWebsocketURL(t, server.handle), wsPublicConnection)
+	ex.Websocket.SetSubscriptionsNotRequired()
+	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
+	conn, err := ex.Websocket.GetConnection(wsPublicConnection)
+	require.NoError(t, err, "GetConnection must not error")
+	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	ex.Features.Subscriptions = subscription.List{
+		{Enabled: true, Asset: asset.Spot, Channel: subscription.MyOrdersChannel, Authenticated: true},
+		{Enabled: true, Asset: asset.All, Channel: subscription.MyWalletChannel, Authenticated: true},
+	}
+	subs, err := ex.generatePrivateSubscriptions()
+	require.NoError(t, err, "generatePrivateSubscriptions must not error")
+	require.NoError(t, ex.manageSubs(t.Context(), conn, wsMethodSubscribe, subs), "manageSubs must not error for account channels saved for an asset")
+	assertRequests(t, []string{
+		`{"method":"subscribe","params":{"channel":"balances","token":"` + wsTestToken + `"}}`,
+		`{"method":"subscribe","params":{"channel":"executions","snap_orders":true,"snap_trades":false,"token":"` + wsTestToken + `"}}`,
+	}, server.takeRequests())
+	for _, s := range subs {
+		assert.Equalf(t, subscription.SubscribedState, s.State(), "manageSubs should record the %s subscription, whose reply names no symbol", s.QualifiedChannel)
 	}
 }
 
@@ -1572,6 +1619,11 @@ func TestPerPair(t *testing.T) {
 	}{
 		{subscription.TickerChannel, asset.Spot, true},
 		{subscription.AllOrdersChannel, asset.Spot, true},
+		{subscription.MyOrdersChannel, asset.Spot, false},
+		{subscription.MyTradesChannel, asset.Spot, false},
+		{subscription.MyWalletChannel, asset.Spot, false},
+		{wsChannelExecutions, asset.Spot, false},
+		{wsChannelBalances, asset.Spot, false},
 		{subscription.TickerChannel, asset.Futures, true},
 		{subscription.OrderbookChannel, asset.Futures, true},
 		{subscription.AllTradesChannel, asset.Futures, true},
@@ -1582,6 +1634,7 @@ func TestPerPair(t *testing.T) {
 	} {
 		assert.Equalf(t, tc.exp, perPair(&subscription.Subscription{Channel: tc.channel}, tc.a), "perPair should report whether %s %s is subscribed to for each pair", tc.a, tc.channel)
 	}
+	assert.True(t, perPair(&subscription.Subscription{Channel: subscription.AllOrdersChannel, Authenticated: true}, asset.Spot), "perPair should report an authenticated level 3 order book is subscribed to for each pair")
 }
 
 // level3Order returns a level 3 order, or an update's event for one when event is set
@@ -1894,6 +1947,102 @@ func TestGenerateSubscriptionsExpansion(t *testing.T) {
 	ex.Features.Subscriptions = subscription.List{{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel, Levels: 7}}
 	_, err = ex.generateSubscriptions()
 	assert.ErrorIs(t, err, errInvalidDepth, "generateSubscriptions should validate the subscriptions it expands")
+}
+
+func TestGenerateSubscriptionsAllAssets(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name          string
+		sub           *subscription.Subscription
+		futuresStream bool
+	}{
+		{name: "ticker", sub: &subscription.Subscription{Enabled: true, Asset: asset.All, Channel: subscription.TickerChannel}, futuresStream: true},
+		{name: "trades", sub: &subscription.Subscription{Enabled: true, Asset: asset.All, Channel: subscription.AllTradesChannel}, futuresStream: true},
+		{name: "candles", sub: &subscription.Subscription{Enabled: true, Asset: asset.All, Channel: subscription.CandlesChannel, Interval: kline.OneMin}},
+		{name: "an order book at a depth", sub: &subscription.Subscription{Enabled: true, Asset: asset.All, Channel: subscription.OrderbookChannel, Levels: 100}},
+		{name: "a level 3 order book", sub: &subscription.Subscription{Enabled: true, Asset: asset.All, Channel: subscription.AllOrdersChannel, Levels: 10}},
+		{name: "ticker by Kraken's name", sub: &subscription.Subscription{Enabled: true, Asset: asset.All, Channel: wsChannelTicker}, futuresStream: true},
+		{name: "trades by Kraken's name", sub: &subscription.Subscription{Enabled: true, Asset: asset.All, Channel: wsChannelTrade}, futuresStream: true},
+		{name: "candles by Kraken's name", sub: &subscription.Subscription{Enabled: true, Asset: asset.All, Channel: wsChannelOHLC, Interval: kline.OneMin}},
+		{name: "an order book at a depth by Kraken's name", sub: &subscription.Subscription{Enabled: true, Asset: asset.All, Channel: wsChannelBook, Levels: 100}},
+		{name: "a level 3 order book by Kraken's name", sub: &subscription.Subscription{Enabled: true, Asset: asset.All, Channel: wsChannelLevel3, Levels: 10}},
+		{name: "my orders", sub: &subscription.Subscription{Enabled: true, Asset: asset.All, Channel: subscription.MyOrdersChannel}, futuresStream: true},
+		{name: "my trades", sub: &subscription.Subscription{Enabled: true, Asset: asset.All, Channel: subscription.MyTradesChannel}, futuresStream: true},
+		{name: "my wallet", sub: &subscription.Subscription{Enabled: true, Asset: asset.All, Channel: subscription.MyWalletChannel}, futuresStream: true},
+	} {
+		ex := newTestExchange(t)
+		configured := tc.sub.Clone()
+		ex.Features.Subscriptions = subscription.List{tc.sub}
+		subs, err := ex.generateSubscriptions()
+		require.NoErrorf(t, err, "generateSubscriptions must not error for %s for all assets", tc.name)
+		assets := map[asset.Item]bool{}
+		for _, s := range subs {
+			assets[s.Asset] = true
+		}
+		assert.Truef(t, assets[asset.Spot], "generateSubscriptions should subscribe spot to %s for all assets", tc.name)
+		assert.Equalf(t, tc.futuresStream, assets[asset.Futures], "generateSubscriptions should subscribe futures to %s for all assets only if it streams it", tc.name)
+		assert.Equalf(t, configured.Asset, tc.sub.Asset, "generateSubscriptions should leave the configured subscription for %s as it was", tc.name)
+	}
+
+	ex := newTestExchange(t)
+	ex.Features.Subscriptions = subscription.List{{Enabled: true, Asset: asset.Futures, Channel: subscription.CandlesChannel, Interval: kline.OneMin}}
+	_, err := ex.generateSubscriptions()
+	assert.ErrorIs(t, err, errFuturesUnsupportedFeed, "generateSubscriptions should refuse a futures subscription to a feed Kraken does not stream")
+
+	ex = newTestExchange(t)
+	ex.Features.Subscriptions = subscription.List{{Enabled: true, Channel: subscription.CandlesChannel, Interval: kline.OneMin}}
+	subs, err := ex.generateSubscriptions()
+	require.NoError(t, err, "generateSubscriptions must not error for candles without an asset")
+	require.Len(t, subs, 1, "generateSubscriptions must subscribe candles without an asset once")
+	assert.Equal(t, asset.Empty, subs[0].Asset, "generateSubscriptions should leave a subscription without an asset as it is")
+
+	ex = newTestExchange(t)
+	require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.Spot, false), "SetAssetEnabled must not error")
+	ex.Features.Subscriptions = subscription.List{{Enabled: true, Asset: asset.All, Channel: subscription.OrderbookChannel}}
+	subs, err = ex.generateSubscriptions()
+	require.NoError(t, err, "generateSubscriptions must not error for an order book without a depth for all assets")
+	require.Len(t, subs, 1, "generateSubscriptions must subscribe an enabled asset that streams an order book without a depth")
+	assert.Equal(t, asset.Futures, subs[0].Asset, "generateSubscriptions should subscribe futures to an order book without a depth for all assets")
+
+	ex.Features.Subscriptions = subscription.List{{Enabled: true, Asset: asset.All, Channel: subscription.CandlesChannel, Interval: kline.OneMin}}
+	subs, err = ex.generateSubscriptions()
+	require.NoError(t, err, "generateSubscriptions must not error for candles for all assets with spot disabled")
+	assert.Empty(t, subs, "generateSubscriptions should subscribe nothing to candles for all assets with spot disabled")
+}
+
+func TestManageSubsRequestLimit(t *testing.T) {
+	t.Parallel()
+	server := &mockSubscriptionServer{rejected: map[string]string{"CHILLHOU1000/USD": "Currency pair not supported CHILLHOU1000/USD"}}
+	ex, conn := newSubscriptionTestExchange(t, server)
+	subs := make(subscription.List, 1342)
+	for i := range subs {
+		// Longer than the longest symbol Kraken lists, CHILLHOUSE/USD
+		base := currency.NewCode("CHILLHOU" + strconv.Itoa(1000+i))
+		subs[i] = &subscription.Subscription{Channel: subscription.TickerChannel, QualifiedChannel: wsChannelTicker, Asset: asset.Spot, Pairs: currency.Pairs{currency.NewPair(base, currency.USD)}}
+	}
+	assert.ErrorIs(t, ex.manageSubs(t.Context(), conn, wsMethodSubscribe, subs), errAPIResponse, "manageSubs should report a symbol of its first request that Kraken rejects")
+	requests := server.takeRequests()
+	assert.Len(t, requests, 4, "manageSubs should split the subscriptions into requests of 400 symbols")
+	symbols := make(map[string]struct{}, len(subs))
+	for _, r := range requests {
+		// The request recorded leaves out req_id, which adds well under 92 bytes
+		assert.LessOrEqual(t, len(r), 8100, "manageSubs should keep each request under the 8 KB or so Kraken takes")
+		var req struct {
+			Params wsSubscriptionParams `json:"params"`
+		}
+		require.NoError(t, json.Unmarshal([]byte(r), &req), "Unmarshal must not error")
+		for _, symbol := range req.Params.Symbols {
+			symbols[symbol] = struct{}{}
+		}
+	}
+	assert.Len(t, symbols, len(subs), "manageSubs should request every symbol once")
+	assert.Nil(t, ex.Websocket.GetSubscription(subs[0]), "manageSubs should not record the subscription Kraken rejects")
+	for _, s := range subs[1:] {
+		assert.Equal(t, subscription.SubscribedState, s.State(), "manageSubs should record each other subscription of each request")
+	}
+
+	require.NoError(t, ex.manageSubs(t.Context(), conn, wsMethodUnsubscribe, subs[1:]), "manageSubs must not error when unsubscribing")
+	assert.Len(t, server.takeRequests(), 4, "manageSubs should split an unsubscription into requests of 400 symbols")
 }
 
 func TestManageSubs(t *testing.T) {
@@ -2243,6 +2392,45 @@ func TestWebsocketLoadBookSnapshot(t *testing.T) {
 	assert.ErrorIs(t, ex.wsLoadBookSnapshot(t.Context(), wsTestPair, snapshot), errChecksumMismatch, "wsLoadBookSnapshot should reject a snapshot failing its checksum")
 	_, err = ex.Websocket.Orderbook.GetOrderbook(wsTestPair, asset.Spot)
 	assert.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "wsLoadBookSnapshot should invalidate a snapshot failing its checksum")
+}
+
+func TestWebsocketLoadBookSnapshotPriceOfZero(t *testing.T) {
+	t.Parallel()
+	ex := newTestExchange(t)
+	ex.setBookDepth(wsTestPair, 1000)
+	_, snapshot := bookMessage(t, fixtureLines(t, "testdata/wsBook.jsonl")[0])
+	levels := len(snapshot.Bids)
+	// Kraken reports a bid resting below the pair's precision at a price of 0, as it reported SHIB/EUR's on 31 October 2026
+	var zero WebsocketBookLevel
+	require.NoError(t, json.Unmarshal([]byte(`{"price":0.0,"qty":8000000.0}`), &zero), "Unmarshal must not error")
+	snapshot.Bids = append(snapshot.Bids, zero)
+	require.NoError(t, ex.wsLoadBookSnapshot(t.Context(), wsTestPair, snapshot), "wsLoadBookSnapshot must not error for a bid at a price of 0")
+	book, err := ex.Websocket.Orderbook.GetOrderbook(wsTestPair, asset.Spot)
+	require.NoError(t, err, "GetOrderbook must not error")
+	assert.Len(t, book.Bids, levels, "wsLoadBookSnapshot should leave out a bid at a price of 0")
+
+	// An update of that level alone, which the book never held, leaves the book as it is, however much it reports
+	for _, quantity := range []string{"0.0", "9000000.0"} {
+		var level WebsocketBookLevel
+		require.NoError(t, json.Unmarshal([]byte(`{"price":0.0,"qty":`+quantity+`}`), &level), "Unmarshal must not error")
+		require.NoErrorf(t, ex.wsUpdateBook(t.Context(), wsTestPair, &WebsocketBook{Bids: []WebsocketBookLevel{level}, Timestamp: snapshot.Timestamp.Add(time.Second), Checksum: snapshot.Checksum}), "wsUpdateBook must not error for quantity %s at a price of 0", quantity)
+		book, err = ex.Websocket.Orderbook.GetOrderbook(wsTestPair, asset.Spot)
+		require.NoErrorf(t, err, "GetOrderbook must not error after an update of quantity %s at a price of 0", quantity)
+		assert.Lenf(t, book.Bids, levels, "wsUpdateBook should leave the book as it was for quantity %s at a price of 0", quantity)
+	}
+
+	// An update of that level and another applies the other
+	var changed WebsocketBookLevel
+	require.NoError(t, json.Unmarshal([]byte(`{"price":`+book.Bids[0].StrPrice+`,"qty":1.5}`), &changed), "Unmarshal must not error")
+	expected := book.Bids[0]
+	bids := slices.Clone(book.Bids)
+	bids[0] = wsBookLevels([]WebsocketBookLevel{changed})[0]
+	update := &WebsocketBook{Bids: []WebsocketBookLevel{zero, changed}, Timestamp: snapshot.Timestamp.Add(2 * time.Second), Checksum: bookChecksum(&orderbook.Book{Bids: bids, Asks: book.Asks})}
+	require.NoError(t, ex.wsUpdateBook(t.Context(), wsTestPair, update), "wsUpdateBook must not error for an update of a level at a price of 0 and another")
+	book, err = ex.Websocket.Orderbook.GetOrderbook(wsTestPair, asset.Spot)
+	require.NoError(t, err, "GetOrderbook must not error")
+	assert.Equal(t, expected.Price, book.Bids[0].Price, "wsUpdateBook should keep the other level's price")
+	assert.Equal(t, 1.5, book.Bids[0].Amount, "wsUpdateBook should apply the other level")
 }
 
 func TestWebsocketLoadBookSnapshotChecksum(t *testing.T) {
@@ -2672,7 +2860,14 @@ func TestWebsocketLevel3Book(t *testing.T) {
 	book, err = ex.Websocket.Orderbook.GetOrderbook(wsTestPair, asset.Spot)
 	require.NoError(t, err, "GetOrderbook must not error")
 	assert.WithinDuration(t, time.Now(), book.LastUpdated, time.Minute, "wsLevel3Book should stamp a book without a timestamp when it is loaded")
+	bids := len(snapshot.Bids)
+	snapshot.Bids = append(snapshot.Bids, level3Order(t, "", "B0", "0.0", "8000000"))
+	require.NoError(t, ex.wsLevel3Book(t.Context(), wsTestPair, true, snapshot), "wsLevel3Book must load a snapshot holding an order priced 0")
+	book, err = ex.Websocket.Orderbook.GetOrderbook(wsTestPair, asset.Spot)
+	require.NoError(t, err, "GetOrderbook must not error")
+	assert.Len(t, book.Bids, bids, "wsLevel3Book should leave out an order priced 0")
 
+	require.NoError(t, ex.wsLevel3Book(t.Context(), wsTestPair, true, level3Message(t, lines[0])), "wsLevel3Book must load a snapshot")
 	update := level3Message(t, lines[1])
 	update.Checksum++
 	assert.ErrorIs(t, ex.wsLevel3Book(t.Context(), wsTestPair, false, update), errChecksumMismatch, "wsLevel3Book should reject an update failing its checksum")
@@ -2724,6 +2919,7 @@ func TestLevel3Levels(t *testing.T) {
 	exp := orderbook.Levels{bookLevel(0.1, "0.10", 1.5, "1.50000000"), bookLevel(0.09, "0.09", 2, "2")}
 	assert.Equal(t, exp, level3Levels([]WebsocketLevel3Order{level3Order(t, "", "B1", "0.10", "1.50000000"), level3Order(t, "", "B2", "0.09", "2")}), "level3Levels should convert each order to a level, keeping the digits sent")
 	assert.Empty(t, level3Levels(nil), "level3Levels should return no levels without orders")
+	assert.Equal(t, exp, level3Levels([]WebsocketLevel3Order{level3Order(t, "", "B1", "0.10", "1.50000000"), level3Order(t, "", "B2", "0.09", "2"), level3Order(t, "", "B3", "0.0", "8000000")}), "level3Levels should leave out an order priced 0")
 }
 
 func TestWebsocketProcessCandles(t *testing.T) {
