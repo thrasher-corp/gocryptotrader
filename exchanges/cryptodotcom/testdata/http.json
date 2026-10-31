@@ -1,0 +1,4424 @@
+{
+ "routes": {
+  "/exchange/v1/private/advanced/amend-order": {
+   "POST": [
+    {
+     "data": {
+      "id": "1",
+      "method": "private/advanced/amend-order",
+      "code": "0",
+      "result": {
+       "order_id": "5755600460443882762",
+       "client_oid": "c5f682ed-7108-4f1c-b755-972fcdca0f02"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"new_price\":\"0.0278\",\"new_quantity\":\"10\",\"new_ref_price\":\"0.0279\",\"order_id\":\"5755600460443882762\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/advanced/cancel-all-orders": {
+   "POST": [
+    {
+     "data": {
+      "id": "1",
+      "method": "private/advanced/cancel-all-orders",
+      "code": "0"
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"instrument_name\":\"BTC_USD\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/advanced/cancel-oco": {
+   "POST": [
+    {
+     "data": {
+      "id": "1661328073",
+      "method": "private/advanced/cancel-oco",
+      "code": "0"
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"list_id\":\"6498090546073120100\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/advanced/cancel-order": {
+   "POST": [
+    {
+     "data": {
+      "id": "1",
+      "method": "private/advanced/cancel-order",
+      "code": "0",
+      "message": "NO_ERROR",
+      "result": {
+       "client_oid": "c5f682ed-7108-4f1c-b755-972fcdca0f02",
+       "order_id": "5755600460443882762"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"order_id\":\"5755600460443882762\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/advanced/cancel-order-list": {
+   "POST": [
+    {
+     "data": {
+      "id": "1",
+      "method": "private/advanced/cancel-order-list",
+      "code": "0",
+      "result": [
+       {
+        "index": 0,
+        "code": 0
+       },
+       {
+        "index": 1,
+        "code": 0
+       }
+      ]
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"order_list\":\"[{\\\"order_id\\\":\\\"289991951579667814\\\"},{\\\"client_oid\\\":\\\"my_tp_order\\\"}]\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/advanced/cancel-oto": {
+   "POST": [
+    {
+     "data": {
+      "id": "1661328073",
+      "method": "private/advanced/cancel-oto",
+      "code": "0"
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"list_id\":\"6498090546073120199\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/advanced/cancel-otoco": {
+   "POST": [
+    {
+     "data": {
+      "id": "1661328073",
+      "method": "private/advanced/cancel-otoco",
+      "code": "0"
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"list_id\":\"6498090546073120243\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/advanced/create-oco": {
+   "POST": [
+    {
+     "data": {
+      "id": "1661331443",
+      "method": "private/advanced/create-oco",
+      "code": "0",
+      "result": {
+       "list_id": "6498090546073120100"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"order_list\":\"[{\\\"instrument_name\\\":\\\"BTC_USD\\\",\\\"price\\\":\\\"120000\\\",\\\"quantity\\\":\\\"0.0001\\\",\\\"side\\\":\\\"SELL\\\",\\\"type\\\":\\\"LIMIT\\\"},{\\\"instrument_name\\\":\\\"BTC_USD\\\",\\\"quantity\\\":\\\"0.0001\\\",\\\"ref_price\\\":\\\"40000\\\",\\\"side\\\":\\\"SELL\\\",\\\"type\\\":\\\"STOP_LOSS\\\"}]\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/advanced/create-order": {
+   "POST": [
+    {
+     "data": {
+      "id": "6573",
+      "method": "private/advanced/create-order",
+      "code": "0",
+      "result": {
+       "client_oid": "c5f682ed-7108-4f1c-b755-972fcdca0f02",
+       "order_id": "5755600460443882762"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"client_oid\":\"c5f682ed-7108-4f1c-b755-972fcdca0f02\",\"instrument_name\":\"CRO_USD\",\"price\":\"0.0279\",\"quantity\":\"10\",\"ref_price\":\"0.028\",\"side\":\"SELL\",\"type\":\"STOP_LIMIT\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/advanced/create-order-list": {
+   "POST": [
+    {
+     "data": {
+      "id": "1",
+      "method": "private/advanced/create-order-list",
+      "code": "0",
+      "result": [
+       {
+        "index": 0,
+        "code": 0,
+        "order_id": "289991951579667814",
+        "client_oid": "my_sl_order"
+       },
+       {
+        "index": 1,
+        "code": 0,
+        "order_id": "289991951579667815",
+        "client_oid": "my_tp_order"
+       }
+      ]
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"order_list\":\"[{\\\"client_oid\\\":\\\"my_sl_order\\\",\\\"instrument_name\\\":\\\"BTC_USD\\\",\\\"quantity\\\":\\\"0.0001\\\",\\\"ref_price\\\":\\\"40000\\\",\\\"side\\\":\\\"SELL\\\",\\\"type\\\":\\\"STOP_LOSS\\\"},{\\\"client_oid\\\":\\\"my_tp_order\\\",\\\"instrument_name\\\":\\\"BTC_USD\\\",\\\"quantity\\\":\\\"0.0001\\\",\\\"ref_price\\\":\\\"120000\\\",\\\"side\\\":\\\"SELL\\\",\\\"type\\\":\\\"TAKE_PROFIT\\\"}]\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/advanced/create-oto": {
+   "POST": [
+    {
+     "data": {
+      "id": "1661331443",
+      "method": "private/advanced/create-oto",
+      "code": "0",
+      "result": {
+       "list_id": "6498090546073120199"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"order_list\":\"[{\\\"instrument_name\\\":\\\"BTC_USD\\\",\\\"price\\\":\\\"40000\\\",\\\"quantity\\\":\\\"0.0001\\\",\\\"side\\\":\\\"BUY\\\",\\\"type\\\":\\\"LIMIT\\\"},{\\\"instrument_name\\\":\\\"BTC_USD\\\",\\\"quantity\\\":\\\"0.0001\\\",\\\"ref_price\\\":\\\"30000\\\",\\\"side\\\":\\\"SELL\\\",\\\"type\\\":\\\"STOP_LOSS\\\"}]\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/advanced/create-otoco": {
+   "POST": [
+    {
+     "data": {
+      "id": "1661331443",
+      "method": "private/advanced/create-otoco",
+      "code": "0",
+      "result": {
+       "list_id": "6498090546073120243"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"order_list\":\"[{\\\"instrument_name\\\":\\\"BTC_USD\\\",\\\"price\\\":\\\"40000\\\",\\\"quantity\\\":\\\"0.0001\\\",\\\"side\\\":\\\"BUY\\\",\\\"type\\\":\\\"LIMIT\\\"},{\\\"instrument_name\\\":\\\"BTC_USD\\\",\\\"quantity\\\":\\\"0.0001\\\",\\\"ref_price\\\":\\\"30000\\\",\\\"side\\\":\\\"SELL\\\",\\\"type\\\":\\\"STOP_LOSS\\\"},{\\\"instrument_name\\\":\\\"BTC_USD\\\",\\\"quantity\\\":\\\"0.0001\\\",\\\"ref_price\\\":\\\"120000\\\",\\\"side\\\":\\\"SELL\\\",\\\"type\\\":\\\"TAKE_PROFIT\\\"}]\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/advanced/get-open-orders": {
+   "POST": [
+    {
+     "data": {
+      "id": "1",
+      "method": "private/advanced/get-open-orders",
+      "code": "0",
+      "result": {
+       "data": [
+        {
+         "account_id": "5207a638-b79a-4c13-9d41-323be7556c17",
+         "order_id": "5755600460443890101",
+         "client_oid": "1792836351900",
+         "order_type": "LIMIT",
+         "time_in_force": "GOOD_TILL_CANCEL",
+         "side": "BUY",
+         "exec_inst": [],
+         "quantity": "0.0100",
+         "limit_price": "78000.0",
+         "order_value": "780.000000",
+         "maker_fee_rate": "0.000250",
+         "taker_fee_rate": "0.000400",
+         "avg_price": "0.0",
+         "cumulative_quantity": "0.0000",
+         "cumulative_value": "0.000000",
+         "cumulative_fee": "0.000000",
+         "status": "ACTIVE",
+         "update_user_id": "5207a638-b79a-4c13-9d41-323be7556c17",
+         "order_date": "2026-10-24",
+         "instrument_name": "BTC_USD",
+         "fee_instrument_name": "USD",
+         "list_id": "6498090546073120187",
+         "contingency_type": "SPOT_ATTACH",
+         "leg_id": "1",
+         "exchange_order_id": "5755600460443890177",
+         "create_time": "1792836351902",
+         "create_time_ns": "1792836351902118356",
+         "update_time": "1792836351902"
+        },
+        {
+         "account_id": "5207a638-b79a-4c13-9d41-323be7556c17",
+         "order_id": "5755600460443890102",
+         "client_oid": "1792836351901",
+         "order_type": "STOP_LOSS",
+         "time_in_force": "GOOD_TILL_CANCEL",
+         "side": "SELL",
+         "exec_inst": [],
+         "quantity": "0.0100",
+         "ref_price": "74000.00",
+         "ref_price_type": "MARK_PRICE",
+         "maker_fee_rate": "0.000250",
+         "taker_fee_rate": "0.000400",
+         "avg_price": "0.0",
+         "cumulative_quantity": "0.0000",
+         "cumulative_value": "0.000000",
+         "cumulative_fee": "0.000000",
+         "status": "ACTIVE",
+         "update_user_id": "5207a638-b79a-4c13-9d41-323be7556c17",
+         "order_date": "2026-10-24",
+         "instrument_name": "BTC_USD",
+         "fee_instrument_name": "USD",
+         "list_id": "6498090546073120187",
+         "contingency_type": "SPOT_ATTACH",
+         "leg_id": "2",
+         "create_time": "1792836351902",
+         "create_time_ns": "1792836351902118356",
+         "update_time": "1792836351902"
+        },
+        {
+         "account_id": "5207a638-b79a-4c13-9d41-323be7556c17",
+         "order_id": "5755600460443890103",
+         "client_oid": "1792836351902",
+         "order_type": "TAKE_PROFIT",
+         "time_in_force": "GOOD_TILL_CANCEL",
+         "side": "SELL",
+         "exec_inst": [],
+         "quantity": "0.0100",
+         "ref_price": "82000.00",
+         "ref_price_type": "MARK_PRICE",
+         "maker_fee_rate": "0.000250",
+         "taker_fee_rate": "0.000400",
+         "avg_price": "0.0",
+         "cumulative_quantity": "0.0000",
+         "cumulative_value": "0.000000",
+         "cumulative_fee": "0.000000",
+         "status": "ACTIVE",
+         "update_user_id": "5207a638-b79a-4c13-9d41-323be7556c17",
+         "order_date": "2026-10-24",
+         "instrument_name": "BTC_USD",
+         "fee_instrument_name": "USD",
+         "list_id": "6498090546073120187",
+         "contingency_type": "SPOT_ATTACH",
+         "leg_id": "3",
+         "create_time": "1792836351902",
+         "create_time_ns": "1792836351902118356",
+         "update_time": "1792836351902"
+        }
+       ]
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"instrument_name\":\"BTC_USD\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/advanced/get-order-detail": {
+   "POST": [
+    {
+     "data": {
+      "id": "1",
+      "method": "private/advanced/get-order-detail",
+      "code": "0",
+      "result": {
+       "account_id": "5207a638-b79a-4c13-9d41-323be7556c17",
+       "order_id": "5755600460443891201",
+       "client_oid": "1792830013640",
+       "order_type": "LIMIT",
+       "time_in_force": "GOOD_TILL_CANCEL",
+       "side": "BUY",
+       "exec_inst": [
+        "ISOLATED_MARGIN"
+       ],
+       "quantity": "0.0100",
+       "limit_price": "80000.0",
+       "order_value": "800.000000",
+       "maker_fee_rate": "0.000250",
+       "taker_fee_rate": "0.000400",
+       "avg_price": "80000.0",
+       "cumulative_quantity": "0.0040",
+       "cumulative_value": "320.000000",
+       "cumulative_fee": "0.080000",
+       "status": "ACTIVE",
+       "update_user_id": "5207a638-b79a-4c13-9d41-323be7556c17",
+       "order_date": "2026-10-24",
+       "instrument_name": "BTCUSD-PERP",
+       "fee_instrument_name": "USD",
+       "isolation_id": "5755600460443891277",
+       "isolation_type": "ISOLATED_MARGIN",
+       "list_id": "6498090546073120314",
+       "contingency_type": "DERIV_ATTACH",
+       "leg_id": "1",
+       "exchange_order_id": "5755600460443891277",
+       "leverage": 10,
+       "isolated_margin_amount": "80",
+       "create_time": "1792830013645",
+       "create_time_ns": "1792830013645371920",
+       "update_time": "1792836390118"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"order_id\":\"5755600460443891201\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/advanced/get-order-history": {
+   "POST": [
+    {
+     "data": {
+      "id": "1",
+      "method": "private/advanced/get-order-history",
+      "code": "0",
+      "result": {
+       "data": [
+        {
+         "account_id": "5207a638-b79a-4c13-9d41-323be7556c17",
+         "order_id": "5755600460443880501",
+         "client_oid": "1792746942215",
+         "order_type": "LIMIT",
+         "time_in_force": "GOOD_TILL_CANCEL",
+         "side": "BUY",
+         "exec_inst": [],
+         "quantity": "0.0100",
+         "limit_price": "81500.0",
+         "order_value": "815.000000",
+         "maker_fee_rate": "0.000250",
+         "taker_fee_rate": "0.000400",
+         "avg_price": "81500.0",
+         "cumulative_quantity": "0.0100",
+         "cumulative_value": "815.000000",
+         "cumulative_fee": "0.203750",
+         "status": "FILLED",
+         "update_user_id": "5207a638-b79a-4c13-9d41-323be7556c17",
+         "order_date": "2026-10-23",
+         "instrument_name": "BTC_USD",
+         "fee_instrument_name": "USD",
+         "list_id": "6498090546073120152",
+         "contingency_type": "SPOT_ATTACH",
+         "leg_id": "1",
+         "exchange_order_id": "5755600460443880577",
+         "create_time": "1792746942217",
+         "create_time_ns": "1792746942217123456",
+         "update_time": "1792753328904"
+        },
+        {
+         "account_id": "5207a638-b79a-4c13-9d41-323be7556c17",
+         "order_id": "5755600460443880502",
+         "client_oid": "1792746942216",
+         "order_type": "STOP_LOSS",
+         "time_in_force": "GOOD_TILL_CANCEL",
+         "side": "SELL",
+         "exec_inst": [],
+         "quantity": "0.0100",
+         "ref_price": "79000.00",
+         "ref_price_type": "MARK_PRICE",
+         "maker_fee_rate": "0.000250",
+         "taker_fee_rate": "0.000400",
+         "avg_price": "78990.0",
+         "cumulative_quantity": "0.0100",
+         "cumulative_value": "789.900000",
+         "cumulative_fee": "0.315960",
+         "status": "FILLED",
+         "update_user_id": "5207a638-b79a-4c13-9d41-323be7556c17",
+         "order_date": "2026-10-23",
+         "instrument_name": "BTC_USD",
+         "fee_instrument_name": "USD",
+         "list_id": "6498090546073120152",
+         "contingency_type": "SPOT_ATTACH",
+         "leg_id": "2",
+         "exchange_order_id": "5755600460443880578",
+         "create_time": "1792746942217",
+         "create_time_ns": "1792746942217123456",
+         "update_time": "1792766851560"
+        },
+        {
+         "account_id": "5207a638-b79a-4c13-9d41-323be7556c17",
+         "order_id": "5755600460443880503",
+         "client_oid": "1792746942217",
+         "order_type": "TAKE_PROFIT",
+         "time_in_force": "GOOD_TILL_CANCEL",
+         "side": "SELL",
+         "exec_inst": [],
+         "quantity": "0.0100",
+         "ref_price": "84000.00",
+         "ref_price_type": "MARK_PRICE",
+         "maker_fee_rate": "0.000250",
+         "taker_fee_rate": "0.000400",
+         "avg_price": "0.0",
+         "cumulative_quantity": "0.0000",
+         "cumulative_value": "0.000000",
+         "cumulative_fee": "0.000000",
+         "status": "CANCELED",
+         "update_user_id": "5207a638-b79a-4c13-9d41-323be7556c17",
+         "order_date": "2026-10-23",
+         "instrument_name": "BTC_USD",
+         "fee_instrument_name": "USD",
+         "list_id": "6498090546073120152",
+         "contingency_type": "SPOT_ATTACH",
+         "leg_id": "3",
+         "create_time": "1792746942217",
+         "create_time_ns": "1792746942217123456",
+         "update_time": "1792766851560"
+        },
+        {
+         "account_id": "5207a638-b79a-4c13-9d41-323be7556c17",
+         "order_id": "5755600460443881909",
+         "client_oid": "1792787465330",
+         "order_type": "STOP_LOSS",
+         "time_in_force": "GOOD_TILL_CANCEL",
+         "side": "SELL",
+         "exec_inst": [
+          "REDUCE_ONLY"
+         ],
+         "quantity": "0.0100",
+         "ref_price": "78500.0",
+         "ref_price_type": "LAST_PRICE",
+         "maker_fee_rate": "0.000250",
+         "taker_fee_rate": "0.000400",
+         "avg_price": "0.0",
+         "cumulative_quantity": "0.0000",
+         "cumulative_value": "0.000000",
+         "cumulative_fee": "0.000000",
+         "status": "REJECTED",
+         "update_user_id": "5207a638-b79a-4c13-9d41-323be7556c17",
+         "order_date": "2026-10-23",
+         "instrument_name": "BTCUSD-PERP",
+         "fee_instrument_name": "USD",
+         "reason": "1110",
+         "contingency_type": "DERIV_ATTACH",
+         "attach_isolation_id": "0",
+         "reject_reason": "REDUCE_ONLY_REJECTED",
+         "create_time": "1792787465338",
+         "create_time_ns": "1792787465338604217",
+         "update_time": "1792787465338"
+        }
+       ]
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"end_time\":\"1792799991058211357\",\"limit\":\"20\",\"start_time\":\"1792713600000081486\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/advanced/get-order-list-detail": {
+   "POST": [
+    {
+     "data": {
+      "id": "1",
+      "method": "private/advanced/get-order-list-detail",
+      "code": "0",
+      "result": {
+       "data": [
+        {
+         "account_id": "5207a638-b79a-4c13-9d41-323be7556c17",
+         "order_id": "289987352276367396",
+         "client_oid": "289987352276367396",
+         "order_type": "LIMIT",
+         "time_in_force": "GOOD_TILL_CANCEL",
+         "side": "BUY",
+         "exec_inst": [],
+         "quantity": "0.01000",
+         "limit_price": "100000.00",
+         "order_value": "1000.0",
+         "avg_price": "100000.00",
+         "cumulative_quantity": "0.01000",
+         "cumulative_value": "1000.0000000",
+         "cumulative_fee": "-2.5",
+         "status": "FILLED",
+         "update_user_id": "5207a638-b79a-4c13-9d41-323be7556c17",
+         "order_date": "2025-09-09",
+         "instrument_name": "BTC_USD",
+         "fee_instrument_name": "USD",
+         "list_id": "4611686018427705309",
+         "contingency_type": "SPOT_ATTACH",
+         "leg_id": "1",
+         "attach_order_id": "5755600460443882762",
+         "create_time": "1757409908295",
+         "create_time_ns": "1757409908295832533",
+         "update_time": "1757430498603"
+        },
+        {
+         "account_id": "5207a638-b79a-4c13-9d41-323be7556c17",
+         "order_id": "289987352276367397",
+         "client_oid": "289987352276367397",
+         "order_type": "STOP_LOSS",
+         "time_in_force": "GOOD_TILL_CANCEL",
+         "side": "SELL",
+         "exec_inst": [],
+         "quantity": "0.01000",
+         "limit_price": "0.00",
+         "order_value": "900.0",
+         "avg_price": "0.00",
+         "cumulative_quantity": "0.00000",
+         "cumulative_value": "0.0000000",
+         "cumulative_fee": "0",
+         "status": "PENDING",
+         "update_user_id": "5207a638-b79a-4c13-9d41-323be7556c17",
+         "order_date": "2025-09-09",
+         "instrument_name": "BTC_USD",
+         "fee_instrument_name": "USD",
+         "list_id": "4611686018427705309",
+         "contingency_type": "SPOT_ATTACH",
+         "leg_id": "2",
+         "attach_order_id": "5755600460443882762",
+         "ref_price": "90000.00",
+         "ref_price_type": "MARK_PRICE",
+         "create_time": "1757409908295",
+         "create_time_ns": "1757409908295832533",
+         "update_time": "1757409908295"
+        }
+       ]
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"list_id_list\":\"[\\\"4611686018427705308\\\",\\\"4611686018427705309\\\"]\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/amend-order": {
+   "POST": [
+    {
+     "data": {
+      "id": "53",
+      "method": "private/amend-order",
+      "code": "0",
+      "result": {
+       "client_oid": "c5f682ed-7108-4f1c-b755-972fcdca0f02",
+       "order_id": "6530219466236720401"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"new_price\":\"50000\",\"new_quantity\":\"0.0002\",\"order_id\":\"6530219466236720401\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/bot/create-trading-bot": {
+   "POST": [
+    {
+     "data": {
+      "id": 1,
+      "method": "private/bot/create-trading-bot",
+      "code": 0,
+      "result": {
+       "bot_id": "4611686018431234561"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"bot_type\":\"DCA\",\"notify_on_bot_change\":\"true\",\"settings\":\"{\\\"allocations\\\":[{\\\"allocated_percentage\\\":\\\"100\\\",\\\"instrument_name\\\":\\\"BTC_USDT\\\"}],\\\"auto_stake\\\":false,\\\"first_investment_time\\\":1691510460000,\\\"investment_currency\\\":\\\"USDT\\\",\\\"investment_frequency\\\":300000,\\\"investment_frequency_mode\\\":\\\"FIXED_DURATION\\\",\\\"is_basket\\\":false,\\\"max_order\\\":\\\"10\\\",\\\"quantity\\\":\\\"0.01\\\",\\\"side\\\":\\\"BUY\\\",\\\"type\\\":\\\"MARKET\\\"}\"}",
+     "headers": null
+    },
+    {
+     "data": {
+      "id": 1,
+      "method": "private/bot/create-trading-bot",
+      "code": 0,
+      "result": {
+       "bot_id": "4611686018431234562"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"bot_type\":\"TWAP\",\"notify_on_bot_change\":\"true\",\"settings\":\"{\\\"end_time_millis\\\":1691513460000,\\\"instrument_name\\\":\\\"BTC_USDT\\\",\\\"quantity\\\":\\\"1\\\",\\\"side\\\":\\\"BUY\\\",\\\"start_time_millis\\\":1691510460000,\\\"type\\\":\\\"MARKET\\\"}\"}",
+     "headers": null
+    },
+    {
+     "data": {
+      "id": 1,
+      "method": "private/bot/create-trading-bot",
+      "code": 0,
+      "result": {
+       "bot_id": "4611686018431234563"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"bot_type\":\"GRID\",\"notify_on_bot_change\":\"true\",\"settings\":\"{\\\"grid_mode\\\":\\\"ARITHMETIC\\\",\\\"grid_no\\\":10,\\\"instrument_name\\\":\\\"BTC_USDT\\\",\\\"lower_price\\\":\\\"25000\\\",\\\"margin_enabled\\\":false,\\\"total_investment\\\":\\\"1000\\\",\\\"trailing_up_enabled\\\":false,\\\"upper_price\\\":\\\"35000\\\"}\"}",
+     "headers": null
+    },
+    {
+     "data": {
+      "id": 1,
+      "method": "private/bot/create-trading-bot",
+      "code": 0,
+      "result": {
+       "bot_id": "4611686018431234564"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"bot_type\":\"FUNDING_ARBITRAGE\",\"notify_on_bot_change\":\"true\",\"settings\":\"{\\\"investment_currency\\\":\\\"USDT\\\",\\\"perp_leg\\\":{\\\"instrument_name\\\":\\\"BTCUSD-PERP\\\",\\\"side\\\":\\\"SELL\\\"},\\\"spot_leg\\\":{\\\"instrument_name\\\":\\\"BTC_USDT\\\",\\\"side\\\":\\\"BUY\\\"},\\\"total_investment\\\":\\\"5000\\\"}\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/bot/get-trading-bot-executions": {
+   "POST": [
+    {
+     "data": {
+      "id": 1,
+      "method": "private/bot/get-trading-bot-executions",
+      "code": 0,
+      "result": {
+       "execution_list": [
+        {
+         "instrument_name": "BTC/USDT",
+         "symbol": "BTC_USDT",
+         "execution_time": 1691510460123,
+         "schedule_time": 1691510460000,
+         "order_status": "FILLED",
+         "side": "BUY",
+         "price": "10000.00",
+         "quantity": "0.01",
+         "avg_price": "10000.00",
+         "cum_qty": "0.01",
+         "order_id": "6142909897021751347",
+         "update_time": 1691510460456,
+         "executed_percentage": "100.00"
+        }
+       ]
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"bot_id\":\"4611686018431234561\",\"page_size\":\"20\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/bot/get-trading-bots": {
+   "POST": [
+    {
+     "data": {
+      "id": 1,
+      "method": "private/bot/get-trading-bots",
+      "code": 0,
+      "result": {
+       "bot_list": [
+        {
+         "bot_id": "4611686018431234564",
+         "bot_type": "FUNDING_ARBITRAGE",
+         "display_name": "Funding Arb Bot",
+         "state": "RUNNING",
+         "create_time": 1691600000000,
+         "update_time": 1691600000000,
+         "end_time": 0,
+         "migrated": false,
+         "settings": {
+          "total_investment": "5000",
+          "investment_currency": "USDT",
+          "spot_leg": {
+           "instrument_name": "BTC_USDT",
+           "side": "BUY"
+          },
+          "perp_leg": {
+           "instrument_name": "BTCUSD-PERP",
+           "side": "SELL"
+          }
+         },
+         "execution_summary": {}
+        },
+        {
+         "bot_id": "4611686018431234563",
+         "bot_type": "GRID",
+         "display_name": "My Grid Bot",
+         "state": "PAUSED",
+         "create_time": 1691520000000,
+         "update_time": 1691590000000,
+         "end_time": 0,
+         "migrated": true,
+         "settings": {
+          "instrument_name": "BTC_USDT",
+          "total_investment": "1000",
+          "lower_price": "25000",
+          "upper_price": "35000",
+          "grid_mode": "ARITHMETIC",
+          "grid_no": 10,
+          "margin_enabled": false,
+          "trailing_up_enabled": false
+         },
+         "execution_summary": {}
+        },
+        {
+         "bot_id": "4611686018431234562",
+         "bot_type": "TWAP",
+         "display_name": "My TWAP Bot",
+         "state": "TERMINATED",
+         "reason": "User terminated",
+         "create_time": 1691510460000,
+         "update_time": 1691513460000,
+         "end_time": 1691513460000,
+         "migrated": false,
+         "settings": {
+          "instrument_name": "BTC_USDT",
+          "side": "BUY",
+          "type": "MARKET",
+          "quantity": "1",
+          "start_time_millis": 1691510460000,
+          "end_time_millis": 1691513460000
+         },
+         "execution_summary": {}
+        },
+        {
+         "bot_id": "4611686018431234561",
+         "bot_type": "DCA",
+         "display_name": "My DCA Bot",
+         "state": "RUNNING",
+         "create_time": 1691510460000,
+         "update_time": 1691510460000,
+         "end_time": 0,
+         "migrated": false,
+         "settings": {
+          "is_basket": false,
+          "allocations": [
+           {
+            "instrument_name": "BTC_USDT",
+            "allocated_percentage": "100"
+           }
+          ],
+          "investment_currency": "USDT",
+          "side": "BUY",
+          "type": "MARKET",
+          "auto_stake": false,
+          "quantity": "0.01",
+          "investment_frequency_mode": "FIXED_DURATION",
+          "investment_frequency": 300000,
+          "max_order": "10",
+          "first_investment_time": 1691510460000
+         },
+         "execution_summary": {
+          "executed_order": "5",
+          "total_invested": "500",
+          "total_quantity": "0.05",
+          "avg_price": "10000"
+         }
+        }
+       ]
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"bot_types\":\"[\\\"DCA\\\",\\\"TWAP\\\",\\\"GRID\\\",\\\"FUNDING_ARBITRAGE\\\"]\",\"state\":\"[\\\"RUNNING\\\",\\\"PAUSED\\\",\\\"TERMINATED\\\"]\",\"page_size\":\"20\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/bot/pause-trading-bot": {
+   "POST": [
+    {
+     "data": {
+      "id": 1,
+      "method": "private/bot/pause-trading-bot",
+      "code": 0
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"bot_id\":\"4611686018431234561\",\"bot_type\":\"DCA\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/bot/resume-trading-bot": {
+   "POST": [
+    {
+     "data": {
+      "id": 1,
+      "method": "private/bot/resume-trading-bot",
+      "code": 0
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"bot_id\":\"4611686018431234561\",\"bot_type\":\"DCA\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/bot/terminate-trading-bot": {
+   "POST": [
+    {
+     "data": {
+      "id": 1,
+      "method": "private/bot/terminate-trading-bot",
+      "code": 0
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"bot_id\":\"4611686018431234561\",\"bot_type\":\"DCA\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/bot/update-trading-bot": {
+   "POST": [
+    {
+     "data": {
+      "id": 1,
+      "method": "private/bot/update-trading-bot",
+      "code": 0
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"bot_id\":\"4611686018431234561\",\"bot_type\":\"DCA\",\"notify_on_bot_change\":\"true\",\"settings\":\"{\\\"allocations\\\":[{\\\"allocated_percentage\\\":\\\"60\\\",\\\"instrument_name\\\":\\\"BTC_USDT\\\"},{\\\"allocated_percentage\\\":\\\"40\\\",\\\"instrument_name\\\":\\\"ETH_USDT\\\"}],\\\"stop_price\\\":\\\"20000\\\"}\"}",
+     "headers": null
+    },
+    {
+     "data": {
+      "id": 1,
+      "method": "private/bot/update-trading-bot",
+      "code": 0
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"bot_id\":\"4611686018431234562\",\"bot_type\":\"TWAP\",\"notify_on_bot_change\":\"false\",\"display_name\":\"My TWAP Bot\"}",
+     "headers": null
+    },
+    {
+     "data": {
+      "id": 1,
+      "method": "private/bot/update-trading-bot",
+      "code": 0
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"bot_id\":\"4611686018431234563\",\"bot_type\":\"GRID\",\"notify_on_bot_change\":\"true\",\"settings\":\"{\\\"stop_price\\\":\\\"24000\\\"}\"}",
+     "headers": null
+    },
+    {
+     "data": {
+      "id": 1,
+      "method": "private/bot/update-trading-bot",
+      "code": 0
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"bot_id\":\"4611686018431234564\",\"bot_type\":\"FUNDING_ARBITRAGE\",\"notify_on_bot_change\":\"true\",\"display_name\":\"Funding Arb Bot\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/cancel-all-orders": {
+   "POST": [
+    {
+     "data": {
+      "id": "1",
+      "method": "private/cancel-all-orders",
+      "code": "0"
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"instrument_name\":\"ETHUSD-PERP\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/cancel-order": {
+   "POST": [
+    {
+     "data": {
+      "id": "1",
+      "method": "private/cancel-order",
+      "code": "0",
+      "message": "NO_ERROR",
+      "result": {
+       "client_oid": "c5f682ed-7108-4f1c-b755-972fcdca0f02",
+       "order_id": "6530219466236720401"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"order_id\":\"6530219466236720401\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/cancel-order-list": {
+   "POST": [
+    {
+     "data": {
+      "id": "6575",
+      "method": "private/cancel-order-list",
+      "code": "0",
+      "result": [
+       {
+        "code": "0",
+        "index": "0"
+       },
+       {
+        "code": "0",
+        "index": "1"
+       }
+      ]
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"contingency_type\":\"LIST\",\"order_list\":\"[{\\\"client_oid\\\":\\\"api_leg1\\\",\\\"instrument_name\\\":\\\"CRO_USD\\\"},{\\\"client_oid\\\":\\\"api_leg2\\\",\\\"instrument_name\\\":\\\"CRO_USD\\\"}]\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/change-account-leverage": {
+   "POST": [
+    {
+     "data": {
+      "id": "1",
+      "method": "private/change-account-leverage",
+      "code": "0"
+     },
+     "queryString": "",
+     "bodyParams": "{\"account_id\":\"52e7c00f-1324-5a6a-bf6e-de445bde21a5\",\"api_key\":\"mock-api-key\",\"leverage\":\"10\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/change-account-settings": {
+   "POST": [
+    {
+     "data": {
+      "id": "696",
+      "method": "private/change-account-settings",
+      "code": "0"
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"stp_id\":\"100\",\"stp_inst\":\"M\",\"stp_scope\":\"S\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/change-isolated-margin-leverage": {
+   "POST": [
+    {
+     "data": {
+      "id": "11",
+      "method": "private/change-isolated-margin-leverage",
+      "code": "0"
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"isolation_id\":\"6530219466236720402\",\"leverage\":\"10\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/close-position": {
+   "POST": [
+    {
+     "data": {
+      "id": "1",
+      "method": "private/close-position",
+      "code": "0",
+      "result": {
+       "client_oid": "1684d6e4-2c55-64e1-52c3-3aa9febc3a23",
+       "order_id": "6530219466236720404"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"instrument_name\":\"BTCUSD-PERP\",\"price\":\"30000\",\"quantity\":\"0.0001\",\"type\":\"LIMIT\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/create-isolated-margin-transfer": {
+   "POST": [
+    {
+     "data": {
+      "id": "11",
+      "method": "private/create-isolated-margin-transfer",
+      "code": "0"
+     },
+     "queryString": "",
+     "bodyParams": "{\"amount\":\"50\",\"api_key\":\"mock-api-key\",\"direction\":\"CREDIT\",\"isolation_id\":\"6530219466236720402\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/create-order": {
+   "POST": [
+    {
+     "data": {
+      "id": "1",
+      "method": "private/create-order",
+      "code": "0",
+      "result": {
+       "client_oid": "c5f682ed-7108-4f1c-b755-972fcdca0f02",
+       "order_id": "6530219466236720401"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"client_oid\":\"c5f682ed-7108-4f1c-b755-972fcdca0f02\",\"exec_inst\":\"[\\\"POST_ONLY\\\"]\",\"instrument_name\":\"BTCUSD-PERP\",\"price\":\"50000.5\",\"quantity\":\"0.0001\",\"side\":\"BUY\",\"time_in_force\":\"GOOD_TILL_CANCEL\",\"type\":\"LIMIT\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/create-order-list": {
+   "POST": [
+    {
+     "data": {
+      "id": "6573",
+      "method": "private/create-order-list",
+      "code": "0",
+      "result": [
+       {
+        "code": "0",
+        "index": "0",
+        "client_oid": "api_leg1",
+        "order_id": "5755600460443882762"
+       },
+       {
+        "code": "0",
+        "index": "1",
+        "client_oid": "api_leg2",
+        "order_id": "5755600460443882763"
+       }
+      ]
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"contingency_type\":\"LIST\",\"order_list\":\"[{\\\"client_oid\\\":\\\"api_leg1\\\",\\\"instrument_name\\\":\\\"CRO_USD\\\",\\\"price\\\":\\\"0.12\\\",\\\"quantity\\\":\\\"10\\\",\\\"side\\\":\\\"SELL\\\",\\\"type\\\":\\\"LIMIT\\\"},{\\\"client_oid\\\":\\\"api_leg2\\\",\\\"instrument_name\\\":\\\"CRO_USD\\\",\\\"price\\\":\\\"0.122\\\",\\\"quantity\\\":\\\"20\\\",\\\"side\\\":\\\"SELL\\\",\\\"type\\\":\\\"LIMIT\\\"}]\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/create-subaccount-transfer": {
+   "POST": [
+    {
+     "data": {
+      "id": "1234",
+      "method": "private/create-subaccount-transfer",
+      "code": "0"
+     },
+     "queryString": "",
+     "bodyParams": "{\"amount\":\"500\",\"api_key\":\"mock-api-key\",\"currency\":\"CRO\",\"from\":\"243d3f39-b193-4eb9-1d60-e98f2fc17707\",\"to\":\"69c9ab41-5b95-4d75-b769-e45f2fc16507\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/create-withdrawal": {
+   "POST": [
+    {
+     "data": {
+      "id": "-1",
+      "method": "private/create-withdrawal",
+      "code": "0",
+      "result": {
+       "id": "2220",
+       "amount": "1",
+       "fee": "0.0004",
+       "symbol": "BTC",
+       "address": "2NBqqD5GRJ8wHy1PYyCXTe9ke5226FhavBf",
+       "client_wid": "my_withdrawal_002",
+       "create_time": "1607063412000",
+       "network_id": "BTC"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"address\":\"2NBqqD5GRJ8wHy1PYyCXTe9ke5226FhavBf\",\"amount\":\"1\",\"api_key\":\"mock-api-key\",\"client_wid\":\"my_withdrawal_002\",\"currency\":\"BTC\",\"network_id\":\"BTC\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/fiat/fiat-access": {
+   "POST": [
+    {
+     "data": {
+      "id": "3",
+      "method": "private/fiat/fiat-access",
+      "code": "0",
+      "result": {
+       "accesses": [
+        {
+         "currency": "USD",
+         "payment_network": "us_ach",
+         "is_deposit_enable": true,
+         "is_withdraw_enable": true
+        },
+        {
+         "currency": "EUR",
+         "payment_network": "openpayd_exchange_sepa",
+         "is_deposit_enable": true,
+         "is_withdraw_enable": false
+        }
+       ]
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/fiat/fiat-create-bank-account": {
+   "POST": [
+    {
+     "data": {
+      "id": "7",
+      "method": "private/fiat/fiat-create-bank-account",
+      "code": "0",
+      "result": {
+       "bank_accounts_list": [
+        {
+         "id": "5b8e2f1a-9c3d-4e7f-a6b5-1c2d3e4f5a6b",
+         "status": "completed",
+         "bank_name": "Chase",
+         "currency": "USD",
+         "account_holder_name": "John Doe",
+         "account_identifier_value": "****6789",
+         "supported_payment_networks": [
+          "us_ach"
+         ],
+         "created_at": 1773372503821,
+         "updated_at": 1773372503821
+        }
+       ]
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"currency\":\"USD\",\"plaid_account_id\":\"vzeNDwK7KQIm4yEog683uElbp9GRLEFXGK98D\",\"plaid_public_token\":\"public-sandbox-0a1b2c3d-4e5f-6a7b-8c9d-0e1f2a3b4c5d\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/fiat/fiat-create-withdraw": {
+   "POST": [
+    {
+     "data": {
+      "id": "0",
+      "method": "private/fiat/fiat-create-withdraw",
+      "code": "0",
+      "result": {
+       "id": "27f3b781-e8e4-4ae9-871e-0edd7f9deba9",
+       "client_wid": "c1d2e3f4-a5b6-7890-cdef-123456789abc",
+       "account_id": "7d1e5a3b-2c4f-4e8a-9b6d-0f1a2b3c4d5e",
+       "status": "debit_processing",
+       "payment_network": "usd_swift",
+       "currency": "USD",
+       "amount": "500.0",
+       "amount_in_usd": "500.0",
+       "fee_currency": "USD",
+       "fee_amount": "45.0",
+       "beneficiary_id": "b5d7c1e2-3f4a-4b6c-8d9e-0a1b2c3d4e5f",
+       "authorization_id": "a9e8f7d6-c5b4-4a39-8281-7f6e5d4c3b2a"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"account_id\":\"7d1e5a3b-2c4f-4e8a-9b6d-0f1a2b3c4d5e\",\"amount\":\"500\",\"api_key\":\"mock-api-key\",\"authorization_id\":\"a9e8f7d6-c5b4-4a39-8281-7f6e5d4c3b2a\",\"beneficiary_id\":\"b5d7c1e2-3f4a-4b6c-8d9e-0a1b2c3d4e5f\",\"client_wid\":\"c1d2e3f4-a5b6-7890-cdef-123456789abc\",\"currency\":\"USD\",\"intermediate_bank\":\"{\\\"address_1\\\":\\\"270 Park Avenue\\\",\\\"address_2\\\":\\\"New York, NY 10017\\\",\\\"bank_identifier_type\\\":\\\"SWIFT\\\",\\\"bank_identifier_value\\\":\\\"CHASUS33\\\",\\\"bank_name\\\":\\\"JPMorgan Chase Bank\\\"}\",\"payment_network\":\"usd_swift\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/fiat/fiat-deposit-history": {
+   "POST": [
+    {
+     "data": {
+      "id": "1",
+      "method": "private/fiat/fiat-deposit-history",
+      "code": "0",
+      "result": {
+       "page": "0",
+       "page_size": "2",
+       "total": "41",
+       "transaction_history_list": [
+        {
+         "id": "c2669ca7-35a2-464c-8114-2313912c6d76",
+         "currency": "USD",
+         "amount": "100.0",
+         "fee_currency": "USD",
+         "fee_amount": "0.5",
+         "fee": "0.5",
+         "payment_network": "us_ach",
+         "status": "completed",
+         "created_at": "1778140550953",
+         "updated_at": "1778140573431",
+         "completed_at": "1778140573431",
+         "vendor_transaction_id": "N89940DKZD",
+         "sender": {
+          "account_identifier_value": "****6789"
+         },
+         "beneficiary": null
+        },
+        {
+         "id": "f5527db9-c0ca-4d82-b3f8-4470c3398384",
+         "currency": "USD",
+         "amount": "100.0",
+         "fee_currency": "USD",
+         "fee_amount": "0.0",
+         "payment_network": "us_ach",
+         "status": "completed",
+         "created_at": "1778140412428",
+         "updated_at": "1778140429199",
+         "completed_at": "1778140429199",
+         "vendor_transaction_id": "F6KSNMQV0B"
+        }
+       ]
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"end_time\":\"1778141000000\",\"page\":\"0\",\"page_size\":\"2\",\"payment_networks\":\"us_ach\",\"start_time\":\"1778140000000\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/fiat/fiat-deposit-info": {
+   "POST": [
+    {
+     "data": {
+      "id": "123456",
+      "method": "private/fiat/fiat-deposit-info",
+      "code": "0",
+      "result": {
+       "deposit_info_list": [
+        {
+         "payment_network": "usd_cubix",
+         "currency": "USD",
+         "bank_details": {
+          "account_holder_name": null,
+          "bank_name": null,
+          "bank_address": null,
+          "bank_country": null,
+          "routing_number": null,
+          "account_number": null,
+          "recipient_name": null,
+          "recipient_address": null,
+          "bic_code": null,
+          "iban_code": null,
+          "reference_code": null,
+          "sort_code": null,
+          "cubix_partner_name": "Crypto.com",
+          "cubix_account_name": "Foris Dax Inc",
+          "cubix_account_id": "48e8431d-2026-41d4-a872-b1ed00db8626",
+          "cubix_account_number": "5859",
+          "account_type": null,
+          "meta": null
+         }
+        },
+        {
+         "payment_network": "usd_swift",
+         "currency": "USD",
+         "bank_details": {
+          "account_holder_name": null,
+          "bank_name": "Customers Bank",
+          "bank_address": "701 Reading Avenue, West Reading, Pennsylvania 19611",
+          "bank_country": null,
+          "routing_number": "031302971",
+          "account_number": "5415859",
+          "recipient_name": "FORIS DAX LIMITED",
+          "recipient_address": "P.O. BOX 31910, 20 GENESIS CLOSE GRAND CAYMAN",
+          "bic_code": "CUESUS33",
+          "iban_code": null,
+          "reference_code": "676938157158298",
+          "sort_code": null,
+          "cubix_partner_name": null,
+          "cubix_account_name": null,
+          "cubix_account_id": null,
+          "cubix_account_number": null,
+          "meta": null
+         }
+        },
+        {
+         "payment_network": "openpayd_exchange_sepa",
+         "currency": "EUR",
+         "bank_details": {
+          "account_holder_name": "Example Holdings Malta Limited",
+          "bank_name": "Example Bank Malta",
+          "bank_address": "1 Example Square, Valletta VLT 1000",
+          "bank_country": "MT",
+          "routing_number": null,
+          "account_number": null,
+          "recipient_name": null,
+          "recipient_address": null,
+          "bic_code": "EXMPMTMT",
+          "iban_code": "MT00EXMP00000000000000012345678",
+          "reference_code": "CDCX1234567",
+          "sort_code": null,
+          "cubix_partner_name": null,
+          "cubix_account_name": null,
+          "cubix_account_id": null,
+          "cubix_account_number": null,
+          "account_type": "IBAN",
+          "meta": {
+           "note": "Include the reference code"
+          }
+         }
+        },
+        {
+         "payment_network": "uk_fps",
+         "currency": "GBP",
+         "bank_details": {
+          "account_holder_name": "Example Holdings UK Limited",
+          "bank_name": "Example Bank UK",
+          "bank_address": "1 Example Lane, London EC1A 1AA",
+          "bank_country": "GB",
+          "routing_number": null,
+          "account_number": "12345678",
+          "recipient_name": null,
+          "recipient_address": null,
+          "bic_code": null,
+          "iban_code": null,
+          "reference_code": "CDCX7654321",
+          "sort_code": "00-00-00",
+          "cubix_partner_name": null,
+          "cubix_account_name": null,
+          "cubix_account_id": null,
+          "cubix_account_number": null,
+          "account_type": "Current",
+          "meta": null
+         }
+        }
+       ]
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"payment_networks\":\"usd_cubix, usd_swift, openpayd_exchange_sepa, uk_fps\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/fiat/fiat-get-bank-accounts": {
+   "POST": [
+    {
+     "data": {
+      "id": "123456",
+      "method": "private/fiat/fiat-get-bank-accounts",
+      "code": "0",
+      "msg": "success",
+      "result": {
+       "bank_accounts_list": [
+        {
+         "ok": null,
+         "code": null,
+         "message": null,
+         "id": "4c662477-a16d-4c99-a27b-a492b592ed62",
+         "account_id": "adb80cff-f420-469c-b439-4d90272bf1a1",
+         "user_uuid": "f0857b97-0d47-5897-8b1f-e358725cf49c",
+         "status": "completed",
+         "bank_name": "Customers Bank",
+         "bank_city": "",
+         "bank_country": "US",
+         "bank_identifier_type": "cubix_account_number_last_4_digits",
+         "bank_identifier_value": "****2565",
+         "bank_account_holder_name": null,
+         "account_identifier_type": "cubix_account_id",
+         "account_identifier_value": "****cc63",
+         "account_holder_name": "Smoke Test Co",
+         "account_type": null,
+         "currency": "USD",
+         "verified_by": "Cubix",
+         "reason": "reason",
+         "supported_payment_networks": [
+          "usd_cubix"
+         ],
+         "withdrawal_payment_networks": null,
+         "payment_network_identifier_value": "dbbb3eda-960f-4406-ae3c-b250010e7bef",
+         "bank_details": {
+          "institutional_street_address": "40 General Warren Boulevard, Malvern, Pennsylvania 19355",
+          "bank_street_address": "701 Reading Avenue, West Reading, Pennsylvania 19611",
+          "account_holder_address": "1 Example Street, Sydney NSW 2000",
+          "bank_account_address": null,
+          "intermediate_bank": null,
+          "intermediate_bank_options": null
+         },
+         "created_at": "1751126400000",
+         "updated_at": "1751212800000"
+        }
+       ]
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"payment_networks\":\"usd_cubix\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/fiat/fiat-transaction-limit": {
+   "POST": [
+    {
+     "data": {
+      "id": "0",
+      "method": "private/fiat/fiat-transaction-limit",
+      "code": "0",
+      "result": {
+       "deposit": {
+        "min_deposit_amount": {
+         "currency": "USD",
+         "amount": "500"
+        },
+        "daily_max_deposit_amount": {
+         "currency": "USD",
+         "amount": "1000000"
+        },
+        "monthly_max_deposit_amount": {
+         "currency": "USD",
+         "amount": null
+        },
+        "currency_daily_max_deposit_amount": {
+         "currency": "USD",
+         "amount": "2000000"
+        },
+        "currency_monthly_max_deposit_amount": {
+         "currency": "USD",
+         "amount": null
+        },
+        "daily_quota": 5,
+        "monthly_quota": 60,
+        "daily_transaction_count": 1,
+        "monthly_transaction_count": 4,
+        "currency_daily_transaction_count": 2,
+        "currency_monthly_transaction_count": 6,
+        "fee_amount": {
+         "currency": "USD",
+         "amount": "0"
+        },
+        "daily_max_transaction_count": 10,
+        "monthly_max_transaction_count": 100,
+        "currency_daily_max_transaction_count": 20,
+        "currency_monthly_max_transaction_count": 200
+       },
+       "payment": {
+        "name": "CUBIX",
+        "full_name": "CUBIX",
+        "review_time_description": "1-2 working days",
+        "review_time": {
+         "min": "1",
+         "max": "2",
+         "unit": "working days"
+        },
+        "bank_transfer_time_description": "1-4 working days",
+        "bank_transfer_time": {
+         "min": "1",
+         "max": "4",
+         "unit": "working days"
+        },
+        "min_payment_amount": {
+         "currency": "USD",
+         "amount": "500"
+        },
+        "daily_max_payment_amount": {
+         "currency": "USD",
+         "amount": "5000000"
+        },
+        "monthly_max_payment_amount": {
+         "currency": "USD",
+         "amount": null
+        },
+        "auto_approve_max_payment_amount": {
+         "currency": "USD",
+         "amount": "250000"
+        },
+        "currency_daily_max_payment_amount": {
+         "currency": "USD",
+         "amount": "10000000"
+        },
+        "currency_monthly_max_payment_amount": {
+         "currency": "USD",
+         "amount": null
+        },
+        "fee_amount": {
+         "currency": "USD",
+         "amount": "0"
+        },
+        "refund_fee_amount": {
+         "currency": "USD",
+         "amount": "25"
+        },
+        "daily_transaction_count": 3,
+        "monthly_transaction_count": 8,
+        "currency_daily_transaction_count": 7,
+        "currency_monthly_transaction_count": 12,
+        "daily_max_transaction_count": 15,
+        "monthly_max_transaction_count": 150,
+        "currency_daily_max_transaction_count": 30,
+        "currency_monthly_max_transaction_count": 300
+       }
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"payment_network\":\"usd_cubix\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/fiat/fiat-transaction-quota": {
+   "POST": [
+    {
+     "data": {
+      "id": "0",
+      "method": "private/fiat/fiat-transaction-quota",
+      "code": "0",
+      "result": {
+       "details": {
+        "currency": "EUR",
+        "payment_network": "openpayd_exchange_sepa",
+        "network_name": "SEPA",
+        "monthly_quota_in_usd": {
+         "currency": "USD",
+         "amount": null
+        },
+        "daily_quota_in_usd": {
+         "currency": "USD",
+         "amount": "5000000.0"
+        },
+        "used_monthly_quota_in_usd": {
+         "currency": "USD",
+         "amount": "6200.0"
+        },
+        "used_daily_quota_in_usd": {
+         "currency": "USD",
+         "amount": "1500.0"
+        },
+        "remaining_monthly_quota_in_usd": {
+         "currency": "USD",
+         "amount": null
+        },
+        "remaining_daily_quota_in_usd": {
+         "currency": "USD",
+         "amount": "4998500.0"
+        },
+        "minimum_withdrawal_amount_in_usd": {
+         "currency": "USD",
+         "amount": "500.0"
+        },
+        "monthly_quota": {
+         "currency": "EUR",
+         "amount": null
+        },
+        "daily_quota": {
+         "currency": "EUR",
+         "amount": "4600000.0"
+        },
+        "used_monthly_quota": {
+         "currency": "EUR",
+         "amount": "5704.0"
+        },
+        "used_daily_quota": {
+         "currency": "EUR",
+         "amount": "1380.0"
+        },
+        "remaining_monthly_quota": {
+         "currency": "EUR",
+         "amount": null
+        },
+        "remaining_daily_quota": {
+         "currency": "EUR",
+         "amount": "4598620.0"
+        },
+        "minimum_withdrawal_amount": {
+         "currency": "EUR",
+         "amount": "460.0"
+        },
+        "currency_daily_quota": {
+         "currency": "EUR",
+         "amount": "9200000.0"
+        },
+        "currency_monthly_quota": {
+         "currency": "EUR",
+         "amount": null
+        },
+        "currency_used_daily_quota": {
+         "currency": "EUR",
+         "amount": "2300.0"
+        },
+        "currency_used_monthly_quota": {
+         "currency": "EUR",
+         "amount": "9016.0"
+        },
+        "currency_remaining_daily_quota": {
+         "currency": "EUR",
+         "amount": "9197700.0"
+        },
+        "currency_remaining_monthly_quota": {
+         "currency": "EUR",
+         "amount": null
+        },
+        "transactions_per_day": 10,
+        "transactions_per_month": 100,
+        "transactions_daily_count": 2,
+        "transactions_monthly_count": 9,
+        "remaining_transactions_daily_count": 8,
+        "remaining_transactions_monthly_count": 91,
+        "currency_transactions_per_day": 20,
+        "currency_transactions_per_month": null,
+        "currency_transactions_daily_count": 3,
+        "currency_transactions_monthly_count": 11,
+        "currency_remaining_transactions_daily_count": 17,
+        "currency_remaining_transactions_monthly_count": null
+       }
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"payment_network\":\"openpayd_exchange_sepa\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/fiat/fiat-withdraw-history": {
+   "POST": [
+    {
+     "data": {
+      "id": "1",
+      "method": "private/fiat/fiat-withdraw-history",
+      "code": "0",
+      "result": {
+       "page": "0",
+       "page_size": "2",
+       "total": "132",
+       "transaction_history_list": [
+        {
+         "id": "a6a41d92-1cdc-4dd3-b845-85fa203405a2",
+         "account_id": "6871391474021396480",
+         "currency": "EUR",
+         "amount": "10.0",
+         "amount_in_usd": "10.87",
+         "fee_currency": "EUR",
+         "fee_amount": "1.0",
+         "fee_amount_in_usd": "1.09",
+         "payment_network": "openpayd_exchange_sepa",
+         "status": "pending",
+         "created_at": "1778553420579",
+         "updated_at": "1778553420643",
+         "completed_at": null,
+         "client_wid": "c1d2e3f4-a5b6-7890-cdef-123456789abc",
+         "sender": null,
+         "beneficiary": {
+          "account_identifier_value": "****6789"
+         }
+        },
+        {
+         "id": "fb372838-be75-4699-92c8-0db0efee6506",
+         "currency": "USD",
+         "amount": "100.0",
+         "fee_currency": "USD",
+         "fee_amount": "1.0",
+         "payment_network": "us_ach",
+         "status": "completed",
+         "created_at": "1778212310417",
+         "updated_at": "1778212506975",
+         "completed_at": "1778212506975",
+         "client_wid": null,
+         "vendor_transaction_id": "db0fee89-6ab7-4431-b715-798655891555"
+        }
+       ]
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"end_time\":\"1778600000000\",\"page\":\"0\",\"page_size\":\"2\",\"start_time\":\"1778200000000\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/get-account-settings": {
+   "POST": [
+    {
+     "data": {
+      "id": "697",
+      "method": "private/get-account-settings",
+      "code": "0",
+      "result": [
+       {
+        "leverage": "20",
+        "stp_id": "100",
+        "stp_scope": "S",
+        "stp_inst": "M"
+       }
+      ]
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/get-accounts": {
+   "POST": [
+    {
+     "data": {
+      "id": "12",
+      "method": "private/get-accounts",
+      "code": "0",
+      "result": {
+       "this_account": {
+        "uuid": "243d3f39-b193-4eb9-1d60-e98f2fc17707",
+        "hierarchy": "MASTER"
+       },
+       "master_account": {
+        "uuid": "243d3f39-b193-4eb9-1d60-e98f2fc17707",
+        "hierarchy": "MASTER",
+        "master_account_uuid": "291879ae-b769-4eb3-4d75-3366ebee7dd6",
+        "margin_account_uuid": "69c9ab41-5b95-4d75-b769-e45f2fc16507",
+        "enabled": true,
+        "tradable": true,
+        "name": "",
+        "email": "trader@example.com",
+        "mobile_number": "+61491570156",
+        "country_code": "AU",
+        "address": "1 Example Street, Sydney NSW 2000",
+        "margin_access": "DEFAULT",
+        "derivatives_access": "DISABLED",
+        "create_time": "1620962543792",
+        "update_time": "1622019525960",
+        "two_fa_enabled": true,
+        "kyc_level": "ADVANCED",
+        "suspended": false,
+        "terminated": false
+       },
+       "sub_account_list": [
+        {
+         "uuid": "69c9ab41-5b95-4d75-b769-e45f2fc16507",
+         "hierarchy": "SUB_ACCOUNT",
+         "master_account_uuid": "291879ae-b769-4eb3-4d75-3366ebee7dd6",
+         "margin_account_uuid": "69c9ab41-5b95-4d75-b769-e45f2fc16507",
+         "label": "Sub Account",
+         "enabled": true,
+         "tradable": true,
+         "name": "Hedging",
+         "email": "hedging@example.com",
+         "mobile_number": "+61491570157",
+         "country_code": "AU",
+         "address": "2 Example Street, Sydney NSW 2000",
+         "margin_access": "DEFAULT",
+         "derivatives_access": "DISABLED",
+         "create_time": "1621034103478",
+         "update_time": "1621034103478",
+         "two_fa_enabled": false,
+         "kyc_level": "ADVANCED",
+         "suspended": false,
+         "terminated": false
+        }
+       ]
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"page_size\":\"20\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/get-currency-networks": {
+   "POST": [
+    {
+     "data": {
+      "id": "123456",
+      "method": "private/get-currency-networks",
+      "code": "0",
+      "result": {
+       "update_time": "1641151604000",
+       "currency_map": {
+        "AGLD": {
+         "full_name": "Adventure Gold",
+         "default_network": null,
+         "network_list": [
+          {
+           "network_id": "ETH",
+           "withdrawal_fee": null,
+           "withdraw_enabled": true,
+           "min_withdrawal_amount": "10.0",
+           "deposit_enabled": true,
+           "confirmation_required": "12"
+          }
+         ]
+        },
+        "MATIC": {
+         "full_name": "Polygon",
+         "default_network": "ETH",
+         "network_list": [
+          {
+           "network_id": "BNB",
+           "withdrawal_fee": "0.80000000",
+           "withdraw_enabled": true,
+           "min_withdrawal_amount": "1.6",
+           "deposit_enabled": true,
+           "confirmation_required": "0"
+          },
+          {
+           "network_id": "ETH",
+           "withdrawal_fee": "20.00000000",
+           "withdraw_enabled": true,
+           "min_withdrawal_amount": "40.0",
+           "deposit_enabled": true,
+           "confirmation_required": "0"
+          },
+          {
+           "network_id": "MATIC",
+           "withdrawal_fee": "0.08000000",
+           "withdraw_enabled": false,
+           "min_withdrawal_amount": "0.16",
+           "deposit_enabled": true,
+           "confirmation_required": "0"
+          }
+         ]
+        }
+       }
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/get-deposit-address": {
+   "POST": [
+    {
+     "data": {
+      "id": "11",
+      "method": "private/get-deposit-address",
+      "code": "0",
+      "result": {
+       "deposit_address_list": [
+        {
+         "currency": "CRO",
+         "create_time": "1615886328000",
+         "id": "12345",
+         "address": "cro1q9vfn0fjtyfvx3h8k2rwwgvxnz9k4j6m3y5pth",
+         "status": "1",
+         "network": "CRO"
+        },
+        {
+         "currency": "CRO",
+         "create_time": "1615886332000",
+         "id": "12346",
+         "address": "0x1234567890abcdef1234567890abcdef12345678",
+         "status": "0",
+         "network": "ETH"
+        }
+       ]
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"currency\":\"CRO\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/get-deposit-history": {
+   "POST": [
+    {
+     "data": {
+      "id": "11",
+      "method": "private/get-deposit-history",
+      "code": "0",
+      "result": {
+       "deposit_list": [
+        {
+         "currency": "XRP",
+         "fee": "1.0",
+         "create_time": "1607063412000",
+         "id": "2220",
+         "update_time": "1607063460000",
+         "amount": "100",
+         "address": "2NBqqD5GRJ8wHy1PYyCXTe9ke5226FhavBf?1234567890",
+         "status": "1",
+         "txid": "C53ECF838647FA5A4C780377025FEC7999AB4182590510CA461444B207AB74A9"
+        }
+       ]
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"currency\":\"XRP\",\"end_ts\":\"1607100000000\",\"page_size\":\"2\",\"start_ts\":\"1607000000000\",\"status\":\"1\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/get-fee-credit-balances": {
+   "POST": [
+    {
+     "data": {
+      "id": "1",
+      "method": "private/get-fee-credit-balances",
+      "code": "0",
+      "result": {
+       "fee_credits": [
+        {
+         "expiry_date": 1735689540000,
+         "type": "Campaign1, Campaign2",
+         "distributed_amount": "200.00000000",
+         "available_balance": "150.00000000",
+         "details": [
+          {
+           "type": "Campaign1",
+           "distribution_date": 1704067140000,
+           "distributed_amount": "100.00000000"
+          },
+          {
+           "type": "Campaign2",
+           "distribution_date": 1706745540000,
+           "distributed_amount": "100.00000000"
+          }
+         ]
+        }
+       ]
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"page_size\":\"200\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/get-fee-rate": {
+   "POST": [
+    {
+     "data": {
+      "id": "1",
+      "method": "private/get-fee-rate",
+      "code": "0",
+      "result": {
+       "spot_tier": "3",
+       "deriv_tier": "3",
+       "effective_spot_maker_rate_bps": "6.5",
+       "effective_spot_taker_rate_bps": "6.9",
+       "effective_deriv_maker_rate_bps": "1.1",
+       "effective_deriv_taker_rate_bps": "3"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/get-instrument-fee-rate": {
+   "POST": [
+    {
+     "data": {
+      "id": "1",
+      "method": "private/get-instrument-fee-rate",
+      "code": "0",
+      "result": {
+       "instrument_name": "BTC_USD",
+       "effective_maker_rate_bps": "6.5",
+       "effective_taker_rate_bps": "6.9"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"instrument_name\":\"BTC_USD\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/get-open-orders": {
+   "POST": [
+    {
+     "data": {
+      "id": "1",
+      "method": "private/get-open-orders",
+      "code": "0",
+      "result": {
+       "data": [
+        {
+         "account_id": "52e7c00f-1324-5a6a-bf6e-de445bde21a5",
+         "order_id": "6530219466236720401",
+         "client_oid": "c5f682ed-7108-4f1c-b755-972fcdca0f02",
+         "order_type": "LIMIT",
+         "time_in_force": "GOOD_TILL_CANCEL",
+         "side": "BUY",
+         "exec_inst": [
+          "POST_ONLY"
+         ],
+         "quantity": "0.0001",
+         "limit_price": "50000.5",
+         "order_value": "5.000050",
+         "maker_fee_rate": "0.000250",
+         "taker_fee_rate": "0.000400",
+         "avg_price": "0.0",
+         "cumulative_quantity": "0.0000",
+         "cumulative_value": "0.000000",
+         "cumulative_fee": "0.000000",
+         "status": "ACTIVE",
+         "update_user_id": "fd797356-55db-48c2-a44d-157aabf702e8",
+         "order_date": "2026-10-25",
+         "instrument_name": "BTCUSD-PERP",
+         "fee_instrument_name": "USD",
+         "create_time": "1792890506012",
+         "create_time_ns": "1792890506012345678",
+         "update_time": "1792890506012"
+        },
+        {
+         "account_id": "52e7c00f-1324-5a6a-bf6e-de445bde21a5",
+         "isolation_id": "6530219466236720402",
+         "isolation_type": "ISOLATED_MARGIN",
+         "order_id": "6530219466236720402",
+         "client_oid": "1792890500001",
+         "order_type": "LIMIT",
+         "time_in_force": "GOOD_TILL_CANCEL",
+         "side": "BUY",
+         "exec_inst": [
+          "ISOLATED_MARGIN"
+         ],
+         "quantity": "0.0100",
+         "limit_price": "50000.0",
+         "order_value": "500.000000",
+         "maker_fee_rate": "0.000250",
+         "taker_fee_rate": "0.000400",
+         "avg_price": "0.0",
+         "cumulative_quantity": "0.0000",
+         "cumulative_value": "0.000000",
+         "cumulative_fee": "0.000000",
+         "status": "ACTIVE",
+         "update_user_id": "fd797356-55db-48c2-a44d-157aabf702e8",
+         "order_date": "2026-10-25",
+         "instrument_name": "BTCUSD-PERP",
+         "fee_instrument_name": "USD",
+         "create_time": "1792890500001",
+         "create_time_ns": "1792890500001123457",
+         "update_time": "1792890500001",
+         "leverage": 10,
+         "isolated_margin_amount": "50"
+        }
+       ]
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"instrument_name\":\"BTCUSD-PERP\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/get-order-detail": {
+   "POST": [
+    {
+     "data": {
+      "id": "1",
+      "method": "private/get-order-detail",
+      "code": "0",
+      "result": {
+       "account_id": "52e7c00f-1324-5a6a-bf6e-de445bde21a5",
+       "order_id": "6530219466236720403",
+       "client_oid": "1613571154900",
+       "order_type": "LIMIT",
+       "time_in_force": "GOOD_TILL_CANCEL",
+       "side": "BUY",
+       "exec_inst": [],
+       "quantity": "0.0100",
+       "limit_price": "50000.0",
+       "order_value": "500.000000",
+       "maker_fee_rate": "0.000250",
+       "taker_fee_rate": "0.000400",
+       "avg_price": "0.0",
+       "cumulative_quantity": "0.0000",
+       "cumulative_value": "0.000000",
+       "cumulative_fee": "0.000000",
+       "status": "CANCELED",
+       "update_user_id": "fd797356-55db-48c2-a44d-157aabf702e8",
+       "order_date": "2021-02-17",
+       "instrument_name": "BTCUSD-PERP",
+       "fee_instrument_name": "USD",
+       "reason": "43012",
+       "create_time": "1613575617173",
+       "create_time_ns": "1613575617173123456",
+       "update_time": "1613575617209"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"order_id\":\"6530219466236720403\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/get-order-history": {
+   "POST": [
+    {
+     "data": {
+      "id": "1",
+      "method": "private/get-order-history",
+      "code": "0",
+      "result": {
+       "data": [
+        {
+         "account_id": "52e7c00f-1324-5a6a-bf6e-de445bde21a5",
+         "order_id": "6530219466236720405",
+         "client_oid": "1610905028001",
+         "order_type": "LIMIT",
+         "time_in_force": "GOOD_TILL_CANCEL",
+         "side": "BUY",
+         "exec_inst": [],
+         "quantity": "0.0001",
+         "limit_price": "51000.0",
+         "order_value": "5.100000",
+         "maker_fee_rate": "0.000250",
+         "taker_fee_rate": "0.000400",
+         "avg_price": "0.0",
+         "cumulative_quantity": "0.0000",
+         "cumulative_value": "0.000000",
+         "cumulative_fee": "0.000000",
+         "status": "CANCELED",
+         "update_user_id": "fd797356-55db-48c2-a44d-157aabf702e8",
+         "order_date": "2021-01-17",
+         "instrument_name": "BTCUSD-PERP",
+         "fee_instrument_name": "USD",
+         "create_time": "1610905028001",
+         "create_time_ns": "1610905028001234567",
+         "update_time": "1613570700000"
+        },
+        {
+         "account_id": "52e7c00f-1324-5a6a-bf6e-de445bde21a5",
+         "order_id": "6530219466236720406",
+         "client_oid": "1613570791057",
+         "order_type": "LIMIT",
+         "time_in_force": "GOOD_TILL_CANCEL",
+         "side": "BUY",
+         "exec_inst": [],
+         "quantity": "0.0500",
+         "limit_price": "51283.0",
+         "order_value": "2564.150000",
+         "maker_fee_rate": "0.000250",
+         "taker_fee_rate": "0.000400",
+         "avg_price": "51278.5",
+         "cumulative_quantity": "0.0500",
+         "cumulative_value": "2563.925000",
+         "cumulative_fee": "1.025570",
+         "status": "FILLED",
+         "update_user_id": "fd797356-55db-48c2-a44d-157aabf702e8",
+         "order_date": "2021-02-17",
+         "instrument_name": "BTCUSD-PERP",
+         "fee_instrument_name": "USD",
+         "create_time": "1613570791057",
+         "create_time_ns": "1613570791057123456",
+         "update_time": "1613570791058"
+        }
+       ]
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"end_time\":\"1613570791058211357\",\"instrument_name\":\"BTCUSD-PERP\",\"limit\":\"20\",\"start_time\":\"1610905028000081486\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/get-positions": {
+   "POST": [
+    {
+     "data": {
+      "id": "1",
+      "method": "private/get-positions",
+      "code": "0",
+      "result": {
+       "data": [
+        {
+         "account_id": "858dbc8b-22fd-49fa-bff4-d342d98a8acb",
+         "quantity": "-0.1984",
+         "cost": "-10159.573500",
+         "open_position_pnl": "-497.743736",
+         "open_pos_cost": "-10159.352200",
+         "session_pnl": "2.236145",
+         "update_timestamp_ms": "1613552240770",
+         "instrument_name": "BTCUSD-PERP",
+         "type": "PERPETUAL_SWAP"
+        },
+        {
+         "account_id": "858dbc8b-22fd-49fa-bff4-d342d98a8acb",
+         "quantity": "0.0002",
+         "cost": "10.959000",
+         "open_position_pnl": "-0.003000",
+         "open_pos_cost": "10.959000",
+         "session_pnl": "-0.043000",
+         "update_timestamp_ms": "1613552240771",
+         "instrument_name": "BTCUSD-PERP",
+         "type": "PERPETUAL_SWAP",
+         "isolation_id": "19848526",
+         "isolation_type": "ISOLATED_MARGIN"
+        }
+       ]
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"instrument_name\":\"BTCUSD-PERP\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/get-subaccount-balances": {
+   "POST": [
+    {
+     "data": {
+      "id": "1",
+      "method": "private/get-subaccount-balances",
+      "code": "0",
+      "result": {
+       "data": [
+        {
+         "account": "a0d206a1-6b06-47c5-9cd3-8bc6ef0915c5",
+         "instrument_name": "USD",
+         "total_available_balance": "0.00000000",
+         "total_margin_balance": "0.00000000",
+         "total_initial_margin": "0.00000000",
+         "total_maintenance_margin": "0.00000000",
+         "total_position_cost": "0.00000000",
+         "total_cash_balance": "0.00000000",
+         "total_collateral_value": "0.00000000",
+         "total_session_unrealized_pnl": "0.00000000",
+         "total_session_realized_pnl": "0.00000000",
+         "total_effective_leverage": "0.00000000",
+         "position_limit": "3000000.00000000",
+         "used_position_limit": "0.00000000",
+         "total_isolated_cash_balance": "0.00000000",
+         "is_liquidating": false,
+         "position_balances": [],
+         "isolated_positions": []
+        },
+        {
+         "account": "507d3f7d-37c3-4a09-9076-b83c2fcbb638",
+         "total_available_balance": "20922.62250000",
+         "total_margin_balance": "20922.62250000",
+         "total_initial_margin": "0.00000000",
+         "total_maintenance_margin": "0.00000000",
+         "total_position_cost": "0.00000000",
+         "total_cash_balance": "22018.55000000",
+         "total_collateral_value": "20922.62250000",
+         "total_session_unrealized_pnl": "0.00000000",
+         "instrument_name": "USD",
+         "total_session_realized_pnl": "0.00000000",
+         "total_effective_leverage": "0.00000000",
+         "position_limit": "3000000.00000000",
+         "used_position_limit": "0.00000000",
+         "total_isolated_cash_balance": "8.96326705",
+         "is_liquidating": false,
+         "position_balances": [
+          {
+           "instrument_name": "BTC",
+           "quantity": "1.0000000000",
+           "market_value": "21918.5500000000",
+           "collateral_eligible": "true",
+           "haircut": "0.5500000000",
+           "collateral_amount": "21918.0000000000",
+           "max_withdrawal_balance": "1.0000000000"
+          },
+          {
+           "instrument_name": "USD",
+           "quantity": "100.00000000",
+           "market_value": "100.00000000",
+           "collateral_eligible": true,
+           "haircut": "1.00000000",
+           "collateral_amount": "99.00000000",
+           "max_withdrawal_balance": "0.00000000"
+          }
+         ],
+         "isolated_positions": [
+          {
+           "isolation_id": "19848526",
+           "leverage": "10",
+           "isolation_type": "ISOLATED_MARGIN",
+           "total_available_balance": "7.80487225",
+           "total_margin_balance": "8.96026705",
+           "total_initial_margin": "1.09620001",
+           "total_position_im": "0.5481",
+           "total_haircut": "0",
+           "total_maintenance_margin": "0.27405",
+           "total_position_cost": "10.959",
+           "total_cash_balance": "8.96326705",
+           "total_collateral_value": "8.96326705",
+           "total_session_unrealized_pnl": "-0.003",
+           "instrument_name": "USD",
+           "total_session_realized_pnl": "-0.043",
+           "is_liquidating": false,
+           "total_effective_leverage": "1.231537",
+           "position_limit": "89.01072259",
+           "used_position_limit": "10.962",
+           "position_balances": [
+            {
+             "instrument_name": "USD",
+             "quantity": "8.9632670590686",
+             "market_value": "8.96326705",
+             "collateral_eligible": true,
+             "haircut": "0",
+             "collateral_amount": "8.96326705",
+             "max_withdrawal_balance": "7.80487225",
+             "reserved_qty": "0.00000000"
+            }
+           ]
+          }
+         ]
+        }
+       ]
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/get-trades": {
+   "POST": [
+    {
+     "data": {
+      "id": "1",
+      "method": "private/get-trades",
+      "code": "0",
+      "result": {
+       "data": [
+        {
+         "account_id": "52e7c00f-1324-5a6a-bf6e-de445bde21a5",
+         "event_date": "2021-04-22",
+         "journal_type": "TRADING",
+         "traded_quantity": "0.0500",
+         "traded_price": "51278.5",
+         "fees": "-0.140981",
+         "fee_credits": "-0.500000",
+         "order_id": "6530219466236720407",
+         "trade_id": "1619100000000827635",
+         "trade_match_id": "4611686018427388001",
+         "client_oid": "7665b001-2753-4d17-b266-61ecb755922d",
+         "taker_side": "MAKER",
+         "side": "BUY",
+         "instrument_name": "BTCUSD-PERP",
+         "fee_instrument_name": "USD",
+         "create_time": "1619100000000",
+         "create_time_ns": "1619100000000827635",
+         "transact_time_ns": "1619100000000827635",
+         "match_count": "1",
+         "match_index": "0"
+        }
+       ]
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"end_time\":\"1619200052124211357\",\"instrument_name\":\"BTCUSD-PERP\",\"limit\":\"20\",\"start_time\":\"1619089031996081486\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/get-transactions": {
+   "POST": [
+    {
+     "data": {
+      "id": "1",
+      "method": "private/get-transactions",
+      "code": "0",
+      "result": {
+       "data": [
+        {
+         "account_id": "52e7c00f-1324-5a6a-bf6e-de445bde21a5",
+         "event_date": "2021-04-23",
+         "journal_type": "TRADING",
+         "journal_id": "4611686018427575078",
+         "transaction_qty": "-0.0005",
+         "transaction_cost": "-24.500000",
+         "realized_pnl": "-0.006125",
+         "order_id": "6530219466236720408",
+         "trade_id": "1619170752166234567",
+         "trade_match_id": "4611686018427388625",
+         "event_timestamp_ms": "1619170752166",
+         "event_timestamp_ns": "1619170752166234567",
+         "client_oid": "6ac2421d-5078-4ef6-a9d5-9680602ce123",
+         "taker_side": "MAKER",
+         "side": "SELL",
+         "instrument_name": "BTCUSD-PERP"
+        },
+        {
+         "account_id": "52e7c00f-1324-5a6a-bf6e-de445bde21a5",
+         "event_date": "2021-04-23",
+         "journal_type": "SESSION_SETTLE",
+         "journal_id": "4611686018427574960",
+         "transaction_qty": "0",
+         "transaction_cost": "0.000000",
+         "realized_pnl": "-0.007800",
+         "trade_match_id": "0",
+         "event_timestamp_ms": "1619168400002",
+         "event_timestamp_ns": "1619168400002124563",
+         "client_oid": "",
+         "taker_side": "",
+         "instrument_name": "BTCUSD-PERP",
+         "isolation_id": "6530219466236720402",
+         "isolation_type": "ISOLATED_MARGIN"
+        },
+        {
+         "account_id": "52e7c00f-1324-5a6a-bf6e-de445bde21a5",
+         "event_date": "2021-04-23",
+         "journal_type": "SESSION_SETTLE",
+         "journal_id": "4611686018427574959",
+         "transaction_qty": "0",
+         "transaction_cost": "0.000000",
+         "realized_pnl": "-0.007800",
+         "trade_match_id": "0",
+         "event_timestamp_ms": "1619168400001",
+         "event_timestamp_ns": "1619168400001124563",
+         "client_oid": "",
+         "taker_side": "",
+         "instrument_name": "BTCUSD-PERP"
+        }
+       ]
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"end_time\":\"1619200052124211357\",\"instrument_name\":\"BTCUSD-PERP\",\"limit\":\"20\",\"start_time\":\"1619089031996081486\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/get-withdrawal-history": {
+   "POST": [
+    {
+     "data": {
+      "id": "11",
+      "method": "private/get-withdrawal-history",
+      "code": "0",
+      "result": {
+       "withdrawal_list": [
+        {
+         "currency": "XRP",
+         "client_wid": "my_withdrawal_002",
+         "fee": "1.0",
+         "create_time": "1607063412000",
+         "id": "2220",
+         "update_time": "1607063460000",
+         "amount": "100",
+         "address": "2NBqqD5GRJ8wHy1PYyCXTe9ke5226FhavBf?1234567890",
+         "status": "1",
+         "txid": "",
+         "network_id": null
+        }
+       ]
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"currency\":\"XRP\",\"end_ts\":\"1607100000000\",\"page_size\":\"2\",\"start_ts\":\"1607000000000\",\"status\":\"1\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/otc/get-deal-history": {
+   "POST": [
+    {
+     "data": {
+      "id": 12,
+      "method": "private/otc/get-deal-history",
+      "code": 0,
+      "result": {
+       "deal_list": [
+        {
+         "deal_id": "4611686018428874931",
+         "quote_id": "4611686018491964487",
+         "cl_deal_id": "external_deal_id_123",
+         "deal_type": "QUOTE_REQUEST",
+         "deal_status": "SETTLED",
+         "settlement_arrangement": "T1",
+         "create_time_ns": "1696160390000000000",
+         "update_time_ns": "1696262400000000000",
+         "settle_time_ns": "1696262400000000000",
+         "quote_req_id": "4611686018427544106",
+         "leg_list": [
+          {
+           "instrument_name": "BTC_USD",
+           "quantity": "0.1",
+           "executed_quantity": "0.1",
+           "executed_notional": "2600.05",
+           "price": "26000.5",
+           "side": "BUY",
+           "type": "PRICE"
+          }
+         ]
+        }
+       ]
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"deal_type\":\"QUOTE_REQUEST\",\"start_time\":\"1696154400000000000\",\"end_time\":\"1697364000000000000\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/otc/get-open-deals": {
+   "POST": [
+    {
+     "data": {
+      "id": 12,
+      "method": "private/otc/get-open-deals",
+      "code": 0,
+      "result": {
+       "deal_list": [
+        {
+         "deal_id": "4611686018429016536",
+         "quote_id": "4611686018492073851",
+         "cl_deal_id": "client_id_1",
+         "deal_type": "QUOTE_REQUEST",
+         "deal_status": "CONFIRMED",
+         "settlement_arrangement": "IMMEDIATE",
+         "create_time_ns": "1739329285207188882",
+         "update_time_ns": "1739329285874211375",
+         "quote_req_id": "4611686018427623960",
+         "leg_list": [
+          {
+           "instrument_name": "BTC_USD",
+           "quantity": "1",
+           "executed_quantity": "1",
+           "executed_notional": "95734.2",
+           "price": "95734.2",
+           "side": "BUY",
+           "type": "PRICE"
+          }
+         ]
+        }
+       ]
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"deal_type\":\"QUOTE_REQUEST\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/otc/get-open-quote-requests": {
+   "POST": [
+    {
+     "data": {
+      "id": 12,
+      "method": "private/otc/get-open-quote-requests",
+      "code": 0,
+      "result": {
+       "count": 1,
+       "quote_request_list": [
+        {
+         "quote_req_id": "4611686018427626536",
+         "cl_quote_req_id": "abcd13456",
+         "firm_quote": false,
+         "settlement_arrangement": "IMMEDIATE",
+         "status": "ACTIVE",
+         "reason": "NO_ERROR",
+         "leg_list": [
+          {
+           "instrument_name": "BTC_USD",
+           "quantity": "1",
+           "side": "BUY",
+           "type": "PRICE"
+          }
+         ],
+         "request_time_ns": "1749104833703281311"
+        }
+       ]
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/otc/get-open-quotes": {
+   "POST": [
+    {
+     "data": {
+      "id": 12,
+      "method": "private/otc/get-open-quotes",
+      "code": 0,
+      "result": {
+       "count": 1,
+       "quote_list": [
+        {
+         "quote_id": "4611686018492075123",
+         "lp_quote_id": "98765",
+         "quote_req_id": "4611686018427626536",
+         "status": "ACTIVE",
+         "reason": "NO_ERROR",
+         "response_time_ns": "1749104834012345678",
+         "expire_time_ns": "1749104839012345678",
+         "leg_list": [
+          {
+           "instrument_name": "BTC_USD",
+           "quantity": "1",
+           "bid": "95085.99",
+           "ask": "96086.01",
+           "type": "PRICE"
+          }
+         ]
+        }
+       ]
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"lp_quote_id\":\"98765\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/otc/get-otc-instruments": {
+   "POST": [
+    {
+     "data": {
+      "id": 12,
+      "method": "private/otc/get-otc-instruments",
+      "code": 0,
+      "result": {
+       "instrument_list": [
+        {
+         "instrument_name": "BTC_USD",
+         "base_currency": "BTC",
+         "quote_currency": "USD",
+         "type": "SPOT",
+         "price_tick_size": "0.01",
+         "quote_decimals": 2,
+         "qty_tick_size": "0.00001",
+         "qty_decimals": 5
+        }
+       ]
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/otc/get-quote-history": {
+   "POST": [
+    {
+     "data": {
+      "id": 12,
+      "method": "private/otc/get-quote-history",
+      "code": 0,
+      "result": {
+       "count": 1,
+       "quote_list": [
+        {
+         "quote_id": "4611686018492068402",
+         "lp_quote_id": "98765",
+         "quote_req_id": "4611686018427625581",
+         "status": "EXPIRED",
+         "reason": "NO_ERROR",
+         "response_time_ns": "1747622246812345678",
+         "expiry_time_ns": "1747622251812345678",
+         "expire_time_ns": "1747622251812345678",
+         "leg_list": [
+          {
+           "instrument_name": "BTC_USD",
+           "quantity": "1",
+           "bid": "100000",
+           "ask": "100010",
+           "type": "PRICE"
+          }
+         ]
+        }
+       ]
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"lp_quote_id\":\"98765\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/otc/get-quote-request-history": {
+   "POST": [
+    {
+     "data": {
+      "id": 12,
+      "method": "private/otc/get-quote-request-history",
+      "code": 0,
+      "result": {
+       "count": 2,
+       "quote_request_list": [
+        {
+         "quote_req_id": "4611686018427625581",
+         "cl_quote_req_id": "abcd13456",
+         "firm_quote": false,
+         "settlement_arrangement": "IMMEDIATE",
+         "status": "COMPLETED",
+         "request_time_ns": "1747622246551416954",
+         "leg_list": [
+          {
+           "instrument_name": "BTC_USD",
+           "quantity": "1",
+           "side": "BUY",
+           "type": "PRICE"
+          }
+         ]
+        },
+        {
+         "quote_req_id": "4611686018427625594",
+         "cl_quote_req_id": "1739762096888",
+         "firm_quote": false,
+         "settlement_arrangement": "IMMEDIATE",
+         "status": "REJECTED",
+         "reason": "INVALID_OTC_INSTRUMENT",
+         "request_time_ns": "1747622312004501226",
+         "leg_list": [
+          {
+           "instrument_name": "ABC",
+           "quantity": "0.6",
+           "side": "BUY",
+           "type": "PRICE"
+          }
+         ]
+        }
+       ]
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/otc/get-settle-later-limit": {
+   "POST": [
+    {
+     "data": {
+      "id": 12,
+      "method": "private/otc/get-settle-later-limit",
+      "code": 0,
+      "result": {
+       "account_id": "52e7c00f-1324-5a6e-bf4d-de445bde21c1",
+       "configured_limit": "1000000",
+       "used_limit": "20000"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/otc/get-unsettled-amounts": {
+   "POST": [
+    {
+     "data": {
+      "id": 1763952629987,
+      "method": "private/otc/get-unsettled-amounts",
+      "code": 0,
+      "result": {
+       "unsettled_ccys": {
+        "1764057600000000000": {
+         "BTC": "-0.01",
+         "USD": "1022.0646"
+        },
+        "1762848000000000000": {
+         "ADA": "-1000",
+         "USD": "583.080000"
+        }
+       }
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/otc/request-deal": {
+   "POST": [
+    {
+     "data": {
+      "id": 1,
+      "method": "private/otc/request-deal",
+      "code": 0,
+      "result": {
+       "cl_deal_id": "client_id_1",
+       "deal_id": "4611686018429016536",
+       "quote_req_id": "4611686018427623960",
+       "quote_id": "4611686018492073851",
+       "deal_type": "QUOTE_REQUEST",
+       "deal_status": "ACCEPTED",
+       "reason": "NO_ERROR",
+       "update_time_ns": "1739329285207188882",
+       "leg_list": [
+        {
+         "instrument_name": "BTC_USD",
+         "quantity": "1",
+         "price": "95734.2",
+         "side": "BUY",
+         "type": "PRICE"
+        }
+       ]
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"deal_type\":\"QUOTE_REQUEST\",\"cl_deal_id\":\"client_id_1\",\"quote_id\":\"4611686018492073851\",\"quote_req_id\":\"4611686018427623960\",\"leg_list\":\"[{\\\"instrument_name\\\":\\\"BTC_USD\\\",\\\"price\\\":\\\"95734.2\\\",\\\"quantity\\\":\\\"1\\\",\\\"side\\\":\\\"BUY\\\"}]\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/otc/request-quote": {
+   "POST": [
+    {
+     "data": {
+      "id": 12,
+      "method": "private/otc/request-quote",
+      "code": 0,
+      "result": {
+       "subscription": "user.otc_qr.requests",
+       "channel": "user.otc_qr.requests",
+       "data": [
+        {
+         "cl_quote_req_id": "abcd13456",
+         "quote_req_id": "4611686018427626536"
+        }
+       ]
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"cl_quote_req_id\":\"abcd13456\",\"settlement_arrangement\":\"IMMEDIATE\",\"duration\":\"10000\",\"quote_ttl\":\"5000\",\"leg_list\":\"[{\\\"instrument_name\\\":\\\"BTC_USD\\\",\\\"quantity\\\":\\\"1\\\",\\\"side\\\":\\\"BUY\\\"}]\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/staking/convert": {
+   "POST": [
+    {
+     "data": {
+      "id": "1",
+      "method": "private/staking/convert",
+      "code": "0",
+      "result": {
+       "from_instrument_name": "ETH.staked",
+       "to_instrument_name": "CDCETH",
+       "expected_rate": "1.0203",
+       "from_quantity": "3.14159265",
+       "slippage_tolerance_bps": "3",
+       "convert_id": "4611686018445302411",
+       "reason": "NO_ERROR"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"from_instrument_name\":\"ETH.staked\",\"to_instrument_name\":\"CDCETH\",\"expected_rate\":\"1.0203\",\"from_quantity\":\"3.14159265\",\"slippage_tolerance_bps\":\"3\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/staking/get-convert-history": {
+   "POST": [
+    {
+     "data": {
+      "id": "1",
+      "method": "private/staking/get-convert-history",
+      "code": "0",
+      "result": {
+       "data": [
+        {
+         "from_instrument_name": "ETH.staked",
+         "to_instrument_name": "CDCETH",
+         "expected_rate": "1.0203",
+         "from_quantity": "3.14159265",
+         "slippage_tolerance_bps": "3",
+         "actual_rate": "1.0203",
+         "to_quantity": "3.07908718",
+         "convert_id": "4611686018445288107",
+         "status": "COMPLETED",
+         "create_timestamp_ms": "1691470000456"
+        }
+       ]
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"start_time\":\"1691455454495000000\",\"end_time\":\"1691545277000000000\",\"limit\":\"10\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/staking/get-open-convert": {
+   "POST": [
+    {
+     "data": {
+      "id": "1",
+      "method": "private/staking/get-open-convert",
+      "code": "0",
+      "result": {
+       "data": [
+        {
+         "from_instrument_name": "ETH.staked",
+         "to_instrument_name": "CDCETH",
+         "expected_rate": "1.0203",
+         "from_quantity": "3.14159265",
+         "slippage_tolerance_bps": "3",
+         "actual_rate": "0",
+         "to_quantity": "0",
+         "convert_id": "4611686018445319652",
+         "status": "NEW",
+         "create_timestamp_ms": "1691530000123"
+        }
+       ]
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"start_time\":\"1691455454495000000\",\"end_time\":\"1691545277000000000\",\"limit\":\"10\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/staking/get-open-stake": {
+   "POST": [
+    {
+     "data": {
+      "id": "1",
+      "method": "private/staking/get-open-stake",
+      "code": "0",
+      "result": {
+       "data": [
+        {
+         "instrument_name": "SOL.staked",
+         "underlying_inst_name": "SOL",
+         "cycle_id": "5821",
+         "staking_id": "4611686018445098512",
+         "status": "PENDING",
+         "account": "8b1fd0a5-3d2e-4f7a-9c61-2e5b7a4d9f30",
+         "quantity": "1",
+         "side": "STAKE",
+         "create_timestamp_ms": "1691461234567"
+        },
+        {
+         "instrument_name": "SOL.staked",
+         "underlying_inst_name": "SOL",
+         "cycle_id": "5822",
+         "staking_id": "4611686018445101227",
+         "status": "PENDING_UNSTAKING",
+         "account": "8b1fd0a5-3d2e-4f7a-9c61-2e5b7a4d9f30",
+         "quantity": "0.5",
+         "side": "UNSTAKE",
+         "create_timestamp_ms": "1691502345678"
+        }
+       ]
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"instrument_name\":\"SOL.staked\",\"start_time\":\"1691455454495000000\",\"end_time\":\"1691545277000000000\",\"limit\":\"10\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/staking/get-reward-history": {
+   "POST": [
+    {
+     "data": {
+      "id": "1",
+      "method": "private/staking/get-reward-history",
+      "code": "0",
+      "result": {
+       "data": [
+        {
+         "staking_inst_name": "SOL.staked",
+         "underlying_inst_name": "SOL",
+         "reward_inst_name": "SOL.staked",
+         "reward_quantity": "123.4567",
+         "staked_balance": "1234567",
+         "event_timestamp_ms": "1691539200000"
+        }
+       ]
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"instrument_name\":\"SOL.staked\",\"start_time\":\"1691455454495000000\",\"end_time\":\"1691545277000000000\",\"limit\":\"10\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/staking/get-stake-history": {
+   "POST": [
+    {
+     "data": {
+      "id": "1",
+      "method": "private/staking/get-stake-history",
+      "code": "0",
+      "result": {
+       "data": [
+        {
+         "instrument_name": "SOL.staked",
+         "underlying_inst_name": "SOL",
+         "cycle_id": "5819",
+         "staking_id": "4611686018444920315",
+         "status": "COMPLETED",
+         "account": "8b1fd0a5-3d2e-4f7a-9c61-2e5b7a4d9f30",
+         "quantity": "1",
+         "side": "STAKE",
+         "create_timestamp_ms": "1691458765432"
+        },
+        {
+         "instrument_name": "SOL.staked",
+         "underlying_inst_name": "SOL",
+         "cycle_id": "5820",
+         "staking_id": "4611686018444937786",
+         "status": "REJECTED",
+         "account": "8b1fd0a5-3d2e-4f7a-9c61-2e5b7a4d9f30",
+         "quantity": "0.5",
+         "side": "UNSTAKE",
+         "create_timestamp_ms": "1691512345678"
+        }
+       ]
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"instrument_name\":\"SOL.staked\",\"start_time\":\"1691455454495000000\",\"end_time\":\"1691545277000000000\",\"limit\":\"10\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/staking/get-staking-instruments": {
+   "POST": [
+    {
+     "data": {
+      "id": "1",
+      "method": "private/staking/get-staking-instruments",
+      "code": "0",
+      "result": {
+       "data": [
+        {
+         "instrument_name": "SOL.staked",
+         "underlying_inst_name": "SOL",
+         "reward_inst_name": "SOL.staked",
+         "out_of_stock": false,
+         "block_unstake": false,
+         "est_rewards": "0.0661",
+         "apr_y": "APR",
+         "min_stake_amt": "0.00000001",
+         "reward_frequency": "2.5",
+         "lock_up_period": "5",
+         "is_compound_reward": true,
+         "pre_stake_charge_enable": false,
+         "pre_stake_charge_rate_in_bps": "0",
+         "is_restaked": false,
+         "additional_rewards": []
+        },
+        {
+         "instrument_name": "DYDX.staked",
+         "underlying_inst_name": "DYDX",
+         "reward_inst_name": "DYDX",
+         "out_of_stock": false,
+         "block_unstake": false,
+         "est_rewards": "0.05",
+         "apr_y": "APR",
+         "min_stake_amt": "0.00000001",
+         "reward_frequency": "1",
+         "lock_up_period": "31",
+         "is_compound_reward": false,
+         "pre_stake_charge_enable": false,
+         "pre_stake_charge_rate_in_bps": "0",
+         "is_restaked": false,
+         "additional_rewards": [
+          {
+           "reward_inst_name": "USD_Stable_Coin"
+          }
+         ]
+        }
+       ]
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/staking/get-staking-position": {
+   "POST": [
+    {
+     "data": {
+      "id": "1",
+      "method": "private/staking/get-staking-position",
+      "code": "0",
+      "result": {
+       "data": [
+        {
+         "instrument_name": "SOL.staked",
+         "underlying_inst_name": "SOL",
+         "staked_quantity": "30000.00",
+         "pending_staked_quantity": "20000.00",
+         "pending_unstaked_quantity": "10000.00",
+         "reward_eligible_quantity": "10000.00"
+        }
+       ]
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"instrument_name\":\"SOL.staked\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/staking/stake": {
+   "POST": [
+    {
+     "data": {
+      "id": "1",
+      "method": "private/staking/stake",
+      "code": "0",
+      "result": {
+       "staking_id": "4611686018445261031",
+       "instrument_name": "SOL.staked",
+       "status": "NEW",
+       "quantity": "1",
+       "underlying_inst_name": "SOL",
+       "pre_stake_charge_rate_in_bps": "50",
+       "pre_stake_charge": "0.005",
+       "reason": "NO_ERROR"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"instrument_name\":\"SOL.staked\",\"quantity\":\"1\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/staking/unstake": {
+   "POST": [
+    {
+     "data": {
+      "id": "1",
+      "method": "private/staking/unstake",
+      "code": "0",
+      "result": {
+       "staking_id": "4611686018445261047",
+       "instrument_name": "SOL.staked",
+       "status": "NEW",
+       "quantity": "0.5",
+       "underlying_inst_name": "SOL",
+       "reason": "NO_ERROR"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"instrument_name\":\"SOL.staked\",\"quantity\":\"0.5\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/user-balance": {
+   "POST": [
+    {
+     "data": {
+      "id": "11",
+      "method": "private/user-balance",
+      "code": "0",
+      "result": {
+       "data": [
+        {
+         "total_available_balance": "4721.05898582",
+         "total_margin_balance": "7595.42571782",
+         "total_initial_margin": "2874.36673202",
+         "total_position_im": "486.31273202",
+         "total_haircut": "2388.054",
+         "total_maintenance_margin": "1437.18336601",
+         "total_position_cost": "14517.54641301",
+         "total_cash_balance": "7890.00320721",
+         "total_collateral_value": "7651.18811483",
+         "total_session_unrealized_pnl": "-55.76239701",
+         "instrument_name": "USD",
+         "total_session_realized_pnl": "3.21000000",
+         "is_liquidating": false,
+         "total_effective_leverage": "1.90401230",
+         "position_limit": "3000000.00000000",
+         "used_position_limit": "40674.69622001",
+         "total_isolated_cash_balance": "0.00000000",
+         "total_risk_exposure": "15003.85914503",
+         "total_borrow": "120.50000000",
+         "margin_score": "0.18922107",
+         "has_risk": true,
+         "terminatable": false,
+         "credit_limits": [],
+         "isolated_positions": [],
+         "position_balances": [
+          {
+           "instrument_name": "CRO",
+           "quantity": "24422.72427884",
+           "market_value": "4776.107959969951",
+           "collateral_eligible": true,
+           "haircut": "0.5",
+           "collateral_amount": "2388.053979984976",
+           "max_withdrawal_balance": "24400.00000000",
+           "reserved_qty": "22.72427884",
+           "hourly_interest_rate": "0"
+          },
+          {
+           "instrument_name": "USD",
+           "quantity": "3113.50747209",
+           "market_value": "3113.50747209",
+           "collateral_eligible": true,
+           "haircut": "0",
+           "collateral_amount": "3113.50747209",
+           "max_withdrawal_balance": "3113.50747209",
+           "reserved_qty": "12.50000000",
+           "hourly_interest_rate": "0.00000571"
+          }
+         ]
+        }
+       ]
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/private/user-balance-history": {
+   "POST": [
+    {
+     "data": {
+      "id": "11",
+      "method": "private/user-balance-history",
+      "code": "0",
+      "result": {
+       "instrument_name": "USD",
+       "data": [
+        {
+         "t": "1629392400000",
+         "c": "798.354209"
+        },
+        {
+         "t": "1629478800000",
+         "c": "811.621851"
+        }
+       ]
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"api_key\":\"mock-api-key\",\"end_time\":\"1629565200000000000\",\"limit\":\"2\",\"timeframe\":\"D1\"}",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/public/get-book": {
+   "GET": [
+    {
+     "data": {
+      "id": -1,
+      "method": "public/get-book",
+      "code": 0,
+      "result": {
+       "depth": 3,
+       "data": [
+        {
+         "bids": [
+          [
+           "80815.15",
+           "0.47123",
+           "11"
+          ],
+          [
+           "80814.77",
+           "0.03094",
+           "1"
+          ],
+          [
+           "80814.46",
+           "0.00280",
+           "1"
+          ]
+         ],
+         "asks": [
+          [
+           "80815.16",
+           "0.43305",
+           "7"
+          ],
+          [
+           "80815.22",
+           "0.03094",
+           "1"
+          ],
+          [
+           "80815.97",
+           "0.24000",
+           "2"
+          ]
+         ],
+         "t": 1792893935228
+        }
+       ],
+       "instrument_name": "BTC_USD"
+      }
+     },
+     "queryString": "depth=3\u0026instrument_name=BTC_USD",
+     "bodyParams": "",
+     "headers": null
+    },
+    {
+     "data": {
+      "id": -1,
+      "method": "public/get-book",
+      "code": 0,
+      "result": {
+       "depth": 3,
+       "data": [
+        {
+         "bids": [
+          [
+           "80817.5",
+           "0.0027",
+           "2"
+          ],
+          [
+           "80816.4",
+           "0.0712",
+           "2"
+          ],
+          [
+           "80816.3",
+           "0.0775",
+           "1"
+          ]
+         ],
+         "asks": [
+          [
+           "80817.6",
+           "0.0301",
+           "2"
+          ],
+          [
+           "80818.1",
+           "0.0030",
+           "1"
+          ],
+          [
+           "80821.6",
+           "0.0001",
+           "1"
+          ]
+         ],
+         "t": 1792893936026
+        }
+       ],
+       "instrument_name": "BTCUSD-PERP"
+      }
+     },
+     "queryString": "depth=3\u0026instrument_name=BTCUSD-PERP",
+     "bodyParams": "",
+     "headers": null
+    },
+    {
+     "data": {
+      "id": -1,
+      "method": "public/get-book",
+      "code": 0,
+      "result": {
+       "depth": 150,
+       "data": [
+        {
+         "bids": [
+          [
+           "80848.56",
+           "0.24979",
+           "8"
+          ],
+          [
+           "80847.76",
+           "0.15236",
+           "2"
+          ],
+          [
+           "80847.75",
+           "0.21313",
+           "2"
+          ]
+         ],
+         "asks": [
+          [
+           "80848.57",
+           "1.03020",
+           "12"
+          ],
+          [
+           "80849.33",
+           "0.00250",
+           "1"
+          ],
+          [
+           "80849.37",
+           "0.18944",
+           "1"
+          ]
+         ],
+         "t": 1792899076792
+        }
+       ],
+       "instrument_name": "BTC_USD"
+      }
+     },
+     "queryString": "instrument_name=BTC_USD",
+     "bodyParams": "",
+     "headers": null
+    },
+    {
+     "data": {
+      "id": -1,
+      "method": "public/get-book",
+      "code": 0,
+      "result": {
+       "depth": 150,
+       "data": [
+        {
+         "bids": [
+          [
+           "80846.3",
+           "0.1601",
+           "5"
+          ],
+          [
+           "80846.2",
+           "0.0012",
+           "1"
+          ],
+          [
+           "80845.1",
+           "0.0300",
+           "1"
+          ]
+         ],
+         "asks": [
+          [
+           "80846.4",
+           "0.0463",
+           "6"
+          ],
+          [
+           "80847.4",
+           "0.0876",
+           "1"
+          ],
+          [
+           "80849.4",
+           "0.0025",
+           "1"
+          ]
+         ],
+         "t": 1792899077501
+        }
+       ],
+       "instrument_name": "BTCUSD-PERP"
+      }
+     },
+     "queryString": "instrument_name=BTCUSD-PERP",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/public/get-candlestick": {
+   "GET": [
+    {
+     "data": {
+      "id": -1,
+      "method": "public/get-candlestick",
+      "code": 0,
+      "result": {
+       "interval": "1h",
+       "data": [
+        {
+         "o": "81097.00",
+         "h": "81120.26",
+         "l": "80508.11",
+         "c": "80535.23",
+         "v": "202.44773",
+         "t": 1792800000000
+        },
+        {
+         "o": "80533.86",
+         "h": "80886.45",
+         "l": "80524.08",
+         "c": "80837.08",
+         "v": "138.48729",
+         "t": 1792803600000
+        },
+        {
+         "o": "80837.08",
+         "h": "80907.20",
+         "l": "80744.00",
+         "c": "80905.17",
+         "v": "55.85107",
+         "t": 1792807200000
+        }
+       ],
+       "instrument_name": "BTC_USD"
+      }
+     },
+     "queryString": "count=3\u0026end_ts=1792810800000\u0026instrument_name=BTC_USD\u0026start_ts=1792800000000\u0026timeframe=1h",
+     "bodyParams": "",
+     "headers": null
+    },
+    {
+     "data": {
+      "id": -1,
+      "method": "public/get-candlestick",
+      "code": 0,
+      "result": {
+       "interval": "1D",
+       "data": [
+        {
+         "o": "84030.9",
+         "h": "84307.8",
+         "l": "80829.1",
+         "c": "81322.9",
+         "v": "4043.4965",
+         "t": 1792627200000
+        },
+        {
+         "o": "81323.8",
+         "h": "81964.8",
+         "l": "80413.9",
+         "c": "81089.6",
+         "v": "2882.9591",
+         "t": 1792713600000
+        }
+       ],
+       "instrument_name": "BTCUSD-PERP"
+      }
+     },
+     "queryString": "count=2\u0026end_ts=1792800000000\u0026instrument_name=BTCUSD-PERP\u0026timeframe=1D",
+     "bodyParams": "",
+     "headers": null
+    },
+    {
+     "data": {
+      "id": -1,
+      "method": "public/get-candlestick",
+      "code": 0,
+      "result": {
+       "interval": "1h",
+       "data": [
+        {
+         "o": "81097.00",
+         "h": "81120.26",
+         "l": "80508.11",
+         "c": "80535.23",
+         "v": "202.44773",
+         "t": 1792800000000
+        },
+        {
+         "o": "80533.86",
+         "h": "80886.45",
+         "l": "80524.08",
+         "c": "80837.08",
+         "v": "138.48729",
+         "t": 1792803600000
+        },
+        {
+         "o": "80837.08",
+         "h": "80907.20",
+         "l": "80744.00",
+         "c": "80905.17",
+         "v": "55.85107",
+         "t": 1792807200000
+        }
+       ],
+       "instrument_name": "BTC_USD"
+      }
+     },
+     "queryString": "count=300\u0026end_ts=1792810799999\u0026instrument_name=BTC_USD\u0026start_ts=1792800000000\u0026timeframe=1h",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/public/get-deposit-instruments": {
+   "GET": [
+    {
+     "data": {
+      "id": -1,
+      "method": "public/get-deposit-instruments",
+      "code": 0,
+      "result": [
+       {
+        "symbol": "BTC",
+        "inst_type": "CCY",
+        "display_name": "BTC",
+        "base_ccy": "BTC",
+        "quote_ccy": "BTC",
+        "quote_decimals": 8,
+        "quantity_decimals": 8,
+        "haircut": "0.0625",
+        "collateral_eligible": true,
+        "price_tick_size": "0.00000001",
+        "qty_tick_size": "0.00000001",
+        "max_leverage": "1",
+        "tradable": false,
+        "expiry_timestamp_ms": 0,
+        "beta_product": false,
+        "conversion_fee": "0.40",
+        "margin_buy_enabled": false,
+        "margin_sell_enabled": false
+       },
+       {
+        "symbol": "SOL.staked-COLLATERAL",
+        "inst_type": "COLLATERAL",
+        "display_name": "SOL.staked-COLLATERAL",
+        "base_ccy": "SOL",
+        "quote_ccy": "SOL",
+        "quote_decimals": 8,
+        "quantity_decimals": 8,
+        "price_tick_size": "0.00000001",
+        "qty_tick_size": "0.00000001",
+        "max_leverage": "1",
+        "tradable": false,
+        "expiry_timestamp_ms": 0,
+        "beta_product": false,
+        "underlying_symbol": "SOL.staked",
+        "conversion_fee": "0.40",
+        "margin_buy_enabled": false,
+        "margin_sell_enabled": false
+       },
+       {
+        "symbol": "HYPE",
+        "inst_type": "CCY",
+        "display_name": "HYPE",
+        "base_ccy": "HYPE",
+        "quote_ccy": "HYPE",
+        "quote_decimals": 8,
+        "quantity_decimals": 8,
+        "haircut": "1.0",
+        "collateral_eligible": false,
+        "price_tick_size": "0.00000001",
+        "qty_tick_size": "0.00000001",
+        "max_leverage": "1",
+        "tradable": false,
+        "expiry_timestamp_ms": 0,
+        "beta_product": false,
+        "conversion_fee": "0.40",
+        "product_type": "DIGITAL_CURRENCIES",
+        "margin_buy_enabled": false,
+        "margin_sell_enabled": false
+       }
+      ]
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/public/get-expired-settlement-price": {
+   "GET": [
+    {
+     "data": {
+      "id": -1,
+      "method": "public/get-expired-settlement-price",
+      "code": 0,
+      "result": {
+       "data": [
+        {
+         "i": "ETHUSD-260925",
+         "x": 1790323200000,
+         "v": "2672.67",
+         "t": 1790323199500
+        },
+        {
+         "i": "BTCUSD-260925",
+         "x": 1790323200000,
+         "v": "83934.3",
+         "t": 1790323199500
+        }
+       ]
+      }
+     },
+     "queryString": "instrument_type=FUTURE",
+     "bodyParams": "",
+     "headers": null
+    },
+    {
+     "data": {
+      "id": -1,
+      "method": "public/get-expired-settlement-price",
+      "code": 0,
+      "result": {
+       "data": [
+        {
+         "i": "BTCUSD-260424",
+         "x": 1777017600000,
+         "v": "77732.1",
+         "t": 1777017599500
+        },
+        {
+         "i": "ETHUSD-260424",
+         "x": 1777017600000,
+         "v": "2313.94",
+         "t": 1777017599500
+        }
+       ]
+      }
+     },
+     "queryString": "instrument_type=FUTURE\u0026page=2",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/public/get-instruments": {
+   "GET": [
+    {
+     "data": {
+      "id": -1,
+      "method": "public/get-instruments",
+      "code": 0,
+      "result": {
+       "data": [
+        {
+         "symbol": "BTC_USD",
+         "inst_type": "CCY_PAIR",
+         "display_name": "BTC/USD",
+         "base_ccy": "BTC",
+         "quote_ccy": "USD",
+         "quote_decimals": 2,
+         "quantity_decimals": 5,
+         "price_tick_size": "0.01",
+         "qty_tick_size": "0.00001",
+         "max_leverage": "50",
+         "tradable": true,
+         "expiry_timestamp_ms": 0,
+         "beta_product": false,
+         "product_type": "DIGITAL_CURRENCIES",
+         "margin_buy_enabled": true,
+         "margin_sell_enabled": true
+        },
+        {
+         "symbol": "BTCUSD-PERP",
+         "inst_type": "PERPETUAL_SWAP",
+         "display_name": "BTCUSD Perpetual",
+         "base_ccy": "BTC",
+         "quote_ccy": "USD",
+         "quote_decimals": 1,
+         "quantity_decimals": 4,
+         "price_tick_size": "0.1",
+         "qty_tick_size": "0.0001",
+         "max_leverage": "100",
+         "tradable": true,
+         "expiry_timestamp_ms": 0,
+         "beta_product": false,
+         "underlying_symbol": "BTCUSD-INDEX",
+         "contract_size": "1",
+         "product_type": "DIGITAL_CURRENCIES",
+         "margin_buy_enabled": false,
+         "margin_sell_enabled": false
+        },
+        {
+         "symbol": "BTCUSD-261030",
+         "inst_type": "FUTURE",
+         "display_name": "BTCUSD Futures 20261030",
+         "base_ccy": "BTC",
+         "quote_ccy": "USD",
+         "quote_decimals": 1,
+         "quantity_decimals": 4,
+         "price_tick_size": "0.1",
+         "qty_tick_size": "0.0001",
+         "max_leverage": "100",
+         "tradable": true,
+         "expiry_timestamp_ms": 1793347200000,
+         "beta_product": false,
+         "underlying_symbol": "BTCUSD-INDEX",
+         "contract_size": "1",
+         "product_type": "DIGITAL_CURRENCIES",
+         "margin_buy_enabled": false,
+         "margin_sell_enabled": false
+        },
+        {
+         "symbol": "SHIB_BTC@OEX_HK",
+         "inst_type": "CCY_PAIR",
+         "display_name": "SHIB/BTC",
+         "base_ccy": "SHIB",
+         "quote_ccy": "BTC",
+         "quote_decimals": 14,
+         "quantity_decimals": 0,
+         "price_tick_size": "0.00000000000001",
+         "qty_tick_size": "10000",
+         "max_leverage": "50",
+         "tradable": true,
+         "expiry_timestamp_ms": 0,
+         "beta_product": false,
+         "margin_buy_enabled": true,
+         "margin_sell_enabled": true
+        }
+       ]
+      }
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/public/get-insurance": {
+   "GET": [
+    {
+     "data": {
+      "id": -1,
+      "method": "public/get-insurance",
+      "code": 0,
+      "result": {
+       "data": [
+        {
+         "v": "7351059.39615527389065578",
+         "t": 1792807200028
+        },
+        {
+         "v": "7351060.35128467012890248",
+         "t": 1792803600028
+        },
+        {
+         "v": "7351060.35128467012890248",
+         "t": 1792800001961
+        }
+       ],
+       "instrument_name": "USD"
+      }
+     },
+     "queryString": "count=3\u0026end_ts=1792810800000\u0026instrument_name=USD\u0026start_ts=1792800000000",
+     "bodyParams": "",
+     "headers": null
+    },
+    {
+     "data": {
+      "id": -1,
+      "method": "public/get-insurance",
+      "code": 0,
+      "result": {
+       "data": [],
+       "instrument_name": "BTC"
+      }
+     },
+     "queryString": "count=3\u0026instrument_name=BTC",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/public/get-risk-parameters": {
+   "GET": [
+    {
+     "data": {
+      "id": -1,
+      "method": "public/get-risk-parameters",
+      "code": 0,
+      "result": {
+       "default_max_product_leverage_for_spot": "1.0",
+       "default_max_product_leverage_for_perps": "20.0",
+       "default_max_product_leverage_for_futures": "20.0",
+       "default_umr_multiplier_for_spot": "1.0",
+       "default_umr_multiplier_for_perps": "1.0",
+       "default_umr_multiplier_for_futures": "2.0",
+       "default_long_pos_limit_perps": "-1.0",
+       "default_short_pos_limit_perps": "-1.0",
+       "default_long_pos_limit_futures": "-1.0",
+       "default_short_pos_limit_futures": "-1.0",
+       "default_unit_margin_rate": "0.05",
+       "default_collateral_cap": "0.0",
+       "update_timestamp_ms": 1792728159827,
+       "base_currency_config": [
+        {
+         "instrument_name": "BTC",
+         "collateral_cap_notional": "20000000",
+         "minimum_haircut": "0.0625",
+         "max_product_leverage_for_spot": "16.0",
+         "max_product_leverage_for_perps": "50.0",
+         "unit_margin_rate": "0.006",
+         "max_short_sell_limit": "200.0",
+         "order_limit": "1000000.0",
+         "max_order_notional_usd": "1000000.0",
+         "min_order_notional_usd": "1.0",
+         "long_pos_limit_perps": "9700.0",
+         "short_pos_limit_perps": "9700.0",
+         "long_pos_limit_futures": "512.0",
+         "short_pos_limit_futures": "512.0"
+        },
+        {
+         "instrument_name": "BASECAT",
+         "minimum_haircut": "0",
+         "max_product_leverage_for_perps": "10.0",
+         "unit_margin_rate": "0.00020",
+         "daily_notional_limit": "100000.0",
+         "order_limit": "10000.0",
+         "max_order_notional_usd": "10000.0",
+         "min_order_notional_usd": "1.0",
+         "long_pos_limit_perps": "25000000",
+         "short_pos_limit_perps": "25000000"
+        },
+        {
+         "instrument_name": "USD_Stable_Coin",
+         "collateral_cap_notional": "-1.0",
+         "minimum_haircut": "0",
+         "unit_margin_rate": "0.0",
+         "max_short_sell_limit": "4000000.0",
+         "order_limit": "5000000.0",
+         "max_order_notional_usd": "5000000.0",
+         "min_order_notional_usd": "1.0"
+        }
+       ],
+       "perpetual_swap_config": [
+        {
+         "instrument_name": "1INCH",
+         "max_order_notional_usd": "500000.0"
+        }
+       ],
+       "futures_config": [
+        {
+         "instrument_name": "1INCH",
+         "max_order_notional_usd": "2500000.0"
+        }
+       ]
+      }
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/public/get-tickers": {
+   "GET": [
+    {
+     "data": {
+      "id": -1,
+      "method": "public/get-tickers",
+      "code": 0,
+      "result": {
+       "data": [
+        {
+         "i": "ACH_USD",
+         "h": "0.005229",
+         "l": "0.004969",
+         "a": "0.005159",
+         "v": "479210",
+         "vv": "2470.19",
+         "c": "-0.0079",
+         "b": "0.005159",
+         "k": "0.005179",
+         "oi": "0",
+         "t": 1792893939837
+        },
+        {
+         "i": "SHAZUSD-PERP",
+         "h": "23.09",
+         "l": "22.38",
+         "a": "22.44",
+         "v": "16.48",
+         "vv": "371.92",
+         "c": "-0.0282",
+         "b": "22.76",
+         "k": "22.80",
+         "oi": "5.60",
+         "t": 1792893900501
+        },
+        {
+         "i": "SHIB_BTC@OEX_HK",
+         "h": "0.00000000025200",
+         "l": "0.00000000025200",
+         "a": "0.00000000025200",
+         "v": "0",
+         "vv": "0",
+         "c": "0",
+         "b": null,
+         "k": "0.00000000030000",
+         "oi": null,
+         "t": 1792893900131
+        }
+       ]
+      }
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": null
+    },
+    {
+     "data": {
+      "id": -1,
+      "method": "public/get-tickers",
+      "code": 0,
+      "result": {
+       "data": [
+        {
+         "i": "BTC_USD",
+         "h": "81007.04",
+         "l": "79128.21",
+         "a": "80815.22",
+         "v": "2201.6316",
+         "vv": "176643650.40",
+         "c": "-0.0002",
+         "b": "80816.57",
+         "k": "80816.58",
+         "oi": "0",
+         "t": 1792893939611
+        }
+       ]
+      }
+     },
+     "queryString": "instrument_name=BTC_USD",
+     "bodyParams": "",
+     "headers": null
+    },
+    {
+     "data": {
+      "id": -1,
+      "method": "public/get-tickers",
+      "code": 0,
+      "result": {
+       "data": [
+        {
+         "i": "BTCUSD-PERP",
+         "h": "81004.7",
+         "l": "79117.7",
+         "a": "80816.4",
+         "v": "2497.9661",
+         "vv": "200360781.94",
+         "c": "-0.0001",
+         "b": "80818.1",
+         "k": "80818.2",
+         "oi": "6180.2299",
+         "t": 1792893941098
+        }
+       ]
+      }
+     },
+     "queryString": "instrument_name=BTCUSD-PERP",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/public/get-trades": {
+   "GET": [
+    {
+     "data": {
+      "id": -1,
+      "method": "public/get-trades",
+      "code": 0,
+      "result": {
+       "data": [
+        {
+         "d": "1792892786513932606",
+         "t": 1792892786513,
+         "tn": 1792892786513932604,
+         "q": "0.02992",
+         "p": "80778.00",
+         "s": "buy",
+         "i": "BTC_USD",
+         "m": "4611686018750829219"
+        },
+        {
+         "d": "1792892786513932605",
+         "t": 1792892786513,
+         "tn": 1792892786513932604,
+         "q": "0.00003",
+         "p": "80778.00",
+         "s": "buy",
+         "i": "BTC_USD",
+         "m": "4611686018750829219"
+        },
+        {
+         "d": "1792892786513932604",
+         "t": 1792892786513,
+         "tn": 1792892786513932604,
+         "q": "0.00005",
+         "p": "80778.00",
+         "s": "buy",
+         "i": "BTC_USD",
+         "m": "4611686018750829219"
+        }
+       ]
+      }
+     },
+     "queryString": "count=3\u0026end_ts=1792892787000000000\u0026instrument_name=BTC_USD\u0026start_ts=1792892786000000000",
+     "bodyParams": "",
+     "headers": null
+    },
+    {
+     "data": {
+      "id": -1,
+      "method": "public/get-trades",
+      "code": 0,
+      "result": {
+       "data": [
+        {
+         "d": "1792893935765996075",
+         "t": 1792893935765,
+         "tn": 1792893935765996075,
+         "q": "0.0025",
+         "p": "80816.4",
+         "s": "buy",
+         "i": "BTCUSD-PERP",
+         "m": "4611686018798094314"
+        },
+        {
+         "d": "1792893935765994309",
+         "t": 1792893935765,
+         "tn": 1792893935765994309,
+         "q": "0.0001",
+         "p": "80815.4",
+         "s": "buy",
+         "i": "BTCUSD-PERP",
+         "m": "4611686018798094313"
+        },
+        {
+         "d": "1792893933495739253",
+         "t": 1792893933495,
+         "tn": 1792893933495739252,
+         "q": "0.0001",
+         "p": "80810.2",
+         "s": "buy",
+         "i": "BTCUSD-PERP",
+         "m": "4611686018798094312"
+        }
+       ]
+      }
+     },
+     "queryString": "count=3\u0026instrument_name=BTCUSD-PERP",
+     "bodyParams": "",
+     "headers": null
+    },
+    {
+     "data": {
+      "id": -1,
+      "method": "public/get-trades",
+      "code": 0,
+      "result": {
+       "data": [
+        {
+         "d": "1792899071637623911",
+         "t": 1792899071637,
+         "tn": 1792899071637623911,
+         "q": "0.00002",
+         "p": "80849.37",
+         "s": "sell",
+         "i": "BTC_USD",
+         "m": "4611686018750832157"
+        },
+        {
+         "d": "1792899071550749165",
+         "t": 1792899071550,
+         "tn": 1792899071550749165,
+         "q": "0.03092",
+         "p": "80850.58",
+         "s": "sell",
+         "i": "BTC_USD",
+         "m": "4611686018750832156"
+        },
+        {
+         "d": "1792899071545150829",
+         "t": 1792899071545,
+         "tn": 1792899071545150827,
+         "q": "0.00002",
+         "p": "80850.58",
+         "s": "sell",
+         "i": "BTC_USD",
+         "m": "4611686018750832155"
+        }
+       ]
+      }
+     },
+     "queryString": "count=150\u0026instrument_name=BTC_USD",
+     "bodyParams": "",
+     "headers": null
+    },
+    {
+     "data": {
+      "id": -1,
+      "method": "public/get-trades",
+      "code": 0,
+      "result": {
+       "data": [
+        {
+         "d": "1792800000042959688",
+         "t": 1792800000042,
+         "tn": 1792800000042959687,
+         "q": "0.00009",
+         "p": "81097.00",
+         "s": "buy",
+         "i": "BTC_USD",
+         "m": "4611686018750730746"
+        },
+        {
+         "d": "1792800000042959687",
+         "t": 1792800000042,
+         "tn": 1792800000042959687,
+         "q": "0.00003",
+         "p": "81097.00",
+         "s": "buy",
+         "i": "BTC_USD",
+         "m": "4611686018750730746"
+        }
+       ]
+      }
+     },
+     "queryString": "count=150\u0026end_ts=1792800001000000000\u0026instrument_name=BTC_USD\u0026start_ts=1792800000000000000",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/public/get-valuations": {
+   "GET": [
+    {
+     "data": {
+      "id": -1,
+      "method": "public/get-valuations",
+      "code": 0,
+      "result": {
+       "data": [
+        {
+         "v": "80799.0",
+         "t": 1792893906000
+        },
+        {
+         "v": "80796.52",
+         "t": 1792893886000
+        },
+        {
+         "v": "80796.52",
+         "t": 1792893885000
+        }
+       ],
+       "instrument_name": "BTCUSD-INDEX"
+      }
+     },
+     "queryString": "count=3\u0026instrument_name=BTCUSD-INDEX\u0026valuation_type=index_price",
+     "bodyParams": "",
+     "headers": null
+    },
+    {
+     "data": {
+      "id": -1,
+      "method": "public/get-valuations",
+      "code": 0,
+      "result": {
+       "data": [
+        {
+         "v": "0.000008003",
+         "t": 1792807200000
+        },
+        {
+         "v": "0.000008003",
+         "t": 1792803600000
+        },
+        {
+         "v": "0.000007063",
+         "t": 1792800000000
+        }
+       ],
+       "instrument_name": "BTCUSD-PERP"
+      }
+     },
+     "queryString": "count=3\u0026end_ts=1792810800000\u0026instrument_name=BTCUSD-PERP\u0026start_ts=1792800000000\u0026valuation_type=funding_hist",
+     "bodyParams": "",
+     "headers": null
+    },
+    {
+     "data": {
+      "id": -1,
+      "method": "public/get-valuations",
+      "code": 0,
+      "result": {
+       "data": [
+        {
+         "v": "80727.6",
+         "t": 1792894626000
+        },
+        {
+         "v": "80744.33",
+         "t": 1792894605000
+        }
+       ],
+       "instrument_name": "BTC_USD"
+      }
+     },
+     "queryString": "count=2\u0026instrument_name=BTC_USD\u0026valuation_type=mark_price",
+     "bodyParams": "",
+     "headers": null
+    },
+    {
+     "data": {
+      "id": -1,
+      "method": "public/get-valuations",
+      "code": 0,
+      "result": {
+       "data": [
+        {
+         "v": "0.000009839",
+         "t": 1792899065000
+        }
+       ],
+       "instrument_name": "BTCUSD-PERP"
+      }
+     },
+     "queryString": "count=1\u0026instrument_name=BTCUSD-PERP\u0026valuation_type=funding_rate",
+     "bodyParams": "",
+     "headers": null
+    },
+    {
+     "data": {
+      "id": -1,
+      "method": "public/get-valuations",
+      "code": 0,
+      "result": {
+       "data": [
+        {
+         "v": "0.000006556",
+         "t": 1792899059000
+        }
+       ],
+       "instrument_name": "BTCUSD-PERP"
+      }
+     },
+     "queryString": "count=1\u0026instrument_name=BTCUSD-PERP\u0026valuation_type=estimated_funding_rate",
+     "bodyParams": "",
+     "headers": null
+    },
+    {
+     "data": {
+      "id": -1,
+      "method": "public/get-valuations",
+      "code": 0,
+      "result": {
+       "data": [
+        {
+         "v": "0.000012072",
+         "t": 1792899065000
+        }
+       ],
+       "instrument_name": "ETHUSD-PERP"
+      }
+     },
+     "queryString": "count=1\u0026instrument_name=ETHUSD-PERP\u0026valuation_type=funding_rate",
+     "bodyParams": "",
+     "headers": null
+    },
+    {
+     "data": {
+      "id": -1,
+      "method": "public/get-valuations",
+      "code": 0,
+      "result": {
+       "data": [
+        {
+         "v": "0.000011392",
+         "t": 1792899059000
+        }
+       ],
+       "instrument_name": "ETHUSD-PERP"
+      }
+     },
+     "queryString": "count=1\u0026instrument_name=ETHUSD-PERP\u0026valuation_type=estimated_funding_rate",
+     "bodyParams": "",
+     "headers": null
+    },
+    {
+     "data": {
+      "id": -1,
+      "method": "public/get-valuations",
+      "code": 0,
+      "result": {
+       "data": [
+        {
+         "v": "0.000008003",
+         "t": 1792807200000
+        },
+        {
+         "v": "0.000008003",
+         "t": 1792803600000
+        },
+        {
+         "v": "0.000007063",
+         "t": 1792800000000
+        }
+       ],
+       "instrument_name": "BTCUSD-PERP"
+      }
+     },
+     "queryString": "count=1000\u0026end_ts=1792810800000\u0026instrument_name=BTCUSD-PERP\u0026start_ts=1792800000000\u0026valuation_type=funding_hist",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/exchange/v1/public/staking/get-conversion-rate": {
+   "POST": [
+    {
+     "data": {
+      "id": 1,
+      "method": "public/staking/get-conversion-rate",
+      "code": 0,
+      "result": {
+       "instrument_name": "CDCETH",
+       "conversion_rate": "1.0768"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"instrument_name\":\"CDCETH\"}",
+     "headers": null
+    }
+   ]
+  }
+ }
+}
