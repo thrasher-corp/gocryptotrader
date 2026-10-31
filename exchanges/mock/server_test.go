@@ -371,6 +371,22 @@ func TestMatchAndGetResponse(t *testing.T) {
 	}
 }
 
+// TestMatchAndGetResponseNestedJSONBody matches a recorded JSON body holding arrays, objects and null against the
+// request values the server derives from the same body
+func TestMatchAndGetResponseNestedJSONBody(t *testing.T) {
+	t.Parallel()
+	body := `{"orders":[{"txid":"OAIYAU-LGI3M-PFM5VW"},{"txid":"OLUMT4-UTEGU-ZYM7E9"}],"close":{"ordertype":"limit","price":"1"},"cursor":null,"nonce":1}`
+	requestVals, err := DeriveURLValsFromJSONMap([]byte(body))
+	require.NoError(t, err, "DeriveURLValsFromJSONMap must not error")
+	got, err := MatchAndGetResponse([]HTTPResponse{{BodyParams: body, Data: json.RawMessage(`{"match":"nested"}`)}}, requestVals, false)
+	require.NoError(t, err, "MatchAndGetResponse must match a recorded body holding arrays, objects and null")
+	assert.JSONEq(t, `{"match":"nested"}`, string(got), "MatchAndGetResponse should return the recorded data")
+
+	requestVals.Set("close", `{"ordertype":"market"}`)
+	_, err = MatchAndGetResponse([]HTTPResponse{{BodyParams: body, Data: json.RawMessage(`{"match":"nested"}`)}}, requestVals, false)
+	assert.ErrorIs(t, err, errNoDataMatched, "MatchAndGetResponse should not match a body whose nested value differs")
+}
+
 func TestJSONBodyArrayRegression(t *testing.T) {
 	t.Parallel()
 

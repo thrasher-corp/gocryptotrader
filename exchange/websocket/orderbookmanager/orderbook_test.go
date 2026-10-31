@@ -492,6 +492,121 @@ func TestLoadSnapshotConcurrentDepthStability(t *testing.T) {
 	require.Len(t, obl.ob, 1, "LoadSnapshot must retain one orderbook entry")
 }
 
+func TestLoadSnapshotWithOptions(t *testing.T) {
+	t.Parallel()
+	cp, err := getExclusivePair()
+	require.NoError(t, err, "getExclusivePair must not error")
+	obl := Orderbook{
+		dataHandler:  stream.NewRelay(10),
+		exchangeName: exchangeName,
+		ob:           make(map[key.PairAsset]*orderbook.Depth),
+	}
+	// relayedBook returns the only payload relayed since it was last called
+	relayedBook := func() any {
+		t.Helper()
+		require.Len(t, obl.dataHandler.C, 1, "one book must be relayed")
+		return (<-obl.dataHandler.C).Data
+	}
+	// stored returns the book stored and the book expected: exp with the time the stored book was inserted at
+	stored := func(exp *orderbook.Book) (got, want *orderbook.Book) {
+		t.Helper()
+		got, err := obl.GetOrderbook(cp, asset.Spot)
+		require.NoError(t, err, "GetOrderbook must not error")
+		inserted := *exp
+		inserted.InsertedAt = got.InsertedAt
+		return got, &inserted
+	}
+
+	invalid := &orderbook.Book{Exchange: exchangeName, Pair: cp, Asset: asset.Spot, Asks: orderbook.Levels{{Amount: 1}}, LastUpdated: time.Now(), ValidateOrderbook: true}
+	require.ErrorIs(t, obl.LoadSnapshotWithOptions(t.Context(), invalid), orderbook.ErrPriceZero, "LoadSnapshotWithOptions must validate a snapshot")
+	assert.Empty(t, obl.ob, "a snapshot failing validation should not create a book")
+
+	first := &orderbook.Book{
+		Exchange:          exchangeName,
+		Pair:              cp,
+		Asset:             asset.Spot,
+		Bids:              orderbook.Levels{{Price: 100, Amount: 1}},
+		Asks:              orderbook.Levels{{Price: 101, Amount: 1}},
+		LastUpdated:       time.Unix(1, 0),
+		LastUpdateID:      1,
+		ValidateOrderbook: true,
+		MaxDepth:          10,
+	}
+	require.NoError(t, obl.LoadSnapshotWithOptions(t.Context(), first), "LoadSnapshotWithOptions must create a book")
+	bookKey := key.PairAsset{Base: cp.Base.Item, Quote: cp.Quote.Item, Asset: asset.Spot}
+	depth := obl.ob[bookKey]
+	require.NotNil(t, depth, "LoadSnapshotWithOptions must store the book it creates")
+	assert.Same(t, depth, relayedBook(), "LoadSnapshotWithOptions should relay the book it creates")
+	got, exp := stored(first)
+	assert.Equal(t, exp, got, "a book LoadSnapshotWithOptions creates should hold the snapshot with its options")
+
+	second := &orderbook.Book{
+		Exchange:          exchangeName,
+		Pair:              cp,
+		Asset:             asset.Spot,
+		Bids:              orderbook.Levels{{Price: 200, Amount: 1}, {Price: 200, Amount: 2}},
+		Asks:              orderbook.Levels{{Price: 201, Amount: 1}},
+		LastUpdated:       time.Unix(2, 0),
+		LastUpdateID:      2,
+		PriceDuplication:  true,
+		ValidateOrderbook: true,
+		MaxDepth:          25,
+	}
+	require.NoError(t, obl.LoadSnapshotWithOptions(t.Context(), second), "LoadSnapshotWithOptions must load a snapshot into an existing book")
+	assert.Same(t, depth, obl.ob[bookKey], "LoadSnapshotWithOptions should reuse an existing book")
+	assert.Same(t, depth, relayedBook(), "LoadSnapshotWithOptions should relay an existing book")
+	got, exp = stored(second)
+	assert.Equal(t, exp, got, "an existing book should take the levels and options of a snapshot LoadSnapshotWithOptions loads")
+	assert.NoError(t, got.Validate(), "the book should validate with the duplicate prices its new options allow")
+
+	noTime := *first
+	noTime.LastUpdated = time.Time{}
+	assert.ErrorIs(t, obl.LoadSnapshotWithOptions(t.Context(), &noTime), orderbook.ErrLastUpdatedNotSet, "LoadSnapshotWithOptions should refuse a snapshot without a time")
+	assert.Empty(t, obl.dataHandler.C, "a refused snapshot should not be relayed")
+	unchanged, _ := stored(second)
+	assert.Equal(t, got, unchanged, "a snapshot without a time should change neither the book's levels nor its options")
+
+	require.NoError(t, obl.LoadSnapshot(t.Context(), first), "LoadSnapshot must load a snapshot into an existing book")
+	kept := *second
+	kept.Bids, kept.Asks, kept.LastUpdated, kept.LastUpdateID = first.Bids, first.Asks, first.LastUpdated, first.LastUpdateID
+	got, exp = stored(&kept)
+	assert.Equal(t, exp, got, "LoadSnapshot should load a snapshot's levels but keep an existing book's options")
+}
+
+func TestLoadSnapshotWithOptionsOverRESTBook(t *testing.T) {
+	t.Parallel()
+	cp, err := getExclusivePair()
+	require.NoError(t, err, "getExclusivePair must not error")
+	// A book REST loaded is in the global store before the websocket's first snapshot of it
+	rest := &orderbook.Book{
+		Exchange:    exchangeName,
+		Pair:        cp,
+		Asset:       asset.Spot,
+		Bids:        orderbook.Levels{{Price: 100, Amount: 1}},
+		Asks:        orderbook.Levels{{Price: 101, Amount: 1}},
+		LastUpdated: time.Unix(1, 0),
+		MaxDepth:    10,
+	}
+	require.NoError(t, rest.Process(), "Process must not error")
+	before, err := orderbook.Get(exchangeName, cp, asset.Spot)
+	require.NoError(t, err, "Get must not error")
+	obl := Orderbook{dataHandler: stream.NewRelay(10), exchangeName: exchangeName, ob: make(map[key.PairAsset]*orderbook.Depth)}
+
+	noTime := &orderbook.Book{Exchange: exchangeName, Pair: cp, Asset: asset.Spot, Bids: orderbook.Levels{{Price: 200, Amount: 1}}, Asks: orderbook.Levels{{Price: 201, Amount: 1}}, MaxDepth: 25}
+	require.ErrorIs(t, obl.LoadSnapshotWithOptions(t.Context(), noTime), orderbook.ErrLastUpdatedNotSet, "LoadSnapshotWithOptions must refuse a first snapshot without a time")
+	after, err := orderbook.Get(exchangeName, cp, asset.Spot)
+	require.NoError(t, err, "Get must not error")
+	assert.Equal(t, before, after, "a refused first snapshot should leave the book REST loaded as it was, options included")
+
+	snapshot := *noTime
+	snapshot.LastUpdated = time.Unix(2, 0)
+	require.NoError(t, obl.LoadSnapshotWithOptions(t.Context(), &snapshot), "LoadSnapshotWithOptions must load a first snapshot over a book REST loaded")
+	after, err = orderbook.Get(exchangeName, cp, asset.Spot)
+	require.NoError(t, err, "Get must not error")
+	assert.Equal(t, 25, after.MaxDepth, "the snapshot's options should replace the REST book's")
+	assert.Equal(t, snapshot.Bids, after.Bids, "the snapshot's levels should replace the REST book's")
+}
+
 // TestInsertingSnapShots logic test
 func TestInsertingSnapShots(t *testing.T) {
 	t.Parallel()

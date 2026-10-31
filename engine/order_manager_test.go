@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"errors"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -17,6 +18,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -276,6 +278,21 @@ func OrdersSetup(t *testing.T) *OrderManager {
 	m, err := SetupOrderManager(em, &CommunicationManager{}, &wg, &config.OrderManager{})
 	assert.NoError(t, err)
 
+	m.started.Store(true)
+	return m
+}
+
+// newOrderStoreTestManager returns a started order manager holding the test exchange with only its defaults set, for a test
+// that needs no pairs, which OrdersSetup requests from the exchange
+func newOrderStoreTestManager(t *testing.T) *OrderManager {
+	t.Helper()
+	em := NewExchangeManager()
+	exch, err := em.NewExchangeByName(testExchange)
+	require.NoError(t, err, "NewExchangeByName must not error")
+	exch.SetDefaults()
+	require.NoError(t, em.Add(omfExchange{IBotExchange: exch}), "Add must not error")
+	m, err := SetupOrderManager(em, &CommunicationManager{}, &sync.WaitGroup{}, &config.OrderManager{})
+	require.NoError(t, err, "SetupOrderManager must not error")
 	m.started.Store(true)
 	return m
 }
@@ -749,6 +766,168 @@ func TestSubmitOrderAlreadyInStore(t *testing.T) {
 	}
 }
 
+// TestSubmitOrderStreamedFirst ensures that the details of an order the WS reports before processSubmittedOrder supersede the
+// submission's, which give what they leave out
+func TestSubmitOrderStreamedFirst(t *testing.T) {
+	placed := time.Date(2026, 10, 31, 1, 2, 3, 0, time.UTC)
+	trade := order.TradeHistory{TID: "fill-1", Price: 100, Amount: 1}
+	for _, tc := range []struct {
+		name     string
+		streamed order.Detail
+		exp      order.Detail
+	}{
+		{
+			name:     "a fill alone, which gives no status or quantities",
+			streamed: order.Detail{Trades: []order.TradeHistory{trade}},
+			exp:      order.Detail{Status: order.PartiallyFilled, Amount: 3, ExecutedAmount: 1, RemainingAmount: 2, Trades: []order.TradeHistory{trade}},
+		},
+		{
+			name:     "filled by its fills",
+			streamed: order.Detail{Status: order.Filled, Amount: 3, ExecutedAmount: 3, Trades: []order.TradeHistory{trade}},
+			exp:      order.Detail{Status: order.Filled, Amount: 3, ExecutedAmount: 3, Trades: []order.TradeHistory{trade}},
+		},
+		{
+			name:     "removed, the report naming only the order",
+			streamed: order.Detail{Status: order.Cancelled},
+			exp:      order.Detail{Status: order.Cancelled, Amount: 3, ExecutedAmount: 1, RemainingAmount: 2},
+		},
+		{
+			name:     "amended and partly filled",
+			streamed: order.Detail{Status: order.PartiallyFilled, Amount: 2.5, ExecutedAmount: 2, RemainingAmount: 0.5, ClientOrderID: "streamed"},
+			exp:      order.Detail{Status: order.PartiallyFilled, Amount: 2.5, ExecutedAmount: 2, RemainingAmount: 0.5, ClientOrderID: "streamed"},
+		},
+	} {
+		for _, a := range []asset.Item{asset.Spot, asset.Futures, asset.USDTMarginedFutures} {
+			t.Run(a.String()+" "+tc.name, func(t *testing.T) {
+				m := newOrderStoreTestManager(t)
+				other := &order.Detail{Exchange: testExchange, OrderID: "o-2", Pair: btcusdPair, AssetType: a, Side: order.Buy, Status: order.Open, Amount: 9, Date: placed}
+				require.NoError(t, m.orderStore.add(other), "add must not error")
+				streamed := tc.streamed
+				streamed.Exchange, streamed.OrderID, streamed.Pair, streamed.AssetType, streamed.Side = testExchange, "o-1", btcusdPair, a, order.Buy
+				// A futures report without a time is stored, and refused by the position tracker alone
+				if err := m.orderStore.add(&streamed); a == asset.Spot {
+					require.NoError(t, err, "add must not error for a spot order")
+				}
+				internalID := streamed.InternalOrderID
+				report := streamed.Copy()
+
+				submit := &order.Submit{Type: order.Limit, Pair: btcusdPair, AssetType: a, Side: order.Buy, Amount: 3, Price: 1, ReduceOnly: true, Exchange: testExchange}
+				submitResp, err := submit.DeriveSubmitResponse("o-1")
+				require.NoError(t, err, "DeriveSubmitResponse must not error")
+				submitResp.Date, submitResp.Status, submitResp.ExecutedAmount, submitResp.RemainingAmount = placed, order.PartiallyFilled, 1, 2
+				submitResp.QuoteAmount, submitResp.AverageExecutedPrice, submitResp.Fee = 100, 50, 0.7
+				resp, err := m.SubmitFakeOrder(submit, submitResp, false)
+				require.NoError(t, err, "SubmitFakeOrder must not error for an order the WS stored first")
+				assert.Equal(t, report, streamed, "SubmitFakeOrder should not write to the report the websocket routine stored, which it can still be reading")
+
+				stored, err := m.GetByExchangeAndID(testExchange, "o-1")
+				require.NoError(t, err, "GetByExchangeAndID must not error")
+				assert.Equal(t, stored.Status, resp.Status, "Submit should return the status stored")
+				assert.Equal(t, stored.Amount, resp.Amount, "Submit should return the amount stored")
+				assert.Equal(t, internalID, stored.InternalOrderID, "InternalOrderID should stay the one the order was first stored under")
+				assert.Equal(t, placed, stored.Date, "Date should be the submission's")
+				assert.Equal(t, 1.0, stored.Price, "Price should be the submission's, which the report left out")
+				assert.Equal(t, 100.0, stored.QuoteAmount, "QuoteAmount should be the submission's, which the report left out")
+				assert.Equal(t, 50.0, stored.AverageExecutedPrice, "AverageExecutedPrice should be the submission's, which the report left out")
+				assert.Equal(t, 0.7, stored.Fee, "Fee should be the submission's, which the report left out")
+				assert.True(t, stored.ReduceOnly, "ReduceOnly should be the submission's, which the report left out")
+				assert.Equal(t, tc.exp.Status, stored.Status, "Status should be the report's, or the submission's without one")
+				assert.Equal(t, tc.exp.Amount, stored.Amount, "Amount should be the report's, or the submission's without one")
+				assert.Equal(t, tc.exp.ExecutedAmount, stored.ExecutedAmount, "ExecutedAmount should be the report's, or the submission's without one")
+				assert.Equal(t, tc.exp.RemainingAmount, stored.RemainingAmount, "RemainingAmount should be the report's, or the submission's without one")
+				assert.Equal(t, tc.exp.Trades, stored.Trades, "Trades should be the report's")
+				assert.Equal(t, tc.exp.ClientOrderID, stored.ClientOrderID, "ClientOrderID should be the report's, or the submission's without one")
+				untouched, err := m.GetByExchangeAndID(testExchange, "o-2")
+				require.NoError(t, err, "GetByExchangeAndID must not error")
+				assert.Equal(t, 9.0, untouched.Amount, "Another order's amount should stay as it was")
+				if a.IsFutures() {
+					position, err := m.orderStore.futuresPositionController.GetOpenPosition(testExchange, a, btcusdPair)
+					require.NoError(t, err, "GetOpenPosition must not error")
+					require.Len(t, position.Orders, 2, "the position must hold the order once the submission gives its time")
+					tracked := position.Orders[slices.IndexFunc(position.Orders, func(d order.Detail) bool { return d.OrderID == "o-1" })]
+					assert.Equal(t, stored.Amount, tracked.Amount, "the position should hold the merged order's amount")
+					assert.Equal(t, stored.ExecutedAmount, tracked.ExecutedAmount, "the position should hold the merged order's executed amount")
+				}
+			})
+		}
+	}
+
+	m := newOrderStoreTestManager(t)
+	reported := time.Date(2026, 10, 31, 1, 2, 2, 0, time.UTC)
+	streamed := &order.Detail{Exchange: testExchange, OrderID: "o-3", Pair: btcusdPair, AssetType: asset.Spot, Side: order.Buy, Status: order.Open, Date: reported, ReduceOnly: true, CostAsset: currency.USDT, SettlementCurrency: currency.USDC, MarginType: margin.Isolated, Fee: -0.4, Trades: []order.TradeHistory{trade}}
+	require.NoError(t, m.orderStore.add(streamed), "add must not error")
+	submit := &order.Submit{Type: order.Limit, Pair: btcusdPair, AssetType: asset.Spot, Side: order.Buy, Amount: 3, Price: 1, Exchange: testExchange}
+	submitResp, err := submit.DeriveSubmitResponse("o-3")
+	require.NoError(t, err, "DeriveSubmitResponse must not error")
+	submitResp.Date, submitResp.Fee = placed, 0.4
+	resp, err := m.SubmitFakeOrder(submit, submitResp, false)
+	require.NoError(t, err, "SubmitFakeOrder must not error for an order the WS stored first")
+	resp.Amount = 99
+	resp.Trades[0].Amount = 99
+	stored, err := m.GetByExchangeAndID(testExchange, "o-3")
+	require.NoError(t, err, "GetByExchangeAndID must not error")
+	assert.Equal(t, 3.0, stored.Amount, "Amount should not change with what Submit returned")
+	assert.Equal(t, trade.Amount, stored.Trades[0].Amount, "A trade should not change with what Submit returned")
+	assert.Equal(t, reported, stored.Date, "Date should stay the report's")
+	assert.True(t, stored.ReduceOnly, "ReduceOnly should stay the report's")
+	assert.Equal(t, currency.USDT, stored.CostAsset, "CostAsset should stay the report's")
+	assert.Equal(t, currency.USDC, stored.SettlementCurrency, "SettlementCurrency should stay the report's")
+	assert.Equal(t, margin.Isolated, stored.MarginType, "MarginType should stay the report's")
+	assert.Equal(t, -0.4, stored.Fee, "Fee should stay the report's, a rebate being below zero")
+	_, err = m.orderStore.mergeStreamed(&order.Detail{Exchange: testExchange, OrderID: "o-3", Pair: btcusdPair, AssetType: asset.Spot, Side: order.Buy})
+	assert.NoError(t, err, "mergeStreamed should not track a spot order as a position")
+
+	rebate := &order.Detail{Exchange: testExchange, OrderID: "o-5", Pair: btcusdPair, AssetType: asset.Spot, Side: order.Buy, Status: order.Open, Fee: -0.4}
+	require.NoError(t, m.orderStore.add(rebate), "add must not error")
+	submitResp, err = submit.DeriveSubmitResponse("o-5")
+	require.NoError(t, err, "DeriveSubmitResponse must not error")
+	_, err = m.SubmitFakeOrder(submit, submitResp, false)
+	require.NoError(t, err, "SubmitFakeOrder must not error for an order the WS stored first")
+	stored, err = m.GetByExchangeAndID(testExchange, "o-5")
+	require.NoError(t, err, "GetByExchangeAndID must not error")
+	assert.Equal(t, -0.4, stored.Fee, "Fee should stay the report's when the submission gives none")
+
+	det := &order.Detail{Exchange: testExchange, OrderID: "not stored"}
+	got, err := m.orderStore.mergeStreamed(det)
+	assert.ErrorIs(t, err, ErrOrderNotFound, "mergeStreamed should error for an order not stored")
+	assert.Same(t, det, got, "mergeStreamed should return the submission's details for an order not stored")
+
+	refused := &order.Detail{Exchange: testExchange, OrderID: "o-4", Pair: btcusdPair, AssetType: asset.Futures, Side: order.Buy, Status: order.Open}
+	assert.Error(t, m.orderStore.add(refused), "add should error for a futures order the position tracker refuses for want of a time")
+	got, err = m.orderStore.mergeStreamed(&order.Detail{Exchange: testExchange, OrderID: "o-4", Pair: btcusdPair, AssetType: asset.Futures, Side: order.Buy, Amount: 3})
+	assert.ErrorContains(t, err, "time unset", "mergeStreamed should return the position tracker's error")
+	assert.Equal(t, 3.0, got.Amount, "mergeStreamed should return the merged details with the position tracker's error")
+}
+
+func TestProcessSubmittedOrder(t *testing.T) {
+	m := newOrderStoreTestManager(t)
+	_, err := m.processSubmittedOrder(nil)
+	assert.ErrorIs(t, err, order.ErrOrderDetailIsNil, "processSubmittedOrder should error for a nil response")
+
+	reply := &order.SubmitResponse{Exchange: testExchange, OrderID: "o-1", Pair: btcusdPair, AssetType: asset.Spot, Side: order.Buy, Status: order.New, Amount: 3}
+	resp, err := m.processSubmittedOrder(reply)
+	require.NoError(t, err, "processSubmittedOrder must not error")
+	assert.Equal(t, order.New, resp.Status, "processSubmittedOrder should return the reply's status")
+	stored, err := m.GetByExchangeAndID(testExchange, "o-1")
+	require.NoError(t, err, "GetByExchangeAndID must not error")
+	assert.Equal(t, 3.0, stored.Amount, "processSubmittedOrder should store the reply's amount")
+	assert.Equal(t, stored.InternalOrderID.String(), resp.InternalOrderID, "processSubmittedOrder should return the internal ID stored")
+	assert.Equal(t, stored.InternalOrderID, resp.Detail.InternalOrderID, "processSubmittedOrder should return details with the internal ID stored")
+	assert.NotEqual(t, uuid.Nil(), stored.InternalOrderID, "processSubmittedOrder should give the order an internal ID")
+
+	// An order that cannot be stored or tracked has still been placed, so its reply is returned
+	resp, err = m.processSubmittedOrder(&order.SubmitResponse{Exchange: "not loaded", OrderID: "o-2", Pair: btcusdPair, AssetType: asset.Spot, Side: order.Buy, Status: order.New})
+	require.NoError(t, err, "processSubmittedOrder must not error for an exchange that is not loaded")
+	assert.Equal(t, order.New, resp.Status, "processSubmittedOrder should return the reply's status for an exchange that is not loaded")
+
+	streamed := &order.Detail{Exchange: testExchange, OrderID: "o-3", Pair: btcusdPair, AssetType: asset.Futures, Side: order.Buy, Status: order.Open}
+	assert.Error(t, m.orderStore.add(streamed), "add should error for a futures order the position tracker refuses for want of a time")
+	resp, err = m.processSubmittedOrder(&order.SubmitResponse{Exchange: testExchange, OrderID: "o-3", Pair: btcusdPair, AssetType: asset.Futures, Side: order.Buy, Status: order.New, Amount: 3})
+	require.NoError(t, err, "processSubmittedOrder must not error for a merged order the position tracker refuses")
+	assert.Equal(t, order.Open, resp.Status, "processSubmittedOrder should return the merged status when the position tracker refuses the order")
+	assert.Equal(t, 3.0, resp.Amount, "processSubmittedOrder should return the merged amount when the position tracker refuses the order")
+}
+
 func TestOrderManager_Modify(t *testing.T) {
 	pair := currency.Pair{
 		Base:  currency.NewCode("XXXXX"),
@@ -846,9 +1025,7 @@ func TestProcessOrders(t *testing.T) {
 		t.Fatal(err)
 	}
 	exch.SetDefaults()
-	fakeExchange := omfExchange{
-		IBotExchange: exch,
-	}
+	fakeExchange := &orderLookupExchange{IBotExchange: exch}
 	err = em.Add(fakeExchange)
 	require.NoError(t, err)
 
@@ -1014,6 +1191,9 @@ func TestProcessOrders(t *testing.T) {
 	if res[0].Status != order.Active {
 		t.Errorf("Order 3 should be active, but status is %s", res[0].Status)
 	}
+
+	// Order 4 is a futures order exch.GetActiveOrders() leaves out
+	assert.NotContains(t, fakeExchange.lookedUp(), "4", "processOrders should not look up a futures order the exchange no longer lists as open")
 }
 
 func TestGetOrdersFiltered(t *testing.T) {
@@ -1157,6 +1337,51 @@ func TestProcessMatchingOrders(t *testing.T) {
 	if res[0].OrderID != "Test4" {
 		t.Error("Order Test4 should have been fetched and updated")
 	}
+}
+
+// orderLookupExchange records the orders the order manager looks up, answering as omfExchange does
+type orderLookupExchange struct {
+	omfExchange
+	mu      sync.Mutex
+	lookups []string
+}
+
+func (f *orderLookupExchange) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
+	f.mu.Lock()
+	f.lookups = append(f.lookups, orderID)
+	f.mu.Unlock()
+	return f.omfExchange.GetOrderInfo(ctx, orderID, pair, assetType)
+}
+
+// lookedUp returns the IDs of the orders looked up so far
+func (f *orderLookupExchange) lookedUp() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Clone(f.lookups)
+}
+
+func TestProcessMatchingOrdersFutures(t *testing.T) {
+	t.Parallel()
+	m := newOrderStoreTestManager(t)
+	exch, err := m.orderStore.exchangeManager.GetExchangeByName(testExchange)
+	require.NoError(t, err, "GetExchangeByName must not error")
+	f := &orderLookupExchange{IBotExchange: exch}
+	stale := time.Now().Add(-time.Hour)
+	assets := asset.Supported()
+	statuses := []order.Status{order.New, order.Open, order.PartiallyFilled, order.UnknownStatus}
+	orders := make([]order.Detail, 0, len(assets)*len(statuses))
+	var exp []string
+	for _, a := range assets {
+		for _, s := range statuses {
+			id := a.String() + " " + s.String()
+			orders = append(orders, order.Detail{Exchange: testExchange, OrderID: id, Pair: btcusdPair, AssetType: a, Status: s, LastUpdated: stale})
+			if !a.IsFutures() || s == order.UnknownStatus {
+				exp = append(exp, id)
+			}
+		}
+	}
+	m.processMatchingOrders(t.Context(), f, orders, nil)
+	assert.Equal(t, exp, f.lookedUp(), "processMatchingOrders should look up futures orders of unknown status alone, and every other asset's orders")
 }
 
 func TestFetchAndUpdateExchangeOrder(t *testing.T) {
@@ -1429,6 +1654,22 @@ func TestGetOrdersSnapshot(t *testing.T) {
 	}
 }
 
+func TestGetOrdersSnapshotHoldsStoreLock(t *testing.T) {
+	t.Parallel()
+	m := newOrderStoreTestManager(t)
+	stored := &order.Detail{Exchange: testExchange, OrderID: "o-1", Pair: btcusdPair, AssetType: asset.Spot, Side: order.Buy, Status: order.Open, Trades: []order.TradeHistory{{TID: "t-1", Amount: 1}}}
+	require.NoError(t, m.orderStore.add(stored), "add must not error")
+	m.orderStore.m.Lock()
+	snapshots := make(chan []order.Detail, 1)
+	go func() { snapshots <- m.GetOrdersSnapshot(order.AnyStatus) }()
+	assert.Never(t, func() bool { return len(snapshots) != 0 }, 50*time.Millisecond, 5*time.Millisecond, "GetOrdersSnapshot should wait for a write to the store")
+	m.orderStore.m.Unlock()
+	snapshot := <-snapshots
+	require.Len(t, snapshot, 1, "GetOrdersSnapshot must return the stored order")
+	snapshot[0].Trades[0].Amount = 99
+	assert.Equal(t, 1.0, stored.Trades[0].Amount, "GetOrdersSnapshot should not share a stored order's trades")
+}
+
 func TestUpdateExisting(t *testing.T) {
 	t.Parallel()
 	s := &store{}
@@ -1468,6 +1709,40 @@ func TestUpdateExisting(t *testing.T) {
 	if len(pos) != 1 {
 		t.Error("expected 1")
 	}
+}
+
+// TestStoreFuturesOrdersKeepExchangeName pins that futures orders stay matched by their exchange's name once they are
+// tracked as positions, as the order store's filters, such as RPC GetManagedOrders', match orders by that name
+func TestStoreFuturesOrdersKeepExchangeName(t *testing.T) {
+	t.Parallel()
+	m := newOrderStoreTestManager(t)
+	newOrder := func(id string) *order.Detail {
+		return &order.Detail{
+			Exchange:  testExchange,
+			AssetType: asset.Futures,
+			Pair:      currency.NewBTCUSDT(),
+			OrderID:   id,
+			Side:      order.Buy,
+			Type:      order.Limit,
+			Status:    order.Open,
+			Amount:    1,
+			Price:     1,
+			Date:      time.Now(),
+		}
+	}
+	require.NoError(t, m.orderStore.add(newOrder("added")), "add must not error")
+	_, err := m.orderStore.upsert(newOrder("upserted"))
+	require.NoError(t, err, "upsert must not error")
+	require.NoError(t, m.orderStore.updateExisting(newOrder("added")), "updateExisting must not error")
+	require.NoError(t, m.orderStore.modifyExisting("upserted", &order.ModifyResponse{Exchange: testExchange, OrderID: "upserted", Amount: 2}), "modifyExisting must not error")
+
+	active := m.orderStore.getActiveOrders(&order.Filter{Exchange: testExchange})
+	ids := make([]string, len(active))
+	for i := range active {
+		ids[i] = active[i].OrderID
+		assert.Equal(t, testExchange, active[i].Exchange, "a tracked futures order should keep its exchange's name")
+	}
+	assert.ElementsMatch(t, []string{"added", "upserted"}, ids, "the active futures orders should be matched by their exchange's name")
 }
 
 func TestOrderManagerExists(t *testing.T) {

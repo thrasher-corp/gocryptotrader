@@ -568,13 +568,15 @@ func (m *OrderManager) GetOrdersSnapshot(s order.Status) []order.Detail {
 	if m == nil || !m.started.Load() {
 		return nil
 	}
+	m.orderStore.m.RLock()
+	defer m.orderStore.m.RUnlock()
 	var os []order.Detail
 	for _, v := range m.orderStore.Orders {
 		for i := range v {
 			if s != v[i].Status && s != order.AnyStatus && s != order.UnknownStatus {
 				continue
 			}
-			os = append(os, *v[i])
+			os = append(os, v[i].Copy())
 		}
 	}
 
@@ -607,20 +609,16 @@ func (m *OrderManager) GetOrdersActive(f *order.Filter) ([]order.Detail, error) 
 
 // processSubmittedOrder adds a new order to the manager
 func (m *OrderManager) processSubmittedOrder(newOrderResp *order.SubmitResponse) (*OrderSubmitResponse, error) {
-	if newOrderResp == nil {
-		return nil, order.ErrOrderDetailIsNil
-	}
-
-	id := uuid.NewV4()
-
-	detail, err := newOrderResp.DeriveDetail(id)
+	detail, err := newOrderResp.DeriveDetail(uuid.NewV4())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: %w", order.ErrOrderDetailIsNil, err)
 	}
 
 	if err := m.orderStore.add(detail.CopyToPointer()); errors.Is(err, ErrOrdersAlreadyExists) {
 		// Streamed by ws before we got here. Details from ws supersede since they are more recent.
-		detail = m.orderStore.getByDetail(detail)
+		if detail, err = m.orderStore.mergeStreamed(detail); err != nil {
+			log.Errorf(log.OrderMgr, "Unable to merge %v order %v into orderStore: %s", detail.Exchange, detail.OrderID, err)
+		}
 	} else if err != nil {
 		// Non-fatal error: Unable to store order, but error does not need to be returned to caller
 		log.Errorf(log.OrderMgr, "Unable to add %v order %v to orderStore: %s", detail.Exchange, detail.OrderID, err)
@@ -838,6 +836,12 @@ func (m *OrderManager) processFuturesPositions(ctx context.Context, exch exchang
 
 func (m *OrderManager) processMatchingOrders(ctx context.Context, exch exchange.IBotExchange, orders []order.Detail, wg *sync.WaitGroup) {
 	for x := range orders {
+		// A futures order the exchange no longer lists as open is looked up only when its status is unknown: several
+		// exchanges cannot settle one, and a lookup that fails or whose result is refused leaves LastUpdated as it was, so
+		// the order would be asked for on every sweep
+		if orders[x].AssetType.IsFutures() && orders[x].Status != order.UnknownStatus {
+			continue
+		}
 		if time.Since(orders[x].LastUpdated) < time.Minute {
 			continue
 		}
@@ -1099,6 +1103,42 @@ func (s *store) getByDetail(det *order.Detail) *order.Detail {
 		}
 	}
 	return nil
+}
+
+// mergeStreamed lays an order a websocket report stored before its submission returned over the submission's details,
+// as the store does when the report follows the submission, and returns the result. The report's details supersede, and
+// the submission's give what a report can leave out, such as the order's time and, for a report of a fill alone, its
+// status and quantities
+func (s *store) mergeStreamed(det *order.Detail) (*order.Detail, error) {
+	s.m.Lock()
+	defer s.m.Unlock()
+	orders := s.Orders[strings.ToLower(det.Exchange)]
+	for i, o := range orders {
+		if o.OrderID != det.OrderID {
+			continue
+		}
+		merged := det.Copy()
+		err := merged.UpdateOrderFromDetail(o)
+		// UpdateOrderFromDetail takes neither these, of which the submission gives only the date and whether the order only
+		// reduces, nor a fee below zero, which is a rebate
+		merged.InternalOrderID = o.InternalOrderID
+		merged.CostAsset, merged.MarginType, merged.SettlementCurrency = o.CostAsset, o.MarginType, o.SettlementCurrency
+		merged.ReduceOnly = merged.ReduceOnly || o.ReduceOnly
+		if o.Fee != 0 {
+			merged.Fee = o.Fee
+		}
+		if !o.Date.IsZero() {
+			merged.Date = o.Date
+		}
+		// The websocket routine can still be reading the report it stored, so the merged order replaces it rather than
+		// writing over it
+		orders[i] = &merged
+		if merged.AssetType.IsFutures() {
+			err = common.AppendError(err, s.futuresPositionController.TrackNewOrder(&merged))
+		}
+		return merged.CopyToPointer(), err
+	}
+	return det, ErrOrderNotFound
 }
 
 // add adds an order to the orderStore for tracking the lifecycle

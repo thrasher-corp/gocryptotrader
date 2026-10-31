@@ -261,23 +261,29 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 				continue
 			}
 			found = true
-			if d.Trades[y].Fee != m.Trades[x].Fee {
+			// A report of a known trade can leave out what another source reported of it, such as its fee, so only the
+			// values it holds replace those stored. IsMaker is always replaced, as its false cannot show it was left out
+			if m.Trades[x].Fee != 0 && d.Trades[y].Fee != m.Trades[x].Fee {
 				d.Trades[y].Fee = m.Trades[x].Fee
+				updated = true
+			}
+			if m.Trades[x].FeeAsset != "" && d.Trades[y].FeeAsset != m.Trades[x].FeeAsset {
+				d.Trades[y].FeeAsset = m.Trades[x].FeeAsset
 				updated = true
 			}
 			if m.Trades[x].Price != 0 && d.Trades[y].Price != m.Trades[x].Price {
 				d.Trades[y].Price = m.Trades[x].Price
 				updated = true
 			}
-			if d.Trades[y].Side != m.Trades[x].Side {
+			if m.Trades[x].Side != UnknownSide && d.Trades[y].Side != m.Trades[x].Side {
 				d.Trades[y].Side = m.Trades[x].Side
 				updated = true
 			}
-			if d.Trades[y].Type != m.Trades[x].Type {
+			if m.Trades[x].Type != UnknownType && d.Trades[y].Type != m.Trades[x].Type {
 				d.Trades[y].Type = m.Trades[x].Type
 				updated = true
 			}
-			if d.Trades[y].Description != m.Trades[x].Description {
+			if m.Trades[x].Description != "" && d.Trades[y].Description != m.Trades[x].Description {
 				d.Trades[y].Description = m.Trades[x].Description
 				updated = true
 			}
@@ -285,7 +291,11 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 				d.Trades[y].Amount = m.Trades[x].Amount
 				updated = true
 			}
-			if d.Trades[y].Timestamp != m.Trades[x].Timestamp {
+			if m.Trades[x].Total != 0 && d.Trades[y].Total != m.Trades[x].Total {
+				d.Trades[y].Total = m.Trades[x].Total
+				updated = true
+			}
+			if !m.Trades[x].Timestamp.IsZero() && !d.Trades[y].Timestamp.Equal(m.Trades[x].Timestamp) {
 				d.Trades[y].Timestamp = m.Trades[x].Timestamp
 				updated = true
 			}
@@ -303,6 +313,12 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 	// or from a different snapshot. A supplied non-zero value is preserved.
 	if m.RemainingAmount > 0 && m.RemainingAmount != d.RemainingAmount {
 		d.RemainingAmount = m.RemainingAmount
+		updated = true
+	}
+	// Nothing remains of an order an update reports filled without a remaining amount; one it reports is kept above, as
+	// some exchanges report a partial fill as filled
+	if m.Status == Filled && m.RemainingAmount == 0 && d.RemainingAmount != 0 {
+		d.RemainingAmount = 0
 		updated = true
 	}
 	if updated {
@@ -328,6 +344,10 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 // by comparing passed in and existing values
 func (d *Detail) UpdateOrderFromModifyResponse(m *ModifyResponse) {
 	var updated bool
+	// A reply reporting what remains but not the status can arrive after the order has finished, when no later report
+	// would correct what it changed. One without quantities can be of a replacement, as on Poloniex, whose reply can
+	// arrive after the feeds have cancelled the order it replaces
+	finished := m.RemainingAmount > 0 && m.Status == UnknownStatus && d.Status != UnknownStatus && d.Status.IsInactive()
 	if m.OrderID != "" && d.OrderID != m.OrderID {
 		d.OrderID = m.OrderID
 		updated = true
@@ -336,15 +356,15 @@ func (d *Detail) UpdateOrderFromModifyResponse(m *ModifyResponse) {
 		d.TimeInForce = m.TimeInForce
 		updated = true
 	}
-	if m.Price > 0 && m.Price != d.Price {
+	if m.Price > 0 && m.Price != d.Price && !finished {
 		d.Price = m.Price
 		updated = true
 	}
-	if m.Amount > 0 && m.Amount != d.Amount {
+	if m.Amount > 0 && m.Amount != d.Amount && !finished {
 		d.Amount = m.Amount
 		updated = true
 	}
-	if m.TriggerPrice > 0 && m.TriggerPrice != d.TriggerPrice {
+	if m.TriggerPrice > 0 && m.TriggerPrice != d.TriggerPrice && !finished {
 		d.TriggerPrice = m.TriggerPrice
 		updated = true
 	}
@@ -370,12 +390,30 @@ func (d *Detail) UpdateOrderFromModifyResponse(m *ModifyResponse) {
 		d.AssetType = m.AssetType
 		updated = true
 	}
-	if m.RemainingAmount > 0 && m.RemainingAmount != d.RemainingAmount {
-		d.RemainingAmount = m.RemainingAmount
+	if m.ExecutedAmount > d.ExecutedAmount {
+		d.ExecutedAmount = m.ExecutedAmount
+		updated = true
+	}
+	if m.RemainingAmount > 0 && !finished {
+		remaining := m.RemainingAmount
+		// Such a reply can also be older than fills stored of an open order, which its remainder would count again
+		if m.Status == UnknownStatus && d.ExecutedAmount > m.ExecutedAmount {
+			remaining = max(d.Amount-d.ExecutedAmount, 0)
+		}
+		if remaining != d.RemainingAmount {
+			d.RemainingAmount = remaining
+			updated = true
+		}
+	}
+	// Nothing remains of an order an update reports filled without a remaining amount; one it reports is kept above, as
+	// some exchanges report a partial fill as filled
+	if m.Status == Filled && m.RemainingAmount == 0 && d.RemainingAmount != 0 {
+		d.RemainingAmount = 0
 		updated = true
 	}
 	if updated {
-		if d.LastUpdated.Equal(m.LastUpdated) {
+		// A modify response usually carries no update time, as DeriveModifyResponse sets none
+		if m.LastUpdated.IsZero() || d.LastUpdated.Equal(m.LastUpdated) {
 			d.LastUpdated = time.Now()
 		} else {
 			d.LastUpdated = m.LastUpdated
@@ -463,7 +501,7 @@ func (d *Detail) CopyToPointer() *Detail {
 // Copy makes a full copy of underlying details NOTE: This is Addressable.
 func (d *Detail) Copy() Detail {
 	c := *d
-	if len(d.Trades) > 0 {
+	if d.Trades != nil {
 		c.Trades = make([]TradeHistory, len(d.Trades))
 		copy(c.Trades, d.Trades)
 	}
@@ -580,7 +618,7 @@ func (s *SubmitResponse) DeriveDetail(internal uuid.UUID) (*Detail, error) {
 		return nil, errOrderSubmitResponseIsNil
 	}
 
-	return &Detail{
+	d := &Detail{
 		Exchange:  s.Exchange,
 		Type:      s.Type,
 		Side:      s.Side,
@@ -597,6 +635,8 @@ func (s *SubmitResponse) DeriveDetail(internal uuid.UUID) (*Detail, error) {
 		ClientID:      s.ClientID,
 		ClientOrderID: s.ClientOrderID,
 
+		ExecutedAmount: s.ExecutedAmount,
+
 		InternalOrderID: internal,
 
 		LastUpdated: s.LastUpdated,
@@ -606,7 +646,13 @@ func (s *SubmitResponse) DeriveDetail(internal uuid.UUID) (*Detail, error) {
 		Trades:      s.Trades,
 		Fee:         s.Fee,
 		Cost:        s.Cost,
-	}, nil
+	}
+	// A submission reporting what it executed reports what remains of it and any average price with that; others can
+	// set RemainingAmount in another unit, such as what remains of a market buy's quote amount
+	if s.ExecutedAmount > 0 {
+		d.RemainingAmount, d.AverageExecutedPrice = s.RemainingAmount, s.AverageExecutedPrice
+	}
+	return d, nil
 }
 
 // CopyPointerOrderSlice returns a copy of all order detail and returns a slice

@@ -475,6 +475,36 @@ func TestCheckResponsePayloadUnexpectedTrailingData(t *testing.T) {
 	require.ErrorIs(t, err, errUnexpectedTrailingJSON, "CheckResponsePayload must reject unexpected trailing JSON data")
 }
 
+func TestCheckResponsePayloadNotJSON(t *testing.T) {
+	t.Parallel()
+
+	items, err := getExcludedItems()
+	require.NoError(t, err, "getExcludedItems must not error")
+
+	for _, tc := range []struct {
+		name    string
+		data    string
+		notJSON bool
+	}{
+		{name: "zip archive", data: "PK\x03\x04report", notJSON: true},
+		{name: "csv", data: "date,uid,info\n2026-10-09T00:30:00Z,02d7e8f9-a0b1-486f-7081-92a3b4c5d6e7,conversion\n", notJSON: true},
+		{name: "csv led by a number", data: "1760000000,conversion\n", notJSON: true},
+		{name: "empty", notJSON: true},
+		{name: "json string", data: `"report"`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := CheckResponsePayload([]byte(tc.data), items, 5)
+			require.Error(t, err, "CheckResponsePayload must error")
+			if tc.notJSON {
+				assert.ErrorIs(t, err, ErrResponseBodyNotJSON, "CheckResponsePayload should report a body it cannot read as JSON")
+			} else {
+				assert.NotErrorIs(t, err, ErrResponseBodyNotJSON, "CheckResponsePayload should not report JSON it cannot filter as a body that is not JSON")
+			}
+		})
+	}
+}
+
 func TestDecodeLeadingJSONValue(t *testing.T) {
 	t.Parallel()
 
