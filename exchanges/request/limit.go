@@ -334,6 +334,19 @@ func (r *RateLimiterWithWeight) RateLimit(ctx context.Context) error {
 	}
 }
 
+// durationFromTokens converts a token deficit into the delay it takes to accumulate, mirroring
+// rate.Limit.durationFromTokens so a delay can be derived without holding a reservation.
+func durationFromTokens(tokens float64, limit rate.Limit) time.Duration {
+	if limit <= 0 {
+		return time.Duration(math.MaxInt64)
+	}
+	duration := (tokens / float64(limit)) * float64(time.Second)
+	if duration > float64(math.MaxInt64) {
+		return time.Duration(math.MaxInt64)
+	}
+	return time.Duration(duration)
+}
+
 // weightFor returns the weight a request takes from its endpoint's own budget: its context's, or else its definition's
 func (r *RateLimiterWithWeight) weightFor(ctx context.Context) (Weight, error) {
 	weight, ok := weightFromContext(ctx)
@@ -415,7 +428,7 @@ func (r *RateLimiterWithWeight) planLocked(now time.Time, weight Weight) (time.D
 	}
 	if p.limiter != nil && grant.Before(p.sendAt) {
 		// Tokens beyond the burst accrue one by one before the last is taken at the send time
-		p.reserveAt = p.sendAt.Add(-durationFromTokens(p.limiter.Limit(), float64(max(0, p.tokens-p.limiter.Burst()))))
+		p.reserveAt = p.sendAt.Add(-durationFromTokens(float64(max(0, p.tokens-p.limiter.Burst())), p.limiter.Limit()))
 	}
 	return p.sendAt.Sub(now), p
 }
@@ -474,24 +487,11 @@ func earliestGrant(l *rate.Limiter, from time.Time, n int) (time.Time, bool) {
 	if short <= 0 {
 		return from, true
 	}
-	wait := durationFromTokens(l.Limit(), short)
+	wait := durationFromTokens(short, l.Limit())
 	if wait == rate.InfDuration {
 		return time.Time{}, false
 	}
 	return from.Add(wait), true
-}
-
-// durationFromTokens returns how long a limit takes to accrue tokens, rounded as rate.Limiter rounds its reservations so
-// that planned times match the reservations it makes
-func durationFromTokens(limit rate.Limit, tokens float64) time.Duration {
-	if limit <= 0 {
-		return rate.InfDuration
-	}
-	duration := (tokens / float64(limit)) * float64(time.Second)
-	if duration > float64(math.MaxInt64) {
-		return rate.InfDuration
-	}
-	return time.Duration(duration)
 }
 
 // admitLocked reserves every participant's capacity as one transaction. The barrier lock must be held by the caller.

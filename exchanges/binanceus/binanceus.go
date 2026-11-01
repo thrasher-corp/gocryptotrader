@@ -811,7 +811,7 @@ func (e *Exchange) ExecuteSubAccountTransfer(ctx context.Context, arg *SubAccoun
 	params.Set("fromEmail", arg.FromEmail)
 	params.Set("toEmail", arg.ToEmail)
 	params.Set("asset", arg.Asset)
-	params.Set("amount", strconv.FormatFloat(arg.Amount, 'f', 0, 64))
+	params.Set("amount", strconv.FormatFloat(arg.Amount, 'f', -1, 64))
 	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
 	return &response, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, subaccountTransfer, params, spotDefaultRate, &response)
 }
@@ -1357,7 +1357,7 @@ func (e *Exchange) WithdrawCrypto(ctx context.Context, arg *withdraw.Request) (s
 	if arg.Amount <= 0 {
 		return "", errAmountValueMustBeGreaterThan0
 	}
-	params.Set("amount", strconv.FormatFloat(arg.Amount, 'f', 0, 64))
+	params.Set("amount", strconv.FormatFloat(arg.Amount, 'f', -1, 64))
 	var response WithdrawalResponse
 	if err := e.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
