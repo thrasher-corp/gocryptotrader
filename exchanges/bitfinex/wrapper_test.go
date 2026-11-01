@@ -534,6 +534,54 @@ func TestGetMovementsHistory(t *testing.T) {
 	_, err := newRefusingServerExchange(t, `["error",10020,"symbol: invalid"]`).getMovementsHistory(t.Context(), currency.ETH)
 	var apiErr *APIError
 	assert.ErrorAs(t, err, &apiErr, "getMovementsHistory should return the error Bitfinex reports")
+
+	// Deposits and withdrawals alternate, served newest first, two to a millisecond so that a page can end inside one.
+	// Those milliseconds are an hour apart and each movement started 10 minutes before its last update, by which the
+	// pager steps back, so a bound taken from when a movement started leaves older ones out. A request gets those last
+	// updated within its start and end, at most its limit or 25 without one, and a limit past the 1,000 Bitfinex
+	// documents is refused, as Bitfinex refuses one past a public history's maximum
+	for held, exp := range map[int][]uint64{999: {1000}, 1002: {1000, 1000}} {
+		var requestLimits []uint64
+		paged := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			var req struct {
+				Start int64  `json:"start"`
+				End   int64  `json:"end"`
+				Limit uint64 `json:"limit"`
+			}
+			if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&req), "Decoding the request should not error") {
+				http.Error(w, "undecodable", http.StatusBadRequest)
+				return
+			}
+			mu.Lock()
+			requestLimits = append(requestLimits, req.Limit)
+			mu.Unlock()
+			reply := `["error",10020,"limit: invalid"]`
+			if req.Limit > 1000 {
+				w.WriteHeader(http.StatusInternalServerError)
+			} else {
+				rows := make([]string, 0, cmp.Or(req.Limit, 25))
+				for id := held; id > 0 && len(rows) < cap(rows); id-- {
+					if at := 1574181326000 + int64(id/2)*3600000; at >= req.Start && (req.End == 0 || at <= req.End) {
+						amount, fee, address := "-0.24", "-0.00135", "DESTINATION_ADDRESS"
+						if id%2 == 0 {
+							amount, fee, address = "0.24", "0", "DEPOSIT_ADDRESS"
+						}
+						started, updated := strconv.FormatInt(at-600000, 10), strconv.FormatInt(at, 10)
+						rows = append(rows, `[`+strconv.Itoa(id)+`,"ETH","ETHEREUM",null,null,`+started+`,`+updated+`,null,null,"COMPLETED",null,null,"`+amount+`","`+fee+`",null,null,"`+address+`",null,null,null,"TRANSACTION_ID",null]`)
+					}
+				}
+				reply = `[` + strings.Join(rows, ",") + `]`
+			}
+			_, err := w.Write([]byte(reply))
+			assert.NoError(t, err, "Writing the response should not error")
+		}))
+		got, err := paged.getMovementsHistory(t.Context(), currency.ETH)
+		require.NoErrorf(t, err, "getMovementsHistory must not error for %d movements", held)
+		assert.Lenf(t, got, held, "getMovementsHistory should return %d movements", held)
+		mu.Lock()
+		assert.Equalf(t, exp, requestLimits, "getMovementsHistory should ask for 1,000 movements a page, the most Bitfinex documents, for %d movements", held)
+		mu.Unlock()
+	}
 }
 
 func TestMovementChain(t *testing.T) {

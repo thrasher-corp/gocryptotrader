@@ -567,7 +567,7 @@ type MovementsRequest struct {
 	// Start and End bound when the movements were last updated
 	Start time.Time
 	End   time.Time
-	// Limit is the most movements returned, at most 2500
+	// Limit is the most movements returned, at most 1000
 	Limit uint64
 	// IDs limits the movements to these deposit and withdrawal IDs
 	IDs []uint64

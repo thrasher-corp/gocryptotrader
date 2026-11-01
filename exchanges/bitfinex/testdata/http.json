@@ -854,7 +854,7 @@
       ]
      ],
      "queryString": "",
-     "bodyParams": "{\"limit\":2500}",
+     "bodyParams": "{\"limit\":1000}",
      "headers": {
       "Content-Type": [
        "application/json"
@@ -952,7 +952,7 @@
       ]
      ],
      "queryString": "",
-     "bodyParams": "{\"limit\":2500}",
+     "bodyParams": "{\"limit\":1000}",
      "headers": {
       "Content-Type": [
        "application/json"

@@ -47,7 +47,7 @@ const (
 	tradesPageLimit = 10000
 	// ordersHistoryPageLimit and movementsPageLimit are the most orders and movements a page of their history holds
 	ordersHistoryPageLimit = 2500
-	movementsPageLimit     = 2500
+	movementsPageLimit     = 1000
 	// candlesPageLimit is the most candles a page holds
 	candlesPageLimit = 10000
 	// fundingCandlePeriod is the funding period, in days, of the funding candles the wrapper fetches, as the default

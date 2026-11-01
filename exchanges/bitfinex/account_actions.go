@@ -333,7 +333,7 @@ func (e *Exchange) RequestWithdrawal(ctx context.Context, req *WithdrawalRequest
 }
 
 // GetMovements returns the account's deposits and withdrawals in a currency, or recent ones in every currency when
-// Currency is unset, at most 2500 a request
+// Currency is unset, at most 1000 a request
 func (e *Exchange) GetMovements(ctx context.Context, req *MovementsRequest) ([]MovementResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
