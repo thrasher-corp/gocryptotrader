@@ -283,9 +283,26 @@ type wsOrderUpdate struct {
 
 // ErrorResponse contains errors received from API
 type ErrorResponse struct {
+	Code      int64  `json:"code"`      // Signed because BTSE error codes can be negative
 	ErrorCode int64  `json:"errorCode"` // Signed because BTSE documents error codes as an unbounded Long
 	Message   string `json:"message"`
+	Msg       string `json:"msg"`
 	Status    int64  `json:"status"` // Signed because the status enum includes -1 for a timed out request
+	Success   bool   `json:"success"`
+}
+
+func (e *ErrorResponse) code() int64 {
+	if e.Code != 0 {
+		return e.Code
+	}
+	return e.ErrorCode
+}
+
+func (e *ErrorResponse) message() string {
+	if e.Msg != "" {
+		return e.Msg
+	}
+	return e.Message
 }
 
 // WsSubscriptionAcknowledgement contains successful subscription messages

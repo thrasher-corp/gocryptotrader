@@ -145,10 +145,10 @@ type WebsocketDepthStream struct {
 	UpdateAsks    orderbook.LevelsArrayPriceAmount `json:"a"`
 }
 
-// RecentTradeRequestParams represents Klines request data.
+// RecentTradeRequestParams holds parameters for requesting recent trades.
 type RecentTradeRequestParams struct {
 	Symbol currency.Pair `json:"symbol"` // Required field. example LTCBTC, BTCUSDT
-	Limit  uint64        `json:"limit"`  // Default 500; max 500.
+	Limit  uint64        `json:"limit"`  // Required; max 1000.
 }
 
 // RecentTrade holds recent trade data

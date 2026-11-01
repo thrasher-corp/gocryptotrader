@@ -88,7 +88,7 @@ const (
 	channelAlgoAdvance          = "algo-advance"
 	channelLiquidationWarning   = "liquidation-warning"
 	channelAccountGreeks        = "account-greeks"
-	channelRFQs                 = "rfqs"
+	channelRequestForQuotes     = "rfqs"
 	channelQuotes               = "quotes"
 	channelStructureBlockTrades = "struc-block-trades"
 	channelSpotGridOrder        = "grid-orders-spot"
@@ -443,8 +443,8 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 	case channelAlgoAdvance:
 		var response WsAdvancedAlgoOrder
 		return e.wsProcessPushData(ctx, respRaw, &response)
-	case channelRFQs:
-		var response WsRFQ
+	case channelRequestForQuotes:
+		var response WsRequestForQuote
 		return e.wsProcessPushData(ctx, respRaw, &response)
 	case channelQuotes:
 		var response WsQuote
@@ -459,7 +459,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 		var response WsContractGridAlgoOrder
 		return e.wsProcessPushData(ctx, respRaw, &response)
 	case channelGridPositions:
-		var response WsContractGridAlgoOrder
+		var response WsGridPosition
 		return e.wsProcessPushData(ctx, respRaw, &response)
 	case channelGridSubOrders:
 		var response WsGridSubOrderData
@@ -475,8 +475,11 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 	case channelEstimatedPrice:
 		var response WsDeliveryEstimatedPrice
 		return e.wsProcessPushData(ctx, respRaw, &response)
-	case channelMarkPrice, channelPriceLimit:
+	case channelMarkPrice:
 		var response WsMarkPrice
+		return e.wsProcessPushData(ctx, respRaw, &response)
+	case channelPriceLimit:
+		var response WsLimitPrice
 		return e.wsProcessPushData(ctx, respRaw, &response)
 	case channelOrderBooks5:
 		return e.wsProcessOrderbook5(ctx, respRaw)
@@ -512,14 +515,14 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 		return e.wsProcessSpreadTrades(respRaw)
 	case okxWithdrawalInfo:
 		resp := &struct {
-			Arguments SubscriptionInfo `json:"arg"`
-			Data      []WsDepositInfo  `json:"data"`
+			Arguments SubscriptionInfo   `json:"arg"`
+			Data      []WsWithdrawalInfo `json:"data"`
 		}{}
 		return e.wsProcessPushData(ctx, respRaw, resp)
 	case okxDepositInfo:
 		resp := &struct {
-			Arguments SubscriptionInfo   `json:"arg"`
-			Data      []WsWithdrawalInfo `json:"data"`
+			Arguments SubscriptionInfo `json:"arg"`
+			Data      []WsDepositInfo  `json:"data"`
 		}{}
 		return e.wsProcessPushData(ctx, respRaw, resp)
 	case channelRecurringBuy:
@@ -529,8 +532,8 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 		}{}
 		return e.wsProcessPushData(ctx, respRaw, resp)
 	case liquidationOrders:
-		var resp *LiquidationOrder
-		return e.wsProcessPushData(ctx, respRaw, &resp)
+		var response WsLiquidationOrders
+		return e.wsProcessPushData(ctx, respRaw, &response)
 	case adlWarning:
 		var resp ADLWarning
 		return e.wsProcessPushData(ctx, respRaw, &resp)
@@ -739,10 +742,15 @@ func (e *Exchange) wsProcessPublicSpreadTicker(ctx context.Context, respRaw []by
 	}
 	tickers := make([]ticker.Price, len(data))
 	for x := range data {
+		// vol24h is deliberately not mapped: OKX reports it in USD on an
+		// inverse spread, so it is not a base volume, mirroring the REST path.
 		tickers[x] = ticker.Price{
 			Last:         data[x].Last.Float64(),
 			Bid:          data[x].BidPrice.Float64(),
 			Ask:          data[x].AskPrice.Float64(),
+			Open:         data[x].OpenPrice24Hour.Float64(),
+			High:         data[x].HighestPrice24Hour.Float64(),
+			Low:          data[x].LowestPrice24Hour.Float64(),
 			Pair:         pair,
 			ExchangeName: e.Name,
 			AssetType:    asset.Spread,
@@ -1393,11 +1401,11 @@ func (e *Exchange) wsProcessBalanceAndPosition(ctx context.Context, data []byte)
 	}
 	subAccts := accounts.SubAccounts{accounts.NewSubAccount(asset.Spot, resp.Argument.UID)}
 	for i := range resp.Data {
-		for j := range resp.Data[i].BalanceData {
-			subAccts[0].Balances.Set(resp.Data[i].BalanceData[j].Currency, accounts.Balance{
-				Total:     resp.Data[i].BalanceData[j].CashBalance.Float64(),
-				Free:      resp.Data[i].BalanceData[j].CashBalance.Float64(),
-				UpdatedAt: resp.Data[i].BalanceData[j].UpdateTime.Time(),
+		for j := range resp.Data[i].Balances {
+			subAccts[0].Balances.Set(resp.Data[i].Balances[j].Currency, accounts.Balance{
+				Total:     resp.Data[i].Balances[j].CashBalance.Float64(),
+				Free:      resp.Data[i].Balances[j].CashBalance.Float64(),
+				UpdatedAt: resp.Data[i].Balances[j].UpdateTime.Time(),
 			})
 		}
 		// TODO: Handle position data

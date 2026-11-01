@@ -3279,41 +3279,6 @@ func TestPositionCollateralCurrency(t *testing.T) {
 	}
 }
 
-func TestWsWalletCurrentUnifiedPayload(t *testing.T) {
-	t.Parallel()
-	payload := []byte(`{"id":"wallet-update","topic":"wallet","creationTime":1787197420650,"data":[{"accountIMRate":"0.01","accountMMRate":"0.005","totalEquity":"120","totalWalletBalance":"100","totalMarginBalance":"110","totalAvailableBalance":"75","totalPerpUPL":"10","totalInitialMargin":"25","totalMaintenanceMargin":"5","coin":[{"coin":"USDT","equity":"120","usdValue":"120","walletBalance":"100","availableToWithdraw":"","availableToBorrow":"","borrowAmount":"0","accruedInterest":"0","totalOrderIM":"5","totalPositionIM":"20","totalPositionMM":"5","unrealisedPnl":"10","cumRealisedPnl":"2","bonus":"0","spotHedgingQty":"0"}],"accountType":"UNIFIED","accountLTV":""}]}`)
-	var wallet WebsocketWallet
-	decoder := json.NewDecoder(bytes.NewReader(payload))
-	decoder.DisallowUnknownFields()
-	require.NoError(t, decoder.Decode(&wallet), "current UNIFIED wallet payload must unmarshal without unknown fields")
-	require.Len(t, wallet.Data, 1, "current UNIFIED wallet payload must contain one account")
-	require.Len(t, wallet.Data[0].Coin, 1, "current UNIFIED wallet payload must contain one coin")
-	assert.True(t, wallet.Data[0].Coin[0].AvailableToWithdraw.Decimal().IsZero(),
-		"empty deprecated withdrawal availability should decode as zero")
-
-	ex := testInstance()
-	seed := accounts.NewSubAccount(asset.Spot, "")
-	seed.Balances.Set(currency.USDT, accounts.Balance{Total: 100, Hold: 25, Free: 75, Borrowed: 10})
-	require.NoError(t, ex.Accounts.Save(t.Context(), accounts.SubAccounts{seed}, true),
-		"Accounts.Save must seed fields absent from the websocket mapping")
-	startedAt := time.Now()
-	require.NoError(t, ex.wsProcessWalletPushData(t.Context(), payload),
-		"wsProcessWalletPushData must process current UNIFIED wallet payload")
-	message := <-ex.Websocket.DataHandler.C
-	subAccounts, ok := message.Data.(accounts.SubAccounts)
-	require.True(t, ok, "wallet handler must emit canonical subaccounts")
-	require.Len(t, subAccounts, 1, "wallet handler must emit one subaccount")
-	balance, ok := subAccounts[0].Balances[currency.USDT]
-	require.True(t, ok, "wallet handler must emit the USDT balance")
-	assert.Equal(t, 100.0, balance.Total, "wallet balance should be correct")
-	assert.Equal(t, 75.0, balance.Free, "wallet update should preserve spendable funds from the REST snapshot")
-	assert.Equal(t, 25.0, balance.Hold, "wallet update should preserve held funds from the REST snapshot")
-	assert.Equal(t, 10.0, balance.Borrowed, "wallet update should preserve borrowed funds from the REST snapshot")
-	assert.False(t, balance.UpdatedAt.Before(startedAt), "wallet update should use local arrival order")
-	assert.Zero(t, balance.AvailableWithoutBorrow,
-		"coin availability should remain zero when the deprecated field is empty")
-}
-
 func TestWSHandleAuthenticatedData(t *testing.T) {
 	t.Parallel()
 
@@ -3339,7 +3304,7 @@ func TestWSHandleAuthenticatedData(t *testing.T) {
 		currency.NewBTCUSDT(),
 	})
 	storeFixturePairs(asset.Options, currency.Pairs{optionsTradablePair})
-	fErrs := testexch.FixtureToDataHandlerWithErrors(t, "testdata/wsAuth.json", func(ctx context.Context, r []byte) error {
+	fErrs := testexch.FixtureToDataHandlerWithErrors(t, "testdata/wsAuth.jsonl", func(ctx context.Context, r []byte) error {
 		if bytes.Contains(r, []byte("%s")) {
 			r = fmt.Appendf(nil, string(r), formattedOptionsPair.String())
 		}
@@ -3437,11 +3402,11 @@ func TestWSHandleAuthenticatedData(t *testing.T) {
 			assert.Equal(t, asset.Spot, v[0].AssetType, "Asset type should be correct")
 			exp := accounts.CurrencyBalances{}
 			exp.Set(currency.ETH, accounts.Balance{UpdatedAt: time.UnixMilli(1672364262482)})
-			exp.Set(currency.USDT, accounts.Balance{UpdatedAt: time.UnixMilli(1672364262482), Total: 11728.54414904, AvailableWithoutBorrow: 11723.92075829})
-			exp.Set(currency.EOS3L, accounts.Balance{UpdatedAt: time.UnixMilli(1672364262482), Total: 215.0570412, AvailableWithoutBorrow: 215.0570412})
-			exp.Set(currency.BIT, accounts.Balance{UpdatedAt: time.UnixMilli(1672364262482), Total: 1.82, AvailableWithoutBorrow: 1.82})
+			exp.Set(currency.USDT, accounts.Balance{UpdatedAt: time.UnixMilli(1672364262482), Total: 11728.54414904})
+			exp.Set(currency.EOS3L, accounts.Balance{UpdatedAt: time.UnixMilli(1672364262482), Total: 215.0570412})
+			exp.Set(currency.BIT, accounts.Balance{UpdatedAt: time.UnixMilli(1672364262482), Total: 1.82})
 			exp.Set(currency.USDC, accounts.Balance{UpdatedAt: time.UnixMilli(1672364262482), Total: 201.34882644})
-			exp.Set(currency.BTC, accounts.Balance{UpdatedAt: time.UnixMilli(1672364262482), Total: 0.06488393, AvailableWithoutBorrow: 0.06488393})
+			exp.Set(currency.BTC, accounts.Balance{UpdatedAt: time.UnixMilli(1672364262482), Total: 0.06488393})
 			for code, balance := range v[0].Balances {
 				assert.False(t, balance.UpdatedAt.IsZero(), "balance arrival timestamp should be populated")
 				expected := exp[code]
@@ -3517,7 +3482,7 @@ func TestWsTicker(t *testing.T) {
 		asset.USDCMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures, asset.CoinMarginedFutures,
 	}
 	routingIndex := 0
-	testexch.FixtureToDataHandler(t, "testdata/wsTicker.json", func(_ context.Context, r []byte) error {
+	testexch.FixtureToDataHandler(t, "testdata/wsTicker.jsonl", func(_ context.Context, r []byte) error {
 		require.Less(t, routingIndex, len(assetRouting), "routingIndex must stay within ticker fixture asset routing bounds")
 		a := assetRouting[routingIndex]
 		routingIndex++

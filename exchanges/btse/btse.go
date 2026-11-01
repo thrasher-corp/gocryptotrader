@@ -226,26 +226,19 @@ func (e *Exchange) CreateWalletAddress(ctx context.Context, ccy string) ([]Walle
 	var resp []WalletAddress
 	req := make(map[string]any, 1)
 	req["currency"] = ccy
-	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, btseWalletAddress, true, nil, req, &resp, queryFunc)
-	if err != nil {
-		errResp := ErrorResponse{}
-		errResponseStr := strings.Split(err.Error(), "raw response: ")
-		err := json.Unmarshal([]byte(errResponseStr[1]), &errResp)
-		if err != nil {
-			return resp, err
-		}
-		if errResp.ErrorCode == 3528 {
-			walletAddress := strings.Split(errResp.Message, "BADREQUEST: ")
-			return []WalletAddress{
-				{
-					Address: walletAddress[1],
-				},
-			}, nil
-		}
-		return resp, err
+	requestErr := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, btseWalletAddress, true, nil, req, &resp, queryFunc)
+	if requestErr == nil {
+		return resp, nil
 	}
-
-	return resp, nil
+	responseErr, ok := errors.AsType[*responseError](requestErr)
+	if !ok || responseErr.response.code() != 3528 {
+		return resp, requestErr
+	}
+	_, walletAddress, ok := strings.Cut(responseErr.response.message(), "BADREQUEST: ")
+	if !ok || walletAddress == "" {
+		return resp, requestErr
+	}
+	return []WalletAddress{{Address: walletAddress}}, nil
 }
 
 // WalletWithdrawal submit request to withdraw crypto currency
@@ -454,6 +447,26 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, method,
 	}, request.UnauthenticatedRequest)
 }
 
+type responseError struct {
+	response ErrorResponse
+	err      error
+}
+
+func (e *responseError) Error() string { return e.err.Error() }
+
+func (e *responseError) Unwrap() error { return e.err }
+
+func parseResponseError(err error, raw json.RawMessage) error {
+	if !errors.Is(err, request.ErrBadStatus) {
+		return err
+	}
+	var response ErrorResponse
+	if json.Unmarshal(raw, &response) != nil || response.code() == 0 {
+		return err
+	}
+	return &responseError{response: response, err: err}
+}
+
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to the desired endpoint
 func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, endpoint string, isSpot bool, values url.Values, req map[string]any, result any, f request.EndpointLimit) error {
 	creds, err := e.GetCredentials(ctx)
@@ -466,6 +479,12 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		return err
 	}
 
+	var intermediary json.RawMessage
+	// Left nil without a result, since BTSE answers cancelAllAfter with a bare 200 that does not decode
+	var resultTarget any
+	if result != nil {
+		resultTarget = &intermediary
+	}
 	newRequest := func() (*request.Item, error) {
 		// The concatenation is done this way because BTSE expect endpoint+nonce or endpoint+nonce+body
 		// when signing the data but the full path of the request  is /spot/api/v3.2/<endpoint>
@@ -523,14 +542,23 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 			Path:                   host,
 			Headers:                headers,
 			Body:                   body,
-			Result:                 result,
+			Result:                 resultTarget,
 			Verbose:                e.Verbose,
 			HTTPDebugging:          e.HTTPDebugging,
 			HTTPRecording:          e.HTTPRecording,
 			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 		}, nil
 	}
-	return e.SendPayload(ctx, f, newRequest, request.AuthenticatedRequest)
+	if err := e.SendPayload(ctx, f, newRequest, request.AuthenticatedRequest); err != nil {
+		return parseResponseError(err, intermediary)
+	}
+	if result == nil || len(intermediary) == 0 {
+		return nil
+	}
+	if err := json.Unmarshal(intermediary, result); err != nil {
+		return common.AppendError(err, request.ErrAuthRequestFailed)
+	}
+	return nil
 }
 
 // GetFee returns an estimate of fee based on type of transaction

@@ -132,7 +132,7 @@ func TestPushData(t *testing.T) {
 		},
 	})
 
-	fErrs := testexch.FixtureToDataHandlerWithErrors(t, "testdata/wsHandleData.json", func(ctx context.Context, r []byte) error {
+	fErrs := testexch.FixtureToDataHandlerWithErrors(t, "testdata/wsHandleData.jsonl", func(ctx context.Context, r []byte) error {
 		if bytes.Contains(r, []byte("FANGLE-ACCOUNTS")) {
 			hold := e.Accounts
 			e.Accounts = nil
@@ -1738,7 +1738,7 @@ func TestProcessMarketSnapshot(t *testing.T) {
 	t.Parallel()
 	ku := testInstance(t)
 	ku.Name = t.Name()
-	testexch.FixtureToDataHandler(t, "testdata/wsMarketSnapshot.json", func(ctx context.Context, b []byte) error { return ku.wsHandleData(ctx, nil, b) })
+	testexch.FixtureToDataHandler(t, "testdata/wsMarketSnapshot.jsonl", func(ctx context.Context, b []byte) error { return ku.wsHandleData(ctx, nil, b) })
 	ku.Websocket.DataHandler.Close()
 	var tickers []ticker.Price
 	for resp := range ku.Websocket.DataHandler.C {
