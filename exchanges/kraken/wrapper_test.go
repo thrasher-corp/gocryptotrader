@@ -34,6 +34,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/mock"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -3711,6 +3712,68 @@ func TestSubmitOrderFuturesLeverageOfOne(t *testing.T) {
 	assert.Equal(t, "o-1", resp.OrderID, "SubmitOrder should return the placed order's ID")
 }
 
+func TestSubmitOrderTriggeredLimitPrice(t *testing.T) {
+	t.Parallel()
+	ex := newHTTPTestExchange(t, func(_ http.ResponseWriter, r *http.Request) {
+		assert.Failf(t, "no order should be placed", "%s", r.URL.Path)
+	})
+	wsEx := newHTTPTestExchange(t, func(_ http.ResponseWriter, r *http.Request) {
+		assert.Failf(t, "no order should be placed", "%s", r.URL.Path)
+	})
+	// Without round trips the mock fails the test on any websocket request
+	useOrdersTestWebsocket(t, wsEx)
+	for _, tc := range []struct {
+		name      string
+		orderType order.Type
+		side      order.Side
+		price     float64
+		tif       order.TimeInForce
+		trigger   order.PriceType
+		leverage  float64
+		assets    []asset.Item
+	}{
+		{name: "stop limit", orderType: order.StopLimit, side: order.Sell},
+		{name: "take profit limit", orderType: order.TakeProfit | order.Limit, side: order.Buy},
+		{name: "stop limit", orderType: order.StopLimit, side: order.Buy, price: -1},
+		{name: "take profit limit", orderType: order.TakeProfit | order.Limit, side: order.Sell, price: -1},
+		{name: "good till cancelled stop limit", orderType: order.StopLimit, side: order.Sell, tif: order.GoodTillCancel},
+		{name: "index price stop limit", orderType: order.StopLimit, side: order.Buy, trigger: order.IndexPrice},
+		{name: "leveraged stop limit", orderType: order.StopLimit, side: order.Sell, leverage: 1},
+		{name: "mark price stop limit", orderType: order.StopLimit, side: order.Buy, trigger: order.MarkPrice, assets: []asset.Item{asset.Futures}},
+	} {
+		assets := tc.assets
+		if assets == nil {
+			assets = []asset.Item{asset.Spot, asset.Futures}
+		}
+		for _, a := range assets {
+			s := order.Submit{Exchange: ex.Name, Pair: spotTestPair, AssetType: a, Type: tc.orderType, Side: tc.side, Amount: 0.5, TriggerPrice: 70000, TriggerPriceType: tc.trigger, Price: tc.price, TimeInForce: tc.tif, Leverage: tc.leverage}
+			if a == asset.Futures {
+				s.Pair = futuresTestPair
+			}
+			_, err := ex.SubmitOrder(t.Context(), &s)
+			assert.ErrorIsf(t, err, order.ErrPriceMustBeSetIfLimitOrder, "SubmitOrder should refuse a %s %s %s order with a limit price of %v", a, tc.side, tc.name, tc.price)
+			if a == asset.Spot {
+				s.Exchange = wsEx.Name
+				_, err = wsEx.SubmitOrder(t.Context(), &s)
+				assert.ErrorIsf(t, err, order.ErrPriceMustBeSetIfLimitOrder, "SubmitOrder should refuse a spot %s %s order with a limit price of %v over the private websocket", tc.side, tc.name, tc.price)
+			}
+		}
+	}
+
+	futuresPlaced := newOrdersRequestCheckExchange(t, "/derivatives/api/v3/sendorder",
+		url.Values{"limitPrice": {"0.5"}, "orderType": {"stp"}, "side": {"sell"}, "size": {"0.5"}, "stopPrice": {"0.6"}, "symbol": {"PF_XBTUSD"}, "triggerSignal": {"last"}}.Encode(),
+		`{"result":"success","sendStatus":{"order_id":"f-stop-limit","status":"placed","receivedTime":"2026-10-09T08:33:01.104Z","orderEvents":[]},"serverTime":"2026-10-09T08:33:01.107Z"}`)
+	resp, err := futuresPlaced.SubmitOrder(t.Context(), &order.Submit{Exchange: futuresPlaced.Name, Pair: futuresTestPair, AssetType: asset.Futures, Type: order.StopLimit, Side: order.Sell, Amount: 0.5, TriggerPrice: 0.6, Price: 0.5})
+	require.NoError(t, err, "SubmitOrder must place a futures stop limit order with a limit price below 1")
+	assert.Equal(t, "f-stop-limit", resp.OrderID, "SubmitOrder should return the futures stop limit order's ID")
+
+	spotPlaced := newOrdersRequestCheckExchange(t, "/0/private/AddOrder", `{"ordertype":"take-profit-limit","pair":"XBTUSD","price":"0.6","price2":"0.5","trigger":"last","type":"buy","volume":"0.5"}`,
+		`{"error":[],"result":{"descr":{"order":"buy 0.50000000 XBTUSD @ take profit 0.6 -> limit 0.5"},"txid":["OTPL5-UOSK2-KOFH7X"]}}`)
+	resp, err = spotPlaced.SubmitOrder(t.Context(), &order.Submit{Exchange: spotPlaced.Name, Pair: spotTestPair, AssetType: asset.Spot, Type: order.TakeProfit | order.Limit, Side: order.Buy, Amount: 0.5, TriggerPrice: 0.6, Price: 0.5})
+	require.NoError(t, err, "SubmitOrder must place a spot take profit limit order with a limit price below 1")
+	assert.Equal(t, "OTPL5-UOSK2-KOFH7X", resp.OrderID, "SubmitOrder should return the spot take profit limit order's ID")
+}
+
 func TestSubmitFuturesOrderWithoutOrderID(t *testing.T) {
 	t.Parallel()
 	ex := newOrdersRequestCheckExchange(t, "/derivatives/api/v3/sendorder", "limitPrice=80000&orderType=lmt&side=buy&size=0.001&symbol=PF_XBTUSD",
@@ -4504,6 +4567,336 @@ func TestCancelAllOrders(t *testing.T) {
 		require.NoError(t, err, "CancelAllOrders must not error")
 		assert.Equal(t, order.CancelAllResponse{Status: map[string]string{"OQCLML-BW3P3-BUCMWZ": order.Cancelled.String()}}, resp, "CancelAllOrders should cancel the pair's open orders over the private websocket")
 	})
+}
+
+// ordersSideAndTypeOpenOrders is Get Open Orders' reply holding XBTUSD's buy limit, iceberg buy, sell stop loss and sell
+// trailing stop limit, ETHUSD's buy limit, buy stop loss limit, settle position sell, sell take profit and sell take
+// profit limit, and a sell limit on WAVESUSD, which the available pairs lack
+const ordersSideAndTypeOpenOrders = `{"error":[],"result":{"open":{` +
+	`"OBUY-LIMIT-XBT":{"status":"open","opentm":1791421234.5512,"descr":{"pair":"XBTUSD","type":"buy","ordertype":"limit","price":"80000"},"vol":"1","vol_exec":"0"},` +
+	`"OBUY-ICEBERG-XBT":{"status":"open","opentm":1791421234.5512,"descr":{"pair":"XBTUSD","type":"buy","ordertype":"iceberg","price":"79000"},"vol":"1","vol_exec":"0"},` +
+	`"OSELL-STOP-XBT":{"status":"open","opentm":1791421234.5512,"descr":{"pair":"XBTUSD","type":"sell","ordertype":"stop-loss","price":"70000"},"vol":"1","vol_exec":"0"},` +
+	`"OSELL-TRAIL-XBT":{"status":"open","opentm":1791421234.5512,"descr":{"pair":"XBTUSD","type":"sell","ordertype":"trailing-stop-limit","price":"+500.0","price2":"-100.0"},"vol":"1","vol_exec":"0"},` +
+	`"OBUY-STOPLMT-ETH":{"status":"open","opentm":1791421234.5512,"descr":{"pair":"ETHUSD","type":"buy","ordertype":"stop-loss-limit","price":"2600","price2":"2610"},"vol":"1","vol_exec":"0"},` +
+	`"OSELL-SETTLE-ETH":{"status":"open","opentm":1791421234.5512,"descr":{"pair":"ETHUSD","type":"sell","ordertype":"settle-position","price":"0"},"vol":"1","vol_exec":"0"},` +
+	`"OSELL-TP-ETH":{"status":"open","opentm":1791421234.5512,"descr":{"pair":"ETHUSD","type":"sell","ordertype":"take-profit","price":"2500"},"vol":"1","vol_exec":"0"},` +
+	`"OSELL-TPL-ETH":{"status":"open","opentm":1791421234.5512,"descr":{"pair":"ETHUSD","type":"sell","ordertype":"take-profit-limit","price":"2500","price2":"2490"},"vol":"1","vol_exec":"0"},` +
+	`"OBUY-LIMIT-ETH":{"status":"open","opentm":1791421234.5512,"descr":{"pair":"ETHUSD","type":"buy","ordertype":"limit","price":"2000"},"vol":"1","vol_exec":"0"},` +
+	`"OSELL-LIMIT-WAVES":{"status":"open","opentm":1791421234.5512,"descr":{"pair":"WAVESUSD","type":"sell","ordertype":"limit","price":"1.2250"},"vol":"500","vol_exec":"0"}}}}`
+
+// ordersSideAndTypeFuturesOpenOrders is Get Open Orders' futures reply holding PF_XBTUSD's buy limit, post only buy, sell
+// stop limit and sell stop, PF_ETHUSD's sell limit, buy take profit and buy take profit limit, and a sell limit on
+// PF_GCTUSD, which the available pairs lack. Kraken lists a stop or take profit order with a limit price under the same
+// type as one without
+const ordersSideAndTypeFuturesOpenOrders = `{"result":"success","openOrders":[` +
+	`{"order_id":"f-buy-limit-xbt","symbol":"PF_XBTUSD","side":"buy","orderType":"lmt","limitPrice":80000,"unfilledSize":1,"filledSize":0,"receivedTime":"2026-10-09T08:33:01.104Z","status":"untouched"},` +
+	`{"order_id":"f-buy-post-xbt","symbol":"PF_XBTUSD","side":"buy","orderType":"post","limitPrice":79000,"unfilledSize":1,"filledSize":0,"receivedTime":"2026-10-09T08:33:01.104Z","status":"untouched"},` +
+	`{"order_id":"f-sell-stop-limit-xbt","symbol":"PF_XBTUSD","side":"sell","orderType":"stop","limitPrice":69000,"stopPrice":70000,"unfilledSize":1,"filledSize":0,"receivedTime":"2026-10-09T08:33:01.104Z","status":"untouched"},` +
+	`{"order_id":"f-sell-stop-xbt","symbol":"PF_XBTUSD","side":"sell","orderType":"stop","stopPrice":68000,"unfilledSize":1,"filledSize":0,"receivedTime":"2026-10-09T08:33:01.104Z","status":"untouched"},` +
+	`{"order_id":"f-sell-limit-eth","symbol":"PF_ETHUSD","side":"sell","orderType":"lmt","limitPrice":2100,"unfilledSize":1,"filledSize":0,"receivedTime":"2026-10-09T08:33:01.104Z","status":"untouched"},` +
+	`{"order_id":"f-buy-tp-eth","symbol":"PF_ETHUSD","side":"buy","orderType":"take_profit","stopPrice":1900,"unfilledSize":1,"filledSize":0,"receivedTime":"2026-10-09T08:33:01.104Z","status":"untouched"},` +
+	`{"order_id":"f-buy-tp-limit-eth","symbol":"PF_ETHUSD","side":"buy","orderType":"take_profit","limitPrice":1905,"stopPrice":1900,"unfilledSize":1,"filledSize":0,"receivedTime":"2026-10-09T08:33:01.104Z","status":"untouched"},` +
+	`{"order_id":"f-sell-limit-gct","symbol":"PF_GCTUSD","side":"sell","orderType":"lmt","limitPrice":5,"unfilledSize":1,"filledSize":0,"receivedTime":"2026-10-09T08:33:01.104Z","status":"untouched"}],"serverTime":"2026-10-09T08:33:01.107Z"}`
+
+func TestCancelAllOrdersSideAndType(t *testing.T) {
+	t.Parallel()
+	ethFutures := currency.NewPairWithDelimiter("PF", "ETHUSD", currency.UnderscoreDelimiter)
+	for _, tc := range []struct {
+		name   string
+		cancel order.Cancel
+		exp    []string
+	}{
+		{name: "a pair's buy limit orders, an iceberg order among them", cancel: order.Cancel{AssetType: asset.Spot, Pair: spotTestPair, Side: order.Buy, Type: order.Limit}, exp: []string{"OBUY-ICEBERG-XBT", "OBUY-LIMIT-XBT"}},
+		{name: "sell orders, a cancel only pair's among them", cancel: order.Cancel{AssetType: asset.Spot, Side: order.Sell}, exp: []string{"OSELL-LIMIT-WAVES", "OSELL-SETTLE-ETH", "OSELL-STOP-XBT", "OSELL-TP-ETH", "OSELL-TPL-ETH", "OSELL-TRAIL-XBT"}},
+		{name: "limit orders, a cancel only pair's among them", cancel: order.Cancel{AssetType: asset.Spot, Type: order.Limit}, exp: []string{"OBUY-ICEBERG-XBT", "OBUY-LIMIT-ETH", "OBUY-LIMIT-XBT", "OSELL-LIMIT-WAVES"}},
+		{name: "stop orders, which a stop limit order is not", cancel: order.Cancel{AssetType: asset.Spot, Type: order.Stop}, exp: []string{"OSELL-STOP-XBT"}},
+		{name: "stop market orders, which Kraken lists as stop losses", cancel: order.Cancel{AssetType: asset.Spot, Type: order.StopMarket}, exp: []string{"OSELL-STOP-XBT"}},
+		{name: "stop limit orders", cancel: order.Cancel{AssetType: asset.Spot, Type: order.StopLimit}, exp: []string{"OBUY-STOPLMT-ETH"}},
+		{name: "take profit orders", cancel: order.Cancel{AssetType: asset.Spot, Type: order.TakeProfit}, exp: []string{"OSELL-TP-ETH"}},
+		{name: "take profit market orders, which Kraken lists as take profits", cancel: order.Cancel{AssetType: asset.Spot, Type: order.TakeProfitMarket}, exp: []string{"OSELL-TP-ETH"}},
+		{name: "take profit limit orders", cancel: order.Cancel{AssetType: asset.Spot, Type: order.TakeProfit | order.Limit}, exp: []string{"OSELL-TPL-ETH"}},
+		{name: "market orders, a settle position order among them", cancel: order.Cancel{AssetType: asset.Spot, Type: order.Market}, exp: []string{"OSELL-SETTLE-ETH"}},
+		{name: "trailing stop orders, which a trailing stop limit order is not", cancel: order.Cancel{AssetType: asset.Spot, Type: order.TrailingStop}},
+		{name: "trailing stop limit orders, which the wrapper does not place", cancel: order.Cancel{AssetType: asset.Spot, Type: order.TrailingStopLimit}, exp: []string{"OSELL-TRAIL-XBT"}},
+		{name: "bids, which are buys", cancel: order.Cancel{AssetType: asset.Spot, Side: order.Bid}, exp: []string{"OBUY-ICEBERG-XBT", "OBUY-LIMIT-ETH", "OBUY-LIMIT-XBT", "OBUY-STOPLMT-ETH"}},
+		{name: "asks of a type no ask has", cancel: order.Cancel{AssetType: asset.Spot, Side: order.Ask, Type: order.StopLimit}},
+		{name: "a pair's orders of any side and type", cancel: order.Cancel{AssetType: asset.Spot, Pair: spotTestPair, Side: order.AnySide, Type: order.AnyType}, exp: []string{"OBUY-ICEBERG-XBT", "OBUY-LIMIT-XBT", "OSELL-STOP-XBT", "OSELL-TRAIL-XBT"}},
+		{name: "a pair's sell orders named quote first", cancel: order.Cancel{AssetType: asset.Spot, Pair: spotTestPair.Swap(), Side: order.Sell}, exp: []string{"OSELL-STOP-XBT", "OSELL-TRAIL-XBT"}},
+		{name: "futures long orders", cancel: order.Cancel{AssetType: asset.Futures, Side: order.Long}, exp: []string{"f-buy-limit-xbt", "f-buy-post-xbt", "f-buy-tp-eth", "f-buy-tp-limit-eth"}},
+		{name: "futures limit orders, a post only order among them", cancel: order.Cancel{AssetType: asset.Futures, Type: order.Limit}, exp: []string{"f-buy-limit-xbt", "f-buy-post-xbt", "f-sell-limit-eth", "f-sell-limit-gct"}},
+		{name: "futures short orders, an unlisted product's among them", cancel: order.Cancel{AssetType: asset.Futures, Side: order.Short}, exp: []string{"f-sell-limit-eth", "f-sell-limit-gct", "f-sell-stop-limit-xbt", "f-sell-stop-xbt"}},
+		{name: "futures buy limit orders, a post only order among them", cancel: order.Cancel{AssetType: asset.Futures, Side: order.Buy, Type: order.Limit}, exp: []string{"f-buy-limit-xbt", "f-buy-post-xbt"}},
+		{name: "a futures product's short limit orders", cancel: order.Cancel{AssetType: asset.Futures, Pair: ethFutures, Side: order.Short, Type: order.Limit}, exp: []string{"f-sell-limit-eth"}},
+		{name: "a futures product's stop limit orders, which have a limit price", cancel: order.Cancel{AssetType: asset.Futures, Pair: futuresTestPair, Type: order.StopLimit}, exp: []string{"f-sell-stop-limit-xbt"}},
+		{name: "futures stop orders, which have none", cancel: order.Cancel{AssetType: asset.Futures, Type: order.Stop}, exp: []string{"f-sell-stop-xbt"}},
+		{name: "futures stop market orders", cancel: order.Cancel{AssetType: asset.Futures, Type: order.StopMarket}, exp: []string{"f-sell-stop-xbt"}},
+		{name: "futures take profit orders", cancel: order.Cancel{AssetType: asset.Futures, Type: order.TakeProfit}, exp: []string{"f-buy-tp-eth"}},
+		{name: "futures take profit market orders", cancel: order.Cancel{AssetType: asset.Futures, Type: order.TakeProfitMarket}, exp: []string{"f-buy-tp-eth"}},
+		{name: "futures take profit limit orders", cancel: order.Cancel{AssetType: asset.Futures, Type: order.TakeProfit | order.Limit}, exp: []string{"f-buy-tp-limit-eth"}},
+		{name: "a futures product's short orders", cancel: order.Cancel{AssetType: asset.Futures, Pair: ethFutures, Side: order.Short}, exp: []string{"f-sell-limit-eth"}},
+		{name: "a futures product's short orders named quote first", cancel: order.Cancel{AssetType: asset.Futures, Pair: ethFutures.Swap(), Side: order.Short}, exp: []string{"f-sell-limit-eth"}},
+		{name: "futures limit orders of any side", cancel: order.Cancel{AssetType: asset.Futures, Side: order.AnySide, Type: order.Limit}, exp: []string{"f-buy-limit-xbt", "f-buy-post-xbt", "f-sell-limit-eth", "f-sell-limit-gct"}},
+		{name: "futures short orders of any type", cancel: order.Cancel{AssetType: asset.Futures, Side: order.Short, Type: order.AnyType}, exp: []string{"f-sell-limit-eth", "f-sell-limit-gct", "f-sell-stop-limit-xbt", "f-sell-stop-xbt"}},
+		{name: "futures market orders, which none is", cancel: order.Cancel{AssetType: asset.Futures, Type: order.Market}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var mu sync.Mutex
+			var cancelled []string
+			ex := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+				mu.Lock()
+				defer mu.Unlock()
+				switch r.URL.Path {
+				case "/0/private/OpenOrders":
+					_, _ = w.Write([]byte(ordersSideAndTypeOpenOrders))
+				case "/0/private/CancelOrder":
+					var req struct {
+						OrderID string `json:"txid"`
+					}
+					assert.NoError(t, json.Unmarshal([]byte(tradingRequestBody(t, r)), &req), "Unmarshal should not error")
+					cancelled = append(cancelled, req.OrderID)
+					_, _ = w.Write([]byte(`{"error":[],"result":{"count":1}}`))
+				case "/0/private/CancelOrderBatch":
+					var req struct {
+						Orders []string `json:"orders"`
+					}
+					assert.NoError(t, json.Unmarshal([]byte(tradingRequestBody(t, r)), &req), "Unmarshal should not error")
+					cancelled = append(cancelled, req.Orders...)
+					_, _ = w.Write([]byte(`{"error":[],"result":{"count":` + strconv.Itoa(len(req.Orders)) + `}}`))
+				case "/derivatives/api/v3/openorders":
+					_, _ = w.Write([]byte(ordersSideAndTypeFuturesOpenOrders))
+				case "/derivatives/api/v3/batchorder":
+					var batch struct {
+						Orders []struct {
+							OrderID string `json:"order_id"`
+						} `json:"batchOrder"`
+					}
+					assert.NoError(t, json.Unmarshal([]byte(r.URL.Query().Get("json")), &batch), "Unmarshal should not error")
+					statuses := make([]string, len(batch.Orders))
+					for i := range batch.Orders {
+						cancelled = append(cancelled, batch.Orders[i].OrderID)
+						status := "cancelled"
+						if batch.Orders[i].OrderID == "f-buy-post-xbt" {
+							status = "notFound"
+						}
+						statuses[i] = `{"order_id":"` + batch.Orders[i].OrderID + `","orderEvents":[],"status":"` + status + `"}`
+					}
+					_, _ = w.Write([]byte(`{"result":"success","batchStatus":[` + strings.Join(statuses, ",") + `],"serverTime":"2026-10-09T08:42:00.003Z"}`))
+				default:
+					assert.Failf(t, "only open orders should be listed and cancelled", "%s", r.URL.Path)
+				}
+			})
+			c := tc.cancel
+			c.Exchange = ex.Name
+			resp, err := ex.CancelAllOrders(t.Context(), &c)
+			require.NoError(t, err, "CancelAllOrders must not error")
+			mu.Lock()
+			defer mu.Unlock()
+			slices.Sort(cancelled)
+			assert.Equal(t, tc.exp, cancelled, "CancelAllOrders should cancel the open orders matching the pair, side and order type alone")
+			// Kraken reports the post only order as not found, as it would one filled meanwhile
+			exp := map[string]string{}
+			for _, id := range tc.exp {
+				exp[id] = order.Cancelled.String()
+				if id == "f-buy-post-xbt" {
+					exp[id] = order.ErrOrderNotFound.Error()
+				}
+			}
+			assert.Equal(t, order.CancelAllResponse{Status: exp}, resp, "CancelAllOrders should report each order's outcome")
+		})
+	}
+
+	t.Run("futures orders over two batches, the third failing", func(t *testing.T) {
+		t.Parallel()
+		orders := make([]string, 1001)
+		for i := range orders {
+			orders[i] = `{"order_id":"f-` + strconv.Itoa(i) + `","symbol":"PF_XBTUSD","side":"buy","orderType":"lmt","limitPrice":80000,"unfilledSize":1,"filledSize":0,"receivedTime":"2026-10-09T08:33:01.104Z","status":"untouched"}`
+		}
+		var mu sync.Mutex
+		var batches []int
+		ex := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+			mu.Lock()
+			defer mu.Unlock()
+			switch r.URL.Path {
+			case "/derivatives/api/v3/openorders":
+				_, _ = w.Write([]byte(`{"result":"success","openOrders":[` + strings.Join(orders, ",") + `],"serverTime":"2026-10-09T08:33:01.107Z"}`))
+			case "/derivatives/api/v3/batchorder":
+				var batch struct {
+					Orders []struct {
+						OrderID string `json:"order_id"`
+					} `json:"batchOrder"`
+				}
+				assert.NoError(t, json.Unmarshal([]byte(r.URL.Query().Get("json")), &batch), "Unmarshal should not error")
+				batches = append(batches, len(batch.Orders))
+				if len(batches) > 2 {
+					_, _ = w.Write([]byte(`{"result":"error","error":"apiLimitExceeded","serverTime":"2026-10-09T08:42:00.001Z"}`))
+					return
+				}
+				statuses := make([]string, len(batch.Orders))
+				for i := range batch.Orders {
+					statuses[i] = `{"order_id":"` + batch.Orders[i].OrderID + `","orderEvents":[],"status":"cancelled"}`
+				}
+				_, _ = w.Write([]byte(`{"result":"success","batchStatus":[` + strings.Join(statuses, ",") + `],"serverTime":"2026-10-09T08:42:00.003Z"}`))
+			default:
+				assert.Failf(t, "only open orders should be listed and cancelled", "%s", r.URL.Path)
+			}
+		})
+		resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{Exchange: ex.Name, AssetType: asset.Futures, Side: order.Buy})
+		require.ErrorIs(t, err, errAPIResponse, "CancelAllOrders must return the failed batch's error")
+		mu.Lock()
+		defer mu.Unlock()
+		assert.Equal(t, []int{500, 500, 1}, batches, "CancelAllOrders should cancel 500 orders a batch")
+		assert.Len(t, resp.Status, 1000, "CancelAllOrders should report the outcomes of the batches sent before the failed one")
+		assert.Equal(t, order.Cancelled.String(), resp.Status["f-0"], "CancelAllOrders should report each order the first batch cancelled")
+		assert.Equal(t, order.Cancelled.String(), resp.Status["f-999"], "CancelAllOrders should report each order the second batch cancelled")
+	})
+
+	t.Run("futures orders over two batches, the context ending in the second", func(t *testing.T) {
+		t.Parallel()
+		orders := make([]string, 501)
+		for i := range orders {
+			orders[i] = `{"order_id":"f-` + strconv.Itoa(i) + `","symbol":"PF_XBTUSD","side":"buy","orderType":"lmt","limitPrice":80000,"unfilledSize":1,"filledSize":0,"receivedTime":"2026-10-09T08:33:01.104Z","status":"untouched"}`
+		}
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+		var batches atomic.Int32
+		ex := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+			switch r.URL.Path {
+			case "/derivatives/api/v3/openorders":
+				_, _ = w.Write([]byte(`{"result":"success","openOrders":[` + strings.Join(orders, ",") + `],"serverTime":"2026-10-09T08:33:01.107Z"}`))
+			case "/derivatives/api/v3/batchorder":
+				if batches.Add(1) > 1 {
+					// The caller gives up while the second batch is in flight
+					cancel()
+					select {
+					case <-r.Context().Done():
+					case <-time.After(time.Minute):
+					}
+					return
+				}
+				var batch struct {
+					Orders []struct {
+						OrderID string `json:"order_id"`
+					} `json:"batchOrder"`
+				}
+				assert.NoError(t, json.Unmarshal([]byte(r.URL.Query().Get("json")), &batch), "Unmarshal should not error")
+				statuses := make([]string, len(batch.Orders))
+				for i := range batch.Orders {
+					statuses[i] = `{"order_id":"` + batch.Orders[i].OrderID + `","orderEvents":[],"status":"cancelled"}`
+				}
+				_, _ = w.Write([]byte(`{"result":"success","batchStatus":[` + strings.Join(statuses, ",") + `],"serverTime":"2026-10-09T08:42:00.003Z"}`))
+			default:
+				assert.Failf(t, "only open orders should be listed and cancelled", "%s", r.URL.Path)
+			}
+		})
+		resp, err := ex.CancelAllOrders(ctx, &order.Cancel{Exchange: ex.Name, AssetType: asset.Futures, Side: order.Buy})
+		require.ErrorIs(t, err, context.Canceled, "CancelAllOrders must return the context's error")
+		assert.Len(t, resp.Status, 500, "CancelAllOrders should report the outcomes of the batch sent before the context ended")
+	})
+
+	t.Run("spot orders over a batch, the second failing", func(t *testing.T) {
+		t.Parallel()
+		orders := make([]string, 101)
+		for i := range orders {
+			orders[i] = `"OSPOT-` + strconv.Itoa(i) + `":{"status":"open","opentm":1791421234.5512,"descr":{"pair":"XBTUSD","type":"buy","ordertype":"limit","price":"80000"},"vol":"1","vol_exec":"0"}`
+		}
+		var mu sync.Mutex
+		var batches int
+		ex := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+			mu.Lock()
+			defer mu.Unlock()
+			switch r.URL.Path {
+			case "/0/private/OpenOrders":
+				_, _ = w.Write([]byte(`{"error":[],"result":{"open":{` + strings.Join(orders, ",") + `}}}`))
+			case "/0/private/CancelOrderBatch":
+				var req struct {
+					Orders []string `json:"orders"`
+				}
+				assert.NoError(t, json.Unmarshal([]byte(tradingRequestBody(t, r)), &req), "Unmarshal should not error")
+				batches++
+				if batches > 1 {
+					_, _ = w.Write([]byte(`{"error":["EAPI:Rate limit exceeded"]}`))
+					return
+				}
+				_, _ = w.Write([]byte(`{"error":[],"result":{"count":` + strconv.Itoa(len(req.Orders)) + `}}`))
+			default:
+				assert.Failf(t, "only open orders should be listed and cancelled", "%s", r.URL.Path)
+			}
+		})
+		resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{Exchange: ex.Name, AssetType: asset.Spot, Side: order.Buy})
+		require.ErrorIs(t, err, errAPIResponse, "CancelAllOrders must return the failed batch's error")
+		assert.Len(t, resp.Status, 50, "CancelAllOrders should report the outcomes of the batch sent before the failed one")
+	})
+
+	ex := newHTTPTestExchange(t, func(_ http.ResponseWriter, r *http.Request) {
+		assert.Failf(t, "no order should be listed or cancelled", "%s", r.URL.Path)
+	})
+	for _, a := range []asset.Item{asset.Spot, asset.Futures} {
+		_, err := ex.CancelAllOrders(t.Context(), &order.Cancel{Exchange: ex.Name, AssetType: a, Side: order.ClosePosition})
+		assert.ErrorIsf(t, err, order.ErrSideIsInvalid, "CancelAllOrders should refuse a %s side neither long nor short before any request", a)
+		_, err = ex.CancelAllOrders(t.Context(), &order.Cancel{Exchange: ex.Name, AssetType: a, Type: order.Liquidation})
+		assert.ErrorIsf(t, err, order.ErrUnsupportedOrderType, "CancelAllOrders should refuse a %s order type no open order is read as before any request", a)
+	}
+	_, err := ex.CancelAllOrders(t.Context(), &order.Cancel{Exchange: ex.Name, AssetType: asset.Futures, Type: order.TrailingStopLimit})
+	assert.ErrorIs(t, err, order.ErrUnsupportedOrderType, "CancelAllOrders should refuse futures trailing stop limit orders, which no listed futures order is read as, before any request")
+
+	failing := newOrdersFailingExchange(t)
+	_, err = failing.CancelAllOrders(t.Context(), &order.Cancel{Exchange: failing.Name, AssetType: asset.Futures, Side: order.Buy})
+	assert.ErrorIs(t, err, errAPIResponse, "CancelAllOrders should return the futures open orders request's error")
+
+	unnamed := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/0/private/OpenOrders":
+			_, _ = w.Write([]byte(`{"error":[],"result":{"open":{"OBUY-NOPAIR":{"status":"open","opentm":1791421234.5512,"descr":{"pair":"","type":"buy","ordertype":"limit","price":"80000"},"vol":"1","vol_exec":"0"}}}}`))
+		case "/derivatives/api/v3/openorders":
+			_, _ = w.Write([]byte(`{"result":"success","openOrders":[{"order_id":"f-nopair","symbol":"","side":"buy","orderType":"lmt","limitPrice":80000,"unfilledSize":1,"filledSize":0,"receivedTime":"2026-10-09T08:33:01.104Z","status":"untouched"}],"serverTime":"2026-10-09T08:33:01.107Z"}`))
+		default:
+			assert.Failf(t, "no order should be cancelled", "%s", r.URL.Path)
+		}
+	})
+	for _, c := range []order.Cancel{{AssetType: asset.Spot, Pair: spotTestPair}, {AssetType: asset.Futures, Pair: futuresTestPair, Side: order.Buy}} {
+		c.Exchange = unnamed.Name
+		_, err = unnamed.CancelAllOrders(t.Context(), &c)
+		assert.ErrorIsf(t, err, currency.ErrSymbolStringEmpty, "CancelAllOrders should return the error of a listed %s order whose pair cannot be read when a pair is named", c.AssetType)
+	}
+}
+
+func TestCancelAllOrderType(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		asset     asset.Item
+		orderType order.Type
+		exp       order.Type
+	}{
+		{asset: asset.Spot, orderType: order.UnknownType, exp: order.UnknownType},
+		{asset: asset.Futures, orderType: order.AnyType, exp: order.UnknownType},
+		{asset: asset.Spot, orderType: order.Limit, exp: order.Limit},
+		{asset: asset.Futures, orderType: order.Market, exp: order.Market},
+		{asset: asset.Spot, orderType: order.StopMarket, exp: order.Stop},
+		{asset: asset.Futures, orderType: order.StopMarket, exp: order.Stop},
+		{asset: asset.Spot, orderType: order.TakeProfitMarket, exp: order.TakeProfit},
+		{asset: asset.Futures, orderType: order.TakeProfitMarket, exp: order.TakeProfit},
+		{asset: asset.Futures, orderType: order.StopLimit, exp: order.StopLimit},
+		{asset: asset.Spot, orderType: order.TakeProfit | order.Limit, exp: order.TakeProfit | order.Limit},
+		{asset: asset.Futures, orderType: order.TrailingStop, exp: order.TrailingStop},
+		{asset: asset.Spot, orderType: order.TrailingStopLimit, exp: order.TrailingStopLimit},
+	} {
+		got, err := cancelAllOrderType(tc.asset, tc.orderType)
+		require.NoErrorf(t, err, "cancelAllOrderType must not error for %s %s orders", tc.asset, tc.orderType)
+		assert.Equalf(t, tc.exp, got, "cancelAllOrderType should return the order type %s %s orders are listed as", tc.asset, tc.orderType)
+	}
+	for _, tc := range []struct {
+		asset     asset.Item
+		orderType order.Type
+	}{
+		{asset: asset.Spot, orderType: order.Liquidation},
+		{asset: asset.Futures, orderType: order.Liquidation},
+		{asset: asset.Spot, orderType: order.OCO},
+		{asset: asset.Futures, orderType: order.TrailingStopLimit},
+	} {
+		_, err := cancelAllOrderType(tc.asset, tc.orderType)
+		assert.ErrorIsf(t, err, order.ErrUnsupportedOrderType, "cancelAllOrderType should refuse %s %s orders, which no listed order is read as", tc.asset, tc.orderType)
+	}
 }
 
 func TestGetOrderInfo(t *testing.T) {
@@ -5516,6 +5909,31 @@ func TestFuturesOrderTypeFromString(t *testing.T) {
 	assert.ErrorIs(t, err, errUnknownOrderType, "futuresOrderTypeFromString should reject an unknown order type")
 }
 
+func TestFuturesOpenOrderType(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name      string
+		order     FuturesOpenOrder
+		orderType order.Type
+		tif       order.TimeInForce
+	}{
+		{name: "limit order", order: FuturesOpenOrder{OrderType: "lmt", LimitPrice: 80000}, orderType: order.Limit},
+		{name: "post only order", order: FuturesOpenOrder{OrderType: "post", LimitPrice: 80000}, orderType: order.Limit, tif: order.PostOnly},
+		{name: "stop order", order: FuturesOpenOrder{OrderType: "stop", StopPrice: 70000}, orderType: order.Stop},
+		{name: "stop order with a limit price", order: FuturesOpenOrder{OrderType: "stop", LimitPrice: 69000, StopPrice: 70000}, orderType: order.StopLimit},
+		{name: "take profit order", order: FuturesOpenOrder{OrderType: "take_profit", StopPrice: 90000}, orderType: order.TakeProfit},
+		{name: "take profit order with a limit price", order: FuturesOpenOrder{OrderType: "take_profit", LimitPrice: 90100, StopPrice: 90000}, orderType: order.TakeProfit | order.Limit},
+		{name: "trailing stop order", order: FuturesOpenOrder{OrderType: "trailing_stop", LimitPrice: 1}, orderType: order.TrailingStop},
+	} {
+		orderType, tif, err := futuresOpenOrderType(&tc.order)
+		require.NoErrorf(t, err, "futuresOpenOrderType must not error for a listed %s", tc.name)
+		assert.Equalf(t, tc.orderType, orderType, "futuresOpenOrderType should return a listed %s's order type", tc.name)
+		assert.Equalf(t, tc.tif, tif, "futuresOpenOrderType should return a listed %s's time in force", tc.name)
+	}
+	_, _, err := futuresOpenOrderType(&FuturesOpenOrder{OrderType: "moon", LimitPrice: 1})
+	assert.ErrorIs(t, err, errUnknownOrderType, "futuresOpenOrderType should return the error of an order type it cannot read")
+}
+
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetActiveOrders(t.Context(), nil)
@@ -6305,6 +6723,134 @@ func newOrdersRequestCheckExchange(t *testing.T, path, params, reply string) *Ex
 	})
 }
 
+func TestSubmitOrderUnsupportedFields(t *testing.T) {
+	t.Parallel()
+	ex := newHTTPTestExchange(t, func(_ http.ResponseWriter, r *http.Request) {
+		assert.Failf(t, "no order should be placed", "%s", r.URL.Path)
+	})
+	wsEx := newHTTPTestExchange(t, func(_ http.ResponseWriter, r *http.Request) {
+		assert.Failf(t, "no order should be placed", "%s", r.URL.Path)
+	})
+	// Without round trips the mock fails the test on any websocket request
+	useOrdersTestWebsocket(t, wsEx)
+	type refusal struct {
+		name   string
+		submit order.Submit
+		assets []asset.Item
+		err    error
+	}
+	refuses := func(tc refusal) {
+		t.Helper()
+		for _, a := range tc.assets {
+			for _, kind := range []struct {
+				orderType  order.Type
+				side       order.Side
+				reduceOnly bool
+			}{
+				{orderType: order.Limit, side: order.Buy},
+				{orderType: order.Market, side: order.Sell},
+				{orderType: order.Stop, side: order.Buy},
+				{orderType: order.StopLimit, side: order.Sell, reduceOnly: true},
+			} {
+				s := tc.submit
+				s.Exchange, s.AssetType, s.Type, s.Side, s.ReduceOnly, s.Amount, s.Pair = ex.Name, a, kind.orderType, kind.side, kind.reduceOnly, 0.5, spotTestPair
+				if a == asset.Futures {
+					s.Pair = futuresTestPair
+				}
+				if kind.orderType.Is(order.Limit) {
+					s.Price = 80000
+				}
+				if kind.orderType.Is(order.Stop) {
+					s.TriggerPrice = 90000
+				}
+				_, err := ex.SubmitOrder(t.Context(), &s)
+				assert.ErrorIsf(t, err, tc.err, "SubmitOrder should refuse %s for a %s %s %s order rather than place it without", tc.name, a, kind.side, kind.orderType)
+				// A spot order with leverage goes over REST whether the private websocket is connected or not
+				if a == asset.Spot && s.Leverage == 0 {
+					s.Exchange = wsEx.Name
+					_, err = wsEx.SubmitOrder(t.Context(), &s)
+					assert.ErrorIsf(t, err, tc.err, "SubmitOrder should refuse %s for a spot %s %s order over the private websocket rather than place it without", tc.name, kind.side, kind.orderType)
+				}
+			}
+		}
+	}
+	both := []asset.Item{asset.Spot, asset.Futures}
+	for _, tc := range []refusal{
+		{name: "isolated margin", submit: order.Submit{MarginType: margin.Isolated}, assets: both, err: margin.ErrMarginTypeUnsupported},
+		{name: "cross margin", submit: order.Submit{MarginType: margin.Multi}, assets: both, err: margin.ErrMarginTypeUnsupported},
+		{name: "spot isolated margin", submit: order.Submit{MarginType: margin.SpotIsolated}, assets: both, err: margin.ErrMarginTypeUnsupported},
+		{name: "an unknown margin type", submit: order.Submit{MarginType: margin.Unknown}, assets: both, err: margin.ErrMarginTypeUnsupported},
+		{name: "isolated margin with leverage", submit: order.Submit{MarginType: margin.Isolated, Leverage: 2}, assets: both, err: margin.ErrMarginTypeUnsupported},
+		{name: "cash with leverage", submit: order.Submit{MarginType: margin.NoMargin, Leverage: 2}, assets: []asset.Item{asset.Spot}, err: margin.ErrMarginTypeUnsupported},
+		{name: "cash with leverage of 1", submit: order.Submit{MarginType: margin.NoMargin, Leverage: 1}, assets: []asset.Item{asset.Spot}, err: margin.ErrMarginTypeUnsupported},
+		{name: "cash", submit: order.Submit{MarginType: margin.NoMargin}, assets: []asset.Item{asset.Futures}, err: margin.ErrMarginTypeUnsupported},
+		{name: "isolated margin on a good till cancelled order triggered by the index price", submit: order.Submit{MarginType: margin.Isolated, TimeInForce: order.GoodTillCancel, TriggerPriceType: order.IndexPrice}, assets: both, err: margin.ErrMarginTypeUnsupported},
+		{name: "a risk management mode", submit: order.Submit{RiskManagementModes: order.RiskManagementModes{Mode: "full"}}, assets: both, err: errRiskManagementUnsupported},
+		{name: "a risk management mode with leverage", submit: order.Submit{RiskManagementModes: order.RiskManagementModes{Mode: "full"}, Leverage: 2}, assets: both, err: errRiskManagementUnsupported},
+		{name: "a risk management mode on a good till cancelled order triggered by the index price", submit: order.Submit{RiskManagementModes: order.RiskManagementModes{Mode: "full"}, TimeInForce: order.GoodTillCancel, TriggerPriceType: order.IndexPrice}, assets: both, err: errRiskManagementUnsupported},
+		{name: "a slippage tolerance", submit: order.Submit{SlippageTolerance: 0.0001}, assets: both, err: errSlippageUnsupported},
+		{name: "a slippage tolerance with leverage", submit: order.Submit{SlippageTolerance: 0.0001, Leverage: 2}, assets: both, err: errSlippageUnsupported},
+		{name: "a slippage tolerance on a good till cancelled order triggered by the index price", submit: order.Submit{SlippageTolerance: 0.0001, TimeInForce: order.GoodTillCancel, TriggerPriceType: order.IndexPrice}, assets: both, err: errSlippageUnsupported},
+		{name: "a negative slippage tolerance", submit: order.Submit{SlippageTolerance: -0.0001}, assets: both, err: errSlippageUnsupported},
+		{name: "the smallest slippage tolerance", submit: order.Submit{SlippageTolerance: math.SmallestNonzeroFloat64}, assets: both, err: errSlippageUnsupported},
+		// Spot triggers take no mark price, so these are futures orders alone
+		{name: "isolated margin on an order triggered by the mark price", submit: order.Submit{MarginType: margin.Isolated, TriggerPriceType: order.MarkPrice}, assets: []asset.Item{asset.Futures}, err: margin.ErrMarginTypeUnsupported},
+		{name: "a risk management mode on an order triggered by the mark price", submit: order.Submit{RiskManagementModes: order.RiskManagementModes{Mode: "full"}, TriggerPriceType: order.MarkPrice}, assets: []asset.Item{asset.Futures}, err: errRiskManagementUnsupported},
+		{name: "a slippage tolerance on an order triggered by the mark price", submit: order.Submit{SlippageTolerance: 0.0001, TriggerPriceType: order.MarkPrice}, assets: []asset.Item{asset.Futures}, err: errSlippageUnsupported},
+	} {
+		refuses(tc)
+	}
+	// Each field of a take profit, stop loss or stop entry asks for one, set alone
+	for _, kind := range []struct {
+		name string
+		of   func(*order.RiskManagementModes) *order.RiskManagement
+	}{
+		{name: "take profit", of: func(m *order.RiskManagementModes) *order.RiskManagement { return &m.TakeProfit }},
+		{name: "stop loss", of: func(m *order.RiskManagementModes) *order.RiskManagement { return &m.StopLoss }},
+		{name: "stop entry", of: func(m *order.RiskManagementModes) *order.RiskManagement { return &m.StopEntry }},
+	} {
+		for _, field := range []struct {
+			name string
+			set  func(*order.RiskManagement)
+		}{
+			{name: "enabled flag", set: func(r *order.RiskManagement) { r.Enabled = true }},
+			{name: "trigger price type", set: func(r *order.RiskManagement) { r.TriggerPriceType = order.MarkPrice }},
+			{name: "price", set: func(r *order.RiskManagement) { r.Price = 70000 }},
+			{name: "limit price", set: func(r *order.RiskManagement) { r.LimitPrice = 69000 }},
+			{name: "order type", set: func(r *order.RiskManagement) { r.OrderType = order.Market }},
+		} {
+			var modes order.RiskManagementModes
+			field.set(kind.of(&modes))
+			refuses(refusal{name: "a " + kind.name + "'s " + field.name, submit: order.Submit{RiskManagementModes: modes}, assets: both, err: errRiskManagementUnsupported})
+		}
+	}
+
+	// A cash spot order without leverage is the order SubmitOrder places, whatever its type, side or size
+	for _, tc := range []struct {
+		submit order.Submit
+		body   string
+	}{
+		{submit: order.Submit{Type: order.Limit, Side: order.Buy, Price: 80000, Amount: 0.5}, body: `{"ordertype":"limit","pair":"XBTUSD","price":"80000","type":"buy","volume":"0.5"}`},
+		{submit: order.Submit{Type: order.Market, Side: order.Sell, Amount: 0.5}, body: `{"ordertype":"market","pair":"XBTUSD","type":"sell","volume":"0.5"}`},
+		{submit: order.Submit{Type: order.Stop, Side: order.Buy, TriggerPrice: 90000, Amount: 0.5}, body: `{"ordertype":"stop-loss","pair":"XBTUSD","price":"90000","trigger":"last","type":"buy","volume":"0.5"}`},
+		{submit: order.Submit{Type: order.Market, Side: order.Buy, QuoteAmount: 100}, body: `{"oflags":"viqc","ordertype":"market","pair":"XBTUSD","type":"buy","volume":"100"}`},
+	} {
+		cash := newOrdersRequestCheckExchange(t, "/0/private/AddOrder", tc.body, `{"error":[],"result":{"descr":{"order":"cash"},"txid":["OCASH5-UOSK2-KOFH7X"]}}`)
+		s := tc.submit
+		s.Exchange, s.Pair, s.AssetType, s.MarginType = cash.Name, spotTestPair, asset.Spot, margin.NoMargin
+		resp, err := cash.SubmitOrder(t.Context(), &s)
+		require.NoErrorf(t, err, "SubmitOrder must place a cash spot %s %s order without leverage", s.Side, s.Type)
+		assert.Equalf(t, "OCASH5-UOSK2-KOFH7X", resp.OrderID, "SubmitOrder should return the cash spot %s %s order's ID", s.Side, s.Type)
+	}
+	wsCash := newOrdersWsTestExchange(t, ordersWsRoundTrip{
+		request: ordersWsRequest("add_order", `"order_type":"limit","side":"buy","order_qty":0.5,"limit_price":80000,"symbol":"BTC/USD"`),
+		replies: []string{ordersWsReply("add_order", `{"order_id":"OCASH6-UOSK2-KOFH7X"}`)},
+	})
+	resp, err := wsCash.SubmitOrder(t.Context(), &order.Submit{Exchange: wsCash.Name, Pair: spotTestPair, AssetType: asset.Spot, Type: order.Limit, Side: order.Buy, Price: 80000, Amount: 0.5, MarginType: margin.NoMargin})
+	require.NoError(t, err, "SubmitOrder must place a cash spot order without leverage over the private websocket")
+	assert.Equal(t, "OCASH6-UOSK2-KOFH7X", resp.OrderID, "SubmitOrder should return the cash spot order's ID placed over the private websocket")
+}
+
 func TestSubmitOrderQuoteSizedMarketBuy(t *testing.T) {
 	t.Parallel()
 	ex := newOrdersRequestCheckExchange(t, "/0/private/AddOrder",
@@ -6935,6 +7481,81 @@ func TestSubmitOrderFuturesUnsupportedTimeInForce(t *testing.T) {
 			EndTime:       ordersTestExpiry,
 		})
 		assert.ErrorIsf(t, err, order.ErrUnsupportedTimeInForce, "SubmitOrder should reject a futures %s order good for %s", tc.orderType, tc.tif)
+	}
+}
+
+func TestModifyOrderUnsupportedFields(t *testing.T) {
+	t.Parallel()
+	ex := newHTTPTestExchange(t, func(_ http.ResponseWriter, r *http.Request) {
+		assert.Failf(t, "no order should be edited", "%s", r.URL.Path)
+	})
+	wsEx := newHTTPTestExchange(t, func(_ http.ResponseWriter, r *http.Request) {
+		assert.Failf(t, "no order should be edited", "%s", r.URL.Path)
+	})
+	// Without round trips the mock fails the test on any websocket request
+	useOrdersTestWebsocket(t, wsEx)
+	refuses := func(name string, m order.Modify, exp error) {
+		t.Helper()
+		for _, a := range []asset.Item{asset.Spot, asset.Futures} {
+			for _, kind := range []struct {
+				orderType order.Type
+				side      order.Side
+				tif       order.TimeInForce
+				trigger   order.PriceType
+			}{
+				{orderType: order.Limit, side: order.Buy},
+				{orderType: order.Limit, side: order.Sell, tif: order.GoodTillCancel},
+				{orderType: order.StopLimit, side: order.Sell, trigger: order.MarkPrice},
+				{orderType: order.Stop, side: order.Buy, tif: order.GoodTillCancel, trigger: order.IndexPrice},
+			} {
+				m.Exchange, m.AssetType, m.OrderID, m.Pair, m.Type, m.Side, m.Amount = ex.Name, a, "OQCLML-BW3P3-BUCMWZ", spotTestPair, kind.orderType, kind.side, 0.5
+				m.TimeInForce, m.TriggerPriceType, m.Price, m.TriggerPrice = kind.tif, kind.trigger, 0, 0
+				if kind.orderType.Is(order.Limit) {
+					m.Price = 80000
+				}
+				if kind.orderType.Is(order.Stop) {
+					m.TriggerPrice = 90000
+				}
+				if a == asset.Futures {
+					m.OrderID, m.Pair = "4f1c3a5e-7b2d-4e8f-9a6b-1c2d3e4f5a6b", futuresTestPair
+				}
+				_, err := ex.ModifyOrder(t.Context(), &m)
+				assert.ErrorIsf(t, err, exp, "ModifyOrder should refuse %s for a %s %s %s order rather than edit it without", name, a, kind.side, kind.orderType)
+				if a == asset.Spot {
+					m.Exchange = wsEx.Name
+					_, err = wsEx.ModifyOrder(t.Context(), &m)
+					assert.ErrorIsf(t, err, exp, "ModifyOrder should refuse %s for a spot %s %s order over the private websocket rather than amend it without", name, kind.side, kind.orderType)
+				}
+			}
+		}
+	}
+	refuses("a risk management mode", order.Modify{RiskManagementModes: order.RiskManagementModes{Mode: "full"}}, errRiskManagementUnsupported)
+	refuses("a slippage tolerance", order.Modify{SlippageTolerance: 0.0001}, errSlippageUnsupported)
+	refuses("a negative slippage tolerance", order.Modify{SlippageTolerance: -0.0001}, errSlippageUnsupported)
+	refuses("the smallest slippage tolerance", order.Modify{SlippageTolerance: math.SmallestNonzeroFloat64}, errSlippageUnsupported)
+	// Each field of a take profit, stop loss or stop entry asks for one, set alone
+	for _, kind := range []struct {
+		name string
+		of   func(*order.RiskManagementModes) *order.RiskManagement
+	}{
+		{name: "take profit", of: func(m *order.RiskManagementModes) *order.RiskManagement { return &m.TakeProfit }},
+		{name: "stop loss", of: func(m *order.RiskManagementModes) *order.RiskManagement { return &m.StopLoss }},
+		{name: "stop entry", of: func(m *order.RiskManagementModes) *order.RiskManagement { return &m.StopEntry }},
+	} {
+		for _, field := range []struct {
+			name string
+			set  func(*order.RiskManagement)
+		}{
+			{name: "enabled flag", set: func(r *order.RiskManagement) { r.Enabled = true }},
+			{name: "trigger price type", set: func(r *order.RiskManagement) { r.TriggerPriceType = order.MarkPrice }},
+			{name: "price", set: func(r *order.RiskManagement) { r.Price = 70000 }},
+			{name: "limit price", set: func(r *order.RiskManagement) { r.LimitPrice = 69000 }},
+			{name: "order type", set: func(r *order.RiskManagement) { r.OrderType = order.Market }},
+		} {
+			var modes order.RiskManagementModes
+			field.set(kind.of(&modes))
+			refuses("a "+kind.name+"'s "+field.name, order.Modify{RiskManagementModes: modes}, errRiskManagementUnsupported)
+		}
 	}
 }
 

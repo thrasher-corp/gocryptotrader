@@ -1663,9 +1663,23 @@ func TestGetOrdersSnapshotHoldsStoreLock(t *testing.T) {
 	snapshots := make(chan []order.Detail, 1)
 	go func() { snapshots <- m.GetOrdersSnapshot(order.AnyStatus) }()
 	assert.Never(t, func() bool { return len(snapshots) != 0 }, 50*time.Millisecond, 5*time.Millisecond, "GetOrdersSnapshot should wait for a write to the store")
+	// A snapshot taken under the lock returns this write, and the race detector reports one taken without it, whichever
+	// runs first
+	stored.Status = order.Filled
 	m.orderStore.m.Unlock()
-	snapshot := <-snapshots
+	var snapshot []order.Detail
+	select {
+	case snapshot = <-snapshots:
+	case <-time.After(time.Minute):
+		// A run stalled past the first wait still finds the snapshot within the second
+		select {
+		case snapshot = <-snapshots:
+		case <-time.After(time.Minute):
+			require.FailNow(t, "GetOrdersSnapshot must return once the store is unlocked")
+		}
+	}
 	require.Len(t, snapshot, 1, "GetOrdersSnapshot must return the stored order")
+	assert.Equal(t, order.Filled, snapshot[0].Status, "GetOrdersSnapshot should return the stored order as the write made under the lock left it")
 	snapshot[0].Trades[0].Amount = 99
 	assert.Equal(t, 1.0, stored.Trades[0].Amount, "GetOrdersSnapshot should not share a stored order's trades")
 }

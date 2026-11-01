@@ -24,6 +24,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
@@ -45,6 +46,8 @@ var (
 	errNoWithdrawalMethods        = errors.New("no withdrawal methods")
 	errTradeFeeMissing            = errors.New("trade fee missing")
 	errInvalidLeverage            = errors.New("invalid leverage")
+	errRiskManagementUnsupported  = errors.New("take profit, stop loss and stop entry not supported")
+	errSlippageUnsupported        = errors.New("slippage tolerance not supported")
 )
 
 // offlineTakerFee is the taker fee of Kraken Pro's lowest volume tier, the most a spot trade is charged
@@ -615,7 +618,7 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, a asset.Item) (acc
 		for name := range resp.Accounts.MarginAccounts {
 			m := resp.Accounts.MarginAccounts[name]
 			marginCurrencies[name] = m.Currency
-			margin := accounts.NewSubAccount(a, name)
+			marginAccount := accounts.NewSubAccount(a, name)
 			for code, amount := range m.Balances {
 				// Contract symbols, such as FI_XBTUSD_171215, key positions rather than balances
 				if strings.Contains(code, "_") {
@@ -627,9 +630,9 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, a asset.Item) (acc
 				if c.Equal(m.Currency) {
 					free = min(max(m.Auxiliary.AvailableFunds, 0), total)
 				}
-				margin.Balances.Set(c, accounts.Balance{Total: total, Hold: total - free, Free: free})
+				marginAccount.Balances.Set(c, accounts.Balance{Total: total, Hold: total - free, Free: free})
 			}
-			subAccts = append(subAccts, margin)
+			subAccts = append(subAccts, marginAccount)
 		}
 		e.saveFuturesMarginCurrencies(creds, requested, marginCurrencies)
 		err = e.saveFuturesBalances(ctx, requested, subAccts)
@@ -1060,10 +1063,27 @@ func (e *Exchange) privateWebsocketAvailable() bool {
 	return err == nil && conn.Subscriptions().Len() != 0
 }
 
-// SubmitOrder submits a new order
+// SubmitOrder submits a new order. Kraken margins a spot order by its leverage and a futures order by the leverage
+// preference set for its product, takes no slippage tolerance, and the wrapper attaches no take profit, stop loss or
+// stop entry, so an order asking for any of those, or for a margin type other than cash on a spot order without
+// leverage, which is the order it places, is refused rather than placed without it. So is a stop or take profit limit
+// order without a limit price: Kraken triggers a futures one sent without it as a market order, and documents no
+// default for a spot one's
 func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if err := s.Validate(e.GetTradingRequirements()); err != nil {
 		return nil, err
+	}
+	if s.MarginType != margin.Unset && (s.MarginType != margin.NoMargin || s.AssetType != asset.Spot || s.Leverage != 0) {
+		return nil, fmt.Errorf("%w: %s", margin.ErrMarginTypeUnsupported, s.MarginType)
+	}
+	if s.RiskManagementModes != (order.RiskManagementModes{}) {
+		return nil, errRiskManagementUnsupported
+	}
+	if s.SlippageTolerance != 0 {
+		return nil, fmt.Errorf("%w: %v", errSlippageUnsupported, s.SlippageTolerance)
+	}
+	if s.Type.Is(order.Limit) && s.Price <= 0 {
+		return nil, fmt.Errorf("%w: limit price %v", order.ErrPriceMustBeSetIfLimitOrder, s.Price)
 	}
 	switch s.AssetType {
 	case asset.Spot:
@@ -1417,10 +1437,18 @@ func futuresTriggerSignal(p order.PriceType) (string, error) {
 
 // ModifyOrder changes an order's quantity and prices. A spot order is amended in place, keeping its ID and, where
 // possible, its queue priority. An edit of a futures stop order should carry its trigger price even when that stays the
-// same, as Kraken documents the stop price as required and OrderManager.Modify fills in only the amount and price
+// same, as Kraken documents the stop price as required and OrderManager.Modify fills in only the amount and price. An
+// edit asking for a take profit, stop loss, stop entry or slippage tolerance is refused, as neither Kraken's edits nor
+// the wrapper set them
 func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
 	if err := action.Validate(); err != nil {
 		return nil, err
+	}
+	if action.RiskManagementModes != (order.RiskManagementModes{}) {
+		return nil, errRiskManagementUnsupported
+	}
+	if action.SlippageTolerance != 0 {
+		return nil, fmt.Errorf("%w: %v", errSlippageUnsupported, action.SlippageTolerance)
 	}
 	switch action.AssetType {
 	case asset.Spot:
@@ -1715,45 +1743,142 @@ func (e *Exchange) cancelSpotOrder(ctx context.Context, id string) string {
 	return order.Cancelled.String()
 }
 
-// CancelAllOrders cancels every open order of an asset, or of a pair when one is given
+// CancelAllOrders cancels every open order of an asset, or of a pair when one is given, and only those of a side or
+// order type when one is given. Kraken's cancellations take neither, so the open orders are listed and those matching
+// are cancelled by ID, an order's type read as GetActiveOrders reads it. A futures cancellation naming neither goes
+// through Cancel all orders
 func (e *Exchange) CancelAllOrders(ctx context.Context, req *order.Cancel) (order.CancelAllResponse, error) {
 	resp := order.CancelAllResponse{Status: make(map[string]string)}
 	if err := req.Validate(); err != nil {
 		return resp, err
 	}
+	var side string
+	if req.Side != order.UnknownSide && req.Side != order.AnySide {
+		var err error
+		if side, err = orderSideString(req.Side); err != nil {
+			return resp, err
+		}
+	}
+	orderType, err := cancelAllOrderType(req.AssetType, req.Type)
+	if err != nil {
+		return resp, err
+	}
 	switch req.AssetType {
 	case asset.Spot:
-		var ids []string
-		if req.Pair.IsEmpty() {
-			// Every open order is cancelled, those on pairs missing from the available pairs, such as cancel only
-			// pairs, included
-			open, err := e.GetOpenOrders(ctx, nil)
-			if err != nil {
-				return resp, err
-			}
-			ids = slices.Collect(maps.Keys(open.Open))
-		} else {
-			orders, err := e.GetActiveOrders(ctx, &order.MultiOrderRequest{AssetType: asset.Spot, Type: order.AnyType, Side: order.AnySide, Pairs: currency.Pairs{req.Pair}})
-			if err != nil {
-				return resp, err
-			}
-			ids = make([]string, len(orders))
-			for i := range orders {
-				ids[i] = orders[i].OrderID
-			}
-		}
-		return resp, e.cancelSpotOrders(ctx, ids, resp.Status)
-	case asset.Futures:
-		cancelled, err := e.CancelAllFuturesOrders(ctx, &FuturesCancelAllOrdersRequest{Symbol: req.Pair})
+		open, err := e.GetOpenOrders(ctx, nil)
 		if err != nil {
 			return resp, err
 		}
-		for i := range cancelled.CancelStatus.CancelledOrders {
-			resp.Status[cancelled.CancelStatus.CancelledOrders[i].OrderID] = order.Cancelled.String()
+		ids := make([]string, 0, len(open.Open))
+		for id := range open.Open {
+			info := open.Open[id]
+			if side != "" && !strings.EqualFold(info.Description.Side, side) {
+				continue
+			}
+			if orderType != order.UnknownType {
+				if t, err := orderTypeFromString(info.Description.OrderType); err != nil || t != orderType {
+					continue
+				}
+			}
+			// Without a pair, the orders on pairs missing from the available pairs, such as cancel only pairs, are
+			// cancelled too; with one, such an order cannot be named
+			if !req.Pair.IsEmpty() {
+				pair, err := e.MatchSymbolWithAvailablePairs(info.Description.Pair, asset.Spot, false)
+				if errors.Is(err, currency.ErrPairNotFound) {
+					continue
+				}
+				if err != nil {
+					return resp, err
+				}
+				if !pair.EqualIncludeReciprocal(req.Pair) {
+					continue
+				}
+			}
+			ids = append(ids, id)
+		}
+		return resp, e.cancelSpotOrders(ctx, ids, resp.Status)
+	case asset.Futures:
+		if side == "" && orderType == order.UnknownType {
+			cancelled, err := e.CancelAllFuturesOrders(ctx, &FuturesCancelAllOrdersRequest{Symbol: req.Pair})
+			if err != nil {
+				return resp, err
+			}
+			for i := range cancelled.CancelStatus.CancelledOrders {
+				resp.Status[cancelled.CancelStatus.CancelledOrders[i].OrderID] = order.Cancelled.String()
+			}
+			return resp, nil
+		}
+		open, err := e.GetFuturesOpenOrders(ctx)
+		if err != nil {
+			return resp, err
+		}
+		cancels := make([]order.Cancel, 0, len(open.OpenOrders))
+		for i := range open.OpenOrders {
+			o := &open.OpenOrders[i]
+			if side != "" && !strings.EqualFold(o.Side, side) {
+				continue
+			}
+			if orderType != order.UnknownType {
+				if t, _, err := futuresOpenOrderType(o); err != nil || t != orderType {
+					continue
+				}
+			}
+			if !req.Pair.IsEmpty() {
+				pair, err := e.MatchSymbolWithAvailablePairs(o.Symbol, asset.Futures, true)
+				if errors.Is(err, currency.ErrPairNotFound) {
+					continue
+				}
+				if err != nil {
+					return resp, err
+				}
+				if !pair.EqualIncludeReciprocal(req.Pair) {
+					continue
+				}
+			}
+			cancels = append(cancels, order.Cancel{OrderID: o.OrderID, AssetType: asset.Futures})
+		}
+		// A batch at a time, so the outcomes of those sent are kept if a later one fails
+		for batch := range slices.Chunk(cancels, 500) {
+			cancelled, err := e.CancelBatchOrders(ctx, batch)
+			if err != nil {
+				return resp, err
+			}
+			maps.Copy(resp.Status, cancelled.Status)
 		}
 		return resp, nil
 	default:
 		return resp, fmt.Errorf("%w %q", asset.ErrNotSupported, req.AssetType)
+	}
+}
+
+// cancelAllOrderType returns the order type, as GetActiveOrders reads a listed order's, of the orders a cancellation of
+// an order type cancels, or UnknownType for any type. A stop or take profit market order is a stop or take profit order,
+// as Kraken places them alike. A type no open order of the asset is read as is refused, such as a futures trailing stop
+// limit order, as Get open orders documents no limit offset to tell one from a trailing stop
+func cancelAllOrderType(a asset.Item, t order.Type) (order.Type, error) {
+	if t == order.UnknownType || t == order.AnyType {
+		return order.UnknownType, nil
+	}
+	var err error
+	switch a {
+	case asset.Spot:
+		// Kraken lists trailing stop limit orders, which the wrapper does not place
+		if t != order.TrailingStopLimit {
+			_, err = spotOrderTypeString(t)
+		}
+	case asset.Futures:
+		_, err = futuresOrderTypeString(t, order.UnknownTIF)
+	}
+	if err != nil {
+		return order.UnknownType, err
+	}
+	switch t {
+	case order.StopMarket:
+		return order.Stop, nil
+	case order.TakeProfitMarket:
+		return order.TakeProfit, nil
+	default:
+		return t, nil
 	}
 }
 
@@ -2013,6 +2138,19 @@ func (e *Exchange) futuresOrderFinalState(ctx context.Context, orderID string, p
 	return nil, nil
 }
 
+// futuresOpenOrderType returns an open futures order's type and time in force. Kraken lists a stop or take profit order
+// under one type whether or not it has a limit price, and one with a limit price is a limit order once it triggers
+func futuresOpenOrderType(o *FuturesOpenOrder) (order.Type, order.TimeInForce, error) {
+	t, tif, err := futuresOrderTypeFromString(o.OrderType)
+	if err != nil {
+		return order.UnknownType, order.UnknownTIF, err
+	}
+	if (t == order.Stop || t == order.TakeProfit) && o.LimitPrice > 0 {
+		t |= order.Limit
+	}
+	return t, tif, nil
+}
+
 // futuresOpenOrderDetail converts an open futures order
 func (e *Exchange) futuresOpenOrderDetail(o *FuturesOpenOrder) (*order.Detail, error) {
 	pair, err := e.MatchSymbolWithAvailablePairs(o.Symbol, asset.Futures, true)
@@ -2023,17 +2161,13 @@ func (e *Exchange) futuresOpenOrderDetail(o *FuturesOpenOrder) (*order.Detail, e
 	if err != nil {
 		return nil, err
 	}
-	orderType, tif, err := futuresOrderTypeFromString(o.OrderType)
+	orderType, tif, err := futuresOpenOrderType(o)
 	if err != nil {
 		return nil, err
 	}
 	status := order.Open
 	if o.FilledSize > 0 {
 		status = order.PartiallyFilled
-	}
-	// A stop or take profit order with a limit price is a limit order once it triggers
-	if (orderType == order.Stop || orderType == order.TakeProfit) && o.LimitPrice > 0 {
-		orderType |= order.Limit
 	}
 	return &order.Detail{
 		Exchange:        e.Name,

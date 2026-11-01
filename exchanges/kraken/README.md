@@ -170,6 +170,12 @@ are. A subscription with `"asset": "all"` to a channel futures does not stream, 
 and an order book at a depth are, is subscribed to for spot alone. So is one to a ticker, trades or order book that names
 `pairs`, as a symbol of one asset is no symbol of the other, so a futures product is named with `"asset": "futures"`.
 
++ Kraken margins a spot order by its leverage and a futures order by the leverage preference set for its product, takes
+no slippage tolerance, and the wrapper attaches no take profit, stop loss or stop entry to an order, so `SubmitOrder`
+refuses `RiskManagementModes`, `SlippageTolerance` and any `MarginType` but `cash` on a spot order without leverage,
+which is the order it places, rather than place the order without them. `ModifyOrder` refuses `RiskManagementModes`
+and `SlippageTolerance` likewise.
+
 + Orders can be managed over the private connection. The wrapper's spot order functions use it while it is connected
 and holds a subscription, and REST otherwise, such as when Kraken refuses the websocket token:
 
