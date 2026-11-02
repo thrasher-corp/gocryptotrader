@@ -66,7 +66,15 @@ func TestGetOrderInfoReportedAsset(t *testing.T) {
 		},
 		{
 			name: "gemini", newExchange: func() exchange.IBotExchange { return new(gemini.Exchange) }, wantAsset: asset.Spot,
-			responses: map[string]string{"/v1/order/status": `{"order_id":"1","symbol":"BTC-USD","type":"exchange limit","side":"buy"}`},
+			responses: map[string]string{"/v1/order/status": `{"order_id":"1","symbol":"btcusd","type":"exchange limit","side":"buy"}`},
+		},
+		{
+			name: "gemini_perpetual", newExchange: func() exchange.IBotExchange { return new(gemini.Exchange) }, wantAsset: asset.Empty,
+			responses: map[string]string{"/v1/order/status": `{"order_id":"1","symbol":"btcgusdperp","type":"exchange limit","side":"buy"}`},
+		},
+		{
+			name: "gemini_available_not_enabled", newExchange: func() exchange.IBotExchange { return new(gemini.Exchange) }, wantAsset: asset.Spot,
+			responses: map[string]string{"/v1/order/status": `{"order_id":"1","symbol":"dogeusd","type":"exchange limit","side":"buy"}`},
 		},
 		{
 			name: "hitbtc", newExchange: func() exchange.IBotExchange { return new(hitbtc.Exchange) }, wantAsset: asset.Spot,

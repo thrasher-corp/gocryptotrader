@@ -2230,11 +2230,10 @@ func TestRPCServer_GetOrderbooksExchangeIsolation(t *testing.T) {
 	response, err := s.GetOrderbooks(t.Context(), &gctrpc.GetOrderbooksRequest{})
 	require.NoError(t, err, "GetOrderbooks must not error")
 	require.Len(t, response.GetOrderbooks(), len(want), "GetOrderbooks must return both exchanges")
-	seen := make(map[string]bool)
+	seen := make(common.Seen[string], len(want))
 	for _, entry := range response.GetOrderbooks() {
 		require.Contains(t, want, entry.GetExchange(), "GetOrderbooks must return a registered exchange")
-		assert.False(t, seen[entry.GetExchange()], "GetOrderbooks should not repeat an exchange")
-		seen[entry.GetExchange()] = true
+		assert.False(t, seen.CheckAndRecord(entry.GetExchange()), "GetOrderbooks should not repeat an exchange")
 		require.Len(t, entry.GetOrderbooks(), 1, "each exchange must contain only its own book")
 		book := entry.GetOrderbooks()[0]
 		assert.Equal(t, pair.Base.String(), book.GetPair().GetBase(), "book should retain its base currency")
