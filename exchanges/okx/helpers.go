@@ -47,14 +47,17 @@ func orderTypeFromString(orderType string) (order.Type, order.TimeInForce, error
 // force in its order type, so a Limit order that is post only, FOK or IOC is sent as post_only, fok or ioc. A time in
 // force alone selects the OKX order type only for a plain order, given as UnknownType or as a post only LimitMaker
 // order, so that a type with no OKX order type of its own, such as a stop or take profit order, is refused instead of
-// losing its trigger
+// losing its trigger. Post only on a Market order and FOK or IOC on a MarketMakerProtection order are refused for the
+// same reason, as no OKX order type carries them
 func orderTypeString(orderType order.Type, tif order.TimeInForce) (string, error) {
 	switch orderType {
 	case order.MarketMakerProtection:
 		if tif.Is(order.PostOnly) {
 			return orderMarketMakerProtectionAndPostOnly, nil
 		}
-		return orderMarketMakerProtection, nil
+		if !tif.Is(order.FillOrKill) && !tif.Is(order.ImmediateOrCancel) {
+			return orderMarketMakerProtection, nil
+		}
 	case order.OptimalLimit:
 		return orderOptimalLimitIOC, nil
 	case order.Market:
@@ -64,7 +67,9 @@ func orderTypeString(orderType order.Type, tif order.TimeInForce) (string, error
 		case order.ImmediateOrCancel:
 			return orderIOC, nil
 		}
-		return orderMarket, nil
+		if !tif.Is(order.PostOnly) {
+			return orderMarket, nil
+		}
 	case order.Trigger,
 		order.Chase,
 		order.TWAP,
@@ -132,6 +137,21 @@ func costCurrency(pair currency.Pair) currency.Code {
 	}
 	quote, _, _ = strings.Cut(quote, currency.UnderscoreDelimiter)
 	return currency.NewCode(quote)
+}
+
+// sizeInQuoteCurrency reports whether OKX gives an order's size in the quote currency, as it does for a margin market
+// buy and for a spot market order whose tgtCcy says so, which a buy defaults to, while its fills are in the base currency
+func sizeInQuoteCurrency(assetType asset.Item, orderType order.Type, side order.Side, targetCurrency string) bool {
+	if orderType != order.Market {
+		return false
+	}
+	switch assetType {
+	case asset.Margin:
+		return side.IsLong()
+	case asset.Spot:
+		return targetCurrency == targetCurrencyQuote || (targetCurrency == "" && side.IsLong())
+	}
+	return false
 }
 
 // getAssetsFromInstrumentID parses an instrument ID and returns a list of assets types

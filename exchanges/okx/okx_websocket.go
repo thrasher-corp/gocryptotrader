@@ -623,12 +623,12 @@ func (e *Exchange) wsProcessSpreadOrders(ctx context.Context, respRaw []byte) er
 			ClientOrderID:        resp.Data[x].ClientOrderID,
 			Date:                 resp.Data[x].CreationTime.Time(),
 			Exchange:             e.Name,
-			ExecutedAmount:       resp.Data[x].FillSize.Float64(),
+			ExecutedAmount:       resp.Data[x].AccumulatedFillSize.Float64(),
 			OrderID:              resp.Data[x].OrderID,
 			Pair:                 pair,
 			Price:                resp.Data[x].Price.Float64(),
 			QuoteAmount:          resp.Data[x].Size.Float64() * resp.Data[x].Price.Float64(),
-			RemainingAmount:      resp.Data[x].Size.Float64() - resp.Data[x].FillSize.Float64(),
+			RemainingAmount:      resp.Data[x].PendingFillSize.Float64(),
 			Side:                 oSide,
 			Status:               oStatus,
 			TimeInForce:          tif,
@@ -1183,7 +1183,7 @@ func (e *Exchange) wsProcessOrders(ctx context.Context, respRaw []byte) error {
 		execAmount := response.Data[x].AccumulatedFillSize.Float64()
 
 		var quoteAmount float64
-		if response.Data[x].SizeType == "quote_ccy" {
+		if response.Data[x].SizeType == targetCurrencyQuote {
 			// Size is quote amount.
 			quoteAmount = orderAmount
 			if orderStatus == order.Filled {

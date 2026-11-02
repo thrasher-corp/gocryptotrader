@@ -66,6 +66,10 @@ const (
 	marginBalanceReduce = "reduce"
 	marginBalanceAdd    = "add"
 
+	// the currency a spot market order's size is in, its tgtCcy
+	targetCurrencyBase  = "base_ccy"
+	targetCurrencyQuote = "quote_ccy"
+
 	// Instrument Types ( Asset Types )
 
 	instTypeFutures  = "FUTURES"   // instrument type "futures"
@@ -840,7 +844,7 @@ func (arg *PlaceOrderRequestParam) Validate() error {
 	if arg.Amount <= 0 {
 		return limits.ErrAmountBelowMin
 	}
-	if !slices.Contains([]string{"", "base_ccy", "quote_ccy"}, arg.TargetCurrency) {
+	if !slices.Contains([]string{"", targetCurrencyBase, targetCurrencyQuote}, arg.TargetCurrency) {
 		return errCurrencyQuantityTypeRequired
 	}
 	return nil

@@ -932,10 +932,10 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	amount := s.Amount
 	var targetCurrency string
 	if s.AssetType == asset.Spot && s.Type == order.Market {
-		targetCurrency = "base_ccy" // Default to base currency
+		targetCurrency = targetCurrencyBase // Default to base currency
 		if s.QuoteAmount > 0 {
 			amount = s.QuoteAmount
-			targetCurrency = "quote_ccy"
+			targetCurrency = targetCurrencyQuote
 		}
 	}
 	// If asset type is spread
@@ -1557,15 +1557,14 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			Side:                 oSide,
 			Type:                 oType,
 			Pair:                 cp,
-			Cost:                 resp.Price.Float64(),
 			AssetType:            assetType,
 			Status:               oStatus,
 			Price:                resp.Price.Float64(),
-			ExecutedAmount:       resp.FillSize.Float64(),
+			ExecutedAmount:       resp.AccumulatedFillSize.Float64(),
 			Date:                 resp.CreationTime.Time(),
 			LastUpdated:          resp.UpdateTime.Time(),
 			AverageExecutedPrice: resp.AveragePrice.Float64(),
-			RemainingAmount:      resp.Size.Float64() - resp.FillSize.Float64(),
+			RemainingAmount:      resp.PendingFillSize.Float64(),
 			TimeInForce:          tif,
 		}, nil
 	}
@@ -1598,23 +1597,38 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 	if err != nil {
 		return nil, err
 	}
+	var (
+		remaining, cost float64
+		costAsset       currency.Code
+	)
+	if !sizeInQuoteCurrency(assetType, orderType, orderDetail.Side, orderDetail.QuantityType) {
+		remaining = orderDetail.Size.Float64() - orderDetail.AccumulatedFillSize.Float64()
+	}
+	// A derivative's size is in contracts, so its average price times its filled size is off by the contract value: its
+	// cost is left unset rather than given wrong
+	if assetType == asset.Spot || assetType == asset.Margin {
+		cost, costAsset = orderDetail.AveragePrice.Float64()*orderDetail.AccumulatedFillSize.Float64(), costCurrency(pair)
+	}
 
 	return &order.Detail{
-		Amount:         orderDetail.Size.Float64(),
-		Exchange:       e.Name,
-		OrderID:        orderDetail.OrderID,
-		ClientOrderID:  orderDetail.ClientOrderID,
-		Side:           orderDetail.Side,
-		Type:           orderType,
-		Pair:           pair,
-		Cost:           orderDetail.Price.Float64(),
-		AssetType:      assetType,
-		Status:         status,
-		Price:          orderDetail.Price.Float64(),
-		ExecutedAmount: orderDetail.RebateAmount.Float64(),
-		Date:           orderDetail.CreationTime.Time(),
-		LastUpdated:    orderDetail.UpdateTime.Time(),
-		TimeInForce:    tif,
+		Amount:               orderDetail.Size.Float64(),
+		Exchange:             e.Name,
+		OrderID:              orderDetail.OrderID,
+		ClientOrderID:        orderDetail.ClientOrderID,
+		Side:                 orderDetail.Side,
+		Type:                 orderType,
+		Pair:                 pair,
+		Cost:                 cost,
+		CostAsset:            costAsset,
+		AssetType:            assetType,
+		Status:               status,
+		Price:                orderDetail.Price.Float64(),
+		AverageExecutedPrice: orderDetail.AveragePrice.Float64(),
+		ExecutedAmount:       orderDetail.AccumulatedFillSize.Float64(),
+		RemainingAmount:      remaining,
+		Date:                 orderDetail.CreationTime.Time(),
+		LastUpdated:          orderDetail.UpdateTime.Time(),
+		TimeInForce:          tif,
 	}, nil
 }
 
@@ -1753,8 +1767,8 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 				Amount:          spreads[x].Size.Float64(),
 				Pair:            pair,
 				Price:           spreads[x].Price.Float64(),
-				ExecutedAmount:  spreads[x].FillSize.Float64(),
-				RemainingAmount: spreads[x].Size.Float64() - spreads[x].FillSize.Float64(),
+				ExecutedAmount:  spreads[x].AccumulatedFillSize.Float64(),
+				RemainingAmount: spreads[x].PendingFillSize.Float64(),
 				Exchange:        e.Name,
 				OrderID:         spreads[x].OrderID,
 				ClientOrderID:   spreads[x].ClientOrderID,
@@ -1818,12 +1832,16 @@ allOrders:
 			if err != nil {
 				return nil, err
 			}
+			var remaining float64
+			if !sizeInQuoteCurrency(req.AssetType, oType, orderSide, orderList[i].QuantityType) {
+				remaining = orderList[i].Size.Float64() - orderList[i].AccumulatedFillSize.Float64()
+			}
 			resp = append(resp, order.Detail{
 				Amount:          orderList[i].Size.Float64(),
 				Pair:            pair,
 				Price:           orderList[i].Price.Float64(),
-				ExecutedAmount:  orderList[i].FillSize.Float64(),
-				RemainingAmount: orderList[i].Size.Float64() - orderList[i].FillSize.Float64(),
+				ExecutedAmount:  orderList[i].AccumulatedFillSize.Float64(),
+				RemainingAmount: remaining,
 				Fee:             orderList[i].TransactionFee.Float64(),
 				FeeAsset:        orderList[i].FeeCurrency,
 				Exchange:        e.Name,
@@ -1901,7 +1919,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 				Price:                spreadOrders[x].Price.Float64(),
 				AverageExecutedPrice: spreadOrders[x].AveragePrice.Float64(),
 				Amount:               spreadOrders[x].Size.Float64(),
-				ExecutedAmount:       spreadOrders[x].FillSize.Float64(),
+				ExecutedAmount:       spreadOrders[x].AccumulatedFillSize.Float64(),
 				RemainingAmount:      spreadOrders[x].PendingFillSize.Float64(),
 				Exchange:             e.Name,
 				OrderID:              spreadOrders[x].OrderID,
@@ -1963,7 +1981,7 @@ allOrders:
 					return nil, err
 				}
 				orderAmount := orderList[i].Size
-				if orderList[i].QuantityType == "quote_ccy" {
+				if orderList[i].QuantityType == targetCurrencyQuote {
 					// Size is quote amount.
 					orderAmount /= orderList[i].AveragePrice
 				}
@@ -2733,7 +2751,7 @@ func (e *Exchange) GetFuturesPositionOrders(ctx context.Context, req *futures.Po
 				return nil, err
 			}
 			orderAmount := positions[j].Size
-			if positions[j].QuantityType == "quote_ccy" {
+			if positions[j].QuantityType == targetCurrencyQuote {
 				// Size is quote amount.
 				orderAmount /= positions[j].AveragePrice
 			}
