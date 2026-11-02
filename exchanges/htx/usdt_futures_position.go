@@ -13,6 +13,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
+// positionModeChanging reserves positionModeState for one exclusive mode change.
+// The negative value distinguishes it from zero (idle) and positive submission counts.
+const positionModeChanging = -1
+
 // GetV5Leverage gets available leverage levels.
 func (e *Exchange) GetV5Leverage(ctx context.Context, code currency.Pair, marginMode, positionSide string) (*V5LeverageResponse, error) {
 	params := url.Values{}
@@ -63,14 +67,35 @@ func (e *Exchange) GetV5PositionMode(ctx context.Context) (*V5PositionModeRespon
 
 // SetV5PositionMode sets the account position mode.
 func (e *Exchange) SetV5PositionMode(ctx context.Context, positionMode string) (*V5PositionModeResponse, error) {
-	if !e.positionModeInUse.CompareAndSwap(false, true) {
+	// Reserving idle state atomically excludes existing submissions and competing mode changes.
+	if !e.positionModeState.CompareAndSwap(0, positionModeChanging) {
 		return nil, errPositionModeInUse
 	}
-	defer e.positionModeInUse.Store(false)
+	defer e.positionModeState.Store(0)
 	req := &V5SetPositionModeRequest{PositionMode: positionMode}
 	var resp *V5PositionModeResponse
 	err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, "/v5/position/mode", nil, req, &resp)
 	return resp, err
+}
+
+// acquirePositionModeForSubmission prevents a mode change while a wrapper reads
+// the mode and awaits its order acknowledgement. After successful acquisition,
+// the caller must defer positionModeState.Add(-1) to release its submission count.
+func (e *Exchange) acquirePositionModeForSubmission(ctx context.Context) error {
+	for {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		active := e.positionModeState.Load()
+		if active < 0 {
+			return errPositionModeInUse
+		}
+		// CAS makes checking for a mode change and counting this submission atomic,
+		// so a setter cannot reserve idle state between those operations.
+		if e.positionModeState.CompareAndSwap(active, active+1) {
+			return nil
+		}
+	}
 }
 
 // GetV5PositionRiskLimit gets current position risk limits.

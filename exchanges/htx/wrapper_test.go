@@ -248,7 +248,12 @@ func TestUpdateTicker(t *testing.T) {
 			require.NoError(t, testexch.Setup(h), "exchange setup must succeed")
 			h.Name = t.Name()
 			if tc.asset == asset.CoinMarginedFutures || tc.asset == asset.Futures {
-				require.NoError(t, limits.Load([]limits.MinMaxLevel{{Key: key.NewExchangeAssetPair(h.Name, tc.asset, tc.pair), MultiplierDecimal: 100}}), "inverse multiplier must be loaded")
+				limitPair := tc.pair
+				if tc.asset == asset.Futures {
+					h.futureContractCodes = map[string]currency.Code{"CW": currency.NewCode("261106")}
+					limitPair = currency.NewPair(currency.BTC, currency.NewCode("261106"))
+				}
+				require.NoError(t, limits.Load([]limits.MinMaxLevel{{Key: key.NewExchangeAssetPair(h.Name, tc.asset, limitPair), MultiplierDecimal: 100}}), "inverse multiplier must be loaded under the tradable contract")
 			}
 			if tc.expectedErrMsg != "" {
 				_, err := h.UpdateTicker(t.Context(), tc.invalidPair, tc.asset)
@@ -335,6 +340,22 @@ func TestUpdateTicker(t *testing.T) {
 		price, err := h.UpdateTicker(t.Context(), btcusdtPair, asset.USDTMarginedFutures)
 		require.NoError(t, err, "single USDT ticker must decode")
 		assert.Equal(t, 747978922.8898, price.QuoteVolume, "single ticker should retain quoted turnover")
+	})
+	t.Run("delivery alias quote turnover", func(t *testing.T) {
+		t.Parallel()
+		h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodGet, "/market/detail/merged", `{"status":"ok","tick":{"amount":"0.025","vol":"20","open":"79000","close":"80000","high":"81000","low":"78000","bid":[79999,2],"ask":[80001,3]}}`, func(r *http.Request) {
+			assert.Equal(t, "BTC_CQ", r.URL.Query().Get("symbol"), "ticker request should retain the delivery alias")
+		}, httpTestResponse{method: http.MethodGet, path: "/api/v1/contract_contract_info", body: `{"status":"ok","data":[{"contract_code":"BTC261225","contract_type":"quarter","contract_status":1,"contract_size":100}]}`, calls: 1})
+		h.Name = t.Name()
+		datedPair := currency.NewPair(currency.BTC, currency.NewCode("261225"))
+		h.futureContractCodes = map[string]currency.Code{"CQ": datedPair.Quote}
+		require.NoError(t, h.CurrencyPairs.StorePairs(asset.Futures, currency.Pairs{datedPair}, false), "dated delivery contract must be available")
+		aliasPair := currency.NewPair(currency.BTC, currency.NewCode("CQ")).Lower()
+		price, err := h.UpdateTicker(t.Context(), aliasPair, asset.Futures)
+		require.NoError(t, err, "delivery alias ticker must use the dated contract multiplier")
+		assert.Equal(t, 2000.0, price.QuoteVolume, "delivery quote turnover should use the contract face value")
+		assert.Equal(t, 0.025, price.BaseVolume, "delivery base turnover should retain the payload amount")
+		assert.Equal(t, aliasPair, price.Pair, "ticker should retain the requested delivery alias")
 	})
 }
 
@@ -1506,26 +1527,92 @@ func TestGetAccountID(t *testing.T) {
 
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
-	t.Run("protect mode until submission completes", func(t *testing.T) {
+	t.Run("spot submission during a position mode change", func(t *testing.T) {
 		t.Parallel()
-		started, release := make(chan struct{}), make(chan struct{})
-		h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodPost, "/v5/trade/order", `{"code":200,"data":{"order_id":"1"}}`, func(*http.Request) { close(started); <-release }, httpTestResponse{method: http.MethodGet, path: "/v5/position/mode", body: `{"code":200,"data":{"position_mode":"single_side"}}`, calls: 1})
-		var releaseOnce sync.Once
-		t.Cleanup(func() { releaseOnce.Do(func() { close(release) }) })
-		submission := &order.Submit{Exchange: h.Name, Pair: btcusdtPair, AssetType: asset.USDTMarginedFutures, Side: order.Buy, Type: order.Limit, Price: 100, Amount: 1}
-		result := make(chan error, 1)
-		go func() { _, err := h.SubmitOrder(t.Context(), submission); result <- err }()
-		select {
-		case <-started:
-		case <-time.After(5 * time.Second):
-			require.FailNow(t, "submission must reach the mock transport")
-		}
-		_, err := h.SetV5PositionMode(t.Context(), "dual_side")
-		require.ErrorIs(t, err, errPositionModeInUse, "mode changes must be excluded until the order acknowledgement arrives")
-		releaseOnce.Do(func() { close(release) })
-		require.NoError(t, <-result, "submission must complete after acknowledgement")
-		assert.False(t, h.positionModeInUse.Load(), "completed submission should release the guard")
+		h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodPost, "/v1/order/orders/place", `{"status":"ok","data":"1"}`, nil)
+		h.positionModeState.Store(positionModeChanging)
+		defer h.positionModeState.Store(0)
+		response, err := h.SubmitOrder(t.Context(), &order.Submit{Exchange: h.Name, Pair: btcusdtPair, AssetType: asset.Spot, Side: order.Buy, Type: order.Limit, Price: 100, Amount: 1, ClientID: "1"})
+		require.NoError(t, err, "a position mode change must not block spot orders")
+		assert.Equal(t, "1", response.OrderID, "spot submission should reach the venue")
 	})
+	for _, second := range []string{"REST", "websocket", "websocket batch"} {
+		t.Run("overlapping "+second+" submission protects mode", func(t *testing.T) {
+			t.Parallel()
+			started, release := make(chan struct{}), make(chan struct{})
+			var calls atomic.Int32
+			h := newV5TradeWebsocketTestExchange(t, wsFixture)
+			request.WithLimiter(newRateLimits())(h.Requester)
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == "/v5/position/mode" {
+					assert.Equal(t, http.MethodGet, r.Method, "mode changes should not reach the venue during a submission")
+					_, _ = w.Write([]byte(`{"code":200,"data":{"position_mode":"single_side"}}`))
+					return
+				}
+				assert.Equal(t, "/v5/trade/order", r.URL.Path, "REST submissions should use the order endpoint")
+				if calls.Add(1) == 1 {
+					close(started)
+					<-release
+				}
+				_, _ = w.Write([]byte(`{"code":200,"data":{"order_id":"1"}}`))
+			}))
+			t.Cleanup(server.Close)
+			require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestUSDTMargined.String(), server.URL), "REST endpoint must be set")
+			var releaseOnce sync.Once
+			t.Cleanup(func() { releaseOnce.Do(func() { close(release) }) })
+			submission := &order.Submit{Exchange: h.Name, Pair: btcusdtPair, AssetType: asset.USDTMarginedFutures, Side: order.Buy, Type: order.Limit, Price: 100, Amount: 1}
+			result := make(chan error, 1)
+			go func() { _, err := h.SubmitOrder(t.Context(), submission); result <- err }()
+			select {
+			case <-started:
+			case err := <-result:
+				require.FailNowf(t, "submission must reach the mock transport", "SubmitOrder returned early: %v", err)
+			case <-time.After(5 * time.Second):
+				require.FailNow(t, "submission must reach the mock transport")
+			}
+			_, err := h.SetV5PositionMode(t.Context(), "dual_side")
+			require.ErrorIs(t, err, errPositionModeInUse, "mode changes must be excluded until the order acknowledgement arrives")
+			overlapping := make(chan error, 1)
+			go func() {
+				var err error
+				switch second {
+				case "REST":
+					_, err = h.SubmitOrder(t.Context(), submission)
+				case "websocket":
+					_, err = h.WebsocketSubmitOrder(t.Context(), submission)
+				case "websocket batch":
+					_, err = h.WebsocketSubmitOrders(t.Context(), []*order.Submit{submission})
+				}
+				overlapping <- err
+			}()
+			select {
+			case err := <-overlapping:
+				require.NoError(t, err, "another submission must complete while the first acknowledgement is pending")
+			case <-time.After(5 * time.Second):
+				require.FailNow(t, "another submission must not wait for the first acknowledgement")
+			}
+			_, err = h.SetV5PositionMode(t.Context(), "dual_side")
+			require.ErrorIs(t, err, errPositionModeInUse, "completing one submission must retain protection for the other")
+			releaseOnce.Do(func() { close(release) })
+			select {
+			case err := <-result:
+				require.NoError(t, err, "submission must complete after acknowledgement")
+			case <-time.After(5 * time.Second):
+				require.FailNow(t, "submission must complete after acknowledgement")
+			}
+			require.Zero(t, h.positionModeState.Load(), "completed submissions must release the guard")
+		})
+	}
+	for _, mode := range []string{"rejected", "single_side"} {
+		t.Run("release guard after failure in "+mode+" mode", func(t *testing.T) {
+			t.Parallel()
+			h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodPost, "/v5/trade/order", `{"code":400,"message":"rejected"}`, nil,
+				httpTestResponse{method: http.MethodGet, path: "/v5/position/mode", body: `{"code":200,"data":{"position_mode":"` + mode + `"}}`, calls: 1})
+			_, err := h.SubmitOrder(t.Context(), &order.Submit{Exchange: h.Name, Pair: btcusdtPair, AssetType: asset.USDTMarginedFutures, Side: order.Buy, Type: order.Limit, Price: 100, Amount: 1})
+			require.Error(t, err, "failed mode lookup or rejected submission must return an error")
+			require.Zero(t, h.positionModeState.Load(), "failed submission must release the guard")
+		})
+	}
 
 	for _, leverage := range []float64{-1, 1.5, math.NaN(), math.Inf(1), math.Exp2(64)} {
 		t.Run(fmt.Sprintf("invalid integral leverage %v", leverage), func(t *testing.T) {
@@ -2847,7 +2934,17 @@ func TestWebsocketSubmitOrder(t *testing.T) {
 			}
 			return wsFixture(tb, message, conn)
 		})
-		setV5PositionModeEndpoint(t, h, "single_side")
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/v5/position/mode" {
+				assert.Equal(t, http.MethodGet, r.Method, "mode changes should not reach the venue during a submission")
+				_, _ = w.Write([]byte(`{"code":200,"data":{"position_mode":"single_side"}}`))
+				return
+			}
+			assert.Equal(t, "/v5/trade/order", r.URL.Path, "overlapping REST submission should reach the venue")
+			_, _ = w.Write([]byte(`{"code":200,"data":{"order_id":"1"}}`))
+		}))
+		t.Cleanup(server.Close)
+		require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestUSDTMargined.String(), server.URL), "REST endpoint must be set")
 		var releaseOnce sync.Once
 		t.Cleanup(func() { releaseOnce.Do(func() { close(release) }) })
 		submission := &order.Submit{Exchange: h.Name, Pair: btcusdtPair, AssetType: asset.USDTMarginedFutures, Side: order.Buy, Type: order.Limit, Price: 100, Amount: 1}
@@ -2855,15 +2952,49 @@ func TestWebsocketSubmitOrder(t *testing.T) {
 		go func() { _, err := h.WebsocketSubmitOrder(t.Context(), submission); result <- err }()
 		select {
 		case <-started:
+		case err := <-result:
+			require.FailNowf(t, "submission must reach the mock transport", "WebsocketSubmitOrder returned early: %v", err)
 		case <-time.After(5 * time.Second):
 			require.FailNow(t, "submission must reach the mock transport")
 		}
 		_, err := h.SetV5PositionMode(t.Context(), "dual_side")
 		require.ErrorIs(t, err, errPositionModeInUse, "mode changes must be excluded until the order acknowledgement arrives")
+		overlapping := make(chan error, 1)
+		go func() { _, err := h.SubmitOrder(t.Context(), submission); overlapping <- err }()
+		select {
+		case err := <-overlapping:
+			require.NoError(t, err, "REST submission must complete while the websocket acknowledgement is pending")
+		case <-time.After(5 * time.Second):
+			require.FailNow(t, "REST submission must not wait for the websocket acknowledgement")
+		}
+		_, err = h.SetV5PositionMode(t.Context(), "dual_side")
+		require.ErrorIs(t, err, errPositionModeInUse, "completing REST submission must retain protection for the websocket submission")
 		releaseOnce.Do(func() { close(release) })
-		require.NoError(t, <-result, "submission must complete after acknowledgement")
-		assert.False(t, h.positionModeInUse.Load(), "completed submission should release the guard")
+		select {
+		case err := <-result:
+			require.NoError(t, err, "submission must complete after acknowledgement")
+		case <-time.After(5 * time.Second):
+			require.FailNow(t, "submission must complete after acknowledgement")
+		}
+		require.Zero(t, h.positionModeState.Load(), "completed submission must release the guard")
 	})
+
+	for _, mode := range []string{"rejected", "single_side"} {
+		t.Run("release guard after failure in "+mode+" mode", func(t *testing.T) {
+			t.Parallel()
+			h := newV5TradeWebsocketTestExchange(t, func(_ testing.TB, message []byte, conn *gws.Conn) error {
+				var req V5WebsocketTradeRequest
+				if err := json.Unmarshal(message, &req); err != nil {
+					return err
+				}
+				return conn.WriteMessage(gws.TextMessage, []byte(`{"code":400,"message":"rejected","cid":"`+req.CID+`"}`))
+			})
+			setV5PositionModeEndpoint(t, h, mode)
+			_, err := h.WebsocketSubmitOrder(t.Context(), &order.Submit{Exchange: h.Name, Pair: btcusdtPair, AssetType: asset.USDTMarginedFutures, Side: order.Buy, Type: order.Limit, Price: 100, Amount: 1})
+			require.Error(t, err, "failed mode lookup or rejected submission must return an error")
+			require.Zero(t, h.positionModeState.Load(), "failed submission must release the guard")
+		})
+	}
 
 	t.Run("authentication required", func(t *testing.T) {
 		t.Parallel()
@@ -2906,7 +3037,17 @@ func TestWebsocketSubmitOrders(t *testing.T) {
 			}
 			return wsFixture(tb, message, conn)
 		})
-		setV5PositionModeEndpoint(t, h, "single_side")
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/v5/position/mode" {
+				assert.Equal(t, http.MethodGet, r.Method, "mode changes should not reach the venue during a submission")
+				_, _ = w.Write([]byte(`{"code":200,"data":{"position_mode":"single_side"}}`))
+				return
+			}
+			assert.Equal(t, "/v5/trade/order", r.URL.Path, "overlapping REST submission should reach the venue")
+			_, _ = w.Write([]byte(`{"code":200,"data":{"order_id":"1"}}`))
+		}))
+		t.Cleanup(server.Close)
+		require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestUSDTMargined.String(), server.URL), "REST endpoint must be set")
 		var releaseOnce sync.Once
 		t.Cleanup(func() { releaseOnce.Do(func() { close(release) }) })
 		submission := &order.Submit{Exchange: h.Name, Pair: btcusdtPair, AssetType: asset.USDTMarginedFutures, Side: order.Buy, Type: order.Limit, Price: 100, Amount: 1}
@@ -2914,15 +3055,49 @@ func TestWebsocketSubmitOrders(t *testing.T) {
 		go func() { _, err := h.WebsocketSubmitOrders(t.Context(), []*order.Submit{submission}); result <- err }()
 		select {
 		case <-started:
+		case err := <-result:
+			require.FailNowf(t, "submission must reach the mock transport", "WebsocketSubmitOrders returned early: %v", err)
 		case <-time.After(5 * time.Second):
 			require.FailNow(t, "submission must reach the mock transport")
 		}
 		_, err := h.SetV5PositionMode(t.Context(), "dual_side")
 		require.ErrorIs(t, err, errPositionModeInUse, "mode changes must be excluded until the order acknowledgement arrives")
+		overlapping := make(chan error, 1)
+		go func() { _, err := h.SubmitOrder(t.Context(), submission); overlapping <- err }()
+		select {
+		case err := <-overlapping:
+			require.NoError(t, err, "REST submission must complete while the batch acknowledgement is pending")
+		case <-time.After(5 * time.Second):
+			require.FailNow(t, "REST submission must not wait for the batch acknowledgement")
+		}
+		_, err = h.SetV5PositionMode(t.Context(), "dual_side")
+		require.ErrorIs(t, err, errPositionModeInUse, "completing REST submission must retain protection for the batch submission")
 		releaseOnce.Do(func() { close(release) })
-		require.NoError(t, <-result, "submission must complete after acknowledgement")
-		assert.False(t, h.positionModeInUse.Load(), "completed submission should release the guard")
+		select {
+		case err := <-result:
+			require.NoError(t, err, "submission must complete after acknowledgement")
+		case <-time.After(5 * time.Second):
+			require.FailNow(t, "submission must complete after acknowledgement")
+		}
+		require.Zero(t, h.positionModeState.Load(), "completed submission must release the guard")
 	})
+
+	for _, mode := range []string{"rejected", "single_side"} {
+		t.Run("release guard after failure in "+mode+" mode", func(t *testing.T) {
+			t.Parallel()
+			h := newV5TradeWebsocketTestExchange(t, func(_ testing.TB, message []byte, conn *gws.Conn) error {
+				var req V5WebsocketTradeRequest
+				if err := json.Unmarshal(message, &req); err != nil {
+					return err
+				}
+				return conn.WriteMessage(gws.TextMessage, []byte(`{"code":400,"message":"rejected","cid":"`+req.CID+`"}`))
+			})
+			setV5PositionModeEndpoint(t, h, mode)
+			_, err := h.WebsocketSubmitOrders(t.Context(), []*order.Submit{{Exchange: h.Name, Pair: btcusdtPair, AssetType: asset.USDTMarginedFutures, Side: order.Buy, Type: order.Limit, Price: 100, Amount: 1}})
+			require.Error(t, err, "failed mode lookup or rejected submission must return an error")
+			require.Zero(t, h.positionModeState.Load(), "failed submission must release the guard")
+		})
+	}
 
 	for _, tc := range []struct{ name, data string }{
 		{name: "short acknowledgement", data: `[{"code":0,"order_id":"1","client_order_id":"first"}]`},
@@ -3739,6 +3914,73 @@ func TestBookLevel(t *testing.T) {
 
 func TestInverseContractQuoteVolume(t *testing.T) {
 	t.Parallel()
+	for _, expiry := range []struct {
+		code, date string
+	}{
+		{code: "CW", date: "261106"},
+		{code: "NW", date: "261113"},
+		{code: "CQ", date: "261225"},
+		{code: "NQ", date: "270326"},
+	} {
+		for _, tc := range []struct {
+			pair currency.Pair
+			want float64
+		}{
+			{pair: currency.NewPair(currency.BTC, currency.NewCode(expiry.code)), want: 200},
+			{pair: currency.NewPair(currency.BTC, currency.NewCode(expiry.code)).Lower(), want: 200},
+			{pair: currency.NewPair(currency.ETH, currency.NewCode(expiry.code)).Lower(), want: 20},
+			{pair: currency.NewPair(currency.BTC, currency.NewCode(expiry.date)), want: 200},
+		} {
+			t.Run(expiry.code+"/"+tc.pair.String(), func(t *testing.T) {
+				t.Parallel()
+				h := &Exchange{futureContractCodes: map[string]currency.Code{expiry.code: currency.NewCode(expiry.date)}}
+				h.Name = t.Name()
+				require.NoError(t, limits.Load([]limits.MinMaxLevel{
+					{Key: key.NewExchangeAssetPair(h.Name, asset.Futures, currency.NewPair(currency.BTC, currency.NewCode(expiry.date))), MultiplierDecimal: 100},
+					{Key: key.NewExchangeAssetPair(h.Name, asset.Futures, currency.NewPair(currency.ETH, currency.NewCode(expiry.date))), MultiplierDecimal: 10},
+				}), "multiplier fixtures must distinguish the dated delivery contracts")
+				got, err := h.inverseContractQuoteVolume(t.Context(), tc.pair, asset.Futures, 2)
+				require.NoError(t, err, "delivery aliases and dated contracts must resolve their multiplier")
+				assert.Equal(t, tc.want, got, "delivery quote turnover should use the matching base and dated contract's face value")
+			})
+		}
+	}
+	for _, tc := range []struct {
+		name      string
+		contracts float64
+		wantErr   error
+	}{
+		{name: "missing delivery alias", contracts: 1, wantErr: errInvalidContractType},
+		{name: "zero volume without delivery metadata"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := new(Exchange).inverseContractQuoteVolume(t.Context(), btccwPair, asset.Futures, tc.contracts)
+			require.ErrorIs(t, err, tc.wantErr, "missing alias metadata must only fail for non-zero volume")
+			assert.Zero(t, got, "missing metadata should not yield quote turnover")
+		})
+	}
+	for _, tc := range []struct {
+		name, body string
+		want       float64
+		wantErr    error
+	}{
+		{name: "load delivery metadata", body: `{"status":"ok","data":[{"contract_code":"BTC261225","contract_type":"quarter","contract_status":1,"contract_size":100}]}`, want: 200},
+		{name: "delivery metadata request fails", body: `{"status":"error","err-msg":"unavailable"}`, wantErr: errAPIResponse},
+		{name: "delivery metadata lacks requested contract", body: `{"status":"ok","data":[{"contract_code":"BTC270326","contract_type":"next_quarter","contract_status":1,"contract_size":100}]}`, wantErr: limits.ErrOrderLimitNotFound},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodGet, "/api/v1/contract_contract_info", tc.body, nil)
+			h.Name = t.Name()
+			datedPair := currency.NewPair(currency.BTC, currency.NewCode("261225"))
+			h.futureContractCodes = map[string]currency.Code{"CQ": datedPair.Quote}
+			require.NoError(t, h.CurrencyPairs.StorePairs(asset.Futures, currency.Pairs{datedPair, currency.NewPair(currency.BTC, currency.NewCode("270326"))}, false), "dated delivery contracts must be available")
+			got, err := h.inverseContractQuoteVolume(t.Context(), currency.NewPair(currency.BTC, currency.NewCode("CQ")), asset.Futures, 2)
+			require.ErrorIs(t, err, tc.wantErr, "delivery metadata lookup must return the expected result")
+			assert.Equal(t, tc.want, got, "loaded delivery metadata should determine quote turnover")
+		})
+	}
 	t.Run("metadata request fails", func(t *testing.T) {
 		t.Parallel()
 		h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodGet, "/swap-api/v1/swap_contract_info", `{"status":"error","err-msg":"unavailable"}`, nil)

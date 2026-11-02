@@ -1,11 +1,13 @@
 package htx
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -80,7 +82,9 @@ func TestSetV5PositionMode(t *testing.T) {
 		go func() { _, err := h.SetV5PositionMode(t.Context(), "single_side"); result <- err }()
 		select {
 		case <-started:
-		case <-t.Context().Done():
+		case err := <-result:
+			require.FailNowf(t, "mode request must start", "SetV5PositionMode returned before reaching HTX: %v", err)
+		case <-time.After(5 * time.Second):
 			require.FailNow(t, "mode request must start")
 		}
 		submission := &order.Submit{Exchange: h.Name, Pair: btcusdtPair, AssetType: asset.USDTMarginedFutures, Side: order.Buy, Type: order.Limit, Price: 100, Amount: 1}
@@ -93,8 +97,13 @@ func TestSetV5PositionMode(t *testing.T) {
 		_, err = h.SetV5PositionMode(t.Context(), "dual_side")
 		require.ErrorIs(t, err, errPositionModeInUse, "mode changes must exclude each other")
 		releaseOnce.Do(func() { close(release) })
-		require.NoError(t, <-result, "initial mode change must complete")
-		assert.False(t, h.positionModeInUse.Load(), "successful mode change should release the guard")
+		select {
+		case err := <-result:
+			require.NoError(t, err, "initial mode change must complete")
+		case <-time.After(5 * time.Second):
+			require.FailNow(t, "initial mode change must complete")
+		}
+		assert.Zero(t, h.positionModeState.Load(), "successful mode change should release the guard")
 		_, err = h.SetV5PositionMode(t.Context(), "dual_side")
 		require.NoError(t, err, "later mode changes must remain usable")
 	})
@@ -103,13 +112,122 @@ func TestSetV5PositionMode(t *testing.T) {
 		h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodPost, "/v5/position/mode", `{"code":400,"message":"rejected"}`, nil)
 		_, err := h.SetV5PositionMode(t.Context(), "dual_side")
 		require.Error(t, err, "rejected mode change must fail")
-		assert.False(t, h.positionModeInUse.Load(), "failed mode change should release the guard")
+		assert.Zero(t, h.positionModeState.Load(), "failed mode change should release the guard")
 	})
 
 	h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodPost, "/v5/position/mode", `{"code":200,"data":{"position_mode":"single_side"}}`, nil)
 	resp, err := h.SetV5PositionMode(t.Context(), "single_side")
 	require.NoError(t, err, "SetV5PositionMode must not error")
 	assert.Equal(t, "single_side", resp.Mode.PositionMode, "position mode should decode")
+}
+
+func TestAcquirePositionModeForSubmission(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name         string
+		initialState int64
+		cancelled    bool
+		wantErr      error
+		wantState    int64
+	}{
+		{name: "idle", wantState: 1},
+		{name: "existing submissions", initialState: 2, wantState: 3},
+		{name: "cancelled", cancelled: true, wantErr: context.Canceled},
+		{name: "mode change busy", initialState: positionModeChanging, wantErr: errPositionModeInUse, wantState: positionModeChanging},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			h := new(Exchange)
+			h.positionModeState.Store(tc.initialState)
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			if tc.cancelled {
+				cancel()
+			}
+			err := h.acquirePositionModeForSubmission(ctx)
+			if tc.wantErr != nil {
+				require.ErrorIs(t, err, tc.wantErr, "acquisition must return the expected error")
+			} else {
+				require.NoError(t, err, "submission must acquire the mode guard")
+			}
+			assert.Equal(t, tc.wantState, h.positionModeState.Load(), "acquisition should preserve existing ownership")
+			if err == nil {
+				assert.Equal(t, tc.initialState, h.positionModeState.Add(-1), "release should remove only this submission")
+			}
+		})
+	}
+	t.Run("simultaneous submissions", func(t *testing.T) {
+		t.Parallel()
+		const submissions = 32
+		h := new(Exchange)
+		ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+		defer cancel()
+		start := make(chan struct{})
+		acquired := make(chan error, submissions)
+		for range submissions {
+			go func() {
+				<-start
+				acquired <- h.acquirePositionModeForSubmission(ctx)
+			}()
+		}
+		close(start)
+		for range submissions {
+			select {
+			case err := <-acquired:
+				require.NoError(t, err, "each simultaneous submission must acquire the guard")
+			case <-ctx.Done():
+				require.FailNow(t, "simultaneous submissions must acquire before the deadline")
+			}
+		}
+		assert.Equal(t, int64(submissions), h.positionModeState.Load(), "each active submission should be counted")
+		assert.False(t, h.positionModeState.CompareAndSwap(0, positionModeChanging), "active submissions should exclude a mode change")
+		for range submissions {
+			h.positionModeState.Add(-1)
+		}
+		assert.Zero(t, h.positionModeState.Load(), "releasing every submission should restore idle state")
+	})
+	t.Run("submission competing with mode change", func(t *testing.T) {
+		t.Parallel()
+		ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+		defer cancel()
+		for range 100 {
+			h := new(Exchange)
+			start := make(chan struct{})
+			submission := make(chan error, 1)
+			modeChange := make(chan bool, 1)
+			go func() {
+				<-start
+				submission <- h.acquirePositionModeForSubmission(ctx)
+			}()
+			go func() {
+				<-start
+				modeChange <- h.positionModeState.CompareAndSwap(0, positionModeChanging)
+			}()
+			close(start)
+			var submissionErr error
+			select {
+			case submissionErr = <-submission:
+			case <-ctx.Done():
+				require.FailNow(t, "competing submission must complete before the deadline")
+			}
+			var modeChanged bool
+			select {
+			case modeChanged = <-modeChange:
+			case <-ctx.Done():
+				require.FailNow(t, "competing mode change must complete before the deadline")
+			}
+			if modeChanged {
+				require.ErrorIs(t, submissionErr, errPositionModeInUse, "submission must reject an acquired mode change")
+				assert.Equal(t, int64(positionModeChanging), h.positionModeState.Load(), "rejected submission should preserve mode change ownership")
+				h.positionModeState.Store(0)
+			} else {
+				require.NoError(t, submissionErr, "submission must exclude the competing mode change")
+				assert.Equal(t, int64(1), h.positionModeState.Load(), "mode change should preserve submission ownership")
+				h.positionModeState.Add(-1)
+			}
+			assert.Zero(t, h.positionModeState.Load(), "releasing the winning operation should restore idle state")
+		}
+	})
 }
 
 func TestGetV5PositionRiskLimit(t *testing.T) {

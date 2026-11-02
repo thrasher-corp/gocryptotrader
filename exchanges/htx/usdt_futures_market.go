@@ -122,7 +122,7 @@ func (e *Exchange) GetV5FundingRateHistory(ctx context.Context, req *V5FundingRa
 		params.Set("from", req.From)
 	}
 	if req.Limit != 0 {
-		params.Set(orderPriceTypeLimit, strconv.FormatUint(req.Limit, 10))
+		params.Set("limit", strconv.FormatUint(req.Limit, 10))
 	}
 	if req.Direction != "" {
 		params.Set("direct", req.Direction)
@@ -172,7 +172,7 @@ func (e *Exchange) GetV5LiquidationOrders(ctx context.Context, req *V5Liquidatio
 		params.Set("from", req.From)
 	}
 	if req.Limit != 0 {
-		params.Set(orderPriceTypeLimit, strconv.FormatUint(req.Limit, 10))
+		params.Set("limit", strconv.FormatUint(req.Limit, 10))
 	}
 	var resp *V5LiquidationOrdersResponse
 	err := e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/v5/market/liquidation_orders", params), &resp)
@@ -218,7 +218,7 @@ func (e *Exchange) GetV5SettlementHistory(ctx context.Context, req *V5Settlement
 		params.Set("from", req.From)
 	}
 	if req.Limit != 0 {
-		params.Set(orderPriceTypeLimit, strconv.FormatUint(req.Limit, 10))
+		params.Set("limit", strconv.FormatUint(req.Limit, 10))
 	}
 	var resp *V5SettlementHistoryResponse
 	err := e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/v5/market/settlement_history", params), &resp)

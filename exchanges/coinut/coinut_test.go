@@ -731,6 +731,52 @@ func TestSubmitOrder(t *testing.T) {
 			assert.Equal(t, "account", submission.ClientID, "submission should retain its account identifier")
 		})
 	}
+	for _, tc := range []struct {
+		name          string
+		clientOrderID uint32
+	}{
+		{name: "minimum positive identifier", clientOrderID: 1},
+		{name: "ordinary identifier", clientOrderID: 4242},
+		{name: "maximum identifier", clientOrderID: math.MaxUint32},
+	} {
+		t.Run("client order identifier over the websocket "+tc.name, func(t *testing.T) {
+			t.Parallel()
+			// WebSockets start with an HTTP upgrade; the handler below inspects the order frame.
+			server := httptest.NewTestServer(t, mockws.CurryWsMockUpgrader(t, func(_ testing.TB, payload []byte, conn *gws.Conn) error {
+				var req WsSubmitOrderRequest
+				if err := json.Unmarshal(payload, &req); err != nil {
+					return err
+				}
+				if req.Request != "new_order" {
+					return nil
+				}
+				assert.Equal(t, int64(tc.clientOrderID), req.OrderID, "dedicated client order ID should reach Coinut over the websocket")
+				return conn.WriteMessage(gws.TextMessage, []byte(`{"nonce":`+strconv.FormatInt(req.Nonce, 10)+`,"reply":"order_accepted","status":["OK"],"order_id":42,"inst_id":7,"side":"BUY","qty":"2","price":"100","open_qty":"2"}`))
+			}))
+			server.Start()
+			h := new(Exchange)
+			require.NoError(t, testexch.Setup(h), "exchange must initialise")
+			h.instrumentMap.Seed("LTCUSDT", 7)
+			h.API.AuthenticatedWebsocketSupport = false
+			h.Features.Subscriptions = nil
+			require.NoError(t, h.Websocket.SetAllConnectionURLs("ws"+strings.TrimPrefix(server.URL, "http")), "mock websocket URL must install")
+			h.Websocket.SetSubscriptionsNotRequired()
+			t.Cleanup(func() {
+				assert.NoError(t, h.Websocket.Disable(), "mock websocket should disable")
+				assert.NoError(t, h.Websocket.Shutdown(), "mock websocket shutdown should not error")
+			})
+			require.NoError(t, h.Websocket.Enable(t.Context()), "mock websocket must connect")
+			h.Websocket.SetCanUseAuthenticatedEndpoints(true)
+			ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+			defer cancel()
+			submission := &order.Submit{Exchange: h.Name, Pair: currency.NewPair(currency.LTC, currency.USDT), AssetType: asset.Spot, Side: order.Buy, Type: order.Limit, Price: 100, Amount: 2, ClientID: "account", ClientOrderID: strconv.FormatUint(uint64(tc.clientOrderID), 10)}
+			response, err := h.SubmitOrder(ctx, submission)
+			require.NoError(t, err, "websocket order must accept the dedicated client order ID")
+			assert.Equal(t, "42", response.OrderID, "websocket order ID should be returned")
+			assert.Equal(t, submission.ClientOrderID, response.ClientOrderID, "response should retain the client order ID")
+			assert.Equal(t, "account", submission.ClientID, "submission should retain its account identifier")
+		})
+	}
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
 
 	orderSubmission := &order.Submit{

@@ -42,9 +42,11 @@ const (
 type Exchange struct {
 	exchange.Base
 	AccountID string
-	// positionModeInUse excludes overlapping mode changes and wrapper submissions on this instance.
+	// positionModeState is 0 when idle, positive for active USDT-margined wrapper
+	// submission calls, and -1 for an exclusive position mode change. Submissions
+	// can overlap each other while preventing a mode change until acknowledgement.
 	// It cannot account for exchange-side modifications or changes made by other clients or instances.
-	positionModeInUse        atomic.Bool
+	positionModeState        atomic.Int64
 	futureContractCodesMutex sync.RWMutex
 	futureContractCodes      map[string]currency.Code
 }

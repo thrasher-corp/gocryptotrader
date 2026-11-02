@@ -664,6 +664,12 @@ func (e *Exchange) inverseContractQuoteVolume(ctx context.Context, p currency.Pa
 	if contracts == 0 {
 		return 0, nil
 	}
+	if a == asset.Futures && slices.Contains(validContractExpiryCodes, p.Quote.Upper().String()) {
+		var err error
+		if p, err = e.pairFromContractExpiryCode(p.Upper()); err != nil {
+			return 0, err
+		}
+	}
 	k := key.NewExchangeAssetPair(e.Name, a, p)
 	level, err := limits.GetOrderExecutionLimits(k)
 	if err != nil {
@@ -1437,10 +1443,12 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		}
 		orderID = orderResp.Order.OrderIDString
 	case asset.USDTMarginedFutures:
-		if !e.positionModeInUse.CompareAndSwap(false, true) {
-			return nil, errPositionModeInUse
+		if err := e.acquirePositionModeForSubmission(ctx); err != nil {
+			return nil, err
 		}
-		defer e.positionModeInUse.Store(false)
+		// Keep this submission counted through mode lookup and acknowledgement processing.
+		// On every return, including errors, release only its count so other submissions still block mode changes.
+		defer e.positionModeState.Add(-1)
 		positionMode, err := e.getV5PositionModeName(ctx)
 		if err != nil {
 			return nil, err
@@ -1551,10 +1559,12 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 	if !e.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, request.ErrAuthRequestFailed
 	}
-	if !e.positionModeInUse.CompareAndSwap(false, true) {
-		return nil, errPositionModeInUse
+	if err := e.acquirePositionModeForSubmission(ctx); err != nil {
+		return nil, err
 	}
-	defer e.positionModeInUse.Store(false)
+	// Keep this submission counted through mode lookup and acknowledgement processing.
+	// On every return, including errors, release only its count so other submissions still block mode changes.
+	defer e.positionModeState.Add(-1)
 	positionMode, err := e.getV5PositionModeName(ctx)
 	if err != nil {
 		return nil, err
@@ -1596,10 +1606,12 @@ func (e *Exchange) WebsocketSubmitOrders(ctx context.Context, orders []*order.Su
 	if !e.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, request.ErrAuthRequestFailed
 	}
-	if !e.positionModeInUse.CompareAndSwap(false, true) {
-		return nil, errPositionModeInUse
+	if err := e.acquirePositionModeForSubmission(ctx); err != nil {
+		return nil, err
 	}
-	defer e.positionModeInUse.Store(false)
+	// Count the whole batch once through mode lookup and acknowledgement processing.
+	// On every return, including errors, release only its count so other submissions still block mode changes.
+	defer e.positionModeState.Add(-1)
 	positionMode, err := e.getV5PositionModeName(ctx)
 	if err != nil {
 		return nil, err
