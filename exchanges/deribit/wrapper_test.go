@@ -2657,6 +2657,100 @@ func TestGetHistoricalFundingRatesPaging(t *testing.T) {
 	assert.True(t, slices.IsSortedFunc(rates.FundingRates, func(a, b fundingrate.Rate) int { return a.Time.Compare(b.Time) }), "GetHistoricalFundingRates should return the pages oldest first")
 }
 
+func TestGetHistoricalFundingRatesPageOverlap(t *testing.T) {
+	t.Parallel()
+	// Deribit returns at most 744 hourly funding records a page
+	const pageSize = 744
+	epoch := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	for _, window := range []struct {
+		start, end time.Time
+	}{
+		{epoch, epoch.Add(time.Hour)},
+		{epoch, epoch.Add(pageSize * time.Hour)},
+		{epoch, epoch.Add((pageSize + 1) * time.Hour)},
+		{epoch, epoch.Add((2*pageSize + 1) * time.Hour)},
+		// A single record at the end, with the next page's end falling on the start
+		{epoch.Add(time.Hour - time.Millisecond), epoch.Add(time.Hour)},
+	} {
+		t.Run(window.end.Sub(window.start).String(), func(t *testing.T) {
+			t.Parallel()
+			var requests atomic.Int64
+			// Return ascending hourly records after the requested start, including the end, keeping only the latest page,
+			// so a page ending at the previous page's first record repeats it
+			ex := newWrapperServerExchange(t, func(method string, params json.RawMessage) string {
+				var req struct {
+					InstrumentName string `json:"instrument_name"`
+					StartTimestamp int64  `json:"start_timestamp"`
+					EndTimestamp   int64  `json:"end_timestamp"`
+				}
+				if requests.Add(1) > 4 || method != "public/get_funding_rate_history" || json.Unmarshal(params, &req) != nil || req.InstrumentName != "BTC-PERPETUAL" {
+					return `{"jsonrpc":"2.0","error":{"code":-32602,"message":"unexpected request"}}`
+				}
+				hour := time.Hour.Milliseconds()
+				var records []string
+				for ts := req.StartTimestamp/hour*hour + hour; ts <= req.EndTimestamp; ts += hour {
+					records = append(records, `{"timestamp":`+strconv.FormatInt(ts, 10)+`,"interest_1h":`+strconv.FormatInt((ts-epoch.UnixMilli())/hour, 10)+`}`)
+				}
+				records = records[max(0, len(records)-pageSize):]
+				return `{"jsonrpc":"2.0","result":[` + strings.Join(records, ",") + `]}`
+			})
+			pair := wrapperTestPair(t, asset.Futures)
+			result, err := ex.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{
+				Asset:           asset.Futures,
+				Pair:            pair,
+				PaymentCurrency: currency.USDT,
+				StartDate:       window.start,
+				EndDate:         window.end,
+			})
+			require.NoError(t, err, "GetHistoricalFundingRates must not error")
+			// Compare semantic values, not timezone locations or decimal coefficient/exponent representations.
+			result.StartDate = result.StartDate.UTC()
+			result.LatestRate.Time = result.LatestRate.Time.UTC()
+			result.LatestRate.Rate = decimal.MustFromString(result.LatestRate.Rate.String())
+			for i := range result.FundingRates {
+				result.FundingRates[i].Time = result.FundingRates[i].Time.UTC()
+				result.FundingRates[i].Rate = decimal.MustFromString(result.FundingRates[i].Rate.String())
+			}
+			var expected []fundingrate.Rate
+			for ts := window.start.Truncate(time.Hour).Add(time.Hour); !ts.After(window.end); ts = ts.Add(time.Hour) {
+				expected = append(expected, fundingrate.Rate{Time: ts, Rate: decimal.NewFromInt(int64(ts.Sub(epoch) / time.Hour))})
+			}
+			require.NotEmpty(t, expected, "the window must hold an hourly record")
+			assert.Equal(t, &fundingrate.HistoricalRates{
+				Exchange: ex.Name, Asset: asset.Futures, Pair: pair,
+				PaymentCurrency: currency.USDT, StartDate: expected[0].Time, EndDate: window.end,
+				FundingRates: expected, LatestRate: expected[len(expected)-1],
+			}, result, "GetHistoricalFundingRates should retain every rate and its metadata across page boundaries")
+			assert.LessOrEqual(t, requests.Load(), int64(1+int(window.end.Sub(window.start)/time.Hour)/pageSize), "pagination should stop after the last partial page")
+		})
+	}
+}
+
+func TestGetHistoricalFundingRatesEmptyWindow(t *testing.T) {
+	t.Parallel()
+	var requests atomic.Int64
+	ex := newWrapperServerExchange(t, func(method string, params json.RawMessage) string {
+		var req struct {
+			InstrumentName string `json:"instrument_name"`
+		}
+		if requests.Add(1) > 4 || method != "public/get_funding_rate_history" || json.Unmarshal(params, &req) != nil || req.InstrumentName != "BTC-PERPETUAL" {
+			return `{"jsonrpc":"2.0","error":{"code":-32602,"message":"unexpected request"}}`
+		}
+		return `{"jsonrpc":"2.0","result":[]}`
+	})
+	// The window holds hourly timestamps, so the pager has to ask; live, Deribit has no funding history this early
+	start := time.Date(2018, 1, 1, 0, 0, 0, 0, time.UTC)
+	_, err := ex.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{
+		Asset:           asset.Futures,
+		Pair:            wrapperTestPair(t, asset.Futures),
+		PaymentCurrency: currency.USDT,
+		StartDate:       start,
+		EndDate:         start.Add(2 * time.Hour),
+	})
+	assert.ErrorIs(t, err, fundingrate.ErrNoFundingRatesFound, "GetHistoricalFundingRates should report a window without funding rates")
+	assert.EqualValues(t, 1, requests.Load(), "GetHistoricalFundingRates should stop after an empty page")
+}
+
 func TestPerpetualInstrument(t *testing.T) {
 	t.Parallel()
 	name, err := e.perpetualInstrument(asset.Futures, wrapperTestPair(t, asset.Futures))
