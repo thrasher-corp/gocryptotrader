@@ -136,7 +136,8 @@ func (s *Storage) RunUpdater(overrides BotOverrides, settings *Config, filePath 
 	fxSettings := make([]base.Settings, 0, len(settings.ForexProviders))
 	var primaryProvider bool
 	for i := range settings.ForexProviders {
-		enabled := (settings.ForexProviders[i].Name == "CurrencyConverter" && overrides.CurrencyConverter) ||
+		enabled := (settings.ForexProviders[i].Name == "AllRatesToday" && overrides.AllRatesToday) ||
+			(settings.ForexProviders[i].Name == "CurrencyConverter" && overrides.CurrencyConverter) ||
 			(settings.ForexProviders[i].Name == "CurrencyLayer" && overrides.CurrencyLayer) ||
 			(settings.ForexProviders[i].Name == "Fixer" && overrides.Fixer) ||
 			(settings.ForexProviders[i].Name == "FXMacroData" && overrides.FXMacroData) ||
@@ -155,7 +156,7 @@ func (s *Storage) RunUpdater(overrides BotOverrides, settings *Config, filePath 
 			continue
 		}
 
-		if settings.ForexProviders[i].APIKeyLvl == -1 && settings.ForexProviders[i].Name != "ExchangeRates" && settings.ForexProviders[i].Name != "FXMacroData" {
+		if settings.ForexProviders[i].APIKeyLvl == -1 && settings.ForexProviders[i].Name != "ExchangeRates" && settings.ForexProviders[i].Name != "FXMacroData" && settings.ForexProviders[i].Name != "AllRatesToday" {
 			log.Warnf(log.Currency, "%s APIKey level not set, functionality is limited. Please review this in your config.json file\n",
 				settings.ForexProviders[i].Name)
 		}
