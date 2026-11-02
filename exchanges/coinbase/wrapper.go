@@ -1525,6 +1525,9 @@ func createOrderRequest(s *order.Submit, productID string) (*CreateOrderRequest,
 	if s.ReduceOnly {
 		return nil, fmt.Errorf("%w by Advanced Trade", errReduceOnlyNotSupported)
 	}
+	if (s.Type == order.StopLimit || s.Type == order.Bracket) && s.TriggerPriceType != order.LastPrice {
+		return nil, fmt.Errorf("%w: %s, which Advanced Trade's stop limit and bracket orders cannot select", order.ErrUnknownPriceType, s.TriggerPriceType)
+	}
 	side, err := advancedTradeSide(s.Side)
 	if err != nil {
 		return nil, err
@@ -2284,14 +2287,12 @@ func anySideFor(s order.Side) order.Side {
 // derivativesCancelType returns the category of order types a gateway cancel all request cancels for an order type,
 // and whether the category is exactly that type: stop orders are the stop limit and stop market orders, and take
 // profit orders the take limit and take market orders. A market order's unfilled remainder can rest, which the gateway
-// holds as a limit order, so no category holds market orders alone
+// holds as a limit order, so limit and market orders are listed and matched by the type GetActiveOrders reports
 func derivativesCancelType(t order.Type) (category string, exact bool, err error) {
 	switch t {
 	case order.AnyType, order.UnknownType:
 		return DerivativesCancelOrderTypeAll, true, nil
-	case order.Limit:
-		return DerivativesCancelOrderTypeLimit, true, nil
-	case order.Market:
+	case order.Limit, order.Market:
 		return DerivativesCancelOrderTypeLimit, false, nil
 	case order.Stop:
 		return DerivativesCancelOrderTypeStop, true, nil

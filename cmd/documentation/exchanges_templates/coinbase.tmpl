@@ -54,7 +54,8 @@ is replaced before it expires; its private websocket connection authenticates wi
 + `SubmitOrder` places Advanced Trade orders: market, limit, stop limit and bracket orders; fill or kill, immediate or
   cancel, post only and good till date orders, which a good till time or good till day order with an end time is; quote
   sized market and limit orders. A time in force Advanced Trade has no configuration for, a reduce only order, and a
-  stop limit or bracket order sized in the quote currency, which Coinbase sizes in the base currency, are refused.
+  stop limit or bracket order sized in the quote currency, which Coinbase sizes in the base currency, or asked to
+  trigger on a price other than the last trade price, which their configurations have no field for, are refused.
   Coinbase requires a client order ID, so an order without one is given a UUID, which the response returns. For a
   client order ID it already holds, Coinbase returns that order rather than placing another, so a reply naming another
   side, size or price than the request, or a product on another book, is refused. `RFQDisabled` turns smart order
@@ -83,8 +84,8 @@ is replaced before it expires; its private websocket connection authenticates wi
   its error, the gateway's orders being cancelled still. `CancelAllOrders` lists an asset's open orders and cancels
   them in batches, those of the type asked for alone. The gateway cancels an instrument's orders together, in
   both margin scopes, unless the request selects them by side, margin type, time in force, a single stop or take
-  profit type or market orders, whose unfilled remainders the gateway holds as limit orders, when they are listed
-  and cancelled one at a time.
+  profit type, or limit or market orders, as the gateway holds market orders' unfilled remainders as limit orders,
+  when they are listed and cancelled one at a time.
 + `GetOrderInfo` returns an order with its fills, less those a reversal undoes, `GetActiveOrders` an asset's live
   orders, Advanced Trade's pending and queued ones among them, and `GetOrderHistory` its filled, cancelled, expired and
   failed orders, by margin type and time in force too, a good till day filter matching the good till time orders

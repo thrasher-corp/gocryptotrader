@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"slices"
 	"strconv"
 	"strings"
@@ -818,27 +819,78 @@ func TestPageMarketTrades(t *testing.T) {
 		}
 		return page
 	}
-	oldest := end.Add(-10 * time.Minute)
+	// A pager that stops advancing asks forever, so asking past a list's pages fails the test rather than hanging it
+	pages := func(n int, fetch func(time.Time) ([]MarketTrade, error)) func(time.Time) ([]MarketTrade, error) {
+		var asked int
+		return func(pageEnd time.Time) ([]MarketTrade, error) {
+			asked++
+			require.LessOrEqual(t, asked, n, "pageMarketTrades must not ask for more pages than the list has")
+			return fetch(pageEnd)
+		}
+	}
+	// A full page spanning seconds: the next page ends at the whole second after its oldest trade, so it holds that
+	// second's trades again and a trade sharing the oldest trade's time that the full page left out, and nothing older,
+	// so it cannot advance
+	first := make([]MarketTrade, maximumMarketTradesLimit)
+	for i := range first {
+		first[i] = tradeAt(fmt.Sprintf("a%d", i), end.Add(-time.Millisecond-time.Duration(i)*10*time.Millisecond))
+	}
+	oldest := first[len(first)-1].Time
+	// again returns the page after a full page: the full page's trades before the page's end, and a trade sharing the
+	// full page's oldest time that the full page left out
+	again := func(full []MarketTrade, pageEnd time.Time, left MarketTrade) []MarketTrade {
+		var page []MarketTrade
+		for i := range full {
+			if full[i].Time.Before(pageEnd) {
+				page = append(page, full[i])
+			}
+		}
+		return append(page, left)
+	}
 	var ends []time.Time
-	trades, err := pageMarketTrades(start, end, func(pageEnd time.Time) ([]MarketTrade, error) {
+	trades, err := pageMarketTrades(start, end, pages(2, func(pageEnd time.Time) ([]MarketTrade, error) {
 		ends = append(ends, pageEnd)
 		if len(ends) == 1 {
-			return full(oldest.Add(time.Second-time.Millisecond), "a"), nil
+			return first, nil
 		}
-		return []MarketTrade{tradeAt("a999", oldest), tradeAt("b", oldest.Add(-time.Minute))}, nil
-	})
+		return again(first, pageEnd, tradeAt("b", oldest)), nil
+	}))
 	require.NoError(t, err, "pageMarketTrades must not error")
-	assert.Len(t, trades, maximumMarketTradesLimit+1, "pageMarketTrades should keep a trade two pages hold once")
-	assert.Equal(t, []time.Time{end, oldest.Add(time.Second)}, ends, "pageMarketTrades should end each page a second after the last page's oldest trade")
+	assert.Equal(t, append(slices.Clone(first), tradeAt("b", oldest)), trades, "pageMarketTrades should keep each trade two pages hold once, those sharing the oldest trade's time too")
+	assert.Equal(t, []time.Time{end, oldest.Truncate(time.Second).Add(time.Second)}, ends, "pageMarketTrades should end each page at the whole second after the last page's oldest trade")
 
-	_, err = pageMarketTrades(start, end, func(pageEnd time.Time) ([]MarketTrade, error) { return full(pageEnd.Add(-time.Millisecond), "c"), nil })
+	// A full page whose oldest trade is at the start can leave out another trade at the start, which the page ending at
+	// the whole second after the start holds
+	toStart := make([]MarketTrade, maximumMarketTradesLimit)
+	for i := range toStart {
+		toStart[i] = tradeAt(fmt.Sprintf("e%d", i), start.Add(time.Duration(len(toStart)-1-i)*10*time.Millisecond))
+	}
+	var toStartEnds []time.Time
+	fromStart, err := pageMarketTrades(start, end, pages(2, func(pageEnd time.Time) ([]MarketTrade, error) {
+		toStartEnds = append(toStartEnds, pageEnd)
+		if len(toStartEnds) == 1 {
+			return toStart, nil
+		}
+		return again(toStart, pageEnd, tradeAt("f", start)), nil
+	}))
+	require.NoError(t, err, "pageMarketTrades must not error for a full page reaching the start")
+	assert.Equal(t, append(slices.Clone(toStart), tradeAt("f", start)), fromStart, "pageMarketTrades should keep a trade at the start that a full page reaching it left out")
+	assert.Equal(t, []time.Time{end, start.Add(time.Second)}, toStartEnds, "pageMarketTrades should end the next page at the whole second after the start")
+
+	single, err := pageMarketTrades(start, end, pages(1, func(time.Time) ([]MarketTrade, error) { return []MarketTrade{tradeAt("s", end.Add(-time.Minute))}, nil }))
+	require.NoError(t, err, "pageMarketTrades must not error for a single trade")
+	assert.Equal(t, []MarketTrade{tradeAt("s", end.Add(-time.Minute))}, single, "pageMarketTrades should keep a page's only trade")
+
+	_, err = pageMarketTrades(start, end, pages(1, func(pageEnd time.Time) ([]MarketTrade, error) { return full(pageEnd.Add(-time.Millisecond), "c"), nil }))
 	assert.ErrorIs(t, err, errTradesPageFull, "pageMarketTrades should report a page of trades all from its last second")
 
-	reached, err := pageMarketTrades(start, end, func(time.Time) ([]MarketTrade, error) { return full(start.Add(500*time.Millisecond), "d"), nil })
+	// Coinbase sends no trade before the start, so only a venue ignoring it sends a page reaching the second before it,
+	// which still ends paging
+	reached, err := pageMarketTrades(start, end, pages(1, func(time.Time) ([]MarketTrade, error) { return full(start.Add(500*time.Millisecond), "d"), nil }))
 	require.NoError(t, err, "pageMarketTrades must not error once a page reaches the start")
-	assert.Len(t, reached, maximumMarketTradesLimit, "pageMarketTrades should stop once a page reaches the start")
+	assert.Equal(t, full(start.Add(500*time.Millisecond), "d"), reached, "pageMarketTrades should stop once a page reaches the start")
 
-	_, err = pageMarketTrades(start, end, func(time.Time) ([]MarketTrade, error) { return nil, errTestJWT })
+	_, err = pageMarketTrades(start, end, pages(1, func(time.Time) ([]MarketTrade, error) { return nil, errTestJWT }))
 	assert.ErrorIs(t, err, errTestJWT, "pageMarketTrades should return a page error")
 }
 
@@ -846,23 +898,67 @@ func TestPageDerivativesTrades(t *testing.T) {
 	t.Parallel()
 	start := time.Date(2026, 10, 18, 0, 0, 0, 0, time.UTC)
 	at := func(d time.Duration) types.Time { return types.Time(start.Add(d)) }
+	tradeAt := func(id string, d time.Duration) DerivativesPublicTrade {
+		return DerivativesPublicTrade{TradeID: id, Timestamp: at(d)}
+	}
+	// A pager that stops advancing asks forever, so asking past a list's pages fails the test rather than hanging it
+	pages := func(n int, fetch func(time.Time) (*DerivativesLastTradesResponse, error)) func(time.Time) (*DerivativesLastTradesResponse, error) {
+		var asked int
+		return func(pageStart time.Time) (*DerivativesLastTradesResponse, error) {
+			asked++
+			require.LessOrEqual(t, asked, n, "pageDerivativesTrades must not ask for more pages than the list has")
+			return fetch(pageStart)
+		}
+	}
 	var starts []time.Time
-	trades, err := pageDerivativesTrades(start, func(pageStart time.Time) (*DerivativesLastTradesResponse, error) {
+	trades, err := pageDerivativesTrades(start, pages(2, func(pageStart time.Time) (*DerivativesLastTradesResponse, error) {
 		starts = append(starts, pageStart)
 		if len(starts) == 1 {
 			return &DerivativesLastTradesResponse{Trades: []DerivativesPublicTrade{{TradeID: "1", Timestamp: at(time.Second)}, {TradeID: "2", Timestamp: at(2 * time.Second)}}, HasMore: true}, nil
 		}
 		return &DerivativesLastTradesResponse{Trades: []DerivativesPublicTrade{{TradeID: "2", Timestamp: at(2 * time.Second)}, {TradeID: "3", Timestamp: at(3 * time.Second)}}}, nil
-	})
+	}))
 	require.NoError(t, err, "pageDerivativesTrades must not error")
-	assert.Equal(t, []string{"1", "2", "3"}, []string{trades[0].TradeID, trades[1].TradeID, trades[2].TradeID}, "pageDerivativesTrades should keep a trade two pages hold once")
+	assert.Equal(t, []DerivativesPublicTrade{tradeAt("1", time.Second), tradeAt("2", 2*time.Second), tradeAt("3", 3*time.Second)}, trades, "pageDerivativesTrades should keep a trade two pages hold once")
 	assert.Equal(t, []time.Time{start, start.Add(2 * time.Second)}, starts, "pageDerivativesTrades should start each page at the last page's last trade")
 
-	_, err = pageDerivativesTrades(start, func(time.Time) (*DerivativesLastTradesResponse, error) {
+	// Trades share milliseconds, so the next page, which starts at the last page's last trade, holds that time's trades
+	// again, and one the last page left out
+	var tiedStarts []time.Time
+	tied, err := pageDerivativesTrades(start, pages(2, func(pageStart time.Time) (*DerivativesLastTradesResponse, error) {
+		tiedStarts = append(tiedStarts, pageStart)
+		if len(tiedStarts) == 1 {
+			return &DerivativesLastTradesResponse{Trades: []DerivativesPublicTrade{tradeAt("1", 100*time.Millisecond), tradeAt("2", 400*time.Millisecond), tradeAt("3", 400*time.Millisecond)}, HasMore: true}, nil
+		}
+		return &DerivativesLastTradesResponse{Trades: []DerivativesPublicTrade{tradeAt("2", 400*time.Millisecond), tradeAt("3", 400*time.Millisecond), tradeAt("4", 400*time.Millisecond), tradeAt("5", 700*time.Millisecond)}}, nil
+	}))
+	require.NoError(t, err, "pageDerivativesTrades must not error for trades sharing a time across pages")
+	assert.Equal(t, []DerivativesPublicTrade{tradeAt("1", 100*time.Millisecond), tradeAt("2", 400*time.Millisecond), tradeAt("3", 400*time.Millisecond), tradeAt("4", 400*time.Millisecond), tradeAt("5", 700*time.Millisecond)}, tied, "pageDerivativesTrades should keep each trade of the last page's last time once")
+	assert.Equal(t, []time.Time{start, start.Add(400 * time.Millisecond)}, tiedStarts, "pageDerivativesTrades should start the next page at the last page's last trade")
+
+	// The last page cannot advance past its start, yet still holds a trade of that time the page before left out
+	var boundaryStarts []time.Time
+	boundary, err := pageDerivativesTrades(start, pages(2, func(pageStart time.Time) (*DerivativesLastTradesResponse, error) {
+		boundaryStarts = append(boundaryStarts, pageStart)
+		if len(boundaryStarts) == 1 {
+			return &DerivativesLastTradesResponse{Trades: []DerivativesPublicTrade{tradeAt("1", 100*time.Millisecond), tradeAt("2", 400*time.Millisecond)}, HasMore: true}, nil
+		}
+		return &DerivativesLastTradesResponse{Trades: []DerivativesPublicTrade{tradeAt("2", 400*time.Millisecond), tradeAt("3", 400*time.Millisecond)}}, nil
+	}))
+	require.NoError(t, err, "pageDerivativesTrades must not error for a last page that cannot advance")
+	assert.Equal(t, []DerivativesPublicTrade{tradeAt("1", 100*time.Millisecond), tradeAt("2", 400*time.Millisecond), tradeAt("3", 400*time.Millisecond)}, boundary, "pageDerivativesTrades should keep the trade a last page holds at its start")
+
+	single, err := pageDerivativesTrades(start, pages(1, func(time.Time) (*DerivativesLastTradesResponse, error) {
+		return &DerivativesLastTradesResponse{Trades: []DerivativesPublicTrade{tradeAt("s", 500*time.Millisecond)}}, nil
+	}))
+	require.NoError(t, err, "pageDerivativesTrades must not error for a single trade")
+	assert.Equal(t, []DerivativesPublicTrade{tradeAt("s", 500*time.Millisecond)}, single, "pageDerivativesTrades should keep a page's only trade")
+
+	_, err = pageDerivativesTrades(start, pages(1, func(time.Time) (*DerivativesLastTradesResponse, error) {
 		return &DerivativesLastTradesResponse{Trades: []DerivativesPublicTrade{{TradeID: "1", Timestamp: at(0)}}, HasMore: true}, nil
-	})
+	}))
 	assert.ErrorIs(t, err, errTradesPageFull, "pageDerivativesTrades should report a page that does not advance")
-	_, err = pageDerivativesTrades(start, func(time.Time) (*DerivativesLastTradesResponse, error) { return nil, errTestJWT })
+	_, err = pageDerivativesTrades(start, pages(1, func(time.Time) (*DerivativesLastTradesResponse, error) { return nil, errTestJWT }))
 	assert.ErrorIs(t, err, errTestJWT, "pageDerivativesTrades should return a page error")
 }
 
@@ -1202,6 +1298,21 @@ func TestCreateOrderRequest(t *testing.T) {
 	assert.ErrorIs(t, err, margin.ErrMarginTypeUnsupported, "createOrderRequest should refuse an unsupported margin type")
 	_, err = createOrderRequest(&order.Submit{Side: order.Sell, Type: order.Limit, Amount: 1, Price: 2, ReduceOnly: true}, "BIP-20DEC30-CDE")
 	assert.ErrorIs(t, err, errReduceOnlyNotSupported, "createOrderRequest should refuse a reduce only order, which Advanced Trade orders cannot carry")
+	for _, orderType := range []order.Type{order.StopLimit, order.Bracket} {
+		_, err = createOrderRequest(&order.Submit{Side: order.Buy, Type: orderType, Amount: 1, Price: 2, TriggerPrice: 3}, "BTC-USD")
+		assert.NoErrorf(t, err, "createOrderRequest should accept a %s order triggered by the last trade price", orderType)
+		for _, priceType := range []order.PriceType{order.MarkPrice, order.IndexPrice, order.UnknownPriceType} {
+			_, err = createOrderRequest(&order.Submit{Side: order.Buy, Type: orderType, Amount: 1, Price: 2, TriggerPrice: 3, TriggerPriceType: priceType}, "BTC-USD")
+			assert.ErrorIsf(t, err, order.ErrUnknownPriceType, "createOrderRequest should refuse a %s order triggered by the %s, which Advanced Trade cannot select", orderType, priceType)
+		}
+	}
+	// An order without a trigger has no use for a trigger price type
+	for _, orderType := range []order.Type{order.Market, order.Limit} {
+		for _, priceType := range []order.PriceType{order.MarkPrice, order.IndexPrice, order.UnknownPriceType} {
+			_, err = createOrderRequest(&order.Submit{Side: order.Buy, Type: orderType, Amount: 1, Price: 2, TriggerPriceType: priceType}, "BTC-USD")
+			assert.NoErrorf(t, err, "createOrderRequest should accept a %s order with a %s trigger price type", orderType, priceType)
+		}
+	}
 }
 
 func TestSubmitOrderQuoteSizedStopAndBracket(t *testing.T) {
@@ -1398,7 +1509,7 @@ func TestDerivativesOrderParams(t *testing.T) {
 	for orderType, exp := range map[order.Type]cancelType{
 		order.AnyType:          {DerivativesCancelOrderTypeAll, true},
 		order.UnknownType:      {DerivativesCancelOrderTypeAll, true},
-		order.Limit:            {DerivativesCancelOrderTypeLimit, true},
+		order.Limit:            {DerivativesCancelOrderTypeLimit, false},
 		order.Market:           {DerivativesCancelOrderTypeLimit, false},
 		order.Stop:             {DerivativesCancelOrderTypeStop, true},
 		order.StopLimit:        {DerivativesCancelOrderTypeStop, false},
@@ -2006,6 +2117,37 @@ func TestCancelAllOrdersDerivativesMarketLimitRemainder(t *testing.T) {
 	assert.Equal(t, map[string]string{"USDC-8": order.PartiallyFilledCancelled.String()}, resp.Status, "CancelAllOrders should report the market order's remainder cancelled")
 }
 
+func TestCancelAllOrdersDerivativesLimitLeavesMarketRemainder(t *testing.T) {
+	t.Parallel()
+	// A market limit order's unfilled remainder rests as a limit order, which the gateway lists as the market order placed
+	const open = `[{"order_id":"USDC-8","order_state":"open","order_type":"limit","original_order_type":"market_limit","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"buy","price":90000,"amount":0.002,"filled_amount":0.001,"creation_timestamp":1792281600000,"last_update_timestamp":1792281600001},` +
+		`{"order_id":"USDC-9","order_state":"open","order_type":"limit","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"buy","price":80000,"amount":0.001,"creation_timestamp":1792281600000,"last_update_timestamp":1792281600000},` +
+		`{"order_id":"USDC-10","order_state":"untriggered","order_type":"stop_limit","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"sell","price":83900,"trigger":"mark_price","trigger_price":84000,"amount":0.001,"creation_timestamp":1792281600000,"last_update_timestamp":1792281600000},` +
+		`{"order_id":"USDC-11","order_state":"untriggered","order_type":"stop_market","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"sell","price":"market_price","trigger":"mark_price","trigger_price":84000,"amount":0.001,"creation_timestamp":1792281600000,"last_update_timestamp":1792281600000},` +
+		`{"order_id":"USDC-12","order_state":"untriggered","order_type":"take_limit","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"sell","price":96100,"trigger":"mark_price","trigger_price":96000,"amount":0.001,"creation_timestamp":1792281600000,"last_update_timestamp":1792281600000},` +
+		`{"order_id":"USDC-13","order_state":"untriggered","order_type":"take_market","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"sell","price":"market_price","trigger":"mark_price","trigger_price":96000,"amount":0.001,"creation_timestamp":1792281600000,"last_update_timestamp":1792281600000},` +
+		`{"order_id":"USDC-14","order_state":"untriggered","order_type":"trailing_stop","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"sell","price":"market_price","trigger":"mark_price","trigger_price":83000,"trigger_offset":500,"amount":0.001,"creation_timestamp":1792281600000,"last_update_timestamp":1792281600000}]`
+	ex, sent := newDerivativesMethodServer(t, func(req receivedJSONRPC) string {
+		switch {
+		case req.Method == "private/get_open_orders":
+			return `{"jsonrpc":"2.0","result":` + open + `}`
+		case req.Method == "private/cancel" && string(req.Params) == `{"order_id":"USDC-9"}`:
+			return `{"jsonrpc":"2.0","result":{"order_id":"USDC-9","order_state":"cancelled","order_type":"limit","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"buy","price":80000,"amount":0.001}}`
+		}
+		assert.Failf(t, "CancelAllOrders should list the open orders and cancel the limit order alone", "sent %s %s", req.Method, req.Params)
+		return `{"jsonrpc":"2.0","error":{"code":-32601,"message":"Method not found"}}`
+	})
+	resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.USDCMarginedFutures, Pair: testUSDCPerpetual, Type: order.Limit})
+	require.NoError(t, err, "CancelAllOrders must not error for limit orders")
+	requests := sent()
+	methods := make([]string, len(requests))
+	for i, req := range requests {
+		methods[i] = req.Method + " " + string(req.Params)
+	}
+	assert.Equal(t, []string{`private/get_open_orders {"kind":"future","include_isolated":true}`, `private/cancel {"order_id":"USDC-9"}`}, methods, "CancelAllOrders should cancel the limit order alone, leaving the market order's resting remainder")
+	assert.Equal(t, map[string]string{"USDC-9": order.Cancelled.String()}, resp.Status, "CancelAllOrders should report the limit order cancelled")
+}
+
 func TestCancelAllOrdersDerivativesCancelRefused(t *testing.T) {
 	t.Parallel()
 	// An order can close between the list and its cancellation, which the gateway then refuses, and the orders after it
@@ -2126,6 +2268,82 @@ func TestAdvancedTradeProofTokenRequired(t *testing.T) {
 	assert.ErrorIs(t, err, errProofTokenRequired, "GetOrderHistory should report a proof token challenge rather than no orders")
 	_, err = ex.GetOrderInfo(t.Context(), "o", currency.NewBTCUSD(), asset.Spot)
 	assert.ErrorIs(t, err, errProofTokenRequired, "GetOrderInfo should report a proof token challenge rather than no fills")
+}
+
+func TestListOrdersPages(t *testing.T) {
+	t.Parallel()
+	var queries []url.Values
+	var mu sync.Mutex
+	ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		query := r.URL.Query()
+		mu.Lock()
+		queries = append(queries, query)
+		mu.Unlock()
+		body := `{"orders":[{"order_id":"o-1"},{"order_id":"o-2"}],"has_next":true,"cursor":"page-2"}`
+		if query.Get("cursor") == "page-2" {
+			// The last page can still name a cursor, which has_next false leaves unused
+			body = `{"orders":[{"order_id":"o-3"}],"has_next":false,"cursor":"page-3"}`
+		}
+		_, err := w.Write([]byte(body))
+		assert.NoError(t, err, "writing the response should not error")
+	}))
+	start := time.Date(2026, 10, 18, 0, 0, 0, 0, time.UTC)
+	filtered := func(cursor string) *ListOrdersRequest {
+		return &ListOrdersRequest{ProductIDs: []string{"BTC-USD"}, ProductType: ProductTypeSpot, OrderStatuses: []string{OrderStatusOpen}, StartDate: start, EndDate: start.Add(time.Hour), Cursor: cursor}
+	}
+	orders, err := ex.listOrders(t.Context(), filtered(""))
+	require.NoError(t, err, "listOrders must not error")
+	ids := make([]string, len(orders))
+	for i := range orders {
+		ids[i] = orders[i].OrderID
+	}
+	assert.Equal(t, []string{"o-1", "o-2", "o-3"}, ids, "listOrders should list every page's orders")
+	exp := make([]url.Values, 2)
+	for i, cursor := range []string{"", "page-2"} {
+		req := filtered(cursor)
+		req.Limit = ordersPageLimit
+		exp[i], err = listOrdersParams(req)
+		require.NoError(t, err, "listOrdersParams must not error")
+	}
+	assert.Equal(t, exp, queries, "listOrders should ask for every page with the request's filters, paging by the cursor")
+}
+
+func TestUpdateAccountBalancesPages(t *testing.T) {
+	t.Parallel()
+	account := func(code, available, hold string) string {
+		return `{"uuid":"` + code + `-wallet","currency":"` + code + `","available_balance":{"value":"` + available + `","currency":"` + code + `"},"hold":{"value":"` + hold + `","currency":"` + code + `"},"type":"ACCOUNT_TYPE_CRYPTO","platform":"ACCOUNT_PLATFORM_CONSUMER"}`
+	}
+	var cursors []string
+	var mu sync.Mutex
+	ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		cursor := r.URL.Query().Get("cursor")
+		mu.Lock()
+		cursors = append(cursors, cursor)
+		mu.Unlock()
+		body := `{"accounts":[` + account("BTC", "1", "0.5") + `,` + account("ETH", "2", "0") + `],"has_next":true,"cursor":"page-2"}`
+		if cursor == "page-2" {
+			// The last page can still name a cursor, which has_next false leaves unused, and an account's whole balance
+			// can be held, as by its open orders
+			body = `{"accounts":[` + account("USDC", "0", "25") + `],"has_next":false,"cursor":"page-3"}`
+		}
+		_, err := w.Write([]byte(body))
+		assert.NoError(t, err, "writing the response should not error")
+	}))
+	subAccounts, err := ex.UpdateAccountBalances(t.Context(), asset.Spot)
+	require.NoError(t, err, "UpdateAccountBalances must not error")
+	require.Len(t, subAccounts, 1, "UpdateAccountBalances must return the spot sub-account")
+	got := make(accounts.CurrencyBalances, len(subAccounts[0].Balances))
+	for c, b := range subAccounts[0].Balances {
+		// The store stamps each balance it saves
+		b.UpdatedAt = time.Time{}
+		got[c] = b
+	}
+	assert.Equal(t, accounts.CurrencyBalances{
+		currency.BTC:  {Currency: currency.BTC, Total: 1.5, Hold: 0.5, Free: 1},
+		currency.ETH:  {Currency: currency.ETH, Total: 2, Free: 2},
+		currency.USDC: {Currency: currency.USDC, Total: 25, Hold: 25},
+	}, got, "UpdateAccountBalances should return every page's balances")
+	assert.Equal(t, []string{"", "page-2"}, cursors, "UpdateAccountBalances should page by the cursor")
 }
 
 func TestAdvancedTradeCursorCycles(t *testing.T) {
@@ -3381,6 +3599,75 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 	require.NoError(t, err, "GetHistoricalFundingRates must not error")
 	require.NotEmpty(t, rates.FundingRates, "GetHistoricalFundingRates must return the window's hourly rates")
 	assert.Equal(t, rates.FundingRates[len(rates.FundingRates)-1], rates.LatestRate, "GetHistoricalFundingRates should return the window's latest rate")
+}
+
+func TestGetHistoricalFundingRatesPages(t *testing.T) {
+	t.Parallel()
+	end := time.Date(2026, 10, 18, 0, 0, 0, 0, time.UTC)
+	// One hourly record more than a page holds, so the earlier page holds a single record
+	first := end.Add(-derivativesFundingRatePageLimit * time.Hour)
+	start := first.Add(-30 * time.Minute)
+	var ends []uint64
+	var mu sync.Mutex
+	ex, _ := newDerivativesMethodServer(t, func(req receivedJSONRPC) string {
+		var params DerivativesInstrumentTimeRangeWireRequest
+		if !assert.NoError(t, json.Unmarshal(req.Params, &params), "the funding history params should decode") {
+			return `{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid params"}}`
+		}
+		mu.Lock()
+		ends = append(ends, params.EndTimestamp)
+		mu.Unlock()
+		// The gateway answers a range with its latest page of records, oldest first, leaving out one at its start
+		var records []string
+		for at := first; !at.After(end); at = at.Add(time.Hour) {
+			if ms := uint64(at.UnixMilli()); ms > params.StartTimestamp && ms <= params.EndTimestamp {
+				records = append(records, `{"timestamp":`+strconv.FormatInt(at.UnixMilli(), 10)+`,"index_price":1,"prev_index_price":1,"interest_1h":`+strconv.FormatInt(int64(at.Sub(first)/time.Hour), 10)+`,"interest_8h":0}`)
+			}
+		}
+		records = records[max(len(records)-derivativesFundingRatePageLimit, 0):]
+		return `{"jsonrpc":"2.0","result":[` + strings.Join(records, ",") + `]}`
+	})
+	// expected returns the hourly records from one time to another as GetHistoricalFundingRates returns them
+	expected := func(from, to time.Time) *fundingrate.HistoricalRates {
+		exp := &fundingrate.HistoricalRates{Exchange: ex.Name, Asset: asset.USDCMarginedFutures, Pair: testUSDCPerpetual, StartDate: from, EndDate: to}
+		for at := from; !at.After(to); at = at.Add(time.Hour) {
+			exp.FundingRates = append(exp.FundingRates, fundingrate.Rate{Time: at, Rate: decimal.MustFromFloat(float64(at.Sub(first) / time.Hour))})
+		}
+		exp.LatestRate = exp.FundingRates[len(exp.FundingRates)-1]
+		return exp
+	}
+	// requested returns the end of each page asked for since it was last called
+	requested := func() []uint64 {
+		mu.Lock()
+		defer mu.Unlock()
+		asked := ends
+		ends = nil
+		return asked
+	}
+	// The gateway's millisecond timestamps decode in the local time zone
+	inUTC := func(r *fundingrate.HistoricalRates) *fundingrate.HistoricalRates {
+		for i := range r.FundingRates {
+			r.FundingRates[i].Time = r.FundingRates[i].Time.UTC()
+		}
+		r.StartDate, r.EndDate, r.LatestRate.Time = r.StartDate.UTC(), r.EndDate.UTC(), r.LatestRate.Time.UTC()
+		return r
+	}
+	rates, err := ex.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{Asset: asset.USDCMarginedFutures, Pair: testUSDCPerpetual, StartDate: start, EndDate: end})
+	require.NoError(t, err, "GetHistoricalFundingRates must not error")
+	assert.Equal(t, expected(first, end), inUTC(rates), "GetHistoricalFundingRates should return every page's records, oldest first")
+	assert.Equal(t, []uint64{uint64(end.UnixMilli()), uint64(first.Add(time.Hour - time.Millisecond).UnixMilli())}, requested(), "GetHistoricalFundingRates should end each earlier page just before the first record of the last")
+
+	// A short page whose first record is a millisecond after the range's start, so no earlier page can follow it
+	near, err := ex.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{Asset: asset.USDCMarginedFutures, Pair: testUSDCPerpetual, StartDate: first.Add(-time.Millisecond), EndDate: first.Add(time.Hour)})
+	require.NoError(t, err, "GetHistoricalFundingRates must not error for a range starting just before a record")
+	assert.Equal(t, expected(first, first.Add(time.Hour)), inUTC(near), "GetHistoricalFundingRates should return a short page's records")
+	assert.Equal(t, []uint64{uint64(first.Add(time.Hour).UnixMilli())}, requested(), "GetHistoricalFundingRates should ask for a short page once")
+
+	// A full page whose first record is a millisecond after the range's start reaches it, so no earlier page is asked for
+	reached, err := ex.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{Asset: asset.USDCMarginedFutures, Pair: testUSDCPerpetual, StartDate: first.Add(time.Hour - time.Millisecond), EndDate: end})
+	require.NoError(t, err, "GetHistoricalFundingRates must not error for a full page reaching the range's start")
+	assert.Equal(t, expected(first.Add(time.Hour), end), inUTC(reached), "GetHistoricalFundingRates should return a full page reaching the range's start")
+	assert.Equal(t, []uint64{uint64(end.UnixMilli())}, requested(), "GetHistoricalFundingRates should ask for a full page reaching the range's start once")
 }
 
 func TestIsPerpetualFutureCurrency(t *testing.T) {
