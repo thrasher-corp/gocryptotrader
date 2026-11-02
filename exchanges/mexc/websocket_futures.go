@@ -1,6 +1,7 @@
 package mexc
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"errors"
@@ -44,6 +45,13 @@ const (
 	// futuresWebsocketReplySignature matches a futures request to its reply. The venue's replies carry no request
 	// ID, so one request is in flight at a time and its reply is the next one on the connection
 	futuresWebsocketReplySignature = "futuresReply"
+
+	// futuresResyncMarkerPrefix starts the symbol of a marker request, which no contract has. The venue refuses a
+	// subscription to a contract it doesn't list with a reply naming the symbol, the one reply which names its request
+	futuresResyncMarkerPrefix = "gct-resync-"
+	// futuresResyncReplies is how many replies a marker request waits for: the one owed, should it still come, and its
+	// own
+	futuresResyncReplies = 2
 
 	futuresWebsocketPing         = `{"method":"ping"}`
 	futuresWebsocketPingInterval = 15 * time.Second
@@ -117,19 +125,23 @@ func (e *Exchange) websocketFuturesConnectPrivate(ctx context.Context, conn webs
 	return e.WebsocketFuturesConnect(ctx, conn)
 }
 
-// futuresWebsocketRequest sends a request over a futures connection and checks its reply
+// futuresWebsocketRequest sends a request over a futures connection and checks its reply. On a connection owing the
+// reply to an earlier request, it is sent only once a marker request has brought the connection back in step
 func (e *Exchange) futuresWebsocketRequest(ctx context.Context, conn websocket.Connection, req *WebsocketFuturesRequest) error {
 	e.futuresWebsocketRequestMu.Lock()
 	defer e.futuresWebsocketRequestMu.Unlock()
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+	if e.futuresRepliesOwed[conn] {
+		if err := e.resyncFuturesReplies(ctx, conn); err != nil {
+			return err
+		}
+	}
 	data, err := conn.SendMessageReturnResponse(ctx, request.Unset, futuresWebsocketReplySignature, req)
 	if err != nil {
-		// The connection returns the context's own error from its wait for a reply, and wraps one which ends while the
-		// request waits for the rate limiter; a request never sent gets no reply
-		if errors.Is(err, websocket.ErrSignatureTimeout) || err == context.DeadlineExceeded || err == context.Canceled {
-			awaitLateFuturesReply(ctx, conn)
+		if futuresRequestSent(err) && !awaitLateFuturesReply(ctx, conn) {
+			e.oweFuturesReply(conn)
 		}
 		return err
 	}
@@ -153,14 +165,65 @@ func (e *Exchange) futuresWebsocketRequest(ctx context.Context, conn websocket.C
 	return fmt.Errorf("%w: %s answered by %s: %s", errFuturesWebsocketRejected, req.Method, reply.Channel, message)
 }
 
-// awaitLateFuturesReply waits, up to the response limit, for the reply to a sent request which was given up on. The
-// venue's replies name no request, so a late one would otherwise answer the next request sent
-func awaitLateFuturesReply(ctx context.Context, conn websocket.Connection) {
+// futuresRequestSent reports whether a futures request which failed was sent. The connection returns the context's
+// own error from its wait for a reply, and wraps one which ends while the request waits for the rate limiter
+func futuresRequestSent(err error) bool {
+	return errors.Is(err, websocket.ErrSignatureTimeout) || err == context.DeadlineExceeded || err == context.Canceled
+}
+
+// awaitLateFuturesReply waits, up to the response limit, for the reply to a sent request which was given up on, and
+// reports whether it came. The venue's replies name no request, so a late one would otherwise answer the next request
+// sent
+func awaitLateFuturesReply(ctx context.Context, conn websocket.Connection) bool {
 	late, err := conn.MatchReturnResponses(context.WithoutCancel(ctx), futuresWebsocketReplySignature, 1)
 	if err != nil {
-		return
+		return false
 	}
-	<-late
+	return (<-late).Err == nil
+}
+
+// oweFuturesReply records that a connection owes a reply, and forgets the connections closed since, whose replies
+// can no longer arrive
+func (e *Exchange) oweFuturesReply(conn websocket.Connection) {
+	if e.futuresRepliesOwed == nil {
+		e.futuresRepliesOwed = make(map[websocket.Connection]bool)
+	}
+	for owing := range e.futuresRepliesOwed {
+		if c, ok := owing.(interface{ IsConnected() bool }); ok && !c.IsConnected() {
+			delete(e.futuresRepliesOwed, owing)
+		}
+	}
+	e.futuresRepliesOwed[conn] = true
+}
+
+// resyncFuturesReplies brings a connection owing a reply back in step. It sends a marker request, a subscription to a
+// symbol no contract has, and drops the replies before the venue's refusal of it, which names the symbol. The venue
+// answers requests in the order they are sent, so a reply owed arrives before that refusal or not at all
+func (e *Exchange) resyncFuturesReplies(ctx context.Context, conn websocket.Connection) error {
+	e.futuresResyncMarkers++
+	marker := futuresResyncMarker(futuresResyncMarkerPrefix + strconv.FormatUint(e.futuresResyncMarkers, 10))
+	replies, err := conn.SendMessageReturnResponsesWithInspector(ctx, request.Unset, futuresWebsocketReplySignature, &WebsocketFuturesRequest{
+		Method: futuresSubscribePrefix + futuresChannelTicker,
+		Param:  &WebsocketFuturesChannelParams{Symbol: string(marker)},
+	}, futuresResyncReplies, marker)
+	if err != nil {
+		return fmt.Errorf("%w: marker %s: %w", errFuturesWebsocketOutOfStep, marker, err)
+	}
+	if n := len(replies); n == 0 || !marker.IsFinal(replies[n-1]) {
+		// More replies were owed than the marker waited for, so its own is still to come
+		return fmt.Errorf("%w: marker %s unanswered after %d replies", errFuturesWebsocketOutOfStep, marker, len(replies))
+	}
+	delete(e.futuresRepliesOwed, conn)
+	return nil
+}
+
+// futuresResyncMarker is the symbol of a marker request. Markers are numbered upwards, so a reply naming an earlier
+// marker never contains a later one's symbol
+type futuresResyncMarker string
+
+// IsFinal reports whether a reply names the marker
+func (m futuresResyncMarker) IsFinal(reply []byte) bool {
+	return bytes.Contains(reply, []byte(m))
 }
 
 // futuresChannelRequest returns the venue's method and parameters of a public futures subscription
@@ -375,11 +438,12 @@ func (e *Exchange) WebsocketFuturesHandleData(ctx context.Context, conn websocke
 		if conn.IncomingWithData(futuresWebsocketReplySignature, respRaw) {
 			return nil
 		}
-		if resp.Channel == futuresChannelError {
+		if resp.Channel == futuresChannelError && !bytes.Contains(resp.Data, []byte(futuresResyncMarkerPrefix)) {
 			// No request is waiting, so the refusal is reported rather than lost
 			return fmt.Errorf("%w: %s", errFuturesWebsocketRejected, resp.Data)
 		}
-		// A reply arriving after its request timed out is already reported by the request
+		// A reply arriving after its request timed out is already reported by the request, and a marker is refused by
+		// design
 		return nil
 	case !strings.HasPrefix(resp.Channel, futuresChannelPushPrefix):
 		return e.wsUnhandled(ctx, respRaw)

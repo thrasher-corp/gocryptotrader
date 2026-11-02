@@ -1547,36 +1547,82 @@ func TestGetActiveOrdersFutures(t *testing.T) {
 	assert.Equal(t, exp, orders, "the pair's order should be mapped")
 }
 
-// futuresOrderPage returns a page of open orders with consecutive IDs
-func futuresOrderPage(firstID, n int) string {
+// futuresOrderPage returns a page of open orders with consecutive IDs at a price
+func futuresOrderPage(firstID, n int, price float64) string {
 	page := make([]string, n)
 	for i := range page {
-		page[i] = `{"orderId":"` + strconv.Itoa(firstID+i) + `","symbol":"BTC_USDT","price":80000,"vol":1,"side":1,"category":1,` +
-			`"orderType":1,"openType":2,"state":2,"createTime":1758000000000}`
+		page[i] = `{"orderId":"` + strconv.Itoa(firstID+i) + `","symbol":"BTC_USDT","price":` + strconv.FormatFloat(price, 'f', -1, 64) +
+			`,"vol":1,"side":1,"category":1,"orderType":1,"openType":2,"state":2,"createTime":1758000000000}`
 	}
 	return "[" + strings.Join(page, ",") + "]"
+}
+
+// futuresOrderPageDetails returns the details of the orders futuresOrderPage lists: unfilled cross limit buys of one
+// contract, resting until cancelled
+func futuresOrderPageDetails(firstID, n int, price float64) []order.Detail {
+	details := make([]order.Detail, n)
+	for i := range details {
+		details[i] = order.Detail{
+			TimeInForce:     order.GoodTillCancel,
+			Price:           price,
+			Amount:          1,
+			ContractAmount:  1,
+			RemainingAmount: 1,
+			Exchange:        "MEXC",
+			OrderID:         strconv.Itoa(firstID + i),
+			Type:            order.Limit,
+			Side:            order.Buy,
+			Status:          order.New,
+			AssetType:       asset.Futures,
+			Date:            time.UnixMilli(1758000000000),
+			LastUpdated:     time.UnixMilli(1758000000000),
+			Pair:            futuresTradablePair,
+			MarginType:      margin.Multi,
+		}
+	}
+	return details
 }
 
 func TestGetActiveOrdersFuturesPaging(t *testing.T) {
 	t.Parallel()
 	for name, tc := range map[string]struct {
 		second string
-		exp    int
+		exp    order.FilteredOrders
 	}{
-		"next page": {second: futuresOrderPage(6000, 20), exp: futuresDefaultPageSizeLimit + 20},
+		"next page": {
+			second: futuresOrderPage(6000, 20, 80000),
+			exp:    append(futuresOrderPageDetails(5000, futuresDefaultPageSizeLimit, 80000), futuresOrderPageDetails(6000, 20, 80000)...),
+		},
 		// A page number the venue ignores serves the first page again, which must end the paging
-		"repeated page": {second: futuresOrderPage(5000, futuresDefaultPageSizeLimit), exp: futuresDefaultPageSizeLimit},
+		"repeated page": {
+			second: futuresOrderPage(5000, futuresDefaultPageSizeLimit, 80000),
+			exp:    futuresOrderPageDetails(5000, futuresDefaultPageSizeLimit, 80000),
+		},
+		// Orders placed while paging push the end of the first page onto the next, which repeats them; the repeats are
+		// priced differently to show that each order is returned once, as first listed
+		"overlapping page": {
+			second: futuresOrderPage(5090, 11, 81000),
+			exp:    append(futuresOrderPageDetails(5000, futuresDefaultPageSizeLimit, 80000), futuresOrderPageDetails(5100, 1, 81000)...),
+		},
+		// A null order decodes to nil and is passed over
+		"nil order": {
+			second: "[null," + strings.TrimPrefix(futuresOrderPage(6000, 1, 80000), "["),
+			exp:    append(futuresOrderPageDetails(5000, futuresDefaultPageSizeLimit, 80000), futuresOrderPageDetails(6000, 1, 80000)...),
+		},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			ex := testExchangeFor(t, futuresHandler(t, futuresRoute{
-				method: http.MethodGet, path: "private/order/list/open_orders", query: "page_num=1&page_size=100", data: futuresOrderPage(5000, futuresDefaultPageSizeLimit),
+				method: http.MethodGet, path: "private/order/list/open_orders", query: "page_num=1&page_size=100", data: futuresOrderPage(5000, futuresDefaultPageSizeLimit, 80000),
 			}, futuresRoute{
 				method: http.MethodGet, path: "private/order/list/open_orders", query: "page_num=2&page_size=100", data: tc.second,
 			}), liveUnavailable)
-			orders, err := ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Futures, Side: order.AnySide, Type: order.AnyType})
-			require.NoError(t, err, "GetActiveOrders must not error")
-			assert.Len(t, orders, tc.exp, "every order should be returned once")
+			// A call knows none of the orders an earlier call read
+			for call := 1; call <= 2; call++ {
+				orders, err := ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Futures, Side: order.AnySide, Type: order.AnyType})
+				require.NoErrorf(t, err, "GetActiveOrders call %d must not error", call)
+				assert.Equalf(t, tc.exp, orders, "call %d should return every order once, as first listed", call)
+			}
 		})
 	}
 }
@@ -1589,38 +1635,78 @@ func TestGetOrderHistoryFuturesPaging(t *testing.T) {
 	}
 	for name, tc := range map[string]struct {
 		second string
-		exp    int
+		exp    order.FilteredOrders
 	}{
-		"next page": {second: futuresOrderPage(6000, 1), exp: futuresDefaultPageSizeLimit + 1},
+		"next page": {
+			second: futuresOrderPage(6000, 1, 80000),
+			exp:    append(futuresOrderPageDetails(5000, futuresDefaultPageSizeLimit, 80000), futuresOrderPageDetails(6000, 1, 80000)...),
+		},
 		// A page number the venue ignores serves the first page again, which must end the paging
-		"repeated page": {second: futuresOrderPage(5000, futuresDefaultPageSizeLimit), exp: futuresDefaultPageSizeLimit},
+		"repeated page": {
+			second: futuresOrderPage(5000, futuresDefaultPageSizeLimit, 80000),
+			exp:    futuresOrderPageDetails(5000, futuresDefaultPageSizeLimit, 80000),
+		},
+		// Orders ending while paging push the end of the first page onto the next, which repeats them; the repeats are
+		// priced differently to show that each order is returned once, as first listed
+		"overlapping page": {
+			second: futuresOrderPage(5090, 20, 81000),
+			exp:    append(futuresOrderPageDetails(5000, futuresDefaultPageSizeLimit, 80000), futuresOrderPageDetails(5100, 10, 81000)...),
+		},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			ex := testExchangeFor(t, futuresHandler(t, futuresRoute{
-				method: http.MethodGet, path: "private/order/list/history_orders", query: query(1), data: futuresOrderPage(5000, futuresDefaultPageSizeLimit),
+				method: http.MethodGet, path: "private/order/list/history_orders", query: query(1), data: futuresOrderPage(5000, futuresDefaultPageSizeLimit, 80000),
 			}, futuresRoute{
 				method: http.MethodGet, path: "private/order/list/history_orders", query: query(2), data: tc.second,
 			}), liveUnavailable)
-			orders, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
-				AssetType: asset.Futures,
-				Pairs:     currency.Pairs{futuresTradablePair},
-				Side:      order.AnySide,
-				Type:      order.AnyType,
-				StartTime: time.UnixMilli(start),
-				EndTime:   time.UnixMilli(end),
-			})
-			require.NoError(t, err, "GetOrderHistory must not error")
-			assert.Len(t, orders, tc.exp, "every order should be returned once")
+			// A call knows none of the orders an earlier call read
+			for call := 1; call <= 2; call++ {
+				orders, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+					AssetType: asset.Futures,
+					Pairs:     currency.Pairs{futuresTradablePair},
+					Side:      order.AnySide,
+					Type:      order.AnyType,
+					StartTime: time.UnixMilli(start),
+					EndTime:   time.UnixMilli(end),
+				})
+				require.NoErrorf(t, err, "GetOrderHistory call %d must not error", call)
+				assert.Equalf(t, tc.exp, orders, "call %d should return every order once, as first listed", call)
+			}
 		})
 	}
 }
 
-// fundingRatePage returns a page of settled funding rates, newest first, settled 8 hours apart from the newest
-func fundingRatePage(newest time.Time, first, n int) string {
+func TestGetOrderHistoryFuturesRepeatedPair(t *testing.T) {
+	t.Parallel()
+	// A pair asked for in two of its forms can be read twice; an order the second read lists again, changed, is
+	// returned once, as first listed
+	var reads atomic.Int64
+	ex := testExchangeFor(t, func(w http.ResponseWriter, r *http.Request) {
+		price := 80000.0
+		if reads.Add(1) > 1 {
+			price = 81000
+		}
+		futuresHandler(t, futuresRoute{
+			method: http.MethodGet, path: "private/order/list/history_orders", query: "page_num=1&page_size=100&states=3%2C4%2C5&symbol=BTC_USDT", data: futuresOrderPage(5000, 1, price),
+		})(w, r)
+	}, liveUnavailable)
+	orders, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+		AssetType: asset.Futures,
+		Pairs:     currency.Pairs{futuresTradablePair, futuresTradablePair.Lower()},
+		Side:      order.AnySide,
+		Type:      order.AnyType,
+	})
+	require.NoError(t, err, "GetOrderHistory must not error")
+	assert.Equal(t, order.FilteredOrders(futuresOrderPageDetails(5000, 1, 80000)), orders, "an order read for each form of a pair should be returned once, as first listed")
+}
+
+// fundingRatePage returns a page of funding rates, newest first, settled 8 hours apart from the newest
+func fundingRatePage(newest time.Time, first, n int, rate float64) string {
 	rates := make([]string, n)
 	for i := range rates {
-		rates[i] = `{"symbol":"BTC_USDT","fundingRate":0.0001,"collectCycle":8,"settleTime":` + strconv.FormatInt(newest.Add(-time.Duration(first+i)*8*time.Hour).UnixMilli(), 10) + `}`
+		rates[i] = `{"symbol":"BTC_USDT","fundingRate":` + strconv.FormatFloat(rate, 'f', -1, 64) + `,"collectCycle":8,"settleTime":` +
+			strconv.FormatInt(newest.Add(-time.Duration(first+i)*8*time.Hour).UnixMilli(), 10) + `}`
 	}
 	return `{"pageSize":1000,"currentPage":1,"resultList":[` + strings.Join(rates, ",") + `]}`
 }
@@ -1632,37 +1718,57 @@ func TestGetHistoricalFundingRatesPaging(t *testing.T) {
 	page := func(n int, data string) futuresRoute {
 		return futuresRoute{method: http.MethodGet, path: "contract/funding_rate/history", query: "page_num=" + strconv.Itoa(n) + "&page_size=1000&symbol=BTC_USDT", data: data}
 	}
+	// rates returns the rates settled from the oldest to the newest given, oldest first
+	rates := func(oldest, latest int, rate float64) []fundingrate.Rate {
+		r := make([]fundingrate.Rate, 0, oldest-latest+1)
+		for i := oldest; i >= latest; i-- {
+			r = append(r, fundingrate.Rate{Time: settled(i), Rate: decimal.MustFromFloat(rate)})
+		}
+		return r
+	}
 	for name, tc := range map[string]struct {
 		start, end time.Time
 		routes     []futuresRoute
-		count      int
-		oldest     time.Time
-		latest     time.Time
+		exp        []fundingrate.Rate
 	}{
 		"latest": {
-			routes: []futuresRoute{page(1, fundingRatePage(newest, 0, 1000))},
-			count:  1000, oldest: settled(999), latest: settled(0),
+			routes: []futuresRoute{page(1, fundingRatePage(newest, 0, 1000, 0.0001))},
+			exp:    rates(999, 0, 0.0001),
 		},
 		"start on the second page": {
 			start: settled(1500), end: settled(0),
-			routes: []futuresRoute{page(1, fundingRatePage(newest, 0, 1000)), page(2, fundingRatePage(newest, 1000, 1000))},
-			count:  1501, oldest: settled(1500), latest: settled(0),
+			routes: []futuresRoute{page(1, fundingRatePage(newest, 0, 1000, 0.0001)), page(2, fundingRatePage(newest, 1000, 1000, 0.0001))},
+			exp:    rates(1500, 0, 0.0001),
 		},
 		"end on the second page": {
-			end:    settled(1200),
-			routes: []futuresRoute{page(1, fundingRatePage(newest, 0, 1000)), page(2, fundingRatePage(newest, 1000, 1000)), page(3, fundingRatePage(newest, 2000, 0))},
-			count:  800, oldest: settled(1999), latest: settled(1200),
+			end: settled(1200),
+			routes: []futuresRoute{
+				page(1, fundingRatePage(newest, 0, 1000, 0.0001)), page(2, fundingRatePage(newest, 1000, 1000, 0.0001)), page(3, fundingRatePage(newest, 2000, 0, 0.0001)),
+			},
+			exp: rates(1999, 1200, 0.0001),
 		},
 		"end before a full page": {
 			end:    settled(500),
-			routes: []futuresRoute{page(1, fundingRatePage(newest, 0, 1000)), page(2, fundingRatePage(newest, 1000, 1000))},
-			count:  1000, oldest: settled(1499), latest: settled(500),
+			routes: []futuresRoute{page(1, fundingRatePage(newest, 0, 1000, 0.0001)), page(2, fundingRatePage(newest, 1000, 1000, 0.0001))},
+			exp:    rates(1499, 500, 0.0001),
 		},
 		// A page number the venue ignores serves the first page again, which must end the paging
 		"repeated page": {
 			start: settled(1500), end: settled(0),
-			routes: []futuresRoute{page(1, fundingRatePage(newest, 0, 1000)), page(2, fundingRatePage(newest, 0, 1000))},
-			count:  1000, oldest: settled(999), latest: settled(0),
+			routes: []futuresRoute{page(1, fundingRatePage(newest, 0, 1000, 0.0001)), page(2, fundingRatePage(newest, 0, 1000, 0.0001))},
+			exp:    rates(999, 0, 0.0001),
+		},
+		// Rates settled while paging push the end of the first page onto the next, which repeats them; the repeats carry
+		// another rate to show that each settlement is returned once, as first listed
+		"overlapping page": {
+			start: settled(1500), end: settled(0),
+			routes: []futuresRoute{page(1, fundingRatePage(newest, 0, 1000, 0.0001)), page(2, fundingRatePage(newest, 990, 1000, 0.0002))},
+			exp:    append(rates(1500, 1000, 0.0002), rates(999, 0, 0.0001)...),
+		},
+		"start in a last page of one rate": {
+			start:  settled(1000),
+			routes: []futuresRoute{page(1, fundingRatePage(newest, 0, 1000, 0.0001)), page(2, fundingRatePage(newest, 1000, 1, 0.0001))},
+			exp:    rates(1000, 0, 0.0001),
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -1670,9 +1776,21 @@ func TestGetHistoricalFundingRatesPaging(t *testing.T) {
 			ex := testExchangeFor(t, futuresHandler(t, tc.routes...), liveUnavailable)
 			result, err := ex.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{Asset: asset.Futures, Pair: futuresTradablePair, StartDate: tc.start, EndDate: tc.end})
 			require.NoError(t, err, "GetHistoricalFundingRates must not error")
-			require.Len(t, result.FundingRates, tc.count, "the rates asked for must be returned")
-			assert.Equal(t, tc.oldest, result.FundingRates[0].Time.UTC(), "the rates should start at the oldest asked for")
-			assert.Equal(t, tc.latest, result.LatestRate.Time.UTC(), "the latest rate should be the newest asked for")
+			// Settle times are read in the local time zone
+			result.StartDate, result.EndDate, result.LatestRate.Time = result.StartDate.UTC(), result.EndDate.UTC(), result.LatestRate.Time.UTC()
+			for i := range result.FundingRates {
+				result.FundingRates[i].Time = result.FundingRates[i].Time.UTC()
+			}
+			latest := tc.exp[len(tc.exp)-1]
+			assert.Equal(t, &fundingrate.HistoricalRates{
+				Exchange:     "MEXC",
+				Asset:        asset.Futures,
+				Pair:         futuresTradablePair,
+				StartDate:    tc.exp[0].Time,
+				EndDate:      latest.Time,
+				LatestRate:   latest,
+				FundingRates: tc.exp,
+			}, result, "every rate asked for should be returned once, as first listed, oldest first")
 		})
 	}
 }

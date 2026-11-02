@@ -1844,7 +1844,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, getOrdersRequest *order.
 	case asset.Futures:
 		// The venue lists open orders across every contract, so the pairs asked for are picked out by the filter
 		var details []order.Detail
-		seen := make(map[FuturesID]struct{})
+		seen := make(common.Seen[FuturesID])
 		for page := uint64(1); ; page++ {
 			result, err := e.GetFuturesOpenOrders(ctx, &FuturesPageRequest{PageNumber: page, PageSize: futuresDefaultPageSizeLimit})
 			if err != nil {
@@ -1866,16 +1866,12 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, getOrdersRequest *order.
 }
 
 // appendFuturesOrders appends the orders not yet seen as order details and reports whether any was added
-func (e *Exchange) appendFuturesOrders(ctx context.Context, details *[]order.Detail, seen map[FuturesID]struct{}, orders []*FuturesOrderResponse) (bool, error) {
+func (e *Exchange) appendFuturesOrders(ctx context.Context, details *[]order.Detail, seen common.Seen[FuturesID], orders []*FuturesOrderResponse) (bool, error) {
 	var added bool
 	for _, o := range orders {
-		if o == nil {
+		if o == nil || seen.CheckAndRecord(o.OrderID) {
 			continue
 		}
-		if _, ok := seen[o.OrderID]; ok {
-			continue
-		}
-		seen[o.OrderID] = struct{}{}
 		added = true
 		detail, err := e.futuresOrderDetail(ctx, o, currency.EMPTYPAIR)
 		if err != nil {
@@ -1926,7 +1922,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 			return nil, currency.ErrCurrencyPairsEmpty
 		}
 		var details []order.Detail
-		seen := make(map[FuturesID]struct{})
+		seen := make(common.Seen[FuturesID])
 		for _, p := range getOrdersRequest.Pairs {
 			for _, window := range futuresHistoryWindows(getOrdersRequest.StartTime, getOrdersRequest.EndTime) {
 				for page := uint64(1); ; page++ {
@@ -2334,7 +2330,7 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 	}
 	// The history is paged newest first, so pages are read until one reaches back to the start
 	var rates []fundingrate.Rate
-	seen := make(map[int64]bool)
+	seen := make(common.Seen[int64])
 	for page := uint64(1); page <= futuresFundingRateHistoryMaxPages; page++ {
 		history, err := e.GetFuturesFundingRateHistory(ctx, fPair, &FuturesPageRequest{PageNumber: page, PageSize: futuresFundingRateHistoryPageSizeLimit})
 		if err != nil {
@@ -2346,10 +2342,9 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 		var added, reachedStart bool
 		for i := range history.ResultList {
 			settled := history.ResultList[i].SettleTime.Time()
-			if seen[settled.UnixMilli()] {
+			if seen.CheckAndRecord(settled.UnixMilli()) {
 				continue
 			}
-			seen[settled.UnixMilli()] = true
 			added = true
 			if !r.StartDate.IsZero() && settled.Before(r.StartDate) {
 				reachedStart = true

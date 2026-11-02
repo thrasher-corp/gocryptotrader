@@ -42,9 +42,14 @@ type Exchange struct {
 	futuresContracts   map[string]*FuturesContractResponse
 
 	// futuresWebsocketRequestMu keeps one futures websocket request in flight at a time: the venue's replies
-	// name only the method, and an error reply names nothing, so a reply can only be matched to the one
-	// request waiting for it.
+	// name only the method, and an error reply at most the contract it refuses, so a reply can only be matched
+	// to the one request waiting for it. It also guards the two fields below.
 	futuresWebsocketRequestMu sync.Mutex
+	// futuresRepliesOwed holds the futures connections owing the reply to a request which went unanswered, even
+	// after a wait for a late reply. Such a reply could still arrive and answer the next request sent.
+	futuresRepliesOwed map[websocket.Connection]bool
+	// futuresResyncMarkers numbers the marker requests which bring a connection owing a reply back in step
+	futuresResyncMarkers uint64
 
 	// futuresLoginConn is the futures connection last logged in; the private futures channels share one connection
 	futuresLoginMu   sync.Mutex
@@ -107,6 +112,7 @@ var (
 	errSelfTradePreventionUIDsShort = errors.New("a self-trade prevention group needs at least two sub-account uids")
 	errContractNotFound             = errors.New("futures contract not found")
 	errFuturesWebsocketRejected     = errors.New("futures websocket request rejected")
+	errFuturesWebsocketOutOfStep    = errors.New("futures websocket replies out of step with requests")
 	errInvalidFuturesID             = errors.New("invalid futures id")
 	errInvalidOrderbookLevel        = errors.New("invalid order book level")
 	errHistoryWindowTooWide         = errors.New("the history window spans more than 90 days")
