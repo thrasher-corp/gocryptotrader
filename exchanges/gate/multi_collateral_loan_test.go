@@ -56,7 +56,7 @@ func multiCollateralLoanOrderFixture() *MultiCollateralLoanOrderDetailResponse {
 		ExpireTime:              types.Time(time.Unix(1703820105, 0)),
 		AutoRenew:               true,
 		AutoRepay:               true,
-		CurrentLTV:              0.0001004349664281,
+		CurrentLoanToValue:      0.0001004349664281,
 		Status:                  "lent",
 		BorrowTime:              types.Time(time.Unix(1702615021, 0)),
 		TotalLeftRepayUSDT:      106.491212982,
@@ -165,13 +165,13 @@ func TestGetMultiCurrencyCollateralRepaymentRecords(t *testing.T) {
 	require.NoError(t, err, "GetMultiCurrencyCollateralRepaymentRecords must not error")
 	if mockTests {
 		exp := []*MultiCurrencyCollateralRepaymentResponse{{
-			OrderID:    10005679,
-			RecordID:   1348,
-			InitLTV:    0.2141,
-			BeforeLTV:  0.215,
-			AfterLTV:   0.312,
-			BorrowTime: types.Time(time.Unix(1702995889, 0)),
-			RepayTime:  types.Time(time.Unix(1703053927, 0)),
+			OrderID:            10005679,
+			RecordID:           1348,
+			InitialLoanToValue: 0.2141,
+			BeforeLoanToValue:  0.215,
+			AfterLoanToValue:   0.312,
+			BorrowTime:         types.Time(time.Unix(1702995889, 0)),
+			RepayTime:          types.Time(time.Unix(1703053927, 0)),
 			BorrowCurrencies: []*CurrencyDetail{
 				{Currency: currency.USDT, IndexPrice: 1, BeforeAmount: 1, BeforeAmountUSDT: 1, AfterAmount: 0.999017, AfterAmountUSDT: 0.999017},
 			},
@@ -241,11 +241,11 @@ func TestGetMultiCollateralAdjustmentRecords(t *testing.T) {
 	require.NoError(t, err, "GetMultiCollateralAdjustmentRecords must not error")
 	if mockTests {
 		exp := []*MultiCollateralAdjustmentRecordResponse{{
-			OrderID:     10000417,
-			RecordID:    10000452,
-			BeforeLTV:   0.0003934555562148,
-			AfterLTV:    0.0001967277781074,
-			OperateTime: types.Time(time.Unix(1744150000, 0)),
+			OrderID:           10000417,
+			RecordID:          10000452,
+			BeforeLoanToValue: 0.0003934555562148,
+			AfterLoanToValue:  0.0001967277781074,
+			OperateTime:       types.Time(time.Unix(1744150000, 0)),
 			BorrowCurrencies: []*CurrencyDetail{
 				{Currency: currency.USDT, IndexPrice: 1, BeforeAmount: 1000, BeforeAmountUSDT: 1000, AfterAmount: 1000, AfterAmountUSDT: 1000},
 			},
@@ -311,7 +311,7 @@ func TestGetMultiCollateralisationRatio(t *testing.T) {
 	result, err := e.GetMultiCollateralisationRatio(t.Context())
 	require.NoError(t, err, "GetMultiCollateralisationRatio must not error")
 	if mockTests {
-		assert.Equal(t, &MultiCollateralisationRatioResponse{InitLTV: 0.7, AlertLTV: 0.8, LiquidateLTV: 0.9}, result, "GetMultiCollateralisationRatio should decode every field")
+		assert.Equal(t, &MultiCollateralisationRatioResponse{InitialLoanToValue: 0.7, AlertLoanToValue: 0.8, LiquidateLoanToValue: 0.9}, result, "GetMultiCollateralisationRatio should decode every field")
 		return
 	}
 	assert.NotNil(t, result, "GetMultiCollateralisationRatio should return a result")

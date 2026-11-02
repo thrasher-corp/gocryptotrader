@@ -303,6 +303,192 @@
      "message": "Not enough balance"
     }
    ]
+  },
+  {
+   "params": [
+    {
+     "text": "t-ws-margin-buy",
+     "currency_pair": "BTC_USDT",
+     "type": "limit",
+     "account": "margin",
+     "side": "buy",
+     "amount": "0.001",
+     "price": "10000",
+     "time_in_force": "gtc"
+    },
+    {
+     "text": "t-ws-margin-sell",
+     "currency_pair": "BTC_USDT",
+     "type": "limit",
+     "account": "margin",
+     "side": "sell",
+     "amount": "0.001",
+     "price": "200000",
+     "time_in_force": "gtc"
+    }
+   ],
+   "ack": true,
+   "result": [
+    {
+     "succeeded": true,
+     "id": "1700664335",
+     "text": "t-ws-margin-buy",
+     "amend_text": "-",
+     "create_time": "1681986204",
+     "update_time": "1681986204",
+     "create_time_ms": 1681986204832,
+     "update_time_ms": 1681986204832,
+     "status": "open",
+     "currency_pair": "BTC_USDT",
+     "type": "limit",
+     "account": "margin",
+     "side": "buy",
+     "amount": "0.001",
+     "price": "10000",
+     "time_in_force": "gtc",
+     "iceberg": "0",
+     "left": "0.001",
+     "filled_total": "0",
+     "fee": "0",
+     "fee_currency": "BTC",
+     "point_fee": "0",
+     "gt_fee": "0",
+     "gt_maker_fee": "0",
+     "gt_taker_fee": "0.0015",
+     "gt_discount": true,
+     "rebated_fee": "0",
+     "rebated_fee_currency": "USDT",
+     "stp_id": 1,
+     "stp_act": "cn",
+     "finish_as": "open"
+    },
+    {
+     "succeeded": true,
+     "id": "1700664336",
+     "text": "t-ws-margin-sell",
+     "amend_text": "-",
+     "create_time": "1681986204",
+     "update_time": "1681986204",
+     "create_time_ms": 1681986204832,
+     "update_time_ms": 1681986204832,
+     "status": "open",
+     "currency_pair": "BTC_USDT",
+     "type": "limit",
+     "account": "margin",
+     "side": "sell",
+     "amount": "0.001",
+     "price": "200000",
+     "time_in_force": "gtc",
+     "iceberg": "0",
+     "left": "0.001",
+     "filled_total": "0",
+     "fee": "0",
+     "fee_currency": "USDT",
+     "point_fee": "0",
+     "gt_fee": "0",
+     "gt_maker_fee": "0",
+     "gt_taker_fee": "0.0015",
+     "gt_discount": true,
+     "rebated_fee": "0",
+     "rebated_fee_currency": "USDT",
+     "stp_id": 1,
+     "stp_act": "cn",
+     "finish_as": "open"
+    }
+   ]
+  },
+  {
+   "params": [
+    {
+     "text": "t-ws-cross-margin-buy",
+     "currency_pair": "BTC_USDT",
+     "type": "limit",
+     "account": "cross_margin",
+     "side": "buy",
+     "amount": "0.001",
+     "price": "10000",
+     "time_in_force": "gtc"
+    },
+    {
+     "text": "t-ws-cross-margin-sell",
+     "currency_pair": "BTC_USDT",
+     "type": "limit",
+     "account": "cross_margin",
+     "side": "sell",
+     "amount": "0.001",
+     "price": "200000",
+     "time_in_force": "gtc"
+    }
+   ],
+   "ack": true,
+   "result": [
+    {
+     "succeeded": true,
+     "id": "1700664337",
+     "text": "t-ws-cross-margin-buy",
+     "amend_text": "-",
+     "create_time": "1681986204",
+     "update_time": "1681986204",
+     "create_time_ms": 1681986204832,
+     "update_time_ms": 1681986204832,
+     "status": "open",
+     "currency_pair": "BTC_USDT",
+     "type": "limit",
+     "account": "cross_margin",
+     "side": "buy",
+     "amount": "0.001",
+     "price": "10000",
+     "time_in_force": "gtc",
+     "iceberg": "0",
+     "left": "0.001",
+     "filled_total": "0",
+     "fee": "0",
+     "fee_currency": "BTC",
+     "point_fee": "0",
+     "gt_fee": "0",
+     "gt_maker_fee": "0",
+     "gt_taker_fee": "0.0015",
+     "gt_discount": true,
+     "rebated_fee": "0",
+     "rebated_fee_currency": "USDT",
+     "stp_id": 1,
+     "stp_act": "cn",
+     "finish_as": "open"
+    },
+    {
+     "succeeded": true,
+     "id": "1700664338",
+     "text": "t-ws-cross-margin-sell",
+     "amend_text": "-",
+     "create_time": "1681986204",
+     "update_time": "1681986204",
+     "create_time_ms": 1681986204832,
+     "update_time_ms": 1681986204832,
+     "status": "open",
+     "currency_pair": "BTC_USDT",
+     "type": "limit",
+     "account": "cross_margin",
+     "side": "sell",
+     "amount": "0.001",
+     "price": "200000",
+     "time_in_force": "gtc",
+     "iceberg": "0",
+     "left": "0.001",
+     "filled_total": "0",
+     "fee": "0",
+     "fee_currency": "USDT",
+     "point_fee": "0",
+     "gt_fee": "0",
+     "gt_maker_fee": "0",
+     "gt_taker_fee": "0.0015",
+     "gt_discount": true,
+     "rebated_fee": "0",
+     "rebated_fee_currency": "USDT",
+     "stp_id": 1,
+     "stp_act": "cn",
+     "finish_as": "open"
+    }
+   ]
   }
  ],
  "spot.order_cancel": [
@@ -691,6 +877,61 @@
      "succeeded": false,
      "label": "INSUFFICIENT_AVAILABLE",
      "detail": "insufficient available balance"
+    }
+   ]
+  },
+  {
+   "params": [
+    {
+     "contract": "BTC_USD",
+     "size": "1",
+     "iceberg": "0",
+     "price": "10000",
+     "tif": "gtc",
+     "text": "t-ws-coin-buy"
+    },
+    {
+     "contract": "BTC_USD",
+     "size": "-1",
+     "iceberg": "0",
+     "price": "200000",
+     "tif": "gtc",
+     "text": "t-ws-coin-sell"
+    }
+   ],
+   "ack": true,
+   "result": [
+    {
+     "succeeded": true,
+     "id": 74046546,
+     "user": 6790020,
+     "create_time": 1681196536.593,
+     "status": "open",
+     "contract": "BTC_USD",
+     "size": "1",
+     "price": "10000",
+     "tif": "gtc",
+     "left": "1",
+     "fill_price": "0",
+     "text": "t-ws-coin-buy",
+     "tkfr": "0.0003",
+     "mkfr": "0"
+    },
+    {
+     "succeeded": true,
+     "id": 74046547,
+     "user": 6790020,
+     "create_time": 1681196536.594,
+     "status": "open",
+     "contract": "BTC_USD",
+     "size": "-1",
+     "price": "200000",
+     "tif": "gtc",
+     "left": "-1",
+     "fill_price": "0",
+     "text": "t-ws-coin-sell",
+     "tkfr": "0.0003",
+     "mkfr": "0"
     }
    ]
   },

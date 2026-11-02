@@ -712,13 +712,13 @@ func TestSetOptionsMarketMakerProtection(t *testing.T) {
 		err    error
 	}{
 		{name: "underlying", modify: func(r *OptionsMarketMakerProtectionRequest) { r.Underlying = "" }, err: errInvalidUnderlying},
-		{name: "negative window", modify: func(r *OptionsMarketMakerProtectionRequest) { r.Window = -time.Millisecond }, err: errInvalidMMPWindow},
-		{name: "window", modify: func(r *OptionsMarketMakerProtectionRequest) { r.Window = 5*time.Second + time.Millisecond }, err: errInvalidMMPWindow},
-		{name: "fractional window", modify: func(r *OptionsMarketMakerProtectionRequest) { r.Window = 500 * time.Microsecond }, err: errInvalidMMPWindow},
-		{name: "negative frozen period", modify: func(r *OptionsMarketMakerProtectionRequest) { r.FrozenPeriod = -time.Millisecond }, err: errInvalidMMPFrozenPeriod},
-		{name: "fractional frozen period", modify: func(r *OptionsMarketMakerProtectionRequest) { r.FrozenPeriod = 1500 * time.Microsecond }, err: errInvalidMMPFrozenPeriod},
-		{name: "quantity limit", modify: func(r *OptionsMarketMakerProtectionRequest) { r.QuantityLimit = 0 }, err: errInvalidMMPLimit},
-		{name: "delta limit", modify: func(r *OptionsMarketMakerProtectionRequest) { r.DeltaLimit = -1 }, err: errInvalidMMPLimit},
+		{name: "negative window", modify: func(r *OptionsMarketMakerProtectionRequest) { r.Window = -time.Millisecond }, err: errInvalidMarketMakerProtectionWindow},
+		{name: "window", modify: func(r *OptionsMarketMakerProtectionRequest) { r.Window = 5*time.Second + time.Millisecond }, err: errInvalidMarketMakerProtectionWindow},
+		{name: "fractional window", modify: func(r *OptionsMarketMakerProtectionRequest) { r.Window = 500 * time.Microsecond }, err: errInvalidMarketMakerProtectionWindow},
+		{name: "negative frozen period", modify: func(r *OptionsMarketMakerProtectionRequest) { r.FrozenPeriod = -time.Millisecond }, err: errInvalidMarketMakerProtectionFrozenPeriod},
+		{name: "fractional frozen period", modify: func(r *OptionsMarketMakerProtectionRequest) { r.FrozenPeriod = 1500 * time.Microsecond }, err: errInvalidMarketMakerProtectionFrozenPeriod},
+		{name: "quantity limit", modify: func(r *OptionsMarketMakerProtectionRequest) { r.QuantityLimit = 0 }, err: errInvalidMarketMakerProtectionLimit},
+		{name: "delta limit", modify: func(r *OptionsMarketMakerProtectionRequest) { r.DeltaLimit = -1 }, err: errInvalidMarketMakerProtectionLimit},
 	} {
 		arg := newRequest()
 		tc.modify(arg)

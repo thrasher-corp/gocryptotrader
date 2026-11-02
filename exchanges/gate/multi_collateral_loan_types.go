@@ -29,7 +29,7 @@ type MultiCollateralLoanOrderDetailResponse struct {
 	ExpireTime              types.Time                `json:"expire_time"`
 	AutoRenew               bool                      `json:"auto_renew"`
 	AutoRepay               bool                      `json:"auto_repay"`
-	CurrentLTV              types.Number              `json:"current_ltv"`
+	CurrentLoanToValue      types.Number              `json:"current_ltv"`
 	Status                  string                    `json:"status"`
 	BorrowTime              types.Time                `json:"borrow_time"`
 	TotalLeftRepayUSDT      types.Number              `json:"total_left_repay_usdt"`
@@ -99,9 +99,9 @@ type MultiCollateralRepaymentRecordsRequest struct {
 type MultiCurrencyCollateralRepaymentResponse struct {
 	OrderID               uint64                       `json:"order_id"`
 	RecordID              uint64                       `json:"record_id"`
-	InitLTV               types.Number                 `json:"init_ltv"`
-	BeforeLTV             types.Number                 `json:"before_ltv"`
-	AfterLTV              types.Number                 `json:"after_ltv"`
+	InitialLoanToValue    types.Number                 `json:"init_ltv"`
+	BeforeLoanToValue     types.Number                 `json:"before_ltv"`
+	AfterLoanToValue      types.Number                 `json:"after_ltv"`
 	BorrowTime            types.Time                   `json:"borrow_time"`
 	RepayTime             types.Time                   `json:"repay_time"`
 	BorrowCurrencies      []*CurrencyDetail            `json:"borrow_currencies"`
@@ -164,8 +164,8 @@ type MultiCollateralAdjustmentRecordsRequest struct {
 type MultiCollateralAdjustmentRecordResponse struct {
 	OrderID              uint64            `json:"order_id"`
 	RecordID             uint64            `json:"record_id"`
-	BeforeLTV            types.Number      `json:"before_ltv"`
-	AfterLTV             types.Number      `json:"after_ltv"`
+	BeforeLoanToValue    types.Number      `json:"before_ltv"`
+	AfterLoanToValue     types.Number      `json:"after_ltv"`
 	OperateTime          types.Time        `json:"operate_time"`
 	BorrowCurrencies     []*CurrencyDetail `json:"borrow_currencies"`
 	CollateralCurrencies []*CurrencyDetail `json:"collateral_currencies"`
@@ -203,9 +203,9 @@ type MultiCollateralItem struct {
 
 // MultiCollateralisationRatioResponse holds the collateralisation ratio information for multi-collateral
 type MultiCollateralisationRatioResponse struct {
-	InitLTV      types.Number `json:"init_ltv"`
-	AlertLTV     types.Number `json:"alert_ltv"`
-	LiquidateLTV types.Number `json:"liquidate_ltv"`
+	InitialLoanToValue   types.Number `json:"init_ltv"`
+	AlertLoanToValue     types.Number `json:"alert_ltv"`
+	LiquidateLoanToValue types.Number `json:"liquidate_ltv"`
 }
 
 // CollateralFixRateResponse holds a currency's 7-day and 30-day fixed interest rates

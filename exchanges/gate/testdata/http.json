@@ -17632,6 +17632,12 @@
      "queryString": "status=open\u0026currency_pair=BTC_USDT\u0026side=buy\u0026page=1\u0026limit=10",
      "bodyParams": "",
      "headers": {}
+    },
+    {
+     "data": [],
+     "queryString": "status=finished",
+     "bodyParams": "",
+     "headers": {}
     }
    ],
    "POST": [

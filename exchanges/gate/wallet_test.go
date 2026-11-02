@@ -750,22 +750,22 @@ func TestGetPersonalTradingFee(t *testing.T) {
 	require.NoError(t, err, "GetPersonalTradingFee must not error")
 	if mockTests {
 		exp := &PersonalTradingFeeResponse{
-			UserID:                         10001,
-			TakerFee:                       0.002,
-			MakerFee:                       0.002,
-			RetailPriceImprovementMakerFee: -0.00175,
-			GTDiscount:                     true,
-			GTTakerFee:                     0.0015,
-			GTMakerFee:                     0.0015,
-			LoanFee:                        0.18,
-			PointType:                      "1",
-			FuturesTakerFee:                -0.00025,
-			FuturesMakerFee:                0.00075,
-			FuturesRPIMakerFee:             -0.00175,
-			DeliveryTakerFee:               0.00016,
-			DeliveryMakerFee:               -0.00015,
-			FeeDeductionType:               3,
-			RPIMarketMakerLevel:            2,
+			UserID:                                 10001,
+			TakerFee:                               0.002,
+			MakerFee:                               0.002,
+			RetailPriceImprovementMakerFee:         -0.00175,
+			GTDiscount:                             true,
+			GTTakerFee:                             0.0015,
+			GTMakerFee:                             0.0015,
+			LoanFee:                                0.18,
+			PointType:                              "1",
+			FuturesTakerFee:                        -0.00025,
+			FuturesMakerFee:                        0.00075,
+			FuturesRetailPriceImprovementMakerFee:  -0.00175,
+			DeliveryTakerFee:                       0.00016,
+			DeliveryMakerFee:                       -0.00015,
+			DebitFee:                               3,
+			RetailPriceImprovementMarketMakerLevel: 2,
 		}
 		assert.Equal(t, exp, result, "GetPersonalTradingFee should decode every field")
 	} else {

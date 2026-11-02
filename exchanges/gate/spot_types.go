@@ -137,18 +137,18 @@ func (c *CandlestickResponse) UnmarshalJSON(data []byte) error {
 
 // SpotTradingFeeRateResponse holds the account's spot fee rates for a currency pair
 type SpotTradingFeeRateResponse struct {
-	CurrencyPair                   currency.Pair `json:"currency_pair"`
-	UserID                         uint64        `json:"user_id"`
-	TakerFee                       types.Number  `json:"taker_fee"`
-	MakerFee                       types.Number  `json:"maker_fee"`
-	RetailPriceImprovementMakerFee types.Number  `json:"rpi_maker_fee"`
-	GTDiscount                     bool          `json:"gt_discount"`
-	GTTakerFee                     types.Number  `json:"gt_taker_fee"`
-	GTMakerFee                     types.Number  `json:"gt_maker_fee"`
-	LoanFee                        types.Number  `json:"loan_fee"`
-	PointType                      string        `json:"point_type"`
-	DebitFee                       uint64        `json:"debit_fee"` // 1 GT deduction, 2 point card deduction, 3 VIP rates
-	RPIMMLevel                     uint64        `json:"rpi_mm"`
+	CurrencyPair                           currency.Pair `json:"currency_pair"`
+	UserID                                 uint64        `json:"user_id"`
+	TakerFee                               types.Number  `json:"taker_fee"`
+	MakerFee                               types.Number  `json:"maker_fee"`
+	RetailPriceImprovementMakerFee         types.Number  `json:"rpi_maker_fee"`
+	GTDiscount                             bool          `json:"gt_discount"`
+	GTTakerFee                             types.Number  `json:"gt_taker_fee"`
+	GTMakerFee                             types.Number  `json:"gt_maker_fee"`
+	LoanFee                                types.Number  `json:"loan_fee"`
+	PointType                              string        `json:"point_type"`
+	DebitFee                               uint64        `json:"debit_fee"` // 1 GT deduction, 2 point card deduction, 3 VIP rates
+	RetailPriceImprovementMarketMakerLevel uint64        `json:"rpi_mm"`
 }
 
 // SpotAccountResponse represents spot account
@@ -205,14 +205,14 @@ type CreateOrderRequest struct {
 	// - FULL: Full mode (default)
 	ActionMode string `json:"action_mode,omitempty"`
 	// Slippage caps a market order's price deviation from the latest price as a ratio, e.g. 0.03 for 3%
-	Slippage   types.Number   `json:"slippage,omitempty"`
-	StopProfit *SpotOrderTPSL `json:"stop_profit,omitempty"`
-	StopLoss   *SpotOrderTPSL `json:"stop_loss,omitempty"`
+	Slippage   types.Number                 `json:"slippage,omitempty"`
+	StopProfit *SpotOrderTakeProfitStopLoss `json:"stop_profit,omitempty"`
+	StopLoss   *SpotOrderTakeProfitStopLoss `json:"stop_loss,omitempty"`
 }
 
-// SpotOrderTPSL holds the take profit or stop loss attached to a limit order
+// SpotOrderTakeProfitStopLoss holds the take profit or stop loss attached to a limit order
 // When amending an order, an empty non-nil value cancels it while nil leaves it unchanged
-type SpotOrderTPSL struct {
+type SpotOrderTakeProfitStopLoss struct {
 	TriggerPrice types.Number `json:"trigger_price,omitempty"`
 	OrderPrice   types.Number `json:"order_price,omitempty"`
 }
@@ -248,21 +248,21 @@ type SpotOrderResponse struct {
 	FeeDeducted       types.Number  `json:"fee"`
 	FeeCurrency       currency.Code `json:"fee_currency"`
 	// Deprecated: use FilledTotal
-	FillPrice                 types.Number   `json:"fill_price"`
-	FilledTotal               types.Number   `json:"filled_total"` // Total filled in quote currency
-	PointFee                  types.Number   `json:"point_fee"`
-	GTFee                     types.Number   `json:"gt_fee,omitempty"`
-	GTDiscount                bool           `json:"gt_discount"`
-	GTMakerFee                types.Number   `json:"gt_maker_fee"`
-	GTTakerFee                types.Number   `json:"gt_taker_fee"`
-	RebatedFee                types.Number   `json:"rebated_fee"`
-	RebatedFeeCurrency        currency.Code  `json:"rebated_fee_currency"`
-	SelfTradePreventionID     uint64         `json:"stp_id"`
-	SelfTradePreventionAction string         `json:"stp_act"`
-	FinishAs                  string         `json:"finish_as"`
-	Slippage                  types.Number   `json:"slippage"`
-	StopProfit                *SpotOrderTPSL `json:"stop_profit"`
-	StopLoss                  *SpotOrderTPSL `json:"stop_loss"`
+	FillPrice                 types.Number                 `json:"fill_price"`
+	FilledTotal               types.Number                 `json:"filled_total"` // Total filled in quote currency
+	PointFee                  types.Number                 `json:"point_fee"`
+	GTFee                     types.Number                 `json:"gt_fee,omitempty"`
+	GTDiscount                bool                         `json:"gt_discount"`
+	GTMakerFee                types.Number                 `json:"gt_maker_fee"`
+	GTTakerFee                types.Number                 `json:"gt_taker_fee"`
+	RebatedFee                types.Number                 `json:"rebated_fee"`
+	RebatedFeeCurrency        currency.Code                `json:"rebated_fee_currency"`
+	SelfTradePreventionID     uint64                       `json:"stp_id"`
+	SelfTradePreventionAction string                       `json:"stp_act"`
+	FinishAs                  string                       `json:"finish_as"`
+	Slippage                  types.Number                 `json:"slippage"`
+	StopProfit                *SpotOrderTakeProfitStopLoss `json:"stop_profit"`
+	StopLoss                  *SpotOrderTakeProfitStopLoss `json:"stop_loss"`
 }
 
 // SpotOrdersDetailResponse represents list of orders for specific currency pair
@@ -324,14 +324,14 @@ type CancelOrderByIDResponse struct {
 
 // AmendSpotOrderRequest holds the changes to an open spot order; either Amount or Price must be set
 type AmendSpotOrderRequest struct {
-	CurrencyPair currency.Pair  `json:"currency_pair"`
-	Account      string         `json:"account,omitempty"` // spot, margin, cross_margin or unified
-	Amount       types.Number   `json:"amount,omitempty"`
-	Price        types.Number   `json:"price,omitempty"`
-	AmendText    string         `json:"amend_text,omitempty"`
-	ActionMode   string         `json:"action_mode,omitempty"` // ACK, RESULT or FULL, which is the default
-	StopProfit   *SpotOrderTPSL `json:"stop_profit,omitempty"`
-	StopLoss     *SpotOrderTPSL `json:"stop_loss,omitempty"`
+	CurrencyPair currency.Pair                `json:"currency_pair"`
+	Account      string                       `json:"account,omitempty"` // spot, margin, cross_margin or unified
+	Amount       types.Number                 `json:"amount,omitempty"`
+	Price        types.Number                 `json:"price,omitempty"`
+	AmendText    string                       `json:"amend_text,omitempty"`
+	ActionMode   string                       `json:"action_mode,omitempty"` // ACK, RESULT or FULL, which is the default
+	StopProfit   *SpotOrderTakeProfitStopLoss `json:"stop_profit,omitempty"`
+	StopLoss     *SpotOrderTakeProfitStopLoss `json:"stop_loss,omitempty"`
 }
 
 // BatchAmendSpotOrderRequest holds the changes to one order of a batch amendment
@@ -436,8 +436,8 @@ type SpotPriceTriggeredOrderResponse struct {
 	Market       currency.Pair    `json:"market"`
 }
 
-// SpotPOVOrderRequest holds a spot percentage of volume (POV) order
-type SpotPOVOrderRequest struct {
+// SpotPercentageOfVolumeOrderRequest holds a spot percentage of volume (POV) order
+type SpotPercentageOfVolumeOrderRequest struct {
 	CurrencyPair                currency.Pair `json:"currency_pair"`
 	Side                        string        `json:"side"`
 	Amount                      types.Number  `json:"amount"`
@@ -448,8 +448,8 @@ type SpotPOVOrderRequest struct {
 	Text                        string        `json:"text,omitempty"`
 }
 
-// GetSpotPOVOrdersRequest holds the filters for listing spot POV orders
-type GetSpotPOVOrdersRequest struct {
+// GetSpotPercentageOfVolumeOrdersRequest holds the filters for listing spot percentage of volume orders
+type GetSpotPercentageOfVolumeOrdersRequest struct {
 	CurrencyPair currency.Pair
 	Status       string // open or finished
 	Side         order.Side
@@ -457,8 +457,8 @@ type GetSpotPOVOrdersRequest struct {
 	Limit        uint64
 }
 
-// SpotPOVOrderResponse holds a spot POV order
-type SpotPOVOrderResponse struct {
+// SpotPercentageOfVolumeOrderResponse holds a spot percentage of volume order
+type SpotPercentageOfVolumeOrderResponse struct {
 	ID                          string        `json:"id"`
 	CurrencyPair                currency.Pair `json:"currency_pair"`
 	Side                        string        `json:"side"`

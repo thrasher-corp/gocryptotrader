@@ -425,17 +425,17 @@ func TestGetFuturesContract(t *testing.T) {
 	assert.NotNil(t, result, "GetFuturesContract should return a BTC contract")
 }
 
-func TestGetFuturesADLRiskStates(t *testing.T) {
+func TestGetFuturesAutoDeleveragingRiskStates(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetFuturesADLRiskStates(t.Context(), currency.EMPTYCODE)
-	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "GetFuturesADLRiskStates must reject an empty settlement currency")
+	_, err := e.GetFuturesAutoDeleveragingRiskStates(t.Context(), currency.EMPTYCODE)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "GetFuturesAutoDeleveragingRiskStates must reject an empty settlement currency")
 
-	result, err := e.GetFuturesADLRiskStates(t.Context(), currency.USDT)
-	require.NoError(t, err, "GetFuturesADLRiskStates must not error")
+	result, err := e.GetFuturesAutoDeleveragingRiskStates(t.Context(), currency.USDT)
+	require.NoError(t, err, "GetFuturesAutoDeleveragingRiskStates must not error")
 	if mockTests {
-		exp := &FuturesADLRiskStatesResponse{
+		exp := &FuturesAutoDeleveragingRiskStatesResponse{
 			Settle: "usdt",
-			States: map[string]*FuturesADLRiskState{
+			States: map[string]*FuturesAutoDeleveragingRiskState{
 				"BTC_USDT": {
 					State:        "normal",
 					CalculatedAt: types.Time(time.UnixMilli(1786695185345)),
@@ -446,11 +446,11 @@ func TestGetFuturesADLRiskStates(t *testing.T) {
 				},
 			},
 		}
-		assert.Equal(t, exp, result, "GetFuturesADLRiskStates should decode every field")
+		assert.Equal(t, exp, result, "GetFuturesAutoDeleveragingRiskStates should decode every field")
 		return
 	}
-	require.NotNil(t, result, "GetFuturesADLRiskStates must return a result")
-	assert.NotEmpty(t, result.States, "GetFuturesADLRiskStates should return market states")
+	require.NotNil(t, result, "GetFuturesAutoDeleveragingRiskStates must return a result")
+	assert.NotEmpty(t, result.States, "GetFuturesAutoDeleveragingRiskStates should return market states")
 }
 
 func TestGetFuturesOrderbook(t *testing.T) {
@@ -1857,44 +1857,44 @@ func TestAmendBatchFuturesOrders(t *testing.T) {
 	assert.Len(t, result, 1, "AmendBatchFuturesOrders should report the order")
 }
 
-func TestPlaceFuturesBBOOrder(t *testing.T) {
+func TestPlaceFuturesBestBidOfferOrder(t *testing.T) {
 	t.Parallel()
 	contract := getPair(t, asset.USDTMarginedFutures)
-	_, err := e.PlaceFuturesBBOOrder(t.Context(), currency.EMPTYCODE, &FuturesBBOOrderRequest{Contract: contract, Size: 1, Direction: "sell", Level: 8})
-	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "PlaceFuturesBBOOrder must reject an empty settlement currency")
+	_, err := e.PlaceFuturesBestBidOfferOrder(t.Context(), currency.EMPTYCODE, &FuturesBestBidOfferOrderRequest{Contract: contract, Size: 1, Direction: "sell", Level: 8})
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "PlaceFuturesBestBidOfferOrder must reject an empty settlement currency")
 
-	_, err = e.PlaceFuturesBBOOrder(t.Context(), currency.USDT, nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "PlaceFuturesBBOOrder must reject a nil order")
+	_, err = e.PlaceFuturesBestBidOfferOrder(t.Context(), currency.USDT, nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "PlaceFuturesBestBidOfferOrder must reject a nil order")
 
-	_, err = e.PlaceFuturesBBOOrder(t.Context(), currency.USDT, &FuturesBBOOrderRequest{Size: 1, Direction: "sell", Level: 8})
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "PlaceFuturesBBOOrder must reject an empty contract")
+	_, err = e.PlaceFuturesBestBidOfferOrder(t.Context(), currency.USDT, &FuturesBestBidOfferOrderRequest{Size: 1, Direction: "sell", Level: 8})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "PlaceFuturesBestBidOfferOrder must reject an empty contract")
 
-	_, err = e.PlaceFuturesBBOOrder(t.Context(), currency.USDT, &FuturesBBOOrderRequest{Contract: contract, Direction: "sell", Level: 8})
-	require.ErrorIs(t, err, errInvalidOrderSize, "PlaceFuturesBBOOrder must reject an empty size")
+	_, err = e.PlaceFuturesBestBidOfferOrder(t.Context(), currency.USDT, &FuturesBestBidOfferOrderRequest{Contract: contract, Direction: "sell", Level: 8})
+	require.ErrorIs(t, err, errInvalidOrderSize, "PlaceFuturesBestBidOfferOrder must reject an empty size")
 
-	_, err = e.PlaceFuturesBBOOrder(t.Context(), currency.USDT, &FuturesBBOOrderRequest{Contract: contract, Size: 1, Direction: "ask", Level: 8})
-	require.ErrorIs(t, err, order.ErrSideIsInvalid, "PlaceFuturesBBOOrder must reject a direction other than buy or sell")
+	_, err = e.PlaceFuturesBestBidOfferOrder(t.Context(), currency.USDT, &FuturesBestBidOfferOrderRequest{Contract: contract, Size: 1, Direction: "ask", Level: 8})
+	require.ErrorIs(t, err, order.ErrSideIsInvalid, "PlaceFuturesBestBidOfferOrder must reject a direction other than buy or sell")
 
 	for _, level := range []uint64{0, 21} {
-		_, err = e.PlaceFuturesBBOOrder(t.Context(), currency.USDT, &FuturesBBOOrderRequest{Contract: contract, Size: 1, Direction: "sell", Level: level})
-		require.ErrorIsf(t, err, errInvalidOrderBookLevel, "PlaceFuturesBBOOrder must reject order book level %d", level)
+		_, err = e.PlaceFuturesBestBidOfferOrder(t.Context(), currency.USDT, &FuturesBestBidOfferOrderRequest{Contract: contract, Size: 1, Direction: "sell", Level: level})
+		require.ErrorIsf(t, err, errInvalidOrderBookLevel, "PlaceFuturesBestBidOfferOrder must reject order book level %d", level)
 	}
 
-	_, err = e.PlaceFuturesBBOOrder(t.Context(), currency.USDT, &FuturesBBOOrderRequest{Contract: contract, Size: 1, Direction: "sell", Level: 8, TimeInForce: "day"})
-	require.ErrorIs(t, err, order.ErrUnsupportedTimeInForce, "PlaceFuturesBBOOrder must reject an unknown time in force")
+	_, err = e.PlaceFuturesBestBidOfferOrder(t.Context(), currency.USDT, &FuturesBestBidOfferOrderRequest{Contract: contract, Size: 1, Direction: "sell", Level: 8, TimeInForce: "day"})
+	require.ErrorIs(t, err, order.ErrUnsupportedTimeInForce, "PlaceFuturesBestBidOfferOrder must reject an unknown time in force")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	result, err := e.PlaceFuturesBBOOrder(t.Context(), currency.USDT, &FuturesBBOOrderRequest{Contract: contract, Size: 1, Direction: "sell", Level: 8})
-	require.NoError(t, err, "PlaceFuturesBBOOrder must not error")
+	result, err := e.PlaceFuturesBestBidOfferOrder(t.Context(), currency.USDT, &FuturesBestBidOfferOrderRequest{Contract: contract, Size: 1, Direction: "sell", Level: 8})
+	require.NoError(t, err, "PlaceFuturesBestBidOfferOrder must not error")
 	if mockTests {
 		exp := futuresFixtureOrder(getPair(t, asset.USDTMarginedFutures))
 		exp.Size, exp.RemainingAmount, exp.TimeInForce = 1, 1, pocTIF
-		assert.Equal(t, exp, result, "PlaceFuturesBBOOrder should decode every field")
+		assert.Equal(t, exp, result, "PlaceFuturesBestBidOfferOrder should decode every field")
 		return
 	}
-	assert.NotNil(t, result, "PlaceFuturesBBOOrder should return the order")
+	assert.NotNil(t, result, "PlaceFuturesBestBidOfferOrder should return the order")
 }
 
 func TestCreateTrailOrder(t *testing.T) {

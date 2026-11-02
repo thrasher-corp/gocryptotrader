@@ -40,7 +40,7 @@ const (
 	publicIndexConstituentsEPL
 	publicLiquidationHistoryEPL
 	publicFuturesContractsAllEPL
-	publicFuturesADLRiskStatesEPL
+	publicFuturesAutoDeleveragingRiskStatesEPL
 	publicBatchFundingRatesEPL
 
 	publicUnderlyingOptionsEPL
@@ -128,11 +128,11 @@ const (
 	spotCancelTriggerOrdersEPL
 	spotGetTriggerOrderEPL
 	spotCancelTriggerOrderEPL
-	spotCreatePOVOrderEPL
-	spotGetPOVOrdersEPL
-	spotCancelPOVOrdersEPL
-	spotGetPOVOrderEPL
-	spotCancelPOVOrderEPL
+	spotCreatePercentageOfVolumeOrderEPL
+	spotGetPercentageOfVolumeOrdersEPL
+	spotCancelPercentageOfVolumeOrdersEPL
+	spotGetPercentageOfVolumeOrderEPL
+	spotCancelPercentageOfVolumeOrderEPL
 
 	marginIsolatedAccountsEPL
 	marginAccountBalanceEPL
@@ -209,7 +209,7 @@ const (
 	perpetualTradingFeeEPL
 	perpetualCancelBatchOrdersEPL
 	perpetualAmendBatchOrdersEPL
-	perpetualSubmitBBOOrderEPL
+	perpetualSubmitBestBidOfferOrderEPL
 	perpetualCreateTrailOrderEPL
 	perpetualStopTrailOrderEPL
 	perpetualStopAllTrailOrdersEPL
@@ -256,9 +256,9 @@ const (
 	optionsAmendOrderEPL
 	optionsCountdownCancelEPL
 	optionsTradingHistoryEPL
-	optionsSetMMPEPL
-	optionsGetMMPEPL
-	optionsResetMMPEPL
+	optionsSetMarketMakerProtectionEPL
+	optionsGetMarketMakerProtectionEPL
+	optionsResetMarketMakerProtectionEPL
 
 	websocketRateLimitNotNeededEPL
 
@@ -347,7 +347,7 @@ const (
 	loanMultiCollateralCurrencyQuotaEPL
 	loanMultiCollateralCurrentRateEPL
 	loanMultiCollateralCurrenciesEPL
-	loanMultiCollateralLtvEPL
+	loanMultiCollateralLoanToValueEPL
 	loanMultiCollateralFixedRateEPL
 	loanMultiCollateralCreateOrderEPL
 	loanMultiCollateralOrdersEPL
@@ -437,7 +437,7 @@ const (
 	crossexFeeEPL
 	crossexPositionsEPL
 	crossexMarginPositionsEPL
-	crossexADLRankEPL
+	crossexAutoDeleveragingRankEPL
 	crossexOpenOrdersEPL
 	crossexHistoryOrdersEPL
 	crossexHistoryPositionsEPL
@@ -540,20 +540,20 @@ var packageRateLimits = request.RateLimitDefinitions{
 	publicCandleSticksDeliveryEPL:   standardRateLimit(),
 	publicTickersDeliveryEPL:        standardRateLimit(),
 
-	publicFuturesContractsEPL:      standardRateLimit(),
-	publicOrderbookFuturesEPL:      standardRateLimit(),
-	publicTradingHistoryFuturesEPL: standardRateLimit(),
-	publicCandleSticksFuturesEPL:   standardRateLimit(),
-	publicPremiumIndexEPL:          standardRateLimit(),
-	publicTickersFuturesEPL:        standardRateLimit(),
-	publicFundingRatesEPL:          standardRateLimit(),
-	publicInsuranceFuturesEPL:      standardRateLimit(),
-	publicStatsFuturesEPL:          standardRateLimit(),
-	publicIndexConstituentsEPL:     standardRateLimit(),
-	publicLiquidationHistoryEPL:    standardRateLimit(),
-	publicFuturesContractsAllEPL:   standardRateLimit(),
-	publicFuturesADLRiskStatesEPL:  standardRateLimit(),
-	publicBatchFundingRatesEPL:     standardRateLimit(),
+	publicFuturesContractsEPL:                  standardRateLimit(),
+	publicOrderbookFuturesEPL:                  standardRateLimit(),
+	publicTradingHistoryFuturesEPL:             standardRateLimit(),
+	publicCandleSticksFuturesEPL:               standardRateLimit(),
+	publicPremiumIndexEPL:                      standardRateLimit(),
+	publicTickersFuturesEPL:                    standardRateLimit(),
+	publicFundingRatesEPL:                      standardRateLimit(),
+	publicInsuranceFuturesEPL:                  standardRateLimit(),
+	publicStatsFuturesEPL:                      standardRateLimit(),
+	publicIndexConstituentsEPL:                 standardRateLimit(),
+	publicLiquidationHistoryEPL:                standardRateLimit(),
+	publicFuturesContractsAllEPL:               standardRateLimit(),
+	publicFuturesAutoDeleveragingRiskStatesEPL: standardRateLimit(),
+	publicBatchFundingRatesEPL:                 standardRateLimit(),
 
 	publicUnderlyingOptionsEPL:            standardRateLimit(),
 	publicExpirationOptionsEPL:            standardRateLimit(),
@@ -619,32 +619,32 @@ var packageRateLimits = request.RateLimitDefinitions{
 	accountSetDebitFeeEPL:                         otherPrivateEndpointRateLimit(),
 	accountGetDebitFeeEPL:                         otherPrivateEndpointRateLimit(),
 
-	spotTradingFeeEPL:          standardRateLimit(),
-	spotAccountsEPL:            standardRateLimit(),
-	spotAccountBookEPL:         standardRateLimit(),
-	spotGetOpenOrdersEPL:       standardRateLimit(),
-	spotClosePositionEPL:       orderCloseRateLimit(),
-	spotBatchOrdersEPL:         spotOrderPlacementRateLimit(),
-	spotPlaceOrderEPL:          spotOrderPlacementRateLimit(),
-	spotGetOrdersEPL:           standardRateLimit(),
-	spotCancelAllOpenOrdersEPL: orderCloseRateLimit(),
-	spotCancelBatchOrdersEPL:   orderCloseRateLimit(),
-	spotGetOrderEPL:            standardRateLimit(),
-	spotAmendOrderEPL:          spotOrderPlacementRateLimit(),
-	spotCancelSingleOrderEPL:   orderCloseRateLimit(),
-	spotTradingHistoryEPL:      standardRateLimit(),
-	spotCountdownCancelEPL:     orderCloseRateLimit(),
-	spotAmendBatchOrdersEPL:    spotOrderPlacementRateLimit(),
-	spotCreateTriggerOrderEPL:  spotOrderPlacementRateLimit(),
-	spotGetTriggerOrderListEPL: standardRateLimit(),
-	spotCancelTriggerOrdersEPL: orderCloseRateLimit(),
-	spotGetTriggerOrderEPL:     standardRateLimit(),
-	spotCancelTriggerOrderEPL:  orderCloseRateLimit(),
-	spotCreatePOVOrderEPL:      spotOrderPlacementRateLimit(),
-	spotGetPOVOrdersEPL:        standardRateLimit(),
-	spotCancelPOVOrdersEPL:     orderCloseRateLimit(),
-	spotGetPOVOrderEPL:         standardRateLimit(),
-	spotCancelPOVOrderEPL:      orderCloseRateLimit(),
+	spotTradingFeeEPL:                     standardRateLimit(),
+	spotAccountsEPL:                       standardRateLimit(),
+	spotAccountBookEPL:                    standardRateLimit(),
+	spotGetOpenOrdersEPL:                  standardRateLimit(),
+	spotClosePositionEPL:                  orderCloseRateLimit(),
+	spotBatchOrdersEPL:                    spotOrderPlacementRateLimit(),
+	spotPlaceOrderEPL:                     spotOrderPlacementRateLimit(),
+	spotGetOrdersEPL:                      standardRateLimit(),
+	spotCancelAllOpenOrdersEPL:            orderCloseRateLimit(),
+	spotCancelBatchOrdersEPL:              orderCloseRateLimit(),
+	spotGetOrderEPL:                       standardRateLimit(),
+	spotAmendOrderEPL:                     spotOrderPlacementRateLimit(),
+	spotCancelSingleOrderEPL:              orderCloseRateLimit(),
+	spotTradingHistoryEPL:                 standardRateLimit(),
+	spotCountdownCancelEPL:                orderCloseRateLimit(),
+	spotAmendBatchOrdersEPL:               spotOrderPlacementRateLimit(),
+	spotCreateTriggerOrderEPL:             spotOrderPlacementRateLimit(),
+	spotGetTriggerOrderListEPL:            standardRateLimit(),
+	spotCancelTriggerOrdersEPL:            orderCloseRateLimit(),
+	spotGetTriggerOrderEPL:                standardRateLimit(),
+	spotCancelTriggerOrderEPL:             orderCloseRateLimit(),
+	spotCreatePercentageOfVolumeOrderEPL:  spotOrderPlacementRateLimit(),
+	spotGetPercentageOfVolumeOrdersEPL:    standardRateLimit(),
+	spotCancelPercentageOfVolumeOrdersEPL: orderCloseRateLimit(),
+	spotGetPercentageOfVolumeOrderEPL:     standardRateLimit(),
+	spotCancelPercentageOfVolumeOrderEPL:  orderCloseRateLimit(),
 
 	marginIsolatedAccountsEPL:           otherPrivateEndpointRateLimit(),
 	marginAccountBalanceEPL:             otherPrivateEndpointRateLimit(),
@@ -719,7 +719,7 @@ var packageRateLimits = request.RateLimitDefinitions{
 	perpetualTradingFeeEPL:                standardRateLimit(),
 	perpetualCancelBatchOrdersEPL:         orderCloseRateLimit(),
 	perpetualAmendBatchOrdersEPL:          perpetualOrderplacementRateLimit(),
-	perpetualSubmitBBOOrderEPL:            perpetualOrderplacementRateLimit(),
+	perpetualSubmitBestBidOfferOrderEPL:   perpetualOrderplacementRateLimit(),
 	perpetualCreateTrailOrderEPL:          perpetualOrderplacementRateLimit(),
 	perpetualStopTrailOrderEPL:            orderCloseRateLimit(),
 	perpetualStopAllTrailOrdersEPL:        orderCloseRateLimit(),
@@ -753,22 +753,22 @@ var packageRateLimits = request.RateLimitDefinitions{
 	deliveryGetTriggerOrderEPL:     standardRateLimit(),
 	deliveryCancelTriggerOrderEPL:  deliverySubmitCancelAmendRateLimit(),
 
-	optionsSettlementsEPL:        standardRateLimit(),
-	optionsAccountsEPL:           standardRateLimit(),
-	optionsAccountBooksEPL:       standardRateLimit(),
-	optionsPositions:             standardRateLimit(),
-	optionsLiquidationHistoryEPL: standardRateLimit(),
-	optionsSubmitOrderEPL:        optionsSubmitCancelAmendRateLimit(),
-	optionsOrdersEPL:             standardRateLimit(),
-	optionsCancelOrdersEPL:       optionsSubmitCancelAmendRateLimit(),
-	optionsOrderEPL:              standardRateLimit(),
-	optionsCancelOrderEPL:        optionsSubmitCancelAmendRateLimit(),
-	optionsAmendOrderEPL:         optionsSubmitCancelAmendRateLimit(),
-	optionsCountdownCancelEPL:    standardRateLimit(),
-	optionsTradingHistoryEPL:     standardRateLimit(),
-	optionsSetMMPEPL:             standardRateLimit(),
-	optionsGetMMPEPL:             standardRateLimit(),
-	optionsResetMMPEPL:           standardRateLimit(),
+	optionsSettlementsEPL:                standardRateLimit(),
+	optionsAccountsEPL:                   standardRateLimit(),
+	optionsAccountBooksEPL:               standardRateLimit(),
+	optionsPositions:                     standardRateLimit(),
+	optionsLiquidationHistoryEPL:         standardRateLimit(),
+	optionsSubmitOrderEPL:                optionsSubmitCancelAmendRateLimit(),
+	optionsOrdersEPL:                     standardRateLimit(),
+	optionsCancelOrdersEPL:               optionsSubmitCancelAmendRateLimit(),
+	optionsOrderEPL:                      standardRateLimit(),
+	optionsCancelOrderEPL:                optionsSubmitCancelAmendRateLimit(),
+	optionsAmendOrderEPL:                 optionsSubmitCancelAmendRateLimit(),
+	optionsCountdownCancelEPL:            standardRateLimit(),
+	optionsTradingHistoryEPL:             standardRateLimit(),
+	optionsSetMarketMakerProtectionEPL:   standardRateLimit(),
+	optionsGetMarketMakerProtectionEPL:   standardRateLimit(),
+	optionsResetMarketMakerProtectionEPL: standardRateLimit(),
 
 	privateUnifiedSpotEPL: otherPrivateEndpointRateLimit(),
 
@@ -859,7 +859,7 @@ var packageRateLimits = request.RateLimitDefinitions{
 	loanMultiCollateralCurrencyQuotaEPL: otherPrivateEndpointRateLimit(),
 	loanMultiCollateralCurrentRateEPL:   standardRateLimit(),
 	loanMultiCollateralCurrenciesEPL:    standardRateLimit(),
-	loanMultiCollateralLtvEPL:           standardRateLimit(),
+	loanMultiCollateralLoanToValueEPL:   standardRateLimit(),
 	loanMultiCollateralFixedRateEPL:     standardRateLimit(),
 	loanMultiCollateralCreateOrderEPL:   otherPrivateEndpointRateLimit(),
 	loanMultiCollateralOrdersEPL:        otherPrivateEndpointRateLimit(),
@@ -949,7 +949,7 @@ var packageRateLimits = request.RateLimitDefinitions{
 	crossexFeeEPL:                           standardRateLimit(),
 	crossexPositionsEPL:                     standardRateLimit(),
 	crossexMarginPositionsEPL:               standardRateLimit(),
-	crossexADLRankEPL:                       standardRateLimit(),
+	crossexAutoDeleveragingRankEPL:          standardRateLimit(),
 	crossexOpenOrdersEPL:                    standardRateLimit(),
 	crossexHistoryOrdersEPL:                 standardRateLimit(),
 	crossexHistoryPositionsEPL:              standardRateLimit(),

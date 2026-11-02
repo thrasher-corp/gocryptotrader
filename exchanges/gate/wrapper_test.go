@@ -31,6 +31,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
@@ -5090,6 +5091,93 @@ func TestWebsocketSubmitOrders(t *testing.T) {
 	_, err = e.WebsocketSubmitOrders(t.Context(), []*order.Submit{sub, &cpy})
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
+	for _, a := range []asset.Item{asset.DeliveryFutures, asset.Options} {
+		t.Run(a.String(), func(t *testing.T) {
+			t.Parallel()
+			// Gate takes no good till time order, so a batch refused only after its orders are built fails here, and every
+			// field is set, with a pair Gate's format would change, so a refusal that alters any of them fails the comparison
+			unsupported := &order.Submit{
+				Exchange:            e.Name,
+				Type:                order.Limit,
+				Side:                order.Buy,
+				Pair:                currency.NewPair(currency.BTC.Lower(), currency.USDT.Lower()),
+				AssetType:           a,
+				TimeInForce:         order.GoodTillTime,
+				ReduceOnly:          true,
+				Leverage:            2,
+				Price:               1,
+				Amount:              1,
+				QuoteAmount:         1,
+				TriggerPrice:        1,
+				TriggerPriceType:    order.MarkPrice,
+				ClientID:            "unsupported-client",
+				ClientOrderID:       "unsupported-batch",
+				AutoBorrow:          true,
+				AutoRepay:           true,
+				MarginType:          margin.Isolated,
+				RetrieveFees:        true,
+				RetrieveFeeDelay:    time.Second,
+				RiskManagementModes: order.RiskManagementModes{Mode: "both", TakeProfit: order.RiskManagement{Enabled: true, Price: 2}, StopLoss: order.RiskManagement{Enabled: true, Price: 0.5}},
+				EndTime:             time.Unix(1700000000, 0),
+				StopDirection:       order.StopUp,
+				TrackingMode:        order.Percentage,
+				TrackingValue:       1,
+				LimitTrackingMode:   order.Distance,
+				LimitTrackingValue:  1,
+				RFQDisabled:         true,
+				SlippageTolerance:   0.01,
+			}
+			sent := *unsupported
+			second := *unsupported
+			_, err := e.WebsocketSubmitOrders(t.Context(), []*order.Submit{unsupported, &second})
+			require.ErrorIs(t, err, common.ErrFunctionNotSupported, "WebsocketSubmitOrders must refuse the batch as unsupported")
+			assert.Equal(t, []order.Submit{sent, sent}, []order.Submit{*unsupported, second}, "WebsocketSubmitOrders should leave a refused batch's orders unchanged")
+		})
+	}
+
+	marginMarketBuy := &order.Submit{Exchange: e.Name, AssetType: asset.Margin, Pair: currency.NewBTCUSDT(), Side: order.Buy, Type: order.Market, Amount: 1}
+	_, err = e.WebsocketSubmitOrders(t.Context(), []*order.Submit{marginMarketBuy})
+	require.ErrorIs(t, err, order.ErrAmountMustBeSet, "WebsocketSubmitOrders must refuse a margin market buy sized in the base currency")
+
+	spotGoodTillTime := &order.Submit{Exchange: e.Name, AssetType: asset.Spot, Pair: currency.NewBTCUSDT(), Side: order.Buy, Type: order.Limit, Price: 1, Amount: 1, TimeInForce: order.GoodTillTime}
+	_, err = e.WebsocketSubmitOrders(t.Context(), []*order.Submit{spotGoodTillTime})
+	require.ErrorIs(t, err, order.ErrUnsupportedTimeInForce, "WebsocketSubmitOrders must refuse a spot order whose time in force Gate does not take")
+
+	overLimit := make([]*order.Submit, 11)
+	for i := range overLimit {
+		overLimit[i] = &order.Submit{Exchange: e.Name, AssetType: asset.Spot, Pair: currency.NewBTCUSDT(), Side: order.Buy, Type: order.Limit, Price: 1, Amount: 1, ClientOrderID: "over-limit-" + strconv.Itoa(i)}
+	}
+	_, err = e.WebsocketSubmitOrders(t.Context(), overLimit)
+	require.ErrorIs(t, err, errTooManyBatchOrders, "WebsocketSubmitOrders must refuse more than 10 spot orders on one currency pair")
+
+	goodTillTime := &order.Submit{Exchange: e.Name, AssetType: asset.USDTMarginedFutures, Pair: currency.NewBTCUSDT(), Side: order.Buy, Type: order.Limit, Price: 1, Amount: 1, TimeInForce: order.GoodTillTime}
+	_, err = e.WebsocketSubmitOrders(t.Context(), []*order.Submit{goodTillTime})
+	require.ErrorIs(t, err, order.ErrUnsupportedTimeInForce, "WebsocketSubmitOrders must refuse a futures order whose time in force Gate does not take")
+
+	futuresStop := &order.Submit{Exchange: e.Name, AssetType: asset.USDTMarginedFutures, Pair: currency.NewBTCUSDT(), Side: order.Buy, Type: order.Stop, Price: 1, Amount: 1}
+	_, err = e.WebsocketSubmitOrders(t.Context(), []*order.Submit{futuresStop})
+	require.ErrorIs(t, err, order.ErrUnsupportedOrderType, "WebsocketSubmitOrders must refuse a futures order type it cannot build")
+
+	unformattable := new(Exchange)
+	require.NoError(t, testexch.Setup(unformattable), "Setup must not error")
+	unformattable.CurrencyPairs.RequestFormat = nil
+	for _, a := range []asset.Item{asset.Spot, asset.USDTMarginedFutures} {
+		_, err = unformattable.WebsocketSubmitOrders(t.Context(), []*order.Submit{{Exchange: unformattable.Name, AssetType: a, Pair: currency.NewBTCUSDT(), Side: order.Buy, Type: order.Limit, Price: 1, Amount: 1}})
+		require.ErrorIsf(t, err, currency.ErrPairFormatIsNil, "WebsocketSubmitOrders must refuse a %s batch whose pair it cannot format", a)
+	}
+
+	unconnected := new(Exchange)
+	require.NoError(t, testexch.Setup(unconnected), "Setup must not error")
+	for _, a := range []asset.Item{asset.Spot, asset.USDTMarginedFutures} {
+		_, err = unconnected.WebsocketSubmitOrders(t.Context(), []*order.Submit{{Exchange: unconnected.Name, AssetType: a, Pair: currency.NewBTCUSDT(), Side: order.Buy, Type: order.Limit, Price: 1, Amount: 1}})
+		require.ErrorIsf(t, err, websocket.ErrNotConnected, "WebsocketSubmitOrders must return the error of a %s batch it cannot send", a)
+	}
+
+	// A pair stored for an asset Gate does not trade makes it supported without giving it a batch path
+	require.NoError(t, unconnected.CurrencyPairs.StorePairs(asset.Spread, currency.Pairs{currency.NewBTCUSDT()}, false), "StorePairs must not error")
+	_, err = unconnected.WebsocketSubmitOrders(t.Context(), []*order.Submit{{Exchange: unconnected.Name, AssetType: asset.Spread, Pair: currency.NewBTCUSDT(), Side: order.Buy, Type: order.Limit, Price: 1, Amount: 1}})
+	require.ErrorIs(t, err, asset.ErrNotSupported, "WebsocketSubmitOrders must refuse an asset Gate does not trade")
+
 	sub.AssetType = asset.USDTMarginedFutures
 	cpy.AssetType = asset.USDTMarginedFutures
 	_, err = e.WebsocketSubmitOrders(t.Context(), []*order.Submit{sub, &cpy})
@@ -5134,6 +5222,93 @@ func TestWebsocketSubmitOrders(t *testing.T) {
 			},
 		},
 		{
+			// Margin and cross margin orders are placed through the spot connection, each order naming its account
+			a: asset.Margin,
+			orders: []*order.Submit{
+				{Type: order.Limit, Side: order.Buy, Price: 10000, Amount: 0.001, ClientOrderID: "ws-margin-buy"},
+				{Type: order.Limit, Side: order.Sell, Price: 200000, Amount: 0.001, ClientOrderID: "ws-margin-sell"},
+			},
+			exp: []*order.SubmitResponse{
+				{
+					Exchange:        "Gate",
+					OrderID:         "1700664335",
+					AssetType:       asset.Margin,
+					Pair:            BTCUSDT,
+					ClientOrderID:   "t-ws-margin-buy",
+					Date:            time.UnixMilli(1681986204832),
+					LastUpdated:     time.UnixMilli(1681986204832),
+					RemainingAmount: 0.001,
+					Amount:          0.001,
+					Price:           10000,
+					Type:            order.Limit,
+					Side:            order.Buy,
+					FeeAsset:        currency.BTC,
+					TimeInForce:     order.GoodTillCancel,
+					Status:          order.Open,
+				},
+				{
+					Exchange:        "Gate",
+					OrderID:         "1700664336",
+					AssetType:       asset.Margin,
+					Pair:            BTCUSDT,
+					ClientOrderID:   "t-ws-margin-sell",
+					Date:            time.UnixMilli(1681986204832),
+					LastUpdated:     time.UnixMilli(1681986204832),
+					RemainingAmount: 0.001,
+					Amount:          0.001,
+					Price:           200000,
+					Type:            order.Limit,
+					Side:            order.Sell,
+					FeeAsset:        currency.USDT,
+					TimeInForce:     order.GoodTillCancel,
+					Status:          order.Open,
+				},
+			},
+		},
+		{
+			a: asset.CrossMargin,
+			orders: []*order.Submit{
+				{Type: order.Limit, Side: order.Buy, Price: 10000, Amount: 0.001, ClientOrderID: "ws-cross-margin-buy"},
+				{Type: order.Limit, Side: order.Sell, Price: 200000, Amount: 0.001, ClientOrderID: "ws-cross-margin-sell"},
+			},
+			exp: []*order.SubmitResponse{
+				{
+					Exchange:        "Gate",
+					OrderID:         "1700664337",
+					AssetType:       asset.CrossMargin,
+					Pair:            BTCUSDT,
+					ClientOrderID:   "t-ws-cross-margin-buy",
+					Date:            time.UnixMilli(1681986204832),
+					LastUpdated:     time.UnixMilli(1681986204832),
+					RemainingAmount: 0.001,
+					Amount:          0.001,
+					Price:           10000,
+					Type:            order.Limit,
+					Side:            order.Buy,
+					FeeAsset:        currency.BTC,
+					TimeInForce:     order.GoodTillCancel,
+					Status:          order.Open,
+				},
+				{
+					Exchange:        "Gate",
+					OrderID:         "1700664338",
+					AssetType:       asset.CrossMargin,
+					Pair:            BTCUSDT,
+					ClientOrderID:   "t-ws-cross-margin-sell",
+					Date:            time.UnixMilli(1681986204832),
+					LastUpdated:     time.UnixMilli(1681986204832),
+					RemainingAmount: 0.001,
+					Amount:          0.001,
+					Price:           200000,
+					Type:            order.Limit,
+					Side:            order.Sell,
+					FeeAsset:        currency.USDT,
+					TimeInForce:     order.GoodTillCancel,
+					Status:          order.Open,
+				},
+			},
+		},
+		{
 			a: asset.USDTMarginedFutures,
 			orders: []*order.Submit{
 				{Type: order.Limit, Side: order.Buy, Price: 10000, Amount: 1, ClientOrderID: "ws-usdt-buy"},
@@ -5163,10 +5338,55 @@ func TestWebsocketSubmitOrders(t *testing.T) {
 				},
 			},
 		},
+		{
+			a: asset.CoinMarginedFutures,
+			orders: []*order.Submit{
+				{Type: order.Limit, Side: order.Buy, Price: 10000, Amount: 1, ClientOrderID: "ws-coin-buy"},
+				{Type: order.Limit, Side: order.Sell, Price: 200000, Amount: 1, ClientOrderID: "ws-coin-sell"},
+			},
+			exp: []*order.SubmitResponse{
+				{
+					Exchange:        "Gate",
+					OrderID:         "74046546",
+					AssetType:       asset.CoinMarginedFutures,
+					Pair:            BTCUSD,
+					ClientOrderID:   "t-ws-coin-buy",
+					Date:            time.UnixMilli(1681196536593),
+					LastUpdated:     time.UnixMilli(1681196536593),
+					RemainingAmount: 1,
+					Amount:          1,
+					Price:           10000,
+					Type:            order.Limit,
+					Side:            order.Long,
+					Status:          order.Open,
+					TimeInForce:     order.GoodTillCancel,
+				},
+				{
+					Exchange:        "Gate",
+					OrderID:         "74046547",
+					AssetType:       asset.CoinMarginedFutures,
+					Pair:            BTCUSD,
+					ClientOrderID:   "t-ws-coin-sell",
+					Date:            time.UnixMilli(1681196536594),
+					LastUpdated:     time.UnixMilli(1681196536594),
+					RemainingAmount: 1,
+					Amount:          1,
+					Price:           200000,
+					Type:            order.Limit,
+					Side:            order.Short,
+					Status:          order.Open,
+					TimeInForce:     order.GoodTillCancel,
+				},
+			},
+		},
 	} {
 		t.Run(tc.a.String(), func(t *testing.T) {
 			t.Parallel()
-			ex := newWsAPITestExchange(t, tc.a, canManipulateRealOrders)
+			connAsset := tc.a
+			if connAsset == asset.Margin || connAsset == asset.CrossMargin {
+				connAsset = asset.Spot
+			}
+			ex := newWsAPITestExchange(t, connAsset, canManipulateRealOrders)
 			for _, o := range tc.orders {
 				o.Exchange, o.AssetType, o.Pair = ex.Name, tc.a, getPair(t, tc.a)
 			}

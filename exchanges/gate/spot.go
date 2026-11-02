@@ -705,9 +705,9 @@ func (e *Exchange) CancelPriceTriggeredOrder(ctx context.Context, orderID string
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotCancelTriggerOrderEPL, http.MethodDelete, "spot/price_orders/"+orderID, nil, nil, &response)
 }
 
-// CreateSpotPOVOrder creates a percentage of volume (POV) order, which trades a target share of market volume until
-// it fills or its time to live expires
-func (e *Exchange) CreateSpotPOVOrder(ctx context.Context, arg *SpotPOVOrderRequest) (*SpotPOVOrderResponse, error) {
+// CreateSpotPercentageOfVolumeOrder creates a percentage of volume (POV) order, which trades a target share of market
+// volume until it fills or its time to live expires
+func (e *Exchange) CreateSpotPercentageOfVolumeOrder(ctx context.Context, arg *SpotPercentageOfVolumeOrderRequest) (*SpotPercentageOfVolumeOrderResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -726,12 +726,12 @@ func (e *Exchange) CreateSpotPOVOrder(ctx context.Context, arg *SpotPOVOrderRequ
 	if arg.TimeToLive == "" {
 		return nil, errTimeToLiveRequired
 	}
-	var resp *SpotPOVOrderResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotCreatePOVOrderEPL, http.MethodPost, "spot/pov_orders", nil, arg, &resp)
+	var resp *SpotPercentageOfVolumeOrderResponse
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotCreatePercentageOfVolumeOrderEPL, http.MethodPost, "spot/pov_orders", nil, arg, &resp)
 }
 
-// GetSpotPOVOrders retrieves open or finished POV orders
-func (e *Exchange) GetSpotPOVOrders(ctx context.Context, arg *GetSpotPOVOrdersRequest) ([]*SpotPOVOrderResponse, error) {
+// GetSpotPercentageOfVolumeOrders retrieves open or finished percentage of volume orders
+func (e *Exchange) GetSpotPercentageOfVolumeOrders(ctx context.Context, arg *GetSpotPercentageOfVolumeOrdersRequest) ([]*SpotPercentageOfVolumeOrderResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -756,34 +756,35 @@ func (e *Exchange) GetSpotPOVOrders(ctx context.Context, arg *GetSpotPOVOrdersRe
 	if arg.Limit > 0 {
 		params.Set("limit", strconv.FormatUint(arg.Limit, 10))
 	}
-	var resp []*SpotPOVOrderResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotGetPOVOrdersEPL, http.MethodGet, "spot/pov_orders", params, nil, &resp)
+	var resp []*SpotPercentageOfVolumeOrderResponse
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotGetPercentageOfVolumeOrdersEPL, http.MethodGet, "spot/pov_orders", params, nil, &resp)
 }
 
-// CancelSpotPOVOrders cancels all POV orders, or only those on the supplied currency pair
-func (e *Exchange) CancelSpotPOVOrders(ctx context.Context, currencyPair currency.Pair) ([]*SpotPOVOrderResponse, error) {
+// CancelSpotPercentageOfVolumeOrders cancels all percentage of volume orders, or only those on the supplied currency
+// pair
+func (e *Exchange) CancelSpotPercentageOfVolumeOrders(ctx context.Context, currencyPair currency.Pair) ([]*SpotPercentageOfVolumeOrderResponse, error) {
 	params := url.Values{}
 	if !currencyPair.IsEmpty() {
 		params.Set("currency_pair", currencyPair.String())
 	}
-	var resp []*SpotPOVOrderResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotCancelPOVOrdersEPL, http.MethodDelete, "spot/pov_orders", params, nil, &resp)
+	var resp []*SpotPercentageOfVolumeOrderResponse
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotCancelPercentageOfVolumeOrdersEPL, http.MethodDelete, "spot/pov_orders", params, nil, &resp)
 }
 
-// GetSpotPOVOrder retrieves a single POV order by order ID or custom text ID
-func (e *Exchange) GetSpotPOVOrder(ctx context.Context, orderID string) (*SpotPOVOrderResponse, error) {
+// GetSpotPercentageOfVolumeOrder retrieves a single percentage of volume order by order ID or custom text ID
+func (e *Exchange) GetSpotPercentageOfVolumeOrder(ctx context.Context, orderID string) (*SpotPercentageOfVolumeOrderResponse, error) {
 	if orderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
-	var resp *SpotPOVOrderResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotGetPOVOrderEPL, http.MethodGet, "spot/pov_orders/"+orderID, nil, nil, &resp)
+	var resp *SpotPercentageOfVolumeOrderResponse
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotGetPercentageOfVolumeOrderEPL, http.MethodGet, "spot/pov_orders/"+orderID, nil, nil, &resp)
 }
 
-// CancelSpotPOVOrder cancels a single POV order by order ID or custom text ID
-func (e *Exchange) CancelSpotPOVOrder(ctx context.Context, orderID string) (*SpotPOVOrderResponse, error) {
+// CancelSpotPercentageOfVolumeOrder cancels a single percentage of volume order by order ID or custom text ID
+func (e *Exchange) CancelSpotPercentageOfVolumeOrder(ctx context.Context, orderID string) (*SpotPercentageOfVolumeOrderResponse, error) {
 	if orderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
-	var resp *SpotPOVOrderResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotCancelPOVOrderEPL, http.MethodDelete, "spot/pov_orders/"+orderID, nil, nil, &resp)
+	var resp *SpotPercentageOfVolumeOrderResponse
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotCancelPercentageOfVolumeOrderEPL, http.MethodDelete, "spot/pov_orders/"+orderID, nil, nil, &resp)
 }

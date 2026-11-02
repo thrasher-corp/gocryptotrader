@@ -422,15 +422,15 @@ func TestGetAccountBatchFeeRates(t *testing.T) {
 	if mockTests {
 		exp := map[string]*SpotTradingFeeRateResponse{
 			"BTC_USDT": {
-				CurrencyPair:                   getPair(t, asset.Spot),
-				UserID:                         10001,
-				TakerFee:                       0.002,
-				MakerFee:                       0.002,
-				RetailPriceImprovementMakerFee: -0.00175,
-				LoanFee:                        0.18,
-				PointType:                      "1",
-				DebitFee:                       3,
-				RPIMMLevel:                     2,
+				CurrencyPair:                           getPair(t, asset.Spot),
+				UserID:                                 10001,
+				TakerFee:                               0.002,
+				MakerFee:                               0.002,
+				RetailPriceImprovementMakerFee:         -0.00175,
+				LoanFee:                                0.18,
+				PointType:                              "1",
+				DebitFee:                               3,
+				RetailPriceImprovementMarketMakerLevel: 2,
 			},
 			"ETH_USDT": {
 				CurrencyPair:                   currency.NewPairWithDelimiter("ETH", "USDT", currency.UnderscoreDelimiter),
@@ -854,8 +854,8 @@ func TestGetSpotOrders(t *testing.T) {
 			FeeCurrency:        currency.BTC,
 			RebatedFeeCurrency: currency.USDT,
 			FinishAs:           "open",
-			StopProfit:         &SpotOrderTPSL{TriggerPrice: 67000, OrderPrice: 67000},
-			StopLoss:           &SpotOrderTPSL{TriggerPrice: 63000, OrderPrice: 63000},
+			StopProfit:         &SpotOrderTakeProfitStopLoss{TriggerPrice: 67000, OrderPrice: 67000},
+			StopLoss:           &SpotOrderTakeProfitStopLoss{TriggerPrice: 63000, OrderPrice: 63000},
 		}}
 		assert.Equal(t, exp, result, "GetSpotOrders should decode every field")
 		return
@@ -999,8 +999,8 @@ func TestGetSpotOrder(t *testing.T) {
 			FilledTotal:        63.4693,
 			RebatedFeeCurrency: currency.USDT,
 			FinishAs:           "filled",
-			StopProfit:         &SpotOrderTPSL{TriggerPrice: 67000, OrderPrice: 67000},
-			StopLoss:           &SpotOrderTPSL{TriggerPrice: 63000, OrderPrice: 63000},
+			StopProfit:         &SpotOrderTakeProfitStopLoss{TriggerPrice: 67000, OrderPrice: 67000},
+			StopLoss:           &SpotOrderTakeProfitStopLoss{TriggerPrice: 63000, OrderPrice: 63000},
 		}
 		assert.Equal(t, exp, result, "GetSpotOrder should decode every field")
 		return
@@ -1030,8 +1030,8 @@ func TestAmendSpotOrder(t *testing.T) {
 	result, err := e.AmendSpotOrder(t.Context(), "123", &AmendSpotOrderRequest{
 		CurrencyPair: getPair(t, asset.Spot),
 		Price:        1000,
-		StopProfit:   &SpotOrderTPSL{TriggerPrice: 67000, OrderPrice: 67000},
-		StopLoss:     &SpotOrderTPSL{},
+		StopProfit:   &SpotOrderTakeProfitStopLoss{TriggerPrice: 67000, OrderPrice: 67000},
+		StopLoss:     &SpotOrderTakeProfitStopLoss{},
 	})
 	require.NoError(t, err, "AmendSpotOrder must not error")
 	if mockTests {
@@ -1055,7 +1055,7 @@ func TestAmendSpotOrder(t *testing.T) {
 			FeeCurrency:        currency.BTC,
 			RebatedFeeCurrency: currency.USDT,
 			FinishAs:           "open",
-			StopProfit:         &SpotOrderTPSL{TriggerPrice: 67000, OrderPrice: 67000},
+			StopProfit:         &SpotOrderTakeProfitStopLoss{TriggerPrice: 67000, OrderPrice: 67000},
 		}
 		assert.Equal(t, exp, result, "AmendSpotOrder should decode every field")
 		return
@@ -1486,35 +1486,35 @@ func TestCancelPriceTriggeredOrder(t *testing.T) {
 	assert.NotNil(t, result, "CancelPriceTriggeredOrder should return a result")
 }
 
-func TestCreateSpotPOVOrder(t *testing.T) {
+func TestCreateSpotPercentageOfVolumeOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.CreateSpotPOVOrder(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "CreateSpotPOVOrder must reject a nil request")
+	_, err := e.CreateSpotPercentageOfVolumeOrder(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "CreateSpotPercentageOfVolumeOrder must reject a nil request")
 
-	arg := &SpotPOVOrderRequest{}
-	_, err = e.CreateSpotPOVOrder(t.Context(), arg)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "CreateSpotPOVOrder must reject an empty currency pair")
+	arg := &SpotPercentageOfVolumeOrderRequest{}
+	_, err = e.CreateSpotPercentageOfVolumeOrder(t.Context(), arg)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "CreateSpotPercentageOfVolumeOrder must reject an empty currency pair")
 
 	arg.CurrencyPair = getPair(t, asset.Spot)
-	_, err = e.CreateSpotPOVOrder(t.Context(), arg)
-	require.ErrorIs(t, err, order.ErrSideIsInvalid, "CreateSpotPOVOrder must reject an invalid side")
+	_, err = e.CreateSpotPercentageOfVolumeOrder(t.Context(), arg)
+	require.ErrorIs(t, err, order.ErrSideIsInvalid, "CreateSpotPercentageOfVolumeOrder must reject an invalid side")
 
 	arg.Side = order.Buy.Lower()
-	_, err = e.CreateSpotPOVOrder(t.Context(), arg)
-	require.ErrorIs(t, err, order.ErrAmountIsInvalid, "CreateSpotPOVOrder must reject an empty amount")
+	_, err = e.CreateSpotPercentageOfVolumeOrder(t.Context(), arg)
+	require.ErrorIs(t, err, order.ErrAmountIsInvalid, "CreateSpotPercentageOfVolumeOrder must reject an empty amount")
 
 	arg.Amount = 1
-	_, err = e.CreateSpotPOVOrder(t.Context(), arg)
-	require.ErrorIs(t, err, errParticipationRateRequired, "CreateSpotPOVOrder must reject an empty participation rate")
+	_, err = e.CreateSpotPercentageOfVolumeOrder(t.Context(), arg)
+	require.ErrorIs(t, err, errParticipationRateRequired, "CreateSpotPercentageOfVolumeOrder must reject an empty participation rate")
 
 	arg.ParticipationRatePercentage = 5
-	_, err = e.CreateSpotPOVOrder(t.Context(), arg)
-	require.ErrorIs(t, err, errTimeToLiveRequired, "CreateSpotPOVOrder must reject an empty time to live")
+	_, err = e.CreateSpotPercentageOfVolumeOrder(t.Context(), arg)
+	require.ErrorIs(t, err, errTimeToLiveRequired, "CreateSpotPercentageOfVolumeOrder must reject an empty time to live")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	result, err := e.CreateSpotPOVOrder(t.Context(), &SpotPOVOrderRequest{
+	result, err := e.CreateSpotPercentageOfVolumeOrder(t.Context(), &SpotPercentageOfVolumeOrderRequest{
 		CurrencyPair:                getPair(t, asset.Spot),
 		Side:                        order.Buy.Lower(),
 		Amount:                      1,
@@ -1524,9 +1524,9 @@ func TestCreateSpotPOVOrder(t *testing.T) {
 		TriggerPrice:                63000,
 		Text:                        "t-pov1",
 	})
-	require.NoError(t, err, "CreateSpotPOVOrder must not error")
+	require.NoError(t, err, "CreateSpotPercentageOfVolumeOrder must not error")
 	if mockTests {
-		exp := &SpotPOVOrderResponse{
+		exp := &SpotPercentageOfVolumeOrderResponse{
 			ID:                          "1216",
 			CurrencyPair:                getPair(t, asset.Spot),
 			Side:                        "buy",
@@ -1541,36 +1541,42 @@ func TestCreateSpotPOVOrder(t *testing.T) {
 			UpdateTime:                  types.Time(time.UnixMilli(1744150000074)),
 			Text:                        "t-pov1",
 		}
-		assert.Equal(t, exp, result, "CreateSpotPOVOrder should decode every field")
+		assert.Equal(t, exp, result, "CreateSpotPercentageOfVolumeOrder should decode every field")
 		return
 	}
-	assert.NotNil(t, result, "CreateSpotPOVOrder should return a result")
+	assert.NotNil(t, result, "CreateSpotPercentageOfVolumeOrder should return a result")
 }
 
-func TestGetSpotPOVOrders(t *testing.T) {
+func TestGetSpotPercentageOfVolumeOrders(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetSpotPOVOrders(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "GetSpotPOVOrders must reject a nil request")
+	_, err := e.GetSpotPercentageOfVolumeOrders(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "GetSpotPercentageOfVolumeOrders must reject a nil request")
 
-	_, err = e.GetSpotPOVOrders(t.Context(), &GetSpotPOVOrdersRequest{})
-	require.ErrorIs(t, err, errInvalidOrderStatus, "GetSpotPOVOrders must reject an empty status")
+	_, err = e.GetSpotPercentageOfVolumeOrders(t.Context(), &GetSpotPercentageOfVolumeOrdersRequest{})
+	require.ErrorIs(t, err, errInvalidOrderStatus, "GetSpotPercentageOfVolumeOrders must reject an empty status")
 
-	_, err = e.GetSpotPOVOrders(t.Context(), &GetSpotPOVOrdersRequest{Status: statusOpen, Side: order.Short})
-	require.ErrorIs(t, err, order.ErrSideIsInvalid, "GetSpotPOVOrders must reject an invalid side")
+	_, err = e.GetSpotPercentageOfVolumeOrders(t.Context(), &GetSpotPercentageOfVolumeOrdersRequest{Status: statusOpen, Side: order.Short})
+	require.ErrorIs(t, err, order.ErrSideIsInvalid, "GetSpotPercentageOfVolumeOrders must reject an invalid side")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetSpotPOVOrders(t.Context(), &GetSpotPOVOrdersRequest{
+	finished, err := e.GetSpotPercentageOfVolumeOrders(t.Context(), &GetSpotPercentageOfVolumeOrdersRequest{Status: statusFinished})
+	require.NoError(t, err, "GetSpotPercentageOfVolumeOrders must not error without a side or currency pair")
+	if mockTests {
+		assert.Empty(t, finished, "GetSpotPercentageOfVolumeOrders should return the recorded empty list")
+	}
+
+	result, err := e.GetSpotPercentageOfVolumeOrders(t.Context(), &GetSpotPercentageOfVolumeOrdersRequest{
 		CurrencyPair: getPair(t, asset.Spot),
 		Status:       statusOpen,
 		Side:         order.Buy,
 		Page:         1,
 		Limit:        10,
 	})
-	require.NoError(t, err, "GetSpotPOVOrders must not error")
+	require.NoError(t, err, "GetSpotPercentageOfVolumeOrders must not error")
 	if mockTests {
-		exp := []*SpotPOVOrderResponse{{
+		exp := []*SpotPercentageOfVolumeOrderResponse{{
 			ID:                          "1216",
 			CurrencyPair:                getPair(t, asset.Spot),
 			Side:                        "buy",
@@ -1585,21 +1591,21 @@ func TestGetSpotPOVOrders(t *testing.T) {
 			CreateTime:                  types.Time(time.UnixMilli(1744150000074)),
 			UpdateTime:                  types.Time(time.UnixMilli(1744150001074)),
 		}}
-		assert.Equal(t, exp, result, "GetSpotPOVOrders should decode every field")
+		assert.Equal(t, exp, result, "GetSpotPercentageOfVolumeOrders should decode every field")
 		return
 	}
-	assert.NotNil(t, result, "GetSpotPOVOrders should return a result")
+	assert.NotNil(t, result, "GetSpotPercentageOfVolumeOrders should return a result")
 }
 
-func TestCancelSpotPOVOrders(t *testing.T) {
+func TestCancelSpotPercentageOfVolumeOrders(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	result, err := e.CancelSpotPOVOrders(t.Context(), getPair(t, asset.Spot))
-	require.NoError(t, err, "CancelSpotPOVOrders must not error")
+	result, err := e.CancelSpotPercentageOfVolumeOrders(t.Context(), getPair(t, asset.Spot))
+	require.NoError(t, err, "CancelSpotPercentageOfVolumeOrders must not error")
 	if mockTests {
-		exp := []*SpotPOVOrderResponse{{
+		exp := []*SpotPercentageOfVolumeOrderResponse{{
 			ID:                          "1216",
 			CurrencyPair:                getPair(t, asset.Spot),
 			Side:                        "buy",
@@ -1614,24 +1620,24 @@ func TestCancelSpotPOVOrders(t *testing.T) {
 			CreateTime:                  types.Time(time.UnixMilli(1744150000074)),
 			UpdateTime:                  types.Time(time.UnixMilli(1744150002074)),
 		}}
-		assert.Equal(t, exp, result, "CancelSpotPOVOrders should decode every field")
+		assert.Equal(t, exp, result, "CancelSpotPercentageOfVolumeOrders should decode every field")
 		return
 	}
-	assert.NotNil(t, result, "CancelSpotPOVOrders should return a result")
+	assert.NotNil(t, result, "CancelSpotPercentageOfVolumeOrders should return a result")
 }
 
-func TestGetSpotPOVOrder(t *testing.T) {
+func TestGetSpotPercentageOfVolumeOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetSpotPOVOrder(t.Context(), "")
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "GetSpotPOVOrder must reject an empty order ID")
+	_, err := e.GetSpotPercentageOfVolumeOrder(t.Context(), "")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "GetSpotPercentageOfVolumeOrder must reject an empty order ID")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetSpotPOVOrder(t.Context(), "1216")
-	require.NoError(t, err, "GetSpotPOVOrder must not error")
+	result, err := e.GetSpotPercentageOfVolumeOrder(t.Context(), "1216")
+	require.NoError(t, err, "GetSpotPercentageOfVolumeOrder must not error")
 	if mockTests {
-		exp := &SpotPOVOrderResponse{
+		exp := &SpotPercentageOfVolumeOrderResponse{
 			ID:                          "1216",
 			CurrencyPair:                getPair(t, asset.Spot),
 			Side:                        "sell",
@@ -1646,24 +1652,24 @@ func TestGetSpotPOVOrder(t *testing.T) {
 			UpdateTime:                  types.Time(time.UnixMilli(1744150901074)),
 			Text:                        "t-pov2",
 		}
-		assert.Equal(t, exp, result, "GetSpotPOVOrder should decode every field")
+		assert.Equal(t, exp, result, "GetSpotPercentageOfVolumeOrder should decode every field")
 		return
 	}
-	assert.NotNil(t, result, "GetSpotPOVOrder should return a result")
+	assert.NotNil(t, result, "GetSpotPercentageOfVolumeOrder should return a result")
 }
 
-func TestCancelSpotPOVOrder(t *testing.T) {
+func TestCancelSpotPercentageOfVolumeOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.CancelSpotPOVOrder(t.Context(), "")
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "CancelSpotPOVOrder must reject an empty order ID")
+	_, err := e.CancelSpotPercentageOfVolumeOrder(t.Context(), "")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "CancelSpotPercentageOfVolumeOrder must reject an empty order ID")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	result, err := e.CancelSpotPOVOrder(t.Context(), "1216")
-	require.NoError(t, err, "CancelSpotPOVOrder must not error")
+	result, err := e.CancelSpotPercentageOfVolumeOrder(t.Context(), "1216")
+	require.NoError(t, err, "CancelSpotPercentageOfVolumeOrder must not error")
 	if mockTests {
-		exp := &SpotPOVOrderResponse{
+		exp := &SpotPercentageOfVolumeOrderResponse{
 			ID:                          "1216",
 			CurrencyPair:                getPair(t, asset.Spot),
 			Side:                        "buy",
@@ -1677,8 +1683,8 @@ func TestCancelSpotPOVOrder(t *testing.T) {
 			CreateTime:                  types.Time(time.UnixMilli(1744150000074)),
 			UpdateTime:                  types.Time(time.UnixMilli(1744150002074)),
 		}
-		assert.Equal(t, exp, result, "CancelSpotPOVOrder should decode every field")
+		assert.Equal(t, exp, result, "CancelSpotPercentageOfVolumeOrder should decode every field")
 		return
 	}
-	assert.NotNil(t, result, "CancelSpotPOVOrder should return a result")
+	assert.NotNil(t, result, "CancelSpotPercentageOfVolumeOrder should return a result")
 }

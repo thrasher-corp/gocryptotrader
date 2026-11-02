@@ -20,9 +20,9 @@ import (
 )
 
 var (
-	errInvalidMMPWindow       = errors.New("market maker protection window must be whole milliseconds of at most 5 seconds")
-	errInvalidMMPFrozenPeriod = errors.New("market maker protection frozen period must be non-negative whole milliseconds")
-	errInvalidMMPLimit        = errors.New("invalid market maker protection limit")
+	errInvalidMarketMakerProtectionWindow       = errors.New("market maker protection window must be whole milliseconds of at most 5 seconds")
+	errInvalidMarketMakerProtectionFrozenPeriod = errors.New("market maker protection frozen period must be non-negative whole milliseconds")
+	errInvalidMarketMakerProtectionLimit        = errors.New("invalid market maker protection limit")
 )
 
 // GetAllOptionsUnderlyings retrieves all option underlyings
@@ -453,19 +453,19 @@ func (e *Exchange) SetOptionsMarketMakerProtection(ctx context.Context, arg *Opt
 	}
 	// Gate takes whole milliseconds, and truncating a sub-millisecond window to zero would disable protection
 	if arg.Window < 0 || arg.Window > 5*time.Second || arg.Window%time.Millisecond != 0 {
-		return nil, fmt.Errorf("%w: %s", errInvalidMMPWindow, arg.Window)
+		return nil, fmt.Errorf("%w: %s", errInvalidMarketMakerProtectionWindow, arg.Window)
 	}
 	if arg.FrozenPeriod < 0 || arg.FrozenPeriod%time.Millisecond != 0 {
-		return nil, fmt.Errorf("%w: %s", errInvalidMMPFrozenPeriod, arg.FrozenPeriod)
+		return nil, fmt.Errorf("%w: %s", errInvalidMarketMakerProtectionFrozenPeriod, arg.FrozenPeriod)
 	}
 	if arg.QuantityLimit <= 0 {
-		return nil, fmt.Errorf("%w: quantity limit must be positive", errInvalidMMPLimit)
+		return nil, fmt.Errorf("%w: quantity limit must be positive", errInvalidMarketMakerProtectionLimit)
 	}
 	if arg.DeltaLimit <= 0 {
-		return nil, fmt.Errorf("%w: delta limit must be positive", errInvalidMMPLimit)
+		return nil, fmt.Errorf("%w: delta limit must be positive", errInvalidMarketMakerProtectionLimit)
 	}
 	var response *OptionsMarketMakerProtectionResponse
-	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, optionsSetMMPEPL, http.MethodPost, "options/mmp", nil, arg, &response)
+	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, optionsSetMarketMakerProtectionEPL, http.MethodPost, "options/mmp", nil, arg, &response)
 }
 
 // GetOptionsMarketMakerProtection retrieves the market maker protection of an options underlying, or of every
@@ -476,7 +476,7 @@ func (e *Exchange) GetOptionsMarketMakerProtection(ctx context.Context, underlyi
 		params.Set("underlying", underlying)
 	}
 	var response []*OptionsMarketMakerProtectionResponse
-	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, optionsGetMMPEPL, http.MethodGet, "options/mmp", params, nil, &response)
+	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, optionsGetMarketMakerProtectionEPL, http.MethodGet, "options/mmp", params, nil, &response)
 }
 
 // ResetOptionsMarketMakerProtection resets the market maker protection of an options underlying, unfreezing trading
@@ -486,5 +486,5 @@ func (e *Exchange) ResetOptionsMarketMakerProtection(ctx context.Context, underl
 		return nil, errInvalidUnderlying
 	}
 	var response *OptionsMarketMakerProtectionResponse
-	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, optionsResetMMPEPL, http.MethodPost, "options/mmp/reset", nil, map[string]string{"underlying": underlying}, &response)
+	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, optionsResetMarketMakerProtectionEPL, http.MethodPost, "options/mmp/reset", nil, map[string]string{"underlying": underlying}, &response)
 }

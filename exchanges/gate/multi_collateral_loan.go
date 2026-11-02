@@ -179,7 +179,7 @@ func (e *Exchange) GetMultiCollateralSupportedCurrencies(ctx context.Context) (*
 // GetMultiCollateralisationRatio retrieves the multi-currency collateral ratios, which are the same for every currency
 func (e *Exchange) GetMultiCollateralisationRatio(ctx context.Context) (*MultiCollateralisationRatioResponse, error) {
 	var resp *MultiCollateralisationRatioResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, loanMultiCollateralLtvEPL, "loan/multi_collateral/ltv", &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, loanMultiCollateralLoanToValueEPL, "loan/multi_collateral/ltv", &resp)
 }
 
 // GetMultiCollateralFixedRates retrieves each currency's 7-day and 30-day fixed interest rates

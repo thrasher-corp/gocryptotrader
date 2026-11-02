@@ -466,8 +466,9 @@ func (e *Exchange) GetCrossExchangeMarginPositions(ctx context.Context, symbol *
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, crossexMarginPositionsEPL, http.MethodGet, "crossex/margin_positions", params, nil, &resp)
 }
 
-// GetCrossExchangeADLRank retrieves the ADL (Auto-Deleveraging) position reduction ranking for a CrossEx symbol.
-func (e *Exchange) GetCrossExchangeADLRank(ctx context.Context, symbol *CrossExchangeSymbolIdentifierRequest) ([]*CrossExchangeADLRankResponse, error) {
+// GetCrossExchangeAutoDeleveragingRank retrieves the auto-deleveraging (ADL) position reduction ranking for a CrossEx
+// symbol.
+func (e *Exchange) GetCrossExchangeAutoDeleveragingRank(ctx context.Context, symbol *CrossExchangeSymbolIdentifierRequest) ([]*CrossExchangeAutoDeleveragingRankResponse, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -477,8 +478,8 @@ func (e *Exchange) GetCrossExchangeADLRank(ctx context.Context, symbol *CrossExc
 	}
 	params := url.Values{}
 	params.Set("symbol", formatted)
-	var resp []*CrossExchangeADLRankResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, crossexADLRankEPL, http.MethodGet, "crossex/adl_rank", params, nil, &resp)
+	var resp []*CrossExchangeAutoDeleveragingRankResponse
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, crossexAutoDeleveragingRankEPL, http.MethodGet, "crossex/adl_rank", params, nil, &resp)
 }
 
 // GetCrossExchangeOpenOrders retrieves all currently open CrossEx orders.

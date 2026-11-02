@@ -65,13 +65,14 @@ func (e *Exchange) GetFuturesContract(ctx context.Context, settle currency.Code,
 	return futureContract, e.SendHTTPRequest(ctx, exchange.RestSpot, publicFuturesContractsEPL, "futures/"+settle.Item.Lower+"/contracts/"+contract, &futureContract)
 }
 
-// GetFuturesADLRiskStates retrieves the auto-deleveraging risk state of every futures market of a settlement currency
-func (e *Exchange) GetFuturesADLRiskStates(ctx context.Context, settle currency.Code) (*FuturesADLRiskStatesResponse, error) {
+// GetFuturesAutoDeleveragingRiskStates retrieves the auto-deleveraging risk state of every futures market of a
+// settlement currency
+func (e *Exchange) GetFuturesAutoDeleveragingRiskStates(ctx context.Context, settle currency.Code) (*FuturesAutoDeleveragingRiskStatesResponse, error) {
 	if settle.IsEmpty() {
 		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
-	var resp *FuturesADLRiskStatesResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, publicFuturesADLRiskStatesEPL, "futures/"+settle.Item.Lower+"/adl_risk_states", &resp)
+	var resp *FuturesAutoDeleveragingRiskStatesResponse
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, publicFuturesAutoDeleveragingRiskStatesEPL, "futures/"+settle.Item.Lower+"/adl_risk_states", &resp)
 }
 
 // GetFuturesOrderbook retrieves futures order book data
@@ -1034,9 +1035,9 @@ func (e *Exchange) AmendBatchFuturesOrders(ctx context.Context, settle currency.
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualAmendBatchOrdersEPL, http.MethodPost, "futures/"+settle.Item.Lower+"/batch_amend_orders", nil, args, &resp)
 }
 
-// PlaceFuturesBBOOrder places a futures order priced at a level of the order book, the bids for a sell and the asks
-// for a buy
-func (e *Exchange) PlaceFuturesBBOOrder(ctx context.Context, settle currency.Code, arg *FuturesBBOOrderRequest) (*FuturesOrderResponse, error) {
+// PlaceFuturesBestBidOfferOrder places a futures order priced at a level of the order book, the bids for a sell and
+// the asks for a buy
+func (e *Exchange) PlaceFuturesBestBidOfferOrder(ctx context.Context, settle currency.Code, arg *FuturesBestBidOfferOrderRequest) (*FuturesOrderResponse, error) {
 	if settle.IsEmpty() {
 		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
@@ -1061,7 +1062,7 @@ func (e *Exchange) PlaceFuturesBBOOrder(ctx context.Context, settle currency.Cod
 		}
 	}
 	var resp *FuturesOrderResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualSubmitBBOOrderEPL, http.MethodPost, "futures/"+settle.Item.Lower+"/bbo_orders", nil, arg, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualSubmitBestBidOfferOrderEPL, http.MethodPost, "futures/"+settle.Item.Lower+"/bbo_orders", nil, arg, &resp)
 }
 
 // CreateTrailOrder creates a futures trailing stop order

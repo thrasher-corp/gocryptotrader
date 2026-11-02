@@ -101,8 +101,8 @@ func TestCrossExchangeSymbolIdentifierNil(t *testing.T) {
 	require.ErrorIs(t, symbol.Validate(), currency.ErrSymbolStringEmpty, "Validate must reject a nil identifier")
 	_, err := symbol.Format()
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty, "Format must reject a nil identifier")
-	_, err = e.GetCrossExchangeADLRank(t.Context(), nil)
-	assert.ErrorIs(t, err, currency.ErrSymbolStringEmpty, "GetCrossExchangeADLRank should reject a nil identifier")
+	_, err = e.GetCrossExchangeAutoDeleveragingRank(t.Context(), nil)
+	assert.ErrorIs(t, err, currency.ErrSymbolStringEmpty, "GetCrossExchangeAutoDeleveragingRank should reject a nil identifier")
 }
 
 func TestCrossExchangeSymbolIdentifierMarshalJSON(t *testing.T) {
@@ -399,7 +399,7 @@ func TestCreateCrossExchangeOrder(t *testing.T) {
 	_, err = e.CreateCrossExchangeOrder(t.Context(), &CrossExchangeOrderCreateRequest{Symbol: futureSymbol, Side: order.Buy, Quantity: 1})
 	require.ErrorIs(t, err, order.ErrPriceMustBeSetIfLimitOrder, "CreateCrossExchangeOrder must require a price for an order defaulting to limit")
 	_, err = e.CreateCrossExchangeOrder(t.Context(), &CrossExchangeOrderCreateRequest{Symbol: futureSymbol, Side: order.Buy, Quantity: 1, Price: 65000, TimeInForce: order.ImmediateOrCancel, RetailPriceImprovement: true})
-	require.ErrorIs(t, err, errCrossExchangeTimeInForceConflict, "CreateCrossExchangeOrder must reject RPI alongside another time in force")
+	require.ErrorIs(t, err, errCrossExchangeTimeInForceConflict, "CreateCrossExchangeOrder must reject retail price improvement alongside another time in force")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -1001,14 +1001,14 @@ func TestGetCrossExchangeUserFeeRates(t *testing.T) {
 				SpecialFeeList: []*CrossExchangeSpecialFee{},
 			},
 			{
-				ExchangeType:      "GATE",
-				SpotMakerFee:      0.0001,
-				SpotTakerFee:      0.00025,
-				SpotRPIMakerFee:   0.00005,
-				FutureMakerFee:    0.00006,
-				FutureTakerFee:    0.00022,
-				FutureRPIMakerFee: 0.00003,
-				SpecialFeeList:    []*CrossExchangeSpecialFee{{Symbol: "GATE_SPOT_FLOW_USDT", TakerFeeRate: 0.0004, MakerFeeRate: 0.0001, RPIFeeRate: 0.00002}},
+				ExchangeType:                         "GATE",
+				SpotMakerFee:                         0.0001,
+				SpotTakerFee:                         0.00025,
+				SpotRetailPriceImprovementMakerFee:   0.00005,
+				FutureMakerFee:                       0.00006,
+				FutureTakerFee:                       0.00022,
+				FutureRetailPriceImprovementMakerFee: 0.00003,
+				SpecialFeeList:                       []*CrossExchangeSpecialFee{{Symbol: "GATE_SPOT_FLOW_USDT", TakerFeeRate: 0.0004, MakerFeeRate: 0.0001, RetailPriceImprovementFeeRate: 0.00002}},
 			},
 		}
 		assert.Equal(t, exp, result, "GetCrossExchangeUserFeeRates should decode every field")
@@ -1110,25 +1110,25 @@ func TestGetCrossExchangeMarginPositions(t *testing.T) {
 	}
 }
 
-func TestGetCrossExchangeADLRank(t *testing.T) {
+func TestGetCrossExchangeAutoDeleveragingRank(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetCrossExchangeADLRank(t.Context(), &CrossExchangeSymbolIdentifierRequest{})
-	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty, "GetCrossExchangeADLRank must require a symbol")
-	_, err = e.GetCrossExchangeADLRank(t.Context(), &CrossExchangeSymbolIdentifierRequest{Exchange: "BINANCE", Asset: asset.Futures})
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetCrossExchangeADLRank must reject a symbol it cannot format")
+	_, err := e.GetCrossExchangeAutoDeleveragingRank(t.Context(), &CrossExchangeSymbolIdentifierRequest{})
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty, "GetCrossExchangeAutoDeleveragingRank must require a symbol")
+	_, err = e.GetCrossExchangeAutoDeleveragingRank(t.Context(), &CrossExchangeSymbolIdentifierRequest{Exchange: "BINANCE", Asset: asset.Futures})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetCrossExchangeAutoDeleveragingRank must reject a symbol it cannot format")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
 	symbol := newCrossExchangeSymbol("BINANCE", asset.Futures, currency.NewPair(currency.ADA, currency.USDT))
-	result, err := e.GetCrossExchangeADLRank(t.Context(), &symbol)
-	require.NoError(t, err, "GetCrossExchangeADLRank must not error")
+	result, err := e.GetCrossExchangeAutoDeleveragingRank(t.Context(), &symbol)
+	require.NoError(t, err, "GetCrossExchangeAutoDeleveragingRank must not error")
 	if mockTests {
-		exp := []*CrossExchangeADLRankResponse{{UserID: "111", Symbol: "BINANCE_FUTURE_ADA_USDT", CrossExchangeADLRank: 1, ExchangeADLRank: 1}}
-		assert.Equal(t, exp, result, "GetCrossExchangeADLRank should decode every field")
+		exp := []*CrossExchangeAutoDeleveragingRankResponse{{UserID: "111", Symbol: "BINANCE_FUTURE_ADA_USDT", CrossExchangeAutoDeleveragingRank: 1, ExchangeAutoDeleveragingRank: 1}}
+		assert.Equal(t, exp, result, "GetCrossExchangeAutoDeleveragingRank should decode every field")
 		return
 	}
-	assert.NotNil(t, result, "GetCrossExchangeADLRank should return the ranking")
+	assert.NotNil(t, result, "GetCrossExchangeAutoDeleveragingRank should return the ranking")
 }
 
 func TestGetCrossExchangeOpenOrders(t *testing.T) {

@@ -3264,7 +3264,8 @@ func validateFuturesAsset(a asset.Item) error {
 	}
 }
 
-// WebsocketSubmitOrders submits orders to the exchange through the websocket
+// WebsocketSubmitOrders places spot, margin, cross margin or perpetual futures orders of one asset in one websocket
+// batch request; Gate's websocket API cannot place delivery futures or options orders
 func (e *Exchange) WebsocketSubmitOrders(ctx context.Context, orders []*order.Submit) ([]*order.SubmitResponse, error) {
 	var a asset.Item
 	for _, ord := range orders {
@@ -3285,7 +3286,7 @@ func (e *Exchange) WebsocketSubmitOrders(ctx context.Context, orders []*order.Su
 	}
 
 	switch a {
-	case asset.Spot:
+	case asset.Spot, asset.Margin, asset.CrossMargin:
 		reqs := make([]*CreateOrderRequest, len(orders))
 		for i, ord := range orders {
 			if err := e.formatOrderClientIDAndPair(ord); err != nil {
@@ -3319,6 +3320,8 @@ func (e *Exchange) WebsocketSubmitOrders(ctx context.Context, orders []*order.Su
 			return nil, err
 		}
 		return e.deriveFuturesWebsocketOrderResponses(resp, a)
+	case asset.DeliveryFutures, asset.Options:
+		return nil, fmt.Errorf("%w: Gate cannot place %s orders in a batch over its websocket", common.ErrFunctionNotSupported, a)
 	default:
 		return nil, fmt.Errorf("%w: %s", asset.ErrNotSupported, a)
 	}

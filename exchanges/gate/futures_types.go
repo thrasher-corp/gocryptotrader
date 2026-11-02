@@ -76,14 +76,15 @@ type FuturesContractResponse struct {
 	IsPreMarket          bool         `json:"is_pre_market"`
 }
 
-// FuturesADLRiskStatesResponse holds the auto-deleveraging risk state of every futures market of a settlement currency
-type FuturesADLRiskStatesResponse struct {
-	Settle string                          `json:"settle"`
-	States map[string]*FuturesADLRiskState `json:"states"`
+// FuturesAutoDeleveragingRiskStatesResponse holds the auto-deleveraging risk state of every futures market of a
+// settlement currency
+type FuturesAutoDeleveragingRiskStatesResponse struct {
+	Settle string                                       `json:"settle"`
+	States map[string]*FuturesAutoDeleveragingRiskState `json:"states"`
 }
 
-// FuturesADLRiskState holds a futures market's auto-deleveraging risk state
-type FuturesADLRiskState struct {
+// FuturesAutoDeleveragingRiskState holds a futures market's auto-deleveraging risk state
+type FuturesAutoDeleveragingRiskState struct {
 	State        string     `json:"state"`
 	CalculatedAt types.Time `json:"calculated_at_ms"`
 }
@@ -351,8 +352,8 @@ type FuturesTradingFeeResponse struct {
 	MakerFee types.Number `json:"maker_fee"`
 }
 
-// FuturesBBOOrderRequest holds a futures order priced at a level of the order book
-type FuturesBBOOrderRequest struct {
+// FuturesBestBidOfferOrderRequest holds a futures order priced at a level of the order book
+type FuturesBestBidOfferOrderRequest struct {
 	Contract                  currency.Pair `json:"contract"`
 	Size                      int64         `json:"size"`      // positive buys, negative sells, zero closes a position
 	Direction                 string        `json:"direction"` // sell prices against the bids, buy against the asks

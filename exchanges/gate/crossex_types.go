@@ -109,12 +109,12 @@ type CrossExchangeSymbolResponse struct {
 	MaxMarketSize types.Number `json:"max_market_size"`
 	MaxLimitSize  types.Number `json:"max_limit_size"`
 	// Deprecated: Gate now uses quantity uniformly
-	ContractSize    types.Number  `json:"contract_size"`
-	LiquidationFee  types.Number  `json:"liquidation_fee"`
-	DefaultLeverage types.Number  `json:"default_leverage"` // Returned by the live API although undocumented
-	DelistTime      types.Time    `json:"delist_time"`
-	SupportRPI      types.Boolean `json:"support_rpi"`
-	SupportCross    types.Boolean `json:"support_cross"`
+	ContractSize                  types.Number  `json:"contract_size"`
+	LiquidationFee                types.Number  `json:"liquidation_fee"`
+	DefaultLeverage               types.Number  `json:"default_leverage"` // Returned by the live API although undocumented
+	DelistTime                    types.Time    `json:"delist_time"`
+	SupportRetailPriceImprovement types.Boolean `json:"support_rpi"`
+	SupportCross                  types.Boolean `json:"support_cross"`
 }
 
 // CrossExchangeRiskLimitTier holds a single risk limit tier for a CrossEx symbol.
@@ -415,22 +415,22 @@ type CrossExchangeInterestRateResponse struct {
 
 // CrossExchangeFeeResponse holds the fee rate information for a CrossEx exchange type.
 type CrossExchangeFeeResponse struct {
-	ExchangeType      string                     `json:"exchange_type"`
-	SpotMakerFee      types.Number               `json:"spot_maker_fee"`
-	SpotTakerFee      types.Number               `json:"spot_taker_fee"`
-	SpotRPIMakerFee   types.Number               `json:"spot_rpi_maker_fee"`
-	FutureMakerFee    types.Number               `json:"future_maker_fee"`
-	FutureTakerFee    types.Number               `json:"future_taker_fee"`
-	FutureRPIMakerFee types.Number               `json:"future_rpi_maker_fee"`
-	SpecialFeeList    []*CrossExchangeSpecialFee `json:"special_fee_list"`
+	ExchangeType                         string                     `json:"exchange_type"`
+	SpotMakerFee                         types.Number               `json:"spot_maker_fee"`
+	SpotTakerFee                         types.Number               `json:"spot_taker_fee"`
+	SpotRetailPriceImprovementMakerFee   types.Number               `json:"spot_rpi_maker_fee"`
+	FutureMakerFee                       types.Number               `json:"future_maker_fee"`
+	FutureTakerFee                       types.Number               `json:"future_taker_fee"`
+	FutureRetailPriceImprovementMakerFee types.Number               `json:"future_rpi_maker_fee"`
+	SpecialFeeList                       []*CrossExchangeSpecialFee `json:"special_fee_list"`
 }
 
 // CrossExchangeSpecialFee holds the special fee rates for a specific CrossEx symbol.
 type CrossExchangeSpecialFee struct {
-	Symbol       string       `json:"symbol"`
-	TakerFeeRate types.Number `json:"taker_fee_rate"`
-	MakerFeeRate types.Number `json:"maker_fee_rate"`
-	RPIFeeRate   types.Number `json:"rpi_fee_rate"`
+	Symbol                        string       `json:"symbol"`
+	TakerFeeRate                  types.Number `json:"taker_fee_rate"`
+	MakerFeeRate                  types.Number `json:"maker_fee_rate"`
+	RetailPriceImprovementFeeRate types.Number `json:"rpi_fee_rate"`
 }
 
 // CrossExchangePositionResponse holds a CrossEx contract position.
@@ -486,12 +486,13 @@ type CrossExchangeMarginPositionResponse struct {
 	UpdateTime          types.Time    `json:"update_time"`
 }
 
-// CrossExchangeADLRankResponse holds the ADL position reduction ranking for a CrossEx position.
-type CrossExchangeADLRankResponse struct {
-	UserID               string       `json:"user_id"`
-	Symbol               string       `json:"symbol"`
-	CrossExchangeADLRank types.Number `json:"crossex_adl_rank"`  // 1 to 5, with 5 reduced first
-	ExchangeADLRank      types.Number `json:"exchange_adl_rank"` // The venue's own ranking, whose order differs by venue
+// CrossExchangeAutoDeleveragingRankResponse holds the auto-deleveraging position reduction ranking for a CrossEx
+// position.
+type CrossExchangeAutoDeleveragingRankResponse struct {
+	UserID                            string       `json:"user_id"`
+	Symbol                            string       `json:"symbol"`
+	CrossExchangeAutoDeleveragingRank types.Number `json:"crossex_adl_rank"`  // 1 to 5, with 5 reduced first
+	ExchangeAutoDeleveragingRank      types.Number `json:"exchange_adl_rank"` // The venue's own ranking, whose order differs by venue
 }
 
 // GetCrossExchangeOpenOrdersRequest holds query parameters for the open orders endpoint.

@@ -336,22 +336,22 @@ type WalletSavedAddressResponse struct {
 
 // PersonalTradingFeeResponse represents personal trading fee for specific currency pair
 type PersonalTradingFeeResponse struct {
-	UserID                         uint64       `json:"user_id"`
-	TakerFee                       types.Number `json:"taker_fee"`
-	MakerFee                       types.Number `json:"maker_fee"`
-	RetailPriceImprovementMakerFee types.Number `json:"rpi_maker_fee"`
-	GTDiscount                     bool         `json:"gt_discount"`
-	GTTakerFee                     types.Number `json:"gt_taker_fee"`
-	GTMakerFee                     types.Number `json:"gt_maker_fee"`
-	LoanFee                        types.Number `json:"loan_fee"`
-	PointType                      string       `json:"point_type"`
-	FuturesTakerFee                types.Number `json:"futures_taker_fee"`
-	FuturesMakerFee                types.Number `json:"futures_maker_fee"`
-	FuturesRPIMakerFee             types.Number `json:"futures_rpi_maker_fee"`
-	DeliveryTakerFee               types.Number `json:"delivery_taker_fee"`
-	DeliveryMakerFee               types.Number `json:"delivery_maker_fee"`
-	FeeDeductionType               uint64       `json:"debit_fee"` // 1 - GT deduction, 2 - Point card deduction, 3 - VIP rates
-	RPIMarketMakerLevel            uint64       `json:"rpi_mm"`
+	UserID                                 uint64       `json:"user_id"`
+	TakerFee                               types.Number `json:"taker_fee"`
+	MakerFee                               types.Number `json:"maker_fee"`
+	RetailPriceImprovementMakerFee         types.Number `json:"rpi_maker_fee"`
+	GTDiscount                             bool         `json:"gt_discount"`
+	GTTakerFee                             types.Number `json:"gt_taker_fee"`
+	GTMakerFee                             types.Number `json:"gt_maker_fee"`
+	LoanFee                                types.Number `json:"loan_fee"`
+	PointType                              string       `json:"point_type"`
+	FuturesTakerFee                        types.Number `json:"futures_taker_fee"`
+	FuturesMakerFee                        types.Number `json:"futures_maker_fee"`
+	FuturesRetailPriceImprovementMakerFee  types.Number `json:"futures_rpi_maker_fee"`
+	DeliveryTakerFee                       types.Number `json:"delivery_taker_fee"`
+	DeliveryMakerFee                       types.Number `json:"delivery_maker_fee"`
+	DebitFee                               uint64       `json:"debit_fee"` // 1 - GT deduction, 2 - Point card deduction, 3 - VIP rates
+	RetailPriceImprovementMarketMakerLevel uint64       `json:"rpi_mm"`
 }
 
 // UsersAllAccountBalanceResponse represents user all account balances.
