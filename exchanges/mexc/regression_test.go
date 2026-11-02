@@ -2307,13 +2307,12 @@ func TestReferralAssetIsABracket(t *testing.T) {
 // back, and without the error the fake would answer it forever and the test would spin until go test's timeout.
 func refuseRepeatedWindows(next http.HandlerFunc) http.HandlerFunc {
 	var mu sync.Mutex
-	seen := make(map[string]bool)
+	seen := make(common.Seen[string])
 	return func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasSuffix(r.URL.Path, "/aggTrades") {
 			window := r.URL.Query().Get("startTime") + "-" + r.URL.Query().Get("endTime")
 			mu.Lock()
-			repeated := seen[window]
-			seen[window] = true
+			repeated := seen.CheckAndRecord(window)
 			mu.Unlock()
 			if repeated {
 				http.Error(w, `{"code":-1,"msg":"window `+window+` requested again"}`, http.StatusBadRequest)
