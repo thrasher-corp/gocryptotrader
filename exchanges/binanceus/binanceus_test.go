@@ -692,6 +692,40 @@ func TestGetSubaccountTransferHistory(t *testing.T) {
 	assert.Error(t, err, "GetSubaccountTransferHistory should return an error on a bogus email")
 }
 
+func TestSubaccountAndOpenOrderResponsesDecode(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.SkipAuthCheck = true
+	ex.SetCredentials(&accounts.Credentials{Key: "test-key", Secret: "test-secret"})
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		responses := map[string]string{
+			subaccountsInformation:    `{"success":true,"subAccounts":[{"email":"sub@example.com"}]}`,
+			subaccountTransferHistory: `{"success":true,"transfers":[{"asset":"BTC","qty":"2"}]}`,
+			openOrders:                `[{"symbol":"BTCUSDT","orderId":7}]`,
+		}
+		_, err := w.Write([]byte(responses[r.URL.Path]))
+		assert.NoError(t, err, "response should be written")
+	}))
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpotSupplementary.String(), server.URL), "SetRunningURL must not error")
+
+	subaccounts, err := ex.GetSubaccountInformation(t.Context(), 0, 0, "", "")
+	require.NoError(t, err, "GetSubaccountInformation must not error")
+	require.Len(t, subaccounts, 1, "GetSubaccountInformation must return one sub-account")
+	assert.Equal(t, "sub@example.com", subaccounts[0].Email, "GetSubaccountInformation should decode the email")
+
+	transfers, err := ex.GetSubaccountTransferHistory(t.Context(), "sub@example.com", 0, 0, 0, 0)
+	require.NoError(t, err, "GetSubaccountTransferHistory must not error")
+	require.Len(t, transfers, 1, "GetSubaccountTransferHistory must return one transfer")
+	assert.Equal(t, uint64(2), transfers[0].Qty, "GetSubaccountTransferHistory should decode the quantity")
+
+	orders, err := ex.CancelOpenOrdersForSymbol(t.Context(), "BTCUSDT")
+	require.NoError(t, err, "CancelOpenOrdersForSymbol must not error")
+	require.Len(t, orders, 1, "CancelOpenOrdersForSymbol must return one order")
+	assert.Equal(t, uint64(7), orders[0].OrderID, "CancelOpenOrdersForSymbol should decode the order ID")
+}
+
 func TestExecuteSubAccountTransfer(t *testing.T) {
 	t.Parallel()
 	_, err := e.ExecuteSubAccountTransfer(t.Context(), &SubAccountTransferRequestParams{})
