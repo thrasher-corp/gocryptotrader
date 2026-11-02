@@ -1491,7 +1491,7 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 	ed := r.EndDate
 
 	var fundingRates []fundingrate.Rate
-	mfr := make(map[int64]struct{})
+	mfr := make(common.Seen[int64])
 	for ed.After(r.StartDate) {
 		var records []FundingRateHistory
 		if e.Websocket.IsConnected() {
@@ -1502,7 +1502,7 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 		if err != nil {
 			return nil, err
 		}
-		if len(records) == 0 || ed.Equal(records[0].Timestamp.Time()) {
+		if len(records) == 0 {
 			break
 		}
 		for i := range records {
@@ -1510,16 +1510,20 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 			if rt.Before(r.StartDate) || rt.After(r.EndDate) {
 				continue
 			}
-			if _, ok := mfr[rt.UnixMilli()]; ok {
+			if mfr.CheckAndRecord(rt.UnixMilli()) {
 				continue
 			}
 			fundingRates = append(fundingRates, fundingrate.Rate{
 				Rate: decimal.MustFromFloat(records[i].Interest1Hour),
 				Time: rt,
 			})
-			mfr[rt.UnixMilli()] = struct{}{}
 		}
-		ed = records[0].Timestamp.Time()
+		nextEnd := records[0].Timestamp.Time()
+		// Retain an unseen boundary record before stopping a page that cannot advance.
+		if !nextEnd.Before(ed) {
+			break
+		}
+		ed = nextEnd
 	}
 	if len(fundingRates) == 0 {
 		return nil, fundingrate.ErrNoFundingRatesFound

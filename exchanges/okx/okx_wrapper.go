@@ -3289,7 +3289,7 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 	// the requested window floor.
 	sd := r.StartDate
 	afterTS := r.EndDate
-	seen := make(map[int64]struct{})
+	seen := make(common.Seen[int64])
 	for {
 		var frh []FundingRateResponse
 		frh, err = e.GetFundingRateHistory(ctx, fPair.String(), sd, afterTS, int64(requestLimit))
@@ -3301,10 +3301,9 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 		}
 		for i := range frh {
 			ft := frh[i].FundingTime.Time().Unix()
-			if _, dup := seen[ft]; dup {
+			if seen.CheckAndRecord(ft) {
 				continue
 			}
-			seen[ft] = struct{}{}
 			if r.IncludePayments {
 				mti[ft] = len(pairRate.FundingRates)
 			}
@@ -4009,17 +4008,16 @@ func (e *Exchange) optionInstrumentFamilies(ctx context.Context) ([]string, erro
 	if err != nil {
 		return nil, err
 	}
-	seen := make(map[string]struct{}, len(tickBands))
+	seen := make(common.Seen[string], len(tickBands))
 	families := make([]string, 0, len(tickBands))
 	for i := range tickBands {
 		family := tickBands[i].InstrumentFamily
 		if family == "" {
 			continue
 		}
-		if _, alreadySeen := seen[family]; alreadySeen {
+		if seen.CheckAndRecord(family) {
 			continue
 		}
-		seen[family] = struct{}{}
 		families = append(families, family)
 	}
 	if len(families) == 0 {
