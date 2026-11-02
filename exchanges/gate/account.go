@@ -30,52 +30,54 @@ func (e *Exchange) GetUserTransactionRateLimitInfo(ctx context.Context) ([]*User
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, accountRateLimitEPL, http.MethodGet, "account/rate_limit", nil, nil, &resp)
 }
 
-// CreateSelfTradePreventionUserGroup creates an STP user group. Only the main account can create groups
-func (e *Exchange) CreateSelfTradePreventionUserGroup(ctx context.Context, name string) (*STPUserGroupResponse, error) {
+// CreateSelfTradePreventionUserGroup creates a self-trade prevention user group, which only the main account can do
+func (e *Exchange) CreateSelfTradePreventionUserGroup(ctx context.Context, name string) (*SelfTradePreventionUserGroupResponse, error) {
 	if name == "" {
-		return nil, errSTPGroupNameRequired
+		return nil, errSelfTradePreventionGroupNameRequired
 	}
-	var resp *STPUserGroupResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, accountCreateSTPGroupEPL, http.MethodPost, "account/stp_groups", nil, map[string]string{"name": name}, &resp)
+	var resp *SelfTradePreventionUserGroupResponse
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, accountCreateSelfTradePreventionGroupEPL, http.MethodPost, "account/stp_groups", nil, map[string]string{"name": name}, &resp)
 }
 
-// GetUserSelfTradePreventionGroups retrieves the STP user groups created by the main account, fuzzy matched by name
-// when it is set
-func (e *Exchange) GetUserSelfTradePreventionGroups(ctx context.Context, name string) ([]*STPUserGroupResponse, error) {
+// GetUserSelfTradePreventionGroups retrieves the self-trade prevention user groups created by the main account, fuzzy
+// matched by name when it is set
+func (e *Exchange) GetUserSelfTradePreventionGroups(ctx context.Context, name string) ([]*SelfTradePreventionUserGroupResponse, error) {
 	params := url.Values{}
 	if name != "" {
 		params.Set("name", name)
 	}
-	var resp []*STPUserGroupResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, accountListSTPGroupsEPL, http.MethodGet, "account/stp_groups", params, nil, &resp)
+	var resp []*SelfTradePreventionUserGroupResponse
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, accountListSelfTradePreventionGroupsEPL, http.MethodGet, "account/stp_groups", params, nil, &resp)
 }
 
-// GetUsersInSTPUserGroup retrieves the users in an STP user group created by the main account
-func (e *Exchange) GetUsersInSTPUserGroup(ctx context.Context, stpID uint64) ([]*STPUserGroupMemberResponse, error) {
-	if stpID == 0 {
-		return nil, errSTPGroupIDRequired
+// GetUsersInSelfTradePreventionUserGroup retrieves the users in a self-trade prevention user group created by the main
+// account
+func (e *Exchange) GetUsersInSelfTradePreventionUserGroup(ctx context.Context, groupID uint64) ([]*SelfTradePreventionUserGroupMemberResponse, error) {
+	if groupID == 0 {
+		return nil, errSelfTradePreventionGroupIDRequired
 	}
-	var resp []*STPUserGroupMemberResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, accountListSTPGroupUsersEPL, http.MethodGet, "account/stp_groups/"+strconv.FormatUint(stpID, 10)+"/users", nil, nil, &resp)
+	var resp []*SelfTradePreventionUserGroupMemberResponse
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, accountListSelfTradePreventionGroupUsersEPL, http.MethodGet, "account/stp_groups/"+strconv.FormatUint(groupID, 10)+"/users", nil, nil, &resp)
 }
 
-// AddUsersToSTPUserGroup adds accounts under the main account to an STP user group and returns the group's users
-func (e *Exchange) AddUsersToSTPUserGroup(ctx context.Context, stpID uint64, userIDs []uint64) ([]*STPUserGroupMemberResponse, error) {
-	if stpID == 0 {
-		return nil, errSTPGroupIDRequired
+// AddUsersToSelfTradePreventionUserGroup adds accounts under the main account to a self-trade prevention user group and
+// returns the group's users
+func (e *Exchange) AddUsersToSelfTradePreventionUserGroup(ctx context.Context, groupID uint64, userIDs []uint64) ([]*SelfTradePreventionUserGroupMemberResponse, error) {
+	if groupID == 0 {
+		return nil, errSelfTradePreventionGroupIDRequired
 	}
 	if len(userIDs) == 0 || slices.Contains(userIDs, 0) {
 		return nil, errUserIDRequired
 	}
-	var resp []*STPUserGroupMemberResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, accountAddSTPGroupUsersEPL, http.MethodPost, "account/stp_groups/"+strconv.FormatUint(stpID, 10)+"/users", nil, userIDs, &resp)
+	var resp []*SelfTradePreventionUserGroupMemberResponse
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, accountAddSelfTradePreventionGroupUsersEPL, http.MethodPost, "account/stp_groups/"+strconv.FormatUint(groupID, 10)+"/users", nil, userIDs, &resp)
 }
 
-// DeleteUserFromSTPUserGroup removes accounts under the main account from an STP user group and returns the group's
-// remaining users
-func (e *Exchange) DeleteUserFromSTPUserGroup(ctx context.Context, stpID uint64, userIDs []uint64) ([]*STPUserGroupMemberResponse, error) {
-	if stpID == 0 {
-		return nil, errSTPGroupIDRequired
+// DeleteUserFromSelfTradePreventionUserGroup removes accounts under the main account from a self-trade prevention user
+// group and returns the group's remaining users
+func (e *Exchange) DeleteUserFromSelfTradePreventionUserGroup(ctx context.Context, groupID uint64, userIDs []uint64) ([]*SelfTradePreventionUserGroupMemberResponse, error) {
+	if groupID == 0 {
+		return nil, errSelfTradePreventionGroupIDRequired
 	}
 	if len(userIDs) == 0 || slices.Contains(userIDs, 0) {
 		return nil, errUserIDRequired
@@ -86,8 +88,8 @@ func (e *Exchange) DeleteUserFromSTPUserGroup(ctx context.Context, stpID uint64,
 	}
 	params := url.Values{}
 	params.Set("user_id", strings.Join(ids, ","))
-	var resp []*STPUserGroupMemberResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, accountDeleteSTPGroupUsersEPL, http.MethodDelete, "account/stp_groups/"+strconv.FormatUint(stpID, 10)+"/users", params, nil, &resp)
+	var resp []*SelfTradePreventionUserGroupMemberResponse
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, accountDeleteSelfTradePreventionGroupUsersEPL, http.MethodDelete, "account/stp_groups/"+strconv.FormatUint(groupID, 10)+"/users", params, nil, &resp)
 }
 
 // ConfigureGTFeeDeduction enables or disables GT fee deduction for the current account

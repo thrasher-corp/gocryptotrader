@@ -51,17 +51,17 @@ type UserTransactionRateLimitInfoResponse struct {
 	UpdatedAt types.Time   `json:"updated_at"`
 }
 
-// STPUserGroupResponse holds self-trade prevention user group
-type STPUserGroupResponse struct {
+// SelfTradePreventionUserGroupResponse holds a self-trade prevention user group
+type SelfTradePreventionUserGroupResponse struct {
 	ID         uint64     `json:"id"`
 	Name       string     `json:"name"`
 	CreatorID  uint64     `json:"creator_id"`
 	CreateTime types.Time `json:"create_time"`
 }
 
-// STPUserGroupMemberResponse holds STP user group member detail
-type STPUserGroupMemberResponse struct {
-	UserID     uint64     `json:"user_id"`
-	STPID      uint64     `json:"stp_id"`
-	CreateTime types.Time `json:"create_time"`
+// SelfTradePreventionUserGroupMemberResponse holds a self-trade prevention user group member
+type SelfTradePreventionUserGroupMemberResponse struct {
+	UserID                uint64     `json:"user_id"`
+	SelfTradePreventionID uint64     `json:"stp_id"`
+	CreateTime            types.Time `json:"create_time"`
 }

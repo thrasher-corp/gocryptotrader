@@ -87,7 +87,7 @@ func TestGetUserTransactionRateLimitInfo(t *testing.T) {
 func TestCreateSelfTradePreventionUserGroup(t *testing.T) {
 	t.Parallel()
 	_, err := e.CreateSelfTradePreventionUserGroup(t.Context(), "")
-	require.ErrorIs(t, err, errSTPGroupNameRequired, "CreateSelfTradePreventionUserGroup must reject an empty name")
+	require.ErrorIs(t, err, errSelfTradePreventionGroupNameRequired, "CreateSelfTradePreventionUserGroup must reject an empty name")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -95,7 +95,7 @@ func TestCreateSelfTradePreventionUserGroup(t *testing.T) {
 	result, err := e.CreateSelfTradePreventionUserGroup(t.Context(), "stp_groups")
 	require.NoError(t, err, "CreateSelfTradePreventionUserGroup must not error")
 	if mockTests {
-		exp := &STPUserGroupResponse{ID: 123435, Name: "stp_groups", CreatorID: 10000, CreateTime: types.Time(time.Unix(1548000000, 0))}
+		exp := &SelfTradePreventionUserGroupResponse{ID: 123435, Name: "stp_groups", CreatorID: 10000, CreateTime: types.Time(time.Unix(1548000000, 0))}
 		assert.Equal(t, exp, result, "CreateSelfTradePreventionUserGroup should decode every field")
 	}
 }
@@ -108,54 +108,54 @@ func TestGetUserSelfTradePreventionGroups(t *testing.T) {
 	result, err := e.GetUserSelfTradePreventionGroups(t.Context(), "thrasher")
 	require.NoError(t, err, "GetUserSelfTradePreventionGroups must not error")
 	if mockTests {
-		exp := []*STPUserGroupResponse{{ID: 123435, Name: "thrasher", CreatorID: 10000, CreateTime: types.Time(time.Unix(1548000000, 0))}}
+		exp := []*SelfTradePreventionUserGroupResponse{{ID: 123435, Name: "thrasher", CreatorID: 10000, CreateTime: types.Time(time.Unix(1548000000, 0))}}
 		assert.Equal(t, exp, result, "GetUserSelfTradePreventionGroups should decode every field")
 		return
 	}
 	assert.NotNil(t, result, "GetUserSelfTradePreventionGroups should return groups")
 }
 
-func TestGetUsersInSTPUserGroup(t *testing.T) {
+func TestGetUsersInSelfTradePreventionUserGroup(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetUsersInSTPUserGroup(t.Context(), 0)
-	require.ErrorIs(t, err, errSTPGroupIDRequired, "GetUsersInSTPUserGroup must reject an empty group ID")
+	_, err := e.GetUsersInSelfTradePreventionUserGroup(t.Context(), 0)
+	require.ErrorIs(t, err, errSelfTradePreventionGroupIDRequired, "GetUsersInSelfTradePreventionUserGroup must reject an empty group ID")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetUsersInSTPUserGroup(t.Context(), 1)
-	require.NoError(t, err, "GetUsersInSTPUserGroup must not error")
+	result, err := e.GetUsersInSelfTradePreventionUserGroup(t.Context(), 1)
+	require.NoError(t, err, "GetUsersInSelfTradePreventionUserGroup must not error")
 	if mockTests {
-		exp := []*STPUserGroupMemberResponse{{UserID: 10000, STPID: 1, CreateTime: types.Time(time.Unix(1548000000, 0))}}
-		assert.Equal(t, exp, result, "GetUsersInSTPUserGroup should decode every field")
+		exp := []*SelfTradePreventionUserGroupMemberResponse{{UserID: 10000, SelfTradePreventionID: 1, CreateTime: types.Time(time.Unix(1548000000, 0))}}
+		assert.Equal(t, exp, result, "GetUsersInSelfTradePreventionUserGroup should decode every field")
 		return
 	}
-	assert.NotNil(t, result, "GetUsersInSTPUserGroup should return users")
+	assert.NotNil(t, result, "GetUsersInSelfTradePreventionUserGroup should return users")
 }
 
-func TestAddUsersToSTPUserGroup(t *testing.T) {
+func TestAddUsersToSelfTradePreventionUserGroup(t *testing.T) {
 	t.Parallel()
-	_, err := e.AddUsersToSTPUserGroup(t.Context(), 0, []uint64{12312312})
-	require.ErrorIs(t, err, errSTPGroupIDRequired, "AddUsersToSTPUserGroup must reject an empty group ID")
+	_, err := e.AddUsersToSelfTradePreventionUserGroup(t.Context(), 0, []uint64{12312312})
+	require.ErrorIs(t, err, errSelfTradePreventionGroupIDRequired, "AddUsersToSelfTradePreventionUserGroup must reject an empty group ID")
 
-	_, err = e.AddUsersToSTPUserGroup(t.Context(), 2123, nil)
-	require.ErrorIs(t, err, errUserIDRequired, "AddUsersToSTPUserGroup must reject an empty user list")
+	_, err = e.AddUsersToSelfTradePreventionUserGroup(t.Context(), 2123, nil)
+	require.ErrorIs(t, err, errUserIDRequired, "AddUsersToSelfTradePreventionUserGroup must reject an empty user list")
 
-	_, err = e.AddUsersToSTPUserGroup(t.Context(), 2123, []uint64{12312312, 0})
-	require.ErrorIs(t, err, errUserIDRequired, "AddUsersToSTPUserGroup must reject an empty user ID")
+	_, err = e.AddUsersToSelfTradePreventionUserGroup(t.Context(), 2123, []uint64{12312312, 0})
+	require.ErrorIs(t, err, errUserIDRequired, "AddUsersToSelfTradePreventionUserGroup must reject an empty user ID")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-		result, err := e.AddUsersToSTPUserGroup(t.Context(), 1, []uint64{12312312, 2132234232})
-		require.NoError(t, err, "AddUsersToSTPUserGroup must not error")
-		assert.NotEmpty(t, result, "AddUsersToSTPUserGroup should return the group's users")
+		result, err := e.AddUsersToSelfTradePreventionUserGroup(t.Context(), 1, []uint64{12312312, 2132234232})
+		require.NoError(t, err, "AddUsersToSelfTradePreventionUserGroup must not error")
+		assert.NotEmpty(t, result, "AddUsersToSelfTradePreventionUserGroup should return the group's users")
 		return
 	}
 
 	// The recorded mock server cannot match a body that is an array of numbers, so a test server checks the request
 	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, http.MethodPost, r.Method, "request method should be POST")
-		assert.Equal(t, "/api/v4/account/stp_groups/1/users", r.URL.Path, "request path should name the STP group")
+		assert.Equal(t, "/api/v4/account/stp_groups/1/users", r.URL.Path, "request path should name the self-trade prevention group")
 		body, err := io.ReadAll(r.Body)
 		assert.NoError(t, err, "reading the request body should not error")
 		assert.JSONEq(t, `[12312312,2132234232]`, string(body), "request body should list the user IDs")
@@ -169,34 +169,34 @@ func TestAddUsersToSTPUserGroup(t *testing.T) {
 	ex.API.AuthenticatedSupport = true
 	ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
 
-	result, err := ex.AddUsersToSTPUserGroup(t.Context(), 1, []uint64{12312312, 2132234232})
-	require.NoError(t, err, "AddUsersToSTPUserGroup must not error")
-	exp := []*STPUserGroupMemberResponse{
-		{UserID: 12312312, STPID: 1, CreateTime: types.Time(time.Unix(1548000000, 0))},
-		{UserID: 2132234232, STPID: 1, CreateTime: types.Time(time.Unix(1548000001, 0))},
+	result, err := ex.AddUsersToSelfTradePreventionUserGroup(t.Context(), 1, []uint64{12312312, 2132234232})
+	require.NoError(t, err, "AddUsersToSelfTradePreventionUserGroup must not error")
+	exp := []*SelfTradePreventionUserGroupMemberResponse{
+		{UserID: 12312312, SelfTradePreventionID: 1, CreateTime: types.Time(time.Unix(1548000000, 0))},
+		{UserID: 2132234232, SelfTradePreventionID: 1, CreateTime: types.Time(time.Unix(1548000001, 0))},
 	}
-	assert.Equal(t, exp, result, "AddUsersToSTPUserGroup should decode every field")
+	assert.Equal(t, exp, result, "AddUsersToSelfTradePreventionUserGroup should decode every field")
 }
 
-func TestDeleteUserFromSTPUserGroup(t *testing.T) {
+func TestDeleteUserFromSelfTradePreventionUserGroup(t *testing.T) {
 	t.Parallel()
-	_, err := e.DeleteUserFromSTPUserGroup(t.Context(), 0, []uint64{12312312})
-	require.ErrorIs(t, err, errSTPGroupIDRequired, "DeleteUserFromSTPUserGroup must reject an empty group ID")
+	_, err := e.DeleteUserFromSelfTradePreventionUserGroup(t.Context(), 0, []uint64{12312312})
+	require.ErrorIs(t, err, errSelfTradePreventionGroupIDRequired, "DeleteUserFromSelfTradePreventionUserGroup must reject an empty group ID")
 
-	_, err = e.DeleteUserFromSTPUserGroup(t.Context(), 2123, nil)
-	require.ErrorIs(t, err, errUserIDRequired, "DeleteUserFromSTPUserGroup must reject an empty user list")
+	_, err = e.DeleteUserFromSelfTradePreventionUserGroup(t.Context(), 2123, nil)
+	require.ErrorIs(t, err, errUserIDRequired, "DeleteUserFromSelfTradePreventionUserGroup must reject an empty user list")
 
-	_, err = e.DeleteUserFromSTPUserGroup(t.Context(), 2123, []uint64{0})
-	require.ErrorIs(t, err, errUserIDRequired, "DeleteUserFromSTPUserGroup must reject an empty user ID")
+	_, err = e.DeleteUserFromSelfTradePreventionUserGroup(t.Context(), 2123, []uint64{0})
+	require.ErrorIs(t, err, errUserIDRequired, "DeleteUserFromSelfTradePreventionUserGroup must reject an empty user ID")
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	result, err := e.DeleteUserFromSTPUserGroup(t.Context(), 1, []uint64{12312312, 2132234232})
-	require.NoError(t, err, "DeleteUserFromSTPUserGroup must not error")
+	result, err := e.DeleteUserFromSelfTradePreventionUserGroup(t.Context(), 1, []uint64{12312312, 2132234232})
+	require.NoError(t, err, "DeleteUserFromSelfTradePreventionUserGroup must not error")
 	if mockTests {
-		exp := []*STPUserGroupMemberResponse{{UserID: 10000, STPID: 1, CreateTime: types.Time(time.Unix(1548000000, 0))}}
-		assert.Equal(t, exp, result, "DeleteUserFromSTPUserGroup should decode every field")
+		exp := []*SelfTradePreventionUserGroupMemberResponse{{UserID: 10000, SelfTradePreventionID: 1, CreateTime: types.Time(time.Unix(1548000000, 0))}}
+		assert.Equal(t, exp, result, "DeleteUserFromSelfTradePreventionUserGroup should decode every field")
 	}
 }
 

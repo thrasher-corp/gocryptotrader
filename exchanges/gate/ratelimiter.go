@@ -99,11 +99,11 @@ const (
 	accountDetailEPL
 	accountMainKeysEPL
 	accountRateLimitEPL
-	accountCreateSTPGroupEPL
-	accountListSTPGroupsEPL
-	accountListSTPGroupUsersEPL
-	accountAddSTPGroupUsersEPL
-	accountDeleteSTPGroupUsersEPL
+	accountCreateSelfTradePreventionGroupEPL
+	accountListSelfTradePreventionGroupsEPL
+	accountListSelfTradePreventionGroupUsersEPL
+	accountAddSelfTradePreventionGroupUsersEPL
+	accountDeleteSelfTradePreventionGroupUsersEPL
 	accountSetDebitFeeEPL
 	accountGetDebitFeeEPL
 
@@ -608,16 +608,16 @@ var packageRateLimits = request.RateLimitDefinitions{
 	subAccountUnlockEPL:      personalAccountRateLimit(),
 	subAccountUnifiedModeEPL: personalAccountRateLimit(),
 
-	accountDetailEPL:              otherPrivateEndpointRateLimit(),
-	accountMainKeysEPL:            otherPrivateEndpointRateLimit(),
-	accountRateLimitEPL:           otherPrivateEndpointRateLimit(),
-	accountCreateSTPGroupEPL:      otherPrivateEndpointRateLimit(),
-	accountListSTPGroupsEPL:       otherPrivateEndpointRateLimit(),
-	accountListSTPGroupUsersEPL:   otherPrivateEndpointRateLimit(),
-	accountAddSTPGroupUsersEPL:    otherPrivateEndpointRateLimit(),
-	accountDeleteSTPGroupUsersEPL: otherPrivateEndpointRateLimit(),
-	accountSetDebitFeeEPL:         otherPrivateEndpointRateLimit(),
-	accountGetDebitFeeEPL:         otherPrivateEndpointRateLimit(),
+	accountDetailEPL:                              otherPrivateEndpointRateLimit(),
+	accountMainKeysEPL:                            otherPrivateEndpointRateLimit(),
+	accountRateLimitEPL:                           otherPrivateEndpointRateLimit(),
+	accountCreateSelfTradePreventionGroupEPL:      otherPrivateEndpointRateLimit(),
+	accountListSelfTradePreventionGroupsEPL:       otherPrivateEndpointRateLimit(),
+	accountListSelfTradePreventionGroupUsersEPL:   otherPrivateEndpointRateLimit(),
+	accountAddSelfTradePreventionGroupUsersEPL:    otherPrivateEndpointRateLimit(),
+	accountDeleteSelfTradePreventionGroupUsersEPL: otherPrivateEndpointRateLimit(),
+	accountSetDebitFeeEPL:                         otherPrivateEndpointRateLimit(),
+	accountGetDebitFeeEPL:                         otherPrivateEndpointRateLimit(),
 
 	spotTradingFeeEPL:          standardRateLimit(),
 	spotAccountsEPL:            standardRateLimit(),

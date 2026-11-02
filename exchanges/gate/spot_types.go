@@ -248,21 +248,21 @@ type SpotOrderResponse struct {
 	FeeDeducted       types.Number  `json:"fee"`
 	FeeCurrency       currency.Code `json:"fee_currency"`
 	// Deprecated: use FilledTotal
-	FillPrice          types.Number   `json:"fill_price"`
-	FilledTotal        types.Number   `json:"filled_total"` // Total filled in quote currency
-	PointFee           types.Number   `json:"point_fee"`
-	GTFee              types.Number   `json:"gt_fee,omitempty"`
-	GTDiscount         bool           `json:"gt_discount"`
-	GTMakerFee         types.Number   `json:"gt_maker_fee"`
-	GTTakerFee         types.Number   `json:"gt_taker_fee"`
-	RebatedFee         types.Number   `json:"rebated_fee"`
-	RebatedFeeCurrency currency.Code  `json:"rebated_fee_currency"`
-	STPID              uint64         `json:"stp_id"`
-	STPAction          string         `json:"stp_act"`
-	FinishAs           string         `json:"finish_as"`
-	Slippage           types.Number   `json:"slippage"`
-	StopProfit         *SpotOrderTPSL `json:"stop_profit"`
-	StopLoss           *SpotOrderTPSL `json:"stop_loss"`
+	FillPrice                 types.Number   `json:"fill_price"`
+	FilledTotal               types.Number   `json:"filled_total"` // Total filled in quote currency
+	PointFee                  types.Number   `json:"point_fee"`
+	GTFee                     types.Number   `json:"gt_fee,omitempty"`
+	GTDiscount                bool           `json:"gt_discount"`
+	GTMakerFee                types.Number   `json:"gt_maker_fee"`
+	GTTakerFee                types.Number   `json:"gt_taker_fee"`
+	RebatedFee                types.Number   `json:"rebated_fee"`
+	RebatedFeeCurrency        currency.Code  `json:"rebated_fee_currency"`
+	SelfTradePreventionID     uint64         `json:"stp_id"`
+	SelfTradePreventionAction string         `json:"stp_act"`
+	FinishAs                  string         `json:"finish_as"`
+	Slippage                  types.Number   `json:"slippage"`
+	StopProfit                *SpotOrderTPSL `json:"stop_profit"`
+	StopLoss                  *SpotOrderTPSL `json:"stop_loss"`
 }
 
 // SpotOrdersDetailResponse represents list of orders for specific currency pair
