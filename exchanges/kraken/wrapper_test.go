@@ -4828,6 +4828,148 @@ func TestCancelAllOrdersSideAndType(t *testing.T) {
 		assert.Len(t, resp.Status, 50, "CancelAllOrders should report the outcomes of the batch sent before the failed one")
 	})
 
+	t.Run("pairs missing from the available pairs, named", func(t *testing.T) {
+		t.Parallel()
+		// Of the pairs these orders are on, XBT/USD, TGBP/USD unless a row says otherwise, and PF_XBTUSD alone are
+		// available: the other spot pairs stand for those Kraken lists as cancel only or post only, modelled here with open
+		// orders, such as OBOL/USD and XBT/USDR, which it keys XXBTUSDR
+		const spotOrders = `{"error":[],"result":{"open":{` +
+			`"OSELL-LIMIT-WAVES":{"status":"open","opentm":1791421234.5512,"descr":{"pair":"WAVESUSD","type":"sell","ordertype":"limit","price":"1.2250"},"vol":"500","vol_exec":"0"},` +
+			`"OBUY-STOP-WAVES":{"status":"open","opentm":1791421234.5512,"descr":{"pair":"WAVESUSD","type":"buy","ordertype":"stop-loss","price":"1.5000"},"vol":"500","vol_exec":"0"},` +
+			`"OSELL-LIMIT-WAVESEUR":{"status":"open","opentm":1791421234.5512,"descr":{"pair":"WAVESEUR","type":"sell","ordertype":"limit","price":"1.1000"},"vol":"500","vol_exec":"0"},` +
+			`"OSELL-LIMIT-ICX":{"status":"open","opentm":1791421234.5512,"descr":{"pair":"ICXUSD","type":"sell","ordertype":"limit","price":"0.1500"},"vol":"500","vol_exec":"0"},` +
+			`"OSELL-LIMIT-SCA":{"status":"open","opentm":1791421234.5512,"descr":{"pair":"SCAUSD","type":"sell","ordertype":"limit","price":"0.0500"},"vol":"500","vol_exec":"0"},` +
+			`"OSELL-LIMIT-USDTGBP":{"status":"open","opentm":1791421234.5512,"descr":{"pair":"USDTGBP","type":"sell","ordertype":"limit","price":"0.7600"},"vol":"500","vol_exec":"0"},` +
+			`"OSELL-LIMIT-TGBP":{"status":"open","opentm":1791421234.5512,"descr":{"pair":"TGBPUSD","type":"sell","ordertype":"limit","price":"1.3100"},"vol":"500","vol_exec":"0"},` +
+			`"OSELL-LIMIT-XBTUSDR":{"status":"open","opentm":1791421234.5512,"descr":{"pair":"XBTUSDR","type":"sell","ordertype":"limit","price":"81000"},"vol":"1","vol_exec":"0"},` +
+			`"OSELL-LIMIT-OBOL":{"status":"open","opentm":1791421234.5512,"descr":{"pair":"OBOLUSD","type":"sell","ordertype":"limit","price":"0.3000"},"vol":"500","vol_exec":"0"},` +
+			`"OSELL-LIMIT-OBOLUSDT":{"status":"open","opentm":1791421234.5512,"descr":{"pair":"OBOLUSDT","type":"sell","ordertype":"limit","price":"0.3000"},"vol":"500","vol_exec":"0"},` +
+			`"OSELL-LIMIT-IR":{"status":"open","opentm":1791421234.5512,"descr":{"pair":"IRUSD","type":"sell","ordertype":"limit","price":"0.0200"},"vol":"500","vol_exec":"0"},` +
+			`"OSELL-LIMIT-MIR":{"status":"open","opentm":1791421234.5512,"descr":{"pair":"MIRUSD","type":"sell","ordertype":"limit","price":"0.0100"},"vol":"500","vol_exec":"0"},` +
+			`"OBUY-LIMIT-XBT":{"status":"open","opentm":1791421234.5512,"descr":{"pair":"XBTUSD","type":"buy","ordertype":"limit","price":"80000"},"vol":"1","vol_exec":"0"}}}}`
+		const assetPairs = `{"error":[],"result":{` +
+			`"WAVESUSD":{"altname":"WAVESUSD","wsname":"WAVES/USD","status":"cancel_only"},` +
+			`"WAVESEUR":{"altname":"WAVESEUR","wsname":"WAVES/EUR","status":"cancel_only"},` +
+			`"ICXUSD":{"altname":"ICXUSD","wsname":"ICX/USD","status":"cancel_only"},` +
+			`"SCAUSD":{"altname":"SCAUSD","wsname":"SCA/USD","status":"cancel_only"},` +
+			`"USDTGBP":{"altname":"USDTGBP","wsname":"USDT/GBP","status":"post_only"},` +
+			`"XXBTUSDR":{"altname":"XBTUSDR","wsname":"XBT/USDR","status":"post_only"},` +
+			`"OBOLUSD":{"altname":"OBOLUSD","wsname":"OBOL/USD","status":"cancel_only"},` +
+			`"OBOLUSDT":{"altname":"OBOLUSDT","wsname":"OBOL/USDT","status":"cancel_only"},` +
+			`"IRUSD":{"altname":"IRUSD","wsname":"IR/USD","status":"cancel_only"},` +
+			`"MIRUSD":{"altname":"MIRUSD","wsname":"MIR/USD","status":"cancel_only"},` +
+			`"TGBPUSD":{"altname":"TGBPUSD","wsname":"TGBP/USD","status":"online"},` +
+			`"XXBTZUSD":{"altname":"XBTUSD","wsname":"XBT/USD","status":"online"}}}`
+		const futuresOrders = `{"result":"success","openOrders":[` +
+			`{"order_id":"f-sell-limit-gct","symbol":"PF_GCTUSD","side":"sell","orderType":"lmt","limitPrice":5,"unfilledSize":1,"filledSize":0,"receivedTime":"2026-10-09T08:33:01.104Z","status":"untouched"},` +
+			`{"order_id":"f-buy-stop-gct","symbol":"PF_GCTUSD","side":"buy","orderType":"stop","stopPrice":6,"unfilledSize":1,"filledSize":0,"receivedTime":"2026-10-09T08:33:01.104Z","status":"untouched"},` +
+			`{"order_id":"f-sell-limit-gcteur","symbol":"PF_GCTEUR","side":"sell","orderType":"lmt","limitPrice":5,"unfilledSize":1,"filledSize":0,"receivedTime":"2026-10-09T08:33:01.104Z","status":"untouched"},` +
+			`{"order_id":"f-sell-limit-icx","symbol":"PF_ICXUSD","side":"sell","orderType":"lmt","limitPrice":0.2,"unfilledSize":1,"filledSize":0,"receivedTime":"2026-10-09T08:33:01.104Z","status":"untouched"},` +
+			`{"order_id":"f-sell-limit-gct-dated","symbol":"FF_GCTUSD_261225","side":"sell","orderType":"lmt","limitPrice":5,"unfilledSize":1,"filledSize":0,"receivedTime":"2026-10-09T08:33:01.104Z","status":"untouched"},` +
+			`{"order_id":"f-sell-limit-gct-inverse-dated","symbol":"FI_GCTUSD_261225","side":"sell","orderType":"lmt","limitPrice":5,"unfilledSize":1,"filledSize":0,"receivedTime":"2026-10-09T08:33:01.104Z","status":"untouched"},` +
+			`{"order_id":"f-sell-limit-gct-later","symbol":"FF_GCTUSD_270326","side":"sell","orderType":"lmt","limitPrice":5,"unfilledSize":1,"filledSize":0,"receivedTime":"2026-10-09T08:33:01.104Z","status":"untouched"},` +
+			`{"order_id":"f-buy-limit-xbt","symbol":"PF_XBTUSD","side":"buy","orderType":"lmt","limitPrice":80000,"unfilledSize":1,"filledSize":0,"receivedTime":"2026-10-09T08:33:01.104Z","status":"untouched"}],"serverTime":"2026-10-09T08:33:01.107Z"}`
+		waves := currency.NewPair(currency.NewCode("WAVES"), currency.USD)
+		tgbp := currency.NewPair(currency.NewCode("TGBP"), currency.USD)
+		gct := currency.NewPairWithDelimiter("PF", "GCTUSD", currency.UnderscoreDelimiter)
+		for _, tc := range []struct {
+			name      string
+			cancel    order.Cancel
+			available currency.Pairs
+			exp       []string
+		}{
+			{name: "a cancel only pair's orders", cancel: order.Cancel{AssetType: asset.Spot, Pair: waves}, exp: []string{"OBUY-STOP-WAVES", "OSELL-LIMIT-WAVES"}},
+			{name: "a cancel only pair's sell orders", cancel: order.Cancel{AssetType: asset.Spot, Pair: waves, Side: order.Sell}, exp: []string{"OSELL-LIMIT-WAVES"}},
+			{name: "a cancel only pair's stop orders named quote first", cancel: order.Cancel{AssetType: asset.Spot, Pair: waves.Swap(), Type: order.Stop}, exp: []string{"OBUY-STOP-WAVES"}},
+			{name: "a cancel only pair's limit orders named in lower case", cancel: order.Cancel{AssetType: asset.Spot, Pair: currency.NewPair(currency.NewCode("waves"), currency.NewCode("usd")), Type: order.Limit}, exp: []string{"OSELL-LIMIT-WAVES"}},
+			{name: "an available pair's sell orders, which a pair listed under its name quote first is not", cancel: order.Cancel{AssetType: asset.Spot, Pair: tgbp, Side: order.Sell}, exp: []string{"OSELL-LIMIT-TGBP"}},
+			{name: "a missing pair's sell orders, which another listed under its name quote first is not", cancel: order.Cancel{AssetType: asset.Spot, Pair: tgbp, Side: order.Sell}, available: currency.Pairs{spotTestPair}, exp: []string{"OSELL-LIMIT-TGBP"}},
+			{name: "the sell orders of a pair Kraken does not list, named as another is listed", cancel: order.Cancel{AssetType: asset.Spot, Pair: currency.NewPair(currency.NewCode("SC"), currency.NewCode("AUSD")), Side: order.Sell}},
+			{name: "a cancel only pair's sell orders, which those of one named after it plus a currency are not", cancel: order.Cancel{AssetType: asset.Spot, Pair: currency.NewPair(currency.NewCode("OBOL"), currency.USD), Side: order.Sell}, exp: []string{"OSELL-LIMIT-OBOL"}},
+			{name: "a cancel only pair's sell orders, which those of one named with a currency before it are not", cancel: order.Cancel{AssetType: asset.Spot, Pair: currency.NewPair(currency.NewCode("IR"), currency.USD), Side: order.Sell}, exp: []string{"OSELL-LIMIT-IR"}},
+			{name: "a cancel only pair's sell orders, which those of one whose name begins its name are not", cancel: order.Cancel{AssetType: asset.Spot, Pair: currency.NewPair(currency.NewCode("OBOL"), currency.USDT), Side: order.Sell}, exp: []string{"OSELL-LIMIT-OBOLUSDT"}},
+			{name: "a cancel only pair's sell orders, which those of one whose name ends its name are not", cancel: order.Cancel{AssetType: asset.Spot, Pair: currency.NewPair(currency.NewCode("MIR"), currency.USD), Side: order.Sell}, exp: []string{"OSELL-LIMIT-MIR"}},
+			{name: "a post only pair's sell orders, keyed apart from its name", cancel: order.Cancel{AssetType: asset.Spot, Pair: currency.NewPair(currency.XBT, currency.NewCode("USDR")), Side: order.Sell}, exp: []string{"OSELL-LIMIT-XBTUSDR"}},
+			{name: "an available pair's buy orders", cancel: order.Cancel{AssetType: asset.Spot, Pair: spotTestPair, Side: order.Buy}, exp: []string{"OBUY-LIMIT-XBT"}},
+			{name: "an unlisted product's short orders", cancel: order.Cancel{AssetType: asset.Futures, Pair: gct, Side: order.Short}, exp: []string{"f-sell-limit-gct"}},
+			{name: "an unlisted product's stop orders named quote first", cancel: order.Cancel{AssetType: asset.Futures, Pair: gct.Swap(), Type: order.Stop}, exp: []string{"f-buy-stop-gct"}},
+			{name: "an unlisted dated product's short orders, which those of one dated alike or maturing later are not", cancel: order.Cancel{AssetType: asset.Futures, Pair: currency.NewPairWithDelimiter("FF", "GCTUSD_261225", currency.UnderscoreDelimiter), Side: order.Short}, exp: []string{"f-sell-limit-gct-dated"}},
+			{name: "an unlisted inverse dated product's short orders, which those of a linear one dated alike are not", cancel: order.Cancel{AssetType: asset.Futures, Pair: currency.NewPairWithDelimiter("FI", "GCTUSD_261225", currency.UnderscoreDelimiter), Side: order.Short}, exp: []string{"f-sell-limit-gct-inverse-dated"}},
+			{name: "the short orders of a product named with its currencies split elsewhere", cancel: order.Cancel{AssetType: asset.Futures, Pair: currency.NewPairWithDelimiter("PFGCT", "USD", currency.UnderscoreDelimiter), Side: order.Short}},
+			{name: "the short orders of a dated product named split at its last underscore", cancel: order.Cancel{AssetType: asset.Futures, Pair: currency.NewPairWithDelimiter("FF_GCTUSD", "261225", currency.UnderscoreDelimiter), Side: order.Short}},
+			{name: "an available product's long orders", cancel: order.Cancel{AssetType: asset.Futures, Pair: futuresTestPair, Side: order.Long}, exp: []string{"f-buy-limit-xbt"}},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				var mu sync.Mutex
+				var cancelled []string
+				var assetPairsRequests int
+				ex := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+					mu.Lock()
+					defer mu.Unlock()
+					switch r.URL.Path {
+					case "/0/private/OpenOrders":
+						_, _ = w.Write([]byte(spotOrders))
+					case "/0/public/AssetPairs":
+						assetPairsRequests++
+						_, _ = w.Write([]byte(assetPairs))
+					case "/0/private/CancelOrder":
+						var req struct {
+							OrderID string `json:"txid"`
+						}
+						assert.NoError(t, json.Unmarshal([]byte(tradingRequestBody(t, r)), &req), "Unmarshal should not error")
+						cancelled = append(cancelled, req.OrderID)
+						_, _ = w.Write([]byte(`{"error":[],"result":{"count":1}}`))
+					case "/0/private/CancelOrderBatch":
+						var req struct {
+							Orders []string `json:"orders"`
+						}
+						assert.NoError(t, json.Unmarshal([]byte(tradingRequestBody(t, r)), &req), "Unmarshal should not error")
+						cancelled = append(cancelled, req.Orders...)
+						_, _ = w.Write([]byte(`{"error":[],"result":{"count":` + strconv.Itoa(len(req.Orders)) + `}}`))
+					case "/derivatives/api/v3/openorders":
+						_, _ = w.Write([]byte(futuresOrders))
+					case "/derivatives/api/v3/batchorder":
+						var batch struct {
+							Orders []struct {
+								OrderID string `json:"order_id"`
+							} `json:"batchOrder"`
+						}
+						assert.NoError(t, json.Unmarshal([]byte(r.URL.Query().Get("json")), &batch), "Unmarshal should not error")
+						statuses := make([]string, len(batch.Orders))
+						for i := range batch.Orders {
+							cancelled = append(cancelled, batch.Orders[i].OrderID)
+							statuses[i] = `{"order_id":"` + batch.Orders[i].OrderID + `","orderEvents":[],"status":"cancelled"}`
+						}
+						_, _ = w.Write([]byte(`{"result":"success","batchStatus":[` + strings.Join(statuses, ",") + `],"serverTime":"2026-10-09T08:42:00.003Z"}`))
+					default:
+						assert.Failf(t, "only open orders should be listed and cancelled", "%s", r.URL.Path)
+					}
+				})
+				available := tc.available
+				if available == nil {
+					available = currency.Pairs{spotTestPair, tgbp}
+				}
+				require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, available, false), "StorePairs must not error")
+				require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Futures, currency.Pairs{futuresTestPair}, false), "StorePairs must not error")
+				c := tc.cancel
+				c.Exchange = ex.Name
+				resp, err := ex.CancelAllOrders(t.Context(), &c)
+				require.NoError(t, err, "CancelAllOrders must not error")
+				mu.Lock()
+				defer mu.Unlock()
+				slices.Sort(cancelled)
+				assert.Equal(t, tc.exp, cancelled, "CancelAllOrders should cancel the open orders matching the pair, side and order type alone")
+				assert.LessOrEqual(t, assetPairsRequests, 1, "CancelAllOrders should look Kraken's asset pairs up at most once")
+				exp := map[string]string{}
+				for _, id := range tc.exp {
+					exp[id] = order.Cancelled.String()
+				}
+				assert.Equal(t, order.CancelAllResponse{Status: exp}, resp, "CancelAllOrders should report each order cancelled")
+			})
+		}
+	})
+
 	ex := newHTTPTestExchange(t, func(_ http.ResponseWriter, r *http.Request) {
 		assert.Failf(t, "no order should be listed or cancelled", "%s", r.URL.Path)
 	})
@@ -5907,6 +6049,86 @@ func TestFuturesOrderTypeFromString(t *testing.T) {
 	}
 	_, _, err := futuresOrderTypeFromString("moon")
 	assert.ErrorIs(t, err, errUnknownOrderType, "futuresOrderTypeFromString should reject an unknown order type")
+}
+
+func TestUnavailableSpotPairName(t *testing.T) {
+	t.Parallel()
+	ex := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+		if !assert.Equal(t, "/0/public/AssetPairs", r.URL.Path, "only Kraken's asset pairs should be requested") {
+			return
+		}
+		// Kraken answers a pair named quote first as an unknown asset pair, so every pair is requested
+		assert.Empty(t, r.URL.RawQuery, "Kraken's asset pairs should be requested without a filter")
+		_, _ = w.Write([]byte(`{"error":[],"result":{` +
+			`"WAVESUSD":{"altname":"WAVESUSD","wsname":"WAVES/USD","status":"cancel_only"},` +
+			`"USDTGBP":{"altname":"USDTGBP","wsname":"USDT/GBP","status":"post_only"},` +
+			`"XXBTUSDR":{"altname":"XBTUSDR","wsname":"XBT/USDR","status":"post_only"},` +
+			`"OBOLUSD":{"altname":"OBOLUSD","wsname":"OBOL/USD","status":"cancel_only"},` +
+			`"OBOLUSDT":{"altname":"OBOLUSDT","wsname":"OBOL/USDT","status":"cancel_only"},` +
+			`"OBOLEUR":{"altname":"OBOLEUR","wsname":"OBOL/EUR","status":"cancel_only"},` +
+			`"TGBPUSD":{"altname":"TGBPUSD","wsname":"TGBP/USD","status":"online"},` +
+			`"XXBTZUSD":{"altname":"XBTUSD","wsname":"XBT/USD","status":"online"}}}`))
+	})
+	waves := currency.NewPair(currency.NewCode("WAVES"), currency.USD)
+	tgbp := currency.NewPair(currency.NewCode("TGBP"), currency.USD)
+	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{spotTestPair, tgbp}, false), "StorePairs must not error")
+	for _, tc := range []struct {
+		pair currency.Pair
+		exp  string
+	}{
+		{pair: waves, exp: "WAVESUSD"},
+		{pair: waves.Swap(), exp: "WAVESUSD"},
+		{pair: currency.NewPair(currency.NewCode("waves"), currency.NewCode("usd")), exp: "WAVESUSD"},
+		{pair: currency.NewPair(currency.USDT, currency.GBP), exp: "USDTGBP"},
+		{pair: currency.NewPair(currency.XBT, currency.NewCode("USDR")), exp: "XBTUSDR"},
+		{pair: currency.NewPair(currency.NewCode("OBOL"), currency.USD), exp: "OBOLUSD"},
+		{pair: currency.NewPair(currency.NewCode("OBOL"), currency.USDT), exp: "OBOLUSDT"},
+		{pair: tgbp},
+		{pair: tgbp.Swap()},
+		{pair: currency.NewPair(currency.NewCode("SC"), currency.NewCode("AUSD"))},
+	} {
+		name, err := ex.unavailableSpotPairName(t.Context(), tc.pair)
+		require.NoErrorf(t, err, "unavailableSpotPairName must not error for %s", tc.pair)
+		assert.Equalf(t, tc.exp, name, "unavailableSpotPairName should return the name Kraken lists %s under", tc.pair)
+	}
+
+	available := newHTTPTestExchange(t, func(_ http.ResponseWriter, r *http.Request) {
+		assert.Failf(t, "an available pair's name should not be requested", "%s", r.URL.Path)
+	})
+	for _, p := range []currency.Pair{spotTestPair, spotTestPair.Swap()} {
+		name, err := available.unavailableSpotPairName(t.Context(), p)
+		require.NoErrorf(t, err, "unavailableSpotPairName must not error for %s", p)
+		assert.Emptyf(t, name, "unavailableSpotPairName should return no name for the available %s", p)
+	}
+
+	failing := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/0/private/OpenOrders":
+			_, _ = w.Write([]byte(`{"error":[],"result":{"open":{` +
+				`"OSELL-LIMIT-WAVES":{"status":"open","opentm":1791421234.5512,"descr":{"pair":"WAVESUSD","type":"sell","ordertype":"limit","price":"1.2250"},"vol":"500","vol_exec":"0"},` +
+				`"OBUY-LIMIT-XBT":{"status":"open","opentm":1791421234.5512,"descr":{"pair":"XBTUSD","type":"buy","ordertype":"limit","price":"80000"},"vol":"1","vol_exec":"0"}}}}`))
+		case "/0/public/AssetPairs":
+			_, _ = w.Write([]byte(`{"error":["EGeneral:Temporary lockout"]}`))
+		default:
+			assert.Failf(t, "no order should be cancelled", "%s", r.URL.Path)
+		}
+	})
+	_, err := failing.unavailableSpotPairName(t.Context(), waves)
+	assert.ErrorIs(t, err, errAPIResponse, "unavailableSpotPairName should return the asset pairs request's error")
+	_, err = failing.CancelAllOrders(t.Context(), &order.Cancel{Exchange: failing.Name, AssetType: asset.Spot, Pair: waves, Side: order.Sell})
+	assert.ErrorIs(t, err, errAPIResponse, "CancelAllOrders should return the asset pairs request's error")
+	// With no order of the side asked for on a pair missing from the available pairs, as XBT/USD's buy is on an available
+	// one, nothing is looked up
+	resp, err := failing.CancelAllOrders(t.Context(), &order.Cancel{Exchange: failing.Name, AssetType: asset.Spot, Pair: waves, Side: order.Buy})
+	require.NoError(t, err, "CancelAllOrders must not look up a pair with no order of the side asked for on a missing pair")
+	assert.Empty(t, resp.Status, "CancelAllOrders should cancel nothing")
+
+	unstored := newHTTPTestExchange(t, func(_ http.ResponseWriter, r *http.Request) {
+		assert.Failf(t, "nothing should be requested without the available pairs", "%s", r.URL.Path)
+	})
+	delete(unstored.CurrencyPairs.Pairs, asset.Spot)
+	_, err = unstored.unavailableSpotPairName(t.Context(), waves)
+	assert.ErrorIs(t, err, currency.ErrAssetNotFound, "unavailableSpotPairName should return the available pairs' error")
 }
 
 func TestFuturesOpenOrderType(t *testing.T) {

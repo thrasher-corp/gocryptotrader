@@ -1769,6 +1769,8 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, req *order.Cancel) (orde
 		if err != nil {
 			return resp, err
 		}
+		var unavailable string
+		var lookedUp bool
 		ids := make([]string, 0, len(open.Open))
 		for id := range open.Open {
 			info := open.Open[id]
@@ -1781,16 +1783,25 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, req *order.Cancel) (orde
 				}
 			}
 			// Without a pair, the orders on pairs missing from the available pairs, such as cancel only pairs, are
-			// cancelled too; with one, such an order cannot be named
+			// cancelled too, and with one missing from them its orders are those listed under its Kraken name
 			if !req.Pair.IsEmpty() {
 				pair, err := e.MatchSymbolWithAvailablePairs(info.Description.Pair, asset.Spot, false)
-				if errors.Is(err, currency.ErrPairNotFound) {
-					continue
-				}
-				if err != nil {
+				switch {
+				case errors.Is(err, currency.ErrPairNotFound):
+					// The named pair's Kraken name is looked up only once an order of the side and type asked for is on a
+					// pair missing from the available pairs
+					if !lookedUp {
+						if unavailable, err = e.unavailableSpotPairName(ctx, req.Pair); err != nil {
+							return resp, err
+						}
+						lookedUp = true
+					}
+					if unavailable == "" || !strings.EqualFold(info.Description.Pair, unavailable) {
+						continue
+					}
+				case err != nil:
 					return resp, err
-				}
-				if !pair.EqualIncludeReciprocal(req.Pair) {
+				case !pair.EqualIncludeReciprocal(req.Pair):
 					continue
 				}
 			}
@@ -1826,7 +1837,9 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, req *order.Cancel) (orde
 			if !req.Pair.IsEmpty() {
 				pair, err := e.MatchSymbolWithAvailablePairs(o.Symbol, asset.Futures, true)
 				if errors.Is(err, currency.ErrPairNotFound) {
-					continue
+					// The symbol of a product missing from the available pairs still reads as a pair, as it keeps its
+					// delimiter
+					pair, err = currency.NewPairFromString(o.Symbol)
 				}
 				if err != nil {
 					return resp, err
@@ -1849,6 +1862,29 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, req *order.Cancel) (orde
 	default:
 		return resp, fmt.Errorf("%w %q", asset.ErrNotSupported, req.AssetType)
 	}
+}
+
+// unavailableSpotPairName returns Kraken's altname for a spot pair, named either way round, when the pair is missing from
+// the available pairs, such as one Kraken lists as cancel only or post only. It returns "" for an available pair, or one
+// Kraken does not list
+func (e *Exchange) unavailableSpotPairName(ctx context.Context, p currency.Pair) (string, error) {
+	avail, err := e.GetAvailablePairs(asset.Spot)
+	if err != nil {
+		return "", err
+	}
+	if avail.Contains(p, false) {
+		return "", nil
+	}
+	pairs, err := e.GetAssetPairs(ctx, nil)
+	if err != nil {
+		return "", err
+	}
+	for name := range pairs {
+		if listed, ok := spotPairFromWebsocketName(pairs[name].WebsocketName); ok && listed.EqualIncludeReciprocal(p) {
+			return pairs[name].AlternativeName, nil
+		}
+	}
+	return "", nil
 }
 
 // cancelAllOrderType returns the order type, as GetActiveOrders reads a listed order's, of the orders a cancellation of
