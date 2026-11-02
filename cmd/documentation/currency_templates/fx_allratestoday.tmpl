@@ -1,0 +1,51 @@
+{{define "currency forexprovider allratestoday" -}}
+{{template "header" .}}
+
+## Current Features for {{.Name}}
+
++ Fetches up to date currency data from [AllRatesToday](https://allratestoday.com/)
++ Returns every rate for a base currency in one request
++ API key required (free trial, paid plans)
+
+### How to enable
+
++ [Enable via configuration]({{.RepoRoot}}/config/README.md#enable-currency-via-config-example)
+
++ Each update is normally one request, so the one-minute default
+  `foreignExchangeUpdateDuration` spends about 44,640 requests in a 31-day
+  month. Pick a [plan](https://allratestoday.com/pricing/) that covers your
+  interval, leaving room for restarts and `GetForexRates` calls, which fetch
+  rates too.
+
++ Individual package example below:
+
+```go
+import (
+	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/allratestoday"
+	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
+)
+
+c := allratestoday.AllRatesToday{}
+
+// Define configuration
+newSettings := base.Settings{
+	Name:            "AllRatesToday",
+	Enabled:         true,
+	Verbose:         false,
+	APIKey:          "key",
+	PrimaryProvider: true,
+}
+
+c.Setup(newSettings)
+
+mapstringfloat, err := c.GetRates("USD", "EUR,AUD")
+// Handle error
+```
+
+### Testing
+
+The unit tests run against local `httptest` servers and need no credentials or
+network access.
+
+{{template "donations" .}}
+{{end}}

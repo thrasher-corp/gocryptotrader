@@ -715,6 +715,51 @@ func TestSetIfZero(t *testing.T) {
 	assert.Equal(t, "world", s, "SetIfZero should change a zero value")
 }
 
+func TestSeenCheckAndRecord(t *testing.T) {
+	t.Parallel()
+	seen := make(Seen[string])
+	for _, tc := range []struct {
+		item     string
+		expected bool
+		length   int
+	}{
+		{item: "first", length: 1},
+		{item: "first", expected: true, length: 1},
+		{item: "second", length: 2},
+		{item: "", length: 3},
+		{item: "", expected: true, length: 3},
+		{item: "first", expected: true, length: 3},
+	} {
+		assert.Equalf(t, tc.expected, seen.CheckAndRecord(tc.item), "CheckAndRecord should report whether %q was already seen", tc.item)
+		assert.Truef(t, seen[tc.item], "CheckAndRecord should mark %q as seen", tc.item)
+		assert.Len(t, seen, tc.length, "CheckAndRecord should add only new items")
+	}
+}
+
+func TestSeenCheckAndRecordExistingEntries(t *testing.T) {
+	t.Parallel()
+	seen := Seen[int]{1: true, 2: false}
+	assert.True(t, seen.CheckAndRecord(1), "CheckAndRecord should recognise an entry already marked seen")
+	assert.False(t, seen.CheckAndRecord(2), "CheckAndRecord should treat an entry marked false as unseen")
+	assert.True(t, seen.CheckAndRecord(2), "CheckAndRecord should mark an existing false entry as seen")
+	assert.Equal(t, Seen[int]{1: true, 2: true}, seen, "CheckAndRecord should preserve unrelated entries")
+}
+
+func TestSeenCheckAndRecordStructKeys(t *testing.T) {
+	t.Parallel()
+	type key struct {
+		name string
+		id   int
+	}
+	seen := make(Seen[key])
+	assert.False(t, seen.CheckAndRecord(key{name: "first", id: 1}), "CheckAndRecord should record a new struct key")
+	assert.True(t, seen.CheckAndRecord(key{name: "first", id: 1}), "CheckAndRecord should recognise an equal struct value")
+	assert.False(t, seen.CheckAndRecord(key{name: "first", id: 2}), "CheckAndRecord should distinguish different struct fields")
+	assert.False(t, seen.CheckAndRecord(key{}), "CheckAndRecord should record a zero-value struct key")
+	assert.True(t, seen.CheckAndRecord(key{}), "CheckAndRecord should recognise a repeated zero-value struct key")
+	assert.Len(t, seen, 3, "CheckAndRecord should retain each distinct struct key")
+}
+
 func TestContextFunctions(t *testing.T) {
 	t.Parallel()
 

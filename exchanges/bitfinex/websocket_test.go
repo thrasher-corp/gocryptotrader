@@ -1459,6 +1459,10 @@ func TestGenerateSubscriptions(t *testing.T) {
 	}
 	subs, err := ex.generateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error")
+	seenChannels := make(common.Seen[string], len(subs))
+	for _, sub := range subs {
+		assert.Falsef(t, seenChannels.CheckAndRecord(sub.QualifiedChannel), "QualifiedChannel should be unique, got duplicate %q", sub.QualifiedChannel)
+	}
 	testsubs.EqualLists(t, exp, subs.Clone())
 	for _, s := range subs {
 		shared := s.Asset == asset.Spot && s.Pairs[0].Equal(currency.NewBTCUSD())
