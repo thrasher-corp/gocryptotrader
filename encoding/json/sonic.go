@@ -46,8 +46,9 @@ func (d *Decoder) More() bool {
 }
 
 // Decode reads the next JSON-encoded value from its input and stores it in the value pointed to by
-// v. A read failure More reported is returned here rather than the end of input sonic reports, so
-// the value the loop goes on to decode carries the error rather than losing it
+// v. A read failure More reported is returned here where the encoding/json fallback reports io.EOF
+// in its place, so the value the loop goes on to decode carries the error rather than losing it.
+// Native sonic latches the failure and returns it itself
 func (d *Decoder) Decode(v any) error {
 	err := d.Decoder.Decode(v)
 	if d.r.err != nil && errors.Is(err, io.EOF) {

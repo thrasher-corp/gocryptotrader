@@ -371,25 +371,71 @@ func TestEncodeWritesNothingOnMarshalError(t *testing.T) {
 	assert.JSONEq(t, `{"ok":7}`, buf.String(), "the next value should be the only thing on the stream")
 }
 
+// newlineRejecter fails any write holding only a newline, which only an encoder writing a value's
+// trailing newline on its own makes
+type newlineRejecter struct {
+	written bytes.Buffer
+}
+
+func (w *newlineRejecter) Write(p []byte) (int, error) {
+	if string(p) == "\n" {
+		return 0, errWrite
+	}
+	return w.written.Write(p)
+}
+
 // v1 latched the first write error and returned it from every later Encode.
 func TestEncodeLatchesWriteError(t *testing.T) {
 	t.Parallel()
-	w := &errWriter{}
-	enc := NewEncoder(w)
-	require.ErrorIs(t, enc.Encode(1), errWrite, "Encode must return the writer error")
-	if Implementation == sonicImpl {
-		// sonic re-attempts the write rather than latching, except where it falls back to
-		// encoding/json, which latches as v1 does
-		if err := enc.Encode(2); err == nil {
-			assert.Equal(t, "2\n", w.written.String(), "an encoder that retries should write the second value")
-		} else {
-			assert.ErrorIs(t, err, errWrite, "an encoder that latches should return the first write error")
+	t.Run("writer failing its first write", func(t *testing.T) {
+		t.Parallel()
+		w := &errWriter{}
+		enc := NewEncoder(w)
+		require.ErrorIs(t, enc.Encode(1), errWrite, "Encode must return the writer error")
+		if Implementation == sonicImpl {
+			// sonic re-attempts the write rather than latching, except where it falls back to
+			// encoding/json, which latches as v1 does
+			if err := enc.Encode(2); err == nil {
+				assert.Equal(t, "2\n", w.written.String(), "an encoder that retries should write the second value")
+			} else {
+				assert.ErrorIs(t, err, errWrite, "an encoder that latches should return the first write error")
+			}
+			return
 		}
-		return
+		assert.ErrorIs(t, enc.Encode(2), errWrite, "a later Encode should return the latched error")
+		assert.Equal(t, 1, w.calls, "a latched encoder should not write again")
+		assert.Empty(t, w.written.String(), "a latched encoder should write nothing further")
+	})
+
+	// v1 wrote each value together with its trailing newline, so an Encode that returned nil had
+	// written both. An encoder writing the newline on its own must still report that write failing
+	// rather than return nil for a value left without it.
+	for _, tc := range []struct {
+		name, indent, exp string
+	}{
+		{"writer rejecting a lone newline/unindented", "", "{\"a\":1}\n"},
+		{"writer rejecting a lone newline/indented", "  ", "{\n  \"a\": 1\n}\n"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			w := &newlineRejecter{}
+			enc := NewEncoder(w)
+			enc.SetIndent("", tc.indent)
+			err := enc.Encode(map[string]int{"a": 1})
+			if nativeSonic() && tc.indent == "" {
+				// native sonic writes the newline on its own only when not indenting and, not
+				// latching the failure, runs the next value on from the last; its encoding/json
+				// fallback writes both together, as v1 does
+				assert.ErrorIs(t, err, errWrite, "Encode should return the failed newline write's error")
+				assert.Equal(t, `{"a":1}`, w.written.String(), "the value should be written ahead of its newline")
+				assert.ErrorIs(t, enc.Encode(map[string]int{"b": 2}), errWrite, "the next Encode should fail its newline write too")
+				assert.Equal(t, `{"a":1}{"b":2}`, w.written.String(), "the next value should run on from the last")
+				return
+			}
+			require.NoError(t, err, "Encode must not error when the value and its newline are written together")
+			assert.Equal(t, tc.exp, w.written.String(), "the value and its newline should be written together")
+		})
 	}
-	assert.ErrorIs(t, enc.Encode(2), errWrite, "a later Encode should return the latched error")
-	assert.Equal(t, 1, w.calls, "a latched encoder should not write again")
-	assert.Empty(t, w.written.String(), "a latched encoder should write nothing further")
 }
 
 // v1's MarshalIndent runs Indent even for an empty prefix and indent, so the output still breaks
@@ -642,10 +688,22 @@ func TestDecoderMatchesV1OnReadFailures(t *testing.T) {
 	}
 }
 
+// sonicSyntaxError stands in for a syntax error native sonic reports itself, which its two decoders
+// word differently
+const sonicSyntaxError = "err=sonic syntax error"
+
+// nativeSonic reports whether sonic runs its native backend rather than its encoding/json fallback,
+// which hands out encoding/json's own Encoder
+func nativeSonic() bool {
+	_, fallback := any(NewEncoder(io.Discard)).(*jsonv1.Encoder)
+	return Implementation == sonicImpl && !fallback
+}
+
 // TestDecoderAtAReadBoundary covers values that meet the end of a read, which every script above
-// avoids by ending its values with a space. The default build reads on as v1 does. Native sonic
-// ends a top level number where a read ends, and reads on past bytes it cannot parse rather than
-// reporting them, so what it reports instead is pinned rather than left latent
+// avoids by ending its values with a space. The default build reads on as v1 does, and also past
+// an end of input, where v1 stops. Native sonic ends a top level number where a read ends, and
+// reads on past bytes that begin no value, and through a value whose end it cannot find, rather
+// than reporting them, so what it reports instead is pinned rather than left latent
 func TestDecoderAtAReadBoundary(t *testing.T) {
 	t.Parallel()
 	scripted := func(steps ...readStep) func() io.Reader {
@@ -656,6 +714,8 @@ func TestDecoderAtAReadBoundary(t *testing.T) {
 		// sonic is what its native backend reports; where it falls back to encoding/json it reports
 		// what v1 does
 		sonic []string
+		// pooled marks a row native sonic reads as v1 does when its pool hands over a larger buffer
+		pooled bool
 	}{
 		"number split across reads": {
 			newReader: scripted(readStep{data: "1"}, readStep{data: "2 "}),
@@ -670,9 +730,11 @@ func TestDecoderAtAReadBoundary(t *testing.T) {
 			sonic:     []string{"val=map[a:1]", "val=5", "err=stream failed", "err=stream failed"},
 		},
 		"number straddling sonic's buffer": {
-			// sonic's first read fills 4096 bytes, so it splits this even from a reader serving it whole
+			// a fresh 4096 byte buffer from sonic's pool splits this even from a reader serving it
+			// whole, where a larger one it reuses reads the number whole, as v1 does
 			newReader: func() io.Reader { return strings.NewReader(strings.Repeat(" ", 4092) + "12345") },
 			sonic:     []string{"val=1234", "val=5", "err=EOF", "err=EOF"},
+			pooled:    true,
 		},
 		"malformed then a failed read": {
 			newReader: scripted(readStep{data: "xyz"}, readStep{err: errStreamFailed}),
@@ -682,17 +744,124 @@ func TestDecoderAtAReadBoundary(t *testing.T) {
 			newReader: scripted(readStep{data: "xyz"}),
 			sonic:     []string{"err=EOF", "err=EOF", "err=EOF", "err=EOF"},
 		},
+		"number split inside its exponent": {
+			newReader: scripted(readStep{data: "1e"}, readStep{data: "2 "}),
+			sonic:     []string{sonicSyntaxError, sonicSyntaxError, sonicSyntaxError, sonicSyntaxError},
+		},
+		"number split ahead of its exponent": {
+			newReader: scripted(readStep{data: "1.5"}, readStep{data: "e3 "}),
+			sonic:     []string{"val=1.5", "err=EOF", "err=EOF", "err=EOF"},
+		},
+		"number running into bytes that cannot continue it": {
+			newReader: scripted(readStep{data: "1.2.3 01 4 "}),
+			sonic:     []string{"val=1.2", "val=0", "val=4", "err=EOF"},
+		},
+		"number running into bytes up to a comma": {
+			newReader: scripted(readStep{data: "1x,2 3 "}),
+			sonic:     []string{"val=1", "err=EOF", "err=EOF", "err=EOF"},
+		},
+		"number running into bytes up to a closing bracket": {
+			newReader: scripted(readStep{data: "1x]2 3 "}),
+			sonic:     []string{"val=1", "val=<nil>", "val=<nil>", "val=<nil>"},
+		},
+		"malformed ahead of a value": {
+			newReader: scripted(readStep{data: "xyz 1 "}),
+			sonic:     []string{"err=EOF", "err=EOF", "err=EOF", "err=EOF"},
+		},
+		"malformed value then a failed read": {
+			newReader: scripted(readStep{data: "[1,]"}, readStep{err: errStreamFailed}),
+			sonic:     []string{sonicSyntaxError, sonicSyntaxError, sonicSyntaxError, sonicSyntaxError},
+		},
+		"value whose end it cannot find ahead of a value": {
+			newReader: scripted(readStep{data: `{"a":1] 2 `}),
+			sonic:     []string{"err=EOF", "err=EOF", "err=EOF", "err=EOF"},
+		},
+		// v1 reports a "]" or "}" outside any value as malformed, where native sonic decodes it as
+		// nothing, without error, on every call
+		"stray bracket ahead of a value": {
+			newReader: func() io.Reader { return strings.NewReader("] 1 ") },
+			sonic:     []string{"val=<nil>", "val=<nil>", "val=<nil>", "val=<nil>"},
+		},
+		"stray brace after a value": {
+			newReader: func() io.Reader { return strings.NewReader(`{"a":1}} `) },
+			sonic:     []string{"val=map[a:1]", "val=<nil>", "val=<nil>", "val=<nil>"},
+		},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			want := decodeScript(jsonv1.NewDecoder(tc.newReader()), false)
 			got := decodeScript(NewDecoder(tc.newReader()), false)
 			if Implementation == sonicImpl {
-				assert.Contains(t, [][]string{want, tc.sonic}, got, "sonic should report what its native backend is pinned to, or what v1 reports where it falls back")
+				for i, s := range got {
+					if strings.HasPrefix(s, `err="Syntax error `) {
+						got[i] = sonicSyntaxError
+					}
+				}
+				switch {
+				case !nativeSonic():
+					assert.Equal(t, want, got, "sonic's encoding/json fallback should report what the v1 Decoder reports")
+				case tc.pooled:
+					assert.Contains(t, [][]string{want, tc.sonic}, got, "native sonic should report what it is pinned to, or what v1 reports when its pool hands over a larger buffer")
+				default:
+					assert.Equal(t, tc.sonic, got, "native sonic should report what it is pinned to")
+				}
 				return
 			}
 			assert.Equal(t, want, got, "the default build should report what the v1 Decoder reports")
 		})
+	}
+
+	// Once a Decode has failed because the input ended, before or inside a value, v1 latches that
+	// failure, as sonic does, where the default build reads on into input that follows, from a
+	// bytes.Buffer written to after it or a reader serving more after io.EOF, with More called in
+	// between or not
+	for _, tc := range []struct {
+		name, before, after string
+		exp                 map[string]int
+	}{
+		{"input after EOF/before a value", "", `{"b":2}`, map[string]int{"b": 2}},
+		{"input after EOF/inside a value", `{"a":`, `1}`, map[string]int{"a": 1}},
+	} {
+		for _, grow := range []bool{true, false} {
+			for _, callMore := range []bool{false, true} {
+				t.Run(fmt.Sprintf("%s/grow=%v/More=%v", tc.name, grow, callMore), func(t *testing.T) {
+					t.Parallel()
+					var buf bytes.Buffer
+					var r io.Reader = &buf
+					if grow {
+						buf.WriteString(tc.before)
+					} else {
+						steps := []readStep{{err: io.EOF}, {data: tc.after}}
+						if tc.before != "" {
+							steps = append([]readStep{{data: tc.before}}, steps...)
+						}
+						r = &scriptedReader{steps: steps}
+					}
+					dec := NewDecoder(r)
+					var m map[string]int
+					first := dec.Decode(&m)
+					require.Error(t, first, "Decode must fail on input that has ended")
+
+					if callMore {
+						// whatever More reads, including nothing, must not change what the next
+						// Decode does with the input that follows
+						dec.More()
+					}
+					if grow {
+						buf.WriteString(tc.after)
+					}
+					var got map[string]int
+					err := dec.Decode(&got)
+					if Implementation == sonicImpl {
+						assert.ErrorIs(t, err, first, "sonic should return its error again, as v1 does")
+						assert.Nil(t, got, "sonic should decode nothing once it has returned its error")
+						return
+					}
+					require.NoError(t, err, "the default build must read on into the input that followed")
+					assert.Equal(t, tc.exp, got, "the default build should decode the input that followed")
+				})
+			}
+		}
 	}
 }
 

@@ -17,22 +17,33 @@
 // half, so it carries text methods for the sonic build, which does not.
 //
 // Behaviour differs by build in both directions. The sonic notes below describe its native
-// backend; on the platforms it does not cover it falls back to encoding/json, which restores v1
-// encoding and can return v1 error types. Implementation remains "bytedance/sonic" in either case.
-// The default build is the outlier on a bytes.Buffer that grows between Decode calls, erroring
-// where v1 and sonic both read the next value, and all three disagree on a truncated "{": v1
+// backend; on the 64-bit platforms it does not cover it falls back to encoding/json, which restores
+// v1 encoding and can return v1 error types, while the sonic_on build does not compile for 32-bit
+// platforms, illumos, Solaris or Plan 9. Implementation remains "bytedance/sonic" where it builds.
+// The default build is the outlier on a bytes.Buffer that grows between Decode calls, or a reader
+// serving more after io.EOF: once a Decode has failed because the input ended before or inside a
+// value, the next one can read on into later input, where v1 and sonic return their error again.
+// v1, the default build and sonic each report something different for a truncated "{": v1
 // reports io.ErrUnexpectedEOF, the default build a *SyntaxError and sonic io.EOF. sonic is the
 // outlier elsewhere: it ties U+2028 and U+2029 escaping to SetEscapeHTML where v1 escaped them
 // either way, re-attempts a failed write rather than latching it, and with indentation disabled
-// writes each value's trailing newline separately while discarding that write's error, so two
-// values can run together in the stream. Its Decoder parts from v1 where a read ends, in two ways.
-// It ends a top level number there, where v1 reads on to see whether more digits follow, so a
-// number split across reads decodes as two values, even one straddling sonic's own 4096 byte
-// buffer from a reader holding the whole input. And it reads on past bytes it cannot parse rather
-// than reporting them, so malformed input surfaces as the read's failure, or as io.EOF where the
-// stream ends, which is also why it reports io.EOF for a truncated "{". The Decoder is wrapped so
-// that More reports a failed read rather than the end of the stream, sonic reporting the two
-// alike; every other method is its own
+// writes each value's trailing newline separately, so an Encode can fail after writing its value,
+// and the next value can run on from it. Its Decoder parts from v1 where a read ends, in two ways.
+// It ends a top level number there, where v1 reads on to see whether more of it follows, so "1"
+// then "2" decodes as two values and "1.5" then "e3" as 1.5, while "1e" then "2" gets sonic's own
+// syntax error, "1e" not being a number by itself, even where the number straddles the end of
+// sonic's own buffer, 4096 bytes unless its pool hands over a larger one, from a reader holding the
+// whole input. And it reads on past bytes that begin no value, like that "e3" or "xyz", and through
+// a value whose end it cannot find, rather than reporting them, so they and any value after them
+// surface as the read's failure, or as io.EOF where the stream ends, which is also why it reports
+// io.EOF for a truncated "{". A malformed value whose end it does find, such as "[1,]", gets
+// sonic's own syntax error instead, unless it is a top level number followed directly by a byte
+// that cannot continue it, as in "1.2.3" or "01": that decodes as the number, as in v1, but sonic
+// drops the bytes after it up to the next whitespace, comma, "]" or "}", where v1 reports them or
+// decodes them as the next value. A stray "]" or "}" decodes as nothing, without error, on every
+// call. The Decoder is wrapped so that More reports a failed read rather than the end of the
+// stream, sonic reporting the two alike, and Decode returns that failure where the encoding/json
+// fallback reports io.EOF in its place; every other method is its own
 package json
 
 import (
