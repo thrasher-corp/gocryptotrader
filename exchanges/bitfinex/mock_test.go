@@ -119,9 +119,9 @@ func connectWebsocketTestExchange(t *testing.T, ex *Exchange, subs subscription.
 	}
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(ex.API.AuthenticatedWebsocketSupport)
 	startRelayRecorder(t, ex)
-	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
 	t.Cleanup(func() { stopWebsocketTestExchange(t, ex) })
 	t.Cleanup(venue.closing)
+	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
 	return venue
 }
 

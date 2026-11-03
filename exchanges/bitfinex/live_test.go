@@ -94,7 +94,6 @@ func connectWebsocketTestExchange(t *testing.T, ex *Exchange, subs subscription.
 	}
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(ex.API.AuthenticatedWebsocketSupport)
 	startRelayRecorder(t, ex)
-	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
 	t.Cleanup(func() {
 		if ex.Websocket.IsEnabled() {
 			assert.NoError(t, ex.Websocket.Disable(), "Disable should not error")
@@ -103,5 +102,6 @@ func connectWebsocketTestExchange(t *testing.T, ex *Exchange, subs subscription.
 			assert.ErrorIs(t, err, websocket.ErrNotConnected, "Shutdown should only fail when the connection monitor has shut the connection down first")
 		}
 	})
+	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
 	return nil
 }
