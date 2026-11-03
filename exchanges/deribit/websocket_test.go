@@ -3,6 +3,7 @@ package deribit
 import (
 	"errors"
 	"slices"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -24,11 +25,45 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-// websocketVenueRequest is a JSON-RPC request as Deribit's websocket receives it
+// websocketVenueRequest is a JSON-RPC request as Deribit's websocket receives it, and the number of the connection it
+// arrived on
 type websocketVenueRequest struct {
-	ID     int64           `json:"id"`
-	Method string          `json:"method"`
-	Params json.RawMessage `json:"params"`
+	ID         int64           `json:"id"`
+	Method     string          `json:"method"`
+	Params     json.RawMessage `json:"params"`
+	connection int
+}
+
+// The mock websocket numbers connections in the order they are dialled, and the manager dials the request connection
+// before the subscription connections
+const (
+	requestVenueConnection = iota + 1
+	subscriptionVenueConnection
+)
+
+// requestConnection returns the connection an exchange's websocket sends the WebsocketAPI methods over
+func requestConnection(t *testing.T, ex *Exchange) websocket.Connection {
+	t.Helper()
+	conn, err := ex.Websocket.GetConnection(WebsocketRequestConnection)
+	require.NoError(t, err, "GetConnection must return the request connection")
+	return conn
+}
+
+// subscriptionConnection returns the first connection an exchange's websocket subscribes channels on
+func subscriptionConnection(t *testing.T, ex *Exchange) websocket.Connection {
+	t.Helper()
+	conn, err := ex.Websocket.GetConnection(WebsocketSubscriptionConnection)
+	require.NoError(t, err, "GetConnection must return a subscription connection")
+	return conn
+}
+
+// undialledConnection returns a connection built from an exchange's subscription connection setup that has never been
+// dialled, as a connection the manager has shut down stays closed
+func undialledConnection(t *testing.T, ex *Exchange) websocket.Connection {
+	t.Helper()
+	conn, err := ex.Websocket.CreateTestConnection(WebsocketSubscriptionConnection)
+	require.NoError(t, err, "CreateTestConnection must not error")
+	return conn
 }
 
 func TestSendWebsocketRequest(t *testing.T) {
@@ -41,6 +76,7 @@ func TestSendWebsocketRequest(t *testing.T) {
 		requests := venue.received("public/get_time")
 		require.Len(t, requests, 1, "SendWebsocketRequest must send one request")
 		assert.NotZero(t, requests[0].ID, "SendWebsocketRequest should send a request ID to match the response with")
+		assert.Equal(t, requestVenueConnection, requests[0].connection, "SendWebsocketRequest should send over the request connection")
 
 		venue.retryNext("public/get_time", 1)
 		require.NoError(t, ex.SendWebsocketRequest(t.Context(), nonMatchingEPL, "public/get_time", nil, &result), "SendWebsocketRequest must succeed once Deribit stops asking for a retry")
@@ -66,6 +102,53 @@ func TestSendWebsocketRequest(t *testing.T) {
 
 	err = newTestExchange(t).SendWebsocketRequest(t.Context(), nonMatchingEPL, "public/get_time", nil, &result)
 	assert.ErrorIs(t, err, websocket.ErrNotConnected, "SendWebsocketRequest should error without a connection")
+}
+
+func TestSendWebsocketRequestOverConnection(t *testing.T) {
+	t.Parallel()
+	ex, venue := newWebsocketTestExchange(t)
+	var result types.Time
+	require.NoError(t, ex.sendWebsocketRequest(t.Context(), subscriptionConnection(t, ex), nonMatchingEPL, "public/get_time", nil, &result), "sendWebsocketRequest must not error")
+	assert.NotZero(t, result, "sendWebsocketRequest should decode the result")
+	if mockTests {
+		requests := venue.received("public/get_time")
+		require.Len(t, requests, 1, "sendWebsocketRequest must send one request")
+		assert.Equal(t, subscriptionVenueConnection, requests[0].connection, "sendWebsocketRequest should send over the connection given")
+	}
+
+	err := ex.sendWebsocketRequest(t.Context(), undialledConnection(t, ex), nonMatchingEPL, "public/get_time", nil, &result)
+	assert.ErrorIs(t, err, websocket.ErrNotConnected, "sendWebsocketRequest should error on a connection that is not connected")
+	if mockTests {
+		venue.answerNext("public/get_time", `{"result":"soon"}`)
+		assert.Error(t, ex.sendWebsocketRequest(t.Context(), subscriptionConnection(t, ex), nonMatchingEPL, "public/get_time", nil, &result), "sendWebsocketRequest should return a result it cannot decode")
+
+		// An aborted rate limit barrier fails a request's rate limit, which the limiters every Exchange shares cannot be
+		// made to do for one test
+		contexts, err := request.NewRateLimitBarrierContexts(t.Context(), 2)
+		require.NoError(t, err, "NewRateLimitBarrierContexts must not error")
+		request.AbortRateLimitBarrier(contexts[0])
+		requests := len(venue.received("public/get_time"))
+		assert.ErrorIs(t, ex.sendWebsocketRequest(contexts[1], subscriptionConnection(t, ex), nonMatchingEPL, "public/get_time", nil, &result), request.ErrRateLimitBarrierRejected, "sendWebsocketRequest should return a rate limit failure")
+		assert.Len(t, venue.received("public/get_time"), requests, "sendWebsocketRequest should send nothing once its rate limit fails")
+	}
+
+	unauthenticated := newTestExchange(t)
+	unauthenticated.Websocket.SetCanUseAuthenticatedEndpoints(false)
+	err = unauthenticated.sendWebsocketRequest(t.Context(), undialledConnection(t, unauthenticated), nonMatchingEPL, "private/get_positions", nil, nil)
+	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "sendWebsocketRequest should refuse a private method unless authenticated requests are allowed")
+}
+
+func TestRequestConnection(t *testing.T) {
+	t.Parallel()
+	ex, _ := newWebsocketTestExchange(t)
+	conn, err := ex.requestConnection("public/get_time")
+	require.NoError(t, err, "requestConnection must not error")
+	assert.Same(t, requestConnection(t, ex), conn, "requestConnection should return the request connection")
+	assert.NotSame(t, subscriptionConnection(t, ex), conn, "requestConnection should not return a subscription connection")
+
+	_, err = newTestExchange(t).requestConnection("public/get_time")
+	assert.ErrorIs(t, err, websocket.ErrNotConnected, "requestConnection should error without a connection")
+	assert.ErrorContains(t, err, "public/get_time", "requestConnection should name the method that needed the connection")
 }
 
 // unacknowledgedChannel marks a channel the mock websocket does not acknowledge subscribing or unsubscribing
@@ -101,56 +184,216 @@ func notification(channel, data string) []byte {
 func TestWebsocketConnect(t *testing.T) {
 	t.Parallel()
 	ex, venue := newWebsocketTestExchange(t)
-	assert.True(t, ex.websocketDialled(), "WebsocketConnect should dial the websocket")
+	assert.True(t, websocketConnected(requestConnection(t, ex)), "WebsocketConnect should dial the request connection")
+	assert.True(t, websocketConnected(subscriptionConnection(t, ex)), "WebsocketConnect should dial the subscription connection")
 	if mockTests {
-		heartbeats := venue.received("public/set_heartbeat")
-		require.NotEmpty(t, heartbeats, "WebsocketConnect must set the heartbeat")
-		assert.JSONEq(t, `{"interval":15}`, string(heartbeats[0].Params), "WebsocketConnect should ask for a heartbeat every 15 seconds")
-		assert.Len(t, venue.received("public/auth"), 1, "WebsocketConnect should authenticate a connection with credentials")
+		require.Equal(t, 2, venue.connectionCount(), "the manager must connect the request connection and a subscription connection")
+		for connection := requestVenueConnection; connection <= subscriptionVenueConnection; connection++ {
+			heartbeats := venue.receivedOn(connection, "public/set_heartbeat")
+			require.Lenf(t, heartbeats, 1, "WebsocketConnect must set the heartbeat of connection %d", connection)
+			assert.JSONEqf(t, `{"interval":15}`, string(heartbeats[0].Params), "WebsocketConnect should ask connection %d for a heartbeat every 15 seconds", connection)
+			assert.Lenf(t, venue.receivedOn(connection, "public/auth"), 1, "the manager should log connection %d in with credentials", connection)
+		}
 	}
 
 	disabled := newTestExchange(t)
 	require.NoError(t, disabled.Websocket.Disable(), "Disable must not error")
-	assert.ErrorIs(t, disabled.WebsocketConnect(), websocket.ErrWebsocketNotEnabled, "WebsocketConnect should refuse a disabled websocket")
+	assert.ErrorIs(t, disabled.WebsocketConnect(t.Context(), undialledConnection(t, disabled)), websocket.ErrWebsocketNotEnabled, "WebsocketConnect should refuse a disabled websocket")
+	disabledExchange := newTestExchange(t)
+	disabledExchange.SetEnabled(false)
+	assert.ErrorIs(t, disabledExchange.WebsocketConnect(t.Context(), undialledConnection(t, disabledExchange)), websocket.ErrWebsocketNotEnabled, "WebsocketConnect should refuse a disabled exchange")
 
 	if !mockTests {
 		return
 	}
 	_, unauthenticatedVenue := newUnauthenticatedWebsocketTestExchange(t)
-	assert.Empty(t, unauthenticatedVenue.received("public/auth"), "WebsocketConnect should not authenticate without authenticated websocket support")
+	assert.Empty(t, unauthenticatedVenue.received("public/auth"), "the manager should not log connections in without authenticated websocket support")
 
-	// Connecting without the manager leaves no connection monitor to redial, and waiting for each connection's reader to
-	// stop keeps it from marking the next connection closed
-	url, reloginVenue := startWebsocketVenue(t)
-	relogin := newTestExchange(t)
-	require.NoError(t, relogin.Websocket.SetWebsocketURL(url, false, false), "SetWebsocketURL must not error")
-	relogin.API.AuthenticatedWebsocketSupport = true
-	for _, tc := range []struct {
-		clientID      string
-		authenticated bool
-	}{
-		{testClientID, true},
-		{"other-client-id", false},
-		{testClientID, true},
-	} {
-		relogin.SetCredentials(&accounts.Credentials{Key: tc.clientID, Secret: testClientSecret})
-		require.NoError(t, relogin.WebsocketConnect(), "WebsocketConnect must connect, whether or not its login succeeds")
-		assert.Equalf(t, tc.authenticated, relogin.Websocket.CanUseAuthenticatedEndpoints(), "WebsocketConnect should leave the connection of client ID %s authenticated only when its login succeeds", tc.clientID)
-		require.NoError(t, relogin.Websocket.Conn.Shutdown(), "Shutdown must close the connection")
-		relogin.Websocket.Wg.Wait()
+	unreachable := newTestExchange(t)
+	require.NoError(t, unreachable.Websocket.SetAllConnectionURLs("ws://127.0.0.1:1"), "SetAllConnectionURLs must not error")
+	assert.Error(t, unreachable.WebsocketConnect(t.Context(), undialledConnection(t, unreachable)), "WebsocketConnect should return a failed dial")
+}
+
+func TestWebsocketConnectAfterFailedLogin(t *testing.T) {
+	t.Parallel()
+	if !mockTests {
+		t.Skip("the live tests share one websocket, which a failed login would leave unauthenticated")
 	}
-	assert.Len(t, reloginVenue.received("public/auth"), 3, "WebsocketConnect should authenticate every connection, a connection after a failed login included")
+	url, venue := startWebsocketVenue(t)
+	ex := newTestExchange(t)
+	require.NoError(t, ex.Websocket.SetAllConnectionURLs(url), "SetAllConnectionURLs must not error")
+	ex.Features.Subscriptions = subscription.List{}
+	ex.Websocket.SetSubscriptionsNotRequired()
+	ex.API.AuthenticatedWebsocketSupport = true
+	// The mock websocket authenticates only the test client ID's signature
+	rejected, accepted := &accounts.Credentials{Key: "other-client-id", Secret: testClientSecret}, &accounts.Credentials{Key: testClientID, Secret: testClientSecret}
+	ex.SetCredentials(rejected)
+	t.Cleanup(func() {
+		if ex.Websocket.IsEnabled() {
+			assert.NoError(t, ex.Websocket.Disable(), "Disable should not error")
+		}
+		if err := ex.Websocket.Shutdown(); err != nil {
+			assert.ErrorIs(t, err, websocket.ErrNotConnected, "Shutdown should only fail when the websocket is shut down already")
+		}
+	})
+	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must connect, though the request connection's login fails")
+	assert.False(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "a failed login should stop authenticated requests")
+	requests := venue.received("public/auth")
+	require.Len(t, requests, 1, "a failed login must stop the manager logging the other connections in")
+	assert.Equal(t, requestVenueConnection, requests[0].connection, "the manager should log the request connection in first")
+	assert.True(t, websocketConnected(subscriptionConnection(t, ex)), "the manager should still connect the subscription connection")
+
+	// Each later cycle of connections logs in again, whether a flush, which reconnects without the manager's Connect, or
+	// the manager connects it
+	for _, tc := range []struct {
+		name          string
+		creds         *accounts.Credentials
+		authenticated bool
+		connect       func() error
+	}{
+		{"flushed", accepted, true, func() error { return ex.Websocket.FlushChannels(t.Context()) }},
+		{"flushed after a failed login", rejected, false, func() error { return ex.Websocket.FlushChannels(t.Context()) }},
+		{"reconnected by the connection monitor", accepted, true, func() error {
+			// Deribit dropping the request connection of the last cycle has the connection monitor connect the websocket again
+			connections := venue.connectionCount()
+			venue.drop(t, connections+requestVenueConnection-subscriptionVenueConnection)
+			if !assert.Eventually(t, func() bool {
+				return ex.Websocket.IsConnected() && venue.connectionCount() == connections+subscriptionVenueConnection
+			}, 10*time.Second, time.Millisecond, "the connection monitor should connect the websocket again") {
+				return websocket.ErrNotConnected
+			}
+			return nil
+		}},
+		{"connected again", accepted, true, func() error {
+			disconnectWebsocket(t, ex)
+			return ex.Websocket.Enable(t.Context())
+		}},
+	} {
+		ex.SetCredentials(tc.creds)
+		logins := len(venue.received("public/auth"))
+		connections := venue.connectionCount()
+		require.NoErrorf(t, tc.connect(), "the websocket must connect again when %s", tc.name)
+		assert.Equalf(t, tc.authenticated, ex.Websocket.CanUseAuthenticatedEndpoints(), "the websocket %s should allow authenticated requests only after a login", tc.name)
+		requests := venue.received("public/auth")[logins:]
+		connectionsLoggedIn := make([]int, len(requests))
+		for i := range requests {
+			connectionsLoggedIn[i] = requests[i].connection
+		}
+		exp := []int{connections + requestVenueConnection}
+		if tc.authenticated {
+			exp = append(exp, connections+subscriptionVenueConnection)
+		}
+		assert.Equalf(t, exp, connectionsLoggedIn, "the websocket %s should log its new connections in, stopping at a failed login", tc.name)
+	}
+}
+
+func TestConnectRequestConnection(t *testing.T) {
+	t.Parallel()
+	ex := newTestExchange(t)
+	require.NoError(t, ex.Websocket.Disable(), "Disable must not error")
+	for _, supported := range []bool{true, false, true} {
+		ex.API.AuthenticatedWebsocketSupport = supported
+		ex.Websocket.SetCanUseAuthenticatedEndpoints(!supported)
+		assert.ErrorIs(t, ex.connectRequestConnection(t.Context(), undialledConnection(t, ex)), websocket.ErrWebsocketNotEnabled, "connectRequestConnection should connect as WebsocketConnect does")
+		assert.Equalf(t, supported, ex.Websocket.CanUseAuthenticatedEndpoints(), "connectRequestConnection should allow authenticated requests exactly when authenticated websocket support is %t", supported)
+	}
+
+	if !mockTests {
+		return
+	}
+	_, venue := newWebsocketTestExchange(t)
+	assert.Len(t, venue.receivedOn(requestVenueConnection, "public/set_heartbeat"), 1, "connectRequestConnection should ask the request connection for heartbeats")
+}
+
+func TestSetWebsocketHeartbeat(t *testing.T) {
+	t.Parallel()
+	ex, venue := newWebsocketTestExchange(t)
+	require.NoError(t, ex.setWebsocketHeartbeat(t.Context(), subscriptionConnection(t, ex)), "setWebsocketHeartbeat must not error")
+	if mockTests {
+		heartbeats := venue.receivedOn(subscriptionVenueConnection, "public/set_heartbeat")
+		require.Len(t, heartbeats, 2, "setWebsocketHeartbeat must set the heartbeat of the connection given, which its connection set first")
+		assert.JSONEq(t, `{"interval":15}`, string(heartbeats[1].Params), "setWebsocketHeartbeat should ask for a heartbeat every 15 seconds")
+
+		venue.answerNext("public/set_heartbeat", `{"error":{"code":11050,"message":"bad_request"}}`)
+		var apiErr *APIError
+		require.ErrorAs(t, ex.setWebsocketHeartbeat(t.Context(), requestConnection(t, ex)), &apiErr, "setWebsocketHeartbeat must return Deribit's refusal")
+		assert.Equal(t, int64(11050), apiErr.Code, "setWebsocketHeartbeat should return Deribit's error code")
+		venue.answerNext("public/set_heartbeat", `{"result":"not ok"}`)
+		assert.ErrorIs(t, ex.setWebsocketHeartbeat(t.Context(), requestConnection(t, ex)), errUnexpectedResult, "setWebsocketHeartbeat should refuse a result other than ok")
+		assert.Len(t, venue.receivedOn(requestVenueConnection, "public/set_heartbeat"), 3, "setWebsocketHeartbeat should send each request over the connection given")
+	}
+	assert.ErrorIs(t, ex.setWebsocketHeartbeat(t.Context(), undialledConnection(t, ex)), websocket.ErrNotConnected, "setWebsocketHeartbeat should error without a connection")
+}
+
+func TestWebsocketConnectHeartbeatRefused(t *testing.T) {
+	t.Parallel()
+	url, venue := startWebsocketVenue(t)
+	venue.refuse("public/set_heartbeat", 2)
+	ex := newTestExchange(t)
+	require.NoError(t, ex.Websocket.SetAllConnectionURLs(url), "SetAllConnectionURLs must not error")
+	ex.Features.Subscriptions = subscription.List{}
+	ex.Websocket.SetSubscriptionsNotRequired()
+	t.Cleanup(func() { disconnectWebsocket(t, ex) })
+	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must connect though Deribit refuses the heartbeats")
+	require.Eventually(t, func() bool { return len(venue.received("public/set_heartbeat")) == 2 }, 5*time.Second, time.Millisecond, "each connection must ask for heartbeats")
+	// A request answered after the refusals on the request connection, whose reader matches answers in order
+	var result types.Time
+	require.NoError(t, ex.SendWebsocketRequest(t.Context(), nonMatchingEPL, "public/get_time", nil, &result), "SendWebsocketRequest must not error")
+	assert.True(t, websocketConnected(requestConnection(t, ex)), "a refused heartbeat should leave the request connection connected")
+	assert.True(t, websocketConnected(subscriptionConnection(t, ex)), "a refused heartbeat should leave the subscription connection connected")
+}
+
+func TestWebsocketHeartbeatAnswered(t *testing.T) {
+	t.Parallel()
+	if !mockTests {
+		t.Skip("Deribit sends test requests at the heartbeat interval, which the live tests do not wait for")
+	}
+	_, venue := newWebsocketTestExchange(t)
+	testRequest := []byte(`{"jsonrpc":"2.0","method":"heartbeat","params":{"type":"test_request"}}`)
+	for connection := requestVenueConnection; connection <= subscriptionVenueConnection; connection++ {
+		venue.push(t, connection, testRequest)
+		require.Eventuallyf(t, func() bool {
+			return len(venue.receivedOn(connection, "public/test")) == 1
+		}, 5*time.Second, time.Millisecond, "a test request on connection %d must be answered", connection)
+		assert.Len(t, venue.received("public/test"), connection, "a test request should be answered on the connection it arrived on alone")
+	}
+}
+
+func TestWebsocketAuthenticate(t *testing.T) {
+	t.Parallel()
+	skipLiveWithoutCredentials(t)
+	ex, venue := newWebsocketTestExchange(t)
+	require.NoError(t, ex.websocketAuthenticate(t.Context(), subscriptionConnection(t, ex)), "websocketAuthenticate must not error")
+	assert.True(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "websocketAuthenticate should leave authenticated requests allowed after a login")
+	if mockTests {
+		assert.Len(t, venue.receivedOn(subscriptionVenueConnection, "public/auth"), 2, "websocketAuthenticate should log the connection given in, which the manager logged in first")
+	}
+
+	if !mockTests {
+		return
+	}
+	rejected, _ := newWebsocketTestExchange(t)
+	rejected.SetCredentials(&accounts.Credentials{Key: "other-client-id", Secret: testClientSecret})
+	require.NoError(t, rejected.websocketAuthenticate(t.Context(), subscriptionConnection(t, rejected)), "websocketAuthenticate must leave a connection whose login fails to serve public channels")
+	assert.False(t, rejected.Websocket.CanUseAuthenticatedEndpoints(), "websocketAuthenticate should stop authenticated requests after a failed login")
+	assert.True(t, websocketConnected(subscriptionConnection(t, rejected)), "websocketAuthenticate should leave a connection whose login fails connected")
+
+	unsupported := newTestExchange(t)
+	unsupported.API.AuthenticatedWebsocketSupport = false
+	unsupported.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	require.NoError(t, unsupported.websocketAuthenticate(t.Context(), undialledConnection(t, unsupported)), "websocketAuthenticate must not error without authenticated websocket support")
+	assert.False(t, unsupported.Websocket.CanUseAuthenticatedEndpoints(), "websocketAuthenticate should stop authenticated requests without authenticated websocket support")
 }
 
 func TestWebsocketLogin(t *testing.T) {
 	t.Parallel()
 	skipLiveWithoutCredentials(t)
 	ex, venue := newWebsocketTestExchange(t)
-	require.NoError(t, ex.wsLogin(t.Context()), "wsLogin must not error")
+	require.NoError(t, ex.wsLogin(t.Context(), requestConnection(t, ex)), "wsLogin must not error")
 	assert.True(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "wsLogin should allow authenticated requests")
 	if mockTests {
-		requests := venue.received("public/auth")
-		require.Len(t, requests, 2, "the connection and wsLogin must each authenticate")
+		requests := venue.receivedOn(requestVenueConnection, "public/auth")
+		require.Len(t, requests, 2, "the manager and wsLogin must each log the request connection in")
 		var params map[string]any
 		require.NoError(t, json.Unmarshal(requests[1].Params, &params), "the authentication params must decode")
 		assert.Equal(t, GrantTypeClientSignature, params["grant_type"], "wsLogin should authenticate with a client signature")
@@ -160,7 +403,7 @@ func TestWebsocketLogin(t *testing.T) {
 
 	unsupported := newTestExchange(t)
 	unsupported.API.AuthenticatedWebsocketSupport = false
-	assert.ErrorIs(t, unsupported.wsLogin(t.Context()), exchange.ErrAuthenticationSupportNotEnabled, "wsLogin should need websocket authentication support")
+	assert.ErrorIs(t, unsupported.wsLogin(t.Context(), undialledConnection(t, unsupported)), exchange.ErrAuthenticationSupportNotEnabled, "wsLogin should need websocket authentication support")
 
 	if !mockTests {
 		return
@@ -169,89 +412,63 @@ func TestWebsocketLogin(t *testing.T) {
 	rejected, _ := newWebsocketTestExchange(t)
 	rejected.SetCredentials(&accounts.Credentials{Key: "other-client-id", Secret: testClientSecret})
 	var apiErr *APIError
-	require.ErrorAs(t, rejected.wsLogin(t.Context()), &apiErr, "wsLogin must return the authentication failure")
+	require.ErrorAs(t, rejected.wsLogin(t.Context(), requestConnection(t, rejected)), &apiErr, "wsLogin must return the authentication failure")
 	assert.Equal(t, int64(13004), apiErr.Code, "wsLogin should return Deribit's invalid credentials error")
 	assert.False(t, rejected.Websocket.CanUseAuthenticatedEndpoints(), "wsLogin should stop authenticated requests after a failure")
+
+	uncredentialled := newTestExchange(t)
+	uncredentialled.API.AuthenticatedWebsocketSupport = true
+	uncredentialled.SetCredentials(&accounts.Credentials{})
+	assert.Error(t, uncredentialled.wsLogin(t.Context(), undialledConnection(t, uncredentialled)), "wsLogin should need credentials")
 }
 
-func TestWebsocketDialled(t *testing.T) {
+func TestWebsocketConnected(t *testing.T) {
 	t.Parallel()
 	ex, _ := newWebsocketTestExchange(t)
-	assert.True(t, ex.websocketDialled(), "websocketDialled should report a dialled connection")
-	assert.False(t, newTestExchange(t).websocketDialled(), "websocketDialled should not report an undialled connection")
-}
-
-// readerConnection serves queued messages to the websocket reader, then the empty message a closed connection reads
-type readerConnection struct {
-	websocket.Connection
-	messages []websocket.Response
-}
-
-func (r *readerConnection) ReadMessage() websocket.Response {
-	if len(r.messages) == 0 {
-		return websocket.Response{}
-	}
-	message := r.messages[0]
-	r.messages = r.messages[1:]
-	return message
-}
-
-func (r *readerConnection) GetURL() string {
-	return "reader"
-}
-
-func TestWebsocketReadData(t *testing.T) {
-	t.Parallel()
-	ex := newTestExchange(t)
-	ex.Websocket.Conn = &readerConnection{messages: []websocket.Response{
-		{Raw: notification(ChannelPriceIndex+".btc_usd", `{"timestamp":1792107433668,"price":82119.87,"index_name":"btc_usd"}`)},
-		{Raw: []byte(`not json`)},
-	}}
-	ex.Websocket.Wg.Add(1)
-	ex.wsReadData(t.Context())
-	assert.IsType(t, &WebsocketPriceIndex{}, relayed(t, ex), "wsReadData should pass a message to its handler")
-	err, ok := relayed(t, ex).(error)
-	require.True(t, ok, "wsReadData must relay a handling error")
-	assert.ErrorContains(t, err, "could not parse websocket data", "wsReadData should relay the handling error")
-	assertNothingRelayed(t, ex)
+	assert.True(t, websocketConnected(requestConnection(t, ex)), "websocketConnected should report a dialled connection")
+	assert.False(t, websocketConnected(undialledConnection(t, ex)), "websocketConnected should not report an undialled connection")
+	assert.False(t, websocketConnected(nil), "websocketConnected should not report a missing connection")
 }
 
 func TestWebsocketHandleData(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
-	assert.ErrorContains(t, ex.wsHandleData(t.Context(), []byte(`{`)), "could not parse websocket data", "wsHandleData should reject malformed JSON")
-	assert.Error(t, ex.wsHandleData(t.Context(), []byte(`{"jsonrpc":"2.0","id":987654321,"result":"ok"}`)), "wsHandleData should error for a response no request awaits")
+	conn := undialledConnection(t, ex)
+	assert.ErrorContains(t, ex.wsHandleData(t.Context(), conn, []byte(`{`)), "could not parse websocket data", "wsHandleData should reject malformed JSON")
+	assert.ErrorIs(t, ex.wsHandleData(t.Context(), conn, []byte(`{"jsonrpc":"2.0","id":987654321,"result":"ok"}`)), websocket.ErrSignatureNotMatched, "wsHandleData should error for a response no request on the connection awaits")
 
-	require.NoError(t, ex.wsHandleData(t.Context(), []byte(`{"jsonrpc":"2.0","method":"heartbeat","params":{"type":"heartbeat"}}`)), "wsHandleData must not error for a heartbeat")
+	require.NoError(t, ex.wsHandleData(t.Context(), conn, []byte(`{"jsonrpc":"2.0","method":"heartbeat","params":{"type":"heartbeat"}}`)), "wsHandleData must not error for a heartbeat")
 	assertNothingRelayed(t, ex)
 
-	require.NoError(t, ex.wsHandleData(t.Context(), notification(ChannelPriceIndex+".btc_usd", `{"timestamp":1792107433668,"price":82119.87,"index_name":"btc_usd"}`)), "wsHandleData must not error for a notification")
+	require.NoError(t, ex.wsHandleData(t.Context(), conn, notification(ChannelPriceIndex+".btc_usd", `{"timestamp":1792107433668,"price":82119.87,"index_name":"btc_usd"}`)), "wsHandleData must not error for a notification")
 	assert.IsType(t, &WebsocketPriceIndex{}, relayed(t, ex), "wsHandleData should pass a notification to its channel's handler")
 
-	require.NoError(t, ex.wsHandleData(t.Context(), []byte(`{"jsonrpc":"2.0","method":"bogus"}`)), "wsHandleData must not error for an unknown method")
+	require.NoError(t, ex.wsHandleData(t.Context(), conn, []byte(`{"jsonrpc":"2.0","method":"bogus"}`)), "wsHandleData must not error for an unknown method")
 	assert.IsType(t, websocket.UnhandledMessageWarning{}, relayed(t, ex), "wsHandleData should relay an unknown method as unhandled")
 
 	if !mockTests {
 		return
 	}
 	connected, venue := newWebsocketTestExchange(t)
-	require.NoError(t, connected.wsHandleData(t.Context(), []byte(`{"jsonrpc":"2.0","method":"heartbeat","params":{"type":"test_request"}}`)), "wsHandleData must not error for a test request")
+	require.NoError(t, connected.wsHandleData(t.Context(), subscriptionConnection(t, connected), []byte(`{"jsonrpc":"2.0","method":"heartbeat","params":{"type":"test_request"}}`)), "wsHandleData must not error for a test request")
 	assert.Eventually(t, func() bool {
-		return len(venue.received("public/test")) == 1
-	}, 5*time.Second, 10*time.Millisecond, "wsHandleData should answer a test request with a public/test request")
+		return len(venue.receivedOn(subscriptionVenueConnection, "public/test")) == 1
+	}, 5*time.Second, 10*time.Millisecond, "wsHandleData should answer a test request with a public/test request on the connection it arrived on")
+	assert.Empty(t, venue.receivedOn(requestVenueConnection, "public/test"), "wsHandleData should not answer a test request on another connection")
 }
 
 func TestWebsocketAnswerHeartbeat(t *testing.T) {
 	t.Parallel()
 	ex, venue := newWebsocketTestExchange(t)
-	ex.wsAnswerHeartbeat(t.Context())
+	ex.wsAnswerHeartbeat(t.Context(), subscriptionConnection(t, ex))
 	if mockTests {
 		requests := venue.received("public/test")
 		require.Len(t, requests, 1, "wsAnswerHeartbeat must send a public/test request")
 		assert.Empty(t, requests[0].Params, "wsAnswerHeartbeat should send no params")
+		assert.Equal(t, subscriptionVenueConnection, requests[0].connection, "wsAnswerHeartbeat should answer on the connection given")
 	}
 	// Without a connection the failure is logged, as nothing awaits the answer
-	newTestExchange(t).wsAnswerHeartbeat(t.Context())
+	ex.wsAnswerHeartbeat(t.Context(), undialledConnection(t, ex))
 }
 
 func TestWebsocketHandleNotification(t *testing.T) {
@@ -549,11 +766,11 @@ func TestWebsocketHandleNotification(t *testing.T) {
 			}},
 		},
 	} {
-		require.NoErrorf(t, ex.wsHandleNotification(t.Context(), tc.channel, notification(tc.channel, tc.data)), "wsHandleNotification must not error for %s", tc.channel)
+		require.NoErrorf(t, ex.wsHandleNotification(t.Context(), nil, tc.channel, notification(tc.channel, tc.data)), "wsHandleNotification must not error for %s", tc.channel)
 		assert.Equalf(t, tc.exp, relayed(t, ex), "wsHandleNotification should relay %s's data", tc.channel)
 	}
 
-	require.NoError(t, ex.wsHandleNotification(t.Context(), "bogus.channel", notification("bogus.channel", `{}`)), "wsHandleNotification must not error for an unknown channel")
+	require.NoError(t, ex.wsHandleNotification(t.Context(), nil, "bogus.channel", notification("bogus.channel", `{}`)), "wsHandleNotification must not error for an unknown channel")
 	assert.IsType(t, websocket.UnhandledMessageWarning{}, relayed(t, ex), "wsHandleNotification should relay an unknown channel as unhandled")
 }
 
@@ -772,6 +989,39 @@ func TestGenerateSubscriptions(t *testing.T) {
 		assert.ErrorIs(t, err, request.ErrBadStatus, "generateSubscriptions should return the failure to load the spot instruments")
 		assert.Nil(t, ex.coinbaseRoutedSpot, "generateSubscriptions should leave the routed spot unloaded, for the next generation to load")
 	})
+}
+
+func TestGenerateSubscriptionsWhileFlushing(t *testing.T) {
+	t.Parallel()
+	url, _ := startWebsocketVenue(t)
+	var instrumentRequests atomic.Int32
+	ex := newWrapperServerExchange(t, func(method string, _ json.RawMessage) string {
+		if method == "public/get_instruments" {
+			instrumentRequests.Add(1)
+		}
+		return `{"jsonrpc":"2.0","result":[{"instrument_name":"ETH_BTC","kind":"spot","is_active":true}]}`
+	})
+	require.NoError(t, ex.Websocket.SetAllConnectionURLs(url), "SetAllConnectionURLs must not error")
+	ex.Features.Subscriptions = subscription.List{}
+	// Shutting down waits for the manager's lock, which a flush that waits for itself never releases
+	t.Cleanup(func() { assert.NoError(t, ex.Websocket.Disable(), "Disable should not error") })
+	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must connect the request connection")
+	ex.Features.Supports.WebsocketCapabilities.Subscribe = true
+	ex.Features.Supports.WebsocketCapabilities.Unsubscribe = true
+	ex.Features.Subscriptions = subscription.List{{Enabled: true, Channel: subscription.AllTradesChannel, Interval: kline.HundredMilliseconds, Params: map[string]any{"kind": "spot", "currency": "ETH"}}}
+	// The manager generates the subscriptions of a flush holding the lock finding the request connection waits for, so
+	// loading the spot Deribit routes to Coinbase Exchange over the websocket would wait for the flush itself
+	flushed := make(chan error, 1)
+	go func() { flushed <- ex.Websocket.FlushChannels(t.Context()) }()
+	select {
+	case err := <-flushed:
+		require.NoError(t, err, "FlushChannels must not error")
+	case <-time.After(10 * time.Second):
+		require.FailNow(t, "FlushChannels must not wait for itself to load the routed spot")
+	}
+	assert.Equal(t, int32(1), instrumentRequests.Load(), "generateSubscriptions should load the routed spot over REST while the websocket is connected")
+	assert.Equal(t, []string{"trades.spot.ETH.100ms"}, ex.Websocket.GetSubscriptions().QualifiedChannels(), "FlushChannels should subscribe the generated subscriptions")
+	require.NoError(t, ex.Websocket.Shutdown(), "Shutdown must not error")
 }
 
 func TestIsSpotKindTrades(t *testing.T) {
@@ -1118,21 +1368,23 @@ func heldSubscription(ex *Exchange, channel string) *subscription.Subscription {
 func TestSubscribe(t *testing.T) {
 	t.Parallel()
 	ex, venue := newWebsocketTestExchange(t)
+	conn := subscriptionConnection(t, ex)
 	const channel = "deribit_price_index.sol_usdc"
 	public := &subscription.Subscription{Channel: ChannelPriceIndex, Params: map[string]any{"index_name": "sol_usdc"}}
-	require.NoError(t, ex.Subscribe(subscription.List{public}), "Subscribe must not error")
+	require.NoError(t, ex.Subscribe(t.Context(), conn, subscription.List{public}), "Subscribe must not error")
 	held := heldSubscription(ex, channel)
 	require.NotNil(t, held, "Subscribe must store the acknowledged subscription under its qualified channel")
 	if mockTests {
 		requests := venue.received("public/subscribe")
 		require.Len(t, requests, 1, "Subscribe must send a public/subscribe request")
 		assert.JSONEq(t, `{"channels":["deribit_price_index.sol_usdc"]}`, string(requests[0].Params), "Subscribe should send the qualified channel")
+		assert.Equal(t, subscriptionVenueConnection, requests[0].connection, "Subscribe should subscribe the connection given")
 	}
-	require.NoError(t, ex.Unsubscribe(subscription.List{held}), "Unsubscribe must not error")
+	require.NoError(t, ex.Unsubscribe(t.Context(), conn, subscription.List{held}), "Unsubscribe must not error")
 	assert.Nil(t, heldSubscription(ex, channel), "Unsubscribe should remove the acknowledged subscription")
 
-	assert.ErrorIs(t, ex.Subscribe(subscription.List{{Channel: "bogus"}}), subscription.ErrNotSupported, "Subscribe should reject an unknown channel")
-	assert.ErrorIs(t, ex.Subscribe(subscription.List{{Channel: ChannelPriceIndex}}), errChannelParameter, "Subscribe should return a qualification failure")
+	assert.ErrorIs(t, ex.Subscribe(t.Context(), conn, subscription.List{{Channel: "bogus"}}), subscription.ErrNotSupported, "Subscribe should reject an unknown channel")
+	assert.ErrorIs(t, ex.Subscribe(t.Context(), conn, subscription.List{{Channel: ChannelPriceIndex}}), errChannelParameter, "Subscribe should return a qualification failure")
 
 	if !mockTests {
 		return
@@ -1148,12 +1400,30 @@ func TestSubscribe(t *testing.T) {
 	t.Run("channels differing by a parameter", func(t *testing.T) {
 		t.Parallel()
 		ex, _ := newWebsocketTestExchange(t)
+		conn := subscriptionConnection(t, ex)
 		btc := &subscription.Subscription{Channel: ChannelPriceIndex, Params: map[string]any{"index_name": "btc_usd"}}
 		eth := &subscription.Subscription{Channel: ChannelPriceIndex, Params: map[string]any{"index_name": "eth_usd"}}
-		require.NoError(t, ex.Subscribe(subscription.List{btc, eth}), "Subscribe must not error for two indexes")
+		require.NoError(t, ex.Subscribe(t.Context(), conn, subscription.List{btc, eth}), "Subscribe must not error for two indexes")
 		assert.ElementsMatch(t, []string{"deribit_price_index.btc_usd", "deribit_price_index.eth_usd"}, ex.Websocket.GetSubscriptions().QualifiedChannels(), "Subscribe should hold each index's channel")
-		require.NoError(t, ex.Unsubscribe(subscription.List{heldSubscription(ex, "deribit_price_index.eth_usd")}), "Unsubscribe must not error")
+		require.NoError(t, ex.Unsubscribe(t.Context(), conn, subscription.List{heldSubscription(ex, "deribit_price_index.eth_usd")}), "Unsubscribe must not error")
 		assert.Equal(t, []string{"deribit_price_index.btc_usd"}, ex.Websocket.GetSubscriptions().QualifiedChannels(), "Unsubscribe should leave the other index's channel held")
+	})
+
+	t.Run("held already", func(t *testing.T) {
+		t.Parallel()
+		ex, venue := newWebsocketTestExchange(t)
+		conn := subscriptionConnection(t, ex)
+		require.NoError(t, ex.Subscribe(t.Context(), conn, subscription.List{{Channel: ChannelPriceIndex, Params: map[string]any{"index_name": "btc_usd"}}}), "Subscribe must not error")
+		sub := heldSubscription(ex, "deribit_price_index.btc_usd")
+		require.NotNil(t, sub, "Subscribe must hold the subscription")
+		err := ex.Subscribe(t.Context(), conn, subscription.List{sub, {Channel: ChannelPriceIndex, Params: map[string]any{"index_name": "btc_usd"}}})
+		assert.ErrorIs(t, err, subscription.ErrDuplicate, "Subscribe should refuse a subscription held already, and an equal one")
+		assert.Len(t, venue.received("public/subscribe"), 1, "Subscribe should send nothing for a subscription held already")
+
+		require.NoError(t, sub.SetState(subscription.ResubscribingState), "SetState must not error")
+		assert.ErrorIs(t, ex.Subscribe(t.Context(), conn, subscription.List{sub}), subscription.ErrDuplicate, "Subscribe should report holding a subscription resubscribing twice")
+		assert.Len(t, venue.received("public/subscribe"), 2, "Subscribe should subscribe a subscription held resubscribing")
+		assert.Equal(t, subscription.SubscribedState, sub.State(), "Subscribe should leave a subscription held resubscribing subscribed")
 	})
 
 	t.Run("book channels requested together", func(t *testing.T) {
@@ -1163,7 +1433,7 @@ func TestSubscribe(t *testing.T) {
 		rawBook.Interval = kline.Raw
 		rawBook.Authenticated = true
 		tickerSub := &subscription.Subscription{Channel: subscription.TickerChannel, Asset: asset.Futures, Pairs: currency.Pairs{perp}, Interval: kline.HundredMilliseconds}
-		err := ex.Subscribe(subscription.List{groupedBook(), rawBook, tickerSub})
+		err := ex.Subscribe(t.Context(), subscriptionConnection(t, ex), subscription.List{groupedBook(), rawBook, tickerSub})
 		assert.ErrorIs(t, err, subscription.ErrExclusiveSubscription, "Subscribe should refuse a public and a private book channel of one instrument")
 		requests := venue.received("public/subscribe")
 		require.Len(t, requests, 1, "Subscribe must still subscribe the other channels")
@@ -1175,8 +1445,9 @@ func TestSubscribe(t *testing.T) {
 	t.Run("book channel held", func(t *testing.T) {
 		t.Parallel()
 		ex, venue := newWebsocketTestExchange(t)
-		require.NoError(t, ex.Subscribe(subscription.List{plainBook()}), "Subscribe must not error for a plain book")
-		err := ex.Subscribe(subscription.List{groupedBook()})
+		conn := subscriptionConnection(t, ex)
+		require.NoError(t, ex.Subscribe(t.Context(), conn, subscription.List{plainBook()}), "Subscribe must not error for a plain book")
+		err := ex.Subscribe(t.Context(), conn, subscription.List{groupedBook()})
 		assert.ErrorIs(t, err, subscription.ErrExclusiveSubscription, "Subscribe should refuse a grouped book while the instrument's plain book is held")
 		assert.Len(t, venue.received("public/subscribe"), 1, "Subscribe should send nothing for a refused book channel")
 		assert.Equal(t, []string{"book.BTC-PERPETUAL.100ms"}, ex.Websocket.GetSubscriptions().QualifiedChannels(), "Subscribe should hold only the book channel held before")
@@ -1185,11 +1456,12 @@ func TestSubscribe(t *testing.T) {
 	t.Run("book channels requested at once", func(t *testing.T) {
 		t.Parallel()
 		ex, venue := newWebsocketTestExchange(t)
+		conn := subscriptionConnection(t, ex)
 		venue.delayNext("public/subscribe", 200*time.Millisecond)
 		errs := make([]error, 2)
 		var wg sync.WaitGroup
 		for i, book := range []*subscription.Subscription{plainBook(), groupedBook()} {
-			wg.Go(func() { errs[i] = ex.Subscribe(subscription.List{book}) })
+			wg.Go(func() { errs[i] = ex.Subscribe(t.Context(), conn, subscription.List{book}) })
 		}
 		wg.Wait()
 		refused := slices.IndexFunc(errs, func(err error) bool { return errors.Is(err, subscription.ErrExclusiveSubscription) })
@@ -1211,12 +1483,13 @@ func TestSubscribe(t *testing.T) {
 			t.Run(tc.access, func(t *testing.T) {
 				t.Parallel()
 				ex, venue := newWebsocketTestExchange(t)
+				conn := subscriptionConnection(t, ex)
 				method := tc.access + "/subscribe"
 				venue.delayNext(method, 150*time.Millisecond)
 				subscribed := make(chan error, 1)
-				go func() { subscribed <- ex.Subscribe(subscription.List{tc.sub}) }()
+				go func() { subscribed <- ex.Subscribe(t.Context(), conn, subscription.List{tc.sub}) }()
 				require.Eventually(t, func() bool { return len(venue.received(method)) == 1 }, 5*time.Second, time.Millisecond, "Subscribe must send its request")
-				assert.NoError(t, ex.Unsubscribe(subscription.List{tc.sub}), "Unsubscribe should wait for the subscribe under way, then remove its subscription")
+				assert.NoError(t, ex.Unsubscribe(t.Context(), conn, subscription.List{tc.sub}), "Unsubscribe should wait for the subscribe under way, then remove its subscription")
 				assert.NoError(t, <-subscribed, "Subscribe should not error")
 				assert.Empty(t, ex.Websocket.GetSubscriptions(), "Unsubscribe should leave no subscription held")
 			})
@@ -1228,28 +1501,35 @@ func TestUnsubscribe(t *testing.T) {
 	t.Parallel()
 	ex, venue := newWebsocketTestExchange(t)
 	skipLiveWithoutCredentials(t)
+	conn := subscriptionConnection(t, ex)
 	const channel = "user.liquidation"
 	private := &subscription.Subscription{Channel: ChannelUserLiquidation, Authenticated: true}
-	require.NoError(t, ex.Subscribe(subscription.List{private}), "Subscribe must not error for a private channel")
+	require.NoError(t, ex.Subscribe(t.Context(), conn, subscription.List{private}), "Subscribe must not error for a private channel")
 	held := heldSubscription(ex, channel)
 	require.NotNil(t, held, "Subscribe must store the private subscription under its qualified channel")
-	require.NoError(t, ex.Unsubscribe(subscription.List{held}), "Unsubscribe must not error for a private channel")
+	require.NoError(t, ex.Unsubscribe(t.Context(), conn, subscription.List{held}), "Unsubscribe must not error for a private channel")
 	assert.Nil(t, heldSubscription(ex, channel), "Unsubscribe should remove the private subscription")
 	if mockTests {
-		assert.Len(t, venue.received("private/subscribe"), 1, "Subscribe should subscribe a private channel through private/subscribe")
-		assert.Len(t, venue.received("private/unsubscribe"), 1, "Unsubscribe should unsubscribe a private channel through private/unsubscribe")
+		requests := venue.received("private/subscribe")
+		require.Len(t, requests, 1, "Subscribe must subscribe a private channel through private/subscribe")
+		assert.Equal(t, subscriptionVenueConnection, requests[0].connection, "Subscribe should subscribe the connection given")
+		requests = venue.received("private/unsubscribe")
+		require.Len(t, requests, 1, "Unsubscribe must unsubscribe a private channel through private/unsubscribe")
+		assert.Equal(t, subscriptionVenueConnection, requests[0].connection, "Unsubscribe should unsubscribe the connection given")
 	}
+	assert.ErrorIs(t, ex.Unsubscribe(t.Context(), conn, subscription.List{{Channel: ChannelPriceIndex}}), errChannelParameter, "Unsubscribe should return a qualification failure")
 }
 
 func TestHandleSubscription(t *testing.T) {
 	t.Parallel()
 	ex, _ := newWebsocketTestExchange(t)
-	require.NoError(t, ex.handleSubscription(t.Context(), true, false, nil), "handleSubscription must not error without subscriptions")
+	conn := subscriptionConnection(t, ex)
+	require.NoError(t, ex.handleSubscription(t.Context(), conn, true, false, nil), "handleSubscription must not error without subscriptions")
 
 	disconnected := newTestExchange(t)
 	indexSubs, err := disconnected.expandSubscriptions(subscription.List{{Channel: ChannelPriceIndex, Params: map[string]any{"index_name": "btc_usd"}}})
 	require.NoError(t, err, "expandSubscriptions must not error")
-	err = disconnected.handleSubscription(t.Context(), true, false, indexSubs)
+	err = disconnected.handleSubscription(t.Context(), undialledConnection(t, disconnected), true, false, indexSubs)
 	assert.ErrorIs(t, err, websocket.ErrNotConnected, "handleSubscription should return the request failure")
 
 	if !mockTests {
@@ -1260,16 +1540,85 @@ func TestHandleSubscription(t *testing.T) {
 		{Channel: ChannelPriceIndex, Params: map[string]any{"index_name": unacknowledgedChannel}},
 	})
 	require.NoError(t, err, "expandSubscriptions must not error")
-	err = ex.handleSubscription(t.Context(), true, false, subs)
+	err = ex.handleSubscription(t.Context(), conn, true, false, subs)
 	assert.ErrorIs(t, err, errUnacknowledgedSubscription, "handleSubscription should report a channel Deribit does not acknowledge")
 	held := ex.Websocket.GetSubscriptions()
 	require.Len(t, held, 1, "handleSubscription must store only the acknowledged subscription")
 	assert.Equal(t, "deribit_price_index.btc_usd", held[0].QualifiedChannel, "handleSubscription should store the acknowledged channel")
-	require.NoError(t, ex.handleSubscription(t.Context(), false, false, held), "handleSubscription must not error unsubscribing")
+	require.NoError(t, ex.handleSubscription(t.Context(), conn, false, false, held), "handleSubscription must not error unsubscribing")
 	assert.Empty(t, ex.Websocket.GetSubscriptions(), "handleSubscription should remove the unsubscribed channel")
 
 	_, err = newTestExchange(t).WebsocketAPI().Subscribe(t.Context(), []string{"deribit_price_index.btc_usd"})
 	assert.ErrorIs(t, err, websocket.ErrNotConnected, "WebsocketAPI.Subscribe should error without a connection")
+}
+
+func TestSendSubscriptionRequest(t *testing.T) {
+	t.Parallel()
+	if !mockTests {
+		t.Skip("the test subscribes channels the live tests do not hold; live tests share Deribit's websocket")
+	}
+	ex, venue := newWebsocketTestExchange(t)
+	for _, tc := range []struct {
+		subscribe, private bool
+		method             string
+	}{
+		{true, false, "public/subscribe"},
+		{true, true, "private/subscribe"},
+		{false, false, "public/unsubscribe"},
+		{false, true, "private/unsubscribe"},
+	} {
+		acknowledged, err := ex.sendSubscriptionRequest(t.Context(), subscriptionConnection(t, ex), tc.subscribe, tc.private, []string{"user.liquidation"})
+		require.NoErrorf(t, err, "sendSubscriptionRequest must not error for %s", tc.method)
+		assert.Equalf(t, []string{"user.liquidation"}, acknowledged, "sendSubscriptionRequest should return the channels %s acknowledged", tc.method)
+		requests := venue.received(tc.method)
+		require.Lenf(t, requests, 1, "sendSubscriptionRequest must send %s", tc.method)
+		assert.JSONEqf(t, `{"channels":["user.liquidation"]}`, string(requests[0].Params), "sendSubscriptionRequest should send the channels in %s", tc.method)
+		assert.Equalf(t, subscriptionVenueConnection, requests[0].connection, "sendSubscriptionRequest should send %s over the connection given", tc.method)
+	}
+}
+
+func TestRefuseHeldSubscriptions(t *testing.T) {
+	t.Parallel()
+	ex := newTestExchange(t)
+	newSub := func(index string) *subscription.Subscription {
+		sub := &subscription.Subscription{Channel: ChannelPriceIndex, Params: map[string]any{"index_name": index}, QualifiedChannel: "deribit_price_index." + index}
+		sub.SetKey(qualifiedChannelKey{sub})
+		return sub
+	}
+	held, resubscribing := newSub("btc_usd"), newSub("eth_usd")
+	require.NoError(t, ex.Websocket.AddSuccessfulSubscriptions(nil, held, resubscribing), "AddSuccessfulSubscriptions must not error")
+	require.NoError(t, resubscribing.SetState(subscription.ResubscribingState), "SetState must not error")
+	unheld, equal, equalToResubscribing := newSub("sol_usdc"), newSub("btc_usd"), newSub("eth_usd")
+	allowed, err := ex.refuseHeldSubscriptions(subscription.List{held, unheld, equal, resubscribing, equalToResubscribing})
+	assert.Equal(t, subscription.List{unheld, resubscribing}, allowed, "refuseHeldSubscriptions should allow a subscription not held, and one held resubscribing")
+	assert.ErrorIs(t, err, subscription.ErrDuplicate, "refuseHeldSubscriptions should refuse a subscription held already")
+	var joined interface{ Unwrap() []error }
+	require.ErrorAs(t, err, &joined, "refuseHeldSubscriptions must return an error for each subscription refused")
+	assert.Len(t, joined.Unwrap(), 3, "refuseHeldSubscriptions should refuse the held subscription and the two equal to held ones")
+
+	allowed, err = ex.refuseHeldSubscriptions(subscription.List{unheld})
+	assert.NoError(t, err, "refuseHeldSubscriptions should not error without a subscription held")
+	assert.Equal(t, subscription.List{unheld}, allowed, "refuseHeldSubscriptions should allow every subscription not held")
+}
+
+func TestSubscriptionsScaleConnections(t *testing.T) {
+	t.Parallel()
+	subs := make(subscription.List, maximumChannelsPerConnection+1)
+	for i := range subs {
+		subs[i] = &subscription.Subscription{Enabled: true, Channel: ChannelPriceIndex, Params: map[string]any{"index_name": "index_" + strconv.Itoa(i)}}
+	}
+	ex, venue := connectWebsocketTestExchange(t, true, subs)
+	assert.Len(t, ex.Websocket.GetSubscriptions(), len(subs), "the manager should hold every subscription")
+	require.Equal(t, 3, venue.connectionCount(), "the manager must open a second subscription connection for the channels past the first one's limit")
+	assert.Empty(t, venue.receivedOn(requestVenueConnection, "public/subscribe"), "the manager should subscribe nothing on the request connection")
+	for connection, exp := range map[int]int{subscriptionVenueConnection: maximumChannelsPerConnection, subscriptionVenueConnection + 1: 1} {
+		requests := venue.receivedOn(connection, "public/subscribe")
+		require.Lenf(t, requests, 1, "the manager must subscribe connection %d's channels in one request", connection)
+		var params SubscriptionRequest
+		require.NoError(t, json.Unmarshal(requests[0].Params, &params), "the subscribe params must decode")
+		assert.Lenf(t, params.Channels, exp, "connection %d should subscribe its share of the channels", connection)
+		assert.Lenf(t, venue.receivedOn(connection, "public/auth"), 1, "the manager should log connection %d in", connection)
+	}
 }
 
 func TestRefuseBookConflicts(t *testing.T) {
@@ -1295,7 +1644,7 @@ func TestRefuseBookConflicts(t *testing.T) {
 			t.Parallel()
 			ex := newTestExchange(t)
 			for _, channel := range tc.held {
-				require.NoError(t, ex.Websocket.AddSuccessfulSubscriptions(ex.Websocket.Conn, &subscription.Subscription{QualifiedChannel: channel}), "AddSuccessfulSubscriptions must not error")
+				require.NoError(t, ex.Websocket.AddSuccessfulSubscriptions(nil, &subscription.Subscription{QualifiedChannel: channel}), "AddSuccessfulSubscriptions must not error")
 			}
 			requested := make(subscription.List, len(tc.requested))
 			for i, channel := range tc.requested {

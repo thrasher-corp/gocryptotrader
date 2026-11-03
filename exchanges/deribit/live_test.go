@@ -14,8 +14,10 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 )
 
 // useTestnet sends every live test to Deribit's testnet, whose credentials are separate from production's
@@ -53,7 +55,7 @@ func setupLiveExchange(ex *Exchange) error {
 			return err
 		}
 	}
-	return ex.Websocket.SetWebsocketURL(testnetWebsocketURL, false, false)
+	return ex.Websocket.SetAllConnectionURLs(testnetWebsocketURL)
 }
 
 // newTestExchange returns a live exchange named after the test, so the ticker and orderbook stores it writes do not
@@ -83,11 +85,19 @@ func newWebsocketTestExchange(t *testing.T) (*Exchange, *websocketVenue) {
 	return ex, nil
 }
 
-// newUnauthenticatedWebsocketTestExchange skips the test, as the live tests share one connection, which authenticates
-// when it connects with credentials set
+// newUnauthenticatedWebsocketTestExchange skips the test, as the live tests share one websocket, whose connections log in
+// when they connect with credentials set
 func newUnauthenticatedWebsocketTestExchange(t *testing.T) (*Exchange, *websocketVenue) {
 	t.Helper()
-	t.Skip("the live tests share one connection, which authenticates when it connects")
+	t.Skip("the live tests share one websocket, whose connections log in when they connect")
+	return nil, nil
+}
+
+// connectWebsocketTestExchange skips the test, as the live tests share one websocket, connected once without
+// subscriptions
+func connectWebsocketTestExchange(t *testing.T, _ bool, _ subscription.List, _ ...func(*config.Exchange)) (*Exchange, *websocketVenue) {
+	t.Helper()
+	t.Skip("the live tests share one websocket, connected once without subscriptions")
 	return nil, nil
 }
 
@@ -105,7 +115,17 @@ func (*websocketVenue) refuse(string, int) {}
 
 func (*websocketVenue) retryNext(string, int) {}
 
+func (*websocketVenue) answerNext(string, string) {}
+
+func (*websocketVenue) push(*testing.T, int, []byte) {}
+
+func (*websocketVenue) drop(*testing.T, int) {}
+
 func (*websocketVenue) received(string) []websocketVenueRequest { return nil }
+
+func (*websocketVenue) receivedOn(int, string) []websocketVenueRequest { return nil }
+
+func (*websocketVenue) connectionCount() int { return 0 }
 
 // startWebsocketVenue skips the test, as the live tests share Deribit's websocket rather than a mock of it
 func startWebsocketVenue(t *testing.T) (string, *websocketVenue) {

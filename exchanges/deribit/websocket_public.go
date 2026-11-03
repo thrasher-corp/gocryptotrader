@@ -24,8 +24,9 @@ import (
 )
 
 // wsHandleOrderbook loads a book snapshot and applies a book change, checking each change follows the last one applied,
-// or loads a grouped book, which every notification sends whole
-func (e *Exchange) wsHandleOrderbook(ctx context.Context, channel string, respRaw []byte) error {
+// or loads a grouped book, which every notification sends whole; a book that misses a change is resubscribed on the
+// connection the change arrived on
+func (e *Exchange) wsHandleOrderbook(ctx context.Context, conn websocket.Connection, channel string, respRaw []byte) error {
 	// book.{instrument}.{group}.{depth}.{interval} has 5 parts, book.{instrument}.{interval} 3
 	if strings.Count(channel, ".") == 4 {
 		var data WebsocketGroupedOrderbook
@@ -92,7 +93,7 @@ func (e *Exchange) wsHandleOrderbook(ctx context.Context, channel string, respRa
 			if invalidateErr := e.Websocket.Orderbook.InvalidateOrderbook(pair, a); invalidateErr != nil && !errors.Is(invalidateErr, orderbook.ErrDepthNotFound) {
 				err = common.AppendError(err, invalidateErr)
 			}
-			e.resubscribeChannel(ctx, channel)
+			e.resubscribeChannel(ctx, conn, channel)
 		}
 		return err
 	default:
@@ -112,16 +113,16 @@ func orderbookChangeLevels(changes []WebsocketOrderbookChange) orderbook.Levels 
 	return levels
 }
 
-// resubscribeChannel resubscribes the subscription of a qualified channel in the background, so Deribit sends a new
-// snapshot without holding up the reader, which must go on matching responses while a resubscription waits for them
-func (e *Exchange) resubscribeChannel(ctx context.Context, channel string) {
+// resubscribeChannel resubscribes the subscription of a qualified channel on a connection in the background, so Deribit
+// sends a new snapshot without holding up the connection's reader, which must go on matching responses while a
+// resubscription waits for them
+func (e *Exchange) resubscribeChannel(ctx context.Context, conn websocket.Connection, channel string) {
 	sub := e.markResubscribing(channel)
 	if sub == nil {
 		return
 	}
-	generation := e.connectionGeneration.Load()
 	go func() {
-		if err := e.resubscribe(ctx, sub, generation); err != nil {
+		if err := e.resubscribe(ctx, conn, sub); err != nil {
 			log.Errorf(log.WebsocketMgr, "%s resubscribing to %s: %s", e.Name, channel, err)
 		}
 	}()
@@ -142,20 +143,20 @@ func (e *Exchange) markResubscribing(channel string) *subscription.Subscription 
 	return nil
 }
 
-// resubscribe unsubscribes a subscription marked as resubscribing and subscribes it again on the connection of a
-// generation, holding the subscription throughout, so a flush or an unsubscribe made meanwhile waits for the request
-// under way, then finds the subscription and removes it, which ends the resubscription, as does a subscribe made
-// meanwhile. When its unsubscribe is refused, not sent or unanswered, the channel is taken to be as it was, so the
-// subscription is marked subscribed again for the next change out of sequence to retry; when the subscribe fails after
-// it, no further notification prompts another attempt, so the subscribe is retried
-func (e *Exchange) resubscribe(ctx context.Context, sub *subscription.Subscription, generation uint64) error {
+// resubscribe unsubscribes a subscription marked as resubscribing and subscribes it again on its connection, holding the
+// subscription throughout, so a flush or an unsubscribe made meanwhile waits for the request under way, then finds the
+// subscription and removes it, which ends the resubscription, as does a subscribe made meanwhile. When its unsubscribe
+// is refused, not sent or unanswered, the channel is taken to be as it was, so the subscription is marked subscribed
+// again for the next change out of sequence to retry; when the subscribe fails after it, no further notification
+// prompts another attempt, so the subscribe is retried
+func (e *Exchange) resubscribe(ctx context.Context, conn websocket.Connection, sub *subscription.Subscription) error {
 	var unsubscribed bool
-	err := e.onConnection(generation, sub, func() error {
-		if err := e.changeChannel(ctx, false, sub); err != nil {
+	err := e.onConnection(conn, sub, func() error {
+		if err := e.changeChannel(ctx, conn, false, sub); err != nil {
 			return common.AppendError(err, sub.SetState(subscription.SubscribedState))
 		}
 		unsubscribed = true
-		if err := e.changeChannel(ctx, true, sub); err != nil {
+		if err := e.changeChannel(ctx, conn, true, sub); err != nil {
 			return err
 		}
 		return sub.SetState(subscription.SubscribedState)
@@ -164,7 +165,7 @@ func (e *Exchange) resubscribe(ctx context.Context, sub *subscription.Subscripti
 	case err == nil, errors.Is(err, errNoLongerResubscribing):
 		return nil
 	case unsubscribed:
-		if retryErr := e.subscribeAgain(ctx, sub, generation); retryErr != nil {
+		if retryErr := e.subscribeAgain(ctx, conn, sub); retryErr != nil {
 			return common.AppendError(err, retryErr)
 		}
 		return nil
@@ -175,10 +176,10 @@ func (e *Exchange) resubscribe(ctx context.Context, sub *subscription.Subscripti
 }
 
 // subscribeAgain retries subscribing a held subscription whose channel a resubscription unsubscribed, backing off
-// between attempts, until the subscription is no longer resubscribing or the connection goes, as a new connection
-// subscribes every channel itself. Once the attempts run out or the context ends, a subscription still resubscribing is
-// removed, as Deribit last acknowledged unsubscribing its channel, so a flush subscribes it anew
-func (e *Exchange) subscribeAgain(ctx context.Context, sub *subscription.Subscription, generation uint64) error {
+// between attempts, until the subscription is no longer resubscribing or its connection goes, as the manager subscribes
+// the channels of the connections it makes next itself. Once the attempts run out or the context ends, a subscription
+// still resubscribing is removed, as Deribit last acknowledged unsubscribing its channel, so a flush subscribes it anew
+func (e *Exchange) subscribeAgain(ctx context.Context, conn websocket.Connection, sub *subscription.Subscription) error {
 	backoff := request.DefaultBackoff()
 	var err error
 	for attempt := 1; attempt < maximumRequestAttempts; attempt++ {
@@ -186,11 +187,11 @@ func (e *Exchange) subscribeAgain(ctx context.Context, sub *subscription.Subscri
 		select {
 		case <-ctx.Done():
 			timer.Stop()
-			return common.AppendError(ctx.Err(), e.removeUnsubscribed(generation, sub))
+			return common.AppendError(ctx.Err(), e.removeUnsubscribed(conn, sub))
 		case <-timer.C:
 		}
-		err = e.onConnection(generation, sub, func() error {
-			if err := e.changeChannel(ctx, true, sub); err != nil {
+		err = e.onConnection(conn, sub, func() error {
+			if err := e.changeChannel(ctx, conn, true, sub); err != nil {
 				return err
 			}
 			return sub.SetState(subscription.SubscribedState)
@@ -199,18 +200,23 @@ func (e *Exchange) subscribeAgain(ctx context.Context, sub *subscription.Subscri
 		case err == nil, errors.Is(err, errNoLongerResubscribing):
 			return nil
 		case errors.Is(err, websocket.ErrNotConnected):
-			return common.AppendError(err, e.removeUnsubscribed(generation, sub))
+			return common.AppendError(err, e.removeUnsubscribed(conn, sub))
 		}
 	}
-	return common.AppendError(err, e.removeUnsubscribed(generation, sub))
+	return common.AppendError(err, e.removeUnsubscribed(conn, sub))
 }
 
 // removeUnsubscribed removes a subscription still resubscribing whose channel a resubscription unsubscribed and could
-// not subscribe again. Once its connection has gone, whose stores the manager clears, it is marked unsubscribed
-// instead, unless a later connection holds it again
-func (e *Exchange) removeUnsubscribed(generation uint64, sub *subscription.Subscription) error {
-	err := e.onConnection(generation, sub, func() error {
-		return e.Websocket.RemoveSubscriptions(e.Websocket.Conn, sub)
+// not subscribe again, from the manager's store and its connection's, which the manager counts the connection's
+// subscriptions by. Once its connection has gone, whose stores the manager clears, it is marked unsubscribed instead,
+// unless a later connection holds it again
+func (e *Exchange) removeUnsubscribed(conn websocket.Connection, sub *subscription.Subscription) error {
+	err := e.onConnection(conn, sub, func() error {
+		err := e.Websocket.RemoveSubscriptions(conn, sub)
+		if store := conn.Subscriptions(); store.Get(sub) != nil {
+			err = common.AppendError(err, store.Remove(sub))
+		}
+		return err
 	})
 	switch {
 	case errors.Is(err, errNoLongerResubscribing):
@@ -232,11 +238,11 @@ func (e *Exchange) markUnheld(sub *subscription.Subscription, state subscription
 	return sub.SetState(state)
 }
 
-// changeChannel subscribes or unsubscribes a subscription's channel without storing or removing the subscription. Its
-// request is not cancelled with the context, as an answer it stopped waiting for would leave the channel's state
-// unknown
-func (e *Exchange) changeChannel(ctx context.Context, subscribe bool, sub *subscription.Subscription) error {
-	acknowledged, err := e.sendSubscriptionRequest(context.WithoutCancel(ctx), subscribe, sub.Authenticated, []string{sub.QualifiedChannel})
+// changeChannel subscribes a connection to or unsubscribes it from a subscription's channel without storing or removing
+// the subscription. Its request is not cancelled with the context, as an answer it stopped waiting for would leave the
+// channel's state unknown
+func (e *Exchange) changeChannel(ctx context.Context, conn websocket.Connection, subscribe bool, sub *subscription.Subscription) error {
+	acknowledged, err := e.sendSubscriptionRequest(context.WithoutCancel(ctx), conn, subscribe, sub.Authenticated, []string{sub.QualifiedChannel})
 	if err != nil {
 		return err
 	}
@@ -246,27 +252,17 @@ func (e *Exchange) changeChannel(ctx context.Context, subscribe bool, sub *subsc
 	return nil
 }
 
-// nextConnectionGeneration starts the generation of a new connection once no subscription change is being made on the
-// last one
-func (e *Exchange) nextConnectionGeneration() {
-	e.connectionMtx.Lock()
-	defer e.connectionMtx.Unlock()
-	e.connectionGeneration.Add(1)
-}
-
-// onConnection makes a change to a subscription held and still marked as resubscribing on the connection of a
-// generation, holding a new connection and any other subscription change back until it is made, so a flush or an
-// unsubscribe made meanwhile waits for it and then finds the subscription to remove. It is not made once that
-// connection has gone, as a new connection subscribes its own channels, nor once the subscription has been removed,
-// which leaves it marked unsubscribed, or subscribed again meanwhile
-func (e *Exchange) onConnection(generation uint64, sub *subscription.Subscription, change func() error) error {
-	e.connectionMtx.Lock()
-	defer e.connectionMtx.Unlock()
-	if e.connectionGeneration.Load() != generation || !e.Websocket.IsConnected() {
-		return fmt.Errorf("%w: %s", websocket.ErrNotConnected, sub.QualifiedChannel)
-	}
+// onConnection makes a change to a subscription held and still marked as resubscribing, on the connection its
+// resubscription started on, holding any other subscription change back until it is made, so a flush or an unsubscribe
+// made meanwhile waits for it and then finds the subscription to remove. It is not made once that connection has gone,
+// as the manager subscribes the channels of the connections it makes next itself, nor once the subscription has been
+// removed, which leaves it marked unsubscribed, or subscribed again meanwhile
+func (e *Exchange) onConnection(conn websocket.Connection, sub *subscription.Subscription, change func() error) error {
 	e.subscriptionMtx.Lock()
 	defer e.subscriptionMtx.Unlock()
+	if !websocketConnected(conn) {
+		return fmt.Errorf("%w: %s", websocket.ErrNotConnected, sub.QualifiedChannel)
+	}
 	if e.Websocket.GetSubscription(qualifiedChannelKey{sub}) != sub {
 		err := fmt.Errorf("%w: %s", errNoLongerResubscribing, sub.QualifiedChannel)
 		if sub.State() == subscription.ResubscribingState {

@@ -208,6 +208,11 @@ func (e *Exchange) sendRequestMatchOKResponse(ctx context.Context, overWebsocket
 	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, method, params, &resp); err != nil {
 		return err
 	}
+	return matchOKResponse(method, resp)
+}
+
+// matchOKResponse checks the result of a request whose result is "ok" when it succeeds
+func matchOKResponse(method, resp string) error {
 	if resp != resultOK {
 		return fmt.Errorf("%w: %s returned %q", errUnexpectedResult, method, resp)
 	}

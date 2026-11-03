@@ -211,23 +211,41 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		return err
 	}
 	err = e.Websocket.Setup(&websocket.ManagerSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            websocketURL,
-		RunningURL:            wsURL,
-		Connector:             e.WebsocketConnect,
-		Subscriber:            e.Subscribe,
-		Unsubscriber:          e.Unsubscribe,
-		GenerateSubscriptions: e.generateSubscriptions,
-		Features:              &e.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:                         exch,
+		Features:                               &e.Features.Supports.WebsocketCapabilities,
+		UseMultiConnectionManagement:           true,
+		MaxWebsocketSubscriptionsPerConnection: maximumChannelsPerConnection,
 	})
 	if err != nil {
 		return err
 	}
 
+	// The request connection is set up first, so the manager dials and logs it in before it generates the subscriptions,
+	// which leave out private channels once a login has failed
+	err = e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+		URL:                      wsURL,
+		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
+		Connector:                e.connectRequestConnection,
+		Authenticate:             e.websocketAuthenticate,
+		Handler:                  e.wsHandleData,
+		MessageFilter:            WebsocketRequestConnection,
+		SubscriptionsNotRequired: true,
+	})
+	if err != nil {
+		return err
+	}
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                  e.Websocket.GetWebsocketURL(),
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		URL:                   wsURL,
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+		Connector:             e.WebsocketConnect,
+		Authenticate:          e.websocketAuthenticate,
+		GenerateSubscriptions: e.generateSubscriptions,
+		Subscriber:            e.Subscribe,
+		Unsubscriber:          e.Unsubscribe,
+		Handler:               e.wsHandleData,
+		MessageFilter:         WebsocketSubscriptionConnection,
 	})
 }
 
@@ -1456,9 +1474,13 @@ func (e *Exchange) ValidateAPICredentials(ctx context.Context, a asset.Item) err
 	return e.CheckTransientError(err)
 }
 
-// AuthenticateWebsocket sends an authentication message to the websocket
+// AuthenticateWebsocket logs the websocket's request connection in, which the WebsocketAPI methods are sent over
 func (e *Exchange) AuthenticateWebsocket(ctx context.Context) error {
-	return e.wsLogin(ctx)
+	conn, err := e.requestConnection("public/auth")
+	if err != nil {
+		return err
+	}
+	return e.wsLogin(ctx, conn)
 }
 
 // GetFuturesContractDetails returns the specifications of every future

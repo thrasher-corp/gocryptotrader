@@ -148,13 +148,18 @@ channels take their options from the subscription's parameters:
 Subscriptions are held by their qualified channel, so channels differing only by a parameter, such as two indexes, are
 held apart. The websocket manager's `SubscribeToChannels` checks a request for duplicates before Deribit qualifies its
 channels, comparing their channel, asset, pairs, levels and interval but not their parameters, so subscribe to a second
-channel differing only by a parameter through `Subscribe`.
+channel differing only by a parameter through `Subscribe`, with one of the websocket's subscription connections.
 
 Intervals of 100ms, 1s (Deribit's `agg2`) or, when authenticated, raw set how often a channel notifies, and candles take
 their resolution from the interval. An orderbook change that does not follow the last one applied invalidates the book
-and resubscribes it, so Deribit sends a new snapshot.
+and resubscribes it on the connection it arrived on, so Deribit sends a new snapshot.
 
-The connection asks Deribit for a heartbeat every 15 seconds and answers each one.
+The websocket sends the `WebsocketAPI()` methods over a request connection of their own, as Deribit advises keeping
+order traffic apart from market data, and spreads subscriptions over subscription connections of up to 500 channels
+each, the most Deribit takes in one subscribe request. The manager's `GetConnection` returns the request connection by
+`WebsocketRequestConnection`, and the first subscription connection by `WebsocketSubscriptionConnection`. Each
+connection asks Deribit for heartbeats every 15 seconds, answers the test requests among them and, with authenticated
+websocket support, logs in; a failed login stops authenticated requests until the websocket next connects.
 
 ### Rate limits
 
@@ -222,7 +227,8 @@ Unix milliseconds, the JSON-RPC params the method sends are an exported `XParams
 
 ### How to do Websocket public/private calls
 
-Channels are subscribed as the Websocket section describes. `WebsocketAPI()` sends the methods over the websocket:
+Channels are subscribed as the Websocket section describes. `WebsocketAPI()` sends the methods over the websocket's
+request connection:
 
 ```go
 placed, err := db.WebsocketAPI().Buy(ctx, &deribit.OrderRequest{

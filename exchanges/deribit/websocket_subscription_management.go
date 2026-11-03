@@ -15,8 +15,8 @@ var (
 	errUnacknowledgedSubscription = errors.New("channel was not acknowledged")
 )
 
-// Subscribe subscribes the connection to public channels and returns the channels Deribit subscribed; Deribit only
-// accepts it over the websocket
+// Subscribe subscribes the request connection to public channels and returns the channels Deribit subscribed, without
+// the websocket manager holding them; Deribit only accepts it over the websocket
 func (w WebsocketAPI) Subscribe(ctx context.Context, channels []string) ([]string, error) {
 	if len(channels) == 0 {
 		return nil, errChannelsRequired
@@ -25,9 +25,9 @@ func (w WebsocketAPI) Subscribe(ctx context.Context, channels []string) ([]strin
 	return resp, w.e.SendWebsocketRequest(ctx, subscribeEPL, "public/subscribe", &SubscriptionRequest{Channels: channels}, &resp)
 }
 
-// SubscribePrivate subscribes the authenticated connection to public and private channels, adding an optional label of
-// up to 16 characters to private channel notifications, and returns the channels Deribit subscribed; Deribit only
-// accepts it over the websocket
+// SubscribePrivate subscribes the authenticated request connection to public and private channels, adding an optional
+// label of up to 16 characters to private channel notifications, and returns the channels Deribit subscribed, without
+// the websocket manager holding them; Deribit only accepts it over the websocket
 func (w WebsocketAPI) SubscribePrivate(ctx context.Context, arg *PrivateSubscribeRequest) ([]string, error) {
 	if arg == nil || len(arg.Channels) == 0 {
 		return nil, errChannelsRequired
@@ -39,8 +39,8 @@ func (w WebsocketAPI) SubscribePrivate(ctx context.Context, arg *PrivateSubscrib
 	return resp, w.e.SendWebsocketRequest(ctx, subscribeEPL, "private/subscribe", arg, &resp)
 }
 
-// Unsubscribe unsubscribes the connection from public channels and returns the channels Deribit unsubscribed, which
-// leaves out channels that were invalid or not subscribed; Deribit only accepts it over the websocket
+// Unsubscribe unsubscribes the request connection from public channels and returns the channels Deribit unsubscribed,
+// which leaves out channels that were invalid or not subscribed; Deribit only accepts it over the websocket
 func (w WebsocketAPI) Unsubscribe(ctx context.Context, channels []string) ([]string, error) {
 	if len(channels) == 0 {
 		return nil, errChannelsRequired
@@ -49,8 +49,8 @@ func (w WebsocketAPI) Unsubscribe(ctx context.Context, channels []string) ([]str
 	return resp, w.e.SendWebsocketRequest(ctx, nonMatchingEPL, "public/unsubscribe", &SubscriptionRequest{Channels: channels}, &resp)
 }
 
-// UnsubscribePrivate unsubscribes the authenticated connection from public and private channels and returns the
-// channels Deribit unsubscribed; Deribit only accepts it over the websocket
+// UnsubscribePrivate unsubscribes the authenticated request connection from public and private channels and returns
+// the channels Deribit unsubscribed; Deribit only accepts it over the websocket
 func (w WebsocketAPI) UnsubscribePrivate(ctx context.Context, channels []string) ([]string, error) {
 	if len(channels) == 0 {
 		return nil, errChannelsRequired
@@ -59,13 +59,13 @@ func (w WebsocketAPI) UnsubscribePrivate(ctx context.Context, channels []string)
 	return resp, w.e.SendWebsocketRequest(ctx, nonMatchingEPL, "private/unsubscribe", &SubscriptionRequest{Channels: channels}, &resp)
 }
 
-// UnsubscribeAll unsubscribes the connection from every channel; Deribit only accepts it over the websocket
+// UnsubscribeAll unsubscribes the request connection from every channel; Deribit only accepts it over the websocket
 func (w WebsocketAPI) UnsubscribeAll(ctx context.Context) error {
 	return w.e.sendRequestMatchOKResponse(ctx, true, "public/unsubscribe_all", nil)
 }
 
-// UnsubscribeAllPrivate unsubscribes the authenticated connection from every channel; Deribit only accepts it over the
-// websocket
+// UnsubscribeAllPrivate unsubscribes the authenticated request connection from every channel; Deribit only accepts it
+// over the websocket
 func (w WebsocketAPI) UnsubscribeAllPrivate(ctx context.Context) error {
 	return w.e.sendRequestMatchOKResponse(ctx, true, "private/unsubscribe_all", nil)
 }

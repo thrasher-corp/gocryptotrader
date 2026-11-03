@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"strconv"
 	"sync"
-	"sync/atomic"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
@@ -66,16 +65,11 @@ type Exchange struct {
 	// not stream, as of the last spot pairs fetched
 	coinbaseRoutedSpot    map[string]struct{}
 	coinbaseRoutedSpotMtx sync.RWMutex
-	// subscriptionMtx serialises subscribing, unsubscribing and resubscribing, so a book channel is checked against the
-	// book channels held once any subscribed before it are stored, and a subscription resubscribing is only removed once
-	// the request under way is answered
+	// subscriptionMtx serialises subscribing, unsubscribing and resubscribing on every connection, so a subscription and a
+	// book channel are checked against those held once any subscribed before them are stored, and a subscription
+	// resubscribing is only removed once the request under way is answered. A connection's reader never takes it, as a
+	// resubscription holds it while it waits for the reader to match its responses
 	subscriptionMtx sync.Mutex
-	// connectionGeneration counts the connections dialled, so a resubscription started on one connection is not made on
-	// the next, which subscribes its own channels; connectionMtx holds a new connection back while one is made, and is
-	// taken before subscriptionMtx. The reader loads the generation without connectionMtx, which a resubscription holds
-	// while it waits for the reader to match its responses
-	connectionGeneration atomic.Uint64
-	connectionMtx        sync.Mutex
 }
 
 // JSONRPCRequest is the envelope of every request; requests sent over HTTP leave the ID out, as each HTTP response

@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
@@ -1271,7 +1272,11 @@ func TestGetHistoricTradesPaging(t *testing.T) {
 		assert.NoError(t, json.Unmarshal(params, &req), "Decoding the params should not error")
 		mu.Lock()
 		starts = append(starts, req.StartTimestamp)
+		requests := len(starts)
 		mu.Unlock()
+		if requests > 4 {
+			return `{"jsonrpc":"2.0","error":{"code":-32602,"message":"unexpected request"}}`
+		}
 		if req.StartTimestamp == start {
 			return page(true, tradeAt("1", 1), tradeAt("2", 2), tradeAt("3", 3))
 		}
@@ -1287,7 +1292,11 @@ func TestGetHistoricTradesPaging(t *testing.T) {
 	assert.Equal(t, []string{"1", "2", "3", "4"}, ids, "GetHistoricTrades should page forward without repeating trades")
 	assert.Equal(t, []int64{start, start + 3}, starts, "GetHistoricTrades should start each page at the last page's final trade")
 
+	var stalledRequests atomic.Int64
 	stalled := newWrapperServerExchange(t, func(string, json.RawMessage) string {
+		if stalledRequests.Add(1) > 4 {
+			return `{"jsonrpc":"2.0","error":{"code":-32602,"message":"unexpected request"}}`
+		}
 		return page(true, tradeAt("1", 0), tradeAt("2", 0))
 	})
 	_, err = stalled.GetHistoricTrades(t.Context(), pair, asset.Futures, time.UnixMilli(start), time.UnixMilli(start+60000))
@@ -2642,7 +2651,11 @@ func TestGetHistoricalFundingRatesPaging(t *testing.T) {
 		assert.NoError(t, json.Unmarshal(params, &req), "Decoding the params should not error")
 		mu.Lock()
 		ends = append(ends, req.EndTimestamp)
+		requests := len(ends)
 		mu.Unlock()
+		if requests > 4 {
+			return `{"jsonrpc":"2.0","error":{"code":-32602,"message":"unexpected request"}}`
+		}
 		if req.EndTimestamp == end {
 			return records(end, maximumFundingRatePage)
 		}
@@ -2762,6 +2775,37 @@ func TestPerpetualInstrument(t *testing.T) {
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "perpetualInstrument should reject an empty pair")
 }
 
+func TestSetupConnectionFailure(t *testing.T) {
+	t.Parallel()
+	exchCfg, err := testExchangeConfigCopy()
+	require.NoError(t, err, "testExchangeConfigCopy must not error")
+	ex := new(Exchange)
+	ex.SetDefaults()
+	// The manager sets up no connection without the channel its connections signal traffic on
+	ex.Websocket.TrafficAlert = nil
+	assert.ErrorContains(t, ex.Setup(exchCfg), "traffic alert is nil", "Setup should return a failure to set the request connection up")
+}
+
+func TestAuthenticateWebsocket(t *testing.T) {
+	t.Parallel()
+	skipLiveWithoutCredentials(t)
+	ex, venue := newWebsocketTestExchange(t)
+	require.NoError(t, ex.AuthenticateWebsocket(t.Context()), "AuthenticateWebsocket must not error")
+	assert.True(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "AuthenticateWebsocket should allow authenticated requests")
+	if mockTests {
+		assert.Len(t, venue.receivedOn(requestVenueConnection, "public/auth"), 2, "AuthenticateWebsocket should log the request connection in, which the manager logged in first")
+		assert.Len(t, venue.receivedOn(subscriptionVenueConnection, "public/auth"), 1, "AuthenticateWebsocket should log no other connection in")
+
+		// The mock websocket authenticates only the test client ID's signature
+		ex.SetCredentials(&accounts.Credentials{Key: "other-client-id", Secret: testClientSecret})
+		var apiErr *APIError
+		require.ErrorAs(t, ex.AuthenticateWebsocket(t.Context()), &apiErr, "AuthenticateWebsocket must return a failed login")
+		assert.Equal(t, int64(13004), apiErr.Code, "AuthenticateWebsocket should return Deribit's invalid credentials error")
+		assert.False(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "AuthenticateWebsocket should stop authenticated requests after a failed login")
+	}
+	assert.ErrorIs(t, newTestExchange(t).AuthenticateWebsocket(t.Context()), websocket.ErrNotConnected, "AuthenticateWebsocket should error without a connection")
+}
+
 func TestSetupWebsocketURL(t *testing.T) {
 	t.Parallel()
 	raw, err := testExchangeConfig()
@@ -2772,7 +2816,13 @@ func TestSetupWebsocketURL(t *testing.T) {
 	ex := new(Exchange)
 	ex.SetDefaults()
 	require.NoError(t, ex.Setup(&exchCfg), "Setup must not error")
-	assert.Equal(t, testnetWebsocketURL, ex.Websocket.GetWebsocketURL(), "Setup should connect to the configured websocket URL")
+	urls, err := ex.Websocket.GetConfiguredWebsocketURLs()
+	require.NoError(t, err, "GetConfiguredWebsocketURLs must not error")
+	assert.Equal(t, []string{testnetWebsocketURL}, urls, "Setup should connect every connection to the configured websocket URL")
+	for _, filter := range []string{WebsocketRequestConnection, WebsocketSubscriptionConnection} {
+		_, err := ex.Websocket.CreateTestConnection(filter)
+		assert.NoErrorf(t, err, "Setup should set up the %s connection", filter)
+	}
 	defaultURL, err := ex.API.Endpoints.GetURL(exchange.RestFutures)
 	require.NoError(t, err, "GetURL must not error")
 	assert.Equal(t, apiURL, defaultURL, "Setup should keep the default REST URL")

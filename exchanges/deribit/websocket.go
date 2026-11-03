@@ -27,10 +27,22 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
+// The message filters of the websocket's connections, which the manager's GetConnection returns a connection by
+const (
+	// WebsocketRequestConnection filters the connection the WebsocketAPI methods are sent over, which Deribit advises
+	// keeping apart from market data, so a burst of notifications does not hold up an order
+	WebsocketRequestConnection = "requests"
+	// WebsocketSubscriptionConnection filters the connections the manager spreads subscriptions over
+	WebsocketSubscriptionConnection = "subscriptions"
+)
+
 const (
 	// websocketHeartbeatInterval has Deribit send a heartbeat every 15 seconds, so a stale connection is noticed well
 	// within the traffic timeout
 	websocketHeartbeatInterval = 15 * time.Second
+	// maximumChannelsPerConnection is the most channels a connection is subscribed to, the most Deribit takes in one
+	// subscribe request, so each batch of subscriptions the manager gives a connection fits one request of each kind
+	maximumChannelsPerConnection = 500
 
 	wsMethodSubscription = "subscription"
 	wsMethodHeartbeat    = "heartbeat"
@@ -189,44 +201,66 @@ var defaultSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.All, Channel: subscription.MyTradesChannel, Interval: kline.HundredMilliseconds, Authenticated: true},
 }
 
-// WebsocketAPI calls Deribit's methods over the websocket connection rather than REST; a method with a REST form takes
-// that form's name and arguments
+// WebsocketAPI calls Deribit's methods over the websocket's request connection rather than REST; a method with a REST
+// form takes that form's name and arguments
 type WebsocketAPI struct {
 	e *Exchange
 }
 
-// WebsocketAPI returns the methods called over the websocket connection
+// WebsocketAPI returns the methods called over the websocket's request connection
 func (e *Exchange) WebsocketAPI() WebsocketAPI {
 	return WebsocketAPI{e: e}
 }
 
-// WebsocketConnect connects the websocket, asks Deribit for heartbeats and authenticates the connection when
-// authenticated websocket support is enabled, so a connection after a failed login can authenticate again
-func (e *Exchange) WebsocketConnect() error {
-	ctx := context.TODO()
+// WebsocketConnect dials one of the websocket's connections and asks Deribit to send it heartbeats; the manager reads a
+// connection only once it is dialled, so the heartbeat request waits for its answer in the background
+func (e *Exchange) WebsocketConnect(ctx context.Context, conn websocket.Connection) error {
 	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
-	e.nextConnectionGeneration()
-	if err := e.Websocket.Conn.Dial(ctx, &gws.Dialer{}, http.Header{}, nil); err != nil {
+	if err := conn.Dial(ctx, &gws.Dialer{}, http.Header{}, nil); err != nil {
 		return err
 	}
-	e.Websocket.Wg.Add(1)
-	go e.wsReadData(ctx)
-	if err := e.WebsocketAPI().SetHeartbeat(ctx, websocketHeartbeatInterval); err != nil {
-		log.Errorf(log.WebsocketMgr, "%s websocket heartbeat could not be set: %s", e.Name, err)
-	}
-	if e.IsWebsocketAuthenticationSupported() {
-		if err := e.wsLogin(ctx); err != nil {
-			log.Errorf(log.WebsocketMgr, "%s websocket authentication failed: %s", e.Name, err)
-			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
+	go func() {
+		// The connection still works without heartbeats, so a failure is only logged
+		if err := e.setWebsocketHeartbeat(ctx, conn); err != nil {
+			log.Errorf(log.WebsocketMgr, "%s websocket heartbeat could not be set: %s", e.Name, err)
 		}
+	}()
+	return nil
+}
+
+// setWebsocketHeartbeat asks Deribit to send a connection heartbeats
+func (e *Exchange) setWebsocketHeartbeat(ctx context.Context, conn websocket.Connection) error {
+	const method = "public/set_heartbeat"
+	var resp string
+	if err := e.sendWebsocketRequest(ctx, conn, nonMatchingEPL, method, &SetHeartbeatRequest{Interval: websocketHeartbeatInterval.Seconds()}, &resp); err != nil {
+		return err
+	}
+	return matchOKResponse(method, resp)
+}
+
+// connectRequestConnection dials the request connection as WebsocketConnect dials any other. The manager dials it first
+// in every cycle of connections, whether connecting, reconnecting or flushing, so it lets the cycle log its connections
+// in whenever authenticated websocket support is enabled, and a failed login stops authenticated requests only until the
+// websocket connects again
+func (e *Exchange) connectRequestConnection(ctx context.Context, conn websocket.Connection) error {
+	e.Websocket.SetCanUseAuthenticatedEndpoints(e.IsWebsocketAuthenticationSupported())
+	return e.WebsocketConnect(ctx, conn)
+}
+
+// websocketAuthenticate logs in a connection the manager connects while authenticated requests are allowed. A failed
+// login is logged and stops authenticated requests, leaving the connection to serve public requests and channels
+func (e *Exchange) websocketAuthenticate(ctx context.Context, conn websocket.Connection) error {
+	if err := e.wsLogin(ctx, conn); err != nil {
+		log.Errorf(log.WebsocketMgr, "%s websocket authentication failed: %s", e.Name, err)
+		e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	}
 	return nil
 }
 
-// wsLogin authenticates the websocket connection with a client signature, so the secret is not sent
-func (e *Exchange) wsLogin(ctx context.Context) error {
+// wsLogin authenticates a connection with a client signature, so the secret is not sent
+func (e *Exchange) wsLogin(ctx context.Context, conn websocket.Connection) error {
 	if !e.IsWebsocketAuthenticationSupported() {
 		return exchange.ErrAuthenticationSupportNotEnabled
 	}
@@ -238,21 +272,43 @@ func (e *Exchange) wsLogin(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if _, err := e.WebsocketAPI().Authenticate(ctx, arg); err != nil {
+	if _, err := e.authenticateConnection(ctx, conn, arg); err != nil {
 		e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err
 	}
 	return nil
 }
 
-// SendWebsocketRequest sends a JSON-RPC request over the websocket and decodes its result; a private method needs the
-// connection to be authenticated
+// requestConnection returns the connection the WebsocketAPI methods are sent over
+func (e *Exchange) requestConnection(method string) (websocket.Connection, error) {
+	conn, err := e.Websocket.GetConnection(WebsocketRequestConnection)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %s", err, method)
+	}
+	return conn, nil
+}
+
+// SendWebsocketRequest sends a JSON-RPC request over the websocket's request connection and decodes its result; a
+// private method needs the connection to be authenticated
 func (e *Exchange) SendWebsocketRequest(ctx context.Context, epl request.EndpointLimit, method string, params, result any) error {
+	if isPrivateMethod(method) && !e.Websocket.CanUseAuthenticatedEndpoints() {
+		return fmt.Errorf("%w: %s", errWebsocketNotAuthenticated, method)
+	}
+	conn, err := e.requestConnection(method)
+	if err != nil {
+		return err
+	}
+	return e.sendWebsocketRequest(ctx, conn, epl, method, params, result)
+}
+
+// sendWebsocketRequest sends a JSON-RPC request over a connection and decodes its result; a private method needs the
+// connection to be authenticated
+func (e *Exchange) sendWebsocketRequest(ctx context.Context, conn websocket.Connection, epl request.EndpointLimit, method string, params, result any) error {
 	private := isPrivateMethod(method)
 	if private && !e.Websocket.CanUseAuthenticatedEndpoints() {
 		return fmt.Errorf("%w: %s", errWebsocketNotAuthenticated, method)
 	}
-	if !e.websocketDialled() {
+	if !websocketConnected(conn) {
 		return fmt.Errorf("%w: %s", websocket.ErrNotConnected, method)
 	}
 	if private {
@@ -266,7 +322,7 @@ func (e *Exchange) SendWebsocketRequest(ctx context.Context, epl request.Endpoin
 			return err
 		}
 		req := &JSONRPCRequest{JSONRPC: jsonRPCVersion, ID: e.MessageSequence(), Method: method, Params: params}
-		raw, err := e.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, req.ID, req)
+		raw, err := conn.SendMessageReturnResponse(ctx, request.Unset, req.ID, req)
 		if err != nil {
 			return err
 		}
@@ -289,47 +345,31 @@ func (e *Exchange) SendWebsocketRequest(ctx context.Context, epl request.Endpoin
 	})
 }
 
-// websocketDialled reports whether the websocket connection is dialled; the manager only reports itself connected once
-// WebsocketConnect returns, while WebsocketConnect sends its own requests
-func (e *Exchange) websocketDialled() bool {
-	conn, ok := e.Websocket.Conn.(interface{ IsConnected() bool })
-	return ok && conn.IsConnected()
+// websocketConnected reports whether a connection is connected; the manager dials a new connection each time, so one it
+// has shut down stays closed
+func websocketConnected(conn websocket.Connection) bool {
+	c, ok := conn.(interface{ IsConnected() bool })
+	return ok && c.IsConnected()
 }
 
-// wsReadData receives and passes on websocket messages for processing
-func (e *Exchange) wsReadData(ctx context.Context) {
-	defer e.Websocket.Wg.Done()
-	for {
-		resp := e.Websocket.Conn.ReadMessage()
-		if resp.Raw == nil {
-			return
-		}
-		if err := e.wsHandleData(ctx, resp.Raw); err != nil {
-			if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
-				log.Errorf(log.WebsocketMgr, "%s %s: %s %s", e.Name, e.Websocket.Conn.GetURL(), errSend, err)
-			}
-		}
-	}
-}
-
-// wsHandleData passes a response to the request awaiting it, answers a heartbeat test request and processes a
-// subscription notification
-func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
+// wsHandleData passes a response to the request awaiting it on the connection, answers a heartbeat test request and
+// processes a subscription notification
+func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
 	var envelope WebsocketEnvelope
 	if err := json.Unmarshal(respRaw, &envelope); err != nil {
 		return fmt.Errorf("%s could not parse websocket data: %w: %s", e.Name, err, respRaw)
 	}
 	if envelope.ID != 0 {
-		return e.Websocket.Match.RequireMatchWithData(envelope.ID, respRaw)
+		return conn.RequireMatchWithData(envelope.ID, respRaw)
 	}
 	switch envelope.Method {
 	case wsMethodHeartbeat:
 		if envelope.Params.Type == wsHeartbeatTestRequest {
-			go e.wsAnswerHeartbeat(ctx)
+			go e.wsAnswerHeartbeat(ctx, conn)
 		}
 		return nil
 	case wsMethodSubscription:
-		return e.wsHandleNotification(ctx, envelope.Params.Channel, respRaw)
+		return e.wsHandleNotification(ctx, conn, envelope.Params.Channel, respRaw)
 	default:
 		return e.Websocket.DataHandler.Send(ctx, websocket.UnhandledMessageWarning{
 			Message: e.Name + websocket.UnhandledMessage + string(respRaw),
@@ -337,19 +377,21 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 	}
 }
 
-// wsAnswerHeartbeat answers a heartbeat test request with a public/test request, without which Deribit closes the
-// connection
-func (e *Exchange) wsAnswerHeartbeat(ctx context.Context) {
-	if _, err := e.WebsocketAPI().TestConnection(ctx, ""); err != nil {
+// wsAnswerHeartbeat answers a heartbeat test request with a public/test request on the connection it arrived on, without
+// which Deribit closes that connection
+func (e *Exchange) wsAnswerHeartbeat(ctx context.Context, conn websocket.Connection) {
+	var resp *TestConnectionResponse
+	if err := e.sendWebsocketRequest(ctx, conn, nonMatchingEPL, "public/test", nil, &resp); err != nil {
 		log.Errorf(log.WebsocketMgr, "%s websocket heartbeat test request could not be answered: %s", e.Name, err)
 	}
 }
 
-// wsHandleNotification passes a subscription notification to its channel's handler
-func (e *Exchange) wsHandleNotification(ctx context.Context, channel string, respRaw []byte) error {
+// wsHandleNotification passes a subscription notification to its channel's handler; a book's is resubscribed on the
+// connection it arrived on when it cannot be applied
+func (e *Exchange) wsHandleNotification(ctx context.Context, conn websocket.Connection, channel string, respRaw []byte) error {
 	switch notificationChannelName(channel) {
 	case ChannelBook:
-		return e.wsHandleOrderbook(ctx, channel, respRaw)
+		return e.wsHandleOrderbook(ctx, conn, channel, respRaw)
 	case ChannelIncrementalTicker:
 		return e.wsHandleIncrementalTicker(ctx, channel, respRaw)
 	case ChannelChartTrades:
@@ -457,9 +499,15 @@ func (e *Exchange) generateSubscriptions() (subscription.List, error) {
 		e.coinbaseRoutedSpotMtx.RLock()
 		loaded := e.coinbaseRoutedSpot != nil
 		e.coinbaseRoutedSpotMtx.RUnlock()
-		// Only the spot instruments say which spot is routed, and no spot pairs may have been fetched yet
+		// Only the spot instruments say which spot is routed, and no spot pairs may have been fetched yet. They are
+		// fetched over REST, as the manager generates subscriptions holding the lock that finding the websocket's request
+		// connection waits for
 		if !loaded {
-			if _, err := e.FetchTradablePairs(context.TODO(), asset.Spot); err != nil {
+			instruments, err := e.getInstruments(context.TODO(), &InstrumentsRequest{Currency: anyCurrency, Kind: KindSpot}, false)
+			if err == nil {
+				_, err = e.tradablePairs(asset.Spot, instruments)
+			}
+			if err != nil {
 				return nil, fmt.Errorf("loading the spot instruments Deribit routes to Coinbase Exchange: %w", err)
 			}
 		}
@@ -790,41 +838,42 @@ func channelCurrency(params map[string]any, required bool) (string, error) {
 	return strings.ToUpper(ccy), nil
 }
 
-// Subscribe subscribes the websocket to channels, through private/subscribe for private channels, refusing a book channel
-// for an instrument with another book channel held or requested
-func (e *Exchange) Subscribe(subs subscription.List) error {
+// Subscribe subscribes a connection to channels, through private/subscribe for private channels, refusing a channel held
+// already, unless it is held resubscribing, and a book channel for an instrument with another book channel held or
+// requested
+func (e *Exchange) Subscribe(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
 	e.subscriptionMtx.Lock()
 	defer e.subscriptionMtx.Unlock()
 	subs, err := e.expandSubscriptions(subs)
 	if err != nil {
 		return err
 	}
-	ctx := context.TODO()
-	subs, errs := e.refuseBookConflicts(subs)
-	errs = common.AppendError(errs, e.handleSubscription(ctx, true, false, subs.Public()))
-	return common.AppendError(errs, e.handleSubscription(ctx, true, true, subs.Private()))
+	subs, errs := e.refuseHeldSubscriptions(subs)
+	subs, bookErrs := e.refuseBookConflicts(subs)
+	errs = common.AppendError(errs, bookErrs)
+	errs = common.AppendError(errs, e.handleSubscription(ctx, conn, true, false, subs.Public()))
+	return common.AppendError(errs, e.handleSubscription(ctx, conn, true, true, subs.Private()))
 }
 
-// Unsubscribe unsubscribes the websocket from channels, through private/unsubscribe for private channels
-func (e *Exchange) Unsubscribe(subs subscription.List) error {
+// Unsubscribe unsubscribes a connection from channels, through private/unsubscribe for private channels
+func (e *Exchange) Unsubscribe(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
 	e.subscriptionMtx.Lock()
 	defer e.subscriptionMtx.Unlock()
 	subs, err := e.expandSubscriptions(subs)
 	if err != nil {
 		return err
 	}
-	ctx := context.TODO()
-	errs := e.handleSubscription(ctx, false, false, subs.Public())
-	return common.AppendError(errs, e.handleSubscription(ctx, false, true, subs.Private()))
+	errs := e.handleSubscription(ctx, conn, false, false, subs.Public())
+	return common.AppendError(errs, e.handleSubscription(ctx, conn, false, true, subs.Private()))
 }
 
-// handleSubscription subscribes to or unsubscribes from qualified channels, then stores or removes each channel Deribit
-// acknowledged and reports the rest
-func (e *Exchange) handleSubscription(ctx context.Context, subscribe, private bool, subs subscription.List) error {
+// handleSubscription subscribes a connection to or unsubscribes it from qualified channels, then stores or removes each
+// channel Deribit acknowledged and reports the rest
+func (e *Exchange) handleSubscription(ctx context.Context, conn websocket.Connection, subscribe, private bool, subs subscription.List) error {
 	if len(subs) == 0 {
 		return nil
 	}
-	acknowledged, err := e.sendSubscriptionRequest(ctx, subscribe, private, subs.QualifiedChannels())
+	acknowledged, err := e.sendSubscriptionRequest(ctx, conn, subscribe, private, subs.QualifiedChannels())
 	if err != nil {
 		return err
 	}
@@ -835,27 +884,44 @@ func (e *Exchange) handleSubscription(ctx context.Context, subscribe, private bo
 			continue
 		}
 		if subscribe {
-			errs = common.AppendError(errs, e.Websocket.AddSuccessfulSubscriptions(e.Websocket.Conn, s))
+			errs = common.AppendError(errs, e.Websocket.AddSuccessfulSubscriptions(conn, s))
 		} else {
-			errs = common.AppendError(errs, e.Websocket.RemoveSubscriptions(e.Websocket.Conn, s))
+			errs = common.AppendError(errs, e.Websocket.RemoveSubscriptions(conn, s))
 		}
 	}
 	return errs
 }
 
-// sendSubscriptionRequest subscribes to or unsubscribes from qualified channels, through private/subscribe or
-// private/unsubscribe for private channels, and returns the channels Deribit acknowledged
-func (e *Exchange) sendSubscriptionRequest(ctx context.Context, subscribe, private bool, channels []string) ([]string, error) {
+// sendSubscriptionRequest subscribes a connection to or unsubscribes it from qualified channels, through
+// private/subscribe or private/unsubscribe for private channels, and returns the channels Deribit acknowledged
+func (e *Exchange) sendSubscriptionRequest(ctx context.Context, conn websocket.Connection, subscribe, private bool, channels []string) ([]string, error) {
+	method, epl := "public/unsubscribe", nonMatchingEPL
 	switch {
 	case subscribe && private:
-		return e.WebsocketAPI().SubscribePrivate(ctx, &PrivateSubscribeRequest{Channels: channels})
+		method, epl = "private/subscribe", subscribeEPL
 	case subscribe:
-		return e.WebsocketAPI().Subscribe(ctx, channels)
+		method, epl = "public/subscribe", subscribeEPL
 	case private:
-		return e.WebsocketAPI().UnsubscribePrivate(ctx, channels)
-	default:
-		return e.WebsocketAPI().Unsubscribe(ctx, channels)
+		method = "private/unsubscribe"
 	}
+	var acknowledged []string
+	return acknowledged, e.sendWebsocketRequest(ctx, conn, epl, method, &SubscriptionRequest{Channels: channels}, &acknowledged)
+}
+
+// refuseHeldSubscriptions returns the subscriptions less each one held already, other than one held resubscribing, and
+// an error for each one left out. The manager checks a request for subscriptions held before it subscribes, but not
+// under subscriptionMtx, so a resubscription or another request may subscribe one meanwhile
+func (e *Exchange) refuseHeldSubscriptions(subs subscription.List) (subscription.List, error) {
+	allowed := make(subscription.List, 0, len(subs))
+	var errs error
+	for _, s := range subs {
+		if held := e.Websocket.GetSubscription(s); held != nil && (held != s || s.State() != subscription.ResubscribingState) {
+			errs = common.AppendError(errs, fmt.Errorf("%w: %s", subscription.ErrDuplicate, s.QualifiedChannel))
+			continue
+		}
+		allowed = append(allowed, s)
+	}
+	return allowed, errs
 }
 
 // refuseBookConflicts returns the subscriptions less each book subscription whose instrument has another book channel

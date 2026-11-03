@@ -36,18 +36,27 @@ var (
 // Authenticate requests an OAuth access token for private requests with client credentials, a client signature or a
 // refresh token; HTTP requests are signed per request instead, so the token suits other clients and the websocket
 func (e *Exchange) Authenticate(ctx context.Context, arg *AuthenticateRequest) (*AccessTokenResponse, error) {
-	return e.authenticate(ctx, arg, false)
+	params, err := arg.params()
+	if err != nil {
+		return nil, err
+	}
+	var resp *AccessTokenResponse
+	if err := e.SendHTTPRequest(ctx, nonMatchingEPL, "public/auth", params, &resp); err != nil {
+		return nil, err
+	}
+	return accessTokenResult(resp)
 }
 
-func (e *Exchange) authenticate(ctx context.Context, arg *AuthenticateRequest, overWebsocket bool) (*AccessTokenResponse, error) {
-	if err := arg.validate(); err != nil {
+// params validates an authentication request and returns the params it is sent as
+func (a *AuthenticateRequest) params() (*AuthenticateParams, error) {
+	if err := a.validate(); err != nil {
 		return nil, err
 	}
-	params := &AuthenticateParams{AuthenticateRequest: arg, Timestamp: unixMilli(arg.Timestamp)}
-	var resp *AccessTokenResponse
-	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "public/auth", params, &resp); err != nil {
-		return nil, err
-	}
+	return &AuthenticateParams{AuthenticateRequest: a, Timestamp: unixMilli(a.Timestamp)}, nil
+}
+
+// accessTokenResult returns the result of an authentication, which holds an access token when it succeeds
+func accessTokenResult(resp *AccessTokenResponse) (*AccessTokenResponse, error) {
 	if resp == nil || resp.AccessToken == "" {
 		return nil, errNoAccessToken
 	}

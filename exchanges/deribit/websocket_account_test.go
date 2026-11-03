@@ -82,7 +82,7 @@ func TestWebsocketHandlePortfolio(t *testing.T) {
 	t.Run("nothing saved", func(t *testing.T) {
 		t.Parallel()
 		ex := newAccountTestExchange(t)
-		require.NoError(t, ex.wsHandleNotification(t.Context(), channel, notification(channel, btcPortfolio)), "wsHandleNotification must not error for a portfolio")
+		require.NoError(t, ex.wsHandleNotification(t.Context(), nil, channel, notification(channel, btcPortfolio)), "wsHandleNotification must not error for a portfolio")
 		exp := &AccountSummary{
 			Currency:                    currency.BTC,
 			Balance:                     302.60065765,

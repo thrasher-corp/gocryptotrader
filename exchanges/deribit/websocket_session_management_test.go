@@ -17,8 +17,8 @@ func TestWebsocketAPISetHeartbeat(t *testing.T) {
 
 	require.NoError(t, ex.WebsocketAPI().SetHeartbeat(t.Context(), 30*time.Second), "WebsocketAPI.SetHeartbeat must not error")
 	if mockTests {
-		requests := venue.received("public/set_heartbeat")
-		require.Len(t, requests, 2, "the connection and WebsocketAPI.SetHeartbeat must each set the heartbeat")
+		requests := venue.receivedOn(requestVenueConnection, "public/set_heartbeat")
+		require.Len(t, requests, 2, "the request connection and WebsocketAPI.SetHeartbeat must each set its heartbeat")
 		assert.JSONEq(t, `{"interval":15}`, string(requests[0].Params), "connecting should ask for a heartbeat every 15 seconds")
 		assert.JSONEq(t, `{"interval":30}`, string(requests[1].Params), "WebsocketAPI.SetHeartbeat should send the interval in seconds")
 	}

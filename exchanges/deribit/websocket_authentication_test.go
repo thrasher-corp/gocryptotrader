@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
 func TestWebsocketAPIAuthenticate(t *testing.T) {
@@ -22,13 +23,17 @@ func TestWebsocketAPIAuthenticate(t *testing.T) {
 	require.NoError(t, err, "WebsocketAPI.Authenticate must not error")
 	if mockTests {
 		assert.Equal(t, testAccessToken("connection mainaccount"), result, "WebsocketAPI.Authenticate should decode the token")
-		// The connection authenticated itself first, with a client signature
-		requests := venue.received("public/auth")
-		require.Len(t, requests, 2, "the connection and WebsocketAPI.Authenticate must each authenticate")
+		// The manager logged the request connection in first, with a client signature
+		requests := venue.receivedOn(requestVenueConnection, "public/auth")
+		require.Len(t, requests, 2, "the manager and WebsocketAPI.Authenticate must each log the request connection in")
 		var params map[string]any
 		require.NoError(t, json.Unmarshal(requests[0].Params, &params), "the connection's authentication params must decode")
 		assert.Equal(t, GrantTypeClientSignature, params["grant_type"], "the connection should authenticate with a client signature")
 		assert.NotContains(t, params, "client_secret", "the connection should not send the client secret")
+
+		venue.answerNext("public/auth", `{"result":{"token_type":"bearer"}}`)
+		_, err = ex.WebsocketAPI().Authenticate(t.Context(), testAuthenticateRequest(t))
+		assert.ErrorIs(t, err, errNoAccessToken, "WebsocketAPI.Authenticate should refuse a result without an access token")
 	} else {
 		assert.NotEmpty(t, result.AccessToken, "WebsocketAPI.Authenticate should return an access token")
 	}
@@ -96,8 +101,30 @@ func TestWebsocketAPILogout(t *testing.T) {
 	requests := venue.received("private/logout")
 	if assert.Len(t, requests, 1, "WebsocketAPI.Logout should send one logout request") {
 		assert.JSONEq(t, `{"invalidate_token":false}`, string(requests[0].Params), "WebsocketAPI.Logout should send a false invalidate_token, which Deribit would otherwise default to true")
+		assert.Equal(t, requestVenueConnection, requests[0].connection, "WebsocketAPI.Logout should close the request connection")
+	}
+	// The manager connects the websocket again once Deribit closes the request connection, which the test waits for, so
+	// no request of the new connections is under way when it ends
+	require.Eventually(t, func() bool {
+		return ex.Websocket.IsConnected() && venue.connectionCount() == 4 && len(venue.received("public/set_heartbeat")) == 4
+	}, 10*time.Second, 10*time.Millisecond, "the manager must connect the websocket again after a logout")
+	for _, connection := range []int{3, 4} {
+		assert.Lenf(t, venue.receivedOn(connection, "public/auth"), 1, "the manager should log new connection %d in after a logout", connection)
 	}
 
-	err := newTestExchange(t).WebsocketAPI().Logout(t.Context(), true)
+	// An aborted rate limit barrier fails the logout's rate limit, which the limiters every Exchange shares cannot be made
+	// to do for one test
+	contexts, err := request.NewRateLimitBarrierContexts(t.Context(), 2)
+	require.NoError(t, err, "NewRateLimitBarrierContexts must not error")
+	request.AbortRateLimitBarrier(contexts[0])
+	assert.ErrorIs(t, ex.WebsocketAPI().Logout(contexts[1], false), request.ErrRateLimitBarrierRejected, "WebsocketAPI.Logout should return a rate limit failure")
+	assert.Len(t, venue.received("private/logout"), 1, "WebsocketAPI.Logout should send nothing once its rate limit fails")
+
+	err = newTestExchange(t).WebsocketAPI().Logout(t.Context(), true)
 	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.Logout should error without an authenticated connection")
+
+	unconnected := newTestExchange(t)
+	unconnected.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	err = unconnected.WebsocketAPI().Logout(t.Context(), true)
+	assert.ErrorIs(t, err, websocket.ErrNotConnected, "WebsocketAPI.Logout should error without a connection")
 }

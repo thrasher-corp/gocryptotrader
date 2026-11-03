@@ -61,17 +61,32 @@ var testExchangeConfig = sync.OnceValues(func() ([]byte, error) {
 
 // setupTestExchange sets an exchange up as testexch.Setup does, from its own copy of Deribit's test configuration
 func setupTestExchange(ex *Exchange) error {
-	raw, err := testExchangeConfig()
+	exchCfg, err := testExchangeConfigCopy()
 	if err != nil {
 		return err
 	}
+	return setupTestExchangeFromConfig(ex, exchCfg)
+}
+
+// testExchangeConfigCopy returns a copy of Deribit's test configuration, for a test to change before setting an exchange
+// up from it
+func testExchangeConfigCopy() (*config.Exchange, error) {
+	raw, err := testExchangeConfig()
+	if err != nil {
+		return nil, err
+	}
 	var exchCfg config.Exchange
 	if err := json.Unmarshal(raw, &exchCfg); err != nil {
-		return err
+		return nil, err
 	}
+	return &exchCfg, nil
+}
+
+// setupTestExchangeFromConfig sets an exchange up as testexch.Setup does, from a configuration
+func setupTestExchangeFromConfig(ex *Exchange, exchCfg *config.Exchange) error {
 	ex.SetDefaults()
 	ex.Websocket = sharedtestvalues.NewTestWebsocket()
-	if err := ex.Setup(&exchCfg); err != nil {
+	if err := ex.Setup(exchCfg); err != nil {
 		return err
 	}
 	ex.Accounts = accounts.MustNewAccounts(ex)
