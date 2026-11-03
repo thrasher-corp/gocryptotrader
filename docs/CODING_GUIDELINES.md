@@ -273,70 +273,39 @@ Use `require` and `assert` appropriately:
 - When resolving review feedback, fix the underlying source of truth, add
     focused regression coverage, regenerate derived files when applicable and
     avoid unrelated behavioural or formatting changes.
-- Test affected order fields at each conversion boundary where an exchange
-    response is mapped into the generic order type. A shared decoder test is
-    sufficient only when every transport uses that decoder without subsequently
-    reassigning the fields. If REST and websocket decode or assign fields
-    separately, test both paths directly. Test shared helpers once, then add
-    caller tests where inputs, units or post-processing differ. Use distinct
-    fixture values that fail when an assignment is removed or reads the wrong
-    field, and include omitted optional fields where practical. Unaffected
-    transports and unrelated fields need no new coverage.
-    When pinning an authoritative execution total, include realistic contract
-    units or a rounded average so quantity times average cannot reproduce that
-    total. Cover zero fills wherever a derived average divides by filled quantity.
-    For completion reasons with multiple documented spellings, test the aliases
-    through each affected transport and keep their mapped semantics consistent.
-    Fee-currency fixtures must distinguish the reported currency from both
-    pair currencies where supported. Otherwise cover reported base and quote
-    fees separately, so guessing either currency from the pair fails a test.
-- In merge and upsert logic, keep a stored value when an update omits it unless
-    a newer fill makes the value stale. For example, when a stored order has
-    filled 0.01 BTC for 600 USDT and a new update reports 0.02 BTC filled without
-    a quote total or average, clear only the old total and average. Recalculate
-    an average only from supplied fill values with matching units. Keep the fee
-    and remaining quantity, and keep all fill values on a status-only update.
-    Document which zero-valued fields mean unknown rather than none.
-    Do not roll cumulative execution or its metadata back when delayed snapshots
-    arrive. Test decreasing fills with older, equal and missing timestamps,
-    timestamp-only stale updates, and newer fill progress. Preserve previously
-    unseen individual trades without replacing newer snapshots or known fills.
-    Do not order snapshots by a timestamp that mixes local observation times
-    with exchange times or different timestamp resolutions. Use cumulative
-    execution and terminal lifecycle state, or a separate authoritative ordering
-    field. Allow only float rounding differences when comparing derived
-    cumulative quantities; do not use a fixed tolerance that hides small fills.
-    Test clock skew, coarse venue timestamps, equal-fill amendments, terminal
-    metadata enrichment and explicit timestamps for local state changes.
-    For execution derived by subtracting quantities, scale rounding allowances
-    to both operands on both snapshots. Test amendments that increase and
-    decrease the total, including a modify reply before the next venue update,
-    and repeated ingestion. Retaining rounding from a larger order after it
-    shrinks must not cause later confirmations to be rejected.
-    A modification that replaces an existing order ID starts a new execution
-    history: clear the old fills, totals, average and fees. Preserve them for
-    in-place modifications and when assigning an ID to an unidentified record.
+- Test changed order mappings at each affected REST and websocket boundary.
+    Shared decoder coverage suffices only when callers do not reassign the
+    fields; add caller tests for differing inputs, units or post-processing.
+- Use distinct reported totals, rounded averages and contract units so incorrect
+    reconstruction fails a test. Cover omitted fields, zero-fill division and
+    completion aliases. Fee fixtures must expose guesses from either pair currency.
+- In merges, preserve omitted values unless new fills invalidate them. Clear
+    stale totals and averages, not unrelated fees or remainders; derive averages
+    only from compatible supplied quantities. Document unknown-versus-zero semantics.
+- Delayed snapshots must not rewind cumulative execution or reopen terminal
+    orders. Preserve unseen trades without replacing known fills. Test older,
+    equal and missing timestamps, status-only updates and genuine fill progress.
+- Do not order snapshots by mixed local/venue clocks or timestamp resolutions.
+    Use authoritative ordering or execution and lifecycle state. Test clock skew,
+    coarse timestamps, terminal enrichment and explicit local-change timestamps.
+- Scale subtraction-rounding allowances to both operands in both snapshots,
+    not a fixed epsilon. Test growing/shrinking amendments, modify replies before
+    venue updates and repeated ingestion; old rounding must not suppress confirmations.
+- A replacement order ID starts fresh execution: clear old fills, totals,
+    average and fees. Preserve them for in-place amendments and initial ID assignment.
 - When an API field multiplexes a caller identifier and exchange-generated
     source markers, use its documented discriminator. Test both representations
     through every affected REST and websocket mapping, not just the parser.
-- When an external API deprecates a mapped field, verify the replacement against
-    current authoritative documentation and, where credentials are required,
-    distinguish documented behaviour from live verification. If the replacement
-    contains more information than the generic type can hold, preserve it in a
-    suitable field or explain exactly what is omitted and how callers can get
-    it. For example, fees of 0.001 BTC and 0.20 USDT cannot be added or stored in
-    one `Fee` and `FeeAsset` pair without losing their currencies.
+- Verify replacements for deprecated API fields against current authoritative
+    documentation. Preserve information the generic type cannot hold, or document
+    what is omitted and how to retrieve it; never add fees in different currencies.
 - Full test coverage is preferable; mock external calls as needed.
-- For order mappings fed by per-fill records, include a later fill of an
-    already partially filled order. Use different fill prices, quantities and
-    fees to distinguish the latest fill from cumulative execution, and verify
-    unavailable cumulative values remain unknown.
-    Preserve individual fills in `Trades`; a fill alone does not establish the
-    order's total quantity, status, average price or cumulative fee. When the
-    payload includes cumulative quantities, decode them and the fill quantity
-    as `types.PreciseNumber` and compare their `Decimal()` values to distinguish
-    a sole fill from a later fill, not float equality or a tolerance that could
-    hide earlier fills on large orders.
+- Per-fill mapping tests must include a later fill with distinct price, quantity
+    and fee. Preserve fills in `Trades`; leave unavailable cumulative quantities,
+    status, averages and fees unknown.
+- Distinguish sole from later fills using reported cumulative and fill quantities
+    decoded as `types.PreciseNumber` and compared through `Decimal()`, not float
+    equality or a tolerance that can hide earlier fills.
 - Distinguish mocked verification from live API verification when reporting results. A credential-gated test that skips does not establish endpoint compatibility; explicitly report the unverified behaviour without exposing credentials.
 - All unit tests must pass before finalising changes.
 - Prefer `testing/synctest` for self-contained concurrent unit tests rather

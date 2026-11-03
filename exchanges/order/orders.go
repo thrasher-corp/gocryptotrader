@@ -166,7 +166,7 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 	// Rounding-sized increases must not let a pre-amendment snapshot overwrite a terminal order.
 	executionAdvanced := m.ExecutedAmount > d.ExecutedAmount+executionTolerance
 	terminal := d.Status != UnknownStatus && d.Status.IsInactive() && d.Status != Cancelling && d.Status != AnyStatus
-	incomingTerminal := m.Status != UnknownStatus && m.Status.IsInactive() && m.Status != Cancelling && m.Status != AnyStatus
+	incomingTerminal := m.Status.IsInactive() && m.Status != Cancelling && m.Status != AnyStatus
 	if (m.ExecutedAmount > 0 && m.ExecutedAmount < d.ExecutedAmount-executionTolerance) ||
 		(terminal && m.Status != UnknownStatus && !incomingTerminal && !executionAdvanced) {
 		for i := range m.Trades {
@@ -183,8 +183,9 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 		}
 		return nil
 	}
-	// Keep the stored amount unless the update was derived from smaller
-	// quantities: rounding from a larger amount can exceed later allowances.
+	// Ignore rounding-only decreases so known execution metadata is not invalidated.
+	// On a shrink, accept the smaller scale's rounding: retaining the larger scale's
+	// error can exceed later tolerances and suppress valid confirmations.
 	if m.ExecutedAmount > 0 && m.ExecutedAmount < d.ExecutedAmount && incomingScale >= storedScale {
 		incoming := *m
 		incoming.ExecutedAmount = d.ExecutedAmount

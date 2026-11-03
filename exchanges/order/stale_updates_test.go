@@ -19,13 +19,13 @@ func TestUpdateOrderFromDetailDerivedExecution(t *testing.T) {
 		amount, left, amended, amendedLeft float64
 		modified, keepsStored              bool
 	}{
-		{"amended down", 10, 9.7, 5, 4.7, false, false},
-		{"amended up", 232.31, 204.41, 7981.87, 7953.97, false, true},
-		{"amended well down", 4.2, 4.1, 0.9, 0.8, false, false},
-		{"modified well down", 16.1, 15.2, 1, 0.1, true, false},
-		{"modified up", 0.2, 0.1, 0.3, 0.2, true, true},
-		{"amended down, earlier execution rounds higher", 12.21, 8.87, 9.79, 6.45, false, false},
-		{"amended down a thousandfold", 1000, 999.9, 1, 0.9, false, false},
+		{"amended down", 10, 9.7, 5, 4.7, false, false},                                          // A smaller scale must replace the earlier subtraction's rounding.
+		{"amended up", 232.31, 204.41, 7981.87, 7953.97, false, true},                            // Larger operands need more tolerance than the executed amount alone.
+		{"amended well down", 4.2, 4.1, 0.9, 0.8, false, false},                                  // Cross a power-of-two boundary, changing the float spacing.
+		{"modified well down", 16.1, 15.2, 1, 0.1, true, false},                                  // The modify reply changes Amount before execution is recomputed.
+		{"modified up", 0.2, 0.1, 0.3, 0.2, true, true},                                          // A growing amendment must retain the earlier, more precise execution.
+		{"amended down, earlier execution rounds higher", 12.21, 8.87, 9.79, 6.45, false, false}, // The delayed snapshot must not count as progress.
+		{"amended down a thousandfold", 1000, 999.9, 1, 0.9, false, false},                       // Carrying the old error forward would reject later confirmations.
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -53,6 +53,25 @@ func TestUpdateOrderFromDetailDerivedExecution(t *testing.T) {
 			assert.Equal(t, executed, stored.ExecutedAmount, "execution should follow updates derived from smaller quantities")
 		})
 	}
+}
+
+func TestUpdateOrderFromDetailRoundingPreservesExecutionMetadata(t *testing.T) {
+	t.Parallel()
+	stored := Detail{
+		Amount: 0.2, RemainingAmount: 0.1, ExecutedAmount: 0.1,
+		ExecutedQuoteAmount: 6, AverageExecutedPrice: 60,
+		AssetType: asset.Spot, Status: PartiallyFilled,
+	}
+	amount, remaining := 0.3, 0.2
+	update := Detail{Amount: amount, RemainingAmount: remaining, ExecutedAmount: amount - remaining, Status: PartiallyFilled}
+	original := update.Copy()
+	require.NoError(t, stored.UpdateOrderFromDetail(&update), "equal-fill amendment must merge")
+	assert.Equal(t, amount, stored.Amount, "amendment should update the requested quantity")
+	assert.Equal(t, remaining, stored.RemainingAmount, "amendment should update the remaining quantity")
+	assert.Equal(t, 0.1, stored.ExecutedAmount, "rounding alone should not change cumulative execution")
+	assert.Equal(t, 6.0, stored.ExecutedQuoteAmount, "rounding alone should not invalidate the known quote total")
+	assert.Equal(t, 60.0, stored.AverageExecutedPrice, "rounding alone should not invalidate the known average")
+	assert.Equal(t, original, update, "merging should not mutate the incoming amendment")
 }
 
 func TestUpdateOrderFromModifyResponseReplacement(t *testing.T) {
