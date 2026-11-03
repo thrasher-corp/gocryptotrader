@@ -599,7 +599,7 @@ func (e *Exchange) GetHistoricTrades(ctx context.Context, p currency.Pair, a ass
 		return nil, err
 	}
 	var resp []trade.Data
-	seen := make(map[string]struct{})
+	seen := make(common.Seen[string])
 	// The trades after a time are those strictly after it, so the first page asks from a millisecond before the start
 	after := start.Add(-time.Millisecond)
 	for {
@@ -616,10 +616,9 @@ func (e *Exchange) GetHistoricTrades(ctx context.Context, p currency.Pair, a ass
 				break
 			}
 			last = t
-			if _, ok := seen[trades[i].ID]; ok || t.Before(start) {
+			if t.Before(start) || seen.CheckAndRecord(trades[i].ID) {
 				continue
 			}
-			seen[trades[i].ID] = struct{}{}
 			resp = append(resp, e.tradeData(&trades[i], p))
 		}
 		if pastEnd || len(trades) < maxTradesSize {
@@ -768,7 +767,7 @@ func orderStatus(status int64) (order.Status, error) {
 	case 3:
 		return order.PartiallyFilledCancelled, nil
 	case 4:
-		return order.Cancelling, nil
+		return order.PendingCancel, nil
 	}
 	return order.UnknownStatus, fmt.Errorf("%w: %d", order.ErrUnsupportedStatusType, status)
 }
@@ -1236,7 +1235,7 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 			Asset:    r.Asset,
 			Pair:     pair,
 			LatestRate: fundingrate.Rate{
-				Time: next.Add(-time.Duration(data[i].FundingIntervalSeconds) * time.Second), //nolint:gosec // LBank's funding intervals are hours long, far inside int64's range
+				Time: next.Add(-data[i].FundingInterval.Duration()),
 				Rate: data[i].FundingRate.Decimal(),
 			},
 			TimeOfNextRate: next,

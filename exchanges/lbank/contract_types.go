@@ -49,10 +49,10 @@ type ContractMarketDataResponse struct {
 	PositionFeeRate types.PreciseNumber `json:"positionFeeRate"`
 	// PreviousPositionFeeRate is documented as the funding fee but is absent from live replies
 	PreviousPositionFeeRate types.PreciseNumber `json:"prePositionFeeRate"`
-	// FundingIntervalSeconds is the time between the contract's funding settlements in seconds
-	FundingIntervalSeconds uint64     `json:"positionFeeTime"`
-	NextFundingTime        types.Time `json:"nextFeeTime"`
-	LastTime               types.Time `json:"lastTime"`
+	// FundingInterval is the time between the contract's funding settlements
+	FundingInterval types.DurationSeconds `json:"positionFeeTime"`
+	NextFundingTime types.Time            `json:"nextFeeTime"`
+	LastTime        types.Time            `json:"lastTime"`
 }
 
 // ContractOrderbookResponse holds a contract's order book

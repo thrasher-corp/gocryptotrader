@@ -69,13 +69,13 @@ func TestGetContractMarketData(t *testing.T) {
 			{
 				Symbol: "ETHUSDT", InstrumentStatus: "2", LastPrice: 2355.9, MarkPrice: 2355.9, UnderlyingPrice: 2356.98, OpenPrice24Hour: 2376.3,
 				HighPrice24Hour: 2389.44, LowPrice24Hour: 2281.59, Volume24Hour: 104654.774, Turnover24Hour: 244946973.57545501,
-				FundingRate: mustPreciseNumber(t, "0.00004605"), PositionFeeRate: mustPreciseNumber(t, "0.00004605"), FundingIntervalSeconds: 28800,
+				FundingRate: mustPreciseNumber(t, "0.00004605"), PositionFeeRate: mustPreciseNumber(t, "0.00004605"), FundingInterval: types.DurationSeconds(8 * time.Hour),
 				NextFundingTime: types.Time(time.UnixMilli(1792915200000)), LastTime: types.Time(time.Unix(1792890789, 0)),
 			},
 			{
 				Symbol: "BTCUSDT", InstrumentStatus: "2", LastPrice: 80766, MarkPrice: 80766, UnderlyingPrice: 80796.6, OpenPrice24Hour: 80710,
 				HighPrice24Hour: 81073.2, LowPrice24Hour: 79195.9, Volume24Hour: 3718.8446, Turnover24Hour: 298925536.6276579,
-				FundingRate: mustPreciseNumber(t, "0.00009783"), PositionFeeRate: mustPreciseNumber(t, "0.00009783"), FundingIntervalSeconds: 28800,
+				FundingRate: mustPreciseNumber(t, "0.00009783"), PositionFeeRate: mustPreciseNumber(t, "0.00009783"), FundingInterval: types.DurationSeconds(8 * time.Hour),
 				NextFundingTime: types.Time(time.UnixMilli(1792915200000)), LastTime: types.Time(time.Unix(1792890789, 0)),
 			},
 		}

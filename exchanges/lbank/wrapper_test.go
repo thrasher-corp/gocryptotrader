@@ -543,12 +543,14 @@ func (v *historicTradesVenue) handler(t *testing.T) http.HandlerFunc {
 	}
 }
 
-// historicTrades returns a trade a millisecond from the start for each count, the trades at one millisecond sharing it
+// historicTrades returns a trade a millisecond from the start for each count, the trades at one millisecond sharing it.
+// The trades at one millisecond share a price too, and prices repeat every ten milliseconds, so only their IDs tell trades
+// apart
 func historicTrades(start time.Time, counts ...int) []TradeResponse {
 	var trades []TradeResponse
 	for ms, count := range counts {
 		for range count {
-			price := float64(len(trades) + 1)
+			price := float64(ms%10 + 1)
 			trades = append(trades, TradeResponse{
 				ID:            strconv.Itoa(len(trades)),
 				Price:         price,
@@ -747,7 +749,7 @@ func TestOrderStatus(t *testing.T) {
 		1:  order.PartiallyFilled,
 		2:  order.Filled,
 		3:  order.PartiallyFilledCancelled,
-		4:  order.Cancelling,
+		4:  order.PendingCancel,
 	} {
 		got, err := orderStatus(in)
 		require.NoErrorf(t, err, "orderStatus must not error for %d", in)
@@ -1048,11 +1050,27 @@ func TestGetOrderHistory(t *testing.T) {
 
 func TestListOrders(t *testing.T) {
 	t.Parallel()
-	// orders returns a page of open limit buys whose IDs carry the page's prefix
+	// orders returns a page of open limit orders whose IDs carry the page's prefix. Their sides and times change out of
+	// step, so a pager that sorts orders rather than keeping the venue's order fails
 	orders := func(prefix string, count int) []OrderResponse {
 		resp := make([]OrderResponse, count)
 		for i := range resp {
-			resp[i] = OrderResponse{OrderID: prefix + strconv.Itoa(i), Type: "buy", Price: 1, OriginalQuantity: 1}
+			side := "buy"
+			if i%3 == 0 {
+				side = "sell"
+			}
+			at := types.Time(time.UnixMilli(int64(i % 2)))
+			resp[i] = OrderResponse{OrderID: prefix + strconv.Itoa(i), Type: side, Price: 1, OriginalQuantity: 1, CreateTime: at, UpdateTime: at}
+		}
+		return resp
+	}
+	// ids returns the IDs of pages of orders, in order
+	ids := func(pages ...[]OrderResponse) []string {
+		var resp []string
+		for _, p := range pages {
+			for i := range p {
+				resp = append(resp, p[i].OrderID)
+			}
 		}
 		return resp
 	}
@@ -1060,10 +1078,11 @@ func TestListOrders(t *testing.T) {
 	for _, tc := range []struct {
 		name string
 		page func(n uint64) *OrdersPageResponse
-		// pages is the number of pages each pair should be asked for, and orders the number of orders each should return
-		pages  int
-		orders int
-		err    error
+		// pages is the number of pages each pair should be asked for, and exp the IDs of the orders each should return,
+		// before the venue prefixes them with the pair
+		pages int
+		exp   []string
+		err   error
 	}{
 		{
 			name: "short page",
@@ -1073,14 +1092,31 @@ func TestListOrders(t *testing.T) {
 				}
 				return &OrdersPageResponse{Orders: orders("b", 3)}
 			},
-			pages: 2, orders: maxOrdersPageLength + 3,
+			pages: 2, exp: ids(orders("a", maxOrdersPageLength), orders("b", 3)),
 		},
 		{
 			name: "last page by total",
 			page: func(uint64) *OrdersPageResponse {
 				return &OrdersPageResponse{Total: 1, Orders: orders("a", maxOrdersPageLength)}
 			},
-			pages: 1, orders: maxOrdersPageLength,
+			pages: 1, exp: ids(orders("a", maxOrdersPageLength)),
+		},
+		{
+			name: "last of several pages by total",
+			page: func(n uint64) *OrdersPageResponse {
+				if n < 3 {
+					return &OrdersPageResponse{Total: 3, Orders: orders(strconv.FormatUint(n, 10)+"-", maxOrdersPageLength)}
+				}
+				return &OrdersPageResponse{Total: 3, Orders: orders("3-", 1)}
+			},
+			pages: 3, exp: ids(orders("1-", maxOrdersPageLength), orders("2-", maxOrdersPageLength), orders("3-", 1)),
+		},
+		{
+			name: "full last page by total",
+			page: func(n uint64) *OrdersPageResponse {
+				return &OrdersPageResponse{Total: 2, Orders: orders(strconv.FormatUint(n, 10)+"-", maxOrdersPageLength)}
+			},
+			pages: 2, exp: ids(orders("1-", maxOrdersPageLength), orders("2-", maxOrdersPageLength)),
 		},
 		{
 			name: "empty page",
@@ -1090,12 +1126,12 @@ func TestListOrders(t *testing.T) {
 				}
 				return &OrdersPageResponse{}
 			},
-			pages: 2, orders: maxOrdersPageLength,
+			pages: 2, exp: ids(orders("a", maxOrdersPageLength)),
 		},
 		{
 			name:  "repeated page",
 			page:  func(uint64) *OrdersPageResponse { return &OrdersPageResponse{Orders: orders("a", maxOrdersPageLength)} },
-			pages: 2, orders: maxOrdersPageLength,
+			pages: 2, exp: ids(orders("a", maxOrdersPageLength)),
 		},
 		{
 			name: "endless pages",
@@ -1115,7 +1151,12 @@ func TestListOrders(t *testing.T) {
 					// Refused, so a pager no longer stopped by its page limit fails rather than pages forever
 					return nil, errRequestFailed
 				}
-				return tc.page(req.CurrentPage), nil
+				resp := tc.page(req.CurrentPage)
+				// Each pair's order IDs carry the pair, so a pager returning one pair's orders for another fails
+				for i := range resp.Orders {
+					resp.Orders[i].OrderID = req.Pair.String() + "/" + resp.Orders[i].OrderID
+				}
+				return resp, nil
 			}
 			pairs := currency.Pairs{spotTestPair, ethPair}
 			if tc.err != nil {
@@ -1134,11 +1175,56 @@ func TestListOrders(t *testing.T) {
 			}
 			exp := map[string][]uint64{spotTestPair.String(): expPages, ethPair.String(): expPages}
 			assert.Equal(t, exp, asked, "listOrders should page each pair from the first page")
-			require.Len(t, result, 2*tc.orders, "listOrders must return each pair's orders once")
-			assert.Equal(t, spotTestPair, result[0].Pair, "listOrders should return the first pair's orders first")
-			assert.Equal(t, ethPair, result[tc.orders].Pair, "listOrders should return the second pair's orders after")
+			var expOrders []string
+			for _, pair := range pairs {
+				for _, id := range tc.exp {
+					expOrders = append(expOrders, pair.String()+" "+pair.String()+"/"+id)
+				}
+			}
+			got := make([]string, len(result))
+			for i := range result {
+				got[i] = result[i].Pair.String() + " " + result[i].OrderID
+			}
+			assert.Equal(t, expOrders, got, "listOrders should return each pair's orders once, in the order of their pages")
 		})
 	}
+
+	t.Run("each pair's own page total", func(t *testing.T) {
+		t.Parallel()
+		totals := map[string]uint64{spotTestPair.String(): 2, ethPair.String(): 3}
+		asked := make(map[string][]uint64)
+		list := func(_ context.Context, req *OrdersPageRequest) (*OrdersPageResponse, error) {
+			asked[req.Pair.String()] = append(asked[req.Pair.String()], req.CurrentPage)
+			total := totals[req.Pair.String()]
+			if req.CurrentPage > total {
+				return nil, errRequestFailed
+			}
+			return &OrdersPageResponse{Total: total, Orders: orders(req.Pair.String()+"/"+strconv.FormatUint(req.CurrentPage, 10)+"-", maxOrdersPageLength)}, nil
+		}
+		result, err := e.listOrders(t.Context(), currency.Pairs{spotTestPair, ethPair}, list)
+		require.NoError(t, err, "listOrders must not error")
+		exp := map[string][]uint64{spotTestPair.String(): {1, 2}, ethPair.String(): {1, 2, 3}}
+		assert.Equal(t, exp, asked, "listOrders should end each pair's listing at its own page total")
+		assert.Len(t, result, 5*maxOrdersPageLength, "listOrders should return every page of each pair's orders")
+	})
+
+	// Not parallel, so it runs before the endless listing rather than holding its 200,000 orders at the same time
+	t.Run("last page at the page limit", func(t *testing.T) {
+		var asked uint64
+		list := func(_ context.Context, req *OrdersPageRequest) (*OrdersPageResponse, error) {
+			asked++
+			if req.CurrentPage > maxOrderPages {
+				return nil, errRequestFailed
+			}
+			return &OrdersPageResponse{Total: maxOrderPages, Orders: orders(strconv.FormatUint(req.CurrentPage, 10)+"-", maxOrdersPageLength)}, nil
+		}
+		result, err := e.listOrders(t.Context(), currency.Pairs{spotTestPair}, list)
+		require.NoError(t, err, "listOrders must return a listing whose last page is the page limit")
+		assert.Equal(t, uint64(maxOrderPages), asked, "listOrders should ask for every page up to the limit")
+		require.Len(t, result, maxOrderPages*maxOrdersPageLength, "listOrders must return every order of a listing ending at the page limit")
+		exp := strconv.Itoa(maxOrderPages) + "-" + strconv.Itoa(maxOrdersPageLength-1)
+		assert.Equal(t, exp, result[len(result)-1].OrderID, "listOrders should return the last page's orders last")
+	})
 
 	listErr := func(context.Context, *OrdersPageRequest) (*OrdersPageResponse, error) { return nil, errRequestFailed }
 	_, err := e.listOrders(t.Context(), currency.Pairs{spotTestPair}, listErr)
