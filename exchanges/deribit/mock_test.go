@@ -128,6 +128,8 @@ type websocketVenue struct {
 	gates map[string]chan struct{}
 	// notices holds the notification the mock sends ahead of its answer to the next request of a method
 	notices map[string][]byte
+	// retries counts the requests of each method still to be answered with Deribit's code 10040, which asks for a retry
+	retries map[string]int
 	// writeMu serialises the mock's answers, which a delayed answer writes from its own goroutine
 	writeMu sync.Mutex
 }
@@ -181,6 +183,17 @@ func (v *websocketVenue) refuse(method string, count int) {
 	v.refusals[method] = count
 }
 
+// retryNext has the mock answer the next count requests of a method with Deribit's code 10040, as Deribit answers a
+// request it could not process yet
+func (v *websocketVenue) retryNext(method string, count int) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	if v.retries == nil {
+		v.retries = make(map[string]int)
+	}
+	v.retries[method] = count
+}
+
 // received returns the requests received for a method, in arrival order
 func (v *websocketVenue) received(method string) []websocketVenueRequest {
 	v.mu.Lock()
@@ -204,12 +217,16 @@ func startWebsocketVenue(t *testing.T) (string, *websocketVenue) {
 	return "ws" + strings.TrimPrefix(server.URL, "http"), venue
 }
 
-// record keeps a request the mock received, and returns whether to refuse it, how long to wait to answer it, the gate
-// to wait on before answering it and the notification to send ahead of the answer
-func (v *websocketVenue) record(req *websocketVenueRequest) (refused bool, delay time.Duration, hold <-chan struct{}, notice []byte) {
+// record keeps a request the mock received, and returns whether to refuse it, whether to ask for it to be retried, how
+// long to wait to answer it, the gate to wait on before answering it and the notification to send ahead of the answer
+func (v *websocketVenue) record(req *websocketVenueRequest) (refused, retry bool, delay time.Duration, hold <-chan struct{}, notice []byte) {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 	v.requests = append(v.requests, *req)
+	if v.retries[req.Method] > 0 {
+		v.retries[req.Method]--
+		retry = true
+	}
 	delay = v.delays[req.Method]
 	delete(v.delays, req.Method)
 	if gate, ok := v.gates[req.Method]; ok {
@@ -220,9 +237,9 @@ func (v *websocketVenue) record(req *websocketVenueRequest) (refused bool, delay
 	delete(v.notices, req.Method)
 	if v.refusals[req.Method] > 0 {
 		v.refusals[req.Method]--
-		return true, delay, hold, notice
+		return true, retry, delay, hold, notice
 	}
-	return false, delay, hold, notice
+	return false, retry, delay, hold, notice
 }
 
 // answer replies to a request as Deribit does: it authenticates a client signature of the test client ID and rejects
@@ -234,7 +251,7 @@ func (v *websocketVenue) answer(_ testing.TB, msg []byte, conn *gws.Conn) error 
 	if err := json.Unmarshal(msg, &req); err != nil {
 		return fmt.Errorf("%w: %s: %w", errWebsocketVenueRequest, msg, err)
 	}
-	refused, delay, hold, notice := v.record(&req)
+	refused, retry, delay, hold, notice := v.record(&req)
 	if req.Method == "private/logout" {
 		return conn.Close()
 	}
@@ -252,6 +269,8 @@ func (v *websocketVenue) answer(_ testing.TB, msg []byte, conn *gws.Conn) error 
 		result = json.RawMessage(`{"error":{"code":-32601,"message":"no mock response"}}`)
 	case refused:
 		result = json.RawMessage(`{"result":[]}`)
+	case retry:
+		result = json.RawMessage(`{"error":{"code":10040,"message":"retry"}}`)
 	}
 	frame, err := websocketVenueFrame(req.ID, result)
 	if err != nil {

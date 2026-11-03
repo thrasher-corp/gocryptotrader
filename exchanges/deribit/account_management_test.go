@@ -800,8 +800,8 @@ func testPMESimulation() *PMESimulateResponse {
 					WorstCaseBucket: PMEWorstCaseBucket{Source: "standard", Index: 1, Bucket: 1, Side: "left"},
 					RollShock:       0.00315725898,
 				},
-				MMPMargin:        0.06,
-				OpenOrdersMargin: 0.000018212,
+				MarketMakerProtectionMargin: 0.06,
+				OpenOrdersMargin:            0.000018212,
 			},
 		}},
 		Portfolio: PMEPortfolio{

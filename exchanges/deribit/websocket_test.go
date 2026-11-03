@@ -41,6 +41,17 @@ func TestSendWebsocketRequest(t *testing.T) {
 		requests := venue.received("public/get_time")
 		require.Len(t, requests, 1, "SendWebsocketRequest must send one request")
 		assert.NotZero(t, requests[0].ID, "SendWebsocketRequest should send a request ID to match the response with")
+
+		venue.retryNext("public/get_time", 1)
+		require.NoError(t, ex.SendWebsocketRequest(t.Context(), nonMatchingEPL, "public/get_time", nil, &result), "SendWebsocketRequest must succeed once Deribit stops asking for a retry")
+		assert.Len(t, venue.received("public/get_time"), 3, "SendWebsocketRequest should send the request again when Deribit asks for a retry")
+
+		venue.retryNext("public/get_time", 1)
+		err := ex.SendWebsocketRequest(request.WithRetryNotAllowed(t.Context()), nonMatchingEPL, "public/get_time", nil, &result)
+		var apiErr *APIError
+		require.ErrorAs(t, err, &apiErr, "SendWebsocketRequest must return Deribit's retry error when the context allows no retries")
+		assert.Equal(t, int64(errorCodeRetry), apiErr.Code, "SendWebsocketRequest should return the retry error code")
+		assert.Len(t, venue.received("public/get_time"), 4, "SendWebsocketRequest should send the request once when the context allows no retries")
 	}
 
 	err := ex.SendWebsocketRequest(t.Context(), nonMatchingEPL, "public/test", map[string]string{"expected_result": testExpectedResultException}, nil)
@@ -330,7 +341,7 @@ func TestWebsocketHandleNotification(t *testing.T) {
 		{
 			channel: "user.mmp_trigger.eth_usdc",
 			data:    `{"frozen_until":0,"index_name":"eth_usdc","mmp_group":"MassQuoteBot7"}`,
-			exp:     &WebsocketMMPTrigger{IndexName: "eth_usdc", MMPGroup: "MassQuoteBot7"},
+			exp:     &WebsocketMarketMakerProtectionTrigger{IndexName: "eth_usdc", MarketMakerProtectionGroup: "MassQuoteBot7"},
 		},
 		{
 			channel: "announcements",
@@ -407,7 +418,7 @@ func TestWebsocketHandleNotification(t *testing.T) {
 		{
 			channel: "user.lsp",
 			data:    `{"type":"transfer","instrument_name":"BTC-PERPETUAL","direction":"sell","amount":5000,"price":63481.75,"currency":"BTC","success":true,"starbase_match_id":987654321,"timestamp":1750000400000}`,
-			exp:     &WebsocketLSPEvent{Type: "transfer", InstrumentName: "BTC-PERPETUAL", Currency: currency.BTC, Direction: DirectionSell, Amount: 5000, Price: 63481.75, Success: true, StarbaseMatchID: 987654321, Timestamp: types.Time(time.UnixMilli(1750000400000))},
+			exp:     &WebsocketLiquiditySupportProgramEvent{Type: "transfer", InstrumentName: "BTC-PERPETUAL", Currency: currency.BTC, Direction: DirectionSell, Amount: 5000, Price: 63481.75, Success: true, StarbaseMatchID: 987654321, Timestamp: types.Time(time.UnixMilli(1750000400000))},
 		},
 		{
 			channel: "user.changes.BTC-PERPETUAL.raw",
@@ -580,9 +591,9 @@ func TestNotificationChannelName(t *testing.T) {
 		"perpetual.BTC-PERPETUAL.100ms":           ChannelPerpetual,
 		"quote.BTC-PERPETUAL":                     ChannelQuote,
 		"announcements":                           ChannelAnnouncements,
-		"user.lsp":                                ChannelUserLSP,
+		"user.lsp":                                ChannelUserLiquiditySupportProgram,
 		"user.lock":                               ChannelUserLock,
-		"user.mmp_trigger.btc_usd":                ChannelUserMMPTrigger,
+		"user.mmp_trigger.btc_usd":                ChannelUserMarketMakerProtectionTrigger,
 		"deribit_price_ranking.btc_usd":           ChannelPriceRanking,
 		"deribit_price_statistics.btc_usd":        ChannelPriceStatistics,
 		"deribit_volatility_index.btc_usd":        ChannelVolatilityIndex,

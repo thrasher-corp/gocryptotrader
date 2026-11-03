@@ -199,25 +199,25 @@ type OrderResponse struct {
 	USDPrice          float64 `json:"usd"`
 	Triggered         bool    `json:"triggered"`
 	// Trigger is index_price, mark_price or last_price for a trigger order
-	Trigger               string  `json:"trigger"`
-	TriggerPrice          float64 `json:"trigger_price"`
-	TriggerOffset         float64 `json:"trigger_offset"`
-	TriggerReferencePrice float64 `json:"trigger_reference_price"`
-	BlockTrade            bool    `json:"block_trade"`
-	MMP                   bool    `json:"mmp"`
-	RiskReducing          bool    `json:"risk_reducing"`
-	Replaced              bool    `json:"replaced"`
-	AutoReplaced          bool    `json:"auto_replaced"`
-	Quote                 bool    `json:"quote"`
-	MMPGroup              string  `json:"mmp_group"`
-	QuoteSetID            string  `json:"quote_set_id"`
-	QuoteID               string  `json:"quote_id"`
-	TriggerOrderID        string  `json:"trigger_order_id"`
-	ComboOrderID          string  `json:"combo_order_id"`
-	StarbaseOrderID       uint64  `json:"starbase_order_id"`
-	AppName               string  `json:"app_name"`
-	MMPCancelled          bool    `json:"mmp_cancelled"`
-	CancelReason          string  `json:"cancel_reason"`
+	Trigger                        string  `json:"trigger"`
+	TriggerPrice                   float64 `json:"trigger_price"`
+	TriggerOffset                  float64 `json:"trigger_offset"`
+	TriggerReferencePrice          float64 `json:"trigger_reference_price"`
+	BlockTrade                     bool    `json:"block_trade"`
+	MarketMakerProtection          bool    `json:"mmp"`
+	RiskReducing                   bool    `json:"risk_reducing"`
+	Replaced                       bool    `json:"replaced"`
+	AutoReplaced                   bool    `json:"auto_replaced"`
+	Quote                          bool    `json:"quote"`
+	MarketMakerProtectionGroup     string  `json:"mmp_group"`
+	QuoteSetID                     string  `json:"quote_set_id"`
+	QuoteID                        string  `json:"quote_id"`
+	TriggerOrderID                 string  `json:"trigger_order_id"`
+	ComboOrderID                   string  `json:"combo_order_id"`
+	StarbaseOrderID                uint64  `json:"starbase_order_id"`
+	AppName                        string  `json:"app_name"`
+	MarketMakerProtectionCancelled bool    `json:"mmp_cancelled"`
+	CancelReason                   string  `json:"cancel_reason"`
 	// OTOOrderIDs are the orders a fill of this order triggers
 	OTOOrderIDs []string `json:"oto_order_ids"`
 	// TriggerFillCondition is first_hit, complete_fill or incremental for a linked order
@@ -271,14 +271,14 @@ type UserTradeResponse struct {
 	BlockRFQID         uint64 `json:"block_rfq_id"`
 	BlockRFQQuoteID    uint64 `json:"block_rfq_quote_id"`
 	// ReduceOnly and PostOnly are documented as strings, so either form is accepted
-	ReduceOnly   types.Boolean `json:"reduce_only"`
-	PostOnly     types.Boolean `json:"post_only"`
-	MMP          bool          `json:"mmp"`
-	RiskReducing bool          `json:"risk_reducing"`
-	SelfTrade    bool          `json:"self_trade"`
-	API          bool          `json:"api"`
-	ProfitLoss   float64       `json:"profit_loss"`
-	MarkPrice    float64       `json:"mark_price"`
+	ReduceOnly            types.Boolean `json:"reduce_only"`
+	PostOnly              types.Boolean `json:"post_only"`
+	MarketMakerProtection bool          `json:"mmp"`
+	RiskReducing          bool          `json:"risk_reducing"`
+	SelfTrade             bool          `json:"self_trade"`
+	API                   bool          `json:"api"`
+	ProfitLoss            float64       `json:"profit_loss"`
+	MarkPrice             float64       `json:"mark_price"`
 	// Legs holds a combo trade's leg trades, which Deribit includes only when combo trades alone are requested
 	Legs             []UserTradeResponse `json:"legs"`
 	ComboID          string              `json:"combo_id"`

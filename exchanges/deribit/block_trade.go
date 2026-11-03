@@ -39,7 +39,7 @@ func (e *Exchange) decidePendingBlockTrade(ctx context.Context, arg *BlockTradeA
 		return err
 	}
 	params := &BlockTradeApprovalParams{BlockTradeApprovalRequest: arg, Timestamp: unixMilli(arg.Timestamp)}
-	return e.sendOKRequest(ctx, overWebsocket, method, params)
+	return e.sendRequestMatchOKResponse(ctx, overWebsocket, method, params)
 }
 
 // ExecuteBlockTrade executes a block trade with the signature the counterparty's VerifyBlockTrade returned, taking the
@@ -176,7 +176,7 @@ func (e *Exchange) invalidateBlockTradeSignature(ctx context.Context, signature 
 	if signature == "" {
 		return errSignatureRequired
 	}
-	return e.sendOKRequest(ctx, overWebsocket, "private/invalidate_block_trade_signature", &BlockTradeSignatureRequest{Signature: signature})
+	return e.sendRequestMatchOKResponse(ctx, overWebsocket, "private/invalidate_block_trade_signature", &BlockTradeSignatureRequest{Signature: signature})
 }
 
 // RejectBlockTrade rejects a pending block trade a broker or registered partner executed for the account, which cancels

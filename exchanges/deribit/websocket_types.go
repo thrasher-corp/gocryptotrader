@@ -272,15 +272,15 @@ type WebsocketUserLiquidation struct {
 	Timestamp         types.Time    `json:"timestamp"`
 }
 
-// WebsocketMMPTrigger contains a market maker protection trigger
-type WebsocketMMPTrigger struct {
+// WebsocketMarketMakerProtectionTrigger contains a market maker protection trigger
+type WebsocketMarketMakerProtectionTrigger struct {
 	// FrozenUntil is when the account is unfrozen; zero means until it is reset
 	FrozenUntil types.Time `json:"frozen_until"`
 	// IndexName is the index triggered, or all for a Block RFQ trigger by trade count
 	IndexName string `json:"index_name"`
-	// MMPGroup is the mass quote group triggered
-	MMPGroup string `json:"mmp_group"`
-	BlockRFQ bool   `json:"block_rfq"`
+	// MarketMakerProtectionGroup is the mass quote group triggered
+	MarketMakerProtectionGroup string `json:"mmp_group"`
+	BlockRFQ                   bool   `json:"block_rfq"`
 }
 
 // WebsocketAnnouncement contains an announcement Deribit published or deleted
@@ -323,9 +323,9 @@ type WebsocketUserChanges struct {
 	Positions []PositionResponse `json:"positions"`
 }
 
-// WebsocketLSPEvent contains a Liquidity Support Program event of the participant subaccount the connection is
-// authenticated as
-type WebsocketLSPEvent struct {
+// WebsocketLiquiditySupportProgramEvent contains a Liquidity Support Program event of the participant subaccount the
+// connection is authenticated as
+type WebsocketLiquiditySupportProgramEvent struct {
 	// Type is transfer for an assignment attempt, enabled or disabled when participation changes, or
 	// configuration_changed whenever the effective configuration is written
 	Type           string        `json:"type"`
@@ -346,8 +346,8 @@ type WebsocketLSPEvent struct {
 	FailureCount  uint64 `json:"failure_count"`
 	WindowMinutes uint64 `json:"window_minutes"`
 	// Configuration is the resolved effective configuration, sent for configuration_changed
-	Configuration *LSPParticipantConfig `json:"configuration"`
-	Timestamp     types.Time            `json:"timestamp"`
+	Configuration *LiquiditySupportProgramParticipantConfig `json:"configuration"`
+	Timestamp     types.Time                                `json:"timestamp"`
 }
 
 // WebsocketBlockRFQQuotes contains a maker's Block RFQ quotes; Deribit documents a single quote and sends a list in its

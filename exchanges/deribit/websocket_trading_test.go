@@ -231,40 +231,40 @@ func TestWebsocketAPIGetMargins(t *testing.T) {
 	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.GetMargins should error without an authenticated connection")
 }
 
-func TestWebsocketAPIGetMMPConfig(t *testing.T) {
+func TestWebsocketAPIGetMarketMakerProtectionConfig(t *testing.T) {
 	t.Parallel()
 	skipLiveWithoutCredentials(t)
 	ex, _ := newWebsocketTestExchange(t)
-	arg := mockMMPGroupRequest()
+	arg := mockMarketMakerProtectionGroupRequest()
 	if !mockTests {
-		arg = &MMPGroupRequest{}
+		arg = &MarketMakerProtectionGroupRequest{}
 	}
-	result, err := ex.WebsocketAPI().GetMMPConfig(t.Context(), arg)
-	require.NoError(t, err, "WebsocketAPI.GetMMPConfig must not error")
+	result, err := ex.WebsocketAPI().GetMarketMakerProtectionConfig(t.Context(), arg)
+	require.NoError(t, err, "WebsocketAPI.GetMarketMakerProtectionConfig must not error")
 	if mockTests {
-		assert.Equal(t, testMMPConfigs(), result, "WebsocketAPI.GetMMPConfig should decode every field")
+		assert.Equal(t, testMarketMakerProtectionConfigs(), result, "WebsocketAPI.GetMarketMakerProtectionConfig should decode every field")
 	}
 
-	_, err = newTestExchange(t).WebsocketAPI().GetMMPConfig(t.Context(), arg)
-	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.GetMMPConfig should error without an authenticated connection")
+	_, err = newTestExchange(t).WebsocketAPI().GetMarketMakerProtectionConfig(t.Context(), arg)
+	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.GetMarketMakerProtectionConfig should error without an authenticated connection")
 }
 
-func TestWebsocketAPIGetMMPStatus(t *testing.T) {
+func TestWebsocketAPIGetMarketMakerProtectionStatus(t *testing.T) {
 	t.Parallel()
 	skipLiveWithoutCredentials(t)
 	ex, _ := newWebsocketTestExchange(t)
-	arg := mockMMPGroupRequest()
+	arg := mockMarketMakerProtectionGroupRequest()
 	if !mockTests {
-		arg = &MMPGroupRequest{}
+		arg = &MarketMakerProtectionGroupRequest{}
 	}
-	result, err := ex.WebsocketAPI().GetMMPStatus(t.Context(), arg)
-	require.NoError(t, err, "WebsocketAPI.GetMMPStatus must not error")
+	result, err := ex.WebsocketAPI().GetMarketMakerProtectionStatus(t.Context(), arg)
+	require.NoError(t, err, "WebsocketAPI.GetMarketMakerProtectionStatus must not error")
 	if mockTests {
-		assert.Equal(t, testMMPStatuses(), result, "WebsocketAPI.GetMMPStatus should decode every field")
+		assert.Equal(t, testMarketMakerProtectionStatuses(), result, "WebsocketAPI.GetMarketMakerProtectionStatus should decode every field")
 	}
 
-	_, err = newTestExchange(t).WebsocketAPI().GetMMPStatus(t.Context(), arg)
-	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.GetMMPStatus should error without an authenticated connection")
+	_, err = newTestExchange(t).WebsocketAPI().GetMarketMakerProtectionStatus(t.Context(), arg)
+	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.GetMarketMakerProtectionStatus should error without an authenticated connection")
 }
 
 func TestWebsocketAPIGetOpenOrders(t *testing.T) {
@@ -604,19 +604,19 @@ func TestWebsocketAPIMovePositions(t *testing.T) {
 	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.MovePositions should error without an authenticated connection")
 }
 
-func TestWebsocketAPIResetMMP(t *testing.T) {
+func TestWebsocketAPIResetMarketMakerProtection(t *testing.T) {
 	t.Parallel()
 	skipLiveUnlessCanManipulate(t)
 	ex, _ := newWebsocketTestExchange(t)
-	arg := mockMMPGroupRequest()
+	arg := mockMarketMakerProtectionGroupRequest()
 	if !mockTests {
-		setLiveTradingMMPConfig(t, e.SetMMPConfig)
-		arg = &MMPGroupRequest{IndexName: liveTradingIndexName}
+		setLiveTradingMarketMakerProtectionConfig(t, e.SetMarketMakerProtectionConfig)
+		arg = &MarketMakerProtectionGroupRequest{IndexName: liveTradingIndexName}
 	}
-	require.NoError(t, ex.WebsocketAPI().ResetMMP(t.Context(), arg), "WebsocketAPI.ResetMMP must not error")
+	require.NoError(t, ex.WebsocketAPI().ResetMarketMakerProtection(t.Context(), arg), "WebsocketAPI.ResetMarketMakerProtection must not error")
 
-	err := newTestExchange(t).WebsocketAPI().ResetMMP(t.Context(), arg)
-	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.ResetMMP should error without an authenticated connection")
+	err := newTestExchange(t).WebsocketAPI().ResetMarketMakerProtection(t.Context(), arg)
+	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.ResetMarketMakerProtection should error without an authenticated connection")
 }
 
 func TestWebsocketAPISell(t *testing.T) {
@@ -639,19 +639,19 @@ func TestWebsocketAPISell(t *testing.T) {
 	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.Sell should error without an authenticated connection")
 }
 
-func TestWebsocketAPISetMMPConfig(t *testing.T) {
+func TestWebsocketAPISetMarketMakerProtectionConfig(t *testing.T) {
 	t.Parallel()
 	skipLiveUnlessCanManipulate(t)
 	ex, _ := newWebsocketTestExchange(t)
 	if !mockTests {
-		result := setLiveTradingMMPConfig(t, ex.WebsocketAPI().SetMMPConfig)
-		assert.NotEmpty(t, result, "WebsocketAPI.SetMMPConfig should return the configuration")
+		result := setLiveTradingMarketMakerProtectionConfig(t, ex.WebsocketAPI().SetMarketMakerProtectionConfig)
+		assert.NotEmpty(t, result, "WebsocketAPI.SetMarketMakerProtectionConfig should return the configuration")
 		return
 	}
-	result, err := ex.WebsocketAPI().SetMMPConfig(t.Context(), mockSetMMPConfigRequest())
-	require.NoError(t, err, "WebsocketAPI.SetMMPConfig must not error")
-	assert.Equal(t, testSetMMPConfigs(), result, "WebsocketAPI.SetMMPConfig should decode every field")
+	result, err := ex.WebsocketAPI().SetMarketMakerProtectionConfig(t.Context(), mockSetMarketMakerProtectionConfigRequest())
+	require.NoError(t, err, "WebsocketAPI.SetMarketMakerProtectionConfig must not error")
+	assert.Equal(t, testSetMarketMakerProtectionConfigs(), result, "WebsocketAPI.SetMarketMakerProtectionConfig should decode every field")
 
-	_, err = newTestExchange(t).WebsocketAPI().SetMMPConfig(t.Context(), mockSetMMPConfigRequest())
-	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.SetMMPConfig should error without an authenticated connection")
+	_, err = newTestExchange(t).WebsocketAPI().SetMarketMakerProtectionConfig(t.Context(), mockSetMarketMakerProtectionConfigRequest())
+	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.SetMarketMakerProtectionConfig should error without an authenticated connection")
 }

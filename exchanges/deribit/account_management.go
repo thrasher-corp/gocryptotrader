@@ -153,7 +153,7 @@ func (e *Exchange) changeSubaccountName(ctx context.Context, arg *ChangeSubaccou
 	if arg.Name == "" {
 		return errSubaccountNameRequired
 	}
-	return e.sendOKRequest(ctx, overWebsocket, "private/change_subaccount_name", arg)
+	return e.sendRequestMatchOKResponse(ctx, overWebsocket, "private/change_subaccount_name", arg)
 }
 
 // CreateAPIKey creates an API key, whose scope cannot exceed the scope of the key creating it, and returns it with its
@@ -285,7 +285,7 @@ func (e *Exchange) editAPIKey(ctx context.Context, arg *EditAPIKeyRequest, overW
 // EnableAffiliateProgram enables the account's affiliate program, which pays commission on the trading of users it
 // refers; it cannot be disabled through the API
 func (e *Exchange) EnableAffiliateProgram(ctx context.Context) error {
-	return e.sendOKRequest(ctx, false, "private/enable_affiliate_program", nil)
+	return e.sendRequestMatchOKResponse(ctx, false, "private/enable_affiliate_program", nil)
 }
 
 // EnableAPIKey enables a disabled API key, which can authenticate at once
@@ -613,7 +613,7 @@ func (e *Exchange) removeAPIKey(ctx context.Context, id uint64, overWebsocket bo
 	if id == 0 {
 		return errAPIKeyIDRequired
 	}
-	return e.sendOKRequest(ctx, overWebsocket, "private/remove_api_key", &APIKeyIDRequest{ID: id})
+	return e.sendRequestMatchOKResponse(ctx, overWebsocket, "private/remove_api_key", &APIKeyIDRequest{ID: id})
 }
 
 // RemoveSubaccount removes a subaccount permanently, which must hold no positions, open orders or balance; on an
@@ -627,7 +627,7 @@ func (e *Exchange) removeSubaccount(ctx context.Context, subaccountID uint64, ov
 	if subaccountID == 0 {
 		return errSubaccountIDRequired
 	}
-	return e.sendOKRequest(ctx, overWebsocket, "private/remove_subaccount", &SubaccountIDRequest{SubaccountID: subaccountID})
+	return e.sendRequestMatchOKResponse(ctx, overWebsocket, "private/remove_subaccount", &SubaccountIDRequest{SubaccountID: subaccountID})
 }
 
 // ResetAPIKey replaces an API key's secret, invalidating the old one at once, and returns the key with its new secret,
@@ -660,7 +660,7 @@ func (e *Exchange) setAnnouncementAsRead(ctx context.Context, announcementID uin
 	if announcementID == 0 {
 		return errAnnouncementIDRequired
 	}
-	return e.sendOKRequest(ctx, overWebsocket, "private/set_announcement_as_read", &AnnouncementIDRequest{AnnouncementID: announcementID})
+	return e.sendRequestMatchOKResponse(ctx, overWebsocket, "private/set_announcement_as_read", &AnnouncementIDRequest{AnnouncementID: announcementID})
 }
 
 // SetDisabledTradingProducts sets the trading products a subaccount cannot trade, which only the main account can; on
@@ -689,7 +689,7 @@ func (e *Exchange) setDisabledTradingProducts(ctx context.Context, arg *SetDisab
 	if params.TradingProducts == nil {
 		params.TradingProducts = []string{}
 	}
-	return e.sendOKRequest(ctx, overWebsocket, "private/set_disabled_trading_products", &params)
+	return e.sendRequestMatchOKResponse(ctx, overWebsocket, "private/set_disabled_trading_products", &params)
 }
 
 // SetEmailForSubaccount sets the email address of a subaccount, which it can log in and receive notifications with once
@@ -709,7 +709,7 @@ func (e *Exchange) setEmailForSubaccount(ctx context.Context, arg *SetEmailForSu
 	if arg.Email == "" {
 		return errSubaccountEmailRequired
 	}
-	return e.sendOKRequest(ctx, overWebsocket, "private/set_email_for_subaccount", arg)
+	return e.sendRequestMatchOKResponse(ctx, overWebsocket, "private/set_email_for_subaccount", arg)
 }
 
 // SetEmailLanguage sets the language of the account's notification emails, such as en, ko, zh, ja or ru; it does not
@@ -722,7 +722,7 @@ func (e *Exchange) setEmailLanguage(ctx context.Context, language string, overWe
 	if language == "" {
 		return errEmailLanguageRequired
 	}
-	return e.sendOKRequest(ctx, overWebsocket, "private/set_email_language", &EmailLanguageRequest{Language: language})
+	return e.sendRequestMatchOKResponse(ctx, overWebsocket, "private/set_email_language", &EmailLanguageRequest{Language: language})
 }
 
 // SetMember creates a Direct Access member of the main account, or edits an existing one, and returns every member; it
@@ -771,7 +771,7 @@ func (e *Exchange) setSelfTradingConfig(ctx context.Context, arg *SetSelfTrading
 	default:
 		return fmt.Errorf("%w: %q", errInvalidSelfTradingMode, arg.Mode)
 	}
-	return e.sendOKRequest(ctx, overWebsocket, "private/set_self_trading_config", arg)
+	return e.sendRequestMatchOKResponse(ctx, overWebsocket, "private/set_self_trading_config", arg)
 }
 
 // SimulatePortfolio calculates the margins of the account's portfolio in a currency, optionally with simulated
@@ -811,7 +811,7 @@ func (e *Exchange) toggleNotificationsFromSubaccount(ctx context.Context, arg *T
 	if arg.SubaccountID == 0 {
 		return errSubaccountIDRequired
 	}
-	return e.sendOKRequest(ctx, overWebsocket, "private/toggle_notifications_from_subaccount", arg)
+	return e.sendRequestMatchOKResponse(ctx, overWebsocket, "private/toggle_notifications_from_subaccount", arg)
 }
 
 // ToggleSubaccountLogin enables or disables a subaccount's login with its email and password, ending any session it has
@@ -833,7 +833,7 @@ func (e *Exchange) toggleSubaccountLogin(ctx context.Context, arg *ToggleSubacco
 	default:
 		return fmt.Errorf("%w: %q", errInvalidSubaccountLoginState, arg.State)
 	}
-	return e.sendOKRequest(ctx, overWebsocket, "private/toggle_subaccount_login", arg)
+	return e.sendRequestMatchOKResponse(ctx, overWebsocket, "private/toggle_subaccount_login", arg)
 }
 
 // GetAnnouncements returns the platform's announcements published up to a time, newest first

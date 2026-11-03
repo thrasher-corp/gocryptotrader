@@ -69,14 +69,16 @@ func (w WebsocketAPI) GetMargins(ctx context.Context, arg *MarginsRequest) (*Mar
 	return w.e.getMargins(ctx, arg, true)
 }
 
-// GetMMPConfig returns MMP configurations as Exchange.GetMMPConfig does, over the websocket
-func (w WebsocketAPI) GetMMPConfig(ctx context.Context, arg *MMPGroupRequest) ([]MMPConfigResponse, error) {
-	return w.e.getMMPConfig(ctx, arg, true)
+// GetMarketMakerProtectionConfig returns MMP configurations as Exchange.GetMarketMakerProtectionConfig does, over the
+// websocket
+func (w WebsocketAPI) GetMarketMakerProtectionConfig(ctx context.Context, arg *MarketMakerProtectionGroupRequest) ([]MarketMakerProtectionConfigResponse, error) {
+	return w.e.getMarketMakerProtectionConfig(ctx, arg, true)
 }
 
-// GetMMPStatus returns triggered MMP groups as Exchange.GetMMPStatus does, over the websocket
-func (w WebsocketAPI) GetMMPStatus(ctx context.Context, arg *MMPGroupRequest) ([]MMPStatusResponse, error) {
-	return w.e.getMMPStatus(ctx, arg, true)
+// GetMarketMakerProtectionStatus returns triggered MMP groups as Exchange.GetMarketMakerProtectionStatus does, over the
+// websocket
+func (w WebsocketAPI) GetMarketMakerProtectionStatus(ctx context.Context, arg *MarketMakerProtectionGroupRequest) ([]MarketMakerProtectionStatusResponse, error) {
+	return w.e.getMarketMakerProtectionStatus(ctx, arg, true)
 }
 
 // GetOpenOrders returns the account's open orders as Exchange.GetOpenOrders does, over the websocket
@@ -183,9 +185,9 @@ func (w WebsocketAPI) MovePositions(ctx context.Context, arg *MovePositionsReque
 	return w.e.movePositions(ctx, arg, true)
 }
 
-// ResetMMP resets triggered MMP as Exchange.ResetMMP does, over the websocket
-func (w WebsocketAPI) ResetMMP(ctx context.Context, arg *MMPGroupRequest) error {
-	return w.e.resetMMP(ctx, arg, true)
+// ResetMarketMakerProtection resets triggered MMP as Exchange.ResetMarketMakerProtection does, over the websocket
+func (w WebsocketAPI) ResetMarketMakerProtection(ctx context.Context, arg *MarketMakerProtectionGroupRequest) error {
+	return w.e.resetMarketMakerProtection(ctx, arg, true)
 }
 
 // Sell places a sell order as Exchange.Sell does, over the websocket
@@ -193,7 +195,8 @@ func (w WebsocketAPI) Sell(ctx context.Context, arg *OrderRequest) (*OrderWithTr
 	return w.e.placeOrder(ctx, "private/sell", arg, true)
 }
 
-// SetMMPConfig sets an MMP configuration as Exchange.SetMMPConfig does, over the websocket
-func (w WebsocketAPI) SetMMPConfig(ctx context.Context, arg *SetMMPConfigRequest) ([]MMPConfigResponse, error) {
-	return w.e.setMMPConfig(ctx, arg, true)
+// SetMarketMakerProtectionConfig sets an MMP configuration as Exchange.SetMarketMakerProtectionConfig does, over the
+// websocket
+func (w WebsocketAPI) SetMarketMakerProtectionConfig(ctx context.Context, arg *SetMarketMakerProtectionConfigRequest) ([]MarketMakerProtectionConfigResponse, error) {
+	return w.e.setMarketMakerProtectionConfig(ctx, arg, true)
 }

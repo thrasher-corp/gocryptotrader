@@ -287,6 +287,11 @@ func TestSendAuthenticatedHTTPRequest(t *testing.T) {
 	}))
 	require.NoError(t, retried.SendAuthenticatedHTTPRequest(t.Context(), matchingEPL, "private/buy", nil, &result), "SendAuthenticatedHTTPRequest must succeed once Deribit stops asking for a retry")
 	assert.Equal(t, int32(2), attempts.Load(), "SendAuthenticatedHTTPRequest should send a matching engine request again when Deribit asks for a retry")
+	attempts.Store(0)
+	err = retried.SendAuthenticatedHTTPRequest(request.WithRetryNotAllowed(t.Context()), matchingEPL, "private/buy", nil, &result)
+	require.ErrorAs(t, err, &apiErr, "SendAuthenticatedHTTPRequest must return Deribit's retry error when the context allows no retries")
+	assert.Equal(t, int64(errorCodeRetry), apiErr.Code, "SendAuthenticatedHTTPRequest should return the retry error code")
+	assert.Equal(t, int32(1), attempts.Load(), "SendAuthenticatedHTTPRequest should send the request once when the context allows no retries")
 
 	// Taking a nonce holds the requester's timed lock, so a request taking a second one would wait for the first one's lock
 	// to run out; TestHTTPRequestItem pins NonceEnabled, which tells the requester not to take the lock again
@@ -414,6 +419,11 @@ func TestSendHTTPQueryRequest(t *testing.T) {
 	}))
 	require.NoError(t, ex.sendHTTPQueryRequest(t.Context(), "public/get_index_price", nil, &result), "sendHTTPQueryRequest must succeed once Deribit stops asking for a retry")
 	assert.Equal(t, int32(2), attempts.Load(), "sendHTTPQueryRequest should send the request again when Deribit asks for a retry")
+	attempts.Store(0)
+	err = ex.sendHTTPQueryRequest(request.WithRetryNotAllowed(t.Context()), "public/get_index_price", nil, &result)
+	require.ErrorAs(t, err, &apiErr, "sendHTTPQueryRequest must return Deribit's retry error when the context allows no retries")
+	assert.Equal(t, int64(errorCodeRetry), apiErr.Code, "sendHTTPQueryRequest should return the retry error code")
+	assert.Equal(t, int32(1), attempts.Load(), "sendHTTPQueryRequest should send the request once when the context allows no retries")
 
 	err = newUnavailableServerExchange(t).sendHTTPQueryRequest(t.Context(), "public/get_index_price", nil, &result)
 	assert.ErrorIs(t, err, request.ErrBadStatus, "sendHTTPQueryRequest should return a request failure without an error object")
@@ -475,15 +485,15 @@ func TestSendRequest(t *testing.T) {
 	assert.NotZero(t, serverTime, "sendRequest should decode the websocket result")
 }
 
-func TestSendOKRequest(t *testing.T) {
+func TestSendRequestMatchOKResponse(t *testing.T) {
 	t.Parallel()
-	require.NoError(t, newResponseServerExchange(t, `{"jsonrpc":"2.0","result":"ok"}`).sendOKRequest(t.Context(), false, "private/reset_mmp", nil), "sendOKRequest must not error for an ok result")
-	err := newResponseServerExchange(t, `{"jsonrpc":"2.0","result":"failed"}`).sendOKRequest(t.Context(), false, "private/reset_mmp", nil)
-	assert.ErrorIs(t, err, errUnexpectedResult, "sendOKRequest should reject a result other than ok")
-	err = newUnavailableServerExchange(t).sendOKRequest(t.Context(), false, "private/reset_mmp", nil)
-	assert.ErrorIs(t, err, request.ErrBadStatus, "sendOKRequest should return the request failure")
+	require.NoError(t, newResponseServerExchange(t, `{"jsonrpc":"2.0","result":"ok"}`).sendRequestMatchOKResponse(t.Context(), false, "private/reset_mmp", nil), "sendRequestMatchOKResponse must not error for an ok result")
+	err := newResponseServerExchange(t, `{"jsonrpc":"2.0","result":"failed"}`).sendRequestMatchOKResponse(t.Context(), false, "private/reset_mmp", nil)
+	assert.ErrorIs(t, err, errUnexpectedResult, "sendRequestMatchOKResponse should reject a result other than ok")
+	err = newUnavailableServerExchange(t).sendRequestMatchOKResponse(t.Context(), false, "private/reset_mmp", nil)
+	assert.ErrorIs(t, err, request.ErrBadStatus, "sendRequestMatchOKResponse should return the request failure")
 	limited, noDelay := newRateLimitedServerExchange(t, `{"jsonrpc":"2.0","result":"ok"}`)
-	assert.NoError(t, limited.sendOKRequest(noDelay, false, "private/reset_mmp", nil), "sendOKRequest should send a non-matching engine request")
+	assert.NoError(t, limited.sendRequestMatchOKResponse(noDelay, false, "private/reset_mmp", nil), "sendRequestMatchOKResponse should send a non-matching engine request")
 }
 
 func TestIsPrivateMethod(t *testing.T) {
@@ -524,6 +534,14 @@ func TestRetryRequest(t *testing.T) {
 		})
 		assert.ErrorIs(t, err, other, "retryRequest should return an error Deribit does not ask to retry")
 		assert.Equal(t, 1, attempts, "retryRequest should not retry an error Deribit does not ask to retry")
+
+		attempts = 0
+		err = retryRequest(request.WithRetryNotAllowed(t.Context()), func() error {
+			attempts++
+			return retry
+		})
+		assert.ErrorIs(t, err, retry, "retryRequest should return Deribit's retry error when the context allows no retries")
+		assert.Equal(t, 1, attempts, "retryRequest should send the request once when the context allows no retries")
 
 		ctx, cancel := context.WithCancel(t.Context())
 		err = retryRequest(ctx, func() error {

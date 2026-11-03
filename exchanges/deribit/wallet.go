@@ -221,7 +221,7 @@ func (e *Exchange) deleteAddressBeneficiary(ctx context.Context, arg *AddressBen
 	if err := arg.validate(); err != nil {
 		return err
 	}
-	return e.sendOKRequest(ctx, overWebsocket, "private/delete_address_beneficiary", arg)
+	return e.sendRequestMatchOKResponse(ctx, overWebsocket, "private/delete_address_beneficiary", arg)
 }
 
 // GetAddressBeneficiary returns an address's beneficiary information
@@ -438,7 +438,7 @@ func (e *Exchange) removeFromAddressBook(ctx context.Context, arg *RemoveFromAdd
 	if err := validateAddressBookEntry(arg.Currency, arg.Type, arg.Address, arg.EntryID, AddressBookTypeTransfer, AddressBookTypeWithdrawal); err != nil {
 		return err
 	}
-	return e.sendOKRequest(ctx, overWebsocket, "private/remove_from_address_book", arg)
+	return e.sendRequestMatchOKResponse(ctx, overWebsocket, "private/remove_from_address_book", arg)
 }
 
 // SaveAddressBeneficiary saves an address's beneficiary information, which the travel rule needs for withdrawals to it,

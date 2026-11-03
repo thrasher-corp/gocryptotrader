@@ -54,40 +54,40 @@ const (
 
 // Deribit's subscription channels, which a subscription names, other than through a standard channel, to subscribe to
 const (
-	ChannelPlatformState              = "platform_state"
-	ChannelPlatformPublicMethodsState = "platform_state.public_methods_state"
-	ChannelAnnouncements              = "announcements"
-	ChannelBook                       = "book"
-	ChannelTicker                     = "ticker"
-	ChannelIncrementalTicker          = "incremental_ticker"
-	ChannelPerpetual                  = "perpetual"
-	ChannelQuote                      = "quote"
-	ChannelTrades                     = "trades"
-	ChannelBlockTradeConfirmations    = "block_trade_confirmations"
-	ChannelPriceIndex                 = "deribit_price_index"
-	ChannelPriceRanking               = "deribit_price_ranking"
-	ChannelPriceStatistics            = "deribit_price_statistics"
-	ChannelVolatilityIndex            = "deribit_volatility_index"
-	ChannelMarkPriceOptions           = "markprice.options"
-	ChannelEstimatedExpirationPrice   = "estimated_expiration_price"
-	ChannelChartTrades                = "chart.trades"
-	ChannelInstrumentCreation         = "instrument.creation"
-	ChannelInstrumentState            = "instrument.state"
-	ChannelUserMMPTrigger             = "user.mmp_trigger"
-	ChannelUserPortfolio              = "user.portfolio"
-	ChannelUserTrades                 = "user.trades"
-	ChannelUserComboTrades            = "user.combo_trades"
-	ChannelUserOrders                 = "user.orders"
-	ChannelUserChanges                = "user.changes"
-	ChannelUserAccessLog              = "user.access_log"
-	ChannelUserLock                   = "user.lock"
-	ChannelUserLiquidation            = "user.liquidation"
-	ChannelUserIsolatedLiquidation    = "user.isolated.liquidation"
-	ChannelUserLSP                    = "user.lsp"
-	ChannelBlockRFQMaker              = "block_rfq.maker"
-	ChannelBlockRFQTaker              = "block_rfq.taker"
-	ChannelBlockRFQMakerQuotes        = "block_rfq.maker.quotes"
-	ChannelBlockRFQTrades             = "block_rfq.trades"
+	ChannelPlatformState                    = "platform_state"
+	ChannelPlatformPublicMethodsState       = "platform_state.public_methods_state"
+	ChannelAnnouncements                    = "announcements"
+	ChannelBook                             = "book"
+	ChannelTicker                           = "ticker"
+	ChannelIncrementalTicker                = "incremental_ticker"
+	ChannelPerpetual                        = "perpetual"
+	ChannelQuote                            = "quote"
+	ChannelTrades                           = "trades"
+	ChannelBlockTradeConfirmations          = "block_trade_confirmations"
+	ChannelPriceIndex                       = "deribit_price_index"
+	ChannelPriceRanking                     = "deribit_price_ranking"
+	ChannelPriceStatistics                  = "deribit_price_statistics"
+	ChannelVolatilityIndex                  = "deribit_volatility_index"
+	ChannelMarkPriceOptions                 = "markprice.options"
+	ChannelEstimatedExpirationPrice         = "estimated_expiration_price"
+	ChannelChartTrades                      = "chart.trades"
+	ChannelInstrumentCreation               = "instrument.creation"
+	ChannelInstrumentState                  = "instrument.state"
+	ChannelUserMarketMakerProtectionTrigger = "user.mmp_trigger"
+	ChannelUserPortfolio                    = "user.portfolio"
+	ChannelUserTrades                       = "user.trades"
+	ChannelUserComboTrades                  = "user.combo_trades"
+	ChannelUserOrders                       = "user.orders"
+	ChannelUserChanges                      = "user.changes"
+	ChannelUserAccessLog                    = "user.access_log"
+	ChannelUserLock                         = "user.lock"
+	ChannelUserLiquidation                  = "user.liquidation"
+	ChannelUserIsolatedLiquidation          = "user.isolated.liquidation"
+	ChannelUserLiquiditySupportProgram      = "user.lsp"
+	ChannelBlockRFQMaker                    = "block_rfq.maker"
+	ChannelBlockRFQTaker                    = "block_rfq.taker"
+	ChannelBlockRFQMakerQuotes              = "block_rfq.maker.quotes"
+	ChannelBlockRFQTrades                   = "block_rfq.trades"
 )
 
 var (
@@ -125,40 +125,40 @@ type websocketChannel struct {
 
 // websocketChannels lists every Deribit channel a subscription may name
 var websocketChannels = map[string]websocketChannel{
-	ChannelPlatformState:              {},
-	ChannelPlatformPublicMethodsState: {},
-	ChannelAnnouncements:              {},
-	ChannelBook:                       {instrument: true, interval: true},
-	ChannelTicker:                     {instrument: true, interval: true},
-	ChannelIncrementalTicker:          {instrument: true},
-	ChannelPerpetual:                  {instrument: true, interval: true},
-	ChannelQuote:                      {instrument: true},
-	ChannelTrades:                     {instrument: true, kindCurrency: true, kindRequired: true, interval: true},
-	ChannelBlockTradeConfirmations:    {optionalCurrency: true, private: true},
-	ChannelPriceIndex:                 {indexName: true},
-	ChannelPriceRanking:               {indexName: true},
-	ChannelPriceStatistics:            {indexName: true},
-	ChannelVolatilityIndex:            {indexName: true},
-	ChannelMarkPriceOptions:           {indexName: true},
-	ChannelEstimatedExpirationPrice:   {indexName: true},
-	ChannelChartTrades:                {instrument: true, resolution: true},
-	ChannelInstrumentCreation:         {kindCurrency: true},
-	ChannelInstrumentState:            {kindCurrency: true},
-	ChannelUserMMPTrigger:             {indexName: true, private: true},
-	ChannelUserPortfolio:              {currency: true, private: true},
-	ChannelUserTrades:                 {instrument: true, kindCurrency: true, interval: true, private: true},
-	ChannelUserComboTrades:            {instrument: true, kindCurrency: true, interval: true, private: true},
-	ChannelUserOrders:                 {instrument: true, kindCurrency: true, interval: true, private: true},
-	ChannelUserChanges:                {instrument: true, kindCurrency: true, interval: true, private: true},
-	ChannelUserAccessLog:              {private: true},
-	ChannelUserLock:                   {private: true},
-	ChannelUserLiquidation:            {private: true},
-	ChannelUserIsolatedLiquidation:    {private: true},
-	ChannelUserLSP:                    {private: true},
-	ChannelBlockRFQMaker:              {currency: true, private: true},
-	ChannelBlockRFQTaker:              {currency: true, private: true},
-	ChannelBlockRFQMakerQuotes:        {currency: true, private: true},
-	ChannelBlockRFQTrades:             {currency: true},
+	ChannelPlatformState:                    {},
+	ChannelPlatformPublicMethodsState:       {},
+	ChannelAnnouncements:                    {},
+	ChannelBook:                             {instrument: true, interval: true},
+	ChannelTicker:                           {instrument: true, interval: true},
+	ChannelIncrementalTicker:                {instrument: true},
+	ChannelPerpetual:                        {instrument: true, interval: true},
+	ChannelQuote:                            {instrument: true},
+	ChannelTrades:                           {instrument: true, kindCurrency: true, kindRequired: true, interval: true},
+	ChannelBlockTradeConfirmations:          {optionalCurrency: true, private: true},
+	ChannelPriceIndex:                       {indexName: true},
+	ChannelPriceRanking:                     {indexName: true},
+	ChannelPriceStatistics:                  {indexName: true},
+	ChannelVolatilityIndex:                  {indexName: true},
+	ChannelMarkPriceOptions:                 {indexName: true},
+	ChannelEstimatedExpirationPrice:         {indexName: true},
+	ChannelChartTrades:                      {instrument: true, resolution: true},
+	ChannelInstrumentCreation:               {kindCurrency: true},
+	ChannelInstrumentState:                  {kindCurrency: true},
+	ChannelUserMarketMakerProtectionTrigger: {indexName: true, private: true},
+	ChannelUserPortfolio:                    {currency: true, private: true},
+	ChannelUserTrades:                       {instrument: true, kindCurrency: true, interval: true, private: true},
+	ChannelUserComboTrades:                  {instrument: true, kindCurrency: true, interval: true, private: true},
+	ChannelUserOrders:                       {instrument: true, kindCurrency: true, interval: true, private: true},
+	ChannelUserChanges:                      {instrument: true, kindCurrency: true, interval: true, private: true},
+	ChannelUserAccessLog:                    {private: true},
+	ChannelUserLock:                         {private: true},
+	ChannelUserLiquidation:                  {private: true},
+	ChannelUserIsolatedLiquidation:          {private: true},
+	ChannelUserLiquiditySupportProgram:      {private: true},
+	ChannelBlockRFQMaker:                    {currency: true, private: true},
+	ChannelBlockRFQTaker:                    {currency: true, private: true},
+	ChannelBlockRFQMakerQuotes:              {currency: true, private: true},
+	ChannelBlockRFQTrades:                   {currency: true},
 }
 
 // websocketStandardChannels maps standard channels to the Deribit channels that serve them
@@ -388,8 +388,8 @@ func (e *Exchange) wsHandleNotification(ctx context.Context, channel string, res
 		return wsRelay[WebsocketUserLock](ctx, e, respRaw)
 	case ChannelUserLiquidation, ChannelUserIsolatedLiquidation:
 		return wsRelay[WebsocketUserLiquidation](ctx, e, respRaw)
-	case ChannelUserMMPTrigger:
-		return wsRelay[WebsocketMMPTrigger](ctx, e, respRaw)
+	case ChannelUserMarketMakerProtectionTrigger:
+		return wsRelay[WebsocketMarketMakerProtectionTrigger](ctx, e, respRaw)
 	case ChannelAnnouncements:
 		return wsRelay[WebsocketAnnouncement](ctx, e, respRaw)
 	case ChannelInstrumentCreation:
@@ -400,8 +400,8 @@ func (e *Exchange) wsHandleNotification(ctx context.Context, channel string, res
 		return wsRelay[WebsocketUserChanges](ctx, e, respRaw)
 	case ChannelUserAccessLog:
 		return wsRelay[AccessLogEntry](ctx, e, respRaw)
-	case ChannelUserLSP:
-		return wsRelay[WebsocketLSPEvent](ctx, e, respRaw)
+	case ChannelUserLiquiditySupportProgram:
+		return wsRelay[WebsocketLiquiditySupportProgramEvent](ctx, e, respRaw)
 	case ChannelBlockTradeConfirmations:
 		return wsRelay[PendingBlockTradeResponse](ctx, e, respRaw)
 	case ChannelBlockRFQMaker, ChannelBlockRFQTaker:

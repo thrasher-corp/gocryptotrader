@@ -7,64 +7,64 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestWebsocketAPIGetLSPParticipantConfig(t *testing.T) {
+func TestWebsocketAPIGetLiquiditySupportProgramParticipantConfig(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
-		t.Skip("WebsocketAPI.GetLSPParticipantConfig is not tested live, as " + liveLSPParticipantSkip)
+		t.Skip("WebsocketAPI.GetLiquiditySupportProgramParticipantConfig is not tested live, as " + liveLiquiditySupportProgramParticipantSkip)
 	}
 	ex, _ := newWebsocketTestExchange(t)
-	result, err := ex.WebsocketAPI().GetLSPParticipantConfig(t.Context())
-	require.NoError(t, err, "WebsocketAPI.GetLSPParticipantConfig must not error")
-	assert.Equal(t, testLSPParticipantConfigResponse(), result, "WebsocketAPI.GetLSPParticipantConfig should decode every field")
+	result, err := ex.WebsocketAPI().GetLiquiditySupportProgramParticipantConfig(t.Context())
+	require.NoError(t, err, "WebsocketAPI.GetLiquiditySupportProgramParticipantConfig must not error")
+	assert.Equal(t, testLiquiditySupportProgramParticipantConfigResponse(), result, "WebsocketAPI.GetLiquiditySupportProgramParticipantConfig should decode every field")
 
-	_, err = newTestExchange(t).WebsocketAPI().GetLSPParticipantConfig(t.Context())
-	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.GetLSPParticipantConfig should error without an authenticated connection")
+	_, err = newTestExchange(t).WebsocketAPI().GetLiquiditySupportProgramParticipantConfig(t.Context())
+	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.GetLiquiditySupportProgramParticipantConfig should error without an authenticated connection")
 }
 
-func TestWebsocketAPIGetLSPParticipants(t *testing.T) {
+func TestWebsocketAPIGetLiquiditySupportProgramParticipants(t *testing.T) {
 	t.Parallel()
 	skipLiveWithoutCredentials(t)
 	ex, _ := newWebsocketTestExchange(t)
-	result, err := ex.WebsocketAPI().GetLSPParticipants(t.Context(), false)
-	require.NoError(t, err, "WebsocketAPI.GetLSPParticipants must not error")
+	result, err := ex.WebsocketAPI().GetLiquiditySupportProgramParticipants(t.Context(), false)
+	require.NoError(t, err, "WebsocketAPI.GetLiquiditySupportProgramParticipants must not error")
 	if mockTests {
-		assert.Equal(t, testLSPParticipantsResponse(), result, "WebsocketAPI.GetLSPParticipants should decode every field")
+		assert.Equal(t, testLiquiditySupportProgramParticipantsResponse(), result, "WebsocketAPI.GetLiquiditySupportProgramParticipants should decode every field")
 	}
 
-	_, err = newTestExchange(t).WebsocketAPI().GetLSPParticipants(t.Context(), false)
-	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.GetLSPParticipants should error without an authenticated connection")
+	_, err = newTestExchange(t).WebsocketAPI().GetLiquiditySupportProgramParticipants(t.Context(), false)
+	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.GetLiquiditySupportProgramParticipants should error without an authenticated connection")
 }
 
-func TestWebsocketAPIGetLSPParticipantsUsage(t *testing.T) {
+func TestWebsocketAPIGetLiquiditySupportProgramParticipantsUsage(t *testing.T) {
 	t.Parallel()
 	skipLiveWithoutCredentials(t)
 	ex, _ := newWebsocketTestExchange(t)
-	var userID uint64 = mockLSPParticipantUserID
+	var userID uint64 = mockLiquiditySupportProgramParticipantUserID
 	if !mockTests {
 		userID = 0
 	}
-	result, err := ex.WebsocketAPI().GetLSPParticipantsUsage(t.Context(), userID)
-	require.NoError(t, err, "WebsocketAPI.GetLSPParticipantsUsage must not error")
+	result, err := ex.WebsocketAPI().GetLiquiditySupportProgramParticipantsUsage(t.Context(), userID)
+	require.NoError(t, err, "WebsocketAPI.GetLiquiditySupportProgramParticipantsUsage must not error")
 	if mockTests {
-		assert.Equal(t, testLSPParticipantsUsageResponse(), result, "WebsocketAPI.GetLSPParticipantsUsage should decode every field")
+		assert.Equal(t, testLiquiditySupportProgramParticipantsUsageResponse(), result, "WebsocketAPI.GetLiquiditySupportProgramParticipantsUsage should decode every field")
 	} else {
-		assert.NotZero(t, result.CooldownPeriod, "WebsocketAPI.GetLSPParticipantsUsage should return the cooldown period")
+		assert.NotZero(t, result.CooldownPeriod, "WebsocketAPI.GetLiquiditySupportProgramParticipantsUsage should return the cooldown period")
 	}
 
-	_, err = newTestExchange(t).WebsocketAPI().GetLSPParticipantsUsage(t.Context(), userID)
-	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.GetLSPParticipantsUsage should error without an authenticated connection")
+	_, err = newTestExchange(t).WebsocketAPI().GetLiquiditySupportProgramParticipantsUsage(t.Context(), userID)
+	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.GetLiquiditySupportProgramParticipantsUsage should error without an authenticated connection")
 }
 
-func TestWebsocketAPIGetLSPUsage(t *testing.T) {
+func TestWebsocketAPIGetLiquiditySupportProgramUsage(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
-		t.Skip("WebsocketAPI.GetLSPUsage is not tested live, as " + liveLSPParticipantSkip)
+		t.Skip("WebsocketAPI.GetLiquiditySupportProgramUsage is not tested live, as " + liveLiquiditySupportProgramParticipantSkip)
 	}
 	ex, _ := newWebsocketTestExchange(t)
-	result, err := ex.WebsocketAPI().GetLSPUsage(t.Context())
-	require.NoError(t, err, "WebsocketAPI.GetLSPUsage must not error")
-	assert.Equal(t, &LSPUsageResponse{CooldownPeriod: 300000, Groups: testLSPGroupUsage()}, result, "WebsocketAPI.GetLSPUsage should decode every field")
+	result, err := ex.WebsocketAPI().GetLiquiditySupportProgramUsage(t.Context())
+	require.NoError(t, err, "WebsocketAPI.GetLiquiditySupportProgramUsage must not error")
+	assert.Equal(t, &LiquiditySupportProgramUsageResponse{CooldownPeriod: 300000, Groups: testLiquiditySupportProgramGroupUsage()}, result, "WebsocketAPI.GetLiquiditySupportProgramUsage should decode every field")
 
-	_, err = newTestExchange(t).WebsocketAPI().GetLSPUsage(t.Context())
-	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.GetLSPUsage should error without an authenticated connection")
+	_, err = newTestExchange(t).WebsocketAPI().GetLiquiditySupportProgramUsage(t.Context())
+	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.GetLiquiditySupportProgramUsage should error without an authenticated connection")
 }

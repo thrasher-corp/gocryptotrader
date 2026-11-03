@@ -60,7 +60,9 @@ type APIKeyResponse struct {
 	PublicKey string       `json:"public_key"`
 	MaxScope  APIKeyScopes `json:"max_scope"`
 	Enabled   bool         `json:"enabled"`
-	// Default is deprecated
+	// Default is whether the key is the default one
+	//
+	// Deprecated: Deribit will remove this field.
 	Default bool   `json:"default"`
 	Name    string `json:"name"`
 	// EnabledFeatures lists the key's advanced features: restricted_block_trades and block_trade_approval
@@ -297,10 +299,10 @@ type AccountDetails struct {
 	SystemName string `json:"system_name"`
 	Email      string `json:"email"`
 	// LoginEnabled is set when a subaccount can log in with its email and password
-	LoginEnabled              bool `json:"login_enabled"`
-	SecurityKeysEnabled       bool `json:"security_keys_enabled"`
-	MMPEnabled                bool `json:"mmp_enabled"`
-	InterUserTransfersEnabled bool `json:"interuser_transfers_enabled"`
+	LoginEnabled                 bool `json:"login_enabled"`
+	SecurityKeysEnabled          bool `json:"security_keys_enabled"`
+	MarketMakerProtectionEnabled bool `json:"mmp_enabled"`
+	InterUserTransfersEnabled    bool `json:"interuser_transfers_enabled"`
 	// ReferrerID identifies the affiliate link the account registered with, as the suffix of its path after /reg-
 	ReferrerID        string     `json:"referrer_id"`
 	CreationTimestamp types.Time `json:"creation_timestamp"`
@@ -575,7 +577,9 @@ type PositionResponse struct {
 	// includes, and InterestValue the value it is calculated from
 	RealisedFunding float64 `json:"realized_funding"`
 	InterestValue   float64 `json:"interest_value"`
-	// EstimatedLiquidationPrice is deprecated: Deribit no longer calculates it and sends null
+	// EstimatedLiquidationPrice is a future's estimated liquidation price
+	//
+	// Deprecated: Deribit no longer calculates it and always sends null.
 	EstimatedLiquidationPrice float64 `json:"estimated_liquidation_price"`
 }
 
@@ -828,11 +832,11 @@ type PMEMargins struct {
 
 // PMEInitialMarginDetails contains the components of a simulated initial margin
 type PMEInitialMarginDetails struct {
-	RiskMatrixMargin        float64                    `json:"risk_matrix_margin"`
-	RiskMatrixMarginDetails PMERiskMatrixMarginDetails `json:"risk_matrix_margin_details"`
-	SpotMargin              float64                    `json:"spot_margin"`
-	MMPMargin               float64                    `json:"mmp_margin"`
-	OpenOrdersMargin        float64                    `json:"open_orders_margin"`
+	RiskMatrixMargin            float64                    `json:"risk_matrix_margin"`
+	RiskMatrixMarginDetails     PMERiskMatrixMarginDetails `json:"risk_matrix_margin_details"`
+	SpotMargin                  float64                    `json:"spot_margin"`
+	MarketMakerProtectionMargin float64                    `json:"mmp_margin"`
+	OpenOrdersMargin            float64                    `json:"open_orders_margin"`
 }
 
 // PMERiskMatrixMarginDetails contains the components of a simulated risk matrix margin

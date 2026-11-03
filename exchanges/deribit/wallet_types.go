@@ -197,11 +197,12 @@ type WithdrawalResponse struct {
 	DestinationTag         string `json:"destination_tag"`
 	// PaymentID is assigned by the custodian
 	PaymentID string `json:"payment_id"`
-	// SourceCTNID and DestinationCTNID identify the Coinbase Travel Network counterparties of a withdrawal to one
-	SourceCTNID      string     `json:"source_ctn_id"`
-	DestinationCTNID string     `json:"destination_ctn_id"`
-	CreatedTimestamp types.Time `json:"created_timestamp"`
-	UpdatedTimestamp types.Time `json:"updated_timestamp"`
+	// SourceCoinbaseTravelNetworkID and DestinationCoinbaseTravelNetworkID identify the Coinbase Travel Network
+	// counterparties of a withdrawal to one
+	SourceCoinbaseTravelNetworkID      string     `json:"source_ctn_id"`
+	DestinationCoinbaseTravelNetworkID string     `json:"destination_ctn_id"`
+	CreatedTimestamp                   types.Time `json:"created_timestamp"`
+	UpdatedTimestamp                   types.Time `json:"updated_timestamp"`
 	// ConfirmedTimestamp is zero until the withdrawal is confirmed
 	ConfirmedTimestamp types.Time `json:"confirmed_timestamp"`
 	// ClearanceState is the compliance clearance state, left out until a clearance decision is recorded

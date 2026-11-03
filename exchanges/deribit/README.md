@@ -159,12 +159,14 @@ The connection asks Deribit for a heartbeat every 15 seconds and answers each on
 ### Rate limits
 
 Requests are limited to Deribit's default credits: 20 non-matching engine and 5 matching engine requests a second, and
-the lower rates of the methods Deribit limits separately. Subaccounts with more trading volume are allowed more.
+the lower rates of the methods Deribit limits separately. Subaccounts with more trading volume are allowed more. Every
+Exchange instance shares the same limiters, as Deribit counts requests per subaccount, and unauthenticated ones per IP
+address.
 
 A request Deribit answers with code 10040, which it sends when it did not process the request, is sent again, up to five
-times in all. A REST request whose response times out is also sent again if it only reads, as public methods and
-private get, list and simulate methods do; Deribit may already have carried out any other, such as an order, a cancel,
-a withdrawal or a transfer.
+times in all, unless its context is marked by `request.WithRetryNotAllowed`, which sends it once. A REST request whose
+response times out is also sent again if it only reads, as public methods and private get, list and simulate methods
+do; Deribit may already have carried out any other, such as an order, a cancel, a withdrawal or a transfer.
 
 ### How to do REST public/private calls
 

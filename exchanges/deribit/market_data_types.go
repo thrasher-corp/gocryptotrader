@@ -350,9 +350,12 @@ type InstrumentResponse struct {
 	InstrumentID   uint64 `json:"instrument_id"`
 	// Kind is future, option, spot, future_combo or option_combo
 	Kind string `json:"kind"`
-	// InstrumentType is linear or reversed, for every kind; FutureType is its deprecated equivalent for futures
+	// InstrumentType is linear or reversed, for every kind
 	InstrumentType string `json:"instrument_type"`
-	FutureType     string `json:"future_type"`
+	// FutureType is linear or reversed, for a future
+	//
+	// Deprecated: Deribit will remove this field; use InstrumentType.
+	FutureType string `json:"future_type"`
 	// OptionType, call or put, and Strike are an option's
 	OptionType string  `json:"option_type"`
 	Strike     float64 `json:"strike"`

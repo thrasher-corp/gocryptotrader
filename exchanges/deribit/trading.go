@@ -13,46 +13,46 @@ import (
 const (
 	// maximumTradingCount is the most items a trading history request returns in a page
 	maximumTradingCount = 1000
-	// maximumMMPDuration is the longest MMP interval and frozen time Deribit accepts
-	maximumMMPDuration = time.Hour
-	// maximumMMPTradeCountLimit is the highest block RFQ MMP trade count limit Deribit accepts
-	maximumMMPTradeCountLimit = 1000
-	// mmpIndexNameAll selects every index, which only block RFQ MMP resets accept
-	mmpIndexNameAll = "all"
+	// maximumMarketMakerProtectionDuration is the longest MMP interval and frozen time Deribit accepts
+	maximumMarketMakerProtectionDuration = time.Hour
+	// maximumMarketMakerProtectionTradeCountLimit is the highest block RFQ MMP trade count limit Deribit accepts
+	maximumMarketMakerProtectionTradeCountLimit = 1000
+	// marketMakerProtectionIndexNameAll selects every index, which only block RFQ MMP resets accept
+	marketMakerProtectionIndexNameAll = "all"
 )
 
 var (
-	errInvalidOrderType             = errors.New("invalid order type")
-	errInvalidOrderTimeInForce      = errors.New("invalid order time in force")
-	errInvalidOrderTrigger          = errors.New("invalid order trigger")
-	errOrderTriggerRequired         = errors.New("trigger is required for a trigger order")
-	errOrderTriggerPriceRequired    = errors.New("trigger price is required for a stop or take order")
-	errInvalidAdvancedOrderType     = errors.New("invalid advanced order type")
-	errInvalidLinkedOrderType       = errors.New("invalid linked order type")
-	errInvalidTriggerFillCondition  = errors.New("invalid trigger fill condition")
-	errInvalidCancelOrderType       = errors.New("invalid cancel order type")
-	errStarbaseOrdersWithDetailed   = errors.New("including Starbase orders cannot be combined with a detailed response")
-	errCancelCurrencyPairRequired   = errors.New("currency pair is required")
-	errInvalidCancelQuotesType      = errors.New("invalid cancel quotes type")
-	errCancelQuoteSetIDRequired     = errors.New("quote set ID is required")
-	errInvalidMarginAmountType      = errors.New("invalid margin amount type")
-	errMMPIndexNameRequired         = errors.New("index name is required")
-	errMMPIndexNameAllNeedsBlockRFQ = errors.New("index name all is only accepted for block RFQ MMP")
-	errInvalidMMPInterval           = errors.New("MMP interval must be whole seconds up to an hour")
-	errInvalidMMPFrozenTime         = errors.New("MMP frozen time must be whole seconds up to an hour")
-	errInvalidMMPTradeCountLimit    = errors.New("MMP trade count limit must be at most 1000")
-	errMMPGroupRequired             = errors.New("MMP group is required")
-	errInvalidOpenOrderType         = errors.New("invalid open order type")
-	errInvalidSettlementHistoryType = errors.New("invalid settlement history type")
-	errInvalidUserTradesSorting     = errors.New("invalid user trades sorting")
-	errMassQuoteIDRequired          = errors.New("quote ID is required")
-	errMassQuotesRequired           = errors.New("at least one quote is required")
-	errMassQuoteSideRequired        = errors.New("a quote needs a bid or an ask")
-	errSourceUIDRequired            = errors.New("source subaccount ID is required")
-	errTargetUIDRequired            = errors.New("target subaccount ID is required")
-	errPositionMovesRequired        = errors.New("at least one position move is required")
-	errOrderHistoryOrdersMissing    = errors.New("order history page has no orders field")
-	errInvalidCancelAllResult       = errors.New("invalid cancel all result")
+	errInvalidOrderType                               = errors.New("invalid order type")
+	errInvalidOrderTimeInForce                        = errors.New("invalid order time in force")
+	errInvalidOrderTrigger                            = errors.New("invalid order trigger")
+	errOrderTriggerRequired                           = errors.New("trigger is required for a trigger order")
+	errOrderTriggerPriceRequired                      = errors.New("trigger price is required for a stop or take order")
+	errInvalidAdvancedOrderType                       = errors.New("invalid advanced order type")
+	errInvalidLinkedOrderType                         = errors.New("invalid linked order type")
+	errInvalidTriggerFillCondition                    = errors.New("invalid trigger fill condition")
+	errInvalidCancelOrderType                         = errors.New("invalid cancel order type")
+	errStarbaseOrdersWithDetailed                     = errors.New("including Starbase orders cannot be combined with a detailed response")
+	errCancelCurrencyPairRequired                     = errors.New("currency pair is required")
+	errInvalidCancelQuotesType                        = errors.New("invalid cancel quotes type")
+	errCancelQuoteSetIDRequired                       = errors.New("quote set ID is required")
+	errInvalidMarginAmountType                        = errors.New("invalid margin amount type")
+	errMarketMakerProtectionIndexNameRequired         = errors.New("index name is required")
+	errMarketMakerProtectionIndexNameAllNeedsBlockRFQ = errors.New("index name all is only accepted for block RFQ MMP")
+	errInvalidMarketMakerProtectionInterval           = errors.New("MMP interval must be whole seconds up to an hour")
+	errInvalidMarketMakerProtectionFrozenTime         = errors.New("MMP frozen time must be whole seconds up to an hour")
+	errInvalidMarketMakerProtectionTradeCountLimit    = errors.New("MMP trade count limit must be at most 1000")
+	errMarketMakerProtectionGroupRequired             = errors.New("MMP group is required")
+	errInvalidOpenOrderType                           = errors.New("invalid open order type")
+	errInvalidSettlementHistoryType                   = errors.New("invalid settlement history type")
+	errInvalidUserTradesSorting                       = errors.New("invalid user trades sorting")
+	errMassQuoteIDRequired                            = errors.New("quote ID is required")
+	errMassQuotesRequired                             = errors.New("at least one quote is required")
+	errMassQuoteSideRequired                          = errors.New("a quote needs a bid or an ask")
+	errSourceUIDRequired                              = errors.New("source subaccount ID is required")
+	errTargetUIDRequired                              = errors.New("target subaccount ID is required")
+	errPositionMovesRequired                          = errors.New("at least one position move is required")
+	errOrderHistoryOrdersMissing                      = errors.New("order history page has no orders field")
+	errInvalidCancelAllResult                         = errors.New("invalid cancel all result")
 )
 
 // Buy places a buy order and returns it with the trades it made at once; spot orders routed to Coinbase Exchange fill
@@ -405,33 +405,34 @@ func (e *Exchange) getMargins(ctx context.Context, arg *MarginsRequest, overWebs
 	return resp, nil
 }
 
-// GetMMPConfig returns the MMP configurations of an index's group, or of every group without an index; an empty list
-// means none is configured
-func (e *Exchange) GetMMPConfig(ctx context.Context, arg *MMPGroupRequest) ([]MMPConfigResponse, error) {
-	return e.getMMPConfig(ctx, arg, false)
+// GetMarketMakerProtectionConfig returns the MMP configurations of an index's group, or of every group without an
+// index; an empty list means none is configured
+func (e *Exchange) GetMarketMakerProtectionConfig(ctx context.Context, arg *MarketMakerProtectionGroupRequest) ([]MarketMakerProtectionConfigResponse, error) {
+	return e.getMarketMakerProtectionConfig(ctx, arg, false)
 }
 
-func (e *Exchange) getMMPConfig(ctx context.Context, arg *MMPGroupRequest, overWebsocket bool) ([]MMPConfigResponse, error) {
+func (e *Exchange) getMarketMakerProtectionConfig(ctx context.Context, arg *MarketMakerProtectionGroupRequest, overWebsocket bool) ([]MarketMakerProtectionConfigResponse, error) {
 	if err := arg.validateQuery(); err != nil {
 		return nil, err
 	}
-	var resp []MMPConfigResponse
+	var resp []MarketMakerProtectionConfigResponse
 	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/get_mmp_config", arg, &resp); err != nil {
 		return nil, err
 	}
 	return resp, nil
 }
 
-// GetMMPStatus returns the status of an index's triggered MMP group, or of every triggered group without an index
-func (e *Exchange) GetMMPStatus(ctx context.Context, arg *MMPGroupRequest) ([]MMPStatusResponse, error) {
-	return e.getMMPStatus(ctx, arg, false)
+// GetMarketMakerProtectionStatus returns the status of an index's triggered MMP group, or of every triggered group
+// without an index
+func (e *Exchange) GetMarketMakerProtectionStatus(ctx context.Context, arg *MarketMakerProtectionGroupRequest) ([]MarketMakerProtectionStatusResponse, error) {
+	return e.getMarketMakerProtectionStatus(ctx, arg, false)
 }
 
-func (e *Exchange) getMMPStatus(ctx context.Context, arg *MMPGroupRequest, overWebsocket bool) ([]MMPStatusResponse, error) {
+func (e *Exchange) getMarketMakerProtectionStatus(ctx context.Context, arg *MarketMakerProtectionGroupRequest, overWebsocket bool) ([]MarketMakerProtectionStatusResponse, error) {
 	if err := arg.validateQuery(); err != nil {
 		return nil, err
 	}
-	var resp []MMPStatusResponse
+	var resp []MarketMakerProtectionStatusResponse
 	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/get_mmp_status", arg, &resp); err != nil {
 		return nil, err
 	}
@@ -928,23 +929,23 @@ func (e *Exchange) movePositions(ctx context.Context, arg *MovePositionsRequest,
 	return resp, nil
 }
 
-// ResetMMP resets an index's triggered MMP group, so quoting resumes before its frozen time ends, or at all when the
-// frozen time is zero
-func (e *Exchange) ResetMMP(ctx context.Context, arg *MMPGroupRequest) error {
-	return e.resetMMP(ctx, arg, false)
+// ResetMarketMakerProtection resets an index's triggered MMP group, so quoting resumes before its frozen time ends, or
+// at all when the frozen time is zero
+func (e *Exchange) ResetMarketMakerProtection(ctx context.Context, arg *MarketMakerProtectionGroupRequest) error {
+	return e.resetMarketMakerProtection(ctx, arg, false)
 }
 
-func (e *Exchange) resetMMP(ctx context.Context, arg *MMPGroupRequest, overWebsocket bool) error {
+func (e *Exchange) resetMarketMakerProtection(ctx context.Context, arg *MarketMakerProtectionGroupRequest, overWebsocket bool) error {
 	if arg == nil {
 		return common.ErrNilPointer
 	}
 	if arg.IndexName == "" {
-		return errMMPIndexNameRequired
+		return errMarketMakerProtectionIndexNameRequired
 	}
-	if arg.IndexName == mmpIndexNameAll && !arg.BlockRFQ {
-		return errMMPIndexNameAllNeedsBlockRFQ
+	if arg.IndexName == marketMakerProtectionIndexNameAll && !arg.BlockRFQ {
+		return errMarketMakerProtectionIndexNameAllNeedsBlockRFQ
 	}
-	return e.sendOKRequest(ctx, overWebsocket, "private/reset_mmp", arg)
+	return e.sendRequestMatchOKResponse(ctx, overWebsocket, "private/reset_mmp", arg)
 }
 
 // Sell places a sell order and returns it with the trades it made at once; spot orders routed to Coinbase Exchange fill
@@ -953,34 +954,35 @@ func (e *Exchange) Sell(ctx context.Context, arg *OrderRequest) (*OrderWithTrade
 	return e.placeOrder(ctx, "private/sell", arg, false)
 }
 
-// SetMMPConfig sets an MMP group's configuration, or with a zero interval removes it, and returns the configurations
-// Deribit reports; a non-zero MaxQuoteQuantity reserves initial margin until the configuration is removed
-func (e *Exchange) SetMMPConfig(ctx context.Context, arg *SetMMPConfigRequest) ([]MMPConfigResponse, error) {
-	return e.setMMPConfig(ctx, arg, false)
+// SetMarketMakerProtectionConfig sets an MMP group's configuration, or with a zero interval removes it, and returns the
+// configurations Deribit reports; a non-zero MaxQuoteQuantity reserves initial margin until the configuration is
+// removed
+func (e *Exchange) SetMarketMakerProtectionConfig(ctx context.Context, arg *SetMarketMakerProtectionConfigRequest) ([]MarketMakerProtectionConfigResponse, error) {
+	return e.setMarketMakerProtectionConfig(ctx, arg, false)
 }
 
-func (e *Exchange) setMMPConfig(ctx context.Context, arg *SetMMPConfigRequest, overWebsocket bool) ([]MMPConfigResponse, error) {
+func (e *Exchange) setMarketMakerProtectionConfig(ctx context.Context, arg *SetMarketMakerProtectionConfigRequest, overWebsocket bool) ([]MarketMakerProtectionConfigResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
 	if arg.IndexName == "" {
-		return nil, errMMPIndexNameRequired
+		return nil, errMarketMakerProtectionIndexNameRequired
 	}
-	if !isValidMMPDuration(arg.Interval) {
-		return nil, fmt.Errorf("%w: %s", errInvalidMMPInterval, arg.Interval)
+	if !isValidMarketMakerProtectionDuration(arg.Interval) {
+		return nil, fmt.Errorf("%w: %s", errInvalidMarketMakerProtectionInterval, arg.Interval)
 	}
-	if !isValidMMPDuration(arg.FrozenTime) {
-		return nil, fmt.Errorf("%w: %s", errInvalidMMPFrozenTime, arg.FrozenTime)
+	if !isValidMarketMakerProtectionDuration(arg.FrozenTime) {
+		return nil, fmt.Errorf("%w: %s", errInvalidMarketMakerProtectionFrozenTime, arg.FrozenTime)
 	}
-	if arg.TradeCountLimit > maximumMMPTradeCountLimit {
-		return nil, fmt.Errorf("%w: %d", errInvalidMMPTradeCountLimit, arg.TradeCountLimit)
+	if arg.TradeCountLimit > maximumMarketMakerProtectionTradeCountLimit {
+		return nil, fmt.Errorf("%w: %d", errInvalidMarketMakerProtectionTradeCountLimit, arg.TradeCountLimit)
 	}
-	params := &SetMMPConfigParams{
-		SetMMPConfigRequest: arg,
-		Interval:            uint64(arg.Interval.Seconds()),
-		FrozenTime:          uint64(arg.FrozenTime.Seconds()),
+	params := &SetMarketMakerProtectionConfigParams{
+		SetMarketMakerProtectionConfigRequest: arg,
+		Interval:                              uint64(arg.Interval.Seconds()),
+		FrozenTime:                            uint64(arg.FrozenTime.Seconds()),
 	}
-	var resp mmpConfigs
+	var resp marketMakerProtectionConfigs
 	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, "private/set_mmp_config", params, &resp); err != nil {
 		return nil, err
 	}
@@ -1080,12 +1082,12 @@ func (c *CancelQuotesRequest) validate() error {
 }
 
 // validateQuery checks an MMP configuration or status query names an index for an MMP group, as Deribit needs
-func (m *MMPGroupRequest) validateQuery() error {
+func (m *MarketMakerProtectionGroupRequest) validateQuery() error {
 	if m == nil {
 		return common.ErrNilPointer
 	}
-	if m.MMPGroup != "" && m.IndexName == "" {
-		return fmt.Errorf("%w: MMP group %q needs its index", errMMPIndexNameRequired, m.MMPGroup)
+	if m.MarketMakerProtectionGroup != "" && m.IndexName == "" {
+		return fmt.Errorf("%w: MMP group %q needs its index", errMarketMakerProtectionIndexNameRequired, m.MarketMakerProtectionGroup)
 	}
 	return nil
 }
@@ -1098,8 +1100,8 @@ func (m *MassQuoteRequest) validate() error {
 	if m.QuoteID == "" {
 		return errMassQuoteIDRequired
 	}
-	if m.MMPGroup == "" {
-		return errMMPGroupRequired
+	if m.MarketMakerProtectionGroup == "" {
+		return errMarketMakerProtectionGroupRequired
 	}
 	if len(m.Quotes) == 0 {
 		return errMassQuotesRequired
@@ -1253,10 +1255,10 @@ func validateTradingCount(count uint64) error {
 	return nil
 }
 
-// isValidMMPDuration reports whether an MMP interval or frozen time is whole seconds up to an hour, as Deribit takes
-// them in whole seconds
-func isValidMMPDuration(d time.Duration) bool {
-	return d >= 0 && d <= maximumMMPDuration && d%time.Second == 0
+// isValidMarketMakerProtectionDuration reports whether an MMP interval or frozen time is whole seconds up to an hour,
+// as Deribit takes them in whole seconds
+func isValidMarketMakerProtectionDuration(d time.Duration) bool {
+	return d >= 0 && d <= maximumMarketMakerProtectionDuration && d%time.Second == 0
 }
 
 // userTradesTimeRange returns a trade query's bounds in Unix milliseconds, zero for an unset bound, checking the start

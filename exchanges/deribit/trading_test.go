@@ -93,9 +93,10 @@ func mockMarginsRequest() *MarginsRequest {
 	return &MarginsRequest{InstrumentName: "BTC-PERPETUAL", Amount: 10000, Price: 3725}
 }
 
-// mockMMPGroupRequest selects the MMP group of Deribit's documented MMP configuration, status and reset examples
-func mockMMPGroupRequest() *MMPGroupRequest {
-	return &MMPGroupRequest{IndexName: "btc_usd", MMPGroup: "MassQuoteBot7"}
+// mockMarketMakerProtectionGroupRequest selects the MMP group of Deribit's documented MMP configuration, status and
+// reset examples
+func mockMarketMakerProtectionGroupRequest() *MarketMakerProtectionGroupRequest {
+	return &MarketMakerProtectionGroupRequest{IndexName: "btc_usd", MarketMakerProtectionGroup: "MassQuoteBot7"}
 }
 
 func mockOpenOrdersByCurrencyRequest() *OpenOrdersByCurrencyRequest {
@@ -153,9 +154,9 @@ func mockUserTradesByInstrumentAndTimeRequest() *UserTradesByInstrumentAndTimeRe
 
 func mockMassQuoteRequest() *MassQuoteRequest {
 	return &MassQuoteRequest{
-		Detailed: true,
-		QuoteID:  "1",
-		MMPGroup: "default",
+		Detailed:                   true,
+		QuoteID:                    "1",
+		MarketMakerProtectionGroup: "default",
 		Quotes: []MassQuoteEntry{
 			{InstrumentName: "BTC-PERPETUAL", QuoteSetID: "futures", Ask: &MassQuoteSide{Price: new(43800.0), Amount: new(10.0)}, Bid: &MassQuoteSide{Price: new(43700.0), Amount: new(10.0)}},
 			{InstrumentName: "BTC-22DEC23-41600-C", QuoteSetID: "options", Ask: &MassQuoteSide{Price: new(0.05), Amount: new(1.0)}, Bid: &MassQuoteSide{Price: new(0.04), Amount: new(1.0)}},
@@ -174,8 +175,8 @@ func mockMovePositionsRequest() *MovePositionsRequest {
 	}
 }
 
-func mockSetMMPConfigRequest() *SetMMPConfigRequest {
-	return &SetMMPConfigRequest{IndexName: "btc_usd", MMPGroup: "MassQuoteBot7", Interval: time.Minute, QuantityLimit: 3, MaxQuoteQuantity: 2.5}
+func mockSetMarketMakerProtectionConfigRequest() *SetMarketMakerProtectionConfigRequest {
+	return &SetMarketMakerProtectionConfigRequest{IndexName: "btc_usd", MarketMakerProtectionGroup: "MassQuoteBot7", Interval: time.Minute, QuantityLimit: 3, MaxQuoteQuantity: 2.5}
 }
 
 // tradingTime returns a Unix millisecond timestamp as Deribit's responses decode it
@@ -466,21 +467,21 @@ func testUserTradesByOrder() []UserTradeResponse {
 func testMassQuoteResponse() *MassQuoteResponse {
 	quoteOrder := func(orderID, instrument, quoteSetID, direction string, price, amount float64) OrderResponse {
 		return OrderResponse{
-			OrderID:             orderID,
-			OrderState:          "open",
-			OrderType:           "limit",
-			TimeInForce:         "good_til_cancelled",
-			InstrumentName:      instrument,
-			CreationTimestamp:   tradingTime(1703162478689),
-			LastUpdateTimestamp: tradingTime(1703162550180),
-			Direction:           direction,
-			Price:               OrderPrice{Value: price},
-			Amount:              amount,
-			MMP:                 true,
-			Quote:               true,
-			MMPGroup:            "default",
-			QuoteSetID:          quoteSetID,
-			QuoteID:             "1",
+			OrderID:                    orderID,
+			OrderState:                 "open",
+			OrderType:                  "limit",
+			TimeInForce:                "good_til_cancelled",
+			InstrumentName:             instrument,
+			CreationTimestamp:          tradingTime(1703162478689),
+			LastUpdateTimestamp:        tradingTime(1703162550180),
+			Direction:                  direction,
+			Price:                      OrderPrice{Value: price},
+			Amount:                     amount,
+			MarketMakerProtection:      true,
+			Quote:                      true,
+			MarketMakerProtectionGroup: "default",
+			QuoteSetID:                 quoteSetID,
+			QuoteID:                    "1",
 		}
 	}
 	return &MassQuoteResponse{
@@ -519,28 +520,28 @@ func testMarginsResponse() *MarginsResponse {
 	}
 }
 
-// testMMPConfigs is the documented MMP configuration response the mock requests return
-func testMMPConfigs() []MMPConfigResponse {
-	return []MMPConfigResponse{{
-		IndexName:        "btc_usd",
-		Interval:         60,
-		MMPGroup:         "MassQuoteBot7",
-		QuantityLimit:    0.5,
-		DeltaLimit:       0.3,
-		VegaLimit:        0.1,
-		MaxQuoteQuantity: 0.4,
+// testMarketMakerProtectionConfigs is the documented MMP configuration response the mock requests return
+func testMarketMakerProtectionConfigs() []MarketMakerProtectionConfigResponse {
+	return []MarketMakerProtectionConfigResponse{{
+		IndexName:                  "btc_usd",
+		Interval:                   60,
+		MarketMakerProtectionGroup: "MassQuoteBot7",
+		QuantityLimit:              0.5,
+		DeltaLimit:                 0.3,
+		VegaLimit:                  0.1,
+		MaxQuoteQuantity:           0.4,
 	}}
 }
 
-// testSetMMPConfigs is the documented set MMP configuration response the mock requests return, a single configuration
-// where the schema documents a list
-func testSetMMPConfigs() []MMPConfigResponse {
-	return []MMPConfigResponse{{IndexName: "btc_usd", Interval: 60, MMPGroup: "MassQuoteBot7", QuantityLimit: 3, MaxQuoteQuantity: 2.5}}
+// testSetMarketMakerProtectionConfigs is the documented set MMP configuration response the mock requests return, a
+// single configuration where the schema documents a list
+func testSetMarketMakerProtectionConfigs() []MarketMakerProtectionConfigResponse {
+	return []MarketMakerProtectionConfigResponse{{IndexName: "btc_usd", Interval: 60, MarketMakerProtectionGroup: "MassQuoteBot7", QuantityLimit: 3, MaxQuoteQuantity: 2.5}}
 }
 
-// testMMPStatuses is the documented MMP status response the mock requests return
-func testMMPStatuses() []MMPStatusResponse {
-	return []MMPStatusResponse{{IndexName: "btc_usd", FrozenUntil: tradingTime(1744275841861), MMPGroup: "MassQuoteBot7"}}
+// testMarketMakerProtectionStatuses is the documented MMP status response the mock requests return
+func testMarketMakerProtectionStatuses() []MarketMakerProtectionStatusResponse {
+	return []MarketMakerProtectionStatusResponse{{IndexName: "btc_usd", FrozenUntil: tradingTime(1744275841861), MarketMakerProtectionGroup: "MassQuoteBot7"}}
 }
 
 // newTradingParamsCaptureExchange returns an exchange whose REST requests all receive one fixed response body, and a
@@ -616,24 +617,24 @@ func placeLiveTradingOrder(t *testing.T) (*OrderRequest, *OrderResponse) {
 	return arg, &result.Order
 }
 
-// liveTradingMMPConfigMu serialises the live tests that set the account's MMP configuration, so each restores the
-// configuration it found
-var liveTradingMMPConfigMu sync.Mutex
+// liveTradingMarketMakerProtectionConfigMu serialises the live tests that set the account's MMP configuration, so each
+// restores the configuration it found
+var liveTradingMarketMakerProtectionConfigMu sync.Mutex
 
-// setLiveTradingMMPConfig sets a test MMP configuration on the orders MMP group of the btc_usd index with set, and
-// restores the configuration it found, or removes the test's, when the test ends
-func setLiveTradingMMPConfig(t *testing.T, set func(context.Context, *SetMMPConfigRequest) ([]MMPConfigResponse, error)) []MMPConfigResponse {
+// setLiveTradingMarketMakerProtectionConfig sets a test MMP configuration on the orders MMP group of the btc_usd index
+// with set, and restores the configuration it found, or removes the test's, when the test ends
+func setLiveTradingMarketMakerProtectionConfig(t *testing.T, set func(context.Context, *SetMarketMakerProtectionConfigRequest) ([]MarketMakerProtectionConfigResponse, error)) []MarketMakerProtectionConfigResponse {
 	t.Helper()
-	liveTradingMMPConfigMu.Lock()
-	configs, err := e.GetMMPConfig(t.Context(), &MMPGroupRequest{IndexName: liveTradingIndexName})
+	liveTradingMarketMakerProtectionConfigMu.Lock()
+	configs, err := e.GetMarketMakerProtectionConfig(t.Context(), &MarketMakerProtectionGroupRequest{IndexName: liveTradingIndexName})
 	if err != nil {
-		liveTradingMMPConfigMu.Unlock()
-		require.NoError(t, err, "GetMMPConfig must not error")
+		liveTradingMarketMakerProtectionConfigMu.Unlock()
+		require.NoError(t, err, "GetMarketMakerProtectionConfig must not error")
 	}
-	restore := &SetMMPConfigRequest{IndexName: liveTradingIndexName}
+	restore := &SetMarketMakerProtectionConfigRequest{IndexName: liveTradingIndexName}
 	for i := range configs {
-		if configs[i].MMPGroup == "" && !configs[i].BlockRFQ && configs[i].Interval != 0 {
-			restore = &SetMMPConfigRequest{
+		if configs[i].MarketMakerProtectionGroup == "" && !configs[i].BlockRFQ && configs[i].Interval != 0 {
+			restore = &SetMarketMakerProtectionConfigRequest{
 				IndexName:        liveTradingIndexName,
 				Interval:         time.Duration(float64(configs[i].Interval) * float64(time.Second)),
 				FrozenTime:       time.Duration(float64(configs[i].FrozenTime) * float64(time.Second)),
@@ -645,12 +646,12 @@ func setLiveTradingMMPConfig(t *testing.T, set func(context.Context, *SetMMPConf
 		}
 	}
 	t.Cleanup(func() {
-		defer liveTradingMMPConfigMu.Unlock()
-		_, err := e.SetMMPConfig(context.WithoutCancel(t.Context()), restore)
-		assert.NoError(t, err, "SetMMPConfig should restore the account's MMP configuration")
+		defer liveTradingMarketMakerProtectionConfigMu.Unlock()
+		_, err := e.SetMarketMakerProtectionConfig(context.WithoutCancel(t.Context()), restore)
+		assert.NoError(t, err, "SetMarketMakerProtectionConfig should restore the account's MMP configuration")
 	})
-	result, err := set(t.Context(), &SetMMPConfigRequest{IndexName: liveTradingIndexName, Interval: time.Minute, FrozenTime: 10 * time.Second, QuantityLimit: 1, MaxQuoteQuantity: 0.1})
-	require.NoError(t, err, "SetMMPConfig must not error")
+	result, err := set(t.Context(), &SetMarketMakerProtectionConfigRequest{IndexName: liveTradingIndexName, Interval: time.Minute, FrozenTime: 10 * time.Second, QuantityLimit: 1, MaxQuoteQuantity: 0.1})
+	require.NoError(t, err, "SetMarketMakerProtectionConfig must not error")
 	return result
 }
 
@@ -1042,54 +1043,54 @@ func TestGetMargins(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetMargins should return the request failure")
 }
 
-func TestGetMMPConfig(t *testing.T) {
+func TestGetMarketMakerProtectionConfig(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetMMPConfig(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "GetMMPConfig must reject a nil request")
-	_, err = e.GetMMPConfig(t.Context(), &MMPGroupRequest{MMPGroup: "MassQuoteBot7"})
-	require.ErrorIs(t, err, errMMPIndexNameRequired, "GetMMPConfig must reject an MMP group without its index")
+	_, err := e.GetMarketMakerProtectionConfig(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "GetMarketMakerProtectionConfig must reject a nil request")
+	_, err = e.GetMarketMakerProtectionConfig(t.Context(), &MarketMakerProtectionGroupRequest{MarketMakerProtectionGroup: "MassQuoteBot7"})
+	require.ErrorIs(t, err, errMarketMakerProtectionIndexNameRequired, "GetMarketMakerProtectionConfig must reject an MMP group without its index")
 	limited, noDelay := newRateLimitedServerExchange(t, `{"jsonrpc":"2.0","result":[]}`)
-	_, err = limited.GetMMPConfig(noDelay, mockMMPGroupRequest())
-	assert.NoError(t, err, "GetMMPConfig should be limited as a non-matching engine request")
+	_, err = limited.GetMarketMakerProtectionConfig(noDelay, mockMarketMakerProtectionGroupRequest())
+	assert.NoError(t, err, "GetMarketMakerProtectionConfig should be limited as a non-matching engine request")
 
 	skipLiveWithoutCredentials(t)
-	arg := mockMMPGroupRequest()
+	arg := mockMarketMakerProtectionGroupRequest()
 	if !mockTests {
-		arg = &MMPGroupRequest{}
+		arg = &MarketMakerProtectionGroupRequest{}
 	}
-	result, err := e.GetMMPConfig(t.Context(), arg)
-	require.NoError(t, err, "GetMMPConfig must not error")
+	result, err := e.GetMarketMakerProtectionConfig(t.Context(), arg)
+	require.NoError(t, err, "GetMarketMakerProtectionConfig must not error")
 	if mockTests {
-		assert.Equal(t, testMMPConfigs(), result, "GetMMPConfig should decode every field")
+		assert.Equal(t, testMarketMakerProtectionConfigs(), result, "GetMarketMakerProtectionConfig should decode every field")
 	}
 
-	_, err = newUnavailableServerExchange(t).GetMMPConfig(t.Context(), arg)
-	assert.ErrorIs(t, err, request.ErrBadStatus, "GetMMPConfig should return the request failure")
+	_, err = newUnavailableServerExchange(t).GetMarketMakerProtectionConfig(t.Context(), arg)
+	assert.ErrorIs(t, err, request.ErrBadStatus, "GetMarketMakerProtectionConfig should return the request failure")
 }
 
-func TestGetMMPStatus(t *testing.T) {
+func TestGetMarketMakerProtectionStatus(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetMMPStatus(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "GetMMPStatus must reject a nil request")
-	_, err = e.GetMMPStatus(t.Context(), &MMPGroupRequest{MMPGroup: "MassQuoteBot7"})
-	require.ErrorIs(t, err, errMMPIndexNameRequired, "GetMMPStatus must reject an MMP group without its index")
+	_, err := e.GetMarketMakerProtectionStatus(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "GetMarketMakerProtectionStatus must reject a nil request")
+	_, err = e.GetMarketMakerProtectionStatus(t.Context(), &MarketMakerProtectionGroupRequest{MarketMakerProtectionGroup: "MassQuoteBot7"})
+	require.ErrorIs(t, err, errMarketMakerProtectionIndexNameRequired, "GetMarketMakerProtectionStatus must reject an MMP group without its index")
 	limited, noDelay := newRateLimitedServerExchange(t, `{"jsonrpc":"2.0","result":[]}`)
-	_, err = limited.GetMMPStatus(noDelay, mockMMPGroupRequest())
-	assert.NoError(t, err, "GetMMPStatus should be limited as a non-matching engine request")
+	_, err = limited.GetMarketMakerProtectionStatus(noDelay, mockMarketMakerProtectionGroupRequest())
+	assert.NoError(t, err, "GetMarketMakerProtectionStatus should be limited as a non-matching engine request")
 
 	skipLiveWithoutCredentials(t)
-	arg := mockMMPGroupRequest()
+	arg := mockMarketMakerProtectionGroupRequest()
 	if !mockTests {
-		arg = &MMPGroupRequest{}
+		arg = &MarketMakerProtectionGroupRequest{}
 	}
-	result, err := e.GetMMPStatus(t.Context(), arg)
-	require.NoError(t, err, "GetMMPStatus must not error")
+	result, err := e.GetMarketMakerProtectionStatus(t.Context(), arg)
+	require.NoError(t, err, "GetMarketMakerProtectionStatus must not error")
 	if mockTests {
-		assert.Equal(t, testMMPStatuses(), result, "GetMMPStatus should decode every field")
+		assert.Equal(t, testMarketMakerProtectionStatuses(), result, "GetMarketMakerProtectionStatus should decode every field")
 	}
 
-	_, err = newUnavailableServerExchange(t).GetMMPStatus(t.Context(), arg)
-	assert.ErrorIs(t, err, request.ErrBadStatus, "GetMMPStatus should return the request failure")
+	_, err = newUnavailableServerExchange(t).GetMarketMakerProtectionStatus(t.Context(), arg)
+	assert.ErrorIs(t, err, request.ErrBadStatus, "GetMarketMakerProtectionStatus should return the request failure")
 }
 
 func TestGetOpenOrders(t *testing.T) {
@@ -1573,16 +1574,16 @@ func TestMassQuote(t *testing.T) {
 	t.Parallel()
 	_, err := e.MassQuote(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "MassQuote must reject a nil request")
-	_, err = e.MassQuote(t.Context(), &MassQuoteRequest{MMPGroup: "default"})
+	_, err = e.MassQuote(t.Context(), &MassQuoteRequest{MarketMakerProtectionGroup: "default"})
 	require.ErrorIs(t, err, errMassQuoteIDRequired, "MassQuote must reject an empty quote ID")
 
 	ex, lastParams := newTradingParamsCaptureExchange(t, `{"jsonrpc":"2.0","result":{"orders":[]}}`)
 	_, err = ex.MassQuote(t.Context(), &MassQuoteRequest{
-		WaitForResponse: new(false),
-		QuoteID:         "2",
-		MMPGroup:        "default",
-		ValidUntil:      time.UnixMilli(1700000000000),
-		Quotes:          []MassQuoteEntry{{InstrumentName: "BTC-PERPETUAL", Bid: &MassQuoteSide{Amount: new(0.0)}, Ask: &MassQuoteSide{Price: new(43800.0), PostOnly: true}}},
+		WaitForResponse:            new(false),
+		QuoteID:                    "2",
+		MarketMakerProtectionGroup: "default",
+		ValidUntil:                 time.UnixMilli(1700000000000),
+		Quotes:                     []MassQuoteEntry{{InstrumentName: "BTC-PERPETUAL", Bid: &MassQuoteSide{Amount: new(0.0)}, Ask: &MassQuoteSide{Price: new(43800.0), PostOnly: true}}},
 	})
 	require.NoError(t, err, "MassQuote must not error")
 	exp := `{"wait_for_response":false,"quote_id":"2","mmp_group":"default","valid_until":1700000000000,"quotes":[{"instrument_name":"BTC-PERPETUAL","bid":{"amount":0},"ask":{"price":43800,"post_only":true}}]}`
@@ -1619,29 +1620,29 @@ func TestMovePositions(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "MovePositions should return the request failure")
 }
 
-func TestResetMMP(t *testing.T) {
+func TestResetMarketMakerProtection(t *testing.T) {
 	t.Parallel()
-	err := e.ResetMMP(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "ResetMMP must reject a nil request")
-	err = e.ResetMMP(t.Context(), &MMPGroupRequest{MMPGroup: "MassQuoteBot7"})
-	require.ErrorIs(t, err, errMMPIndexNameRequired, "ResetMMP must reject an empty index name")
-	err = e.ResetMMP(t.Context(), &MMPGroupRequest{IndexName: mmpIndexNameAll})
-	require.ErrorIs(t, err, errMMPIndexNameAllNeedsBlockRFQ, "ResetMMP must reject every index outside block RFQ MMP")
+	err := e.ResetMarketMakerProtection(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "ResetMarketMakerProtection must reject a nil request")
+	err = e.ResetMarketMakerProtection(t.Context(), &MarketMakerProtectionGroupRequest{MarketMakerProtectionGroup: "MassQuoteBot7"})
+	require.ErrorIs(t, err, errMarketMakerProtectionIndexNameRequired, "ResetMarketMakerProtection must reject an empty index name")
+	err = e.ResetMarketMakerProtection(t.Context(), &MarketMakerProtectionGroupRequest{IndexName: marketMakerProtectionIndexNameAll})
+	require.ErrorIs(t, err, errMarketMakerProtectionIndexNameAllNeedsBlockRFQ, "ResetMarketMakerProtection must reject every index outside block RFQ MMP")
 	limited, noDelay := newRateLimitedServerExchange(t, `{"jsonrpc":"2.0","result":"ok"}`)
-	assert.NoError(t, limited.ResetMMP(noDelay, mockMMPGroupRequest()), "ResetMMP should be limited as a non-matching engine request")
+	assert.NoError(t, limited.ResetMarketMakerProtection(noDelay, mockMarketMakerProtectionGroupRequest()), "ResetMarketMakerProtection should be limited as a non-matching engine request")
 
 	skipLiveUnlessCanManipulate(t)
-	arg := mockMMPGroupRequest()
+	arg := mockMarketMakerProtectionGroupRequest()
 	if !mockTests {
-		setLiveTradingMMPConfig(t, e.SetMMPConfig)
-		arg = &MMPGroupRequest{IndexName: liveTradingIndexName}
+		setLiveTradingMarketMakerProtectionConfig(t, e.SetMarketMakerProtectionConfig)
+		arg = &MarketMakerProtectionGroupRequest{IndexName: liveTradingIndexName}
 	}
-	require.NoError(t, e.ResetMMP(t.Context(), arg), "ResetMMP must not error")
+	require.NoError(t, e.ResetMarketMakerProtection(t.Context(), arg), "ResetMarketMakerProtection must not error")
 
-	err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":"failed"}`).ResetMMP(t.Context(), arg)
-	assert.ErrorIs(t, err, errUnexpectedResult, "ResetMMP should reject a result other than ok")
-	err = newUnavailableServerExchange(t).ResetMMP(t.Context(), arg)
-	assert.ErrorIs(t, err, request.ErrBadStatus, "ResetMMP should return the request failure")
+	err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":"failed"}`).ResetMarketMakerProtection(t.Context(), arg)
+	assert.ErrorIs(t, err, errUnexpectedResult, "ResetMarketMakerProtection should reject a result other than ok")
+	err = newUnavailableServerExchange(t).ResetMarketMakerProtection(t.Context(), arg)
+	assert.ErrorIs(t, err, request.ErrBadStatus, "ResetMarketMakerProtection should return the request failure")
 }
 
 func TestSell(t *testing.T) {
@@ -1670,39 +1671,39 @@ func TestSell(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "Sell should return the request failure")
 }
 
-func TestSetMMPConfig(t *testing.T) {
+func TestSetMarketMakerProtectionConfig(t *testing.T) {
 	t.Parallel()
-	_, err := e.SetMMPConfig(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "SetMMPConfig must reject a nil request")
-	_, err = e.SetMMPConfig(t.Context(), &SetMMPConfigRequest{Interval: time.Minute})
-	require.ErrorIs(t, err, errMMPIndexNameRequired, "SetMMPConfig must reject an empty index name")
-	_, err = e.SetMMPConfig(t.Context(), &SetMMPConfigRequest{IndexName: "btc_usd", Interval: time.Hour + time.Second})
-	require.ErrorIs(t, err, errInvalidMMPInterval, "SetMMPConfig must reject an interval over an hour")
-	_, err = e.SetMMPConfig(t.Context(), &SetMMPConfigRequest{IndexName: "btc_usd", FrozenTime: 1500 * time.Millisecond})
-	require.ErrorIs(t, err, errInvalidMMPFrozenTime, "SetMMPConfig must reject a frozen time that is not whole seconds")
-	_, err = e.SetMMPConfig(t.Context(), &SetMMPConfigRequest{IndexName: mmpIndexNameAll, BlockRFQ: true, TradeCountLimit: 1001})
-	require.ErrorIs(t, err, errInvalidMMPTradeCountLimit, "SetMMPConfig must reject a trade count limit over 1000")
+	_, err := e.SetMarketMakerProtectionConfig(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "SetMarketMakerProtectionConfig must reject a nil request")
+	_, err = e.SetMarketMakerProtectionConfig(t.Context(), &SetMarketMakerProtectionConfigRequest{Interval: time.Minute})
+	require.ErrorIs(t, err, errMarketMakerProtectionIndexNameRequired, "SetMarketMakerProtectionConfig must reject an empty index name")
+	_, err = e.SetMarketMakerProtectionConfig(t.Context(), &SetMarketMakerProtectionConfigRequest{IndexName: "btc_usd", Interval: time.Hour + time.Second})
+	require.ErrorIs(t, err, errInvalidMarketMakerProtectionInterval, "SetMarketMakerProtectionConfig must reject an interval over an hour")
+	_, err = e.SetMarketMakerProtectionConfig(t.Context(), &SetMarketMakerProtectionConfigRequest{IndexName: "btc_usd", FrozenTime: 1500 * time.Millisecond})
+	require.ErrorIs(t, err, errInvalidMarketMakerProtectionFrozenTime, "SetMarketMakerProtectionConfig must reject a frozen time that is not whole seconds")
+	_, err = e.SetMarketMakerProtectionConfig(t.Context(), &SetMarketMakerProtectionConfigRequest{IndexName: marketMakerProtectionIndexNameAll, BlockRFQ: true, TradeCountLimit: 1001})
+	require.ErrorIs(t, err, errInvalidMarketMakerProtectionTradeCountLimit, "SetMarketMakerProtectionConfig must reject a trade count limit over 1000")
 
 	ex, lastParams := newTradingParamsCaptureExchange(t, `{"jsonrpc":"2.0","result":[]}`)
-	_, err = ex.SetMMPConfig(t.Context(), &SetMMPConfigRequest{IndexName: "btc_usd", FrozenTime: 90 * time.Second})
-	require.NoError(t, err, "SetMMPConfig must not error")
-	assert.JSONEq(t, `{"index_name":"btc_usd","interval":0,"frozen_time":90,"max_quote_quantity":0}`, lastParams(), "SetMMPConfig should send the times in seconds, and a zero interval, which removes the configuration")
+	_, err = ex.SetMarketMakerProtectionConfig(t.Context(), &SetMarketMakerProtectionConfigRequest{IndexName: "btc_usd", FrozenTime: 90 * time.Second})
+	require.NoError(t, err, "SetMarketMakerProtectionConfig must not error")
+	assert.JSONEq(t, `{"index_name":"btc_usd","interval":0,"frozen_time":90,"max_quote_quantity":0}`, lastParams(), "SetMarketMakerProtectionConfig should send the times in seconds, and a zero interval, which removes the configuration")
 	limited, noDelay := newRateLimitedServerExchange(t, `{"jsonrpc":"2.0","result":[]}`)
-	_, err = limited.SetMMPConfig(noDelay, mockSetMMPConfigRequest())
-	assert.NoError(t, err, "SetMMPConfig should be limited as a non-matching engine request")
+	_, err = limited.SetMarketMakerProtectionConfig(noDelay, mockSetMarketMakerProtectionConfigRequest())
+	assert.NoError(t, err, "SetMarketMakerProtectionConfig should be limited as a non-matching engine request")
 
 	skipLiveUnlessCanManipulate(t)
 	if !mockTests {
-		result := setLiveTradingMMPConfig(t, e.SetMMPConfig)
-		assert.NotEmpty(t, result, "SetMMPConfig should return the configuration")
+		result := setLiveTradingMarketMakerProtectionConfig(t, e.SetMarketMakerProtectionConfig)
+		assert.NotEmpty(t, result, "SetMarketMakerProtectionConfig should return the configuration")
 		return
 	}
-	result, err := e.SetMMPConfig(t.Context(), mockSetMMPConfigRequest())
-	require.NoError(t, err, "SetMMPConfig must not error")
-	assert.Equal(t, testSetMMPConfigs(), result, "SetMMPConfig should decode every field")
+	result, err := e.SetMarketMakerProtectionConfig(t.Context(), mockSetMarketMakerProtectionConfigRequest())
+	require.NoError(t, err, "SetMarketMakerProtectionConfig must not error")
+	assert.Equal(t, testSetMarketMakerProtectionConfigs(), result, "SetMarketMakerProtectionConfig should decode every field")
 
-	_, err = newUnavailableServerExchange(t).SetMMPConfig(t.Context(), mockSetMMPConfigRequest())
-	assert.ErrorIs(t, err, request.ErrBadStatus, "SetMMPConfig should return the request failure")
+	_, err = newUnavailableServerExchange(t).SetMarketMakerProtectionConfig(t.Context(), mockSetMarketMakerProtectionConfigRequest())
+	assert.ErrorIs(t, err, request.ErrBadStatus, "SetMarketMakerProtectionConfig should return the request failure")
 }
 
 func TestCancelAllResponseUnmarshalJSON(t *testing.T) {
@@ -1746,14 +1747,14 @@ func TestOrderHistoryResponseUnmarshalJSON(t *testing.T) {
 	}
 }
 
-func TestMMPConfigsUnmarshalJSON(t *testing.T) {
+func TestMarketMakerProtectionConfigsUnmarshalJSON(t *testing.T) {
 	t.Parallel()
-	var result mmpConfigs
+	var result marketMakerProtectionConfigs
 	require.NoError(t, json.Unmarshal([]byte(`{"index_name":"btc_usd","interval":60}`), &result), "Unmarshal must not error for a configuration")
-	assert.Equal(t, mmpConfigs{{IndexName: "btc_usd", Interval: 60}}, result, "UnmarshalJSON should decode a configuration as a list of one")
+	assert.Equal(t, marketMakerProtectionConfigs{{IndexName: "btc_usd", Interval: 60}}, result, "UnmarshalJSON should decode a configuration as a list of one")
 
 	require.NoError(t, json.Unmarshal([]byte(`[{"index_name":"btc_usd","id":1},{"index_name":"eth_usd","mmp_group":"bot"}]`), &result), "Unmarshal must not error for a list")
-	assert.Equal(t, mmpConfigs{{IndexName: "btc_usd", ID: 1}, {IndexName: "eth_usd", MMPGroup: "bot"}}, result, "UnmarshalJSON should decode a list of configurations")
+	assert.Equal(t, marketMakerProtectionConfigs{{IndexName: "btc_usd", ID: 1}, {IndexName: "eth_usd", MarketMakerProtectionGroup: "bot"}}, result, "UnmarshalJSON should decode a list of configurations")
 
 	for _, data := range []string{`{"interval":"60"}`, `[1]`, `"btc_usd"`} {
 		assert.Errorf(t, json.Unmarshal([]byte(data), &result), "UnmarshalJSON should reject %s", data)
@@ -1857,11 +1858,11 @@ func TestCancelQuotesRequestValidate(t *testing.T) {
 	}
 }
 
-func TestMMPGroupRequestValidateQuery(t *testing.T) {
+func TestMarketMakerProtectionGroupRequestValidateQuery(t *testing.T) {
 	t.Parallel()
-	assert.ErrorIs(t, (*MMPGroupRequest)(nil).validateQuery(), common.ErrNilPointer, "validateQuery should reject a nil request")
-	assert.ErrorIs(t, (&MMPGroupRequest{MMPGroup: "bot"}).validateQuery(), errMMPIndexNameRequired, "validateQuery should reject an MMP group without its index")
-	for _, arg := range []*MMPGroupRequest{{}, {IndexName: "btc_usd"}, {IndexName: "btc_usd", MMPGroup: "bot"}, {BlockRFQ: true}} {
+	assert.ErrorIs(t, (*MarketMakerProtectionGroupRequest)(nil).validateQuery(), common.ErrNilPointer, "validateQuery should reject a nil request")
+	assert.ErrorIs(t, (&MarketMakerProtectionGroupRequest{MarketMakerProtectionGroup: "bot"}).validateQuery(), errMarketMakerProtectionIndexNameRequired, "validateQuery should reject an MMP group without its index")
+	for _, arg := range []*MarketMakerProtectionGroupRequest{{}, {IndexName: "btc_usd"}, {IndexName: "btc_usd", MarketMakerProtectionGroup: "bot"}, {BlockRFQ: true}} {
 		assert.NoErrorf(t, arg.validateQuery(), "validateQuery should accept %+v", arg)
 	}
 }
@@ -1875,12 +1876,12 @@ func TestMassQuoteRequestValidate(t *testing.T) {
 		err  error
 	}{
 		{name: "nil request", err: common.ErrNilPointer},
-		{name: "empty quote ID", arg: &MassQuoteRequest{MMPGroup: "default", Quotes: []MassQuoteEntry{{InstrumentName: "BTC-PERPETUAL", Bid: side}}}, err: errMassQuoteIDRequired},
-		{name: "empty MMP group", arg: &MassQuoteRequest{QuoteID: "1", Quotes: []MassQuoteEntry{{InstrumentName: "BTC-PERPETUAL", Bid: side}}}, err: errMMPGroupRequired},
-		{name: "no quotes", arg: &MassQuoteRequest{QuoteID: "1", MMPGroup: "default"}, err: errMassQuotesRequired},
-		{name: "quote without instrument", arg: &MassQuoteRequest{QuoteID: "1", MMPGroup: "default", Quotes: []MassQuoteEntry{{Bid: side}}}, err: errInstrumentNameRequired},
-		{name: "quote without side", arg: &MassQuoteRequest{QuoteID: "1", MMPGroup: "default", Quotes: []MassQuoteEntry{{InstrumentName: "BTC-PERPETUAL"}}}, err: errMassQuoteSideRequired},
-		{name: "ask alone", arg: &MassQuoteRequest{QuoteID: "1", MMPGroup: "default", Quotes: []MassQuoteEntry{{InstrumentName: "BTC-PERPETUAL", Ask: side}}}},
+		{name: "empty quote ID", arg: &MassQuoteRequest{MarketMakerProtectionGroup: "default", Quotes: []MassQuoteEntry{{InstrumentName: "BTC-PERPETUAL", Bid: side}}}, err: errMassQuoteIDRequired},
+		{name: "empty MMP group", arg: &MassQuoteRequest{QuoteID: "1", Quotes: []MassQuoteEntry{{InstrumentName: "BTC-PERPETUAL", Bid: side}}}, err: errMarketMakerProtectionGroupRequired},
+		{name: "no quotes", arg: &MassQuoteRequest{QuoteID: "1", MarketMakerProtectionGroup: "default"}, err: errMassQuotesRequired},
+		{name: "quote without instrument", arg: &MassQuoteRequest{QuoteID: "1", MarketMakerProtectionGroup: "default", Quotes: []MassQuoteEntry{{Bid: side}}}, err: errInstrumentNameRequired},
+		{name: "quote without side", arg: &MassQuoteRequest{QuoteID: "1", MarketMakerProtectionGroup: "default", Quotes: []MassQuoteEntry{{InstrumentName: "BTC-PERPETUAL"}}}, err: errMassQuoteSideRequired},
+		{name: "ask alone", arg: &MassQuoteRequest{QuoteID: "1", MarketMakerProtectionGroup: "default", Quotes: []MassQuoteEntry{{InstrumentName: "BTC-PERPETUAL", Ask: side}}}},
 	} {
 		assert.ErrorIsf(t, tc.arg.validate(), tc.err, "validate should return the expected error for %s", tc.name)
 	}
@@ -2026,13 +2027,13 @@ func TestValidateTradingCount(t *testing.T) {
 	assert.ErrorIs(t, validateTradingCount(1001), errInvalidCount, "validateTradingCount should reject a count over 1000")
 }
 
-func TestIsValidMMPDuration(t *testing.T) {
+func TestIsValidMarketMakerProtectionDuration(t *testing.T) {
 	t.Parallel()
 	for _, d := range []time.Duration{0, time.Second, time.Minute, time.Hour} {
-		assert.Truef(t, isValidMMPDuration(d), "isValidMMPDuration should accept %s", d)
+		assert.Truef(t, isValidMarketMakerProtectionDuration(d), "isValidMarketMakerProtectionDuration should accept %s", d)
 	}
 	for _, d := range []time.Duration{-time.Second, time.Hour + time.Second, 1500 * time.Millisecond} {
-		assert.Falsef(t, isValidMMPDuration(d), "isValidMMPDuration should reject %s", d)
+		assert.Falsef(t, isValidMarketMakerProtectionDuration(d), "isValidMarketMakerProtectionDuration should reject %s", d)
 	}
 }
 

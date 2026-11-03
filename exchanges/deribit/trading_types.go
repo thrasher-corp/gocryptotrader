@@ -43,8 +43,8 @@ type OrderRequest struct {
 	Trigger string `json:"trigger,omitempty"`
 	// Advanced is usd or implv for an option order priced in USD or in implied volatility
 	Advanced string `json:"advanced,omitempty"`
-	// MMP subjects a limit order to market maker protection
-	MMP bool `json:"mmp,omitempty"`
+	// MarketMakerProtection subjects a limit order to market maker protection (MMP)
+	MarketMakerProtection bool `json:"mmp,omitempty"`
 	// ValidUntil makes Deribit reject the order with timed_out unless its matching engine starts on it before then
 	ValidUntil time.Time `json:"-"`
 	// LinkedOrderType is one_triggers_other, one_cancels_other or one_triggers_one_cancels_other
@@ -268,8 +268,9 @@ type EditOrderRequest struct {
 	Advanced      string  `json:"advanced,omitempty"`
 	TriggerPrice  float64 `json:"trigger_price,omitempty"`
 	TriggerOffset float64 `json:"trigger_offset,omitempty"`
-	// MMP is left out when false, as Deribit rejects a change to an order's MMP flag and keeps it when left out
-	MMP bool `json:"mmp,omitempty"`
+	// MarketMakerProtection is left out when false, as Deribit rejects a change to an order's MMP flag and keeps it
+	// when left out
+	MarketMakerProtection bool `json:"mmp,omitempty"`
 	// ValidUntil makes Deribit reject the edit with timed_out unless its matching engine starts on it before then
 	ValidUntil    time.Time `json:"-"`
 	DisplayAmount float64   `json:"display_amount,omitempty"`
@@ -297,8 +298,9 @@ type EditOrderByLabelRequest struct {
 	// Advanced is usd or implv, and must be set again to edit an advanced option order
 	Advanced     string  `json:"advanced,omitempty"`
 	TriggerPrice float64 `json:"trigger_price,omitempty"`
-	// MMP is left out when false, as Deribit rejects a change to an order's MMP flag and keeps it when left out
-	MMP bool `json:"mmp,omitempty"`
+	// MarketMakerProtection is left out when false, as Deribit rejects a change to an order's MMP flag and keeps it
+	// when left out
+	MarketMakerProtection bool `json:"mmp,omitempty"`
 	// ValidUntil makes Deribit reject the edit with timed_out unless its matching engine starts on it before then
 	ValidUntil time.Time `json:"-"`
 }
@@ -348,19 +350,19 @@ type MarginBaseAmount struct {
 	Sell float64 `json:"sell"`
 }
 
-// MMPGroupRequest selects an index's MMP group
-type MMPGroupRequest struct {
+// MarketMakerProtectionGroupRequest selects an index's MMP group
+type MarketMakerProtectionGroupRequest struct {
 	// IndexName is an index, such as btc_usd, or all, which only block RFQ requests accept for a reset
 	IndexName string `json:"index_name,omitempty"`
-	// MMPGroup names a mass quote MMP group, which needs IndexName; it is left out when empty to select the orders MMP
-	// group, as Deribit rejects an empty name
-	MMPGroup string `json:"mmp_group,omitempty"`
+	// MarketMakerProtectionGroup names a mass quote MMP group, which needs IndexName; it is left out when empty to select
+	// the orders MMP group, as Deribit rejects an empty name
+	MarketMakerProtectionGroup string `json:"mmp_group,omitempty"`
 	// BlockRFQ selects block RFQ MMP, which is separate from order and quote MMP and needs the block_rfq scope
 	BlockRFQ bool `json:"block_rfq,omitempty"`
 }
 
-// MMPConfigResponse contains an MMP group's configuration
-type MMPConfigResponse struct {
+// MarketMakerProtectionConfigResponse contains an MMP group's configuration
+type MarketMakerProtectionConfigResponse struct {
 	IndexName string `json:"index_name"`
 	// Interval is the monitoring window in seconds, and zero disables MMP
 	Interval uint64 `json:"interval"`
@@ -368,8 +370,8 @@ type MMPConfigResponse struct {
 	FrozenTime uint64 `json:"frozen_time"`
 	// ID identifies the group, including the orders MMP group, which has no name
 	ID uint64 `json:"id"`
-	// MMPGroup is empty for the orders MMP group
-	MMPGroup string `json:"mmp_group"`
+	// MarketMakerProtectionGroup is empty for the orders MMP group
+	MarketMakerProtectionGroup string `json:"mmp_group"`
 	// QuantityLimit is the traded quantity, in the base currency, that triggers MMP within an interval, counting buys
 	// and sells alike
 	QuantityLimit float64 `json:"quantity_limit"`
@@ -385,21 +387,21 @@ type MMPConfigResponse struct {
 	TradeCountLimit uint64 `json:"trade_count_limit"`
 }
 
-// mmpConfigs decodes the configurations private/set_mmp_config returns, which Deribit documents as a list but shows as
-// a single configuration
-type mmpConfigs []MMPConfigResponse
+// marketMakerProtectionConfigs decodes the configurations private/set_mmp_config returns, which Deribit documents as a
+// list but shows as a single configuration
+type marketMakerProtectionConfigs []MarketMakerProtectionConfigResponse
 
 // UnmarshalJSON decodes a list of MMP configurations or a single one
-func (m *mmpConfigs) UnmarshalJSON(data []byte) error {
+func (m *marketMakerProtectionConfigs) UnmarshalJSON(data []byte) error {
 	if trimmed := bytes.TrimSpace(data); len(trimmed) > 0 && trimmed[0] == '{' {
-		var config MMPConfigResponse
+		var config MarketMakerProtectionConfigResponse
 		if err := json.Unmarshal(trimmed, &config); err != nil {
 			return err
 		}
-		*m = mmpConfigs{config}
+		*m = marketMakerProtectionConfigs{config}
 		return nil
 	}
-	var configs []MMPConfigResponse
+	var configs []MarketMakerProtectionConfigResponse
 	if err := json.Unmarshal(data, &configs); err != nil {
 		return err
 	}
@@ -407,14 +409,14 @@ func (m *mmpConfigs) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// MMPStatusResponse contains the status of a triggered MMP group
-type MMPStatusResponse struct {
+// MarketMakerProtectionStatusResponse contains the status of a triggered MMP group
+type MarketMakerProtectionStatusResponse struct {
 	IndexName string `json:"index_name"`
 	// FrozenUntil is when MMP resets itself, and is zero when it waits for a manual reset
 	FrozenUntil types.Time `json:"frozen_until"`
-	// MMPGroup is set for a triggered mass quote MMP group
-	MMPGroup string `json:"mmp_group"`
-	BlockRFQ bool   `json:"block_rfq"`
+	// MarketMakerProtectionGroup is set for a triggered mass quote MMP group
+	MarketMakerProtectionGroup string `json:"mmp_group"`
+	BlockRFQ                   bool   `json:"block_rfq"`
 }
 
 // OpenOrdersRequest filters the account's open orders
@@ -744,8 +746,8 @@ type MassQuoteRequest struct {
 	Detailed bool `json:"detailed,omitempty"`
 	// QuoteID identifies the request to match its trades to; Deribit recommends an incrementing counter
 	QuoteID string `json:"quote_id"`
-	// MMPGroup must be an existing MMP group, which holds one quote per instrument and side
-	MMPGroup string `json:"mmp_group"`
+	// MarketMakerProtectionGroup must be an existing MMP group, which holds one quote per instrument and side
+	MarketMakerProtectionGroup string `json:"mmp_group"`
 	// ValidUntil makes Deribit reject the request with timed_out unless its matching engine starts on it before then
 	ValidUntil time.Time        `json:"-"`
 	Quotes     []MassQuoteEntry `json:"quotes"`
@@ -861,9 +863,9 @@ func (p *positionMoveTrades) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// SetMMPConfigRequest sets, or with a zero Interval removes, an MMP group's configuration; limits left at zero are
-// disabled rather than kept
-type SetMMPConfigRequest struct {
+// SetMarketMakerProtectionConfigRequest sets, or with a zero Interval removes, an MMP group's configuration; limits
+// left at zero are disabled rather than kept
+type SetMarketMakerProtectionConfigRequest struct {
 	// IndexName is an index, such as btc_usd, or all for a block RFQ TradeCountLimit
 	IndexName string `json:"index_name"`
 	// Interval is the monitoring window, in whole seconds up to an hour; zero removes the configuration and releases the
@@ -871,12 +873,12 @@ type SetMMPConfigRequest struct {
 	Interval time.Duration `json:"-"`
 	// FrozenTime is how long triggered MMP blocks orders, in whole seconds up to an hour; zero needs a manual reset
 	FrozenTime time.Duration `json:"-"`
-	// MMPGroup names a mass quote MMP group, of up to 64 characters; it is left out when empty to select the orders MMP
-	// group, as Deribit rejects an empty name
-	MMPGroup      string  `json:"mmp_group,omitempty"`
-	QuantityLimit float64 `json:"quantity_limit,omitempty"`
-	DeltaLimit    float64 `json:"delta_limit,omitempty"`
-	VegaLimit     float64 `json:"vega_limit,omitempty"`
+	// MarketMakerProtectionGroup names a mass quote MMP group, of up to 64 characters; it is left out when empty to select
+	// the orders MMP group, as Deribit rejects an empty name
+	MarketMakerProtectionGroup string  `json:"mmp_group,omitempty"`
+	QuantityLimit              float64 `json:"quantity_limit,omitempty"`
+	DeltaLimit                 float64 `json:"delta_limit,omitempty"`
+	VegaLimit                  float64 `json:"vega_limit,omitempty"`
 	// MaxQuoteQuantity is required, and reserves initial margin of 3% of it while the configuration exists
 	MaxQuoteQuantity float64 `json:"max_quote_quantity"`
 	BlockRFQ         bool    `json:"block_rfq,omitempty"`
@@ -884,10 +886,10 @@ type SetMMPConfigRequest struct {
 	TradeCountLimit uint64 `json:"trade_count_limit,omitempty"`
 }
 
-// SetMMPConfigParams contains a set MMP configuration request's params, with its interval and frozen time in seconds,
-// which are always sent as zero is meaningful
-type SetMMPConfigParams struct {
-	*SetMMPConfigRequest
+// SetMarketMakerProtectionConfigParams contains a set MMP configuration request's params, with its interval and frozen
+// time in seconds, which are always sent as zero is meaningful
+type SetMarketMakerProtectionConfigParams struct {
+	*SetMarketMakerProtectionConfigRequest
 	Interval   uint64 `json:"interval"`
 	FrozenTime uint64 `json:"frozen_time"`
 }

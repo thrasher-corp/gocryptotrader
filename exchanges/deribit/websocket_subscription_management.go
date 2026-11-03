@@ -61,11 +61,11 @@ func (w WebsocketAPI) UnsubscribePrivate(ctx context.Context, channels []string)
 
 // UnsubscribeAll unsubscribes the connection from every channel; Deribit only accepts it over the websocket
 func (w WebsocketAPI) UnsubscribeAll(ctx context.Context) error {
-	return w.e.sendOKRequest(ctx, true, "public/unsubscribe_all", nil)
+	return w.e.sendRequestMatchOKResponse(ctx, true, "public/unsubscribe_all", nil)
 }
 
 // UnsubscribeAllPrivate unsubscribes the authenticated connection from every channel; Deribit only accepts it over the
 // websocket
 func (w WebsocketAPI) UnsubscribeAllPrivate(ctx context.Context) error {
-	return w.e.sendOKRequest(ctx, true, "private/unsubscribe_all", nil)
+	return w.e.sendRequestMatchOKResponse(ctx, true, "private/unsubscribe_all", nil)
 }

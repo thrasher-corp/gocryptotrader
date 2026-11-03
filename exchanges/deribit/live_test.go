@@ -103,6 +103,8 @@ func (*websocketVenue) notifyBeforeNext(string, []byte) {}
 
 func (*websocketVenue) refuse(string, int) {}
 
+func (*websocketVenue) retryNext(string, int) {}
+
 func (*websocketVenue) received(string) []websocketVenueRequest { return nil }
 
 // startWebsocketVenue skips the test, as the live tests share Deribit's websocket rather than a mock of it

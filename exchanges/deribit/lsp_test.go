@@ -10,15 +10,17 @@ import (
 )
 
 const (
-	// mockLSPParticipantUserID is the participant of Deribit's documented private/get_lsp_participants_usage example
-	mockLSPParticipantUserID = 172345
-	// liveLSPParticipantSkip explains why live tests skip the methods only a participant subaccount can call
-	liveLSPParticipantSkip = "it needs the API key of a Liquidity Support Program participant subaccount"
+	// mockLiquiditySupportProgramParticipantUserID is the participant of Deribit's documented
+	// private/get_lsp_participants_usage example
+	mockLiquiditySupportProgramParticipantUserID = 172345
+	// liveLiquiditySupportProgramParticipantSkip explains why live tests skip the methods only a participant subaccount
+	// can call
+	liveLiquiditySupportProgramParticipantSkip = "it needs the API key of a Liquidity Support Program participant subaccount"
 )
 
-// testLSPGroupUsage is the documented usage of each cooldown group the mock usage requests return
-func testLSPGroupUsage() map[string]LSPGroupUsage {
-	return map[string]LSPGroupUsage{
+// testLiquiditySupportProgramGroupUsage is the documented usage of each cooldown group the mock usage requests return
+func testLiquiditySupportProgramGroupUsage() map[string]LiquiditySupportProgramGroupUsage {
+	return map[string]LiquiditySupportProgramGroupUsage{
 		"1":   {LimitPercentage: 15, Used: 250000, CooldownStart: tradingTime(1750000100000), CooldownEnd: tradingTime(1750000400000)},
 		"2":   {LimitPercentage: 10},
 		"3":   {LimitPercentage: 10},
@@ -29,101 +31,103 @@ func testLSPGroupUsage() map[string]LSPGroupUsage {
 	}
 }
 
-// testLSPParticipantConfigResponse is the documented participant configuration the mock requests return
-func testLSPParticipantConfigResponse() *LSPParticipantConfigResponse {
-	return &LSPParticipantConfigResponse{Config: LSPParticipantConfig{Enabled: true, GroupLimits: map[string]float64{"1": 15, "6": 0}}}
+// testLiquiditySupportProgramParticipantConfigResponse is the documented participant configuration the mock requests
+// return
+func testLiquiditySupportProgramParticipantConfigResponse() *LiquiditySupportProgramParticipantConfigResponse {
+	return &LiquiditySupportProgramParticipantConfigResponse{Config: LiquiditySupportProgramParticipantConfig{Enabled: true, GroupLimits: map[string]float64{"1": 15, "6": 0}}}
 }
 
-// testLSPParticipantsResponse is the documented participants response the mock requests return
-func testLSPParticipantsResponse() *LSPParticipantsResponse {
-	return &LSPParticipantsResponse{Participants: []LSPParticipant{{UserID: mockLSPParticipantUserID, Enabled: true}, {UserID: 172346}}}
+// testLiquiditySupportProgramParticipantsResponse is the documented participants response the mock requests return
+func testLiquiditySupportProgramParticipantsResponse() *LiquiditySupportProgramParticipantsResponse {
+	return &LiquiditySupportProgramParticipantsResponse{Participants: []LiquiditySupportProgramParticipant{{UserID: mockLiquiditySupportProgramParticipantUserID, Enabled: true}, {UserID: 172346}}}
 }
 
-// testLSPParticipantsUsageResponse is the documented participants usage response the mock requests return
-func testLSPParticipantsUsageResponse() *LSPParticipantsUsageResponse {
-	return &LSPParticipantsUsageResponse{
+// testLiquiditySupportProgramParticipantsUsageResponse is the documented participants usage response the mock requests
+// return
+func testLiquiditySupportProgramParticipantsUsageResponse() *LiquiditySupportProgramParticipantsUsageResponse {
+	return &LiquiditySupportProgramParticipantsUsageResponse{
 		CooldownPeriod: 300000,
-		Participants:   []LSPParticipantUsage{{UserID: mockLSPParticipantUserID, Groups: testLSPGroupUsage()}},
+		Participants:   []LiquiditySupportProgramParticipantUsage{{UserID: mockLiquiditySupportProgramParticipantUserID, Groups: testLiquiditySupportProgramGroupUsage()}},
 	}
 }
 
-func TestGetLSPParticipantConfig(t *testing.T) {
+func TestGetLiquiditySupportProgramParticipantConfig(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
-		t.Skip("GetLSPParticipantConfig is not tested live, as " + liveLSPParticipantSkip)
+		t.Skip("GetLiquiditySupportProgramParticipantConfig is not tested live, as " + liveLiquiditySupportProgramParticipantSkip)
 	}
-	result, err := e.GetLSPParticipantConfig(t.Context())
-	require.NoError(t, err, "GetLSPParticipantConfig must not error")
-	assert.Equal(t, testLSPParticipantConfigResponse(), result, "GetLSPParticipantConfig should decode every field")
+	result, err := e.GetLiquiditySupportProgramParticipantConfig(t.Context())
+	require.NoError(t, err, "GetLiquiditySupportProgramParticipantConfig must not error")
+	assert.Equal(t, testLiquiditySupportProgramParticipantConfigResponse(), result, "GetLiquiditySupportProgramParticipantConfig should decode every field")
 
-	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GetLSPParticipantConfig(t.Context())
-	assert.ErrorIs(t, err, common.ErrNoResponse, "GetLSPParticipantConfig should reject a null result")
-	_, err = newUnavailableServerExchange(t).GetLSPParticipantConfig(t.Context())
-	assert.ErrorIs(t, err, request.ErrBadStatus, "GetLSPParticipantConfig should return the request failure")
+	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GetLiquiditySupportProgramParticipantConfig(t.Context())
+	assert.ErrorIs(t, err, common.ErrNoResponse, "GetLiquiditySupportProgramParticipantConfig should reject a null result")
+	_, err = newUnavailableServerExchange(t).GetLiquiditySupportProgramParticipantConfig(t.Context())
+	assert.ErrorIs(t, err, request.ErrBadStatus, "GetLiquiditySupportProgramParticipantConfig should return the request failure")
 }
 
-func TestGetLSPParticipants(t *testing.T) {
+func TestGetLiquiditySupportProgramParticipants(t *testing.T) {
 	t.Parallel()
 	ex, lastParams := newTradingParamsCaptureExchange(t, `{"jsonrpc":"2.0","result":{"participants":[]}}`)
-	_, err := ex.GetLSPParticipants(t.Context(), true)
-	require.NoError(t, err, "GetLSPParticipants must not error for a detailed request")
-	assert.JSONEq(t, `{"detailed":true}`, lastParams(), "GetLSPParticipants should ask for each participant's configuration")
+	_, err := ex.GetLiquiditySupportProgramParticipants(t.Context(), true)
+	require.NoError(t, err, "GetLiquiditySupportProgramParticipants must not error for a detailed request")
+	assert.JSONEq(t, `{"detailed":true}`, lastParams(), "GetLiquiditySupportProgramParticipants should ask for each participant's configuration")
 
 	skipLiveWithoutCredentials(t)
-	result, err := e.GetLSPParticipants(t.Context(), false)
-	require.NoError(t, err, "GetLSPParticipants must not error")
+	result, err := e.GetLiquiditySupportProgramParticipants(t.Context(), false)
+	require.NoError(t, err, "GetLiquiditySupportProgramParticipants must not error")
 	if mockTests {
-		assert.Equal(t, testLSPParticipantsResponse(), result, "GetLSPParticipants should decode every field")
+		assert.Equal(t, testLiquiditySupportProgramParticipantsResponse(), result, "GetLiquiditySupportProgramParticipants should decode every field")
 	}
 
-	result, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":{"participants":[{"user_id":172345,"config":{"enabled":true,"group_limits":{"rwa":5.5}}}]}}`).GetLSPParticipants(t.Context(), true)
-	require.NoError(t, err, "GetLSPParticipants must not error for a detailed response")
-	exp := &LSPParticipantsResponse{Participants: []LSPParticipant{{UserID: mockLSPParticipantUserID, Config: &LSPParticipantConfig{Enabled: true, GroupLimits: map[string]float64{"rwa": 5.5}}}}}
-	assert.Equal(t, exp, result, "GetLSPParticipants should decode each participant's configuration")
+	result, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":{"participants":[{"user_id":172345,"config":{"enabled":true,"group_limits":{"rwa":5.5}}}]}}`).GetLiquiditySupportProgramParticipants(t.Context(), true)
+	require.NoError(t, err, "GetLiquiditySupportProgramParticipants must not error for a detailed response")
+	exp := &LiquiditySupportProgramParticipantsResponse{Participants: []LiquiditySupportProgramParticipant{{UserID: mockLiquiditySupportProgramParticipantUserID, Config: &LiquiditySupportProgramParticipantConfig{Enabled: true, GroupLimits: map[string]float64{"rwa": 5.5}}}}}
+	assert.Equal(t, exp, result, "GetLiquiditySupportProgramParticipants should decode each participant's configuration")
 
-	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GetLSPParticipants(t.Context(), false)
-	assert.ErrorIs(t, err, common.ErrNoResponse, "GetLSPParticipants should reject a null result")
-	_, err = newUnavailableServerExchange(t).GetLSPParticipants(t.Context(), false)
-	assert.ErrorIs(t, err, request.ErrBadStatus, "GetLSPParticipants should return the request failure")
+	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GetLiquiditySupportProgramParticipants(t.Context(), false)
+	assert.ErrorIs(t, err, common.ErrNoResponse, "GetLiquiditySupportProgramParticipants should reject a null result")
+	_, err = newUnavailableServerExchange(t).GetLiquiditySupportProgramParticipants(t.Context(), false)
+	assert.ErrorIs(t, err, request.ErrBadStatus, "GetLiquiditySupportProgramParticipants should return the request failure")
 }
 
-func TestGetLSPParticipantsUsage(t *testing.T) {
+func TestGetLiquiditySupportProgramParticipantsUsage(t *testing.T) {
 	t.Parallel()
 	ex, lastParams := newTradingParamsCaptureExchange(t, `{"jsonrpc":"2.0","result":{"participants":[]}}`)
-	_, err := ex.GetLSPParticipantsUsage(t.Context(), 0)
-	require.NoError(t, err, "GetLSPParticipantsUsage must not error for every participant")
-	assert.JSONEq(t, `{}`, lastParams(), "GetLSPParticipantsUsage should leave out a zero user ID, so Deribit returns every participant")
+	_, err := ex.GetLiquiditySupportProgramParticipantsUsage(t.Context(), 0)
+	require.NoError(t, err, "GetLiquiditySupportProgramParticipantsUsage must not error for every participant")
+	assert.JSONEq(t, `{}`, lastParams(), "GetLiquiditySupportProgramParticipantsUsage should leave out a zero user ID, so Deribit returns every participant")
 
 	skipLiveWithoutCredentials(t)
-	var userID uint64 = mockLSPParticipantUserID
+	var userID uint64 = mockLiquiditySupportProgramParticipantUserID
 	if !mockTests {
 		userID = 0
 	}
-	result, err := e.GetLSPParticipantsUsage(t.Context(), userID)
-	require.NoError(t, err, "GetLSPParticipantsUsage must not error")
+	result, err := e.GetLiquiditySupportProgramParticipantsUsage(t.Context(), userID)
+	require.NoError(t, err, "GetLiquiditySupportProgramParticipantsUsage must not error")
 	if mockTests {
-		assert.Equal(t, testLSPParticipantsUsageResponse(), result, "GetLSPParticipantsUsage should decode every field")
+		assert.Equal(t, testLiquiditySupportProgramParticipantsUsageResponse(), result, "GetLiquiditySupportProgramParticipantsUsage should decode every field")
 	} else {
-		assert.NotZero(t, result.CooldownPeriod, "GetLSPParticipantsUsage should return the cooldown period")
+		assert.NotZero(t, result.CooldownPeriod, "GetLiquiditySupportProgramParticipantsUsage should return the cooldown period")
 	}
 
-	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GetLSPParticipantsUsage(t.Context(), userID)
-	assert.ErrorIs(t, err, common.ErrNoResponse, "GetLSPParticipantsUsage should reject a null result")
-	_, err = newUnavailableServerExchange(t).GetLSPParticipantsUsage(t.Context(), userID)
-	assert.ErrorIs(t, err, request.ErrBadStatus, "GetLSPParticipantsUsage should return the request failure")
+	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GetLiquiditySupportProgramParticipantsUsage(t.Context(), userID)
+	assert.ErrorIs(t, err, common.ErrNoResponse, "GetLiquiditySupportProgramParticipantsUsage should reject a null result")
+	_, err = newUnavailableServerExchange(t).GetLiquiditySupportProgramParticipantsUsage(t.Context(), userID)
+	assert.ErrorIs(t, err, request.ErrBadStatus, "GetLiquiditySupportProgramParticipantsUsage should return the request failure")
 }
 
-func TestGetLSPUsage(t *testing.T) {
+func TestGetLiquiditySupportProgramUsage(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
-		t.Skip("GetLSPUsage is not tested live, as " + liveLSPParticipantSkip)
+		t.Skip("GetLiquiditySupportProgramUsage is not tested live, as " + liveLiquiditySupportProgramParticipantSkip)
 	}
-	result, err := e.GetLSPUsage(t.Context())
-	require.NoError(t, err, "GetLSPUsage must not error")
-	assert.Equal(t, &LSPUsageResponse{CooldownPeriod: 300000, Groups: testLSPGroupUsage()}, result, "GetLSPUsage should decode every field")
+	result, err := e.GetLiquiditySupportProgramUsage(t.Context())
+	require.NoError(t, err, "GetLiquiditySupportProgramUsage must not error")
+	assert.Equal(t, &LiquiditySupportProgramUsageResponse{CooldownPeriod: 300000, Groups: testLiquiditySupportProgramGroupUsage()}, result, "GetLiquiditySupportProgramUsage should decode every field")
 
-	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GetLSPUsage(t.Context())
-	assert.ErrorIs(t, err, common.ErrNoResponse, "GetLSPUsage should reject a null result")
-	_, err = newUnavailableServerExchange(t).GetLSPUsage(t.Context())
-	assert.ErrorIs(t, err, request.ErrBadStatus, "GetLSPUsage should return the request failure")
+	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GetLiquiditySupportProgramUsage(t.Context())
+	assert.ErrorIs(t, err, common.ErrNoResponse, "GetLiquiditySupportProgramUsage should reject a null result")
+	_, err = newUnavailableServerExchange(t).GetLiquiditySupportProgramUsage(t.Context())
+	assert.ErrorIs(t, err, request.ErrBadStatus, "GetLiquiditySupportProgramUsage should return the request failure")
 }

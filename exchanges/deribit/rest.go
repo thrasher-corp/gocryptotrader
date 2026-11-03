@@ -88,10 +88,12 @@ func (e *Exchange) sendHTTPRequest(ctx context.Context, epl request.EndpointLimi
 	if creds != nil {
 		requestType = request.AuthenticatedRequest
 	}
+	sendCtx := ctx
 	if !resendable(method) {
 		// Deribit may have carried out a request whose response timed out, so the requester must not send it again;
-		// retryRequest still does when Deribit answers that it did not process the request
-		ctx = request.WithRetryNotAllowed(ctx)
+		// retryRequest still does when Deribit answers that it did not process the request, unless the caller's
+		// context allows no retries
+		sendCtx = request.WithRetryNotAllowed(ctx)
 	}
 	return retryRequest(ctx, func() error {
 		resp := &JSONRPCResponse{Result: result}
@@ -100,7 +102,7 @@ func (e *Exchange) sendHTTPRequest(ctx context.Context, epl request.EndpointLimi
 			challenged.result = result
 			resp.Result = &challenged
 		}
-		err := e.SendPayload(ctx, epl, func() (*request.Item, error) {
+		err := e.SendPayload(sendCtx, epl, func() (*request.Item, error) {
 			return e.httpRequestItem(endpoint, path, body, resp, creds)
 		}, requestType)
 		// Deribit answers a failed request with an error status, so its error object explains the failure better; an
@@ -200,8 +202,8 @@ func (e *Exchange) sendRequest(ctx context.Context, overWebsocket bool, epl requ
 	}
 }
 
-// sendOKRequest sends a non-matching engine request whose result is "ok" when it succeeds
-func (e *Exchange) sendOKRequest(ctx context.Context, overWebsocket bool, method string, params any) error {
+// sendRequestMatchOKResponse sends a non-matching engine request whose result is "ok" when it succeeds
+func (e *Exchange) sendRequestMatchOKResponse(ctx context.Context, overWebsocket bool, method string, params any) error {
 	var resp string
 	if err := e.sendRequest(ctx, overWebsocket, nonMatchingEPL, method, params, &resp); err != nil {
 		return err
@@ -225,13 +227,19 @@ func resendable(method string) bool {
 		strings.HasPrefix(action, "simulate_")
 }
 
-// retryRequest sends a request until Deribit stops asking for it to be retried, backing off between attempts
+// retryRequest sends a request until Deribit stops asking for it to be retried, backing off between attempts; a context
+// marked by request.WithRetryNotAllowed sends it once, so a time sensitive caller gets Deribit's answer without the
+// backoff's delay
 func retryRequest(ctx context.Context, send func() error) error {
 	backoff := request.DefaultBackoff()
+	maximumAttempts := maximumRequestAttempts
+	if request.HasRetryNotAllowed(ctx) {
+		maximumAttempts = 1
+	}
 	for attempt := 1; ; attempt++ {
 		err := send()
 		var apiErr *APIError
-		if attempt == maximumRequestAttempts || !errors.As(err, &apiErr) || apiErr.Code != errorCodeRetry {
+		if attempt == maximumAttempts || !errors.As(err, &apiErr) || apiErr.Code != errorCodeRetry {
 			return err
 		}
 		timer := time.NewTimer(backoff(attempt))

@@ -36,16 +36,16 @@ const (
 	massQuoteRate = 10
 )
 
-// GetRateLimits returns Deribit's default rate limits, which sub-accounts with more trading volume exceed
-func GetRateLimits() request.RateLimitDefinitions {
-	return request.RateLimitDefinitions{
-		nonMatchingEPL:       request.NewRateLimitWithWeight(time.Second, nonMatchingRate, 1),
-		matchingEPL:          request.NewRateLimitWithWeight(time.Second, matchingRate, 1),
-		getInstrumentsEPL:    request.NewRateLimitWithWeight(time.Second, getInstrumentsRate, 1),
-		subscribeEPL:         request.NewRateLimitWithWeight(subscribeInterval, subscribeRate, 1),
-		movePositionsEPL:     request.NewRateLimitWithWeight(time.Minute, movePositionsRate, 1),
-		transactionLogEPL:    request.NewRateLimitWithWeight(time.Second, transactionLogRate, 1),
-		massQuoteEPL:         request.NewRateLimitWithWeight(time.Second, massQuoteRate, 1),
-		simulatePortfolioEPL: request.NewRateLimitWithWeight(time.Second, simulatePortfolioRate, 1),
-	}
+// rateLimits holds Deribit's default rate limits, which sub-accounts with more trading volume exceed. Deribit counts
+// requests per sub-account, and unauthenticated ones per IP address, not per Exchange instance, so every instance
+// shares these limiters rather than building its own
+var rateLimits = request.RateLimitDefinitions{
+	nonMatchingEPL:       request.NewRateLimitWithWeight(time.Second, nonMatchingRate, 1),
+	matchingEPL:          request.NewRateLimitWithWeight(time.Second, matchingRate, 1),
+	getInstrumentsEPL:    request.NewRateLimitWithWeight(time.Second, getInstrumentsRate, 1),
+	subscribeEPL:         request.NewRateLimitWithWeight(subscribeInterval, subscribeRate, 1),
+	movePositionsEPL:     request.NewRateLimitWithWeight(time.Minute, movePositionsRate, 1),
+	transactionLogEPL:    request.NewRateLimitWithWeight(time.Second, transactionLogRate, 1),
+	massQuoteEPL:         request.NewRateLimitWithWeight(time.Second, massQuoteRate, 1),
+	simulatePortfolioEPL: request.NewRateLimitWithWeight(time.Second, simulatePortfolioRate, 1),
 }
