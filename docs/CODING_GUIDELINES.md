@@ -229,6 +229,22 @@ Verify all tests pass by:
     go test ./... -race -count 1
 ```
 
+### JSON and JSON Lines fixtures
+
+- Use `.json` for a single JSON document, including HTTP mock files containing
+    a routes object.
+- Use `.jsonl` for JSON Lines data: one complete JSON value per line. This
+    includes websocket message fixtures and other fixtures read one record at
+    a time, even when they currently contain only one record.
+- Each JSON Lines record must be valid JSON on a single line. Do not wrap the
+    record stream in an array or add commas between records.
+- When renaming fixtures, update all references, including tests, benchmarks,
+    documentation and any code that generates the files. Preserve fixture
+    contents unless a data change is required.
+- Audit formatter, linter and spell-checker filters when fixture extensions
+    change. Raw protocol fixtures must retain their intended treatment rather
+    than having wire values edited to satisfy prose checks.
+
 ### Assertion Usage
 
 Use `require` and `assert` appropriately:
@@ -319,6 +335,18 @@ Use `require` and `assert` appropriately:
     arbitrary sleeps. Synchronous tests do not need a bubble merely to inspect
     completed work: for a test-owned buffered channel, assert the event count
     after the handler returns and before receiving.
+- When changing a deduplication helper or its callers, test the caller's output
+    as well as the helper. Include duplicates and distinct identities to pin the
+    intended key, retained entry and any associated metadata. Do not substitute
+    tests of built-in allocation behaviour for project behaviour.
+- Pagination fixtures should reproduce relevant ordering, boundary inclusion
+    and overlap behaviour. Bound their request count or duration so a stalled
+    pager fails promptly, and compare the complete expected result rather than
+    relying only on its length.
+    Include a partial final page, particularly a single remaining record, so
+    whole-page fixtures cannot conceal a dropped tail or incorrect overlap guard.
+    Process a non-empty page before applying a cursor-progress guard: a cursor
+    that cannot advance may still accompany unseen records at its boundary.
 - For interface-valued inputs with nil guards, cover both a nil interface and
     a typed-nil concrete value. For format detection and segmented-name rules,
     include missing metadata, malformed inputs and multiple separators so the

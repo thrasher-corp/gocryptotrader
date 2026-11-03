@@ -4560,7 +4560,7 @@ func TestOrderPushData(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-	testexch.FixtureToDataHandler(t, "testdata/wsOrders.json", func(ctx context.Context, b []byte) error { return e.wsHandleData(ctx, nil, b) })
+	testexch.FixtureToDataHandler(t, "testdata/wsOrders.jsonl", func(ctx context.Context, b []byte) error { return e.wsHandleData(ctx, nil, b) })
 	e.Websocket.DataHandler.Close()
 	require.Len(t, e.Websocket.DataHandler.C, 4, "Should see 4 orders")
 	for resp := range e.Websocket.DataHandler.C {
@@ -4781,7 +4781,7 @@ func TestWsProcessTickers(t *testing.T) {
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup must not error")
 
-	testexch.FixtureToDataHandler(t, "testdata/wsTickers.json", func(ctx context.Context, b []byte) error { return e.wsProcessTickers(ctx, b) })
+	testexch.FixtureToDataHandler(t, "testdata/wsTickers.jsonl", func(ctx context.Context, b []byte) error { return e.wsProcessTickers(ctx, b) })
 
 	// the third fixture line is constructed: OKX does not send instType on this arg today, but
 	// that branch is the only one the old capacity check got wrong
@@ -4850,7 +4850,7 @@ func TestWSProcessTrades(t *testing.T) {
 		})
 		require.NoError(t, err, "AddSubscriptions must not error")
 	}
-	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.json", func(ctx context.Context, b []byte) error { return e.wsHandleData(ctx, nil, b) })
+	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.jsonl", func(ctx context.Context, b []byte) error { return e.wsHandleData(ctx, nil, b) })
 
 	exp := []trade.Data{
 		{
@@ -5290,11 +5290,10 @@ func TestGetHistoricalFundingRatesRatesPagination(t *testing.T) {
 	}
 
 	require.Len(t, result.FundingRates, rateCount, "every funding rate in the window must be kept exactly once")
-	seen := make(map[int64]struct{}, rateCount)
+	seen := make(common.Seen[int64], rateCount)
 	for i := range result.FundingRates {
 		ms := result.FundingRates[i].Time.UnixMilli()
-		require.NotContains(t, seen, ms, "a repeated boundary record must not duplicate a rate")
-		seen[ms] = struct{}{}
+		require.False(t, seen.CheckAndRecord(ms), "a repeated boundary record must not duplicate a rate")
 	}
 	assert.Equal(t, rateTime(0).UnixMilli(), result.FundingRates[0].Time.UnixMilli(), "the newest rate should come first")
 	assert.Equal(t, rateTime(rateCount-1).UnixMilli(), result.FundingRates[rateCount-1].Time.UnixMilli(), "the oldest rate should be reached, not stranded behind repeated pages")

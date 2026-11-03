@@ -1804,6 +1804,8 @@ func TestWebsocketMintsNoListenKeyWhenAPublicConnectionFails(t *testing.T) {
 		{Enabled: true, Asset: asset.Spot, Channel: channelMiniTickerV3},
 		{Enabled: true, Asset: asset.Spot, Channel: subscription.MyOrdersChannel, Authenticated: true},
 	}
+	// The failed Connect below starts the connection monitor, which retries until the websocket is disabled
+	t.Cleanup(func() { assert.NoError(t, ex.Websocket.Disable(), "Disable should not error") })
 	require.Error(t, ex.Websocket.Connect(t.Context()), "Connect must fail when the venue refuses the public connection")
 	assert.Zero(t, minted.Load(), "no listen key should be minted when a public connection fails")
 }
@@ -2309,13 +2311,12 @@ func TestReferralAssetIsABracket(t *testing.T) {
 // back, and without the error the fake would answer it forever and the test would spin until go test's timeout.
 func refuseRepeatedWindows(next http.HandlerFunc) http.HandlerFunc {
 	var mu sync.Mutex
-	seen := make(map[string]bool)
+	seen := make(common.Seen[string])
 	return func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasSuffix(r.URL.Path, "/aggTrades") {
 			window := r.URL.Query().Get("startTime") + "-" + r.URL.Query().Get("endTime")
 			mu.Lock()
-			repeated := seen[window]
-			seen[window] = true
+			repeated := seen.CheckAndRecord(window)
 			mu.Unlock()
 			if repeated {
 				http.Error(w, `{"code":-1,"msg":"window `+window+` requested again"}`, http.StatusBadRequest)
@@ -2383,8 +2384,7 @@ func TestSubmitOrderReadsBackAMarketOrderWithoutAQuantity(t *testing.T) {
 
 // TestWebsocketKeepsMarketDataWhenNoListenKeyCanBeMinted connects through the websocket manager to a local venue whose
 // listen key endpoint refuses, as it does once an account holds its 60 keys. The public connections are made first and
-// the manager rolls them back when a later one fails, and nothing retries a failed first connect, so the market data
-// must not depend on the key.
+// the manager rolls them back when a later one fails, so the market data must not depend on the key.
 func TestWebsocketKeepsMarketDataWhenNoListenKeyCanBeMinted(t *testing.T) {
 	t.Parallel()
 	var publicSubscribed atomic.Int64

@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	reflects "reflect"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
@@ -739,6 +741,44 @@ func TestExecuteSubAccountTransfer(t *testing.T) {
 	assert.ErrorContains(t, err, "You are not authorized to execute this request.")
 }
 
+func TestExecuteSubAccountTransferPreservesFractionalAmount(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name   string
+		amount float64
+		want   string
+	}{
+		{name: "fraction", amount: 1.9, want: "1.9"},
+		{name: "small fraction", amount: 0.00001234, want: "0.00001234"},
+		{name: "whole amount", amount: 2, want: "2"},
+		{name: "seventeen significant digits", amount: 0.12345678912345678, want: "0.12345678912345678"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "exchange setup must succeed")
+			ex.SkipAuthCheck = true
+			ex.SetCredentials(&accounts.Credentials{Key: "test-key", Secret: "test-secret"})
+			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, http.MethodPost, r.Method, "method should be POST")
+				assert.Equal(t, "/sapi/v3/sub-account/transfer", r.URL.Path, "path should match the transfer endpoint")
+				assert.Equal(t, tc.want, r.URL.Query().Get("amount"), "amount should retain its precision")
+				_, err := w.Write([]byte(`{"success":true,"txnId":"123"}`))
+				assert.NoError(t, err, "response should be written")
+			}))
+			require.NoError(t, ex.SetHTTPClient(server.Client()), "HTTP client must be set")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpotSupplementary.String(), server.URL), "local endpoint must be set")
+			response, err := ex.ExecuteSubAccountTransfer(t.Context(), &SubAccountTransferRequestParams{
+				FromEmail: "sender@example.com", ToEmail: "receiver@example.com", Asset: "BTC", Amount: tc.amount,
+			})
+			require.NoError(t, err, "transfer must succeed")
+			require.NotNil(t, response, "response must not be nil")
+			assert.True(t, response.Success, "transfer should be successful")
+			assert.Equal(t, uint64(123), response.TxnID, "transaction ID should match the response")
+		})
+	}
+}
+
 func TestGetSubaccountAssets(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetSubaccountAssets(t.Context(), "")
@@ -1166,6 +1206,44 @@ func TestWithdrawCrypto(t *testing.T) {
 	assert.ErrorContains(t, err, "You are not authorized to execute this request.")
 }
 
+func TestWithdrawCryptoPreservesFractionalAmount(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name   string
+		amount float64
+		want   string
+	}{
+		{name: "fraction", amount: 1.9, want: "1.9"},
+		{name: "small fraction", amount: 0.00001234, want: "0.00001234"},
+		{name: "whole amount", amount: 2, want: "2"},
+		{name: "seventeen significant digits", amount: 0.12345678912345678, want: "0.12345678912345678"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex))
+			ex.SkipAuthCheck = true
+			ex.SetCredentials(&accounts.Credentials{Key: "test-key", Secret: "test-secret"})
+			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, http.MethodPost, r.Method)
+				assert.Equal(t, "/sapi/v1/capital/withdraw/apply", r.URL.Path)
+				assert.Equal(t, tc.want, r.URL.Query().Get("amount"))
+				_, err := w.Write([]byte(`{"id":"withdrawal-id"}`))
+				assert.NoError(t, err)
+			}))
+			require.NoError(t, ex.SetHTTPClient(server.Client()))
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpotSupplementary.String(), server.URL))
+			id, err := ex.WithdrawCrypto(t.Context(), &withdraw.Request{
+				Currency: currency.BTC,
+				Crypto:   withdraw.CryptoRequest{Chain: "BTC", Address: "test-address"},
+				Amount:   tc.amount,
+			})
+			require.NoError(t, err)
+			assert.Equal(t, "withdrawal-id", id)
+		})
+	}
+}
+
 func TestFiatWithdrawalHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -1226,6 +1304,61 @@ func TestFiatHistoryForwardsOrderID(t *testing.T) {
 				require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
 				require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpotSupplementary.String(), server.URL), "SetRunningURL must not error")
 				_, err := tc.history(ex, t.Context(), &FiatWithdrawalRequestParams{FiatCurrency: "USD", OrderID: orderID})
+				require.NoError(t, err, "fiat history request must not error")
+				assert.Equal(t, int64(1), requests.Load(), "exactly one request should reach the server")
+			})
+		}
+	}
+}
+
+func TestFiatHistoryEndTimeAndNilParams(t *testing.T) {
+	t.Parallel()
+	start, past, future := time.Now().Add(-48*time.Hour), time.Now().Add(-time.Hour), time.Now().Add(time.Hour)
+	startMilli, pastMilli := strconv.FormatInt(start.UnixMilli(), 10), strconv.FormatInt(past.UnixMilli(), 10)
+	for _, tc := range []struct {
+		name    string
+		history func(*Exchange, context.Context, *FiatWithdrawalRequestParams) (FiatAssetsHistory, error)
+	}{
+		{name: "withdrawal", history: (*Exchange).FiatWithdrawalHistory},
+		{name: "deposit", history: (*Exchange).FiatDepositHistory},
+	} {
+		t.Run(tc.name+" nil params", func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup must not error")
+			_, err := tc.history(ex, t.Context(), nil)
+			require.ErrorIs(t, err, common.ErrNilPointer, "nil params must return ErrNilPointer")
+		})
+		for _, row := range []struct {
+			name      string
+			params    FiatWithdrawalRequestParams
+			startTime []string
+			endTime   []string
+		}{
+			{name: "no times"},
+			{name: "past endTime", params: FiatWithdrawalRequestParams{EndTime: past}, endTime: []string{pastMilli}},
+			{name: "future endTime", params: FiatWithdrawalRequestParams{EndTime: future}},
+			{name: "past startTime", params: FiatWithdrawalRequestParams{StartTime: start}, startTime: []string{startMilli}},
+			{name: "past startTime and past endTime", params: FiatWithdrawalRequestParams{StartTime: start, EndTime: past}, startTime: []string{startMilli}, endTime: []string{pastMilli}},
+			{name: "past startTime and future endTime", params: FiatWithdrawalRequestParams{StartTime: start, EndTime: future}, startTime: []string{startMilli}},
+		} {
+			t.Run(tc.name+" "+row.name, func(t *testing.T) {
+				t.Parallel()
+				ex := new(Exchange)
+				require.NoError(t, testexch.Setup(ex), "Setup must not error")
+				ex.SkipAuthCheck = true
+				ex.SetCredentials(&accounts.Credentials{Key: "test-key", Secret: "test-secret"})
+				var requests atomic.Int64
+				server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					requests.Add(1)
+					assert.Equal(t, row.startTime, r.URL.Query()["startTime"], "startTime should match the expected values")
+					assert.Equal(t, row.endTime, r.URL.Query()["endTime"], "endTime should match the expected values")
+					_, err := w.Write([]byte(`{"assetLogRecordList":[]}`))
+					assert.NoError(t, err, "writing the response should not error")
+				}))
+				require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+				require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpotSupplementary.String(), server.URL), "SetRunningURL must not error")
+				_, err := tc.history(ex, t.Context(), &row.params)
 				require.NoError(t, err, "fiat history request must not error")
 				assert.Equal(t, int64(1), requests.Load(), "exactly one request should reach the server")
 			})
