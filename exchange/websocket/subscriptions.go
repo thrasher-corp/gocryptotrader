@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
@@ -330,26 +331,55 @@ func (m *Manager) flushChannels(ctx context.Context) error {
 	}
 
 	var subscriptionError error
-	for _, ws := range m.snapshotConnectionManager() {
+	for i, ws := range m.snapshotConnectionManager() {
 		if ws.setup.SubscriptionsNotRequired {
 			continue
+		}
+		unconnected := len(m.snapshotManagedConnections(ws)) == 0
+		if ws.setup.Optional && unconnected && time.Now().Before(ws.retryAt) {
+			continue // The connection monitor retries it when due
+		}
+		// A cancelled flush leaves the setups it has not reached as they are
+		if err := ctx.Err(); err != nil {
+			return common.AppendError(subscriptionError, err)
 		}
 
 		newSubs, err := ws.setup.GenerateSubscriptions()
 		var fatalErr error
 		subscriptionError, fatalErr = collectSubscriptionGenerationError(subscriptionError, err)
 		if fatalErr != nil {
-			return fatalErr
-		}
-
-		// Case if there is nothing to unsubscribe from and the connection is nil
-		if len(newSubs) == 0 && len(m.snapshotManagedConnections(ws)) == 0 {
+			if !ws.setup.Optional {
+				return common.AppendError(subscriptionError, fatalErr)
+			}
+			// The other setups are flushed whatever becomes of an optional one
+			if unconnected {
+				log.Warnln(log.WebsocketMgr, m.optionalSetupFailed(i, ws, fatalErr))
+			} else {
+				subscriptionError = common.AppendError(subscriptionError, fatalErr)
+			}
 			continue
 		}
 
-		if err := m.scaleConnectionsToSubscriptions(ctx, ws, newSubs); err != nil {
-			return err
+		// Case if there is nothing to unsubscribe from and the connection is nil
+		if len(newSubs) == 0 && unconnected {
+			continue
 		}
+
+		err = m.scaleConnectionsToSubscriptions(ctx, ws, newSubs)
+		if !ws.setup.Optional {
+			if err != nil {
+				return common.AppendError(subscriptionError, err)
+			}
+			continue
+		}
+		if unconnected && errors.Is(err, common.ErrFatal) {
+			log.Warnln(log.WebsocketMgr, m.optionalSetupFailed(i, ws, err))
+			continue
+		}
+		if unconnected && len(m.snapshotManagedConnections(ws)) != 0 {
+			ws.retryFailures, ws.retryAt = 0, time.Time{}
+		}
+		subscriptionError = common.AppendError(subscriptionError, err)
 	}
 	return subscriptionError
 }
