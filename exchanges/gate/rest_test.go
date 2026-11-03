@@ -428,6 +428,13 @@ func newFixedResponseExchange(t *testing.T, path, body string) *Exchange {
 // other path with a server error, signing with placeholder credentials
 func newRoutedExchange(t *testing.T, routes map[string]string) *Exchange {
 	t.Helper()
+	return newRefusingRoutedExchange(t, "", routes)
+}
+
+// newRefusingRoutedExchange is newRoutedExchange that also answers a request whose query contains refused, when set, with
+// a server error, so a test can fail a later request of a method that makes several
+func newRefusingRoutedExchange(t *testing.T, refused string, routes map[string]string) *Exchange {
+	t.Helper()
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Setup must not error")
 	ex.API.AuthenticatedSupport = true
@@ -436,7 +443,7 @@ func newRoutedExchange(t *testing.T, routes map[string]string) *Exchange {
 	require.NoError(t, ex.DisableRateLimiter(), "DisableRateLimiter must not error")
 	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, ok := routes[r.URL.Path]
-		if !ok {
+		if !ok || (refused != "" && strings.Contains(r.URL.RawQuery, refused)) {
 			w.WriteHeader(http.StatusInternalServerError)
 			body = `{"label":"SERVER_ERROR","message":"unavailable"}`
 		}
