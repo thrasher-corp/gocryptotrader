@@ -14,11 +14,7 @@ var websocketManagerCommand = &cli.Command{
 			Name:  "getinfo",
 			Usage: "returns all exchange websocket information",
 			Flags: []cli.Flag{
-				&cli.StringFlag{
-					Name:     exchangeFlag,
-					Required: true,
-					Usage:    exchangeUsage,
-				},
+				requiredExchangeFlag,
 			},
 			Action: getwebsocketInfo,
 		},
@@ -26,25 +22,17 @@ var websocketManagerCommand = &cli.Command{
 			Name:  "disable",
 			Usage: "disables websocket connection for an exchange",
 			Flags: []cli.Flag{
-				&cli.StringFlag{
-					Name:     exchangeFlag,
-					Required: true,
-					Usage:    exchangeUsage,
-				},
+				requiredExchangeFlag,
 			},
 			Action: enableDisableWebsocket,
 		},
 		{
-			Name:  enableFlag,
+			Name:  enableFlagName,
 			Usage: "enables websocket connection for an exchange",
 			Flags: []cli.Flag{
-				&cli.StringFlag{
-					Name:     exchangeFlag,
-					Required: true,
-					Usage:    exchangeUsage,
-				},
+				requiredExchangeFlag,
 				&cli.BoolFlag{
-					Name:   enableFlag,
+					Name:   enableFlagName,
 					Hidden: true,
 					Value:  true,
 				},
@@ -55,11 +43,7 @@ var websocketManagerCommand = &cli.Command{
 			Name:  "getsubs",
 			Usage: "returns current subscriptions for an exchange",
 			Flags: []cli.Flag{
-				&cli.StringFlag{
-					Name:     exchangeFlag,
-					Required: true,
-					Usage:    exchangeUsage,
-				},
+				requiredExchangeFlag,
 			},
 			Action: getSubscriptions,
 		},
@@ -67,11 +51,7 @@ var websocketManagerCommand = &cli.Command{
 			Name:  "setproxy",
 			Usage: "sets exchange websocket proxy, flushes and reroutes connection",
 			Flags: []cli.Flag{
-				&cli.StringFlag{
-					Name:     exchangeFlag,
-					Required: true,
-					Usage:    exchangeUsage,
-				},
+				requiredExchangeFlag,
 				&cli.StringFlag{
 					Name:  "proxy",
 					Usage: "proxy address to change to, if proxy string is not set, this will stop the utilisation of the prior set proxy.",
@@ -83,11 +63,7 @@ var websocketManagerCommand = &cli.Command{
 			Name:  "seturl",
 			Usage: "sets exchange websocket endpoint URL and resets the websocket connection",
 			Flags: []cli.Flag{
-				&cli.StringFlag{
-					Name:     exchangeFlag,
-					Required: true,
-					Usage:    exchangeUsage,
-				},
+				requiredExchangeFlag,
 				&cli.StringFlag{
 					Name:  "url",
 					Usage: "url string to change to, an empty string will set it back to the packaged defined default",
@@ -111,7 +87,7 @@ func getwebsocketInfo(c *cli.Context) error {
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.WebsocketGetInfo(c.Context,
-		&gctrpc.WebsocketGetInfoRequest{Exchange: c.String(exchangeFlag)})
+		&gctrpc.WebsocketGetInfoRequest{Exchange: c.String(exchangeFlagName)})
 	if err != nil {
 		return err
 	}
@@ -132,7 +108,7 @@ func enableDisableWebsocket(c *cli.Context) error {
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.WebsocketSetEnabled(c.Context,
-		&gctrpc.WebsocketSetEnabledRequest{Exchange: c.String(exchangeFlag), Enable: c.Bool(enableFlag)})
+		&gctrpc.WebsocketSetEnabledRequest{Exchange: c.String(exchangeFlagName), Enable: c.Bool(enableFlagName)})
 	if err != nil {
 		return err
 	}
@@ -153,7 +129,7 @@ func getSubscriptions(c *cli.Context) error {
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.WebsocketGetSubscriptions(c.Context,
-		&gctrpc.WebsocketGetSubscriptionsRequest{Exchange: c.String(exchangeFlag)})
+		&gctrpc.WebsocketGetSubscriptionsRequest{Exchange: c.String(exchangeFlagName)})
 	if err != nil {
 		return err
 	}
@@ -174,7 +150,7 @@ func setProxy(c *cli.Context) error {
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.WebsocketSetProxy(c.Context,
-		&gctrpc.WebsocketSetProxyRequest{Exchange: c.String(exchangeFlag), Proxy: c.String("proxy")})
+		&gctrpc.WebsocketSetProxyRequest{Exchange: c.String(exchangeFlagName), Proxy: c.String("proxy")})
 	if err != nil {
 		return err
 	}
@@ -195,7 +171,7 @@ func setURL(c *cli.Context) error {
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.WebsocketSetURL(c.Context,
-		&gctrpc.WebsocketSetURLRequest{Exchange: c.String(exchangeFlag), Url: c.String("url")})
+		&gctrpc.WebsocketSetURLRequest{Exchange: c.String(exchangeFlagName), Url: c.String("url")})
 	if err != nil {
 		return err
 	}

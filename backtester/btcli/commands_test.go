@@ -78,6 +78,45 @@ func TestStartTask(t *testing.T) {
 	require.ErrorIs(t, app.Run([]string{"btcli", "starttask", "--id", ""}), errTaskIDRequired)
 }
 
+func TestTaskIDFlag(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		command *cli.Command
+	}{
+		{command: startTaskCommand},
+		{command: stopTaskCommand},
+		{command: clearTaskCommand},
+	} {
+		t.Run(tc.command.Name, func(t *testing.T) {
+			t.Parallel()
+
+			require.NotEmpty(t, tc.command.Flags, "task command must have its ID flag")
+			flag, ok := tc.command.Flags[0].(*cli.StringFlag)
+			require.True(t, ok, "task ID must be a string flag")
+			// cli mutates flag metadata during parsing, so each parallel case owns a copy.
+			copyFlag := *flag
+			var contexts []*cli.Context
+			command := &cli.Command{
+				Name:     tc.command.Name,
+				HideHelp: true,
+				Flags:    []cli.Flag{&copyFlag},
+				Action: func(c *cli.Context) error {
+					contexts = append(contexts, c)
+					return nil
+				},
+			}
+			app := &cli.App{HideHelp: true, Writer: io.Discard, ErrWriter: io.Discard, Commands: []*cli.Command{command}}
+			require.NoError(t, app.Run([]string{"btcli", command.Name, "--id=first-task"}), "explicit task ID must parse")
+			assert.ErrorContains(t, app.Run([]string{"btcli", command.Name}), `Required flag "id" not set`, "subsequent invocation should still require its own task ID")
+			require.NoError(t, app.Run([]string{"btcli", command.Name, "--id=second-task"}), "subsequent explicit task ID must parse")
+			require.Len(t, contexts, 2, "only invocations with an ID must reach the action")
+			assert.Equal(t, "first-task", contexts[0].String("id"), "earlier task ID should survive a subsequent parse")
+			assert.Equal(t, "second-task", contexts[1].String("id"), "subsequent invocation should use its own task ID")
+		})
+	}
+}
+
 func TestStopTask(t *testing.T) {
 	app := &cli.App{Commands: []*cli.Command{stopTaskCommand}}
 	require.ErrorIs(t, app.Run([]string{"btcli", "stoptask", "--id", ""}), errTaskIDRequired)

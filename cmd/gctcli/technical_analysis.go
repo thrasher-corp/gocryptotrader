@@ -14,35 +14,23 @@ import (
 )
 
 var commonFlag = []cli.Flag{
-	&cli.StringFlag{
-		Name:     exchangeFlag,
-		Required: true,
-		Usage:    exchangeUsage,
-	},
-	&cli.StringFlag{
-		Name:     pairFlag,
-		Required: true,
-		Usage:    "currency pair",
-	},
-	&cli.StringFlag{
-		Name:     assetFlag,
-		Required: true,
-		Usage:    assetFlagUsage,
-	},
+	requiredExchangeFlag,
+	requiredPairFlag,
+	requiredAssetFlag,
 	&cli.Int64Flag{
-		Name:    "granularity",
+		Name:    granularityFlagName,
 		Aliases: []string{"g"},
 		Usage:   klineMessage,
 		Value:   86400,
 	},
 	&cli.StringFlag{
-		Name:  startFlag,
-		Usage: "the start date",
+		Name:  startFlagName,
+		Usage: startUsage,
 		Value: time.Now().AddDate(0, -1, 0).Format(time.DateTime),
 	},
 	&cli.StringFlag{
-		Name:  endFlag,
-		Usage: "the end date",
+		Name:  endFlagName,
+		Usage: endUsage,
 		Value: time.Now().Format(time.DateTime),
 	},
 }
@@ -211,21 +199,21 @@ func getTecnicalAnalysis(c *cli.Context, algo string) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	pair, err := currency.NewPairFromString(c.String(pairFlag))
+	pair, err := currency.NewPairFromString(c.String(pairFlagName))
 	if err != nil {
 		return err
 	}
 
-	asset := strings.ToLower(c.String(assetFlag))
+	asset := strings.ToLower(c.String(assetFlagName))
 	if !validAsset(asset) {
 		return errInvalidAsset
 	}
 
-	s, err := time.ParseInLocation(time.DateTime, c.String(startFlag), time.Local)
+	s, err := time.ParseInLocation(time.DateTime, c.String(startFlagName), time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %w", err)
 	}
-	e, err := time.ParseInLocation(time.DateTime, c.String(endFlag), time.Local)
+	e, err := time.ParseInLocation(time.DateTime, c.String(endFlagName), time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %w", err)
 	}
@@ -240,14 +228,14 @@ func getTecnicalAnalysis(c *cli.Context, algo string) error {
 	defer closeConn(conn, cancel)
 
 	req := &gctrpc.GetTechnicalAnalysisRequest{
-		Exchange: c.String(exchangeFlag),
+		Exchange: c.String(exchangeFlagName),
 		Pair: &gctrpc.CurrencyPair{
 			Base:  pair.Base.String(),
 			Quote: pair.Quote.String(),
 		},
 		AssetType:     asset,
 		AlgorithmType: algo,
-		Interval:      c.Int64("granularity") * int64(time.Second),
+		Interval:      c.Int64(granularityFlagName) * int64(time.Second),
 		Start:         timestamppb.New(s),
 		End:           timestamppb.New(e),
 		Period:        c.Int64("period"),
@@ -268,21 +256,21 @@ func getBollingerBands(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	pair, err := currency.NewPairFromString(c.String(pairFlag))
+	pair, err := currency.NewPairFromString(c.String(pairFlagName))
 	if err != nil {
 		return err
 	}
 
-	asset := strings.ToLower(c.String(assetFlag))
+	asset := strings.ToLower(c.String(assetFlagName))
 	if !validAsset(asset) {
 		return errInvalidAsset
 	}
 
-	s, err := time.ParseInLocation(time.DateTime, c.String(startFlag), time.Local)
+	s, err := time.ParseInLocation(time.DateTime, c.String(startFlagName), time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %w", err)
 	}
-	e, err := time.ParseInLocation(time.DateTime, c.String(endFlag), time.Local)
+	e, err := time.ParseInLocation(time.DateTime, c.String(endFlagName), time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %w", err)
 	}
@@ -307,14 +295,14 @@ func getBollingerBands(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	req := &gctrpc.GetTechnicalAnalysisRequest{
-		Exchange: c.String(exchangeFlag),
+		Exchange: c.String(exchangeFlagName),
 		Pair: &gctrpc.CurrencyPair{
 			Base:  pair.Base.String(),
 			Quote: pair.Quote.String(),
 		},
 		AssetType:             asset,
 		AlgorithmType:         "BBANDS",
-		Interval:              c.Int64("granularity") * int64(time.Second),
+		Interval:              c.Int64(granularityFlagName) * int64(time.Second),
 		Start:                 timestamppb.New(s),
 		End:                   timestamppb.New(e),
 		Period:                c.Int64("period"),
@@ -338,21 +326,21 @@ func getMACD(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	pair, err := currency.NewPairFromString(c.String(pairFlag))
+	pair, err := currency.NewPairFromString(c.String(pairFlagName))
 	if err != nil {
 		return err
 	}
 
-	asset := strings.ToLower(c.String(assetFlag))
+	asset := strings.ToLower(c.String(assetFlagName))
 	if !validAsset(asset) {
 		return errInvalidAsset
 	}
 
-	s, err := time.ParseInLocation(time.DateTime, c.String(startFlag), time.Local)
+	s, err := time.ParseInLocation(time.DateTime, c.String(startFlagName), time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %w", err)
 	}
-	e, err := time.ParseInLocation(time.DateTime, c.String(endFlag), time.Local)
+	e, err := time.ParseInLocation(time.DateTime, c.String(endFlagName), time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %w", err)
 	}
@@ -368,14 +356,14 @@ func getMACD(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	req := &gctrpc.GetTechnicalAnalysisRequest{
-		Exchange: c.String(exchangeFlag),
+		Exchange: c.String(exchangeFlagName),
 		Pair: &gctrpc.CurrencyPair{
 			Base:  pair.Base.String(),
 			Quote: pair.Quote.String(),
 		},
 		AssetType:     asset,
 		AlgorithmType: "MACD",
-		Interval:      c.Int64("granularity") * int64(time.Second),
+		Interval:      c.Int64(granularityFlagName) * int64(time.Second),
 		Start:         timestamppb.New(s),
 		End:           timestamppb.New(e),
 		Period:        c.Int64("period"),
@@ -398,21 +386,21 @@ func getCoco(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	pair, err := currency.NewPairFromString(c.String(pairFlag))
+	pair, err := currency.NewPairFromString(c.String(pairFlagName))
 	if err != nil {
 		return err
 	}
 
-	asset := strings.ToLower(c.String(assetFlag))
+	asset := strings.ToLower(c.String(assetFlagName))
 	if !validAsset(asset) {
 		return errInvalidAsset
 	}
 
-	s, err := time.ParseInLocation(time.DateTime, c.String(startFlag), time.Local)
+	s, err := time.ParseInLocation(time.DateTime, c.String(startFlagName), time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for start: %w", err)
 	}
-	e, err := time.ParseInLocation(time.DateTime, c.String(endFlag), time.Local)
+	e, err := time.ParseInLocation(time.DateTime, c.String(endFlagName), time.Local)
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %w", err)
 	}
@@ -443,14 +431,14 @@ func getCoco(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	req := &gctrpc.GetTechnicalAnalysisRequest{
-		Exchange: c.String(exchangeFlag),
+		Exchange: c.String(exchangeFlagName),
 		Pair: &gctrpc.CurrencyPair{
 			Base:  pair.Base.String(),
 			Quote: pair.Quote.String(),
 		},
 		AssetType:      asset,
 		AlgorithmType:  "COCO",
-		Interval:       c.Int64("granularity") * int64(time.Second),
+		Interval:       c.Int64(granularityFlagName) * int64(time.Second),
 		Start:          timestamppb.New(s),
 		End:            timestamppb.New(e),
 		Period:         c.Int64("period"),

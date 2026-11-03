@@ -13,21 +13,9 @@ import (
 )
 
 var orderbookCommonFlags = []cli.Flag{
-	&cli.StringFlag{
-		Name:     exchangeFlag,
-		Required: true,
-		Usage:    "the exchange to get the orderbook for",
-	},
-	&cli.StringFlag{
-		Name:     pairFlag,
-		Required: true,
-		Usage:    "the currency pair to get the orderbook for",
-	},
-	&cli.StringFlag{
-		Name:     assetFlag,
-		Required: true,
-		Usage:    "the asset type of the currency pair to get the orderbook for",
-	},
+	requiredExchangeFlag,
+	requiredPairFlag,
+	requiredAssetFlag,
 }
 
 var orderbookCommand = &cli.Command{
@@ -40,7 +28,9 @@ var orderbookCommand = &cli.Command{
 			Usage:       "simulates sell to derive orderbook liquidity impact information",
 			ArgsUsage:   commandArgsUsage,
 			Subcommands: []*cli.Command{nominal, impact, base, quoteRequired},
-			Flags:       []cli.Flag{&cli.BoolFlag{Name: "sell", Hidden: true, Value: true}},
+			Flags: []cli.Flag{&cli.BoolFlag{
+				Name: "sell", Hidden: true, Value: true,
+			}},
 		},
 		{
 			Name:        "buy",
@@ -61,8 +51,8 @@ var nominal = &cli.Command{
 	Usage:  "simulates a buy or sell based off the percentage between the reference price and the average order cost",
 	Action: getNominal,
 	Flags: append(orderbookCommonFlags, &cli.Float64Flag{
-		Name:  "percent",
-		Usage: "the max percentage slip you wish to occur e.g. 1 = 1% and 100 = 100%. Note: If selling base/hitting the bids you can only have a max value of 100%",
+		Name:  percentFlagName,
+		Usage: percentUsage,
 	}),
 }
 
@@ -71,13 +61,13 @@ func getNominal(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	currencyPair := c.String(pairFlag)
+	currencyPair := c.String(pairFlagName)
 
 	if !validPair(currencyPair) {
 		return errInvalidPair
 	}
 
-	assetType := strings.ToLower(c.String(assetFlag))
+	assetType := strings.ToLower(c.String(assetFlagName))
 	if !validAsset(assetType) {
 		return errInvalidAsset
 	}
@@ -96,14 +86,14 @@ func getNominal(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.GetOrderbookAmountByNominal(c.Context,
 		&gctrpc.GetOrderbookAmountByNominalRequest{
-			Exchange: c.String(exchangeFlag),
+			Exchange: c.String(exchangeFlagName),
 			Pair: &gctrpc.CurrencyPair{
 				Base:  p.Base.String(),
 				Quote: p.Quote.String(),
 			},
 			Asset:             assetType,
 			Sell:              c.Bool("sell"),
-			NominalPercentage: c.Float64("percent"),
+			NominalPercentage: c.Float64(percentFlagName),
 		})
 	if err != nil {
 		return err
@@ -118,9 +108,9 @@ var impact = &cli.Command{
 	Usage:  "simulates a buy or sell based off the reference price and the orderbook impact slippage",
 	Action: getImpact,
 	Flags: append(orderbookCommonFlags, &cli.Float64Flag{
-		Name:     "percent",
+		Name:     percentFlagName,
 		Required: true,
-		Usage:    "the max percentage slip you wish to occur e.g. 1 = 1% and 100 = 100%. Note: If selling base/hitting the bids you can only have a max value of 100%",
+		Usage:    percentUsage,
 	}),
 }
 
@@ -129,13 +119,13 @@ func getImpact(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	currencyPair := c.String(pairFlag)
+	currencyPair := c.String(pairFlagName)
 
 	if !validPair(currencyPair) {
 		return errInvalidPair
 	}
 
-	assetType := strings.ToLower(c.String(assetFlag))
+	assetType := strings.ToLower(c.String(assetFlagName))
 	if !validAsset(assetType) {
 		return errInvalidAsset
 	}
@@ -154,14 +144,14 @@ func getImpact(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.GetOrderbookAmountByImpact(c.Context,
 		&gctrpc.GetOrderbookAmountByImpactRequest{
-			Exchange: c.String(exchangeFlag),
+			Exchange: c.String(exchangeFlagName),
 			Pair: &gctrpc.CurrencyPair{
 				Base:  p.Base.String(),
 				Quote: p.Quote.String(),
 			},
 			Asset:            assetType,
 			Sell:             c.Bool("sell"),
-			ImpactPercentage: c.Float64("percent"),
+			ImpactPercentage: c.Float64(percentFlagName),
 		})
 	if err != nil {
 		return err
@@ -182,7 +172,7 @@ var quote = &cli.Command{
 	Usage:  "simulates a buy using quotation amount",
 	Action: getMovement,
 	Flags: append(orderbookCommonFlags, &cli.Float64Flag{
-		Name:     amountFlag,
+		Name:     amountFlagName,
 		Required: true,
 		Usage:    "the amount of quotation currency lifting the asks",
 	}),
@@ -193,7 +183,7 @@ var baseRequired = &cli.Command{
 	Usage:  "simulates a buy with a required base amount to be purchased",
 	Action: getMovement,
 	Flags: append(orderbookCommonFlags, &cli.Float64Flag{
-		Name:     amountFlag,
+		Name:     amountFlagName,
 		Required: true,
 		Usage:    "the amount of base currency required to be purchased when lifting the asks",
 	}, purchase),
@@ -204,7 +194,7 @@ var base = &cli.Command{
 	Usage:  "simulates a sell using base amount",
 	Action: getMovement,
 	Flags: append(orderbookCommonFlags, &cli.Float64Flag{
-		Name:     amountFlag,
+		Name:     amountFlagName,
 		Required: true,
 		Usage:    "the amount of base currency hitting the bids",
 	}),
@@ -215,7 +205,7 @@ var quoteRequired = &cli.Command{
 	Usage:  "simulates a sell with a required quote amount to be purchased",
 	Action: getMovement,
 	Flags: append(orderbookCommonFlags, &cli.Float64Flag{
-		Name:     amountFlag,
+		Name:     amountFlagName,
 		Required: true,
 		Usage:    "the amount of quotation currency required to be purchased when hitting the bids",
 	}, purchase),
@@ -226,13 +216,13 @@ func getMovement(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	currencyPair := c.String(pairFlag)
+	currencyPair := c.String(pairFlagName)
 
 	if !validPair(currencyPair) {
 		return errInvalidPair
 	}
 
-	assetType := strings.ToLower(c.String(assetFlag))
+	assetType := strings.ToLower(c.String(assetFlagName))
 	if !validAsset(assetType) {
 		return errInvalidAsset
 	}
@@ -250,14 +240,14 @@ func getMovement(c *cli.Context) error {
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.GetOrderbookMovement(c.Context, &gctrpc.GetOrderbookMovementRequest{
-		Exchange: c.String(exchangeFlag),
+		Exchange: c.String(exchangeFlagName),
 		Pair: &gctrpc.CurrencyPair{
 			Base:  p.Base.String(),
 			Quote: p.Quote.String(),
 		},
 		Asset:    assetType,
 		Sell:     c.Bool("sell"),
-		Amount:   c.Float64(amountFlag),
+		Amount:   c.Float64(amountFlagName),
 		Purchase: c.Bool("purchase"),
 	})
 	if err != nil {
@@ -275,11 +265,11 @@ var getOrderbookCommand = &cli.Command{
 	Action: getOrderbook,
 	Flags: append(orderbookCommonFlags,
 		&cli.BoolFlag{
-			Name:  "exchangestyle",
-			Usage: "optional - renders the books like on an exchange website",
+			Name:  exchangeStyleFlagName,
+			Usage: exchangeStyleUsage,
 		},
 		&cli.Int64Flag{
-			Name:  "depthlimit",
+			Name:  depthLimitFlagName,
 			Usage: "optional - limit how deep the book rendering is, max 100 - only works if exchangestyle is true",
 		}),
 }
@@ -289,18 +279,18 @@ func getOrderbook(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	exchangeName := c.String(exchangeFlag)
-	pair := c.String(pairFlag)
+	exchangeName := c.String(exchangeFlagName)
+	pair := c.String(pairFlagName)
 
 	if !validPair(pair) {
 		return errInvalidPair
 	}
 
-	assetType := c.String(assetFlag)
+	assetType := c.String(assetFlagName)
 
 	const depthCeiling uint64 = 100 // The maximum the depth can be regardless of user entry
 	depthLimit := depthCeiling
-	if d := c.Uint64("depthlimit"); d > 0 && d < depthCeiling {
+	if d := c.Uint64(depthLimitFlagName); d > 0 && d < depthCeiling {
 		depthLimit = d
 	}
 
@@ -336,7 +326,7 @@ func getOrderbook(c *cli.Context) error {
 		return err
 	}
 
-	if c.Bool("exchangestyle") {
+	if c.Bool(exchangeStyleFlagName) {
 		bidLen := uint64(len(result.Bids) - 1) //nolint:gosec // Can fit in uint64
 		askLen := uint64(len(result.Asks) - 1) //nolint:gosec // Can fit in uint64
 		maxLen := min(max(bidLen, askLen), depthLimit)
@@ -376,11 +366,11 @@ var getOrderbookStreamCommand = &cli.Command{
 	Action: getOrderbookStream,
 	Flags: append(orderbookCommonFlags,
 		&cli.BoolFlag{
-			Name:  "exchangestyle",
-			Usage: "optional - renders the books like on an exchange website",
+			Name:  exchangeStyleFlagName,
+			Usage: exchangeStyleUsage,
 		},
 		&cli.Int64Flag{
-			Name:  "depthlimit",
+			Name:  depthLimitFlagName,
 			Usage: "optional - limit how deep the book rendering is, max 50",
 		}),
 }
@@ -390,18 +380,18 @@ func getOrderbookStream(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	exchangeName := c.String(exchangeFlag)
-	pair := c.String(pairFlag)
+	exchangeName := c.String(exchangeFlagName)
+	pair := c.String(pairFlagName)
 
 	if !validPair(pair) {
 		return errInvalidPair
 	}
 
-	assetType := c.String(assetFlag)
+	assetType := c.String(assetFlagName)
 
 	const depthCeiling uint64 = 50 // The maximum the depth can be regardless of user entry
 	depthLimit := depthCeiling
-	if d := c.Uint64("depthlimit"); d > 0 && d < depthCeiling {
+	if d := c.Uint64(depthLimitFlagName); d > 0 && d < depthCeiling {
 		depthLimit = d
 	}
 
@@ -457,7 +447,7 @@ func getOrderbookStream(c *cli.Context) error {
 		askLen := uint64(len(resp.Asks) - 1) //nolint:gosec // Can fit in uint64
 		maxLen := min(max(bidLen, askLen), depthLimit)
 
-		if c.Bool("exchangestyle") {
+		if c.Bool(exchangeStyleFlagName) {
 			renderOrderbookExchangeStyle(resp, exchangeName, assetType, maxLen, askLen, bidLen)
 		} else {
 			fmt.Printf("Orderbook stream for %s %s:\n\n", exchangeName, resp.Pair)
@@ -527,11 +517,7 @@ var getExchangeOrderbookStreamCommand = &cli.Command{
 	Usage:  "gets a stream for all orderbooks associated with an exchange",
 	Action: getExchangeOrderbookStream,
 	Flags: []cli.Flag{
-		&cli.StringFlag{
-			Name:     exchangeFlag,
-			Required: true,
-			Usage:    "the exchange to get the orderbook from",
-		},
+		requiredExchangeFlag,
 	},
 }
 
@@ -540,7 +526,7 @@ func getExchangeOrderbookStream(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	exchangeName := c.String(exchangeFlag)
+	exchangeName := c.String(exchangeFlagName)
 
 	conn, cancel, err := setupClient(c)
 	if err != nil {
@@ -579,28 +565,12 @@ var whaleBombCommand = &cli.Command{
 	Usage:  "whale bomb finds the amount required to reach a price target",
 	Action: whaleBomb,
 	Flags: []cli.Flag{
-		&cli.StringFlag{
-			Name:     exchangeFlag,
-			Required: true,
-			Usage:    "the exchange to whale bomb",
-		},
-		&cli.StringFlag{
-			Name:     pairFlag,
-			Required: true,
-			Usage:    pairUsage,
-		},
-		&cli.StringFlag{
-			Name:     sideFlag,
-			Required: true,
-			Usage:    "the order side to use (BUY OR SELL)",
-		},
-		&cli.StringFlag{
-			Name:     assetFlag,
-			Required: true,
-			Usage:    "the asset type of the currency pair to get the orderbook for",
-		},
+		requiredExchangeFlag,
+		requiredPairFlag,
+		requiredSideFlag,
+		requiredAssetFlag,
 		&cli.Float64Flag{
-			Name:  "price",
+			Name:  priceFlagName,
 			Usage: "the price target",
 		},
 	},
@@ -611,13 +581,13 @@ func whaleBomb(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	currencyPair := c.String(pairFlag)
+	currencyPair := c.String(pairFlagName)
 
 	if !validPair(currencyPair) {
 		return errInvalidPair
 	}
 
-	orderSide := c.String(sideFlag)
+	orderSide := c.String(sideFlagName)
 
 	if orderSide == "" {
 		return errors.New("order side must be set")
@@ -636,15 +606,15 @@ func whaleBomb(c *cli.Context) error {
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.WhaleBomb(c.Context, &gctrpc.WhaleBombRequest{
-		Exchange: c.String(exchangeFlag),
+		Exchange: c.String(exchangeFlagName),
 		Pair: &gctrpc.CurrencyPair{
 			Delimiter: p.Delimiter,
 			Base:      p.Base.String(),
 			Quote:     p.Quote.String(),
 		},
 		Side:        orderSide,
-		PriceTarget: c.Float64("price"),
-		AssetType:   c.String(assetFlag),
+		PriceTarget: c.Float64(priceFlagName),
+		AssetType:   c.String(assetFlagName),
 	})
 	if err != nil {
 		return err

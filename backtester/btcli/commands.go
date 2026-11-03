@@ -152,11 +152,7 @@ var startTaskCommand = &cli.Command{
 	Usage:  "executes a strategy task loaded into the server",
 	Action: startTask,
 	Flags: []cli.Flag{
-		&cli.StringFlag{
-			Name:     "id",
-			Usage:    "the id of the strategy task",
-			Required: true,
-		},
+		taskIDFlag,
 	},
 }
 
@@ -220,11 +216,7 @@ var stopTaskCommand = &cli.Command{
 	Usage:  "stops a strategy loaded into the server",
 	Action: stopTask,
 	Flags: []cli.Flag{
-		&cli.StringFlag{
-			Name:     "id",
-			Usage:    "the id of the strategy task",
-			Required: true,
-		},
+		taskIDFlag,
 	},
 }
 
@@ -289,11 +281,7 @@ var clearTaskCommand = &cli.Command{
 	Usage:  "clears/deletes a strategy loaded into the server - if it is not running",
 	Action: clearTask,
 	Flags: []cli.Flag{
-		&cli.StringFlag{
-			Name:     "id",
-			Usage:    "the id of the strategy task",
-			Required: true,
-		},
+		taskIDFlag,
 	},
 }
 

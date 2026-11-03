@@ -14,11 +14,7 @@ var currencyStateManagementCommand = &cli.Command{
 			Name:  "getall",
 			Usage: "fetch all currency states associated with an exchange",
 			Flags: []cli.Flag{
-				&cli.StringFlag{
-					Name:     exchangeFlag,
-					Required: true,
-					Usage:    exchangeUsage,
-				},
+				requiredExchangeFlag,
 			},
 			Action: stateGetAll,
 		},
@@ -44,21 +40,9 @@ var currencyStateManagementCommand = &cli.Command{
 			Name:  "tradepair",
 			Usage: "returns if the currency pair can be traded on the exchange",
 			Flags: []cli.Flag{
-				&cli.StringFlag{
-					Name:     exchangeFlag,
-					Required: true,
-					Usage:    exchangeUsage,
-				},
-				&cli.StringFlag{
-					Name:     pairFlag,
-					Required: true,
-					Usage:    "the currency pair e.g. btc-usd",
-				},
-				&cli.StringFlag{
-					Name:     assetFlag,
-					Required: true,
-					Usage:    "the asset type",
-				},
+				requiredExchangeFlag,
+				requiredPairFlag,
+				requiredAssetFlag,
 			},
 			Action: stateGetPairTrading,
 		},
@@ -66,21 +50,13 @@ var currencyStateManagementCommand = &cli.Command{
 }
 
 var stateFlags = []cli.Flag{
-	&cli.StringFlag{
-		Name:     exchangeFlag,
-		Required: true,
-		Usage:    exchangeUsage,
-	},
+	requiredExchangeFlag,
 	&cli.StringFlag{
 		Name:     "code",
 		Required: true,
 		Usage:    "the currency code",
 	},
-	&cli.StringFlag{
-		Name:     assetFlag,
-		Required: true,
-		Usage:    "the asset type",
-	},
+	requiredAssetFlag,
 }
 
 func stateGetAll(c *cli.Context) error {
@@ -96,7 +72,7 @@ func stateGetAll(c *cli.Context) error {
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.CurrencyStateGetAll(c.Context,
-		&gctrpc.CurrencyStateGetAllRequest{Exchange: c.String(exchangeFlag)},
+		&gctrpc.CurrencyStateGetAllRequest{Exchange: c.String(exchangeFlagName)},
 	)
 	if err != nil {
 		return err
@@ -120,9 +96,9 @@ func stateGetDeposit(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.CurrencyStateDeposit(c.Context,
 		&gctrpc.CurrencyStateDepositRequest{
-			Exchange: c.String(exchangeFlag),
+			Exchange: c.String(exchangeFlagName),
 			Code:     c.String("code"),
-			Asset:    c.String(assetFlag),
+			Asset:    c.String(assetFlagName),
 		},
 	)
 	if err != nil {
@@ -147,9 +123,9 @@ func stateGetWithdrawal(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.CurrencyStateWithdraw(c.Context,
 		&gctrpc.CurrencyStateWithdrawRequest{
-			Exchange: c.String(exchangeFlag),
+			Exchange: c.String(exchangeFlagName),
 			Code:     c.String("code"),
-			Asset:    c.String(assetFlag),
+			Asset:    c.String(assetFlagName),
 		},
 	)
 	if err != nil {
@@ -174,9 +150,9 @@ func stateGetTrading(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.CurrencyStateTrading(c.Context,
 		&gctrpc.CurrencyStateTradingRequest{
-			Exchange: c.String(exchangeFlag),
+			Exchange: c.String(exchangeFlagName),
 			Code:     c.String("code"),
-			Asset:    c.String(assetFlag),
+			Asset:    c.String(assetFlagName),
 		},
 	)
 	if err != nil {
@@ -201,9 +177,9 @@ func stateGetPairTrading(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.CurrencyStateTradingPair(c.Context,
 		&gctrpc.CurrencyStateTradingPairRequest{
-			Exchange: c.String(exchangeFlag),
-			Pair:     c.String(pairFlag),
-			Asset:    c.String(assetFlag),
+			Exchange: c.String(exchangeFlagName),
+			Pair:     c.String(pairFlagName),
+			Asset:    c.String(assetFlagName),
 		},
 	)
 	if err != nil {

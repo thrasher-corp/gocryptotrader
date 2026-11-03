@@ -97,14 +97,14 @@ func TestRequiredCommandFlags(t *testing.T) {
 		flagName string
 		required bool
 	}{
-		{name: "ticker exchange", command: getTickerCommand, flagName: exchangeFlag, required: true},
-		{name: "ticker pair", command: getTickerCommand, flagName: pairFlag, required: true},
-		{name: "ticker asset", command: getTickerCommand, flagName: assetFlag, required: true},
-		{name: "submit side", command: submitOrderCommand, flagName: sideFlag, required: true},
-		{name: "submit amount", command: submitOrderCommand, flagName: amountFlag, required: true},
+		{name: "ticker exchange", command: getTickerCommand, flagName: exchangeFlagName, required: true},
+		{name: "ticker pair", command: getTickerCommand, flagName: pairFlagName, required: true},
+		{name: "ticker asset", command: getTickerCommand, flagName: assetFlagName, required: true},
+		{name: "submit side", command: submitOrderCommand, flagName: sideFlagName, required: true},
+		{name: "submit amount", command: submitOrderCommand, flagName: amountFlagName, required: true},
 		{name: "submit margin optional", command: submitOrderCommand, flagName: "margintype"},
-		{name: "cancel pair optional", command: cancelOrderCommand, flagName: pairFlag},
-		{name: "open interest pair optional", command: futuresCommands.Command("getopeninterest"), flagName: pairFlag},
+		{name: "cancel pair optional", command: cancelOrderCommand, flagName: pairFlagName},
+		{name: "open interest pair optional", command: futuresCommands.Command("getopeninterest"), flagName: pairFlagName},
 		{name: "set leverage margin type optional", command: futuresCommands.Command("setleverage"), flagName: "margintype"},
 		{name: "get leverage margin type optional", command: futuresCommands.Command("getleverage"), flagName: "margintype"},
 		{name: "change position margin type optional", command: futuresCommands.Command("changepositionmargin"), flagName: "margintype"},

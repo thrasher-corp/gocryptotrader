@@ -9,7 +9,7 @@ import (
 )
 
 var exchangePairManagerCommand = &cli.Command{
-	Name:      pairFlag,
+	Name:      pairFlagName,
 	Usage:     "execute exchange pair management command",
 	ArgsUsage: commandArgsUsage,
 	Subcommands: []*cli.Command{
@@ -17,16 +17,8 @@ var exchangePairManagerCommand = &cli.Command{
 			Name:  "get",
 			Usage: "returns all enabled and available pairs by asset type",
 			Flags: []cli.Flag{
-				&cli.StringFlag{
-					Name:     exchangeFlag,
-					Required: true,
-					Usage:    exchangeUsage,
-				},
-				&cli.StringFlag{
-					Name:     assetFlag,
-					Required: true,
-					Usage:    assetFlagUsage,
-				},
+				requiredExchangeFlag,
+				requiredAssetFlag,
 			},
 			Action: getExchangePairs,
 		},
@@ -34,16 +26,8 @@ var exchangePairManagerCommand = &cli.Command{
 			Name:  "disableasset",
 			Usage: "disables asset type",
 			Flags: []cli.Flag{
-				&cli.StringFlag{
-					Name:     exchangeFlag,
-					Required: true,
-					Usage:    exchangeUsage,
-				},
-				&cli.StringFlag{
-					Name:     assetFlag,
-					Required: true,
-					Usage:    assetFlagUsage,
-				},
+				requiredExchangeFlag,
+				requiredAssetFlag,
 			},
 			Action: enableDisableExchangeAsset,
 		},
@@ -51,18 +35,10 @@ var exchangePairManagerCommand = &cli.Command{
 			Name:  "enableasset",
 			Usage: "enables asset type",
 			Flags: []cli.Flag{
-				&cli.StringFlag{
-					Name:     exchangeFlag,
-					Required: true,
-					Usage:    exchangeUsage,
-				},
-				&cli.StringFlag{
-					Name:     assetFlag,
-					Required: true,
-					Usage:    assetFlagUsage,
-				},
+				requiredExchangeFlag,
+				requiredAssetFlag,
 				&cli.BoolFlag{
-					Name:   enableFlag,
+					Name:   enableFlagName,
 					Hidden: true,
 					Value:  true,
 				},
@@ -73,45 +49,21 @@ var exchangePairManagerCommand = &cli.Command{
 			Name:  "disable",
 			Usage: "disable pairs by asset type",
 			Flags: []cli.Flag{
-				&cli.StringFlag{
-					Name:     exchangeFlag,
-					Required: true,
-					Usage:    exchangeUsage,
-				},
-				&cli.StringFlag{
-					Name:     "pairs",
-					Required: true,
-					Usage:    "either a single currency pair string or comma delimiter string of pairs e.g. \"BTC-USD,XRP-USD\"",
-				},
-				&cli.StringFlag{
-					Name:     assetFlag,
-					Required: true,
-					Usage:    assetFlagUsage,
-				},
+				requiredExchangeFlag,
+				requiredPairsFlag,
+				requiredAssetFlag,
 			},
 			Action: enableDisableExchangePair,
 		},
 		{
-			Name:  enableFlag,
+			Name:  enableFlagName,
 			Usage: "enable pairs by asset type",
 			Flags: []cli.Flag{
-				&cli.StringFlag{
-					Name:     exchangeFlag,
-					Required: true,
-					Usage:    exchangeUsage,
-				},
-				&cli.StringFlag{
-					Name:     "pairs",
-					Required: true,
-					Usage:    "either a single currency pair string or comma delimiter string of pairs e.g. \"BTC-USD,XRP-USD\"",
-				},
-				&cli.StringFlag{
-					Name:     assetFlag,
-					Required: true,
-					Usage:    assetFlagUsage,
-				},
+				requiredExchangeFlag,
+				requiredPairsFlag,
+				requiredAssetFlag,
 				&cli.BoolFlag{
-					Name:   enableFlag,
+					Name:   enableFlagName,
 					Hidden: true,
 					Value:  true,
 				},
@@ -122,13 +74,9 @@ var exchangePairManagerCommand = &cli.Command{
 			Name:  "enableall",
 			Usage: "enable all pairs",
 			Flags: []cli.Flag{
-				&cli.StringFlag{
-					Name:     exchangeFlag,
-					Required: true,
-					Usage:    exchangeUsage,
-				},
+				requiredExchangeFlag,
 				&cli.BoolFlag{
-					Name:   enableFlag,
+					Name:   enableFlagName,
 					Hidden: true,
 					Value:  true,
 				},
@@ -139,11 +87,7 @@ var exchangePairManagerCommand = &cli.Command{
 			Name:  "disableall",
 			Usage: "disable all pairs",
 			Flags: []cli.Flag{
-				&cli.StringFlag{
-					Name:     exchangeFlag,
-					Required: true,
-					Usage:    exchangeUsage,
-				},
+				requiredExchangeFlag,
 			},
 			Action: enableDisableAllExchangePairs,
 		},
@@ -151,11 +95,7 @@ var exchangePairManagerCommand = &cli.Command{
 			Name:  "update",
 			Usage: "fetches supported pairs from the exchange and updates available pairs and removes unsupported enable pairs",
 			Flags: []cli.Flag{
-				&cli.StringFlag{
-					Name:     exchangeFlag,
-					Required: true,
-					Usage:    exchangeUsage,
-				},
+				requiredExchangeFlag,
 			},
 			Action: updateExchangeSupportedPairs,
 		},
@@ -163,11 +103,7 @@ var exchangePairManagerCommand = &cli.Command{
 			Name:  "getassets",
 			Usage: "fetches supported assets",
 			Flags: []cli.Flag{
-				&cli.StringFlag{
-					Name:     exchangeFlag,
-					Required: true,
-					Usage:    exchangeUsage,
-				},
+				requiredExchangeFlag,
 			},
 			Action: getExchangeAssets,
 		},
@@ -179,12 +115,12 @@ func enableDisableExchangePair(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	asset := strings.ToLower(c.String(assetFlag))
+	asset := strings.ToLower(c.String(assetFlagName))
 	if !validAsset(asset) {
 		return errInvalidAsset
 	}
 
-	pairList := strings.Split(c.String("pairs"), ",")
+	pairList := strings.Split(c.String(pairsFlagName), ",")
 
 	validPairs := make([]*gctrpc.CurrencyPair, len(pairList))
 	for i := range pairList {
@@ -214,10 +150,10 @@ func enableDisableExchangePair(c *cli.Context) error {
 
 	result, err := client.SetExchangePair(c.Context,
 		&gctrpc.SetExchangePairRequest{
-			Exchange:  c.String(exchangeFlag),
+			Exchange:  c.String(exchangeFlagName),
 			Pairs:     validPairs,
 			AssetType: asset,
-			Enable:    c.Bool(enableFlag),
+			Enable:    c.Bool(enableFlagName),
 		},
 	)
 	if err != nil {
@@ -233,7 +169,7 @@ func getExchangePairs(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	asset := strings.ToLower(c.String(assetFlag))
+	asset := strings.ToLower(c.String(assetFlagName))
 	if !validAsset(asset) {
 		return errInvalidAsset
 	}
@@ -247,7 +183,7 @@ func getExchangePairs(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.GetExchangePairs(c.Context,
 		&gctrpc.GetExchangePairsRequest{
-			Exchange: c.String(exchangeFlag),
+			Exchange: c.String(exchangeFlagName),
 			Asset:    asset,
 		},
 	)
@@ -263,7 +199,7 @@ func enableDisableExchangeAsset(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	asset := strings.ToLower(c.String(assetFlag))
+	asset := strings.ToLower(c.String(assetFlagName))
 	if !validAsset(asset) {
 		return errInvalidAsset
 	}
@@ -277,9 +213,9 @@ func enableDisableExchangeAsset(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.SetExchangeAsset(c.Context,
 		&gctrpc.SetExchangeAssetRequest{
-			Exchange: c.String(exchangeFlag),
+			Exchange: c.String(exchangeFlagName),
 			Asset:    asset,
-			Enable:   c.Bool(enableFlag),
+			Enable:   c.Bool(enableFlagName),
 		},
 	)
 	if err != nil {
@@ -303,8 +239,8 @@ func enableDisableAllExchangePairs(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.SetAllExchangePairs(c.Context,
 		&gctrpc.SetExchangeAllPairsRequest{
-			Exchange: c.String(exchangeFlag),
-			Enable:   c.Bool(enableFlag),
+			Exchange: c.String(exchangeFlagName),
+			Enable:   c.Bool(enableFlagName),
 		},
 	)
 	if err != nil {
@@ -328,7 +264,7 @@ func updateExchangeSupportedPairs(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.UpdateExchangeSupportedPairs(c.Context,
 		&gctrpc.UpdateExchangeSupportedPairsRequest{
-			Exchange: c.String(exchangeFlag),
+			Exchange: c.String(exchangeFlagName),
 		},
 	)
 	if err != nil {
@@ -352,7 +288,7 @@ func getExchangeAssets(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.GetExchangeAssets(c.Context,
 		&gctrpc.GetExchangeAssetsRequest{
-			Exchange: c.String(exchangeFlag),
+			Exchange: c.String(exchangeFlagName),
 		},
 	)
 	if err != nil {
