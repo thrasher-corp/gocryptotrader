@@ -2893,6 +2893,7 @@ func TestCancelOrderUntyped(t *testing.T) {
 		cancel order.Cancel
 		steps  []cancelStep
 		errMsg string
+		err    error
 	}{
 		{
 			name:   "spot order list by order list ID",
@@ -2914,18 +2915,33 @@ func TestCancelOrderUntyped(t *testing.T) {
 			cancel: order.Cancel{AssetType: asset.Spot, OrderID: "1930"},
 			steps:  []cancelStep{spotOrder(nil, unknownOrder), spotList(nil, unknownList)},
 			errMsg: "Order list does not exist.",
+			err:    order.ErrOrderNotFound,
 		},
 		{
 			name:   "spot limit order",
 			cancel: order.Cancel{AssetType: asset.Spot, Type: order.Limit, OrderID: "1930"},
 			steps:  []cancelStep{spotOrder(nil, unknownOrder)},
 			errMsg: "Unknown order sent.",
+			err:    order.ErrOrderNotFound,
+		},
+		{
+			name:   "spot OCO order list",
+			cancel: order.Cancel{AssetType: asset.Spot, Type: order.OCO, OrderID: "1930"},
+			steps:  []cancelStep{spotList(map[string]string{"orderListId": "1930"}, unknownList)},
+			errMsg: "Order list does not exist.",
+			err:    order.ErrOrderNotFound,
 		},
 		{
 			name:   "spot order cancellation restricted",
 			cancel: order.Cancel{AssetType: asset.Spot, OrderID: "1930"},
 			steps:  []cancelStep{spotOrder(nil, restricted)},
 			errMsg: "cancel restrictions",
+		},
+		{
+			name:   "spot order not found then a failure",
+			cancel: order.Cancel{AssetType: asset.Spot, OrderID: "1930"},
+			steps:  []cancelStep{spotOrder(nil, notFound), spotList(nil, outsideWindow)},
+			errMsg: "outside of the recvWindow",
 		},
 		{
 			name:   "margin isolated order",
@@ -2965,6 +2981,7 @@ func TestCancelOrderUntyped(t *testing.T) {
 			cancel: order.Cancel{AssetType: asset.Margin, Type: order.Limit, ClientOrderID: "gct-margin"},
 			steps:  []cancelStep{{http.MethodDelete, "/sapi/v1/margin/order", map[string]string{"origClientOrderId": "gct-margin", "isIsolated": ""}, unknownOrder}},
 			errMsg: "Unknown order sent.",
+			err:    order.ErrOrderNotFound,
 		},
 		{
 			name:   "margin order list by list client order ID",
@@ -2974,6 +2991,7 @@ func TestCancelOrderUntyped(t *testing.T) {
 				{http.MethodDelete, "/sapi/v1/margin/orderList", map[string]string{"listClientOrderId": "gct-margin", "isIsolated": ""}, unknownList},
 			},
 			errMsg: "Order list does not exist.",
+			err:    order.ErrOrderNotFound,
 		},
 		{
 			name:   "margin isolated order by client order ID with its margin type",
@@ -2990,6 +3008,7 @@ func TestCancelOrderUntyped(t *testing.T) {
 			cancel: order.Cancel{AssetType: asset.Margin, Type: order.Limit, MarginType: margin.Multi, OrderID: "28"},
 			steps:  []cancelStep{marginOrder("", unknownOrder)},
 			errMsg: "Unknown order sent.",
+			err:    order.ErrOrderNotFound,
 		},
 		{
 			name:   "margin isolated limit order",
@@ -3025,18 +3044,69 @@ func TestCancelOrderUntyped(t *testing.T) {
 			cancel: order.Cancel{AssetType: asset.USDTMarginedFutures, OrderID: "3000000123"},
 			steps:  []cancelStep{usdtMarginedOrder(byID, unknownOrder), {http.MethodGet, "/fapi/v1/algoOrder", nil, algo("ETHUSDT", 3000000123)}},
 			errMsg: "Unknown order sent.",
+			err:    order.ErrOrderNotFound,
 		},
 		{
 			name:   "USDⓈ-M unknown ID",
 			cancel: order.Cancel{AssetType: asset.USDTMarginedFutures, OrderID: "3000000123"},
 			steps:  []cancelStep{usdtMarginedOrder(byID, unknownOrder), {http.MethodGet, "/fapi/v1/algoOrder", nil, notFound}},
 			errMsg: "Unknown order sent.",
+			err:    order.ErrOrderNotFound,
 		},
 		{
 			name:   "USDⓈ-M limit order",
 			cancel: order.Cancel{AssetType: asset.USDTMarginedFutures, Type: order.Limit, OrderID: "3000000123"},
 			steps:  []cancelStep{usdtMarginedOrder(byID, unknownOrder)},
 			errMsg: "Unknown order sent.",
+			err:    order.ErrOrderNotFound,
+		},
+		{
+			name:   "USDⓈ-M stop market order",
+			cancel: order.Cancel{AssetType: asset.USDTMarginedFutures, Type: order.StopMarket, OrderID: "3000000123"},
+			steps:  []cancelStep{{http.MethodDelete, "/fapi/v1/algoOrder", map[string]string{"algoId": "3000000123"}, unknownOrder}},
+			errMsg: "Unknown order sent.",
+			err:    order.ErrOrderNotFound,
+		},
+		{
+			// The algo order is triggered or cancelled between its lookup and its cancellation
+			name:   "USDⓈ-M algo order gone before its cancellation",
+			cancel: order.Cancel{AssetType: asset.USDTMarginedFutures, OrderID: "3000000123"},
+			steps: []cancelStep{
+				usdtMarginedOrder(byID, unknownOrder),
+				{http.MethodGet, "/fapi/v1/algoOrder", map[string]string{"algoId": "3000000123"}, algo("BTCUSDT", 3000000123)},
+				{http.MethodDelete, "/fapi/v1/algoOrder", map[string]string{"algoId": "3000000123"}, unknownOrder},
+			},
+			errMsg: "error cancelling algo order",
+			err:    order.ErrOrderNotFound,
+		},
+		{
+			name:   "USDⓈ-M algo order lookup failure",
+			cancel: order.Cancel{AssetType: asset.USDTMarginedFutures, OrderID: "3000000123"},
+			steps:  []cancelStep{usdtMarginedOrder(byID, unknownOrder), {http.MethodGet, "/fapi/v1/algoOrder", nil, outsideWindow}},
+			errMsg: "outside of the recvWindow",
+		},
+		{
+			name:   "USDⓈ-M order not found then an algo order lookup failure",
+			cancel: order.Cancel{AssetType: asset.USDTMarginedFutures, OrderID: "3000000123"},
+			steps:  []cancelStep{usdtMarginedOrder(byID, notFound), {http.MethodGet, "/fapi/v1/algoOrder", nil, outsideWindow}},
+			errMsg: "outside of the recvWindow",
+		},
+		{
+			name:   "COIN-M limit order",
+			cancel: order.Cancel{AssetType: asset.CoinMarginedFutures, Type: order.Limit, OrderID: "3000000123"},
+			steps:  []cancelStep{{http.MethodDelete, "/dapi/v1/order", byID, unknownOrder}},
+			errMsg: "Unknown order sent.",
+			err:    order.ErrOrderNotFound,
+		},
+		{
+			name:   "COIN-M unknown ID",
+			cancel: order.Cancel{AssetType: asset.CoinMarginedFutures, OrderID: "3000000123"},
+			steps: []cancelStep{
+				{http.MethodDelete, "/dapi/v1/order", byID, unknownOrder},
+				{http.MethodGet, "/dapi/v1/algoOrder", map[string]string{"algoId": "3000000123"}, notFound},
+			},
+			errMsg: "Unknown order sent.",
+			err:    order.ErrOrderNotFound,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -3049,7 +3119,78 @@ func TestCancelOrderUntyped(t *testing.T) {
 			} else {
 				assert.ErrorContains(t, err, tc.errMsg, "CancelOrder should return the cancellation error")
 			}
+			if tc.err != nil {
+				assert.ErrorIs(t, err, tc.err, "CancelOrder should return the expected error")
+			} else {
+				assert.NotErrorIs(t, err, order.ErrOrderNotFound, "CancelOrder should not report a rejection for another reason as no order having the ID")
+			}
 			assert.Equal(t, len(tc.steps), sent(), "CancelOrder should send every expected request")
+		})
+	}
+
+	for _, tc := range []struct {
+		name    string
+		cancel  order.Cancel
+		methods []string
+		replies []string
+		errMsg  string
+		err     error
+	}{
+		{
+			name:    "limit order",
+			cancel:  order.Cancel{Type: order.Limit},
+			methods: []string{"order.cancel"},
+			replies: []string{unknownOrder},
+			errMsg:  "Unknown order sent.",
+			err:     order.ErrOrderNotFound,
+		},
+		{
+			name:    "unknown ID",
+			methods: []string{"order.cancel", "orderList.cancel"},
+			replies: []string{unknownOrder, unknownList},
+			errMsg:  "Order list does not exist.",
+			err:     order.ErrOrderNotFound,
+		},
+		{
+			name:    "unknown order then a failure",
+			methods: []string{"order.cancel", "orderList.cancel"},
+			replies: []string{unknownOrder, outsideWindow},
+			errMsg:  "outside of the recvWindow",
+		},
+	} {
+		t.Run("websocket API "+tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := newTestExchange(t)
+			ex.API.AuthenticatedSupport = true
+			ex.API.AuthenticatedWebsocketSupport = true
+			ex.SetCredentials(&accounts.Credentials{Key: "mock-api-key", Secret: "mock-api-secret"})
+			var sent atomic.Int32
+			useMockWebsocket(t, ex, ex.spotWebsocketAPIConnectionSetup(ex.Config), func(tb testing.TB, msg []byte, w *gws.Conn) error {
+				tb.Helper()
+				var req struct {
+					ID     string `json:"id"`
+					Method string `json:"method"`
+				}
+				require.NoError(tb, json.Unmarshal(msg, &req), "request must decode")
+				i := int(sent.Add(1)) - 1
+				reply := `{"code":-1,"msg":"unexpected request"}`
+				if assert.Lessf(tb, i, len(tc.methods), "%s should not be sent", req.Method) {
+					assert.Equalf(tb, tc.methods[i], req.Method, "request %d should be the expected one", i)
+					reply = tc.replies[i]
+				}
+				return w.WriteMessage(gws.TextMessage, fmt.Appendf(nil, `{"id":%q,"status":400,"error":%s}`, req.ID, reply))
+			})
+			require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
+			ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+			tc.cancel.AssetType, tc.cancel.OrderID, tc.cancel.Pair = asset.Spot, "1930", currency.NewBTCUSDT()
+			err := ex.CancelOrder(t.Context(), &tc.cancel)
+			assert.ErrorContains(t, err, tc.errMsg, "CancelOrder should return the cancellation error over the WebSocket API")
+			if tc.err != nil {
+				assert.ErrorIs(t, err, tc.err, "CancelOrder should return the expected error over the WebSocket API")
+			} else {
+				assert.NotErrorIs(t, err, order.ErrOrderNotFound, "CancelOrder should not report a rejection for another reason as no order having the ID over the WebSocket API")
+			}
+			assert.Equal(t, len(tc.methods), int(sent.Load()), "CancelOrder should send every expected request over the WebSocket API")
 		})
 	}
 

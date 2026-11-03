@@ -2186,24 +2186,7 @@ func (e *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	case asset.Margin:
 		err = e.cancelMarginOrder(ctx, o, orderID)
 	case asset.USDTMarginedFutures, asset.CoinMarginedFutures:
-		if isConditionalOrderType(o.Type) {
-			_, err = e.cancelFuturesAlgoOrder(ctx, o.AssetType, orderID, o.ClientOrderID)
-			break
-		}
-		if o.AssetType == asset.CoinMarginedFutures {
-			_, err = e.CoinMarginedFuturesCancelOrder(ctx, o.Pair, orderID, o.ClientOrderID)
-		} else {
-			_, err = e.USDTMarginedFuturesCancelOrder(ctx, o.Pair, orderID, o.ClientOrderID)
-		}
-		if isUntypedCancel(o.Type) && isUnknownOrder(err) {
-			algo, algoErr := e.cancelPairAlgoOrder(ctx, o.AssetType, o.Pair, orderID, o.ClientOrderID)
-			switch {
-			case algoErr != nil:
-				err = common.AppendError(err, algoErr)
-			case algo != nil:
-				err = nil
-			}
-		}
+		err = e.cancelFuturesOrder(ctx, o, orderID)
 	case asset.Options:
 		_, err = e.CancelOptionsOrder(ctx, o.Pair, o.ClientOrderID, orderID)
 	default:
@@ -2229,8 +2212,8 @@ func isUnknownOrder(err error) bool {
 		(strings.HasPrefix(apiErr.Message, "Unknown order") || strings.HasPrefix(apiErr.Message, "Order list does not exist"))
 }
 
-// cancelFirstFound makes cancellation attempts in turn until one succeeds, moving on only when the last was rejected for
-// an unknown ID, and returns every attempt's error when none succeeds
+// cancelFirstFound runs cancellation attempts until one succeeds or returns an error which isn't isUnknownOrder.
+// If every attempt returns an isUnknownOrder error then it returns all of them
 func cancelFirstFound(attempts ...func() error) error {
 	var errs error
 	for _, attempt := range attempts {
@@ -2238,12 +2221,20 @@ func cancelFirstFound(attempts ...func() error) error {
 		if err == nil {
 			return nil
 		}
-		errs = common.AppendError(errs, err)
 		if !isUnknownOrder(err) {
-			break
+			return err
 		}
+		errs = common.AppendError(errs, err)
 	}
 	return errs
+}
+
+// cancelError returns err, wrapping order.ErrOrderNotFound if the error isUnknownOrder and doesn't already wrap it
+func cancelError(err error) error {
+	if isUnknownOrder(err) && !errors.Is(err, order.ErrOrderNotFound) {
+		return fmt.Errorf("%w: %w", order.ErrOrderNotFound, err)
+	}
+	return err
 }
 
 // cancelSpotOrder cancels a spot order, or an OCO order list, through the WebSocket API when it can be used for orders
@@ -2257,7 +2248,7 @@ func (e *Exchange) cancelSpotOrder(ctx context.Context, o *order.Cancel, orderID
 		} else {
 			_, err = e.CancelOneCancelsTheOtherOrder(ctx, &CancelOrderListRequest{Symbol: o.Pair, OrderListID: orderID, ListClientOrderID: o.ClientOrderID})
 		}
-		return err
+		return cancelError(err)
 	}
 	if o.Type == order.OCO {
 		return cancelList()
@@ -2269,7 +2260,7 @@ func (e *Exchange) cancelSpotOrder(ctx context.Context, o *order.Cancel, orderID
 		} else {
 			_, err = e.CancelExistingOrder(ctx, &CancelOrderRequest{Symbol: o.Pair, OrderID: orderID, OriginalClientOrderID: o.ClientOrderID})
 		}
-		return err
+		return cancelError(err)
 	}
 	if !isUntypedCancel(o.Type) {
 		return cancelOrder()
@@ -2294,17 +2285,42 @@ func (e *Exchange) cancelMarginOrder(ctx context.Context, o *order.Cancel, order
 		if o.Type != order.OCO {
 			attempts = append(attempts, func() error {
 				_, err := e.CancelMarginAccountOrder(ctx, &MarginOrderCancelRequest{Symbol: o.Pair, IsIsolated: isIsolated, OrderID: orderID, OriginalClientOrderID: o.ClientOrderID})
-				return err
+				return cancelError(err)
 			})
 		}
 		if o.Type == order.OCO || isUntypedCancel(o.Type) {
 			attempts = append(attempts, func() error {
 				_, err := e.CancelMarginAccountOneCancelsTheOtherOrder(ctx, &MarginOneCancelsTheOtherCancelRequest{Symbol: o.Pair, IsIsolated: isIsolated, OrderListID: orderID, ListClientOrderID: o.ClientOrderID})
-				return err
+				return cancelError(err)
 			})
 		}
 	}
 	return cancelFirstFound(attempts...)
+}
+
+// cancelFuturesOrder cancels a USDⓈ-M or COIN-M order, or a conditional order by its algo ID or client algo ID. An
+// untyped request whose ID no order has is tried as an algo order's of the pair
+func (e *Exchange) cancelFuturesOrder(ctx context.Context, o *order.Cancel, orderID uint64) error {
+	if isConditionalOrderType(o.Type) {
+		_, err := e.cancelFuturesAlgoOrder(ctx, o.AssetType, orderID, o.ClientOrderID)
+		return cancelError(err)
+	}
+	cancelOrder := func() error {
+		var err error
+		if o.AssetType == asset.CoinMarginedFutures {
+			_, err = e.CoinMarginedFuturesCancelOrder(ctx, o.Pair, orderID, o.ClientOrderID)
+		} else {
+			_, err = e.USDTMarginedFuturesCancelOrder(ctx, o.Pair, orderID, o.ClientOrderID)
+		}
+		return cancelError(err)
+	}
+	if !isUntypedCancel(o.Type) {
+		return cancelOrder()
+	}
+	return cancelFirstFound(cancelOrder, func() error {
+		_, err := e.cancelPairAlgoOrder(ctx, o.AssetType, o.Pair, orderID, o.ClientOrderID)
+		return cancelError(err)
+	})
 }
 
 // cancelFuturesAlgoOrder cancels a USDⓈ-M or COIN-M algo (conditional) order by its algo ID or, when algoID is 0, its
@@ -2328,9 +2344,6 @@ func (e *Exchange) cancelPairAlgoOrder(ctx context.Context, a asset.Item, pair c
 	} else {
 		algo, err = e.usdtMarginedFuturesQueryAlgoOrder(ctx, algoID, clientAlgoID, usdtMarginedFuturesCancelRate)
 	}
-	if isUnknownOrder(err) {
-		return nil, nil
-	}
 	if err != nil {
 		return nil, fmt.Errorf("error fetching algo order: %w", err)
 	}
@@ -2339,7 +2352,7 @@ func (e *Exchange) cancelPairAlgoOrder(ctx context.Context, a asset.Item, pair c
 		return nil, err
 	}
 	if algo == nil || algo.Symbol != symbol {
-		return nil, nil
+		return nil, fmt.Errorf("%w: no %s algo order has the ID", order.ErrOrderNotFound, symbol)
 	}
 	if _, err := e.cancelFuturesAlgoOrder(ctx, a, algo.AlgoID, ""); err != nil {
 		return algo, fmt.Errorf("error cancelling algo order: %w", err)
@@ -2491,10 +2504,12 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 		status := resp.Status[statusKey]
 		algo, err := e.cancelPairAlgoOrder(ctx, a, pair, algoID, u.ClientOrderID)
 		switch {
+		case algo == nil && isUnknownOrder(err):
+			// No algo order either, so nothing to do; resp.Status is already correct
 		case err != nil:
 			resp.Status[statusKey] = status + "; " + err.Error()
 			errs = common.AppendError(errs, fmt.Errorf("error cancelling order %s: %w", statusKey, err))
-		case algo != nil:
+		default:
 			resp.Status[statusKey] = "CANCELED"
 			markAlgoCancelled(algo.AlgoID, algo.ClientAlgoID)
 		}
