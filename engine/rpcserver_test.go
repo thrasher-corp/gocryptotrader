@@ -8,13 +8,11 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"math/rand/v2"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -53,6 +51,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/utils"
 	"github.com/thrasher-corp/goose"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -3801,19 +3800,35 @@ func TestGetOpenInterest(t *testing.T) {
 func TestStartRPCRESTProxy(t *testing.T) {
 	t.Parallel()
 
-	tempDir := filepath.Join(os.TempDir(), "gct-grpc-proxy-test")
+	tempDir := t.TempDir()
 	tempDirTLS := filepath.Join(tempDir, "tls")
+	require.NoError(t, genCert(tempDirTLS), "genCert must not error")
 
-	t.Cleanup(func() {
-		assert.NoErrorf(t, os.RemoveAll(tempDir), "RemoveAll should not error, manual directory deletion required for TempDir: %s", tempDir)
-	})
+	listenConfig := net.ListenConfig{}
+	gRPCListener, err := listenConfig.Listen(t.Context(), "tcp", "localhost:0")
+	require.NoError(t, err, "Listen must not error")
+	proxyListener, err := listenConfig.Listen(t.Context(), "tcp", "localhost:0")
+	require.NoError(t, err, "Listen must not error")
+	_, gRPCPort, err := net.SplitHostPort(gRPCListener.Addr().String())
+	require.NoError(t, err, "SplitHostPort must not error")
+	_, proxyPort, err := net.SplitHostPort(proxyListener.Addr().String())
+	require.NoError(t, err, "SplitHostPort must not error")
+	// StartRPCServer binds both addresses itself; closing the listeners only now keeps the two ports distinct
+	require.NoError(t, gRPCListener.Close(), "Close must not error")
+	require.NoError(t, proxyListener.Close(), "Close must not error")
+	// The default configuration listens on localhost, which also verifies the TLS certificate's localhost DNS name
+	gRPCAddress, proxyAddress := "localhost:"+gRPCPort, "localhost:"+proxyPort
 
-	if !assert.NoError(t, genCert(tempDirTLS), "genCert should not error") {
-		t.FailNow()
-	}
-
-	gRPCPort := rand.IntN(65535-42069) + 42069 //nolint:gosec // Don't require crypto/rand usage here
-	gRPCProxyPort := gRPCPort + 1
+	em := NewExchangeManager()
+	exch, err := em.NewExchangeByName(testExchange)
+	require.NoError(t, err, "NewExchangeByName must not error")
+	exchName := newUniqueFakeExchangeName()
+	b := exch.GetBase()
+	b.Name = exchName
+	b.Enabled = true
+	b.CurrencyPairs.Pairs = map[asset.Item]*currency.PairStore{asset.Spot: {AssetEnabled: true}}
+	b.SetCredentials(&accounts.Credentials{Key: "mainkey", Secret: "mainsecret", SubAccount: "main"})
+	require.NoError(t, em.Add(fExchange{IBotExchange: exch}), "Add must not error")
 
 	e := &Engine{
 		Config: &config.Config{
@@ -3822,8 +3837,8 @@ func TestStartRPCRESTProxy(t *testing.T) {
 				Password: "Sup3rdup3rS3cr3t",
 				GRPC: config.GRPCConfig{
 					Enabled:                true,
-					ListenAddress:          "localhost:" + strconv.Itoa(gRPCPort),
-					GRPCProxyListenAddress: "localhost:" + strconv.Itoa(gRPCProxyPort),
+					ListenAddress:          gRPCAddress,
+					GRPCProxyListenAddress: proxyAddress,
 				},
 			},
 		},
@@ -3831,6 +3846,7 @@ func TestStartRPCRESTProxy(t *testing.T) {
 			DataDir:      tempDir,
 			CoreSettings: CoreSettings{EnableGRPCProxy: true},
 		},
+		ExchangeManager: em,
 	}
 
 	fakeTime := time.Now().Add(-time.Hour)
@@ -3840,8 +3856,11 @@ func TestStartRPCRESTProxy(t *testing.T) {
 	t.Cleanup(cancel)
 	StartRPCServer(rpcCtx, e)
 
-	// Give the proxy time to start
-	time.Sleep(time.Millisecond * 500)
+	require.Eventually(t, func() bool {
+		dialer := net.Dialer{Timeout: 100 * time.Millisecond}
+		conn, err := dialer.DialContext(t.Context(), "tcp", proxyAddress)
+		return err == nil && conn.Close() == nil
+	}, 5*time.Second, 10*time.Millisecond, "gRPC proxy must accept TCP connections after startup")
 
 	certFile := filepath.Join(tempDirTLS, "cert.pem")
 	caCert, err := os.ReadFile(certFile)
@@ -3864,7 +3883,7 @@ func TestStartRPCRESTProxy(t *testing.T) {
 		t.Run(creds.testDescription, func(t *testing.T) {
 			t.Parallel()
 
-			req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://localhost:"+strconv.Itoa(gRPCProxyPort)+"/v1/getinfo", http.NoBody)
+			req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://"+proxyAddress+"/v1/getinfo", http.NoBody)
 			require.NoError(t, err, "NewRequestWithContext must not error")
 			req.SetBasicAuth(creds.username, creds.password)
 			// the server measures uptime while handling the request, so it must fall within this window; bounding it
@@ -3892,6 +3911,44 @@ func TestStartRPCRESTProxy(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("Metadata forwarding", func(t *testing.T) {
+		t.Parallel()
+
+		for _, tc := range []struct {
+			name           string
+			header         string
+			value          string
+			wantSubAccount string
+		}{
+			{name: "No metadata header", wantSubAccount: "main"},
+			{name: "Sub-account override", header: "Grpc-Metadata-Apicredentials", value: "subaccount:sub", wantSubAccount: "sub"},
+			{name: "Lower-case sub-account override", header: "grpc-metadata-apicredentials", value: "subaccount:sub", wantSubAccount: "sub"},
+			{name: "Credentials override", header: "Grpc-Metadata-Apicredentials", value: "key:altkey,secret:altsecret,subaccount:alt", wantSubAccount: "alt"},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+
+				req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://"+proxyAddress+"/v1/getaccountbalances?asset_type=spot&exchange="+exchName, http.NoBody)
+				require.NoError(t, err, "NewRequestWithContext must not error")
+				req.SetBasicAuth("bobmarley", "Sup3rdup3rS3cr3t")
+				if tc.header != "" {
+					req.Header[tc.header] = []string{tc.value} // Header.Set would canonicalise the lower-case spelling
+				}
+				resp, err := client.Do(req)
+				require.NoError(t, err, "Do must not error")
+				defer resp.Body.Close()
+				respBody, err := io.ReadAll(resp.Body)
+				require.NoError(t, err, "ReadAll must not error")
+				require.Equalf(t, http.StatusOK, resp.StatusCode, "HTTP status code must be 200, body: %s", respBody)
+
+				var balances gctrpc.GetAccountBalancesResponse
+				require.NoError(t, protojson.Unmarshal(respBody, &balances), "protojson.Unmarshal must not error")
+				require.Len(t, balances.Accounts, 1, "response must contain one account")
+				assert.Equal(t, tc.wantSubAccount, balances.Accounts[0].Id, "balances should be for the sub-account the request resolved to")
+			})
+		}
+	})
 }
 
 func TestRPCProxyAuthClient(t *testing.T) {
@@ -3942,6 +3999,30 @@ func TestRPCProxyAuthClient(t *testing.T) {
 				assert.Equal(t, "Access denied\n", rr.Body.String(), "Response body should be 'Access denied\n'")
 			}
 		})
+	}
+}
+
+func TestRPCProxyHeaderMatcher(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		header  string
+		wantKey string
+		wantOK  bool
+	}{
+		{header: "Grpc-Metadata-Apicredentials", wantKey: "apicredentials", wantOK: true},
+		{header: "grpc-metadata-apicredentials", wantKey: "apicredentials", wantOK: true},
+		{header: "Grpc-Metadata-Verbose", wantKey: "verbose", wantOK: true},
+		{header: "Grpc-Metadata-Authorization"},
+		{header: "Grpc-Metadata-Apicredentials-Bin"},
+		{header: "Grpc-Metadata-Grpc-Metadata-Verbose"},
+		{header: "Grpc-Metadata-"},
+		{header: "Apicredentials"},
+		{header: "User-Agent", wantKey: "grpcgateway-User-Agent", wantOK: true},
+	} {
+		mdKey, ok := rpcProxyHeaderMatcher(tc.header)
+		assert.Equalf(t, tc.wantOK, ok, "rpcProxyHeaderMatcher should report whether %q is forwarded", tc.header)
+		assert.Equalf(t, tc.wantKey, mdKey, "rpcProxyHeaderMatcher should return the expected metadata key for %q", tc.header)
 	}
 }
 
