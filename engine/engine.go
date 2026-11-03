@@ -164,6 +164,7 @@ func validateSettings(b *Engine, s *Settings, flagSet FlagSet) {
 	flagSet.WithBool("coinmarketcap", &b.Settings.EnableCoinmarketcapAnalysis, b.Config.Currency.CryptocurrencyProvider.Enabled)
 	flagSet.WithBool("ordermanager", &b.Settings.EnableOrderManager, b.Config.OrderManager.Enabled)
 
+	flagSet.WithBool("allratestoday", &b.Settings.EnableAllRatesToday, b.Config.Currency.ForexProviders.IsEnabled("allratestoday"))
 	flagSet.WithBool("currencyconverter", &b.Settings.EnableCurrencyConverter, b.Config.Currency.ForexProviders.IsEnabled("currencyconverter"))
 
 	flagSet.WithBool("currencylayer", &b.Settings.EnableCurrencyLayer, b.Config.Currency.ForexProviders.IsEnabled("currencylayer"))
@@ -399,6 +400,7 @@ func (bot *Engine) Start() error {
 
 	if err := currency.RunStorageUpdater(
 		currency.BotOverrides{
+			AllRatesToday:     bot.Settings.EnableAllRatesToday,
 			Coinmarketcap:     bot.Settings.EnableCoinmarketcapAnalysis,
 			CurrencyConverter: bot.Settings.EnableCurrencyConverter,
 			CurrencyLayer:     bot.Settings.EnableCurrencyLayer,

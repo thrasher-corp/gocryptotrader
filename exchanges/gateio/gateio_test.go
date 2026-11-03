@@ -2960,7 +2960,7 @@ func TestFuturesDataHandler(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-	testexch.FixtureToDataHandler(t, "testdata/wsFutures.json", func(ctx context.Context, m []byte) error {
+	testexch.FixtureToDataHandler(t, "testdata/wsFutures.jsonl", func(ctx context.Context, m []byte) error {
 		if strings.Contains(string(m), "futures.balances") {
 			ctx = accounts.DeployCredentialsToContext(ctx, &accounts.Credentials{Key: "test", Secret: "test"})
 		}
@@ -3663,6 +3663,10 @@ func TestPreConnectWiring(t *testing.T) {
 
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	// Failed connects start the connection monitor, whose retries would add to the request counts below
+	ex.Config.ConnectionMonitorDelay = time.Hour
+	ex.Websocket = sharedtestvalues.NewTestWebsocket()
+	require.NoError(t, ex.Setup(ex.Config), "Setup must not error with a long connection monitor delay")
 
 	var accountRequests atomic.Int64
 	var healthy atomic.Bool
