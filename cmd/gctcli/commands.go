@@ -1207,8 +1207,6 @@ func submitOrder(c *cli.Context) error {
 		return errors.New("amount must be set")
 	}
 
-	// price is optional for market orders
-
 	assetType := c.String(assetFlag)
 	marginType := c.String("margintype")
 
