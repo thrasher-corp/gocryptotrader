@@ -4041,6 +4041,31 @@ func TestSubmitOrderTargetCurrency(t *testing.T) {
 	}
 }
 
+// TestSubmitOrderOCO checks that SubmitOrder sends an OCO order's take profit and stop loss legs each with its own trigger
+// and order prices
+func TestSubmitOrderOCO(t *testing.T) {
+	t.Parallel()
+	ex, requests := newRecordingExchange(t, false, false, `"code":"0","msg":"","data":[{"algoId":"123","clOrdId":"","algoClOrdId":"","tag":"","sCode":"0","sMsg":""}]}`)
+	resp, err := ex.SubmitOrder(t.Context(), &order.Submit{
+		Exchange:         ex.Name,
+		Pair:             mainPair,
+		AssetType:        asset.Spot,
+		MarginType:       margin.NoMargin,
+		Side:             order.Sell,
+		Type:             order.OCO,
+		Amount:           1,
+		TriggerPriceType: order.LastPrice,
+		RiskManagementModes: order.RiskManagementModes{
+			TakeProfit: order.RiskManagement{Price: 120, LimitPrice: 119},
+			StopLoss:   order.RiskManagement{Price: 80, LimitPrice: 79},
+		},
+	})
+	assert.Equal(t, []string{`REST /trade/order-algo {"instId":"BTC-USDT","tdMode":"cash","side":"sell","ordType":"oco","sz":"1","tpOrdPx":"119","tpTriggerPx":"120","tpTriggerPxType":"last","slTriggerPx":"80","slOrdPx":"79","slTriggerPxType":"last"}`}, requests(), "SubmitOrder should send each leg with its own prices")
+	require.NoError(t, err, "SubmitOrder must not error")
+	require.NotNil(t, resp, "SubmitOrder must return a response")
+	assert.Equal(t, "123", resp.OrderID, "SubmitOrder should return the algo order's ID")
+}
+
 // TestCancelOrderByOrderKind checks that CancelOrder cancels the algo order types as algo orders over REST and every
 // other type as a regular order, over the authenticated websocket when it can be used and over REST otherwise, since the
 // order manager cancels a tracked order with its stored type, which can be a type SubmitOrder refuses
@@ -4217,6 +4242,27 @@ func TestCancelBatchOrders(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
+// TestCancelBatchOrdersByClientOrderID checks that CancelBatchOrders cancels an order by its client order ID alone, as
+// CancelOrder does, over the authenticated websocket when it can be used and over REST otherwise
+func TestCancelBatchOrdersByClientOrderID(t *testing.T) {
+	t.Parallel()
+	for _, connected := range []bool{false, true} {
+		t.Run(fmt.Sprintf("connected %t", connected), func(t *testing.T) {
+			t.Parallel()
+			ex, requests := newRecordingExchange(t, connected, connected, `"code":"0","msg":"","data":[{"ordId":"123","clOrdId":"client","sCode":"0","sMsg":""}]}`)
+			resp, err := ex.CancelBatchOrders(t.Context(), []order.Cancel{{ClientOrderID: "client", Type: order.Limit, Pair: mainPair, AssetType: asset.Spot}})
+			exp := `REST /trade/cancel-batch-orders [{"instId":"BTC-USDT","ordId":"","clOrdId":"client"}]`
+			if connected {
+				exp = `websocket batch-cancel-orders [{"instId":"BTC-USDT","ordId":"","clOrdId":"client"}]`
+			}
+			assert.Equal(t, []string{exp}, requests(), "CancelBatchOrders should send the cancellation by client order ID")
+			require.NoError(t, err, "CancelBatchOrders must not error")
+			require.NotNil(t, resp, "CancelBatchOrders must return a response")
+			assert.Equal(t, map[string]string{"123": order.Cancelled.String()}, resp.Status, "CancelBatchOrders should report the order cancelled")
+		})
+	}
+}
+
 func TestCancelAllOrders(t *testing.T) {
 	t.Parallel()
 	_, err := e.CancelAllOrders(contextGenerate(), &order.Cancel{AssetType: asset.Binary})
@@ -4362,6 +4408,8 @@ func TestModifyOrderRequests(t *testing.T) {
 	decimalTrigger.Amount = 0.25
 	decimalOCO := *oco
 	decimalOCO.Amount = 0.25
+	ocoStopLossOrder := *oco
+	ocoStopLossOrder.RiskManagementModes.StopLoss.LimitPrice = 1.9
 	for _, tc := range []struct {
 		name       string
 		modify     *order.Modify
@@ -4419,6 +4467,10 @@ func TestModifyOrderRequests(t *testing.T) {
 			rest: `/trade/amend-algos ` + algo + `,"newSz":"2","newTriggerPx":4,"newOrdPx":3.5,"newTriggerPxType":"mark","attachAlgoOrds":[{"newTpTriggerPx":"5","newTpOrdPx":"5.5","newSlTriggerPx":"2","newSlOrdPx":"2","newTpTriggerPxType":"last","newSlTriggerPxType":"index"}]}`,
 		},
 		{name: "one cancels the other order", modify: oco, rest: `/trade/amend-algos ` + algo + `,"newSz":"2","newTpTriggerPx":"5","newTpOrdPx":"5.5","newSlTriggerPx":"2","newTpTriggerPxType":"last","newSlTriggerPxType":"index"}`},
+		{
+			name: "one cancels the other order with a stop loss order price", modify: &ocoStopLossOrder,
+			rest: `/trade/amend-algos ` + algo + `,"newSz":"2","newTpTriggerPx":"5","newTpOrdPx":"5.5","newSlTriggerPx":"2","newSlOrdPx":"1.9","newTpTriggerPxType":"last","newSlTriggerPxType":"index"}`,
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -4523,6 +4575,9 @@ func TestGetOrderInfoMocked(t *testing.T) {
 	marketMakerProtection.Pair, marketMakerProtection.AssetType, marketMakerProtection.Type = optionPair, asset.Options, order.MarketMakerProtection
 	marketMakerProtection.Amount, marketMakerProtection.Price, marketMakerProtection.AverageExecutedPrice, marketMakerProtection.ExecutedAmount, marketMakerProtection.RemainingAmount = 5, 0.025, 0.02, 2, 3
 	marketMakerProtection.Date, marketMakerProtection.LastUpdated = time.UnixMilli(1777000000000), time.UnixMilli(1777000001000)
+	mmpOrder := strings.NewReplacer(`"instType":"SPOT","instId":"BTC-USDT"`, `"instType":"OPTION","instId":"BTC-USD-261225-100000-C"`, `"feeCcy":"BTC","fee":"-0.00025","rebateCcy":"BTC","rebate":"0.0005"`, `"feeCcy":"BTC","fee":"-0.00025","rebateCcy":"BTC","rebate":"0"`, `"px":"10000","sz":"1","ordType":"post_only"`, `"px":"0.025","sz":"5","ordType":"mmp_and_post_only"`, `"accFillSz":"0.25","fillSz":"0.125","avgPx":"9990"`, `"accFillSz":"2","fillSz":"1","avgPx":"0.02"`, `"uTime":"1761699801000","cTime":"1761699800000"`, `"uTime":"1777000001000","cTime":"1777000000000"`).Replace(regularOrder)
+	mmpCancelled := marketMakerProtection
+	mmpCancelled.Status = order.Cancelled
 	unfilled := *regular
 	unfilled.Amount, unfilled.TimeInForce, unfilled.ExecutedAmount, unfilled.AverageExecutedPrice, unfilled.Cost, unfilled.RemainingAmount, unfilled.Status = 2, order.UnknownTIF, 0, 0, 0, 2, order.Active
 	killed := *regular
@@ -4660,7 +4715,11 @@ func TestGetOrderInfoMocked(t *testing.T) {
 		},
 		{
 			name: "market maker protection order", orderID: "1003", pair: optionPair, asset: asset.Options, requests: []string{"/trade/order?instId=BTC-USD-261225-100000-C&ordId=1003"}, exp: &marketMakerProtection,
-			replies: []string{mockOrdersReply(strings.NewReplacer(`"instType":"SPOT","instId":"BTC-USDT"`, `"instType":"OPTION","instId":"BTC-USD-261225-100000-C"`, `"feeCcy":"BTC","fee":"-0.00025","rebateCcy":"BTC","rebate":"0.0005"`, `"feeCcy":"BTC","fee":"-0.00025","rebateCcy":"BTC","rebate":"0"`, `"px":"10000","sz":"1","ordType":"post_only"`, `"px":"0.025","sz":"5","ordType":"mmp_and_post_only"`, `"accFillSz":"0.25","fillSz":"0.125","avgPx":"9990"`, `"accFillSz":"2","fillSz":"1","avgPx":"0.02"`, `"uTime":"1761699801000","cTime":"1761699800000"`, `"uTime":"1777000001000","cTime":"1777000000000"`).Replace(regularOrder))},
+			replies: []string{mockOrdersReply(mmpOrder)},
+		},
+		{
+			name: "order cancelled by market maker protection", orderID: "1003", pair: optionPair, asset: asset.Options, requests: []string{"/trade/order?instId=BTC-USD-261225-100000-C&ordId=1003"}, exp: &mmpCancelled,
+			replies: []string{mockOrdersReply(strings.Replace(mmpOrder, `"state":"partially_filled"`, `"state":"mmp_canceled"`, 1))},
 		},
 		{
 			name: "live order with no fills", orderID: "1003", pair: mainPair, asset: asset.Spot, requests: []string{"/trade/order?instId=BTC-USDT&ordId=1003"}, exp: &unfilled,
@@ -5831,6 +5890,9 @@ func TestWebsocketProcessOrders(t *testing.T) {
 		{name: "option order", replace: []string{`"instType":"SPOT","uid"`, `"instType":"OPTION","uid"`, `"instId":"BTC-USDT"`, `"instId":"BTC-USD-261225-100000-C"`}, edit: func(d *order.Detail) {
 			d.AssetType, d.Pair = asset.Options, currency.NewPairWithDelimiter("BTC", "USD-261225-100000-C", "-")
 		}},
+		{name: "option order cancelled by market maker protection", replace: []string{`"instType":"SPOT","uid"`, `"instType":"OPTION","uid"`, `"instId":"BTC-USDT"`, `"instId":"BTC-USD-261225-100000-C"`, `"ordType":"limit"`, `"ordType":"mmp"`, `"state":"partially_filled"`, `"state":"mmp_canceled"`}, edit: func(d *order.Detail) {
+			d.AssetType, d.Pair, d.Type, d.Status = asset.Options, currency.NewPairWithDelimiter("BTC", "USD-261225-100000-C", "-"), order.MarketMakerProtection, order.Cancelled
+		}},
 		{name: "relay full", fullRelay: true, errText: "channel buffer is full"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -5916,6 +5978,41 @@ func TestWebsocketProcessOrders(t *testing.T) {
 			}
 			if id == "1002" {
 				exp.TimeInForce = order.PostOnly
+			}
+			assert.Equalf(t, exp, (<-ex.Websocket.DataHandler.C).Data, "wsProcessOrders should relay order %s as the push describes it", id)
+		}
+	})
+
+	t.Run("an order cancelled by market maker protection before an open one", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must not error")
+		options := strings.NewReplacer(`"instType":"SPOT","uid"`, `"instType":"OPTION","uid"`, `"instId":"BTC-USDT"`, `"instId":"BTC-USD-261225-100000-C"`, `"ordType":"limit"`, `"ordType":"mmp"`).Replace(push)
+		open := options[strings.Index(options, `[{`)+1 : strings.LastIndex(options, `]}`)]
+		cancelled := strings.NewReplacer(`"ordId":"1001"`, `"ordId":"1000"`, `"clOrdId":"client1001"`, `"clOrdId":"client1000"`, `"state":"partially_filled"`, `"state":"mmp_canceled"`).Replace(open)
+		require.NoError(t, ex.wsProcessOrders(t.Context(), []byte(strings.Replace(options, open, cancelled+","+open, 1))), "wsProcessOrders must not error")
+		require.Len(t, ex.Websocket.DataHandler.C, 2, "wsProcessOrders must relay both orders")
+		for _, id := range []string{"1000", "1001"} {
+			exp := &order.Detail{
+				Amount:               2,
+				AssetType:            asset.Options,
+				AverageExecutedPrice: 99,
+				ClientOrderID:        "client" + id,
+				Date:                 time.UnixMilli(1761700000000),
+				Exchange:             ex.Name,
+				ExecutedAmount:       0.5,
+				Fee:                  0.01,
+				FeeAsset:             currency.USDT,
+				OrderID:              id,
+				Pair:                 currency.NewPairWithDelimiter("BTC", "USD-261225-100000-C", "-"),
+				Price:                100,
+				RemainingAmount:      1.5,
+				Side:                 order.Buy,
+				Status:               order.PartiallyFilled,
+				Type:                 order.MarketMakerProtection,
+			}
+			if id == "1000" {
+				exp.Status = order.Cancelled
 			}
 			assert.Equalf(t, exp, (<-ex.Websocket.DataHandler.C).Data, "wsProcessOrders should relay order %s as the push describes it", id)
 		}

@@ -967,6 +967,9 @@ func TestConnect(t *testing.T) {
 		m.exchangeName = "test"
 		m.useMultiConnectionManagement = true
 		m.setEnabled(true)
+		// A failed connect starts the connection monitor, which retries at once as no Setup sets its delay and races the
+		// reads below, so it is kept from starting
+		m.connectionMonitorRunning.Store(true)
 		require.NoError(t, m.SetupNewConnection(&ConnectionSetup{
 			URL:                   "wss://rollback.invalid",
 			Connector:             func(context.Context, Connection) error { return errDastardlyReason },
@@ -985,7 +988,7 @@ func TestConnect(t *testing.T) {
 		assert.Empty(t, m.connectionManager[0].connections, "connect should drop every connection when rolling back")
 		assert.Zero(t, stale.subscriptions.Len(), "connect should clear a rolled back connection's subscriptions")
 		assert.Empty(t, m.connections, "connect should forget every connection when rolling back")
-		assert.False(t, m.IsConnected(), "connect should leave the websocket disconnected after rolling back")
+		assert.Equal(t, disconnectedState, m.state.Load(), "connect should leave the websocket disconnected after rolling back")
 	})
 }
 

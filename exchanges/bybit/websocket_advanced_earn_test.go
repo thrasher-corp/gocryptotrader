@@ -297,11 +297,7 @@ func newAdvancedEarnStreamInstance(t *testing.T, url string, channels ...string)
 	for i, c := range channels {
 		ex.Features.Subscriptions[i] = &subscription.Subscription{Enabled: true, Channel: c}
 	}
-	t.Cleanup(func() {
-		if ex.Websocket.IsConnected() {
-			assert.NoError(t, ex.Websocket.Shutdown(), "Websocket.Shutdown should not error")
-		}
-	})
+	t.Cleanup(func() { stopWebsocket(t, ex) })
 	return ex
 }
 
