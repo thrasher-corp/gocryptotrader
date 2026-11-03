@@ -3157,6 +3157,14 @@ func TestCancelOrderUntyped(t *testing.T) {
 			replies: []string{unknownOrder, outsideWindow},
 			errMsg:  "outside of the recvWindow",
 		},
+		{
+			name:    "OCO order list",
+			cancel:  order.Cancel{Type: order.OCO},
+			methods: []string{"orderList.cancel"},
+			replies: []string{unknownList},
+			errMsg:  "Order list does not exist.",
+			err:     order.ErrOrderNotFound,
+		},
 	} {
 		t.Run("websocket API "+tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -3332,6 +3340,248 @@ func TestCancelOrderUntyped(t *testing.T) {
 		require.NoError(t, err, "CancelBatchOrders must not error")
 		assert.Equal(t, 3, sent(), "CancelBatchOrders should look up an algo order only for the rejected client order ID")
 	})
+}
+
+func TestCancelError(t *testing.T) {
+	t.Parallel()
+	for _, apiErr := range []*APIError{
+		{Code: -2011, Message: "Unknown order sent."},
+		{Code: -2011, Message: "Order list does not exist."},
+	} {
+		err := cancelError(apiErr)
+		assert.ErrorIsf(t, err, order.ErrOrderNotFound, "cancelError should mark %q as no order having the ID", apiErr.Message)
+		assert.ErrorIsf(t, err, apiErr, "cancelError should keep Binance's %q", apiErr.Message)
+	}
+	// -2013 already maps to order.ErrOrderNotFound, so marking it again would repeat that in its message
+	for _, err := range []error{
+		nil,
+		&APIError{Code: -2013, Message: "Order does not exist."},
+		fmt.Errorf("%w: %w", order.ErrOrderNotFound, &APIError{Code: -2011, Message: "Unknown order sent."}),
+		&APIError{Code: -2011, Message: "Order was not canceled due to cancel restrictions."},
+		&APIError{Code: -1021, Message: "Timestamp for this request is outside of the recvWindow."},
+	} {
+		assert.Equalf(t, err, cancelError(err), "cancelError should return %v as it is", err)
+	}
+}
+
+func TestCancelFirstFound(t *testing.T) {
+	t.Parallel()
+	unknownOrder := &APIError{Code: -2011, Message: "Unknown order sent."}
+	unknownList := &APIError{Code: -2011, Message: "Order list does not exist."}
+	failure := &APIError{Code: -1021, Message: "Timestamp for this request is outside of the recvWindow."}
+	for _, tc := range []struct {
+		name     string
+		results  []error
+		attempts int
+		err      error
+		notFound []string
+	}{
+		{name: "first attempt succeeds", results: []error{nil, cancelError(unknownList)}, attempts: 1},
+		{name: "later attempt succeeds", results: []error{cancelError(unknownOrder), nil}, attempts: 2},
+		{
+			name:     "no attempt finds the order",
+			results:  []error{cancelError(unknownOrder), cancelError(unknownList)},
+			attempts: 2,
+			notFound: []string{unknownOrder.Message, unknownList.Message},
+		},
+		{name: "failure stops the attempts", results: []error{cancelError(unknownOrder), failure, cancelError(unknownList)}, attempts: 2, err: failure},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var attempts int
+			fns := make([]func() error, len(tc.results))
+			for i, result := range tc.results {
+				fns[i] = func() error {
+					attempts++
+					return result
+				}
+			}
+			err := cancelFirstFound(fns...)
+			assert.Equal(t, tc.attempts, attempts, "cancelFirstFound should stop after the expected attempt")
+			switch {
+			case tc.err != nil:
+				assert.Equal(t, tc.err, err, "cancelFirstFound should return the failure alone")
+			case len(tc.notFound) != 0:
+				assert.ErrorIs(t, err, order.ErrOrderNotFound, "cancelFirstFound should report no order having the ID")
+				for _, msg := range tc.notFound {
+					assert.ErrorContains(t, err, msg, "cancelFirstFound should return every attempt's error")
+				}
+			default:
+				assert.NoError(t, err, "cancelFirstFound should succeed")
+			}
+		})
+	}
+}
+
+func TestCancelSpotOrder(t *testing.T) {
+	t.Parallel()
+	unknownOrder := cancelStep{http.MethodDelete, "/api/v3/order", map[string]string{"orderId": "1930"}, `{"code":-2011,"msg":"Unknown order sent."}`}
+	unknownList := cancelStep{http.MethodDelete, "/api/v3/orderList", map[string]string{"orderListId": "1930"}, `{"code":-2011,"msg":"Order list does not exist."}`}
+	for _, tc := range []struct {
+		orderType order.Type
+		steps     []cancelStep
+	}{
+		{order.Limit, []cancelStep{unknownOrder}},
+		{order.OCO, []cancelStep{unknownList}},
+		{order.UnknownType, []cancelStep{unknownOrder, unknownList}},
+	} {
+		t.Run(tc.orderType.String(), func(t *testing.T) {
+			t.Parallel()
+			ex, sent := newCancelStepsExchange(t, tc.steps)
+			err := ex.cancelSpotOrder(t.Context(), &order.Cancel{AssetType: asset.Spot, Pair: currency.NewBTCUSDT(), Type: tc.orderType, OrderID: "1930"}, 1930)
+			assert.ErrorIs(t, err, order.ErrOrderNotFound, "cancelSpotOrder should report no order having the ID")
+			assert.Equal(t, len(tc.steps), sent(), "cancelSpotOrder should send every expected request")
+		})
+	}
+}
+
+func TestCancelMarginOrder(t *testing.T) {
+	t.Parallel()
+	marginOrder := func(isolated string) cancelStep {
+		return cancelStep{http.MethodDelete, "/sapi/v1/margin/order", map[string]string{"orderId": "28", "isIsolated": isolated}, `{"code":-2011,"msg":"Unknown order sent."}`}
+	}
+	marginList := func(isolated string) cancelStep {
+		return cancelStep{http.MethodDelete, "/sapi/v1/margin/orderList", map[string]string{"orderListId": "28", "isIsolated": isolated}, `{"code":-2011,"msg":"Order list does not exist."}`}
+	}
+	for _, tc := range []struct {
+		name   string
+		cancel order.Cancel
+		steps  []cancelStep
+	}{
+		{name: "cross margin limit order", cancel: order.Cancel{Type: order.Limit, MarginType: margin.Multi}, steps: []cancelStep{marginOrder("")}},
+		{name: "isolated margin OCO order list", cancel: order.Cancel{Type: order.OCO, MarginType: margin.Isolated}, steps: []cancelStep{marginList("TRUE")}},
+		{name: "untyped without a margin type", steps: []cancelStep{marginOrder(""), marginList(""), marginOrder("TRUE"), marginList("TRUE")}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex, sent := newCancelStepsExchange(t, tc.steps)
+			tc.cancel.AssetType, tc.cancel.Pair, tc.cancel.OrderID = asset.Margin, currency.NewBTCUSDT(), "28"
+			err := ex.cancelMarginOrder(t.Context(), &tc.cancel, 28)
+			assert.ErrorIs(t, err, order.ErrOrderNotFound, "cancelMarginOrder should report no order having the ID")
+			assert.Equal(t, len(tc.steps), sent(), "cancelMarginOrder should send every expected request")
+		})
+	}
+}
+
+func TestCancelFuturesOrder(t *testing.T) {
+	t.Parallel()
+	const (
+		unknownOrder  = `{"code":-2011,"msg":"Unknown order sent."}`
+		algoOrder     = `{"algoId":3000000123,"clientAlgoId":"gct-algo","algoType":"CONDITIONAL","orderType":"STOP_MARKET","symbol":"BTCUSDT","side":"SELL","positionSide":"BOTH","quantity":"0.01","algoStatus":"NEW","triggerPrice":"3000","icebergQuantity":"null"}`
+		algoCancelled = `{"algoId":3000000123,"clientAlgoId":"gct-algo","code":"200","msg":"success"}`
+	)
+	byID, byAlgoID := map[string]string{"orderId": "3000000123"}, map[string]string{"algoId": "3000000123"}
+	for _, tc := range []struct {
+		name   string
+		cancel order.Cancel
+		steps  []cancelStep
+		err    error
+	}{
+		{
+			name:   "USDⓈ-M stop market order",
+			cancel: order.Cancel{AssetType: asset.USDTMarginedFutures, Type: order.StopMarket},
+			steps:  []cancelStep{{http.MethodDelete, "/fapi/v1/algoOrder", byAlgoID, unknownOrder}},
+			err:    order.ErrOrderNotFound,
+		},
+		{
+			name:   "COIN-M limit order",
+			cancel: order.Cancel{AssetType: asset.CoinMarginedFutures, Type: order.Limit},
+			steps:  []cancelStep{{http.MethodDelete, "/dapi/v1/order", byID, unknownOrder}},
+			err:    order.ErrOrderNotFound,
+		},
+		{
+			name:   "USDⓈ-M untyped without an algo order",
+			cancel: order.Cancel{AssetType: asset.USDTMarginedFutures},
+			steps: []cancelStep{
+				{http.MethodDelete, "/fapi/v1/order", byID, unknownOrder},
+				{http.MethodGet, "/fapi/v1/algoOrder", byAlgoID, `{"code":-2013,"msg":"Order does not exist."}`},
+			},
+			err: order.ErrOrderNotFound,
+		},
+		{
+			name:   "USDⓈ-M untyped algo order",
+			cancel: order.Cancel{AssetType: asset.USDTMarginedFutures},
+			steps: []cancelStep{
+				{http.MethodDelete, "/fapi/v1/order", byID, unknownOrder},
+				{http.MethodGet, "/fapi/v1/algoOrder", byAlgoID, algoOrder},
+				{http.MethodDelete, "/fapi/v1/algoOrder", byAlgoID, algoCancelled},
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex, sent := newCancelStepsExchange(t, tc.steps)
+			tc.cancel.Pair, tc.cancel.OrderID = currency.NewBTCUSDT(), "3000000123"
+			err := ex.cancelFuturesOrder(t.Context(), &tc.cancel, 3000000123)
+			if tc.err != nil {
+				assert.ErrorIs(t, err, tc.err, "cancelFuturesOrder should report no order having the ID")
+			} else {
+				assert.NoError(t, err, "cancelFuturesOrder should cancel the algo order")
+			}
+			assert.Equal(t, len(tc.steps), sent(), "cancelFuturesOrder should send every expected request")
+		})
+	}
+}
+
+func TestCancelPairAlgoOrder(t *testing.T) {
+	t.Parallel()
+	algoReply := func(symbol string) string {
+		return `{"algoId":3000000123,"clientAlgoId":"gct-algo","algoType":"CONDITIONAL","orderType":"STOP_MARKET","symbol":"` + symbol + `","side":"SELL","positionSide":"BOTH","quantity":"0.01","algoStatus":"NEW","triggerPrice":"3000","icebergQuantity":"null"}`
+	}
+	byAlgoID := map[string]string{"algoId": "3000000123"}
+	for _, tc := range []struct {
+		name   string
+		a      asset.Item
+		steps  []cancelStep
+		err    error
+		errMsg string
+	}{
+		{
+			name: "pair's algo order",
+			a:    asset.USDTMarginedFutures,
+			steps: []cancelStep{
+				{http.MethodGet, "/fapi/v1/algoOrder", byAlgoID, algoReply("BTCUSDT")},
+				{http.MethodDelete, "/fapi/v1/algoOrder", byAlgoID, `{"algoId":3000000123,"clientAlgoId":"gct-algo","code":"200","msg":"success"}`},
+			},
+		},
+		{
+			name:  "another pair's algo order",
+			a:     asset.USDTMarginedFutures,
+			steps: []cancelStep{{http.MethodGet, "/fapi/v1/algoOrder", byAlgoID, algoReply("ETHUSDT")}},
+			err:   order.ErrOrderNotFound,
+		},
+		{
+			name:   "lookup failure",
+			a:      asset.USDTMarginedFutures,
+			steps:  []cancelStep{{http.MethodGet, "/fapi/v1/algoOrder", byAlgoID, `{"code":-1021,"msg":"Timestamp for this request is outside of the recvWindow."}`}},
+			errMsg: "error fetching algo order",
+		},
+		{
+			name:  "asset without pairs",
+			a:     asset.Binary,
+			steps: []cancelStep{{http.MethodGet, "/fapi/v1/algoOrder", byAlgoID, algoReply("BTCUSDT")}},
+			err:   asset.ErrNotSupported,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex, sent := newCancelStepsExchange(t, tc.steps)
+			algo, err := ex.cancelPairAlgoOrder(t.Context(), tc.a, currency.NewBTCUSDT(), 3000000123, "")
+			switch {
+			case tc.err != nil:
+				assert.ErrorIs(t, err, tc.err, "cancelPairAlgoOrder should return the expected error")
+				assert.Nil(t, algo, "cancelPairAlgoOrder should return no algo order")
+			case tc.errMsg != "":
+				assert.ErrorContains(t, err, tc.errMsg, "cancelPairAlgoOrder should return the lookup error")
+				assert.NotErrorIs(t, err, order.ErrOrderNotFound, "cancelPairAlgoOrder should not report a failed lookup as no algo order")
+			default:
+				require.NoError(t, err, "cancelPairAlgoOrder must not error")
+				require.NotNil(t, algo, "cancelPairAlgoOrder must return the algo order")
+				assert.Equal(t, uint64(3000000123), algo.AlgoID, "cancelPairAlgoOrder should return the cancelled algo order")
+			}
+			assert.Equal(t, len(tc.steps), sent(), "cancelPairAlgoOrder should send every expected request")
+		})
+	}
 }
 
 func TestCancelBatchOrdersAlgoFallback(t *testing.T) {
