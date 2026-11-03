@@ -1006,8 +1006,9 @@ func (e *Exchange) GetHistoricTrades(ctx context.Context, p currency.Pair, a ass
 				}
 			}
 			next := trades.Last.Time()
-			// The cursor stops advancing once every trade since it has been returned
-			if len(page) == 0 || !next.After(since) || next.After(to) {
+			// The cursor stops advancing once every trade since it has been returned. It can also run past the time the page's
+			// last trade shows, which the next page's trades can share, so that time decides the window's end
+			if len(page) == 0 || !next.After(since) || page[len(page)-1].Timestamp.After(to) {
 				break
 			}
 			since = next

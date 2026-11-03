@@ -3,6 +3,7 @@ package kraken
 import (
 	"bufio"
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -25,6 +26,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -279,27 +281,217 @@ func TestMockWebsocketSkipsKeepAlivePings(t *testing.T) {
 
 func TestConnectionSetups(t *testing.T) {
 	t.Parallel()
-	ex := new(Exchange)
-	require.NoError(t, setupTestExchange(ex), "setupTestExchange must not error")
-	setups, err := ex.connectionSetups(ex.Config)
-	require.NoError(t, err, "connectionSetups must not error")
-	require.Len(t, setups, 4, "connectionSetups must return the public, private, level 3 and futures connections")
-	for i, exp := range []struct {
-		filter, url string
+	exp := []struct {
+		filter     string
+		endpoint   exchange.URL
+		defaultURL string
+		optional   bool
 	}{
-		{wsPublicConnection, wsPublicURL},
-		{wsPrivateConnection, wsPrivateURL},
-		{wsLevel3Connection, wsLevel3URL},
-		{wsFuturesConnection, wsFuturesURL},
+		{wsPublicConnection, exchange.WebsocketSpot, wsPublicURL, false},
+		{wsPrivateConnection, exchange.WebsocketSpotSupplementary, wsPrivateURL, true},
+		{wsLevel3Connection, exchange.WebsocketPrivate, wsLevel3URL, true},
+		{wsFuturesConnection, exchange.WebsocketFutures, wsFuturesURL, true},
+	}
+	// Which connections are optional depends neither on the URLs configured nor on the assets enabled
+	for _, configured := range []bool{false, true} {
+		t.Run(fmt.Sprintf("configured URLs with spot disabled %t", configured), func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, setupTestExchange(ex), "setupTestExchange must not error")
+			urls := make(map[string]string, len(exp))
+			for _, e := range exp {
+				urls[e.filter] = e.defaultURL
+				if configured {
+					urls[e.filter] = "wss://" + e.filter + ".kraken.invalid/v2"
+					require.NoErrorf(t, ex.API.Endpoints.SetRunningURL(e.endpoint.String(), urls[e.filter]), "SetRunningURL must not error for the %s connection", e.filter)
+				}
+			}
+			if configured {
+				require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.Spot, false), "SetAssetEnabled must not error")
+			}
+			setups, err := ex.connectionSetups(ex.Config)
+			require.NoError(t, err, "connectionSetups must not error")
+			require.Len(t, setups, 4, "connectionSetups must return the public, private, level 3 and futures connections")
+			for i, e := range exp {
+				assert.Equalf(t, e.filter, setups[i].MessageFilter, "connection %d should have the expected message filter", i)
+				assert.Equalf(t, urls[e.filter], setups[i].URL, "connection %d should use the configured websocket URL", i)
+				assert.Equalf(t, e.optional, setups[i].Optional, "connection %d should be optional only when the others do not depend on it", i)
+				assert.NotNilf(t, setups[i].Connector, "connection %d should have a connector", i)
+				assert.NotNilf(t, setups[i].GenerateSubscriptions, "connection %d should generate subscriptions", i)
+				assert.NotNilf(t, setups[i].Subscriber, "connection %d should have a subscriber", i)
+				assert.NotNilf(t, setups[i].Unsubscriber, "connection %d should have an unsubscriber", i)
+				assert.NotNilf(t, setups[i].Handler, "connection %d should have a handler", i)
+				assert.NotNilf(t, setups[i].RateLimit, "connection %d should be rate limited", i)
+			}
+		})
+	}
+}
+
+// optionalTestServer serves one of the websocket connections and counts the dials it is sent. It refuses them while
+// refusing is set, as a host does during an outage, and closes its connections when dropped, as a venue would
+type optionalTestServer struct {
+	dials    atomic.Int32
+	refusing atomic.Bool
+	m        sync.Mutex
+	conns    []*gws.Conn
+}
+
+// start returns the URL of the server, which answers each message but a spot connection's keep-alive ping with handle
+func (s *optionalTestServer) start(tb testing.TB, handle mockws.WsMockFunc) string {
+	tb.Helper()
+	server := httptest.NewTestServer(tb, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		s.dials.Add(1)
+		if s.refusing.Load() {
+			http.Error(w, "unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		c, err := new(gws.Upgrader).Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer c.Close()
+		s.m.Lock()
+		s.conns = append(s.conns, c)
+		s.m.Unlock()
+		for {
+			_, msg, err := c.ReadMessage()
+			if err != nil {
+				return
+			}
+			if method, err := jsonparser.GetString(msg, "method"); err == nil && method == "ping" {
+				continue
+			}
+			if err := handle(tb, msg, c); err != nil {
+				return
+			}
+		}
+	}))
+	server.Start()
+	return "ws" + strings.TrimPrefix(server.URL, "http")
+}
+
+// drop closes the server's connections
+func (s *optionalTestServer) drop() {
+	s.m.Lock()
+	defer s.m.Unlock()
+	for _, c := range s.conns {
+		_ = c.Close()
+	}
+	s.conns = nil
+}
+
+// TestConnectOptionalConnections refuses the dials of one connection, as a Kraken host can during an outage, or drops
+// the futures connection once connected and then refuses its dials. A refused public connection fails Connect and
+// leaves the others undialled until it is accepted; a private, level 3 or futures connection that is refused or
+// dropped leaves the others connected and is dialled again on its own, after each refusal, until its host accepts
+func TestConnectOptionalConnections(t *testing.T) {
+	t.Parallel()
+	filters := []string{wsPublicConnection, wsPrivateConnection, wsLevel3Connection, wsFuturesConnection}
+	for _, tc := range []struct {
+		name, filter string
+		// dropped connects every connection before the filter's connection is dropped and its dials refused
+		dropped bool
+	}{
+		{"public refused", wsPublicConnection, false},
+		{"private refused", wsPrivateConnection, false},
+		{"level 3 refused", wsLevel3Connection, false},
+		{"futures refused", wsFuturesConnection, false},
+		{"futures dropped", wsFuturesConnection, true},
 	} {
-		assert.Equalf(t, exp.filter, setups[i].MessageFilter, "connection %d should have the expected message filter", i)
-		assert.Equalf(t, exp.url, setups[i].URL, "connection %d should use the configured websocket URL", i)
-		assert.NotNilf(t, setups[i].Connector, "connection %d should have a connector", i)
-		assert.NotNilf(t, setups[i].GenerateSubscriptions, "connection %d should generate subscriptions", i)
-		assert.NotNilf(t, setups[i].Subscriber, "connection %d should have a subscriber", i)
-		assert.NotNilf(t, setups[i].Unsubscriber, "connection %d should have an unsubscriber", i)
-		assert.NotNilf(t, setups[i].Handler, "connection %d should have a handler", i)
-		assert.NotNilf(t, setups[i].RateLimit, "connection %d should be rate limited", i)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := newHTTPTestExchange(t, serveWebsocketToken(t))
+			useTestCredentials(ex)
+			seedTestAssetNames(ex)
+			ex.Features.Subscriptions = subscription.List{
+				{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel},
+				{Enabled: true, Channel: subscription.MyOrdersChannel, Authenticated: true},
+				{Enabled: true, Asset: asset.Spot, Channel: subscription.AllOrdersChannel, Levels: 10},
+				{Enabled: true, Asset: asset.Futures, Channel: subscription.TickerChannel},
+			}
+			endpoints := map[string]exchange.URL{
+				wsPublicConnection:  exchange.WebsocketSpot,
+				wsPrivateConnection: exchange.WebsocketSpotSupplementary,
+				wsLevel3Connection:  exchange.WebsocketPrivate,
+				wsFuturesConnection: exchange.WebsocketFutures,
+			}
+			servers := make(map[string]*optionalTestServer, len(filters))
+			for _, f := range filters {
+				handle := new(mockSubscriptionServer).handle
+				if f == wsFuturesConnection {
+					handle = new(mockFuturesServer).handle
+				}
+				servers[f] = new(optionalTestServer)
+				require.NoErrorf(t, ex.API.Endpoints.SetRunningURL(endpoints[f].String(), servers[f].start(t, handle)), "SetRunningURL must not error for the %s connection", f)
+			}
+			failing := servers[tc.filter]
+			failing.refusing.Store(!tc.dropped)
+			// The connection monitor retries within the test, and no lull in traffic reconnects every connection
+			ex.Config.ConnectionMonitorDelay = 10 * time.Millisecond
+			ex.Config.WebsocketTrafficTimeout = time.Minute
+			ex.Websocket = sharedtestvalues.NewTestWebsocket()
+			require.NoError(t, ex.Websocket.Setup(&websocket.ManagerSetup{
+				ExchangeConfig:               ex.Config,
+				Features:                     &ex.Features.Supports.WebsocketCapabilities,
+				UseMultiConnectionManagement: true,
+			}), "Websocket Setup must not error")
+			ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+			setups, err := ex.connectionSetups(ex.Config)
+			require.NoError(t, err, "connectionSetups must not error")
+			for _, s := range setups {
+				require.NoErrorf(t, ex.Websocket.SetupNewConnection(s), "SetupNewConnection must not error for the %v connection", s.MessageFilter)
+			}
+			t.Cleanup(func() {
+				// Disabling stops the connection monitor, which may shut the websocket down first
+				assert.NoError(t, ex.Websocket.Disable(), "Disable should not error")
+				if err := ex.Websocket.Shutdown(); err != nil {
+					assert.ErrorIs(t, err, websocket.ErrNotConnected, "Shutdown should succeed or find the websocket disconnected")
+				}
+			})
+			connected := func(filter string) bool {
+				conn, err := ex.Websocket.GetConnection(filter)
+				return err == nil && conn.Subscriptions().Len() != 0
+			}
+
+			err = ex.Websocket.Connect(t.Context())
+			if tc.filter == wsPublicConnection {
+				assert.ErrorIs(t, err, gws.ErrBadHandshake, "Connect should return the public connection's refused dial")
+				assert.False(t, ex.Websocket.IsConnected(), "Connect should leave the websocket disconnected while the public connection is refused")
+				require.Eventually(t, func() bool { return failing.dials.Load() >= 3 }, testWaitTimeout, time.Millisecond, "the public connection must be dialled again after each refusal")
+				for _, f := range filters[1:] {
+					assert.Zerof(t, servers[f].dials.Load(), "the %s connection should not be dialled while the public connection is refused", f)
+				}
+				failing.refusing.Store(false)
+				require.Eventually(t, ex.Websocket.IsConnected, testWaitTimeout, time.Millisecond, "the websocket must connect once the public connection is accepted")
+				for _, f := range filters {
+					assert.Truef(t, connected(f), "the %s connection should be connected and subscribed once the public connection is accepted", f)
+				}
+				return
+			}
+			require.NoErrorf(t, err, "Connect must not error when the %s connection is refused", tc.filter)
+			require.True(t, ex.Websocket.IsConnected(), "Connect must leave the websocket connected")
+			if tc.dropped {
+				require.True(t, connected(tc.filter), "Connect must connect and subscribe the connection to drop")
+				failing.refusing.Store(true)
+				failing.drop()
+			}
+			require.Eventually(t, func() bool { return failing.dials.Load() >= 3 }, testWaitTimeout, time.Millisecond, "the failing connection must be dialled again after each refusal")
+			assert.True(t, ex.Websocket.IsConnected(), "the websocket should stay connected while the failing connection is refused")
+			_, err = ex.Websocket.GetConnection(tc.filter)
+			assert.ErrorIs(t, err, websocket.ErrNotConnected, "the failing connection should not be connected while it is refused")
+			for _, f := range filters {
+				if f != tc.filter {
+					assert.Truef(t, connected(f), "the %s connection should stay connected and subscribed", f)
+				}
+			}
+			failing.refusing.Store(false)
+			require.Eventually(t, func() bool { return connected(tc.filter) }, testWaitTimeout, time.Millisecond, "the failing connection must be connected and subscribed again once it is accepted")
+			for _, f := range filters {
+				if f != tc.filter {
+					assert.Equalf(t, int32(1), servers[f].dials.Load(), "the %s connection should be dialled only once", f)
+				}
+			}
+		})
 	}
 }
 

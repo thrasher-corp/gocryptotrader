@@ -235,7 +235,7 @@ func (r *Requester) executeRequest(ctx context.Context, p *Item, req *http.Reque
 	var unmarshallError error
 	if p.Result != nil && resp.StatusCode != http.StatusNoContent {
 		// A *[]byte result takes the body as sent, for endpoints replying with files rather than JSON
-		if body, ok := p.Result.(*[]byte); ok {
+		if body, ok := p.Result.(*[]byte); ok && body != nil {
 			*body = contents
 		} else {
 			unmarshallError = json.Unmarshal(contents, p.Result)

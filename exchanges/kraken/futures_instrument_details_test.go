@@ -381,7 +381,15 @@ func TestGetFuturesInstrumentStatusList(t *testing.T) {
 				assert.Equal(t, tc.exp, result, "GetFuturesInstrumentStatusList should decode every field")
 				return
 			}
-			assert.NotEmpty(t, result.InstrumentStatus, "GetFuturesInstrumentStatusList should return statuses")
+			if tc.req == nil {
+				assert.NotEmpty(t, result.InstrumentStatus, "GetFuturesInstrumentStatusList should return statuses")
+				return
+			}
+			// Kraken can list no market of a type asked for, as it listed no inverse futures on 3 November 2026, so each
+			// status returned is checked to be an inverse future's
+			for _, s := range result.InstrumentStatus {
+				assert.Regexp(t, "^(PI|FI)_", s.Symbol, "GetFuturesInstrumentStatusList should return inverse futures' statuses alone")
+			}
 		})
 	}
 }

@@ -1033,6 +1033,14 @@ func TestDoRequestRawBodyResult(t *testing.T) {
 	}, UnauthenticatedRequest)
 	require.NoError(t, err, "SendPayload must not error for a non-JSON body taken as bytes")
 	assert.Equal(t, csvBody, string(body), "A *[]byte result should hold the body as sent")
+
+	var unset *[]byte
+	assert.NotPanics(t, func() {
+		err = r.SendPayload(t.Context(), UnAuth, func() (*Item, error) {
+			return &Item{Method: http.MethodGet, Path: server.URL, Result: unset}, nil
+		}, UnauthenticatedRequest)
+	}, "SendPayload should not panic for a nil *[]byte result")
+	assert.Error(t, err, "SendPayload should return an error for a nil *[]byte result")
 }
 
 // newRecordingFixture returns a service whose mock data file, in the sibling testdata directory mock.HTTPRecord falls

@@ -134,6 +134,14 @@ with the `myOrders`, `myTrades` and `myWallet` channels. Futures order books str
 take no `levels`. Futures order updates leave an order's average price, cost and fee unset, as the feeds cannot show
 that the fills they report are all of the order's; each fill is relayed as the order's trade, with its price and fee.
 
++ The private, level 3 and futures connections are optional: one that is refused, or drops, is dialled again on its
+own while the other connections stay up. It waits the connection monitor delay, then twice as long after each further
+failure, up to a minute, or the monitor delay when that is longer, and is dialled at the connection monitor's next
+check once the wait has passed. Losing the public connection reconnects them all. While an optional connection is
+down, the websocket still reads as connected, so the engine's sync manager keeps waiting on the websocket for the order
+books it follows over that connection rather than reading them over REST, and those books keep their last state until
+the connection is connected and subscribed again and new snapshots arrive.
+
 + Kraken's spot balance messages carry neither the amount on hold nor the credit it counts as available, so each one
 the `myWallet` channel streams refreshes the stored spot balances over REST, at most once every five seconds, and the
 balances are read a second time after a ledger update, as REST can lag it. An order the private connection reports

@@ -836,6 +836,16 @@ func TestGetHistoricTrades(t *testing.T) {
 			},
 		},
 		{
+			// A window starting at the last trade's cursor gets that trade on a page whose cursor does not advance, which
+			// ends the paging
+			name:  "spot window starting at the last trade",
+			pair:  adiEUR,
+			a:     asset.Spot,
+			start: time.Unix(0, 1791417573349830302),
+			end:   time.Unix(1791417600, 0),
+			exp:   []trade.Data{spotTrade(adiEUR, "61412", order.Sell, 7.216, 1.3803, 1791417573349830400)},
+		},
+		{
 			// An empty page ends the paging
 			name:  "spot window after the last trade",
 			pair:  adiEUR,
@@ -860,6 +870,49 @@ func TestGetHistoricTrades(t *testing.T) {
 			assert.Equal(t, tc.exp, result, "GetHistoricTrades should return every trade of the window once")
 		})
 	}
+}
+
+// TestGetHistoricTradesWindowEndingOnSharedTime ends a spot window at a time several trades share across pages, paged
+// as Kraken paged XBT/USD's trades on 3 November 2026, where each page ending on that time has its cursor past it
+func TestGetHistoricTradesWindowEndingOnSharedTime(t *testing.T) {
+	t.Parallel()
+	trades := []string{
+		`["76938.50000","0.00006000",1793700290.5141885,"b","l","",114019115]`,
+		`["76938.50000","0.00010000",1793700290.5141885,"b","l","",114019116]`,
+		`["76938.50000","0.00039811",1793700290.5141885,"b","l","",114019117]`,
+		`["76938.50000","0.00060189",1793700298.7861497,"b","m","",114019118]`,
+		`["76938.50000","0.00006000",1793700298.7861497,"b","m","",114019119]`,
+		`["76938.50000","0.00048741",1793700298.7861497,"b","m","",114019120]`,
+		`["76940.70000","0.00006120",1793700298.7861497,"b","m","",114019121]`,
+		`["76944.50000","0.00006120",1793700298.78615,"b","m","",114019122]`,
+	}
+	page := func(last string, trades ...string) string {
+		return `{"error":[],"result":{"XBT/USD":[` + strings.Join(trades, ",") + `],"last":"` + last + `"}}`
+	}
+	pages := map[string]string{
+		"1793700290514188418": page("1793700298786149820", trades[0:4]...),
+		"1793700298786149820": page("1793700298786149832", trades[3:5]...),
+		"1793700298786149832": page("1793700298786149844", trades[4:6]...),
+		"1793700298786149844": page("1793700298786149868", trades[5:8]...),
+	}
+	var requests atomic.Int32
+	ex := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+		since := r.URL.Query().Get("since")
+		body, ok := pages[since]
+		if !assert.Truef(t, ok && int(requests.Add(1)) <= len(pages), "GetHistoricTrades should ask for each page once, not for trades since %s", since) {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		_, _ = w.Write([]byte(body))
+	})
+	got, err := ex.GetHistoricTrades(boundedContext(t), spotTestPair, asset.Spot, time.Unix(0, 1793700290514188418), time.Unix(0, 1793700298786149700))
+	require.NoError(t, err, "GetHistoricTrades must not error")
+	ids := make([]string, len(got))
+	for i := range got {
+		ids[i] = got[i].TID
+	}
+	slices.Sort(ids)
+	assert.Equal(t, []string{"114019115", "114019116", "114019117", "114019118", "114019119", "114019120", "114019121"}, ids, "GetHistoricTrades should return every trade up to the window's end")
 }
 
 // raiseCandleLimit lets an exchange request candles beyond the 720 most recent Kraken serves, so recorded candles stay
@@ -6057,7 +6110,8 @@ func TestUnavailableSpotPairName(t *testing.T) {
 		if !assert.Equal(t, "/0/public/AssetPairs", r.URL.Path, "only Kraken's asset pairs should be requested") {
 			return
 		}
-		// Kraken answers a pair named quote first as an unknown asset pair, so every pair is requested
+		// A pair named quote first is unknown to Kraken, as XBT/USDR's USDRXBT is, or another pair's name, as TGBP/USD's
+		// USDTGBP is USDT/GBP's, so every pair is requested
 		assert.Empty(t, r.URL.RawQuery, "Kraken's asset pairs should be requested without a filter")
 		_, _ = w.Write([]byte(`{"error":[],"result":{` +
 			`"WAVESUSD":{"altname":"WAVESUSD","wsname":"WAVES/USD","status":"cancel_only"},` +
@@ -6445,6 +6499,165 @@ func TestGetOrderHistory(t *testing.T) {
 			assert.Equal(t, tc.exp, got, "GetOrderHistory should return the orders in the window")
 		})
 	}
+}
+
+// TestPagersSingleRecordFinalPage pages each history down to a final page holding a single record, which must give
+// the same result as listing every record on one page. A single-record page continued to another comes before it, so
+// a pager must neither stop on such a page nor stop after it while the listing goes on
+func TestPagersSingleRecordFinalPage(t *testing.T) {
+	t.Parallel()
+
+	t.Run("spot trades", func(t *testing.T) {
+		t.Parallel()
+		// Since is inclusive, so each page after the first repeats the trade the one before ended on, and every page holds
+		// one new trade. The third and fourth share the window's end as their time, which the third page's cursor equals,
+		// and the fifth, 100 ns past the window's end, is left out
+		trades := []string{
+			`["81967.10000","0.00646718",1791512024.0483692,"b","m","",110772754]`,
+			`["81967.10000","0.00117618",1791512024.0983157,"b","m","",110772755]`,
+			`["81967.10000","0.00058718",1791512024.1453961,"b","m","",110772756]`,
+			`["81967.10000","0.00020000",1791512024.1453961,"b","m","",110772757]`,
+			`["81967.20000","0.00031250",1791512024.1453962,"s","l","",110772758]`,
+		}
+		page := func(last string, trades ...string) string {
+			return `{"error":[],"result":{"BTC/USD":[` + strings.Join(trades, ",") + `],"last":"` + last + `"}}`
+		}
+		cursors := []string{"1791512024048369213", "1791512024098315672", "1791512024145396100", "1791512024145396112", "1791512024145396195"}
+		const start = "1791512024000000000"
+		historicTrades := func(pages map[string]string) []trade.Data {
+			var requests atomic.Int32
+			ex := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+				since := r.URL.Query().Get("since")
+				body, ok := pages[since]
+				if !assert.Truef(t, ok && int(requests.Add(1)) <= len(pages), "GetHistoricTrades should ask for each page once, not for trades since %s", since) {
+					w.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				_, _ = w.Write([]byte(body))
+			})
+			got, err := ex.GetHistoricTrades(boundedContext(t), spotTestPair, asset.Spot, time.Unix(1791512024, 0), time.Unix(0, 1791512024145396100))
+			require.NoError(t, err, "GetHistoricTrades must not error")
+			return got
+		}
+		onePage := historicTrades(map[string]string{start: page(cursors[4], trades...)})
+		require.Len(t, onePage, 4, "GetHistoricTrades must return the trades listed on one page within the window")
+		paged := map[string]string{start: page(cursors[0], trades[0])}
+		for i := 1; i < len(trades); i++ {
+			paged[cursors[i-1]] = page(cursors[i], trades[i-1:i+1]...)
+		}
+		assert.Equal(t, onePage, historicTrades(paged), "GetHistoricTrades should return the same trades paged as on one page")
+	})
+
+	t.Run("futures trades", func(t *testing.T) {
+		t.Parallel()
+		path := "/history/v3/market/PF_XBTUSD/executions"
+		var executions []string
+		for _, query := range []string{
+			"before=1791504001000&since=1791504000000&sort=asc",
+			"before=1791504001000&continuation_token=MTc5MTUwNDAwMDQ1NS82MTcyNzE4Nzc0Njk=&since=1791504000000&sort=asc",
+		} {
+			_, err := jsonparser.ArrayEach(recordedResponse(t, path, query), func(v []byte, _ jsonparser.ValueType, _ int, _ error) {
+				executions = append(executions, string(v))
+			}, "elements")
+			require.NoError(t, err, "ArrayEach must not error")
+		}
+		require.Len(t, executions, 8, "the recorded pages must hold eight executions")
+		historicTrades := func(listing *historyListing) []trade.Data {
+			ex := newHTTPTestExchange(t, listing.serve)
+			got, err := ex.GetHistoricTrades(boundedContext(t), futuresTestPair, asset.Futures, time.UnixMilli(1791504000000), time.UnixMilli(1791504001000))
+			require.NoError(t, err, "GetHistoricTrades must not error")
+			return got
+		}
+		onePage := historicTrades(newHistoryListing(executions))
+		require.Len(t, onePage, 8, "GetHistoricTrades must return the executions listed on one page")
+		assert.Equal(t, onePage, historicTrades(newHistoryListing(executions[0:6], executions[6:7], executions[7:])), "GetHistoricTrades should return the executions of single-execution pages")
+	})
+
+	t.Run("spot orders", func(t *testing.T) {
+		t.Parallel()
+		closed := func(id, side string, opened float64) string {
+			at := strconv.FormatFloat(opened, 'f', 4, 64)
+			return `"` + id + `":{"cl_ord_id":null,"closetm":` + at + `,"cost":"3250.00000","descr":{"aclass":"forex","close":"","leverage":"none","order":"` + side +
+				` 0.04000000 XBTUSD @ limit 81250.0","ordertype":"limit","pair":"XBTUSD","price":"81250.0","price2":"0","type":"` + side + `"},"expiretm":0,"fee":"8.45000",` +
+				`"limitprice":"0.00000","misc":"","oflags":"fciq","opentm":` + at + `,"price":"81250.0","reason":null,"refid":null,"sender_sub_id":null,"starttm":0,` +
+				`"status":"closed","stopprice":"0.00000","time_in_force":"gtc","userref":null,"vol":"0.04000000","vol_exec":"0.04000000"}`
+		}
+		orders := []string{
+			closed("O6KIO9-Y73RV-6LFAIX", "buy", 1791421234.5512), closed("OAOAF2-9FPNH-WJR3S9", "sell", 1791480299.1204),
+			closed("OONG6B-IWSS3-9K3G5D", "sell", 1791505810.6603), closed("OQ4H7B-NM2KD-8XW5PZ", "buy", 1791509921.3377),
+		}
+		page := func(next string, orders ...string) string {
+			cursor := ""
+			if next != "" {
+				cursor = `,"cursor":{"next":"` + next + `"}`
+			}
+			return `{"error":[],"result":{"closed":{` + strings.Join(orders, ",") + `},"count":0` + cursor + `}}`
+		}
+		history := func(pages map[string]string) order.FilteredOrders {
+			var requests atomic.Int32
+			ex := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+				var req struct {
+					Cursor string `json:"cursor"`
+				}
+				assert.NoError(t, json.Unmarshal([]byte(tradingRequestBody(t, r)), &req), "Unmarshal should not error")
+				body, ok := pages[req.Cursor]
+				if !assert.Truef(t, ok && int(requests.Add(1)) <= len(pages), "GetOrderHistory should ask for each page once, not for the orders after cursor %q", req.Cursor) {
+					w.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				_, _ = w.Write([]byte(body))
+			})
+			got, err := ex.GetOrderHistory(boundedContext(t), &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType})
+			require.NoError(t, err, "GetOrderHistory must not error")
+			slices.SortFunc(got, func(a, b order.Detail) int { return strings.Compare(a.OrderID, b.OrderID) })
+			return got
+		}
+		onePage := history(map[string]string{"": page("", orders...)})
+		require.Len(t, onePage, 4, "GetOrderHistory must return the orders listed on one page")
+		paged := map[string]string{
+			"":                   page("gqNrZXm-Q2xvc2VkNQ", orders[0:2]...),
+			"gqNrZXm-Q2xvc2VkNQ": page("gqNrZXm-Q2xvc2VkNg", orders[2]),
+			"gqNrZXm-Q2xvc2VkNg": page("", orders[3]),
+		}
+		assert.Equal(t, onePage, history(paged), "GetOrderHistory should return the orders of single-order pages")
+	})
+
+	at := time.UnixMilli(1791518400000).Add
+	event := func(n int, kind, body string) string {
+		return futuresHistoryElement("ev-"+strconv.Itoa(n)+"-"+kind, at(time.Duration(n)*time.Minute), kind, body)
+	}
+	id := func(n int) string { return "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4" + strconv.Itoa(n) }
+	history := func(t *testing.T, orders, triggers *historyListing) order.FilteredOrders {
+		t.Helper()
+		ex := newFuturesHistoryExchange(t, orders, triggers)
+		got, err := ex.GetOrderHistory(boundedContext(t), &order.MultiOrderRequest{AssetType: asset.Futures, Side: order.AnySide, Type: order.AnyType, StartTime: at(0), EndTime: at(time.Hour)})
+		require.NoError(t, err, "GetOrderHistory must not error")
+		return got
+	}
+
+	t.Run("futures order events", func(t *testing.T) {
+		t.Parallel()
+		events := make([]string, 0, 4)
+		for n := range 4 {
+			o := futuresHistoryOrderJSON(id(n), "gct-limit-"+strconv.Itoa(n), "Buy", "Limit", "0.5", "0", at(time.Duration(n)*time.Minute), at(time.Duration(n)*time.Minute))
+			events = append(events, event(n, "OrderPlaced", `{"order":`+o+`,"reason":"new_user_order","reducedQuantity":""}`))
+		}
+		onePage := history(t, newHistoryListing(events), newHistoryListing([]string{}))
+		require.Len(t, onePage, 4, "GetOrderHistory must return the orders listed on one page")
+		assert.Equal(t, onePage, history(t, newHistoryListing(events[0:2], events[2:3], events[3:]), newHistoryListing([]string{})), "GetOrderHistory should return the orders of single-order pages")
+	})
+
+	t.Run("futures trigger events", func(t *testing.T) {
+		t.Parallel()
+		events := make([]string, 0, 4)
+		for n := range 4 {
+			trigger := futuresHistoryTriggerJSON(id(n), "PF_XBTUSD", "gct-stop-"+strconv.Itoa(n), "0.5", at(time.Duration(n)*time.Minute), at(time.Duration(n)*time.Minute))
+			events = append(events, event(n, "OrderTriggerPlaced", `{"order":`+trigger+`,"reason":"new_user_order"}`))
+		}
+		onePage := history(t, newHistoryListing([]string{}), newHistoryListing(events))
+		require.Len(t, onePage, 4, "GetOrderHistory must return the trigger orders listed on one page")
+		assert.Equal(t, onePage, history(t, newHistoryListing([]string{}), newHistoryListing(events[0:2], events[2:3], events[3:])), "GetOrderHistory should return the trigger orders of single-order pages")
+	})
 }
 
 func TestFuturesOrderHistory(t *testing.T) {

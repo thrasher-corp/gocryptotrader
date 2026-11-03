@@ -105,7 +105,9 @@ var defaultSubscriptions = subscription.List{
 
 // connectionSetups returns the setups of the spot connections: the public connection, which streams market data, the
 // private connection, which streams account data and takes trading requests, and the level 3 order book connection;
-// and of the futures connection, which streams futures market and account data
+// and of the futures connection, which streams futures market and account data. The private, level 3 and futures
+// connections are optional, as no other connection's feeds depend on them, so one that fails to connect, or drops, is
+// dialled again on its own while the others stay up; losing the public connection reconnects them all
 func (e *Exchange) connectionSetups(exch *config.Exchange) ([]*websocket.ConnectionSetup, error) {
 	setups := make([]*websocket.ConnectionSetup, 0, 4)
 	for _, c := range []struct {
@@ -115,11 +117,12 @@ func (e *Exchange) connectionSetups(exch *config.Exchange) ([]*websocket.Connect
 		generate               func() (subscription.List, error)
 		subscribe, unsubscribe func(context.Context, websocket.Connection, subscription.List) error
 		handle                 func(context.Context, websocket.Connection, []byte) error
+		optional               bool
 	}{
-		{wsPublicConnection, exchange.WebsocketSpot, e.wsConnect, e.generatePublicSubscriptions, e.subscribeForConnection, e.unsubscribeForConnection, e.wsHandleData},
-		{wsPrivateConnection, exchange.WebsocketSpotSupplementary, e.wsConnect, e.generatePrivateSubscriptions, e.subscribeForConnection, e.unsubscribeForConnection, e.wsHandleData},
-		{wsLevel3Connection, exchange.WebsocketPrivate, e.wsConnect, e.generateLevel3Subscriptions, e.subscribeForConnection, e.unsubscribeForConnection, e.wsHandleData},
-		{wsFuturesConnection, exchange.WebsocketFutures, e.wsFuturesConnect, e.generateFuturesSubscriptions, e.futuresSubscribe, e.futuresUnsubscribe, e.wsFuturesHandleData},
+		{wsPublicConnection, exchange.WebsocketSpot, e.wsConnect, e.generatePublicSubscriptions, e.subscribeForConnection, e.unsubscribeForConnection, e.wsHandleData, false},
+		{wsPrivateConnection, exchange.WebsocketSpotSupplementary, e.wsConnect, e.generatePrivateSubscriptions, e.subscribeForConnection, e.unsubscribeForConnection, e.wsHandleData, true},
+		{wsLevel3Connection, exchange.WebsocketPrivate, e.wsConnect, e.generateLevel3Subscriptions, e.subscribeForConnection, e.unsubscribeForConnection, e.wsHandleData, true},
+		{wsFuturesConnection, exchange.WebsocketFutures, e.wsFuturesConnect, e.generateFuturesSubscriptions, e.futuresSubscribe, e.futuresUnsubscribe, e.wsFuturesHandleData, true},
 	} {
 		u, err := e.API.Endpoints.GetURL(c.url)
 		if err != nil {
@@ -133,6 +136,7 @@ func (e *Exchange) connectionSetups(exch *config.Exchange) ([]*websocket.Connect
 			Subscriber:            c.subscribe,
 			Unsubscriber:          c.unsubscribe,
 			Handler:               c.handle,
+			Optional:              c.optional,
 			RateLimit:             request.NewWeightedRateLimitByDuration(50 * time.Millisecond),
 			ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
 			ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
