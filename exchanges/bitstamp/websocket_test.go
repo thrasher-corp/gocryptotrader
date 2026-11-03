@@ -987,7 +987,6 @@ func testSubscribeLive(t *testing.T) {
 			}
 		}
 	}()
-	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
 	t.Cleanup(func() {
 		assert.NoError(t, ex.Websocket.Disable(), "Disable should not error")
 		if err := ex.Websocket.Shutdown(); err != nil {
@@ -995,6 +994,7 @@ func testSubscribeLive(t *testing.T) {
 		}
 		close(done)
 	})
+	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
 
 	subs, err := templates.ExpandTemplates(ex)
 	require.NoError(t, err, "ExpandTemplates must not error")
