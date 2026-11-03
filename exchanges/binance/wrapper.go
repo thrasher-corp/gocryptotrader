@@ -2042,6 +2042,11 @@ func (e *Exchange) futuresSubmitResponse(s *order.Submit, orderID uint64, client
 	if resp.Status, err = derivativesOrderStatus(status); err != nil {
 		e.logOrderIssue(s.AssetType, resp.OrderID, err)
 	}
+	if resp.Amount > 0 && executed > 0 && resp.Status.IsInactive() {
+		// A submit response carries no executed amount and a futures reply no fills, so an order Binance finished after
+		// executing any of it, a filled one included, is reported New for the order manager to settle from a later query
+		resp.Status = order.New
+	}
 	return resp, nil
 }
 
@@ -2989,8 +2994,10 @@ func (e *Exchange) algoOrderInfo(ctx context.Context, a asset.Item, algoID uint6
 	if err != nil {
 		return nil, fmt.Errorf("error converting %s order %d: %w", a, algoID, err)
 	}
-	// The query alone reports the quantity the triggered order filled
+	// The query alone reports the quantity the triggered order filled. A close position order is placed without a
+	// quantity, so its fills can exceed it
 	d.ExecutedAmount = algo.ActualQuantity.Float64()
+	d.RemainingAmount = max(remainingAmount(algo.Quantity, algo.ActualQuantity), 0)
 	return &d, nil
 }
 
@@ -3275,7 +3282,9 @@ func (e *Exchange) usdtMarginedFuturesOrderDetail(o *USDTMarginedFuturesOrderRes
 }
 
 // algoOrderDetail converts a USDⓈ-M or COIN-M algo order, identified by its algo ID; actualPrice is the average price
-// of the order it triggered. Values that cannot be converted are left unset and returned as the error
+// of the order it triggered. An order that never triggered, or that the matching engine refused, has its whole
+// quantity remaining, while a triggering or triggered order's remainder is left unset, as only the single order query
+// reports what it executed. Values that cannot be converted are left unset and returned as the error
 func (e *Exchange) algoOrderDetail(a asset.Item, o *USDTMarginedFuturesAlgoOrderBase, actualPrice float64, pair currency.Pair) (order.Detail, error) {
 	vars, err := compatibleOrderVars(a, o.Side, "", o.OrderType, o.TimeInForce)
 	status, statusErr := algoOrderStatus(o.AlgoStatus)
@@ -3296,6 +3305,12 @@ func (e *Exchange) algoOrderDetail(a asset.Item, o *USDTMarginedFuturesAlgoOrder
 		Date:                 o.CreateTime.Time(),
 		LastUpdated:          o.UpdateTime.Time(),
 		Pair:                 pair,
+	}
+	switch status {
+	case order.New, order.Cancelled, order.Rejected, order.Expired:
+		// NEW orders have yet to trigger and REJECTED ones were refused by the matching engine. CANCELED and EXPIRED
+		// ones ended before triggering, as an order the matching engine fills or cancels once triggered is FINISHED
+		d.RemainingAmount = o.Quantity.Float64()
 	}
 	return d, common.AppendError(err, statusErr)
 }

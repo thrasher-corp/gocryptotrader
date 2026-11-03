@@ -3310,6 +3310,8 @@ func TestWebsocketAPIConnectionRetire(t *testing.T) {
 func newServerShutdownTestExchange(t *testing.T) (ex *Exchange, received <-chan struct{}, answer func()) {
 	t.Helper()
 	ex = newTestExchange(t)
+	ex.API.AuthenticatedSupport = true
+	ex.API.AuthenticatedWebsocketSupport = true
 	ex.SetCredentials(&accounts.Credentials{Key: "mock-api-key", Secret: "mock-api-secret"})
 	arrived, answered := make(chan struct{}, 10), make(chan struct{})
 	answer = sync.OnceFunc(func() { close(answered) })

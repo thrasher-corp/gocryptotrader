@@ -966,6 +966,7 @@ func TestGetActiveOrders(t *testing.T) {
 					ReduceOnly:           true,
 					Price:                90000,
 					Amount:               0.01,
+					RemainingAmount:      0.01,
 					TriggerPrice:         90000,
 					AverageExecutedPrice: 90000,
 					Exchange:             "Binance",
@@ -1073,20 +1074,21 @@ func TestGetActiveOrders(t *testing.T) {
 					Pair:            currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"),
 				},
 				{
-					TimeInForce:   order.GoodTillCancel,
-					ReduceOnly:    true,
-					Amount:        1,
-					TriggerPrice:  70000,
-					Exchange:      "Binance",
-					OrderID:       "3100001",
-					ClientOrderID: "gct-cm-stop",
-					Type:          order.StopMarket,
-					Side:          order.Sell,
-					Status:        order.New,
-					AssetType:     asset.CoinMarginedFutures,
-					Date:          time.UnixMilli(1744120800000),
-					LastUpdated:   time.UnixMilli(1744120800000),
-					Pair:          currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"),
+					TimeInForce:     order.GoodTillCancel,
+					ReduceOnly:      true,
+					Amount:          1,
+					RemainingAmount: 1,
+					TriggerPrice:    70000,
+					Exchange:        "Binance",
+					OrderID:         "3100001",
+					ClientOrderID:   "gct-cm-stop",
+					Type:            order.StopMarket,
+					Side:            order.Sell,
+					Status:          order.New,
+					AssetType:       asset.CoinMarginedFutures,
+					Date:            time.UnixMilli(1744120800000),
+					LastUpdated:     time.UnixMilli(1744120800000),
+					Pair:            currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"),
 				},
 			},
 		},
@@ -1959,7 +1961,7 @@ func TestSubmitOrder(t *testing.T) {
 				ClientOrderID: "Wq5zEdT0b9xS2kVhLm3nPc",
 				LastUpdated:   time.Unix(1744118600, 0),
 				Date:          time.Unix(1744118600, 0),
-				Status:        order.Filled,
+				Status:        order.New,
 				OrderID:       "22542181",
 			},
 		},
@@ -1977,7 +1979,7 @@ func TestSubmitOrder(t *testing.T) {
 				ClientOrderID: "Hn4cYpR8vB1sE6kTqZ2xWd",
 				LastUpdated:   time.Unix(1744118700, 0),
 				Date:          time.Unix(1744118700, 0),
-				Status:        order.Filled,
+				Status:        order.New,
 				OrderID:       "22542182",
 			},
 		},
@@ -2091,7 +2093,7 @@ func TestSubmitOrder(t *testing.T) {
 				ClientOrderID: "Zx1cV2bN3mA4sD5fG6hJ7k",
 				LastUpdated:   time.Unix(1744120100, 0),
 				Date:          time.Unix(1744120100, 0),
-				Status:        order.Filled,
+				Status:        order.New,
 				OrderID:       "1573346961",
 			},
 		},
@@ -2227,7 +2229,8 @@ func TestSubmitOrder(t *testing.T) {
 // TestSubmitOrderFinishedAtPlacement ensures that a spot or margin order Binance finishes at placement after executing
 // part of its quantity is reported New, over REST and the WebSocket API alike, as a submit response carries no executed
 // amount and the order manager settles only active orders. Orders finished with nothing or everything executed, orders
-// still working and quote sized market orders keep Binance's status
+// still working and quote sized market orders keep Binance's status. A USDⓈ-M or COIN-M order is reported New once it
+// has executed any of its quantity, filled ones included, as a futures reply carries no fills either
 func TestSubmitOrderFinishedAtPlacement(t *testing.T) {
 	t.Parallel()
 	placed := time.UnixMilli(1791284980615)
@@ -2306,6 +2309,60 @@ func TestSubmitOrderFinishedAtPlacement(t *testing.T) {
 				Trades: []order.TradeHistory{{Price: 100, Amount: 0.25, Fee: 0.025, TID: "12", Type: order.Limit, Side: order.Sell, Timestamp: placed, FeeAsset: "USDT"}},
 			},
 		},
+		{
+			name:   "USDⓈ-M IOC limit part filled and expired",
+			submit: &order.Submit{AssetType: asset.USDTMarginedFutures, Type: order.Limit, Side: order.Buy, Price: 100, Amount: 1, TimeInForce: order.ImmediateOrCancel},
+			reply:  `{"orderId":40,"symbol":"BTCUSDT","status":"EXPIRED","clientOrderId":"um-ioc-part","price":"100","avgPrice":"100","origQty":"1","executedQty":"0.5","cumQty":"0.5","cumQuote":"50","timeInForce":"IOC","type":"LIMIT","reduceOnly":false,"closePosition":false,"side":"BUY","positionSide":"BOTH","stopPrice":"0","workingType":"CONTRACT_PRICE","priceProtect":false,"origType":"LIMIT","priceMatch":"NONE","selfTradePreventionMode":"EXPIRE_MAKER","goodTillDate":0,"updateTime":1791284980615}`,
+			exp: &order.SubmitResponse{
+				Type: order.Limit, Side: order.Buy, AssetType: asset.USDTMarginedFutures, TimeInForce: order.ImmediateOrCancel, Price: 100, Amount: 1, RemainingAmount: 0.5,
+				ClientOrderID: "um-ioc-part", LastUpdated: placed, Date: placed, Status: order.New, OrderID: "40",
+			},
+		},
+		{
+			name:   "USDⓈ-M IOC limit filled",
+			submit: &order.Submit{AssetType: asset.USDTMarginedFutures, Type: order.Limit, Side: order.Buy, Price: 100, Amount: 1, TimeInForce: order.ImmediateOrCancel},
+			reply:  `{"orderId":41,"symbol":"BTCUSDT","status":"FILLED","clientOrderId":"um-ioc-filled","price":"100","avgPrice":"100","origQty":"1","executedQty":"1","cumQty":"1","cumQuote":"100","timeInForce":"IOC","type":"LIMIT","reduceOnly":false,"closePosition":false,"side":"BUY","positionSide":"BOTH","stopPrice":"0","workingType":"CONTRACT_PRICE","priceProtect":false,"origType":"LIMIT","priceMatch":"NONE","selfTradePreventionMode":"EXPIRE_MAKER","goodTillDate":0,"updateTime":1791284980615}`,
+			exp: &order.SubmitResponse{
+				Type: order.Limit, Side: order.Buy, AssetType: asset.USDTMarginedFutures, TimeInForce: order.ImmediateOrCancel, Price: 100, Amount: 1,
+				ClientOrderID: "um-ioc-filled", LastUpdated: placed, Date: placed, Status: order.New, OrderID: "41",
+			},
+		},
+		{
+			name:   "USDⓈ-M IOC limit expired unfilled",
+			submit: &order.Submit{AssetType: asset.USDTMarginedFutures, Type: order.Limit, Side: order.Buy, Price: 100, Amount: 1, TimeInForce: order.ImmediateOrCancel},
+			reply:  `{"orderId":42,"symbol":"BTCUSDT","status":"EXPIRED","clientOrderId":"um-ioc-none","price":"100","avgPrice":"0","origQty":"1","executedQty":"0","cumQty":"0","cumQuote":"0","timeInForce":"IOC","type":"LIMIT","reduceOnly":false,"closePosition":false,"side":"BUY","positionSide":"BOTH","stopPrice":"0","workingType":"CONTRACT_PRICE","priceProtect":false,"origType":"LIMIT","priceMatch":"NONE","selfTradePreventionMode":"EXPIRE_MAKER","goodTillDate":0,"updateTime":1791284980615}`,
+			exp: &order.SubmitResponse{
+				Type: order.Limit, Side: order.Buy, AssetType: asset.USDTMarginedFutures, TimeInForce: order.ImmediateOrCancel, Price: 100, Amount: 1, RemainingAmount: 1,
+				ClientOrderID: "um-ioc-none", LastUpdated: placed, Date: placed, Status: order.Expired, OrderID: "42",
+			},
+		},
+		{
+			name:   "USDⓈ-M limit part filled and working",
+			submit: &order.Submit{AssetType: asset.USDTMarginedFutures, Type: order.Limit, Side: order.Sell, Price: 100, Amount: 1},
+			reply:  `{"orderId":43,"symbol":"BTCUSDT","status":"PARTIALLY_FILLED","clientOrderId":"um-limit-part","price":"100","avgPrice":"100","origQty":"1","executedQty":"0.25","cumQty":"0.25","cumQuote":"25","timeInForce":"GTC","type":"LIMIT","reduceOnly":false,"closePosition":false,"side":"SELL","positionSide":"BOTH","stopPrice":"0","workingType":"CONTRACT_PRICE","priceProtect":false,"origType":"LIMIT","priceMatch":"NONE","selfTradePreventionMode":"EXPIRE_MAKER","goodTillDate":0,"updateTime":1791284980615}`,
+			exp: &order.SubmitResponse{
+				Type: order.Limit, Side: order.Sell, AssetType: asset.USDTMarginedFutures, Price: 100, Amount: 1, RemainingAmount: 0.75,
+				ClientOrderID: "um-limit-part", LastUpdated: placed, Date: placed, Status: order.PartiallyFilled, OrderID: "43",
+			},
+		},
+		{
+			name:   "COIN-M market filled",
+			submit: &order.Submit{AssetType: asset.CoinMarginedFutures, Type: order.Market, Side: order.Sell, Amount: 2},
+			reply:  `{"orderId":44,"symbol":"BTCUSD_PERP","pair":"BTCUSD","status":"FILLED","clientOrderId":"cm-market","price":"0","avgPrice":"100","origQty":"2","executedQty":"2","cumQty":"2","cumBase":"2","timeInForce":"GTC","type":"MARKET","reduceOnly":false,"closePosition":false,"side":"SELL","positionSide":"BOTH","stopPrice":"0","workingType":"CONTRACT_PRICE","priceProtect":false,"origType":"MARKET","updateTime":1791284980615}`,
+			exp: &order.SubmitResponse{
+				Type: order.Market, Side: order.Sell, AssetType: asset.CoinMarginedFutures, Amount: 2,
+				ClientOrderID: "cm-market", LastUpdated: placed, Date: placed, Status: order.New, OrderID: "44",
+			},
+		},
+		{
+			name:   "COIN-M IOC limit part filled and expired",
+			submit: &order.Submit{AssetType: asset.CoinMarginedFutures, Type: order.Limit, Side: order.Buy, Price: 100, Amount: 4, TimeInForce: order.ImmediateOrCancel},
+			reply:  `{"orderId":45,"symbol":"BTCUSD_PERP","pair":"BTCUSD","status":"EXPIRED","clientOrderId":"cm-ioc-part","price":"100","avgPrice":"100","origQty":"4","executedQty":"1","cumQty":"1","cumBase":"1","timeInForce":"IOC","type":"LIMIT","reduceOnly":false,"closePosition":false,"side":"BUY","positionSide":"BOTH","stopPrice":"0","workingType":"CONTRACT_PRICE","priceProtect":false,"origType":"LIMIT","updateTime":1791284980615}`,
+			exp: &order.SubmitResponse{
+				Type: order.Limit, Side: order.Buy, AssetType: asset.CoinMarginedFutures, TimeInForce: order.ImmediateOrCancel, Price: 100, Amount: 4, RemainingAmount: 3,
+				ClientOrderID: "cm-ioc-part", LastUpdated: placed, Date: placed, Status: order.New, OrderID: "45",
+			},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -2313,6 +2370,9 @@ func TestSubmitOrderFinishedAtPlacement(t *testing.T) {
 				t.Helper()
 				submit := *tc.submit
 				submit.Exchange, submit.Pair = ex.Name, currency.NewBTCUSDT()
+				if submit.AssetType == asset.CoinMarginedFutures {
+					submit.Pair = testCoinMarginedFuturesPair
+				}
 				resp, err := ex.SubmitOrder(t.Context(), &submit)
 				require.NoError(t, err, "SubmitOrder must not error")
 				exp := *tc.exp
@@ -2326,8 +2386,13 @@ func TestSubmitOrderFinishedAtPlacement(t *testing.T) {
 			t.Run("REST", func(t *testing.T) {
 				t.Parallel()
 				path := "/api/v3/order"
-				if tc.submit.AssetType == asset.Margin {
+				switch tc.submit.AssetType {
+				case asset.Margin:
 					path = "/sapi/v1/margin/order"
+				case asset.USDTMarginedFutures:
+					path = "/fapi/v1/order"
+				case asset.CoinMarginedFutures:
+					path = "/dapi/v1/order"
 				}
 				check(t, newRoutedTestExchange(t, map[string]string{path: tc.reply}))
 			})
@@ -4474,6 +4539,18 @@ func TestGetOrderInfo(t *testing.T) {
 			replies: map[string]string{"/fapi/v1/order": notFound, "/fapi/v1/algoOrder": `{"algoId":1930,"clientAlgoId":"gct-algo","algoType":"CONDITIONAL","orderType":"STOP_MARKET","symbol":"ETHUSDT","side":"SELL","positionSide":"BOTH","quantity":"0.01","algoStatus":"NEW","triggerPrice":"3000","icebergQuantity":"null"}`},
 			err:     order.ErrOrderNotFound,
 		},
+		{
+			name:    "USDⓈ-M algo order part filled",
+			a:       asset.USDTMarginedFutures,
+			replies: map[string]string{"/fapi/v1/order": notFound, "/fapi/v1/algoOrder": `{"algoId":1930,"clientAlgoId":"gct-algo","algoType":"CONDITIONAL","orderType":"STOP_MARKET","symbol":"BTCUSDT","side":"SELL","positionSide":"BOTH","timeInForce":"GTC","quantity":"1","algoStatus":"FINISHED","actualOrderId":"7","actualPrice":"2990","actualType":"MARKET","actualQty":"0.4","triggerPrice":"3000","icebergQuantity":"null","createTime":1791284812300,"updateTime":1791284812400}`},
+			exp:     &order.Detail{TimeInForce: order.GoodTillCancel, Amount: 1, TriggerPrice: 3000, AverageExecutedPrice: 2990, ExecutedAmount: 0.4, RemainingAmount: 0.6, Exchange: "TestGetOrderInfo/USDⓈ-M_algo_order_part_filled", OrderID: "1930", ClientOrderID: "gct-algo", Type: order.StopMarket, Side: order.Sell, Status: order.Closed, AssetType: asset.USDTMarginedFutures, Date: time.UnixMilli(1791284812300), LastUpdated: time.UnixMilli(1791284812400), Pair: currency.NewBTCUSDT()},
+		},
+		{
+			name:    "USDⓈ-M close position algo order filled",
+			a:       asset.USDTMarginedFutures,
+			replies: map[string]string{"/fapi/v1/order": notFound, "/fapi/v1/algoOrder": `{"algoId":1930,"clientAlgoId":"gct-algo","algoType":"CONDITIONAL","orderType":"STOP_MARKET","symbol":"BTCUSDT","side":"SELL","positionSide":"BOTH","timeInForce":"GTC","quantity":"0","algoStatus":"FINISHED","actualOrderId":"8","actualPrice":"2990","actualType":"MARKET","actualQty":"0.5","triggerPrice":"3000","icebergQuantity":"null","closePosition":true,"createTime":1791284812300,"updateTime":1791284812400}`},
+			exp:     &order.Detail{TimeInForce: order.GoodTillCancel, TriggerPrice: 3000, AverageExecutedPrice: 2990, ExecutedAmount: 0.5, Exchange: "TestGetOrderInfo/USDⓈ-M_close_position_algo_order_filled", OrderID: "1930", ClientOrderID: "gct-algo", Type: order.StopMarket, Side: order.Sell, Status: order.Closed, AssetType: asset.USDTMarginedFutures, Date: time.UnixMilli(1791284812300), LastUpdated: time.UnixMilli(1791284812400), Pair: currency.NewBTCUSDT()},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -5956,6 +6033,93 @@ func TestHistoricalFundingRatesWindowEnd(t *testing.T) {
 	}
 }
 
+func TestHistoricalFundingRatesPaging(t *testing.T) {
+	t.Parallel()
+	// Binance returns at most limit rates from startTime to endTime, both inclusive and oldest first, so the page after a
+	// full one starts after its last rate. Its funding times fall up to tens of milliseconds after the hour, its rates often
+	// repeat or are negative and a contract's funding interval can be adjusted, so these do the same. Each window starts on
+	// a rate or a millisecond after one and ends on a rate or a millisecond before one, with a rate outside it at each end
+	first := time.UnixMilli(1704067200000)
+	rateAt := func(i int) float64 { return float64(2*(i/2%7)-7) / 1e5 }
+	for _, tc := range []struct {
+		total                  int
+		gap                    time.Duration
+		startOnRate, endOnRate bool
+	}{
+		{fundingRatePageLimit - 1, 8 * time.Hour, true, false},
+		{fundingRatePageLimit, 8 * time.Hour, false, false},
+		{fundingRatePageLimit + 1, 8 * time.Hour, true, true},
+		{2*fundingRatePageLimit - 1, time.Hour, false, false},
+		{2*fundingRatePageLimit + 1, 8 * time.Hour, true, true},
+	} {
+		rates := make([]fundingrate.Rate, tc.total+2)
+		for i := range rates {
+			rates[i] = fundingrate.Rate{Time: first.Add(time.Duration(i)*tc.gap + time.Duration((16*i+10)%27)*time.Millisecond), Rate: decimal.MustFromFloat(rateAt(i))}
+		}
+		expRates := rates[1 : tc.total+1]
+		start, end := rates[0].Time.Add(time.Millisecond), rates[tc.total+1].Time.Add(-time.Millisecond)
+		if tc.startOnRate {
+			start = expRates[0].Time
+		}
+		if tc.endOnRate {
+			end = expRates[len(expRates)-1].Time
+		}
+		for _, product := range []struct {
+			a      asset.Item
+			pair   currency.Pair
+			prefix string
+		}{
+			{asset.USDTMarginedFutures, currency.NewBTCUSDT(), "/fapi/v1/"},
+			{asset.CoinMarginedFutures, currency.NewPairWithDelimiter("BTCUSD", "PERP", currency.UnderscoreDelimiter), "/dapi/v1/"},
+		} {
+			t.Run(fmt.Sprintf("%s/%d rates", product.a, tc.total), func(t *testing.T) {
+				t.Parallel()
+				symbol := strings.ToUpper(product.pair.Base.String() + product.pair.Delimiter + product.pair.Quote.String())
+				var ratePages atomic.Int32
+				ex := newTestServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
+					reply := "[]"
+					q := r.URL.Query()
+					switch strings.TrimPrefix(r.URL.Path, product.prefix) {
+					case "fundingRate":
+						ratePages.Add(1)
+						from, err := strconv.ParseInt(q.Get("startTime"), 10, 64)
+						assert.NoError(t, err, "startTime should be a number")
+						to, err := strconv.ParseInt(q.Get("endTime"), 10, 64)
+						assert.NoError(t, err, "endTime should be a number")
+						limit, err := strconv.Atoi(q.Get("limit"))
+						assert.NoError(t, err, "limit should be a number")
+						var page []string
+						for i := range rates {
+							if at := rates[i].Time.UnixMilli(); at >= from && at <= to && len(page) < limit {
+								page = append(page, fmt.Sprintf(`{"symbol":%q,"fundingTime":%d,"fundingRate":%q}`, symbol, at, strconv.FormatFloat(rateAt(i), 'f', -1, 64)))
+							}
+						}
+						reply = "[" + strings.Join(page, ",") + "]"
+					case "premiumIndex":
+						reply = fmt.Sprintf(`[{"symbol":%q,"lastFundingRate":"0.0001","nextFundingTime":1791302400000,"time":1791273600000}]`, symbol)
+					case "fundingInfo":
+					default:
+						assert.Failf(t, "unexpected request", "%s should not be requested", r.URL.Path)
+					}
+					_, err := w.Write([]byte(reply))
+					assert.NoError(t, err, "Write should not error")
+				})
+				serverURL, err := ex.API.Endpoints.GetURL(exchange.RestSpotSupplementary)
+				require.NoError(t, err, "GetURL must not error")
+				require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestUSDTMargined.String(), serverURL), "SetRunningURL must not error")
+				require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestCoinMargined.String(), serverURL), "SetRunningURL must not error")
+				result, err := ex.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{Asset: product.a, Pair: product.pair, StartDate: start, EndDate: end})
+				require.NoError(t, err, "GetHistoricalFundingRates must not error")
+				require.Len(t, result.FundingRates, tc.total, "GetHistoricalFundingRates must return each rate in the window once")
+				for i := range expRates {
+					require.Equalf(t, expRates[i], result.FundingRates[i], "GetHistoricalFundingRates must return the window's rate %d in order", i)
+				}
+				assert.EqualValues(t, tc.total/fundingRatePageLimit+1, ratePages.Load(), "GetHistoricalFundingRates should stop after the page that is not full")
+			})
+		}
+	}
+}
+
 func TestFundingFeeWindows(t *testing.T) {
 	t.Parallel()
 	start := time.UnixMilli(1744070400000)
@@ -7433,6 +7597,31 @@ func TestAlgoOrderStatus(t *testing.T) {
 	}
 	_, err := algoOrderStatus("PAUSED")
 	assert.ErrorIs(t, err, errUnknownOrderStatus, "algoOrderStatus should reject an unknown status")
+}
+
+// TestAlgoOrderDetailRemainingAmount ensures that an algo order that never triggered, or that the matching engine
+// refused, has its whole quantity remaining, as no part of it can have executed, while a triggering or triggered one's
+// remainder is left for the single order query, the only conversion told what it executed
+func TestAlgoOrderDetailRemainingAmount(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	ex.Name = "Binance"
+	for _, a := range []asset.Item{asset.USDTMarginedFutures, asset.CoinMarginedFutures} {
+		for status, exp := range map[string]float64{
+			"NEW": 1, "CANCELED": 1, "REJECTED": 1, "EXPIRED": 1, "TRIGGERING": 0, "TRIGGERED": 0, "FINISHED": 0, "PAUSED": 0,
+		} {
+			d, err := ex.algoOrderDetail(a, &USDTMarginedFuturesAlgoOrderBase{
+				AlgoID: 77, OrderType: OrderTypeStopMarket, Side: SideSell, TimeInForce: TimeInForceGoodTillCancel, Quantity: 1, AlgoStatus: status,
+			}, 0, currency.NewBTCUSDT())
+			if status == "PAUSED" {
+				assert.ErrorIsf(t, err, errUnknownOrderStatus, "algoOrderDetail should report the unknown %s status", a)
+			} else {
+				require.NoErrorf(t, err, "algoOrderDetail must not error for a %s %s order", a, status)
+			}
+			assert.Zerof(t, d.ExecutedAmount, "algoOrderDetail should report no executed amount for a %s %s order", a, status)
+			assert.Equalf(t, exp, d.RemainingAmount, "algoOrderDetail should report the remaining amount of a %s %s order", a, status)
+		}
+	}
 }
 
 func TestOrderListStatus(t *testing.T) {

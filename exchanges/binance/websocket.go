@@ -87,14 +87,14 @@ var defaultSubscriptions = subscription.List{
 
 // addDefaultDerivativesSubscriptions streams the default subscriptions of each derivatives asset that the configuration
 // has no subscription of, enabled or not, since configurations from before the derivatives streams list only spot's;
-// an asset with configured subscriptions streams exactly its enabled ones
+// an asset with configured subscriptions, all-assets ones included, streams exactly its enabled ones
 func (e *Exchange) addDefaultDerivativesSubscriptions(exch *config.Exchange) {
 	var configured subscription.List
 	if exch.Features != nil {
 		configured = exch.Features.Subscriptions
 	}
 	for _, a := range []asset.Item{asset.USDTMarginedFutures, asset.CoinMarginedFutures, asset.Options} {
-		if slices.ContainsFunc(configured, func(s *subscription.Subscription) bool { return s.Asset == a }) {
+		if slices.ContainsFunc(configured, func(s *subscription.Subscription) bool { return s.Asset == a || s.Asset == asset.All }) {
 			continue
 		}
 		for _, s := range defaultSubscriptions {
@@ -467,8 +467,9 @@ func (e *Exchange) generateSubscriptions() (subscription.List, error) {
 	subs := make(subscription.List, 0, len(e.Features.Subscriptions))
 	for _, s := range e.Features.Subscriptions {
 		switch s.Asset {
-		case asset.Empty:
-			// Configurations from before subscriptions had assets mean spot
+		case asset.Empty, asset.All:
+			// Configurations from before subscriptions had assets mean spot, and an all-assets subscription covers spot as
+			// it covers each derivatives asset on that asset's connections
 			s = s.Clone()
 			s.Asset = asset.Spot
 		case asset.Spot:
@@ -479,11 +480,38 @@ func (e *Exchange) generateSubscriptions() (subscription.List, error) {
 		subs = append(subs, s)
 	}
 	expanded, err := subs.ExpandTemplates(e)
-	expanded, conflicts := oneOrderbookSubscription(expanded)
+	expanded, conflicts := oneOrderbookSubscription(distinctSubscriptions(expanded))
 	if err = common.AppendError(err, conflicts); err != nil {
 		return expanded, fmt.Errorf("%w: %w", websocket.ErrSubscriptionPartial, err)
 	}
 	return expanded, nil
+}
+
+// distinctSubscriptions keeps the first of the subscriptions to each stream, as an all-assets subscription and an
+// asset's own can expand to the same one, which the subscription store refuses to hold twice. Pairs are compared as the
+// store compares them, whatever their order, case or delimiter
+func distinctSubscriptions(subs subscription.List) subscription.List {
+	type stream struct {
+		channel, pairs string
+		asset          asset.Item
+		levels         int
+		interval       kline.Interval
+	}
+	seen := make(map[stream]bool, len(subs))
+	kept := make(subscription.List, 0, len(subs))
+	for _, s := range subs {
+		pairs := make([]string, len(s.Pairs))
+		for i, p := range s.Pairs {
+			pairs[i] = p.Base.Upper().String() + "/" + p.Quote.Upper().String()
+		}
+		slices.Sort(pairs)
+		k := stream{channel: s.Channel, pairs: strings.Join(pairs, ","), asset: s.Asset, levels: s.Levels, interval: s.Interval}
+		if !seen[k] {
+			seen[k] = true
+			kept = append(kept, s)
+		}
+	}
+	return kept
 }
 
 // oneOrderbookSubscription keeps one order book subscription for each pair. A pair has one stored book, which a second

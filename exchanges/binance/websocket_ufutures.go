@@ -115,10 +115,11 @@ func (e *Exchange) generateUSDTMarginedFuturesUserDataSubscriptions() (subscript
 	return e.generateUserDataSubscriptions(asset.USDTMarginedFutures)
 }
 
-// generateDerivativesSubscriptions expands an asset's subscriptions that belong on a connection into one subscription
-// per pair: the subscription's pairs, or every enabled pair. A disabled asset generates nothing, so its connection is
-// skipped rather than failing every other connection, and a subscription that cannot be expanded, or an order book
-// subscription left out for conflicting with another, is reported as partial generation
+// generateDerivativesSubscriptions expands an asset's subscriptions, and the all-assets ones, that belong on a connection
+// into one subscription of the asset per pair: the subscription's pairs, or every enabled pair. A disabled asset
+// generates nothing, so its connection is skipped rather than failing every other connection, and a subscription that
+// cannot be expanded, or an order book subscription left out for conflicting with another, is reported as partial
+// generation
 func (e *Exchange) generateDerivativesSubscriptions(a asset.Item, belongs func(*subscription.Subscription) bool) (subscription.List, error) {
 	if !e.GetAssetTypes(true).Contains(a) {
 		return subscription.List{}, nil
@@ -130,7 +131,7 @@ func (e *Exchange) generateDerivativesSubscriptions(a asset.Item, belongs func(*
 	var subs subscription.List
 	var errs error
 	for _, t := range e.Features.Subscriptions {
-		if t.Asset != a || !belongs(t) {
+		if (t.Asset != a && t.Asset != asset.All) || !belongs(t) {
 			continue
 		}
 		stream, err := e.derivativesStreamName(a, t)
@@ -149,13 +150,14 @@ func (e *Exchange) generateDerivativesSubscriptions(a asset.Item, belongs func(*
 				continue
 			}
 			s := t.Clone()
+			s.Asset = a
 			s.Pairs = currency.Pairs{p}
 			// Stream names are lower case
 			s.QualifiedChannel = strings.ToLower(symbol) + "@" + stream
 			subs = append(subs, s)
 		}
 	}
-	subs, conflicts := oneOrderbookSubscription(subs)
+	subs, conflicts := oneOrderbookSubscription(distinctSubscriptions(subs))
 	if err := common.AppendError(errs, conflicts); err != nil {
 		return subs, fmt.Errorf("%w: %s: %w", websocket.ErrSubscriptionPartial, a, err)
 	}
@@ -462,7 +464,7 @@ func (e *Exchange) keepUserDataStreamAlive(ctx context.Context, conn websocket.C
 // keepaliveUserDataSubscription extends the listen key of a subscribed user data stream and reports whether the
 // stream is still subscribed. A failed keepalive means the key has expired, so the stream is renewed with a new one
 func (e *Exchange) keepaliveUserDataSubscription(ctx context.Context, conn websocket.Connection, s *subscription.Subscription) bool {
-	if state := s.State(); state != subscription.SubscribedState && state != subscription.ResubscribingState {
+	if !isSubscribedUserDataStream(s) {
 		return false
 	}
 	if err := e.keepaliveUserDataStream(ctx, s.Asset); err != nil {
@@ -472,19 +474,47 @@ func (e *Exchange) keepaliveUserDataSubscription(ctx context.Context, conn webso
 }
 
 // renewUserDataStream subscribes a connection to a new listen key after the old one expired; without it no further
-// user data arrives
+// user data arrives. A failed renewal is reported, then tried again with the waits of a failed subscription while the
+// connection is up and the asset's user data stream is subscribed. Renewals are tracked apart from subscription retries,
+// as a subscription retry that finds the stream subscribed ends without renewing it
 func (e *Exchange) renewUserDataStream(ctx context.Context, conn websocket.Connection, a asset.Item, reason error) {
-	listenKey, err := e.startUserDataStream(ctx, a)
-	if err == nil {
-		err = e.sendDerivativesStreamCommand(ctx, conn, wsSubscribeMethod, []any{listenKey})
-	}
+	err := e.renewListenKey(ctx, conn, a, reason, func() bool { return true })
 	if err == nil {
 		return
 	}
-	err = fmt.Errorf("%s user data stream renewal after %w failed: %w", a, reason, err)
 	if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
 		log.Errorf(log.WebsocketMgr, "%s %s: %s", e.Name, errSend, err)
 	}
+	subscribed := func() bool {
+		s := e.Websocket.GetSubscription(&subscription.Subscription{Channel: userDataStreamChannel, Asset: a})
+		return s != nil && isSubscribedUserDataStream(s)
+	}
+	e.retryUserData(ctx, conn, a, false, true, func(ctx context.Context) (bool, error) {
+		if !subscribed() {
+			return true, nil
+		}
+		err := e.renewListenKey(ctx, conn, a, reason, subscribed)
+		return err == nil, err
+	})
+}
+
+// renewListenKey subscribes a connection to the account's active listen key for an asset, unless wanted reports once
+// the key arrives that the stream is no longer wanted, as subscribing then would undo an unsubscription made meanwhile
+func (e *Exchange) renewListenKey(ctx context.Context, conn websocket.Connection, a asset.Item, reason error, wanted func() bool) error {
+	listenKey, err := e.startUserDataStream(ctx, a)
+	if err == nil && wanted() {
+		err = e.sendDerivativesStreamCommand(ctx, conn, wsSubscribeMethod, []any{listenKey})
+	}
+	if err != nil {
+		return fmt.Errorf("%s user data stream renewal after %w failed: %w", a, reason, err)
+	}
+	return nil
+}
+
+// isSubscribedUserDataStream reports whether a user data stream subscription is subscribed or being subscribed again
+func isSubscribedUserDataStream(s *subscription.Subscription) bool {
+	state := s.State()
+	return state == subscription.SubscribedState || state == subscription.ResubscribingState
 }
 
 // A failed user data stream subscription is tried again after userDataRetryDelay, then after twice the last wait each
@@ -499,11 +529,28 @@ const (
 type userDataRetries struct {
 	mu      sync.Mutex
 	running map[asset.Item]websocket.Connection
+	// renewing tracks the renewals of expired listen keys being tried again, as running tracks subscriptions
+	renewing map[asset.Item]websocket.Connection
 	// delay is the first wait before a retry, userDataRetryDelay when zero
 	delay time.Duration
 	// keepalive is the interval between the keepalives of a subscribed stream's listen key, userDataKeepaliveInterval
 	// when zero
 	keepalive time.Duration
+}
+
+// tracker returns the map tracking retries of listen key renewals, or of subscriptions, making it on first use. It must
+// be called with mu held
+func (r *userDataRetries) tracker(renewal bool) map[asset.Item]websocket.Connection {
+	if renewal {
+		if r.renewing == nil {
+			r.renewing = make(map[asset.Item]websocket.Connection)
+		}
+		return r.renewing
+	}
+	if r.running == nil {
+		r.running = make(map[asset.Item]websocket.Connection)
+	}
+	return r.running
 }
 
 // retryUserDataSubscription subscribes asset a's user data stream on conn in the background, at once or after the first
@@ -512,16 +559,20 @@ type userDataRetries struct {
 // be until Binance's daily disconnection, leaving the account's balances and orders to polls alone. It must be called
 // while the websocket's wait group counts a running routine, such as a connection's reader
 func (e *Exchange) retryUserDataSubscription(ctx context.Context, conn websocket.Connection, a asset.Item, immediately bool, subscribe func(context.Context) (done bool, err error)) {
+	e.retryUserData(ctx, conn, a, immediately, false, subscribe)
+}
+
+// retryUserData runs retryUserDataSubscription's retries of subscribe, tracking them apart for a renewal of an expired
+// listen key
+func (e *Exchange) retryUserData(ctx context.Context, conn websocket.Connection, a asset.Item, immediately, renewal bool, subscribe func(context.Context) (done bool, err error)) {
 	r := &e.userDataRetry
 	r.mu.Lock()
-	if r.running[a] == conn {
+	tracked := r.tracker(renewal)
+	if tracked[a] == conn {
 		r.mu.Unlock()
 		return
 	}
-	if r.running == nil {
-		r.running = make(map[asset.Item]websocket.Connection)
-	}
-	r.running[a] = conn
+	tracked[a] = conn
 	delay := cmp.Or(r.delay, userDataRetryDelay)
 	r.mu.Unlock()
 	var wait time.Duration
@@ -532,8 +583,8 @@ func (e *Exchange) retryUserDataSubscription(ctx context.Context, conn websocket
 	e.Websocket.Wg.Go(func() {
 		defer func() {
 			r.mu.Lock()
-			if r.running[a] == conn {
-				delete(r.running, a)
+			if tracked[a] == conn {
+				delete(tracked, a)
 			}
 			r.mu.Unlock()
 		}()
@@ -1694,7 +1745,8 @@ func (e *Exchange) processFuturesOrderTradeUpdate(ctx context.Context, data []by
 
 // processFuturesAlgoUpdate relays an ALGO_UPDATE event, then its algo order as an order detail identified by the algo
 // ID, the ID SubmitOrder returns for conditional orders, with the status and type conversions of the REST algo order
-// queries. The detail carries no trades: the updates of the order a triggered algo order places report its fills
+// queries and the remainder of the executed quantity the update reports. The detail carries no trades: the updates of
+// the order a triggered algo order places report its fills
 func (e *Exchange) processFuturesAlgoUpdate(ctx context.Context, data []byte, a asset.Item) error {
 	var resp FuturesAlgoUpdate
 	if err := json.Unmarshal(data, &resp); err != nil {
@@ -1725,6 +1777,7 @@ func (e *Exchange) processFuturesAlgoUpdate(ctx context.Context, data []byte, a 
 		TriggerPrice:         o.TriggerPrice.Float64(),
 		AverageExecutedPrice: o.AverageFillPrice.Float64(),
 		ExecutedAmount:       o.ExecutedQuantity.Float64(),
+		RemainingAmount:      max(remainingAmount(o.Quantity, o.ExecutedQuantity), 0),
 		Exchange:             e.Name,
 		OrderID:              strconv.FormatUint(o.AlgoID, 10),
 		ClientOrderID:        o.ClientAlgoID,

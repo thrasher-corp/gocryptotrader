@@ -257,6 +257,69 @@ func TestGenerateConfiguredDerivativesSubscriptions(t *testing.T) {
 	subs, err = ex.generateCoinMarginedFuturesSubscriptions()
 	require.NoError(t, err, "generateCoinMarginedFuturesSubscriptions must not error")
 	assert.Empty(t, subs, "an asset whose configured subscriptions are all disabled should stream nothing")
+
+	// An all-assets subscription, enabled or not, is a configured subscription of spot and of each derivatives asset, so
+	// none of them streams its defaults beside it, while an asset's own subscriptions still stream
+	generateAll := func(t *testing.T, ex *Exchange) subscription.List {
+		t.Helper()
+		var all subscription.List
+		for _, generate := range []func() (subscription.List, error){
+			ex.generateSubscriptions, ex.generateUSDTMarginedFuturesPublicSubscriptions, ex.generateUSDTMarginedFuturesMarketSubscriptions,
+			ex.generateCoinMarginedFuturesSubscriptions, ex.generateOptionsPublicSubscriptions, ex.generateOptionsMarketSubscriptions,
+		} {
+			subs, err := generate()
+			require.NoError(t, err, "generating subscriptions must not error")
+			all = append(all, subs...)
+		}
+		return all
+	}
+	tickers := func() subscription.List {
+		return subscription.List{
+			{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.Spot, Pairs: currency.Pairs{currency.NewBTCUSDT()}, QualifiedChannel: "btcusdt@ticker"},
+			{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.USDTMarginedFutures, Pairs: currency.Pairs{testUSDTMarginedFuturesPair}, QualifiedChannel: "btcusdt@ticker"},
+			{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.CoinMarginedFutures, Pairs: currency.Pairs{testCoinMarginedFuturesPair}, QualifiedChannel: "btcusd_perp@ticker"},
+			{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.Options, Pairs: currency.Pairs{testOptionsPair}, QualifiedChannel: "btc-261030-85000-c@optionTicker"},
+		}
+	}
+	for _, tc := range []struct {
+		name string
+		subs subscription.List
+		exp  subscription.List
+	}{
+		{"enabled all-assets ticker", subscription.List{{Enabled: true, Asset: asset.All, Channel: subscription.TickerChannel}}, tickers()},
+		{"disabled all-assets ticker", subscription.List{{Enabled: false, Asset: asset.All, Channel: subscription.TickerChannel}}, subscription.List{}},
+		{
+			"all-assets ticker beside USDⓈ-M trades",
+			subscription.List{
+				{Enabled: true, Asset: asset.All, Channel: subscription.TickerChannel},
+				{Enabled: true, Asset: asset.USDTMarginedFutures, Channel: subscription.AllTradesChannel},
+			},
+			append(tickers(), &subscription.Subscription{Enabled: true, Channel: subscription.AllTradesChannel, Asset: asset.USDTMarginedFutures, Pairs: currency.Pairs{testUSDTMarginedFuturesPair}, QualifiedChannel: "btcusdt@aggTrade"}),
+		},
+		{
+			// Each asset's own ticker is the same stream as the all-assets one's, whatever delimiter its pairs are given
+			// with, so each stream is subscribed once
+			"all-assets ticker beside each asset's own",
+			subscription.List{
+				{Enabled: true, Asset: asset.All, Channel: subscription.TickerChannel},
+				{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel},
+				{Enabled: true, Asset: asset.USDTMarginedFutures, Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewBTCUSDT()}},
+				{Enabled: true, Asset: asset.CoinMarginedFutures, Channel: subscription.TickerChannel},
+				{Enabled: true, Asset: asset.Options, Channel: subscription.TickerChannel},
+			},
+			tickers(),
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := setup(t, tc.subs)
+			require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{currency.NewBTCUSDT()}, false), "StorePairs must not error for spot available pairs")
+			require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{currency.NewBTCUSDT()}, true), "StorePairs must not error for spot enabled pairs")
+			generated := generateAll(t, ex)
+			require.Len(t, generated, len(tc.exp), "each stream must be generated once")
+			testsubs.EqualLists(t, tc.exp, generated)
+		})
+	}
 }
 
 func TestDerivativesStreamName(t *testing.T) {
@@ -721,6 +784,167 @@ func TestProcessListenKeyExpired(t *testing.T) {
 	assert.Equal(t, len(expiries), failed, "each failed renewal should relay its error")
 	assert.Equal(t, len(expiries), expired, "each expiry should be relayed")
 	assert.Len(t, recorder.recorded(), 3, "a failed renewal should subscribe nothing")
+}
+
+// newRenewalTestExchange returns an exchange whose USDⓈ-M private connection has subscribed its user data stream, its
+// retries waiting a millisecond, with each listen key request answered by reply and numbered from 1, the first
+// subscription's, and the count of those requests
+func newRenewalTestExchange(t *testing.T, reply func(n int32, w http.ResponseWriter, r *http.Request)) (*Exchange, websocket.Connection, *subscription.Subscription, *streamRequestRecorder, *atomic.Int32) {
+	t.Helper()
+	requests := new(atomic.Int32)
+	ex := newTradingTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/fapi/v1/listenKey", r.URL.Path, "the request should manage a listen key")
+		assert.Equal(t, http.MethodPost, r.Method, "the request should create a listen key")
+		reply(requests.Add(1), w, r)
+	})
+	ex.userDataRetry.delay = time.Millisecond
+	recorder := &streamRequestRecorder{}
+	useMockWebsocket(t, ex, &websocket.ConnectionSetup{
+		MessageFilter:            usdtmPrivateFilter,
+		Connector:                ex.WebsocketDerivativesConnect,
+		Handler:                  ex.wsHandleUSDTMarginedFuturesUserData,
+		ResponseCheckTimeout:     ex.Config.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:         ex.Config.WebsocketResponseMaxLimit,
+		SubscriptionsNotRequired: true,
+	}, recorder.handle)
+	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
+	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	conn, err := ex.Websocket.GetConnection(usdtmPrivateFilter)
+	require.NoError(t, err, "GetConnection must not error")
+	s := &subscription.Subscription{Channel: userDataStreamChannel, Asset: asset.USDTMarginedFutures, Authenticated: true}
+	require.NoError(t, ex.SubscribeUserData(t.Context(), conn, subscription.List{s}), "the first subscription must succeed")
+	require.Len(t, recorder.recorded(), 1, "the first subscription must reach the server")
+	return ex, conn, s, recorder, requests
+}
+
+// writeListenKeyReply answers a listen key request with the test listen key, or with Binance's transient internal error
+func writeListenKeyReply(t *testing.T, w http.ResponseWriter, fail bool) {
+	t.Helper()
+	if fail {
+		w.WriteHeader(http.StatusBadRequest)
+		_, err := w.Write([]byte(`{"code":-1001,"msg":"Internal error; unable to process your request. Please try again."}`))
+		assert.NoError(t, err, "Write should not error")
+		return
+	}
+	_, err := fmt.Fprintf(w, `{"listenKey":%q}`, testListenKey)
+	assert.NoError(t, err, "Write should not error")
+}
+
+// TestRenewUserDataStreamRetry ensures that a failed renewal of an expired listen key is tried again while the stream is
+// subscribed, as no user data arrives until one succeeds, beside any subscription retry of the asset, and that the
+// retries end once one has succeeded or the stream is no longer subscribed, without undoing an unsubscription made
+// during a retry's request
+func TestRenewUserDataStreamRetry(t *testing.T) {
+	t.Parallel()
+	renewing := func(ex *Exchange) bool {
+		ex.userDataRetry.mu.Lock()
+		defer ex.userDataRetry.mu.Unlock()
+		_, ok := ex.userDataRetry.renewing[asset.USDTMarginedFutures]
+		return ok
+	}
+	expire := func(t *testing.T, ex *Exchange, conn websocket.Connection) {
+		t.Helper()
+		require.NoError(t, ex.processListenKeyExpired(t.Context(), conn, []byte(`{"e":"listenKeyExpired","E":1791284812500,"listenKey":"expired"}`), asset.USDTMarginedFutures), "the expiry must be handled")
+	}
+	for _, tc := range []struct {
+		name  string
+		fails func(n int32) bool
+		// end, when set, leaves the stream no longer subscribed once a retry has failed
+		end func(*testing.T, *Exchange, websocket.Connection, *subscription.Subscription)
+	}{
+		{"renewed after a failure", func(n int32) bool { return n == 2 }, nil},
+		{"given up once unsubscribed", func(n int32) bool { return n > 1 }, func(t *testing.T, ex *Exchange, conn websocket.Connection, s *subscription.Subscription) {
+			t.Helper()
+			require.NoError(t, ex.Websocket.RemoveSubscriptions(conn, s), "RemoveSubscriptions must not error")
+		}},
+		{"given up while unsubscribing", func(n int32) bool { return n > 1 }, func(t *testing.T, ex *Exchange, conn websocket.Connection, s *subscription.Subscription) {
+			t.Helper()
+			// The unsubscription's own listen key request fails, which leaves the stream registered as unsubscribing
+			require.Error(t, ex.UnsubscribeUserData(t.Context(), conn, subscription.List{s}), "UnsubscribeUserData must report its failed request")
+			require.Equal(t, subscription.UnsubscribingState, s.State(), "the stream must be left unsubscribing")
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex, conn, s, recorder, requests := newRenewalTestExchange(t, func(n int32, w http.ResponseWriter, _ *http.Request) {
+				writeListenKeyReply(t, w, tc.fails(n))
+			})
+			expire(t, ex, conn)
+			if tc.end == nil {
+				require.Eventually(t, func() bool { return len(recorder.recorded()) == 2 }, 30*time.Second, time.Millisecond, "the renewed listen key must be subscribed")
+			} else {
+				require.Eventually(t, func() bool { return requests.Load() >= 4 }, 30*time.Second, time.Millisecond, "the failed renewal must be tried again")
+				tc.end(t, ex, conn, s)
+			}
+			require.Eventually(t, func() bool { return !renewing(ex) }, 30*time.Second, time.Millisecond, "the renewal must stop being tried")
+			if tc.end != nil {
+				assert.Len(t, recorder.recorded(), 1, "a stream no longer subscribed should not be subscribed again")
+				return
+			}
+			assert.Equal(t, int32(3), requests.Load(), "the renewal should be tried until it succeeds, and no more")
+			assert.Len(t, recorder.recorded(), 2, "the renewed listen key should be subscribed once")
+		})
+	}
+
+	t.Run("renewed beside a subscription retry", func(t *testing.T) {
+		t.Parallel()
+		ex, conn, _, recorder, requests := newRenewalTestExchange(t, func(n int32, w http.ResponseWriter, _ *http.Request) {
+			writeListenKeyReply(t, w, n == 2)
+		})
+		// A subscription retry of the asset on the connection, as a failed subscription leaves, ends without renewing the
+		// stream once it finds the stream subscribed
+		held, release := make(chan struct{}), make(chan struct{})
+		ex.retryUserDataSubscription(t.Context(), conn, asset.USDTMarginedFutures, true, func(ctx context.Context) (bool, error) {
+			close(held)
+			select {
+			case <-release:
+			case <-ctx.Done():
+			}
+			return true, nil
+		})
+		select {
+		case <-held:
+		case <-time.After(30 * time.Second):
+			require.Fail(t, "the subscription retry must start")
+		}
+		expire(t, ex, conn)
+		require.Eventually(t, func() bool { return len(recorder.recorded()) == 2 }, 30*time.Second, time.Millisecond, "the renewal must be tried again beside the subscription retry")
+		close(release)
+		require.Eventually(t, func() bool { return !renewing(ex) }, 30*time.Second, time.Millisecond, "the renewal must stop being tried")
+		assert.Equal(t, int32(3), requests.Load(), "the renewal should be tried until it succeeds, and no more")
+	})
+
+	t.Run("an unsubscription during a retry's request is not undone", func(t *testing.T) {
+		t.Parallel()
+		entered, release := make(chan struct{}), make(chan struct{})
+		ex, conn, s, recorder, _ := newRenewalTestExchange(t, func(n int32, w http.ResponseWriter, r *http.Request) {
+			if n == 3 {
+				// The first retry's request is answered only once the stream has been unsubscribed
+				close(entered)
+				select {
+				case <-release:
+				case <-r.Context().Done():
+					return
+				}
+			}
+			writeListenKeyReply(t, w, n == 2)
+		})
+		expire(t, ex, conn)
+		select {
+		case <-entered:
+		case <-time.After(30 * time.Second):
+			require.Fail(t, "the failed renewal must be tried again")
+		}
+		require.NoError(t, ex.UnsubscribeUserData(t.Context(), conn, subscription.List{s}), "UnsubscribeUserData must not error")
+		close(release)
+		require.Eventually(t, func() bool { return !renewing(ex) }, 30*time.Second, time.Millisecond, "the renewal must stop being tried")
+		recorded := recorder.recorded()
+		methods := make([]string, 0, len(recorded))
+		for _, req := range recorded {
+			methods = append(methods, req.Method)
+		}
+		assert.Equal(t, []string{"SUBSCRIBE", "UNSUBSCRIBE"}, methods, "the retry should not subscribe the stream unsubscribed during its request")
+	})
 }
 
 func TestFetchDerivativesOrderbook(t *testing.T) {
@@ -2740,9 +2964,9 @@ func TestProcessFuturesAlgoUpdate(t *testing.T) {
 	require.Len(t, payloads, 2, "processFuturesAlgoUpdate must relay the event and its algo order")
 	assert.IsType(t, &FuturesAlgoUpdate{}, payloads[0], "processFuturesAlgoUpdate should relay the event first")
 	exp := &order.Detail{
-		TimeInForce: order.GoodTillCancel, ReduceOnly: true, Amount: 0.01, TriggerPrice: 85000, Exchange: ex.Name, OrderID: "2148720",
-		ClientOrderID: "stop-loss", Type: order.StopMarket, Side: order.Sell, Status: order.Cancelled, AssetType: asset.USDTMarginedFutures,
-		Date: time.UnixMilli(1791300000000), LastUpdated: time.UnixMilli(1791300000000), Pair: testUSDTMarginedFuturesPair,
+		TimeInForce: order.GoodTillCancel, ReduceOnly: true, Amount: 0.01, RemainingAmount: 0.01, TriggerPrice: 85000, Exchange: ex.Name,
+		OrderID: "2148720", ClientOrderID: "stop-loss", Type: order.StopMarket, Side: order.Sell, Status: order.Cancelled,
+		AssetType: asset.USDTMarginedFutures, Date: time.UnixMilli(1791300000000), LastUpdated: time.UnixMilli(1791300000000), Pair: testUSDTMarginedFuturesPair,
 	}
 	assert.Equal(t, exp, payloads[1], "processFuturesAlgoUpdate should relay the algo order identified by its algo ID")
 	rest, err := ex.algoOrderDetail(asset.USDTMarginedFutures, &USDTMarginedFuturesAlgoOrderBase{
@@ -2762,6 +2986,27 @@ func TestProcessFuturesAlgoUpdate(t *testing.T) {
 	}
 	require.NoError(t, submitted.UpdateOrderFromDetail(update), "UpdateOrderFromDetail must not error")
 	assert.Equal(t, order.Cancelled, submitted.Status, "the submitted conditional order should take the update's status")
+
+	// A triggered order's update reports what it executed, which leaves the rest of its quantity; a close position order
+	// is placed without a quantity, so its fills leave nothing
+	for _, tc := range []struct {
+		quantity, executed string
+		exp                float64
+	}{
+		{"0.01", "0.004", 0.006},
+		{"0.01", "0.01", 0},
+		{"0", "0.002", 0},
+	} {
+		data := fmt.Appendf(nil, `{"e":"ALGO_UPDATE","T":1791300000000,"E":1791300000006,"o":{"caid":"stop-loss","aid":2148720,"at":"CONDITIONAL","o":"STOP_MARKET","s":"BTCUSDT","S":"SELL","ps":"BOTH","f":"GTC","q":%q,"X":"FINISHED","ai":"7","ap":"84990","aq":%q,"act":"MARKET","tp":"85000","p":"0","cp":%t}}`,
+			tc.quantity, tc.executed, tc.quantity == "0")
+		require.NoErrorf(t, ex.processFuturesAlgoUpdate(t.Context(), data, asset.USDTMarginedFutures), "processFuturesAlgoUpdate must not error for %s of %s executed", tc.executed, tc.quantity)
+		payloads = relayedPayloads(ex)
+		require.Lenf(t, payloads, 2, "processFuturesAlgoUpdate must relay the event and its algo order for %s of %s executed", tc.executed, tc.quantity)
+		d, ok := payloads[1].(*order.Detail)
+		require.Truef(t, ok, "the second payload must be an order detail for %s of %s executed", tc.executed, tc.quantity)
+		assert.Equalf(t, tc.executed, strconv.FormatFloat(d.ExecutedAmount, 'f', -1, 64), "processFuturesAlgoUpdate should relay the executed amount %s", tc.executed)
+		assert.Equalf(t, tc.exp, d.RemainingAmount, "processFuturesAlgoUpdate should relay what remains of %s after %s executed", tc.quantity, tc.executed)
+	}
 
 	for _, tc := range []struct {
 		data    []byte

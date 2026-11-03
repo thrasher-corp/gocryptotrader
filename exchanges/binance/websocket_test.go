@@ -1304,6 +1304,43 @@ func TestOneOrderbookSubscription(t *testing.T) {
 	}
 }
 
+// TestDistinctSubscriptions ensures that only the first of the subscriptions the subscription store holds as one is
+// kept, its pairs compared whatever their order, case or delimiter, and that subscriptions of different streams are
+// all kept
+func TestDistinctSubscriptions(t *testing.T) {
+	t.Parallel()
+	eth := currency.NewPair(currency.ETH, currency.USDT)
+	base := func() *subscription.Subscription {
+		return &subscription.Subscription{Channel: subscription.CandlesChannel, Asset: asset.USDTMarginedFutures, Pairs: currency.Pairs{currency.NewBTCUSDT(), eth}, Levels: 5, Interval: kline.OneMin}
+	}
+	first := base()
+	first.QualifiedChannel = "first"
+	for _, tc := range []struct {
+		name     string
+		other    func(*subscription.Subscription)
+		distinct bool
+	}{
+		{"identical", func(*subscription.Subscription) {}, false},
+		{"pairs in another order, case and delimiter", func(s *subscription.Subscription) {
+			s.Pairs = currency.Pairs{currency.NewPairWithDelimiter("eth", "usdt", "-"), currency.NewPairWithDelimiter("btc", "usdt", "_")}
+		}, false},
+		{"another channel", func(s *subscription.Subscription) { s.Channel = subscription.AllTradesChannel }, true},
+		{"another asset", func(s *subscription.Subscription) { s.Asset = asset.CoinMarginedFutures }, true},
+		{"other pairs", func(s *subscription.Subscription) { s.Pairs = currency.Pairs{currency.NewBTCUSDT()} }, true},
+		{"other levels", func(s *subscription.Subscription) { s.Levels = 10 }, true},
+		{"another interval", func(s *subscription.Subscription) { s.Interval = kline.FiveMin }, true},
+	} {
+		other := base()
+		tc.other(other)
+		got := distinctSubscriptions(subscription.List{first, other})
+		if tc.distinct {
+			assert.Equalf(t, subscription.List{first, other}, got, "distinctSubscriptions should keep both subscriptions with %s", tc.name)
+		} else {
+			assert.Equalf(t, subscription.List{first}, got, "distinctSubscriptions should keep only the first subscription with %s", tc.name)
+		}
+	}
+}
+
 func TestChannelName(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
