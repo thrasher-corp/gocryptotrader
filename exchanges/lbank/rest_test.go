@@ -500,4 +500,46 @@ func TestDecodeResponse(t *testing.T) {
 	require.NoError(t, decodeResponse([]byte(`{"result":"true","data":{"status":"0"}}`), &resp), "decodeResponse must not error")
 	assert.Equal(t, &SystemStatusResponse{Status: "0"}, resp, "decodeResponse should decode the reply's data")
 	assert.Error(t, decodeResponse([]byte(`[{]`), &resp), "decodeResponse should report a payload it cannot decode")
+	assert.ErrorIs(t, decodeResponse([]byte(`{"result":"true","data":{"status":"0"}}`), nil), errUnexpectedData, "decodeResponse should report data a nil result would drop")
+	assert.ErrorIs(t, decodeResponse([]byte(`{"result":"false","msg":"Invalid parameter","error_code":10003,"data":{"status":"0"}}`), nil), errRequestFailed, "decodeResponse should report a failed reply ahead of its data")
+	assert.NoError(t, decodeResponse(nil, nil), "decodeResponse should accept an empty reply for a nil result")
+	var cased *SystemStatusResponse
+	require.NoError(t, decodeResponse([]byte(`{"result":"true","Data":{"status":"1"}}`), &cased), "decodeResponse must not error")
+	assert.Equal(t, &SystemStatusResponse{Status: "1"}, cased, "decodeResponse should decode data whose key differs in case")
+	assert.ErrorIs(t, decodeResponse([]byte(`{"result":"true","Data":{"status":"1"}}`), nil), errUnexpectedData, "decodeResponse should report data whose key differs in case for a nil result")
+}
+
+func TestCheckNoData(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name  string
+		reply string
+		err   error
+	}{
+		{name: "empty reply", reply: ""},
+		{name: "null reply", reply: "null"},
+		{name: "envelope without data", reply: `{"result":"true"}`},
+		{name: "null data", reply: `{"result":"true","data":null}`},
+		{name: "empty object data", reply: `{"result":"true","data":{},"error_code":0,"ts":1793713288231}`},
+		{name: "empty object data across lines", reply: "{\"result\":\"true\",\"data\":{\n  }}"},
+		{name: "empty array data", reply: `{"result":"true","data":[]}`},
+		{name: "empty array reply", reply: `[]`},
+		{name: "empty data beside a number out of range", reply: `{"result":true,"data":{},"unused":1e400}`},
+		{name: "object data", reply: `{"result":"true","data":{"status":"0"}}`, err: errUnexpectedData},
+		{name: "data under a key differing in case", reply: `{"result":true,"Data":{"status":"0"}}`, err: errUnexpectedData},
+		{name: "array data", reply: `{"result":"true","data":[1]}`, err: errUnexpectedData},
+		{name: "string data", reply: `{"result":true,"data":"4e9958623e6006bd"}`, err: errUnexpectedData},
+		{name: "empty string data", reply: `{"result":true,"data":""}`, err: errUnexpectedData},
+		{name: "number data", reply: `{"result":true,"data":0}`, err: errUnexpectedData},
+		{name: "false data", reply: `{"result":true,"data":false}`, err: errUnexpectedData},
+		{name: "true reply", reply: `true`, err: errUnexpectedData},
+		{name: "reply without an envelope", reply: `[{"symbol":"btc_usdt"}]`, err: errUnexpectedData},
+		{name: "scalar reply", reply: `"4e9958623e6006bd"`, err: errUnexpectedData},
+		{name: "reply that is not JSON", reply: `not json at all`, err: errUnexpectedData},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIs(t, checkNoData([]byte(tc.reply)), tc.err, "checkNoData should report only a reply that carries data")
+		})
+	}
 }

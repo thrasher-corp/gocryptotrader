@@ -47,6 +47,7 @@ const (
 
 var (
 	errRequestFailed           = errors.New("request failed")
+	errUnexpectedData          = errors.New("reply carries data but no result was given to decode it into")
 	errPEMBlockIsNil           = errors.New("pem block is nil")
 	errUnableToParsePrivateKey = errors.New("unable to parse private key")
 	errOrderIDRequired         = errors.New("order ID or client order ID is required")
@@ -264,16 +265,51 @@ func (s *requestSigner) sign(parameters string) (string, error) {
 	return base64.StdEncoding.EncodeToString(signature), nil
 }
 
-// decodeResponse decodes the data an LBank reply carries into result, or returns the failure the reply reports
+// decodeResponse decodes the data an LBank reply carries into result, or returns the failure the reply reports. A nil
+// result is for an endpoint that replies without data, so a reply carrying some is an error rather than dropped
 func decodeResponse(raw json.RawMessage, result any) error {
 	payload, err := unwrapV2Response(raw)
 	if err != nil {
 		return err
 	}
 	if result == nil {
-		return nil
+		return checkNoData(raw)
 	}
 	return json.Unmarshal(payload, result)
+}
+
+// checkNoData returns errUnexpectedData when a reply carries data: when the data its envelope holds, or the reply itself
+// if it is not a JSON object, is anything but null, an empty object or an empty array. The envelope is read into
+// v2Response as unwrapV2Response reads it, so that both find the same data
+func checkNoData(raw json.RawMessage) error {
+	if len(raw) == 0 {
+		return nil
+	}
+	payload := raw
+	var resp v2Response
+	if err := json.Unmarshal(raw, &resp); err == nil {
+		if resp.Data == nil {
+			return nil
+		}
+		payload = resp.Data
+	}
+	var value any
+	if err := json.Unmarshal(payload, &value); err != nil {
+		return errUnexpectedData
+	}
+	switch v := value.(type) {
+	case nil:
+		return nil
+	case map[string]any:
+		if len(v) == 0 {
+			return nil
+		}
+	case []any:
+		if len(v) == 0 {
+			return nil
+		}
+	}
+	return errUnexpectedData
 }
 
 // unwrapV2Response returns the payload held in an LBank v2 response envelope. A payload that is not a JSON object is
