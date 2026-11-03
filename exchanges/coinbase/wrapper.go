@@ -1401,10 +1401,25 @@ func (e *Exchange) derivativesTrades(trades []DerivativesPublicTrade, p currency
 	return resp, nil
 }
 
+// refuseRiskControls refuses take profit, stop loss and stop entry orders attached to an order, and a slippage
+// tolerance, which the wrapper sends to neither venue, rather than place or amend the order without them
+func refuseRiskControls(r *order.RiskManagementModes, slippageTolerance float64) error {
+	if *r != (order.RiskManagementModes{}) {
+		return fmt.Errorf("%w: take profit, stop loss and stop entry orders attached to an order", common.ErrFunctionNotSupported)
+	}
+	if slippageTolerance != 0 {
+		return fmt.Errorf("%w: a slippage tolerance", common.ErrFunctionNotSupported)
+	}
+	return nil
+}
+
 // SubmitOrder places an order: an Advanced Trade order, with a client order ID of its own when the order has none, as
 // Coinbase requires one, or a gateway order, through the gateway's websocket where the wrapper may use it
 func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if err := s.Validate(e.GetTradingRequirements()); err != nil {
+		return nil, err
+	}
+	if err := refuseRiskControls(&s.RiskManagementModes, s.SlippageTolerance); err != nil {
 		return nil, err
 	}
 	switch {
@@ -1864,16 +1879,23 @@ func (e *Exchange) derivativesTradeHistory(t *DerivativesUserTradeResponse) (ord
 // ModifyOrder changes an open order's price and amount: an Advanced Trade limit order, good till cancelled, whose
 // price and size Coinbase requires together, so the order's own fill in for those left unset; or a gateway order,
 // identified by its ID or its label in the pair, whose amount the gateway requires with every edit. A time in force
-// the edit cannot apply is refused: Advanced Trade's edits change price and size alone, and the gateway's can make an
-// order post only or not
+// the edit cannot apply is refused: an Advanced Trade edit keeps an order's own, and the gateway's can make an
+// order post only or not. So is a trigger price type the edit cannot apply: Advanced Trade's stops trigger on the last
+// trade price, and a gateway edit keeps the price an order triggers on
 func (e *Exchange) ModifyOrder(ctx context.Context, m *order.Modify) (*order.ModifyResponse, error) {
 	if err := m.Validate(); err != nil {
+		return nil, err
+	}
+	if err := refuseRiskControls(&m.RiskManagementModes, m.SlippageTolerance); err != nil {
 		return nil, err
 	}
 	switch {
 	case isAdvancedTradeAsset(m.AssetType):
 		if m.OrderID == "" {
 			return nil, errOrderIDRequired
+		}
+		if m.TriggerPriceType != order.LastPrice {
+			return nil, fmt.Errorf("%w: %s, as Advanced Trade's stops trigger on the last trade price", order.ErrUnknownPriceType, m.TriggerPriceType)
 		}
 		price, size, tif := m.Price, m.Amount, m.TimeInForce
 		if price == 0 || size == 0 || tif != order.UnknownTIF {
@@ -1888,13 +1910,13 @@ func (e *Exchange) ModifyOrder(ctx context.Context, m *order.Modify) (*order.Mod
 			if size == 0 {
 				size = values.baseSize
 			}
-			// Coinbase edits an order's price and size alone
+			// An Advanced Trade edit keeps the order's time in force
 			existingTIF, err := standardTimeInForce(existing.TimeInForce, values.postOnly)
 			if err != nil {
 				return nil, err
 			}
 			if tif != order.UnknownTIF && advancedTradeEditTimeInForce(tif, existingTIF) != existingTIF {
-				return nil, fmt.Errorf("%w: %s, as Advanced Trade edits an order's price and size alone", order.ErrUnsupportedTimeInForce, tif)
+				return nil, fmt.Errorf("%w: %s, as an Advanced Trade edit keeps an order's time in force", order.ErrUnsupportedTimeInForce, tif)
 			}
 			tif = existingTIF
 		}
@@ -1961,6 +1983,16 @@ func (e *Exchange) modifyDerivativesOrder(ctx context.Context, m *order.Modify) 
 			existing, isolated = &open[0], open[0].Isolated
 		default:
 			return nil, fmt.Errorf("%w: %d orders labelled %q in %s", errOrderLabelNotUnique, len(open), m.ClientOrderID, name)
+		}
+	}
+	// The last price, the zero price type, leaves the order's trigger as it is
+	if m.TriggerPriceType != order.LastPrice {
+		trigger, err := derivativesTriggerParam(m.TriggerPriceType)
+		if err != nil {
+			return nil, err
+		}
+		if trigger != existing.Trigger {
+			return nil, fmt.Errorf("%w: %s, as a gateway edit keeps the price an order triggers on", order.ErrUnknownPriceType, m.TriggerPriceType)
 		}
 	}
 	amount, price, triggerPrice := m.Amount, m.Price, m.TriggerPrice

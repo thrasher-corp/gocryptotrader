@@ -1,9 +1,11 @@
 package coinbase
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"net/url"
 	"slices"
@@ -1332,6 +1334,250 @@ func TestSubmitOrderQuoteSizedStopAndBracket(t *testing.T) {
 		assert.ErrorIsf(t, err, order.ErrAmountMustBeSet, "SubmitOrder should refuse a %s order sized in the quote currency", s.Type)
 	}
 	assert.Zero(t, creates.Load(), "SubmitOrder should not send an order without the size its configuration takes")
+}
+
+func TestRefuseRiskControls(t *testing.T) {
+	t.Parallel()
+	assert.NoError(t, refuseRiskControls(&order.RiskManagementModes{}, 0), "refuseRiskControls should accept an order with no risk controls")
+	legs := map[string]order.RiskManagement{
+		"enabled flag":               {Enabled: true},
+		"index trigger price type":   {TriggerPriceType: order.IndexPrice},
+		"unknown trigger price type": {TriggerPriceType: order.UnknownPriceType},
+		"price":                      {Price: 90000},
+		"limit price":                {LimitPrice: 89900},
+		"market order type":          {OrderType: order.Market},
+	}
+	for name, leg := range legs {
+		assert.ErrorIsf(t, refuseRiskControls(&order.RiskManagementModes{TakeProfit: leg}, 0), common.ErrFunctionNotSupported, "refuseRiskControls should refuse a take profit's %s", name)
+		assert.ErrorIsf(t, refuseRiskControls(&order.RiskManagementModes{StopLoss: leg}, 0), common.ErrFunctionNotSupported, "refuseRiskControls should refuse a stop loss's %s", name)
+		assert.ErrorIsf(t, refuseRiskControls(&order.RiskManagementModes{StopEntry: leg}, 0), common.ErrFunctionNotSupported, "refuseRiskControls should refuse a stop entry's %s", name)
+	}
+	assert.ErrorIs(t, refuseRiskControls(&order.RiskManagementModes{Mode: "partial"}, 0), common.ErrFunctionNotSupported, "refuseRiskControls should refuse a take profit and stop loss mode")
+	for _, slippage := range []float64{math.SmallestNonzeroFloat64, 0.005, -0.005, math.NaN(), math.Inf(-1)} {
+		assert.ErrorIsf(t, refuseRiskControls(&order.RiskManagementModes{}, slippage), common.ErrFunctionNotSupported, "refuseRiskControls should refuse a slippage tolerance of %v", slippage)
+	}
+}
+
+func TestOrdersRefuseRiskControls(t *testing.T) {
+	t.Parallel()
+	var requests atomic.Int32
+	ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requests.Add(1)
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	type controls struct {
+		name     string
+		risk     order.RiskManagementModes
+		slippage float64
+	}
+	// Any one field of a take profit, stop loss or stop entry asks for it
+	legs := []struct {
+		name string
+		set  order.RiskManagement
+	}{
+		{"enabled flag", order.RiskManagement{Enabled: true}},
+		{"mark trigger price type", order.RiskManagement{TriggerPriceType: order.MarkPrice}},
+		{"index trigger price type", order.RiskManagement{TriggerPriceType: order.IndexPrice}},
+		{"price", order.RiskManagement{Price: 90000}},
+		{"limit price", order.RiskManagement{LimitPrice: 89900}},
+		{"order type", order.RiskManagement{OrderType: order.Limit}},
+	}
+	slippages := []float64{math.SmallestNonzeroFloat64, 0.001, 0.5, -0.01, math.NaN(), math.Inf(1)}
+	cases := make([]controls, 0, 1+3*len(legs)+len(slippages))
+	cases = append(cases, controls{name: "a take profit and stop loss mode", risk: order.RiskManagementModes{Mode: "full"}})
+	for _, leg := range legs {
+		cases = append(cases,
+			controls{name: "a take profit's " + leg.name, risk: order.RiskManagementModes{TakeProfit: leg.set}},
+			controls{name: "a stop loss's " + leg.name, risk: order.RiskManagementModes{StopLoss: leg.set}},
+			controls{name: "a stop entry's " + leg.name, risk: order.RiskManagementModes{StopEntry: leg.set}},
+		)
+	}
+	for _, slippage := range slippages {
+		cases = append(cases, controls{name: fmt.Sprintf("a slippage tolerance of %v", slippage), slippage: slippage})
+	}
+	// Every time in force an order can carry, which the order manager also passes with every modification
+	timesInForce := make([]order.TimeInForce, 0, order.StopOrReduce<<1)
+	for tif := range order.StopOrReduce << 1 {
+		if tif.IsValid() {
+			timesInForce = append(timesInForce, tif)
+		}
+	}
+	pairs := map[asset.Item]currency.Pair{asset.Spot: currency.NewBTCUSD(), asset.Futures: testFuturesPair, asset.USDCMarginedFutures: testUSDCPerpetual, asset.CoinMarginedFutures: testCoinPerpetual}
+	for _, tc := range cases {
+		for a, p := range pairs {
+			// Every order type either venue places, on either side
+			for _, orderType := range []order.Type{order.Market, order.Limit, order.StopLimit, order.StopMarket, order.TakeProfit, order.TakeProfitMarket, order.TrailingStop, order.Bracket} {
+				for _, side := range []order.Side{order.Buy, order.Sell} {
+					s := &order.Submit{Exchange: ex.Name, Pair: p, AssetType: a, Side: side, Type: orderType, Amount: 1, Price: 80000, TriggerPrice: 79000, RiskManagementModes: tc.risk, SlippageTolerance: tc.slippage}
+					_, err := ex.SubmitOrder(t.Context(), s)
+					assert.ErrorIsf(t, err, common.ErrFunctionNotSupported, "SubmitOrder should refuse a %s %s %s order with %s", a, side, orderType, tc.name)
+				}
+			}
+			for _, tif := range timesInForce {
+				_, err := ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: p, AssetType: a, Side: order.Buy, Type: order.Limit, TimeInForce: tif, Amount: 1, Price: 80000, RiskManagementModes: tc.risk, SlippageTolerance: tc.slippage})
+				assert.ErrorIsf(t, err, common.ErrFunctionNotSupported, "SubmitOrder should refuse a %s limit order with time in force %q and %s", a, tif, tc.name)
+				_, err = ex.ModifyOrder(t.Context(), &order.Modify{Exchange: ex.Name, Pair: p, AssetType: a, OrderID: "o", TimeInForce: tif, Price: 80000, Amount: 1, RiskManagementModes: tc.risk, SlippageTolerance: tc.slippage})
+				assert.ErrorIsf(t, err, common.ErrFunctionNotSupported, "ModifyOrder should refuse a %s order with time in force %q and %s", a, tif, tc.name)
+			}
+			// An edit leaving the price or the amount unset reads the order first, which the refusal must come before, an
+			// edit can move a stop, and a gateway edit can find the order by its label
+			for _, edit := range []struct{ price, amount, triggerPrice float64 }{{80000, 1, 0}, {0, 1, 0}, {80000, 0, 0}, {80000, 1, 79000}} {
+				for _, lookup := range []struct{ orderID, label string }{{"o", ""}, {"", "c"}} {
+					_, err := ex.ModifyOrder(t.Context(), &order.Modify{Exchange: ex.Name, Pair: p, AssetType: a, OrderID: lookup.orderID, ClientOrderID: lookup.label, Price: edit.price, Amount: edit.amount, TriggerPrice: edit.triggerPrice, RiskManagementModes: tc.risk, SlippageTolerance: tc.slippage})
+					assert.ErrorIsf(t, err, common.ErrFunctionNotSupported, "ModifyOrder should refuse a %s order %s with %s, price %v, amount %v and trigger price %v", a, cmp.Or(lookup.orderID, "labelled "+lookup.label), tc.name, edit.price, edit.amount, edit.triggerPrice)
+				}
+			}
+		}
+	}
+	assert.Zero(t, requests.Load(), "SubmitOrder and ModifyOrder should send nothing for an order they refuse")
+}
+
+func TestModifyOrderTriggerPriceType(t *testing.T) {
+	t.Parallel()
+	priceTypes := []order.PriceType{order.LastPrice, order.IndexPrice, order.MarkPrice, order.UnknownPriceType}
+	// No time in force, each flag alone, and good till cancelled post only. An edit the wrapper sends to these good till
+	// cancelled orders carries none or one it can apply, the order's own being what the order manager passes with every
+	// modification
+	timesInForce := []order.TimeInForce{order.UnknownTIF, order.GoodTillCancel, order.GoodTillDay, order.GoodTillTime, order.GoodTillCrossing, order.FillOrKill, order.ImmediateOrCancel, order.PostOnly, order.StopOrReduce, order.GoodTillCancel | order.PostOnly}
+	advancedTradeServer := func() (*Exchange, *atomic.Int32) {
+		var edits atomic.Int32
+		ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			var body string
+			switch r.Method + " " + r.URL.Path {
+			case http.MethodGet + " /api/v3/brokerage/orders/historical/stop":
+				body = `{"order":{"order_id":"stop","product_id":"BTC-USD","product_type":"SPOT","side":"BUY","status":"OPEN","order_type":"STOP_LIMIT","time_in_force":"GOOD_UNTIL_CANCELLED","filled_size":"0","order_configuration":{"stop_limit_stop_limit_gtc":{"base_size":"1","limit_price":"80100","stop_price":"80000","stop_direction":"STOP_DIRECTION_STOP_UP"}}}}`
+			case http.MethodPost + " /api/v3/brokerage/orders/edit":
+				edits.Add(1)
+				body = `{"success":true,"errors":[]}`
+			default:
+				assert.Failf(t, "ModifyOrder should only read and edit the order", "%s %s", r.Method, r.URL.Path)
+				http.NotFound(w, r)
+				return
+			}
+			_, err := w.Write([]byte(body))
+			assert.NoError(t, err, "writing the response should not error")
+		}))
+		return ex, &edits
+	}
+	// Advanced Trade's stops trigger on the last trade price alone, whether or not the edit moves the stop, and whether
+	// it sets the price and the amount or leaves either to the order. Each time in force has a server of its own, as a
+	// test server answers a limited number of requests
+	for _, tif := range timesInForce {
+		at, edits := advancedTradeServer()
+		for a, p := range map[asset.Item]currency.Pair{asset.Spot: currency.NewBTCUSD(), asset.Futures: testFuturesPair} {
+			for _, change := range []struct{ price, amount, triggerPrice float64 }{{80100, 1, 80000}, {80100, 1, 0}, {0, 1, 0}, {80100, 0, 0}, {0, 0, 0}, {0, 0, 80000}} {
+				for _, priceType := range priceTypes {
+					accepted := priceType == order.LastPrice
+					if accepted && tif != order.UnknownTIF && tif != order.GoodTillCancel {
+						continue
+					}
+					sent := edits.Load()
+					_, err := at.ModifyOrder(t.Context(), &order.Modify{OrderID: "stop", Pair: p, AssetType: a, TimeInForce: tif, Price: change.price, Amount: change.amount, TriggerPrice: change.triggerPrice, TriggerPriceType: priceType})
+					if accepted {
+						assert.NoErrorf(t, err, "ModifyOrder should edit a %s order on the last price, price %v, amount %v, trigger price %v, time in force %q", a, change.price, change.amount, change.triggerPrice, tif)
+						assert.Equalf(t, sent+1, edits.Load(), "ModifyOrder should send the %s edit on the last price, price %v, amount %v, trigger price %v, time in force %q", a, change.price, change.amount, change.triggerPrice, tif)
+						continue
+					}
+					assert.ErrorIsf(t, err, order.ErrUnknownPriceType, "ModifyOrder should refuse a %s edit on price type %d, price %v, amount %v, trigger price %v, time in force %q", a, priceType, change.price, change.amount, change.triggerPrice, tif)
+					assert.Equalf(t, sent, edits.Load(), "ModifyOrder should not send a %s edit on price type %d, price %v, amount %v, trigger price %v, time in force %q", a, priceType, change.price, change.amount, change.triggerPrice, tif)
+				}
+			}
+		}
+	}
+	// A gateway edit keeps the price an order triggers on, so it takes the order's own price type, or the last price,
+	// the zero price type, which leaves the trigger as it is, for a limit order, stops and trailing stops, whether the
+	// order is found by its ID or by its label, in the main account or an isolated margin subaccount, and whether the
+	// edit leaves its amount, price and trigger price to the order, sets the amount alone or sets all three, as the order
+	// manager's edits set the amount and price
+	gatewayOrders := map[string]string{
+		"USDC-limit":       `{"order_id":"USDC-limit","label":"gct-limit","order_state":"open","order_type":"limit","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"buy","price":80000,"amount":0.001}`,
+		"USDC-last":        `{"order_id":"USDC-last","label":"gct-last","order_state":"untriggered","order_type":"stop_market","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"sell","price":"market_price","trigger":"last_price","trigger_price":84000,"amount":0.001}`,
+		"USDC-index":       `{"order_id":"USDC-index","label":"gct-index","order_state":"untriggered","order_type":"stop_market","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"sell","price":"market_price","trigger":"index_price","trigger_price":84000,"amount":0.001}`,
+		"USDC-mark":        `{"order_id":"USDC-mark","label":"gct-mark","order_state":"untriggered","order_type":"stop_market","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"sell","price":"market_price","trigger":"mark_price","trigger_price":84000,"amount":0.001}`,
+		"USDC-iso":         `{"order_id":"USDC-iso","label":"gct-iso","order_state":"untriggered","order_type":"stop_market","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"sell","price":"market_price","trigger":"index_price","trigger_price":84000,"amount":0.001,"isolated":true}`,
+		"USDC-trail":       `{"order_id":"USDC-trail","label":"gct-trail","order_state":"untriggered","order_type":"trailing_stop","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"sell","price":"market_price","trigger":"mark_price","trigger_offset":500,"amount":0.001}`,
+		"USDC-trail-index": `{"order_id":"USDC-trail-index","label":"gct-trail-index","order_state":"untriggered","order_type":"trailing_stop","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"sell","price":"market_price","trigger":"index_price","trigger_offset":500,"amount":0.001}`,
+		"COIN-limit":       `{"order_id":"COIN-limit","label":"gct-limit","order_state":"open","order_type":"limit","time_in_force":"good_til_cancelled","instrument_name":"BTC-PERPETUAL","direction":"buy","price":80000,"amount":10}`,
+		"COIN-last":        `{"order_id":"COIN-last","label":"gct-last","order_state":"untriggered","order_type":"stop_market","time_in_force":"good_til_cancelled","instrument_name":"BTC-PERPETUAL","direction":"sell","price":"market_price","trigger":"last_price","trigger_price":84000,"amount":10}`,
+		"COIN-index":       `{"order_id":"COIN-index","label":"gct-index","order_state":"untriggered","order_type":"stop_market","time_in_force":"good_til_cancelled","instrument_name":"BTC-PERPETUAL","direction":"sell","price":"market_price","trigger":"index_price","trigger_price":84000,"amount":10}`,
+		"COIN-mark":        `{"order_id":"COIN-mark","label":"gct-mark","order_state":"untriggered","order_type":"stop_market","time_in_force":"good_til_cancelled","instrument_name":"BTC-PERPETUAL","direction":"sell","price":"market_price","trigger":"mark_price","trigger_price":84000,"amount":10}`,
+		"COIN-iso":         `{"order_id":"COIN-iso","label":"gct-iso","order_state":"untriggered","order_type":"stop_market","time_in_force":"good_til_cancelled","instrument_name":"BTC-PERPETUAL","direction":"sell","price":"market_price","trigger":"index_price","trigger_price":84000,"amount":10,"isolated":true}`,
+		"COIN-trail":       `{"order_id":"COIN-trail","label":"gct-trail","order_state":"untriggered","order_type":"trailing_stop","time_in_force":"good_til_cancelled","instrument_name":"BTC-PERPETUAL","direction":"sell","price":"market_price","trigger":"mark_price","trigger_offset":500,"amount":10}`,
+		"COIN-trail-index": `{"order_id":"COIN-trail-index","label":"gct-trail-index","order_state":"untriggered","order_type":"trailing_stop","time_in_force":"good_til_cancelled","instrument_name":"BTC-PERPETUAL","direction":"sell","price":"market_price","trigger":"index_price","trigger_offset":500,"amount":10}`,
+	}
+	openOrders := make([]string, 0, len(gatewayOrders))
+	for _, o := range gatewayOrders {
+		openOrders = append(openOrders, o)
+	}
+	instrumentPrefixes := map[string]string{"BTC_USDC-PERPETUAL": "USDC", "BTC-PERPETUAL": "COIN"}
+	answer := func(req receivedJSONRPC) string {
+		var params struct {
+			OrderID        string `json:"order_id"`
+			Label          string `json:"label"`
+			InstrumentName string `json:"instrument_name"`
+			Isolated       bool   `json:"isolated"`
+		}
+		assert.NoError(t, json.Unmarshal(req.Params, &params), "the params should decode")
+		switch req.Method {
+		case "private/get_order_state":
+			// The gateway finds an isolated margin subaccount's order only when asked to look there
+			if strings.HasSuffix(params.OrderID, "-iso") != params.Isolated {
+				return `{"jsonrpc":"2.0","error":{"code":10004,"message":"order_not_found"}}`
+			}
+			return `{"jsonrpc":"2.0","result":` + gatewayOrders[params.OrderID] + `}`
+		case "private/get_open_orders":
+			return `{"jsonrpc":"2.0","result":[` + strings.Join(openOrders, ",") + `]}`
+		case "private/edit":
+			return `{"jsonrpc":"2.0","result":{"order":` + gatewayOrders[params.OrderID] + `,"trades":[]}}`
+		case "private/edit_by_label":
+			return `{"jsonrpc":"2.0","result":{"order":` + gatewayOrders[instrumentPrefixes[params.InstrumentName]+"-"+strings.TrimPrefix(params.Label, "gct-")] + `,"trades":[]}}`
+		}
+		assert.Failf(t, "ModifyOrder should only read and edit the order", "sent %s", req.Method)
+		return `{"jsonrpc":"2.0","error":{"code":-32601,"message":"Method not found"}}`
+	}
+	accepted := map[string][]order.PriceType{"limit": {order.LastPrice}, "last": {order.LastPrice}, "index": {order.LastPrice, order.IndexPrice}, "mark": {order.LastPrice, order.MarkPrice}, "iso": {order.LastPrice, order.IndexPrice}, "trail": {order.LastPrice, order.MarkPrice}, "trail-index": {order.LastPrice, order.IndexPrice}}
+	// A gateway edit can make an order post only or not, but not change how long it rests
+	editable := []order.TimeInForce{order.UnknownTIF, order.GoodTillCancel, order.PostOnly, order.GoodTillCancel | order.PostOnly}
+	for _, g := range []struct {
+		prefix string
+		pair   currency.Pair
+		a      asset.Item
+		amount float64
+	}{{"USDC", testUSDCPerpetual, asset.USDCMarginedFutures, 0.002}, {"COIN", testCoinPerpetual, asset.CoinMarginedFutures, 20}} {
+		changes := []struct{ amount, price, triggerPrice float64 }{{0, 0, 0}, {g.amount, 0, 0}, {g.amount, 81000, 85000}}
+		for _, byLabel := range []bool{false, true} {
+			for _, tif := range timesInForce {
+				for _, change := range changes {
+					// Every edit reads the order first, so each has a server of its own
+					ex, sent := newDerivativesMethodServer(t, answer)
+					for trigger, own := range accepted {
+						orderID, label := g.prefix+"-"+trigger, ""
+						if byLabel {
+							orderID, label = "", "gct-"+trigger
+						}
+						name := g.prefix + " " + trigger + " order " + cmp.Or(orderID, "labelled "+label)
+						for _, priceType := range priceTypes {
+							takes := slices.Contains(own, priceType)
+							if takes && !slices.Contains(editable, tif) {
+								continue
+							}
+							_, err := ex.ModifyOrder(t.Context(), &order.Modify{OrderID: orderID, ClientOrderID: label, Pair: g.pair, AssetType: g.a, TimeInForce: tif, Amount: change.amount, Price: change.price, TriggerPrice: change.triggerPrice, TriggerPriceType: priceType})
+							edited := slices.ContainsFunc(sent(), func(req receivedJSONRPC) bool {
+								return req.Method == "private/edit" || req.Method == "private/edit_by_label"
+							})
+							if takes {
+								assert.NoErrorf(t, err, "ModifyOrder should edit the %s asked to trigger on price type %d with time in force %q, amount %v, price %v and trigger price %v", name, priceType, tif, change.amount, change.price, change.triggerPrice)
+								assert.Truef(t, edited, "ModifyOrder should send the edit of the %s asked to trigger on price type %d with time in force %q, amount %v, price %v and trigger price %v", name, priceType, tif, change.amount, change.price, change.triggerPrice)
+								continue
+							}
+							assert.ErrorIsf(t, err, order.ErrUnknownPriceType, "ModifyOrder should refuse to have the %s trigger on price type %d with time in force %q, amount %v, price %v and trigger price %v", name, priceType, tif, change.amount, change.price, change.triggerPrice)
+							assert.Falsef(t, edited, "ModifyOrder should not edit the %s asked to trigger on price type %d with time in force %q, amount %v, price %v and trigger price %v", name, priceType, tif, change.amount, change.price, change.triggerPrice)
+						}
+					}
+				}
+			}
+		}
+	}
 }
 
 func TestValidateAdvancedTradeTimeInForce(t *testing.T) {

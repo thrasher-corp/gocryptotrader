@@ -74,9 +74,13 @@ is replaced before it expires; its private websocket connection authenticates wi
   order's own fill in for those left unset; it changes a gateway order by its ID, or by its label in the pair. The
   gateway takes an edit's flags afresh, so the order's amount, price, trigger price and reduce only flag are kept where
   the change leaves them unset, as are its post only flags unless it asks for another post only setting. A time in
-  force the edit cannot apply is refused: Advanced Trade edits price and size alone, and the gateway can make an order
+  force the edit cannot apply is refused: an Advanced Trade edit keeps an order's own, and the gateway can make an order
   post only or not, but not change how long it rests. The order's own time in force, which the order manager passes
   with every modification, is accepted, a good till day one for the good till time order Advanced Trade made of it.
+  A trigger price type the edit cannot apply is refused too: Advanced Trade's stops trigger on the last trade price,
+  and a gateway edit keeps the price an order triggers on, taking the order's own price type, or the last price, which
+  leaves the trigger as it is. `SubmitOrder` and `ModifyOrder` refuse take profit, stop loss and stop entry orders
+  attached to an order, and a slippage tolerance, which they send to neither venue.
 + `CancelOrder`, `CancelBatchOrders`, `GetOrderInfo` and `ModifyOrder` find a gateway order in the main account, or in
   the isolated margin subaccount holding it. Advanced Trade cancels asynchronously, so `CancelBatchOrders` and
   `CancelAllOrders` report an order pending cancellation once Coinbase submits its cancel request, and an order named

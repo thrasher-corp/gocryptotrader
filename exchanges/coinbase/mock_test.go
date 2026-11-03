@@ -108,8 +108,8 @@ func connectDerivativesWebsocketTestExchange(t *testing.T, authenticated bool) (
 	ex.Features.Subscriptions = subscription.List{}
 	ex.Websocket.SetSubscriptionsNotRequired()
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(authenticated)
-	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must connect to the mock gateway websocket")
 	t.Cleanup(func() { stopWebsocketTestExchange(t, ex) })
+	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must connect to the mock gateway websocket")
 	return ex, venue
 }
 
