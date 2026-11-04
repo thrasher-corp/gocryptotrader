@@ -2069,7 +2069,7 @@ func TestSubscribe(t *testing.T) {
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	subs, err := e.Features.Subscriptions.ExpandTemplates(e)
 	require.NoError(t, err, "ExpandTemplates must not error")
-	testexch.SetupWs(t, e)
+	testexch.SetupWebsocket(t, e)
 	err = e.Subscribe(subs)
 	require.NoError(t, err, "Subscribe must not error")
 	got := e.Websocket.GetSubscriptions()

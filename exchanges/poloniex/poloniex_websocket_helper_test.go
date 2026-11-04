@@ -25,15 +25,15 @@ func TestSetupWsSupportsMultiConnectionManagement(t *testing.T) {
 	err := e.Websocket.SetAllConnectionURLs(wsURL)
 	require.NoError(t, err, "SetAllConnectionURLs must not error for Poloniex")
 
-	testexch.SetupWs(t, e)
+	testexch.SetupWebsocket(t, e)
 	t.Cleanup(func() {
 		if e.Websocket.IsConnected() {
 			assert.NoError(t, e.Websocket.Shutdown(), "Websocket shutdown should not error")
 		}
 	})
 
-	assert.Empty(t, e.Features.Subscriptions, "Features.Subscriptions should be cleared by SetupWs")
-	assert.True(t, e.Websocket.IsConnected(), "Websocket manager should be connected after SetupWs")
+	assert.Empty(t, e.Features.Subscriptions, "Features.Subscriptions should be cleared by SetupWebsocket")
+	assert.True(t, e.Websocket.IsConnected(), "Websocket manager should be connected after SetupWebsocket")
 
 	for _, messageFilter := range []string{connSpotPublic, connSpotPrivate, connFuturesPublic, connFuturesPrivate} {
 		conn, connErr := e.Websocket.GetConnection(messageFilter)

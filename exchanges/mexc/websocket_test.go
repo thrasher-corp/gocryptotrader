@@ -216,7 +216,7 @@ func TestSubscriptionAccepted(t *testing.T) {
 
 func TestGenerateSubscriptionsIncludesMiniTicker(t *testing.T) {
 	t.Parallel()
-	// A fresh instance: the live websocket tests' testexch.SetupWs empties the shared one's subscriptions.
+	// A fresh instance: the live websocket tests' testexch.SetupWebsocket empties the shared one's subscriptions.
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Setup must not error")
 	require.NoError(t, ex.setEnabledPairs(spotTradablePair), "setEnabledPairs must not error")

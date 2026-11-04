@@ -2107,7 +2107,7 @@ func TestSubscribe(t *testing.T) {
 		}
 		e = testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, mock))
 	} else {
-		testexch.SetupWs(t, e)
+		testexch.SetupWebsocket(t, e)
 	}
 	err = e.Subscribe(channels)
 	require.NoError(t, err, "Subscribe must not error")

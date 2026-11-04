@@ -3,6 +3,7 @@ package exchange
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -10,14 +11,17 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
+	"weak"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
@@ -28,23 +32,59 @@ import (
 	testutils "github.com/thrasher-corp/gocryptotrader/internal/testing/utils"
 )
 
-// Setup takes an empty exchange instance and loads config for it from testdata/configtest and connects a NewTestWebsocket
-func Setup(e exchange.IBotExchange, verbose ...bool) error {
-	cfg := &config.Config{}
+var errCopyingExchangeConfig = errors.New("error copying exchange config")
 
+// testConfig is shared by every Setup call, so its result must not be modified
+var testConfig = sync.OnceValues(loadTestConfig)
+
+func loadTestConfig() (*config.Config, error) {
 	root, err := testutils.RootPathFromCWD()
+	if err != nil {
+		return nil, err
+	}
+	cfg := &config.Config{}
+	if err := cfg.LoadConfig(filepath.Join(root, "testdata", "configtest.json"), true); err != nil {
+		return nil, fmt.Errorf("LoadConfig() error: %w", err)
+	}
+	return cfg, nil
+}
+
+func copyExchangeConfig(src *config.Exchange) (*config.Exchange, error) {
+	// Currencies and pairs are cloned because a JSON round trip re-parses them from strings, which can change them
+	rest := *src
+	rest.BaseCurrencies, rest.CurrencyPairs = nil, nil
+	data, err := json.Marshal(&rest)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", errCopyingExchangeConfig, err)
+	}
+	c := new(config.Exchange)
+	if err := json.Unmarshal(data, c); err != nil {
+		return nil, fmt.Errorf("%w: %w", errCopyingExchangeConfig, err)
+	}
+	c.BaseCurrencies = slices.Clone(src.BaseCurrencies)
+	if src.CurrencyPairs != nil {
+		c.CurrencyPairs = new(currency.PairsManager)
+		c.CurrencyPairs.Load(src.CurrencyPairs)
+	}
+	return c, nil
+}
+
+// Setup takes an empty exchange instance, sets it up with its own copy of its testdata/configtest.json config and
+// attaches a NewTestWebsocket
+func Setup(e exchange.IBotExchange, verbose ...bool) error {
+	cfg, err := testConfig()
 	if err != nil {
 		return err
 	}
-
-	if err = cfg.LoadConfig(filepath.Join(root, "testdata", "configtest.json"), true); err != nil {
-		return fmt.Errorf("LoadConfig() error: %w", err)
-	}
 	e.SetDefaults()
 	eName := e.GetName()
-	exchConf, err := cfg.GetExchangeConfig(eName)
+	shared, err := cfg.GetExchangeConfig(eName)
 	if err != nil {
 		return fmt.Errorf("GetExchangeConfig(%q) error: %w", eName, err)
+	}
+	exchConf, err := copyExchangeConfig(shared)
+	if err != nil {
+		return fmt.Errorf("%s %w", eName, err)
 	}
 	if len(verbose) > 0 {
 		exchConf.Verbose = verbose[0]
@@ -52,12 +92,13 @@ func Setup(e exchange.IBotExchange, verbose ...bool) error {
 
 	b := e.GetBase()
 	b.Websocket = sharedtestvalues.NewTestWebsocket()
+	// Assigned before Setup so SetupDefaults does not register the exchange in the global accounts store, which never
+	// releases it
+	b.Accounts = accounts.MustNewAccounts(b)
 
 	if err = e.Setup(exchConf); err != nil {
 		return fmt.Errorf("Setup() error: %w", err)
 	}
-
-	b.Accounts = accounts.MustNewAccounts(b)
 
 	return nil
 }
@@ -194,23 +235,25 @@ func SkipTestIfCannotUseAuthenticatedWebsocket(tb testing.TB, e exchange.IBotExc
 
 var (
 	setupWsMutex sync.Mutex
-	setupWsOnce  = make(map[exchange.IBotExchange]bool)
+	// Weak keys let an exchange be collected once its tests drop it
+	setupWsOnce = make(map[weak.Pointer[exchange.Base]]bool)
 )
 
-// SetupWs is a helper function to connect both auth and normal websockets
+// SetupWebsocket is a helper function to connect both auth and normal websockets
 // It will skip the test if websockets are not enabled
 // It's up to the test to skip if it requires creds, though
-func SetupWs(tb testing.TB, e exchange.IBotExchange) {
+func SetupWebsocket(tb testing.TB, e exchange.IBotExchange) {
 	tb.Helper()
 
 	setupWsMutex.Lock()
 	defer setupWsMutex.Unlock()
 
-	if setupWsOnce[e] {
+	b := e.GetBase()
+	key := weak.Make(b)
+	if setupWsOnce[key] {
 		return
 	}
 
-	b := e.GetBase()
 	w, err := b.GetWebsocket()
 	if err != nil || !b.Websocket.IsEnabled() {
 		tb.Skip("Websocket not enabled")
@@ -226,7 +269,7 @@ func SetupWs(tb testing.TB, e exchange.IBotExchange) {
 	err = w.Connect(context.TODO())
 	require.NoError(tb, err, "Connect must not error")
 	w.DataHandler = stream.NewRelay(100000)
-	setupWsOnce[e] = true
+	setupWsOnce[key] = true
 }
 
 var (
