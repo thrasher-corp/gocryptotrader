@@ -249,6 +249,19 @@ func (m *Manager) GetSubscriptions() subscription.List {
 
 // checkSubscriptions checks subscriptions against the max subscription limit and if the subscription already exists
 // The subscription state is not considered when counting existing subscriptions
+//
+// Capacity is counted in expanded subscription entries: len(subs) here is the number of entries the
+// generator produced for this connection after the boundary, not configuration templates and not
+// wire messages. Exchanges do not all emit one wire message per entry, so entry count is not wire
+// count; both directions were checked against #2457:
+//
+//   - one message per entry: bitfinex, bitstamp, coinbase, gateio, hitbtc, huobi, poloniex (spot)
+//   - several entries coalesced into one message: bybit, deribit, kraken, kucoin, binance,
+//     binanceus, btse, btcmarkets, gemini, okx
+//
+// No exchange in the checked set was found to turn one entry into several wire messages, so capacity
+// stays per-entry; this is what we verified rather than a guessed grouping rule. An exchange that
+// genuinely needs a different unit can supply a compression/limit callback later (#2457).
 func (m *Manager) checkSubscriptions(conn Connection, subs subscription.List) error {
 	var subscriptionStore *subscription.Store
 	var usedCapacity int
@@ -326,7 +339,11 @@ func (m *Manager) flushChannels(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		return m.updateChannelSubscriptions(ctx, m.subscriptions, newSubs)
+		expanded, err := m.toExpandedSubscriptions(newSubs, nil)
+		if err != nil {
+			return fmt.Errorf("%s websocket: %w", m.exchangeName, common.AppendError(ErrSubscriptionFailure, err))
+		}
+		return m.updateChannelSubscriptions(ctx, m.subscriptions, expanded.List())
 	}
 
 	var subscriptionError error
@@ -336,6 +353,16 @@ func (m *Manager) flushChannels(ctx context.Context) error {
 		}
 
 		newSubs, err := ws.setup.GenerateSubscriptions()
+		if err == nil {
+			// Expand at the boundary before capacity allocation. On expansion error keep the
+			// generator's list so removals during refresh stay authoritative (see ErrSubscriptionPartial).
+			var expanded subscription.ExpandedList
+			if expanded, err = m.toExpandedSubscriptions(newSubs, ws.setup.ExpandSubscriptions); err != nil {
+				err = fmt.Errorf("subscription expansion error on [URL:%s]: %w", ws.setup.URL, err)
+			} else {
+				newSubs = expanded.List()
+			}
+		}
 		var fatalErr error
 		subscriptionError, fatalErr = collectSubscriptionGenerationError(subscriptionError, err)
 		if fatalErr != nil {
@@ -352,6 +379,30 @@ func (m *Manager) flushChannels(ctx context.Context) error {
 		}
 	}
 	return subscriptionError
+}
+
+// toExpandedSubscriptions converts a generated subscription list into the manager's expanded boundary
+// type. It is the single place the manager crosses from configuration templates to expanded runtime
+// subscriptions, and it runs once, before the subscribe call and before connection capacity is
+// allocated, so validation, routing and subscription all see the same resolved channels and pairs.
+//
+// Expansion happens here rather than being repeated downstream: when the exchange generator already
+// expanded its output the list is validated as-is (see NewExpandedList), otherwise the
+// exchange-supplied expander runs. A manager-owned expanded list is never re-expanded, so
+// subscription identity, custom keys and reconciliation state survive to the exchange subscriber.
+//
+// Reserved hook: an external filter (for example a trading bot narrowing its own channels) would sit
+// between expansion and validation here, and must be drop-only so retained entries keep their
+// identity (see subscription.ExpandedList.Filter). We deliberately do not wire one yet; a maintainer
+// can connect it at this point when needed. See #2457.
+func (m *Manager) toExpandedSubscriptions(subs subscription.List, expand func(subscription.List) (subscription.ExpandedList, error)) (subscription.ExpandedList, error) {
+	if expand == nil {
+		expand = m.expandSubscriptions
+	}
+	if expand != nil {
+		return expand(subs)
+	}
+	return subscription.NewExpandedList(subs)
 }
 
 func collectSubscriptionGenerationError(subscriptionError, generationError error) (updatedSubscriptionError, fatalError error) {

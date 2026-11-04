@@ -565,9 +565,10 @@ func (e *Exchange) GenerateDefaultSubscriptions() (subscription.List, error) {
 	for i := range channels {
 		for j := range enabledPairs {
 			subscriptions = append(subscriptions, &subscription.Subscription{
-				Channel: channels[i],
-				Pairs:   currency.Pairs{enabledPairs[j]},
-				Asset:   asset.Spot,
+				Channel:          channels[i],
+				QualifiedChannel: channels[i] + ":" + enabledPairs[j].String(),
+				Pairs:            currency.Pairs{enabledPairs[j]},
+				Asset:            asset.Spot,
 			})
 		}
 	}

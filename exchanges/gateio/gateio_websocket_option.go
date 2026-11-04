@@ -150,10 +150,11 @@ getEnabledPairs:
 				return nil, err
 			}
 			subscriptions = append(subscriptions, &subscription.Subscription{
-				Channel: channelsToSubscribe[i],
-				Pairs:   currency.Pairs{fPair.Upper()},
-				Params:  params,
-				Asset:   asset.Options,
+				Channel:          channelsToSubscribe[i],
+				QualifiedChannel: channelsToSubscribe[i] + ":" + fPair.Upper().String(),
+				Pairs:            currency.Pairs{fPair.Upper()},
+				Params:           params,
+				Asset:            asset.Options,
 			})
 		}
 	}

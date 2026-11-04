@@ -531,9 +531,10 @@ subs:
 				break subs
 			}
 			subscriptions = append(subscriptions, &subscription.Subscription{
-				Channel: lp.String() + channels[z],
-				Pairs:   currency.Pairs{pairs[y]},
-				Asset:   asset.Spot,
+				Channel:          lp.String() + channels[z],
+				QualifiedChannel: lp.String() + channels[z],
+				Pairs:            currency.Pairs{pairs[y]},
+				Asset:            asset.Spot,
 			})
 		}
 	}
