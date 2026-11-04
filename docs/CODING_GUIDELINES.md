@@ -251,7 +251,7 @@ Use `require` and `assert` appropriately:
   - Call it inside each `t.Run` when safe.
   - Keep data and setup separate where cases could affect each other.
   - If a case must run serially, leave it out of that case and any parent tests that must also run serially. Add a comment explaining why.
-  - If the `tparallel` linter reports an issue, either keep the whole test serial, including its subtests, or add `//nolint:tparallel // reason` to the test function when a mix of serial and parallel cases is needed. Do not enable parallel execution just to satisfy lint.
+  - If `tparallel` reports missing `t.Parallel` calls, either keep the whole test serial, including its subtests, or add `//nolint:tparallel // reason` to the test function when a mix of serial and parallel execution is needed. Do not enable parallel execution just to satisfy lint.
   - Only add the suppression when the linter reports an issue.
 - Use `t.Cleanup` to release resources needed by parallel subtests:
   - A parent test's `defer` may release them before those subtests run.
