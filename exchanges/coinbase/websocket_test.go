@@ -2218,6 +2218,51 @@ func TestSetupFromVersion17Config(t *testing.T) {
 	}
 }
 
+func TestSetupFromVersion17CustomisedConfig(t *testing.T) {
+	t.Parallel()
+	raw, err := testExchangeConfig()
+	require.NoError(t, err, "testExchangeConfig must not error")
+	// The previous version's subscriptions with two changes it streamed past: one minute candles, which it requested
+	// with no interval, and a ticker without an asset, which it requested for no products, which Coinbase refuses
+	saved, err := jsonparser.Set(raw, []byte(`[{"enabled":true,"channel":"heartbeat"},{"enabled":true,"channel":"status","asset":"all"},`+
+		`{"enabled":true,"channel":"ticker","asset":"spot"},{"enabled":true,"channel":"candles","asset":"spot","interval":"1m"},`+
+		`{"enabled":true,"channel":"allTrades","asset":"spot"},{"enabled":true,"channel":"orderbook","asset":"spot"},`+
+		`{"enabled":true,"channel":"myAccount","asset":"all","authenticated":true},{"enabled":true,"channel":"ticker_batch","asset":"spot"},`+
+		`{"enabled":true,"channel":"ticker"}]`), "features", "subscriptions")
+	require.NoError(t, err, "jsonparser.Set must not error for the subscriptions")
+	saved, err = jsonparser.Set(saved, []byte(`{"bypassConfigFormatUpgrades":false,"requestFormat":{"uppercase":true,"delimiter":"-"},`+
+		`"configFormat":{"uppercase":true,"delimiter":"-"},"useGlobalFormat":true,"pairs":{`+
+		`"futures":{"assetEnabled":true,"enabled":"BIP-20DEC30-CDE","available":"BIP-20DEC30-CDE,BIT-30OCT26-CDE"},`+
+		`"spot":{"assetEnabled":true,"enabled":"BTC-USD","available":"BTC-USD,ETH-USD"}}}`), "currencyPairs")
+	require.NoError(t, err, "jsonparser.Set must not error for the pairs")
+	path := filepath.Join(t.TempDir(), "config.json")
+	require.NoError(t, os.WriteFile(path, []byte(`{"name":"test","version":17,"encryptConfig":-1,"exchanges":[`+string(saved)+`]}`), 0o600), "WriteFile must save the version 17 config")
+
+	var cfg config.Config
+	require.NoError(t, cfg.ReadConfigFromFile(path, true), "ReadConfigFromFile must upgrade the version 17 config")
+	exchCfg, err := cfg.GetExchangeConfig("Coinbase")
+	require.NoError(t, err, "GetExchangeConfig must not error")
+	ex := new(Exchange)
+	ex.SetDefaults()
+	ex.Websocket = sharedtestvalues.NewTestWebsocket()
+	require.NoError(t, ex.Setup(exchCfg), "Setup must not error for the upgraded configuration")
+	ex.Name = t.Name()
+	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	marketData, err := ex.generateMarketDataSubscriptions()
+	require.NoError(t, err, "generateMarketDataSubscriptions must not error for the upgraded customised configuration")
+	user, err := ex.generateUserSubscriptions()
+	require.NoError(t, err, "generateUserSubscriptions must not error for the upgraded customised configuration")
+	assert.True(t, slices.ContainsFunc(user, func(s *subscription.Subscription) bool { return s.Channel == subscription.MyAccountChannel }), "the upgraded configuration should subscribe the account channel")
+	for _, channel := range []string{subscription.TickerChannel, subscription.CandlesChannel, subscription.AllTradesChannel, subscription.OrderbookChannel, ChannelStatus} {
+		assert.Truef(t, slices.ContainsFunc(marketData, func(s *subscription.Subscription) bool { return s.Channel == channel && s.Asset == asset.Spot }), "the upgraded configuration should subscribe spot's %s channel", channel)
+	}
+	for _, s := range marketData {
+		if s.Channel == subscription.CandlesChannel {
+			assert.Equal(t, kline.FiveMin, s.Interval, "the upgraded configuration should subscribe five minute candles")
+		}
+	}
+}
+
 func TestWebsocketHandleUserFirstSeenFilled(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {

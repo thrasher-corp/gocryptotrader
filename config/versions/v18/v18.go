@@ -113,25 +113,73 @@ func (*Version) Exchanges() []string { return []string{"Coinbase"} }
 // UpgradeExchange replaces the previous default subscriptions, or the list the previous config_example.json shipped,
 // with the current defaults, which stream every asset, as it does a subscription list holding a legacy Coinbase Pro
 // channel, which the previous version replaced with its defaults on load; subscriptions which differ from both are the
-// user's choice and are left unchanged
+// user's choice and are left unchanged. Before the defaults are matched, two kinds of enabled subscription the current
+// version would refuse, failing every subscription, are given what the previous version streamed for them, so the
+// previous defaults or example with a product channel without an asset added are still replaced
 func (*Version) UpgradeExchange(_ context.Context, exchange []byte) ([]byte, error) {
 	entries, err := subscriptions(exchange)
 	if err != nil || entries == nil {
 		return exchange, err
 	}
-	saved, err := decodeEntries(entries)
+	generatable, saved, err := keepGeneratable(exchange, entries)
 	if err != nil {
-		return exchange, fmt.Errorf("error decoding Coinbase subscriptions: %w", err)
+		return exchange, err
 	}
 	if slices.ContainsFunc(saved, func(s savedSubscription) bool { return slices.Contains(legacyChannels, s.Channel) }) {
-		return setDefaults(exchange, currentDefaults, nil)
+		return setDefaults(generatable, currentDefaults, nil)
 	}
 	for _, previous := range [][]defaultSubscription{previousDefaults, previousExample} {
 		if inert, ok := matchDefaults(entries, saved, previous); ok {
-			return setDefaults(exchange, currentDefaults, inert)
+			return setDefaults(generatable, currentDefaults, inert)
 		}
 	}
-	return exchange, nil
+	return generatable, nil
+}
+
+// candlesChannel is the channel whose interval the current version restricts
+const candlesChannel = "candles"
+
+// productChannels are the previous version's channels that take products
+var productChannels = []string{"ticker", candlesChannel, "allTrades", "orderbook", "status", "ticker_batch"}
+
+// keepGeneratable decodes the saved subscriptions and gives two kinds of enabled subscription the current version would
+// refuse what the previous version streamed for them: a candles interval set to other than five minutes, on an asset
+// the previous version streamed candles for, becomes five minutes, as it sent no interval and Coinbase's candles are
+// five minutes, and a product channel without an asset is disabled, as it requested no products, which Coinbase
+// refuses. It updates each changed entry in place and returns the configuration holding them
+func keepGeneratable(exchange []byte, entries []json.RawMessage) ([]byte, []savedSubscription, error) {
+	saved, err := decodeEntries(entries)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error decoding Coinbase subscriptions: %w", err)
+	}
+	for i := range saved {
+		s := &saved[i]
+		if s.Enabled == nil || !*s.Enabled || !slices.Contains(productChannels, s.Channel) {
+			continue
+		}
+		var field string
+		var value []byte
+		switch interval, ok := parseInterval(s.Interval); {
+		case s.Asset == "":
+			field, value = "enabled", []byte("false")
+			*s.Enabled = false
+		case s.Channel == candlesChannel && ok && interval != 0 && interval != 5*time.Minute &&
+			slices.ContainsFunc(previousAssets, func(a string) bool { return strings.EqualFold(a, s.Asset) }):
+			field, value = "interval", []byte(`"5m"`)
+			s.Interval = value
+		default:
+			continue
+		}
+		entry, err := jsonparser.Set(entries[i], value, field)
+		if err == nil {
+			exchange, err = jsonparser.Set(exchange, entry, "features", "subscriptions", "["+strconv.Itoa(i)+"]")
+		}
+		if err != nil {
+			return nil, nil, fmt.Errorf("error updating Coinbase subscription %d: %w", i, err)
+		}
+		entries[i] = entry
+	}
+	return exchange, saved, nil
 }
 
 // DowngradeExchange replaces the current default subscriptions with the previous defaults, and disables the enabled
@@ -301,7 +349,7 @@ func parseLevels(raw json.RawMessage) (int, bool) {
 	return levels, true
 }
 
-// parseInterval returns a saved interval as the config loader parses it: nanoseconds, a duration such as 5m0s, or a
+// parseInterval returns a saved interval as the config loader parses it: nanoseconds, raw, a duration such as 5m0s, or a
 // count of units such as 5min; an absent interval is zero, and null is rejected as the loader rejects it
 func parseInterval(raw json.RawMessage) (time.Duration, bool) {
 	if raw == nil {
@@ -317,6 +365,10 @@ func parseInterval(raw json.RawMessage) (time.Duration, bool) {
 	var text string
 	if err := json.Unmarshal(raw, &text); err != nil {
 		return 0, false
+	}
+	if text == "raw" {
+		// The loader's kline.Raw
+		return -1, true
 	}
 	if d, err := time.ParseDuration(text); err == nil {
 		return d, true

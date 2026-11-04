@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/config/versions"
 	v18 "github.com/thrasher-corp/gocryptotrader/config/versions/v18"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 // The v17 and v18 default subscriptions as the config saves them
@@ -187,6 +188,120 @@ func TestMigrationPreservesCustomSubscriptions(t *testing.T) {
 	}
 }
 
+func TestUpgradeExchangeKeepsCustomisedSubscriptionsGeneratable(t *testing.T) {
+	t.Parallel()
+	// Disabling a default customises the list, which is kept
+	custom := with(previousDefaults, 7, strings.Replace(tickerBatch, `"enabled":true`, `"enabled":false`, 1))
+	fiveMinutes := field(spotCandles, `"interval":"5m"`)
+	assetless := `{"enabled":true,"channel":"ticker"}`
+	disabledAssetless := `{"enabled":false,"channel":"ticker"}`
+	otherIntervals := []string{
+		heartbeatEntry, field(statusEntry, `"interval":"1m"`), field(spotTicker, `"interval":"1m"`), spotCandles,
+		field(spotTrades, `"interval":"1m"`), field(spotOrderbook, `"interval":"1m"`), accountEntry, field(tickerBatch, `"interval":"1m"`),
+	}
+	for name, tc := range map[string]struct{ entries, exp []string }{
+		// The previous version sent no interval, and Coinbase's candles are five minutes
+		"defaults with an interval": {with(previousDefaults, 3, field(spotCandles, `"interval":"1m"`)), with(previousDefaults, 3, fiveMinutes)},
+		"one minute":                {with(custom, 3, field(spotCandles, `"interval":"1m"`)), with(custom, 3, fiveMinutes)},
+		"duration":                  {with(custom, 3, field(spotCandles, `"interval":"1m0s"`)), with(custom, 3, fiveMinutes)},
+		"nanoseconds":               {with(custom, 3, field(spotCandles, `"interval":60000000000`)), with(custom, 3, fiveMinutes)},
+		"units":                     {with(custom, 3, field(spotCandles, `"interval":"15min"`)), with(custom, 3, fiveMinutes)},
+		"hourly":                    {with(custom, 3, field(spotCandles, `"interval":"1h"`)), with(custom, 3, fiveMinutes)},
+		"raw":                       {with(custom, 3, field(spotCandles, `"interval":"raw"`)), with(custom, 3, fiveMinutes)},
+		"raw nanoseconds":           {with(custom, 3, field(spotCandles, `"interval":-1`)), with(custom, 3, fiveMinutes)},
+		"negative interval":         {with(custom, 3, field(spotCandles, `"interval":"-1m"`)), with(custom, 3, fiveMinutes)},
+		"seconds":                   {with(custom, 3, field(spotCandles, `"interval":"30s"`)), with(custom, 3, fiveMinutes)},
+		"sub-second interval":       {with(custom, 3, field(spotCandles, `"interval":"500ms"`)), with(custom, 3, fiveMinutes)},
+		"title case asset":          {with(custom, 3, `{"enabled":true,"channel":"candles","asset":"Spot","interval":"1m"}`), with(custom, 3, `{"enabled":true,"channel":"candles","asset":"Spot","interval":"5m"}`)},
+		"upper case asset":          {with(custom, 3, `{"enabled":true,"channel":"candles","asset":"SPOT","interval":"1m"}`), with(custom, 3, `{"enabled":true,"channel":"candles","asset":"SPOT","interval":"5m"}`)},
+		"wildcard asset":            {with(custom, 3, `{"enabled":true,"channel":"candles","asset":"all","interval":"1m"}`), with(custom, 3, `{"enabled":true,"channel":"candles","asset":"all","interval":"5m"}`)},
+		"upper case wildcard":       {with(custom, 3, `{"enabled":true,"channel":"candles","asset":"ALL","interval":"1m"}`), with(custom, 3, `{"enabled":true,"channel":"candles","asset":"ALL","interval":"5m"}`)},
+		"futures":                   {append(append([]string(nil), custom...), `{"enabled":true,"channel":"candles","asset":"futures","interval":"1m"}`), append(append([]string(nil), custom...), `{"enabled":true,"channel":"candles","asset":"futures","interval":"5m"}`)},
+		"title case futures":        {append(append([]string(nil), custom...), `{"enabled":true,"channel":"candles","asset":"Futures","interval":"1m"}`), append(append([]string(nil), custom...), `{"enabled":true,"channel":"candles","asset":"Futures","interval":"5m"}`)},
+		"five minutes":              {with(custom, 3, fiveMinutes), with(custom, 3, fiveMinutes)},
+		"five minute duration":      {with(custom, 3, field(spotCandles, `"interval":"5m0s"`)), with(custom, 3, field(spotCandles, `"interval":"5m0s"`))},
+		"five minute nanoseconds":   {with(custom, 3, field(spotCandles, `"interval":300000000000`)), with(custom, 3, field(spotCandles, `"interval":300000000000`))},
+		"five minute units":         {with(custom, 3, field(spotCandles, `"interval":"5min"`)), with(custom, 3, field(spotCandles, `"interval":"5min"`))},
+		"five minute seconds":       {with(custom, 3, field(spotCandles, `"interval":"300s"`)), with(custom, 3, field(spotCandles, `"interval":"300s"`))},
+		"zero interval":             {with(custom, 3, field(spotCandles, `"interval":"0s"`)), with(custom, 3, field(spotCandles, `"interval":"0s"`))},
+		"null interval":             {with(custom, 3, field(spotCandles, `"interval":null`)), with(custom, 3, field(spotCandles, `"interval":null`))},
+		"disabled":                  {with(custom, 3, `{"enabled":false,"channel":"candles","asset":"spot","interval":"1m"}`), with(custom, 3, `{"enabled":false,"channel":"candles","asset":"spot","interval":"1m"}`)},
+		"enabled null":              {with(custom, 3, `{"enabled":null,"channel":"candles","asset":"spot","interval":"1m"}`), with(custom, 3, `{"enabled":null,"channel":"candles","asset":"spot","interval":"1m"}`)},
+		"enabled omitted":           {with(custom, 3, `{"channel":"candles","asset":"spot","interval":"1m"}`), with(custom, 3, `{"channel":"candles","asset":"spot","interval":"1m"}`)},
+		"gateway asset":             {append(append([]string(nil), custom...), `{"enabled":true,"channel":"candles","asset":"usdcmarginedfutures","interval":"1m"}`), append(append([]string(nil), custom...), `{"enabled":true,"channel":"candles","asset":"usdcmarginedfutures","interval":"1m"}`)},
+		"coin-margined asset":       {append(append([]string(nil), custom...), `{"enabled":true,"channel":"candles","asset":"coinmarginedfutures","interval":"1m"}`), append(append([]string(nil), custom...), `{"enabled":true,"channel":"candles","asset":"coinmarginedfutures","interval":"1m"}`)},
+		"ticker interval":           {with(custom, 2, field(spotTicker, `"interval":"1m"`)), with(custom, 2, field(spotTicker, `"interval":"1m"`))},
+		"other channel intervals":   {otherIntervals, otherIntervals},
+		"authenticated candles":     {with(custom, 3, `{"enabled":true,"channel":"candles","asset":"spot","interval":"1m","authenticated":true}`), with(custom, 3, `{"enabled":true,"channel":"candles","asset":"spot","interval":"5m","authenticated":true}`)},
+		"unauthenticated candles":   {with(custom, 3, `{"enabled":true,"channel":"candles","asset":"spot","interval":"1m","authenticated":false}`), with(custom, 3, `{"enabled":true,"channel":"candles","asset":"spot","interval":"5m","authenticated":false}`)},
+		"candles with parameters":   {with(custom, 3, `{"enabled":true,"channel":"candles","asset":"spot","interval":"1m","params":{"custom":"keep"}}`), with(custom, 3, `{"enabled":true,"channel":"candles","asset":"spot","interval":"5m","params":{"custom":"keep"}}`)},
+		"candles with levels":       {with(custom, 3, `{"enabled":true,"channel":"candles","asset":"spot","interval":"1m","levels":10}`), with(custom, 3, `{"enabled":true,"channel":"candles","asset":"spot","interval":"5m","levels":10}`)},
+		"first entry":               {with(custom, 0, `{"enabled":true,"channel":"candles","asset":"spot","interval":"1m"}`), with(custom, 0, `{"enabled":true,"channel":"candles","asset":"spot","interval":"5m"}`)},
+		// The previous version requested a product channel without an asset for no products, which Coinbase refuses, so
+		// such an entry streamed nothing
+		"ticker without an asset":        {with(custom, 2, assetless), with(custom, 2, disabledAssetless)},
+		"empty asset":                    {with(custom, 2, `{"enabled":true,"channel":"ticker","asset":""}`), with(custom, 2, `{"enabled":false,"channel":"ticker","asset":""}`)},
+		"candles without an asset":       {with(custom, 3, `{"enabled":true,"channel":"candles","interval":"1m"}`), with(custom, 3, `{"enabled":false,"channel":"candles","interval":"1m"}`)},
+		"trades without an asset":        {with(custom, 4, `{"enabled":true,"channel":"allTrades"}`), with(custom, 4, `{"enabled":false,"channel":"allTrades"}`)},
+		"orderbook without an asset":     {with(custom, 5, `{"enabled":true,"channel":"orderbook"}`), with(custom, 5, `{"enabled":false,"channel":"orderbook"}`)},
+		"status without an asset":        {with(custom, 1, `{"enabled":true,"channel":"status"}`), with(custom, 1, `{"enabled":false,"channel":"status"}`)},
+		"ticker batch without an asset":  {with(custom, 7, `{"enabled":true,"channel":"ticker_batch"}`), with(custom, 7, `{"enabled":false,"channel":"ticker_batch"}`)},
+		"parameters without an asset":    {with(custom, 2, `{"enabled":true,"channel":"ticker","params":{"custom":"keep"}}`), with(custom, 2, `{"enabled":false,"channel":"ticker","params":{"custom":"keep"}}`)},
+		"levels without an asset":        {with(custom, 5, `{"enabled":true,"channel":"orderbook","levels":10}`), with(custom, 5, `{"enabled":false,"channel":"orderbook","levels":10}`)},
+		"authenticated without an asset": {with(custom, 2, `{"enabled":true,"channel":"ticker","authenticated":true}`), with(custom, 2, `{"enabled":false,"channel":"ticker","authenticated":true}`)},
+		"account without an asset":       {with(custom, 6, `{"enabled":true,"channel":"myAccount","authenticated":true}`), with(custom, 6, `{"enabled":true,"channel":"myAccount","authenticated":true}`)},
+		// The config loader refuses a blank asset rather than reading it as none
+		"blank asset": {with(custom, 2, `{"enabled":true,"channel":"ticker","asset":" "}`), with(custom, 2, `{"enabled":true,"channel":"ticker","asset":" "}`)},
+		// Both versions match channel names exactly, so neither takes this for its ticker channel
+		"capitalised channel": {with(custom, 2, `{"enabled":true,"channel":"Ticker"}`), with(custom, 2, `{"enabled":true,"channel":"Ticker"}`)},
+		// The loader matches a field's key in any case, and the last key read applies, so the field is set after it
+		"capitalised enabled":  {with(custom, 2, `{"Enabled":true,"channel":"ticker"}`), with(custom, 2, `{"Enabled":true,"channel":"ticker","enabled":false}`)},
+		"capitalised interval": {with(custom, 3, `{"enabled":true,"channel":"candles","asset":"spot","Interval":"1m"}`), with(custom, 3, `{"enabled":true,"channel":"candles","asset":"spot","Interval":"1m","interval":"5m"}`)},
+		"each entry changed": {
+			with(with(with(custom, 2, assetless), 3, field(spotCandles, `"interval":"1m"`)), 4, `{"enabled":true,"channel":"allTrades"}`),
+			with(with(with(custom, 2, disabledAssetless), 3, fiveMinutes), 4, `{"enabled":false,"channel":"allTrades"}`),
+		},
+		"every position changed": {
+			[]string{
+				assetless, field(spotCandles, `"interval":"1m"`), `{"enabled":true,"channel":"allTrades"}`, `{"enabled":true,"channel":"orderbook"}`, `{"enabled":true,"channel":"status"}`,
+				`{"enabled":true,"channel":"ticker_batch"}`, `{"enabled":true,"channel":"candles","asset":"futures","interval":"1m"}`, `{"enabled":true,"channel":"candles","asset":"all","interval":"raw"}`,
+				`{"enabled":true,"channel":"candles"}`, field(spotCandles, `"interval":"15min"`),
+			},
+			[]string{
+				disabledAssetless, fiveMinutes, `{"enabled":false,"channel":"allTrades"}`, `{"enabled":false,"channel":"orderbook"}`, `{"enabled":false,"channel":"status"}`,
+				`{"enabled":false,"channel":"ticker_batch"}`, `{"enabled":true,"channel":"candles","asset":"futures","interval":"5m"}`, `{"enabled":true,"channel":"candles","asset":"all","interval":"5m"}`,
+				`{"enabled":false,"channel":"candles"}`, fiveMinutes,
+			},
+		},
+		"defaults and one without": {append(append([]string(nil), previousDefaults...), assetless), append(append([]string(nil), currentDefaults...), disabledAssetless)},
+		"example and one without":  {append(append([]string(nil), previousExample...), assetless), append(append([]string(nil), currentDefaults...), disabledAssetless)},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			version := new(v18.Version)
+			got, err := version.UpgradeExchange(t.Context(), []byte(subscriptions(tc.entries...)))
+			require.NoError(t, err, "UpgradeExchange must not error")
+			assert.JSONEq(t, subscriptions(tc.exp...), string(got), "UpgradeExchange should change only the subscriptions the current version cannot generate, before matching the defaults")
+			again, err := version.UpgradeExchange(t.Context(), got)
+			require.NoError(t, err, "repeated UpgradeExchange must not error")
+			assert.Equal(t, got, again, "UpgradeExchange should be idempotent")
+		})
+	}
+}
+
+func TestUpgradeExchangeKeepsDisabledExchangeGeneratable(t *testing.T) {
+	t.Parallel()
+	// An exchange disabled in the config can be enabled later, so its subscriptions are upgraded as an enabled one's are
+	disabled := func(entries []string) string {
+		return strings.Replace(subscriptions(entries...), `{"name":"Coinbase",`, `{"name":"Coinbase","enabled":false,`, 1)
+	}
+	entries := append(with(previousDefaults, 3, field(spotCandles, `"interval":"1m"`)), `{"enabled":true,"channel":"ticker"}`)
+	exp := append(with(previousDefaults, 3, field(spotCandles, `"interval":"5m"`)), `{"enabled":false,"channel":"ticker"}`)
+	got, err := new(v18.Version).UpgradeExchange(t.Context(), []byte(disabled(entries)))
+	require.NoError(t, err, "UpgradeExchange must not error for a disabled exchange")
+	assert.JSONEq(t, disabled(exp), string(got), "UpgradeExchange should upgrade a disabled exchange's subscriptions as it does an enabled one's")
+}
+
 func TestMigrationKeepsDisabledEntries(t *testing.T) {
 	t.Parallel()
 	disabledSummary := strings.Replace(balanceSummary, `"enabled":true`, `"enabled":false`, 1)
@@ -312,6 +427,10 @@ func TestMigrationRejectsMalformedConfigs(t *testing.T) {
 				t.Parallel()
 				got, err := migrate(t.Context(), []byte(tc.input))
 				require.ErrorContains(t, err, tc.errContains, "migration must report the failing operation")
+				if tc.errContains == "error decoding Coinbase subscriptions" {
+					var typeErr *json.UnmarshalTypeError
+					assert.ErrorAs(t, err, &typeErr, "migration should wrap the decoding error")
+				}
 				assert.Equal(t, tc.input, string(got), "failed migration should preserve the input")
 			})
 		}
