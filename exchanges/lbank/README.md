@@ -48,9 +48,13 @@ support off when the exchange is set up.
 
 + `SubmitOrder` places spot limit orders, good till cancelled, post only, immediate or cancel or fill or kill, and spot
   market orders. A market buy spends its `QuoteAmount` and a market sell sells its `Amount`. Contracts can't be traded.
+  LBank's spot orders take no margin, leverage, take profit, stop loss or stop entry, so an order with a margin type
+  other than unset or cash, a leverage other than 0 or 1, or any take profit, stop loss or stop entry is refused.
 + `ModifyOrder` isn't supported, as LBank doesn't amend orders.
 + `CancelOrder` cancels an order by its ID or client order ID, and `CancelAllOrders` cancels a pair's open orders.
-  LBank's current API cancels no list of orders, so `CancelBatchOrders` isn't supported.
+  LBank cancels a pair's orders whatever their side or type, so when a side or type is named, the pair's open orders
+  of that side and type are cancelled one at a time. LBank's current API cancels no list of orders, so
+  `CancelBatchOrders` isn't supported.
 + `GetOrderInfo` returns an order in any state, and needs the order's pair.
 + `GetActiveOrders` and `GetOrderHistory` return the orders of the requested pairs, or of the enabled spot pairs when
   none are requested. LBank's history holds the cancelled and filled orders placed in the last 24 hours.
@@ -82,7 +86,8 @@ the account holds when the request gives none. A withdrawal with `InternalTransf
 + Candles of 1 minute to 4 hours are fetched directly. LBank starts its day, week and month candles at midnight UTC+8,
   so longer candles are built from 4 hour candles. LBank serves no trades or candles for contracts.
 + `GetLatestFundingRates` returns each contract's rate for the current funding interval, of 1, 4 or 8 hours, dated an
-  interval before the next funding time.
+  interval before the next funding time. A contract LBank sends no rate for is left out, and asking for one by name
+  reports that no funding rate was found.
 
 ### Websocket
 

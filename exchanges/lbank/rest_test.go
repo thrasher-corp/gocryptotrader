@@ -132,8 +132,9 @@ func storeTestPairs(ex *Exchange) error {
 }
 
 // newTestServerExchange returns an exchange, with placeholder credentials, whose REST requests the handler serves, for
-// responses the mock recording cannot express, such as malformed payloads and errors
-func newTestServerExchange(t *testing.T, handler http.Handler) *Exchange {
+// responses the mock recording cannot express, such as malformed payloads and errors. Each wrap given wraps the
+// transport the exchange's requests go through
+func newTestServerExchange(t *testing.T, handler http.Handler, wrap ...func(http.RoundTripper) http.RoundTripper) *Exchange {
 	t.Helper()
 	ex := new(Exchange)
 	require.NoError(t, setupTestExchange(ex), "setupTestExchange must not error")
@@ -153,7 +154,11 @@ func newTestServerExchange(t *testing.T, handler http.Handler) *Exchange {
 		}
 		handler.ServeHTTP(w, r)
 	}))
-	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	client := server.Client()
+	for _, wrapTransport := range wrap {
+		client.Transport = wrapTransport(client.Transport)
+	}
+	require.NoError(t, ex.SetHTTPClient(client), "SetHTTPClient must not error")
 	for _, ep := range []exchange.URL{exchange.RestSpot, exchange.RestUSDTMargined} {
 		require.NoErrorf(t, ex.API.Endpoints.SetRunningURL(ep.String(), server.URL), "SetRunningURL must not error for %s", ep)
 	}

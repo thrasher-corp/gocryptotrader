@@ -1,8 +1,10 @@
 package lbank
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"slices"
 	"strconv"
@@ -27,6 +29,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -674,6 +677,102 @@ func TestSubmitOrder(t *testing.T) {
 	}
 }
 
+func TestSubmitOrderUnsupportedOptions(t *testing.T) {
+	t.Parallel()
+	var placed atomic.Int64
+	ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v2/supplement/create_order.do" {
+			http.Error(w, "unexpected path", http.StatusNotFound)
+			return
+		}
+		placed.Add(1)
+		writeResponse(t, w, `{"result":true,"data":{"symbol":"btc_usdt","order_id":"0cf8a3de-4597-4296-af45-be7abaa06b07","custom_id":""},"error_code":0,"ts":1772335196000}`)
+	}))
+	// Each order type LBank takes, under each name a side can take
+	sides := []order.Side{order.Buy, order.Bid, order.Long, order.Sell, order.Ask, order.Short}
+	orders := make([]order.Submit, 0, 5*len(sides))
+	for _, side := range sides {
+		market := order.Submit{Side: side, Type: order.Market, Amount: 0.001}
+		if side.IsLong() {
+			market = order.Submit{Side: side, Type: order.Market, QuoteAmount: 100}
+		}
+		orders = append(orders, market)
+		for _, tif := range []order.TimeInForce{order.UnknownTIF, order.PostOnly, order.ImmediateOrCancel, order.FillOrKill} {
+			orders = append(orders, order.Submit{Side: side, Type: order.Limit, TimeInForce: tif, Price: 50000, Amount: 0.001})
+		}
+	}
+	type refusal struct {
+		name   string
+		submit order.Submit
+		err    error
+	}
+	check := func(tc refusal) {
+		t.Helper()
+		for _, o := range orders {
+			s := tc.submit
+			s.Exchange, s.Pair, s.AssetType = ex.Name, spotTestPair, asset.Spot
+			s.Side, s.Type, s.TimeInForce, s.Price, s.Amount, s.QuoteAmount = o.Side, o.Type, o.TimeInForce, o.Price, o.Amount, o.QuoteAmount
+			before := placed.Load()
+			_, err := ex.SubmitOrder(t.Context(), &s)
+			if tc.err != nil {
+				assert.ErrorIsf(t, err, tc.err, "SubmitOrder should refuse %s for a %s %s %q order rather than place it without", tc.name, s.Side, s.Type, s.TimeInForce)
+				assert.Equalf(t, before, placed.Load(), "SubmitOrder should place no %s %s %q order asking for %s", s.Side, s.Type, s.TimeInForce, tc.name)
+				continue
+			}
+			assert.NoErrorf(t, err, "SubmitOrder should place a %s %s %q order asking for %s", s.Side, s.Type, s.TimeInForce, tc.name)
+			assert.Equalf(t, before+1, placed.Load(), "SubmitOrder should place a %s %s %q order asking for %s", s.Side, s.Type, s.TimeInForce, tc.name)
+		}
+	}
+	for _, tc := range []refusal{
+		{name: "isolated margin", submit: order.Submit{MarginType: margin.Isolated}, err: margin.ErrMarginTypeUnsupported},
+		{name: "cross margin", submit: order.Submit{MarginType: margin.Multi}, err: margin.ErrMarginTypeUnsupported},
+		{name: "spot isolated margin", submit: order.Submit{MarginType: margin.SpotIsolated}, err: margin.ErrMarginTypeUnsupported},
+		{name: "an unknown margin type", submit: order.Submit{MarginType: margin.Unknown}, err: margin.ErrMarginTypeUnsupported},
+		{name: "an undefined margin type", submit: order.Submit{MarginType: margin.Type(1 << 7)}, err: margin.ErrMarginTypeUnsupported},
+		{name: "a leverage of 2", submit: order.Submit{Leverage: 2}, err: order.ErrSubmitLeverageNotSupported},
+		{name: "a leverage of 0.5", submit: order.Submit{Leverage: 0.5}, err: order.ErrSubmitLeverageNotSupported},
+		{name: "a leverage of 0.25", submit: order.Submit{Leverage: 0.25}, err: order.ErrSubmitLeverageNotSupported},
+		{name: "a leverage of -1", submit: order.Submit{Leverage: -1}, err: order.ErrSubmitLeverageNotSupported},
+		{name: "a leverage of 1.5", submit: order.Submit{Leverage: 1.5}, err: order.ErrSubmitLeverageNotSupported},
+		{name: "cash with a leverage of 3", submit: order.Submit{MarginType: margin.NoMargin, Leverage: 3}, err: order.ErrSubmitLeverageNotSupported},
+		{name: "cross margin with a leverage of 1", submit: order.Submit{MarginType: margin.Multi, Leverage: 1}, err: margin.ErrMarginTypeUnsupported},
+		{name: "a risk management mode", submit: order.Submit{RiskManagementModes: order.RiskManagementModes{Mode: "full"}}, err: order.ErrUnsupportedOrderType},
+		{name: "cash with a stop loss", submit: order.Submit{MarginType: margin.NoMargin, RiskManagementModes: order.RiskManagementModes{StopLoss: order.RiskManagement{Price: 40000}}}, err: order.ErrUnsupportedOrderType},
+		{name: "a leverage of 1 with a stop loss", submit: order.Submit{Leverage: 1, RiskManagementModes: order.RiskManagementModes{StopLoss: order.RiskManagement{Price: 40000}}}, err: order.ErrUnsupportedOrderType},
+		{name: "cash and isolated margin at once", submit: order.Submit{MarginType: margin.NoMargin | margin.Isolated}, err: margin.ErrMarginTypeUnsupported},
+		// A cash order without leverage is the order LBank places
+		{name: "cash", submit: order.Submit{MarginType: margin.NoMargin}},
+		{name: "a leverage of 1", submit: order.Submit{Leverage: 1}},
+		{name: "cash with a leverage of 1", submit: order.Submit{MarginType: margin.NoMargin, Leverage: 1}},
+	} {
+		check(tc)
+	}
+	// Each field of a take profit, stop loss or stop entry asks for one, set alone
+	for _, kind := range []struct {
+		name string
+		of   func(*order.RiskManagementModes) *order.RiskManagement
+	}{
+		{name: "take profit", of: func(m *order.RiskManagementModes) *order.RiskManagement { return &m.TakeProfit }},
+		{name: "stop loss", of: func(m *order.RiskManagementModes) *order.RiskManagement { return &m.StopLoss }},
+		{name: "stop entry", of: func(m *order.RiskManagementModes) *order.RiskManagement { return &m.StopEntry }},
+	} {
+		for _, field := range []struct {
+			name string
+			set  func(*order.RiskManagement)
+		}{
+			{name: "enabled flag", set: func(r *order.RiskManagement) { r.Enabled = true }},
+			{name: "trigger price type", set: func(r *order.RiskManagement) { r.TriggerPriceType = order.MarkPrice }},
+			{name: "price", set: func(r *order.RiskManagement) { r.Price = 70000 }},
+			{name: "limit price", set: func(r *order.RiskManagement) { r.LimitPrice = 69000 }},
+			{name: "order type", set: func(r *order.RiskManagement) { r.OrderType = order.Market }},
+		} {
+			var modes order.RiskManagementModes
+			field.set(kind.of(&modes))
+			check(refusal{name: "a " + kind.name + "'s " + field.name, submit: order.Submit{RiskManagementModes: modes}, err: order.ErrUnsupportedOrderType})
+		}
+	}
+}
+
 func TestOrderTypeString(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
@@ -852,6 +951,310 @@ func TestCancelAllOrders(t *testing.T) {
 		"2539cee7-a0de-4caa-bbbe-993d39bc8efb": order.Cancelled.String(),
 	}}
 	assert.Equal(t, exp, result, "CancelAllOrders should report each order LBank cancelled")
+}
+
+// roundTripFunc is an http.RoundTripper made from a function
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+// RoundTrip calls the function
+func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) {
+	return f(r)
+}
+
+func TestCancelAllOrdersBySideOrType(t *testing.T) {
+	t.Parallel()
+	// The pair's open orders, of each side and type LBank lists; the venue refuses to cancel one listed before others
+	const open = `[{"symbol":"btc_usdt","orderId":"buy","type":"buy","price":"1","origQty":"1","status":0},` +
+		`{"symbol":"btc_usdt","orderId":"refused","type":"sell_fok","price":"2","origQty":"1","status":0},` +
+		`{"symbol":"btc_usdt","orderId":"sell","type":"sell","price":"2","origQty":"1","status":0},` +
+		`{"symbol":"btc_usdt","orderId":"buy-market","type":"buy_market","price":"5","origQuoteOrderQty":"5","status":0},` +
+		`{"symbol":"btc_usdt","orderId":"sell-market","type":"sell_market","origQty":"1","status":1,"executedQty":"0.5"},` +
+		`{"symbol":"btc_usdt","orderId":"buy-maker","type":"buy_maker","price":"1","origQty":"1","status":0},` +
+		`{"symbol":"btc_usdt","orderId":"sell-ioc","type":"sell_ioc","price":"2","origQty":"1","status":0}]`
+	everyOrder := []string{"buy", "refused", "sell", "buy-market", "sell-market", "buy-maker", "sell-ioc"}
+	const ethOrderID = "0cf8a3de-4597-4296-af45-be7abaa06b08"
+	// newVenue returns an exchange whose venue lists those orders for btc_usdt and another for eth_usdt, and a function
+	// returning the cancellations it was sent. onCancel runs as each cancellation arrives, and the venue refuses it when
+	// onCancel returns true
+	newVenue := func(t *testing.T, refuseListing bool, onCancel func() bool) (ex *Exchange, sent func() []string) {
+		t.Helper()
+		var mu sync.Mutex
+		var requests []string
+		ex = newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if !assert.NoError(t, r.ParseForm(), "the request should carry a form") {
+				http.Error(w, "bad form", http.StatusBadRequest)
+				return
+			}
+			mu.Lock()
+			defer mu.Unlock()
+			switch r.URL.Path {
+			case "/v2/supplement/orders_info_no_deal.do":
+				switch {
+				case refuseListing:
+					writeResponse(t, w, `{"result":"false","error_code":10006,"msg":"Customer authentication failed","ts":1772335196000}`)
+				case r.PostForm.Get("symbol") == "btc_usdt":
+					writeResponse(t, w, `{"result":true,"data":{"total":1,"page_length":200,"current_page":1,"orders":`+open+`},"error_code":0,"ts":1772335196000}`)
+				default:
+					writeResponse(t, w, `{"result":true,"data":{"total":1,"page_length":200,"current_page":1,"orders":[{"symbol":"eth_usdt","orderId":"`+ethOrderID+`","type":"buy","price":"1","origQty":"1","status":0}]},"error_code":0,"ts":1772335196000}`)
+				}
+			case "/v2/supplement/cancel_order_by_symbol.do":
+				requests = append(requests, "pair "+r.PostForm.Get("symbol"))
+				if r.PostForm.Get("symbol") != "btc_usdt" {
+					writeResponse(t, w, `{"result":"true","data":[{"orderId":"`+ethOrderID+`"}],"error_code":0,"ts":1772335196000}`)
+					return
+				}
+				writeResponse(t, w, `{"result":"true","data":[{"orderId":"buy"},{"orderId":"refused"},{"orderId":"sell"},{"orderId":"buy-market"},{"orderId":"sell-market"},{"orderId":"buy-maker"},{"orderId":"sell-ioc"}],"error_code":0,"ts":1772335196000}`)
+			case "/v2/supplement/cancel_order.do":
+				id := r.PostForm.Get("orderId")
+				requests = append(requests, "order "+id+" "+r.PostForm.Get("symbol"))
+				refuse := onCancel != nil && onCancel()
+				if refuse || id == "refused" {
+					writeResponse(t, w, `{"result":"false","error_code":10025,"msg":"Order does not exist","ts":1772335196000}`)
+					return
+				}
+				writeResponse(t, w, `{"result":true,"data":{"orderId":"cancelled","status":-1},"error_code":0,"ts":1772335196000}`)
+			default:
+				http.Error(w, "unexpected path", http.StatusNotFound)
+			}
+		}))
+		// A second enabled pair with an order of its own, so a cancellation reaching past the named pair shows
+		pairs := currency.Pairs{spotTestPair, currency.NewPairWithDelimiter("eth", "usdt", currency.UnderscoreDelimiter)}
+		require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, pairs, false), "StorePairs must not error for the available pairs")
+		require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, pairs, true), "StorePairs must not error for the enabled pairs")
+		return ex, func() []string {
+			mu.Lock()
+			defer mu.Unlock()
+			return slices.Clone(requests)
+		}
+	}
+	buys := []string{"buy", "buy-market", "buy-maker"}
+	sells := []string{"refused", "sell", "sell-market", "sell-ioc"}
+	limitOrders := []string{"buy", "refused", "sell", "buy-maker", "sell-ioc"}
+	for _, tc := range []struct {
+		name string
+		side order.Side
+		kind order.Type
+		sent []string
+		ids  []string
+	}{
+		{name: "every order", sent: []string{"pair btc_usdt"}, ids: everyOrder},
+		{name: "any side and type", side: order.AnySide, kind: order.AnyType, sent: []string{"pair btc_usdt"}, ids: everyOrder},
+		{name: "any side", side: order.AnySide, sent: []string{"pair btc_usdt"}, ids: everyOrder},
+		{name: "any type", kind: order.AnyType, sent: []string{"pair btc_usdt"}, ids: everyOrder},
+		{name: "buys", side: order.Buy, ids: buys},
+		{name: "bids", side: order.Bid, ids: buys},
+		{name: "longs", side: order.Long, ids: buys},
+		{name: "buys of any type", side: order.Buy, kind: order.AnyType, ids: buys},
+		{name: "sells", side: order.Sell, ids: sells},
+		{name: "asks", side: order.Ask, ids: sells},
+		{name: "shorts", side: order.Short, ids: sells},
+		{name: "limit orders", kind: order.Limit, ids: limitOrders},
+		{name: "limit orders of any side", side: order.AnySide, kind: order.Limit, ids: limitOrders},
+		{name: "market orders", kind: order.Market, ids: []string{"buy-market", "sell-market"}},
+		{name: "limit buys", side: order.Buy, kind: order.Limit, ids: []string{"buy", "buy-maker"}},
+		{name: "limit bids", side: order.Bid, kind: order.Limit, ids: []string{"buy", "buy-maker"}},
+		{name: "market sells", side: order.Sell, kind: order.Market, ids: []string{"sell-market"}},
+		{name: "market shorts", side: order.Short, kind: order.Market, ids: []string{"sell-market"}},
+		{name: "stop orders", kind: order.Stop},
+		{name: "stop limit orders", kind: order.StopLimit},
+		{name: "stop market orders", kind: order.StopMarket},
+		{name: "take profit market orders", kind: order.TakeProfitMarket},
+		{name: "trailing stop limit orders", kind: order.TrailingStopLimit},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex, sent := newVenue(t, false, nil)
+			result, err := ex.CancelAllOrders(t.Context(), &order.Cancel{Pair: spotTestPair, AssetType: asset.Spot, Side: tc.side, Type: tc.kind})
+			require.NoError(t, err, "CancelAllOrders must not error")
+			exp := order.CancelAllResponse{Status: make(map[string]string, len(tc.ids))}
+			expSent := tc.sent
+			for _, id := range tc.ids {
+				exp.Status[id] = order.Cancelled.String()
+				if tc.sent == nil {
+					expSent = append(expSent, "order "+id+" btc_usdt")
+				}
+			}
+			assert.Equal(t, expSent, sent(), "CancelAllOrders should cancel exactly the pair's orders of the side and type asked for")
+			if _, ok := exp.Status["refused"]; ok && tc.sent == nil {
+				refused := result.Status["refused"]
+				assert.Contains(t, refused, "Order does not exist", "CancelAllOrders should report the order LBank refused to cancel with LBank's message")
+				assert.Contains(t, refused, "10025", "CancelAllOrders should report the order LBank refused to cancel with LBank's error code")
+				_, err := ex.CancelExistingOrder(t.Context(), &OrderReferenceRequest{Pair: spotTestPair, OrderID: "refused"})
+				require.ErrorIs(t, err, errRequestFailed, "CancelExistingOrder must report LBank's refusal to cancel the order")
+				exp.Status["refused"] = err.Error()
+			}
+			assert.Equal(t, exp, result, "CancelAllOrders should report each order it cancelled")
+		})
+	}
+
+	t.Run("invalid side", func(t *testing.T) {
+		t.Parallel()
+		var requests atomic.Int64
+		ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			requests.Add(1)
+			http.Error(w, "unexpected request", http.StatusNotFound)
+		}))
+		_, err := ex.CancelAllOrders(t.Context(), &order.Cancel{Pair: spotTestPair, AssetType: asset.Spot, Side: order.ClosePosition})
+		require.ErrorIs(t, err, order.ErrSideIsInvalid, "CancelAllOrders must refuse a side that is neither a buy nor a sell")
+		assert.Zero(t, requests.Load(), "CancelAllOrders should send nothing for a side it refuses")
+	})
+
+	t.Run("listing refused", func(t *testing.T) {
+		t.Parallel()
+		ex, sent := newVenue(t, true, nil)
+		_, err := ex.CancelAllOrders(t.Context(), &order.Cancel{Pair: spotTestPair, AssetType: asset.Spot, Side: order.Buy})
+		require.ErrorIs(t, err, errRequestFailed, "CancelAllOrders must report a refused listing of the open orders")
+		assert.Empty(t, sent(), "CancelAllOrders should cancel nothing without the open orders")
+	})
+
+	t.Run("pair cancellation refused", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/v2/supplement/cancel_order_by_symbol.do" {
+				http.Error(w, "unexpected path", http.StatusNotFound)
+				return
+			}
+			writeResponse(t, w, `{"result":"false","error_code":10006,"msg":"Customer authentication failed","ts":1772335196000}`)
+		}))
+		result, err := ex.CancelAllOrders(t.Context(), &order.Cancel{Pair: spotTestPair, AssetType: asset.Spot})
+		require.ErrorIs(t, err, errRequestFailed, "CancelAllOrders must report a refused cancellation of the pair's orders")
+		assert.Empty(t, result.Status, "CancelAllOrders should report no order cancelled when LBank refuses the pair's cancellation")
+	})
+
+	t.Run("another pair", func(t *testing.T) {
+		t.Parallel()
+		ethPair := currency.NewPairWithDelimiter("eth", "usdt", currency.UnderscoreDelimiter)
+		for _, tc := range []struct {
+			name string
+			side order.Side
+			sent string
+		}{
+			{name: "every order", sent: "pair eth_usdt"},
+			{name: "buys", side: order.Buy, sent: "order " + ethOrderID + " eth_usdt"},
+		} {
+			ex, sent := newVenue(t, false, nil)
+			result, err := ex.CancelAllOrders(t.Context(), &order.Cancel{Pair: ethPair, AssetType: asset.Spot, Side: tc.side})
+			require.NoErrorf(t, err, "CancelAllOrders must not error cancelling %s on eth_usdt", tc.name)
+			assert.Equalf(t, []string{tc.sent}, sent(), "CancelAllOrders should cancel %s on the pair asked for", tc.name)
+			exp := order.CancelAllResponse{Status: map[string]string{ethOrderID: order.Cancelled.String()}}
+			assert.Equalf(t, exp, result, "CancelAllOrders should report the order it cancelled cancelling %s on eth_usdt", tc.name)
+		}
+	})
+
+	t.Run("cancellation failing in transport", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			switch r.URL.Path {
+			case "/v2/supplement/orders_info_no_deal.do":
+				writeResponse(t, w, `{"result":true,"data":{"total":1,"page_length":200,"current_page":1,"orders":[{"symbol":"btc_usdt","orderId":"buy","type":"buy","price":"1","origQty":"1","status":0}]},"error_code":0,"ts":1772335196000}`)
+			case "/v2/supplement/cancel_order.do":
+				http.Error(w, "bad request", http.StatusBadRequest)
+			default:
+				http.Error(w, "unexpected path", http.StatusNotFound)
+			}
+		}))
+		result, err := ex.CancelAllOrders(t.Context(), &order.Cancel{Pair: spotTestPair, AssetType: asset.Spot, Side: order.Buy})
+		require.NoError(t, err, "CancelAllOrders must not error when one of its cancellations fails")
+		_, cancelErr := ex.CancelExistingOrder(t.Context(), &OrderReferenceRequest{Pair: spotTestPair, OrderID: "buy"})
+		require.Error(t, cancelErr, "CancelExistingOrder must report the failed request")
+		assert.Equal(t, order.CancelAllResponse{Status: map[string]string{"buy": cancelErr.Error()}}, result, "CancelAllOrders should report a cancellation failing in transport with its error")
+	})
+
+	t.Run("context ended", func(t *testing.T) {
+		t.Parallel()
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+		ex, sent := newVenue(t, false, func() bool { cancel(); return false })
+		result, err := ex.CancelAllOrders(ctx, &order.Cancel{Pair: spotTestPair, AssetType: asset.Spot, Side: order.Buy})
+		require.ErrorIs(t, err, context.Canceled, "CancelAllOrders must stop once its context ends")
+		assert.Equal(t, []string{"order buy btc_usdt"}, sent(), "CancelAllOrders should send no cancellation after its context ends")
+		assert.Len(t, result.Status, 1, "CancelAllOrders should report the cancellation it sent")
+		assert.NotEmpty(t, result.Status["buy"], "CancelAllOrders should report the outcome of the cancellation it sent")
+	})
+
+	t.Run("context ended after an acknowledged cancellation", func(t *testing.T) {
+		t.Parallel()
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+		var mu sync.Mutex
+		var cancelled []string
+		ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			switch r.URL.Path {
+			case "/v2/supplement/orders_info_no_deal.do":
+				writeResponse(t, w, `{"result":true,"data":{"total":1,"page_length":200,"current_page":1,"orders":`+
+					`[{"symbol":"btc_usdt","orderId":"buy","type":"buy","price":"1","origQty":"1","status":0},`+
+					`{"symbol":"btc_usdt","orderId":"buy-maker","type":"buy_maker","price":"1","origQty":"1","status":0}]},"error_code":0,"ts":1772335196000}`)
+			case "/v2/supplement/cancel_order.do":
+				if !assert.NoError(t, r.ParseForm(), "the request should carry a form") {
+					http.Error(w, "bad form", http.StatusBadRequest)
+					return
+				}
+				mu.Lock()
+				cancelled = append(cancelled, r.PostForm.Get("orderId"))
+				mu.Unlock()
+				writeResponse(t, w, `{"result":true,"data":{"orderId":"cancelled","status":-1},"error_code":0,"ts":1772335196000}`)
+			default:
+				http.Error(w, "unexpected path", http.StatusNotFound)
+			}
+		}), func(base http.RoundTripper) http.RoundTripper {
+			// Ending the context only once the acknowledgement has been read in full leaves the first cancellation
+			// succeeded whichever way the client's goroutines run
+			return roundTripFunc(func(r *http.Request) (*http.Response, error) {
+				resp, err := base.RoundTrip(r)
+				if err != nil || r.URL.Path != "/v2/supplement/cancel_order.do" {
+					return resp, err
+				}
+				body, err := io.ReadAll(resp.Body)
+				if closeErr := resp.Body.Close(); err == nil {
+					err = closeErr
+				}
+				resp.Body = io.NopCloser(bytes.NewReader(body))
+				cancel()
+				return resp, err
+			})
+		})
+		result, err := ex.CancelAllOrders(ctx, &order.Cancel{Pair: spotTestPair, AssetType: asset.Spot, Side: order.Buy})
+		require.ErrorIs(t, err, context.Canceled, "CancelAllOrders must stop once its context ends")
+		mu.Lock()
+		defer mu.Unlock()
+		assert.Equal(t, []string{"buy"}, cancelled, "CancelAllOrders should send no cancellation after its context ends")
+		assert.Equal(t, order.CancelAllResponse{Status: map[string]string{"buy": order.Cancelled.String()}}, result, "CancelAllOrders should report the cancellation LBank acknowledged")
+	})
+
+	t.Run("context ended during a later cancellation", func(t *testing.T) {
+		t.Parallel()
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+		var cancellations int
+		ex, sent := newVenue(t, false, func() bool {
+			cancellations++
+			if cancellations < 2 {
+				return false
+			}
+			cancel()
+			return true
+		})
+		result, err := ex.CancelAllOrders(ctx, &order.Cancel{Pair: spotTestPair, AssetType: asset.Spot, Side: order.Buy})
+		require.ErrorIs(t, err, context.Canceled, "CancelAllOrders must stop once its context ends")
+		assert.Equal(t, []string{"order buy btc_usdt", "order buy-market btc_usdt"}, sent(), "CancelAllOrders should send no cancellation after its context ends")
+		require.Len(t, result.Status, 2, "CancelAllOrders must report both cancellations it sent")
+		assert.Equal(t, order.Cancelled.String(), result.Status["buy"], "CancelAllOrders should report the cancellation LBank acknowledged")
+		assert.NotEmpty(t, result.Status["buy-market"], "CancelAllOrders should report why the unanswered cancellation failed")
+		assert.NotEqual(t, order.Cancelled.String(), result.Status["buy-market"], "CancelAllOrders should not report an unanswered cancellation as cancelled")
+	})
+
+	t.Run("context ended during the last cancellation", func(t *testing.T) {
+		t.Parallel()
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+		ex, sent := newVenue(t, false, func() bool { cancel(); return true })
+		result, err := ex.CancelAllOrders(ctx, &order.Cancel{Pair: spotTestPair, AssetType: asset.Spot, Side: order.Sell, Type: order.Market})
+		require.ErrorIs(t, err, context.Canceled, "CancelAllOrders must report a context ended during its last cancellation")
+		assert.Equal(t, []string{"order sell-market btc_usdt"}, sent(), "CancelAllOrders should cancel the one matching order")
+		assert.Len(t, result.Status, 1, "CancelAllOrders should report the cancellation it sent")
+		assert.NotEmpty(t, result.Status["sell-market"], "CancelAllOrders should report why the unanswered cancellation failed")
+		assert.NotEqual(t, order.Cancelled.String(), result.Status["sell-market"], "CancelAllOrders should not report an unanswered cancellation as cancelled")
+	})
 }
 
 func TestGetServerTime(t *testing.T) {
@@ -1434,6 +1837,55 @@ func TestGetLatestFundingRates(t *testing.T) {
 		}}
 		assert.Equalf(t, exp, result, "GetLatestFundingRates should return the rate set an interval before the next for %q", pair)
 	}
+
+	t.Run("contract without a rate", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/cfd/openApi/v1/pub/marketData" {
+				http.Error(w, "unexpected path", http.StatusNotFound)
+				return
+			}
+			// LBank sends a rate of zero as "0" or "0.0", and leaves the rates out for a contract it has none for
+			writeResponse(t, w, `{"data":[{"symbol":"BTCUSDT","fundingRate":"0","positionFeeRate":"0","positionFeeTime":28800,"nextFeeTime":1792915200000},`+
+				`{"symbol":"ETHUSDT","positionFeeTime":28800,"nextFeeTime":1792915200000},`+
+				`{"symbol":"SOLUSDT","fundingRate":"-0.0001","positionFeeRate":"-0.0001","positionFeeTime":14400,"nextFeeTime":1792915200000},`+
+				`{"symbol":"XRPUSDT","fundingRate":"0.0","positionFeeRate":"0.0","positionFeeTime":28800,"nextFeeTime":1792915200000}],"error_code":0,"msg":"Success","result":"true","success":true}`)
+		}))
+		contractFormat := currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}
+		ethPair := currency.NewPair(currency.ETH, currency.USDT).Format(contractFormat)
+		solPair := currency.NewPair(currency.SOL, currency.USDT).Format(contractFormat)
+		xrpPair := currency.NewPair(currency.XRP, currency.USDT).Format(contractFormat)
+		dogePair := currency.NewPair(currency.DOGE, currency.USDT).Format(contractFormat)
+		pairs := currency.Pairs{futuresTestPair, ethPair, solPair, xrpPair}
+		require.NoError(t, ex.CurrencyPairs.StorePairs(asset.USDTMarginedFutures, slices.Concat(pairs, currency.Pairs{dogePair}), false), "StorePairs must not error for the available contracts")
+		require.NoError(t, ex.CurrencyPairs.StorePairs(asset.USDTMarginedFutures, pairs, true), "StorePairs must not error for the enabled contracts")
+		_, err := ex.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{Asset: asset.USDTMarginedFutures, Pair: ethPair})
+		assert.ErrorIs(t, err, fundingrate.ErrNoFundingRatesFound, "GetLatestFundingRates should report a contract LBank sends no rate for")
+		_, err = ex.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{Asset: asset.USDTMarginedFutures, Pair: dogePair})
+		assert.ErrorIs(t, err, currency.ErrCurrencyNotFound, "GetLatestFundingRates should report a contract missing from LBank's reply as not found")
+		rates := map[currency.Pair]string{futuresTestPair: "0", solPair: "-0.0001", xrpPair: "0.0"}
+		for pair, rate := range rates {
+			result, err := ex.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{Asset: asset.USDTMarginedFutures, Pair: pair})
+			require.NoErrorf(t, err, "GetLatestFundingRates must not error for %q", pair)
+			require.Lenf(t, result, 1, "GetLatestFundingRates must return one rate for %q", pair)
+			assert.Equalf(t, pair, result[0].Pair, "GetLatestFundingRates should return the contract asked for, %q", pair)
+			assert.Equalf(t, mustPreciseNumber(t, rate).Decimal(), result[0].LatestRate.Rate, "GetLatestFundingRates should return the rate LBank sends for %q", pair)
+		}
+		result, err := ex.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{Asset: asset.USDTMarginedFutures})
+		require.NoError(t, err, "GetLatestFundingRates must not error for the enabled contracts")
+		require.Len(t, result, 3, "GetLatestFundingRates must return only the rates LBank sends")
+		for i := range result {
+			assert.Equalf(t, mustPreciseNumber(t, rates[result[i].Pair]).Decimal(), result[i].LatestRate.Rate, "GetLatestFundingRates should return the rate LBank sends for %q", result[i].Pair)
+		}
+		assert.Equal(t, currency.Pairs{futuresTestPair, solPair, xrpPair}, currency.Pairs{result[0].Pair, result[1].Pair, result[2].Pair}, "GetLatestFundingRates should return the contracts LBank sends a rate for")
+
+		for _, enabled := range []currency.Pair{ethPair, dogePair} {
+			require.NoErrorf(t, ex.CurrencyPairs.StorePairs(asset.USDTMarginedFutures, currency.Pairs{enabled}, true), "StorePairs must not error enabling %q alone", enabled)
+			result, err = ex.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{Asset: asset.USDTMarginedFutures})
+			require.NoErrorf(t, err, "GetLatestFundingRates must not error with %q, which LBank sends no rate for, enabled alone", enabled)
+			assert.Emptyf(t, result, "GetLatestFundingRates should return no rates with %q, which LBank sends no rate for, enabled alone", enabled)
+		}
+	})
 }
 
 func TestIsPerpetualFutureCurrency(t *testing.T) {

@@ -23,6 +23,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
@@ -658,13 +659,23 @@ func (e *Exchange) tradeData(t *TradeResponse, p currency.Pair) trade.Data {
 	}
 }
 
-// SubmitOrder submits a new order
+// SubmitOrder submits a new order. LBank's spot orders are cash orders with no leverage and no take profit, stop loss or
+// stop entry, so an order asking for any of those is refused rather than placed without it
 func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if err := s.Validate(e.GetTradingRequirements()); err != nil {
 		return nil, err
 	}
 	if err := checkSpot(s.AssetType); err != nil {
 		return nil, err
+	}
+	if s.MarginType != margin.Unset && s.MarginType != margin.NoMargin {
+		return nil, fmt.Errorf("%w: %s", margin.ErrMarginTypeUnsupported, s.MarginType)
+	}
+	if s.Leverage != 0 && s.Leverage != 1 {
+		return nil, fmt.Errorf("%w: %v", order.ErrSubmitLeverageNotSupported, s.Leverage)
+	}
+	if s.RiskManagementModes != (order.RiskManagementModes{}) {
+		return nil, fmt.Errorf("%w: take profit, stop loss or stop entry", order.ErrUnsupportedOrderType)
 	}
 	orderType, err := orderTypeString(s.Side, s.Type, s.TimeInForce)
 	if err != nil {
@@ -840,7 +851,8 @@ func (e *Exchange) CancelBatchOrders(context.Context, []order.Cancel) (*order.Ca
 	return nil, common.ErrFunctionNotSupported
 }
 
-// CancelAllOrders cancels all orders associated with a currency pair
+// CancelAllOrders cancels all orders associated with a currency pair. LBank cancels a pair's orders in one request
+// whatever their side or type, so the pair's open orders of a side or type named are cancelled one at a time
 func (e *Exchange) CancelAllOrders(ctx context.Context, o *order.Cancel) (order.CancelAllResponse, error) {
 	if err := o.Validate(o.PairAssetRequired()); err != nil {
 		return order.CancelAllResponse{}, err
@@ -848,13 +860,42 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, o *order.Cancel) (order.
 	if err := checkSpot(o.AssetType); err != nil {
 		return order.CancelAllResponse{}, err
 	}
-	cancelled, err := e.CancelPairOrders(ctx, o.Pair)
+	oneSide := o.Side != order.UnknownSide && o.Side != order.AnySide
+	if oneSide && !o.Side.IsLong() && !o.Side.IsShort() {
+		return order.CancelAllResponse{}, fmt.Errorf("%w: %s", order.ErrSideIsInvalid, o.Side)
+	}
+	oneType := o.Type != order.UnknownType && o.Type != order.AnyType
+	if !oneSide && !oneType {
+		cancelled, err := e.CancelPairOrders(ctx, o.Pair)
+		if err != nil {
+			return order.CancelAllResponse{}, err
+		}
+		resp := order.CancelAllResponse{Status: make(map[string]string, len(cancelled))}
+		for i := range cancelled {
+			resp.Status[cancelled[i].OrderID] = order.Cancelled.String()
+		}
+		return resp, nil
+	}
+	open, err := e.listOrders(ctx, currency.Pairs{o.Pair}, e.GetOpenOrders)
 	if err != nil {
 		return order.CancelAllResponse{}, err
 	}
-	resp := order.CancelAllResponse{Status: make(map[string]string, len(cancelled))}
-	for i := range cancelled {
-		resp.Status[cancelled[i].OrderID] = order.Cancelled.String()
+	resp := order.CancelAllResponse{Status: make(map[string]string)}
+	for i := range open {
+		if (oneSide && open[i].Side.IsLong() != o.Side.IsLong()) || (oneType && open[i].Type != o.Type) {
+			continue
+		}
+		if err := ctx.Err(); err != nil {
+			return resp, err
+		}
+		if _, err := e.CancelExistingOrder(ctx, &OrderReferenceRequest{Pair: o.Pair, OrderID: open[i].OrderID}); err != nil {
+			resp.Status[open[i].OrderID] = err.Error()
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				return resp, ctxErr
+			}
+			continue
+		}
+		resp.Status[open[i].OrderID] = order.Cancelled.String()
 	}
 	return resp, nil
 }
@@ -1224,9 +1265,15 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 	}
 	checked := time.Now()
 	rates := make([]fundingrate.LatestRateResponse, 0, len(pairs))
+	var unrated bool
 	for i := range data {
 		pair, ok := wanted[data[i].Symbol]
 		if !ok {
+			continue
+		}
+		// LBank leaves the rate out for a contract it has none for, where a rate of zero is sent as "0"
+		if data[i].FundingRate.IsZero() {
+			unrated = true
 			continue
 		}
 		next := data[i].NextFundingTime.Time()
@@ -1243,6 +1290,9 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 		})
 	}
 	if !r.Pair.IsEmpty() && len(rates) == 0 {
+		if unrated {
+			return nil, fmt.Errorf("%w: %s", fundingrate.ErrNoFundingRatesFound, r.Pair)
+		}
 		return nil, fmt.Errorf("%w: %s", currency.ErrCurrencyNotFound, r.Pair)
 	}
 	return rates, nil
