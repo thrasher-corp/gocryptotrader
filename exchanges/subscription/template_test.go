@@ -158,3 +158,234 @@ func TestExpandTemplates(t *testing.T) {
 	_, err = List{{Channel: "nil"}}.ExpandTemplates(e)
 	assert.ErrorIs(t, err, errInvalidTemplate, "Should get correct error on nil template")
 }
+
+// TestExpandTemplatesOwnership ensures callers can modify the result of ExpandTemplates without changing
+// their inputs, for unexpanded, fully qualified and mixed lists, and that keys, state and reconciliation
+// keep working. See the ownership contract on ExpandTemplates and README.md
+func TestExpandTemplatesOwnership(t *testing.T) {
+	t.Parallel()
+
+	e := newMockEx()
+	e.tpl = "subscriptions.tmpl"
+
+	t.Run("Unexpanded", func(t *testing.T) {
+		t.Parallel()
+		in := &Subscription{Channel: "single-channel"}
+		got, err := List{in}.ExpandTemplates(e)
+		require.NoError(t, err, "ExpandTemplates must not error")
+		require.Len(t, got, 1, "Must get one subscription back")
+		assert.NotSame(t, in, got[0], "Should not return the input subscription")
+		got[0].Channel = "changed"
+		assert.Equal(t, "single-channel", in.Channel, "Modifying the result should not change the input")
+	})
+
+	t.Run("FullyQualified", func(t *testing.T) {
+		t.Parallel()
+		in := &Subscription{
+			Enabled:          true,
+			Channel:          OrderbookChannel,
+			QualifiedChannel: "orderbook:BTCUSDT",
+			Pairs:            currency.Pairs{btcusdtPair},
+			Params:           map[string]any{"depth": 20},
+		}
+		require.NoError(t, in.SetState(SubscribedState), "SetState must not error")
+
+		got, err := List{in}.ExpandTemplates(e)
+		require.NoError(t, err, "ExpandTemplates must not error")
+		require.Len(t, got, 1, "Must get one subscription back")
+		assert.NotSame(t, in, got[0], "Should not return the input subscription")
+		assert.Equal(t, SubscribedState, got[0].State(), "Should keep the state")
+		assert.Equal(t, "orderbook:BTCUSDT", got[0].QualifiedChannel, "Should keep the qualified channel")
+		assert.Nil(t, got[0].Key, "Should not invent a key for an unkeyed subscription")
+
+		got[0].Channel = "changed"
+		got[0].QualifiedChannel = "changed"
+		got[0].Pairs[0].Delimiter = "🐳"
+		got[0].Params["depth"] = 50
+		assert.Equal(t, OrderbookChannel, in.Channel, "Modifying the result should not change the input channel")
+		assert.Equal(t, "orderbook:BTCUSDT", in.QualifiedChannel, "Modifying the result should not change the input qualified channel")
+		assert.Empty(t, in.Pairs[0].Delimiter, "Modifying the result should not change the input pairs")
+		assert.Equal(t, 20, in.Params["depth"], "Modifying the result should not change the input params")
+	})
+
+	t.Run("Mixed", func(t *testing.T) {
+		t.Parallel()
+		qualified := &Subscription{Channel: "single-channel", QualifiedChannel: "already qualified"}
+		unexpanded := &Subscription{Channel: "single-channel"}
+
+		got, err := List{qualified, unexpanded}.ExpandTemplates(e)
+		require.NoError(t, err, "ExpandTemplates must not error")
+		require.Len(t, got, 2, "Must get both subscriptions back")
+		assert.NotSame(t, qualified, got[0], "Should not return the qualified input subscription")
+		assert.NotSame(t, unexpanded, got[1], "Should not return the unexpanded input subscription")
+
+		got[0].Channel, got[0].QualifiedChannel = "changed", "changed"
+		got[1].Channel = "changed"
+		assert.Equal(t, "single-channel", qualified.Channel, "Modifying the result should not change the qualified input")
+		assert.Equal(t, "already qualified", qualified.QualifiedChannel, "Modifying the result should not change the qualified input")
+		assert.Equal(t, "single-channel", unexpanded.Channel, "Modifying the result should not change the unexpanded input")
+	})
+
+	t.Run("MixedKeys", func(t *testing.T) {
+		t.Parallel()
+		custom := &Subscription{Channel: "single-channel", QualifiedChannel: "custom keyed", Key: "custom-key"}
+		pointerKeyed := &Subscription{Channel: "single-channel", QualifiedChannel: "pointer keyed"}
+		pointerKey := &ExactKey{pointerKeyed}
+		pointerKeyed.SetKey(pointerKey)
+		valueKeyed := &Subscription{Channel: "single-channel", QualifiedChannel: "value keyed"}
+		valueKeyed.SetKey(ChannelKey{valueKeyed})
+		otherKeyed := &Subscription{Channel: "single-channel", QualifiedChannel: "other keyed"}
+		otherKey := &ExactKey{otherKeyed.Clone()}
+		otherKeyed.SetKey(otherKey)
+
+		got, err := List{custom, pointerKeyed, valueKeyed, otherKeyed, {Channel: "single-channel"}}.ExpandTemplates(e)
+		require.NoError(t, err, "ExpandTemplates must not error")
+		require.Len(t, got, 5, "Must get every subscription back")
+		assert.Equal(t, "custom-key", got[0].Key, "Should keep a custom key")
+		if key, ok := got[1].Key.(*ExactKey); assert.True(t, ok, "Should keep a pointer key's type") {
+			assert.Same(t, got[1], key.Subscription, "Pointer key should reference the returned subscription")
+		}
+		if key, ok := got[2].Key.(ChannelKey); assert.True(t, ok, "Should keep a value key's type") {
+			assert.Same(t, got[2], key.Subscription, "Value key should reference the returned subscription")
+		}
+		assert.Same(t, otherKey, got[3].Key, "Should carry over a key for another subscription untouched")
+		assert.Same(t, pointerKey, pointerKeyed.Key, "Should leave the input key in place")
+		assert.Same(t, pointerKeyed, pointerKey.Subscription, "Should leave the input key referencing the input")
+	})
+
+	t.Run("CustomKey", func(t *testing.T) {
+		t.Parallel()
+		in := &Subscription{Channel: OrderbookChannel, QualifiedChannel: "orderbook:BTCUSDT", Key: "custom-key"}
+		st := NewStore()
+		require.NoError(t, st.Add(in), "Add must not error")
+
+		got, err := List{in}.ExpandTemplates(e)
+		require.NoError(t, err, "ExpandTemplates must not error")
+		require.Len(t, got, 1, "Must get one subscription back")
+		assert.Equal(t, "custom-key", got[0].Key, "Should keep a custom key so the subscription stays reconcilable")
+		assert.Same(t, in, st.Get(got[0]), "Should find the store entry through the returned subscription")
+		assert.NoError(t, st.Remove(got[0]), "Should remove the store entry through the returned subscription")
+	})
+
+	t.Run("DefaultKey", func(t *testing.T) {
+		t.Parallel()
+		in := &Subscription{Channel: OrderbookChannel, QualifiedChannel: "orderbook:BTCUSDT"}
+		st := NewStore()
+		require.NoError(t, st.Add(in), "Add must not error")
+		require.NotNil(t, in.Key, "Add must set a key")
+
+		got, err := List{in}.ExpandTemplates(e)
+		require.NoError(t, err, "ExpandTemplates must not error")
+		require.Len(t, got, 1, "Must get one subscription back")
+		key, ok := got[0].EnsureKeyed().(MatchableKey)
+		if assert.True(t, ok, "Should have a matchable key") {
+			assert.Same(t, got[0], key.GetSubscription(), "Built-in keys should reference the returned subscription")
+		}
+		assert.Same(t, in, st.Get(got[0]), "Should find the store entry through the returned subscription")
+		assert.NoError(t, st.Remove(got[0]), "Should remove the store entry through the returned subscription")
+	})
+
+	t.Run("BuiltInKeys", func(t *testing.T) {
+		t.Parallel()
+		for _, newKey := range []func(*Subscription) MatchableKey{
+			func(s *Subscription) MatchableKey { return &ExactKey{s} },
+			func(s *Subscription) MatchableKey { return ExactKey{s} },
+			func(s *Subscription) MatchableKey { return &IgnoringPairsKey{s} },
+			func(s *Subscription) MatchableKey { return IgnoringPairsKey{s} },
+			func(s *Subscription) MatchableKey { return &IgnoringAssetKey{s} },
+			func(s *Subscription) MatchableKey { return IgnoringAssetKey{s} },
+			func(s *Subscription) MatchableKey { return &ChannelKey{s} },
+			func(s *Subscription) MatchableKey { return ChannelKey{s} },
+		} {
+			in := &Subscription{Channel: OrderbookChannel, QualifiedChannel: "orderbook:BTCUSDT"}
+			inKey := newKey(in)
+			in.SetKey(inKey)
+			got, err := List{in}.ExpandTemplates(e)
+			require.NoErrorf(t, err, "ExpandTemplates must not error for %T", inKey)
+			require.Lenf(t, got, 1, "Must get one subscription back for %T", inKey)
+			key, ok := got[0].Key.(MatchableKey)
+			require.Truef(t, ok, "Key must remain a MatchableKey for %T", inKey)
+			assert.IsTypef(t, inKey, key, "Key should keep its type %T", inKey)
+			assert.Samef(t, got[0], key.GetSubscription(), "%T should reference the returned subscription", inKey)
+			assert.Samef(t, in, inKey.GetSubscription(), "%T should still reference the input subscription", inKey)
+
+			otherKey := newKey(in.Clone())
+			in.SetKey(otherKey)
+			got, err = List{in}.ExpandTemplates(e)
+			require.NoErrorf(t, err, "ExpandTemplates must not error for %T", otherKey)
+			require.Lenf(t, got, 1, "Must get one subscription back for %T", otherKey)
+			assert.Equalf(t, otherKey, got[0].Key, "%T for another subscription should be carried over untouched", otherKey)
+		}
+	})
+
+	t.Run("NestedParams", func(t *testing.T) {
+		t.Parallel()
+		// Documented limit: only the Params map itself is copied; values nested inside it remain shared
+		nested := map[string]any{"depth": 20}
+		in := &Subscription{Channel: OrderbookChannel, QualifiedChannel: "orderbook:BTCUSDT", Params: map[string]any{"opts": nested}}
+
+		got, err := List{in}.ExpandTemplates(e)
+		require.NoError(t, err, "ExpandTemplates must not error")
+		require.Len(t, got, 1, "Must get one subscription back")
+
+		got[0].Params["extra"] = 1
+		assert.NotContains(t, in.Params, "extra", "Params map should be copied")
+		nested["depth"] = 50
+		gotNested, ok := got[0].Params["opts"].(map[string]any)
+		if assert.True(t, ok, "Should keep the nested value") {
+			assert.Equal(t, 50, gotNested["depth"], "Values nested inside Params should remain shared with the input")
+		}
+	})
+}
+
+// TestExpandTemplatesIfNeeded ensures a fully qualified list is handed back as given, and any other list gets
+// exactly what ExpandTemplates returns
+func TestExpandTemplatesIfNeeded(t *testing.T) {
+	t.Parallel()
+
+	t.Run("Qualified", func(t *testing.T) {
+		t.Parallel()
+		e := newMockEx()
+		first := &Subscription{Channel: "single-channel", QualifiedChannel: "first", Key: "first-key"}
+		second := &Subscription{Channel: "single-channel", QualifiedChannel: "second", Authenticated: true}
+		require.NoError(t, second.SetState(ResubscribingState), "SetState must not error")
+		for _, want := range []List{{}, {first}, {first, second}} {
+			got, err := slices.Clone(want).ExpandTemplatesIfNeeded(e)
+			require.NoError(t, err, "ExpandTemplatesIfNeeded must not error")
+			require.Len(t, got, len(want), "Must get every subscription back")
+			for i, s := range want {
+				assert.Same(t, s, got[i], "Should return a fully qualified list as given")
+			}
+		}
+		assert.Equal(t, "first-key", first.Key, "Should leave a key alone")
+		assert.Nil(t, second.Key, "Should not key a subscription")
+		assert.Equal(t, ResubscribingState, second.State(), "Should leave the state alone")
+	})
+
+	t.Run("Unqualified", func(t *testing.T) {
+		t.Parallel()
+		e := newMockEx()
+		e.tpl = "subscriptions.tmpl"
+		e.auth = true
+		qualified := &Subscription{Channel: "single-channel", QualifiedChannel: "already qualified", Key: "custom-key"}
+		require.NoError(t, qualified.SetState(SubscribedState), "SetState must not error")
+		for _, l := range []List{
+			{{Channel: "single-channel", Authenticated: true}},
+			{{Channel: "expand-pairs", Asset: asset.Spot, Key: "template-key"}},
+			{{Channel: "expand-assets", Asset: asset.All, Interval: kline.FifteenMin}},
+			{qualified, {Channel: "expand-pairs", Asset: asset.Spot}},
+			{{Channel: "expand-pairs", Asset: asset.Spot}, qualified},
+			{qualified, {Channel: "single-channel"}, {Channel: "single-channel", QualifiedChannel: "also qualified"}},
+			{{Channel: "nil"}},
+			{{Channel: "single-channel"}, {Channel: "nil"}},
+		} {
+			got, err := l.ExpandTemplatesIfNeeded(e)
+			exp, expErr := l.ExpandTemplates(e)
+			assert.Equal(t, expErr, err, "Should return the error from ExpandTemplates")
+			assert.Equal(t, exp, got, "Should return the subscriptions from ExpandTemplates")
+			assert.False(t, slices.Contains(got, qualified), "Should copy a qualified subscription when the list needs expanding")
+		}
+		assert.Equal(t, "custom-key", qualified.Key, "Should leave the key of a qualified subscription alone")
+		assert.Equal(t, SubscribedState, qualified.State(), "Should leave the state of a qualified subscription alone")
+	})
+}
