@@ -105,6 +105,19 @@ func (f omfExchange) GetOrderInfo(_ context.Context, orderID string, pair curren
 			LastUpdated: time.Now().Add(-time.Hour),
 			OrderID:     "Order2-active-to-inactive",
 		}, nil
+	case "4":
+		// Position tracking takes only a futures order with its side and date
+		return &order.Detail{
+			Exchange:    testExchange,
+			Pair:        pair,
+			AssetType:   assetType,
+			Amount:      2.0,
+			Side:        order.Short,
+			Status:      order.Cancelled,
+			Date:        time.Now(),
+			LastUpdated: time.Now(),
+			OrderID:     orderID,
+		}, nil
 	}
 
 	return &order.Detail{
@@ -1274,6 +1287,14 @@ func TestProcessOrders(t *testing.T) {
 	if res[0].Status != order.Active {
 		t.Errorf("Order 3 should be active, but status is %s", res[0].Status)
 	}
+
+	// Order 4 is a futures order, whose exchange name position tracking lower-cases, and is not returned by
+	// exch.GetActiveOrders(). It will be fetched by exch.GetOrderInfo(), which will say it is cancelled
+	res, err = m.GetOrdersFiltered(&order.Filter{OrderID: "4"})
+	require.NoError(t, err, "GetOrdersFiltered must not error")
+	require.Len(t, res, 1, "GetOrdersFiltered must return the futures order")
+	assert.Equal(t, "bitstamp", res[0].Exchange, "position tracking should lower-case the futures order's exchange name")
+	assert.Equal(t, order.Cancelled, res[0].Status, "processOrders should update the futures order")
 }
 
 func TestGetOrdersFiltered(t *testing.T) {

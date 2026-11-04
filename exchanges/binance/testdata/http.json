@@ -4271,6 +4271,37 @@
     }
    ]
   },
+  "/dapi/v1/algoOrder": {
+   "GET": [
+    {
+     "data": {
+      "code": -2013,
+      "msg": "Order does not exist."
+     },
+     "queryString": "algoId=20072994037\u0026recvWindow=5000\u0026signature=x\u0026timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": -2013,
+      "msg": "Order does not exist."
+     },
+     "queryString": "algoId=283194212\u0026recvWindow=5000\u0026signature=x\u0026timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": -2013,
+      "msg": "Order does not exist."
+     },
+     "queryString": "algoId=1573346959\u0026recvWindow=5000\u0026signature=x\u0026timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
   "/dapi/v1/allAlgoOrders": {
    "GET": [
     {
@@ -8329,6 +8360,114 @@
       "msg": "Order does not exist."
      },
      "queryString": "algoId=10\u0026recvWindow=5000\u0026signature=x\u0026timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": -2013,
+      "msg": "Order does not exist."
+     },
+     "queryString": "algoId=20072994037\u0026recvWindow=5000\u0026signature=x\u0026timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": -2013,
+      "msg": "Order does not exist."
+     },
+     "queryString": "algoId=2\u0026recvWindow=5000\u0026signature=x\u0026timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": -2013,
+      "msg": "Order does not exist."
+     },
+     "queryString": "algoId=3\u0026recvWindow=5000\u0026signature=x\u0026timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": -2013,
+      "msg": "Order does not exist."
+     },
+     "queryString": "algoId=4\u0026recvWindow=5000\u0026signature=x\u0026timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": -2013,
+      "msg": "Order does not exist."
+     },
+     "queryString": "algoId=123\u0026recvWindow=5000\u0026signature=x\u0026timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": -2013,
+      "msg": "Order does not exist."
+     },
+     "queryString": "algoId=5\u0026recvWindow=5000\u0026signature=x\u0026timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": -2013,
+      "msg": "Order does not exist."
+     },
+     "queryString": "algoId=6\u0026recvWindow=5000\u0026signature=x\u0026timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": -2013,
+      "msg": "Order does not exist."
+     },
+     "queryString": "algoId=7\u0026recvWindow=5000\u0026signature=x\u0026timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": -2013,
+      "msg": "Order does not exist."
+     },
+     "queryString": "algoId=8\u0026recvWindow=5000\u0026signature=x\u0026timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": -2013,
+      "msg": "Order does not exist."
+     },
+     "queryString": "algoId=9\u0026recvWindow=5000\u0026signature=x\u0026timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": -2013,
+      "msg": "Order does not exist."
+     },
+     "queryString": "algoId=11\u0026recvWindow=5000\u0026signature=x\u0026timestamp=1",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": -2013,
+      "msg": "Order does not exist."
+     },
+     "queryString": "clientAlgoId=myOrder2\u0026recvWindow=5000\u0026signature=x\u0026timestamp=1",
      "bodyParams": "",
      "headers": {}
     }

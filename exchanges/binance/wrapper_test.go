@@ -923,7 +923,7 @@ func TestGetActiveOrders(t *testing.T) {
 					Amount:        0.002,
 					TriggerPrice:  94000,
 					Exchange:      "Binance",
-					OrderID:       "2146764",
+					OrderID:       "algo-2146764",
 					ClientOrderID: "gct-um-take-profit",
 					Type:          order.TakeProfitLimit,
 					Side:          order.Sell,
@@ -970,7 +970,7 @@ func TestGetActiveOrders(t *testing.T) {
 					TriggerPrice:         90000,
 					AverageExecutedPrice: 90000,
 					Exchange:             "Binance",
-					OrderID:              "2146760",
+					OrderID:              "algo-2146760",
 					ClientOrderID:        "6B2I9XVcJpCjqPAJ4YoFX7",
 					Type:                 order.TakeProfitLimit,
 					Side:                 order.Sell,
@@ -1020,7 +1020,7 @@ func TestGetActiveOrders(t *testing.T) {
 					Amount:        0.002,
 					TriggerPrice:  94000,
 					Exchange:      "Binance",
-					OrderID:       "2146764",
+					OrderID:       "algo-2146764",
 					ClientOrderID: "gct-um-take-profit",
 					Type:          order.TakeProfitLimit,
 					Side:          order.Sell,
@@ -1080,7 +1080,7 @@ func TestGetActiveOrders(t *testing.T) {
 					RemainingAmount: 1,
 					TriggerPrice:    70000,
 					Exchange:        "Binance",
-					OrderID:         "3100001",
+					OrderID:         "algo-3100001",
 					ClientOrderID:   "gct-cm-stop",
 					Type:            order.StopMarket,
 					Side:            order.Sell,
@@ -1474,7 +1474,7 @@ func TestGetOrderHistory(t *testing.T) {
 					TriggerPrice:         70000,
 					AverageExecutedPrice: 69990,
 					Exchange:             "Binance",
-					OrderID:              "2146765",
+					OrderID:              "algo-2146765",
 					ClientOrderID:        "gct-um-finished",
 					Type:                 order.StopMarket,
 					Side:                 order.Sell,
@@ -1531,7 +1531,7 @@ func TestGetOrderHistory(t *testing.T) {
 					TriggerPrice:         90000,
 					AverageExecutedPrice: 90010,
 					Exchange:             "Binance",
-					OrderID:              "3100002",
+					OrderID:              "algo-3100002",
 					ClientOrderID:        "gct-cm-take-profit",
 					Type:                 order.TakeProfitMarket,
 					Side:                 order.Sell,
@@ -2020,7 +2020,7 @@ func TestSubmitOrder(t *testing.T) {
 				LastUpdated:   time.Unix(1750485493, 0),
 				Date:          time.Unix(1750485493, 0),
 				Status:        order.New,
-				OrderID:       "2146761",
+				OrderID:       "algo-2146761",
 			},
 		},
 		{
@@ -2039,7 +2039,7 @@ func TestSubmitOrder(t *testing.T) {
 				LastUpdated:   time.Unix(1750485494, 0),
 				Date:          time.Unix(1750485494, 0),
 				Status:        order.New,
-				OrderID:       "2146762",
+				OrderID:       "algo-2146762",
 			},
 		},
 		{
@@ -2057,7 +2057,7 @@ func TestSubmitOrder(t *testing.T) {
 				LastUpdated:   time.Unix(1750485495, 0),
 				Date:          time.Unix(1750485495, 0),
 				Status:        order.New,
-				OrderID:       "2146763",
+				OrderID:       "algo-2146763",
 			},
 		},
 		{
@@ -2229,8 +2229,8 @@ func TestSubmitOrder(t *testing.T) {
 // TestSubmitOrderFinishedAtPlacement ensures that a spot or margin order Binance finishes at placement after executing
 // part of its quantity is reported New, over REST and the WebSocket API alike, as a submit response carries no executed
 // amount and the order manager settles only active orders. Orders finished with nothing or everything executed, orders
-// still working and quote sized market orders keep Binance's status. A USDⓈ-M or COIN-M order is reported New once it
-// has executed any of its quantity, filled ones included, as a futures reply carries no fills either
+// still working and quote sized market orders keep Binance's status. A USDⓈ-M, COIN-M or options order is reported New
+// once it has executed any of its quantity, filled ones included, as a futures or options reply carries no fills either
 func TestSubmitOrderFinishedAtPlacement(t *testing.T) {
 	t.Parallel()
 	placed := time.UnixMilli(1791284980615)
@@ -2363,6 +2363,34 @@ func TestSubmitOrderFinishedAtPlacement(t *testing.T) {
 				ClientOrderID: "cm-ioc-part", LastUpdated: placed, Date: placed, Status: order.New, OrderID: "45",
 			},
 		},
+		{
+			name:   "options IOC limit filled",
+			submit: &order.Submit{AssetType: asset.Options, Type: order.Limit, Side: order.Buy, Price: 100, Amount: 0.01, TimeInForce: order.ImmediateOrCancel},
+			reply:  `{"orderId":4611875134427365390,"symbol":"BTC-261030-85000-C","price":"100","quantity":"0.01","executedQty":"0.01","fee":"0.03","side":"BUY","type":"LIMIT","timeInForce":"IOC","reduceOnly":false,"postOnly":false,"createTime":1791284980600,"updateTime":1791284980615,"status":"FILLED","avgPrice":"100","source":"API","clientOrderId":"options-ioc-filled","priceScale":0,"quantityScale":2,"optionSide":"CALL","quoteAsset":"USDT","mmp":false,"selfTradePreventionMode":"EXPIRE_MAKER"}`,
+			exp: &order.SubmitResponse{
+				Type: order.Limit, Side: order.Buy, AssetType: asset.Options, TimeInForce: order.ImmediateOrCancel, Price: 100, Amount: 0.01, ClientOrderID: "options-ioc-filled",
+				AverageExecutedPrice: 100, LastUpdated: placed, Date: time.UnixMilli(1791284980600), Status: order.New, OrderID: "4611875134427365390", Fee: 0.03, FeeAsset: currency.USDT,
+			},
+		},
+		{
+			name:   "options IOC limit part filled and cancelled",
+			submit: &order.Submit{AssetType: asset.Options, Type: order.Limit, Side: order.Sell, Price: 100, Amount: 0.01, TimeInForce: order.ImmediateOrCancel},
+			reply:  `{"orderId":4611875134427365391,"symbol":"BTC-261030-85000-C","price":"100","quantity":"0.01","executedQty":"0.004","fee":"0.012","side":"SELL","type":"LIMIT","timeInForce":"IOC","reduceOnly":false,"postOnly":false,"createTime":1791284980600,"updateTime":1791284980615,"status":"CANCELLED","avgPrice":"100","source":"API","clientOrderId":"options-ioc-part","priceScale":0,"quantityScale":2,"optionSide":"CALL","quoteAsset":"USDT","mmp":false,"selfTradePreventionMode":"EXPIRE_MAKER"}`,
+			exp: &order.SubmitResponse{
+				Type: order.Limit, Side: order.Sell, AssetType: asset.Options, TimeInForce: order.ImmediateOrCancel, Price: 100, Amount: 0.01, RemainingAmount: 0.006,
+				ClientOrderID: "options-ioc-part", AverageExecutedPrice: 100, LastUpdated: placed, Date: time.UnixMilli(1791284980600), Status: order.New,
+				OrderID: "4611875134427365391", Fee: 0.012, FeeAsset: currency.USDT,
+			},
+		},
+		{
+			name:   "options IOC limit cancelled unfilled",
+			submit: &order.Submit{AssetType: asset.Options, Type: order.Limit, Side: order.Buy, Price: 100, Amount: 0.01, TimeInForce: order.ImmediateOrCancel},
+			reply:  `{"orderId":4611875134427365392,"symbol":"BTC-261030-85000-C","price":"100","quantity":"0.01","executedQty":"0","fee":"0","side":"BUY","type":"LIMIT","timeInForce":"IOC","reduceOnly":false,"postOnly":false,"createTime":1791284980600,"updateTime":1791284980615,"status":"CANCELLED","avgPrice":"0","source":"API","clientOrderId":"options-ioc-none","priceScale":0,"quantityScale":2,"optionSide":"CALL","quoteAsset":"USDT","mmp":false,"selfTradePreventionMode":"EXPIRE_MAKER"}`,
+			exp: &order.SubmitResponse{
+				Type: order.Limit, Side: order.Buy, AssetType: asset.Options, TimeInForce: order.ImmediateOrCancel, Price: 100, Amount: 0.01, RemainingAmount: 0.01,
+				ClientOrderID: "options-ioc-none", LastUpdated: placed, Date: time.UnixMilli(1791284980600), Status: order.Cancelled, OrderID: "4611875134427365392", FeeAsset: currency.USDT,
+			},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -2370,8 +2398,11 @@ func TestSubmitOrderFinishedAtPlacement(t *testing.T) {
 				t.Helper()
 				submit := *tc.submit
 				submit.Exchange, submit.Pair = ex.Name, currency.NewBTCUSDT()
-				if submit.AssetType == asset.CoinMarginedFutures {
+				switch submit.AssetType {
+				case asset.CoinMarginedFutures:
 					submit.Pair = testCoinMarginedFuturesPair
+				case asset.Options:
+					submit.Pair = testOptionsPair
 				}
 				resp, err := ex.SubmitOrder(t.Context(), &submit)
 				require.NoError(t, err, "SubmitOrder must not error")
@@ -2393,6 +2424,8 @@ func TestSubmitOrderFinishedAtPlacement(t *testing.T) {
 					path = "/fapi/v1/order"
 				case asset.CoinMarginedFutures:
 					path = "/dapi/v1/order"
+				case asset.Options:
+					path = "/eapi/v1/order"
 				}
 				check(t, newRoutedTestExchange(t, map[string]string{path: tc.reply}))
 			})
@@ -2470,6 +2503,7 @@ func TestPostOnlyOrdersReadAsPostOnly(t *testing.T) {
 		"/api/v3/order":         `{"symbol":"BTCUSDT","orderId":50,"orderListId":-1,"clientOrderId":"spot-maker","price":"90000","origQty":"0.001","executedQty":"0","cummulativeQuoteQty":"0","status":"NEW","timeInForce":"GTC","type":"LIMIT_MAKER","side":"SELL","stopPrice":"0","time":1791284980615,"updateTime":1791284980615,"isWorking":true,"workingTime":1791284980615,"origQuoteOrderQty":"0","selfTradePreventionMode":"EXPIRE_MAKER"}`,
 		"/sapi/v1/margin/order": `{"clientOrderId":"margin-maker","cummulativeQuoteQty":"0","executedQty":"0","icebergQty":"0","isWorking":true,"orderId":51,"origQty":"0.001","price":"90000","side":"SELL","status":"NEW","stopPrice":"0","symbol":"BTCUSDT","isIsolated":false,"time":1791284980615,"timeInForce":"GTC","type":"LIMIT_MAKER","selfTradePreventionMode":"EXPIRE_MAKER","updateTime":1791284980615}`,
 		"/fapi/v1/order":        `{"orderId":52,"symbol":"BTCUSDT","status":"NEW","clientOrderId":"usdtm-gtx","price":"90000","avgPrice":"0","origQty":"0.002","executedQty":"0","cumQuote":"0","timeInForce":"GTX","type":"LIMIT","reduceOnly":false,"closePosition":false,"side":"SELL","positionSide":"BOTH","stopPrice":"0","workingType":"CONTRACT_PRICE","priceProtect":false,"origType":"LIMIT","priceMatch":"NONE","selfTradePreventionMode":"EXPIRE_MAKER","goodTillDate":0,"time":1791284980615,"updateTime":1791284980615}`,
+		"/fapi/v1/algoOrder":    `{"code":-2013,"msg":"Order does not exist."}`,
 	})
 	placed := time.UnixMilli(1791284980615)
 	pair := currency.NewBTCUSDT()
@@ -2832,6 +2866,11 @@ func TestCancelOrder(t *testing.T) {
 	require.ErrorIs(t, e.CancelOrder(t.Context(), cancel), order.ErrOrderIDNotSet, "CancelOrder must reject a cancellation without an ID")
 	cancel.OrderID = "abc"
 	require.ErrorIs(t, e.CancelOrder(t.Context(), cancel), errInvalidOrderID, "CancelOrder must reject an invalid order ID")
+	cancel.OrderID = "algo-1"
+	require.ErrorIs(t, e.CancelOrder(t.Context(), cancel), errInvalidOrderID, "CancelOrder must reject an algo order ID on spot")
+	cancel.AssetType = asset.USDTMarginedFutures
+	cancel.OrderID = "algo-abc"
+	require.ErrorIs(t, e.CancelOrder(t.Context(), cancel), errInvalidOrderID, "CancelOrder must reject an invalid algo order ID")
 	cancel.OrderID = "1"
 	cancel.AssetType = asset.Futures
 	require.ErrorIs(t, e.CancelOrder(t.Context(), cancel), asset.ErrNotSupported, "CancelOrder must reject an unsupported asset")
@@ -2952,7 +2991,11 @@ func TestCancelOrderUntyped(t *testing.T) {
 	usdtMarginedOrder := func(params map[string]string, reply string) cancelStep {
 		return cancelStep{http.MethodDelete, "/fapi/v1/order", params, reply}
 	}
-	byID := map[string]string{"orderId": "3000000123"}
+	usdtMarginedOrderLookup := func(params map[string]string, reply string) cancelStep {
+		return cancelStep{http.MethodGet, "/fapi/v1/order", params, reply}
+	}
+	usdtMarginedOrderReply := `{"orderId":3000000123,"symbol":"BTCUSDT","status":"NEW","clientOrderId":"gct-algo","price":"3000","origQty":"0.01","executedQty":"0","type":"LIMIT","side":"SELL","time":1791284980615,"updateTime":1791284980615}`
+	byID, byAlgoID := map[string]string{"orderId": "3000000123"}, map[string]string{"algoId": "3000000123"}
 	for _, tc := range []struct {
 		name   string
 		cancel order.Cancel
@@ -3090,31 +3133,46 @@ func TestCancelOrderUntyped(t *testing.T) {
 			name:   "USDⓈ-M algo order",
 			cancel: order.Cancel{AssetType: asset.USDTMarginedFutures, OrderID: "3000000123"},
 			steps: []cancelStep{
-				usdtMarginedOrder(byID, unknownOrder),
-				{http.MethodGet, "/fapi/v1/algoOrder", map[string]string{"algoId": "3000000123"}, algo("BTCUSDT", 3000000123)},
-				{http.MethodDelete, "/fapi/v1/algoOrder", map[string]string{"algoId": "3000000123"}, algoCancelled},
+				{http.MethodGet, "/fapi/v1/algoOrder", byAlgoID, algo("BTCUSDT", 3000000123)},
+				usdtMarginedOrderLookup(byID, notFound),
+				{http.MethodDelete, "/fapi/v1/algoOrder", byAlgoID, algoCancelled},
 			},
+		},
+		{
+			name:   "USDⓈ-M algo order by algo order ID",
+			cancel: order.Cancel{AssetType: asset.USDTMarginedFutures, OrderID: "algo-3000000123"},
+			steps:  []cancelStep{{http.MethodDelete, "/fapi/v1/algoOrder", byAlgoID, algoCancelled}},
 		},
 		{
 			name:   "USDⓈ-M algo order by client ID",
 			cancel: order.Cancel{AssetType: asset.USDTMarginedFutures, ClientOrderID: "gct-algo"},
 			steps: []cancelStep{
-				usdtMarginedOrder(map[string]string{"origClientOrderId": "gct-algo"}, unknownOrder),
 				{http.MethodGet, "/fapi/v1/algoOrder", map[string]string{"clientAlgoId": "gct-algo"}, algo("BTCUSDT", 77)},
+				usdtMarginedOrderLookup(map[string]string{"origClientOrderId": "gct-algo"}, notFound),
 				{http.MethodDelete, "/fapi/v1/algoOrder", map[string]string{"algoId": "77", "clientAlgoId": ""}, algoCancelled},
 			},
 		},
 		{
+			name:   "USDⓈ-M order and algo order",
+			cancel: order.Cancel{AssetType: asset.USDTMarginedFutures, OrderID: "3000000123"},
+			steps: []cancelStep{
+				{http.MethodGet, "/fapi/v1/algoOrder", byAlgoID, algo("BTCUSDT", 3000000123)},
+				usdtMarginedOrderLookup(byID, usdtMarginedOrderReply),
+			},
+			errMsg: "the algo order as algo-3000000123",
+			err:    errAmbiguousOrderID,
+		},
+		{
 			name:   "USDⓈ-M algo order of another symbol",
 			cancel: order.Cancel{AssetType: asset.USDTMarginedFutures, OrderID: "3000000123"},
-			steps:  []cancelStep{usdtMarginedOrder(byID, unknownOrder), {http.MethodGet, "/fapi/v1/algoOrder", nil, algo("ETHUSDT", 3000000123)}},
+			steps:  []cancelStep{{http.MethodGet, "/fapi/v1/algoOrder", nil, algo("ETHUSDT", 3000000123)}, usdtMarginedOrder(byID, unknownOrder)},
 			errMsg: "Unknown order sent.",
 			err:    order.ErrOrderNotFound,
 		},
 		{
 			name:   "USDⓈ-M unknown ID",
 			cancel: order.Cancel{AssetType: asset.USDTMarginedFutures, OrderID: "3000000123"},
-			steps:  []cancelStep{usdtMarginedOrder(byID, unknownOrder), {http.MethodGet, "/fapi/v1/algoOrder", nil, notFound}},
+			steps:  []cancelStep{{http.MethodGet, "/fapi/v1/algoOrder", nil, notFound}, usdtMarginedOrder(byID, unknownOrder)},
 			errMsg: "Unknown order sent.",
 			err:    order.ErrOrderNotFound,
 		},
@@ -3137,9 +3195,9 @@ func TestCancelOrderUntyped(t *testing.T) {
 			name:   "USDⓈ-M algo order gone before its cancellation",
 			cancel: order.Cancel{AssetType: asset.USDTMarginedFutures, OrderID: "3000000123"},
 			steps: []cancelStep{
-				usdtMarginedOrder(byID, unknownOrder),
-				{http.MethodGet, "/fapi/v1/algoOrder", map[string]string{"algoId": "3000000123"}, algo("BTCUSDT", 3000000123)},
-				{http.MethodDelete, "/fapi/v1/algoOrder", map[string]string{"algoId": "3000000123"}, unknownOrder},
+				{http.MethodGet, "/fapi/v1/algoOrder", byAlgoID, algo("BTCUSDT", 3000000123)},
+				usdtMarginedOrderLookup(byID, notFound),
+				{http.MethodDelete, "/fapi/v1/algoOrder", byAlgoID, unknownOrder},
 			},
 			errMsg: "error cancelling algo order",
 			err:    order.ErrOrderNotFound,
@@ -3147,13 +3205,13 @@ func TestCancelOrderUntyped(t *testing.T) {
 		{
 			name:   "USDⓈ-M algo order lookup failure",
 			cancel: order.Cancel{AssetType: asset.USDTMarginedFutures, OrderID: "3000000123"},
-			steps:  []cancelStep{usdtMarginedOrder(byID, unknownOrder), {http.MethodGet, "/fapi/v1/algoOrder", nil, outsideWindow}},
+			steps:  []cancelStep{{http.MethodGet, "/fapi/v1/algoOrder", nil, outsideWindow}},
 			errMsg: "outside of the recvWindow",
 		},
 		{
-			name:   "USDⓈ-M order not found then an algo order lookup failure",
+			name:   "USDⓈ-M algo order found then an order lookup failure",
 			cancel: order.Cancel{AssetType: asset.USDTMarginedFutures, OrderID: "3000000123"},
-			steps:  []cancelStep{usdtMarginedOrder(byID, notFound), {http.MethodGet, "/fapi/v1/algoOrder", nil, outsideWindow}},
+			steps:  []cancelStep{{http.MethodGet, "/fapi/v1/algoOrder", byAlgoID, algo("BTCUSDT", 3000000123)}, usdtMarginedOrderLookup(byID, outsideWindow)},
 			errMsg: "outside of the recvWindow",
 		},
 		{
@@ -3167,11 +3225,16 @@ func TestCancelOrderUntyped(t *testing.T) {
 			name:   "COIN-M unknown ID",
 			cancel: order.Cancel{AssetType: asset.CoinMarginedFutures, OrderID: "3000000123"},
 			steps: []cancelStep{
+				{http.MethodGet, "/dapi/v1/algoOrder", byAlgoID, notFound},
 				{http.MethodDelete, "/dapi/v1/order", byID, unknownOrder},
-				{http.MethodGet, "/dapi/v1/algoOrder", map[string]string{"algoId": "3000000123"}, notFound},
 			},
 			errMsg: "Unknown order sent.",
 			err:    order.ErrOrderNotFound,
+		},
+		{
+			name:   "COIN-M algo order by algo order ID",
+			cancel: order.Cancel{AssetType: asset.CoinMarginedFutures, OrderID: "algo-3000000123"},
+			steps:  []cancelStep{{http.MethodDelete, "/dapi/v1/algoOrder", byAlgoID, algoCancelled}},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -3267,32 +3330,23 @@ func TestCancelOrderUntyped(t *testing.T) {
 		})
 	}
 
-	// A batch entry falls back on the rejections a single cancellation falls back on, matched by code as well as message
+	// An untyped batch entry's untagged ID is looked up before anything is cancelled, so a rejection of an entry the
+	// lookup found no algo order for is its outcome, whatever Binance rejected it with
 	for _, tc := range []struct {
 		name      string
 		rejection string
-		status    string // the entry's status when no algo order is cancelled
+		status    string
 	}{
-		{name: "unknown order", rejection: unknownOrder},
-		{name: "order not found", rejection: notFound},
+		{name: "unknown order", rejection: unknownOrder, status: "Unknown order sent."},
+		{name: "order not found", rejection: notFound, status: "Order does not exist."},
 		{name: "cancellation restricted", rejection: restricted, status: "Order was not canceled due to cancel restrictions."},
-		{name: "unknown order message of another code", rejection: `{"code":-2010,"msg":"Unknown order sent."}`, status: "Unknown order sent."},
 	} {
 		t.Run("USDⓈ-M batch "+tc.name, func(t *testing.T) {
 			t.Parallel()
-			steps := []cancelStep{{
-				http.MethodDelete, "/fapi/v1/batchOrders",
-				map[string]string{"orderIdList": "[1,3000000123]"},
-				`[{"orderId":1,"symbol":"BTCUSDT","status":"CANCELED"},` + tc.rejection + `]`,
-			}}
-			exp := map[string]string{"1": "CANCELED", "3000000123": tc.status}
-			if tc.status == "" {
-				steps = append(
-					steps,
-					cancelStep{http.MethodGet, "/fapi/v1/algoOrder", map[string]string{"algoId": "3000000123"}, algo("BTCUSDT", 3000000123)},
-					cancelStep{http.MethodDelete, "/fapi/v1/algoOrder", map[string]string{"algoId": "3000000123"}, algoCancelled},
-				)
-				exp["3000000123"] = "CANCELED"
+			steps := []cancelStep{
+				{http.MethodGet, "/fapi/v1/algoOrder", map[string]string{"algoId": "1"}, notFound},
+				{http.MethodGet, "/fapi/v1/algoOrder", map[string]string{"algoId": "3000000123"}, notFound},
+				{http.MethodDelete, "/fapi/v1/batchOrders", map[string]string{"orderIdList": "[1,3000000123]"}, `[{"orderId":1,"symbol":"BTCUSDT","status":"CANCELED"},` + tc.rejection + `]`},
 			}
 			ex, sent := newCancelStepsExchange(t, steps)
 			resp, err := ex.CancelBatchOrders(t.Context(), []order.Cancel{
@@ -3300,13 +3354,12 @@ func TestCancelOrderUntyped(t *testing.T) {
 				{AssetType: asset.USDTMarginedFutures, Pair: currency.NewBTCUSDT(), OrderID: "3000000123"},
 			})
 			require.NoError(t, err, "CancelBatchOrders must not error")
-			assert.Equal(t, exp, resp.Status, "CancelBatchOrders should cancel an algo order only for an unknown order rejection")
+			assert.Equal(t, map[string]string{"1": "CANCELED", "3000000123": tc.status}, resp.Status, "CancelBatchOrders should report each entry's outcome")
 			assert.Equal(t, len(steps), sent(), "CancelBatchOrders should send every expected request")
 		})
 	}
 
-	// An ID one entry cancelled names an order, so a repeat of it, which Binance rejects as unknown, is not an algo
-	// order's, whichever entry is untyped and whichever reply comes first
+	// An untagged ID is looked up once, before the batch, however many entries name it and whichever is untyped
 	for _, tc := range []struct {
 		name    string
 		entries []order.Cancel
@@ -3330,29 +3383,35 @@ func TestCancelOrderUntyped(t *testing.T) {
 	} {
 		t.Run("USDⓈ-M batch "+tc.name, func(t *testing.T) {
 			t.Parallel()
-			ex, sent := newCancelStepsExchange(t, []cancelStep{{http.MethodDelete, "/fapi/v1/batchOrders", map[string]string{"orderIdList": "[77,77]"}, tc.replies}})
+			ex, sent := newCancelStepsExchange(t, []cancelStep{
+				{http.MethodGet, "/fapi/v1/algoOrder", map[string]string{"algoId": "77"}, notFound},
+				{http.MethodDelete, "/fapi/v1/batchOrders", map[string]string{"orderIdList": "[77,77]"}, tc.replies},
+			})
 			for i := range tc.entries {
 				tc.entries[i].AssetType, tc.entries[i].Pair = asset.USDTMarginedFutures, currency.NewBTCUSDT()
 			}
-			_, err := ex.CancelBatchOrders(t.Context(), tc.entries)
+			resp, err := ex.CancelBatchOrders(t.Context(), tc.entries)
 			require.NoError(t, err, "CancelBatchOrders must not error")
-			assert.Equal(t, 1, sent(), "CancelBatchOrders should not look up an algo order for an ID another entry cancelled")
+			assert.Equal(t, map[string]string{"77": "CANCELED"}, resp.Status, "CancelBatchOrders should keep the order's cancellation")
+			assert.Equal(t, 2, sent(), "CancelBatchOrders should look the untagged ID up once")
 		})
 	}
 
 	t.Run("USDⓈ-M batch order named by both its IDs", func(t *testing.T) {
 		t.Parallel()
-		// The client order ID the cancelled order's reply carries names that order, not an algo order
 		ex, sent := newCancelStepsExchange(t, []cancelStep{
+			{http.MethodGet, "/fapi/v1/algoOrder", map[string]string{"algoId": "77", "clientAlgoId": ""}, notFound},
+			{http.MethodGet, "/fapi/v1/algoOrder", map[string]string{"clientAlgoId": "ordinary-client", "algoId": ""}, notFound},
 			{http.MethodDelete, "/fapi/v1/batchOrders", map[string]string{"orderIdList": "[77]"}, `[{"orderId":77,"clientOrderId":"ordinary-client","symbol":"BTCUSDT","status":"CANCELED"}]`},
 			{http.MethodDelete, "/fapi/v1/batchOrders", map[string]string{"origClientOrderIdList": `["ordinary-client"]`}, `[` + notFound + `]`},
 		})
-		_, err := ex.CancelBatchOrders(t.Context(), []order.Cancel{
+		resp, err := ex.CancelBatchOrders(t.Context(), []order.Cancel{
 			{AssetType: asset.USDTMarginedFutures, Pair: currency.NewBTCUSDT(), OrderID: "77"},
 			{AssetType: asset.USDTMarginedFutures, Pair: currency.NewBTCUSDT(), ClientOrderID: "ordinary-client"},
 		})
 		require.NoError(t, err, "CancelBatchOrders must not error")
-		assert.Equal(t, 2, sent(), "CancelBatchOrders should not look up an algo order for the cancelled order's client order ID")
+		assert.Equal(t, map[string]string{"77": "CANCELED", "ordinary-client": "Order does not exist."}, resp.Status, "CancelBatchOrders should report each entry's outcome")
+		assert.Equal(t, 4, sent(), "CancelBatchOrders should send every expected request")
 	})
 
 	t.Run("USDⓈ-M batch zero order ID", func(t *testing.T) {
@@ -3369,16 +3428,13 @@ func TestCancelOrderUntyped(t *testing.T) {
 		assert.Equal(t, 1, sent(), "CancelBatchOrders should not look up an algo order for a zero order ID")
 	})
 
-	t.Run("USDⓈ-M batch rejection ahead of a cancellation", func(t *testing.T) {
+	t.Run("USDⓈ-M batch algo order ahead of an order", func(t *testing.T) {
 		t.Parallel()
-		// Each entry's outcome is its own, in request order
 		ex, sent := newCancelStepsExchange(t, []cancelStep{
-			{
-				http.MethodDelete, "/fapi/v1/batchOrders",
-				map[string]string{"orderIdList": "[3000000123,1]"},
-				`[` + unknownOrder + `,{"orderId":1,"symbol":"BTCUSDT","status":"CANCELED"}]`,
-			},
 			{http.MethodGet, "/fapi/v1/algoOrder", map[string]string{"algoId": "3000000123"}, algo("BTCUSDT", 3000000123)},
+			usdtMarginedOrderLookup(map[string]string{"orderId": "3000000123"}, notFound),
+			{http.MethodGet, "/fapi/v1/algoOrder", map[string]string{"algoId": "1"}, notFound},
+			{http.MethodDelete, "/fapi/v1/batchOrders", map[string]string{"orderIdList": "[1]"}, `[{"orderId":1,"symbol":"BTCUSDT","status":"CANCELED"}]`},
 			{http.MethodDelete, "/fapi/v1/algoOrder", map[string]string{"algoId": "3000000123"}, algoCancelled},
 		})
 		resp, err := ex.CancelBatchOrders(t.Context(), []order.Cancel{
@@ -3386,24 +3442,26 @@ func TestCancelOrderUntyped(t *testing.T) {
 			{AssetType: asset.USDTMarginedFutures, Pair: currency.NewBTCUSDT(), OrderID: "1"},
 		})
 		require.NoError(t, err, "CancelBatchOrders must not error")
-		assert.Equal(t, map[string]string{"1": "CANCELED", "3000000123": "CANCELED"}, resp.Status, "CancelBatchOrders should cancel the algo order the rejected entry names")
-		assert.Equal(t, 3, sent(), "CancelBatchOrders should send every expected request")
+		assert.Equal(t, map[string]string{"1": "CANCELED", "3000000123": "CANCELED"}, resp.Status, "CancelBatchOrders should cancel the algo order the entry names")
+		assert.Equal(t, 5, sent(), "CancelBatchOrders should send every expected request")
 	})
 
 	t.Run("USDⓈ-M batch order ID sharing a client order ID's text", func(t *testing.T) {
 		t.Parallel()
-		// The order cancelled by its ID must not take the rejection of the client order ID with the same text
+		// The client order ID's rejection is not hidden by the cancellation of the order with the same text as its ID
 		ex, sent := newCancelStepsExchange(t, []cancelStep{
+			{http.MethodGet, "/fapi/v1/algoOrder", map[string]string{"algoId": "77", "clientAlgoId": ""}, notFound},
+			{http.MethodGet, "/fapi/v1/algoOrder", map[string]string{"clientAlgoId": "77", "algoId": ""}, notFound},
 			{http.MethodDelete, "/fapi/v1/batchOrders", map[string]string{"orderIdList": "[77]"}, `[{"orderId":77,"symbol":"BTCUSDT","status":"CANCELED"}]`},
 			{http.MethodDelete, "/fapi/v1/batchOrders", map[string]string{"origClientOrderIdList": `["77"]`}, `[` + notFound + `]`},
-			{http.MethodGet, "/fapi/v1/algoOrder", map[string]string{"clientAlgoId": "77", "algoId": ""}, notFound},
 		})
-		_, err := ex.CancelBatchOrders(t.Context(), []order.Cancel{
+		resp, err := ex.CancelBatchOrders(t.Context(), []order.Cancel{
 			{AssetType: asset.USDTMarginedFutures, Pair: currency.NewBTCUSDT(), OrderID: "77"},
 			{AssetType: asset.USDTMarginedFutures, Pair: currency.NewBTCUSDT(), ClientOrderID: "77"},
 		})
 		require.NoError(t, err, "CancelBatchOrders must not error")
-		assert.Equal(t, 3, sent(), "CancelBatchOrders should look up an algo order only for the rejected client order ID")
+		assert.Equal(t, map[string]string{"77": "Order does not exist."}, resp.Status, "CancelBatchOrders should report the client order ID's rejection")
+		assert.Equal(t, 4, sent(), "CancelBatchOrders should send every expected request")
 	})
 }
 
@@ -3532,21 +3590,33 @@ func TestCancelFuturesOrder(t *testing.T) {
 	t.Parallel()
 	const (
 		unknownOrder  = `{"code":-2011,"msg":"Unknown order sent."}`
+		notFound      = `{"code":-2013,"msg":"Order does not exist."}`
+		outsideWindow = `{"code":-1021,"msg":"Timestamp for this request is outside of the recvWindow."}`
 		algoOrder     = `{"algoId":3000000123,"clientAlgoId":"gct-algo","algoType":"CONDITIONAL","orderType":"STOP_MARKET","symbol":"BTCUSDT","side":"SELL","positionSide":"BOTH","quantity":"0.01","algoStatus":"NEW","triggerPrice":"3000","icebergQuantity":"null"}`
+		usdtOrder     = `{"orderId":3000000123,"symbol":"BTCUSDT","status":"NEW","clientOrderId":"gct-order","price":"3000","origQty":"0.01","executedQty":"0","type":"LIMIT","side":"BUY","time":1791284980615,"updateTime":1791284980615}`
 		algoCancelled = `{"algoId":3000000123,"clientAlgoId":"gct-algo","code":"200","msg":"success"}`
+		cancelled     = `{"orderId":3000000123,"symbol":"BTCUSDT","status":"CANCELED"}`
 	)
 	byID, byAlgoID := map[string]string{"orderId": "3000000123"}, map[string]string{"algoId": "3000000123"}
 	for _, tc := range []struct {
 		name   string
 		cancel order.Cancel
+		isAlgo bool
 		steps  []cancelStep
 		err    error
+		errMsg string
 	}{
 		{
 			name:   "USDⓈ-M stop market order",
 			cancel: order.Cancel{AssetType: asset.USDTMarginedFutures, Type: order.StopMarket},
 			steps:  []cancelStep{{http.MethodDelete, "/fapi/v1/algoOrder", byAlgoID, unknownOrder}},
 			err:    order.ErrOrderNotFound,
+		},
+		{
+			name:   "USDⓈ-M algo order ID of a limit type",
+			cancel: order.Cancel{AssetType: asset.USDTMarginedFutures, Type: order.Limit},
+			isAlgo: true,
+			steps:  []cancelStep{{http.MethodDelete, "/fapi/v1/algoOrder", byAlgoID, algoCancelled}},
 		},
 		{
 			name:   "COIN-M limit order",
@@ -3558,8 +3628,16 @@ func TestCancelFuturesOrder(t *testing.T) {
 			name:   "USDⓈ-M untyped without an algo order",
 			cancel: order.Cancel{AssetType: asset.USDTMarginedFutures},
 			steps: []cancelStep{
+				{http.MethodGet, "/fapi/v1/algoOrder", byAlgoID, notFound},
+				{http.MethodDelete, "/fapi/v1/order", byID, cancelled},
+			},
+		},
+		{
+			name:   "USDⓈ-M untyped unknown ID",
+			cancel: order.Cancel{AssetType: asset.USDTMarginedFutures},
+			steps: []cancelStep{
+				{http.MethodGet, "/fapi/v1/algoOrder", byAlgoID, notFound},
 				{http.MethodDelete, "/fapi/v1/order", byID, unknownOrder},
-				{http.MethodGet, "/fapi/v1/algoOrder", byAlgoID, `{"code":-2013,"msg":"Order does not exist."}`},
 			},
 			err: order.ErrOrderNotFound,
 		},
@@ -3567,28 +3645,61 @@ func TestCancelFuturesOrder(t *testing.T) {
 			name:   "USDⓈ-M untyped algo order",
 			cancel: order.Cancel{AssetType: asset.USDTMarginedFutures},
 			steps: []cancelStep{
-				{http.MethodDelete, "/fapi/v1/order", byID, unknownOrder},
 				{http.MethodGet, "/fapi/v1/algoOrder", byAlgoID, algoOrder},
+				{http.MethodGet, "/fapi/v1/order", byID, notFound},
 				{http.MethodDelete, "/fapi/v1/algoOrder", byAlgoID, algoCancelled},
 			},
+		},
+		{
+			name:   "USDⓈ-M untyped algo order gone before its cancellation",
+			cancel: order.Cancel{AssetType: asset.USDTMarginedFutures},
+			steps: []cancelStep{
+				{http.MethodGet, "/fapi/v1/algoOrder", byAlgoID, algoOrder},
+				{http.MethodGet, "/fapi/v1/order", byID, notFound},
+				{http.MethodDelete, "/fapi/v1/algoOrder", byAlgoID, unknownOrder},
+			},
+			err:    order.ErrOrderNotFound,
+			errMsg: "error cancelling algo order",
+		},
+		{
+			name:   "USDⓈ-M untyped ID of an order and an algo order",
+			cancel: order.Cancel{AssetType: asset.USDTMarginedFutures},
+			steps: []cancelStep{
+				{http.MethodGet, "/fapi/v1/algoOrder", byAlgoID, algoOrder},
+				{http.MethodGet, "/fapi/v1/order", byID, usdtOrder},
+			},
+			err:    errAmbiguousOrderID,
+			errMsg: "algo-3000000123",
+		},
+		{
+			name:   "USDⓈ-M untyped algo order lookup failure",
+			cancel: order.Cancel{AssetType: asset.USDTMarginedFutures},
+			steps:  []cancelStep{{http.MethodGet, "/fapi/v1/algoOrder", byAlgoID, outsideWindow}},
+			errMsg: "outside of the recvWindow",
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			ex, sent := newCancelStepsExchange(t, tc.steps)
 			tc.cancel.Pair, tc.cancel.OrderID = currency.NewBTCUSDT(), "3000000123"
-			err := ex.cancelFuturesOrder(t.Context(), &tc.cancel, 3000000123)
-			if tc.err != nil {
-				assert.ErrorIs(t, err, tc.err, "cancelFuturesOrder should report no order having the ID")
-			} else {
-				assert.NoError(t, err, "cancelFuturesOrder should cancel the algo order")
+			err := ex.cancelFuturesOrder(t.Context(), &tc.cancel, 3000000123, tc.isAlgo)
+			if tc.errMsg != "" {
+				assert.ErrorContains(t, err, tc.errMsg, "cancelFuturesOrder should return the expected error")
+			}
+			switch {
+			case tc.err != nil:
+				assert.ErrorIs(t, err, tc.err, "cancelFuturesOrder should return the expected error")
+			case tc.errMsg != "":
+				assert.NotErrorIs(t, err, order.ErrOrderNotFound, "cancelFuturesOrder should not report a failed lookup as no order having the ID")
+			default:
+				assert.NoError(t, err, "cancelFuturesOrder should cancel the order")
 			}
 			assert.Equal(t, len(tc.steps), sent(), "cancelFuturesOrder should send every expected request")
 		})
 	}
 }
 
-func TestCancelPairAlgoOrder(t *testing.T) {
+func TestPairAlgoOrder(t *testing.T) {
 	t.Parallel()
 	algoReply := func(symbol string) string {
 		return `{"algoId":3000000123,"clientAlgoId":"gct-algo","algoType":"CONDITIONAL","orderType":"STOP_MARKET","symbol":"` + symbol + `","side":"SELL","positionSide":"BOTH","quantity":"0.01","algoStatus":"NEW","triggerPrice":"3000","icebergQuantity":"null"}`
@@ -3597,33 +3708,48 @@ func TestCancelPairAlgoOrder(t *testing.T) {
 	for _, tc := range []struct {
 		name   string
 		a      asset.Item
+		pair   currency.Pair
 		steps  []cancelStep
 		err    error
 		errMsg string
 	}{
 		{
-			name: "pair's algo order",
-			a:    asset.USDTMarginedFutures,
-			steps: []cancelStep{
-				{http.MethodGet, "/fapi/v1/algoOrder", byAlgoID, algoReply("BTCUSDT")},
-				{http.MethodDelete, "/fapi/v1/algoOrder", byAlgoID, `{"algoId":3000000123,"clientAlgoId":"gct-algo","code":"200","msg":"success"}`},
-			},
+			name:  "pair's algo order",
+			a:     asset.USDTMarginedFutures,
+			pair:  currency.NewBTCUSDT(),
+			steps: []cancelStep{{http.MethodGet, "/fapi/v1/algoOrder", byAlgoID, algoReply("BTCUSDT")}},
+		},
+		{
+			name:  "COIN-M pair's algo order",
+			a:     asset.CoinMarginedFutures,
+			pair:  testCoinMarginedFuturesPair,
+			steps: []cancelStep{{http.MethodGet, "/dapi/v1/algoOrder", byAlgoID, algoReply("BTCUSD_PERP")}},
 		},
 		{
 			name:  "another pair's algo order",
 			a:     asset.USDTMarginedFutures,
+			pair:  currency.NewBTCUSDT(),
 			steps: []cancelStep{{http.MethodGet, "/fapi/v1/algoOrder", byAlgoID, algoReply("ETHUSDT")}},
+			err:   order.ErrOrderNotFound,
+		},
+		{
+			name:  "no algo order",
+			a:     asset.USDTMarginedFutures,
+			pair:  currency.NewBTCUSDT(),
+			steps: []cancelStep{{http.MethodGet, "/fapi/v1/algoOrder", byAlgoID, `{"code":-2013,"msg":"Order does not exist."}`}},
 			err:   order.ErrOrderNotFound,
 		},
 		{
 			name:   "lookup failure",
 			a:      asset.USDTMarginedFutures,
+			pair:   currency.NewBTCUSDT(),
 			steps:  []cancelStep{{http.MethodGet, "/fapi/v1/algoOrder", byAlgoID, `{"code":-1021,"msg":"Timestamp for this request is outside of the recvWindow."}`}},
 			errMsg: "error fetching algo order",
 		},
 		{
 			name:  "asset without pairs",
 			a:     asset.Binary,
+			pair:  currency.NewBTCUSDT(),
 			steps: []cancelStep{{http.MethodGet, "/fapi/v1/algoOrder", byAlgoID, algoReply("BTCUSDT")}},
 			err:   asset.ErrNotSupported,
 		},
@@ -3631,45 +3757,175 @@ func TestCancelPairAlgoOrder(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			ex, sent := newCancelStepsExchange(t, tc.steps)
-			algo, err := ex.cancelPairAlgoOrder(t.Context(), tc.a, currency.NewBTCUSDT(), 3000000123, "")
+			algo, err := ex.pairAlgoOrder(t.Context(), tc.a, tc.pair, 3000000123, "", usdtMarginedFuturesCancelRate)
 			switch {
 			case tc.err != nil:
-				assert.ErrorIs(t, err, tc.err, "cancelPairAlgoOrder should return the expected error")
-				assert.Nil(t, algo, "cancelPairAlgoOrder should return no algo order")
+				assert.ErrorIs(t, err, tc.err, "pairAlgoOrder should return the expected error")
+				assert.Nil(t, algo, "pairAlgoOrder should return no algo order")
 			case tc.errMsg != "":
-				assert.ErrorContains(t, err, tc.errMsg, "cancelPairAlgoOrder should return the lookup error")
-				assert.NotErrorIs(t, err, order.ErrOrderNotFound, "cancelPairAlgoOrder should not report a failed lookup as no algo order")
+				assert.ErrorContains(t, err, tc.errMsg, "pairAlgoOrder should return the lookup error")
+				assert.NotErrorIs(t, err, order.ErrOrderNotFound, "pairAlgoOrder should not report a failed lookup as no algo order")
 			default:
-				require.NoError(t, err, "cancelPairAlgoOrder must not error")
-				require.NotNil(t, algo, "cancelPairAlgoOrder must return the algo order")
-				assert.Equal(t, uint64(3000000123), algo.AlgoID, "cancelPairAlgoOrder should return the cancelled algo order")
+				require.NoError(t, err, "pairAlgoOrder must not error")
+				require.NotNil(t, algo, "pairAlgoOrder must return the algo order")
+				assert.Equal(t, uint64(3000000123), algo.AlgoID, "pairAlgoOrder should return the algo order")
 			}
-			assert.Equal(t, len(tc.steps), sent(), "cancelPairAlgoOrder should send every expected request")
+			assert.Equal(t, len(tc.steps), sent(), "pairAlgoOrder should send every expected request")
+		})
+	}
+}
+
+// TestUntaggedAlgoOrder ensures that an untyped request's untagged ID is found to be an algo order's only when the pair
+// has an algo order with it and no order with it, as the ID may name either
+func TestUntaggedAlgoOrder(t *testing.T) {
+	t.Parallel()
+	const (
+		notFound      = `{"code":-2013,"msg":"Order does not exist."}`
+		unknownOrder  = `{"code":-2011,"msg":"Unknown order sent."}`
+		outsideWindow = `{"code":-1021,"msg":"Timestamp for this request is outside of the recvWindow."}`
+	)
+	algoReply := func(symbol string) string {
+		return `{"algoId":77,"clientAlgoId":"gct-algo","algoType":"CONDITIONAL","orderType":"STOP_MARKET","symbol":"` + symbol + `","side":"SELL","positionSide":"BOTH","quantity":"0.01","algoStatus":"NEW","triggerPrice":"3000","icebergQuantity":"null"}`
+	}
+	usdtOrder := `{"orderId":77,"symbol":"BTCUSDT","status":"FILLED","clientOrderId":"gct-algo","price":"3000","origQty":"0.01","executedQty":"0.01","type":"LIMIT","side":"BUY","time":1791284980615,"updateTime":1791284980615}`
+	coinOrder := `{"orderId":77,"symbol":"BTCUSD_PERP","pair":"BTCUSD","status":"FILLED","clientOrderId":"gct-algo","price":"3000","origQty":"1","executedQty":"1","type":"LIMIT","side":"BUY","time":1791284980615,"updateTime":1791284980615}`
+	byAlgoID, byID := map[string]string{"algoId": "77", "clientAlgoId": ""}, map[string]string{"orderId": "77", "origClientOrderId": ""}
+	byClientAlgoID, byClientID := map[string]string{"clientAlgoId": "gct-algo", "algoId": ""}, map[string]string{"origClientOrderId": "gct-algo", "orderId": ""}
+	for _, tc := range []struct {
+		name          string
+		a             asset.Item
+		orderID       uint64
+		clientOrderID string
+		steps         []cancelStep
+		algo          bool
+		err           error
+		errMsg        string
+	}{
+		{
+			name: "no algo order", a: asset.USDTMarginedFutures, orderID: 77,
+			steps: []cancelStep{{http.MethodGet, "/fapi/v1/algoOrder", byAlgoID, notFound}},
+		},
+		{
+			name: "algo order lookup rejected as unknown", a: asset.USDTMarginedFutures, orderID: 77,
+			steps: []cancelStep{{http.MethodGet, "/fapi/v1/algoOrder", byAlgoID, unknownOrder}},
+		},
+		{
+			name: "algo order alone with the order lookup rejected as unknown", a: asset.USDTMarginedFutures, orderID: 77,
+			steps: []cancelStep{{http.MethodGet, "/fapi/v1/algoOrder", byAlgoID, algoReply("BTCUSDT")}, {http.MethodGet, "/fapi/v1/order", byID, unknownOrder}},
+			algo:  true,
+		},
+		{
+			name: "another pair's algo order", a: asset.USDTMarginedFutures, orderID: 77,
+			steps: []cancelStep{{http.MethodGet, "/fapi/v1/algoOrder", byAlgoID, algoReply("ETHUSDT")}},
+		},
+		{
+			name: "algo order lookup failure", a: asset.USDTMarginedFutures, orderID: 77,
+			steps:  []cancelStep{{http.MethodGet, "/fapi/v1/algoOrder", byAlgoID, outsideWindow}},
+			errMsg: "error fetching algo order",
+		},
+		{
+			name: "algo order alone", a: asset.USDTMarginedFutures, orderID: 77,
+			steps: []cancelStep{{http.MethodGet, "/fapi/v1/algoOrder", byAlgoID, algoReply("BTCUSDT")}, {http.MethodGet, "/fapi/v1/order", byID, notFound}},
+			algo:  true,
+		},
+		{
+			name: "algo order alone by client ID", a: asset.USDTMarginedFutures, clientOrderID: "gct-algo",
+			steps: []cancelStep{{http.MethodGet, "/fapi/v1/algoOrder", byClientAlgoID, algoReply("BTCUSDT")}, {http.MethodGet, "/fapi/v1/order", byClientID, notFound}},
+			algo:  true,
+		},
+		{
+			name: "algo order and order", a: asset.USDTMarginedFutures, orderID: 77,
+			steps:  []cancelStep{{http.MethodGet, "/fapi/v1/algoOrder", byAlgoID, algoReply("BTCUSDT")}, {http.MethodGet, "/fapi/v1/order", byID, usdtOrder}},
+			err:    errAmbiguousOrderID,
+			errMsg: "77 on usdtmarginedfutures BTCUSDT; name the order's type, or the algo order as algo-77",
+		},
+		{
+			name: "algo order and order by client ID", a: asset.USDTMarginedFutures, clientOrderID: "gct-algo",
+			steps:  []cancelStep{{http.MethodGet, "/fapi/v1/algoOrder", byClientAlgoID, algoReply("BTCUSDT")}, {http.MethodGet, "/fapi/v1/order", byClientID, usdtOrder}},
+			err:    errAmbiguousOrderID,
+			errMsg: "gct-algo on usdtmarginedfutures",
+		},
+		{
+			name: "order lookup failure", a: asset.USDTMarginedFutures, orderID: 77,
+			steps:  []cancelStep{{http.MethodGet, "/fapi/v1/algoOrder", byAlgoID, algoReply("BTCUSDT")}, {http.MethodGet, "/fapi/v1/order", byID, outsideWindow}},
+			errMsg: "error fetching order",
+		},
+		{
+			name: "COIN-M algo order alone", a: asset.CoinMarginedFutures, orderID: 77,
+			steps: []cancelStep{{http.MethodGet, "/dapi/v1/algoOrder", byAlgoID, algoReply("BTCUSD_PERP")}, {http.MethodGet, "/dapi/v1/order", byID, notFound}},
+			algo:  true,
+		},
+		{
+			name: "COIN-M algo order and order", a: asset.CoinMarginedFutures, orderID: 77,
+			steps: []cancelStep{{http.MethodGet, "/dapi/v1/algoOrder", byAlgoID, algoReply("BTCUSD_PERP")}, {http.MethodGet, "/dapi/v1/order", byID, coinOrder}},
+			err:   errAmbiguousOrderID,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex, sent := newCancelStepsExchange(t, tc.steps)
+			pair := currency.NewBTCUSDT()
+			if tc.a == asset.CoinMarginedFutures {
+				pair = testCoinMarginedFuturesPair
+			}
+			algo, err := ex.untaggedAlgoOrder(t.Context(), tc.a, pair, tc.orderID, tc.clientOrderID)
+			if tc.errMsg != "" {
+				assert.ErrorContains(t, err, tc.errMsg, "untaggedAlgoOrder should return the expected error")
+			}
+			switch {
+			case tc.err != nil:
+				assert.ErrorIs(t, err, tc.err, "untaggedAlgoOrder should return the expected error")
+			case tc.errMsg != "":
+				assert.NotErrorIs(t, err, order.ErrOrderNotFound, "untaggedAlgoOrder should not report a failed lookup as no order having the ID")
+			default:
+				assert.NoError(t, err, "untaggedAlgoOrder should not error")
+			}
+			if tc.algo {
+				require.NotNil(t, algo, "untaggedAlgoOrder must return the algo order")
+				assert.Equal(t, uint64(77), algo.AlgoID, "untaggedAlgoOrder should return the pair's algo order")
+			} else {
+				assert.Nil(t, algo, "untaggedAlgoOrder should return no algo order")
+			}
+			assert.Equal(t, len(tc.steps), sent(), "untaggedAlgoOrder should send every expected request")
 		})
 	}
 }
 
 func TestCancelBatchOrdersAlgoFallback(t *testing.T) {
 	t.Parallel()
-	const unknownOrder = `{"code":-2011,"msg":"Unknown order sent."}`
+	const (
+		unknownOrder = `{"code":-2011,"msg":"Unknown order sent."}`
+		notFound     = `{"code":-2013,"msg":"Order does not exist."}`
+	)
 	algo := func(id uint64, clientAlgoID string) string {
 		return fmt.Sprintf(`{"algoId":%d,"clientAlgoId":%q,"algoType":"CONDITIONAL","orderType":"STOP_MARKET","symbol":"BTCUSDT","side":"SELL","positionSide":"BOTH","quantity":"0.01","algoStatus":"NEW","triggerPrice":"3000","icebergQuantity":"null"}`, id, clientAlgoID)
 	}
 	algoCancelled := func(id uint64, clientAlgoID string) string {
 		return fmt.Sprintf(`{"algoId":%d,"clientAlgoId":%q,"code":"200","msg":"success"}`, id, clientAlgoID)
 	}
+	lookup := func(path string, params map[string]string, reply string) cancelStep {
+		return cancelStep{http.MethodGet, path, params, reply}
+	}
 
-	// The RPC server reports every entry cancelled unless the call errors, so a failed fallback is returned
-	for _, operation := range []string{"query", "cancel"} {
-		t.Run(operation+" failure", func(t *testing.T) {
+	// The RPC server reports every entry cancelled unless the call errors, so a failed lookup or algo order cancellation
+	// is returned
+	for _, tc := range []struct {
+		operation, errMsg string
+	}{
+		{"query", "error cancelling order 2: error fetching algo order"},
+		{"cancel", "error cancelling orders [2]"},
+	} {
+		t.Run(tc.operation+" failure", func(t *testing.T) {
 			t.Parallel()
 			const failure = `{"code":-1002,"msg":"Not authorised."}`
 			steps := []cancelStep{
-				{http.MethodDelete, "/fapi/v1/batchOrders", map[string]string{"orderIdList": "[1,2]"}, `[{"orderId":1,"symbol":"BTCUSDT","status":"CANCELED"},` + unknownOrder + `]`},
-				{http.MethodGet, "/fapi/v1/algoOrder", map[string]string{"algoId": "2"}, failure},
+				lookup("/fapi/v1/algoOrder", map[string]string{"algoId": "1"}, notFound),
+				lookup("/fapi/v1/algoOrder", map[string]string{"algoId": "2"}, failure),
+				{http.MethodDelete, "/fapi/v1/batchOrders", map[string]string{"orderIdList": "[1]"}, `[{"orderId":1,"symbol":"BTCUSDT","status":"CANCELED"}]`},
 			}
-			if operation == "cancel" {
+			if tc.operation == "cancel" {
 				steps[1].reply = algo(2, "gct-algo")
+				steps = slices.Insert(steps, 2, lookup("/fapi/v1/order", map[string]string{"orderId": "2"}, notFound))
 				steps = append(steps, cancelStep{http.MethodDelete, "/fapi/v1/algoOrder", map[string]string{"algoId": "2"}, failure})
 			}
 			ex, sent := newCancelStepsExchange(t, steps)
@@ -3677,29 +3933,47 @@ func TestCancelBatchOrdersAlgoFallback(t *testing.T) {
 				{AssetType: asset.USDTMarginedFutures, Pair: currency.NewBTCUSDT(), OrderID: "1"},
 				{AssetType: asset.USDTMarginedFutures, Pair: currency.NewBTCUSDT(), OrderID: "2"},
 			})
-			require.ErrorIs(t, err, errAPIResponse, "CancelBatchOrders must return the fallback error")
-			assert.ErrorContains(t, err, "error cancelling order 2:", "CancelBatchOrders should identify the failed entry")
+			require.ErrorIs(t, err, errAPIResponse, "CancelBatchOrders must return the failure")
+			assert.ErrorContains(t, err, tc.errMsg, "CancelBatchOrders should identify the failed entry")
 			require.NotNil(t, resp, "CancelBatchOrders must retain the partial response")
 			assert.Equal(t, "CANCELED", resp.Status["1"], "CancelBatchOrders should retain the successful cancellation")
-			assert.Contains(t, resp.Status["2"], "Not authorised.", "CancelBatchOrders should retain the failed cancellation")
+			assert.Contains(t, resp.Status["2"], "Not authorised.", "CancelBatchOrders should retain the failure")
 			assert.Equal(t, len(steps), sent(), "CancelBatchOrders should send the expected requests")
 		})
 	}
 
-	// An algo order one entry cancelled is not looked up and cancelled again for another entry naming it by an ID
+	t.Run("lookup failure beside a cancellation of the same text", func(t *testing.T) {
+		t.Parallel()
+		// The other entry's cancellation, keyed by the same text, must not hide the failed lookup
+		ex, sent := newCancelStepsExchange(t, []cancelStep{
+			lookup("/fapi/v1/algoOrder", map[string]string{"algoId": "77"}, `{"code":-1002,"msg":"Not authorised."}`),
+			{http.MethodDelete, "/fapi/v1/batchOrders", map[string]string{"orderIdList": "[77]"}, `[{"orderId":77,"symbol":"BTCUSDT","status":"CANCELED"}]`},
+		})
+		resp, err := ex.CancelBatchOrders(t.Context(), []order.Cancel{
+			{AssetType: asset.USDTMarginedFutures, Pair: currency.NewBTCUSDT(), OrderID: "77"},
+			{AssetType: asset.USDTMarginedFutures, Pair: currency.NewBTCUSDT(), Type: order.Limit, OrderID: "77"},
+		})
+		require.ErrorIs(t, err, errAPIResponse, "CancelBatchOrders must return the failed lookup")
+		require.NotNil(t, resp, "CancelBatchOrders must return each entry's outcome")
+		assert.Contains(t, resp.Status["77"], "Not authorised.", "CancelBatchOrders should report the failed lookup")
+		assert.Equal(t, 2, sent(), "CancelBatchOrders should send the expected requests")
+	})
+
+	// An algo order one entry cancelled is not cancelled again for another entry naming it, by its algo ID or by an ID
 	// Binance reported for it, while an entry naming another algo order by a client algo ID that went unused is
 	for _, tc := range []struct {
 		name    string
 		entries []order.Cancel
 		steps   []cancelStep
 		exp     map[string]string
+		refused string // the entry refused for naming both an order and an algo order
 	}{
 		{
 			name:    "algo ID named twice",
 			entries: []order.Cancel{{OrderID: "77"}, {OrderID: "77"}},
 			steps: []cancelStep{
-				{http.MethodDelete, "/fapi/v1/batchOrders", map[string]string{"orderIdList": "[77,77]"}, `[` + unknownOrder + `,` + unknownOrder + `]`},
-				{http.MethodGet, "/fapi/v1/algoOrder", map[string]string{"algoId": "77"}, algo(77, "gct-algo")},
+				lookup("/fapi/v1/algoOrder", map[string]string{"algoId": "77"}, algo(77, "gct-algo")),
+				lookup("/fapi/v1/order", map[string]string{"orderId": "77"}, notFound),
 				{http.MethodDelete, "/fapi/v1/algoOrder", map[string]string{"algoId": "77"}, algoCancelled(77, "gct-algo")},
 			},
 			exp: map[string]string{"77": "CANCELED"},
@@ -3708,22 +3982,23 @@ func TestCancelBatchOrdersAlgoFallback(t *testing.T) {
 			name:    "algo order named by its algo ID and its client algo ID",
 			entries: []order.Cancel{{OrderID: "77"}, {ClientOrderID: "gct-algo"}},
 			steps: []cancelStep{
-				{http.MethodDelete, "/fapi/v1/batchOrders", map[string]string{"orderIdList": "[77]"}, `[` + unknownOrder + `]`},
-				{http.MethodDelete, "/fapi/v1/batchOrders", map[string]string{"origClientOrderIdList": `["gct-algo"]`}, `[` + unknownOrder + `]`},
-				{http.MethodGet, "/fapi/v1/algoOrder", map[string]string{"algoId": "77"}, algo(77, "gct-algo")},
+				lookup("/fapi/v1/algoOrder", map[string]string{"algoId": "77"}, algo(77, "gct-algo")),
+				lookup("/fapi/v1/order", map[string]string{"orderId": "77"}, notFound),
+				lookup("/fapi/v1/algoOrder", map[string]string{"clientAlgoId": "gct-algo"}, algo(77, "gct-algo")),
+				lookup("/fapi/v1/order", map[string]string{"origClientOrderId": "gct-algo"}, notFound),
 				{http.MethodDelete, "/fapi/v1/algoOrder", map[string]string{"algoId": "77"}, algoCancelled(77, "gct-algo")},
 			},
-			exp: map[string]string{"77": "CANCELED", "gct-algo": "Unknown order sent."},
+			exp: map[string]string{"77": "CANCELED", "gct-algo": "CANCELED"},
 		},
 		{
 			name:    "client algo ID sent beside another algo order's algo ID",
 			entries: []order.Cancel{{OrderID: "77", ClientOrderID: "other-algo"}, {ClientOrderID: "other-algo"}},
 			steps: []cancelStep{
-				{http.MethodDelete, "/fapi/v1/batchOrders", map[string]string{"orderIdList": "[77]"}, `[` + unknownOrder + `]`},
-				{http.MethodDelete, "/fapi/v1/batchOrders", map[string]string{"origClientOrderIdList": `["other-algo"]`}, `[` + unknownOrder + `]`},
-				{http.MethodGet, "/fapi/v1/algoOrder", map[string]string{"algoId": "77", "clientAlgoId": ""}, algo(77, "gct-algo")},
+				lookup("/fapi/v1/algoOrder", map[string]string{"algoId": "77", "clientAlgoId": ""}, algo(77, "gct-algo")),
+				lookup("/fapi/v1/order", map[string]string{"orderId": "77", "origClientOrderId": ""}, notFound),
+				lookup("/fapi/v1/algoOrder", map[string]string{"clientAlgoId": "other-algo", "algoId": ""}, algo(88, "other-algo")),
+				lookup("/fapi/v1/order", map[string]string{"origClientOrderId": "other-algo", "orderId": ""}, notFound),
 				{http.MethodDelete, "/fapi/v1/algoOrder", map[string]string{"algoId": "77"}, algoCancelled(77, "gct-algo")},
-				{http.MethodGet, "/fapi/v1/algoOrder", map[string]string{"clientAlgoId": "other-algo", "algoId": ""}, algo(88, "other-algo")},
 				{http.MethodDelete, "/fapi/v1/algoOrder", map[string]string{"algoId": "88"}, algoCancelled(88, "other-algo")},
 			},
 			exp: map[string]string{"77": "CANCELED", "other-algo": "CANCELED"},
@@ -3732,7 +4007,8 @@ func TestCancelBatchOrdersAlgoFallback(t *testing.T) {
 			name:    "untyped repeat of a typed algo order",
 			entries: []order.Cancel{{Type: order.Stop, OrderID: "77"}, {OrderID: "77"}},
 			steps: []cancelStep{
-				{http.MethodDelete, "/fapi/v1/batchOrders", map[string]string{"orderIdList": "[77]"}, `[` + unknownOrder + `]`},
+				lookup("/fapi/v1/algoOrder", map[string]string{"algoId": "77"}, algo(77, "gct-algo")),
+				lookup("/fapi/v1/order", map[string]string{"orderId": "77"}, notFound),
 				{http.MethodDelete, "/fapi/v1/algoOrder", map[string]string{"algoId": "77"}, algoCancelled(77, "gct-algo")},
 			},
 			exp: map[string]string{"77": "CANCELED"},
@@ -3741,21 +4017,44 @@ func TestCancelBatchOrdersAlgoFallback(t *testing.T) {
 			name:    "untyped repeat by algo ID of a typed algo order cancelled by its client algo ID",
 			entries: []order.Cancel{{Type: order.Stop, ClientOrderID: "gct-algo"}, {OrderID: "77"}},
 			steps: []cancelStep{
-				{http.MethodDelete, "/fapi/v1/batchOrders", map[string]string{"orderIdList": "[77]"}, `[` + unknownOrder + `]`},
+				lookup("/fapi/v1/algoOrder", map[string]string{"algoId": "77"}, algo(77, "gct-algo")),
+				lookup("/fapi/v1/order", map[string]string{"orderId": "77"}, notFound),
 				{http.MethodDelete, "/fapi/v1/algoOrder", map[string]string{"clientAlgoId": "gct-algo", "algoId": ""}, algoCancelled(77, "gct-algo")},
 			},
-			exp: map[string]string{"77": "Unknown order sent.", "gct-algo": "CANCELED"},
+			exp: map[string]string{"77": "CANCELED", "gct-algo": "CANCELED"},
 		},
 		{
 			name:    "untyped repeat of a client algo ID a typed entry sent beside another algo order's algo ID",
 			entries: []order.Cancel{{Type: order.Stop, OrderID: "77", ClientOrderID: "other-algo"}, {ClientOrderID: "other-algo"}},
 			steps: []cancelStep{
-				{http.MethodDelete, "/fapi/v1/batchOrders", map[string]string{"origClientOrderIdList": `["other-algo"]`}, `[` + unknownOrder + `]`},
+				lookup("/fapi/v1/algoOrder", map[string]string{"clientAlgoId": "other-algo", "algoId": ""}, algo(88, "other-algo")),
+				lookup("/fapi/v1/order", map[string]string{"origClientOrderId": "other-algo", "orderId": ""}, notFound),
 				{http.MethodDelete, "/fapi/v1/algoOrder", map[string]string{"algoId": "77", "clientAlgoId": ""}, algoCancelled(77, "gct-algo")},
-				{http.MethodGet, "/fapi/v1/algoOrder", map[string]string{"clientAlgoId": "other-algo", "algoId": ""}, algo(88, "other-algo")},
 				{http.MethodDelete, "/fapi/v1/algoOrder", map[string]string{"algoId": "88"}, algoCancelled(88, "other-algo")},
 			},
 			exp: map[string]string{"77": "CANCELED", "other-algo": "CANCELED"},
+		},
+		{
+			name:    "algo order ID",
+			entries: []order.Cancel{{OrderID: "algo-77"}, {OrderID: "77"}},
+			steps: []cancelStep{
+				lookup("/fapi/v1/algoOrder", map[string]string{"algoId": "77"}, algo(77, "gct-algo")),
+				lookup("/fapi/v1/order", map[string]string{"orderId": "77"}, notFound),
+				{http.MethodDelete, "/fapi/v1/algoOrder", map[string]string{"algoId": "77"}, algoCancelled(77, "gct-algo")},
+			},
+			exp: map[string]string{"algo-77": "CANCELED", "77": "CANCELED"},
+		},
+		{
+			name:    "ID of an order and an algo order",
+			entries: []order.Cancel{{OrderID: "77"}, {OrderID: "1"}},
+			steps: []cancelStep{
+				lookup("/fapi/v1/algoOrder", map[string]string{"algoId": "77"}, algo(77, "gct-algo")),
+				lookup("/fapi/v1/order", map[string]string{"orderId": "77"}, `{"orderId":77,"symbol":"BTCUSDT","status":"NEW","clientOrderId":"gct-order","price":"3000","origQty":"0.01","executedQty":"0","type":"LIMIT","side":"BUY","time":1791284980615,"updateTime":1791284980615}`),
+				lookup("/fapi/v1/algoOrder", map[string]string{"algoId": "1"}, notFound),
+				{http.MethodDelete, "/fapi/v1/batchOrders", map[string]string{"orderIdList": "[1]"}, `[{"orderId":1,"symbol":"BTCUSDT","status":"CANCELED"}]`},
+			},
+			exp:     map[string]string{"1": "CANCELED"},
+			refused: "77",
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -3765,21 +4064,356 @@ func TestCancelBatchOrdersAlgoFallback(t *testing.T) {
 				tc.entries[i].AssetType, tc.entries[i].Pair = asset.USDTMarginedFutures, currency.NewBTCUSDT()
 			}
 			resp, err := ex.CancelBatchOrders(t.Context(), tc.entries)
-			require.NoError(t, err, "CancelBatchOrders must not error")
+			if tc.refused != "" {
+				require.ErrorIs(t, err, errAmbiguousOrderID, "CancelBatchOrders must refuse the ID")
+				require.NotNil(t, resp, "CancelBatchOrders must return each entry's outcome")
+				assert.Contains(t, resp.Status[tc.refused], "the algo order as algo-77", "CancelBatchOrders should report the refusal")
+				delete(resp.Status, tc.refused)
+			} else {
+				require.NoError(t, err, "CancelBatchOrders must not error")
+			}
 			assert.Equal(t, tc.exp, resp.Status, "CancelBatchOrders should report each entry's outcome")
 			assert.Equal(t, len(tc.steps), sent(), "CancelBatchOrders should send every expected request")
 		})
 	}
 }
 
+// TestCancelOrderAlgoOrderID ensures that cancelling a stop by the ID SubmitOrder returned for it cancels the stop and
+// not a regular order of the pair numbered alike, as Binance numbers algo orders apart from other orders. An untyped
+// cancellation by the bare number, which names both, is refused, while a typed one cancels the kind its type names
+func TestCancelOrderAlgoOrderID(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name                   string
+		cancelType             order.Type
+		orderID                string // the submitted stop's ID when empty
+		regular, algo          bool
+		err                    error
+		sentRegular, sentQuery bool
+	}{
+		{name: "cancel the stop when a regular order has the same ID", algo: true},
+		{name: "refuse the untagged ID of a regular order and a stop", orderID: "77", err: errAmbiguousOrderID, sentRegular: true, sentQuery: true},
+		{name: "cancel the stop by its type and untagged ID", cancelType: order.StopMarket, orderID: "77", algo: true},
+		{name: "cancel the regular order by its type and untagged ID", cancelType: order.Limit, orderID: "77", regular: true, sentRegular: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var regularCancelled, algoCancelled, regularQueried, algoQueried atomic.Bool
+			ex := newTradingTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+				switch r.URL.Path {
+				case "/fapi/v1/algoOrder":
+					switch r.Method {
+					case http.MethodDelete:
+						algoCancelled.Store(true)
+						_, err := w.Write([]byte(`{"algoId":77,"code":200,"msg":"success"}`))
+						assert.NoError(t, err, "Write should not error")
+						return
+					case http.MethodGet:
+						algoQueried.Store(true)
+					}
+					_, err := w.Write([]byte(`{"algoId":77,"clientAlgoId":"stop-77","symbol":"BTCUSDT","side":"SELL","orderType":"STOP_MARKET","quantity":"1","algoStatus":"NEW","triggerPrice":"90"}`))
+					assert.NoError(t, err, "Write should not error")
+				case "/fapi/v1/order":
+					switch r.Method {
+					case http.MethodDelete:
+						regularCancelled.Store(true)
+					case http.MethodGet:
+						regularQueried.Store(true)
+					}
+					_, err := w.Write([]byte(`{"orderId":77,"symbol":"BTCUSDT","status":"CANCELED"}`))
+					assert.NoError(t, err, "Write should not error")
+				default:
+					assert.Fail(t, "unexpected endpoint", "the request should use an order endpoint")
+				}
+			})
+			placed, err := ex.SubmitOrder(t.Context(), &order.Submit{
+				Exchange: ex.Name, Pair: currency.NewBTCUSDT(),
+				AssetType: asset.USDTMarginedFutures, Type: order.StopMarket,
+				Side: order.Sell, Amount: 1, TriggerPrice: 90,
+			})
+			require.NoError(t, err, "SubmitOrder must place the stop")
+			require.Equal(t, "algo-77", placed.OrderID, "SubmitOrder must identify the stop by its algo order ID")
+			err = ex.CancelOrder(t.Context(), &order.Cancel{
+				Exchange: ex.Name, Pair: placed.Pair, Type: tc.cancelType,
+				AssetType: placed.AssetType, OrderID: cmp.Or(tc.orderID, placed.OrderID),
+			})
+			require.ErrorIs(t, err, tc.err, "CancelOrder must return the expected error")
+			assert.Equal(t, tc.regular, regularCancelled.Load(), "CancelOrder should cancel the regular order only when it is meant")
+			assert.Equal(t, tc.algo, algoCancelled.Load(), "CancelOrder should cancel the stop only when it is meant")
+			assert.Equal(t, tc.sentQuery, algoQueried.Load(), "CancelOrder should look the stop up only for an untyped untagged ID")
+			assert.Equal(t, tc.sentQuery, regularQueried.Load(), "CancelOrder should look the regular order up only for an untyped untagged ID")
+		})
+	}
+}
+
+// TestAlgoOrderIDRoundTrips ensures that the algo order ID each read of a USDⓈ-M or COIN-M algo order reports reaches
+// the algo order when it is passed back, with no lookup of either kind of order
+func TestAlgoOrderIDRoundTrips(t *testing.T) {
+	t.Parallel()
+	algoReply := func(symbol string) string {
+		return `{"algoId":3000000123,"clientAlgoId":"gct-algo","algoType":"CONDITIONAL","orderType":"STOP_MARKET","symbol":"` + symbol + `","side":"SELL","positionSide":"BOTH","timeInForce":"GTC","quantity":"1","algoStatus":"NEW","triggerPrice":"3000","icebergQuantity":"null","createTime":1791284812300,"updateTime":1791284812400}`
+	}
+	algoCancelled := `{"algoId":3000000123,"clientAlgoId":"gct-algo","code":"200","msg":"success"}`
+	byAlgoID := map[string]string{"algoId": "3000000123", "symbol": ""}
+	for _, tc := range []struct {
+		name  string
+		a     asset.Item
+		read  cancelStep
+		ids   func(*testing.T, *Exchange, currency.Pair) []string
+		paths [2]string // the algo order endpoint and the order endpoint
+	}{
+		{
+			name: "USDⓈ-M open algo orders",
+			a:    asset.USDTMarginedFutures,
+			read: cancelStep{http.MethodGet, "/fapi/v1/openAlgoOrders", map[string]string{"symbol": "BTCUSDT"}, `[` + algoReply("BTCUSDT") + `]`},
+			ids: func(t *testing.T, ex *Exchange, pair currency.Pair) []string {
+				t.Helper()
+				orders, err := ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.USDTMarginedFutures, Pairs: currency.Pairs{pair}, Type: order.StopMarket, Side: order.AnySide})
+				require.NoError(t, err, "GetActiveOrders must not error")
+				return orderIDs(orders)
+			},
+			paths: [2]string{"/fapi/v1/algoOrder", "/fapi/v1/order"},
+		},
+		{
+			name: "USDⓈ-M algo order history",
+			a:    asset.USDTMarginedFutures,
+			read: cancelStep{http.MethodGet, "/fapi/v1/allAlgoOrders", map[string]string{"symbol": "BTCUSDT"}, `[` + algoReply("BTCUSDT") + `]`},
+			ids: func(t *testing.T, ex *Exchange, pair currency.Pair) []string {
+				t.Helper()
+				orders, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.USDTMarginedFutures, Pairs: currency.Pairs{pair}, Type: order.StopMarket, Side: order.AnySide})
+				require.NoError(t, err, "GetOrderHistory must not error")
+				return orderIDs(orders)
+			},
+			paths: [2]string{"/fapi/v1/algoOrder", "/fapi/v1/order"},
+		},
+		{
+			name: "COIN-M algo order",
+			a:    asset.CoinMarginedFutures,
+			read: cancelStep{http.MethodGet, "/dapi/v1/algoOrder", map[string]string{"algoId": "3000000123"}, algoReply("BTCUSD_PERP")},
+			ids: func(t *testing.T, ex *Exchange, pair currency.Pair) []string {
+				t.Helper()
+				d, err := ex.GetOrderInfo(t.Context(), "algo-3000000123", pair, asset.CoinMarginedFutures)
+				require.NoError(t, err, "GetOrderInfo must not error")
+				return []string{d.OrderID}
+			},
+			paths: [2]string{"/dapi/v1/algoOrder", "/dapi/v1/order"},
+		},
+		{
+			name: "USDⓈ-M algo order placement",
+			a:    asset.USDTMarginedFutures,
+			read: cancelStep{http.MethodPost, "/fapi/v1/algoOrder", map[string]string{"type": "STOP_MARKET"}, algoReply("BTCUSDT")},
+			ids: func(t *testing.T, ex *Exchange, pair currency.Pair) []string {
+				t.Helper()
+				placed, err := ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: pair, AssetType: asset.USDTMarginedFutures, Type: order.StopMarket, Side: order.Sell, Amount: 1, TriggerPrice: 3000})
+				require.NoError(t, err, "SubmitOrder must not error")
+				return []string{placed.OrderID}
+			},
+			paths: [2]string{"/fapi/v1/algoOrder", "/fapi/v1/order"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			pair := currency.NewBTCUSDT()
+			if tc.a == asset.CoinMarginedFutures {
+				pair = testCoinMarginedFuturesPair
+			}
+			ex, sent := newCancelStepsExchange(t, []cancelStep{
+				tc.read,
+				{http.MethodGet, tc.paths[0], byAlgoID, algoReply(map[asset.Item]string{asset.USDTMarginedFutures: "BTCUSDT", asset.CoinMarginedFutures: "BTCUSD_PERP"}[tc.a])},
+				{http.MethodDelete, tc.paths[0], byAlgoID, algoCancelled},
+				{http.MethodDelete, tc.paths[0], byAlgoID, algoCancelled},
+			})
+			ids := tc.ids(t, ex, pair)
+			require.Equal(t, []string{"algo-3000000123"}, ids, "the read must report the algo order ID")
+			d, err := ex.GetOrderInfo(t.Context(), ids[0], pair, tc.a)
+			require.NoError(t, err, "GetOrderInfo must look the algo order up")
+			assert.Equal(t, ids[0], d.OrderID, "GetOrderInfo should report the algo order ID it was given")
+			require.NoError(t, ex.CancelOrder(t.Context(), &order.Cancel{AssetType: tc.a, Pair: pair, OrderID: ids[0]}), "CancelOrder must cancel the algo order")
+			resp, err := ex.CancelBatchOrders(t.Context(), []order.Cancel{{AssetType: tc.a, Pair: pair, OrderID: ids[0]}})
+			require.NoError(t, err, "CancelBatchOrders must cancel the algo order")
+			assert.Equal(t, map[string]string{ids[0]: "CANCELED"}, resp.Status, "CancelBatchOrders should key the status by the algo order ID")
+			_, err = ex.ModifyOrder(t.Context(), &order.Modify{AssetType: tc.a, Pair: pair, OrderID: ids[0], Side: order.Sell, Price: 1, Amount: 1})
+			assert.ErrorIs(t, err, order.ErrUnsupportedOrderType, "ModifyOrder should refuse the algo order without a request")
+			assert.Equal(t, 4, sent(), "the algo order ID should reach the algo order endpoints alone")
+		})
+	}
+
+	t.Run("ALGO_UPDATE", func(t *testing.T) {
+		t.Parallel()
+		ex, sent := newCancelStepsExchange(t, []cancelStep{{http.MethodDelete, "/fapi/v1/algoOrder", map[string]string{"algoId": "2148720"}, algoCancelled}})
+		err := ex.processFuturesAlgoUpdate(t.Context(), []byte(`{"e":"ALGO_UPDATE","T":1791300000000,"E":1791300000006,"o":{"caid":"stop-loss","aid":2148720,"at":"CONDITIONAL","o":"STOP_MARKET","s":"BTCUSDT","S":"SELL","ps":"BOTH","f":"GTC","q":"0.01","X":"NEW","tp":"85000","p":"0"}}`), asset.USDTMarginedFutures)
+		require.NoError(t, err, "processFuturesAlgoUpdate must not error")
+		payloads := relayedPayloads(ex)
+		require.Len(t, payloads, 2, "processFuturesAlgoUpdate must relay the event and its algo order")
+		d, ok := payloads[1].(*order.Detail)
+		require.True(t, ok, "processFuturesAlgoUpdate must relay the algo order")
+		require.Equal(t, "algo-2148720", d.OrderID, "processFuturesAlgoUpdate must report the algo order ID")
+		require.NoError(t, ex.CancelOrder(t.Context(), &order.Cancel{AssetType: d.AssetType, Pair: d.Pair, OrderID: d.OrderID}), "CancelOrder must cancel the algo order")
+		assert.Equal(t, 1, sent(), "CancelOrder should cancel the algo order with no lookup")
+	})
+}
+
+// orderIDs returns the IDs of orders
+func orderIDs(orders []order.Detail) []string {
+	ids := make([]string, len(orders))
+	for i := range orders {
+		ids[i] = orders[i].OrderID
+	}
+	return ids
+}
+
+// TestModifyOrderAlgoOrders ensures that an algo order, which Binance cannot modify, is refused before any modification
+// is sent, whether it is named by its algo order ID, by a stop, take profit or trailing stop type, or by an untyped
+// request's untagged ID that is the pair's algo order's alone; an untagged ID of an order and an algo order is refused
+func TestModifyOrderAlgoOrders(t *testing.T) {
+	t.Parallel()
+	const (
+		notFound      = `{"code":-2013,"msg":"Order does not exist."}`
+		outsideWindow = `{"code":-1021,"msg":"Timestamp for this request is outside of the recvWindow."}`
+		algoOrder     = `{"algoId":20072994037,"clientAlgoId":"gct-algo","algoType":"CONDITIONAL","orderType":"STOP_MARKET","symbol":"BTCUSDT","side":"BUY","algoStatus":"NEW"}`
+		usdtOrder     = `{"orderId":20072994037,"symbol":"BTCUSDT","status":"NEW","clientOrderId":"gct-order","price":"30000","origQty":"1","executedQty":"0","type":"LIMIT","side":"BUY","time":1629182711600,"updateTime":1629182711600}`
+		modified      = `{"orderId":20072994037,"symbol":"BTCUSDT","status":"NEW","clientOrderId":"gct-order","price":"30005","origQty":"1","executedQty":"0","type":"LIMIT","side":"BUY","updateTime":1629182711600}`
+	)
+	byAlgoID, byID := map[string]string{"algoId": "20072994037"}, map[string]string{"orderId": "20072994037"}
+	for _, tc := range []struct {
+		name    string
+		modify  order.Modify
+		steps   []cancelStep
+		err     error
+		errMsg  string
+		success bool
+	}{
+		{name: "algo order ID", modify: order.Modify{OrderID: "algo-20072994037"}, err: order.ErrUnsupportedOrderType},
+		{name: "algo order ID of a limit type", modify: order.Modify{Type: order.Limit, OrderID: "algo-20072994037"}, err: order.ErrUnsupportedOrderType},
+		{name: "stop type", modify: order.Modify{Type: order.StopMarket, OrderID: "20072994037"}, err: order.ErrUnsupportedOrderType},
+		{name: "invalid algo order ID", modify: order.Modify{OrderID: "algo-x"}, err: errInvalidOrderID},
+		{
+			name:   "untyped algo order",
+			modify: order.Modify{OrderID: "20072994037"},
+			steps:  []cancelStep{{http.MethodGet, "/fapi/v1/algoOrder", byAlgoID, algoOrder}, {http.MethodGet, "/fapi/v1/order", byID, notFound}},
+			err:    order.ErrUnsupportedOrderType,
+			errMsg: "the ID names algo order algo-20072994037",
+		},
+		{
+			name:   "untyped order and algo order",
+			modify: order.Modify{OrderID: "20072994037"},
+			steps:  []cancelStep{{http.MethodGet, "/fapi/v1/algoOrder", byAlgoID, algoOrder}, {http.MethodGet, "/fapi/v1/order", byID, usdtOrder}},
+			err:    errAmbiguousOrderID,
+		},
+		{
+			name:   "untyped lookup failure",
+			modify: order.Modify{OrderID: "20072994037"},
+			steps:  []cancelStep{{http.MethodGet, "/fapi/v1/algoOrder", byAlgoID, outsideWindow}},
+			errMsg: "error fetching algo order",
+		},
+		{
+			name:    "untyped order",
+			modify:  order.Modify{OrderID: "20072994037"},
+			steps:   []cancelStep{{http.MethodGet, "/fapi/v1/algoOrder", byAlgoID, notFound}, {http.MethodPut, "/fapi/v1/order", byID, modified}},
+			success: true,
+		},
+		{
+			name:    "limit order",
+			modify:  order.Modify{Type: order.Limit, OrderID: "20072994037"},
+			steps:   []cancelStep{{http.MethodPut, "/fapi/v1/order", byID, modified}},
+			success: true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex, sent := newCancelStepsExchange(t, tc.steps)
+			tc.modify.AssetType, tc.modify.Pair, tc.modify.Side, tc.modify.Price, tc.modify.Amount = asset.USDTMarginedFutures, currency.NewBTCUSDT(), order.Buy, 30005, 1
+			resp, err := ex.ModifyOrder(t.Context(), &tc.modify)
+			if tc.errMsg != "" {
+				assert.ErrorContains(t, err, tc.errMsg, "ModifyOrder should return the expected error")
+			}
+			switch {
+			case tc.success:
+				require.NoError(t, err, "ModifyOrder must modify the order")
+				assert.Equal(t, "20072994037", resp.OrderID, "ModifyOrder should report the modified order")
+			case tc.err != nil:
+				assert.ErrorIs(t, err, tc.err, "ModifyOrder should return the expected error")
+			}
+			assert.Equal(t, len(tc.steps), sent(), "ModifyOrder should send every expected request")
+		})
+	}
+}
+
+// TestGetOrderHistoryFromAlgoOrderID ensures that FromOrderID applies to the kind of order it names: an algo order ID
+// to algo orders, which it starts from, and any other ID to orders, while the other kind is listed by the window
+func TestGetOrderHistoryFromAlgoOrderID(t *testing.T) {
+	t.Parallel()
+	end := time.Now()
+	for _, m := range []struct {
+		a                   asset.Item
+		pair                currency.Pair
+		orderPath, algoPath string
+	}{
+		{asset.USDTMarginedFutures, currency.NewBTCUSDT(), "/fapi/v1/allOrders", "/fapi/v1/allAlgoOrders"},
+		{asset.CoinMarginedFutures, testCoinMarginedFuturesPair, "/dapi/v1/allOrders", "/dapi/v1/allAlgoOrders"},
+	} {
+		for _, tc := range []struct {
+			fromID                  string
+			orderParams, algoParams map[string]string
+			orderWindow, algoWindow bool
+		}{
+			{fromID: "algo-5", orderParams: map[string]string{"orderId": ""}, algoParams: map[string]string{"algoId": "5"}, orderWindow: true},
+			{fromID: "5", orderParams: map[string]string{"orderId": "5"}, algoParams: map[string]string{"algoId": ""}, algoWindow: true},
+		} {
+			t.Run(m.a.String()+" from "+tc.fromID, func(t *testing.T) {
+				t.Parallel()
+				var mu sync.Mutex
+				queries := make(map[string]map[string][]string)
+				ex := newTradingTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+					mu.Lock()
+					queries[r.URL.Path] = r.URL.Query()
+					mu.Unlock()
+					_, err := w.Write([]byte(`[]`))
+					assert.NoError(t, err, "Write should not error")
+				})
+				_, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+					AssetType: m.a, Type: order.AnyType, Side: order.AnySide, Pairs: currency.Pairs{m.pair},
+					FromOrderID: tc.fromID, StartTime: end.Add(-time.Hour), EndTime: end,
+				})
+				require.NoError(t, err, "GetOrderHistory must not error")
+				mu.Lock()
+				defer mu.Unlock()
+				for path, exp := range map[string]struct {
+					params map[string]string
+					window bool
+				}{m.orderPath: {tc.orderParams, tc.orderWindow}, m.algoPath: {tc.algoParams, tc.algoWindow}} {
+					q, ok := queries[path]
+					require.Truef(t, ok, "GetOrderHistory must request %s", path)
+					for k, v := range exp.params {
+						if v == "" {
+							assert.NotContainsf(t, q, k, "GetOrderHistory should not send %s to %s", k, path)
+						} else {
+							assert.Equalf(t, []string{v}, q[k], "GetOrderHistory should send %s %q to %s", k, v, path)
+						}
+					}
+					_, hasWindow := q["startTime"]
+					assert.Equalf(t, exp.window, hasWindow, "GetOrderHistory should send %s a window only when the ID is of the other kind", path)
+				}
+			})
+		}
+	}
+	_, err := e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.USDTMarginedFutures, Type: order.AnyType, Side: order.AnySide, Pairs: currency.Pairs{currency.NewBTCUSDT()}, FromOrderID: "algo-x"})
+	assert.ErrorIs(t, err, errInvalidOrderID, "GetOrderHistory should reject an invalid algo order ID")
+	_, err = e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Type: order.AnyType, Side: order.AnySide, Pairs: currency.Pairs{currency.NewBTCUSDT()}, FromOrderID: "algo-5"})
+	assert.ErrorIs(t, err, errInvalidOrderID, "GetOrderHistory should reject an algo order ID on spot")
+}
+
 func TestCancelAlgoOrderLookupRate(t *testing.T) {
 	t.Parallel()
-	// Order book snapshots can hold the derivatives IP pool for seconds, so the algo order lookup an untyped
-	// cancellation makes draws on the cancel pool as the cancellation does, while other lookups stay on the IP pool
+	// Order book snapshots can hold the derivatives IP pool for seconds, so the lookups an untyped cancellation or
+	// modification makes draw on the cancel pool as the cancellation does, while other lookups stay on the IP pool
+	const algoOrder = `{"algoId":3000000123,"clientAlgoId":"gct-algo","symbol":"BTCUSDT","algoStatus":"NEW"}`
 	ex, sent := newCancelStepsExchange(t, []cancelStep{
-		{http.MethodDelete, "/fapi/v1/order", map[string]string{"orderId": "3000000123"}, `{"code":-2011,"msg":"Unknown order sent."}`},
-		{http.MethodGet, "/fapi/v1/algoOrder", map[string]string{"algoId": "3000000123"}, `{"algoId":3000000123,"clientAlgoId":"gct-algo","symbol":"BTCUSDT","algoStatus":"NEW"}`},
+		{http.MethodGet, "/fapi/v1/algoOrder", map[string]string{"algoId": "3000000123"}, algoOrder},
+		{http.MethodGet, "/fapi/v1/order", map[string]string{"orderId": "3000000123"}, `{"code":-2013,"msg":"Order does not exist."}`},
 		{http.MethodDelete, "/fapi/v1/algoOrder", map[string]string{"algoId": "3000000123"}, `{"algoId":3000000123,"clientAlgoId":"gct-algo","code":"200","msg":"success"}`},
+		{http.MethodGet, "/fapi/v1/algoOrder", map[string]string{"algoId": "3000000123"}, algoOrder},
+		{http.MethodGet, "/fapi/v1/order", map[string]string{"orderId": "3000000123"}, `{"code":-2013,"msg":"Order does not exist."}`},
 	})
 	require.NoError(t, ex.EnableRateLimiter(), "EnableRateLimiter must not error")
 	exhausted := request.NewRateLimitWithWeight(time.Hour, 1, 1)
@@ -3793,15 +4427,19 @@ func TestCancelAlgoOrderLookupRate(t *testing.T) {
 	ctx := request.WithDelayNotAllowed(t.Context())
 	_, err := ex.USDTMarginedFuturesQueryAlgoOrder(ctx, 3000000123, "")
 	require.ErrorIs(t, err, request.ErrDelayNotAllowed, "USDTMarginedFuturesQueryAlgoOrder must draw on the IP pool")
+	_, err = ex.USDTMarginedFuturesGetOrderData(ctx, currency.NewBTCUSDT(), 3000000123, "")
+	require.ErrorIs(t, err, request.ErrDelayNotAllowed, "USDTMarginedFuturesGetOrderData must draw on the IP pool")
 	err = ex.CancelOrder(ctx, &order.Cancel{AssetType: asset.USDTMarginedFutures, Pair: currency.NewBTCUSDT(), OrderID: "3000000123"})
 	require.NoError(t, err, "CancelOrder must not wait on the IP pool")
-	assert.Equal(t, 3, sent(), "CancelOrder should send every expected request")
+	_, err = ex.ModifyOrder(ctx, &order.Modify{AssetType: asset.USDTMarginedFutures, Pair: currency.NewBTCUSDT(), OrderID: "3000000123", Side: order.Sell, Price: 1, Amount: 1})
+	require.ErrorIs(t, err, order.ErrUnsupportedOrderType, "ModifyOrder must refuse the algo order without waiting on the IP pool")
+	assert.Equal(t, 5, sent(), "CancelOrder and ModifyOrder should send every expected request")
 }
 
 func TestCoinMarginedAlgoOrders(t *testing.T) {
 	t.Parallel()
 	// COIN-M stop, take profit and trailing stop orders are algo orders since the CM-UM integration, which SubmitOrder
-	// identifies by algo ID, so cancellations and lookups of an ID no order has try it as an algo ID, as on USDⓈ-M
+	// identifies by algo order ID, while an untagged ID is looked up as both an order's and an algo order's, as on USDⓈ-M
 	const (
 		unknownOrder  = `{"code":-2011,"msg":"Unknown order sent."}`
 		notFound      = `{"code":-2013,"msg":"Order does not exist."}`
@@ -3831,7 +4469,7 @@ func TestCoinMarginedAlgoOrders(t *testing.T) {
 				}, placed(3100001, "gct-cm-stop", "STOP_MARKET")},
 				exp: &order.SubmitResponse{
 					Exchange: "", Type: order.StopMarket, Side: order.Sell, Pair: pair, AssetType: asset.CoinMarginedFutures, ReduceOnly: true, Amount: 1, TriggerPrice: 70000,
-					ClientOrderID: "gct-cm-stop", Date: time.UnixMilli(1744120800000), LastUpdated: time.UnixMilli(1744120800100), Status: order.New, OrderID: "3100001",
+					ClientOrderID: "gct-cm-stop", Date: time.UnixMilli(1744120800000), LastUpdated: time.UnixMilli(1744120800100), Status: order.New, OrderID: "algo-3100001",
 				},
 			},
 			{
@@ -3841,7 +4479,7 @@ func TestCoinMarginedAlgoOrders(t *testing.T) {
 				}, placed(3100002, "gct-cm-take-profit", "TAKE_PROFIT")},
 				exp: &order.SubmitResponse{
 					Type: order.TakeProfitLimit, Side: order.Sell, Pair: pair, AssetType: asset.CoinMarginedFutures, Amount: 1, Price: 95000, TriggerPrice: 94000,
-					ClientOrderID: "gct-cm-take-profit", Date: time.UnixMilli(1744120800000), LastUpdated: time.UnixMilli(1744120800100), Status: order.New, OrderID: "3100002",
+					ClientOrderID: "gct-cm-take-profit", Date: time.UnixMilli(1744120800000), LastUpdated: time.UnixMilli(1744120800100), Status: order.New, OrderID: "algo-3100002",
 				},
 			},
 			{
@@ -3851,7 +4489,7 @@ func TestCoinMarginedAlgoOrders(t *testing.T) {
 				}, placed(3100003, "gct-cm-trailing", "TRAILING_STOP_MARKET")},
 				exp: &order.SubmitResponse{
 					Type: order.TrailingStop, Side: order.Sell, Pair: pair, AssetType: asset.CoinMarginedFutures, Amount: 1, TriggerPrice: 92000,
-					ClientOrderID: "gct-cm-trailing", Date: time.UnixMilli(1744120800000), LastUpdated: time.UnixMilli(1744120800100), Status: order.New, OrderID: "3100003",
+					ClientOrderID: "gct-cm-trailing", Date: time.UnixMilli(1744120800000), LastUpdated: time.UnixMilli(1744120800100), Status: order.New, OrderID: "algo-3100003",
 				},
 			},
 		} {
@@ -3860,7 +4498,7 @@ func TestCoinMarginedAlgoOrders(t *testing.T) {
 			tc.exp.Exchange = ex.Name
 			resp, err := ex.SubmitOrder(t.Context(), &tc.submit)
 			require.NoErrorf(t, err, "SubmitOrder must place a COIN-M %s order as an algo order", tc.submit.Type)
-			assert.Equalf(t, tc.exp, resp, "SubmitOrder should identify a COIN-M %s order by its algo ID", tc.submit.Type)
+			assert.Equalf(t, tc.exp, resp, "SubmitOrder should identify a COIN-M %s order by its algo order ID", tc.submit.Type)
 			assert.Equalf(t, 1, sent(), "SubmitOrder should send one request for a COIN-M %s order", tc.submit.Type)
 		}
 	})
@@ -3882,18 +4520,23 @@ func TestCoinMarginedAlgoOrders(t *testing.T) {
 				steps:  []cancelStep{{http.MethodDelete, "/dapi/v1/algoOrder", map[string]string{"algoId": "3100001", "symbol": ""}, algoCancelled}},
 			},
 			{
+				name:   "algo order by algo order ID",
+				cancel: order.Cancel{OrderID: "algo-3100001"},
+				steps:  []cancelStep{{http.MethodDelete, "/dapi/v1/algoOrder", map[string]string{"algoId": "3100001", "symbol": ""}, algoCancelled}},
+			},
+			{
 				name:   "untyped algo order",
 				cancel: order.Cancel{OrderID: "3100001"},
 				steps: []cancelStep{
-					coinMarginedOrder(unknownOrder),
 					{http.MethodGet, "/dapi/v1/algoOrder", map[string]string{"algoId": "3100001"}, algo("BTCUSD_PERP", 3100001)},
+					{http.MethodGet, "/dapi/v1/order", map[string]string{"orderId": "3100001", "symbol": "BTCUSD_PERP"}, notFound},
 					{http.MethodDelete, "/dapi/v1/algoOrder", map[string]string{"algoId": "3100001"}, algoCancelled},
 				},
 			},
 			{
 				name:   "untyped algo order of another symbol",
 				cancel: order.Cancel{OrderID: "3100001"},
-				steps:  []cancelStep{coinMarginedOrder(unknownOrder), {http.MethodGet, "/dapi/v1/algoOrder", nil, algo("ETHUSD_PERP", 3100001)}},
+				steps:  []cancelStep{{http.MethodGet, "/dapi/v1/algoOrder", nil, algo("ETHUSD_PERP", 3100001)}, coinMarginedOrder(unknownOrder)},
 				errMsg: "Unknown order sent.",
 			},
 			{
@@ -3918,9 +4561,9 @@ func TestCoinMarginedAlgoOrders(t *testing.T) {
 	t.Run("CancelBatchOrders", func(t *testing.T) {
 		t.Parallel()
 		ex, sent := newCancelStepsExchange(t, []cancelStep{
-			{http.MethodDelete, "/dapi/v1/batchOrders", map[string]string{"orderIdList": "[3100002]"}, `[` + unknownOrder + `]`},
-			{http.MethodDelete, "/dapi/v1/algoOrder", map[string]string{"algoId": "3100001"}, algoCancelled},
 			{http.MethodGet, "/dapi/v1/algoOrder", map[string]string{"algoId": "3100002"}, algo("BTCUSD_PERP", 3100002)},
+			{http.MethodGet, "/dapi/v1/order", map[string]string{"orderId": "3100002", "symbol": "BTCUSD_PERP"}, notFound},
+			{http.MethodDelete, "/dapi/v1/algoOrder", map[string]string{"algoId": "3100001"}, algoCancelled},
 			{http.MethodDelete, "/dapi/v1/algoOrder", map[string]string{"algoId": "3100002"}, algoCancelled},
 		})
 		resp, err := ex.CancelBatchOrders(t.Context(), []order.Cancel{
@@ -3959,7 +4602,7 @@ func TestCoinMarginedAlgoOrders(t *testing.T) {
 		require.NoError(t, err, "GetOrderInfo must look an ID no order has up as an algo ID")
 		exp := &order.Detail{
 			TimeInForce: order.GoodTillCancel, ReduceOnly: true, Amount: 1, TriggerPrice: 70000, AverageExecutedPrice: 69990, ExecutedAmount: 1,
-			Exchange: ex.Name, OrderID: "3100001", ClientOrderID: "gct-cm-stop", Type: order.StopMarket, Side: order.Sell, Status: order.Closed,
+			Exchange: ex.Name, OrderID: "algo-3100001", ClientOrderID: "gct-cm-stop", Type: order.StopMarket, Side: order.Sell, Status: order.Closed,
 			AssetType: asset.CoinMarginedFutures, Date: time.UnixMilli(1744120800000), LastUpdated: time.UnixMilli(1744120900000), Pair: pair,
 		}
 		assert.Equal(t, exp, d, "GetOrderInfo should return the COIN-M algo order")
@@ -3987,7 +4630,7 @@ func TestCoinMarginedAlgoOrders(t *testing.T) {
 			for i := range orders {
 				ids[i] = orders[i].OrderID
 			}
-			assert.Equalf(t, []string{"1573346966", "3100001"}, ids, "%s should list conditional orders and algo orders", name)
+			assert.Equalf(t, []string{"1573346966", "algo-3100001"}, ids, "%s should list conditional orders and algo orders", name)
 		}
 		assert.Equal(t, 4, sent(), "the listings should send every expected request")
 	})
@@ -4124,11 +4767,11 @@ func TestCancelAllCoinMarginedAlgoSymbols(t *testing.T) {
 
 func TestCancelCoinMarginedAlgoOrderLookupRate(t *testing.T) {
 	t.Parallel()
-	// The algo order lookup an untyped COIN-M cancellation makes draws on the cancel pool, as the cancellation does,
-	// rather than queue behind order book snapshots on the IP pool
+	// The lookups an untyped COIN-M cancellation makes draw on the cancel pool, as the cancellation does, rather than
+	// queue behind order book snapshots on the IP pool
 	ex, sent := newCancelStepsExchange(t, []cancelStep{
-		{http.MethodDelete, "/dapi/v1/order", map[string]string{"orderId": "3100001"}, `{"code":-2011,"msg":"Unknown order sent."}`},
 		{http.MethodGet, "/dapi/v1/algoOrder", map[string]string{"algoId": "3100001"}, `{"algoId":3100001,"clientAlgoId":"gct-cm-stop","symbol":"BTCUSD_PERP","algoStatus":"NEW"}`},
+		{http.MethodGet, "/dapi/v1/order", map[string]string{"orderId": "3100001"}, `{"code":-2013,"msg":"Order does not exist."}`},
 		{http.MethodDelete, "/dapi/v1/algoOrder", map[string]string{"algoId": "3100001"}, `{"algoId":3100001,"clientAlgoId":"gct-cm-stop","code":"200","msg":"success"}`},
 	})
 	require.NoError(t, ex.EnableRateLimiter(), "EnableRateLimiter must not error")
@@ -4140,7 +4783,10 @@ func TestCancelCoinMarginedAlgoOrderLookupRate(t *testing.T) {
 			definitions[epl] = exhausted
 		}
 	}
-	err := ex.CancelOrder(request.WithDelayNotAllowed(t.Context()), &order.Cancel{AssetType: asset.CoinMarginedFutures, Pair: currency.NewPairWithDelimiter("BTCUSD", "PERP", currency.UnderscoreDelimiter), OrderID: "3100001"})
+	ctx := request.WithDelayNotAllowed(t.Context())
+	_, err := ex.CoinMarginedFuturesGetOrderData(ctx, testCoinMarginedFuturesPair, 3100001, "")
+	require.ErrorIs(t, err, request.ErrDelayNotAllowed, "CoinMarginedFuturesGetOrderData must draw on the IP pool")
+	err = ex.CancelOrder(ctx, &order.Cancel{AssetType: asset.CoinMarginedFutures, Pair: currency.NewPairWithDelimiter("BTCUSD", "PERP", currency.UnderscoreDelimiter), OrderID: "3100001"})
 	require.NoError(t, err, "CancelOrder must not wait on the IP pool")
 	assert.Equal(t, 3, sent(), "CancelOrder should send every expected request")
 }
@@ -4220,6 +4866,10 @@ func TestGetOrderInfo(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "GetOrderInfo must reject an empty order ID")
 	_, err = e.GetOrderInfo(t.Context(), "abc", currency.NewBTCUSDT(), asset.Spot)
 	require.ErrorIs(t, err, errInvalidOrderID, "GetOrderInfo must reject an invalid order ID")
+	_, err = e.GetOrderInfo(t.Context(), "algo-1", currency.NewBTCUSDT(), asset.Spot)
+	require.ErrorIs(t, err, errInvalidOrderID, "GetOrderInfo must reject an algo order ID on spot")
+	_, err = e.GetOrderInfo(t.Context(), "algo-abc", currency.NewBTCUSDT(), asset.USDTMarginedFutures)
+	require.ErrorIs(t, err, errInvalidOrderID, "GetOrderInfo must reject an invalid algo order ID")
 	_, err = e.GetOrderInfo(t.Context(), "1", currency.NewBTCUSDT(), asset.Futures)
 	require.ErrorIs(t, err, asset.ErrNotSupported, "GetOrderInfo must reject an unsupported asset")
 
@@ -4345,6 +4995,30 @@ func TestGetOrderInfo(t *testing.T) {
 			},
 		},
 		{
+			name:    "USDⓈ-M algo by algo order ID",
+			orderID: "algo-2146760",
+			a:       asset.USDTMarginedFutures,
+			exp: &order.Detail{
+				TimeInForce:          order.GoodTillCancel,
+				ReduceOnly:           true,
+				Price:                90000,
+				Amount:               0.01,
+				TriggerPrice:         90000,
+				AverageExecutedPrice: 90000,
+				ExecutedAmount:       0.01,
+				Exchange:             "Binance",
+				OrderID:              "algo-2146760",
+				ClientOrderID:        "6B2I9XVcJpCjqPAJ4YoFX7",
+				Type:                 order.TakeProfitLimit,
+				Side:                 order.Sell,
+				Status:               order.Closed,
+				AssetType:            asset.USDTMarginedFutures,
+				Date:                 time.UnixMilli(1750485492076),
+				LastUpdated:          time.UnixMilli(1750485492076),
+				Pair:                 currency.NewBTCUSDT(),
+			},
+		},
+		{
 			name:    "USDⓈ-M algo",
 			orderID: "2146760",
 			a:       asset.USDTMarginedFutures,
@@ -4357,7 +5031,7 @@ func TestGetOrderInfo(t *testing.T) {
 				AverageExecutedPrice: 90000,
 				ExecutedAmount:       0.01,
 				Exchange:             "Binance",
-				OrderID:              "2146760",
+				OrderID:              "algo-2146760",
 				ClientOrderID:        "6B2I9XVcJpCjqPAJ4YoFX7",
 				Type:                 order.TakeProfitLimit,
 				Side:                 order.Sell,
@@ -4466,17 +5140,28 @@ func TestGetOrderInfo(t *testing.T) {
 		}
 	})
 
-	// SubmitOrder identifies OCO orders by order list ID and USDⓈ-M conditional orders by algo ID
-	const notFound = `{"code":-2013,"msg":"Order does not exist."}`
+	// SubmitOrder identifies OCO orders by order list ID and USDⓈ-M and COIN-M conditional orders by algo order ID, while
+	// an untagged USDⓈ-M or COIN-M ID may name an order or an algo order
+	const (
+		notFound      = `{"code":-2013,"msg":"Order does not exist."}`
+		outsideWindow = `{"code":-1021,"msg":"Timestamp for this request is outside of the recvWindow."}`
+		usdtOrder     = `{"orderId":1930,"symbol":"BTCUSDT","status":"NEW","clientOrderId":"gct-order","price":"3000","avgPrice":"0","origQty":"0.01","executedQty":"0","cumQuote":"0","timeInForce":"GTC","type":"LIMIT","reduceOnly":false,"side":"BUY","positionSide":"BOTH","stopPrice":"0","origType":"LIMIT","time":1791284812300,"updateTime":1791284812400}`
+		coinOrder     = `{"orderId":1930,"symbol":"BTCUSD_PERP","pair":"BTCUSD","status":"NEW","clientOrderId":"gct-order","price":"3000","avgPrice":"0","origQty":"1","executedQty":"0","cumBase":"0","timeInForce":"GTC","type":"LIMIT","reduceOnly":false,"side":"BUY","positionSide":"BOTH","stopPrice":"0","origType":"LIMIT","time":1791284812300,"updateTime":1791284812400}`
+	)
 	listReply := func(symbol string) string {
 		return `{"orderListId":1930,"contingencyType":"OCO","listStatusType":"EXEC_STARTED","listOrderStatus":"EXECUTING","listClientOrderId":"gct-oco","transactionTime":1791284812300,"symbol":"` + symbol + `"}`
+	}
+	algoReply := func(symbol string) string {
+		return `{"algoId":1930,"clientAlgoId":"gct-algo","algoType":"CONDITIONAL","orderType":"STOP_MARKET","symbol":"` + symbol + `","side":"SELL","positionSide":"BOTH","timeInForce":"GTC","quantity":"1","algoStatus":"NEW","triggerPrice":"3000","icebergQuantity":"null","createTime":1791284812300,"updateTime":1791284812400}`
 	}
 	for _, tc := range []struct {
 		name    string
 		a       asset.Item
+		orderID string
 		replies map[string]string
 		exp     *order.Detail
 		err     error
+		errMsg  string
 	}{
 		{
 			name:    "spot order list",
@@ -4543,13 +5228,105 @@ func TestGetOrderInfo(t *testing.T) {
 			name:    "USDⓈ-M algo order part filled",
 			a:       asset.USDTMarginedFutures,
 			replies: map[string]string{"/fapi/v1/order": notFound, "/fapi/v1/algoOrder": `{"algoId":1930,"clientAlgoId":"gct-algo","algoType":"CONDITIONAL","orderType":"STOP_MARKET","symbol":"BTCUSDT","side":"SELL","positionSide":"BOTH","timeInForce":"GTC","quantity":"1","algoStatus":"FINISHED","actualOrderId":"7","actualPrice":"2990","actualType":"MARKET","actualQty":"0.4","triggerPrice":"3000","icebergQuantity":"null","createTime":1791284812300,"updateTime":1791284812400}`},
-			exp:     &order.Detail{TimeInForce: order.GoodTillCancel, Amount: 1, TriggerPrice: 3000, AverageExecutedPrice: 2990, ExecutedAmount: 0.4, RemainingAmount: 0.6, Exchange: "TestGetOrderInfo/USDⓈ-M_algo_order_part_filled", OrderID: "1930", ClientOrderID: "gct-algo", Type: order.StopMarket, Side: order.Sell, Status: order.Closed, AssetType: asset.USDTMarginedFutures, Date: time.UnixMilli(1791284812300), LastUpdated: time.UnixMilli(1791284812400), Pair: currency.NewBTCUSDT()},
+			exp:     &order.Detail{TimeInForce: order.GoodTillCancel, Amount: 1, TriggerPrice: 3000, AverageExecutedPrice: 2990, ExecutedAmount: 0.4, RemainingAmount: 0.6, Exchange: "TestGetOrderInfo/USDⓈ-M_algo_order_part_filled", OrderID: "algo-1930", ClientOrderID: "gct-algo", Type: order.StopMarket, Side: order.Sell, Status: order.Closed, AssetType: asset.USDTMarginedFutures, Date: time.UnixMilli(1791284812300), LastUpdated: time.UnixMilli(1791284812400), Pair: currency.NewBTCUSDT()},
 		},
 		{
 			name:    "USDⓈ-M close position algo order filled",
 			a:       asset.USDTMarginedFutures,
 			replies: map[string]string{"/fapi/v1/order": notFound, "/fapi/v1/algoOrder": `{"algoId":1930,"clientAlgoId":"gct-algo","algoType":"CONDITIONAL","orderType":"STOP_MARKET","symbol":"BTCUSDT","side":"SELL","positionSide":"BOTH","timeInForce":"GTC","quantity":"0","algoStatus":"FINISHED","actualOrderId":"8","actualPrice":"2990","actualType":"MARKET","actualQty":"0.5","triggerPrice":"3000","icebergQuantity":"null","closePosition":true,"createTime":1791284812300,"updateTime":1791284812400}`},
-			exp:     &order.Detail{TimeInForce: order.GoodTillCancel, TriggerPrice: 3000, AverageExecutedPrice: 2990, ExecutedAmount: 0.5, Exchange: "TestGetOrderInfo/USDⓈ-M_close_position_algo_order_filled", OrderID: "1930", ClientOrderID: "gct-algo", Type: order.StopMarket, Side: order.Sell, Status: order.Closed, AssetType: asset.USDTMarginedFutures, Date: time.UnixMilli(1791284812300), LastUpdated: time.UnixMilli(1791284812400), Pair: currency.NewBTCUSDT()},
+			exp:     &order.Detail{TimeInForce: order.GoodTillCancel, TriggerPrice: 3000, AverageExecutedPrice: 2990, ExecutedAmount: 0.5, Exchange: "TestGetOrderInfo/USDⓈ-M_close_position_algo_order_filled", OrderID: "algo-1930", ClientOrderID: "gct-algo", Type: order.StopMarket, Side: order.Sell, Status: order.Closed, AssetType: asset.USDTMarginedFutures, Date: time.UnixMilli(1791284812300), LastUpdated: time.UnixMilli(1791284812400), Pair: currency.NewBTCUSDT()},
+		},
+		{
+			name:    "USDⓈ-M algo order ID",
+			a:       asset.USDTMarginedFutures,
+			orderID: "algo-1930",
+			replies: map[string]string{"/fapi/v1/algoOrder": algoReply("BTCUSDT")},
+			exp:     &order.Detail{TimeInForce: order.GoodTillCancel, Amount: 1, TriggerPrice: 3000, RemainingAmount: 1, Exchange: "TestGetOrderInfo/USDⓈ-M_algo_order_ID", OrderID: "algo-1930", ClientOrderID: "gct-algo", Type: order.StopMarket, Side: order.Sell, Status: order.New, AssetType: asset.USDTMarginedFutures, Date: time.UnixMilli(1791284812300), LastUpdated: time.UnixMilli(1791284812400), Pair: currency.NewBTCUSDT()},
+		},
+		{
+			name:    "COIN-M algo order ID",
+			a:       asset.CoinMarginedFutures,
+			orderID: "algo-1930",
+			replies: map[string]string{"/dapi/v1/algoOrder": algoReply("BTCUSD_PERP")},
+			exp:     &order.Detail{TimeInForce: order.GoodTillCancel, Amount: 1, TriggerPrice: 3000, RemainingAmount: 1, Exchange: "TestGetOrderInfo/COIN-M_algo_order_ID", OrderID: "algo-1930", ClientOrderID: "gct-algo", Type: order.StopMarket, Side: order.Sell, Status: order.New, AssetType: asset.CoinMarginedFutures, Date: time.UnixMilli(1791284812300), LastUpdated: time.UnixMilli(1791284812400), Pair: testCoinMarginedFuturesPair},
+		},
+		{
+			name:    "USDⓈ-M algo order ID of another symbol",
+			a:       asset.USDTMarginedFutures,
+			orderID: "algo-1930",
+			replies: map[string]string{"/fapi/v1/algoOrder": algoReply("ETHUSDT")},
+			err:     order.ErrOrderNotFound,
+		},
+		{
+			name:    "USDⓈ-M unknown algo order ID",
+			a:       asset.USDTMarginedFutures,
+			orderID: "algo-1930",
+			replies: map[string]string{"/fapi/v1/algoOrder": notFound},
+			err:     order.ErrOrderNotFound,
+		},
+		{
+			name:    "USDⓈ-M algo order with an unknown status by algo order ID",
+			a:       asset.USDTMarginedFutures,
+			orderID: "algo-1930",
+			replies: map[string]string{"/fapi/v1/algoOrder": strings.Replace(algoReply("BTCUSDT"), `"NEW"`, `"WEIRD"`, 1)},
+			err:     errUnknownOrderStatus,
+			errMsg:  "order algo-1930",
+		},
+		{
+			name:    "USDⓈ-M order and algo order",
+			a:       asset.USDTMarginedFutures,
+			replies: map[string]string{"/fapi/v1/order": usdtOrder, "/fapi/v1/algoOrder": algoReply("BTCUSDT")},
+			err:     errAmbiguousOrderID,
+			errMsg:  "look the algo order up as algo-1930",
+		},
+		{
+			name:    "COIN-M order and algo order",
+			a:       asset.CoinMarginedFutures,
+			replies: map[string]string{"/dapi/v1/order": coinOrder, "/dapi/v1/algoOrder": algoReply("BTCUSD_PERP")},
+			err:     errAmbiguousOrderID,
+		},
+		{
+			name:    "USDⓈ-M order and another symbol's algo order",
+			a:       asset.USDTMarginedFutures,
+			replies: map[string]string{"/fapi/v1/order": usdtOrder, "/fapi/v1/algoOrder": algoReply("ETHUSDT")},
+			exp:     &order.Detail{TimeInForce: order.GoodTillCancel, Price: 3000, Amount: 0.01, RemainingAmount: 0.01, Exchange: "TestGetOrderInfo/USDⓈ-M_order_and_another_symbol's_algo_order", OrderID: "1930", ClientOrderID: "gct-order", Type: order.Limit, Side: order.Buy, Status: order.New, AssetType: asset.USDTMarginedFutures, Date: time.UnixMilli(1791284812300), LastUpdated: time.UnixMilli(1791284812400), Pair: currency.NewBTCUSDT()},
+		},
+		{
+			name:    "USDⓈ-M order and an algo order lookup rejected as unknown",
+			a:       asset.USDTMarginedFutures,
+			replies: map[string]string{"/fapi/v1/order": usdtOrder, "/fapi/v1/algoOrder": `{"code":-2011,"msg":"Unknown order sent."}`},
+			exp:     &order.Detail{TimeInForce: order.GoodTillCancel, Price: 3000, Amount: 0.01, RemainingAmount: 0.01, Exchange: "TestGetOrderInfo/USDⓈ-M_order_and_an_algo_order_lookup_rejected_as_unknown", OrderID: "1930", ClientOrderID: "gct-order", Type: order.Limit, Side: order.Buy, Status: order.New, AssetType: asset.USDTMarginedFutures, Date: time.UnixMilli(1791284812300), LastUpdated: time.UnixMilli(1791284812400), Pair: currency.NewBTCUSDT()},
+		},
+		{
+			name:    "COIN-M order without an algo order",
+			a:       asset.CoinMarginedFutures,
+			replies: map[string]string{"/dapi/v1/order": coinOrder, "/dapi/v1/algoOrder": notFound},
+			exp:     &order.Detail{TimeInForce: order.GoodTillCancel, Price: 3000, Amount: 1, RemainingAmount: 1, Exchange: "TestGetOrderInfo/COIN-M_order_without_an_algo_order", OrderID: "1930", ClientOrderID: "gct-order", Type: order.Limit, Side: order.Buy, Status: order.New, AssetType: asset.CoinMarginedFutures, Date: time.UnixMilli(1791284812300), LastUpdated: time.UnixMilli(1791284812400), Pair: testCoinMarginedFuturesPair},
+		},
+		{
+			name:    "USDⓈ-M order with an unknown status",
+			a:       asset.USDTMarginedFutures,
+			replies: map[string]string{"/fapi/v1/order": strings.Replace(usdtOrder, `"NEW"`, `"WEIRD"`, 1), "/fapi/v1/algoOrder": notFound},
+			err:     errUnknownOrderStatus,
+			errMsg:  "error converting usdtmarginedfutures order 1930",
+		},
+		{
+			name:    "USDⓈ-M order and an algo order lookup failure",
+			a:       asset.USDTMarginedFutures,
+			replies: map[string]string{"/fapi/v1/order": usdtOrder, "/fapi/v1/algoOrder": outsideWindow},
+			errMsg:  "error fetching algo order",
+		},
+		{
+			name:    "USDⓈ-M order lookup failure",
+			a:       asset.USDTMarginedFutures,
+			replies: map[string]string{"/fapi/v1/order": outsideWindow},
+			errMsg:  "outside of the recvWindow",
+		},
+		{
+			name:    "USDⓈ-M unknown ID",
+			a:       asset.USDTMarginedFutures,
+			replies: map[string]string{"/fapi/v1/order": notFound, "/fapi/v1/algoOrder": notFound},
+			err:     order.ErrOrderNotFound,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -4570,10 +5347,23 @@ func TestGetOrderInfo(t *testing.T) {
 			})
 			url, err := ex.API.Endpoints.GetURL(exchange.RestSpotSupplementary)
 			require.NoError(t, err, "GetURL must not error")
-			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestUSDTMargined.String(), url), "SetRunningURL must not error")
-			got, err := ex.GetOrderInfo(t.Context(), "1930", currency.NewBTCUSDT(), tc.a)
-			require.ErrorIs(t, err, tc.err, "GetOrderInfo must return the expected error")
-			assert.Equal(t, tc.exp, got, "GetOrderInfo should return the order list")
+			for _, u := range []exchange.URL{exchange.RestUSDTMargined, exchange.RestCoinMargined} {
+				require.NoErrorf(t, ex.API.Endpoints.SetRunningURL(u.String(), url), "SetRunningURL must not error for %s", u)
+			}
+			orderID, pair := cmp.Or(tc.orderID, "1930"), currency.NewBTCUSDT()
+			if tc.a == asset.CoinMarginedFutures {
+				pair = testCoinMarginedFuturesPair
+			}
+			got, err := ex.GetOrderInfo(t.Context(), orderID, pair, tc.a)
+			if tc.errMsg != "" {
+				require.ErrorContains(t, err, tc.errMsg, "GetOrderInfo must return the expected error")
+			}
+			if tc.err != nil || tc.errMsg == "" {
+				require.ErrorIs(t, err, tc.err, "GetOrderInfo must return the expected error")
+			} else {
+				assert.NotErrorIs(t, err, order.ErrOrderNotFound, "GetOrderInfo should not report a failed lookup as no order having the ID")
+			}
+			assert.Equal(t, tc.exp, got, "GetOrderInfo should return the order")
 		})
 	}
 }
@@ -4793,9 +5583,15 @@ func TestCancelBatchOrdersEntryOutcomes(t *testing.T) {
 	optionsPair := currency.Pair{Base: currency.BTC, Quote: currency.NewCode("260410-72000-P"), Delimiter: currency.DashDelimiter}
 	tenCancelled := make([]string, 10)
 	tenOrders := make([]order.Cancel, 0, 10)
+	// An untyped entry's untagged ID is looked up once before the batch, and these name no algo order
+	tenLookups := make([]cancelStep, 0, 10)
 	for i := range tenCancelled {
 		tenCancelled[i] = fmt.Sprintf(`{"orderId":%d,"symbol":"BTCUSDT","status":"CANCELED"}`, i+1)
 		tenOrders = append(tenOrders, order.Cancel{OrderID: strconv.Itoa(i + 1)})
+		tenLookups = append(tenLookups, cancelStep{http.MethodGet, "/fapi/v1/algoOrder", map[string]string{"algoId": strconv.Itoa(i + 1)}, `{"code":-2013,"msg":"Order does not exist."}`})
+	}
+	noAlgoOrder := func(path string, params map[string]string) cancelStep {
+		return cancelStep{http.MethodGet, path, params, `{"code":-2013,"msg":"Order does not exist."}`}
 	}
 	for _, tc := range []struct {
 		name    string
@@ -4810,6 +5606,7 @@ func TestCancelBatchOrdersEntryOutcomes(t *testing.T) {
 			name: "USDⓈ-M order ID named twice", a: asset.USDTMarginedFutures, pair: currency.NewBTCUSDT(),
 			entries: []order.Cancel{{OrderID: "9"}, {OrderID: "9"}},
 			steps: []cancelStep{
+				noAlgoOrder("/fapi/v1/algoOrder", map[string]string{"algoId": "9"}),
 				{http.MethodDelete, "/fapi/v1/batchOrders", map[string]string{"orderIdList": "[9,9]"}, `[{"orderId":9,"symbol":"BTCUSDT","status":"CANCELED"},` + unknownOrder + `]`},
 			},
 			exp: map[string]string{"9": "CANCELED"},
@@ -4818,6 +5615,7 @@ func TestCancelBatchOrdersEntryOutcomes(t *testing.T) {
 			name: "USDⓈ-M client order ID named twice", a: asset.USDTMarginedFutures, pair: currency.NewBTCUSDT(),
 			entries: []order.Cancel{{ClientOrderID: "gct-order"}, {ClientOrderID: "gct-order"}},
 			steps: []cancelStep{
+				noAlgoOrder("/fapi/v1/algoOrder", map[string]string{"clientAlgoId": "gct-order"}),
 				{http.MethodDelete, "/fapi/v1/batchOrders", map[string]string{"origClientOrderIdList": `["gct-order","gct-order"]`}, `[{"orderId":5,"clientOrderId":"gct-order","symbol":"BTCUSDT","status":"CANCELED"},` + unknownOrder + `]`},
 			},
 			exp: map[string]string{"gct-order": "CANCELED"},
@@ -4825,10 +5623,11 @@ func TestCancelBatchOrdersEntryOutcomes(t *testing.T) {
 		{
 			name: "USDⓈ-M order ID named again in a request that fails", a: asset.USDTMarginedFutures, pair: currency.NewBTCUSDT(),
 			entries: append(slices.Clone(tenOrders), order.Cancel{OrderID: "1"}),
-			steps: []cancelStep{
-				{http.MethodDelete, "/fapi/v1/batchOrders", map[string]string{"orderIdList": "[1,2,3,4,5,6,7,8,9,10]"}, `[` + strings.Join(tenCancelled, ",") + `]`},
-				{http.MethodDelete, "/fapi/v1/batchOrders", map[string]string{"orderIdList": "[1]"}, `{"code":-1000,"msg":"An unknown error occurred while processing the request."}`},
-			},
+			steps: append(
+				slices.Clone(tenLookups),
+				cancelStep{http.MethodDelete, "/fapi/v1/batchOrders", map[string]string{"orderIdList": "[1,2,3,4,5,6,7,8,9,10]"}, `[` + strings.Join(tenCancelled, ",") + `]`},
+				cancelStep{http.MethodDelete, "/fapi/v1/batchOrders", map[string]string{"orderIdList": "[1]"}, `{"code":-1000,"msg":"An unknown error occurred while processing the request."}`},
+			),
 			exp: map[string]string{
 				"1": "CANCELED", "2": "CANCELED", "3": "CANCELED", "4": "CANCELED", "5": "CANCELED", "6": "CANCELED", "7": "CANCELED", "8": "CANCELED",
 				"9": "CANCELED", "10": "CANCELED",
@@ -4838,14 +5637,15 @@ func TestCancelBatchOrdersEntryOutcomes(t *testing.T) {
 		{
 			name: "USDⓈ-M order ID cancelled when named again after a rejection", a: asset.USDTMarginedFutures, pair: currency.NewBTCUSDT(),
 			entries: append(slices.Clone(tenOrders), order.Cancel{OrderID: "1"}),
-			steps: []cancelStep{
-				{
+			steps: append(
+				slices.Clone(tenLookups),
+				cancelStep{
 					http.MethodDelete, "/fapi/v1/batchOrders",
 					map[string]string{"orderIdList": "[1,2,3,4,5,6,7,8,9,10]"},
 					`[{"code":-1001,"msg":"Internal error; unable to process your request. Please try again."},` + strings.Join(tenCancelled[1:], ",") + `]`,
 				},
-				{http.MethodDelete, "/fapi/v1/batchOrders", map[string]string{"orderIdList": "[1]"}, `[` + tenCancelled[0] + `]`},
-			},
+				cancelStep{http.MethodDelete, "/fapi/v1/batchOrders", map[string]string{"orderIdList": "[1]"}, `[` + tenCancelled[0] + `]`},
+			),
 			exp: map[string]string{
 				"1": "CANCELED", "2": "CANCELED", "3": "CANCELED", "4": "CANCELED", "5": "CANCELED", "6": "CANCELED", "7": "CANCELED", "8": "CANCELED",
 				"9": "CANCELED", "10": "CANCELED",
@@ -4873,9 +5673,24 @@ func TestCancelBatchOrdersEntryOutcomes(t *testing.T) {
 			err: errAPIResponse,
 		},
 		{
+			// An algo order's entry is cancelled by a request of its own, so an ID that cannot be parsed fails that entry alone
+			name: "USDⓈ-M algo order IDs that cannot be parsed beside an order", a: asset.USDTMarginedFutures, pair: currency.NewBTCUSDT(),
+			entries: []order.Cancel{{Type: order.Limit, OrderID: "1"}, {Type: order.Stop, OrderID: "broken-id", ClientOrderID: "gct-stop"}, {OrderID: "algo-x", ClientOrderID: "gct-algo"}},
+			steps: []cancelStep{
+				{http.MethodDelete, "/fapi/v1/batchOrders", map[string]string{"orderIdList": "[1]"}, `[{"orderId":1,"symbol":"BTCUSDT","status":"CANCELED"}]`},
+			},
+			exp: map[string]string{
+				"1":         "CANCELED",
+				"broken-id": `invalid order ID "broken-id": strconv.ParseUint: parsing "broken-id": invalid syntax`,
+				"algo-x":    `invalid order ID "algo-x": strconv.ParseUint: parsing "x": invalid syntax`,
+			},
+			err: errInvalidOrderID,
+		},
+		{
 			name: "COIN-M order ID named twice", a: asset.CoinMarginedFutures, pair: testCoinMarginedFuturesPair,
 			entries: []order.Cancel{{OrderID: "9"}, {OrderID: "9"}},
 			steps: []cancelStep{
+				noAlgoOrder("/dapi/v1/algoOrder", map[string]string{"algoId": "9"}),
 				{http.MethodDelete, "/dapi/v1/batchOrders", map[string]string{"orderIdList": "[9,9]"}, `[{"orderId":9,"symbol":"BTCUSD_PERP","status":"CANCELED"},` + unknownOrder + `]`},
 			},
 			exp: map[string]string{"9": "CANCELED"},
@@ -4926,6 +5741,121 @@ func TestCancelBatchOrdersEntryOutcomes(t *testing.T) {
 		assert.Contains(t, resp.Status["77"], "Unknown order sent.", "CancelBatchOrders should report the algo order's rejection")
 		assert.Equal(t, 2, sent(), "CancelBatchOrders should send the expected requests")
 	})
+
+	t.Run("options entry of a conditional type with an ID that cannot be parsed", func(t *testing.T) {
+		t.Parallel()
+		// Options orders are cancelled ten at a time whatever their type, so such an ID refuses the whole batch
+		ex, sent := newCancelStepsExchange(t, nil)
+		url, err := ex.API.Endpoints.GetURL(exchange.RestSpotSupplementary)
+		require.NoError(t, err, "GetURL must not error")
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestOptions.String(), url), "SetRunningURL must not error")
+		resp, err := ex.CancelBatchOrders(t.Context(), []order.Cancel{
+			{AssetType: asset.Options, Pair: optionsPair, OrderID: "4611875134427365377"},
+			{AssetType: asset.Options, Pair: optionsPair, Type: order.Stop, OrderID: "broken-id"},
+		})
+		require.ErrorIs(t, err, errInvalidOrderID, "CancelBatchOrders must refuse the batch")
+		assert.Nil(t, resp, "CancelBatchOrders should return no outcomes")
+		assert.Zero(t, sent(), "CancelBatchOrders should send no request")
+	})
+
+	// Statuses are keyed by the ID's text, so one order's cancellation must not hide the failed cancellation of an algo
+	// order named after it by that text as another kind of ID, whether that entry is typed or found by its lookup
+	const outsideWindow = `{"code":-1021,"msg":"Timestamp for this request is outside of the recvWindow."}`
+	algo77Lookup := []cancelStep{
+		{http.MethodGet, "/fapi/v1/algoOrder", map[string]string{"algoId": "77", "clientAlgoId": ""}, `{"algoId":77,"clientAlgoId":"gct-algo","algoType":"CONDITIONAL","orderType":"STOP_MARKET","symbol":"BTCUSDT","side":"SELL","positionSide":"BOTH","quantity":"0.01","algoStatus":"NEW","triggerPrice":"3000","icebergQuantity":"null"}`},
+		{http.MethodGet, "/fapi/v1/order", map[string]string{"orderId": "77", "origClientOrderId": ""}, `{"code":-2013,"msg":"Order does not exist."}`},
+	}
+	algo88Lookup := []cancelStep{
+		{http.MethodGet, "/fapi/v1/algoOrder", map[string]string{"clientAlgoId": "77", "algoId": ""}, `{"algoId":88,"clientAlgoId":"77","algoType":"CONDITIONAL","orderType":"STOP_MARKET","symbol":"BTCUSDT","side":"SELL","positionSide":"BOTH","quantity":"0.01","algoStatus":"NEW","triggerPrice":"3000","icebergQuantity":"null"}`},
+		{http.MethodGet, "/fapi/v1/order", map[string]string{"origClientOrderId": "77", "orderId": ""}, `{"code":-2013,"msg":"Order does not exist."}`},
+	}
+	algo77Cancelled := cancelStep{http.MethodDelete, "/fapi/v1/algoOrder", map[string]string{"algoId": "77"}, `{"algoId":77,"clientAlgoId":"gct-algo","code":"200","msg":"success"}`}
+	algo88Failed := cancelStep{http.MethodDelete, "/fapi/v1/algoOrder", map[string]string{"algoId": "88"}, outsideWindow}
+	for _, tc := range []struct {
+		name    string
+		entries []order.Cancel
+		steps   []cancelStep
+		key     string
+	}{
+		{
+			name:    "USDⓈ-M algo ID and another algo order's typed client algo ID sharing its text",
+			entries: []order.Cancel{{Type: order.Stop, OrderID: "77"}, {Type: order.Stop, ClientOrderID: "77"}},
+			steps:   []cancelStep{algo77Cancelled, {http.MethodDelete, "/fapi/v1/algoOrder", map[string]string{"clientAlgoId": "77", "algoId": ""}, outsideWindow}},
+			key:     "77",
+		},
+		{
+			name:    "USDⓈ-M algo ID and another algo order's untyped client algo ID sharing its text",
+			entries: []order.Cancel{{Type: order.Stop, OrderID: "77"}, {ClientOrderID: "77"}},
+			steps:   slices.Concat(algo88Lookup, []cancelStep{algo77Cancelled, algo88Failed}),
+			key:     "77",
+		},
+		{
+			name:    "USDⓈ-M untyped algo ID and another algo order's untyped client algo ID sharing its text",
+			entries: []order.Cancel{{OrderID: "77"}, {ClientOrderID: "77"}},
+			steps:   slices.Concat(algo77Lookup, algo88Lookup, []cancelStep{algo77Cancelled, algo88Failed}),
+			key:     "77",
+		},
+		{
+			name:    "USDⓈ-M client order ID and an algo order's typed client algo ID sharing its text",
+			entries: []order.Cancel{{Type: order.Limit, ClientOrderID: "shared"}, {Type: order.Stop, ClientOrderID: "shared"}},
+			steps: []cancelStep{
+				{http.MethodDelete, "/fapi/v1/batchOrders", map[string]string{"origClientOrderIdList": `["shared"]`}, `[{"orderId":5,"clientOrderId":"shared","symbol":"BTCUSDT","status":"CANCELED"}]`},
+				{http.MethodDelete, "/fapi/v1/algoOrder", map[string]string{"clientAlgoId": "shared", "algoId": ""}, outsideWindow},
+			},
+			key: "shared",
+		},
+		{
+			name:    "USDⓈ-M client order ID and an algo order's typed algo ID sharing its text",
+			entries: []order.Cancel{{Type: order.Limit, ClientOrderID: "77"}, {Type: order.Stop, OrderID: "77"}},
+			steps: []cancelStep{
+				{http.MethodDelete, "/fapi/v1/batchOrders", map[string]string{"origClientOrderIdList": `["77"]`}, `[{"orderId":5,"clientOrderId":"77","symbol":"BTCUSDT","status":"CANCELED"}]`},
+				{http.MethodDelete, "/fapi/v1/algoOrder", map[string]string{"algoId": "77"}, outsideWindow},
+			},
+			key: "77",
+		},
+		{
+			name:    "USDⓈ-M order ID and an algo order's typed client algo ID sharing its text",
+			entries: []order.Cancel{{Type: order.Limit, OrderID: "77"}, {Type: order.Stop, ClientOrderID: "77"}},
+			steps: []cancelStep{
+				{http.MethodDelete, "/fapi/v1/batchOrders", map[string]string{"orderIdList": "[77]"}, `[{"orderId":77,"clientOrderId":"gct-order","symbol":"BTCUSDT","status":"CANCELED"}]`},
+				{http.MethodDelete, "/fapi/v1/algoOrder", map[string]string{"clientAlgoId": "77", "algoId": ""}, outsideWindow},
+			},
+			key: "77",
+		},
+		{
+			name:    "USDⓈ-M client order ID and an algo order's untyped algo ID sharing its text",
+			entries: []order.Cancel{{Type: order.Limit, ClientOrderID: "77"}, {OrderID: "77"}},
+			steps: slices.Concat(algo77Lookup, []cancelStep{
+				{http.MethodDelete, "/fapi/v1/batchOrders", map[string]string{"origClientOrderIdList": `["77"]`}, `[{"orderId":5,"clientOrderId":"77","symbol":"BTCUSDT","status":"CANCELED"}]`},
+				{http.MethodDelete, "/fapi/v1/algoOrder", map[string]string{"algoId": "77"}, outsideWindow},
+			}),
+			key: "77",
+		},
+		{
+			name:    "USDⓈ-M order ID and an algo order's untyped client algo ID sharing its text",
+			entries: []order.Cancel{{Type: order.Limit, OrderID: "77"}, {ClientOrderID: "77"}},
+			steps: slices.Concat(algo88Lookup, []cancelStep{
+				{http.MethodDelete, "/fapi/v1/batchOrders", map[string]string{"orderIdList": "[77]"}, `[{"orderId":77,"clientOrderId":"gct-order","symbol":"BTCUSDT","status":"CANCELED"}]`},
+				algo88Failed,
+			}),
+			key: "77",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex, sent := newCancelStepsExchange(t, tc.steps)
+			entries := slices.Clone(tc.entries)
+			for i := range entries {
+				entries[i].AssetType, entries[i].Pair = asset.USDTMarginedFutures, currency.NewBTCUSDT()
+			}
+			resp, err := ex.CancelBatchOrders(t.Context(), entries)
+			require.ErrorIs(t, err, errAPIResponse, "CancelBatchOrders must return the failed cancellation")
+			require.NotNil(t, resp, "CancelBatchOrders must return each entry's outcome")
+			assert.Len(t, resp.Status, 1, "CancelBatchOrders should report one status for the shared ID text")
+			assert.Contains(t, resp.Status[tc.key], "outside of the recvWindow", "CancelBatchOrders should report the algo order's failed cancellation")
+			assert.Equal(t, len(tc.steps), sent(), "CancelBatchOrders should send the expected requests")
+		})
+	}
 }
 
 func TestGetAccountFundingHistory(t *testing.T) {
@@ -7376,6 +8306,50 @@ func TestParseOrderID(t *testing.T) {
 	assert.Equal(t, uint64(4611875134427365377), id, "parseOrderID should return the ID")
 	_, err = parseOrderID("abc")
 	assert.ErrorIs(t, err, errInvalidOrderID, "parseOrderID should reject a non-numeric ID")
+}
+
+func TestAlgoOrderID(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, "algo-3000000123", algoOrderID("3000000123"), "algoOrderID should tag the algo ID")
+	assert.Equal(t, "algo-3000000123", formatAlgoOrderID(3000000123), "formatAlgoOrderID should tag the algo ID")
+	for _, tc := range []struct {
+		orderID, algoID string
+		isAlgo          bool
+	}{
+		{"algo-3000000123", "3000000123", true},
+		{"algo-", "", true},
+		{"3000000123", "3000000123", false},
+		{"Algo-3000000123", "Algo-3000000123", false},
+		{"", "", false},
+	} {
+		algoID, isAlgo := cutAlgoOrderID(tc.orderID)
+		assert.Equalf(t, tc.algoID, algoID, "cutAlgoOrderID should return the algo ID of %q", tc.orderID)
+		assert.Equalf(t, tc.isAlgo, isAlgo, "cutAlgoOrderID should report whether %q is an algo order's", tc.orderID)
+	}
+}
+
+func TestParseFuturesOrderID(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		orderID string
+		id      uint64
+		isAlgo  bool
+		err     error
+	}{
+		{orderID: "", id: 0},
+		{orderID: "3000000123", id: 3000000123},
+		{orderID: "algo-3000000123", id: 3000000123, isAlgo: true},
+		{orderID: "algo-", isAlgo: true, err: errInvalidOrderID},
+		{orderID: "algo-abc", isAlgo: true, err: errInvalidOrderID},
+		{orderID: "abc", err: errInvalidOrderID},
+	} {
+		id, isAlgo, err := parseFuturesOrderID(tc.orderID)
+		require.ErrorIsf(t, err, tc.err, "parseFuturesOrderID must return the expected error for %q", tc.orderID)
+		assert.Equalf(t, tc.id, id, "parseFuturesOrderID should return the ID of %q", tc.orderID)
+		assert.Equalf(t, tc.isAlgo, isAlgo, "parseFuturesOrderID should report whether %q is an algo order's", tc.orderID)
+	}
+	_, _, err := parseFuturesOrderID("algo-abc")
+	assert.ErrorContains(t, err, `"algo-abc"`, "parseFuturesOrderID should quote the whole ID")
 }
 
 func TestRemainingAmountAndAveragePrice(t *testing.T) {

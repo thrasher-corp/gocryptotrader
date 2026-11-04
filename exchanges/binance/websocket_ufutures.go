@@ -1744,9 +1744,9 @@ func (e *Exchange) processFuturesOrderTradeUpdate(ctx context.Context, data []by
 }
 
 // processFuturesAlgoUpdate relays an ALGO_UPDATE event, then its algo order as an order detail identified by the algo
-// ID, the ID SubmitOrder returns for conditional orders, with the status and type conversions of the REST algo order
-// queries and the remainder of the executed quantity the update reports. The detail carries no trades: the updates of
-// the order a triggered algo order places report its fills
+// order ID, the ID SubmitOrder returns for conditional orders, with the status and type conversions of the REST algo
+// order queries and the remainder of the executed quantity the update reports. The detail carries no trades: the
+// updates of the order a triggered algo order places report its fills
 func (e *Exchange) processFuturesAlgoUpdate(ctx context.Context, data []byte, a asset.Item) error {
 	var resp FuturesAlgoUpdate
 	if err := json.Unmarshal(data, &resp); err != nil {
@@ -1779,7 +1779,7 @@ func (e *Exchange) processFuturesAlgoUpdate(ctx context.Context, data []byte, a 
 		ExecutedAmount:       o.ExecutedQuantity.Float64(),
 		RemainingAmount:      max(remainingAmount(o.Quantity, o.ExecutedQuantity), 0),
 		Exchange:             e.Name,
-		OrderID:              strconv.FormatUint(o.AlgoID, 10),
+		OrderID:              formatAlgoOrderID(o.AlgoID),
 		ClientOrderID:        o.ClientAlgoID,
 		Type:                 vars.OrderType,
 		Side:                 vars.Side,

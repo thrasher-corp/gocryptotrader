@@ -1315,6 +1315,8 @@ func TestMatchFilter(t *testing.T) {
 		result      bool
 	}{
 		{"Exchange ✓", Filter{Exchange: "A"}, Detail{Exchange: "A"}, true},
+		{"Exchange lower case ✓", Filter{Exchange: "Binance"}, Detail{Exchange: "binance"}, true},
+		{"Exchange upper case ✓", Filter{Exchange: "binance"}, Detail{Exchange: "BINANCE"}, true},
 		{"Exchange 𐄂", Filter{Exchange: "A"}, Detail{Exchange: "B"}, false},
 		{"Exchange Empty", Filter{Exchange: "A"}, Detail{}, false},
 		{"InternalOrderID ✓", Filter{InternalOrderID: id}, Detail{InternalOrderID: id}, true},

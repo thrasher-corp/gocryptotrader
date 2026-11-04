@@ -1645,7 +1645,7 @@ func TestWebsocketHandleUSDTMarginedFuturesUserData(t *testing.T) {
 		},
 		&order.Detail{
 			TimeInForce: order.GoodTillCancel, ReduceOnly: true, Price: 86750, Amount: 0.01, TriggerPrice: 86750, AverageExecutedPrice: 86750,
-			ExecutedAmount: 0.01, Exchange: ex.Name, OrderID: "2148719", ClientOrderID: "Q5xaq5EGKgXXa0fD7fs0Ip", Type: order.TakeProfitLimit,
+			ExecutedAmount: 0.01, Exchange: ex.Name, OrderID: "algo-2148719", ClientOrderID: "Q5xaq5EGKgXXa0fD7fs0Ip", Type: order.TakeProfitLimit,
 			Side: order.Sell, Status: order.Active, AssetType: asset.USDTMarginedFutures, Date: time.UnixMilli(1750515742297),
 			LastUpdated: time.UnixMilli(1750515742297), Pair: testUSDTMarginedFuturesPair,
 		},
@@ -2965,10 +2965,10 @@ func TestProcessFuturesAlgoUpdate(t *testing.T) {
 	assert.IsType(t, &FuturesAlgoUpdate{}, payloads[0], "processFuturesAlgoUpdate should relay the event first")
 	exp := &order.Detail{
 		TimeInForce: order.GoodTillCancel, ReduceOnly: true, Amount: 0.01, RemainingAmount: 0.01, TriggerPrice: 85000, Exchange: ex.Name,
-		OrderID: "2148720", ClientOrderID: "stop-loss", Type: order.StopMarket, Side: order.Sell, Status: order.Cancelled,
+		OrderID: "algo-2148720", ClientOrderID: "stop-loss", Type: order.StopMarket, Side: order.Sell, Status: order.Cancelled,
 		AssetType: asset.USDTMarginedFutures, Date: time.UnixMilli(1791300000000), LastUpdated: time.UnixMilli(1791300000000), Pair: testUSDTMarginedFuturesPair,
 	}
-	assert.Equal(t, exp, payloads[1], "processFuturesAlgoUpdate should relay the algo order identified by its algo ID")
+	assert.Equal(t, exp, payloads[1], "processFuturesAlgoUpdate should relay the algo order identified by its algo order ID")
 	rest, err := ex.algoOrderDetail(asset.USDTMarginedFutures, &USDTMarginedFuturesAlgoOrderBase{
 		AlgoID: 2148720, ClientAlgoID: "stop-loss", AlgoType: "CONDITIONAL", OrderType: "STOP_MARKET", Symbol: "BTCUSDT", Side: "SELL",
 		PositionSide: "BOTH", TimeInForce: "GTE_GTC", Quantity: 0.01, AlgoStatus: "CANCELED", TriggerPrice: 85000, ReduceOnly: true,
@@ -2977,11 +2977,11 @@ func TestProcessFuturesAlgoUpdate(t *testing.T) {
 	require.NoError(t, err, "algoOrderDetail must not error")
 	assert.Equal(t, &rest, payloads[1], "processFuturesAlgoUpdate should convert the algo order as the REST algo order queries do")
 
-	// The order manager holds a conditional order SubmitOrder placed under its algo ID, so the update reaches it
+	// The order manager holds a conditional order SubmitOrder placed under its algo order ID, so the update reaches it
 	update, ok := payloads[1].(*order.Detail)
 	require.True(t, ok, "the second payload must be an order detail")
 	submitted := order.Detail{
-		Amount: 0.01, TriggerPrice: 85000, Exchange: ex.Name, OrderID: "2148720", ClientOrderID: "stop-loss", Type: order.StopMarket,
+		Amount: 0.01, TriggerPrice: 85000, Exchange: ex.Name, OrderID: "algo-2148720", ClientOrderID: "stop-loss", Type: order.StopMarket,
 		Side: order.Sell, Status: order.New, AssetType: asset.USDTMarginedFutures, Date: time.UnixMilli(1791300000000), Pair: testUSDTMarginedFuturesPair,
 	}
 	require.NoError(t, submitted.UpdateOrderFromDetail(update), "UpdateOrderFromDetail must not error")

@@ -1155,12 +1155,18 @@ func (e *Exchange) USDTMarginedFuturesCancelBatchOrders(ctx context.Context, sym
 // USDTMarginedFuturesGetOrderData returns an order's state from Query Order, by its order ID or, when orderID is 0, its
 // client order ID. Cancelled or expired orders without fills drop out after three days, and every order after 90 days
 func (e *Exchange) USDTMarginedFuturesGetOrderData(ctx context.Context, symbol currency.Pair, orderID uint64, origClientOrderID string) (*USDTMarginedFuturesOrderResponse, error) {
+	return e.usdtMarginedFuturesGetOrderData(ctx, symbol, orderID, origClientOrderID, usdtMarginedFuturesDefaultRate)
+}
+
+// usdtMarginedFuturesGetOrderData queries an order drawing on f, so that the lookup an untyped cancellation or
+// modification makes can draw on the cancel pool, rather than queue behind order book snapshots on the IP pool
+func (e *Exchange) usdtMarginedFuturesGetOrderData(ctx context.Context, symbol currency.Pair, orderID uint64, origClientOrderID string, f request.EndpointLimit) (*USDTMarginedFuturesOrderResponse, error) {
 	params, err := e.usdtMarginedFuturesOrderIDParams(symbol, orderID, origClientOrderID)
 	if err != nil {
 		return nil, err
 	}
 	var resp *USDTMarginedFuturesOrderResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/fapi/v1/order", params, usdtMarginedFuturesDefaultRate, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/fapi/v1/order", params, f, &resp)
 }
 
 // usdtMarginedFuturesOrderIDParams returns the parameters identifying one of a symbol's orders, which Binance requires

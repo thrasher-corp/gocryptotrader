@@ -17,9 +17,10 @@ type rateLimitPool uint8
 // their weight on a shared pool. A limiter queues requests in turn, so a request drawing on a host's IP pool waits
 // behind every market data request reserved before it, such as an order book synchronisation's snapshots. A host's
 // cancel pool is the share of its IP budget kept for order management that must not wait on market data:
-// cancellations, the listing a cancellation of every symbol's orders starts with, and the position mode lookup of a
-// Long or Short futures order. A heartbeat pool is the share kept for the countdown cancel-all heartbeats and settings,
-// as a heartbeat arriving after its countdown has run out has Binance cancel every order it covers
+// cancellations, the lookups of the order or algo order an untyped cancellation or modification names, the listing a
+// cancellation of every symbol's orders starts with, and the position mode lookup of a Long or Short futures order. A
+// heartbeat pool is the share kept for the countdown cancel-all heartbeats and settings, as a heartbeat arriving after
+// its countdown has run out has Binance cancel every order it covers
 const (
 	spotIPPool rateLimitPool = iota
 	spotCancelPool

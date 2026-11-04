@@ -803,12 +803,19 @@ func (e *Exchange) orderIdentityParams(symbol currency.Pair, orderID uint64, ori
 
 // CoinMarginedFuturesGetOrderData returns a coin margined futures order through Query Order
 func (e *Exchange) CoinMarginedFuturesGetOrderData(ctx context.Context, symbol currency.Pair, orderID uint64, origClientOrderID string) (*CoinMarginedFuturesOrderDetailResponse, error) {
+	return e.coinMarginedFuturesGetOrderData(ctx, symbol, orderID, origClientOrderID, coinMarginedFuturesDefaultRate)
+}
+
+// coinMarginedFuturesGetOrderData queries a coin margined futures order drawing on f, so that the lookup an untyped
+// cancellation or modification makes can draw on the cancel pool, rather than queue behind order book snapshots on the
+// IP pool
+func (e *Exchange) coinMarginedFuturesGetOrderData(ctx context.Context, symbol currency.Pair, orderID uint64, origClientOrderID string, f request.EndpointLimit) (*CoinMarginedFuturesOrderDetailResponse, error) {
 	params, err := e.orderIdentityParams(symbol, orderID, origClientOrderID)
 	if err != nil {
 		return nil, err
 	}
 	var resp *CoinMarginedFuturesOrderDetailResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, "/dapi/v1/order", params, coinMarginedFuturesDefaultRate, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, "/dapi/v1/order", params, f, &resp)
 }
 
 // CoinMarginedFuturesModifyOrder modifies a coin margined futures limit order's price and quantity through Modify
