@@ -51,6 +51,9 @@ func newV5TradeWebsocketTestExchange(t *testing.T, handler mockws.WsMockFunc) *E
 	cfg.API.AuthenticatedSupport = true
 	h.SetDefaults()
 	require.NoError(t, h.Setup(cfg), "authenticated websocket setup must succeed")
+	// Mock requests must not consume the rate budget shared by production instances.
+	request.WithLimiter(newRateLimits())(h.Requester)
+
 	h.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
 	h.Features.Subscriptions = nil
 	require.NoError(t, h.Websocket.SetAllConnectionURLs("ws"+strings.TrimPrefix(server.URL, "http")), "websocket endpoints must use the mock server")

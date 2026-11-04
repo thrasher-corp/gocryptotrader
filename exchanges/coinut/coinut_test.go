@@ -23,6 +23,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -637,10 +638,15 @@ func TestGetOrderHistory(t *testing.T) {
 			ex.Features.Subscriptions = nil
 			require.NoError(t, ex.Websocket.SetAllConnectionURLs("ws"+strings.TrimPrefix(server.URL, "http")), "GetOrderHistory websocket URL setup must not error")
 			ex.Websocket.SetSubscriptionsNotRequired()
-			require.NoError(t, ex.Websocket.Enable(t.Context()), "GetOrderHistory websocket connection must not error")
 			t.Cleanup(func() {
-				assert.NoError(t, ex.Websocket.Shutdown(), "GetOrderHistory websocket shutdown should not error")
+				if err := ex.Websocket.Disable(); err != nil {
+					assert.ErrorIs(t, err, websocket.ErrAlreadyDisabled, "GetOrderHistory websocket should disable")
+				}
+				if err := ex.Websocket.Shutdown(); err != nil {
+					assert.ErrorIs(t, err, websocket.ErrNotConnected, "GetOrderHistory websocket should shut down")
+				}
 			})
+			require.NoError(t, ex.Websocket.Enable(t.Context()), "GetOrderHistory websocket connection must not error")
 			ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
 
 			orders, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
@@ -740,7 +746,7 @@ func TestSubmitOrder(t *testing.T) {
 		{name: "maximum identifier", clientOrderID: math.MaxUint32},
 	} {
 		t.Run("client order identifier over the websocket "+tc.name, func(t *testing.T) {
-			t.Parallel()
+			// Do not run these cases in parallel because each connection writes to Coinut's shared channels map.
 			// WebSockets start with an HTTP upgrade; the handler below inspects the order frame.
 			server := httptest.NewTestServer(t, mockws.CurryWsMockUpgrader(t, func(_ testing.TB, payload []byte, conn *gws.Conn) error {
 				var req WsSubmitOrderRequest
@@ -762,8 +768,12 @@ func TestSubmitOrder(t *testing.T) {
 			require.NoError(t, h.Websocket.SetAllConnectionURLs("ws"+strings.TrimPrefix(server.URL, "http")), "mock websocket URL must install")
 			h.Websocket.SetSubscriptionsNotRequired()
 			t.Cleanup(func() {
-				assert.NoError(t, h.Websocket.Disable(), "mock websocket should disable")
-				assert.NoError(t, h.Websocket.Shutdown(), "mock websocket shutdown should not error")
+				if err := h.Websocket.Disable(); err != nil {
+					assert.ErrorIs(t, err, websocket.ErrAlreadyDisabled, "mock websocket should disable")
+				}
+				if err := h.Websocket.Shutdown(); err != nil {
+					assert.ErrorIs(t, err, websocket.ErrNotConnected, "mock websocket should shut down")
+				}
 			})
 			require.NoError(t, h.Websocket.Enable(t.Context()), "mock websocket must connect")
 			h.Websocket.SetCanUseAuthenticatedEndpoints(true)

@@ -1,6 +1,7 @@
 package htx
 
 import (
+	"crypto/rand"
 	"fmt"
 	"io"
 	"maps"
@@ -346,7 +347,8 @@ func TestUpdateTicker(t *testing.T) {
 		h := newHTTPTestExchange(t, exchange.RestFutures, http.MethodGet, "/market/detail/merged", `{"status":"ok","tick":{"amount":"0.025","vol":"20","open":"79000","close":"80000","high":"81000","low":"78000","bid":[79999,2],"ask":[80001,3]}}`, func(r *http.Request) {
 			assert.Equal(t, "BTC_CQ", r.URL.Query().Get("symbol"), "ticker request should retain the delivery alias")
 		}, httpTestResponse{method: http.MethodGet, path: "/api/v1/contract_contract_info", body: `{"status":"ok","data":[{"contract_code":"BTC261225","contract_type":"quarter","contract_status":1,"contract_size":100}]}`, calls: 1})
-		h.Name = t.Name()
+		// The limits store outlives the subtest, so each run needs its own exchange key.
+		h.Name = t.Name() + "/" + rand.Text()
 		datedPair := currency.NewPair(currency.BTC, currency.NewCode("261225"))
 		h.futureContractCodes = map[string]currency.Code{"CQ": datedPair.Quote}
 		require.NoError(t, h.CurrencyPairs.StorePairs(asset.Futures, currency.Pairs{datedPair}, false), "dated delivery contract must be available")
