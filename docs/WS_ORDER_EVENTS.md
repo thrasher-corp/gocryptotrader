@@ -15,12 +15,12 @@ out of reported trades.
 |----------------------|-------------------------------------------------------------------|---------------------------------------------------------|-----------|
 | Price                | Original price assigned to order                                  | Depends on order type (e.g. limit orders have prices)   | Mandatory |
 | Amount               | Original quantity assigned to order                               |                                                         | Mandatory |
+| QuoteAmount          | Requested quantity reported in the quote currency                     | Exchange reports a requested quote quantity             | Desirable |
 | AverageExecutedPrice | Average price of what's traded thus far                           | Order is filled, partially filled or partially cancelled | Desirable |
 | ExecutedAmount       | How much of the original order quantity is filled                 | Order is filled, partially filled or partially cancelled | Mandatory |
-| RemainingAmount      | Amount - ExecutedAmount                                           |                                                         | Mandatory |
-| Cost                 | How much is spent thus far (cumulative transacted quote currency) | Order is filled, partially filled or partially cancelled | Mandatory |
-| CostAsset            | Deprecated, cost currency is always pair.Quote                    |                                                         | -         |
-| Fee                  | How much last trade was charged by the exchange                   | Reported event is a trade                               | Optional  |
+| RemainingAmount      | Unfilled quantity in the same unit as Amount and ExecutedAmount       | Exchange reports it in that unit, or both inputs to subtraction are known in that unit | Desirable |
+| ExecutedQuoteAmount  | Cumulative executed value in the quote currency, before fees      | Order is filled, partially filled or partially cancelled | Desirable |
+| Fee                  | Fee amount reported for the order or event                        | Keep cumulative and per-fill fees distinct              | Optional  |
 | FeeAsset             | Asset of the taken fee                                            |                                                         | Optional  |
 | Exchange             | String name of concerned exchange                                 |                                                         | Mandatory |
 | ID                   | Order ID (on the exchange)                                        |                                                         | Mandatory |
@@ -32,3 +32,18 @@ out of reported trades.
 | Date                 | Time of order creation (as reported by the exchange)              |                                                         | Optional  |
 | LastUpdated          | Time of last order event (as reported by the exchange)            |                                                         | Optional  |
 | Pair                 | Tradable pair                                                     |                                                         | Mandatory |
+
+Derive `RemainingAmount` only from authoritative quantities in the same unit,
+such as reported total base quantity minus reported filled base quantity.
+Leave it unknown when only an outstanding quote budget is available. For
+example, if a market buy requests 10 USDT, fills 0.000199 BTC and has 0.05 USDT
+left, keep `QuoteAmount` as 10 and `ExecutedAmount` as 0.000199. The remaining
+quote budget is known, but the base quantity it will buy depends on future
+fill prices. Dividing 0.05 USDT by the historical average of 50,000 USDT/BTC
+would estimate 0.000001 BTC; a later fill at 100,000 USDT/BTC would buy only
+0.0000005 BTC instead. Do not use the order price, latest fill price or
+historical average to present such an estimate as a known remainder, put a
+quote amount into a base-quantity field or subtract BTC from USDT.
+
+A zero remainder means nothing remains only when the response establishes
+that fact; otherwise zero can mean unavailable.

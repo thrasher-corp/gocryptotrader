@@ -143,20 +143,20 @@ type Order struct {
 
 // TradeHistory holds trade history information
 type TradeHistory struct {
-	Price           float64    `json:"price,string"`
-	Amount          float64    `json:"amount,string"`
-	Timestamp       types.Time `json:"timestamp"`
-	TimestampMS     types.Time `json:"timestampms"`
-	Type            string     `json:"type"`
-	FeeCurrency     string     `json:"fee_currency"`
-	FeeAmount       float64    `json:"fee_amount,string"`
-	TID             int64      `json:"tid"`
-	OrderID         int64      `json:"order_id,string"`
-	Exchange        string     `json:"exchange"`
-	IsAuctionFilled bool       `json:"is_auction_fill"`
-	ClientOrderID   string     `json:"client_order_id"`
-	BaseCurrency    string     `json:"-"`
-	QuoteCurrency   string     `json:"-"`
+	Price           float64       `json:"price,string"`
+	Amount          float64       `json:"amount,string"`
+	Timestamp       types.Time    `json:"timestamp"`
+	TimestampMS     types.Time    `json:"timestampms"`
+	Type            string        `json:"type"`
+	FeeCurrency     currency.Code `json:"fee_currency"`
+	FeeAmount       float64       `json:"fee_amount,string"`
+	TID             int64         `json:"tid"`
+	OrderID         int64         `json:"order_id,string"`
+	Exchange        string        `json:"exchange"`
+	IsAuctionFilled bool          `json:"is_auction_fill"`
+	ClientOrderID   string        `json:"client_order_id"`
+	BaseCurrency    string        `json:"-"`
+	QuoteCurrency   string        `json:"-"`
 }
 
 // TradeVolume holds Volume information

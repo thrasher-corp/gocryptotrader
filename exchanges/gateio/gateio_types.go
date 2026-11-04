@@ -698,6 +698,8 @@ type FuturesContract struct {
 type TradingHistoryItem struct {
 	ID         int64        `json:"id"`
 	CreateTime types.Time   `json:"create_time_ms"`
+	FillTime   types.Time   `json:"create_time"` // Personal trades use seconds; public trades retain CreateTime.
+	OrderID    string       `json:"order_id"`
 	Contract   string       `json:"contract"`
 	Text       string       `json:"text"`
 	Size       types.Number `json:"size"`
@@ -1438,8 +1440,9 @@ type SpotOrder struct {
 	AverageFillPrice   types.Number `json:"avg_deal_price"`
 	FeeDeducted        types.Number `json:"fee"`
 	FeeCurrency        string       `json:"fee_currency"`
-	FillPrice          types.Number `json:"fill_price"`   // Total filled in quote currency. Deprecated in favour of filled_total
-	FilledTotal        types.Number `json:"filled_total"` // Total filled in quote currency
+	FillPrice          types.Number `json:"fill_price"`    // Total filled in quote currency. Deprecated in favour of filled_total
+	FilledAmount       types.Number `json:"filled_amount"` // Total filled in base currency
+	FilledTotal        types.Number `json:"filled_total"`  // Total filled in quote currency
 	PointFee           types.Number `json:"point_fee"`
 	GtFee              string       `json:"gt_fee,omitempty"`
 	GtDiscount         bool         `json:"gt_discount"`
@@ -2172,7 +2175,9 @@ type WsSpotOrder struct {
 	TimeInForce        string        `json:"time_in_force,omitempty"`
 	Iceberg            string        `json:"iceberg,omitempty"`
 	Left               types.Number  `json:"left,omitempty"`
+	FilledAmount       types.Number  `json:"filled_amount,omitempty"`
 	FilledTotal        types.Number  `json:"filled_total,omitempty"`
+	AverageDealPrice   types.Number  `json:"avg_deal_price,omitempty"`
 	Fee                types.Number  `json:"fee,omitempty"`
 	FeeCurrency        string        `json:"fee_currency,omitempty"`
 	PointFee           string        `json:"point_fee,omitempty"`
@@ -2181,6 +2186,7 @@ type WsSpotOrder struct {
 	RebatedFee         string        `json:"rebated_fee,omitempty"`
 	RebatedFeeCurrency string        `json:"rebated_fee_currency,omitempty"`
 	Event              string        `json:"event"`
+	FinishAs           string        `json:"finish_as"`
 	CreateTime         types.Time    `json:"create_time_ms,omitzero"`
 	UpdateTime         types.Time    `json:"update_time_ms,omitzero"`
 }

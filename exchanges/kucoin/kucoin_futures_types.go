@@ -233,6 +233,8 @@ type FuturesOrder struct {
 	FilledValue    float64    `json:"filledValue,string"`
 	FilledSize     float64    `json:"filledSize"`
 	ReduceOnly     bool       `json:"reduceOnly"`
+
+	AverageDealPrice types.Number `json:"avgDealPrice"`
 }
 
 // FutureFillsResponse represents a future fills list response detail
