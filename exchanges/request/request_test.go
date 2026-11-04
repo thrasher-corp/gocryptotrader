@@ -18,6 +18,7 @@ import (
 	"strings"
 	"testing"
 	"testing/iotest"
+	"testing/synctest"
 	"time"
 
 	"github.com/stretchr/testify/assert"
@@ -1363,43 +1364,55 @@ func TestSendPayloadRateLimitBarrierAllowsRetryAfterAcceptance(t *testing.T) {
 }
 
 func TestEnableDisableRateLimit(t *testing.T) {
-	r, err := New("TestRequest", new(http.Client), WithLimiter(NewBasicRateLimit(50*time.Millisecond, 1, 1)))
-	require.NoError(t, err, "New requester must not error")
-
-	sendIt := func() error {
-		return r.SendPayload(t.Context(), Auth, func() (*Item, error) {
-			return &Item{
-				Method: http.MethodGet,
-				Path:   testURL,
-				Result: new(any),
+	synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
+		// A stub transport keeps the test off the network so the fake clock only
+		// advances for the rate limiter.
+		client := &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     http.Header{"Content-Type": {"application/json"}},
+				Body:       io.NopCloser(strings.NewReader(`{"response":true}`)),
 			}, nil
-		}, AuthenticatedRequest)
-	}
+		})}
+		r, err := New("TestRequest", client, WithLimiter(NewBasicRateLimit(50*time.Millisecond, 1, 1)))
+		require.NoError(t, err, "New requester must not error")
 
-	// allow initial request
-	require.NoError(t, sendIt(), "sendIt must not error")
+		sendIt := func() error {
+			return r.SendPayload(t.Context(), Auth, func() (*Item, error) {
+				return &Item{
+					Method: http.MethodGet,
+					Path:   testURL,
+					Result: new(any),
+				}, nil
+			}, AuthenticatedRequest)
+		}
 
-	// error on redundant enable
-	assert.ErrorIs(t, r.EnableRateLimiter(), ErrRateLimiterAlreadyEnabled)
+		// allow initial request and consume the limiter's only token
+		require.NoError(t, sendIt(), "sendIt must not error")
 
-	// error on redundant disable
-	require.NoError(t, r.DisableRateLimiter(), "DisableRateLimiter must not error")
-	assert.ErrorIs(t, r.DisableRateLimiter(), ErrRateLimiterAlreadyDisabled)
+		// error on redundant enable
+		assert.ErrorIs(t, r.EnableRateLimiter(), ErrRateLimiterAlreadyEnabled, "redundant enable should be rejected")
 
-	// allow requests when disabled
-	require.NoError(t, sendIt(), "sendIt must not error")
+		// error on redundant disable
+		require.NoError(t, r.DisableRateLimiter(), "DisableRateLimiter must not error")
+		assert.ErrorIs(t, r.DisableRateLimiter(), ErrRateLimiterAlreadyDisabled, "redundant disable should be rejected")
 
-	// allow when re-enabled
-	require.NoError(t, r.EnableRateLimiter(), "EnableRateLimiter must succeed")
-	require.NoError(t, sendIt(), "sendIt must not error")
+		// allow requests when disabled
+		disabledStart := time.Now()
+		require.NoError(t, sendIt(), "sendIt must not error while disabled")
+		assert.Zero(t, time.Since(disabledStart), "disabled request should not wait for the limiter")
 
-	// block excess requests
-	require.NoError(t, sendIt(), "sendIt must not error") // consume the one token
-	start := time.Now()
-	err = sendIt() // this should block until a token is refilled
-	require.NoError(t, err, "sendIt must not error")
-	elapsed := time.Since(start)
-	assert.GreaterOrEqualf(t, elapsed.Milliseconds(), int64(20), "Expected sendIt to block for at least 20ms, but it returned after %dms", elapsed.Milliseconds())
+		// allow when re-enabled
+		require.NoError(t, r.EnableRateLimiter(), "EnableRateLimiter must succeed")
+
+		// The limiter is still empty and the fake clock has not advanced, so this
+		// request waits deterministically for exactly one refill interval. Asserting
+		// the exact delay (rather than a real-time lower bound) keeps the test
+		// independent of machine load.
+		start := time.Now()
+		require.NoError(t, sendIt(), "rate-limited request must not error")
+		assert.Equal(t, 50*time.Millisecond, time.Since(start), "request should block for exactly one refill interval")
+	})
 }
 
 func TestSetHTTPClient(t *testing.T) {
