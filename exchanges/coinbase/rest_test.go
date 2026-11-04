@@ -194,7 +194,7 @@ func newTestServerExchange(t *testing.T, handler http.Handler) *Exchange {
 	return ex
 }
 
-// testServerRequestLimit is the most requests a test server answers, well above the 18 the busiest test sends
+// testServerRequestLimit is the most requests a test server answers, well above the 44 the busiest test server receives
 const testServerRequestLimit = 100
 
 // newResponseServerExchange returns an exchange whose REST requests all receive one fixed response body

@@ -1548,7 +1548,8 @@ func TestModifyOrderTriggerPriceType(t *testing.T) {
 		for _, byLabel := range []bool{false, true} {
 			for _, tif := range timesInForce {
 				for _, change := range changes {
-					// Every edit reads the order first, so each has a server of its own
+					// Every edit reads the order first, so each asset, lookup, time in force and change has a server of
+					// its own, as a test server answers a limited number of requests
 					ex, sent := newDerivativesMethodServer(t, answer)
 					for trigger, own := range accepted {
 						orderID, label := g.prefix+"-"+trigger, ""
@@ -4142,7 +4143,7 @@ func TestDerivativesOverWebsocket(t *testing.T) {
 	ex := newWrapperTestExchange(t)
 	assert.False(t, ex.derivativesOverWebsocket(t.Context(), false), "derivativesOverWebsocket should not use a websocket that is not connected")
 	if !mockTests {
-		t.Skip("the live tests share one websocket connection")
+		t.Skip("the live tests share the gateway's websocket connections")
 	}
 	connected, venue := newDerivativesWebsocketTestExchange(t)
 	assert.True(t, connected.derivativesOverWebsocket(t.Context(), false), "derivativesOverWebsocket should send public requests over a connected websocket")
@@ -4194,7 +4195,7 @@ func TestAuthenticateWebsocket(t *testing.T) {
 	ex := newWrapperTestExchange(t)
 	assert.Error(t, ex.AuthenticateWebsocket(t.Context()), "AuthenticateWebsocket should error without a gateway connection")
 	if !mockTests {
-		t.Skip("the live tests share one websocket connection")
+		t.Skip("the live tests share the gateway's websocket connections")
 	}
 	connected, venue := newDerivativesWebsocketTestExchange(t)
 	require.NoError(t, connected.AuthenticateWebsocket(t.Context()), "AuthenticateWebsocket must not error")

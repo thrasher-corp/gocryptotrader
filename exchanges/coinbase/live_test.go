@@ -91,10 +91,10 @@ func newDerivativesWebsocketTestExchange(t *testing.T) (*Exchange, *derivativesV
 	return ex, nil
 }
 
-// newUnauthenticatedDerivativesWebsocketTestExchange skips the test, as the live tests share one connection, which
-// authenticates when it connects with credentials set
+// newUnauthenticatedDerivativesWebsocketTestExchange skips the test, as the live tests share the gateway's
+// connections, whose private connection authenticates when it connects with credentials set
 func newUnauthenticatedDerivativesWebsocketTestExchange(t *testing.T) (*Exchange, *derivativesVenue) {
 	t.Helper()
-	t.Skip("the live tests share one connection, which authenticates when it connects")
+	t.Skip("the live tests share the gateway's connections, whose private connection authenticates when it connects")
 	return nil, nil
 }

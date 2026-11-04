@@ -69,7 +69,7 @@ func TestWebsocketAPIUnsubscribePrivate(t *testing.T) {
 func TestWebsocketAPIUnsubscribeAll(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
-		t.Skip("the live tests share one connection, whose other tests' channels unsubscribing all would drop")
+		t.Skip("the live tests share the gateway's connections, whose other tests' channels unsubscribing all would drop")
 	}
 	ex, venue := newDerivativesWebsocketTestExchange(t)
 	require.NoError(t, ex.WebsocketAPI().UnsubscribeAll(t.Context()), "WebsocketAPI.UnsubscribeAll must not error")
