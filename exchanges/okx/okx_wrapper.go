@@ -2309,7 +2309,7 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 	// the requested window floor.
 	sd := r.StartDate
 	historyCursor := r.EndDate
-	seen := make(map[int64]struct{})
+	seen := make(common.Seen[int64])
 	for {
 		var history []FundingRateResponse
 		history, err = e.GetFundingRateHistory(ctx, fPair.String(), sd, historyCursor, int64(requestLimit))
@@ -2322,17 +2322,15 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 		for i := range history {
 			settledRate := &history[i]
 			settlementTime := settledRate.FundingTime.Time()
-			fundingTimestamp := settlementTime.Unix()
-			if _, dup := seen[fundingTimestamp]; dup {
+			if settlementTime.Before(r.StartDate) || settlementTime.After(r.EndDate) {
 				continue
 			}
-			if settlementTime.Before(r.StartDate) || settlementTime.After(r.EndDate) {
+			if seen.CheckAndRecord(settlementTime.Unix()) {
 				continue
 			}
 			if settledRate.RealisedRate == nil {
 				return nil, fmt.Errorf("%w: realised funding rate missing", common.ErrNoResponse)
 			}
-			seen[fundingTimestamp] = struct{}{}
 			pairRate.FundingRates = append(pairRate.FundingRates, fundingrate.Rate{
 				Time: settlementTime,
 				Rate: settledRate.RealisedRate.Decimal(),
@@ -2987,17 +2985,16 @@ func (e *Exchange) optionInstrumentFamilies(ctx context.Context) ([]string, erro
 	if err != nil {
 		return nil, err
 	}
-	seen := make(map[string]struct{}, len(tickBands))
+	seen := make(common.Seen[string], len(tickBands))
 	families := make([]string, 0, len(tickBands))
 	for i := range tickBands {
 		family := tickBands[i].InstrumentFamily
 		if family == "" {
 			continue
 		}
-		if _, alreadySeen := seen[family]; alreadySeen {
+		if seen.CheckAndRecord(family) {
 			continue
 		}
-		seen[family] = struct{}{}
 		families = append(families, family)
 	}
 	if len(families) == 0 {
