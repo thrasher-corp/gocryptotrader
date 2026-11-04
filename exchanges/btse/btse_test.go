@@ -678,7 +678,7 @@ func TestWSTrades(t *testing.T) {
 
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
-	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.json", e.wsHandleData)
+	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.jsonl", e.wsHandleData)
 	e.Websocket.DataHandler.Close()
 
 	exp := []trade.Data{
