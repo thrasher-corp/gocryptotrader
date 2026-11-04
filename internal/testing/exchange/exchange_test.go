@@ -331,27 +331,68 @@ func TestMockHTTPInstance(t *testing.T) {
 	require.NoError(t, MockHTTPInstance(b, "api"), "MockHTTPInstance with optional path must not error")
 }
 
-// TestMockWsInstance exercises MockWsInstance
-func TestMockWsInstance(t *testing.T) {
-	b := MockWsInstance[binance.Exchange](t, mockws.CurryWsMockUpgrader(t, func(_ testing.TB, _ []byte, _ *gws.Conn) error { return nil }))
-	require.NotNil(t, b, "MockWsInstance must not be nil")
+// TestMockWebsocketInstance exercises MockWebsocketInstance
+func TestMockWebsocketInstance(t *testing.T) {
+	b := MockWebsocketInstance[binance.Exchange](t, mockws.CurryWsMockUpgrader(t, func(_ testing.TB, _ []byte, _ *gws.Conn) error { return nil }))
+	require.NotNil(t, b, "MockWebsocketInstance must not be nil")
 }
 
-func TestMockWsInstanceVerbose(t *testing.T) {
-	b := MockWsInstance[binance.Exchange](t, mockws.CurryWsMockUpgrader(t, func(_ testing.TB, _ []byte, _ *gws.Conn) error { return nil }), true)
-	require.NotNil(t, b, "MockWsInstance must not be nil when verbose is overridden")
-	assert.True(t, b.IsVerbose(), "MockWsInstance should honour the verbose override")
+func TestMockWebsocketInstanceVerbose(t *testing.T) {
+	b := MockWebsocketInstance[binance.Exchange](t, mockws.CurryWsMockUpgrader(t, func(_ testing.TB, _ []byte, _ *gws.Conn) error { return nil }), true)
+	require.NotNil(t, b, "MockWebsocketInstance must not be nil when verbose is overridden")
+	assert.True(t, b.IsVerbose(), "MockWebsocketInstance should honour the verbose override")
 }
 
-func TestMockWsInstanceSupportsMultiConnectionManagement(t *testing.T) {
-	b := MockWsInstance[bybit.Exchange](t, mockws.CurryWsMockUpgrader(t, func(_ testing.TB, _ []byte, _ *gws.Conn) error { return nil }))
-	require.NotNil(t, b, "MockWsInstance must not be nil for multi-connection websocket exchanges")
+func TestMockWebsocketInstanceSupportsMultiConnectionManagement(t *testing.T) {
+	b := MockWebsocketInstance[bybit.Exchange](t, mockws.CurryWsMockUpgrader(t, func(_ testing.TB, _ []byte, _ *gws.Conn) error { return nil }))
+	require.NotNil(t, b, "MockWebsocketInstance must not be nil for multi-connection websocket exchanges")
 	t.Cleanup(func() {
 		if b.GetBase().Websocket.IsConnected() {
 			assert.NoError(t, b.GetBase().Websocket.Shutdown(), "Websocket shutdown should not error for multi-connection websocket exchanges")
 		}
 	})
 	assert.True(t, b.GetBase().Websocket.IsConnected(), "Websocket manager should be connected for multi-connection websocket exchanges")
+}
+
+func TestMockWebsocketInstanceCleanup(t *testing.T) {
+	newInstance := func(tb testing.TB) *binance.Exchange {
+		tb.Helper()
+		return MockWebsocketInstance[binance.Exchange](tb, mockws.CurryWsMockUpgrader(tb, func(_ testing.TB, _ []byte, _ *gws.Conn) error { return nil }))
+	}
+
+	t.Run("shut down once its test ends", func(t *testing.T) {
+		var e *binance.Exchange
+		t.Run("instance", func(t *testing.T) {
+			e = newInstance(t)
+			require.True(t, e.Websocket.IsConnected(), "Websocket must be connected during its test")
+		})
+		assert.False(t, e.Websocket.IsEnabled(), "Websocket should be disabled once its test ends")
+		assert.False(t, e.Websocket.IsConnected(), "Websocket should be shut down once its test ends")
+	})
+
+	t.Run("already shut down", func(t *testing.T) {
+		require.NoError(t, newInstance(t).Shutdown(), "Shutdown must not error")
+	})
+
+	t.Run("websocket shut down but still enabled", func(t *testing.T) {
+		var e *binance.Exchange
+		t.Run("instance", func(t *testing.T) {
+			e = newInstance(t)
+			require.NoError(t, e.Websocket.Shutdown(), "Websocket Shutdown must not error")
+		})
+		assert.False(t, e.Websocket.IsEnabled(), "Websocket should be disabled once its test ends, so its monitor stops reconnecting")
+	})
+
+	t.Run("does not retain exchange", func(t *testing.T) {
+		var ref weak.Pointer[binance.Exchange]
+		t.Run("instance", func(t *testing.T) {
+			ref = weak.Make(newInstance(t))
+		})
+		assert.Eventually(t, func() bool {
+			runtime.GC()
+			return ref.Value() == nil
+		}, 10*time.Second, 10*time.Millisecond, "MockWebsocketInstance should not keep the exchange reachable once its test ends")
+	})
 }
 
 func TestSetupWebsocket(t *testing.T) {

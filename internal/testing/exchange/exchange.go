@@ -139,12 +139,13 @@ func MockHTTPInstance(e exchange.IBotExchange, optionalPathPostfix ...string) er
 	return nil
 }
 
-// MockWsInstance creates a new Exchange instance with a mock websocket instance and HTTP server
+// MockWebsocketInstance creates a new Exchange instance with a mock websocket instance and HTTP server
 // It accepts an exchange package type argument and a http.HandlerFunc
 // See CurryWsMockUpgrader for a convenient way to curry t and a ws mock function
 // It is expected to be run from any WS tests which need a specific response function
 // No default subscriptions will be run since they disrupt unit tests
-func MockWsInstance[T any, PT interface {
+// The websocket is disabled and shut down when the test ends
+func MockWebsocketInstance[T any, PT interface {
 	*T
 	exchange.IBotExchange
 }](tb testing.TB, h http.HandlerFunc, verbose ...bool) *T {
@@ -169,6 +170,18 @@ func MockWsInstance[T any, PT interface {
 	// For testing we never want to use the default subscriptions; Tests of GenerateSubscriptions should be exercising it directly
 	b.Features.Subscriptions = subscription.List{}
 	b.Websocket.SetSubscriptionsNotRequired()
+
+	// The test server's Close leaves the hijacked connection open, so without this the mock handler would keep running
+	// with this tb after the test ends. Registered before Connect, so a failed connection's monitor stops too
+	w := b.Websocket
+	tb.Cleanup(func() {
+		if err := w.Disable(); err != nil {
+			assert.ErrorIs(tb, err, websocket.ErrAlreadyDisabled, "Websocket Disable should not error")
+		}
+		if err := w.Shutdown(); err != nil {
+			assert.ErrorIs(tb, err, websocket.ErrNotConnected, "Websocket Shutdown should not error")
+		}
+	})
 
 	err = b.Websocket.Connect(context.TODO())
 	require.NoError(tb, err, "Connect must not error")

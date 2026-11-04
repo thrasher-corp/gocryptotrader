@@ -1178,7 +1178,7 @@ func TestShutdownDoesNotReconnect(t *testing.T) {
 		upgrades.Add(1)
 		mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
 	}
-	e := testexch.MockWsInstance[Exchange](t, h)
+	e := testexch.MockWebsocketInstance[Exchange](t, h)
 	require.True(t, e.Websocket.IsConnected(), "websocket must be connected")
 	before := upgrades.Load()
 

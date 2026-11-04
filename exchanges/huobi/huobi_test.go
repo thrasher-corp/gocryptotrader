@@ -2083,7 +2083,7 @@ func TestSubscribe(t *testing.T) {
 func TestAuthSubscribe(t *testing.T) {
 	t.Parallel()
 	subCfg := e.Features.Subscriptions
-	h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
+	h := testexch.MockWebsocketInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
 	h.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	subs, err := subCfg.ExpandTemplates(h)
 	require.NoError(t, err, "ExpandTemplates must not error")

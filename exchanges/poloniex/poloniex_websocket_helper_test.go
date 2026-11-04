@@ -12,7 +12,7 @@ import (
 	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
 )
 
-func TestSetupWsSupportsMultiConnectionManagement(t *testing.T) {
+func TestSetupWebsocketSupportsMultiConnectionManagement(t *testing.T) {
 	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
 	}))
