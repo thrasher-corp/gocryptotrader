@@ -428,7 +428,7 @@ func TestConnectOptionalConnections(t *testing.T) {
 			failing.refusing.Store(!tc.dropped)
 			// The connection monitor retries within the test, and no lull in traffic reconnects every connection
 			ex.Config.ConnectionMonitorDelay = 10 * time.Millisecond
-			ex.Config.WebsocketTrafficTimeout = time.Minute
+			ex.Config.WebsocketTrafficTimeout = time.Hour
 			ex.Websocket = sharedtestvalues.NewTestWebsocket()
 			require.NoError(t, ex.Websocket.Setup(&websocket.ManagerSetup{
 				ExchangeConfig:               ex.Config,
