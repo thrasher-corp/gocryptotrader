@@ -336,6 +336,7 @@ func TestTrackEquivalentSubscriptionsOnExistingConnection(t *testing.T) {
 		t.Parallel()
 		tracked := new(Exchange)
 		require.NoError(t, testexch.Setup(tracked))
+		tracked.Name = t.Name()
 
 		pair := currency.NewBTCUSDT()
 		spotSub := &subscription.Subscription{
