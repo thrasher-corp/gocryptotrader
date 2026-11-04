@@ -349,10 +349,10 @@ func (m *Manager) SetupNewConnection(c *ConnectionSetup) error {
 		if c.GenerateSubscriptions == nil && !c.SubscriptionsNotRequired {
 			return fmt.Errorf("%w: %w", errConnSetup, errWebsocketSubscriptionsGeneratorUnset)
 		}
-		if c.Subscriber == nil && !c.SubscriptionsNotRequired {
+		if c.Subscriber == nil && c.GenerateSubscriptions != nil {
 			return fmt.Errorf("%w: %w", errConnSetup, errWebsocketSubscriberUnset)
 		}
-		if c.Unsubscriber == nil && m.features.Unsubscribe && !c.SubscriptionsNotRequired {
+		if c.Unsubscriber == nil && m.features.Unsubscribe && c.GenerateSubscriptions != nil {
 			return fmt.Errorf("%w: %w", errConnSetup, errWebsocketUnsubscriberUnset)
 		}
 		if c.Handler == nil {
@@ -620,12 +620,11 @@ func (m *Manager) connect(ctx context.Context) error {
 // connectSetup dials a setup's connections and subscribes its generated subscriptions. A fatal error means the setup
 // could not be connected; a subscription error leaves its connections up. The caller must hold m.m
 func (m *Manager) connectSetup(ctx context.Context, i int, ws *websocket) (subscriptionError, fatalErr error) {
+	if ws.setup.GenerateSubscriptions == nil && !ws.setup.SubscriptionsNotRequired {
+		return nil, fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, errWebsocketSubscriptionsGeneratorUnset)
+	}
 	var subs subscription.List
-	if !ws.setup.SubscriptionsNotRequired {
-		if ws.setup.GenerateSubscriptions == nil {
-			return nil, fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, errWebsocketSubscriptionsGeneratorUnset)
-		}
-
+	if ws.setup.GenerateSubscriptions != nil {
 		var err error
 		subs, err = ws.setup.GenerateSubscriptions() // regenerate state on new connection
 		var generationError error
@@ -637,7 +636,7 @@ func (m *Manager) connectSetup(ctx context.Context, i int, ws *websocket) (subsc
 			return nil, fmt.Errorf("%s websocket: %w", m.exchangeName, common.AppendError(ErrSubscriptionFailure, err))
 		}
 
-		if len(subs) == 0 && !ws.setup.ConnectWithoutSubscriptions {
+		if len(subs) == 0 && !ws.setup.SubscriptionsNotRequired {
 			// If no subscriptions are generated, we skip this connection.
 			if m.verbose {
 				log.Debugf(log.WebsocketMgr, "%s websocket: no subscriptions generated for [conn:%d] [URL:%s], skipping", m.exchangeName, i+1, ws.setup.URL)
@@ -652,7 +651,7 @@ func (m *Manager) connectSetup(ctx context.Context, i int, ws *websocket) (subsc
 	if ws.setup.Handler == nil {
 		return subscriptionError, fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, errWebsocketDataHandlerUnset)
 	}
-	if ws.setup.Subscriber == nil && !ws.setup.SubscriptionsNotRequired {
+	if ws.setup.Subscriber == nil && ws.setup.GenerateSubscriptions != nil {
 		return subscriptionError, fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, errWebsocketSubscriberUnset)
 	}
 
@@ -800,8 +799,8 @@ func (m *Manager) createConnectAndSubscribe(ctx context.Context, ws *websocket, 
 	if m.MaxSubscriptionsPerConnection > 0 && len(subs) > m.MaxSubscriptionsPerConnection {
 		return fmt.Errorf("%w %w: max subs allowed %d, requested %d", common.ErrFatal, errSubscriptionsExceedsLimit, m.MaxSubscriptionsPerConnection, len(subs))
 	}
-	if ws.setup.SubscriptionsNotRequired && len(subs) != 0 {
-		return fmt.Errorf("%w %w: subscriptions were provided but not required", common.ErrFatal, ErrSubscriptionFailure)
+	if ws.setup.Subscriber == nil && len(subs) != 0 {
+		return fmt.Errorf("%w %w: %w", common.ErrFatal, ErrSubscriptionFailure, errWebsocketSubscriberUnset)
 	}
 
 	conn := m.createConnectionFromSetup(ws.setup)

@@ -71,13 +71,12 @@ type ConnectionSetup struct {
 	ResponseMaxLimit     time.Duration
 	RateLimit            *request.RateLimiterWithWeight
 	// ConnectionRateLimiter returns a new rate limiter for each connection instance
-	ConnectionRateLimiter    func() *request.RateLimiterWithWeight
-	Authenticated            bool // unused for multi-connection websocket
+	ConnectionRateLimiter func() *request.RateLimiterWithWeight
+	Authenticated         bool // unused for multi-connection websocket
+	// SubscriptionsNotRequired makes subscriptions optional: a connection is dialled even when there are none, and one is
+	// kept when they are all removed, so requests can always be sent on it. GenerateSubscriptions may then be left unset
+	// for a connection that only carries requests; when set, its subscriptions are generated and refreshed as usual
 	SubscriptionsNotRequired bool
-	// ConnectWithoutSubscriptions dials a connection even when GenerateSubscriptions returns none, and keeps one
-	// connection when its subscriptions are all removed, so requests can always be sent on it. Unlike
-	// SubscriptionsNotRequired, subscriptions are still generated and refreshed
-	ConnectWithoutSubscriptions bool
 	// Optional marks a setup the other connections do not depend on: a failure to connect it, or the loss of one of its
 	// connections, leaves them up, and the connection monitor retries it after the monitor delay, doubling the delay
 	// after each further failure up to a minute, or the monitor delay when that is longer. The delay is kept across

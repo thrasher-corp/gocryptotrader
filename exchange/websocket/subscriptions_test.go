@@ -2191,7 +2191,7 @@ func TestSubscribeToSetup(t *testing.T) {
 	var m *Manager
 	none := func() (subscription.List, error) { return nil, nil }
 	idle := lifecycleTestSetup(&m, wsURL, "idle", dial, none)
-	idle.ConnectWithoutSubscriptions = true
+	idle.SubscriptionsNotRequired = true
 	requestsOnly := &ConnectionSetup{
 		URL:                      wsURL,
 		MessageFilter:            "requests only",
@@ -2199,8 +2199,10 @@ func TestSubscribeToSetup(t *testing.T) {
 		Handler:                  func(context.Context, Connection, []byte) error { return nil },
 		SubscriptionsNotRequired: true,
 	}
-	m = newLifecycleTestManager(t, lifecycleTestSetup(&m, wsURL, "feeds", dial, none), idle, requestsOnly)
-	feeds, requests := m.connectionManager[0], m.connectionManager[1]
+	manual := lifecycleTestSetup(&m, wsURL, "manual", dial, nil)
+	manual.SubscriptionsNotRequired = true
+	m = newLifecycleTestManager(t, lifecycleTestSetup(&m, wsURL, "feeds", dial, none), idle, requestsOnly, manual)
+	feeds, requests, manualSetup := m.connectionManager[0], m.connectionManager[1], m.connectionManager[3]
 	sub := &subscription.Subscription{Channel: "runtime"}
 
 	require.ErrorIs(t, m.SubscribeToSetup(t.Context(), "feeds", subscription.List{sub}), ErrNotConnected, "SubscribeToSetup must require a connected manager")
@@ -2209,6 +2211,8 @@ func TestSubscribeToSetup(t *testing.T) {
 	require.Empty(t, m.snapshotManagedConnections(feeds), "Connect must not dial a setup without subscriptions")
 	requestConnections := m.snapshotManagedConnections(requests)
 	require.Len(t, requestConnections, 1, "Connect must dial a setup kept without subscriptions")
+	manualConnections := m.snapshotManagedConnections(manualSetup)
+	require.Len(t, manualConnections, 1, "Connect must dial a setup kept without a subscription generator")
 
 	assert.ErrorIs(t, m.SubscribeToSetup(t.Context(), "unknown", subscription.List{sub}), ErrRequestRouteNotFound, "SubscribeToSetup should reject an unknown filter")
 	assert.ErrorIs(t, m.SubscribeToSetup(t.Context(), "feeds", subscription.List{nil}), common.ErrNilPointer, "SubscribeToSetup should reject a nil subscription")
@@ -2218,8 +2222,8 @@ func TestSubscribeToSetup(t *testing.T) {
 	assert.ErrorIs(t, m.SubscribeToSetup(t.Context(), "feeds", subscription.List{sub, sub.Clone()}), subscription.ErrDuplicate, "SubscribeToSetup should refuse a list holding a subscription twice")
 	assert.Empty(t, m.snapshotManagedConnections(feeds), "SubscribeToSetup should not dial for a list it refuses")
 	assert.Nil(t, feeds.subscriptions.Get(sub), "SubscribeToSetup should hold nothing from a list it refuses")
-	assert.ErrorIs(t, m.SubscribeToSetup(t.Context(), "requests only", subscription.List{sub}), errSetupSubscribesNothing, "SubscribeToSetup should refuse a setup without subscriptions")
-	assert.ErrorIs(t, m.UnsubscribeFromSetup(t.Context(), "requests only", subscription.List{sub}), errSetupUnsubscribesNothing, "UnsubscribeFromSetup should refuse a setup without subscriptions")
+	assert.ErrorIs(t, m.SubscribeToSetup(t.Context(), "requests only", subscription.List{sub}), errSetupSubscribesNothing, "SubscribeToSetup should refuse a setup without a subscriber")
+	assert.ErrorIs(t, m.UnsubscribeFromSetup(t.Context(), "requests only", subscription.List{sub}), errSetupUnsubscribesNothing, "UnsubscribeFromSetup should refuse a setup without an unsubscriber")
 
 	require.NoError(t, m.SubscribeToSetup(t.Context(), "feeds", subscription.List{sub}), "SubscribeToSetup must not error")
 	feedConnections := m.snapshotManagedConnections(feeds)
@@ -2244,4 +2248,12 @@ func TestSubscribeToSetup(t *testing.T) {
 	require.NoError(t, m.UnsubscribeFromSetup(t.Context(), "idle", subscription.List{request}), "UnsubscribeFromSetup must not error")
 	assert.Nil(t, requestConnections[0].Subscriptions().Get(request), "UnsubscribeFromSetup should remove the subscription from its connection")
 	assert.Equal(t, requestConnections, m.snapshotManagedConnections(requests), "UnsubscribeFromSetup should keep the connection of a setup kept without subscriptions")
+
+	manualSub := &subscription.Subscription{Channel: "manual"}
+	require.NoError(t, m.SubscribeToSetup(t.Context(), "manual", subscription.List{manualSub}), "SubscribeToSetup must accept a setup with a subscriber and no subscription generator")
+	assert.Equal(t, manualConnections, m.snapshotManagedConnections(manualSetup), "SubscribeToSetup should use the setup's connection")
+	assert.Same(t, manualSub, manualConnections[0].Subscriptions().Get(manualSub), "SubscribeToSetup should record the subscription for the existing connection")
+	require.NoError(t, m.UnsubscribeFromSetup(t.Context(), "manual", subscription.List{manualSub}), "UnsubscribeFromSetup must accept a setup with an unsubscriber and no subscription generator")
+	assert.Nil(t, manualSetup.subscriptions.Get(manualSub), "UnsubscribeFromSetup should remove the subscription from the setup")
+	assert.Equal(t, manualConnections, m.snapshotManagedConnections(manualSetup), "UnsubscribeFromSetup should keep the connection of a setup kept without a subscription generator")
 }

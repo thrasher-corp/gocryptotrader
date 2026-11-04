@@ -334,7 +334,7 @@ func (m *Manager) flushChannels(ctx context.Context) error {
 
 	var subscriptionError error
 	for i, ws := range m.snapshotConnectionManager() {
-		if ws.setup.SubscriptionsNotRequired {
+		if ws.setup.GenerateSubscriptions == nil {
 			continue
 		}
 		unconnected := len(m.snapshotManagedConnections(ws)) == 0
@@ -363,7 +363,7 @@ func (m *Manager) flushChannels(ctx context.Context) error {
 		}
 
 		// Case if there is nothing to unsubscribe from and the connection is nil
-		if len(newSubs) == 0 && unconnected && !ws.setup.ConnectWithoutSubscriptions {
+		if len(newSubs) == 0 && unconnected && !ws.setup.SubscriptionsNotRequired {
 			continue
 		}
 
@@ -402,7 +402,7 @@ func (m *Manager) SubscribeToSetup(ctx context.Context, messageFilter any, subs 
 	if err != nil {
 		return err
 	}
-	if ws.setup.SubscriptionsNotRequired {
+	if ws.setup.Subscriber == nil {
 		return fmt.Errorf("%s: %w: message filter '%v'", m.exchangeName, errSetupSubscribesNothing, messageFilter)
 	}
 	if len(subs) == 0 {
@@ -451,8 +451,9 @@ func (m *Manager) SubscribeToSetup(ctx context.Context, messageFilter any, subs 
 	return common.AppendError(recoveryErr, err)
 }
 
-// UnsubscribeFromSetup unsubscribes from subscriptions held by the setup with the given message filter, closing any
-// connection left without subscriptions, for subscriptions removed at runtime under multi-connection management
+// UnsubscribeFromSetup unsubscribes from subscriptions held by the setup with the given message filter, for
+// subscriptions removed at runtime under multi-connection management. Connections left without subscriptions are closed,
+// but a setup whose subscriptions are not required keeps one
 func (m *Manager) UnsubscribeFromSetup(ctx context.Context, messageFilter any, subs subscription.List) error {
 	if slices.Contains(subs, nil) {
 		return fmt.Errorf("%w: List parameter contains an nil element", common.ErrNilPointer)
@@ -463,7 +464,7 @@ func (m *Manager) UnsubscribeFromSetup(ctx context.Context, messageFilter any, s
 	if err != nil {
 		return err
 	}
-	if ws.setup.SubscriptionsNotRequired || ws.setup.Unsubscriber == nil {
+	if ws.setup.Unsubscriber == nil {
 		return fmt.Errorf("%s: %w: message filter '%v'", m.exchangeName, errSetupUnsubscribesNothing, messageFilter)
 	}
 	if len(subs) == 0 {
@@ -696,12 +697,12 @@ func (m *Manager) subscribeToSetup(ctx context.Context, ws *websocket, subs subs
 	return nil
 }
 
-// closeIdleConnections closes a setup's connections that hold no subscriptions, to reduce resource usage; a setup that
-// connects without subscriptions keeps one, and gets one if it has none
+// closeIdleConnections closes a setup's connections that hold no subscriptions, to reduce resource usage; a setup whose
+// subscriptions are not required keeps one, and gets one if it has none
 func (m *Manager) closeIdleConnections(ctx context.Context, ws *websocket) error {
 	connections := m.snapshotManagedConnections(ws)
 	if len(connections) == 0 {
-		if ws.setup.ConnectWithoutSubscriptions {
+		if ws.setup.SubscriptionsNotRequired {
 			return m.createConnectAndSubscribe(ctx, ws, nil)
 		}
 		return nil
@@ -715,7 +716,7 @@ func (m *Manager) closeIdleConnections(ctx context.Context, ws *websocket) error
 		}
 		stale = append(stale, conn)
 	}
-	if ws.setup.ConnectWithoutSubscriptions && len(clean) == 0 {
+	if ws.setup.SubscriptionsNotRequired && len(clean) == 0 {
 		stale = stale[1:]
 	}
 	if len(stale) == 0 {

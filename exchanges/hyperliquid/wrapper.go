@@ -292,18 +292,18 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	// Both connections share one limiter, as Hyperliquid limits the messages an IP address sends
 	connectionRateLimit := request.NewWeightedRateLimitByDuration(websocketMessageInterval)
 	if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                         wsURL,
-		RateLimit:                   connectionRateLimit,
-		ResponseCheckTimeout:        exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:            exch.WebsocketResponseMaxLimit,
-		Connector:                   e.connectPublicWebsocket,
-		GenerateSubscriptions:       e.generatePublicSubscriptions,
-		Subscriber:                  e.websocketSubscribe,
-		Unsubscriber:                e.websocketUnsubscribe,
-		Handler:                     e.wsHandleData,
-		OnDisconnect:                e.publicWebsocketDisconnected,
-		MessageFilter:               websocketPublicConnection,
-		ConnectWithoutSubscriptions: true,
+		URL:                      wsURL,
+		RateLimit:                connectionRateLimit,
+		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
+		Connector:                e.connectPublicWebsocket,
+		GenerateSubscriptions:    e.generatePublicSubscriptions,
+		Subscriber:               e.websocketSubscribe,
+		Unsubscriber:             e.websocketUnsubscribe,
+		Handler:                  e.wsHandleData,
+		OnDisconnect:             e.publicWebsocketDisconnected,
+		MessageFilter:            websocketPublicConnection,
+		SubscriptionsNotRequired: true,
 	}); err != nil {
 		return err
 	}

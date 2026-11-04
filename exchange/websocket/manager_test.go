@@ -644,6 +644,44 @@ func TestConnectionMessageErrors(t *testing.T) { //nolint:tparallel // top-level
 			err := ws.Connect(t.Context())
 			require.ErrorIs(t, err, common.ErrFatal, "must error on connect when no subscriptions are required")
 		})
+
+		t.Run("subscriptions not required with a generator", func(t *testing.T) {
+			ws := newConfiguredMultiManager(t, &ConnectionSetup{
+				URL:                      mockURL,
+				SubscriptionsNotRequired: true,
+				GenerateSubscriptions: func() (subscription.List, error) {
+					return subscription.List{{Channel: "optional"}}, nil
+				},
+				Connector: dial,
+				Handler:   noopHandler,
+			})
+			ws.connectionManager[0].setup.Subscriber = func(_ context.Context, conn Connection, subs subscription.List) error {
+				return ws.AddSuccessfulSubscriptions(conn, subs...)
+			}
+
+			require.NoError(t, ws.Connect(t.Context()), "Connect must not error")
+			connections := ws.snapshotManagedConnections(ws.connectionManager[0])
+			require.Len(t, connections, 1, "Connect must dial one connection")
+			assert.Equal(t, 1, connections[0].Subscriptions().Len(), "Connect should subscribe the generated subscriptions of a setup that does not require them")
+			require.NoError(t, ws.Shutdown(), "Shutdown must not error")
+		})
+
+		t.Run("subscriptions not required with a generator and no subscriber", func(t *testing.T) {
+			var dials atomic.Int32
+			ws := newConfiguredMultiManager(t, &ConnectionSetup{
+				URL:                      mockURL,
+				SubscriptionsNotRequired: true,
+				GenerateSubscriptions:    func() (subscription.List, error) { return nil, nil },
+				Connector: func(ctx context.Context, conn Connection) error {
+					dials.Add(1)
+					return dial(ctx, conn)
+				},
+				Handler: noopHandler,
+			})
+
+			require.ErrorIs(t, ws.Connect(t.Context()), errWebsocketSubscriberUnset, "Connect must refuse generated subscriptions without a subscriber")
+			assert.Zero(t, dials.Load(), "Connect should refuse before dialling")
+		})
 	})
 }
 
@@ -695,6 +733,7 @@ func TestCreateConnectAndSubscribe(t *testing.T) {
 	assert.ErrorIs(t, err, errSubscriptionsExceedsLimit, "should return the subscriptions exceeds limit error")
 
 	mgr.MaxSubscriptionsPerConnection = 0
+	ws.setup.Subscriber = func(context.Context, Connection, subscription.List) error { return errDastardlyReason }
 	ws.setup.Connector = func(context.Context, Connection) error { return errConnectionFault }
 	err = mgr.createConnectAndSubscribe(t.Context(), ws, subs)
 	require.ErrorIs(t, err, common.ErrFatal, "must return fatal error when calling ws.setup.Connector")
@@ -728,17 +767,18 @@ func TestCreateConnectAndSubscribe(t *testing.T) {
 	mgr.Wg.Wait()
 
 	ws.setup.Authenticate = func(context.Context, Connection) error { return nil }
-	ws.setup.SubscriptionsNotRequired = true
+	ws.setup.Subscriber = nil
 	dialled := dials.Load()
 	err = mgr.createConnectAndSubscribe(t.Context(), ws, subs)
-	require.ErrorIs(t, err, common.ErrFatal, "subscriptions not required must error when subscriptions are provided")
-	require.ErrorIs(t, err, ErrSubscriptionFailure, "subscriptions not required must error when subscriptions are provided")
-	assert.Equal(t, dialled, dials.Load(), "subscriptions not required should be refused before dialling")
-	assert.Empty(t, ws.connections, "subscriptions not required should leave no connection tracked by websocket")
-	assert.Empty(t, mgr.connections, "subscriptions not required should leave no connection tracked by manager")
+	require.ErrorIs(t, err, common.ErrFatal, "subscriptions without a subscriber must be fatal")
+	require.ErrorIs(t, err, ErrSubscriptionFailure, "subscriptions without a subscriber must fail")
+	require.ErrorIs(t, err, errWebsocketSubscriberUnset, "subscriptions without a subscriber must report the missing subscriber")
+	assert.Equal(t, dialled, dials.Load(), "subscriptions without a subscriber should be refused before dialling")
+	assert.Empty(t, ws.connections, "subscriptions without a subscriber should leave no connection tracked by websocket")
+	assert.Empty(t, mgr.connections, "subscriptions without a subscriber should leave no connection tracked by manager")
 
 	err = mgr.createConnectAndSubscribe(t.Context(), ws, nil)
-	require.NoError(t, err, "subscriptions not required with no subscriptions must not error")
+	require.NoError(t, err, "a connection without subscriptions must not need a subscriber")
 	require.Len(t, ws.connections, 1, "connection must be tracked by websocket")
 	require.Len(t, mgr.connections, 1, "websocket connection association must be tracked by manager")
 	require.Equal(t, mgr.connections[ws.connections[0]], ws, "manager connections map must track the websocket owner")
@@ -747,7 +787,6 @@ func TestCreateConnectAndSubscribe(t *testing.T) {
 	ws.connections = nil
 	mgr.Wg.Wait()
 
-	ws.setup.SubscriptionsNotRequired = false
 	ws.setup.Subscriber = func(context.Context, Connection, subscription.List) error {
 		return errConnectionFault
 	}
@@ -790,6 +829,25 @@ func TestCreateConnectAndSubscribe(t *testing.T) {
 	require.Len(t, mgr.connections, 1, "websocket connection association must be tracked by manager")
 	require.Equal(t, mgr.connections[ws.connections[0]], ws, "manager connections map must track the websocket owner")
 	require.Len(t, ws.connections[0].Subscriptions().List(), len(subs), "connection subscription store must mirror websocket store")
+	require.NoError(t, ws.connections[0].Shutdown())
+	delete(mgr.connections, ws.connections[0])
+	ws.connections = nil
+	mgr.Wg.Wait()
+
+	ws.setup.SubscriptionsNotRequired = true
+	optionalSubs := subscription.List{{Channel: "optional"}}
+	ws.setup.Subscriber = func(_ context.Context, _ Connection, s subscription.List) error {
+		for _, sub := range s {
+			if err := ws.subscriptions.Add(sub); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	err = mgr.createConnectAndSubscribe(t.Context(), ws, optionalSubs)
+	require.NoError(t, err, "createConnectAndSubscribe must subscribe a setup that does not require subscriptions")
+	require.Len(t, ws.connections, 1, "connection must be tracked by websocket")
+	assert.Same(t, optionalSubs[0], ws.connections[0].Subscriptions().Get(optionalSubs[0]), "connection subscription store should hold the subscription")
 	require.NoError(t, ws.connections[0].Shutdown())
 	delete(mgr.connections, ws.connections[0])
 	ws.connections = nil
@@ -1330,10 +1388,11 @@ func TestSetSubscriptionsNotRequired(t *testing.T) {
 
 	multiConn := NewManager()
 	multiConn.useMultiConnectionManagement = true
+	generate := func() (subscription.List, error) { return subscription.List{{Channel: "multi"}}, nil }
 	multiConn.connectionManager = []*websocket{
 		{setup: nil},
-		{setup: &ConnectionSetup{}},
-		{setup: &ConnectionSetup{SubscriptionsNotRequired: true}},
+		{setup: &ConnectionSetup{GenerateSubscriptions: generate}},
+		{setup: &ConnectionSetup{SubscriptionsNotRequired: true, GenerateSubscriptions: generate}},
 	}
 
 	multiConn.SetSubscriptionsNotRequired()
@@ -1345,7 +1404,31 @@ func TestSetSubscriptionsNotRequired(t *testing.T) {
 		assert.True(t,
 			multiConn.connectionManager[i].setup.SubscriptionsNotRequired,
 			"connection setup should not require subscriptions after override")
+		assert.Nil(t,
+			multiConn.connectionManager[i].setup.GenerateSubscriptions,
+			"connection setup should not generate subscriptions after override")
 	}
+}
+
+func TestSetSubscriptionsNotRequiredSkipsGeneration(t *testing.T) {
+	t.Parallel()
+	wsURL, dial := lifecycleTestServer(t)
+	var generations atomic.Int32
+	var m *Manager
+	m = newLifecycleTestManager(t, lifecycleTestSetup(&m, wsURL, "feeds", dial, func() (subscription.List, error) {
+		generations.Add(1)
+		return subscription.List{{Channel: "generated"}}, nil
+	}))
+	ws := m.connectionManager[0]
+	m.SetSubscriptionsNotRequired()
+
+	require.NoError(t, m.Connect(t.Context()), "Connect must not error")
+	connections := m.snapshotManagedConnections(ws)
+	require.Len(t, connections, 1, "Connect must dial the setup without subscriptions")
+	require.NoError(t, m.FlushChannels(t.Context()), "FlushChannels must not error")
+	assert.Equal(t, connections, m.snapshotManagedConnections(ws), "FlushChannels should keep the setup's connection")
+	assert.Zero(t, generations.Load(), "Connect and FlushChannels should not generate subscriptions")
+	assert.Zero(t, ws.subscriptions.Len(), "the setup should hold no subscriptions")
 }
 
 func TestSetAllConnectionURLs(t *testing.T) {
@@ -2073,6 +2156,38 @@ func TestSetupNewConnection(t *testing.T) {
 
 	err = multi.SetupNewConnection(connSetup)
 	require.ErrorIs(t, err, errDuplicateConnectionSetup)
+
+	requestsOnly := &ConnectionSetup{
+		URL:                      "urlstring",
+		MessageFilter:            "requests only",
+		Connector:                func(context.Context, Connection) error { return nil },
+		Handler:                  func(context.Context, Connection, []byte) error { return nil },
+		SubscriptionsNotRequired: true,
+	}
+	require.NoError(t, multi.SetupNewConnection(requestsOnly), "SetupNewConnection must accept a setup without subscriptions or their callbacks")
+	generated := &ConnectionSetup{
+		URL:                      "urlstring",
+		MessageFilter:            "generated",
+		Connector:                requestsOnly.Connector,
+		Handler:                  requestsOnly.Handler,
+		GenerateSubscriptions:    func() (subscription.List, error) { return nil, nil },
+		SubscriptionsNotRequired: true,
+	}
+	require.ErrorIs(t, multi.SetupNewConnection(generated), errWebsocketSubscriberUnset, "SetupNewConnection must require a subscriber for generated subscriptions")
+	generated.Subscriber = connSetup.Subscriber
+	require.ErrorIs(t, multi.SetupNewConnection(generated), errWebsocketUnsubscriberUnset, "SetupNewConnection must require an unsubscriber for generated subscriptions")
+	generated.Unsubscriber = connSetup.Unsubscriber
+	require.NoError(t, multi.SetupNewConnection(generated), "SetupNewConnection must accept generated subscriptions that are not required")
+	subscriberOnly := &ConnectionSetup{
+		URL:                      "urlstring",
+		MessageFilter:            "subscriber only",
+		Connector:                requestsOnly.Connector,
+		Handler:                  requestsOnly.Handler,
+		Subscriber:               connSetup.Subscriber,
+		SubscriptionsNotRequired: true,
+	}
+	require.NoError(t, multi.SetupNewConnection(subscriberOnly), "SetupNewConnection must not require an unsubscriber without generated subscriptions")
+	assert.Len(t, multi.connectionManager, 4, "SetupNewConnection should add each setup it accepts")
 }
 
 func TestGetConfiguredWebsocketURLs(t *testing.T) {
@@ -3192,32 +3307,41 @@ func TestOnDisconnect(t *testing.T) {
 	assert.Empty(t, disconnected, "OnDisconnect should be called once for each connection")
 }
 
-func TestConnectWithoutSubscriptions(t *testing.T) {
+func TestSubscriptionsNotRequiredKeepsConnection(t *testing.T) {
 	t.Parallel()
 	wsURL, dial := lifecycleTestServer(t)
 	var generated subscription.List
 	var subscribed atomic.Int32
 	var m *Manager
-	setup := lifecycleTestSetup(&m, wsURL, "requests", dial, func() (subscription.List, error) { return generated.Clone(), nil })
-	setup.ConnectWithoutSubscriptions = true
+	setup := lifecycleTestSetup(&m, wsURL, "feeds", dial, func() (subscription.List, error) { return generated.Clone(), nil })
+	setup.SubscriptionsNotRequired = true
 	subscriber := setup.Subscriber
 	setup.Subscriber = func(ctx context.Context, conn Connection, subs subscription.List) error {
 		subscribed.Add(1)
 		return subscriber(ctx, conn, subs)
 	}
-	m = newLifecycleTestManager(t, setup)
-	ws := m.connectionManager[0]
+	m = newLifecycleTestManager(t, setup, &ConnectionSetup{
+		URL:                      wsURL,
+		MessageFilter:            "requests only",
+		Connector:                dial,
+		Handler:                  func(context.Context, Connection, []byte) error { return nil },
+		SubscriptionsNotRequired: true,
+	})
+	ws, requests := m.connectionManager[0], m.connectionManager[1]
 
 	require.NoError(t, m.Connect(t.Context()), "Connect must not error")
 	connections := m.snapshotManagedConnections(ws)
 	require.Len(t, connections, 1, "Connect must dial a connection without subscriptions")
 	assert.Zero(t, subscribed.Load(), "Connect should not call the subscriber without subscriptions")
+	requestConnections := m.snapshotManagedConnections(requests)
+	require.Len(t, requestConnections, 1, "Connect must dial a connection without a subscription generator")
 
 	added := &subscription.Subscription{Channel: "added"}
 	generated = subscription.List{added}
 	require.NoError(t, m.FlushChannels(t.Context()), "FlushChannels must not error")
 	assert.Equal(t, connections, m.snapshotManagedConnections(ws), "FlushChannels should subscribe on the kept connection")
 	assert.NotNil(t, connections[0].Subscriptions().Get(added), "FlushChannels should record the subscription on the kept connection")
+	assert.Equal(t, requestConnections, m.snapshotManagedConnections(requests), "FlushChannels should leave a setup without a subscription generator alone")
 
 	generated = nil
 	require.NoError(t, m.FlushChannels(t.Context()), "FlushChannels must not error")
@@ -3233,6 +3357,18 @@ func TestConnectWithoutSubscriptions(t *testing.T) {
 	require.NoError(t, connections[0].Shutdown(), "Shutdown must not error")
 	require.NoError(t, m.FlushChannels(t.Context()), "FlushChannels must not error")
 	assert.Len(t, m.snapshotManagedConnections(ws), 1, "FlushChannels should dial a connection for a setup left without one")
+	assert.Equal(t, requestConnections, m.snapshotManagedConnections(requests), "FlushChannels should leave a setup without a subscription generator alone")
+
+	m.m.Lock()
+	m.connectionManagerMu.Lock()
+	delete(m.connections, requestConnections[0])
+	requests.connections = nil
+	m.connectionManagerMu.Unlock()
+	err := m.closeIdleConnections(t.Context(), requests)
+	m.m.Unlock()
+	require.NoError(t, err, "closeIdleConnections must not error")
+	require.NoError(t, requestConnections[0].Shutdown(), "Shutdown must not error")
+	assert.Len(t, m.snapshotManagedConnections(requests), 1, "closeIdleConnections should dial a connection for a setup without a subscription generator left without one")
 }
 
 func TestFlushChannelsOptionalSetup(t *testing.T) {
