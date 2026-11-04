@@ -542,11 +542,11 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset
 }
 
 // orderBookLevels converts book levels, which Deribit sends best first, leaving out a combo's levels at a zero price,
-// which its spread can be quoted at but a book cannot hold
+// which its spread can be quoted at but a book cannot hold, and the levels without an amount some spot books hold
 func orderBookLevels(levels []OrderBookLevel) orderbook.Levels {
 	converted := make(orderbook.Levels, 0, len(levels))
 	for i := range levels {
-		if levels[i].Price != 0 {
+		if levels[i].Price != 0 && levels[i].Amount > 0 {
 			converted = append(converted, orderbook.Level{Price: levels[i].Price, Amount: levels[i].Amount})
 		}
 	}

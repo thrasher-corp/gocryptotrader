@@ -60,12 +60,14 @@ func (e *Exchange) wsHandleOrderbook(ctx context.Context, conn websocket.Connect
 	bids, asks := orderbookChangeLevels(data.Bids), orderbookChangeLevels(data.Asks)
 	switch data.Type {
 	case bookSnapshot:
+		// Deribit sends levels without an amount in some spot books' snapshots, which would fail the book's validation
+		noAmount := func(l orderbook.Level) bool { return l.Amount <= 0 }
 		return e.Websocket.Orderbook.LoadSnapshot(ctx, &orderbook.Book{
 			Exchange:          e.Name,
 			Pair:              pair,
 			Asset:             a,
-			Bids:              bids,
-			Asks:              asks,
+			Bids:              slices.DeleteFunc(bids, noAmount),
+			Asks:              slices.DeleteFunc(asks, noAmount),
 			LastUpdated:       data.Timestamp.Time(),
 			LastUpdateID:      int64(data.ChangeID), //nolint:gosec // Deribit's change IDs fit int64
 			ValidateOrderbook: e.ValidateOrderbook,

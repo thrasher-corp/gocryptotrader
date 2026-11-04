@@ -79,6 +79,60 @@ func TestWebsocketHandleOrderbook(t *testing.T) {
 	assert.ErrorIs(t, err, errUnsupportedInstrumentFormat, "wsHandleOrderbook should reject a grouped book's unresolved instrument")
 	err = other.wsHandleOrderbook(t.Context(), nil, grouped, notification(grouped, `{"instrument_name":"BTC-PERPETUAL","bids":[[1]],"asks":[]}`))
 	assert.ErrorIs(t, err, errMalformedNotification, "wsHandleOrderbook should reject a grouped book's malformed level")
+
+	// Trimmed from a live spot snapshot holding levels without an amount, then a change taking levels to no amount
+	const spot = "book.ETH_USDC.100ms"
+	ethUSDC := currency.NewPairWithDelimiter("ETH", "USDC", currency.UnderscoreDelimiter)
+	require.NoError(t, other.wsHandleOrderbook(t.Context(), nil, spot, notification(spot, `{"timestamp":1793798720557,"type":"snapshot","change_id":10208598898,"instrument_name":"ETH_USDC","bids":[["new",2316.65,1.575089],["new",2316.6,3.695052],["new",2316.48,0.000306],["new",2308.83,0.0],["new",2308.74,0.0],["new",2308.72,0.081381]],"asks":[["new",2316.66,3.88491],["new",2316.83,0.865233],["new",2319.77,0.0],["new",2319.82,0.25],["new",2344.2,0.0],["new",2344.58,0.016901]]}`)), "wsHandleOrderbook must load a snapshot holding levels without an amount")
+	book, err = other.Websocket.Orderbook.GetOrderbook(ethUSDC, asset.Spot)
+	require.NoError(t, err, "GetOrderbook must not error for a snapshot holding levels without an amount")
+	assert.Equal(t, orderbook.Levels{{Price: 2316.65, Amount: 1.575089}, {Price: 2316.6, Amount: 3.695052}, {Price: 2316.48, Amount: 0.000306}, {Price: 2308.72, Amount: 0.081381}}, book.Bids, "wsHandleOrderbook should leave out a snapshot's bids without an amount")
+	assert.Equal(t, orderbook.Levels{{Price: 2316.66, Amount: 3.88491}, {Price: 2316.83, Amount: 0.865233}, {Price: 2319.82, Amount: 0.25}, {Price: 2344.58, Amount: 0.016901}}, book.Asks, "wsHandleOrderbook should leave out a snapshot's asks without an amount")
+	require.NoError(t, other.wsHandleOrderbook(t.Context(), nil, spot, notification(spot, `{"timestamp":1793798720657,"type":"change","prev_change_id":10208598898,"change_id":10208598899,"instrument_name":"ETH_USDC","bids":[["change",2316.65,1.2],["change",2316.6,0.0]],"asks":[["change",2316.66,4.1],["change",2316.83,0.0],["change",2319.77,0.0]]}`)), "wsHandleOrderbook must not error for a change taking levels to no amount")
+	book, err = other.Websocket.Orderbook.GetOrderbook(ethUSDC, asset.Spot)
+	require.NoError(t, err, "GetOrderbook must not error after a change taking levels to no amount")
+	assert.Equal(t, orderbook.Levels{{Price: 2316.65, Amount: 1.2}, {Price: 2316.48, Amount: 0.000306}, {Price: 2308.72, Amount: 0.081381}}, book.Bids, "a change should update a held bid and remove one taken to no amount")
+	assert.Equal(t, orderbook.Levels{{Price: 2316.66, Amount: 4.1}, {Price: 2319.82, Amount: 0.25}, {Price: 2344.58, Amount: 0.016901}}, book.Asks, "a change should update a held ask and remove one taken to no amount, and one taking an ask not held to no amount should change nothing")
+
+	// A combo's spread can be quoted below zero, which a snapshot keeps
+	const combo = "book.BTC-FS-25DEC26_PERP.100ms"
+	comboAsset, comboPair, err := getAssetPairByInstrument("BTC-FS-25DEC26_PERP")
+	require.NoError(t, err, "getAssetPairByInstrument must not error")
+	require.NoError(t, other.wsHandleOrderbook(t.Context(), nil, combo, notification(combo, `{"timestamp":1793801669446,"type":"snapshot","change_id":181279219651,"instrument_name":"BTC-FS-25DEC26_PERP","bids":[["new",-2.5,1000.0],["new",-3.0,500.0]],"asks":[["new",-2.0,1000.0],["new",-1.5,200.0]]}`)), "wsHandleOrderbook must load a combo snapshot quoted below zero")
+	book, err = other.Websocket.Orderbook.GetOrderbook(comboPair, comboAsset)
+	require.NoError(t, err, "GetOrderbook must not error for a combo snapshot quoted below zero")
+	assert.Equal(t, orderbook.Levels{{Price: -2.5, Amount: 1000}, {Price: -3, Amount: 500}}, book.Bids, "wsHandleOrderbook should keep a combo's bids below zero")
+	assert.Equal(t, orderbook.Levels{{Price: -2, Amount: 1000}, {Price: -1.5, Amount: 200}}, book.Asks, "wsHandleOrderbook should keep a combo's asks below zero")
+
+	// Leaving out the levels without an amount still leaves the book's other checks to refuse a snapshot
+	err = other.wsHandleOrderbook(t.Context(), nil, "book.ETH-PERPETUAL.100ms", notification("book.ETH-PERPETUAL.100ms", `{"timestamp":1792107433716,"type":"snapshot","change_id":3,"instrument_name":"ETH-PERPETUAL","bids":[["new",2500.0,1.0],["new",2501.0,1.0]],"asks":[]}`))
+	assert.ErrorContains(t, err, "pricing out of order", "wsHandleOrderbook should still refuse a snapshot whose levels are out of order")
+
+	// Trimmed from two live grouped spot books, which hold levels without an amount too, the second as its best ask
+	const groupedSpot = "book.ETH_USDC.none.20.100ms"
+	require.NoError(t, other.wsHandleOrderbook(t.Context(), nil, groupedSpot, notification(groupedSpot, `{"timestamp":1793817519857,"change_id":10215517752,"instrument_name":"ETH_USDC","bids":[[2423.44,0.505779],[2422.87,0.000825],[2422.85,0.0],[2422.83,11.803021]],"asks":[[2423.45,0.54055],[2423.69,0.821693]]}`)), "wsHandleOrderbook must load a grouped book holding a bid without an amount")
+	book, err = other.Websocket.Orderbook.GetOrderbook(ethUSDC, asset.Spot)
+	require.NoError(t, err, "GetOrderbook must not error for a grouped book holding a bid without an amount")
+	assert.Equal(t, orderbook.Levels{{Price: 2423.44, Amount: 0.505779}, {Price: 2422.87, Amount: 0.000825}, {Price: 2422.83, Amount: 11.803021}}, book.Bids, "wsHandleOrderbook should leave out a grouped book's bids without an amount")
+	assert.Equal(t, orderbook.Levels{{Price: 2423.45, Amount: 0.54055}, {Price: 2423.69, Amount: 0.821693}}, book.Asks, "wsHandleOrderbook should load a grouped book's asks")
+	require.NoError(t, other.wsHandleOrderbook(t.Context(), nil, groupedSpot, notification(groupedSpot, `{"timestamp":1793817533757,"change_id":10215522070,"instrument_name":"ETH_USDC","bids":[[2424.05,1.052],[2424.02,3.712841]],"asks":[[2424.06,0.0],[2424.27,3.40867],[2424.3,0.000568]]}`)), "wsHandleOrderbook must load a grouped book whose best ask has no amount")
+	book, err = other.Websocket.Orderbook.GetOrderbook(ethUSDC, asset.Spot)
+	require.NoError(t, err, "GetOrderbook must not error for a grouped book whose best ask has no amount")
+	assert.Equal(t, orderbook.Levels{{Price: 2424.05, Amount: 1.052}, {Price: 2424.02, Amount: 3.712841}}, book.Bids, "wsHandleOrderbook should load the next grouped book's bids in place of the last")
+	assert.Equal(t, orderbook.Levels{{Price: 2424.27, Amount: 3.40867}, {Price: 2424.3, Amount: 0.000568}}, book.Asks, "wsHandleOrderbook should leave out a grouped book's asks without an amount")
+	// Built from the first's bids and the second's asks, since a book can hold levels without an amount on both sides at
+	// once, like the snapshot above
+	require.NoError(t, other.wsHandleOrderbook(t.Context(), nil, groupedSpot, notification(groupedSpot, `{"timestamp":1793817533857,"change_id":10215522071,"instrument_name":"ETH_USDC","bids":[[2423.44,0.505779],[2422.87,0.000825],[2422.85,0.0],[2422.83,11.803021]],"asks":[[2424.06,0.0],[2424.27,3.40867],[2424.3,0.000568]]}`)), "wsHandleOrderbook must load a grouped book holding levels without an amount on both sides")
+	book, err = other.Websocket.Orderbook.GetOrderbook(ethUSDC, asset.Spot)
+	require.NoError(t, err, "GetOrderbook must not error for a grouped book holding levels without an amount on both sides")
+	assert.Equal(t, orderbook.Levels{{Price: 2423.44, Amount: 0.505779}, {Price: 2422.87, Amount: 0.000825}, {Price: 2422.83, Amount: 11.803021}}, book.Bids, "wsHandleOrderbook should leave out a grouped book's bids without an amount when its asks hold one too")
+	assert.Equal(t, orderbook.Levels{{Price: 2424.27, Amount: 3.40867}, {Price: 2424.3, Amount: 0.000568}}, book.Asks, "wsHandleOrderbook should leave out a grouped book's asks without an amount when its bids hold one too")
+	// Trimmed from a live grouped book holding two bids in a row without an amount
+	require.NoError(t, other.wsHandleOrderbook(t.Context(), nil, groupedSpot, notification(groupedSpot, `{"timestamp":1793820982457,"change_id":10216572226,"instrument_name":"ETH_USDC","bids":[[2416.99,0.35074],[2416.54,0.619736],[2416.53,0.0],[2416.52,0.0],[2416.46,0.5]],"asks":[[2417.0,0.956544],[2417.6,0.001]]}`)), "wsHandleOrderbook must load a grouped book holding two bids without an amount")
+	book, err = other.Websocket.Orderbook.GetOrderbook(ethUSDC, asset.Spot)
+	require.NoError(t, err, "GetOrderbook must not error for a grouped book holding two bids without an amount")
+	assert.Equal(t, orderbook.Levels{{Price: 2416.99, Amount: 0.35074}, {Price: 2416.54, Amount: 0.619736}, {Price: 2416.46, Amount: 0.5}}, book.Bids, "wsHandleOrderbook should leave out every bid without an amount in a grouped book")
+	assert.Equal(t, orderbook.Levels{{Price: 2417, Amount: 0.956544}, {Price: 2417.6, Amount: 0.001}}, book.Asks, "wsHandleOrderbook should load a grouped book's asks beside bids without an amount")
 }
 
 func TestOrderbookChangeLevels(t *testing.T) {

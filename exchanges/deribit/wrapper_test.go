@@ -1042,6 +1042,9 @@ func TestOrderBookLevels(t *testing.T) {
 	t.Parallel()
 	levels := orderBookLevels([]OrderBookLevel{{Price: 1.5, Amount: 10}, {Price: 0, Amount: 20}, {Price: -0.5, Amount: 30}})
 	assert.Equal(t, orderbook.Levels{{Price: 1.5, Amount: 10}, {Price: -0.5, Amount: 30}}, levels, "orderBookLevels should convert the levels, leaving out a spread's zero price")
+	// Trimmed from a live spot book, which holds levels without an amount among those with one
+	levels = orderBookLevels([]OrderBookLevel{{Price: 2316.65, Amount: 1.575089}, {Price: 2316.48, Amount: 0.000306}, {Price: 2308.83, Amount: 0}, {Price: 2308.74, Amount: 0}, {Price: 2308.72, Amount: 0.081381}})
+	assert.Equal(t, orderbook.Levels{{Price: 2316.65, Amount: 1.575089}, {Price: 2316.48, Amount: 0.000306}, {Price: 2308.72, Amount: 0.081381}}, levels, "orderBookLevels should leave out levels without an amount")
 }
 
 func TestUpdateAccountBalances(t *testing.T) {
