@@ -4165,7 +4165,7 @@ func TestCancelBatchOrdersReportsRequestedStatuses(t *testing.T) {
 	}
 }
 
-func TestCancelBatchOrdersDeduplicatesAndTrims(t *testing.T) {
+func TestCancelBatchOrdersTrims(t *testing.T) {
 	t.Parallel()
 
 	unknown, cancelled := order.UnknownStatus.String(), order.Cancelled.String()
@@ -4176,8 +4176,8 @@ func TestCancelBatchOrdersDeduplicatesAndTrims(t *testing.T) {
 		sent     []string
 		reply    map[string]string
 	}{
-		{name: "adjacent repeat and trailing empty fragments", ordersID: "1, 1, 2 , , ", sent: []string{"1", "2"}, reply: map[string]string{"1": unknown, "2": unknown}},
-		{name: "inner empty fragment and padded repeat", ordersID: "2,,1,\t2", statuses: map[string]string{"1": "failed to cancel", "2": cancelled}, sent: []string{"2", "1"}, reply: map[string]string{"1": "failed to cancel", "2": cancelled}},
+		{name: "whitespace padded IDs", ordersID: " 1 , 2 \t", sent: []string{"1", "2"}, reply: map[string]string{"1": unknown, "2": unknown}},
+		{name: "different valid statuses", ordersID: "2, \t1", statuses: map[string]string{"1": "failed to cancel", "2": cancelled}, sent: []string{"2", "1"}, reply: map[string]string{"1": "failed to cancel", "2": cancelled}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -4208,20 +4208,38 @@ func TestCancelBatchOrdersDeduplicatesAndTrims(t *testing.T) {
 	}
 }
 
-func TestCancelBatchOrdersWithoutOrders(t *testing.T) {
+func TestCancelBatchOrdersRejectsEmptyAndDuplicateOrders(t *testing.T) {
 	t.Parallel()
 
 	fake := &batchCancelRPCFake{}
 	server := setupBatchCancelServer(t, fake)
 
-	_, err := server.CancelBatchOrders(t.Context(), &gctrpc.CancelBatchOrdersRequest{
-		Exchange:  fakeExchangeName,
-		AssetType: "spot",
-		Pair:      &gctrpc.CurrencyPair{Base: "btc", Quote: "usdt", Delimiter: "-"},
-		Side:      "buy",
-		OrdersId:  " , , ",
-	})
-	assert.ErrorIs(t, err, order.ErrCancelOrderIsNil)
+	for _, tc := range []struct {
+		name     string
+		ordersID string
+		wantErr  error
+	}{
+		{name: "empty string", ordersID: "", wantErr: order.ErrCancelOrderIsNil},
+		{name: "all empty fragments", ordersID: " , , ", wantErr: errEmptyOrderID},
+		{name: "inner empty fragment", ordersID: "1,,2", wantErr: errEmptyOrderID},
+		{name: "trailing empty fragment", ordersID: "1,2,", wantErr: errEmptyOrderID},
+		{name: "adjacent duplicate", ordersID: "1, 1", wantErr: errDuplicateOrderID},
+		{name: "non-adjacent duplicate", ordersID: "1, 2, 1", wantErr: errDuplicateOrderID},
+		{name: "padded duplicate", ordersID: "2, 1, \t2", wantErr: errDuplicateOrderID},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			_, err := server.CancelBatchOrders(t.Context(), &gctrpc.CancelBatchOrdersRequest{
+				Exchange:  fakeExchangeName,
+				AssetType: "spot",
+				Pair:      &gctrpc.CurrencyPair{Base: "btc", Quote: "usdt", Delimiter: "-"},
+				Side:      "buy",
+				OrdersId:  tc.ordersID,
+			})
+			assert.ErrorIs(t, err, tc.wantErr)
+		})
+	}
 }
 
 func TestCancelBatchOrdersPropagatesError(t *testing.T) {
