@@ -8,7 +8,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 )
 
-var errChannelBufferFull = errors.New("channel buffer is full")
+// ErrChannelBufferFull is returned by Send when the relay's buffer is full and the message is not relayed
+var ErrChannelBufferFull = errors.New("channel buffer is full")
 
 // Relay defines a channel relay for messages
 type Relay struct {
@@ -38,7 +39,7 @@ func (r *Relay) Send(ctx context.Context, data any) error {
 	case r.comm <- Payload{Ctx: common.FreezeContext(ctx), Data: data}:
 		return nil
 	default:
-		return fmt.Errorf("%w: failed to relay <%T>", errChannelBufferFull, data)
+		return fmt.Errorf("%w: failed to relay <%T>", ErrChannelBufferFull, data)
 	}
 }
 

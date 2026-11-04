@@ -20,7 +20,7 @@ func TestSend(t *testing.T) {
 	r := NewRelay(1)
 	require.NotNil(t, r)
 	assert.NoError(t, r.Send(t.Context(), "test"))
-	assert.ErrorIs(t, r.Send(t.Context(), "overflow"), errChannelBufferFull)
+	assert.ErrorIs(t, r.Send(t.Context(), "overflow"), ErrChannelBufferFull)
 }
 
 func TestRead(t *testing.T) {

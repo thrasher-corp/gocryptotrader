@@ -2,6 +2,7 @@ package kucoin
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/orderbookmanager"
@@ -9,39 +10,64 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 )
 
-// fetchWSOrderbookSnapshot retrieves a full orderbook snapshot for the specified pair and asset type.
+// newOrderbookUpdateManager returns the manager that syncs the Orderbook - Increment topics' books with their
+// snapshots, keeping them in the store of the exchange's current websocket
+func (e *Exchange) newOrderbookUpdateManager() *orderbookmanager.UpdateManager {
+	return orderbookmanager.NewUpdateManager(&orderbookmanager.UpdateManagerParams{
+		FetchDelay:         orderbookmanager.DefaultWSOrderbookUpdateTimeDelay,
+		FetchDeadline:      orderbookmanager.DefaultWSOrderbookUpdateDeadline,
+		FetchOrderbook:     e.fetchWSOrderbookSnapshot,
+		CheckPendingUpdate: checkPendingUpdate,
+		Orderbook:          &e.Websocket.Orderbook,
+	})
+}
+
+// fetchWSOrderbookSnapshot retrieves the book the Orderbook - Increment topics calibrate against, as the docs name it:
+// Get Full OrderBook of the spot or futures market
 func (e *Exchange) fetchWSOrderbookSnapshot(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error) {
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-
 	out, err := e.FormatSymbol(p, a)
 	if err != nil {
 		return nil, err
 	}
-
-	// The public limited endpoints are dynamically rate limited and may return 429s during high traffic so for this
-	// specific use-case we use the authenticated endpoint to avoid rate limiting issues.
-	ob, err := e.GetOrderbookAuthenticatedV1(ctx, out, a, "FULL")
-	if err != nil {
-		return nil, err
-	}
-
-	return &orderbook.Book{
+	book := &orderbook.Book{
 		Exchange:          e.Name,
 		Pair:              p,
 		Asset:             a,
-		Bids:              ob.Bids,
-		Asks:              ob.Asks,
 		ValidateOrderbook: e.ValidateOrderbook,
-		LastUpdateID:      ob.Sequence,
-		LastUpdated:       ob.Time,
-		LastPushed:        ob.Time,
-	}, nil
+	}
+	switch a {
+	case asset.Spot, asset.Margin:
+		ob, err := e.GetOrderbook(ctx, out)
+		if err != nil {
+			return nil, err
+		}
+		book.Bids, book.Asks = ob.Bids.Levels(), ob.Asks.Levels()
+		book.LastUpdateID = ob.Sequence.Int64()
+		book.LastUpdated, book.LastPushed = ob.Time.Time(), ob.Time.Time()
+	case asset.Futures:
+		ob, err := e.GetFuturesOrderbook(ctx, out)
+		if err != nil {
+			return nil, err
+		}
+		book.Bids, book.Asks = ob.Bids.Levels(), ob.Asks.Levels()
+		book.LastUpdateID = orderbookUpdateID(ob.Sequence)
+		book.LastUpdated, book.LastPushed = ob.Timestamp.Time(), ob.Timestamp.Time()
+	default:
+		return nil, fmt.Errorf("%w %q", asset.ErrNotSupported, a)
+	}
+	return book, nil
+}
+
+// orderbookUpdateID returns a KuCoin sequence as the signed update ID GoCryptoTrader's orderbooks keep
+func orderbookUpdateID(sequence uint64) int64 {
+	return int64(sequence) //nolint:gosec // KuCoin's sequences stay far below the int64 limit
 }
 
 // From docs: sequenceStart(new) <= sequenceEnd(old) + 1 sequenceEnd(new) > sequenceEnd(old)
-// Spot see: https://www.kucoin.com/docs-new/3470221w0
+// Spot see: https://www.kucoin.com/docs-new/3470068w0
 // Futures see: https://www.kucoin.com/docs-new/3470082w0
 func checkPendingUpdate(sequenceEndOld, sequenceStartNew int64, update *orderbook.Update) (skip bool, err error) {
 	target := sequenceEndOld + 1
