@@ -2,8 +2,6 @@ package cryptodotcom
 
 import (
 	"context"
-
-	"github.com/thrasher-corp/gocryptotrader/common"
 )
 
 // CreateOrder creates a LIMIT or MARKET order over the websocket, as Exchange.CreateOrder does over REST
@@ -15,9 +13,6 @@ func (w WebsocketAPI) CreateOrder(ctx context.Context, r *CreateOrderRequest) (*
 	var resp *OrderIDResponse
 	if err := w.e.SendWebsocketRequest(ctx, "private/create-order", params, &resp); err != nil {
 		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
 	}
 	return resp, nil
 }
@@ -31,9 +26,6 @@ func (w WebsocketAPI) AmendOrder(ctx context.Context, r *AmendOrderRequest) (*Or
 	if err := w.e.SendWebsocketRequest(ctx, "private/amend-order", r, &resp); err != nil {
 		return nil, err
 	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
 	return resp, nil
 }
 
@@ -45,9 +37,6 @@ func (w WebsocketAPI) CancelExistingOrder(ctx context.Context, r *CancelOrderReq
 	var resp *OrderIDResponse
 	if err := w.e.SendWebsocketRequest(ctx, "private/cancel-order", r, &resp); err != nil {
 		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
 	}
 	return resp, nil
 }
@@ -70,9 +59,6 @@ func (w WebsocketAPI) ClosePosition(ctx context.Context, r *ClosePositionRequest
 	if err := w.e.SendWebsocketRequest(ctx, "private/close-position", r, &resp); err != nil {
 		return nil, err
 	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
 	return resp, nil
 }
 
@@ -86,9 +72,6 @@ func (w WebsocketAPI) CreateOrderList(ctx context.Context, orders []CreateOrderR
 	if err := w.e.SendWebsocketRequest(ctx, "private/create-order-list", params, &resp); err != nil {
 		return nil, err
 	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
 	return resp, nil
 }
 
@@ -101,9 +84,6 @@ func (w WebsocketAPI) CancelOrderList(ctx context.Context, orders []CancelOrderL
 	var resp []OrderListEntryResponse
 	if err := w.e.SendWebsocketRequest(ctx, "private/cancel-order-list", params, &resp); err != nil {
 		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
 	}
 	return resp, nil
 }
@@ -120,9 +100,6 @@ func (w WebsocketAPI) SendBatchOrderRequest(ctx context.Context, r *BatchOrderRe
 	var resp *BatchOrderResponse
 	if err := w.e.SendWebsocketRequest(ctx, "private/batch-order-request", params, &resp); err != nil {
 		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
 	}
 	return resp, nil
 }

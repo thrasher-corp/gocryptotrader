@@ -475,6 +475,27 @@ func TestWebsocketBookResubscribesBrokenBook(t *testing.T) {
 	assert.Len(t, venue.received(websocketMethodUnsubscribe), 1, "the book channel should be unsubscribed once")
 }
 
+func TestWebsocketBookDropsDisabledPairDeltas(t *testing.T) {
+	t.Parallel()
+	if !mockTests {
+		t.Skip("book deltas are tested against the mock websocket, which can send a delta after its pair is disabled")
+	}
+	venue := newMarketDataVenue(t)
+	ex, err := newMarketDataTestExchange(t, venue, recordedBookChannelSubscription())
+	require.NoError(t, err, "Connect must not error")
+	conn, err := ex.Websocket.GetConnection(websocketMarketDataConnection)
+	require.NoError(t, err, "GetConnection must not error")
+	requireBooksAt(t, ex, spotBTCUSD, recordedBookUpdateID)
+	for _, a := range []asset.Item{asset.Spot, asset.Margin} {
+		require.NoErrorf(t, ex.CurrencyPairs.DisablePair(a, spotBTCUSD), "DisablePair must not error for %s", a)
+	}
+
+	// A delta out of sequence, which the books of an enabled pair are resubscribed for
+	require.NoError(t, ex.wsHandleData(t.Context(), conn, marketDataFrame(t, recordedBookChannel, 3)), "wsHandleData must drop a delta of a pair disabled since it subscribed")
+	requireBooksAt(t, ex, spotBTCUSD, recordedBookUpdateID)
+	assert.Never(t, func() bool { return len(venue.received(websocketMethodUnsubscribe)) != 0 }, 100*time.Millisecond, 10*time.Millisecond, "a delta of a disabled pair should not resubscribe its channel")
+}
+
 func TestWebsocketBookRetriesResubscription(t *testing.T) {
 	t.Parallel()
 	if !mockTests {

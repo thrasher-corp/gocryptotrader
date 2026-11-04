@@ -206,7 +206,7 @@ func (e *Exchange) SetDefaults() {
 	var err error
 	e.Requester, err = request.New(e.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.WithLimiter(rateLimits()))
+		request.WithLimiter(rateLimits))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -725,7 +725,7 @@ func (e *Exchange) withdrawalHistory(ctx context.Context, c currency.Code) ([]Wi
 // holding nothing new, as a venue ignoring the page would otherwise be asked for the same page forever
 func pageWalletHistory[T any](ctx context.Context, fetch func(context.Context, uint64) ([]T, error), id func(*T) string) ([]T, error) {
 	var resp []T
-	seen := make(map[string]struct{})
+	seen := make(common.Seen[string])
 	for page := uint64(0); ; page++ {
 		records, err := fetch(ctx, page)
 		if err != nil {
@@ -733,11 +733,9 @@ func pageWalletHistory[T any](ctx context.Context, fetch func(context.Context, u
 		}
 		var added int
 		for i := range records {
-			recordID := id(&records[i])
-			if _, ok := seen[recordID]; ok {
+			if seen.CheckAndRecord(id(&records[i])) {
 				continue
 			}
-			seen[recordID] = struct{}{}
 			resp = append(resp, records[i])
 			added++
 		}
@@ -903,7 +901,7 @@ func (p *historyPager[T]) page(ctx context.Context, start, end time.Time, span t
 		end = now
 	}
 	var resp []T
-	seen := make(map[string]struct{})
+	seen := make(common.Seen[string])
 	for end.After(start) {
 		spanStart := end.Add(-span)
 		if spanStart.Before(start) {
@@ -924,7 +922,7 @@ func (p *historyPager[T]) page(ctx context.Context, start, end time.Time, span t
 // can split, so each page ends a nanosecond after the oldest record so far. A page whose records all share its oldest
 // time, which a page ending a nanosecond later would return again, passes over that time, as no request can page within
 // it, and any more records of that time are left out with a warning
-func (p *historyPager[T]) backwards(ctx context.Context, start, end time.Time, seen map[string]struct{}) ([]T, error) {
+func (p *historyPager[T]) backwards(ctx context.Context, start, end time.Time, seen common.Seen[string]) ([]T, error) {
 	var resp []T
 	for end.After(start) {
 		page, err := p.fetch(ctx, start, end)
@@ -938,10 +936,9 @@ func (p *historyPager[T]) backwards(ctx context.Context, start, end time.Time, s
 			if at.Before(oldest) {
 				oldest = at
 			}
-			if _, ok := seen[id]; ok || at.Before(start) || !at.Before(end) {
+			if at.Before(start) || !at.Before(end) || seen.CheckAndRecord(id) {
 				continue
 			}
-			seen[id] = struct{}{}
 			resp = append(resp, page[i])
 			added++
 		}
@@ -2332,7 +2329,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, a asset.Item) 
 			SettlementCurrency: currency.USD,
 			MarginCurrency:     currency.USD,
 			Multiplier:         inst.ContractSize.Float64(),
-			MaxLeverage:        inst.MaxLeverage.Float64(),
+			MaxLeverage:        inst.MaximumLeverage.Float64(),
 		}
 		if a == asset.Futures {
 			c.Type = futures.LongDated

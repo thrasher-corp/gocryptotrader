@@ -16,8 +16,8 @@ import (
 )
 
 // dcaBotSettings returns the settings of the docs' DCA bot example
-func dcaBotSettings() *TradingBotDCASettings {
-	return &TradingBotDCASettings{
+func dcaBotSettings() *TradingBotDollarCostAveragingSettings {
+	return &TradingBotDollarCostAveragingSettings{
 		Allocations:             []TradingBotAllocation{{InstrumentName: "BTC_USDT", AllocatedPercentage: 100}},
 		InvestmentCurrency:      currency.USDT,
 		Side:                    SideBuy,
@@ -26,13 +26,13 @@ func dcaBotSettings() *TradingBotDCASettings {
 		InvestmentFrequencyMode: TradingBotInvestmentFrequencyModeFixedDuration,
 		InvestmentFrequency:     5 * time.Minute,
 		FirstInvestmentTime:     time.UnixMilli(1691510460000),
-		MaxOrders:               10,
+		MaximumOrders:           10,
 	}
 }
 
 // twapBotSettings returns the settings of the docs' TWAP bot example
-func twapBotSettings() *TradingBotTWAPSettings {
-	return &TradingBotTWAPSettings{
+func twapBotSettings() *TradingBotTimeWeightedAveragePriceSettings {
+	return &TradingBotTimeWeightedAveragePriceSettings{
 		InstrumentName: "BTC_USDT",
 		Side:           SideBuy,
 		OrderType:      OrderTypeMarket,
@@ -73,12 +73,12 @@ type invalidTradingBotSettingsCase struct {
 
 // invalidTradingBotSettingsCases returns settings each bot type's validation refuses, one case for each check
 func invalidTradingBotSettingsCases() []invalidTradingBotSettingsCase {
-	dca := func(modify func(*TradingBotDCASettings)) TradingBotSettings {
+	dca := func(modify func(*TradingBotDollarCostAveragingSettings)) TradingBotSettings {
 		s := dcaBotSettings()
 		modify(s)
 		return s
 	}
-	twap := func(modify func(*TradingBotTWAPSettings)) TradingBotSettings {
+	twap := func(modify func(*TradingBotTimeWeightedAveragePriceSettings)) TradingBotSettings {
 		s := twapBotSettings()
 		modify(s)
 		return s
@@ -94,39 +94,39 @@ func invalidTradingBotSettingsCases() []invalidTradingBotSettingsCase {
 		return s
 	}
 	return []invalidTradingBotSettingsCase{
-		{name: "typed nil DCA settings", settings: (*TradingBotDCASettings)(nil), err: common.ErrNilPointer},
-		{name: "a DCA bot without allocations", settings: dca(func(s *TradingBotDCASettings) { s.Allocations = nil }), err: errTradingBotAllocationsRequired},
-		{name: "a DCA allocation without an instrument", settings: dca(func(s *TradingBotDCASettings) { s.Allocations[0].InstrumentName = "" }), err: errInstrumentNameRequired},
-		{name: "a DCA allocation without a percentage", settings: dca(func(s *TradingBotDCASettings) { s.Allocations[0].AllocatedPercentage = 0 }), err: errInvalidTradingBotAllocation},
-		{name: "DCA allocations totalling 150 percent", settings: dca(func(s *TradingBotDCASettings) { s.Allocations[0].AllocatedPercentage = 150 }), err: errInvalidTradingBotAllocation},
-		{name: "DCA allocations totalling 99.9 percent", settings: dca(func(s *TradingBotDCASettings) {
+		{name: "typed nil DCA settings", settings: (*TradingBotDollarCostAveragingSettings)(nil), err: common.ErrNilPointer},
+		{name: "a DCA bot without allocations", settings: dca(func(s *TradingBotDollarCostAveragingSettings) { s.Allocations = nil }), err: errTradingBotAllocationsRequired},
+		{name: "a DCA allocation without an instrument", settings: dca(func(s *TradingBotDollarCostAveragingSettings) { s.Allocations[0].InstrumentName = "" }), err: errInstrumentNameRequired},
+		{name: "a DCA allocation without a percentage", settings: dca(func(s *TradingBotDollarCostAveragingSettings) { s.Allocations[0].AllocatedPercentage = 0 }), err: errInvalidTradingBotAllocation},
+		{name: "DCA allocations totalling 150 percent", settings: dca(func(s *TradingBotDollarCostAveragingSettings) { s.Allocations[0].AllocatedPercentage = 150 }), err: errInvalidTradingBotAllocation},
+		{name: "DCA allocations totalling 99.9 percent", settings: dca(func(s *TradingBotDollarCostAveragingSettings) {
 			s.Allocations = []TradingBotAllocation{{InstrumentName: "BTC_USDT", AllocatedPercentage: 50}, {InstrumentName: "ETH_USDT", AllocatedPercentage: 49.9}}
 		}), err: errInvalidTradingBotAllocation},
-		{name: "a DCA bot without an investment currency", settings: dca(func(s *TradingBotDCASettings) { s.InvestmentCurrency = currency.EMPTYCODE }), err: currency.ErrCurrencyCodeEmpty},
-		{name: "a DCA bot without a side", settings: dca(func(s *TradingBotDCASettings) { s.Side = "" }), err: errInvalidSide},
-		{name: "a DCA bot with a stop loss order type", settings: dca(func(s *TradingBotDCASettings) { s.OrderType = OrderTypeStopLoss }), err: errInvalidOrderType},
-		{name: "a DCA bot's limit order without a price", settings: dca(func(s *TradingBotDCASettings) { s.OrderType = OrderTypeLimit }), err: errInvalidPrice},
-		{name: "a DCA bot with a negative quantity", settings: dca(func(s *TradingBotDCASettings) { s.Quantity = -1 }), err: errInvalidQuantity},
-		{name: "a DCA bot with a negative total investment", settings: dca(func(s *TradingBotDCASettings) { s.TotalInvestment = -1 }), err: errInvalidAmount},
-		{name: "a DCA bot without a quantity or a total investment", settings: dca(func(s *TradingBotDCASettings) { s.Quantity = 0 }), err: errTradingBotQuantityOrInvestmentRequired},
-		{name: "a DCA bot without an investment frequency mode", settings: dca(func(s *TradingBotDCASettings) { s.InvestmentFrequencyMode = "" }), err: errInvalidTradingBotInvestmentFrequencyMode},
-		{name: "a fixed duration DCA bot without a frequency", settings: dca(func(s *TradingBotDCASettings) { s.InvestmentFrequency = 0 }), err: errInvalidTradingBotInvestmentFrequency},
-		{name: "a monthly DCA bot with a negative frequency", settings: dca(func(s *TradingBotDCASettings) {
+		{name: "a DCA bot without an investment currency", settings: dca(func(s *TradingBotDollarCostAveragingSettings) { s.InvestmentCurrency = currency.EMPTYCODE }), err: currency.ErrCurrencyCodeEmpty},
+		{name: "a DCA bot without a side", settings: dca(func(s *TradingBotDollarCostAveragingSettings) { s.Side = "" }), err: errInvalidSide},
+		{name: "a DCA bot with a stop loss order type", settings: dca(func(s *TradingBotDollarCostAveragingSettings) { s.OrderType = OrderTypeStopLoss }), err: errInvalidOrderType},
+		{name: "a DCA bot's limit order without a price", settings: dca(func(s *TradingBotDollarCostAveragingSettings) { s.OrderType = OrderTypeLimit }), err: errInvalidPrice},
+		{name: "a DCA bot with a negative quantity", settings: dca(func(s *TradingBotDollarCostAveragingSettings) { s.Quantity = -1 }), err: errInvalidQuantity},
+		{name: "a DCA bot with a negative total investment", settings: dca(func(s *TradingBotDollarCostAveragingSettings) { s.TotalInvestment = -1 }), err: errInvalidAmount},
+		{name: "a DCA bot without a quantity or a total investment", settings: dca(func(s *TradingBotDollarCostAveragingSettings) { s.Quantity = 0 }), err: errTradingBotQuantityOrInvestmentRequired},
+		{name: "a DCA bot without an investment frequency mode", settings: dca(func(s *TradingBotDollarCostAveragingSettings) { s.InvestmentFrequencyMode = "" }), err: errInvalidTradingBotInvestmentFrequencyMode},
+		{name: "a fixed duration DCA bot without a frequency", settings: dca(func(s *TradingBotDollarCostAveragingSettings) { s.InvestmentFrequency = 0 }), err: errInvalidTradingBotInvestmentFrequency},
+		{name: "a monthly DCA bot with a negative frequency", settings: dca(func(s *TradingBotDollarCostAveragingSettings) {
 			s.InvestmentFrequencyMode = TradingBotInvestmentFrequencyModeMonthly
 			s.InvestmentFrequency = -time.Hour
 		}), err: errInvalidTradingBotInvestmentFrequency},
-		{name: "a DCA bot first investing before 1970", settings: dca(func(s *TradingBotDCASettings) { s.FirstInvestmentTime = time.UnixMilli(-1) }), err: errTimeBeforeUnixEpoch},
-		{name: "typed nil TWAP settings", settings: (*TradingBotTWAPSettings)(nil), err: common.ErrNilPointer},
-		{name: "a TWAP bot without an instrument", settings: twap(func(s *TradingBotTWAPSettings) { s.InstrumentName = "" }), err: errInstrumentNameRequired},
-		{name: "a TWAP bot without a side", settings: twap(func(s *TradingBotTWAPSettings) { s.Side = "" }), err: errInvalidSide},
-		{name: "a TWAP bot without an order type", settings: twap(func(s *TradingBotTWAPSettings) { s.OrderType = "" }), err: errInvalidOrderType},
-		{name: "a TWAP bot's limit order without a price", settings: twap(func(s *TradingBotTWAPSettings) { s.OrderType = OrderTypeLimit }), err: errInvalidPrice},
-		{name: "a TWAP bot without a quantity", settings: twap(func(s *TradingBotTWAPSettings) { s.Quantity = 0 }), err: errInvalidQuantity},
-		{name: "a TWAP bot without a start time", settings: twap(func(s *TradingBotTWAPSettings) { s.StartTime = time.Time{} }), err: common.ErrDateUnset},
-		{name: "a TWAP bot without an end time", settings: twap(func(s *TradingBotTWAPSettings) { s.EndTime = time.Time{} }), err: common.ErrDateUnset},
-		{name: "a TWAP bot starting after it ends", settings: twap(func(s *TradingBotTWAPSettings) { s.StartTime = s.EndTime.Add(time.Minute) }), err: common.ErrStartAfterEnd},
-		{name: "a TWAP bot starting as it ends", settings: twap(func(s *TradingBotTWAPSettings) { s.StartTime = s.EndTime }), err: common.ErrStartEqualsEnd},
-		{name: "a TWAP bot starting before 1970", settings: twap(func(s *TradingBotTWAPSettings) { s.StartTime = time.UnixMilli(-1) }), err: errTimeBeforeUnixEpoch},
+		{name: "a DCA bot first investing before 1970", settings: dca(func(s *TradingBotDollarCostAveragingSettings) { s.FirstInvestmentTime = time.UnixMilli(-1) }), err: errTimeBeforeUnixEpoch},
+		{name: "typed nil TWAP settings", settings: (*TradingBotTimeWeightedAveragePriceSettings)(nil), err: common.ErrNilPointer},
+		{name: "a TWAP bot without an instrument", settings: twap(func(s *TradingBotTimeWeightedAveragePriceSettings) { s.InstrumentName = "" }), err: errInstrumentNameRequired},
+		{name: "a TWAP bot without a side", settings: twap(func(s *TradingBotTimeWeightedAveragePriceSettings) { s.Side = "" }), err: errInvalidSide},
+		{name: "a TWAP bot without an order type", settings: twap(func(s *TradingBotTimeWeightedAveragePriceSettings) { s.OrderType = "" }), err: errInvalidOrderType},
+		{name: "a TWAP bot's limit order without a price", settings: twap(func(s *TradingBotTimeWeightedAveragePriceSettings) { s.OrderType = OrderTypeLimit }), err: errInvalidPrice},
+		{name: "a TWAP bot without a quantity", settings: twap(func(s *TradingBotTimeWeightedAveragePriceSettings) { s.Quantity = 0 }), err: errInvalidQuantity},
+		{name: "a TWAP bot without a start time", settings: twap(func(s *TradingBotTimeWeightedAveragePriceSettings) { s.StartTime = time.Time{} }), err: common.ErrDateUnset},
+		{name: "a TWAP bot without an end time", settings: twap(func(s *TradingBotTimeWeightedAveragePriceSettings) { s.EndTime = time.Time{} }), err: common.ErrDateUnset},
+		{name: "a TWAP bot starting after it ends", settings: twap(func(s *TradingBotTimeWeightedAveragePriceSettings) { s.StartTime = s.EndTime.Add(time.Minute) }), err: common.ErrStartAfterEnd},
+		{name: "a TWAP bot starting as it ends", settings: twap(func(s *TradingBotTimeWeightedAveragePriceSettings) { s.StartTime = s.EndTime }), err: common.ErrStartEqualsEnd},
+		{name: "a TWAP bot starting before 1970", settings: twap(func(s *TradingBotTimeWeightedAveragePriceSettings) { s.StartTime = time.UnixMilli(-1) }), err: errTimeBeforeUnixEpoch},
 		{name: "typed nil grid settings", settings: (*TradingBotGridSettings)(nil), err: common.ErrNilPointer},
 		{name: "a grid bot without an instrument", settings: grid(func(s *TradingBotGridSettings) { s.InstrumentName = "" }), err: errInstrumentNameRequired},
 		{name: "a grid bot without a total investment", settings: grid(func(s *TradingBotGridSettings) { s.TotalInvestment = 0 }), err: errInvalidAmount},
@@ -150,7 +150,7 @@ func TestCreateTradingBot(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidTradingBotType, "CreateTradingBot must error without a bot type")
 	_, err = e.CreateTradingBot(t.Context(), &CreateTradingBotRequest{BotType: "MARTINGALE", Settings: dcaBotSettings()})
 	require.ErrorIs(t, err, errInvalidTradingBotType, "CreateTradingBot must error for an unknown bot type")
-	_, err = e.CreateTradingBot(t.Context(), &CreateTradingBotRequest{BotType: TradingBotTypeDCA})
+	_, err = e.CreateTradingBot(t.Context(), &CreateTradingBotRequest{BotType: TradingBotTypeDollarCostAveraging})
 	require.ErrorIs(t, err, errTradingBotSettingsRequired, "CreateTradingBot must error without settings")
 	_, err = e.CreateTradingBot(t.Context(), &CreateTradingBotRequest{BotType: TradingBotTypeGrid, Settings: dcaBotSettings()})
 	require.ErrorIs(t, err, errTradingBotSettingsMismatch, "CreateTradingBot must error for settings of another bot type")
@@ -178,7 +178,7 @@ func TestCreateTradingBot(t *testing.T) {
 		}
 	}
 
-	autoStake := &TradingBotDCASettings{
+	autoStake := &TradingBotDollarCostAveragingSettings{
 		Allocations:             []TradingBotAllocation{{InstrumentName: "BTC_USDT", AllocatedPercentage: 100}},
 		InvestmentCurrency:      currency.USDT,
 		Side:                    SideSell,
@@ -191,12 +191,12 @@ func TestCreateTradingBot(t *testing.T) {
 		InvestmentFrequency:     time.Hour,
 		FirstInvestmentTime:     time.UnixMilli(1792890000000),
 		InvestmentDuration:      86400000,
-		MaxOrders:               24,
+		MaximumOrders:           24,
 		StopPrice:               20000,
 		TakeProfitPrice:         40000,
 		SimplifiedMode:          true,
 	}
-	basket := &TradingBotDCASettings{
+	basket := &TradingBotDollarCostAveragingSettings{
 		IsBasket:                true,
 		Allocations:             []TradingBotAllocation{{InstrumentName: "BTC_USDT", AllocatedPercentage: 60}, {InstrumentName: "ETH_USDT", AllocatedPercentage: 40}},
 		InvestmentCurrency:      currency.USDT,
@@ -204,7 +204,7 @@ func TestCreateTradingBot(t *testing.T) {
 		InvestmentFrequencyMode: TradingBotInvestmentFrequencyModeMonthly,
 		InvestmentDuration:      12,
 	}
-	limitTWAP := &TradingBotTWAPSettings{InstrumentName: "BTC_USDT", Side: SideSell, OrderType: OrderTypeLimit, Price: 30000, Quantity: 0.5, StartTime: time.UnixMilli(1792890000000), EndTime: time.UnixMilli(1792893600000)}
+	limitTWAP := &TradingBotTimeWeightedAveragePriceSettings{InstrumentName: "BTC_USDT", Side: SideSell, OrderType: OrderTypeLimit, Price: 30000, Quantity: 0.5, StartTime: time.UnixMilli(1792890000000), EndTime: time.UnixMilli(1792893600000)}
 	everyGrid := &TradingBotGridSettings{
 		InstrumentName:     "BTC_USDT",
 		TotalInvestment:    1000,
@@ -223,15 +223,15 @@ func TestCreateTradingBot(t *testing.T) {
 		exp string
 	}{
 		{
-			req: &CreateTradingBotRequest{BotType: TradingBotTypeDCA, NotifyOnBotChange: true, DisplayName: "Selling DCA", Settings: autoStake},
+			req: &CreateTradingBotRequest{BotType: TradingBotTypeDollarCostAveraging, NotifyOnBotChange: true, DisplayName: "Selling DCA", Settings: autoStake},
 			exp: `{"bot_type":"DCA","notify_on_bot_change":true,"display_name":"Selling DCA","settings":{"is_basket":false,"allocations":[{"instrument_name":"BTC_USDT","allocated_percentage":"100"}],"investment_currency":"USDT","side":"SELL","type":"LIMIT","auto_stake":true,"price":"30000","quantity":"0.01","total_investment":"300","investment_frequency_mode":"FIXED_DURATION","investment_frequency":3600000,"first_investment_time":1792890000000,"investment_duration":86400000,"max_order":"24","stop_price":"20000","take_profit_price":"40000","simplified_mode":true}}`,
 		},
 		{
-			req: &CreateTradingBotRequest{BotType: TradingBotTypeDCA, Settings: basket},
+			req: &CreateTradingBotRequest{BotType: TradingBotTypeDollarCostAveraging, Settings: basket},
 			exp: `{"bot_type":"DCA","notify_on_bot_change":false,"settings":{"is_basket":true,"allocations":[{"instrument_name":"BTC_USDT","allocated_percentage":"60"},{"instrument_name":"ETH_USDT","allocated_percentage":"40"}],"investment_currency":"USDT","auto_stake":false,"total_investment":"1000","investment_frequency_mode":"MONTHLY","investment_duration":12}}`,
 		},
 		{
-			req: &CreateTradingBotRequest{BotType: TradingBotTypeTWAP, Settings: limitTWAP},
+			req: &CreateTradingBotRequest{BotType: TradingBotTypeTimeWeightedAveragePrice, Settings: limitTWAP},
 			exp: `{"bot_type":"TWAP","notify_on_bot_change":false,"settings":{"instrument_name":"BTC_USDT","side":"SELL","type":"LIMIT","price":"30000","quantity":"0.5","start_time_millis":1792890000000,"end_time_millis":1792893600000}}`,
 		},
 		{
@@ -278,10 +278,10 @@ func TestTradingBotRequestSignature(t *testing.T) {
 		assert.NoError(t, err, "Writing the response should not error")
 	}))
 	_, err := ex.CreateTradingBot(t.Context(), &CreateTradingBotRequest{
-		BotType:           TradingBotTypeDCA,
+		BotType:           TradingBotTypeDollarCostAveraging,
 		NotifyOnBotChange: true,
 		DisplayName:       "Basket DCA",
-		Settings: &TradingBotDCASettings{
+		Settings: &TradingBotDollarCostAveragingSettings{
 			IsBasket:                true,
 			Allocations:             []TradingBotAllocation{{InstrumentName: "BTC_USDT", AllocatedPercentage: 60}, {InstrumentName: "ETH_USDT", AllocatedPercentage: 40}},
 			InvestmentCurrency:      currency.USDT,
@@ -290,7 +290,7 @@ func TestTradingBotRequestSignature(t *testing.T) {
 			InvestmentFrequency:     time.Hour,
 			FirstInvestmentTime:     time.UnixMilli(1792890000000),
 			InvestmentDuration:      86400000,
-			MaxOrders:               24,
+			MaximumOrders:           24,
 		},
 	})
 	require.NoError(t, err, "CreateTradingBot must not error against the test server")
@@ -304,18 +304,18 @@ func TestUpdateTradingBot(t *testing.T) {
 		req  *UpdateTradingBotRequest
 		err  error
 	}{
-		{name: "without a bot ID", req: &UpdateTradingBotRequest{BotType: TradingBotTypeDCA}, err: errTradingBotIDRequired},
-		{name: "for a bot ID that is not a number", req: &UpdateTradingBotRequest{BotID: "bot-1", BotType: TradingBotTypeDCA}, err: errInvalidTradingBotID},
+		{name: "without a bot ID", req: &UpdateTradingBotRequest{BotType: TradingBotTypeDollarCostAveraging}, err: errTradingBotIDRequired},
+		{name: "for a bot ID that is not a number", req: &UpdateTradingBotRequest{BotID: "bot-1", BotType: TradingBotTypeDollarCostAveraging}, err: errInvalidTradingBotID},
 		{name: "without a bot type", req: &UpdateTradingBotRequest{BotID: "1"}, err: errInvalidTradingBotType},
-		{name: "for grid settings on a DCA bot", req: &UpdateTradingBotRequest{BotID: "1", BotType: TradingBotTypeDCA, Settings: &TradingBotGridUpdateSettings{}}, err: errTradingBotSettingsMismatch},
-		{name: "for DCA settings on a TWAP bot", req: &UpdateTradingBotRequest{BotID: "1", BotType: TradingBotTypeTWAP, Settings: &TradingBotDCAUpdateSettings{}}, err: errTradingBotSettingsMismatch},
-		{name: "for typed nil DCA settings", req: &UpdateTradingBotRequest{BotID: "1", BotType: TradingBotTypeDCA, Settings: (*TradingBotDCAUpdateSettings)(nil)}, err: common.ErrNilPointer},
-		{name: "for an allocation without an instrument", req: &UpdateTradingBotRequest{BotID: "1", BotType: TradingBotTypeDCA, Settings: &TradingBotDCAUpdateSettings{Allocations: []TradingBotAllocation{{AllocatedPercentage: 100}}}}, err: errInstrumentNameRequired},
-		{name: "for an allocation without a percentage", req: &UpdateTradingBotRequest{BotID: "1", BotType: TradingBotTypeDCA, Settings: &TradingBotDCAUpdateSettings{Allocations: []TradingBotAllocation{{InstrumentName: "BTC_USDT"}}}}, err: errInvalidTradingBotAllocation},
-		{name: "for a stop loss order type", req: &UpdateTradingBotRequest{BotID: "1", BotType: TradingBotTypeDCA, Settings: &TradingBotDCAUpdateSettings{OrderType: OrderTypeStopLoss}}, err: errInvalidOrderType},
-		{name: "for a negative DCA price", req: &UpdateTradingBotRequest{BotID: "1", BotType: TradingBotTypeDCA, Settings: &TradingBotDCAUpdateSettings{StopPrice: -1}}, err: errInvalidPrice},
-		{name: "for a negative DCA quantity", req: &UpdateTradingBotRequest{BotID: "1", BotType: TradingBotTypeDCA, Settings: &TradingBotDCAUpdateSettings{Quantity: -1}}, err: errInvalidQuantity},
-		{name: "for a negative investment frequency", req: &UpdateTradingBotRequest{BotID: "1", BotType: TradingBotTypeDCA, Settings: &TradingBotDCAUpdateSettings{InvestmentFrequency: -time.Hour}}, err: errInvalidTradingBotInvestmentFrequency},
+		{name: "for grid settings on a DCA bot", req: &UpdateTradingBotRequest{BotID: "1", BotType: TradingBotTypeDollarCostAveraging, Settings: &TradingBotGridUpdateSettings{}}, err: errTradingBotSettingsMismatch},
+		{name: "for DCA settings on a TWAP bot", req: &UpdateTradingBotRequest{BotID: "1", BotType: TradingBotTypeTimeWeightedAveragePrice, Settings: &TradingBotDollarCostAveragingUpdateSettings{}}, err: errTradingBotSettingsMismatch},
+		{name: "for typed nil DCA settings", req: &UpdateTradingBotRequest{BotID: "1", BotType: TradingBotTypeDollarCostAveraging, Settings: (*TradingBotDollarCostAveragingUpdateSettings)(nil)}, err: common.ErrNilPointer},
+		{name: "for an allocation without an instrument", req: &UpdateTradingBotRequest{BotID: "1", BotType: TradingBotTypeDollarCostAveraging, Settings: &TradingBotDollarCostAveragingUpdateSettings{Allocations: []TradingBotAllocation{{AllocatedPercentage: 100}}}}, err: errInstrumentNameRequired},
+		{name: "for an allocation without a percentage", req: &UpdateTradingBotRequest{BotID: "1", BotType: TradingBotTypeDollarCostAveraging, Settings: &TradingBotDollarCostAveragingUpdateSettings{Allocations: []TradingBotAllocation{{InstrumentName: "BTC_USDT"}}}}, err: errInvalidTradingBotAllocation},
+		{name: "for a stop loss order type", req: &UpdateTradingBotRequest{BotID: "1", BotType: TradingBotTypeDollarCostAveraging, Settings: &TradingBotDollarCostAveragingUpdateSettings{OrderType: OrderTypeStopLoss}}, err: errInvalidOrderType},
+		{name: "for a negative DCA price", req: &UpdateTradingBotRequest{BotID: "1", BotType: TradingBotTypeDollarCostAveraging, Settings: &TradingBotDollarCostAveragingUpdateSettings{StopPrice: -1}}, err: errInvalidPrice},
+		{name: "for a negative DCA quantity", req: &UpdateTradingBotRequest{BotID: "1", BotType: TradingBotTypeDollarCostAveraging, Settings: &TradingBotDollarCostAveragingUpdateSettings{Quantity: -1}}, err: errInvalidQuantity},
+		{name: "for a negative investment frequency", req: &UpdateTradingBotRequest{BotID: "1", BotType: TradingBotTypeDollarCostAveraging, Settings: &TradingBotDollarCostAveragingUpdateSettings{InvestmentFrequency: -time.Hour}}, err: errInvalidTradingBotInvestmentFrequency},
 		{name: "for typed nil grid settings", req: &UpdateTradingBotRequest{BotID: "1", BotType: TradingBotTypeGrid, Settings: (*TradingBotGridUpdateSettings)(nil)}, err: common.ErrNilPointer},
 		{name: "for a negative grid price", req: &UpdateTradingBotRequest{BotID: "1", BotType: TradingBotTypeGrid, Settings: &TradingBotGridUpdateSettings{TrailingUpPriceCap: -1}}, err: errInvalidPrice},
 	} {
@@ -326,14 +326,14 @@ func TestUpdateTradingBot(t *testing.T) {
 	for _, req := range []*UpdateTradingBotRequest{
 		{
 			BotID:             "4611686018431234561",
-			BotType:           TradingBotTypeDCA,
+			BotType:           TradingBotTypeDollarCostAveraging,
 			NotifyOnBotChange: true,
-			Settings: &TradingBotDCAUpdateSettings{
+			Settings: &TradingBotDollarCostAveragingUpdateSettings{
 				Allocations: []TradingBotAllocation{{InstrumentName: "BTC_USDT", AllocatedPercentage: 60}, {InstrumentName: "ETH_USDT", AllocatedPercentage: 40}},
 				StopPrice:   20000,
 			},
 		},
-		{BotID: "4611686018431234562", BotType: TradingBotTypeTWAP, DisplayName: "My TWAP Bot"},
+		{BotID: "4611686018431234562", BotType: TradingBotTypeTimeWeightedAveragePrice, DisplayName: "My TWAP Bot"},
 		{BotID: "4611686018431234563", BotType: TradingBotTypeGrid, NotifyOnBotChange: true, Settings: &TradingBotGridUpdateSettings{StopPrice: 24000}},
 		{BotID: "4611686018431234564", BotType: TradingBotTypeFundingArbitrage, NotifyOnBotChange: true, DisplayName: "Funding Arb Bot"},
 	} {
@@ -348,14 +348,14 @@ func TestUpdateTradingBot(t *testing.T) {
 		{
 			req: &UpdateTradingBotRequest{
 				BotID:             "4611686018431234561",
-				BotType:           TradingBotTypeDCA,
+				BotType:           TradingBotTypeDollarCostAveraging,
 				NotifyOnBotChange: true,
 				DisplayName:       "Updated DCA",
-				Settings: &TradingBotDCAUpdateSettings{
+				Settings: &TradingBotDollarCostAveragingUpdateSettings{
 					Allocations:         []TradingBotAllocation{{InstrumentName: "BTC_USDT", AllocatedPercentage: 100}},
 					OrderType:           OrderTypeLimit,
 					Price:               29000,
-					MaxOrders:           12,
+					MaximumOrders:       12,
 					StopPrice:           20000,
 					TakeProfitPrice:     40000,
 					AutoStake:           &autoStake,
@@ -371,14 +371,14 @@ func TestUpdateTradingBot(t *testing.T) {
 			exp: `{"bot_id":4611686018431234563,"bot_type":"GRID","notify_on_bot_change":false,"settings":{"stop_price":"24000","take_profit_price":"36000","trailing_up_price_cap":"50000"}}`,
 		},
 		{
-			req: &UpdateTradingBotRequest{BotID: "4611686018431234562", BotType: TradingBotTypeTWAP},
+			req: &UpdateTradingBotRequest{BotID: "4611686018431234562", BotType: TradingBotTypeTimeWeightedAveragePrice},
 			exp: `{"bot_id":4611686018431234562,"bot_type":"TWAP","notify_on_bot_change":false}`,
 		},
 	} {
 		ex := newSignedParamsServer(t, "private/bot/update-trading-bot", tc.exp, `{"id":1,"method":"private/bot/update-trading-bot","code":0}`)
 		require.NoErrorf(t, ex.UpdateTradingBot(t.Context(), tc.req), "UpdateTradingBot must not error against the test server for a %s bot", tc.req.BotType)
 	}
-	err := newUnavailableServerExchange(t).UpdateTradingBot(t.Context(), &UpdateTradingBotRequest{BotID: "1", BotType: TradingBotTypeTWAP})
+	err := newUnavailableServerExchange(t).UpdateTradingBot(t.Context(), &UpdateTradingBotRequest{BotID: "1", BotType: TradingBotTypeTimeWeightedAveragePrice})
 	assert.ErrorIs(t, err, request.ErrBadStatus, "UpdateTradingBot should return a request failure")
 }
 
@@ -386,8 +386,8 @@ func TestUpdateTradingBot(t *testing.T) {
 // rejects
 func requireTradingBotIdentityValidation(t *testing.T, method string, call func(botID, botType string) error) {
 	t.Helper()
-	require.ErrorIsf(t, call("", TradingBotTypeDCA), errTradingBotIDRequired, "%s must error without a bot ID", method)
-	require.ErrorIsf(t, call("bot-1", TradingBotTypeDCA), errInvalidTradingBotID, "%s must error for a bot ID that is not a number", method)
+	require.ErrorIsf(t, call("", TradingBotTypeDollarCostAveraging), errTradingBotIDRequired, "%s must error without a bot ID", method)
+	require.ErrorIsf(t, call("bot-1", TradingBotTypeDollarCostAveraging), errInvalidTradingBotID, "%s must error for a bot ID that is not a number", method)
 	require.ErrorIsf(t, call("1", ""), errInvalidTradingBotType, "%s must error without a bot type", method)
 	require.ErrorIsf(t, call("1", "MARTINGALE"), errInvalidTradingBotType, "%s must error for an unknown bot type", method)
 }
@@ -400,7 +400,7 @@ func TestTerminateTradingBot(t *testing.T) {
 	})
 	skipLiveUnlessCanManipulate(t)
 
-	require.NoError(t, e.TerminateTradingBot(t.Context(), &TerminateTradingBotRequest{BotID: "4611686018431234561", BotType: TradingBotTypeDCA}), "TerminateTradingBot must not error")
+	require.NoError(t, e.TerminateTradingBot(t.Context(), &TerminateTradingBotRequest{BotID: "4611686018431234561", BotType: TradingBotTypeDollarCostAveraging}), "TerminateTradingBot must not error")
 
 	for _, tc := range []struct {
 		req *TerminateTradingBotRequest
@@ -411,14 +411,14 @@ func TestTerminateTradingBot(t *testing.T) {
 			exp: `{"bot_id":4611686018431234564,"bot_type":"FUNDING_ARBITRAGE","close_position":true}`,
 		},
 		{
-			req: &TerminateTradingBotRequest{BotID: "4611686018431234561", BotType: TradingBotTypeDCA},
+			req: &TerminateTradingBotRequest{BotID: "4611686018431234561", BotType: TradingBotTypeDollarCostAveraging},
 			exp: `{"bot_id":4611686018431234561,"bot_type":"DCA"}`,
 		},
 	} {
 		ex := newSignedParamsServer(t, "private/bot/terminate-trading-bot", tc.exp, `{"id":1,"method":"private/bot/terminate-trading-bot","code":0}`)
 		require.NoErrorf(t, ex.TerminateTradingBot(t.Context(), tc.req), "TerminateTradingBot must not error against the test server for a %s bot", tc.req.BotType)
 	}
-	err := newUnavailableServerExchange(t).TerminateTradingBot(t.Context(), &TerminateTradingBotRequest{BotID: "1", BotType: TradingBotTypeDCA})
+	err := newUnavailableServerExchange(t).TerminateTradingBot(t.Context(), &TerminateTradingBotRequest{BotID: "1", BotType: TradingBotTypeDollarCostAveraging})
 	assert.ErrorIs(t, err, request.ErrBadStatus, "TerminateTradingBot should return a request failure")
 }
 
@@ -430,7 +430,7 @@ func TestPauseTradingBot(t *testing.T) {
 	})
 	skipLiveUnlessCanManipulate(t)
 
-	req := &TradingBotRequest{BotID: "4611686018431234561", BotType: TradingBotTypeDCA}
+	req := &TradingBotRequest{BotID: "4611686018431234561", BotType: TradingBotTypeDollarCostAveraging}
 	require.NoError(t, e.PauseTradingBot(t.Context(), req), "PauseTradingBot must not error")
 
 	ex := newSignedParamsServer(t, "private/bot/pause-trading-bot", `{"bot_id":4611686018431234561,"bot_type":"DCA"}`, `{"id":1,"method":"private/bot/pause-trading-bot","code":0}`)
@@ -446,7 +446,7 @@ func TestResumeTradingBot(t *testing.T) {
 	})
 	skipLiveUnlessCanManipulate(t)
 
-	req := &TradingBotRequest{BotID: "4611686018431234561", BotType: TradingBotTypeDCA}
+	req := &TradingBotRequest{BotID: "4611686018431234561", BotType: TradingBotTypeDollarCostAveraging}
 	require.NoError(t, e.ResumeTradingBot(t.Context(), req), "ResumeTradingBot must not error")
 
 	ex := newSignedParamsServer(t, "private/bot/resume-trading-bot", `{"bot_id":4611686018431234561,"bot_type":"DCA"}`, `{"id":1,"method":"private/bot/resume-trading-bot","code":0}`)
@@ -463,12 +463,12 @@ func TestGetTradingBots(t *testing.T) {
 		req  *TradingBotsRequest
 		err  error
 	}{
-		{name: "for a bot ID that is not a number", req: &TradingBotsRequest{BotID: "bot-1", BotTypes: []string{TradingBotTypeDCA}}, err: errInvalidTradingBotID},
+		{name: "for a bot ID that is not a number", req: &TradingBotsRequest{BotID: "bot-1", BotTypes: []string{TradingBotTypeDollarCostAveraging}}, err: errInvalidTradingBotID},
 		{name: "without bot types", req: &TradingBotsRequest{States: []string{TradingBotStateRunning}}, err: errTradingBotTypesRequired},
 		{name: "for an unknown bot type", req: &TradingBotsRequest{BotTypes: []string{"MARTINGALE"}, States: []string{TradingBotStateRunning}}, err: errInvalidTradingBotType},
-		{name: "without a bot ID or states", req: &TradingBotsRequest{BotTypes: []string{TradingBotTypeDCA}}, err: errTradingBotStatesRequired},
-		{name: "for an unknown state", req: &TradingBotsRequest{BotTypes: []string{TradingBotTypeDCA}, States: []string{"STOPPED"}}, err: errInvalidTradingBotState},
-		{name: "for a page size above the maximum", req: &TradingBotsRequest{BotTypes: []string{TradingBotTypeDCA}, States: []string{TradingBotStateRunning}, PageSize: tradingBotMaximumPageSize + 1}, err: errInvalidCount},
+		{name: "without a bot ID or states", req: &TradingBotsRequest{BotTypes: []string{TradingBotTypeDollarCostAveraging}}, err: errTradingBotStatesRequired},
+		{name: "for an unknown state", req: &TradingBotsRequest{BotTypes: []string{TradingBotTypeDollarCostAveraging}, States: []string{"STOPPED"}}, err: errInvalidTradingBotState},
+		{name: "for a page size above the maximum", req: &TradingBotsRequest{BotTypes: []string{TradingBotTypeDollarCostAveraging}, States: []string{TradingBotStateRunning}, PageSize: tradingBotMaximumPageSize + 1}, err: errInvalidCount},
 	} {
 		_, err = e.GetTradingBots(t.Context(), tc.req)
 		require.ErrorIsf(t, err, tc.err, "GetTradingBots must error %s", tc.name)
@@ -476,7 +476,7 @@ func TestGetTradingBots(t *testing.T) {
 	skipLiveWithoutCredentials(t)
 
 	req := &TradingBotsRequest{
-		BotTypes: []string{TradingBotTypeDCA, TradingBotTypeTWAP, TradingBotTypeGrid, TradingBotTypeFundingArbitrage},
+		BotTypes: []string{TradingBotTypeDollarCostAveraging, TradingBotTypeTimeWeightedAveragePrice, TradingBotTypeGrid, TradingBotTypeFundingArbitrage},
 		States:   []string{TradingBotStateRunning, TradingBotStatePaused, TradingBotStateTerminated},
 		PageSize: 20,
 	}
@@ -505,7 +505,7 @@ func TestGetTradingBots(t *testing.T) {
 			},
 			{
 				BotID:       "4611686018431234562",
-				BotType:     TradingBotTypeTWAP,
+				BotType:     TradingBotTypeTimeWeightedAveragePrice,
 				DisplayName: "My TWAP Bot",
 				State:       TradingBotStateTerminated,
 				Reason:      "User terminated",
@@ -516,7 +516,7 @@ func TestGetTradingBots(t *testing.T) {
 			},
 			{
 				BotID:            "4611686018431234561",
-				BotType:          TradingBotTypeDCA,
+				BotType:          TradingBotTypeDollarCostAveraging,
 				DisplayName:      "My DCA Bot",
 				State:            TradingBotStateRunning,
 				CreateTime:       types.Time(time.UnixMilli(1691510460000)),
@@ -537,7 +537,7 @@ func TestGetTradingBots(t *testing.T) {
 		exp string
 	}{
 		{
-			req: &TradingBotsRequest{BotID: "4611686018431234561", BotTypes: []string{TradingBotTypeDCA}, States: []string{TradingBotStateRunning}, Page: 2, PageSize: 50},
+			req: &TradingBotsRequest{BotID: "4611686018431234561", BotTypes: []string{TradingBotTypeDollarCostAveraging}, States: []string{TradingBotStateRunning}, Page: 2, PageSize: 50},
 			exp: `{"bot_id":4611686018431234561,"bot_types":["DCA"],"state":["RUNNING"],"page":2,"page_size":50}`,
 		},
 		{
@@ -553,7 +553,7 @@ func TestGetTradingBots(t *testing.T) {
 		_, err = ex.GetTradingBots(t.Context(), tc.req)
 		require.NoErrorf(t, err, "GetTradingBots must not error against the test server for %+v", tc.req)
 	}
-	minimal := &TradingBotsRequest{BotTypes: []string{TradingBotTypeDCA}, States: []string{TradingBotStateRunning}}
+	minimal := &TradingBotsRequest{BotTypes: []string{TradingBotTypeDollarCostAveraging}, States: []string{TradingBotStateRunning}}
 	_, err = newResponseServerExchange(t, `{"id":1,"method":"private/bot/get-trading-bots","code":0,"result":null}`).GetTradingBots(t.Context(), minimal)
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetTradingBots should error for a null result")
 	_, err = newUnavailableServerExchange(t).GetTradingBots(t.Context(), minimal)
@@ -630,12 +630,12 @@ func TestTradingBotResponseUnmarshalJSON(t *testing.T) {
 		exp      TradingBotSettings
 	}{
 		{
-			botType:  TradingBotTypeDCA,
+			botType:  TradingBotTypeDollarCostAveraging,
 			settings: `{"is_basket":false,"allocations":[{"instrument_name":"BTC_USDT","allocated_percentage":"100"}],"investment_currency":"USDT","side":"BUY","type":"MARKET","auto_stake":false,"quantity":"0.01","investment_frequency_mode":"FIXED_DURATION","investment_frequency":300000,"max_order":"10","first_investment_time":1691510460000}`,
 			exp:      dcaBotSettings(),
 		},
 		{
-			botType:  TradingBotTypeTWAP,
+			botType:  TradingBotTypeTimeWeightedAveragePrice,
 			settings: `{"instrument_name":"BTC_USDT","side":"BUY","type":"MARKET","quantity":"1","start_time_millis":1691510460000,"end_time_millis":1691513460000}`,
 			exp:      twapBotSettings(),
 		},
@@ -692,10 +692,10 @@ func TestTradingBotSettingsMarshalJSON(t *testing.T) {
 		assert.JSONEqf(t, tc.exp, string(encoded), "Marshal should encode %T as Crypto.com takes it", tc.settings)
 	}
 	for _, settings := range []any{
-		&TradingBotDCASettings{FirstInvestmentTime: time.UnixMilli(-1)},
-		&TradingBotDCASettings{InvestmentFrequency: -time.Hour},
-		&TradingBotTWAPSettings{StartTime: time.UnixMilli(-1)},
-		&TradingBotTWAPSettings{EndTime: time.UnixMilli(-1)},
+		&TradingBotDollarCostAveragingSettings{FirstInvestmentTime: time.UnixMilli(-1)},
+		&TradingBotDollarCostAveragingSettings{InvestmentFrequency: -time.Hour},
+		&TradingBotTimeWeightedAveragePriceSettings{StartTime: time.UnixMilli(-1)},
+		&TradingBotTimeWeightedAveragePriceSettings{EndTime: time.UnixMilli(-1)},
 	} {
 		_, err := json.Marshal(settings)
 		assert.Errorf(t, err, "Marshal should error for %+v, which Crypto.com cannot take", settings)
@@ -708,8 +708,8 @@ func TestTradingBotUpdateSettingsParams(t *testing.T) {
 		settings TradingBotUpdateSettings
 		exp      string
 	}{
-		{settings: &TradingBotDCAUpdateSettings{}, exp: `{}`},
-		{settings: &TradingBotDCAUpdateSettings{InvestmentFrequency: 90 * time.Second, MaxOrders: 3}, exp: `{"max_order":"3","investment_frequency":90000}`},
+		{settings: &TradingBotDollarCostAveragingUpdateSettings{}, exp: `{}`},
+		{settings: &TradingBotDollarCostAveragingUpdateSettings{InvestmentFrequency: 90 * time.Second, MaximumOrders: 3}, exp: `{"max_order":"3","investment_frequency":90000}`},
 		{settings: &TradingBotGridUpdateSettings{}, exp: `{}`},
 		{settings: &TradingBotGridUpdateSettings{TakeProfitPrice: 36000}, exp: `{"take_profit_price":"36000"}`},
 	} {
@@ -738,13 +738,13 @@ func TestUnixMilliTime(t *testing.T) {
 func TestTradingBotSettingsBotType(t *testing.T) {
 	t.Parallel()
 	for exp, settings := range map[string]interface{ BotType() string }{
-		TradingBotTypeDCA:              (*TradingBotDCASettings)(nil),
-		TradingBotTypeTWAP:             (*TradingBotTWAPSettings)(nil),
-		TradingBotTypeGrid:             (*TradingBotGridSettings)(nil),
-		TradingBotTypeFundingArbitrage: (*TradingBotFundingArbitrageSettings)(nil),
+		TradingBotTypeDollarCostAveraging:      (*TradingBotDollarCostAveragingSettings)(nil),
+		TradingBotTypeTimeWeightedAveragePrice: (*TradingBotTimeWeightedAveragePriceSettings)(nil),
+		TradingBotTypeGrid:                     (*TradingBotGridSettings)(nil),
+		TradingBotTypeFundingArbitrage:         (*TradingBotFundingArbitrageSettings)(nil),
 	} {
 		assert.Equalf(t, exp, settings.BotType(), "%T should be a %s bot's settings", settings, exp)
 	}
-	assert.Equal(t, TradingBotTypeDCA, (*TradingBotDCAUpdateSettings)(nil).BotType(), "TradingBotDCAUpdateSettings should be a DCA bot's settings")
+	assert.Equal(t, TradingBotTypeDollarCostAveraging, (*TradingBotDollarCostAveragingUpdateSettings)(nil).BotType(), "TradingBotDollarCostAveragingUpdateSettings should be a DCA bot's settings")
 	assert.Equal(t, TradingBotTypeGrid, (*TradingBotGridUpdateSettings)(nil).BotType(), "TradingBotGridUpdateSettings should be a grid bot's settings")
 }

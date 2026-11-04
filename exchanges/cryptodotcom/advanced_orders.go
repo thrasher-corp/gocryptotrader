@@ -64,11 +64,11 @@ func (e *Exchange) AmendAdvancedOrder(ctx context.Context, req *AmendAdvancedOrd
 	return resp, nil
 }
 
-// CreateOCO places a one-cancels-the-other strategy, which Crypto.com offers on spot instruments only: a LIMIT order
-// and a trigger order, either of which executing, even partly, cancels the other. Crypto.com answers on accepting the
-// request, before it places the orders
-func (e *Exchange) CreateOCO(ctx context.Context, orders []AdvancedOrderLegRequest) (*AdvancedOrderListIDResponse, error) {
-	params, err := ocoParams(orders)
+// CreateOneCancelsTheOtherOrder places a one-cancels-the-other strategy, which Crypto.com offers on spot instruments
+// only: a LIMIT order and a trigger order, either of which executing, even partly, cancels the other. Crypto.com
+// answers on accepting the request, before it places the orders
+func (e *Exchange) CreateOneCancelsTheOtherOrder(ctx context.Context, orders []AdvancedOrderLegRequest) (*AdvancedOrderListIDResponse, error) {
+	params, err := oneCancelsTheOtherParams(orders)
 	if err != nil {
 		return nil, err
 	}
@@ -82,8 +82,9 @@ func (e *Exchange) CreateOCO(ctx context.Context, orders []AdvancedOrderLegReque
 	return resp, nil
 }
 
-// CancelOCO cancels an OCO's orders by its list ID; Crypto.com answers on accepting the request, before it cancels them
-func (e *Exchange) CancelOCO(ctx context.Context, listID string) error {
+// CancelOneCancelsTheOtherOrder cancels an OCO's orders by its list ID; Crypto.com answers on accepting the request,
+// before it cancels them
+func (e *Exchange) CancelOneCancelsTheOtherOrder(ctx context.Context, listID string) error {
 	params, err := newAdvancedListIDParams(listID)
 	if err != nil {
 		return err
@@ -91,12 +92,12 @@ func (e *Exchange) CancelOCO(ctx context.Context, listID string) error {
 	return e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/advanced/cancel-oco", params, nil)
 }
 
-// CreateOTO places a one-triggers-the-other strategy: a LIMIT or MARKET order and a trigger order, which takes effect
-// once the first order has fully executed. Crypto.com places it as a SPOT_ATTACH on a spot instrument, which
-// CreateAdvancedOrder can attach a further trigger order to, and as a DERIV_ATTACH on a derivative. It answers on
-// accepting the request, before it places the orders
-func (e *Exchange) CreateOTO(ctx context.Context, orders []AdvancedOrderLegRequest) (*AdvancedOrderListIDResponse, error) {
-	params, err := otoParams(orders)
+// CreateOneTriggersTheOtherOrder places a one-triggers-the-other strategy: a LIMIT or MARKET order and a trigger order,
+// which takes effect once the first order has fully executed. Crypto.com places it as a SPOT_ATTACH on a spot
+// instrument, which CreateAdvancedOrder can attach a further trigger order to, and as a DERIV_ATTACH on a derivative.
+// It answers on accepting the request, before it places the orders
+func (e *Exchange) CreateOneTriggersTheOtherOrder(ctx context.Context, orders []AdvancedOrderLegRequest) (*AdvancedOrderListIDResponse, error) {
+	params, err := oneTriggersTheOtherParams(orders)
 	if err != nil {
 		return nil, err
 	}
@@ -110,9 +111,10 @@ func (e *Exchange) CreateOTO(ctx context.Context, orders []AdvancedOrderLegReque
 	return resp, nil
 }
 
-// CancelOTO cancels a SPOT_ATTACH's or DERIV_ATTACH's orders by its list ID, whether it holds two orders or three, as
-// CancelOTOCO does; Crypto.com answers on accepting the request, before it cancels them
-func (e *Exchange) CancelOTO(ctx context.Context, listID string) error {
+// CancelOneTriggersTheOtherOrder cancels a SPOT_ATTACH's or DERIV_ATTACH's orders by its list ID, whether it holds two
+// orders or three, as CancelOneTriggersAOneCancelsTheOtherOrder does; Crypto.com answers on accepting the request,
+// before it cancels them
+func (e *Exchange) CancelOneTriggersTheOtherOrder(ctx context.Context, listID string) error {
 	params, err := newAdvancedListIDParams(listID)
 	if err != nil {
 		return err
@@ -120,12 +122,13 @@ func (e *Exchange) CancelOTO(ctx context.Context, listID string) error {
 	return e.SendAuthenticatedHTTPRequest(ctx, privateEPL, "private/advanced/cancel-oto", params, nil)
 }
 
-// CreateOTOCO places a one-triggers-a-one-cancels-the-other strategy: a LIMIT or MARKET order, a stop loss and a take
-// profit, which take effect once the first order has fully executed. Crypto.com places it as a SPOT_ATTACH on a spot
-// instrument, whose stop loss and take profit cancel each other, and as a DERIV_ATTACH on a derivative, whose stop
-// loss and take profit are independent. It answers on accepting the request, before it places the orders
-func (e *Exchange) CreateOTOCO(ctx context.Context, orders []AdvancedOrderLegRequest) (*AdvancedOrderListIDResponse, error) {
-	params, err := otocoParams(orders)
+// CreateOneTriggersAOneCancelsTheOtherOrder places a one-triggers-a-one-cancels-the-other strategy: a LIMIT or MARKET
+// order, a stop loss and a take profit, which take effect once the first order has fully executed. Crypto.com places it
+// as a SPOT_ATTACH on a spot instrument, whose stop loss and take profit cancel each other, and as a DERIV_ATTACH on a
+// derivative, whose stop loss and take profit are independent. It answers on accepting the request, before it places
+// the orders
+func (e *Exchange) CreateOneTriggersAOneCancelsTheOtherOrder(ctx context.Context, orders []AdvancedOrderLegRequest) (*AdvancedOrderListIDResponse, error) {
+	params, err := oneTriggersAOneCancelsTheOtherParams(orders)
 	if err != nil {
 		return nil, err
 	}
@@ -139,9 +142,10 @@ func (e *Exchange) CreateOTOCO(ctx context.Context, orders []AdvancedOrderLegReq
 	return resp, nil
 }
 
-// CancelOTOCO cancels a SPOT_ATTACH's or DERIV_ATTACH's orders by its list ID, whether it holds two orders or three, as
-// CancelOTO does; Crypto.com answers on accepting the request, before it cancels them
-func (e *Exchange) CancelOTOCO(ctx context.Context, listID string) error {
+// CancelOneTriggersAOneCancelsTheOtherOrder cancels a SPOT_ATTACH's or DERIV_ATTACH's orders by its list ID, whether it
+// holds two orders or three, as CancelOneTriggersTheOtherOrder does; Crypto.com answers on accepting the request,
+// before it cancels them
+func (e *Exchange) CancelOneTriggersAOneCancelsTheOtherOrder(ctx context.Context, listID string) error {
 	params, err := newAdvancedListIDParams(listID)
 	if err != nil {
 		return err
@@ -422,10 +426,10 @@ func validateContingencyOrders(orders []AdvancedOrderLegRequest, contingencyType
 	return &counts, nil
 }
 
-// ocoParams validates an OCO's orders, a LIMIT order and a trigger order, which compares its reference price with the
-// mark price only, and returns its params
-func ocoParams(orders []AdvancedOrderLegRequest) (*advancedOrderListParams[AdvancedOrderLegRequest], error) {
-	counts, err := validateContingencyOrders(orders, ContingencyTypeOCO, 2)
+// oneCancelsTheOtherParams validates an OCO's orders, a LIMIT order and a trigger order, which compares its reference
+// price with the mark price only, and returns its params
+func oneCancelsTheOtherParams(orders []AdvancedOrderLegRequest) (*advancedOrderListParams[AdvancedOrderLegRequest], error) {
+	counts, err := validateContingencyOrders(orders, ContingencyTypeOneCancelsTheOther, 2)
 	if err != nil {
 		return nil, err
 	}
@@ -440,9 +444,10 @@ func ocoParams(orders []AdvancedOrderLegRequest) (*advancedOrderListParams[Advan
 	return &advancedOrderListParams[AdvancedOrderLegRequest]{OrderList: orders}, nil
 }
 
-// otoParams validates an OTO's orders, a LIMIT or MARKET order and a trigger order, and returns its params
-func otoParams(orders []AdvancedOrderLegRequest) (*advancedOrderListParams[AdvancedOrderLegRequest], error) {
-	counts, err := validateContingencyOrders(orders, ContingencyTypeOTO, 2)
+// oneTriggersTheOtherParams validates an OTO's orders, a LIMIT or MARKET order and a trigger order, and returns its
+// params
+func oneTriggersTheOtherParams(orders []AdvancedOrderLegRequest) (*advancedOrderListParams[AdvancedOrderLegRequest], error) {
+	counts, err := validateContingencyOrders(orders, ContingencyTypeOneTriggersTheOther, 2)
 	if err != nil {
 		return nil, err
 	}
@@ -452,10 +457,10 @@ func otoParams(orders []AdvancedOrderLegRequest) (*advancedOrderListParams[Advan
 	return &advancedOrderListParams[AdvancedOrderLegRequest]{OrderList: orders}, nil
 }
 
-// otocoParams validates an OTOCO's orders, a LIMIT or MARKET order, a stop loss and a take profit, and returns its
-// params
-func otocoParams(orders []AdvancedOrderLegRequest) (*advancedOrderListParams[AdvancedOrderLegRequest], error) {
-	counts, err := validateContingencyOrders(orders, ContingencyTypeOTOCO, 3)
+// oneTriggersAOneCancelsTheOtherParams validates an OTOCO's orders, a LIMIT or MARKET order, a stop loss and a take
+// profit, and returns its params
+func oneTriggersAOneCancelsTheOtherParams(orders []AdvancedOrderLegRequest) (*advancedOrderListParams[AdvancedOrderLegRequest], error) {
+	counts, err := validateContingencyOrders(orders, ContingencyTypeOneTriggersAOneCancelsTheOther, 3)
 	if err != nil {
 		return nil, err
 	}
@@ -517,10 +522,8 @@ func (r *GetAdvancedOrderHistoryRequest) params() (*advancedOrderHistoryParams, 
 	if err := common.NilGuard(r); err != nil {
 		return nil, err
 	}
-	if !r.StartTime.IsZero() && !r.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(r.StartTime, r.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndOptionalTimeCheck(r.StartTime, r.EndTime); err != nil {
+		return nil, err
 	}
 	if r.Limit > maxAdvancedOrderHistoryLimit {
 		return nil, fmt.Errorf("%w: limit %d exceeds the maximum of %d", errInvalidCount, r.Limit, maxAdvancedOrderHistoryLimit)

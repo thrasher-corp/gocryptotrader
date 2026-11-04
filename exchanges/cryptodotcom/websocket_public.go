@@ -175,6 +175,7 @@ func (e *Exchange) wsHandleBookUpdate(ctx context.Context, conn websocket.Connec
 	}
 	assets, err := e.enabledInstrumentAssets(push.InstrumentName)
 	if err != nil || len(assets) == 0 {
+		// A pair disabled since it subscribed has no book to update: its deltas are dropped, not resubscribed for a snapshot
 		return err
 	}
 	var errs error

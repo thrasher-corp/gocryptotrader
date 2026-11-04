@@ -12,10 +12,10 @@ import (
 
 // Trading bot types
 const (
-	TradingBotTypeDCA              = "DCA"
-	TradingBotTypeTWAP             = "TWAP"
-	TradingBotTypeGrid             = "GRID"
-	TradingBotTypeFundingArbitrage = "FUNDING_ARBITRAGE"
+	TradingBotTypeDollarCostAveraging      = "DCA"
+	TradingBotTypeTimeWeightedAveragePrice = "TWAP"
+	TradingBotTypeGrid                     = "GRID"
+	TradingBotTypeFundingArbitrage         = "FUNDING_ARBITRAGE"
 )
 
 // Trading bot states: a paused bot places no orders until it is resumed, and a terminated one none again
@@ -38,15 +38,17 @@ const (
 )
 
 // TradingBotSettings is a bot type's settings, which CreateTradingBot takes and GetTradingBots reports:
-// *TradingBotDCASettings, *TradingBotTWAPSettings, *TradingBotGridSettings or *TradingBotFundingArbitrageSettings
+// *TradingBotDollarCostAveragingSettings, *TradingBotTimeWeightedAveragePriceSettings, *TradingBotGridSettings or
+// *TradingBotFundingArbitrageSettings
 type TradingBotSettings interface {
 	// BotType returns the type of bot the settings are for
 	BotType() string
 	validateSettings() error
 }
 
-// TradingBotUpdateSettings is the settings UpdateTradingBot can change, for a DCA bot *TradingBotDCAUpdateSettings and
-// for a grid bot *TradingBotGridUpdateSettings; TWAP and funding arbitrage bots cannot change theirs
+// TradingBotUpdateSettings is the settings UpdateTradingBot can change, for a DCA bot
+// *TradingBotDollarCostAveragingUpdateSettings and for a grid bot *TradingBotGridUpdateSettings; TWAP and funding
+// arbitrage bots cannot change theirs
 type TradingBotUpdateSettings interface {
 	// BotType returns the type of bot the settings are for
 	BotType() string
@@ -60,12 +62,12 @@ type TradingBotAllocation struct {
 	AllocatedPercentage types.Number `json:"allocated_percentage,omitempty"`
 }
 
-// TradingBotDCASettings is a DCA bot's settings: it buys or sells one instrument, or a basket of them by allocation, at
-// an interval. A bot that is not a basket requires Side, OrderType and AutoStake, and a limit order Price; Quantity,
-// per order, or TotalInvestment is always required. InvestmentFrequency, the interval between orders, is required in
-// the fixed duration mode, and InvestmentDuration counts months in the monthly mode and milliseconds in the fixed
-// duration one. Basket bots do not support stop or take profit prices
-type TradingBotDCASettings struct {
+// TradingBotDollarCostAveragingSettings is a DCA bot's settings: it buys or sells one instrument, or a basket of them
+// by allocation, at an interval. A bot that is not a basket requires Side, OrderType and AutoStake, and a limit order
+// Price; Quantity, per order, or TotalInvestment is always required. InvestmentFrequency, the interval between orders,
+// is required in the fixed duration mode, and InvestmentDuration counts months in the monthly mode and milliseconds in
+// the fixed duration one. Basket bots do not support stop or take profit prices
+type TradingBotDollarCostAveragingSettings struct {
 	IsBasket                bool
 	Allocations             []TradingBotAllocation
 	InvestmentCurrency      currency.Code
@@ -79,15 +81,15 @@ type TradingBotDCASettings struct {
 	InvestmentFrequency     time.Duration
 	FirstInvestmentTime     time.Time
 	InvestmentDuration      uint64
-	MaxOrders               uint64
+	MaximumOrders           uint64
 	StopPrice               types.Number
 	TakeProfitPrice         types.Number
 	SimplifiedMode          bool
 }
 
-// tradingBotDCASettingsWire is a DCA bot's settings as Crypto.com takes and reports them, the first investment time and
-// the frequency in milliseconds
-type tradingBotDCASettingsWire struct {
+// tradingBotDollarCostAveragingSettingsWire is a DCA bot's settings as Crypto.com takes and reports them, the first
+// investment time and the frequency in milliseconds
+type tradingBotDollarCostAveragingSettingsWire struct {
 	IsBasket                        bool                   `json:"is_basket"`
 	Allocations                     []TradingBotAllocation `json:"allocations"`
 	InvestmentCurrency              currency.Code          `json:"investment_currency"`
@@ -101,18 +103,20 @@ type tradingBotDCASettingsWire struct {
 	InvestmentFrequencyMilliseconds uint64                 `json:"investment_frequency,omitempty"`
 	FirstInvestmentTimeMilliseconds uint64                 `json:"first_investment_time,omitempty"`
 	InvestmentDuration              uint64                 `json:"investment_duration,omitempty"`
-	MaxOrders                       uint64                 `json:"max_order,omitempty,string"`
+	MaximumOrders                   uint64                 `json:"max_order,omitempty,string"`
 	StopPrice                       types.Number           `json:"stop_price,omitempty"`
 	TakeProfitPrice                 types.Number           `json:"take_profit_price,omitempty"`
 	SimplifiedMode                  bool                   `json:"simplified_mode,omitempty"`
 }
 
-// BotType returns TradingBotTypeDCA
-func (*TradingBotDCASettings) BotType() string { return TradingBotTypeDCA }
+// BotType returns TradingBotTypeDollarCostAveraging
+func (*TradingBotDollarCostAveragingSettings) BotType() string {
+	return TradingBotTypeDollarCostAveraging
+}
 
 // MarshalJSON encodes the settings as Crypto.com takes them, the first investment time and the frequency in
 // milliseconds
-func (s *TradingBotDCASettings) MarshalJSON() ([]byte, error) {
+func (s *TradingBotDollarCostAveragingSettings) MarshalJSON() ([]byte, error) {
 	firstInvestmentTime, err := unixMilliParam(s.FirstInvestmentTime)
 	if err != nil {
 		return nil, err
@@ -121,7 +125,7 @@ func (s *TradingBotDCASettings) MarshalJSON() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return json.Marshal(&tradingBotDCASettingsWire{
+	return json.Marshal(&tradingBotDollarCostAveragingSettingsWire{
 		IsBasket:                        s.IsBasket,
 		Allocations:                     s.Allocations,
 		InvestmentCurrency:              s.InvestmentCurrency,
@@ -135,7 +139,7 @@ func (s *TradingBotDCASettings) MarshalJSON() ([]byte, error) {
 		InvestmentFrequencyMilliseconds: frequency,
 		FirstInvestmentTimeMilliseconds: firstInvestmentTime,
 		InvestmentDuration:              s.InvestmentDuration,
-		MaxOrders:                       s.MaxOrders,
+		MaximumOrders:                   s.MaximumOrders,
 		StopPrice:                       s.StopPrice,
 		TakeProfitPrice:                 s.TakeProfitPrice,
 		SimplifiedMode:                  s.SimplifiedMode,
@@ -143,12 +147,12 @@ func (s *TradingBotDCASettings) MarshalJSON() ([]byte, error) {
 }
 
 // UnmarshalJSON decodes the settings as Crypto.com reports them
-func (s *TradingBotDCASettings) UnmarshalJSON(data []byte) error {
-	var w tradingBotDCASettingsWire
+func (s *TradingBotDollarCostAveragingSettings) UnmarshalJSON(data []byte) error {
+	var w tradingBotDollarCostAveragingSettingsWire
 	if err := json.Unmarshal(data, &w); err != nil {
 		return err
 	}
-	*s = TradingBotDCASettings{
+	*s = TradingBotDollarCostAveragingSettings{
 		IsBasket:                w.IsBasket,
 		Allocations:             w.Allocations,
 		InvestmentCurrency:      w.InvestmentCurrency,
@@ -162,7 +166,7 @@ func (s *TradingBotDCASettings) UnmarshalJSON(data []byte) error {
 		InvestmentFrequency:     millisecondsDuration(w.InvestmentFrequencyMilliseconds),
 		FirstInvestmentTime:     unixMilliTime(w.FirstInvestmentTimeMilliseconds),
 		InvestmentDuration:      w.InvestmentDuration,
-		MaxOrders:               w.MaxOrders,
+		MaximumOrders:           w.MaximumOrders,
 		StopPrice:               w.StopPrice,
 		TakeProfitPrice:         w.TakeProfitPrice,
 		SimplifiedMode:          w.SimplifiedMode,
@@ -170,9 +174,9 @@ func (s *TradingBotDCASettings) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// TradingBotTWAPSettings is a TWAP bot's settings: it trades a quantity in slices between its start and end times, and
-// requires a limit order's Price
-type TradingBotTWAPSettings struct {
+// TradingBotTimeWeightedAveragePriceSettings is a TWAP bot's settings: it trades a quantity in slices between its start
+// and end times, and requires a limit order's Price
+type TradingBotTimeWeightedAveragePriceSettings struct {
 	InstrumentName string
 	Side           string
 	OrderType      string
@@ -182,8 +186,9 @@ type TradingBotTWAPSettings struct {
 	EndTime        time.Time
 }
 
-// tradingBotTWAPSettingsWire is a TWAP bot's settings as Crypto.com takes and reports them, its times in milliseconds
-type tradingBotTWAPSettingsWire struct {
+// tradingBotTimeWeightedAveragePriceSettingsWire is a TWAP bot's settings as Crypto.com takes and reports them, its
+// times in milliseconds
+type tradingBotTimeWeightedAveragePriceSettingsWire struct {
 	InstrumentName        string       `json:"instrument_name"`
 	Side                  string       `json:"side"`
 	OrderType             string       `json:"type"`
@@ -193,11 +198,13 @@ type tradingBotTWAPSettingsWire struct {
 	EndTimeMilliseconds   uint64       `json:"end_time_millis"`
 }
 
-// BotType returns TradingBotTypeTWAP
-func (*TradingBotTWAPSettings) BotType() string { return TradingBotTypeTWAP }
+// BotType returns TradingBotTypeTimeWeightedAveragePrice
+func (*TradingBotTimeWeightedAveragePriceSettings) BotType() string {
+	return TradingBotTypeTimeWeightedAveragePrice
+}
 
 // MarshalJSON encodes the settings as Crypto.com takes them, the times in milliseconds
-func (s *TradingBotTWAPSettings) MarshalJSON() ([]byte, error) {
+func (s *TradingBotTimeWeightedAveragePriceSettings) MarshalJSON() ([]byte, error) {
 	start, err := unixMilliParam(s.StartTime)
 	if err != nil {
 		return nil, err
@@ -206,7 +213,7 @@ func (s *TradingBotTWAPSettings) MarshalJSON() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return json.Marshal(&tradingBotTWAPSettingsWire{
+	return json.Marshal(&tradingBotTimeWeightedAveragePriceSettingsWire{
 		InstrumentName:        s.InstrumentName,
 		Side:                  s.Side,
 		OrderType:             s.OrderType,
@@ -218,12 +225,12 @@ func (s *TradingBotTWAPSettings) MarshalJSON() ([]byte, error) {
 }
 
 // UnmarshalJSON decodes the settings as Crypto.com reports them
-func (s *TradingBotTWAPSettings) UnmarshalJSON(data []byte) error {
-	var w tradingBotTWAPSettingsWire
+func (s *TradingBotTimeWeightedAveragePriceSettings) UnmarshalJSON(data []byte) error {
+	var w tradingBotTimeWeightedAveragePriceSettingsWire
 	if err := json.Unmarshal(data, &w); err != nil {
 		return err
 	}
-	*s = TradingBotTWAPSettings{
+	*s = TradingBotTimeWeightedAveragePriceSettings{
 		InstrumentName: w.InstrumentName,
 		Side:           w.Side,
 		OrderType:      w.OrderType,
@@ -272,14 +279,14 @@ type TradingBotLeg struct {
 	Side           string `json:"side"`
 }
 
-// TradingBotDCAUpdateSettings is the settings of a DCA bot UpdateTradingBot can change; settings left unset are kept,
-// and AutoStake is a pointer so auto-staking can be turned off. InvestmentDuration counts months or milliseconds, as
-// TradingBotDCASettings'
-type TradingBotDCAUpdateSettings struct {
+// TradingBotDollarCostAveragingUpdateSettings is the settings of a DCA bot UpdateTradingBot can change; settings left
+// unset are kept, and AutoStake is a pointer so auto-staking can be turned off. InvestmentDuration counts months or
+// milliseconds, as TradingBotDollarCostAveragingSettings'
+type TradingBotDollarCostAveragingUpdateSettings struct {
 	Allocations         []TradingBotAllocation
 	OrderType           string
 	Price               types.Number
-	MaxOrders           uint64
+	MaximumOrders       uint64
 	StopPrice           types.Number
 	TakeProfitPrice     types.Number
 	AutoStake           *bool
@@ -288,12 +295,13 @@ type TradingBotDCAUpdateSettings struct {
 	Quantity            types.Number
 }
 
-// tradingBotDCAUpdateSettingsWire is a DCA bot's settings update as Crypto.com takes it, the frequency in milliseconds
-type tradingBotDCAUpdateSettingsWire struct {
+// tradingBotDollarCostAveragingUpdateSettingsWire is a DCA bot's settings update as Crypto.com takes it, the frequency
+// in milliseconds
+type tradingBotDollarCostAveragingUpdateSettingsWire struct {
 	Allocations                     []TradingBotAllocation `json:"allocations,omitempty"`
 	OrderType                       string                 `json:"type,omitempty"`
 	Price                           types.Number           `json:"price,omitempty"`
-	MaxOrders                       uint64                 `json:"max_order,omitempty,string"`
+	MaximumOrders                   uint64                 `json:"max_order,omitempty,string"`
 	StopPrice                       types.Number           `json:"stop_price,omitempty"`
 	TakeProfitPrice                 types.Number           `json:"take_profit_price,omitempty"`
 	AutoStake                       *bool                  `json:"auto_stake,omitempty"`
@@ -302,8 +310,10 @@ type tradingBotDCAUpdateSettingsWire struct {
 	Quantity                        types.Number           `json:"quantity,omitempty"`
 }
 
-// BotType returns TradingBotTypeDCA
-func (*TradingBotDCAUpdateSettings) BotType() string { return TradingBotTypeDCA }
+// BotType returns TradingBotTypeDollarCostAveraging
+func (*TradingBotDollarCostAveragingUpdateSettings) BotType() string {
+	return TradingBotTypeDollarCostAveraging
+}
 
 // TradingBotGridUpdateSettings is the settings of a grid bot UpdateTradingBot can change; prices left unset are kept
 type TradingBotGridUpdateSettings struct {
@@ -432,10 +442,10 @@ func (b *TradingBotResponse) decodeSettings(data json.RawMessage) error {
 	}
 	var settings TradingBotSettings
 	switch b.BotType {
-	case TradingBotTypeDCA:
-		settings = new(TradingBotDCASettings)
-	case TradingBotTypeTWAP:
-		settings = new(TradingBotTWAPSettings)
+	case TradingBotTypeDollarCostAveraging:
+		settings = new(TradingBotDollarCostAveragingSettings)
+	case TradingBotTypeTimeWeightedAveragePrice:
+		settings = new(TradingBotTimeWeightedAveragePriceSettings)
 	case TradingBotTypeGrid:
 		settings = new(TradingBotGridSettings)
 	case TradingBotTypeFundingArbitrage:

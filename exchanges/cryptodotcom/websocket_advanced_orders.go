@@ -2,8 +2,6 @@ package cryptodotcom
 
 import (
 	"context"
-
-	"github.com/thrasher-corp/gocryptotrader/common"
 )
 
 // CreateAdvancedOrder places a trigger order over the websocket, as Exchange.CreateAdvancedOrder does over REST
@@ -14,9 +12,6 @@ func (w WebsocketAPI) CreateAdvancedOrder(ctx context.Context, req *CreateAdvanc
 	var resp *OrderIDResponse
 	if err := w.e.SendWebsocketRequest(ctx, "private/advanced/create-order", req, &resp); err != nil {
 		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
 	}
 	return resp, nil
 }
@@ -31,15 +26,13 @@ func (w WebsocketAPI) AmendAdvancedOrder(ctx context.Context, req *AmendAdvanced
 	if err := w.e.SendWebsocketRequest(ctx, "private/advanced/amend-order", params, &resp); err != nil {
 		return nil, err
 	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
 	return resp, nil
 }
 
-// CreateOCO places a one-cancels-the-other strategy over the websocket, as Exchange.CreateOCO does over REST
-func (w WebsocketAPI) CreateOCO(ctx context.Context, orders []AdvancedOrderLegRequest) (*AdvancedOrderListIDResponse, error) {
-	params, err := ocoParams(orders)
+// CreateOneCancelsTheOtherOrder places a one-cancels-the-other strategy over the websocket, as
+// Exchange.CreateOneCancelsTheOtherOrder does over REST
+func (w WebsocketAPI) CreateOneCancelsTheOtherOrder(ctx context.Context, orders []AdvancedOrderLegRequest) (*AdvancedOrderListIDResponse, error) {
+	params, err := oneCancelsTheOtherParams(orders)
 	if err != nil {
 		return nil, err
 	}
@@ -47,14 +40,12 @@ func (w WebsocketAPI) CreateOCO(ctx context.Context, orders []AdvancedOrderLegRe
 	if err := w.e.SendWebsocketRequest(ctx, "private/advanced/create-oco", params, &resp); err != nil {
 		return nil, err
 	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
 	return resp, nil
 }
 
-// CancelOCO cancels an OCO's orders by its list ID over the websocket, as Exchange.CancelOCO does over REST
-func (w WebsocketAPI) CancelOCO(ctx context.Context, listID string) error {
+// CancelOneCancelsTheOtherOrder cancels an OCO's orders by its list ID over the websocket, as
+// Exchange.CancelOneCancelsTheOtherOrder does over REST
+func (w WebsocketAPI) CancelOneCancelsTheOtherOrder(ctx context.Context, listID string) error {
 	params, err := newAdvancedListIDParams(listID)
 	if err != nil {
 		return err
@@ -62,9 +53,10 @@ func (w WebsocketAPI) CancelOCO(ctx context.Context, listID string) error {
 	return w.e.SendWebsocketRequest(ctx, "private/advanced/cancel-oco", params, nil)
 }
 
-// CreateOTO places a one-triggers-the-other strategy over the websocket, as Exchange.CreateOTO does over REST
-func (w WebsocketAPI) CreateOTO(ctx context.Context, orders []AdvancedOrderLegRequest) (*AdvancedOrderListIDResponse, error) {
-	params, err := otoParams(orders)
+// CreateOneTriggersTheOtherOrder places a one-triggers-the-other strategy over the websocket, as
+// Exchange.CreateOneTriggersTheOtherOrder does over REST
+func (w WebsocketAPI) CreateOneTriggersTheOtherOrder(ctx context.Context, orders []AdvancedOrderLegRequest) (*AdvancedOrderListIDResponse, error) {
+	params, err := oneTriggersTheOtherParams(orders)
 	if err != nil {
 		return nil, err
 	}
@@ -72,15 +64,12 @@ func (w WebsocketAPI) CreateOTO(ctx context.Context, orders []AdvancedOrderLegRe
 	if err := w.e.SendWebsocketRequest(ctx, "private/advanced/create-oto", params, &resp); err != nil {
 		return nil, err
 	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
 	return resp, nil
 }
 
-// CancelOTO cancels a SPOT_ATTACH's or DERIV_ATTACH's orders by its list ID over the websocket, as Exchange.CancelOTO
-// does over REST
-func (w WebsocketAPI) CancelOTO(ctx context.Context, listID string) error {
+// CancelOneTriggersTheOtherOrder cancels a SPOT_ATTACH's or DERIV_ATTACH's orders by its list ID over the websocket, as
+// Exchange.CancelOneTriggersTheOtherOrder does over REST
+func (w WebsocketAPI) CancelOneTriggersTheOtherOrder(ctx context.Context, listID string) error {
 	params, err := newAdvancedListIDParams(listID)
 	if err != nil {
 		return err
@@ -88,10 +77,10 @@ func (w WebsocketAPI) CancelOTO(ctx context.Context, listID string) error {
 	return w.e.SendWebsocketRequest(ctx, "private/advanced/cancel-oto", params, nil)
 }
 
-// CreateOTOCO places a one-triggers-a-one-cancels-the-other strategy over the websocket, as Exchange.CreateOTOCO does
-// over REST
-func (w WebsocketAPI) CreateOTOCO(ctx context.Context, orders []AdvancedOrderLegRequest) (*AdvancedOrderListIDResponse, error) {
-	params, err := otocoParams(orders)
+// CreateOneTriggersAOneCancelsTheOtherOrder places a one-triggers-a-one-cancels-the-other strategy over the websocket,
+// as Exchange.CreateOneTriggersAOneCancelsTheOtherOrder does over REST
+func (w WebsocketAPI) CreateOneTriggersAOneCancelsTheOtherOrder(ctx context.Context, orders []AdvancedOrderLegRequest) (*AdvancedOrderListIDResponse, error) {
+	params, err := oneTriggersAOneCancelsTheOtherParams(orders)
 	if err != nil {
 		return nil, err
 	}
@@ -99,15 +88,12 @@ func (w WebsocketAPI) CreateOTOCO(ctx context.Context, orders []AdvancedOrderLeg
 	if err := w.e.SendWebsocketRequest(ctx, "private/advanced/create-otoco", params, &resp); err != nil {
 		return nil, err
 	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
 	return resp, nil
 }
 
-// CancelOTOCO cancels a SPOT_ATTACH's or DERIV_ATTACH's orders by its list ID over the websocket, as
-// Exchange.CancelOTOCO does over REST
-func (w WebsocketAPI) CancelOTOCO(ctx context.Context, listID string) error {
+// CancelOneTriggersAOneCancelsTheOtherOrder cancels a SPOT_ATTACH's or DERIV_ATTACH's orders by its list ID over the
+// websocket, as Exchange.CancelOneTriggersAOneCancelsTheOtherOrder does over REST
+func (w WebsocketAPI) CancelOneTriggersAOneCancelsTheOtherOrder(ctx context.Context, listID string) error {
 	params, err := newAdvancedListIDParams(listID)
 	if err != nil {
 		return err
@@ -124,9 +110,6 @@ func (w WebsocketAPI) CancelAdvancedOrder(ctx context.Context, req *AdvancedOrde
 	var resp *OrderIDResponse
 	if err := w.e.SendWebsocketRequest(ctx, "private/advanced/cancel-order", req, &resp); err != nil {
 		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
 	}
 	return resp, nil
 }
@@ -151,9 +134,6 @@ func (w WebsocketAPI) CreateAdvancedOrderList(ctx context.Context, orders []Crea
 	if err := w.e.SendWebsocketRequest(ctx, "private/advanced/create-order-list", params, &resp); err != nil {
 		return nil, err
 	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
 	return resp, nil
 }
 
@@ -167,9 +147,6 @@ func (w WebsocketAPI) CancelAdvancedOrderList(ctx context.Context, orders []Adva
 	var resp []OrderListEntryResponse
 	if err := w.e.SendWebsocketRequest(ctx, "private/advanced/cancel-order-list", params, &resp); err != nil {
 		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
 	}
 	return resp, nil
 }

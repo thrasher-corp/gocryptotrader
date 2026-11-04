@@ -93,12 +93,12 @@ const (
 
 // Contingency types; ContingencyTypeList is the order list methods' only type
 const (
-	ContingencyTypeList        = "LIST"
-	ContingencyTypeOCO         = "OCO"
-	ContingencyTypeOTO         = "OTO"
-	ContingencyTypeOTOCO       = "OTOCO"
-	ContingencyTypeSpotAttach  = "SPOT_ATTACH"
-	ContingencyTypeDerivAttach = "DERIV_ATTACH"
+	ContingencyTypeList                           = "LIST"
+	ContingencyTypeOneCancelsTheOther             = "OCO"
+	ContingencyTypeOneTriggersTheOther            = "OTO"
+	ContingencyTypeOneTriggersAOneCancelsTheOther = "OTOCO"
+	ContingencyTypeSpotAttach                     = "SPOT_ATTACH"
+	ContingencyTypeDerivativesAttach              = "DERIV_ATTACH"
 )
 
 // Isolation types

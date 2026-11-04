@@ -248,10 +248,8 @@ func (e *Exchange) GetInsurance(ctx context.Context, req *InsuranceRequest) (*In
 
 // setTimeWindowParams sets the start_ts and end_ts of a time window, each converted by toParam and left out when unset
 func setTimeWindowParams(params url.Values, start, end time.Time, toParam func(time.Time) (uint64, error)) error {
-	if !start.IsZero() && !end.IsZero() {
-		if err := common.StartEndTimeCheck(start, end); err != nil {
-			return err
-		}
+	if err := common.StartEndOptionalTimeCheck(start, end); err != nil {
+		return err
 	}
 	startTS, err := toParam(start)
 	if err != nil {
@@ -337,7 +335,7 @@ func timeframeToInterval(timeframe string) (kline.Interval, error) {
 
 // UnmarshalJSON decodes a level from its [price, quantity, number of orders] array, whose values Crypto.com quotes
 func (l *OrderbookLevel) UnmarshalJSON(data []byte) error {
-	var fields []json.RawMessage
+	fields := make([]json.RawMessage, 0, 3)
 	if err := json.Unmarshal(data, &fields); err != nil {
 		return fmt.Errorf("%w: %w", errMalformedOrderbookLevel, err)
 	}

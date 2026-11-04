@@ -103,100 +103,100 @@ func TestWebsocketAPIAmendAdvancedOrder(t *testing.T) {
 	})
 }
 
-func TestWebsocketAPICreateOCO(t *testing.T) {
+func TestWebsocketAPICreateOneCancelsTheOtherOrder(t *testing.T) {
 	t.Parallel()
 	refuser := newAdvancedRefusalExchange(t).WebsocketAPI()
-	for _, tc := range ocoRefusals() {
-		_, err := refuser.CreateOCO(t.Context(), tc.orders)
-		assert.ErrorIsf(t, err, tc.err, "CreateOCO should refuse %s", tc.name)
+	for _, tc := range oneCancelsTheOtherRefusals() {
+		_, err := refuser.CreateOneCancelsTheOtherOrder(t.Context(), tc.orders)
+		assert.ErrorIsf(t, err, tc.err, "CreateOneCancelsTheOtherOrder should refuse %s", tc.name)
 	}
 	skipLiveUnlessCanManipulate(t)
 
 	ex, venue := newWebsocketTestExchange(t)
-	result, err := ex.WebsocketAPI().CreateOCO(t.Context(), ocoOrders())
-	require.NoError(t, err, "CreateOCO must not error")
+	result, err := ex.WebsocketAPI().CreateOneCancelsTheOtherOrder(t.Context(), ocoOrders())
+	require.NoError(t, err, "CreateOneCancelsTheOtherOrder must not error")
 	if !mockTests {
-		assert.NotEmpty(t, result.ListID, "CreateOCO should return the list ID")
+		assert.NotEmpty(t, result.ListID, "CreateOneCancelsTheOtherOrder should return the list ID")
 		return
 	}
 	exp := &AdvancedOrderListIDResponse{ListID: "6498090546073120100"}
-	assert.Equal(t, exp, result, "CreateOCO should decode every field")
+	assert.Equal(t, exp, result, "CreateOneCancelsTheOtherOrder should decode every field")
 	requests := venue.received("private/advanced/create-oco")
-	require.Len(t, requests, 1, "CreateOCO must send one request")
-	assert.JSONEq(t, `{"order_list":[{"instrument_name":"BTC_USD","side":"SELL","type":"LIMIT","quantity":"0.0001","price":"120000"},{"instrument_name":"BTC_USD","side":"SELL","type":"STOP_LOSS","quantity":"0.0001","ref_price":"40000"}]}`, string(requests[0].Params), "CreateOCO should send the orders")
-	testWebsocketAPIAdvancedFailures(t, venue, "CreateOCO", "private/advanced/create-oco", true, func() error {
-		_, err := ex.WebsocketAPI().CreateOCO(t.Context(), ocoOrders())
+	require.Len(t, requests, 1, "CreateOneCancelsTheOtherOrder must send one request")
+	assert.JSONEq(t, `{"order_list":[{"instrument_name":"BTC_USD","side":"SELL","type":"LIMIT","quantity":"0.0001","price":"120000"},{"instrument_name":"BTC_USD","side":"SELL","type":"STOP_LOSS","quantity":"0.0001","ref_price":"40000"}]}`, string(requests[0].Params), "CreateOneCancelsTheOtherOrder should send the orders")
+	testWebsocketAPIAdvancedFailures(t, venue, "CreateOneCancelsTheOtherOrder", "private/advanced/create-oco", true, func() error {
+		_, err := ex.WebsocketAPI().CreateOneCancelsTheOtherOrder(t.Context(), ocoOrders())
 		return err
 	})
 }
 
-func TestWebsocketAPICancelOCO(t *testing.T) {
+func TestWebsocketAPICancelOneCancelsTheOtherOrder(t *testing.T) {
 	t.Parallel()
-	testWebsocketAPICancelContingency(t, "CancelOCO", "private/advanced/cancel-oco", "6498090546073120100", WebsocketAPI.CancelOCO)
+	testWebsocketAPICancelContingency(t, "CancelOneCancelsTheOtherOrder", "private/advanced/cancel-oco", "6498090546073120100", WebsocketAPI.CancelOneCancelsTheOtherOrder)
 }
 
-func TestWebsocketAPICreateOTO(t *testing.T) {
+func TestWebsocketAPICreateOneTriggersTheOtherOrder(t *testing.T) {
 	t.Parallel()
 	refuser := newAdvancedRefusalExchange(t).WebsocketAPI()
-	for _, tc := range otoRefusals() {
-		_, err := refuser.CreateOTO(t.Context(), tc.orders)
-		assert.ErrorIsf(t, err, tc.err, "CreateOTO should refuse %s", tc.name)
+	for _, tc := range oneTriggersTheOtherRefusals() {
+		_, err := refuser.CreateOneTriggersTheOtherOrder(t.Context(), tc.orders)
+		assert.ErrorIsf(t, err, tc.err, "CreateOneTriggersTheOtherOrder should refuse %s", tc.name)
 	}
 	skipLiveUnlessCanManipulate(t)
 
 	ex, venue := newWebsocketTestExchange(t)
-	result, err := ex.WebsocketAPI().CreateOTO(t.Context(), otoOrders())
-	require.NoError(t, err, "CreateOTO must not error")
+	result, err := ex.WebsocketAPI().CreateOneTriggersTheOtherOrder(t.Context(), otoOrders())
+	require.NoError(t, err, "CreateOneTriggersTheOtherOrder must not error")
 	if !mockTests {
-		assert.NotEmpty(t, result.ListID, "CreateOTO should return the list ID")
+		assert.NotEmpty(t, result.ListID, "CreateOneTriggersTheOtherOrder should return the list ID")
 		return
 	}
 	exp := &AdvancedOrderListIDResponse{ListID: "6498090546073120199"}
-	assert.Equal(t, exp, result, "CreateOTO should decode every field")
+	assert.Equal(t, exp, result, "CreateOneTriggersTheOtherOrder should decode every field")
 	requests := venue.received("private/advanced/create-oto")
-	require.Len(t, requests, 1, "CreateOTO must send one request")
-	assert.JSONEq(t, `{"order_list":[{"instrument_name":"BTC_USD","side":"BUY","type":"LIMIT","quantity":"0.0001","price":"40000"},{"instrument_name":"BTC_USD","side":"SELL","type":"STOP_LOSS","quantity":"0.0001","ref_price":"30000"}]}`, string(requests[0].Params), "CreateOTO should send the orders")
-	testWebsocketAPIAdvancedFailures(t, venue, "CreateOTO", "private/advanced/create-oto", true, func() error {
-		_, err := ex.WebsocketAPI().CreateOTO(t.Context(), otoOrders())
+	require.Len(t, requests, 1, "CreateOneTriggersTheOtherOrder must send one request")
+	assert.JSONEq(t, `{"order_list":[{"instrument_name":"BTC_USD","side":"BUY","type":"LIMIT","quantity":"0.0001","price":"40000"},{"instrument_name":"BTC_USD","side":"SELL","type":"STOP_LOSS","quantity":"0.0001","ref_price":"30000"}]}`, string(requests[0].Params), "CreateOneTriggersTheOtherOrder should send the orders")
+	testWebsocketAPIAdvancedFailures(t, venue, "CreateOneTriggersTheOtherOrder", "private/advanced/create-oto", true, func() error {
+		_, err := ex.WebsocketAPI().CreateOneTriggersTheOtherOrder(t.Context(), otoOrders())
 		return err
 	})
 }
 
-func TestWebsocketAPICancelOTO(t *testing.T) {
+func TestWebsocketAPICancelOneTriggersTheOtherOrder(t *testing.T) {
 	t.Parallel()
-	testWebsocketAPICancelContingency(t, "CancelOTO", "private/advanced/cancel-oto", "6498090546073120199", WebsocketAPI.CancelOTO)
+	testWebsocketAPICancelContingency(t, "CancelOneTriggersTheOtherOrder", "private/advanced/cancel-oto", "6498090546073120199", WebsocketAPI.CancelOneTriggersTheOtherOrder)
 }
 
-func TestWebsocketAPICreateOTOCO(t *testing.T) {
+func TestWebsocketAPICreateOneTriggersAOneCancelsTheOtherOrder(t *testing.T) {
 	t.Parallel()
 	refuser := newAdvancedRefusalExchange(t).WebsocketAPI()
-	for _, tc := range otocoRefusals() {
-		_, err := refuser.CreateOTOCO(t.Context(), tc.orders)
-		assert.ErrorIsf(t, err, tc.err, "CreateOTOCO should refuse %s", tc.name)
+	for _, tc := range oneTriggersAOneCancelsTheOtherRefusals() {
+		_, err := refuser.CreateOneTriggersAOneCancelsTheOtherOrder(t.Context(), tc.orders)
+		assert.ErrorIsf(t, err, tc.err, "CreateOneTriggersAOneCancelsTheOtherOrder should refuse %s", tc.name)
 	}
 	skipLiveUnlessCanManipulate(t)
 
 	ex, venue := newWebsocketTestExchange(t)
-	result, err := ex.WebsocketAPI().CreateOTOCO(t.Context(), otocoOrders())
-	require.NoError(t, err, "CreateOTOCO must not error")
+	result, err := ex.WebsocketAPI().CreateOneTriggersAOneCancelsTheOtherOrder(t.Context(), otocoOrders())
+	require.NoError(t, err, "CreateOneTriggersAOneCancelsTheOtherOrder must not error")
 	if !mockTests {
-		assert.NotEmpty(t, result.ListID, "CreateOTOCO should return the list ID")
+		assert.NotEmpty(t, result.ListID, "CreateOneTriggersAOneCancelsTheOtherOrder should return the list ID")
 		return
 	}
 	exp := &AdvancedOrderListIDResponse{ListID: "6498090546073120243"}
-	assert.Equal(t, exp, result, "CreateOTOCO should decode every field")
+	assert.Equal(t, exp, result, "CreateOneTriggersAOneCancelsTheOtherOrder should decode every field")
 	requests := venue.received("private/advanced/create-otoco")
-	require.Len(t, requests, 1, "CreateOTOCO must send one request")
-	assert.JSONEq(t, `{"order_list":[{"instrument_name":"BTC_USD","side":"BUY","type":"LIMIT","quantity":"0.0001","price":"40000"},{"instrument_name":"BTC_USD","side":"SELL","type":"STOP_LOSS","quantity":"0.0001","ref_price":"30000"},{"instrument_name":"BTC_USD","side":"SELL","type":"TAKE_PROFIT","quantity":"0.0001","ref_price":"120000"}]}`, string(requests[0].Params), "CreateOTOCO should send the orders")
-	testWebsocketAPIAdvancedFailures(t, venue, "CreateOTOCO", "private/advanced/create-otoco", true, func() error {
-		_, err := ex.WebsocketAPI().CreateOTOCO(t.Context(), otocoOrders())
+	require.Len(t, requests, 1, "CreateOneTriggersAOneCancelsTheOtherOrder must send one request")
+	assert.JSONEq(t, `{"order_list":[{"instrument_name":"BTC_USD","side":"BUY","type":"LIMIT","quantity":"0.0001","price":"40000"},{"instrument_name":"BTC_USD","side":"SELL","type":"STOP_LOSS","quantity":"0.0001","ref_price":"30000"},{"instrument_name":"BTC_USD","side":"SELL","type":"TAKE_PROFIT","quantity":"0.0001","ref_price":"120000"}]}`, string(requests[0].Params), "CreateOneTriggersAOneCancelsTheOtherOrder should send the orders")
+	testWebsocketAPIAdvancedFailures(t, venue, "CreateOneTriggersAOneCancelsTheOtherOrder", "private/advanced/create-otoco", true, func() error {
+		_, err := ex.WebsocketAPI().CreateOneTriggersAOneCancelsTheOtherOrder(t.Context(), otocoOrders())
 		return err
 	})
 }
 
-func TestWebsocketAPICancelOTOCO(t *testing.T) {
+func TestWebsocketAPICancelOneTriggersAOneCancelsTheOtherOrder(t *testing.T) {
 	t.Parallel()
-	testWebsocketAPICancelContingency(t, "CancelOTOCO", "private/advanced/cancel-otoco", "6498090546073120243", WebsocketAPI.CancelOTOCO)
+	testWebsocketAPICancelContingency(t, "CancelOneTriggersAOneCancelsTheOtherOrder", "private/advanced/cancel-otoco", "6498090546073120243", WebsocketAPI.CancelOneTriggersAOneCancelsTheOtherOrder)
 }
 
 func TestWebsocketAPICancelAdvancedOrder(t *testing.T) {

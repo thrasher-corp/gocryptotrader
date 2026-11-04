@@ -40,9 +40,9 @@ const (
 // RiskParametersResponse holds Smart Cross Margin's risk parameters: the defaults, and the parameters each base
 // currency overrides them with. A position limit of -1 means none applies
 type RiskParametersResponse struct {
-	DefaultMaxProductLeverageForSpot             types.Number             `json:"default_max_product_leverage_for_spot"`
-	DefaultMaxProductLeverageForPerpetuals       types.Number             `json:"default_max_product_leverage_for_perps"`
-	DefaultMaxProductLeverageForFutures          types.Number             `json:"default_max_product_leverage_for_futures"`
+	DefaultMaximumProductLeverageForSpot         types.Number             `json:"default_max_product_leverage_for_spot"`
+	DefaultMaximumProductLeverageForPerpetuals   types.Number             `json:"default_max_product_leverage_for_perps"`
+	DefaultMaximumProductLeverageForFutures      types.Number             `json:"default_max_product_leverage_for_futures"`
 	DefaultUnitMarginRateMultiplierForSpot       types.Number             `json:"default_umr_multiplier_for_spot"`
 	DefaultUnitMarginRateMultiplierForPerpetuals types.Number             `json:"default_umr_multiplier_for_perps"`
 	DefaultUnitMarginRateMultiplierForFutures    types.Number             `json:"default_umr_multiplier_for_futures"`
@@ -64,20 +64,20 @@ type RiskParametersResponse struct {
 // a currency without a collateral cap or minimum haircut is not eligible as collateral
 type BaseCurrencyRiskConfig struct {
 	// InstrumentName is a base currency, or a group such as USD_Stable_Coin, whose case a currency code would not keep
-	InstrumentName                  string       `json:"instrument_name"`
-	CollateralCapNotional           types.Number `json:"collateral_cap_notional"`
-	MinimumHaircut                  types.Number `json:"minimum_haircut"`
-	MaxProductLeverageForSpot       types.Number `json:"max_product_leverage_for_spot"`
-	MaxProductLeverageForPerpetuals types.Number `json:"max_product_leverage_for_perps"`
-	MaxProductLeverageForFutures    types.Number `json:"max_product_leverage_for_futures"`
-	UnitMarginRate                  types.Number `json:"unit_margin_rate"`
-	// MaxShortSellLimit is zero when the currency cannot be sold short
-	MaxShortSellLimit types.Number `json:"max_short_sell_limit"`
+	InstrumentName                      string       `json:"instrument_name"`
+	CollateralCapNotional               types.Number `json:"collateral_cap_notional"`
+	MinimumHaircut                      types.Number `json:"minimum_haircut"`
+	MaximumProductLeverageForSpot       types.Number `json:"max_product_leverage_for_spot"`
+	MaximumProductLeverageForPerpetuals types.Number `json:"max_product_leverage_for_perps"`
+	MaximumProductLeverageForFutures    types.Number `json:"max_product_leverage_for_futures"`
+	UnitMarginRate                      types.Number `json:"unit_margin_rate"`
+	// MaximumShortSellLimit is zero when the currency cannot be sold short
+	MaximumShortSellLimit types.Number `json:"max_short_sell_limit"`
 	// DailyNotionalLimit caps the spot order notional in any 24 hours; zero means no limit
 	DailyNotionalLimit           types.Number `json:"daily_notional_limit"`
 	OrderLimit                   types.Number `json:"order_limit"`
-	MaxOrderNotionalUSD          types.Number `json:"max_order_notional_usd"`
-	MinOrderNotionalUSD          types.Number `json:"min_order_notional_usd"`
+	MaximumOrderNotionalUSD      types.Number `json:"max_order_notional_usd"`
+	MinimumOrderNotionalUSD      types.Number `json:"min_order_notional_usd"`
 	LongPositionLimitPerpetuals  types.Number `json:"long_pos_limit_perps"`
 	ShortPositionLimitPerpetuals types.Number `json:"short_pos_limit_perps"`
 	LongPositionLimitFutures     types.Number `json:"long_pos_limit_futures"`
@@ -87,8 +87,8 @@ type BaseCurrencyRiskConfig struct {
 // BaseCurrencyOrderLimit caps the notional of an order on a base currency
 type BaseCurrencyOrderLimit struct {
 	// InstrumentName is a base currency, as in BaseCurrencyRiskConfig
-	InstrumentName      string       `json:"instrument_name"`
-	MaxOrderNotionalUSD types.Number `json:"max_order_notional_usd"`
+	InstrumentName          string       `json:"instrument_name"`
+	MaximumOrderNotionalUSD types.Number `json:"max_order_notional_usd"`
 }
 
 // InstrumentResponse is an instrument Crypto.com trades
@@ -104,7 +104,7 @@ type InstrumentResponse struct {
 	QuantityDecimals  types.Number `json:"quantity_decimals"`
 	PriceTickSize     types.Number `json:"price_tick_size"`
 	QuantityTickSize  types.Number `json:"qty_tick_size"`
-	MaxLeverage       types.Number `json:"max_leverage"`
+	MaximumLeverage   types.Number `json:"max_leverage"`
 	Tradable          bool         `json:"tradable"`
 	ExpiryTime        types.Time   `json:"expiry_timestamp_ms"`
 	BetaProduct       bool         `json:"beta_product"`
@@ -271,7 +271,7 @@ type DepositInstrumentResponse struct {
 	CollateralEligible bool          `json:"collateral_eligible"`
 	PriceTickSize      types.Number  `json:"price_tick_size"`
 	QuantityTickSize   types.Number  `json:"qty_tick_size"`
-	MaxLeverage        types.Number  `json:"max_leverage"`
+	MaximumLeverage    types.Number  `json:"max_leverage"`
 	Tradable           bool          `json:"tradable"`
 	ExpiryTime         types.Time    `json:"expiry_timestamp_ms"`
 	BetaProduct        bool          `json:"beta_product"`

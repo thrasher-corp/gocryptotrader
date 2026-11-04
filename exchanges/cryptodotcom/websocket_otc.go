@@ -2,8 +2,6 @@ package cryptodotcom
 
 import (
 	"context"
-
-	"github.com/thrasher-corp/gocryptotrader/common"
 )
 
 // RequestOTCQuote requests quotes on one or more legs over the websocket's trade connection, as Exchange.RequestOTCQuote
@@ -16,9 +14,6 @@ func (w WebsocketAPI) RequestOTCQuote(ctx context.Context, req *OTCQuoteRequest)
 	var resp *dataResponse[OTCQuoteRequestResponse]
 	if err := w.e.SendWebsocketRequest(ctx, "private/otc/request-quote", params, &resp); err != nil {
 		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
 	}
 	return resp.Data, nil
 }
@@ -33,9 +28,6 @@ func (w WebsocketAPI) RequestOTCDeal(ctx context.Context, req *OTCDealRequest) (
 	var resp *OTCDealResponse
 	if err := w.e.SendWebsocketRequest(ctx, "private/otc/request-deal", params, &resp); err != nil {
 		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
 	}
 	return resp, nil
 }

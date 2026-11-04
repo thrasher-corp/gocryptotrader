@@ -107,10 +107,8 @@ func newWalletHistoryParams(req *WalletHistoryRequest) (*walletHistoryParams, er
 	if req.PageSize > maxWalletHistoryPageSize {
 		return nil, fmt.Errorf("%w: page size %d above %d", errInvalidCount, req.PageSize, maxWalletHistoryPageSize)
 	}
-	if !req.StartTime.IsZero() && !req.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(req.StartTime, req.EndTime); err != nil {
-			return nil, err
-		}
+	if err := common.StartEndOptionalTimeCheck(req.StartTime, req.EndTime); err != nil {
+		return nil, err
 	}
 	startTime, err := unixMilliParam(req.StartTime)
 	if err != nil {

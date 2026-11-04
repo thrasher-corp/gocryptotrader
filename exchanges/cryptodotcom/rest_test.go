@@ -658,7 +658,7 @@ func TestUnrecordedResponseFields(t *testing.T) {
 		{`{"currency_transactions_per_month":200}`, new(FiatTransactionQuotaResponse), &FiatTransactionQuotaResponse{CurrencyTransactionsPerMonth: new(types.Number(200))}},
 		{`{"currency_remaining_transactions_monthly_count":189}`, new(FiatTransactionQuotaResponse), &FiatTransactionQuotaResponse{CurrencyRemainingTransactionsMonthlyCount: new(types.Number(189))}},
 		{`{"default_collateral_cap":"5000000.0"}`, new(RiskParametersResponse), &RiskParametersResponse{DefaultCollateralCap: 5000000}},
-		{`{"max_product_leverage_for_futures":"25.0"}`, new(BaseCurrencyRiskConfig), &BaseCurrencyRiskConfig{MaxProductLeverageForFutures: 25}},
+		{`{"max_product_leverage_for_futures":"25.0"}`, new(BaseCurrencyRiskConfig), &BaseCurrencyRiskConfig{MaximumProductLeverageForFutures: 25}},
 		{`{"beta_product":true}`, new(InstrumentResponse), &InstrumentResponse{BetaProduct: true}},
 		{`{"tradable":true}`, new(DepositInstrumentResponse), &DepositInstrumentResponse{Tradable: true}},
 		{`{"expiry_timestamp_ms":1793347200000}`, new(DepositInstrumentResponse), &DepositInstrumentResponse{ExpiryTime: types.Time(time.UnixMilli(1793347200000))}},

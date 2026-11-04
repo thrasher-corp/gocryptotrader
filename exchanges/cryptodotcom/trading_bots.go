@@ -209,7 +209,7 @@ func (e *Exchange) GetTradingBotExecutions(ctx context.Context, req *TradingBotE
 }
 
 // validateSettings checks a DCA bot's settings
-func (s *TradingBotDCASettings) validateSettings() error {
+func (s *TradingBotDollarCostAveragingSettings) validateSettings() error {
 	if s == nil {
 		return fmt.Errorf("%w: %T", common.ErrNilPointer, s)
 	}
@@ -259,7 +259,7 @@ func (s *TradingBotDCASettings) validateSettings() error {
 }
 
 // validateSettings checks a TWAP bot's settings; its start may be in the future, so only its order is checked
-func (s *TradingBotTWAPSettings) validateSettings() error {
+func (s *TradingBotTimeWeightedAveragePriceSettings) validateSettings() error {
 	if s == nil {
 		return fmt.Errorf("%w: %T", common.ErrNilPointer, s)
 	}
@@ -352,7 +352,7 @@ func (l *TradingBotLeg) validate() error {
 
 // updateSettingsParams checks a DCA bot's settings update and returns it as Crypto.com takes it, the frequency in
 // milliseconds
-func (s *TradingBotDCAUpdateSettings) updateSettingsParams() (any, error) {
+func (s *TradingBotDollarCostAveragingUpdateSettings) updateSettingsParams() (any, error) {
 	if s == nil {
 		return nil, fmt.Errorf("%w: %T", common.ErrNilPointer, s)
 	}
@@ -374,11 +374,11 @@ func (s *TradingBotDCAUpdateSettings) updateSettingsParams() (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &tradingBotDCAUpdateSettingsWire{
+	return &tradingBotDollarCostAveragingUpdateSettingsWire{
 		Allocations:                     s.Allocations,
 		OrderType:                       s.OrderType,
 		Price:                           s.Price,
-		MaxOrders:                       s.MaxOrders,
+		MaximumOrders:                   s.MaximumOrders,
 		StopPrice:                       s.StopPrice,
 		TakeProfitPrice:                 s.TakeProfitPrice,
 		AutoStake:                       s.AutoStake,
@@ -420,7 +420,7 @@ func validateTradingBotAllocations(allocations []TradingBotAllocation) error {
 // validateTradingBotType checks a bot type is one Crypto.com offers
 func validateTradingBotType(botType string) error {
 	switch botType {
-	case TradingBotTypeDCA, TradingBotTypeTWAP, TradingBotTypeGrid, TradingBotTypeFundingArbitrage:
+	case TradingBotTypeDollarCostAveraging, TradingBotTypeTimeWeightedAveragePrice, TradingBotTypeGrid, TradingBotTypeFundingArbitrage:
 		return nil
 	default:
 		return fmt.Errorf("%w: %q", errInvalidTradingBotType, botType)

@@ -538,6 +538,35 @@ func TestParseStartEndDate(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestStartEndOptionalTimeCheck(t *testing.T) {
+	t.Parallel()
+	past := time.Date(1999, 1, 1, 0, 0, 0, 0, time.UTC)
+	later := time.Date(2020, 1, 1, 1, 0, 0, 0, time.UTC)
+	future := time.Now().Add(time.Hour)
+	for _, tc := range []struct {
+		name       string
+		start, end time.Time
+		err        error
+	}{
+		{name: "a window with neither end set"},
+		{name: "a window with only its start set", start: later},
+		{name: "a window with only its end set", end: later},
+		{name: "a window with only a future start set", start: future},
+		{name: "a window with both ends set", start: past, end: later},
+		{name: "a window starting after its end", start: later, end: past, err: ErrStartAfterEnd},
+		{name: "a window starting at its end", start: later, end: later, err: ErrStartEqualsEnd},
+		{name: "a window starting in the future", start: future, end: future.Add(time.Hour), err: ErrStartAfterTimeNow},
+		{name: "a window starting at the Unix epoch", start: zeroValueUnix, end: later, err: ErrDateUnset},
+	} {
+		err := StartEndOptionalTimeCheck(tc.start, tc.end)
+		if tc.err == nil {
+			assert.NoErrorf(t, err, "StartEndOptionalTimeCheck should accept %s", tc.name)
+			continue
+		}
+		assert.ErrorIsf(t, err, tc.err, "StartEndOptionalTimeCheck should refuse %s", tc.name)
+	}
+}
+
 func TestGetAssertError(t *testing.T) {
 	err := GetTypeAssertError("*[]string", float64(0))
 	if err.Error() != "type assert failure from float64 to *[]string" {

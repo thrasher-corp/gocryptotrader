@@ -274,9 +274,6 @@ func (w WebsocketAPI) SetCancelOnDisconnect(ctx context.Context, scope string) (
 	if err := w.e.SendWebsocketRequest(ctx, "private/set-cancel-on-disconnect", &cancelOnDisconnectRequest{Scope: scope}, &resp); err != nil {
 		return nil, err
 	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
-	}
 	return resp, nil
 }
 
@@ -285,9 +282,6 @@ func (w WebsocketAPI) GetCancelOnDisconnect(ctx context.Context) (*CancelOnDisco
 	var resp *CancelOnDisconnectResponse
 	if err := w.e.SendWebsocketRequest(ctx, "private/get-cancel-on-disconnect", nil, &resp); err != nil {
 		return nil, err
-	}
-	if resp == nil {
-		return nil, common.ErrNoResponse
 	}
 	return resp, nil
 }
@@ -322,7 +316,8 @@ func (e *Exchange) sendConnectionRequest(ctx context.Context, conn websocket.Con
 	return decodeWebsocketResponse(data, result)
 }
 
-// decodeWebsocketResponse returns the error a websocket response reports, else decodes its result into result
+// decodeWebsocketResponse returns the error a websocket response reports, else decodes its result into result; a
+// response holding no result, or a null one, errs when result is set, as the caller expects one
 func decodeWebsocketResponse(data []byte, result any) error {
 	var resp websocketResponse
 	if err := json.Unmarshal(data, &resp); err != nil {
@@ -331,8 +326,11 @@ func decodeWebsocketResponse(data []byte, result any) error {
 	if err := resp.err(); err != nil {
 		return err
 	}
-	if result == nil || len(resp.Result) == 0 {
+	if result == nil {
 		return nil
+	}
+	if len(resp.Result) == 0 || string(resp.Result) == "null" {
+		return fmt.Errorf("%w: %s", common.ErrNoResponse, resp.Method)
 	}
 	return json.Unmarshal(resp.Result, result)
 }
@@ -618,15 +616,14 @@ func (e *Exchange) generateUserSubscriptions() (subscription.List, error) {
 // instrument has the one book, so the first of its book subscriptions is kept whatever its depth or updates
 func distinctChannels(subs subscription.List) subscription.List {
 	distinct := make(subscription.List, 0, len(subs))
-	channels := make(map[string]struct{}, len(subs))
+	channels := make(common.Seen[string], len(subs))
 	for _, s := range subs {
 		channel := s.QualifiedChannel
 		if i := strings.LastIndexByte(channel, '.'); s.Channel == subscription.OrderbookChannel && i > 0 {
 			// A book channel ends with its depth, after a dot, which no instrument name holds
 			channel = channel[:i]
 		}
-		if _, ok := channels[channel]; !ok {
-			channels[channel] = struct{}{}
+		if !channels.CheckAndRecord(channel) {
 			distinct = append(distinct, s)
 		}
 	}

@@ -6,6 +6,7 @@ import (
 	"maps"
 	"math"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -891,6 +892,12 @@ func TestWalletRequestsUseContextCredentials(t *testing.T) {
 	}
 }
 
+// testWalletRecord is a wallet history record, by its ID, with a detail a repeated record can differ in
+type testWalletRecord struct {
+	ID     string
+	Status string
+}
+
 func TestPageWalletHistory(t *testing.T) {
 	t.Parallel()
 	ids := func(start, n int) []string {
@@ -922,6 +929,41 @@ func TestPageWalletHistory(t *testing.T) {
 	require.NoError(t, err, "pageWalletHistory must not error for a venue ignoring the page")
 	assert.Equal(t, ids(0, maxWalletHistoryPageSize), got, "pageWalletHistory should return a repeated page's records once")
 	assert.Equal(t, []uint64{0, 1}, pages, "pageWalletHistory should stop at a page holding nothing new")
+
+	first := make([]testWalletRecord, maxWalletHistoryPageSize)
+	for i := range first {
+		first[i] = testWalletRecord{ID: strconv.Itoa(i), Status: "first"}
+	}
+	pages = nil
+	records, err := pageWalletHistory(t.Context(), func(_ context.Context, page uint64) ([]testWalletRecord, error) {
+		pages = append(pages, page)
+		require.LessOrEqual(t, len(pages), testServerRequestLimit, "pageWalletHistory must stop within the test server's request limit")
+		if page == 0 {
+			return first, nil
+		}
+		return []testWalletRecord{{ID: "0", Status: "repeated"}, {ID: "new", Status: "first"}, {ID: "new", Status: "repeated"}}, nil
+	}, func(r *testWalletRecord) string { return r.ID })
+	require.NoError(t, err, "pageWalletHistory must not error for pages repeating a record")
+	assert.Equal(t, append(slices.Clone(first), testWalletRecord{ID: "new", Status: "first"}), records, "pageWalletHistory should keep the first of a record repeated on a later page or the same one")
+	assert.Equal(t, []uint64{0, 1}, pages, "pageWalletHistory should stop after the short page")
+
+	pages = nil
+	got, err = pageWalletHistory(t.Context(), func(_ context.Context, page uint64) ([]string, error) {
+		pages = append(pages, page)
+		require.LessOrEqual(t, len(pages), testServerRequestLimit, "pageWalletHistory must stop within the test server's request limit")
+		switch page {
+		case 0:
+			return ids(0, maxWalletHistoryPageSize), nil
+		case 1:
+			// A full page holding one record the page before did not
+			return ids(1, maxWalletHistoryPageSize), nil
+		default:
+			return ids(maxWalletHistoryPageSize+1, 1), nil
+		}
+	}, func(id *string) string { return *id })
+	require.NoError(t, err, "pageWalletHistory must not error for a full page holding one new record")
+	assert.Equal(t, ids(0, maxWalletHistoryPageSize+2), got, "pageWalletHistory should go on past a full page holding one new record")
+	assert.Equal(t, []uint64{0, 1, 2}, pages, "pageWalletHistory should stop at the short page, not at a full page holding one new record")
 
 	_, err = pageWalletHistory(t.Context(), func(_ context.Context, page uint64) ([]string, error) {
 		pages = append(pages, page)
@@ -1067,7 +1109,7 @@ func TestHistoryPagerBackwards(t *testing.T) {
 	// Two records share a time a page splits, and one falls before the window
 	records := []testPagedRecord{{"6", at(50)}, {"5", at(40)}, {"4", at(30)}, {"3", at(30)}, {"2", at(20)}, {"1", at(-10)}}
 	var windows [][2]time.Time
-	got, err := testPager(t, records, 3, &windows).backwards(t.Context(), start, end, make(map[string]struct{}))
+	got, err := testPager(t, records, 3, &windows).backwards(t.Context(), start, end, make(common.Seen[string]))
 	require.NoError(t, err, "backwards must not error")
 	assert.Equal(t, records[:5], got, "backwards should return every record in the window once")
 	expWindows := [][2]time.Time{{start, end}, {start, at(30).Add(time.Nanosecond)}, {start, at(20).Add(time.Nanosecond)}}
@@ -1076,7 +1118,7 @@ func TestHistoryPagerBackwards(t *testing.T) {
 	// A full page sharing one time holds nothing new when requested again, so its time is passed over
 	records = []testPagedRecord{{"C", at(30)}, {"B", at(30)}, {"A", at(30)}, {"D", at(10)}}
 	windows = nil
-	got, err = testPager(t, records, 2, &windows).backwards(t.Context(), start, end, make(map[string]struct{}))
+	got, err = testPager(t, records, 2, &windows).backwards(t.Context(), start, end, make(common.Seen[string]))
 	require.NoError(t, err, "backwards must not error for a time a page cannot page within")
 	assert.Equal(t, []testPagedRecord{records[0], records[1], records[3]}, got, "backwards should pass over a time holding more records than a page")
 	expWindows = [][2]time.Time{{start, end}, {start, at(30).Add(time.Nanosecond)}, {start, at(30)}}
@@ -1086,7 +1128,7 @@ func TestHistoryPagerBackwards(t *testing.T) {
 	// the page itself
 	records = []testPagedRecord{{"B", end.Add(-time.Nanosecond)}, {"A", end.Add(-time.Nanosecond)}, {"C", end.Add(-time.Nanosecond)}, {"D", at(10)}}
 	windows = nil
-	got, err = testPager(t, records, 2, &windows).backwards(t.Context(), start, end, make(map[string]struct{}))
+	got, err = testPager(t, records, 2, &windows).backwards(t.Context(), start, end, make(common.Seen[string]))
 	require.NoError(t, err, "backwards must not error for the window's last time holding a page of records")
 	assert.Equal(t, []testPagedRecord{records[0], records[1], records[3]}, got, "backwards should pass over the window's last time holding more records than a page")
 	assert.Equal(t, [][2]time.Time{{start, end}, {start, end.Add(-time.Nanosecond)}}, windows, "backwards should end the next page at the window's last time")
@@ -1103,7 +1145,7 @@ func TestHistoryPagerBackwards(t *testing.T) {
 		}
 		return []testPagedRecord{{"Y", end.Add(time.Minute)}, {"X", end}}, nil
 	}
-	got, err = pager.backwards(t.Context(), start, end, make(map[string]struct{}))
+	got, err = pager.backwards(t.Context(), start, end, make(common.Seen[string]))
 	require.NoError(t, err, "backwards must not error for a page after the window")
 	assert.Empty(t, got, "backwards should leave out records after the window")
 	assert.Len(t, windows, 1, "backwards should stop at a page holding nothing before the window's end")
@@ -1115,18 +1157,18 @@ func TestHistoryPagerBackwards(t *testing.T) {
 		require.LessOrEqual(t, len(windows), testServerRequestLimit, "the pager must stop within the test server's request limit")
 		return []testPagedRecord{{"7", at(45)}, {"6", at(44)}, {"5", at(40)}, {"0", at(34)}}, nil
 	}
-	seen := map[string]struct{}{"6": {}}
+	seen := common.Seen[string]{"6": true}
 	got, err = pager.backwards(t.Context(), at(35), at(45), seen)
 	require.NoError(t, err, "backwards must not error for records seen before")
 	assert.Equal(t, []testPagedRecord{{"5", at(40)}}, got, "backwards should leave out records seen before and outside the window")
-	assert.Equal(t, map[string]struct{}{"6": {}, "5": {}}, seen, "backwards should add the records it returns to those seen")
+	assert.Equal(t, common.Seen[string]{"6": true, "5": true}, seen, "backwards should add the records it returns to those seen")
 
 	pager.fetch = func(_ context.Context, start, end time.Time) ([]testPagedRecord, error) {
 		windows = append(windows, [2]time.Time{start, end})
 		require.LessOrEqual(t, len(windows), testServerRequestLimit, "the pager must stop within the test server's request limit")
 		return nil, errInvalidCount
 	}
-	_, err = pager.backwards(t.Context(), start, end, make(map[string]struct{}))
+	_, err = pager.backwards(t.Context(), start, end, make(common.Seen[string]))
 	assert.ErrorIs(t, err, errInvalidCount, "backwards should return a page's error")
 
 	windows = nil
@@ -1138,7 +1180,7 @@ func TestHistoryPagerBackwards(t *testing.T) {
 		}
 		return nil, errInvalidCount
 	}
-	got, err = pager.backwards(t.Context(), start, end, make(map[string]struct{}))
+	got, err = pager.backwards(t.Context(), start, end, make(common.Seen[string]))
 	assert.ErrorIs(t, err, errInvalidCount, "backwards should return the error of a page following a full one")
 	assert.Nil(t, got, "backwards should return no records when a later page fails")
 	assert.Len(t, windows, 2, "backwards should not request a failed page again")
@@ -1195,7 +1237,7 @@ func TestHistoryPagerWarnsOfPassedOverTimes(t *testing.T) {
 		{"the window's last time holding more records than a page", []testPagedRecord{{"B", end.Add(-time.Nanosecond)}, {"A", end.Add(-time.Nanosecond)}, {"C", end.Add(-time.Nanosecond)}}, 2, []string{warning(2, end.Add(-time.Nanosecond))}},
 	} {
 		var windows [][2]time.Time
-		_, err := testPager(t, tc.records, tc.limit, &windows).backwards(t.Context(), start, end, make(map[string]struct{}))
+		_, err := testPager(t, tc.records, tc.limit, &windows).backwards(t.Context(), start, end, make(common.Seen[string]))
 		require.NoErrorf(t, err, "backwards must not error for %s", tc.name)
 		assert.Equalf(t, tc.exp, takeWarnings(), "backwards should warn of each time it passes over for %s", tc.name)
 	}

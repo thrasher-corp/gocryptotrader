@@ -186,8 +186,9 @@ func ocoOrders() []AdvancedOrderLegRequest {
 	}
 }
 
-// ocoRefusals returns the OCOs CreateOCO and its websocket form refuse before sending
-func ocoRefusals() []contingencyRefusal {
+// oneCancelsTheOtherRefusals returns the OCOs CreateOneCancelsTheOtherOrder and its websocket form refuse before
+// sending
+func oneCancelsTheOtherRefusals() []contingencyRefusal {
 	limit, stopLoss := ocoOrders()[0], ocoOrders()[1]
 	market := limit
 	market.OrderType, market.Price = OrderTypeMarket, 0
@@ -215,8 +216,9 @@ func otoOrders() []AdvancedOrderLegRequest {
 	}
 }
 
-// otoRefusals returns the OTOs CreateOTO and its websocket form refuse before sending
-func otoRefusals() []contingencyRefusal {
+// oneTriggersTheOtherRefusals returns the OTOs CreateOneTriggersTheOtherOrder and its websocket form refuse before
+// sending
+func oneTriggersTheOtherRefusals() []contingencyRefusal {
 	limit, stopLoss := otoOrders()[0], otoOrders()[1]
 	market := limit
 	market.OrderType, market.Price = OrderTypeMarket, 0
@@ -242,8 +244,9 @@ func otocoOrders() []AdvancedOrderLegRequest {
 	}
 }
 
-// otocoRefusals returns the OTOCOs CreateOTOCO and its websocket form refuse before sending
-func otocoRefusals() []contingencyRefusal {
+// oneTriggersAOneCancelsTheOtherRefusals returns the OTOCOs CreateOneTriggersAOneCancelsTheOtherOrder and its websocket
+// form refuse before sending
+func oneTriggersAOneCancelsTheOtherRefusals() []contingencyRefusal {
 	limit, stopLoss, takeProfit := otocoOrders()[0], otocoOrders()[1], otocoOrders()[2]
 	return append(legRefusals(otocoOrders),
 		contingencyRefusal{name: "an OTOCO without orders", err: errOrderListEmpty},
@@ -426,16 +429,16 @@ func TestAmendAdvancedOrder(t *testing.T) {
 	}
 }
 
-func TestCreateOCO(t *testing.T) {
+func TestCreateOneCancelsTheOtherOrder(t *testing.T) {
 	t.Parallel()
 	refuser := newAdvancedRefusalExchange(t)
-	for _, tc := range ocoRefusals() {
-		_, err := refuser.CreateOCO(t.Context(), tc.orders)
-		assert.ErrorIsf(t, err, tc.err, "CreateOCO should refuse %s", tc.name)
+	for _, tc := range oneCancelsTheOtherRefusals() {
+		_, err := refuser.CreateOneCancelsTheOtherOrder(t.Context(), tc.orders)
+		assert.ErrorIsf(t, err, tc.err, "CreateOneCancelsTheOtherOrder should refuse %s", tc.name)
 	}
 
 	testAdvancedOrderParams(t, "private/advanced/create-oco", `{"list_id":"6498090546073120100"}`, func(ex *Exchange, orders []AdvancedOrderLegRequest) error {
-		_, err := ex.CreateOCO(t.Context(), orders)
+		_, err := ex.CreateOneCancelsTheOtherOrder(t.Context(), orders)
 		return err
 	}, []advancedParamsCase[[]AdvancedOrderLegRequest]{
 		{
@@ -485,37 +488,37 @@ func TestCreateOCO(t *testing.T) {
 		},
 	})
 
-	_, err := newResponseServerExchange(t, `{"id":1,"method":"private/advanced/create-oco","code":0,"result":null}`).CreateOCO(t.Context(), ocoOrders())
-	assert.ErrorIs(t, err, common.ErrNoResponse, "CreateOCO should error for a null result")
-	_, err = newUnavailableServerExchange(t).CreateOCO(t.Context(), ocoOrders())
-	assert.ErrorIs(t, err, request.ErrBadStatus, "CreateOCO should error for an unavailable server")
+	_, err := newResponseServerExchange(t, `{"id":1,"method":"private/advanced/create-oco","code":0,"result":null}`).CreateOneCancelsTheOtherOrder(t.Context(), ocoOrders())
+	assert.ErrorIs(t, err, common.ErrNoResponse, "CreateOneCancelsTheOtherOrder should error for a null result")
+	_, err = newUnavailableServerExchange(t).CreateOneCancelsTheOtherOrder(t.Context(), ocoOrders())
+	assert.ErrorIs(t, err, request.ErrBadStatus, "CreateOneCancelsTheOtherOrder should error for an unavailable server")
 
 	skipLiveUnlessCanManipulate(t)
-	result, err := e.CreateOCO(t.Context(), ocoOrders())
-	require.NoError(t, err, "CreateOCO must not error")
+	result, err := e.CreateOneCancelsTheOtherOrder(t.Context(), ocoOrders())
+	require.NoError(t, err, "CreateOneCancelsTheOtherOrder must not error")
 	if mockTests {
 		exp := &AdvancedOrderListIDResponse{ListID: "6498090546073120100"}
-		assert.Equal(t, exp, result, "CreateOCO should decode every field")
+		assert.Equal(t, exp, result, "CreateOneCancelsTheOtherOrder should decode every field")
 	} else {
-		assert.NotEmpty(t, result.ListID, "CreateOCO should return the list ID")
+		assert.NotEmpty(t, result.ListID, "CreateOneCancelsTheOtherOrder should return the list ID")
 	}
 }
 
-func TestCancelOCO(t *testing.T) {
+func TestCancelOneCancelsTheOtherOrder(t *testing.T) {
 	t.Parallel()
-	testCancelContingency(t, "CancelOCO", "private/advanced/cancel-oco", "6498090546073120100", (*Exchange).CancelOCO)
+	testCancelContingency(t, "CancelOneCancelsTheOtherOrder", "private/advanced/cancel-oco", "6498090546073120100", (*Exchange).CancelOneCancelsTheOtherOrder)
 }
 
-func TestCreateOTO(t *testing.T) {
+func TestCreateOneTriggersTheOtherOrder(t *testing.T) {
 	t.Parallel()
 	refuser := newAdvancedRefusalExchange(t)
-	for _, tc := range otoRefusals() {
-		_, err := refuser.CreateOTO(t.Context(), tc.orders)
-		assert.ErrorIsf(t, err, tc.err, "CreateOTO should refuse %s", tc.name)
+	for _, tc := range oneTriggersTheOtherRefusals() {
+		_, err := refuser.CreateOneTriggersTheOtherOrder(t.Context(), tc.orders)
+		assert.ErrorIsf(t, err, tc.err, "CreateOneTriggersTheOtherOrder should refuse %s", tc.name)
 	}
 
 	testAdvancedOrderParams(t, "private/advanced/create-oto", `{"list_id":"6498090546073120199"}`, func(ex *Exchange, orders []AdvancedOrderLegRequest) error {
-		_, err := ex.CreateOTO(t.Context(), orders)
+		_, err := ex.CreateOneTriggersTheOtherOrder(t.Context(), orders)
 		return err
 	}, []advancedParamsCase[[]AdvancedOrderLegRequest]{
 		{
@@ -566,41 +569,41 @@ func TestCreateOTO(t *testing.T) {
 		},
 	})
 
-	_, err := newResponseServerExchange(t, `{"id":1,"method":"private/advanced/create-oto","code":0,"result":null}`).CreateOTO(t.Context(), otoOrders())
-	assert.ErrorIs(t, err, common.ErrNoResponse, "CreateOTO should error for a null result")
+	_, err := newResponseServerExchange(t, `{"id":1,"method":"private/advanced/create-oto","code":0,"result":null}`).CreateOneTriggersTheOtherOrder(t.Context(), otoOrders())
+	assert.ErrorIs(t, err, common.ErrNoResponse, "CreateOneTriggersTheOtherOrder should error for a null result")
 	// Crypto.com's docs give the list ID as a bare integer, one a float cannot hold
-	bare, err := newResponseServerExchange(t, `{"id":1,"method":"private/advanced/create-oto","code":0,"result":{"list_id":6498090546073120199}}`).CreateOTO(t.Context(), otoOrders())
-	require.NoError(t, err, "CreateOTO must not error for a bare list ID")
-	assert.Equal(t, &AdvancedOrderListIDResponse{ListID: "6498090546073120199"}, bare, "CreateOTO should keep a bare list ID digit for digit")
-	_, err = newUnavailableServerExchange(t).CreateOTO(t.Context(), otoOrders())
-	assert.ErrorIs(t, err, request.ErrBadStatus, "CreateOTO should error for an unavailable server")
+	bare, err := newResponseServerExchange(t, `{"id":1,"method":"private/advanced/create-oto","code":0,"result":{"list_id":6498090546073120199}}`).CreateOneTriggersTheOtherOrder(t.Context(), otoOrders())
+	require.NoError(t, err, "CreateOneTriggersTheOtherOrder must not error for a bare list ID")
+	assert.Equal(t, &AdvancedOrderListIDResponse{ListID: "6498090546073120199"}, bare, "CreateOneTriggersTheOtherOrder should keep a bare list ID digit for digit")
+	_, err = newUnavailableServerExchange(t).CreateOneTriggersTheOtherOrder(t.Context(), otoOrders())
+	assert.ErrorIs(t, err, request.ErrBadStatus, "CreateOneTriggersTheOtherOrder should error for an unavailable server")
 
 	skipLiveUnlessCanManipulate(t)
-	result, err := e.CreateOTO(t.Context(), otoOrders())
-	require.NoError(t, err, "CreateOTO must not error")
+	result, err := e.CreateOneTriggersTheOtherOrder(t.Context(), otoOrders())
+	require.NoError(t, err, "CreateOneTriggersTheOtherOrder must not error")
 	if mockTests {
 		exp := &AdvancedOrderListIDResponse{ListID: "6498090546073120199"}
-		assert.Equal(t, exp, result, "CreateOTO should decode every field")
+		assert.Equal(t, exp, result, "CreateOneTriggersTheOtherOrder should decode every field")
 	} else {
-		assert.NotEmpty(t, result.ListID, "CreateOTO should return the list ID")
+		assert.NotEmpty(t, result.ListID, "CreateOneTriggersTheOtherOrder should return the list ID")
 	}
 }
 
-func TestCancelOTO(t *testing.T) {
+func TestCancelOneTriggersTheOtherOrder(t *testing.T) {
 	t.Parallel()
-	testCancelContingency(t, "CancelOTO", "private/advanced/cancel-oto", "6498090546073120199", (*Exchange).CancelOTO)
+	testCancelContingency(t, "CancelOneTriggersTheOtherOrder", "private/advanced/cancel-oto", "6498090546073120199", (*Exchange).CancelOneTriggersTheOtherOrder)
 }
 
-func TestCreateOTOCO(t *testing.T) {
+func TestCreateOneTriggersAOneCancelsTheOtherOrder(t *testing.T) {
 	t.Parallel()
 	refuser := newAdvancedRefusalExchange(t)
-	for _, tc := range otocoRefusals() {
-		_, err := refuser.CreateOTOCO(t.Context(), tc.orders)
-		assert.ErrorIsf(t, err, tc.err, "CreateOTOCO should refuse %s", tc.name)
+	for _, tc := range oneTriggersAOneCancelsTheOtherRefusals() {
+		_, err := refuser.CreateOneTriggersAOneCancelsTheOtherOrder(t.Context(), tc.orders)
+		assert.ErrorIsf(t, err, tc.err, "CreateOneTriggersAOneCancelsTheOtherOrder should refuse %s", tc.name)
 	}
 
 	testAdvancedOrderParams(t, "private/advanced/create-otoco", `{"list_id":"6498090546073120243"}`, func(ex *Exchange, orders []AdvancedOrderLegRequest) error {
-		_, err := ex.CreateOTOCO(t.Context(), orders)
+		_, err := ex.CreateOneTriggersAOneCancelsTheOtherOrder(t.Context(), orders)
 		return err
 	}, []advancedParamsCase[[]AdvancedOrderLegRequest]{
 		{
@@ -619,25 +622,25 @@ func TestCreateOTOCO(t *testing.T) {
 		},
 	})
 
-	_, err := newResponseServerExchange(t, `{"id":1,"method":"private/advanced/create-otoco","code":0,"result":null}`).CreateOTOCO(t.Context(), otocoOrders())
-	assert.ErrorIs(t, err, common.ErrNoResponse, "CreateOTOCO should error for a null result")
-	_, err = newUnavailableServerExchange(t).CreateOTOCO(t.Context(), otocoOrders())
-	assert.ErrorIs(t, err, request.ErrBadStatus, "CreateOTOCO should error for an unavailable server")
+	_, err := newResponseServerExchange(t, `{"id":1,"method":"private/advanced/create-otoco","code":0,"result":null}`).CreateOneTriggersAOneCancelsTheOtherOrder(t.Context(), otocoOrders())
+	assert.ErrorIs(t, err, common.ErrNoResponse, "CreateOneTriggersAOneCancelsTheOtherOrder should error for a null result")
+	_, err = newUnavailableServerExchange(t).CreateOneTriggersAOneCancelsTheOtherOrder(t.Context(), otocoOrders())
+	assert.ErrorIs(t, err, request.ErrBadStatus, "CreateOneTriggersAOneCancelsTheOtherOrder should error for an unavailable server")
 
 	skipLiveUnlessCanManipulate(t)
-	result, err := e.CreateOTOCO(t.Context(), otocoOrders())
-	require.NoError(t, err, "CreateOTOCO must not error")
+	result, err := e.CreateOneTriggersAOneCancelsTheOtherOrder(t.Context(), otocoOrders())
+	require.NoError(t, err, "CreateOneTriggersAOneCancelsTheOtherOrder must not error")
 	if mockTests {
 		exp := &AdvancedOrderListIDResponse{ListID: "6498090546073120243"}
-		assert.Equal(t, exp, result, "CreateOTOCO should decode every field")
+		assert.Equal(t, exp, result, "CreateOneTriggersAOneCancelsTheOtherOrder should decode every field")
 	} else {
-		assert.NotEmpty(t, result.ListID, "CreateOTOCO should return the list ID")
+		assert.NotEmpty(t, result.ListID, "CreateOneTriggersAOneCancelsTheOtherOrder should return the list ID")
 	}
 }
 
-func TestCancelOTOCO(t *testing.T) {
+func TestCancelOneTriggersAOneCancelsTheOtherOrder(t *testing.T) {
 	t.Parallel()
-	testCancelContingency(t, "CancelOTOCO", "private/advanced/cancel-otoco", "6498090546073120243", (*Exchange).CancelOTOCO)
+	testCancelContingency(t, "CancelOneTriggersAOneCancelsTheOtherOrder", "private/advanced/cancel-otoco", "6498090546073120243", (*Exchange).CancelOneTriggersAOneCancelsTheOtherOrder)
 }
 
 func TestCancelAdvancedOrder(t *testing.T) {
@@ -904,7 +907,7 @@ func TestGetAdvancedOrderDetail(t *testing.T) {
 			IsolationID:           "5755600460443891277",
 			IsolationType:         IsolationTypeIsolatedMargin,
 			ListID:                "6498090546073120314",
-			ContingencyType:       ContingencyTypeDerivAttach,
+			ContingencyType:       ContingencyTypeDerivativesAttach,
 			LegID:                 "1",
 			ExchangeOrderID:       "5755600460443891277",
 			Leverage:              10,
@@ -1071,7 +1074,7 @@ func TestGetAdvancedOrderHistory(t *testing.T) {
 				CreateTimeNano:        types.Time(time.Unix(0, 1792787465338604217)),
 				UpdateTime:            types.Time(time.UnixMilli(1792787465338)),
 				Reason:                "1110",
-				ContingencyType:       ContingencyTypeDerivAttach,
+				ContingencyType:       ContingencyTypeDerivativesAttach,
 				ReferencePrice:        preciseNumber("78500.0"),
 				ReferencePriceType:    ReferencePriceTypeLastPrice,
 				AttachIsolationID:     "0",

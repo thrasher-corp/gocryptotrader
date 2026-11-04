@@ -63,13 +63,13 @@ type CollateralBalance struct {
 	Quantity       types.PreciseNumber `json:"quantity"`
 	MarketValue    types.PreciseNumber `json:"market_value"`
 	// CollateralEligible is a types.Boolean, as the docs warn some methods send it as a string
-	CollateralEligible   types.Boolean       `json:"collateral_eligible"`
-	Haircut              types.Number        `json:"haircut"`
-	CollateralAmount     types.PreciseNumber `json:"collateral_amount"`
-	MaxWithdrawalBalance types.PreciseNumber `json:"max_withdrawal_balance"`
-	ReservedQuantity     types.PreciseNumber `json:"reserved_qty"`
-	HourlyInterestRate   types.Number        `json:"hourly_interest_rate"`
-	UpdateTime           types.Time          `json:"update_timestamp_ms"`
+	CollateralEligible       types.Boolean       `json:"collateral_eligible"`
+	Haircut                  types.Number        `json:"haircut"`
+	CollateralAmount         types.PreciseNumber `json:"collateral_amount"`
+	MaximumWithdrawalBalance types.PreciseNumber `json:"max_withdrawal_balance"`
+	ReservedQuantity         types.PreciseNumber `json:"reserved_qty"`
+	HourlyInterestRate       types.Number        `json:"hourly_interest_rate"`
+	UpdateTime               types.Time          `json:"update_timestamp_ms"`
 }
 
 // UserBalanceResponse is an account's balance, as user-balance, get-subaccount-balances and the user.balance channel
