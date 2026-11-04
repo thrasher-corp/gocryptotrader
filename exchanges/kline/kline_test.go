@@ -26,6 +26,27 @@ var (
 	testExchanges = []exchange.Details{{Name: "one"}}
 )
 
+func TestRemoveDuplicates(t *testing.T) {
+	t.Parallel()
+	start := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	k := &Item{Candles: []Candle{
+		{Time: start.Add(2 * time.Minute), Open: 5},
+		{Time: start, Open: 9},
+		{Time: start, Open: 7},
+		{Time: start.Add(2 * time.Minute), Open: 1},
+		{Time: start.In(time.FixedZone("UTC+10", 10*60*60)), Open: 12}, // Same instant as start
+		{Time: start.Add(time.Second), Open: 3},
+	}}
+	backing := &k.Candles[0]
+	k.RemoveDuplicates()
+	require.Equal(t, []Candle{
+		{Time: start.Add(2 * time.Minute), Open: 5},
+		{Time: start, Open: 9},
+		{Time: start.Add(time.Second), Open: 3},
+	}, k.Candles, "RemoveDuplicates must keep the first candle for each timestamp in its original order")
+	assert.Same(t, backing, &k.Candles[0], "RemoveDuplicates should filter the slice in place")
+}
+
 func TestValidateData(t *testing.T) {
 	t.Parallel()
 	err := validateData(nil)
