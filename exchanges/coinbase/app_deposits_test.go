@@ -113,18 +113,22 @@ func testAppDepositTransfer(id, userReference string, payoutAt time.Time) *AppTr
 func testAppFiatTransferRequestErrors(t *testing.T, name string, create func(context.Context, *AppFiatTransferRequest) (*AppTransfer, error)) {
 	t.Helper()
 	for _, tc := range []struct {
-		req *AppFiatTransferRequest
-		err error
+		name string
+		req  *AppFiatTransferRequest
+		err  error
 	}{
-		{nil, common.ErrNilPointer},
-		{&AppFiatTransferRequest{Amount: 10, Currency: currency.USD, PaymentMethodID: testAppPaymentMethodID}, errAccountIDRequired},
-		{&AppFiatTransferRequest{AccountID: testAppAccountID, Currency: currency.USD, PaymentMethodID: testAppPaymentMethodID}, errInvalidAmount},
-		{&AppFiatTransferRequest{AccountID: testAppAccountID, Amount: -1, Currency: currency.USD, PaymentMethodID: testAppPaymentMethodID}, errInvalidAmount},
-		{&AppFiatTransferRequest{AccountID: testAppAccountID, Amount: 10, PaymentMethodID: testAppPaymentMethodID}, currency.ErrCurrencyCodeEmpty},
-		{&AppFiatTransferRequest{AccountID: testAppAccountID, Amount: 10, Currency: currency.USD}, errAppPaymentMethodRequired},
+		{"nil request", nil, common.ErrNilPointer},
+		{"no account ID", &AppFiatTransferRequest{Amount: 10, Currency: currency.USD, PaymentMethodID: testAppPaymentMethodID}, errAccountIDRequired},
+		{"no amount", &AppFiatTransferRequest{AccountID: testAppAccountID, Currency: currency.USD, PaymentMethodID: testAppPaymentMethodID}, errInvalidAmount},
+		{"negative amount", &AppFiatTransferRequest{AccountID: testAppAccountID, Amount: -1, Currency: currency.USD, PaymentMethodID: testAppPaymentMethodID}, errInvalidAmount},
+		{"no currency", &AppFiatTransferRequest{AccountID: testAppAccountID, Amount: 10, PaymentMethodID: testAppPaymentMethodID}, currency.ErrCurrencyCodeEmpty},
+		{"no payment method", &AppFiatTransferRequest{AccountID: testAppAccountID, Amount: 10, Currency: currency.USD}, errAppPaymentMethodRequired},
 	} {
-		_, err := create(t.Context(), tc.req)
-		require.ErrorIsf(t, err, tc.err, "%s must refuse %+v", name, tc.req)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := create(t.Context(), tc.req)
+			require.ErrorIsf(t, err, tc.err, "%s must refuse %+v", name, tc.req)
+		})
 	}
 }
 
@@ -133,15 +137,19 @@ func testAppFiatTransferRequestErrors(t *testing.T, name string, create func(con
 func testAppFiatTransferIDRequestErrors[T any](t *testing.T, name string, call func(context.Context, *AppFiatTransferIDRequest) (T, error)) {
 	t.Helper()
 	for _, tc := range []struct {
-		req *AppFiatTransferIDRequest
-		err error
+		name string
+		req  *AppFiatTransferIDRequest
+		err  error
 	}{
-		{nil, common.ErrNilPointer},
-		{&AppFiatTransferIDRequest{TransferID: testAppFiatTransferID}, errAccountIDRequired},
-		{&AppFiatTransferIDRequest{AccountID: testAppAccountID}, errAppTransferIDRequired},
+		{"nil request", nil, common.ErrNilPointer},
+		{"no account ID", &AppFiatTransferIDRequest{TransferID: testAppFiatTransferID}, errAccountIDRequired},
+		{"no transfer ID", &AppFiatTransferIDRequest{AccountID: testAppAccountID}, errAppTransferIDRequired},
 	} {
-		_, err := call(t.Context(), tc.req)
-		require.ErrorIsf(t, err, tc.err, "%s must refuse %+v", name, tc.req)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := call(t.Context(), tc.req)
+			require.ErrorIsf(t, err, tc.err, "%s must refuse %+v", name, tc.req)
+		})
 	}
 }
 
@@ -150,15 +158,19 @@ func testAppFiatTransferIDRequestErrors[T any](t *testing.T, name string, call f
 func testAppListFiatTransfersRequestErrors(t *testing.T, name string, list func(context.Context, *AppListFiatTransfersRequest) (*AppListResponse[AppFiatTransferResponse], error)) {
 	t.Helper()
 	for _, tc := range []struct {
-		req *AppListFiatTransfersRequest
-		err error
+		name string
+		req  *AppListFiatTransfersRequest
+		err  error
 	}{
-		{nil, common.ErrNilPointer},
-		{&AppListFiatTransfersRequest{}, errAccountIDRequired},
-		{&AppListFiatTransfersRequest{AccountID: testAppAccountID, Page: &AppPageRequest{Limit: appMaximumPageLimit + 1}}, errInvalidLimit},
+		{"nil request", nil, common.ErrNilPointer},
+		{"no account ID", &AppListFiatTransfersRequest{}, errAccountIDRequired},
+		{"limit over the maximum", &AppListFiatTransfersRequest{AccountID: testAppAccountID, Page: &AppPageRequest{Limit: appMaximumPageLimit + 1}}, errInvalidLimit},
 	} {
-		_, err := list(t.Context(), tc.req)
-		require.ErrorIsf(t, err, tc.err, "%s must refuse %+v", name, tc.req)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := list(t.Context(), tc.req)
+			require.ErrorIsf(t, err, tc.err, "%s must refuse %+v", name, tc.req)
+		})
 	}
 }
 
@@ -259,21 +271,27 @@ func TestAppCreateFiatTransfer(t *testing.T) {
 		return e.App().createFiatTransfer(ctx, "deposits", req)
 	})
 	for _, kind := range testAppFiatTransferKinds {
-		for _, commit := range []bool{false, true} {
-			ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				assert.Equalf(t, http.MethodPost, r.Method, "createFiatTransfer should post the %s", kind)
-				assert.Equalf(t, "/v2/accounts/"+testAppAccountID+"/"+kind, r.URL.Path, "createFiatTransfer should post to the account's %s", kind)
-				body, err := io.ReadAll(r.Body)
-				if assert.NoError(t, err, "Reading the request body should not error") {
-					assert.JSONEqf(t, `{"amount":"10.5","currency":"USD","payment_method":"`+testAppPaymentMethodID+`","commit":`+strconv.FormatBool(commit)+`}`, string(body), "createFiatTransfer should send the commit flag as %t", commit)
-				}
-				_, err = w.Write([]byte(`{"transfer":{"id":"7ada05f0-4ab9-4e42-8cb9-4501e795315d","committed":` + strconv.FormatBool(commit) + `}}`))
-				assert.NoError(t, err, "Writing the response should not error")
-			}))
-			resp, err := ex.App().createFiatTransfer(t.Context(), kind, &AppFiatTransferRequest{AccountID: testAppAccountID, Amount: 10.5, Currency: currency.USD.Lower(), PaymentMethodID: testAppPaymentMethodID, Commit: commit})
-			require.NoErrorf(t, err, "createFiatTransfer must not error for %s", kind)
-			assert.Equalf(t, &AppTransfer{ID: "7ada05f0-4ab9-4e42-8cb9-4501e795315d", Committed: commit}, resp, "createFiatTransfer should return the %s", kind)
-		}
+		t.Run(subtestName(kind), func(t *testing.T) {
+			t.Parallel()
+			for _, commit := range []bool{false, true} {
+				t.Run(strconv.FormatBool(commit), func(t *testing.T) {
+					t.Parallel()
+					ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+						assert.Equalf(t, http.MethodPost, r.Method, "createFiatTransfer should post the %s", kind)
+						assert.Equalf(t, "/v2/accounts/"+testAppAccountID+"/"+kind, r.URL.Path, "createFiatTransfer should post to the account's %s", kind)
+						body, err := io.ReadAll(r.Body)
+						if assert.NoError(t, err, "Reading the request body should not error") {
+							assert.JSONEqf(t, `{"amount":"10.5","currency":"USD","payment_method":"`+testAppPaymentMethodID+`","commit":`+strconv.FormatBool(commit)+`}`, string(body), "createFiatTransfer should send the commit flag as %t", commit)
+						}
+						_, err = w.Write([]byte(`{"transfer":{"id":"7ada05f0-4ab9-4e42-8cb9-4501e795315d","committed":` + strconv.FormatBool(commit) + `}}`))
+						assert.NoError(t, err, "Writing the response should not error")
+					}))
+					resp, err := ex.App().createFiatTransfer(t.Context(), kind, &AppFiatTransferRequest{AccountID: testAppAccountID, Amount: 10.5, Currency: currency.USD.Lower(), PaymentMethodID: testAppPaymentMethodID, Commit: commit})
+					require.NoErrorf(t, err, "createFiatTransfer must not error for %s", kind)
+					assert.Equalf(t, &AppTransfer{ID: "7ada05f0-4ab9-4e42-8cb9-4501e795315d", Committed: commit}, resp, "createFiatTransfer should return the %s", kind)
+				})
+			}
+		})
 	}
 }
 
@@ -283,16 +301,19 @@ func TestAppCommitFiatTransfer(t *testing.T) {
 		return e.App().commitFiatTransfer(ctx, "deposits", req)
 	})
 	for _, kind := range testAppFiatTransferKinds {
-		ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			assert.Equalf(t, http.MethodPost, r.Method, "commitFiatTransfer should post the %s commit", kind)
-			assert.Equalf(t, "/v2/accounts/"+testAppAccountID+"/"+kind+"/"+testAppUncommittedTransferID+"/commit", r.URL.Path, "commitFiatTransfer should commit the account's %s", kind)
-			assert.Empty(t, r.Header.Get("Content-Type"), "commitFiatTransfer should send no body")
-			_, err := w.Write([]byte(`{"transfer":{"id":"` + testAppUncommittedTransferID + `"}}`))
-			assert.NoError(t, err, "Writing the response should not error")
-		}))
-		resp, err := ex.App().commitFiatTransfer(t.Context(), kind, &AppFiatTransferIDRequest{AccountID: testAppAccountID, TransferID: testAppUncommittedTransferID})
-		require.NoErrorf(t, err, "commitFiatTransfer must not error for %s", kind)
-		assert.Equalf(t, &AppTransfer{ID: testAppUncommittedTransferID}, resp, "commitFiatTransfer should return the committed %s", kind)
+		t.Run(subtestName(kind), func(t *testing.T) {
+			t.Parallel()
+			ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equalf(t, http.MethodPost, r.Method, "commitFiatTransfer should post the %s commit", kind)
+				assert.Equalf(t, "/v2/accounts/"+testAppAccountID+"/"+kind+"/"+testAppUncommittedTransferID+"/commit", r.URL.Path, "commitFiatTransfer should commit the account's %s", kind)
+				assert.Empty(t, r.Header.Get("Content-Type"), "commitFiatTransfer should send no body")
+				_, err := w.Write([]byte(`{"transfer":{"id":"` + testAppUncommittedTransferID + `"}}`))
+				assert.NoError(t, err, "Writing the response should not error")
+			}))
+			resp, err := ex.App().commitFiatTransfer(t.Context(), kind, &AppFiatTransferIDRequest{AccountID: testAppAccountID, TransferID: testAppUncommittedTransferID})
+			require.NoErrorf(t, err, "commitFiatTransfer must not error for %s", kind)
+			assert.Equalf(t, &AppTransfer{ID: testAppUncommittedTransferID}, resp, "commitFiatTransfer should return the committed %s", kind)
+		})
 	}
 }
 
@@ -302,44 +323,50 @@ func TestAppListFiatTransfers(t *testing.T) {
 		return e.App().listFiatTransfers(ctx, "deposits", req)
 	})
 	for _, kind := range testAppFiatTransferKinds {
-		ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			assert.Equalf(t, http.MethodGet, r.Method, "listFiatTransfers should get the %s", kind)
-			assert.Equalf(t, "/v2/accounts/"+testAppAccountID+"/"+kind, r.URL.Path, "listFiatTransfers should list the account's %s", kind)
-			assert.Equal(t, "limit=1&order=asc&starting_after="+testAppFiatTransferID, r.URL.RawQuery, "listFiatTransfers should send the page")
-			_, err := w.Write([]byte(`{"pagination":{"limit":1,"order":"asc","next_uri":"/v2/accounts/x"},"data":[{"id":"` + testAppFiatTransferID + `"}]}`))
-			assert.NoError(t, err, "Writing the response should not error")
-		}))
-		resp, err := ex.App().listFiatTransfers(t.Context(), kind, &AppListFiatTransfersRequest{AccountID: testAppAccountID, Page: &AppPageRequest{Limit: 1, Order: AppOrderAscending, StartingAfter: testAppFiatTransferID}})
-		require.NoErrorf(t, err, "listFiatTransfers must not error for %s", kind)
-		exp := &AppListResponse[AppFiatTransferResponse]{
-			Data:       []AppFiatTransferResponse{{ID: testAppFiatTransferID}},
-			Pagination: AppPagination{Limit: 1, Order: AppOrderAscending, NextURI: "/v2/accounts/x"},
-		}
-		assert.Equalf(t, exp, resp, "listFiatTransfers should return the page of %s", kind)
+		t.Run(subtestName(kind), func(t *testing.T) {
+			t.Parallel()
+			ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equalf(t, http.MethodGet, r.Method, "listFiatTransfers should get the %s", kind)
+				assert.Equalf(t, "/v2/accounts/"+testAppAccountID+"/"+kind, r.URL.Path, "listFiatTransfers should list the account's %s", kind)
+				assert.Equal(t, "limit=1&order=asc&starting_after="+testAppFiatTransferID, r.URL.RawQuery, "listFiatTransfers should send the page")
+				_, err := w.Write([]byte(`{"pagination":{"limit":1,"order":"asc","next_uri":"/v2/accounts/x"},"data":[{"id":"` + testAppFiatTransferID + `"}]}`))
+				assert.NoError(t, err, "Writing the response should not error")
+			}))
+			resp, err := ex.App().listFiatTransfers(t.Context(), kind, &AppListFiatTransfersRequest{AccountID: testAppAccountID, Page: &AppPageRequest{Limit: 1, Order: AppOrderAscending, StartingAfter: testAppFiatTransferID}})
+			require.NoErrorf(t, err, "listFiatTransfers must not error for %s", kind)
+			exp := &AppListResponse[AppFiatTransferResponse]{
+				Data:       []AppFiatTransferResponse{{ID: testAppFiatTransferID}},
+				Pagination: AppPagination{Limit: 1, Order: AppOrderAscending, NextURI: "/v2/accounts/x"},
+			}
+			assert.Equalf(t, exp, resp, "listFiatTransfers should return the page of %s", kind)
+		})
 	}
 }
 
-func TestAppGetFiatTransfer(t *testing.T) {
+func TestAppGetFiatTransfer(t *testing.T) { //nolint:tparallel // the cases run in order before the null transfer after them
 	t.Parallel()
 	testAppFiatTransferIDRequestErrors(t, "getFiatTransfer", func(ctx context.Context, req *AppFiatTransferIDRequest) (*AppFiatTransferResponse, error) {
 		return e.App().getFiatTransfer(ctx, "deposits", req)
 	})
+	// The cases run in order before the null transfer below, as one loop ran them
 	for _, kind := range testAppFiatTransferKinds {
-		ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			assert.Equalf(t, http.MethodGet, r.Method, "getFiatTransfer should get the %s", kind)
-			assert.Equalf(t, "/v2/accounts/"+testAppAccountID+"/"+kind+"/"+testAppFiatTransferID, r.URL.Path, "getFiatTransfer should get one of the account's %s", kind)
-			_, err := w.Write([]byte(`{"data":{"id":"` + testAppFiatTransferID + `"}}`))
-			assert.NoError(t, err, "Writing the response should not error")
-		}))
-		resp, err := ex.App().getFiatTransfer(t.Context(), kind, &AppFiatTransferIDRequest{AccountID: testAppAccountID, TransferID: testAppFiatTransferID})
-		require.NoErrorf(t, err, "getFiatTransfer must not error for %s", kind)
-		assert.Equalf(t, &AppFiatTransferResponse{ID: testAppFiatTransferID}, resp, "getFiatTransfer should return the %s", kind)
+		t.Run(subtestName(kind), func(t *testing.T) {
+			ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equalf(t, http.MethodGet, r.Method, "getFiatTransfer should get the %s", kind)
+				assert.Equalf(t, "/v2/accounts/"+testAppAccountID+"/"+kind+"/"+testAppFiatTransferID, r.URL.Path, "getFiatTransfer should get one of the account's %s", kind)
+				_, err := w.Write([]byte(`{"data":{"id":"` + testAppFiatTransferID + `"}}`))
+				assert.NoError(t, err, "Writing the response should not error")
+			}))
+			resp, err := ex.App().getFiatTransfer(t.Context(), kind, &AppFiatTransferIDRequest{AccountID: testAppAccountID, TransferID: testAppFiatTransferID})
+			require.NoErrorf(t, err, "getFiatTransfer must not error for %s", kind)
+			assert.Equalf(t, &AppFiatTransferResponse{ID: testAppFiatTransferID}, resp, "getFiatTransfer should return the %s", kind)
+		})
 	}
 	_, err := newResponseServerExchange(t, `{"data":null}`).App().getFiatTransfer(t.Context(), "deposits", &AppFiatTransferIDRequest{AccountID: testAppAccountID, TransferID: testAppFiatTransferID})
 	assert.ErrorIs(t, err, common.ErrNoResponse, "getFiatTransfer should error for a null transfer")
 }
 
-func TestAppSendTransferRequest(t *testing.T) {
+func TestAppSendTransferRequest(t *testing.T) { //nolint:tparallel // the cases run in order before the request failure after them
 	t.Parallel()
 	ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, http.MethodPost, r.Method, "sendTransferRequest should post the request")
@@ -355,9 +382,12 @@ func TestAppSendTransferRequest(t *testing.T) {
 	require.NoError(t, err, "sendTransferRequest must not error")
 	assert.Equal(t, &AppTransfer{ID: "7ada05f0-4ab9-4e42-8cb9-4501e795315d"}, resp, "sendTransferRequest should return the transfer outside the data envelope")
 
+	// The cases run in order between the transfer above and the request failure below, as one loop ran them
 	for _, body := range []string{`null`, `{}`, `{"data":{"id":"7ada05f0-4ab9-4e42-8cb9-4501e795315d"}}`} {
-		_, err = newResponseServerExchange(t, body).App().sendTransferRequest(t.Context(), "accounts/"+testAppAccountID+"/deposits", nil)
-		assert.ErrorIsf(t, err, common.ErrNoResponse, "sendTransferRequest should error for a response without a transfer: %s", body)
+		t.Run(subtestName(body), func(t *testing.T) {
+			_, err := newResponseServerExchange(t, body).App().sendTransferRequest(t.Context(), "accounts/"+testAppAccountID+"/deposits", nil)
+			assert.ErrorIsf(t, err, common.ErrNoResponse, "sendTransferRequest should error for a response without a transfer: %s", body)
+		})
 	}
 	_, err = newUnavailableServerExchange(t).App().sendTransferRequest(t.Context(), "accounts/"+testAppAccountID+"/deposits", nil)
 	assert.ErrorIs(t, err, request.ErrBadStatus, "sendTransferRequest should return the request failure")

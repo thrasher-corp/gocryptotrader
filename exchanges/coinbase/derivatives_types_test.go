@@ -15,13 +15,19 @@ func TestDerivativesOrderPriceUnmarshalJSON(t *testing.T) {
 		`"market_price"`: {Market: true},
 		`null`:           {},
 	} {
-		var price DerivativesOrderPrice
-		require.NoErrorf(t, price.UnmarshalJSON([]byte(input)), "UnmarshalJSON must not error for %s", input)
-		assert.Equalf(t, exp, price, "UnmarshalJSON should decode %s", input)
+		t.Run(subtestName(input), func(t *testing.T) {
+			t.Parallel()
+			var price DerivativesOrderPrice
+			require.NoErrorf(t, price.UnmarshalJSON([]byte(input)), "UnmarshalJSON must not error for %s", input)
+			assert.Equalf(t, exp, price, "UnmarshalJSON should decode %s", input)
+		})
 	}
 	var price DerivativesOrderPrice
+	// The cases decode into one price in order, so each refusal also runs on whatever the last case left in it
 	for _, input := range []string{`"cheap"`, `true`, `"unterminated`} {
-		assert.ErrorIsf(t, price.UnmarshalJSON([]byte(input)), errInvalidDerivativesOrderPrice, "UnmarshalJSON should refuse %s", input)
+		t.Run(subtestName(input), func(t *testing.T) {
+			assert.ErrorIsf(t, price.UnmarshalJSON([]byte(input)), errInvalidDerivativesOrderPrice, "UnmarshalJSON should refuse %s", input)
+		})
 	}
 }
 

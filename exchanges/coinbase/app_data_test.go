@@ -249,21 +249,27 @@ func TestAppGetCurrentTime(t *testing.T) {
 func TestAppGetPrice(t *testing.T) {
 	t.Parallel()
 	for _, pair := range []currency.Pair{currency.EMPTYPAIR, {Base: currency.BTC}, {Quote: currency.USD}} {
-		_, err := e.App().getPrice(t.Context(), pair, "spot", nil)
-		assert.ErrorIsf(t, err, currency.ErrCurrencyPairEmpty, "getPrice should refuse %q", pair)
+		t.Run(subtestName(pair.String()), func(t *testing.T) {
+			t.Parallel()
+			_, err := e.App().getPrice(t.Context(), pair, "spot", nil)
+			assert.ErrorIsf(t, err, currency.ErrCurrencyPairEmpty, "getPrice should refuse %q", pair)
+		})
 	}
 	for _, kind := range []string{"buy", "sell", "spot"} {
-		ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			assert.Equalf(t, http.MethodGet, r.Method, "getPrice should get the %s price", kind)
-			assert.Empty(t, r.Header.Get("Authorization"), "getPrice should not authenticate")
-			// The pair is sent upper case and dash delimited, whatever its format
-			assert.Equalf(t, "/v2/prices/ETH-USDC/"+kind, r.URL.Path, "getPrice should get the pair's %s price", kind)
-			assert.Equal(t, "date=2026-10-01", r.URL.RawQuery, "getPrice should send the params")
-			_, err := w.Write([]byte(`{"data":{"amount":"3000.5","base":"ETH","currency":"USDC"}}`))
-			assert.NoError(t, err, "Writing the response should not error")
-		}))
-		resp, err := ex.App().getPrice(t.Context(), currency.NewPairWithDelimiter("eth", "usdc", "_"), kind, map[string][]string{"date": {"2026-10-01"}})
-		require.NoErrorf(t, err, "getPrice must not error for the %s price", kind)
-		assert.Equalf(t, &AppPriceResponse{Amount: 3000.5, Base: currency.ETH, Currency: currency.USDC}, resp, "getPrice should return the %s price", kind)
+		t.Run(subtestName(kind), func(t *testing.T) {
+			t.Parallel()
+			ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equalf(t, http.MethodGet, r.Method, "getPrice should get the %s price", kind)
+				assert.Empty(t, r.Header.Get("Authorization"), "getPrice should not authenticate")
+				// The pair is sent upper case and dash delimited, whatever its format
+				assert.Equalf(t, "/v2/prices/ETH-USDC/"+kind, r.URL.Path, "getPrice should get the pair's %s price", kind)
+				assert.Equal(t, "date=2026-10-01", r.URL.RawQuery, "getPrice should send the params")
+				_, err := w.Write([]byte(`{"data":{"amount":"3000.5","base":"ETH","currency":"USDC"}}`))
+				assert.NoError(t, err, "Writing the response should not error")
+			}))
+			resp, err := ex.App().getPrice(t.Context(), currency.NewPairWithDelimiter("eth", "usdc", "_"), kind, map[string][]string{"date": {"2026-10-01"}})
+			require.NoErrorf(t, err, "getPrice must not error for the %s price", kind)
+			assert.Equalf(t, &AppPriceResponse{Amount: 3000.5, Base: currency.ETH, Currency: currency.USDC}, resp, "getPrice should return the %s price", kind)
+		})
 	}
 }

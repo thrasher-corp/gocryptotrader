@@ -197,6 +197,14 @@ func newTestServerExchange(t *testing.T, handler http.Handler) *Exchange {
 // testServerRequestLimit is the most requests a test server answers, well above the 44 the busiest test server receives
 const testServerRequestLimit = 100
 
+// subtestName names a subtest after a string case; t.Run numbers an empty name, so it is named "empty"
+func subtestName(s string) string {
+	if s == "" {
+		return "empty"
+	}
+	return s
+}
+
 // newResponseServerExchange returns an exchange whose REST requests all receive one fixed response body
 func newResponseServerExchange(t *testing.T, body string) *Exchange {
 	t.Helper()
@@ -546,24 +554,28 @@ func TestFormatHelpers(t *testing.T) {
 	assert.ErrorIs(t, checkWindow(time.Unix(2, 0), time.Unix(1, 0)), common.ErrStartAfterEnd, "checkWindow should reject a reversed window")
 }
 
-func TestAppErrorPublicShape(t *testing.T) {
+func TestAppError(t *testing.T) {
 	t.Parallel()
-	ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusNotFound)
-		_, err := w.Write([]byte(`{"error":"rpc error: code = NotFound desc = not found","code":5,"message":"rpc error: code = NotFound desc = not found"}`))
-		assert.NoError(t, err, "writing the response should not error")
-	}))
-	_, err := ex.App().GetSpotPrice(t.Context(), &AppSpotPriceRequest{Pair: currency.NewPair(currency.NewCode("NOTACOINXYZ"), currency.USD)})
-	require.Error(t, err, "GetSpotPrice must error")
-	apiErr, ok := errors.AsType[*APIError](err)
-	require.True(t, ok, "GetSpotPrice's error must be an APIError")
-	assert.EqualValues(t, 5, apiErr.Code, "Code should be NotFound's")
+	t.Run("returns a public endpoint's error as an APIError", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusNotFound)
+			_, err := w.Write([]byte(`{"error":"rpc error: code = NotFound desc = not found","code":5,"message":"rpc error: code = NotFound desc = not found"}`))
+			assert.NoError(t, err, "writing the response should not error")
+		}))
+		_, err := ex.App().GetSpotPrice(t.Context(), &AppSpotPriceRequest{Pair: currency.NewPair(currency.NewCode("NOTACOINXYZ"), currency.USD)})
+		require.Error(t, err, "GetSpotPrice must error")
+		apiErr, ok := errors.AsType[*APIError](err)
+		require.True(t, ok, "GetSpotPrice's error must be an APIError")
+		assert.EqualValues(t, 5, apiErr.Code, "Code should be NotFound's")
+	})
 }
 
-func TestNullReplies(t *testing.T) {
+func TestNullReplies(t *testing.T) { //nolint:tparallel // the cases share ex, its test server and candles in order
 	t.Parallel()
 	ex := newResponseServerExchange(t, `null`)
 	candles := &ProductCandlesRequest{ProductID: testSpotProductID, Start: testCandlesStart, End: testCandlesStart.Add(time.Hour), Granularity: GranularityOneHour}
+	// The cases share ex, its test server and candles, so each also checks that a call keeps nothing from the last
 	for name, call := range map[string]func() error{
 		"ListFuturesPositions":    func() error { _, err := ex.ListFuturesPositions(t.Context()); return err },
 		"ListFuturesSweeps":       func() error { _, err := ex.ListFuturesSweeps(t.Context()); return err },
@@ -573,6 +585,8 @@ func TestNullReplies(t *testing.T) {
 		"GetProductCandles":       func() error { _, err := ex.GetProductCandles(t.Context(), candles); return err },
 		"GetPublicProductCandles": func() error { _, err := ex.GetPublicProductCandles(t.Context(), candles); return err },
 	} {
-		assert.ErrorIsf(t, call(), common.ErrNoResponse, "%s should error for a null response", name)
+		t.Run(name, func(t *testing.T) {
+			assert.ErrorIsf(t, call(), common.ErrNoResponse, "%s should error for a null response", name)
+		})
 	}
 }

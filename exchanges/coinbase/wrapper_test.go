@@ -116,30 +116,33 @@ func wrapperWindow(d time.Duration) (start, end time.Time) {
 	return end.Add(-d), end
 }
 
-func TestFetchTradablePairs(t *testing.T) {
+func TestFetchTradablePairs(t *testing.T) { //nolint:tparallel // the cases share ex in order
 	t.Parallel()
 	ex := newTestExchange(t)
 	_, err := ex.FetchTradablePairs(t.Context(), asset.Options)
 	require.ErrorIs(t, err, asset.ErrNotSupported, "FetchTradablePairs must refuse an asset Coinbase does not trade")
+	// The cases share ex, and the checks after them read the product data they load, so they run in order
 	for a, want := range map[asset.Item]currency.Pair{
 		asset.Spot:                currency.NewBTCUSD(),
 		asset.Futures:             testFuturesPair,
 		asset.USDCMarginedFutures: testUSDCPerpetual,
 		asset.CoinMarginedFutures: testCoinPerpetual,
 	} {
-		pairs, err := ex.FetchTradablePairs(t.Context(), a)
-		require.NoErrorf(t, err, "FetchTradablePairs must not error for %s", a)
-		assert.Truef(t, pairs.Contains(want, true), "FetchTradablePairs should return %s for %s", want, a)
-		if !mockTests {
-			continue
-		}
-		exp := map[asset.Item]currency.Pairs{
-			asset.Spot:                {currency.NewBTCUSD(), currency.NewPair(currency.BTC, currency.USDC), testETHUSD, testETHUSDC},
-			asset.Futures:             {testFuturesPair, testDatedFuture},
-			asset.USDCMarginedFutures: {testUSDCPerpetual, testETHUSDCPerpetual},
-			asset.CoinMarginedFutures: {testCoinPerpetual},
-		}[a]
-		assert.Truef(t, exp.Equal(pairs), "FetchTradablePairs should return the tradable %s pairs, got %s", a, pairs)
+		t.Run(a.String(), func(t *testing.T) {
+			pairs, err := ex.FetchTradablePairs(t.Context(), a)
+			require.NoErrorf(t, err, "FetchTradablePairs must not error for %s", a)
+			assert.Truef(t, pairs.Contains(want, true), "FetchTradablePairs should return %s for %s", want, a)
+			if !mockTests {
+				return
+			}
+			exp := map[asset.Item]currency.Pairs{
+				asset.Spot:                {currency.NewBTCUSD(), currency.NewPair(currency.BTC, currency.USDC), testETHUSD, testETHUSDC},
+				asset.Futures:             {testFuturesPair, testDatedFuture},
+				asset.USDCMarginedFutures: {testUSDCPerpetual, testETHUSDCPerpetual},
+				asset.CoinMarginedFutures: {testCoinPerpetual},
+			}[a]
+			assert.Truef(t, exp.Equal(pairs), "FetchTradablePairs should return the tradable %s pairs, got %s", a, pairs)
+		})
 	}
 	assert.True(t, ex.pairAliases.GetAlias(currency.NewBTCUSD()).Contains(currency.NewPair(currency.BTC, currency.USDC), true), "FetchTradablePairs should load BTC-USDC as an alias of BTC-USD")
 	perpetual, err := ex.IsPerpetualFutureCurrency(asset.Futures, testFuturesPair)
@@ -151,34 +154,47 @@ func TestUpdateTradablePairs(t *testing.T) {
 	t.Parallel()
 	ex := newWrapperTestExchange(t)
 	require.NoError(t, ex.UpdateTradablePairs(t.Context()), "UpdateTradablePairs must not error")
+	// The cases share ex, so they run in order
 	for a, pairs := range wrapperTestPairs(t) {
-		available, err := ex.GetAvailablePairs(a)
-		require.NoErrorf(t, err, "GetAvailablePairs must not error for %s", a)
-		assert.Truef(t, available.Contains(pairs[0], true), "UpdateTradablePairs should store %s as available for %s", pairs[0], a)
+		t.Run(a.String(), func(t *testing.T) {
+			available, err := ex.GetAvailablePairs(a)
+			require.NoErrorf(t, err, "GetAvailablePairs must not error for %s", a)
+			assert.Truef(t, available.Contains(pairs[0], true), "UpdateTradablePairs should store %s as available for %s", pairs[0], a)
+		})
 	}
+
+	t.Run("reports a gateway outage only for enabled assets", func(t *testing.T) {
+		t.Parallel()
+		for name, gateway := range map[string]http.HandlerFunc{
+			"down for maintenance": func(w http.ResponseWriter, _ *http.Request) {
+				http.Error(w, `{"jsonrpc":"2.0","error":{"code":11051,"message":"system_maintenance"}}`, http.StatusServiceUnavailable)
+			},
+			"listing no instruments": func(w http.ResponseWriter, _ *http.Request) {
+				writeJSONRPC(t, w, `{"jsonrpc":"2.0","result":[]}`)
+			},
+		} {
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+				testUpdateTradablePairsGatewayOutage(t, name, gateway)
+			})
+		}
+	})
 }
 
-func TestSetDefaultsGatewayAssetsOff(t *testing.T) {
+func TestSetDefaults(t *testing.T) {
 	t.Parallel()
-	ex := new(Exchange)
-	ex.SetDefaults()
-	for a, enabled := range map[asset.Item]bool{asset.Spot: true, asset.Futures: true, asset.USDCMarginedFutures: false, asset.CoinMarginedFutures: false} {
-		assert.Equalf(t, enabled, ex.CurrencyPairs.IsAssetEnabled(a) == nil, "SetDefaults should leave %s enabled %t", a, enabled)
-	}
-}
 
-func TestUpdateTradablePairsGatewayOutage(t *testing.T) {
-	t.Parallel()
-	for name, gateway := range map[string]http.HandlerFunc{
-		"down for maintenance": func(w http.ResponseWriter, _ *http.Request) {
-			http.Error(w, `{"jsonrpc":"2.0","error":{"code":11051,"message":"system_maintenance"}}`, http.StatusServiceUnavailable)
-		},
-		"listing no instruments": func(w http.ResponseWriter, _ *http.Request) {
-			writeJSONRPC(t, w, `{"jsonrpc":"2.0","result":[]}`)
-		},
-	} {
-		testUpdateTradablePairsGatewayOutage(t, name, gateway)
-	}
+	t.Run("leaves the gateway assets disabled", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		ex.SetDefaults()
+		// The cases share ex, so they run in order
+		for a, enabled := range map[asset.Item]bool{asset.Spot: true, asset.Futures: true, asset.USDCMarginedFutures: false, asset.CoinMarginedFutures: false} {
+			t.Run(a.String(), func(t *testing.T) {
+				assert.Equalf(t, enabled, ex.CurrencyPairs.IsAssetEnabled(a) == nil, "SetDefaults should leave %s enabled %t", a, enabled)
+			})
+		}
+	})
 }
 
 // testUpdateTradablePairsGatewayOutage updates the tradable pairs while the gateway answers with an outage
@@ -196,26 +212,32 @@ func testUpdateTradablePairsGatewayOutage(t *testing.T, name string, gateway htt
 		_, err := w.Write([]byte(body))
 		assert.NoError(t, err, "writing the response should not error")
 	})
+	// The cases share handler, so they run in order
 	for _, gatewayEnabled := range []bool{false, true} {
-		ex := newTestServerExchange(t, handler)
-		for _, a := range []asset.Item{asset.USDCMarginedFutures, asset.CoinMarginedFutures} {
-			require.NoErrorf(t, ex.CurrencyPairs.SetAssetEnabled(a, gatewayEnabled), "SetAssetEnabled must not error for %s", a)
-		}
-		err := ex.UpdateTradablePairs(t.Context())
-		if gatewayEnabled {
-			assert.Errorf(t, err, "UpdateTradablePairs should report an enabled asset whose pairs fail to load, the gateway %s", name)
-			continue
-		}
-		require.NoErrorf(t, err, "UpdateTradablePairs must not fail for a disabled asset whose pairs fail to load, the gateway %s", name)
-		for a, p := range map[asset.Item]currency.Pair{asset.Spot: currency.NewBTCUSD(), asset.Futures: currency.NewPairWithDelimiter("BIT", "30OCT26-CDE", currency.DashDelimiter)} {
-			available, err := ex.GetAvailablePairs(a)
-			require.NoErrorf(t, err, "GetAvailablePairs must not error for %s", a)
-			assert.Truef(t, available.Contains(p, true), "UpdateTradablePairs should store %s's pairs despite the gateway %s", a, name)
-		}
+		t.Run(strconv.FormatBool(gatewayEnabled), func(t *testing.T) {
+			ex := newTestServerExchange(t, handler)
+			for _, a := range []asset.Item{asset.USDCMarginedFutures, asset.CoinMarginedFutures} {
+				require.NoErrorf(t, ex.CurrencyPairs.SetAssetEnabled(a, gatewayEnabled), "SetAssetEnabled must not error for %s", a)
+			}
+			err := ex.UpdateTradablePairs(t.Context())
+			if gatewayEnabled {
+				assert.Errorf(t, err, "UpdateTradablePairs should report an enabled asset whose pairs fail to load, the gateway %s", name)
+				return
+			}
+			require.NoErrorf(t, err, "UpdateTradablePairs must not fail for a disabled asset whose pairs fail to load, the gateway %s", name)
+			// The cases share ex, so they run in order
+			for a, p := range map[asset.Item]currency.Pair{asset.Spot: currency.NewBTCUSD(), asset.Futures: currency.NewPairWithDelimiter("BIT", "30OCT26-CDE", currency.DashDelimiter)} {
+				t.Run(a.String(), func(t *testing.T) {
+					available, err := ex.GetAvailablePairs(a)
+					require.NoErrorf(t, err, "GetAvailablePairs must not error for %s", a)
+					assert.Truef(t, available.Contains(p, true), "UpdateTradablePairs should store %s's pairs despite the gateway %s", a, name)
+				})
+			}
+		})
 	}
 }
 
-func TestLoadPairAliases(t *testing.T) {
+func TestLoadPairAliases(t *testing.T) { //nolint:tparallel // the cases share ex in order
 	t.Parallel()
 	ex := new(Exchange)
 	btcUSDC := currency.NewPair(currency.BTC, currency.USDC)
@@ -227,16 +249,29 @@ func TestLoadPairAliases(t *testing.T) {
 	assert.True(t, ex.pairAliases.GetAlias(currency.NewBTCUSD()).Equal(currency.Pairs{currency.NewBTCUSD(), btcUSDC}), "loadPairAliases should load a USD product with its own pair and its alias")
 	assert.True(t, ex.pairAliases.GetAlias(btcUSDC).Equal(currency.Pairs{btcUSDC}), "loadPairAliases should load an alias as its own alias")
 	assert.True(t, ex.pairAliases.GetAlias(testETHUSD).Equal(currency.Pairs{testETHUSD}), "loadPairAliases should load a product without aliases as its own alias")
-	for _, p := range []ProductResponse{{ProductID: "BTCUSD"}, {ProductID: "BTC-USD", Alias: "BTCUSD"}, {ProductID: "BTC-USD", AliasTo: []string{"BTCUSDC"}}} {
-		assert.Errorf(t, ex.loadPairAliases([]ProductResponse{p}), "loadPairAliases should error for %+v", p)
+	// The cases share ex, so they run in order
+	for _, tc := range []struct {
+		name string
+		p    ProductResponse
+	}{
+		{"undelimited product ID", ProductResponse{ProductID: "BTCUSD"}},
+		{"undelimited alias", ProductResponse{ProductID: "BTC-USD", Alias: "BTCUSD"}},
+		{"undelimited alias target", ProductResponse{ProductID: "BTC-USD", AliasTo: []string{"BTCUSDC"}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Errorf(t, ex.loadPairAliases([]ProductResponse{tc.p}), "loadPairAliases should error for %+v", tc.p)
+		})
 	}
 }
 
 func TestTradableProduct(t *testing.T) {
 	t.Parallel()
 	assert.True(t, tradableProduct(&ProductResponse{}), "tradableProduct should report a product open to trading")
-	for _, p := range []ProductResponse{{TradingDisabled: true}, {IsDisabled: true}, {ViewOnly: true}} {
-		assert.Falsef(t, tradableProduct(&p), "tradableProduct should not report %+v", p)
+	for name, p := range map[string]ProductResponse{"trading disabled": {TradingDisabled: true}, "disabled": {IsDisabled: true}, "view only": {ViewOnly: true}} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			assert.Falsef(t, tradableProduct(&p), "tradableProduct should not report %+v", p)
+		})
 	}
 	assert.False(t, isPerpetualProduct(&ProductResponse{}), "isPerpetualProduct should not report a product without futures details")
 	assert.False(t, isPerpetualProduct(&ProductResponse{FutureProductDetails: &FutureProductDetails{}}), "isPerpetualProduct should not report a dated future")
@@ -247,13 +282,16 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
 	ex := newWrapperTestExchange(t)
 	require.ErrorIs(t, ex.UpdateOrderExecutionLimits(t.Context(), asset.Options), asset.ErrNotSupported, "UpdateOrderExecutionLimits must refuse an asset Coinbase does not trade")
+	// The cases share ex, and the checks after them read the limits they load, so they run in order
 	for a, pairs := range wrapperTestPairs(t) {
-		require.NoErrorf(t, ex.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error for %s", a)
-		l, err := limits.GetOrderExecutionLimits(key.NewExchangeAssetPair(ex.Name, a, pairs[0]))
-		require.NoErrorf(t, err, "GetOrderExecutionLimits must not error for %s %s", a, pairs[0])
-		assert.Positivef(t, l.PriceStepIncrementSize, "UpdateOrderExecutionLimits should load a price increment for %s %s", a, pairs[0])
-		assert.Positivef(t, l.AmountStepIncrementSize, "UpdateOrderExecutionLimits should load an amount increment for %s %s", a, pairs[0])
-		assert.Positivef(t, l.MinimumBaseAmount, "UpdateOrderExecutionLimits should load a minimum amount for %s %s", a, pairs[0])
+		t.Run(a.String(), func(t *testing.T) {
+			require.NoErrorf(t, ex.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error for %s", a)
+			l, err := limits.GetOrderExecutionLimits(key.NewExchangeAssetPair(ex.Name, a, pairs[0]))
+			require.NoErrorf(t, err, "GetOrderExecutionLimits must not error for %s %s", a, pairs[0])
+			assert.Positivef(t, l.PriceStepIncrementSize, "UpdateOrderExecutionLimits should load a price increment for %s %s", a, pairs[0])
+			assert.Positivef(t, l.AmountStepIncrementSize, "UpdateOrderExecutionLimits should load an amount increment for %s %s", a, pairs[0])
+			assert.Positivef(t, l.MinimumBaseAmount, "UpdateOrderExecutionLimits should load a minimum amount for %s %s", a, pairs[0])
+		})
 	}
 	if !mockTests {
 		return
@@ -275,15 +313,18 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 		{asset.USDCMarginedFutures, testUSDCPerpetual, limits.MinMaxLevel{PriceStepIncrementSize: 0.1, MinimumBaseAmount: 0.0001, AmountStepIncrementSize: 0.0001}},
 		{asset.CoinMarginedFutures, testCoinPerpetual, limits.MinMaxLevel{PriceStepIncrementSize: 0.5, MinimumBaseAmount: 10, AmountStepIncrementSize: 10}},
 	} {
-		l, err := limits.GetOrderExecutionLimits(key.NewExchangeAssetPair(ex.Name, tc.a, tc.p))
-		require.NoErrorf(t, err, "GetOrderExecutionLimits must not error for %s %s", tc.a, tc.p)
-		if tc.exp.Expiry.IsZero() {
-			tc.exp.Key = l.Key
-			tc.exp.UpdatedAt = l.UpdatedAt
-			assert.Equalf(t, tc.exp, l, "UpdateOrderExecutionLimits should load the %s %s limits Coinbase lists", tc.a, tc.p)
-			continue
-		}
-		assert.Equalf(t, tc.exp.Expiry, l.Expiry, "UpdateOrderExecutionLimits should load %s's expiry", tc.p)
+		t.Run(tc.p.String(), func(t *testing.T) {
+			t.Parallel()
+			l, err := limits.GetOrderExecutionLimits(key.NewExchangeAssetPair(ex.Name, tc.a, tc.p))
+			require.NoErrorf(t, err, "GetOrderExecutionLimits must not error for %s %s", tc.a, tc.p)
+			if tc.exp.Expiry.IsZero() {
+				tc.exp.Key = l.Key
+				tc.exp.UpdatedAt = l.UpdatedAt
+				assert.Equalf(t, tc.exp, l, "UpdateOrderExecutionLimits should load the %s %s limits Coinbase lists", tc.a, tc.p)
+				return
+			}
+			assert.Equalf(t, tc.exp.Expiry, l.Expiry, "UpdateOrderExecutionLimits should load %s's expiry", tc.p)
+		})
 	}
 }
 
@@ -291,13 +332,18 @@ func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
 	ex := newWrapperTestExchange(t)
 	require.ErrorIs(t, ex.UpdateTickers(t.Context(), asset.Options), asset.ErrNotSupported, "UpdateTickers must refuse an asset Coinbase does not trade")
+	// The cases share ex, and the checks after them read the tickers they store, so they and their pairs run in order
 	for a, pairs := range wrapperTestPairs(t) {
-		require.NoErrorf(t, ex.UpdateTickers(t.Context(), a), "UpdateTickers must not error for %s", a)
-		for _, p := range pairs {
-			tick, err := ticker.GetTicker(ex.Name, p, a)
-			require.NoErrorf(t, err, "GetTicker must not error for %s %s", a, p)
-			assert.Positivef(t, tick.Last, "UpdateTickers should store a last price for %s %s", a, p)
-		}
+		t.Run(a.String(), func(t *testing.T) {
+			require.NoErrorf(t, ex.UpdateTickers(t.Context(), a), "UpdateTickers must not error for %s", a)
+			for _, p := range pairs {
+				t.Run(p.String(), func(t *testing.T) {
+					tick, err := ticker.GetTicker(ex.Name, p, a)
+					require.NoErrorf(t, err, "GetTicker must not error for %s %s", a, p)
+					assert.Positivef(t, tick.Last, "UpdateTickers should store a last price for %s %s", a, p)
+				})
+			}
+		})
 	}
 	if mockTests {
 		tick, err := ticker.GetTicker(ex.Name, currency.NewBTCUSD(), asset.Spot)
@@ -318,14 +364,17 @@ func TestUpdateTickers(t *testing.T) {
 			PercentChange24Hour: 0.95019084427705,
 			LastUpdated:         tick.LastUpdated,
 		}, tick, "UpdateTickers should store BTC-USD's day statistics as the product list reports them and its top of book")
+		// missing, below, stores its tickers under ex's name, so the cases read ex's tickers before it, in order
 		for _, tc := range []struct {
 			a      asset.Item
 			p      currency.Pair
 			change float64
 		}{{asset.USDCMarginedFutures, testUSDCPerpetual, 1.1176}, {asset.CoinMarginedFutures, testCoinPerpetual, 0.9958}} {
-			tick, err := ticker.GetTicker(ex.Name, tc.p, tc.a)
-			require.NoErrorf(t, err, "GetTicker must not error for %s %s", tc.a, tc.p)
-			assert.Equalf(t, tc.change, tick.PercentChange24Hour, "UpdateTickers should store %s %s's 24 hour change as the gateway's book summary reports it", tc.a, tc.p)
+			t.Run(tc.p.String(), func(t *testing.T) {
+				tick, err := ticker.GetTicker(ex.Name, tc.p, tc.a)
+				require.NoErrorf(t, err, "GetTicker must not error for %s %s", tc.a, tc.p)
+				assert.Equalf(t, tc.change, tick.PercentChange24Hour, "UpdateTickers should store %s %s's 24 hour change as the gateway's book summary reports it", tc.a, tc.p)
+			})
 		}
 	}
 	missing := newWrapperTestExchange(t)
@@ -333,40 +382,43 @@ func TestUpdateTickers(t *testing.T) {
 	require.NoError(t, missing.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{unlisted}, false), "StorePairs must not error for available pairs")
 	require.NoError(t, missing.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{unlisted}, true), "StorePairs must not error for enabled pairs")
 	assert.ErrorIs(t, missing.UpdateTickers(t.Context(), asset.Spot), errProductNotFound, "UpdateTickers should report an enabled pair Coinbase does not list")
-}
 
-func TestUpdateTickersTopOfBook(t *testing.T) {
-	t.Parallel()
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		body := `{"products":[{"product_id":"BTC-USD","price":"82000","volume_24h":"3000","approximate_quote_24h_volume":"246000000","high_24h":"83000","low_24h":"80000","price_percentage_change_24h":"1","best_bid_price":"","best_ask_price":""}],"num_products":1,"pagination":{"has_next":false}}`
-		if r.URL.Path == "/api/v3/brokerage/market/product_book" {
-			if r.URL.Query().Get("product_id") != "BTC-USD" || r.URL.Query().Get("limit") != "1" {
-				http.Error(w, `{"error":"INVALID_ARGUMENT","message":"unexpected book request"}`, http.StatusBadRequest)
-				return
+	t.Run("stores the current top of book", func(t *testing.T) {
+		t.Parallel()
+		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			body := `{"products":[{"product_id":"BTC-USD","price":"82000","volume_24h":"3000","approximate_quote_24h_volume":"246000000","high_24h":"83000","low_24h":"80000","price_percentage_change_24h":"1","best_bid_price":"","best_ask_price":""}],"num_products":1,"pagination":{"has_next":false}}`
+			if r.URL.Path == "/api/v3/brokerage/market/product_book" {
+				if r.URL.Query().Get("product_id") != "BTC-USD" || r.URL.Query().Get("limit") != "1" {
+					http.Error(w, `{"error":"INVALID_ARGUMENT","message":"unexpected book request"}`, http.StatusBadRequest)
+					return
+				}
+				body = `{"pricebook":{"product_id":"BTC-USD","bids":[{"price":"81999","size":"0.5"}],"asks":[{"price":"82001","size":"0.25"}],"time":"2026-10-20T08:00:00Z"},"last":"82000","mid_market":"82000","spread_bps":"0.24","spread_absolute":"2"}`
 			}
-			body = `{"pricebook":{"product_id":"BTC-USD","bids":[{"price":"81999","size":"0.5"}],"asks":[{"price":"82001","size":"0.25"}],"time":"2026-10-20T08:00:00Z"},"last":"82000","mid_market":"82000","spread_bps":"0.24","spread_absolute":"2"}`
+			_, err := w.Write([]byte(body))
+			assert.NoError(t, err, "writing the response should not error")
+		})
+		// The cases share handler, so they run in order
+		for _, stored := range []bool{false, true} {
+			t.Run(strconv.FormatBool(stored), func(t *testing.T) {
+				ex := newTestServerExchange(t, handler)
+				require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{currency.NewBTCUSD()}, false), "StorePairs must not error for available pairs")
+				require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{currency.NewBTCUSD()}, true), "StorePairs must not error for enabled pairs")
+				require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.Spot, true), "SetAssetEnabled must not error")
+				if stored {
+					// The websocket's last ticker before its stream stalled, which made the sync manager fall back to REST
+					require.NoError(t, ticker.ProcessTicker(&ticker.Price{ExchangeName: ex.Name, Pair: currency.NewBTCUSD(), AssetType: asset.Spot, Last: 60000, Bid: 59999, BidSize: 1, Ask: 60001, AskSize: 1, LastUpdated: time.Now().Add(-2 * time.Hour)}), "ProcessTicker must not error")
+				}
+				require.NoError(t, ex.UpdateTickers(t.Context(), asset.Spot), "UpdateTickers must not error")
+				tick, err := ticker.GetTicker(ex.Name, currency.NewBTCUSD(), asset.Spot)
+				require.NoError(t, err, "GetTicker must not error")
+				assert.Equalf(t, 82000.0, tick.Last, "UpdateTickers should store the product list's last price with a stored ticker %v", stored)
+				assert.Equalf(t, 81999.0, tick.Bid, "UpdateTickers should store the current best bid with a stored ticker %v", stored)
+				assert.Equalf(t, 0.5, tick.BidSize, "UpdateTickers should store the current best bid size with a stored ticker %v", stored)
+				assert.Equalf(t, 82001.0, tick.Ask, "UpdateTickers should store the current best ask with a stored ticker %v", stored)
+				assert.Equalf(t, 0.25, tick.AskSize, "UpdateTickers should store the current best ask size with a stored ticker %v", stored)
+			})
 		}
-		_, err := w.Write([]byte(body))
-		assert.NoError(t, err, "writing the response should not error")
 	})
-	for _, stored := range []bool{false, true} {
-		ex := newTestServerExchange(t, handler)
-		require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{currency.NewBTCUSD()}, false), "StorePairs must not error for available pairs")
-		require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{currency.NewBTCUSD()}, true), "StorePairs must not error for enabled pairs")
-		require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.Spot, true), "SetAssetEnabled must not error")
-		if stored {
-			// The websocket's last ticker before its stream stalled, which made the sync manager fall back to REST
-			require.NoError(t, ticker.ProcessTicker(&ticker.Price{ExchangeName: ex.Name, Pair: currency.NewBTCUSD(), AssetType: asset.Spot, Last: 60000, Bid: 59999, BidSize: 1, Ask: 60001, AskSize: 1, LastUpdated: time.Now().Add(-2 * time.Hour)}), "ProcessTicker must not error")
-		}
-		require.NoError(t, ex.UpdateTickers(t.Context(), asset.Spot), "UpdateTickers must not error")
-		tick, err := ticker.GetTicker(ex.Name, currency.NewBTCUSD(), asset.Spot)
-		require.NoError(t, err, "GetTicker must not error")
-		assert.Equalf(t, 82000.0, tick.Last, "UpdateTickers should store the product list's last price with a stored ticker %v", stored)
-		assert.Equalf(t, 81999.0, tick.Bid, "UpdateTickers should store the current best bid with a stored ticker %v", stored)
-		assert.Equalf(t, 0.5, tick.BidSize, "UpdateTickers should store the current best bid size with a stored ticker %v", stored)
-		assert.Equalf(t, 82001.0, tick.Ask, "UpdateTickers should store the current best ask with a stored ticker %v", stored)
-		assert.Equalf(t, 0.25, tick.AskSize, "UpdateTickers should store the current best ask size with a stored ticker %v", stored)
-	}
 }
 
 func TestListProductsPages(t *testing.T) {
@@ -412,32 +464,38 @@ func TestListProductsPages(t *testing.T) {
 	assert.ErrorIs(t, err, errListPagingStalled, "listProducts should stop a list whose cursor repeats")
 }
 
-func TestUpdateTicker(t *testing.T) {
+func TestUpdateTicker(t *testing.T) { //nolint:tparallel // the cases share ex in order
 	t.Parallel()
 	ex := newWrapperTestExchange(t)
 	_, err := ex.UpdateTicker(t.Context(), currency.NewBTCUSD(), asset.Options)
 	require.ErrorIs(t, err, asset.ErrNotSupported, "UpdateTicker must refuse an asset Coinbase does not trade")
 	_, err = ex.UpdateTicker(t.Context(), currency.EMPTYPAIR, asset.Spot)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "UpdateTicker must refuse an empty pair")
+	// The cases share ex, so they run in order
 	for a, pairs := range wrapperTestPairs(t) {
-		tick, err := ex.UpdateTicker(t.Context(), pairs[0], a)
-		require.NoErrorf(t, err, "UpdateTicker must not error for %s %s", a, pairs[0])
-		assert.Positivef(t, tick.Last, "UpdateTicker should return a last price for %s %s", a, pairs[0])
-		assert.Positivef(t, tick.Bid, "UpdateTicker should return a best bid for %s %s", a, pairs[0])
-		assert.Positivef(t, tick.Ask, "UpdateTicker should return a best ask for %s %s", a, pairs[0])
+		t.Run(a.String(), func(t *testing.T) {
+			tick, err := ex.UpdateTicker(t.Context(), pairs[0], a)
+			require.NoErrorf(t, err, "UpdateTicker must not error for %s %s", a, pairs[0])
+			assert.Positivef(t, tick.Last, "UpdateTicker should return a last price for %s %s", a, pairs[0])
+			assert.Positivef(t, tick.Bid, "UpdateTicker should return a best bid for %s %s", a, pairs[0])
+			assert.Positivef(t, tick.Ask, "UpdateTicker should return a best ask for %s %s", a, pairs[0])
+		})
 	}
 }
 
-func TestUpdateOrderbook(t *testing.T) {
+func TestUpdateOrderbook(t *testing.T) { //nolint:tparallel // the cases share ex in order
 	t.Parallel()
 	ex := newWrapperTestExchange(t)
 	_, err := ex.UpdateOrderbook(t.Context(), currency.NewBTCUSD(), asset.Options)
 	require.Error(t, err, "UpdateOrderbook must refuse an asset Coinbase does not trade")
+	// The cases share ex, so they run in order
 	for a, pairs := range wrapperTestPairs(t) {
-		book, err := ex.UpdateOrderbook(t.Context(), pairs[0], a)
-		require.NoErrorf(t, err, "UpdateOrderbook must not error for %s %s", a, pairs[0])
-		assert.NotEmptyf(t, book.Bids, "UpdateOrderbook should return bids for %s %s", a, pairs[0])
-		assert.NotEmptyf(t, book.Asks, "UpdateOrderbook should return asks for %s %s", a, pairs[0])
+		t.Run(a.String(), func(t *testing.T) {
+			book, err := ex.UpdateOrderbook(t.Context(), pairs[0], a)
+			require.NoErrorf(t, err, "UpdateOrderbook must not error for %s %s", a, pairs[0])
+			assert.NotEmptyf(t, book.Bids, "UpdateOrderbook should return bids for %s %s", a, pairs[0])
+			assert.NotEmptyf(t, book.Asks, "UpdateOrderbook should return asks for %s %s", a, pairs[0])
+		})
 	}
 }
 
@@ -449,53 +507,128 @@ func TestAdvancedTradeBookLevels(t *testing.T) {
 
 func TestUpdateAccountBalances(t *testing.T) {
 	t.Parallel()
-	ex := newWrapperTestExchange(t)
-	_, err := ex.UpdateAccountBalances(t.Context(), asset.Options)
-	require.ErrorIs(t, err, asset.ErrNotSupported, "UpdateAccountBalances must refuse an asset Coinbase does not trade")
-	if !mockTests {
-		sharedTestCredentials(t, ex)
-	}
-	for _, a := range []asset.Item{asset.Spot, asset.Futures, asset.USDCMarginedFutures} {
-		subAccounts, err := ex.UpdateAccountBalances(t.Context(), a)
-		require.NoErrorf(t, err, "UpdateAccountBalances must not error for %s", a)
-		require.NotEmptyf(t, subAccounts, "UpdateAccountBalances must return the %s sub-accounts", a)
-		for _, s := range subAccounts {
-			assert.Equalf(t, a, s.AssetType, "UpdateAccountBalances should return %s sub-accounts", a)
+
+	t.Run("returns each asset's balances", func(t *testing.T) {
+		t.Parallel()
+		ex := newWrapperTestExchange(t)
+		_, err := ex.UpdateAccountBalances(t.Context(), asset.Options)
+		require.ErrorIs(t, err, asset.ErrNotSupported, "UpdateAccountBalances must refuse an asset Coinbase does not trade")
+		if !mockTests {
+			sharedTestCredentials(t, ex)
 		}
-	}
-	if !mockTests {
-		return
-	}
-	// The gateway's account backs both perpetual assets, which split its currencies between them, and its isolated margin
-	// subaccounts are sub-accounts of their own, by their IDs
-	perpetuals, err := ex.UpdateAccountBalances(t.Context(), asset.CoinMarginedFutures)
-	require.NoError(t, err, "UpdateAccountBalances must not error for the inverse perpetuals")
-	require.Len(t, perpetuals, 2, "UpdateAccountBalances must return the main account and the isolated margin subaccount")
-	assert.Empty(t, perpetuals[0].ID, "UpdateAccountBalances should return the main account first, without an ID")
-	assert.Equal(t, 302.60065765, perpetuals[0].Balances[currency.BTC].Total, "UpdateAccountBalances should return the main account's balances")
-	assert.Equal(t, "123456", perpetuals[1].ID, "UpdateAccountBalances should name the isolated margin subaccount by its ID")
-	usdcPerpetuals, err := ex.UpdateAccountBalances(t.Context(), asset.USDCMarginedFutures)
-	require.NoError(t, err, "UpdateAccountBalances must not error for the USDC perpetuals")
-	require.Len(t, usdcPerpetuals, 1, "UpdateAccountBalances must leave out an isolated margin subaccount holding none of the USDC perpetuals' currencies")
-	_, ok := usdcPerpetuals[0].Balances[currency.BTC]
-	assert.False(t, ok, "UpdateAccountBalances should count the gateway's bitcoin under the inverse perpetuals alone")
-	isolatedETH := perpetuals[1].Balances[currency.ETH]
-	assert.Equal(t, 100.0, isolatedETH.Total, "UpdateAccountBalances should return the isolated margin subaccount's balance")
-	assert.Equal(t, 99.999597, isolatedETH.Free, "UpdateAccountBalances should return the isolated margin subaccount's withdrawable funds as free")
-	assert.InDelta(t, 0.000403, isolatedETH.Hold, 1e-12, "UpdateAccountBalances should hold the isolated margin subaccount's funds that cannot be withdrawn")
-	spot, err := ex.UpdateAccountBalances(t.Context(), asset.Spot)
-	require.NoError(t, err, "UpdateAccountBalances must not error for spot")
-	btc, ok := spot[0].Balances[currency.BTC]
-	require.True(t, ok, "UpdateAccountBalances must return the spot BTC balance")
-	assert.Equal(t, 0.5, btc.Total, "UpdateAccountBalances should total the available and held BTC")
-	assert.Equal(t, 0.5, btc.Free, "UpdateAccountBalances should report the available BTC as free")
-	_, ok = spot[0].Balances[currency.ETH]
-	assert.False(t, ok, "UpdateAccountBalances should leave a US derivatives account out of spot")
-	futuresAccounts, err := ex.UpdateAccountBalances(t.Context(), asset.Futures)
-	require.NoError(t, err, "UpdateAccountBalances must not error for futures")
-	eth, ok := futuresAccounts[0].Balances[currency.ETH]
-	require.True(t, ok, "UpdateAccountBalances must return the US derivatives ETH balance")
-	assert.Equal(t, 1.0, eth.Free, "UpdateAccountBalances should report the US derivatives ETH available")
+		// The cases share ex with the checks after them, so they run in order
+		for _, a := range []asset.Item{asset.Spot, asset.Futures, asset.USDCMarginedFutures} {
+			t.Run(a.String(), func(t *testing.T) {
+				subAccounts, err := ex.UpdateAccountBalances(t.Context(), a)
+				require.NoErrorf(t, err, "UpdateAccountBalances must not error for %s", a)
+				require.NotEmptyf(t, subAccounts, "UpdateAccountBalances must return the %s sub-accounts", a)
+				for _, s := range subAccounts {
+					assert.Equalf(t, a, s.AssetType, "UpdateAccountBalances should return %s sub-accounts", a)
+				}
+			})
+		}
+		if !mockTests {
+			return
+		}
+		// The gateway's account backs both perpetual assets, which split its currencies between them, and its isolated margin
+		// subaccounts are sub-accounts of their own, by their IDs
+		perpetuals, err := ex.UpdateAccountBalances(t.Context(), asset.CoinMarginedFutures)
+		require.NoError(t, err, "UpdateAccountBalances must not error for the inverse perpetuals")
+		require.Len(t, perpetuals, 2, "UpdateAccountBalances must return the main account and the isolated margin subaccount")
+		assert.Empty(t, perpetuals[0].ID, "UpdateAccountBalances should return the main account first, without an ID")
+		assert.Equal(t, 302.60065765, perpetuals[0].Balances[currency.BTC].Total, "UpdateAccountBalances should return the main account's balances")
+		assert.Equal(t, "123456", perpetuals[1].ID, "UpdateAccountBalances should name the isolated margin subaccount by its ID")
+		usdcPerpetuals, err := ex.UpdateAccountBalances(t.Context(), asset.USDCMarginedFutures)
+		require.NoError(t, err, "UpdateAccountBalances must not error for the USDC perpetuals")
+		require.Len(t, usdcPerpetuals, 1, "UpdateAccountBalances must leave out an isolated margin subaccount holding none of the USDC perpetuals' currencies")
+		_, ok := usdcPerpetuals[0].Balances[currency.BTC]
+		assert.False(t, ok, "UpdateAccountBalances should count the gateway's bitcoin under the inverse perpetuals alone")
+		isolatedETH := perpetuals[1].Balances[currency.ETH]
+		assert.Equal(t, 100.0, isolatedETH.Total, "UpdateAccountBalances should return the isolated margin subaccount's balance")
+		assert.Equal(t, 99.999597, isolatedETH.Free, "UpdateAccountBalances should return the isolated margin subaccount's withdrawable funds as free")
+		assert.InDelta(t, 0.000403, isolatedETH.Hold, 1e-12, "UpdateAccountBalances should hold the isolated margin subaccount's funds that cannot be withdrawn")
+		spot, err := ex.UpdateAccountBalances(t.Context(), asset.Spot)
+		require.NoError(t, err, "UpdateAccountBalances must not error for spot")
+		btc, ok := spot[0].Balances[currency.BTC]
+		require.True(t, ok, "UpdateAccountBalances must return the spot BTC balance")
+		assert.Equal(t, 0.5, btc.Total, "UpdateAccountBalances should total the available and held BTC")
+		assert.Equal(t, 0.5, btc.Free, "UpdateAccountBalances should report the available BTC as free")
+		_, ok = spot[0].Balances[currency.ETH]
+		assert.False(t, ok, "UpdateAccountBalances should leave a US derivatives account out of spot")
+		futuresAccounts, err := ex.UpdateAccountBalances(t.Context(), asset.Futures)
+		require.NoError(t, err, "UpdateAccountBalances must not error for futures")
+		eth, ok := futuresAccounts[0].Balances[currency.ETH]
+		require.True(t, ok, "UpdateAccountBalances must return the US derivatives ETH balance")
+		assert.Equal(t, 1.0, eth.Free, "UpdateAccountBalances should report the US derivatives ETH available")
+	})
+
+	t.Run("clears a recycled isolated margin subaccount", func(t *testing.T) {
+		t.Parallel()
+		rpcResult := func(result string) string { return `{"jsonrpc":"2.0","id":1,"result":` + result + `}` }
+		var calls atomic.Int32
+		ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/api/v2/private/get_account_summaries" {
+				http.NotFound(w, r)
+				return
+			}
+			body := rpcResult(`{"summaries":[{"currency":"USDC","balance":1100,"available_withdrawal_funds":1100}],"isolated_account_summaries":[]}`)
+			if calls.Add(1) == 1 {
+				body = rpcResult(`{"summaries":[{"currency":"USDC","balance":1000,"available_withdrawal_funds":1000}],"isolated_account_summaries":[{"id":123456,"summaries":[{"currency":"USDC","balance":100,"available_withdrawal_funds":0}]}]}`)
+			}
+			_, err := w.Write([]byte(body))
+			assert.NoError(t, err, "writing the response should not error")
+		}))
+		_, err := ex.UpdateAccountBalances(t.Context(), asset.USDCMarginedFutures)
+		require.NoError(t, err, "UpdateAccountBalances must not error while the isolated margin subaccount is active")
+		balances, err := ex.GetCachedCurrencyBalances(t.Context(), asset.USDCMarginedFutures)
+		require.NoError(t, err, "GetCachedCurrencyBalances must not error")
+		assert.Equal(t, 1100.0, balances[currency.USDC].Total, "the cached balances should add the isolated margin subaccount's collateral to the main account's")
+		// The position closes: the gateway sweeps the subaccount's collateral back to the main account and stops listing it
+		subAccounts, err := ex.UpdateAccountBalances(t.Context(), asset.USDCMarginedFutures)
+		require.NoError(t, err, "UpdateAccountBalances must not error once the isolated margin subaccount is recycled")
+		assert.Len(t, subAccounts, 1, "UpdateAccountBalances should return the main account alone")
+		balances, err = ex.GetCachedCurrencyBalances(t.Context(), asset.USDCMarginedFutures)
+		require.NoError(t, err, "GetCachedCurrencyBalances must not error")
+		assert.Equal(t, 1100.0, balances[currency.USDC].Total, "the cached balances should not count a recycled subaccount's collateral again")
+	})
+
+	t.Run("returns every page's balances", func(t *testing.T) {
+		t.Parallel()
+		account := func(code, available, hold string) string {
+			return `{"uuid":"` + code + `-wallet","currency":"` + code + `","available_balance":{"value":"` + available + `","currency":"` + code + `"},"hold":{"value":"` + hold + `","currency":"` + code + `"},"type":"ACCOUNT_TYPE_CRYPTO","platform":"ACCOUNT_PLATFORM_CONSUMER"}`
+		}
+		var cursors []string
+		var mu sync.Mutex
+		ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			cursor := r.URL.Query().Get("cursor")
+			mu.Lock()
+			cursors = append(cursors, cursor)
+			mu.Unlock()
+			body := `{"accounts":[` + account("BTC", "1", "0.5") + `,` + account("ETH", "2", "0") + `],"has_next":true,"cursor":"page-2"}`
+			if cursor == "page-2" {
+				// The last page can still name a cursor, which has_next false leaves unused, and an account's whole balance
+				// can be held, as by its open orders
+				body = `{"accounts":[` + account("USDC", "0", "25") + `],"has_next":false,"cursor":"page-3"}`
+			}
+			_, err := w.Write([]byte(body))
+			assert.NoError(t, err, "writing the response should not error")
+		}))
+		subAccounts, err := ex.UpdateAccountBalances(t.Context(), asset.Spot)
+		require.NoError(t, err, "UpdateAccountBalances must not error")
+		require.Len(t, subAccounts, 1, "UpdateAccountBalances must return the spot sub-account")
+		got := make(accounts.CurrencyBalances, len(subAccounts[0].Balances))
+		for c, b := range subAccounts[0].Balances {
+			// The store stamps each balance it saves
+			b.UpdatedAt = time.Time{}
+			got[c] = b
+		}
+		assert.Equal(t, accounts.CurrencyBalances{
+			currency.BTC:  {Currency: currency.BTC, Total: 1.5, Hold: 0.5, Free: 1},
+			currency.ETH:  {Currency: currency.ETH, Total: 2, Free: 2},
+			currency.USDC: {Currency: currency.USDC, Total: 25, Hold: 25},
+		}, got, "UpdateAccountBalances should return every page's balances")
+		assert.Equal(t, []string{"", "page-2"}, cursors, "UpdateAccountBalances should page by the cursor")
+	})
 }
 
 // sharedTestCredentials skips a live test that needs credentials when none are set
@@ -506,50 +639,24 @@ func sharedTestCredentials(t *testing.T, ex *Exchange) {
 	}
 }
 
-func TestUpdateAccountBalancesClearsRecycledIsolatedSubaccount(t *testing.T) {
-	t.Parallel()
-	rpcResult := func(result string) string { return `{"jsonrpc":"2.0","id":1,"result":` + result + `}` }
-	var calls atomic.Int32
-	ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/v2/private/get_account_summaries" {
-			http.NotFound(w, r)
-			return
-		}
-		body := rpcResult(`{"summaries":[{"currency":"USDC","balance":1100,"available_withdrawal_funds":1100}],"isolated_account_summaries":[]}`)
-		if calls.Add(1) == 1 {
-			body = rpcResult(`{"summaries":[{"currency":"USDC","balance":1000,"available_withdrawal_funds":1000}],"isolated_account_summaries":[{"id":123456,"summaries":[{"currency":"USDC","balance":100,"available_withdrawal_funds":0}]}]}`)
-		}
-		_, err := w.Write([]byte(body))
-		assert.NoError(t, err, "writing the response should not error")
-	}))
-	_, err := ex.UpdateAccountBalances(t.Context(), asset.USDCMarginedFutures)
-	require.NoError(t, err, "UpdateAccountBalances must not error while the isolated margin subaccount is active")
-	balances, err := ex.GetCachedCurrencyBalances(t.Context(), asset.USDCMarginedFutures)
-	require.NoError(t, err, "GetCachedCurrencyBalances must not error")
-	assert.Equal(t, 1100.0, balances[currency.USDC].Total, "the cached balances should add the isolated margin subaccount's collateral to the main account's")
-	// The position closes: the gateway sweeps the subaccount's collateral back to the main account and stops listing it
-	subAccounts, err := ex.UpdateAccountBalances(t.Context(), asset.USDCMarginedFutures)
-	require.NoError(t, err, "UpdateAccountBalances must not error once the isolated margin subaccount is recycled")
-	assert.Len(t, subAccounts, 1, "UpdateAccountBalances should return the main account alone")
-	balances, err = ex.GetCachedCurrencyBalances(t.Context(), asset.USDCMarginedFutures)
-	require.NoError(t, err, "GetCachedCurrencyBalances must not error")
-	assert.Equal(t, 1100.0, balances[currency.USDC].Total, "the cached balances should not count a recycled subaccount's collateral again")
-}
-
 func TestAccountAsset(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
+		name string
 		acct Account
 		exp  asset.Item
 	}{
-		{Account{Platform: AccountPlatformConsumer}, asset.Spot},
-		{Account{}, asset.Spot},
-		{Account{Platform: AccountPlatformUnspecified}, asset.Spot},
-		{Account{Platform: AccountPlatformCFMConsumer}, asset.Futures},
-		{Account{Platform: AccountPlatformINTX}, asset.Empty},
-		{Account{Platform: AccountPlatformConsumer, Type: AccountTypeVault}, asset.Empty},
+		{"consumer", Account{Platform: AccountPlatformConsumer}, asset.Spot},
+		{"no platform", Account{}, asset.Spot},
+		{"unspecified platform", Account{Platform: AccountPlatformUnspecified}, asset.Spot},
+		{"CFM consumer", Account{Platform: AccountPlatformCFMConsumer}, asset.Futures},
+		{"INTX", Account{Platform: AccountPlatformINTX}, asset.Empty},
+		{"consumer vault", Account{Platform: AccountPlatformConsumer, Type: AccountTypeVault}, asset.Empty},
 	} {
-		assert.Equalf(t, tc.exp, accountAsset(&tc.acct), "accountAsset should return %s for %+v", tc.exp, tc.acct)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, tc.exp, accountAsset(&tc.acct), "accountAsset should return %s for %+v", tc.exp, tc.acct)
+		})
 	}
 }
 
@@ -620,13 +727,19 @@ func TestFundingTransferType(t *testing.T) {
 		AppTransactionTypeSend:           withdrawalTransferType,
 		AppTransactionTypeFiatWithdrawal: withdrawalTransferType,
 	} {
-		got, ok := fundingTransferType(&AppTransactionResponse{Type: transactionType})
-		require.Truef(t, ok, "fundingTransferType must report %s as a funding transfer", transactionType)
-		assert.Equalf(t, exp, got, "fundingTransferType should return %s for %s", exp, transactionType)
+		t.Run(subtestName(transactionType), func(t *testing.T) {
+			t.Parallel()
+			got, ok := fundingTransferType(&AppTransactionResponse{Type: transactionType})
+			require.Truef(t, ok, "fundingTransferType must report %s as a funding transfer", transactionType)
+			assert.Equalf(t, exp, got, "fundingTransferType should return %s for %s", exp, transactionType)
+		})
 	}
 	for _, transactionType := range []string{AppTransactionTypeAdvancedTradeFill, AppTransactionTypeTransfer, AppTransactionTypeBuy, ""} {
-		_, ok := fundingTransferType(&AppTransactionResponse{Type: transactionType})
-		assert.Falsef(t, ok, "fundingTransferType should not report %q as a funding transfer", transactionType)
+		t.Run(subtestName(transactionType), func(t *testing.T) {
+			t.Parallel()
+			_, ok := fundingTransferType(&AppTransactionResponse{Type: transactionType})
+			assert.Falsef(t, ok, "fundingTransferType should not report %q as a funding transfer", transactionType)
+		})
 	}
 }
 
@@ -769,20 +882,23 @@ func TestAppAccountID(t *testing.T) {
 	assert.ErrorIs(t, err, errAccountNotFound, "appAccountID should report a currency without an account")
 }
 
-func TestGetRecentTrades(t *testing.T) {
+func TestGetRecentTrades(t *testing.T) { //nolint:tparallel // the cases share ex in order
 	t.Parallel()
 	ex := newWrapperTestExchange(t)
 	_, err := ex.GetRecentTrades(t.Context(), currency.NewBTCUSD(), asset.Options)
 	require.ErrorIs(t, err, asset.ErrNotSupported, "GetRecentTrades must refuse an asset Coinbase does not trade")
+	// The cases share ex, so they run in order
 	for a, pairs := range wrapperTestPairs(t) {
-		trades, err := ex.GetRecentTrades(t.Context(), pairs[0], a)
-		require.NoErrorf(t, err, "GetRecentTrades must not error for %s %s", a, pairs[0])
-		require.NotEmptyf(t, trades, "GetRecentTrades must return %s %s trades", a, pairs[0])
-		assert.Truef(t, slices.IsSortedFunc(trades, func(x, y trade.Data) int { return x.Timestamp.Compare(y.Timestamp) }), "GetRecentTrades should sort %s trades oldest first", a)
+		t.Run(a.String(), func(t *testing.T) {
+			trades, err := ex.GetRecentTrades(t.Context(), pairs[0], a)
+			require.NoErrorf(t, err, "GetRecentTrades must not error for %s %s", a, pairs[0])
+			require.NotEmptyf(t, trades, "GetRecentTrades must return %s %s trades", a, pairs[0])
+			assert.Truef(t, slices.IsSortedFunc(trades, func(x, y trade.Data) int { return x.Timestamp.Compare(y.Timestamp) }), "GetRecentTrades should sort %s trades oldest first", a)
+		})
 	}
 }
 
-func TestGetHistoricTrades(t *testing.T) {
+func TestGetHistoricTrades(t *testing.T) { //nolint:tparallel // the cases share ex in order
 	t.Parallel()
 	ex := newWrapperTestExchange(t)
 	start, end := wrapperWindow(time.Minute)
@@ -794,18 +910,21 @@ func TestGetHistoricTrades(t *testing.T) {
 	if mockTests {
 		recentStart, recentEnd = testWrapperRecentStart, testWrapperRecentStart.Add(time.Minute)
 	}
+	// The cases share ex, so they run in order
 	for _, tc := range []struct {
 		a          asset.Item
 		p          currency.Pair
 		start, end time.Time
 	}{{asset.Spot, currency.NewBTCUSD(), start, end}, {asset.USDCMarginedFutures, testUSDCPerpetual, recentStart, recentEnd}} {
-		start, end := tc.start, tc.end
-		trades, err := ex.GetHistoricTrades(t.Context(), tc.p, tc.a, start, end)
-		require.NoErrorf(t, err, "GetHistoricTrades must not error for %s %s", tc.a, tc.p)
-		require.NotEmptyf(t, trades, "GetHistoricTrades must return %s %s trades", tc.a, tc.p)
-		for i := range trades {
-			assert.Falsef(t, trades[i].Timestamp.Before(start) || trades[i].Timestamp.After(end), "GetHistoricTrades should return only %s trades within the window, got %s", tc.a, trades[i].Timestamp)
-		}
+		t.Run(tc.a.String(), func(t *testing.T) {
+			start, end := tc.start, tc.end
+			trades, err := ex.GetHistoricTrades(t.Context(), tc.p, tc.a, start, end)
+			require.NoErrorf(t, err, "GetHistoricTrades must not error for %s %s", tc.a, tc.p)
+			require.NotEmptyf(t, trades, "GetHistoricTrades must return %s %s trades", tc.a, tc.p)
+			for i := range trades {
+				assert.Falsef(t, trades[i].Timestamp.Before(start) || trades[i].Timestamp.After(end), "GetHistoricTrades should return only %s trades within the window, got %s", tc.a, trades[i].Timestamp)
+			}
+		})
 	}
 }
 
@@ -980,289 +1099,327 @@ func TestMarketTrades(t *testing.T) {
 
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
-	ex := newWrapperTestExchange(t)
-	_, err := ex.SubmitOrder(t.Context(), &order.Submit{})
-	require.ErrorIs(t, err, common.ErrExchangeNameNotSet, "SubmitOrder must validate the order")
-	_, err = ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: currency.NewBTCUSD(), AssetType: asset.Options, Side: order.Buy, Type: order.Market, Amount: 1})
-	require.ErrorIs(t, err, asset.ErrNotSupported, "SubmitOrder must refuse an asset Coinbase does not trade")
-	if !mockTests {
-		sharedTestCredentials(t, ex)
-		if !canManipulateRealOrders {
-			t.Skip("canManipulateRealOrders is not set")
-		}
-	}
-	resp, err := ex.SubmitOrder(t.Context(), &order.Submit{
-		Exchange:      ex.Name,
-		Pair:          currency.NewBTCUSD(),
-		AssetType:     asset.Spot,
-		Side:          order.Sell,
-		Type:          order.Limit,
-		Amount:        1,
-		Price:         70000.44,
-		ClientOrderID: "sandbox_success_order",
-	})
-	require.NoError(t, err, "SubmitOrder must not error for a spot order")
-	assert.NotEmpty(t, resp.OrderID, "SubmitOrder should return the spot order's ID")
-	assert.Equal(t, "sandbox_success_order", resp.ClientOrderID, "SubmitOrder should return the spot order's client order ID")
 
-	resp, err = ex.SubmitOrder(t.Context(), &order.Submit{
-		Exchange:      ex.Name,
-		Pair:          testUSDCPerpetual,
-		AssetType:     asset.USDCMarginedFutures,
-		Side:          order.Buy,
-		Type:          order.Limit,
-		Amount:        0.001,
-		Price:         50000,
-		ClientOrderID: "gct-wrapper-order",
-	})
-	require.NoError(t, err, "SubmitOrder must not error for a gateway order")
-	assert.NotEmpty(t, resp.OrderID, "SubmitOrder should return the gateway order's ID")
-	assert.Equal(t, order.Open, resp.Status, "SubmitOrder should return the gateway order's status")
-}
-
-func TestSubmitOrderRetrieveFees(t *testing.T) {
-	t.Parallel()
-	const orderID = "b6f0a1c2-3d4e-4f50-8a6b-7c8d9e0f1a2b"
-	var lookupFails atomic.Bool
-	ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var body string
-		switch r.Method + " " + r.URL.Path {
-		case http.MethodPost + " /api/v3/brokerage/orders":
-			body = `{"success":true,"success_response":{"order_id":"` + orderID + `","product_id":"BTC-USD","side":"BUY","client_order_id":"gct-fees"}}`
-		case http.MethodGet + " /api/v3/brokerage/orders/historical/" + orderID:
-			if lookupFails.Load() {
-				http.Error(w, `{"error":"NOT_FOUND","message":"order not found"}`, http.StatusNotFound)
-				return
+	t.Run("places spot and gateway orders", func(t *testing.T) {
+		t.Parallel()
+		ex := newWrapperTestExchange(t)
+		_, err := ex.SubmitOrder(t.Context(), &order.Submit{})
+		require.ErrorIs(t, err, common.ErrExchangeNameNotSet, "SubmitOrder must validate the order")
+		_, err = ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: currency.NewBTCUSD(), AssetType: asset.Options, Side: order.Buy, Type: order.Market, Amount: 1})
+		require.ErrorIs(t, err, asset.ErrNotSupported, "SubmitOrder must refuse an asset Coinbase does not trade")
+		if !mockTests {
+			sharedTestCredentials(t, ex)
+			if !canManipulateRealOrders {
+				t.Skip("canManipulateRealOrders is not set")
 			}
-			body = `{"order":{"order_id":"` + orderID + `","status":"FILLED","filled_size":"0.00012","total_fees":"0.06"}}`
-		default:
-			assert.Failf(t, "SubmitOrder should only place the order and look it up", "%s %s", r.Method, r.URL.Path)
-			http.NotFound(w, r)
-			return
 		}
-		_, err := w.Write([]byte(body))
-		assert.NoError(t, err, "writing the response should not error")
-	}))
-	submit := &order.Submit{
-		Exchange:      ex.Name,
-		Pair:          currency.NewBTCUSD(),
-		AssetType:     asset.Spot,
-		Side:          order.Buy,
-		Type:          order.Market,
-		QuoteAmount:   10,
-		ClientOrderID: "gct-fees",
-		RetrieveFees:  true,
-	}
-	resp, err := ex.SubmitOrder(t.Context(), submit)
-	require.NoError(t, err, "SubmitOrder must not error retrieving the order's fees")
-	assert.Equal(t, 0.06, resp.Fee, "SubmitOrder should return the order's fees")
-	size, ok := ex.orderSizes.get(orderID)
-	require.True(t, ok, "SubmitOrder must record the order's size, which the user channel leaves out")
-	assert.Equal(t, 10.0, size.quote, "SubmitOrder should record a quote sized order's size in the quote currency")
-	assert.Equal(t, order.Filled, resp.Status, "SubmitOrder should return the state of the order it read")
+		resp, err := ex.SubmitOrder(t.Context(), &order.Submit{
+			Exchange:      ex.Name,
+			Pair:          currency.NewBTCUSD(),
+			AssetType:     asset.Spot,
+			Side:          order.Sell,
+			Type:          order.Limit,
+			Amount:        1,
+			Price:         70000.44,
+			ClientOrderID: "sandbox_success_order",
+		})
+		require.NoError(t, err, "SubmitOrder must not error for a spot order")
+		assert.NotEmpty(t, resp.OrderID, "SubmitOrder should return the spot order's ID")
+		assert.Equal(t, "sandbox_success_order", resp.ClientOrderID, "SubmitOrder should return the spot order's client order ID")
 
-	submit.RetrieveFees = false
-	resp, err = ex.SubmitOrder(t.Context(), submit)
-	require.NoError(t, err, "SubmitOrder must not error")
-	assert.Equal(t, order.New, resp.Status, "SubmitOrder should report an accepted market order new, as Coinbase's response holds no fills")
-	assert.Zero(t, resp.Fee, "SubmitOrder should not report fees it did not read")
-	submit.RetrieveFees = true
+		resp, err = ex.SubmitOrder(t.Context(), &order.Submit{
+			Exchange:      ex.Name,
+			Pair:          testUSDCPerpetual,
+			AssetType:     asset.USDCMarginedFutures,
+			Side:          order.Buy,
+			Type:          order.Limit,
+			Amount:        0.001,
+			Price:         50000,
+			ClientOrderID: "gct-wrapper-order",
+		})
+		require.NoError(t, err, "SubmitOrder must not error for a gateway order")
+		assert.NotEmpty(t, resp.OrderID, "SubmitOrder should return the gateway order's ID")
+		assert.Equal(t, order.Open, resp.Status, "SubmitOrder should return the gateway order's status")
+	})
 
-	lookupFails.Store(true)
-	resp, err = ex.SubmitOrder(t.Context(), submit)
-	assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "SubmitOrder should report the failed fee lookup")
-	require.NotNil(t, resp, "SubmitOrder must return the placed order when its fees cannot be read")
-	assert.Equal(t, orderID, resp.OrderID, "SubmitOrder should return the placed order's ID when its fees cannot be read")
-}
-
-func TestSubmitOrderClientOrderIDInUse(t *testing.T) {
-	t.Parallel()
-	const orderID = "e3b0c442-98fc-4c14-9afb-f4c8996fb924"
-	limit := order.Submit{Side: order.Buy, Type: order.Limit, Amount: 1, Price: 90000}
-	// A USDC alias trades on its USD product's book, which a reply could name in its place
-	usdcLimit := order.Submit{Pair: currency.NewPair(currency.BTC, currency.USDC), Side: order.Buy, Type: order.Limit, Amount: 1, Price: 90000}
-	quoteSized := order.Submit{Side: order.Buy, Type: order.Market, QuoteAmount: 100}
-	stopLimit := order.Submit{Side: order.Buy, Type: order.StopLimit, Amount: 1, Price: 90000, TriggerPrice: 89000, StopDirection: order.StopUp}
-	bracket := order.Submit{Side: order.Sell, Type: order.Bracket, Amount: 1, Price: 95000, TriggerPrice: 85000}
-	for _, tc := range []struct {
-		name                   string
-		submit                 order.Submit
-		product, side, replied string
-		inUse                  bool
-	}{
-		{"another side", limit, "BTC-USD", "SELL", `null`, true},
-		{"another product", limit, "ETH-USD", "BUY", `null`, true},
-		{"the product's book", usdcLimit, "BTC-USD", "BUY", `null`, false},
-		{"the alias's book", limit, "BTC-USDC", "BUY", `null`, false},
-		{"another base size", limit, "BTC-USD", "BUY", `{"limit_limit_gtc":{"base_size":"2","limit_price":"90000"}}`, true},
-		{"another limit price", limit, "BTC-USD", "BUY", `{"limit_limit_gtc":{"base_size":"1","limit_price":"80000"}}`, true},
-		{"another quote size", quoteSized, "BTC-USD", "BUY", `{"market_market_ioc":{"quote_size":"50"}}`, true},
-		{"another stop price", stopLimit, "BTC-USD", "BUY", `{"stop_limit_stop_limit_gtc":{"base_size":"1","limit_price":"90000","stop_price":"88000","stop_direction":"STOP_DIRECTION_STOP_UP"}}`, true},
-		{"another trigger price", bracket, "BTC-USD", "SELL", `{"trigger_bracket_gtc":{"base_size":"1","limit_price":"95000","stop_trigger_price":"84000"}}`, true},
-		{"the same order", limit, "BTC-USD", "BUY", `{"limit_limit_gtc":{"base_size":"1.0","limit_price":"90000.00","post_only":false,"rfq_disabled":false}}`, false},
-		{"no configuration", limit, "BTC-USD", "BUY", `null`, false},
-		{"a size the request leaves out", quoteSized, "BTC-USD", "BUY", `{"market_market_ioc":{"quote_size":"100","base_size":"0.001"}}`, false},
-		{"no side", limit, "BTC-USD", "", `null`, false},
-		{"no size or price", limit, "BTC-USD", "BUY", `{"limit_limit_gtc":{}}`, false},
-		{"no quote size", quoteSized, "BTC-USD", "BUY", `{"market_market_ioc":{}}`, false},
-		{"no stop price", stopLimit, "BTC-USD", "BUY", `{"stop_limit_stop_limit_gtc":{"base_size":"1","limit_price":"90000"}}`, false},
-		{"no limit price", stopLimit, "BTC-USD", "BUY", `{"stop_limit_stop_limit_gtc":{"base_size":"1","stop_price":"89000"}}`, false},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				if !assert.Equal(t, http.MethodPost+" /api/v3/brokerage/orders", r.Method+" "+r.URL.Path, "SubmitOrder should only place the order") {
-					http.NotFound(w, r)
+	t.Run("retrieves the order's fees", func(t *testing.T) {
+		t.Parallel()
+		const orderID = "b6f0a1c2-3d4e-4f50-8a6b-7c8d9e0f1a2b"
+		var lookupFails atomic.Bool
+		ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			var body string
+			switch r.Method + " " + r.URL.Path {
+			case http.MethodPost + " /api/v3/brokerage/orders":
+				body = `{"success":true,"success_response":{"order_id":"` + orderID + `","product_id":"BTC-USD","side":"BUY","client_order_id":"gct-fees"}}`
+			case http.MethodGet + " /api/v3/brokerage/orders/historical/" + orderID:
+				if lookupFails.Load() {
+					http.Error(w, `{"error":"NOT_FOUND","message":"order not found"}`, http.StatusNotFound)
 					return
 				}
-				_, err := w.Write([]byte(`{"success":true,"success_response":{"order_id":"` + orderID + `","product_id":"` + tc.product + `","side":"` + tc.side + `","client_order_id":"reused"},"order_configuration":` + tc.replied + `}`))
-				assert.NoError(t, err, "writing the response should not error")
-			}))
-			// The record holds the order the client order ID already names
-			ex.orderSizes.set(orderID, 3, 0)
-			s := tc.submit
-			s.Exchange, s.AssetType, s.ClientOrderID = ex.Name, asset.Spot, "reused"
-			if s.Pair.IsEmpty() {
-				s.Pair = currency.NewBTCUSD()
-			}
-			resp, err := ex.SubmitOrder(t.Context(), &s)
-			size, ok := ex.orderSizes.get(orderID)
-			require.True(t, ok, "the order's size must stay recorded")
-			if tc.inUse {
-				require.ErrorIs(t, err, errClientOrderIDInUse, "SubmitOrder must refuse a reply naming another order than the one asked for")
-				assert.Nil(t, resp, "SubmitOrder should return no order for one it did not place")
-				assert.Equal(t, 3.0, size.base, "SubmitOrder should keep the size of the order the reply names")
+				body = `{"order":{"order_id":"` + orderID + `","status":"FILLED","filled_size":"0.00012","total_fees":"0.06"}}`
+			default:
+				assert.Failf(t, "SubmitOrder should only place the order and look it up", "%s %s", r.Method, r.URL.Path)
+				http.NotFound(w, r)
 				return
 			}
-			require.NoError(t, err, "SubmitOrder must not error for a reply naming the order asked for")
-			assert.Equal(t, orderID, resp.OrderID, "SubmitOrder should return the order's ID")
-			assert.Equal(t, s.Amount, size.base, "SubmitOrder should record the order's base size")
-			assert.Equal(t, s.QuoteAmount, size.quote, "SubmitOrder should record the order's quote size")
-		})
-	}
-}
+			_, err := w.Write([]byte(body))
+			assert.NoError(t, err, "writing the response should not error")
+		}))
+		submit := &order.Submit{
+			Exchange:      ex.Name,
+			Pair:          currency.NewBTCUSD(),
+			AssetType:     asset.Spot,
+			Side:          order.Buy,
+			Type:          order.Market,
+			QuoteAmount:   10,
+			ClientOrderID: "gct-fees",
+			RetrieveFees:  true,
+		}
+		resp, err := ex.SubmitOrder(t.Context(), submit)
+		require.NoError(t, err, "SubmitOrder must not error retrieving the order's fees")
+		assert.Equal(t, 0.06, resp.Fee, "SubmitOrder should return the order's fees")
+		size, ok := ex.orderSizes.get(orderID)
+		require.True(t, ok, "SubmitOrder must record the order's size, which the user channel leaves out")
+		assert.Equal(t, 10.0, size.quote, "SubmitOrder should record a quote sized order's size in the quote currency")
+		assert.Equal(t, order.Filled, resp.Status, "SubmitOrder should return the state of the order it read")
 
-func TestSubmitOrderRetrieveFeesExecution(t *testing.T) {
-	t.Parallel()
-	limit := order.Submit{Type: order.Limit, Amount: 2, Price: 90000}
-	for _, tc := range []struct {
-		name                                                  string
-		submit                                                order.Submit
-		read                                                  string
-		status                                                order.Status
-		amount, remaining, average, cost, fee, price, trigger float64
-	}{
-		{
-			name:   "partly filled",
-			submit: limit,
-			read:   `"order_type":"LIMIT","status":"OPEN","time_in_force":"GOOD_UNTIL_CANCELLED","order_configuration":{"limit_limit_gtc":{"base_size":"2","limit_price":"90000"}},"filled_size":"0.5","filled_value":"44950","average_filled_price":"89900","total_fees":"12"`,
-			status: order.PartiallyFilled, amount: 2, remaining: 1.5, average: 89900, cost: 44950, fee: 12, price: 90000,
-		},
-		{
-			name:   "resized by an edit before it was read",
-			submit: limit,
-			read:   `"order_type":"LIMIT","status":"OPEN","time_in_force":"GOOD_UNTIL_CANCELLED","order_configuration":{"limit_limit_gtc":{"base_size":"3","limit_price":"90000"}},"filled_size":"0.5","filled_value":"44950","average_filled_price":"89900","total_fees":"12"`,
-			status: order.PartiallyFilled, amount: 3, remaining: 2.5, average: 89900, cost: 44950, fee: 12, price: 90000,
-		},
-		{
-			name:   "repriced by an edit before it was read",
-			submit: limit,
-			read:   `"order_type":"LIMIT","status":"OPEN","time_in_force":"GOOD_UNTIL_CANCELLED","order_configuration":{"limit_limit_gtc":{"base_size":"2","limit_price":"91000"}},"filled_size":"0","total_fees":"0"`,
-			status: order.Open, amount: 2, remaining: 2, price: 91000,
-		},
-		{
-			name:   "unfilled",
-			submit: limit,
-			read:   `"order_type":"LIMIT","status":"OPEN","time_in_force":"GOOD_UNTIL_CANCELLED","order_configuration":{"limit_limit_gtc":{"base_size":"2","limit_price":"90000"}},"filled_size":"0","total_fees":"0"`,
-			status: order.Open, amount: 2, remaining: 2, price: 90000,
-		},
-		{
-			name:   "a filled market buy sized in the quote currency",
-			submit: order.Submit{Type: order.Market, QuoteAmount: 100},
-			read:   `"order_type":"MARKET","status":"FILLED","time_in_force":"IMMEDIATE_OR_CANCEL","order_configuration":{"market_market_ioc":{"quote_size":"100"}},"size_in_quote":true,"filled_size":"0.001","filled_value":"99.9","average_filled_price":"99900","total_fees":"0.1"`,
-			status: order.Filled, amount: 0.001, average: 99900, cost: 99.9, fee: 0.1,
-		},
-		{
-			name:   "a filled limit buy sized in the quote currency",
-			submit: order.Submit{Type: order.Limit, QuoteAmount: 100, Price: 100000},
-			read:   `"order_type":"LIMIT","status":"FILLED","time_in_force":"GOOD_UNTIL_CANCELLED","order_configuration":{"limit_limit_gtc":{"quote_size":"100","limit_price":"100000"}},"size_in_quote":true,"filled_size":"0.001","filled_value":"100","average_filled_price":"100000","total_fees":"0.1"`,
-			status: order.Filled, amount: 0.001, average: 100000, cost: 100, fee: 0.1, price: 100000,
-		},
-		{
-			name:   "a partly filled limit buy sized in the quote currency",
-			submit: order.Submit{Type: order.Limit, QuoteAmount: 100, Price: 100000},
-			read:   `"order_type":"LIMIT","status":"OPEN","time_in_force":"GOOD_UNTIL_CANCELLED","order_configuration":{"limit_limit_gtc":{"quote_size":"100","limit_price":"100000"}},"size_in_quote":true,"filled_size":"0.0005","filled_value":"49.95","average_filled_price":"99900","total_fees":"0.05"`,
-			status: order.PartiallyFilled, average: 99900, cost: 49.95, fee: 0.05, price: 100000,
-		},
-		{
-			name:   "a stop limit order whose stop an edit moved before it was read",
-			submit: order.Submit{Type: order.StopLimit, Amount: 2, Price: 90000, TriggerPrice: 89000, StopDirection: order.StopDown},
-			read:   `"order_type":"STOP_LIMIT","status":"OPEN","time_in_force":"GOOD_UNTIL_CANCELLED","order_configuration":{"stop_limit_stop_limit_gtc":{"base_size":"2","limit_price":"90000","stop_price":"88500","stop_direction":"STOP_DIRECTION_STOP_DOWN"}},"filled_size":"0","total_fees":"0"`,
-			status: order.Open, amount: 2, remaining: 2, price: 90000, trigger: 88500,
-		},
-		{
-			name:   "a stop limit order an edit repriced down and its stop moved up before it was read",
-			submit: order.Submit{Type: order.StopLimit, Amount: 2, Price: 90000, TriggerPrice: 89000, StopDirection: order.StopDown},
-			read:   `"order_type":"STOP_LIMIT","status":"OPEN","time_in_force":"GOOD_UNTIL_CANCELLED","order_configuration":{"stop_limit_stop_limit_gtc":{"base_size":"2","limit_price":"89500","stop_price":"89200","stop_direction":"STOP_DIRECTION_STOP_DOWN"}},"filled_size":"0","total_fees":"0"`,
-			status: order.Open, amount: 2, remaining: 2, price: 89500, trigger: 89200,
-		},
-		{
-			name:   "a bracket order an edit repriced up and its stop moved down before it was read",
-			submit: order.Submit{Type: order.Bracket, Amount: 2, Price: 85000, TriggerPrice: 95000},
-			read:   `"order_type":"BRACKET","status":"OPEN","time_in_force":"GOOD_UNTIL_CANCELLED","order_configuration":{"trigger_bracket_gtc":{"base_size":"2","limit_price":"86000","stop_trigger_price":"94500"}},"filled_size":"0","total_fees":"0"`,
-			status: order.Open, amount: 2, remaining: 2, price: 86000, trigger: 94500,
-		},
-		{
-			name:   "a bracket order an edit repriced down and its stop moved up before it was read",
-			submit: order.Submit{Type: order.Bracket, Amount: 2, Price: 85000, TriggerPrice: 95000},
-			read:   `"order_type":"BRACKET","status":"OPEN","time_in_force":"GOOD_UNTIL_CANCELLED","order_configuration":{"trigger_bracket_gtc":{"base_size":"2","limit_price":"84000","stop_trigger_price":"95500"}},"filled_size":"0","total_fees":"0"`,
-			status: order.Open, amount: 2, remaining: 2, price: 84000, trigger: 95500,
-		},
-		{
-			name:   "a filled market buy priced by the caller",
-			submit: order.Submit{Type: order.Market, Amount: 0.001, Price: 99000},
-			read:   `"order_type":"MARKET","status":"FILLED","time_in_force":"IMMEDIATE_OR_CANCEL","order_configuration":{"market_market_ioc":{"base_size":"0.001"}},"filled_size":"0.001","filled_value":"99.9","average_filled_price":"99900","total_fees":"0.1"`,
-			status: order.Filled, amount: 0.001, average: 99900, cost: 99.9, fee: 0.1, price: 99000,
-		},
-		{
-			name:   "a stop limit order read with a configuration this package does not decode",
-			submit: order.Submit{Type: order.StopLimit, Amount: 2, Price: 90000, TriggerPrice: 89000, StopDirection: order.StopDown},
-			read:   `"order_type":"STOP_LIMIT","status":"OPEN","time_in_force":"GOOD_UNTIL_CANCELLED","order_configuration":{},"filled_size":"0","total_fees":"0"`,
-			status: order.Open, amount: 2, price: 90000, trigger: 89000,
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			const orderID = "c7a1b2d3-4e5f-4a6b-9c8d-7e6f5a4b3c2d"
-			ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				var body string
-				switch r.Method + " " + r.URL.Path {
-				case http.MethodPost + " /api/v3/brokerage/orders":
-					body = `{"success":true,"success_response":{"order_id":"` + orderID + `","product_id":"BTC-USD","side":"BUY","client_order_id":"gct-read"}}`
-				case http.MethodGet + " /api/v3/brokerage/orders/historical/" + orderID:
-					body = `{"order":{"order_id":"` + orderID + `","product_id":"BTC-USD","product_type":"SPOT","side":"BUY",` + tc.read + `}}`
-				default:
-					assert.Failf(t, "SubmitOrder should only place the order and read it", "%s %s", r.Method, r.URL.Path)
-					http.NotFound(w, r)
+		submit.RetrieveFees = false
+		resp, err = ex.SubmitOrder(t.Context(), submit)
+		require.NoError(t, err, "SubmitOrder must not error")
+		assert.Equal(t, order.New, resp.Status, "SubmitOrder should report an accepted market order new, as Coinbase's response holds no fills")
+		assert.Zero(t, resp.Fee, "SubmitOrder should not report fees it did not read")
+		submit.RetrieveFees = true
+
+		lookupFails.Store(true)
+		resp, err = ex.SubmitOrder(t.Context(), submit)
+		assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "SubmitOrder should report the failed fee lookup")
+		require.NotNil(t, resp, "SubmitOrder must return the placed order when its fees cannot be read")
+		assert.Equal(t, orderID, resp.OrderID, "SubmitOrder should return the placed order's ID when its fees cannot be read")
+	})
+
+	t.Run("refuses a client order ID another order holds", func(t *testing.T) {
+		t.Parallel()
+		const orderID = "e3b0c442-98fc-4c14-9afb-f4c8996fb924"
+		limit := order.Submit{Side: order.Buy, Type: order.Limit, Amount: 1, Price: 90000}
+		// A USDC alias trades on its USD product's book, which a reply could name in its place
+		usdcLimit := order.Submit{Pair: currency.NewPair(currency.BTC, currency.USDC), Side: order.Buy, Type: order.Limit, Amount: 1, Price: 90000}
+		quoteSized := order.Submit{Side: order.Buy, Type: order.Market, QuoteAmount: 100}
+		stopLimit := order.Submit{Side: order.Buy, Type: order.StopLimit, Amount: 1, Price: 90000, TriggerPrice: 89000, StopDirection: order.StopUp}
+		bracket := order.Submit{Side: order.Sell, Type: order.Bracket, Amount: 1, Price: 95000, TriggerPrice: 85000}
+		for _, tc := range []struct {
+			name                   string
+			submit                 order.Submit
+			product, side, replied string
+			inUse                  bool
+		}{
+			{"another side", limit, "BTC-USD", "SELL", `null`, true},
+			{"another product", limit, "ETH-USD", "BUY", `null`, true},
+			{"the product's book", usdcLimit, "BTC-USD", "BUY", `null`, false},
+			{"the alias's book", limit, "BTC-USDC", "BUY", `null`, false},
+			{"another base size", limit, "BTC-USD", "BUY", `{"limit_limit_gtc":{"base_size":"2","limit_price":"90000"}}`, true},
+			{"another limit price", limit, "BTC-USD", "BUY", `{"limit_limit_gtc":{"base_size":"1","limit_price":"80000"}}`, true},
+			{"another quote size", quoteSized, "BTC-USD", "BUY", `{"market_market_ioc":{"quote_size":"50"}}`, true},
+			{"another stop price", stopLimit, "BTC-USD", "BUY", `{"stop_limit_stop_limit_gtc":{"base_size":"1","limit_price":"90000","stop_price":"88000","stop_direction":"STOP_DIRECTION_STOP_UP"}}`, true},
+			{"another trigger price", bracket, "BTC-USD", "SELL", `{"trigger_bracket_gtc":{"base_size":"1","limit_price":"95000","stop_trigger_price":"84000"}}`, true},
+			{"the same order", limit, "BTC-USD", "BUY", `{"limit_limit_gtc":{"base_size":"1.0","limit_price":"90000.00","post_only":false,"rfq_disabled":false}}`, false},
+			{"no configuration", limit, "BTC-USD", "BUY", `null`, false},
+			{"a size the request leaves out", quoteSized, "BTC-USD", "BUY", `{"market_market_ioc":{"quote_size":"100","base_size":"0.001"}}`, false},
+			{"no side", limit, "BTC-USD", "", `null`, false},
+			{"no size or price", limit, "BTC-USD", "BUY", `{"limit_limit_gtc":{}}`, false},
+			{"no quote size", quoteSized, "BTC-USD", "BUY", `{"market_market_ioc":{}}`, false},
+			{"no stop price", stopLimit, "BTC-USD", "BUY", `{"stop_limit_stop_limit_gtc":{"base_size":"1","limit_price":"90000"}}`, false},
+			{"no limit price", stopLimit, "BTC-USD", "BUY", `{"stop_limit_stop_limit_gtc":{"base_size":"1","stop_price":"89000"}}`, false},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					if !assert.Equal(t, http.MethodPost+" /api/v3/brokerage/orders", r.Method+" "+r.URL.Path, "SubmitOrder should only place the order") {
+						http.NotFound(w, r)
+						return
+					}
+					_, err := w.Write([]byte(`{"success":true,"success_response":{"order_id":"` + orderID + `","product_id":"` + tc.product + `","side":"` + tc.side + `","client_order_id":"reused"},"order_configuration":` + tc.replied + `}`))
+					assert.NoError(t, err, "writing the response should not error")
+				}))
+				// The record holds the order the client order ID already names
+				ex.orderSizes.set(orderID, 3, 0)
+				s := tc.submit
+				s.Exchange, s.AssetType, s.ClientOrderID = ex.Name, asset.Spot, "reused"
+				if s.Pair.IsEmpty() {
+					s.Pair = currency.NewBTCUSD()
+				}
+				resp, err := ex.SubmitOrder(t.Context(), &s)
+				size, ok := ex.orderSizes.get(orderID)
+				require.True(t, ok, "the order's size must stay recorded")
+				if tc.inUse {
+					require.ErrorIs(t, err, errClientOrderIDInUse, "SubmitOrder must refuse a reply naming another order than the one asked for")
+					assert.Nil(t, resp, "SubmitOrder should return no order for one it did not place")
+					assert.Equal(t, 3.0, size.base, "SubmitOrder should keep the size of the order the reply names")
 					return
 				}
-				_, err := w.Write([]byte(body))
-				assert.NoError(t, err, "writing the response should not error")
-			}))
-			s := tc.submit
-			s.Exchange, s.Pair, s.AssetType, s.Side, s.ClientOrderID, s.RetrieveFees = ex.Name, currency.NewBTCUSD(), asset.Spot, order.Buy, "gct-read", true
-			resp, err := ex.SubmitOrder(t.Context(), &s)
-			require.NoError(t, err, "SubmitOrder must not error reading the order")
-			assert.Equal(t, tc.status, resp.Status, "SubmitOrder should return the status of the order it read")
-			assert.Equal(t, tc.amount, resp.Amount, "SubmitOrder should return the size of the order it read")
-			assert.Equal(t, tc.remaining, resp.RemainingAmount, "SubmitOrder should return what remains of the order it read")
-			assert.Equal(t, tc.average, resp.AverageExecutedPrice, "SubmitOrder should return the average price the order it read filled at")
-			assert.Equal(t, tc.cost, resp.Cost, "SubmitOrder should return what the order it read cost")
-			assert.Equal(t, tc.fee, resp.Fee, "SubmitOrder should return the fees of the order it read")
-			assert.Equal(t, tc.price, resp.Price, "SubmitOrder should return the price of the order it read")
-			assert.Equal(t, tc.trigger, resp.TriggerPrice, "SubmitOrder should return the trigger price of the order it read")
+				require.NoError(t, err, "SubmitOrder must not error for a reply naming the order asked for")
+				assert.Equal(t, orderID, resp.OrderID, "SubmitOrder should return the order's ID")
+				assert.Equal(t, s.Amount, size.base, "SubmitOrder should record the order's base size")
+				assert.Equal(t, s.QuoteAmount, size.quote, "SubmitOrder should record the order's quote size")
+			})
+		}
+	})
+
+	t.Run("returns the order it read", func(t *testing.T) {
+		t.Parallel()
+		limit := order.Submit{Type: order.Limit, Amount: 2, Price: 90000}
+		for _, tc := range []struct {
+			name                                                  string
+			submit                                                order.Submit
+			read                                                  string
+			status                                                order.Status
+			amount, remaining, average, cost, fee, price, trigger float64
+		}{
+			{
+				name:   "partly filled",
+				submit: limit,
+				read:   `"order_type":"LIMIT","status":"OPEN","time_in_force":"GOOD_UNTIL_CANCELLED","order_configuration":{"limit_limit_gtc":{"base_size":"2","limit_price":"90000"}},"filled_size":"0.5","filled_value":"44950","average_filled_price":"89900","total_fees":"12"`,
+				status: order.PartiallyFilled, amount: 2, remaining: 1.5, average: 89900, cost: 44950, fee: 12, price: 90000,
+			},
+			{
+				name:   "resized by an edit before it was read",
+				submit: limit,
+				read:   `"order_type":"LIMIT","status":"OPEN","time_in_force":"GOOD_UNTIL_CANCELLED","order_configuration":{"limit_limit_gtc":{"base_size":"3","limit_price":"90000"}},"filled_size":"0.5","filled_value":"44950","average_filled_price":"89900","total_fees":"12"`,
+				status: order.PartiallyFilled, amount: 3, remaining: 2.5, average: 89900, cost: 44950, fee: 12, price: 90000,
+			},
+			{
+				name:   "repriced by an edit before it was read",
+				submit: limit,
+				read:   `"order_type":"LIMIT","status":"OPEN","time_in_force":"GOOD_UNTIL_CANCELLED","order_configuration":{"limit_limit_gtc":{"base_size":"2","limit_price":"91000"}},"filled_size":"0","total_fees":"0"`,
+				status: order.Open, amount: 2, remaining: 2, price: 91000,
+			},
+			{
+				name:   "unfilled",
+				submit: limit,
+				read:   `"order_type":"LIMIT","status":"OPEN","time_in_force":"GOOD_UNTIL_CANCELLED","order_configuration":{"limit_limit_gtc":{"base_size":"2","limit_price":"90000"}},"filled_size":"0","total_fees":"0"`,
+				status: order.Open, amount: 2, remaining: 2, price: 90000,
+			},
+			{
+				name:   "a filled market buy sized in the quote currency",
+				submit: order.Submit{Type: order.Market, QuoteAmount: 100},
+				read:   `"order_type":"MARKET","status":"FILLED","time_in_force":"IMMEDIATE_OR_CANCEL","order_configuration":{"market_market_ioc":{"quote_size":"100"}},"size_in_quote":true,"filled_size":"0.001","filled_value":"99.9","average_filled_price":"99900","total_fees":"0.1"`,
+				status: order.Filled, amount: 0.001, average: 99900, cost: 99.9, fee: 0.1,
+			},
+			{
+				name:   "a filled limit buy sized in the quote currency",
+				submit: order.Submit{Type: order.Limit, QuoteAmount: 100, Price: 100000},
+				read:   `"order_type":"LIMIT","status":"FILLED","time_in_force":"GOOD_UNTIL_CANCELLED","order_configuration":{"limit_limit_gtc":{"quote_size":"100","limit_price":"100000"}},"size_in_quote":true,"filled_size":"0.001","filled_value":"100","average_filled_price":"100000","total_fees":"0.1"`,
+				status: order.Filled, amount: 0.001, average: 100000, cost: 100, fee: 0.1, price: 100000,
+			},
+			{
+				name:   "a partly filled limit buy sized in the quote currency",
+				submit: order.Submit{Type: order.Limit, QuoteAmount: 100, Price: 100000},
+				read:   `"order_type":"LIMIT","status":"OPEN","time_in_force":"GOOD_UNTIL_CANCELLED","order_configuration":{"limit_limit_gtc":{"quote_size":"100","limit_price":"100000"}},"size_in_quote":true,"filled_size":"0.0005","filled_value":"49.95","average_filled_price":"99900","total_fees":"0.05"`,
+				status: order.PartiallyFilled, average: 99900, cost: 49.95, fee: 0.05, price: 100000,
+			},
+			{
+				name:   "a stop limit order whose stop an edit moved before it was read",
+				submit: order.Submit{Type: order.StopLimit, Amount: 2, Price: 90000, TriggerPrice: 89000, StopDirection: order.StopDown},
+				read:   `"order_type":"STOP_LIMIT","status":"OPEN","time_in_force":"GOOD_UNTIL_CANCELLED","order_configuration":{"stop_limit_stop_limit_gtc":{"base_size":"2","limit_price":"90000","stop_price":"88500","stop_direction":"STOP_DIRECTION_STOP_DOWN"}},"filled_size":"0","total_fees":"0"`,
+				status: order.Open, amount: 2, remaining: 2, price: 90000, trigger: 88500,
+			},
+			{
+				name:   "a stop limit order an edit repriced down and its stop moved up before it was read",
+				submit: order.Submit{Type: order.StopLimit, Amount: 2, Price: 90000, TriggerPrice: 89000, StopDirection: order.StopDown},
+				read:   `"order_type":"STOP_LIMIT","status":"OPEN","time_in_force":"GOOD_UNTIL_CANCELLED","order_configuration":{"stop_limit_stop_limit_gtc":{"base_size":"2","limit_price":"89500","stop_price":"89200","stop_direction":"STOP_DIRECTION_STOP_DOWN"}},"filled_size":"0","total_fees":"0"`,
+				status: order.Open, amount: 2, remaining: 2, price: 89500, trigger: 89200,
+			},
+			{
+				name:   "a bracket order an edit repriced up and its stop moved down before it was read",
+				submit: order.Submit{Type: order.Bracket, Amount: 2, Price: 85000, TriggerPrice: 95000},
+				read:   `"order_type":"BRACKET","status":"OPEN","time_in_force":"GOOD_UNTIL_CANCELLED","order_configuration":{"trigger_bracket_gtc":{"base_size":"2","limit_price":"86000","stop_trigger_price":"94500"}},"filled_size":"0","total_fees":"0"`,
+				status: order.Open, amount: 2, remaining: 2, price: 86000, trigger: 94500,
+			},
+			{
+				name:   "a bracket order an edit repriced down and its stop moved up before it was read",
+				submit: order.Submit{Type: order.Bracket, Amount: 2, Price: 85000, TriggerPrice: 95000},
+				read:   `"order_type":"BRACKET","status":"OPEN","time_in_force":"GOOD_UNTIL_CANCELLED","order_configuration":{"trigger_bracket_gtc":{"base_size":"2","limit_price":"84000","stop_trigger_price":"95500"}},"filled_size":"0","total_fees":"0"`,
+				status: order.Open, amount: 2, remaining: 2, price: 84000, trigger: 95500,
+			},
+			{
+				name:   "a filled market buy priced by the caller",
+				submit: order.Submit{Type: order.Market, Amount: 0.001, Price: 99000},
+				read:   `"order_type":"MARKET","status":"FILLED","time_in_force":"IMMEDIATE_OR_CANCEL","order_configuration":{"market_market_ioc":{"base_size":"0.001"}},"filled_size":"0.001","filled_value":"99.9","average_filled_price":"99900","total_fees":"0.1"`,
+				status: order.Filled, amount: 0.001, average: 99900, cost: 99.9, fee: 0.1, price: 99000,
+			},
+			{
+				name:   "a stop limit order read with a configuration this package does not decode",
+				submit: order.Submit{Type: order.StopLimit, Amount: 2, Price: 90000, TriggerPrice: 89000, StopDirection: order.StopDown},
+				read:   `"order_type":"STOP_LIMIT","status":"OPEN","time_in_force":"GOOD_UNTIL_CANCELLED","order_configuration":{},"filled_size":"0","total_fees":"0"`,
+				status: order.Open, amount: 2, price: 90000, trigger: 89000,
+			},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				const orderID = "c7a1b2d3-4e5f-4a6b-9c8d-7e6f5a4b3c2d"
+				ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					var body string
+					switch r.Method + " " + r.URL.Path {
+					case http.MethodPost + " /api/v3/brokerage/orders":
+						body = `{"success":true,"success_response":{"order_id":"` + orderID + `","product_id":"BTC-USD","side":"BUY","client_order_id":"gct-read"}}`
+					case http.MethodGet + " /api/v3/brokerage/orders/historical/" + orderID:
+						body = `{"order":{"order_id":"` + orderID + `","product_id":"BTC-USD","product_type":"SPOT","side":"BUY",` + tc.read + `}}`
+					default:
+						assert.Failf(t, "SubmitOrder should only place the order and read it", "%s %s", r.Method, r.URL.Path)
+						http.NotFound(w, r)
+						return
+					}
+					_, err := w.Write([]byte(body))
+					assert.NoError(t, err, "writing the response should not error")
+				}))
+				s := tc.submit
+				s.Exchange, s.Pair, s.AssetType, s.Side, s.ClientOrderID, s.RetrieveFees = ex.Name, currency.NewBTCUSD(), asset.Spot, order.Buy, "gct-read", true
+				resp, err := ex.SubmitOrder(t.Context(), &s)
+				require.NoError(t, err, "SubmitOrder must not error reading the order")
+				assert.Equal(t, tc.status, resp.Status, "SubmitOrder should return the status of the order it read")
+				assert.Equal(t, tc.amount, resp.Amount, "SubmitOrder should return the size of the order it read")
+				assert.Equal(t, tc.remaining, resp.RemainingAmount, "SubmitOrder should return what remains of the order it read")
+				assert.Equal(t, tc.average, resp.AverageExecutedPrice, "SubmitOrder should return the average price the order it read filled at")
+				assert.Equal(t, tc.cost, resp.Cost, "SubmitOrder should return what the order it read cost")
+				assert.Equal(t, tc.fee, resp.Fee, "SubmitOrder should return the fees of the order it read")
+				assert.Equal(t, tc.price, resp.Price, "SubmitOrder should return the price of the order it read")
+				assert.Equal(t, tc.trigger, resp.TriggerPrice, "SubmitOrder should return the trigger price of the order it read")
+			})
+		}
+	})
+
+	t.Run("refuses a stop or bracket order sized in the quote currency", func(t *testing.T) {
+		t.Parallel()
+		var creates atomic.Int32
+		ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			creates.Add(1)
+			_, err := w.Write([]byte(`{"success":true,"success_response":{"order_id":"o","product_id":"BTC-USD","side":"BUY","client_order_id":"c"}}`))
+			assert.NoError(t, err, "writing the response should not error")
+		}))
+		// The cases share ex and creates, which the check after them reads, so they run in order
+		for _, s := range []order.Submit{
+			{Type: order.StopLimit, Side: order.Buy, QuoteAmount: 100, Price: 90000, TriggerPrice: 89000, StopDirection: order.StopUp},
+			{Type: order.Bracket, Side: order.Sell, QuoteAmount: 100, Price: 90000, TriggerPrice: 80000},
+		} {
+			t.Run(s.Type.String(), func(t *testing.T) {
+				s.Exchange, s.Pair, s.AssetType = ex.Name, currency.NewBTCUSD(), asset.Spot
+				_, err := ex.SubmitOrder(t.Context(), &s)
+				assert.ErrorIsf(t, err, order.ErrAmountMustBeSet, "SubmitOrder should refuse a %s order sized in the quote currency", s.Type)
+			})
+		}
+		assert.Zero(t, creates.Load(), "SubmitOrder should not send an order without the size its configuration takes")
+	})
+
+	t.Run("reports the amount the gateway accepted", func(t *testing.T) {
+		t.Parallel()
+		// The gateway reduces a reduce only order to the position it closes
+		ex, _ := newDerivativesMethodServer(t, func(receivedJSONRPC) string {
+			return `{"jsonrpc":"2.0","result":{"order":{"order_id":"USDC-20","order_state":"open","order_type":"limit","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"sell","price":90000,"amount":0.5,"filled_amount":0,"reduce_only":true,"creation_timestamp":1792281600000,"last_update_timestamp":1792281600000},"trades":[]}}`
 		})
-	}
+		resp, err := ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: testUSDCPerpetual, AssetType: asset.USDCMarginedFutures, Side: order.Sell, Type: order.Limit, Amount: 1, Price: 90000, ReduceOnly: true})
+		require.NoError(t, err, "SubmitOrder must not error")
+		assert.Equal(t, 0.5, resp.Amount, "SubmitOrder should report the amount the gateway accepted")
+		assert.Equal(t, 0.5, resp.RemainingAmount, "SubmitOrder should report the accepted amount remaining")
+	})
 }
 
 func TestPlacedOrder(t *testing.T) {
@@ -1301,39 +1458,32 @@ func TestCreateOrderRequest(t *testing.T) {
 	_, err = createOrderRequest(&order.Submit{Side: order.Sell, Type: order.Limit, Amount: 1, Price: 2, ReduceOnly: true}, "BIP-20DEC30-CDE")
 	assert.ErrorIs(t, err, errReduceOnlyNotSupported, "createOrderRequest should refuse a reduce only order, which Advanced Trade orders cannot carry")
 	for _, orderType := range []order.Type{order.StopLimit, order.Bracket} {
-		_, err = createOrderRequest(&order.Submit{Side: order.Buy, Type: orderType, Amount: 1, Price: 2, TriggerPrice: 3}, "BTC-USD")
-		assert.NoErrorf(t, err, "createOrderRequest should accept a %s order triggered by the last trade price", orderType)
-		for _, priceType := range []order.PriceType{order.MarkPrice, order.IndexPrice, order.UnknownPriceType} {
-			_, err = createOrderRequest(&order.Submit{Side: order.Buy, Type: orderType, Amount: 1, Price: 2, TriggerPrice: 3, TriggerPriceType: priceType}, "BTC-USD")
-			assert.ErrorIsf(t, err, order.ErrUnknownPriceType, "createOrderRequest should refuse a %s order triggered by the %s, which Advanced Trade cannot select", orderType, priceType)
-		}
+		t.Run(orderType.String(), func(t *testing.T) {
+			t.Parallel()
+			_, err := createOrderRequest(&order.Submit{Side: order.Buy, Type: orderType, Amount: 1, Price: 2, TriggerPrice: 3}, "BTC-USD")
+			assert.NoErrorf(t, err, "createOrderRequest should accept a %s order triggered by the last trade price", orderType)
+			for _, priceType := range []order.PriceType{order.MarkPrice, order.IndexPrice, order.UnknownPriceType} {
+				t.Run(subtestName(priceType.String()), func(t *testing.T) {
+					t.Parallel()
+					_, err := createOrderRequest(&order.Submit{Side: order.Buy, Type: orderType, Amount: 1, Price: 2, TriggerPrice: 3, TriggerPriceType: priceType}, "BTC-USD")
+					assert.ErrorIsf(t, err, order.ErrUnknownPriceType, "createOrderRequest should refuse a %s order triggered by the %s, which Advanced Trade cannot select", orderType, priceType)
+				})
+			}
+		})
 	}
 	// An order without a trigger has no use for a trigger price type
 	for _, orderType := range []order.Type{order.Market, order.Limit} {
-		for _, priceType := range []order.PriceType{order.MarkPrice, order.IndexPrice, order.UnknownPriceType} {
-			_, err = createOrderRequest(&order.Submit{Side: order.Buy, Type: orderType, Amount: 1, Price: 2, TriggerPriceType: priceType}, "BTC-USD")
-			assert.NoErrorf(t, err, "createOrderRequest should accept a %s order with a %s trigger price type", orderType, priceType)
-		}
+		t.Run(orderType.String(), func(t *testing.T) {
+			t.Parallel()
+			for _, priceType := range []order.PriceType{order.MarkPrice, order.IndexPrice, order.UnknownPriceType} {
+				t.Run(subtestName(priceType.String()), func(t *testing.T) {
+					t.Parallel()
+					_, err := createOrderRequest(&order.Submit{Side: order.Buy, Type: orderType, Amount: 1, Price: 2, TriggerPriceType: priceType}, "BTC-USD")
+					assert.NoErrorf(t, err, "createOrderRequest should accept a %s order with a %s trigger price type", orderType, priceType)
+				})
+			}
+		})
 	}
-}
-
-func TestSubmitOrderQuoteSizedStopAndBracket(t *testing.T) {
-	t.Parallel()
-	var creates atomic.Int32
-	ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		creates.Add(1)
-		_, err := w.Write([]byte(`{"success":true,"success_response":{"order_id":"o","product_id":"BTC-USD","side":"BUY","client_order_id":"c"}}`))
-		assert.NoError(t, err, "writing the response should not error")
-	}))
-	for _, s := range []order.Submit{
-		{Type: order.StopLimit, Side: order.Buy, QuoteAmount: 100, Price: 90000, TriggerPrice: 89000, StopDirection: order.StopUp},
-		{Type: order.Bracket, Side: order.Sell, QuoteAmount: 100, Price: 90000, TriggerPrice: 80000},
-	} {
-		s.Exchange, s.Pair, s.AssetType = ex.Name, currency.NewBTCUSD(), asset.Spot
-		_, err := ex.SubmitOrder(t.Context(), &s)
-		assert.ErrorIsf(t, err, order.ErrAmountMustBeSet, "SubmitOrder should refuse a %s order sized in the quote currency", s.Type)
-	}
-	assert.Zero(t, creates.Load(), "SubmitOrder should not send an order without the size its configuration takes")
 }
 
 func TestRefuseRiskControls(t *testing.T) {
@@ -1348,17 +1498,23 @@ func TestRefuseRiskControls(t *testing.T) {
 		"market order type":          {OrderType: order.Market},
 	}
 	for name, leg := range legs {
-		assert.ErrorIsf(t, refuseRiskControls(&order.RiskManagementModes{TakeProfit: leg}, 0), common.ErrFunctionNotSupported, "refuseRiskControls should refuse a take profit's %s", name)
-		assert.ErrorIsf(t, refuseRiskControls(&order.RiskManagementModes{StopLoss: leg}, 0), common.ErrFunctionNotSupported, "refuseRiskControls should refuse a stop loss's %s", name)
-		assert.ErrorIsf(t, refuseRiskControls(&order.RiskManagementModes{StopEntry: leg}, 0), common.ErrFunctionNotSupported, "refuseRiskControls should refuse a stop entry's %s", name)
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, refuseRiskControls(&order.RiskManagementModes{TakeProfit: leg}, 0), common.ErrFunctionNotSupported, "refuseRiskControls should refuse a take profit's %s", name)
+			assert.ErrorIsf(t, refuseRiskControls(&order.RiskManagementModes{StopLoss: leg}, 0), common.ErrFunctionNotSupported, "refuseRiskControls should refuse a stop loss's %s", name)
+			assert.ErrorIsf(t, refuseRiskControls(&order.RiskManagementModes{StopEntry: leg}, 0), common.ErrFunctionNotSupported, "refuseRiskControls should refuse a stop entry's %s", name)
+		})
 	}
 	assert.ErrorIs(t, refuseRiskControls(&order.RiskManagementModes{Mode: "partial"}, 0), common.ErrFunctionNotSupported, "refuseRiskControls should refuse a take profit and stop loss mode")
 	for _, slippage := range []float64{math.SmallestNonzeroFloat64, 0.005, -0.005, math.NaN(), math.Inf(-1)} {
-		assert.ErrorIsf(t, refuseRiskControls(&order.RiskManagementModes{}, slippage), common.ErrFunctionNotSupported, "refuseRiskControls should refuse a slippage tolerance of %v", slippage)
+		t.Run(strconv.FormatFloat(slippage, 'g', -1, 64), func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, refuseRiskControls(&order.RiskManagementModes{}, slippage), common.ErrFunctionNotSupported, "refuseRiskControls should refuse a slippage tolerance of %v", slippage)
+		})
 	}
 }
 
-func TestOrdersRefuseRiskControls(t *testing.T) {
+func TestOrdersRefuseRiskControls(t *testing.T) { //nolint:tparallel // the cases share ex and requests in order
 	t.Parallel()
 	var requests atomic.Int32
 	ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -1403,223 +1559,99 @@ func TestOrdersRefuseRiskControls(t *testing.T) {
 		}
 	}
 	pairs := map[asset.Item]currency.Pair{asset.Spot: currency.NewBTCUSD(), asset.Futures: testFuturesPair, asset.USDCMarginedFutures: testUSDCPerpetual, asset.CoinMarginedFutures: testCoinPerpetual}
+	// The cases, and the cases within them, share ex and requests, which the check after them reads, so they run in order
 	for _, tc := range cases {
-		for a, p := range pairs {
-			// Every order type either venue places, on either side
-			for _, orderType := range []order.Type{order.Market, order.Limit, order.StopLimit, order.StopMarket, order.TakeProfit, order.TakeProfitMarket, order.TrailingStop, order.Bracket} {
-				for _, side := range []order.Side{order.Buy, order.Sell} {
-					s := &order.Submit{Exchange: ex.Name, Pair: p, AssetType: a, Side: side, Type: orderType, Amount: 1, Price: 80000, TriggerPrice: 79000, RiskManagementModes: tc.risk, SlippageTolerance: tc.slippage}
-					_, err := ex.SubmitOrder(t.Context(), s)
-					assert.ErrorIsf(t, err, common.ErrFunctionNotSupported, "SubmitOrder should refuse a %s %s %s order with %s", a, side, orderType, tc.name)
-				}
+		t.Run(tc.name, func(t *testing.T) {
+			for a, p := range pairs {
+				t.Run(a.String(), func(t *testing.T) {
+					// Every order type either venue places, on either side
+					for _, orderType := range []order.Type{order.Market, order.Limit, order.StopLimit, order.StopMarket, order.TakeProfit, order.TakeProfitMarket, order.TrailingStop, order.Bracket} {
+						t.Run(orderType.String(), func(t *testing.T) {
+							for _, side := range []order.Side{order.Buy, order.Sell} {
+								t.Run(side.String(), func(t *testing.T) {
+									s := &order.Submit{Exchange: ex.Name, Pair: p, AssetType: a, Side: side, Type: orderType, Amount: 1, Price: 80000, TriggerPrice: 79000, RiskManagementModes: tc.risk, SlippageTolerance: tc.slippage}
+									_, err := ex.SubmitOrder(t.Context(), s)
+									assert.ErrorIsf(t, err, common.ErrFunctionNotSupported, "SubmitOrder should refuse a %s %s %s order with %s", a, side, orderType, tc.name)
+								})
+							}
+						})
+					}
+					for _, tif := range timesInForce {
+						t.Run(subtestName(tif.String()), func(t *testing.T) {
+							_, err := ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: p, AssetType: a, Side: order.Buy, Type: order.Limit, TimeInForce: tif, Amount: 1, Price: 80000, RiskManagementModes: tc.risk, SlippageTolerance: tc.slippage})
+							assert.ErrorIsf(t, err, common.ErrFunctionNotSupported, "SubmitOrder should refuse a %s limit order with time in force %q and %s", a, tif, tc.name)
+							_, err = ex.ModifyOrder(t.Context(), &order.Modify{Exchange: ex.Name, Pair: p, AssetType: a, OrderID: "o", TimeInForce: tif, Price: 80000, Amount: 1, RiskManagementModes: tc.risk, SlippageTolerance: tc.slippage})
+							assert.ErrorIsf(t, err, common.ErrFunctionNotSupported, "ModifyOrder should refuse a %s order with time in force %q and %s", a, tif, tc.name)
+						})
+					}
+					// An edit leaving the price or the amount unset reads the order first, which the refusal must come before, an
+					// edit can move a stop, and a gateway edit can find the order by its label
+					for _, edit := range []struct {
+						name                        string
+						price, amount, triggerPrice float64
+					}{{"price and amount", 80000, 1, 0}, {"amount alone", 0, 1, 0}, {"price alone", 80000, 0, 0}, {"stop moved", 80000, 1, 79000}} {
+						t.Run(edit.name, func(t *testing.T) {
+							for _, lookup := range []struct{ name, orderID, label string }{{"by ID", "o", ""}, {"by label", "", "c"}} {
+								t.Run(lookup.name, func(t *testing.T) {
+									_, err := ex.ModifyOrder(t.Context(), &order.Modify{Exchange: ex.Name, Pair: p, AssetType: a, OrderID: lookup.orderID, ClientOrderID: lookup.label, Price: edit.price, Amount: edit.amount, TriggerPrice: edit.triggerPrice, RiskManagementModes: tc.risk, SlippageTolerance: tc.slippage})
+									assert.ErrorIsf(t, err, common.ErrFunctionNotSupported, "ModifyOrder should refuse a %s order %s with %s, price %v, amount %v and trigger price %v", a, cmp.Or(lookup.orderID, "labelled "+lookup.label), tc.name, edit.price, edit.amount, edit.triggerPrice)
+								})
+							}
+						})
+					}
+				})
 			}
-			for _, tif := range timesInForce {
-				_, err := ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: p, AssetType: a, Side: order.Buy, Type: order.Limit, TimeInForce: tif, Amount: 1, Price: 80000, RiskManagementModes: tc.risk, SlippageTolerance: tc.slippage})
-				assert.ErrorIsf(t, err, common.ErrFunctionNotSupported, "SubmitOrder should refuse a %s limit order with time in force %q and %s", a, tif, tc.name)
-				_, err = ex.ModifyOrder(t.Context(), &order.Modify{Exchange: ex.Name, Pair: p, AssetType: a, OrderID: "o", TimeInForce: tif, Price: 80000, Amount: 1, RiskManagementModes: tc.risk, SlippageTolerance: tc.slippage})
-				assert.ErrorIsf(t, err, common.ErrFunctionNotSupported, "ModifyOrder should refuse a %s order with time in force %q and %s", a, tif, tc.name)
-			}
-			// An edit leaving the price or the amount unset reads the order first, which the refusal must come before, an
-			// edit can move a stop, and a gateway edit can find the order by its label
-			for _, edit := range []struct{ price, amount, triggerPrice float64 }{{80000, 1, 0}, {0, 1, 0}, {80000, 0, 0}, {80000, 1, 79000}} {
-				for _, lookup := range []struct{ orderID, label string }{{"o", ""}, {"", "c"}} {
-					_, err := ex.ModifyOrder(t.Context(), &order.Modify{Exchange: ex.Name, Pair: p, AssetType: a, OrderID: lookup.orderID, ClientOrderID: lookup.label, Price: edit.price, Amount: edit.amount, TriggerPrice: edit.triggerPrice, RiskManagementModes: tc.risk, SlippageTolerance: tc.slippage})
-					assert.ErrorIsf(t, err, common.ErrFunctionNotSupported, "ModifyOrder should refuse a %s order %s with %s, price %v, amount %v and trigger price %v", a, cmp.Or(lookup.orderID, "labelled "+lookup.label), tc.name, edit.price, edit.amount, edit.triggerPrice)
-				}
-			}
-		}
+		})
 	}
 	assert.Zero(t, requests.Load(), "SubmitOrder and ModifyOrder should send nothing for an order they refuse")
-}
-
-func TestModifyOrderTriggerPriceType(t *testing.T) {
-	t.Parallel()
-	priceTypes := []order.PriceType{order.LastPrice, order.IndexPrice, order.MarkPrice, order.UnknownPriceType}
-	// No time in force, each flag alone, and good till cancelled post only. An edit the wrapper sends to these good till
-	// cancelled orders carries none or one it can apply, the order's own being what the order manager passes with every
-	// modification
-	timesInForce := []order.TimeInForce{order.UnknownTIF, order.GoodTillCancel, order.GoodTillDay, order.GoodTillTime, order.GoodTillCrossing, order.FillOrKill, order.ImmediateOrCancel, order.PostOnly, order.StopOrReduce, order.GoodTillCancel | order.PostOnly}
-	advancedTradeServer := func() (*Exchange, *atomic.Int32) {
-		var edits atomic.Int32
-		ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			var body string
-			switch r.Method + " " + r.URL.Path {
-			case http.MethodGet + " /api/v3/brokerage/orders/historical/stop":
-				body = `{"order":{"order_id":"stop","product_id":"BTC-USD","product_type":"SPOT","side":"BUY","status":"OPEN","order_type":"STOP_LIMIT","time_in_force":"GOOD_UNTIL_CANCELLED","filled_size":"0","order_configuration":{"stop_limit_stop_limit_gtc":{"base_size":"1","limit_price":"80100","stop_price":"80000","stop_direction":"STOP_DIRECTION_STOP_UP"}}}}`
-			case http.MethodPost + " /api/v3/brokerage/orders/edit":
-				edits.Add(1)
-				body = `{"success":true,"errors":[]}`
-			default:
-				assert.Failf(t, "ModifyOrder should only read and edit the order", "%s %s", r.Method, r.URL.Path)
-				http.NotFound(w, r)
-				return
-			}
-			_, err := w.Write([]byte(body))
-			assert.NoError(t, err, "writing the response should not error")
-		}))
-		return ex, &edits
-	}
-	// Advanced Trade's stops trigger on the last trade price alone, whether or not the edit moves the stop, and whether
-	// it sets the price and the amount or leaves either to the order. Each time in force has a server of its own, as a
-	// test server answers a limited number of requests
-	for _, tif := range timesInForce {
-		at, edits := advancedTradeServer()
-		for a, p := range map[asset.Item]currency.Pair{asset.Spot: currency.NewBTCUSD(), asset.Futures: testFuturesPair} {
-			for _, change := range []struct{ price, amount, triggerPrice float64 }{{80100, 1, 80000}, {80100, 1, 0}, {0, 1, 0}, {80100, 0, 0}, {0, 0, 0}, {0, 0, 80000}} {
-				for _, priceType := range priceTypes {
-					accepted := priceType == order.LastPrice
-					if accepted && tif != order.UnknownTIF && tif != order.GoodTillCancel {
-						continue
-					}
-					sent := edits.Load()
-					_, err := at.ModifyOrder(t.Context(), &order.Modify{OrderID: "stop", Pair: p, AssetType: a, TimeInForce: tif, Price: change.price, Amount: change.amount, TriggerPrice: change.triggerPrice, TriggerPriceType: priceType})
-					if accepted {
-						assert.NoErrorf(t, err, "ModifyOrder should edit a %s order on the last price, price %v, amount %v, trigger price %v, time in force %q", a, change.price, change.amount, change.triggerPrice, tif)
-						assert.Equalf(t, sent+1, edits.Load(), "ModifyOrder should send the %s edit on the last price, price %v, amount %v, trigger price %v, time in force %q", a, change.price, change.amount, change.triggerPrice, tif)
-						continue
-					}
-					assert.ErrorIsf(t, err, order.ErrUnknownPriceType, "ModifyOrder should refuse a %s edit on price type %d, price %v, amount %v, trigger price %v, time in force %q", a, priceType, change.price, change.amount, change.triggerPrice, tif)
-					assert.Equalf(t, sent, edits.Load(), "ModifyOrder should not send a %s edit on price type %d, price %v, amount %v, trigger price %v, time in force %q", a, priceType, change.price, change.amount, change.triggerPrice, tif)
-				}
-			}
-		}
-	}
-	// A gateway edit keeps the price an order triggers on, so it takes the order's own price type, or the last price,
-	// the zero price type, which leaves the trigger as it is, for a limit order, stops and trailing stops, whether the
-	// order is found by its ID or by its label, in the main account or an isolated margin subaccount, and whether the
-	// edit leaves its amount, price and trigger price to the order, sets the amount alone or sets all three, as the order
-	// manager's edits set the amount and price
-	gatewayOrders := map[string]string{
-		"USDC-limit":       `{"order_id":"USDC-limit","label":"gct-limit","order_state":"open","order_type":"limit","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"buy","price":80000,"amount":0.001}`,
-		"USDC-last":        `{"order_id":"USDC-last","label":"gct-last","order_state":"untriggered","order_type":"stop_market","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"sell","price":"market_price","trigger":"last_price","trigger_price":84000,"amount":0.001}`,
-		"USDC-index":       `{"order_id":"USDC-index","label":"gct-index","order_state":"untriggered","order_type":"stop_market","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"sell","price":"market_price","trigger":"index_price","trigger_price":84000,"amount":0.001}`,
-		"USDC-mark":        `{"order_id":"USDC-mark","label":"gct-mark","order_state":"untriggered","order_type":"stop_market","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"sell","price":"market_price","trigger":"mark_price","trigger_price":84000,"amount":0.001}`,
-		"USDC-iso":         `{"order_id":"USDC-iso","label":"gct-iso","order_state":"untriggered","order_type":"stop_market","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"sell","price":"market_price","trigger":"index_price","trigger_price":84000,"amount":0.001,"isolated":true}`,
-		"USDC-trail":       `{"order_id":"USDC-trail","label":"gct-trail","order_state":"untriggered","order_type":"trailing_stop","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"sell","price":"market_price","trigger":"mark_price","trigger_offset":500,"amount":0.001}`,
-		"USDC-trail-index": `{"order_id":"USDC-trail-index","label":"gct-trail-index","order_state":"untriggered","order_type":"trailing_stop","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"sell","price":"market_price","trigger":"index_price","trigger_offset":500,"amount":0.001}`,
-		"COIN-limit":       `{"order_id":"COIN-limit","label":"gct-limit","order_state":"open","order_type":"limit","time_in_force":"good_til_cancelled","instrument_name":"BTC-PERPETUAL","direction":"buy","price":80000,"amount":10}`,
-		"COIN-last":        `{"order_id":"COIN-last","label":"gct-last","order_state":"untriggered","order_type":"stop_market","time_in_force":"good_til_cancelled","instrument_name":"BTC-PERPETUAL","direction":"sell","price":"market_price","trigger":"last_price","trigger_price":84000,"amount":10}`,
-		"COIN-index":       `{"order_id":"COIN-index","label":"gct-index","order_state":"untriggered","order_type":"stop_market","time_in_force":"good_til_cancelled","instrument_name":"BTC-PERPETUAL","direction":"sell","price":"market_price","trigger":"index_price","trigger_price":84000,"amount":10}`,
-		"COIN-mark":        `{"order_id":"COIN-mark","label":"gct-mark","order_state":"untriggered","order_type":"stop_market","time_in_force":"good_til_cancelled","instrument_name":"BTC-PERPETUAL","direction":"sell","price":"market_price","trigger":"mark_price","trigger_price":84000,"amount":10}`,
-		"COIN-iso":         `{"order_id":"COIN-iso","label":"gct-iso","order_state":"untriggered","order_type":"stop_market","time_in_force":"good_til_cancelled","instrument_name":"BTC-PERPETUAL","direction":"sell","price":"market_price","trigger":"index_price","trigger_price":84000,"amount":10,"isolated":true}`,
-		"COIN-trail":       `{"order_id":"COIN-trail","label":"gct-trail","order_state":"untriggered","order_type":"trailing_stop","time_in_force":"good_til_cancelled","instrument_name":"BTC-PERPETUAL","direction":"sell","price":"market_price","trigger":"mark_price","trigger_offset":500,"amount":10}`,
-		"COIN-trail-index": `{"order_id":"COIN-trail-index","label":"gct-trail-index","order_state":"untriggered","order_type":"trailing_stop","time_in_force":"good_til_cancelled","instrument_name":"BTC-PERPETUAL","direction":"sell","price":"market_price","trigger":"index_price","trigger_offset":500,"amount":10}`,
-	}
-	openOrders := make([]string, 0, len(gatewayOrders))
-	for _, o := range gatewayOrders {
-		openOrders = append(openOrders, o)
-	}
-	instrumentPrefixes := map[string]string{"BTC_USDC-PERPETUAL": "USDC", "BTC-PERPETUAL": "COIN"}
-	answer := func(req receivedJSONRPC) string {
-		var params struct {
-			OrderID        string `json:"order_id"`
-			Label          string `json:"label"`
-			InstrumentName string `json:"instrument_name"`
-			Isolated       bool   `json:"isolated"`
-		}
-		assert.NoError(t, json.Unmarshal(req.Params, &params), "the params should decode")
-		switch req.Method {
-		case "private/get_order_state":
-			// The gateway finds an isolated margin subaccount's order only when asked to look there
-			if strings.HasSuffix(params.OrderID, "-iso") != params.Isolated {
-				return `{"jsonrpc":"2.0","error":{"code":10004,"message":"order_not_found"}}`
-			}
-			return `{"jsonrpc":"2.0","result":` + gatewayOrders[params.OrderID] + `}`
-		case "private/get_open_orders":
-			return `{"jsonrpc":"2.0","result":[` + strings.Join(openOrders, ",") + `]}`
-		case "private/edit":
-			return `{"jsonrpc":"2.0","result":{"order":` + gatewayOrders[params.OrderID] + `,"trades":[]}}`
-		case "private/edit_by_label":
-			return `{"jsonrpc":"2.0","result":{"order":` + gatewayOrders[instrumentPrefixes[params.InstrumentName]+"-"+strings.TrimPrefix(params.Label, "gct-")] + `,"trades":[]}}`
-		}
-		assert.Failf(t, "ModifyOrder should only read and edit the order", "sent %s", req.Method)
-		return `{"jsonrpc":"2.0","error":{"code":-32601,"message":"Method not found"}}`
-	}
-	accepted := map[string][]order.PriceType{"limit": {order.LastPrice}, "last": {order.LastPrice}, "index": {order.LastPrice, order.IndexPrice}, "mark": {order.LastPrice, order.MarkPrice}, "iso": {order.LastPrice, order.IndexPrice}, "trail": {order.LastPrice, order.MarkPrice}, "trail-index": {order.LastPrice, order.IndexPrice}}
-	// A gateway edit can make an order post only or not, but not change how long it rests
-	editable := []order.TimeInForce{order.UnknownTIF, order.GoodTillCancel, order.PostOnly, order.GoodTillCancel | order.PostOnly}
-	for _, g := range []struct {
-		prefix string
-		pair   currency.Pair
-		a      asset.Item
-		amount float64
-	}{{"USDC", testUSDCPerpetual, asset.USDCMarginedFutures, 0.002}, {"COIN", testCoinPerpetual, asset.CoinMarginedFutures, 20}} {
-		changes := []struct{ amount, price, triggerPrice float64 }{{0, 0, 0}, {g.amount, 0, 0}, {g.amount, 81000, 85000}}
-		for _, byLabel := range []bool{false, true} {
-			for _, tif := range timesInForce {
-				for _, change := range changes {
-					// Every edit reads the order first, so each asset, lookup, time in force and change has a server of
-					// its own, as a test server answers a limited number of requests
-					ex, sent := newDerivativesMethodServer(t, answer)
-					for trigger, own := range accepted {
-						orderID, label := g.prefix+"-"+trigger, ""
-						if byLabel {
-							orderID, label = "", "gct-"+trigger
-						}
-						name := g.prefix + " " + trigger + " order " + cmp.Or(orderID, "labelled "+label)
-						for _, priceType := range priceTypes {
-							takes := slices.Contains(own, priceType)
-							if takes && !slices.Contains(editable, tif) {
-								continue
-							}
-							_, err := ex.ModifyOrder(t.Context(), &order.Modify{OrderID: orderID, ClientOrderID: label, Pair: g.pair, AssetType: g.a, TimeInForce: tif, Amount: change.amount, Price: change.price, TriggerPrice: change.triggerPrice, TriggerPriceType: priceType})
-							edited := slices.ContainsFunc(sent(), func(req receivedJSONRPC) bool {
-								return req.Method == "private/edit" || req.Method == "private/edit_by_label"
-							})
-							if takes {
-								assert.NoErrorf(t, err, "ModifyOrder should edit the %s asked to trigger on price type %d with time in force %q, amount %v, price %v and trigger price %v", name, priceType, tif, change.amount, change.price, change.triggerPrice)
-								assert.Truef(t, edited, "ModifyOrder should send the edit of the %s asked to trigger on price type %d with time in force %q, amount %v, price %v and trigger price %v", name, priceType, tif, change.amount, change.price, change.triggerPrice)
-								continue
-							}
-							assert.ErrorIsf(t, err, order.ErrUnknownPriceType, "ModifyOrder should refuse to have the %s trigger on price type %d with time in force %q, amount %v, price %v and trigger price %v", name, priceType, tif, change.amount, change.price, change.triggerPrice)
-							assert.Falsef(t, edited, "ModifyOrder should not edit the %s asked to trigger on price type %d with time in force %q, amount %v, price %v and trigger price %v", name, priceType, tif, change.amount, change.price, change.triggerPrice)
-						}
-					}
-				}
-			}
-		}
-	}
 }
 
 func TestValidateAdvancedTradeTimeInForce(t *testing.T) {
 	t.Parallel()
 	end := time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)
-	for _, s := range []order.Submit{
-		{Type: order.Market},
-		{Type: order.Market, TimeInForce: order.ImmediateOrCancel},
-		{Type: order.Market, TimeInForce: order.FillOrKill},
-		{Type: order.Limit},
-		{Type: order.Limit, TimeInForce: order.GoodTillCancel | order.PostOnly},
-		{Type: order.Limit, TimeInForce: order.PostOnly, EndTime: end},
-		{Type: order.Limit, TimeInForce: order.GoodTillTime, EndTime: end},
-		{Type: order.Limit, TimeInForce: order.GoodTillDay, EndTime: end},
-		{Type: order.Limit, TimeInForce: order.ImmediateOrCancel},
-		{Type: order.Limit, TimeInForce: order.FillOrKill},
-		{Type: order.StopLimit, TimeInForce: order.GoodTillCancel},
-		{Type: order.StopLimit, EndTime: end},
-		{Type: order.Bracket, TimeInForce: order.GoodTillTime, EndTime: end},
+	for name, s := range map[string]order.Submit{
+		"market":                           {Type: order.Market},
+		"IOC market":                       {Type: order.Market, TimeInForce: order.ImmediateOrCancel},
+		"FOK market":                       {Type: order.Market, TimeInForce: order.FillOrKill},
+		"limit":                            {Type: order.Limit},
+		"GTC post only limit":              {Type: order.Limit, TimeInForce: order.GoodTillCancel | order.PostOnly},
+		"post only limit with an end time": {Type: order.Limit, TimeInForce: order.PostOnly, EndTime: end},
+		"GTT limit":                        {Type: order.Limit, TimeInForce: order.GoodTillTime, EndTime: end},
+		"GTD limit":                        {Type: order.Limit, TimeInForce: order.GoodTillDay, EndTime: end},
+		"IOC limit":                        {Type: order.Limit, TimeInForce: order.ImmediateOrCancel},
+		"FOK limit":                        {Type: order.Limit, TimeInForce: order.FillOrKill},
+		"GTC stop limit":                   {Type: order.StopLimit, TimeInForce: order.GoodTillCancel},
+		"stop limit with an end time":      {Type: order.StopLimit, EndTime: end},
+		"GTT bracket":                      {Type: order.Bracket, TimeInForce: order.GoodTillTime, EndTime: end},
 	} {
-		assert.NoErrorf(t, validateAdvancedTradeTimeInForce(&s), "validateAdvancedTradeTimeInForce should accept a %s %s order", s.TimeInForce, s.Type)
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			assert.NoErrorf(t, validateAdvancedTradeTimeInForce(&s), "validateAdvancedTradeTimeInForce should accept a %s %s order", s.TimeInForce, s.Type)
+		})
 	}
 	for _, tc := range []struct {
-		s   order.Submit
-		err error
+		name string
+		s    order.Submit
+		err  error
 	}{
-		{order.Submit{Type: order.Limit, TimeInForce: order.GoodTillDay}, common.ErrDateUnset},
-		{order.Submit{Type: order.Limit, TimeInForce: order.GoodTillTime}, common.ErrDateUnset},
-		{order.Submit{Type: order.Market, TimeInForce: order.GoodTillCancel}, order.ErrUnsupportedTimeInForce},
-		{order.Submit{Type: order.Market, TimeInForce: order.PostOnly}, order.ErrUnsupportedTimeInForce},
-		{order.Submit{Type: order.Market, EndTime: end}, order.ErrUnsupportedTimeInForce},
-		{order.Submit{Type: order.Limit, TimeInForce: order.ImmediateOrCancel | order.FillOrKill}, order.ErrUnsupportedTimeInForce},
-		{order.Submit{Type: order.Limit, TimeInForce: order.FillOrKill | order.PostOnly}, order.ErrUnsupportedTimeInForce},
-		{order.Submit{Type: order.Limit, TimeInForce: order.ImmediateOrCancel, EndTime: end}, order.ErrUnsupportedTimeInForce},
-		{order.Submit{Type: order.Limit, TimeInForce: order.GoodTillCancel, EndTime: end}, order.ErrUnsupportedTimeInForce},
-		{order.Submit{Type: order.Limit, TimeInForce: order.GoodTillCrossing}, order.ErrUnsupportedTimeInForce},
-		{order.Submit{Type: order.Limit, TimeInForce: order.StopOrReduce}, order.ErrUnsupportedTimeInForce},
-		{order.Submit{Type: order.StopLimit, TimeInForce: order.ImmediateOrCancel}, order.ErrUnsupportedTimeInForce},
-		{order.Submit{Type: order.Bracket, TimeInForce: order.PostOnly}, order.ErrUnsupportedTimeInForce},
+		{"GTD limit without an end time", order.Submit{Type: order.Limit, TimeInForce: order.GoodTillDay}, common.ErrDateUnset},
+		{"GTT limit without an end time", order.Submit{Type: order.Limit, TimeInForce: order.GoodTillTime}, common.ErrDateUnset},
+		{"GTC market", order.Submit{Type: order.Market, TimeInForce: order.GoodTillCancel}, order.ErrUnsupportedTimeInForce},
+		{"post only market", order.Submit{Type: order.Market, TimeInForce: order.PostOnly}, order.ErrUnsupportedTimeInForce},
+		{"market with an end time", order.Submit{Type: order.Market, EndTime: end}, order.ErrUnsupportedTimeInForce},
+		{"IOC FOK limit", order.Submit{Type: order.Limit, TimeInForce: order.ImmediateOrCancel | order.FillOrKill}, order.ErrUnsupportedTimeInForce},
+		{"FOK post only limit", order.Submit{Type: order.Limit, TimeInForce: order.FillOrKill | order.PostOnly}, order.ErrUnsupportedTimeInForce},
+		{"IOC limit with an end time", order.Submit{Type: order.Limit, TimeInForce: order.ImmediateOrCancel, EndTime: end}, order.ErrUnsupportedTimeInForce},
+		{"GTC limit with an end time", order.Submit{Type: order.Limit, TimeInForce: order.GoodTillCancel, EndTime: end}, order.ErrUnsupportedTimeInForce},
+		{"good till crossing limit", order.Submit{Type: order.Limit, TimeInForce: order.GoodTillCrossing}, order.ErrUnsupportedTimeInForce},
+		{"stop or reduce limit", order.Submit{Type: order.Limit, TimeInForce: order.StopOrReduce}, order.ErrUnsupportedTimeInForce},
+		{"IOC stop limit", order.Submit{Type: order.StopLimit, TimeInForce: order.ImmediateOrCancel}, order.ErrUnsupportedTimeInForce},
+		{"post only bracket", order.Submit{Type: order.Bracket, TimeInForce: order.PostOnly}, order.ErrUnsupportedTimeInForce},
 	} {
-		assert.ErrorIsf(t, validateAdvancedTradeTimeInForce(&tc.s), tc.err, "validateAdvancedTradeTimeInForce should refuse a %s %s order", tc.s.TimeInForce, tc.s.Type)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, validateAdvancedTradeTimeInForce(&tc.s), tc.err, "validateAdvancedTradeTimeInForce should refuse a %s %s order", tc.s.TimeInForce, tc.s.Type)
+		})
 	}
 	_, err := orderConfigurationRequest(&order.Submit{Type: order.StopLimit, TimeInForce: order.ImmediateOrCancel, Amount: 1, Price: 2, TriggerPrice: 3})
 	assert.ErrorIs(t, err, order.ErrUnsupportedTimeInForce, "orderConfigurationRequest should refuse a time in force rather than configure another")
@@ -1629,39 +1661,49 @@ func TestOrderConfigurationRequest(t *testing.T) {
 	t.Parallel()
 	end := time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)
 	for _, tc := range []struct {
-		s   order.Submit
-		exp OrderConfigurationRequest
+		name string
+		s    order.Submit
+		exp  OrderConfigurationRequest
 	}{
-		{order.Submit{Type: order.Market, Amount: 1}, &MarketMarketIOCRequest{BaseSize: 1}},
-		{order.Submit{Type: order.Market, Amount: 1, TimeInForce: order.FillOrKill}, &MarketMarketFOKRequest{BaseSize: 1}},
-		{order.Submit{Type: order.Limit, Amount: 1, Price: 2}, &LimitLimitGTCRequest{BaseSize: 1, LimitPrice: 2}},
-		{order.Submit{Type: order.Limit, Amount: 1, Price: 2, TimeInForce: order.GoodTillCancel | order.PostOnly}, &LimitLimitGTCRequest{BaseSize: 1, LimitPrice: 2, PostOnly: true}},
-		{order.Submit{Type: order.Limit, Amount: 1, Price: 2, TimeInForce: order.FillOrKill}, &LimitLimitFOKRequest{BaseSize: 1, LimitPrice: 2}},
-		{order.Submit{Type: order.Limit, QuoteAmount: 5, Price: 2, TimeInForce: order.ImmediateOrCancel}, &SORLimitIOCRequest{QuoteSize: 5, LimitPrice: 2}},
-		{order.Submit{Type: order.Limit, Amount: 1, Price: 2, EndTime: end, TimeInForce: order.PostOnly}, &LimitLimitGTDRequest{BaseSize: 1, LimitPrice: 2, EndTime: end, PostOnly: true}},
-		{order.Submit{Type: order.Limit, Amount: 1, Price: 2, EndTime: end, TimeInForce: order.GoodTillDay}, &LimitLimitGTDRequest{BaseSize: 1, LimitPrice: 2, EndTime: end}},
-		{order.Submit{Type: order.StopLimit, Amount: 1, Price: 2, TriggerPrice: 3, StopDirection: order.StopUp}, &StopLimitStopLimitGTCRequest{BaseSize: 1, LimitPrice: 2, StopPrice: 3, StopDirection: StopDirectionStopUp}},
-		{order.Submit{Type: order.StopLimit, Amount: 1, Price: 2, TriggerPrice: 3, EndTime: end}, &StopLimitStopLimitGTDRequest{BaseSize: 1, LimitPrice: 2, StopPrice: 3, EndTime: end, StopDirection: StopDirectionStopDown}},
-		{order.Submit{Type: order.Bracket, Amount: 1, Price: 2, TriggerPrice: 3}, &TriggerBracketGTCRequest{BaseSize: 1, LimitPrice: 2, StopTriggerPrice: 3}},
-		{order.Submit{Type: order.Bracket, Amount: 1, Price: 2, TriggerPrice: 3, TimeInForce: order.GoodTillTime, EndTime: end}, &TriggerBracketGTDRequest{BaseSize: 1, LimitPrice: 2, StopTriggerPrice: 3, EndTime: end}},
+		{"market", order.Submit{Type: order.Market, Amount: 1}, &MarketMarketIOCRequest{BaseSize: 1}},
+		{"FOK market", order.Submit{Type: order.Market, Amount: 1, TimeInForce: order.FillOrKill}, &MarketMarketFOKRequest{BaseSize: 1}},
+		{"limit", order.Submit{Type: order.Limit, Amount: 1, Price: 2}, &LimitLimitGTCRequest{BaseSize: 1, LimitPrice: 2}},
+		{"GTC post only limit", order.Submit{Type: order.Limit, Amount: 1, Price: 2, TimeInForce: order.GoodTillCancel | order.PostOnly}, &LimitLimitGTCRequest{BaseSize: 1, LimitPrice: 2, PostOnly: true}},
+		{"FOK limit", order.Submit{Type: order.Limit, Amount: 1, Price: 2, TimeInForce: order.FillOrKill}, &LimitLimitFOKRequest{BaseSize: 1, LimitPrice: 2}},
+		{"IOC limit sized in the quote currency", order.Submit{Type: order.Limit, QuoteAmount: 5, Price: 2, TimeInForce: order.ImmediateOrCancel}, &SORLimitIOCRequest{QuoteSize: 5, LimitPrice: 2}},
+		{"post only limit with an end time", order.Submit{Type: order.Limit, Amount: 1, Price: 2, EndTime: end, TimeInForce: order.PostOnly}, &LimitLimitGTDRequest{BaseSize: 1, LimitPrice: 2, EndTime: end, PostOnly: true}},
+		{"GTD limit", order.Submit{Type: order.Limit, Amount: 1, Price: 2, EndTime: end, TimeInForce: order.GoodTillDay}, &LimitLimitGTDRequest{BaseSize: 1, LimitPrice: 2, EndTime: end}},
+		{"stop limit", order.Submit{Type: order.StopLimit, Amount: 1, Price: 2, TriggerPrice: 3, StopDirection: order.StopUp}, &StopLimitStopLimitGTCRequest{BaseSize: 1, LimitPrice: 2, StopPrice: 3, StopDirection: StopDirectionStopUp}},
+		{"stop limit with an end time", order.Submit{Type: order.StopLimit, Amount: 1, Price: 2, TriggerPrice: 3, EndTime: end}, &StopLimitStopLimitGTDRequest{BaseSize: 1, LimitPrice: 2, StopPrice: 3, EndTime: end, StopDirection: StopDirectionStopDown}},
+		{"bracket", order.Submit{Type: order.Bracket, Amount: 1, Price: 2, TriggerPrice: 3}, &TriggerBracketGTCRequest{BaseSize: 1, LimitPrice: 2, StopTriggerPrice: 3}},
+		{"GTT bracket", order.Submit{Type: order.Bracket, Amount: 1, Price: 2, TriggerPrice: 3, TimeInForce: order.GoodTillTime, EndTime: end}, &TriggerBracketGTDRequest{BaseSize: 1, LimitPrice: 2, StopTriggerPrice: 3, EndTime: end}},
 	} {
-		got, err := orderConfigurationRequest(&tc.s)
-		require.NoErrorf(t, err, "orderConfigurationRequest must not error for %s %s", tc.s.Type, tc.s.TimeInForce)
-		assert.Equalf(t, tc.exp, got, "orderConfigurationRequest should convert a %s %s order", tc.s.Type, tc.s.TimeInForce)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := orderConfigurationRequest(&tc.s)
+			require.NoErrorf(t, err, "orderConfigurationRequest must not error for %s %s", tc.s.Type, tc.s.TimeInForce)
+			assert.Equalf(t, tc.exp, got, "orderConfigurationRequest should convert a %s %s order", tc.s.Type, tc.s.TimeInForce)
+		})
 	}
 }
 
 func TestOrderMarginType(t *testing.T) {
 	t.Parallel()
 	for marginType, exp := range map[margin.Type]string{margin.Unset: "", margin.Multi: OrderMarginTypeCross, margin.Isolated: OrderMarginTypeIsolated} {
-		got, err := orderMarginType(marginType)
-		require.NoErrorf(t, err, "orderMarginType must not error for %s", marginType)
-		assert.Equalf(t, exp, got, "orderMarginType should convert %s", marginType)
+		t.Run("orderMarginType "+subtestName(marginType.String()), func(t *testing.T) {
+			t.Parallel()
+			got, err := orderMarginType(marginType)
+			require.NoErrorf(t, err, "orderMarginType must not error for %s", marginType)
+			assert.Equalf(t, exp, got, "orderMarginType should convert %s", marginType)
+		})
 	}
 	_, err := orderMarginType(margin.NoMargin)
 	assert.ErrorIs(t, err, margin.ErrMarginTypeUnsupported, "orderMarginType should refuse an unsupported margin type")
 	for marginType, exp := range map[string]margin.Type{OrderMarginTypeCross: margin.Multi, OrderMarginTypeIsolated: margin.Isolated, OrderMarginTypeUnknown: margin.Unset} {
-		assert.Equalf(t, exp, marginTypeFromOrder(marginType), "marginTypeFromOrder should convert %s", marginType)
+		t.Run("marginTypeFromOrder "+subtestName(marginType), func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, exp, marginTypeFromOrder(marginType), "marginTypeFromOrder should convert %s", marginType)
+		})
 	}
 }
 
@@ -1702,21 +1744,25 @@ func TestDerivativesOrderRequest(t *testing.T) {
 		Isolated:       true,
 	}, req, "derivativesOrderRequest should reject a post only order that would take liquidity, and accept no extra leverage")
 	for _, tc := range []struct {
-		s   order.Submit
-		err error
+		name string
+		s    order.Submit
+		err  error
 	}{
-		{order.Submit{Side: order.Buy, Type: order.Limit, Leverage: 2}, order.ErrSubmitLeverageNotSupported},
-		{order.Submit{Side: order.Buy, Type: order.Limit, Leverage: 0.5}, order.ErrSubmitLeverageNotSupported},
-		{order.Submit{Side: order.UnknownSide, Type: order.Limit}, order.ErrSideIsInvalid},
-		{order.Submit{Side: order.Buy, Type: order.Bracket}, order.ErrUnsupportedOrderType},
-		{order.Submit{Side: order.Buy, Type: order.Limit, TimeInForce: order.GoodTillTime}, order.ErrUnsupportedTimeInForce},
-		{order.Submit{Side: order.Buy, Type: order.Limit, MarginType: margin.NoMargin}, margin.ErrMarginTypeUnsupported},
-		{order.Submit{Side: order.Buy, Type: order.StopMarket, TriggerPriceType: order.UnknownPriceType}, order.ErrUnknownPriceType},
-		{order.Submit{Side: order.Buy, Type: order.TrailingStop, TrackingMode: order.Percentage, TrackingValue: 1}, errTrailingStopDistance},
-		{order.Submit{Side: order.Buy, Type: order.Limit, EndTime: time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)}, order.ErrUnsupportedTimeInForce},
+		{"leverage 2", order.Submit{Side: order.Buy, Type: order.Limit, Leverage: 2}, order.ErrSubmitLeverageNotSupported},
+		{"leverage 0.5", order.Submit{Side: order.Buy, Type: order.Limit, Leverage: 0.5}, order.ErrSubmitLeverageNotSupported},
+		{"unknown side", order.Submit{Side: order.UnknownSide, Type: order.Limit}, order.ErrSideIsInvalid},
+		{"bracket", order.Submit{Side: order.Buy, Type: order.Bracket}, order.ErrUnsupportedOrderType},
+		{"GTT limit", order.Submit{Side: order.Buy, Type: order.Limit, TimeInForce: order.GoodTillTime}, order.ErrUnsupportedTimeInForce},
+		{"no margin", order.Submit{Side: order.Buy, Type: order.Limit, MarginType: margin.NoMargin}, margin.ErrMarginTypeUnsupported},
+		{"unknown trigger price type", order.Submit{Side: order.Buy, Type: order.StopMarket, TriggerPriceType: order.UnknownPriceType}, order.ErrUnknownPriceType},
+		{"percentage trailing stop", order.Submit{Side: order.Buy, Type: order.TrailingStop, TrackingMode: order.Percentage, TrackingValue: 1}, errTrailingStopDistance},
+		{"limit with an end time", order.Submit{Side: order.Buy, Type: order.Limit, EndTime: time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)}, order.ErrUnsupportedTimeInForce},
 	} {
-		_, err := derivativesOrderRequest(&tc.s, "BTC_USDC-PERPETUAL")
-		assert.ErrorIsf(t, err, tc.err, "derivativesOrderRequest should refuse %+v", tc.s)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := derivativesOrderRequest(&tc.s, "BTC_USDC-PERPETUAL")
+			assert.ErrorIsf(t, err, tc.err, "derivativesOrderRequest should refuse %+v", tc.s)
+		})
 	}
 }
 
@@ -1727,27 +1773,39 @@ func TestDerivativesOrderParams(t *testing.T) {
 		order.StopMarket: DerivativesOrderTypeStopMarket, order.TakeProfit: DerivativesOrderTypeTakeLimit,
 		order.TakeProfitMarket: DerivativesOrderTypeTakeMarket, order.TrailingStop: DerivativesOrderTypeTrailingStop,
 	} {
-		got, err := derivativesOrderTypeParam(orderType)
-		require.NoErrorf(t, err, "derivativesOrderTypeParam must not error for %s", orderType)
-		assert.Equalf(t, exp, got, "derivativesOrderTypeParam should convert %s", orderType)
+		t.Run("derivativesOrderTypeParam "+orderType.String(), func(t *testing.T) {
+			t.Parallel()
+			got, err := derivativesOrderTypeParam(orderType)
+			require.NoErrorf(t, err, "derivativesOrderTypeParam must not error for %s", orderType)
+			assert.Equalf(t, exp, got, "derivativesOrderTypeParam should convert %s", orderType)
+		})
 	}
 	for tif, exp := range map[order.TimeInForce]string{
 		order.UnknownTIF: "", order.PostOnly: "", order.GoodTillCancel: DerivativesTimeInForceGoodTilCancelled, order.GoodTillDay: DerivativesTimeInForceGoodTilDay,
 		order.FillOrKill: DerivativesTimeInForceFillOrKill, order.ImmediateOrCancel: DerivativesTimeInForceImmediateOrCancel,
 	} {
-		got, err := derivativesTimeInForceParam(tif)
-		require.NoErrorf(t, err, "derivativesTimeInForceParam must not error for %s", tif)
-		assert.Equalf(t, exp, got, "derivativesTimeInForceParam should convert %s", tif)
+		t.Run("derivativesTimeInForceParam "+subtestName(tif.String()), func(t *testing.T) {
+			t.Parallel()
+			got, err := derivativesTimeInForceParam(tif)
+			require.NoErrorf(t, err, "derivativesTimeInForceParam must not error for %s", tif)
+			assert.Equalf(t, exp, got, "derivativesTimeInForceParam should convert %s", tif)
+		})
 	}
 	for priceType, exp := range map[order.PriceType]string{order.LastPrice: DerivativesTriggerLastPrice, order.IndexPrice: DerivativesTriggerIndexPrice, order.MarkPrice: DerivativesTriggerMarkPrice} {
-		got, err := derivativesTriggerParam(priceType)
-		require.NoErrorf(t, err, "derivativesTriggerParam must not error for %s", priceType)
-		assert.Equalf(t, exp, got, "derivativesTriggerParam should convert %s", priceType)
+		t.Run("derivativesTriggerParam "+priceType.String(), func(t *testing.T) {
+			t.Parallel()
+			got, err := derivativesTriggerParam(priceType)
+			require.NoErrorf(t, err, "derivativesTriggerParam must not error for %s", priceType)
+			assert.Equalf(t, exp, got, "derivativesTriggerParam should convert %s", priceType)
+		})
 	}
 	for marginType, exp := range map[margin.Type]bool{margin.Unset: false, margin.Multi: false, margin.Isolated: true} {
-		got, err := derivativesIsolated(marginType)
-		require.NoErrorf(t, err, "derivativesIsolated must not error for %s", marginType)
-		assert.Equalf(t, exp, got, "derivativesIsolated should convert %s", marginType)
+		t.Run("derivativesIsolated "+subtestName(marginType.String()), func(t *testing.T) {
+			t.Parallel()
+			got, err := derivativesIsolated(marginType)
+			require.NoErrorf(t, err, "derivativesIsolated must not error for %s", marginType)
+			assert.Equalf(t, exp, got, "derivativesIsolated should convert %s", marginType)
+		})
 	}
 	type cancelType struct {
 		category string
@@ -1765,26 +1823,33 @@ func TestDerivativesOrderParams(t *testing.T) {
 		order.TakeProfitMarket: {DerivativesCancelOrderTypeTake, false},
 		order.TrailingStop:     {DerivativesCancelOrderTypeTrailingStop, true},
 	} {
-		category, exact, err := derivativesCancelType(orderType)
-		require.NoErrorf(t, err, "derivativesCancelType must not error for %s", orderType)
-		assert.Equalf(t, exp, cancelType{category, exact}, "derivativesCancelType should convert %s", orderType)
+		t.Run("derivativesCancelType "+orderType.String(), func(t *testing.T) {
+			t.Parallel()
+			category, exact, err := derivativesCancelType(orderType)
+			require.NoErrorf(t, err, "derivativesCancelType must not error for %s", orderType)
+			assert.Equalf(t, exp, cancelType{category, exact}, "derivativesCancelType should convert %s", orderType)
+		})
 	}
 	_, _, err := derivativesCancelType(order.Bracket)
 	assert.ErrorIs(t, err, order.ErrUnsupportedOrderType, "derivativesCancelType should refuse an order type the gateway does not place")
 	for _, tc := range []struct {
+		name              string
 		cancel, orderType order.Type
 		exp               bool
 	}{
-		{order.AnyType, order.Limit, true},
-		{order.UnknownType, order.StopMarket, true},
-		{order.Stop, order.StopLimit, true},
-		{order.Stop, order.StopMarket, true},
-		{order.Stop, order.TakeProfit, false},
-		{order.StopLimit, order.StopLimit, true},
-		{order.StopLimit, order.StopMarket, false},
-		{order.TakeProfit, order.TakeProfitMarket, false},
+		{"limit for any type", order.AnyType, order.Limit, true},
+		{"stop market for an unknown type", order.UnknownType, order.StopMarket, true},
+		{"stop limit for stop", order.Stop, order.StopLimit, true},
+		{"stop market for stop", order.Stop, order.StopMarket, true},
+		{"take profit for stop", order.Stop, order.TakeProfit, false},
+		{"stop limit for stop limit", order.StopLimit, order.StopLimit, true},
+		{"stop market for stop limit", order.StopLimit, order.StopMarket, false},
+		{"take profit market for take profit", order.TakeProfit, order.TakeProfitMarket, false},
 	} {
-		assert.Equalf(t, tc.exp, derivativesCancelTypeMatches(tc.cancel, tc.orderType), "derivativesCancelTypeMatches should match %s orders for %s", tc.orderType, tc.cancel)
+		t.Run("derivativesCancelTypeMatches "+tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, tc.exp, derivativesCancelTypeMatches(tc.cancel, tc.orderType), "derivativesCancelTypeMatches should match %s orders for %s", tc.orderType, tc.cancel)
+		})
 	}
 }
 
@@ -1804,30 +1869,379 @@ func TestDerivativesTradeHistory(t *testing.T) {
 
 func TestModifyOrder(t *testing.T) {
 	t.Parallel()
-	ex := newWrapperTestExchange(t)
-	_, err := ex.ModifyOrder(t.Context(), &order.Modify{})
-	require.ErrorIs(t, err, order.ErrPairIsEmpty, "ModifyOrder must validate the modification")
-	_, err = ex.ModifyOrder(t.Context(), &order.Modify{Pair: currency.NewBTCUSD(), AssetType: asset.Spot})
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "ModifyOrder must refuse an order without an ID or label")
-	_, err = ex.ModifyOrder(t.Context(), &order.Modify{Pair: currency.NewBTCUSD(), AssetType: asset.Spot, ClientOrderID: "client"})
-	require.ErrorIs(t, err, errOrderIDRequired, "ModifyOrder must refuse an Advanced Trade order without an ID")
-	_, err = ex.ModifyOrder(t.Context(), &order.Modify{Pair: currency.NewBTCUSD(), AssetType: asset.Options, OrderID: "1"})
-	require.ErrorIs(t, err, asset.ErrNotSupported, "ModifyOrder must refuse an asset Coinbase does not trade")
-	if !mockTests {
-		sharedTestCredentials(t, ex)
-		if !canManipulateRealOrders {
-			t.Skip("canManipulateRealOrders is not set")
-		}
-	}
-	resp, err := ex.ModifyOrder(t.Context(), &order.Modify{OrderID: testSandboxOrderID, Pair: currency.NewBTCUSD(), AssetType: asset.Spot, Price: 68000.44, Amount: 1})
-	require.NoError(t, err, "ModifyOrder must not error for a spot order")
-	assert.Equal(t, 68000.44, resp.Price, "ModifyOrder should return the spot order's price")
-	_, err = ex.ModifyOrder(t.Context(), &order.Modify{OrderID: testUnknownOrderID, Pair: currency.NewBTCUSD(), AssetType: asset.Spot, Price: 68000.44, Amount: 1})
-	assert.ErrorIs(t, err, order.ErrOrderNotFound, "ModifyOrder should report an order Coinbase does not know")
 
-	resp, err = ex.ModifyOrder(t.Context(), &order.Modify{OrderID: testWrapperDerivativesOrderID, Pair: testUSDCPerpetual, AssetType: asset.USDCMarginedFutures, Price: 50100, Amount: 0.001})
-	require.NoError(t, err, "ModifyOrder must not error for a gateway order")
-	assert.Equal(t, testWrapperDerivativesOrderID, resp.OrderID, "ModifyOrder should return the gateway order's ID")
+	t.Run("edits spot and gateway orders", func(t *testing.T) {
+		t.Parallel()
+		ex := newWrapperTestExchange(t)
+		_, err := ex.ModifyOrder(t.Context(), &order.Modify{})
+		require.ErrorIs(t, err, order.ErrPairIsEmpty, "ModifyOrder must validate the modification")
+		_, err = ex.ModifyOrder(t.Context(), &order.Modify{Pair: currency.NewBTCUSD(), AssetType: asset.Spot})
+		require.ErrorIs(t, err, order.ErrOrderIDNotSet, "ModifyOrder must refuse an order without an ID or label")
+		_, err = ex.ModifyOrder(t.Context(), &order.Modify{Pair: currency.NewBTCUSD(), AssetType: asset.Spot, ClientOrderID: "client"})
+		require.ErrorIs(t, err, errOrderIDRequired, "ModifyOrder must refuse an Advanced Trade order without an ID")
+		_, err = ex.ModifyOrder(t.Context(), &order.Modify{Pair: currency.NewBTCUSD(), AssetType: asset.Options, OrderID: "1"})
+		require.ErrorIs(t, err, asset.ErrNotSupported, "ModifyOrder must refuse an asset Coinbase does not trade")
+		if !mockTests {
+			sharedTestCredentials(t, ex)
+			if !canManipulateRealOrders {
+				t.Skip("canManipulateRealOrders is not set")
+			}
+		}
+		resp, err := ex.ModifyOrder(t.Context(), &order.Modify{OrderID: testSandboxOrderID, Pair: currency.NewBTCUSD(), AssetType: asset.Spot, Price: 68000.44, Amount: 1})
+		require.NoError(t, err, "ModifyOrder must not error for a spot order")
+		assert.Equal(t, 68000.44, resp.Price, "ModifyOrder should return the spot order's price")
+		_, err = ex.ModifyOrder(t.Context(), &order.Modify{OrderID: testUnknownOrderID, Pair: currency.NewBTCUSD(), AssetType: asset.Spot, Price: 68000.44, Amount: 1})
+		assert.ErrorIs(t, err, order.ErrOrderNotFound, "ModifyOrder should report an order Coinbase does not know")
+
+		resp, err = ex.ModifyOrder(t.Context(), &order.Modify{OrderID: testWrapperDerivativesOrderID, Pair: testUSDCPerpetual, AssetType: asset.USDCMarginedFutures, Price: 50100, Amount: 0.001})
+		require.NoError(t, err, "ModifyOrder must not error for a gateway order")
+		assert.Equal(t, testWrapperDerivativesOrderID, resp.OrderID, "ModifyOrder should return the gateway order's ID")
+	})
+
+	t.Run("accepts only the trigger price type the order keeps", func(t *testing.T) {
+		t.Parallel()
+		priceTypes := []order.PriceType{order.LastPrice, order.IndexPrice, order.MarkPrice, order.UnknownPriceType}
+		// No time in force, each flag alone, and good till cancelled post only. An edit the wrapper sends to these good till
+		// cancelled orders carries none or one it can apply, the order's own being what the order manager passes with every
+		// modification
+		timesInForce := []order.TimeInForce{order.UnknownTIF, order.GoodTillCancel, order.GoodTillDay, order.GoodTillTime, order.GoodTillCrossing, order.FillOrKill, order.ImmediateOrCancel, order.PostOnly, order.StopOrReduce, order.GoodTillCancel | order.PostOnly}
+		advancedTradeServer := func() (*Exchange, *atomic.Int32) {
+			var edits atomic.Int32
+			ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				var body string
+				switch r.Method + " " + r.URL.Path {
+				case http.MethodGet + " /api/v3/brokerage/orders/historical/stop":
+					body = `{"order":{"order_id":"stop","product_id":"BTC-USD","product_type":"SPOT","side":"BUY","status":"OPEN","order_type":"STOP_LIMIT","time_in_force":"GOOD_UNTIL_CANCELLED","filled_size":"0","order_configuration":{"stop_limit_stop_limit_gtc":{"base_size":"1","limit_price":"80100","stop_price":"80000","stop_direction":"STOP_DIRECTION_STOP_UP"}}}}`
+				case http.MethodPost + " /api/v3/brokerage/orders/edit":
+					edits.Add(1)
+					body = `{"success":true,"errors":[]}`
+				default:
+					assert.Failf(t, "ModifyOrder should only read and edit the order", "%s %s", r.Method, r.URL.Path)
+					http.NotFound(w, r)
+					return
+				}
+				_, err := w.Write([]byte(body))
+				assert.NoError(t, err, "writing the response should not error")
+			}))
+			return ex, &edits
+		}
+		// Advanced Trade's stops trigger on the last trade price alone, whether or not the edit moves the stop, and whether
+		// it sets the price and the amount or leaves either to the order. Each time in force has a server of its own, as a
+		// test server answers a limited number of requests. advancedTradeServer builds each with this test's t, which names
+		// every case's exchange alike, so the cases run in order
+		for _, tif := range timesInForce {
+			t.Run(subtestName(tif.String()), func(t *testing.T) {
+				at, edits := advancedTradeServer()
+				// The cases share at and edits, which each reads before and after its edit, so they and the cases within
+				// them run in order
+				for a, p := range map[asset.Item]currency.Pair{asset.Spot: currency.NewBTCUSD(), asset.Futures: testFuturesPair} {
+					t.Run(a.String(), func(t *testing.T) {
+						for _, change := range []struct {
+							name                        string
+							price, amount, triggerPrice float64
+						}{
+							{"price, amount and trigger price", 80100, 1, 80000},
+							{"price and amount", 80100, 1, 0},
+							{"amount alone", 0, 1, 0},
+							{"price alone", 80100, 0, 0},
+							{"nothing", 0, 0, 0},
+							{"trigger price alone", 0, 0, 80000},
+						} {
+							t.Run(change.name, func(t *testing.T) {
+								for _, priceType := range priceTypes {
+									t.Run(subtestName(priceType.String()), func(t *testing.T) {
+										accepted := priceType == order.LastPrice
+										if accepted && tif != order.UnknownTIF && tif != order.GoodTillCancel {
+											return
+										}
+										sent := edits.Load()
+										_, err := at.ModifyOrder(t.Context(), &order.Modify{OrderID: "stop", Pair: p, AssetType: a, TimeInForce: tif, Price: change.price, Amount: change.amount, TriggerPrice: change.triggerPrice, TriggerPriceType: priceType})
+										if accepted {
+											assert.NoErrorf(t, err, "ModifyOrder should edit a %s order on the last price, price %v, amount %v, trigger price %v, time in force %q", a, change.price, change.amount, change.triggerPrice, tif)
+											assert.Equalf(t, sent+1, edits.Load(), "ModifyOrder should send the %s edit on the last price, price %v, amount %v, trigger price %v, time in force %q", a, change.price, change.amount, change.triggerPrice, tif)
+											return
+										}
+										assert.ErrorIsf(t, err, order.ErrUnknownPriceType, "ModifyOrder should refuse a %s edit on price type %d, price %v, amount %v, trigger price %v, time in force %q", a, priceType, change.price, change.amount, change.triggerPrice, tif)
+										assert.Equalf(t, sent, edits.Load(), "ModifyOrder should not send a %s edit on price type %d, price %v, amount %v, trigger price %v, time in force %q", a, priceType, change.price, change.amount, change.triggerPrice, tif)
+									})
+								}
+							})
+						}
+					})
+				}
+			})
+		}
+		// A gateway edit keeps the price an order triggers on, so it takes the order's own price type, or the last price,
+		// the zero price type, which leaves the trigger as it is, for a limit order, stops and trailing stops, whether the
+		// order is found by its ID or by its label, in the main account or an isolated margin subaccount, and whether the
+		// edit leaves its amount, price and trigger price to the order, sets the amount alone or sets all three, as the order
+		// manager's edits set the amount and price
+		gatewayOrders := map[string]string{
+			"USDC-limit":       `{"order_id":"USDC-limit","label":"gct-limit","order_state":"open","order_type":"limit","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"buy","price":80000,"amount":0.001}`,
+			"USDC-last":        `{"order_id":"USDC-last","label":"gct-last","order_state":"untriggered","order_type":"stop_market","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"sell","price":"market_price","trigger":"last_price","trigger_price":84000,"amount":0.001}`,
+			"USDC-index":       `{"order_id":"USDC-index","label":"gct-index","order_state":"untriggered","order_type":"stop_market","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"sell","price":"market_price","trigger":"index_price","trigger_price":84000,"amount":0.001}`,
+			"USDC-mark":        `{"order_id":"USDC-mark","label":"gct-mark","order_state":"untriggered","order_type":"stop_market","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"sell","price":"market_price","trigger":"mark_price","trigger_price":84000,"amount":0.001}`,
+			"USDC-iso":         `{"order_id":"USDC-iso","label":"gct-iso","order_state":"untriggered","order_type":"stop_market","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"sell","price":"market_price","trigger":"index_price","trigger_price":84000,"amount":0.001,"isolated":true}`,
+			"USDC-trail":       `{"order_id":"USDC-trail","label":"gct-trail","order_state":"untriggered","order_type":"trailing_stop","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"sell","price":"market_price","trigger":"mark_price","trigger_offset":500,"amount":0.001}`,
+			"USDC-trail-index": `{"order_id":"USDC-trail-index","label":"gct-trail-index","order_state":"untriggered","order_type":"trailing_stop","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"sell","price":"market_price","trigger":"index_price","trigger_offset":500,"amount":0.001}`,
+			"COIN-limit":       `{"order_id":"COIN-limit","label":"gct-limit","order_state":"open","order_type":"limit","time_in_force":"good_til_cancelled","instrument_name":"BTC-PERPETUAL","direction":"buy","price":80000,"amount":10}`,
+			"COIN-last":        `{"order_id":"COIN-last","label":"gct-last","order_state":"untriggered","order_type":"stop_market","time_in_force":"good_til_cancelled","instrument_name":"BTC-PERPETUAL","direction":"sell","price":"market_price","trigger":"last_price","trigger_price":84000,"amount":10}`,
+			"COIN-index":       `{"order_id":"COIN-index","label":"gct-index","order_state":"untriggered","order_type":"stop_market","time_in_force":"good_til_cancelled","instrument_name":"BTC-PERPETUAL","direction":"sell","price":"market_price","trigger":"index_price","trigger_price":84000,"amount":10}`,
+			"COIN-mark":        `{"order_id":"COIN-mark","label":"gct-mark","order_state":"untriggered","order_type":"stop_market","time_in_force":"good_til_cancelled","instrument_name":"BTC-PERPETUAL","direction":"sell","price":"market_price","trigger":"mark_price","trigger_price":84000,"amount":10}`,
+			"COIN-iso":         `{"order_id":"COIN-iso","label":"gct-iso","order_state":"untriggered","order_type":"stop_market","time_in_force":"good_til_cancelled","instrument_name":"BTC-PERPETUAL","direction":"sell","price":"market_price","trigger":"index_price","trigger_price":84000,"amount":10,"isolated":true}`,
+			"COIN-trail":       `{"order_id":"COIN-trail","label":"gct-trail","order_state":"untriggered","order_type":"trailing_stop","time_in_force":"good_til_cancelled","instrument_name":"BTC-PERPETUAL","direction":"sell","price":"market_price","trigger":"mark_price","trigger_offset":500,"amount":10}`,
+			"COIN-trail-index": `{"order_id":"COIN-trail-index","label":"gct-trail-index","order_state":"untriggered","order_type":"trailing_stop","time_in_force":"good_til_cancelled","instrument_name":"BTC-PERPETUAL","direction":"sell","price":"market_price","trigger":"index_price","trigger_offset":500,"amount":10}`,
+		}
+		openOrders := make([]string, 0, len(gatewayOrders))
+		for _, o := range gatewayOrders {
+			openOrders = append(openOrders, o)
+		}
+		instrumentPrefixes := map[string]string{"BTC_USDC-PERPETUAL": "USDC", "BTC-PERPETUAL": "COIN"}
+		answer := func(req receivedJSONRPC) string {
+			var params struct {
+				OrderID        string `json:"order_id"`
+				Label          string `json:"label"`
+				InstrumentName string `json:"instrument_name"`
+				Isolated       bool   `json:"isolated"`
+			}
+			assert.NoError(t, json.Unmarshal(req.Params, &params), "the params should decode")
+			switch req.Method {
+			case "private/get_order_state":
+				// The gateway finds an isolated margin subaccount's order only when asked to look there
+				if strings.HasSuffix(params.OrderID, "-iso") != params.Isolated {
+					return `{"jsonrpc":"2.0","error":{"code":10004,"message":"order_not_found"}}`
+				}
+				return `{"jsonrpc":"2.0","result":` + gatewayOrders[params.OrderID] + `}`
+			case "private/get_open_orders":
+				return `{"jsonrpc":"2.0","result":[` + strings.Join(openOrders, ",") + `]}`
+			case "private/edit":
+				return `{"jsonrpc":"2.0","result":{"order":` + gatewayOrders[params.OrderID] + `,"trades":[]}}`
+			case "private/edit_by_label":
+				return `{"jsonrpc":"2.0","result":{"order":` + gatewayOrders[instrumentPrefixes[params.InstrumentName]+"-"+strings.TrimPrefix(params.Label, "gct-")] + `,"trades":[]}}`
+			}
+			assert.Failf(t, "ModifyOrder should only read and edit the order", "sent %s", req.Method)
+			return `{"jsonrpc":"2.0","error":{"code":-32601,"message":"Method not found"}}`
+		}
+		accepted := map[string][]order.PriceType{"limit": {order.LastPrice}, "last": {order.LastPrice}, "index": {order.LastPrice, order.IndexPrice}, "mark": {order.LastPrice, order.MarkPrice}, "iso": {order.LastPrice, order.IndexPrice}, "trail": {order.LastPrice, order.MarkPrice}, "trail-index": {order.LastPrice, order.IndexPrice}}
+		// A gateway edit can make an order post only or not, but not change how long it rests
+		editable := []order.TimeInForce{order.UnknownTIF, order.GoodTillCancel, order.PostOnly, order.GoodTillCancel | order.PostOnly}
+		// The cases share answer, the handler above, so they and the cases within them run in order
+		for _, g := range []struct {
+			prefix string
+			pair   currency.Pair
+			a      asset.Item
+			amount float64
+		}{{"USDC", testUSDCPerpetual, asset.USDCMarginedFutures, 0.002}, {"COIN", testCoinPerpetual, asset.CoinMarginedFutures, 20}} {
+			t.Run(g.a.String(), func(t *testing.T) {
+				changes := []struct {
+					name                        string
+					amount, price, triggerPrice float64
+				}{{"nothing", 0, 0, 0}, {"amount alone", g.amount, 0, 0}, {"amount, price and trigger price", g.amount, 81000, 85000}}
+				for _, byLabel := range []bool{false, true} {
+					t.Run(strconv.FormatBool(byLabel), func(t *testing.T) {
+						for _, tif := range timesInForce {
+							t.Run(subtestName(tif.String()), func(t *testing.T) {
+								for _, change := range changes {
+									t.Run(change.name, func(t *testing.T) {
+										// Every edit reads the order first, so each asset, lookup, time in force and change has a server of
+										// its own, as a test server answers a limited number of requests
+										ex, sent := newDerivativesMethodServer(t, answer)
+										// The cases share ex and sent, which each drains after its edit, so they and their
+										// price types run in order
+										for trigger, own := range accepted {
+											t.Run(subtestName(trigger), func(t *testing.T) {
+												orderID, label := g.prefix+"-"+trigger, ""
+												if byLabel {
+													orderID, label = "", "gct-"+trigger
+												}
+												name := g.prefix + " " + trigger + " order " + cmp.Or(orderID, "labelled "+label)
+												for _, priceType := range priceTypes {
+													t.Run(subtestName(priceType.String()), func(t *testing.T) {
+														takes := slices.Contains(own, priceType)
+														if takes && !slices.Contains(editable, tif) {
+															return
+														}
+														_, err := ex.ModifyOrder(t.Context(), &order.Modify{OrderID: orderID, ClientOrderID: label, Pair: g.pair, AssetType: g.a, TimeInForce: tif, Amount: change.amount, Price: change.price, TriggerPrice: change.triggerPrice, TriggerPriceType: priceType})
+														edited := slices.ContainsFunc(sent(), func(req receivedJSONRPC) bool {
+															return req.Method == "private/edit" || req.Method == "private/edit_by_label"
+														})
+														if takes {
+															assert.NoErrorf(t, err, "ModifyOrder should edit the %s asked to trigger on price type %d with time in force %q, amount %v, price %v and trigger price %v", name, priceType, tif, change.amount, change.price, change.triggerPrice)
+															assert.Truef(t, edited, "ModifyOrder should send the edit of the %s asked to trigger on price type %d with time in force %q, amount %v, price %v and trigger price %v", name, priceType, tif, change.amount, change.price, change.triggerPrice)
+															return
+														}
+														assert.ErrorIsf(t, err, order.ErrUnknownPriceType, "ModifyOrder should refuse to have the %s trigger on price type %d with time in force %q, amount %v, price %v and trigger price %v", name, priceType, tif, change.amount, change.price, change.triggerPrice)
+														assert.Falsef(t, edited, "ModifyOrder should not edit the %s asked to trigger on price type %d with time in force %q, amount %v, price %v and trigger price %v", name, priceType, tif, change.amount, change.price, change.triggerPrice)
+													})
+												}
+											})
+										}
+									})
+								}
+							})
+						}
+					})
+				}
+			})
+		}
+	})
+
+	t.Run("keeps a gateway trigger order's trigger and flags", func(t *testing.T) {
+		t.Parallel()
+		triggerOrders := map[string]string{
+			"USDC-7": `{"order_id":"USDC-7","order_state":"untriggered","order_type":"stop_limit","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"sell","price":84900,"trigger":"mark_price","trigger_price":85000,"amount":0.001,"reduce_only":true}`,
+			"USDC-8": `{"order_id":"USDC-8","order_state":"untriggered","order_type":"stop_market","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"sell","price":"market_price","trigger":"mark_price","trigger_price":84000,"amount":0.001}`,
+			"USDC-9": `{"order_id":"USDC-9","order_state":"untriggered","order_type":"trailing_stop","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"sell","price":"market_price","trigger":"mark_price","trigger_price":83000,"trigger_offset":500,"amount":0.001}`,
+		}
+		ex, sent := newDerivativesMethodServer(t, func(req receivedJSONRPC) string {
+			var params struct {
+				OrderID string `json:"order_id"`
+			}
+			assert.NoError(t, json.Unmarshal(req.Params, &params), "the params should decode")
+			switch req.Method {
+			case "private/get_order_state":
+				return `{"jsonrpc":"2.0","result":` + triggerOrders[params.OrderID] + `}`
+			case "private/edit":
+				return `{"jsonrpc":"2.0","result":{"order":` + triggerOrders[params.OrderID] + `,"trades":[]}}`
+			}
+			assert.Failf(t, "ModifyOrder should only read and edit the order", "sent %s", req.Method)
+			return `{"jsonrpc":"2.0","error":{"code":-32601,"message":"Method not found"}}`
+		})
+		// The cases share ex and sent, which each drains after its edit, so they run in order
+		for _, tc := range []struct {
+			orderID string
+			m       order.Modify
+			exp     string
+		}{
+			{"USDC-7", order.Modify{Amount: 0.002}, `{"order_id":"USDC-7","amount":0.002,"price":84900,"post_only":false,"reduce_only":true,"trigger_price":85000}`},
+			{"USDC-8", order.Modify{TriggerPrice: 83500}, `{"order_id":"USDC-8","amount":0.001,"post_only":false,"trigger_price":83500}`},
+			// A trailing stop's trigger follows the market, so its offset is kept and its current trigger price not sent
+			{"USDC-9", order.Modify{Amount: 0.002}, `{"order_id":"USDC-9","amount":0.002,"post_only":false,"trigger_offset":500}`},
+		} {
+			t.Run(subtestName(tc.orderID), func(t *testing.T) {
+				m := tc.m
+				m.OrderID, m.Pair, m.AssetType = tc.orderID, testUSDCPerpetual, asset.USDCMarginedFutures
+				_, err := ex.ModifyOrder(t.Context(), &m)
+				require.NoErrorf(t, err, "ModifyOrder must not error for %s", tc.orderID)
+				var edits []string
+				for _, req := range sent() {
+					if req.Method == "private/edit" {
+						edits = append(edits, string(req.Params))
+					}
+				}
+				require.Lenf(t, edits, 1, "ModifyOrder must edit %s once", tc.orderID)
+				assert.JSONEqf(t, tc.exp, edits[0], "ModifyOrder should keep %s's trigger and flags", tc.orderID)
+			})
+		}
+	})
+
+	t.Run("accepts the time in force an order was placed with", func(t *testing.T) {
+		t.Parallel()
+		limitOrder := func(id, tif, config string) string {
+			return `{"order":{"order_id":"` + id + `","product_id":"BTC-USD","product_type":"SPOT","side":"BUY","status":"OPEN","order_type":"LIMIT","time_in_force":"` + tif + `","filled_size":"0","order_configuration":` + config + `}}`
+		}
+		var edits atomic.Int32
+		ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			var body string
+			switch r.Method + " " + r.URL.Path {
+			case http.MethodGet + " /api/v3/brokerage/orders/historical/post-only-gtc":
+				body = limitOrder("post-only-gtc", TimeInForceGoodUntilCancelled, `{"limit_limit_gtc":{"base_size":"1","limit_price":"80000","post_only":true}}`)
+			case http.MethodGet + " /api/v3/brokerage/orders/historical/post-only-gtd":
+				body = limitOrder("post-only-gtd", TimeInForceGoodUntilDateTime, `{"limit_limit_gtd":{"base_size":"1","limit_price":"80000","end_time":"2026-11-01T00:00:00Z","post_only":true}}`)
+			case http.MethodGet + " /api/v3/brokerage/orders/historical/gtd":
+				body = limitOrder("gtd", TimeInForceGoodUntilDateTime, `{"limit_limit_gtd":{"base_size":"1","limit_price":"80000","end_time":"2026-11-01T00:00:00Z"}}`)
+			case http.MethodGet + " /api/v3/brokerage/orders/historical/gtc":
+				body = limitOrder("gtc", TimeInForceGoodUntilCancelled, `{"limit_limit_gtc":{"base_size":"1","limit_price":"80000"}}`)
+			case http.MethodPost + " /api/v3/brokerage/orders/edit":
+				edits.Add(1)
+				body = `{"success":true,"errors":[]}`
+			default:
+				http.NotFound(w, r)
+				return
+			}
+			_, err := w.Write([]byte(body))
+			assert.NoError(t, err, "writing the response should not error")
+		}))
+		// The time in force each order was placed with, as the engine copies it from its stored order into the edit. The cases
+		// share ex and edits, which each reads before and after its edit, so they run in order
+		for _, tc := range []struct {
+			name    string
+			orderID string
+			tif     order.TimeInForce
+		}{
+			{"post only GTC order as post only", "post-only-gtc", order.PostOnly},
+			{"post only GTD order as post only", "post-only-gtd", order.PostOnly},
+			{"post only GTD order as GTD post only", "post-only-gtd", order.GoodTillDay | order.PostOnly},
+			{"GTD order as GTD", "gtd", order.GoodTillDay},
+			{"GTD order as GTT", "gtd", order.GoodTillTime},
+			{"GTC order as GTC", "gtc", order.GoodTillCancel},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				before := edits.Load()
+				_, err := ex.ModifyOrder(t.Context(), &order.Modify{OrderID: tc.orderID, Pair: currency.NewBTCUSD(), AssetType: asset.Spot, Price: 81000, Amount: 1, TimeInForce: tc.tif})
+				require.NoErrorf(t, err, "ModifyOrder must not error for %s with the time in force it was placed with, %s", tc.orderID, tc.tif)
+				assert.Equalf(t, before+1, edits.Load(), "ModifyOrder should edit %s", tc.orderID)
+			})
+		}
+		// A time in force the edit cannot apply is still refused before anything is sent. The cases share ex and edits, which
+		// each reads before and after its edit, so they run in order
+		for _, tc := range []struct {
+			name    string
+			orderID string
+			tif     order.TimeInForce
+		}{
+			{"GTC order as IOC", "gtc", order.ImmediateOrCancel},
+			{"GTC order as FOK", "gtc", order.FillOrKill},
+			{"GTC order as post only", "gtc", order.PostOnly},
+			{"GTC order as GTT", "gtc", order.GoodTillTime},
+			{"GTD order as GTC", "gtd", order.GoodTillCancel},
+			{"post only GTC order as GTC", "post-only-gtc", order.GoodTillCancel},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				before := edits.Load()
+				_, err := ex.ModifyOrder(t.Context(), &order.Modify{OrderID: tc.orderID, Pair: currency.NewBTCUSD(), AssetType: asset.Spot, Price: 81000, Amount: 1, TimeInForce: tc.tif})
+				assert.ErrorIsf(t, err, order.ErrUnsupportedTimeInForce, "ModifyOrder should refuse %s for %s", tc.tif, tc.orderID)
+				assert.Equalf(t, before, edits.Load(), "ModifyOrder should not edit %s for %s", tc.orderID, tc.tif)
+			})
+		}
+	})
+
+	t.Run("keeps an Advanced Trade order's time in force", func(t *testing.T) {
+		t.Parallel()
+		var edits atomic.Int32
+		ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			var body string
+			switch r.Method + " " + r.URL.Path {
+			case http.MethodGet + " /api/v3/brokerage/orders/historical/open-gtc":
+				body = `{"order":{"order_id":"open-gtc","product_id":"BTC-USD","product_type":"SPOT","side":"BUY","status":"OPEN","order_type":"LIMIT","time_in_force":"GOOD_UNTIL_CANCELLED","filled_size":"0","order_configuration":{"limit_limit_gtc":{"base_size":"1","limit_price":"80000","post_only":true}}}}`
+			case http.MethodPost + " /api/v3/brokerage/orders/edit":
+				edits.Add(1)
+				body = `{"success":true,"errors":[]}`
+			default:
+				assert.Failf(t, "ModifyOrder should only read and edit the order", "%s %s", r.Method, r.URL.Path)
+				http.NotFound(w, r)
+				return
+			}
+			_, err := w.Write([]byte(body))
+			assert.NoError(t, err, "writing the response should not error")
+		}))
+		_, err := ex.ModifyOrder(t.Context(), &order.Modify{OrderID: "open-gtc", Pair: currency.NewBTCUSD(), AssetType: asset.Spot, Price: 81000, Amount: 1, TimeInForce: order.ImmediateOrCancel})
+		assert.ErrorIs(t, err, order.ErrUnsupportedTimeInForce, "ModifyOrder should refuse a time in force Advanced Trade's edit cannot apply")
+		assert.Zero(t, edits.Load(), "ModifyOrder should not edit an order whose time in force it cannot change")
+		resp, err := ex.ModifyOrder(t.Context(), &order.Modify{OrderID: "open-gtc", Pair: currency.NewBTCUSD(), AssetType: asset.Spot, Price: 81000, Amount: 1, TimeInForce: order.GoodTillCancel | order.PostOnly})
+		require.NoError(t, err, "ModifyOrder must not error for the order's own time in force")
+		assert.Equal(t, order.GoodTillCancel|order.PostOnly, resp.TimeInForce, "ModifyOrder should report the order's time in force")
+		resp, err = ex.ModifyOrder(t.Context(), &order.Modify{OrderID: "open-gtc", Pair: currency.NewBTCUSD(), AssetType: asset.Spot, Price: 81000})
+		require.NoError(t, err, "ModifyOrder must not error for a price change")
+		assert.Equal(t, 1.0, resp.Amount, "ModifyOrder should keep the order's size")
+		assert.Equal(t, order.GoodTillCancel|order.PostOnly, resp.TimeInForce, "ModifyOrder should report the time in force of the order it read")
+		_, err = ex.ModifyOrder(t.Context(), &order.Modify{OrderID: "open-gtc", Pair: currency.NewBTCUSD(), AssetType: asset.Spot, Price: 81000, Amount: 2})
+		require.NoError(t, err, "ModifyOrder must not error for a size change")
+		size, ok := ex.orderSizes.get("open-gtc")
+		require.True(t, ok, "ModifyOrder must record the edited size, which the user channel leaves out")
+		assert.Equal(t, 2.0, size.base, "ModifyOrder should record the order's new size")
+		assert.Equal(t, int32(3), edits.Load(), "ModifyOrder should edit the order for each change it can apply")
+	})
 }
 
 // testWrapperDerivativesOrderID is the gateway order the wrapper's mock order tests act on
@@ -1898,79 +2312,33 @@ func TestModifyDerivativesOrder(t *testing.T) {
 	_, err = ex.ModifyOrder(t.Context(), &order.Modify{OrderID: "USDC-1", Pair: testUSDCPerpetual, AssetType: asset.USDCMarginedFutures, Price: 91000, TimeInForce: order.ImmediateOrCancel})
 	assert.ErrorIs(t, err, order.ErrUnsupportedTimeInForce, "ModifyOrder should refuse a time in force the gateway's edit cannot apply")
 	assert.Empty(t, sentFor("private/edit"), "ModifyOrder should not edit an order whose time in force it cannot change")
-}
 
-func TestModifyDerivativesOrderPostOnlyMode(t *testing.T) {
-	t.Parallel()
-	// A post only order placed without reject_post_only, which the gateway reprices rather than rejects
-	const repricing = `{"order_id":"USDC-1","order_state":"open","order_type":"limit","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"buy","price":80000,"amount":0.002,"post_only":true,"reject_post_only":false}`
-	ex, sent := newDerivativesMethodServer(t, func(req receivedJSONRPC) string {
-		switch req.Method {
-		case "private/get_order_state":
-			return `{"jsonrpc":"2.0","result":` + repricing + `}`
-		case "private/edit":
-			return `{"jsonrpc":"2.0","result":{"order":` + repricing + `,"trades":[]}}`
-		}
-		assert.Failf(t, "ModifyOrder should only read and edit the order", "sent %s", req.Method)
-		return `{"jsonrpc":"2.0","error":{"code":-32601,"message":"Method not found"}}`
-	})
-	// The order manager passes the order's stored time in force with every modification
-	_, err := ex.ModifyOrder(t.Context(), &order.Modify{OrderID: "USDC-1", Pair: testUSDCPerpetual, AssetType: asset.USDCMarginedFutures, Price: 80500, TimeInForce: order.GoodTillCancel | order.PostOnly})
-	require.NoError(t, err, "ModifyOrder must not error")
-	var edits []string
-	for _, req := range sent() {
-		if req.Method == "private/edit" {
-			edits = append(edits, string(req.Params))
-		}
-	}
-	require.Len(t, edits, 1, "ModifyOrder must edit the order once")
-	assert.JSONEq(t, `{"order_id":"USDC-1","amount":0.002,"price":80500,"post_only":true}`, edits[0], "ModifyOrder should leave a repricing post only order repricing when its time in force keeps post only")
-}
-
-func TestModifyDerivativesTriggerOrder(t *testing.T) {
-	t.Parallel()
-	triggerOrders := map[string]string{
-		"USDC-7": `{"order_id":"USDC-7","order_state":"untriggered","order_type":"stop_limit","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"sell","price":84900,"trigger":"mark_price","trigger_price":85000,"amount":0.001,"reduce_only":true}`,
-		"USDC-8": `{"order_id":"USDC-8","order_state":"untriggered","order_type":"stop_market","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"sell","price":"market_price","trigger":"mark_price","trigger_price":84000,"amount":0.001}`,
-		"USDC-9": `{"order_id":"USDC-9","order_state":"untriggered","order_type":"trailing_stop","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"sell","price":"market_price","trigger":"mark_price","trigger_price":83000,"trigger_offset":500,"amount":0.001}`,
-	}
-	ex, sent := newDerivativesMethodServer(t, func(req receivedJSONRPC) string {
-		var params struct {
-			OrderID string `json:"order_id"`
-		}
-		assert.NoError(t, json.Unmarshal(req.Params, &params), "the params should decode")
-		switch req.Method {
-		case "private/get_order_state":
-			return `{"jsonrpc":"2.0","result":` + triggerOrders[params.OrderID] + `}`
-		case "private/edit":
-			return `{"jsonrpc":"2.0","result":{"order":` + triggerOrders[params.OrderID] + `,"trades":[]}}`
-		}
-		assert.Failf(t, "ModifyOrder should only read and edit the order", "sent %s", req.Method)
-		return `{"jsonrpc":"2.0","error":{"code":-32601,"message":"Method not found"}}`
-	})
-	for _, tc := range []struct {
-		orderID string
-		m       order.Modify
-		exp     string
-	}{
-		{"USDC-7", order.Modify{Amount: 0.002}, `{"order_id":"USDC-7","amount":0.002,"price":84900,"post_only":false,"reduce_only":true,"trigger_price":85000}`},
-		{"USDC-8", order.Modify{TriggerPrice: 83500}, `{"order_id":"USDC-8","amount":0.001,"post_only":false,"trigger_price":83500}`},
-		// A trailing stop's trigger follows the market, so its offset is kept and its current trigger price not sent
-		{"USDC-9", order.Modify{Amount: 0.002}, `{"order_id":"USDC-9","amount":0.002,"post_only":false,"trigger_offset":500}`},
-	} {
-		m := tc.m
-		m.OrderID, m.Pair, m.AssetType = tc.orderID, testUSDCPerpetual, asset.USDCMarginedFutures
-		_, err := ex.ModifyOrder(t.Context(), &m)
-		require.NoErrorf(t, err, "ModifyOrder must not error for %s", tc.orderID)
+	t.Run("leaves a repricing post only order repricing", func(t *testing.T) {
+		t.Parallel()
+		// A post only order placed without reject_post_only, which the gateway reprices rather than rejects
+		const repricing = `{"order_id":"USDC-1","order_state":"open","order_type":"limit","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"buy","price":80000,"amount":0.002,"post_only":true,"reject_post_only":false}`
+		ex, sent := newDerivativesMethodServer(t, func(req receivedJSONRPC) string {
+			switch req.Method {
+			case "private/get_order_state":
+				return `{"jsonrpc":"2.0","result":` + repricing + `}`
+			case "private/edit":
+				return `{"jsonrpc":"2.0","result":{"order":` + repricing + `,"trades":[]}}`
+			}
+			assert.Failf(t, "ModifyOrder should only read and edit the order", "sent %s", req.Method)
+			return `{"jsonrpc":"2.0","error":{"code":-32601,"message":"Method not found"}}`
+		})
+		// The order manager passes the order's stored time in force with every modification
+		_, err := ex.ModifyOrder(t.Context(), &order.Modify{OrderID: "USDC-1", Pair: testUSDCPerpetual, AssetType: asset.USDCMarginedFutures, Price: 80500, TimeInForce: order.GoodTillCancel | order.PostOnly})
+		require.NoError(t, err, "ModifyOrder must not error")
 		var edits []string
 		for _, req := range sent() {
 			if req.Method == "private/edit" {
 				edits = append(edits, string(req.Params))
 			}
 		}
-		require.Lenf(t, edits, 1, "ModifyOrder must edit %s once", tc.orderID)
-		assert.JSONEqf(t, tc.exp, edits[0], "ModifyOrder should keep %s's trigger and flags", tc.orderID)
-	}
+		require.Len(t, edits, 1, "ModifyOrder must edit the order once")
+		assert.JSONEq(t, `{"order_id":"USDC-1","amount":0.002,"price":80500,"post_only":true}`, edits[0], "ModifyOrder should leave a repricing post only order repricing when its time in force keeps post only")
+	})
 }
 
 // newDerivativesMethodServer returns an exchange whose gateway HTTP requests are each answered with the body answer
@@ -2017,106 +2385,6 @@ func orderIDs(orders []order.Detail) []string {
 		ids[i] = orders[i].OrderID
 	}
 	return ids
-}
-
-func TestModifyOrderEquivalentTimeInForce(t *testing.T) {
-	t.Parallel()
-	limitOrder := func(id, tif, config string) string {
-		return `{"order":{"order_id":"` + id + `","product_id":"BTC-USD","product_type":"SPOT","side":"BUY","status":"OPEN","order_type":"LIMIT","time_in_force":"` + tif + `","filled_size":"0","order_configuration":` + config + `}}`
-	}
-	var edits atomic.Int32
-	ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var body string
-		switch r.Method + " " + r.URL.Path {
-		case http.MethodGet + " /api/v3/brokerage/orders/historical/post-only-gtc":
-			body = limitOrder("post-only-gtc", TimeInForceGoodUntilCancelled, `{"limit_limit_gtc":{"base_size":"1","limit_price":"80000","post_only":true}}`)
-		case http.MethodGet + " /api/v3/brokerage/orders/historical/post-only-gtd":
-			body = limitOrder("post-only-gtd", TimeInForceGoodUntilDateTime, `{"limit_limit_gtd":{"base_size":"1","limit_price":"80000","end_time":"2026-11-01T00:00:00Z","post_only":true}}`)
-		case http.MethodGet + " /api/v3/brokerage/orders/historical/gtd":
-			body = limitOrder("gtd", TimeInForceGoodUntilDateTime, `{"limit_limit_gtd":{"base_size":"1","limit_price":"80000","end_time":"2026-11-01T00:00:00Z"}}`)
-		case http.MethodGet + " /api/v3/brokerage/orders/historical/gtc":
-			body = limitOrder("gtc", TimeInForceGoodUntilCancelled, `{"limit_limit_gtc":{"base_size":"1","limit_price":"80000"}}`)
-		case http.MethodPost + " /api/v3/brokerage/orders/edit":
-			edits.Add(1)
-			body = `{"success":true,"errors":[]}`
-		default:
-			http.NotFound(w, r)
-			return
-		}
-		_, err := w.Write([]byte(body))
-		assert.NoError(t, err, "writing the response should not error")
-	}))
-	// The time in force each order was placed with, as the engine copies it from its stored order into the edit
-	for _, tc := range []struct {
-		orderID string
-		tif     order.TimeInForce
-	}{
-		{"post-only-gtc", order.PostOnly},
-		{"post-only-gtd", order.PostOnly},
-		{"post-only-gtd", order.GoodTillDay | order.PostOnly},
-		{"gtd", order.GoodTillDay},
-		{"gtd", order.GoodTillTime},
-		{"gtc", order.GoodTillCancel},
-	} {
-		before := edits.Load()
-		_, err := ex.ModifyOrder(t.Context(), &order.Modify{OrderID: tc.orderID, Pair: currency.NewBTCUSD(), AssetType: asset.Spot, Price: 81000, Amount: 1, TimeInForce: tc.tif})
-		require.NoErrorf(t, err, "ModifyOrder must not error for %s with the time in force it was placed with, %s", tc.orderID, tc.tif)
-		assert.Equalf(t, before+1, edits.Load(), "ModifyOrder should edit %s", tc.orderID)
-	}
-	// A time in force the edit cannot apply is still refused before anything is sent
-	for _, tc := range []struct {
-		orderID string
-		tif     order.TimeInForce
-	}{
-		{"gtc", order.ImmediateOrCancel},
-		{"gtc", order.FillOrKill},
-		{"gtc", order.PostOnly},
-		{"gtc", order.GoodTillTime},
-		{"gtd", order.GoodTillCancel},
-		{"post-only-gtc", order.GoodTillCancel},
-	} {
-		before := edits.Load()
-		_, err := ex.ModifyOrder(t.Context(), &order.Modify{OrderID: tc.orderID, Pair: currency.NewBTCUSD(), AssetType: asset.Spot, Price: 81000, Amount: 1, TimeInForce: tc.tif})
-		assert.ErrorIsf(t, err, order.ErrUnsupportedTimeInForce, "ModifyOrder should refuse %s for %s", tc.tif, tc.orderID)
-		assert.Equalf(t, before, edits.Load(), "ModifyOrder should not edit %s for %s", tc.orderID, tc.tif)
-	}
-}
-
-func TestGetActiveOrdersDerivativesFilters(t *testing.T) {
-	t.Parallel()
-	ex, sent := newDerivativesMethodServer(t, func(receivedJSONRPC) string {
-		return `{"jsonrpc":"2.0","result":` + testWrapperDerivativesOpenOrders + `}`
-	})
-	for _, tc := range []struct {
-		name string
-		req  order.MultiOrderRequest
-		exp  []string
-	}{
-		// The isolated margin subaccounts' orders of a pair are among its open orders
-		{"pair", order.MultiOrderRequest{Pairs: currency.Pairs{testUSDCPerpetual}, Side: order.AnySide}, []string{"USDC-1", "USDC-2", "USDC-3", "USDC-4", "USDC-5"}},
-		{"isolated", order.MultiOrderRequest{MarginType: margin.Isolated, Side: order.AnySide}, []string{"USDC-3", "USDC-6"}},
-		{"cross margin sell", order.MultiOrderRequest{MarginType: margin.Multi, Side: order.Sell}, []string{"USDC-2"}},
-		{"post only", order.MultiOrderRequest{TimeInForce: order.PostOnly, Side: order.AnySide}, []string{"USDC-5"}},
-	} {
-		req := tc.req
-		req.AssetType, req.Type = asset.USDCMarginedFutures, order.AnyType
-		orders, err := ex.GetActiveOrders(t.Context(), &req)
-		require.NoErrorf(t, err, "GetActiveOrders must not error for the %s orders", tc.name)
-		assert.ElementsMatchf(t, tc.exp, orderIDs(orders), "GetActiveOrders should return the %s orders", tc.name)
-		requests := sent()
-		require.Lenf(t, requests, 1, "GetActiveOrders must list the open orders once for the %s orders", tc.name)
-		assert.Equalf(t, "private/get_open_orders", requests[0].Method, "GetActiveOrders should list every open order for the %s orders", tc.name)
-		assert.JSONEqf(t, `{"kind":"future","include_isolated":true}`, string(requests[0].Params), "GetActiveOrders should include the isolated margin subaccounts' orders for the %s orders", tc.name)
-	}
-	orders, err := ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.USDCMarginedFutures, Pairs: currency.Pairs{testUSDCPerpetual}, Side: order.AnySide, Type: order.AnyType})
-	require.NoError(t, err, "GetActiveOrders must not error")
-	for _, o := range orders {
-		exp := margin.Multi
-		if o.OrderID == "USDC-3" {
-			exp = margin.Isolated
-		}
-		assert.Equalf(t, exp, o.MarginType, "GetActiveOrders should report order %s's margin type", o.OrderID)
-	}
 }
 
 func TestDerivativesOrderHistory(t *testing.T) {
@@ -2167,75 +2435,74 @@ func TestDerivativesOrderHistory(t *testing.T) {
 		`private/get_order_history_by_currency {"kind":"future","count":1000,"include_old":true,"include_unfilled":true,"with_continuation":true,"subaccount_id":123456,"currency":"USDC"}`,
 		`private/get_order_history_by_currency {"kind":"future","count":1000,"include_old":true,"include_unfilled":true,"with_continuation":true,"historical":true,"subaccount_id":123456,"currency":"USDC"}`,
 	}, methods, "GetOrderHistory should read the history of the main account and the isolated margin subaccount alone, from both stores")
-}
-
-func TestDerivativesOrderHistoryPaging(t *testing.T) {
-	t.Parallel()
-	start := time.Date(2026, 10, 18, 0, 0, 0, 0, time.UTC)
-	historyOrder := func(id string, created, updated time.Time) string {
-		return `{"order_id":"` + id + `","order_state":"filled","order_type":"limit","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"buy","price":80000,"amount":0.001,"creation_timestamp":` +
-			strconv.FormatInt(created.UnixMilli(), 10) + `,"last_update_timestamp":` + strconv.FormatInt(updated.UnixMilli(), 10) + `}`
-	}
-	var continuations []string
-	var mu sync.Mutex
-	ex, _ := newDerivativesMethodServer(t, func(req receivedJSONRPC) string {
-		if req.Method == "private/get_subaccounts" {
-			return `{"jsonrpc":"2.0","result":[{"id":1000,"type":"main","isolated":null}]}`
+	t.Run("pages the history", func(t *testing.T) {
+		t.Parallel()
+		start := time.Date(2026, 10, 18, 0, 0, 0, 0, time.UTC)
+		historyOrder := func(id string, created, updated time.Time) string {
+			return `{"order_id":"` + id + `","order_state":"filled","order_type":"limit","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"buy","price":80000,"amount":0.001,"creation_timestamp":` +
+				strconv.FormatInt(created.UnixMilli(), 10) + `,"last_update_timestamp":` + strconv.FormatInt(updated.UnixMilli(), 10) + `}`
 		}
-		var params struct {
-			Continuation string `json:"continuation"`
-			Historical   bool   `json:"historical"`
-		}
-		assert.NoError(t, json.Unmarshal(req.Params, &params), "the history params should decode")
-		if params.Historical {
+		var continuations []string
+		var mu sync.Mutex
+		ex, _ := newDerivativesMethodServer(t, func(req receivedJSONRPC) string {
+			if req.Method == "private/get_subaccounts" {
+				return `{"jsonrpc":"2.0","result":[{"id":1000,"type":"main","isolated":null}]}`
+			}
+			var params struct {
+				Continuation string `json:"continuation"`
+				Historical   bool   `json:"historical"`
+			}
+			assert.NoError(t, json.Unmarshal(req.Params, &params), "the history params should decode")
+			if params.Historical {
+				return `{"jsonrpc":"2.0","result":{"orders":[],"continuation":"none"}}`
+			}
+			mu.Lock()
+			continuations = append(continuations, params.Continuation)
+			mu.Unlock()
+			switch params.Continuation {
+			case "":
+				// The page's last order was created before the start but updated after it, so earlier pages can still
+				// hold orders created after it
+				return `{"jsonrpc":"2.0","result":{"orders":[` + historyOrder("USDC-1", start.Add(time.Hour), start.Add(time.Hour)) + `,` + historyOrder("USDC-2", start.Add(-time.Hour), start.Add(2*time.Hour)) + `],"continuation":"page-2"}}`
+			case "page-2":
+				return `{"jsonrpc":"2.0","result":{"orders":[` + historyOrder("USDC-3", start.Add(time.Minute), start.Add(time.Minute)) + `,` + historyOrder("USDC-4", start.Add(-2*time.Hour), start.Add(-2*time.Hour)) + `],"continuation":"page-3"}}`
+			}
+			assert.Failf(t, "the history should stop paging once a page's last order was updated before the start", "continuation %q", params.Continuation)
 			return `{"jsonrpc":"2.0","result":{"orders":[],"continuation":"none"}}`
-		}
-		mu.Lock()
-		continuations = append(continuations, params.Continuation)
-		mu.Unlock()
-		switch params.Continuation {
-		case "":
-			// The page's last order was created before the start but updated after it, so earlier pages can still
-			// hold orders created after it
-			return `{"jsonrpc":"2.0","result":{"orders":[` + historyOrder("USDC-1", start.Add(time.Hour), start.Add(time.Hour)) + `,` + historyOrder("USDC-2", start.Add(-time.Hour), start.Add(2*time.Hour)) + `],"continuation":"page-2"}}`
-		case "page-2":
-			return `{"jsonrpc":"2.0","result":{"orders":[` + historyOrder("USDC-3", start.Add(time.Minute), start.Add(time.Minute)) + `,` + historyOrder("USDC-4", start.Add(-2*time.Hour), start.Add(-2*time.Hour)) + `],"continuation":"page-3"}}`
-		}
-		assert.Failf(t, "the history should stop paging once a page's last order was updated before the start", "continuation %q", params.Continuation)
-		return `{"jsonrpc":"2.0","result":{"orders":[],"continuation":"none"}}`
-	})
-	orders, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.USDCMarginedFutures, Pairs: currency.Pairs{testUSDCPerpetual}, Side: order.AnySide, Type: order.AnyType, StartTime: start, EndTime: start.Add(4 * time.Hour)})
-	require.NoError(t, err, "GetOrderHistory must not error")
-	assert.Equal(t, []string{"USDC-1", "USDC-3"}, orderIDs(orders), "GetOrderHistory should return the orders created in the window from every page")
-	assert.Equal(t, []string{"", "page-2"}, continuations, "GetOrderHistory should page on past an order created before the start but updated after it")
+		})
+		orders, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.USDCMarginedFutures, Pairs: currency.Pairs{testUSDCPerpetual}, Side: order.AnySide, Type: order.AnyType, StartTime: start, EndTime: start.Add(4 * time.Hour)})
+		require.NoError(t, err, "GetOrderHistory must not error")
+		assert.Equal(t, []string{"USDC-1", "USDC-3"}, orderIDs(orders), "GetOrderHistory should return the orders created in the window from every page")
+		assert.Equal(t, []string{"", "page-2"}, continuations, "GetOrderHistory should page on past an order created before the start but updated after it")
 
-	stalled, _ := newDerivativesMethodServer(t, func(req receivedJSONRPC) string {
-		if req.Method == "private/get_subaccounts" {
-			return `{"jsonrpc":"2.0","result":[]}`
-		}
-		return `{"jsonrpc":"2.0","result":{"orders":[` + historyOrder("USDC-1", start.Add(time.Hour), start.Add(time.Hour)) + `],"continuation":"same"}}`
-	})
-	_, err = stalled.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.USDCMarginedFutures, Pairs: currency.Pairs{testUSDCPerpetual}, Side: order.AnySide, Type: order.AnyType})
-	assert.ErrorIs(t, err, errListPagingStalled, "GetOrderHistory should stop a history whose continuation does not advance")
+		stalled, _ := newDerivativesMethodServer(t, func(req receivedJSONRPC) string {
+			if req.Method == "private/get_subaccounts" {
+				return `{"jsonrpc":"2.0","result":[]}`
+			}
+			return `{"jsonrpc":"2.0","result":{"orders":[` + historyOrder("USDC-1", start.Add(time.Hour), start.Add(time.Hour)) + `],"continuation":"same"}}`
+		})
+		_, err = stalled.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.USDCMarginedFutures, Pairs: currency.Pairs{testUSDCPerpetual}, Side: order.AnySide, Type: order.AnyType})
+		assert.ErrorIs(t, err, errListPagingStalled, "GetOrderHistory should stop a history whose continuation does not advance")
 
-	var cyclingRequests atomic.Int32
-	cycling, _ := newDerivativesMethodServer(t, func(req receivedJSONRPC) string {
-		if req.Method == "private/get_subaccounts" {
-			return `{"jsonrpc":"2.0","result":[]}`
-		}
-		// A history paging its cycle forever is stopped, failing the test
-		if cyclingRequests.Add(1) > 10 {
-			assert.Fail(t, "GetOrderHistory should stop paging once a continuation repeats")
-			return `{"jsonrpc":"2.0","error":{"code":11000,"message":"paged in a loop"}}`
-		}
-		next := "page-a"
-		if strings.Contains(string(req.Params), `"continuation":"page-a"`) {
-			next = "page-b"
-		}
-		return `{"jsonrpc":"2.0","result":{"orders":[` + historyOrder("USDC-1", start.Add(time.Hour), start.Add(time.Hour)) + `],"continuation":"` + next + `"}}`
+		var cyclingRequests atomic.Int32
+		cycling, _ := newDerivativesMethodServer(t, func(req receivedJSONRPC) string {
+			if req.Method == "private/get_subaccounts" {
+				return `{"jsonrpc":"2.0","result":[]}`
+			}
+			// A history paging its cycle forever is stopped, failing the test
+			if cyclingRequests.Add(1) > 10 {
+				assert.Fail(t, "GetOrderHistory should stop paging once a continuation repeats")
+				return `{"jsonrpc":"2.0","error":{"code":11000,"message":"paged in a loop"}}`
+			}
+			next := "page-a"
+			if strings.Contains(string(req.Params), `"continuation":"page-a"`) {
+				next = "page-b"
+			}
+			return `{"jsonrpc":"2.0","result":{"orders":[` + historyOrder("USDC-1", start.Add(time.Hour), start.Add(time.Hour)) + `],"continuation":"` + next + `"}}`
+		})
+		_, err = cycling.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.USDCMarginedFutures, Pairs: currency.Pairs{testUSDCPerpetual}, Side: order.AnySide, Type: order.AnyType})
+		assert.ErrorIs(t, err, errListPagingStalled, "GetOrderHistory should stop a history whose continuations cycle")
 	})
-	_, err = cycling.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.USDCMarginedFutures, Pairs: currency.Pairs{testUSDCPerpetual}, Side: order.AnySide, Type: order.AnyType})
-	assert.ErrorIs(t, err, errListPagingStalled, "GetOrderHistory should stop a history whose continuations cycle")
 }
 
 func TestDerivativesOrderTrades(t *testing.T) {
@@ -2267,66 +2534,6 @@ func TestDerivativesOrderTrades(t *testing.T) {
 		`{"order_id":"USDC-1","sorting":"asc","isolated":true}`,
 		`{"order_id":"USDC-1","sorting":"asc","historical":true,"isolated":true}`,
 	}, params, "derivativesOrderTrades should read the recent and historical stores in the order's scope")
-}
-
-func TestCancelAllOrdersDerivativesFilters(t *testing.T) {
-	t.Parallel()
-	ex, sent := newDerivativesMethodServer(t, func(req receivedJSONRPC) string {
-		switch req.Method {
-		case "private/get_open_orders":
-			return `{"jsonrpc":"2.0","result":` + testWrapperDerivativesOpenOrders + `}`
-		case "private/cancel":
-			var params struct {
-				OrderID string `json:"order_id"`
-			}
-			assert.NoError(t, json.Unmarshal(req.Params, &params), "the cancel params should decode")
-			return `{"jsonrpc":"2.0","result":{"order_id":"` + params.OrderID + `","order_state":"cancelled","order_type":"limit","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"buy","price":80000,"amount":0.001}}`
-		case "private/cancel_all_by_instrument":
-			return `{"jsonrpc":"2.0","result":[{"currency":"USDC","instrument_name":"BTC_USDC-PERPETUAL","type":"all","result":[{"order_id":"USDC-1","order_state":"cancelled","order_type":"limit","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"buy","price":80000,"amount":0.001}]}]}`
-		}
-		assert.Failf(t, "CancelAllOrders should list and cancel orders", "sent %s", req.Method)
-		return `{"jsonrpc":"2.0","error":{"code":-32601,"message":"Method not found"}}`
-	})
-	for _, tc := range []struct {
-		name   string
-		cancel order.Cancel
-		exp    []string
-	}{
-		{"sell", order.Cancel{Side: order.Sell}, []string{`private/cancel {"order_id":"USDC-2"}`}},
-		{"isolated", order.Cancel{MarginType: margin.Isolated}, []string{`private/cancel {"order_id":"USDC-3","isolated":true}`}},
-		{"stop limit", order.Cancel{Type: order.StopLimit}, []string{`private/cancel {"order_id":"USDC-3","isolated":true}`}},
-		{"stop buy", order.Cancel{Type: order.Stop, Side: order.Buy}, []string{`private/cancel {"order_id":"USDC-3","isolated":true}`, `private/cancel {"order_id":"USDC-4"}`}},
-		{"post only", order.Cancel{TimeInForce: order.PostOnly}, []string{`private/cancel {"order_id":"USDC-5"}`}},
-		{"take profit", order.Cancel{Type: order.TakeProfit}, nil},
-	} {
-		c := tc.cancel
-		c.AssetType, c.Pair = asset.USDCMarginedFutures, testUSDCPerpetual
-		resp, err := ex.CancelAllOrders(t.Context(), &c)
-		require.NoErrorf(t, err, "CancelAllOrders must not error for the %s orders", tc.name)
-		var cancels []string
-		for _, req := range sent() {
-			if req.Method == "private/cancel" {
-				cancels = append(cancels, req.Method+" "+string(req.Params))
-			}
-		}
-		assert.Equalf(t, tc.exp, cancels, "CancelAllOrders should cancel the %s orders alone, one at a time in their scopes", tc.name)
-		assert.Lenf(t, resp.Status, len(tc.exp), "CancelAllOrders should report each %s order cancelled", tc.name)
-	}
-	for _, tc := range []struct {
-		orderType order.Type
-		exp       string
-	}{
-		{order.AnyType, `{"instrument_name":"BTC_USDC-PERPETUAL","type":"all","detailed":true,"include_isolated":true}`},
-		{order.Stop, `{"instrument_name":"BTC_USDC-PERPETUAL","type":"stop","detailed":true,"include_isolated":true}`},
-	} {
-		resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.USDCMarginedFutures, Pair: testUSDCPerpetual, Type: tc.orderType})
-		require.NoErrorf(t, err, "CancelAllOrders must not error for %s orders", tc.orderType)
-		requests := sent()
-		require.Lenf(t, requests, 1, "CancelAllOrders must cancel the instrument's %s orders together", tc.orderType)
-		assert.Equalf(t, "private/cancel_all_by_instrument", requests[0].Method, "CancelAllOrders should cancel the instrument's %s orders together", tc.orderType)
-		assert.JSONEqf(t, tc.exp, string(requests[0].Params), "CancelAllOrders should cancel the instrument's %s orders in both margin scopes", tc.orderType)
-		assert.Equalf(t, map[string]string{"USDC-1": order.Cancelled.String()}, resp.Status, "CancelAllOrders should report the %s orders cancelled", tc.orderType)
-	}
 }
 
 func TestCancelAllOrdersDerivativesMarketLimitRemainder(t *testing.T) {
@@ -2362,131 +2569,6 @@ func TestCancelAllOrdersDerivativesMarketLimitRemainder(t *testing.T) {
 	}
 	assert.Equal(t, []string{`private/get_open_orders {"kind":"future","include_isolated":true}`, `private/cancel {"order_id":"USDC-8"}`}, methods, "CancelAllOrders should cancel the resting market order alone, leaving the limit order")
 	assert.Equal(t, map[string]string{"USDC-8": order.PartiallyFilledCancelled.String()}, resp.Status, "CancelAllOrders should report the market order's remainder cancelled")
-}
-
-func TestCancelAllOrdersDerivativesLimitLeavesMarketRemainder(t *testing.T) {
-	t.Parallel()
-	// A market limit order's unfilled remainder rests as a limit order, which the gateway lists as the market order placed
-	const open = `[{"order_id":"USDC-8","order_state":"open","order_type":"limit","original_order_type":"market_limit","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"buy","price":90000,"amount":0.002,"filled_amount":0.001,"creation_timestamp":1792281600000,"last_update_timestamp":1792281600001},` +
-		`{"order_id":"USDC-9","order_state":"open","order_type":"limit","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"buy","price":80000,"amount":0.001,"creation_timestamp":1792281600000,"last_update_timestamp":1792281600000},` +
-		`{"order_id":"USDC-10","order_state":"untriggered","order_type":"stop_limit","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"sell","price":83900,"trigger":"mark_price","trigger_price":84000,"amount":0.001,"creation_timestamp":1792281600000,"last_update_timestamp":1792281600000},` +
-		`{"order_id":"USDC-11","order_state":"untriggered","order_type":"stop_market","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"sell","price":"market_price","trigger":"mark_price","trigger_price":84000,"amount":0.001,"creation_timestamp":1792281600000,"last_update_timestamp":1792281600000},` +
-		`{"order_id":"USDC-12","order_state":"untriggered","order_type":"take_limit","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"sell","price":96100,"trigger":"mark_price","trigger_price":96000,"amount":0.001,"creation_timestamp":1792281600000,"last_update_timestamp":1792281600000},` +
-		`{"order_id":"USDC-13","order_state":"untriggered","order_type":"take_market","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"sell","price":"market_price","trigger":"mark_price","trigger_price":96000,"amount":0.001,"creation_timestamp":1792281600000,"last_update_timestamp":1792281600000},` +
-		`{"order_id":"USDC-14","order_state":"untriggered","order_type":"trailing_stop","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"sell","price":"market_price","trigger":"mark_price","trigger_price":83000,"trigger_offset":500,"amount":0.001,"creation_timestamp":1792281600000,"last_update_timestamp":1792281600000}]`
-	ex, sent := newDerivativesMethodServer(t, func(req receivedJSONRPC) string {
-		switch {
-		case req.Method == "private/get_open_orders":
-			return `{"jsonrpc":"2.0","result":` + open + `}`
-		case req.Method == "private/cancel" && string(req.Params) == `{"order_id":"USDC-9"}`:
-			return `{"jsonrpc":"2.0","result":{"order_id":"USDC-9","order_state":"cancelled","order_type":"limit","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"buy","price":80000,"amount":0.001}}`
-		}
-		assert.Failf(t, "CancelAllOrders should list the open orders and cancel the limit order alone", "sent %s %s", req.Method, req.Params)
-		return `{"jsonrpc":"2.0","error":{"code":-32601,"message":"Method not found"}}`
-	})
-	resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.USDCMarginedFutures, Pair: testUSDCPerpetual, Type: order.Limit})
-	require.NoError(t, err, "CancelAllOrders must not error for limit orders")
-	requests := sent()
-	methods := make([]string, len(requests))
-	for i, req := range requests {
-		methods[i] = req.Method + " " + string(req.Params)
-	}
-	assert.Equal(t, []string{`private/get_open_orders {"kind":"future","include_isolated":true}`, `private/cancel {"order_id":"USDC-9"}`}, methods, "CancelAllOrders should cancel the limit order alone, leaving the market order's resting remainder")
-	assert.Equal(t, map[string]string{"USDC-9": order.Cancelled.String()}, resp.Status, "CancelAllOrders should report the limit order cancelled")
-}
-
-func TestCancelAllOrdersDerivativesCancelRefused(t *testing.T) {
-	t.Parallel()
-	// An order can close between the list and its cancellation, which the gateway then refuses, and the orders after it
-	// are still cancelled
-	const open = `[{"order_id":"USDC-8","order_state":"open","order_type":"limit","original_order_type":"market_limit","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"buy","price":90000,"amount":0.002,"filled_amount":0.001,"creation_timestamp":1792281600000,"last_update_timestamp":1792281600001},` +
-		`{"order_id":"USDC-15","order_state":"open","order_type":"limit","original_order_type":"market","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"sell","price":95000,"amount":0.002,"filled_amount":0.001,"creation_timestamp":1792281600000,"last_update_timestamp":1792281600001}]`
-	ex, sent := newDerivativesMethodServer(t, func(req receivedJSONRPC) string {
-		switch {
-		case req.Method == "private/get_open_orders":
-			return `{"jsonrpc":"2.0","result":` + open + `}`
-		case req.Method == "private/cancel" && string(req.Params) == `{"order_id":"USDC-8"}`:
-			return `{"jsonrpc":"2.0","error":{"code":11044,"message":"not_open_order"}}`
-		case req.Method == "private/cancel" && string(req.Params) == `{"order_id":"USDC-15"}`:
-			return `{"jsonrpc":"2.0","result":{"order_id":"USDC-15","order_state":"cancelled","order_type":"limit","original_order_type":"market","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"sell","price":95000,"amount":0.002,"filled_amount":0.001}}`
-		}
-		assert.Failf(t, "CancelAllOrders should list the open orders and cancel the market orders", "sent %s %s", req.Method, req.Params)
-		return `{"jsonrpc":"2.0","error":{"code":-32601,"message":"Method not found"}}`
-	})
-	resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.USDCMarginedFutures, Pair: testUSDCPerpetual, Type: order.Market})
-	require.NoError(t, err, "CancelAllOrders must not error when the gateway refuses one order's cancellation")
-	var cancels []string
-	for _, req := range sent() {
-		if req.Method == "private/cancel" {
-			cancels = append(cancels, string(req.Params))
-		}
-	}
-	assert.Equal(t, []string{`{"order_id":"USDC-8"}`, `{"order_id":"USDC-15"}`}, cancels, "CancelAllOrders should go on to cancel the orders after one the gateway refused")
-	assert.Contains(t, resp.Status["USDC-8"], "not_open_order", "CancelAllOrders should report why the gateway refused an order's cancellation")
-	assert.Equal(t, order.PartiallyFilledCancelled.String(), resp.Status["USDC-15"], "CancelAllOrders should report the order after it cancelled")
-}
-
-func TestCancelAllOrdersDerivativesDocumentedReports(t *testing.T) {
-	t.Parallel()
-	ex, _ := newDerivativesMethodServer(t, func(req receivedJSONRPC) string {
-		if !assert.Equal(t, "private/cancel_all_by_instrument", req.Method, "CancelAllOrders should cancel the instrument's orders together") {
-			return `{"jsonrpc":"2.0","error":{"code":-32601,"message":"Method not found"}}`
-		}
-		// The documented example's shape, a cancelled order in each report
-		return `{"jsonrpc":"2.0","result":[{"order":{"order_id":"USDC-1","order_state":"cancelled","order_type":"limit","instrument_name":"BTC_USDC-PERPETUAL","direction":"buy","price":80000,"amount":0.001}},` +
-			`{"order":{"order_id":"USDC-2","order_state":"cancelled","order_type":"limit","instrument_name":"BTC_USDC-PERPETUAL","direction":"sell","price":90000,"amount":0.001,"filled_amount":0.0005}}]}`
-	})
-	resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.USDCMarginedFutures, Pair: testUSDCPerpetual})
-	require.NoError(t, err, "CancelAllOrders must not error")
-	assert.Equal(t, map[string]string{"USDC-1": order.Cancelled.String(), "USDC-2": order.PartiallyFilledCancelled.String()}, resp.Status, "CancelAllOrders should report each order the documented reports hold")
-}
-
-func TestCancelAllOrdersByType(t *testing.T) {
-	t.Parallel()
-	var mu sync.Mutex
-	var cancelled []string
-	listed := func(id, productType, product, orderType string) string {
-		return `{"order_id":"` + id + `","product_id":"` + product + `","product_type":"` + productType + `","side":"BUY","status":"OPEN","order_type":"` + orderType + `","time_in_force":"GOOD_UNTIL_CANCELLED","filled_size":"0","order_configuration":{"limit_limit_gtc":{"base_size":"1","limit_price":"80000"}}}`
-	}
-	ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var body string
-		switch r.URL.Path {
-		case "/api/v3/brokerage/orders/historical/batch":
-			body = `{"orders":[],"has_next":false,"cursor":""}`
-			if r.URL.Query().Get("order_status") == OrderStatusOpen {
-				if r.URL.Query().Get("product_type") == ProductTypeFuture {
-					body = `{"orders":[` + listed("limit-f", ProductTypeFuture, "BIP-20DEC30-CDE", OrderTypeLimit) + `,` + listed("roll-open", ProductTypeFuture, "BIP-20DEC30-CDE", OrderTypeRollOpen) + `],"has_next":false,"cursor":""}`
-				} else {
-					body = `{"orders":[` + listed("limit-1", ProductTypeSpot, "BTC-USD", OrderTypeLimit) + `,` + listed("scaled-1", ProductTypeSpot, "BTC-USD", OrderTypeScaled) + `,` + listed("stop-limit-1", ProductTypeSpot, "BTC-USD", OrderTypeStopLimit) + `],"has_next":false,"cursor":""}`
-				}
-			}
-		case "/api/v3/brokerage/orders/batch_cancel":
-			var req CancelOrdersWireRequest
-			if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&req), "the request should decode") {
-				return
-			}
-			mu.Lock()
-			cancelled = append(cancelled, req.OrderIDs...)
-			mu.Unlock()
-			results := make([]string, len(req.OrderIDs))
-			for i, id := range req.OrderIDs {
-				results[i] = `{"success":true,"failure_reason":"UNKNOWN_CANCEL_FAILURE_REASON","order_id":"` + id + `"}`
-			}
-			body = `{"results":[` + strings.Join(results, ",") + `]}`
-		default:
-			http.NotFound(w, r)
-			return
-		}
-		_, err := w.Write([]byte(body))
-		assert.NoError(t, err, "writing the response should not error")
-	}))
-	for _, a := range []asset.Item{asset.Spot, asset.Futures} {
-		_, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: a, Type: order.Limit})
-		require.NoErrorf(t, err, "CancelAllOrders must not error for %s", a)
-	}
-	mu.Lock()
-	defer mu.Unlock()
-	assert.ElementsMatch(t, []string{"limit-1", "limit-f"}, cancelled, "CancelAllOrders should cancel only the limit orders")
 }
 
 func TestAdvancedTradeProofTokenRequired(t *testing.T) {
@@ -2555,44 +2637,6 @@ func TestListOrdersPages(t *testing.T) {
 	assert.Equal(t, exp, queries, "listOrders should ask for every page with the request's filters, paging by the cursor")
 }
 
-func TestUpdateAccountBalancesPages(t *testing.T) {
-	t.Parallel()
-	account := func(code, available, hold string) string {
-		return `{"uuid":"` + code + `-wallet","currency":"` + code + `","available_balance":{"value":"` + available + `","currency":"` + code + `"},"hold":{"value":"` + hold + `","currency":"` + code + `"},"type":"ACCOUNT_TYPE_CRYPTO","platform":"ACCOUNT_PLATFORM_CONSUMER"}`
-	}
-	var cursors []string
-	var mu sync.Mutex
-	ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		cursor := r.URL.Query().Get("cursor")
-		mu.Lock()
-		cursors = append(cursors, cursor)
-		mu.Unlock()
-		body := `{"accounts":[` + account("BTC", "1", "0.5") + `,` + account("ETH", "2", "0") + `],"has_next":true,"cursor":"page-2"}`
-		if cursor == "page-2" {
-			// The last page can still name a cursor, which has_next false leaves unused, and an account's whole balance
-			// can be held, as by its open orders
-			body = `{"accounts":[` + account("USDC", "0", "25") + `],"has_next":false,"cursor":"page-3"}`
-		}
-		_, err := w.Write([]byte(body))
-		assert.NoError(t, err, "writing the response should not error")
-	}))
-	subAccounts, err := ex.UpdateAccountBalances(t.Context(), asset.Spot)
-	require.NoError(t, err, "UpdateAccountBalances must not error")
-	require.Len(t, subAccounts, 1, "UpdateAccountBalances must return the spot sub-account")
-	got := make(accounts.CurrencyBalances, len(subAccounts[0].Balances))
-	for c, b := range subAccounts[0].Balances {
-		// The store stamps each balance it saves
-		b.UpdatedAt = time.Time{}
-		got[c] = b
-	}
-	assert.Equal(t, accounts.CurrencyBalances{
-		currency.BTC:  {Currency: currency.BTC, Total: 1.5, Hold: 0.5, Free: 1},
-		currency.ETH:  {Currency: currency.ETH, Total: 2, Free: 2},
-		currency.USDC: {Currency: currency.USDC, Total: 25, Hold: 25},
-	}, got, "UpdateAccountBalances should return every page's balances")
-	assert.Equal(t, []string{"", "page-2"}, cursors, "UpdateAccountBalances should page by the cursor")
-}
-
 func TestAdvancedTradeCursorCycles(t *testing.T) {
 	t.Parallel()
 	// Each list sends its cursors in a cycle: a, then b, then a again
@@ -2634,306 +2678,6 @@ func TestAdvancedTradeCursorCycles(t *testing.T) {
 	assert.ErrorIs(t, err, errListPagingStalled, "GetActiveOrders should stop an order list whose cursors cycle")
 	_, err = ex.GetOrderInfo(t.Context(), "o", currency.NewBTCUSD(), asset.Spot)
 	assert.ErrorIs(t, err, errListPagingStalled, "GetOrderInfo should stop a fill list whose cursors cycle")
-}
-
-func TestGetOrderInfoReversedFill(t *testing.T) {
-	t.Parallel()
-	const orderID = "eeeeeeee-ffff-0000-1111-555555555555"
-	fill := func(tradeID, tradeType, size string) string {
-		return `{"entry_id":"` + tradeID + tradeType + `","trade_id":"` + tradeID + `","order_id":"` + orderID + `","trade_time":"2026-10-18T00:00:00Z","trade_type":"` + tradeType +
-			`","price":"80000","size":"` + size + `","commission":"0","product_id":"BTC-USD","liquidity_indicator":"TAKER","side":"BUY"}`
-	}
-	ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var body string
-		switch r.URL.Path {
-		case "/api/v3/brokerage/orders/historical/" + orderID:
-			body = `{"order":{"order_id":"` + orderID + `","product_id":"BTC-USD","product_type":"SPOT","side":"BUY","status":"OPEN","order_type":"LIMIT","time_in_force":"GOOD_UNTIL_CANCELLED","filled_size":"0.25","order_configuration":{"limit_limit_gtc":{"base_size":"1","limit_price":"80000"}}}}`
-		case "/api/v3/brokerage/orders/historical/fills":
-			// The reversal is listed a page after the fill it undoes, and a correction beside its fill
-			body = `{"fills":[` + fill("t1", FillTradeTypeFill, "0.5") + `,` + fill("t2", FillTradeTypeFill, "0.25") + `,` + fill("t2", FillTradeTypeCorrection, "0.25") + `],"cursor":"next"}`
-			if r.URL.Query().Get("cursor") == "next" {
-				body = `{"fills":[` + fill("t1", FillTradeTypeReversal, "0.5") + `],"cursor":""}`
-			}
-		default:
-			assert.Failf(t, "GetOrderInfo should only read the order and its fills", "requested %s", r.URL.Path)
-			http.NotFound(w, r)
-			return
-		}
-		_, err := w.Write([]byte(body))
-		assert.NoError(t, err, "writing the response should not error")
-	}))
-	d, err := ex.GetOrderInfo(t.Context(), orderID, currency.NewBTCUSD(), asset.Spot)
-	require.NoError(t, err, "GetOrderInfo must not error")
-	require.Len(t, d.Trades, 1, "GetOrderInfo must leave out a reversed fill and the adjusted fills")
-	assert.Equal(t, "t2", d.Trades[0].TID, "GetOrderInfo should keep the fill no reversal undoes")
-	assert.Equal(t, 0.25, d.Trades[0].Amount, "GetOrderInfo should report the fill's own size")
-}
-
-func TestModifyOrderAdvancedTradeTimeInForce(t *testing.T) {
-	t.Parallel()
-	var edits atomic.Int32
-	ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var body string
-		switch r.Method + " " + r.URL.Path {
-		case http.MethodGet + " /api/v3/brokerage/orders/historical/open-gtc":
-			body = `{"order":{"order_id":"open-gtc","product_id":"BTC-USD","product_type":"SPOT","side":"BUY","status":"OPEN","order_type":"LIMIT","time_in_force":"GOOD_UNTIL_CANCELLED","filled_size":"0","order_configuration":{"limit_limit_gtc":{"base_size":"1","limit_price":"80000","post_only":true}}}}`
-		case http.MethodPost + " /api/v3/brokerage/orders/edit":
-			edits.Add(1)
-			body = `{"success":true,"errors":[]}`
-		default:
-			assert.Failf(t, "ModifyOrder should only read and edit the order", "%s %s", r.Method, r.URL.Path)
-			http.NotFound(w, r)
-			return
-		}
-		_, err := w.Write([]byte(body))
-		assert.NoError(t, err, "writing the response should not error")
-	}))
-	_, err := ex.ModifyOrder(t.Context(), &order.Modify{OrderID: "open-gtc", Pair: currency.NewBTCUSD(), AssetType: asset.Spot, Price: 81000, Amount: 1, TimeInForce: order.ImmediateOrCancel})
-	assert.ErrorIs(t, err, order.ErrUnsupportedTimeInForce, "ModifyOrder should refuse a time in force Advanced Trade's edit cannot apply")
-	assert.Zero(t, edits.Load(), "ModifyOrder should not edit an order whose time in force it cannot change")
-	resp, err := ex.ModifyOrder(t.Context(), &order.Modify{OrderID: "open-gtc", Pair: currency.NewBTCUSD(), AssetType: asset.Spot, Price: 81000, Amount: 1, TimeInForce: order.GoodTillCancel | order.PostOnly})
-	require.NoError(t, err, "ModifyOrder must not error for the order's own time in force")
-	assert.Equal(t, order.GoodTillCancel|order.PostOnly, resp.TimeInForce, "ModifyOrder should report the order's time in force")
-	resp, err = ex.ModifyOrder(t.Context(), &order.Modify{OrderID: "open-gtc", Pair: currency.NewBTCUSD(), AssetType: asset.Spot, Price: 81000})
-	require.NoError(t, err, "ModifyOrder must not error for a price change")
-	assert.Equal(t, 1.0, resp.Amount, "ModifyOrder should keep the order's size")
-	assert.Equal(t, order.GoodTillCancel|order.PostOnly, resp.TimeInForce, "ModifyOrder should report the time in force of the order it read")
-	_, err = ex.ModifyOrder(t.Context(), &order.Modify{OrderID: "open-gtc", Pair: currency.NewBTCUSD(), AssetType: asset.Spot, Price: 81000, Amount: 2})
-	require.NoError(t, err, "ModifyOrder must not error for a size change")
-	size, ok := ex.orderSizes.get("open-gtc")
-	require.True(t, ok, "ModifyOrder must record the edited size, which the user channel leaves out")
-	assert.Equal(t, 2.0, size.base, "ModifyOrder should record the order's new size")
-	assert.Equal(t, int32(3), edits.Load(), "ModifyOrder should edit the order for each change it can apply")
-}
-
-func TestGetActiveOrdersAdvancedTradeQueued(t *testing.T) {
-	t.Parallel()
-	advancedTradeOrder := func(id, status string) string {
-		return `{"order_id":"` + id + `","product_id":"BTC-USD","product_type":"SPOT","side":"BUY","status":"` + status + `","order_type":"LIMIT","time_in_force":"GOOD_UNTIL_CANCELLED","filled_size":"0","order_configuration":{"limit_limit_gtc":{"base_size":"1","limit_price":"80000"}}}`
-	}
-	var statuses [][]string
-	var mu sync.Mutex
-	ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		requested := r.URL.Query()["order_status"]
-		mu.Lock()
-		statuses = append(statuses, requested)
-		mu.Unlock()
-		body := `{"orders":[` + advancedTradeOrder("open-1", OrderStatusCancelQueued) + `,` + advancedTradeOrder("cancel-queued-2", OrderStatusCancelQueued) + `],"has_next":false,"cursor":""}`
-		_, err := w.Write([]byte(body))
-		assert.NoError(t, err, "writing the response should not error")
-	}))
-	orders, err := ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType})
-	require.NoError(t, err, "GetActiveOrders must not error")
-	assert.Equal(t, []string{"open-1", "cancel-queued-2"}, orderIDs(orders), "GetActiveOrders should return the open and the queued orders once each")
-	require.Len(t, orders, 2, "GetActiveOrders must return both orders")
-	assert.Equal(t, order.PendingCancel, orders[0].Status, "GetActiveOrders should report an open order whose cancellation is queued pending cancellation")
-	assert.Equal(t, order.PendingCancel, orders[1].Status, "GetActiveOrders should report an order whose cancellation is queued pending cancellation")
-	assert.Equal(t, [][]string{{OrderStatusOpen, OrderStatusPending, OrderStatusQueued, OrderStatusEditQueued, OrderStatusCancelQueued}}, statuses, "GetActiveOrders should list every live status in one request")
-}
-
-func TestGetActiveOrdersAdvancedTradeCombinedListRefused(t *testing.T) {
-	t.Parallel()
-	advancedTradeOrder := func(id, status string) string {
-		return `{"order_id":"` + id + `","product_id":"BTC-USD","product_type":"SPOT","side":"BUY","status":"` + status + `","order_type":"LIMIT","time_in_force":"GOOD_UNTIL_CANCELLED","filled_size":"0","order_configuration":{"limit_limit_gtc":{"base_size":"1","limit_price":"80000"}}}`
-	}
-	liveStatuses := []string{OrderStatusOpen, OrderStatusPending, OrderStatusQueued, OrderStatusEditQueued, OrderStatusCancelQueued}
-	for _, tc := range []struct {
-		name     string
-		refusal  string
-		code     int
-		fallback bool
-	}{
-		// Coinbase's earlier documentation refused OPEN listed with other statuses
-		{"invalid argument", `{"error":"INVALID_ARGUMENT","error_details":"order_status OPEN cannot be combined with other statuses","message":"order_status OPEN cannot be combined with other statuses"}`, http.StatusBadRequest, true},
-		{"another failure", `{"error":"UNAVAILABLE","message":"try again"}`, http.StatusServiceUnavailable, false},
-	} {
-		var mu sync.Mutex
-		var statuses [][]string
-		ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			requested := r.URL.Query()["order_status"]
-			mu.Lock()
-			statuses = append(statuses, requested)
-			mu.Unlock()
-			var body string
-			switch {
-			case slices.Equal(requested, liveStatuses):
-				http.Error(w, tc.refusal, tc.code)
-				return
-			case slices.Equal(requested, liveStatuses[1:]):
-				body = `{"orders":[` + advancedTradeOrder("pending-1", OrderStatusPending) + `,` + advancedTradeOrder("cancel-queued-2", OrderStatusCancelQueued) + `],"has_next":false,"cursor":""}`
-			case slices.Equal(requested, []string{OrderStatusOpen}):
-				// The pending order once it was accepted between the lists, and an order open throughout
-				body = `{"orders":[` + advancedTradeOrder("pending-1", OrderStatusOpen) + `,` + advancedTradeOrder("open-3", OrderStatusOpen) + `],"has_next":false,"cursor":""}`
-			default:
-				assert.Failf(t, "GetActiveOrders should only list live statuses", "listed %v with the %s", requested, tc.name)
-				http.Error(w, `{"error":"INVALID_ARGUMENT","message":"unexpected statuses"}`, http.StatusBadRequest)
-				return
-			}
-			_, err := w.Write([]byte(body))
-			assert.NoError(t, err, "writing the response should not error")
-		}))
-		orders, err := ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType})
-		mu.Lock()
-		requested := slices.Clone(statuses)
-		mu.Unlock()
-		if !tc.fallback {
-			assert.ErrorIsf(t, err, request.ErrAuthRequestFailed, "GetActiveOrders should return the error with %s", tc.name)
-			assert.Equalf(t, [][]string{liveStatuses}, requested, "GetActiveOrders should not list again after %s", tc.name)
-			continue
-		}
-		require.NoErrorf(t, err, "GetActiveOrders must not error once the combined list is refused with %s", tc.name)
-		assert.Equalf(t, []string{"pending-1", "cancel-queued-2", "open-3"}, orderIDs(orders), "GetActiveOrders should return the queued and the open orders once each with %s", tc.name)
-		require.Lenf(t, orders, 3, "GetActiveOrders must return every order with %s", tc.name)
-		assert.Equalf(t, order.Open, orders[0].Status, "GetActiveOrders should report the newer state of an order in both lists with %s", tc.name)
-		assert.Equalf(t, [][]string{liveStatuses, liveStatuses[1:], {OrderStatusOpen}}, requested, "GetActiveOrders should list the open orders after the other live ones once the combined list is refused with %s", tc.name)
-	}
-}
-
-func TestGetDepositAddressDefaultNetwork(t *testing.T) {
-	t.Parallel()
-	address := func(id, network string) string {
-		return `{"id":"` + id + `","address":"` + id + `-address","network":"` + network + `","created_at":"2026-10-18T00:00:00Z","updated_at":"2026-10-18T00:00:00Z","resource":"address"}`
-	}
-	var created []string
-	var mu sync.Mutex
-	ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var body string
-		switch r.Method + " " + r.URL.Path {
-		case http.MethodGet + " /currencies/USDC":
-			body = `{"id":"USDC","name":"USD Coin","status":"online","default_network":"ethereum","supported_networks":[{"id":"ethereum","status":"online"},{"id":"solana","status":"online"}]}`
-		case http.MethodGet + " /currencies/BTC":
-			http.Error(w, `{"message":"NotFound"}`, http.StatusNotFound)
-			return
-		case http.MethodGet + " /v2/accounts/usdc-account/addresses":
-			// The newest address is on another network than the default
-			body = `{"pagination":{"limit":100,"order":"desc"},"data":[` + address("solana-1", "solana") + `,` + address("ethereum-1", "ethereum") + `]}`
-		case http.MethodGet + " /v2/accounts/empty-account/addresses":
-			body = `{"pagination":{"limit":100,"order":"desc"},"data":[]}`
-		case http.MethodPost + " /v2/accounts/empty-account/addresses":
-			req, err := io.ReadAll(r.Body)
-			assert.NoError(t, err, "reading the request should not error")
-			mu.Lock()
-			created = append(created, string(req))
-			mu.Unlock()
-			body = `{"data":` + address("ethereum-2", "ethereum") + `}`
-		default:
-			assert.Failf(t, "GetDepositAddress should read the currency and the account's addresses", "%s %s", r.Method, r.URL.Path)
-			http.NotFound(w, r)
-			return
-		}
-		_, err := w.Write([]byte(body))
-		assert.NoError(t, err, "writing the response should not error")
-	}))
-	got, err := ex.GetDepositAddress(t.Context(), currency.USDC, "usdc-account", "")
-	require.NoError(t, err, "GetDepositAddress must not error")
-	assert.Equal(t, "ethereum", got.Chain, "GetDepositAddress should return an address on the currency's default network when none is given")
-	got, err = ex.GetDepositAddress(t.Context(), currency.USDC, "usdc-account", "solana")
-	require.NoError(t, err, "GetDepositAddress must not error for a network given")
-	assert.Equal(t, "solana-1-address", got.Address, "GetDepositAddress should return an address on the network given")
-	got, err = ex.GetDepositAddress(t.Context(), currency.USDC, "empty-account", "")
-	require.NoError(t, err, "GetDepositAddress must not error when it creates an address")
-	assert.Equal(t, "ethereum", got.Chain, "GetDepositAddress should create an address on the default network")
-	assert.Equal(t, []string{`{"network":"ethereum"}`}, created, "GetDepositAddress should create the address on the currency's default network")
-	_, err = ex.GetDepositAddress(t.Context(), currency.BTC, "usdc-account", "")
-	assert.Error(t, err, "GetDepositAddress should report a currency whose default network it cannot read")
-}
-
-func TestGetOrderInfoClosedDerivativesOrder(t *testing.T) {
-	t.Parallel()
-	closedOrder := func(id string) string {
-		return `{"order_id":"` + id + `","order_state":"filled","order_type":"limit","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"buy","price":80000,"average_price":80000,"amount":0.001,"filled_amount":0.001,"creation_timestamp":1792281600000,"last_update_timestamp":1792281660000}`
-	}
-	ex, sent := newDerivativesMethodServer(t, func(req receivedJSONRPC) string {
-		params := string(req.Params)
-		switch {
-		case req.Method == "private/get_order_state":
-			// The gateway reports an order's state until 30 minutes after it closes
-			return `{"jsonrpc":"2.0","error":{"code":10004,"message":"order_not_found"}}`
-		case req.Method == "private/get_subaccounts":
-			return `{"jsonrpc":"2.0","result":[{"id":1000,"type":"main","isolated":null},{"id":123456,"type":"subaccount","isolated":true}]}`
-		case req.Method == "private/get_order_history_by_instrument" && strings.Contains(params, `"continuation":"page-3"`):
-			return `{"jsonrpc":"2.0","result":{"orders":[],"continuation":"none"}}`
-		case req.Method == "private/get_order_history_by_instrument" && strings.Contains(params, `"historical":true`) && strings.Contains(params, `"continuation":"page-2"`):
-			return `{"jsonrpc":"2.0","result":{"orders":[` + closedOrder("USDC-30") + `,` + closedOrder("USDC-31") + `],"continuation":"page-3"}}`
-		case req.Method == "private/get_order_history_by_instrument" && strings.Contains(params, `"historical":true`):
-			return `{"jsonrpc":"2.0","result":{"orders":[` + closedOrder("USDC-32") + `],"continuation":"page-2"}}`
-		case req.Method == "private/get_order_history_by_instrument", req.Method == "private/get_order_history_by_currency":
-			return `{"jsonrpc":"2.0","result":{"orders":[],"continuation":"none"}}`
-		case req.Method == "private/get_user_trades_by_order":
-			return `{"jsonrpc":"2.0","result":[]}`
-		}
-		assert.Failf(t, "GetOrderInfo should look the order up and read its history", "sent %s %s", req.Method, params)
-		return `{"jsonrpc":"2.0","error":{"code":-32601,"message":"Method not found"}}`
-	})
-	detail, err := ex.GetOrderInfo(t.Context(), "USDC-31", testUSDCPerpetual, asset.USDCMarginedFutures)
-	require.NoError(t, err, "GetOrderInfo must find an order closed over 30 minutes ago in the history")
-	assert.Equal(t, "USDC-31", detail.OrderID, "GetOrderInfo should return the order")
-	assert.Equal(t, order.Filled, detail.Status, "GetOrderInfo should return the order's state from the history")
-	var historyRequests []string
-	for _, req := range sent() {
-		if strings.HasPrefix(req.Method, "private/get_order_history") {
-			historyRequests = append(historyRequests, req.Method+" "+string(req.Params))
-		}
-	}
-	assert.NotContains(t, historyRequests, `private/get_order_history_by_instrument {"instrument_name":"BTC_USDC-PERPETUAL","count":1000,"include_old":true,"include_unfilled":true,"with_continuation":true,"continuation":"page-3","historical":true}`, "GetOrderInfo should stop paging the history once it finds the order")
-	assert.NotContains(t, historyRequests, `private/get_order_history_by_currency {"kind":"future","count":1000,"include_old":true,"include_unfilled":true,"with_continuation":true,"historical":true,"subaccount_id":123456,"currency":"USDC"}`, "GetOrderInfo should stop reading histories once it finds the order")
-
-	_, err = ex.GetOrderInfo(t.Context(), "USDC-99", testUSDCPerpetual, asset.USDCMarginedFutures)
-	assert.ErrorIs(t, err, order.ErrOrderNotFound, "GetOrderInfo should report an order neither the order state nor the history holds")
-}
-
-func TestSubmitOrderDerivativesAcceptedAmount(t *testing.T) {
-	t.Parallel()
-	// The gateway reduces a reduce only order to the position it closes
-	ex, _ := newDerivativesMethodServer(t, func(receivedJSONRPC) string {
-		return `{"jsonrpc":"2.0","result":{"order":{"order_id":"USDC-20","order_state":"open","order_type":"limit","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"sell","price":90000,"amount":0.5,"filled_amount":0,"reduce_only":true,"creation_timestamp":1792281600000,"last_update_timestamp":1792281600000},"trades":[]}}`
-	})
-	resp, err := ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: testUSDCPerpetual, AssetType: asset.USDCMarginedFutures, Side: order.Sell, Type: order.Limit, Amount: 1, Price: 90000, ReduceOnly: true})
-	require.NoError(t, err, "SubmitOrder must not error")
-	assert.Equal(t, 0.5, resp.Amount, "SubmitOrder should report the amount the gateway accepted")
-	assert.Equal(t, 0.5, resp.RemainingAmount, "SubmitOrder should report the accepted amount remaining")
-}
-
-func TestCancelBatchOrdersDuplicateAdvancedTradeOrder(t *testing.T) {
-	t.Parallel()
-	const id = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
-	submitted := `{"success":true,"failure_reason":"UNKNOWN_CANCEL_FAILURE_REASON","order_id":"` + id + `"}`
-	for _, tc := range []struct {
-		name    string
-		results []string
-	}{
-		// Coinbase answers each entry: the first cancels the order, which the repeat then cannot find
-		{"first entry submitted", []string{submitted, `{"success":false,"failure_reason":"UNKNOWN_CANCEL_ORDER","order_id":"` + id + `"}`}},
-		// The first is refused while the order is being edited, and the repeat cancels it
-		{"first entry refused", []string{`{"success":false,"failure_reason":"ORDER_IS_BEING_REPLACED","order_id":"` + id + `"}`, submitted}},
-	} {
-		ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			var req CancelOrdersWireRequest
-			if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&req), "decoding the request should not error") {
-				return
-			}
-			assert.Equalf(t, []string{id, id}, req.OrderIDs, "CancelBatchOrders should send each entry with the %s", tc.name)
-			_, err := w.Write([]byte(`{"results":[` + strings.Join(tc.results, ",") + `]}`))
-			assert.NoError(t, err, "writing the response should not error")
-		}))
-		c := order.Cancel{Exchange: ex.Name, OrderID: id, Pair: currency.NewBTCUSD(), AssetType: asset.Spot}
-		resp, err := ex.CancelBatchOrders(t.Context(), []order.Cancel{c, c})
-		require.NoErrorf(t, err, "CancelBatchOrders must not error with the %s", tc.name)
-		assert.Equalf(t, order.PendingCancel.String(), resp.Status[id], "CancelBatchOrders should report an order whose cancel Coinbase submitted pending cancellation, with the %s", tc.name)
-	}
-}
-
-func TestCancelBatchOrdersValidatesRepeats(t *testing.T) {
-	t.Parallel()
-	var requests atomic.Int32
-	ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		requests.Add(1)
-		_, err := w.Write([]byte(`{"results":[{"success":true,"failure_reason":"UNKNOWN_CANCEL_FAILURE_REASON","order_id":"same"}]}`))
-		assert.NoError(t, err, "writing the response should not error")
-	}))
-	_, err := ex.CancelBatchOrders(t.Context(), []order.Cancel{{OrderID: "same", AssetType: asset.Spot}, {OrderID: "same", AssetType: asset.Options}})
-	assert.ErrorIs(t, err, asset.ErrNotSupported, "CancelBatchOrders should refuse a repeat of an order for an asset it does not trade")
-	assert.Zero(t, requests.Load(), "CancelBatchOrders should send nothing when it refuses an entry")
 }
 
 func TestDerivativesOrderLookup(t *testing.T) {
@@ -2995,53 +2739,160 @@ func TestCancelBatchOrders(t *testing.T) {
 	require.ErrorIs(t, err, asset.ErrNotSupported, "CancelBatchOrders must refuse an asset Coinbase does not trade")
 	_, err = ex.CancelBatchOrders(t.Context(), []order.Cancel{{AssetType: asset.Spot}})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "CancelBatchOrders must refuse an order without an ID")
-	if !mockTests {
-		sharedTestCredentials(t, ex)
-		if !canManipulateRealOrders {
-			t.Skip("canManipulateRealOrders is not set")
+	t.Run("cancels an Advanced Trade and a gateway order", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			sharedTestCredentials(t, ex)
+			if !canManipulateRealOrders {
+				t.Skip("canManipulateRealOrders is not set")
+			}
 		}
-	}
-	resp, err := ex.CancelBatchOrders(t.Context(), []order.Cancel{
-		{OrderID: testSandboxOrderID, AssetType: asset.Spot},
-		{OrderID: testWrapperDerivativesOrderID, AssetType: asset.USDCMarginedFutures},
-	})
-	require.NoError(t, err, "CancelBatchOrders must not error")
-	assert.Equal(t, map[string]string{
-		testSandboxOrderID:            order.PendingCancel.String(),
-		testWrapperDerivativesOrderID: order.Cancelled.String(),
-	}, resp.Status, "CancelBatchOrders should report the Advanced Trade order pending cancellation, and the gateway order cancelled")
-}
-
-func TestCancelBatchOrdersDuplicateDerivativesOrder(t *testing.T) {
-	t.Parallel()
-	const cancelledOrder = `{"jsonrpc":"2.0","result":{"order_id":"USDC-1","order_state":"cancelled","order_type":"limit","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"buy","price":80000,"amount":0.001}}`
-	for _, tc := range []struct {
-		name    string
-		replies []string
-	}{
-		// The gateway refuses to cancel an order it has cancelled, which a repeat would be
-		{"first cancel succeeding", []string{cancelledOrder}},
-		{"first cancel failing", []string{`{"jsonrpc":"2.0","error":{"code":-32603,"message":"Internal error"}}`, cancelledOrder}},
-	} {
-		var calls atomic.Int32
-		ex, sent := newDerivativesMethodServer(t, func(req receivedJSONRPC) string {
-			if req.Method != "private/cancel" {
-				assert.Failf(t, "CancelBatchOrders should only cancel orders", "sent %s", req.Method)
-				return `{"jsonrpc":"2.0","error":{"code":-32601,"message":"Method not found"}}`
-			}
-			if n := int(calls.Add(1)); n <= len(tc.replies) {
-				return tc.replies[n-1]
-			}
-			return `{"jsonrpc":"2.0","error":{"code":11044,"message":"not_open_order"}}`
-		})
 		resp, err := ex.CancelBatchOrders(t.Context(), []order.Cancel{
-			{OrderID: "USDC-1", AssetType: asset.USDCMarginedFutures},
-			{OrderID: "USDC-1", AssetType: asset.USDCMarginedFutures},
+			{OrderID: testSandboxOrderID, AssetType: asset.Spot},
+			{OrderID: testWrapperDerivativesOrderID, AssetType: asset.USDCMarginedFutures},
 		})
-		require.NoErrorf(t, err, "CancelBatchOrders must not error with the %s", tc.name)
-		assert.Equalf(t, map[string]string{"USDC-1": order.Cancelled.String()}, resp.Status, "CancelBatchOrders should report an order named twice cancelled with the %s", tc.name)
-		assert.Lenf(t, sent(), len(tc.replies), "CancelBatchOrders should send a repeat only after a failed cancel, with the %s", tc.name)
-	}
+		require.NoError(t, err, "CancelBatchOrders must not error")
+		assert.Equal(t, map[string]string{
+			testSandboxOrderID:            order.PendingCancel.String(),
+			testWrapperDerivativesOrderID: order.Cancelled.String(),
+		}, resp.Status, "CancelBatchOrders should report the Advanced Trade order pending cancellation, and the gateway order cancelled")
+	})
+	t.Run("reports an Advanced Trade order named twice pending cancellation", func(t *testing.T) {
+		t.Parallel()
+		const id = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+		submitted := `{"success":true,"failure_reason":"UNKNOWN_CANCEL_FAILURE_REASON","order_id":"` + id + `"}`
+		for _, tc := range []struct {
+			name    string
+			results []string
+		}{
+			// Coinbase answers each entry: the first cancels the order, which the repeat then cannot find
+			{"first entry submitted", []string{submitted, `{"success":false,"failure_reason":"UNKNOWN_CANCEL_ORDER","order_id":"` + id + `"}`}},
+			// The first is refused while the order is being edited, and the repeat cancels it
+			{"first entry refused", []string{`{"success":false,"failure_reason":"ORDER_IS_BEING_REPLACED","order_id":"` + id + `"}`, submitted}},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					var req CancelOrdersWireRequest
+					if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&req), "decoding the request should not error") {
+						return
+					}
+					assert.Equalf(t, []string{id, id}, req.OrderIDs, "CancelBatchOrders should send each entry with the %s", tc.name)
+					_, err := w.Write([]byte(`{"results":[` + strings.Join(tc.results, ",") + `]}`))
+					assert.NoError(t, err, "writing the response should not error")
+				}))
+				c := order.Cancel{Exchange: ex.Name, OrderID: id, Pair: currency.NewBTCUSD(), AssetType: asset.Spot}
+				resp, err := ex.CancelBatchOrders(t.Context(), []order.Cancel{c, c})
+				require.NoErrorf(t, err, "CancelBatchOrders must not error with the %s", tc.name)
+				assert.Equalf(t, order.PendingCancel.String(), resp.Status[id], "CancelBatchOrders should report an order whose cancel Coinbase submitted pending cancellation, with the %s", tc.name)
+			})
+		}
+	})
+	t.Run("refuses a repeat for an asset it does not trade", func(t *testing.T) {
+		t.Parallel()
+		var requests atomic.Int32
+		ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			requests.Add(1)
+			_, err := w.Write([]byte(`{"results":[{"success":true,"failure_reason":"UNKNOWN_CANCEL_FAILURE_REASON","order_id":"same"}]}`))
+			assert.NoError(t, err, "writing the response should not error")
+		}))
+		_, err := ex.CancelBatchOrders(t.Context(), []order.Cancel{{OrderID: "same", AssetType: asset.Spot}, {OrderID: "same", AssetType: asset.Options}})
+		assert.ErrorIs(t, err, asset.ErrNotSupported, "CancelBatchOrders should refuse a repeat of an order for an asset it does not trade")
+		assert.Zero(t, requests.Load(), "CancelBatchOrders should send nothing when it refuses an entry")
+	})
+	t.Run("cancels a gateway order named twice once", func(t *testing.T) {
+		t.Parallel()
+		const cancelledOrder = `{"jsonrpc":"2.0","result":{"order_id":"USDC-1","order_state":"cancelled","order_type":"limit","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"buy","price":80000,"amount":0.001}}`
+		for _, tc := range []struct {
+			name    string
+			replies []string
+		}{
+			// The gateway refuses to cancel an order it has cancelled, which a repeat would be
+			{"first cancel succeeding", []string{cancelledOrder}},
+			{"first cancel failing", []string{`{"jsonrpc":"2.0","error":{"code":-32603,"message":"Internal error"}}`, cancelledOrder}},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				var calls atomic.Int32
+				ex, sent := newDerivativesMethodServer(t, func(req receivedJSONRPC) string {
+					if req.Method != "private/cancel" {
+						assert.Failf(t, "CancelBatchOrders should only cancel orders", "sent %s", req.Method)
+						return `{"jsonrpc":"2.0","error":{"code":-32601,"message":"Method not found"}}`
+					}
+					if n := int(calls.Add(1)); n <= len(tc.replies) {
+						return tc.replies[n-1]
+					}
+					return `{"jsonrpc":"2.0","error":{"code":11044,"message":"not_open_order"}}`
+				})
+				resp, err := ex.CancelBatchOrders(t.Context(), []order.Cancel{
+					{OrderID: "USDC-1", AssetType: asset.USDCMarginedFutures},
+					{OrderID: "USDC-1", AssetType: asset.USDCMarginedFutures},
+				})
+				require.NoErrorf(t, err, "CancelBatchOrders must not error with the %s", tc.name)
+				assert.Equalf(t, map[string]string{"USDC-1": order.Cancelled.String()}, resp.Status, "CancelBatchOrders should report an order named twice cancelled with the %s", tc.name)
+				assert.Lenf(t, sent(), len(tc.replies), "CancelBatchOrders should send a repeat only after a failed cancel, with the %s", tc.name)
+			})
+		}
+	})
+	t.Run("reports the batch answered before a later one fails", func(t *testing.T) {
+		t.Parallel()
+		var batches atomic.Int32
+		ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if !assert.Equal(t, "/api/v3/brokerage/orders/batch_cancel", r.URL.Path, "CancelBatchOrders should only send cancel requests") {
+				http.NotFound(w, r)
+				return
+			}
+			if batches.Add(1) > 1 {
+				http.Error(w, `{"error":"UNAVAILABLE","message":"try again"}`, http.StatusServiceUnavailable)
+				return
+			}
+			body, err := io.ReadAll(r.Body)
+			if !assert.NoError(t, err, "reading the request should not error") {
+				return
+			}
+			var req CancelOrdersWireRequest
+			if !assert.NoError(t, json.Unmarshal(body, &req), "the request should decode") {
+				return
+			}
+			results := make([]string, len(req.OrderIDs))
+			for i, id := range req.OrderIDs {
+				results[i] = `{"success":true,"failure_reason":"UNKNOWN_CANCEL_FAILURE_REASON","order_id":"` + id + `"}`
+			}
+			_, err = w.Write([]byte(`{"results":[` + strings.Join(results, ",") + `]}`))
+			assert.NoError(t, err, "writing the response should not error")
+		}))
+		cancels := make([]order.Cancel, cancelOrdersBatchSize+50)
+		for i := range cancels {
+			cancels[i] = order.Cancel{OrderID: "order-" + strconv.Itoa(i), AssetType: asset.Spot}
+		}
+		resp, err := ex.CancelBatchOrders(t.Context(), cancels)
+		assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "CancelBatchOrders should report the batch Coinbase did not answer")
+		require.NotNil(t, resp, "CancelBatchOrders must report the orders whose cancellations Coinbase submitted before the failure")
+		assert.Len(t, resp.Status, cancelOrdersBatchSize, "CancelBatchOrders should report every order of the batch Coinbase answered")
+		assert.Equal(t, order.PendingCancel.String(), resp.Status["order-0"], "CancelBatchOrders should report a submitted cancellation pending")
+		assert.NotContains(t, resp.Status, "order-"+strconv.Itoa(cancelOrdersBatchSize), "CancelBatchOrders should not report an order of the failed batch")
+	})
+	t.Run("cancels gateway orders after an Advanced Trade batch fails", func(t *testing.T) {
+		t.Parallel()
+		var gatewayCancels atomic.Int32
+		ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			switch r.URL.Path {
+			case "/api/v3/brokerage/orders/batch_cancel":
+				http.Error(w, `{"error":"UNAVAILABLE","message":"try again"}`, http.StatusServiceUnavailable)
+			case "/api/v2/private/cancel":
+				gatewayCancels.Add(1)
+				writeJSONRPC(t, w, `{"jsonrpc":"2.0","result":{"order_id":"USDC-1","order_state":"cancelled","order_type":"limit","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"buy","price":80000,"amount":0.001}}`)
+			default:
+				assert.Failf(t, "CancelBatchOrders should only cancel orders", "requested %s", r.URL.Path)
+				http.NotFound(w, r)
+			}
+		}))
+		resp, err := ex.CancelBatchOrders(t.Context(), []order.Cancel{{OrderID: "order-1", AssetType: asset.Spot}, {OrderID: "USDC-1", AssetType: asset.USDCMarginedFutures}})
+		assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "CancelBatchOrders should report the Advanced Trade batch Coinbase did not answer")
+		require.NotNil(t, resp, "CancelBatchOrders must report the gateway order it cancelled")
+		assert.Equal(t, map[string]string{"USDC-1": order.Cancelled.String()}, resp.Status, "CancelBatchOrders should cancel the gateway's orders after an Advanced Trade batch fails")
+		assert.EqualValues(t, 1, gatewayCancels.Load(), "CancelBatchOrders should send the gateway order's cancel once")
+	})
 }
 
 func TestCancelAllOrders(t *testing.T) {
@@ -3053,79 +2904,207 @@ func TestCancelAllOrders(t *testing.T) {
 	require.ErrorIs(t, err, asset.ErrNotSupported, "CancelAllOrders must refuse an asset Coinbase does not trade")
 	_, err = ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.USDCMarginedFutures, Pair: testUSDCPerpetual, Type: order.Bracket})
 	require.ErrorIs(t, err, order.ErrUnsupportedOrderType, "CancelAllOrders must refuse to cancel an order type the gateway does not place")
-	if !mockTests {
-		sharedTestCredentials(t, ex)
-		if !canManipulateRealOrders {
-			t.Skip("canManipulateRealOrders is not set")
+	t.Run("cancels spot and gateway orders", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			sharedTestCredentials(t, ex)
+			if !canManipulateRealOrders {
+				t.Skip("canManipulateRealOrders is not set")
+			}
 		}
-	}
-	resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot})
-	require.NoError(t, err, "CancelAllOrders must not error for spot")
-	assert.NotEmpty(t, resp.Status, "CancelAllOrders should report the spot orders it cancelled")
-	resp, err = ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.USDCMarginedFutures, Pair: testUSDCPerpetual})
-	require.NoError(t, err, "CancelAllOrders must not error for a gateway instrument")
-	assert.NotEmpty(t, resp.Status, "CancelAllOrders should report the gateway orders it cancelled")
-}
-
-func TestCancelBatchOrdersLaterBatchFails(t *testing.T) {
-	t.Parallel()
-	var batches atomic.Int32
-	ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !assert.Equal(t, "/api/v3/brokerage/orders/batch_cancel", r.URL.Path, "CancelBatchOrders should only send cancel requests") {
-			http.NotFound(w, r)
-			return
+		resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot})
+		require.NoError(t, err, "CancelAllOrders must not error for spot")
+		assert.NotEmpty(t, resp.Status, "CancelAllOrders should report the spot orders it cancelled")
+		resp, err = ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.USDCMarginedFutures, Pair: testUSDCPerpetual})
+		require.NoError(t, err, "CancelAllOrders must not error for a gateway instrument")
+		assert.NotEmpty(t, resp.Status, "CancelAllOrders should report the gateway orders it cancelled")
+	})
+	t.Run("cancels the gateway orders a filter matches", func(t *testing.T) {
+		t.Parallel()
+		ex, sent := newDerivativesMethodServer(t, func(req receivedJSONRPC) string {
+			switch req.Method {
+			case "private/get_open_orders":
+				return `{"jsonrpc":"2.0","result":` + testWrapperDerivativesOpenOrders + `}`
+			case "private/cancel":
+				var params struct {
+					OrderID string `json:"order_id"`
+				}
+				assert.NoError(t, json.Unmarshal(req.Params, &params), "the cancel params should decode")
+				return `{"jsonrpc":"2.0","result":{"order_id":"` + params.OrderID + `","order_state":"cancelled","order_type":"limit","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"buy","price":80000,"amount":0.001}}`
+			case "private/cancel_all_by_instrument":
+				return `{"jsonrpc":"2.0","result":[{"currency":"USDC","instrument_name":"BTC_USDC-PERPETUAL","type":"all","result":[{"order_id":"USDC-1","order_state":"cancelled","order_type":"limit","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"buy","price":80000,"amount":0.001}]}]}`
+			}
+			assert.Failf(t, "CancelAllOrders should list and cancel orders", "sent %s", req.Method)
+			return `{"jsonrpc":"2.0","error":{"code":-32601,"message":"Method not found"}}`
+		})
+		// The cases share ex and the requests it records in order, as each reads those sent since the last
+		for _, tc := range []struct {
+			name   string
+			cancel order.Cancel
+			exp    []string
+		}{
+			{"sell", order.Cancel{Side: order.Sell}, []string{`private/cancel {"order_id":"USDC-2"}`}},
+			{"isolated", order.Cancel{MarginType: margin.Isolated}, []string{`private/cancel {"order_id":"USDC-3","isolated":true}`}},
+			{"stop limit", order.Cancel{Type: order.StopLimit}, []string{`private/cancel {"order_id":"USDC-3","isolated":true}`}},
+			{"stop buy", order.Cancel{Type: order.Stop, Side: order.Buy}, []string{`private/cancel {"order_id":"USDC-3","isolated":true}`, `private/cancel {"order_id":"USDC-4"}`}},
+			{"post only", order.Cancel{TimeInForce: order.PostOnly}, []string{`private/cancel {"order_id":"USDC-5"}`}},
+			{"take profit", order.Cancel{Type: order.TakeProfit}, nil},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				c := tc.cancel
+				c.AssetType, c.Pair = asset.USDCMarginedFutures, testUSDCPerpetual
+				resp, err := ex.CancelAllOrders(t.Context(), &c)
+				require.NoErrorf(t, err, "CancelAllOrders must not error for the %s orders", tc.name)
+				var cancels []string
+				for _, req := range sent() {
+					if req.Method == "private/cancel" {
+						cancels = append(cancels, req.Method+" "+string(req.Params))
+					}
+				}
+				assert.Equalf(t, tc.exp, cancels, "CancelAllOrders should cancel the %s orders alone, one at a time in their scopes", tc.name)
+				assert.Lenf(t, resp.Status, len(tc.exp), "CancelAllOrders should report each %s order cancelled", tc.name)
+			})
 		}
-		if batches.Add(1) > 1 {
-			http.Error(w, `{"error":"UNAVAILABLE","message":"try again"}`, http.StatusServiceUnavailable)
-			return
+		// The cases share ex and the requests it records in order, as each reads those sent since the last
+		for _, tc := range []struct {
+			orderType order.Type
+			exp       string
+		}{
+			{order.AnyType, `{"instrument_name":"BTC_USDC-PERPETUAL","type":"all","detailed":true,"include_isolated":true}`},
+			{order.Stop, `{"instrument_name":"BTC_USDC-PERPETUAL","type":"stop","detailed":true,"include_isolated":true}`},
+		} {
+			t.Run(tc.orderType.String(), func(t *testing.T) {
+				resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.USDCMarginedFutures, Pair: testUSDCPerpetual, Type: tc.orderType})
+				require.NoErrorf(t, err, "CancelAllOrders must not error for %s orders", tc.orderType)
+				requests := sent()
+				require.Lenf(t, requests, 1, "CancelAllOrders must cancel the instrument's %s orders together", tc.orderType)
+				assert.Equalf(t, "private/cancel_all_by_instrument", requests[0].Method, "CancelAllOrders should cancel the instrument's %s orders together", tc.orderType)
+				assert.JSONEqf(t, tc.exp, string(requests[0].Params), "CancelAllOrders should cancel the instrument's %s orders in both margin scopes", tc.orderType)
+				assert.Equalf(t, map[string]string{"USDC-1": order.Cancelled.String()}, resp.Status, "CancelAllOrders should report the %s orders cancelled", tc.orderType)
+			})
 		}
-		body, err := io.ReadAll(r.Body)
-		if !assert.NoError(t, err, "reading the request should not error") {
-			return
+	})
+	t.Run("leaves a market order's remainder when cancelling limit orders", func(t *testing.T) {
+		t.Parallel()
+		// A market limit order's unfilled remainder rests as a limit order, which the gateway lists as the market order placed
+		const open = `[{"order_id":"USDC-8","order_state":"open","order_type":"limit","original_order_type":"market_limit","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"buy","price":90000,"amount":0.002,"filled_amount":0.001,"creation_timestamp":1792281600000,"last_update_timestamp":1792281600001},` +
+			`{"order_id":"USDC-9","order_state":"open","order_type":"limit","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"buy","price":80000,"amount":0.001,"creation_timestamp":1792281600000,"last_update_timestamp":1792281600000},` +
+			`{"order_id":"USDC-10","order_state":"untriggered","order_type":"stop_limit","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"sell","price":83900,"trigger":"mark_price","trigger_price":84000,"amount":0.001,"creation_timestamp":1792281600000,"last_update_timestamp":1792281600000},` +
+			`{"order_id":"USDC-11","order_state":"untriggered","order_type":"stop_market","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"sell","price":"market_price","trigger":"mark_price","trigger_price":84000,"amount":0.001,"creation_timestamp":1792281600000,"last_update_timestamp":1792281600000},` +
+			`{"order_id":"USDC-12","order_state":"untriggered","order_type":"take_limit","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"sell","price":96100,"trigger":"mark_price","trigger_price":96000,"amount":0.001,"creation_timestamp":1792281600000,"last_update_timestamp":1792281600000},` +
+			`{"order_id":"USDC-13","order_state":"untriggered","order_type":"take_market","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"sell","price":"market_price","trigger":"mark_price","trigger_price":96000,"amount":0.001,"creation_timestamp":1792281600000,"last_update_timestamp":1792281600000},` +
+			`{"order_id":"USDC-14","order_state":"untriggered","order_type":"trailing_stop","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"sell","price":"market_price","trigger":"mark_price","trigger_price":83000,"trigger_offset":500,"amount":0.001,"creation_timestamp":1792281600000,"last_update_timestamp":1792281600000}]`
+		ex, sent := newDerivativesMethodServer(t, func(req receivedJSONRPC) string {
+			switch {
+			case req.Method == "private/get_open_orders":
+				return `{"jsonrpc":"2.0","result":` + open + `}`
+			case req.Method == "private/cancel" && string(req.Params) == `{"order_id":"USDC-9"}`:
+				return `{"jsonrpc":"2.0","result":{"order_id":"USDC-9","order_state":"cancelled","order_type":"limit","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"buy","price":80000,"amount":0.001}}`
+			}
+			assert.Failf(t, "CancelAllOrders should list the open orders and cancel the limit order alone", "sent %s %s", req.Method, req.Params)
+			return `{"jsonrpc":"2.0","error":{"code":-32601,"message":"Method not found"}}`
+		})
+		resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.USDCMarginedFutures, Pair: testUSDCPerpetual, Type: order.Limit})
+		require.NoError(t, err, "CancelAllOrders must not error for limit orders")
+		requests := sent()
+		methods := make([]string, len(requests))
+		for i, req := range requests {
+			methods[i] = req.Method + " " + string(req.Params)
 		}
-		var req CancelOrdersWireRequest
-		if !assert.NoError(t, json.Unmarshal(body, &req), "the request should decode") {
-			return
+		assert.Equal(t, []string{`private/get_open_orders {"kind":"future","include_isolated":true}`, `private/cancel {"order_id":"USDC-9"}`}, methods, "CancelAllOrders should cancel the limit order alone, leaving the market order's resting remainder")
+		assert.Equal(t, map[string]string{"USDC-9": order.Cancelled.String()}, resp.Status, "CancelAllOrders should report the limit order cancelled")
+	})
+	t.Run("goes on after the gateway refuses a cancellation", func(t *testing.T) {
+		t.Parallel()
+		// An order can close between the list and its cancellation, which the gateway then refuses, and the orders after it
+		// are still cancelled
+		const open = `[{"order_id":"USDC-8","order_state":"open","order_type":"limit","original_order_type":"market_limit","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"buy","price":90000,"amount":0.002,"filled_amount":0.001,"creation_timestamp":1792281600000,"last_update_timestamp":1792281600001},` +
+			`{"order_id":"USDC-15","order_state":"open","order_type":"limit","original_order_type":"market","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"sell","price":95000,"amount":0.002,"filled_amount":0.001,"creation_timestamp":1792281600000,"last_update_timestamp":1792281600001}]`
+		ex, sent := newDerivativesMethodServer(t, func(req receivedJSONRPC) string {
+			switch {
+			case req.Method == "private/get_open_orders":
+				return `{"jsonrpc":"2.0","result":` + open + `}`
+			case req.Method == "private/cancel" && string(req.Params) == `{"order_id":"USDC-8"}`:
+				return `{"jsonrpc":"2.0","error":{"code":11044,"message":"not_open_order"}}`
+			case req.Method == "private/cancel" && string(req.Params) == `{"order_id":"USDC-15"}`:
+				return `{"jsonrpc":"2.0","result":{"order_id":"USDC-15","order_state":"cancelled","order_type":"limit","original_order_type":"market","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"sell","price":95000,"amount":0.002,"filled_amount":0.001}}`
+			}
+			assert.Failf(t, "CancelAllOrders should list the open orders and cancel the market orders", "sent %s %s", req.Method, req.Params)
+			return `{"jsonrpc":"2.0","error":{"code":-32601,"message":"Method not found"}}`
+		})
+		resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.USDCMarginedFutures, Pair: testUSDCPerpetual, Type: order.Market})
+		require.NoError(t, err, "CancelAllOrders must not error when the gateway refuses one order's cancellation")
+		var cancels []string
+		for _, req := range sent() {
+			if req.Method == "private/cancel" {
+				cancels = append(cancels, string(req.Params))
+			}
 		}
-		results := make([]string, len(req.OrderIDs))
-		for i, id := range req.OrderIDs {
-			results[i] = `{"success":true,"failure_reason":"UNKNOWN_CANCEL_FAILURE_REASON","order_id":"` + id + `"}`
+		assert.Equal(t, []string{`{"order_id":"USDC-8"}`, `{"order_id":"USDC-15"}`}, cancels, "CancelAllOrders should go on to cancel the orders after one the gateway refused")
+		assert.Contains(t, resp.Status["USDC-8"], "not_open_order", "CancelAllOrders should report why the gateway refused an order's cancellation")
+		assert.Equal(t, order.PartiallyFilledCancelled.String(), resp.Status["USDC-15"], "CancelAllOrders should report the order after it cancelled")
+	})
+	t.Run("reads the documented gateway reports", func(t *testing.T) {
+		t.Parallel()
+		ex, _ := newDerivativesMethodServer(t, func(req receivedJSONRPC) string {
+			if !assert.Equal(t, "private/cancel_all_by_instrument", req.Method, "CancelAllOrders should cancel the instrument's orders together") {
+				return `{"jsonrpc":"2.0","error":{"code":-32601,"message":"Method not found"}}`
+			}
+			// The documented example's shape, a cancelled order in each report
+			return `{"jsonrpc":"2.0","result":[{"order":{"order_id":"USDC-1","order_state":"cancelled","order_type":"limit","instrument_name":"BTC_USDC-PERPETUAL","direction":"buy","price":80000,"amount":0.001}},` +
+				`{"order":{"order_id":"USDC-2","order_state":"cancelled","order_type":"limit","instrument_name":"BTC_USDC-PERPETUAL","direction":"sell","price":90000,"amount":0.001,"filled_amount":0.0005}}]}`
+		})
+		resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.USDCMarginedFutures, Pair: testUSDCPerpetual})
+		require.NoError(t, err, "CancelAllOrders must not error")
+		assert.Equal(t, map[string]string{"USDC-1": order.Cancelled.String(), "USDC-2": order.PartiallyFilledCancelled.String()}, resp.Status, "CancelAllOrders should report each order the documented reports hold")
+	})
+	t.Run("cancels Advanced Trade orders by type", func(t *testing.T) {
+		t.Parallel()
+		var mu sync.Mutex
+		var cancelled []string
+		listed := func(id, productType, product, orderType string) string {
+			return `{"order_id":"` + id + `","product_id":"` + product + `","product_type":"` + productType + `","side":"BUY","status":"OPEN","order_type":"` + orderType + `","time_in_force":"GOOD_UNTIL_CANCELLED","filled_size":"0","order_configuration":{"limit_limit_gtc":{"base_size":"1","limit_price":"80000"}}}`
 		}
-		_, err = w.Write([]byte(`{"results":[` + strings.Join(results, ",") + `]}`))
-		assert.NoError(t, err, "writing the response should not error")
-	}))
-	cancels := make([]order.Cancel, cancelOrdersBatchSize+50)
-	for i := range cancels {
-		cancels[i] = order.Cancel{OrderID: "order-" + strconv.Itoa(i), AssetType: asset.Spot}
-	}
-	resp, err := ex.CancelBatchOrders(t.Context(), cancels)
-	assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "CancelBatchOrders should report the batch Coinbase did not answer")
-	require.NotNil(t, resp, "CancelBatchOrders must report the orders whose cancellations Coinbase submitted before the failure")
-	assert.Len(t, resp.Status, cancelOrdersBatchSize, "CancelBatchOrders should report every order of the batch Coinbase answered")
-	assert.Equal(t, order.PendingCancel.String(), resp.Status["order-0"], "CancelBatchOrders should report a submitted cancellation pending")
-	assert.NotContains(t, resp.Status, "order-"+strconv.Itoa(cancelOrdersBatchSize), "CancelBatchOrders should not report an order of the failed batch")
-}
-
-func TestCancelBatchOrdersGatewayAfterAdvancedTradeFailure(t *testing.T) {
-	t.Parallel()
-	var gatewayCancels atomic.Int32
-	ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/api/v3/brokerage/orders/batch_cancel":
-			http.Error(w, `{"error":"UNAVAILABLE","message":"try again"}`, http.StatusServiceUnavailable)
-		case "/api/v2/private/cancel":
-			gatewayCancels.Add(1)
-			writeJSONRPC(t, w, `{"jsonrpc":"2.0","result":{"order_id":"USDC-1","order_state":"cancelled","order_type":"limit","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"buy","price":80000,"amount":0.001}}`)
-		default:
-			assert.Failf(t, "CancelBatchOrders should only cancel orders", "requested %s", r.URL.Path)
-			http.NotFound(w, r)
+		ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			var body string
+			switch r.URL.Path {
+			case "/api/v3/brokerage/orders/historical/batch":
+				body = `{"orders":[],"has_next":false,"cursor":""}`
+				if r.URL.Query().Get("order_status") == OrderStatusOpen {
+					if r.URL.Query().Get("product_type") == ProductTypeFuture {
+						body = `{"orders":[` + listed("limit-f", ProductTypeFuture, "BIP-20DEC30-CDE", OrderTypeLimit) + `,` + listed("roll-open", ProductTypeFuture, "BIP-20DEC30-CDE", OrderTypeRollOpen) + `],"has_next":false,"cursor":""}`
+					} else {
+						body = `{"orders":[` + listed("limit-1", ProductTypeSpot, "BTC-USD", OrderTypeLimit) + `,` + listed("scaled-1", ProductTypeSpot, "BTC-USD", OrderTypeScaled) + `,` + listed("stop-limit-1", ProductTypeSpot, "BTC-USD", OrderTypeStopLimit) + `],"has_next":false,"cursor":""}`
+					}
+				}
+			case "/api/v3/brokerage/orders/batch_cancel":
+				var req CancelOrdersWireRequest
+				if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&req), "the request should decode") {
+					return
+				}
+				mu.Lock()
+				cancelled = append(cancelled, req.OrderIDs...)
+				mu.Unlock()
+				results := make([]string, len(req.OrderIDs))
+				for i, id := range req.OrderIDs {
+					results[i] = `{"success":true,"failure_reason":"UNKNOWN_CANCEL_FAILURE_REASON","order_id":"` + id + `"}`
+				}
+				body = `{"results":[` + strings.Join(results, ",") + `]}`
+			default:
+				http.NotFound(w, r)
+				return
+			}
+			_, err := w.Write([]byte(body))
+			assert.NoError(t, err, "writing the response should not error")
+		}))
+		for _, a := range []asset.Item{asset.Spot, asset.Futures} {
+			_, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: a, Type: order.Limit})
+			require.NoErrorf(t, err, "CancelAllOrders must not error for %s", a)
 		}
-	}))
-	resp, err := ex.CancelBatchOrders(t.Context(), []order.Cancel{{OrderID: "order-1", AssetType: asset.Spot}, {OrderID: "USDC-1", AssetType: asset.USDCMarginedFutures}})
-	assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "CancelBatchOrders should report the Advanced Trade batch Coinbase did not answer")
-	require.NotNil(t, resp, "CancelBatchOrders must report the gateway order it cancelled")
-	assert.Equal(t, map[string]string{"USDC-1": order.Cancelled.String()}, resp.Status, "CancelBatchOrders should cancel the gateway's orders after an Advanced Trade batch fails")
-	assert.EqualValues(t, 1, gatewayCancels.Load(), "CancelBatchOrders should send the gateway order's cancel once")
+		mu.Lock()
+		defer mu.Unlock()
+		assert.ElementsMatch(t, []string{"limit-1", "limit-f"}, cancelled, "CancelAllOrders should cancel only the limit orders")
+	})
 }
 
 func TestGetOrderInfo(t *testing.T) {
@@ -3135,50 +3114,148 @@ func TestGetOrderInfo(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "GetOrderInfo must refuse an empty order ID")
 	_, err = ex.GetOrderInfo(t.Context(), "1", currency.NewBTCUSD(), asset.Options)
 	require.ErrorIs(t, err, asset.ErrNotSupported, "GetOrderInfo must refuse an asset Coinbase does not trade")
-	if !mockTests {
-		sharedTestCredentials(t, ex)
-		t.Skip("live order IDs are the account's own")
-	}
-	d, err := ex.GetOrderInfo(t.Context(), testSandboxBracketedOrderID, currency.NewBTCUSD(), asset.Spot)
-	require.NoError(t, err, "GetOrderInfo must not error for a spot order")
-	assert.Equal(t, testSandboxBracketedOrderID, d.OrderID, "GetOrderInfo should return the spot order")
-	assert.Equal(t, asset.Spot, d.AssetType, "GetOrderInfo should return the spot order's asset")
-	_, err = ex.GetOrderInfo(t.Context(), testSandboxBracketedOrderID, testETHUSD, asset.Spot)
-	assert.ErrorIs(t, err, order.ErrOrderNotFound, "GetOrderInfo should not return an order of another pair")
+	t.Run("returns the recorded orders", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			sharedTestCredentials(t, ex)
+			t.Skip("live order IDs are the account's own")
+		}
+		d, err := ex.GetOrderInfo(t.Context(), testSandboxBracketedOrderID, currency.NewBTCUSD(), asset.Spot)
+		require.NoError(t, err, "GetOrderInfo must not error for a spot order")
+		assert.Equal(t, testSandboxBracketedOrderID, d.OrderID, "GetOrderInfo should return the spot order")
+		assert.Equal(t, asset.Spot, d.AssetType, "GetOrderInfo should return the spot order's asset")
+		_, err = ex.GetOrderInfo(t.Context(), testSandboxBracketedOrderID, testETHUSD, asset.Spot)
+		assert.ErrorIs(t, err, order.ErrOrderNotFound, "GetOrderInfo should not return an order of another pair")
 
-	d, err = ex.GetOrderInfo(t.Context(), testWrapperDerivativesOrderID, testUSDCPerpetual, asset.USDCMarginedFutures)
-	require.NoError(t, err, "GetOrderInfo must not error for a gateway order")
-	assert.Equal(t, testWrapperDerivativesOrderID, d.OrderID, "GetOrderInfo should return the gateway order")
-	assert.NotEmpty(t, d.Trades, "GetOrderInfo should return the gateway order's trades")
+		d, err = ex.GetOrderInfo(t.Context(), testWrapperDerivativesOrderID, testUSDCPerpetual, asset.USDCMarginedFutures)
+		require.NoError(t, err, "GetOrderInfo must not error for a gateway order")
+		assert.Equal(t, testWrapperDerivativesOrderID, d.OrderID, "GetOrderInfo should return the gateway order")
+		assert.NotEmpty(t, d.Trades, "GetOrderInfo should return the gateway order's trades")
+	})
+	t.Run("leaves out a reversed fill", func(t *testing.T) {
+		t.Parallel()
+		const orderID = "eeeeeeee-ffff-0000-1111-555555555555"
+		fill := func(tradeID, tradeType, size string) string {
+			return `{"entry_id":"` + tradeID + tradeType + `","trade_id":"` + tradeID + `","order_id":"` + orderID + `","trade_time":"2026-10-18T00:00:00Z","trade_type":"` + tradeType +
+				`","price":"80000","size":"` + size + `","commission":"0","product_id":"BTC-USD","liquidity_indicator":"TAKER","side":"BUY"}`
+		}
+		ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			var body string
+			switch r.URL.Path {
+			case "/api/v3/brokerage/orders/historical/" + orderID:
+				body = `{"order":{"order_id":"` + orderID + `","product_id":"BTC-USD","product_type":"SPOT","side":"BUY","status":"OPEN","order_type":"LIMIT","time_in_force":"GOOD_UNTIL_CANCELLED","filled_size":"0.25","order_configuration":{"limit_limit_gtc":{"base_size":"1","limit_price":"80000"}}}}`
+			case "/api/v3/brokerage/orders/historical/fills":
+				// The reversal is listed a page after the fill it undoes, and a correction beside its fill
+				body = `{"fills":[` + fill("t1", FillTradeTypeFill, "0.5") + `,` + fill("t2", FillTradeTypeFill, "0.25") + `,` + fill("t2", FillTradeTypeCorrection, "0.25") + `],"cursor":"next"}`
+				if r.URL.Query().Get("cursor") == "next" {
+					body = `{"fills":[` + fill("t1", FillTradeTypeReversal, "0.5") + `],"cursor":""}`
+				}
+			default:
+				assert.Failf(t, "GetOrderInfo should only read the order and its fills", "requested %s", r.URL.Path)
+				http.NotFound(w, r)
+				return
+			}
+			_, err := w.Write([]byte(body))
+			assert.NoError(t, err, "writing the response should not error")
+		}))
+		d, err := ex.GetOrderInfo(t.Context(), orderID, currency.NewBTCUSD(), asset.Spot)
+		require.NoError(t, err, "GetOrderInfo must not error")
+		require.Len(t, d.Trades, 1, "GetOrderInfo must leave out a reversed fill and the adjusted fills")
+		assert.Equal(t, "t2", d.Trades[0].TID, "GetOrderInfo should keep the fill no reversal undoes")
+		assert.Equal(t, 0.25, d.Trades[0].Amount, "GetOrderInfo should report the fill's own size")
+	})
+	t.Run("finds a closed gateway order in the history", func(t *testing.T) {
+		t.Parallel()
+		closedOrder := func(id string) string {
+			return `{"order_id":"` + id + `","order_state":"filled","order_type":"limit","time_in_force":"good_til_cancelled","instrument_name":"BTC_USDC-PERPETUAL","direction":"buy","price":80000,"average_price":80000,"amount":0.001,"filled_amount":0.001,"creation_timestamp":1792281600000,"last_update_timestamp":1792281660000}`
+		}
+		ex, sent := newDerivativesMethodServer(t, func(req receivedJSONRPC) string {
+			params := string(req.Params)
+			switch {
+			case req.Method == "private/get_order_state":
+				// The gateway reports an order's state until 30 minutes after it closes
+				return `{"jsonrpc":"2.0","error":{"code":10004,"message":"order_not_found"}}`
+			case req.Method == "private/get_subaccounts":
+				return `{"jsonrpc":"2.0","result":[{"id":1000,"type":"main","isolated":null},{"id":123456,"type":"subaccount","isolated":true}]}`
+			case req.Method == "private/get_order_history_by_instrument" && strings.Contains(params, `"continuation":"page-3"`):
+				return `{"jsonrpc":"2.0","result":{"orders":[],"continuation":"none"}}`
+			case req.Method == "private/get_order_history_by_instrument" && strings.Contains(params, `"historical":true`) && strings.Contains(params, `"continuation":"page-2"`):
+				return `{"jsonrpc":"2.0","result":{"orders":[` + closedOrder("USDC-30") + `,` + closedOrder("USDC-31") + `],"continuation":"page-3"}}`
+			case req.Method == "private/get_order_history_by_instrument" && strings.Contains(params, `"historical":true`):
+				return `{"jsonrpc":"2.0","result":{"orders":[` + closedOrder("USDC-32") + `],"continuation":"page-2"}}`
+			case req.Method == "private/get_order_history_by_instrument", req.Method == "private/get_order_history_by_currency":
+				return `{"jsonrpc":"2.0","result":{"orders":[],"continuation":"none"}}`
+			case req.Method == "private/get_user_trades_by_order":
+				return `{"jsonrpc":"2.0","result":[]}`
+			}
+			assert.Failf(t, "GetOrderInfo should look the order up and read its history", "sent %s %s", req.Method, params)
+			return `{"jsonrpc":"2.0","error":{"code":-32601,"message":"Method not found"}}`
+		})
+		detail, err := ex.GetOrderInfo(t.Context(), "USDC-31", testUSDCPerpetual, asset.USDCMarginedFutures)
+		require.NoError(t, err, "GetOrderInfo must find an order closed over 30 minutes ago in the history")
+		assert.Equal(t, "USDC-31", detail.OrderID, "GetOrderInfo should return the order")
+		assert.Equal(t, order.Filled, detail.Status, "GetOrderInfo should return the order's state from the history")
+		var historyRequests []string
+		for _, req := range sent() {
+			if strings.HasPrefix(req.Method, "private/get_order_history") {
+				historyRequests = append(historyRequests, req.Method+" "+string(req.Params))
+			}
+		}
+		assert.NotContains(t, historyRequests, `private/get_order_history_by_instrument {"instrument_name":"BTC_USDC-PERPETUAL","count":1000,"include_old":true,"include_unfilled":true,"with_continuation":true,"continuation":"page-3","historical":true}`, "GetOrderInfo should stop paging the history once it finds the order")
+		assert.NotContains(t, historyRequests, `private/get_order_history_by_currency {"kind":"future","count":1000,"include_old":true,"include_unfilled":true,"with_continuation":true,"historical":true,"subaccount_id":123456,"currency":"USDC"}`, "GetOrderInfo should stop reading histories once it finds the order")
+
+		_, err = ex.GetOrderInfo(t.Context(), "USDC-99", testUSDCPerpetual, asset.USDCMarginedFutures)
+		assert.ErrorIs(t, err, order.ErrOrderNotFound, "GetOrderInfo should report an order neither the order state nor the history holds")
+	})
+	t.Run("reports an order's latest edit as its last update", func(t *testing.T) {
+		t.Parallel()
+		const orderID = "eeeeeeee-ffff-0000-1111-444444444444"
+		ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			body := `{"fills":[],"cursor":""}`
+			if r.URL.Path == "/api/v3/brokerage/orders/historical/"+orderID {
+				// Created and last filled on 1 October, and edited on 2 October
+				body = `{"order":{"order_id":"` + orderID + `","product_id":"BTC-USD","product_type":"SPOT","side":"BUY","status":"OPEN","order_type":"LIMIT","time_in_force":"GOOD_UNTIL_CANCELLED","filled_size":"0","created_time":"2026-10-01T00:00:00Z","last_update_time":"2026-10-01T00:00:00Z","edit_history":[{"price":"100","size":"2","replace_accept_timestamp":"2026-10-02T00:00:00Z"}],"order_configuration":{"limit_limit_gtc":{"base_size":"2","limit_price":"100"}}}}`
+			}
+			_, err := w.Write([]byte(body))
+			assert.NoError(t, err, "writing the response should not error")
+		}))
+		d, err := ex.GetOrderInfo(t.Context(), orderID, currency.NewBTCUSD(), asset.Spot)
+		require.NoError(t, err, "GetOrderInfo must not error")
+		assert.Equal(t, time.Date(2026, 10, 2, 0, 0, 0, 0, time.UTC), d.LastUpdated, "GetOrderInfo should report an order's latest accepted edit as its last update")
+	})
 }
 
 func TestOrderConfigurationValues(t *testing.T) {
 	t.Parallel()
 	end := time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)
 	for _, tc := range []struct {
-		c   *OrderConfiguration
-		exp orderConfiguration
+		name string
+		c    *OrderConfiguration
+		exp  orderConfiguration
 	}{
-		{nil, orderConfiguration{}},
-		{&OrderConfiguration{}, orderConfiguration{}},
-		{&OrderConfiguration{MarketMarketIOC: &MarketMarketIOC{BaseSize: 1, QuoteSize: 2}}, orderConfiguration{baseSize: 1, quoteSize: 2}},
-		{&OrderConfiguration{MarketMarketFOK: &MarketMarketFOK{BaseSize: 1}}, orderConfiguration{baseSize: 1}},
-		{&OrderConfiguration{SORLimitIOC: &SORLimitIOC{BaseSize: 1, LimitPrice: 3}}, orderConfiguration{baseSize: 1, limitPrice: 3}},
-		{&OrderConfiguration{LimitLimitGTC: &LimitLimitGTC{BaseSize: 1, LimitPrice: 3, PostOnly: true}}, orderConfiguration{baseSize: 1, limitPrice: 3, postOnly: true}},
-		{&OrderConfiguration{LimitLimitGTD: &LimitLimitGTD{QuoteSize: 2, LimitPrice: 3, EndTime: end, PostOnly: true}}, orderConfiguration{quoteSize: 2, limitPrice: 3, endTime: end, postOnly: true}},
-		{&OrderConfiguration{LimitLimitFOK: &LimitLimitFOK{BaseSize: 1, LimitPrice: 3}}, orderConfiguration{baseSize: 1, limitPrice: 3}},
-		{&OrderConfiguration{TWAPLimitGTD: &TWAPLimitGTD{BaseSize: 1, LimitPrice: 3, EndTime: end}}, orderConfiguration{baseSize: 1, limitPrice: 3, endTime: end}},
-		{&OrderConfiguration{StopLimitStopLimitGTC: &StopLimitStopLimitGTC{BaseSize: 1, LimitPrice: 3, StopPrice: 4}}, orderConfiguration{baseSize: 1, limitPrice: 3, stopPrice: 4}},
-		{&OrderConfiguration{StopLimitStopLimitGTD: &StopLimitStopLimitGTD{BaseSize: 1, LimitPrice: 3, StopPrice: 4, EndTime: end}}, orderConfiguration{baseSize: 1, limitPrice: 3, stopPrice: 4, endTime: end}},
-		{&OrderConfiguration{TriggerBracketGTC: &TriggerBracketGTC{BaseSize: 1, LimitPrice: 3, StopTriggerPrice: 4}}, orderConfiguration{baseSize: 1, limitPrice: 3, stopPrice: 4}},
-		{&OrderConfiguration{TriggerBracketGTD: &TriggerBracketGTD{BaseSize: 1, LimitPrice: 3, StopTriggerPrice: 4, EndTime: end}}, orderConfiguration{baseSize: 1, limitPrice: 3, stopPrice: 4, endTime: end}},
-		{&OrderConfiguration{ScaledLimitGTC: &ScaledLimitGTC{BaseSize: 1, QuoteSize: 2}}, orderConfiguration{baseSize: 1, quoteSize: 2}},
+		{"nil", nil, orderConfiguration{}},
+		{"empty", &OrderConfiguration{}, orderConfiguration{}},
+		{"market_market_ioc", &OrderConfiguration{MarketMarketIOC: &MarketMarketIOC{BaseSize: 1, QuoteSize: 2}}, orderConfiguration{baseSize: 1, quoteSize: 2}},
+		{"market_market_fok", &OrderConfiguration{MarketMarketFOK: &MarketMarketFOK{BaseSize: 1}}, orderConfiguration{baseSize: 1}},
+		{"sor_limit_ioc", &OrderConfiguration{SORLimitIOC: &SORLimitIOC{BaseSize: 1, LimitPrice: 3}}, orderConfiguration{baseSize: 1, limitPrice: 3}},
+		{"limit_limit_gtc", &OrderConfiguration{LimitLimitGTC: &LimitLimitGTC{BaseSize: 1, LimitPrice: 3, PostOnly: true}}, orderConfiguration{baseSize: 1, limitPrice: 3, postOnly: true}},
+		{"limit_limit_gtd", &OrderConfiguration{LimitLimitGTD: &LimitLimitGTD{QuoteSize: 2, LimitPrice: 3, EndTime: end, PostOnly: true}}, orderConfiguration{quoteSize: 2, limitPrice: 3, endTime: end, postOnly: true}},
+		{"limit_limit_fok", &OrderConfiguration{LimitLimitFOK: &LimitLimitFOK{BaseSize: 1, LimitPrice: 3}}, orderConfiguration{baseSize: 1, limitPrice: 3}},
+		{"twap_limit_gtd", &OrderConfiguration{TWAPLimitGTD: &TWAPLimitGTD{BaseSize: 1, LimitPrice: 3, EndTime: end}}, orderConfiguration{baseSize: 1, limitPrice: 3, endTime: end}},
+		{"stop_limit_stop_limit_gtc", &OrderConfiguration{StopLimitStopLimitGTC: &StopLimitStopLimitGTC{BaseSize: 1, LimitPrice: 3, StopPrice: 4}}, orderConfiguration{baseSize: 1, limitPrice: 3, stopPrice: 4}},
+		{"stop_limit_stop_limit_gtd", &OrderConfiguration{StopLimitStopLimitGTD: &StopLimitStopLimitGTD{BaseSize: 1, LimitPrice: 3, StopPrice: 4, EndTime: end}}, orderConfiguration{baseSize: 1, limitPrice: 3, stopPrice: 4, endTime: end}},
+		{"trigger_bracket_gtc", &OrderConfiguration{TriggerBracketGTC: &TriggerBracketGTC{BaseSize: 1, LimitPrice: 3, StopTriggerPrice: 4}}, orderConfiguration{baseSize: 1, limitPrice: 3, stopPrice: 4}},
+		{"trigger_bracket_gtd", &OrderConfiguration{TriggerBracketGTD: &TriggerBracketGTD{BaseSize: 1, LimitPrice: 3, StopTriggerPrice: 4, EndTime: end}}, orderConfiguration{baseSize: 1, limitPrice: 3, stopPrice: 4, endTime: end}},
+		{"scaled_limit_gtc", &OrderConfiguration{ScaledLimitGTC: &ScaledLimitGTC{BaseSize: 1, QuoteSize: 2}}, orderConfiguration{baseSize: 1, quoteSize: 2}},
 	} {
-		assert.Equalf(t, tc.exp, orderConfigurationValues(tc.c), "orderConfigurationValues should read %+v", tc.c)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, tc.exp, orderConfigurationValues(tc.c), "orderConfigurationValues should read %+v", tc.c)
+		})
 	}
 }
 
-func TestOrderDetail(t *testing.T) {
+func TestOrderDetail(t *testing.T) { //nolint:tparallel // the cases share ex and its size record in order
 	t.Parallel()
 	ex := newWrapperTestExchange(t)
 	created := time.Date(2026, 10, 18, 0, 0, 0, 0, time.UTC)
@@ -3299,16 +3376,23 @@ func TestOrderDetail(t *testing.T) {
 	d, err = ex.orderDetail(&dust, ex.orderSizes.stamp())
 	require.NoError(t, err, "orderDetail must not error for a filled order leaving dust")
 	assert.Equal(t, 2.0, d.Amount, "orderDetail should keep the base size of a filled order leaving dust")
-	for _, broken := range []Order{
-		{ProductType: ProductTypeEquity},
-		{ProductType: ProductTypeSpot, ProductID: "BTCUSD!", Side: OrderSideBuy},
-		{ProductType: ProductTypeSpot, ProductID: "BTC-USD", Side: "SIDEWAYS"},
-		{ProductType: ProductTypeSpot, ProductID: "BTC-USD", Side: OrderSideBuy, OrderType: "TELEPORT"},
-		{ProductType: ProductTypeSpot, ProductID: "BTC-USD", Side: OrderSideBuy, OrderType: OrderTypeLimit, Status: "SLEEPING"},
-		{ProductType: ProductTypeSpot, ProductID: "BTC-USD", Side: OrderSideBuy, OrderType: OrderTypeLimit, Status: OrderStatusOpen, TimeInForce: "GOOD_UNTIL_LUNCH"},
+	// The cases share ex and its size record in order, so each also checks that a call keeps nothing from the last
+	for _, tc := range []struct {
+		name   string
+		broken Order
+	}{
+		{"equity product", Order{ProductType: ProductTypeEquity}},
+		{"malformed product ID", Order{ProductType: ProductTypeSpot, ProductID: "BTCUSD!", Side: OrderSideBuy}},
+		{"unknown side", Order{ProductType: ProductTypeSpot, ProductID: "BTC-USD", Side: "SIDEWAYS"}},
+		{"unknown order type", Order{ProductType: ProductTypeSpot, ProductID: "BTC-USD", Side: OrderSideBuy, OrderType: "TELEPORT"}},
+		{"unknown status", Order{ProductType: ProductTypeSpot, ProductID: "BTC-USD", Side: OrderSideBuy, OrderType: OrderTypeLimit, Status: "SLEEPING"}},
+		{"unknown time in force", Order{ProductType: ProductTypeSpot, ProductID: "BTC-USD", Side: OrderSideBuy, OrderType: OrderTypeLimit, Status: OrderStatusOpen, TimeInForce: "GOOD_UNTIL_LUNCH"}},
 	} {
-		_, err := ex.orderDetail(&broken, ex.orderSizes.stamp())
-		assert.Errorf(t, err, "orderDetail should error for %+v", broken)
+		t.Run(tc.name, func(t *testing.T) {
+			broken := tc.broken
+			_, err := ex.orderDetail(&broken, ex.orderSizes.stamp())
+			assert.Errorf(t, err, "orderDetail should error for %+v", broken)
+		})
 	}
 }
 
@@ -3317,39 +3401,151 @@ func TestGetActiveOrders(t *testing.T) {
 	ex := newWrapperTestExchange(t)
 	_, err := ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Options, Side: order.AnySide, Type: order.AnyType})
 	require.ErrorIs(t, err, asset.ErrNotSupported, "GetActiveOrders must refuse an asset Coinbase does not trade")
-	if !mockTests {
-		sharedTestCredentials(t, ex)
-	}
-	for _, a := range []asset.Item{asset.Spot, asset.USDCMarginedFutures} {
-		orders, err := ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: a, Side: order.AnySide, Type: order.AnyType})
-		require.NoErrorf(t, err, "GetActiveOrders must not error for %s", a)
-		for i := range orders {
-			assert.Equalf(t, a, orders[i].AssetType, "GetActiveOrders should return only %s orders", a)
+	t.Run("returns each asset's open orders", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			sharedTestCredentials(t, ex)
 		}
-		if mockTests {
-			assert.NotEmptyf(t, orders, "GetActiveOrders should return the recorded %s orders", a)
+		// The cases share ex in order, so each also checks that a call keeps nothing from the last
+		for _, a := range []asset.Item{asset.Spot, asset.USDCMarginedFutures} {
+			t.Run(a.String(), func(t *testing.T) {
+				orders, err := ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: a, Side: order.AnySide, Type: order.AnyType})
+				require.NoErrorf(t, err, "GetActiveOrders must not error for %s", a)
+				for i := range orders {
+					assert.Equalf(t, a, orders[i].AssetType, "GetActiveOrders should return only %s orders", a)
+				}
+				if mockTests {
+					assert.NotEmptyf(t, orders, "GetActiveOrders should return the recorded %s orders", a)
+				}
+			})
 		}
-	}
+	})
+	t.Run("filters the gateway's open orders", func(t *testing.T) {
+		t.Parallel()
+		ex, sent := newDerivativesMethodServer(t, func(receivedJSONRPC) string {
+			return `{"jsonrpc":"2.0","result":` + testWrapperDerivativesOpenOrders + `}`
+		})
+		// The cases share ex and the requests it records in order, as each reads those sent since the last
+		for _, tc := range []struct {
+			name string
+			req  order.MultiOrderRequest
+			exp  []string
+		}{
+			// The isolated margin subaccounts' orders of a pair are among its open orders
+			{"pair", order.MultiOrderRequest{Pairs: currency.Pairs{testUSDCPerpetual}, Side: order.AnySide}, []string{"USDC-1", "USDC-2", "USDC-3", "USDC-4", "USDC-5"}},
+			{"isolated", order.MultiOrderRequest{MarginType: margin.Isolated, Side: order.AnySide}, []string{"USDC-3", "USDC-6"}},
+			{"cross margin sell", order.MultiOrderRequest{MarginType: margin.Multi, Side: order.Sell}, []string{"USDC-2"}},
+			{"post only", order.MultiOrderRequest{TimeInForce: order.PostOnly, Side: order.AnySide}, []string{"USDC-5"}},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				req := tc.req
+				req.AssetType, req.Type = asset.USDCMarginedFutures, order.AnyType
+				orders, err := ex.GetActiveOrders(t.Context(), &req)
+				require.NoErrorf(t, err, "GetActiveOrders must not error for the %s orders", tc.name)
+				assert.ElementsMatchf(t, tc.exp, orderIDs(orders), "GetActiveOrders should return the %s orders", tc.name)
+				requests := sent()
+				require.Lenf(t, requests, 1, "GetActiveOrders must list the open orders once for the %s orders", tc.name)
+				assert.Equalf(t, "private/get_open_orders", requests[0].Method, "GetActiveOrders should list every open order for the %s orders", tc.name)
+				assert.JSONEqf(t, `{"kind":"future","include_isolated":true}`, string(requests[0].Params), "GetActiveOrders should include the isolated margin subaccounts' orders for the %s orders", tc.name)
+			})
+		}
+		orders, err := ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.USDCMarginedFutures, Pairs: currency.Pairs{testUSDCPerpetual}, Side: order.AnySide, Type: order.AnyType})
+		require.NoError(t, err, "GetActiveOrders must not error")
+		for _, o := range orders {
+			exp := margin.Multi
+			if o.OrderID == "USDC-3" {
+				exp = margin.Isolated
+			}
+			assert.Equalf(t, exp, o.MarginType, "GetActiveOrders should report order %s's margin type", o.OrderID)
+		}
+	})
+	t.Run("reports Advanced Trade orders whose cancellation is queued", func(t *testing.T) {
+		t.Parallel()
+		advancedTradeOrder := func(id, status string) string {
+			return `{"order_id":"` + id + `","product_id":"BTC-USD","product_type":"SPOT","side":"BUY","status":"` + status + `","order_type":"LIMIT","time_in_force":"GOOD_UNTIL_CANCELLED","filled_size":"0","order_configuration":{"limit_limit_gtc":{"base_size":"1","limit_price":"80000"}}}`
+		}
+		var statuses [][]string
+		var mu sync.Mutex
+		ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			requested := r.URL.Query()["order_status"]
+			mu.Lock()
+			statuses = append(statuses, requested)
+			mu.Unlock()
+			body := `{"orders":[` + advancedTradeOrder("open-1", OrderStatusCancelQueued) + `,` + advancedTradeOrder("cancel-queued-2", OrderStatusCancelQueued) + `],"has_next":false,"cursor":""}`
+			_, err := w.Write([]byte(body))
+			assert.NoError(t, err, "writing the response should not error")
+		}))
+		orders, err := ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType})
+		require.NoError(t, err, "GetActiveOrders must not error")
+		assert.Equal(t, []string{"open-1", "cancel-queued-2"}, orderIDs(orders), "GetActiveOrders should return the open and the queued orders once each")
+		require.Len(t, orders, 2, "GetActiveOrders must return both orders")
+		assert.Equal(t, order.PendingCancel, orders[0].Status, "GetActiveOrders should report an open order whose cancellation is queued pending cancellation")
+		assert.Equal(t, order.PendingCancel, orders[1].Status, "GetActiveOrders should report an order whose cancellation is queued pending cancellation")
+		assert.Equal(t, [][]string{{OrderStatusOpen, OrderStatusPending, OrderStatusQueued, OrderStatusEditQueued, OrderStatusCancelQueued}}, statuses, "GetActiveOrders should list every live status in one request")
+	})
+	t.Run("lists the open orders apart once the combined list is refused", func(t *testing.T) {
+		t.Parallel()
+		advancedTradeOrder := func(id, status string) string {
+			return `{"order_id":"` + id + `","product_id":"BTC-USD","product_type":"SPOT","side":"BUY","status":"` + status + `","order_type":"LIMIT","time_in_force":"GOOD_UNTIL_CANCELLED","filled_size":"0","order_configuration":{"limit_limit_gtc":{"base_size":"1","limit_price":"80000"}}}`
+		}
+		liveStatuses := []string{OrderStatusOpen, OrderStatusPending, OrderStatusQueued, OrderStatusEditQueued, OrderStatusCancelQueued}
+		for _, tc := range []struct {
+			name     string
+			refusal  string
+			code     int
+			fallback bool
+		}{
+			// Coinbase's earlier documentation refused OPEN listed with other statuses
+			{"invalid argument", `{"error":"INVALID_ARGUMENT","error_details":"order_status OPEN cannot be combined with other statuses","message":"order_status OPEN cannot be combined with other statuses"}`, http.StatusBadRequest, true},
+			{"another failure", `{"error":"UNAVAILABLE","message":"try again"}`, http.StatusServiceUnavailable, false},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				var mu sync.Mutex
+				var statuses [][]string
+				ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					requested := r.URL.Query()["order_status"]
+					mu.Lock()
+					statuses = append(statuses, requested)
+					mu.Unlock()
+					var body string
+					switch {
+					case slices.Equal(requested, liveStatuses):
+						http.Error(w, tc.refusal, tc.code)
+						return
+					case slices.Equal(requested, liveStatuses[1:]):
+						body = `{"orders":[` + advancedTradeOrder("pending-1", OrderStatusPending) + `,` + advancedTradeOrder("cancel-queued-2", OrderStatusCancelQueued) + `],"has_next":false,"cursor":""}`
+					case slices.Equal(requested, []string{OrderStatusOpen}):
+						// The pending order once it was accepted between the lists, and an order open throughout
+						body = `{"orders":[` + advancedTradeOrder("pending-1", OrderStatusOpen) + `,` + advancedTradeOrder("open-3", OrderStatusOpen) + `],"has_next":false,"cursor":""}`
+					default:
+						assert.Failf(t, "GetActiveOrders should only list live statuses", "listed %v with the %s", requested, tc.name)
+						http.Error(w, `{"error":"INVALID_ARGUMENT","message":"unexpected statuses"}`, http.StatusBadRequest)
+						return
+					}
+					_, err := w.Write([]byte(body))
+					assert.NoError(t, err, "writing the response should not error")
+				}))
+				orders, err := ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType})
+				mu.Lock()
+				requested := slices.Clone(statuses)
+				mu.Unlock()
+				if !tc.fallback {
+					assert.ErrorIsf(t, err, request.ErrAuthRequestFailed, "GetActiveOrders should return the error with %s", tc.name)
+					assert.Equalf(t, [][]string{liveStatuses}, requested, "GetActiveOrders should not list again after %s", tc.name)
+					return
+				}
+				require.NoErrorf(t, err, "GetActiveOrders must not error once the combined list is refused with %s", tc.name)
+				assert.Equalf(t, []string{"pending-1", "cancel-queued-2", "open-3"}, orderIDs(orders), "GetActiveOrders should return the queued and the open orders once each with %s", tc.name)
+				require.Lenf(t, orders, 3, "GetActiveOrders must return every order with %s", tc.name)
+				assert.Equalf(t, order.Open, orders[0].Status, "GetActiveOrders should report the newer state of an order in both lists with %s", tc.name)
+				assert.Equalf(t, [][]string{liveStatuses, liveStatuses[1:], {OrderStatusOpen}}, requested, "GetActiveOrders should list the open orders after the other live ones once the combined list is refused with %s", tc.name)
+			})
+		}
+	})
 }
 
-func TestGetOrderInfoEditTimestamp(t *testing.T) {
-	t.Parallel()
-	const orderID = "eeeeeeee-ffff-0000-1111-444444444444"
-	ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		body := `{"fills":[],"cursor":""}`
-		if r.URL.Path == "/api/v3/brokerage/orders/historical/"+orderID {
-			// Created and last filled on 1 October, and edited on 2 October
-			body = `{"order":{"order_id":"` + orderID + `","product_id":"BTC-USD","product_type":"SPOT","side":"BUY","status":"OPEN","order_type":"LIMIT","time_in_force":"GOOD_UNTIL_CANCELLED","filled_size":"0","created_time":"2026-10-01T00:00:00Z","last_update_time":"2026-10-01T00:00:00Z","edit_history":[{"price":"100","size":"2","replace_accept_timestamp":"2026-10-02T00:00:00Z"}],"order_configuration":{"limit_limit_gtc":{"base_size":"2","limit_price":"100"}}}}`
-		}
-		_, err := w.Write([]byte(body))
-		assert.NoError(t, err, "writing the response should not error")
-	}))
-	d, err := ex.GetOrderInfo(t.Context(), orderID, currency.NewBTCUSD(), asset.Spot)
-	require.NoError(t, err, "GetOrderInfo must not error")
-	assert.Equal(t, time.Date(2026, 10, 2, 0, 0, 0, 0, time.UTC), d.LastUpdated, "GetOrderInfo should report an order's latest accepted edit as its last update")
-}
-
-func TestGetOrderHistory(t *testing.T) {
+func TestGetOrderHistory(t *testing.T) { //nolint:tparallel // the cases share ex in order
 	t.Parallel()
 	ex := newWrapperTestExchange(t)
 	_, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Options, Side: order.AnySide, Type: order.AnyType})
@@ -3357,52 +3553,109 @@ func TestGetOrderHistory(t *testing.T) {
 	if !mockTests {
 		sharedTestCredentials(t, ex)
 	}
+	// The cases share ex in order, so each also checks that a call keeps nothing from the last
 	for _, tc := range []struct {
 		a asset.Item
 		p currency.Pairs
 	}{{asset.Spot, nil}, {asset.USDCMarginedFutures, currency.Pairs{testUSDCPerpetual}}} {
-		orders, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: tc.a, Pairs: tc.p, Side: order.AnySide, Type: order.AnyType})
-		require.NoErrorf(t, err, "GetOrderHistory must not error for %s", tc.a)
-		for i := range orders {
-			assert.Equalf(t, tc.a, orders[i].AssetType, "GetOrderHistory should return only %s orders", tc.a)
-		}
-		if !mockTests || tc.a != asset.USDCMarginedFutures {
-			continue
-		}
-		// The mock's isolated margin subaccount holds an order of the pair and one of another
-		i := slices.IndexFunc(orders, func(d order.Detail) bool { return d.OrderID == "USDC-1000000002" })
-		require.NotEqual(t, -1, i, "GetOrderHistory must return the isolated margin subaccount's order of the pair")
-		assert.Equal(t, margin.Isolated, orders[i].MarginType, "GetOrderHistory should report the isolated margin subaccount's order isolated")
-		assert.False(t, slices.ContainsFunc(orders, func(d order.Detail) bool { return d.OrderID == "USDC-1000000003" }), "GetOrderHistory should leave out the isolated margin subaccount's order of another pair")
+		t.Run(tc.a.String(), func(t *testing.T) {
+			orders, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: tc.a, Pairs: tc.p, Side: order.AnySide, Type: order.AnyType})
+			require.NoErrorf(t, err, "GetOrderHistory must not error for %s", tc.a)
+			for i := range orders {
+				assert.Equalf(t, tc.a, orders[i].AssetType, "GetOrderHistory should return only %s orders", tc.a)
+			}
+			if !mockTests || tc.a != asset.USDCMarginedFutures {
+				return
+			}
+			// The mock's isolated margin subaccount holds an order of the pair and one of another
+			i := slices.IndexFunc(orders, func(d order.Detail) bool { return d.OrderID == "USDC-1000000002" })
+			require.NotEqual(t, -1, i, "GetOrderHistory must return the isolated margin subaccount's order of the pair")
+			assert.Equal(t, margin.Isolated, orders[i].MarginType, "GetOrderHistory should report the isolated margin subaccount's order isolated")
+			assert.False(t, slices.ContainsFunc(orders, func(d order.Detail) bool { return d.OrderID == "USDC-1000000003" }), "GetOrderHistory should leave out the isolated margin subaccount's order of another pair")
+		})
 	}
 }
 
-func TestFilterOrdersGoodTillDay(t *testing.T) {
+func TestFilterOrders(t *testing.T) {
 	t.Parallel()
-	ex := newWrapperTestExchange(t)
-	placed := []order.Detail{
-		{Exchange: ex.Name, OrderID: "gtd", Pair: currency.NewBTCUSD(), AssetType: asset.Spot, Side: order.Buy, Type: order.Limit, Status: order.Open, TimeInForce: order.GoodTillTime},
-		{Exchange: ex.Name, OrderID: "gtc", Pair: currency.NewBTCUSD(), AssetType: asset.Spot, Side: order.Buy, Type: order.Limit, Status: order.Open, TimeInForce: order.GoodTillCancel},
-	}
-	got := ex.filterOrders(&order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType, TimeInForce: order.GoodTillDay}, placed)
-	require.Len(t, got, 1, "filterOrders must match the order a good till day submission placed")
-	assert.Equal(t, "gtd", got[0].OrderID, "filterOrders should match a good till day request to the good till time order Coinbase reports")
+	t.Run("matches a good till day request to a good till time order", func(t *testing.T) {
+		t.Parallel()
+		ex := newWrapperTestExchange(t)
+		placed := []order.Detail{
+			{Exchange: ex.Name, OrderID: "gtd", Pair: currency.NewBTCUSD(), AssetType: asset.Spot, Side: order.Buy, Type: order.Limit, Status: order.Open, TimeInForce: order.GoodTillTime},
+			{Exchange: ex.Name, OrderID: "gtc", Pair: currency.NewBTCUSD(), AssetType: asset.Spot, Side: order.Buy, Type: order.Limit, Status: order.Open, TimeInForce: order.GoodTillCancel},
+		}
+		got := ex.filterOrders(&order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType, TimeInForce: order.GoodTillDay}, placed)
+		require.Len(t, got, 1, "filterOrders must match the order a good till day submission placed")
+		assert.Equal(t, "gtd", got[0].OrderID, "filterOrders should match a good till day request to the good till time order Coinbase reports")
+	})
 }
 
 func TestGetDepositAddress(t *testing.T) {
 	t.Parallel()
 	ex := newWrapperTestExchange(t)
-	if !mockTests {
-		sharedTestCredentials(t, ex)
-	}
-	address, err := ex.GetDepositAddress(t.Context(), currency.BTC, "", "")
-	require.NoError(t, err, "GetDepositAddress must not error")
-	assert.NotEmpty(t, address.Address, "GetDepositAddress should return an address")
-	if mockTests {
-		created, err := ex.GetDepositAddress(t.Context(), currency.BTC, testAppAccountID, "ethereum")
+	t.Run("returns a deposit address", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			sharedTestCredentials(t, ex)
+		}
+		address, err := ex.GetDepositAddress(t.Context(), currency.BTC, "", "")
+		require.NoError(t, err, "GetDepositAddress must not error")
+		assert.NotEmpty(t, address.Address, "GetDepositAddress should return an address")
+		if mockTests {
+			created, err := ex.GetDepositAddress(t.Context(), currency.BTC, testAppAccountID, "ethereum")
+			require.NoError(t, err, "GetDepositAddress must not error when it creates an address")
+			assert.Equal(t, "ethereum", created.Chain, "GetDepositAddress should create an address on the network asked for")
+		}
+	})
+	t.Run("uses the currency's default network", func(t *testing.T) {
+		t.Parallel()
+		address := func(id, network string) string {
+			return `{"id":"` + id + `","address":"` + id + `-address","network":"` + network + `","created_at":"2026-10-18T00:00:00Z","updated_at":"2026-10-18T00:00:00Z","resource":"address"}`
+		}
+		var created []string
+		var mu sync.Mutex
+		ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			var body string
+			switch r.Method + " " + r.URL.Path {
+			case http.MethodGet + " /currencies/USDC":
+				body = `{"id":"USDC","name":"USD Coin","status":"online","default_network":"ethereum","supported_networks":[{"id":"ethereum","status":"online"},{"id":"solana","status":"online"}]}`
+			case http.MethodGet + " /currencies/BTC":
+				http.Error(w, `{"message":"NotFound"}`, http.StatusNotFound)
+				return
+			case http.MethodGet + " /v2/accounts/usdc-account/addresses":
+				// The newest address is on another network than the default
+				body = `{"pagination":{"limit":100,"order":"desc"},"data":[` + address("solana-1", "solana") + `,` + address("ethereum-1", "ethereum") + `]}`
+			case http.MethodGet + " /v2/accounts/empty-account/addresses":
+				body = `{"pagination":{"limit":100,"order":"desc"},"data":[]}`
+			case http.MethodPost + " /v2/accounts/empty-account/addresses":
+				req, err := io.ReadAll(r.Body)
+				assert.NoError(t, err, "reading the request should not error")
+				mu.Lock()
+				created = append(created, string(req))
+				mu.Unlock()
+				body = `{"data":` + address("ethereum-2", "ethereum") + `}`
+			default:
+				assert.Failf(t, "GetDepositAddress should read the currency and the account's addresses", "%s %s", r.Method, r.URL.Path)
+				http.NotFound(w, r)
+				return
+			}
+			_, err := w.Write([]byte(body))
+			assert.NoError(t, err, "writing the response should not error")
+		}))
+		got, err := ex.GetDepositAddress(t.Context(), currency.USDC, "usdc-account", "")
+		require.NoError(t, err, "GetDepositAddress must not error")
+		assert.Equal(t, "ethereum", got.Chain, "GetDepositAddress should return an address on the currency's default network when none is given")
+		got, err = ex.GetDepositAddress(t.Context(), currency.USDC, "usdc-account", "solana")
+		require.NoError(t, err, "GetDepositAddress must not error for a network given")
+		assert.Equal(t, "solana-1-address", got.Address, "GetDepositAddress should return an address on the network given")
+		got, err = ex.GetDepositAddress(t.Context(), currency.USDC, "empty-account", "")
 		require.NoError(t, err, "GetDepositAddress must not error when it creates an address")
-		assert.Equal(t, "ethereum", created.Chain, "GetDepositAddress should create an address on the network asked for")
-	}
+		assert.Equal(t, "ethereum", got.Chain, "GetDepositAddress should create an address on the default network")
+		assert.Equal(t, []string{`{"network":"ethereum"}`}, created, "GetDepositAddress should create the address on the currency's default network")
+		_, err = ex.GetDepositAddress(t.Context(), currency.BTC, "usdc-account", "")
+		assert.Error(t, err, "GetDepositAddress should report a currency whose default network it cannot read")
+	})
 }
 
 func TestWithdrawCryptocurrencyFunds(t *testing.T) {
@@ -3484,46 +3737,59 @@ func TestWithdrawFiatFunds(t *testing.T) {
 	assert.NotEmpty(t, resp.ID, "WithdrawFiatFundsToInternationalBank should return the withdrawal's ID")
 }
 
-func TestGetFeeByType(t *testing.T) {
+func TestGetFeeByType(t *testing.T) { //nolint:tparallel // the cases share ex and unloaded in order
 	t.Parallel()
 	ex := newWrapperTestExchange(t)
 	_, err := ex.GetFeeByType(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetFeeByType must refuse a nil fee builder")
 	_, err = ex.GetFeeByType(t.Context(), &exchange.FeeBuilder{FeeType: exchange.CryptocurrencyWithdrawalFee})
 	require.ErrorIs(t, err, common.ErrFunctionNotSupported, "GetFeeByType must refuse a fee type it does not estimate")
+	// The cases share ex in order, so each also checks that a call keeps nothing from the last
 	for _, tc := range []struct {
-		f   exchange.FeeBuilder
-		exp float64
+		name string
+		f    exchange.FeeBuilder
+		exp  float64
 	}{
-		{exchange.FeeBuilder{FeeType: exchange.OfflineTradeFee, Pair: currency.NewBTCUSD(), PurchasePrice: 100, Amount: 2}, 2.4},
-		{exchange.FeeBuilder{FeeType: exchange.OfflineTradeFee, Pair: currency.NewBTCUSD(), PurchasePrice: 100, Amount: 2, IsMaker: true}, 1.2},
-		{exchange.FeeBuilder{FeeType: exchange.OfflineTradeFee, Pair: currency.NewPair(currency.USDT, currency.USD), PurchasePrice: 1, Amount: 1000}, 0.045},
-		{exchange.FeeBuilder{FeeType: exchange.OfflineTradeFee, Pair: currency.NewPair(currency.USDT, currency.USD), PurchasePrice: 1, Amount: 1000, IsMaker: true}, 0},
+		{"taker", exchange.FeeBuilder{FeeType: exchange.OfflineTradeFee, Pair: currency.NewBTCUSD(), PurchasePrice: 100, Amount: 2}, 2.4},
+		{"maker", exchange.FeeBuilder{FeeType: exchange.OfflineTradeFee, Pair: currency.NewBTCUSD(), PurchasePrice: 100, Amount: 2, IsMaker: true}, 1.2},
+		{"stable pair taker", exchange.FeeBuilder{FeeType: exchange.OfflineTradeFee, Pair: currency.NewPair(currency.USDT, currency.USD), PurchasePrice: 1, Amount: 1000}, 0.045},
+		{"stable pair maker", exchange.FeeBuilder{FeeType: exchange.OfflineTradeFee, Pair: currency.NewPair(currency.USDT, currency.USD), PurchasePrice: 1, Amount: 1000, IsMaker: true}, 0},
 	} {
-		fee, err := ex.GetFeeByType(t.Context(), &tc.f)
-		require.NoErrorf(t, err, "GetFeeByType must not error for %+v", tc.f)
-		assert.InDeltaf(t, tc.exp, fee, 1e-12, "GetFeeByType should estimate %+v", tc.f)
+		t.Run(tc.name, func(t *testing.T) {
+			fee, err := ex.GetFeeByType(t.Context(), &tc.f)
+			require.NoErrorf(t, err, "GetFeeByType must not error for %+v", tc.f)
+			assert.InDeltaf(t, tc.exp, fee, 1e-12, "GetFeeByType should estimate %+v", tc.f)
+		})
 	}
-	if !mockTests {
-		sharedTestCredentials(t, ex)
-	}
-	fee, err := ex.GetFeeByType(t.Context(), &exchange.FeeBuilder{FeeType: exchange.CryptocurrencyTradeFee, Pair: currency.NewBTCUSD(), PurchasePrice: 100, Amount: 2})
-	require.NoError(t, err, "GetFeeByType must not error at the account's fee tier")
-	assert.Positive(t, fee, "GetFeeByType should estimate a fee at the account's fee tier")
+	// Only this case needs credentials, so a live run without them skips it alone; it shares ex in order with the others
+	t.Run("estimates at the account's fee tier", func(t *testing.T) {
+		if !mockTests {
+			sharedTestCredentials(t, ex)
+		}
+		fee, err := ex.GetFeeByType(t.Context(), &exchange.FeeBuilder{FeeType: exchange.CryptocurrencyTradeFee, Pair: currency.NewBTCUSD(), PurchasePrice: 100, Amount: 2})
+		require.NoError(t, err, "GetFeeByType must not error at the account's fee tier")
+		assert.Positive(t, fee, "GetFeeByType should estimate a fee at the account's fee tier")
+	})
 
-	// US derivatives are charged by the contract, and the gateway's perpetuals at their own tier
+	// US derivatives are charged by the contract, and the gateway's perpetuals at their own tier. The cases share ex in
+	// order, so each also checks that a call keeps nothing from the last
 	for _, p := range []currency.Pair{testUSDCPerpetual, testCoinPerpetual, datedFuture(t)} {
-		_, err = ex.GetFeeByType(t.Context(), &exchange.FeeBuilder{FeeType: exchange.OfflineTradeFee, Pair: p, PurchasePrice: 100, Amount: 2})
-		assert.ErrorIsf(t, err, common.ErrFunctionNotSupported, "GetFeeByType should refuse to estimate %s's fees as spot's", p)
+		t.Run(p.String(), func(t *testing.T) {
+			_, err := ex.GetFeeByType(t.Context(), &exchange.FeeBuilder{FeeType: exchange.OfflineTradeFee, Pair: p, PurchasePrice: 100, Amount: 2})
+			assert.ErrorIsf(t, err, common.ErrFunctionNotSupported, "GetFeeByType should refuse to estimate %s's fees as spot's", p)
+		})
 	}
 	// Before pairs load, the symbols name the derivatives
 	unloaded := new(Exchange)
 	unloaded.SetDefaults()
+	// The cases share unloaded in order, so each also checks that a call keeps nothing from the last
 	for _, p := range []currency.Pair{testUSDCPerpetual, testCoinPerpetual, testDatedFuture} {
-		_, err = unloaded.GetFeeByType(t.Context(), &exchange.FeeBuilder{FeeType: exchange.OfflineTradeFee, Pair: p, PurchasePrice: 100, Amount: 2})
-		assert.ErrorIsf(t, err, common.ErrFunctionNotSupported, "GetFeeByType should refuse to estimate %s's fees as spot's before pairs load", p)
+		t.Run(p.String()+" before pairs load", func(t *testing.T) {
+			_, err := unloaded.GetFeeByType(t.Context(), &exchange.FeeBuilder{FeeType: exchange.OfflineTradeFee, Pair: p, PurchasePrice: 100, Amount: 2})
+			assert.ErrorIsf(t, err, common.ErrFunctionNotSupported, "GetFeeByType should refuse to estimate %s's fees as spot's before pairs load", p)
+		})
 	}
-	fee, err = unloaded.GetFeeByType(t.Context(), &exchange.FeeBuilder{FeeType: exchange.OfflineTradeFee, Pair: currency.NewBTCUSD(), PurchasePrice: 100, Amount: 2})
+	fee, err := unloaded.GetFeeByType(t.Context(), &exchange.FeeBuilder{FeeType: exchange.OfflineTradeFee, Pair: currency.NewBTCUSD(), PurchasePrice: 100, Amount: 2})
 	require.NoError(t, err, "GetFeeByType must not error for a spot pair before pairs load")
 	assert.InDelta(t, 2.4, fee, 1e-12, "GetFeeByType should estimate a spot pair's fee before pairs load")
 	// Without valid credentials the lowest tier is estimated, leaving the request as it was
@@ -3553,10 +3819,11 @@ func TestGetAvailableTransferChains(t *testing.T) {
 	assert.Contains(t, chains, "bitcoin", "GetAvailableTransferChains should return bitcoin for BTC")
 }
 
-func TestGetHistoricCandles(t *testing.T) {
+func TestGetHistoricCandles(t *testing.T) { //nolint:tparallel // the cases share ex in order
 	t.Parallel()
 	ex := newWrapperTestExchange(t)
 	start, end := wrapperWindow(4 * time.Hour)
+	// The cases share ex in order, so each also checks that a call keeps nothing from the last
 	for _, tc := range []struct {
 		a        asset.Item
 		p        currency.Pair
@@ -3567,20 +3834,22 @@ func TestGetHistoricCandles(t *testing.T) {
 		{asset.USDCMarginedFutures, testUSDCPerpetual, kline.OneHour},
 		{asset.CoinMarginedFutures, testCoinPerpetual, kline.FourHour},
 	} {
-		candles, err := ex.GetHistoricCandles(t.Context(), tc.p, tc.a, tc.interval, start, end)
-		require.NoErrorf(t, err, "GetHistoricCandles must not error for %s %s", tc.a, tc.p)
-		require.NotEmptyf(t, candles.Candles, "GetHistoricCandles must return %s %s candles", tc.a, tc.p)
-		assert.Equalf(t, tc.interval, candles.Interval, "GetHistoricCandles should return %s candles", tc.interval)
-		for i := range candles.Candles {
-			assert.Truef(t, candles.Candles[i].Time.Equal(candles.Candles[i].Time.Truncate(tc.interval.Duration())), "GetHistoricCandles should align %s %s candles to UTC, got %s", tc.a, tc.interval, candles.Candles[i].Time)
-		}
-		if mockTests && tc.a == asset.CoinMarginedFutures {
-			require.Len(t, candles.Candles, 1, "GetHistoricCandles must return one 4 hour candle for the window")
-			c := candles.Candles[0]
-			assert.Equal(t, start, c.Time, "GetHistoricCandles should start the 4 hour candle at the window's start")
-			assert.Equal(t, []float64{81410.5, 81983.5, 81314.5, 81859.5}, []float64{c.Open, c.High, c.Low, c.Close}, "GetHistoricCandles should build the 4 hour candle from the 2 hour candles")
-			assert.InDelta(t, 1661.64346131, c.Volume, 1e-9, "GetHistoricCandles should sum the 2 hour candles' volumes")
-		}
+		t.Run(tc.a.String(), func(t *testing.T) {
+			candles, err := ex.GetHistoricCandles(t.Context(), tc.p, tc.a, tc.interval, start, end)
+			require.NoErrorf(t, err, "GetHistoricCandles must not error for %s %s", tc.a, tc.p)
+			require.NotEmptyf(t, candles.Candles, "GetHistoricCandles must return %s %s candles", tc.a, tc.p)
+			assert.Equalf(t, tc.interval, candles.Interval, "GetHistoricCandles should return %s candles", tc.interval)
+			for i := range candles.Candles {
+				assert.Truef(t, candles.Candles[i].Time.Equal(candles.Candles[i].Time.Truncate(tc.interval.Duration())), "GetHistoricCandles should align %s %s candles to UTC, got %s", tc.a, tc.interval, candles.Candles[i].Time)
+			}
+			if mockTests && tc.a == asset.CoinMarginedFutures {
+				require.Len(t, candles.Candles, 1, "GetHistoricCandles must return one 4 hour candle for the window")
+				c := candles.Candles[0]
+				assert.Equal(t, start, c.Time, "GetHistoricCandles should start the 4 hour candle at the window's start")
+				assert.Equal(t, []float64{81410.5, 81983.5, 81314.5, 81859.5}, []float64{c.Open, c.High, c.Low, c.Close}, "GetHistoricCandles should build the 4 hour candle from the 2 hour candles")
+				assert.InDelta(t, 1661.64346131, c.Volume, 1e-9, "GetHistoricCandles should sum the 2 hour candles' volumes")
+			}
+		})
 	}
 }
 
@@ -3624,45 +3893,47 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
 	ex := newWrapperTestExchange(t)
 	start, end := wrapperWindow(4 * time.Hour)
+	// The cases share ex in order, so each also checks that a call keeps nothing from the last
 	for _, tc := range []struct {
 		a asset.Item
 		p currency.Pair
 	}{{asset.Spot, currency.NewBTCUSD()}, {asset.USDCMarginedFutures, testUSDCPerpetual}} {
-		candles, err := ex.GetHistoricCandlesExtended(t.Context(), tc.p, tc.a, kline.OneHour, start, end)
-		require.NoErrorf(t, err, "GetHistoricCandlesExtended must not error for %s %s", tc.a, tc.p)
-		assert.NotEmptyf(t, candles.Candles, "GetHistoricCandlesExtended should return %s %s candles", tc.a, tc.p)
+		t.Run(tc.a.String(), func(t *testing.T) {
+			candles, err := ex.GetHistoricCandlesExtended(t.Context(), tc.p, tc.a, kline.OneHour, start, end)
+			require.NoErrorf(t, err, "GetHistoricCandlesExtended must not error for %s %s", tc.a, tc.p)
+			assert.NotEmptyf(t, candles.Candles, "GetHistoricCandlesExtended should return %s %s candles", tc.a, tc.p)
+		})
 	}
-}
-
-func TestGetHistoricCandlesExtendedDerivativesBoundary(t *testing.T) {
-	t.Parallel()
-	// The gateway's 2 hour candles include the one at the window's end, each of volume 1
-	ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		start, err := strconv.ParseInt(r.URL.Query().Get("start_timestamp"), 10, 64)
-		if !assert.NoError(t, err, "the candles request should hold a start") {
-			return
+	t.Run("builds the gateway's 6 hour candles across requests", func(t *testing.T) {
+		t.Parallel()
+		// The gateway's 2 hour candles include the one at the window's end, each of volume 1
+		ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			start, err := strconv.ParseInt(r.URL.Query().Get("start_timestamp"), 10, 64)
+			if !assert.NoError(t, err, "the candles request should hold a start") {
+				return
+			}
+			end, err := strconv.ParseInt(r.URL.Query().Get("end_timestamp"), 10, 64)
+			if !assert.NoError(t, err, "the candles request should hold an end") {
+				return
+			}
+			twoHours := (2 * time.Hour).Milliseconds()
+			var ticks, values []string
+			for at := (start + twoHours - 1) / twoHours * twoHours; at <= end; at += twoHours {
+				ticks = append(ticks, strconv.FormatInt(at, 10))
+				values = append(values, "1")
+			}
+			list := strings.Join(values, ",")
+			_, err = w.Write([]byte(`{"jsonrpc":"2.0","result":{"status":"ok","ticks":[` + strings.Join(ticks, ",") + `],"open":[` + list + `],"high":[` + list + `],"low":[` + list + `],"close":[` + list + `],"volume":[` + list + `],"cost":[` + list + `]}}`))
+			assert.NoError(t, err, "writing the candles should not error")
+		}))
+		start := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+		candles, err := ex.GetHistoricCandlesExtended(t.Context(), testCoinPerpetual, asset.CoinMarginedFutures, kline.SixHour, start, start.Add((maximumCandles+1)*6*time.Hour))
+		require.NoError(t, err, "GetHistoricCandlesExtended must not error")
+		require.Len(t, candles.Candles, maximumCandles+1, "GetHistoricCandlesExtended must return every 6 hour candle across both requests")
+		for i := range candles.Candles {
+			assert.Equalf(t, 3.0, candles.Candles[i].Volume, "the 6 hour candle at %s should be built from three 2 hour candles", candles.Candles[i].Time)
 		}
-		end, err := strconv.ParseInt(r.URL.Query().Get("end_timestamp"), 10, 64)
-		if !assert.NoError(t, err, "the candles request should hold an end") {
-			return
-		}
-		twoHours := (2 * time.Hour).Milliseconds()
-		var ticks, values []string
-		for at := (start + twoHours - 1) / twoHours * twoHours; at <= end; at += twoHours {
-			ticks = append(ticks, strconv.FormatInt(at, 10))
-			values = append(values, "1")
-		}
-		list := strings.Join(values, ",")
-		_, err = w.Write([]byte(`{"jsonrpc":"2.0","result":{"status":"ok","ticks":[` + strings.Join(ticks, ",") + `],"open":[` + list + `],"high":[` + list + `],"low":[` + list + `],"close":[` + list + `],"volume":[` + list + `],"cost":[` + list + `]}}`))
-		assert.NoError(t, err, "writing the candles should not error")
-	}))
-	start := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
-	candles, err := ex.GetHistoricCandlesExtended(t.Context(), testCoinPerpetual, asset.CoinMarginedFutures, kline.SixHour, start, start.Add((maximumCandles+1)*6*time.Hour))
-	require.NoError(t, err, "GetHistoricCandlesExtended must not error")
-	require.Len(t, candles.Candles, maximumCandles+1, "GetHistoricCandlesExtended must return every 6 hour candle across both requests")
-	for i := range candles.Candles {
-		assert.Equalf(t, 3.0, candles.Candles[i].Volume, "the 6 hour candle at %s should be built from three 2 hour candles", candles.Candles[i].Time)
-	}
+	})
 }
 
 func TestCandleGranularity(t *testing.T) {
@@ -3672,15 +3943,21 @@ func TestCandleGranularity(t *testing.T) {
 		kline.ThirtyMin: GranularityThirtyMinute, kline.OneHour: GranularityOneHour, kline.TwoHour: GranularityTwoHour,
 		kline.FourHour: GranularityFourHour, kline.SixHour: GranularitySixHour, kline.OneDay: GranularityOneDay,
 	} {
-		got, err := candleGranularity(interval)
-		require.NoErrorf(t, err, "candleGranularity must not error for %s", interval)
-		assert.Equalf(t, exp, got, "candleGranularity should convert %s", interval)
+		t.Run(interval.Short(), func(t *testing.T) {
+			t.Parallel()
+			got, err := candleGranularity(interval)
+			require.NoErrorf(t, err, "candleGranularity must not error for %s", interval)
+			assert.Equalf(t, exp, got, "candleGranularity should convert %s", interval)
+		})
 	}
 	_, err := candleGranularity(kline.ThreeMin)
 	assert.ErrorIs(t, err, kline.ErrUnsupportedInterval, "candleGranularity should refuse an interval Advanced Trade does not serve")
 	assert.True(t, derivativesCandleAligned(kline.TwoHour), "derivativesCandleAligned should report the gateway's 2 hour candles aligned to UTC")
 	for _, interval := range []kline.Interval{kline.FourHour, kline.SixHour, kline.OneDay} {
-		assert.Falsef(t, derivativesCandleAligned(interval), "derivativesCandleAligned should not report the gateway's %s candles aligned to UTC", interval)
+		t.Run("gateway "+interval.Short(), func(t *testing.T) {
+			t.Parallel()
+			assert.Falsef(t, derivativesCandleAligned(interval), "derivativesCandleAligned should not report the gateway's %s candles aligned to UTC", interval)
+		})
 	}
 }
 
@@ -3699,35 +3976,41 @@ func TestAggregateCandles(t *testing.T) {
 	assert.Empty(t, aggregateCandles(nil, kline.OneDay), "aggregateCandles should return nothing for no candles")
 }
 
-func TestGetServerTime(t *testing.T) {
+func TestGetServerTime(t *testing.T) { //nolint:tparallel // the cases share ex in order
 	t.Parallel()
 	ex := newWrapperTestExchange(t)
+	// The cases share ex in order, so each also checks that a call keeps nothing from the last
 	for _, a := range []asset.Item{asset.Spot, asset.USDCMarginedFutures} {
-		st, err := ex.GetServerTime(t.Context(), a)
-		require.NoErrorf(t, err, "GetServerTime must not error for %s", a)
-		assert.Falsef(t, st.IsZero(), "GetServerTime should return a time for %s", a)
+		t.Run(a.String(), func(t *testing.T) {
+			st, err := ex.GetServerTime(t.Context(), a)
+			require.NoErrorf(t, err, "GetServerTime must not error for %s", a)
+			assert.Falsef(t, st.IsZero(), "GetServerTime should return a time for %s", a)
+		})
 	}
 }
 
-func TestGetFuturesContractDetails(t *testing.T) {
+func TestGetFuturesContractDetails(t *testing.T) { //nolint:tparallel // the cases share ex in order
 	t.Parallel()
 	ex := newWrapperTestExchange(t)
 	_, err := ex.GetFuturesContractDetails(t.Context(), asset.Spot)
 	require.ErrorIs(t, err, futures.ErrNotFuturesAsset, "GetFuturesContractDetails must refuse a spot asset")
 	_, err = ex.GetFuturesContractDetails(t.Context(), asset.USDTMarginedFutures)
 	require.ErrorIs(t, err, asset.ErrNotSupported, "GetFuturesContractDetails must refuse a futures asset Coinbase does not trade")
+	// The cases share ex in order, so each also checks that a call keeps nothing from the last
 	for a, pairs := range wrapperTestPairs(t) {
 		if !a.IsFutures() {
 			continue
 		}
-		contracts, err := ex.GetFuturesContractDetails(t.Context(), a)
-		require.NoErrorf(t, err, "GetFuturesContractDetails must not error for %s", a)
-		i := slices.IndexFunc(contracts, func(c futures.Contract) bool { return c.Name.Equal(pairs[0]) })
-		require.NotEqualf(t, -1, i, "GetFuturesContractDetails must return %s", pairs[0])
-		assert.Equalf(t, futures.Perpetual, contracts[i].Type, "GetFuturesContractDetails should return %s as perpetual", pairs[0])
-		assert.Positivef(t, contracts[i].Multiplier, "GetFuturesContractDetails should return %s's contract size", pairs[0])
-		exp := map[asset.Item]futures.ContractSettlementType{asset.Futures: futures.Linear, asset.USDCMarginedFutures: futures.Linear, asset.CoinMarginedFutures: futures.Inverse}[a]
-		assert.Equalf(t, exp, contracts[i].SettlementType, "GetFuturesContractDetails should return how %s settles", pairs[0])
+		t.Run(a.String(), func(t *testing.T) {
+			contracts, err := ex.GetFuturesContractDetails(t.Context(), a)
+			require.NoErrorf(t, err, "GetFuturesContractDetails must not error for %s", a)
+			i := slices.IndexFunc(contracts, func(c futures.Contract) bool { return c.Name.Equal(pairs[0]) })
+			require.NotEqualf(t, -1, i, "GetFuturesContractDetails must return %s", pairs[0])
+			assert.Equalf(t, futures.Perpetual, contracts[i].Type, "GetFuturesContractDetails should return %s as perpetual", pairs[0])
+			assert.Positivef(t, contracts[i].Multiplier, "GetFuturesContractDetails should return %s's contract size", pairs[0])
+			exp := map[asset.Item]futures.ContractSettlementType{asset.Futures: futures.Linear, asset.USDCMarginedFutures: futures.Linear, asset.CoinMarginedFutures: futures.Inverse}[a]
+			assert.Equalf(t, exp, contracts[i].SettlementType, "GetFuturesContractDetails should return how %s settles", pairs[0])
+		})
 	}
 	if !mockTests {
 		return
@@ -3828,118 +4111,128 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 	t.Parallel()
 	ex := newWrapperTestExchange(t)
 	start, end := wrapperWindow(4 * time.Hour)
+	// The cases share ex in order, so each also checks that a call keeps nothing from the last
 	for _, tc := range []struct {
-		r   *fundingrate.HistoricalRatesRequest
-		err error
+		name string
+		r    *fundingrate.HistoricalRatesRequest
+		err  error
 	}{
-		{nil, common.ErrNilPointer},
-		{&fundingrate.HistoricalRatesRequest{Asset: asset.Futures}, common.ErrFunctionNotSupported},
-		{&fundingrate.HistoricalRatesRequest{Asset: asset.Spot}, futures.ErrNotPerpetualFuture},
-		{&fundingrate.HistoricalRatesRequest{Asset: asset.USDCMarginedFutures, IncludePayments: true}, common.ErrFunctionNotSupported},
-		{&fundingrate.HistoricalRatesRequest{Asset: asset.USDCMarginedFutures, IncludePredictedRate: true}, common.ErrFunctionNotSupported},
-		{&fundingrate.HistoricalRatesRequest{Asset: asset.USDCMarginedFutures, Pair: testUSDCPerpetual, StartDate: end, EndDate: start}, common.ErrStartAfterEnd},
+		{"nil request", nil, common.ErrNilPointer},
+		{"US derivatives", &fundingrate.HistoricalRatesRequest{Asset: asset.Futures}, common.ErrFunctionNotSupported},
+		{"spot", &fundingrate.HistoricalRatesRequest{Asset: asset.Spot}, futures.ErrNotPerpetualFuture},
+		{"payments", &fundingrate.HistoricalRatesRequest{Asset: asset.USDCMarginedFutures, IncludePayments: true}, common.ErrFunctionNotSupported},
+		{"predicted rate", &fundingrate.HistoricalRatesRequest{Asset: asset.USDCMarginedFutures, IncludePredictedRate: true}, common.ErrFunctionNotSupported},
+		{"start after end", &fundingrate.HistoricalRatesRequest{Asset: asset.USDCMarginedFutures, Pair: testUSDCPerpetual, StartDate: end, EndDate: start}, common.ErrStartAfterEnd},
 	} {
-		_, err := ex.GetHistoricalFundingRates(t.Context(), tc.r)
-		assert.ErrorIsf(t, err, tc.err, "GetHistoricalFundingRates should refuse %+v", tc.r)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := ex.GetHistoricalFundingRates(t.Context(), tc.r)
+			assert.ErrorIsf(t, err, tc.err, "GetHistoricalFundingRates should refuse %+v", tc.r)
+		})
 	}
 	rates, err := ex.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{Asset: asset.USDCMarginedFutures, Pair: testUSDCPerpetual, StartDate: start, EndDate: end})
 	require.NoError(t, err, "GetHistoricalFundingRates must not error")
 	require.NotEmpty(t, rates.FundingRates, "GetHistoricalFundingRates must return the window's hourly rates")
 	assert.Equal(t, rates.FundingRates[len(rates.FundingRates)-1], rates.LatestRate, "GetHistoricalFundingRates should return the window's latest rate")
-}
-
-func TestGetHistoricalFundingRatesPages(t *testing.T) {
-	t.Parallel()
-	end := time.Date(2026, 10, 18, 0, 0, 0, 0, time.UTC)
-	// One hourly record more than a page holds, so the earlier page holds a single record
-	first := end.Add(-derivativesFundingRatePageLimit * time.Hour)
-	start := first.Add(-30 * time.Minute)
-	var ends []uint64
-	var mu sync.Mutex
-	ex, _ := newDerivativesMethodServer(t, func(req receivedJSONRPC) string {
-		var params DerivativesInstrumentTimeRangeWireRequest
-		if !assert.NoError(t, json.Unmarshal(req.Params, &params), "the funding history params should decode") {
-			return `{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid params"}}`
-		}
-		mu.Lock()
-		ends = append(ends, params.EndTimestamp)
-		mu.Unlock()
-		// The gateway answers a range with its latest page of records, oldest first, leaving out one at its start
-		var records []string
-		for at := first; !at.After(end); at = at.Add(time.Hour) {
-			if ms := uint64(at.UnixMilli()); ms > params.StartTimestamp && ms <= params.EndTimestamp {
-				records = append(records, `{"timestamp":`+strconv.FormatInt(at.UnixMilli(), 10)+`,"index_price":1,"prev_index_price":1,"interest_1h":`+strconv.FormatInt(int64(at.Sub(first)/time.Hour), 10)+`,"interest_8h":0}`)
+	t.Run("pages the funding history", func(t *testing.T) {
+		t.Parallel()
+		end := time.Date(2026, 10, 18, 0, 0, 0, 0, time.UTC)
+		// One hourly record more than a page holds, so the earlier page holds a single record
+		first := end.Add(-derivativesFundingRatePageLimit * time.Hour)
+		start := first.Add(-30 * time.Minute)
+		var ends []uint64
+		var mu sync.Mutex
+		ex, _ := newDerivativesMethodServer(t, func(req receivedJSONRPC) string {
+			var params DerivativesInstrumentTimeRangeWireRequest
+			if !assert.NoError(t, json.Unmarshal(req.Params, &params), "the funding history params should decode") {
+				return `{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid params"}}`
 			}
+			mu.Lock()
+			ends = append(ends, params.EndTimestamp)
+			mu.Unlock()
+			// The gateway answers a range with its latest page of records, oldest first, leaving out one at its start
+			var records []string
+			for at := first; !at.After(end); at = at.Add(time.Hour) {
+				if ms := uint64(at.UnixMilli()); ms > params.StartTimestamp && ms <= params.EndTimestamp {
+					records = append(records, `{"timestamp":`+strconv.FormatInt(at.UnixMilli(), 10)+`,"index_price":1,"prev_index_price":1,"interest_1h":`+strconv.FormatInt(int64(at.Sub(first)/time.Hour), 10)+`,"interest_8h":0}`)
+				}
+			}
+			records = records[max(len(records)-derivativesFundingRatePageLimit, 0):]
+			return `{"jsonrpc":"2.0","result":[` + strings.Join(records, ",") + `]}`
+		})
+		// expected returns the hourly records from one time to another as GetHistoricalFundingRates returns them
+		expected := func(from, to time.Time) *fundingrate.HistoricalRates {
+			exp := &fundingrate.HistoricalRates{Exchange: ex.Name, Asset: asset.USDCMarginedFutures, Pair: testUSDCPerpetual, StartDate: from, EndDate: to}
+			for at := from; !at.After(to); at = at.Add(time.Hour) {
+				exp.FundingRates = append(exp.FundingRates, fundingrate.Rate{Time: at, Rate: decimal.MustFromFloat(float64(at.Sub(first) / time.Hour))})
+			}
+			exp.LatestRate = exp.FundingRates[len(exp.FundingRates)-1]
+			return exp
 		}
-		records = records[max(len(records)-derivativesFundingRatePageLimit, 0):]
-		return `{"jsonrpc":"2.0","result":[` + strings.Join(records, ",") + `]}`
+		// requested returns the end of each page asked for since it was last called
+		requested := func() []uint64 {
+			mu.Lock()
+			defer mu.Unlock()
+			asked := ends
+			ends = nil
+			return asked
+		}
+		// The gateway's millisecond timestamps decode in the local time zone
+		inUTC := func(r *fundingrate.HistoricalRates) *fundingrate.HistoricalRates {
+			for i := range r.FundingRates {
+				r.FundingRates[i].Time = r.FundingRates[i].Time.UTC()
+			}
+			r.StartDate, r.EndDate, r.LatestRate.Time = r.StartDate.UTC(), r.EndDate.UTC(), r.LatestRate.Time.UTC()
+			return r
+		}
+		rates, err := ex.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{Asset: asset.USDCMarginedFutures, Pair: testUSDCPerpetual, StartDate: start, EndDate: end})
+		require.NoError(t, err, "GetHistoricalFundingRates must not error")
+		assert.Equal(t, expected(first, end), inUTC(rates), "GetHistoricalFundingRates should return every page's records, oldest first")
+		assert.Equal(t, []uint64{uint64(end.UnixMilli()), uint64(first.Add(time.Hour - time.Millisecond).UnixMilli())}, requested(), "GetHistoricalFundingRates should end each earlier page just before the first record of the last")
+
+		// A short page whose first record is a millisecond after the range's start, so no earlier page can follow it
+		near, err := ex.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{Asset: asset.USDCMarginedFutures, Pair: testUSDCPerpetual, StartDate: first.Add(-time.Millisecond), EndDate: first.Add(time.Hour)})
+		require.NoError(t, err, "GetHistoricalFundingRates must not error for a range starting just before a record")
+		assert.Equal(t, expected(first, first.Add(time.Hour)), inUTC(near), "GetHistoricalFundingRates should return a short page's records")
+		assert.Equal(t, []uint64{uint64(first.Add(time.Hour).UnixMilli())}, requested(), "GetHistoricalFundingRates should ask for a short page once")
+
+		// A full page whose first record is a millisecond after the range's start reaches it, so no earlier page is asked for
+		reached, err := ex.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{Asset: asset.USDCMarginedFutures, Pair: testUSDCPerpetual, StartDate: first.Add(time.Hour - time.Millisecond), EndDate: end})
+		require.NoError(t, err, "GetHistoricalFundingRates must not error for a full page reaching the range's start")
+		assert.Equal(t, expected(first.Add(time.Hour), end), inUTC(reached), "GetHistoricalFundingRates should return a full page reaching the range's start")
+		assert.Equal(t, []uint64{uint64(end.UnixMilli())}, requested(), "GetHistoricalFundingRates should ask for a full page reaching the range's start once")
 	})
-	// expected returns the hourly records from one time to another as GetHistoricalFundingRates returns them
-	expected := func(from, to time.Time) *fundingrate.HistoricalRates {
-		exp := &fundingrate.HistoricalRates{Exchange: ex.Name, Asset: asset.USDCMarginedFutures, Pair: testUSDCPerpetual, StartDate: from, EndDate: to}
-		for at := from; !at.After(to); at = at.Add(time.Hour) {
-			exp.FundingRates = append(exp.FundingRates, fundingrate.Rate{Time: at, Rate: decimal.MustFromFloat(float64(at.Sub(first) / time.Hour))})
-		}
-		exp.LatestRate = exp.FundingRates[len(exp.FundingRates)-1]
-		return exp
-	}
-	// requested returns the end of each page asked for since it was last called
-	requested := func() []uint64 {
-		mu.Lock()
-		defer mu.Unlock()
-		asked := ends
-		ends = nil
-		return asked
-	}
-	// The gateway's millisecond timestamps decode in the local time zone
-	inUTC := func(r *fundingrate.HistoricalRates) *fundingrate.HistoricalRates {
-		for i := range r.FundingRates {
-			r.FundingRates[i].Time = r.FundingRates[i].Time.UTC()
-		}
-		r.StartDate, r.EndDate, r.LatestRate.Time = r.StartDate.UTC(), r.EndDate.UTC(), r.LatestRate.Time.UTC()
-		return r
-	}
-	rates, err := ex.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{Asset: asset.USDCMarginedFutures, Pair: testUSDCPerpetual, StartDate: start, EndDate: end})
-	require.NoError(t, err, "GetHistoricalFundingRates must not error")
-	assert.Equal(t, expected(first, end), inUTC(rates), "GetHistoricalFundingRates should return every page's records, oldest first")
-	assert.Equal(t, []uint64{uint64(end.UnixMilli()), uint64(first.Add(time.Hour - time.Millisecond).UnixMilli())}, requested(), "GetHistoricalFundingRates should end each earlier page just before the first record of the last")
-
-	// A short page whose first record is a millisecond after the range's start, so no earlier page can follow it
-	near, err := ex.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{Asset: asset.USDCMarginedFutures, Pair: testUSDCPerpetual, StartDate: first.Add(-time.Millisecond), EndDate: first.Add(time.Hour)})
-	require.NoError(t, err, "GetHistoricalFundingRates must not error for a range starting just before a record")
-	assert.Equal(t, expected(first, first.Add(time.Hour)), inUTC(near), "GetHistoricalFundingRates should return a short page's records")
-	assert.Equal(t, []uint64{uint64(first.Add(time.Hour).UnixMilli())}, requested(), "GetHistoricalFundingRates should ask for a short page once")
-
-	// A full page whose first record is a millisecond after the range's start reaches it, so no earlier page is asked for
-	reached, err := ex.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{Asset: asset.USDCMarginedFutures, Pair: testUSDCPerpetual, StartDate: first.Add(time.Hour - time.Millisecond), EndDate: end})
-	require.NoError(t, err, "GetHistoricalFundingRates must not error for a full page reaching the range's start")
-	assert.Equal(t, expected(first.Add(time.Hour), end), inUTC(reached), "GetHistoricalFundingRates should return a full page reaching the range's start")
-	assert.Equal(t, []uint64{uint64(end.UnixMilli())}, requested(), "GetHistoricalFundingRates should ask for a full page reaching the range's start once")
 }
 
-func TestIsPerpetualFutureCurrency(t *testing.T) {
+func TestIsPerpetualFutureCurrency(t *testing.T) { //nolint:tparallel // the cases share ex in order, before and after its perpetual futures load
 	t.Parallel()
 	ex := newWrapperTestExchange(t)
+	// The cases share ex in order, and run before its perpetual futures load
 	for a, exp := range map[asset.Item]bool{asset.Spot: false, asset.USDCMarginedFutures: true, asset.CoinMarginedFutures: true} {
-		perpetual, err := ex.IsPerpetualFutureCurrency(a, currency.NewBTCUSD())
-		require.NoErrorf(t, err, "IsPerpetualFutureCurrency must not error for %s", a)
-		assert.Equalf(t, exp, perpetual, "IsPerpetualFutureCurrency should report whether %s trades perpetuals", a)
+		t.Run(a.String(), func(t *testing.T) {
+			perpetual, err := ex.IsPerpetualFutureCurrency(a, currency.NewBTCUSD())
+			require.NoErrorf(t, err, "IsPerpetualFutureCurrency must not error for %s", a)
+			assert.Equalf(t, exp, perpetual, "IsPerpetualFutureCurrency should report whether %s trades perpetuals", a)
+		})
 	}
 	_, err := ex.IsPerpetualFutureCurrency(asset.Futures, testFuturesPair)
 	require.ErrorIs(t, err, errPerpetualFuturesNotLoaded, "IsPerpetualFutureCurrency must refuse a future until product data loads")
 	ex.loadPerpetualFutures([]ProductResponse{{ProductID: "BIP-20DEC30-CDE", FutureProductDetails: &FutureProductDetails{FundingInterval: Duration(time.Hour)}}, {ProductID: "BIT-30OCT26-CDE", FutureProductDetails: &FutureProductDetails{}}})
+	// The cases share ex in order, once its perpetual futures load
 	for p, exp := range map[currency.Pair]bool{testFuturesPair: true, testDatedFuture: false} {
-		perpetual, err := ex.IsPerpetualFutureCurrency(asset.Futures, p)
-		require.NoErrorf(t, err, "IsPerpetualFutureCurrency must not error for %s", p)
-		assert.Equalf(t, exp, perpetual, "IsPerpetualFutureCurrency should report whether %s pays funding", p)
+		t.Run(p.String(), func(t *testing.T) {
+			perpetual, err := ex.IsPerpetualFutureCurrency(asset.Futures, p)
+			require.NoErrorf(t, err, "IsPerpetualFutureCurrency must not error for %s", p)
+			assert.Equalf(t, exp, perpetual, "IsPerpetualFutureCurrency should report whether %s pays funding", p)
+		})
 	}
 	_, err = ex.IsPerpetualFutureCurrency(asset.Futures, currency.EMPTYPAIR)
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "IsPerpetualFutureCurrency should refuse an empty future")
 }
 
-func TestGetCollateralCurrencyForContract(t *testing.T) {
+func TestGetCollateralCurrencyForContract(t *testing.T) { //nolint:tparallel // the cases share ex in order
 	t.Parallel()
 	ex := newWrapperTestExchange(t)
+	// The cases share ex in order, so each also checks that a call keeps nothing from the last
 	for _, tc := range []struct {
 		a   asset.Item
 		p   currency.Pair
@@ -3949,10 +4242,12 @@ func TestGetCollateralCurrencyForContract(t *testing.T) {
 		{asset.USDCMarginedFutures, testUSDCPerpetual, currency.USDC},
 		{asset.CoinMarginedFutures, testCoinPerpetual, currency.BTC},
 	} {
-		c, a, err := ex.GetCollateralCurrencyForContract(tc.a, tc.p)
-		require.NoErrorf(t, err, "GetCollateralCurrencyForContract must not error for %s %s", tc.a, tc.p)
-		assert.Truef(t, tc.exp.Equal(c), "GetCollateralCurrencyForContract should return %s for %s %s, got %s", tc.exp, tc.a, tc.p, c)
-		assert.Equalf(t, tc.a, a, "GetCollateralCurrencyForContract should return %s's own asset", tc.a)
+		t.Run(tc.a.String(), func(t *testing.T) {
+			c, a, err := ex.GetCollateralCurrencyForContract(tc.a, tc.p)
+			require.NoErrorf(t, err, "GetCollateralCurrencyForContract must not error for %s %s", tc.a, tc.p)
+			assert.Truef(t, tc.exp.Equal(c), "GetCollateralCurrencyForContract should return %s for %s %s, got %s", tc.exp, tc.a, tc.p, c)
+			assert.Equalf(t, tc.a, a, "GetCollateralCurrencyForContract should return %s's own asset", tc.a)
+		})
 	}
 	_, _, err := ex.GetCollateralCurrencyForContract(asset.Spot, currency.NewBTCUSD())
 	assert.ErrorIs(t, err, futures.ErrNotFuturesAsset, "GetCollateralCurrencyForContract should refuse spot")
@@ -4011,52 +4306,81 @@ func TestGetFuturesPositionSummary(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetFuturesPositionSummary must refuse a nil request")
 	_, err = ex.GetFuturesPositionSummary(t.Context(), &futures.PositionSummaryRequest{Asset: asset.Spot})
 	require.ErrorIs(t, err, futures.ErrNotFuturesAsset, "GetFuturesPositionSummary must refuse spot")
-	if !mockTests {
-		sharedTestCredentials(t, ex)
-		t.Skip("live positions are the account's own")
-	}
-	summary, err := ex.GetFuturesPositionSummary(t.Context(), &futures.PositionSummaryRequest{Asset: asset.Futures, Pair: testDatedFuture})
-	require.NoError(t, err, "GetFuturesPositionSummary must not error for a US derivative")
-	assert.False(t, summary.CurrentSize.IsZero(), "GetFuturesPositionSummary should return the US derivative position's size")
-	assert.False(t, summary.ContractMultiplier.IsZero(), "GetFuturesPositionSummary should return the US derivative's contract size")
-	summary, err = ex.GetFuturesPositionSummary(t.Context(), &futures.PositionSummaryRequest{Asset: asset.CoinMarginedFutures, Pair: testCoinPerpetual})
-	require.NoError(t, err, "GetFuturesPositionSummary must not error for a gateway perpetual")
-	assert.Equal(t, futures.Inverse, summary.ContractSettlementType, "GetFuturesPositionSummary should return how the gateway perpetual settles")
-}
-
-func TestGetFuturesPositionSummaryGatewayContracts(t *testing.T) {
-	t.Parallel()
-	rpcResult := func(result string) string { return `{"jsonrpc":"2.0","id":1,"result":` + result + `}` }
-	for _, tc := range []struct {
-		a          asset.Item
-		pair       currency.Pair
-		instrument string
-		position   string
-		contracts  string
-	}{
-		{
-			// The isolated positions guide's position: 10 SOL bought at 100, so its size is 1000 USDC
-			a:          asset.USDCMarginedFutures,
-			pair:       testSOLUSDCPerpetual,
-			instrument: `{"instrument_name":"SOL_USDC-PERPETUAL","kind":"future","instrument_type":"linear","settlement_period":"perpetual","base_currency":"SOL","quote_currency":"USDC","counter_currency":"USDC","settlement_currency":"USDC","contract_size":0.001,"min_trade_amount":0.001,"tick_size":0.001,"is_active":true}`,
-			position:   `{"instrument_name":"SOL_USDC-PERPETUAL","kind":"future","user_id":1000,"direction":"buy","size":1000,"size_currency":10,"average_price":100,"mark_price":100}`,
-			contracts:  "10000",
-		},
-		{
-			a:          asset.CoinMarginedFutures,
-			pair:       testCoinPerpetual,
-			instrument: `{"instrument_name":"BTC-PERPETUAL","kind":"future","instrument_type":"reversed","settlement_period":"perpetual","base_currency":"BTC","quote_currency":"USD","counter_currency":"USD","settlement_currency":"BTC","contract_size":10,"min_trade_amount":10,"tick_size":0.5,"is_active":true}`,
-			position:   `{"instrument_name":"BTC-PERPETUAL","kind":"future","user_id":1000,"direction":"sell","size":-1000,"size_currency":-0.01,"average_price":100000,"mark_price":100000}`,
-			contracts:  "-100",
-		},
-	} {
+	t.Run("returns the recorded positions", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			sharedTestCredentials(t, ex)
+			t.Skip("live positions are the account's own")
+		}
+		summary, err := ex.GetFuturesPositionSummary(t.Context(), &futures.PositionSummaryRequest{Asset: asset.Futures, Pair: testDatedFuture})
+		require.NoError(t, err, "GetFuturesPositionSummary must not error for a US derivative")
+		assert.False(t, summary.CurrentSize.IsZero(), "GetFuturesPositionSummary should return the US derivative position's size")
+		assert.False(t, summary.ContractMultiplier.IsZero(), "GetFuturesPositionSummary should return the US derivative's contract size")
+		summary, err = ex.GetFuturesPositionSummary(t.Context(), &futures.PositionSummaryRequest{Asset: asset.CoinMarginedFutures, Pair: testCoinPerpetual})
+		require.NoError(t, err, "GetFuturesPositionSummary must not error for a gateway perpetual")
+		assert.Equal(t, futures.Inverse, summary.ContractSettlementType, "GetFuturesPositionSummary should return how the gateway perpetual settles")
+	})
+	t.Run("returns a gateway position's size in contracts", func(t *testing.T) {
+		t.Parallel()
+		rpcResult := func(result string) string { return `{"jsonrpc":"2.0","id":1,"result":` + result + `}` }
+		for _, tc := range []struct {
+			a          asset.Item
+			pair       currency.Pair
+			instrument string
+			position   string
+			contracts  string
+		}{
+			{
+				// The isolated positions guide's position: 10 SOL bought at 100, so its size is 1000 USDC
+				a:          asset.USDCMarginedFutures,
+				pair:       testSOLUSDCPerpetual,
+				instrument: `{"instrument_name":"SOL_USDC-PERPETUAL","kind":"future","instrument_type":"linear","settlement_period":"perpetual","base_currency":"SOL","quote_currency":"USDC","counter_currency":"USDC","settlement_currency":"USDC","contract_size":0.001,"min_trade_amount":0.001,"tick_size":0.001,"is_active":true}`,
+				position:   `{"instrument_name":"SOL_USDC-PERPETUAL","kind":"future","user_id":1000,"direction":"buy","size":1000,"size_currency":10,"average_price":100,"mark_price":100}`,
+				contracts:  "10000",
+			},
+			{
+				a:          asset.CoinMarginedFutures,
+				pair:       testCoinPerpetual,
+				instrument: `{"instrument_name":"BTC-PERPETUAL","kind":"future","instrument_type":"reversed","settlement_period":"perpetual","base_currency":"BTC","quote_currency":"USD","counter_currency":"USD","settlement_currency":"BTC","contract_size":10,"min_trade_amount":10,"tick_size":0.5,"is_active":true}`,
+				position:   `{"instrument_name":"BTC-PERPETUAL","kind":"future","user_id":1000,"direction":"sell","size":-1000,"size_currency":-0.01,"average_price":100000,"mark_price":100000}`,
+				contracts:  "-100",
+			},
+		} {
+			t.Run(tc.pair.String(), func(t *testing.T) {
+				t.Parallel()
+				ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					var body string
+					switch r.URL.Path {
+					case "/api/v2/public/get_instrument":
+						body = rpcResult(tc.instrument)
+					case "/api/v2/private/get_position":
+						body = rpcResult(tc.position)
+					default:
+						http.NotFound(w, r)
+						return
+					}
+					_, err := w.Write([]byte(body))
+					assert.NoError(t, err, "writing the response should not error")
+				}))
+				require.NoErrorf(t, ex.CurrencyPairs.StorePairs(tc.a, currency.Pairs{tc.pair}, false), "StorePairs must not error for %s", tc.a)
+				summary, err := ex.GetFuturesPositionSummary(t.Context(), &futures.PositionSummaryRequest{Asset: tc.a, Pair: tc.pair})
+				require.NoErrorf(t, err, "GetFuturesPositionSummary must not error for %s", tc.pair)
+				assert.Equalf(t, tc.contracts, summary.ContractSize.String(), "GetFuturesPositionSummary should return %s's size in contracts", tc.pair)
+			})
+		}
+	})
+	t.Run("returns a gateway position's unrealised profit", func(t *testing.T) {
+		t.Parallel()
+		rpcResult := func(result string) string { return `{"jsonrpc":"2.0","id":1,"result":` + result + `}` }
+		// The spec's private/get_positions example: total_profit_loss covers the position since it opened, while
+		// realized_profit_loss and realized_funding are the session's
 		ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			var body string
 			switch r.URL.Path {
 			case "/api/v2/public/get_instrument":
-				body = rpcResult(tc.instrument)
+				body = rpcResult(`{"instrument_name":"BTC-PERPETUAL","kind":"future","instrument_type":"reversed","settlement_period":"perpetual","base_currency":"BTC","quote_currency":"USD","counter_currency":"USD","settlement_currency":"BTC","contract_size":10,"min_trade_amount":10,"tick_size":0.5,"is_active":true}`)
 			case "/api/v2/private/get_position":
-				body = rpcResult(tc.position)
+				body = rpcResult(`{"average_price":7440.18,"delta":0.006687487,"direction":"buy","estimated_liquidation_price":null,"floating_profit_loss":0,"index_price":7466.79,"initial_margin":0.000197283,"instrument_name":"BTC-PERPETUAL","interest_value":1.7362511643080387,"kind":"future","leverage":34,"maintenance_margin":0.000143783,"mark_price":7476.65,"open_orders_margin":0.000197288,"realized_funding":-1e-08,"realized_profit_loss":-9e-09,"settlement_price":7476.65,"size":50,"size_currency":0.006687487,"total_profit_loss":3.2781e-05,"user_id":1234}`)
 			default:
 				http.NotFound(w, r)
 				return
@@ -4064,11 +4388,12 @@ func TestGetFuturesPositionSummaryGatewayContracts(t *testing.T) {
 			_, err := w.Write([]byte(body))
 			assert.NoError(t, err, "writing the response should not error")
 		}))
-		require.NoErrorf(t, ex.CurrencyPairs.StorePairs(tc.a, currency.Pairs{tc.pair}, false), "StorePairs must not error for %s", tc.a)
-		summary, err := ex.GetFuturesPositionSummary(t.Context(), &futures.PositionSummaryRequest{Asset: tc.a, Pair: tc.pair})
-		require.NoErrorf(t, err, "GetFuturesPositionSummary must not error for %s", tc.pair)
-		assert.Equalf(t, tc.contracts, summary.ContractSize.String(), "GetFuturesPositionSummary should return %s's size in contracts", tc.pair)
-	}
+		require.NoError(t, ex.CurrencyPairs.StorePairs(asset.CoinMarginedFutures, currency.Pairs{testCoinPerpetual}, false), "StorePairs must not error")
+		summary, err := ex.GetFuturesPositionSummary(t.Context(), &futures.PositionSummaryRequest{Asset: asset.CoinMarginedFutures, Pair: testCoinPerpetual})
+		require.NoError(t, err, "GetFuturesPositionSummary must not error")
+		assert.Equal(t, "0.000032781", summary.UnrealisedPNL.String(), "GetFuturesPositionSummary should return the open position's profit as unrealised")
+		assert.Equal(t, "-0.000000009", summary.RealisedPNL.String(), "GetFuturesPositionSummary should return the session's realised profit")
+	})
 }
 
 func TestGetFuturesPositionOrders(t *testing.T) {
@@ -4090,47 +4415,24 @@ func TestGetFuturesPositionOrders(t *testing.T) {
 	assert.Equal(t, futures.Linear, resp[0].ContractSettlementType, "GetFuturesPositionOrders should return how the perpetual settles")
 }
 
-func TestGetFuturesPositionSummaryGatewayUnrealisedProfit(t *testing.T) {
-	t.Parallel()
-	rpcResult := func(result string) string { return `{"jsonrpc":"2.0","id":1,"result":` + result + `}` }
-	// The spec's private/get_positions example: total_profit_loss covers the position since it opened, while
-	// realized_profit_loss and realized_funding are the session's
-	ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var body string
-		switch r.URL.Path {
-		case "/api/v2/public/get_instrument":
-			body = rpcResult(`{"instrument_name":"BTC-PERPETUAL","kind":"future","instrument_type":"reversed","settlement_period":"perpetual","base_currency":"BTC","quote_currency":"USD","counter_currency":"USD","settlement_currency":"BTC","contract_size":10,"min_trade_amount":10,"tick_size":0.5,"is_active":true}`)
-		case "/api/v2/private/get_position":
-			body = rpcResult(`{"average_price":7440.18,"delta":0.006687487,"direction":"buy","estimated_liquidation_price":null,"floating_profit_loss":0,"index_price":7466.79,"initial_margin":0.000197283,"instrument_name":"BTC-PERPETUAL","interest_value":1.7362511643080387,"kind":"future","leverage":34,"maintenance_margin":0.000143783,"mark_price":7476.65,"open_orders_margin":0.000197288,"realized_funding":-1e-08,"realized_profit_loss":-9e-09,"settlement_price":7476.65,"size":50,"size_currency":0.006687487,"total_profit_loss":3.2781e-05,"user_id":1234}`)
-		default:
-			http.NotFound(w, r)
-			return
-		}
-		_, err := w.Write([]byte(body))
-		assert.NoError(t, err, "writing the response should not error")
-	}))
-	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.CoinMarginedFutures, currency.Pairs{testCoinPerpetual}, false), "StorePairs must not error")
-	summary, err := ex.GetFuturesPositionSummary(t.Context(), &futures.PositionSummaryRequest{Asset: asset.CoinMarginedFutures, Pair: testCoinPerpetual})
-	require.NoError(t, err, "GetFuturesPositionSummary must not error")
-	assert.Equal(t, "0.000032781", summary.UnrealisedPNL.String(), "GetFuturesPositionSummary should return the open position's profit as unrealised")
-	assert.Equal(t, "-0.000000009", summary.RealisedPNL.String(), "GetFuturesPositionSummary should return the session's realised profit")
-}
-
-func TestGetCurrencyTradeURL(t *testing.T) {
+func TestGetCurrencyTradeURL(t *testing.T) { //nolint:tparallel // the cases share ex in order
 	t.Parallel()
 	ex := newWrapperTestExchange(t)
 	_, err := ex.GetCurrencyTradeURL(t.Context(), asset.Spot, currency.EMPTYPAIR)
 	require.Error(t, err, "GetCurrencyTradeURL must refuse an empty pair")
-	// Coinbase's web app links its trade pages by these paths, and lists no inverse perpetual
+	// Coinbase's web app links its trade pages by these paths, and lists no inverse perpetual. The cases share ex in
+	// order, so each also checks that a call keeps nothing from the last
 	for a, exp := range map[asset.Item]string{
 		asset.Spot:                tradeBaseURL + "spot/BTC-USD",
 		asset.Futures:             tradeBaseURL + "futures/BIP-20DEC30-CDE",
 		asset.USDCMarginedFutures: tradeBaseURL + "perpetuals/BTC_USDC-PERPETUAL",
 	} {
-		pairs := wrapperTestPairs(t)[a]
-		u, err := ex.GetCurrencyTradeURL(t.Context(), a, pairs[0])
-		require.NoErrorf(t, err, "GetCurrencyTradeURL must not error for %s", a)
-		assert.Equalf(t, exp, u, "GetCurrencyTradeURL should return the %s trade page", a)
+		t.Run(a.String(), func(t *testing.T) {
+			pairs := wrapperTestPairs(t)[a]
+			u, err := ex.GetCurrencyTradeURL(t.Context(), a, pairs[0])
+			require.NoErrorf(t, err, "GetCurrencyTradeURL must not error for %s", a)
+			assert.Equalf(t, exp, u, "GetCurrencyTradeURL should return the %s trade page", a)
+		})
 	}
 	_, err = ex.GetCurrencyTradeURL(t.Context(), asset.CoinMarginedFutures, wrapperTestPairs(t)[asset.CoinMarginedFutures][0])
 	assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "GetCurrencyTradeURL should report no trade page for an inverse perpetual")

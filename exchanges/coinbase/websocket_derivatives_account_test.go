@@ -127,37 +127,40 @@ func TestWebsocketHandleDerivativesAccount(t *testing.T) {
 		"trailing trigger prices": &trailing,
 	}
 	assert.Equal(t, expRelays, relays, "every other account notification should be relayed decoded")
-}
 
-func TestWebsocketHandleDerivativesAccountErrors(t *testing.T) {
-	t.Parallel()
-	ex := newWebsocketTestExchange(t)
-	ex.Features.Enabled.FillsFeed = true
-	ex.Websocket.Fills.Setup(true, ex.Websocket.DataHandler)
-	conn, err := ex.Websocket.CreateTestConnection(derivativesPrivateConnection)
-	require.NoError(t, err, "CreateTestConnection must not error")
-	for name, tc := range map[string]struct {
-		message string
-		err     error
-	}{
-		"orders data":      {`{"method":"subscription","params":{"channel":"user.orders.BTC-PERPETUAL.100ms","data":"x"}}`, errDerivativesMalformedNotification},
-		"order list":       {`{"method":"subscription","params":{"channel":"user.orders.BTC-PERPETUAL.100ms","data":[1]}}`, errDerivativesMalformedNotification},
-		"order":            {`{"method":"subscription","params":{"channel":"user.orders.BTC-PERPETUAL.raw","data":{"amount":"x"}}}`, errDerivativesMalformedNotification},
-		"order instrument": {`{"method":"subscription","params":{"channel":"user.orders.BTC-PERPETUAL.raw","data":{"instrument_name":"BTC-26DEC26"}}}`, errDerivativesUnknownInstrument},
-		"order direction":  {`{"method":"subscription","params":{"channel":"user.orders.BTC-PERPETUAL.raw","data":{"instrument_name":"BTC-PERPETUAL","direction":"hold"}}}`, order.ErrSideIsInvalid},
-		"order type":       {`{"method":"subscription","params":{"channel":"user.orders.BTC-PERPETUAL.raw","data":{"instrument_name":"BTC-PERPETUAL","direction":"buy","order_type":"iceberg"}}}`, order.ErrUnrecognisedOrderType},
-		"order state":      {`{"method":"subscription","params":{"channel":"user.orders.BTC-PERPETUAL.raw","data":{"instrument_name":"BTC-PERPETUAL","direction":"buy","order_type":"limit","order_state":"lost"}}}`, errDerivativesUnknownOrderState},
-		"order tif":        {`{"method":"subscription","params":{"channel":"user.orders.BTC-PERPETUAL.raw","data":{"instrument_name":"BTC-PERPETUAL","direction":"buy","order_type":"limit","order_state":"open","time_in_force":"forever"}}}`, order.ErrInvalidTimeInForce},
-		"trades data":      {`{"method":"subscription","params":{"channel":"user.trades.BTC-PERPETUAL.100ms","data":{}}}`, errDerivativesMalformedNotification},
-		"trade instrument": {`{"method":"subscription","params":{"channel":"user.trades.BTC-PERPETUAL.100ms","data":[{"instrument_name":"BTC-26DEC26"}]}}`, errDerivativesUnknownInstrument},
-		"trade direction":  {`{"method":"subscription","params":{"channel":"user.trades.BTC-PERPETUAL.100ms","data":[{"instrument_name":"BTC-PERPETUAL","direction":"hold"}]}}`, order.ErrSideIsInvalid},
-	} {
-		assert.ErrorIsf(t, ex.wsHandleDerivatives(t.Context(), conn, []byte(tc.message)), tc.err, "wsHandleDerivatives should error for a bad %s", name)
-	}
-	assert.Empty(t, relayed[[]order.Detail](ex), "nothing should be relayed for orders that cannot be converted")
+	t.Run("errors for notifications it cannot convert", func(t *testing.T) {
+		t.Parallel()
+		ex := newWebsocketTestExchange(t)
+		ex.Features.Enabled.FillsFeed = true
+		ex.Websocket.Fills.Setup(true, ex.Websocket.DataHandler)
+		conn, err := ex.Websocket.CreateTestConnection(derivativesPrivateConnection)
+		require.NoError(t, err, "CreateTestConnection must not error")
+		// The cases share ex and conn, so each also checks that a notification keeps nothing from the last
+		for name, tc := range map[string]struct {
+			message string
+			err     error
+		}{
+			"orders data":      {`{"method":"subscription","params":{"channel":"user.orders.BTC-PERPETUAL.100ms","data":"x"}}`, errDerivativesMalformedNotification},
+			"order list":       {`{"method":"subscription","params":{"channel":"user.orders.BTC-PERPETUAL.100ms","data":[1]}}`, errDerivativesMalformedNotification},
+			"order":            {`{"method":"subscription","params":{"channel":"user.orders.BTC-PERPETUAL.raw","data":{"amount":"x"}}}`, errDerivativesMalformedNotification},
+			"order instrument": {`{"method":"subscription","params":{"channel":"user.orders.BTC-PERPETUAL.raw","data":{"instrument_name":"BTC-26DEC26"}}}`, errDerivativesUnknownInstrument},
+			"order direction":  {`{"method":"subscription","params":{"channel":"user.orders.BTC-PERPETUAL.raw","data":{"instrument_name":"BTC-PERPETUAL","direction":"hold"}}}`, order.ErrSideIsInvalid},
+			"order type":       {`{"method":"subscription","params":{"channel":"user.orders.BTC-PERPETUAL.raw","data":{"instrument_name":"BTC-PERPETUAL","direction":"buy","order_type":"iceberg"}}}`, order.ErrUnrecognisedOrderType},
+			"order state":      {`{"method":"subscription","params":{"channel":"user.orders.BTC-PERPETUAL.raw","data":{"instrument_name":"BTC-PERPETUAL","direction":"buy","order_type":"limit","order_state":"lost"}}}`, errDerivativesUnknownOrderState},
+			"order tif":        {`{"method":"subscription","params":{"channel":"user.orders.BTC-PERPETUAL.raw","data":{"instrument_name":"BTC-PERPETUAL","direction":"buy","order_type":"limit","order_state":"open","time_in_force":"forever"}}}`, order.ErrInvalidTimeInForce},
+			"trades data":      {`{"method":"subscription","params":{"channel":"user.trades.BTC-PERPETUAL.100ms","data":{}}}`, errDerivativesMalformedNotification},
+			"trade instrument": {`{"method":"subscription","params":{"channel":"user.trades.BTC-PERPETUAL.100ms","data":[{"instrument_name":"BTC-26DEC26"}]}}`, errDerivativesUnknownInstrument},
+			"trade direction":  {`{"method":"subscription","params":{"channel":"user.trades.BTC-PERPETUAL.100ms","data":[{"instrument_name":"BTC-PERPETUAL","direction":"hold"}]}}`, order.ErrSideIsInvalid},
+		} {
+			t.Run(name, func(t *testing.T) {
+				assert.ErrorIsf(t, ex.wsHandleDerivatives(t.Context(), conn, []byte(tc.message)), tc.err, "wsHandleDerivatives should error for a bad %s", name)
+			})
+		}
+		assert.Empty(t, relayed[[]order.Detail](ex), "nothing should be relayed for orders that cannot be converted")
 
-	ex.Features.Enabled.FillsFeed = false
-	assert.NoError(t, ex.wsHandleDerivatives(t.Context(), conn, []byte(`{"method":"subscription","params":{"channel":"user.trades.BTC-PERPETUAL.100ms","data":[{"instrument_name":"BTC-26DEC26"}]}}`)), "trades should be ignored with the fills feed off")
+		ex.Features.Enabled.FillsFeed = false
+		assert.NoError(t, ex.wsHandleDerivatives(t.Context(), conn, []byte(`{"method":"subscription","params":{"channel":"user.trades.BTC-PERPETUAL.100ms","data":[{"instrument_name":"BTC-26DEC26"}]}}`)), "trades should be ignored with the fills feed off")
+	})
 }
 
 func TestDerivativesOrderType(t *testing.T) {
@@ -167,55 +170,66 @@ func TestDerivativesOrderType(t *testing.T) {
 		DerivativesOrderTypeStopLimit: order.StopLimit, DerivativesOrderTypeStopMarket: order.StopMarket, DerivativesOrderTypeTakeLimit: order.TakeProfit,
 		DerivativesOrderTypeTakeMarket: order.TakeProfitMarket, DerivativesOrderTypeTrailingStop: order.TrailingStop, "liquidation": order.Liquidation,
 	} {
-		got, err := derivativesOrderType(orderType)
-		require.NoErrorf(t, err, "derivativesOrderType must not error for %q", orderType)
-		assert.Equalf(t, exp, got, "derivativesOrderType should convert %q", orderType)
+		t.Run(subtestName(orderType), func(t *testing.T) {
+			t.Parallel()
+			got, err := derivativesOrderType(orderType)
+			require.NoErrorf(t, err, "derivativesOrderType must not error for %q", orderType)
+			assert.Equalf(t, exp, got, "derivativesOrderType should convert %q", orderType)
+		})
 	}
 	_, err := derivativesOrderType("iceberg")
 	assert.ErrorIs(t, err, order.ErrUnrecognisedOrderType, "derivativesOrderType should error for an unknown order type")
 }
 
-func TestDerivativesOriginalOrderType(t *testing.T) {
+func TestDerivativesOriginalOrderType(t *testing.T) { //nolint:tparallel // the cases share ex in order
 	t.Parallel()
 	ex := &Exchange{}
+	// The cases share ex in order, so each also checks that a conversion keeps nothing from the last
 	for _, tc := range []struct {
+		name                         string
 		orderType, originalOrderType string
 		exp                          order.Type
 	}{
-		{DerivativesOrderTypeLimit, "", order.Limit},
-		{DerivativesOrderTypeLimit, DerivativesOrderTypeMarket, order.Market},
-		{DerivativesOrderTypeLimit, DerivativesOrderTypeMarketLimit, order.Market},
+		{"limit", DerivativesOrderTypeLimit, "", order.Limit},
+		{"limit placed as market", DerivativesOrderTypeLimit, DerivativesOrderTypeMarket, order.Market},
+		{"limit placed as market limit", DerivativesOrderTypeLimit, DerivativesOrderTypeMarketLimit, order.Market},
 	} {
-		detail, err := ex.derivativesOrderDetail(&DerivativesOrderResponse{OrderID: "USDC-1", InstrumentName: "BTC_USDC-PERPETUAL", Direction: DerivativesDirectionBuy, OrderState: DerivativesOrderStateFilled, OrderType: tc.orderType, OriginalOrderType: tc.originalOrderType, Amount: 1, FilledAmount: 1})
-		require.NoErrorf(t, err, "derivativesOrderDetail must not error for %s placed as %q", tc.orderType, tc.originalOrderType)
-		assert.Equalf(t, tc.exp, detail.Type, "derivativesOrderDetail should report a %s order placed as %q as %s", tc.orderType, tc.originalOrderType, tc.exp)
-		trade, err := ex.derivativesTradeHistory(&DerivativesUserTradeResponse{TradeID: "USDC-2", Direction: DerivativesDirectionBuy, OrderType: tc.orderType, OriginalOrderType: tc.originalOrderType})
-		require.NoErrorf(t, err, "derivativesTradeHistory must not error for %s placed as %q", tc.orderType, tc.originalOrderType)
-		assert.Equalf(t, tc.exp, trade.Type, "derivativesTradeHistory should report a trade of a %s order placed as %q as %s", tc.orderType, tc.originalOrderType, tc.exp)
+		t.Run(tc.name, func(t *testing.T) {
+			detail, err := ex.derivativesOrderDetail(&DerivativesOrderResponse{OrderID: "USDC-1", InstrumentName: "BTC_USDC-PERPETUAL", Direction: DerivativesDirectionBuy, OrderState: DerivativesOrderStateFilled, OrderType: tc.orderType, OriginalOrderType: tc.originalOrderType, Amount: 1, FilledAmount: 1})
+			require.NoErrorf(t, err, "derivativesOrderDetail must not error for %s placed as %q", tc.orderType, tc.originalOrderType)
+			assert.Equalf(t, tc.exp, detail.Type, "derivativesOrderDetail should report a %s order placed as %q as %s", tc.orderType, tc.originalOrderType, tc.exp)
+			trade, err := ex.derivativesTradeHistory(&DerivativesUserTradeResponse{TradeID: "USDC-2", Direction: DerivativesDirectionBuy, OrderType: tc.orderType, OriginalOrderType: tc.originalOrderType})
+			require.NoErrorf(t, err, "derivativesTradeHistory must not error for %s placed as %q", tc.orderType, tc.originalOrderType)
+			assert.Equalf(t, tc.exp, trade.Type, "derivativesTradeHistory should report a trade of a %s order placed as %q as %s", tc.orderType, tc.originalOrderType, tc.exp)
+		})
 	}
 }
 
 func TestDerivativesOrderStatus(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
+		name   string
 		state  string
 		filled float64
 		exp    order.Status
 	}{
-		{DerivativesOrderStateOpen, 0, order.Open},
-		{DerivativesOrderStateOpen, 1, order.PartiallyFilled},
-		{DerivativesOrderStateTriggered, 0, order.Closed},
-		{DerivativesOrderStateTriggered, 1, order.Closed},
-		{DerivativesOrderStateUntriggered, 0, order.Pending},
-		{DerivativesOrderStateFilled, 1, order.Filled},
-		{DerivativesOrderStateCancelled, 0, order.Cancelled},
-		{DerivativesOrderStateCancelled, 1, order.PartiallyFilledCancelled},
-		{DerivativesOrderStateRejected, 0, order.Rejected},
-		{"archive", 1, order.Closed},
+		{"open", DerivativesOrderStateOpen, 0, order.Open},
+		{"open with a fill", DerivativesOrderStateOpen, 1, order.PartiallyFilled},
+		{"triggered", DerivativesOrderStateTriggered, 0, order.Closed},
+		{"triggered with a fill", DerivativesOrderStateTriggered, 1, order.Closed},
+		{"untriggered", DerivativesOrderStateUntriggered, 0, order.Pending},
+		{"filled", DerivativesOrderStateFilled, 1, order.Filled},
+		{"cancelled", DerivativesOrderStateCancelled, 0, order.Cancelled},
+		{"cancelled with a fill", DerivativesOrderStateCancelled, 1, order.PartiallyFilledCancelled},
+		{"rejected", DerivativesOrderStateRejected, 0, order.Rejected},
+		{"archived", "archive", 1, order.Closed},
 	} {
-		got, err := derivativesOrderStatus(tc.state, tc.filled)
-		require.NoErrorf(t, err, "derivativesOrderStatus must not error for %s", tc.state)
-		assert.Equalf(t, tc.exp, got, "derivativesOrderStatus should convert %s with %v filled", tc.state, tc.filled)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := derivativesOrderStatus(tc.state, tc.filled)
+			require.NoErrorf(t, err, "derivativesOrderStatus must not error for %s", tc.state)
+			assert.Equalf(t, tc.exp, got, "derivativesOrderStatus should convert %s with %v filled", tc.state, tc.filled)
+		})
 	}
 	_, err := derivativesOrderStatus("lost", 0)
 	assert.ErrorIs(t, err, errDerivativesUnknownOrderState, "derivativesOrderStatus should error for an unknown state")

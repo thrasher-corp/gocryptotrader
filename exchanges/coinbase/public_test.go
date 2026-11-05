@@ -330,9 +330,12 @@ func TestCandleDuration(t *testing.T) {
 		GranularitySixHour:       6 * time.Hour,
 		GranularityOneDay:        24 * time.Hour,
 	} {
-		d, err := candleDuration(granularity)
-		require.NoErrorf(t, err, "candleDuration must not error for %s", granularity)
-		assert.Equalf(t, exp, d, "candleDuration should return %s's interval", granularity)
+		t.Run(subtestName(granularity), func(t *testing.T) {
+			t.Parallel()
+			d, err := candleDuration(granularity)
+			require.NoErrorf(t, err, "candleDuration must not error for %s", granularity)
+			assert.Equalf(t, exp, d, "candleDuration should return %s's interval", granularity)
+		})
 	}
 	_, err := candleDuration("UNKNOWN_GRANULARITY")
 	assert.ErrorIs(t, err, errInvalidGranularity, "candleDuration should refuse an unknown granularity")

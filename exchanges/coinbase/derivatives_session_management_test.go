@@ -30,9 +30,15 @@ func TestGlobalDerivativesGetCancelOnDisconnect(t *testing.T) {
 func TestValidateDerivativesCancelOnDisconnectScope(t *testing.T) {
 	t.Parallel()
 	for _, scope := range []string{"", DerivativesCancelOnDisconnectScopeConnection, DerivativesCancelOnDisconnectScopeAccount} {
-		assert.NoErrorf(t, validateDerivativesCancelOnDisconnectScope(scope), "validateDerivativesCancelOnDisconnectScope should accept scope %q", scope)
+		t.Run(subtestName(scope), func(t *testing.T) {
+			t.Parallel()
+			assert.NoErrorf(t, validateDerivativesCancelOnDisconnectScope(scope), "validateDerivativesCancelOnDisconnectScope should accept scope %q", scope)
+		})
 	}
 	for _, scope := range []string{"Account", "subaccount"} {
-		assert.ErrorIsf(t, validateDerivativesCancelOnDisconnectScope(scope), errDerivativesInvalidCancelOnDisconnectScope, "validateDerivativesCancelOnDisconnectScope should refuse scope %q", scope)
+		t.Run(subtestName(scope), func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, validateDerivativesCancelOnDisconnectScope(scope), errDerivativesInvalidCancelOnDisconnectScope, "validateDerivativesCancelOnDisconnectScope should refuse scope %q", scope)
+		})
 	}
 }

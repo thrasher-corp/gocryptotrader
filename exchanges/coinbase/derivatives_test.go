@@ -329,115 +329,134 @@ func TestWebsocketAPISendRequest(t *testing.T) {
 	assert.Error(t, err, "SendRequest should error without a connection")
 }
 
-func TestDerivativesAccessTokenSharedRenewal(t *testing.T) {
+func TestGlobalDerivativesAccessToken(t *testing.T) {
 	t.Parallel()
-	var authCalls atomic.Int64
-	ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		body, err := io.ReadAll(r.Body)
-		assert.NoError(t, err, "Reading the request body should not error")
-		if strings.Contains(string(body), derivativesAuthMethod) {
-			authCalls.Add(1)
-			// A renewal in flight lets the other requests find the cache empty, as concurrent requests do
-			time.Sleep(20 * time.Millisecond)
-			_, err = w.Write([]byte(`{"jsonrpc":"2.0","result":{"access_token":"renewed","expires_in":900}}`))
-			assert.NoError(t, err, "Writing the response should not error")
-			return
-		}
-		assert.Equal(t, "Bearer renewed", r.Header.Get("Authorization"), "every request should carry the renewed access token")
-		_, err = w.Write([]byte(`{"jsonrpc":"2.0","result":"ok"}`))
-		assert.NoError(t, err, "Writing the response should not error")
-	}))
-	ex.derivativesToken.clear(testAPIKey, testDerivativesAccessToken)
-	// A renewal that is never released fails the requests waiting for it rather than holding the test
-	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
-	defer cancel()
-	var wg sync.WaitGroup
-	start := make(chan struct{})
-	for range 10 {
-		wg.Go(func() {
-			<-start
-			var resp string
-			assert.NoError(t, ex.GlobalDerivatives().SendAuthenticatedHTTPRequest(ctx, derivativesNonMatchingEPL, "private/get_positions", nil, &resp), "SendAuthenticatedHTTPRequest should not error")
-		})
-	}
-	close(start)
-	wg.Wait()
-	require.EqualValues(t, 1, authCalls.Load(), "concurrent requests must share one public/auth")
-}
 
-func TestDerivativesAccessTokenRenewalWaitEnds(t *testing.T) {
-	t.Parallel()
-	entered, release := make(chan struct{}), make(chan struct{})
-	var authCalls atomic.Int32
-	ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if authCalls.Add(1) == 1 {
-			close(entered)
-			select {
-			case <-release:
-			case <-r.Context().Done():
+	t.Run("concurrent requests share one renewal", func(t *testing.T) {
+		t.Parallel()
+		var authCalls atomic.Int64
+		ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			body, err := io.ReadAll(r.Body)
+			assert.NoError(t, err, "Reading the request body should not error")
+			if strings.Contains(string(body), derivativesAuthMethod) {
+				authCalls.Add(1)
+				// A renewal in flight lets the other requests find the cache empty, as concurrent requests do
+				time.Sleep(20 * time.Millisecond)
+				_, err = w.Write([]byte(`{"jsonrpc":"2.0","result":{"access_token":"renewed","expires_in":900}}`))
+				assert.NoError(t, err, "Writing the response should not error")
 				return
 			}
+			assert.Equal(t, "Bearer renewed", r.Header.Get("Authorization"), "every request should carry the renewed access token")
+			_, err = w.Write([]byte(`{"jsonrpc":"2.0","result":"ok"}`))
+			assert.NoError(t, err, "Writing the response should not error")
+		}))
+		ex.derivativesToken.clear(testAPIKey, testDerivativesAccessToken)
+		// A renewal that is never released fails the requests waiting for it rather than holding the test
+		ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+		defer cancel()
+		var wg sync.WaitGroup
+		start := make(chan struct{})
+		for range 10 {
+			wg.Go(func() {
+				<-start
+				var resp string
+				assert.NoError(t, ex.GlobalDerivatives().SendAuthenticatedHTTPRequest(ctx, derivativesNonMatchingEPL, "private/get_positions", nil, &resp), "SendAuthenticatedHTTPRequest should not error")
+			})
 		}
-		writeJSONRPC(t, w, `{"jsonrpc":"2.0","result":{"access_token":"renewed","expires_in":900}}`)
-	}))
-	ex.derivativesToken.clear(testAPIKey, testDerivativesAccessToken)
-	first := make(chan error, 1)
-	go func() {
+		close(start)
+		wg.Wait()
+		require.EqualValues(t, 1, authCalls.Load(), "concurrent requests must share one public/auth")
+	})
+
+	t.Run("a request waiting on another renewal stops when its context ends", func(t *testing.T) {
+		t.Parallel()
+		entered, release := make(chan struct{}), make(chan struct{})
+		var authCalls atomic.Int32
+		ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if authCalls.Add(1) == 1 {
+				close(entered)
+				select {
+				case <-release:
+				case <-r.Context().Done():
+					return
+				}
+			}
+			writeJSONRPC(t, w, `{"jsonrpc":"2.0","result":{"access_token":"renewed","expires_in":900}}`)
+		}))
+		ex.derivativesToken.clear(testAPIKey, testDerivativesAccessToken)
+		first := make(chan error, 1)
+		go func() {
+			_, _, err := ex.GlobalDerivatives().accessToken(t.Context())
+			first <- err
+		}()
+		awaitClosed(t, entered, "the renewal must reach the gateway")
+		// A request waiting for the renewal under way stops when its context ends
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel()
+		waited := make(chan error, 1)
+		go func() {
+			_, _, err := ex.GlobalDerivatives().accessToken(ctx)
+			waited <- err
+		}()
+		select {
+		case err := <-waited:
+			assert.ErrorIs(t, err, context.Canceled, "accessToken should return its context's error while another renewal is under way")
+		case <-time.After(30 * time.Second):
+			assert.Fail(t, "accessToken should stop waiting for another renewal once its context ends")
+		}
+		close(release)
+		select {
+		case err := <-first:
+			require.NoError(t, err, "the renewal under way must complete")
+		case <-time.After(30 * time.Second):
+			require.FailNow(t, "the renewal under way must complete")
+		}
+		assert.EqualValues(t, 1, authCalls.Load(), "the request whose context ended should not renew the token")
+		_, token, err := ex.GlobalDerivatives().accessToken(t.Context())
+		require.NoError(t, err, "accessToken must not error once a token is renewed")
+		assert.Equal(t, "renewed", token, "accessToken should return the renewed token")
+		assert.EqualValues(t, 1, authCalls.Load(), "accessToken should reuse the renewed token")
+	})
+
+	t.Run("a failed renewal lets the next request renew", func(t *testing.T) {
+		t.Parallel()
+		var authCalls atomic.Int32
+		ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			if authCalls.Add(1) == 1 {
+				writeJSONRPC(t, w, `{"jsonrpc":"2.0","error":{"code":13004,"message":"invalid_credentials"}}`)
+				return
+			}
+			writeJSONRPC(t, w, `{"jsonrpc":"2.0","result":{"access_token":"renewed","expires_in":900}}`)
+		}))
+		ex.derivativesToken.clear(testAPIKey, testDerivativesAccessToken)
 		_, _, err := ex.GlobalDerivatives().accessToken(t.Context())
-		first <- err
-	}()
-	awaitClosed(t, entered, "the renewal must reach the gateway")
-	// A request waiting for the renewal under way stops when its context ends
-	ctx, cancel := context.WithCancel(t.Context())
-	cancel()
-	waited := make(chan error, 1)
-	go func() {
-		_, _, err := ex.GlobalDerivatives().accessToken(ctx)
-		waited <- err
-	}()
-	select {
-	case err := <-waited:
-		assert.ErrorIs(t, err, context.Canceled, "accessToken should return its context's error while another renewal is under way")
-	case <-time.After(30 * time.Second):
-		assert.Fail(t, "accessToken should stop waiting for another renewal once its context ends")
-	}
-	close(release)
-	select {
-	case err := <-first:
-		require.NoError(t, err, "the renewal under way must complete")
-	case <-time.After(30 * time.Second):
-		require.FailNow(t, "the renewal under way must complete")
-	}
-	assert.EqualValues(t, 1, authCalls.Load(), "the request whose context ended should not renew the token")
-	_, token, err := ex.GlobalDerivatives().accessToken(t.Context())
-	require.NoError(t, err, "accessToken must not error once a token is renewed")
-	assert.Equal(t, "renewed", token, "accessToken should return the renewed token")
-	assert.EqualValues(t, 1, authCalls.Load(), "accessToken should reuse the renewed token")
+		require.ErrorIs(t, err, request.ErrAuthRequestFailed, "accessToken must return the refused renewal's error")
+		// The failed renewal releases its turn, so the next request renews rather than waiting for it
+		ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+		defer cancel()
+		_, token, err := ex.GlobalDerivatives().accessToken(ctx)
+		require.NoError(t, err, "accessToken must renew the token after a failed renewal")
+		assert.Equal(t, "renewed", token, "accessToken should return the renewed token")
+		assert.EqualValues(t, 2, authCalls.Load(), "accessToken should renew once for each request")
+	})
+
+	t.Run("keeps a token whose lifetime is longer than a duration holds", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			writeJSONRPC(t, w, `{"jsonrpc":"2.0","result":{"access_token":"lasting","expires_in":18446744073709551615}}`)
+		}))
+		ex.derivativesToken.clear(testAPIKey, testDerivativesAccessToken)
+		_, token, err := ex.GlobalDerivatives().accessToken(t.Context())
+		require.NoError(t, err, "accessToken must not error")
+		require.Equal(t, "lasting", token, "accessToken must return the token issued")
+		// A lifetime longer than a duration holds is capped, rather than wrapping round to one already over
+		token, ok := ex.derivativesToken.get(testAPIKey)
+		assert.True(t, ok, "accessToken should keep a token whose lifetime is longer than a duration holds")
+		assert.Equal(t, "lasting", token, "accessToken should keep the token issued")
+	})
 }
 
-func TestDerivativesAccessTokenRenewalFailureReleases(t *testing.T) {
-	t.Parallel()
-	var authCalls atomic.Int32
-	ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		if authCalls.Add(1) == 1 {
-			writeJSONRPC(t, w, `{"jsonrpc":"2.0","error":{"code":13004,"message":"invalid_credentials"}}`)
-			return
-		}
-		writeJSONRPC(t, w, `{"jsonrpc":"2.0","result":{"access_token":"renewed","expires_in":900}}`)
-	}))
-	ex.derivativesToken.clear(testAPIKey, testDerivativesAccessToken)
-	_, _, err := ex.GlobalDerivatives().accessToken(t.Context())
-	require.ErrorIs(t, err, request.ErrAuthRequestFailed, "accessToken must return the refused renewal's error")
-	// The failed renewal releases its turn, so the next request renews rather than waiting for it
-	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
-	defer cancel()
-	_, token, err := ex.GlobalDerivatives().accessToken(ctx)
-	require.NoError(t, err, "accessToken must renew the token after a failed renewal")
-	assert.Equal(t, "renewed", token, "accessToken should return the renewed token")
-	assert.EqualValues(t, 2, authCalls.Load(), "accessToken should renew once for each request")
-}
-
-func TestDerivativesTimesBeforeEpochRefused(t *testing.T) {
+func TestDerivativesTimesBeforeEpochRefused(t *testing.T) { //nolint:tparallel // the cases share g, its server and timeRange in order
 	t.Parallel()
 	ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Failf(t, "a request with a time before 1970 should not be sent", "requested %s", r.URL.Path)
@@ -446,6 +465,7 @@ func TestDerivativesTimesBeforeEpochRefused(t *testing.T) {
 	g := ex.GlobalDerivatives()
 	before, after := time.Date(1969, 12, 31, 0, 0, 0, 0, time.UTC), time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
 	timeRange := &DerivativesInstrumentTimeRangeRequest{InstrumentName: "BTC-PERPETUAL", StartTime: before, EndTime: after}
+	// The cases share g, its server and timeRange one at a time, so each also checks that a call keeps nothing from the last
 	for name, call := range map[string]func() error{
 		"GetFundingRateHistory": func() error { _, err := g.GetFundingRateHistory(t.Context(), timeRange); return err },
 		"GetFundingRateValue":   func() error { _, err := g.GetFundingRateValue(t.Context(), timeRange); return err },
@@ -527,7 +547,9 @@ func TestDerivativesTimesBeforeEpochRefused(t *testing.T) {
 			return err
 		},
 	} {
-		assert.ErrorIsf(t, call(), errDerivativesTimeBeforeEpoch, "%s should refuse a time before 1970", name)
+		t.Run(subtestName(name), func(t *testing.T) {
+			assert.ErrorIsf(t, call(), errDerivativesTimeBeforeEpoch, "%s should refuse a time before 1970", name)
+		})
 	}
 }
 
@@ -538,21 +560,6 @@ func TestDerivativesTokenLifetime(t *testing.T) {
 	longest := time.Duration(math.MaxInt64/int64(time.Second)) * time.Second
 	assert.Equal(t, longest, derivativesTokenLifetime(uint64(math.MaxInt64/time.Second)+1), "derivativesTokenLifetime should cap a lifetime a duration cannot hold")
 	assert.Equal(t, longest, derivativesTokenLifetime(math.MaxUint64), "derivativesTokenLifetime should cap the largest lifetime")
-}
-
-func TestGlobalDerivativesLongestAccessToken(t *testing.T) {
-	t.Parallel()
-	ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		writeJSONRPC(t, w, `{"jsonrpc":"2.0","result":{"access_token":"lasting","expires_in":18446744073709551615}}`)
-	}))
-	ex.derivativesToken.clear(testAPIKey, testDerivativesAccessToken)
-	_, token, err := ex.GlobalDerivatives().accessToken(t.Context())
-	require.NoError(t, err, "accessToken must not error")
-	require.Equal(t, "lasting", token, "accessToken must return the token issued")
-	// A lifetime longer than a duration holds is capped, rather than wrapping round to one already over
-	token, ok := ex.derivativesToken.get(testAPIKey)
-	assert.True(t, ok, "accessToken should keep a token whose lifetime is longer than a duration holds")
-	assert.Equal(t, "lasting", token, "accessToken should keep the token issued")
 }
 
 func TestDerivativesRequestIDs(t *testing.T) {

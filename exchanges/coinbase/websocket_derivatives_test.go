@@ -32,95 +32,124 @@ func TestDerivativesChannelName(t *testing.T) {
 		subscription.MyTradesChannel:  ChannelDerivativesUserTrades,
 		ChannelDerivativesQuote:       ChannelDerivativesQuote,
 	} {
-		name, err := derivativesChannelName(&subscription.Subscription{Channel: channel})
-		require.NoErrorf(t, err, "derivativesChannelName must not error for %s", channel)
-		assert.Equalf(t, exp, name, "derivativesChannelName should name %s's gateway channel", channel)
+		t.Run(subtestName(channel), func(t *testing.T) {
+			t.Parallel()
+			name, err := derivativesChannelName(&subscription.Subscription{Channel: channel})
+			require.NoErrorf(t, err, "derivativesChannelName must not error for %s", channel)
+			assert.Equalf(t, exp, name, "derivativesChannelName should name %s's gateway channel", channel)
+		})
 	}
 	for _, channel := range []string{subscription.MyAccountChannel, ChannelStatus, "nonsense"} {
-		_, err := derivativesChannelName(&subscription.Subscription{Channel: channel})
-		assert.ErrorIsf(t, err, subscription.ErrNotSupported, "derivativesChannelName should error for %s, which the gateway does not serve", channel)
+		t.Run(subtestName(channel), func(t *testing.T) {
+			t.Parallel()
+			_, err := derivativesChannelName(&subscription.Subscription{Channel: channel})
+			assert.ErrorIsf(t, err, subscription.ErrNotSupported, "derivativesChannelName should error for %s, which the gateway does not serve", channel)
+		})
 	}
 }
 
 func TestQualifyDerivativesInstrumentChannel(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		s   *subscription.Subscription
-		exp string
-		err error
+		name string
+		s    *subscription.Subscription
+		exp  string
+		err  error
 	}{
-		{s: &subscription.Subscription{Channel: subscription.TickerChannel}, exp: "ticker.BTC_USDC-PERPETUAL.100ms"},
-		{s: &subscription.Subscription{Channel: subscription.TickerChannel, Interval: kline.ThousandMilliseconds}, exp: "ticker.BTC_USDC-PERPETUAL.agg2"},
-		{s: &subscription.Subscription{Channel: subscription.OrderbookChannel, Interval: kline.Raw}, exp: "book.BTC_USDC-PERPETUAL.raw"},
-		{s: &subscription.Subscription{Channel: subscription.OrderbookChannel, Levels: 10, Params: map[string]any{"group": 5.0}}, exp: "book.BTC_USDC-PERPETUAL.5.10.100ms"},
-		{s: &subscription.Subscription{Channel: subscription.OrderbookChannel, Levels: 20}, exp: "book.BTC_USDC-PERPETUAL.none.20.100ms"},
-		{s: &subscription.Subscription{Channel: subscription.OrderbookChannel, Levels: 5}, err: subscription.ErrInvalidLevel},
-		{s: &subscription.Subscription{Channel: subscription.OrderbookChannel, Levels: 10, Params: map[string]any{"group": "3"}}, err: errDerivativesChannelParameter},
-		{s: &subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.FiveMin}, exp: "chart.trades.BTC_USDC-PERPETUAL.5"},
-		{s: &subscription.Subscription{Channel: subscription.CandlesChannel}, err: kline.ErrUnsupportedInterval},
-		{s: &subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.TwoHour}, exp: "chart.trades.BTC_USDC-PERPETUAL.120"},
+		{name: "ticker", s: &subscription.Subscription{Channel: subscription.TickerChannel}, exp: "ticker.BTC_USDC-PERPETUAL.100ms"},
+		{name: "aggregated ticker", s: &subscription.Subscription{Channel: subscription.TickerChannel, Interval: kline.ThousandMilliseconds}, exp: "ticker.BTC_USDC-PERPETUAL.agg2"},
+		{name: "raw book", s: &subscription.Subscription{Channel: subscription.OrderbookChannel, Interval: kline.Raw}, exp: "book.BTC_USDC-PERPETUAL.raw"},
+		{name: "grouped book", s: &subscription.Subscription{Channel: subscription.OrderbookChannel, Levels: 10, Params: map[string]any{"group": 5.0}}, exp: "book.BTC_USDC-PERPETUAL.5.10.100ms"},
+		{name: "ungrouped book of 20 levels", s: &subscription.Subscription{Channel: subscription.OrderbookChannel, Levels: 20}, exp: "book.BTC_USDC-PERPETUAL.none.20.100ms"},
+		{name: "book of 5 levels", s: &subscription.Subscription{Channel: subscription.OrderbookChannel, Levels: 5}, err: subscription.ErrInvalidLevel},
+		{name: "book of an unsupported group", s: &subscription.Subscription{Channel: subscription.OrderbookChannel, Levels: 10, Params: map[string]any{"group": "3"}}, err: errDerivativesChannelParameter},
+		{name: "five minute candles", s: &subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.FiveMin}, exp: "chart.trades.BTC_USDC-PERPETUAL.5"},
+		{name: "candles without an interval", s: &subscription.Subscription{Channel: subscription.CandlesChannel}, err: kline.ErrUnsupportedInterval},
+		{name: "two hour candles", s: &subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.TwoHour}, exp: "chart.trades.BTC_USDC-PERPETUAL.120"},
 		// The gateway aligns these candles to its 08:00 UTC daily settlement
-		{s: &subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.ThreeHour}, err: kline.ErrUnsupportedInterval},
-		{s: &subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.SixHour}, err: kline.ErrUnsupportedInterval},
-		{s: &subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.TwelveHour}, err: kline.ErrUnsupportedInterval},
-		{s: &subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.OneDay}, err: kline.ErrUnsupportedInterval},
-		{s: &subscription.Subscription{Channel: ChannelDerivativesQuote, Interval: kline.OneDay}, exp: "quote.BTC_USDC-PERPETUAL"},
-		{s: &subscription.Subscription{Channel: subscription.TickerChannel, Interval: kline.OneMin}, err: kline.ErrUnsupportedInterval},
-		{s: &subscription.Subscription{Channel: subscription.MyOrdersChannel}, err: errDerivativesChannelNeedsAuth},
-		{s: &subscription.Subscription{Channel: subscription.MyOrdersChannel, Authenticated: true, Interval: kline.Raw}, exp: "user.orders.BTC_USDC-PERPETUAL.raw"},
-		{s: &subscription.Subscription{Channel: "nonsense"}, err: subscription.ErrNotSupported},
+		{name: "three hour candles", s: &subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.ThreeHour}, err: kline.ErrUnsupportedInterval},
+		{name: "six hour candles", s: &subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.SixHour}, err: kline.ErrUnsupportedInterval},
+		{name: "twelve hour candles", s: &subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.TwelveHour}, err: kline.ErrUnsupportedInterval},
+		{name: "daily candles", s: &subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.OneDay}, err: kline.ErrUnsupportedInterval},
+		{name: "quote", s: &subscription.Subscription{Channel: ChannelDerivativesQuote, Interval: kline.OneDay}, exp: "quote.BTC_USDC-PERPETUAL"},
+		{name: "one minute ticker", s: &subscription.Subscription{Channel: subscription.TickerChannel, Interval: kline.OneMin}, err: kline.ErrUnsupportedInterval},
+		{name: "orders without authentication", s: &subscription.Subscription{Channel: subscription.MyOrdersChannel}, err: errDerivativesChannelNeedsAuth},
+		{name: "authenticated raw orders", s: &subscription.Subscription{Channel: subscription.MyOrdersChannel, Authenticated: true, Interval: kline.Raw}, exp: "user.orders.BTC_USDC-PERPETUAL.raw"},
+		{name: "unsupported channel", s: &subscription.Subscription{Channel: "nonsense"}, err: subscription.ErrNotSupported},
 	} {
-		qualified, err := qualifyDerivativesInstrumentChannel(tc.s, testUSDCPerpetual)
-		if tc.err != nil {
-			assert.ErrorIsf(t, err, tc.err, "qualifyDerivativesInstrumentChannel should error for %s", tc.s.Channel)
-			continue
-		}
-		require.NoErrorf(t, err, "qualifyDerivativesInstrumentChannel must not error for %s", tc.s.Channel)
-		assert.Equalf(t, tc.exp, qualified, "qualifyDerivativesInstrumentChannel should qualify %s", tc.s.Channel)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			qualified, err := qualifyDerivativesInstrumentChannel(tc.s, testUSDCPerpetual)
+			if tc.err != nil {
+				assert.ErrorIsf(t, err, tc.err, "qualifyDerivativesInstrumentChannel should error for %s", tc.s.Channel)
+				return
+			}
+			require.NoErrorf(t, err, "qualifyDerivativesInstrumentChannel must not error for %s", tc.s.Channel)
+			assert.Equalf(t, tc.exp, qualified, "qualifyDerivativesInstrumentChannel should qualify %s", tc.s.Channel)
+		})
 	}
 }
 
 func TestQualifyDerivativesChannel(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		s   *subscription.Subscription
-		exp string
-		err error
+		name string
+		s    *subscription.Subscription
+		exp  string
+		err  error
 	}{
-		{s: &subscription.Subscription{Channel: ChannelDerivativesPlatformState}, exp: "platform_state"},
-		{s: &subscription.Subscription{Channel: subscription.AllTradesChannel}, exp: "trades.any.any.100ms"},
-		{s: &subscription.Subscription{Channel: subscription.AllTradesChannel, Params: map[string]any{"kind": "future", "currency": "usdc"}}, exp: "trades.future.USDC.100ms"},
-		{s: &subscription.Subscription{Channel: subscription.AllTradesChannel, Params: map[string]any{"kind": "future.option"}}, err: errDerivativesChannelParameter},
-		{s: &subscription.Subscription{Channel: subscription.AllTradesChannel, Params: map[string]any{"currency": 1}}, err: errDerivativesChannelParameter},
-		{s: &subscription.Subscription{Channel: subscription.TickerChannel}, err: errDerivativesChannelNeedsInstrument},
-		{s: &subscription.Subscription{Channel: ChannelDerivativesPriceIndex, Params: map[string]any{"index_name": "btc_usd"}}, exp: "deribit_price_index.btc_usd"},
-		{s: &subscription.Subscription{Channel: ChannelDerivativesPriceIndex}, err: errDerivativesChannelParameter},
-		{s: &subscription.Subscription{Channel: ChannelDerivativesUserPortfolio, Authenticated: true, Params: map[string]any{"currency": currency.USDC}}, exp: "user.portfolio.USDC"},
-		{s: &subscription.Subscription{Channel: ChannelDerivativesUserPortfolio, Authenticated: true, Params: map[string]any{"currency": "ANY"}}, exp: "user.portfolio.any"},
-		{s: &subscription.Subscription{Channel: ChannelDerivativesUserPortfolio, Authenticated: true, Params: map[string]any{"currency": "U.SD"}}, err: errDerivativesChannelParameter},
-		{s: &subscription.Subscription{Channel: ChannelDerivativesUserPortfolio}, err: errDerivativesChannelNeedsAuth},
-		{s: &subscription.Subscription{Channel: subscription.MyTradesChannel, Authenticated: true, Interval: kline.Raw}, exp: "user.trades.any.any.raw"},
+		{name: "platform state", s: &subscription.Subscription{Channel: ChannelDerivativesPlatformState}, exp: "platform_state"},
+		{name: "all trades", s: &subscription.Subscription{Channel: subscription.AllTradesChannel}, exp: "trades.any.any.100ms"},
+		{name: "trades of a kind and currency", s: &subscription.Subscription{Channel: subscription.AllTradesChannel, Params: map[string]any{"kind": "future", "currency": "usdc"}}, exp: "trades.future.USDC.100ms"},
+		{name: "trades of a dotted kind", s: &subscription.Subscription{Channel: subscription.AllTradesChannel, Params: map[string]any{"kind": "future.option"}}, err: errDerivativesChannelParameter},
+		{name: "trades of a numeric currency", s: &subscription.Subscription{Channel: subscription.AllTradesChannel, Params: map[string]any{"currency": 1}}, err: errDerivativesChannelParameter},
+		{name: "ticker without an instrument", s: &subscription.Subscription{Channel: subscription.TickerChannel}, err: errDerivativesChannelNeedsInstrument},
+		{name: "price index", s: &subscription.Subscription{Channel: ChannelDerivativesPriceIndex, Params: map[string]any{"index_name": "btc_usd"}}, exp: "deribit_price_index.btc_usd"},
+		{name: "price index without its name", s: &subscription.Subscription{Channel: ChannelDerivativesPriceIndex}, err: errDerivativesChannelParameter},
+		{name: "portfolio of a currency code", s: &subscription.Subscription{Channel: ChannelDerivativesUserPortfolio, Authenticated: true, Params: map[string]any{"currency": currency.USDC}}, exp: "user.portfolio.USDC"},
+		{name: "portfolio of any currency", s: &subscription.Subscription{Channel: ChannelDerivativesUserPortfolio, Authenticated: true, Params: map[string]any{"currency": "ANY"}}, exp: "user.portfolio.any"},
+		{name: "portfolio of a dotted currency", s: &subscription.Subscription{Channel: ChannelDerivativesUserPortfolio, Authenticated: true, Params: map[string]any{"currency": "U.SD"}}, err: errDerivativesChannelParameter},
+		{name: "portfolio without authentication", s: &subscription.Subscription{Channel: ChannelDerivativesUserPortfolio}, err: errDerivativesChannelNeedsAuth},
+		{name: "authenticated raw trades", s: &subscription.Subscription{Channel: subscription.MyTradesChannel, Authenticated: true, Interval: kline.Raw}, exp: "user.trades.any.any.raw"},
 	} {
-		qualified, err := qualifyDerivativesChannel(tc.s)
-		if tc.err != nil {
-			assert.ErrorIsf(t, err, tc.err, "qualifyDerivativesChannel should error for %s", tc.s.Channel)
-			continue
-		}
-		require.NoErrorf(t, err, "qualifyDerivativesChannel must not error for %s", tc.s.Channel)
-		assert.Equalf(t, tc.exp, qualified, "qualifyDerivativesChannel should qualify %s", tc.s.Channel)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			qualified, err := qualifyDerivativesChannel(tc.s)
+			if tc.err != nil {
+				assert.ErrorIsf(t, err, tc.err, "qualifyDerivativesChannel should error for %s", tc.s.Channel)
+				return
+			}
+			require.NoErrorf(t, err, "qualifyDerivativesChannel must not error for %s", tc.s.Channel)
+			assert.Equalf(t, tc.exp, qualified, "qualifyDerivativesChannel should qualify %s", tc.s.Channel)
+		})
 	}
 }
 
 func TestDerivativesBookGroup(t *testing.T) {
 	t.Parallel()
-	for value, exp := range map[any]string{nil: "none", "250": "250", 10.0: "10", 25: "25"} {
-		group, err := derivativesBookGroup(map[string]any{"group": value})
-		require.NoErrorf(t, err, "derivativesBookGroup must not error for %v", value)
-		assert.Equalf(t, exp, group, "derivativesBookGroup should name group %v", value)
+	for _, tc := range []struct {
+		name  string
+		value any
+		exp   string
+	}{
+		{"unset", nil, "none"},
+		{"string", "250", "250"},
+		{"float", 10.0, "10"},
+		{"integer", 25, "25"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			group, err := derivativesBookGroup(map[string]any{"group": tc.value})
+			require.NoErrorf(t, err, "derivativesBookGroup must not error for %v", tc.value)
+			assert.Equalf(t, tc.exp, group, "derivativesBookGroup should name group %v", tc.value)
+		})
 	}
-	for _, value := range []any{"3", true} {
-		_, err := derivativesBookGroup(map[string]any{"group": value})
-		assert.ErrorIsf(t, err, errDerivativesChannelParameter, "derivativesBookGroup should error for %v", value)
+	for name, value := range map[string]any{"unsupported group": "3", "boolean": true} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			_, err := derivativesBookGroup(map[string]any{"group": value})
+			assert.ErrorIsf(t, err, errDerivativesChannelParameter, "derivativesBookGroup should error for %v", value)
+		})
 	}
 }
 
@@ -139,23 +168,41 @@ func TestDerivativesChannelParameter(t *testing.T) {
 
 func TestDerivativesChannelCurrency(t *testing.T) {
 	t.Parallel()
-	for value, exp := range map[any]string{nil: derivativesChannelAny, "Any": derivativesChannelAny, "btc": "BTC", currency.ETH: "ETH"} {
-		ccy, err := derivativesChannelCurrency(map[string]any{"currency": value})
-		require.NoErrorf(t, err, "derivativesChannelCurrency must not error for %v", value)
-		assert.Equalf(t, exp, ccy, "derivativesChannelCurrency should name currency %v", value)
+	for _, tc := range []struct {
+		name  string
+		value any
+		exp   string
+	}{
+		{"unset", nil, derivativesChannelAny},
+		{"mixed case any", "Any", derivativesChannelAny},
+		{"lower case", "btc", "BTC"},
+		{"currency code", currency.ETH, "ETH"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ccy, err := derivativesChannelCurrency(map[string]any{"currency": tc.value})
+			require.NoErrorf(t, err, "derivativesChannelCurrency must not error for %v", tc.value)
+			assert.Equalf(t, tc.exp, ccy, "derivativesChannelCurrency should name currency %v", tc.value)
+		})
 	}
-	for _, value := range []any{"", "B.TC", 1.5} {
-		_, err := derivativesChannelCurrency(map[string]any{"currency": value})
-		assert.ErrorIsf(t, err, errDerivativesChannelParameter, "derivativesChannelCurrency should error for %v", value)
+	for name, value := range map[string]any{"empty": "", "dotted": "B.TC", "float": 1.5} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			_, err := derivativesChannelCurrency(map[string]any{"currency": value})
+			assert.ErrorIsf(t, err, errDerivativesChannelParameter, "derivativesChannelCurrency should error for %v", value)
+		})
 	}
 }
 
 func TestDerivativesResolutionInterval(t *testing.T) {
 	t.Parallel()
 	for resolution, exp := range map[string]kline.Interval{"1": kline.OneMin, "60": kline.OneHour, "720": kline.TwelveHour, "1D": kline.OneDay} {
-		interval, err := derivativesResolutionInterval(resolution)
-		require.NoErrorf(t, err, "derivativesResolutionInterval must not error for %s", resolution)
-		assert.Equalf(t, exp, interval, "derivativesResolutionInterval should return resolution %s's interval", resolution)
+		t.Run(subtestName(resolution), func(t *testing.T) {
+			t.Parallel()
+			interval, err := derivativesResolutionInterval(resolution)
+			require.NoErrorf(t, err, "derivativesResolutionInterval must not error for %s", resolution)
+			assert.Equalf(t, exp, interval, "derivativesResolutionInterval should return resolution %s's interval", resolution)
+		})
 	}
 	_, err := derivativesResolutionInterval("1W")
 	assert.ErrorIs(t, err, kline.ErrInvalidInterval, "derivativesResolutionInterval should error for a resolution that is not minutes")
@@ -172,15 +219,21 @@ func TestDerivativesInstrumentPair(t *testing.T) {
 		"BTC_USDC-PERPETUAL": {asset.USDCMarginedFutures, testUSDCPerpetual},
 		"BTC-PERPETUAL":      {asset.CoinMarginedFutures, testCoinPerpetual},
 	} {
-		a, pair, err := derivativesInstrumentPair(instrument)
-		require.NoErrorf(t, err, "derivativesInstrumentPair must not error for %s", instrument)
-		assert.Equalf(t, exp.a, a, "derivativesInstrumentPair should return %s's asset", instrument)
-		assert.Equalf(t, exp.pair, pair, "derivativesInstrumentPair should return %s's pair", instrument)
-		assert.Equalf(t, instrument, pair.String(), "%s's pair should format as its instrument name", instrument)
+		t.Run(subtestName(instrument), func(t *testing.T) {
+			t.Parallel()
+			a, pair, err := derivativesInstrumentPair(instrument)
+			require.NoErrorf(t, err, "derivativesInstrumentPair must not error for %s", instrument)
+			assert.Equalf(t, exp.a, a, "derivativesInstrumentPair should return %s's asset", instrument)
+			assert.Equalf(t, exp.pair, pair, "derivativesInstrumentPair should return %s's pair", instrument)
+			assert.Equalf(t, instrument, pair.String(), "%s's pair should format as its instrument name", instrument)
+		})
 	}
 	for _, instrument := range []string{"BTC-26DEC26", "BTC_USDC", "BTC-27NOV26-60000-C", "_USDC-PERPETUAL", "-PERPETUAL", "BTC_ETH_USDC-PERPETUAL", ""} {
-		_, _, err := derivativesInstrumentPair(instrument)
-		assert.ErrorIsf(t, err, errDerivativesUnknownInstrument, "derivativesInstrumentPair should error for %q, which no asset trades", instrument)
+		t.Run(subtestName(instrument), func(t *testing.T) {
+			t.Parallel()
+			_, _, err := derivativesInstrumentPair(instrument)
+			assert.ErrorIsf(t, err, errDerivativesUnknownInstrument, "derivativesInstrumentPair should error for %q, which no asset trades", instrument)
+		})
 	}
 }
 
@@ -195,27 +248,34 @@ func TestDerivativesNotificationChannel(t *testing.T) {
 		"user.trailing_orders.trigger_price.ETH":      ChannelDerivativesUserTrailingOrdersTriggerPrice,
 		"nonsense.BTC-PERPETUAL":                      "",
 	} {
-		assert.Equalf(t, exp, derivativesNotificationChannel(channel), "derivativesNotificationChannel should name %s's channel", channel)
+		t.Run(subtestName(channel), func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, exp, derivativesNotificationChannel(channel), "derivativesNotificationChannel should name %s's channel", channel)
+		})
 	}
 }
 
 func TestDerivativesChannelOf(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
+		name    string
 		s       *subscription.Subscription
 		ok      bool
 		private bool
 	}{
-		{&subscription.Subscription{Channel: subscription.TickerChannel, Asset: asset.CoinMarginedFutures}, true, false},
-		{&subscription.Subscription{Channel: subscription.MyOrdersChannel, Asset: asset.USDCMarginedFutures}, true, true},
-		{&subscription.Subscription{Channel: ChannelDerivativesUserPortfolio}, true, true},
-		{&subscription.Subscription{Channel: subscription.TickerChannel, Asset: asset.Spot}, false, false},
-		{&subscription.Subscription{Channel: subscription.MyAccountChannel}, false, false},
-		{&subscription.Subscription{Channel: "nonsense"}, false, false},
+		{"coin margined ticker", &subscription.Subscription{Channel: subscription.TickerChannel, Asset: asset.CoinMarginedFutures}, true, false},
+		{"USDC margined orders", &subscription.Subscription{Channel: subscription.MyOrdersChannel, Asset: asset.USDCMarginedFutures}, true, true},
+		{"portfolio", &subscription.Subscription{Channel: ChannelDerivativesUserPortfolio}, true, true},
+		{"spot ticker", &subscription.Subscription{Channel: subscription.TickerChannel, Asset: asset.Spot}, false, false},
+		{"account", &subscription.Subscription{Channel: subscription.MyAccountChannel}, false, false},
+		{"unsupported channel", &subscription.Subscription{Channel: "nonsense"}, false, false},
 	} {
-		ch, ok := derivativesChannelOf(tc.s)
-		assert.Equalf(t, tc.ok, ok, "derivativesChannelOf should report %s on %s correctly", tc.s.Channel, tc.s.Asset)
-		assert.Equalf(t, tc.private, ch.private, "derivativesChannelOf should report whether %s on %s is private", tc.s.Channel, tc.s.Asset)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ch, ok := derivativesChannelOf(tc.s)
+			assert.Equalf(t, tc.ok, ok, "derivativesChannelOf should report %s on %s correctly", tc.s.Channel, tc.s.Asset)
+			assert.Equalf(t, tc.private, ch.private, "derivativesChannelOf should report whether %s on %s is private", tc.s.Channel, tc.s.Asset)
+		})
 	}
 }
 
@@ -310,31 +370,51 @@ type switchedConnection struct {
 // IsConnected reports whether the connection is up
 func (c *switchedConnection) IsConnected() bool { return c.up.Load() }
 
-func TestWebsocketDerivativesLongestSession(t *testing.T) {
+func TestWebsocketDerivativesSendAuth(t *testing.T) {
 	t.Parallel()
-	ex := newWebsocketTestExchange(t)
-	conn := &switchedConnection{result: json.RawMessage(`{"access_token":"t","expires_in":18446744073709551615}`)}
-	conn.up.Store(true)
-	// Disconnecting ends any renewal, so a renewal that is wrongly due at once stops with the test
-	t.Cleanup(func() { conn.up.Store(false) })
-	require.NoError(t, ex.wsDerivativesSendAuth(t.Context(), conn), "the connection's authentication must succeed")
-	// A lifetime longer than a duration holds is capped, rather than wrapping round to one already over
-	assert.Never(t, func() bool { return conn.sent() > 1 }, 100*time.Millisecond, time.Millisecond, "a session whose lifetime is longer than a duration holds should not be renewed at once")
-}
-
-func TestWebsocketDerivativesRenewalOutlivesCaller(t *testing.T) {
-	t.Parallel()
-	ex := newWebsocketTestExchange(t)
-	synctest.Test(t, func(t *testing.T) {
-		conn := &reauthConnection{result: json.RawMessage(`{"access_token":"t","expires_in":600}`), connected: true}
+	t.Run("caps a lifetime longer than a duration holds", func(t *testing.T) {
+		t.Parallel()
+		ex := newWebsocketTestExchange(t)
+		conn := &switchedConnection{result: json.RawMessage(`{"access_token":"t","expires_in":18446744073709551615}`)}
+		conn.up.Store(true)
+		// Disconnecting ends any renewal, so a renewal that is wrongly due at once stops with the test
+		t.Cleanup(func() { conn.up.Store(false) })
 		require.NoError(t, ex.wsDerivativesSendAuth(t.Context(), conn), "the connection's authentication must succeed")
-		// AuthenticateWebsocket authenticates the connection again with its caller's context, which then ends
-		ctx, cancel := context.WithCancel(t.Context())
-		require.NoError(t, ex.wsDerivativesSendAuth(ctx, conn), "the caller's authentication must succeed")
-		cancel()
-		time.Sleep(5*time.Minute + time.Second)
-		synctest.Wait()
-		assert.Equal(t, 3, conn.sent(), "a connection's session should be renewed after the context of its last authentication's caller ends")
+		// A lifetime longer than a duration holds is capped, rather than wrapping round to one already over
+		assert.Never(t, func() bool { return conn.sent() > 1 }, 100*time.Millisecond, time.Millisecond, "a session whose lifetime is longer than a duration holds should not be renewed at once")
+	})
+	t.Run("renews after its caller's context ends", func(t *testing.T) {
+		t.Parallel()
+		ex := newWebsocketTestExchange(t)
+		synctest.Test(t, func(t *testing.T) {
+			conn := &reauthConnection{result: json.RawMessage(`{"access_token":"t","expires_in":600}`), connected: true}
+			require.NoError(t, ex.wsDerivativesSendAuth(t.Context(), conn), "the connection's authentication must succeed")
+			// AuthenticateWebsocket authenticates the connection again with its caller's context, which then ends
+			ctx, cancel := context.WithCancel(t.Context())
+			require.NoError(t, ex.wsDerivativesSendAuth(ctx, conn), "the caller's authentication must succeed")
+			cancel()
+			time.Sleep(5*time.Minute + time.Second)
+			synctest.Wait()
+			assert.Equal(t, 3, conn.sent(), "a connection's session should be renewed after the context of its last authentication's caller ends")
+		})
+	})
+	t.Run("schedules one renewal per connection", func(t *testing.T) {
+		t.Parallel()
+		ex := newWebsocketTestExchange(t)
+		synctest.Test(t, func(t *testing.T) {
+			// Each session lasts 10 minutes, so it is renewed after 5
+			conn := &reauthConnection{result: json.RawMessage(`{"access_token":"t","expires_in":600}`), connected: true}
+			// AuthenticateWebsocket authenticates a connection already authenticated, which has its renewal pending
+			for range 3 {
+				require.NoError(t, ex.wsDerivativesSendAuth(t.Context(), conn), "wsDerivativesSendAuth must not error")
+			}
+			time.Sleep(5*time.Minute + time.Second)
+			synctest.Wait()
+			assert.Equal(t, 4, conn.sent(), "a connection should renew its session once, however often it was authenticated")
+			time.Sleep(5 * time.Minute)
+			synctest.Wait()
+			assert.Equal(t, 5, conn.sent(), "each renewal should schedule the next, and only it")
+		})
 	})
 }
 
@@ -379,25 +459,6 @@ func (c *firstAuthBlockedConnection) SendMessageReturnResponse(_ context.Context
 		return nil, errors.New("not a JSON-RPC request")
 	}
 	return json.Marshal(map[string]any{"jsonrpc": "2.0", "id": req.ID, "result": json.RawMessage(`{"access_token":"t","expires_in":600}`)})
-}
-
-func TestWebsocketDerivativesRenewalPerConnection(t *testing.T) {
-	t.Parallel()
-	ex := newWebsocketTestExchange(t)
-	synctest.Test(t, func(t *testing.T) {
-		// Each session lasts 10 minutes, so it is renewed after 5
-		conn := &reauthConnection{result: json.RawMessage(`{"access_token":"t","expires_in":600}`), connected: true}
-		// AuthenticateWebsocket authenticates a connection already authenticated, which has its renewal pending
-		for range 3 {
-			require.NoError(t, ex.wsDerivativesSendAuth(t.Context(), conn), "wsDerivativesSendAuth must not error")
-		}
-		time.Sleep(5*time.Minute + time.Second)
-		synctest.Wait()
-		assert.Equal(t, 4, conn.sent(), "a connection should renew its session once, however often it was authenticated")
-		time.Sleep(5 * time.Minute)
-		synctest.Wait()
-		assert.Equal(t, 5, conn.sent(), "each renewal should schedule the next, and only it")
-	})
 }
 
 func TestDerivativesWebsocketSessionsScheduleRenewal(t *testing.T) {

@@ -774,7 +774,7 @@ func TestGlobalDerivativesCancelAllByInstrument(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "CancelAllByInstrument should return the request failure")
 }
 
-func TestGlobalDerivativesCancelAllByKindOrType(t *testing.T) {
+func TestGlobalDerivativesCancelAllByKindOrType(t *testing.T) { //nolint:tparallel // the cases share ex and its recording server in order
 	t.Parallel()
 	_, err := e.GlobalDerivatives().CancelAllByKindOrType(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "CancelAllByKindOrType must reject a nil request")
@@ -786,17 +786,21 @@ func TestGlobalDerivativesCancelAllByKindOrType(t *testing.T) {
 	require.ErrorIs(t, err, errDerivativesInvalidCancelOrderType, "CancelAllByKindOrType must refuse an undocumented order type")
 
 	ex, lastRequest := newDerivativesTradingParamsServer(t, `{"jsonrpc":"2.0","result":0}`)
+	// The cases share ex and its recording server in order, so each also checks that a call keeps nothing from the last
 	for _, tc := range []struct {
+		name       string
 		currencies []currency.Code
 		exp        string
 	}{
-		{currencies: []currency.Code{currency.NewCode(DerivativesCurrencyAny)}, exp: `{"currency":"any","type":"take"}`},
-		{currencies: []currency.Code{currency.NewCode("usdc")}, exp: `{"currency":"USDC","type":"take"}`},
-		{currencies: []currency.Code{currency.USDC, currency.NewCode("btc")}, exp: `{"currency":["USDC","BTC"],"type":"take"}`},
+		{name: "any", currencies: []currency.Code{currency.NewCode(DerivativesCurrencyAny)}, exp: `{"currency":"any","type":"take"}`},
+		{name: "one currency", currencies: []currency.Code{currency.NewCode("usdc")}, exp: `{"currency":"USDC","type":"take"}`},
+		{name: "several currencies", currencies: []currency.Code{currency.USDC, currency.NewCode("btc")}, exp: `{"currency":["USDC","BTC"],"type":"take"}`},
 	} {
-		_, err = ex.GlobalDerivatives().CancelAllByKindOrType(t.Context(), &DerivativesCancelAllByKindOrTypeRequest{Currencies: tc.currencies, Type: DerivativesCancelOrderTypeTake})
-		require.NoErrorf(t, err, "CancelAllByKindOrType must not error for currencies %s", tc.currencies)
-		assert.JSONEqf(t, tc.exp, string(lastRequest().Params), "CancelAllByKindOrType should send currencies %s as a single currency or a list", tc.currencies)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err = ex.GlobalDerivatives().CancelAllByKindOrType(t.Context(), &DerivativesCancelAllByKindOrTypeRequest{Currencies: tc.currencies, Type: DerivativesCancelOrderTypeTake})
+			require.NoErrorf(t, err, "CancelAllByKindOrType must not error for currencies %s", tc.currencies)
+			assert.JSONEqf(t, tc.exp, string(lastRequest().Params), "CancelAllByKindOrType should send currencies %s as a single currency or a list", tc.currencies)
+		})
 	}
 
 	if !mockTests {
@@ -1639,7 +1643,7 @@ func TestGlobalDerivativesSetLeverage(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "SetLeverage should return the request failure")
 }
 
-func TestDerivativesCancelAllResponseUnmarshalJSON(t *testing.T) {
+func TestDerivativesCancelAllResponseUnmarshalJSON(t *testing.T) { //nolint:tparallel // the refusals decode into one resp in order
 	t.Parallel()
 	var resp DerivativesCancelAllResponse
 	require.NoError(t, json.Unmarshal([]byte(`4`), &resp), "Unmarshal must not error for a count")
@@ -1673,12 +1677,15 @@ func TestDerivativesCancelAllResponseUnmarshalJSON(t *testing.T) {
 	}
 	assert.Equal(t, exp, resp, "UnmarshalJSON should decode the documented execution reports and count their orders")
 
+	// The cases decode into resp in order, so each refusal also runs on whatever the last decode left in it
 	for _, data := range []string{`"4"`, `{}`, `[4]`, `-1`} {
-		assert.ErrorIsf(t, json.Unmarshal([]byte(data), &resp), errDerivativesInvalidCancelAllResult, "UnmarshalJSON should refuse %s", data)
+		t.Run(subtestName(data), func(t *testing.T) {
+			assert.ErrorIsf(t, json.Unmarshal([]byte(data), &resp), errDerivativesInvalidCancelAllResult, "UnmarshalJSON should refuse %s", data)
+		})
 	}
 }
 
-func TestDerivativesOrderHistoryResponseUnmarshalJSON(t *testing.T) {
+func TestDerivativesOrderHistoryResponseUnmarshalJSON(t *testing.T) { //nolint:tparallel // the refusals decode into one resp in order
 	t.Parallel()
 	var resp DerivativesOrderHistoryResponse
 	require.NoError(t, json.Unmarshal([]byte(`[{"order_id":"1"}]`), &resp), "Unmarshal must not error for a list")
@@ -1692,8 +1699,11 @@ func TestDerivativesOrderHistoryResponseUnmarshalJSON(t *testing.T) {
 
 	err := json.Unmarshal([]byte(`{"entries":[{"order_id":"3"}],"continuation":"next"}`), &resp)
 	assert.ErrorIs(t, err, errDerivativesOrderHistoryOrdersMissing, "UnmarshalJSON should refuse a page without an orders field")
+	// The cases decode into resp in order, so each refusal also runs on whatever the last decode left in it
 	for _, data := range []string{`[1]`, `{"orders":{}}`, `"orders"`} {
-		assert.Errorf(t, json.Unmarshal([]byte(data), &resp), "UnmarshalJSON should refuse %s", data)
+		t.Run(subtestName(data), func(t *testing.T) {
+			assert.Errorf(t, json.Unmarshal([]byte(data), &resp), "UnmarshalJSON should refuse %s", data)
+		})
 	}
 }
 
@@ -1825,9 +1835,12 @@ func TestDerivativesOrderRequestValidate(t *testing.T) {
 			err: errDerivativesIsolatedOrderUnsupported,
 		},
 	} {
-		req := valid()
-		tc.modify(req)
-		assert.ErrorIsf(t, req.validate(), tc.err, "validate should return the expected error for %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			req := valid()
+			tc.modify(req)
+			assert.ErrorIsf(t, req.validate(), tc.err, "validate should return the expected error for %s", tc.name)
+		})
 	}
 	assert.ErrorIs(t, (*DerivativesOrderRequest)(nil).validate(), common.ErrNilPointer, "validate should reject a nil request")
 }
@@ -1862,8 +1875,11 @@ func TestDerivativesOrderRequestValidateLinkedOrder(t *testing.T) {
 		{name: "one triggers one cancels other with one", linkedOrderType: DerivativesLinkedOrderTypeOneTriggersOneCancelsOther, secondaryOrders: secondary(1), err: errDerivativesInvalidSecondaryOrderCount},
 		{name: "an invalid secondary order", linkedOrderType: DerivativesLinkedOrderTypeOneTriggersOther, secondaryOrders: []DerivativesSecondaryOrder{{Direction: DerivativesDirectionSell}}, err: errInvalidAmount},
 	} {
-		req := &DerivativesOrderRequest{LinkedOrderType: tc.linkedOrderType, TriggerFillCondition: tc.triggerFillCondition, OTOCOConfig: tc.secondaryOrders}
-		assert.ErrorIsf(t, req.validateLinkedOrder(), tc.err, "validateLinkedOrder should return the expected error for %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			req := &DerivativesOrderRequest{LinkedOrderType: tc.linkedOrderType, TriggerFillCondition: tc.triggerFillCondition, OTOCOConfig: tc.secondaryOrders}
+			assert.ErrorIsf(t, req.validateLinkedOrder(), tc.err, "validateLinkedOrder should return the expected error for %s", tc.name)
+		})
 	}
 }
 
@@ -1882,7 +1898,10 @@ func TestDerivativesSecondaryOrderValidate(t *testing.T) {
 		{name: "undocumented time in force", order: DerivativesSecondaryOrder{Amount: 10, Direction: DerivativesDirectionBuy, TimeInForce: "good_til_date"}, err: errDerivativesInvalidTimeInForce},
 		{name: "undocumented trigger", order: DerivativesSecondaryOrder{Amount: 10, Direction: DerivativesDirectionBuy, Trigger: "spot_price"}, err: errDerivativesInvalidTrigger},
 	} {
-		assert.ErrorIsf(t, tc.order.validate(), tc.err, "validate should return the expected error for %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, tc.order.validate(), tc.err, "validate should return the expected error for %s", tc.name)
+		})
 	}
 }
 
@@ -1908,68 +1927,88 @@ func TestValidateDerivativesOrderEdit(t *testing.T) {
 		{name: "allocated margin without isolated margin", amount: 10, allocatedMargin: 5, err: errDerivativesAllocatedMarginWithoutIsolated},
 		{name: "isolated with allocated margin", amount: 10, isolated: true, allocatedMargin: 5},
 	} {
-		err := validateDerivativesOrderEdit(tc.amount, tc.contracts, tc.advanced, tc.postOnly, tc.rejectPostOnly, tc.isolated, tc.allocatedMargin)
-		assert.ErrorIsf(t, err, tc.err, "validateDerivativesOrderEdit should return the expected error for %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			err := validateDerivativesOrderEdit(tc.amount, tc.contracts, tc.advanced, tc.postOnly, tc.rejectPostOnly, tc.isolated, tc.allocatedMargin)
+			assert.ErrorIsf(t, err, tc.err, "validateDerivativesOrderEdit should return the expected error for %s", tc.name)
+		})
 	}
 }
 
 func TestValidateDerivativesOrderSize(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
+		name              string
 		amount, contracts float64
 		err               error
 	}{
-		{amount: 10},
-		{contracts: 1},
-		{amount: 10, contracts: 1},
-		{err: errInvalidAmount},
-		{amount: -10, err: errInvalidAmount},
-		{amount: 10, contracts: -1, err: errInvalidAmount},
+		{name: "amount alone", amount: 10},
+		{name: "contracts alone", contracts: 1},
+		{name: "amount and contracts", amount: 10, contracts: 1},
+		{name: "no size", err: errInvalidAmount},
+		{name: "negative amount", amount: -10, err: errInvalidAmount},
+		{name: "negative contracts", amount: 10, contracts: -1, err: errInvalidAmount},
 	} {
-		assert.ErrorIsf(t, validateDerivativesOrderSize(tc.amount, tc.contracts), tc.err, "validateDerivativesOrderSize should return the expected error for amount %v and contracts %v", tc.amount, tc.contracts)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, validateDerivativesOrderSize(tc.amount, tc.contracts), tc.err, "validateDerivativesOrderSize should return the expected error for amount %v and contracts %v", tc.amount, tc.contracts)
+		})
 	}
 }
 
 func TestIsDerivativesTriggerOrderType(t *testing.T) {
 	t.Parallel()
 	for _, orderType := range []string{DerivativesOrderTypeStopLimit, DerivativesOrderTypeStopMarket, DerivativesOrderTypeTakeLimit, DerivativesOrderTypeTakeMarket, DerivativesOrderTypeTrailingStop} {
-		assert.Truef(t, isDerivativesTriggerOrderType(orderType), "isDerivativesTriggerOrderType should report %s", orderType)
+		t.Run(subtestName(orderType), func(t *testing.T) {
+			t.Parallel()
+			assert.Truef(t, isDerivativesTriggerOrderType(orderType), "isDerivativesTriggerOrderType should report %s", orderType)
+		})
 	}
 	for _, orderType := range []string{"", DerivativesOrderTypeLimit, DerivativesOrderTypeMarket, DerivativesOrderTypeMarketLimit, "stop"} {
-		assert.Falsef(t, isDerivativesTriggerOrderType(orderType), "isDerivativesTriggerOrderType should not report %q", orderType)
+		t.Run(subtestName(orderType), func(t *testing.T) {
+			t.Parallel()
+			assert.Falsef(t, isDerivativesTriggerOrderType(orderType), "isDerivativesTriggerOrderType should not report %q", orderType)
+		})
 	}
 }
 
 func TestValidateDerivativesOrderType(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
+		name               string
 		orderType, trigger string
 		triggerPrice       float64
 		err                error
 	}{
-		{},
-		{orderType: DerivativesOrderTypeLimit},
-		{orderType: DerivativesOrderTypeMarket},
-		{orderType: DerivativesOrderTypeMarketLimit},
-		{orderType: DerivativesOrderTypeStopLimit, trigger: DerivativesTriggerLastPrice, triggerPrice: 1},
-		{orderType: DerivativesOrderTypeStopMarket, trigger: DerivativesTriggerIndexPrice, triggerPrice: 1},
-		{orderType: DerivativesOrderTypeTakeLimit, trigger: DerivativesTriggerMarkPrice, triggerPrice: 1},
-		{orderType: DerivativesOrderTypeTakeMarket, trigger: DerivativesTriggerMarkPrice, triggerPrice: -1},
-		{orderType: DerivativesOrderTypeTrailingStop, trigger: DerivativesTriggerMarkPrice},
-		{orderType: DerivativesOrderTypeStopLimit, triggerPrice: 1, err: errDerivativesTriggerRequired},
-		{orderType: DerivativesOrderTypeTrailingStop, err: errDerivativesTriggerRequired},
-		{orderType: DerivativesOrderTypeTakeMarket, trigger: DerivativesTriggerMarkPrice, err: errDerivativesTriggerPriceRequired},
-		{orderType: "stop", err: errDerivativesInvalidOrderType},
-		{orderType: "Limit", err: errDerivativesInvalidOrderType},
+		{name: "unset type"},
+		{name: "limit", orderType: DerivativesOrderTypeLimit},
+		{name: "market", orderType: DerivativesOrderTypeMarket},
+		{name: "market limit", orderType: DerivativesOrderTypeMarketLimit},
+		{name: "stop limit", orderType: DerivativesOrderTypeStopLimit, trigger: DerivativesTriggerLastPrice, triggerPrice: 1},
+		{name: "stop market", orderType: DerivativesOrderTypeStopMarket, trigger: DerivativesTriggerIndexPrice, triggerPrice: 1},
+		{name: "take limit", orderType: DerivativesOrderTypeTakeLimit, trigger: DerivativesTriggerMarkPrice, triggerPrice: 1},
+		{name: "take market with a negative trigger price", orderType: DerivativesOrderTypeTakeMarket, trigger: DerivativesTriggerMarkPrice, triggerPrice: -1},
+		{name: "trailing stop without a trigger price", orderType: DerivativesOrderTypeTrailingStop, trigger: DerivativesTriggerMarkPrice},
+		{name: "stop limit without a trigger", orderType: DerivativesOrderTypeStopLimit, triggerPrice: 1, err: errDerivativesTriggerRequired},
+		{name: "trailing stop without a trigger", orderType: DerivativesOrderTypeTrailingStop, err: errDerivativesTriggerRequired},
+		{name: "take market without a trigger price", orderType: DerivativesOrderTypeTakeMarket, trigger: DerivativesTriggerMarkPrice, err: errDerivativesTriggerPriceRequired},
+		{name: "undocumented type", orderType: "stop", err: errDerivativesInvalidOrderType},
+		{name: "capitalised type", orderType: "Limit", err: errDerivativesInvalidOrderType},
 	} {
-		assert.ErrorIsf(t, validateDerivativesOrderType(tc.orderType, tc.trigger, tc.triggerPrice), tc.err, "validateDerivativesOrderType should return the expected error for type %q with trigger %q", tc.orderType, tc.trigger)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, validateDerivativesOrderType(tc.orderType, tc.trigger, tc.triggerPrice), tc.err, "validateDerivativesOrderType should return the expected error for type %q with trigger %q", tc.orderType, tc.trigger)
+		})
 	}
 }
 
 func TestValidateDerivativesTimeInForce(t *testing.T) {
 	t.Parallel()
 	for _, timeInForce := range []string{"", DerivativesTimeInForceGoodTilCancelled, DerivativesTimeInForceGoodTilDay, DerivativesTimeInForceFillOrKill, DerivativesTimeInForceImmediateOrCancel} {
-		assert.NoErrorf(t, validateDerivativesTimeInForce(timeInForce), "validateDerivativesTimeInForce should accept %q", timeInForce)
+		t.Run(subtestName(timeInForce), func(t *testing.T) {
+			t.Parallel()
+			assert.NoErrorf(t, validateDerivativesTimeInForce(timeInForce), "validateDerivativesTimeInForce should accept %q", timeInForce)
+		})
 	}
 	assert.ErrorIs(t, validateDerivativesTimeInForce("good_til_time"), errDerivativesInvalidTimeInForce, "validateDerivativesTimeInForce should refuse a good til time, which the gateway does not have")
 }
@@ -1977,7 +2016,10 @@ func TestValidateDerivativesTimeInForce(t *testing.T) {
 func TestValidateDerivativesTrigger(t *testing.T) {
 	t.Parallel()
 	for _, trigger := range []string{"", DerivativesTriggerIndexPrice, DerivativesTriggerMarkPrice, DerivativesTriggerLastPrice} {
-		assert.NoErrorf(t, validateDerivativesTrigger(trigger), "validateDerivativesTrigger should accept %q", trigger)
+		t.Run(subtestName(trigger), func(t *testing.T) {
+			t.Parallel()
+			assert.NoErrorf(t, validateDerivativesTrigger(trigger), "validateDerivativesTrigger should accept %q", trigger)
+		})
 	}
 	assert.ErrorIs(t, validateDerivativesTrigger("index"), errDerivativesInvalidTrigger, "validateDerivativesTrigger should refuse an undocumented trigger")
 }
@@ -1985,7 +2027,10 @@ func TestValidateDerivativesTrigger(t *testing.T) {
 func TestValidateDerivativesAdvancedType(t *testing.T) {
 	t.Parallel()
 	for _, advanced := range []string{"", DerivativesAdvancedUSD, DerivativesAdvancedImpliedVolatility} {
-		assert.NoErrorf(t, validateDerivativesAdvancedType(advanced), "validateDerivativesAdvancedType should accept %q", advanced)
+		t.Run(subtestName(advanced), func(t *testing.T) {
+			t.Parallel()
+			assert.NoErrorf(t, validateDerivativesAdvancedType(advanced), "validateDerivativesAdvancedType should accept %q", advanced)
+		})
 	}
 	assert.ErrorIs(t, validateDerivativesAdvancedType("USD"), errDerivativesInvalidAdvancedType, "validateDerivativesAdvancedType should refuse an undocumented advanced order type")
 }
@@ -1993,12 +2038,18 @@ func TestValidateDerivativesAdvancedType(t *testing.T) {
 func TestValidateDerivativesTradingKind(t *testing.T) {
 	t.Parallel()
 	for _, kind := range []string{"", DerivativesKindFuture, DerivativesKindOption, DerivativesKindSpot, DerivativesKindFutureCombo, DerivativesKindOptionCombo} {
-		assert.NoErrorf(t, validateDerivativesTradingKind(kind, false), "validateDerivativesTradingKind should accept %q without aggregates", kind)
-		assert.NoErrorf(t, validateDerivativesTradingKind(kind, true), "validateDerivativesTradingKind should accept %q with aggregates", kind)
+		t.Run(subtestName(kind), func(t *testing.T) {
+			t.Parallel()
+			assert.NoErrorf(t, validateDerivativesTradingKind(kind, false), "validateDerivativesTradingKind should accept %q without aggregates", kind)
+			assert.NoErrorf(t, validateDerivativesTradingKind(kind, true), "validateDerivativesTradingKind should accept %q with aggregates", kind)
+		})
 	}
 	for _, kind := range []string{DerivativesKindCombo, DerivativesKindAny} {
-		assert.ErrorIsf(t, validateDerivativesTradingKind(kind, false), errDerivativesInvalidTradingKind, "validateDerivativesTradingKind should refuse %q without aggregates", kind)
-		assert.NoErrorf(t, validateDerivativesTradingKind(kind, true), "validateDerivativesTradingKind should accept %q with aggregates", kind)
+		t.Run(subtestName(kind), func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, validateDerivativesTradingKind(kind, false), errDerivativesInvalidTradingKind, "validateDerivativesTradingKind should refuse %q without aggregates", kind)
+			assert.NoErrorf(t, validateDerivativesTradingKind(kind, true), "validateDerivativesTradingKind should accept %q with aggregates", kind)
+		})
 	}
 	assert.ErrorIs(t, validateDerivativesTradingKind("perpetual", true), errDerivativesInvalidTradingKind, "validateDerivativesTradingKind should refuse an undocumented kind")
 }
@@ -2006,7 +2057,10 @@ func TestValidateDerivativesTradingKind(t *testing.T) {
 func TestValidateDerivativesCancelOrderType(t *testing.T) {
 	t.Parallel()
 	for _, orderType := range []string{"", DerivativesCancelOrderTypeAll, DerivativesCancelOrderTypeLimit, DerivativesCancelOrderTypeTriggerAll, DerivativesCancelOrderTypeStop, DerivativesCancelOrderTypeTake, DerivativesCancelOrderTypeTrailingStop} {
-		assert.NoErrorf(t, validateDerivativesCancelOrderType(orderType), "validateDerivativesCancelOrderType should accept %q", orderType)
+		t.Run(subtestName(orderType), func(t *testing.T) {
+			t.Parallel()
+			assert.NoErrorf(t, validateDerivativesCancelOrderType(orderType), "validateDerivativesCancelOrderType should accept %q", orderType)
+		})
 	}
 	assert.ErrorIs(t, validateDerivativesCancelOrderType(DerivativesOpenOrderTypeStopAll), errDerivativesInvalidCancelOrderType, "validateDerivativesCancelOrderType should refuse an order type only open orders methods take")
 }
@@ -2018,7 +2072,10 @@ func TestValidateDerivativesOpenOrderType(t *testing.T) {
 		DerivativesOpenOrderTypeStopLimit, DerivativesOpenOrderTypeStopMarket, DerivativesOpenOrderTypeTakeAll, DerivativesOpenOrderTypeTakeLimit,
 		DerivativesOpenOrderTypeTakeMarket, DerivativesOpenOrderTypeTrailingAll, DerivativesOpenOrderTypeTrailingStop,
 	} {
-		assert.NoErrorf(t, validateDerivativesOpenOrderType(orderType), "validateDerivativesOpenOrderType should accept %q", orderType)
+		t.Run(subtestName(orderType), func(t *testing.T) {
+			t.Parallel()
+			assert.NoErrorf(t, validateDerivativesOpenOrderType(orderType), "validateDerivativesOpenOrderType should accept %q", orderType)
+		})
 	}
 	assert.ErrorIs(t, validateDerivativesOpenOrderType(DerivativesCancelOrderTypeTake), errDerivativesInvalidOpenOrderType, "validateDerivativesOpenOrderType should refuse an order type only cancel methods take")
 }
@@ -2026,7 +2083,10 @@ func TestValidateDerivativesOpenOrderType(t *testing.T) {
 func TestValidateDerivativesSettlementHistoryType(t *testing.T) {
 	t.Parallel()
 	for _, settlementType := range []string{"", "settlement", "delivery", "bankruptcy"} {
-		assert.NoErrorf(t, validateDerivativesSettlementHistoryType(settlementType), "validateDerivativesSettlementHistoryType should accept %q", settlementType)
+		t.Run(subtestName(settlementType), func(t *testing.T) {
+			t.Parallel()
+			assert.NoErrorf(t, validateDerivativesSettlementHistoryType(settlementType), "validateDerivativesSettlementHistoryType should accept %q", settlementType)
+		})
 	}
 	assert.ErrorIs(t, validateDerivativesSettlementHistoryType("exercise"), errDerivativesInvalidSettlementHistoryType, "validateDerivativesSettlementHistoryType should refuse an undocumented settlement type")
 }
@@ -2034,7 +2094,10 @@ func TestValidateDerivativesSettlementHistoryType(t *testing.T) {
 func TestValidateDerivativesUserTradesSorting(t *testing.T) {
 	t.Parallel()
 	for _, sorting := range []string{"", DerivativesSortingAscending, DerivativesSortingDescending, DerivativesSortingDefault} {
-		assert.NoErrorf(t, validateDerivativesUserTradesSorting(sorting), "validateDerivativesUserTradesSorting should accept %q", sorting)
+		t.Run(subtestName(sorting), func(t *testing.T) {
+			t.Parallel()
+			assert.NoErrorf(t, validateDerivativesUserTradesSorting(sorting), "validateDerivativesUserTradesSorting should accept %q", sorting)
+		})
 	}
 	assert.ErrorIs(t, validateDerivativesUserTradesSorting("ascending"), errDerivativesInvalidUserTradesSorting, "validateDerivativesUserTradesSorting should refuse an undocumented sorting")
 }
@@ -2042,7 +2105,10 @@ func TestValidateDerivativesUserTradesSorting(t *testing.T) {
 func TestValidateDerivativesTradingCount(t *testing.T) {
 	t.Parallel()
 	for _, count := range []uint64{0, 1, derivativesMaximumTradingCount} {
-		assert.NoErrorf(t, validateDerivativesTradingCount(count), "validateDerivativesTradingCount should accept %d", count)
+		t.Run(strconv.FormatUint(count, 10), func(t *testing.T) {
+			t.Parallel()
+			assert.NoErrorf(t, validateDerivativesTradingCount(count), "validateDerivativesTradingCount should accept %d", count)
+		})
 	}
 	assert.ErrorIs(t, validateDerivativesTradingCount(derivativesMaximumTradingCount+1), errDerivativesInvalidTradingCount, "validateDerivativesTradingCount should refuse a count over 1000")
 }
@@ -2050,17 +2116,21 @@ func TestValidateDerivativesTradingCount(t *testing.T) {
 func TestDerivativesKindOrTypeCurrencies(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
+		name  string
 		codes []currency.Code
 		exp   any
 	}{
-		{codes: []currency.Code{currency.NewCode("any")}, exp: "any"},
-		{codes: []currency.Code{currency.NewCode("ANY")}, exp: "any"},
-		{codes: []currency.Code{currency.NewCode("btc")}, exp: "BTC"},
-		{codes: []currency.Code{currency.NewCode("usdc"), currency.ETH}, exp: []string{"USDC", "ETH"}},
+		{name: "lower case any", codes: []currency.Code{currency.NewCode("any")}, exp: "any"},
+		{name: "upper case any", codes: []currency.Code{currency.NewCode("ANY")}, exp: "any"},
+		{name: "one currency", codes: []currency.Code{currency.NewCode("btc")}, exp: "BTC"},
+		{name: "several currencies", codes: []currency.Code{currency.NewCode("usdc"), currency.ETH}, exp: []string{"USDC", "ETH"}},
 	} {
-		currencies, err := derivativesKindOrTypeCurrencies(tc.codes)
-		require.NoErrorf(t, err, "derivativesKindOrTypeCurrencies must not error for %s", tc.codes)
-		assert.Equalf(t, tc.exp, currencies, "derivativesKindOrTypeCurrencies should return %s as the gateway takes them", tc.codes)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			currencies, err := derivativesKindOrTypeCurrencies(tc.codes)
+			require.NoErrorf(t, err, "derivativesKindOrTypeCurrencies must not error for %s", tc.codes)
+			assert.Equalf(t, tc.exp, currencies, "derivativesKindOrTypeCurrencies should return %s as the gateway takes them", tc.codes)
+		})
 	}
 	_, err := derivativesKindOrTypeCurrencies(nil)
 	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "derivativesKindOrTypeCurrencies should refuse no currencies")
@@ -2085,9 +2155,12 @@ func TestDerivativesUserTradesTimeRange(t *testing.T) {
 		{name: "start after end", start: end, end: start, err: common.ErrStartAfterEnd},
 		{name: "start before 1970", start: time.Date(1969, 12, 31, 0, 0, 0, 0, time.UTC), end: end, err: errDerivativesTimeBeforeEpoch},
 	} {
-		startTimestamp, endTimestamp, err := derivativesUserTradesTimeRange(tc.start, tc.end)
-		require.ErrorIsf(t, err, tc.err, "derivativesUserTradesTimeRange must return the expected error for %s", tc.name)
-		assert.Equalf(t, tc.expStart, startTimestamp, "derivativesUserTradesTimeRange should return the start in Unix milliseconds for %s", tc.name)
-		assert.Equalf(t, tc.expEnd, endTimestamp, "derivativesUserTradesTimeRange should return the end in Unix milliseconds for %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			startTimestamp, endTimestamp, err := derivativesUserTradesTimeRange(tc.start, tc.end)
+			require.ErrorIsf(t, err, tc.err, "derivativesUserTradesTimeRange must return the expected error for %s", tc.name)
+			assert.Equalf(t, tc.expStart, startTimestamp, "derivativesUserTradesTimeRange should return the start in Unix milliseconds for %s", tc.name)
+			assert.Equalf(t, tc.expEnd, endTimestamp, "derivativesUserTradesTimeRange should return the end in Unix milliseconds for %s", tc.name)
+		})
 	}
 }

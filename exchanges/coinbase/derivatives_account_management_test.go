@@ -1046,21 +1046,28 @@ func TestDerivativesAccessLogResponseUnmarshalJSON(t *testing.T) {
 		Data:      json.RawMessage(`"IY2D68DS"`),
 	}
 	for _, tc := range []struct {
+		name  string
 		input string
 		exp   DerivativesAccessLogResponse
 	}{
-		{input: `{"records_total":1,"data":[` + entry + `]}`, exp: DerivativesAccessLogResponse{RecordsTotal: 1, Entries: []DerivativesAccessLogEntry{expEntry}}},
+		{name: "object with a record count", input: `{"records_total":1,"data":[` + entry + `]}`, exp: DerivativesAccessLogResponse{RecordsTotal: 1, Entries: []DerivativesAccessLogEntry{expEntry}}},
 		// A direct call may pass the list after whitespace, which the decoder trims before it reaches UnmarshalJSON
-		{input: ` [` + entry + `]`, exp: DerivativesAccessLogResponse{Entries: []DerivativesAccessLogEntry{expEntry}}},
-		{input: `[]`, exp: DerivativesAccessLogResponse{Entries: []DerivativesAccessLogEntry{}}},
+		{name: "list after whitespace", input: ` [` + entry + `]`, exp: DerivativesAccessLogResponse{Entries: []DerivativesAccessLogEntry{expEntry}}},
+		{name: "empty list", input: `[]`, exp: DerivativesAccessLogResponse{Entries: []DerivativesAccessLogEntry{}}},
 	} {
-		var resp DerivativesAccessLogResponse
-		require.NoErrorf(t, resp.UnmarshalJSON([]byte(tc.input)), "UnmarshalJSON must not error for %s", tc.input)
-		assert.Equalf(t, tc.exp, resp, "UnmarshalJSON should decode %s", tc.input)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var resp DerivativesAccessLogResponse
+			require.NoErrorf(t, resp.UnmarshalJSON([]byte(tc.input)), "UnmarshalJSON must not error for %s", tc.input)
+			assert.Equalf(t, tc.exp, resp, "UnmarshalJSON should decode %s", tc.input)
+		})
 	}
 	for _, input := range []string{`"log"`, `[1]`, `{"data":{}}`} {
-		var resp DerivativesAccessLogResponse
-		assert.ErrorIsf(t, json.Unmarshal([]byte(input), &resp), errDerivativesInvalidAccessLog, "UnmarshalJSON should refuse %s", input)
+		t.Run(subtestName(input), func(t *testing.T) {
+			t.Parallel()
+			var resp DerivativesAccessLogResponse
+			assert.ErrorIsf(t, json.Unmarshal([]byte(input), &resp), errDerivativesInvalidAccessLog, "UnmarshalJSON should refuse %s", input)
+		})
 	}
 }
 
@@ -1166,13 +1173,19 @@ func TestDerivativesMatchingEngineLimitsUnmarshalJSON(t *testing.T) {
 		},
 		{name: "null", input: `null`},
 	} {
-		var limits DerivativesMatchingEngineLimits
-		require.NoErrorf(t, json.Unmarshal([]byte(tc.input), &limits), "Unmarshal must not error for %s", tc.name)
-		assert.Equalf(t, tc.exp, limits, "UnmarshalJSON should decode %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var limits DerivativesMatchingEngineLimits
+			require.NoErrorf(t, json.Unmarshal([]byte(tc.input), &limits), "Unmarshal must not error for %s", tc.name)
+			assert.Equalf(t, tc.exp, limits, "UnmarshalJSON should decode %s", tc.name)
+		})
 	}
 	for _, input := range []string{`[]`, `{"spot":[]}`, `{"usdc":{"trading":1}}`} {
-		var limits DerivativesMatchingEngineLimits
-		assert.ErrorIsf(t, json.Unmarshal([]byte(input), &limits), errDerivativesInvalidMatchingEngineLimits, "UnmarshalJSON should refuse %s", input)
+		t.Run(subtestName(input), func(t *testing.T) {
+			t.Parallel()
+			var limits DerivativesMatchingEngineLimits
+			assert.ErrorIsf(t, json.Unmarshal([]byte(input), &limits), errDerivativesInvalidMatchingEngineLimits, "UnmarshalJSON should refuse %s", input)
+		})
 	}
 }
 
@@ -1210,29 +1223,37 @@ func TestGlobalDerivativesGetLeverage(t *testing.T) {
 func TestDerivativesLeveragesUnmarshalJSON(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
+		name  string
 		input string
 		exp   DerivativesLeverages
 	}{
-		{input: `{"instrument_name":"BTC_USDC-PERPETUAL","leverage":null,"max_leverage":50}`, exp: DerivativesLeverages{{InstrumentName: "BTC_USDC-PERPETUAL", MaximumLeverage: 50}}},
+		{name: "object with a null leverage", input: `{"instrument_name":"BTC_USDC-PERPETUAL","leverage":null,"max_leverage":50}`, exp: DerivativesLeverages{{InstrumentName: "BTC_USDC-PERPETUAL", MaximumLeverage: 50}}},
 		// A direct call may pass the list after whitespace, which the decoder trims before it reaches UnmarshalJSON
 		{
+			name:  "list after whitespace",
 			input: ` [{"instrument_name":"BTC_USDC-PERPETUAL","leverage":10,"max_leverage":50},{"instrument_name":"ETH_USDC-PERPETUAL","leverage":2.5,"max_leverage":50}]`,
 			exp:   DerivativesLeverages{{InstrumentName: "BTC_USDC-PERPETUAL", Leverage: 10, MaximumLeverage: 50}, {InstrumentName: "ETH_USDC-PERPETUAL", Leverage: 2.5, MaximumLeverage: 50}},
 		},
-		{input: `[]`, exp: DerivativesLeverages{}},
+		{name: "empty list", input: `[]`, exp: DerivativesLeverages{}},
 		// The gateway hides isolated margin leverage from a regular subaccount behind an empty object
-		{input: `{}`, exp: DerivativesLeverages{}},
+		{name: "empty object", input: `{}`, exp: DerivativesLeverages{}},
 	} {
-		var leverages DerivativesLeverages
-		require.NoErrorf(t, leverages.UnmarshalJSON([]byte(tc.input)), "UnmarshalJSON must not error for %s", tc.input)
-		assert.Equalf(t, tc.exp, leverages, "UnmarshalJSON should decode %s", tc.input)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var leverages DerivativesLeverages
+			require.NoErrorf(t, leverages.UnmarshalJSON([]byte(tc.input)), "UnmarshalJSON must not error for %s", tc.input)
+			assert.Equalf(t, tc.exp, leverages, "UnmarshalJSON should decode %s", tc.input)
+		})
 	}
 	leverages := DerivativesLeverages{{InstrumentName: "kept"}}
 	require.NoError(t, leverages.UnmarshalJSON([]byte(`null`)), "UnmarshalJSON must not error for null")
 	assert.Equal(t, DerivativesLeverages{{InstrumentName: "kept"}}, leverages, "UnmarshalJSON should leave the leverages unchanged for null")
 	for _, input := range []string{`"leverage"`, `[1]`, `{"max_leverage":"high"}`} {
-		var leverages DerivativesLeverages
-		assert.ErrorIsf(t, leverages.UnmarshalJSON([]byte(input)), errDerivativesMalformedLeverage, "UnmarshalJSON should refuse %s", input)
+		t.Run(subtestName(input), func(t *testing.T) {
+			t.Parallel()
+			var leverages DerivativesLeverages
+			assert.ErrorIsf(t, leverages.UnmarshalJSON([]byte(input)), errDerivativesMalformedLeverage, "UnmarshalJSON should refuse %s", input)
+		})
 	}
 }
 
@@ -1596,18 +1617,22 @@ func TestDerivativesSimulatePortfolio(t *testing.T) {
 	_, err = derivativesSimulatePortfolio(&DerivativesSimulatePortfolioRequest{Currency: currency.NewCode("CROSS")}, derivativesAccountCurrencies)
 	require.ErrorIs(t, err, errDerivativesInvalidAccountCurrency, "derivativesSimulatePortfolio must check the currency against the method's currencies")
 	for _, tc := range []struct {
-		req *DerivativesSimulatePortfolioRequest
-		exp string
+		name string
+		req  *DerivativesSimulatePortfolioRequest
+		exp  string
 	}{
-		{req: &DerivativesSimulatePortfolioRequest{Currency: currency.NewCode("eth")}, exp: `{"currency":"ETH"}`},
-		{req: &DerivativesSimulatePortfolioRequest{Currency: currency.BTC, AddPositions: new(false)}, exp: `{"currency":"BTC","add_positions":false}`},
-		{req: testDerivativesSimulatePortfolioRequest(), exp: `{"currency":"BTC","add_positions":true,"simulated_positions":{"BTC-PERPETUAL":1}}`},
+		{name: "currency alone", req: &DerivativesSimulatePortfolioRequest{Currency: currency.NewCode("eth")}, exp: `{"currency":"ETH"}`},
+		{name: "add positions false", req: &DerivativesSimulatePortfolioRequest{Currency: currency.BTC, AddPositions: new(false)}, exp: `{"currency":"BTC","add_positions":false}`},
+		{name: "simulated positions", req: testDerivativesSimulatePortfolioRequest(), exp: `{"currency":"BTC","add_positions":true,"simulated_positions":{"BTC-PERPETUAL":1}}`},
 	} {
-		params, err := derivativesSimulatePortfolio(tc.req, derivativesAccountCurrencies)
-		require.NoError(t, err, "derivativesSimulatePortfolio must not error")
-		encoded, err := json.Marshal(params)
-		require.NoError(t, err, "Marshal must not error")
-		assert.JSONEq(t, tc.exp, string(encoded), "derivativesSimulatePortfolio should leave unset fields out and send an explicit false")
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			params, err := derivativesSimulatePortfolio(tc.req, derivativesAccountCurrencies)
+			require.NoError(t, err, "derivativesSimulatePortfolio must not error")
+			encoded, err := json.Marshal(params)
+			require.NoError(t, err, "Marshal must not error")
+			assert.JSONEq(t, tc.exp, string(encoded), "derivativesSimulatePortfolio should leave unset fields out and send an explicit false")
+		})
 	}
 }
 

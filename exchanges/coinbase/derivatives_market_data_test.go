@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -469,9 +470,12 @@ func TestDerivativesExpirationsResponseUnmarshalJSON(t *testing.T) {
 		},
 		{name: "empty", input: `{}`, exp: DerivativesExpirationsResponse{ByCurrency: map[string]DerivativesExpirations{}}},
 	} {
-		var resp DerivativesExpirationsResponse
-		require.NoErrorf(t, json.Unmarshal([]byte(tc.input), &resp), "Unmarshal must not error for the %s labels", tc.name)
-		assert.Equalf(t, tc.exp, resp, "UnmarshalJSON should decode the %s labels", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var resp DerivativesExpirationsResponse
+			require.NoErrorf(t, json.Unmarshal([]byte(tc.input), &resp), "Unmarshal must not error for the %s labels", tc.name)
+			assert.Equalf(t, tc.exp, resp, "UnmarshalJSON should decode the %s labels", tc.name)
+		})
 	}
 	var resp DerivativesExpirationsResponse
 	assert.Error(t, json.Unmarshal([]byte(`["PERPETUAL"]`), &resp), "UnmarshalJSON should refuse labels that are not an object")
@@ -606,8 +610,11 @@ func TestDerivativesInstrumentTimeRangeRequestParams(t *testing.T) {
 		{name: "an unset end", req: &DerivativesInstrumentTimeRangeRequest{InstrumentName: testMarketDataPerpetual, StartTime: testMarketDataRangeStart}, err: common.ErrDateUnset},
 		{name: "a reversed range", req: &DerivativesInstrumentTimeRangeRequest{InstrumentName: testMarketDataPerpetual, StartTime: testMarketDataRangeEnd, EndTime: testMarketDataRangeStart}, err: common.ErrStartAfterEnd},
 	} {
-		_, err := tc.req.params()
-		assert.ErrorIsf(t, err, tc.err, "params should refuse %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := tc.req.params()
+			assert.ErrorIsf(t, err, tc.err, "params should refuse %s", tc.name)
+		})
 	}
 
 	params, err := testMarketDataFundingRequest().params()
@@ -745,17 +752,21 @@ func TestGlobalDerivativesGetIndexPriceNames(t *testing.T) {
 func TestDerivativesIndexPriceNameUnmarshalJSON(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
+		name  string
 		input string
 		exp   DerivativesIndexPriceNameResponse
 	}{
-		{input: `"btc_usdc"`, exp: DerivativesIndexPriceNameResponse{Name: "btc_usdc"}},
-		{input: `{"name":"btc_usdc"}`, exp: DerivativesIndexPriceNameResponse{Name: "btc_usdc"}},
-		{input: `{"name":"btc_usd","future_combo_creation_enabled":true,"option_combo_creation_enabled":true}`, exp: DerivativesIndexPriceNameResponse{Name: "btc_usd", FutureComboCreationEnabled: true, OptionComboCreationEnabled: true}},
-		{input: `null`},
+		{name: "string", input: `"btc_usdc"`, exp: DerivativesIndexPriceNameResponse{Name: "btc_usdc"}},
+		{name: "object", input: `{"name":"btc_usdc"}`, exp: DerivativesIndexPriceNameResponse{Name: "btc_usdc"}},
+		{name: "extended object", input: `{"name":"btc_usd","future_combo_creation_enabled":true,"option_combo_creation_enabled":true}`, exp: DerivativesIndexPriceNameResponse{Name: "btc_usd", FutureComboCreationEnabled: true, OptionComboCreationEnabled: true}},
+		{name: "null", input: `null`},
 	} {
-		var resp DerivativesIndexPriceNameResponse
-		require.NoErrorf(t, json.Unmarshal([]byte(tc.input), &resp), "Unmarshal must not error for %s", tc.input)
-		assert.Equalf(t, tc.exp, resp, "UnmarshalJSON should decode %s", tc.input)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var resp DerivativesIndexPriceNameResponse
+			require.NoErrorf(t, json.Unmarshal([]byte(tc.input), &resp), "Unmarshal must not error for %s", tc.input)
+			assert.Equalf(t, tc.exp, resp, "UnmarshalJSON should decode %s", tc.input)
+		})
 	}
 	var resp DerivativesIndexPriceNameResponse
 	assert.Error(t, json.Unmarshal([]byte(`["btc_usd"]`), &resp), "UnmarshalJSON should refuse a name that is neither a string nor an object")
@@ -868,23 +879,26 @@ func testMarketDataInstrumentNotFound() *DerivativesError {
 	return &DerivativesError{Code: -32602, Message: "Invalid params", Data: json.RawMessage(`{"reason":"instrument not found","param":"instrument_name"}`)}
 }
 
-func TestGlobalDerivativesGetInstrument(t *testing.T) {
+func TestGlobalDerivativesGetInstrument(t *testing.T) { //nolint:tparallel // the cases run in order before the unknown instrument after them
 	t.Parallel()
 	_, err := e.GlobalDerivatives().GetInstrument(t.Context(), "")
 	require.ErrorIs(t, err, errInstrumentNameRequired, "GetInstrument must require an instrument name")
 
+	// The cases run in order before the unknown instrument below, as one loop ran them
 	for name, exp := range mockMarketDataInstruments() {
-		if name == mockMarketDataOption {
-			name = marketDataOption(t)
-		}
-		resp, err := e.GlobalDerivatives().GetInstrument(t.Context(), name)
-		require.NoErrorf(t, err, "GetInstrument must not error for %s", name)
-		if mockTests {
-			assert.Equalf(t, exp, resp, "GetInstrument should decode every field of %s", name)
-			continue
-		}
-		assert.Equalf(t, name, resp.InstrumentName, "GetInstrument should return %s", name)
-		assert.Equalf(t, exp.Kind, resp.Kind, "GetInstrument should return %s's kind", name)
+		t.Run(subtestName(name), func(t *testing.T) {
+			if name == mockMarketDataOption {
+				name = marketDataOption(t)
+			}
+			resp, err := e.GlobalDerivatives().GetInstrument(t.Context(), name)
+			require.NoErrorf(t, err, "GetInstrument must not error for %s", name)
+			if mockTests {
+				assert.Equalf(t, exp, resp, "GetInstrument should decode every field of %s", name)
+				return
+			}
+			assert.Equalf(t, name, resp.InstrumentName, "GetInstrument should return %s", name)
+			assert.Equalf(t, exp.Kind, resp.Kind, "GetInstrument should return %s's kind", name)
+		})
 	}
 
 	_, err = e.GlobalDerivatives().GetInstrument(t.Context(), testMarketDataUnknownInstrument)
@@ -1191,10 +1205,16 @@ func TestGlobalDerivativesGetLastSettlementsByInstrument(t *testing.T) {
 func TestValidateDerivativesLastSettlementsType(t *testing.T) {
 	t.Parallel()
 	for _, settlementType := range []string{"", DerivativesSettlementTypeSettlement, DerivativesSettlementTypeDelivery, DerivativesSettlementTypeBankruptcy} {
-		assert.NoErrorf(t, validateDerivativesLastSettlementsType(settlementType), "validateDerivativesLastSettlementsType should accept type %q", settlementType)
+		t.Run(subtestName(settlementType), func(t *testing.T) {
+			t.Parallel()
+			assert.NoErrorf(t, validateDerivativesLastSettlementsType(settlementType), "validateDerivativesLastSettlementsType should accept type %q", settlementType)
+		})
 	}
 	for _, settlementType := range []string{"exercise", "Delivery"} {
-		assert.ErrorIsf(t, validateDerivativesLastSettlementsType(settlementType), errDerivativesInvalidLastSettlementsType, "validateDerivativesLastSettlementsType should refuse type %q", settlementType)
+		t.Run(subtestName(settlementType), func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, validateDerivativesLastSettlementsType(settlementType), errDerivativesInvalidLastSettlementsType, "validateDerivativesLastSettlementsType should refuse type %q", settlementType)
+		})
 	}
 }
 
@@ -1605,10 +1625,16 @@ func TestGlobalDerivativesGetLastTradesByInstrumentAndTime(t *testing.T) {
 func TestValidateDerivativesLastTrades(t *testing.T) {
 	t.Parallel()
 	for _, sorting := range []string{"", DerivativesSortingAscending, DerivativesSortingDescending, DerivativesSortingDefault} {
-		assert.NoErrorf(t, validateDerivativesLastTrades(derivativesMarketDataMaximumCount, sorting), "validateDerivativesLastTrades should accept sorting %q", sorting)
+		t.Run(subtestName(sorting), func(t *testing.T) {
+			t.Parallel()
+			assert.NoErrorf(t, validateDerivativesLastTrades(derivativesMarketDataMaximumCount, sorting), "validateDerivativesLastTrades should accept sorting %q", sorting)
+		})
 	}
 	for _, sorting := range []string{"up", "ASC"} {
-		assert.ErrorIsf(t, validateDerivativesLastTrades(0, sorting), errDerivativesInvalidLastTradesSorting, "validateDerivativesLastTrades should refuse sorting %q", sorting)
+		t.Run(subtestName(sorting), func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, validateDerivativesLastTrades(0, sorting), errDerivativesInvalidLastTradesSorting, "validateDerivativesLastTrades should refuse sorting %q", sorting)
+		})
 	}
 	assert.ErrorIs(t, validateDerivativesLastTrades(derivativesMarketDataMaximumCount+1, ""), errInvalidLimit, "validateDerivativesLastTrades should refuse a count above the maximum")
 }
@@ -1633,7 +1659,10 @@ func TestCheckDerivativesLastTradesWindow(t *testing.T) {
 		{name: "a window", start: mockMarketDataTradesWindowStart, end: mockMarketDataTradesWindowEnd},
 		{name: "a reversed window", start: mockMarketDataTradesWindowEnd, end: mockMarketDataTradesWindowStart, err: common.ErrStartAfterEnd},
 	} {
-		assert.ErrorIsf(t, checkDerivativesLastTradesWindow(tc.start, tc.end), tc.err, "checkDerivativesLastTradesWindow should check %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, checkDerivativesLastTradesWindow(tc.start, tc.end), tc.err, "checkDerivativesLastTradesWindow should check %s", tc.name)
+		})
 	}
 }
 
@@ -1656,9 +1685,18 @@ func TestDerivativesUnixMilli(t *testing.T) {
 	assert.Equal(t, uint64(1792368000000), start, "derivativesUnixMilliRange should return the start in Unix milliseconds")
 	assert.Equal(t, uint64(1792371600000), end, "derivativesUnixMilliRange should return the end in Unix milliseconds")
 	before := time.Date(1969, 12, 31, 0, 0, 0, 0, time.UTC)
-	for _, tc := range []struct{ start, end time.Time }{{before, mockMarketDataTradesWindowStart}, {mockMarketDataTradesWindowStart, before}} {
-		_, _, err := derivativesUnixMilliRange(tc.start, tc.end)
-		assert.ErrorIsf(t, err, errDerivativesTimeBeforeEpoch, "derivativesUnixMilliRange should refuse %s to %s", tc.start, tc.end)
+	for _, tc := range []struct {
+		name       string
+		start, end time.Time
+	}{
+		{name: "a start before 1970", start: before, end: mockMarketDataTradesWindowStart},
+		{name: "an end before 1970", start: mockMarketDataTradesWindowStart, end: before},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, _, err := derivativesUnixMilliRange(tc.start, tc.end)
+			assert.ErrorIsf(t, err, errDerivativesTimeBeforeEpoch, "derivativesUnixMilliRange should refuse %s to %s", tc.start, tc.end)
+		})
 	}
 }
 
@@ -1851,7 +1889,10 @@ func TestGlobalDerivativesGetOrderBookByInstrumentID(t *testing.T) {
 func TestValidateDerivativesOrderBookDepth(t *testing.T) {
 	t.Parallel()
 	for _, depth := range []uint64{0, 1, 3, derivativesMaximumOrderBookDepth} {
-		assert.NoErrorf(t, validateDerivativesOrderBookDepth(depth), "validateDerivativesOrderBookDepth should accept a depth of %d, which the gateway rounds up", depth)
+		t.Run(strconv.FormatUint(depth, 10), func(t *testing.T) {
+			t.Parallel()
+			assert.NoErrorf(t, validateDerivativesOrderBookDepth(depth), "validateDerivativesOrderBookDepth should accept a depth of %d, which the gateway rounds up", depth)
+		})
 	}
 	assert.ErrorIs(t, validateDerivativesOrderBookDepth(derivativesMaximumOrderBookDepth+1), errDerivativesInvalidDepth, "validateDerivativesOrderBookDepth should refuse a depth above the maximum")
 }
@@ -1996,13 +2037,19 @@ func TestDerivativesChartResolution(t *testing.T) {
 		kline.TwelveHour: "720",
 		kline.OneDay:     "1D",
 	} {
-		resolution, err := derivativesChartResolution(interval)
-		require.NoErrorf(t, err, "derivativesChartResolution must not error for interval %s", interval)
-		assert.Equalf(t, exp, resolution, "derivativesChartResolution should name interval %s", interval)
+		t.Run(interval.Short(), func(t *testing.T) {
+			t.Parallel()
+			resolution, err := derivativesChartResolution(interval)
+			require.NoErrorf(t, err, "derivativesChartResolution must not error for interval %s", interval)
+			assert.Equalf(t, exp, resolution, "derivativesChartResolution should name interval %s", interval)
+		})
 	}
 	for _, interval := range []kline.Interval{kline.Raw, kline.HundredMilliseconds, kline.FourHour, kline.OneWeek} {
-		_, err := derivativesChartResolution(interval)
-		assert.ErrorIsf(t, err, kline.ErrUnsupportedInterval, "derivativesChartResolution should refuse interval %s", interval)
+		t.Run(interval.Short(), func(t *testing.T) {
+			t.Parallel()
+			_, err := derivativesChartResolution(interval)
+			assert.ErrorIsf(t, err, kline.ErrUnsupportedInterval, "derivativesChartResolution should refuse interval %s", interval)
+		})
 	}
 }
 
@@ -2063,13 +2110,19 @@ func TestDerivativesVolatilityIndexResolution(t *testing.T) {
 		kline.TwelveHour:           "43200",
 		kline.OneDay:               "1D",
 	} {
-		resolution, err := derivativesVolatilityIndexResolution(interval)
-		require.NoErrorf(t, err, "derivativesVolatilityIndexResolution must not error for interval %s", interval)
-		assert.Equalf(t, exp, resolution, "derivativesVolatilityIndexResolution should name interval %s", interval)
+		t.Run(interval.Short(), func(t *testing.T) {
+			t.Parallel()
+			resolution, err := derivativesVolatilityIndexResolution(interval)
+			require.NoErrorf(t, err, "derivativesVolatilityIndexResolution must not error for interval %s", interval)
+			assert.Equalf(t, exp, resolution, "derivativesVolatilityIndexResolution should name interval %s", interval)
+		})
 	}
 	for _, interval := range []kline.Interval{kline.Raw, kline.FiveMin, kline.FourHour} {
-		_, err := derivativesVolatilityIndexResolution(interval)
-		assert.ErrorIsf(t, err, kline.ErrUnsupportedInterval, "derivativesVolatilityIndexResolution should refuse interval %s", interval)
+		t.Run(interval.Short(), func(t *testing.T) {
+			t.Parallel()
+			_, err := derivativesVolatilityIndexResolution(interval)
+			assert.ErrorIsf(t, err, kline.ErrUnsupportedInterval, "derivativesVolatilityIndexResolution should refuse interval %s", interval)
+		})
 	}
 }
 
@@ -2196,27 +2249,30 @@ func mockMarketDataTickers() map[string]*DerivativesTickerResponse {
 	}
 }
 
-func TestGlobalDerivativesGetTicker(t *testing.T) {
+func TestGlobalDerivativesGetTicker(t *testing.T) { //nolint:tparallel // the cases run in order before the unknown instrument after them
 	t.Parallel()
 	_, err := e.GlobalDerivatives().GetTicker(t.Context(), "")
 	require.ErrorIs(t, err, errInstrumentNameRequired, "GetTicker must require an instrument name")
 
+	// The cases run in order before the unknown instrument below, as one loop ran them
 	for name, exp := range mockMarketDataTickers() {
-		switch name {
-		case mockMarketDataOption:
-			name = marketDataOption(t)
-		case mockMarketDataFutureCombo:
-			name = marketDataFutureCombo(t)
-		}
-		resp, err := e.GlobalDerivatives().GetTicker(t.Context(), name)
-		require.NoErrorf(t, err, "GetTicker must not error for %s", name)
-		if mockTests {
-			assert.Equalf(t, exp, resp, "GetTicker should decode every field of %s", name)
-			continue
-		}
-		assert.Equalf(t, name, resp.InstrumentName, "GetTicker should return %s", name)
-		assert.Equalf(t, exp.Greeks != nil, resp.Greeks != nil, "GetTicker should return greeks for %s only if it is an option", name)
-		assert.Equalf(t, exp.ComboState != "", resp.ComboState != "", "GetTicker should return a combo state for %s only if it is a combo", name)
+		t.Run(subtestName(name), func(t *testing.T) {
+			switch name {
+			case mockMarketDataOption:
+				name = marketDataOption(t)
+			case mockMarketDataFutureCombo:
+				name = marketDataFutureCombo(t)
+			}
+			resp, err := e.GlobalDerivatives().GetTicker(t.Context(), name)
+			require.NoErrorf(t, err, "GetTicker must not error for %s", name)
+			if mockTests {
+				assert.Equalf(t, exp, resp, "GetTicker should decode every field of %s", name)
+				return
+			}
+			assert.Equalf(t, name, resp.InstrumentName, "GetTicker should return %s", name)
+			assert.Equalf(t, exp.Greeks != nil, resp.Greeks != nil, "GetTicker should return greeks for %s only if it is an option", name)
+			assert.Equalf(t, exp.ComboState != "", resp.ComboState != "", "GetTicker should return a combo state for %s only if it is a combo", name)
+		})
 	}
 
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GlobalDerivatives().GetTicker(t.Context(), testMarketDataPerpetual)
@@ -2349,11 +2405,18 @@ func TestGlobalDerivativesGetTickersByCurrency(t *testing.T) {
 
 func TestDerivativesMarketDataCurrency(t *testing.T) {
 	t.Parallel()
-	for _, ccy := range []currency.Code{currency.ANY, currency.NewCode("any"), currency.NewCode("Any")} {
-		assert.Equalf(t, "any", derivativesMarketDataCurrency(ccy), "derivativesMarketDataCurrency should lower case %s", ccy)
+	// Keyed by spelling, as currency.ANY and the code of "Any" print the same
+	for name, ccy := range map[string]currency.Code{"ANY": currency.ANY, "any": currency.NewCode("any"), "Any": currency.NewCode("Any")} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, "any", derivativesMarketDataCurrency(ccy), "derivativesMarketDataCurrency should lower case %s", ccy)
+		})
 	}
 	for _, ccy := range []currency.Code{currency.NewCode(DerivativesCurrencyGrouped), currency.NewCode("GROUPED")} {
-		assert.Equalf(t, DerivativesCurrencyGrouped, derivativesMarketDataCurrency(ccy), "derivativesMarketDataCurrency should lower case %s", ccy)
+		t.Run(ccy.String(), func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, DerivativesCurrencyGrouped, derivativesMarketDataCurrency(ccy), "derivativesMarketDataCurrency should lower case %s", ccy)
+		})
 	}
 	assert.Equal(t, "USDC", derivativesMarketDataCurrency(currency.USDC.Lower()), "derivativesMarketDataCurrency should upper case other currencies")
 	assert.Empty(t, derivativesMarketDataCurrency(currency.EMPTYCODE), "derivativesMarketDataCurrency should leave an empty currency empty")
@@ -2362,10 +2425,16 @@ func TestDerivativesMarketDataCurrency(t *testing.T) {
 func TestValidateDerivativesMarketDataKind(t *testing.T) {
 	t.Parallel()
 	for _, kind := range []string{"", DerivativesKindFuture, DerivativesKindOption} {
-		assert.NoErrorf(t, validateDerivativesMarketDataKind(kind, DerivativesKindFuture, DerivativesKindOption), "validateDerivativesMarketDataKind should accept kind %q", kind)
+		t.Run(subtestName(kind), func(t *testing.T) {
+			t.Parallel()
+			assert.NoErrorf(t, validateDerivativesMarketDataKind(kind, DerivativesKindFuture, DerivativesKindOption), "validateDerivativesMarketDataKind should accept kind %q", kind)
+		})
 	}
 	for _, kind := range []string{DerivativesKindSpot, "Future"} {
-		assert.ErrorIsf(t, validateDerivativesMarketDataKind(kind, DerivativesKindFuture, DerivativesKindOption), errDerivativesInvalidMarketDataKind, "validateDerivativesMarketDataKind should refuse kind %q", kind)
+		t.Run(subtestName(kind), func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, validateDerivativesMarketDataKind(kind, DerivativesKindFuture, DerivativesKindOption), errDerivativesInvalidMarketDataKind, "validateDerivativesMarketDataKind should refuse kind %q", kind)
+		})
 	}
 }
 
@@ -2381,10 +2450,13 @@ func TestDerivativesEstimatedDeliveryPriceUnmarshalJSON(t *testing.T) {
 		{input: `null`},
 		{input: `"soon"`, err: errDerivativesInvalidEstimatedDeliveryPrice},
 	} {
-		var price DerivativesEstimatedDeliveryPrice
-		err := json.Unmarshal([]byte(tc.input), &price)
-		assert.ErrorIsf(t, err, tc.err, "UnmarshalJSON should return the expected error for %s", tc.input)
-		assert.Equalf(t, tc.exp, price, "UnmarshalJSON should decode %s", tc.input)
+		t.Run(subtestName(tc.input), func(t *testing.T) {
+			t.Parallel()
+			var price DerivativesEstimatedDeliveryPrice
+			err := json.Unmarshal([]byte(tc.input), &price)
+			assert.ErrorIsf(t, err, tc.err, "UnmarshalJSON should return the expected error for %s", tc.input)
+			assert.Equalf(t, tc.exp, price, "UnmarshalJSON should decode %s", tc.input)
+		})
 	}
 }
 

@@ -13,36 +13,45 @@ import (
 func TestKeepGeneratable(t *testing.T) {
 	t.Parallel()
 	exchange := []byte(`{"features":{"subscriptions":[{"enabled":true,"channel":"ticker"},{"enabled":true,"channel":"candles","asset":"spot","interval":"1m"},{"enabled":true,"channel":"allTrades","asset":"spot"}]}}`)
-	entries, err := subscriptions(exchange)
-	require.NoError(t, err, "subscriptions must not error")
-	got, saved, err := keepGeneratable(exchange, entries)
-	require.NoError(t, err, "keepGeneratable must not error")
-	exp := `{"features":{"subscriptions":[{"enabled":false,"channel":"ticker"},{"enabled":true,"channel":"candles","asset":"spot","interval":"5m"},{"enabled":true,"channel":"allTrades","asset":"spot"}]}}`
-	assert.JSONEq(t, exp, string(got), "keepGeneratable should disable the ticker without an asset and give the candles five minutes")
-	updated, err := subscriptions(got)
-	require.NoError(t, err, "subscriptions must not error for the updated configuration")
-	assert.Equal(t, updated, entries, "keepGeneratable should update the changed entries in place")
-	decoded, err := decodeEntries(updated)
-	require.NoError(t, err, "decodeEntries must not error for the updated entries")
-	assert.Equal(t, decoded, saved, "keepGeneratable should return the subscriptions as updated")
+	t.Run("updates the changed entries in place", func(t *testing.T) {
+		t.Parallel()
+		entries, err := subscriptions(exchange)
+		require.NoError(t, err, "subscriptions must not error")
+		got, saved, err := keepGeneratable(exchange, entries)
+		require.NoError(t, err, "keepGeneratable must not error")
+		exp := `{"features":{"subscriptions":[{"enabled":false,"channel":"ticker"},{"enabled":true,"channel":"candles","asset":"spot","interval":"5m"},{"enabled":true,"channel":"allTrades","asset":"spot"}]}}`
+		assert.JSONEq(t, exp, string(got), "keepGeneratable should disable the ticker without an asset and give the candles five minutes")
+		updated, err := subscriptions(got)
+		require.NoError(t, err, "subscriptions must not error for the updated configuration")
+		assert.Equal(t, updated, entries, "keepGeneratable should update the changed entries in place")
+		decoded, err := decodeEntries(updated)
+		require.NoError(t, err, "decodeEntries must not error for the updated entries")
+		assert.Equal(t, decoded, saved, "keepGeneratable should return the subscriptions as updated")
+	})
 
-	malformed, err := subscriptions([]byte(`{"features":{"subscriptions":[{"enabled":"true","channel":"ticker"}]}}`))
-	require.NoError(t, err, "subscriptions must not error for a malformed entry")
-	got, saved, err = keepGeneratable(exchange, malformed)
-	var typeErr *json.UnmarshalTypeError
-	assert.ErrorAs(t, err, &typeErr, "keepGeneratable should wrap the decoding error")
-	assert.ErrorContains(t, err, "error decoding Coinbase subscriptions", "keepGeneratable should report a subscription it cannot decode")
-	assert.Nil(t, got, "keepGeneratable should return no configuration when it cannot decode a subscription")
-	assert.Nil(t, saved, "keepGeneratable should return no subscriptions when it cannot decode one")
+	t.Run("an entry it cannot decode", func(t *testing.T) {
+		t.Parallel()
+		malformed, err := subscriptions([]byte(`{"features":{"subscriptions":[{"enabled":"true","channel":"ticker"}]}}`))
+		require.NoError(t, err, "subscriptions must not error for a malformed entry")
+		got, saved, err := keepGeneratable(exchange, malformed)
+		var typeErr *json.UnmarshalTypeError
+		assert.ErrorAs(t, err, &typeErr, "keepGeneratable should wrap the decoding error")
+		assert.ErrorContains(t, err, "error decoding Coinbase subscriptions", "keepGeneratable should report a subscription it cannot decode")
+		assert.Nil(t, got, "keepGeneratable should return no configuration when it cannot decode a subscription")
+		assert.Nil(t, saved, "keepGeneratable should return no subscriptions when it cannot decode one")
+	})
 
-	// Only the second of three entries changes, so the failed update names index 1
-	unwritable, err := subscriptions([]byte(`{"features":{"subscriptions":[{"enabled":true,"channel":"allTrades","asset":"spot"},{"enabled":true,"channel":"ticker"},{"enabled":true,"channel":"orderbook","asset":"spot"}]}}`))
-	require.NoError(t, err, "subscriptions must not error")
-	got, saved, err = keepGeneratable([]byte(`"Coinbase"`), unwritable)
-	assert.ErrorIs(t, err, jsonparser.KeyPathNotFoundError, "keepGeneratable should report a subscription it cannot update")
-	assert.ErrorContains(t, err, "error updating Coinbase subscription 1:", "keepGeneratable should name the subscription it cannot update")
-	assert.Nil(t, got, "keepGeneratable should return no configuration when it cannot update a subscription")
-	assert.Nil(t, saved, "keepGeneratable should return no subscriptions when it cannot update one")
+	t.Run("an entry it cannot update", func(t *testing.T) {
+		t.Parallel()
+		// Only the second of three entries changes, so the failed update names index 1
+		unwritable, err := subscriptions([]byte(`{"features":{"subscriptions":[{"enabled":true,"channel":"allTrades","asset":"spot"},{"enabled":true,"channel":"ticker"},{"enabled":true,"channel":"orderbook","asset":"spot"}]}}`))
+		require.NoError(t, err, "subscriptions must not error")
+		got, saved, err := keepGeneratable([]byte(`"Coinbase"`), unwritable)
+		assert.ErrorIs(t, err, jsonparser.KeyPathNotFoundError, "keepGeneratable should report a subscription it cannot update")
+		assert.ErrorContains(t, err, "error updating Coinbase subscription 1:", "keepGeneratable should name the subscription it cannot update")
+		assert.Nil(t, got, "keepGeneratable should return no configuration when it cannot update a subscription")
+		assert.Nil(t, saved, "keepGeneratable should return no subscriptions when it cannot update one")
+	})
 }
 
 func TestParseInterval(t *testing.T) {
@@ -69,8 +78,11 @@ func TestParseInterval(t *testing.T) {
 		"count overflow": {[]byte(`"99999999999999999999min"`), 0, false},
 		"boolean":        {[]byte(`true`), 0, false},
 	} {
-		interval, ok := parseInterval(tc.saved)
-		assert.Equalf(t, tc.ok, ok, "parseInterval should report whether the loader reads the %s interval", name)
-		assert.Equalf(t, tc.interval, interval, "parseInterval should read the %s interval as the loader does", name)
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			interval, ok := parseInterval(tc.saved)
+			assert.Equalf(t, tc.ok, ok, "parseInterval should report whether the loader reads the %s interval", name)
+			assert.Equalf(t, tc.interval, interval, "parseInterval should read the %s interval as the loader does", name)
+		})
 	}
 }

@@ -864,10 +864,13 @@ func TestPreviewOrderRequestBody(t *testing.T) {
 		}, err: errInvalidEquityTradingSession},
 		{name: "unknown prediction side", modify: func(r *PreviewOrderRequest) { r.PredictionMetadata = &PredictionMetadataRequest{PredictionSide: "YES"} }, err: errInvalidPredictionSide},
 	} {
-		req := testPreviewOrderRequest(5)
-		tc.modify(req)
-		_, err := req.body()
-		assert.ErrorIsf(t, err, tc.err, "body should refuse a request with %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			req := testPreviewOrderRequest(5)
+			tc.modify(req)
+			_, err := req.body()
+			assert.ErrorIsf(t, err, tc.err, "body should refuse a request with %s", tc.name)
+		})
 	}
 
 	body, err := (&PreviewOrderRequest{
@@ -916,10 +919,13 @@ func TestEditOrderRequestBody(t *testing.T) {
 		{name: "negative average entry price", modify: func(r *EditOrderRequest) { r.AverageEntryPrice = -1 }, err: errInvalidPrice},
 		{name: "ineligible attached configuration", modify: func(r *EditOrderRequest) { r.AttachedOrderConfiguration = &TriggerBracketGTDRequest{LimitPrice: 1} }, err: errInvalidAttachedOrderConfiguration},
 	} {
-		req := testEditOrderRequest(testSandboxOrderID)
-		tc.modify(req)
-		_, err := req.body()
-		assert.ErrorIsf(t, err, tc.err, "body should refuse an edit with %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			req := testEditOrderRequest(testSandboxOrderID)
+			tc.modify(req)
+			_, err := req.body()
+			assert.ErrorIsf(t, err, tc.err, "body should refuse an edit with %s", tc.name)
+		})
 	}
 
 	body, err := (&EditOrderRequest{
@@ -994,10 +1000,13 @@ func TestNewOrderConfigurationBody(t *testing.T) {
 
 func TestAttachedOrderConfigurationBody(t *testing.T) {
 	t.Parallel()
-	for _, configuration := range []OrderConfigurationRequest{nil, (*TriggerBracketGTCRequest)(nil)} {
-		body, err := attachedOrderConfigurationBody(configuration)
-		require.NoErrorf(t, err, "attachedOrderConfigurationBody must not error for %T", configuration)
-		assert.Nilf(t, body, "attachedOrderConfigurationBody should attach nothing for %T", configuration)
+	for name, configuration := range map[string]OrderConfigurationRequest{"nil": nil, "typed nil": (*TriggerBracketGTCRequest)(nil)} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			body, err := attachedOrderConfigurationBody(configuration)
+			require.NoErrorf(t, err, "attachedOrderConfigurationBody must not error for %T", configuration)
+			assert.Nilf(t, body, "attachedOrderConfigurationBody should attach nothing for %T", configuration)
+		})
 	}
 	body, err := attachedOrderConfigurationBody(&TriggerBracketGTCRequest{LimitPrice: 1600, StopTriggerPrice: 1300})
 	require.NoError(t, err, "attachedOrderConfigurationBody must not error")
@@ -1012,23 +1021,32 @@ func TestAttachedOrderConfigurationBody(t *testing.T) {
 
 func TestEditAttachedOrderConfigurationBody(t *testing.T) {
 	t.Parallel()
-	for _, configuration := range []OrderConfigurationRequest{nil, (*LimitLimitGTCRequest)(nil)} {
-		body, err := editAttachedOrderConfigurationBody(configuration)
-		require.NoErrorf(t, err, "editAttachedOrderConfigurationBody must not error for %T", configuration)
-		assert.Nilf(t, body, "editAttachedOrderConfigurationBody should set nothing for %T", configuration)
+	for name, configuration := range map[string]OrderConfigurationRequest{"nil": nil, "typed nil": (*LimitLimitGTCRequest)(nil)} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			body, err := editAttachedOrderConfigurationBody(configuration)
+			require.NoErrorf(t, err, "editAttachedOrderConfigurationBody must not error for %T", configuration)
+			assert.Nilf(t, body, "editAttachedOrderConfigurationBody should set nothing for %T", configuration)
+		})
 	}
-	for _, configuration := range []OrderConfigurationRequest{
-		&TriggerBracketGTCRequest{LimitPrice: 1600, StopTriggerPrice: 1300},
-		&LimitLimitGTCRequest{BaseSize: 1, LimitPrice: 1600},
-		&StopLimitStopLimitGTCRequest{BaseSize: 1, LimitPrice: 1250, StopPrice: 1300, StopDirection: StopDirectionStopDown},
+	for name, configuration := range map[string]OrderConfigurationRequest{
+		"trigger bracket GTC": &TriggerBracketGTCRequest{LimitPrice: 1600, StopTriggerPrice: 1300},
+		"limit GTC":           &LimitLimitGTCRequest{BaseSize: 1, LimitPrice: 1600},
+		"stop limit GTC":      &StopLimitStopLimitGTCRequest{BaseSize: 1, LimitPrice: 1250, StopPrice: 1300, StopDirection: StopDirectionStopDown},
 	} {
-		body, err := editAttachedOrderConfigurationBody(configuration)
-		require.NoErrorf(t, err, "editAttachedOrderConfigurationBody must not error for %T", configuration)
-		assert.Lenf(t, body, 1, "editAttachedOrderConfigurationBody should send %T", configuration)
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			body, err := editAttachedOrderConfigurationBody(configuration)
+			require.NoErrorf(t, err, "editAttachedOrderConfigurationBody must not error for %T", configuration)
+			assert.Lenf(t, body, 1, "editAttachedOrderConfigurationBody should send %T", configuration)
+		})
 	}
-	for _, configuration := range []OrderConfigurationRequest{&MarketMarketIOCRequest{BaseSize: 1}, &TriggerBracketGTDRequest{LimitPrice: 1}, &ScaledLimitGTCRequest{BaseSize: 1}} {
-		_, err := editAttachedOrderConfigurationBody(configuration)
-		assert.ErrorIsf(t, err, errInvalidAttachedOrderConfiguration, "editAttachedOrderConfigurationBody should refuse %T", configuration)
+	for name, configuration := range map[string]OrderConfigurationRequest{"market IOC": &MarketMarketIOCRequest{BaseSize: 1}, "trigger bracket GTD": &TriggerBracketGTDRequest{LimitPrice: 1}, "scaled limit GTC": &ScaledLimitGTCRequest{BaseSize: 1}} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			_, err := editAttachedOrderConfigurationBody(configuration)
+			assert.ErrorIsf(t, err, errInvalidAttachedOrderConfiguration, "editAttachedOrderConfigurationBody should refuse %T", configuration)
+		})
 	}
 	_, err := editAttachedOrderConfigurationBody(&LimitLimitGTCRequest{LimitPrice: -1})
 	assert.ErrorIs(t, err, errInvalidPrice, "editAttachedOrderConfigurationBody should return the configuration's error")
@@ -1039,42 +1057,49 @@ func TestOrderConfigurationRequests(t *testing.T) {
 	end := time.Date(2026, 10, 20, 11, 0, 0, 0, time.FixedZone("AEDT", 11*60*60))
 	start := end.Add(-time.Hour)
 	for _, tc := range []struct {
+		name          string
 		configuration OrderConfigurationRequest
 		key           string
 		body          string
 	}{
-		{configuration: &MarketMarketIOCRequest{QuoteSize: 10}, key: "market_market_ioc", body: `{"quote_size":"10"}`},
-		{configuration: &MarketMarketFOKRequest{BaseSize: 0.001}, key: "market_market_fok", body: `{"base_size":"0.001"}`},
-		{configuration: &SORLimitIOCRequest{QuoteSize: 5, BaseSize: 0.001, LimitPrice: 10000}, key: "sor_limit_ioc", body: `{"quote_size":"5","base_size":"0.001","limit_price":"10000"}`},
-		{configuration: &LimitLimitGTCRequest{QuoteSize: 10, LimitPrice: 10000, PostOnly: true}, key: "limit_limit_gtc", body: `{"quote_size":"10","limit_price":"10000","post_only":true}`},
-		{configuration: &LimitLimitGTDRequest{BaseSize: 0.001, LimitPrice: 10000, EndTime: end, PostOnly: true}, key: "limit_limit_gtd", body: `{"base_size":"0.001","limit_price":"10000","end_time":"2026-10-20T00:00:00Z","post_only":true}`},
-		{configuration: &LimitLimitFOKRequest{QuoteSize: 10, LimitPrice: 10000}, key: "limit_limit_fok", body: `{"quote_size":"10","limit_price":"10000"}`},
+		{name: "market IOC", configuration: &MarketMarketIOCRequest{QuoteSize: 10}, key: "market_market_ioc", body: `{"quote_size":"10"}`},
+		{name: "market FOK", configuration: &MarketMarketFOKRequest{BaseSize: 0.001}, key: "market_market_fok", body: `{"base_size":"0.001"}`},
+		{name: "SOR limit IOC", configuration: &SORLimitIOCRequest{QuoteSize: 5, BaseSize: 0.001, LimitPrice: 10000}, key: "sor_limit_ioc", body: `{"quote_size":"5","base_size":"0.001","limit_price":"10000"}`},
+		{name: "limit GTC", configuration: &LimitLimitGTCRequest{QuoteSize: 10, LimitPrice: 10000, PostOnly: true}, key: "limit_limit_gtc", body: `{"quote_size":"10","limit_price":"10000","post_only":true}`},
+		{name: "limit GTD", configuration: &LimitLimitGTDRequest{BaseSize: 0.001, LimitPrice: 10000, EndTime: end, PostOnly: true}, key: "limit_limit_gtd", body: `{"base_size":"0.001","limit_price":"10000","end_time":"2026-10-20T00:00:00Z","post_only":true}`},
+		{name: "limit FOK", configuration: &LimitLimitFOKRequest{QuoteSize: 10, LimitPrice: 10000}, key: "limit_limit_fok", body: `{"quote_size":"10","limit_price":"10000"}`},
 		{
+			name:          "TWAP limit GTD",
 			configuration: &TWAPLimitGTDRequest{BaseSize: 10, StartTime: start, EndTime: end, LimitPrice: 10000, NumberOfBuckets: 5, BucketSize: 2, BucketDuration: 300 * time.Second},
 			key:           "twap_limit_gtd",
 			body:          `{"base_size":"10","start_time":"2026-10-19T23:00:00Z","end_time":"2026-10-20T00:00:00Z","limit_price":"10000","number_buckets":"5","bucket_size":"2","bucket_duration":"300s"}`,
 		},
 		{
+			name:          "stop limit GTC",
 			configuration: &StopLimitStopLimitGTCRequest{BaseSize: 0.001, LimitPrice: 10000, StopPrice: 20000, StopDirection: StopDirectionStopUp},
 			key:           "stop_limit_stop_limit_gtc",
 			body:          `{"base_size":"0.001","limit_price":"10000","stop_price":"20000","stop_direction":"STOP_DIRECTION_STOP_UP"}`,
 		},
 		{
+			name:          "stop limit GTD",
 			configuration: &StopLimitStopLimitGTDRequest{BaseSize: 0.001, LimitPrice: 10000, StopPrice: 20000, EndTime: end, StopDirection: StopDirectionStopDown},
 			key:           "stop_limit_stop_limit_gtd",
 			body:          `{"base_size":"0.001","limit_price":"10000","stop_price":"20000","end_time":"2026-10-20T00:00:00Z","stop_direction":"STOP_DIRECTION_STOP_DOWN"}`,
 		},
 		{
+			name:          "trigger bracket GTC",
 			configuration: &TriggerBracketGTCRequest{BaseSize: 0.001, LimitPrice: 10000, StopTriggerPrice: 20000},
 			key:           "trigger_bracket_gtc",
 			body:          `{"base_size":"0.001","limit_price":"10000","stop_trigger_price":"20000"}`,
 		},
 		{
+			name:          "trigger bracket GTD",
 			configuration: &TriggerBracketGTDRequest{BaseSize: 0.001, LimitPrice: 10000, StopTriggerPrice: 20000, EndTime: end},
 			key:           "trigger_bracket_gtd",
 			body:          `{"base_size":"0.001","limit_price":"10000","stop_trigger_price":"20000","end_time":"2026-10-20T00:00:00Z"}`,
 		},
 		{
+			name: "scaled limit GTC with custom orders",
 			configuration: &ScaledLimitGTCRequest{
 				Orders:            []LimitLimitGTCRequest{{BaseSize: 0.5, LimitPrice: 10000}, {BaseSize: 0.5, LimitPrice: 11000, PostOnly: true}},
 				QuoteSize:         10500,
@@ -1090,52 +1115,59 @@ func TestOrderConfigurationRequests(t *testing.T) {
 			key:  "scaled_limit_gtc",
 			body: `{"orders":[{"base_size":"0.5","limit_price":"10000"},{"base_size":"0.5","limit_price":"11000","post_only":true}],"quote_size":"10500","base_size":"1","num_orders":2,"min_price":"10000","max_price":"11000","price_distribution":"CUSTOM_PRICE_DISTRIBUTION","size_distribution":"CUSTOM_SIZE_DISTRIBUTION","size_diff":"0.1","size_ratio":"1.5"}`,
 		},
-		{configuration: &ScaledLimitGTCRequest{BaseSize: 1, NumberOfOrders: 3, MinimumPrice: 10000, MaximumPrice: 11000}, key: "scaled_limit_gtc", body: `{"base_size":"1","num_orders":3,"min_price":"10000","max_price":"11000"}`},
+		{name: "scaled limit GTC by price range", configuration: &ScaledLimitGTCRequest{BaseSize: 1, NumberOfOrders: 3, MinimumPrice: 10000, MaximumPrice: 11000}, key: "scaled_limit_gtc", body: `{"base_size":"1","num_orders":3,"min_price":"10000","max_price":"11000"}`},
 	} {
-		key, leg, err := tc.configuration.orderConfiguration()
-		require.NoErrorf(t, err, "orderConfiguration must not error for %T", tc.configuration)
-		assert.Equalf(t, tc.key, key, "orderConfiguration should key %T", tc.configuration)
-		raw, err := json.Marshal(leg)
-		require.NoError(t, err, "Marshal must not error")
-		assert.JSONEqf(t, tc.body, string(raw), "orderConfiguration should send every field of %T, times in UTC", tc.configuration)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			key, leg, err := tc.configuration.orderConfiguration()
+			require.NoErrorf(t, err, "orderConfiguration must not error for %T", tc.configuration)
+			assert.Equalf(t, tc.key, key, "orderConfiguration should key %T", tc.configuration)
+			raw, err := json.Marshal(leg)
+			require.NoError(t, err, "Marshal must not error")
+			assert.JSONEqf(t, tc.body, string(raw), "orderConfiguration should send every field of %T, times in UTC", tc.configuration)
+		})
 	}
 
 	for _, tc := range []struct {
+		name          string
 		configuration OrderConfigurationRequest
 		err           error
 	}{
-		{configuration: &MarketMarketIOCRequest{QuoteSize: -1}, err: errInvalidAmount},
-		{configuration: &MarketMarketFOKRequest{BaseSize: -1}, err: errInvalidAmount},
-		{configuration: &SORLimitIOCRequest{BaseSize: -1}, err: errInvalidAmount},
-		{configuration: &SORLimitIOCRequest{LimitPrice: -1}, err: errInvalidPrice},
-		{configuration: &LimitLimitGTCRequest{QuoteSize: -1}, err: errInvalidAmount},
-		{configuration: &LimitLimitGTCRequest{LimitPrice: -1}, err: errInvalidPrice},
-		{configuration: &LimitLimitGTDRequest{BaseSize: -1}, err: errInvalidAmount},
-		{configuration: &LimitLimitGTDRequest{LimitPrice: -1}, err: errInvalidPrice},
-		{configuration: &LimitLimitFOKRequest{BaseSize: -1}, err: errInvalidAmount},
-		{configuration: &LimitLimitFOKRequest{LimitPrice: -1}, err: errInvalidPrice},
-		{configuration: &TWAPLimitGTDRequest{BucketSize: -1}, err: errInvalidAmount},
-		{configuration: &TWAPLimitGTDRequest{LimitPrice: -1}, err: errInvalidPrice},
-		{configuration: &TWAPLimitGTDRequest{StartTime: end, EndTime: start}, err: common.ErrStartAfterEnd},
-		{configuration: &TWAPLimitGTDRequest{BucketDuration: -time.Second}, err: errInvalidDuration},
-		{configuration: &StopLimitStopLimitGTCRequest{BaseSize: -1}, err: errInvalidAmount},
-		{configuration: &StopLimitStopLimitGTCRequest{StopPrice: -1}, err: errInvalidPrice},
-		{configuration: &StopLimitStopLimitGTCRequest{StopDirection: "STOP_UP"}, err: errInvalidStopDirection},
-		{configuration: &StopLimitStopLimitGTDRequest{BaseSize: -1}, err: errInvalidAmount},
-		{configuration: &StopLimitStopLimitGTDRequest{LimitPrice: -1}, err: errInvalidPrice},
-		{configuration: &StopLimitStopLimitGTDRequest{StopDirection: "STOP_DOWN"}, err: errInvalidStopDirection},
-		{configuration: &TriggerBracketGTCRequest{BaseSize: -1}, err: errInvalidAmount},
-		{configuration: &TriggerBracketGTCRequest{StopTriggerPrice: -1}, err: errInvalidPrice},
-		{configuration: &TriggerBracketGTDRequest{BaseSize: -1}, err: errInvalidAmount},
-		{configuration: &TriggerBracketGTDRequest{LimitPrice: -1}, err: errInvalidPrice},
-		{configuration: &ScaledLimitGTCRequest{QuoteSize: -1}, err: errInvalidAmount},
-		{configuration: &ScaledLimitGTCRequest{MaximumPrice: -1}, err: errInvalidPrice},
-		{configuration: &ScaledLimitGTCRequest{PriceDistribution: "LINEAR"}, err: errInvalidScaledPriceDistribution},
-		{configuration: &ScaledLimitGTCRequest{SizeDistribution: "EVEN"}, err: errInvalidScaledSizeDistribution},
-		{configuration: &ScaledLimitGTCRequest{Orders: []LimitLimitGTCRequest{{BaseSize: 1, LimitPrice: 1}, {LimitPrice: -1}}}, err: errInvalidPrice},
+		{name: "market IOC negative quote size", configuration: &MarketMarketIOCRequest{QuoteSize: -1}, err: errInvalidAmount},
+		{name: "market FOK negative base size", configuration: &MarketMarketFOKRequest{BaseSize: -1}, err: errInvalidAmount},
+		{name: "SOR limit IOC negative base size", configuration: &SORLimitIOCRequest{BaseSize: -1}, err: errInvalidAmount},
+		{name: "SOR limit IOC negative limit price", configuration: &SORLimitIOCRequest{LimitPrice: -1}, err: errInvalidPrice},
+		{name: "limit GTC negative quote size", configuration: &LimitLimitGTCRequest{QuoteSize: -1}, err: errInvalidAmount},
+		{name: "limit GTC negative limit price", configuration: &LimitLimitGTCRequest{LimitPrice: -1}, err: errInvalidPrice},
+		{name: "limit GTD negative base size", configuration: &LimitLimitGTDRequest{BaseSize: -1}, err: errInvalidAmount},
+		{name: "limit GTD negative limit price", configuration: &LimitLimitGTDRequest{LimitPrice: -1}, err: errInvalidPrice},
+		{name: "limit FOK negative base size", configuration: &LimitLimitFOKRequest{BaseSize: -1}, err: errInvalidAmount},
+		{name: "limit FOK negative limit price", configuration: &LimitLimitFOKRequest{LimitPrice: -1}, err: errInvalidPrice},
+		{name: "TWAP limit GTD negative bucket size", configuration: &TWAPLimitGTDRequest{BucketSize: -1}, err: errInvalidAmount},
+		{name: "TWAP limit GTD negative limit price", configuration: &TWAPLimitGTDRequest{LimitPrice: -1}, err: errInvalidPrice},
+		{name: "TWAP limit GTD reversed window", configuration: &TWAPLimitGTDRequest{StartTime: end, EndTime: start}, err: common.ErrStartAfterEnd},
+		{name: "TWAP limit GTD negative bucket duration", configuration: &TWAPLimitGTDRequest{BucketDuration: -time.Second}, err: errInvalidDuration},
+		{name: "stop limit GTC negative base size", configuration: &StopLimitStopLimitGTCRequest{BaseSize: -1}, err: errInvalidAmount},
+		{name: "stop limit GTC negative stop price", configuration: &StopLimitStopLimitGTCRequest{StopPrice: -1}, err: errInvalidPrice},
+		{name: "stop limit GTC unknown stop direction", configuration: &StopLimitStopLimitGTCRequest{StopDirection: "STOP_UP"}, err: errInvalidStopDirection},
+		{name: "stop limit GTD negative base size", configuration: &StopLimitStopLimitGTDRequest{BaseSize: -1}, err: errInvalidAmount},
+		{name: "stop limit GTD negative limit price", configuration: &StopLimitStopLimitGTDRequest{LimitPrice: -1}, err: errInvalidPrice},
+		{name: "stop limit GTD unknown stop direction", configuration: &StopLimitStopLimitGTDRequest{StopDirection: "STOP_DOWN"}, err: errInvalidStopDirection},
+		{name: "trigger bracket GTC negative base size", configuration: &TriggerBracketGTCRequest{BaseSize: -1}, err: errInvalidAmount},
+		{name: "trigger bracket GTC negative stop trigger price", configuration: &TriggerBracketGTCRequest{StopTriggerPrice: -1}, err: errInvalidPrice},
+		{name: "trigger bracket GTD negative base size", configuration: &TriggerBracketGTDRequest{BaseSize: -1}, err: errInvalidAmount},
+		{name: "trigger bracket GTD negative limit price", configuration: &TriggerBracketGTDRequest{LimitPrice: -1}, err: errInvalidPrice},
+		{name: "scaled limit GTC negative quote size", configuration: &ScaledLimitGTCRequest{QuoteSize: -1}, err: errInvalidAmount},
+		{name: "scaled limit GTC negative maximum price", configuration: &ScaledLimitGTCRequest{MaximumPrice: -1}, err: errInvalidPrice},
+		{name: "scaled limit GTC unknown price distribution", configuration: &ScaledLimitGTCRequest{PriceDistribution: "LINEAR"}, err: errInvalidScaledPriceDistribution},
+		{name: "scaled limit GTC unknown size distribution", configuration: &ScaledLimitGTCRequest{SizeDistribution: "EVEN"}, err: errInvalidScaledSizeDistribution},
+		{name: "scaled limit GTC order with a negative limit price", configuration: &ScaledLimitGTCRequest{Orders: []LimitLimitGTCRequest{{BaseSize: 1, LimitPrice: 1}, {LimitPrice: -1}}}, err: errInvalidPrice},
 	} {
-		_, _, err := tc.configuration.orderConfiguration()
-		assert.ErrorIsf(t, err, tc.err, "orderConfiguration should refuse %+v", tc.configuration)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, _, err := tc.configuration.orderConfiguration()
+			assert.ErrorIsf(t, err, tc.err, "orderConfiguration should refuse %+v", tc.configuration)
+		})
 	}
 }
 
@@ -1154,8 +1186,11 @@ func TestListFillsParams(t *testing.T) {
 		{name: "an unknown side", req: &ListFillsRequest{OrderSide: "Buy"}, err: errInvalidOrderSide},
 		{name: "an unknown product type", req: &ListFillsRequest{ProductTypes: []string{"FUTURES"}}, err: errInvalidOrderProductType},
 	} {
-		_, err := listFillsParams(tc.req)
-		assert.ErrorIsf(t, err, tc.err, "listFillsParams should refuse %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := listFillsParams(tc.req)
+			assert.ErrorIsf(t, err, tc.err, "listFillsParams should refuse %s", tc.name)
+		})
 	}
 
 	params, err := listFillsParams(&ListFillsRequest{
@@ -1215,8 +1250,11 @@ func TestListOrdersParams(t *testing.T) {
 		{name: "an unknown contract expiry type", req: &ListOrdersRequest{ContractExpiryType: "EXPIRED"}, err: errInvalidOrderContractExpiryType},
 		{name: "an unknown sort field", req: &ListOrdersRequest{SortBy: FillsSortByTradeTime}, err: errInvalidOrdersSortBy},
 	} {
-		_, err := listOrdersParams(tc.req)
-		assert.ErrorIsf(t, err, tc.err, "listOrdersParams should refuse %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := listOrdersParams(tc.req)
+			assert.ErrorIsf(t, err, tc.err, "listOrdersParams should refuse %s", tc.name)
+		})
 	}
 
 	simplified := false
@@ -1294,7 +1332,10 @@ func TestCheckOrderNumbers(t *testing.T) {
 	assert.NoError(t, checkOrderNumbers(errInvalidAmount, 0, 1.5), "checkOrderNumbers should accept zero and positive values")
 	assert.ErrorIs(t, checkOrderNumbers(errInvalidPrice, 1, -0.5), errInvalidPrice, "checkOrderNumbers should refuse a negative value with the sentinel given")
 	for _, v := range []float64{math.NaN(), math.Inf(1), math.Inf(-1)} {
-		assert.ErrorIsf(t, checkOrderNumbers(errInvalidAmount, v), errInvalidAmount, "checkOrderNumbers should refuse %v", v)
+		t.Run(strconv.FormatFloat(v, 'g', -1, 64), func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, checkOrderNumbers(errInvalidAmount, v), errInvalidAmount, "checkOrderNumbers should refuse %v", v)
+		})
 	}
 }
 
@@ -1348,9 +1389,12 @@ func TestCreateOrderResponseErr(t *testing.T) {
 			exp:     "order not created: no reason given",
 		},
 	} {
-		err := (&CreateOrderResponse{ErrorResponse: tc.failure}).Err()
-		assert.ErrorIsf(t, err, errOrderNotCreated, "Err should report an order Coinbase did not create, with %s", tc.name)
-		assert.EqualErrorf(t, err, tc.exp, "Err should give Coinbase's reasons, with %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			err := (&CreateOrderResponse{ErrorResponse: tc.failure}).Err()
+			assert.ErrorIsf(t, err, errOrderNotCreated, "Err should report an order Coinbase did not create, with %s", tc.name)
+			assert.EqualErrorf(t, err, tc.exp, "Err should give Coinbase's reasons, with %s", tc.name)
+		})
 	}
 }
 
@@ -1406,9 +1450,12 @@ func TestEditOrderFailure(t *testing.T) {
 	assert.NotErrorIs(t, err, order.ErrOrderNotFound, "editOrderFailure should not report a known order as missing")
 	assert.EqualError(t, err, "order not edited: INVALID_EDITED_SIZE, PREVIEW_INVALID_SIZE_PRECISION", "editOrderFailure should give each reason, leaving out the unknown ones")
 	for _, reason := range editOrderNotFoundReasons {
-		err = editOrderFailure(errOrderEditPreviewFailed, []EditOrderError{{EditFailureReason: reason}})
-		assert.ErrorIsf(t, err, order.ErrOrderNotFound, "editOrderFailure should report %s as a missing order", reason)
-		assert.ErrorIsf(t, err, errOrderEditPreviewFailed, "editOrderFailure should wrap the sentinel for %s", reason)
+		t.Run(subtestName(reason), func(t *testing.T) {
+			t.Parallel()
+			err := editOrderFailure(errOrderEditPreviewFailed, []EditOrderError{{EditFailureReason: reason}})
+			assert.ErrorIsf(t, err, order.ErrOrderNotFound, "editOrderFailure should report %s as a missing order", reason)
+			assert.ErrorIsf(t, err, errOrderEditPreviewFailed, "editOrderFailure should wrap the sentinel for %s", reason)
+		})
 	}
 	assert.EqualError(t, editOrderFailure(errOrderNotEdited, nil), "order not edited: no reason given", "editOrderFailure should say when Coinbase gave no reason")
 }

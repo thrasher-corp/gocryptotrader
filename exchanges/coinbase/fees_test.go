@@ -96,16 +96,25 @@ func TestTransactionSummaryRequestParams(t *testing.T) {
 	assert.Empty(t, params, "params should send nothing for an empty request")
 
 	for _, productType := range []string{ProductTypeSpot, ProductTypeFuture, ProductTypeEquity, ProductTypeOptionGroup, ProductTypeFutureGroup} {
-		_, err := (&TransactionSummaryRequest{ProductType: productType}).params()
-		assert.NoErrorf(t, err, "params should accept product type %s", productType)
+		t.Run(subtestName(productType), func(t *testing.T) {
+			t.Parallel()
+			_, err := (&TransactionSummaryRequest{ProductType: productType}).params()
+			assert.NoErrorf(t, err, "params should accept product type %s", productType)
+		})
 	}
 	for _, expiryType := range []string{ContractExpiryTypeExpiring, ContractExpiryTypePerpetual} {
-		_, err := (&TransactionSummaryRequest{ContractExpiryType: expiryType}).params()
-		assert.NoErrorf(t, err, "params should accept contract expiry type %s", expiryType)
+		t.Run(subtestName(expiryType), func(t *testing.T) {
+			t.Parallel()
+			_, err := (&TransactionSummaryRequest{ContractExpiryType: expiryType}).params()
+			assert.NoErrorf(t, err, "params should accept contract expiry type %s", expiryType)
+		})
 	}
 	for _, venue := range []string{ProductVenueCBE, ProductVenueFCM, ProductVenueINTX} {
-		_, err := (&TransactionSummaryRequest{ProductVenue: venue}).params()
-		assert.NoErrorf(t, err, "params should accept product venue %s", venue)
+		t.Run(subtestName(venue), func(t *testing.T) {
+			t.Parallel()
+			_, err := (&TransactionSummaryRequest{ProductVenue: venue}).params()
+			assert.NoErrorf(t, err, "params should accept product venue %s", venue)
+		})
 	}
 	// Coinbase's enums are upper case
 	_, err = (&TransactionSummaryRequest{ProductType: "spot"}).params()
@@ -122,9 +131,12 @@ func TestDecimalValueUnmarshalJSON(t *testing.T) {
 		`"0.5"`:           0.5,
 		`null`:            0,
 	} {
-		d := DecimalValue(1)
-		require.NoErrorf(t, d.UnmarshalJSON([]byte(data)), "UnmarshalJSON must not error for %s", data)
-		assert.Equalf(t, exp, d, "UnmarshalJSON should decode %s", data)
+		t.Run(subtestName(data), func(t *testing.T) {
+			t.Parallel()
+			d := DecimalValue(1)
+			require.NoErrorf(t, d.UnmarshalJSON([]byte(data)), "UnmarshalJSON must not error for %s", data)
+			assert.Equalf(t, exp, d, "UnmarshalJSON should decode %s", data)
+		})
 	}
 	var d DecimalValue
 	assert.ErrorIs(t, d.UnmarshalJSON([]byte(`true`)), errInvalidDecimalValue, "UnmarshalJSON should refuse a boolean")

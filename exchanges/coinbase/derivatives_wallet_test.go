@@ -1,6 +1,7 @@
 package coinbase
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -101,9 +102,15 @@ func TestGlobalDerivativesSubmitTransferBetweenSubaccounts(t *testing.T) {
 func TestValidateDerivativesTransferNonce(t *testing.T) {
 	t.Parallel()
 	for _, nonce := range []string{"", strings.Repeat("n", 8), strings.Repeat("n", 128), strings.Repeat("é", 8)} {
-		assert.NoErrorf(t, validateDerivativesTransferNonce(nonce), "validateDerivativesTransferNonce should accept a nonce of %d characters", utf8.RuneCountInString(nonce))
+		t.Run(strconv.Itoa(utf8.RuneCountInString(nonce))+" characters in "+strconv.Itoa(len(nonce))+" bytes", func(t *testing.T) {
+			t.Parallel()
+			assert.NoErrorf(t, validateDerivativesTransferNonce(nonce), "validateDerivativesTransferNonce should accept a nonce of %d characters", utf8.RuneCountInString(nonce))
+		})
 	}
 	for _, nonce := range []string{strings.Repeat("n", 7), strings.Repeat("n", 129), strings.Repeat("é", 7)} {
-		assert.ErrorIsf(t, validateDerivativesTransferNonce(nonce), errDerivativesInvalidTransferNonce, "validateDerivativesTransferNonce should refuse a nonce of %d characters", utf8.RuneCountInString(nonce))
+		t.Run(strconv.Itoa(utf8.RuneCountInString(nonce))+" characters in "+strconv.Itoa(len(nonce))+" bytes", func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, validateDerivativesTransferNonce(nonce), errDerivativesInvalidTransferNonce, "validateDerivativesTransferNonce should refuse a nonce of %d characters", utf8.RuneCountInString(nonce))
+		})
 	}
 }

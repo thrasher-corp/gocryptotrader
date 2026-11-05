@@ -2,6 +2,7 @@ package coinbase
 
 import (
 	"context"
+	"strconv"
 	"testing"
 	"time"
 
@@ -322,13 +323,14 @@ func TestGetPortfolioBreakdown(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetPortfolioBreakdown should return the request failure")
 }
 
-func TestListPortfolios(t *testing.T) {
+func TestListPortfolios(t *testing.T) { //nolint:tparallel // the cases run in order before the request failure after them
 	t.Parallel()
 	_, err := e.ListPortfolios(t.Context(), "UNDEFINED")
 	require.ErrorIs(t, err, errInvalidPortfolioType, "ListPortfolios must refuse an unknown portfolio type")
 
 	skipLiveWithoutCredentials(t)
 	if mockTests {
+		// The cases run in order before the request failure below, as one loop ran them
 		for portfolioType, exp := range map[string][]Portfolio{
 			"": {
 				{
@@ -358,9 +360,11 @@ func TestListPortfolios(t *testing.T) {
 				},
 			},
 		} {
-			resp, err := e.ListPortfolios(t.Context(), portfolioType)
-			require.NoErrorf(t, err, "ListPortfolios must not error for %q", portfolioType)
-			assert.Equalf(t, exp, resp, "ListPortfolios should decode every field for %q", portfolioType)
+			t.Run(subtestName(portfolioType), func(t *testing.T) {
+				resp, err := e.ListPortfolios(t.Context(), portfolioType)
+				require.NoErrorf(t, err, "ListPortfolios must not error for %q", portfolioType)
+				assert.Equalf(t, exp, resp, "ListPortfolios should decode every field for %q", portfolioType)
+			})
 		}
 	} else {
 		resp, err := e.ListPortfolios(t.Context(), "")
@@ -372,7 +376,7 @@ func TestListPortfolios(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "ListPortfolios should return the request failure")
 }
 
-func TestMovePortfolioFunds(t *testing.T) {
+func TestMovePortfolioFunds(t *testing.T) { //nolint:tparallel // the refusals run in order before the moves after them
 	t.Parallel()
 	_, err := e.MovePortfolioFunds(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "MovePortfolioFunds must reject a nil request")
@@ -385,10 +389,12 @@ func TestMovePortfolioFunds(t *testing.T) {
 	req = &MovePortfolioFundsRequest{SourcePortfolioUUID: testSandboxDefaultPortfolioUUID, TargetPortfolioUUID: testSandboxINTXPortfolioUUID, Amount: testMovePortfolioFundsAmount}
 	_, err = e.MovePortfolioFunds(t.Context(), req)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "MovePortfolioFunds must require a currency")
+	// The refusals run in order before the moves below, as one loop ran them
 	for _, amount := range []float64{0, -1} {
-		req = &MovePortfolioFundsRequest{SourcePortfolioUUID: testSandboxDefaultPortfolioUUID, TargetPortfolioUUID: testSandboxINTXPortfolioUUID, Currency: testMovePortfolioFundsCurrency, Amount: amount}
-		_, err = e.MovePortfolioFunds(t.Context(), req)
-		require.ErrorIsf(t, err, errInvalidAmount, "MovePortfolioFunds must refuse an amount of %v", amount)
+		t.Run(strconv.FormatFloat(amount, 'g', -1, 64), func(t *testing.T) {
+			_, err := e.MovePortfolioFunds(t.Context(), &MovePortfolioFundsRequest{SourcePortfolioUUID: testSandboxDefaultPortfolioUUID, TargetPortfolioUUID: testSandboxINTXPortfolioUUID, Currency: testMovePortfolioFundsCurrency, Amount: amount})
+			require.ErrorIsf(t, err, errInvalidAmount, "MovePortfolioFunds must refuse an amount of %v", amount)
+		})
 	}
 
 	skipLiveUnlessCanManipulate(t)

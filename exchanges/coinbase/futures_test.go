@@ -3,6 +3,7 @@ package coinbase
 import (
 	"context"
 	"math"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -278,13 +279,16 @@ func TestListFuturesSweeps(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "ListFuturesSweeps should return the request failure")
 }
 
-func TestScheduleFuturesSweep(t *testing.T) {
+func TestScheduleFuturesSweep(t *testing.T) { //nolint:tparallel // the sweep lock's deferred release must not wait for parallel cases
 	t.Parallel()
 	err := e.ScheduleFuturesSweep(t.Context(), -1)
 	require.ErrorIs(t, err, errFuturesSweepAmount, "ScheduleFuturesSweep must refuse a negative amount")
-	// An amount that is not a number would otherwise sweep every excess fund, as a zero amount does
+	// An amount that is not a number would otherwise sweep every excess fund, as a zero amount does. The cases run in
+	// order so the sweep lock below keeps its deferred release, which t.Cleanup would hold until parallel cases end
 	for _, amount := range []float64{math.NaN(), math.Inf(1)} {
-		require.ErrorIsf(t, e.ScheduleFuturesSweep(t.Context(), amount), errFuturesSweepAmount, "ScheduleFuturesSweep must refuse %v", amount)
+		t.Run(strconv.FormatFloat(amount, 'g', -1, 64), func(t *testing.T) {
+			require.ErrorIsf(t, e.ScheduleFuturesSweep(t.Context(), amount), errFuturesSweepAmount, "ScheduleFuturesSweep must refuse %v", amount)
+		})
 	}
 
 	skipLiveUnlessCanManipulate(t)
@@ -308,11 +312,14 @@ func TestScheduleFuturesSweep(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "ScheduleFuturesSweep should return the request failure")
 }
 
-func TestSetIntradayMarginSetting(t *testing.T) {
+func TestSetIntradayMarginSetting(t *testing.T) { //nolint:tparallel // the refusals run in order before the settings after them
 	t.Parallel()
+	// The refusals run in order before the settings below, as one loop ran them
 	for _, setting := range []string{"", "INTRADAY_MARGIN_SETTING_UNSPECIFIED"} {
-		err := e.SetIntradayMarginSetting(t.Context(), setting)
-		require.ErrorIsf(t, err, errInvalidIntradayMarginSetting, "SetIntradayMarginSetting must refuse %q", setting)
+		t.Run(subtestName(setting), func(t *testing.T) {
+			err := e.SetIntradayMarginSetting(t.Context(), setting)
+			require.ErrorIsf(t, err, errInvalidIntradayMarginSetting, "SetIntradayMarginSetting must refuse %q", setting)
+		})
 	}
 
 	skipLiveUnlessCanManipulate(t)
