@@ -162,7 +162,14 @@ func TestSetup(t *testing.T) {
 		for range 8 {
 			ec.Go(func() error { return Setup(new(binance.Exchange)) })
 		}
-		assert.NoError(t, ec.Collect(), "Concurrent Setup should not error")
+		done := make(chan error, 1)
+		go func() { done <- ec.Collect() }()
+		select {
+		case err := <-done:
+			assert.NoError(t, err, "Concurrent Setup should not error")
+		case <-time.After(time.Minute):
+			assert.Fail(t, "Concurrent Setup should finish within a minute")
+		}
 	})
 
 	t.Run("config load error", func(t *testing.T) {
