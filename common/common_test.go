@@ -558,12 +558,15 @@ func TestStartEndOptionalTimeCheck(t *testing.T) {
 		{name: "a window starting in the future", start: future, end: future.Add(time.Hour), err: ErrStartAfterTimeNow},
 		{name: "a window starting at the Unix epoch", start: zeroValueUnix, end: later, err: ErrDateUnset},
 	} {
-		err := StartEndOptionalTimeCheck(tc.start, tc.end)
-		if tc.err == nil {
-			assert.NoErrorf(t, err, "StartEndOptionalTimeCheck should accept %s", tc.name)
-			continue
-		}
-		assert.ErrorIsf(t, err, tc.err, "StartEndOptionalTimeCheck should refuse %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			err := StartEndOptionalTimeCheck(tc.start, tc.end)
+			if tc.err == nil {
+				assert.NoErrorf(t, err, "StartEndOptionalTimeCheck should accept %s", tc.name)
+				return
+			}
+			assert.ErrorIsf(t, err, tc.err, "StartEndOptionalTimeCheck should refuse %s", tc.name)
+		})
 	}
 }
 

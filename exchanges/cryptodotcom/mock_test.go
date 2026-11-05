@@ -191,17 +191,7 @@ func connectWebsocketVenue(t *testing.T, ex *Exchange, venue *websocketVenue) {
 	require.NoError(t, ex.Websocket.SetAllConnectionURLs(venue.url), "SetAllConnectionURLs must not error")
 	ex.Features.Subscriptions = subscription.List{}
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must connect to the mock websocket")
-	t.Cleanup(func() {
-		// Disabling stops the connection monitor, which would otherwise redial the mock after the test, and which may then
-		// shut the connection down first
-		assert.NoError(t, ex.Websocket.Disable(), "Disable should not error")
-		if err := ex.Websocket.Shutdown(); err != nil {
-			assert.ErrorIs(t, err, websocket.ErrNotConnected, "Shutdown should only fail when the connection monitor has shut the connection down first")
-		}
-	})
-	// Cleanups run in reverse, so the mock stops reporting errors before the exchange shuts its connections down
-	t.Cleanup(venue.closing)
+	require.NoError(t, connectVenue(t, ex, venue), "Connect must connect to the mock websocket")
 	require.True(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "the mock websocket must authenticate the trade connection")
 }
 
@@ -213,6 +203,8 @@ type websocketVenueRequest struct {
 	Nonce  uint64
 	// Bytes is the length of the request as it was received
 	Bytes int
+	// Connection numbers the connection the request came on, from 1 in the order the mock accepted them
+	Connection int
 }
 
 // websocketVenue mocks Crypto.com's user API websocket. It authenticates a public/auth request signed with the
@@ -235,6 +227,8 @@ type websocketVenue struct {
 	hooks map[string]func()
 	// closed stops the mock reporting errors answering, once the exchange going away ends the frames being written
 	closed bool
+	// connections counts the connections the mock has accepted
+	connections int
 }
 
 var venueUpgrader = gws.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
@@ -269,12 +263,13 @@ func newWebsocketVenue(t *testing.T) *websocketVenue {
 			return
 		}
 		defer conn.Close()
+		connection := venue.accepted()
 		for {
 			_, msg, err := conn.ReadMessage()
 			if err != nil {
 				return
 			}
-			if err := venue.answer(conn, msg); err != nil {
+			if err := venue.answer(conn, connection, msg); err != nil {
 				venue.mu.Lock()
 				closed := venue.closed
 				venue.mu.Unlock()
@@ -287,6 +282,14 @@ func newWebsocketVenue(t *testing.T) *websocketVenue {
 	server.Start()
 	venue.url = "ws" + strings.TrimPrefix(server.URL, "http")
 	return venue
+}
+
+// accepted counts a connection the mock has accepted and returns its number
+func (v *websocketVenue) accepted() int {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	v.connections++
+	return v.connections
 }
 
 // closing stops the mock reporting errors writing to clients, which are going away
@@ -348,7 +351,7 @@ func (v *websocketVenue) received(method string) []websocketVenueRequest {
 
 // answer records a request and writes the mock's answer to it. A subscribe request's answers are chosen as the request
 // is recorded, so a test that has seen the request knows what it was answered with
-func (v *websocketVenue) answer(conn *gws.Conn, msg []byte) error {
+func (v *websocketVenue) answer(conn *gws.Conn, connection int, msg []byte) error {
 	var req websocketRequest
 	if err := json.Unmarshal(msg, &req); err != nil {
 		return err
@@ -361,7 +364,7 @@ func (v *websocketVenue) answer(conn *gws.Conn, msg []byte) error {
 		}
 	}
 	v.mu.Lock()
-	v.requests = append(v.requests, websocketVenueRequest{ID: req.ID, Method: req.Method, Params: req.Params, Nonce: req.Nonce, Bytes: len(msg)})
+	v.requests = append(v.requests, websocketVenueRequest{ID: req.ID, Method: req.Method, Params: req.Params, Nonce: req.Nonce, Bytes: len(msg), Connection: connection})
 	result, hasResult := v.results[req.Method]
 	apiErr := v.errs[req.Method]
 	var answers []subscriptionAnswer
@@ -529,8 +532,8 @@ func newUserDataTestExchange(t *testing.T, venue *websocketVenue, subs subscript
 	return ex, connectVenue(t, ex, venue)
 }
 
-// connectVenue connects an exchange's websocket to venue, disconnecting it when the test ends, and returns the error
-// connecting
+// connectVenue connects an exchange's websocket to venue, disabling and disconnecting it when the test ends, whether or
+// not it connected, and returns the error connecting
 func connectVenue(t *testing.T, ex *Exchange, venue *websocketVenue) error {
 	t.Helper()
 	err := ex.Websocket.Connect(t.Context())

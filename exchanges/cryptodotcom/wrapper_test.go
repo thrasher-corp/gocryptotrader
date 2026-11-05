@@ -907,70 +907,87 @@ func TestPageWalletHistory(t *testing.T) {
 		}
 		return page
 	}
-	var pages []uint64
-	got, err := pageWalletHistory(t.Context(), func(_ context.Context, page uint64) ([]string, error) {
-		pages = append(pages, page)
-		require.LessOrEqual(t, len(pages), testServerRequestLimit, "pageWalletHistory must stop within the test server's request limit")
-		if page == 0 {
+	t.Run("every page up to a short one", func(t *testing.T) {
+		t.Parallel()
+		var pages []uint64
+		got, err := pageWalletHistory(t.Context(), func(_ context.Context, page uint64) ([]string, error) {
+			pages = append(pages, page)
+			require.LessOrEqual(t, len(pages), testServerRequestLimit, "pageWalletHistory must stop within the test server's request limit")
+			if page == 0 {
+				return ids(0, maxWalletHistoryPageSize), nil
+			}
+			return ids(maxWalletHistoryPageSize, 3), nil
+		}, func(id *string) string { return *id })
+		require.NoError(t, err, "pageWalletHistory must not error")
+		assert.Equal(t, ids(0, maxWalletHistoryPageSize+3), got, "pageWalletHistory should return every page's records")
+		assert.Equal(t, []uint64{0, 1}, pages, "pageWalletHistory should stop after a short page")
+	})
+
+	t.Run("a venue ignoring the page", func(t *testing.T) {
+		t.Parallel()
+		var pages []uint64
+		got, err := pageWalletHistory(t.Context(), func(_ context.Context, page uint64) ([]string, error) {
+			pages = append(pages, page)
+			require.LessOrEqual(t, len(pages), testServerRequestLimit, "pageWalletHistory must stop within the test server's request limit")
 			return ids(0, maxWalletHistoryPageSize), nil
+		}, func(id *string) string { return *id })
+		require.NoError(t, err, "pageWalletHistory must not error for a venue ignoring the page")
+		assert.Equal(t, ids(0, maxWalletHistoryPageSize), got, "pageWalletHistory should return a repeated page's records once")
+		assert.Equal(t, []uint64{0, 1}, pages, "pageWalletHistory should stop at a page holding nothing new")
+	})
+
+	t.Run("a record repeated on a later page or the same one", func(t *testing.T) {
+		t.Parallel()
+		first := make([]testWalletRecord, maxWalletHistoryPageSize)
+		for i := range first {
+			first[i] = testWalletRecord{ID: strconv.Itoa(i), Status: "first"}
 		}
-		return ids(maxWalletHistoryPageSize, 3), nil
-	}, func(id *string) string { return *id })
-	require.NoError(t, err, "pageWalletHistory must not error")
-	assert.Equal(t, ids(0, maxWalletHistoryPageSize+3), got, "pageWalletHistory should return every page's records")
-	assert.Equal(t, []uint64{0, 1}, pages, "pageWalletHistory should stop after a short page")
+		var pages []uint64
+		records, err := pageWalletHistory(t.Context(), func(_ context.Context, page uint64) ([]testWalletRecord, error) {
+			pages = append(pages, page)
+			require.LessOrEqual(t, len(pages), testServerRequestLimit, "pageWalletHistory must stop within the test server's request limit")
+			if page == 0 {
+				return first, nil
+			}
+			return []testWalletRecord{{ID: "0", Status: "repeated"}, {ID: "new", Status: "first"}, {ID: "new", Status: "repeated"}}, nil
+		}, func(r *testWalletRecord) string { return r.ID })
+		require.NoError(t, err, "pageWalletHistory must not error for pages repeating a record")
+		assert.Equal(t, append(slices.Clone(first), testWalletRecord{ID: "new", Status: "first"}), records, "pageWalletHistory should keep the first of a record repeated on a later page or the same one")
+		assert.Equal(t, []uint64{0, 1}, pages, "pageWalletHistory should stop after the short page")
+	})
 
-	pages = nil
-	got, err = pageWalletHistory(t.Context(), func(_ context.Context, page uint64) ([]string, error) {
-		pages = append(pages, page)
-		require.LessOrEqual(t, len(pages), testServerRequestLimit, "pageWalletHistory must stop within the test server's request limit")
-		return ids(0, maxWalletHistoryPageSize), nil
-	}, func(id *string) string { return *id })
-	require.NoError(t, err, "pageWalletHistory must not error for a venue ignoring the page")
-	assert.Equal(t, ids(0, maxWalletHistoryPageSize), got, "pageWalletHistory should return a repeated page's records once")
-	assert.Equal(t, []uint64{0, 1}, pages, "pageWalletHistory should stop at a page holding nothing new")
+	t.Run("a full page holding one new record", func(t *testing.T) {
+		t.Parallel()
+		var pages []uint64
+		got, err := pageWalletHistory(t.Context(), func(_ context.Context, page uint64) ([]string, error) {
+			pages = append(pages, page)
+			require.LessOrEqual(t, len(pages), testServerRequestLimit, "pageWalletHistory must stop within the test server's request limit")
+			switch page {
+			case 0:
+				return ids(0, maxWalletHistoryPageSize), nil
+			case 1:
+				// A full page holding one record the page before did not
+				return ids(1, maxWalletHistoryPageSize), nil
+			default:
+				return ids(maxWalletHistoryPageSize+1, 1), nil
+			}
+		}, func(id *string) string { return *id })
+		require.NoError(t, err, "pageWalletHistory must not error for a full page holding one new record")
+		assert.Equal(t, ids(0, maxWalletHistoryPageSize+2), got, "pageWalletHistory should go on past a full page holding one new record")
+		assert.Equal(t, []uint64{0, 1, 2}, pages, "pageWalletHistory should stop at the short page, not at a full page holding one new record")
+	})
 
-	first := make([]testWalletRecord, maxWalletHistoryPageSize)
-	for i := range first {
-		first[i] = testWalletRecord{ID: strconv.Itoa(i), Status: "first"}
-	}
-	pages = nil
-	records, err := pageWalletHistory(t.Context(), func(_ context.Context, page uint64) ([]testWalletRecord, error) {
-		pages = append(pages, page)
-		require.LessOrEqual(t, len(pages), testServerRequestLimit, "pageWalletHistory must stop within the test server's request limit")
-		if page == 0 {
-			return first, nil
-		}
-		return []testWalletRecord{{ID: "0", Status: "repeated"}, {ID: "new", Status: "first"}, {ID: "new", Status: "repeated"}}, nil
-	}, func(r *testWalletRecord) string { return r.ID })
-	require.NoError(t, err, "pageWalletHistory must not error for pages repeating a record")
-	assert.Equal(t, append(slices.Clone(first), testWalletRecord{ID: "new", Status: "first"}), records, "pageWalletHistory should keep the first of a record repeated on a later page or the same one")
-	assert.Equal(t, []uint64{0, 1}, pages, "pageWalletHistory should stop after the short page")
-
-	pages = nil
-	got, err = pageWalletHistory(t.Context(), func(_ context.Context, page uint64) ([]string, error) {
-		pages = append(pages, page)
-		require.LessOrEqual(t, len(pages), testServerRequestLimit, "pageWalletHistory must stop within the test server's request limit")
-		switch page {
-		case 0:
-			return ids(0, maxWalletHistoryPageSize), nil
-		case 1:
-			// A full page holding one record the page before did not
-			return ids(1, maxWalletHistoryPageSize), nil
-		default:
-			return ids(maxWalletHistoryPageSize+1, 1), nil
-		}
-	}, func(id *string) string { return *id })
-	require.NoError(t, err, "pageWalletHistory must not error for a full page holding one new record")
-	assert.Equal(t, ids(0, maxWalletHistoryPageSize+2), got, "pageWalletHistory should go on past a full page holding one new record")
-	assert.Equal(t, []uint64{0, 1, 2}, pages, "pageWalletHistory should stop at the short page, not at a full page holding one new record")
-
-	_, err = pageWalletHistory(t.Context(), func(_ context.Context, page uint64) ([]string, error) {
-		pages = append(pages, page)
-		require.LessOrEqual(t, len(pages), testServerRequestLimit, "pageWalletHistory must stop within the test server's request limit")
-		return nil, errInvalidCount
-	}, func(id *string) string { return *id })
-	assert.ErrorIs(t, err, errInvalidCount, "pageWalletHistory should return a page's error")
+	t.Run("a page's error", func(t *testing.T) {
+		t.Parallel()
+		var pages []uint64
+		_, err := pageWalletHistory(t.Context(), func(_ context.Context, page uint64) ([]string, error) {
+			pages = append(pages, page)
+			require.LessOrEqual(t, len(pages), testServerRequestLimit, "pageWalletHistory must stop within the test server's request limit")
+			return nil, errInvalidCount
+		}, func(id *string) string { return *id })
+		assert.ErrorIs(t, err, errInvalidCount, "pageWalletHistory should return a page's error")
+		assert.Equal(t, []uint64{0}, pages, "pageWalletHistory should stop at a page's error")
+	})
 }
 
 func TestTransferStatus(t *testing.T) {

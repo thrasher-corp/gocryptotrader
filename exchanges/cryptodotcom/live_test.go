@@ -77,11 +77,12 @@ func newWebsocketTestExchange(t *testing.T) (*Exchange, *websocketVenue) {
 
 // websocketVenueRequest stands in for a request the mock websocket received
 type websocketVenueRequest struct {
-	ID     int64
-	Method string
-	Params json.RawMessage
-	Nonce  uint64
-	Bytes  int
+	ID         int64
+	Method     string
+	Params     json.RawMessage
+	Nonce      uint64
+	Bytes      int
+	Connection int
 }
 
 // websocketVenue stands in for the mock of Crypto.com's websocket, which the live tests do not use; it records nothing

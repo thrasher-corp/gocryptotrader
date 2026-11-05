@@ -42,25 +42,52 @@ func TestWebsocketMessageID(t *testing.T) {
 
 func TestDecodeWebsocketResponse(t *testing.T) {
 	t.Parallel()
-	var result OrderIDResponse
-	require.NoError(t, decodeWebsocketResponse([]byte(`{"id":1,"method":"private/create-order","code":0,"result":{"order_id":"5"}}`), &result), "decodeWebsocketResponse must not error")
-	assert.Equal(t, OrderIDResponse{OrderID: "5"}, result, "decodeWebsocketResponse should decode the result")
-	err := decodeWebsocketResponse([]byte(`{"id":1,"method":"private/cancel-order","code":0}`), &result)
-	assert.ErrorIs(t, err, common.ErrNoResponse, "decodeWebsocketResponse should error without the result it is to decode")
-	assert.ErrorContains(t, err, "private/cancel-order", "decodeWebsocketResponse should name the method answered without a result")
-	err = decodeWebsocketResponse([]byte(`{"id":1,"method":"private/amend-order","code":0,"result":null}`), &result)
-	assert.ErrorIs(t, err, common.ErrNoResponse, "decodeWebsocketResponse should error for a null result it is to decode")
-	assert.ErrorContains(t, err, "private/amend-order", "decodeWebsocketResponse should name the method answered with a null result")
-	assert.Equal(t, OrderIDResponse{OrderID: "5"}, result, "decodeWebsocketResponse should leave the result alone when there is none to decode")
-	assert.NoError(t, decodeWebsocketResponse([]byte(`{"id":1,"method":"private/cancel-order","code":0,"result":{}}`), nil), "decodeWebsocketResponse should not error without a result to decode into")
-	assert.NoError(t, decodeWebsocketResponse([]byte(`{"id":1,"method":"private/cancel-all-orders","code":0}`), nil), "decodeWebsocketResponse should not error without a result when none is expected")
-	assert.NoError(t, decodeWebsocketResponse([]byte(`{"id":1,"method":"private/cancel-all-orders","code":0,"result":null}`), nil), "decodeWebsocketResponse should not error for a null result when none is expected")
-	err = decodeWebsocketResponse([]byte(`{"id":11,"method":"public/auth","code":40101,"message":"Unauthorized","original":"{\"api_key\":\"mock-api-key\"}"}`), nil)
-	var apiErr *APIError
-	require.ErrorAs(t, err, &apiErr, "decodeWebsocketResponse must return the error Crypto.com reports")
-	assert.Equal(t, &APIError{Code: 40101, Message: "Unauthorized"}, apiErr, "decodeWebsocketResponse should leave out the original request, which carries the API key")
-	assert.Error(t, decodeWebsocketResponse([]byte(`{"id":`), &result), "decodeWebsocketResponse should error for a malformed response")
-	assert.Error(t, decodeWebsocketResponse([]byte(`{"id":1,"code":0,"result":{"order_id":5}}`), &result), "decodeWebsocketResponse should error for a result that cannot be decoded")
+	t.Run("a result where one is expected", func(t *testing.T) {
+		t.Parallel()
+		var result OrderIDResponse
+		require.NoError(t, decodeWebsocketResponse([]byte(`{"id":1,"method":"private/create-order","code":0,"result":{"order_id":"5"}}`), &result), "decodeWebsocketResponse must not error")
+		assert.Equal(t, OrderIDResponse{OrderID: "5"}, result, "decodeWebsocketResponse should decode the result")
+	})
+	for _, tc := range []struct{ name, response, method string }{
+		{name: "no result", response: `{"id":1,"method":"private/cancel-order","code":0}`, method: "private/cancel-order"},
+		{name: "a null result", response: `{"id":1,"method":"private/amend-order","code":0,"result":null}`, method: "private/amend-order"},
+	} {
+		t.Run(tc.name+" where one is expected", func(t *testing.T) {
+			t.Parallel()
+			result := OrderIDResponse{OrderID: "5"}
+			err := decodeWebsocketResponse([]byte(tc.response), &result)
+			assert.ErrorIsf(t, err, common.ErrNoResponse, "decodeWebsocketResponse should error for %s where one is expected", tc.name)
+			assert.ErrorContainsf(t, err, tc.method, "decodeWebsocketResponse should name the method answered with %s", tc.name)
+			assert.Equalf(t, OrderIDResponse{OrderID: "5"}, result, "decodeWebsocketResponse should leave the result alone for %s", tc.name)
+		})
+	}
+	for _, tc := range []struct{ name, response string }{
+		{name: "a result", response: `{"id":1,"method":"private/cancel-order","code":0,"result":{}}`},
+		{name: "no result", response: `{"id":1,"method":"private/cancel-all-orders","code":0}`},
+		{name: "a null result", response: `{"id":1,"method":"private/cancel-all-orders","code":0,"result":null}`},
+	} {
+		t.Run(tc.name+" where none is expected", func(t *testing.T) {
+			t.Parallel()
+			assert.NoErrorf(t, decodeWebsocketResponse([]byte(tc.response), nil), "decodeWebsocketResponse should not error for %s where none is expected", tc.name)
+		})
+	}
+	t.Run("an error Crypto.com reports", func(t *testing.T) {
+		t.Parallel()
+		err := decodeWebsocketResponse([]byte(`{"id":11,"method":"public/auth","code":40101,"message":"Unauthorized","original":"{\"api_key\":\"mock-api-key\"}"}`), nil)
+		var apiErr *APIError
+		require.ErrorAs(t, err, &apiErr, "decodeWebsocketResponse must return the error Crypto.com reports")
+		assert.Equal(t, &APIError{Code: 40101, Message: "Unauthorized"}, apiErr, "decodeWebsocketResponse should leave out the original request, which carries the API key")
+	})
+	for _, tc := range []struct{ name, response string }{
+		{name: "a malformed response", response: `{"id":`},
+		{name: "a result that cannot be decoded", response: `{"id":1,"code":0,"result":{"order_id":5}}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var result OrderIDResponse
+			assert.Errorf(t, decodeWebsocketResponse([]byte(tc.response), &result), "decodeWebsocketResponse should error for %s", tc.name)
+		})
+	}
 }
 
 func TestSendWebsocketRequest(t *testing.T) {
@@ -144,12 +171,24 @@ func TestWebsocketAuthenticate(t *testing.T) {
 	require.NoError(t, ex.Websocket.SetAllConnectionURLs(venue.url), "SetAllConnectionURLs must not error")
 	ex.Features.Subscriptions = subscription.List{}
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	// Disabling stops the connection monitor, which retries a refused connection until then
+	t.Cleanup(func() { assert.NoError(t, ex.Websocket.Disable(), "Disable should not error") })
 	t.Cleanup(venue.closing)
 	err := ex.Websocket.Connect(t.Context())
 	var apiErr *APIError
 	require.ErrorAs(t, err, &apiErr, "Connect must fail when authentication is refused")
 	assert.Equal(t, &APIError{Code: 40101, Message: "Unauthorized"}, apiErr, "Connect should report the refused authentication")
-	require.Len(t, venue.received(websocketMethodAuth), 1, "the trade connection must try to authenticate once")
+	auths := venue.received(websocketMethodAuth)
+	require.NotEmpty(t, auths, "the trade connection must try to authenticate")
+	// The connection monitor retries the refused connection on a new connection each time
+	connections := make(common.Seen[int], len(auths))
+	var repeated []int
+	for i := range auths {
+		if connections.CheckAndRecord(auths[i].Connection) {
+			repeated = append(repeated, auths[i].Connection)
+		}
+	}
+	assert.Empty(t, repeated, "the trade connection should try to authenticate once a connection")
 }
 
 // newSubscriptionLimitsExchange returns an exchange connected to venue, with 220 enabled pairs whose four channels take
