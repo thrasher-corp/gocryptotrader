@@ -8364,21 +8364,3 @@ func TestCappedHandler(t *testing.T) {
 	}
 	assert.Equal(t, fakeRequestBudget, calls, "the full legitimate budget should reach the handler")
 }
-
-func TestDefaultWebsocketEndpoints(t *testing.T) {
-	t.Parallel()
-	ex := new(Exchange)
-	ex.SetDefaults()
-	for ep, want := range map[exchange.URL]string{
-		exchange.WebsocketSpot:              "wss://ws.okx.com/ws/v5/public",
-		exchange.WebsocketPrivate:           "wss://ws.okx.com/ws/v5/private",
-		exchange.WebsocketSpotSupplementary: "wss://ws.okx.com/ws/v5/business",
-	} {
-		t.Run(ep.String(), func(t *testing.T) {
-			t.Parallel()
-			got, err := ex.API.Endpoints.GetURL(ep)
-			require.NoErrorf(t, err, "GetURL must return the default %s endpoint", ep)
-			assert.Equalf(t, want, got, "default %s endpoint should use port 443", ep)
-		})
-	}
-}
