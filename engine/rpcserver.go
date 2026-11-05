@@ -75,7 +75,6 @@ var (
 	errGRPCShutdownSignalIsNil = errors.New("cannot shutdown, gRPC shutdown channel is nil")
 	errInvalidStrategy         = errors.New("invalid strategy")
 	errSpecificPairNotEnabled  = errors.New("specified pair is not enabled")
-	errEmptyOrderID            = errors.New("order id is empty")
 	errDuplicateOrderID        = errors.New("duplicate order id received")
 )
 
@@ -1427,17 +1426,13 @@ func (s *RPCServer) CancelBatchOrders(ctx context.Context, r *gctrpc.CancelBatch
 	for _, id := range rawOrders {
 		id = strings.TrimSpace(id)
 		if id == "" {
-			return nil, errEmptyOrderID
+			return nil, ErrOrderIDCannotBeEmpty
 		}
 		if seen.CheckAndRecord(id) {
 			return nil, fmt.Errorf("%w: %s", errDuplicateOrderID, id)
 		}
 		orders = append(orders, id)
 	}
-	if len(orders) == 0 {
-		return nil, order.ErrCancelOrderIsNil
-	}
-
 	req := make([]order.Cancel, len(orders))
 	for x := range orders {
 		req[x] = order.Cancel{
