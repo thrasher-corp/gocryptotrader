@@ -136,7 +136,8 @@ func (s *Storage) RunUpdater(overrides BotOverrides, settings *Config, filePath 
 	fxSettings := make([]base.Settings, 0, len(settings.ForexProviders))
 	var primaryProvider bool
 	for i := range settings.ForexProviders {
-		enabled := (settings.ForexProviders[i].Name == "CurrencyConverter" && overrides.CurrencyConverter) ||
+		enabled := (settings.ForexProviders[i].Name == "AllRatesToday" && overrides.AllRatesToday) ||
+			(settings.ForexProviders[i].Name == "CurrencyConverter" && overrides.CurrencyConverter) ||
 			(settings.ForexProviders[i].Name == "CurrencyLayer" && overrides.CurrencyLayer) ||
 			(settings.ForexProviders[i].Name == "Fixer" && overrides.Fixer) ||
 			(settings.ForexProviders[i].Name == "FXMacroData" && overrides.FXMacroData) ||
@@ -155,7 +156,7 @@ func (s *Storage) RunUpdater(overrides BotOverrides, settings *Config, filePath 
 			continue
 		}
 
-		if settings.ForexProviders[i].APIKeyLvl == -1 && settings.ForexProviders[i].Name != "ExchangeRates" && settings.ForexProviders[i].Name != "FXMacroData" {
+		if settings.ForexProviders[i].APIKeyLvl == -1 && settings.ForexProviders[i].Name != "ExchangeRates" && settings.ForexProviders[i].Name != "FXMacroData" && settings.ForexProviders[i].Name != "AllRatesToday" {
 			log.Warnf(log.Currency, "%s APIKey level not set, functionality is limited. Please review this in your config.json file\n",
 				settings.ForexProviders[i].Name)
 		}
@@ -293,7 +294,10 @@ func (s *Storage) SetupForexProviders(setting ...base.Settings) error {
 // ForeignExchangeUpdater is a routine that seeds foreign exchange rate and keeps
 // updated as fast as possible
 func (s *Storage) ForeignExchangeUpdater() {
-	defer s.wg.Done()
+	defer func() {
+		s.updaterRunning.Store(false)
+		s.wg.Done()
+	}()
 	log.Debugln(log.Currency, "Foreign exchange updater started, seeding FX rate list...")
 
 	err := s.SeedCurrencyAnalysisData()
@@ -305,6 +309,8 @@ func (s *Storage) ForeignExchangeUpdater() {
 	if err != nil {
 		log.Errorln(log.Currency, err)
 	}
+
+	s.updaterRunning.Store(true)
 
 	// Unlock main rate retrieval mutex so all routines waiting can get access to data
 	s.mtx.Unlock()
@@ -531,7 +537,7 @@ func (s *Storage) SeedForeignExchangeRate(from, to Code) (map[string]float64, er
 // GetDefaultForeignExchangeRates returns foreign exchange rates based off
 // default fiat currencies.
 func (s *Storage) GetDefaultForeignExchangeRates() (Conversions, error) {
-	if !s.updaterRunning {
+	if !s.updaterRunning.Load() || !s.fxRates.HasData() {
 		err := s.SeedDefaultForeignExchangeRates()
 		if err != nil {
 			return nil, err
@@ -558,7 +564,7 @@ func (s *Storage) SeedDefaultForeignExchangeRates() error {
 
 // GetExchangeRates returns storage seeded exchange rates
 func (s *Storage) GetExchangeRates() (Conversions, error) {
-	if !s.updaterRunning {
+	if !s.updaterRunning.Load() || !s.fxRates.HasData() {
 		err := s.SeedForeignExchangeRates()
 		if err != nil {
 			return nil, err
