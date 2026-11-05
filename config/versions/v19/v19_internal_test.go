@@ -3,19 +3,17 @@ package v19
 import (
 	"testing"
 
+	"github.com/buger/jsonparser"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestRenameExchangeConflict(t *testing.T) {
+func TestSetEndpoint(t *testing.T) {
 	t.Parallel()
-	// Neither exchange config can be dropped without losing a user's settings, so the version must not advance
-	in := `{"version":18,"exchanges":[{"name":"GateIO","enabled":true},{"name":"gate","enabled":false}]}`
-	out, err := new(Version).UpgradeConfig(t.Context(), []byte(in))
-	assert.ErrorIs(t, err, errExchangeNameConflict, "UpgradeConfig should refuse a config holding both GateIO and Gate")
-	assert.JSONEq(t, in, string(out), "UpgradeConfig should leave a conflicting config unchanged")
+	got, err := setEndpoint([]byte(`{"api":{"urlEndpoints":{"RestSpotURL":"https://proxy.example/api/v4/","WebsocketSpotURL":"wss://api.gateio.ws/ws/v4/"}}}`), "RestSpotURL", `https://proxy.example/"gate"`)
+	require.NoError(t, err, "setEndpoint must not error")
+	assert.JSONEq(t, `{"api":{"urlEndpoints":{"RestSpotURL":"https://proxy.example/\"gate\"","WebsocketSpotURL":"wss://api.gateio.ws/ws/v4/"}}}`, string(got), "setEndpoint should replace only the endpoint, encoded as a JSON string")
 
-	in = `{"version":19,"exchanges":[{"name":"Gate"},{"name":"GATEIO"}]}`
-	out, err = new(Version).DowngradeConfig(t.Context(), []byte(in))
-	assert.ErrorIs(t, err, errExchangeNameConflict, "DowngradeConfig should refuse a config holding both Gate and GateIO")
-	assert.JSONEq(t, in, string(out), "DowngradeConfig should leave a conflicting config unchanged")
+	_, err = setEndpoint([]byte(`not json`), "RestSpotURL", "https://proxy.example")
+	assert.ErrorIs(t, err, jsonparser.KeyPathNotFoundError, "setEndpoint should reject a document it cannot set the endpoint in")
 }

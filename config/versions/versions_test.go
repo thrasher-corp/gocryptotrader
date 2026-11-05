@@ -1,6 +1,7 @@
 package versions
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"testing"
@@ -19,12 +20,13 @@ import (
 	v18 "github.com/thrasher-corp/gocryptotrader/config/versions/v18"
 	v19 "github.com/thrasher-corp/gocryptotrader/config/versions/v19"
 	v2 "github.com/thrasher-corp/gocryptotrader/config/versions/v2"
+	v20 "github.com/thrasher-corp/gocryptotrader/config/versions/v20"
 )
 
 func TestNewManager(t *testing.T) {
 	t.Parallel()
 	m := newManager()
-	require.Len(t, m.versions, 20, "newManager must register every config version through v19")
+	require.Len(t, m.versions, 21, "newManager must register every config version through v20")
 	assert.IsType(t, &v13.Version{}, m.Version(13), "newManager should register v13 at index 13")
 	assert.IsType(t, &v14.Version{}, m.Version(14), "newManager should register v14 at index 14")
 	assert.IsType(t, &v15.Version{}, m.Version(15), "newManager should register v15 at index 15")
@@ -32,6 +34,7 @@ func TestNewManager(t *testing.T) {
 	assert.IsType(t, &v17.Version{}, m.Version(17), "newManager should register v17 at index 17")
 	assert.IsType(t, &v18.Version{}, m.Version(18), "newManager should register v18 at index 18")
 	assert.IsType(t, &v19.Version{}, m.Version(19), "newManager should register v19 at index 19")
+	assert.IsType(t, &v20.Version{}, m.Version(20), "newManager should register v20 at index 20")
 }
 
 func TestDeploy(t *testing.T) {
@@ -113,6 +116,20 @@ func TestExchangeDeploy(t *testing.T) {
 	in = []byte(`{"version":0,"exchanges":[{"name":"Juan"},{"name":"Megashaft"}]}`)
 	_, err = exchangeDeploy(t.Context(), v, ExchangeVersion.UpgradeExchange, in)
 	require.NoError(t, err)
+	for _, name := range []string{"Juan", "JUAN", "juan", "jUaN", "Other"} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			input := []byte(`{"exchanges":[{"name":"` + name + `"}]}`)
+			for _, method := range []func(ExchangeVersion, context.Context, []byte) ([]byte, error){ExchangeVersion.UpgradeExchange, ExchangeVersion.DowngradeExchange} {
+				_, err := exchangeDeploy(t.Context(), &TestVersion2{ExchErr: true}, method, input)
+				if name == "Other" {
+					require.NoError(t, err, "unrelated exchanges must not be selected")
+				} else {
+					require.ErrorIs(t, err, errModifyingExchange, "all accepted capitalisations must select the migration")
+				}
+			}
+		})
+	}
 }
 
 func TestRegisterVersion(t *testing.T) {

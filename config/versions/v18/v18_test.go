@@ -3,135 +3,109 @@ package v18_test
 import (
 	"testing"
 
+	"github.com/buger/jsonparser"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/config/versions"
 	v18 "github.com/thrasher-corp/gocryptotrader/config/versions/v18"
 )
 
 func TestExchanges(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, []string{"*"}, new(v18.Version).Exchanges(), "Exchanges should return every exchange, so GateIO matches in any case")
-}
-
-func TestMatchesGateIOInAnyCase(t *testing.T) {
-	t.Parallel()
-	const (
-		oldDefaults = `{"RestSpotURL":"https://api.gateio.ws/api/v4/","RestFuturesURL":"https://fx-api.gateio.ws/api/v4/"}`
-		newDefaults = `{"RestSpotURL":"https://api.gateio.ws","RestFuturesURL":"https://fx-api.gateio.ws"}`
-	)
-	for _, name := range []string{"GateIO", "gateio", "GATEIO", "gAtEiO"} {
-		in := []byte(`{"name":"` + name + `","api":{"urlEndpoints":` + oldDefaults + `}}`)
-		out, err := new(v18.Version).UpgradeExchange(t.Context(), in)
-		require.NoErrorf(t, err, "UpgradeExchange must not error for %s", name)
-		assert.JSONEqf(t, `{"name":"`+name+`","api":{"urlEndpoints":{}}}`, string(out), "UpgradeExchange should migrate %s", name)
-
-		in = []byte(`{"name":"` + name + `","api":{"urlEndpoints":{"RestSpotURL":"https://proxy.example/gate"}}}`)
-		out, err = new(v18.Version).DowngradeExchange(t.Context(), in)
-		require.NoErrorf(t, err, "DowngradeExchange must not error for %s", name)
-		assert.JSONEqf(t, `{"name":"`+name+`","api":{"urlEndpoints":{"RestSpotURL":"https://proxy.example/gate/api/v4/"}}}`, string(out), "DowngradeExchange should migrate %s", name)
-	}
-	for _, name := range []string{"Gate", "Binance", "GateIOX"} {
-		in := []byte(`{"name":"` + name + `","api":{"urlEndpoints":` + oldDefaults + `}}`)
-		out, err := new(v18.Version).UpgradeExchange(t.Context(), in)
-		require.NoErrorf(t, err, "UpgradeExchange must not error for %s", name)
-		assert.Equalf(t, string(in), string(out), "UpgradeExchange should leave %s unchanged", name)
-
-		in = []byte(`{"name":"` + name + `","api":{"urlEndpoints":` + newDefaults + `}}`)
-		out, err = new(v18.Version).DowngradeExchange(t.Context(), in)
-		require.NoErrorf(t, err, "DowngradeExchange must not error for %s", name)
-		assert.Equalf(t, string(in), string(out), "DowngradeExchange should leave %s unchanged", name)
-	}
+	assert.Equal(t, []string{"Okx"}, new(v18.Version).Exchanges(), "migration should apply only to OKX")
 }
 
 func TestUpgradeExchange(t *testing.T) {
 	t.Parallel()
-
-	for _, tc := range []struct {
-		name string
-		in   string
-		exp  string
-	}{
+	for _, tc := range []struct{ name, input, expected string }{
 		{
-			name: "old defaults are removed and the unchanged testnet default is kept",
-			in:   `{"RestSpotURL":"https://api.gateio.ws/api/v4/","RestFuturesURL":"https://fx-api.gateio.ws/api/v4/","RestSpotSupplementaryURL":"https://fx-api-testnet.gateio.ws","WebsocketSpotURL":"wss://api.gateio.ws/ws/v4/"}`,
-			exp:  `{"RestSpotSupplementaryURL":"https://fx-api-testnet.gateio.ws","WebsocketSpotURL":"wss://api.gateio.ws/ws/v4/"}`,
+			name:     "defaults",
+			input:    `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.okx.com:8443/ws/v5/public","WebsocketPrivateURL":"wss://ws.okx.com:8443/ws/v5/private","WebsocketSpotSupplementaryURL":"wss://ws.okx.com:8443/ws/v5/business","RestSpotURL":"https://www.okx.com/api/v5/"}},"enabled":false}`,
+			expected: `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.okx.com/ws/v5/public","WebsocketPrivateURL":"wss://ws.okx.com/ws/v5/private","WebsocketSpotSupplementaryURL":"wss://ws.okx.com/ws/v5/business","RestSpotURL":"https://www.okx.com/api/v5/"}},"enabled":false}`,
 		},
 		{
-			name: "custom endpoints lose the version prefix",
-			in:   `{"RestSpotURL":"https://proxy.example/gate/api/v4/","RestFuturesURL":"https://proxy.example/gate-fx/api/v4","RestSpotSupplementaryURL":"https://fx-api-testnet.gateio.ws/api/v4/"}`,
-			exp:  `{"RestSpotURL":"https://proxy.example/gate","RestFuturesURL":"https://proxy.example/gate-fx","RestSpotSupplementaryURL":"https://fx-api-testnet.gateio.ws"}`,
+			name:     "escaped default",
+			input:    `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss:\/\/ws.okx.com:8443\/ws\/v5\/public"}}}`,
+			expected: `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.okx.com/ws/v5/public"}}}`,
 		},
 		{
-			name: "custom endpoints without the prefix are kept",
-			in:   `{"RestSpotURL":"https://proxy.example","RestFuturesURL":"https://proxy.example/v4/","RestSpotSupplementaryURL":"NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API"}`,
-			exp:  `{"RestSpotURL":"https://proxy.example","RestFuturesURL":"https://proxy.example/v4/","RestSpotSupplementaryURL":"NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API"}`,
+			name:     "missing",
+			input:    `{}`,
+			expected: `{}`,
 		},
 		{
-			name: "unrelated endpoints are kept",
-			in:   `{"EdgeCase1URL":"https://www.gate.com/apiw/v2/api/v4/","WebsocketSpotURL":"wss://api.gateio.ws/ws/v4/"}`,
-			exp:  `{"EdgeCase1URL":"https://www.gate.com/apiw/v2/api/v4/","WebsocketSpotURL":"wss://api.gateio.ws/ws/v4/"}`,
+			name:     "null",
+			input:    `{"api":{"urlEndpoints":null}}`,
+			expected: `{"api":{"urlEndpoints":null}}`,
+		},
+		{
+			name:     "custom",
+			input:    `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://custom.example:8443/ws/v5/public","WebsocketPrivateURL":"wss://ws.okx.com:8443/custom","WebsocketSpotSupplementaryURL":null}}}`,
+			expected: `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://custom.example:8443/ws/v5/public","WebsocketPrivateURL":"wss://ws.okx.com:8443/custom","WebsocketSpotSupplementaryURL":null}}}`,
+		},
+		{
+			name:     "current",
+			input:    `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.okx.com/ws/v5/public"}}}`,
+			expected: `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.okx.com/ws/v5/public"}}}`,
+		},
+		{
+			name:     "mixed custom and legacy endpoints",
+			input:    `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://custom.example:8443/ws/v5/public","WebsocketPrivateURL":"wss://ws.okx.com:8443/ws/v5/private","WebsocketSpotSupplementaryURL":"wss://ws.okx.com:8443/ws/v5/business"}}}`,
+			expected: `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://custom.example:8443/ws/v5/public","WebsocketPrivateURL":"wss://ws.okx.com/ws/v5/private","WebsocketSpotSupplementaryURL":"wss://ws.okx.com/ws/v5/business"}}}`,
+		},
+		{
+			name:     "missing public endpoint",
+			input:    `{"api":{"urlEndpoints":{"WebsocketPrivateURL":"wss://ws.okx.com:8443/ws/v5/private"}}}`,
+			expected: `{"api":{"urlEndpoints":{"WebsocketPrivateURL":"wss://ws.okx.com/ws/v5/private"}}}`,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			out, err := new(v18.Version).UpgradeExchange(t.Context(), []byte(`{"name":"GateIO","api":{"urlEndpoints":`+tc.in+`}}`))
-			require.NoError(t, err, "UpgradeExchange must not error")
-			assert.JSONEq(t, `{"name":"GateIO","api":{"urlEndpoints":`+tc.exp+`}}`, string(out), "UpgradeExchange should migrate the endpoints")
+			got, err := new(v18.Version).UpgradeExchange(t.Context(), []byte(tc.input))
+			require.NoError(t, err, "migration must succeed")
+			assert.JSONEq(t, tc.expected, string(got), "migration should replace only legacy defaults")
 		})
 	}
-
-	in := []byte(`{"name":"GateIO","api":{}}`)
-	out, err := new(v18.Version).UpgradeExchange(t.Context(), in)
-	require.NoError(t, err, "UpgradeExchange must not error when urlEndpoints is missing")
-	assert.Equal(t, string(in), string(out), "UpgradeExchange should not change a config without urlEndpoints")
-
-	_, err = new(v18.Version).UpgradeExchange(t.Context(), []byte(`{"name":"GateIO","api":{"urlEndpoints":{"RestSpotURL":42}}}`))
-	assert.ErrorContains(t, err, "Value is not a string", "UpgradeExchange should error on a non-string endpoint")
+	for _, tc := range []struct {
+		name, input string
+		expected    error
+	}{
+		{
+			name:     "invalid endpoint value",
+			input:    `{"api":{"urlEndpoints":{"WebsocketSpotURL":}}}`,
+			expected: jsonparser.UnknownValueTypeError,
+		},
+		{
+			name:     "invalid endpoint escape",
+			input:    `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss:\z"}}}`,
+			expected: jsonparser.MalformedValueError,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := new(v18.Version).UpgradeExchange(t.Context(), []byte(tc.input))
+			require.ErrorIs(t, err, tc.expected, "invalid JSON must fail with its parser error")
+		})
+	}
 }
 
 func TestDowngradeExchange(t *testing.T) {
 	t.Parallel()
-
-	for _, tc := range []struct {
-		name string
-		in   string
-		exp  string
-	}{
-		{
-			name: "new defaults are removed and the unchanged testnet default is kept",
-			in:   `{"RestSpotURL":"https://api.gateio.ws","RestFuturesURL":"https://fx-api.gateio.ws","RestSpotSupplementaryURL":"https://fx-api-testnet.gateio.ws","WebsocketSpotURL":"wss://api.gateio.ws/ws/v4/"}`,
-			exp:  `{"RestSpotSupplementaryURL":"https://fx-api-testnet.gateio.ws","WebsocketSpotURL":"wss://api.gateio.ws/ws/v4/"}`,
-		},
-		{
-			name: "custom endpoints regain the version prefix",
-			in:   `{"RestSpotURL":"https://proxy.example/gate","RestFuturesURL":"https://proxy.example/gate-fx/","RestSpotSupplementaryURL":"https://testnet-proxy.example"}`,
-			exp:  `{"RestSpotURL":"https://proxy.example/gate/api/v4/","RestFuturesURL":"https://proxy.example/gate-fx/api/v4/","RestSpotSupplementaryURL":"https://testnet-proxy.example/api/v4/"}`,
-		},
-		{
-			name: "endpoints already carrying the prefix and placeholders are kept",
-			in:   `{"RestSpotURL":"https://proxy.example/api/v4/","RestFuturesURL":"","RestSpotSupplementaryURL":"NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API"}`,
-			exp:  `{"RestSpotURL":"https://proxy.example/api/v4/","RestFuturesURL":"","RestSpotSupplementaryURL":"NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API"}`,
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			out, err := new(v18.Version).DowngradeExchange(t.Context(), []byte(`{"name":"GateIO","api":{"urlEndpoints":`+tc.in+`}}`))
-			require.NoError(t, err, "DowngradeExchange must not error")
-			assert.JSONEq(t, `{"name":"GateIO","api":{"urlEndpoints":`+tc.exp+`}}`, string(out), "DowngradeExchange should migrate the endpoints")
-		})
-	}
-
-	_, err := new(v18.Version).DowngradeExchange(t.Context(), []byte(`{"name":"GateIO","api":{"urlEndpoints":{"RestFuturesURL":true}}}`))
-	assert.ErrorContains(t, err, "Value is not a string", "DowngradeExchange should error on a non-string endpoint")
+	input := []byte(`{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.okx.com/ws/v5/public"}}}`)
+	got, err := new(v18.Version).DowngradeExchange(t.Context(), input)
+	require.NoError(t, err, "downgrade must succeed")
+	assert.Equal(t, input, got, "downgrade should retain the compatible port")
 }
 
-// TestRoundTrip checks a custom endpoint survives an upgrade and downgrade unchanged
-func TestRoundTrip(t *testing.T) {
+func TestRegisteredMigration(t *testing.T) {
 	t.Parallel()
-	in := []byte(`{"name":"GateIO","api":{"urlEndpoints":{"RestSpotURL":"https://proxy.example/gate/api/v4/"}}}`)
-	up, err := new(v18.Version).UpgradeExchange(t.Context(), in)
-	require.NoError(t, err, "UpgradeExchange must not error")
-	down, err := new(v18.Version).DowngradeExchange(t.Context(), up)
-	require.NoError(t, err, "DowngradeExchange must not error")
-	assert.JSONEq(t, string(in), string(down), "a custom endpoint should round trip unchanged")
+	input := []byte(`{"version":17,"exchanges":[{"name":"Okx","api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.okx.com:8443/ws/v5/public"}}},{"name":"Other","api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.okx.com:8443/ws/v5/public"}}}]}`)
+	got, err := versions.Manager.Deploy(t.Context(), input, 18)
+	require.NoError(t, err, "registered upgrade must succeed")
+	assert.JSONEq(t, `{"version":18,"exchanges":[{"name":"Okx","api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.okx.com/ws/v5/public"}}},{"name":"Other","api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.okx.com:8443/ws/v5/public"}}}]}`, string(got), "only OKX defaults should migrate")
+	down, err := versions.Manager.Deploy(t.Context(), got, 17)
+	require.NoError(t, err, "registered downgrade must succeed")
+	again, err := versions.Manager.Deploy(t.Context(), down, 18)
+	require.NoError(t, err, "repeated upgrade must succeed")
+	assert.JSONEq(t, string(got), string(again), "migration round trip should preserve usable endpoints")
 }

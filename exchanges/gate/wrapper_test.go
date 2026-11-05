@@ -739,7 +739,7 @@ func TestSetupUpgradesLegacyRESTEndpoints(t *testing.T) {
 	require.NoError(t, err, "ReadFile must not error")
 	var cfgMap map[string]any
 	require.NoError(t, json.Unmarshal(raw, &cfgMap), "Unmarshal must not error")
-	cfgMap["version"] = 17
+	cfgMap["version"] = 18
 	exchanges, ok := cfgMap["exchanges"].([]any)
 	require.True(t, ok, "config must hold an exchange list")
 	var found bool
@@ -749,7 +749,7 @@ func TestSetupUpgradesLegacyRESTEndpoints(t *testing.T) {
 		if exch["name"] != "Gate" {
 			continue
 		}
-		// Configs before version 19 name the exchange GateIO
+		// Configs before version 20 name the exchange GateIO
 		exch["name"] = "GateIO"
 		api, ok := exch["api"].(map[string]any)
 		require.True(t, ok, "Gate api config must be an object")
