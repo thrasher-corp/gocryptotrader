@@ -431,6 +431,7 @@ func TestWSHandleUSDTMarginedPrivateMessage(t *testing.T) {
 			if len(raw) == 0 {
 				raw = []byte(`{"op":"notify","topic":"private","ts":1603878749908,"uid":"123","contract_code":"BTC-USDT","data":[]}`)
 			}
+			before := time.Now()
 			require.NoError(t, h.wsHandleUSDTMarginedPrivateMessage(t.Context(), sub, raw), "private USDT-margined notification must be decoded")
 			require.Len(t, h.Websocket.DataHandler.C, 1, "handler must dispatch one message")
 			message := <-h.Websocket.DataHandler.C
@@ -455,7 +456,7 @@ func TestWSHandleUSDTMarginedPrivateMessage(t *testing.T) {
 				assert.Equal(t, changes[0].Balance.Free, stored.Free, "stored free margin should match the notification")
 				assert.Equal(t, changes[0].Balance.Hold, stored.Hold, "stored held margin should match the notification")
 				assert.Equal(t, time.UnixMilli(1603878749908), changes[0].Balance.UpdatedAt, "emitted changes should retain venue time")
-				assert.WithinDuration(t, time.Now(), stored.UpdatedAt, time.Second, "stored balances should use local arrival time")
+				assert.WithinRange(t, stored.UpdatedAt, before, time.Now(), "stored balances should use local arrival time")
 			}
 		})
 	}
