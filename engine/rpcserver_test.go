@@ -3915,7 +3915,7 @@ func TestStartRPCRESTProxy(t *testing.T) {
 	caCertPool := x509.NewCertPool()
 	ok := caCertPool.AppendCertsFromPEM(caCert)
 	require.True(t, ok, "AppendCertsFromPEM must return true")
-	client := &http.Client{Transport: &http.Transport{TLSClientConfig: &tls.Config{RootCAs: caCertPool, MinVersion: tls.VersionTLS12}}}
+	client := &http.Client{Transport: &http.Transport{TLSClientConfig: &tls.Config{RootCAs: caCertPool, MinVersion: tls.VersionTLS12}}, Timeout: 10 * time.Second}
 
 	for _, creds := range []struct {
 		testDescription string
@@ -4062,14 +4062,21 @@ func TestRPCProxyHeaderMatcher(t *testing.T) {
 		{header: "Grpc-Metadata-Verbose", wantKey: "verbose", wantOK: true},
 		{header: "Grpc-Metadata-Authorization"},
 		{header: "Grpc-Metadata-Apicredentials-Bin"},
+		{header: "Grpc-Metadata-Verbose-Bin"},
+		{header: "Grpc-Metadata-Grpc-Metadata-Apicredentials"},
 		{header: "Grpc-Metadata-Grpc-Metadata-Verbose"},
 		{header: "Grpc-Metadata-"},
+		{header: "X-Grpc-Metadata-Verbose"},
 		{header: "Apicredentials"},
+		{header: "Verbose"},
 		{header: "User-Agent", wantKey: "grpcgateway-User-Agent", wantOK: true},
 	} {
-		mdKey, ok := rpcProxyHeaderMatcher(tc.header)
-		assert.Equalf(t, tc.wantOK, ok, "rpcProxyHeaderMatcher should report whether %q is forwarded", tc.header)
-		assert.Equalf(t, tc.wantKey, mdKey, "rpcProxyHeaderMatcher should return the expected metadata key for %q", tc.header)
+		t.Run(tc.header, func(t *testing.T) {
+			t.Parallel()
+			mdKey, ok := rpcProxyHeaderMatcher(tc.header)
+			assert.Equalf(t, tc.wantOK, ok, "rpcProxyHeaderMatcher should report whether %q is forwarded", tc.header)
+			assert.Equalf(t, tc.wantKey, mdKey, "rpcProxyHeaderMatcher should return the expected metadata key for %q", tc.header)
+		})
 	}
 }
 
