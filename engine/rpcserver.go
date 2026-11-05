@@ -521,6 +521,23 @@ func (s *RPCServer) GetTickers(_ context.Context, _ *gctrpc.GetTickersRequest) (
 	return &gctrpc.GetTickersResponse{Tickers: tickers}, nil
 }
 
+// orderbookItems keeps level conversion consistent across snapshot and stream endpoints.
+func orderbookItems(levels orderbook.Levels, includeIDs bool) []*gctrpc.OrderbookItem {
+	items := make([]*gctrpc.OrderbookItem, len(levels))
+	for i := range levels {
+		items[i] = &gctrpc.OrderbookItem{
+			Amount:    levels[i].Amount,
+			Price:     levels[i].Price,
+			StrAmount: levels[i].StrAmount,
+			StrPrice:  levels[i].StrPrice,
+		}
+		if includeIDs {
+			items[i].Id = levels[i].ID
+		}
+	}
+	return items
+}
+
 // GetOrderbook returns an orderbook for a specific exchange, currency pair
 // and asset type
 func (s *RPCServer) GetOrderbook(_ context.Context, r *gctrpc.GetOrderbookRequest) (*gctrpc.OrderbookResponse, error) {
@@ -541,20 +558,10 @@ func (s *RPCServer) GetOrderbook(_ context.Context, r *gctrpc.GetOrderbookReques
 		return nil, err
 	}
 
-	bids := make([]*gctrpc.OrderbookItem, len(ob.Bids))
-	for x := range ob.Bids {
-		bids[x] = &gctrpc.OrderbookItem{Amount: ob.Bids[x].Amount, Price: ob.Bids[x].Price}
-	}
-
-	asks := make([]*gctrpc.OrderbookItem, len(ob.Asks))
-	for x := range ob.Asks {
-		asks[x] = &gctrpc.OrderbookItem{Amount: ob.Asks[x].Amount, Price: ob.Asks[x].Price}
-	}
-
 	resp := &gctrpc.OrderbookResponse{
 		Pair:        r.Pair,
-		Bids:        bids,
-		Asks:        asks,
+		Bids:        orderbookItems(ob.Bids, false),
+		Asks:        orderbookItems(ob.Asks, false),
 		LastUpdated: s.unixTimestamp(ob.LastUpdated),
 		AssetType:   r.AssetType,
 	}
@@ -595,14 +602,8 @@ func (s *RPCServer) GetOrderbooks(_ context.Context, _ *gctrpc.GetOrderbooksRequ
 					},
 					AssetType:   a.String(),
 					LastUpdated: s.unixTimestamp(resp.LastUpdated),
-					Bids:        make([]*gctrpc.OrderbookItem, len(resp.Bids)),
-					Asks:        make([]*gctrpc.OrderbookItem, len(resp.Asks)),
-				}
-				for i := range resp.Bids {
-					ob.Bids[i] = &gctrpc.OrderbookItem{Amount: resp.Bids[i].Amount, Price: resp.Bids[i].Price}
-				}
-				for i := range resp.Asks {
-					ob.Asks[i] = &gctrpc.OrderbookItem{Amount: resp.Asks[i].Amount, Price: resp.Asks[i].Price}
+					Bids:        orderbookItems(resp.Bids, false),
+					Asks:        orderbookItems(resp.Asks, false),
 				}
 				obs = append(obs, ob)
 			}
@@ -2103,22 +2104,8 @@ func (s *RPCServer) GetOrderbookStream(r *gctrpc.GetOrderbookStreamRequest, stre
 			resp.LastUpdated = time.Now().UnixMicro()
 		} else {
 			resp.LastUpdated = base.LastUpdated.UnixMicro()
-			resp.Bids = make([]*gctrpc.OrderbookItem, len(base.Bids))
-			for i := range base.Bids {
-				resp.Bids[i] = &gctrpc.OrderbookItem{
-					Amount: base.Bids[i].Amount,
-					Price:  base.Bids[i].Price,
-					Id:     base.Bids[i].ID,
-				}
-			}
-			resp.Asks = make([]*gctrpc.OrderbookItem, len(base.Asks))
-			for i := range base.Asks {
-				resp.Asks[i] = &gctrpc.OrderbookItem{
-					Amount: base.Asks[i].Amount,
-					Price:  base.Asks[i].Price,
-					Id:     base.Asks[i].ID,
-				}
-			}
+			resp.Bids = orderbookItems(base.Bids, true)
+			resp.Asks = orderbookItems(base.Asks, true)
 		}
 
 		if err := stream.Send(resp); err != nil {
@@ -2173,22 +2160,8 @@ func (s *RPCServer) GetExchangeOrderbookStream(r *gctrpc.GetExchangeOrderbookStr
 				Quote: ob.Pair.Quote.String(),
 			}
 			resp.AssetType = ob.Asset.String()
-			resp.Bids = make([]*gctrpc.OrderbookItem, len(ob.Bids))
-			for i := range ob.Bids {
-				resp.Bids[i] = &gctrpc.OrderbookItem{
-					Amount: ob.Bids[i].Amount,
-					Price:  ob.Bids[i].Price,
-					Id:     ob.Bids[i].ID,
-				}
-			}
-			resp.Asks = make([]*gctrpc.OrderbookItem, len(ob.Asks))
-			for i := range ob.Asks {
-				resp.Asks[i] = &gctrpc.OrderbookItem{
-					Amount: ob.Asks[i].Amount,
-					Price:  ob.Asks[i].Price,
-					Id:     ob.Asks[i].ID,
-				}
-			}
+			resp.Bids = orderbookItems(ob.Bids, true)
+			resp.Asks = orderbookItems(ob.Asks, true)
 		}
 
 		if err := stream.Send(resp); err != nil {
