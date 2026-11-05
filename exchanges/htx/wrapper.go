@@ -1962,6 +1962,16 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 		}
 	case asset.USDTMarginedFutures:
 		pairs := currency.Pairs{orderCancellation.Pair}
+		var side string
+		switch {
+		case orderCancellation.Side == order.UnknownSide, orderCancellation.Side == order.AnySide:
+		case orderCancellation.Side.IsLong():
+			side = "buy"
+		case orderCancellation.Side.IsShort():
+			side = "sell"
+		default:
+			return cancelAllOrdersResponse, fmt.Errorf("%w: %s", order.ErrSideIsInvalid, orderCancellation.Side)
+		}
 		if orderCancellation.Pair.IsEmpty() {
 			var err error
 			pairs, err = e.GetEnabledPairs(asset.USDTMarginedFutures)
@@ -1970,7 +1980,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 			}
 		}
 		for i := range pairs {
-			a, err := e.CancelAllV5Orders(ctx, pairs[i], "", "")
+			a, err := e.CancelAllV5Orders(ctx, pairs[i], side, "")
 			if err != nil {
 				errs = common.AppendError(errs, err)
 				continue
@@ -2739,6 +2749,9 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 			}
 		}
 	case asset.USDTMarginedFutures:
+		if len(req.Pairs) == 0 {
+			return nil, errCurrencyNotSupplied
+		}
 		windows, err := getV3HistoryWindows(req.StartTime, req.EndTime)
 		if err != nil {
 			return nil, err
@@ -3617,6 +3630,9 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 	}
 	var resp []futures.OpenInterest
 	for _, a := range e.GetAssetTypes(true) {
+		if len(k) > 0 && !slices.ContainsFunc(k, func(requested key.PairAsset) bool { return requested.Asset == a }) {
+			continue
+		}
 		switch a {
 		case asset.Futures:
 			data, err := e.FuturesContractOpenInterest(ctx, "", "", currency.EMPTYPAIR)
@@ -3634,7 +3650,7 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 					continue
 				}
 				for j := range k {
-					if k[j].Pair().Equal(p) {
+					if k[j].Asset == a && k[j].Pair().Equal(p) {
 						appendData = true
 						break
 					}
@@ -3653,6 +3669,11 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 				return nil, err
 			}
 			for i := range enabledPairs {
+				if len(k) > 0 && !slices.ContainsFunc(k, func(requested key.PairAsset) bool {
+					return requested.Asset == a && requested.Pair().Equal(enabledPairs[i])
+				}) {
+					continue
+				}
 				data, err := e.GetV5OpenInterest(ctx, enabledPairs[i])
 				if err != nil {
 					return nil, err
@@ -3669,7 +3690,7 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 				}
 				var appendData bool
 				for j := range k {
-					if k[j].Pair().Equal(p) {
+					if k[j].Asset == a && k[j].Pair().Equal(p) {
 						appendData = true
 						break
 					}
@@ -3697,7 +3718,7 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 				}
 				var appendData bool
 				for j := range k {
-					if k[j].Pair().Equal(p) {
+					if k[j].Asset == a && k[j].Pair().Equal(p) {
 						appendData = true
 						break
 					}

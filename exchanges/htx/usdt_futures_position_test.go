@@ -90,12 +90,16 @@ func TestSetV5PositionMode(t *testing.T) {
 		submission := &order.Submit{Exchange: h.Name, Pair: btcusdtPair, AssetType: asset.USDTMarginedFutures, Side: order.Buy, Type: order.Limit, Price: 100, Amount: 1}
 		_, err := h.SubmitOrder(t.Context(), submission)
 		require.ErrorIs(t, err, errPositionModeInUse, "REST submission must not race a mode change")
+		assert.Equal(t, int64(positionModeChanging), h.positionModeState.Load(), "refused REST submission should preserve the mode change reservation")
 		_, err = h.WebsocketSubmitOrder(t.Context(), submission)
 		require.ErrorIs(t, err, errPositionModeInUse, "websocket submission must not race a mode change")
+		assert.Equal(t, int64(positionModeChanging), h.positionModeState.Load(), "refused websocket submission should preserve the mode change reservation")
 		_, err = h.WebsocketSubmitOrders(t.Context(), []*order.Submit{submission})
 		require.ErrorIs(t, err, errPositionModeInUse, "batch submission must not race a mode change")
+		assert.Equal(t, int64(positionModeChanging), h.positionModeState.Load(), "refused batch submission should preserve the mode change reservation")
 		_, err = h.SetV5PositionMode(t.Context(), "dual_side")
 		require.ErrorIs(t, err, errPositionModeInUse, "mode changes must exclude each other")
+		assert.Equal(t, int64(positionModeChanging), h.positionModeState.Load(), "refused mode change should preserve the existing reservation")
 		releaseOnce.Do(func() { close(release) })
 		select {
 		case err := <-result:
@@ -133,6 +137,7 @@ func TestAcquirePositionModeForSubmission(t *testing.T) {
 		{name: "idle", wantState: 1},
 		{name: "existing submissions", initialState: 2, wantState: 3},
 		{name: "cancelled", cancelled: true, wantErr: context.Canceled},
+		{name: "cancelled with existing submissions", initialState: 2, cancelled: true, wantErr: context.Canceled, wantState: 2},
 		{name: "mode change busy", initialState: positionModeChanging, wantErr: errPositionModeInUse, wantState: positionModeChanging},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
