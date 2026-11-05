@@ -1479,8 +1479,8 @@ func TestGenerateSubscriptions(t *testing.T) {
 	assert.Equal(t, subscription.List{{Channel: subscription.MyAccountChannel, Authenticated: true, Asset: asset.All}}, accountSubs, "generateAccountSubscriptions should generate the account channel")
 }
 
-// version17Subscriptions are the default subscriptions a configuration saved before perpetual contracts holds
-const version17Subscriptions = `[{"enabled":true,"channel":"ticker","asset":"all"},{"enabled":true,"channel":"allTrades","asset":"all"},` +
+// version18Subscriptions are the default subscriptions a configuration saved before perpetual contracts holds
+const version18Subscriptions = `[{"enabled":true,"channel":"ticker","asset":"all"},{"enabled":true,"channel":"allTrades","asset":"all"},` +
 	`{"enabled":true,"channel":"candles","asset":"spot","interval":"1m"},{"enabled":true,"channel":"candles","asset":"margin","interval":"1m"},` +
 	`{"enabled":true,"channel":"candles","asset":"marginfunding","params":{"_period":"p30"},"interval":"1m"},` +
 	`{"enabled":true,"channel":"orderbook","asset":"all","params":{"prec":"R0"},"levels":100}]`
@@ -1489,9 +1489,9 @@ func TestGenerateSubscriptionsFromMigratedConfig(t *testing.T) {
 	t.Parallel()
 	raw, err := testExchangeConfig()
 	require.NoError(t, err, "testExchangeConfig must not error")
-	withPerpetualPairs, err := jsonparser.Set(raw, []byte(version17Subscriptions), "features", "subscriptions")
+	withPerpetualPairs, err := jsonparser.Set(raw, []byte(version18Subscriptions), "features", "subscriptions")
 	require.NoError(t, err, "jsonparser.Set must not error")
-	// A configuration saved before perpetual contracts holds no perpetual pairs, and one downgraded from version 18 keeps them
+	// A configuration saved before perpetual contracts holds no perpetual pairs, and one downgraded from version 19 keeps them
 	withoutPerpetualPairs := withPerpetualPairs
 	for _, a := range []asset.Item{asset.USDTMarginedFutures, asset.CoinMarginedFutures} {
 		withoutPerpetualPairs = jsonparser.Delete(withoutPerpetualPairs, "currencyPairs", "pairs", a.String())
@@ -1511,10 +1511,10 @@ func TestGenerateSubscriptionsFromMigratedConfig(t *testing.T) {
 				saved, err := jsonparser.Set(tc.saved, []byte(strconv.Quote(name)), "name")
 				require.NoError(t, err, "jsonparser.Set must not error")
 				path := filepath.Join(t.TempDir(), "config.json")
-				require.NoError(t, os.WriteFile(path, []byte(`{"version":17,"exchanges":[`+string(saved)+`]}`), 0o600), "WriteFile must not error")
+				require.NoError(t, os.WriteFile(path, []byte(`{"version":18,"exchanges":[`+string(saved)+`]}`), 0o600), "WriteFile must not error")
 				var cfg config.Config
-				require.NoError(t, cfg.ReadConfigFromFile(path, true), "ReadConfigFromFile must upgrade the version 17 configuration")
-				assert.Equal(t, 18, cfg.Version, "ReadConfigFromFile should advance the configuration to version 18")
+				require.NoError(t, cfg.ReadConfigFromFile(path, true), "ReadConfigFromFile must upgrade the version 18 configuration")
+				assert.Equal(t, 19, cfg.Version, "ReadConfigFromFile should advance the configuration to version 19")
 				require.NoError(t, cfg.CheckExchangeConfigValues(), "CheckExchangeConfigValues must accept the upgraded configuration")
 				exchCfg, err := cfg.GetExchangeConfig("Bitfinex")
 				require.NoError(t, err, "GetExchangeConfig must not error")
