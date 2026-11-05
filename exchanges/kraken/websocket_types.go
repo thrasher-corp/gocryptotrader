@@ -263,13 +263,16 @@ type WebsocketExecution struct {
 	// Cost is the value of this trade event
 	Cost float64 `json:"cost"`
 	// MarginBorrow is set when a fill increased or reduced margin borrowing
-	MarginBorrow       bool                    `json:"margin_borrow"`
-	CumulativeQuantity float64                 `json:"cum_qty"`
-	CumulativeCost     float64                 `json:"cum_cost"`
-	AveragePrice       float64                 `json:"avg_price"`
-	Fees               []WebsocketExecutionFee `json:"fees"`
-	FeeUSDEquivalent   float64                 `json:"fee_usd_equiv"`
-	PositionStatus     string                  `json:"position_status"`
+	MarginBorrow       bool    `json:"margin_borrow"`
+	CumulativeQuantity float64 `json:"cum_qty"`
+	// CumulativeQuantityReported is set when the report gave CumulativeQuantity, which Kraken leaves out of the
+	// reports of events that do not change it
+	CumulativeQuantityReported bool                    `json:"-"`
+	CumulativeCost             float64                 `json:"cum_cost"`
+	AveragePrice               float64                 `json:"avg_price"`
+	Fees                       []WebsocketExecutionFee `json:"fees"`
+	FeeUSDEquivalent           float64                 `json:"fee_usd_equiv"`
+	PositionStatus             string                  `json:"position_status"`
 	// OrderReferenceID is the transaction that created this order, such as the order whose fill created a close order
 	OrderReferenceID string `json:"ord_ref_id"`
 	// ExternalOrderID and ExternalExecutionID are a partner's identifiers
@@ -289,6 +292,23 @@ type WebsocketExecution struct {
 	TriggeredPrice float64 `json:"triggered_price"`
 	// CancelReason is replaced by Reason
 	CancelReason string `json:"cancel_reason"`
+}
+
+// UnmarshalJSON decodes an execution report, noting whether it gave the order's executed quantity
+func (x *WebsocketExecution) UnmarshalJSON(data []byte) error {
+	type alias WebsocketExecution
+	report := struct {
+		*alias
+		CumulativeQuantity *float64 `json:"cum_qty"`
+	}{alias: (*alias)(x)}
+	if err := json.Unmarshal(data, &report); err != nil {
+		return err
+	}
+	x.CumulativeQuantityReported = report.CumulativeQuantity != nil
+	if x.CumulativeQuantityReported {
+		x.CumulativeQuantity = *report.CumulativeQuantity
+	}
+	return nil
 }
 
 // WebsocketExecutionTriggers describes a triggered order's price trigger

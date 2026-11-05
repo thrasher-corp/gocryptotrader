@@ -1587,11 +1587,16 @@ func (e *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 			}
 			return resp[0].Error
 		}
-		_, err := e.CancelExistingOrder(ctx, &CancelExistingOrderRequest{
+		if _, err := e.CancelExistingOrder(ctx, &CancelExistingOrderRequest{
 			TransactionID: o.OrderID,
 			ClientOrderID: clientOrderIDWithoutOrderID(o.OrderID, o.ClientOrderID),
-		})
-		return err
+		}); err != nil {
+			return err
+		}
+		if o.OrderID != "" {
+			e.readCancelledSpotOrders(ctx, o.OrderID)
+		}
+		return nil
 	case asset.Futures:
 		resp, err := e.CancelFuturesOrder(ctx, &FuturesCancelOrderRequest{
 			OrderID:       o.OrderID,
@@ -1674,8 +1679,15 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 
 // cancelSpotOrders cancels spot orders by ID, recording each one's outcome in status: cancelled, or its error. The
 // private websocket connection reports each order's outcome; Cancel Order Batch reports only how many it cancelled, so
-// the orders of a batch it did not cancel in full are each looked up, and cancelled on their own if still open
+// the orders of a batch it did not cancel in full are each looked up, and cancelled on their own if still open. An
+// order named more than once is cancelled once, as a repeat would fail and record its failure over the cancellation
 func (e *Exchange) cancelSpotOrders(ctx context.Context, ids []string, status map[string]string) error {
+	seen := make(map[string]bool, len(ids))
+	ids = slices.DeleteFunc(slices.Clone(ids), func(id string) bool {
+		repeated := seen[id]
+		seen[id] = true
+		return repeated
+	})
 	if e.privateWebsocketAvailable() {
 		for chunk := range slices.Chunk(ids, 50) {
 			results, err := e.WebsocketCancelOrders(ctx, &WebsocketCancelOrdersRequest{OrderIDs: chunk})
@@ -1707,6 +1719,12 @@ func (e *Exchange) cancelSpotOrders(ctx context.Context, ids []string, status ma
 		}
 		return nil
 	}
+	// The orders cancelled are read once the cancellations end, those a batch cancelled before a later one failed too
+	defer func() {
+		e.readCancelledSpotOrders(ctx, slices.DeleteFunc(slices.Clone(ids), func(id string) bool {
+			return status[id] != order.Cancelled.String()
+		})...)
+	}()
 	for chunk := range slices.Chunk(ids, 50) {
 		if len(chunk) == 1 {
 			status[chunk[0]] = e.cancelSpotOrder(ctx, chunk[0])
@@ -1742,6 +1760,16 @@ func (e *Exchange) cancelSpotOrder(ctx context.Context, id string) string {
 		return err.Error()
 	}
 	return order.Cancelled.String()
+}
+
+// readCancelledSpotOrders reads spot orders cancelled over REST for their totals. Orders are cancelled over REST while
+// the private websocket connection is unavailable, which may not report their cancellation to have them read, and the
+// fills it reported before give an order no fee. Without an authenticated websocket no fills were reported, and the
+// read relays the orders through the websocket, so nothing is read unless it is connected, or still connecting
+func (e *Exchange) readCancelledSpotOrders(ctx context.Context, orderIDs ...string) {
+	if e.Websocket.CanUseAuthenticatedEndpoints() && e.websocketActive() {
+		e.spotOrders.refresh(ctx, e.readFinishedSpotOrders, orderIDs...)
+	}
 }
 
 // CancelAllOrders cancels every open order of an asset, or of a pair when one is given, and only those of a side or

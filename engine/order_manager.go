@@ -430,7 +430,9 @@ func (m *OrderManager) Modify(ctx context.Context, mod *order.Modify) (*order.Mo
 	if mod.Amount == 0 {
 		mod.Amount = det.Amount
 	}
-	if mod.Price == 0 {
+	// A trailing stop limit's stored price is where its limit stands now, which sending it would reset, so an edit
+	// leaving the price out sends none
+	if mod.Price == 0 && det.Type != order.TrailingStopLimit {
 		mod.Price = det.Price
 	}
 

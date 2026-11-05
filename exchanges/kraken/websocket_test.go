@@ -104,10 +104,11 @@ func serveWebsocketToken(t *testing.T) http.HandlerFunc {
 
 // useTestWebsocket replaces the exchange's websocket with one holding the connections the message filters name. A
 // non-empty url replaces their URLs, such as with a mock server's. The connection monitor does not reconnect within the
-// test
+// test, and a lull in traffic does not shut the websocket down
 func useTestWebsocket(tb testing.TB, ex *Exchange, url string, filters ...string) {
 	tb.Helper()
 	ex.Config.ConnectionMonitorDelay = time.Hour
+	ex.Config.WebsocketTrafficTimeout = time.Hour
 	ex.Websocket = sharedtestvalues.NewTestWebsocket()
 	require.NoError(tb, ex.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:               ex.Config,
@@ -1019,34 +1020,35 @@ func TestChannelPayloads(t *testing.T) {
 					LimitPrice:       4.5,
 					LimitPriceType:   "pct",
 				},
-				ExecutionType:       "trade",
-				OrderStatus:         "partially_filled",
-				Amended:             true,
-				Liquidated:          true,
-				Reason:              "User requested",
-				ExecutionID:         "TFEYXB-5OO6U-H7NFC5",
-				TradeID:             91342277,
-				LastQuantity:        20,
-				LastPrice:           0.2101,
-				LiquidityIndicator:  "m",
-				Cost:                4.202,
-				MarginBorrow:        true,
-				CumulativeQuantity:  20,
-				CumulativeCost:      4.202,
-				AveragePrice:        0.2101,
-				Fees:                []WebsocketExecutionFee{{Asset: "USD", Quantity: 0.0067}},
-				FeeUSDEquivalent:    0.0067,
-				PositionStatus:      "opened",
-				OrderReferenceID:    "OLUMT4-UTEGU-ZYM7E9",
-				ExternalOrderID:     "b9e0b9b0-6c6d-4a0f-9f0e-7d6f3f2b1a10",
-				ExternalExecutionID: "5d3c9e1a-2b4f-4c8e-9a7d-1e2f3a4b5c6d",
-				SenderSubID:         "trader-7",
-				User:                "AA96N74GCGEFN8KI",
-				RateCount:           12,
-				Timestamp:           ts("2026-10-09T01:05:00.12Z"),
-				Trigger:             "index",
-				TriggeredPrice:      0.2099,
-				CancelReason:        "User requested",
+				ExecutionType:              "trade",
+				OrderStatus:                "partially_filled",
+				Amended:                    true,
+				Liquidated:                 true,
+				Reason:                     "User requested",
+				ExecutionID:                "TFEYXB-5OO6U-H7NFC5",
+				TradeID:                    91342277,
+				LastQuantity:               20,
+				LastPrice:                  0.2101,
+				LiquidityIndicator:         "m",
+				Cost:                       4.202,
+				MarginBorrow:               true,
+				CumulativeQuantity:         20,
+				CumulativeQuantityReported: true,
+				CumulativeCost:             4.202,
+				AveragePrice:               0.2101,
+				Fees:                       []WebsocketExecutionFee{{Asset: "USD", Quantity: 0.0067}},
+				FeeUSDEquivalent:           0.0067,
+				PositionStatus:             "opened",
+				OrderReferenceID:           "OLUMT4-UTEGU-ZYM7E9",
+				ExternalOrderID:            "b9e0b9b0-6c6d-4a0f-9f0e-7d6f3f2b1a10",
+				ExternalExecutionID:        "5d3c9e1a-2b4f-4c8e-9a7d-1e2f3a4b5c6d",
+				SenderSubID:                "trader-7",
+				User:                       "AA96N74GCGEFN8KI",
+				RateCount:                  12,
+				Timestamp:                  ts("2026-10-09T01:05:00.12Z"),
+				Trigger:                    "index",
+				TriggeredPrice:             0.2099,
+				CancelReason:               "User requested",
 			}},
 			&[]WebsocketExecution{{
 				OrderID:               "OK4GJX-KSTLS-7DZZO5",
@@ -1065,25 +1067,26 @@ func TestChannelPayloads(t *testing.T) {
 			}},
 			&[]WebsocketExecution{{Timestamp: ts("2023-09-22T10:33:05.709982Z"), OrderStatus: "new", ExecutionType: "new", OrderUserReference: 3, OrderID: "OK4GJX-KSTLS-7DZZO5"}},
 			&[]WebsocketExecution{{
-				OrderID:            "OK4GJX-KSTLS-7DZZO5",
-				OrderUserReference: 3,
-				ExecutionID:        "TGBB7L-HT5LX-J3BZ4A",
-				ExecutionType:      "trade",
-				TradeID:            62887576,
-				Symbol:             "BTC/USD",
-				Side:               "sell",
-				LastQuantity:       0.005,
-				LastPrice:          26599.9,
-				LiquidityIndicator: "t",
-				Cost:               132.9995,
-				OrderType:          "limit",
-				Timestamp:          ts("2023-09-22T10:33:05.709993Z"),
-				OrderStatus:        "partially_filled",
-				CumulativeQuantity: 0.005,
-				CumulativeCost:     132.9995,
-				AveragePrice:       26599.9,
-				FeeUSDEquivalent:   0.3458,
-				Fees:               []WebsocketExecutionFee{{Asset: "USD", Quantity: 0.3458}},
+				OrderID:                    "OK4GJX-KSTLS-7DZZO5",
+				OrderUserReference:         3,
+				ExecutionID:                "TGBB7L-HT5LX-J3BZ4A",
+				ExecutionType:              "trade",
+				TradeID:                    62887576,
+				Symbol:                     "BTC/USD",
+				Side:                       "sell",
+				LastQuantity:               0.005,
+				LastPrice:                  26599.9,
+				LiquidityIndicator:         "t",
+				Cost:                       132.9995,
+				OrderType:                  "limit",
+				Timestamp:                  ts("2023-09-22T10:33:05.709993Z"),
+				OrderStatus:                "partially_filled",
+				CumulativeQuantity:         0.005,
+				CumulativeQuantityReported: true,
+				CumulativeCost:             132.9995,
+				AveragePrice:               26599.9,
+				FeeUSDEquivalent:           0.3458,
+				Fees:                       []WebsocketExecutionFee{{Asset: "USD", Quantity: 0.3458}},
 			}},
 			&[]WebsocketBalance{
 				{Asset: "BTC", AssetClass: "currency", Balance: 1.2, Wallets: []WebsocketWallet{{Type: "spot", ID: "main", Balance: 1.2}}},
@@ -3274,7 +3277,8 @@ func TestWebsocketProcessExecutions(t *testing.T) {
 	exp := []fill.Data{{ID: "TGBB7L-HT5LX-J3BZ4A", Timestamp: fillTime, Exchange: t.Name(), AssetType: asset.Spot, CurrencyPair: wsTestPair, Side: order.Sell, OrderID: "OK4GJX-KSTLS-7DZZO5", TradeID: "62887576", Price: 26599.9, Amount: 0.005}}
 	assert.Equal(t, exp, got[1], "wsProcessExecutions should relay the trade as a fill")
 
-	require.NoError(t, ex.wsProcessExecutions(t.Context(), &wsChannelMessage{Data: json.RawMessage(`[{"order_id":"OK4GJX-KSTLS-7DZZO5","exec_type":"canceled","order_status":"canceled","timestamp":"2023-09-22T10:33:06Z"}]`)}), "wsProcessExecutions must not error for a cancellation")
+	// An order reported cancelled with nothing filled is not read over REST, which this exchange would make to Kraken
+	require.NoError(t, ex.wsProcessExecutions(t.Context(), &wsChannelMessage{Data: json.RawMessage(`[{"order_id":"OZJW0T-MIQ3C-5NATAU","exec_type":"canceled","order_status":"canceled","cum_qty":0,"timestamp":"2023-09-22T10:33:06Z"}]`)}), "wsProcessExecutions must not error for a cancellation")
 	got = relayed(ex)
 	require.Len(t, got, 1, "wsProcessExecutions must relay a cancellation's order update alone")
 	assert.IsType(t, &order.Detail{}, got[0], "wsProcessExecutions should relay the cancelled order's update")
@@ -3448,6 +3452,37 @@ func TestExecutionOrderDetail(t *testing.T) {
 		_, err := ex.executionOrderDetail(tc.execution)
 		assert.ErrorIsf(t, err, tc.err, "executionOrderDetail should reject an execution by its %s", tc.name)
 	}
+}
+
+func TestWebsocketExecutionUnmarshalJSON(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		data string
+		exp  WebsocketExecution
+	}{
+		{"executed quantity given", `{"order_id":"OK4GJX-KSTLS-7DZZO5","exec_type":"canceled","order_qty":0.01,"cum_qty":0.005}`, WebsocketExecution{OrderID: "OK4GJX-KSTLS-7DZZO5", ExecutionType: "canceled", OrderQuantity: 0.01, CumulativeQuantity: 0.005, CumulativeQuantityReported: true}},
+		{"nothing executed", `{"order_id":"OK4GJX-KSTLS-7DZZO5","exec_type":"canceled","order_qty":0.01,"cum_qty":0}`, WebsocketExecution{OrderID: "OK4GJX-KSTLS-7DZZO5", ExecutionType: "canceled", OrderQuantity: 0.01, CumulativeQuantityReported: true}},
+		{"executed quantity left out", `{"order_id":"OK4GJX-KSTLS-7DZZO5","exec_type":"canceled","order_qty":0.01}`, WebsocketExecution{OrderID: "OK4GJX-KSTLS-7DZZO5", ExecutionType: "canceled", OrderQuantity: 0.01}},
+		{"executed quantity null", `{"order_id":"OK4GJX-KSTLS-7DZZO5","exec_type":"canceled","order_qty":0.01,"cum_qty":null}`, WebsocketExecution{OrderID: "OK4GJX-KSTLS-7DZZO5", ExecutionType: "canceled", OrderQuantity: 0.01}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var got WebsocketExecution
+			require.NoError(t, got.UnmarshalJSON([]byte(tc.data)), "UnmarshalJSON must not error")
+			assert.Equal(t, tc.exp, got, "UnmarshalJSON should decode the report, noting whether it gave the executed quantity")
+		})
+	}
+	t.Run("executed quantity not a number", func(t *testing.T) {
+		t.Parallel()
+		var got WebsocketExecution
+		assert.Error(t, got.UnmarshalJSON([]byte(`{"cum_qty":"0.005"}`)), "UnmarshalJSON should reject an executed quantity that is not a number")
+	})
+	t.Run("a list", func(t *testing.T) {
+		t.Parallel()
+		var got WebsocketExecution
+		assert.Error(t, got.UnmarshalJSON([]byte(`[]`)), "UnmarshalJSON should reject a report that is not an object")
+	})
 }
 
 func TestWebsocketProcessBalances(t *testing.T) {

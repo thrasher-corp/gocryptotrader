@@ -1163,8 +1163,9 @@ func (e *Exchange) wsProcessInstruments(ctx context.Context, msg *wsChannelMessa
 }
 
 // wsProcessExecutions relays order updates, with a trade event's fill as the order's trade, and the fills themselves
-// when the fills feed is enabled. An order that finishes after fills is then read over REST for its totals. An update
-// that cannot be converted or relayed does not hold back the others, and is reported once the message is processed
+// when the fills feed is enabled. An order that finishes after fills, or is cancelled or expires without a report of
+// how much of it filled, is then read over REST for its totals. An update that cannot be converted or relayed does not
+// hold back the others, and is reported once the message is processed
 func (e *Exchange) wsProcessExecutions(ctx context.Context, msg *wsChannelMessage) error {
 	var executions []WebsocketExecution
 	if err := json.Unmarshal(msg.Data, &executions); err != nil {
@@ -1215,13 +1216,14 @@ func (e *Exchange) finishSpotOrder(ctx context.Context, x *WebsocketExecution) {
 }
 
 // spotExecutionFinishedAfterFills reports whether an execution report says its order finished with some or all of it
-// filled
+// filled. A cancellation or expiry report that leaves out the executed quantity is taken as one, as it does not say
+// that nothing filled
 func spotExecutionFinishedAfterFills(x *WebsocketExecution) bool {
 	switch {
 	case x.ExecutionType == "filled", x.OrderStatus == "filled":
 		return true
 	case x.ExecutionType == "canceled", x.ExecutionType == "expired", x.OrderStatus == "canceled", x.OrderStatus == "expired":
-		return x.CumulativeQuantity > 0
+		return x.CumulativeQuantity > 0 || !x.CumulativeQuantityReported
 	default:
 		return false
 	}

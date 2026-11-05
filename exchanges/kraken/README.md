@@ -145,8 +145,10 @@ the connection is connected and subscribed again and new snapshots arrive.
 + Kraken's spot balance messages carry neither the amount on hold nor the credit it counts as available, so each one
 the `myWallet` channel streams refreshes the stored spot balances over REST, at most once every five seconds, and the
 balances are read a second time after a ledger update, as REST can lag it. An order the private connection reports
-finished after fills is likewise read over REST for its fee, as execution reports carry each fill's fee alone.
-These reads are retried only while the websocket is connected, or still connecting.
+finished after fills, or cancelled or expired without saying how much of it filled, is likewise read over REST for its
+fee, as execution reports carry each fill's fee alone, and so is a spot order cancelled over REST by its order ID while
+the private connection is unavailable, which may not report the cancellation. These reads are made and retried only
+while the websocket is connected, or still connecting.
 
 + The futures balances feed names single-collateral margin accounts differently from REST, so one is stored only
 under the REST account it matches, such as `fi_xbtusd` for `F-XBT:USD`, once `UpdateAccountBalances` has stored that

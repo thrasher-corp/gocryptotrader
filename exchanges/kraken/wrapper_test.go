@@ -4138,6 +4138,21 @@ func TestClientOrderIDWithoutOrderID(t *testing.T) {
 	}
 }
 
+// newRESTCancelTestExchange returns an exchange whose REST requests handler serves, with its websocket connected over the
+// public connection alone and allowed authenticated use, as it is while its private connection is down, so spot orders
+// are cancelled over REST and read once cancelled
+func newRESTCancelTestExchange(t *testing.T, handler http.HandlerFunc) *Exchange {
+	t.Helper()
+	ex := newHTTPTestExchange(t, handler)
+	seedTestAssetNames(ex)
+	useTestWebsocket(t, ex, newMockWebsocketURL(t, func(testing.TB, []byte, *gws.Conn) error { return nil }), wsPublicConnection)
+	ex.Websocket.SetSubscriptionsNotRequired()
+	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
+	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	ex.spotOrders.interval = time.Millisecond
+	return ex
+}
+
 func TestCancelOrder(t *testing.T) {
 	t.Parallel()
 	require.ErrorIs(t, e.CancelOrder(t.Context(), nil), order.ErrCancelOrderIsNil, "CancelOrder must reject a nil cancellation")
@@ -4208,6 +4223,63 @@ func TestCancelOrder(t *testing.T) {
 		ex := newOrdersFailingExchange(t)
 		err := ex.CancelOrder(t.Context(), &order.Cancel{Exchange: ex.Name, AssetType: asset.Futures, Pair: futuresTestPair, OrderID: "e7f8a9b0-c1d2-4e3f-8a4b-5c6d7e8f9a0b"})
 		assert.ErrorIs(t, err, errAPIResponse, "CancelOrder should return Cancel order's error")
+	})
+
+	t.Run("spot order cancelled over REST read for its totals", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name        string
+			cancel      order.Cancel
+			cancelReply string
+			read        bool
+		}{
+			{name: "by order ID", cancel: order.Cancel{OrderID: finishedSpotOrderID}, read: true},
+			{name: "by order ID with a client order ID", cancel: order.Cancel{OrderID: finishedSpotOrderID, ClientOrderID: "6d1b345e-2821-40e2-ad83-4ecb18a06876"}, read: true},
+			{name: "by client order ID", cancel: order.Cancel{ClientOrderID: "6d1b345e-2821-40e2-ad83-4ecb18a06876"}},
+			{name: "Kraken not cancelling it", cancel: order.Cancel{OrderID: finishedSpotOrderID}, cancelReply: `{"error":["EOrder:Unknown order"]}`},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				var reads atomic.Int32
+				ex := newRESTCancelTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+					_ = tradingRequestBody(t, r)
+					switch r.URL.Path {
+					case "/0/private/CancelOrder":
+						_, _ = w.Write([]byte(cmp.Or(tc.cancelReply, `{"error":[],"result":{"count":1}}`)))
+					case "/0/private/QueryOrders":
+						reads.Add(1)
+						_, _ = w.Write([]byte(queryOrdersReply(t, "canceled", 4, 0.2766)))
+					default:
+						assert.Failf(t, "only Cancel Order and Query Orders Info should be called", "%s", r.URL.Path)
+					}
+				})
+				tc.cancel.Exchange, tc.cancel.AssetType, tc.cancel.Pair = ex.Name, asset.Spot, spotTestPair
+				err := ex.CancelOrder(t.Context(), &tc.cancel)
+				if tc.cancelReply != "" {
+					require.ErrorIs(t, err, order.ErrOrderNotFound, "CancelOrder must return the cancellation's error")
+				} else {
+					require.NoError(t, err, "CancelOrder must not error")
+				}
+				if !tc.read {
+					ex.spotOrders.mu.Lock()
+					defer ex.spotOrders.mu.Unlock()
+					assert.False(t, ex.spotOrders.running, "CancelOrder should start no read of the order")
+					assert.Empty(t, ex.spotOrders.pending, "CancelOrder should ask for no read of the order")
+					return
+				}
+				var fee float64
+				assert.Eventually(t, func() bool {
+					for _, payload := range relayed(ex) {
+						if d, ok := payload.(*order.Detail); ok && d.OrderID == finishedSpotOrderID {
+							fee = d.Fee
+						}
+					}
+					return fee != 0
+				}, testWaitTimeout, time.Millisecond, "the read should relay the cancelled order")
+				assert.Equal(t, 0.2766, fee, "the read should relay the order's fee")
+				assert.EqualValues(t, 1, reads.Load(), "the order should be read once")
+			})
+		}
 	})
 
 	if !mockTests {
@@ -4459,6 +4531,9 @@ func TestCancelSpotOrders(t *testing.T) {
 		}
 		exp[ids[50]] = "API error response: EOrder:Unknown order"
 		assert.Equal(t, exp, status, "cancelSpotOrders should record each order's outcome")
+		ex.spotOrders.mu.Lock()
+		defer ex.spotOrders.mu.Unlock()
+		assert.False(t, ex.spotOrders.running, "cancelSpotOrders should read no order the private websocket cancelled, as its report follows")
 	})
 
 	t.Run("request failing over the private websocket", func(t *testing.T) {
@@ -4538,6 +4613,161 @@ func TestCancelSpotOrders(t *testing.T) {
 		err := ex.cancelSpotOrders(t.Context(), ids[:2], status)
 		require.ErrorIs(t, err, errAPIResponse, "cancelSpotOrders must return Cancel Order Batch's error")
 		assert.Empty(t, status, "cancelSpotOrders should record no outcome when the batch request fails")
+	})
+
+	t.Run("orders cancelled over REST read for their totals", func(t *testing.T) {
+		t.Parallel()
+		t.Run("a batch cancelled before a later one failed", func(t *testing.T) {
+			t.Parallel()
+			orderIDs := append(slices.Clone(ids), "OCZZXY-PZQ2L-VF3GJA")
+			cancelled := make(map[string]any, 50)
+			for _, id := range ids[:50] {
+				cancelled[id] = map[string]any{"status": "canceled", "vol": "10", "vol_exec": "0", "cost": "0", "fee": "0", "price": "0", "descr": map[string]any{"pair": "XBTUSD", "type": "buy", "ordertype": "limit", "price": "26599.9"}}
+			}
+			reply, err := json.Marshal(map[string]any{"error": []string{}, "result": cancelled})
+			require.NoError(t, err, "Marshal must not error")
+			server := &finishedSpotOrdersServer{replies: []string{string(reply)}}
+			read := server.handle(t)
+			var batches atomic.Int32
+			ex := newRESTCancelTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == "/0/private/QueryOrders" {
+					read(w, r)
+					return
+				}
+				assert.Equal(t, "/0/private/CancelOrderBatch", r.URL.Path, "cancelSpotOrders should call Cancel Order Batch")
+				_ = tradingRequestBody(t, r)
+				if batches.Add(1) == 1 {
+					_, _ = w.Write([]byte(`{"error":[],"result":{"count":50}}`))
+					return
+				}
+				_, _ = w.Write([]byte(`{"error":["EGeneral:Invalid arguments"]}`))
+			})
+			status := make(map[string]string)
+			require.ErrorIs(t, ex.cancelSpotOrders(t.Context(), orderIDs, status), errAPIResponse, "cancelSpotOrders must return the failing batch's error")
+			require.Eventually(t, func() bool { return len(server.readOrders()) != 0 }, testWaitTimeout, time.Millisecond, "the orders cancelled must be read")
+			assert.Equal(t, [][]string{slices.Sorted(slices.Values(ids[:50]))}, server.readOrders(), "the read should ask for the orders the first batch cancelled alone")
+		})
+
+		t.Run("orders a batch left open, each cancelled on its own", func(t *testing.T) {
+			t.Parallel()
+			var (
+				mu      sync.Mutex
+				queried [][]string
+			)
+			ex := newRESTCancelTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+				body := tradingRequestBody(t, r)
+				switch r.URL.Path {
+				case "/0/private/CancelOrderBatch":
+					_, _ = w.Write([]byte(`{"error":[],"result":{"count":0}}`))
+				case "/0/private/CancelOrder":
+					if strings.Contains(body, ids[1]) {
+						_, _ = w.Write([]byte(`{"error":["EOrder:Unknown order"]}`))
+						return
+					}
+					_, _ = w.Write([]byte(`{"error":[],"result":{"count":1}}`))
+				case "/0/private/QueryOrders":
+					var query struct {
+						OrderIDs string `json:"txid"`
+					}
+					assert.NoError(t, json.Unmarshal([]byte(body), &query), "Unmarshal should not error")
+					mu.Lock()
+					queried = append(queried, strings.Split(query.OrderIDs, ","))
+					lookup := len(queried) <= 2
+					mu.Unlock()
+					// The batch's orders are looked up before they are cancelled on their own; the read that follows
+					// finds the one cancelled
+					if lookup {
+						_, _ = w.Write([]byte(`{"error":[],"result":{}}`))
+						return
+					}
+					_, _ = w.Write([]byte(strings.ReplaceAll(queryOrdersReply(t, "canceled", 0, 0), finishedSpotOrderID, ids[0])))
+				default:
+					assert.Failf(t, "only Cancel Order Batch, Cancel Order and Query Orders Info should be called", "%s", r.URL.Path)
+				}
+			})
+			queriedOrders := func() [][]string {
+				mu.Lock()
+				defer mu.Unlock()
+				return slices.Clone(queried)
+			}
+			status := make(map[string]string)
+			require.NoError(t, ex.cancelSpotOrders(t.Context(), ids[:2], status), "cancelSpotOrders must not error")
+			require.Eventually(t, func() bool { return len(queriedOrders()) == 3 }, testWaitTimeout, time.Millisecond, "the order cancelled must be read")
+			assert.Equal(t, [][]string{{ids[0]}, {ids[1]}, {ids[0]}}, queriedOrders(), "each order should be looked up, then the one cancelled read alone")
+		})
+	})
+
+	t.Run("an order named more than once cancelled once", func(t *testing.T) {
+		t.Parallel()
+		t.Run("over REST", func(t *testing.T) {
+			t.Parallel()
+			cancelled := make(map[string]any, 50)
+			for _, id := range ids[:50] {
+				cancelled[id] = map[string]any{"status": "canceled", "vol": "10", "vol_exec": "0", "cost": "0", "fee": "0", "price": "0", "descr": map[string]any{"pair": "XBTUSD", "type": "buy", "ordertype": "limit", "price": "26599.9"}}
+			}
+			reply, err := json.Marshal(map[string]any{"error": []string{}, "result": cancelled})
+			require.NoError(t, err, "Marshal must not error")
+			server := &finishedSpotOrdersServer{replies: []string{string(reply)}}
+			read := server.handle(t)
+			var (
+				mu    sync.Mutex
+				paths []string
+			)
+			ex := newRESTCancelTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+				mu.Lock()
+				paths = append(paths, r.URL.Path)
+				mu.Unlock()
+				switch r.URL.Path {
+				case "/0/private/QueryOrders":
+					read(w, r)
+				case "/0/private/CancelOrderBatch":
+					assert.JSONEq(t, `{"orders":`+string(firstChunk)+`}`, tradingRequestBody(t, r), "Cancel Order Batch should cancel each order once, in the order first named")
+					_, _ = w.Write([]byte(`{"error":[],"result":{"count":50}}`))
+				default:
+					_ = tradingRequestBody(t, r)
+					_, _ = w.Write([]byte(`{"error":["EOrder:Unknown order"]}`))
+				}
+			})
+			status := make(map[string]string)
+			require.NoError(t, ex.cancelSpotOrders(t.Context(), append(slices.Clone(ids[:50]), ids[0]), status), "cancelSpotOrders must not error")
+			exp := make(map[string]string, 50)
+			for _, id := range ids[:50] {
+				exp[id] = order.Cancelled.String()
+			}
+			assert.Equal(t, exp, status, "cancelSpotOrders should record the repeated order as cancelled")
+			require.Eventually(t, func() bool { return len(server.readOrders()) != 0 }, testWaitTimeout, time.Millisecond, "the orders cancelled must be read")
+			assert.Equal(t, [][]string{slices.Sorted(slices.Values(ids[:50]))}, server.readOrders(), "the read should ask for each cancelled order, the repeated one included")
+			mu.Lock()
+			defer mu.Unlock()
+			assert.Equal(t, []string{"/0/private/CancelOrderBatch", "/0/private/QueryOrders"}, paths, "cancelSpotOrders should not cancel the repeated order again")
+		})
+
+		t.Run("over the private websocket within a request", func(t *testing.T) {
+			t.Parallel()
+			ex := newOrdersWsTestExchange(t, ordersWsRoundTrip{
+				request: ordersWsRequest("cancel_order", `"order_id":["`+ids[0]+`","`+ids[1]+`"]`),
+				replies: []string{ordersWsReply("cancel_order", `{"order_id":"`+ids[0]+`"}`), ordersWsReply("cancel_order", `{"order_id":"`+ids[1]+`"}`)},
+			})
+			status := make(map[string]string)
+			require.NoError(t, ex.cancelSpotOrders(t.Context(), []string{ids[0], ids[1], ids[0]}, status), "cancelSpotOrders must not error")
+			assert.Equal(t, map[string]string{ids[0]: order.Cancelled.String(), ids[1]: order.Cancelled.String()}, status, "cancelSpotOrders should cancel each order once")
+		})
+
+		t.Run("over the private websocket across requests", func(t *testing.T) {
+			t.Parallel()
+			replies := make([]string, 50)
+			for i, id := range ids[:50] {
+				replies[i] = ordersWsReply("cancel_order", `{"order_id":"`+id+`"}`)
+			}
+			ex := newOrdersWsTestExchange(t, ordersWsRoundTrip{request: ordersWsRequest("cancel_order", `"order_id":`+string(firstChunk)), replies: replies})
+			status := make(map[string]string)
+			require.NoError(t, ex.cancelSpotOrders(t.Context(), append(slices.Clone(ids[:50]), ids[0]), status), "cancelSpotOrders must not error")
+			exp := make(map[string]string, 50)
+			for _, id := range ids[:50] {
+				exp[id] = order.Cancelled.String()
+			}
+			assert.Equal(t, exp, status, "cancelSpotOrders should cancel the repeated order once, in the first request")
+		})
 	})
 
 	if !mockTests {
@@ -8535,6 +8765,53 @@ func TestCancelSpotOrder(t *testing.T) {
 	})
 	assert.Equal(t, order.Cancelled.String(), ex.cancelSpotOrder(t.Context(), "OQCLML-BW3P3-BUCMWZ"), "cancelSpotOrder should report a cancelled order")
 	assert.Contains(t, ex.cancelSpotOrder(t.Context(), "OUNKNO-WN000-000000"), "EOrder:Unknown order", "cancelSpotOrder should report the error Kraken replies with")
+}
+
+func TestReadCancelledSpotOrders(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name          string
+		connected     bool
+		authenticated bool
+		read          bool
+	}{
+		{name: "connected authenticated websocket", connected: true, authenticated: true, read: true},
+		{name: "connected websocket without authenticated use", connected: true},
+		{name: "authenticated websocket not connected", authenticated: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			server := &finishedSpotOrdersServer{replies: []string{queryOrdersReply(t, "canceled", 4, 0.2766)}}
+			var ex *Exchange
+			if tc.connected {
+				ex = newRESTCancelTestExchange(t, server.handle(t))
+			} else {
+				ex = newHTTPTestExchange(t, server.handle(t))
+				seedTestAssetNames(ex)
+				ex.spotOrders.interval = time.Millisecond
+			}
+			ex.Websocket.SetCanUseAuthenticatedEndpoints(tc.authenticated)
+			ex.readCancelledSpotOrders(t.Context(), finishedSpotOrderID)
+			if !tc.read {
+				ex.spotOrders.mu.Lock()
+				defer ex.spotOrders.mu.Unlock()
+				assert.False(t, ex.spotOrders.running, "readCancelledSpotOrders should start no read")
+				assert.Empty(t, ex.spotOrders.pending, "readCancelledSpotOrders should ask for no read")
+				return
+			}
+			var fee float64
+			assert.Eventually(t, func() bool {
+				for _, payload := range relayed(ex) {
+					if d, ok := payload.(*order.Detail); ok && d.OrderID == finishedSpotOrderID {
+						fee = d.Fee
+					}
+				}
+				return fee != 0
+			}, testWaitTimeout, time.Millisecond, "the read should relay the cancelled order")
+			assert.Equal(t, 0.2766, fee, "the read should relay the order's fee")
+			assert.Equal(t, [][]string{{finishedSpotOrderID}}, server.readOrders(), "the cancelled order should be read once")
+		})
+	}
 }
 
 func TestFuturesCandles(t *testing.T) {

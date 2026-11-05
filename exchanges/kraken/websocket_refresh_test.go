@@ -603,6 +603,43 @@ func TestFinishSpotOrder(t *testing.T) {
 	assert.Equal(t, 10.0, stored.ExecutedAmount, "the order should be stored filled in full")
 	require.NotNil(t, read, "the read must relay the order")
 	assert.Equal(t, currency.USD, read.FeeAsset, "the read should relay the quote currency as the order's fee currency")
+
+	t.Run("finished after a fill by a report leaving out what filled", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name, event, status string
+		}{
+			{"cancellation", "canceled", "canceled"},
+			{"expiry", "expired", "expired"},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				server := &finishedSpotOrdersServer{replies: []string{queryOrdersReply(t, tc.status, 4, 0.2766)}}
+				ex := newHTTPTestExchange(t, server.handle(t))
+				seedTestAssetNames(ex)
+				ex.spotOrders.interval = time.Millisecond
+				useConnectedRefreshers(ex)
+				stored := &order.Detail{Exchange: ex.Name, AssetType: asset.Spot, OrderID: orderID, Pair: spotTestPair, Side: order.Buy, Type: order.Limit, Status: order.New, Amount: 10, Price: 26599.9}
+				merge := func() {
+					for _, payload := range relayed(ex) {
+						if d, ok := payload.(*order.Detail); ok {
+							require.NoError(t, stored.UpdateOrderFromDetail(d), "UpdateOrderFromDetail must not error")
+						}
+					}
+				}
+				msg := &wsChannelMessage{Data: json.RawMessage(`[{"order_id":"` + orderID + `","exec_id":"TGBB7L-HT5LX-J3BZ4A","exec_type":"trade","trade_id":62887576,"symbol":"BTC/USD","side":"buy","last_qty":4,"last_price":26599.9,"liquidity_ind":"t","cost":106399.6,"order_type":"limit","timestamp":"2023-09-22T10:33:05.709993Z","order_status":"partially_filled","cum_qty":4,"cum_cost":106399.6,"avg_price":26599.9,"fees":[{"asset":"USD","qty":0.2766}]},` +
+					`{"order_id":"` + orderID + `","exec_type":"` + tc.event + `","order_status":"` + tc.status + `","timestamp":"2023-09-22T10:33:06Z"}]`)}
+				require.NoError(t, ex.wsProcessExecutions(t.Context(), msg), "wsProcessExecutions must not error")
+				assert.Eventually(t, func() bool {
+					merge()
+					return stored.Fee != 0
+				}, testWaitTimeout, time.Millisecond, "the read should relay the order's fee")
+				assert.Equal(t, [][]string{{orderID}}, server.readOrders(), "the order should be read once")
+				assert.Equal(t, 0.2766, stored.Fee, "the order should be stored with the fee Kraken reports for the whole order")
+				assert.Equal(t, 4.0, stored.ExecutedAmount, "the order should be stored with what of it filled")
+			})
+		}
+	})
 }
 
 func TestFinishSpotOrderReadRetried(t *testing.T) {
@@ -752,7 +789,7 @@ func TestFinishSpotOrderWithoutFills(t *testing.T) {
 	useConnectedRefreshers(ex)
 	for _, x := range []string{
 		`{"order_id":"OK4GJX-KSTLS-7DZZO5","exec_type":"canceled","order_status":"canceled","cum_qty":0,"timestamp":"2023-09-22T10:33:06Z"}`,
-		`{"order_id":"OZJW0T-MIQ3C-5NATAU","exec_type":"expired","order_status":"expired","timestamp":"2023-09-22T10:33:06Z"}`,
+		`{"order_id":"OZJW0T-MIQ3C-5NATAU","exec_type":"expired","order_status":"expired","cum_qty":0,"timestamp":"2023-09-22T10:33:06Z"}`,
 		`{"order_id":"OAIYAU-LGI3M-PFM5VW","exec_type":"trade","order_status":"partially_filled","cum_qty":4,"last_qty":4,"timestamp":"2023-09-22T10:33:06Z"}`,
 	} {
 		require.NoError(t, ex.wsProcessExecutions(t.Context(), &wsChannelMessage{Data: json.RawMessage(`[` + x + `]`)}), "wsProcessExecutions must not error")
@@ -767,18 +804,25 @@ func TestFinishSpotOrderWithoutFills(t *testing.T) {
 func TestSpotExecutionFinishedAfterFills(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
+		name      string
 		execution WebsocketExecution
 		exp       bool
 	}{
-		{WebsocketExecution{ExecutionType: "filled"}, true},
-		{WebsocketExecution{ExecutionType: "trade", OrderStatus: "filled"}, true},
-		{WebsocketExecution{ExecutionType: "trade", OrderStatus: "partially_filled", CumulativeQuantity: 4}, false},
-		{WebsocketExecution{ExecutionType: "canceled", OrderStatus: "canceled", CumulativeQuantity: 4}, true},
-		{WebsocketExecution{ExecutionType: "canceled", OrderStatus: "canceled"}, false},
-		{WebsocketExecution{ExecutionType: "expired", CumulativeQuantity: 0.0001}, true},
-		{WebsocketExecution{OrderStatus: "expired"}, false},
-		{WebsocketExecution{ExecutionType: "new", OrderStatus: "new"}, false},
+		{"filled event", WebsocketExecution{ExecutionType: "filled"}, true},
+		{"trade filling the order", WebsocketExecution{ExecutionType: "trade", OrderStatus: "filled"}, true},
+		{"trade partly filling the order", WebsocketExecution{ExecutionType: "trade", OrderStatus: "partially_filled", CumulativeQuantity: 4}, false},
+		{"cancellation after fills", WebsocketExecution{ExecutionType: "canceled", OrderStatus: "canceled", CumulativeQuantity: 4}, true},
+		{"cancellation reporting its fills", WebsocketExecution{ExecutionType: "canceled", OrderStatus: "canceled", CumulativeQuantity: 4, CumulativeQuantityReported: true}, true},
+		{"cancellation reporting nothing filled", WebsocketExecution{ExecutionType: "canceled", OrderStatus: "canceled", CumulativeQuantityReported: true}, false},
+		{"cancellation leaving out what filled", WebsocketExecution{ExecutionType: "canceled", OrderStatus: "canceled"}, true},
+		{"expiry after fills", WebsocketExecution{ExecutionType: "expired", CumulativeQuantity: 0.0001}, true},
+		{"expiry reporting nothing filled", WebsocketExecution{OrderStatus: "expired", CumulativeQuantityReported: true}, false},
+		{"expiry leaving out what filled", WebsocketExecution{OrderStatus: "expired"}, true},
+		{"new order", WebsocketExecution{ExecutionType: "new", OrderStatus: "new"}, false},
 	} {
-		assert.Equalf(t, tc.exp, spotExecutionFinishedAfterFills(&tc.execution), "spotExecutionFinishedAfterFills should report %t for %+v", tc.exp, tc.execution)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.exp, spotExecutionFinishedAfterFills(&tc.execution), "spotExecutionFinishedAfterFills should report whether the order finished after fills, or may have")
+		})
 	}
 }

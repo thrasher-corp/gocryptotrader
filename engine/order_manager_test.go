@@ -928,6 +928,18 @@ func TestProcessSubmittedOrder(t *testing.T) {
 	assert.Equal(t, 3.0, resp.Amount, "processSubmittedOrder should return the merged amount when the position tracker refuses the order")
 }
 
+// modifyRecordingExchange records the modification the order manager sends it
+type modifyRecordingExchange struct {
+	omfExchange
+	received *order.Modify
+}
+
+func (e *modifyRecordingExchange) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
+	received := *action
+	e.received = &received
+	return e.omfExchange.ModifyOrder(ctx, action)
+}
+
 func TestOrderManager_Modify(t *testing.T) {
 	pair := currency.Pair{
 		Base:  currency.NewCode("XXXXX"),
@@ -1015,6 +1027,58 @@ func TestOrderManager_Modify(t *testing.T) {
 	five.Price = 0
 	five.Amount = 0
 	f(five, false, 8, 128)
+
+	t.Run("price sent with an edit of the amount", func(t *testing.T) {
+		for _, tc := range []struct {
+			name      string
+			orderType order.Type
+			side      order.Side
+			editType  order.Type
+			trigger   float64
+			price     float64
+			expPrice  float64
+		}{
+			{name: "trailing stop limit sell", orderType: order.TrailingStopLimit, side: order.Sell},
+			{name: "trailing stop limit buy", orderType: order.TrailingStopLimit, side: order.Buy},
+			{name: "trailing stop limit sell edit naming its type", orderType: order.TrailingStopLimit, side: order.Sell, editType: order.TrailingStopLimit},
+			{name: "trailing stop limit buy edit naming its type", orderType: order.TrailingStopLimit, side: order.Buy, editType: order.TrailingStopLimit},
+			{name: "trailing stop limit sell edit of its trigger too", orderType: order.TrailingStopLimit, side: order.Sell, trigger: 80500},
+			{name: "trailing stop limit sell with an offset", orderType: order.TrailingStopLimit, side: order.Sell, price: -150, expPrice: -150},
+			{name: "trailing stop limit buy with an offset", orderType: order.TrailingStopLimit, side: order.Buy, price: 150, expPrice: 150},
+			{name: "trailing stop sell", orderType: order.TrailingStop, side: order.Sell, expPrice: 79900},
+			{name: "stop limit sell", orderType: order.StopLimit, side: order.Sell, expPrice: 79900},
+			{name: "take profit limit sell", orderType: order.TakeProfit | order.Limit, side: order.Sell, expPrice: 79900},
+			{name: "limit buy", orderType: order.Limit, side: order.Buy, expPrice: 79900},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				em := NewExchangeManager()
+				exch, err := em.NewExchangeByName(testExchange)
+				require.NoError(t, err, "NewExchangeByName must not error")
+				exch.SetDefaults()
+				recorder := &modifyRecordingExchange{IBotExchange: exch}
+				require.NoError(t, em.Add(recorder), "Add must not error")
+				m, err := SetupOrderManager(em, &CommunicationManager{}, &sync.WaitGroup{}, &config.OrderManager{})
+				require.NoError(t, err, "SetupOrderManager must not error")
+				m.started.Store(true)
+				require.NoError(t, m.orderStore.add(&order.Detail{
+					Exchange:     testExchange,
+					AssetType:    asset.Spot,
+					Pair:         currency.NewBTCUSD(),
+					OrderID:      "trailing_order_id",
+					Type:         tc.orderType,
+					Side:         tc.side,
+					Price:        79900,
+					TriggerPrice: 80000,
+					Amount:       3,
+				}), "orderStore.add must not error")
+				_, err = m.Modify(t.Context(), &order.Modify{Exchange: testExchange, AssetType: asset.Spot, Pair: currency.NewBTCUSD(), OrderID: "trailing_order_id", Type: tc.editType, Amount: 2, Price: tc.price, TriggerPrice: tc.trigger})
+				require.NoError(t, err, "Modify must not error")
+				require.NotNil(t, recorder.received, "Modify must send the edit to the exchange")
+				assert.Equal(t, 2.0, recorder.received.Amount, "Modify should send the edit's amount")
+				assert.Equal(t, tc.expPrice, recorder.received.Price, "Modify should send the edit's price, or the stored price when it has none, except for an order whose limit trails")
+			})
+		}
+	})
 }
 
 func TestProcessOrders(t *testing.T) {
