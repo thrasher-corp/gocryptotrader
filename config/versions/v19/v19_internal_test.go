@@ -1,4 +1,4 @@
-package v18
+package v19
 
 import (
 	"encoding/json" //nolint:depguard // Matches the encoding/json the migration uses
