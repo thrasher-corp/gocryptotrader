@@ -168,7 +168,10 @@ func TestValidateComboTrades(t *testing.T) {
 		{name: "an invalid second trade", trades: []ComboTrade{{InstrumentName: marketDataPerpetual, Amount: 10, Direction: DirectionBuy}, {InstrumentName: marketDataPerpetual, Amount: 10, Direction: "long"}}, err: errInvalidDirection},
 		{name: "valid trades", trades: []ComboTrade{{InstrumentName: mockMarketDataOption, Amount: 1, Direction: DirectionBuy}, {InstrumentName: marketDataPerpetual, Amount: 10, Direction: DirectionSell}}},
 	} {
-		assert.ErrorIsf(t, validateComboTrades(tc.trades), tc.err, "validateComboTrades should check %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, validateComboTrades(tc.trades), tc.err, "validateComboTrades should check %s", tc.name)
+		})
 	}
 }
 

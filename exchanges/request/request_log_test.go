@@ -45,10 +45,16 @@ func TestHeaderValuesForLog(t *testing.T) {
 
 	values := []string{"sensitive-value"}
 	for _, header := range sensitiveLogKeys {
-		assert.Equalf(t, []string{"[REDACTED]"}, headerValuesForLog(header, values), "%s should be redacted", header)
+		t.Run(header, func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, []string{"[REDACTED]"}, headerValuesForLog(header, values), "%s should be redacted", header)
+		})
 	}
 	for _, header := range []string{"Content-Type", "KC-API-KEY-VERSION", "SignatureMethod", "signTimestamp", "X-Auth-Nonce", "gAuth"} {
-		assert.Equalf(t, values, headerValuesForLog(header, values), "%s should remain available for diagnostics", header)
+		t.Run(header, func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, values, headerValuesForLog(header, values), "%s should remain available for diagnostics", header)
+		})
 	}
 }
 
@@ -256,7 +262,10 @@ func TestMessageForLog(t *testing.T) {
 		{name: "empty", message: "", exp: ""},
 		{name: "broken JSON", message: `{"password":"secret"`, exp: "[REDACTED INVALID JSON BODY]"},
 	} {
-		assert.Equalf(t, tc.exp, string(MessageForLog([]byte(tc.message))), "MessageForLog should log the %s message as expected", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, tc.exp, string(MessageForLog([]byte(tc.message))), "MessageForLog should log the %s message as expected", tc.name)
+		})
 	}
 }
 

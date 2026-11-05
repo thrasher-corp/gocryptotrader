@@ -777,8 +777,11 @@ func TestValidateBlockRFQLegs(t *testing.T) {
 		{name: "capitalised direction", leg: BlockRFQLeg{InstrumentName: "BTC-8NOV24-72000-C", Direction: "Sell", Ratio: 1}, err: errInvalidDirection},
 		{name: "zero ratio", leg: BlockRFQLeg{InstrumentName: "BTC-8NOV24-72000-C", Direction: DirectionSell}, err: errInvalidBlockRFQLegRatio},
 	} {
-		legs := []BlockRFQLeg{mockAcceptBlockRFQRequest().Legs[0], tc.leg}
-		assert.ErrorIsf(t, validateBlockRFQLegs(legs), tc.err, "validateBlockRFQLegs should return the expected error for a second leg with %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			legs := []BlockRFQLeg{mockAcceptBlockRFQRequest().Legs[0], tc.leg}
+			assert.ErrorIsf(t, validateBlockRFQLegs(legs), tc.err, "validateBlockRFQLegs should return the expected error for a second leg with %s", tc.name)
+		})
 	}
 }
 
@@ -796,8 +799,11 @@ func TestValidateCreateBlockRFQLegs(t *testing.T) {
 		{name: "zero amount", leg: CreateBlockRFQLeg{InstrumentName: "BTC-PERPETUAL", Direction: DirectionBuy}, err: errInvalidAmount},
 		{name: "negative amount", leg: CreateBlockRFQLeg{InstrumentName: "BTC-PERPETUAL", Amount: -10000, Direction: DirectionBuy}, err: errInvalidAmount},
 	} {
-		legs := []CreateBlockRFQLeg{mockCreateBlockRFQRequest().Legs[0], tc.leg}
-		assert.ErrorIsf(t, validateCreateBlockRFQLegs(legs), tc.err, "validateCreateBlockRFQLegs should return the expected error for a second leg with %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			legs := []CreateBlockRFQLeg{mockCreateBlockRFQRequest().Legs[0], tc.leg}
+			assert.ErrorIsf(t, validateCreateBlockRFQLegs(legs), tc.err, "validateCreateBlockRFQLegs should return the expected error for a second leg with %s", tc.name)
+		})
 	}
 }
 
@@ -814,7 +820,10 @@ func TestValidateBlockRFQHedge(t *testing.T) {
 		{name: "empty direction", hedge: &BlockRFQHedge{InstrumentName: "BTC-PERPETUAL", Price: 70000, Amount: 10}, err: errInvalidDirection},
 		{name: "zero amount", hedge: &BlockRFQHedge{InstrumentName: "BTC-PERPETUAL", Direction: DirectionBuy, Price: 70000}, err: errInvalidAmount},
 	} {
-		assert.ErrorIsf(t, validateBlockRFQHedge(tc.hedge), tc.err, "validateBlockRFQHedge should return the expected error for a hedge with %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, validateBlockRFQHedge(tc.hedge), tc.err, "validateBlockRFQHedge should return the expected error for a hedge with %s", tc.name)
+		})
 	}
 }
 
@@ -835,15 +844,21 @@ func TestValidateBlockRFQTradeAllocations(t *testing.T) {
 		{name: "zero amount", allocation: BlockRFQTradeAllocation{UserID: 57874}, err: errInvalidAmount},
 		{name: "negative amount", allocation: BlockRFQTradeAllocation{ClientInfo: &BlockRFQAllocationClient{ClientID: 1, ClientLinkID: 2}, Amount: -1}, err: errInvalidAmount},
 	} {
-		allocations := []BlockRFQTradeAllocation{valid[0], tc.allocation}
-		assert.ErrorIsf(t, validateBlockRFQTradeAllocations(allocations), tc.err, "validateBlockRFQTradeAllocations should return the expected error for a second allocation with %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			allocations := []BlockRFQTradeAllocation{valid[0], tc.allocation}
+			assert.ErrorIsf(t, validateBlockRFQTradeAllocations(allocations), tc.err, "validateBlockRFQTradeAllocations should return the expected error for a second allocation with %s", tc.name)
+		})
 	}
 }
 
 func TestValidateBlockRFQLabel(t *testing.T) {
 	t.Parallel()
 	for _, label := range []string{"", mockBlockRFQQuoteLabel, strings.Repeat("a", maximumBlockRFQLabelLength), strings.Repeat("é", maximumBlockRFQLabelLength)} {
-		assert.NoErrorf(t, validateBlockRFQLabel(label), "validateBlockRFQLabel should accept label %q of up to 64 characters", label)
+		t.Run(subtestName(label), func(t *testing.T) {
+			t.Parallel()
+			assert.NoErrorf(t, validateBlockRFQLabel(label), "validateBlockRFQLabel should accept label %q of up to 64 characters", label)
+		})
 	}
 	assert.ErrorIs(t, validateBlockRFQLabel(strings.Repeat("a", maximumBlockRFQLabelLength+1)), errBlockRFQLabelTooLong, "validateBlockRFQLabel should reject a label over 64 characters")
 }
@@ -863,7 +878,10 @@ func TestValidateBlockRFQQuoteIdentifier(t *testing.T) {
 		{name: "Block RFQ without label", blockRFQID: 3, err: errBlockRFQQuoteIdentifierRequired},
 		{name: "label without Block RFQ", label: mockBlockRFQQuoteLabel, err: errBlockRFQQuoteIdentifierRequired},
 	} {
-		assert.ErrorIsf(t, validateBlockRFQQuoteIdentifier(tc.blockRFQQuoteID, tc.blockRFQID, tc.label), tc.err, "validateBlockRFQQuoteIdentifier should return the expected error for %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, validateBlockRFQQuoteIdentifier(tc.blockRFQQuoteID, tc.blockRFQID, tc.label), tc.err, "validateBlockRFQQuoteIdentifier should return the expected error for %s", tc.name)
+		})
 	}
 }
 
@@ -878,12 +896,18 @@ func TestCancelAllBlockRFQQuotesResponseUnmarshalJSON(t *testing.T) {
 		{input: `[]`, exp: CancelAllBlockRFQQuotesResponse{DetailedReports: []json.RawMessage{}}},
 		{input: `null`},
 	} {
-		var result CancelAllBlockRFQQuotesResponse
-		require.NoErrorf(t, json.Unmarshal([]byte(tc.input), &result), "Unmarshal must not error for %s", tc.input)
-		assert.Equalf(t, tc.exp, result, "UnmarshalJSON should decode %s", tc.input)
+		t.Run(subtestName(tc.input), func(t *testing.T) {
+			t.Parallel()
+			var result CancelAllBlockRFQQuotesResponse
+			require.NoErrorf(t, json.Unmarshal([]byte(tc.input), &result), "Unmarshal must not error for %s", tc.input)
+			assert.Equalf(t, tc.exp, result, "UnmarshalJSON should decode %s", tc.input)
+		})
 	}
 	for _, input := range []string{`"7"`, `-1`, `1.5`, `{}`, `[1`} {
-		var result CancelAllBlockRFQQuotesResponse
-		assert.ErrorIsf(t, result.UnmarshalJSON([]byte(input)), errInvalidBlockRFQQuoteCancellation, "UnmarshalJSON should reject %s", input)
+		t.Run(subtestName(input), func(t *testing.T) {
+			t.Parallel()
+			var result CancelAllBlockRFQQuotesResponse
+			assert.ErrorIsf(t, result.UnmarshalJSON([]byte(input)), errInvalidBlockRFQQuoteCancellation, "UnmarshalJSON should reject %s", input)
+		})
 	}
 }

@@ -577,17 +577,26 @@ func TestValidateBlockTradeKey(t *testing.T) {
 		{name: "empty nonce", timestamp: timestamp, role: BlockTradeRoleMaker, err: errBlockTradeNonceRequired},
 		{name: "empty role", timestamp: timestamp, nonce: "bt-468nha", err: errInvalidBlockTradeRole},
 	} {
-		assert.ErrorIsf(t, validateBlockTradeKey(tc.timestamp, tc.nonce, tc.role), tc.err, "validateBlockTradeKey should return the expected error for %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, validateBlockTradeKey(tc.timestamp, tc.nonce, tc.role), tc.err, "validateBlockTradeKey should return the expected error for %s", tc.name)
+		})
 	}
 }
 
 func TestValidateBlockTradeRole(t *testing.T) {
 	t.Parallel()
 	for _, role := range []string{BlockTradeRoleMaker, BlockTradeRoleTaker} {
-		assert.NoErrorf(t, validateBlockTradeRole(role), "validateBlockTradeRole should accept role %q", role)
+		t.Run(subtestName(role), func(t *testing.T) {
+			t.Parallel()
+			assert.NoErrorf(t, validateBlockTradeRole(role), "validateBlockTradeRole should accept role %q", role)
+		})
 	}
 	for _, role := range []string{"", "Maker", "any"} {
-		assert.ErrorIsf(t, validateBlockTradeRole(role), errInvalidBlockTradeRole, "validateBlockTradeRole should reject role %q", role)
+		t.Run(subtestName(role), func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, validateBlockTradeRole(role), errInvalidBlockTradeRole, "validateBlockTradeRole should reject role %q", role)
+		})
 	}
 }
 
@@ -606,7 +615,10 @@ func TestValidateBlockTradeLegs(t *testing.T) {
 		{name: "zero amount", leg: BlockTradeLeg{InstrumentName: "BTC-9AUG19-10250-P", Direction: DirectionBuy, Price: 0.0707}, err: errInvalidAmount},
 		{name: "negative amount", leg: BlockTradeLeg{InstrumentName: "BTC-9AUG19-10250-P", Direction: DirectionSell, Price: 0.0707, Amount: -1.2}, err: errInvalidAmount},
 	} {
-		legs := []BlockTradeLeg{mockBlockTradeLegs()[0], tc.leg}
-		assert.ErrorIsf(t, validateBlockTradeLegs(legs), tc.err, "validateBlockTradeLegs should return the expected error for a second leg with %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			legs := []BlockTradeLeg{mockBlockTradeLegs()[0], tc.leg}
+			assert.ErrorIsf(t, validateBlockTradeLegs(legs), tc.err, "validateBlockTradeLegs should return the expected error for a second leg with %s", tc.name)
+		})
 	}
 }

@@ -816,7 +816,7 @@ func TestCancelAllByInstrument(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "CancelAllByInstrument should return the request failure")
 }
 
-func TestCancelAllByKindOrType(t *testing.T) {
+func TestCancelAllByKindOrType(t *testing.T) { //nolint:tparallel // Its currency cases run serially on one exchange, so parameters a request leaves behind reach the next
 	t.Parallel()
 	_, err := e.CancelAllByKindOrType(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "CancelAllByKindOrType must reject a nil request")
@@ -831,18 +831,22 @@ func TestCancelAllByKindOrType(t *testing.T) {
 	_, err = e.CancelAllByKindOrType(t.Context(), &CancelAllByKindOrTypeRequest{Currencies: []currency.Code{currency.BTC}, Detailed: true, IncludeStarbaseOrders: true})
 	require.ErrorIs(t, err, errStarbaseOrdersWithDetailed, "CancelAllByKindOrType must reject Starbase orders with a detailed response")
 
+	// The cases run serially and in order on one exchange, so a request that keeps the parameters of the one before fails
 	ex, lastParams := newTradingParamsCaptureExchange(t, `{"jsonrpc":"2.0","result":0}`)
 	for _, tc := range []struct {
+		name       string
 		currencies []currency.Code
 		exp        string
 	}{
-		{currencies: []currency.Code{currency.NewCode("any")}, exp: `{"currency":"any"}`},
-		{currencies: []currency.Code{currency.BTC}, exp: `{"currency":"BTC"}`},
-		{currencies: []currency.Code{currency.BTC, currency.ETH}, exp: `{"currency":["BTC","ETH"]}`},
+		{name: "any currency", currencies: []currency.Code{currency.NewCode("any")}, exp: `{"currency":"any"}`},
+		{name: "one currency", currencies: []currency.Code{currency.BTC}, exp: `{"currency":"BTC"}`},
+		{name: "currency list", currencies: []currency.Code{currency.BTC, currency.ETH}, exp: `{"currency":["BTC","ETH"]}`},
 	} {
-		_, err = ex.CancelAllByKindOrType(t.Context(), &CancelAllByKindOrTypeRequest{Currencies: tc.currencies})
-		require.NoErrorf(t, err, "CancelAllByKindOrType must not error for currencies %s", tc.currencies)
-		assert.JSONEqf(t, tc.exp, lastParams(), "CancelAllByKindOrType should send currencies %s as a single currency or a list", tc.currencies)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := ex.CancelAllByKindOrType(t.Context(), &CancelAllByKindOrTypeRequest{Currencies: tc.currencies})
+			require.NoErrorf(t, err, "CancelAllByKindOrType must not error for currencies %s", tc.currencies)
+			assert.JSONEqf(t, tc.exp, lastParams(), "CancelAllByKindOrType should send currencies %s as a single currency or a list", tc.currencies)
+		})
 	}
 
 	if !mockTests {
@@ -885,13 +889,14 @@ func TestCancelByLabel(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "CancelByLabel should return the request failure")
 }
 
-func TestCancelQuotes(t *testing.T) {
+func TestCancelQuotes(t *testing.T) { //nolint:tparallel // Its cancel types run serially on one exchange, so parameters a request leaves behind reach the next
 	t.Parallel()
 	_, err := e.CancelQuotes(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "CancelQuotes must reject a nil request")
 	_, err = e.CancelQuotes(t.Context(), &CancelQuotesRequest{CancelType: "label"})
 	require.ErrorIs(t, err, errInvalidCancelQuotesType, "CancelQuotes must reject an undocumented cancel type")
 
+	// The cases run serially and in order on one exchange, so a request that keeps the delta bounds of the one before fails
 	ex, lastParams := newTradingParamsCaptureExchange(t, `{"jsonrpc":"2.0","result":0}`)
 	for _, tc := range []struct {
 		arg *CancelQuotesRequest
@@ -900,9 +905,11 @@ func TestCancelQuotes(t *testing.T) {
 		{arg: &CancelQuotesRequest{CancelType: "delta", MinDelta: -0.5}, exp: `{"cancel_type":"delta","min_delta":-0.5,"max_delta":0}`},
 		{arg: &CancelQuotesRequest{CancelType: "currency", Currency: currency.BTC, MinDelta: 0.4}, exp: `{"cancel_type":"currency","currency":"BTC"}`},
 	} {
-		_, err = ex.CancelQuotes(t.Context(), tc.arg)
-		require.NoErrorf(t, err, "CancelQuotes must not error for cancel type %s", tc.arg.CancelType)
-		assert.JSONEqf(t, tc.exp, lastParams(), "CancelQuotes should send the delta bounds, zero ones included, for cancel type %s alone", tc.arg.CancelType)
+		t.Run(tc.arg.CancelType, func(t *testing.T) {
+			_, err := ex.CancelQuotes(t.Context(), tc.arg)
+			require.NoErrorf(t, err, "CancelQuotes must not error for cancel type %s", tc.arg.CancelType)
+			assert.JSONEqf(t, tc.exp, lastParams(), "CancelQuotes should send the delta bounds, zero ones included, for cancel type %s alone", tc.arg.CancelType)
+		})
 	}
 
 	if !mockTests {
@@ -1706,7 +1713,7 @@ func TestSetMarketMakerProtectionConfig(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "SetMarketMakerProtectionConfig should return the request failure")
 }
 
-func TestCancelAllResponseUnmarshalJSON(t *testing.T) {
+func TestCancelAllResponseUnmarshalJSON(t *testing.T) { //nolint:tparallel // Its malformed payloads decode serially into the result decoded before them
 	t.Parallel()
 	var result CancelAllResponse
 	require.NoError(t, json.Unmarshal([]byte(`4`), &result), "Unmarshal must not error for a count")
@@ -1723,12 +1730,15 @@ func TestCancelAllResponseUnmarshalJSON(t *testing.T) {
 	}
 	assert.Equal(t, exp, result, "UnmarshalJSON should decode the execution reports and count their orders")
 
+	// The cases decode in order into the result the payloads above filled, so a decoder that keeps what it held fails
 	for _, data := range []string{`"4"`, `{}`, `[4]`, `-1`} {
-		assert.ErrorIsf(t, json.Unmarshal([]byte(data), &result), errInvalidCancelAllResult, "UnmarshalJSON should reject %s", data)
+		t.Run(subtestName(data), func(t *testing.T) {
+			assert.ErrorIsf(t, json.Unmarshal([]byte(data), &result), errInvalidCancelAllResult, "UnmarshalJSON should reject %s", data)
+		})
 	}
 }
 
-func TestOrderHistoryResponseUnmarshalJSON(t *testing.T) {
+func TestOrderHistoryResponseUnmarshalJSON(t *testing.T) { //nolint:tparallel // Its malformed payloads decode serially into the result decoded before them
 	t.Parallel()
 	var result OrderHistoryResponse
 	require.NoError(t, json.Unmarshal([]byte(`[{"order_id":"1"}]`), &result), "Unmarshal must not error for a list")
@@ -1742,12 +1752,15 @@ func TestOrderHistoryResponseUnmarshalJSON(t *testing.T) {
 
 	err := json.Unmarshal([]byte(`{"entries":[{"order_id":"3"}],"continuation":"next"}`), &result)
 	assert.ErrorIs(t, err, errOrderHistoryOrdersMissing, "UnmarshalJSON should reject a page without an orders field")
+	// The cases decode in order into the result the payloads above filled, so a decoder that keeps what it held fails
 	for _, data := range []string{`[1]`, `{"orders":{}}`, `"orders"`} {
-		assert.Errorf(t, json.Unmarshal([]byte(data), &result), "UnmarshalJSON should reject %s", data)
+		t.Run(subtestName(data), func(t *testing.T) {
+			assert.Errorf(t, json.Unmarshal([]byte(data), &result), "UnmarshalJSON should reject %s", data)
+		})
 	}
 }
 
-func TestMarketMakerProtectionConfigsUnmarshalJSON(t *testing.T) {
+func TestMarketMakerProtectionConfigsUnmarshalJSON(t *testing.T) { //nolint:tparallel // Its malformed payloads decode serially into the result decoded before them
 	t.Parallel()
 	var result marketMakerProtectionConfigs
 	require.NoError(t, json.Unmarshal([]byte(`{"index_name":"btc_usd","interval":60}`), &result), "Unmarshal must not error for a configuration")
@@ -1756,12 +1769,15 @@ func TestMarketMakerProtectionConfigsUnmarshalJSON(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(`[{"index_name":"btc_usd","id":1},{"index_name":"eth_usd","mmp_group":"bot"}]`), &result), "Unmarshal must not error for a list")
 	assert.Equal(t, marketMakerProtectionConfigs{{IndexName: "btc_usd", ID: 1}, {IndexName: "eth_usd", MarketMakerProtectionGroup: "bot"}}, result, "UnmarshalJSON should decode a list of configurations")
 
+	// The cases decode in order into the result the payloads above filled, so a decoder that keeps what it held fails
 	for _, data := range []string{`{"interval":"60"}`, `[1]`, `"btc_usd"`} {
-		assert.Errorf(t, json.Unmarshal([]byte(data), &result), "UnmarshalJSON should reject %s", data)
+		t.Run(subtestName(data), func(t *testing.T) {
+			assert.Errorf(t, json.Unmarshal([]byte(data), &result), "UnmarshalJSON should reject %s", data)
+		})
 	}
 }
 
-func TestPositionMoveTradesUnmarshalJSON(t *testing.T) {
+func TestPositionMoveTradesUnmarshalJSON(t *testing.T) { //nolint:tparallel // Its malformed payloads decode serially into the result decoded before them
 	t.Parallel()
 	var result positionMoveTrades
 	require.NoError(t, json.Unmarshal([]byte(`[{"source_uid":3,"target_uid":23,"amount":110}]`), &result), "Unmarshal must not error for a list")
@@ -1770,8 +1786,11 @@ func TestPositionMoveTradesUnmarshalJSON(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(`{"trades":[{"instrument_name":"BTC-PERPETUAL","direction":"buy"}]}`), &result), "Unmarshal must not error for an object")
 	assert.Equal(t, positionMoveTrades{{InstrumentName: "BTC-PERPETUAL", Direction: DirectionBuy}}, result, "UnmarshalJSON should decode the trades of an object")
 
+	// The cases decode in order into the result the payloads above filled, so a decoder that keeps what it held fails
 	for _, data := range []string{`{"trades":{}}`, `[1]`, `"trades"`} {
-		assert.Errorf(t, json.Unmarshal([]byte(data), &result), "UnmarshalJSON should reject %s", data)
+		t.Run(subtestName(data), func(t *testing.T) {
+			assert.Errorf(t, json.Unmarshal([]byte(data), &result), "UnmarshalJSON should reject %s", data)
+		})
 	}
 }
 
@@ -1802,9 +1821,12 @@ func TestOrderRequestValidate(t *testing.T) {
 			},
 		},
 	} {
-		arg := valid()
-		tc.modify(arg)
-		assert.ErrorIsf(t, arg.validate(), tc.err, "validate should return the expected error for %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			arg := valid()
+			tc.modify(arg)
+			assert.ErrorIsf(t, arg.validate(), tc.err, "validate should return the expected error for %s", tc.name)
+		})
 	}
 	assert.ErrorIs(t, (*OrderRequest)(nil).validate(), common.ErrNilPointer, "validate should reject a nil request")
 }
@@ -1824,37 +1846,44 @@ func TestSecondaryOrderValidate(t *testing.T) {
 		{name: "undocumented time in force", order: SecondaryOrder{Amount: 10, Direction: DirectionBuy, TimeInForce: "good_til_date"}, err: errInvalidOrderTimeInForce},
 		{name: "undocumented trigger", order: SecondaryOrder{Amount: 10, Direction: DirectionBuy, Trigger: "spot_price"}, err: errInvalidOrderTrigger},
 	} {
-		assert.ErrorIsf(t, tc.order.validate(), tc.err, "validate should return the expected error for %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, tc.order.validate(), tc.err, "validate should return the expected error for %s", tc.name)
+		})
 	}
 }
 
 func TestCancelQuotesRequestValidate(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		arg *CancelQuotesRequest
-		err error
+		name string
+		arg  *CancelQuotesRequest
+		err  error
 	}{
-		{err: common.ErrNilPointer},
-		{arg: &CancelQuotesRequest{}, err: errInvalidCancelQuotesType},
-		{arg: &CancelQuotesRequest{CancelType: "delta"}},
-		{arg: &CancelQuotesRequest{CancelType: "all"}},
-		{arg: &CancelQuotesRequest{CancelType: "quote_set_id"}, err: errCancelQuoteSetIDRequired},
-		{arg: &CancelQuotesRequest{CancelType: "quote_set_id", QuoteSetID: "futures"}},
-		{arg: &CancelQuotesRequest{CancelType: "instrument"}, err: errInstrumentNameRequired},
-		{arg: &CancelQuotesRequest{CancelType: "instrument", InstrumentName: "BTC-PERPETUAL"}},
-		{arg: &CancelQuotesRequest{CancelType: "instrument_kind"}, err: errInvalidKind},
-		{arg: &CancelQuotesRequest{CancelType: "instrument_kind", Kind: "perpetual"}, err: errInvalidKind},
-		{arg: &CancelQuotesRequest{CancelType: "instrument_kind", Kind: KindOptionCombo}},
-		{arg: &CancelQuotesRequest{CancelType: "currency"}, err: currency.ErrCurrencyCodeEmpty},
-		{arg: &CancelQuotesRequest{CancelType: "currency", Currency: currency.BTC}},
-		{arg: &CancelQuotesRequest{CancelType: "currency_pair"}, err: errCancelCurrencyPairRequired},
-		{arg: &CancelQuotesRequest{CancelType: "currency_pair", CurrencyPair: "btc_usd"}},
+		{name: "nil request", err: common.ErrNilPointer},
+		{name: "no cancel type", arg: &CancelQuotesRequest{}, err: errInvalidCancelQuotesType},
+		{name: "delta", arg: &CancelQuotesRequest{CancelType: "delta"}},
+		{name: "all", arg: &CancelQuotesRequest{CancelType: "all"}},
+		{name: "quote set without an ID", arg: &CancelQuotesRequest{CancelType: "quote_set_id"}, err: errCancelQuoteSetIDRequired},
+		{name: "quote set", arg: &CancelQuotesRequest{CancelType: "quote_set_id", QuoteSetID: "futures"}},
+		{name: "instrument without a name", arg: &CancelQuotesRequest{CancelType: "instrument"}, err: errInstrumentNameRequired},
+		{name: "instrument", arg: &CancelQuotesRequest{CancelType: "instrument", InstrumentName: "BTC-PERPETUAL"}},
+		{name: "instrument kind without a kind", arg: &CancelQuotesRequest{CancelType: "instrument_kind"}, err: errInvalidKind},
+		{name: "undocumented instrument kind", arg: &CancelQuotesRequest{CancelType: "instrument_kind", Kind: "perpetual"}, err: errInvalidKind},
+		{name: "instrument kind", arg: &CancelQuotesRequest{CancelType: "instrument_kind", Kind: KindOptionCombo}},
+		{name: "currency without a code", arg: &CancelQuotesRequest{CancelType: "currency"}, err: currency.ErrCurrencyCodeEmpty},
+		{name: "currency", arg: &CancelQuotesRequest{CancelType: "currency", Currency: currency.BTC}},
+		{name: "currency pair without a pair", arg: &CancelQuotesRequest{CancelType: "currency_pair"}, err: errCancelCurrencyPairRequired},
+		{name: "currency pair", arg: &CancelQuotesRequest{CancelType: "currency_pair", CurrencyPair: "btc_usd"}},
 	} {
-		cancelType := "nil request"
-		if tc.arg != nil {
-			cancelType = tc.arg.CancelType
-		}
-		assert.ErrorIsf(t, tc.arg.validate(), tc.err, "validate should return the expected error for cancel type %q", cancelType)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			cancelType := "nil request"
+			if tc.arg != nil {
+				cancelType = tc.arg.CancelType
+			}
+			assert.ErrorIsf(t, tc.arg.validate(), tc.err, "validate should return the expected error for cancel type %q", cancelType)
+		})
 	}
 }
 
@@ -1862,8 +1891,16 @@ func TestMarketMakerProtectionGroupRequestValidateQuery(t *testing.T) {
 	t.Parallel()
 	assert.ErrorIs(t, (*MarketMakerProtectionGroupRequest)(nil).validateQuery(), common.ErrNilPointer, "validateQuery should reject a nil request")
 	assert.ErrorIs(t, (&MarketMakerProtectionGroupRequest{MarketMakerProtectionGroup: "bot"}).validateQuery(), errMarketMakerProtectionIndexNameRequired, "validateQuery should reject an MMP group without its index")
-	for _, arg := range []*MarketMakerProtectionGroupRequest{{}, {IndexName: "btc_usd"}, {IndexName: "btc_usd", MarketMakerProtectionGroup: "bot"}, {BlockRFQ: true}} {
-		assert.NoErrorf(t, arg.validateQuery(), "validateQuery should accept %+v", arg)
+	for name, arg := range map[string]*MarketMakerProtectionGroupRequest{
+		"no filter":           {},
+		"index":               {IndexName: "btc_usd"},
+		"index and MMP group": {IndexName: "btc_usd", MarketMakerProtectionGroup: "bot"},
+		"Block RFQ":           {BlockRFQ: true},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			assert.NoErrorf(t, arg.validateQuery(), "validateQuery should accept %+v", arg)
+		})
 	}
 }
 
@@ -1883,7 +1920,10 @@ func TestMassQuoteRequestValidate(t *testing.T) {
 		{name: "quote without side", arg: &MassQuoteRequest{QuoteID: "1", MarketMakerProtectionGroup: "default", Quotes: []MassQuoteEntry{{InstrumentName: "BTC-PERPETUAL"}}}, err: errMassQuoteSideRequired},
 		{name: "ask alone", arg: &MassQuoteRequest{QuoteID: "1", MarketMakerProtectionGroup: "default", Quotes: []MassQuoteEntry{{InstrumentName: "BTC-PERPETUAL", Ask: side}}}},
 	} {
-		assert.ErrorIsf(t, tc.arg.validate(), tc.err, "validate should return the expected error for %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, tc.arg.validate(), tc.err, "validate should return the expected error for %s", tc.name)
+		})
 	}
 }
 
@@ -1903,57 +1943,71 @@ func TestMovePositionsRequestValidate(t *testing.T) {
 		{name: "move without amount", arg: &MovePositionsRequest{SourceUID: 1, TargetUID: 2, Trades: []PositionMove{{InstrumentName: "BTC-PERPETUAL"}}}, err: errInvalidAmount},
 		{name: "valid move", arg: &MovePositionsRequest{SourceUID: 1, TargetUID: 2, Trades: move}},
 	} {
-		assert.ErrorIsf(t, tc.arg.validate(), tc.err, "validate should return the expected error for %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, tc.arg.validate(), tc.err, "validate should return the expected error for %s", tc.name)
+		})
 	}
 }
 
 func TestValidateOrderSize(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
+		name              string
 		amount, contracts float64
 		err               error
 	}{
-		{amount: 10},
-		{contracts: 1},
-		{amount: 10, contracts: 1},
-		{err: errInvalidAmount},
-		{amount: -10, err: errInvalidAmount},
-		{amount: 10, contracts: -1, err: errInvalidAmount},
+		{name: "amount", amount: 10},
+		{name: "contracts", contracts: 1},
+		{name: "amount and contracts", amount: 10, contracts: 1},
+		{name: "no size", err: errInvalidAmount},
+		{name: "negative amount", amount: -10, err: errInvalidAmount},
+		{name: "negative contracts", amount: 10, contracts: -1, err: errInvalidAmount},
 	} {
-		assert.ErrorIsf(t, validateOrderSize(tc.amount, tc.contracts), tc.err, "validateOrderSize should return the expected error for amount %v and contracts %v", tc.amount, tc.contracts)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, validateOrderSize(tc.amount, tc.contracts), tc.err, "validateOrderSize should return the expected error for amount %v and contracts %v", tc.amount, tc.contracts)
+		})
 	}
 }
 
 func TestValidateOrderType(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
+		name               string
 		orderType, trigger string
 		triggerPrice       float64
 		err                error
 	}{
-		{},
-		{orderType: "limit"},
-		{orderType: "market"},
-		{orderType: "market_limit"},
-		{orderType: "stop_limit", trigger: "last_price", triggerPrice: 1},
-		{orderType: "stop_market", trigger: "index_price", triggerPrice: 1},
-		{orderType: "take_limit", trigger: "mark_price", triggerPrice: 1},
-		{orderType: "take_market", trigger: "mark_price", triggerPrice: -1},
-		{orderType: "trailing_stop", trigger: "mark_price"},
-		{orderType: "stop_limit", triggerPrice: 1, err: errOrderTriggerRequired},
-		{orderType: "trailing_stop", err: errOrderTriggerRequired},
-		{orderType: "take_market", trigger: "mark_price", err: errOrderTriggerPriceRequired},
-		{orderType: "stop", err: errInvalidOrderType},
-		{orderType: "Limit", err: errInvalidOrderType},
+		{name: "no type"},
+		{name: "limit", orderType: "limit"},
+		{name: "market", orderType: "market"},
+		{name: "market limit", orderType: "market_limit"},
+		{name: "stop limit", orderType: "stop_limit", trigger: "last_price", triggerPrice: 1},
+		{name: "stop market", orderType: "stop_market", trigger: "index_price", triggerPrice: 1},
+		{name: "take limit", orderType: "take_limit", trigger: "mark_price", triggerPrice: 1},
+		{name: "take market with a negative trigger price", orderType: "take_market", trigger: "mark_price", triggerPrice: -1},
+		{name: "trailing stop without a trigger price", orderType: "trailing_stop", trigger: "mark_price"},
+		{name: "stop limit without a trigger", orderType: "stop_limit", triggerPrice: 1, err: errOrderTriggerRequired},
+		{name: "trailing stop without a trigger", orderType: "trailing_stop", err: errOrderTriggerRequired},
+		{name: "take market without a trigger price", orderType: "take_market", trigger: "mark_price", err: errOrderTriggerPriceRequired},
+		{name: "undocumented type", orderType: "stop", err: errInvalidOrderType},
+		{name: "capitalised type", orderType: "Limit", err: errInvalidOrderType},
 	} {
-		assert.ErrorIsf(t, validateOrderType(tc.orderType, tc.trigger, tc.triggerPrice), tc.err, "validateOrderType should return the expected error for type %q with trigger %q", tc.orderType, tc.trigger)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, validateOrderType(tc.orderType, tc.trigger, tc.triggerPrice), tc.err, "validateOrderType should return the expected error for type %q with trigger %q", tc.orderType, tc.trigger)
+		})
 	}
 }
 
 func TestValidateOrderTimeInForce(t *testing.T) {
 	t.Parallel()
 	for _, timeInForce := range []string{"", "good_til_cancelled", "good_til_day", "fill_or_kill", "immediate_or_cancel"} {
-		assert.NoErrorf(t, validateOrderTimeInForce(timeInForce), "validateOrderTimeInForce should accept %q", timeInForce)
+		t.Run(subtestName(timeInForce), func(t *testing.T) {
+			t.Parallel()
+			assert.NoErrorf(t, validateOrderTimeInForce(timeInForce), "validateOrderTimeInForce should accept %q", timeInForce)
+		})
 	}
 	assert.ErrorIs(t, validateOrderTimeInForce("gtc"), errInvalidOrderTimeInForce, "validateOrderTimeInForce should reject an undocumented time in force")
 }
@@ -1961,7 +2015,10 @@ func TestValidateOrderTimeInForce(t *testing.T) {
 func TestValidateOrderTrigger(t *testing.T) {
 	t.Parallel()
 	for _, trigger := range []string{"", "index_price", "mark_price", "last_price"} {
-		assert.NoErrorf(t, validateOrderTrigger(trigger), "validateOrderTrigger should accept %q", trigger)
+		t.Run(subtestName(trigger), func(t *testing.T) {
+			t.Parallel()
+			assert.NoErrorf(t, validateOrderTrigger(trigger), "validateOrderTrigger should accept %q", trigger)
+		})
 	}
 	assert.ErrorIs(t, validateOrderTrigger("index"), errInvalidOrderTrigger, "validateOrderTrigger should reject an undocumented trigger")
 }
@@ -1969,7 +2026,10 @@ func TestValidateOrderTrigger(t *testing.T) {
 func TestValidateAdvancedOrderType(t *testing.T) {
 	t.Parallel()
 	for _, advanced := range []string{"", "usd", "implv"} {
-		assert.NoErrorf(t, validateAdvancedOrderType(advanced), "validateAdvancedOrderType should accept %q", advanced)
+		t.Run(subtestName(advanced), func(t *testing.T) {
+			t.Parallel()
+			assert.NoErrorf(t, validateAdvancedOrderType(advanced), "validateAdvancedOrderType should accept %q", advanced)
+		})
 	}
 	assert.ErrorIs(t, validateAdvancedOrderType("USD"), errInvalidAdvancedOrderType, "validateAdvancedOrderType should reject an undocumented advanced order type")
 }
@@ -1977,12 +2037,18 @@ func TestValidateAdvancedOrderType(t *testing.T) {
 func TestValidateTradingKind(t *testing.T) {
 	t.Parallel()
 	for _, kind := range []string{"", KindFuture, KindOption, KindSpot, KindFutureCombo, KindOptionCombo} {
-		assert.NoErrorf(t, validateTradingKind(kind, false), "validateTradingKind should accept %q without aggregates", kind)
-		assert.NoErrorf(t, validateTradingKind(kind, true), "validateTradingKind should accept %q with aggregates", kind)
+		t.Run(subtestName(kind), func(t *testing.T) {
+			t.Parallel()
+			assert.NoErrorf(t, validateTradingKind(kind, false), "validateTradingKind should accept %q without aggregates", kind)
+			assert.NoErrorf(t, validateTradingKind(kind, true), "validateTradingKind should accept %q with aggregates", kind)
+		})
 	}
 	for _, kind := range []string{KindCombo, KindAny} {
-		assert.ErrorIsf(t, validateTradingKind(kind, false), errInvalidKind, "validateTradingKind should reject %q without aggregates", kind)
-		assert.NoErrorf(t, validateTradingKind(kind, true), "validateTradingKind should accept %q with aggregates", kind)
+		t.Run(subtestName(kind), func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, validateTradingKind(kind, false), errInvalidKind, "validateTradingKind should reject %q without aggregates", kind)
+			assert.NoErrorf(t, validateTradingKind(kind, true), "validateTradingKind should accept %q with aggregates", kind)
+		})
 	}
 	assert.ErrorIs(t, validateTradingKind("perpetual", true), errInvalidKind, "validateTradingKind should reject an undocumented kind")
 }
@@ -1990,7 +2056,10 @@ func TestValidateTradingKind(t *testing.T) {
 func TestValidateCancelOrderType(t *testing.T) {
 	t.Parallel()
 	for _, orderType := range []string{"", "all", "limit", "trigger_all", "stop", "take", "trailing_stop"} {
-		assert.NoErrorf(t, validateCancelOrderType(orderType), "validateCancelOrderType should accept %q", orderType)
+		t.Run(subtestName(orderType), func(t *testing.T) {
+			t.Parallel()
+			assert.NoErrorf(t, validateCancelOrderType(orderType), "validateCancelOrderType should accept %q", orderType)
+		})
 	}
 	assert.ErrorIs(t, validateCancelOrderType("stop_all"), errInvalidCancelOrderType, "validateCancelOrderType should reject an order type only open orders methods accept")
 }
@@ -1998,7 +2067,10 @@ func TestValidateCancelOrderType(t *testing.T) {
 func TestValidateOpenOrderType(t *testing.T) {
 	t.Parallel()
 	for _, orderType := range []string{"", "all", "limit", "trigger_all", "stop_all", "stop_limit", "stop_market", "take_all", "take_limit", "take_market", "trailing_all", "trailing_stop"} {
-		assert.NoErrorf(t, validateOpenOrderType(orderType), "validateOpenOrderType should accept %q", orderType)
+		t.Run(subtestName(orderType), func(t *testing.T) {
+			t.Parallel()
+			assert.NoErrorf(t, validateOpenOrderType(orderType), "validateOpenOrderType should accept %q", orderType)
+		})
 	}
 	assert.ErrorIs(t, validateOpenOrderType("take"), errInvalidOpenOrderType, "validateOpenOrderType should reject an order type only cancel methods accept")
 }
@@ -2006,7 +2078,10 @@ func TestValidateOpenOrderType(t *testing.T) {
 func TestValidateSettlementHistoryType(t *testing.T) {
 	t.Parallel()
 	for _, settlementType := range []string{"", "settlement", "delivery", "bankruptcy"} {
-		assert.NoErrorf(t, validateSettlementHistoryType(settlementType), "validateSettlementHistoryType should accept %q", settlementType)
+		t.Run(subtestName(settlementType), func(t *testing.T) {
+			t.Parallel()
+			assert.NoErrorf(t, validateSettlementHistoryType(settlementType), "validateSettlementHistoryType should accept %q", settlementType)
+		})
 	}
 	assert.ErrorIs(t, validateSettlementHistoryType("exercise"), errInvalidSettlementHistoryType, "validateSettlementHistoryType should reject a type Deribit does not accept in requests")
 }
@@ -2014,7 +2089,10 @@ func TestValidateSettlementHistoryType(t *testing.T) {
 func TestValidateUserTradesSorting(t *testing.T) {
 	t.Parallel()
 	for _, sorting := range []string{"", "asc", "desc", "default"} {
-		assert.NoErrorf(t, validateUserTradesSorting(sorting), "validateUserTradesSorting should accept %q", sorting)
+		t.Run(subtestName(sorting), func(t *testing.T) {
+			t.Parallel()
+			assert.NoErrorf(t, validateUserTradesSorting(sorting), "validateUserTradesSorting should accept %q", sorting)
+		})
 	}
 	assert.ErrorIs(t, validateUserTradesSorting("ascending"), errInvalidUserTradesSorting, "validateUserTradesSorting should reject an undocumented sorting")
 }
@@ -2022,7 +2100,10 @@ func TestValidateUserTradesSorting(t *testing.T) {
 func TestValidateTradingCount(t *testing.T) {
 	t.Parallel()
 	for _, count := range []uint64{0, 1, 1000} {
-		assert.NoErrorf(t, validateTradingCount(count), "validateTradingCount should accept %d", count)
+		t.Run(strconv.FormatUint(count, 10), func(t *testing.T) {
+			t.Parallel()
+			assert.NoErrorf(t, validateTradingCount(count), "validateTradingCount should accept %d", count)
+		})
 	}
 	assert.ErrorIs(t, validateTradingCount(1001), errInvalidCount, "validateTradingCount should reject a count over 1000")
 }
@@ -2030,10 +2111,16 @@ func TestValidateTradingCount(t *testing.T) {
 func TestIsValidMarketMakerProtectionDuration(t *testing.T) {
 	t.Parallel()
 	for _, d := range []time.Duration{0, time.Second, time.Minute, time.Hour} {
-		assert.Truef(t, isValidMarketMakerProtectionDuration(d), "isValidMarketMakerProtectionDuration should accept %s", d)
+		t.Run(d.String(), func(t *testing.T) {
+			t.Parallel()
+			assert.Truef(t, isValidMarketMakerProtectionDuration(d), "isValidMarketMakerProtectionDuration should accept %s", d)
+		})
 	}
 	for _, d := range []time.Duration{-time.Second, time.Hour + time.Second, 1500 * time.Millisecond} {
-		assert.Falsef(t, isValidMarketMakerProtectionDuration(d), "isValidMarketMakerProtectionDuration should reject %s", d)
+		t.Run(d.String(), func(t *testing.T) {
+			t.Parallel()
+			assert.Falsef(t, isValidMarketMakerProtectionDuration(d), "isValidMarketMakerProtectionDuration should reject %s", d)
+		})
 	}
 }
 
@@ -2054,9 +2141,12 @@ func TestUserTradesTimeRange(t *testing.T) {
 		{name: "start after end", start: end, end: start, err: common.ErrStartAfterEnd},
 		{name: "end before 1970", end: time.UnixMilli(-1), expEnd: 1},
 	} {
-		startTimestamp, endTimestamp, err := userTradesTimeRange(tc.start, tc.end)
-		require.ErrorIsf(t, err, tc.err, "userTradesTimeRange must return the expected error for %s", tc.name)
-		assert.Equalf(t, tc.expStart, startTimestamp, "userTradesTimeRange should return the start in Unix milliseconds for %s", tc.name)
-		assert.Equalf(t, tc.expEnd, endTimestamp, "userTradesTimeRange should return the end in Unix milliseconds for %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			startTimestamp, endTimestamp, err := userTradesTimeRange(tc.start, tc.end)
+			require.ErrorIsf(t, err, tc.err, "userTradesTimeRange must return the expected error for %s", tc.name)
+			assert.Equalf(t, tc.expStart, startTimestamp, "userTradesTimeRange should return the start in Unix milliseconds for %s", tc.name)
+			assert.Equalf(t, tc.expEnd, endTimestamp, "userTradesTimeRange should return the end in Unix milliseconds for %s", tc.name)
+		})
 	}
 }

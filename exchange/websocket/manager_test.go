@@ -1757,8 +1757,11 @@ func TestVerboseMessagesRedactCredentials(t *testing.T) {
 
 	mu.Lock()
 	defer mu.Unlock()
-	for _, line := range []string{"Sending message: ", "Message received: ", "Received response [1/1]: "} {
-		assert.Containsf(t, logged.String(), line+`{"params":{"access_token":"[REDACTED]","authorization_data":"[REDACTED]"},"reqid":7}`, "verbose logging should redact the credentials of each %q line", line)
+	for name, line := range map[string]string{"sent": "Sending message: ", "received": "Message received: ", "response": "Received response [1/1]: "} {
+		t.Run(name, func(t *testing.T) {
+			// Serial, as the test is: each case reads logged under the lock the test holds until it returns
+			assert.Containsf(t, logged.String(), line+`{"params":{"access_token":"[REDACTED]","authorization_data":"[REDACTED]"},"reqid":7}`, "verbose logging should redact the credentials of each %q line", line)
+		})
 	}
 	assert.Contains(t, logged.String(), "Sending message: ping", "verbose logging should log a message that is not JSON as sent")
 	assert.NotContains(t, logged.String(), "602051", "verbose logging should never log a security key code")

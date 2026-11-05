@@ -29,7 +29,10 @@ func TestGetCancelOnDisconnect(t *testing.T) {
 func TestValidateCancelOnDisconnectScope(t *testing.T) {
 	t.Parallel()
 	for _, scope := range []string{"", CancelOnDisconnectScopeConnection, CancelOnDisconnectScopeAccount} {
-		assert.NoErrorf(t, validateCancelOnDisconnectScope(scope), "validateCancelOnDisconnectScope should accept scope %q", scope)
+		t.Run(subtestName(scope), func(t *testing.T) {
+			t.Parallel()
+			assert.NoErrorf(t, validateCancelOnDisconnectScope(scope), "validateCancelOnDisconnectScope should accept scope %q", scope)
+		})
 	}
 	assert.ErrorIs(t, validateCancelOnDisconnectScope("Account"), errInvalidCancelOnDisconnectScope, "validateCancelOnDisconnectScope should reject a scope Deribit does not document")
 }

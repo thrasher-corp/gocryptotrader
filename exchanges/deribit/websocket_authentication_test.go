@@ -1,6 +1,7 @@
 package deribit
 
 import (
+	"strconv"
 	"testing"
 	"time"
 
@@ -40,20 +41,20 @@ func TestWebsocketAPIAuthenticate(t *testing.T) {
 
 	_, err = newTestExchange(t).WebsocketAPI().Authenticate(t.Context(), testAuthenticateRequest(t))
 	assert.ErrorIs(t, err, websocket.ErrNotConnected, "WebsocketAPI.Authenticate should error without a websocket connection")
-}
 
-func TestWebsocketAPIAuthenticateConnection(t *testing.T) {
-	t.Parallel()
-	ex, venue := newUnauthenticatedWebsocketTestExchange(t)
-	_, err := ex.WebsocketAPI().GetSubaccounts(t.Context(), true)
-	require.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.GetSubaccounts must not be sent before the connection authenticates")
-	_, err = ex.WebsocketAPI().Authenticate(t.Context(), testAuthenticateRequest(t))
-	require.NoError(t, err, "WebsocketAPI.Authenticate must not error")
-	assert.True(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "WebsocketAPI.Authenticate should mark the connection authenticated")
-	result, err := ex.WebsocketAPI().GetSubaccounts(t.Context(), true)
-	require.NoError(t, err, "WebsocketAPI.GetSubaccounts must not error once the connection authenticates")
-	assert.Equal(t, testSubaccounts(), result, "WebsocketAPI.GetSubaccounts should decode every field")
-	assert.Len(t, venue.received("private/get_subaccounts"), 1, "only the request made once the connection authenticated should be sent")
+	t.Run("authenticates an unauthenticated connection", func(t *testing.T) {
+		t.Parallel()
+		ex, venue := newUnauthenticatedWebsocketTestExchange(t)
+		_, err := ex.WebsocketAPI().GetSubaccounts(t.Context(), true)
+		require.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.GetSubaccounts must not be sent before the connection authenticates")
+		_, err = ex.WebsocketAPI().Authenticate(t.Context(), testAuthenticateRequest(t))
+		require.NoError(t, err, "WebsocketAPI.Authenticate must not error")
+		assert.True(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "WebsocketAPI.Authenticate should mark the connection authenticated")
+		result, err := ex.WebsocketAPI().GetSubaccounts(t.Context(), true)
+		require.NoError(t, err, "WebsocketAPI.GetSubaccounts must not error once the connection authenticates")
+		assert.Equal(t, testSubaccounts(), result, "WebsocketAPI.GetSubaccounts should decode every field")
+		assert.Len(t, venue.received("private/get_subaccounts"), 1, "only the request made once the connection authenticated should be sent")
+	})
 }
 
 func TestWebsocketAPIExchangeToken(t *testing.T) {
@@ -109,7 +110,10 @@ func TestWebsocketAPILogout(t *testing.T) {
 		return ex.Websocket.IsConnected() && venue.connectionCount() == 4 && len(venue.received("public/set_heartbeat")) == 4
 	}, 10*time.Second, 10*time.Millisecond, "the manager must connect the websocket again after a logout")
 	for _, connection := range []int{3, 4} {
-		assert.Lenf(t, venue.receivedOn(connection, "public/auth"), 1, "the manager should log new connection %d in after a logout", connection)
+		t.Run("connection "+strconv.Itoa(connection), func(t *testing.T) {
+			t.Parallel()
+			assert.Lenf(t, venue.receivedOn(connection, "public/auth"), 1, "the manager should log new connection %d in after a logout", connection)
+		})
 	}
 
 	// An aborted rate limit barrier fails the logout's rate limit, which the limiters every Exchange shares cannot be made

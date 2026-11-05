@@ -601,9 +601,12 @@ func TestExpirationsResponseUnmarshalJSON(t *testing.T) {
 		},
 		{name: "empty", input: `{}`, exp: ExpirationsResponse{ByCurrency: map[string]Expirations{}}},
 	} {
-		var result ExpirationsResponse
-		require.NoErrorf(t, json.Unmarshal([]byte(tc.input), &result), "Unmarshal must not error for the %s labels", tc.name)
-		assert.Equalf(t, tc.exp, result, "UnmarshalJSON should decode the %s labels", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var result ExpirationsResponse
+			require.NoErrorf(t, json.Unmarshal([]byte(tc.input), &result), "Unmarshal must not error for the %s labels", tc.name)
+			assert.Equalf(t, tc.exp, result, "UnmarshalJSON should decode the %s labels", tc.name)
+		})
 	}
 	var result ExpirationsResponse
 	assert.Error(t, json.Unmarshal([]byte(`["PERPETUAL"]`), &result), "UnmarshalJSON should reject labels that are not an object")
@@ -762,8 +765,11 @@ func TestInstrumentTimeRangeRequestParams(t *testing.T) {
 		{name: "unset end", arg: &InstrumentTimeRangeRequest{InstrumentName: marketDataPerpetual, StartTime: start}, err: common.ErrDateUnset},
 		{name: "start after end", arg: &InstrumentTimeRangeRequest{InstrumentName: marketDataPerpetual, StartTime: end, EndTime: start}, err: common.ErrStartAfterEnd},
 	} {
-		_, err := tc.arg.params()
-		assert.ErrorIsf(t, err, tc.err, "params should reject a request with an %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := tc.arg.params()
+			assert.ErrorIsf(t, err, tc.err, "params should reject a request with an %s", tc.name)
+		})
 	}
 
 	arg := &InstrumentTimeRangeRequest{InstrumentName: marketDataPerpetual, StartTime: start, EndTime: end}
@@ -925,9 +931,12 @@ func TestIndexPriceNameUnmarshalJSON(t *testing.T) {
 		{input: `{"name":"btc_usd","future_combo_creation_enabled":true,"option_combo_creation_enabled":true}`, exp: IndexPriceNameResponse{Name: "btc_usd", FutureComboCreationEnabled: true, OptionComboCreationEnabled: true}},
 		{input: `null`},
 	} {
-		var result IndexPriceNameResponse
-		require.NoErrorf(t, json.Unmarshal([]byte(tc.input), &result), "Unmarshal must not error for %s", tc.input)
-		assert.Equalf(t, tc.exp, result, "UnmarshalJSON should decode %s", tc.input)
+		t.Run(subtestName(tc.input), func(t *testing.T) {
+			t.Parallel()
+			var result IndexPriceNameResponse
+			require.NoErrorf(t, json.Unmarshal([]byte(tc.input), &result), "Unmarshal must not error for %s", tc.input)
+			assert.Equalf(t, tc.exp, result, "UnmarshalJSON should decode %s", tc.input)
+		})
 	}
 	var result IndexPriceNameResponse
 	assert.Error(t, json.Unmarshal([]byte(`["btc_usd"]`), &result), "UnmarshalJSON should reject a name that is neither a string nor an object")
@@ -1341,8 +1350,11 @@ func TestGetInstruments(t *testing.T) {
 
 func TestMarketDataCurrency(t *testing.T) {
 	t.Parallel()
-	for _, ccy := range []currency.Code{currency.ANY, currency.NewCode("any"), currency.NewCode("Any")} {
-		assert.Equalf(t, "any", marketDataCurrency(ccy).String(), "marketDataCurrency should lowercase %s", ccy)
+	for name, ccy := range map[string]currency.Code{"ANY": currency.ANY, "any": currency.NewCode("any"), "Any": currency.NewCode("Any")} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, "any", marketDataCurrency(ccy).String(), "marketDataCurrency should lowercase %s", ccy)
+		})
 	}
 	assert.Equal(t, "BTC", marketDataCurrency(currency.BTC).String(), "marketDataCurrency should leave other currencies unchanged")
 	assert.True(t, marketDataCurrency(currency.EMPTYCODE).IsEmpty(), "marketDataCurrency should leave an empty currency empty")
@@ -1475,10 +1487,16 @@ func TestGetLastSettlementsByInstrument(t *testing.T) {
 func TestValidateLastSettlementsType(t *testing.T) {
 	t.Parallel()
 	for _, settlementType := range []string{"", "settlement", "delivery", "bankruptcy"} {
-		assert.NoErrorf(t, validateLastSettlementsType(settlementType), "validateLastSettlementsType should accept type %q", settlementType)
+		t.Run(subtestName(settlementType), func(t *testing.T) {
+			t.Parallel()
+			assert.NoErrorf(t, validateLastSettlementsType(settlementType), "validateLastSettlementsType should accept type %q", settlementType)
+		})
 	}
 	for _, settlementType := range []string{"exercise", "Delivery"} {
-		assert.ErrorIsf(t, validateLastSettlementsType(settlementType), errInvalidLastSettlementsType, "validateLastSettlementsType should reject type %q", settlementType)
+		t.Run(subtestName(settlementType), func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, validateLastSettlementsType(settlementType), errInvalidLastSettlementsType, "validateLastSettlementsType should reject type %q", settlementType)
+		})
 	}
 }
 
@@ -1929,10 +1947,16 @@ func TestGetLastTradesByInstrumentAndTime(t *testing.T) {
 func TestValidateLastTradesSorting(t *testing.T) {
 	t.Parallel()
 	for _, sorting := range []string{"", "asc", "desc", "default"} {
-		assert.NoErrorf(t, validateLastTradesSorting(sorting), "validateLastTradesSorting should accept sorting %q", sorting)
+		t.Run(subtestName(sorting), func(t *testing.T) {
+			t.Parallel()
+			assert.NoErrorf(t, validateLastTradesSorting(sorting), "validateLastTradesSorting should accept sorting %q", sorting)
+		})
 	}
 	for _, sorting := range []string{"up", "ASC"} {
-		assert.ErrorIsf(t, validateLastTradesSorting(sorting), errInvalidLastTradesSorting, "validateLastTradesSorting should reject sorting %q", sorting)
+		t.Run(subtestName(sorting), func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, validateLastTradesSorting(sorting), errInvalidLastTradesSorting, "validateLastTradesSorting should reject sorting %q", sorting)
+		})
 	}
 }
 
@@ -1951,7 +1975,10 @@ func TestValidateLastTradesTimeRange(t *testing.T) {
 		{name: "an instant", start: start, end: start},
 		{name: "a range starting after it ends", start: end, end: start, err: common.ErrStartAfterEnd},
 	} {
-		assert.ErrorIsf(t, validateLastTradesTimeRange(tc.start, tc.end), tc.err, "validateLastTradesTimeRange should check %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, validateLastTradesTimeRange(tc.start, tc.end), tc.err, "validateLastTradesTimeRange should check %s", tc.name)
+		})
 	}
 }
 
@@ -1969,7 +1996,10 @@ func TestValidateLastTradesRequiredTimeRange(t *testing.T) {
 		{name: "a range", start: start, end: end},
 		{name: "a range starting after it ends", start: end, end: start, err: common.ErrStartAfterEnd},
 	} {
-		assert.ErrorIsf(t, validateLastTradesRequiredTimeRange(tc.start, tc.end), tc.err, "validateLastTradesRequiredTimeRange should check %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, validateLastTradesRequiredTimeRange(tc.start, tc.end), tc.err, "validateLastTradesRequiredTimeRange should check %s", tc.name)
+		})
 	}
 }
 
@@ -2306,13 +2336,19 @@ func TestTradingViewResolution(t *testing.T) {
 		{interval: kline.TwelveHour, exp: "720"},
 		{interval: kline.OneDay, exp: "1D"},
 	} {
-		resolution, err := e.tradingViewResolution(tc.interval)
-		require.NoErrorf(t, err, "tradingViewResolution must not error for interval %s", tc.interval)
-		assert.Equalf(t, tc.exp, resolution, "tradingViewResolution should name interval %s", tc.interval)
+		t.Run(tc.interval.Short(), func(t *testing.T) {
+			t.Parallel()
+			resolution, err := e.tradingViewResolution(tc.interval)
+			require.NoErrorf(t, err, "tradingViewResolution must not error for interval %s", tc.interval)
+			assert.Equalf(t, tc.exp, resolution, "tradingViewResolution should name interval %s", tc.interval)
+		})
 	}
 	for _, interval := range []kline.Interval{kline.HundredMilliseconds, kline.Raw, kline.FourHour, kline.OneWeek} {
-		_, err := e.tradingViewResolution(interval)
-		assert.ErrorIsf(t, err, kline.ErrUnsupportedInterval, "tradingViewResolution should reject interval %s", interval)
+		t.Run(interval.Short(), func(t *testing.T) {
+			t.Parallel()
+			_, err := e.tradingViewResolution(interval)
+			assert.ErrorIsf(t, err, kline.ErrUnsupportedInterval, "tradingViewResolution should reject interval %s", interval)
+		})
 	}
 }
 
@@ -2406,13 +2442,19 @@ func TestVolatilityIndexResolution(t *testing.T) {
 		{interval: kline.TwelveHour, exp: "43200"},
 		{interval: kline.OneDay, exp: "1D"},
 	} {
-		resolution, err := volatilityIndexResolution(tc.interval)
-		require.NoErrorf(t, err, "volatilityIndexResolution must not error for interval %s", tc.interval)
-		assert.Equalf(t, tc.exp, resolution, "volatilityIndexResolution should name interval %s", tc.interval)
+		t.Run(tc.interval.Short(), func(t *testing.T) {
+			t.Parallel()
+			resolution, err := volatilityIndexResolution(tc.interval)
+			require.NoErrorf(t, err, "volatilityIndexResolution must not error for interval %s", tc.interval)
+			assert.Equalf(t, tc.exp, resolution, "volatilityIndexResolution should name interval %s", tc.interval)
+		})
 	}
 	for _, interval := range []kline.Interval{kline.Raw, kline.FiveMin, kline.FourHour} {
-		_, err := volatilityIndexResolution(interval)
-		assert.ErrorIsf(t, err, kline.ErrUnsupportedInterval, "volatilityIndexResolution should reject interval %s", interval)
+		t.Run(interval.Short(), func(t *testing.T) {
+			t.Parallel()
+			_, err := volatilityIndexResolution(interval)
+			assert.ErrorIsf(t, err, kline.ErrUnsupportedInterval, "volatilityIndexResolution should reject interval %s", interval)
+		})
 	}
 }
 
@@ -2528,21 +2570,24 @@ func TestGetTicker(t *testing.T) {
 	require.ErrorIs(t, err, errInstrumentNameRequired, "GetTicker must reject an empty instrument name")
 
 	for instrument, exp := range testInstrumentTickers() {
-		switch instrument {
-		case mockMarketDataOption:
-			instrument = marketDataOption(t)
-		case mockMarketDataFutureCombo:
-			instrument = marketDataFutureCombo(t)
-		}
-		result, err := e.GetTicker(t.Context(), instrument)
-		require.NoErrorf(t, err, "GetTicker must not error for %s", instrument)
-		if mockTests {
-			assert.Equalf(t, exp, result, "GetTicker should decode every field of %s", instrument)
-			continue
-		}
-		assert.Equalf(t, instrument, result.InstrumentName, "GetTicker should return %s", instrument)
-		assert.Equalf(t, exp.Greeks != nil, result.Greeks != nil, "GetTicker should return greeks for %s only if it is an option", instrument)
-		assert.Equalf(t, exp.ComboState, result.ComboState, "GetTicker should return a combo state for %s only if it is a combo", instrument)
+		t.Run(instrument, func(t *testing.T) {
+			t.Parallel()
+			switch instrument {
+			case mockMarketDataOption:
+				instrument = marketDataOption(t)
+			case mockMarketDataFutureCombo:
+				instrument = marketDataFutureCombo(t)
+			}
+			result, err := e.GetTicker(t.Context(), instrument)
+			require.NoErrorf(t, err, "GetTicker must not error for %s", instrument)
+			if mockTests {
+				assert.Equalf(t, exp, result, "GetTicker should decode every field of %s", instrument)
+				return
+			}
+			assert.Equalf(t, instrument, result.InstrumentName, "GetTicker should return %s", instrument)
+			assert.Equalf(t, exp.Greeks != nil, result.Greeks != nil, "GetTicker should return greeks for %s only if it is an option", instrument)
+			assert.Equalf(t, exp.ComboState, result.ComboState, "GetTicker should return a combo state for %s only if it is a combo", instrument)
+		})
 	}
 
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GetTicker(t.Context(), marketDataPerpetual)
@@ -2554,9 +2599,15 @@ func TestGetTicker(t *testing.T) {
 func TestValidateMarketDataKind(t *testing.T) {
 	t.Parallel()
 	for _, kind := range []string{"", KindFuture, KindOption} {
-		assert.NoErrorf(t, validateMarketDataKind(kind, KindFuture, KindOption), "validateMarketDataKind should accept kind %q", kind)
+		t.Run(subtestName(kind), func(t *testing.T) {
+			t.Parallel()
+			assert.NoErrorf(t, validateMarketDataKind(kind, KindFuture, KindOption), "validateMarketDataKind should accept kind %q", kind)
+		})
 	}
 	for _, kind := range []string{KindSpot, "Future"} {
-		assert.ErrorIsf(t, validateMarketDataKind(kind, KindFuture, KindOption), errInvalidKind, "validateMarketDataKind should reject kind %q", kind)
+		t.Run(subtestName(kind), func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, validateMarketDataKind(kind, KindFuture, KindOption), errInvalidKind, "validateMarketDataKind should reject kind %q", kind)
+		})
 	}
 }

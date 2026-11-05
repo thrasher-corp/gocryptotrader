@@ -129,9 +129,12 @@ func TestWebsocketHandlePortfolio(t *testing.T) {
 		)
 		require.NoError(t, ex.wsHandlePortfolio(t.Context(), notification(channel, btcPortfolio)), "wsHandlePortfolio must not error")
 		for _, a := range []asset.Item{asset.Futures, asset.Options} {
-			balance, err := savedBalance(t, ex, a, currency.BTC)
-			require.NoErrorf(t, err, "the balance must be saved under %s", a)
-			assert.Equalf(t, expBalance, balance, "wsHandlePortfolio should update the balance saved under %s", a)
+			t.Run(a.String(), func(t *testing.T) {
+				t.Parallel()
+				balance, err := savedBalance(t, ex, a, currency.BTC)
+				require.NoErrorf(t, err, "the balance must be saved under %s", a)
+				assert.Equalf(t, expBalance, balance, "wsHandlePortfolio should update the balance saved under %s", a)
+			})
 		}
 		_, err := savedBalance(t, ex, asset.Spot, currency.BTC)
 		assert.ErrorIs(t, err, accounts.ErrNoBalances, "wsHandlePortfolio should not save a copy under spot")

@@ -92,7 +92,10 @@ func TestAuthenticateRequestValidate(t *testing.T) {
 		{name: "refresh without token", arg: &AuthenticateRequest{GrantType: GrantTypeRefreshToken}, err: errRefreshTokenRequired},
 		{name: "refresh", arg: &AuthenticateRequest{GrantType: GrantTypeRefreshToken, RefreshToken: "token"}},
 	} {
-		assert.ErrorIsf(t, tc.arg.validate(), tc.err, "validate should return the expected error for %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, tc.arg.validate(), tc.err, "validate should return the expected error for %s", tc.name)
+		})
 	}
 }
 
@@ -120,14 +123,27 @@ func TestNewClientSignatureRequest(t *testing.T) {
 	first, err := NewClientSignatureRequest(creds, time.UnixMilli(1), "abc123", "")
 	require.NoError(t, err, "NewClientSignatureRequest must not error for the first millisecond after 1970")
 	for _, early := range []time.Time{time.Unix(0, 999999), time.UnixMilli(0), time.UnixMilli(-1)} {
-		result, err = NewClientSignatureRequest(creds, early, "abc123", "")
-		require.NoErrorf(t, err, "NewClientSignatureRequest must not error for %s", early)
-		assert.Equalf(t, first.Signature, result.Signature, "NewClientSignatureRequest should sign %s as the timestamp sent for it", early)
+		t.Run(early.UTC().Format(time.RFC3339Nano), func(t *testing.T) {
+			t.Parallel()
+			result, err := NewClientSignatureRequest(creds, early, "abc123", "")
+			require.NoErrorf(t, err, "NewClientSignatureRequest must not error for %s", early)
+			assert.Equalf(t, first.Signature, result.Signature, "NewClientSignatureRequest should sign %s as the timestamp sent for it", early)
+		})
 	}
 
-	for _, creds := range []*accounts.Credentials{nil, {Secret: testClientSecret}, {Key: testClientID}} {
-		_, err = NewClientSignatureRequest(creds, timestamp, "abc123", "")
-		assert.ErrorIs(t, err, errSignatureCredentials, "NewClientSignatureRequest should need a client ID and secret")
+	for _, tc := range []struct {
+		name  string
+		creds *accounts.Credentials
+	}{
+		{name: "no credentials"},
+		{name: "secret without client ID", creds: &accounts.Credentials{Secret: testClientSecret}},
+		{name: "client ID without secret", creds: &accounts.Credentials{Key: testClientID}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := NewClientSignatureRequest(tc.creds, timestamp, "abc123", "")
+			assert.ErrorIs(t, err, errSignatureCredentials, "NewClientSignatureRequest should need a client ID and secret")
+		})
 	}
 }
 

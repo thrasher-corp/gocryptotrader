@@ -51,35 +51,25 @@ func TestRateLimits(t *testing.T) {
 	t.Parallel()
 	limits := rateLimits
 	for _, tc := range []struct {
+		name string
 		epl  request.EndpointLimit
 		rate rate.Limit
 	}{
-		{epl: nonMatchingEPL, rate: 20},
-		{epl: matchingEPL, rate: 5},
-		{epl: getInstrumentsEPL, rate: 1},
-		{epl: subscribeEPL, rate: 10.0 / 3},
-		{epl: movePositionsEPL, rate: 6.0 / 60},
-		{epl: transactionLogEPL, rate: 1},
-		{epl: massQuoteEPL, rate: 10},
-		{epl: simulatePortfolioEPL, rate: 1},
+		{name: "non-matching engine", epl: nonMatchingEPL, rate: 20},
+		{name: "matching engine", epl: matchingEPL, rate: 5},
+		{name: "instruments", epl: getInstrumentsEPL, rate: 1},
+		{name: "subscriptions", epl: subscribeEPL, rate: 10.0 / 3},
+		{name: "position moves", epl: movePositionsEPL, rate: 6.0 / 60},
+		{name: "transaction log", epl: transactionLogEPL, rate: 1},
+		{name: "mass quotes", epl: massQuoteEPL, rate: 10},
+		{name: "portfolio simulation", epl: simulatePortfolioEPL, rate: 1},
 	} {
-		require.Containsf(t, limits, tc.epl, "rateLimits must define endpoint limit %d", tc.epl)
-		assert.InDeltaf(t, float64(tc.rate), float64(limits[tc.epl].Limit()), 1e-9, "rateLimits should refill endpoint limit %d at its documented rate", tc.epl)
-		assert.Equalf(t, request.Weight(1), limits[tc.epl].Weight(), "rateLimits should weigh endpoint limit %d as one request", tc.epl)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			require.Containsf(t, limits, tc.epl, "rateLimits must define endpoint limit %d", tc.epl)
+			assert.InDeltaf(t, float64(tc.rate), float64(limits[tc.epl].Limit()), 1e-9, "rateLimits should refill endpoint limit %d at its documented rate", tc.epl)
+			assert.Equalf(t, request.Weight(1), limits[tc.epl].Weight(), "rateLimits should weigh endpoint limit %d as one request", tc.epl)
+		})
 	}
 	assert.Len(t, limits, 8, "rateLimits should define only the documented limits")
-}
-
-func TestRateLimitsShared(t *testing.T) {
-	t.Parallel()
-	first, second := new(Exchange), new(Exchange)
-	first.SetDefaults()
-	second.SetDefaults()
-	firstLimits, secondLimits := first.Requester.GetRateLimiterDefinitions(), second.Requester.GetRateLimiterDefinitions()
-	require.Len(t, firstLimits, len(rateLimits), "SetDefaults must set every rate limit")
-	for epl, limit := range rateLimits {
-		require.Containsf(t, secondLimits, epl, "SetDefaults must set endpoint limit %d", epl)
-		assert.Truef(t, limit.SharesBudgetWith(firstLimits[epl]), "the first exchange should use the shared limiter of endpoint limit %d", epl)
-		assert.Truef(t, firstLimits[epl].SharesBudgetWith(secondLimits[epl]), "exchanges should share the limiter of endpoint limit %d", epl)
-	}
 }

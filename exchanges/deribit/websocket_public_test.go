@@ -80,59 +80,92 @@ func TestWebsocketHandleOrderbook(t *testing.T) {
 	err = other.wsHandleOrderbook(t.Context(), nil, grouped, notification(grouped, `{"instrument_name":"BTC-PERPETUAL","bids":[[1]],"asks":[]}`))
 	assert.ErrorIs(t, err, errMalformedNotification, "wsHandleOrderbook should reject a grouped book's malformed level")
 
+	// The cases below run serially and in order on other, as each notification lands on the books the ones before it
+	// left: the change applies to the snapshot before it, and each grouped book replaces the one before it.
+	//
 	// Trimmed from a live spot snapshot holding levels without an amount, then a change taking levels to no amount
 	const spot = "book.ETH_USDC.100ms"
 	ethUSDC := currency.NewPairWithDelimiter("ETH", "USDC", currency.UnderscoreDelimiter)
-	require.NoError(t, other.wsHandleOrderbook(t.Context(), nil, spot, notification(spot, `{"timestamp":1793798720557,"type":"snapshot","change_id":10208598898,"instrument_name":"ETH_USDC","bids":[["new",2316.65,1.575089],["new",2316.6,3.695052],["new",2316.48,0.000306],["new",2308.83,0.0],["new",2308.74,0.0],["new",2308.72,0.081381]],"asks":[["new",2316.66,3.88491],["new",2316.83,0.865233],["new",2319.77,0.0],["new",2319.82,0.25],["new",2344.2,0.0],["new",2344.58,0.016901]]}`)), "wsHandleOrderbook must load a snapshot holding levels without an amount")
-	book, err = other.Websocket.Orderbook.GetOrderbook(ethUSDC, asset.Spot)
-	require.NoError(t, err, "GetOrderbook must not error for a snapshot holding levels without an amount")
-	assert.Equal(t, orderbook.Levels{{Price: 2316.65, Amount: 1.575089}, {Price: 2316.6, Amount: 3.695052}, {Price: 2316.48, Amount: 0.000306}, {Price: 2308.72, Amount: 0.081381}}, book.Bids, "wsHandleOrderbook should leave out a snapshot's bids without an amount")
-	assert.Equal(t, orderbook.Levels{{Price: 2316.66, Amount: 3.88491}, {Price: 2316.83, Amount: 0.865233}, {Price: 2319.82, Amount: 0.25}, {Price: 2344.58, Amount: 0.016901}}, book.Asks, "wsHandleOrderbook should leave out a snapshot's asks without an amount")
-	require.NoError(t, other.wsHandleOrderbook(t.Context(), nil, spot, notification(spot, `{"timestamp":1793798720657,"type":"change","prev_change_id":10208598898,"change_id":10208598899,"instrument_name":"ETH_USDC","bids":[["change",2316.65,1.2],["change",2316.6,0.0]],"asks":[["change",2316.66,4.1],["change",2316.83,0.0],["change",2319.77,0.0]]}`)), "wsHandleOrderbook must not error for a change taking levels to no amount")
-	book, err = other.Websocket.Orderbook.GetOrderbook(ethUSDC, asset.Spot)
-	require.NoError(t, err, "GetOrderbook must not error after a change taking levels to no amount")
-	assert.Equal(t, orderbook.Levels{{Price: 2316.65, Amount: 1.2}, {Price: 2316.48, Amount: 0.000306}, {Price: 2308.72, Amount: 0.081381}}, book.Bids, "a change should update a held bid and remove one taken to no amount")
-	assert.Equal(t, orderbook.Levels{{Price: 2316.66, Amount: 4.1}, {Price: 2319.82, Amount: 0.25}, {Price: 2344.58, Amount: 0.016901}}, book.Asks, "a change should update a held ask and remove one taken to no amount, and one taking an ask not held to no amount should change nothing")
+	t.Run("spot snapshot holding levels without an amount", func(t *testing.T) {
+		require.NoError(t, other.wsHandleOrderbook(t.Context(), nil, spot, notification(spot, `{"timestamp":1793798720557,"type":"snapshot","change_id":10208598898,"instrument_name":"ETH_USDC","bids":[["new",2316.65,1.575089],["new",2316.6,3.695052],["new",2316.48,0.000306],["new",2308.83,0.0],["new",2308.74,0.0],["new",2308.72,0.081381]],"asks":[["new",2316.66,3.88491],["new",2316.83,0.865233],["new",2319.77,0.0],["new",2319.82,0.25],["new",2344.2,0.0],["new",2344.58,0.016901]]}`)), "wsHandleOrderbook must load a snapshot holding levels without an amount")
+		book, err := other.Websocket.Orderbook.GetOrderbook(ethUSDC, asset.Spot)
+		require.NoError(t, err, "GetOrderbook must not error for a snapshot holding levels without an amount")
+		assert.Equal(t, orderbook.Levels{{Price: 2316.65, Amount: 1.575089}, {Price: 2316.6, Amount: 3.695052}, {Price: 2316.48, Amount: 0.000306}, {Price: 2308.72, Amount: 0.081381}}, book.Bids, "wsHandleOrderbook should leave out a snapshot's bids without an amount")
+		assert.Equal(t, orderbook.Levels{{Price: 2316.66, Amount: 3.88491}, {Price: 2316.83, Amount: 0.865233}, {Price: 2319.82, Amount: 0.25}, {Price: 2344.58, Amount: 0.016901}}, book.Asks, "wsHandleOrderbook should leave out a snapshot's asks without an amount")
+	})
+	t.Run("spot change taking levels to no amount", func(t *testing.T) {
+		require.NoError(t, other.wsHandleOrderbook(t.Context(), nil, spot, notification(spot, `{"timestamp":1793798720657,"type":"change","prev_change_id":10208598898,"change_id":10208598899,"instrument_name":"ETH_USDC","bids":[["change",2316.65,1.2],["change",2316.6,0.0]],"asks":[["change",2316.66,4.1],["change",2316.83,0.0],["change",2319.77,0.0]]}`)), "wsHandleOrderbook must not error for a change taking levels to no amount")
+		book, err := other.Websocket.Orderbook.GetOrderbook(ethUSDC, asset.Spot)
+		require.NoError(t, err, "GetOrderbook must not error after a change taking levels to no amount")
+		assert.Equal(t, orderbook.Levels{{Price: 2316.65, Amount: 1.2}, {Price: 2316.48, Amount: 0.000306}, {Price: 2308.72, Amount: 0.081381}}, book.Bids, "a change should update a held bid and remove one taken to no amount")
+		assert.Equal(t, orderbook.Levels{{Price: 2316.66, Amount: 4.1}, {Price: 2319.82, Amount: 0.25}, {Price: 2344.58, Amount: 0.016901}}, book.Asks, "a change should update a held ask and remove one taken to no amount, and one taking an ask not held to no amount should change nothing")
+	})
 
-	// A combo's spread can be quoted below zero, which a snapshot keeps
-	const combo = "book.BTC-FS-25DEC26_PERP.100ms"
-	comboAsset, comboPair, err := getAssetPairByInstrument("BTC-FS-25DEC26_PERP")
-	require.NoError(t, err, "getAssetPairByInstrument must not error")
-	require.NoError(t, other.wsHandleOrderbook(t.Context(), nil, combo, notification(combo, `{"timestamp":1793801669446,"type":"snapshot","change_id":181279219651,"instrument_name":"BTC-FS-25DEC26_PERP","bids":[["new",-2.5,1000.0],["new",-3.0,500.0]],"asks":[["new",-2.0,1000.0],["new",-1.5,200.0]]}`)), "wsHandleOrderbook must load a combo snapshot quoted below zero")
-	book, err = other.Websocket.Orderbook.GetOrderbook(comboPair, comboAsset)
-	require.NoError(t, err, "GetOrderbook must not error for a combo snapshot quoted below zero")
-	assert.Equal(t, orderbook.Levels{{Price: -2.5, Amount: 1000}, {Price: -3, Amount: 500}}, book.Bids, "wsHandleOrderbook should keep a combo's bids below zero")
-	assert.Equal(t, orderbook.Levels{{Price: -2, Amount: 1000}, {Price: -1.5, Amount: 200}}, book.Asks, "wsHandleOrderbook should keep a combo's asks below zero")
+	t.Run("combo snapshot quoted below zero", func(t *testing.T) {
+		// A combo's spread can be quoted below zero, which a snapshot keeps
+		const combo = "book.BTC-FS-25DEC26_PERP.100ms"
+		comboAsset, comboPair, err := getAssetPairByInstrument("BTC-FS-25DEC26_PERP")
+		require.NoError(t, err, "getAssetPairByInstrument must not error")
+		require.NoError(t, other.wsHandleOrderbook(t.Context(), nil, combo, notification(combo, `{"timestamp":1793801669446,"type":"snapshot","change_id":181279219651,"instrument_name":"BTC-FS-25DEC26_PERP","bids":[["new",-2.5,1000.0],["new",-3.0,500.0]],"asks":[["new",-2.0,1000.0],["new",-1.5,200.0]]}`)), "wsHandleOrderbook must load a combo snapshot quoted below zero")
+		book, err := other.Websocket.Orderbook.GetOrderbook(comboPair, comboAsset)
+		require.NoError(t, err, "GetOrderbook must not error for a combo snapshot quoted below zero")
+		assert.Equal(t, orderbook.Levels{{Price: -2.5, Amount: 1000}, {Price: -3, Amount: 500}}, book.Bids, "wsHandleOrderbook should keep a combo's bids below zero")
+		assert.Equal(t, orderbook.Levels{{Price: -2, Amount: 1000}, {Price: -1.5, Amount: 200}}, book.Asks, "wsHandleOrderbook should keep a combo's asks below zero")
+	})
 
-	// Leaving out the levels without an amount still leaves the book's other checks to refuse a snapshot
-	err = other.wsHandleOrderbook(t.Context(), nil, "book.ETH-PERPETUAL.100ms", notification("book.ETH-PERPETUAL.100ms", `{"timestamp":1792107433716,"type":"snapshot","change_id":3,"instrument_name":"ETH-PERPETUAL","bids":[["new",2500.0,1.0],["new",2501.0,1.0]],"asks":[]}`))
-	assert.ErrorContains(t, err, "pricing out of order", "wsHandleOrderbook should still refuse a snapshot whose levels are out of order")
+	t.Run("snapshot out of order refused", func(t *testing.T) {
+		// Leaving out the levels without an amount still leaves the book's other checks to refuse a snapshot
+		err := other.wsHandleOrderbook(t.Context(), nil, "book.ETH-PERPETUAL.100ms", notification("book.ETH-PERPETUAL.100ms", `{"timestamp":1792107433716,"type":"snapshot","change_id":3,"instrument_name":"ETH-PERPETUAL","bids":[["new",2500.0,1.0],["new",2501.0,1.0]],"asks":[]}`))
+		assert.ErrorContains(t, err, "pricing out of order", "wsHandleOrderbook should still refuse a snapshot whose levels are out of order")
+	})
 
 	// Trimmed from two live grouped spot books, which hold levels without an amount too, the second as its best ask
 	const groupedSpot = "book.ETH_USDC.none.20.100ms"
-	require.NoError(t, other.wsHandleOrderbook(t.Context(), nil, groupedSpot, notification(groupedSpot, `{"timestamp":1793817519857,"change_id":10215517752,"instrument_name":"ETH_USDC","bids":[[2423.44,0.505779],[2422.87,0.000825],[2422.85,0.0],[2422.83,11.803021]],"asks":[[2423.45,0.54055],[2423.69,0.821693]]}`)), "wsHandleOrderbook must load a grouped book holding a bid without an amount")
-	book, err = other.Websocket.Orderbook.GetOrderbook(ethUSDC, asset.Spot)
-	require.NoError(t, err, "GetOrderbook must not error for a grouped book holding a bid without an amount")
-	assert.Equal(t, orderbook.Levels{{Price: 2423.44, Amount: 0.505779}, {Price: 2422.87, Amount: 0.000825}, {Price: 2422.83, Amount: 11.803021}}, book.Bids, "wsHandleOrderbook should leave out a grouped book's bids without an amount")
-	assert.Equal(t, orderbook.Levels{{Price: 2423.45, Amount: 0.54055}, {Price: 2423.69, Amount: 0.821693}}, book.Asks, "wsHandleOrderbook should load a grouped book's asks")
-	require.NoError(t, other.wsHandleOrderbook(t.Context(), nil, groupedSpot, notification(groupedSpot, `{"timestamp":1793817533757,"change_id":10215522070,"instrument_name":"ETH_USDC","bids":[[2424.05,1.052],[2424.02,3.712841]],"asks":[[2424.06,0.0],[2424.27,3.40867],[2424.3,0.000568]]}`)), "wsHandleOrderbook must load a grouped book whose best ask has no amount")
-	book, err = other.Websocket.Orderbook.GetOrderbook(ethUSDC, asset.Spot)
-	require.NoError(t, err, "GetOrderbook must not error for a grouped book whose best ask has no amount")
-	assert.Equal(t, orderbook.Levels{{Price: 2424.05, Amount: 1.052}, {Price: 2424.02, Amount: 3.712841}}, book.Bids, "wsHandleOrderbook should load the next grouped book's bids in place of the last")
-	assert.Equal(t, orderbook.Levels{{Price: 2424.27, Amount: 3.40867}, {Price: 2424.3, Amount: 0.000568}}, book.Asks, "wsHandleOrderbook should leave out a grouped book's asks without an amount")
-	// Built from the first's bids and the second's asks, since a book can hold levels without an amount on both sides at
-	// once, like the snapshot above
-	require.NoError(t, other.wsHandleOrderbook(t.Context(), nil, groupedSpot, notification(groupedSpot, `{"timestamp":1793817533857,"change_id":10215522071,"instrument_name":"ETH_USDC","bids":[[2423.44,0.505779],[2422.87,0.000825],[2422.85,0.0],[2422.83,11.803021]],"asks":[[2424.06,0.0],[2424.27,3.40867],[2424.3,0.000568]]}`)), "wsHandleOrderbook must load a grouped book holding levels without an amount on both sides")
-	book, err = other.Websocket.Orderbook.GetOrderbook(ethUSDC, asset.Spot)
-	require.NoError(t, err, "GetOrderbook must not error for a grouped book holding levels without an amount on both sides")
-	assert.Equal(t, orderbook.Levels{{Price: 2423.44, Amount: 0.505779}, {Price: 2422.87, Amount: 0.000825}, {Price: 2422.83, Amount: 11.803021}}, book.Bids, "wsHandleOrderbook should leave out a grouped book's bids without an amount when its asks hold one too")
-	assert.Equal(t, orderbook.Levels{{Price: 2424.27, Amount: 3.40867}, {Price: 2424.3, Amount: 0.000568}}, book.Asks, "wsHandleOrderbook should leave out a grouped book's asks without an amount when its bids hold one too")
-	// Trimmed from a live grouped book holding two bids in a row without an amount
-	require.NoError(t, other.wsHandleOrderbook(t.Context(), nil, groupedSpot, notification(groupedSpot, `{"timestamp":1793820982457,"change_id":10216572226,"instrument_name":"ETH_USDC","bids":[[2416.99,0.35074],[2416.54,0.619736],[2416.53,0.0],[2416.52,0.0],[2416.46,0.5]],"asks":[[2417.0,0.956544],[2417.6,0.001]]}`)), "wsHandleOrderbook must load a grouped book holding two bids without an amount")
-	book, err = other.Websocket.Orderbook.GetOrderbook(ethUSDC, asset.Spot)
-	require.NoError(t, err, "GetOrderbook must not error for a grouped book holding two bids without an amount")
-	assert.Equal(t, orderbook.Levels{{Price: 2416.99, Amount: 0.35074}, {Price: 2416.54, Amount: 0.619736}, {Price: 2416.46, Amount: 0.5}}, book.Bids, "wsHandleOrderbook should leave out every bid without an amount in a grouped book")
-	assert.Equal(t, orderbook.Levels{{Price: 2417, Amount: 0.956544}, {Price: 2417.6, Amount: 0.001}}, book.Asks, "wsHandleOrderbook should load a grouped book's asks beside bids without an amount")
+	t.Run("grouped spot book holding a bid without an amount", func(t *testing.T) {
+		require.NoError(t, other.wsHandleOrderbook(t.Context(), nil, groupedSpot, notification(groupedSpot, `{"timestamp":1793817519857,"change_id":10215517752,"instrument_name":"ETH_USDC","bids":[[2423.44,0.505779],[2422.87,0.000825],[2422.85,0.0],[2422.83,11.803021]],"asks":[[2423.45,0.54055],[2423.69,0.821693]]}`)), "wsHandleOrderbook must load a grouped book holding a bid without an amount")
+		book, err := other.Websocket.Orderbook.GetOrderbook(ethUSDC, asset.Spot)
+		require.NoError(t, err, "GetOrderbook must not error for a grouped book holding a bid without an amount")
+		assert.Equal(t, orderbook.Levels{{Price: 2423.44, Amount: 0.505779}, {Price: 2422.87, Amount: 0.000825}, {Price: 2422.83, Amount: 11.803021}}, book.Bids, "wsHandleOrderbook should leave out a grouped book's bids without an amount")
+		assert.Equal(t, orderbook.Levels{{Price: 2423.45, Amount: 0.54055}, {Price: 2423.69, Amount: 0.821693}}, book.Asks, "wsHandleOrderbook should load a grouped book's asks")
+	})
+	t.Run("grouped spot book whose best ask has no amount", func(t *testing.T) {
+		require.NoError(t, other.wsHandleOrderbook(t.Context(), nil, groupedSpot, notification(groupedSpot, `{"timestamp":1793817533757,"change_id":10215522070,"instrument_name":"ETH_USDC","bids":[[2424.05,1.052],[2424.02,3.712841]],"asks":[[2424.06,0.0],[2424.27,3.40867],[2424.3,0.000568]]}`)), "wsHandleOrderbook must load a grouped book whose best ask has no amount")
+		book, err := other.Websocket.Orderbook.GetOrderbook(ethUSDC, asset.Spot)
+		require.NoError(t, err, "GetOrderbook must not error for a grouped book whose best ask has no amount")
+		assert.Equal(t, orderbook.Levels{{Price: 2424.05, Amount: 1.052}, {Price: 2424.02, Amount: 3.712841}}, book.Bids, "wsHandleOrderbook should load the next grouped book's bids in place of the last")
+		assert.Equal(t, orderbook.Levels{{Price: 2424.27, Amount: 3.40867}, {Price: 2424.3, Amount: 0.000568}}, book.Asks, "wsHandleOrderbook should leave out a grouped book's asks without an amount")
+	})
+
+	t.Run("grouped spot book holding levels without an amount on both sides", func(t *testing.T) {
+		// Built from the first grouped book's bids and the second's asks, since a book can hold levels without an amount on
+		// both sides at once, like the spot snapshot
+		require.NoError(t, other.wsHandleOrderbook(t.Context(), nil, groupedSpot, notification(groupedSpot, `{"timestamp":1793817533857,"change_id":10215522071,"instrument_name":"ETH_USDC","bids":[[2423.44,0.505779],[2422.87,0.000825],[2422.85,0.0],[2422.83,11.803021]],"asks":[[2424.06,0.0],[2424.27,3.40867],[2424.3,0.000568]]}`)), "wsHandleOrderbook must load a grouped book holding levels without an amount on both sides")
+		book, err := other.Websocket.Orderbook.GetOrderbook(ethUSDC, asset.Spot)
+		require.NoError(t, err, "GetOrderbook must not error for a grouped book holding levels without an amount on both sides")
+		assert.Equal(t, orderbook.Levels{{Price: 2423.44, Amount: 0.505779}, {Price: 2422.87, Amount: 0.000825}, {Price: 2422.83, Amount: 11.803021}}, book.Bids, "wsHandleOrderbook should leave out a grouped book's bids without an amount when its asks hold one too")
+		assert.Equal(t, orderbook.Levels{{Price: 2424.27, Amount: 3.40867}, {Price: 2424.3, Amount: 0.000568}}, book.Asks, "wsHandleOrderbook should leave out a grouped book's asks without an amount when its bids hold one too")
+	})
+
+	t.Run("grouped spot book holding two bids without an amount", func(t *testing.T) {
+		// Trimmed from a live grouped book holding two bids in a row without an amount
+		require.NoError(t, other.wsHandleOrderbook(t.Context(), nil, groupedSpot, notification(groupedSpot, `{"timestamp":1793820982457,"change_id":10216572226,"instrument_name":"ETH_USDC","bids":[[2416.99,0.35074],[2416.54,0.619736],[2416.53,0.0],[2416.52,0.0],[2416.46,0.5]],"asks":[[2417.0,0.956544],[2417.6,0.001]]}`)), "wsHandleOrderbook must load a grouped book holding two bids without an amount")
+		book, err := other.Websocket.Orderbook.GetOrderbook(ethUSDC, asset.Spot)
+		require.NoError(t, err, "GetOrderbook must not error for a grouped book holding two bids without an amount")
+		assert.Equal(t, orderbook.Levels{{Price: 2416.99, Amount: 0.35074}, {Price: 2416.54, Amount: 0.619736}, {Price: 2416.46, Amount: 0.5}}, book.Bids, "wsHandleOrderbook should leave out every bid without an amount in a grouped book")
+		assert.Equal(t, orderbook.Levels{{Price: 2417, Amount: 0.956544}, {Price: 2417.6, Amount: 0.001}}, book.Asks, "wsHandleOrderbook should load a grouped book's asks beside bids without an amount")
+	})
+
+	t.Run("snapshot with small amounts and low prices kept", func(t *testing.T) {
+		t.Parallel()
+		spotExchange := newTestExchange(t)
+		// Trimmed from a live spot snapshot, whose levels hold amounts as small as 0.00000001 and bids priced as low as 0.01
+		const btcSpot = "book.BTC_USDC.100ms"
+		require.NoError(t, spotExchange.wsHandleOrderbook(t.Context(), nil, btcSpot, notification(btcSpot, `{"timestamp":1793798720657,"type":"snapshot","change_id":10208598896,"instrument_name":"BTC_USDC","bids":[["new",78318.01,6.101e-5],["new",78316.67,7.71e-6],["new",75534.72,1.0e-8],["new",0.01,11282.6]],"asks":[["new",78318.02,0.00638699],["new",78469.95,1.0e-8]]}`)), "wsHandleOrderbook must load a snapshot holding small amounts and prices")
+		book, err := spotExchange.Websocket.Orderbook.GetOrderbook(currency.NewPairWithDelimiter("BTC", "USDC", currency.UnderscoreDelimiter), asset.Spot)
+		require.NoError(t, err, "GetOrderbook must not error for a snapshot holding small amounts and prices")
+		assert.Equal(t, orderbook.Levels{{Price: 78318.01, Amount: 0.00006101}, {Price: 78316.67, Amount: 0.00000771}, {Price: 75534.72, Amount: 0.00000001}, {Price: 0.01, Amount: 11282.6}}, book.Bids, "wsHandleOrderbook should keep a snapshot's bids with small amounts or prices")
+		assert.Equal(t, orderbook.Levels{{Price: 78318.02, Amount: 0.00638699}, {Price: 78469.95, Amount: 0.00000001}}, book.Asks, "wsHandleOrderbook should keep a snapshot's asks with small amounts")
+	})
 }
 
 func TestOrderbookChangeLevels(t *testing.T) {
@@ -204,31 +237,31 @@ func TestResubscribeChannel(t *testing.T) {
 		assert.Len(t, venue.receivedOn(subscriptionVenueConnection, "public/unsubscribe"), 2, "the reader should resubscribe the other book on the connection its change arrived on")
 		assert.Len(t, venue.receivedOn(subscriptionVenueConnection, "public/subscribe"), 3, "the reader should subscribe the other book again on the connection its change arrived on")
 	})
-}
 
-func TestResubscribeChannelOnItsConnection(t *testing.T) {
-	t.Parallel()
-	// A first subscription connection full of index channels puts the book on a second one
-	subs := make(subscription.List, 0, maximumChannelsPerConnection+1)
-	for i := range maximumChannelsPerConnection {
-		subs = append(subs, &subscription.Subscription{Enabled: true, Channel: ChannelPriceIndex, Params: map[string]any{"index_name": "index_" + strconv.Itoa(i)}})
-	}
-	subs = append(subs, &subscription.Subscription{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Futures, Pairs: currency.Pairs{currency.NewPairWithDelimiter("BTC", "PERPETUAL", currency.DashDelimiter)}, Interval: kline.HundredMilliseconds})
-	ex, venue := connectWebsocketTestExchange(t, true, subs)
-	const bookConnection, channel = subscriptionVenueConnection + 1, "book.BTC-PERPETUAL.100ms"
-	require.Equal(t, bookConnection, venue.connectionCount(), "the manager must open a second subscription connection")
-	subscribed := venue.receivedOn(bookConnection, "public/subscribe")
-	require.Len(t, subscribed, 1, "the manager must subscribe the second subscription connection's channels in one request")
-	require.JSONEq(t, `{"channels":["`+channel+`"]}`, string(subscribed[0].Params), "the manager must subscribe the book on the second subscription connection")
-	// A change before any snapshot cannot be applied, so the book is resubscribed for a new snapshot
-	venue.push(t, bookConnection, notification(channel, `{"timestamp":1792107433716,"type":"change","prev_change_id":1,"change_id":2,"instrument_name":"BTC-PERPETUAL","bids":[],"asks":[]}`))
-	require.Eventually(t, func() bool {
-		sub := heldSubscription(ex, channel)
-		return len(venue.receivedOn(bookConnection, "public/subscribe")) == 2 && sub != nil && sub.State() == subscription.SubscribedState
-	}, 5*time.Second, time.Millisecond, "the book must be resubscribed")
-	assert.Len(t, venue.receivedOn(bookConnection, "public/unsubscribe"), 1, "the book should be unsubscribed on the connection its change arrived on")
-	assert.Empty(t, venue.receivedOn(subscriptionVenueConnection, "public/unsubscribe"), "the book should not be resubscribed on another connection")
-	assert.Len(t, venue.receivedOn(subscriptionVenueConnection, "public/subscribe"), 1, "the book should not be subscribed on another connection")
+	t.Run("book on a second subscription connection", func(t *testing.T) {
+		t.Parallel()
+		// A first subscription connection full of index channels puts the book on a second one
+		subs := make(subscription.List, 0, maximumChannelsPerConnection+1)
+		for i := range maximumChannelsPerConnection {
+			subs = append(subs, &subscription.Subscription{Enabled: true, Channel: ChannelPriceIndex, Params: map[string]any{"index_name": "index_" + strconv.Itoa(i)}})
+		}
+		subs = append(subs, &subscription.Subscription{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Futures, Pairs: currency.Pairs{currency.NewPairWithDelimiter("BTC", "PERPETUAL", currency.DashDelimiter)}, Interval: kline.HundredMilliseconds})
+		ex, venue := connectWebsocketTestExchange(t, true, subs)
+		const bookConnection, channel = subscriptionVenueConnection + 1, "book.BTC-PERPETUAL.100ms"
+		require.Equal(t, bookConnection, venue.connectionCount(), "the manager must open a second subscription connection")
+		subscribed := venue.receivedOn(bookConnection, "public/subscribe")
+		require.Len(t, subscribed, 1, "the manager must subscribe the second subscription connection's channels in one request")
+		require.JSONEq(t, `{"channels":["`+channel+`"]}`, string(subscribed[0].Params), "the manager must subscribe the book on the second subscription connection")
+		// A change before any snapshot cannot be applied, so the book is resubscribed for a new snapshot
+		venue.push(t, bookConnection, notification(channel, `{"timestamp":1792107433716,"type":"change","prev_change_id":1,"change_id":2,"instrument_name":"BTC-PERPETUAL","bids":[],"asks":[]}`))
+		require.Eventually(t, func() bool {
+			sub := heldSubscription(ex, channel)
+			return len(venue.receivedOn(bookConnection, "public/subscribe")) == 2 && sub != nil && sub.State() == subscription.SubscribedState
+		}, 5*time.Second, time.Millisecond, "the book must be resubscribed")
+		assert.Len(t, venue.receivedOn(bookConnection, "public/unsubscribe"), 1, "the book should be unsubscribed on the connection its change arrived on")
+		assert.Empty(t, venue.receivedOn(subscriptionVenueConnection, "public/unsubscribe"), "the book should not be resubscribed on another connection")
+		assert.Len(t, venue.receivedOn(subscriptionVenueConnection, "public/subscribe"), 1, "the book should not be subscribed on another connection")
+	})
 }
 
 func TestMarkResubscribing(t *testing.T) {
@@ -740,13 +773,16 @@ func TestOnConnection(t *testing.T) {
 	assert.Equal(t, 1, changes, "onConnection should make no change on a connection the manager has replaced")
 }
 
-func TestWebsocketOrderbookChangeUnmarshalJSON(t *testing.T) {
+func TestWebsocketOrderbookChangeUnmarshalJSON(t *testing.T) { //nolint:tparallel // Its malformed changes decode serially into the change decoded before them
 	t.Parallel()
 	var change WebsocketOrderbookChange
 	require.NoError(t, json.Unmarshal([]byte(`["delete",5041.94,0]`), &change), "Unmarshal must not error")
 	assert.Equal(t, WebsocketOrderbookChange{Action: bookDelete, Price: 5041.94}, change, "UnmarshalJSON should decode an [action, price, amount] tuple")
+	// The cases decode in order into the change the tuple above filled, so a decoder that keeps what it held fails
 	for _, input := range []string{`["new",1]`, `[1,2,3]`, `["new","1",2]`, `["new",1,"2"]`, `{}`} {
-		assert.ErrorIsf(t, json.Unmarshal([]byte(input), &change), errInvalidTuple, "UnmarshalJSON should reject %s", input)
+		t.Run(subtestName(input), func(t *testing.T) {
+			assert.ErrorIsf(t, json.Unmarshal([]byte(input), &change), errInvalidTuple, "UnmarshalJSON should reject %s", input)
+		})
 	}
 }
 
@@ -754,11 +790,12 @@ func TestWebsocketOrderbookChangeUnmarshalJSON(t *testing.T) {
 // defaultSubscriptions subscribes for every asset. min_price and max_price are the bounds an order
 // is clamped to rather than the day's range, and implied_bid and implied_ask are null outside
 // combos, so reading them for an option recorded a zero book
-func TestWebsocketHandleTicker(t *testing.T) {
+func TestWebsocketHandleTicker(t *testing.T) { //nolint:tparallel // Its tickers run serially on one exchange, so a ticker that keeps fields of the one before fails
 	t.Parallel()
-	ex := newTestExchange(t)
-
+	// The cases run serially and in order on ex, so a handler that carries a field from one ticker to the next fails.
+	//
 	// Each trimmed from GET /api/v2/public/ticker, which serves what the ticker channel pushes
+	ex := newTestExchange(t)
 	for _, tc := range []struct {
 		instrument string
 		a          asset.Item
@@ -793,20 +830,23 @@ func TestWebsocketHandleTicker(t *testing.T) {
 			want: ticker.Price{Bid: 78140, BidSize: 0.0462, Ask: 78249, AskSize: 0.04, Last: 78223, Close: 78223, High: 79755, Low: 77785, BaseVolume: 8.6814, QuoteVolume: 682976.9009, MarkPrice: 78178.92, IndexPrice: 78178.92, LastUpdated: time.UnixMilli(1789024542984)},
 		},
 	} {
-		payload := `{"params":{"channel":"ticker.` + tc.instrument + `.100ms","data":{"instrument_name":"` + tc.instrument + `",` + tc.data + `}},"method":"subscription","jsonrpc":"2.0"}`
-		require.NoErrorf(t, ex.wsHandleData(t.Context(), nil, []byte(payload)), "wsHandleData must not error for %s", tc.instrument)
+		t.Run(tc.a.String(), func(t *testing.T) {
+			payload := `{"params":{"channel":"ticker.` + tc.instrument + `.100ms","data":{"instrument_name":"` + tc.instrument + `",` + tc.data + `}},"method":"subscription","jsonrpc":"2.0"}`
+			require.NoErrorf(t, ex.wsHandleData(t.Context(), nil, []byte(payload)), "wsHandleData must not error for %s", tc.instrument)
 
-		p, err := currency.NewPairFromString(tc.instrument)
-		require.NoErrorf(t, err, "NewPairFromString must not error for %s", tc.instrument)
-		tc.want.ExchangeName, tc.want.Pair, tc.want.AssetType = ex.Name, p, tc.a
-		select {
-		case msg := <-ex.Websocket.DataHandler.C:
-			got, ok := msg.Data.(*ticker.Price)
-			require.Truef(t, ok, "the ticker handler must send a ticker price for %s", tc.instrument)
-			assert.Equalf(t, &tc.want, got, "the %s ticker should take its book, last price and range from the fields UpdateTicker reads", tc.a)
-		default:
-			require.Failf(t, "no ticker price sent", "the ticker handler must send a ticker price for %s", tc.instrument)
-		}
+			p, err := currency.NewPairFromString(tc.instrument)
+			require.NoErrorf(t, err, "NewPairFromString must not error for %s", tc.instrument)
+			tc.want.ExchangeName, tc.want.Pair, tc.want.AssetType = ex.Name, p, tc.a
+			select {
+			case msg := <-ex.Websocket.DataHandler.C:
+				got, ok := msg.Data.(*ticker.Price)
+				require.Truef(t, ok, "the ticker handler must send a ticker price for %s", tc.instrument)
+				assert.Equalf(t, &tc.want, got, "the %s ticker should take its book, last price and range from the fields UpdateTicker reads", tc.a)
+			default:
+				require.Failf(t, "no ticker price sent", "the ticker handler must send a ticker price for %s", tc.instrument)
+			}
+			assertNothingRelayed(t, ex)
+		})
 	}
 
 	err := ex.wsHandleTicker(t.Context(), notification("ticker.BTC.100ms", `{"instrument_name":"BTC","timestamp":1789024543036}`))
@@ -900,7 +940,7 @@ func TestWebsocketHandleQuote(t *testing.T) {
 // only the fields that moved: part of stats or none of it, an explicit 0 for a book side that
 // empties, and a null for a range that empties. Built afresh, the first change zeroed every volume
 // and the day's range, since the store overwrites a pair wholesale
-func TestWebsocketHandleIncrementalTicker(t *testing.T) {
+func TestWebsocketHandleIncrementalTicker(t *testing.T) { //nolint:tparallel // Its BTC-PERPETUAL messages run serially, each change merging onto the ticker the message before it sent
 	t.Parallel()
 	ex := newTestExchange(t)
 
@@ -908,7 +948,7 @@ func TestWebsocketHandleIncrementalTicker(t *testing.T) {
 		payload := `{"params":{"channel":"incremental_ticker.` + instrument + `","data":{"instrument_name":"` + instrument + `",` + data + `}},"method":"subscription","jsonrpc":"2.0"}`
 		return ex.wsHandleData(t.Context(), nil, []byte(payload))
 	}
-	received := func() *ticker.Price {
+	received := func(t *testing.T) *ticker.Price {
 		t.Helper()
 		select {
 		case msg := <-ex.Websocket.DataHandler.C:
@@ -921,14 +961,19 @@ func TestWebsocketHandleIncrementalTicker(t *testing.T) {
 		}
 	}
 
-	// Consecutive messages from incremental_ticker.BTC-PERPETUAL
-	for _, data := range []string{
-		`"timestamp":1789023748046,"type":"snapshot","stats":{"high":79779.5,"low":77728.0,"price_change":-1.1276,"volume":4662.27109873,"volume_usd":367468920.0,"volume_notional":367468920.0},"index_price":78291.88,"last_price":78301.0,"min_price":77129.0,"max_price":79479.0,"mark_price":78304.05,"best_ask_price":78301.5,"best_bid_price":78301.0,"best_ask_amount":573260.0,"best_bid_amount":163420.0`,
-		`"timestamp":1789023748464,"type":"change","stats":{"volume":4662.27109873,"volume_usd":367468920.0,"volume_notional":367468920.0},"index_price":78293.92,"last_price":7.83e4,"min_price":77131.0,"max_price":79481.0,"mark_price":78306.09,"best_ask_price":78300.5,"best_bid_price":7.83e4,"best_ask_amount":66980.0,"best_bid_amount":190.0`,
-		`"timestamp":1789023748827,"type":"change","min_price":77130.5,"max_price":79480.5,"mark_price":78305.55,"best_ask_amount":64270.0,"best_bid_amount":530.0`,
+	// Consecutive messages from incremental_ticker.BTC-PERPETUAL, run serially and in order, as each change merges onto the
+	// ticker the message before it sent
+	for _, tc := range []struct {
+		name, data string
+	}{
+		{name: "snapshot", data: `"timestamp":1789023748046,"type":"snapshot","stats":{"high":79779.5,"low":77728.0,"price_change":-1.1276,"volume":4662.27109873,"volume_usd":367468920.0,"volume_notional":367468920.0},"index_price":78291.88,"last_price":78301.0,"min_price":77129.0,"max_price":79479.0,"mark_price":78304.05,"best_ask_price":78301.5,"best_bid_price":78301.0,"best_ask_amount":573260.0,"best_bid_amount":163420.0`},
+		{name: "change with part of the stats", data: `"timestamp":1789023748464,"type":"change","stats":{"volume":4662.27109873,"volume_usd":367468920.0,"volume_notional":367468920.0},"index_price":78293.92,"last_price":7.83e4,"min_price":77131.0,"max_price":79481.0,"mark_price":78306.09,"best_ask_price":78300.5,"best_bid_price":7.83e4,"best_ask_amount":66980.0,"best_bid_amount":190.0`},
+		{name: "change without the stats", data: `"timestamp":1789023748827,"type":"change","min_price":77130.5,"max_price":79480.5,"mark_price":78305.55,"best_ask_amount":64270.0,"best_bid_amount":530.0`},
 	} {
-		require.NoError(t, send("BTC-PERPETUAL", data), "wsHandleData must not error")
-		received()
+		t.Run(tc.name, func(t *testing.T) {
+			require.NoError(t, send("BTC-PERPETUAL", tc.data), "wsHandleData must not error")
+			received(t)
+		})
 	}
 	perp := currency.NewPairWithDelimiter("BTC", "PERPETUAL", "-")
 
@@ -953,14 +998,14 @@ func TestWebsocketHandleIncrementalTicker(t *testing.T) {
 		MarkPrice:    78305.55,
 		IndexPrice:   78290.5,
 		LastUpdated:  time.UnixMilli(1789023749000),
-	}, received(), "each change should merge onto the ticker last sent rather than replace it or read the store")
+	}, received(t), "each change should merge onto the ticker last sent rather than replace it or read the store")
 
 	// Consecutive messages from incremental_ticker.BTC-10SEP26-78000-P, whose only bid is pulled
 	require.NoError(t, send("BTC-10SEP26-78000-P", `"timestamp":1789026089754,"type":"snapshot","stats":{"high":0.0055,"low":0.0001,"price_change":-95.6522,"volume":55.9,"volume_usd":8221.17},"index_price":77955.54,"last_price":0.0001,"min_price":0.0001,"max_price":0.0225,"mark_price":0.0009,"best_ask_price":0.0014,"best_bid_price":0.0001,"best_ask_amount":16.0,"best_bid_amount":16.0`), "wsHandleData must not error")
-	snapshot := received()
+	snapshot := received(t)
 	require.Equal(t, 0.0001, snapshot.Bid, "the snapshot's bid must be recorded")
 	require.NoError(t, send("BTC-10SEP26-78000-P", `"timestamp":1789026091615,"type":"change","best_bid_price":0.0,"best_bid_amount":0.0`), "wsHandleData must not error")
-	emptied := received()
+	emptied := received(t)
 	assert.Zero(t, emptied.Bid, "a bid sent as 0 should clear the one before it rather than read as absent")
 	assert.Zero(t, emptied.BidSize, "a bid size sent as 0 should clear the one before it")
 	assert.Equal(t, 0.0014, emptied.Ask, "the side the change leaves out should keep its price")
@@ -968,9 +1013,9 @@ func TestWebsocketHandleIncrementalTicker(t *testing.T) {
 	// Consecutive messages from incremental_ticker.ETH-25DEC26-1200-P as its only trade left the 24
 	// hour window, which Deribit sends by nulling the day's range
 	require.NoError(t, send("ETH-25DEC26-1200-P", `"timestamp":1789109461717,"type":"snapshot","state":"open","stats":{"high":0.0034,"low":0.0034,"price_change":0.0,"volume":2.0,"volume_usd":16.86},"index_price":2466.06,"last_price":0.0034,"open_interest":6764.0,"mark_price":0.0035,"best_ask_price":0.0038,"best_bid_price":0.0033,"best_ask_amount":30.0,"best_bid_amount":117.0`), "wsHandleData must not error")
-	require.Equal(t, 0.0034, received().High, "the snapshot's high must be recorded")
+	require.Equal(t, 0.0034, received(t).High, "the snapshot's high must be recorded")
 	require.NoError(t, send("ETH-25DEC26-1200-P", `"timestamp":1789110000494,"type":"change","stats":{"high":null,"low":null,"price_change":null,"volume":0.0,"volume_usd":0.0},"greeks":{"vega":0.67225,"theta":-0.23727,"rho":-0.17539},"index_price":2466.01,"estimated_delivery_price":2466.01,"bid_iv":73.23,"underlying_price":2491.08`), "wsHandleData must not error")
-	rolled := received()
+	rolled := received(t)
 	assert.Zero(t, rolled.High, "a high sent as null should clear the one before it rather than read as absent")
 	assert.Zero(t, rolled.Low, "a low sent as null should clear the one before it")
 	assert.Zero(t, rolled.BaseVolume, "a volume sent as 0 should clear the one before it")
@@ -1162,7 +1207,7 @@ func TestWebsocketIncrementalTickerTickerPrice(t *testing.T) {
 	assert.Equal(t, exp, state.tickerPrice("Deribit", pair, asset.Futures), "tickerPrice should map the merged state, leaving the ask the state lacks at zero")
 }
 
-func TestWebsocketHandleTrades(t *testing.T) {
+func TestWebsocketHandleTrades(t *testing.T) { //nolint:tparallel // Its trades are read serially, in the order one notification relays them
 	t.Parallel()
 	// Trimmed from live trades.BTC-PERPETUAL.100ms and trades.option.BTC.100ms notifications
 	const trades = `[{"timestamp":1792107442821,"price":82143.5,"direction":"buy","index_price":82119.59,"instrument_name":"BTC-PERPETUAL","trade_seq":306494199,"amount":10.0,"mark_price":82142.62,"tick_direction":0,"starbase_match_id":236633583815503872,"trade_id":"452873170","contracts":1.0,"starbase_timestamp":1792107442821580489},{"timestamp":1792107567601,"iv":41.34,"price":0.026,"direction":"sell","index_price":82119.46,"instrument_name":"BTC-16OCT26-80000-C","trade_seq":42,"amount":1.0,"mark_price":0.02624559,"tick_direction":2,"trade_id":"452873286","contracts":1.0}]`
@@ -1178,8 +1223,11 @@ func TestWebsocketHandleTrades(t *testing.T) {
 		{TID: "452873170", Exchange: ex.Name, CurrencyPair: perp, AssetType: asset.Futures, Side: order.Buy, Price: 82143.5, Amount: 10, Timestamp: time.UnixMilli(1792107442821)},
 		{TID: "452873286", Exchange: ex.Name, CurrencyPair: option, AssetType: asset.Options, Side: order.Sell, Price: 0.026, Amount: 1, Timestamp: time.UnixMilli(1792107567601)},
 	}
+	// The trades are read serially, in the order the notification relays them
 	for i := range exp {
-		assert.Equalf(t, exp[i], relayed(t, ex), "wsHandleTrades should relay trade %d", i)
+		t.Run(exp[i].TID, func(t *testing.T) {
+			assert.Equalf(t, exp[i], relayed(t, ex), "wsHandleTrades should relay trade %d", i)
+		})
 	}
 
 	// A trade that cannot be converted is reported, and the rest still relayed
@@ -1197,7 +1245,7 @@ func TestWebsocketHandleTrades(t *testing.T) {
 	assertNothingRelayed(t, disabled)
 }
 
-func TestWebsocketHandleCandle(t *testing.T) {
+func TestWebsocketHandleCandle(t *testing.T) { //nolint:tparallel // Its refused channels run serially on one exchange
 	t.Parallel()
 	ex := newTestExchange(t)
 	const channel = "chart.trades.BTC-PERPETUAL.1"
@@ -1219,13 +1267,17 @@ func TestWebsocketHandleCandle(t *testing.T) {
 	}
 	assert.Equal(t, exp, relayed(t, ex), "wsHandleCandle should relay the candle, its cost as the quote volume, with the interval its channel's resolution names")
 
+	// The refused channels run serially on ex, so a refusal that leaves something behind for the next fails
 	for channel, expErr := range map[string]error{
 		"chart.trades":                      errMalformedNotification,
 		"chart.trades.BTC-PERPETUAL.2":      kline.ErrUnsupportedInterval,
 		"chart.trades.BTC-PERPETUAL.weekly": kline.ErrInvalidInterval,
 		"chart.trades.BTC.1":                errUnsupportedInstrumentFormat,
 	} {
-		assert.ErrorIsf(t, ex.wsHandleCandle(t.Context(), channel, notification(channel, `{}`)), expErr, "wsHandleCandle should reject channel %s", channel)
+		t.Run(channel, func(t *testing.T) {
+			assert.ErrorIsf(t, ex.wsHandleCandle(t.Context(), channel, notification(channel, `{}`)), expErr, "wsHandleCandle should reject channel %s", channel)
+			assertNothingRelayed(t, ex)
+		})
 	}
 	assert.ErrorIs(t, ex.wsHandleCandle(t.Context(), channel, notification(channel, `[]`)), errMalformedNotification, "wsHandleCandle should reject a malformed candle")
 	assertNothingRelayed(t, ex)
@@ -1237,9 +1289,12 @@ func TestResolutionToInterval(t *testing.T) {
 		"1": kline.OneMin, "3": kline.ThreeMin, "5": kline.FiveMin, "10": kline.TenMin, "15": kline.FifteenMin, "30": kline.ThirtyMin,
 		"60": kline.OneHour, "120": kline.TwoHour, "180": kline.ThreeHour, "360": kline.SixHour, "720": kline.TwelveHour, "1D": kline.OneDay,
 	} {
-		interval, err := resolutionToInterval(resolution)
-		require.NoErrorf(t, err, "resolutionToInterval must not error for %s", resolution)
-		assert.Equalf(t, exp, interval, "resolutionToInterval should convert %s", resolution)
+		t.Run(subtestName(resolution), func(t *testing.T) {
+			t.Parallel()
+			interval, err := resolutionToInterval(resolution)
+			require.NoErrorf(t, err, "resolutionToInterval must not error for %s", resolution)
+			assert.Equalf(t, exp, interval, "resolutionToInterval should convert %s", resolution)
+		})
 	}
 	_, err := resolutionToInterval("2")
 	assert.ErrorIs(t, err, kline.ErrUnsupportedInterval, "resolutionToInterval should reject a resolution Deribit does not serve")

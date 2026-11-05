@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -988,12 +989,23 @@ func TestCreateAPIKey(t *testing.T) {
 	assert.ErrorIs(t, err, common.ErrNoResponse, "CreateAPIKey should reject a null result")
 	_, err = newUnavailableServerExchange(t).CreateAPIKey(t.Context(), testCreateAPIKeyRequest())
 	assert.ErrorIs(t, err, request.ErrBadStatus, "CreateAPIKey should return the request failure")
+
+	t.Run("security key challenge", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("confirming a security key challenge needs an account with two-factor authentication and its secret")
+		}
+		testSecurityKeyAuthorisation(t, newTestExchange(t).CreateAPIKey, "CreateAPIKey")
+	})
 }
 
 func TestValidateAPIKeyFeatures(t *testing.T) {
 	t.Parallel()
 	for _, features := range [][]string{nil, {EnabledFeatureRestrictedBlockTrades}, {EnabledFeatureRestrictedBlockTrades, EnabledFeatureBlockTradeApproval}} {
-		assert.NoErrorf(t, validateAPIKeyFeatures(features), "validateAPIKeyFeatures should accept features %v", features)
+		t.Run(subtestName(strings.Join(features, ",")), func(t *testing.T) {
+			t.Parallel()
+			assert.NoErrorf(t, validateAPIKeyFeatures(features), "validateAPIKeyFeatures should accept features %v", features)
+		})
 	}
 	err := validateAPIKeyFeatures([]string{EnabledFeatureBlockTradeApproval, "Block_Trade_Approval"})
 	assert.ErrorIs(t, err, errInvalidAPIKeyFeature, "validateAPIKeyFeatures should reject a feature Deribit does not document")
@@ -1084,18 +1096,23 @@ func TestEditAPIKeyRequestMarshalJSON(t *testing.T) {
 	t.Parallel()
 	enabled := false
 	for _, tc := range []struct {
-		arg *EditAPIKeyRequest
-		exp string
+		name string
+		arg  *EditAPIKeyRequest
+		exp  string
 	}{
-		{arg: &EditAPIKeyRequest{ID: mockAPIKeyID, MaxScope: APIKeyScopes{"account:read"}}, exp: `{"id":3,"max_scope":"account:read"}`},
+		{name: "unset fields left out", arg: &EditAPIKeyRequest{ID: mockAPIKeyID, MaxScope: APIKeyScopes{"account:read"}}, exp: `{"id":3,"max_scope":"account:read"}`},
 		{
-			arg: &EditAPIKeyRequest{ID: mockAPIKeyID, MaxScope: APIKeyScopes{"account:read"}, Enabled: &enabled, EnabledFeatures: []string{}, IPWhitelist: []string{}},
-			exp: `{"id":3,"max_scope":"account:read","enabled":false,"enabled_features":[],"ip_whitelist":[]}`,
+			name: "false state and empty lists sent",
+			arg:  &EditAPIKeyRequest{ID: mockAPIKeyID, MaxScope: APIKeyScopes{"account:read"}, Enabled: &enabled, EnabledFeatures: []string{}, IPWhitelist: []string{}},
+			exp:  `{"id":3,"max_scope":"account:read","enabled":false,"enabled_features":[],"ip_whitelist":[]}`,
 		},
 	} {
-		encoded, err := json.Marshal(tc.arg)
-		require.NoError(t, err, "Marshal must not error")
-		assert.JSONEq(t, tc.exp, string(encoded), "EditAPIKeyRequest should send a set false state and empty lists, which clear the key's")
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			encoded, err := json.Marshal(tc.arg)
+			require.NoError(t, err, "Marshal must not error")
+			assert.JSONEq(t, tc.exp, string(encoded), "EditAPIKeyRequest should send a set false state and empty lists, which clear the key's")
+		})
 	}
 }
 
@@ -1155,26 +1172,35 @@ func TestAccessLogResponseUnmarshalJSON(t *testing.T) {
 	t.Parallel()
 	entry := AccessLogEntry{ID: 46, Timestamp: types.Time(time.UnixMilli(1575876682576)), IP: "127.0.0.1", Country: "Local Country", City: "Local Town", Log: "new_api_key", Data: "IY2D68DS"}
 	for _, tc := range []struct {
+		name  string
 		input string
 		exp   AccessLogResponse
 	}{
 		{
+			name:  "records object",
 			input: `{"records_total":1,"data":[{"id":46,"timestamp":1575876682576,"ip":"127.0.0.1","country":"Local Country","city":"Local Town","log":"new_api_key","data":"IY2D68DS"}]}`,
 			exp:   AccessLogResponse{RecordsTotal: 1, Entries: []AccessLogEntry{entry}},
 		},
 		{
+			name:  "bare list",
 			input: `[{"id":46,"timestamp":1575876682576,"ip":"127.0.0.1","country":"Local Country","city":"Local Town","log":"new_api_key","data":"IY2D68DS"}]`,
 			exp:   AccessLogResponse{Entries: []AccessLogEntry{entry}},
 		},
-		{input: `[]`, exp: AccessLogResponse{Entries: []AccessLogEntry{}}},
+		{name: "empty list", input: `[]`, exp: AccessLogResponse{Entries: []AccessLogEntry{}}},
 	} {
-		var result AccessLogResponse
-		require.NoErrorf(t, json.Unmarshal([]byte(tc.input), &result), "Unmarshal must not error for %s", tc.input)
-		assert.Equalf(t, tc.exp, result, "UnmarshalJSON should decode %s", tc.input)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var result AccessLogResponse
+			require.NoErrorf(t, json.Unmarshal([]byte(tc.input), &result), "Unmarshal must not error for %s", tc.input)
+			assert.Equalf(t, tc.exp, result, "UnmarshalJSON should decode %s", tc.input)
+		})
 	}
 	for _, input := range []string{`"log"`, `[1]`, `{"data":{}}`} {
-		var result AccessLogResponse
-		assert.ErrorIsf(t, json.Unmarshal([]byte(input), &result), errInvalidAccessLog, "UnmarshalJSON should reject %s", input)
+		t.Run(subtestName(input), func(t *testing.T) {
+			t.Parallel()
+			var result AccessLogResponse
+			assert.ErrorIsf(t, json.Unmarshal([]byte(input), &result), errInvalidAccessLog, "UnmarshalJSON should reject %s", input)
+		})
 	}
 }
 
@@ -1276,13 +1302,19 @@ func TestMatchingEngineLimitsUnmarshalJSON(t *testing.T) {
 		},
 		{name: "null", input: `null`},
 	} {
-		var result MatchingEngineLimits
-		require.NoErrorf(t, json.Unmarshal([]byte(tc.input), &result), "Unmarshal must not error for %s", tc.name)
-		assert.Equalf(t, tc.exp, result, "UnmarshalJSON should decode %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var result MatchingEngineLimits
+			require.NoErrorf(t, json.Unmarshal([]byte(tc.input), &result), "Unmarshal must not error for %s", tc.name)
+			assert.Equalf(t, tc.exp, result, "UnmarshalJSON should decode %s", tc.name)
+		})
 	}
 	for _, input := range []string{`[]`, `{"spot":[]}`, `{"btc":{"trading":1}}`} {
-		var result MatchingEngineLimits
-		assert.ErrorIsf(t, json.Unmarshal([]byte(input), &result), errInvalidMatchingEngineLimits, "UnmarshalJSON should reject %s", input)
+		t.Run(subtestName(input), func(t *testing.T) {
+			t.Parallel()
+			var result MatchingEngineLimits
+			assert.ErrorIsf(t, json.Unmarshal([]byte(input), &result), errInvalidMatchingEngineLimits, "UnmarshalJSON should reject %s", input)
+		})
 	}
 }
 
@@ -1509,37 +1541,48 @@ func TestListAPIKeys(t *testing.T) {
 func TestAPIKeyScopesMarshalJSON(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
+		name   string
 		scopes APIKeyScopes
 		exp    string
 	}{
-		{scopes: testAPIKeyScopes(), exp: `"account:read_write wallet:read_write block_trade:read trade:read_write"`},
-		{scopes: APIKeyScopes{"account:read"}, exp: `"account:read"`},
-		{exp: `""`},
+		{name: "several scopes", scopes: testAPIKeyScopes(), exp: `"account:read_write wallet:read_write block_trade:read trade:read_write"`},
+		{name: "one scope", scopes: APIKeyScopes{"account:read"}, exp: `"account:read"`},
+		{name: "no scopes", exp: `""`},
 	} {
-		encoded, err := json.Marshal(tc.scopes)
-		require.NoErrorf(t, err, "Marshal must not error for %v", tc.scopes)
-		assert.JSONEqf(t, tc.exp, string(encoded), "MarshalJSON should send scopes %v as a space separated string", tc.scopes)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			encoded, err := json.Marshal(tc.scopes)
+			require.NoErrorf(t, err, "Marshal must not error for %v", tc.scopes)
+			assert.JSONEqf(t, tc.exp, string(encoded), "MarshalJSON should send scopes %v as a space separated string", tc.scopes)
+		})
 	}
 }
 
 func TestAPIKeyScopesUnmarshalJSON(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
+		name  string
 		input string
 		exp   APIKeyScopes
 	}{
-		{input: `"account:read_write block_trade:read trade:read_write"`, exp: APIKeyScopes{"account:read_write", "block_trade:read", "trade:read_write"}},
-		{input: `["account:read","trade:read"]`, exp: APIKeyScopes{"account:read", "trade:read"}},
-		{input: `""`, exp: APIKeyScopes{}},
-		{input: `null`},
+		{name: "space separated string", input: `"account:read_write block_trade:read trade:read_write"`, exp: APIKeyScopes{"account:read_write", "block_trade:read", "trade:read_write"}},
+		{name: "list", input: `["account:read","trade:read"]`, exp: APIKeyScopes{"account:read", "trade:read"}},
+		{name: "empty string", input: `""`, exp: APIKeyScopes{}},
+		{name: "null", input: `null`},
 	} {
-		var scopes APIKeyScopes
-		require.NoErrorf(t, json.Unmarshal([]byte(tc.input), &scopes), "Unmarshal must not error for %s", tc.input)
-		assert.Equalf(t, tc.exp, scopes, "UnmarshalJSON should decode %s", tc.input)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var scopes APIKeyScopes
+			require.NoErrorf(t, json.Unmarshal([]byte(tc.input), &scopes), "Unmarshal must not error for %s", tc.input)
+			assert.Equalf(t, tc.exp, scopes, "UnmarshalJSON should decode %s", tc.input)
+		})
 	}
 	for _, input := range []string{`1`, `[1]`, `{}`} {
-		var scopes APIKeyScopes
-		assert.ErrorIsf(t, json.Unmarshal([]byte(input), &scopes), errInvalidAPIKeyScopes, "UnmarshalJSON should reject %s", input)
+		t.Run(subtestName(input), func(t *testing.T) {
+			t.Parallel()
+			var scopes APIKeyScopes
+			assert.ErrorIsf(t, json.Unmarshal([]byte(input), &scopes), errInvalidAPIKeyScopes, "UnmarshalJSON should reject %s", input)
+		})
 	}
 }
 
@@ -1842,17 +1885,22 @@ func TestGetAnnouncements(t *testing.T) {
 func TestGetAnnouncementsParamsMarshalJSON(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
+		name   string
 		params *GetAnnouncementsParams
 		exp    string
 	}{
-		{params: &GetAnnouncementsParams{GetAnnouncementsRequest: &GetAnnouncementsRequest{}}, exp: `{}`},
+		{name: "unset params left out", params: &GetAnnouncementsParams{GetAnnouncementsRequest: &GetAnnouncementsRequest{}}, exp: `{}`},
 		{
+			name:   "count and start time",
 			params: &GetAnnouncementsParams{GetAnnouncementsRequest: testAnnouncementsRequest(), StartTimestamp: mockAnnouncementsStartTime},
 			exp:    `{"count":1,"start_timestamp":1791800000000}`,
 		},
 	} {
-		encoded, err := json.Marshal(tc.params)
-		require.NoError(t, err, "Marshal must not error")
-		assert.JSONEq(t, tc.exp, string(encoded), "GetAnnouncementsParams should send the start time once, in Unix milliseconds, and leave out unset params")
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			encoded, err := json.Marshal(tc.params)
+			require.NoError(t, err, "Marshal must not error")
+			assert.JSONEq(t, tc.exp, string(encoded), "GetAnnouncementsParams should send the start time once, in Unix milliseconds, and leave out unset params")
+		})
 	}
 }

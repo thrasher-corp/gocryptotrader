@@ -454,7 +454,10 @@ func TestAddressBeneficiaryRequestValidate(t *testing.T) {
 		{name: "address", arg: &AddressBeneficiaryRequest{Currency: currency.BTC, Address: mockLegacyAddress}},
 		{name: "tagged address", arg: &AddressBeneficiaryRequest{Currency: currency.XRP, Address: "rDsbeomae4FXwgQTJp9Rs64Qg9vDiTCdBv", Tag: "12345"}},
 	} {
-		assert.ErrorIsf(t, tc.arg.validate(), tc.err, "validate should return the expected error for %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, tc.arg.validate(), tc.err, "validate should return the expected error for %s", tc.name)
+		})
 	}
 }
 
@@ -608,7 +611,10 @@ func TestWalletHistoryRequestValidate(t *testing.T) {
 		{name: "default count", arg: &WalletHistoryRequest{Currency: currency.BTC}},
 		{name: "maximum count", arg: &WalletHistoryRequest{Currency: currency.BTC, Count: 1000, Offset: 10}},
 	} {
-		assert.ErrorIsf(t, tc.arg.validate(), tc.err, "validate should return the expected error for %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, tc.arg.validate(), tc.err, "validate should return the expected error for %s", tc.name)
+		})
 	}
 }
 
@@ -1301,7 +1307,10 @@ func TestValidateAddressBookType(t *testing.T) {
 	t.Parallel()
 	assert.NoError(t, validateAddressBookType(AddressBookTypeTransfer, AddressBookTypeTransfer, AddressBookTypeWithdrawal), "validateAddressBookType should accept an accepted type")
 	for _, addressBookType := range []string{"", "Withdrawal", AddressBookTypeDepositSource} {
-		assert.ErrorIsf(t, validateAddressBookType(addressBookType, AddressBookTypeTransfer, AddressBookTypeWithdrawal), errInvalidAddressBookType, "validateAddressBookType should reject type %q", addressBookType)
+		t.Run(subtestName(addressBookType), func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, validateAddressBookType(addressBookType, AddressBookTypeTransfer, AddressBookTypeWithdrawal), errInvalidAddressBookType, "validateAddressBookType should reject type %q", addressBookType)
+		})
 	}
 }
 
@@ -1321,17 +1330,26 @@ func TestValidateAddressBookEntry(t *testing.T) {
 		{name: "address", currency: currency.BTC, addrType: AddressBookTypeWithdrawal, address: mockLegacyAddress},
 		{name: "entry ID", currency: currency.NewCode("all"), addrType: AddressBookTypeTransfer, entryID: mockAddressBookEntryID},
 	} {
-		err := validateAddressBookEntry(tc.currency, tc.addrType, tc.address, tc.entryID, AddressBookTypeTransfer, AddressBookTypeWithdrawal)
-		assert.ErrorIsf(t, err, tc.err, "validateAddressBookEntry should return the expected error for %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			err := validateAddressBookEntry(tc.currency, tc.addrType, tc.address, tc.entryID, AddressBookTypeTransfer, AddressBookTypeWithdrawal)
+			assert.ErrorIsf(t, err, tc.err, "validateAddressBookEntry should return the expected error for %s", tc.name)
+		})
 	}
 }
 
 func TestValidateBeneficiaryTypes(t *testing.T) {
 	t.Parallel()
 	for _, entityType := range []string{"", BeneficiaryEntityTypeOrganisation, BeneficiaryEntityTypeIndividual} {
-		for _, walletType := range []string{"", BeneficiaryWalletTypeExchange, BeneficiaryWalletTypeSelfHosted} {
-			assert.NoErrorf(t, validateBeneficiaryTypes(entityType, walletType), "validateBeneficiaryTypes should accept entity type %q and wallet type %q", entityType, walletType)
-		}
+		t.Run(subtestName(entityType), func(t *testing.T) {
+			t.Parallel()
+			for _, walletType := range []string{"", BeneficiaryWalletTypeExchange, BeneficiaryWalletTypeSelfHosted} {
+				t.Run(subtestName(walletType), func(t *testing.T) {
+					t.Parallel()
+					assert.NoErrorf(t, validateBeneficiaryTypes(entityType, walletType), "validateBeneficiaryTypes should accept entity type %q and wallet type %q", entityType, walletType)
+				})
+			}
+		})
 	}
 	assert.ErrorIs(t, validateBeneficiaryTypes("organisation", ""), errInvalidBeneficiaryEntityType, "validateBeneficiaryTypes should reject an entity type Deribit does not document")
 	assert.ErrorIs(t, validateBeneficiaryTypes("", "hosted"), errInvalidBeneficiaryWalletType, "validateBeneficiaryTypes should reject a wallet type Deribit does not document")
@@ -1340,10 +1358,16 @@ func TestValidateBeneficiaryTypes(t *testing.T) {
 func TestValidateIdempotencyNonce(t *testing.T) {
 	t.Parallel()
 	for _, nonce := range []string{"", strings.Repeat("n", 8), strings.Repeat("n", 128), strings.Repeat("é", 8)} {
-		assert.NoErrorf(t, validateIdempotencyNonce(nonce), "validateIdempotencyNonce should accept a nonce of %d characters", utf8.RuneCountInString(nonce))
+		t.Run(subtestName(nonce), func(t *testing.T) {
+			t.Parallel()
+			assert.NoErrorf(t, validateIdempotencyNonce(nonce), "validateIdempotencyNonce should accept a nonce of %d characters", utf8.RuneCountInString(nonce))
+		})
 	}
 	for _, nonce := range []string{strings.Repeat("n", 7), strings.Repeat("n", 129), strings.Repeat("é", 7)} {
-		assert.ErrorIsf(t, validateIdempotencyNonce(nonce), errInvalidIdempotencyNonce, "validateIdempotencyNonce should reject a nonce of %d characters", utf8.RuneCountInString(nonce))
+		t.Run(subtestName(nonce), func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, validateIdempotencyNonce(nonce), errInvalidIdempotencyNonce, "validateIdempotencyNonce should reject a nonce of %d characters", utf8.RuneCountInString(nonce))
+		})
 	}
 }
 
@@ -1358,9 +1382,12 @@ func TestAddressWaitingTimeUnmarshalJSON(t *testing.T) {
 		{input: `true`},
 		{input: `false`},
 	} {
-		var waiting AddressWaitingTime
-		require.NoErrorf(t, json.Unmarshal([]byte(tc.input), &waiting), "Unmarshal must not error for %s", tc.input)
-		assert.Equalf(t, tc.exp, waiting.Time(), "UnmarshalJSON should decode %s", tc.input)
+		t.Run(subtestName(tc.input), func(t *testing.T) {
+			t.Parallel()
+			var waiting AddressWaitingTime
+			require.NoErrorf(t, json.Unmarshal([]byte(tc.input), &waiting), "Unmarshal must not error for %s", tc.input)
+			assert.Equalf(t, tc.exp, waiting.Time(), "UnmarshalJSON should decode %s", tc.input)
+		})
 	}
 	var waiting AddressWaitingTime
 	assert.Error(t, json.Unmarshal([]byte(`"soon"`), &waiting), "UnmarshalJSON should reject a value that is not a timestamp or boolean")
@@ -1377,13 +1404,19 @@ func TestWithdrawalIDUnmarshalJSON(t *testing.T) {
 		{input: `"0190a1b2-7c3d-7e5f-8a9b-0c1d2e3f4a5b"`, exp: "0190a1b2-7c3d-7e5f-8a9b-0c1d2e3f4a5b"},
 		{input: `null`},
 	} {
-		var id WithdrawalID
-		require.NoErrorf(t, json.Unmarshal([]byte(tc.input), &id), "Unmarshal must not error for %s", tc.input)
-		assert.Equalf(t, tc.exp, id, "UnmarshalJSON should decode %s", tc.input)
+		t.Run(subtestName(tc.input), func(t *testing.T) {
+			t.Parallel()
+			var id WithdrawalID
+			require.NoErrorf(t, json.Unmarshal([]byte(tc.input), &id), "Unmarshal must not error for %s", tc.input)
+			assert.Equalf(t, tc.exp, id, "UnmarshalJSON should decode %s", tc.input)
+		})
 	}
 	for _, input := range []string{`-1`, `1.5`, `true`, `{}`} {
-		var id WithdrawalID
-		assert.ErrorIsf(t, json.Unmarshal([]byte(input), &id), errInvalidWithdrawalID, "UnmarshalJSON should reject %s", input)
+		t.Run(subtestName(input), func(t *testing.T) {
+			t.Parallel()
+			var id WithdrawalID
+			assert.ErrorIsf(t, json.Unmarshal([]byte(input), &id), errInvalidWithdrawalID, "UnmarshalJSON should reject %s", input)
+		})
 	}
 }
 

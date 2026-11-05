@@ -125,6 +125,14 @@ func newUnavailableServerExchange(t *testing.T) *Exchange {
 	}))
 }
 
+// subtestName names a subtest after its case's input, as t.Run names a subtest without a name "#00"
+func subtestName(input string) string {
+	if input == "" {
+		return "empty"
+	}
+	return input
+}
+
 // countingTransport counts the requests sent through it
 type countingTransport struct {
 	base http.RoundTripper
@@ -202,6 +210,8 @@ func TestSendHTTPRequest(t *testing.T) {
 	require.NoError(t, ex.SendHTTPRequest(t.Context(), nonMatchingEPL, "public/get_time", map[string]string{"key": "value"}, &result), "SendHTTPRequest must not error")
 	assert.Equal(t, time.UnixMilli(1792105300181), result.Time(), "SendHTTPRequest should decode the result")
 
+	// The cases run serially and decode into the result the request above filled, so a request that keeps it after an
+	// error fails
 	for _, tc := range []struct {
 		name   string
 		status int
@@ -209,16 +219,18 @@ func TestSendHTTPRequest(t *testing.T) {
 		{name: "error status", status: http.StatusBadRequest},
 		{name: "success status", status: http.StatusOK},
 	} {
-		server := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-			w.WriteHeader(tc.status)
-			_, err := w.Write([]byte(`{"jsonrpc":"2.0","error":{"code":-32602,"data":{"reason":"invalid index","param":"index_name"},"message":"Invalid params"},"testnet":false}`))
-			assert.NoError(t, err, "Writing the response should not error")
-		}))
-		err := server.SendHTTPRequest(t.Context(), nonMatchingEPL, "public/get_index_price", nil, &result)
-		var apiErr *APIError
-		require.ErrorAsf(t, err, &apiErr, "SendHTTPRequest must return the error object sent with an %s", tc.name)
-		exp := &APIError{Code: -32602, Message: "Invalid params", Data: json.RawMessage(`{"reason":"invalid index","param":"index_name"}`)}
-		assert.Equalf(t, exp, apiErr, "SendHTTPRequest should decode the error object sent with an %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			server := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(tc.status)
+				_, err := w.Write([]byte(`{"jsonrpc":"2.0","error":{"code":-32602,"data":{"reason":"invalid index","param":"index_name"},"message":"Invalid params"},"testnet":false}`))
+				assert.NoError(t, err, "Writing the response should not error")
+			}))
+			err := server.SendHTTPRequest(t.Context(), nonMatchingEPL, "public/get_index_price", nil, &result)
+			var apiErr *APIError
+			require.ErrorAsf(t, err, &apiErr, "SendHTTPRequest must return the error object sent with an %s", tc.name)
+			exp := &APIError{Code: -32602, Message: "Invalid params", Data: json.RawMessage(`{"reason":"invalid index","param":"index_name"}`)}
+			assert.Equalf(t, exp, apiErr, "SendHTTPRequest should decode the error object sent with an %s", tc.name)
+		})
 	}
 
 	err := newUnavailableServerExchange(t).SendHTTPRequest(t.Context(), nonMatchingEPL, "public/get_time", nil, &result)
@@ -231,6 +243,22 @@ func TestSendHTTPRequest(t *testing.T) {
 	ex.API.Endpoints = ex.NewEndpoints()
 	err = ex.SendHTTPRequest(t.Context(), nonMatchingEPL, "public/get_time", nil, &result)
 	assert.ErrorIs(t, err, exchange.ErrEndpointPathNotFound, "SendHTTPRequest should error without an endpoint")
+
+	t.Run("security key authorisation ignored", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			body, err := io.ReadAll(r.Body)
+			if assert.NoError(t, err, "Reading the request body should not error") {
+				assert.JSONEq(t, `{"jsonrpc":"2.0","method":"public/get_time"}`, string(body), "SendHTTPRequest should not add the authorisation to a public method")
+			}
+			_, err = w.Write([]byte(`{"jsonrpc":"2.0","result":1792105300181}`))
+			assert.NoError(t, err, "Writing the response should not error")
+		}))
+		ctx := WithSecurityKeyAuthorisation(t.Context(), testSecurityKeyChallenge, testSecurityKeyCode)
+		var result int64
+		require.NoError(t, ex.SendHTTPRequest(ctx, nonMatchingEPL, "public/get_time", nil, &result), "SendHTTPRequest must not error")
+		assert.Equal(t, int64(1792105300181), result, "SendHTTPRequest should decode the result")
+	})
 }
 
 func TestSendAuthenticatedHTTPRequest(t *testing.T) {
@@ -275,6 +303,8 @@ func TestSendAuthenticatedHTTPRequest(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "SendAuthenticatedHTTPRequest should report missing credentials as an authentication failure")
 	assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "SendAuthenticatedHTTPRequest should return the credentials error")
 
+	// The cases run serially and decode into the result the request above filled, so a request that keeps it after its
+	// response times out fails
 	for _, tc := range []struct {
 		method string
 		epl    request.EndpointLimit
@@ -286,10 +316,12 @@ func TestSendAuthenticatedHTTPRequest(t *testing.T) {
 		{method: "private/submit_transfer_to_user", epl: nonMatchingEPL, sent: 1},
 		{method: "private/get_account_summary", epl: nonMatchingEPL, sent: request.MaxRetryAttempts + 1},
 	} {
-		unanswered, transport := newTimeoutServerExchange(t)
-		err := unanswered.SendAuthenticatedHTTPRequest(t.Context(), tc.epl, tc.method, nil, &result)
-		assert.Errorf(t, err, "SendAuthenticatedHTTPRequest should return the timeout of %s", tc.method)
-		assert.Equalf(t, tc.sent, int(transport.sent.Load()), "SendAuthenticatedHTTPRequest should make %d attempts at %s when its response times out", tc.sent, tc.method)
+		t.Run(tc.method, func(t *testing.T) {
+			unanswered, transport := newTimeoutServerExchange(t)
+			err := unanswered.SendAuthenticatedHTTPRequest(t.Context(), tc.epl, tc.method, nil, &result)
+			assert.Errorf(t, err, "SendAuthenticatedHTTPRequest should return the timeout of %s", tc.method)
+			assert.Equalf(t, tc.sent, int(transport.sent.Load()), "SendAuthenticatedHTTPRequest should make %d attempts at %s when its response times out", tc.sent, tc.method)
+		})
 	}
 	var attempts atomic.Int32
 	retried := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -339,6 +371,41 @@ func TestSendAuthenticatedHTTPRequest(t *testing.T) {
 		assert.Equalf(t, previous+step, next, "SendAuthenticatedHTTPRequest should take one nonce for request %d", i+1)
 		previous = next
 	}
+
+	t.Run("security key challenge", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			body, err := io.ReadAll(r.Body)
+			if !assert.NoError(t, err, "Reading the request body should not error") {
+				return
+			}
+			var req websocketVenueRequest
+			if !assert.NoError(t, json.Unmarshal(body, &req), "Unmarshal should not error for the request body") {
+				return
+			}
+			result := testSecurityKeyChallengeResult
+			if string(req.Params) != `{"currency":"BTC"}` {
+				assert.JSONEq(t, `{"currency":"BTC","authorization_data":"`+testSecurityKeyCode+`","challenge":"`+testSecurityKeyChallenge+`"}`, string(req.Params), "SendAuthenticatedHTTPRequest should add the authorisation to the params")
+				assertHTTPSignature(t, r.Header.Get("Authorization"), r.URL.Path, body)
+				result = `{"currency":"BTC"}`
+			}
+			_, err = w.Write([]byte(`{"jsonrpc":"2.0","result":` + result + `}`))
+			assert.NoError(t, err, "Writing the response should not error")
+		}))
+		var result map[string]string
+		err := ex.SendAuthenticatedHTTPRequest(t.Context(), nonMatchingEPL, "private/list_api_keys", map[string]string{"currency": "BTC"}, &result)
+		var challenge *SecurityKeyChallengeError
+		require.ErrorAs(t, err, &challenge, "SendAuthenticatedHTTPRequest must return the security key challenge")
+		assert.Equal(t, testSecurityKeyChallengeError(), challenge, "SendAuthenticatedHTTPRequest should decode the challenge")
+		assert.Nil(t, result, "SendAuthenticatedHTTPRequest should not decode the challenge as the result")
+
+		ctx := WithSecurityKeyAuthorisation(t.Context(), challenge.Challenge, testSecurityKeyCode)
+		require.NoError(t, ex.SendAuthenticatedHTTPRequest(ctx, nonMatchingEPL, "private/list_api_keys", map[string]string{"currency": "BTC"}, &result), "SendAuthenticatedHTTPRequest must not error once the challenge is confirmed")
+		assert.Equal(t, map[string]string{"currency": "BTC"}, result, "SendAuthenticatedHTTPRequest should decode the confirmed request's result")
+
+		err = ex.SendAuthenticatedHTTPRequest(ctx, nonMatchingEPL, "private/list_api_keys", []string{"BTC"}, &result)
+		assert.ErrorIs(t, err, errSecurityKeyParams, "SendAuthenticatedHTTPRequest should reject params that cannot carry the authorisation")
+	})
 }
 
 func TestResendable(t *testing.T) {
@@ -360,14 +427,16 @@ func TestResendable(t *testing.T) {
 		{method: "private/getaway"},
 		{method: "get_time", exp: true},
 	} {
-		assert.Equalf(t, tc.exp, resendable(tc.method), "resendable should report whether %s may be sent again", tc.method)
+		t.Run(tc.method, func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, tc.exp, resendable(tc.method), "resendable should report whether %s may be sent again", tc.method)
+		})
 	}
 }
 
 func TestHTTPRequestItem(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
-	var result map[string]string
 	for _, tc := range []struct {
 		name  string
 		path  string
@@ -377,25 +446,29 @@ func TestHTTPRequestItem(t *testing.T) {
 		{name: "an unsigned request", path: "/api/v2/public/get_time", body: `{"jsonrpc":"2.0","method":"public/get_time"}`},
 		{name: "a signed request", path: "/api/v2/private/get_account_summary", body: `{"jsonrpc":"2.0","method":"private/get_account_summary","params":{"currency":"BTC"}}`, creds: &accounts.Credentials{Key: testClientID, Secret: testClientSecret}},
 	} {
-		item, err := ex.httpRequestItem(apiURL, tc.path, []byte(tc.body), &result, tc.creds)
-		require.NoErrorf(t, err, "httpRequestItem must not error for %s", tc.name)
-		if tc.creds != nil {
-			assertHTTPSignature(t, item.Headers["Authorization"], tc.path, []byte(tc.body))
-			delete(item.Headers, "Authorization")
-		}
-		exp := &request.Item{
-			Method:                 http.MethodPost,
-			Path:                   apiURL + tc.path,
-			Headers:                map[string]string{"Content-Type": "application/json"},
-			Body:                   bytes.NewReader([]byte(tc.body)),
-			Result:                 &result,
-			NonceEnabled:           tc.creds != nil,
-			Verbose:                ex.Verbose,
-			HTTPDebugging:          ex.HTTPDebugging,
-			HTTPRecording:          ex.HTTPRecording,
-			HTTPMockDataSliceLimit: ex.HTTPMockDataSliceLimit,
-		}
-		assert.Equalf(t, exp, item, "httpRequestItem should build %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var result map[string]string
+			item, err := ex.httpRequestItem(apiURL, tc.path, []byte(tc.body), &result, tc.creds)
+			require.NoErrorf(t, err, "httpRequestItem must not error for %s", tc.name)
+			if tc.creds != nil {
+				assertHTTPSignature(t, item.Headers["Authorization"], tc.path, []byte(tc.body))
+				delete(item.Headers, "Authorization")
+			}
+			exp := &request.Item{
+				Method:                 http.MethodPost,
+				Path:                   apiURL + tc.path,
+				Headers:                map[string]string{"Content-Type": "application/json"},
+				Body:                   bytes.NewReader([]byte(tc.body)),
+				Result:                 &result,
+				NonceEnabled:           tc.creds != nil,
+				Verbose:                ex.Verbose,
+				HTTPDebugging:          ex.HTTPDebugging,
+				HTTPRecording:          ex.HTTPRecording,
+				HTTPMockDataSliceLimit: ex.HTTPMockDataSliceLimit,
+			}
+			assert.Equalf(t, exp, item, "httpRequestItem should build %s", tc.name)
+		})
 	}
 }
 
@@ -573,6 +646,9 @@ func TestUnixMilli(t *testing.T) {
 	assert.Equal(t, uint64(1), unixMilli(time.UnixMilli(1)), "unixMilli should return the first millisecond after 1970")
 	assert.Zero(t, unixMilli(time.Time{}), "unixMilli should return zero for a zero time, which leaves it out")
 	for _, early := range []time.Time{time.Unix(0, 999999), time.UnixMilli(0), time.UnixMilli(-1), time.Date(1969, 7, 20, 20, 17, 0, 0, time.UTC), time.Time{}.Add(time.Second)} {
-		assert.Equalf(t, uint64(1), unixMilli(early), "unixMilli should return the first millisecond after 1970 for %s, so it is still sent", early)
+		t.Run(early.UTC().Format(time.RFC3339Nano), func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, uint64(1), unixMilli(early), "unixMilli should return the first millisecond after 1970 for %s, so it is still sent", early)
+		})
 	}
 }
