@@ -8,8 +8,12 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/backtester/btrpc"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/urfave/cli/v2"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func TestExecuteStrategyFromFile(t *testing.T) {
@@ -37,6 +41,11 @@ func TestExecuteStrategyFromFile(t *testing.T) {
 		{name: "positive interval", args: []string{"--intervaloverride=1m"}, wantErr: os.ErrNotExist},
 		{name: "true boolean aliases", args: []string{"--dnr=true", "--dns=true"}, wantErr: os.ErrNotExist},
 		{name: "explicit false booleans", args: []string{"--donotrunimmediately=false", "--donotstore=false"}, wantErr: os.ErrNotExist},
+		{name: "do not run alias", args: []string{"--dnr"}, wantErr: os.ErrNotExist},
+		{name: "do not store alias", args: []string{"--dns"}, wantErr: os.ErrNotExist},
+		{name: "future range", args: []string{"--starttimeoverride=2999-01-01 00:00:00", "--endtimeoverride=3000-01-01 00:00:00"}, wantErr: common.ErrStartAfterTimeNow},
+		{name: "smallest negative interval", args: []string{"--intervaloverride=-1ns"}, wantErr: errNegativeIntervalOverride},
+		{name: "fractional minute interval alias", args: []string{"-i=90s"}, wantErr: os.ErrNotExist},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -69,6 +78,104 @@ func TestExecuteStrategyFromFile(t *testing.T) {
 				return
 			}
 			assert.ErrorIs(t, err, tc.wantErr, "command should validate overrides before attempting client setup")
+		})
+	}
+}
+
+func TestExecuteStrategyFromFileRequest(t *testing.T) {
+	t.Parallel()
+
+	start := time.Date(2020, 1, 1, 0, 0, 0, 0, time.Local)
+	end := time.Date(2020, 1, 2, 0, 0, 0, 0, time.Local)
+	for _, tc := range []struct {
+		name       string
+		args       []string
+		wantErr    error
+		parseValue string
+		wantPath   string
+		doNotRun   bool
+		doNotStore bool
+		start      time.Time
+		end        time.Time
+		interval   time.Duration
+	}{
+		{name: "empty path", args: []string{"--path="}, wantErr: errStrategyPathRequired},
+		{name: "custom path", args: []string{"--path=another-strategy.json"}, wantPath: "another-strategy.json"},
+		{name: "omitted overrides"},
+		{name: "empty overrides", args: []string{"--starttimeoverride=", "--endtimeoverride="}},
+		{name: "start only", args: []string{"--starttimeoverride=2020-01-01 00:00:00"}, start: start},
+		{name: "end only", args: []string{"--endtimeoverride=2020-01-02 00:00:00"}, end: end},
+		{name: "valid range aliases", args: []string{"-s=2020-01-01 00:00:00", "-e=2020-01-02 00:00:00"}, start: start, end: end},
+		{name: "reversed range", args: []string{"--starttimeoverride=2020-01-02 00:00:00", "--endtimeoverride=2020-01-01 00:00:00"}, wantErr: common.ErrStartAfterEnd},
+		{name: "equal dates", args: []string{"--starttimeoverride=2020-01-01 00:00:00", "--endtimeoverride=2020-01-01 00:00:00"}, wantErr: common.ErrStartEqualsEnd},
+		{name: "invalid start", args: []string{"--starttimeoverride=invalid-start"}, parseValue: "invalid-start"},
+		{name: "invalid end", args: []string{"--endtimeoverride=invalid-end"}, parseValue: "invalid-end"},
+		{name: "negative interval", args: []string{"--intervaloverride=-1s"}, wantErr: errNegativeIntervalOverride},
+		{name: "negative interval alias", args: []string{"-i=-1s"}, wantErr: errNegativeIntervalOverride},
+		{name: "zero interval", args: []string{"--intervaloverride=0s"}},
+		{name: "positive interval", args: []string{"--intervaloverride=1m"}, interval: time.Minute},
+		{name: "true boolean aliases", args: []string{"--dnr=true", "--dns=true"}, doNotRun: true, doNotStore: true},
+		{name: "explicit false booleans", args: []string{"--donotrunimmediately=false", "--donotstore=false"}},
+		{name: "do not run alias", args: []string{"--dnr"}, doNotRun: true},
+		{name: "do not store alias", args: []string{"--dns"}, doNotStore: true},
+		{name: "future range", args: []string{"--starttimeoverride=2999-01-01 00:00:00", "--endtimeoverride=3000-01-01 00:00:00"}, wantErr: common.ErrStartAfterTimeNow},
+		{name: "smallest negative interval", args: []string{"--intervaloverride=-1ns"}, wantErr: errNegativeIntervalOverride},
+		{name: "fractional minute interval alias", args: []string{"-i=90s"}, interval: 90 * time.Second},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			// The real flags exercise aliases; copies isolate cli's mutable metadata.
+			flags := make([]cli.Flag, 0, len(executeStrategyFromFileCommand.Flags))
+			for _, f := range executeStrategyFromFileCommand.Flags {
+				switch f := f.(type) {
+				case *cli.StringFlag:
+					copyFlag := *f
+					flags = append(flags, &copyFlag)
+				case *cli.BoolFlag:
+					copyFlag := *f
+					flags = append(flags, &copyFlag)
+				case *cli.DurationFlag:
+					copyFlag := *f
+					flags = append(flags, &copyFlag)
+				default:
+					require.FailNowf(t, "flag type must be supported", "unsupported flag type %T", f)
+				}
+			}
+			var got *btrpc.ExecuteStrategyFromFileRequest
+			command := &cli.Command{Name: executeStrategyFromFileCommand.Name, HideHelp: true, Flags: flags, Action: func(c *cli.Context) error {
+				var err error
+				got, err = executeStrategyFromFileRequest(c)
+				return err
+			}}
+			app := &cli.App{HideHelp: true, Writer: io.Discard, ErrWriter: io.Discard, Commands: []*cli.Command{command}}
+			err := app.Run(append([]string{"btcli", command.Name, "--path=strategy.json"}, tc.args...))
+			if tc.parseValue != "" {
+				var parseErr *time.ParseError
+				require.ErrorAs(t, err, &parseErr, "date errors must preserve the underlying parse error")
+				assert.Equal(t, tc.parseValue, parseErr.Value, "parse error should identify the invalid date")
+				assert.Nil(t, got, "invalid dates should not produce a request")
+				return
+			}
+			if tc.wantErr != nil {
+				require.ErrorIs(t, err, tc.wantErr, "invalid overrides must return the expected error")
+				assert.Nil(t, got, "invalid overrides should not produce a request")
+				return
+			}
+			require.NoError(t, err, "valid overrides must build a request")
+			path := tc.wantPath
+			if path == "" {
+				path = "strategy.json"
+			}
+			want := &btrpc.ExecuteStrategyFromFileRequest{
+				StrategyFilePath:    path,
+				DoNotRunImmediately: tc.doNotRun,
+				DoNotStore:          tc.doNotStore,
+				StartTimeOverride:   timestamppb.New(tc.start),
+				EndTimeOverride:     timestamppb.New(tc.end),
+				IntervalOverride:    durationpb.New(tc.interval),
+			}
+			assert.Truef(t, proto.Equal(want, got), "request should preserve all flag values: got %s, want %s", got, want)
 		})
 	}
 }

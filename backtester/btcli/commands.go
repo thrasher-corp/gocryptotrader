@@ -65,34 +65,9 @@ func executeStrategyFromFile(c *cli.Context) error {
 	if c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
-	path := c.String("path")
-	if path == "" {
-		return errStrategyPathRequired
-	}
-
-	var s, e time.Time
-	var err error
-	if startTimeOverride := c.String("starttimeoverride"); startTimeOverride != "" {
-		s, err = time.ParseInLocation(time.DateTime, startTimeOverride, time.Local)
-		if err != nil {
-			return fmt.Errorf("invalid time format for start: %w", err)
-		}
-	}
-	if endTimeOverride := c.String("endtimeoverride"); endTimeOverride != "" {
-		e, err = time.ParseInLocation(time.DateTime, endTimeOverride, time.Local)
-		if err != nil {
-			return fmt.Errorf("invalid time format for end: %w", err)
-		}
-	}
-	if !s.IsZero() && !e.IsZero() {
-		if err := common.StartEndTimeCheck(s, e); err != nil {
-			return err
-		}
-	}
-
-	intervalOverride := c.Duration("intervaloverride")
-	if intervalOverride < 0 {
-		return errNegativeIntervalOverride
+	request, err := executeStrategyFromFileRequest(c)
+	if err != nil {
+		return err
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -102,23 +77,54 @@ func executeStrategyFromFile(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	client := btrpc.NewBacktesterServiceClient(conn)
-	result, err := client.ExecuteStrategyFromFile(
-		c.Context,
-		&btrpc.ExecuteStrategyFromFileRequest{
-			StrategyFilePath:    path,
-			DoNotRunImmediately: c.Bool("donotrunimmediately"),
-			DoNotStore:          c.Bool("donotstore"),
-			StartTimeOverride:   timestamppb.New(s),
-			EndTimeOverride:     timestamppb.New(e),
-			IntervalOverride:    durationpb.New(intervalOverride),
-		},
-	)
+	result, err := client.ExecuteStrategyFromFile(c.Context, request)
 	if err != nil {
 		return err
 	}
 
 	jsonOutput(result)
 	return nil
+}
+
+func executeStrategyFromFileRequest(c *cli.Context) (*btrpc.ExecuteStrategyFromFileRequest, error) {
+	path := c.String("path")
+	if path == "" {
+		return nil, errStrategyPathRequired
+	}
+
+	var s, e time.Time
+	var err error
+	if startTimeOverride := c.String("starttimeoverride"); startTimeOverride != "" {
+		s, err = time.ParseInLocation(time.DateTime, startTimeOverride, time.Local)
+		if err != nil {
+			return nil, fmt.Errorf("invalid time format for start: %w", err)
+		}
+	}
+	if endTimeOverride := c.String("endtimeoverride"); endTimeOverride != "" {
+		e, err = time.ParseInLocation(time.DateTime, endTimeOverride, time.Local)
+		if err != nil {
+			return nil, fmt.Errorf("invalid time format for end: %w", err)
+		}
+	}
+	if !s.IsZero() && !e.IsZero() {
+		if err := common.StartEndTimeCheck(s, e); err != nil {
+			return nil, err
+		}
+	}
+
+	intervalOverride := c.Duration("intervaloverride")
+	if intervalOverride < 0 {
+		return nil, errNegativeIntervalOverride
+	}
+
+	return &btrpc.ExecuteStrategyFromFileRequest{
+		StrategyFilePath:    path,
+		DoNotRunImmediately: c.Bool("donotrunimmediately"),
+		DoNotStore:          c.Bool("donotstore"),
+		StartTimeOverride:   timestamppb.New(s),
+		EndTimeOverride:     timestamppb.New(e),
+		IntervalOverride:    durationpb.New(intervalOverride),
+	}, nil
 }
 
 var listAllTasksCommand = &cli.Command{

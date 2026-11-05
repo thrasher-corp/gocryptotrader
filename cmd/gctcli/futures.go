@@ -935,7 +935,7 @@ func getFuturePositionOrders(c *cli.Context) error {
 
 	e, err = time.ParseInLocation(time.DateTime, c.String(endFlagName), time.Local)
 	if err != nil {
-		return fmt.Errorf("invalid time format for start: %w", err)
+		return fmt.Errorf("invalid time format for end: %w", err)
 	}
 	if err := common.StartEndTimeCheck(s, e); err != nil {
 		return err
