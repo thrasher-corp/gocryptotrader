@@ -29,6 +29,10 @@ func (e *Exchange) WSPlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam
 		return nil, err
 	}
 
+	if arg.InstrumentIDCode == 0 {
+		return nil, fmt.Errorf("%w: %s", errMissingInstrumentIDCode, arg.InstrumentID)
+	}
+
 	var resp []*OrderData
 	if err := e.SendAuthenticatedWebsocketRequest(ctx, placeOrderEPL, e.MessageID(), "order", []PlaceOrderRequestParam{*arg}, &resp); err != nil {
 		return nil, err
@@ -41,10 +45,16 @@ func (e *Exchange) WSPlaceMultipleOrders(ctx context.Context, args []PlaceOrderR
 	if len(args) == 0 {
 		return nil, fmt.Errorf("%T: %w", args, order.ErrSubmissionIsNil)
 	}
+	if len(args) > 20 {
+		return nil, fmt.Errorf("%w, cannot place more than 20 orders", errExceedLimit)
+	}
 
 	for i := range args {
 		if err := args[i].Validate(); err != nil {
 			return nil, err
+		}
+		if args[i].InstrumentIDCode == 0 {
+			return nil, fmt.Errorf("%w: %s", errMissingInstrumentIDCode, args[i].InstrumentID)
 		}
 	}
 
@@ -63,6 +73,9 @@ func (e *Exchange) WSCancelOrder(ctx context.Context, arg *CancelOrderRequestPar
 	if arg.OrderID == "" && arg.ClientOrderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
+	if arg.InstrumentIDCode == 0 {
+		return nil, fmt.Errorf("%w: %s", errMissingInstrumentIDCode, arg.InstrumentID)
+	}
 
 	var resp []*OrderData
 	if err := e.SendAuthenticatedWebsocketRequest(ctx, cancelOrderEPL, e.MessageID(), "cancel-order", []CancelOrderRequestParam{*arg}, &resp); err != nil {
@@ -77,6 +90,9 @@ func (e *Exchange) WSCancelMultipleOrders(ctx context.Context, args []CancelOrde
 	if len(args) == 0 {
 		return nil, fmt.Errorf("%T: %w", args, order.ErrSubmissionIsNil)
 	}
+	if len(args) > 20 {
+		return nil, fmt.Errorf("%w, cannot cancel more than 20 orders", errExceedLimit)
+	}
 
 	for i := range args {
 		if args[i].InstrumentID == "" {
@@ -84,6 +100,9 @@ func (e *Exchange) WSCancelMultipleOrders(ctx context.Context, args []CancelOrde
 		}
 		if args[i].OrderID == "" && args[i].ClientOrderID == "" {
 			return nil, order.ErrOrderIDNotSet
+		}
+		if args[i].InstrumentIDCode == 0 {
+			return nil, fmt.Errorf("%w: %s", errMissingInstrumentIDCode, args[i].InstrumentID)
 		}
 	}
 
@@ -102,8 +121,11 @@ func (e *Exchange) WSAmendOrder(ctx context.Context, arg *AmendOrderRequestParam
 	if arg.ClientOrderID == "" && arg.OrderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
-	if arg.NewQuantity <= 0 && arg.NewPrice <= 0 {
+	if arg.NewSize <= 0 && arg.NewPrice <= 0 {
 		return nil, errInvalidNewSizeOrPriceInformation
+	}
+	if arg.InstrumentIDCode == 0 {
+		return nil, fmt.Errorf("%w: %s", errMissingInstrumentIDCode, arg.InstrumentID)
 	}
 
 	var resp []*OrderData
@@ -126,8 +148,11 @@ func (e *Exchange) WSAmendMultipleOrders(ctx context.Context, args []AmendOrderR
 		if args[x].ClientOrderID == "" && args[x].OrderID == "" {
 			return nil, order.ErrOrderIDNotSet
 		}
-		if args[x].NewQuantity <= 0 && args[x].NewPrice <= 0 {
+		if args[x].NewSize <= 0 && args[x].NewPrice <= 0 {
 			return nil, errInvalidNewSizeOrPriceInformation
+		}
+		if args[x].InstrumentIDCode == 0 {
+			return nil, fmt.Errorf("%w: %s", errMissingInstrumentIDCode, args[x].InstrumentID)
 		}
 	}
 
@@ -310,6 +335,11 @@ func parseWSResponseErrors(result any, err error) error {
 	s := reflect.ValueOf(result).Elem()
 	for i := range s.Len() {
 		v := s.Index(i)
+		// A null row in a batch reply decodes to a nil element, which has no
+		// error to collect.
+		if v.Kind() == reflect.Pointer && v.IsNil() {
+			continue
+		}
 		if subErr, ok := reflect.TypeAssert[interface{ Error() error }](v); ok && subErr.Error() != nil {
 			err = common.AppendError(err, fmt.Errorf("%s[%d]: %w", v.Type(), i+1, subErr.Error()))
 		}
@@ -323,6 +353,11 @@ func singleItem[T any](resp []*T) (*T, error) {
 	}
 	if len(resp) > 1 {
 		return nil, fmt.Errorf("%w, received %d", errMultipleItemsReturned, len(resp))
+	}
+	if resp[0] == nil {
+		// A success reply reports one row for the one requested operation; a
+		// null row leaves its outcome unknown.
+		return nil, fmt.Errorf("%w, success reply has a null row", common.ErrInvalidResponse)
 	}
 	return resp[0], nil
 }
