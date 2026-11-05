@@ -1137,7 +1137,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	require.True(t, e.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
-	subs, err := e.generateSubscriptions()
+	subs, err := e.generateSubscriptions(t.Context())
 	require.NoError(t, err, "generateSubscriptions must not error")
 	pairs, err := e.GetEnabledPairs(asset.Spot)
 	require.NoErrorf(t, err, "GetEnabledPairs must not error")

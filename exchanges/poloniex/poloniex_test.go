@@ -2198,7 +2198,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 	}
 
 	for _, input := range []struct {
-		gen func() (subscription.List, error)
+		gen func(context.Context) (subscription.List, error)
 		exp []string
 	}{
 		{
@@ -2210,7 +2210,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 			exp: privateQualifiedChannels,
 		},
 	} {
-		got, err := input.gen()
+		got, err := input.gen(t.Context())
 		require.NoError(t, err)
 
 		var gotQualifiedChannels []string
@@ -2223,7 +2223,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 
 func TestHandleSubscription(t *testing.T) {
 	t.Parallel()
-	subs, err := e.generateSubscriptions()
+	subs, err := e.generateSubscriptions(t.Context())
 	require.NoError(t, err)
 	require.NotEmpty(t, subs)
 

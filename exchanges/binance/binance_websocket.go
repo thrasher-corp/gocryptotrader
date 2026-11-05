@@ -494,7 +494,7 @@ func (e *Exchange) UpdateLocalBuffer(ctx context.Context, wsdp *WebsocketDepthSt
 	return false, err
 }
 
-func (e *Exchange) generateSubscriptions() (subscription.List, error) {
+func (e *Exchange) generateSubscriptions(_ context.Context) (subscription.List, error) {
 	for _, s := range e.Features.Subscriptions {
 		if s.Asset == asset.Empty {
 			// Handle backwards compatibility with config without assets, all binance subs are spot

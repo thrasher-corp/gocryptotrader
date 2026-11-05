@@ -619,7 +619,7 @@ var unsupportedExchangeNames = []string{
 var cryptoChainPerExchange = map[string]string{
 	"binanceus": "ERC20",
 	"bybit":     "ERC20",
-	"gateio":    "ERC20",
+	"gate":      "ERC20",
 }
 
 // acceptable errors do not throw test errors, see below for why

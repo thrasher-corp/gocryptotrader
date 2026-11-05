@@ -72,7 +72,7 @@ _b in this context is an `IBotExchange` implemented struct_
 | Coinbase | Yes | Yes | No|
 | COINUT | Yes | Yes | No |
 | Deribit | Yes | Yes | Yes |
-| GateIO | Yes | Yes | No |
+| Gate | Yes | Yes | No |
 | Gemini | Yes | Yes | Yes |
 | HitBTC | Yes | Yes | Yes |
 | Huobi.Pro | Yes | Yes | No |
