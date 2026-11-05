@@ -258,14 +258,19 @@ func TestCheckSubscriptions(t *testing.T) {
 	err = ws.checkSubscriptions(conn, subscription.List{{}})
 	assert.ErrorContains(t, err, "nil pointer: Websocket.subscriptions", "nil store for a specific connection should error correctly")
 
-	ws.MaxSubscriptionsPerConnection = 1
-	managedConn := &fakeConnection{subscriptions: subscription.NewStore()}
-	ws.trackConnection(managedConn, &websocket{setup: &ConnectionSetup{MaxSubscriptions: 2}, subscriptions: subscription.NewStore()})
-	err = ws.checkSubscriptions(managedConn, subscription.List{{Channel: "one"}, {Channel: "two"}})
-	assert.NoError(t, err, "checkSubscriptions should allow up to the connection subscription limit")
+	t.Run("connection subscription limit overrides manager limit", func(t *testing.T) {
+		t.Parallel()
+		m := NewManager()
+		m.MaxSubscriptionsPerConnection = 1
+		conn := &fakeConnection{subscriptions: subscription.NewStore()}
+		m.trackConnection(conn, &websocket{setup: &ConnectionSetup{MaxSubscriptions: 2}, subscriptions: subscription.NewStore()})
 
-	err = ws.checkSubscriptions(managedConn, subscription.List{{Channel: "one"}, {Channel: "two"}, {Channel: "three"}})
-	assert.ErrorIs(t, err, errSubscriptionsExceedsLimit, "checkSubscriptions should error past the connection subscription limit")
+		err := m.checkSubscriptions(conn, subscription.List{{Channel: "one"}, {Channel: "two"}})
+		assert.NoError(t, err, "checkSubscriptions should allow up to the connection subscription limit")
+
+		err = m.checkSubscriptions(conn, subscription.List{{Channel: "one"}, {Channel: "two"}, {Channel: "three"}})
+		assert.ErrorIs(t, err, errSubscriptionsExceedsLimit, "checkSubscriptions should error past the connection subscription limit")
+	})
 }
 
 func TestUpdateChannelSubscriptions(t *testing.T) {
@@ -1850,24 +1855,28 @@ func TestSubscribeToConnection(t *testing.T) {
 	_, err = m.subscribeToConnection(t.Context(), &connection{subscriptions: store}, subs)
 	require.NoError(t, err, "must not error when all subscriptions can be added, this exercises the path where available > len(subs)")
 
-	m = NewManager()
-	m.MaxSubscriptionsPerConnection = 1
-	ws := &websocket{
-		setup: &ConnectionSetup{
-			MaxSubscriptions: 3,
-			Subscriber:       func(context.Context, Connection, subscription.List) error { return nil },
-		},
-		subscriptions: subscription.NewStore(),
-	}
-	store = subscription.NewStore()
-	require.NoError(t, store.Add(&subscription.Subscription{Channel: "existing"}))
-	conn := &fakeConnection{subscriptions: store}
-	m.trackConnection(conn, ws)
+	t.Run("connection subscription limit overrides manager limit", func(t *testing.T) {
+		t.Parallel()
+		m := NewManager()
+		m.MaxSubscriptionsPerConnection = 1
+		ws := &websocket{
+			setup: &ConnectionSetup{
+				MaxSubscriptions: 3,
+				Subscriber:       func(context.Context, Connection, subscription.List) error { return nil },
+			},
+			subscriptions: subscription.NewStore(),
+		}
+		store := subscription.NewStore()
+		require.NoError(t, store.Add(&subscription.Subscription{Channel: "existing"}), "Add must not error")
+		conn := &fakeConnection{subscriptions: store}
+		m.trackConnection(conn, ws)
 
-	remaining, err = m.subscribeToConnection(t.Context(), conn, subs)
-	require.NoError(t, err, "subscribeToConnection must not error within the connection subscription limit")
-	assert.Equal(t, subscription.List{sub3}, remaining, "should return subscriptions past the connection subscription limit")
-	assert.Equal(t, 3, store.Len(), "store should be filled to the connection subscription limit")
+		last := &subscription.Subscription{Channel: "C"}
+		remaining, err := m.subscribeToConnection(t.Context(), conn, subscription.List{{Channel: "A"}, {Channel: "B"}, last})
+		require.NoError(t, err, "subscribeToConnection must not error within the connection subscription limit")
+		assert.Equal(t, subscription.List{last}, remaining, "should return subscriptions past the connection subscription limit")
+		assert.Equal(t, 3, store.Len(), "store should be filled to the connection subscription limit")
+	})
 }
 
 var errSubscriptionRejected = errors.New("subscription rejected")

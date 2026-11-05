@@ -694,18 +694,8 @@ func TestCreateConnectAndSubscribe(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrFatal, "must return fatal error when exceeding max subscriptions")
 	assert.ErrorIs(t, err, errSubscriptionsExceedsLimit, "should return the subscriptions exceeds limit error")
 
-	ws.setup.MaxSubscriptions = 2
-	ws.setup.Connector = func(context.Context, Connection) error { return errConnectionFault }
-	err = mgr.createConnectAndSubscribe(t.Context(), ws, subs)
-	assert.ErrorIs(t, err, errConnectionFault, "connection subscription limit should take precedence over the manager limit")
-
 	mgr.MaxSubscriptionsPerConnection = 0
-	ws.setup.MaxSubscriptions = 1
-	err = mgr.createConnectAndSubscribe(t.Context(), ws, subs)
-	require.ErrorIs(t, err, common.ErrFatal, "must return fatal error when exceeding connection max subscriptions")
-	assert.ErrorIs(t, err, errSubscriptionsExceedsLimit, "should return the subscriptions exceeds limit error for the connection limit")
-
-	ws.setup.MaxSubscriptions = 0
+	ws.setup.Connector = func(context.Context, Connection) error { return errConnectionFault }
 	err = mgr.createConnectAndSubscribe(t.Context(), ws, subs)
 	require.ErrorIs(t, err, common.ErrFatal, "must return fatal error when calling ws.setup.Connector")
 	assert.ErrorIs(t, err, errConnectionFault, "should return the correct error when calling ws.setup.Connector")
@@ -809,6 +799,24 @@ func TestCreateConnectAndSubscribe(t *testing.T) {
 	delete(mgr.connections, ws.connections[0])
 	ws.connections = nil
 	mgr.Wg.Wait()
+
+	t.Run("connection subscription limit overrides manager limit", func(t *testing.T) {
+		t.Parallel()
+		m := NewManager()
+		m.MaxSubscriptionsPerConnection = 1
+		ws := &websocket{subscriptions: subscription.NewStore(), setup: &ConnectionSetup{
+			MaxSubscriptions: 2,
+			Connector:        func(context.Context, Connection) error { return errConnectionFault },
+		}}
+		err := m.createConnectAndSubscribe(t.Context(), ws, subscription.List{{Channel: "one"}, {Channel: "two"}})
+		assert.ErrorIs(t, err, errConnectionFault, "should allow a larger connection limit and reach the connector")
+
+		m.MaxSubscriptionsPerConnection = 0
+		ws.setup.MaxSubscriptions = 1
+		err = m.createConnectAndSubscribe(t.Context(), ws, subscription.List{{Channel: "one"}, {Channel: "two"}})
+		require.ErrorIs(t, err, common.ErrFatal, "must return fatal error when exceeding the connection limit")
+		assert.ErrorIs(t, err, errSubscriptionsExceedsLimit, "should enforce the connection limit when the manager has none")
+	})
 }
 
 func TestConnectBatchesByConnectionSubscriptionLimit(t *testing.T) {
@@ -2133,11 +2141,6 @@ func TestSetupNewConnection(t *testing.T) {
 	require.ErrorIs(t, err, errMessageFilterNotComparable)
 
 	connSetup.MessageFilter = "comparable string signature"
-	connSetup.MaxSubscriptions = -1
-	err = multi.SetupNewConnection(connSetup)
-	require.ErrorIs(t, err, errInvalidMaxSubscriptions)
-
-	connSetup.MaxSubscriptions = 0
 	err = multi.SetupNewConnection(connSetup)
 	require.NoError(t, err)
 
@@ -2148,6 +2151,25 @@ func TestSetupNewConnection(t *testing.T) {
 
 	err = multi.SetupNewConnection(connSetup)
 	require.ErrorIs(t, err, errDuplicateConnectionSetup)
+
+	t.Run("negative connection limit is rejected", func(t *testing.T) {
+		t.Parallel()
+		m := NewManager()
+		set := newDefaultSetup()
+		set.UseMultiConnectionManagement = true
+		require.NoError(t, m.Setup(set), "Setup must not error")
+		err := m.SetupNewConnection(&ConnectionSetup{
+			URL:                   "urlstring",
+			MaxSubscriptions:      -1,
+			Connector:             func(context.Context, Connection) error { return nil },
+			GenerateSubscriptions: func() (subscription.List, error) { return nil, nil },
+			Subscriber:            func(context.Context, Connection, subscription.List) error { return nil },
+			Unsubscriber:          func(context.Context, Connection, subscription.List) error { return nil },
+			Handler:               func(context.Context, Connection, []byte) error { return nil },
+		})
+		require.ErrorIs(t, err, errInvalidMaxSubscriptions, "SetupNewConnection must reject a negative connection limit")
+		assert.Empty(t, m.connectionManager, "rejected setup should not be added to the connection manager")
+	})
 }
 
 func TestGetConfiguredWebsocketURLs(t *testing.T) {
