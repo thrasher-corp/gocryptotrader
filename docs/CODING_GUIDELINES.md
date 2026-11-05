@@ -16,6 +16,22 @@ This document outlines the coding, formatting, and testing standards for impleme
     [custom dictionary](../contrib/spellcheck/codespell_custom_dictionary.txt)
     unless an external contract requires the original spelling.
 
+### External dependencies
+
+- Prefer the standard library, existing project helpers and existing
+    dependencies before introducing another external dependency.
+- When the requirement can be met clearly and safely with a small, tested
+    implementation tailored to the situation, prefer that approach over adding
+    a dependency for convenience or hypothetical requirements.
+- Add an external dependency only when it provides a clear, substantial
+    benefit, such as significant deduplication, a measured performance
+    optimisation or functionality integral to the implementation that is
+    impractical to maintain locally. Explain the benefit and why existing or
+    project-specific alternatives are insufficient in the pull request.
+- Evaluate maintenance, licensing, security, transitive dependencies and build
+    costs before adding a dependency. This preference does not justify bespoke
+    cryptography or unsafe reimplementation of complex protocols.
+
 ## Security
 
 See [SECURITY.md](../SECURITY.md) for the project's security policy, supported versions and reporting process.
@@ -242,6 +258,18 @@ Use `require` and `assert` appropriately:
     focused regression coverage, regenerate derived files when applicable and
     avoid unrelated behavioural or formatting changes.
 - Full test coverage is preferable; mock external calls as needed.
+- Test length, index and display limits with empty, single-entry and unequal
+    collections, and values below, at and above limits. Verify the final entry
+    and ordering; exercise CLI defaults and clamping through flag parsing.
+- Align and pad terminal output by display columns. Test opposing columns and
+    sides with values wider than Unicode headings, covering wide, fullwidth,
+    combining and zero-width characters.
+- Give asynchronous test waits deadlines. Run tests sequentially when
+    dependencies mutate package-level state.
+- Test stream consumers with success, error-only and subsequent valid
+    responses. Allow missing success fields on errors and preserve error reporting.
+- Use each endpoint's documented timestamp units. Shared renderers must omit
+    timestamps whose units are unknown.
 - Distinguish mocked verification from live API verification when reporting results. A credential-gated test that skips does not establish endpoint compatibility; explicitly report the unverified behaviour without exposing credentials.
 - All unit tests must pass before finalising changes.
 - When changing a deduplication helper or its callers, test the caller's output
