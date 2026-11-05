@@ -202,6 +202,15 @@ func TestDowngradeExchange(t *testing.T) {
 			})
 		}
 	}
+	t.Run("account scopes after other subscriptions", func(t *testing.T) {
+		t.Parallel()
+		const before = `{"enabled":true,"channel":"ticker","asset":"all"},{"enabled":false,"channel":"myTrades","asset":"spot","authenticated":true},{"enabled":true,"channel":"myOrders","asset":"futures","authenticated":true},{"enabled":true,"channel":"orderbook"}`
+		const after = `{"enabled":false,"channel":"myAccount","asset":"futures","authenticated":true},{"enabled":false,"channel":"myAccount","asset":"coinmarginedfutures","authenticated":true}`
+		input := []byte(`{"name":"HTX","features":{"subscriptions":[` + before + `,{"enabled":true,"channel":"myAccount","asset":"spot","authenticated":true},{"enabled":false,"channel":"myAccount","asset":"all","authenticated":true},` + after + `]}}`)
+		got, err := new(v19.Version).DowngradeExchange(t.Context(), input)
+		require.NoError(t, err, "account scopes after other subscriptions must downgrade")
+		assert.JSONEq(t, `{"name":"Huobi","features":{"subscriptions":[`+before+`,{"enabled":true,"channel":"myAccount","authenticated":true},{"enabled":false,"channel":"myAccount","authenticated":true},`+after+`]}}`, string(got), "downgrade should remove the scope from every account subscription wherever it sits")
+	})
 	for _, tt := range []struct {
 		name string
 		in   string
