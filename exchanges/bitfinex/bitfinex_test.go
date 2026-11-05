@@ -1297,7 +1297,7 @@ func TestGetDepositAddress(t *testing.T) {
 
 func TestWSAuth(t *testing.T) {
 	testexch.SkipTestIfCannotUseAuthenticatedWebsocket(t, e)
-	testexch.SetupWs(t, e)
+	testexch.SetupWebsocket(t, e)
 	require.True(t, e.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must be turned on")
 
 	var resp map[string]any
@@ -1441,7 +1441,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 func TestWSSubscribe(t *testing.T) {
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "TestInstance must not error")
-	testexch.SetupWs(t, e)
+	testexch.SetupWebsocket(t, e)
 	err := e.Subscribe(subscription.List{{Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewBTCUSD()}, Asset: asset.Spot}})
 	require.NoError(t, err, "Subscribe must not error")
 	catcher := func() (ok bool) {
@@ -1517,7 +1517,7 @@ func TestSubToMap(t *testing.T) {
 
 func TestWSNewOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	testexch.SetupWs(t, e)
+	testexch.SetupWebsocket(t, e)
 	_, err := e.WsNewOrder(t.Context(), &WsNewOrderRequest{
 		GroupID: 1,
 		Type:    "EXCHANGE LIMIT",
@@ -1530,14 +1530,14 @@ func TestWSNewOrder(t *testing.T) {
 
 func TestWSCancelOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	testexch.SetupWs(t, e)
+	testexch.SetupWebsocket(t, e)
 	err := e.WsCancelOrder(t.Context(), 1234)
 	assert.NoError(t, err)
 }
 
 func TestWSModifyOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	testexch.SetupWs(t, e)
+	testexch.SetupWebsocket(t, e)
 	err := e.WsModifyOrder(t.Context(), &WsUpdateOrderRequest{
 		OrderID: 1234,
 		Price:   -111,
@@ -1548,21 +1548,21 @@ func TestWSModifyOrder(t *testing.T) {
 
 func TestWSCancelAllOrders(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	testexch.SetupWs(t, e)
+	testexch.SetupWebsocket(t, e)
 	err := e.WsCancelAllOrders(t.Context())
 	assert.NoError(t, err)
 }
 
 func TestWSCancelMultiOrders(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	testexch.SetupWs(t, e)
+	testexch.SetupWebsocket(t, e)
 	err := e.WsCancelMultiOrders(t.Context(), []int64{1, 2, 3, 4})
 	assert.NoError(t, err)
 }
 
 func TestWSNewOffer(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	testexch.SetupWs(t, e)
+	testexch.SetupWebsocket(t, e)
 	err := e.WsNewOffer(t.Context(), &WsNewOfferRequest{
 		Type:   order.Limit.String(),
 		Symbol: "fBTC",
@@ -1575,7 +1575,7 @@ func TestWSNewOffer(t *testing.T) {
 
 func TestWSCancelOffer(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	testexch.SetupWs(t, e)
+	testexch.SetupWebsocket(t, e)
 	err := e.WsCancelOffer(t.Context(), 1234)
 	assert.NoError(t, err)
 }

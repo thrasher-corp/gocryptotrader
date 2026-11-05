@@ -51,7 +51,7 @@ func TestLiveSpotTickerFlow(t *testing.T) {
 	require.NoError(t, e.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{pair}, false), "StorePairs must not error")
 	require.NoError(t, e.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{pair}, true), "StorePairs must not error")
 
-	testexch.SetupWs(t, e)
+	testexch.SetupWebsocket(t, e)
 	conn, err := e.Websocket.GetConnection(asset.Spot)
 	require.NoError(t, err, "GetConnection must not error")
 
@@ -127,7 +127,7 @@ func TestLiveSpotKlineTimestamp(t *testing.T) {
 	require.NoError(t, e.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{pair}, false), "StorePairs must not error")
 	require.NoError(t, e.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{pair}, true), "StorePairs must not error")
 
-	testexch.SetupWs(t, e)
+	testexch.SetupWebsocket(t, e)
 	conn, err := e.Websocket.GetConnection(asset.Spot)
 	require.NoError(t, err, "GetConnection must not error")
 
@@ -174,7 +174,7 @@ func TestLiveSpotUnsubscribe(t *testing.T) {
 	require.NoError(t, e.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{pair}, false), "StorePairs must not error")
 	require.NoError(t, e.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{pair}, true), "StorePairs must not error")
 
-	testexch.SetupWs(t, e)
+	testexch.SetupWebsocket(t, e)
 	conn, err := e.Websocket.GetConnection(asset.Spot)
 	require.NoError(t, err, "GetConnection must not error")
 
@@ -220,7 +220,7 @@ func TestLiveSpotPrivateSubscriptions(t *testing.T) {
 	require.NoError(t, err, "GenerateListenKey must not error")
 	require.NotEmpty(t, listenKey, "the exchange must issue a listen key")
 
-	testexch.SetupWs(t, e)
+	testexch.SetupWebsocket(t, e)
 	require.True(t, e.Websocket.CanUseAuthenticatedEndpoints(), "the authenticated path must be enabled")
 	conn, err := e.Websocket.GetConnection(privateConnection)
 	require.NoError(t, err, "GetConnection must not error")

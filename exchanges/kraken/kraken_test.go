@@ -1312,7 +1312,7 @@ func TestWithdrawCancel(t *testing.T) {
 func TestWsSubscribe(t *testing.T) {
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
-	testexch.SetupWs(t, e)
+	testexch.SetupWebsocket(t, e)
 
 	for _, enabled := range []bool{false, true} {
 		require.NoError(t, e.SetPairs(currency.Pairs{
@@ -1412,7 +1412,7 @@ func TestWsSubscribe(t *testing.T) {
 func TestWsResubscribe(t *testing.T) {
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "TestInstance must not error")
-	testexch.SetupWs(t, e)
+	testexch.SetupWebsocket(t, e)
 
 	err := e.Subscribe(subscription.List{{Asset: asset.Spot, Channel: subscription.OrderbookChannel, Levels: 1000}})
 	require.NoError(t, err, "Subscribe must not error")
@@ -1443,7 +1443,7 @@ func TestWsOrderbookSub(t *testing.T) {
 
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
-	testexch.SetupWs(t, e)
+	testexch.SetupWebsocket(t, e)
 
 	err := e.Subscribe(subscription.List{{
 		Asset:   asset.Spot,
@@ -1475,7 +1475,7 @@ func TestWsCandlesSub(t *testing.T) {
 
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
-	testexch.SetupWs(t, e)
+	testexch.SetupWebsocket(t, e)
 
 	err := e.Subscribe(subscription.List{{
 		Asset:    asset.Spot,
@@ -1544,7 +1544,7 @@ func TestWsOwnTradesSub(t *testing.T) {
 
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
-	testexch.SetupWs(t, e)
+	testexch.SetupWebsocket(t, e)
 
 	err := e.Subscribe(subscription.List{{Channel: subscription.MyTradesChannel, Authenticated: true}})
 	assert.NoError(t, err, "Subsrcibing to ownTrades should not error")
@@ -1624,7 +1624,7 @@ func TestGetWSToken(t *testing.T) {
 
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
-	testexch.SetupWs(t, e)
+	testexch.SetupWebsocket(t, e)
 
 	resp, err := e.GetWebsocketToken(t.Context())
 	require.NoError(t, err, "GetWebsocketToken must not error")
@@ -1635,7 +1635,7 @@ func TestGetWSToken(t *testing.T) {
 func TestWsAddOrder(t *testing.T) {
 	t.Parallel()
 
-	k := testexch.MockWsInstance[Exchange](t, curryWsMockUpgrader(t, mockWsServer))
+	k := testexch.MockWebsocketInstance[Exchange](t, curryWsMockUpgrader(t, mockWsServer))
 	require.True(t, k.IsWebsocketAuthenticationSupported(), "WS must be authenticated")
 	id, err := k.wsAddOrder(t.Context(), &WsAddOrderRequest{
 		OrderType: order.Limit.Lower(),
@@ -1651,7 +1651,7 @@ func TestWsAddOrder(t *testing.T) {
 func TestWsCancelOrders(t *testing.T) {
 	t.Parallel()
 
-	k := testexch.MockWsInstance[Exchange](t, curryWsMockUpgrader(t, mockWsServer))
+	k := testexch.MockWebsocketInstance[Exchange](t, curryWsMockUpgrader(t, mockWsServer))
 	require.True(t, k.IsWebsocketAuthenticationSupported(), "WS must be authenticated")
 
 	err := k.wsCancelOrders(t.Context(), []string{"RABBIT", "BATFISH", "SQUIRREL", "CATFISH", "MOUSE"})
@@ -1666,7 +1666,7 @@ func TestWsCancelOrders(t *testing.T) {
 
 func TestWsCancelAllOrders(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	testexch.SetupWs(t, e)
+	testexch.SetupWebsocket(t, e)
 	_, err := e.wsCancelAllOrders(t.Context())
 	require.NoError(t, err, "wsCancelAllOrders must not error")
 }

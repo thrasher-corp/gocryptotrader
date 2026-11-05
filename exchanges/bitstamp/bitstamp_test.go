@@ -1154,7 +1154,7 @@ func TestSubscribe(t *testing.T) {
 	subs, err := e.Features.Subscriptions.ExpandTemplates(e)
 	require.NoError(t, err, "ExpandTemplates must not error")
 	e.Features.Subscriptions = subscription.List{}
-	testexch.SetupWs(t, e)
+	testexch.SetupWebsocket(t, e)
 	err = e.Subscribe(subs)
 	require.NoError(t, err, "Subscribe must not error")
 	for _, s := range subs {
@@ -1178,7 +1178,7 @@ func TestShutdownDoesNotReconnect(t *testing.T) {
 		upgrades.Add(1)
 		mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
 	}
-	e := testexch.MockWsInstance[Exchange](t, h)
+	e := testexch.MockWebsocketInstance[Exchange](t, h)
 	require.True(t, e.Websocket.IsConnected(), "websocket must be connected")
 	before := upgrades.Load()
 

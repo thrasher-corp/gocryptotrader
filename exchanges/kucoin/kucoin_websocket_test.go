@@ -1774,7 +1774,7 @@ func TestSubscribeBatches(t *testing.T) {
 
 	ku := testInstance(t)
 	ku.Features.Subscriptions = subscription.List{}
-	testexch.SetupWs(t, ku)
+	testexch.SetupWebsocket(t, ku)
 
 	ku.Features.Subscriptions = subscription.List{
 		{Asset: asset.Spot, Channel: subscription.CandlesChannel, Interval: kline.OneMin},
@@ -1838,7 +1838,7 @@ func TestSubscribeBatchLimit(t *testing.T) {
 		tb.Helper()
 		ku := testInstance(tb)
 		ku.Features.Subscriptions = subscription.List{}
-		testexch.SetupWs(tb, ku)
+		testexch.SetupWebsocket(tb, ku)
 
 		avail, err := ku.GetAvailablePairs(asset.Spot)
 		require.NoError(tb, err, "GetAvailablePairs must not error")
@@ -1906,7 +1906,7 @@ func TestSubscribeTickerAll(t *testing.T) {
 
 	ku := testInstance(t)
 	ku.Features.Subscriptions = subscription.List{}
-	testexch.SetupWs(t, ku)
+	testexch.SetupWebsocket(t, ku)
 	done := make(chan struct{})
 	go func() { // drain websocket messages when subscribed to all tickers
 		for {
