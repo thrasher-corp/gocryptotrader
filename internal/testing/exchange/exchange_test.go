@@ -278,41 +278,45 @@ func TestCopyExchangeConfig(t *testing.T) {
 		require.NotEmpty(t, fresh.Exchanges, "configtest.json must contain exchanges")
 		for i := range fresh.Exchanges {
 			want := fresh.Exchanges[i]
-			src, err := cfg.GetExchangeConfig(want.Name)
-			require.NoErrorf(t, err, "GetExchangeConfig must not error for %s", want.Name)
-			got, err := copyExchangeConfig(src)
-			require.NoErrorf(t, err, "copyExchangeConfig must not error for %s", want.Name)
-			require.NotNilf(t, want.CurrencyPairs, "%s's config must have currency pairs", want.Name)
-			require.NotNilf(t, got.CurrencyPairs, "copyExchangeConfig must copy the currency pairs for %s", want.Name)
-			assert.Equalf(t, want.CurrencyPairs.Pairs, got.CurrencyPairs.Pairs, "copyExchangeConfig should copy the pair stores for %s", want.Name)
-			assert.Equalf(t, want.CurrencyPairs.RequestFormat, got.CurrencyPairs.RequestFormat, "copyExchangeConfig should copy the request format for %s", want.Name)
-			assert.Equalf(t, want.CurrencyPairs.ConfigFormat, got.CurrencyPairs.ConfigFormat, "copyExchangeConfig should copy the config format for %s", want.Name)
-			assert.Equalf(t, want.CurrencyPairs.UseGlobalFormat, got.CurrencyPairs.UseGlobalFormat, "copyExchangeConfig should copy UseGlobalFormat for %s", want.Name)
-			assert.Equalf(t, want.CurrencyPairs.BypassConfigFormatUpgrades, got.CurrencyPairs.BypassConfigFormatUpgrades, "copyExchangeConfig should copy BypassConfigFormatUpgrades for %s", want.Name)
-			assert.Equalf(t, want.CurrencyPairs.LastUpdated, got.CurrencyPairs.LastUpdated, "copyExchangeConfig should copy LastUpdated for %s", want.Name)
-			rest := *got
-			want.CurrencyPairs, rest.CurrencyPairs = nil, nil
-			assert.Equalf(t, want, rest, "copyExchangeConfig should copy the rest of the config for %s", want.Name)
+			t.Run(want.Name, func(t *testing.T) {
+				t.Parallel()
+				src, err := cfg.GetExchangeConfig(want.Name)
+				require.NoErrorf(t, err, "GetExchangeConfig must not error for %s", want.Name)
+				got, err := copyExchangeConfig(src)
+				require.NoErrorf(t, err, "copyExchangeConfig must not error for %s", want.Name)
+				require.NotNilf(t, want.CurrencyPairs, "%s's config must have currency pairs", want.Name)
+				require.NotNilf(t, got.CurrencyPairs, "copyExchangeConfig must copy the currency pairs for %s", want.Name)
+				assert.Equalf(t, want.CurrencyPairs.Pairs, got.CurrencyPairs.Pairs, "copyExchangeConfig should copy the pair stores for %s", want.Name)
+				assert.Equalf(t, want.CurrencyPairs.RequestFormat, got.CurrencyPairs.RequestFormat, "copyExchangeConfig should copy the request format for %s", want.Name)
+				assert.Equalf(t, want.CurrencyPairs.ConfigFormat, got.CurrencyPairs.ConfigFormat, "copyExchangeConfig should copy the config format for %s", want.Name)
+				assert.Equalf(t, want.CurrencyPairs.UseGlobalFormat, got.CurrencyPairs.UseGlobalFormat, "copyExchangeConfig should copy UseGlobalFormat for %s", want.Name)
+				assert.Equalf(t, want.CurrencyPairs.BypassConfigFormatUpgrades, got.CurrencyPairs.BypassConfigFormatUpgrades, "copyExchangeConfig should copy BypassConfigFormatUpgrades for %s", want.Name)
+				assert.Equalf(t, want.CurrencyPairs.LastUpdated, got.CurrencyPairs.LastUpdated, "copyExchangeConfig should copy LastUpdated for %s", want.Name)
+				rest := *got
+				want.CurrencyPairs, rest.CurrencyPairs = nil, nil
+				assert.Equalf(t, want, rest, "copyExchangeConfig should copy the rest of the config for %s", want.Name)
+			})
 		}
 	})
 
 	t.Run("copy errors", func(t *testing.T) {
 		errMarshal := errors.New("marshal failure")
-		c, err := copyExchangeConfig(&config.Exchange{
-			Name:     "Bad",
-			Features: &config.FeaturesConfig{Subscriptions: subscription.List{{Channel: "x", Params: map[string]any{"bad": failingMarshaler{err: errMarshal}}}}},
-		})
-		assert.ErrorIs(t, err, errCopyingExchangeConfig, "copyExchangeConfig should error when the config cannot be marshalled")
-		assert.ErrorIs(t, err, errMarshal, "copyExchangeConfig should wrap the marshalling error")
-		assert.Nil(t, c, "copyExchangeConfig should return no config when the config cannot be marshalled")
-
-		c, err = copyExchangeConfig(&config.Exchange{
-			Name:     "Bad",
-			Features: &config.FeaturesConfig{Subscriptions: subscription.List{{Channel: "x", Pairs: currency.Pairs{currency.NewPair(currency.NewCode("A"), currency.EMPTYCODE)}}}},
-		})
-		assert.ErrorIs(t, err, errCopyingExchangeConfig, "copyExchangeConfig should error when the copy cannot be unmarshalled")
-		assert.ErrorIs(t, err, currency.ErrCreatingPair, "copyExchangeConfig should wrap the unmarshalling error")
-		assert.Nil(t, c, "copyExchangeConfig should return no config when the copy cannot be unmarshalled")
+		for _, tc := range []struct {
+			name     string
+			features *config.FeaturesConfig
+			cause    error
+		}{
+			{"marshal failure", &config.FeaturesConfig{Subscriptions: subscription.List{{Channel: "x", Params: map[string]any{"bad": failingMarshaler{err: errMarshal}}}}}, errMarshal},
+			{"unmarshal failure", &config.FeaturesConfig{Subscriptions: subscription.List{{Channel: "x", Pairs: currency.Pairs{currency.NewPair(currency.NewCode("A"), currency.EMPTYCODE)}}}}, currency.ErrCreatingPair},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				c, err := copyExchangeConfig(&config.Exchange{Name: "Bad", Features: tc.features})
+				assert.ErrorIs(t, err, errCopyingExchangeConfig, "copyExchangeConfig should error when the config cannot be copied")
+				assert.ErrorIs(t, err, tc.cause, "copyExchangeConfig should wrap the cause of the copy error")
+				assert.Nil(t, c, "copyExchangeConfig should return no config when the config cannot be copied")
+			})
+		}
 	})
 }
 
@@ -333,32 +337,31 @@ func TestMockHTTPInstance(t *testing.T) {
 
 // TestMockWebsocketInstance exercises MockWebsocketInstance
 func TestMockWebsocketInstance(t *testing.T) {
-	b := MockWebsocketInstance[binance.Exchange](t, mockws.CurryWsMockUpgrader(t, func(_ testing.TB, _ []byte, _ *gws.Conn) error { return nil }))
-	require.NotNil(t, b, "MockWebsocketInstance must not be nil")
-}
-
-func TestMockWebsocketInstanceVerbose(t *testing.T) {
-	b := MockWebsocketInstance[binance.Exchange](t, mockws.CurryWsMockUpgrader(t, func(_ testing.TB, _ []byte, _ *gws.Conn) error { return nil }), true)
-	require.NotNil(t, b, "MockWebsocketInstance must not be nil when verbose is overridden")
-	assert.True(t, b.IsVerbose(), "MockWebsocketInstance should honour the verbose override")
-}
-
-func TestMockWebsocketInstanceSupportsMultiConnectionManagement(t *testing.T) {
-	b := MockWebsocketInstance[bybit.Exchange](t, mockws.CurryWsMockUpgrader(t, func(_ testing.TB, _ []byte, _ *gws.Conn) error { return nil }))
-	require.NotNil(t, b, "MockWebsocketInstance must not be nil for multi-connection websocket exchanges")
-	t.Cleanup(func() {
-		if b.GetBase().Websocket.IsConnected() {
-			assert.NoError(t, b.GetBase().Websocket.Shutdown(), "Websocket shutdown should not error for multi-connection websocket exchanges")
-		}
-	})
-	assert.True(t, b.GetBase().Websocket.IsConnected(), "Websocket manager should be connected for multi-connection websocket exchanges")
-}
-
-func TestMockWebsocketInstanceCleanup(t *testing.T) {
 	newInstance := func(tb testing.TB) *binance.Exchange {
 		tb.Helper()
 		return MockWebsocketInstance[binance.Exchange](tb, mockws.CurryWsMockUpgrader(tb, func(_ testing.TB, _ []byte, _ *gws.Conn) error { return nil }))
 	}
+
+	t.Run("success", func(t *testing.T) {
+		require.NotNil(t, newInstance(t), "MockWebsocketInstance must not be nil")
+	})
+
+	t.Run("verbose", func(t *testing.T) {
+		b := MockWebsocketInstance[binance.Exchange](t, mockws.CurryWsMockUpgrader(t, func(_ testing.TB, _ []byte, _ *gws.Conn) error { return nil }), true)
+		require.NotNil(t, b, "MockWebsocketInstance must not be nil when verbose is overridden")
+		assert.True(t, b.IsVerbose(), "MockWebsocketInstance should honour the verbose override")
+	})
+
+	t.Run("multi-connection management", func(t *testing.T) {
+		b := MockWebsocketInstance[bybit.Exchange](t, mockws.CurryWsMockUpgrader(t, func(_ testing.TB, _ []byte, _ *gws.Conn) error { return nil }))
+		require.NotNil(t, b, "MockWebsocketInstance must not be nil for multi-connection websocket exchanges")
+		t.Cleanup(func() {
+			if b.GetBase().Websocket.IsConnected() {
+				assert.NoError(t, b.GetBase().Websocket.Shutdown(), "Websocket shutdown should not error for multi-connection websocket exchanges")
+			}
+		})
+		assert.True(t, b.GetBase().Websocket.IsConnected(), "Websocket manager should be connected for multi-connection websocket exchanges")
+	})
 
 	t.Run("shut down once its test ends", func(t *testing.T) {
 		var e *binance.Exchange
