@@ -1,4 +1,52 @@
 {
+  "cmd/gctcli.BenchmarkOrderbookRendering/strings=false/depth=10/exchangeStyle=false": {
+    "allocs": 57,
+    "bytes": 1824
+  },
+  "cmd/gctcli.BenchmarkOrderbookRendering/strings=false/depth=10/exchangeStyle=true": {
+    "allocs": 63,
+    "bytes": 2168
+  },
+  "cmd/gctcli.BenchmarkOrderbookRendering/strings=false/depth=100/exchangeStyle=false": {
+    "allocs": 507,
+    "bytes": 15590
+  },
+  "cmd/gctcli.BenchmarkOrderbookRendering/strings=false/depth=100/exchangeStyle=true": {
+    "allocs": 513,
+    "bytes": 18495
+  },
+  "cmd/gctcli.BenchmarkOrderbookRendering/strings=false/depth=50/exchangeStyle=false": {
+    "allocs": 257,
+    "bytes": 8355
+  },
+  "cmd/gctcli.BenchmarkOrderbookRendering/strings=false/depth=50/exchangeStyle=true": {
+    "allocs": 263,
+    "bytes": 9467
+  },
+  "cmd/gctcli.BenchmarkOrderbookRendering/strings=true/depth=10/exchangeStyle=false": {
+    "allocs": 7,
+    "bytes": 1632
+  },
+  "cmd/gctcli.BenchmarkOrderbookRendering/strings=true/depth=10/exchangeStyle=true": {
+    "allocs": 13,
+    "bytes": 1976
+  },
+  "cmd/gctcli.BenchmarkOrderbookRendering/strings=true/depth=100/exchangeStyle=false": {
+    "allocs": 7,
+    "bytes": 13157
+  },
+  "cmd/gctcli.BenchmarkOrderbookRendering/strings=true/depth=100/exchangeStyle=true": {
+    "allocs": 13,
+    "bytes": 15293
+  },
+  "cmd/gctcli.BenchmarkOrderbookRendering/strings=true/depth=50/exchangeStyle=false": {
+    "allocs": 7,
+    "bytes": 6882
+  },
+  "cmd/gctcli.BenchmarkOrderbookRendering/strings=true/depth=50/exchangeStyle=true": {
+    "allocs": 13,
+    "bytes": 8635
+  },
   "common.BenchmarkCounter": {
     "allocs": 0,
     "bytes": 0
