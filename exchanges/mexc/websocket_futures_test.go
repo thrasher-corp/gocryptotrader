@@ -1238,7 +1238,7 @@ func TestMigratedSubscriptionsCoverFutures(t *testing.T) {
 	require.NotEqual(t, -1, i, "the test config must hold MEXC")
 	var features map[string]json.RawMessage
 	require.NoError(t, json.Unmarshal(exchanges[i]["features"], &features), "Unmarshal must decode MEXC's features")
-	// A version 17 config holds the spot defaults, here beside a disabled subscription which names no default
+	// A version 18 config holds the spot defaults, here beside a disabled subscription which names no default
 	spotDefaults := slices.DeleteFunc(defaultSubscriptions.Clone(), func(s *subscription.Subscription) bool { return s.Asset != asset.Spot })
 	previous, err := json.Marshal(spotDefaults)
 	require.NoError(t, err, "Marshal must encode the spot defaults")
@@ -1248,14 +1248,14 @@ func TestMigratedSubscriptionsCoverFutures(t *testing.T) {
 	require.NoError(t, err, "Marshal must encode MEXC's features")
 	saved["exchanges"], err = json.Marshal(exchanges)
 	require.NoError(t, err, "Marshal must encode the saved exchanges")
-	saved["version"] = json.RawMessage(`17`)
+	saved["version"] = json.RawMessage(`18`)
 	data, err = json.Marshal(saved)
-	require.NoError(t, err, "Marshal must encode the version 17 config")
+	require.NoError(t, err, "Marshal must encode the version 18 config")
 	path := filepath.Join(t.TempDir(), "config.json")
-	require.NoError(t, os.WriteFile(path, data, 0o600), "WriteFile must save the version 17 config")
+	require.NoError(t, os.WriteFile(path, data, 0o600), "WriteFile must save the version 18 config")
 
 	var cfg config.Config
-	require.NoError(t, cfg.ReadConfigFromFile(path, true), "ReadConfigFromFile must upgrade the version 17 config")
+	require.NoError(t, cfg.ReadConfigFromFile(path, true), "ReadConfigFromFile must upgrade the version 18 config")
 	exchCfg, err := cfg.GetExchangeConfig("MEXC")
 	require.NoError(t, err, "GetExchangeConfig must find MEXC")
 	ex := new(Exchange)
