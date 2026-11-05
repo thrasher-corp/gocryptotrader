@@ -2100,13 +2100,16 @@ func TestGetUserNonFundingLedgerUpdatesPaginated(t *testing.T) {
 	// pager must treat as a full page
 	const venuePageSize = 2000
 	start := time.UnixMilli(1791200000000)
-	// ledgerServerExchange serves pages of deposits; page receives the request's start time and the page number, and
-	// returns each record's time and hash
-	ledgerServerExchange := func(t *testing.T, page func(startTime uint64, number int32) (times []uint64, hashes []string)) *Exchange {
+	// ledgerServerExchange serves pages of ledger updates; page receives the request's start time and the page number, and
+	// returns the page's updates, whose time, hash, type and USDC amount, or token and amount, the server sends
+	ledgerServerExchange := func(t *testing.T, page func(startTime int64, number int32) []UserLedgerUpdateResponse) *Exchange {
 		t.Helper()
 		var pages atomic.Int32
 		return newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			var body InfoRequest
+			// Read signed, as the updates' Unix millisecond times are, so the pages need no conversion
+			var body struct {
+				StartTime int64 `json:"startTime"`
+			}
 			if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&body), "Decoding the info request should not error") {
 				return
 			}
@@ -2117,26 +2120,49 @@ func TestGetUserNonFundingLedgerUpdatesPaginated(t *testing.T) {
 				http.Error(w, "too many ledger requests", http.StatusBadRequest)
 				return
 			}
-			times, hashes := page(body.StartTime, number)
-			updates := make([]string, len(times))
-			for i := range times {
-				updates[i] = fmt.Sprintf(`{"time":%d,"hash":%q,"delta":{"type":"deposit","usdc":"1"}}`, times[i], hashes[i])
+			served := page(body.StartTime, number)
+			updates := make([]string, len(served))
+			for i := range served {
+				delta := fmt.Sprintf(`"type":%q,"usdc":%q`, served[i].Delta.Type, strconv.FormatFloat(served[i].Delta.USDC.Float64(), 'f', -1, 64))
+				if !served[i].Delta.Token.IsEmpty() {
+					delta = fmt.Sprintf(`"type":%q,"token":%q,"amount":%q`, served[i].Delta.Type, served[i].Delta.Token, strconv.FormatFloat(served[i].Delta.Amount.Float64(), 'f', -1, 64))
+				}
+				updates[i] = fmt.Sprintf(`{"time":%d,"hash":%q,"delta":{%s}}`, served[i].Time.Time().UnixMilli(), served[i].Hash, delta)
 			}
 			_, err := w.Write([]byte("[" + strings.Join(updates, ",") + "]"))
 			assert.NoError(t, err, "Writing the ledger page should not error")
 		}))
 	}
-	// page returns size records from startTime, one millisecond apart
-	page := func(startTime, size uint64, prefix string) (times []uint64, hashes []string) {
-		for i := range size {
-			times = append(times, startTime+i)
-			hashes = append(hashes, prefix+strconv.FormatUint(i, 10))
+	// deposit returns a deposit of usdc at a Unix millisecond time
+	deposit := func(timestamp int64, hash string, usdc float64) UserLedgerUpdateResponse {
+		return UserLedgerUpdateResponse{Time: milli(timestamp), Hash: hash, Delta: UserLedgerDelta{Type: "deposit", USDC: types.Number(usdc)}}
+	}
+	// transfer returns a spot transfer of an amount of a token at a Unix millisecond time, which carries no USDC amount
+	transfer := func(timestamp int64, hash string, token currency.Code, amount float64) UserLedgerUpdateResponse {
+		return UserLedgerUpdateResponse{Time: milli(timestamp), Hash: hash, Delta: UserLedgerDelta{Type: "spotTransfer", Token: token, Amount: types.Number(amount)}}
+	}
+	// page returns size deposits of one USDC from startTime, one millisecond apart
+	page := func(startTime int64, size int, prefix string) []UserLedgerUpdateResponse {
+		updates := make([]UserLedgerUpdateResponse, size)
+		for i := range updates {
+			updates[i] = deposit(startTime+int64(i), prefix+strconv.Itoa(i), 1)
 		}
-		return times, hashes
+		return updates
+	}
+	// assertUpdates compares each returned update with the expected one and stops at the first difference, as a failed
+	// comparison of the whole lists would print thousands of updates
+	assertUpdates := func(t *testing.T, expected, actual []UserLedgerUpdateResponse, message string) {
+		t.Helper()
+		assert.Equalf(t, len(expected), len(actual), "%s, as many updates as expected", message)
+		for i := range min(len(expected), len(actual)) {
+			if !assert.Equalf(t, expected[i], actual[i], "%s, update %d", message, i) {
+				return
+			}
+		}
 	}
 
-	var starts []uint64
-	paged := ledgerServerExchange(t, func(startTime uint64, number int32) ([]uint64, []string) {
+	var starts []int64
+	paged := ledgerServerExchange(t, func(startTime int64, number int32) []UserLedgerUpdateResponse {
 		starts = append(starts, startTime)
 		if number == 1 {
 			return page(startTime, venuePageSize, "0xa")
@@ -2145,44 +2171,83 @@ func TestGetUserNonFundingLedgerUpdatesPaginated(t *testing.T) {
 	})
 	result, err := paged.getUserNonFundingLedgerUpdatesPaginated(t.Context(), testAccountAddress, start)
 	require.NoError(t, err, "getUserNonFundingLedgerUpdatesPaginated must not error")
-	assert.Len(t, result, 2*venuePageSize-1, "getUserNonFundingLedgerUpdatesPaginated should return every page's records")
-	assert.Equal(t, []uint64{unixMilli(start), unixMilli(start) + venuePageSize - 1}, starts, "getUserNonFundingLedgerUpdatesPaginated should request another page only after a full page, from its last time")
+	assertUpdates(t, append(page(start.UnixMilli(), venuePageSize, "0xa"), page(start.UnixMilli()+venuePageSize, venuePageSize-1, "0xb")...), result, "getUserNonFundingLedgerUpdatesPaginated should return every page's records in order")
+	assert.Equal(t, []int64{start.UnixMilli(), start.UnixMilli() + venuePageSize - 1}, starts, "getUserNonFundingLedgerUpdatesPaginated should request another page only after a full page, from its last time")
 
-	repeated := ledgerServerExchange(t, func(startTime uint64, number int32) ([]uint64, []string) {
+	repeated := ledgerServerExchange(t, func(startTime int64, number int32) []UserLedgerUpdateResponse {
 		if number == 1 {
 			return page(startTime, venuePageSize, "0xa")
 		}
-		return []uint64{startTime}, []string{"0xa" + strconv.Itoa(venuePageSize-1)}
+		return []UserLedgerUpdateResponse{deposit(startTime, "0xa"+strconv.Itoa(venuePageSize-1), 1)}
 	})
 	result, err = repeated.getUserNonFundingLedgerUpdatesPaginated(t.Context(), testAccountAddress, start)
 	require.NoError(t, err, "getUserNonFundingLedgerUpdatesPaginated must not error for a repeated boundary record")
-	assert.Len(t, result, venuePageSize, "getUserNonFundingLedgerUpdatesPaginated should drop a boundary record repeated on the next page")
+	assertUpdates(t, page(start.UnixMilli(), venuePageSize, "0xa"), result, "getUserNonFundingLedgerUpdatesPaginated should drop a boundary record repeated on the next page")
 
-	_, err = ledgerServerExchange(t, func(startTime uint64, _ int32) ([]uint64, []string) {
+	// Hyperliquid starts a page at the request's start time inclusively, so the next page repeats the updates at a full
+	// page's last time, and a page boundary can split the updates of one millisecond, of one transaction or several
+	inclusiveLedgerExchange := func(t *testing.T, updates []UserLedgerUpdateResponse, requested *[]int64) *Exchange {
+		t.Helper()
+		return ledgerServerExchange(t, func(startTime int64, _ int32) []UserLedgerUpdateResponse {
+			*requested = append(*requested, startTime)
+			var served []UserLedgerUpdateResponse
+			for i := range updates {
+				if updates[i].Time.Time().UnixMilli() >= startTime && len(served) < venuePageSize {
+					served = append(served, updates[i])
+				}
+			}
+			return served
+		})
+	}
+	boundary := start.UnixMilli() + venuePageSize - 1
+	for _, tc := range []struct {
+		name    string
+		updates []UserLedgerUpdateResponse
+	}{
+		// The full page ends with both updates of transaction 0xc, which the last page repeats ahead of the millisecond's
+		// other updates: 0xd's, which matches 0xc's first but for its hash, and transaction 0xf's three, whose first differs
+		// from the second only in its token and from the third only in its amount
+		{name: "a millisecond split by the page boundary", updates: append(page(start.UnixMilli(), venuePageSize-2, "0xa"), deposit(boundary, "0xc", 1), deposit(boundary, "0xc", 2), deposit(boundary, "0xd", 1), transfer(boundary, "0xf", currency.HYPE, 1), transfer(boundary, "0xf", currency.USDC, 1), transfer(boundary, "0xf", currency.HYPE, 2))},
+		{name: "a single update after the full page", updates: append(page(start.UnixMilli(), venuePageSize, "0xa"), deposit(boundary+1, "0xe", 1))},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var requested []int64
+			updates, err := inclusiveLedgerExchange(t, tc.updates, &requested).getUserNonFundingLedgerUpdatesPaginated(t.Context(), testAccountAddress, start)
+			require.NoError(t, err, "getUserNonFundingLedgerUpdatesPaginated must not error")
+			assertUpdates(t, tc.updates, updates, "getUserNonFundingLedgerUpdatesPaginated should return every update once and in order")
+			assert.Equal(t, []int64{start.UnixMilli(), boundary}, requested, "getUserNonFundingLedgerUpdatesPaginated should start the next page at the full page's last time")
+		})
+	}
+
+	_, err = ledgerServerExchange(t, func(startTime int64, _ int32) []UserLedgerUpdateResponse {
 		return page(startTime, venuePageSize+1, "0xa")
 	}).getUserNonFundingLedgerUpdatesPaginated(t.Context(), testAccountAddress, start)
 	assert.ErrorIs(t, err, errUnexpectedResponseLength, "getUserNonFundingLedgerUpdatesPaginated should reject a page larger than the venue's")
 
 	for _, tc := range []struct {
 		name string
-		page func(startTime uint64, number int32) ([]uint64, []string)
+		page func(startTime int64, number int32) []UserLedgerUpdateResponse
 	}{
-		{name: "record before the cursor", page: func(startTime uint64, _ int32) ([]uint64, []string) {
-			return []uint64{startTime - 1}, []string{"0xa"}
+		{name: "record before the cursor", page: func(startTime int64, _ int32) []UserLedgerUpdateResponse {
+			return []UserLedgerUpdateResponse{deposit(startTime-1, "0xa", 1)}
 		}},
-		{name: "decreasing times", page: func(startTime uint64, _ int32) ([]uint64, []string) {
-			return []uint64{startTime + 2, startTime + 1}, []string{"0xa", "0xb"}
+		{name: "decreasing times", page: func(startTime int64, _ int32) []UserLedgerUpdateResponse {
+			return []UserLedgerUpdateResponse{deposit(startTime+2, "0xa", 1), deposit(startTime+1, "0xb", 1)}
 		}},
-		{name: "stalled cursor", page: func(startTime uint64, _ int32) ([]uint64, []string) {
-			times, hashes := page(startTime, venuePageSize, "0xa")
-			for i := range times {
-				times[i] = startTime
+		{name: "stalled cursor", page: func(startTime int64, _ int32) []UserLedgerUpdateResponse {
+			updates := page(startTime, venuePageSize, "0xa")
+			for i := range updates {
+				updates[i].Time = milli(startTime)
 			}
-			return times, hashes
+			return updates
 		}},
 	} {
-		_, err := ledgerServerExchange(t, tc.page).getUserNonFundingLedgerUpdatesPaginated(t.Context(), testAccountAddress, start)
-		assert.ErrorIsf(t, err, errMalformedResponse, "getUserNonFundingLedgerUpdatesPaginated should reject a %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := ledgerServerExchange(t, tc.page).getUserNonFundingLedgerUpdatesPaginated(t.Context(), testAccountAddress, start)
+			assert.ErrorIs(t, err, errMalformedResponse, "getUserNonFundingLedgerUpdatesPaginated should reject the page")
+		})
 	}
 	_, err = newUnavailableServerExchange(t).getUserNonFundingLedgerUpdatesPaginated(t.Context(), testAccountAddress, start)
 	assert.ErrorIs(t, err, request.ErrBadStatus, "getUserNonFundingLedgerUpdatesPaginated should return a ledger failure")
@@ -4871,8 +4936,15 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 		if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&body), "Decoding the info request should not error") {
 			return
 		}
+		number := pages.Add(1)
+		// Capped, so a pager that stops advancing fails rather than requesting the same page until go test's timeout
+		if number > 5 {
+			assert.Fail(t, "GetHistoricalFundingRates should not request more than five funding pages")
+			http.Error(w, "too many funding requests", http.StatusBadRequest)
+			return
+		}
 		count := 2
-		if pages.Add(1) == 1 {
+		if number == 1 {
 			count = maximumFundingHistoryCount
 		}
 		records := make([]string, 0, count)
@@ -4885,42 +4957,71 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 	paged.setPairMappings(asset.PerpetualContract, []pairMapping{testPerpetualMapping})
 	result, err = paged.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{Asset: asset.PerpetualContract, Pair: perpetualPair, StartDate: pageStart, EndDate: pageEnd})
 	require.NoError(t, err, "GetHistoricalFundingRates must not error across pages")
-	assert.Len(t, result.FundingRates, maximumFundingHistoryCount+2, "GetHistoricalFundingRates should return every page's rates")
+	rate := decimal.MustFromFloat(0.0001)
+	pagedRates := make([]fundingrate.Rate, 0, maximumFundingHistoryCount+2)
+	for i := range maximumFundingHistoryCount {
+		pagedRates = append(pagedRates, fundingrate.Rate{Time: pageStart.Add(time.Duration(i) * time.Hour).UTC(), Rate: rate})
+	}
+	// The server times the second page's rates from its start, a millisecond after the first page's last rate
+	secondPage := pageStart.Add((maximumFundingHistoryCount-1)*time.Hour + time.Millisecond).UTC()
+	pagedRates = append(pagedRates, fundingrate.Rate{Time: secondPage, Rate: rate}, fundingrate.Rate{Time: secondPage.Add(time.Hour), Rate: rate})
+	assert.Equal(t, pagedRates, result.FundingRates, "GetHistoricalFundingRates should return every page's rates in order")
+	assert.Equal(t, pagedRates[len(pagedRates)-1], result.LatestRate, "GetHistoricalFundingRates should take the latest rate from the last page")
 	assert.Equal(t, int32(2), pages.Load(), "GetHistoricalFundingRates should request the next page after a full page")
+
+	// rangeServerExchange serves the range's funding and returns the requests it receives
+	rangeServerExchange := func(t *testing.T) (*Exchange, *[]InfoRequest) {
+		t.Helper()
+		var requests []InfoRequest
+		ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			var body InfoRequest
+			if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&body), "Decoding the info request should not error") {
+				return
+			}
+			requests = append(requests, body)
+			// Capped, so a pager that stops advancing fails rather than requesting the same page until go test's timeout
+			if len(requests) > 5 {
+				assert.Fail(t, "GetHistoricalFundingRates should not request more than five funding pages")
+				http.Error(w, "too many funding requests", http.StatusBadRequest)
+				return
+			}
+			// Funding settles hourly from pageStart, and a page holds the records of the range up to the page size
+			var records []string
+			for recordTime := unixMilli(pageStart); recordTime <= body.EndTime && len(records) < maximumFundingHistoryCount; recordTime += uint64(time.Hour / time.Millisecond) {
+				if recordTime >= body.StartTime {
+					records = append(records, fmt.Sprintf(`{"coin":"BTC","fundingRate":"0.0001","premium":"0.0","time":%d}`, recordTime))
+				}
+			}
+			_, err := w.Write([]byte("[" + strings.Join(records, ",") + "]"))
+			assert.NoError(t, err, "Writing the funding page should not error")
+		}))
+		ex.setPairMappings(asset.PerpetualContract, []pairMapping{testPerpetualMapping})
+		return ex, &requests
+	}
 
 	// A full page ending a millisecond before the end date leaves a request for the end date alone, whose bounds are
 	// both inclusive, so it must be sent rather than rejected
-	var requests []InfoRequest
-	boundary := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var body InfoRequest
-		if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&body), "Decoding the info request should not error") {
-			return
-		}
-		requests = append(requests, body)
-		// Capped, so a pager that stops advancing fails rather than requesting the same page until go test's timeout
-		if len(requests) > 5 {
-			assert.Fail(t, "GetHistoricalFundingRates should not request more than five funding pages")
-			http.Error(w, "too many funding requests", http.StatusBadRequest)
-			return
-		}
-		// Funding settles hourly from pageStart, and a page holds the records of the range up to the page size
-		var records []string
-		for recordTime := unixMilli(pageStart); recordTime <= body.EndTime && len(records) < maximumFundingHistoryCount; recordTime += uint64(time.Hour / time.Millisecond) {
-			if recordTime >= body.StartTime {
-				records = append(records, fmt.Sprintf(`{"coin":"BTC","fundingRate":"0.0001","premium":"0.0","time":%d}`, recordTime))
-			}
-		}
-		_, err := w.Write([]byte("[" + strings.Join(records, ",") + "]"))
-		assert.NoError(t, err, "Writing the funding page should not error")
-	}))
-	boundary.setPairMappings(asset.PerpetualContract, []pairMapping{testPerpetualMapping})
+	boundary, requests := rangeServerExchange(t)
 	boundaryEnd := pageStart.Add((maximumFundingHistoryCount-1)*time.Hour + time.Millisecond)
 	result, err = boundary.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{Asset: asset.PerpetualContract, Pair: perpetualPair, StartDate: pageStart, EndDate: boundaryEnd})
 	require.NoError(t, err, "GetHistoricalFundingRates must not error when a full page ends a millisecond before the end date")
-	assert.Len(t, result.FundingRates, maximumFundingHistoryCount, "GetHistoricalFundingRates should return the full page's rates")
-	require.Len(t, requests, 2, "GetHistoricalFundingRates must request the end date after the full page")
-	assert.Equal(t, unixMilli(boundaryEnd), requests[1].StartTime, "GetHistoricalFundingRates should start the last request at the end date")
-	assert.Equal(t, unixMilli(boundaryEnd), requests[1].EndTime, "GetHistoricalFundingRates should end the last request at the end date")
+	assert.Equal(t, pagedRates[:maximumFundingHistoryCount], result.FundingRates, "GetHistoricalFundingRates should return the full page's rates")
+	require.Len(t, *requests, 2, "GetHistoricalFundingRates must request the end date after the full page")
+	assert.Equal(t, unixMilli(boundaryEnd), (*requests)[1].StartTime, "GetHistoricalFundingRates should start the last request at the end date")
+	assert.Equal(t, unixMilli(boundaryEnd), (*requests)[1].EndTime, "GetHistoricalFundingRates should end the last request at the end date")
+
+	t.Run("a single rate after the full page", func(t *testing.T) {
+		t.Parallel()
+		// A full page followed by a page holding the range's last rate alone, which must not be taken for a repeat
+		single, singleRequests := rangeServerExchange(t)
+		singleEnd := pageStart.Add(maximumFundingHistoryCount * time.Hour)
+		rates, err := single.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{Asset: asset.PerpetualContract, Pair: perpetualPair, StartDate: pageStart, EndDate: singleEnd})
+		require.NoError(t, err, "GetHistoricalFundingRates must not error when the last page holds a single rate")
+		singleRates := append(slices.Clone(pagedRates[:maximumFundingHistoryCount]), fundingrate.Rate{Time: singleEnd.UTC(), Rate: rate})
+		assert.Equal(t, singleRates, rates.FundingRates, "GetHistoricalFundingRates should keep a last page's single rate")
+		assert.Equal(t, singleRates[len(singleRates)-1], rates.LatestRate, "GetHistoricalFundingRates should take the latest rate from a last page's single rate")
+		assert.Len(t, *singleRequests, 2, "GetHistoricalFundingRates should read the single rate's page after the full page")
+	})
 
 	builder := newTradingServerExchange(t, map[string]string{"fundingHistory": `[{"coin":"xyz:XYZ100","fundingRate":"0.0002","premium":"0.0001","time":` + strconv.FormatInt(pageStart.UnixMilli(), 10) + `}]`}, nil)
 	builder.setPairMappings(asset.PerpetualContract, []pairMapping{{pair: currency.NewPair(currency.NewCode("xyz:XYZ100"), currency.HYPE), coin: "xyz:XYZ100", dex: "xyz"}})

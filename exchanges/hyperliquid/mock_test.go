@@ -105,15 +105,16 @@ func newVenueWebsocketTestExchange(t *testing.T) (*Exchange, *websocketVenueRequ
 	ex := newTestExchange(t)
 	require.NoError(t, ex.Websocket.SetAllConnectionURLs(url), "SetAllConnectionURLs must not error")
 	ex.Features.Subscriptions = subscription.List{}
-	require.NoError(t, ex.Websocket.Enable(t.Context()), "Enable must connect to the mock websocket")
+	// Registered ahead of Enable, as a failed first connection can still start the connection monitor
 	t.Cleanup(func() {
 		// Disabling stops the connection monitor, which would otherwise redial the mock after the test, and which may then
 		// shut the connection down first
 		assert.NoError(t, ex.Websocket.Disable(), "Disable should not error")
 		if err := shutdownWebsocketWithin(t, ex); err != nil {
-			assert.ErrorIs(t, err, websocket.ErrNotConnected, "Shutdown should only fail when the connection monitor has shut the connection down first")
+			assert.ErrorIs(t, err, websocket.ErrNotConnected, "Shutdown should only fail when the websocket never connected or the connection monitor has shut the connection down first")
 		}
 	})
+	require.NoError(t, ex.Websocket.Enable(t.Context()), "Enable must connect to the mock websocket")
 	return ex, venue
 }
 
