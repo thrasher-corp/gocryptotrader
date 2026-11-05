@@ -1,73 +1,55 @@
-// Package v18 moves LBank's REST endpoint from its previous default host to the host LBank documents now.
+// Package v18 migrates the legacy OKX websocket defaults to TLS port 443.
 package v18
 
 import (
 	"context"
 	"errors"
-	"strings"
+	"fmt"
+	"strconv"
 
 	"github.com/buger/jsonparser"
 )
 
-// Version is an ExchangeVersion for LBank's endpoints
+// Version implements ExchangeVersion for the retirement of OKX port 8443.
 type Version struct{}
 
-const (
-	restSpotKey     = "RestSpotURL"
-	previousRESTURL = "https://api.lbkex.com"
-	currentRESTURL  = "https://api.lbank.info"
-)
+// Exchanges limits the endpoint migration to OKX.
+func (*Version) Exchanges() []string { return []string{"Okx"} }
 
-// currentDefaults are the endpoints this version defaults to; the previous version has no contract or websocket endpoint
-var currentDefaults = map[string]string{
-	restSpotKey:                  currentRESTURL,
-	"RestUSDTMarginedFuturesURL": "https://lbkperp.lbank.com",
-	"WebsocketSpotURL":           "wss://api.lbank.info/ws/V2/",
-}
-
-// Exchanges returns every exchange, as the version manager matches names exactly while the engine accepts LBank's in
-// any case; UpgradeExchange and DowngradeExchange pick out LBank themselves
-func (*Version) Exchanges() []string { return []string{"*"} }
-
-// UpgradeExchange removes LBank's REST endpoint when it is the previous default, so the current default applies. The
-// previous host still serves the same API, so an endpoint the user set to anything else is kept
-func (*Version) UpgradeExchange(_ context.Context, e []byte) ([]byte, error) {
-	if !isLBank(e) {
-		return e, nil
-	}
-	url, err := jsonparser.GetString(e, "api", "urlEndpoints", restSpotKey)
-	switch {
-	case errors.Is(err, jsonparser.KeyPathNotFoundError):
-		return e, nil
-	case err != nil:
-		return e, err
-	case url == previousRESTURL:
-		e = jsonparser.Delete(e, "api", "urlEndpoints", restSpotKey)
-	}
-	return e, nil
-}
-
-// DowngradeExchange removes LBank's endpoints that are at this version's defaults, so the previous version's defaults
-// apply: its REST host, and no contract or websocket endpoint, which it would warn it has no default for
-func (*Version) DowngradeExchange(_ context.Context, e []byte) ([]byte, error) {
-	if !isLBank(e) {
-		return e, nil
-	}
-	for key, def := range currentDefaults {
-		url, err := jsonparser.GetString(e, "api", "urlEndpoints", key)
-		switch {
-		case errors.Is(err, jsonparser.KeyPathNotFoundError):
-		case err != nil:
-			return e, err
-		case url == def:
-			e = jsonparser.Delete(e, "api", "urlEndpoints", key)
+// UpgradeExchange replaces only the previous defaults, preserving custom endpoints.
+func (*Version) UpgradeExchange(_ context.Context, exchange []byte) ([]byte, error) {
+	for _, endpoint := range []struct{ key, channel string }{
+		{"WebsocketSpotURL", "public"},
+		{"WebsocketPrivateURL", "private"},
+		{"WebsocketSpotSupplementaryURL", "business"},
+	} {
+		value, kind, _, err := jsonparser.Get(exchange, "api", "urlEndpoints", endpoint.key)
+		if errors.Is(err, jsonparser.KeyPathNotFoundError) {
+			continue
+		}
+		if err != nil {
+			return nil, fmt.Errorf("getting OKX endpoint %s: %w", endpoint.key, err)
+		}
+		if kind != jsonparser.String {
+			continue
+		}
+		decoded, err := jsonparser.ParseString(value)
+		if err != nil {
+			return nil, fmt.Errorf("decoding OKX endpoint %s: %w", endpoint.key, err)
+		}
+		if decoded != "wss://ws.okx.com:8443/ws/v5/"+endpoint.channel {
+			continue
+		}
+		exchange, err = jsonparser.Set(exchange, []byte(strconv.Quote("wss://ws.okx.com/ws/v5/"+endpoint.channel)), "api", "urlEndpoints", endpoint.key)
+		if err != nil {
+			return nil, fmt.Errorf("setting OKX endpoint %s: %w", endpoint.key, err)
 		}
 	}
-	return e, nil
+	return exchange, nil
 }
 
-// isLBank reports whether an exchange config is LBank's, matching its name in any case as the engine does
-func isLBank(e []byte) bool {
-	name, err := jsonparser.GetString(e, "name")
-	return err == nil && strings.EqualFold(name, "Lbank")
+// DowngradeExchange retains port 443, which is also supported by older clients.
+// Restoring the retired port would make an otherwise compatible configuration fail.
+func (*Version) DowngradeExchange(_ context.Context, exchange []byte) ([]byte, error) {
+	return exchange, nil
 }

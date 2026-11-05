@@ -3,149 +3,109 @@ package v18_test
 import (
 	"testing"
 
+	"github.com/buger/jsonparser"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/config/versions"
 	v18 "github.com/thrasher-corp/gocryptotrader/config/versions/v18"
-)
-
-const (
-	previousDefaults = `{"RestSpotURL":"https://api.lbkex.com"}`
-	currentDefaults  = `{"RestSpotURL":"https://api.lbank.info","RestUSDTMarginedFuturesURL":"https://lbkperp.lbank.com","WebsocketSpotURL":"wss://api.lbank.info/ws/V2/"}`
 )
 
 func TestExchanges(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, []string{"*"}, new(v18.Version).Exchanges(), "Exchanges should return every exchange, so LBank matches in any case")
-}
-
-func TestMatchesLBankInAnyCase(t *testing.T) {
-	t.Parallel()
-	for _, name := range []string{"Lbank", "lbank", "LBANK", "LBank"} {
-		in := []byte(`{"name":"` + name + `","api":{"urlEndpoints":` + previousDefaults + `}}`)
-		out, err := new(v18.Version).UpgradeExchange(t.Context(), in)
-		require.NoErrorf(t, err, "UpgradeExchange must not error for %s", name)
-		assert.JSONEqf(t, `{"name":"`+name+`","api":{"urlEndpoints":{}}}`, string(out), "UpgradeExchange should migrate %s", name)
-
-		in = []byte(`{"name":"` + name + `","api":{"urlEndpoints":` + currentDefaults + `}}`)
-		out, err = new(v18.Version).DowngradeExchange(t.Context(), in)
-		require.NoErrorf(t, err, "DowngradeExchange must not error for %s", name)
-		assert.JSONEqf(t, `{"name":"`+name+`","api":{"urlEndpoints":{}}}`, string(out), "DowngradeExchange should migrate %s", name)
-	}
-	for _, name := range []string{"Bitstamp", "Lbankx", "L bank"} {
-		in := []byte(`{"name":"` + name + `","api":{"urlEndpoints":` + previousDefaults + `}}`)
-		out, err := new(v18.Version).UpgradeExchange(t.Context(), in)
-		require.NoErrorf(t, err, "UpgradeExchange must not error for %s", name)
-		assert.Equalf(t, string(in), string(out), "UpgradeExchange should leave %s unchanged", name)
-
-		in = []byte(`{"name":"` + name + `","api":{"urlEndpoints":` + currentDefaults + `}}`)
-		out, err = new(v18.Version).DowngradeExchange(t.Context(), in)
-		require.NoErrorf(t, err, "DowngradeExchange must not error for %s", name)
-		assert.Equalf(t, string(in), string(out), "DowngradeExchange should leave %s unchanged", name)
-	}
+	assert.Equal(t, []string{"Okx"}, new(v18.Version).Exchanges(), "migration should apply only to OKX")
 }
 
 func TestUpgradeExchange(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct {
-		name string
-		in   string
-		exp  string
-	}{
+	for _, tc := range []struct{ name, input, expected string }{
 		{
-			name: "the previous default is removed",
-			in:   `{"RestSpotURL":"https://api.lbkex.com"}`,
-			exp:  `{}`,
+			name:     "defaults",
+			input:    `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.okx.com:8443/ws/v5/public","WebsocketPrivateURL":"wss://ws.okx.com:8443/ws/v5/private","WebsocketSpotSupplementaryURL":"wss://ws.okx.com:8443/ws/v5/business","RestSpotURL":"https://www.okx.com/api/v5/"}},"enabled":false}`,
+			expected: `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.okx.com/ws/v5/public","WebsocketPrivateURL":"wss://ws.okx.com/ws/v5/private","WebsocketSpotSupplementaryURL":"wss://ws.okx.com/ws/v5/business","RestSpotURL":"https://www.okx.com/api/v5/"}},"enabled":false}`,
 		},
 		{
-			name: "a custom endpoint is kept",
-			in:   `{"RestSpotURL":"https://proxy.example/lbank"}`,
-			exp:  `{"RestSpotURL":"https://proxy.example/lbank"}`,
+			name:     "escaped default",
+			input:    `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss:\/\/ws.okx.com:8443\/ws\/v5\/public"}}}`,
+			expected: `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.okx.com/ws/v5/public"}}}`,
 		},
 		{
-			name: "a variant of the previous default is the user's choice and is kept",
-			in:   `{"RestSpotURL":"https://api.lbkex.com/"}`,
-			exp:  `{"RestSpotURL":"https://api.lbkex.com/"}`,
+			name:     "missing",
+			input:    `{}`,
+			expected: `{}`,
 		},
 		{
-			name: "the current default and other endpoints are kept",
-			in:   `{"RestSpotURL":"https://api.lbank.info","EdgeCase1URL":"https://api.lbkex.com"}`,
-			exp:  `{"RestSpotURL":"https://api.lbank.info","EdgeCase1URL":"https://api.lbkex.com"}`,
+			name:     "null",
+			input:    `{"api":{"urlEndpoints":null}}`,
+			expected: `{"api":{"urlEndpoints":null}}`,
 		},
 		{
-			name: "a placeholder is kept",
-			in:   `{"RestSpotURL":"NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API"}`,
-			exp:  `{"RestSpotURL":"NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API"}`,
+			name:     "custom",
+			input:    `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://custom.example:8443/ws/v5/public","WebsocketPrivateURL":"wss://ws.okx.com:8443/custom","WebsocketSpotSupplementaryURL":null}}}`,
+			expected: `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://custom.example:8443/ws/v5/public","WebsocketPrivateURL":"wss://ws.okx.com:8443/custom","WebsocketSpotSupplementaryURL":null}}}`,
+		},
+		{
+			name:     "current",
+			input:    `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.okx.com/ws/v5/public"}}}`,
+			expected: `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.okx.com/ws/v5/public"}}}`,
+		},
+		{
+			name:     "mixed custom and legacy endpoints",
+			input:    `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://custom.example:8443/ws/v5/public","WebsocketPrivateURL":"wss://ws.okx.com:8443/ws/v5/private","WebsocketSpotSupplementaryURL":"wss://ws.okx.com:8443/ws/v5/business"}}}`,
+			expected: `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://custom.example:8443/ws/v5/public","WebsocketPrivateURL":"wss://ws.okx.com/ws/v5/private","WebsocketSpotSupplementaryURL":"wss://ws.okx.com/ws/v5/business"}}}`,
+		},
+		{
+			name:     "missing public endpoint",
+			input:    `{"api":{"urlEndpoints":{"WebsocketPrivateURL":"wss://ws.okx.com:8443/ws/v5/private"}}}`,
+			expected: `{"api":{"urlEndpoints":{"WebsocketPrivateURL":"wss://ws.okx.com/ws/v5/private"}}}`,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			out, err := new(v18.Version).UpgradeExchange(t.Context(), []byte(`{"name":"Lbank","api":{"urlEndpoints":`+tc.in+`}}`))
-			require.NoError(t, err, "UpgradeExchange must not error")
-			assert.JSONEq(t, `{"name":"Lbank","api":{"urlEndpoints":`+tc.exp+`}}`, string(out), "UpgradeExchange should migrate the endpoint")
+			got, err := new(v18.Version).UpgradeExchange(t.Context(), []byte(tc.input))
+			require.NoError(t, err, "migration must succeed")
+			assert.JSONEq(t, tc.expected, string(got), "migration should replace only legacy defaults")
 		})
 	}
-
-	in := []byte(`{"name":"Lbank","api":{}}`)
-	out, err := new(v18.Version).UpgradeExchange(t.Context(), in)
-	require.NoError(t, err, "UpgradeExchange must not error when urlEndpoints is missing")
-	assert.Equal(t, string(in), string(out), "UpgradeExchange should not change a config without urlEndpoints")
-
-	_, err = new(v18.Version).UpgradeExchange(t.Context(), []byte(`{"name":"Lbank","api":{"urlEndpoints":{"RestSpotURL":42}}}`))
-	assert.ErrorContains(t, err, "Value is not a string", "UpgradeExchange should error on a non-string endpoint")
+	for _, tc := range []struct {
+		name, input string
+		expected    error
+	}{
+		{
+			name:     "invalid endpoint value",
+			input:    `{"api":{"urlEndpoints":{"WebsocketSpotURL":}}}`,
+			expected: jsonparser.UnknownValueTypeError,
+		},
+		{
+			name:     "invalid endpoint escape",
+			input:    `{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss:\z"}}}`,
+			expected: jsonparser.MalformedValueError,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := new(v18.Version).UpgradeExchange(t.Context(), []byte(tc.input))
+			require.ErrorIs(t, err, tc.expected, "invalid JSON must fail with its parser error")
+		})
+	}
 }
 
 func TestDowngradeExchange(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct {
-		name string
-		in   string
-		exp  string
-	}{
-		{
-			name: "the current defaults are removed",
-			in:   currentDefaults,
-			exp:  `{}`,
-		},
-		{
-			name: "custom endpoints are kept",
-			in:   `{"RestSpotURL":"https://proxy.example/lbank","RestUSDTMarginedFuturesURL":"https://proxy.example/perp","WebsocketSpotURL":"wss://proxy.example/ws"}`,
-			exp:  `{"RestSpotURL":"https://proxy.example/lbank","RestUSDTMarginedFuturesURL":"https://proxy.example/perp","WebsocketSpotURL":"wss://proxy.example/ws"}`,
-		},
-		{
-			name: "the previous default and other endpoints are kept",
-			in:   `{"RestSpotURL":"https://api.lbkex.com","EdgeCase1URL":"https://api.lbank.info"}`,
-			exp:  `{"RestSpotURL":"https://api.lbkex.com","EdgeCase1URL":"https://api.lbank.info"}`,
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			out, err := new(v18.Version).DowngradeExchange(t.Context(), []byte(`{"name":"Lbank","api":{"urlEndpoints":`+tc.in+`}}`))
-			require.NoError(t, err, "DowngradeExchange must not error")
-			assert.JSONEq(t, `{"name":"Lbank","api":{"urlEndpoints":`+tc.exp+`}}`, string(out), "DowngradeExchange should migrate the endpoints")
-		})
-	}
-
-	in := []byte(`{"name":"Lbank"}`)
-	out, err := new(v18.Version).DowngradeExchange(t.Context(), in)
-	require.NoError(t, err, "DowngradeExchange must not error when api is missing")
-	assert.Equal(t, string(in), string(out), "DowngradeExchange should not change a config without endpoints")
-
-	_, err = new(v18.Version).DowngradeExchange(t.Context(), []byte(`{"name":"Lbank","api":{"urlEndpoints":{"WebsocketSpotURL":true}}}`))
-	assert.ErrorContains(t, err, "Value is not a string", "DowngradeExchange should error on a non-string endpoint")
+	input := []byte(`{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.okx.com/ws/v5/public"}}}`)
+	got, err := new(v18.Version).DowngradeExchange(t.Context(), input)
+	require.NoError(t, err, "downgrade must succeed")
+	assert.Equal(t, input, got, "downgrade should retain the compatible port")
 }
 
-// TestRoundTrip checks a custom endpoint survives an upgrade and downgrade unchanged, and the previous default comes back
-// as the previous version's default
-func TestRoundTrip(t *testing.T) {
+func TestRegisteredMigration(t *testing.T) {
 	t.Parallel()
-	for _, in := range []string{
-		`{"name":"Lbank","api":{"urlEndpoints":{"RestSpotURL":"https://proxy.example/lbank"}}}`,
-		`{"name":"Lbank","api":{"urlEndpoints":{}}}`,
-	} {
-		up, err := new(v18.Version).UpgradeExchange(t.Context(), []byte(in))
-		require.NoError(t, err, "UpgradeExchange must not error")
-		down, err := new(v18.Version).DowngradeExchange(t.Context(), up)
-		require.NoError(t, err, "DowngradeExchange must not error")
-		assert.JSONEq(t, in, string(down), "a config should round trip unchanged")
-	}
+	input := []byte(`{"version":17,"exchanges":[{"name":"Okx","api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.okx.com:8443/ws/v5/public"}}},{"name":"Other","api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.okx.com:8443/ws/v5/public"}}}]}`)
+	got, err := versions.Manager.Deploy(t.Context(), input, 18)
+	require.NoError(t, err, "registered upgrade must succeed")
+	assert.JSONEq(t, `{"version":18,"exchanges":[{"name":"Okx","api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.okx.com/ws/v5/public"}}},{"name":"Other","api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.okx.com:8443/ws/v5/public"}}}]}`, string(got), "only OKX defaults should migrate")
+	down, err := versions.Manager.Deploy(t.Context(), got, 17)
+	require.NoError(t, err, "registered downgrade must succeed")
+	again, err := versions.Manager.Deploy(t.Context(), down, 18)
+	require.NoError(t, err, "repeated upgrade must succeed")
+	assert.JSONEq(t, string(got), string(again), "migration round trip should preserve usable endpoints")
 }
