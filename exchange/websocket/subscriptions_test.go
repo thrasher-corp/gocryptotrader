@@ -257,6 +257,15 @@ func TestCheckSubscriptions(t *testing.T) {
 	}
 	err = ws.checkSubscriptions(conn, subscription.List{{}})
 	assert.ErrorContains(t, err, "nil pointer: Websocket.subscriptions", "nil store for a specific connection should error correctly")
+
+	ws.MaxSubscriptionsPerConnection = 1
+	managedConn := &fakeConnection{subscriptions: subscription.NewStore()}
+	ws.trackConnection(managedConn, &websocket{setup: &ConnectionSetup{MaxSubscriptions: 2}, subscriptions: subscription.NewStore()})
+	err = ws.checkSubscriptions(managedConn, subscription.List{{Channel: "one"}, {Channel: "two"}})
+	assert.NoError(t, err, "checkSubscriptions should allow up to the connection subscription limit")
+
+	err = ws.checkSubscriptions(managedConn, subscription.List{{Channel: "one"}, {Channel: "two"}, {Channel: "three"}})
+	assert.ErrorIs(t, err, errSubscriptionsExceedsLimit, "checkSubscriptions should error past the connection subscription limit")
 }
 
 func TestUpdateChannelSubscriptions(t *testing.T) {
@@ -1062,6 +1071,21 @@ func TestScaleConnectionsToSubscriptions(t *testing.T) {
 		assert.Len(t, ws.connections, 2) // 2 per conn -> 2 conns
 	})
 
+	t.Run("Scale Up uses connection subscription limit", func(t *testing.T) {
+		t.Parallel()
+		m, ws := setup(t, true)
+		ws.setup.MaxSubscriptions = 3
+
+		subs := subscription.List{{Channel: "A"}, {Channel: "B"}, {Channel: "C"}, {Channel: "D"}, {Channel: "E"}, {Channel: "F"}}
+		require.NoError(t, m.scaleConnectionsToSubscriptions(t.Context(), ws, subs[:5]))
+		require.Len(t, ws.connections, 2, "new connections must be batched by the connection subscription limit")
+		assert.Equal(t, 3, ws.connections[0].Subscriptions().Len(), "first connection should be filled to the connection subscription limit")
+
+		require.NoError(t, m.scaleConnectionsToSubscriptions(t.Context(), ws, subs))
+		require.Len(t, ws.connections, 2, "existing connections must be filled to the connection subscription limit before connecting")
+		assert.Equal(t, 3, ws.connections[1].Subscriptions().Len(), "second connection should take the new subscription")
+	})
+
 	t.Run("Scale Down (Remove Subs)", func(t *testing.T) {
 		t.Parallel()
 		m, ws := setup(t, true)
@@ -1825,6 +1849,25 @@ func TestSubscribeToConnection(t *testing.T) {
 
 	_, err = m.subscribeToConnection(t.Context(), &connection{subscriptions: store}, subs)
 	require.NoError(t, err, "must not error when all subscriptions can be added, this exercises the path where available > len(subs)")
+
+	m = NewManager()
+	m.MaxSubscriptionsPerConnection = 1
+	ws := &websocket{
+		setup: &ConnectionSetup{
+			MaxSubscriptions: 3,
+			Subscriber:       func(context.Context, Connection, subscription.List) error { return nil },
+		},
+		subscriptions: subscription.NewStore(),
+	}
+	store = subscription.NewStore()
+	require.NoError(t, store.Add(&subscription.Subscription{Channel: "existing"}))
+	conn := &fakeConnection{subscriptions: store}
+	m.trackConnection(conn, ws)
+
+	remaining, err = m.subscribeToConnection(t.Context(), conn, subs)
+	require.NoError(t, err, "subscribeToConnection must not error within the connection subscription limit")
+	assert.Equal(t, subscription.List{sub3}, remaining, "should return subscriptions past the connection subscription limit")
+	assert.Equal(t, 3, store.Len(), "store should be filled to the connection subscription limit")
 }
 
 var errSubscriptionRejected = errors.New("subscription rejected")
