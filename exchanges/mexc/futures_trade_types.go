@@ -211,7 +211,7 @@ type FuturesOrderResponse struct {
 	TakeProfitPrice          float64       `json:"takeProfitPrice"`
 	LossTrend                uint8         `json:"lossTrend"`
 	ProfitTrend              uint8         `json:"profitTrend"`
-	PriceProtect             uint8         `json:"priceProtect"`
+	PriceProtect             types.Boolean `json:"priceProtect"`
 	PNLRate                  float64       `json:"pnlRate"`
 	OpenAveragePrice         float64       `json:"openAvgPrice"`
 	MakerFeeRate             float64       `json:"makerFeeRate"`
@@ -282,32 +282,31 @@ type FuturesPlanOrdersRequest struct {
 
 // FuturesPlanOrderResponse holds a plan order, which places an order once its trigger price is reached
 type FuturesPlanOrderResponse struct {
-	ID           FuturesID `json:"id"`
-	Symbol       string    `json:"symbol"`
-	Leverage     uint64    `json:"leverage"`
-	Side         uint8     `json:"side"`
-	TriggerPrice float64   `json:"triggerPrice"`
-	Price        float64   `json:"price"`
-	Volume       float64   `json:"vol"`
-	OpenType     uint8     `json:"openType"`
-	TriggerType  uint8     `json:"triggerType"`
-	State        uint8     `json:"state"`
-	// ExecuteCycle is in hours
-	ExecuteCycle     uint64     `json:"executeCycle"`
-	Trend            uint8      `json:"trend"`
-	ErrorCode        uint64     `json:"errorCode"`
-	OrderID          FuturesID  `json:"orderId"`
-	OrderType        uint8      `json:"orderType"`
-	MarketOrderLevel uint64     `json:"marketOrderLevel"`
-	PriceProtect     uint8      `json:"priceProtect"`
-	PositionMode     uint8      `json:"positionMode"`
-	LossTrend        uint8      `json:"lossTrend"`
-	ProfitTrend      uint8      `json:"profitTrend"`
-	StopLossPrice    float64    `json:"stopLossPrice"`
-	TakeProfitPrice  float64    `json:"takeProfitPrice"`
-	ReduceOnly       bool       `json:"reduceOnly"`
-	CreateTime       types.Time `json:"createTime"`
-	UpdateTime       types.Time `json:"updateTime"`
+	ID                FuturesID     `json:"id"`
+	Symbol            string        `json:"symbol"`
+	Leverage          uint64        `json:"leverage"`
+	Side              uint8         `json:"side"`
+	TriggerPrice      float64       `json:"triggerPrice"`
+	Price             float64       `json:"price"`
+	Volume            float64       `json:"vol"`
+	OpenType          uint8         `json:"openType"`
+	TriggerType       uint8         `json:"triggerType"`
+	State             uint8         `json:"state"`
+	ExecuteCycleHours uint64        `json:"executeCycle"`
+	Trend             uint8         `json:"trend"`
+	ErrorCode         uint64        `json:"errorCode"`
+	OrderID           FuturesID     `json:"orderId"`
+	OrderType         uint8         `json:"orderType"`
+	MarketOrderLevel  uint64        `json:"marketOrderLevel"`
+	PriceProtect      types.Boolean `json:"priceProtect"`
+	PositionMode      uint8         `json:"positionMode"`
+	LossTrend         uint8         `json:"lossTrend"`
+	ProfitTrend       uint8         `json:"profitTrend"`
+	StopLossPrice     float64       `json:"stopLossPrice"`
+	TakeProfitPrice   float64       `json:"takeProfitPrice"`
+	ReduceOnly        bool          `json:"reduceOnly"`
+	CreateTime        types.Time    `json:"createTime"`
+	UpdateTime        types.Time    `json:"updateTime"`
 }
 
 // FuturesPlanOrderRequest holds the parameters of a plan order. Price is unused by market orders, and Volume is in
@@ -433,39 +432,39 @@ type FuturesCancelAllTakeProfitStopLossRequest struct {
 
 // FuturesTakeProfitStopLossOrderResponse holds a take-profit and stop-loss order
 type FuturesTakeProfitStopLossOrderResponse struct {
-	ID                   FuturesID  `json:"id"`
-	OrderID              FuturesID  `json:"orderId"`
-	Symbol               string     `json:"symbol"`
-	PositionID           FuturesID  `json:"positionId"`
-	LossTrend            uint8      `json:"lossTrend"`
-	ProfitTrend          uint8      `json:"profitTrend"`
-	StopLossPrice        float64    `json:"stopLossPrice"`
-	TakeProfitPrice      float64    `json:"takeProfitPrice"`
-	State                uint8      `json:"state"`
-	TriggerSide          uint8      `json:"triggerSide"`
-	PositionType         uint8      `json:"positionType"`
-	Volume               float64    `json:"vol"`
-	RealityVolume        float64    `json:"realityVol"`
-	PlaceOrderID         FuturesID  `json:"placeOrderId"`
-	ErrorCode            uint64     `json:"errorCode"`
-	IsFinished           uint8      `json:"isFinished"`
-	Version              uint64     `json:"version"`
-	PriceProtect         uint8      `json:"priceProtect"`
-	ProfitLossVolumeType string     `json:"profitLossVolType"`
-	TakeProfitVolume     float64    `json:"takeProfitVol"`
-	StopLossVolume       float64    `json:"stopLossVol"`
-	VolumeType           uint8      `json:"volType"`
-	TakeProfitReverse    uint8      `json:"takeProfitReverse"`
-	StopLossReverse      uint8      `json:"stopLossReverse"`
-	CloseTryTimes        uint64     `json:"closeTryTimes"`
-	ReverseTryTimes      uint64     `json:"reverseTryTimes"`
-	ReverseErrorCode     uint64     `json:"reverseErrorCode"`
-	TakeProfitType       uint8      `json:"takeProfitType"`
-	TakeProfitOrderPrice float64    `json:"takeProfitOrderPrice"`
-	StopLossType         uint8      `json:"stopLossType"`
-	StopLossOrderPrice   float64    `json:"stopLossOrderPrice"`
-	CreateTime           types.Time `json:"createTime"`
-	UpdateTime           types.Time `json:"updateTime"`
+	ID                   FuturesID     `json:"id"`
+	OrderID              FuturesID     `json:"orderId"`
+	Symbol               string        `json:"symbol"`
+	PositionID           FuturesID     `json:"positionId"`
+	LossTrend            uint8         `json:"lossTrend"`
+	ProfitTrend          uint8         `json:"profitTrend"`
+	StopLossPrice        float64       `json:"stopLossPrice"`
+	TakeProfitPrice      float64       `json:"takeProfitPrice"`
+	State                uint8         `json:"state"`
+	TriggerSide          uint8         `json:"triggerSide"`
+	PositionType         uint8         `json:"positionType"`
+	Volume               float64       `json:"vol"`
+	RealityVolume        float64       `json:"realityVol"`
+	PlaceOrderID         FuturesID     `json:"placeOrderId"`
+	ErrorCode            uint64        `json:"errorCode"`
+	IsFinished           types.Boolean `json:"isFinished"`
+	Version              uint64        `json:"version"`
+	PriceProtect         types.Boolean `json:"priceProtect"`
+	ProfitLossVolumeType string        `json:"profitLossVolType"`
+	TakeProfitVolume     float64       `json:"takeProfitVol"`
+	StopLossVolume       float64       `json:"stopLossVol"`
+	VolumeType           uint8         `json:"volType"`
+	TakeProfitReverse    uint8         `json:"takeProfitReverse"`
+	StopLossReverse      uint8         `json:"stopLossReverse"`
+	CloseTryTimes        uint64        `json:"closeTryTimes"`
+	ReverseTryTimes      uint64        `json:"reverseTryTimes"`
+	ReverseErrorCode     uint64        `json:"reverseErrorCode"`
+	TakeProfitType       uint8         `json:"takeProfitType"`
+	TakeProfitOrderPrice float64       `json:"takeProfitOrderPrice"`
+	StopLossType         uint8         `json:"stopLossType"`
+	StopLossOrderPrice   float64       `json:"stopLossOrderPrice"`
+	CreateTime           types.Time    `json:"createTime"`
+	UpdateTime           types.Time    `json:"updateTime"`
 }
 
 // FuturesTrailingOrderRequest holds the parameters of a trailing order; Volume is in contracts

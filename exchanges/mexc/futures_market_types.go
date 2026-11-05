@@ -151,18 +151,18 @@ type FuturesContractResponse struct {
 	InitialMarginRate                float64 `json:"initialMarginRate"`
 	RiskBaseVolume                   float64 `json:"riskBaseVol"`
 	RiskIncrementVolume              float64 `json:"riskIncrVol"`
-	// RiskLongShortSwitch is 1 when long and short positions have separate risk limits
-	RiskLongShortSwitch                uint8    `json:"riskLongShortSwitch"`
-	RiskIncrementMaintenanceMarginRate float64  `json:"riskIncrMmr"`
-	RiskIncrementInitialMarginRate     float64  `json:"riskIncrImr"`
-	RiskLevelLimit                     uint64   `json:"riskLevelLimit"`
-	PriceCoefficientVariation          float64  `json:"priceCoefficientVariation"`
-	IndexOrigin                        []string `json:"indexOrigin"`
-	State                              uint8    `json:"state"`
-	IsNew                              bool     `json:"isNew"`
-	IsHot                              bool     `json:"isHot"`
-	IsHidden                           bool     `json:"isHidden"`
-	ConceptPlate                       []string `json:"conceptPlate"`
+	// RiskLongShortSwitch is true when long and short positions have separate risk limits
+	RiskLongShortSwitch                types.Boolean `json:"riskLongShortSwitch"`
+	RiskIncrementMaintenanceMarginRate float64       `json:"riskIncrMmr"`
+	RiskIncrementInitialMarginRate     float64       `json:"riskIncrImr"`
+	RiskLevelLimit                     uint64        `json:"riskLevelLimit"`
+	PriceCoefficientVariation          float64       `json:"priceCoefficientVariation"`
+	IndexOrigin                        []string      `json:"indexOrigin"`
+	State                              uint8         `json:"state"`
+	IsNew                              bool          `json:"isNew"`
+	IsHot                              bool          `json:"isHot"`
+	IsHidden                           bool          `json:"isHidden"`
+	ConceptPlate                       []string      `json:"conceptPlate"`
 	// ConceptPlateID is signed, since the venue lists -1 among some contracts' sector IDs
 	ConceptPlateID             []int64                `json:"conceptPlateId"`
 	RiskLimitType              string                 `json:"riskLimitType"`
@@ -171,9 +171,9 @@ type FuturesContractResponse struct {
 	MarketOrderPriceLimitRate1 float64                `json:"marketOrderPriceLimitRate1"`
 	MarketOrderPriceLimitRate2 float64                `json:"marketOrderPriceLimitRate2"`
 	TriggerProtect             float64                `json:"triggerProtect"`
-	Appraisal                  uint8                  `json:"appraisal"`
-	ShowAppraisalCountdown     uint8                  `json:"showAppraisalCountdown"`
-	AutomaticDelivery          uint8                  `json:"automaticDelivery"`
+	Appraisal                  types.Boolean          `json:"appraisal"`
+	ShowAppraisalCountdown     types.Boolean          `json:"showAppraisalCountdown"`
+	AutomaticDelivery          types.Boolean          `json:"automaticDelivery"`
 	APIAllowed                 bool                   `json:"apiAllowed"`
 	DepthStepList              []types.Number         `json:"depthStepList"`
 	LimitMaxVolume             float64                `json:"limitMaxVol"`
@@ -295,16 +295,15 @@ type FuturesFairPriceResponse struct {
 
 // FuturesFundingRateResponse holds a contract's current funding rate, settled at NextSettleTime
 type FuturesFundingRateResponse struct {
-	Symbol         string  `json:"symbol"`
-	FundingRate    float64 `json:"fundingRate"`
-	MaxFundingRate float64 `json:"maxFundingRate"`
-	MinFundingRate float64 `json:"minFundingRate"`
-	// CollectCycle is the funding interval in hours
-	CollectCycle   uint64     `json:"collectCycle"`
-	NextSettleTime types.Time `json:"nextSettleTime"`
-	Timestamp      types.Time `json:"timestamp"`
-	IndexPrice     float64    `json:"idxPrice"`
-	FairPrice      float64    `json:"fairPrice"`
+	Symbol            string     `json:"symbol"`
+	FundingRate       float64    `json:"fundingRate"`
+	MaxFundingRate    float64    `json:"maxFundingRate"`
+	MinFundingRate    float64    `json:"minFundingRate"`
+	CollectCycleHours uint64     `json:"collectCycle"`
+	NextSettleTime    types.Time `json:"nextSettleTime"`
+	Timestamp         types.Time `json:"timestamp"`
+	IndexPrice        float64    `json:"idxPrice"`
+	FairPrice         float64    `json:"fairPrice"`
 }
 
 // FuturesCandlesRequest holds the parameters of a futures candle request
@@ -410,9 +409,8 @@ type FuturesInsuranceFundSnapshotResponse struct {
 
 // FuturesFundingRateHistoryResponse is a settled funding rate
 type FuturesFundingRateHistoryResponse struct {
-	Symbol      string     `json:"symbol"`
-	FundingRate float64    `json:"fundingRate"`
-	SettleTime  types.Time `json:"settleTime"`
-	// CollectCycle is the funding interval in hours
-	CollectCycle uint64 `json:"collectCycle"`
+	Symbol            string     `json:"symbol"`
+	FundingRate       float64    `json:"fundingRate"`
+	SettleTime        types.Time `json:"settleTime"`
+	CollectCycleHours uint64     `json:"collectCycle"`
 }

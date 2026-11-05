@@ -238,7 +238,6 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
 		RateLimit:             request.NewRateLimitWithWeight(time.Second, 10, 1),
-		Authenticated:         true,
 		Connector:             e.websocketFuturesConnectPrivate,
 		Subscriber:            e.websocketFuturesSubscribePrivate,
 		Unsubscriber:          e.websocketFuturesUnsubscribePrivate,
@@ -255,7 +254,6 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:      time.Second * 3,
 		RateLimit:             request.NewRateLimitWithWeight(time.Second, 2, 1),
-		Authenticated:         true,
 		Connector:             e.wsConnectPrivate,
 		Subscriber:            e.Subscribe,
 		Unsubscriber:          e.Unsubscribe,
@@ -540,7 +538,6 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 		if err != nil {
 			return book, err
 		}
-		// Amounts are in contracts, as the venue sends them and as orders are sized
 		book.Bids = result.Bids.Levels()
 		book.Asks = result.Asks.Levels()
 		book.LastUpdated = result.Timestamp.Time()

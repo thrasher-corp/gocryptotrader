@@ -336,6 +336,18 @@ func TestGetFuturesOrder(t *testing.T) {
 	result, err := ex.GetFuturesOrder(t.Context(), "739106551624717312")
 	require.NoError(t, err, "GetFuturesOrder must not error")
 	assert.Equal(t, futuresFilledOrder(), result, "GetFuturesOrder should decode every field")
+
+	t.Run("price protection sent as 1", func(t *testing.T) {
+		t.Parallel()
+		ex := testExchangeFor(t, futuresHandler(t, futuresRoute{
+			method: http.MethodGet,
+			path:   "private/order/get/739106551624717312",
+			data:   `{"orderId":"739106551624717312","priceProtect":1}`,
+		}), liveUnavailable)
+		result, err := ex.GetFuturesOrder(t.Context(), "739106551624717312")
+		require.NoError(t, err, "GetFuturesOrder must not error")
+		assert.Equal(t, &FuturesOrderResponse{OrderID: "739106551624717312", PriceProtect: true}, result, "GetFuturesOrder should decode a priceProtect of 1 as true")
+	})
 }
 
 func TestGetFuturesOrdersByID(t *testing.T) {
@@ -552,28 +564,40 @@ func TestGetFuturesPlanOrders(t *testing.T) {
 		EndTime:   start.Add(24 * time.Hour),
 	})
 	require.NoError(t, err, "GetFuturesPlanOrders must not error")
-	// The execution cycle is in hours
 	exp := []*FuturesPlanOrderResponse{{
-		ID:           "739114860879304259",
-		Symbol:       "DOGE_USD",
-		Leverage:     2,
-		Side:         FuturesSideOpenLong,
-		TriggerPrice: 0.00001,
-		Price:        0.00001,
-		Volume:       1,
-		OpenType:     FuturesOpenTypeIsolated,
-		TriggerType:  FuturesTriggerLessOrEqual,
-		State:        1,
-		ExecuteCycle: 87600,
-		Trend:        FuturesPriceTypeLatest,
-		OrderType:    FuturesOrderTypeLimit,
-		PositionMode: FuturesPositionModeHedge,
-		LossTrend:    FuturesPriceTypeLatest,
-		ProfitTrend:  FuturesPriceTypeLatest,
-		CreateTime:   types.Time(time.UnixMilli(1761889115000)),
-		UpdateTime:   types.Time(time.UnixMilli(1761889115000)),
+		ID:                "739114860879304259",
+		Symbol:            "DOGE_USD",
+		Leverage:          2,
+		Side:              FuturesSideOpenLong,
+		TriggerPrice:      0.00001,
+		Price:             0.00001,
+		Volume:            1,
+		OpenType:          FuturesOpenTypeIsolated,
+		TriggerType:       FuturesTriggerLessOrEqual,
+		State:             1,
+		ExecuteCycleHours: 87600,
+		Trend:             FuturesPriceTypeLatest,
+		OrderType:         FuturesOrderTypeLimit,
+		PositionMode:      FuturesPositionModeHedge,
+		LossTrend:         FuturesPriceTypeLatest,
+		ProfitTrend:       FuturesPriceTypeLatest,
+		CreateTime:        types.Time(time.UnixMilli(1761889115000)),
+		UpdateTime:        types.Time(time.UnixMilli(1761889115000)),
 	}}
 	assert.Equal(t, exp, result, "GetFuturesPlanOrders should decode every field")
+
+	t.Run("price protection sent as 1", func(t *testing.T) {
+		t.Parallel()
+		ex := testExchangeFor(t, futuresHandler(t, futuresRoute{
+			method: http.MethodGet,
+			path:   "private/planorder/list/orders",
+			query:  "end_time=1761803600000&page_num=1&start_time=1761800000000",
+			data:   `[{"id":"739114860879304259","priceProtect":1}]`,
+		}), liveUnavailable)
+		result, err := ex.GetFuturesPlanOrders(t.Context(), &FuturesPlanOrdersRequest{StartTime: start, EndTime: start.Add(time.Hour)})
+		require.NoError(t, err, "GetFuturesPlanOrders must not error")
+		assert.Equal(t, []*FuturesPlanOrderResponse{{ID: "739114860879304259", PriceProtect: true}}, result, "GetFuturesPlanOrders should decode a priceProtect of 1 as true")
+	})
 }
 
 func TestPlaceFuturesPlanOrder(t *testing.T) {
@@ -845,7 +869,7 @@ func TestGetFuturesOpenTakeProfitStopLossOrders(t *testing.T) {
 		Volume:               2,
 		RealityVolume:        2,
 		PlaceOrderID:         "720744238723187712",
-		IsFinished:           1,
+		IsFinished:           true,
 		Version:              2,
 		ProfitLossVolumeType: "SEPARATE",
 		TakeProfitVolume:     2,
@@ -857,6 +881,19 @@ func TestGetFuturesOpenTakeProfitStopLossOrders(t *testing.T) {
 		UpdateTime:           types.Time(time.UnixMilli(1757509217000)),
 	}}
 	assert.Equal(t, exp, result, "GetFuturesOpenTakeProfitStopLossOrders should decode every field")
+
+	t.Run("price protection sent as 1", func(t *testing.T) {
+		t.Parallel()
+		ex := testExchangeFor(t, futuresHandler(t, futuresRoute{
+			method: http.MethodGet,
+			path:   "private/stoporder/open_orders",
+			query:  "symbol=BTC_USDT",
+			data:   `[{"id":357859177,"priceProtect":1}]`,
+		}), liveUnavailable)
+		result, err := ex.GetFuturesOpenTakeProfitStopLossOrders(t.Context(), futuresTradablePair)
+		require.NoError(t, err, "GetFuturesOpenTakeProfitStopLossOrders must not error")
+		assert.Equal(t, []*FuturesTakeProfitStopLossOrderResponse{{ID: "357859177", PriceProtect: true}}, result, "GetFuturesOpenTakeProfitStopLossOrders should decode a priceProtect of 1 as true")
+	})
 }
 
 func TestValidateTrailing(t *testing.T) {

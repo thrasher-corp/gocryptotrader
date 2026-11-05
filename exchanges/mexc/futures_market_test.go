@@ -1,6 +1,7 @@
 package mexc
 
 import (
+	"net/http"
 	"testing"
 	"time"
 
@@ -126,6 +127,46 @@ func TestGetFuturesContracts(t *testing.T) {
 		assert.Equal(t, []string{"BTC_USDT", "ETH_USDT", "BTC_USD", "HOOKED_USDT"}, symbols, "every recorded contract should be returned")
 		assert.Equal(t, result[0], all[0], "a contract should decode the same in a list")
 	}
+
+	for _, tc := range []struct {
+		name  string
+		reply string
+		exp   *FuturesContractResponse
+	}{
+		{
+			name:  "riskLongShortSwitch sent as 1",
+			reply: `{"symbol":"BTC_USDT","riskLongShortSwitch":1,"appraisal":0,"showAppraisalCountdown":0,"automaticDelivery":0}`,
+			exp:   &FuturesContractResponse{Symbol: "BTC_USDT", RiskLongShortSwitch: true},
+		},
+		{
+			name:  "appraisal sent as 1",
+			reply: `{"symbol":"BTC_USDT","riskLongShortSwitch":0,"appraisal":1,"showAppraisalCountdown":0,"automaticDelivery":0}`,
+			exp:   &FuturesContractResponse{Symbol: "BTC_USDT", Appraisal: true},
+		},
+		{
+			name:  "showAppraisalCountdown sent as 1",
+			reply: `{"symbol":"BTC_USDT","riskLongShortSwitch":0,"appraisal":0,"showAppraisalCountdown":1,"automaticDelivery":0}`,
+			exp:   &FuturesContractResponse{Symbol: "BTC_USDT", ShowAppraisalCountdown: true},
+		},
+		{
+			name:  "automaticDelivery sent as 1",
+			reply: `{"symbol":"BTC_USDT","riskLongShortSwitch":0,"appraisal":0,"showAppraisalCountdown":0,"automaticDelivery":1}`,
+			exp:   &FuturesContractResponse{Symbol: "BTC_USDT", AutomaticDelivery: true},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := testExchangeFor(t, futuresHandler(t, futuresRoute{
+				method: http.MethodGet,
+				path:   "contract/detail/country",
+				query:  "symbol=BTC_USDT",
+				data:   tc.reply,
+			}), liveUnavailable)
+			result, err := ex.GetFuturesContracts(t.Context(), futuresTradablePair)
+			require.NoError(t, err, "GetFuturesContracts must not error")
+			assert.Equal(t, []*FuturesContractResponse{tc.exp}, result, "GetFuturesContracts should decode only the flag sent as 1 as true")
+		})
+	}
 }
 
 func TestGetFuturesTransferableCurrencies(t *testing.T) {
@@ -240,20 +281,20 @@ func TestGetFuturesFundingRates(t *testing.T) {
 	require.Len(t, result, 1, "a single rate must be returned for a symbol")
 	if mockTests {
 		exp := &FuturesFundingRateResponse{
-			Symbol:         "BTC_USDT",
-			FundingRate:    0.000034,
-			MaxFundingRate: 0.0018,
-			MinFundingRate: -0.0018,
-			CollectCycle:   8,
-			NextSettleTime: types.Time(time.Unix(1792857600, 0)),
-			Timestamp:      types.Time(time.UnixMilli(1792843036306)),
-			IndexPrice:     80602.5,
-			FairPrice:      80563.1,
+			Symbol:            "BTC_USDT",
+			FundingRate:       0.000034,
+			MaxFundingRate:    0.0018,
+			MinFundingRate:    -0.0018,
+			CollectCycleHours: 8,
+			NextSettleTime:    types.Time(time.Unix(1792857600, 0)),
+			Timestamp:         types.Time(time.UnixMilli(1792843036306)),
+			IndexPrice:        80602.5,
+			FairPrice:         80563.1,
 		}
 		assert.Equal(t, exp, result[0], "GetFuturesFundingRates should decode every field")
 	} else {
 		assert.Equal(t, futuresTradablePair.String(), result[0].Symbol, "the contract asked for should be returned")
-		assert.Positive(t, result[0].CollectCycle, "the rate should carry its funding interval")
+		assert.Positive(t, result[0].CollectCycleHours, "the rate should carry its funding interval")
 		assert.False(t, result[0].NextSettleTime.Time().IsZero(), "the rate should carry its settlement time")
 	}
 
@@ -262,9 +303,9 @@ func TestGetFuturesFundingRates(t *testing.T) {
 	if mockTests {
 		next, at := types.Time(time.Unix(1792857600, 0)), types.Time(time.UnixMilli(1792843116682))
 		exp := []*FuturesFundingRateResponse{
-			{Symbol: "BTC_USDT", FundingRate: 0.000034, MaxFundingRate: 0.0018, MinFundingRate: -0.0018, CollectCycle: 8, NextSettleTime: next, Timestamp: at, IndexPrice: 80602.6, FairPrice: 80563.9},
-			{Symbol: "ETH_USDT", FundingRate: 0.000059, MaxFundingRate: 0.0018, MinFundingRate: -0.0018, CollectCycle: 8, NextSettleTime: next, Timestamp: at, IndexPrice: 2365.45, FairPrice: 2364.53},
-			{Symbol: "BTC_USD", FundingRate: 0.000076, MaxFundingRate: 0.003, MinFundingRate: -0.003, CollectCycle: 8, NextSettleTime: next, Timestamp: at, IndexPrice: 80492.9, FairPrice: 80467.8},
+			{Symbol: "BTC_USDT", FundingRate: 0.000034, MaxFundingRate: 0.0018, MinFundingRate: -0.0018, CollectCycleHours: 8, NextSettleTime: next, Timestamp: at, IndexPrice: 80602.6, FairPrice: 80563.9},
+			{Symbol: "ETH_USDT", FundingRate: 0.000059, MaxFundingRate: 0.0018, MinFundingRate: -0.0018, CollectCycleHours: 8, NextSettleTime: next, Timestamp: at, IndexPrice: 2365.45, FairPrice: 2364.53},
+			{Symbol: "BTC_USD", FundingRate: 0.000076, MaxFundingRate: 0.003, MinFundingRate: -0.003, CollectCycleHours: 8, NextSettleTime: next, Timestamp: at, IndexPrice: 80492.9, FairPrice: 80467.8},
 		}
 		assert.Equal(t, exp, result, "every contract's rate should be decoded without a symbol")
 	} else {
@@ -537,8 +578,8 @@ func TestGetFuturesFundingRateHistory(t *testing.T) {
 			TotalPage:   810,
 			CurrentPage: 1,
 			ResultList: []FuturesFundingRateHistoryResponse{
-				{Symbol: "BTC_USDT", FundingRate: 0.000035, SettleTime: types.Time(time.Unix(1792828800, 0)), CollectCycle: 8},
-				{Symbol: "BTC_USDT", FundingRate: 0.000039, SettleTime: types.Time(time.Unix(1792800000, 0)), CollectCycle: 8},
+				{Symbol: "BTC_USDT", FundingRate: 0.000035, SettleTime: types.Time(time.Unix(1792828800, 0)), CollectCycleHours: 8},
+				{Symbol: "BTC_USDT", FundingRate: 0.000039, SettleTime: types.Time(time.Unix(1792800000, 0)), CollectCycleHours: 8},
 			},
 		}
 		assert.Equal(t, exp, result, "GetFuturesFundingRateHistory should decode the page, newest first")
