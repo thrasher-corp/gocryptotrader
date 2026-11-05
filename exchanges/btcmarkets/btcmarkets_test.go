@@ -2,8 +2,11 @@ package btcmarkets
 
 import (
 	"encoding/base64"
+	"io"
 	"log"
+	"net/http"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -11,7 +14,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -183,6 +188,24 @@ func TestGetTradeByID(t *testing.T) {
 
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
+	t.Run("client order identifier on the wire", func(t *testing.T) {
+		t.Parallel()
+		client := &http.Client{Transport: clientOrderIDTransport{t: t}}
+
+		h := new(Exchange)
+		require.NoError(t, testexch.Setup(h), "exchange must initialise")
+		h.SkipAuthCheck = true
+		h.SetCredentials(&accounts.Credentials{Key: "key", Secret: "c2VjcmV0", ClientID: "account"})
+		require.NoError(t, h.SetHTTPClient(client), "mock HTTP client must install")
+		require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), "http://unused.invalid"), "mock endpoint must install")
+
+		submission := &order.Submit{Exchange: h.Name, Pair: currency.NewPair(currency.BTC, currency.AUD), AssetType: asset.Spot, Side: order.Buy, Type: order.Limit, Price: 100, Amount: 1, ClientID: "account", ClientOrderID: "4242"}
+		response, err := h.SubmitOrder(t.Context(), submission)
+		require.NoError(t, err, "order must accept the dedicated client order ID")
+		assert.Equal(t, "4242", response.ClientOrderID, "response should retain the client order ID")
+		assert.Equal(t, "account", submission.ClientID, "submission should retain its account identifier")
+	})
+
 	_, err := e.SubmitOrder(t.Context(), &order.Submit{
 		Exchange:    e.Name,
 		Price:       100,
@@ -226,6 +249,18 @@ func TestSubmitOrder(t *testing.T) {
 
 func TestNewOrder(t *testing.T) {
 	t.Parallel()
+	t.Run("decoded response", func(t *testing.T) {
+		t.Parallel()
+		h := new(Exchange)
+		require.NoError(t, testexch.Setup(h), "exchange must initialise")
+		h.SkipAuthCheck = true
+		h.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+		require.NoError(t, h.SetHTTPClient(&http.Client{Transport: clientOrderIDTransport{t: t}}), "mock client must install")
+		response, err := h.NewOrder(t.Context(), 100, 1, 0, 0, "BTC-AUD", limit, bidSide, "", "", "4242", false)
+		require.NoError(t, err, "successful order must decode")
+		assert.Equal(t, "server-order", response.OrderID, "decoded order ID should be returned after the request finishes")
+	})
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	_, err := e.NewOrder(t.Context(), 100, 1, 0, 0, spotTestPair.String(), limit, bidSide, "", "", "", true)
 	assert.NoError(t, err, "NewOrder should not error")
@@ -1041,4 +1076,15 @@ func TestGenerateSubscriptions(t *testing.T) {
 		func() { channelName(&subscription.Subscription{Channel: "wibble"}) },
 		"should panic on invalid channel",
 	)
+}
+
+// clientOrderIDTransport captures requests in-process because the legacy sender hardcodes its URL.
+type clientOrderIDTransport struct{ t *testing.T }
+
+func (c clientOrderIDTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	c.t.Helper()
+	var payload map[string]any
+	require.NoError(c.t, json.NewDecoder(r.Body).Decode(&payload), "order payload must decode")
+	assert.Equal(c.t, "4242", payload["clientOrderID"], "dedicated client order ID should reach BTC Markets")
+	return &http.Response{StatusCode: http.StatusOK, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(`{"orderId":"server-order"}`)), Request: r}, nil
 }

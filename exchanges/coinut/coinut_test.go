@@ -23,9 +23,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
@@ -636,10 +638,15 @@ func TestGetOrderHistory(t *testing.T) {
 			ex.Features.Subscriptions = nil
 			require.NoError(t, ex.Websocket.SetAllConnectionURLs("ws"+strings.TrimPrefix(server.URL, "http")), "GetOrderHistory websocket URL setup must not error")
 			ex.Websocket.SetSubscriptionsNotRequired()
-			require.NoError(t, ex.Websocket.Enable(t.Context()), "GetOrderHistory websocket connection must not error")
 			t.Cleanup(func() {
-				assert.NoError(t, ex.Websocket.Shutdown(), "GetOrderHistory websocket shutdown should not error")
+				if err := ex.Websocket.Disable(); err != nil {
+					assert.ErrorIs(t, err, websocket.ErrAlreadyDisabled, "GetOrderHistory websocket should disable")
+				}
+				if err := ex.Websocket.Shutdown(); err != nil {
+					assert.ErrorIs(t, err, websocket.ErrNotConnected, "GetOrderHistory websocket should shut down")
+				}
 			})
+			require.NoError(t, ex.Websocket.Enable(t.Context()), "GetOrderHistory websocket connection must not error")
 			ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
 
 			orders, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
@@ -682,6 +689,104 @@ func TestGetOrderHistory(t *testing.T) {
 
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
+	for _, clientOrderID := range []string{"", "bogus", "-1", "4294967296"} {
+		t.Run("invalid client order ID "+clientOrderID, func(t *testing.T) {
+			t.Parallel()
+			h := new(Exchange)
+			require.NoError(t, testexch.Setup(h), "exchange must initialise")
+			_, err := h.SubmitOrder(t.Context(), &order.Submit{Exchange: h.Name, Pair: currency.NewBTCUSD(), AssetType: asset.Spot, Side: order.Buy, Type: order.Limit, Price: 100, Amount: 1, ClientID: "123", ClientOrderID: clientOrderID})
+			require.ErrorIs(t, err, errInvalidClientOrderID, "invalid unsigned client order IDs must be rejected")
+		})
+	}
+
+	for _, tc := range []struct {
+		name, body string
+		wantErr    error
+	}{
+		{name: "accepted", body: `{"status":["OK"],"reply":"order_accepted","order_id":123}`},
+		{name: "rejected", body: `{"status":["OK"],"reply":"order_rejected","reasons":["invalid-order"]}`, wantErr: request.ErrAuthRequestFailed},
+	} {
+		t.Run("client order identifier on the wire "+tc.name, func(t *testing.T) {
+			t.Parallel()
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				var payload map[string]any
+				if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&payload), "order payload should decode") {
+					return
+				}
+				assert.Equal(t, 4242.0, payload["client_ord_id"], "dedicated client order ID should reach the exchange")
+				_, err := w.Write([]byte(tc.body))
+				assert.NoError(t, err, "mock response should write")
+			}))
+			t.Cleanup(server.Close)
+			h := new(Exchange)
+			require.NoError(t, testexch.Setup(h), "exchange must initialise")
+			h.SkipAuthCheck = true
+			h.SetCredentials(&accounts.Credentials{Key: "key", Secret: "c2VjcmV0", ClientID: "account"})
+			require.NoError(t, h.SetHTTPClient(server.Client()), "mock HTTP client must install")
+			require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "mock endpoint must install")
+			h.instrumentMap.Seed("BTCUSD", 1)
+			submission := &order.Submit{Exchange: h.Name, Pair: currency.NewBTCUSD(), AssetType: asset.Spot, Side: order.Buy, Type: order.Limit, Price: 100, Amount: 1, ClientID: "account", ClientOrderID: "4242"}
+			response, err := h.SubmitOrder(t.Context(), submission)
+			if tc.wantErr != nil {
+				require.ErrorIs(t, err, tc.wantErr, "rejected orders must preserve the request sentinel")
+				assert.Nil(t, response, "rejected orders should not return a successful response")
+				return
+			}
+			require.NoError(t, err, "order must accept the dedicated client order ID")
+			assert.Equal(t, "4242", response.ClientOrderID, "response should retain the client order ID")
+			assert.Equal(t, "account", submission.ClientID, "submission should retain its account identifier")
+		})
+	}
+	for _, tc := range []struct {
+		name          string
+		clientOrderID uint32
+	}{
+		{name: "minimum positive identifier", clientOrderID: 1},
+		{name: "ordinary identifier", clientOrderID: 4242},
+		{name: "maximum identifier", clientOrderID: math.MaxUint32},
+	} {
+		t.Run("client order identifier over the websocket "+tc.name, func(t *testing.T) {
+			// Do not run these cases in parallel because each connection writes to Coinut's shared channels map.
+			// WebSockets start with an HTTP upgrade; the handler below inspects the order frame.
+			server := httptest.NewTestServer(t, mockws.CurryWsMockUpgrader(t, func(_ testing.TB, payload []byte, conn *gws.Conn) error {
+				var req WsSubmitOrderRequest
+				if err := json.Unmarshal(payload, &req); err != nil {
+					return err
+				}
+				if req.Request != "new_order" {
+					return nil
+				}
+				assert.Equal(t, int64(tc.clientOrderID), req.OrderID, "dedicated client order ID should reach Coinut over the websocket")
+				return conn.WriteMessage(gws.TextMessage, []byte(`{"nonce":`+strconv.FormatInt(req.Nonce, 10)+`,"reply":"order_accepted","status":["OK"],"order_id":42,"inst_id":7,"side":"BUY","qty":"2","price":"100","open_qty":"2"}`))
+			}))
+			server.Start()
+			h := new(Exchange)
+			require.NoError(t, testexch.Setup(h), "exchange must initialise")
+			h.instrumentMap.Seed("LTCUSDT", 7)
+			h.API.AuthenticatedWebsocketSupport = false
+			h.Features.Subscriptions = nil
+			require.NoError(t, h.Websocket.SetAllConnectionURLs("ws"+strings.TrimPrefix(server.URL, "http")), "mock websocket URL must install")
+			h.Websocket.SetSubscriptionsNotRequired()
+			t.Cleanup(func() {
+				if err := h.Websocket.Disable(); err != nil {
+					assert.ErrorIs(t, err, websocket.ErrAlreadyDisabled, "mock websocket should disable")
+				}
+				if err := h.Websocket.Shutdown(); err != nil {
+					assert.ErrorIs(t, err, websocket.ErrNotConnected, "mock websocket should shut down")
+				}
+			})
+			require.NoError(t, h.Websocket.Enable(t.Context()), "mock websocket must connect")
+			h.Websocket.SetCanUseAuthenticatedEndpoints(true)
+			ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+			defer cancel()
+			submission := &order.Submit{Exchange: h.Name, Pair: currency.NewPair(currency.LTC, currency.USDT), AssetType: asset.Spot, Side: order.Buy, Type: order.Limit, Price: 100, Amount: 2, ClientID: "account", ClientOrderID: strconv.FormatUint(uint64(tc.clientOrderID), 10)}
+			response, err := h.SubmitOrder(ctx, submission)
+			require.NoError(t, err, "websocket order must accept the dedicated client order ID")
+			assert.Equal(t, "42", response.OrderID, "websocket order ID should be returned")
+			assert.Equal(t, submission.ClientOrderID, response.ClientOrderID, "response should retain the client order ID")
+			assert.Equal(t, "account", submission.ClientID, "submission should retain its account identifier")
+		})
+	}
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
 
 	orderSubmission := &order.Submit{
@@ -690,12 +795,12 @@ func TestSubmitOrder(t *testing.T) {
 			Base:  currency.BTC,
 			Quote: currency.USD,
 		},
-		Side:      order.Buy,
-		Type:      order.Limit,
-		Price:     1,
-		Amount:    1,
-		ClientID:  "123",
-		AssetType: asset.Spot,
+		Side:          order.Buy,
+		Type:          order.Limit,
+		Price:         1,
+		Amount:        1,
+		ClientOrderID: "123",
+		AssetType:     asset.Spot,
 	}
 	response, err := e.SubmitOrder(t.Context(), orderSubmission)
 	if sharedtestvalues.AreAPICredentialsSet(e) && (err != nil || response.Status != order.New) {
@@ -1543,4 +1648,22 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotEmpty(t, resp)
 	}
+}
+
+func TestNewOrder(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, err := w.Write([]byte(`{"status":["OK"],"reply":"order_accepted","order_id":123}`))
+		assert.NoError(t, err, "mock response should write")
+	}))
+	t.Cleanup(server.Close)
+	h := new(Exchange)
+	require.NoError(t, testexch.Setup(h), "exchange must initialise")
+	h.SkipAuthCheck = true
+	h.SetCredentials(&accounts.Credentials{Key: "key", ClientID: "account"})
+	require.NoError(t, h.SetHTTPClient(server.Client()), "mock client must install")
+	require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "mock endpoint must install")
+	response, err := h.NewOrder(t.Context(), 1, 1, 100, true, 4242)
+	require.NoError(t, err, "successful order must decode")
+	require.NotNil(t, response, "decoded response must be returned after the request finishes")
 }

@@ -595,6 +595,32 @@ func TestGetFee(t *testing.T) {
 
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
+	t.Run("client order identifier on the wire", func(t *testing.T) {
+		t.Parallel()
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			var payload map[string]any
+			if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&payload), "order payload should decode") {
+				return
+			}
+			assert.Equal(t, "4242", payload["clOrderID"], "dedicated client order ID should reach the exchange")
+			_, err := w.Write([]byte(`[{"orderID":"server-order"}]`))
+			assert.NoError(t, err, "mock response should write")
+		}))
+		t.Cleanup(server.Close)
+		h := new(Exchange)
+		require.NoError(t, testexch.Setup(h), "exchange must initialise")
+		h.SkipAuthCheck = true
+		h.SetCredentials(&accounts.Credentials{Key: "key", Secret: "c2VjcmV0", ClientID: "account"})
+		require.NoError(t, h.SetHTTPClient(server.Client()), "mock HTTP client must install")
+		require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "mock endpoint must install")
+
+		submission := &order.Submit{Exchange: h.Name, Pair: currency.NewBTCUSD(), AssetType: asset.Spot, Side: order.Buy, Type: order.Limit, Price: 100, Amount: 1, ClientID: "account", ClientOrderID: "4242"}
+		response, err := h.SubmitOrder(t.Context(), submission)
+		require.NoError(t, err, "order must accept the dedicated client order ID")
+		assert.Equal(t, "4242", response.ClientOrderID, "response should retain the client order ID")
+		assert.Equal(t, "account", submission.ClientID, "submission should retain its account identifier")
+	})
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
 	orderSubmission := &order.Submit{

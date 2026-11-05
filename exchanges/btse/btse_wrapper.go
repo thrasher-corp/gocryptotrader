@@ -441,7 +441,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	}
 
 	r, err := e.CreateOrder(ctx,
-		s.ClientID, 0.0,
+		s.ClientOrderID, 0.0,
 		false,
 		s.Price,
 		s.Side.String(),
