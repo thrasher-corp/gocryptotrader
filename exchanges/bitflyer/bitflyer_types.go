@@ -9,8 +9,8 @@ import (
 
 var errUnhandledCurrency = errors.New("unhandled currency")
 
-// ChainAnalysisBlock holds block information from the bitcoin network
-type ChainAnalysisBlock struct {
+// ChainAnalysisBlockResponse holds block information from the bitcoin network
+type ChainAnalysisBlockResponse struct {
 	BlockHash         string    `json:"block_hash"`
 	Height            uint64    `json:"height"`
 	IsMain            bool      `json:"is_main"`
@@ -25,8 +25,8 @@ type ChainAnalysisBlock struct {
 	TransactionHashes []string  `json:"tx_hashes"`
 }
 
-// ChainAnalysisTransaction holds transaction data from the bitcoin network
-type ChainAnalysisTransaction struct {
+// ChainAnalysisTransactionResponse holds transaction data from the bitcoin network
+type ChainAnalysisTransactionResponse struct {
 	TransactionHash string                           `json:"tx_hash"`
 	BlockHeight     int64                            `json:"block_height"`  // -1 when the transaction is not in a block
 	Confirmed       uint64                           `json:"confirmed"`     // Number of confirmations
@@ -56,8 +56,8 @@ type ChainAnalysisTransactionOutput struct {
 	Address string `json:"address"`
 }
 
-// ChainAnalysisAddress holds address information from the bitcoin network
-type ChainAnalysisAddress struct {
+// ChainAnalysisAddressResponse holds address information from the bitcoin network
+type ChainAnalysisAddressResponse struct {
 	Address            string `json:"address"`
 	UnconfirmedBalance uint64 `json:"unconfirmed_balance"` // Estimated balance
 	ConfirmedBalance   uint64 `json:"confirmed_balance"`
