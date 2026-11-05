@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
 	"github.com/urfave/cli/v2"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func renderOrderbook(w io.Writer, book *gctrpc.OrderbookResponse, exchangeStyle bool, depthLimit int) error {
@@ -211,17 +212,17 @@ func TestOrderbookRenderingUnicodeHeadings(t *testing.T) {
 
 func TestOrderbookExchangeStyleTimestamp(t *testing.T) {
 	t.Parallel()
-	updated := time.Date(2026, time.October, 13, 0, 0, 0, 123456000, time.UTC)
+	updated := time.Date(2026, time.October, 13, 0, 0, 0, 123456789, time.UTC)
 	for _, tc := range []struct {
 		name               string
-		lastUpdated        int64
+		lastUpdated        *timestamppb.Timestamp
 		includeLastUpdated bool
 	}{
-		{name: "snapshot seconds", lastUpdated: updated.Unix()},
-		{name: "snapshot nanoseconds", lastUpdated: updated.UnixNano()},
-		{name: "snapshot unset", lastUpdated: time.Time{}.UnixNano()},
-		{name: "stream microseconds", lastUpdated: updated.UnixMicro(), includeLastUpdated: true},
-		{name: "stream zero", includeLastUpdated: true},
+		{name: "timestamp hidden", lastUpdated: timestamppb.New(updated)},
+		{name: "snapshot timestamp", lastUpdated: timestamppb.New(updated), includeLastUpdated: true},
+		{name: "timestamp absent", includeLastUpdated: true},
+		{name: "stream timestamp", lastUpdated: timestamppb.New(updated), includeLastUpdated: true},
+		{name: "Unix epoch", lastUpdated: timestamppb.New(time.Unix(0, 0)), includeLastUpdated: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -230,10 +231,10 @@ func TestOrderbookExchangeStyleTimestamp(t *testing.T) {
 			require.NoError(t, renderOrderbookExchangeStyle(&output, book, "test", "spot", 50, tc.includeLastUpdated), "exchange-style rendering must succeed")
 			title, _, _ := strings.Cut(output.String(), "\n")
 			expected := whiteText + "Orderbook stream for TEST spot BTC-USD"
-			if tc.includeLastUpdated {
-				expected += " - Last updated " + time.UnixMicro(tc.lastUpdated).Format(common.SimpleTimeFormatWithTimezone)
+			if tc.includeLastUpdated && tc.lastUpdated != nil {
+				expected += " - Last updated " + tc.lastUpdated.AsTime().Format(common.SimpleTimeFormatWithTimezone)
 			}
-			assert.Equal(t, expected, title, "only guaranteed microsecond stream timestamps should appear in the title")
+			assert.Equal(t, expected, title, "available protobuf timestamps should render without assuming Unix units")
 		})
 	}
 }
@@ -246,10 +247,10 @@ func TestRenderExchangeOrderbookStream(t *testing.T) {
 	} {
 		t.Run(pair.Base, func(t *testing.T) {
 			t.Parallel()
-			book := &gctrpc.OrderbookResponse{Pair: pair, LastUpdated: 1234567890123456}
+			book := &gctrpc.OrderbookResponse{Pair: pair, LastUpdated: timestamppb.New(time.Unix(1234567890, 123456789))}
 			var output strings.Builder
 			require.NoError(t, renderExchangeOrderbookStream(&output, book, "kraken"), "stream summary rendering must succeed")
-			expected := "Orderbook streamed for kraken " + strings.ToUpper(pair.Base) + "-" + strings.ToUpper(pair.Quote) + " at " + time.UnixMicro(book.LastUpdated).Format(common.SimpleTimeFormatWithTimezone)
+			expected := "Orderbook streamed for kraken " + strings.ToUpper(pair.Base) + "-" + strings.ToUpper(pair.Quote) + " at " + book.LastUpdated.AsTime().Format(common.SimpleTimeFormatWithTimezone)
 			assert.Equal(t, expected, output.String(), "the summary should render the pair without protobuf debug formatting")
 			require.ErrorIs(t, renderExchangeOrderbookStream(orderbookErrorWriter{err: io.ErrClosedPipe}, book, "kraken"), io.ErrClosedPipe, "stream summary writer errors must be propagated")
 		})
@@ -261,7 +262,7 @@ func TestRenderExchangeOrderbookStreamWithoutPair(t *testing.T) {
 	for _, streamError := range []string{"kraken BTCUSD spot Reason: [orderbook data integrity compromised]", ""} {
 		t.Run(fmt.Sprintf("error=%q", streamError), func(t *testing.T) {
 			t.Parallel()
-			resp := &gctrpc.OrderbookResponse{Error: streamError, LastUpdated: 1234567890123456}
+			resp := &gctrpc.OrderbookResponse{Error: streamError, LastUpdated: timestamppb.New(time.Unix(1234567890, 123456789))}
 			var output strings.Builder
 			require.NoError(t, renderExchangeOrderbookStream(&output, resp, "kraken"), "rendering a pairless response must not fail")
 			assert.Empty(t, output.String(), "a pairless response should print no summary")

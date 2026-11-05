@@ -529,13 +529,15 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		return nil, err
 	}
 	return &order.Detail{
-		OrderID:  resp.ID,
-		Amount:   resp.Quantity,
-		Exchange: e.Name,
-		Price:    resp.Price,
-		Date:     resp.CreatedAt,
-		Side:     side,
-		Pair:     pair,
+		// GetActiveOrderByClientOrderID always queries spot; asset validation does not select another API.
+		AssetType: asset.Spot,
+		OrderID:   resp.ID,
+		Amount:    resp.Quantity,
+		Exchange:  e.Name,
+		Price:     resp.Price,
+		Date:      resp.CreatedAt,
+		Side:      side,
+		Pair:      pair,
 	}, nil
 }
 

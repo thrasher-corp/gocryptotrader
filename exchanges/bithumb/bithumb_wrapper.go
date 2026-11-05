@@ -492,6 +492,8 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			continue
 		}
 		orderDetail := order.Detail{
+			// GetOrders queries the spot API; the incoming asset does not select its market.
+			AssetType:       asset.Spot,
 			Amount:          orders.Data[i].Units,
 			Exchange:        e.Name,
 			ExecutedAmount:  orders.Data[i].Units - orders.Data[i].UnitsRemaining,
