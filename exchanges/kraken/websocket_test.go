@@ -515,7 +515,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 func TestDefaultSubscriptions(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
-	// Config version 18 migrates the previous default subscriptions to the defaults the config fixture holds
+	// Config version 19 migrates the previous default subscriptions to the defaults the config fixture holds
 	testsubs.EqualLists(t, defaultSubscriptions.Clone(), ex.Config.Features.Subscriptions.Clone())
 	useTestCredentials(ex)
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
