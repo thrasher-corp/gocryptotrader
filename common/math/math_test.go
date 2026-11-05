@@ -2,6 +2,7 @@ package math
 
 import (
 	"math"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -172,6 +173,77 @@ func BenchmarkCompareSignedPercentageDifferenceDecimalPrecisionFallback(b *testi
 	b.ReportAllocs()
 	for b.Loop() {
 		CompareSignedPercentageDifferenceDecimal(x, y, target)
+	}
+}
+
+func TestDecimalFromFloat(t *testing.T) {
+	t.Parallel()
+	for value, exp := range map[float64]string{
+		0.1:                 "0.1",
+		0.30000000000000004: "0.30000000000000004",
+		123456.789:          "123456.789",
+		-0.00000001:         "-0.00000001",
+		1e21:                "1000000000000000000000",
+		0:                   "0",
+	} {
+		d, err := DecimalFromFloat(value)
+		require.NoErrorf(t, err, "DecimalFromFloat must not error for %v", value)
+		assert.Equalf(t, exp, d.String(), "DecimalFromFloat should return the shortest decimal which rounds to %v", value)
+	}
+	for _, value := range []float64{math.NaN(), math.Inf(1), math.Inf(-1)} {
+		_, err := DecimalFromFloat(value)
+		assert.ErrorIsf(t, err, errNonFiniteFloat, "DecimalFromFloat should error for %v", value)
+	}
+	for value, exp := range map[float64]string{
+		1e-20:                       "0.00000000000000000001",
+		math.SmallestNonzeroFloat64: "0." + strings.Repeat("0", 323) + "5",
+	} {
+		d, err := DecimalFromFloat(value)
+		if fractionalDigits := len(exp) - len("0."); decimal.MaxFractionalDigits != 0 && decimal.MaxFractionalDigits < fractionalDigits {
+			assert.Errorf(t, err, "DecimalFromFloat should error when the selected implementation cannot hold every digit of %v", value)
+			continue
+		}
+		require.NoErrorf(t, err, "DecimalFromFloat must not error when the selected implementation holds every digit of %v", value)
+		assert.Equalf(t, exp, d.String(), "DecimalFromFloat should keep every digit of %v", value)
+	}
+}
+
+func TestDecimalSumOfFloats(t *testing.T) {
+	t.Parallel()
+	sum, err := DecimalSumOfFloats(0.1, 0.2)
+	require.NoError(t, err, "DecimalSumOfFloats must not error")
+	assert.Equal(t, "0.3", sum.String(), "DecimalSumOfFloats should add without float rounding error")
+	sum, err = DecimalSumOfFloats(0.000123, -1.5)
+	require.NoError(t, err, "DecimalSumOfFloats must not error for a negative value")
+	assert.Equal(t, "-1.499877", sum.String(), "DecimalSumOfFloats should add a negative value")
+	_, err = DecimalSumOfFloats(math.NaN(), 1)
+	assert.ErrorIs(t, err, errNonFiniteFloat, "DecimalSumOfFloats should error for a non-finite first value")
+	_, err = DecimalSumOfFloats(1, math.Inf(1))
+	assert.ErrorIs(t, err, errNonFiniteFloat, "DecimalSumOfFloats should error for a non-finite second value")
+}
+
+func TestFloatQuotientOfDecimals(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		dividend, divisor string
+		exp               float64
+	}{
+		// Dividing the floats gives 2.9999999999999996
+		{dividend: "0.3", divisor: "0.1", exp: 3},
+		// Dividing the decimals at 16 decimal places gives 0.6666666666666667, which is not the nearest float
+		{dividend: "2", divisor: "3", exp: 2.0 / 3.0},
+		{dividend: "-1", divisor: "4", exp: -0.25},
+		{dividend: "1", divisor: "0", exp: 0},
+		{dividend: "0", divisor: "0", exp: 0},
+	} {
+		got := FloatQuotientOfDecimals(decimal.MustFromString(tc.dividend), decimal.MustFromString(tc.divisor))
+		assert.Equalf(t, tc.exp, got, "FloatQuotientOfDecimals should return the nearest float to %s / %s", tc.dividend, tc.divisor)
+	}
+	// The default backend holds decimals with more fractional digits than math/big parses, which the other cannot hold
+	if decimal.MaxFractionalDigits == 0 {
+		tiny := decimal.MustFromString("3e-1000001")
+		assert.Zero(t, FloatQuotientOfDecimals(tiny, decimal.NewFromInt(1)), "FloatQuotientOfDecimals should return zero for a dividend math/big cannot parse")
+		assert.Zero(t, FloatQuotientOfDecimals(decimal.NewFromInt(1), tiny), "FloatQuotientOfDecimals should return zero for a divisor math/big cannot parse")
 	}
 }
 
