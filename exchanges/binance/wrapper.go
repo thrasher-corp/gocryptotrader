@@ -2227,8 +2227,9 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 // or list client order ID, and USDⓈ-M and COIN-M stop, take profit and trailing stop orders by their algo order ID or
 // client algo ID. A request without a type, as the RPC server and order manager send, whose ID no order has is tried
 // as an order list's on spot and margin, the ID SubmitOrder returns for one, while an untagged USDⓈ-M or COIN-M ID is
-// cancelled as the pair's order or algo order with it. A margin request without a margin type is tried in the isolated
-// margin account after the cross margin account
+// cancelled as the pair's order or algo order with it, as is the untagged ID of a COIN-M request with a stop, take
+// profit or trailing stop type: COIN-M also takes such orders through New Order until Binance's announced cut-over. A
+// margin request without a margin type is tried in the isolated margin account after the cross margin account
 func (e *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	if err := o.Validate(o.PairAssetRequired()); err != nil {
 		return err
@@ -2364,14 +2365,15 @@ func (e *Exchange) cancelMarginOrder(ctx context.Context, o *order.Cancel, order
 }
 
 // cancelFuturesOrder cancels a USDⓈ-M or COIN-M order, or an algo order by its algo order ID, its client algo ID or,
-// with a stop, take profit or trailing stop type, its algo ID. An untyped request's untagged ID is cancelled as the
-// pair's order or algo order with it, as untaggedAlgoOrder finds
+// with a USDⓈ-M stop, take profit or trailing stop type, its algo ID. An untyped request's untagged ID, and a COIN-M
+// stop, take profit or trailing stop's, is cancelled as the pair's order or algo order with it, as untaggedAlgoOrder
+// finds
 func (e *Exchange) cancelFuturesOrder(ctx context.Context, o *order.Cancel, orderID uint64, isAlgo bool) error {
-	if isAlgo || isConditionalOrderType(o.Type) {
+	if isAlgo || isAlgoOrderType(o.AssetType, o.Type) {
 		_, err := e.cancelFuturesAlgoOrder(ctx, o.AssetType, orderID, o.ClientOrderID)
 		return cancelError(err)
 	}
-	if isUntypedRequest(o.Type) {
+	if namesOrderOrAlgoOrder(o.AssetType, o.Type) {
 		algo, err := e.untaggedAlgoOrder(ctx, o.AssetType, o.Pair, orderID, o.ClientOrderID)
 		if err != nil {
 			return err
@@ -2390,6 +2392,19 @@ func (e *Exchange) cancelFuturesOrder(ctx context.Context, o *order.Cancel, orde
 		_, err = e.USDTMarginedFuturesCancelOrder(ctx, o.Pair, orderID, o.ClientOrderID)
 	}
 	return cancelError(err)
+}
+
+// isAlgoOrderType reports whether a USDⓈ-M or COIN-M request's type alone says its untagged ID is an algo order's: a
+// USDⓈ-M stop, take profit or trailing stop type, which New Order no longer takes
+func isAlgoOrderType(a asset.Item, t order.Type) bool {
+	return a == asset.USDTMarginedFutures && isConditionalOrderType(t)
+}
+
+// namesOrderOrAlgoOrder reports whether a USDⓈ-M or COIN-M request's untagged ID may be an order's or an algo order's:
+// an untyped request's, or a COIN-M stop, take profit or trailing stop's, as COIN-M takes such orders through New Order
+// until Binance's announced cut-over and lists them among its orders by their order IDs
+func namesOrderOrAlgoOrder(a asset.Item, t order.Type) bool {
+	return isUntypedRequest(t) || (a == asset.CoinMarginedFutures && isConditionalOrderType(t))
 }
 
 // cancelFuturesAlgoOrder cancels a USDⓈ-M or COIN-M algo (conditional) order by its algo ID or, when algoID is 0, its
@@ -2424,10 +2439,11 @@ func (e *Exchange) pairAlgoOrder(ctx context.Context, a asset.Item, pair currenc
 	return algo, nil
 }
 
-// untaggedAlgoOrder returns pair's USDⓈ-M or COIN-M algo order with the ID or, when orderID is 0, the client ID an
-// untyped cancellation or modification names without the algo order ID prefix, or nil when pair has none. Binance
-// numbers algo orders apart from other orders and callers can hold its algo IDs, so such an ID may name either kind,
-// and errAmbiguousOrderID is returned when pair has an order with it too. The lookups draw on the cancel pool, so the
+// untaggedAlgoOrder returns pair's USDⓈ-M or COIN-M algo order with the ID or, when orderID is 0, the client ID a
+// cancellation or modification names without the algo order ID prefix where namesOrderOrAlgoOrder holds, or nil when
+// pair has none. Binance numbers algo orders apart from other orders and callers can hold its algo IDs, so such an ID
+// may name either kind, and errAmbiguousOrderID is returned when pair has an order with it too, naming the order's
+// other ID as what tells the two apart, which a type does not on COIN-M. The lookups draw on the cancel pool, so the
 // request they precede does not wait on market data
 func (e *Exchange) untaggedAlgoOrder(ctx context.Context, a asset.Item, pair currency.Pair, orderID uint64, clientOrderID string) (*USDTMarginedFuturesAlgoOrderResponse, error) {
 	if orderID == 0 && clientOrderID == "" {
@@ -2446,9 +2462,9 @@ func (e *Exchange) untaggedAlgoOrder(ctx context.Context, a asset.Item, pair cur
 		return nil, err
 	}
 	// The order is looked up by the ID the algo order was: the order ID when there is one
-	id := strconv.FormatUint(orderID, 10)
+	id, otherID := strconv.FormatUint(orderID, 10), "client order ID alone"
 	if orderID == 0 {
-		id = clientOrderID
+		id, otherID = clientOrderID, "order ID"
 	} else {
 		clientOrderID = ""
 	}
@@ -2459,7 +2475,7 @@ func (e *Exchange) untaggedAlgoOrder(ctx context.Context, a asset.Item, pair cur
 	}
 	switch {
 	case err == nil:
-		return nil, fmt.Errorf("%w: %s on %s %s; name the order's type, or the algo order as %s", errAmbiguousOrderID, id, a, pair, formatAlgoOrderID(algo.AlgoID))
+		return nil, fmt.Errorf("%w: %s on %s %s; name the order by its %s, or the algo order as %s", errAmbiguousOrderID, id, a, pair, otherID, formatAlgoOrderID(algo.AlgoID))
 	case isUnknownOrder(err):
 		return algo, nil
 	default:
@@ -2470,8 +2486,9 @@ func (e *Exchange) untaggedAlgoOrder(ctx context.Context, a asset.Item, pair cur
 // CancelBatchOrders cancels USDⓈ-M, COIN-M or options orders of one pair. Orders are cancelled ten at a time by order
 // ID or by client order ID, and USDⓈ-M and COIN-M algo orders one by one; each order's status is its cancelled status
 // or why its cancellation failed, keyed by the ID it was requested with. An untyped USDⓈ-M or COIN-M entry's untagged
-// ID is cancelled as the pair's order or algo order with it, which untaggedAlgoOrder looks up before any order is
-// cancelled. Errors of whole requests are returned with the response
+// ID, and a COIN-M stop, take profit or trailing stop entry's, is cancelled as the pair's order or algo order with it,
+// which untaggedAlgoOrder looks up before any order is cancelled. Errors of whole requests are returned with the
+// response
 func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
 	if len(o) == 0 {
 		return nil, order.ErrCancelOrderIsNil
@@ -2487,7 +2504,8 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 	}
 	hasAlgoOrders := a != asset.Options
 	parsedIDs, isAlgoID := make([]uint64, len(o)), make([]bool, len(o))
-	// An algo order's entry is cancelled by a request of its own, so an ID that cannot be parsed fails that entry alone
+	// An entry with an algo order ID or a stop, take profit or trailing stop type is cancelled, or looked up, by a request
+	// of its own, so an ID that cannot be parsed fails that entry alone
 	parseErrs := make([]error, len(o))
 	for i := range o {
 		if o[i].AssetType != a || !o[i].Pair.Equal(pair) {
@@ -2512,20 +2530,26 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 	}
 	var orderIDs []uint64
 	var clientOrderIDs []string
-	// algoOrders holds the entries cancelled as algo orders by their own IDs. found holds the untyped entries whose
-	// untagged IDs name algo orders and failed those whose lookups failed, each keyed by its order ID as the orders
-	// cancelled ten at a time are, or by its client order ID
+	// algoOrders holds the entries cancelled as algo orders by their own IDs, and those whose IDs cannot be parsed, which
+	// fail there alone. found holds the entries whose untagged IDs, looked up as namesOrderOrAlgoOrder allows, name algo
+	// orders and failed those whose lookups failed, each keyed by its order ID as the orders cancelled ten at a time
+	// are, or by its client order ID
 	var algoOrders []int
 	var found, failed []untaggedEntry
 	// An untagged ID is looked up once however many entries name it
 	lookups := make(map[untaggedLookup]untaggedEntry)
 	for i := range o {
-		if hasAlgoOrders && (isAlgoID[i] || isConditionalOrderType(o[i].Type)) {
+		if hasAlgoOrders && (isAlgoID[i] || parseErrs[i] != nil || isAlgoOrderType(a, o[i].Type)) {
 			algoOrders = append(algoOrders, i)
 			continue
 		}
-		if hasAlgoOrders && isUntypedRequest(o[i].Type) {
-			lookup := untaggedLookup{orderID: parsedIDs[i], clientOrderID: o[i].ClientOrderID}
+		if hasAlgoOrders && namesOrderOrAlgoOrder(a, o[i].Type) {
+			// untaggedAlgoOrder goes by the order ID when there is one, so entries naming it share its lookup whatever
+			// client order IDs they carry
+			lookup := untaggedLookup{orderID: parsedIDs[i]}
+			if parsedIDs[i] == 0 {
+				lookup.clientOrderID = o[i].ClientOrderID
+			}
 			entry, ok := lookups[lookup]
 			if !ok {
 				entry.algo, entry.err = e.untaggedAlgoOrder(ctx, a, pair, parsedIDs[i], o[i].ClientOrderID)
@@ -2613,13 +2637,14 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 	return resp, errs
 }
 
-// untaggedLookup is the order ID and client order ID an untyped batch entry names without the algo order ID prefix
+// untaggedLookup is the ID untaggedAlgoOrder looks a batch entry up by: its order ID, or its client order ID when it
+// names no order ID
 type untaggedLookup struct {
 	orderID       uint64
 	clientOrderID string
 }
 
-// untaggedEntry is what untaggedAlgoOrder found for an untyped batch entry, and the entry's status key, its client
+// untaggedEntry is what untaggedAlgoOrder found for a batch entry it looked up, and the entry's status key, its client
 // order ID when byClientOrderID is set and its order ID otherwise
 type untaggedEntry struct {
 	statusKey       string
