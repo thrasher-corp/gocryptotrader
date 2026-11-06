@@ -3,6 +3,7 @@ package hyperliquid
 import (
 	"encoding/hex"
 	"math"
+	"strconv"
 	"testing"
 
 	secpECDSA "github.com/decred/dcrd/dcrec/secp256k1/v4/ecdsa"
@@ -52,8 +53,11 @@ func TestNormaliseAddress(t *testing.T) {
 		"0xzz19884eb866cb12b2287399b15f7db5e7d775ea",
 		"0x5AAeb6053F3E94C9b9A09f33669435E7Ef1BeAed",
 	} {
-		_, _, err := normaliseAddress(address)
-		assert.ErrorIsf(t, err, errInvalidAddress, "normaliseAddress should reject %q", address)
+		t.Run(subtestName(address), func(t *testing.T) {
+			t.Parallel()
+			_, _, err := normaliseAddress(address)
+			assert.ErrorIsf(t, err, errInvalidAddress, "normaliseAddress should reject %q", address)
+		})
 	}
 }
 
@@ -63,18 +67,24 @@ func TestNormaliseRecipientAddress(t *testing.T) {
 	require.NoError(t, err, "normaliseRecipientAddress must not error for a valid address")
 	assert.Equal(t, "0x1719884eb866cb12b2287399b15f7db5e7d775ea", normalised, "normaliseRecipientAddress should lower-case the address")
 	for _, address := range []string{"0x17", testZeroAddress} {
-		_, err := normaliseRecipientAddress(address)
-		assert.ErrorIsf(t, err, errInvalidAddress, "normaliseRecipientAddress should reject %q", address)
+		t.Run(subtestName(address), func(t *testing.T) {
+			t.Parallel()
+			_, err := normaliseRecipientAddress(address)
+			assert.ErrorIsf(t, err, errInvalidAddress, "normaliseRecipientAddress should reject %q", address)
+		})
 	}
 }
 
 func TestParsePrivateKey(t *testing.T) {
 	t.Parallel()
-	for _, secret := range []string{testPrivateKey, testPrivateKey[2:], "0X" + testPrivateKey[2:]} {
-		key, err := parsePrivateKey(secret)
-		require.NoErrorf(t, err, "parsePrivateKey must not error for %q", secret)
-		assert.Equal(t, testPrivateKey[2:], hex.EncodeToString(key.Serialize()), "parsePrivateKey should round trip the key")
-		key.Zero()
+	for name, secret := range map[string]string{"a 0x prefix": testPrivateKey, "no prefix": testPrivateKey[2:], "an upper-case 0X prefix": "0X" + testPrivateKey[2:]} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			key, err := parsePrivateKey(secret)
+			require.NoErrorf(t, err, "parsePrivateKey must not error for %q", secret)
+			assert.Equal(t, testPrivateKey[2:], hex.EncodeToString(key.Serialize()), "parsePrivateKey should round trip the key")
+			key.Zero()
+		})
 	}
 	// The errors quote no part of a key, as a mistyped key is mostly the account's real one
 	const notHexadecimal, outOfRange = "invalid EVM private key: expected 32-byte hexadecimal scalar", "invalid EVM private key: scalar is outside secp256k1 range"
@@ -85,9 +95,12 @@ func TestParsePrivateKey(t *testing.T) {
 		"0x0000000000000000000000000000000000000000000000000000000000000000": outOfRange,
 		"0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141": outOfRange,
 	} {
-		_, err := parsePrivateKey(secret)
-		assert.ErrorIsf(t, err, errInvalidPrivateKey, "parsePrivateKey should reject %q", secret)
-		assert.EqualErrorf(t, err, exp, "parsePrivateKey should reject %q with a fixed message", secret)
+		t.Run(subtestName(secret), func(t *testing.T) {
+			t.Parallel()
+			_, err := parsePrivateKey(secret)
+			assert.ErrorIsf(t, err, errInvalidPrivateKey, "parsePrivateKey should reject %q", secret)
+			assert.EqualErrorf(t, err, exp, "parsePrivateKey should reject %q with a fixed message", secret)
+		})
 	}
 }
 
@@ -130,9 +143,12 @@ func TestMsgpackAction(t *testing.T) {
 			exp:    "82a474797065ab757365724f7574636f6d65ac6d657267654f7574636f6d6582a76f7574636f6d6501a6616d6f756e74c0",
 		},
 	} {
-		encoded, err := msgpackAction(tc.action)
-		require.NoErrorf(t, err, "msgpackAction must not error for %s", tc.name)
-		assert.Equalf(t, tc.exp, hex.EncodeToString(encoded), "msgpackAction should encode %s in Hyperliquid's key order with compact integers", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			encoded, err := msgpackAction(tc.action)
+			require.NoErrorf(t, err, "msgpackAction must not error for %s", tc.name)
+			assert.Equalf(t, tc.exp, hex.EncodeToString(encoded), "msgpackAction should encode %s in Hyperliquid's key order with compact integers", tc.name)
+		})
 	}
 	_, err := msgpackAction(make(chan int))
 	assert.ErrorContains(t, err, "encoding action as msgpack", "msgpackAction should report a value msgpack cannot encode")
@@ -218,8 +234,11 @@ func TestEIP712UserDigest(t *testing.T) {
 		{name: "invalid bytes", fields: []eip712Field{{Name: "value", Type: "bytes", Value: "0xzz"}}},
 		{name: "unsupported type", fields: []eip712Field{{Name: "value", Type: "int256", Value: int64(1)}}},
 	} {
-		_, err := eip712UserDigest("Test", tc.fields)
-		assert.ErrorIsf(t, err, errEIP712Field, "eip712UserDigest should reject %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := eip712UserDigest("Test", tc.fields)
+			assert.ErrorIsf(t, err, errEIP712Field, "eip712UserDigest should reject %s", tc.name)
+		})
 	}
 	_, err = eip712UserDigest(" ", nil)
 	assert.ErrorIs(t, err, errEIP712PrimaryType, "eip712UserDigest should reject a blank primary type")
@@ -446,6 +465,7 @@ func TestSignUserSignedAction(t *testing.T) {
 	assert.ErrorIs(t, err, errEIP712PrimaryType, "signUserSignedAction should reject an empty primary type")
 }
 
+//nolint:tparallel // The cases pass key in order before the checks after them, which pass it too
 func TestValidateCompactSignature(t *testing.T) {
 	t.Parallel()
 	key, err := parsePrivateKey(testPrivateKey)
@@ -453,13 +473,19 @@ func TestValidateCompactSignature(t *testing.T) {
 	t.Cleanup(key.Zero)
 	digest := keccak256([]byte("compact-signature-test"))
 
-	for _, compact := range [][]byte{
-		nil,
-		append([]byte{ethereumSignatureVOffset - 1}, make([]byte, signatureComponentLength*2)...),
-		append([]byte{ethereumSignatureVOffset + 2}, make([]byte, signatureComponentLength*2)...),
+	// The cases pass key to validateCompactSignature, as the checks after them do, so they run in order before them
+	for _, tc := range []struct {
+		name    string
+		compact []byte
+	}{
+		{name: "an empty signature"},
+		{name: "a recovery ID below 27", compact: append([]byte{ethereumSignatureVOffset - 1}, make([]byte, signatureComponentLength*2)...)},
+		{name: "a recovery ID above 28", compact: append([]byte{ethereumSignatureVOffset + 2}, make([]byte, signatureComponentLength*2)...)},
 	} {
-		_, err := validateCompactSignature(key, digest, compact)
-		assert.ErrorIs(t, err, errInvalidRecoveryID, "validateCompactSignature should reject a malformed recovery ID or length")
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := validateCompactSignature(key, digest, tc.compact)
+			assert.ErrorIs(t, err, errInvalidRecoveryID, "validateCompactSignature should reject a malformed recovery ID or length")
+		})
 	}
 	_, err = validateCompactSignature(key, digest, append([]byte{ethereumSignatureVOffset}, make([]byte, signatureComponentLength*2)...))
 	assert.ErrorContains(t, err, "recovering signature key", "validateCompactSignature should report zero scalars that cannot recover a key")
@@ -480,15 +506,19 @@ func TestValidateCompactSignature(t *testing.T) {
 func TestFormatSignatureComponent(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
+		name      string
 		component []byte
 		exp       string
 	}{
-		{exp: "0x0"},
-		{component: []byte{0}, exp: "0x0"},
-		{component: []byte{0, 0x0a}, exp: "0xa"},
-		{component: []byte{0x10}, exp: "0x10"},
+		{name: "nil", exp: "0x0"},
+		{name: "zero", component: []byte{0}, exp: "0x0"},
+		{name: "a leading zero byte", component: []byte{0, 0x0a}, exp: "0xa"},
+		{name: "no leading zero", component: []byte{0x10}, exp: "0x10"},
 	} {
-		assert.Equalf(t, tc.exp, formatSignatureComponent(tc.component), "formatSignatureComponent should format %x", tc.component)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, tc.exp, formatSignatureComponent(tc.component), "formatSignatureComponent should format %x", tc.component)
+		})
 	}
 }
 
@@ -509,9 +539,12 @@ func TestFloatToWire(t *testing.T) {
 		{value: math.NaN(), err: errWireNumberRounding},
 		{value: math.Inf(1), err: errWireNumberRounding},
 	} {
-		wire, err := floatToWire(tc.value)
-		require.ErrorIsf(t, err, tc.err, "floatToWire must return the expected error for %v", tc.value)
-		assert.Equalf(t, tc.exp, wire, "floatToWire should format %v", tc.value)
+		t.Run(strconv.FormatFloat(tc.value, 'g', -1, 64), func(t *testing.T) {
+			t.Parallel()
+			wire, err := floatToWire(tc.value)
+			require.ErrorIsf(t, err, tc.err, "floatToWire must return the expected error for %v", tc.value)
+			assert.Equalf(t, tc.exp, wire, "floatToWire should format %v", tc.value)
+		})
 	}
 }
 
@@ -528,9 +561,12 @@ func TestFloatToDecimals(t *testing.T) {
 		{value: 84.9371054562, decimals: 8, err: errWireNumberRounding},
 		{value: 0.00000000001, decimals: 10, err: errWireNumberRounding},
 	} {
-		wire, err := floatToDecimals(tc.value, tc.decimals)
-		require.ErrorIsf(t, err, tc.err, "floatToDecimals must return the expected error for %v to %d places", tc.value, tc.decimals)
-		assert.Equalf(t, tc.exp, wire, "floatToDecimals should format %v to %d places", tc.value, tc.decimals)
+		t.Run(strconv.FormatFloat(tc.value, 'g', -1, 64)+" to "+strconv.Itoa(tc.decimals)+" places", func(t *testing.T) {
+			t.Parallel()
+			wire, err := floatToDecimals(tc.value, tc.decimals)
+			require.ErrorIsf(t, err, tc.err, "floatToDecimals must return the expected error for %v to %d places", tc.value, tc.decimals)
+			assert.Equalf(t, tc.exp, wire, "floatToDecimals should format %v to %d places", tc.value, tc.decimals)
+		})
 	}
 }
 
@@ -1035,15 +1071,19 @@ func TestL1ActionVectors(t *testing.T) {
 			require.NoError(t, err, "actionHash must not error")
 			assert.Equal(t, tc.connectionID, "0x"+hex.EncodeToString(connectionID[:]), "actionHash should match the vector's connection ID")
 			for _, network := range []struct {
+				name    string
 				mainnet bool
 				exp     ActionSignature
-			}{{mainnet: true, exp: tc.mainnet}, {exp: tc.testnet}} {
+			}{{name: "mainnet", mainnet: true, exp: tc.mainnet}, {name: "testnet", exp: tc.testnet}} {
 				if network.exp == (ActionSignature{}) {
 					continue
 				}
-				signature, err := signL1Action(tc.key, tc.action, tc.vault, tc.nonce, tc.expiresAfter, network.mainnet)
-				require.NoErrorf(t, err, "signL1Action must not error for mainnet %t", network.mainnet)
-				assert.Equalf(t, network.exp, signature, "signL1Action should match the vector for mainnet %t", network.mainnet)
+				t.Run(network.name, func(t *testing.T) {
+					t.Parallel()
+					signature, err := signL1Action(tc.key, tc.action, tc.vault, tc.nonce, tc.expiresAfter, network.mainnet)
+					require.NoErrorf(t, err, "signL1Action must not error for mainnet %t", network.mainnet)
+					assert.Equalf(t, network.exp, signature, "signL1Action should match the vector for mainnet %t", network.mainnet)
+				})
 			}
 		})
 	}
@@ -1345,15 +1385,18 @@ func TestUserSignedActionVectors(t *testing.T) {
 				if network.exp == (ActionSignature{}) {
 					continue
 				}
-				fields := append([]eip712Field{{Name: "hyperliquidChain", Type: "string", Value: network.chain}}, tc.fields...)
-				if network.digest != "" {
-					digest, err := eip712UserDigest(tc.primaryType, fields)
-					require.NoErrorf(t, err, "eip712UserDigest must not error on %s", network.chain)
-					assert.Equalf(t, network.digest, "0x"+hex.EncodeToString(digest[:]), "eip712UserDigest should match the vector's %s digest", network.chain)
-				}
-				signature, err := signUserSignedAction(tc.key, tc.primaryType, fields)
-				require.NoErrorf(t, err, "signUserSignedAction must not error on %s", network.chain)
-				assert.Equalf(t, network.exp, signature, "signUserSignedAction should match the vector on %s", network.chain)
+				t.Run(network.chain, func(t *testing.T) {
+					t.Parallel()
+					fields := append([]eip712Field{{Name: "hyperliquidChain", Type: "string", Value: network.chain}}, tc.fields...)
+					if network.digest != "" {
+						digest, err := eip712UserDigest(tc.primaryType, fields)
+						require.NoErrorf(t, err, "eip712UserDigest must not error on %s", network.chain)
+						assert.Equalf(t, network.digest, "0x"+hex.EncodeToString(digest[:]), "eip712UserDigest should match the vector's %s digest", network.chain)
+					}
+					signature, err := signUserSignedAction(tc.key, tc.primaryType, fields)
+					require.NoErrorf(t, err, "signUserSignedAction must not error on %s", network.chain)
+					assert.Equalf(t, network.exp, signature, "signUserSignedAction should match the vector on %s", network.chain)
+				})
 			}
 		})
 	}

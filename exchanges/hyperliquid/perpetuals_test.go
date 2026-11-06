@@ -90,8 +90,11 @@ func TestGetPerpetualDEXs(t *testing.T) {
 	_, err = newUnavailableServerExchange(t).GetPerpetualDEXs(t.Context())
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetPerpetualDEXs should return the request failure")
 	for _, body := range []string{`[]`, `[{"name":"xyz"}]`} {
-		_, err := newResponseServerExchange(t, body).GetPerpetualDEXs(t.Context())
-		assert.ErrorIsf(t, err, errUnexpectedResponseLength, "GetPerpetualDEXs should reject a registry %s without the default DEX first", body)
+		t.Run(subtestName(body), func(t *testing.T) {
+			t.Parallel()
+			_, err := newResponseServerExchange(t, body).GetPerpetualDEXs(t.Context())
+			assert.ErrorIsf(t, err, errUnexpectedResponseLength, "GetPerpetualDEXs should reject a registry %s without the default DEX first", body)
+		})
 	}
 }
 
@@ -473,16 +476,20 @@ func TestGetPerpetualDEXLimits(t *testing.T) {
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetPerpetualDEXLimits should reject a null response")
 }
 
+//nolint:tparallel // The cases run in order before the requests after them, which call GetPerpetualDEXStatus too
 func TestGetPerpetualDEXStatus(t *testing.T) {
 	t.Parallel()
+	// The requests after the loop call GetPerpetualDEXStatus too, so the cases run in order before them
 	for dex, exp := range map[string]types.Number{"": 3126723996.6663417816, "xyz": 1057417474.976467967} {
-		result, err := e.GetPerpetualDEXStatus(t.Context(), dex)
-		require.NoErrorf(t, err, "GetPerpetualDEXStatus must not error for DEX %q", dex)
-		if mockTests {
-			assert.Equalf(t, &PerpetualDEXStatusResponse{TotalNetDeposit: exp}, result, "GetPerpetualDEXStatus should decode DEX %q's net deposits", dex)
-		} else {
-			assert.Positivef(t, result.TotalNetDeposit.Float64(), "GetPerpetualDEXStatus should return DEX %q's net deposits", dex)
-		}
+		t.Run(subtestName(dex), func(t *testing.T) {
+			result, err := e.GetPerpetualDEXStatus(t.Context(), dex)
+			require.NoErrorf(t, err, "GetPerpetualDEXStatus must not error for DEX %q", dex)
+			if mockTests {
+				assert.Equalf(t, &PerpetualDEXStatusResponse{TotalNetDeposit: exp}, result, "GetPerpetualDEXStatus should decode DEX %q's net deposits", dex)
+			} else {
+				assert.Positivef(t, result.TotalNetDeposit.Float64(), "GetPerpetualDEXStatus should return DEX %q's net deposits", dex)
+			}
+		})
 	}
 
 	_, err := newUnavailableServerExchange(t).GetPerpetualDEXStatus(t.Context(), "")
@@ -633,23 +640,27 @@ func TestTimeRangeMilli(t *testing.T) {
 	start := time.UnixMilli(mockStartTime)
 	end := time.UnixMilli(mockEndTime)
 	for _, tc := range []struct {
+		name             string
 		start, end       time.Time
 		expStart, expEnd uint64
 		err              error
 	}{
-		{start: start, end: end, expStart: mockStartTime, expEnd: mockEndTime},
-		{start: start, end: start, expStart: mockStartTime, expEnd: mockStartTime},
-		{start: start, expStart: mockStartTime},
-		{err: common.ErrDateUnset},
-		{start: time.Unix(0, 0), err: common.ErrDateUnset},
-		{start: time.Unix(-5, 0), end: end, err: common.ErrDateUnset},
-		{start: time.Now().Add(time.Hour), err: common.ErrStartAfterTimeNow},
-		{start: end, end: start, err: common.ErrStartAfterEnd},
+		{name: "a range", start: start, end: end, expStart: mockStartTime, expEnd: mockEndTime},
+		{name: "a single instant", start: start, end: start, expStart: mockStartTime, expEnd: mockStartTime},
+		{name: "no end", start: start, expStart: mockStartTime},
+		{name: "no start", err: common.ErrDateUnset},
+		{name: "a start at the Unix epoch", start: time.Unix(0, 0), err: common.ErrDateUnset},
+		{name: "a start before the Unix epoch", start: time.Unix(-5, 0), end: end, err: common.ErrDateUnset},
+		{name: "a start in the future", start: time.Now().Add(time.Hour), err: common.ErrStartAfterTimeNow},
+		{name: "an end before the start", start: end, end: start, err: common.ErrStartAfterEnd},
 	} {
-		startTime, endTime, err := timeRangeMilli(tc.start, tc.end)
-		require.ErrorIsf(t, err, tc.err, "timeRangeMilli must return the expected error for %s to %s", tc.start, tc.end)
-		assert.Equalf(t, tc.expStart, startTime, "timeRangeMilli should convert the start of %s to %s", tc.start, tc.end)
-		assert.Equalf(t, tc.expEnd, endTime, "timeRangeMilli should convert or omit the end of %s to %s", tc.start, tc.end)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			startTime, endTime, err := timeRangeMilli(tc.start, tc.end)
+			require.ErrorIsf(t, err, tc.err, "timeRangeMilli must return the expected error for %s to %s", tc.start, tc.end)
+			assert.Equalf(t, tc.expStart, startTime, "timeRangeMilli should convert the start of %s to %s", tc.start, tc.end)
+			assert.Equalf(t, tc.expEnd, endTime, "timeRangeMilli should convert or omit the end of %s to %s", tc.start, tc.end)
+		})
 	}
 }
 
@@ -661,6 +672,7 @@ func TestAssetValueUnmarshalJSON(t *testing.T) {
 	assert.ErrorIs(t, json.Unmarshal([]byte(`["xyz:XYZ100"]`), &value), errInvalidTupleLength, "AssetValue should reject a short tuple")
 }
 
+//nolint:tparallel // The cases decode into one deployer in turn
 func TestSubDeployerUnmarshalJSON(t *testing.T) {
 	t.Parallel()
 	var deployer SubDeployer
@@ -673,11 +685,17 @@ func TestSubDeployerUnmarshalJSON(t *testing.T) {
 	assert.Equal(t, SubDeployer{Action: "modifyApproval", ActionSet: "hip3Star", Addresses: []string{"0x73b69db46d41c6b721fb5cb9ce9f29193140950e"}}, deployer, "SubDeployer should decode an action sent as an object with its key")
 	require.NoError(t, json.Unmarshal([]byte(`["setOracle",["0x0000000000000000000000000000000000000004"]]`), &deployer), "Unmarshal must not error")
 	assert.Equal(t, SubDeployer{Action: "setOracle", Addresses: []string{"0x0000000000000000000000000000000000000004"}}, deployer, "SubDeployer should clear the key of an earlier action sent as an object")
+	// The cases decode into deployer in turn, as the decodes before them do, so they run in order
 	for _, action := range []string{`{}`, `{"hip3Star":"setOracle","other":"cancel"}`} {
-		assert.ErrorIsf(t, json.Unmarshal([]byte(`[`+action+`,["0x0000000000000000000000000000000000000004"]]`), &deployer), errMalformedResponse, "SubDeployer should reject the action %s", action)
+		t.Run(subtestName(action), func(t *testing.T) {
+			assert.ErrorIsf(t, json.Unmarshal([]byte(`[`+action+`,["0x0000000000000000000000000000000000000004"]]`), &deployer), errMalformedResponse, "SubDeployer should reject the action %s", action)
+		})
 	}
+	// These too decode into deployer in turn
 	for _, action := range []string{`{"hip3Star":1}`, `["setOracle"]`} {
-		assert.Errorf(t, json.Unmarshal([]byte(`[`+action+`,["0x0000000000000000000000000000000000000004"]]`), &deployer), "SubDeployer should reject the action %s", action)
+		t.Run(subtestName(action), func(t *testing.T) {
+			assert.Errorf(t, json.Unmarshal([]byte(`[`+action+`,["0x0000000000000000000000000000000000000004"]]`), &deployer), "SubDeployer should reject the action %s", action)
+		})
 	}
 
 	// An entry of testnet's live perpDexs reply, 26 October 2026, which failed to decode while actions were only names

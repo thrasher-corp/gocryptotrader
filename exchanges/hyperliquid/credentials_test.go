@@ -3,6 +3,7 @@ package hyperliquid
 import (
 	"cmp"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -111,6 +112,7 @@ func authorityCached(t *testing.T, ex *Exchange) bool {
 	return cached
 }
 
+//nolint:tparallel // The cases share ex in order
 func TestGetWatchAddress(t *testing.T) {
 	t.Parallel()
 	ex := new(Exchange)
@@ -118,21 +120,25 @@ func TestGetWatchAddress(t *testing.T) {
 	_, err := ex.getWatchAddress(t.Context())
 	assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "getWatchAddress should error without credentials")
 
+	// The cases share ex in order, so each also checks that getWatchAddress keeps nothing from the last credentials
 	for _, tc := range []struct {
+		name        string
 		credentials *accounts.Credentials
 		exp         string
 		err         error
 	}{
-		{credentials: &accounts.Credentials{Key: strings.ToUpper(testAccountAddress)}, exp: testAccountAddress},
-		{credentials: &accounts.Credentials{Key: testAccountAddress, SubAccount: strings.ToUpper(testSubAccountAddress)}, exp: testSubAccountAddress},
-		{credentials: &accounts.Credentials{Key: "invalid", SubAccount: testSubAccountAddress}, exp: testSubAccountAddress},
-		{credentials: &accounts.Credentials{Key: "invalid"}, err: errInvalidAddress},
-		{credentials: &accounts.Credentials{Key: testAccountAddress, SubAccount: "invalid"}, err: errInvalidAddress},
+		{name: "upper-case account", credentials: &accounts.Credentials{Key: strings.ToUpper(testAccountAddress)}, exp: testAccountAddress},
+		{name: "upper-case subaccount", credentials: &accounts.Credentials{Key: testAccountAddress, SubAccount: strings.ToUpper(testSubAccountAddress)}, exp: testSubAccountAddress},
+		{name: "subaccount of an invalid account", credentials: &accounts.Credentials{Key: "invalid", SubAccount: testSubAccountAddress}, exp: testSubAccountAddress},
+		{name: "invalid account", credentials: &accounts.Credentials{Key: "invalid"}, err: errInvalidAddress},
+		{name: "invalid subaccount", credentials: &accounts.Credentials{Key: testAccountAddress, SubAccount: "invalid"}, err: errInvalidAddress},
 	} {
-		setTestCredentials(ex, tc.credentials)
-		address, err := ex.getWatchAddress(t.Context())
-		require.ErrorIsf(t, err, tc.err, "getWatchAddress must return the expected error for %+v", tc.credentials)
-		assert.Equalf(t, tc.exp, address, "getWatchAddress should return the watched address for %+v", tc.credentials)
+		t.Run(tc.name, func(t *testing.T) {
+			setTestCredentials(ex, tc.credentials)
+			address, err := ex.getWatchAddress(t.Context())
+			require.ErrorIsf(t, err, tc.err, "getWatchAddress must return the expected error for %+v", tc.credentials)
+			assert.Equalf(t, tc.exp, address, "getWatchAddress should return the watched address for %+v", tc.credentials)
+		})
 	}
 }
 
@@ -194,19 +200,24 @@ func TestGetUserSigningCredentials(t *testing.T) {
 	assert.Equal(t, testSubAccountAddress, subAccount, "getUserSigningCredentials should normalise the subaccount address")
 }
 
+//nolint:tparallel // The cases share ex and its role lookup count in order
 func TestValidateCachedAuthority(t *testing.T) {
 	t.Parallel()
 	ex, roleLookups := newRoleServerExchange(t, map[string]string{testAccountAddress: `{"role":"user"}`}, nil, nil)
+	// The cases share ex and its role server in order, as the lookup count after them covers them all
 	for _, tc := range []struct {
+		name        string
 		credentials *accounts.Credentials
 		err         error
 	}{
-		{credentials: &accounts.Credentials{Key: "invalid"}, err: errInvalidAddress},
-		{credentials: &accounts.Credentials{Key: testAccountAddress, SubAccount: "invalid"}, err: errInvalidAddress},
-		{credentials: &accounts.Credentials{Key: testAccountAddress, Secret: "invalid"}, err: errInvalidPrivateKey},
+		{name: "invalid account", credentials: &accounts.Credentials{Key: "invalid"}, err: errInvalidAddress},
+		{name: "invalid subaccount", credentials: &accounts.Credentials{Key: testAccountAddress, SubAccount: "invalid"}, err: errInvalidAddress},
+		{name: "invalid private key", credentials: &accounts.Credentials{Key: testAccountAddress, Secret: "invalid"}, err: errInvalidPrivateKey},
 	} {
-		_, err := ex.validateCachedAuthority(t.Context(), tc.credentials, false)
-		assert.ErrorIsf(t, err, tc.err, "validateCachedAuthority should reject %+v", tc.credentials)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := ex.validateCachedAuthority(t.Context(), tc.credentials, false)
+			assert.ErrorIsf(t, err, tc.err, "validateCachedAuthority should reject %+v", tc.credentials)
+		})
 	}
 	assert.Zero(t, roleLookups.Load(), "validateCachedAuthority should not look up roles for invalid credentials")
 
@@ -231,10 +242,19 @@ func TestValidateCachedAuthority(t *testing.T) {
 	require.NoError(t, err, "validateCachedAuthority must not error for a watch-only account")
 	assert.Equal(t, int32(3), roleLookups.Load(), "validateCachedAuthority should revalidate a different signer")
 
-	for _, alternate := range []*accounts.Credentials{credentials, watchOnly} {
-		_, err = ex.validateCachedAuthority(t.Context(), alternate, false)
-		require.NoError(t, err, "validateCachedAuthority must not error for alternating credentials")
-		assert.Equal(t, int32(3), roleLookups.Load(), "validateCachedAuthority should keep a validation while other credentials are validated")
+	// The cases alternate the credentials on ex in order, each checking that the other's validation stays cached
+	for _, alternate := range []struct {
+		name        string
+		credentials *accounts.Credentials
+	}{
+		{name: "signing account", credentials: credentials},
+		{name: "watch-only account", credentials: watchOnly},
+	} {
+		t.Run(alternate.name, func(t *testing.T) {
+			_, err = ex.validateCachedAuthority(t.Context(), alternate.credentials, false)
+			require.NoError(t, err, "validateCachedAuthority must not error for alternating credentials")
+			assert.Equal(t, int32(3), roleLookups.Load(), "validateCachedAuthority should keep a validation while other credentials are validated")
+		})
 	}
 
 	ex.SetDefaults()
@@ -246,10 +266,13 @@ func TestValidateCachedAuthority(t *testing.T) {
 		testSubAccountAddress: `{"role":"subAccount","data":{"master":"` + testAccountAddress + `"}}`,
 		testOtherAddress:      `{"role":"subAccount","data":{"master":"` + testAccountAddress + `"}}`,
 	}, nil, nil)
-	for range 2 {
+	// The cases share subAccounts in order, alternating its subaccounts, as the lookups counted after them show
+	for pass := range 2 {
 		for _, subAccount := range []string{testSubAccountAddress, testOtherAddress} {
-			_, err = subAccounts.validateCachedAuthority(t.Context(), &accounts.Credentials{Key: testAccountAddress, SubAccount: subAccount}, false)
-			require.NoErrorf(t, err, "validateCachedAuthority must not error for subaccount %s", subAccount)
+			t.Run("pass "+strconv.Itoa(pass+1)+" of "+subAccount, func(t *testing.T) {
+				_, err := subAccounts.validateCachedAuthority(t.Context(), &accounts.Credentials{Key: testAccountAddress, SubAccount: subAccount}, false)
+				require.NoErrorf(t, err, "validateCachedAuthority must not error for subaccount %s", subAccount)
+			})
 		}
 	}
 	assert.Equal(t, int32(4), subAccountLookups.Load(), "validateCachedAuthority should validate each alternating subaccount once")
@@ -280,6 +303,7 @@ func TestValidateCachedAuthority(t *testing.T) {
 	}
 }
 
+//nolint:tparallel // The cases share ex in order while a validation is held
 func TestAuthorityLock(t *testing.T) {
 	t.Parallel()
 	// newHeldRoleServer answers the subaccount's role lookups only once release is called, and signals each on held
@@ -347,16 +371,23 @@ func TestAuthorityLock(t *testing.T) {
 	waitHeld(t, held)
 	require.True(t, ex.authorityValidationMu.TryLock(), "validateCachedAuthority must not hold the shared lock across an authority's lookups")
 	ex.authorityValidationMu.Unlock()
-	// Authorities differing from the subaccount's in any part have locks of their own
-	for _, other := range []authorityValidationKey{
-		{accountAddress: testAccountAddress, signerAddress: testAccountAddress, mainnet: true},
-		{accountAddress: testAccountAddress, vaultAddress: testSubAccountAddress, signerAddress: testOtherAddress, mainnet: true},
-		{accountAddress: testAccountAddress, vaultAddress: testSubAccountAddress, signerAddress: testAccountAddress},
-		{accountAddress: testOtherAddress, vaultAddress: testSubAccountAddress, signerAddress: testAccountAddress, mainnet: true},
+	// Authorities differing from the subaccount's in any part have locks of their own; the cases share ex in order
+	// while the subaccount's lookup is held
+	for _, tc := range []struct {
+		name string
+		key  authorityValidationKey
+	}{
+		{name: "no vault", key: authorityValidationKey{accountAddress: testAccountAddress, signerAddress: testAccountAddress, mainnet: true}},
+		{name: "another signer", key: authorityValidationKey{accountAddress: testAccountAddress, vaultAddress: testSubAccountAddress, signerAddress: testOtherAddress, mainnet: true}},
+		{name: "testnet", key: authorityValidationKey{accountAddress: testAccountAddress, vaultAddress: testSubAccountAddress, signerAddress: testAccountAddress}},
+		{name: "another account", key: authorityValidationKey{accountAddress: testOtherAddress, vaultAddress: testSubAccountAddress, signerAddress: testAccountAddress, mainnet: true}},
 	} {
-		otherLock := ex.authorityLock(&other)
-		require.Truef(t, otherLock.TryLock(), "validateCachedAuthority must not hold the lock of authority %+v across another authority's lookups", other)
-		otherLock.Unlock()
+		t.Run(tc.name, func(t *testing.T) {
+			other := tc.key
+			otherLock := ex.authorityLock(&other)
+			require.Truef(t, otherLock.TryLock(), "validateCachedAuthority must not hold the lock of authority %+v across another authority's lookups", other)
+			otherLock.Unlock()
+		})
 	}
 	select {
 	case err := <-validate(ex, account, false):
@@ -410,20 +441,24 @@ func TestInvalidateAuthority(t *testing.T) {
 	validationKey := authorityValidationKey{accountAddress: testAccountAddress, vaultAddress: testSubAccountAddress, signerAddress: testAccountAddress, mainnet: true}
 	otherSubAccountKey := authorityValidationKey{accountAddress: testAccountAddress, vaultAddress: testOtherAddress, signerAddress: testAccountAddress, mainnet: true}
 	for _, tc := range []struct {
+		name         string
 		key          authorityValidationKey
 		expValidated bool
 	}{
-		{key: validationKey},
-		{key: authorityValidationKey{accountAddress: testOtherAddress, vaultAddress: testSubAccountAddress, signerAddress: testAccountAddress, mainnet: true}, expValidated: true},
-		{key: authorityValidationKey{accountAddress: testAccountAddress, signerAddress: testAccountAddress, mainnet: true}, expValidated: true},
-		{key: authorityValidationKey{accountAddress: testAccountAddress, vaultAddress: testSubAccountAddress, mainnet: true}, expValidated: true},
-		{key: authorityValidationKey{accountAddress: testAccountAddress, vaultAddress: testSubAccountAddress, signerAddress: testAccountAddress}, expValidated: true},
+		{name: "matching authority", key: validationKey},
+		{name: "another account", key: authorityValidationKey{accountAddress: testOtherAddress, vaultAddress: testSubAccountAddress, signerAddress: testAccountAddress, mainnet: true}, expValidated: true},
+		{name: "no vault", key: authorityValidationKey{accountAddress: testAccountAddress, signerAddress: testAccountAddress, mainnet: true}, expValidated: true},
+		{name: "no signer", key: authorityValidationKey{accountAddress: testAccountAddress, vaultAddress: testSubAccountAddress, mainnet: true}, expValidated: true},
+		{name: "testnet", key: authorityValidationKey{accountAddress: testAccountAddress, vaultAddress: testSubAccountAddress, signerAddress: testAccountAddress}, expValidated: true},
 	} {
-		ex := &Exchange{authorityValidations: map[authorityValidationKey]struct{}{validationKey: {}, otherSubAccountKey: {}}}
-		ex.invalidateAuthority(&tc.key)
-		_, validated := ex.authorityValidations[validationKey]
-		assert.Equalf(t, tc.expValidated, validated, "invalidateAuthority should clear only a matching validation, given %+v", tc.key)
-		assert.Containsf(t, ex.authorityValidations, otherSubAccountKey, "invalidateAuthority should keep other validations, given %+v", tc.key)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := &Exchange{authorityValidations: map[authorityValidationKey]struct{}{validationKey: {}, otherSubAccountKey: {}}}
+			ex.invalidateAuthority(&tc.key)
+			_, validated := ex.authorityValidations[validationKey]
+			assert.Equalf(t, tc.expValidated, validated, "invalidateAuthority should clear only a matching validation, given %+v", tc.key)
+			assert.Containsf(t, ex.authorityValidations, otherSubAccountKey, "invalidateAuthority should keep other validations, given %+v", tc.key)
+		})
 	}
 }
 
@@ -566,6 +601,16 @@ func TestNextNonce(t *testing.T) {
 			mu.Unlock()
 		})
 	}
-	wg.Wait()
+	// Bounded, so a nextNonce that never returns under contention fails the test rather than hanging it
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(30 * time.Second):
+		require.FailNow(t, "nextNonce must return to every concurrent caller")
+	}
 	assert.Len(t, seen, goroutines, "nextNonce should return a unique nonce to every concurrent caller")
 }

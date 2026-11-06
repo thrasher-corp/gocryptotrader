@@ -1,6 +1,7 @@
 package hyperliquid
 
 import (
+	"strconv"
 	"testing"
 	"time"
 
@@ -13,39 +14,49 @@ import (
 func TestRateLimits(t *testing.T) {
 	t.Parallel()
 	limits := rateLimits
+	assert.Len(t, limits, 11+84+26, "rateLimits should define only the info, candle and action weights")
 	// Info requests weigh 2, 20 or 60, and per-item requests one more per 20 items they can return
 	for _, tc := range []struct {
+		name   string
 		epl    request.EndpointLimit
 		weight request.Weight
 	}{
-		{epl: infoStandardEPL, weight: 20},
-		{epl: infoLightEPL, weight: 2},
-		{epl: infoRecentTradesEPL, weight: 21},
-		{epl: infoUserRoleEPL, weight: 60},
-		{epl: infoHistoricalOrdersEPL, weight: 120},
-		{epl: infoFundingHistoryEPL, weight: 45},
-		{epl: infoUserLedgerEPL, weight: 120},
-		{epl: infoUserFillsEPL, weight: 120},
-		{epl: infoUserFundingEPL, weight: 45},
-		{epl: infoStakingHistoryEPL, weight: 120},
-		{epl: infoTWAPHistoryEPL, weight: 120},
+		{name: "standard info", epl: infoStandardEPL, weight: 20},
+		{name: "light info", epl: infoLightEPL, weight: 2},
+		{name: "recent trades", epl: infoRecentTradesEPL, weight: 21},
+		{name: "user role", epl: infoUserRoleEPL, weight: 60},
+		{name: "historical orders", epl: infoHistoricalOrdersEPL, weight: 120},
+		{name: "funding history", epl: infoFundingHistoryEPL, weight: 45},
+		{name: "user ledger", epl: infoUserLedgerEPL, weight: 120},
+		{name: "user fills", epl: infoUserFillsEPL, weight: 120},
+		{name: "user funding", epl: infoUserFundingEPL, weight: 45},
+		{name: "staking history", epl: infoStakingHistoryEPL, weight: 120},
+		{name: "TWAP history", epl: infoTWAPHistoryEPL, weight: 120},
 	} {
-		require.Containsf(t, limits, tc.epl, "rateLimits must define endpoint limit %d", tc.epl)
-		assert.Equalf(t, tc.weight, limits[tc.epl].Weight(), "rateLimits should weigh endpoint limit %d", tc.epl)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			require.Containsf(t, limits, tc.epl, "rateLimits must define endpoint limit %d", tc.epl)
+			assert.Equalf(t, tc.weight, limits[tc.epl].Weight(), "rateLimits should weigh endpoint limit %d", tc.epl)
+		})
 	}
 	// Candle snapshots weigh 20 plus one per 60 candles, up to the 5000 most recent candles Hyperliquid serves
 	for extraWeight := request.Weight(1); extraWeight <= 84; extraWeight++ {
-		epl := candleEPLBase + request.EndpointLimit(extraWeight)
-		require.Containsf(t, limits, epl, "rateLimits must define candle endpoint limit %d", epl)
-		assert.Equalf(t, 20+extraWeight, limits[epl].Weight(), "rateLimits should weigh candle endpoint limit %d", epl)
+		t.Run("candle weight "+strconv.FormatUint(uint64(20+extraWeight), 10), func(t *testing.T) {
+			t.Parallel()
+			epl := candleEPLBase + request.EndpointLimit(extraWeight)
+			require.Containsf(t, limits, epl, "rateLimits must define candle endpoint limit %d", epl)
+			assert.Equalf(t, 20+extraWeight, limits[epl].Weight(), "rateLimits should weigh candle endpoint limit %d", epl)
+		})
 	}
 	// Actions weigh 1 plus one per 40 batched items, up to the 1000 item batch cap
 	for extraWeight := range request.Weight(26) {
-		epl := exchangeActionEPLBase + request.EndpointLimit(extraWeight)
-		require.Containsf(t, limits, epl, "rateLimits must define action endpoint limit %d", epl)
-		assert.Equalf(t, 1+extraWeight, limits[epl].Weight(), "rateLimits should weigh action endpoint limit %d", epl)
+		t.Run("action weight "+strconv.FormatUint(uint64(1+extraWeight), 10), func(t *testing.T) {
+			t.Parallel()
+			epl := exchangeActionEPLBase + request.EndpointLimit(extraWeight)
+			require.Containsf(t, limits, epl, "rateLimits must define action endpoint limit %d", epl)
+			assert.Equalf(t, 1+extraWeight, limits[epl].Weight(), "rateLimits should weigh action endpoint limit %d", epl)
+		})
 	}
-	assert.Len(t, limits, 11+84+26, "rateLimits should define only the info, candle and action weights")
 
 	first, second := new(Exchange), new(Exchange)
 	first.SetDefaults()
@@ -66,7 +77,10 @@ func TestCandleEndpointLimit(t *testing.T) {
 		{count: maximumCandleCount, exp: 84},
 		{count: maximumCandleCount + 1, exp: 84},
 	} {
-		assert.Equalf(t, candleEPLBase+tc.exp, candleEndpointLimit(tc.count), "candleEndpointLimit should weigh %d candles", tc.count)
+		t.Run(strconv.FormatUint(tc.count, 10), func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, candleEPLBase+tc.exp, candleEndpointLimit(tc.count), "candleEndpointLimit should weigh %d candles", tc.count)
+		})
 	}
 }
 
@@ -84,7 +98,10 @@ func TestExchangeActionEndpointLimit(t *testing.T) {
 		{batchLength: maximumActionBatchSize, exp: 25},
 		{batchLength: maximumActionBatchSize + 1, exp: 25},
 	} {
-		assert.Equalf(t, exchangeActionEPLBase+tc.exp, exchangeActionEndpointLimit(tc.batchLength), "exchangeActionEndpointLimit should weigh a batch of %d", tc.batchLength)
+		t.Run(strconv.FormatUint(tc.batchLength, 10), func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, exchangeActionEPLBase+tc.exp, exchangeActionEndpointLimit(tc.batchLength), "exchangeActionEndpointLimit should weigh a batch of %d", tc.batchLength)
+		})
 	}
 }
 
@@ -113,6 +130,9 @@ func TestCandleCount(t *testing.T) {
 		{name: "an end before the start", start: hour, end: hour.Add(-3 * time.Hour), interval: kline.OneHour, exp: 0},
 		{name: "no interval", start: hour, end: hour.Add(time.Hour), exp: 0},
 	} {
-		assert.Equalf(t, tc.exp, candleCount(tc.start, tc.end, tc.interval), "candleCount should count the candles of %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, tc.exp, candleCount(tc.start, tc.end, tc.interval), "candleCount should count the candles of %s", tc.name)
+		})
 	}
 }

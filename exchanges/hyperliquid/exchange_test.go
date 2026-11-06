@@ -324,11 +324,13 @@ func liveOutcomeQuestion(t *testing.T) (question, outcome uint64) {
 	return 0, 0
 }
 
+//nolint:tparallel // The cases must run in order, before the later PlaceOrders calls
 func TestPlaceOrders(t *testing.T) {
 	t.Parallel()
 	limit := OrderRequest{Asset: 0, IsBuy: true, Price: 85000, Size: 0.001, Limit: &LimitOrderType{TimeInForce: TimeInForceGTC}, ClientOrderID: testClientOrderID}
 	immediate := OrderRequest{Asset: 0, IsBuy: true, Price: 86000, Size: 0.002, Limit: &LimitOrderType{TimeInForce: TimeInForceIOC}}
 	addLiquidity := OrderRequest{Asset: 0, IsBuy: true, Price: 84000, Size: 0.002, Limit: &LimitOrderType{TimeInForce: TimeInForceALO}}
+	// Serial, as parallel cases would start only after the PlaceOrders calls below
 	for _, tc := range []struct {
 		name string
 		arg  *PlaceOrdersRequest
@@ -350,8 +352,10 @@ func TestPlaceOrders(t *testing.T) {
 		{name: "perpetual builder fee above the maximum", arg: &PlaceOrdersRequest{Orders: []OrderRequest{limit}, Builder: &BuilderFee{Builder: testBuilderAddress, Fee: maximumPerpetualBuilderFee + 1}}, err: errBuilderFeeInvalid},
 		{name: "expired action", arg: &PlaceOrdersRequest{Orders: []OrderRequest{limit}, ExpiresAfter: time.Now().Add(-time.Second)}, err: errExpiresAfterPassed},
 	} {
-		_, err := e.PlaceOrders(t.Context(), tc.arg)
-		assert.ErrorIsf(t, err, tc.err, "PlaceOrders should reject a request with %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.PlaceOrders(t.Context(), tc.arg)
+			assert.ErrorIsf(t, err, tc.err, "PlaceOrders should reject a request with %s", tc.name)
+		})
 	}
 
 	var captured SignedActionRequest
@@ -426,8 +430,10 @@ func TestPlaceOrders(t *testing.T) {
 	}
 }
 
+//nolint:tparallel // The cases must run in order, before the later CancelOrders calls
 func TestCancelOrders(t *testing.T) {
 	t.Parallel()
+	// Serial, as parallel cases would start only after the CancelOrders calls below
 	for _, tc := range []struct {
 		name string
 		arg  *CancelOrdersRequest
@@ -437,8 +443,10 @@ func TestCancelOrders(t *testing.T) {
 		{name: "no cancels", arg: &CancelOrdersRequest{}, err: errNoActionItems},
 		{name: "a zero order ID", arg: &CancelOrdersRequest{Cancels: []CancelRequest{{Asset: 1}}}, err: order.ErrOrderIDNotSet},
 	} {
-		_, err := e.CancelOrders(t.Context(), tc.arg)
-		assert.ErrorIsf(t, err, tc.err, "CancelOrders should reject a request with %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.CancelOrders(t.Context(), tc.arg)
+			assert.ErrorIsf(t, err, tc.err, "CancelOrders should reject a request with %s", tc.name)
+		})
 	}
 
 	var captured SignedActionRequest
@@ -467,8 +475,10 @@ func TestCancelOrders(t *testing.T) {
 	assert.Empty(t, statuses[0].Error, "CancelOrders should cancel the live test order")
 }
 
+//nolint:tparallel // The cases must run in order, before the later CancelOrdersByClientOrderID calls
 func TestCancelOrdersByClientOrderID(t *testing.T) {
 	t.Parallel()
+	// Serial, as parallel cases would start only after the CancelOrdersByClientOrderID calls below
 	for _, tc := range []struct {
 		name string
 		arg  *CancelOrdersByClientOrderIDRequest
@@ -478,8 +488,10 @@ func TestCancelOrdersByClientOrderID(t *testing.T) {
 		{name: "no cancels", arg: &CancelOrdersByClientOrderIDRequest{}, err: errNoActionItems},
 		{name: "an invalid client order ID", arg: &CancelOrdersByClientOrderIDRequest{Cancels: []CancelByClientOrderIDRequest{{ClientOrderID: "0x1"}}}, err: errClientOrderIDInvalid},
 	} {
-		_, err := e.CancelOrdersByClientOrderID(t.Context(), tc.arg)
-		assert.ErrorIsf(t, err, tc.err, "CancelOrdersByClientOrderID should reject a request with %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.CancelOrdersByClientOrderID(t.Context(), tc.arg)
+			assert.ErrorIsf(t, err, tc.err, "CancelOrdersByClientOrderID should reject a request with %s", tc.name)
+		})
 	}
 
 	var captured SignedActionRequest
@@ -532,9 +544,11 @@ func TestScheduleCancel(t *testing.T) {
 	assert.NoError(t, e.ScheduleCancel(t.Context(), &ScheduleCancelRequest{}), "ScheduleCancel should not error when clearing the schedule")
 }
 
+//nolint:tparallel // The cases must run in order, before the later ModifySingleOrder calls
 func TestModifySingleOrder(t *testing.T) {
 	t.Parallel()
 	replacement := OrderRequest{Asset: 0, IsBuy: true, Price: 84500, Size: 0.001, Limit: &LimitOrderType{TimeInForce: TimeInForceGTC}, ClientOrderID: testClientOrderID}
+	// Serial, as parallel cases would start only after the ModifySingleOrder calls below
 	for _, tc := range []struct {
 		name string
 		arg  *ModifyOrderRequest
@@ -546,7 +560,9 @@ func TestModifySingleOrder(t *testing.T) {
 		{name: "an invalid client order ID", arg: &ModifyOrderRequest{ClientOrderID: "0x1", Order: replacement}, err: errClientOrderIDInvalid},
 		{name: "an invalid replacement", arg: &ModifyOrderRequest{OrderID: 1, Order: OrderRequest{Price: 1, Size: 1}}, err: errOrderTypeRequired},
 	} {
-		assert.ErrorIsf(t, e.ModifySingleOrder(t.Context(), tc.arg), tc.err, "ModifySingleOrder should reject a request with %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			assert.ErrorIsf(t, e.ModifySingleOrder(t.Context(), tc.arg), tc.err, "ModifySingleOrder should reject a request with %s", tc.name)
+		})
 	}
 
 	var captured SignedActionRequest
@@ -571,9 +587,11 @@ func TestModifySingleOrder(t *testing.T) {
 	assert.NoError(t, e.ModifySingleOrder(t.Context(), arg), "ModifySingleOrder should not error")
 }
 
+//nolint:tparallel // The cases must run in order, before the later ModifyOrders calls
 func TestModifyOrders(t *testing.T) {
 	t.Parallel()
 	replacement := OrderRequest{Asset: 0, Price: 79500, Size: 0.001, ReduceOnly: true, Trigger: &TriggerOrderType{IsMarket: true, TriggerPrice: 80500, TakeProfitStopLoss: TriggerStopLoss}}
+	// Serial, as parallel cases would start only after the ModifyOrders calls below
 	for _, tc := range []struct {
 		name string
 		arg  *ModifyOrdersRequest
@@ -584,8 +602,10 @@ func TestModifyOrders(t *testing.T) {
 		{name: "both identifiers", arg: &ModifyOrdersRequest{Modifies: []OrderModification{{OrderID: 1, ClientOrderID: testClientOrderID, Order: replacement}}}, err: errOrderIdentifiersConflict},
 		{name: "an invalid replacement", arg: &ModifyOrdersRequest{Modifies: []OrderModification{{OrderID: 1}}}, err: order.ErrAmountIsInvalid},
 	} {
-		_, err := e.ModifyOrders(t.Context(), tc.arg)
-		assert.ErrorIsf(t, err, tc.err, "ModifyOrders should reject a request with %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.ModifyOrders(t.Context(), tc.arg)
+			assert.ErrorIsf(t, err, tc.err, "ModifyOrders should reject a request with %s", tc.name)
+		})
 	}
 
 	var captured SignedActionRequest
@@ -1074,11 +1094,15 @@ func TestUpdateIsolatedMargin(t *testing.T) {
 	}
 }
 
+//nolint:tparallel // The cases must run in order, before the later TopUpIsolatedOnlyMargin calls
 func TestTopUpIsolatedOnlyMargin(t *testing.T) {
 	t.Parallel()
 	require.ErrorIs(t, e.TopUpIsolatedOnlyMargin(t.Context(), nil), common.ErrNilPointer, "TopUpIsolatedOnlyMargin must reject a nil request")
+	// Serial, as parallel cases would start only after the TopUpIsolatedOnlyMargin calls below
 	for _, leverage := range []float64{0, -1, math.NaN()} {
-		assert.ErrorIsf(t, e.TopUpIsolatedOnlyMargin(t.Context(), &TopUpIsolatedOnlyMarginRequest{Leverage: leverage}), errTargetLeverageInvalid, "TopUpIsolatedOnlyMargin should reject leverage %v", leverage)
+		t.Run(strconv.FormatFloat(leverage, 'g', -1, 64), func(t *testing.T) {
+			assert.ErrorIsf(t, e.TopUpIsolatedOnlyMargin(t.Context(), &TopUpIsolatedOnlyMarginRequest{Leverage: leverage}), errTargetLeverageInvalid, "TopUpIsolatedOnlyMargin should reject leverage %v", leverage)
+		})
 	}
 
 	var captured SignedActionRequest
@@ -1096,8 +1120,10 @@ func TestTopUpIsolatedOnlyMargin(t *testing.T) {
 	assert.NoError(t, e.TopUpIsolatedOnlyMargin(t.Context(), arg), "TopUpIsolatedOnlyMargin should not error")
 }
 
+//nolint:tparallel // The cases must run in order, before the later SendAsset calls
 func TestSendAsset(t *testing.T) {
 	t.Parallel()
+	// Serial, as parallel cases would start only after the SendAsset calls below
 	for _, tc := range []struct {
 		name string
 		arg  *SendAssetRequest
@@ -1109,8 +1135,10 @@ func TestSendAsset(t *testing.T) {
 		{name: "no amount", arg: &SendAssetRequest{Destination: testWithdrawalAddress}, err: errTransferAmountInvalid},
 		{name: "no token", arg: &SendAssetRequest{Destination: testWithdrawalAddress, Amount: 1}, err: errTransferTokenInvalid},
 	} {
-		_, err := e.SendAsset(t.Context(), tc.arg)
-		assert.ErrorIsf(t, err, tc.err, "SendAsset should reject a request with %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.SendAsset(t.Context(), tc.arg)
+			assert.ErrorIsf(t, err, tc.err, "SendAsset should reject a request with %s", tc.name)
+		})
 	}
 	valid := &SendAssetRequest{Destination: testWithdrawalAddress, Token: currency.USDC, Amount: 1}
 	_, err := newActionServerExchange(t, agentCredentials(), new(SignedActionRequest), defaultActionResponse).SendAsset(t.Context(), valid)
@@ -1120,6 +1148,7 @@ func TestSendAsset(t *testing.T) {
 
 	var captured SignedActionRequest
 	ex := newActionServerExchange(t, subAccountCredentials(), &captured, defaultActionResponse)
+	// The cases share ex and its recording server in order, so each also checks that a call keeps nothing from the last
 	for _, tc := range []struct {
 		name string
 		arg  *SendAssetRequest
@@ -1128,8 +1157,10 @@ func TestSendAsset(t *testing.T) {
 		{name: "an unregistered DEX", arg: &SendAssetRequest{Destination: testWithdrawalAddress, SourceDEX: "abc", Token: currency.USDC, Amount: 1}, err: errTransferDEXInvalid},
 		{name: "a token that is not the DEX's collateral", arg: &SendAssetRequest{Destination: testWithdrawalAddress, DestinationDEX: "xyz", Token: currency.HYPE, Amount: 1}, err: errTransferTokenInvalid},
 	} {
-		_, err := ex.SendAsset(t.Context(), tc.arg)
-		assert.ErrorIsf(t, err, tc.err, "SendAsset should reject a request with %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := ex.SendAsset(t.Context(), tc.arg)
+			assert.ErrorIsf(t, err, tc.err, "SendAsset should reject a request with %s", tc.name)
+		})
 	}
 	nonce, err := ex.SendAsset(t.Context(), &SendAssetRequest{Destination: testWithdrawalAddress, SourceDEX: "SPOT", DestinationDEX: "xyz", Token: currency.USDC, Amount: 1.5})
 	require.NoError(t, err, "SendAsset must not error")
@@ -1150,8 +1181,10 @@ func TestSendAsset(t *testing.T) {
 	assertUserSignedNonce(t, nonce)
 }
 
+//nolint:tparallel // The cases must run in order, before the later AgentSendAsset calls
 func TestAgentSendAsset(t *testing.T) {
 	t.Parallel()
+	// Serial, as parallel cases would start only after the AgentSendAsset calls below
 	for _, tc := range []struct {
 		name string
 		arg  *AgentSendAssetRequest
@@ -1164,8 +1197,10 @@ func TestAgentSendAsset(t *testing.T) {
 		{name: "no token", arg: &AgentSendAssetRequest{Destination: testWithdrawalAddress, Amount: 1}, err: errTransferTokenInvalid},
 		{name: "a passed expiry", arg: &AgentSendAssetRequest{Destination: testWithdrawalAddress, Token: currency.USDC, Amount: 1, ExpiresAfter: time.Now().Add(-time.Second)}, err: errExpiresAfterPassed},
 	} {
-		_, err := e.AgentSendAsset(t.Context(), tc.arg)
-		assert.ErrorIsf(t, err, tc.err, "AgentSendAsset should reject a request with %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.AgentSendAsset(t.Context(), tc.arg)
+			assert.ErrorIsf(t, err, tc.err, "AgentSendAsset should reject a request with %s", tc.name)
+		})
 	}
 	valid := &AgentSendAssetRequest{Destination: testWithdrawalAddress, Token: currency.USDC, Amount: 1}
 	_, err := newActionServerExchange(t, &accounts.Credentials{Key: testAccountAddress}, new(SignedActionRequest), defaultActionResponse).AgentSendAsset(t.Context(), valid)
@@ -1210,9 +1245,11 @@ func TestAgentSendAsset(t *testing.T) {
 	assertUserSignedNonce(t, nonce)
 }
 
+//nolint:tparallel // The cases must run in order, before the later SendToEVMWithData calls
 func TestSendToEVMWithData(t *testing.T) {
 	t.Parallel()
 	valid := SendToEVMWithDataRequest{Token: currency.USDC, Amount: 5, SourceDEX: "spot", DestinationRecipient: testWithdrawalAddress, AddressEncoding: AddressEncodingHex, DestinationChainID: 999, GasLimit: 200000}
+	// Serial, as parallel cases would start only after the SendToEVMWithData calls below
 	for _, tc := range []struct {
 		name   string
 		mutate func(*SendToEVMWithDataRequest)
@@ -1228,10 +1265,12 @@ func TestSendToEVMWithData(t *testing.T) {
 			r.DestinationRecipient = " "
 		}, err: errDestinationRecipientInvalid},
 	} {
-		arg := valid
-		tc.mutate(&arg)
-		_, err := e.SendToEVMWithData(t.Context(), &arg)
-		assert.ErrorIsf(t, err, tc.err, "SendToEVMWithData should reject a request with %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			arg := valid
+			tc.mutate(&arg)
+			_, err := e.SendToEVMWithData(t.Context(), &arg)
+			assert.ErrorIsf(t, err, tc.err, "SendToEVMWithData should reject a request with %s", tc.name)
+		})
 	}
 	_, err := e.SendToEVMWithData(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "SendToEVMWithData must reject a nil request")
@@ -1240,6 +1279,7 @@ func TestSendToEVMWithData(t *testing.T) {
 
 	var captured SignedActionRequest
 	ex := newActionServerExchange(t, signingCredentials(), &captured, defaultActionResponse)
+	// The cases share ex and its recording server in order, so each also checks that a call keeps nothing from the last
 	for _, tc := range []struct {
 		name   string
 		mutate func(*SendToEVMWithDataRequest)
@@ -1248,10 +1288,12 @@ func TestSendToEVMWithData(t *testing.T) {
 		{name: "an unregistered DEX", mutate: func(r *SendToEVMWithDataRequest) { r.SourceDEX = "abc" }, err: errTransferDEXInvalid},
 		{name: "an unknown token", mutate: func(r *SendToEVMWithDataRequest) { r.Token = currency.BTC }, err: errTransferTokenInvalid},
 	} {
-		arg := valid
-		tc.mutate(&arg)
-		_, err := ex.SendToEVMWithData(t.Context(), &arg)
-		assert.ErrorIsf(t, err, tc.err, "SendToEVMWithData should reject a request with %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			arg := valid
+			tc.mutate(&arg)
+			_, err := ex.SendToEVMWithData(t.Context(), &arg)
+			assert.ErrorIsf(t, err, tc.err, "SendToEVMWithData should reject a request with %s", tc.name)
+		})
 	}
 	base58 := valid
 	base58.AddressEncoding = AddressEncodingBase58
@@ -1285,8 +1327,10 @@ func TestSendToEVMWithData(t *testing.T) {
 	assertUserSignedNonce(t, nonce)
 }
 
+//nolint:tparallel // The cases must run in order, before the later SendCoreUSDC calls
 func TestSendCoreUSDC(t *testing.T) {
 	t.Parallel()
+	// Serial, as parallel cases would start only after the SendCoreUSDC calls below
 	for _, tc := range []struct {
 		name string
 		arg  *SendCoreUSDCRequest
@@ -1297,8 +1341,10 @@ func TestSendCoreUSDC(t *testing.T) {
 		{name: "the zero address as destination", arg: &SendCoreUSDCRequest{Destination: testZeroAddress, Amount: 1}, err: errInvalidAddress},
 		{name: "no amount", arg: &SendCoreUSDCRequest{Destination: testWithdrawalAddress}, err: errTransferAmountInvalid},
 	} {
-		_, err := e.SendCoreUSDC(t.Context(), tc.arg)
-		assert.ErrorIsf(t, err, tc.err, "SendCoreUSDC should reject a request with %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.SendCoreUSDC(t.Context(), tc.arg)
+			assert.ErrorIsf(t, err, tc.err, "SendCoreUSDC should reject a request with %s", tc.name)
+		})
 	}
 	_, err := newActionServerExchange(t, subAccountCredentials(), new(SignedActionRequest), defaultActionResponse).SendCoreUSDC(t.Context(), &SendCoreUSDCRequest{Destination: testWithdrawalAddress, Amount: 1})
 	require.ErrorIs(t, err, errSubAccountUnsupported, "SendCoreUSDC must reject a configured subaccount")
@@ -1321,8 +1367,10 @@ func TestSendCoreUSDC(t *testing.T) {
 	assertUserSignedNonce(t, nonce)
 }
 
+//nolint:tparallel // The cases must run in order, before the later SendCoreSpot calls
 func TestSendCoreSpot(t *testing.T) {
 	t.Parallel()
+	// Serial, as parallel cases would start only after the SendCoreSpot calls below
 	for _, tc := range []struct {
 		name string
 		arg  *SendCoreSpotRequest
@@ -1333,8 +1381,10 @@ func TestSendCoreSpot(t *testing.T) {
 		{name: "the zero address as destination", arg: &SendCoreSpotRequest{Destination: testZeroAddress, Token: currency.HYPE, Amount: 1}, err: errInvalidAddress},
 		{name: "no amount", arg: &SendCoreSpotRequest{Destination: testWithdrawalAddress, Token: currency.HYPE}, err: errTransferAmountInvalid},
 	} {
-		_, err := e.SendCoreSpot(t.Context(), tc.arg)
-		assert.ErrorIsf(t, err, tc.err, "SendCoreSpot should reject a request with %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.SendCoreSpot(t.Context(), tc.arg)
+			assert.ErrorIsf(t, err, tc.err, "SendCoreSpot should reject a request with %s", tc.name)
+		})
 	}
 	_, err := e.SendCoreSpot(t.Context(), &SendCoreSpotRequest{Destination: testWithdrawalAddress, Amount: 1})
 	require.ErrorIs(t, err, errTransferTokenInvalid, "SendCoreSpot must reject an empty token")
@@ -1362,8 +1412,10 @@ func TestSendCoreSpot(t *testing.T) {
 	assertUserSignedNonce(t, nonce)
 }
 
+//nolint:tparallel // The cases must run in order, before the later TransferUSDCBetweenSpotAndPerp calls
 func TestTransferUSDCBetweenSpotAndPerp(t *testing.T) {
 	t.Parallel()
+	// Serial, as parallel cases would start only after the TransferUSDCBetweenSpotAndPerp calls below
 	for _, tc := range []struct {
 		name string
 		arg  *TransferUSDCBetweenSpotAndPerpRequest
@@ -1372,8 +1424,10 @@ func TestTransferUSDCBetweenSpotAndPerp(t *testing.T) {
 		{name: "nil request", err: common.ErrNilPointer},
 		{name: "no amount", arg: &TransferUSDCBetweenSpotAndPerpRequest{ToPerpetual: true}, err: errTransferAmountInvalid},
 	} {
-		_, err := e.TransferUSDCBetweenSpotAndPerp(t.Context(), tc.arg)
-		assert.ErrorIsf(t, err, tc.err, "TransferUSDCBetweenSpotAndPerp should reject a request with %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.TransferUSDCBetweenSpotAndPerp(t.Context(), tc.arg)
+			assert.ErrorIsf(t, err, tc.err, "TransferUSDCBetweenSpotAndPerp should reject a request with %s", tc.name)
+		})
 	}
 	valid := &TransferUSDCBetweenSpotAndPerpRequest{Amount: 1}
 	_, err := newActionServerExchange(t, agentCredentials(), new(SignedActionRequest), defaultActionResponse).TransferUSDCBetweenSpotAndPerp(t.Context(), valid)
@@ -1440,8 +1494,10 @@ func TestWithdrawFromStaking(t *testing.T) {
 	assertUserSignedNonce(t, nonce)
 }
 
+//nolint:tparallel // The cases must run in order, before the later DelegateStake calls
 func TestDelegateStake(t *testing.T) {
 	t.Parallel()
+	// Serial, as parallel cases would start only after the DelegateStake calls below
 	for _, tc := range []struct {
 		name string
 		arg  *DelegateStakeRequest
@@ -1452,8 +1508,10 @@ func TestDelegateStake(t *testing.T) {
 		{name: "the zero address as validator", arg: &DelegateStakeRequest{Validator: testZeroAddress, AmountInWei: 1}, err: errInvalidAddress},
 		{name: "no amount", arg: &DelegateStakeRequest{Validator: testValidatorAddress}, err: errStakeAmountInvalid},
 	} {
-		_, err := e.DelegateStake(t.Context(), tc.arg)
-		assert.ErrorIsf(t, err, tc.err, "DelegateStake should reject a request with %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.DelegateStake(t.Context(), tc.arg)
+			assert.ErrorIsf(t, err, tc.err, "DelegateStake should reject a request with %s", tc.name)
+		})
 	}
 	_, err := newActionServerExchange(t, subAccountCredentials(), new(SignedActionRequest), defaultActionResponse).DelegateStake(t.Context(), &DelegateStakeRequest{Validator: testValidatorAddress, AmountInWei: 1})
 	require.ErrorIs(t, err, errSubAccountUnsupported, "DelegateStake must reject a configured subaccount")
@@ -1477,8 +1535,10 @@ func TestDelegateStake(t *testing.T) {
 	assertUserSignedNonce(t, nonce)
 }
 
+//nolint:tparallel // The cases must run in order, before the later TransferVaultUSDC calls
 func TestTransferVaultUSDC(t *testing.T) {
 	t.Parallel()
+	// Serial, as parallel cases would start only after the TransferVaultUSDC calls below
 	for _, tc := range []struct {
 		name string
 		arg  *VaultTransferRequest
@@ -1489,7 +1549,9 @@ func TestTransferVaultUSDC(t *testing.T) {
 		{name: "the zero address as vault", arg: &VaultTransferRequest{VaultAddress: testZeroAddress, AmountInMicroUSDC: 1}, err: errInvalidAddress},
 		{name: "no amount", arg: &VaultTransferRequest{VaultAddress: testVaultAddress}, err: errTransferAmountInvalid},
 	} {
-		assert.ErrorIsf(t, e.TransferVaultUSDC(t.Context(), tc.arg), tc.err, "TransferVaultUSDC should reject a request with %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			assert.ErrorIsf(t, e.TransferVaultUSDC(t.Context(), tc.arg), tc.err, "TransferVaultUSDC should reject a request with %s", tc.name)
+		})
 	}
 
 	var captured SignedActionRequest
@@ -1510,8 +1572,10 @@ func TestTransferVaultUSDC(t *testing.T) {
 	assert.NoError(t, e.TransferVaultUSDC(t.Context(), arg), "TransferVaultUSDC should not error")
 }
 
+//nolint:tparallel // The cases must run in order, before the later TransferHIP3BackstopLiquidator calls
 func TestTransferHIP3BackstopLiquidator(t *testing.T) {
 	t.Parallel()
+	// Serial, as parallel cases would start only after the TransferHIP3BackstopLiquidator calls below
 	for _, tc := range []struct {
 		name string
 		arg  *HIP3LiquidatorTransferRequest
@@ -1524,7 +1588,9 @@ func TestTransferHIP3BackstopLiquidator(t *testing.T) {
 		{name: "spot", arg: &HIP3LiquidatorTransferRequest{DEX: "Spot", NotionalInMicroQuoteTokens: liquidatorTransferStep}, err: errTransferDEXInvalid},
 		{name: "a passed expiry", arg: &HIP3LiquidatorTransferRequest{DEX: "xyz", NotionalInMicroQuoteTokens: liquidatorTransferStep, ExpiresAfter: time.Now().Add(-time.Second)}, err: errExpiresAfterPassed},
 	} {
-		assert.ErrorIsf(t, e.TransferHIP3BackstopLiquidator(t.Context(), tc.arg), tc.err, "TransferHIP3BackstopLiquidator should reject a request with %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			assert.ErrorIsf(t, e.TransferHIP3BackstopLiquidator(t.Context(), tc.arg), tc.err, "TransferHIP3BackstopLiquidator should reject a request with %s", tc.name)
+		})
 	}
 
 	var captured SignedActionRequest
@@ -1545,8 +1611,10 @@ func TestTransferHIP3BackstopLiquidator(t *testing.T) {
 	}
 }
 
+//nolint:tparallel // The cases must run in order, before the later ApproveAgent calls
 func TestApproveAgent(t *testing.T) {
 	t.Parallel()
+	// Serial, as parallel cases would start only after the ApproveAgent calls below
 	for _, tc := range []struct {
 		name string
 		arg  *ApproveAgentRequest
@@ -1560,8 +1628,10 @@ func TestApproveAgent(t *testing.T) {
 		{name: "a passed expiry", arg: &ApproveAgentRequest{AgentAddress: testAgentAddress, AgentName: "gct", ValidUntil: time.Now().Add(-time.Hour)}, err: errAgentValidUntilInvalid},
 		{name: "an expiry beyond 180 days", arg: &ApproveAgentRequest{AgentAddress: testAgentAddress, AgentName: "gct", ValidUntil: time.Now().Add(maximumAgentValidity + time.Hour)}, err: errAgentValidUntilInvalid},
 	} {
-		_, err := e.ApproveAgent(t.Context(), tc.arg)
-		assert.ErrorIsf(t, err, tc.err, "ApproveAgent should reject a request with %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.ApproveAgent(t.Context(), tc.arg)
+			assert.ErrorIsf(t, err, tc.err, "ApproveAgent should reject a request with %s", tc.name)
+		})
 	}
 	_, err := newActionServerExchange(t, subAccountCredentials(), new(SignedActionRequest), defaultActionResponse).ApproveAgent(t.Context(), &ApproveAgentRequest{AgentAddress: testAgentAddress})
 	require.ErrorIs(t, err, errSubAccountUnsupported, "ApproveAgent must reject a configured subaccount")
@@ -1587,8 +1657,10 @@ func TestApproveAgent(t *testing.T) {
 	assertUserSignedNonce(t, nonce)
 }
 
+//nolint:tparallel // The cases must run in order, before the later ApproveBuilderFee calls
 func TestApproveBuilderFee(t *testing.T) {
 	t.Parallel()
+	// Serial, as parallel cases would start only after the ApproveBuilderFee calls below
 	for _, tc := range []struct {
 		name string
 		arg  *ApproveBuilderFeeRequest
@@ -1598,8 +1670,10 @@ func TestApproveBuilderFee(t *testing.T) {
 		{name: "an invalid builder", arg: &ApproveBuilderFeeRequest{Builder: "invalid"}, err: errInvalidAddress},
 		{name: "the zero address as builder", arg: &ApproveBuilderFeeRequest{Builder: testZeroAddress}, err: errInvalidAddress},
 	} {
-		_, err := e.ApproveBuilderFee(t.Context(), tc.arg)
-		assert.ErrorIsf(t, err, tc.err, "ApproveBuilderFee should reject a request with %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.ApproveBuilderFee(t.Context(), tc.arg)
+			assert.ErrorIsf(t, err, tc.err, "ApproveBuilderFee should reject a request with %s", tc.name)
+		})
 	}
 	_, err := newActionServerExchange(t, subAccountCredentials(), new(SignedActionRequest), defaultActionResponse).ApproveBuilderFee(t.Context(), &ApproveBuilderFeeRequest{Builder: testBuilderAddress})
 	require.ErrorIs(t, err, errSubAccountUnsupported, "ApproveBuilderFee must reject a configured subaccount")
@@ -1621,8 +1695,10 @@ func TestApproveBuilderFee(t *testing.T) {
 	assertUserSignedNonce(t, nonce)
 }
 
+//nolint:tparallel // The cases must run in order, before the later PlaceTWAPOrder calls
 func TestPlaceTWAPOrder(t *testing.T) {
 	t.Parallel()
+	// Serial, as parallel cases would start only after the PlaceTWAPOrder calls below
 	for _, tc := range []struct {
 		name string
 		arg  *TWAPOrderRequest
@@ -1634,17 +1710,22 @@ func TestPlaceTWAPOrder(t *testing.T) {
 		{name: "no size", arg: &TWAPOrderRequest{Minutes: 30}, err: order.ErrAmountIsInvalid},
 		{name: "a size beyond 8 decimals", arg: &TWAPOrderRequest{Size: 0.000000001, Minutes: 30}, err: errWireNumberRounding},
 	} {
-		_, err := e.PlaceTWAPOrder(t.Context(), tc.arg)
-		assert.ErrorIsf(t, err, tc.err, "PlaceTWAPOrder should reject a request with %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.PlaceTWAPOrder(t.Context(), tc.arg)
+			assert.ErrorIsf(t, err, tc.err, "PlaceTWAPOrder should reject a request with %s", tc.name)
+		})
 	}
+	// Serial, as parallel cases would start only after the PlaceTWAPOrder calls below
 	for response, exp := range map[string]error{
 		rejectedActionResponse: errActionResponse,
 		`{"status":"ok","response":{"type":"twapOrder","data":{"status":{"error":"Invalid TWAP duration: 1 min(s)"}}}}`: errActionResponse,
 		`{"status":"ok","response":{"type":"twapOrder","data":{"status":{}}}}`:                                          errActionStatusMalformed,
 		`{"status":"ok","response":{"type":"twapOrder","data":{}}}`:                                                     errActionStatusMalformed,
 	} {
-		_, err := newActionServerExchange(t, signingCredentials(), new(SignedActionRequest), response).PlaceTWAPOrder(t.Context(), &TWAPOrderRequest{Size: 1, Minutes: 30})
-		assert.ErrorIsf(t, err, exp, "PlaceTWAPOrder should reject the response %s", response)
+		t.Run(subtestName(response), func(t *testing.T) {
+			_, err := newActionServerExchange(t, signingCredentials(), new(SignedActionRequest), response).PlaceTWAPOrder(t.Context(), &TWAPOrderRequest{Size: 1, Minutes: 30})
+			assert.ErrorIsf(t, err, exp, "PlaceTWAPOrder should reject the response %s", response)
+		})
 	}
 
 	var captured SignedActionRequest
@@ -1670,17 +1751,21 @@ func TestPlaceTWAPOrder(t *testing.T) {
 	assert.NoError(t, e.CancelTWAPOrder(t.Context(), &TWAPCancelRequest{Asset: 0, TWAPID: status.Running.TWAPID}), "CancelTWAPOrder should cancel the live test's TWAP order")
 }
 
+//nolint:tparallel // The cases must run in order, before the later CancelTWAPOrder calls
 func TestCancelTWAPOrder(t *testing.T) {
 	t.Parallel()
 	require.ErrorIs(t, e.CancelTWAPOrder(t.Context(), nil), common.ErrNilPointer, "CancelTWAPOrder must reject a nil request")
 	require.ErrorIs(t, e.CancelTWAPOrder(t.Context(), &TWAPCancelRequest{}), errTWAPIDRequired, "CancelTWAPOrder must require a TWAP order ID")
+	// Serial, as parallel cases would start only after the CancelTWAPOrder calls below
 	for response, exp := range map[string]error{
 		rejectedActionResponse: errActionResponse,
 		`{"status":"ok","response":{"type":"twapCancel","data":{"status":{"error":"TWAP was never placed, already canceled, or filled."}}}}`: errActionResponse,
 		`{"status":"ok","response":{"type":"twapCancel","data":{"status":"unknown"}}}`:                                                       errUnknownCancelStatus,
 	} {
-		ex := newActionServerExchange(t, signingCredentials(), new(SignedActionRequest), response)
-		assert.ErrorIsf(t, ex.CancelTWAPOrder(t.Context(), &TWAPCancelRequest{TWAPID: 1}), exp, "CancelTWAPOrder should reject the response %s", response)
+		t.Run(subtestName(response), func(t *testing.T) {
+			ex := newActionServerExchange(t, signingCredentials(), new(SignedActionRequest), response)
+			assert.ErrorIsf(t, ex.CancelTWAPOrder(t.Context(), &TWAPCancelRequest{TWAPID: 1}), exp, "CancelTWAPOrder should reject the response %s", response)
+		})
 	}
 
 	var captured SignedActionRequest
@@ -1705,8 +1790,10 @@ func TestCancelTWAPOrder(t *testing.T) {
 	assert.NoError(t, e.CancelTWAPOrder(t.Context(), arg), "CancelTWAPOrder should not error")
 }
 
+//nolint:tparallel // The cases must run in order, before the later PlaceTrailingStopOrder calls
 func TestPlaceTrailingStopOrder(t *testing.T) {
 	t.Parallel()
+	// Serial, as parallel cases would start only after the PlaceTrailingStopOrder calls below
 	for _, tc := range []struct {
 		name string
 		arg  *TrailingStopRequest
@@ -1722,16 +1809,21 @@ func TestPlaceTrailingStopOrder(t *testing.T) {
 		{name: "a negative activation price", arg: &TrailingStopRequest{Size: 1, RetracementPrice: 1, ActivationPrice: -1}, err: errActivationPriceInvalid},
 		{name: "an activation price that is not a number", arg: &TrailingStopRequest{Size: 1, RetracementPrice: 1, ActivationPrice: math.NaN()}, err: errActivationPriceInvalid},
 	} {
-		_, err := e.PlaceTrailingStopOrder(t.Context(), tc.arg)
-		assert.ErrorIsf(t, err, tc.err, "PlaceTrailingStopOrder should reject a request with %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.PlaceTrailingStopOrder(t.Context(), tc.arg)
+			assert.ErrorIsf(t, err, tc.err, "PlaceTrailingStopOrder should reject a request with %s", tc.name)
+		})
 	}
+	// Serial, as parallel cases would start only after the PlaceTrailingStopOrder calls below
 	for response, exp := range map[string]error{
 		rejectedActionResponse:                                         errActionResponse,
 		`{"status":"ok","response":null}`:                              errActionStatusMalformed,
 		`{"status":"ok","response":{"type":"trailingStop","data":{}}}`: errActionStatusMalformed,
 	} {
-		_, err := newActionServerExchange(t, signingCredentials(), new(SignedActionRequest), response).PlaceTrailingStopOrder(t.Context(), &TrailingStopRequest{Size: 1, RetracementPrice: 1})
-		assert.ErrorIsf(t, err, exp, "PlaceTrailingStopOrder should reject the response %s", response)
+		t.Run(subtestName(response), func(t *testing.T) {
+			_, err := newActionServerExchange(t, signingCredentials(), new(SignedActionRequest), response).PlaceTrailingStopOrder(t.Context(), &TrailingStopRequest{Size: 1, RetracementPrice: 1})
+			assert.ErrorIsf(t, err, exp, "PlaceTrailingStopOrder should reject the response %s", response)
+		})
 	}
 	_, err := newActionServerExchange(t, signingCredentials(), new(SignedActionRequest), `{"status":"ok","response":[]}`).PlaceTrailingStopOrder(t.Context(), &TrailingStopRequest{Size: 1, RetracementPrice: 1})
 	assert.ErrorContains(t, err, "decoding trailing stop response", "PlaceTrailingStopOrder should report an undecodable response")
@@ -1765,8 +1857,10 @@ func TestPlaceTrailingStopOrder(t *testing.T) {
 	assert.Empty(t, statuses[0].Error, "CancelOrders should cancel the live test's trailing stop order")
 }
 
+//nolint:tparallel // The cases must run in order, before the later ReserveRequestWeight calls
 func TestReserveRequestWeight(t *testing.T) {
 	t.Parallel()
+	// Serial, as parallel cases would start only after the ReserveRequestWeight calls below
 	for _, tc := range []struct {
 		name string
 		arg  *ReserveRequestWeightRequest
@@ -1777,7 +1871,9 @@ func TestReserveRequestWeight(t *testing.T) {
 		{name: "an invalid destination", arg: &ReserveRequestWeightRequest{Weight: 1, Destination: "invalid"}, err: errInvalidAddress},
 		{name: "the zero address as destination", arg: &ReserveRequestWeightRequest{Weight: 1, Destination: testZeroAddress}, err: errInvalidAddress},
 	} {
-		assert.ErrorIsf(t, e.ReserveRequestWeight(t.Context(), tc.arg), tc.err, "ReserveRequestWeight should reject a request with %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			assert.ErrorIsf(t, e.ReserveRequestWeight(t.Context(), tc.arg), tc.err, "ReserveRequestWeight should reject a request with %s", tc.name)
+		})
 	}
 
 	var captured SignedActionRequest
@@ -1796,8 +1892,10 @@ func TestReserveRequestWeight(t *testing.T) {
 	assert.NoError(t, e.ReserveRequestWeight(t.Context(), arg), "ReserveRequestWeight should not error")
 }
 
+//nolint:tparallel // The cases must run in order, before the later InvalidatePendingNonce calls
 func TestInvalidatePendingNonce(t *testing.T) {
 	t.Parallel()
+	// Serial, as parallel cases would start only after the InvalidatePendingNonce calls below
 	for _, tc := range []struct {
 		name string
 		arg  *InvalidatePendingNonceRequest
@@ -1807,7 +1905,9 @@ func TestInvalidatePendingNonce(t *testing.T) {
 		{name: "no nonce", arg: &InvalidatePendingNonceRequest{}, err: errNonceRequired},
 		{name: "a passed expiry", arg: &InvalidatePendingNonceRequest{Nonce: vectorNonce, ExpiresAfter: time.Now().Add(-time.Second)}, err: errExpiresAfterPassed},
 	} {
-		assert.ErrorIsf(t, e.InvalidatePendingNonce(t.Context(), tc.arg), tc.err, "InvalidatePendingNonce should reject a request with %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			assert.ErrorIsf(t, e.InvalidatePendingNonce(t.Context(), tc.arg), tc.err, "InvalidatePendingNonce should reject a request with %s", tc.name)
+		})
 	}
 
 	var captured SignedActionRequest
@@ -1832,26 +1932,36 @@ func TestInvalidatePendingNonce(t *testing.T) {
 	assert.NoError(t, e.InvalidatePendingNonce(t.Context(), &InvalidatePendingNonceRequest{Nonce: nonce}), "InvalidatePendingNonce should not error")
 }
 
+//nolint:tparallel // The cases must run in order, before the later SetUserAbstraction calls
 func TestSetUserAbstraction(t *testing.T) {
 	t.Parallel()
 	_, err := e.SetUserAbstraction(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "SetUserAbstraction must reject a nil request")
+	// Serial, as parallel cases would start only after the SetUserAbstraction calls below
 	for _, abstraction := range []AccountAbstraction{"", AccountAbstractionDefault, AccountAbstractionDEXAbstraction} {
-		_, err := e.SetUserAbstraction(t.Context(), &SetUserAbstractionRequest{Abstraction: abstraction})
-		assert.ErrorIsf(t, err, errAccountAbstractionInvalid, "SetUserAbstraction should reject abstraction %q", abstraction)
+		t.Run(subtestName(string(abstraction)), func(t *testing.T) {
+			_, err := e.SetUserAbstraction(t.Context(), &SetUserAbstractionRequest{Abstraction: abstraction})
+			assert.ErrorIsf(t, err, errAccountAbstractionInvalid, "SetUserAbstraction should reject abstraction %q", abstraction)
+		})
 	}
 	_, err = newActionServerExchange(t, agentCredentials(), new(SignedActionRequest), defaultActionResponse).SetUserAbstraction(t.Context(), &SetUserAbstractionRequest{Abstraction: AccountAbstractionDisabled})
 	require.ErrorIs(t, err, errUserSignedMasterRequired, "SetUserAbstraction must require the account's own key")
 
-	for _, subAccount := range []string{"", testSubAccountAddress} {
-		rejected, lookups := newRoleServerExchange(t, map[string]string{testTraderAddress: `{"role":"user"}`}, nil, nil)
-		credentials := signingCredentials()
-		credentials.SubAccount = subAccount
-		setTestCredentials(rejected, credentials)
-		_, err := rejected.SetUserAbstraction(t.Context(), &SetUserAbstractionRequest{User: testTraderAddress, Abstraction: AccountAbstractionDisabled})
-		assert.ErrorIs(t, err, errOwnedSubAccountRequired, "SetUserAbstraction should reject an unowned target before signing")
-		assert.Equal(t, int32(1), lookups.Load(), "SetUserAbstraction should validate the target irrespective of configuration")
-		assert.Zero(t, rejected.lastNonce.Load(), "SetUserAbstraction should not sign an unowned target")
+	// Serial, as parallel cases would start only after the SetUserAbstraction calls below
+	for _, tc := range []struct{ name, subAccount string }{
+		{name: "no configured subaccount"},
+		{name: "a configured subaccount", subAccount: testSubAccountAddress},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			rejected, lookups := newRoleServerExchange(t, map[string]string{testTraderAddress: `{"role":"user"}`}, nil, nil)
+			credentials := signingCredentials()
+			credentials.SubAccount = tc.subAccount
+			setTestCredentials(rejected, credentials)
+			_, err := rejected.SetUserAbstraction(t.Context(), &SetUserAbstractionRequest{User: testTraderAddress, Abstraction: AccountAbstractionDisabled})
+			assert.ErrorIs(t, err, errOwnedSubAccountRequired, "SetUserAbstraction should reject an unowned target before signing")
+			assert.Equal(t, int32(1), lookups.Load(), "SetUserAbstraction should validate the target irrespective of configuration")
+			assert.Zero(t, rejected.lastNonce.Load(), "SetUserAbstraction should not sign an unowned target")
+		})
 	}
 
 	var captured SignedActionRequest
@@ -1879,16 +1989,20 @@ func TestSetUserAbstraction(t *testing.T) {
 	assertUserSignedNonce(t, nonce)
 }
 
+//nolint:tparallel // The cases share ex and captured in turn
 func TestAgentSetUserAbstraction(t *testing.T) {
 	t.Parallel()
 	require.ErrorIs(t, e.AgentSetUserAbstraction(t.Context(), AccountAbstractionDEXAbstraction), errAccountAbstractionInvalid, "AgentSetUserAbstraction must reject an abstraction it cannot set")
 
 	var captured SignedActionRequest
 	ex := newActionServerExchange(t, subAccountCredentials(), &captured, defaultActionResponse)
+	// The cases share ex and captured in turn, so each also checks that a call keeps nothing from the last
 	for abstraction, code := range map[AccountAbstraction]string{AccountAbstractionDisabled: "i", AccountAbstractionUnifiedAccount: "u", AccountAbstractionPortfolioMargin: "p"} {
-		require.NoErrorf(t, ex.AgentSetUserAbstraction(t.Context(), abstraction), "AgentSetUserAbstraction must not error for %s", abstraction)
-		assert.JSONEqf(t, `{"type":"agentSetAbstraction","abstraction":"`+code+`"}`, capturedAction(t, &captured), "AgentSetUserAbstraction should send %s as %s", abstraction, code)
-		assert.Emptyf(t, captured.VaultAddress, "AgentSetUserAbstraction should not act for the configured subaccount for %s", abstraction)
+		t.Run(string(abstraction), func(t *testing.T) {
+			require.NoErrorf(t, ex.AgentSetUserAbstraction(t.Context(), abstraction), "AgentSetUserAbstraction must not error for %s", abstraction)
+			assert.JSONEqf(t, `{"type":"agentSetAbstraction","abstraction":"`+code+`"}`, capturedAction(t, &captured), "AgentSetUserAbstraction should send %s as %s", abstraction, code)
+			assert.Emptyf(t, captured.VaultAddress, "AgentSetUserAbstraction should not act for the configured subaccount for %s", abstraction)
+		})
 	}
 
 	abstraction := AccountAbstractionPortfolioMargin
@@ -1901,11 +2015,15 @@ func TestAgentSetUserAbstraction(t *testing.T) {
 	assert.NoError(t, e.AgentSetUserAbstraction(t.Context(), abstraction), "AgentSetUserAbstraction should not error")
 }
 
+//nolint:tparallel // The cases must run in order, before the later SplitOutcome calls
 func TestSplitOutcome(t *testing.T) {
 	t.Parallel()
 	require.ErrorIs(t, e.SplitOutcome(t.Context(), nil), common.ErrNilPointer, "SplitOutcome must reject a nil request")
+	// Serial, as parallel cases would start only after the SplitOutcome calls below
 	for _, amount := range []float64{0, -1, math.Inf(1)} {
-		assert.ErrorIsf(t, e.SplitOutcome(t.Context(), &SplitOutcomeRequest{Amount: amount}), errOutcomeAmountInvalid, "SplitOutcome should reject amount %v", amount)
+		t.Run(strconv.FormatFloat(amount, 'g', -1, 64), func(t *testing.T) {
+			assert.ErrorIsf(t, e.SplitOutcome(t.Context(), &SplitOutcomeRequest{Amount: amount}), errOutcomeAmountInvalid, "SplitOutcome should reject amount %v", amount)
+		})
 	}
 
 	var captured SignedActionRequest
@@ -1978,11 +2096,15 @@ func TestMergeQuestion(t *testing.T) {
 	assert.NoError(t, e.MergeQuestion(t.Context(), arg), "MergeQuestion should not error")
 }
 
+//nolint:tparallel // The cases must run in order, before the later NegateOutcome calls
 func TestNegateOutcome(t *testing.T) {
 	t.Parallel()
 	require.ErrorIs(t, e.NegateOutcome(t.Context(), nil), common.ErrNilPointer, "NegateOutcome must reject a nil request")
+	// Serial, as parallel cases would start only after the NegateOutcome calls below
 	for _, amount := range []float64{0, -1, math.Inf(1)} {
-		assert.ErrorIsf(t, e.NegateOutcome(t.Context(), &NegateOutcomeRequest{Amount: amount}), errOutcomeAmountInvalid, "NegateOutcome should reject amount %v", amount)
+		t.Run(strconv.FormatFloat(amount, 'g', -1, 64), func(t *testing.T) {
+			assert.ErrorIsf(t, e.NegateOutcome(t.Context(), &NegateOutcomeRequest{Amount: amount}), errOutcomeAmountInvalid, "NegateOutcome should reject amount %v", amount)
+		})
 	}
 
 	var captured SignedActionRequest
@@ -2026,9 +2148,11 @@ func TestClaimRewards(t *testing.T) {
 	assert.NoError(t, e.ClaimRewards(t.Context()), "ClaimRewards should not error")
 }
 
+//nolint:tparallel // The cases must run in order, before the later BidGossipPriority calls
 func TestBidGossipPriority(t *testing.T) {
 	t.Parallel()
 	ip := netip.MustParseAddr("203.0.113.7")
+	// Serial, as parallel cases would start only after the BidGossipPriority calls below
 	for _, tc := range []struct {
 		name string
 		arg  *GossipPriorityBidRequest
@@ -2039,7 +2163,9 @@ func TestBidGossipPriority(t *testing.T) {
 		{name: "no IP address", arg: &GossipPriorityBidRequest{MaxGasInWei: 1}, err: errGossipIPInvalid},
 		{name: "no maximum gas", arg: &GossipPriorityBidRequest{IP: ip}, err: errMaxGasInvalid},
 	} {
-		assert.ErrorIsf(t, e.BidGossipPriority(t.Context(), tc.arg), tc.err, "BidGossipPriority should reject a request with %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			assert.ErrorIsf(t, e.BidGossipPriority(t.Context(), tc.arg), tc.err, "BidGossipPriority should reject a request with %s", tc.name)
+		})
 	}
 
 	var captured SignedActionRequest
@@ -2093,8 +2219,11 @@ func TestOrderRequestToWire(t *testing.T) {
 		{name: "no order type", arg: OrderRequest{Price: 1, Size: 1}, err: errOrderTypeRequired},
 		{name: "both order types", arg: OrderRequest{Price: 1, Size: 1, Limit: &LimitOrderType{TimeInForce: TimeInForceGTC}, Trigger: &TriggerOrderType{TriggerPrice: 1, TakeProfitStopLoss: TriggerStopLoss}}, err: errOrderTypeRequired},
 	} {
-		_, err := tc.arg.ToWire()
-		assert.ErrorIsf(t, err, tc.err, "ToWire should reject an order with %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := tc.arg.ToWire()
+			assert.ErrorIsf(t, err, tc.err, "ToWire should reject an order with %s", tc.name)
+		})
 	}
 
 	limit := OrderRequest{Asset: 10107, IsBuy: true, Price: 95.5, Size: 1.5, ReduceOnly: true, Limit: &LimitOrderType{TimeInForce: TimeInForceALO}, ClientOrderID: strings.ToUpper(testClientOrderID)}
@@ -2125,7 +2254,10 @@ func TestValidatePriorityGrouping(t *testing.T) {
 		{name: "a position TP/SL grouping", arg: &PlaceOrdersRequest{Orders: []OrderRequest{immediate}, Grouping: GroupingPositionTPSL, PriorityRate: 1}, err: errPriorityGroupingInvalid},
 		{name: "mixed IOC and ALO orders", arg: &PlaceOrdersRequest{Orders: []OrderRequest{addLiquidity, immediate}, PriorityRate: 1}, err: errPriorityGroupingInvalid},
 	} {
-		assert.ErrorIsf(t, validatePriorityGrouping(tc.arg), tc.err, "validatePriorityGrouping should return the expected error for %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, validatePriorityGrouping(tc.arg), tc.err, "validatePriorityGrouping should return the expected error for %s", tc.name)
+		})
 	}
 }
 
@@ -2146,15 +2278,21 @@ func TestBuilderFeeWire(t *testing.T) {
 		{name: "a builder DEX order above the perpetual maximum", orders: []OrderRequest{builder}, fee: maximumPerpetualBuilderFee + 1, err: errBuilderFeeInvalid},
 		{name: "a perpetual order at the perpetual maximum", orders: []OrderRequest{perpetual}, fee: maximumPerpetualBuilderFee},
 	} {
-		wire, err := builderFeeWire(&BuilderFee{Builder: testBuilderAddress, Fee: tc.fee}, tc.orders)
-		require.ErrorIsf(t, err, tc.err, "builderFeeWire must return the expected error for %s", tc.name)
-		if tc.err == nil {
-			assert.Equalf(t, BuilderFeeWire{Builder: testBuilderAddress, Fee: tc.fee}, wire, "builderFeeWire should return the fee for %s", tc.name)
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			wire, err := builderFeeWire(&BuilderFee{Builder: testBuilderAddress, Fee: tc.fee}, tc.orders)
+			require.ErrorIsf(t, err, tc.err, "builderFeeWire must return the expected error for %s", tc.name)
+			if tc.err == nil {
+				assert.Equalf(t, BuilderFeeWire{Builder: testBuilderAddress, Fee: tc.fee}, wire, "builderFeeWire should return the fee for %s", tc.name)
+			}
+		})
 	}
 	for _, address := range []string{"invalid", testZeroAddress} {
-		_, err := builderFeeWire(&BuilderFee{Builder: address}, []OrderRequest{spot})
-		assert.ErrorIsf(t, err, errInvalidAddress, "builderFeeWire should reject builder %q", address)
+		t.Run(subtestName(address), func(t *testing.T) {
+			t.Parallel()
+			_, err := builderFeeWire(&BuilderFee{Builder: address}, []OrderRequest{spot})
+			assert.ErrorIsf(t, err, errInvalidAddress, "builderFeeWire should reject builder %q", address)
+		})
 	}
 }
 
@@ -2192,8 +2330,11 @@ func TestParseActionStatus(t *testing.T) {
 	_, err := parseActionStatus[CancelActionStatusResponse](json.RawMessage(`[`))
 	assert.ErrorContains(t, err, "decoding action status response", "parseActionStatus should report invalid JSON")
 	for _, response := range []string{`null`, `{"data":{}}`, `{"data":{"status":null}}`} {
-		_, err = parseActionStatus[CancelActionStatusResponse](json.RawMessage(response))
-		assert.ErrorIsf(t, err, errActionStatusMalformed, "parseActionStatus should reject %s", response)
+		t.Run(subtestName(response), func(t *testing.T) {
+			t.Parallel()
+			_, err := parseActionStatus[CancelActionStatusResponse](json.RawMessage(response))
+			assert.ErrorIsf(t, err, errActionStatusMalformed, "parseActionStatus should reject %s", response)
+		})
 	}
 	_, err = parseActionStatus[CancelActionStatusResponse](json.RawMessage(`{"data":{"status":"unknown"}}`))
 	assert.ErrorIs(t, err, errUnknownCancelStatus, "parseActionStatus should return the status's decoding error")
@@ -2213,13 +2354,19 @@ func TestOrderActionStatusUnmarshalJSON(t *testing.T) {
 		`{"filled":{"totalSz":"0.02","avgPx":"1891.4","oid":2,"cloid":"` + testClientOrderID + `"}}`: {Filled: &FilledOrderStatus{TotalSize: 0.02, AveragePrice: 1891.4, OrderID: 2, ClientOrderID: testClientOrderID}},
 		`{"error":"Order must have minimum value of $10."}`:                                          {Error: "Order must have minimum value of $10."},
 	} {
-		var status OrderActionStatusResponse
-		require.NoErrorf(t, json.Unmarshal([]byte(data), &status), "Unmarshal must not error for %s", data)
-		assert.Equalf(t, exp, status, "OrderActionStatus should decode %s", data)
+		t.Run(subtestName(data), func(t *testing.T) {
+			t.Parallel()
+			var status OrderActionStatusResponse
+			require.NoErrorf(t, json.Unmarshal([]byte(data), &status), "Unmarshal must not error for %s", data)
+			assert.Equalf(t, exp, status, "OrderActionStatus should decode %s", data)
+		})
 	}
 	for _, data := range []string{`"unknown"`, `{}`, `{"resting":{"oid":0}}`, `{"filled":{"oid":0}}`, `{"resting":{"oid":1},"error":"e"}`} {
-		var status OrderActionStatusResponse
-		assert.ErrorIsf(t, json.Unmarshal([]byte(data), &status), errActionStatusMalformed, "OrderActionStatus should reject %s", data)
+		t.Run(subtestName(data), func(t *testing.T) {
+			t.Parallel()
+			var status OrderActionStatusResponse
+			assert.ErrorIsf(t, json.Unmarshal([]byte(data), &status), errActionStatusMalformed, "OrderActionStatus should reject %s", data)
+		})
 	}
 	// Unmarshal rejects an unterminated string before calling the method, so the method is called directly
 	assert.Error(t, new(OrderActionStatusResponse).UnmarshalJSON([]byte(`"`)), "OrderActionStatus should reject an unterminated status string")
@@ -2247,13 +2394,19 @@ func TestTWAPOrderStatusUnmarshalJSON(t *testing.T) {
 		`{"running":{"twapId":77738308}}`:             {Running: &TWAPRunningStatus{TWAPID: 77738308}},
 		`{"error":"Invalid TWAP duration: 1 min(s)"}`: {Error: "Invalid TWAP duration: 1 min(s)"},
 	} {
-		var status TWAPOrderStatusResponse
-		require.NoErrorf(t, json.Unmarshal([]byte(data), &status), "Unmarshal must not error for %s", data)
-		assert.Equalf(t, exp, status, "TWAPOrderStatus should decode %s", data)
+		t.Run(subtestName(data), func(t *testing.T) {
+			t.Parallel()
+			var status TWAPOrderStatusResponse
+			require.NoErrorf(t, json.Unmarshal([]byte(data), &status), "Unmarshal must not error for %s", data)
+			assert.Equalf(t, exp, status, "TWAPOrderStatus should decode %s", data)
+		})
 	}
 	for _, data := range []string{`{}`, `{"running":{"twapId":0}}`, `{"running":{"twapId":1},"error":"e"}`} {
-		var status TWAPOrderStatusResponse
-		assert.ErrorIsf(t, json.Unmarshal([]byte(data), &status), errActionStatusMalformed, "TWAPOrderStatus should reject %s", data)
+		t.Run(subtestName(data), func(t *testing.T) {
+			t.Parallel()
+			var status TWAPOrderStatusResponse
+			assert.ErrorIsf(t, json.Unmarshal([]byte(data), &status), errActionStatusMalformed, "TWAPOrderStatus should reject %s", data)
+		})
 	}
 	var status TWAPOrderStatusResponse
 	assert.Error(t, json.Unmarshal([]byte(`[]`), &status), "TWAPOrderStatus should reject an array")
@@ -2262,10 +2415,16 @@ func TestTWAPOrderStatusUnmarshalJSON(t *testing.T) {
 func TestValidateClientOrderID(t *testing.T) {
 	t.Parallel()
 	for _, clientOrderID := range []string{testClientOrderID, strings.ToUpper(testClientOrderID)} {
-		assert.NoErrorf(t, validateClientOrderID(clientOrderID), "validateClientOrderID should accept %s", clientOrderID)
+		t.Run(subtestName(clientOrderID), func(t *testing.T) {
+			t.Parallel()
+			assert.NoErrorf(t, validateClientOrderID(clientOrderID), "validateClientOrderID should accept %s", clientOrderID)
+		})
 	}
 	for _, clientOrderID := range []string{"", "0x1", testClientOrderID[2:] + "00", "0x" + strings.Repeat("g", 32)} {
-		assert.ErrorIsf(t, validateClientOrderID(clientOrderID), errClientOrderIDInvalid, "validateClientOrderID should reject %q", clientOrderID)
+		t.Run(subtestName(clientOrderID), func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, validateClientOrderID(clientOrderID), errClientOrderIDInvalid, "validateClientOrderID should reject %q", clientOrderID)
+		})
 	}
 }
 
@@ -2275,8 +2434,11 @@ func TestFormatOutcomeAmount(t *testing.T) {
 	require.NoError(t, err, "formatOutcomeAmount must not error")
 	assert.Equal(t, "10", amount, "formatOutcomeAmount should format the amount")
 	for _, value := range []float64{0, -1, math.NaN(), 1e-13} {
-		_, err := formatOutcomeAmount(value)
-		assert.ErrorIsf(t, err, errOutcomeAmountInvalid, "formatOutcomeAmount should reject %v", value)
+		t.Run(strconv.FormatFloat(value, 'g', -1, 64), func(t *testing.T) {
+			t.Parallel()
+			_, err := formatOutcomeAmount(value)
+			assert.ErrorIsf(t, err, errOutcomeAmountInvalid, "formatOutcomeAmount should reject %v", value)
+		})
 	}
 }
 
@@ -2682,8 +2844,11 @@ func TestGetAccountSigningCredentials(t *testing.T) {
 func TestPrepareTransfer(t *testing.T) {
 	t.Parallel()
 	for _, address := range []string{"invalid", testZeroAddress} {
-		_, _, err := prepareTransfer(address, 1)
-		assert.ErrorIsf(t, err, errInvalidAddress, "prepareTransfer should reject destination %q", address)
+		t.Run(subtestName(address), func(t *testing.T) {
+			t.Parallel()
+			_, _, err := prepareTransfer(address, 1)
+			assert.ErrorIsf(t, err, errInvalidAddress, "prepareTransfer should reject destination %q", address)
+		})
 	}
 	_, _, err := prepareTransfer(testWithdrawalAddress, 0)
 	assert.ErrorIs(t, err, errTransferAmountInvalid, "prepareTransfer should reject a zero amount")
@@ -2751,11 +2916,15 @@ func TestFormatTransferAmount(t *testing.T) {
 	require.NoError(t, err, "formatTransferAmount must not error")
 	assert.Equal(t, "1.23", amount, "formatTransferAmount should format the amount")
 	for _, value := range []float64{0, -1, math.NaN(), 0.000000001, 1e-13} {
-		_, err := formatTransferAmount(value)
-		assert.ErrorIsf(t, err, errTransferAmountInvalid, "formatTransferAmount should reject %v", value)
+		t.Run(strconv.FormatFloat(value, 'g', -1, 64), func(t *testing.T) {
+			t.Parallel()
+			_, err := formatTransferAmount(value)
+			assert.ErrorIsf(t, err, errTransferAmountInvalid, "formatTransferAmount should reject %v", value)
+		})
 	}
 }
 
+//nolint:tparallel // The cases share ex and its role server in order
 func TestValidateUserSignedSubAccount(t *testing.T) {
 	t.Parallel()
 	roles := map[string]string{
@@ -2767,8 +2936,16 @@ func TestValidateUserSignedSubAccount(t *testing.T) {
 	credentials := signingCredentials()
 	assert.NoError(t, ex.validateUserSignedSubAccount(t.Context(), credentials, ""), "validateUserSignedSubAccount should accept no subaccount")
 	assert.NoError(t, ex.validateUserSignedSubAccount(t.Context(), credentials, testSubAccountAddress), "validateUserSignedSubAccount should accept an owned subaccount")
-	for _, subAccount := range []string{testVaultAddress, testTraderAddress, testOtherAddress} {
-		assert.ErrorIsf(t, ex.validateUserSignedSubAccount(t.Context(), credentials, subAccount), errOwnedSubAccountRequired, "validateUserSignedSubAccount should reject %s", subAccount)
+	// The cases share ex and its role server in order, so each also checks that a rejection keeps nothing from the last
+	for _, tc := range []struct{ name, subAccount string }{
+		{name: "a vault", subAccount: testVaultAddress},
+		{name: "another account's subaccount", subAccount: testTraderAddress},
+		{name: "a missing account", subAccount: testOtherAddress},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			subAccount := tc.subAccount
+			assert.ErrorIsf(t, ex.validateUserSignedSubAccount(t.Context(), credentials, subAccount), errOwnedSubAccountRequired, "validateUserSignedSubAccount should reject %s", subAccount)
+		})
 	}
 	assert.ErrorIs(t, newUnavailableServerExchange(t).validateUserSignedSubAccount(t.Context(), credentials, testSubAccountAddress), request.ErrBadStatus, "validateUserSignedSubAccount should return a role failure")
 }
@@ -2797,12 +2974,16 @@ func TestResolveTransferToken(t *testing.T) {
 	assert.Error(t, err, "resolveTransferToken should return a metadata failure")
 }
 
+//nolint:tparallel // The cases share e in turn, before the later resolveTransferDEX calls
 func TestResolveTransferDEX(t *testing.T) {
 	t.Parallel()
+	// The cases share e in turn, and parallel cases would start only after the resolveTransferDEX calls below
 	for dex, exp := range map[string]string{"": "", " ": "", "SPOT": "spot", "xyz": "xyz"} {
-		resolved, err := e.resolveTransferDEX(t.Context(), dex)
-		require.NoErrorf(t, err, "resolveTransferDEX must not error for %q", dex)
-		assert.Equalf(t, exp, resolved, "resolveTransferDEX should resolve %q", dex)
+		t.Run(subtestName(dex), func(t *testing.T) {
+			resolved, err := e.resolveTransferDEX(t.Context(), dex)
+			require.NoErrorf(t, err, "resolveTransferDEX must not error for %q", dex)
+			assert.Equalf(t, exp, resolved, "resolveTransferDEX should resolve %q", dex)
+		})
 	}
 	_, err := e.resolveTransferDEX(t.Context(), "notadex")
 	assert.ErrorIs(t, err, errTransferDEXInvalid, "resolveTransferDEX should reject an unregistered DEX")
@@ -2810,39 +2991,46 @@ func TestResolveTransferDEX(t *testing.T) {
 	assert.Error(t, err, "resolveTransferDEX should return a registry failure")
 }
 
+//nolint:tparallel // The cases share e in order, before the later validateSendAssetRoute calls
 func TestValidateSendAssetRoute(t *testing.T) {
 	t.Parallel()
+	// The cases share e in order, and parallel cases would start only after the validateSendAssetRoute calls below
 	for _, tc := range []struct {
-		source, destination string
-		token               currency.Code
-		exp                 [3]string
+		name, source, destination string
+		token                     currency.Code
+		exp                       [3]string
 	}{
-		{destination: "spot", token: currency.USDC, exp: [3]string{"", "spot", "USDC"}},
-		{source: "spot", destination: "spot", token: currency.HYPE, exp: [3]string{"spot", "spot", "HYPE:0x0d01dc56dcaaca66ad901c959b4011ec"}},
-		{source: "xyz", destination: "", token: currency.USDC, exp: [3]string{"xyz", "", "USDC"}},
+		{name: "USDC to spot", destination: "spot", token: currency.USDC, exp: [3]string{"", "spot", "USDC"}},
+		{name: "HYPE within spot", source: "spot", destination: "spot", token: currency.HYPE, exp: [3]string{"spot", "spot", "HYPE:0x0d01dc56dcaaca66ad901c959b4011ec"}},
+		{name: "USDC from xyz", source: "xyz", destination: "", token: currency.USDC, exp: [3]string{"xyz", "", "USDC"}},
 	} {
-		sourceDEX, destinationDEX, token, tokenMetadata, err := e.validateSendAssetRoute(t.Context(), tc.source, tc.destination, tc.token)
-		require.NoErrorf(t, err, "validateSendAssetRoute must not error from %q to %q", tc.source, tc.destination)
-		require.NotNilf(t, tokenMetadata, "validateSendAssetRoute must return the token's metadata from %q to %q", tc.source, tc.destination)
-		assert.Truef(t, tokenMetadata.Name.Equal(tc.token), "validateSendAssetRoute should return %s's metadata", tc.token)
-		if mockTests {
-			assert.Equalf(t, tc.exp, [3]string{sourceDEX, destinationDEX, token}, "validateSendAssetRoute should resolve the route from %q to %q", tc.source, tc.destination)
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			sourceDEX, destinationDEX, token, tokenMetadata, err := e.validateSendAssetRoute(t.Context(), tc.source, tc.destination, tc.token)
+			require.NoErrorf(t, err, "validateSendAssetRoute must not error from %q to %q", tc.source, tc.destination)
+			require.NotNilf(t, tokenMetadata, "validateSendAssetRoute must return the token's metadata from %q to %q", tc.source, tc.destination)
+			assert.Truef(t, tokenMetadata.Name.Equal(tc.token), "validateSendAssetRoute should return %s's metadata", tc.token)
+			if mockTests {
+				assert.Equalf(t, tc.exp, [3]string{sourceDEX, destinationDEX, token}, "validateSendAssetRoute should resolve the route from %q to %q", tc.source, tc.destination)
+			}
+		})
 	}
+	// The cases share e in order, and parallel cases would start only after the validateSendAssetRoute calls below
 	for _, tc := range []struct {
-		source, destination string
-		token               currency.Code
-		err                 error
+		name, source, destination string
+		token                     currency.Code
+		err                       error
 	}{
-		{source: "notadex", token: currency.USDC, err: errTransferDEXInvalid},
-		{destination: "notadex", token: currency.USDC, err: errTransferDEXInvalid},
-		{token: currency.NewCode("NOTATOKEN"), err: errTransferTokenInvalid},
-		{destination: "xyz", token: currency.HYPE, err: errTransferTokenInvalid},
+		{name: "an unregistered source DEX", source: "notadex", token: currency.USDC, err: errTransferDEXInvalid},
+		{name: "an unregistered destination DEX", destination: "notadex", token: currency.USDC, err: errTransferDEXInvalid},
+		{name: "an unknown token", token: currency.NewCode("NOTATOKEN"), err: errTransferTokenInvalid},
+		{name: "a token that is not the DEX's collateral", destination: "xyz", token: currency.HYPE, err: errTransferTokenInvalid},
 	} {
-		sourceDEX, destinationDEX, token, tokenMetadata, err := e.validateSendAssetRoute(t.Context(), tc.source, tc.destination, tc.token)
-		assert.ErrorIsf(t, err, tc.err, "validateSendAssetRoute should reject %s from %q to %q", tc.token, tc.source, tc.destination)
-		assert.Equalf(t, [3]string{}, [3]string{sourceDEX, destinationDEX, token}, "validateSendAssetRoute should return no route for %s from %q to %q", tc.token, tc.source, tc.destination)
-		assert.Nilf(t, tokenMetadata, "validateSendAssetRoute should return no token for %s from %q to %q", tc.token, tc.source, tc.destination)
+		t.Run(tc.name, func(t *testing.T) {
+			sourceDEX, destinationDEX, token, tokenMetadata, err := e.validateSendAssetRoute(t.Context(), tc.source, tc.destination, tc.token)
+			assert.ErrorIsf(t, err, tc.err, "validateSendAssetRoute should reject %s from %q to %q", tc.token, tc.source, tc.destination)
+			assert.Equalf(t, [3]string{}, [3]string{sourceDEX, destinationDEX, token}, "validateSendAssetRoute should return no route for %s from %q to %q", tc.token, tc.source, tc.destination)
+			assert.Nilf(t, tokenMetadata, "validateSendAssetRoute should return no token for %s from %q to %q", tc.token, tc.source, tc.destination)
+		})
 	}
 	ex := newInfoServerExchange(t, map[string]string{"spotMeta": `{"tokens":[{"name":"USDC","index":0}]}`, "meta": `{`}, nil)
 	sourceDEX, destinationDEX, token, tokenMetadata, err := ex.validateSendAssetRoute(t.Context(), "", "spot", currency.USDC)
@@ -2860,31 +3048,37 @@ func TestFormatTokenTransferAmount(t *testing.T) {
 	// Summed at run time, as constants would sum exactly, so the amount carries more decimals than the token has
 	tenth, fifth := 0.1, 0.2
 	for _, tc := range []struct {
+		name   string
 		token  *SpotTokenMetadata
 		amount float64
 		exp    string
 		err    error
 	}{
-		{token: ubtc, amount: 84.9371054562, exp: "84.9371054562"},
-		{token: ueth, amount: 3.933596798, exp: "3.933596798"},
-		{token: purr, amount: 1.12345678, exp: "1.12345678"},
+		{name: "UBTC to ten decimals", token: ubtc, amount: 84.9371054562, exp: "84.9371054562"},
+		{name: "UETH to nine decimals", token: ueth, amount: 3.933596798, exp: "3.933596798"},
+		{name: "PURR to eight decimals", token: purr, amount: 1.12345678, exp: "1.12345678"},
 		// Nine places of this amount would end in its binary residue, one wei short of the amount written
-		{token: udoge, amount: 10000000.12345679, exp: "10000000.12345679"},
-		{token: ubtc, amount: tenth + fifth, exp: "0.3"},
-		{token: ubtc, amount: 0.00000000001, err: errWireNumberRounding},
-		{token: ueth, amount: 0.0000000001, err: errWireNumberRounding},
-		{token: ubtc, err: errTransferAmountInvalid},
-		{token: ubtc, amount: math.NaN(), err: errTransferAmountInvalid},
-		{token: ubtc, amount: math.Inf(1), err: errTransferAmountInvalid},
+		{name: "UDOGE as written", token: udoge, amount: 10000000.12345679, exp: "10000000.12345679"},
+		{name: "UBTC sum with more decimals than the token", token: ubtc, amount: tenth + fifth, exp: "0.3"},
+		{name: "UBTC beyond ten decimals", token: ubtc, amount: 0.00000000001, err: errWireNumberRounding},
+		{name: "UETH beyond nine decimals", token: ueth, amount: 0.0000000001, err: errWireNumberRounding},
+		{name: "no amount", token: ubtc, err: errTransferAmountInvalid},
+		{name: "an amount that is not a number", token: ubtc, amount: math.NaN(), err: errTransferAmountInvalid},
+		{name: "an infinite amount", token: ubtc, amount: math.Inf(1), err: errTransferAmountInvalid},
 	} {
-		amount, err := formatTokenTransferAmount(tc.amount, tc.token)
-		require.ErrorIsf(t, err, tc.err, "formatTokenTransferAmount must return the expected error for %v %s", tc.amount, tc.token.Name)
-		assert.Equalf(t, tc.exp, amount, "formatTokenTransferAmount should format %v %s to the token's decimals, eight at least", tc.amount, tc.token.Name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			amount, err := formatTokenTransferAmount(tc.amount, tc.token)
+			require.ErrorIsf(t, err, tc.err, "formatTokenTransferAmount must return the expected error for %v %s", tc.amount, tc.token.Name)
+			assert.Equalf(t, tc.exp, amount, "formatTokenTransferAmount should format %v %s to the token's decimals, eight at least", tc.amount, tc.token.Name)
+		})
 	}
 }
 
 // TestTokenTransferDecimals sends each token transfer of a UBTC balance as a portfolio margin account held it on 26
 // October, whose ten decimals, which UBTC's wei decimals allow, Hyperliquid accepts
+//
+//nolint:tparallel // The cases share ex and amounts in turn
 func TestTokenTransferDecimals(t *testing.T) {
 	t.Parallel()
 	var amounts []string
@@ -2899,6 +3093,7 @@ func TestTokenTransferDecimals(t *testing.T) {
 	})
 	const amount = 84.9371054562
 	ubtc := currency.NewCode("UBTC")
+	// The cases share ex and amounts in turn, so each also checks that a send keeps nothing from the last
 	for name, send := range map[string]func() error{
 		"SendAsset": func() error {
 			_, err := ex.SendAsset(t.Context(), &SendAssetRequest{Destination: testTraderAddress, SourceDEX: "spot", DestinationDEX: "spot", Token: ubtc, Amount: amount})
@@ -2917,8 +3112,10 @@ func TestTokenTransferDecimals(t *testing.T) {
 			return err
 		},
 	} {
-		amounts = nil
-		require.NoErrorf(t, send(), "%s must not error for a UBTC amount of ten decimals", name)
-		assert.Equalf(t, []string{"UBTC:0x8f254b963e8468305d409b33aa137c67 84.9371054562"}, amounts, "%s should sign the amount with UBTC's ten decimals", name)
+		t.Run(name, func(t *testing.T) {
+			amounts = nil
+			require.NoErrorf(t, send(), "%s must not error for a UBTC amount of ten decimals", name)
+			assert.Equalf(t, []string{"UBTC:0x8f254b963e8468305d409b33aa137c67 84.9371054562"}, amounts, "%s should sign the amount with UBTC's ten decimals", name)
+		})
 	}
 }

@@ -2407,6 +2407,20 @@ func (e *Exchange) convertUserLedgerUpdate(account string, update *UserLedgerUpd
 	case update.Delta.SourceDEX != "" || update.Delta.DestinationDEX != "":
 		description = deltaType + ": " + ledgerDEXName(update.Delta.SourceDEX) + " to " + ledgerDEXName(update.Delta.DestinationDEX)
 	}
+	// A transfer's user sends to its destination; a vault withdrawal's or leader commission's user is the account paid, and
+	// a withdrawal, distribution, deposit or creation names the vault, which pays or is paid
+	from, to := update.Delta.User, update.Delta.Destination
+	switch deltaType {
+	case "vaultWithdraw":
+		from, to = update.Delta.Vault, update.Delta.User
+	case "vaultLeaderCommission":
+		// The leader is paid out of a withdrawal the update does not name
+		from, to = "", update.Delta.User
+	case "vaultDistribution":
+		from = update.Delta.Vault
+	case "vaultCreate", "vaultDeposit":
+		to = update.Delta.Vault
+	}
 	entry := exchange.FundingHistory{
 		ExchangeName:      e.Name,
 		Status:            "processed",
@@ -2416,8 +2430,8 @@ func (e *Exchange) convertUserLedgerUpdate(account string, update *UserLedgerUpd
 		Currency:          ccy.String(),
 		Amount:            amount,
 		TransferType:      deltaType,
-		CryptoToAddress:   update.Delta.Destination,
-		CryptoFromAddress: update.Delta.User,
+		CryptoToAddress:   to,
+		CryptoFromAddress: from,
 		CryptoTxID:        update.Hash,
 	}
 	entries := []exchange.FundingHistory{entry}

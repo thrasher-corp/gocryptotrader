@@ -256,10 +256,16 @@ func TestGetTokenDetails(t *testing.T) {
 func TestValidateTokenID(t *testing.T) {
 	t.Parallel()
 	for _, tokenID := range []string{"0x6d1e7cde53ba9467b783cb7c530ce054", "0X6D1E7CDE53BA9467B783CB7C530CE054"} {
-		assert.NoErrorf(t, validateTokenID(tokenID), "validateTokenID should accept %s", tokenID)
+		t.Run(subtestName(tokenID), func(t *testing.T) {
+			t.Parallel()
+			assert.NoErrorf(t, validateTokenID(tokenID), "validateTokenID should accept %s", tokenID)
+		})
 	}
 	for _, tokenID := range []string{"", "USDC", "0x6d1e7cde53ba9467b783cb7c530ce05", "0x6d1e7cde53ba9467b783cb7c530ce0544", "1x6d1e7cde53ba9467b783cb7c530ce054", "0x6d1e7cde53ba9467b783cb7c530ce05g"} {
-		assert.ErrorIsf(t, validateTokenID(tokenID), errInvalidTokenID, "validateTokenID should reject %q", tokenID)
+		t.Run(subtestName(tokenID), func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, validateTokenID(tokenID), errInvalidTokenID, "validateTokenID should reject %q", tokenID)
+		})
 	}
 }
 
@@ -491,13 +497,19 @@ func TestQuestionStateUnmarshalJSON(t *testing.T) {
 		`{"active":823}`:  {Question: 823, State: QuestionStateActive},
 		`{"settled":390}`: {Question: 390, State: QuestionStateSettled},
 	} {
-		var state QuestionState
-		require.NoErrorf(t, json.Unmarshal([]byte(data), &state), "Unmarshal must not error for %s", data)
-		assert.Equalf(t, exp, state, "QuestionState should decode %s", data)
+		t.Run(subtestName(data), func(t *testing.T) {
+			t.Parallel()
+			var state QuestionState
+			require.NoErrorf(t, json.Unmarshal([]byte(data), &state), "Unmarshal must not error for %s", data)
+			assert.Equalf(t, exp, state, "QuestionState should decode %s", data)
+		})
 	}
 	for _, data := range []string{`{}`, `{"active":1,"settled":2}`, `[]`, `{"active":"1"}`} {
-		var state QuestionState
-		assert.ErrorIsf(t, json.Unmarshal([]byte(data), &state), errInvalidQuestionState, "QuestionState should reject %s", data)
+		t.Run(subtestName(data), func(t *testing.T) {
+			t.Parallel()
+			var state QuestionState
+			assert.ErrorIsf(t, json.Unmarshal([]byte(data), &state), errInvalidQuestionState, "QuestionState should reject %s", data)
+		})
 	}
 }
 
@@ -508,9 +520,12 @@ func TestOutcomeTemplateRoleUnmarshalJSON(t *testing.T) {
 		`{"standaloneOutcome":{"sideNames":["{shortNameA}","{shortNameB}"]}}`: {StandaloneOutcome: &StandaloneOutcomeRole{SideNames: []string{"{shortNameA}", "{shortNameB}"}}},
 		`{"questionOutcome":{"parent":"sportsTournamentWinner"}}`:             {QuestionOutcome: &QuestionOutcomeRole{Parent: "sportsTournamentWinner"}},
 	} {
-		var role OutcomeTemplateRole
-		require.NoErrorf(t, json.Unmarshal([]byte(data), &role), "Unmarshal must not error for %s", data)
-		assert.Equalf(t, exp, role, "OutcomeTemplateRole should decode %s", data)
+		t.Run(subtestName(data), func(t *testing.T) {
+			t.Parallel()
+			var role OutcomeTemplateRole
+			require.NoErrorf(t, json.Unmarshal([]byte(data), &role), "Unmarshal must not error for %s", data)
+			assert.Equalf(t, exp, role, "OutcomeTemplateRole should decode %s", data)
+		})
 	}
 	for _, data := range []string{
 		`"standaloneOutcome"`,
@@ -524,8 +539,11 @@ func TestOutcomeTemplateRoleUnmarshalJSON(t *testing.T) {
 		`{"standaloneOutcome":{"sideNames":["Yes","No"]},"questionOutcome":{"parent":"sportsTournamentWinner"}}`,
 		`{"standaloneOutcome":{"sideNames":["Yes","No"]},"unknown":{}}`,
 	} {
-		var role OutcomeTemplateRole
-		assert.ErrorIsf(t, json.Unmarshal([]byte(data), &role), errInvalidOutcomeTemplateRole, "OutcomeTemplateRole should reject %s", data)
+		t.Run(subtestName(data), func(t *testing.T) {
+			t.Parallel()
+			var role OutcomeTemplateRole
+			assert.ErrorIsf(t, json.Unmarshal([]byte(data), &role), errInvalidOutcomeTemplateRole, "OutcomeTemplateRole should reject %s", data)
+		})
 	}
 }
 

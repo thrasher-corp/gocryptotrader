@@ -1,6 +1,7 @@
 package hyperliquid
 
 import (
+	"cmp"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -134,6 +135,14 @@ func setTestCredentials(ex *Exchange, credentials *accounts.Credentials) {
 	ex.SetCredentials(credentials)
 }
 
+// subtestName names a subtest after a case's input, which can be empty
+func subtestName(s string) string {
+	if s == "" {
+		return "empty"
+	}
+	return s
+}
+
 // testOpenOrder is the open order the mock responses return for testTraderAddress
 func testOpenOrder() FrontendOpenOrderResponse {
 	return FrontendOpenOrderResponse{
@@ -254,34 +263,39 @@ func TestSendHTTPRequest(t *testing.T) {
 	assert.ErrorIs(t, err, exchange.ErrEndpointPathNotFound, "SendHTTPRequest should error without an endpoint")
 }
 
+//nolint:tparallel // The cases send payload in order before the requests after them, which send it too
 func TestSendExchangeRequest(t *testing.T) {
 	t.Parallel()
 	payload := &SignedActionRequest{Action: CancelAction{Type: "cancel"}, Nonce: 1}
+	// The cases send payload, as the requests after them do through sendExchangeRequest, so they run in order before them
 	for _, tc := range []struct {
+		name    string
 		body    string
 		exp     json.RawMessage
 		err     error
 		message string
 	}{
-		{body: `{"status":"ok","response":{"type":"default"}}`, exp: json.RawMessage(`{"type":"default"}`)},
-		{body: `{"status":"err","response":"User or API Wallet does not exist."}`, err: errActionResponse, message: "User or API Wallet does not exist."},
-		{body: `{"status":"err","response":{"reason":"rejected"}}`, err: errActionResponse, message: `{"reason":"rejected"}`},
-		{body: `{"status":"err","response":null}`, err: errActionResponse, message: "exchange action failed: err"},
-		{body: `null`, err: common.ErrNoResponse},
+		{name: "an accepted action", body: `{"status":"ok","response":{"type":"default"}}`, exp: json.RawMessage(`{"type":"default"}`)},
+		{name: "a signer rejection", body: `{"status":"err","response":"User or API Wallet does not exist."}`, err: errActionResponse, message: "User or API Wallet does not exist."},
+		{name: "a rejection object", body: `{"status":"err","response":{"reason":"rejected"}}`, err: errActionResponse, message: `{"reason":"rejected"}`},
+		{name: "a rejection without a response", body: `{"status":"err","response":null}`, err: errActionResponse, message: "exchange action failed: err"},
+		{name: "a null response", body: `null`, err: common.ErrNoResponse},
 	} {
-		ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			assert.Equal(t, http.MethodPost, r.Method, "sendExchangeRequest should send a POST request")
-			assert.Equal(t, "/exchange", r.URL.Path, "sendExchangeRequest should request the exchange endpoint")
-			assert.Equal(t, "application/json", r.Header.Get("Content-Type"), "sendExchangeRequest should send a JSON body")
-			_, err := w.Write([]byte(tc.body))
-			assert.NoError(t, err, "Writing the response should not error")
-		}))
-		response, err := ex.sendExchangeRequest(t.Context(), exchangeActionEndpointLimit(1), payload)
-		require.ErrorIsf(t, err, tc.err, "sendExchangeRequest must return the expected error for %s", tc.body)
-		if tc.message != "" {
-			assert.ErrorContainsf(t, err, tc.message, "sendExchangeRequest should report the rejection for %s", tc.body)
-		}
-		assert.Equalf(t, tc.exp, response, "sendExchangeRequest should return the response payload for %s", tc.body)
+		t.Run(tc.name, func(t *testing.T) {
+			ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, http.MethodPost, r.Method, "sendExchangeRequest should send a POST request")
+				assert.Equal(t, "/exchange", r.URL.Path, "sendExchangeRequest should request the exchange endpoint")
+				assert.Equal(t, "application/json", r.Header.Get("Content-Type"), "sendExchangeRequest should send a JSON body")
+				_, err := w.Write([]byte(tc.body))
+				assert.NoError(t, err, "Writing the response should not error")
+			}))
+			response, err := ex.sendExchangeRequest(t.Context(), exchangeActionEndpointLimit(1), payload)
+			require.ErrorIsf(t, err, tc.err, "sendExchangeRequest must return the expected error for %s", tc.body)
+			if tc.message != "" {
+				assert.ErrorContainsf(t, err, tc.message, "sendExchangeRequest should report the rejection for %s", tc.body)
+			}
+			assert.Equalf(t, tc.exp, response, "sendExchangeRequest should return the response payload for %s", tc.body)
+		})
 	}
 
 	_, err := newUnavailableServerExchange(t).sendExchangeRequest(t.Context(), exchangeActionEndpointLimit(1), payload)
@@ -300,46 +314,52 @@ func TestSendExchangeRequest(t *testing.T) {
 func TestActionResponseData(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
+		name           string
 		body           string
 		exp            json.RawMessage
 		err            error
 		signerRejected bool
 		message        string
 	}{
-		{body: `null`, err: common.ErrNoResponse},
-		{body: `{"status":"ok","response":{"type":"cancel","data":{"statuses":["success"]}}}`, exp: json.RawMessage(`{"type":"cancel","data":{"statuses":["success"]}}`)},
-		{body: `{"status":"err","response":"Order has invalid size."}`, err: errActionResponse, message: "exchange action failed: Order has invalid size."},
-		{body: `{"status":"err","response":{"reason":"rejected"}}`, err: errActionResponse, message: `exchange action failed: {"reason":"rejected"}`},
-		{body: `{"status":"err","response":null}`, err: errActionResponse, message: "exchange action failed: err"},
-		{body: `{"status":"err","response":""}`, err: errActionResponse, message: "exchange action failed: err"},
-		{body: `{"status":"err","response":"null"}`, err: errActionResponse, message: "exchange action failed: err"},
-		{body: `{"status":"err"}`, err: errActionResponse, message: "exchange action failed: err"},
+		{name: "a null response", body: `null`, err: common.ErrNoResponse},
+		{name: "an accepted action", body: `{"status":"ok","response":{"type":"cancel","data":{"statuses":["success"]}}}`, exp: json.RawMessage(`{"type":"cancel","data":{"statuses":["success"]}}`)},
+		{name: "a rejection message", body: `{"status":"err","response":"Order has invalid size."}`, err: errActionResponse, message: "exchange action failed: Order has invalid size."},
+		{name: "a rejection object", body: `{"status":"err","response":{"reason":"rejected"}}`, err: errActionResponse, message: `exchange action failed: {"reason":"rejected"}`},
+		{name: "a null rejection", body: `{"status":"err","response":null}`, err: errActionResponse, message: "exchange action failed: err"},
+		{name: "an empty rejection", body: `{"status":"err","response":""}`, err: errActionResponse, message: "exchange action failed: err"},
+		{name: "a rejection reading null", body: `{"status":"err","response":"null"}`, err: errActionResponse, message: "exchange action failed: err"},
+		{name: "a rejection without a response", body: `{"status":"err"}`, err: errActionResponse, message: "exchange action failed: err"},
 		{
+			name:           "an unknown signer",
 			body:           `{"status":"err","response":"L1 error: User or API Wallet 0x0123456789abcdef0123456789abcdef01234567 does not exist."}`,
 			err:            errActionResponse,
 			signerRejected: true,
 			message:        "exchange action failed: exchange rejected the signer: L1 error: User or API Wallet 0x0123456789abcdef0123456789abcdef01234567 does not exist.",
 		},
 		{
+			name:           "an account without deposits",
 			body:           `{"status":"err","response":"Must deposit before performing actions. User: 0x0123456789abcdef0123456789abcdef01234567"}`,
 			err:            errActionResponse,
 			signerRejected: true,
 			message:        "exchange action failed: exchange rejected the signer: Must deposit before performing actions. User: 0x0123456789abcdef0123456789abcdef01234567",
 		},
 	} {
-		var resp *ExchangeActionResponse
-		require.NoErrorf(t, json.Unmarshal([]byte(tc.body), &resp), "Unmarshal must not error for %s", tc.body)
-		data, err := actionResponseData(resp)
-		require.ErrorIsf(t, err, tc.err, "actionResponseData must return the expected error for %s", tc.body)
-		if tc.signerRejected {
-			assert.ErrorIsf(t, err, errSignerRejected, "actionResponseData should identify the signer rejection %s", tc.body)
-		} else {
-			assert.NotErrorIsf(t, err, errSignerRejected, "actionResponseData should not treat %s as a signer rejection", tc.body)
-		}
-		if tc.message != "" {
-			assert.EqualErrorf(t, err, tc.message, "actionResponseData should report the rejection of %s", tc.body)
-		}
-		assert.Equalf(t, tc.exp, data, "actionResponseData should return the accepted action's data for %s", tc.body)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var resp *ExchangeActionResponse
+			require.NoErrorf(t, json.Unmarshal([]byte(tc.body), &resp), "Unmarshal must not error for %s", tc.body)
+			data, err := actionResponseData(resp)
+			require.ErrorIsf(t, err, tc.err, "actionResponseData must return the expected error for %s", tc.body)
+			if tc.signerRejected {
+				assert.ErrorIsf(t, err, errSignerRejected, "actionResponseData should identify the signer rejection %s", tc.body)
+			} else {
+				assert.NotErrorIsf(t, err, errSignerRejected, "actionResponseData should not treat %s as a signer rejection", tc.body)
+			}
+			if tc.message != "" {
+				assert.EqualErrorf(t, err, tc.message, "actionResponseData should report the rejection of %s", tc.body)
+			}
+			assert.Equalf(t, tc.exp, data, "actionResponseData should return the accepted action's data for %s", tc.body)
+		})
 	}
 }
 
@@ -425,31 +445,64 @@ func TestSendSignedAction(t *testing.T) {
 	assert.Zero(t, captured.Nonce, "SendSignedAction should not send a websocket action to the exchange endpoint")
 
 	for _, tc := range []struct {
+		name                string
 		response            string
 		signerRejected      bool
 		expAuthorityRetains bool
 	}{
-		{response: `{"status":"err","response":"Insufficient margin."}`, expAuthorityRetains: true},
-		{response: `{"status":"err","response":"L1 error: User or API Wallet 0x0123456789abcdef0123456789abcdef01234567 does not exist."}`, signerRejected: true},
-		{response: `{"status":"err","response":"Must deposit before performing actions. User: 0x0123456789abcdef0123456789abcdef01234567"}`, signerRejected: true},
+		{name: "insufficient margin", response: `{"status":"err","response":"Insufficient margin."}`, expAuthorityRetains: true},
+		{name: "an unknown signer", response: `{"status":"err","response":"L1 error: User or API Wallet 0x0123456789abcdef0123456789abcdef01234567 does not exist."}`, signerRejected: true},
+		{name: "an account without deposits", response: `{"status":"err","response":"Must deposit before performing actions. User: 0x0123456789abcdef0123456789abcdef01234567"}`, signerRejected: true},
 	} {
-		var actionRequests atomic.Int32
-		rejected, _ := newRoleServerExchange(t, map[string]string{testAccountAddress: `{"role":"user"}`}, nil, func(w http.ResponseWriter, _ *http.Request) {
-			actionRequests.Add(1)
-			_, err := w.Write([]byte(tc.response))
-			assert.NoError(t, err, "Writing the action response should not error")
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var actionRequests atomic.Int32
+			rejected, _ := newRoleServerExchange(t, map[string]string{testAccountAddress: `{"role":"user"}`}, nil, func(w http.ResponseWriter, _ *http.Request) {
+				actionRequests.Add(1)
+				_, err := w.Write([]byte(tc.response))
+				assert.NoError(t, err, "Writing the action response should not error")
+			})
+			setTestCredentials(rejected, &accounts.Credentials{Key: testAccountAddress, Secret: testPrivateKey})
+			_, err := rejected.SendSignedAction(t.Context(), action, &L1ActionOptionsRequest{BatchLength: 1})
+			assert.ErrorIsf(t, err, errActionResponse, "SendSignedAction should report the rejected action %s", tc.response)
+			if tc.signerRejected {
+				assert.ErrorIsf(t, err, errSignerRejected, "SendSignedAction should identify the signer rejection %s", tc.response)
+			} else {
+				assert.NotErrorIsf(t, err, errSignerRejected, "SendSignedAction should not treat %s as a signer rejection", tc.response)
+			}
+			assert.Equalf(t, tc.expAuthorityRetains, authorityCached(t, rejected), "SendSignedAction should revalidate authority only after a signer rejection, not after %s", tc.response)
+			assert.Equalf(t, int32(1), actionRequests.Load(), "SendSignedAction should send the action once for %s", tc.response)
 		})
-		setTestCredentials(rejected, &accounts.Credentials{Key: testAccountAddress, Secret: testPrivateKey})
-		_, err = rejected.SendSignedAction(t.Context(), action, &L1ActionOptionsRequest{BatchLength: 1})
-		assert.ErrorIsf(t, err, errActionResponse, "SendSignedAction should report the rejected action %s", tc.response)
-		if tc.signerRejected {
-			assert.ErrorIsf(t, err, errSignerRejected, "SendSignedAction should identify the signer rejection %s", tc.response)
-		} else {
-			assert.NotErrorIsf(t, err, errSignerRejected, "SendSignedAction should not treat %s as a signer rejection", tc.response)
-		}
-		assert.Equalf(t, tc.expAuthorityRetains, authorityCached(t, rejected), "SendSignedAction should revalidate authority only after a signer rejection, not after %s", tc.response)
-		assert.Equalf(t, int32(1), actionRequests.Load(), "SendSignedAction should send the action once for %s", tc.response)
 	}
+
+	// The exchange endpoint counts what it receives, so the case shows the websocket option bypasses it, and that a signer
+	// rejected over the websocket invalidates the cached authority
+	t.Run("over the websocket instead of REST", func(t *testing.T) {
+		t.Parallel()
+		var exchangeRequests atomic.Int32
+		ex := newTradingServerExchange(t, nil, func(map[string]any) string {
+			exchangeRequests.Add(1)
+			return defaultActionResponse
+		})
+		connection := &websocketConnectionFixture{exchange: ex, reply: replyToPost(`{"type":"action","payload":{"status":"ok","response":{"type":"default"}}}`)}
+		ex.websocketPostConnection = connection
+		response, err := ex.SendSignedAction(t.Context(), EmptyAction{Type: "noop"}, &L1ActionOptionsRequest{Websocket: true})
+		require.NoError(t, err, "SendSignedAction must not error over the websocket")
+		assert.JSONEq(t, `{"type":"default"}`, string(response), "SendSignedAction should return the websocket response")
+		assertWebsocketActionPost(t, connection.sentRequests(), `{"type":"noop"}`)
+		assert.True(t, authorityCached(t, ex), "SendSignedAction should cache the validated authority")
+
+		connection.reply = replyToPost(`{"type":"action","payload":{"status":"err","response":"User or API Wallet ` + testAccountAddress + ` does not exist."}}`)
+		_, err = ex.SendSignedAction(t.Context(), EmptyAction{Type: "noop"}, &L1ActionOptionsRequest{Websocket: true})
+		assert.ErrorIs(t, err, errSignerRejected, "SendSignedAction should report a signer rejected over the websocket")
+		assert.False(t, authorityCached(t, ex), "SendSignedAction should invalidate the cached authority after a signer rejection over the websocket")
+
+		connection.reply = replyToPost(`{"type":"action","payload":{"status":"err","response":"Order has invalid price."}}`)
+		_, err = ex.SendSignedAction(t.Context(), EmptyAction{Type: "noop"}, &L1ActionOptionsRequest{Websocket: true})
+		assert.ErrorIs(t, err, errActionResponse, "SendSignedAction should return an action rejected over the websocket")
+		assert.True(t, authorityCached(t, ex), "SendSignedAction should revalidate the authority and keep it after another rejection")
+		assert.Zero(t, exchangeRequests.Load(), "SendSignedAction should not post to the exchange endpoint")
+	})
 }
 
 func TestGetAllMids(t *testing.T) {
@@ -477,11 +530,13 @@ func TestGetAllMids(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetAllMids should return a request failure")
 }
 
+//nolint:tparallel // The cases share e in order, so each also checks that a call keeps nothing from the last
 func TestGetOpenOrders(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetOpenOrders(t.Context(), "invalid", "")
 	require.ErrorIs(t, err, errInvalidAddress, "GetOpenOrders must reject an invalid address")
 
+	// The cases share e in order, so each also checks that a call keeps nothing from the last
 	for _, tc := range []struct {
 		dex string
 		exp []BasicOrderResponse
@@ -497,13 +552,15 @@ func TestGetOpenOrders(t *testing.T) {
 			exp: []BasicOrderResponse{{Coin: "xyz:XYZ100", Side: "B", LimitPrice: 31100, Size: 0.25, OrderID: 566598803100, Timestamp: milli(1791279130000), OriginalSize: 0.3, ClientOrderID: "0x00000000000000000b831bfccf6ef300"}},
 		},
 	} {
-		result, err := e.GetOpenOrders(t.Context(), testTraderAddress, tc.dex)
-		require.NoErrorf(t, err, "GetOpenOrders must not error for DEX %q", tc.dex)
-		if mockTests {
-			assert.Equalf(t, tc.exp, result, "GetOpenOrders should decode every order field for DEX %q", tc.dex)
-		} else if len(result) > 0 {
-			assert.NotZerof(t, result[0].OrderID, "GetOpenOrders should return order IDs for DEX %q", tc.dex)
-		}
+		t.Run(subtestName(tc.dex), func(t *testing.T) {
+			result, err := e.GetOpenOrders(t.Context(), testTraderAddress, tc.dex)
+			require.NoErrorf(t, err, "GetOpenOrders must not error for DEX %q", tc.dex)
+			if mockTests {
+				assert.Equalf(t, tc.exp, result, "GetOpenOrders should decode every order field for DEX %q", tc.dex)
+			} else if len(result) > 0 {
+				assert.NotZerof(t, result[0].OrderID, "GetOpenOrders should return order IDs for DEX %q", tc.dex)
+			}
+		})
 	}
 }
 
@@ -521,25 +578,30 @@ func TestGetFrontendOpenOrders(t *testing.T) {
 	}
 }
 
+//nolint:tparallel // The cases share e in order, so each also checks that a call keeps nothing from the last
 func TestGetUserFills(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetUserFills(t.Context(), "invalid", false)
 	require.ErrorIs(t, err, errInvalidAddress, "GetUserFills must reject an invalid address")
 
+	// The cases share e in order, so each also checks that a call keeps nothing from the last
 	for _, tc := range []struct {
+		name            string
 		aggregateByTime bool
 		exp             []FillResponse
 	}{
-		{exp: []FillResponse{testTakerFill(), testMakerFill()}},
-		{aggregateByTime: true, exp: []FillResponse{testTakerFill()}},
+		{name: "unaggregated", exp: []FillResponse{testTakerFill(), testMakerFill()}},
+		{name: "aggregated by time", aggregateByTime: true, exp: []FillResponse{testTakerFill()}},
 	} {
-		result, err := e.GetUserFills(t.Context(), testTraderAddress, tc.aggregateByTime)
-		require.NoErrorf(t, err, "GetUserFills must not error when aggregating by time is %t", tc.aggregateByTime)
-		if mockTests {
-			assert.Equalf(t, tc.exp, result, "GetUserFills should decode every fill field when aggregating by time is %t", tc.aggregateByTime)
-		} else {
-			assert.NotEmptyf(t, result, "GetUserFills should return the trader's fills when aggregating by time is %t", tc.aggregateByTime)
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := e.GetUserFills(t.Context(), testTraderAddress, tc.aggregateByTime)
+			require.NoErrorf(t, err, "GetUserFills must not error when aggregating by time is %t", tc.aggregateByTime)
+			if mockTests {
+				assert.Equalf(t, tc.exp, result, "GetUserFills should decode every fill field when aggregating by time is %t", tc.aggregateByTime)
+			} else {
+				assert.NotEmptyf(t, result, "GetUserFills should return the trader's fills when aggregating by time is %t", tc.aggregateByTime)
+			}
+		})
 	}
 }
 
@@ -547,30 +609,41 @@ func TestGetUserFillsByTime(t *testing.T) {
 	t.Parallel()
 	start, end := getTime()
 	for _, tc := range []struct {
-		arg *UserFillsByTimeRequest
-		err error
+		name string
+		arg  *UserFillsByTimeRequest
+		err  error
 	}{
-		{err: common.ErrNilPointer},
-		{arg: &UserFillsByTimeRequest{User: "invalid", StartTime: start}, err: errInvalidAddress},
-		{arg: &UserFillsByTimeRequest{User: testTraderAddress}, err: common.ErrDateUnset},
-		{arg: &UserFillsByTimeRequest{User: testTraderAddress, StartTime: time.Unix(0, 0)}, err: common.ErrDateUnset},
-		{arg: &UserFillsByTimeRequest{User: testTraderAddress, StartTime: end, EndTime: start}, err: common.ErrStartAfterEnd},
+		{name: "nil", err: common.ErrNilPointer},
+		{name: "an invalid user", arg: &UserFillsByTimeRequest{User: "invalid", StartTime: start}, err: errInvalidAddress},
+		{name: "no start time", arg: &UserFillsByTimeRequest{User: testTraderAddress}, err: common.ErrDateUnset},
+		{name: "a start at the Unix epoch", arg: &UserFillsByTimeRequest{User: testTraderAddress, StartTime: time.Unix(0, 0)}, err: common.ErrDateUnset},
+		{name: "a start after the end", arg: &UserFillsByTimeRequest{User: testTraderAddress, StartTime: end, EndTime: start}, err: common.ErrStartAfterEnd},
 	} {
-		_, err := e.GetUserFillsByTime(t.Context(), tc.arg)
-		require.ErrorIsf(t, err, tc.err, "GetUserFillsByTime must reject %+v", tc.arg)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := e.GetUserFillsByTime(t.Context(), tc.arg)
+			require.ErrorIsf(t, err, tc.err, "GetUserFillsByTime must reject %+v", tc.arg)
+		})
 	}
 
-	for _, arg := range []*UserFillsByTimeRequest{
-		{User: testTraderAddress, StartTime: start, EndTime: end, AggregateByTime: true},
-		{User: testTraderAddress, StartTime: start},
+	// The cases share e in order, so each also checks that a call keeps nothing from the last
+	for _, tc := range []struct {
+		name string
+		arg  *UserFillsByTimeRequest
+	}{
+		{name: "a range aggregated by time", arg: &UserFillsByTimeRequest{User: testTraderAddress, StartTime: start, EndTime: end, AggregateByTime: true}},
+		{name: "no end time", arg: &UserFillsByTimeRequest{User: testTraderAddress, StartTime: start}},
 	} {
-		result, err := e.GetUserFillsByTime(t.Context(), arg)
-		require.NoErrorf(t, err, "GetUserFillsByTime must not error for %+v", arg)
-		if mockTests {
-			assert.Equalf(t, []FillResponse{testMakerFill(), testTakerFill()}, result, "GetUserFillsByTime should decode every fill, oldest first, for %+v", arg)
-		} else if len(result) > 1 {
-			assert.Falsef(t, result[1].Time.Time().Before(result[0].Time.Time()), "GetUserFillsByTime should return fills oldest first for %+v", arg)
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			arg := tc.arg
+			result, err := e.GetUserFillsByTime(t.Context(), arg)
+			require.NoErrorf(t, err, "GetUserFillsByTime must not error for %+v", arg)
+			if mockTests {
+				assert.Equalf(t, []FillResponse{testMakerFill(), testTakerFill()}, result, "GetUserFillsByTime should decode every fill, oldest first, for %+v", arg)
+			} else if len(result) > 1 {
+				assert.Falsef(t, result[1].Time.Time().Before(result[0].Time.Time()), "GetUserFillsByTime should return fills oldest first for %+v", arg)
+			}
+		})
 	}
 }
 
@@ -594,34 +667,42 @@ func TestGetUserRateLimit(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetUserRateLimit should return a request failure")
 }
 
+//nolint:tparallel // The cases run in order before the requests after them, which call GetOrderStatus too
 func TestGetOrderStatus(t *testing.T) {
 	t.Parallel()
+	// The requests after the loop, the next loop's among them, call GetOrderStatus too, so the cases run in order before them
 	for _, tc := range []struct {
-		arg *OrderStatusRequest
-		err error
+		name string
+		arg  *OrderStatusRequest
+		err  error
 	}{
-		{err: common.ErrNilPointer},
-		{arg: &OrderStatusRequest{User: "invalid", OrderID: 1}, err: errInvalidAddress},
-		{arg: &OrderStatusRequest{User: testTraderAddress}, err: order.ErrOrderIDNotSet},
-		{arg: &OrderStatusRequest{User: testTraderAddress, OrderID: 1, ClientOrderID: testClientOrderID}, err: errOrderIdentifiersConflict},
-		{arg: &OrderStatusRequest{User: testTraderAddress, ClientOrderID: "0x1"}, err: errClientOrderIDInvalid},
+		{name: "nil", err: common.ErrNilPointer},
+		{name: "an invalid user", arg: &OrderStatusRequest{User: "invalid", OrderID: 1}, err: errInvalidAddress},
+		{name: "no order ID", arg: &OrderStatusRequest{User: testTraderAddress}, err: order.ErrOrderIDNotSet},
+		{name: "both order IDs", arg: &OrderStatusRequest{User: testTraderAddress, OrderID: 1, ClientOrderID: testClientOrderID}, err: errOrderIdentifiersConflict},
+		{name: "an invalid client order ID", arg: &OrderStatusRequest{User: testTraderAddress, ClientOrderID: "0x1"}, err: errClientOrderIDInvalid},
 	} {
-		_, err := e.GetOrderStatus(t.Context(), tc.arg)
-		require.ErrorIsf(t, err, tc.err, "GetOrderStatus must reject %+v", tc.arg)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.GetOrderStatus(t.Context(), tc.arg)
+			require.ErrorIsf(t, err, tc.err, "GetOrderStatus must reject %+v", tc.arg)
+		})
 	}
 
+	// The requests after the loop call GetOrderStatus too, so the cases run in order before them
 	for _, arg := range []*OrderStatusRequest{
 		{User: testTraderAddress, OrderID: testOrderID},
 		{User: testTraderAddress, ClientOrderID: testClientOrderID},
 	} {
-		result, err := e.GetOrderStatus(t.Context(), arg)
-		require.NoErrorf(t, err, "GetOrderStatus must not error for %+v", arg)
-		if mockTests {
-			exp := &OrderStatusResponse{Status: "order", Order: &HistoricalOrderResponse{Order: testOpenOrder(), Status: "open", StatusTimestamp: milli(1791275930650)}}
-			assert.Equalf(t, exp, result, "GetOrderStatus should decode the order for %+v", arg)
-		} else {
-			assert.Containsf(t, []string{"order", "unknownOid"}, result.Status, "GetOrderStatus should return a known status for %+v", arg)
-		}
+		t.Run("order "+cmp.Or(arg.ClientOrderID, strconv.FormatUint(arg.OrderID, 10)), func(t *testing.T) {
+			result, err := e.GetOrderStatus(t.Context(), arg)
+			require.NoErrorf(t, err, "GetOrderStatus must not error for %+v", arg)
+			if mockTests {
+				exp := &OrderStatusResponse{Status: "order", Order: &HistoricalOrderResponse{Order: testOpenOrder(), Status: "open", StatusTimestamp: milli(1791275930650)}}
+				assert.Equalf(t, exp, result, "GetOrderStatus should decode the order for %+v", arg)
+			} else {
+				assert.Containsf(t, []string{"order", "unknownOid"}, result.Status, "GetOrderStatus should return a known status for %+v", arg)
+			}
+		})
 	}
 
 	result, err := e.GetOrderStatus(t.Context(), &OrderStatusRequest{User: testTraderAddress, OrderID: 1})
@@ -634,21 +715,26 @@ func TestGetOrderStatus(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetOrderStatus should return a request failure")
 }
 
+//nolint:tparallel // The cases run in order before the requests after them, which call GetL2Book too
 func TestGetL2Book(t *testing.T) {
 	t.Parallel()
+	// The requests after the loop call GetL2Book too, so the cases run in order before them
 	for _, tc := range []struct {
-		arg *L2BookRequest
-		err error
+		name string
+		arg  *L2BookRequest
+		err  error
 	}{
-		{err: common.ErrNilPointer},
-		{arg: &L2BookRequest{Coin: " "}, err: errCoinRequired},
-		{arg: &L2BookRequest{Coin: "BTC", NumberOfSignificantFigures: 1}, err: errInvalidSignificantFigures},
-		{arg: &L2BookRequest{Coin: "BTC", NumberOfSignificantFigures: 4, Mantissa: 2}, err: errInvalidMantissa},
-		{arg: &L2BookRequest{Coin: "BTC", NumberOfSignificantFigures: 5, Mantissa: 1}, err: errInvalidMantissa},
-		{arg: &L2BookRequest{Coin: "BTC", NumberOfSignificantFigures: 5, Mantissa: 3}, err: errInvalidMantissa},
+		{name: "nil", err: common.ErrNilPointer},
+		{name: "a blank coin", arg: &L2BookRequest{Coin: " "}, err: errCoinRequired},
+		{name: "one significant figure", arg: &L2BookRequest{Coin: "BTC", NumberOfSignificantFigures: 1}, err: errInvalidSignificantFigures},
+		{name: "a mantissa with four significant figures", arg: &L2BookRequest{Coin: "BTC", NumberOfSignificantFigures: 4, Mantissa: 2}, err: errInvalidMantissa},
+		{name: "mantissa 1", arg: &L2BookRequest{Coin: "BTC", NumberOfSignificantFigures: 5, Mantissa: 1}, err: errInvalidMantissa},
+		{name: "mantissa 3", arg: &L2BookRequest{Coin: "BTC", NumberOfSignificantFigures: 5, Mantissa: 3}, err: errInvalidMantissa},
 	} {
-		_, err := e.GetL2Book(t.Context(), tc.arg)
-		require.ErrorIsf(t, err, tc.err, "GetL2Book must reject %+v", tc.arg)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.GetL2Book(t.Context(), tc.arg)
+			require.ErrorIsf(t, err, tc.err, "GetL2Book must reject %+v", tc.arg)
+		})
 	}
 
 	result, err := e.GetL2Book(t.Context(), &L2BookRequest{Coin: "BTC"})
@@ -712,26 +798,34 @@ func TestValidateBookAggregation(t *testing.T) {
 		{significantFigures: 5, mantissa: 3, err: errInvalidMantissa},
 		{significantFigures: 3, mantissa: 1, err: errInvalidMantissa},
 	} {
-		err := validateBookAggregation(tc.significantFigures, tc.mantissa)
-		assert.ErrorIsf(t, err, tc.err, "validateBookAggregation should return the expected error for %d significant figures and mantissa %d", tc.significantFigures, tc.mantissa)
+		t.Run(strconv.FormatUint(tc.significantFigures, 10)+" significant figures and mantissa "+strconv.FormatUint(tc.mantissa, 10), func(t *testing.T) {
+			t.Parallel()
+			err := validateBookAggregation(tc.significantFigures, tc.mantissa)
+			assert.ErrorIsf(t, err, tc.err, "validateBookAggregation should return the expected error for %d significant figures and mantissa %d", tc.significantFigures, tc.mantissa)
+		})
 	}
 }
 
+//nolint:tparallel // The cases share e in order, so each also checks that a call keeps nothing from the last
 func TestGetCandleSnapshot(t *testing.T) {
 	t.Parallel()
 	start, end := getTime()
+	// The requests after the loop call GetCandleSnapshot too, so the cases run in order before them
 	for _, tc := range []struct {
-		arg *CandleSnapshotRequest
-		err error
+		name string
+		arg  *CandleSnapshotRequest
+		err  error
 	}{
-		{err: common.ErrNilPointer},
-		{arg: &CandleSnapshotRequest{Interval: kline.OneHour, StartTime: start, EndTime: end}, err: errCoinRequired},
-		{arg: &CandleSnapshotRequest{Coin: "BTC", Interval: kline.TenMin, StartTime: start, EndTime: end}, err: kline.ErrUnsupportedInterval},
-		{arg: &CandleSnapshotRequest{Coin: "BTC", Interval: kline.OneHour, StartTime: time.Unix(0, 0), EndTime: end}, err: common.ErrDateUnset},
-		{arg: &CandleSnapshotRequest{Coin: "BTC", Interval: kline.OneHour, StartTime: end, EndTime: start}, err: common.ErrStartAfterEnd},
+		{name: "nil", err: common.ErrNilPointer},
+		{name: "no coin", arg: &CandleSnapshotRequest{Interval: kline.OneHour, StartTime: start, EndTime: end}, err: errCoinRequired},
+		{name: "an unsupported interval", arg: &CandleSnapshotRequest{Coin: "BTC", Interval: kline.TenMin, StartTime: start, EndTime: end}, err: kline.ErrUnsupportedInterval},
+		{name: "a start at the Unix epoch", arg: &CandleSnapshotRequest{Coin: "BTC", Interval: kline.OneHour, StartTime: time.Unix(0, 0), EndTime: end}, err: common.ErrDateUnset},
+		{name: "a start after the end", arg: &CandleSnapshotRequest{Coin: "BTC", Interval: kline.OneHour, StartTime: end, EndTime: start}, err: common.ErrStartAfterEnd},
 	} {
-		_, err := e.GetCandleSnapshot(t.Context(), tc.arg)
-		require.ErrorIsf(t, err, tc.err, "GetCandleSnapshot must reject %+v", tc.arg)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.GetCandleSnapshot(t.Context(), tc.arg)
+			require.ErrorIsf(t, err, tc.err, "GetCandleSnapshot must reject %+v", tc.arg)
+		})
 	}
 
 	// Only the weight of the candles from the start up to now is defined, so weighing the request any other way fails it
@@ -768,18 +862,25 @@ func TestGetCandleSnapshot(t *testing.T) {
 		{OpenTime: milli(1791252000000), CloseTime: milli(1791255599999), Coin: "BTC", Interval: "1h", Open: 85641, Close: 85513, High: 85739, Low: 85433, Volume: 526.02537, NumberOfTrades: 7830},
 		{OpenTime: milli(1791255600000), CloseTime: milli(1791259199999), Coin: "BTC", Interval: "1h", Open: 85513, Close: 85690, High: 85702, Low: 85390, Volume: 611.8724, NumberOfTrades: 8104},
 	}
-	for _, arg := range []*CandleSnapshotRequest{
-		{Coin: "BTC", Interval: kline.OneHour, StartTime: start, EndTime: end},
+	// The cases share e in order, so each also checks that a call keeps nothing from the last
+	for _, tc := range []struct {
+		name string
+		arg  *CandleSnapshotRequest
+	}{
+		{name: "a range", arg: &CandleSnapshotRequest{Coin: "BTC", Interval: kline.OneHour, StartTime: start, EndTime: end}},
 		// Without an end time Hyperliquid returns the candles up to now
-		{Coin: "BTC", Interval: kline.OneHour, StartTime: start},
+		{name: "no end time", arg: &CandleSnapshotRequest{Coin: "BTC", Interval: kline.OneHour, StartTime: start}},
 	} {
-		result, err := e.GetCandleSnapshot(t.Context(), arg)
-		require.NoErrorf(t, err, "GetCandleSnapshot must not error for %+v", arg)
-		if mockTests {
-			assert.Equalf(t, exp, result, "GetCandleSnapshot should decode every candle field for %+v", arg)
-		} else {
-			assert.NotEmptyf(t, result, "GetCandleSnapshot should return candles for %+v", arg)
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			arg := tc.arg
+			result, err := e.GetCandleSnapshot(t.Context(), arg)
+			require.NoErrorf(t, err, "GetCandleSnapshot must not error for %+v", arg)
+			if mockTests {
+				assert.Equalf(t, exp, result, "GetCandleSnapshot should decode every candle field for %+v", arg)
+			} else {
+				assert.NotEmptyf(t, result, "GetCandleSnapshot should return candles for %+v", arg)
+			}
+		})
 	}
 }
 
@@ -893,6 +994,7 @@ func TestGetSubAccounts(t *testing.T) {
 	assert.Empty(t, result, "GetSubAccounts should return no subaccounts for a null response")
 }
 
+//nolint:tparallel // The cases run in order before the requests after them, which call GetVaultDetails too
 func TestGetVaultDetails(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetVaultDetails(t.Context(), "invalid", "")
@@ -938,14 +1040,17 @@ func TestGetVaultDetails(t *testing.T) {
 		AllowDeposits:         true,
 		AlwaysCloseOnWithdraw: true,
 	}
+	// The requests after the loop call GetVaultDetails too, so the cases run in order before them
 	for _, user := range []string{"", testTraderAddress} {
-		result, err := e.GetVaultDetails(t.Context(), testVaultAddress, user)
-		require.NoErrorf(t, err, "GetVaultDetails must not error for user %q", user)
-		if mockTests {
-			assert.Equalf(t, exp, result, "GetVaultDetails should decode every field for user %q", user)
-		} else {
-			assert.Equalf(t, testVaultAddress, result.VaultAddress, "GetVaultDetails should return the vault for user %q", user)
-		}
+		t.Run(subtestName(user), func(t *testing.T) {
+			result, err := e.GetVaultDetails(t.Context(), testVaultAddress, user)
+			require.NoErrorf(t, err, "GetVaultDetails must not error for user %q", user)
+			if mockTests {
+				assert.Equalf(t, exp, result, "GetVaultDetails should decode every field for user %q", user)
+			} else {
+				assert.Equalf(t, testVaultAddress, result.VaultAddress, "GetVaultDetails should return the vault for user %q", user)
+			}
+		})
 	}
 
 	_, err = newResponseServerExchange(t, `null`).GetVaultDetails(t.Context(), testVaultAddress, "")
@@ -969,6 +1074,7 @@ func TestGetUserVaultEquities(t *testing.T) {
 	}
 }
 
+//nolint:tparallel // The cases run in order before the requests after them, which call GetUserRole too
 func TestGetUserRole(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetUserRole(t.Context(), "invalid")
@@ -977,21 +1083,25 @@ func TestGetUserRole(t *testing.T) {
 	result, err := e.GetUserRole(t.Context(), testVaultAddress)
 	require.NoError(t, err, "GetUserRole must not error")
 	assert.Equal(t, &UserRoleResponse{Role: "vault"}, result, "GetUserRole should identify the vault")
-	// The test agent and subaccount are only linked to the test account in the mock responses
+	// The test agent and subaccount are only linked to the test account in the mock responses. The requests after the
+	// loop call GetUserRole too, so the cases run in order before them
 	for _, tc := range []struct {
+		name string
 		user string
 		exp  *UserRoleResponse
 	}{
-		{user: testAgentAddress, exp: &UserRoleResponse{Role: "agent", Data: UserRoleData{User: testAccountAddress}}},
-		{user: testSubAccountAddress, exp: &UserRoleResponse{Role: "subAccount", Data: UserRoleData{Master: testAccountAddress}}},
+		{name: "the test agent", user: testAgentAddress, exp: &UserRoleResponse{Role: "agent", Data: UserRoleData{User: testAccountAddress}}},
+		{name: "the test subaccount", user: testSubAccountAddress, exp: &UserRoleResponse{Role: "subAccount", Data: UserRoleData{Master: testAccountAddress}}},
 	} {
-		result, err := e.GetUserRole(t.Context(), tc.user)
-		require.NoErrorf(t, err, "GetUserRole must not error for %s", tc.user)
-		if mockTests {
-			assert.Equalf(t, tc.exp, result, "GetUserRole should decode the linked account of %s", tc.user)
-		} else {
-			assert.Containsf(t, []string{"missing", "user", "agent", "vault", "subAccount"}, result.Role, "GetUserRole should return a known role for %s", tc.user)
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := e.GetUserRole(t.Context(), tc.user)
+			require.NoErrorf(t, err, "GetUserRole must not error for %s", tc.user)
+			if mockTests {
+				assert.Equalf(t, tc.exp, result, "GetUserRole should decode the linked account of %s", tc.user)
+			} else {
+				assert.Containsf(t, []string{"missing", "user", "agent", "vault", "subAccount"}, result.Role, "GetUserRole should return a known role for %s", tc.user)
+			}
+		})
 	}
 
 	_, err = newResponseServerExchange(t, `null`).GetUserRole(t.Context(), testVaultAddress)
@@ -1027,6 +1137,7 @@ func TestGetPortfolio(t *testing.T) {
 	}
 }
 
+//nolint:tparallel // The cases run in order before the requests after them, which call GetReferral too
 func TestGetReferral(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetReferral(t.Context(), "invalid")
@@ -1034,11 +1145,14 @@ func TestGetReferral(t *testing.T) {
 
 	usdcTotals := ReferralTokenState{CumulativeVolume: 22552.31, UnclaimedRewards: 403.80768, ClaimedRewards: 19055.21949223, BuilderRewards: 18949.2614927}
 	referredUSDCTotals := ReferralStateTokenState{CumulativeVolume: 2663707.7000000002, CumulativeRewardedFeesSinceReferred: 3864.243222, CumulativeFeesRewardedToReferrer: 115.73759}
+	// The requests after the loop call GetReferral too, so the cases run in order before them
 	for _, tc := range []struct {
+		name string
 		user string
 		exp  *ReferralResponse
 	}{
 		{
+			name: "the vault leader",
 			user: testVaultLeaderAddress,
 			exp: &ReferralResponse{
 				ReferralTokenState: usdcTotals,
@@ -1067,6 +1181,7 @@ func TestGetReferral(t *testing.T) {
 			},
 		},
 		{
+			name: "the trader",
 			user: testTraderAddress,
 			exp: &ReferralResponse{
 				CumulativeVolume: 1.9,
@@ -1076,17 +1191,19 @@ func TestGetReferral(t *testing.T) {
 			},
 		},
 	} {
-		result, err := e.GetReferral(t.Context(), tc.user)
-		require.NoErrorf(t, err, "GetReferral must not error for %s", tc.user)
-		if mockTests {
-			assert.Equalf(t, tc.exp, result, "GetReferral should decode every field for %s", tc.user)
-			continue
-		}
-		assert.NotEmptyf(t, result.ReferrerState.Stage, "GetReferral should return the referrer stage for %s", tc.user)
-		if tc.user == testVaultLeaderAddress {
-			assert.NotEmpty(t, result.ReferrerState.Data.ReferralStates, "GetReferral should return the accounts the leader referred")
-			assert.NotEmpty(t, result.RewardHistory, "GetReferral should return the leader's legacy rewards")
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := e.GetReferral(t.Context(), tc.user)
+			require.NoErrorf(t, err, "GetReferral must not error for %s", tc.user)
+			if mockTests {
+				assert.Equalf(t, tc.exp, result, "GetReferral should decode every field for %s", tc.user)
+				return
+			}
+			assert.NotEmptyf(t, result.ReferrerState.Stage, "GetReferral should return the referrer stage for %s", tc.user)
+			if tc.user == testVaultLeaderAddress {
+				assert.NotEmpty(t, result.ReferrerState.Data.ReferralStates, "GetReferral should return the accounts the leader referred")
+				assert.NotEmpty(t, result.RewardHistory, "GetReferral should return the leader's legacy rewards")
+			}
+		})
 	}
 
 	_, err = newResponseServerExchange(t, `null`).GetReferral(t.Context(), testVaultLeaderAddress)
@@ -1223,6 +1340,7 @@ func TestGetDelegatorRewards(t *testing.T) {
 	}
 }
 
+//nolint:tparallel // The cases run in order before the requests after them, which call GetUserAbstraction too
 func TestGetUserAbstraction(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetUserAbstraction(t.Context(), "invalid")
@@ -1232,10 +1350,13 @@ func TestGetUserAbstraction(t *testing.T) {
 	require.NoError(t, err, "GetUserAbstraction must not error")
 	assert.Equal(t, AccountAbstractionDefault, result, "GetUserAbstraction should return the vault's mode")
 
+	// The requests after the loop call GetUserAbstraction too, so the cases run in order before them
 	for _, mode := range []AccountAbstraction{AccountAbstractionDefault, AccountAbstractionDisabled, AccountAbstractionDEXAbstraction, AccountAbstractionUnifiedAccount, AccountAbstractionPortfolioMargin} {
-		result, err := newResponseServerExchange(t, `"`+string(mode)+`"`).GetUserAbstraction(t.Context(), testVaultAddress)
-		require.NoErrorf(t, err, "GetUserAbstraction must not error for %s", mode)
-		assert.Equalf(t, mode, result, "GetUserAbstraction should return %s", mode)
+		t.Run(subtestName(string(mode)), func(t *testing.T) {
+			result, err := newResponseServerExchange(t, `"`+string(mode)+`"`).GetUserAbstraction(t.Context(), testVaultAddress)
+			require.NoErrorf(t, err, "GetUserAbstraction must not error for %s", mode)
+			assert.Equalf(t, mode, result, "GetUserAbstraction should return %s", mode)
+		})
 	}
 	_, err = newResponseServerExchange(t, `"unknown"`).GetUserAbstraction(t.Context(), testVaultAddress)
 	assert.ErrorIs(t, err, errAccountAbstractionInvalid, "GetUserAbstraction should reject an unknown mode")
@@ -1425,17 +1546,21 @@ func TestGetUserTWAPSliceFillsByTime(t *testing.T) {
 	t.Parallel()
 	start, end := getTime()
 	for _, tc := range []struct {
-		arg *UserTWAPSliceFillsByTimeRequest
-		err error
+		name string
+		arg  *UserTWAPSliceFillsByTimeRequest
+		err  error
 	}{
-		{err: common.ErrNilPointer},
-		{arg: &UserTWAPSliceFillsByTimeRequest{User: "invalid", StartTime: start}, err: errInvalidAddress},
-		{arg: &UserTWAPSliceFillsByTimeRequest{User: testTraderAddress}, err: common.ErrDateUnset},
-		{arg: &UserTWAPSliceFillsByTimeRequest{User: testTraderAddress, StartTime: time.Unix(0, 0)}, err: common.ErrDateUnset},
-		{arg: &UserTWAPSliceFillsByTimeRequest{User: testTraderAddress, StartTime: end, EndTime: start}, err: common.ErrStartAfterEnd},
+		{name: "nil", err: common.ErrNilPointer},
+		{name: "an invalid user", arg: &UserTWAPSliceFillsByTimeRequest{User: "invalid", StartTime: start}, err: errInvalidAddress},
+		{name: "no start time", arg: &UserTWAPSliceFillsByTimeRequest{User: testTraderAddress}, err: common.ErrDateUnset},
+		{name: "a start at the Unix epoch", arg: &UserTWAPSliceFillsByTimeRequest{User: testTraderAddress, StartTime: time.Unix(0, 0)}, err: common.ErrDateUnset},
+		{name: "a start after the end", arg: &UserTWAPSliceFillsByTimeRequest{User: testTraderAddress, StartTime: end, EndTime: start}, err: common.ErrStartAfterEnd},
 	} {
-		_, err := e.GetUserTWAPSliceFillsByTime(t.Context(), tc.arg)
-		require.ErrorIsf(t, err, tc.err, "GetUserTWAPSliceFillsByTime must reject %+v", tc.arg)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := e.GetUserTWAPSliceFillsByTime(t.Context(), tc.arg)
+			require.ErrorIsf(t, err, tc.err, "GetUserTWAPSliceFillsByTime must reject %+v", tc.arg)
+		})
 	}
 
 	// No public account is known to have TWAP slice fills, so live tests only check that the response decodes
@@ -1479,15 +1604,22 @@ func TestGetUserTWAPSliceFillsByTime(t *testing.T) {
 			TWAPID: 2288753,
 		},
 	}
-	for _, arg := range []*UserTWAPSliceFillsByTimeRequest{
-		{User: testTraderAddress, StartTime: start, EndTime: end},
-		{User: testTraderAddress, StartTime: start},
+	// The cases share e in order, so each also checks that a call keeps nothing from the last
+	for _, tc := range []struct {
+		name string
+		arg  *UserTWAPSliceFillsByTimeRequest
+	}{
+		{name: "a range", arg: &UserTWAPSliceFillsByTimeRequest{User: testTraderAddress, StartTime: start, EndTime: end}},
+		{name: "no end time", arg: &UserTWAPSliceFillsByTimeRequest{User: testTraderAddress, StartTime: start}},
 	} {
-		result, err := e.GetUserTWAPSliceFillsByTime(t.Context(), arg)
-		require.NoErrorf(t, err, "GetUserTWAPSliceFillsByTime must not error for %+v", arg)
-		if mockTests {
-			assert.Equalf(t, exp, result, "GetUserTWAPSliceFillsByTime should decode every slice fill, oldest first, for %+v", arg)
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			arg := tc.arg
+			result, err := e.GetUserTWAPSliceFillsByTime(t.Context(), arg)
+			require.NoErrorf(t, err, "GetUserTWAPSliceFillsByTime must not error for %+v", arg)
+			if mockTests {
+				assert.Equalf(t, exp, result, "GetUserTWAPSliceFillsByTime should decode every slice fill, oldest first, for %+v", arg)
+			}
+		})
 	}
 }
 
@@ -1532,9 +1664,12 @@ func TestFormatInterval(t *testing.T) {
 		kline.OneWeek:    "1w",
 		kline.OneMonth:   "1M",
 	} {
-		formatted, err := formatInterval(interval)
-		require.NoErrorf(t, err, "formatInterval must not error for %s", interval)
-		assert.Equalf(t, exp, formatted, "formatInterval should format %s", interval)
+		t.Run(interval.Short(), func(t *testing.T) {
+			t.Parallel()
+			formatted, err := formatInterval(interval)
+			require.NoErrorf(t, err, "formatInterval must not error for %s", interval)
+			assert.Equalf(t, exp, formatted, "formatInterval should format %s", interval)
+		})
 	}
 	_, err := formatInterval(kline.TenMin)
 	assert.ErrorIs(t, err, kline.ErrUnsupportedInterval, "formatInterval should reject an unsupported interval")
@@ -1564,9 +1699,12 @@ func TestParseInterval(t *testing.T) {
 		{interval: "10m", err: kline.ErrUnsupportedInterval},
 		{interval: "bad", err: kline.ErrInvalidInterval},
 	} {
-		parsed, err := parseInterval(tc.interval)
-		require.ErrorIsf(t, err, tc.err, "parseInterval must return the expected error for %q", tc.interval)
-		assert.Equalf(t, tc.exp, parsed, "parseInterval should parse %q", tc.interval)
+		t.Run(subtestName(tc.interval), func(t *testing.T) {
+			t.Parallel()
+			parsed, err := parseInterval(tc.interval)
+			require.ErrorIsf(t, err, tc.err, "parseInterval must return the expected error for %q", tc.interval)
+			assert.Equalf(t, tc.exp, parsed, "parseInterval should parse %q", tc.interval)
+		})
 	}
 }
 
@@ -1584,9 +1722,12 @@ func TestTenthsOfABasisPoint(t *testing.T) {
 		{fee: 1000, rate: 0.01, percentage: 1, text: "1"},
 		{fee: 1250, rate: 0.0125, percentage: 1.25, text: "1.25"},
 	} {
-		assert.Equalf(t, tc.rate, tc.fee.Rate(), "Rate should convert %d tenths of a basis point to a fraction", tc.fee)
-		assert.Equalf(t, tc.percentage, tc.fee.Percentage(), "Percentage should convert %d tenths of a basis point to a percentage", tc.fee)
-		assert.Equalf(t, tc.text, tc.fee.percentageText(), "percentageText should format %d tenths of a basis point exactly", tc.fee)
+		t.Run(strconv.FormatUint(uint64(tc.fee), 10), func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, tc.rate, tc.fee.Rate(), "Rate should convert %d tenths of a basis point to a fraction", tc.fee)
+			assert.Equalf(t, tc.percentage, tc.fee.Percentage(), "Percentage should convert %d tenths of a basis point to a percentage", tc.fee)
+			assert.Equalf(t, tc.text, tc.fee.percentageText(), "percentageText should format %d tenths of a basis point exactly", tc.fee)
+		})
 	}
 }
 
@@ -1674,7 +1815,10 @@ func TestIsHex128(t *testing.T) {
 		{value: "0x" + strings.Repeat("g", 32)},
 		{value: "1x" + testClientOrderID[2:]},
 	} {
-		assert.Equalf(t, tc.exp, isHex128(tc.value), "isHex128 should report whether %q is a 16-byte hexadecimal value", tc.value)
+		t.Run(subtestName(tc.value), func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, tc.exp, isHex128(tc.value), "isHex128 should report whether %q is a 16-byte hexadecimal value", tc.value)
+		})
 	}
 }
 
