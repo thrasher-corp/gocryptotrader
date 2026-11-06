@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 // Valid returns whether the margin type is valid
@@ -26,6 +27,34 @@ func (t *Type) UnmarshalJSON(d []byte) error {
 // MarshalJSON conforms type to the json.Marshaler interface
 func (t Type) MarshalJSON() ([]byte, error) {
 	return json.Marshal(t.String())
+}
+
+// MarshalBSONValue implements bson.ValueMarshaler, storing the Type as its string
+func (t Type) MarshalBSONValue() (typ byte, data []byte, err error) {
+	bt, data, err := bson.MarshalValue(t.String())
+	return byte(bt), data, err
+}
+
+// UnmarshalBSONValue implements bson.ValueUnmarshaler. A Type without a name of its own is stored as Unknown's string,
+// and reads back as Unknown.
+func (t *Type) UnmarshalBSONValue(typ byte, data []byte) error {
+	if bson.Type(typ) != bson.TypeString {
+		return fmt.Errorf("%w: expected a BSON string, got %s", ErrInvalidMarginType, bson.Type(typ))
+	}
+	var str string
+	if err := bson.UnmarshalValue(bson.TypeString, data, &str); err != nil {
+		return fmt.Errorf("%w: %w", ErrInvalidMarginType, err)
+	}
+	if str == unknownStr {
+		*t = Unknown
+		return nil
+	}
+	m, err := StringToMarginType(str)
+	if err != nil {
+		return err
+	}
+	*t = m
+	return nil
 }
 
 // String returns the string representation of the margin type in lowercase

@@ -6,6 +6,7 @@ import (
 	"unicode"
 
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 // EMPTYFORMAT defines an empty pair format
@@ -67,6 +68,67 @@ func (p *Pair) UnmarshalJSON(d []byte) error {
 // MarshalJSON conforms type to the marshaler interface
 func (p Pair) MarshalJSON() ([]byte, error) {
 	return json.Marshal(p.String())
+}
+
+// Field names of a pair's BSON document
+const (
+	bsonPairBase      = "b"
+	bsonPairDelimiter = "d"
+	bsonPairQuote     = "q"
+)
+
+// MarshalBSONValue implements bson.ValueMarshaler, storing the pair as the document {b: base, d: delimiter, q: quote}.
+// Pairs are stored in bulk, so the field names are single letters and an empty field is left out: a pair without a
+// delimiter has no d, and the empty pair is the empty document. Each code is stored as Code.String, keeping its case,
+// so {"pair.b": "BTC", "pair.q": "USDT"} finds BTC-USDT whatever its delimiter.
+func (p Pair) MarshalBSONValue() (typ byte, data []byte, err error) {
+	doc := make(bson.D, 0, 3)
+	for _, f := range []bson.E{
+		{Key: bsonPairBase, Value: p.Base.String()},
+		{Key: bsonPairDelimiter, Value: p.Delimiter},
+		{Key: bsonPairQuote, Value: p.Quote.String()},
+	} {
+		if f.Value != "" {
+			doc = append(doc, f)
+		}
+	}
+	bt, data, err := bson.MarshalValue(doc)
+	return byte(bt), data, err
+}
+
+// UnmarshalBSONValue implements bson.ValueUnmarshaler, reading the document MarshalBSONValue stores. A missing field
+// reads as empty.
+func (p *Pair) UnmarshalBSONValue(typ byte, data []byte) error {
+	if bson.Type(typ) != bson.TypeEmbeddedDocument {
+		return fmt.Errorf("%w: expected a BSON document, got %s", ErrCreatingPair, bson.Type(typ))
+	}
+	doc := bson.Raw(data)
+	if err := doc.Validate(); err != nil {
+		return fmt.Errorf("%w: %w", ErrCreatingPair, err)
+	}
+	elems, err := doc.Elements()
+	if err != nil {
+		return fmt.Errorf("%w: %w", ErrCreatingPair, err)
+	}
+	var base, delimiter, quote string
+	for _, e := range elems {
+		v, ok := e.Value().StringValueOK()
+		if !ok {
+			return fmt.Errorf("%w: field %q must be a string, got %s", ErrCreatingPair, e.Key(), e.Value().Type)
+		}
+		switch e.Key() {
+		case bsonPairBase:
+			base = v
+		case bsonPairDelimiter:
+			delimiter = v
+		case bsonPairQuote:
+			quote = v
+		default:
+			return fmt.Errorf("%w: unexpected field %q", ErrCreatingPair, e.Key())
+		}
+	}
+	*p = Pair{Base: NewCode(base), Delimiter: delimiter, Quote: NewCode(quote)}
+	return nil
 }
 
 // Format changes the currency based on user preferences overriding the default
