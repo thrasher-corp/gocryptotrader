@@ -3,6 +3,7 @@ package kraken
 import (
 	"math"
 	"net/http"
+	"strconv"
 	"testing"
 	"time"
 
@@ -43,8 +44,11 @@ func TestAddOrder(t *testing.T) {
 	_, err = e.AddOrder(t.Context(), &AddOrderRequest{})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "AddOrder must reject an empty pair")
 	for _, pair := range partialTestPairs {
-		_, err = e.AddOrder(t.Context(), &AddOrderRequest{Pair: pair})
-		require.ErrorIsf(t, err, currency.ErrCurrencyPairEmpty, "AddOrder must reject %q, which lacks a base or a quote", pair)
+		t.Run(pair.String(), func(t *testing.T) {
+			t.Parallel()
+			_, err := e.AddOrder(t.Context(), &AddOrderRequest{Pair: pair})
+			require.ErrorIsf(t, err, currency.ErrCurrencyPairEmpty, "AddOrder must reject %q, which lacks a base or a quote", pair)
+		})
 	}
 	valid := OrderParameters{OrderType: "limit", Side: "buy", Volume: 1, Price: OrderPrice{Value: 25000}}
 	for _, tc := range []struct {
@@ -85,10 +89,13 @@ func TestAddOrder(t *testing.T) {
 			err: errInvalidOrderPrice,
 		},
 	} {
-		o := valid
-		tc.modify(&o)
-		_, err = e.AddOrder(t.Context(), &AddOrderRequest{Pair: spotTestPair, Order: o})
-		require.ErrorIsf(t, err, tc.err, "AddOrder must reject %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			o := valid
+			tc.modify(&o)
+			_, err := e.AddOrder(t.Context(), &AddOrderRequest{Pair: spotTestPair, Order: o})
+			require.ErrorIsf(t, err, tc.err, "AddOrder must reject %s", tc.name)
+		})
 	}
 
 	if !mockTests {
@@ -209,19 +216,25 @@ func TestAmendOrder(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "AmendOrder must reject a request without an order identifier")
 	_, err = e.AmendOrder(t.Context(), &AmendOrderRequest{TransactionID: "OHYO67-6LP66-HMQ437", ClientOrderID: "arb-20240509-00010"})
 	require.ErrorIs(t, err, errMultipleOrderIdentifiers, "AmendOrder must reject two order identifiers")
+	// Serial, as the AmendOrder calls after the loop would otherwise run before these cases
 	for _, quantity := range []float64{-1, math.NaN(), math.Inf(1), math.Inf(-1)} {
-		_, err = e.AmendOrder(t.Context(), &AmendOrderRequest{TransactionID: "OHYO67-6LP66-HMQ437", OrderQuantity: quantity})
-		require.ErrorIsf(t, err, order.ErrAmountIsInvalid, "AmendOrder must reject an order quantity of %v", quantity)
-		_, err = e.AmendOrder(t.Context(), &AmendOrderRequest{TransactionID: "OHYO67-6LP66-HMQ437", DisplayQuantity: quantity})
-		require.ErrorIsf(t, err, order.ErrAmountIsInvalid, "AmendOrder must reject a display quantity of %v", quantity)
+		t.Run(strconv.FormatFloat(quantity, 'g', -1, 64), func(t *testing.T) {
+			_, err = e.AmendOrder(t.Context(), &AmendOrderRequest{TransactionID: "OHYO67-6LP66-HMQ437", OrderQuantity: quantity})
+			require.ErrorIsf(t, err, order.ErrAmountIsInvalid, "AmendOrder must reject an order quantity of %v", quantity)
+			_, err = e.AmendOrder(t.Context(), &AmendOrderRequest{TransactionID: "OHYO67-6LP66-HMQ437", DisplayQuantity: quantity})
+			require.ErrorIsf(t, err, order.ErrAmountIsInvalid, "AmendOrder must reject a display quantity of %v", quantity)
+		})
 	}
 	_, err = e.AmendOrder(t.Context(), &AmendOrderRequest{TransactionID: "OHYO67-6LP66-HMQ437", LimitPrice: OrderPrice{Value: 50, Offset: "#"}})
 	require.ErrorIs(t, err, errInvalidOrderPrice, "AmendOrder must reject a limit price offset by #")
 	_, err = e.AmendOrder(t.Context(), &AmendOrderRequest{TransactionID: "OHYO67-6LP66-HMQ437", TriggerPrice: OrderPrice{Value: 50, Offset: "#"}})
 	require.ErrorIs(t, err, errInvalidOrderPrice, "AmendOrder must reject a trigger price offset by #")
+	// Serial, as the AmendOrder call after the loop would otherwise run before these cases
 	for _, pair := range partialTestPairs {
-		_, err = e.AmendOrder(t.Context(), &AmendOrderRequest{TransactionID: "OHYO67-6LP66-HMQ437", Pair: pair})
-		require.ErrorIsf(t, err, currency.ErrCurrencyCodeEmpty, "AmendOrder must reject %q, which lacks a base or a quote", pair)
+		t.Run(pair.String(), func(t *testing.T) {
+			_, err = e.AmendOrder(t.Context(), &AmendOrderRequest{TransactionID: "OHYO67-6LP66-HMQ437", Pair: pair})
+			require.ErrorIsf(t, err, currency.ErrCurrencyCodeEmpty, "AmendOrder must reject %q, which lacks a base or a quote", pair)
+		})
 	}
 	_, err = new(Exchange).AmendOrder(t.Context(), &AmendOrderRequest{TransactionID: "OHYO67-6LP66-HMQ437", Pair: spotTestPair})
 	require.ErrorIs(t, err, currency.ErrPairManagerNotInitialised, "AmendOrder must return the error formatting the pair")
@@ -264,19 +277,25 @@ func TestEditOrder(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrNilPointer, "EditOrder must reject a nil request")
 	_, err = e.EditOrder(t.Context(), &EditOrderRequest{TransactionID: "OHYO67-6LP66-HMQ437"})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "EditOrder must reject an empty pair")
+	// Serial, as the EditOrder calls after the loop would otherwise run before these cases
 	for _, pair := range partialTestPairs {
-		_, err = e.EditOrder(t.Context(), &EditOrderRequest{Pair: pair, TransactionID: "OHYO67-6LP66-HMQ437"})
-		require.ErrorIsf(t, err, currency.ErrCurrencyPairEmpty, "EditOrder must reject %q, which lacks a base or a quote", pair)
+		t.Run(pair.String(), func(t *testing.T) {
+			_, err = e.EditOrder(t.Context(), &EditOrderRequest{Pair: pair, TransactionID: "OHYO67-6LP66-HMQ437"})
+			require.ErrorIsf(t, err, currency.ErrCurrencyPairEmpty, "EditOrder must reject %q, which lacks a base or a quote", pair)
+		})
 	}
 	_, err = e.EditOrder(t.Context(), &EditOrderRequest{Pair: spotTestPair})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "EditOrder must reject a request without an order identifier")
 	_, err = e.EditOrder(t.Context(), &EditOrderRequest{Pair: spotTestPair, TransactionID: "OHYO67-6LP66-HMQ437", OrderUserReference: 1234})
 	require.ErrorIs(t, err, errMultipleOrderIdentifiers, "EditOrder must reject two order identifiers")
+	// Serial, as the EditOrder calls after the loop would otherwise run before these cases
 	for _, volume := range []float64{-1, math.NaN(), math.Inf(1), math.Inf(-1)} {
-		_, err = e.EditOrder(t.Context(), &EditOrderRequest{Pair: spotTestPair, TransactionID: "OHYO67-6LP66-HMQ437", Volume: volume})
-		require.ErrorIsf(t, err, order.ErrAmountIsInvalid, "EditOrder must reject a volume of %v", volume)
-		_, err = e.EditOrder(t.Context(), &EditOrderRequest{Pair: spotTestPair, TransactionID: "OHYO67-6LP66-HMQ437", DisplayVolume: volume})
-		require.ErrorIsf(t, err, order.ErrAmountIsInvalid, "EditOrder must reject a display volume of %v", volume)
+		t.Run(strconv.FormatFloat(volume, 'g', -1, 64), func(t *testing.T) {
+			_, err = e.EditOrder(t.Context(), &EditOrderRequest{Pair: spotTestPair, TransactionID: "OHYO67-6LP66-HMQ437", Volume: volume})
+			require.ErrorIsf(t, err, order.ErrAmountIsInvalid, "EditOrder must reject a volume of %v", volume)
+			_, err = e.EditOrder(t.Context(), &EditOrderRequest{Pair: spotTestPair, TransactionID: "OHYO67-6LP66-HMQ437", DisplayVolume: volume})
+			require.ErrorIsf(t, err, order.ErrAmountIsInvalid, "EditOrder must reject a display volume of %v", volume)
+		})
 	}
 	_, err = e.EditOrder(t.Context(), &EditOrderRequest{Pair: spotTestPair, TransactionID: "OHYO67-6LP66-HMQ437", Price: OrderPrice{Value: -1}})
 	require.ErrorIs(t, err, errInvalidOrderPrice, "EditOrder must reject a negative price")
@@ -426,17 +445,20 @@ func TestCancelAllOpenOrders(t *testing.T) {
 	assert.NotNil(t, result, "CancelAllOpenOrders should return a result")
 }
 
-func TestCancelAllOrdersAfter(t *testing.T) {
+func TestCancelAllOrdersAfter(t *testing.T) { //nolint:tparallel // the cases run in order, disabling the switch last
 	t.Parallel()
+	// Serial, as the CancelAllOrdersAfter cases below would otherwise run before these
 	for _, timeout := range []time.Duration{-time.Second, time.Second - time.Nanosecond, 24 * time.Hour} {
-		_, err := e.CancelAllOrdersAfter(t.Context(), timeout)
-		require.ErrorIsf(t, err, errInvalidCancelTimeout, "CancelAllOrdersAfter must reject a timeout of %s", timeout)
+		t.Run(timeout.String(), func(t *testing.T) {
+			_, err := e.CancelAllOrdersAfter(t.Context(), timeout)
+			require.ErrorIsf(t, err, errInvalidCancelTimeout, "CancelAllOrdersAfter must reject a timeout of %s", timeout)
+		})
 	}
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	// Disabling the switch last leaves it off after a live run
+	// The cases run in order, as disabling the switch last leaves it off after a live run
 	for _, tc := range []struct {
 		name    string
 		timeout time.Duration
@@ -452,13 +474,15 @@ func TestCancelAllOrdersAfter(t *testing.T) {
 			exp:  &CancelAllOrdersAfterResponse{CurrentTime: time.Date(2026, 10, 9, 0, 10, 5, 0, time.UTC)},
 		},
 	} {
-		result, err := e.CancelAllOrdersAfter(t.Context(), tc.timeout)
-		require.NoErrorf(t, err, "CancelAllOrdersAfter must not error when %s", tc.name)
-		if mockTests {
-			assert.Equalf(t, tc.exp, result, "CancelAllOrdersAfter should decode every field when %s", tc.name)
-			continue
-		}
-		assert.NotZerof(t, result.CurrentTime, "CancelAllOrdersAfter should return the current time when %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := e.CancelAllOrdersAfter(t.Context(), tc.timeout)
+			require.NoErrorf(t, err, "CancelAllOrdersAfter must not error when %s", tc.name)
+			if mockTests {
+				assert.Equalf(t, tc.exp, result, "CancelAllOrdersAfter should decode every field when %s", tc.name)
+				return
+			}
+			assert.NotZerof(t, result.CurrentTime, "CancelAllOrdersAfter should return the current time when %s", tc.name)
+		})
 	}
 }
 
@@ -480,13 +504,19 @@ func TestAddOrderBatch(t *testing.T) {
 	limitOrder := OrderParameters{OrderType: "limit", Side: "buy", Volume: 1, Price: OrderPrice{Value: 25000}}
 	_, err = e.AddOrderBatch(t.Context(), &AddOrderBatchRequest{Orders: []OrderParameters{limitOrder, limitOrder}})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "AddOrderBatch must reject an empty pair")
+	// Serial, as the AddOrderBatch calls after the loop would otherwise run before these cases
 	for _, pair := range partialTestPairs {
-		_, err = e.AddOrderBatch(t.Context(), &AddOrderBatchRequest{Pair: pair, Orders: []OrderParameters{limitOrder, limitOrder}})
-		require.ErrorIsf(t, err, currency.ErrCurrencyPairEmpty, "AddOrderBatch must reject %q, which lacks a base or a quote", pair)
+		t.Run(pair.String(), func(t *testing.T) {
+			_, err = e.AddOrderBatch(t.Context(), &AddOrderBatchRequest{Pair: pair, Orders: []OrderParameters{limitOrder, limitOrder}})
+			require.ErrorIsf(t, err, currency.ErrCurrencyPairEmpty, "AddOrderBatch must reject %q, which lacks a base or a quote", pair)
+		})
 	}
+	// Serial, as the AddOrderBatch call after the loop would otherwise run before these cases
 	for _, orders := range [][]OrderParameters{{limitOrder}, make([]OrderParameters, 16)} {
-		_, err = e.AddOrderBatch(t.Context(), &AddOrderBatchRequest{Pair: spotTestPair, Orders: orders})
-		require.ErrorIsf(t, err, errInvalidCount, "AddOrderBatch must reject %d orders", len(orders))
+		t.Run("count "+strconv.Itoa(len(orders)), func(t *testing.T) {
+			_, err = e.AddOrderBatch(t.Context(), &AddOrderBatchRequest{Pair: spotTestPair, Orders: orders})
+			require.ErrorIsf(t, err, errInvalidCount, "AddOrderBatch must reject %d orders", len(orders))
+		})
 	}
 	_, err = e.AddOrderBatch(t.Context(), &AddOrderBatchRequest{Pair: spotTestPair, Orders: []OrderParameters{limitOrder, {OrderType: "limit", Volume: 1}}})
 	require.ErrorIs(t, err, order.ErrSideIsInvalid, "AddOrderBatch must reject an invalid order")
@@ -720,7 +750,10 @@ func TestOrderPriceString(t *testing.T) {
 		{price: OrderPrice{Value: 100, Offset: "-"}, exp: "-100"},
 		{price: OrderPrice{Value: 2.5, Offset: "#", Percent: true}, exp: "#2.5%"},
 	} {
-		assert.Equalf(t, tc.exp, tc.price.String(), "String should format %+v as Kraken takes it", tc.price)
+		t.Run(tc.exp, func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, tc.exp, tc.price.String(), "String should format %+v as Kraken takes it", tc.price)
+		})
 	}
 }
 
@@ -739,13 +772,19 @@ func TestOrderPriceUnmarshalJSON(t *testing.T) {
 		{data: `""`},
 		{data: `null`},
 	} {
-		price := OrderPrice{Value: 1, Offset: "#"}
-		require.NoErrorf(t, price.UnmarshalJSON([]byte(tc.data)), "UnmarshalJSON must not error for %s", tc.data)
-		assert.Equalf(t, tc.exp, price, "UnmarshalJSON should decode %s", tc.data)
+		t.Run(tc.data, func(t *testing.T) {
+			t.Parallel()
+			price := OrderPrice{Value: 1, Offset: "#"}
+			require.NoErrorf(t, price.UnmarshalJSON([]byte(tc.data)), "UnmarshalJSON must not error for %s", tc.data)
+			assert.Equalf(t, tc.exp, price, "UnmarshalJSON should decode %s", tc.data)
+		})
 	}
 	for _, data := range []string{`"market"`, `"+%"`, `"5%%"`, `true`} {
-		var price OrderPrice
-		assert.ErrorIsf(t, price.UnmarshalJSON([]byte(data)), errInvalidOrderPrice, "UnmarshalJSON should reject %s", data)
+		t.Run(data, func(t *testing.T) {
+			t.Parallel()
+			var price OrderPrice
+			assert.ErrorIsf(t, price.UnmarshalJSON([]byte(data)), errInvalidOrderPrice, "UnmarshalJSON should reject %s", data)
+		})
 	}
 	var price OrderPrice
 	assert.Error(t, price.UnmarshalJSON([]byte(`"19500.0`)), "UnmarshalJSON should reject an unterminated string")
@@ -833,10 +872,13 @@ func TestOrderParametersParams(t *testing.T) {
 		{name: "short expiry delay", change: func(o *OrderParameters) { o.ExpireDelay = 4 * time.Second }, err: errInvalidOrderTime},
 		{name: "conditional close order type", change: func(o *OrderParameters) { o.Close = &ConditionalCloseOrder{OrderType: "market"} }, err: order.ErrTypeIsInvalid},
 	} {
-		o := &OrderParameters{OrderType: "limit", Side: "buy", Volume: 1, Price: OrderPrice{Value: 19500}}
-		tc.change(o)
-		_, _, err := o.params()
-		assert.ErrorIsf(t, err, tc.err, "params should reject an order by its %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			o := &OrderParameters{OrderType: "limit", Side: "buy", Volume: 1, Price: OrderPrice{Value: 19500}}
+			tc.change(o)
+			_, _, err := o.params()
+			assert.ErrorIsf(t, err, tc.err, "params should reject an order by its %s", tc.name)
+		})
 	}
 
 	body, closeOrder, err := (&OrderParameters{OrderType: "market", Side: "sell", Leverage: 3}).params()
@@ -919,9 +961,12 @@ func TestFormatOrderTime(t *testing.T) {
 		{name: "a fractional delay", delay: 5900 * time.Millisecond, minimum: 5 * time.Second, exp: "+5"},
 		{name: "a delay", delay: 90 * time.Second, minimum: time.Second, exp: "+90"},
 	} {
-		got, err := formatOrderTime(tc.at, tc.delay, tc.minimum)
-		require.ErrorIsf(t, err, tc.err, "formatOrderTime must return the expected error for %s", tc.name)
-		assert.Equalf(t, tc.exp, got, "formatOrderTime should format %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := formatOrderTime(tc.at, tc.delay, tc.minimum)
+			require.ErrorIsf(t, err, tc.err, "formatOrderTime must return the expected error for %s", tc.name)
+			assert.Equalf(t, tc.exp, got, "formatOrderTime should format %s", tc.name)
+		})
 	}
 }
 

@@ -250,6 +250,12 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 		d.AssetType = m.AssetType
 		updated = true
 	}
+	// An order first stored from a report that leaves out its creation time, such as a websocket snapshot entry, takes
+	// the first creation time a later update gives, and keeps it
+	if d.Date.IsZero() && !m.Date.IsZero() {
+		d.Date = m.Date
+		updated = true
+	}
 	if !m.CloseTime.IsZero() && !m.CloseTime.Equal(d.CloseTime) {
 		d.CloseTime = m.CloseTime
 		updated = true

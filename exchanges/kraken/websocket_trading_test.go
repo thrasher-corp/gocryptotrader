@@ -66,11 +66,12 @@ func wsTestTime(tb testing.TB, s string) time.Time {
 	return v
 }
 
-func TestWebsocketAddOrder(t *testing.T) {
+func TestWebsocketAddOrder(t *testing.T) { //nolint:tparallel // the cases run serially, before the calls after them to the same method
 	t.Parallel()
 	_, err := e.WebsocketAddOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "WebsocketAddOrder must reject a nil request")
 	valid := WebsocketOrder{OrderType: "limit", Side: "buy", Quantity: 1, LimitPrice: 26500}
+	// Serial, so the cases run before the calls below to the same method
 	for _, tc := range []struct {
 		name string
 		req  *WebsocketAddOrderRequest
@@ -85,8 +86,10 @@ func TestWebsocketAddOrder(t *testing.T) {
 		{"identifiers", &WebsocketAddOrderRequest{Pair: spotTestPair, Order: WebsocketOrder{OrderType: "market", Side: "buy", Quantity: 1, ClientOrderID: "a", UserReference: 1}}, errClientOrderIDWithUserReference},
 		{"expiry", &WebsocketAddOrderRequest{Pair: spotTestPair, Order: WebsocketOrder{OrderType: "limit", Side: "buy", Quantity: 1, LimitPrice: 26500, TimeInForce: "gtd"}}, order.ErrInvalidTimeInForce},
 	} {
-		_, err := e.WebsocketAddOrder(t.Context(), tc.req)
-		assert.ErrorIsf(t, err, tc.err, "WebsocketAddOrder should reject the %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.WebsocketAddOrder(t.Context(), tc.req)
+			assert.ErrorIsf(t, err, tc.err, "WebsocketAddOrder should reject the %s", tc.name)
+		})
 	}
 
 	ex := newWsTradingTestExchange(t,
@@ -138,7 +141,7 @@ func TestWebsocketAddOrder(t *testing.T) {
 	assert.ErrorContains(t, err, "EOrder:Insufficient funds", "the error should carry Kraken's reason")
 }
 
-func TestWebsocketEditOrder(t *testing.T) {
+func TestWebsocketEditOrder(t *testing.T) { //nolint:tparallel // the cases run serially, before the calls after them to the same method
 	t.Parallel()
 	_, err := e.WebsocketEditOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "WebsocketEditOrder must reject a nil request")
@@ -146,15 +149,21 @@ func TestWebsocketEditOrder(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet, "WebsocketEditOrder must reject a missing order ID")
 	_, err = e.WebsocketEditOrder(t.Context(), &WebsocketEditOrderRequest{OrderID: "ORDERX-IDXXX-XXXXX1"})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "WebsocketEditOrder must reject a missing pair")
+	// Serial, so the cases run before the calls below to the same method
 	for _, pair := range partialTestPairs {
-		_, err = e.WebsocketEditOrder(t.Context(), &WebsocketEditOrderRequest{OrderID: "ORDERX-IDXXX-XXXXX1", Pair: pair})
-		require.ErrorIsf(t, err, currency.ErrCurrencyPairEmpty, "WebsocketEditOrder must reject %q, which lacks a base or a quote", pair)
+		t.Run(pair.String(), func(t *testing.T) {
+			_, err = e.WebsocketEditOrder(t.Context(), &WebsocketEditOrderRequest{OrderID: "ORDERX-IDXXX-XXXXX1", Pair: pair})
+			require.ErrorIsf(t, err, currency.ErrCurrencyPairEmpty, "WebsocketEditOrder must reject %q, which lacks a base or a quote", pair)
+		})
 	}
+	// Serial, so the cases run before the calls below to the same method
 	for _, quantity := range []float64{-1, math.NaN(), math.Inf(1), math.Inf(-1)} {
-		_, err = e.WebsocketEditOrder(t.Context(), &WebsocketEditOrderRequest{OrderID: "ORDERX-IDXXX-XXXXX1", Pair: spotTestPair, Quantity: quantity})
-		require.ErrorIsf(t, err, order.ErrAmountIsInvalid, "WebsocketEditOrder must reject a quantity of %v", quantity)
-		_, err = e.WebsocketEditOrder(t.Context(), &WebsocketEditOrderRequest{OrderID: "ORDERX-IDXXX-XXXXX1", Pair: spotTestPair, DisplayQuantity: quantity})
-		require.ErrorIsf(t, err, order.ErrAmountIsInvalid, "WebsocketEditOrder must reject a display quantity of %v", quantity)
+		t.Run(strconv.FormatFloat(quantity, 'g', -1, 64), func(t *testing.T) {
+			_, err = e.WebsocketEditOrder(t.Context(), &WebsocketEditOrderRequest{OrderID: "ORDERX-IDXXX-XXXXX1", Pair: spotTestPair, Quantity: quantity})
+			require.ErrorIsf(t, err, order.ErrAmountIsInvalid, "WebsocketEditOrder must reject a quantity of %v", quantity)
+			_, err = e.WebsocketEditOrder(t.Context(), &WebsocketEditOrderRequest{OrderID: "ORDERX-IDXXX-XXXXX1", Pair: spotTestPair, DisplayQuantity: quantity})
+			require.ErrorIsf(t, err, order.ErrAmountIsInvalid, "WebsocketEditOrder must reject a display quantity of %v", quantity)
+		})
 	}
 	_, err = newTestExchange(t).WebsocketEditOrder(t.Context(), &WebsocketEditOrderRequest{OrderID: "ORDERX-IDXXX-XXXXX1", Pair: spotTestPair})
 	require.ErrorIs(t, err, websocket.ErrNotConnected, "WebsocketEditOrder must return the error sending the request")
@@ -187,7 +196,7 @@ func TestWebsocketEditOrder(t *testing.T) {
 	}, result, "WebsocketEditOrder should decode every field")
 }
 
-func TestWebsocketAmendOrder(t *testing.T) {
+func TestWebsocketAmendOrder(t *testing.T) { //nolint:tparallel // the cases run serially, before the calls after them to the same method
 	t.Parallel()
 	_, err := e.WebsocketAmendOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "WebsocketAmendOrder must reject a nil request")
@@ -195,15 +204,21 @@ func TestWebsocketAmendOrder(t *testing.T) {
 	require.ErrorIs(t, err, errOrderIdentifierRequired, "WebsocketAmendOrder must reject a request without an identifier")
 	_, err = e.WebsocketAmendOrder(t.Context(), &WebsocketAmendOrderRequest{OrderID: "OAIYAU-LGI3M-PFM5VW", ClientOrderID: "a", LimitPrice: 1})
 	require.ErrorIs(t, err, errOrderIdentifierRequired, "WebsocketAmendOrder must reject a request with both identifiers")
+	// Serial, so the cases run before the calls below to the same method
 	for _, pair := range partialTestPairs {
-		_, err = e.WebsocketAmendOrder(t.Context(), &WebsocketAmendOrderRequest{OrderID: "OAIYAU-LGI3M-PFM5VW", LimitPrice: 1, Pair: pair})
-		require.ErrorIsf(t, err, currency.ErrCurrencyCodeEmpty, "WebsocketAmendOrder must reject %q, which lacks a base or a quote", pair)
+		t.Run(pair.String(), func(t *testing.T) {
+			_, err = e.WebsocketAmendOrder(t.Context(), &WebsocketAmendOrderRequest{OrderID: "OAIYAU-LGI3M-PFM5VW", LimitPrice: 1, Pair: pair})
+			require.ErrorIsf(t, err, currency.ErrCurrencyCodeEmpty, "WebsocketAmendOrder must reject %q, which lacks a base or a quote", pair)
+		})
 	}
+	// Serial, so the cases run before the calls below to the same method
 	for _, quantity := range []float64{-1, math.NaN(), math.Inf(1), math.Inf(-1)} {
-		_, err = e.WebsocketAmendOrder(t.Context(), &WebsocketAmendOrderRequest{OrderID: "OAIYAU-LGI3M-PFM5VW", Quantity: quantity})
-		require.ErrorIsf(t, err, order.ErrAmountIsInvalid, "WebsocketAmendOrder must reject a quantity of %v", quantity)
-		_, err = e.WebsocketAmendOrder(t.Context(), &WebsocketAmendOrderRequest{OrderID: "OAIYAU-LGI3M-PFM5VW", DisplayQuantity: quantity})
-		require.ErrorIsf(t, err, order.ErrAmountIsInvalid, "WebsocketAmendOrder must reject a display quantity of %v", quantity)
+		t.Run(strconv.FormatFloat(quantity, 'g', -1, 64), func(t *testing.T) {
+			_, err = e.WebsocketAmendOrder(t.Context(), &WebsocketAmendOrderRequest{OrderID: "OAIYAU-LGI3M-PFM5VW", Quantity: quantity})
+			require.ErrorIsf(t, err, order.ErrAmountIsInvalid, "WebsocketAmendOrder must reject a quantity of %v", quantity)
+			_, err = e.WebsocketAmendOrder(t.Context(), &WebsocketAmendOrderRequest{OrderID: "OAIYAU-LGI3M-PFM5VW", DisplayQuantity: quantity})
+			require.ErrorIsf(t, err, order.ErrAmountIsInvalid, "WebsocketAmendOrder must reject a display quantity of %v", quantity)
+		})
 	}
 
 	ex := newWsTradingTestExchange(t,
@@ -272,12 +287,15 @@ func TestWebsocketCancelOrders(t *testing.T) {
 	}{
 		{"client order IDs", &WebsocketCancelOrdersRequest{ClientOrderIDs: []string{"6d1b345e-2821-40e2-ad83-4ecb18a06876"}}, `{"cl_ord_id":["6d1b345e-2821-40e2-ad83-4ecb18a06876"]`},
 	} {
-		ex := newWsTradingTestExchange(t,
-			`{"method":"cancel_order","params":`+tc.exp+`,"token":"`+wsTradingTestToken+`"}}`,
-			`{"method":"cancel_order","result":{"order_id":"OLUMT4-UTEGU-ZYM7E9"},"success":true}`,
-		)
-		_, err := ex.WebsocketCancelOrders(t.Context(), tc.req)
-		assert.NoErrorf(t, err, "WebsocketCancelOrders should cancel by %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := newWsTradingTestExchange(t,
+				`{"method":"cancel_order","params":`+tc.exp+`,"token":"`+wsTradingTestToken+`"}}`,
+				`{"method":"cancel_order","result":{"order_id":"OLUMT4-UTEGU-ZYM7E9"},"success":true}`,
+			)
+			_, err := ex.WebsocketCancelOrders(t.Context(), tc.req)
+			assert.NoErrorf(t, err, "WebsocketCancelOrders should cancel by %s", tc.name)
+		})
 	}
 }
 
@@ -305,11 +323,14 @@ func TestWebsocketCancelAllOrders(t *testing.T) {
 	}, result, "WebsocketCancelAllOrders should decode every field")
 }
 
-func TestWebsocketCancelAllOrdersAfter(t *testing.T) {
+func TestWebsocketCancelAllOrdersAfter(t *testing.T) { //nolint:tparallel // the cases run serially, before the calls after them to the same method
 	t.Parallel()
+	// Serial, so the cases run before the calls below to the same method
 	for _, timeout := range []time.Duration{-time.Second, time.Millisecond, 24 * time.Hour} {
-		_, err := e.WebsocketCancelAllOrdersAfter(t.Context(), timeout)
-		assert.ErrorIsf(t, err, errInvalidTimeout, "WebsocketCancelAllOrdersAfter should reject a timeout of %s", timeout)
+		t.Run(timeout.String(), func(t *testing.T) {
+			_, err := e.WebsocketCancelAllOrdersAfter(t.Context(), timeout)
+			assert.ErrorIsf(t, err, errInvalidTimeout, "WebsocketCancelAllOrdersAfter should reject a timeout of %s", timeout)
+		})
 	}
 	ex := newWsTradingTestExchange(t,
 		`{"method":"cancel_all_orders_after","params":{"timeout":100,"token":"`+wsTradingTestToken+`"}}`,
@@ -332,20 +353,26 @@ func TestWebsocketCancelAllOrdersAfter(t *testing.T) {
 	assert.NoError(t, err, "WebsocketCancelAllOrdersAfter should send a zero timeout to disable the switch")
 }
 
-func TestWebsocketBatchAddOrders(t *testing.T) {
+func TestWebsocketBatchAddOrders(t *testing.T) { //nolint:tparallel // the cases run serially, before the calls after them to the same method
 	t.Parallel()
 	_, err := e.WebsocketBatchAddOrders(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "WebsocketBatchAddOrders must reject a nil request")
 	valid := WebsocketOrder{OrderType: "limit", Side: "buy", Quantity: 1, LimitPrice: 1010.1}
+	// Serial, so the cases run before the calls below to the same method
 	for _, n := range []int{1, 16} {
-		_, err = e.WebsocketBatchAddOrders(t.Context(), &WebsocketBatchAddOrdersRequest{Pair: spotTestPair, Orders: slices.Repeat([]WebsocketOrder{valid}, n)})
-		assert.ErrorIsf(t, err, errBatchSize, "WebsocketBatchAddOrders should reject %d orders", n)
+		t.Run(strconv.Itoa(n), func(t *testing.T) {
+			_, err = e.WebsocketBatchAddOrders(t.Context(), &WebsocketBatchAddOrdersRequest{Pair: spotTestPair, Orders: slices.Repeat([]WebsocketOrder{valid}, n)})
+			assert.ErrorIsf(t, err, errBatchSize, "WebsocketBatchAddOrders should reject %d orders", n)
+		})
 	}
 	_, err = e.WebsocketBatchAddOrders(t.Context(), &WebsocketBatchAddOrdersRequest{Orders: []WebsocketOrder{valid, valid}})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "WebsocketBatchAddOrders must reject a missing pair")
+	// Serial, so the cases run before the calls below to the same method
 	for _, pair := range partialTestPairs {
-		_, err = e.WebsocketBatchAddOrders(t.Context(), &WebsocketBatchAddOrdersRequest{Pair: pair, Orders: []WebsocketOrder{valid, valid}})
-		require.ErrorIsf(t, err, currency.ErrCurrencyPairEmpty, "WebsocketBatchAddOrders must reject %q, which lacks a base or a quote", pair)
+		t.Run(pair.String(), func(t *testing.T) {
+			_, err = e.WebsocketBatchAddOrders(t.Context(), &WebsocketBatchAddOrdersRequest{Pair: pair, Orders: []WebsocketOrder{valid, valid}})
+			require.ErrorIsf(t, err, currency.ErrCurrencyPairEmpty, "WebsocketBatchAddOrders must reject %q, which lacks a base or a quote", pair)
+		})
 	}
 	_, err = e.WebsocketBatchAddOrders(t.Context(), &WebsocketBatchAddOrdersRequest{Pair: spotTestPair, Orders: []WebsocketOrder{valid, {OrderType: "limit", Side: "sell"}}})
 	require.ErrorIs(t, err, order.ErrAmountIsInvalid, "WebsocketBatchAddOrders must reject an invalid order")
@@ -370,13 +397,16 @@ func TestWebsocketBatchAddOrders(t *testing.T) {
 	}, result, "WebsocketBatchAddOrders should decode every order's result")
 }
 
-func TestWebsocketBatchCancelOrders(t *testing.T) {
+func TestWebsocketBatchCancelOrders(t *testing.T) { //nolint:tparallel // the cases run serially, before the calls after them to the same method
 	t.Parallel()
 	_, err := e.WebsocketBatchCancelOrders(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "WebsocketBatchCancelOrders must reject a nil request")
+	// Serial, so the cases run before the calls below to the same method
 	for _, n := range []int{1, 51} {
-		_, err = e.WebsocketBatchCancelOrders(t.Context(), &WebsocketBatchCancelOrdersRequest{Orders: slices.Repeat([]string{"1"}, n)})
-		assert.ErrorIsf(t, err, errBatchSize, "WebsocketBatchCancelOrders should reject %d orders", n)
+		t.Run(strconv.Itoa(n), func(t *testing.T) {
+			_, err = e.WebsocketBatchCancelOrders(t.Context(), &WebsocketBatchCancelOrdersRequest{Orders: slices.Repeat([]string{"1"}, n)})
+			assert.ErrorIsf(t, err, errBatchSize, "WebsocketBatchCancelOrders should reject %d orders", n)
+		})
 	}
 	ex := newWsTradingTestExchange(t,
 		`{"method":"batch_cancel","params":{"orders":["1","2","ORDERX-IDXXX-XXXXX3"],"cl_ord_id":["6d1b345e-2821-40e2-ad83-4ecb18a06876"],"token":"`+wsTradingTestToken+`"}}`,
@@ -395,33 +425,6 @@ func TestWebsocketBatchCancelOrders(t *testing.T) {
 	}, result, "WebsocketBatchCancelOrders should decode every field")
 }
 
-func TestWebsocketPrivateRequestNotConnected(t *testing.T) {
-	t.Parallel()
-	ex := newTestExchange(t)
-	_, err := ex.WebsocketCancelAllOrders(t.Context())
-	assert.ErrorIs(t, err, websocket.ErrNotConnected, "a private request should fail without a private connection")
-}
-
-func TestWebsocketPrivateRequestTokenError(t *testing.T) {
-	t.Parallel()
-	ex := newHTTPTestExchange(t, func(w http.ResponseWriter, _ *http.Request) {
-		_, err := w.Write([]byte(`{"error":["EAPI:Invalid key"]}`))
-		assert.NoError(t, err, "Write should not error")
-	})
-	seedTestAssetNames(ex)
-	mock := func(tb testing.TB, msg []byte, _ *gws.Conn) error {
-		tb.Helper()
-		assert.Failf(tb, "no request should be sent without a token", "%s", msg)
-		return nil
-	}
-	ex.Features.Subscriptions = subscription.List{}
-	useTestWebsocket(t, ex, newMockWebsocketURL(t, mock), wsPrivateConnection)
-	ex.Websocket.SetSubscriptionsNotRequired()
-	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
-	_, err := ex.WebsocketCancelAllOrders(t.Context())
-	assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "a private request should fail when its token cannot be fetched")
-}
-
 func TestWebsocketOrderParams(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
@@ -435,18 +438,27 @@ func TestWebsocketOrderParams(t *testing.T) {
 		{name: "client order ID beside a user reference", order: WebsocketOrder{OrderType: "limit", Side: "buy", Quantity: 1, ClientOrderID: "a", UserReference: 1}, err: errClientOrderIDWithUserReference},
 		{name: "GTD without an expiry", order: WebsocketOrder{OrderType: "limit", Side: "buy", Quantity: 1, TimeInForce: "gtd"}, err: order.ErrInvalidTimeInForce},
 	} {
-		_, err := tc.order.params()
-		assert.ErrorIsf(t, err, tc.err, "params should reject an order by its %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := tc.order.params()
+			assert.ErrorIsf(t, err, tc.err, "params should reject an order by its %s", tc.name)
+		})
 	}
 	for _, v := range []float64{-1, math.NaN(), math.Inf(1), math.Inf(-1)} {
-		for name, o := range map[string]WebsocketOrder{
-			"quantity":            {OrderType: "limit", Side: "buy", Quantity: v},
-			"display quantity":    {OrderType: "iceberg", Side: "buy", Quantity: 1, DisplayQuantity: v},
-			"cash order quantity": {OrderType: "market", Side: "buy", Quantity: 1, CashOrderQuantity: v},
-		} {
-			_, err := o.params()
-			assert.ErrorIsf(t, err, order.ErrAmountIsInvalid, "params should reject a %s of %v", name, v)
-		}
+		t.Run(strconv.FormatFloat(v, 'g', -1, 64), func(t *testing.T) {
+			t.Parallel()
+			for name, o := range map[string]WebsocketOrder{
+				"quantity":            {OrderType: "limit", Side: "buy", Quantity: v},
+				"display quantity":    {OrderType: "iceberg", Side: "buy", Quantity: 1, DisplayQuantity: v},
+				"cash order quantity": {OrderType: "market", Side: "buy", Quantity: 1, CashOrderQuantity: v},
+			} {
+				t.Run(name, func(t *testing.T) {
+					t.Parallel()
+					_, err := o.params()
+					assert.ErrorIsf(t, err, order.ErrAmountIsInvalid, "params should reject a %s of %v", name, v)
+				})
+			}
+		})
 	}
 	aest := time.FixedZone("AEST", 10*60*60)
 	triggers := &WebsocketOrderTriggers{Reference: "last", Price: 28410, PriceType: "static"}
@@ -510,6 +522,33 @@ func TestWebsocketPrivateRequest(t *testing.T) {
 	var apiErr *APIError
 	require.ErrorAs(t, err, &apiErr, "wsPrivateRequest must return a failed reply's error")
 	assert.Equal(t, []string{"EGeneral:Internal error"}, apiErr.Errors, "wsPrivateRequest should return the error Kraken replies with")
+
+	t.Run("fails without a private connection", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestExchange(t)
+		_, err := ex.WebsocketCancelAllOrders(t.Context())
+		assert.ErrorIs(t, err, websocket.ErrNotConnected, "a private request should fail without a private connection")
+	})
+
+	t.Run("fails when the token cannot be fetched", func(t *testing.T) {
+		t.Parallel()
+		ex := newHTTPTestExchange(t, func(w http.ResponseWriter, _ *http.Request) {
+			_, err := w.Write([]byte(`{"error":["EAPI:Invalid key"]}`))
+			assert.NoError(t, err, "Write should not error")
+		})
+		seedTestAssetNames(ex)
+		mock := func(tb testing.TB, msg []byte, _ *gws.Conn) error {
+			tb.Helper()
+			assert.Failf(tb, "no request should be sent without a token", "%s", msg)
+			return nil
+		}
+		ex.Features.Subscriptions = subscription.List{}
+		useTestWebsocket(t, ex, newMockWebsocketURL(t, mock), wsPrivateConnection)
+		ex.Websocket.SetSubscriptionsNotRequired()
+		require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
+		_, err := ex.WebsocketCancelAllOrders(t.Context())
+		assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "a private request should fail when its token cannot be fetched")
+	})
 }
 
 func TestWebsocketPrivateRequests(t *testing.T) {

@@ -94,77 +94,91 @@ func TestUpgradeExchange(t *testing.T) {
 			assert.Equal(t, got, again, "UpgradeExchange should be idempotent")
 		})
 	}
-}
 
-func TestUpgradeExchangeSubscriptions(t *testing.T) {
-	t.Parallel()
-	explicitZeros := `{"enabled":true,"channel":"ticker","pairs":"","asset":"spot","params":{},"interval":0,"levels":0,"authenticated":false,"qualifiedChannel":"ignored"}`
-	for _, tc := range []struct {
-		name string
-		subs []string
-	}{
-		{"previous defaults", previousDefaults},
-		{"another order", []string{myTrades, orderbook, ticker, candles, myOrders, allTrades}},
-		{"capitalised asset", replaced(0, `{"enabled":true,"channel":"ticker","asset":"Spot"}`)},
-		{"upper case asset", replaced(0, `{"enabled":true,"channel":"ticker","asset":"SPOT"}`)},
-		{"capitalised field names", replaced(0, `{"Enabled":true,"Channel":"ticker","Asset":"spot"}`)},
-		{"explicit zero values", replaced(0, explicitZeros)},
-		{"interval in seconds", replaced(2, `{"enabled":true,"channel":"candles","asset":"spot","interval":"60s"}`)},
-		{"interval in minutes and seconds", replaced(2, `{"enabled":true,"channel":"candles","asset":"spot","interval":"1m0s"}`)},
-		{"interval in nanoseconds", replaced(2, `{"enabled":true,"channel":"candles","asset":"spot","interval":60000000000}`)},
-		{"interval unit spelt out", replaced(2, `{"enabled":true,"channel":"candles","asset":"spot","interval":"1minute"}`)},
-		{"interval unit in upper case", replaced(2, `{"enabled":true,"channel":"candles","asset":"spot","interval":"1MIN"}`)},
-		{"interval in upper case seconds", replaced(2, `{"enabled":true,"channel":"candles","asset":"spot","interval":"60S"}`)},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			got, err := new(v19.Version).UpgradeExchange(t.Context(), []byte(subscriptions(tc.subs...)))
-			require.NoError(t, err, "UpgradeExchange must not error")
-			exp := subscriptions(append(tc.subs, futuresDefault)...)
-			assert.JSONEq(t, exp, string(got), "UpgradeExchange should add the futures subscriptions, keeping the saved ones")
-			again, err := new(v19.Version).UpgradeExchange(t.Context(), bytes.Clone(got))
-			require.NoError(t, err, "repeated UpgradeExchange must not error")
-			assert.Equal(t, got, again, "UpgradeExchange should be idempotent")
-		})
-	}
-}
+	t.Run("previous default subscriptions", func(t *testing.T) {
+		t.Parallel()
+		explicitZeros := `{"enabled":true,"channel":"ticker","pairs":"","asset":"spot","params":{},"interval":0,"levels":0,"authenticated":false,"qualifiedChannel":"ignored"}`
+		for _, tc := range []struct {
+			name string
+			subs []string
+		}{
+			{"previous defaults", previousDefaults},
+			{"another order", []string{myTrades, orderbook, ticker, candles, myOrders, allTrades}},
+			{"capitalised asset", replaced(0, `{"enabled":true,"channel":"ticker","asset":"Spot"}`)},
+			{"upper case asset", replaced(0, `{"enabled":true,"channel":"ticker","asset":"SPOT"}`)},
+			{"capitalised field names", replaced(0, `{"Enabled":true,"Channel":"ticker","Asset":"spot"}`)},
+			{"explicit zero values", replaced(0, explicitZeros)},
+			{"interval in seconds", replaced(2, `{"enabled":true,"channel":"candles","asset":"spot","interval":"60s"}`)},
+			{"interval in minutes and seconds", replaced(2, `{"enabled":true,"channel":"candles","asset":"spot","interval":"1m0s"}`)},
+			{"interval in nanoseconds", replaced(2, `{"enabled":true,"channel":"candles","asset":"spot","interval":60000000000}`)},
+			{"interval unit spelt out", replaced(2, `{"enabled":true,"channel":"candles","asset":"spot","interval":"1minute"}`)},
+			{"interval unit in upper case", replaced(2, `{"enabled":true,"channel":"candles","asset":"spot","interval":"1MIN"}`)},
+			{"interval in upper case seconds", replaced(2, `{"enabled":true,"channel":"candles","asset":"spot","interval":"60S"}`)},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				got, err := new(v19.Version).UpgradeExchange(t.Context(), []byte(subscriptions(tc.subs...)))
+				require.NoError(t, err, "UpgradeExchange must not error")
+				exp := subscriptions(append(tc.subs, futuresDefault)...)
+				assert.JSONEq(t, exp, string(got), "UpgradeExchange should add the futures subscriptions, keeping the saved ones")
+				again, err := new(v19.Version).UpgradeExchange(t.Context(), bytes.Clone(got))
+				require.NoError(t, err, "repeated UpgradeExchange must not error")
+				assert.Equal(t, got, again, "UpgradeExchange should be idempotent")
+			})
+		}
+	})
 
-func TestUpgradeExchangeCustomSubscriptions(t *testing.T) {
-	t.Parallel()
-	for _, tc := range []struct {
-		name, in string
-	}{
-		{"current defaults", subscriptions(append(previousDefaults, futuresDefault)...)},
-		{"futures ticker added", subscriptions(append(previousDefaults, futuresTicker)...)},
-		{"level 3 book added", subscriptions(append(previousDefaults, `{"enabled":true,"channel":"allOrders","asset":"spot","levels":10}`)...)},
-		{"default removed", subscriptions(previousDefaults[1:]...)},
-		{"default duplicated", subscriptions(replaced(1, ticker)...)},
-		{"disabled", subscriptions(replaced(0, `{"enabled":false,"channel":"ticker","asset":"spot"}`)...)},
-		{"enabled omitted", subscriptions(replaced(0, `{"channel":"ticker","asset":"spot"}`)...)},
-		{"capitalised channel", subscriptions(replaced(0, `{"enabled":true,"channel":"Ticker","asset":"spot"}`)...)},
-		{"another asset", subscriptions(replaced(0, `{"enabled":true,"channel":"ticker","asset":"all"}`)...)},
-		{"pairs", subscriptions(replaced(0, `{"enabled":true,"channel":"ticker","asset":"spot","pairs":"XBT/USD"}`)...)},
-		{"params", subscriptions(replaced(0, `{"enabled":true,"channel":"ticker","asset":"spot","params":{"event_trigger":"bbo"}}`)...)},
-		{"another depth", subscriptions(replaced(3, `{"enabled":true,"channel":"orderbook","asset":"spot","levels":10}`)...)},
-		{"another interval", subscriptions(replaced(2, `{"enabled":true,"channel":"candles","asset":"spot","interval":"5m"}`)...)},
-		{"monthly interval", subscriptions(replaced(2, `{"enabled":true,"channel":"candles","asset":"spot","interval":"1M"}`)...)},
-		{"invalid interval", subscriptions(replaced(2, `{"enabled":true,"channel":"candles","asset":"spot","interval":"1 minute"}`)...)},
-		{"raw interval", subscriptions(replaced(2, `{"enabled":true,"channel":"candles","asset":"spot","interval":"raw"}`)...)},
-		// Scaling 2^53+1 minutes wraps to one minute, but the runtime rejects intervals that overflow
-		{"overflowing interval", subscriptions(replaced(2, `{"enabled":true,"channel":"candles","asset":"spot","interval":"9007199254740993m"}`)...)},
-		{"unauthenticated", subscriptions(replaced(4, `{"enabled":true,"channel":"myOrders"}`)...)},
-		{"no subscriptions", subscriptions()},
-		{"empty subscriptions", `{"name":"Kraken","features":{"subscriptions":[]}}`},
-		{"null subscriptions", `{"name":"Kraken","features":{"subscriptions":null}}`},
-		{"no features", `{"name":"Kraken"}`},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			got, err := new(v19.Version).UpgradeExchange(t.Context(), []byte(tc.in))
-			require.NoError(t, err, "UpgradeExchange must not error")
-			assert.JSONEq(t, tc.in, string(got), "UpgradeExchange should keep subscriptions other than the previous defaults")
-		})
-	}
+	t.Run("custom subscriptions", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name, in string
+		}{
+			{"current defaults", subscriptions(append(previousDefaults, futuresDefault)...)},
+			{"futures ticker added", subscriptions(append(previousDefaults, futuresTicker)...)},
+			{"level 3 book added", subscriptions(append(previousDefaults, `{"enabled":true,"channel":"allOrders","asset":"spot","levels":10}`)...)},
+			{"default removed", subscriptions(previousDefaults[1:]...)},
+			{"default duplicated", subscriptions(replaced(1, ticker)...)},
+			{"disabled", subscriptions(replaced(0, `{"enabled":false,"channel":"ticker","asset":"spot"}`)...)},
+			{"enabled omitted", subscriptions(replaced(0, `{"channel":"ticker","asset":"spot"}`)...)},
+			{"capitalised channel", subscriptions(replaced(0, `{"enabled":true,"channel":"Ticker","asset":"spot"}`)...)},
+			{"another asset", subscriptions(replaced(0, `{"enabled":true,"channel":"ticker","asset":"all"}`)...)},
+			{"pairs", subscriptions(replaced(0, `{"enabled":true,"channel":"ticker","asset":"spot","pairs":"XBT/USD"}`)...)},
+			{"params", subscriptions(replaced(0, `{"enabled":true,"channel":"ticker","asset":"spot","params":{"event_trigger":"bbo"}}`)...)},
+			{"another depth", subscriptions(replaced(3, `{"enabled":true,"channel":"orderbook","asset":"spot","levels":10}`)...)},
+			{"another interval", subscriptions(replaced(2, `{"enabled":true,"channel":"candles","asset":"spot","interval":"5m"}`)...)},
+			{"monthly interval", subscriptions(replaced(2, `{"enabled":true,"channel":"candles","asset":"spot","interval":"1M"}`)...)},
+			{"invalid interval", subscriptions(replaced(2, `{"enabled":true,"channel":"candles","asset":"spot","interval":"1 minute"}`)...)},
+			{"raw interval", subscriptions(replaced(2, `{"enabled":true,"channel":"candles","asset":"spot","interval":"raw"}`)...)},
+			// Scaling 2^53+1 minutes wraps to one minute, but the runtime rejects intervals that overflow
+			{"overflowing interval", subscriptions(replaced(2, `{"enabled":true,"channel":"candles","asset":"spot","interval":"9007199254740993m"}`)...)},
+			{"unauthenticated", subscriptions(replaced(4, `{"enabled":true,"channel":"myOrders"}`)...)},
+			{"no subscriptions", subscriptions()},
+			{"empty subscriptions", `{"name":"Kraken","features":{"subscriptions":[]}}`},
+			{"null subscriptions", `{"name":"Kraken","features":{"subscriptions":null}}`},
+			{"no features", `{"name":"Kraken"}`},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				got, err := new(v19.Version).UpgradeExchange(t.Context(), []byte(tc.in))
+				require.NoError(t, err, "UpgradeExchange must not error")
+				assert.JSONEq(t, tc.in, string(got), "UpgradeExchange should keep subscriptions other than the previous defaults")
+			})
+		}
+	})
+
+	t.Run("malformed configs", func(t *testing.T) {
+		t.Parallel()
+		_, err := new(v19.Version).UpgradeExchange(t.Context(), []byte(`{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.kraken.com`))
+		assert.ErrorIs(t, err, jsonparser.MalformedStringError, "UpgradeExchange should reject a malformed exchange config")
+		for _, subs := range []string{`{}`, `1`, `[1]`, `[{"levels":"1000"}]`} {
+			t.Run(subs, func(t *testing.T) {
+				t.Parallel()
+				var typeErr *json.UnmarshalTypeError
+				_, err := new(v19.Version).UpgradeExchange(t.Context(), []byte(`{"features":{"subscriptions":`+subs+`}}`))
+				assert.ErrorAsf(t, err, &typeErr, "UpgradeExchange should reject subscriptions %s", subs)
+			})
+		}
+	})
 }
 
 func TestDowngradeExchange(t *testing.T) {
@@ -188,47 +202,45 @@ func TestDowngradeExchange(t *testing.T) {
 			assert.JSONEq(t, tc.exp, string(got), "DowngradeExchange should move only Kraken's websocket v2 endpoints")
 		})
 	}
-}
 
-func TestDowngradeExchangeSubscriptions(t *testing.T) {
-	t.Parallel()
-	disabledTicker := `{"enabled":false,"channel":"ticker","asset":"futures"}`
-	level3 := `{"enabled":true,"channel":"allOrders","asset":"spot","levels":10}`
-	for _, tc := range []struct {
-		name, in, exp string
-	}{
-		{"current defaults", subscriptions(append(previousDefaults, futuresDefault)...), downgraded(previousDefaults...)},
-		{"another order", subscriptions(futuresFills, myTrades, futuresTicker, orderbook, ticker, futuresBook, candles, futuresOrders, myOrders, futuresTrades, allTrades), downgraded(myTrades, orderbook, ticker, candles, myOrders, allTrades)},
-		{"upper case asset", subscriptions(append(previousDefaults, `{"enabled":true,"channel":"ticker","asset":"FUTURES"}`, futuresTrades, futuresBook, futuresOrders, futuresFills)...), downgraded(previousDefaults...)},
-		{"previous defaults", subscriptions(previousDefaults...), downgraded(previousDefaults...)},
-		{"futures subscription disabled", subscriptions(append(previousDefaults, disabledTicker, futuresTrades, futuresBook, futuresOrders, futuresFills)...), downgraded(append(previousDefaults, disabledTicker, futuresTrades, futuresBook, futuresOrders, futuresFills)...)},
-		{"futures subscriptions removed", subscriptions(append(previousDefaults, futuresTicker)...), downgraded(append(previousDefaults, futuresTicker)...)},
-		{"level 3 book added", subscriptions(append(previousDefaults, futuresDefault, level3)...), downgraded(append(previousDefaults, futuresDefault, level3)...)},
-		{"no features", `{"name":"Kraken"}`, `{"name":"Kraken"}`},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			got, err := new(v19.Version).DowngradeExchange(t.Context(), []byte(tc.in))
-			require.NoError(t, err, "DowngradeExchange must not error")
-			assert.JSONEq(t, tc.exp, string(got), "DowngradeExchange should remove the futures subscriptions only from the current defaults")
-		})
-	}
-}
+	t.Run("subscriptions", func(t *testing.T) {
+		t.Parallel()
+		disabledTicker := `{"enabled":false,"channel":"ticker","asset":"futures"}`
+		level3 := `{"enabled":true,"channel":"allOrders","asset":"spot","levels":10}`
+		for _, tc := range []struct {
+			name, in, exp string
+		}{
+			{"current defaults", subscriptions(append(previousDefaults, futuresDefault)...), downgraded(previousDefaults...)},
+			{"another order", subscriptions(futuresFills, myTrades, futuresTicker, orderbook, ticker, futuresBook, candles, futuresOrders, myOrders, futuresTrades, allTrades), downgraded(myTrades, orderbook, ticker, candles, myOrders, allTrades)},
+			{"upper case asset", subscriptions(append(previousDefaults, `{"enabled":true,"channel":"ticker","asset":"FUTURES"}`, futuresTrades, futuresBook, futuresOrders, futuresFills)...), downgraded(previousDefaults...)},
+			{"previous defaults", subscriptions(previousDefaults...), downgraded(previousDefaults...)},
+			{"futures subscription disabled", subscriptions(append(previousDefaults, disabledTicker, futuresTrades, futuresBook, futuresOrders, futuresFills)...), downgraded(append(previousDefaults, disabledTicker, futuresTrades, futuresBook, futuresOrders, futuresFills)...)},
+			{"futures subscriptions removed", subscriptions(append(previousDefaults, futuresTicker)...), downgraded(append(previousDefaults, futuresTicker)...)},
+			{"level 3 book added", subscriptions(append(previousDefaults, futuresDefault, level3)...), downgraded(append(previousDefaults, futuresDefault, level3)...)},
+			{"no features", `{"name":"Kraken"}`, `{"name":"Kraken"}`},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				got, err := new(v19.Version).DowngradeExchange(t.Context(), []byte(tc.in))
+				require.NoError(t, err, "DowngradeExchange must not error")
+				assert.JSONEq(t, tc.exp, string(got), "DowngradeExchange should remove the futures subscriptions only from the current defaults")
+			})
+		}
+	})
 
-func TestMigrationMalformed(t *testing.T) {
-	t.Parallel()
-	_, err := new(v19.Version).UpgradeExchange(t.Context(), []byte(`{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.kraken.com`))
-	assert.ErrorIs(t, err, jsonparser.MalformedStringError, "UpgradeExchange should reject a malformed exchange config")
-	_, err = new(v19.Version).DowngradeExchange(t.Context(), []byte(`{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.kraken.com/v2`))
-	assert.ErrorIs(t, err, jsonparser.MalformedStringError, "DowngradeExchange should reject a malformed exchange config")
-
-	for _, subs := range []string{`{}`, `1`, `[1]`, `[{"levels":"1000"}]`} {
-		var typeErr *json.UnmarshalTypeError
-		_, err = new(v19.Version).UpgradeExchange(t.Context(), []byte(`{"features":{"subscriptions":`+subs+`}}`))
-		assert.ErrorAsf(t, err, &typeErr, "UpgradeExchange should reject subscriptions %s", subs)
-		_, err = new(v19.Version).DowngradeExchange(t.Context(), []byte(`{"features":{"subscriptions":`+subs+`}}`))
-		assert.ErrorAsf(t, err, &typeErr, "DowngradeExchange should reject subscriptions %s", subs)
-	}
+	t.Run("malformed configs", func(t *testing.T) {
+		t.Parallel()
+		_, err := new(v19.Version).DowngradeExchange(t.Context(), []byte(`{"api":{"urlEndpoints":{"WebsocketSpotURL":"wss://ws.kraken.com/v2`))
+		assert.ErrorIs(t, err, jsonparser.MalformedStringError, "DowngradeExchange should reject a malformed exchange config")
+		for _, subs := range []string{`{}`, `1`, `[1]`, `[{"levels":"1000"}]`} {
+			t.Run(subs, func(t *testing.T) {
+				t.Parallel()
+				var typeErr *json.UnmarshalTypeError
+				_, err := new(v19.Version).DowngradeExchange(t.Context(), []byte(`{"features":{"subscriptions":`+subs+`}}`))
+				assert.ErrorAsf(t, err, &typeErr, "DowngradeExchange should reject subscriptions %s", subs)
+			})
+		}
+	})
 }
 
 func TestRegisteredMigration(t *testing.T) {

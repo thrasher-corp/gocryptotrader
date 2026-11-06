@@ -19,6 +19,7 @@ func TestGetAffiliateDailyActivity(t *testing.T) {
 	iibans := []string{"AA45N84GQK2VUN7A", "CC34N84GQK2VUN7C"}
 	_, err := e.GetAffiliateDailyActivity(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetAffiliateDailyActivity must reject a nil request")
+	// Serial, as live mode's GetAffiliateDailyActivity call below would otherwise run before these cases
 	for _, tc := range []struct {
 		name string
 		req  *AffiliateDailyActivityRequest
@@ -36,8 +37,10 @@ func TestGetAffiliateDailyActivity(t *testing.T) {
 		{"a history request starting after its end", &AffiliateDailyActivityRequest{IIBANs: iibans, StartDate: day, EndDate: start}, common.ErrStartAfterEnd},
 		{"a limit above 200", &AffiliateDailyActivityRequest{ActivityDate: day, Limit: 201}, errInvalidAffiliateLimit},
 	} {
-		_, err = e.GetAffiliateDailyActivity(t.Context(), tc.req)
-		require.ErrorIsf(t, err, tc.err, "GetAffiliateDailyActivity must reject %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err = e.GetAffiliateDailyActivity(t.Context(), tc.req)
+			require.ErrorIsf(t, err, tc.err, "GetAffiliateDailyActivity must reject %s", tc.name)
+		})
 	}
 
 	if !mockTests {

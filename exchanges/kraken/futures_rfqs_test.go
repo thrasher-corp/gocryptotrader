@@ -4,6 +4,7 @@ import (
 	"math"
 	"net/http"
 	"net/url"
+	"strconv"
 	"testing"
 	"time"
 
@@ -192,11 +193,14 @@ func TestPlaceFuturesRFQOffer(t *testing.T) {
 	require.ErrorIs(t, err, errFuturesRFQUIDEmpty, "PlaceFuturesRFQOffer must reject an empty RFQ UID")
 	_, err = e.PlaceFuturesRFQOffer(t.Context(), &FuturesPlaceRFQOfferRequest{RFQUID: futuresTestSingleRFQUID})
 	require.ErrorIs(t, err, errFuturesRFQPriceEmpty, "PlaceFuturesRFQOffer must reject an offer without a price")
+	// Serial, as the PlaceFuturesRFQOffer calls after the loop would otherwise run before these cases
 	for _, price := range []float64{math.NaN(), math.Inf(1), math.Inf(-1)} {
-		_, err = e.PlaceFuturesRFQOffer(t.Context(), &FuturesPlaceRFQOfferRequest{RFQUID: futuresTestSingleRFQUID, Bid: new(price)})
-		require.ErrorIsf(t, err, errFuturesRFQInvalidPrice, "PlaceFuturesRFQOffer must reject a bid of %v", price)
-		_, err = e.PlaceFuturesRFQOffer(t.Context(), &FuturesPlaceRFQOfferRequest{RFQUID: futuresTestSingleRFQUID, Ask: new(price)})
-		require.ErrorIsf(t, err, errFuturesRFQInvalidPrice, "PlaceFuturesRFQOffer must reject an ask of %v", price)
+		t.Run(strconv.FormatFloat(price, 'g', -1, 64), func(t *testing.T) {
+			_, err = e.PlaceFuturesRFQOffer(t.Context(), &FuturesPlaceRFQOfferRequest{RFQUID: futuresTestSingleRFQUID, Bid: new(price)})
+			require.ErrorIsf(t, err, errFuturesRFQInvalidPrice, "PlaceFuturesRFQOffer must reject a bid of %v", price)
+			_, err = e.PlaceFuturesRFQOffer(t.Context(), &FuturesPlaceRFQOfferRequest{RFQUID: futuresTestSingleRFQUID, Ask: new(price)})
+			require.ErrorIsf(t, err, errFuturesRFQInvalidPrice, "PlaceFuturesRFQOffer must reject an ask of %v", price)
+		})
 	}
 	_, err = e.PlaceFuturesRFQOffer(t.Context(), &FuturesPlaceRFQOfferRequest{RFQUID: futuresTestSingleRFQUID, Ask: new(1408.25), BidSide: []FuturesRFQOfferLeg{{Contract: futuresTestCall85000, Price: 1395.5}}})
 	require.ErrorIs(t, err, errFuturesRFQPricingConflict, "PlaceFuturesRFQOffer must reject package and per-leg prices together")
@@ -320,9 +324,12 @@ func TestCreateFuturesRFQ(t *testing.T) {
 	require.ErrorIs(t, err, errFuturesRFQTooManyLegs, "CreateFuturesRFQ must reject more than 100 legs")
 	_, err = e.CreateFuturesRFQ(t.Context(), &FuturesCreateRFQRequest{Legs: []FuturesRFQRequestedLeg{{Size: 1}}})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "CreateFuturesRFQ must reject a leg without a contract")
+	// Serial, as the CreateFuturesRFQ calls after the loop would otherwise run before these cases
 	for _, pair := range partialTestPairs {
-		_, err = e.CreateFuturesRFQ(t.Context(), &FuturesCreateRFQRequest{Legs: []FuturesRFQRequestedLeg{{Contract: pair, Size: 1}}})
-		require.ErrorIsf(t, err, currency.ErrCurrencyPairEmpty, "CreateFuturesRFQ must reject %q, which lacks a base or a quote", pair)
+		t.Run(pair.String(), func(t *testing.T) {
+			_, err = e.CreateFuturesRFQ(t.Context(), &FuturesCreateRFQRequest{Legs: []FuturesRFQRequestedLeg{{Contract: pair, Size: 1}}})
+			require.ErrorIsf(t, err, currency.ErrCurrencyPairEmpty, "CreateFuturesRFQ must reject %q, which lacks a base or a quote", pair)
+		})
 	}
 	_, err = e.CreateFuturesRFQ(t.Context(), &FuturesCreateRFQRequest{Legs: []FuturesRFQRequestedLeg{{Contract: futuresTestCall85000}}})
 	require.ErrorIs(t, err, errFuturesRFQLegSizeZero, "CreateFuturesRFQ must reject a leg without a size")
@@ -389,7 +396,7 @@ func TestCancelFuturesRFQ(t *testing.T) {
 	futuresRequireRFQRefusal(t, err, "rfqNotFound")
 }
 
-func TestAcceptFuturesRFQOffer(t *testing.T) {
+func TestAcceptFuturesRFQOffer(t *testing.T) { //nolint:tparallel // serial cases run before the later calls of the same method
 	t.Parallel()
 	_, err := e.AcceptFuturesRFQOffer(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "AcceptFuturesRFQOffer must reject a nil request")
@@ -399,11 +406,14 @@ func TestAcceptFuturesRFQOffer(t *testing.T) {
 	require.ErrorIs(t, err, errFuturesRFQAcceptSide, "AcceptFuturesRFQOffer must reject an acceptance without a price")
 	_, err = e.AcceptFuturesRFQOffer(t.Context(), &FuturesAcceptRFQOfferRequest{RFQUID: futuresTestOwnRFQUID, Bid: new(1395.5), Ask: new(1408.25)})
 	require.ErrorIs(t, err, errFuturesRFQAcceptSide, "AcceptFuturesRFQOffer must reject accepting both sides")
+	// Serial, as the AcceptFuturesRFQOffer calls after the loop would otherwise run before these cases
 	for _, price := range []float64{math.NaN(), math.Inf(1), math.Inf(-1)} {
-		_, err = e.AcceptFuturesRFQOffer(t.Context(), &FuturesAcceptRFQOfferRequest{RFQUID: futuresTestOwnRFQUID, Bid: new(price)})
-		require.ErrorIsf(t, err, errFuturesRFQInvalidPrice, "AcceptFuturesRFQOffer must reject a bid of %v", price)
-		_, err = e.AcceptFuturesRFQOffer(t.Context(), &FuturesAcceptRFQOfferRequest{RFQUID: futuresTestOwnRFQUID, Ask: new(price)})
-		require.ErrorIsf(t, err, errFuturesRFQInvalidPrice, "AcceptFuturesRFQOffer must reject an ask of %v", price)
+		t.Run(strconv.FormatFloat(price, 'g', -1, 64), func(t *testing.T) {
+			_, err = e.AcceptFuturesRFQOffer(t.Context(), &FuturesAcceptRFQOfferRequest{RFQUID: futuresTestOwnRFQUID, Bid: new(price)})
+			require.ErrorIsf(t, err, errFuturesRFQInvalidPrice, "AcceptFuturesRFQOffer must reject a bid of %v", price)
+			_, err = e.AcceptFuturesRFQOffer(t.Context(), &FuturesAcceptRFQOfferRequest{RFQUID: futuresTestOwnRFQUID, Ask: new(price)})
+			require.ErrorIsf(t, err, errFuturesRFQInvalidPrice, "AcceptFuturesRFQOffer must reject an ask of %v", price)
+		})
 	}
 
 	if !mockTests {
@@ -459,21 +469,30 @@ func TestFuturesRFQCheckPackagePrices(t *testing.T) {
 	t.Parallel()
 	assert.NoError(t, futuresRFQCheckPackagePrices(nil, nil), "futuresRFQCheckPackagePrices should accept no prices")
 	for _, price := range []float64{0, -1395.5, 1408.25} {
-		assert.NoErrorf(t, futuresRFQCheckPackagePrices(&price, &price), "futuresRFQCheckPackagePrices should accept a price of %v", price)
+		t.Run(strconv.FormatFloat(price, 'g', -1, 64), func(t *testing.T) {
+			t.Parallel()
+			assert.NoErrorf(t, futuresRFQCheckPackagePrices(&price, &price), "futuresRFQCheckPackagePrices should accept a price of %v", price)
+		})
 	}
 	for _, price := range []float64{math.NaN(), math.Inf(1), math.Inf(-1)} {
-		assert.ErrorIsf(t, futuresRFQCheckPackagePrices(&price, nil), errFuturesRFQInvalidPrice, "futuresRFQCheckPackagePrices should reject a bid of %v", price)
-		assert.ErrorIsf(t, futuresRFQCheckPackagePrices(nil, &price), errFuturesRFQInvalidPrice, "futuresRFQCheckPackagePrices should reject an ask of %v", price)
+		t.Run(strconv.FormatFloat(price, 'g', -1, 64), func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, futuresRFQCheckPackagePrices(&price, nil), errFuturesRFQInvalidPrice, "futuresRFQCheckPackagePrices should reject a bid of %v", price)
+			assert.ErrorIsf(t, futuresRFQCheckPackagePrices(nil, &price), errFuturesRFQInvalidPrice, "futuresRFQCheckPackagePrices should reject an ask of %v", price)
+		})
 	}
 }
 
-func TestFuturesRFQLegPrices(t *testing.T) {
+func TestFuturesRFQLegPrices(t *testing.T) { //nolint:tparallel // serial cases run before the later calls of the same method
 	t.Parallel()
 	_, err := e.futuresRFQLegPrices([]FuturesRFQOfferLeg{{Contract: futuresTestPair, Price: 1}, {Price: 1}})
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "futuresRFQLegPrices should reject a leg without a contract")
+	// Serial, as the futuresRFQLegPrices calls after the loop would otherwise run before these cases
 	for _, pair := range partialTestPairs {
-		_, err = e.futuresRFQLegPrices([]FuturesRFQOfferLeg{{Contract: pair, Price: 1}})
-		assert.ErrorIsf(t, err, currency.ErrCurrencyPairEmpty, "futuresRFQLegPrices should reject %q, which lacks a base or a quote", pair)
+		t.Run(pair.String(), func(t *testing.T) {
+			_, err = e.futuresRFQLegPrices([]FuturesRFQOfferLeg{{Contract: pair, Price: 1}})
+			assert.ErrorIsf(t, err, currency.ErrCurrencyPairEmpty, "futuresRFQLegPrices should reject %q, which lacks a base or a quote", pair)
+		})
 	}
 	prices, err := e.futuresRFQLegPrices([]FuturesRFQOfferLeg{{Contract: futuresTestPair, Price: 82000.5}, {Contract: piXBTUSDPair, Price: -10}})
 	require.NoError(t, err, "futuresRFQLegPrices must not error")

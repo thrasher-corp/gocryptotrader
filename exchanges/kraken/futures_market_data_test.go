@@ -341,18 +341,24 @@ func TestFuturesTradeUnmarshalJSON(t *testing.T) {
 	assert.Equal(t, FuturesTrade{SequenceID: math.MaxUint64, Size: 0.5}, trade, "Unmarshal should keep a 64-bit sequence ID exact and accept the size as the string Kraken documents")
 }
 
-func TestFuturesMarketSymbol(t *testing.T) {
+func TestFuturesMarketSymbol(t *testing.T) { //nolint:tparallel // the cases share e's pair formats and run before the later calls
 	t.Parallel()
 	_, err := e.futuresMarketSymbol(currency.EMPTYPAIR)
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "futuresMarketSymbol should reject an empty pair")
+	// Serial, as the futuresMarketSymbol cases below would otherwise run before these
 	for _, pair := range []currency.Pair{currency.NewPairWithDelimiter("PF", "", currency.UnderscoreDelimiter), currency.NewPairWithDelimiter("", "XBTUSD", currency.UnderscoreDelimiter)} {
-		_, err := e.futuresMarketSymbol(pair)
-		assert.ErrorIsf(t, err, currency.ErrCurrencyPairEmpty, "futuresMarketSymbol should reject %q, which lacks a base or a quote", pair)
+		t.Run(pair.String(), func(t *testing.T) {
+			_, err := e.futuresMarketSymbol(pair)
+			assert.ErrorIsf(t, err, currency.ErrCurrencyPairEmpty, "futuresMarketSymbol should reject %q, which lacks a base or a quote", pair)
+		})
 	}
+	// Serial, as the cases format their pairs with the pair formats e shares
 	for pair, exp := range map[currency.Pair]string{futuresTestPair: "PF_XBTUSD", piXBTUSDPair: "PI_XBTUSD"} {
-		symbol, err := e.futuresMarketSymbol(pair)
-		require.NoErrorf(t, err, "futuresMarketSymbol must not error for %s", pair)
-		assert.Equalf(t, exp, symbol, "futuresMarketSymbol should format %s as its market symbol", pair)
+		t.Run(pair.String(), func(t *testing.T) {
+			symbol, err := e.futuresMarketSymbol(pair)
+			require.NoErrorf(t, err, "futuresMarketSymbol must not error for %s", pair)
+			assert.Equalf(t, exp, symbol, "futuresMarketSymbol should format %s as its market symbol", pair)
+		})
 	}
 }
 

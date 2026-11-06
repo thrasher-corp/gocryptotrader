@@ -3,6 +3,7 @@ package kraken
 import (
 	"math"
 	"net/url"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -36,9 +37,12 @@ func TestGetFuturesPNLCurrencyPreferences(t *testing.T) {
 
 func TestSetFuturesPNLCurrencyPreference(t *testing.T) {
 	t.Parallel()
+	// Serial, as the SetFuturesPNLCurrencyPreference call after the loop would otherwise run before these cases
 	for _, pair := range partialTestPairs {
-		_, err := e.SetFuturesPNLCurrencyPreference(t.Context(), pair, currency.USDC)
-		require.ErrorIsf(t, err, currency.ErrCurrencyCodeEmpty, "SetFuturesPNLCurrencyPreference must reject %q, which lacks a base or a quote", pair)
+		t.Run(pair.String(), func(t *testing.T) {
+			_, err := e.SetFuturesPNLCurrencyPreference(t.Context(), pair, currency.USDC)
+			require.ErrorIsf(t, err, currency.ErrCurrencyCodeEmpty, "SetFuturesPNLCurrencyPreference must reject %q, which lacks a base or a quote", pair)
+		})
 	}
 	_, err := e.SetFuturesPNLCurrencyPreference(t.Context(), futuresTestPair, currency.EMPTYCODE)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "SetFuturesPNLCurrencyPreference must reject an empty currency")
@@ -72,8 +76,11 @@ func TestSetFuturesPNLCurrencyPreference(t *testing.T) {
 func TestDeleteFuturesPNLCurrencyPreference(t *testing.T) {
 	t.Parallel()
 	for _, pair := range partialTestPairs {
-		_, err := e.DeleteFuturesPNLCurrencyPreference(t.Context(), pair)
-		require.ErrorIsf(t, err, currency.ErrCurrencyCodeEmpty, "DeleteFuturesPNLCurrencyPreference must reject %q, which lacks a base or a quote", pair)
+		t.Run(pair.String(), func(t *testing.T) {
+			t.Parallel()
+			_, err := e.DeleteFuturesPNLCurrencyPreference(t.Context(), pair)
+			require.ErrorIsf(t, err, currency.ErrCurrencyCodeEmpty, "DeleteFuturesPNLCurrencyPreference must reject %q, which lacks a base or a quote", pair)
+		})
 	}
 
 	if !mockTests {
@@ -100,8 +107,10 @@ func TestDeleteFuturesPNLCurrencyPreference(t *testing.T) {
 	}
 }
 
-func TestFuturesPNLPreferenceParams(t *testing.T) {
+func TestFuturesPNLPreferenceParams(t *testing.T) { //nolint:tparallel // the cases share e's pair formats and run before the later calls
 	t.Parallel()
+
+	// Serial, as the contract case formats its pair with the pair formats e shares
 	for _, tc := range []struct {
 		name   string
 		symbol currency.Pair
@@ -110,13 +119,18 @@ func TestFuturesPNLPreferenceParams(t *testing.T) {
 		{name: "account-wide", exp: url.Values{}},
 		{name: "contract", symbol: futuresTestPair, exp: url.Values{"symbol": {"PF_XBTUSD"}}},
 	} {
-		params, err := e.futuresPNLPreferenceParams(tc.symbol)
-		require.NoErrorf(t, err, "futuresPNLPreferenceParams must not error for the %s preference", tc.name)
-		assert.Equalf(t, tc.exp, params, "futuresPNLPreferenceParams should return the %s preference's parameters", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			params, err := e.futuresPNLPreferenceParams(tc.symbol)
+			require.NoErrorf(t, err, "futuresPNLPreferenceParams must not error for the %s preference", tc.name)
+			assert.Equalf(t, tc.exp, params, "futuresPNLPreferenceParams should return the %s preference's parameters", tc.name)
+		})
 	}
+	// Serial, as the futuresPNLPreferenceParams call after the loop would otherwise run before these cases
 	for _, pair := range partialTestPairs {
-		_, err := e.futuresPNLPreferenceParams(pair)
-		assert.ErrorIsf(t, err, currency.ErrCurrencyCodeEmpty, "futuresPNLPreferenceParams should reject %q, which lacks a base or a quote", pair)
+		t.Run(pair.String(), func(t *testing.T) {
+			_, err := e.futuresPNLPreferenceParams(pair)
+			assert.ErrorIsf(t, err, currency.ErrCurrencyCodeEmpty, "futuresPNLPreferenceParams should reject %q, which lacks a base or a quote", pair)
+		})
 	}
 	_, err := new(Exchange).futuresPNLPreferenceParams(futuresTestPair)
 	assert.ErrorIs(t, err, currency.ErrPairManagerNotInitialised, "futuresPNLPreferenceParams should return the error formatting the symbol")
@@ -149,9 +163,12 @@ func TestSetFuturesLeverageSetting(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrNilPointer, "SetFuturesLeverageSetting must reject a nil request")
 	_, err = e.SetFuturesLeverageSetting(t.Context(), &FuturesLeverageSettingRequest{MaximumLeverage: 10})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "SetFuturesLeverageSetting must reject an empty symbol")
+	// Serial, as the cases format their symbol with the pair formats e shares before the leverage is checked
 	for _, maximumLeverage := range []float64{-0.01, math.NaN(), math.Inf(1), math.Inf(-1)} {
-		_, err = e.SetFuturesLeverageSetting(t.Context(), &FuturesLeverageSettingRequest{Symbol: futuresTestPair, MaximumLeverage: maximumLeverage})
-		require.ErrorIsf(t, err, errFuturesInvalidLimit, "SetFuturesLeverageSetting must reject a maximum leverage of %v", maximumLeverage)
+		t.Run(strconv.FormatFloat(maximumLeverage, 'g', -1, 64), func(t *testing.T) {
+			_, err = e.SetFuturesLeverageSetting(t.Context(), &FuturesLeverageSettingRequest{Symbol: futuresTestPair, MaximumLeverage: maximumLeverage})
+			require.ErrorIsf(t, err, errFuturesInvalidLimit, "SetFuturesLeverageSetting must reject a maximum leverage of %v", maximumLeverage)
+		})
 	}
 
 	if !mockTests {

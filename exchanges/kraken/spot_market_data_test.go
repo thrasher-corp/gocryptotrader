@@ -286,15 +286,18 @@ func TestGetOrderBook(t *testing.T) {
 	assert.Len(t, result["XXBTZUSD"].Asks, 2, "GetOrderBook should return the requested number of asks")
 }
 
-func TestGetLevel3OrderBook(t *testing.T) {
+func TestGetLevel3OrderBook(t *testing.T) { //nolint:tparallel // serial cases run before the later calls of the same method
 	t.Parallel()
 	_, err := e.GetLevel3OrderBook(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetLevel3OrderBook must reject a nil request")
 	_, err = e.GetLevel3OrderBook(t.Context(), &Level3OrderBookRequest{})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetLevel3OrderBook must reject an empty pair")
+	// Serial, as the GetLevel3OrderBook calls after the loop would otherwise run before these cases
 	for _, pair := range partialTestPairs {
-		_, err = e.GetLevel3OrderBook(t.Context(), &Level3OrderBookRequest{Pair: pair})
-		require.ErrorIsf(t, err, currency.ErrCurrencyPairEmpty, "GetLevel3OrderBook must reject %q, which lacks a base or a quote", pair)
+		t.Run(pair.String(), func(t *testing.T) {
+			_, err = e.GetLevel3OrderBook(t.Context(), &Level3OrderBookRequest{Pair: pair})
+			require.ErrorIsf(t, err, currency.ErrCurrencyPairEmpty, "GetLevel3OrderBook must reject %q, which lacks a base or a quote", pair)
+		})
 	}
 	_, err = e.GetLevel3OrderBook(t.Context(), &Level3OrderBookRequest{Pair: spotTestPair, Depth: 11})
 	require.ErrorIs(t, err, errInvalidDepth, "GetLevel3OrderBook must reject an undocumented depth")
@@ -323,15 +326,18 @@ func TestGetLevel3OrderBook(t *testing.T) {
 	assert.NotEmpty(t, result.Bids, "GetLevel3OrderBook should return bids")
 }
 
-func TestGetGroupedOrderBook(t *testing.T) {
+func TestGetGroupedOrderBook(t *testing.T) { //nolint:tparallel // serial cases run before the later calls of the same method
 	t.Parallel()
 	_, err := e.GetGroupedOrderBook(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetGroupedOrderBook must reject a nil request")
 	_, err = e.GetGroupedOrderBook(t.Context(), &GroupedOrderBookRequest{})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetGroupedOrderBook must reject an empty pair")
+	// Serial, as the GetGroupedOrderBook calls after the loop would otherwise run before these cases
 	for _, pair := range partialTestPairs {
-		_, err = e.GetGroupedOrderBook(t.Context(), &GroupedOrderBookRequest{Pair: pair})
-		require.ErrorIsf(t, err, currency.ErrCurrencyPairEmpty, "GetGroupedOrderBook must reject %q, which lacks a base or a quote", pair)
+		t.Run(pair.String(), func(t *testing.T) {
+			_, err = e.GetGroupedOrderBook(t.Context(), &GroupedOrderBookRequest{Pair: pair})
+			require.ErrorIsf(t, err, currency.ErrCurrencyPairEmpty, "GetGroupedOrderBook must reject %q, which lacks a base or a quote", pair)
+		})
 	}
 	_, err = e.GetGroupedOrderBook(t.Context(), &GroupedOrderBookRequest{Pair: spotTestPair, Depth: 11})
 	require.ErrorIs(t, err, errInvalidDepth, "GetGroupedOrderBook must reject an undocumented depth")
@@ -471,7 +477,7 @@ func TestFixedArrayUnmarshalJSON(t *testing.T) {
 	assert.ErrorIs(t, spread.UnmarshalJSON([]byte(`[1791504435,"81694.10000","81697.20000","1"]`)), errUnexpectedLength, "Spread.UnmarshalJSON should reject a long array")
 }
 
-func TestPairKeyedResponseUnmarshalJSON(t *testing.T) {
+func TestPairKeyedResponseUnmarshalJSON(t *testing.T) { //nolint:tparallel // the cases decode into the responses above in order
 	t.Parallel()
 	var ohlc OHLCDataResponse
 	require.NoError(t, ohlc.UnmarshalJSON([]byte(`{"XXBTZUSD":[[1791417600,"83276.1","83467.7","80328.6","81683.8","81878.5","4015.12325849",196775]],"last":1791417600}`)), "OHLCDataResponse.UnmarshalJSON must not error")
@@ -506,20 +512,27 @@ func TestPairKeyedResponseUnmarshalJSON(t *testing.T) {
 	}
 	assert.Equal(t, expSpreads, spreads, "RecentSpreadsResponse.UnmarshalJSON should key the spreads by pair beside the last time")
 
+	// The cases decode into the ohlc, trades and spreads decoded above, in order, so each also checks that a call keeps
+	// nothing from the last
 	for _, data := range []string{`[]`, `{"last":"soon"}`, `{"XXBTZUSD":{}}`} {
-		assert.Errorf(t, ohlc.UnmarshalJSON([]byte(data)), "OHLCDataResponse.UnmarshalJSON should reject %s", data)
-		assert.Errorf(t, trades.UnmarshalJSON([]byte(data)), "RecentTradesResponse.UnmarshalJSON should reject %s", data)
-		assert.Errorf(t, spreads.UnmarshalJSON([]byte(data)), "RecentSpreadsResponse.UnmarshalJSON should reject %s", data)
+		t.Run(data, func(t *testing.T) {
+			assert.Errorf(t, ohlc.UnmarshalJSON([]byte(data)), "OHLCDataResponse.UnmarshalJSON should reject %s", data)
+			assert.Errorf(t, trades.UnmarshalJSON([]byte(data)), "RecentTradesResponse.UnmarshalJSON should reject %s", data)
+			assert.Errorf(t, spreads.UnmarshalJSON([]byte(data)), "RecentSpreadsResponse.UnmarshalJSON should reject %s", data)
+		})
 	}
 }
 
-func TestSpotPairParams(t *testing.T) {
+func TestSpotPairParams(t *testing.T) { //nolint:tparallel // serial cases run before the later calls of the same method
 	t.Parallel()
 	_, err := e.spotPairParams(currency.EMPTYPAIR, "", false)
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "spotPairParams should reject an empty pair")
+	// Serial, as the spotPairParams calls after the loop would otherwise run before these cases
 	for _, pair := range partialTestPairs {
-		_, err = e.spotPairParams(pair, "", false)
-		assert.ErrorIsf(t, err, currency.ErrCurrencyPairEmpty, "spotPairParams should reject %q, which lacks a base or a quote", pair)
+		t.Run(pair.String(), func(t *testing.T) {
+			_, err = e.spotPairParams(pair, "", false)
+			assert.ErrorIsf(t, err, currency.ErrCurrencyPairEmpty, "spotPairParams should reject %q, which lacks a base or a quote", pair)
+		})
 	}
 	params, err := e.spotPairParams(spotTestPair, "", false)
 	require.NoError(t, err, "spotPairParams must not error")
@@ -529,13 +542,16 @@ func TestSpotPairParams(t *testing.T) {
 	assert.Equal(t, url.Values{"pair": {"XBTUSD"}, "asset_class": {"tokenized_asset"}, "assetVersion": {"1"}}, params, "spotPairParams should set the asset class and ask for display names")
 }
 
-func TestFormatSpotPairs(t *testing.T) {
+func TestFormatSpotPairs(t *testing.T) { //nolint:tparallel // serial cases run before the later calls of the same method
 	t.Parallel()
 	_, err := e.formatSpotPairs(currency.Pairs{spotTestPair, currency.EMPTYPAIR})
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "formatSpotPairs should reject an empty pair")
+	// Serial, as the formatSpotPairs calls after the loop would otherwise run before these cases
 	for _, pair := range partialTestPairs {
-		_, err = e.formatSpotPairs(currency.Pairs{spotTestPair, pair})
-		assert.ErrorIsf(t, err, currency.ErrCurrencyPairEmpty, "formatSpotPairs should reject %q, which lacks a base or a quote", pair)
+		t.Run(pair.String(), func(t *testing.T) {
+			_, err = e.formatSpotPairs(currency.Pairs{spotTestPair, pair})
+			assert.ErrorIsf(t, err, currency.ErrCurrencyPairEmpty, "formatSpotPairs should reject %q, which lacks a base or a quote", pair)
+		})
 	}
 	symbols, err := e.formatSpotPairs(currency.Pairs{spotTestPair, currency.NewPairWithDelimiter("ETH", "XBT", currency.UnderscoreDelimiter)})
 	require.NoError(t, err, "formatSpotPairs must not error")

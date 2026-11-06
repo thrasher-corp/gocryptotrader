@@ -13,13 +13,16 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
-func TestGetPreTradeData(t *testing.T) {
+func TestGetPreTradeData(t *testing.T) { //nolint:tparallel // serial cases run before the later calls of the same method
 	t.Parallel()
 	_, err := e.GetPreTradeData(t.Context(), currency.EMPTYPAIR)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetPreTradeData must reject an empty pair")
+	// Serial, as the GetPreTradeData call after the loop would otherwise run before these cases
 	for _, pair := range partialTestPairs {
-		_, err = e.GetPreTradeData(t.Context(), pair)
-		require.ErrorIsf(t, err, currency.ErrCurrencyPairEmpty, "GetPreTradeData must reject %q, which lacks a base or a quote", pair)
+		t.Run(pair.String(), func(t *testing.T) {
+			_, err = e.GetPreTradeData(t.Context(), pair)
+			require.ErrorIsf(t, err, currency.ErrCurrencyPairEmpty, "GetPreTradeData must reject %q, which lacks a base or a quote", pair)
+		})
 	}
 
 	result, err := e.GetPreTradeData(t.Context(), currency.NewPair(currency.ETH, currency.XBT))
@@ -77,9 +80,12 @@ func TestGetPostTradeData(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetPostTradeData must reject a reversed window")
 	_, err = e.GetPostTradeData(t.Context(), &PostTradeDataRequest{})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetPostTradeData must reject an empty pair, which Kraken refuses")
+	// Serial, as the GetPostTradeData calls after the loop would otherwise run before these cases
 	for _, pair := range partialTestPairs {
-		_, err = e.GetPostTradeData(t.Context(), &PostTradeDataRequest{Pair: pair})
-		require.ErrorIsf(t, err, currency.ErrCurrencyPairEmpty, "GetPostTradeData must reject %q, which lacks a base or a quote", pair)
+		t.Run(pair.String(), func(t *testing.T) {
+			_, err = e.GetPostTradeData(t.Context(), &PostTradeDataRequest{Pair: pair})
+			require.ErrorIsf(t, err, currency.ErrCurrencyPairEmpty, "GetPostTradeData must reject %q, which lacks a base or a quote", pair)
+		})
 	}
 	_, err = new(Exchange).GetPostTradeData(t.Context(), &PostTradeDataRequest{Pair: spotTestPair})
 	require.ErrorIs(t, err, currency.ErrPairManagerNotInitialised, "GetPostTradeData must return the error formatting the pair")

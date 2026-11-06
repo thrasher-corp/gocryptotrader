@@ -2,6 +2,7 @@ package kraken
 
 import (
 	"math"
+	"strconv"
 	"testing"
 	"time"
 
@@ -89,15 +90,20 @@ func TestAddFuturesAssignmentPreference(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "AddFuturesAssignmentPreference must reject a contract without a quote")
 	_, err = e.AddFuturesAssignmentPreference(t.Context(), &FuturesAddAssignmentPreferenceRequest{ContractType: "flex", TimeFrame: "ALL", Contract: currency.NewPairWithDelimiter("", "XBTUSD", currency.UnderscoreDelimiter)})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "AddFuturesAssignmentPreference must reject a contract without a base")
+	// Serial, as the AddFuturesAssignmentPreference call after the loop would otherwise run before these cases
 	for _, v := range []float64{-1, math.NaN(), math.Inf(1), math.Inf(-1)} {
-		for name, req := range map[string]*FuturesAddAssignmentPreferenceRequest{
-			"max size":     {ContractType: "flex", TimeFrame: "ALL", MaxSize: v},
-			"max position": {ContractType: "flex", TimeFrame: "ALL", MaxPosition: new(v)},
-			"cash account open position max notional": {ContractType: "flex", TimeFrame: "ALL", CashAccountOpenPositionMaxNotional: new(v)},
-		} {
-			_, err = e.AddFuturesAssignmentPreference(t.Context(), req)
-			require.ErrorIsf(t, err, errFuturesInvalidLimit, "AddFuturesAssignmentPreference must reject a %s of %v", name, v)
-		}
+		t.Run(strconv.FormatFloat(v, 'g', -1, 64), func(t *testing.T) {
+			for name, req := range map[string]*FuturesAddAssignmentPreferenceRequest{
+				"max size":     {ContractType: "flex", TimeFrame: "ALL", MaxSize: v},
+				"max position": {ContractType: "flex", TimeFrame: "ALL", MaxPosition: new(v)},
+				"cash account open position max notional": {ContractType: "flex", TimeFrame: "ALL", CashAccountOpenPositionMaxNotional: new(v)},
+			} {
+				t.Run(name, func(t *testing.T) {
+					_, err = e.AddFuturesAssignmentPreference(t.Context(), req)
+					require.ErrorIsf(t, err, errFuturesInvalidLimit, "AddFuturesAssignmentPreference must reject a %s of %v", name, v)
+				})
+			}
+		})
 	}
 	_, err = new(Exchange).AddFuturesAssignmentPreference(t.Context(), &FuturesAddAssignmentPreferenceRequest{ContractType: "flex", TimeFrame: "ALL", Contract: futuresTestPair})
 	require.ErrorIs(t, err, currency.ErrPairManagerNotInitialised, "AddFuturesAssignmentPreference must return the error formatting the contract")

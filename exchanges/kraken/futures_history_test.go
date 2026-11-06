@@ -1076,10 +1076,13 @@ func TestGetFuturesPublicMarkPriceEvents(t *testing.T) {
 func TestFuturesHistoryExecutionEventKeyCase(t *testing.T) {
 	t.Parallel()
 	for _, key := range []string{"execution", "Execution"} {
-		var event FuturesHistoryExecutionEvent
-		err := json.Unmarshal([]byte(`{"`+key+`":{"execution":{"uid":"9cef6672-8ab8-4d34-8aed-0fd45a9c9851"},"takerReducedQuantity":""}}`), &event)
-		require.NoErrorf(t, err, "Unmarshal must not error for key %s", key)
-		assert.Equalf(t, "9cef6672-8ab8-4d34-8aed-0fd45a9c9851", event.Execution.Execution.UID, "Unmarshal should decode the execution under key %s", key)
+		t.Run(key, func(t *testing.T) {
+			t.Parallel()
+			var event FuturesHistoryExecutionEvent
+			err := json.Unmarshal([]byte(`{"`+key+`":{"execution":{"uid":"9cef6672-8ab8-4d34-8aed-0fd45a9c9851"},"takerReducedQuantity":""}}`), &event)
+			require.NoErrorf(t, err, "Unmarshal must not error for key %s", key)
+			assert.Equalf(t, "9cef6672-8ab8-4d34-8aed-0fd45a9c9851", event.Execution.Execution.UID, "Unmarshal should decode the execution under key %s", key)
+		})
 	}
 }
 
@@ -1097,14 +1100,17 @@ func TestFuturesHistoryPagingParams(t *testing.T) {
 	assert.Equal(t, exp, params, "futuresHistoryPagingParams should set every paging parameter in milliseconds")
 }
 
-func TestFuturesHistoryAccountParams(t *testing.T) {
+func TestFuturesHistoryAccountParams(t *testing.T) { //nolint:tparallel // serial cases run before the later calls of the same method
 	t.Parallel()
 	since, before := time.UnixMilli(1791504000123), time.UnixMilli(1791590400456)
 	_, err := e.futuresHistoryAccountParams(futuresTestPair, before, since, false, "", 0)
 	assert.ErrorIs(t, err, common.ErrStartAfterEnd, "futuresHistoryAccountParams should reject a range that ends before it starts")
+	// Serial, as the futuresHistoryAccountParams calls after the loop would otherwise run before these cases
 	for _, pair := range partialTestPairs {
-		_, err = e.futuresHistoryAccountParams(pair, time.Time{}, time.Time{}, false, "", 0)
-		assert.ErrorIsf(t, err, currency.ErrCurrencyCodeEmpty, "futuresHistoryAccountParams should reject %q, which lacks a base or a quote", pair)
+		t.Run(pair.String(), func(t *testing.T) {
+			_, err = e.futuresHistoryAccountParams(pair, time.Time{}, time.Time{}, false, "", 0)
+			assert.ErrorIsf(t, err, currency.ErrCurrencyCodeEmpty, "futuresHistoryAccountParams should reject %q, which lacks a base or a quote", pair)
+		})
 	}
 	params, err := e.futuresHistoryAccountParams(futuresTestPair, time.Time{}, time.Time{}, false, "", 0)
 	require.NoError(t, err, "futuresHistoryAccountParams must not error")
@@ -1114,16 +1120,19 @@ func TestFuturesHistoryAccountParams(t *testing.T) {
 	assert.Equal(t, url.Values{"since": {"1791504000123"}, "count": {"25"}}, params, "futuresHistoryAccountParams should not filter without a pair")
 }
 
-func TestFuturesHistoryMarketParams(t *testing.T) {
+func TestFuturesHistoryMarketParams(t *testing.T) { //nolint:tparallel // serial cases run before the later calls of the same method
 	t.Parallel()
 	since, before := time.UnixMilli(1791504000123), time.UnixMilli(1791590400456)
 	_, _, err := e.futuresHistoryMarketParams(nil)
 	assert.ErrorIs(t, err, common.ErrNilPointer, "futuresHistoryMarketParams should reject a nil request")
 	_, _, err = e.futuresHistoryMarketParams(&FuturesHistoryMarketEventsRequest{})
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "futuresHistoryMarketParams should reject a request without a pair")
+	// Serial, as the futuresHistoryMarketParams calls after the loop would otherwise run before these cases
 	for _, pair := range partialTestPairs {
-		_, _, err = e.futuresHistoryMarketParams(&FuturesHistoryMarketEventsRequest{Pair: pair})
-		assert.ErrorIsf(t, err, currency.ErrCurrencyPairEmpty, "futuresHistoryMarketParams should reject %q, which lacks a base or a quote", pair)
+		t.Run(pair.String(), func(t *testing.T) {
+			_, _, err = e.futuresHistoryMarketParams(&FuturesHistoryMarketEventsRequest{Pair: pair})
+			assert.ErrorIsf(t, err, currency.ErrCurrencyPairEmpty, "futuresHistoryMarketParams should reject %q, which lacks a base or a quote", pair)
+		})
 	}
 	_, _, err = e.futuresHistoryMarketParams(&FuturesHistoryMarketEventsRequest{Pair: futuresTestPair, Since: before, Before: since})
 	assert.ErrorIs(t, err, common.ErrStartAfterEnd, "futuresHistoryMarketParams should reject a range that ends before it starts")

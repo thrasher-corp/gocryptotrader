@@ -1,6 +1,7 @@
 package kraken
 
 import (
+	"cmp"
 	"context"
 	"encoding/base64"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -215,40 +217,64 @@ func decodedTestSecret(t *testing.T) string {
 func TestCheckPairFilter(t *testing.T) {
 	t.Parallel()
 	for _, pair := range []currency.Pair{currency.EMPTYPAIR, spotTestPair, futuresTestPair} {
-		assert.NoErrorf(t, checkPairFilter(pair), "checkPairFilter should accept %q", pair)
+		t.Run(cmp.Or(pair.String(), "empty"), func(t *testing.T) {
+			t.Parallel()
+			assert.NoErrorf(t, checkPairFilter(pair), "checkPairFilter should accept %q", pair)
+		})
 	}
 	for _, pair := range partialTestPairs {
-		assert.ErrorIsf(t, checkPairFilter(pair), currency.ErrCurrencyCodeEmpty, "checkPairFilter should reject %q, which lacks a base or a quote", pair)
+		t.Run(pair.String(), func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, checkPairFilter(pair), currency.ErrCurrencyCodeEmpty, "checkPairFilter should reject %q, which lacks a base or a quote", pair)
+		})
 	}
 }
 
 func TestIsFinite(t *testing.T) {
 	t.Parallel()
 	for _, v := range []float64{0, math.Copysign(0, -1), math.SmallestNonzeroFloat64, 1, math.MaxFloat64, -1, -math.MaxFloat64} {
-		assert.Truef(t, isFinite(v), "isFinite should accept %v", v)
+		t.Run(strconv.FormatFloat(v, 'g', -1, 64), func(t *testing.T) {
+			t.Parallel()
+			assert.Truef(t, isFinite(v), "isFinite should accept %v", v)
+		})
 	}
 	for _, v := range []float64{math.NaN(), math.Inf(1), math.Inf(-1)} {
-		assert.Falsef(t, isFinite(v), "isFinite should reject %v", v)
+		t.Run(strconv.FormatFloat(v, 'g', -1, 64), func(t *testing.T) {
+			t.Parallel()
+			assert.Falsef(t, isFinite(v), "isFinite should reject %v", v)
+		})
 	}
 }
 
 func TestIsFiniteNonNegative(t *testing.T) {
 	t.Parallel()
 	for _, v := range []float64{0, math.Copysign(0, -1), math.SmallestNonzeroFloat64, 1, math.MaxFloat64} {
-		assert.Truef(t, isFiniteNonNegative(v), "isFiniteNonNegative should accept %v", v)
+		t.Run(strconv.FormatFloat(v, 'g', -1, 64), func(t *testing.T) {
+			t.Parallel()
+			assert.Truef(t, isFiniteNonNegative(v), "isFiniteNonNegative should accept %v", v)
+		})
 	}
 	for _, v := range []float64{-math.SmallestNonzeroFloat64, -1, -math.MaxFloat64, math.NaN(), math.Inf(1), math.Inf(-1)} {
-		assert.Falsef(t, isFiniteNonNegative(v), "isFiniteNonNegative should reject %v", v)
+		t.Run(strconv.FormatFloat(v, 'g', -1, 64), func(t *testing.T) {
+			t.Parallel()
+			assert.Falsef(t, isFiniteNonNegative(v), "isFiniteNonNegative should reject %v", v)
+		})
 	}
 }
 
 func TestIsFinitePositive(t *testing.T) {
 	t.Parallel()
 	for _, v := range []float64{math.SmallestNonzeroFloat64, 1, math.MaxFloat64} {
-		assert.Truef(t, isFinitePositive(v), "isFinitePositive should accept %v", v)
+		t.Run(strconv.FormatFloat(v, 'g', -1, 64), func(t *testing.T) {
+			t.Parallel()
+			assert.Truef(t, isFinitePositive(v), "isFinitePositive should accept %v", v)
+		})
 	}
 	for _, v := range []float64{0, math.Copysign(0, -1), -math.SmallestNonzeroFloat64, -1, -math.MaxFloat64, math.NaN(), math.Inf(1), math.Inf(-1)} {
-		assert.Falsef(t, isFinitePositive(v), "isFinitePositive should reject %v", v)
+		t.Run(strconv.FormatFloat(v, 'g', -1, 64), func(t *testing.T) {
+			t.Parallel()
+			assert.Falsef(t, isFinitePositive(v), "isFinitePositive should reject %v", v)
+		})
 	}
 }
 
@@ -593,17 +619,20 @@ func TestAPIError(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "APIError should match the problem type's mapped error")
 }
 
-func TestDecodeErrorBody(t *testing.T) {
+func TestDecodeErrorBody(t *testing.T) { //nolint:tparallel // the cases decode into one resp in order
 	t.Parallel()
 	var resp futuresErrorResponse
 	require.True(t, decodeErrorBody(json.RawMessage(`{"result":"error","error":"apiLimitExceeded"}`), &resp), "decodeErrorBody must decode an object")
 	assert.Equal(t, futuresErrorResponse{Result: "error", Error: "apiLimitExceeded"}, resp, "decodeErrorBody should decode the error")
+	// The cases decode into the resp decoded above, in order, so each also checks that a refusal ignores what resp holds
 	for _, raw := range []string{``, `[]`, `"error"`, `{"result":1}`} {
-		assert.Falsef(t, decodeErrorBody(json.RawMessage(raw), &resp), "decodeErrorBody should not decode %q", raw)
+		t.Run(cmp.Or(raw, "empty"), func(t *testing.T) {
+			assert.Falsef(t, decodeErrorBody(json.RawMessage(raw), &resp), "decodeErrorBody should not decode %q", raw)
+		})
 	}
 }
 
-func TestDecodeFuturesResponse(t *testing.T) {
+func TestDecodeFuturesResponse(t *testing.T) { //nolint:tparallel // the cases decode into one result in order
 	t.Parallel()
 	errorBody := json.RawMessage(`{"result":"error","error":"apiLimitExceeded"}`)
 	var apiErr *APIError
@@ -617,8 +646,12 @@ func TestDecodeFuturesResponse(t *testing.T) {
 	assert.ErrorIs(t, err, context.DeadlineExceeded, "decodeFuturesResponse should return the request's error for a body describing none")
 	assert.NoError(t, decodeFuturesResponse(json.RawMessage(`{"result":"success"}`), nil, nil), "decodeFuturesResponse should not decode without a result")
 	var result FuturesNotificationsResponse
+	// The cases decode into result in order, before the decode below reuses it, so each also checks that a call keeps
+	// nothing from the last
 	for _, raw := range []string{``, `null`} {
-		assert.ErrorIsf(t, decodeFuturesResponse(json.RawMessage(raw), nil, &result), common.ErrNoResponse, "decodeFuturesResponse should reject body %q", raw)
+		t.Run(cmp.Or(raw, "empty"), func(t *testing.T) {
+			assert.ErrorIsf(t, decodeFuturesResponse(json.RawMessage(raw), nil, &result), common.ErrNoResponse, "decodeFuturesResponse should reject body %q", raw)
+		})
 	}
 	require.NoError(t, decodeFuturesResponse(json.RawMessage(`{"result":"success","serverTime":"2026-10-09T00:00:00.123Z"}`), nil, &result), "decodeFuturesResponse must not error")
 	assert.Equal(t, time.Date(2026, 10, 9, 0, 0, 0, 123e6, time.UTC), result.ServerTime, "decodeFuturesResponse should decode the result")

@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"net/http"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -198,24 +199,99 @@ func TestValidateFuturesSubscriptions(t *testing.T) {
 	}
 	assert.NoError(t, e.ValidateSubscriptions(valid), "ValidateSubscriptions should accept every feed Kraken streams")
 	for _, s := range valid {
-		assert.NoErrorf(t, validateFuturesSubscription(s), "validateFuturesSubscription should accept %s", s)
+		t.Run("valid "+s.QualifiedChannel, func(t *testing.T) {
+			t.Parallel()
+			assert.NoErrorf(t, validateFuturesSubscription(s), "validateFuturesSubscription should accept %s", s)
+		})
 	}
 	for _, tc := range []struct {
-		s   *subscription.Subscription
-		err error
+		name string
+		s    *subscription.Subscription
+		err  error
 	}{
-		{futuresSubscription(subscription.CandlesChannel, subscription.CandlesChannel, futuresTestPair), errFuturesUnsupportedFeed},
-		{futuresSubscription(subscription.AllOrdersChannel, subscription.AllOrdersChannel, futuresTestPair), errFuturesUnsupportedFeed},
-		{futuresSubscription("ticker_lite", "ticker_lite", futuresTestPair), errFuturesUnsupportedFeed},
-		{&subscription.Subscription{Asset: asset.Futures, Channel: subscription.OrderbookChannel, QualifiedChannel: wsFuturesFeedBook, Levels: 10, Pairs: currency.Pairs{futuresTestPair}}, errFuturesOrderbookLevels},
+		{"unsupported candles feed", futuresSubscription(subscription.CandlesChannel, subscription.CandlesChannel, futuresTestPair), errFuturesUnsupportedFeed},
+		{"unsupported allOrders feed", futuresSubscription(subscription.AllOrdersChannel, subscription.AllOrdersChannel, futuresTestPair), errFuturesUnsupportedFeed},
+		{"unsupported ticker_lite feed", futuresSubscription("ticker_lite", "ticker_lite", futuresTestPair), errFuturesUnsupportedFeed},
+		{"book levels", &subscription.Subscription{Asset: asset.Futures, Channel: subscription.OrderbookChannel, QualifiedChannel: wsFuturesFeedBook, Levels: 10, Pairs: currency.Pairs{futuresTestPair}}, errFuturesOrderbookLevels},
 	} {
-		assert.ErrorIsf(t, e.ValidateSubscriptions(subscription.List{tc.s}), tc.err, "ValidateSubscriptions should reject %s", tc.s)
-		assert.ErrorIsf(t, validateFuturesSubscription(tc.s), tc.err, "validateFuturesSubscription should reject %s", tc.s)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.ErrorIsf(t, e.ValidateSubscriptions(subscription.List{tc.s}), tc.err, "ValidateSubscriptions should reject %s", tc.s)
+			assert.ErrorIsf(t, validateFuturesSubscription(tc.s), tc.err, "validateFuturesSubscription should reject %s", tc.s)
+		})
 	}
 }
 
 func TestFuturesSubscribe(t *testing.T) {
 	t.Parallel()
+	// These cases are served locally, so they come before the connection a live run makes to Kraken, which can fail
+	t.Run("subscriptions Kraken alerts", func(t *testing.T) {
+		t.Parallel()
+		piETHUSD := currency.NewPairWithDelimiter("PI", "ETHUSD", currency.UnderscoreDelimiter)
+		server := &mockFuturesServer{alerts: map[string]string{"PI_XBTUSD": "Couldn't subscribe to invalid product `PI_XBTUSD`"}}
+		ex, conn := newFuturesTestExchange(t, server)
+		accepted := futuresSubscription(subscription.TickerChannel, wsFuturesFeedTicker, futuresTestPair)
+		rejected := futuresSubscription(subscription.TickerChannel, wsFuturesFeedTicker, piXBTUSDPair)
+		alsoAccepted := futuresSubscription(subscription.TickerChannel, wsFuturesFeedTicker, piETHUSD)
+		err := ex.futuresSubscribe(t.Context(), conn, subscription.List{accepted, rejected, alsoAccepted})
+		require.ErrorIs(t, err, errFuturesSubscriptionFailed, "a subscription Kraken alerts must error")
+		assert.ErrorContains(t, err, "Couldn't subscribe to invalid product `PI_XBTUSD`", "the error should carry Kraken's alert")
+		assertRequests(t, []string{`{"event":"subscribe","feed":"ticker","product_ids":["PF_XBTUSD","PI_XBTUSD","PI_ETHUSD"]}`}, server.takeRequests())
+		assert.NotNil(t, ex.Websocket.GetSubscription(accepted), "the subscription acknowledged before the alert should be stored")
+		assert.Nil(t, ex.Websocket.GetSubscription(rejected), "the alerted subscription should not be stored")
+		assert.NotNil(t, ex.Websocket.GetSubscription(alsoAccepted), "the subscription acknowledged after the alert should be stored")
+
+		// A request whose subscription is already as asked changes nothing, so it succeeds
+		server.m.Lock()
+		server.alerts = map[string]string{"PI_XBTUSD": wsFuturesAlreadySubscribed}
+		server.m.Unlock()
+		require.NoError(t, ex.futuresSubscribe(t.Context(), conn, subscription.List{rejected}), "futuresSubscribe must not error for a subscription Kraken already holds")
+		assert.NotNil(t, ex.Websocket.GetSubscription(rejected), "a subscription Kraken already holds should be stored")
+		server.m.Lock()
+		server.alerts = map[string]string{"PI_XBTUSD": wsFuturesNotSubscribed}
+		server.m.Unlock()
+		require.NoError(t, ex.futuresUnsubscribe(t.Context(), conn, subscription.List{rejected}), "futuresUnsubscribe must not error for a subscription Kraken does not hold")
+		assert.Nil(t, ex.Websocket.GetSubscription(rejected), "a subscription Kraken does not hold should be removed")
+
+		server.m.Lock()
+		server.alerts = map[string]string{"PF_XBTUSD": "Unsubscribe failed"}
+		server.m.Unlock()
+		err = ex.futuresUnsubscribe(t.Context(), conn, subscription.List{accepted})
+		assert.ErrorIs(t, err, errFuturesSubscriptionFailed, "an unsubscription Kraken alerts should error")
+		assert.NotNil(t, ex.Websocket.GetSubscription(accepted), "a subscription Kraken did not unsubscribe should be kept")
+	})
+
+	t.Run("acknowledgement of a product not requested", func(t *testing.T) {
+		t.Parallel()
+		ex, conn := newFuturesTestExchange(t, &mockFuturesServer{reply: `{"event":"subscribed","feed":"ticker","product_ids":["PF_MOONUSD"]}`})
+		s := futuresSubscription(subscription.TickerChannel, wsFuturesFeedTicker, futuresTestPair)
+		err := ex.futuresSubscribe(t.Context(), conn, subscription.List{s})
+		assert.ErrorIs(t, err, errFuturesUnexpectedReply, "an acknowledgement of a product not requested should error")
+		assert.Nil(t, ex.Websocket.GetSubscription(s), "the subscription should not be stored")
+	})
+
+	t.Run("challenge Kraken does not issue", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name, reply string
+			err         error
+		}{
+			{"refused", `{"event":"error","message":"Json Error"}`, errFuturesSubscriptionFailed},
+			{"empty", `{"event":"challenge","message":""}`, errFuturesChallengeEmpty},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				server := &mockFuturesServer{challengeReply: tc.reply}
+				ex, conn := newFuturesTestExchange(t, server)
+				s := futuresSubscription(subscription.MyOrdersChannel, wsFuturesFeedOpenOrders)
+				err := ex.futuresSubscribe(t.Context(), conn, subscription.List{s})
+				assert.ErrorIs(t, err, tc.err, "a challenge Kraken does not issue should fail the subscription")
+				assertRequests(t, []string{`{"event":"challenge","api_key":"test-key"}`}, server.takeRequests())
+				assert.Nil(t, ex.Websocket.GetSubscription(s), "the subscription should not be stored")
+			})
+		}
+	})
+
 	ex := newTestExchange(t)
 	server := new(mockFuturesServer)
 	var url string
@@ -303,73 +379,6 @@ func TestFuturesSubscribe(t *testing.T) {
 			`{"event":"unsubscribe","feed":"open_orders","api_key":"test-key","original_challenge":"` + futuresTestChallenge + `","signed_challenge":"` + signed + `"}`,
 			`{"event":"unsubscribe","feed":"fills","api_key":"test-key","original_challenge":"` + futuresTestChallenge + `","signed_challenge":"` + signed + `"}`,
 		}, server.takeRequests())
-	}
-}
-
-func TestFuturesSubscribeAlerts(t *testing.T) {
-	t.Parallel()
-	piETHUSD := currency.NewPairWithDelimiter("PI", "ETHUSD", currency.UnderscoreDelimiter)
-	server := &mockFuturesServer{alerts: map[string]string{"PI_XBTUSD": "Couldn't subscribe to invalid product `PI_XBTUSD`"}}
-	ex, conn := newFuturesTestExchange(t, server)
-	accepted := futuresSubscription(subscription.TickerChannel, wsFuturesFeedTicker, futuresTestPair)
-	rejected := futuresSubscription(subscription.TickerChannel, wsFuturesFeedTicker, piXBTUSDPair)
-	alsoAccepted := futuresSubscription(subscription.TickerChannel, wsFuturesFeedTicker, piETHUSD)
-	err := ex.futuresSubscribe(t.Context(), conn, subscription.List{accepted, rejected, alsoAccepted})
-	require.ErrorIs(t, err, errFuturesSubscriptionFailed, "a subscription Kraken alerts must error")
-	assert.ErrorContains(t, err, "Couldn't subscribe to invalid product `PI_XBTUSD`", "the error should carry Kraken's alert")
-	assertRequests(t, []string{`{"event":"subscribe","feed":"ticker","product_ids":["PF_XBTUSD","PI_XBTUSD","PI_ETHUSD"]}`}, server.takeRequests())
-	assert.NotNil(t, ex.Websocket.GetSubscription(accepted), "the subscription acknowledged before the alert should be stored")
-	assert.Nil(t, ex.Websocket.GetSubscription(rejected), "the alerted subscription should not be stored")
-	assert.NotNil(t, ex.Websocket.GetSubscription(alsoAccepted), "the subscription acknowledged after the alert should be stored")
-
-	// A request whose subscription is already as asked changes nothing, so it succeeds
-	server.m.Lock()
-	server.alerts = map[string]string{"PI_XBTUSD": wsFuturesAlreadySubscribed}
-	server.m.Unlock()
-	require.NoError(t, ex.futuresSubscribe(t.Context(), conn, subscription.List{rejected}), "futuresSubscribe must not error for a subscription Kraken already holds")
-	assert.NotNil(t, ex.Websocket.GetSubscription(rejected), "a subscription Kraken already holds should be stored")
-	server.m.Lock()
-	server.alerts = map[string]string{"PI_XBTUSD": wsFuturesNotSubscribed}
-	server.m.Unlock()
-	require.NoError(t, ex.futuresUnsubscribe(t.Context(), conn, subscription.List{rejected}), "futuresUnsubscribe must not error for a subscription Kraken does not hold")
-	assert.Nil(t, ex.Websocket.GetSubscription(rejected), "a subscription Kraken does not hold should be removed")
-
-	server.m.Lock()
-	server.alerts = map[string]string{"PF_XBTUSD": "Unsubscribe failed"}
-	server.m.Unlock()
-	err = ex.futuresUnsubscribe(t.Context(), conn, subscription.List{accepted})
-	assert.ErrorIs(t, err, errFuturesSubscriptionFailed, "an unsubscription Kraken alerts should error")
-	assert.NotNil(t, ex.Websocket.GetSubscription(accepted), "a subscription Kraken did not unsubscribe should be kept")
-}
-
-func TestFuturesSubscribeUnexpectedReply(t *testing.T) {
-	t.Parallel()
-	ex, conn := newFuturesTestExchange(t, &mockFuturesServer{reply: `{"event":"subscribed","feed":"ticker","product_ids":["PF_MOONUSD"]}`})
-	s := futuresSubscription(subscription.TickerChannel, wsFuturesFeedTicker, futuresTestPair)
-	err := ex.futuresSubscribe(t.Context(), conn, subscription.List{s})
-	assert.ErrorIs(t, err, errFuturesUnexpectedReply, "an acknowledgement of a product not requested should error")
-	assert.Nil(t, ex.Websocket.GetSubscription(s), "the subscription should not be stored")
-}
-
-func TestFuturesSubscribeChallenge(t *testing.T) {
-	t.Parallel()
-	for _, tc := range []struct {
-		name, reply string
-		err         error
-	}{
-		{"refused", `{"event":"error","message":"Json Error"}`, errFuturesSubscriptionFailed},
-		{"empty", `{"event":"challenge","message":""}`, errFuturesChallengeEmpty},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			server := &mockFuturesServer{challengeReply: tc.reply}
-			ex, conn := newFuturesTestExchange(t, server)
-			s := futuresSubscription(subscription.MyOrdersChannel, wsFuturesFeedOpenOrders)
-			err := ex.futuresSubscribe(t.Context(), conn, subscription.List{s})
-			assert.ErrorIs(t, err, tc.err, "a challenge Kraken does not issue should fail the subscription")
-			assertRequests(t, []string{`{"event":"challenge","api_key":"test-key"}`}, server.takeRequests())
-			assert.Nil(t, ex.Websocket.GetSubscription(s), "the subscription should not be stored")
-		})
 	}
 }
 
@@ -612,6 +621,7 @@ func TestWebsocketFuturesHandleData(t *testing.T) {
 		Balance:        0.1219368845,
 		Available:      0.1219368845,
 	}}, margin.Futures, "the margin account should be relayed")
+	// The cases share ex and read the balances it stored, in order
 	for _, tc := range []struct {
 		subAccount string
 		c          currency.Code
@@ -621,10 +631,12 @@ func TestWebsocketFuturesHandleData(t *testing.T) {
 		{"cash", currency.XBT, accounts.Balance{Currency: currency.XBT, Total: 0.1285407184, Free: 0.1285407184}},
 		{"flex", currency.USD, accounts.Balance{Currency: currency.USD, Total: 5000, Free: 5000}},
 	} {
-		b, err := ex.Accounts.GetBalance(tc.subAccount, ex.GetDefaultCredentials(), asset.Futures, tc.c)
-		require.NoErrorf(t, err, "GetBalance must not error for %s %s", tc.subAccount, tc.c)
-		b.UpdatedAt = time.Time{}
-		assert.Equalf(t, tc.exp, b, "the %s %s balance should be stored", tc.subAccount, tc.c)
+		t.Run(tc.subAccount+" "+tc.c.String(), func(t *testing.T) {
+			b, err := ex.Accounts.GetBalance(tc.subAccount, ex.GetDefaultCredentials(), asset.Futures, tc.c)
+			require.NoErrorf(t, err, "GetBalance must not error for %s %s", tc.subAccount, tc.c)
+			b.UpdatedAt = time.Time{}
+			assert.Equalf(t, tc.exp, b, "the %s %s balance should be stored", tc.subAccount, tc.c)
+		})
 	}
 
 	positions, ok := got[22].(*WebsocketFuturesPositions)
@@ -633,6 +645,82 @@ func TestWebsocketFuturesHandleData(t *testing.T) {
 	notifications, ok := got[23].(*WebsocketFuturesNotifications)
 	require.True(t, ok, "the notifications must be relayed")
 	assert.Equal(t, []WebsocketFuturesNotification{{ID: 5, Type: "market", Priority: "low", Note: "A note describing the notification.", EffectiveTime: types.Time(time.UnixMilli(1520288300000))}}, notifications.Notifications, "the notification should be relayed")
+
+	t.Run("messages it rejects", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestExchange(t)
+		conn, err := ex.Websocket.CreateTestConnection(wsFuturesConnection)
+		require.NoError(t, err, "CreateTestConnection must not error")
+		for _, tc := range []struct {
+			name string
+			msg  string
+			err  error
+		}{
+			{"unmatched reply", `{"event":"subscribed","feed":"ticker","product_ids":["PF_XBTUSD"]}`, errFuturesUnexpectedReply},
+			{"unsolicited alert", `{"event":"alert","message":"Bad request"}`, errFuturesUnexpectedReply},
+			{"neither event nor feed", `{"product_id":"PF_XBTUSD"}`, websocket.ErrSignatureNotMatched},
+			{"ticker product", `{"feed":"ticker","product_id":"PF_MOONUSD"}`, currency.ErrPairNotFound},
+			{"book snapshot product", `{"feed":"book_snapshot","product_id":"PF_MOONUSD","bids":[],"asks":[]}`, currency.ErrPairNotFound},
+			{"book update product", `{"feed":"book","product_id":"PF_MOONUSD","side":"buy","seq":1}`, currency.ErrPairNotFound},
+			{"book update without a snapshot", `{"feed":"book","product_id":"PF_ETHUSD","side":"buy","seq":1,"price":2500,"qty":1,"timestamp":1791518718707}`, orderbook.ErrDepthNotFound},
+			{"trade product", `{"feed":"trade","product_id":"PF_MOONUSD","side":"buy"}`, currency.ErrPairNotFound},
+			{"trade side", `{"feed":"trade","product_id":"PF_XBTUSD","side":"up"}`, order.ErrSideIsInvalid},
+			{"open order instrument", `{"feed":"open_orders_snapshot","orders":[{"instrument":"PF_MOONUSD","type":"limit"}]}`, currency.ErrPairNotFound},
+			{"open order type", `{"feed":"open_orders","order":{"instrument":"PF_XBTUSD","type":"moon"}}`, errUnknownOrderType},
+			{"fill instrument", `{"feed":"fills","fills":[{"instrument":"PF_MOONUSD","order_type":"lmt"}]}`, currency.ErrPairNotFound},
+			{"fill order type", `{"feed":"fills","fills":[{"instrument":"PF_XBTUSD","order_type":"moon"}]}`, errUnknownOrderType},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				tcEx := newTestExchange(t)
+				tcEx.Features.Enabled.TradeFeed = true
+				assert.ErrorIs(t, tcEx.wsFuturesHandleData(t.Context(), conn, []byte(tc.msg)), tc.err, "wsFuturesHandleData should return the expected error")
+			})
+		}
+		ex.Features.Enabled.TradeFeed = true
+		// The cases share ex and conn in order, so each also checks that a message it rejects leaves nothing for the next
+		for _, feed := range []string{
+			wsFuturesFeedTicker, wsFuturesFeedBookSnapshot, wsFuturesFeedBook, wsFuturesFeedTradeSnapshot, wsFuturesFeedTrade,
+			wsFuturesFeedOpenOrdersSnapshot, wsFuturesFeedOpenOrders, wsFuturesFeedFillsSnapshot, wsFuturesFeedFills,
+			wsFuturesFeedBalancesSnapshot, wsFuturesFeedBalances, wsFuturesFeedOpenPositions, wsFuturesFeedNotifications,
+		} {
+			t.Run("undecodable "+feed, func(t *testing.T) {
+				msg := `{"feed":"` + feed + `","product_id":7,"order":7,"orders":7,"fills":7,"holding":7,"positions":7,"notifications":7,"trades":7}`
+				assert.Errorf(t, ex.wsFuturesHandleData(t.Context(), conn, []byte(msg)), "wsFuturesHandleData should reject a %s message it cannot decode", feed)
+			})
+		}
+	})
+
+	t.Run("unhandled messages", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestExchange(t)
+		conn, err := ex.Websocket.CreateTestConnection(wsFuturesConnection)
+		require.NoError(t, err, "CreateTestConnection must not error")
+		// The cases share ex, whose data handler the statements after them check is empty
+		for _, tc := range []struct{ name, msg string }{
+			{"info event", `{"event":"info","version":1}`},
+			{"heartbeat", `{"feed":"heartbeat","time":1791518718452}`},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				require.NoErrorf(t, ex.wsFuturesHandleData(t.Context(), conn, []byte(tc.msg)), "wsFuturesHandleData must not error for %s", tc.msg)
+			})
+		}
+		assert.Empty(t, ex.Websocket.DataHandler.C, "the info event and heartbeats should not be relayed")
+		require.NoError(t, ex.wsFuturesHandleData(t.Context(), conn, []byte(`{"feed":"account_log","logs":[]}`)), "wsFuturesHandleData must not error for an unhandled feed")
+		require.Len(t, ex.Websocket.DataHandler.C, 1, "an unhandled feed's message must be relayed")
+		warning, ok := (<-ex.Websocket.DataHandler.C).Data.(websocket.UnhandledMessageWarning)
+		require.True(t, ok, "an unhandled feed's message must be relayed as a warning")
+		assert.Contains(t, warning.Message, "account_log", "the warning should carry the message")
+	})
+
+	t.Run("trades with the trade feed disabled", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestExchange(t)
+		ex.Features.Enabled.TradeFeed = false
+		ex.Features.Enabled.SaveTradeData = false
+		require.NoError(t, ex.wsFuturesHandleData(t.Context(), nil, []byte(`{"feed":"trade","product_id":7}`)), "wsFuturesHandleData must not decode trades nobody uses")
+		assert.Empty(t, ex.Websocket.DataHandler.C, "trades should not be relayed when the trade feed is disabled")
+	})
 }
 
 // futuresTestSubAccounts asserts a payload is relayed sub-accounts whose balances are stamped, and clears the stamps so
@@ -729,132 +817,6 @@ func TestWebsocketFuturesResubscribeBookChannelNames(t *testing.T) {
 	}
 }
 
-func TestWebsocketFuturesUpdateBookResubscribe(t *testing.T) {
-	t.Parallel()
-	snapshot := `{"feed":"book_snapshot","product_id":"PF_XBTUSD","timestamp":1791518718655,"seq":173877391,"tickSize":null,"bids":[{"price":82380.0,"qty":0.0003}],"asks":[{"price":82381.0,"qty":0.6051}]}`
-	setup := func(t *testing.T) (*Exchange, websocket.Connection, *mockFuturesServer, *subscription.Subscription) {
-		t.Helper()
-		server := new(mockFuturesServer)
-		ex, conn := newFuturesTestExchange(t, server)
-		s := futuresSubscription(subscription.OrderbookChannel, wsFuturesFeedBook, futuresTestPair)
-		require.NoError(t, ex.futuresSubscribe(t.Context(), conn, subscription.List{s}), "futuresSubscribe must not error")
-		server.takeRequests()
-		require.NoError(t, ex.wsFuturesHandleData(t.Context(), conn, []byte(snapshot)), "wsFuturesHandleData must load the snapshot")
-		return ex, conn, server, s
-	}
-
-	t.Run("rejected update", func(t *testing.T) {
-		t.Parallel()
-		ex, conn, server, s := setup(t)
-		// The book cannot apply an update without a timestamp
-		rejected := `{"feed":"book","product_id":"PF_XBTUSD","side":"buy","seq":173877392,"price":81529.0,"qty":1.5296}`
-		err := ex.wsFuturesUpdateBook(t.Context(), conn, []byte(rejected))
-		require.ErrorIs(t, err, orderbook.ErrLastUpdatedNotSet, "an update the book rejects must error")
-		exp := []string{
-			`{"event":"unsubscribe","feed":"book","product_ids":["PF_XBTUSD"]}`,
-			`{"event":"subscribe","feed":"book","product_ids":["PF_XBTUSD"]}`,
-		}
-		var got []string
-		require.Eventually(t, func() bool {
-			got = append(got, server.takeRequests()...)
-			return len(got) >= len(exp)
-		}, testWaitTimeout, 10*time.Millisecond, "an update the book rejects must resubscribe the book")
-		assert.Equal(t, exp, got, "an update the book rejects should resubscribe the book, unsubscribing first")
-		require.Eventually(t, func() bool {
-			stored := ex.Websocket.GetSubscription(s)
-			return stored != nil && stored.State() == subscription.SubscribedState
-		}, testWaitTimeout, 10*time.Millisecond, "the book must be subscribed again")
-	})
-
-	t.Run("unrelayed update", func(t *testing.T) {
-		t.Parallel()
-		ex, conn, server, _ := setup(t)
-		var err error
-		for err == nil {
-			err = ex.Websocket.DataHandler.Send(t.Context(), nil)
-		}
-		update := `{"feed":"book","product_id":"PF_XBTUSD","side":"buy","seq":173877392,"price":81529.0,"qty":1.5296,"timestamp":1791518718725}`
-		err = ex.wsFuturesUpdateBook(t.Context(), conn, []byte(update))
-		require.Error(t, err, "an update the data handler cannot relay must error")
-		assert.NotErrorIs(t, err, orderbook.ErrOrderbookInvalid, "an update the data handler cannot relay should leave the book valid")
-		id, err := ex.Websocket.Orderbook.LastUpdateID(futuresTestPair, asset.Futures)
-		require.NoError(t, err, "LastUpdateID must not error for a valid book")
-		assert.Equal(t, int64(173877392), id, "the update should be applied although it was not relayed")
-		var got []string
-		assert.Never(t, func() bool {
-			got = append(got, server.takeRequests()...)
-			return len(got) != 0
-		}, 100*time.Millisecond, 5*time.Millisecond, "an update the data handler cannot relay should not resubscribe the book")
-	})
-}
-
-func TestWebsocketFuturesHandleDataErrors(t *testing.T) {
-	t.Parallel()
-	ex := newTestExchange(t)
-	conn, err := ex.Websocket.CreateTestConnection(wsFuturesConnection)
-	require.NoError(t, err, "CreateTestConnection must not error")
-	for _, tc := range []struct {
-		name string
-		msg  string
-		err  error
-	}{
-		{"unmatched reply", `{"event":"subscribed","feed":"ticker","product_ids":["PF_XBTUSD"]}`, errFuturesUnexpectedReply},
-		{"unsolicited alert", `{"event":"alert","message":"Bad request"}`, errFuturesUnexpectedReply},
-		{"neither event nor feed", `{"product_id":"PF_XBTUSD"}`, websocket.ErrSignatureNotMatched},
-		{"ticker product", `{"feed":"ticker","product_id":"PF_MOONUSD"}`, currency.ErrPairNotFound},
-		{"book snapshot product", `{"feed":"book_snapshot","product_id":"PF_MOONUSD","bids":[],"asks":[]}`, currency.ErrPairNotFound},
-		{"book update product", `{"feed":"book","product_id":"PF_MOONUSD","side":"buy","seq":1}`, currency.ErrPairNotFound},
-		{"book update without a snapshot", `{"feed":"book","product_id":"PF_ETHUSD","side":"buy","seq":1,"price":2500,"qty":1,"timestamp":1791518718707}`, orderbook.ErrDepthNotFound},
-		{"trade product", `{"feed":"trade","product_id":"PF_MOONUSD","side":"buy"}`, currency.ErrPairNotFound},
-		{"trade side", `{"feed":"trade","product_id":"PF_XBTUSD","side":"up"}`, order.ErrSideIsInvalid},
-		{"open order instrument", `{"feed":"open_orders_snapshot","orders":[{"instrument":"PF_MOONUSD","type":"limit"}]}`, currency.ErrPairNotFound},
-		{"open order type", `{"feed":"open_orders","order":{"instrument":"PF_XBTUSD","type":"moon"}}`, errUnknownOrderType},
-		{"fill instrument", `{"feed":"fills","fills":[{"instrument":"PF_MOONUSD","order_type":"lmt"}]}`, currency.ErrPairNotFound},
-		{"fill order type", `{"feed":"fills","fills":[{"instrument":"PF_XBTUSD","order_type":"moon"}]}`, errUnknownOrderType},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			tcEx := newTestExchange(t)
-			tcEx.Features.Enabled.TradeFeed = true
-			assert.ErrorIs(t, tcEx.wsFuturesHandleData(t.Context(), conn, []byte(tc.msg)), tc.err, "wsFuturesHandleData should return the expected error")
-		})
-	}
-	ex.Features.Enabled.TradeFeed = true
-	for _, feed := range []string{
-		wsFuturesFeedTicker, wsFuturesFeedBookSnapshot, wsFuturesFeedBook, wsFuturesFeedTradeSnapshot, wsFuturesFeedTrade,
-		wsFuturesFeedOpenOrdersSnapshot, wsFuturesFeedOpenOrders, wsFuturesFeedFillsSnapshot, wsFuturesFeedFills,
-		wsFuturesFeedBalancesSnapshot, wsFuturesFeedBalances, wsFuturesFeedOpenPositions, wsFuturesFeedNotifications,
-	} {
-		msg := `{"feed":"` + feed + `","product_id":7,"order":7,"orders":7,"fills":7,"holding":7,"positions":7,"notifications":7,"trades":7}`
-		assert.Errorf(t, ex.wsFuturesHandleData(t.Context(), conn, []byte(msg)), "wsFuturesHandleData should reject a %s message it cannot decode", feed)
-	}
-}
-
-func TestWebsocketFuturesHandleDataUnhandled(t *testing.T) {
-	t.Parallel()
-	ex := newTestExchange(t)
-	conn, err := ex.Websocket.CreateTestConnection(wsFuturesConnection)
-	require.NoError(t, err, "CreateTestConnection must not error")
-	for _, msg := range []string{`{"event":"info","version":1}`, `{"feed":"heartbeat","time":1791518718452}`} {
-		require.NoErrorf(t, ex.wsFuturesHandleData(t.Context(), conn, []byte(msg)), "wsFuturesHandleData must not error for %s", msg)
-	}
-	assert.Empty(t, ex.Websocket.DataHandler.C, "the info event and heartbeats should not be relayed")
-	require.NoError(t, ex.wsFuturesHandleData(t.Context(), conn, []byte(`{"feed":"account_log","logs":[]}`)), "wsFuturesHandleData must not error for an unhandled feed")
-	require.Len(t, ex.Websocket.DataHandler.C, 1, "an unhandled feed's message must be relayed")
-	warning, ok := (<-ex.Websocket.DataHandler.C).Data.(websocket.UnhandledMessageWarning)
-	require.True(t, ok, "an unhandled feed's message must be relayed as a warning")
-	assert.Contains(t, warning.Message, "account_log", "the warning should carry the message")
-}
-
-func TestWebsocketFuturesHandleDataTradesDisabled(t *testing.T) {
-	t.Parallel()
-	ex := newTestExchange(t)
-	ex.Features.Enabled.TradeFeed = false
-	ex.Features.Enabled.SaveTradeData = false
-	require.NoError(t, ex.wsFuturesHandleData(t.Context(), nil, []byte(`{"feed":"trade","product_id":7}`)), "wsFuturesHandleData must not decode trades nobody uses")
-	assert.Empty(t, ex.Websocket.DataHandler.C, "trades should not be relayed when the trade feed is disabled")
-}
-
 func TestFuturesOrderUpdateStatus(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
@@ -882,7 +844,10 @@ func TestFuturesOrderUpdateStatus(t *testing.T) {
 		{"would_not_reduce_position", true, 0, order.Rejected},
 		{"order_for_edit_not_found", true, 0, order.Rejected},
 	} {
-		assert.Equalf(t, tc.exp, futuresOrderUpdateStatus(tc.reason, tc.isCancel, tc.filled), "futuresOrderUpdateStatus should convert %s with %v filled", tc.reason, tc.filled)
+		t.Run(tc.reason+" with "+strconv.FormatFloat(tc.filled, 'f', -1, 64)+" filled", func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, tc.exp, futuresOrderUpdateStatus(tc.reason, tc.isCancel, tc.filled), "futuresOrderUpdateStatus should convert %s with %v filled", tc.reason, tc.filled)
+		})
 	}
 }
 
@@ -942,7 +907,7 @@ func TestManageFuturesSubs(t *testing.T) {
 	assert.Empty(t, ex.Websocket.GetSubscriptions(), "manageFuturesSubs should remove each subscription Kraken unsubscribes")
 }
 
-func TestManageFuturesSubGroup(t *testing.T) {
+func TestManageFuturesSubGroup(t *testing.T) { //nolint:tparallel // its cases share ex, conn and server in order
 	t.Parallel()
 	server := &mockFuturesServer{alerts: map[string]string{wsFuturesFeedHeartbeat: wsFuturesAlreadySubscribed}}
 	ex, conn := newFuturesTestExchange(t, server)
@@ -951,6 +916,7 @@ func TestManageFuturesSubGroup(t *testing.T) {
 		futuresSubscription(subscription.TickerChannel, wsFuturesFeedTicker, futuresTestPair),
 		futuresSubscription(subscription.TickerChannel, wsFuturesFeedTicker, piXBTUSDPair),
 	}
+	// The cases share ex, conn and server in order, so each also checks that a request keeps nothing from the last
 	for _, tc := range []struct {
 		name  string
 		group subscription.List
@@ -968,16 +934,21 @@ func TestManageFuturesSubGroup(t *testing.T) {
 			},
 		},
 	} {
-		require.NoErrorf(t, ex.manageFuturesSubGroup(t.Context(), conn, wsFuturesEventSubscribe, tc.group), "manageFuturesSubGroup must not error subscribing to the %s", tc.name)
-		assertRequests(t, tc.exp, server.takeRequests())
-		for _, s := range tc.group {
-			assert.Equalf(t, subscription.SubscribedState, s.State(), "manageFuturesSubGroup should record the %s subscription %s", tc.name, s)
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			require.NoErrorf(t, ex.manageFuturesSubGroup(t.Context(), conn, wsFuturesEventSubscribe, tc.group), "manageFuturesSubGroup must not error subscribing to the %s", tc.name)
+			assertRequests(t, tc.exp, server.takeRequests())
+			for _, s := range tc.group {
+				assert.Equalf(t, subscription.SubscribedState, s.State(), "manageFuturesSubGroup should record the %s subscription %s", tc.name, s)
+			}
+		})
 	}
 	require.NoError(t, ex.manageFuturesSubGroup(t.Context(), conn, wsFuturesEventUnsubscribe, tickers), "manageFuturesSubGroup must not error unsubscribing")
 	assertRequests(t, []string{`{"event":"unsubscribe","feed":"ticker","product_ids":["PF_XBTUSD","PI_XBTUSD"]}`}, server.takeRequests())
+	// The cases read ex's subscriptions before the statements after them subscribe to PF_XBTUSD's ticker again
 	for _, s := range tickers {
-		assert.Nilf(t, ex.Websocket.GetSubscription(s), "manageFuturesSubGroup should remove the unsubscribed %s", s)
+		t.Run("unsubscribed "+s.Pairs[0].String(), func(t *testing.T) {
+			assert.Nilf(t, ex.Websocket.GetSubscription(s), "manageFuturesSubGroup should remove the unsubscribed %s", s)
+		})
 	}
 
 	unanswered := futuresSubscription(subscription.TickerChannel, wsFuturesFeedTicker)
@@ -997,6 +968,7 @@ func TestManageFuturesSubGroup(t *testing.T) {
 
 	tickerSub := futuresSubscription(subscription.TickerChannel, wsFuturesFeedTicker, futuresTestPair)
 	heartbeatSub := futuresSubscription(subscription.HeartbeatChannel, wsFuturesFeedHeartbeat)
+	// The cases set the reply of the server they share with ex and conn in turn
 	for _, tc := range []struct {
 		name, reply string
 		s           *subscription.Subscription
@@ -1007,11 +979,13 @@ func TestManageFuturesSubGroup(t *testing.T) {
 		{"several products", `{"event":"subscribed","feed":"ticker","product_ids":["PF_XBTUSD","PF_ETHUSD"]}`, tickerSub, errFuturesUnexpectedReply},
 		{"product for a feed without products", `{"event":"subscribed","feed":"heartbeat","product_ids":["PF_XBTUSD"]}`, heartbeatSub, errFuturesUnexpectedReply},
 	} {
-		server.m.Lock()
-		server.reply = tc.reply
-		server.m.Unlock()
-		err := ex.manageFuturesSubGroup(t.Context(), conn, wsFuturesEventUnsubscribe, subscription.List{tc.s})
-		assert.ErrorIsf(t, err, tc.err, "manageFuturesSubGroup should reject a reply with %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			server.m.Lock()
+			server.reply = tc.reply
+			server.m.Unlock()
+			err := ex.manageFuturesSubGroup(t.Context(), conn, wsFuturesEventUnsubscribe, subscription.List{tc.s})
+			assert.ErrorIsf(t, err, tc.err, "manageFuturesSubGroup should reject a reply with %s", tc.name)
+		})
 	}
 	server.m.Lock()
 	server.reply = `{"event":"unsubscribed","feed":"ticker","product_ids":"PF_XBTUSD"}`
@@ -1027,7 +1001,7 @@ func TestManageFuturesSubGroup(t *testing.T) {
 	assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "manageFuturesSubGroup should not request an account feed it cannot sign")
 }
 
-func TestSignFuturesRequest(t *testing.T) {
+func TestSignFuturesRequest(t *testing.T) { //nolint:tparallel // its cases run before the later statements, which sign requests too
 	t.Parallel()
 	server := new(mockFuturesServer)
 	ex, conn := newFuturesTestExchange(t, server)
@@ -1055,6 +1029,7 @@ func TestSignFuturesRequest(t *testing.T) {
 	assertRequests(t, []string{`{"event":"challenge","api_key":"test-key"}`}, server.takeRequests())
 	assert.Error(t, ex.signFuturesRequest(t.Context(), other, &wsFuturesRequest{}), "signFuturesRequest should return a failed challenge request's error")
 
+	// The statements after the cases call signFuturesRequest too, so the cases run before them, as they did
 	for _, tc := range []struct {
 		name, reply string
 		err         error
@@ -1062,9 +1037,11 @@ func TestSignFuturesRequest(t *testing.T) {
 		{"refused", `{"event":"error","message":"Json Error"}`, errFuturesSubscriptionFailed},
 		{"empty", `{"event":"challenge","message":""}`, errFuturesChallengeEmpty},
 	} {
-		tcEx, tcConn := newFuturesTestExchange(t, &mockFuturesServer{challengeReply: tc.reply})
-		err := tcEx.signFuturesRequest(t.Context(), tcConn, &wsFuturesRequest{})
-		assert.ErrorIsf(t, err, tc.err, "signFuturesRequest should reject a challenge reply that is %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			tcEx, tcConn := newFuturesTestExchange(t, &mockFuturesServer{challengeReply: tc.reply})
+			err := tcEx.signFuturesRequest(t.Context(), tcConn, &wsFuturesRequest{})
+			assert.ErrorIsf(t, err, tc.err, "signFuturesRequest should reject a challenge reply that is %s", tc.name)
+		})
 	}
 	undecodableEx, undecodableConn := newFuturesTestExchange(t, &mockFuturesServer{challengeReply: `{"event":7}`})
 	assert.Error(t, undecodableEx.signFuturesRequest(t.Context(), undecodableConn, &wsFuturesRequest{}), "signFuturesRequest should reject a challenge reply it cannot decode")
@@ -1087,14 +1064,17 @@ func TestFuturesRequest(t *testing.T) {
 	assert.JSONEq(t, `{"event":"subscribed","feed":"ticker","product_ids":["PI_XBTUSD"]}`, string(resps[1]), "futuresRequest should return the replies in the order received")
 	assertRequests(t, []string{`{"event":"subscribe","feed":"ticker","product_ids":["PF_XBTUSD","PI_XBTUSD"]}`}, server.takeRequests())
 
-	// Kraken's replies do not name the request they answer, so each request must wait for the one before to be answered
+	// Kraken's replies do not name the request they answer, so each request must wait for the one before to be answered.
+	// The cases share conn and send their requests at once, each from its own goroutine, rather than as parallel subtests
 	var wg sync.WaitGroup
 	for _, product := range []string{"PF_XBTUSD", "PF_ETHUSD", "PF_SOLUSD", "PF_XRPUSD", "PF_LTCUSD", "PF_DOTUSD", "PF_ADAUSD", "PF_BCHUSD"} {
 		wg.Go(func() {
-			resps, err := ex.futuresRequest(t.Context(), conn, &wsFuturesRequest{Event: wsFuturesEventSubscribe, Feed: wsFuturesFeedTicker, ProductIDs: []string{product}}, 1)
-			if assert.NoErrorf(t, err, "futuresRequest should not error for %s", product) && assert.Lenf(t, resps, 1, "futuresRequest should return %s's reply", product) {
-				assert.JSONEqf(t, `{"event":"subscribed","feed":"ticker","product_ids":["`+product+`"]}`, string(resps[0]), "futuresRequest should return the reply to %s's request", product)
-			}
+			t.Run(product, func(t *testing.T) {
+				resps, err := ex.futuresRequest(t.Context(), conn, &wsFuturesRequest{Event: wsFuturesEventSubscribe, Feed: wsFuturesFeedTicker, ProductIDs: []string{product}}, 1)
+				if assert.NoErrorf(t, err, "futuresRequest should not error for %s", product) && assert.Lenf(t, resps, 1, "futuresRequest should return %s's reply", product) {
+					assert.JSONEqf(t, `{"event":"subscribed","feed":"ticker","product_ids":["`+product+`"]}`, string(resps[0]), "futuresRequest should return the reply to %s's request", product)
+				}
+			})
 		})
 	}
 	wg.Wait()
@@ -1208,6 +1188,65 @@ func TestWebsocketFuturesUpdateBook(t *testing.T) {
 
 	assert.ErrorIs(t, ex.wsFuturesUpdateBook(t.Context(), conn, []byte(`{"feed":"book","product_id":"PF_MOONUSD","side":"buy","seq":1}`)), currency.ErrPairNotFound, "wsFuturesUpdateBook should reject an unknown product")
 	assert.Error(t, ex.wsFuturesUpdateBook(t.Context(), conn, []byte(`{"feed":"book","product_id":"PF_XBTUSD","seq":"1"}`)), "wsFuturesUpdateBook should reject an update it cannot decode")
+
+	t.Run("book resubscription", func(t *testing.T) {
+		t.Parallel()
+		snapshot := `{"feed":"book_snapshot","product_id":"PF_XBTUSD","timestamp":1791518718655,"seq":173877391,"tickSize":null,"bids":[{"price":82380.0,"qty":0.0003}],"asks":[{"price":82381.0,"qty":0.6051}]}`
+		setup := func(t *testing.T) (*Exchange, websocket.Connection, *mockFuturesServer, *subscription.Subscription) {
+			t.Helper()
+			server := new(mockFuturesServer)
+			ex, conn := newFuturesTestExchange(t, server)
+			s := futuresSubscription(subscription.OrderbookChannel, wsFuturesFeedBook, futuresTestPair)
+			require.NoError(t, ex.futuresSubscribe(t.Context(), conn, subscription.List{s}), "futuresSubscribe must not error")
+			server.takeRequests()
+			require.NoError(t, ex.wsFuturesHandleData(t.Context(), conn, []byte(snapshot)), "wsFuturesHandleData must load the snapshot")
+			return ex, conn, server, s
+		}
+
+		t.Run("rejected update", func(t *testing.T) {
+			t.Parallel()
+			ex, conn, server, s := setup(t)
+			// The book cannot apply an update without a timestamp
+			rejected := `{"feed":"book","product_id":"PF_XBTUSD","side":"buy","seq":173877392,"price":81529.0,"qty":1.5296}`
+			err := ex.wsFuturesUpdateBook(t.Context(), conn, []byte(rejected))
+			require.ErrorIs(t, err, orderbook.ErrLastUpdatedNotSet, "an update the book rejects must error")
+			exp := []string{
+				`{"event":"unsubscribe","feed":"book","product_ids":["PF_XBTUSD"]}`,
+				`{"event":"subscribe","feed":"book","product_ids":["PF_XBTUSD"]}`,
+			}
+			var got []string
+			require.Eventually(t, func() bool {
+				got = append(got, server.takeRequests()...)
+				return len(got) >= len(exp)
+			}, testWaitTimeout, 10*time.Millisecond, "an update the book rejects must resubscribe the book")
+			assert.Equal(t, exp, got, "an update the book rejects should resubscribe the book, unsubscribing first")
+			require.Eventually(t, func() bool {
+				stored := ex.Websocket.GetSubscription(s)
+				return stored != nil && stored.State() == subscription.SubscribedState
+			}, testWaitTimeout, 10*time.Millisecond, "the book must be subscribed again")
+		})
+
+		t.Run("unrelayed update", func(t *testing.T) {
+			t.Parallel()
+			ex, conn, server, _ := setup(t)
+			var err error
+			for err == nil {
+				err = ex.Websocket.DataHandler.Send(t.Context(), nil)
+			}
+			update := `{"feed":"book","product_id":"PF_XBTUSD","side":"buy","seq":173877392,"price":81529.0,"qty":1.5296,"timestamp":1791518718725}`
+			err = ex.wsFuturesUpdateBook(t.Context(), conn, []byte(update))
+			require.Error(t, err, "an update the data handler cannot relay must error")
+			assert.NotErrorIs(t, err, orderbook.ErrOrderbookInvalid, "an update the data handler cannot relay should leave the book valid")
+			id, err := ex.Websocket.Orderbook.LastUpdateID(futuresTestPair, asset.Futures)
+			require.NoError(t, err, "LastUpdateID must not error for a valid book")
+			assert.Equal(t, int64(173877392), id, "the update should be applied although it was not relayed")
+			var got []string
+			assert.Never(t, func() bool {
+				got = append(got, server.takeRequests()...)
+				return len(got) != 0
+			}, 100*time.Millisecond, 5*time.Millisecond, "an update the data handler cannot relay should not resubscribe the book")
+		})
+	})
 }
 
 func TestFuturesBookLevels(t *testing.T) {
@@ -1217,7 +1256,7 @@ func TestFuturesBookLevels(t *testing.T) {
 	assert.Empty(t, futuresBookLevels(nil), "futuresBookLevels should return no levels without any")
 }
 
-func TestWebsocketFuturesProcessTrades(t *testing.T) {
+func TestWebsocketFuturesProcessTrades(t *testing.T) { //nolint:tparallel // its cases share ex, whose relayed payloads the later statements check
 	t.Parallel()
 	ex := newTestExchange(t)
 	ex.Features.Enabled.TradeFeed = true
@@ -1236,6 +1275,7 @@ func TestWebsocketFuturesProcessTrades(t *testing.T) {
 		{Exchange: t.Name(), CurrencyPair: futuresTestPair, AssetType: asset.Futures, TID: "4fba15f2-e9e2-4811-8016-2c8b5d1e4c6e", Side: order.Sell, Price: 82380, Amount: 0.0002, Timestamp: time.UnixMilli(1791518719257)},
 	}}, relayed(ex), "wsFuturesProcessTrades should relay a trade")
 
+	// The cases share ex, whose relayed payloads the statements after them check are empty
 	for _, tc := range []struct {
 		name, feed, msg string
 		err             error
@@ -1243,7 +1283,9 @@ func TestWebsocketFuturesProcessTrades(t *testing.T) {
 		{"unknown product", wsFuturesFeedTrade, `{"feed":"trade","product_id":"PF_MOONUSD","side":"buy"}`, currency.ErrPairNotFound},
 		{"unknown side", wsFuturesFeedTradeSnapshot, `{"feed":"trade_snapshot","trades":[{"product_id":"PF_XBTUSD","side":"up"}]}`, order.ErrSideIsInvalid},
 	} {
-		assert.ErrorIsf(t, ex.wsFuturesProcessTrades(tc.feed, []byte(tc.msg)), tc.err, "wsFuturesProcessTrades should reject a trade with an %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			assert.ErrorIsf(t, ex.wsFuturesProcessTrades(tc.feed, []byte(tc.msg)), tc.err, "wsFuturesProcessTrades should reject a trade with an %s", tc.name)
+		})
 	}
 	assert.Error(t, ex.wsFuturesProcessTrades(wsFuturesFeedTradeSnapshot, []byte(`{"feed":"trade_snapshot","trades":7}`)), "wsFuturesProcessTrades should reject a snapshot it cannot decode")
 	assert.Error(t, ex.wsFuturesProcessTrades(wsFuturesFeedTrade, []byte(`{"feed":"trade","qty":"1"}`)), "wsFuturesProcessTrades should reject a trade it cannot decode")
@@ -1327,6 +1369,7 @@ func TestWebsocketFuturesProcessOpenOrders(t *testing.T) {
 	}}, relayed(ex), "wsFuturesProcessOpenOrders should relay a snapshot's order after ones it cannot relay")
 	assert.Equal(t, 5.0, ex.futuresOrders.get("unlisted").quantity, "wsFuturesProcessOpenOrders should record an order it cannot relay")
 
+	// The cases share ex, whose relayed payloads the statements after them check are empty
 	for _, tc := range []struct {
 		name, feed, msg string
 		err             error
@@ -1334,7 +1377,9 @@ func TestWebsocketFuturesProcessOpenOrders(t *testing.T) {
 		{"snapshot instrument", wsFuturesFeedOpenOrdersSnapshot, `{"feed":"open_orders_snapshot","orders":[{"instrument":"PF_MOONUSD","type":"limit"}]}`, currency.ErrPairNotFound},
 		{"update order type", wsFuturesFeedOpenOrders, `{"feed":"open_orders","order":{"instrument":"PF_XBTUSD","type":"moon"}}`, errUnknownOrderType},
 	} {
-		assert.ErrorIsf(t, ex.wsFuturesProcessOpenOrders(t.Context(), nil, tc.feed, []byte(tc.msg)), tc.err, "wsFuturesProcessOpenOrders should reject a %s it cannot convert", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			assert.ErrorIsf(t, ex.wsFuturesProcessOpenOrders(t.Context(), nil, tc.feed, []byte(tc.msg)), tc.err, "wsFuturesProcessOpenOrders should reject a %s it cannot convert", tc.name)
+		})
 	}
 	assert.Error(t, ex.wsFuturesProcessOpenOrders(t.Context(), nil, wsFuturesFeedOpenOrdersSnapshot, []byte(`{"feed":"open_orders_snapshot","orders":7}`)), "wsFuturesProcessOpenOrders should reject a snapshot it cannot decode")
 	assert.Error(t, ex.wsFuturesProcessOpenOrders(t.Context(), nil, wsFuturesFeedOpenOrders, []byte(`{"feed":"open_orders","order":7}`)), "wsFuturesProcessOpenOrders should reject an update it cannot decode")
@@ -1352,7 +1397,7 @@ func TestWebsocketFuturesProcessOpenOrders(t *testing.T) {
 	})
 }
 
-func TestFuturesWebsocketOrderDetail(t *testing.T) {
+func TestFuturesWebsocketOrderDetail(t *testing.T) { //nolint:tparallel // its cases share ex in order with the later statements
 	t.Parallel()
 	ex := newTestExchange(t)
 	placed, updated := time.UnixMilli(1612275024153), time.UnixMilli(1612275178153)
@@ -1390,6 +1435,7 @@ func TestFuturesWebsocketOrderDetail(t *testing.T) {
 		Date:            placed,
 		LastUpdated:     updated,
 	}, d, "futuresWsOrderDetail should convert a sell stop with a limit price to a stop limit order")
+	// The cases look up pairs on ex, which they share in order with the statements after them
 	for _, tc := range []struct {
 		orderType  string
 		limitPrice float64
@@ -1403,11 +1449,13 @@ func TestFuturesWebsocketOrderDetail(t *testing.T) {
 		{"limit", 34900, order.Limit, order.UnknownTIF},
 		{"post", 34900, order.Limit, order.PostOnly},
 	} {
-		d, err := ex.futuresWsOrderDetail(&WebsocketFuturesOpenOrder{Instrument: "PF_XBTUSD", Type: tc.orderType, LimitPrice: tc.limitPrice}, order.Open)
-		require.NoErrorf(t, err, "futuresWsOrderDetail must not error for a %s order", tc.orderType)
-		assert.Equalf(t, tc.expType, d.Type, "futuresWsOrderDetail should convert the type of a %s order with a limit price of %v", tc.orderType, tc.limitPrice)
-		assert.Equalf(t, tc.expTIF, d.TimeInForce, "futuresWsOrderDetail should convert the time in force of a %s order", tc.orderType)
-		assert.Equalf(t, order.Buy, d.Side, "futuresWsOrderDetail should convert a %s order in direction 0 to a buy", tc.orderType)
+		t.Run(tc.orderType+" with a limit price of "+strconv.FormatFloat(tc.limitPrice, 'f', -1, 64), func(t *testing.T) {
+			d, err := ex.futuresWsOrderDetail(&WebsocketFuturesOpenOrder{Instrument: "PF_XBTUSD", Type: tc.orderType, LimitPrice: tc.limitPrice}, order.Open)
+			require.NoErrorf(t, err, "futuresWsOrderDetail must not error for a %s order", tc.orderType)
+			assert.Equalf(t, tc.expType, d.Type, "futuresWsOrderDetail should convert the type of a %s order with a limit price of %v", tc.orderType, tc.limitPrice)
+			assert.Equalf(t, tc.expTIF, d.TimeInForce, "futuresWsOrderDetail should convert the time in force of a %s order", tc.orderType)
+			assert.Equalf(t, order.Buy, d.Side, "futuresWsOrderDetail should convert a %s order in direction 0 to a buy", tc.orderType)
+		})
 	}
 	_, err = ex.futuresWsOrderDetail(&WebsocketFuturesOpenOrder{Instrument: "PF_MOONUSD", Type: "limit"}, order.Open)
 	assert.ErrorIs(t, err, currency.ErrPairNotFound, "futuresWsOrderDetail should reject an unknown instrument")
@@ -1465,6 +1513,7 @@ func TestWebsocketFuturesProcessFills(t *testing.T) {
 	}}
 	assert.Equal(t, []any{expDetail, expFill}, relayed(ex), "wsFuturesProcessFills should relay a fill as a fill too with the fills feed enabled")
 
+	// The cases share ex, whose relayed payloads the statements after them check are empty
 	for _, tc := range []struct {
 		name, msg string
 		err       error
@@ -1472,7 +1521,9 @@ func TestWebsocketFuturesProcessFills(t *testing.T) {
 		{"instrument", `{"feed":"fills","fills":[{"instrument":"PF_MOONUSD","order_type":"lmt"}]}`, currency.ErrPairNotFound},
 		{"order type", `{"feed":"fills","fills":[{"instrument":"PF_XBTUSD","order_type":"moon"}]}`, errUnknownOrderType},
 	} {
-		assert.ErrorIsf(t, ex.wsFuturesProcessFills(t.Context(), nil, wsFuturesFeedFills, []byte(tc.msg)), tc.err, "wsFuturesProcessFills should reject a fill by its %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			assert.ErrorIsf(t, ex.wsFuturesProcessFills(t.Context(), nil, wsFuturesFeedFills, []byte(tc.msg)), tc.err, "wsFuturesProcessFills should reject a fill by its %s", tc.name)
+		})
 	}
 	assert.Error(t, ex.wsFuturesProcessFills(t.Context(), nil, wsFuturesFeedFills, []byte(`{"feed":"fills","fills":7}`)), "wsFuturesProcessFills should reject fills it cannot decode")
 	assert.Empty(t, relayed(ex), "wsFuturesProcessFills should relay nothing from a message it rejects")
@@ -1635,4 +1686,159 @@ func TestWebsocketFuturesProcessBalances(t *testing.T) {
 	require.NoError(t, ex.Websocket.DataHandler.Send(t.Context(), struct{}{}), "DataHandler must accept the saturation payload")
 	err = ex.wsFuturesProcessBalances(t.Context(), wsFuturesFeedBalances, []byte(`{"feed":"balances","holding":{"usd":2}}`))
 	assert.ErrorContains(t, err, "channel buffer is full: failed to relay <accounts.SubAccounts>", "wsFuturesProcessBalances should return the error relaying the wallets")
+
+	t.Run("balances snapshots", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestExchange(t)
+		useTestCredentials(ex)
+		require.NoError(t, ex.Accounts.Save(t.Context(), accounts.SubAccounts{
+			{ID: "cash", AssetType: asset.Futures, Balances: accounts.CurrencyBalances{currency.USD: {Total: 1, Free: 1}, currency.EUR: {Total: 2, Free: 2}}},
+			{ID: "flex", AssetType: asset.Futures, Balances: accounts.CurrencyBalances{currency.USD: {Total: 3, Free: 3}}},
+			{ID: "fi_xbtusd", AssetType: asset.Futures, Balances: accounts.CurrencyBalances{currency.XBT: {Total: 1, Free: 1}, currency.XRP: {Total: 9, Free: 9}}},
+		}, true), "Save must not error")
+		setFuturesMarginCurrencies(ex, map[string]currency.Code{"fi_xbtusd": currency.NewCode("xbt"), "fi_etheur": currency.ETH})
+		stored := func(id string) accounts.CurrencyBalances {
+			subAccts, err := ex.Accounts.SubAccounts(ex.GetDefaultCredentials(), asset.Futures)
+			require.NoError(t, err, "SubAccounts must not error")
+			for _, s := range subAccts {
+				if s.ID == id {
+					for c, b := range s.Balances {
+						b.UpdatedAt = time.Time{}
+						s.Balances[c] = b
+					}
+					return s.Balances
+				}
+			}
+			return nil
+		}
+
+		snapshot := `{"feed":"balances_snapshot","account":"DemoUser","holding":{"usd":100},"flex_futures":{"currencies":{}},"futures":{` +
+			`"F-XBT:USD":{"name":"F-XBT:USD","pair":"XBT/USD","unit":"XBT","balance":0.5,"available":0.25},` +
+			`"F-ETH:EUR":{"name":"F-ETH:EUR","pair":"ETH/EUR","unit":"EUR","balance":7,"available":7}},"timestamp":1640995200000,"seq":1}`
+		require.NoError(t, ex.wsFuturesHandleData(t.Context(), nil, []byte(snapshot)), "wsFuturesHandleData must not error for a balances snapshot")
+		relayed(ex)
+		assert.Equal(t, accounts.CurrencyBalances{currency.USD: {Currency: currency.USD, Total: 100, Free: 100}}, stored("cash"), "a snapshot should store its cash wallet whole, removing a currency it no longer lists")
+		assert.Empty(t, stored("flex"), "a snapshot carrying an empty multi-collateral wallet should empty it")
+		assert.Equal(t, accounts.CurrencyBalances{
+			currency.XBT: {Currency: currency.XBT, Total: 0.5, Hold: 0.25, Free: 0.25},
+			currency.XRP: {Currency: currency.XRP, Total: 9, Free: 9},
+		}, stored("fi_xbtusd"), "a snapshot should store a margin account under its REST name, keeping the currencies it does not report")
+		assert.Nil(t, stored("fi_etheur"), "a margin account whose currency differs from the REST account's should be left to REST")
+
+		update := `{"feed":"balances","account":"DemoUser","flex_futures":{"currencies":{"XBT":{"quantity":0.1,"available":0.1}}},"timestamp":1640995200001,"seq":2}`
+		require.NoError(t, ex.wsFuturesHandleData(t.Context(), nil, []byte(update)), "wsFuturesHandleData must not error for a balances update")
+		relayed(ex)
+		assert.Equal(t, accounts.CurrencyBalances{currency.USD: {Currency: currency.USD, Total: 100, Free: 100}}, stored("cash"), "an update leaving the cash wallet out should keep it")
+		assert.Equal(t, accounts.CurrencyBalances{currency.XBT: {Currency: currency.XBT, Total: 0.1, Free: 0.1}}, stored("flex"), "an update should store the balances it holds")
+
+		require.NoError(t, ex.wsFuturesHandleData(t.Context(), nil, []byte(`{"feed":"balances_snapshot","account":"DemoUser","holding":{"usd":100},"timestamp":1640995200002,"seq":3}`)), "wsFuturesHandleData must not error for a balances snapshot")
+		relayed(ex)
+		assert.Equal(t, accounts.CurrencyBalances{currency.XBT: {Currency: currency.XBT, Total: 0.1, Free: 0.1}}, stored("flex"), "a snapshot leaving a wallet out should keep it")
+
+		require.NoError(t, ex.wsFuturesHandleData(t.Context(), nil, []byte(`{"feed":"balances_snapshot","account":"DemoUser","holding":{},"timestamp":1640995200003,"seq":4}`)), "wsFuturesHandleData must not error for a balances snapshot")
+		relayed(ex)
+		assert.Empty(t, stored("cash"), "a snapshot carrying an empty cash wallet should empty it")
+	})
+
+	t.Run("margin account stored under its REST name", func(t *testing.T) {
+		t.Parallel()
+		ex := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+			if !assert.Equal(t, "/derivatives/api/v3/accounts", r.URL.Path, "only the futures accounts should be requested") {
+				http.Error(w, "unexpected request", http.StatusNotFound)
+				return
+			}
+			// Another account's credentials hold no margin account
+			accounts := `"fi_xbtusd":{"type":"marginAccount","currency":"xbt","balances":{"xbt":"1","xrp":"9","FI_XBTUSD_171215":"5000"},` +
+				`"auxiliary":{"af":0.5},"marginRequirements":{},"triggerEstimates":{}},`
+			if r.Header.Get("APIKey") != "test-key" {
+				accounts = ""
+			}
+			_, err := w.Write([]byte(`{"result":"success","accounts":{` + accounts + `"cash":{"type":"cashAccount","balances":{"usd":"100"}},` +
+				`"flex":{"type":"multiCollateralMarginAccount","currencies":{}}},"serverTime":"2026-10-16T00:00:00.000Z"}`))
+			assert.NoError(t, err, "Write should not error")
+		})
+		_, err := ex.UpdateAccountBalances(t.Context(), asset.Futures)
+		require.NoError(t, err, "UpdateAccountBalances must not error")
+		other := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: "other-key", Secret: testSecret})
+		_, err = ex.UpdateAccountBalances(other, asset.Futures)
+		require.NoError(t, err, "UpdateAccountBalances must not error for other credentials")
+
+		update := `{"feed":"balances","account":"DemoUser","futures":{"F-XBT:USD":{"name":"F-XBT:USD","pair":"XBT/USD","unit":"XBT","balance":0.75,"available":0.5}},"timestamp":1640995200000,"seq":2}`
+		require.NoError(t, ex.wsFuturesHandleData(t.Context(), nil, []byte(update)), "wsFuturesHandleData must not error for a balances update")
+		got := relayed(ex)
+		require.Len(t, got, 2, "the update must relay the margin account and the message")
+		subAccts, ok := got[0].(accounts.SubAccounts)
+		require.True(t, ok, "the margin account must be relayed as a sub-account")
+		require.Len(t, subAccts, 1, "one margin account must be relayed")
+		assert.Equal(t, "fi_xbtusd", subAccts[0].ID, "the margin account should be relayed under its REST name")
+		b, err := ex.Accounts.GetBalance("fi_xbtusd", ex.GetDefaultCredentials(), asset.Futures, currency.XBT)
+		require.NoError(t, err, "GetBalance must not error")
+		b.UpdatedAt = time.Time{}
+		assert.Equal(t, accounts.Balance{Currency: currency.XBT, Total: 0.75, Hold: 0.25, Free: 0.5}, b, "the margin account's balance should be stored under its REST name, whatever another account's REST read held")
+		b, err = ex.Accounts.GetBalance("fi_xbtusd", ex.GetDefaultCredentials(), asset.Futures, currency.XRP)
+		require.NoError(t, err, "GetBalance must not error")
+		assert.Equal(t, 9.0, b.Total, "the margin account's other currencies should be kept")
+	})
+
+	t.Run("unified wallet", func(t *testing.T) {
+		t.Parallel()
+		ex := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+			if !assert.Equal(t, "/derivatives/api/v3/accounts", r.URL.Path, "only the futures accounts should be requested") {
+				http.Error(w, "unexpected request", http.StatusNotFound)
+				return
+			}
+			_, err := w.Write([]byte(`{"result":"success","accounts":{"cash":{"type":"cashAccount","balances":{}},"flex":{"type":"multiCollateralMarginAccount",` +
+				`"currencies":{"USD":{"quantity":100,"value":100,"collateral_value":100,"available":100}}}},"serverTime":"2026-10-30T00:00:00.000Z"}`))
+			assert.NoError(t, err, "Write should not error")
+		})
+		// The unified wallet holds the account's spot and futures funds as one balance, which spot lists
+		require.NoError(t, ex.Accounts.Save(t.Context(), accounts.SubAccounts{{AssetType: asset.Spot, Balances: accounts.CurrencyBalances{currency.USD: {Total: 100, Free: 100}}}}, true), "Save must not error")
+		totalUSD := func() float64 {
+			balances, err := ex.Accounts.CurrencyBalances(nil, asset.All)
+			require.NoError(t, err, "CurrencyBalances must not error")
+			return balances[currency.USD].Total
+		}
+		_, err := ex.UpdateAccountBalances(t.Context(), asset.Futures)
+		require.NoError(t, err, "UpdateAccountBalances must not error")
+		require.Equal(t, accounts.CurrencyBalances{currency.USD: {Currency: currency.USD, Total: 100, Free: 100}}, storedFuturesWallets(t, ex)["flex"],
+			"a futures read must store the multi-collateral wallet while the balances feed has not reported it as the unified wallet, as Kraken's reply does not say")
+		send := func(msg string) []any {
+			require.NoErrorf(t, ex.wsFuturesHandleData(t.Context(), nil, []byte(msg)), "wsFuturesHandleData must not error for %s", msg)
+			return relayed(ex)
+		}
+
+		got := send(`{"feed":"balances_snapshot","account":"DemoUser","holding":{},"flex_futures":{"currencies":{"USD":{"quantity":100,"available":100}},"unified_balances":true},"timestamp":1640995200000,"seq":1}`)
+		require.Len(t, got, 2, "the snapshot must relay the wallets it stored and the message")
+		subAccts, ok := got[0].(accounts.SubAccounts)
+		require.True(t, ok, "the wallets must be relayed as sub-accounts")
+		assert.Equal(t, map[string]accounts.CurrencyBalances{"cash": {}, "flex": {}}, futuresWalletBalances(subAccts), "the snapshot should relay the multi-collateral wallet emptied once it is the unified wallet")
+		assert.Equal(t, 100.0, totalUSD(), "a snapshot reporting the multi-collateral wallet as the unified wallet should leave its funds to spot alone")
+
+		send(`{"feed":"balances","account":"DemoUser","flex_futures":{"currencies":{"USD":{"quantity":90,"available":90}}},"timestamp":1640995200001,"seq":2}`)
+		assert.Empty(t, storedFuturesWallets(t, ex)["flex"], "an update leaving out whether the multi-collateral wallet is the unified wallet should keep it emptied")
+
+		read, err := ex.UpdateAccountBalances(t.Context(), asset.Futures)
+		require.NoError(t, err, "UpdateAccountBalances must not error")
+		assert.Equal(t, map[string]accounts.CurrencyBalances{"cash": {}, "flex": {}}, futuresWalletBalances(read), "a futures read should return the unified wallet's multi-collateral wallet emptied")
+		assert.Equal(t, 100.0, totalUSD(), "a futures read after the balances feed reported the unified wallet should leave its funds to spot alone")
+
+		send(`{"feed":"balances_snapshot","account":"DemoUser","holding":{},"flex_futures":{"currencies":{"USD":{"quantity":50,"available":50}},"unified_balances":false},"timestamp":1640995200002,"seq":3}`)
+		assert.Equal(t, accounts.CurrencyBalances{currency.USD: {Currency: currency.USD, Total: 50, Free: 50}}, storedFuturesWallets(t, ex)["flex"], "a snapshot reporting a separate multi-collateral wallet should store it")
+
+		// Spot reads keep the unified wallet's funds current only while spot is enabled
+		require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.Spot, false), "SetAssetEnabled must not error")
+		send(`{"feed":"balances_snapshot","account":"DemoUser","holding":{},"flex_futures":{"currencies":{"USD":{"quantity":125,"available":125}},"unified_balances":true},"timestamp":1640995200003,"seq":4}`)
+		assert.Equal(t, accounts.CurrencyBalances{currency.USD: {Currency: currency.USD, Total: 125, Free: 125}}, storedFuturesWallets(t, ex)["flex"],
+			"the unified wallet should be stored under futures while spot is disabled")
+
+		noCreds := newTestExchange(t)
+		noCreds.SkipAuthCheck = false
+		noCreds.API.AuthenticatedSupport = true
+		noCreds.SetCredentials(&accounts.Credentials{})
+		require.NoError(t, noCreds.wsFuturesProcessBalances(t.Context(), wsFuturesFeedBalancesSnapshot, []byte(`{"feed":"balances_snapshot","account":"DemoUser","flex_futures":{}}`)),
+			"wsFuturesProcessBalances must not need credentials for a message carrying no wallet and leaving out the wallet's kind")
+		assert.Len(t, relayed(noCreds), 1, "wsFuturesProcessBalances should relay a message carrying no wallet")
+		err = noCreds.wsFuturesProcessBalances(t.Context(), wsFuturesFeedBalancesSnapshot, []byte(`{"feed":"balances_snapshot","account":"DemoUser","flex_futures":{"unified_balances":true}}`))
+		assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "wsFuturesProcessBalances should return the error recording the unified wallet")
+	})
 }

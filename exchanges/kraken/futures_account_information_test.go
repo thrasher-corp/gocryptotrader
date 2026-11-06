@@ -93,7 +93,7 @@ func TestGetFuturesAccounts(t *testing.T) {
 	assert.Equal(t, "cashAccount", result.Accounts.Cash.Type, "GetFuturesAccounts should return the cash account")
 }
 
-func TestFuturesAccountsUnmarshalJSON(t *testing.T) {
+func TestFuturesAccountsUnmarshalJSON(t *testing.T) { //nolint:tparallel // the cases decode into one accounts in order
 	t.Parallel()
 	var accounts FuturesAccounts
 	require.NoError(t, accounts.UnmarshalJSON([]byte(`{"cash":{"type":"cashAccount","balances":{}},"flex":{"type":"multiCollateralMarginAccount"}}`)), "UnmarshalJSON must not error without margin accounts")
@@ -104,9 +104,13 @@ func TestFuturesAccountsUnmarshalJSON(t *testing.T) {
 	}
 	assert.Equal(t, exp, accounts, "UnmarshalJSON should decode the cash and flex accounts")
 	assert.Error(t, accounts.UnmarshalJSON([]byte(`[]`)), "UnmarshalJSON should reject accounts that are not an object")
+	// The cases decode into the accounts decoded above, in order, so each also checks that a call keeps nothing from the
+	// last
 	for _, name := range []string{"cash", "flex", "fi_xbtusd"} {
-		err := accounts.UnmarshalJSON([]byte(`{"` + name + `":{"type":1}}`))
-		assert.ErrorContainsf(t, err, "error decoding "+name+" account", "UnmarshalJSON should name the %s account it cannot decode", name)
+		t.Run(name, func(t *testing.T) {
+			err := accounts.UnmarshalJSON([]byte(`{"` + name + `":{"type":1}}`))
+			assert.ErrorContainsf(t, err, "error decoding "+name+" account", "UnmarshalJSON should name the %s account it cannot decode", name)
+		})
 	}
 }
 

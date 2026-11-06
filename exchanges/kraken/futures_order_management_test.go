@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -43,9 +44,12 @@ func TestSendFuturesOrder(t *testing.T) {
 	require.ErrorIs(t, err, errFuturesStopPriceRequired, "SendFuturesOrder must validate the order")
 	_, err = e.SendFuturesOrder(t.Context(), &FuturesSendOrderRequest{Symbol: futuresTestPair, Side: "sell", OrderType: "stp", Size: 0.001, StopPrice: 79000, LimitPriceOffsetValue: -0.5})
 	require.ErrorIs(t, err, errFuturesLimitPriceOffsetUnitRequired, "SendFuturesOrder must reject a limit price offset without its unit")
+	// Serial, as the SendFuturesOrder calls after the loop would otherwise run before these cases
 	for _, offset := range []float64{math.NaN(), math.Inf(1), math.Inf(-1)} {
-		_, err = e.SendFuturesOrder(t.Context(), &FuturesSendOrderRequest{Symbol: futuresTestPair, Side: "sell", OrderType: "stp", Size: 0.001, StopPrice: 79000, LimitPriceOffsetValue: offset, LimitPriceOffsetUnit: "QUOTE_CURRENCY"})
-		require.ErrorIsf(t, err, errInvalidOrderPrice, "SendFuturesOrder must reject a limit price offset of %v", offset)
+		t.Run(strconv.FormatFloat(offset, 'g', -1, 64), func(t *testing.T) {
+			_, err = e.SendFuturesOrder(t.Context(), &FuturesSendOrderRequest{Symbol: futuresTestPair, Side: "sell", OrderType: "stp", Size: 0.001, StopPrice: 79000, LimitPriceOffsetValue: offset, LimitPriceOffsetUnit: "QUOTE_CURRENCY"})
+			require.ErrorIsf(t, err, errInvalidOrderPrice, "SendFuturesOrder must reject a limit price offset of %v", offset)
+		})
 	}
 	_, err = e.SendFuturesOrder(t.Context(), &FuturesSendOrderRequest{Symbol: futuresTestPair, Side: "buy", OrderType: "lmt", Size: 0.001, LimitPrice: math.NaN()})
 	require.ErrorIs(t, err, errInvalidOrderPrice, "SendFuturesOrder must reject a NaN limit price")
@@ -264,12 +268,15 @@ func TestEditFuturesOrder(t *testing.T) {
 	_, err = e.EditFuturesOrder(t.Context(), &FuturesEditOrderRequest{OrderID: futuresTradingTrailingOrderID, TrailingStopMaximumDeviation: 51, TrailingStopDeviationUnit: "PERCENT"})
 	require.ErrorIs(t, err, errFuturesInvalidTrailingStopDeviation, "EditFuturesOrder must reject a percentage deviation above 50")
 	for _, v := range []float64{-1, math.NaN(), math.Inf(1), math.Inf(-1)} {
-		_, err = e.EditFuturesOrder(t.Context(), &FuturesEditOrderRequest{OrderID: futuresTradingLimitOrderID, Size: v})
-		require.ErrorIsf(t, err, order.ErrAmountIsInvalid, "EditFuturesOrder must reject a size of %v", v)
-		_, err = e.EditFuturesOrder(t.Context(), &FuturesEditOrderRequest{OrderID: futuresTradingLimitOrderID, LimitPrice: v})
-		require.ErrorIsf(t, err, errInvalidOrderPrice, "EditFuturesOrder must reject a limit price of %v", v)
-		_, err = e.EditFuturesOrder(t.Context(), &FuturesEditOrderRequest{OrderID: futuresTradingStopOrderID, StopPrice: v})
-		require.ErrorIsf(t, err, errInvalidOrderPrice, "EditFuturesOrder must reject a stop price of %v", v)
+		t.Run(strconv.FormatFloat(v, 'g', -1, 64), func(t *testing.T) {
+			t.Parallel()
+			_, err := e.EditFuturesOrder(t.Context(), &FuturesEditOrderRequest{OrderID: futuresTradingLimitOrderID, Size: v})
+			require.ErrorIsf(t, err, order.ErrAmountIsInvalid, "EditFuturesOrder must reject a size of %v", v)
+			_, err = e.EditFuturesOrder(t.Context(), &FuturesEditOrderRequest{OrderID: futuresTradingLimitOrderID, LimitPrice: v})
+			require.ErrorIsf(t, err, errInvalidOrderPrice, "EditFuturesOrder must reject a limit price of %v", v)
+			_, err = e.EditFuturesOrder(t.Context(), &FuturesEditOrderRequest{OrderID: futuresTradingStopOrderID, StopPrice: v})
+			require.ErrorIsf(t, err, errInvalidOrderPrice, "EditFuturesOrder must reject a stop price of %v", v)
+		})
 	}
 
 	if !mockTests {
@@ -476,8 +483,11 @@ func TestCancelFuturesOrder(t *testing.T) {
 func TestCancelAllFuturesOrders(t *testing.T) {
 	t.Parallel()
 	for _, pair := range partialTestPairs {
-		_, err := e.CancelAllFuturesOrders(t.Context(), &FuturesCancelAllOrdersRequest{Symbol: pair})
-		require.ErrorIsf(t, err, currency.ErrCurrencyCodeEmpty, "CancelAllFuturesOrders must reject %q, which lacks a base or a quote", pair)
+		t.Run(pair.String(), func(t *testing.T) {
+			t.Parallel()
+			_, err := e.CancelAllFuturesOrders(t.Context(), &FuturesCancelAllOrdersRequest{Symbol: pair})
+			require.ErrorIsf(t, err, currency.ErrCurrencyCodeEmpty, "CancelAllFuturesOrders must reject %q, which lacks a base or a quote", pair)
+		})
 	}
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -555,8 +565,11 @@ func TestCancelAllFuturesOrdersAfter(t *testing.T) {
 	_, err := e.CancelAllFuturesOrdersAfter(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "CancelAllFuturesOrdersAfter must reject a nil request")
 	for _, timeout := range []time.Duration{-time.Second, 1500 * time.Millisecond, (1 << 32) * time.Second} {
-		_, err = e.CancelAllFuturesOrdersAfter(t.Context(), &FuturesCancelAllOrdersAfterRequest{Timeout: timeout})
-		require.ErrorIsf(t, err, errFuturesInvalidTimeout, "CancelAllFuturesOrdersAfter must reject a timeout of %s", timeout)
+		t.Run(timeout.String(), func(t *testing.T) {
+			t.Parallel()
+			_, err := e.CancelAllFuturesOrdersAfter(t.Context(), &FuturesCancelAllOrdersAfterRequest{Timeout: timeout})
+			require.ErrorIsf(t, err, errFuturesInvalidTimeout, "CancelAllFuturesOrdersAfter must reject a timeout of %s", timeout)
+		})
 	}
 
 	if !mockTests {
@@ -638,8 +651,11 @@ func TestFuturesBatchOrder(t *testing.T) {
 		},
 		{name: "cancel without an order ID", instruction: FuturesBatchInstruction{Cancel: &FuturesBatchCancelInstruction{}}, err: order.ErrOrderIDNotSet},
 	} {
-		_, err = e.FuturesBatchOrder(t.Context(), &FuturesBatchOrderRequest{Instructions: []FuturesBatchInstruction{tc.instruction}})
-		require.ErrorIsf(t, err, tc.err, "FuturesBatchOrder must reject an invalid instruction: %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := e.FuturesBatchOrder(t.Context(), &FuturesBatchOrderRequest{Instructions: []FuturesBatchInstruction{tc.instruction}})
+			require.ErrorIsf(t, err, tc.err, "FuturesBatchOrder must reject an invalid instruction: %s", tc.name)
+		})
 	}
 
 	if !mockTests {
@@ -1117,8 +1133,11 @@ func TestFuturesValidateTrailingStopDeviation(t *testing.T) {
 		{deviation: math.Inf(1), unit: "QUOTE_CURRENCY", err: errFuturesInvalidTrailingStopDeviation},
 		{deviation: math.Inf(-1), unit: "QUOTE_CURRENCY", err: errFuturesInvalidTrailingStopDeviation},
 	} {
-		err := futuresValidateTrailingStopDeviation(tc.deviation, tc.unit)
-		assert.ErrorIsf(t, err, tc.err, "futuresValidateTrailingStopDeviation should return the expected error for %v %s", tc.deviation, tc.unit)
+		t.Run(strconv.FormatFloat(tc.deviation, 'g', -1, 64)+" "+tc.unit, func(t *testing.T) {
+			t.Parallel()
+			err := futuresValidateTrailingStopDeviation(tc.deviation, tc.unit)
+			assert.ErrorIsf(t, err, tc.err, "futuresValidateTrailingStopDeviation should return the expected error for %v %s", tc.deviation, tc.unit)
+		})
 	}
 }
 
@@ -1141,8 +1160,11 @@ func TestFuturesValidateEdit(t *testing.T) {
 		{name: "negative stop price", stopPrice: -1, err: errInvalidOrderPrice},
 		{name: "deviation out of range", deviation: 51, deviationUnit: "PERCENT", err: errFuturesInvalidTrailingStopDeviation},
 	} {
-		err := futuresValidateEdit(tc.size, tc.limitPrice, tc.stopPrice, tc.deviation, tc.deviationUnit)
-		assert.ErrorIsf(t, err, tc.err, "futuresValidateEdit should return the expected error for %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			err := futuresValidateEdit(tc.size, tc.limitPrice, tc.stopPrice, tc.deviation, tc.deviationUnit)
+			assert.ErrorIsf(t, err, tc.err, "futuresValidateEdit should return the expected error for %s", tc.name)
+		})
 	}
 }
 
@@ -1163,8 +1185,11 @@ func TestFuturesValidatePrices(t *testing.T) {
 		{stopPrice: math.Inf(1), err: errInvalidOrderPrice},
 		{stopPrice: math.Inf(-1), err: errInvalidOrderPrice},
 	} {
-		err := futuresValidatePrices(tc.limitPrice, tc.stopPrice)
-		assert.ErrorIsf(t, err, tc.err, "futuresValidatePrices should return the expected error for limit price %v and stop price %v", tc.limitPrice, tc.stopPrice)
+		t.Run("limit price "+strconv.FormatFloat(tc.limitPrice, 'g', -1, 64)+" and stop price "+strconv.FormatFloat(tc.stopPrice, 'g', -1, 64), func(t *testing.T) {
+			t.Parallel()
+			err := futuresValidatePrices(tc.limitPrice, tc.stopPrice)
+			assert.ErrorIsf(t, err, tc.err, "futuresValidatePrices should return the expected error for limit price %v and stop price %v", tc.limitPrice, tc.stopPrice)
+		})
 	}
 }
 

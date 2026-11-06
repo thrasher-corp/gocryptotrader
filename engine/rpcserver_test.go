@@ -1246,7 +1246,7 @@ func TestGetAccountBalances(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestRPCServerCancelBatchOrders(t *testing.T) {
+func TestRPCServerCancelBatchOrders(t *testing.T) { //nolint:tparallel // The error cases share s and its exchange in order
 	t.Parallel()
 	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
@@ -1271,6 +1271,7 @@ func TestRPCServerCancelBatchOrders(t *testing.T) {
 	}}}
 	assert.Equal(t, exp, resp, "CancelBatchOrders should answer with the statuses the exchange reports")
 
+	// The cases share s and its exchange in order, so each also checks that a call keeps nothing from the last
 	for _, tc := range []struct {
 		name string
 		req  *gctrpc.CancelBatchOrdersRequest
@@ -1282,8 +1283,10 @@ func TestRPCServerCancelBatchOrders(t *testing.T) {
 		{"an invalid side", &gctrpc.CancelBatchOrdersRequest{Exchange: fakeExchangeName, AssetType: asset.Spot.String(), Pair: rpcPair, Side: "sideways", OrdersId: "cancelled"}, order.ErrSideIsInvalid},
 		{"the exchange's error", &gctrpc.CancelBatchOrdersRequest{Exchange: fakeExchangeName, AssetType: asset.Spot.String(), Pair: rpcPair, Side: order.Buy.String(), OrdersId: "cancelled,error"}, errExpectedTestError},
 	} {
-		_, err := s.CancelBatchOrders(t.Context(), tc.req)
-		assert.ErrorIsf(t, err, tc.err, "CancelBatchOrders should return the expected error for %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := s.CancelBatchOrders(t.Context(), tc.req)
+			assert.ErrorIsf(t, err, tc.err, "CancelBatchOrders should return the expected error for %s", tc.name)
+		})
 	}
 }
 

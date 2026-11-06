@@ -3,6 +3,7 @@ package kraken
 import (
 	"math"
 	"net/http"
+	"strconv"
 	"testing"
 	"time"
 
@@ -69,8 +70,11 @@ func TestGetDepositAddresses(t *testing.T) {
 	_, err = e.GetDepositAddresses(t.Context(), &DepositAddressesRequest{Asset: currency.XBT})
 	require.ErrorIs(t, err, errDepositMethodRequired, "GetDepositAddresses must reject an empty method")
 	for _, amount := range []float64{-0.0005, math.NaN(), math.Inf(1), math.Inf(-1)} {
-		_, err = e.GetDepositAddresses(t.Context(), &DepositAddressesRequest{Asset: currency.XBT, Method: "Bitcoin Lightning", Amount: amount})
-		require.ErrorIsf(t, err, limits.ErrAmountBelowMin, "GetDepositAddresses must reject an amount of %v", amount)
+		t.Run(strconv.FormatFloat(amount, 'g', -1, 64), func(t *testing.T) {
+			t.Parallel()
+			_, err := e.GetDepositAddresses(t.Context(), &DepositAddressesRequest{Asset: currency.XBT, Method: "Bitcoin Lightning", Amount: amount})
+			require.ErrorIsf(t, err, limits.ErrAmountBelowMin, "GetDepositAddresses must reject an amount of %v", amount)
+		})
 	}
 
 	if !mockTests {
@@ -265,23 +269,38 @@ func TestRecentTransfersBody(t *testing.T) {
 
 func TestRecentTransfersStatusResponseUnmarshalJSON(t *testing.T) {
 	t.Parallel()
-	for _, data := range []string{`[{"refid":"FTQcuak-V6Za8qrWnhzTx67yYHz8Tg"}]`, `{"deposit":[{"refid":"FTQcuak-V6Za8qrWnhzTx67yYHz8Tg"}]}`} {
-		deposits := RecentDepositsStatusResponse{Deposits: []RecentDeposit{{Method: "Bitcoin"}, {Method: "Ether"}}, NextCursor: "stale"}
-		require.NoErrorf(t, deposits.UnmarshalJSON([]byte(data)), "UnmarshalJSON must not error for deposits %s", data)
-		exp := RecentDepositsStatusResponse{Deposits: []RecentDeposit{{ReferenceID: "FTQcuak-V6Za8qrWnhzTx67yYHz8Tg"}}}
-		assert.Equalf(t, exp, deposits, "UnmarshalJSON should replace the whole response with deposits %s", data)
+	for name, data := range map[string]string{
+		"deposits array":  `[{"refid":"FTQcuak-V6Za8qrWnhzTx67yYHz8Tg"}]`,
+		"deposits object": `{"deposit":[{"refid":"FTQcuak-V6Za8qrWnhzTx67yYHz8Tg"}]}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			deposits := RecentDepositsStatusResponse{Deposits: []RecentDeposit{{Method: "Bitcoin"}, {Method: "Ether"}}, NextCursor: "stale"}
+			require.NoErrorf(t, deposits.UnmarshalJSON([]byte(data)), "UnmarshalJSON must not error for deposits %s", data)
+			exp := RecentDepositsStatusResponse{Deposits: []RecentDeposit{{ReferenceID: "FTQcuak-V6Za8qrWnhzTx67yYHz8Tg"}}}
+			assert.Equalf(t, exp, deposits, "UnmarshalJSON should replace the whole response with deposits %s", data)
+		})
 	}
-	for _, data := range []string{`[{"refid":"BSNFZU2-MEFN4G-J3NEZV"}]`, `{"withdrawals":[{"refid":"BSNFZU2-MEFN4G-J3NEZV"}]}`} {
-		withdrawals := RecentWithdrawalsStatusResponse{Withdrawals: []RecentWithdrawal{{Method: "Bitcoin"}, {Method: "Ether"}}, NextCursor: "stale"}
-		require.NoErrorf(t, withdrawals.UnmarshalJSON([]byte(data)), "UnmarshalJSON must not error for withdrawals %s", data)
-		exp := RecentWithdrawalsStatusResponse{Withdrawals: []RecentWithdrawal{{ReferenceID: "BSNFZU2-MEFN4G-J3NEZV"}}}
-		assert.Equalf(t, exp, withdrawals, "UnmarshalJSON should replace the whole response with withdrawals %s", data)
+	for name, data := range map[string]string{
+		"withdrawals array":  `[{"refid":"BSNFZU2-MEFN4G-J3NEZV"}]`,
+		"withdrawals object": `{"withdrawals":[{"refid":"BSNFZU2-MEFN4G-J3NEZV"}]}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			withdrawals := RecentWithdrawalsStatusResponse{Withdrawals: []RecentWithdrawal{{Method: "Bitcoin"}, {Method: "Ether"}}, NextCursor: "stale"}
+			require.NoErrorf(t, withdrawals.UnmarshalJSON([]byte(data)), "UnmarshalJSON must not error for withdrawals %s", data)
+			exp := RecentWithdrawalsStatusResponse{Withdrawals: []RecentWithdrawal{{ReferenceID: "BSNFZU2-MEFN4G-J3NEZV"}}}
+			assert.Equalf(t, exp, withdrawals, "UnmarshalJSON should replace the whole response with withdrawals %s", data)
+		})
 	}
 	for _, data := range []string{`[1]`, `{"deposit":{},"withdrawals":{}}`, `true`} {
-		var deposits RecentDepositsStatusResponse
-		assert.Errorf(t, deposits.UnmarshalJSON([]byte(data)), "UnmarshalJSON should reject deposits %s", data)
-		var withdrawals RecentWithdrawalsStatusResponse
-		assert.Errorf(t, withdrawals.UnmarshalJSON([]byte(data)), "UnmarshalJSON should reject withdrawals %s", data)
+		t.Run(data, func(t *testing.T) {
+			t.Parallel()
+			var deposits RecentDepositsStatusResponse
+			assert.Errorf(t, deposits.UnmarshalJSON([]byte(data)), "UnmarshalJSON should reject deposits %s", data)
+			var withdrawals RecentWithdrawalsStatusResponse
+			assert.Errorf(t, withdrawals.UnmarshalJSON([]byte(data)), "UnmarshalJSON should reject withdrawals %s", data)
+		})
 	}
 }
 
@@ -416,7 +435,7 @@ func TestGetWithdrawalAddresses(t *testing.T) {
 	}
 }
 
-func TestGetWithdrawalInformation(t *testing.T) {
+func TestGetWithdrawalInformation(t *testing.T) { //nolint:tparallel // serial cases run before the later calls of the same method
 	t.Parallel()
 	_, err := e.GetWithdrawalInformation(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetWithdrawalInformation must reject a nil request")
@@ -424,9 +443,12 @@ func TestGetWithdrawalInformation(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "GetWithdrawalInformation must reject an empty asset")
 	_, err = e.GetWithdrawalInformation(t.Context(), &WithdrawalInformationRequest{Asset: currency.XBT, Amount: 0.725})
 	require.ErrorIs(t, err, errWithdrawalKeyRequired, "GetWithdrawalInformation must reject an empty key")
+	// Serial, as the GetWithdrawalInformation call after the loop would otherwise run before these cases
 	for _, amount := range []float64{0, -0.725, math.NaN(), math.Inf(1), math.Inf(-1)} {
-		_, err = e.GetWithdrawalInformation(t.Context(), &WithdrawalInformationRequest{Asset: currency.XBT, Key: "btc_testnet", Amount: amount})
-		require.ErrorIsf(t, err, limits.ErrAmountBelowMin, "GetWithdrawalInformation must reject an amount of %v", amount)
+		t.Run(strconv.FormatFloat(amount, 'g', -1, 64), func(t *testing.T) {
+			_, err = e.GetWithdrawalInformation(t.Context(), &WithdrawalInformationRequest{Asset: currency.XBT, Key: "btc_testnet", Amount: amount})
+			require.ErrorIsf(t, err, limits.ErrAmountBelowMin, "GetWithdrawalInformation must reject an amount of %v", amount)
+		})
 	}
 
 	if !mockTests {
@@ -450,13 +472,19 @@ func TestWithdrawFunds(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "WithdrawFunds must reject an empty asset")
 	_, err = e.WithdrawFunds(t.Context(), &WithdrawFundsRequest{Asset: currency.XBT, Amount: 0.725})
 	require.ErrorIs(t, err, errWithdrawalKeyRequired, "WithdrawFunds must reject an empty key")
+	// Serial, as the WithdrawFunds calls after the loop would otherwise run before these cases
 	for _, amount := range []float64{0, -0.725, math.NaN(), math.Inf(1), math.Inf(-1)} {
-		_, err = e.WithdrawFunds(t.Context(), &WithdrawFundsRequest{Asset: currency.XBT, Key: "btc_2709", Amount: amount})
-		require.ErrorIsf(t, err, limits.ErrAmountBelowMin, "WithdrawFunds must reject an amount of %v", amount)
+		t.Run("amount "+strconv.FormatFloat(amount, 'g', -1, 64), func(t *testing.T) {
+			_, err = e.WithdrawFunds(t.Context(), &WithdrawFundsRequest{Asset: currency.XBT, Key: "btc_2709", Amount: amount})
+			require.ErrorIsf(t, err, limits.ErrAmountBelowMin, "WithdrawFunds must reject an amount of %v", amount)
+		})
 	}
+	// Serial, as the WithdrawFunds call after the loop would otherwise run before these cases
 	for _, maxFee := range []float64{-0.0002, math.NaN(), math.Inf(1), math.Inf(-1)} {
-		_, err = e.WithdrawFunds(t.Context(), &WithdrawFundsRequest{Asset: currency.XBT, Key: "btc_2709", Amount: 0.725, MaxFee: maxFee})
-		require.ErrorIsf(t, err, errInvalidMaximumFee, "WithdrawFunds must reject a max fee of %v", maxFee)
+		t.Run("max fee "+strconv.FormatFloat(maxFee, 'g', -1, 64), func(t *testing.T) {
+			_, err = e.WithdrawFunds(t.Context(), &WithdrawFundsRequest{Asset: currency.XBT, Key: "btc_2709", Amount: 0.725, MaxFee: maxFee})
+			require.ErrorIsf(t, err, errInvalidMaximumFee, "WithdrawFunds must reject a max fee of %v", maxFee)
+		})
 	}
 
 	t.Run("no max fee", func(t *testing.T) {
@@ -624,13 +652,16 @@ func TestCancelWithdrawal(t *testing.T) {
 	assert.True(t, result, "CancelWithdrawal should report the cancellation succeeded")
 }
 
-func TestWalletTransfer(t *testing.T) {
+func TestWalletTransfer(t *testing.T) { //nolint:tparallel // serial cases run before the later calls of the same method
 	t.Parallel()
 	_, err := e.WalletTransfer(t.Context(), currency.EMPTYCODE, 2.54)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "WalletTransfer must reject an empty asset")
+	// Serial, as the WalletTransfer call after the loop would otherwise run before these cases
 	for _, amount := range []float64{0, -2.54, math.NaN(), math.Inf(1), math.Inf(-1)} {
-		_, err = e.WalletTransfer(t.Context(), currency.XBT, amount)
-		require.ErrorIsf(t, err, limits.ErrAmountBelowMin, "WalletTransfer must reject an amount of %v", amount)
+		t.Run(strconv.FormatFloat(amount, 'g', -1, 64), func(t *testing.T) {
+			_, err = e.WalletTransfer(t.Context(), currency.XBT, amount)
+			require.ErrorIsf(t, err, limits.ErrAmountBelowMin, "WalletTransfer must reject an amount of %v", amount)
+		})
 	}
 
 	if !mockTests {

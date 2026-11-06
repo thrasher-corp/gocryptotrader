@@ -967,7 +967,7 @@ func BenchmarkStringToOrderStatus(b *testing.B) {
 	}
 }
 
-func TestUpdateOrderFromModifyResponse(t *testing.T) {
+func TestUpdateOrderFromModifyResponse(t *testing.T) { //nolint:tparallel // The inactive status cases update od in order; the others share nothing
 	od := Detail{OrderID: "1"}
 	updated := time.Now()
 
@@ -1039,34 +1039,42 @@ func TestUpdateOrderFromModifyResponse(t *testing.T) {
 	od.UpdateOrderFromModifyResponse(&ModifyResponse{OrderID: "1", RemainingAmount: 7})
 	assert.Zero(t, od.RemainingAmount, "RemainingAmount should stay zero after a response reporting nothing executed that arrives once the order has filled")
 
+	// The cases update od in order: each status's checks after its executed cases start from the order the last one left
 	for _, s := range []Status{Filled, Cancelled, PartiallyFilledCancelled, PartiallyCancelled, Rejected, Expired, Closed} {
-		// The replies report less executed than stored, as much, and more, as a reply can arrive after any of the fills
-		for _, executed := range []float64{0, 1, 2, 3} {
-			od = Detail{OrderID: "1", Status: s, Price: 100, TriggerPrice: 110, Amount: 9, ExecutedAmount: 2, RemainingAmount: 7}
-			od.UpdateOrderFromModifyResponse(&ModifyResponse{OrderID: "1", Price: 99, TriggerPrice: 109, Amount: 8, ExecutedAmount: executed, RemainingAmount: 8 - executed})
-			exp := Detail{OrderID: "1", Status: s, Price: 100, TriggerPrice: 110, Amount: 9, ExecutedAmount: max(2, executed), RemainingAmount: 7}
+		t.Run(s.String(), func(t *testing.T) {
+			// The replies report less executed than stored, as much, and more, as a reply can arrive after any of the fills
+			for _, executed := range []float64{0, 1, 2, 3} {
+				t.Run("executed "+strconv.FormatFloat(executed, 'f', -1, 64), func(t *testing.T) {
+					od = Detail{OrderID: "1", Status: s, Price: 100, TriggerPrice: 110, Amount: 9, ExecutedAmount: 2, RemainingAmount: 7}
+					od.UpdateOrderFromModifyResponse(&ModifyResponse{OrderID: "1", Price: 99, TriggerPrice: 109, Amount: 8, ExecutedAmount: executed, RemainingAmount: 8 - executed})
+					exp := Detail{OrderID: "1", Status: s, Price: 100, TriggerPrice: 110, Amount: 9, ExecutedAmount: max(2, executed), RemainingAmount: 7}
+					od.LastUpdated = time.Time{}
+					assert.Equalf(t, exp, od, "a response reporting %v executed and what remains, without a status, should leave an order %s", executed, s)
+				})
+			}
+
+			od.UpdateOrderFromModifyResponse(&ModifyResponse{OrderID: "1", Status: Open, Price: 99, TriggerPrice: 109, Amount: 8, RemainingAmount: 6})
 			od.LastUpdated = time.Time{}
-			assert.Equalf(t, exp, od, "a response reporting %v executed and what remains, without a status, should leave an order %s", executed, s)
-		}
+			exp := Detail{OrderID: "1", Status: Open, Price: 99, TriggerPrice: 109, Amount: 8, ExecutedAmount: 3, RemainingAmount: 6}
+			assert.Equalf(t, exp, od, "a response with a status should update an order %s", s)
 
-		od.UpdateOrderFromModifyResponse(&ModifyResponse{OrderID: "1", Status: Open, Price: 99, TriggerPrice: 109, Amount: 8, RemainingAmount: 6})
-		od.LastUpdated = time.Time{}
-		exp := Detail{OrderID: "1", Status: Open, Price: 99, TriggerPrice: 109, Amount: 8, ExecutedAmount: 3, RemainingAmount: 6}
-		assert.Equalf(t, exp, od, "a response with a status should update an order %s", s)
-
-		// A replacement's reply reports no quantities, and can arrive after the feeds have cancelled the order it replaces
-		od = Detail{OrderID: "1", Status: s, Price: 100, TriggerPrice: 110, Amount: 9, ExecutedAmount: 2, RemainingAmount: 7}
-		od.UpdateOrderFromModifyResponse(&ModifyResponse{OrderID: "2", Price: 99, TriggerPrice: 109, Amount: 8})
-		od.LastUpdated = time.Time{}
-		exp = Detail{OrderID: "2", Status: s, Price: 99, TriggerPrice: 109, Amount: 8, ExecutedAmount: 2, RemainingAmount: 7}
-		assert.Equalf(t, exp, od, "a response without quantities should update an order %s", s)
+			// A replacement's reply reports no quantities, and can arrive after the feeds have cancelled the order it replaces
+			od = Detail{OrderID: "1", Status: s, Price: 100, TriggerPrice: 110, Amount: 9, ExecutedAmount: 2, RemainingAmount: 7}
+			od.UpdateOrderFromModifyResponse(&ModifyResponse{OrderID: "2", Price: 99, TriggerPrice: 109, Amount: 8})
+			od.LastUpdated = time.Time{}
+			exp = Detail{OrderID: "2", Status: s, Price: 99, TriggerPrice: 109, Amount: 8, ExecutedAmount: 2, RemainingAmount: 7}
+			assert.Equalf(t, exp, od, "a response without quantities should update an order %s", s)
+		})
 	}
 	for _, s := range []Status{UnknownStatus, New, Open, Active, PartiallyFilled} {
-		od = Detail{OrderID: "1", Status: s, Price: 100, TriggerPrice: 110, Amount: 10, ExecutedAmount: 2, RemainingAmount: 8}
-		od.UpdateOrderFromModifyResponse(&ModifyResponse{OrderID: "1", Price: 99, TriggerPrice: 109, Amount: 7, ExecutedAmount: 2, RemainingAmount: 5})
-		exp := Detail{OrderID: "1", Status: s, Price: 99, TriggerPrice: 109, Amount: 7, ExecutedAmount: 2, RemainingAmount: 5}
-		od.LastUpdated = time.Time{}
-		assert.Equalf(t, exp, od, "a response without a status should update an order %s", s)
+		t.Run(s.String(), func(t *testing.T) {
+			t.Parallel()
+			od := Detail{OrderID: "1", Status: s, Price: 100, TriggerPrice: 110, Amount: 10, ExecutedAmount: 2, RemainingAmount: 8}
+			od.UpdateOrderFromModifyResponse(&ModifyResponse{OrderID: "1", Price: 99, TriggerPrice: 109, Amount: 7, ExecutedAmount: 2, RemainingAmount: 5})
+			exp := Detail{OrderID: "1", Status: s, Price: 99, TriggerPrice: 109, Amount: 7, ExecutedAmount: 2, RemainingAmount: 5}
+			od.LastUpdated = time.Time{}
+			assert.Equalf(t, exp, od, "a response without a status should update an order %s", s)
+		})
 	}
 
 	for _, tc := range []struct {
@@ -1112,9 +1120,12 @@ func TestUpdateOrderFromModifyResponse(t *testing.T) {
 			exp:  Detail{OrderID: "1", Status: Open, Amount: 7, ExecutedAmount: 2, RemainingAmount: 7},
 		},
 	} {
-		tc.od.UpdateOrderFromModifyResponse(&tc.m)
-		tc.od.LastUpdated = time.Time{}
-		assert.Equalf(t, tc.exp, tc.od, "a response %s should leave the order as expected", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			tc.od.UpdateOrderFromModifyResponse(&tc.m)
+			tc.od.LastUpdated = time.Time{}
+			assert.Equalf(t, tc.exp, tc.od, "a response %s should leave the order as expected", tc.name)
+		})
 	}
 }
 
@@ -1263,99 +1274,179 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 	err = od.UpdateOrderFromDetail(om)
 	require.NoError(t, err)
 	assert.NotEqual(t, id, od.InternalOrderID, "Should not be able to update the internal order ID after initialisation")
-}
 
-func TestUpdateOrderFromDetailTradeMerge(t *testing.T) {
-	t.Parallel()
-	tradeTime := time.Date(2026, 10, 19, 1, 2, 3, 0, time.UTC)
-	known := TradeHistory{
-		TID:         "1",
-		Price:       100,
-		Amount:      2,
-		Fee:         0.5,
-		FeeAsset:    "USD",
-		Description: "fill",
-		Type:        Limit,
-		Side:        Buy,
-		Timestamp:   tradeTime,
-		IsMaker:     true,
-		Total:       200,
-	}
-	stored := &Detail{OrderID: "abc", Trades: []TradeHistory{known}}
-	require.NoError(t, stored.UpdateOrderFromDetail(&Detail{OrderID: "abc", Trades: []TradeHistory{{TID: "1", IsMaker: true}}}), "UpdateOrderFromDetail must not error")
-	assert.Equal(t, []TradeHistory{known}, stored.Trades, "a report of a known trade without its other values should keep those stored")
+	t.Run("creation time taken only when unknown", func(t *testing.T) {
+		t.Parallel()
+		created := time.Date(2026, 10, 9, 1, 0, 0, 0, time.UTC)
+		reported := created.Add(5 * time.Minute)
+		fill := TradeHistory{TID: "t-1", Price: 100, Amount: 0.5, Timestamp: reported}
+		// As stored from a websocket snapshot entry, which gives the order's last event but not when it was created
+		d := &Detail{Exchange: "test", OrderID: "1", Amount: 1, ExecutedAmount: 0.5, Status: PartiallyFilled, LastUpdated: reported, Trades: []TradeHistory{fill}}
+		require.NoError(t, d.UpdateOrderFromDetail(&Detail{Exchange: "test", OrderID: "1"}), "UpdateOrderFromDetail must not error")
+		assert.Zero(t, d.Date, "UpdateOrderFromDetail should leave a creation time unknown when an update gives none")
+		assert.Equal(t, reported, d.LastUpdated, "UpdateOrderFromDetail should not count an update that gives nothing new")
+		// A REST read can give an update time older than the event the order was stored from
+		require.NoError(t, d.UpdateOrderFromDetail(&Detail{Exchange: "test", OrderID: "1", Amount: 1, ExecutedAmount: 0.5, Date: created, Status: PartiallyFilledCancelled, CloseTime: reported, LastUpdated: created, Trades: []TradeHistory{fill}}), "UpdateOrderFromDetail must not error")
+		assert.Equal(t, created, d.Date, "UpdateOrderFromDetail should give an order without a creation time the update's")
+		assert.Equal(t, created, d.LastUpdated, "UpdateOrderFromDetail should take the update's time with its creation time")
+		require.NoError(t, d.UpdateOrderFromDetail(&Detail{Exchange: "test", OrderID: "1", Date: created.Add(time.Hour)}), "UpdateOrderFromDetail must not error")
+		assert.Equal(t, created, d.Date, "UpdateOrderFromDetail should keep a known creation time over a later one")
+		require.NoError(t, d.UpdateOrderFromDetail(&Detail{Exchange: "test", OrderID: "1", Date: created.Add(-time.Hour)}), "UpdateOrderFromDetail must not error")
+		assert.Equal(t, created, d.Date, "UpdateOrderFromDetail should keep a known creation time over an earlier one")
+		require.NoError(t, d.UpdateOrderFromDetail(&Detail{Exchange: "test", OrderID: "1"}), "UpdateOrderFromDetail must not error")
+		assert.Equal(t, created, d.Date, "UpdateOrderFromDetail should keep the creation time when an update gives none")
 
-	require.NoError(t, stored.UpdateOrderFromDetail(&Detail{OrderID: "abc", Trades: []TradeHistory{{TID: "1", FeeAsset: "EUR", IsMaker: true}}}), "UpdateOrderFromDetail must not error")
-	known.FeeAsset = "EUR"
-	assert.Equal(t, []TradeHistory{known}, stored.Trades, "a report of a known trade's fee currency alone should replace the stored one")
+		dateOnly := &Detail{Exchange: "test", OrderID: "2", Amount: 1}
+		require.NoError(t, dateOnly.UpdateOrderFromDetail(&Detail{Exchange: "test", OrderID: "2", Date: created}), "UpdateOrderFromDetail must not error")
+		assert.Equal(t, created, dateOnly.Date, "UpdateOrderFromDetail should take a creation time an update gives alone")
+		assert.NotZero(t, dateOnly.LastUpdated, "UpdateOrderFromDetail should count taking a creation time as an update")
 
-	reported := TradeHistory{
-		TID:         "1",
-		Price:       101,
-		Amount:      3,
-		Fee:         -0.1,
-		FeeAsset:    "XBT",
-		Description: "rebated fill",
-		Type:        Market,
-		Side:        Sell,
-		Timestamp:   tradeTime.Add(time.Second),
-		Total:       303,
-	}
-	require.NoError(t, stored.UpdateOrderFromDetail(&Detail{OrderID: "abc", Trades: []TradeHistory{reported}}), "UpdateOrderFromDetail must not error")
-	assert.Equal(t, []TradeHistory{reported}, stored.Trades, "a report of a known trade should replace the values it holds")
-}
+		later := created.Add(time.Minute)
+		// Every field set, so a creation time taken or kept only while some other field is unset fails a row
+		holdingEverything := func(date time.Time) Detail {
+			return Detail{
+				HiddenOrder: true, TimeInForce: GoodTillCancel, ReduceOnly: true, Leverage: 2, Price: 100, Amount: 1,
+				ContractAmount: 1, LimitPriceUpper: 110, LimitPriceLower: 90, TriggerPrice: 95, AverageExecutedPrice: 100,
+				QuoteAmount: 100, ExecutedAmount: 0.5, RemainingAmount: 0.5, Cost: 50, CostAsset: currency.USD, Fee: 0.1,
+				FeeAsset: currency.USD, Exchange: "test", InternalOrderID: uuid.NewV4(), OrderID: "1", ClientOrderID: "c-1",
+				AccountID: "a-1", ClientID: "client", Type: Limit, Side: Buy, Status: PartiallyFilled, AssetType: asset.Spot,
+				Date: date, CloseTime: later, LastUpdated: later, Pair: currency.NewBTCUSD(), MarginType: margin.Isolated,
+				Trades: []TradeHistory{fill}, SettlementCurrency: currency.USD,
+			}
+		}
+		// One update of an order each, so the creation time is taken or kept whatever else the order or the update holds
+		for _, tc := range []struct {
+			name           string
+			stored, update Detail
+			date           time.Time
+			lastUpdated    time.Time
+			counted        bool
+		}{
+			{name: "taken by an order holding nothing else", update: Detail{Date: created}, date: created, counted: true},
+			{name: "taken by an order holding everything else", stored: holdingEverything(time.Time{}), update: Detail{Date: created}, date: created, counted: true},
+			{name: "taken from an update holding everything else", update: holdingEverything(created), date: created, lastUpdated: later},
+			{name: "taken from an update giving the stored update time again", stored: Detail{LastUpdated: later}, update: Detail{Date: created, LastUpdated: later}, date: created, counted: true},
+			{name: "kept by an order holding everything else", stored: holdingEverything(created), update: Detail{Date: later}, date: created},
+			{name: "kept over a later one from an update holding everything else", stored: Detail{Date: created}, update: holdingEverything(later), date: created},
+			{name: "kept through an update holding everything but a creation time", stored: Detail{Date: created}, update: holdingEverything(time.Time{}), date: created},
+			{name: "taken by a closed order", stored: Detail{CloseTime: later}, update: Detail{Date: created}, date: created},
+			{name: "taken by an order with a pair", stored: Detail{Pair: currency.NewBTCUSD()}, update: Detail{Date: created}, date: created},
+			{name: "taken from an update with a pair", update: Detail{Pair: currency.NewBTCUSD(), Date: created}, date: created},
+			{name: "taken from an update with a time", update: Detail{Date: created, LastUpdated: later}, date: created, lastUpdated: later},
+			{name: "taken with the update's time over a stored time", stored: Detail{LastUpdated: created}, update: Detail{Date: created, LastUpdated: later}, date: created, lastUpdated: later},
+			{name: "not taken from an update's time", update: Detail{LastUpdated: later}},
+			{name: "not taken from a close time", update: Detail{CloseTime: later}},
+			{name: "kept over a later one from an update with a time", stored: Detail{Date: created}, update: Detail{Date: later, LastUpdated: later}, date: created},
+			{name: "kept over an earlier one from an update with a time", stored: Detail{Date: created}, update: Detail{Date: created.Add(-time.Minute), LastUpdated: later}, date: created},
+			{name: "kept through a close report without one", stored: Detail{Date: created}, update: Detail{CloseTime: later}, date: created},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				d := tc.stored
+				require.NoError(t, d.UpdateOrderFromDetail(&tc.update), "UpdateOrderFromDetail must not error")
+				assert.Equal(t, tc.date, d.Date, "UpdateOrderFromDetail should take a creation time only when the order has none")
+				if !tc.lastUpdated.IsZero() {
+					assert.Equal(t, tc.lastUpdated, d.LastUpdated, "UpdateOrderFromDetail should take the update's time with the creation time")
+				}
+				if tc.counted {
+					assert.NotEqual(t, tc.stored.LastUpdated, d.LastUpdated, "UpdateOrderFromDetail should count taking a creation time as an update")
+				}
+			})
+		}
+	})
 
-func TestUpdateOrderFromDetailFilledRemainingAmount(t *testing.T) {
-	t.Parallel()
-	for _, tc := range []struct {
-		name         string
-		stored       Detail
-		update       Detail
-		expRemaining float64
-	}{
-		{
-			name:         "filled update without a remaining amount",
-			stored:       Detail{OrderID: "1", Status: PartiallyFilled, Amount: 10, ExecutedAmount: 4, RemainingAmount: 6},
-			update:       Detail{OrderID: "1", Status: Filled, Amount: 10, ExecutedAmount: 10},
-			expRemaining: 0,
-		},
-		{
-			name:         "filled update with a remaining amount",
-			stored:       Detail{OrderID: "2", Status: New, Amount: 3840, RemainingAmount: 3840},
-			update:       Detail{OrderID: "2", Status: Filled, Amount: 3840, ExecutedAmount: 1116, RemainingAmount: 2724},
-			expRemaining: 2724,
-		},
-		{
-			name:         "update without a status for a stored filled order",
-			stored:       Detail{OrderID: "5", Status: Filled, Amount: 10, ExecutedAmount: 4, RemainingAmount: 6},
-			update:       Detail{OrderID: "5"},
-			expRemaining: 6,
-		},
-		{
-			name:         "cancellation without a remaining amount",
-			stored:       Detail{OrderID: "6", Status: PartiallyFilled, Amount: 10, ExecutedAmount: 4, RemainingAmount: 6},
-			update:       Detail{OrderID: "6", Status: Cancelled},
-			expRemaining: 6,
-		},
-		{
-			name:         "partly filled cancellation without a remaining amount",
-			stored:       Detail{OrderID: "3", Status: PartiallyFilled, Amount: 10, ExecutedAmount: 4, RemainingAmount: 6},
-			update:       Detail{OrderID: "3", Status: PartiallyFilledCancelled},
-			expRemaining: 6,
-		},
-		{
-			name:         "partly filled update",
-			stored:       Detail{OrderID: "4", Status: PartiallyFilled, Amount: 10, ExecutedAmount: 4, RemainingAmount: 6},
-			update:       Detail{OrderID: "4", Status: PartiallyFilled, ExecutedAmount: 7, RemainingAmount: 3},
-			expRemaining: 3,
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			require.NoError(t, tc.stored.UpdateOrderFromDetail(&tc.update), "UpdateOrderFromDetail must not error")
-			assert.Equal(t, tc.expRemaining, tc.stored.RemainingAmount, "RemainingAmount should be correct")
-		})
-	}
+	t.Run("reports of a known trade merged", func(t *testing.T) {
+		t.Parallel()
+		tradeTime := time.Date(2026, 10, 19, 1, 2, 3, 0, time.UTC)
+		known := TradeHistory{
+			TID:         "1",
+			Price:       100,
+			Amount:      2,
+			Fee:         0.5,
+			FeeAsset:    "USD",
+			Description: "fill",
+			Type:        Limit,
+			Side:        Buy,
+			Timestamp:   tradeTime,
+			IsMaker:     true,
+			Total:       200,
+		}
+		stored := &Detail{OrderID: "abc", Trades: []TradeHistory{known}}
+		require.NoError(t, stored.UpdateOrderFromDetail(&Detail{OrderID: "abc", Trades: []TradeHistory{{TID: "1", IsMaker: true}}}), "UpdateOrderFromDetail must not error")
+		assert.Equal(t, []TradeHistory{known}, stored.Trades, "a report of a known trade without its other values should keep those stored")
+
+		require.NoError(t, stored.UpdateOrderFromDetail(&Detail{OrderID: "abc", Trades: []TradeHistory{{TID: "1", FeeAsset: "EUR", IsMaker: true}}}), "UpdateOrderFromDetail must not error")
+		known.FeeAsset = "EUR"
+		assert.Equal(t, []TradeHistory{known}, stored.Trades, "a report of a known trade's fee currency alone should replace the stored one")
+
+		reported := TradeHistory{
+			TID:         "1",
+			Price:       101,
+			Amount:      3,
+			Fee:         -0.1,
+			FeeAsset:    "XBT",
+			Description: "rebated fill",
+			Type:        Market,
+			Side:        Sell,
+			Timestamp:   tradeTime.Add(time.Second),
+			Total:       303,
+		}
+		require.NoError(t, stored.UpdateOrderFromDetail(&Detail{OrderID: "abc", Trades: []TradeHistory{reported}}), "UpdateOrderFromDetail must not error")
+		assert.Equal(t, []TradeHistory{reported}, stored.Trades, "a report of a known trade should replace the values it holds")
+	})
+
+	t.Run("remaining amount after an update", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name         string
+			stored       Detail
+			update       Detail
+			expRemaining float64
+		}{
+			{
+				name:         "filled update without a remaining amount",
+				stored:       Detail{OrderID: "1", Status: PartiallyFilled, Amount: 10, ExecutedAmount: 4, RemainingAmount: 6},
+				update:       Detail{OrderID: "1", Status: Filled, Amount: 10, ExecutedAmount: 10},
+				expRemaining: 0,
+			},
+			{
+				name:         "filled update with a remaining amount",
+				stored:       Detail{OrderID: "2", Status: New, Amount: 3840, RemainingAmount: 3840},
+				update:       Detail{OrderID: "2", Status: Filled, Amount: 3840, ExecutedAmount: 1116, RemainingAmount: 2724},
+				expRemaining: 2724,
+			},
+			{
+				name:         "update without a status for a stored filled order",
+				stored:       Detail{OrderID: "5", Status: Filled, Amount: 10, ExecutedAmount: 4, RemainingAmount: 6},
+				update:       Detail{OrderID: "5"},
+				expRemaining: 6,
+			},
+			{
+				name:         "cancellation without a remaining amount",
+				stored:       Detail{OrderID: "6", Status: PartiallyFilled, Amount: 10, ExecutedAmount: 4, RemainingAmount: 6},
+				update:       Detail{OrderID: "6", Status: Cancelled},
+				expRemaining: 6,
+			},
+			{
+				name:         "partly filled cancellation without a remaining amount",
+				stored:       Detail{OrderID: "3", Status: PartiallyFilled, Amount: 10, ExecutedAmount: 4, RemainingAmount: 6},
+				update:       Detail{OrderID: "3", Status: PartiallyFilledCancelled},
+				expRemaining: 6,
+			},
+			{
+				name:         "partly filled update",
+				stored:       Detail{OrderID: "4", Status: PartiallyFilled, Amount: 10, ExecutedAmount: 4, RemainingAmount: 6},
+				update:       Detail{OrderID: "4", Status: PartiallyFilled, ExecutedAmount: 7, RemainingAmount: 3},
+				expRemaining: 3,
+			},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				require.NoError(t, tc.stored.UpdateOrderFromDetail(&tc.update), "UpdateOrderFromDetail must not error")
+				assert.Equal(t, tc.expRemaining, tc.stored.RemainingAmount, "RemainingAmount should be correct")
+			})
+		}
+	})
 }
 
 // TestUpdateOrderFromDetailMergesFeeAsset asserts the commission currency propagates through order

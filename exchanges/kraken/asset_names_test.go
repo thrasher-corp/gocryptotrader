@@ -1,6 +1,7 @@
 package kraken
 
 import (
+	"cmp"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -16,12 +17,13 @@ func seedTestAssetNames(ex *Exchange) {
 	)
 }
 
-func TestSeedAssets(t *testing.T) {
+func TestSeedAssets(t *testing.T) { //nolint:tparallel // the cases share ex's seeded asset names
 	t.Parallel()
 	ex := newTestExchange(t)
 	require.False(t, ex.assetNames.seeded(), "asset names must not be seeded before SeedAssets")
 	require.NoError(t, ex.SeedAssets(t.Context()), "SeedAssets must not error")
 	assert.True(t, ex.assetNames.seeded(), "SeedAssets should seed the asset names")
+	// The cases share the asset names SeedAssets stored on ex, so they run in turn, before the display name cases
 	for name, exp := range map[string]string{
 		"XXBT":  "XBT",
 		"BTC":   "XBT",
@@ -34,12 +36,17 @@ func TestSeedAssets(t *testing.T) {
 		"XBT.M": "XBT.M",
 		"BTC.M": "XBT.M",
 	} {
-		alt, ok := ex.assetNames.alternativeName(name)
-		assert.Truef(t, ok, "alternativeName should know %s", name)
-		assert.Equalf(t, exp, alt, "alternativeName should return the alternative name of %s", name)
+		t.Run("alternative name of "+name, func(t *testing.T) {
+			alt, ok := ex.assetNames.alternativeName(name)
+			assert.Truef(t, ok, "alternativeName should know %s", name)
+			assert.Equalf(t, exp, alt, "alternativeName should return the alternative name of %s", name)
+		})
 	}
+	// The cases share ex's asset names too, so they run in turn, after the alternative name cases
 	for alt, exp := range map[string]string{"XBT": "BTC", "XDG": "DOGE", "XBT.M": "BTC.M", "ETH": "ETH", "USD": "USD"} {
-		assert.Equalf(t, exp, ex.assetNames.displayName(alt), "displayName should return the display name of %s", alt)
+		t.Run("display name of "+alt, func(t *testing.T) {
+			assert.Equalf(t, exp, ex.assetNames.displayName(alt), "displayName should return the display name of %s", alt)
+		})
 	}
 }
 
@@ -73,7 +80,10 @@ func TestDisplaySymbol(t *testing.T) {
 		currency.NewPair(currency.ETH, currency.XBT):            "ETH/BTC",
 		currency.NewPair(currency.NewCode("NEW"), currency.USD): "NEW/USD",
 	} {
-		assert.Equalf(t, exp, ex.displaySymbol(p), "displaySymbol should return the display symbol of %s", p)
+		t.Run(p.String(), func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, exp, ex.displaySymbol(p), "displaySymbol should return the display symbol of %s", p)
+		})
 	}
 }
 
@@ -81,17 +91,23 @@ func TestPairFromDisplaySymbol(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
 	seedTestAssetNames(ex)
+	// The cases share ex's asset names and pair format, so they run in turn, before the rejected symbols below
 	for symbol, exp := range map[string]currency.Pair{
 		"BTC/USD":  currency.NewPairWithDelimiter("XBT", "USD", "_"),
 		"DOGE/BTC": currency.NewPairWithDelimiter("XDG", "XBT", "_"),
 		"NEW/USD":  currency.NewPairWithDelimiter("NEW", "USD", "_"),
 	} {
-		p, err := ex.pairFromDisplaySymbol(symbol)
-		require.NoErrorf(t, err, "pairFromDisplaySymbol must not error for %s", symbol)
-		assert.Equalf(t, exp, p, "pairFromDisplaySymbol should return %s in the configured format", symbol)
+		t.Run(symbol, func(t *testing.T) {
+			p, err := ex.pairFromDisplaySymbol(symbol)
+			require.NoErrorf(t, err, "pairFromDisplaySymbol must not error for %s", symbol)
+			assert.Equalf(t, exp, p, "pairFromDisplaySymbol should return %s in the configured format", symbol)
+		})
 	}
 	for _, symbol := range []string{"BTCUSD", "/USD", "BTC/", ""} {
-		_, err := ex.pairFromDisplaySymbol(symbol)
-		assert.ErrorIsf(t, err, errInvalidSymbol, "pairFromDisplaySymbol should reject %q", symbol)
+		t.Run(cmp.Or(symbol, "empty"), func(t *testing.T) {
+			t.Parallel()
+			_, err := ex.pairFromDisplaySymbol(symbol)
+			assert.ErrorIsf(t, err, errInvalidSymbol, "pairFromDisplaySymbol should reject %q", symbol)
+		})
 	}
 }

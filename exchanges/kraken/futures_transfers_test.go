@@ -3,6 +3,7 @@ package kraken
 import (
 	"math"
 	"net/url"
+	"strconv"
 	"testing"
 	"time"
 
@@ -64,8 +65,11 @@ func TestFuturesWithdrawToSpotWallet(t *testing.T) {
 	_, err = e.FuturesWithdrawToSpotWallet(t.Context(), &FuturesWithdrawToSpotWalletRequest{Amount: 0.1})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "FuturesWithdrawToSpotWallet must reject an empty currency")
 	for _, amount := range []float64{0, -0.1, math.NaN(), math.Inf(1), math.Inf(-1)} {
-		_, err = e.FuturesWithdrawToSpotWallet(t.Context(), &FuturesWithdrawToSpotWalletRequest{Currency: currency.ETH, Amount: amount})
-		require.ErrorIsf(t, err, limits.ErrAmountBelowMin, "FuturesWithdrawToSpotWallet must reject an amount of %v", amount)
+		t.Run(strconv.FormatFloat(amount, 'g', -1, 64), func(t *testing.T) {
+			t.Parallel()
+			_, err := e.FuturesWithdrawToSpotWallet(t.Context(), &FuturesWithdrawToSpotWalletRequest{Currency: currency.ETH, Amount: amount})
+			require.ErrorIsf(t, err, limits.ErrAmountBelowMin, "FuturesWithdrawToSpotWallet must reject an amount of %v", amount)
+		})
 	}
 
 	if !mockTests {
@@ -118,8 +122,11 @@ func TestFuturesTransferParams(t *testing.T) {
 		{name: "infinite amount", from: "cash", to: "flex", code: currency.USD, amount: math.Inf(1), err: limits.ErrAmountBelowMin},
 		{name: "negative infinite amount", from: "cash", to: "flex", code: currency.USD, amount: math.Inf(-1), err: limits.ErrAmountBelowMin},
 	} {
-		_, err := futuresTransferParams(tc.from, tc.to, tc.code, tc.amount)
-		assert.ErrorIsf(t, err, tc.err, "futuresTransferParams should reject a transfer with %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := futuresTransferParams(tc.from, tc.to, tc.code, tc.amount)
+			assert.ErrorIsf(t, err, tc.err, "futuresTransferParams should reject a transfer with %s", tc.name)
+		})
 	}
 	params, err := futuresTransferParams("cash", "flex", currency.USD, 0.0125)
 	require.NoError(t, err, "futuresTransferParams must not error")

@@ -199,8 +199,11 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	ex := newTestExchange(t)
 	require.ErrorIs(t, ex.UpdateOrderExecutionLimits(t.Context(), asset.Margin), asset.ErrNotSupported, "UpdateOrderExecutionLimits must reject an unsupported asset")
 	errEx := newErrorReplyTestExchange(t)
+	// The cases share errEx and its server in order, so each also checks that a call keeps nothing from the last
 	for _, a := range []asset.Item{asset.Spot, asset.Futures} {
-		assert.ErrorIsf(t, errEx.UpdateOrderExecutionLimits(t.Context(), a), errAPIResponse, "UpdateOrderExecutionLimits should return the %s request's error", a)
+		t.Run(a.String()+" request error", func(t *testing.T) {
+			assert.ErrorIsf(t, errEx.UpdateOrderExecutionLimits(t.Context(), a), errAPIResponse, "UpdateOrderExecutionLimits should return the %s request's error", a)
+		})
 	}
 
 	t.Run("expired futures", func(t *testing.T) {
@@ -214,11 +217,14 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	})
 
 	if !mockTests {
+		// The cases share ex in order, so each also checks that a call keeps nothing from the last
 		for a, p := range map[asset.Item]currency.Pair{asset.Spot: spotTestPair, asset.Futures: futuresTestPair} {
-			require.NoErrorf(t, ex.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error for %s", a)
-			l, err := ex.GetOrderExecutionLimits(a, p)
-			require.NoErrorf(t, err, "GetOrderExecutionLimits must not error for %s", a)
-			assert.Positivef(t, l.PriceStepIncrementSize, "UpdateOrderExecutionLimits should load the %s tick size", a)
+			t.Run("live "+a.String(), func(t *testing.T) {
+				require.NoErrorf(t, ex.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error for %s", a)
+				l, err := ex.GetOrderExecutionLimits(a, p)
+				require.NoErrorf(t, err, "GetOrderExecutionLimits must not error for %s", a)
+				assert.Positivef(t, l.PriceStepIncrementSize, "UpdateOrderExecutionLimits should load the %s tick size", a)
+			})
 		}
 		return
 	}
@@ -286,9 +292,12 @@ func TestSpotPairFromWebsocketName(t *testing.T) {
 		{name: "XBT/"},
 		{name: ""},
 	} {
-		pair, ok := spotPairFromWebsocketName(tc.name)
-		assert.Equalf(t, tc.ok, ok, "spotPairFromWebsocketName should report whether %q names a pair", tc.name)
-		assert.Equalf(t, tc.exp, pair, "spotPairFromWebsocketName should return the pair %q names", tc.name)
+		t.Run(strconv.Quote(tc.name), func(t *testing.T) {
+			t.Parallel()
+			pair, ok := spotPairFromWebsocketName(tc.name)
+			assert.Equalf(t, tc.ok, ok, "spotPairFromWebsocketName should report whether %q names a pair", tc.name)
+			assert.Equalf(t, tc.exp, pair, "spotPairFromWebsocketName should return the pair %q names", tc.name)
+		})
 	}
 }
 
@@ -297,9 +306,12 @@ func TestFetchTradablePairs(t *testing.T) {
 	_, err := e.FetchTradablePairs(t.Context(), asset.Margin)
 	require.ErrorIs(t, err, asset.ErrNotSupported, "FetchTradablePairs must reject an unsupported asset")
 	errEx := newErrorReplyTestExchange(t)
+	// The cases share errEx, its server and err in order, so each also checks that a call keeps nothing from the last
 	for _, a := range []asset.Item{asset.Spot, asset.Futures} {
-		_, err = errEx.FetchTradablePairs(t.Context(), a)
-		assert.ErrorIsf(t, err, errAPIResponse, "FetchTradablePairs should return the %s request's error", a)
+		t.Run(a.String()+" request error", func(t *testing.T) {
+			_, err = errEx.FetchTradablePairs(t.Context(), a)
+			assert.ErrorIsf(t, err, errAPIResponse, "FetchTradablePairs should return the %s request's error", a)
+		})
 	}
 
 	for _, tc := range []struct {
@@ -364,13 +376,16 @@ func TestUpdateTradablePairs(t *testing.T) {
 	ex := newTestExchange(t)
 	if !mockTests {
 		require.NoError(t, ex.UpdateTradablePairs(t.Context()), "UpdateTradablePairs must not error")
+		// The cases share ex in order, so each also checks that a call keeps nothing from the last
 		for _, a := range ex.GetAssetTypes(false) {
-			available, err := ex.GetAvailablePairs(a)
-			require.NoErrorf(t, err, "GetAvailablePairs must not error for %s", a)
-			assert.NotEmptyf(t, available, "UpdateTradablePairs should store %s pairs", a)
-			enabled, err := ex.GetEnabledPairs(a)
-			require.NoErrorf(t, err, "GetEnabledPairs must not error for %s", a)
-			assert.NotEmptyf(t, enabled, "UpdateTradablePairs should leave a %s pair enabled", a)
+			t.Run("live "+a.String(), func(t *testing.T) {
+				available, err := ex.GetAvailablePairs(a)
+				require.NoErrorf(t, err, "GetAvailablePairs must not error for %s", a)
+				assert.NotEmptyf(t, available, "UpdateTradablePairs should store %s pairs", a)
+				enabled, err := ex.GetEnabledPairs(a)
+				require.NoErrorf(t, err, "GetEnabledPairs must not error for %s", a)
+				assert.NotEmptyf(t, enabled, "UpdateTradablePairs should leave a %s pair enabled", a)
+			})
 		}
 		return
 	}
@@ -496,7 +511,10 @@ func TestUpdateTickers(t *testing.T) {
 		started := time.Now()
 		err = crossedEx.UpdateTickers(t.Context(), asset.Spot)
 		for _, p := range []currency.Pair{ethXBTPair, solUSDPair} {
-			assert.ErrorContainsf(t, err, p.String(), "UpdateTickers should report the %s ticker it rejects", p)
+			t.Run(p.String(), func(t *testing.T) {
+				t.Parallel()
+				assert.ErrorContainsf(t, err, p.String(), "UpdateTickers should report the %s ticker it rejects", p)
+			})
 		}
 		result := storedTickers(t, crossedEx.Name, asset.Spot)
 		for _, p := range result {
@@ -573,8 +591,11 @@ func TestFuturesTickerVolumes(t *testing.T) {
 		{FuturesTicker{Symbol: "PI_XBTUSD", Volume24Hour: 596069, QuoteVolume24Hour: 596102}, 0, 596102},
 		{FuturesTicker{Symbol: "PI_ETHUSD", Volume24Hour: 93853, QuoteVolume24Hour: 93853}, 0, 93853},
 	} {
-		base, quote := futuresTickerVolumes(tc.ticker.Symbol, tc.ticker.Volume24Hour, tc.ticker.QuoteVolume24Hour)
-		assert.Equalf(t, [2]float64{tc.expBase, tc.expQuote}, [2]float64{base, quote}, "futuresTickerVolumes should map %s's base and quote volumes", tc.ticker.Symbol)
+		t.Run(tc.ticker.Symbol, func(t *testing.T) {
+			t.Parallel()
+			base, quote := futuresTickerVolumes(tc.ticker.Symbol, tc.ticker.Volume24Hour, tc.ticker.QuoteVolume24Hour)
+			assert.Equalf(t, [2]float64{tc.expBase, tc.expQuote}, [2]float64{base, quote}, "futuresTickerVolumes should map %s's base and quote volumes", tc.ticker.Symbol)
+		})
 	}
 }
 
@@ -590,7 +611,10 @@ func TestInverseFuturesSymbol(t *testing.T) {
 		"in_xbtusd":        false,
 		"":                 false,
 	} {
-		assert.Equalf(t, exp, inverseFuturesSymbol(symbol), "inverseFuturesSymbol should report whether %q is an inverse contract", symbol)
+		t.Run(strconv.Quote(symbol), func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, exp, inverseFuturesSymbol(symbol), "inverseFuturesSymbol should report whether %q is an inverse contract", symbol)
+		})
 	}
 }
 
@@ -608,9 +632,12 @@ func TestUpdateOrderbook(t *testing.T) {
 	_, err = disabled.UpdateOrderbook(t.Context(), futuresTestPair, asset.Futures)
 	require.ErrorIs(t, err, asset.ErrNotEnabled, "UpdateOrderbook must reject a disabled asset")
 	errEx := newErrorReplyTestExchange(t)
+	// The cases share errEx, its server and err in order, so each also checks that a call keeps nothing from the last
 	for a, p := range map[asset.Item]currency.Pair{asset.Spot: spotTestPair, asset.Futures: futuresTestPair} {
-		_, err = errEx.UpdateOrderbook(t.Context(), p, a)
-		assert.ErrorIsf(t, err, errAPIResponse, "UpdateOrderbook should return the %s request's error", a)
+		t.Run(a.String()+" request error", func(t *testing.T) {
+			_, err = errEx.UpdateOrderbook(t.Context(), p, a)
+			assert.ErrorIsf(t, err, errAPIResponse, "UpdateOrderbook should return the %s request's error", a)
+		})
 	}
 
 	for _, tc := range []struct {
@@ -661,9 +688,12 @@ func TestGetRecentTrades(t *testing.T) {
 	_, err := e.GetRecentTrades(t.Context(), spotTestPair, asset.Margin)
 	require.ErrorIs(t, err, asset.ErrNotSupported, "GetRecentTrades must reject an unsupported asset")
 	errEx := newErrorReplyTestExchange(t)
+	// The cases share errEx, its server and err in order, so each also checks that a call keeps nothing from the last
 	for a, p := range map[asset.Item]currency.Pair{asset.Spot: spotTestPair, asset.Futures: futuresTestPair} {
-		_, err = errEx.GetRecentTrades(t.Context(), p, a)
-		assert.ErrorIsf(t, err, errAPIResponse, "GetRecentTrades should return the %s request's error", a)
+		t.Run(a.String()+" request error", func(t *testing.T) {
+			_, err = errEx.GetRecentTrades(t.Context(), p, a)
+			assert.ErrorIsf(t, err, errAPIResponse, "GetRecentTrades should return the %s request's error", a)
+		})
 	}
 
 	for _, tc := range []struct {
@@ -735,9 +765,12 @@ func TestGetHistoricTrades(t *testing.T) {
 	_, err = e.GetHistoricTrades(t.Context(), spotTestPair, asset.Margin, now.Add(-time.Minute), now)
 	require.ErrorIs(t, err, asset.ErrNotSupported, "GetHistoricTrades must reject an unsupported asset")
 	errEx := newErrorReplyTestExchange(t)
+	// The cases share errEx, its server and err in order, so each also checks that a call keeps nothing from the last
 	for a, p := range map[asset.Item]currency.Pair{asset.Spot: spotTestPair, asset.Futures: futuresTestPair} {
-		_, err = errEx.GetHistoricTrades(t.Context(), p, a, now.Add(-time.Minute), now)
-		assert.ErrorIsf(t, err, errAPIResponse, "GetHistoricTrades should return the %s request's error", a)
+		t.Run(a.String()+" request error", func(t *testing.T) {
+			_, err = errEx.GetHistoricTrades(t.Context(), p, a, now.Add(-time.Minute), now)
+			assert.ErrorIsf(t, err, errAPIResponse, "GetHistoricTrades should return the %s request's error", a)
+		})
 	}
 
 	t.Run("futures token repeated", func(t *testing.T) {
@@ -782,15 +815,61 @@ func TestGetHistoricTrades(t *testing.T) {
 		assert.Equal(t, exp, result, "GetHistoricTrades should keep a trade whose side Kraken could not decode")
 	})
 
+	// Paged as Kraken paged XBT/USD's trades on 3 November 2026, where each page ending on the shared time has
+	// its cursor past it
+	t.Run("spot window ending on a time trades share across pages", func(t *testing.T) {
+		t.Parallel()
+		trades := []string{
+			`["76938.50000","0.00006000",1793700290.5141885,"b","l","",114019115]`,
+			`["76938.50000","0.00010000",1793700290.5141885,"b","l","",114019116]`,
+			`["76938.50000","0.00039811",1793700290.5141885,"b","l","",114019117]`,
+			`["76938.50000","0.00060189",1793700298.7861497,"b","m","",114019118]`,
+			`["76938.50000","0.00006000",1793700298.7861497,"b","m","",114019119]`,
+			`["76938.50000","0.00048741",1793700298.7861497,"b","m","",114019120]`,
+			`["76940.70000","0.00006120",1793700298.7861497,"b","m","",114019121]`,
+			`["76944.50000","0.00006120",1793700298.78615,"b","m","",114019122]`,
+		}
+		page := func(last string, trades ...string) string {
+			return `{"error":[],"result":{"XBT/USD":[` + strings.Join(trades, ",") + `],"last":"` + last + `"}}`
+		}
+		pages := map[string]string{
+			"1793700290514188418": page("1793700298786149820", trades[0:4]...),
+			"1793700298786149820": page("1793700298786149832", trades[3:5]...),
+			"1793700298786149832": page("1793700298786149844", trades[4:6]...),
+			"1793700298786149844": page("1793700298786149868", trades[5:8]...),
+		}
+		var requests atomic.Int32
+		ex := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+			since := r.URL.Query().Get("since")
+			body, ok := pages[since]
+			if !assert.Truef(t, ok && int(requests.Add(1)) <= len(pages), "GetHistoricTrades should ask for each page once, not for trades since %s", since) {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			_, _ = w.Write([]byte(body))
+		})
+		got, err := ex.GetHistoricTrades(boundedContext(t), spotTestPair, asset.Spot, time.Unix(0, 1793700290514188418), time.Unix(0, 1793700298786149700))
+		require.NoError(t, err, "GetHistoricTrades must not error")
+		ids := make([]string, len(got))
+		for i := range got {
+			ids[i] = got[i].TID
+		}
+		slices.Sort(ids)
+		assert.Equal(t, []string{"114019115", "114019116", "114019117", "114019118", "114019119", "114019120", "114019121"}, ids, "GetHistoricTrades should return every trade up to the window's end")
+	})
+
 	if !mockTests {
 		end := time.Now().Truncate(time.Second)
 		start := end.Add(-time.Minute)
+		// The cases share e in order, so each also checks that a call keeps nothing from the last
 		for a, p := range map[asset.Item]currency.Pair{asset.Spot: spotTestPair, asset.Futures: futuresTestPair} {
-			result, err := e.GetHistoricTrades(t.Context(), p, a, start, end)
-			require.NoErrorf(t, err, "GetHistoricTrades must not error for %s", a)
-			for i := range result {
-				assert.WithinRangef(t, result[i].Timestamp, start, end, "GetHistoricTrades should return %s trade %d from the window", a, i)
-			}
+			t.Run("live "+a.String(), func(t *testing.T) {
+				result, err := e.GetHistoricTrades(t.Context(), p, a, start, end)
+				require.NoErrorf(t, err, "GetHistoricTrades must not error for %s", a)
+				for i := range result {
+					assert.WithinRangef(t, result[i].Timestamp, start, end, "GetHistoricTrades should return %s trade %d from the window", a, i)
+				}
+			})
 		}
 		return
 	}
@@ -872,49 +951,6 @@ func TestGetHistoricTrades(t *testing.T) {
 	}
 }
 
-// TestGetHistoricTradesWindowEndingOnSharedTime ends a spot window at a time several trades share across pages, paged
-// as Kraken paged XBT/USD's trades on 3 November 2026, where each page ending on that time has its cursor past it
-func TestGetHistoricTradesWindowEndingOnSharedTime(t *testing.T) {
-	t.Parallel()
-	trades := []string{
-		`["76938.50000","0.00006000",1793700290.5141885,"b","l","",114019115]`,
-		`["76938.50000","0.00010000",1793700290.5141885,"b","l","",114019116]`,
-		`["76938.50000","0.00039811",1793700290.5141885,"b","l","",114019117]`,
-		`["76938.50000","0.00060189",1793700298.7861497,"b","m","",114019118]`,
-		`["76938.50000","0.00006000",1793700298.7861497,"b","m","",114019119]`,
-		`["76938.50000","0.00048741",1793700298.7861497,"b","m","",114019120]`,
-		`["76940.70000","0.00006120",1793700298.7861497,"b","m","",114019121]`,
-		`["76944.50000","0.00006120",1793700298.78615,"b","m","",114019122]`,
-	}
-	page := func(last string, trades ...string) string {
-		return `{"error":[],"result":{"XBT/USD":[` + strings.Join(trades, ",") + `],"last":"` + last + `"}}`
-	}
-	pages := map[string]string{
-		"1793700290514188418": page("1793700298786149820", trades[0:4]...),
-		"1793700298786149820": page("1793700298786149832", trades[3:5]...),
-		"1793700298786149832": page("1793700298786149844", trades[4:6]...),
-		"1793700298786149844": page("1793700298786149868", trades[5:8]...),
-	}
-	var requests atomic.Int32
-	ex := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
-		since := r.URL.Query().Get("since")
-		body, ok := pages[since]
-		if !assert.Truef(t, ok && int(requests.Add(1)) <= len(pages), "GetHistoricTrades should ask for each page once, not for trades since %s", since) {
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-		_, _ = w.Write([]byte(body))
-	})
-	got, err := ex.GetHistoricTrades(boundedContext(t), spotTestPair, asset.Spot, time.Unix(0, 1793700290514188418), time.Unix(0, 1793700298786149700))
-	require.NoError(t, err, "GetHistoricTrades must not error")
-	ids := make([]string, len(got))
-	for i := range got {
-		ids[i] = got[i].TID
-	}
-	slices.Sort(ids)
-	assert.Equal(t, []string{"114019115", "114019116", "114019117", "114019118", "114019119", "114019120", "114019121"}, ids, "GetHistoricTrades should return every trade up to the window's end")
-}
-
 // raiseCandleLimit lets an exchange request candles beyond the 720 most recent Kraken serves, so recorded candles stay
 // requestable as they age
 func raiseCandleLimit(ex *Exchange) {
@@ -923,6 +959,25 @@ func raiseCandleLimit(ex *Exchange) {
 
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
+	t.Run("converted interval's current period", func(t *testing.T) {
+		t.Parallel()
+		// A 12 hour candle is built from 4 hour candles, of which the current period holds too few
+		ex := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+			from, err := strconv.ParseInt(r.URL.Query().Get("from"), 10, 64)
+			assert.NoError(t, err, "ParseInt should not error for the time requested from")
+			_, _ = w.Write([]byte(`{"candles":[{"time":` + strconv.FormatInt(from*1000, 10) + `,"open":"100","high":"101","low":"99","close":"100","volume":"1"}],"more_candles":false}`))
+		})
+		// A period that turned while the request was made leaves it a past period's, which holds enough, so it is made again
+		for {
+			start := time.Now().UTC().Truncate(12 * time.Hour)
+			_, err := ex.GetHistoricCandles(t.Context(), futuresTestPair, asset.Futures, kline.TwelveHour, start, start.Add(12*time.Hour))
+			if time.Now().UTC().Truncate(12 * time.Hour).Equal(start) {
+				assert.ErrorIs(t, err, kline.ErrInsufficientCandleData, "GetHistoricCandles should return an error for a converted interval's current period")
+				return
+			}
+		}
+	})
+
 	ex := newTestExchange(t)
 	end := time.Now().Truncate(time.Hour)
 	start := end.Add(-3 * time.Hour)
@@ -943,10 +998,13 @@ func TestGetHistoricCandles(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetHistoricCandles should return the futures request's error")
 
 	if !mockTests {
+		// The cases share ex in order, so each also checks that a call keeps nothing from the last
 		for a, p := range map[asset.Item]currency.Pair{asset.Spot: spotTestPair, asset.Futures: futuresTestPair} {
-			result, err := ex.GetHistoricCandles(t.Context(), p, a, kline.OneHour, start, end)
-			require.NoErrorf(t, err, "GetHistoricCandles must not error for %s", a)
-			assert.Lenf(t, result.Candles, 3, "GetHistoricCandles should return every %s candle of the window", a)
+			t.Run("live "+a.String(), func(t *testing.T) {
+				result, err := ex.GetHistoricCandles(t.Context(), p, a, kline.OneHour, start, end)
+				require.NoErrorf(t, err, "GetHistoricCandles must not error for %s", a)
+				assert.Lenf(t, result.Candles, 3, "GetHistoricCandles should return every %s candle of the window", a)
+			})
 		}
 		return
 	}
@@ -1056,25 +1114,6 @@ func TestGetHistoricCandles(t *testing.T) {
 	}
 }
 
-func TestGetHistoricCandlesCurrentPeriod(t *testing.T) {
-	t.Parallel()
-	// A 12 hour candle is built from 4 hour candles, of which the current period holds too few
-	ex := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
-		from, err := strconv.ParseInt(r.URL.Query().Get("from"), 10, 64)
-		assert.NoError(t, err, "ParseInt should not error for the time requested from")
-		_, _ = w.Write([]byte(`{"candles":[{"time":` + strconv.FormatInt(from*1000, 10) + `,"open":"100","high":"101","low":"99","close":"100","volume":"1"}],"more_candles":false}`))
-	})
-	// A period that turned while the request was made leaves it a past period's, which holds enough, so it is made again
-	for {
-		start := time.Now().UTC().Truncate(12 * time.Hour)
-		_, err := ex.GetHistoricCandles(t.Context(), futuresTestPair, asset.Futures, kline.TwelveHour, start, start.Add(12*time.Hour))
-		if time.Now().UTC().Truncate(12 * time.Hour).Equal(start) {
-			assert.ErrorIs(t, err, kline.ErrInsufficientCandleData, "GetHistoricCandles should return an error for a converted interval's current period")
-			return
-		}
-	}
-}
-
 func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
 	start, end := time.Unix(1791489600, 0), time.Unix(1791504000, 0)
@@ -1112,20 +1151,23 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	assert.Equal(t, exp, result, "GetHistoricCandlesExtended should return the candles of every request")
 }
 
-func TestGetServerTime(t *testing.T) {
+func TestGetServerTime(t *testing.T) { //nolint:tparallel // the cases share e, whose live requests draw on one request budget
 	t.Parallel()
 	_, err := newErrorReplyTestExchange(t).GetServerTime(t.Context(), asset.Spot)
 	assert.ErrorIs(t, err, errAPIResponse, "GetServerTime should return the request's error")
-	// Kraken's server time is the same for every asset
+	// Kraken's server time is the same for every asset. The cases share e in order, as its live requests draw on one
+	// request budget
 	for _, a := range []asset.Item{asset.Spot, asset.Futures} {
-		asked := time.Now()
-		result, err := e.GetServerTime(t.Context(), a)
-		require.NoErrorf(t, err, "GetServerTime must not error for %s", a)
-		if !mockTests {
-			assert.WithinRangef(t, result, asked.Add(-time.Minute), time.Now().Add(time.Minute), "GetServerTime should return the current time for %s", a)
-			continue
-		}
-		assert.Equalf(t, time.Unix(1791504602, 0), result, "GetServerTime should return the server time for %s", a)
+		t.Run(a.String(), func(t *testing.T) {
+			asked := time.Now()
+			result, err := e.GetServerTime(t.Context(), a)
+			require.NoErrorf(t, err, "GetServerTime must not error for %s", a)
+			if !mockTests {
+				assert.WithinRangef(t, result, asked.Add(-time.Minute), time.Now().Add(time.Minute), "GetServerTime should return the current time for %s", a)
+				return
+			}
+			assert.Equalf(t, time.Unix(1791504602, 0), result, "GetServerTime should return the server time for %s", a)
+		})
 	}
 }
 
@@ -1342,22 +1384,26 @@ func TestGetLatestFundingRates(t *testing.T) {
 func TestIsPerpetualFutureCurrency(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
+		name string
 		a    asset.Item
 		pair currency.Pair
 		exp  bool
 	}{
-		{a: asset.Spot, pair: spotTestPair},
-		{a: asset.Spot, pair: futuresTestPair},
-		{a: asset.Futures, pair: futuresTestPair, exp: true},
-		{a: asset.Futures, pair: piXBTUSDPair, exp: true},
-		{a: asset.Futures, pair: currency.NewPairWithDelimiter("pf", "ethusd", currency.UnderscoreDelimiter), exp: true},
-		{a: asset.Futures, pair: currency.NewPairWithDelimiter("FF", "XBTUSD_261225", currency.UnderscoreDelimiter)},
-		{a: asset.Futures, pair: fiXBTUSD260828Pair},
-		{a: asset.Futures},
+		{name: "spot pair", a: asset.Spot, pair: spotTestPair},
+		{name: "perpetual's pair as spot", a: asset.Spot, pair: futuresTestPair},
+		{name: "linear perpetual", a: asset.Futures, pair: futuresTestPair, exp: true},
+		{name: "inverse perpetual", a: asset.Futures, pair: piXBTUSDPair, exp: true},
+		{name: "perpetual in lower case", a: asset.Futures, pair: currency.NewPairWithDelimiter("pf", "ethusd", currency.UnderscoreDelimiter), exp: true},
+		{name: "linear fixed maturity future", a: asset.Futures, pair: currency.NewPairWithDelimiter("FF", "XBTUSD_261225", currency.UnderscoreDelimiter)},
+		{name: "inverse fixed maturity future", a: asset.Futures, pair: fiXBTUSD260828Pair},
+		{name: "empty pair", a: asset.Futures},
 	} {
-		result, err := e.IsPerpetualFutureCurrency(tc.a, tc.pair)
-		require.NoErrorf(t, err, "IsPerpetualFutureCurrency must not error for %s %s", tc.a, tc.pair)
-		assert.Equalf(t, tc.exp, result, "IsPerpetualFutureCurrency should report whether %s %s is a perpetual", tc.a, tc.pair)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			result, err := e.IsPerpetualFutureCurrency(tc.a, tc.pair)
+			require.NoErrorf(t, err, "IsPerpetualFutureCurrency must not error for %s %s", tc.a, tc.pair)
+			assert.Equalf(t, tc.exp, result, "IsPerpetualFutureCurrency should report whether %s %s is a perpetual", tc.a, tc.pair)
+		})
 	}
 }
 
@@ -1396,7 +1442,7 @@ func TestGetOpenInterest(t *testing.T) {
 	}
 }
 
-func TestGetCurrencyTradeURL(t *testing.T) {
+func TestGetCurrencyTradeURL(t *testing.T) { //nolint:tparallel // the cases share e's pair store in order
 	t.Parallel()
 	_, err := e.GetCurrencyTradeURL(t.Context(), asset.Spot, currency.EMPTYPAIR)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetCurrencyTradeURL must reject an empty pair")
@@ -1405,6 +1451,7 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	_, err = newMarginTestExchange(t).GetCurrencyTradeURL(t.Context(), asset.Margin, spotTestPair)
 	require.ErrorIs(t, err, asset.ErrNotSupported, "GetCurrencyTradeURL must reject an unsupported asset")
 
+	// The cases share e's pair store in order, so each also checks that a call keeps nothing from the last
 	for _, tc := range []struct {
 		a    asset.Item
 		pair currency.Pair
@@ -1415,9 +1462,11 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		{a: asset.Futures, pair: futuresTestPair, exp: "https://futures.kraken.com/trade/futures/PF_XBTUSD"},
 		{a: asset.Futures, pair: currency.NewPairWithDelimiter("pi", "xbtusd", "-"), exp: "https://futures.kraken.com/trade/futures/PI_XBTUSD"},
 	} {
-		result, err := e.GetCurrencyTradeURL(t.Context(), tc.a, tc.pair)
-		require.NoErrorf(t, err, "GetCurrencyTradeURL must not error for %s %s", tc.a, tc.pair)
-		assert.Equalf(t, tc.exp, result, "GetCurrencyTradeURL should return the trade page of %s %s", tc.a, tc.pair)
+		t.Run(tc.pair.String(), func(t *testing.T) {
+			result, err := e.GetCurrencyTradeURL(t.Context(), tc.a, tc.pair)
+			require.NoErrorf(t, err, "GetCurrencyTradeURL must not error for %s %s", tc.a, tc.pair)
+			assert.Equalf(t, tc.exp, result, "GetCurrencyTradeURL should return the trade page of %s %s", tc.a, tc.pair)
+		})
 	}
 }
 
@@ -1793,48 +1842,48 @@ func TestUpdateAccountBalances(t *testing.T) {
 		_, err := ex.UpdateAccountBalances(t.Context(), asset.Futures)
 		assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "UpdateAccountBalances should not read the futures wallets without credentials")
 	})
-}
 
-func TestUpdateAccountBalancesKeepsNewerRead(t *testing.T) {
-	t.Parallel()
-	firstArrived, releaseFirst := make(chan struct{}), make(chan struct{})
-	var requests atomic.Int32
-	ex := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
-		if !assert.Equal(t, "/0/private/BalanceEx", r.URL.Path, "only the extended balances should be read") {
-			http.Error(w, "unexpected request", http.StatusNotFound)
-			return
-		}
-		reply := `{"error":[],"result":{"ZUSD":{"balance":"50","hold_trade":"0"}}}`
-		if requests.Add(1) == 1 {
-			close(firstArrived)
-			<-releaseFirst
-			reply = `{"error":[],"result":{"ZUSD":{"balance":"100","hold_trade":"0"}}}`
-		}
-		_, err := w.Write([]byte(reply))
-		assert.NoError(t, err, "Write should not error")
+	t.Run("spot read overtaken by a newer one", func(t *testing.T) {
+		t.Parallel()
+		firstArrived, releaseFirst := make(chan struct{}), make(chan struct{})
+		var requests atomic.Int32
+		ex := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+			if !assert.Equal(t, "/0/private/BalanceEx", r.URL.Path, "only the extended balances should be read") {
+				http.Error(w, "unexpected request", http.StatusNotFound)
+				return
+			}
+			reply := `{"error":[],"result":{"ZUSD":{"balance":"50","hold_trade":"0"}}}`
+			if requests.Add(1) == 1 {
+				close(firstArrived)
+				<-releaseFirst
+				reply = `{"error":[],"result":{"ZUSD":{"balance":"100","hold_trade":"0"}}}`
+			}
+			_, err := w.Write([]byte(reply))
+			assert.NoError(t, err, "Write should not error")
+		})
+		var releaseOnce sync.Once
+		release := func() { releaseOnce.Do(func() { close(releaseFirst) }) }
+		t.Cleanup(release)
+		seedTestAssetNames(ex)
+
+		olderDone := make(chan error, 1)
+		go func() {
+			_, err := ex.UpdateAccountBalances(t.Context(), asset.Spot)
+			olderDone <- err
+		}()
+		awaitClosed(t, firstArrived, "the first read must reach the server")
+		newerDone := make(chan error, 1)
+		go func() {
+			_, err := ex.UpdateAccountBalances(t.Context(), asset.Spot)
+			newerDone <- err
+		}()
+		require.NoError(t, awaitError(t, newerDone, "the newer read must finish while the older one is held"), "the newer UpdateAccountBalances must not error")
+		release()
+		require.NoError(t, awaitError(t, olderDone, "the older read must finish once released"), "the older UpdateAccountBalances must not error")
+		b, err := ex.Accounts.GetBalance("", ex.GetDefaultCredentials(), asset.Spot, currency.USD)
+		require.NoError(t, err, "GetBalance must not error")
+		assert.Equal(t, 50.0, b.Total, "a read requested before the stored one should not be stored over it")
 	})
-	var releaseOnce sync.Once
-	release := func() { releaseOnce.Do(func() { close(releaseFirst) }) }
-	t.Cleanup(release)
-	seedTestAssetNames(ex)
-
-	olderDone := make(chan error, 1)
-	go func() {
-		_, err := ex.UpdateAccountBalances(t.Context(), asset.Spot)
-		olderDone <- err
-	}()
-	awaitClosed(t, firstArrived, "the first read must reach the server")
-	newerDone := make(chan error, 1)
-	go func() {
-		_, err := ex.UpdateAccountBalances(t.Context(), asset.Spot)
-		newerDone <- err
-	}()
-	require.NoError(t, awaitError(t, newerDone, "the newer read must finish while the older one is held"), "the newer UpdateAccountBalances must not error")
-	release()
-	require.NoError(t, awaitError(t, olderDone, "the older read must finish once released"), "the older UpdateAccountBalances must not error")
-	b, err := ex.Accounts.GetBalance("", ex.GetDefaultCredentials(), asset.Spot, currency.USD)
-	require.NoError(t, err, "GetBalance must not error")
-	assert.Equal(t, 50.0, b.Total, "a read requested before the stored one should not be stored over it")
 }
 
 // newHeldFuturesAccountsTestExchange returns an exchange named after the test whose server answers its futures accounts
@@ -2188,7 +2237,7 @@ func TestFuturesWalletStored(t *testing.T) {
 	assert.NotSame(t, cash, ex.futuresWalletStored(other, "cash"), "futuresWalletStored should keep each credentials' records apart")
 }
 
-func TestFuturesWalletToStore(t *testing.T) {
+func TestFuturesWalletToStore(t *testing.T) { //nolint:tparallel // the cases share ex's wallet records in order, under the lock the test holds
 	t.Parallel()
 	ex := newHTTPTestExchange(t, func(http.ResponseWriter, *http.Request) {
 		assert.Fail(t, "futuresWalletToStore should make no request")
@@ -2209,6 +2258,8 @@ func TestFuturesWalletToStore(t *testing.T) {
 	cash.whole = 2
 	// GBP was stored on its own but is no longer stored, so a store before it leaves it out
 	cash.currencies = map[currency.Code]uint64{currency.USD: 4, currency.EUR: 3, currency.GBP: 4}
+	// The cases share ex, cash and read in order, under the lock held above, so each also checks that a call keeps
+	// nothing from the last
 	for _, tc := range []struct {
 		n   uint64
 		exp map[string]accounts.CurrencyBalances
@@ -2223,14 +2274,16 @@ func TestFuturesWalletToStore(t *testing.T) {
 			currency.EUR: {Currency: currency.EUR, Total: 10, Free: 10},
 		}}},
 	} {
-		s, err := ex.futuresWalletToStore(creds, tc.n, read)
-		require.NoErrorf(t, err, "futuresWalletToStore must not error for a store numbered %d", tc.n)
-		if tc.exp == nil {
-			assert.Nilf(t, s, "futuresWalletToStore should leave a wallet stored whole after a store numbered %d as stored", tc.n)
-			continue
-		}
-		require.NotNilf(t, s, "futuresWalletToStore must return the wallet a store numbered %d stores", tc.n)
-		assert.Equalf(t, tc.exp, futuresWalletBalances(accounts.SubAccounts{s}), "futuresWalletToStore should keep only the balances stored after a store numbered %d", tc.n)
+		t.Run("store numbered "+strconv.FormatUint(tc.n, 10), func(t *testing.T) {
+			s, err := ex.futuresWalletToStore(creds, tc.n, read)
+			require.NoErrorf(t, err, "futuresWalletToStore must not error for a store numbered %d", tc.n)
+			if tc.exp == nil {
+				assert.Nilf(t, s, "futuresWalletToStore should leave a wallet stored whole after a store numbered %d as stored", tc.n)
+				return
+			}
+			require.NotNilf(t, s, "futuresWalletToStore must return the wallet a store numbered %d stores", tc.n)
+			assert.Equalf(t, tc.exp, futuresWalletBalances(accounts.SubAccounts{s}), "futuresWalletToStore should keep only the balances stored after a store numbered %d", tc.n)
+		})
 	}
 	s, err := ex.futuresWalletToStore(creds, 4, read)
 	require.NoError(t, err, "futuresWalletToStore must not error")
@@ -2242,21 +2295,43 @@ func TestFuturesWalletToStore(t *testing.T) {
 	assert.ErrorIs(t, err, asset.ErrNotSupported, "futuresWalletToStore should return the error reading a balance it keeps")
 }
 
-func TestFuturesWalletStoresRecordWhole(t *testing.T) {
+func TestFuturesWalletStoresRecordWhole(t *testing.T) { //nolint:tparallel // each case records after the cases before it
 	t.Parallel()
 	s := &futuresWalletStores{currencies: map[currency.Code]uint64{}}
-	for _, tc := range []struct{ n, exp uint64 }{{n: 3, exp: 3}, {n: 1, exp: 3}, {n: 3, exp: 3}, {n: 5, exp: 5}} {
-		s.recordWhole(tc.n)
-		assert.Equalf(t, tc.exp, s.whole, "recordWhole should keep the highest number after recording %d", tc.n)
+	// The cases record into s in turn, each checking the number the records before it left
+	for _, tc := range []struct {
+		name   string
+		n, exp uint64
+	}{
+		{name: "first record", n: 3, exp: 3},
+		{name: "lower number", n: 1, exp: 3},
+		{name: "same number", n: 3, exp: 3},
+		{name: "higher number", n: 5, exp: 5},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s.recordWhole(tc.n)
+			assert.Equalf(t, tc.exp, s.whole, "recordWhole should keep the highest number after recording %d", tc.n)
+		})
 	}
 }
 
-func TestFuturesWalletStoresRecordCurrency(t *testing.T) {
+func TestFuturesWalletStoresRecordCurrency(t *testing.T) { //nolint:tparallel // each case records after the cases before it
 	t.Parallel()
 	s := &futuresWalletStores{currencies: map[currency.Code]uint64{}}
-	for _, tc := range []struct{ n, exp uint64 }{{n: 3, exp: 3}, {n: 1, exp: 3}, {n: 3, exp: 3}, {n: 5, exp: 5}} {
-		s.recordCurrency(currency.USD, tc.n)
-		assert.Equalf(t, tc.exp, s.currencies[currency.USD], "recordCurrency should keep the highest number after recording %d", tc.n)
+	// The cases record into s in turn, each checking the number the records before it left
+	for _, tc := range []struct {
+		name   string
+		n, exp uint64
+	}{
+		{name: "first record", n: 3, exp: 3},
+		{name: "lower number", n: 1, exp: 3},
+		{name: "same number", n: 3, exp: 3},
+		{name: "higher number", n: 5, exp: 5},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s.recordCurrency(currency.USD, tc.n)
+			assert.Equalf(t, tc.exp, s.currencies[currency.USD], "recordCurrency should keep the highest number after recording %d", tc.n)
+		})
 	}
 	s.recordCurrency(currency.EUR, 2)
 	assert.Equal(t, map[currency.Code]uint64{currency.USD: 5, currency.EUR: 2}, s.currencies, "recordCurrency should record each currency apart")
@@ -2265,18 +2340,22 @@ func TestFuturesWalletStoresRecordCurrency(t *testing.T) {
 func TestFuturesWalletStoresCurrencyStoredAfter(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
+		name               string
 		whole, usd, eur, n uint64
 		exp                bool
 	}{
-		{whole: 3, n: 2, exp: true},
-		{whole: 3, n: 3},
-		{usd: 3, n: 2, exp: true},
-		{usd: 3, n: 3},
-		{whole: 1, usd: 2, n: 3},
-		{eur: 5, n: 2},
+		{name: "wallet stored whole after", whole: 3, n: 2, exp: true},
+		{name: "wallet stored whole by the same store", whole: 3, n: 3},
+		{name: "currency stored after", usd: 3, n: 2, exp: true},
+		{name: "currency stored by the same store", usd: 3, n: 3},
+		{name: "wallet and currency stored before", whole: 1, usd: 2, n: 3},
+		{name: "another currency stored after", eur: 5, n: 2},
 	} {
-		s := &futuresWalletStores{whole: tc.whole, currencies: map[currency.Code]uint64{currency.USD: tc.usd, currency.EUR: tc.eur}}
-		assert.Equalf(t, tc.exp, s.currencyStoredAfter(currency.USD, tc.n), "currencyStoredAfter should report USD stored after %d for %+v", tc.n, tc)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			s := &futuresWalletStores{whole: tc.whole, currencies: map[currency.Code]uint64{currency.USD: tc.usd, currency.EUR: tc.eur}}
+			assert.Equalf(t, tc.exp, s.currencyStoredAfter(currency.USD, tc.n), "currencyStoredAfter should report USD stored after %d for %+v", tc.n, tc)
+		})
 	}
 }
 
@@ -2947,7 +3026,7 @@ func TestDepositFee(t *testing.T) {
 	}
 }
 
-func TestGetAvailableTransferChains(t *testing.T) {
+func TestGetAvailableTransferChains(t *testing.T) { //nolint:tparallel // the cases share e in order
 	t.Parallel()
 	_, err := e.GetAvailableTransferChains(t.Context(), currency.EMPTYCODE)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "GetAvailableTransferChains must reject an empty currency")
@@ -2959,15 +3038,18 @@ func TestGetAvailableTransferChains(t *testing.T) {
 		assert.NotEmpty(t, result, "GetAvailableTransferChains should return XBT's deposit methods")
 		return
 	}
+	// The cases share e in order, so each also checks that a call keeps nothing from the last
 	for c, exp := range map[currency.Code][]string{
 		currency.XBT:  {"Bitcoin", "Bitcoin Lightning"},
 		currency.USDT: {"Tether USD (ERC20)", "Tether USD (TRC20)"},
 		// XBT.M, an opt-in rewards balance, cannot be deposited
 		currency.NewCode("XBT.M"): {},
 	} {
-		result, err := e.GetAvailableTransferChains(t.Context(), c)
-		require.NoErrorf(t, err, "GetAvailableTransferChains must not error for %s", c)
-		assert.Equalf(t, exp, result, "GetAvailableTransferChains should return every deposit method of %s", c)
+		t.Run(c.String(), func(t *testing.T) {
+			result, err := e.GetAvailableTransferChains(t.Context(), c)
+			require.NoErrorf(t, err, "GetAvailableTransferChains must not error for %s", c)
+			assert.Equalf(t, exp, result, "GetAvailableTransferChains should return every deposit method of %s", c)
+		})
 	}
 }
 
@@ -2983,11 +3065,14 @@ func TestValidateAPICredentials(t *testing.T) {
 	})
 
 	ex := newTestExchange(t)
-	if !mockTests {
-		sharedtestvalues.SkipTestIfCredentialsUnset(t, ex)
-	}
+	// The cases share ex in order, so each also checks that a call keeps nothing from the last
 	for _, a := range []asset.Item{asset.Spot, asset.Futures} {
-		assert.NoErrorf(t, ex.ValidateAPICredentials(t.Context(), a), "ValidateAPICredentials should accept the %s credentials", a)
+		t.Run(a.String(), func(t *testing.T) {
+			if !mockTests {
+				sharedtestvalues.SkipTestIfCredentialsUnset(t, ex)
+			}
+			assert.NoErrorf(t, ex.ValidateAPICredentials(t.Context(), a), "ValidateAPICredentials should accept the %s credentials", a)
+		})
 	}
 }
 
@@ -3260,58 +3345,785 @@ func TestSubmitOrder(t *testing.T) {
 		assert.Equal(t, exp, resp, "SubmitOrder should place the order over the private websocket")
 	})
 
-	if !mockTests {
-		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	}
-	for _, tc := range []struct {
-		name   string
-		submit *order.Submit
-		exp    *order.SubmitResponse
-	}{
-		{
-			name:   "spot over REST",
-			submit: &order.Submit{Exchange: e.Name, Pair: spotTestPair, AssetType: asset.Spot, Type: order.Stop, Side: order.Sell, TriggerPrice: 75000, Amount: 0.25},
-			exp: &order.SubmitResponse{
-				Exchange:     e.Name,
-				Type:         order.Stop,
-				Side:         order.Sell,
-				Pair:         spotTestPair,
-				AssetType:    asset.Spot,
-				Amount:       0.25,
-				TriggerPrice: 75000,
-				Status:       order.New,
-				OrderID:      "OM3IVF-M83OG-3QQVT8",
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+		}
+		for _, tc := range []struct {
+			name   string
+			submit *order.Submit
+			exp    *order.SubmitResponse
+		}{
+			{
+				name:   "spot over REST",
+				submit: &order.Submit{Exchange: e.Name, Pair: spotTestPair, AssetType: asset.Spot, Type: order.Stop, Side: order.Sell, TriggerPrice: 75000, Amount: 0.25},
+				exp: &order.SubmitResponse{
+					Exchange:     e.Name,
+					Type:         order.Stop,
+					Side:         order.Sell,
+					Pair:         spotTestPair,
+					AssetType:    asset.Spot,
+					Amount:       0.25,
+					TriggerPrice: 75000,
+					Status:       order.New,
+					OrderID:      "OM3IVF-M83OG-3QQVT8",
+				},
 			},
-		},
-		{
-			name:   "futures",
-			submit: &order.Submit{Exchange: e.Name, Pair: futuresTestPair, AssetType: asset.Futures, Type: order.Stop, Side: order.Sell, TriggerPrice: 79000, Amount: 0.001},
-			exp: &order.SubmitResponse{
-				Exchange:     e.Name,
-				Type:         order.Stop,
-				Side:         order.Sell,
-				Pair:         futuresTestPair,
-				AssetType:    asset.Futures,
-				Amount:       0.001,
-				TriggerPrice: 79000,
-				Status:       order.New,
-				OrderID:      "770a8a11-d8a4-4525-b292-8b3d4ee2e308",
+			{
+				name:   "futures",
+				submit: &order.Submit{Exchange: e.Name, Pair: futuresTestPair, AssetType: asset.Futures, Type: order.Stop, Side: order.Sell, TriggerPrice: 79000, Amount: 0.001},
+				exp: &order.SubmitResponse{
+					Exchange:     e.Name,
+					Type:         order.Stop,
+					Side:         order.Sell,
+					Pair:         futuresTestPair,
+					AssetType:    asset.Futures,
+					Amount:       0.001,
+					TriggerPrice: 79000,
+					Status:       order.New,
+					OrderID:      "770a8a11-d8a4-4525-b292-8b3d4ee2e308",
+				},
 			},
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			submitted := time.Now()
-			resp, err := e.SubmitOrder(t.Context(), tc.submit)
-			require.NoError(t, err, "SubmitOrder must not error")
-			if !mockTests {
-				assert.NotEmpty(t, resp.OrderID, "SubmitOrder should return the order ID")
-				return
-			}
-			ordersClearSubmitTimes(t, resp, submitted)
-			assert.Equal(t, tc.exp, resp, "SubmitOrder should return the placed order")
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				submitted := time.Now()
+				resp, err := e.SubmitOrder(t.Context(), tc.submit)
+				require.NoError(t, err, "SubmitOrder must not error")
+				if !mockTests {
+					assert.NotEmpty(t, resp.OrderID, "SubmitOrder should return the order ID")
+					return
+				}
+				ordersClearSubmitTimes(t, resp, submitted)
+				assert.Equal(t, tc.exp, resp, "SubmitOrder should return the placed order")
+			})
+		}
+	})
+
+	t.Run("futures leverage other than 1 rejected", func(t *testing.T) {
+		t.Parallel()
+		ex := newHTTPTestExchange(t, func(_ http.ResponseWriter, r *http.Request) {
+			assert.Failf(t, "no futures order should be placed", "%s", r.URL.Path)
 		})
-	}
+		// The cases share ex in order, so each also checks that a call keeps nothing from the last
+		for _, leverage := range []float64{3, 2.5, 1.5, 0.5, -2, math.NaN(), math.Inf(1)} {
+			t.Run(strconv.FormatFloat(leverage, 'f', -1, 64), func(t *testing.T) {
+				_, err := ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: futuresTestPair, AssetType: asset.Futures, Type: order.Limit, Side: order.Buy, Price: 80000, Amount: 0.001, Leverage: leverage})
+				assert.ErrorIsf(t, err, order.ErrSubmitLeverageNotSupported, "SubmitOrder should reject leverage %v, as Kraken's Send order takes none", leverage)
+			})
+		}
+	})
+
+	t.Run("futures order with a leverage of 1 placed", func(t *testing.T) {
+		t.Parallel()
+		ex := newOrdersRequestCheckExchange(t, "/derivatives/api/v3/sendorder", "limitPrice=80000&orderType=lmt&side=buy&size=0.001&symbol=PF_XBTUSD",
+			`{"result":"success","sendStatus":{"order_id":"o-1","orderEvents":[],"receivedTime":"2026-10-09T08:33:01.104Z","status":"placed"},"serverTime":"2026-10-09T08:33:01.107Z"}`)
+		resp, err := ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: futuresTestPair, AssetType: asset.Futures, Type: order.Limit, Side: order.Buy, Price: 80000, Amount: 0.001, Leverage: 1})
+		require.NoError(t, err, "SubmitOrder must place an order asking for a leverage of 1, as other exchanges do")
+		assert.Equal(t, "o-1", resp.OrderID, "SubmitOrder should return the placed order's ID")
+	})
+
+	t.Run("triggered limit orders' limit price", func(t *testing.T) {
+		t.Parallel()
+		ex := newHTTPTestExchange(t, func(_ http.ResponseWriter, r *http.Request) {
+			assert.Failf(t, "no order should be placed", "%s", r.URL.Path)
+		})
+		wsEx := newHTTPTestExchange(t, func(_ http.ResponseWriter, r *http.Request) {
+			assert.Failf(t, "no order should be placed", "%s", r.URL.Path)
+		})
+		// Without round trips the mock fails the test on any websocket request
+		useOrdersTestWebsocket(t, wsEx)
+		// The cases share ex and wsEx in order, so each also checks that a call keeps nothing from the last
+		for _, tc := range []struct {
+			name      string
+			orderType order.Type
+			side      order.Side
+			price     float64
+			tif       order.TimeInForce
+			trigger   order.PriceType
+			leverage  float64
+			assets    []asset.Item
+		}{
+			{name: "stop limit", orderType: order.StopLimit, side: order.Sell},
+			{name: "take profit limit", orderType: order.TakeProfit | order.Limit, side: order.Buy},
+			{name: "stop limit", orderType: order.StopLimit, side: order.Buy, price: -1},
+			{name: "take profit limit", orderType: order.TakeProfit | order.Limit, side: order.Sell, price: -1},
+			{name: "good till cancelled stop limit", orderType: order.StopLimit, side: order.Sell, tif: order.GoodTillCancel},
+			{name: "index price stop limit", orderType: order.StopLimit, side: order.Buy, trigger: order.IndexPrice},
+			{name: "leveraged stop limit", orderType: order.StopLimit, side: order.Sell, leverage: 1},
+			{name: "mark price stop limit", orderType: order.StopLimit, side: order.Buy, trigger: order.MarkPrice, assets: []asset.Item{asset.Futures}},
+		} {
+			t.Run(tc.side.String()+" "+tc.name+" with a limit price of "+strconv.FormatFloat(tc.price, 'f', -1, 64), func(t *testing.T) {
+				assets := tc.assets
+				if assets == nil {
+					assets = []asset.Item{asset.Spot, asset.Futures}
+				}
+				for _, a := range assets {
+					t.Run(a.String(), func(t *testing.T) {
+						s := order.Submit{Exchange: ex.Name, Pair: spotTestPair, AssetType: a, Type: tc.orderType, Side: tc.side, Amount: 0.5, TriggerPrice: 70000, TriggerPriceType: tc.trigger, Price: tc.price, TimeInForce: tc.tif, Leverage: tc.leverage}
+						if a == asset.Futures {
+							s.Pair = futuresTestPair
+						}
+						_, err := ex.SubmitOrder(t.Context(), &s)
+						assert.ErrorIsf(t, err, order.ErrPriceMustBeSetIfLimitOrder, "SubmitOrder should refuse a %s %s %s order with a limit price of %v", a, tc.side, tc.name, tc.price)
+						if a == asset.Spot {
+							s.Exchange = wsEx.Name
+							_, err = wsEx.SubmitOrder(t.Context(), &s)
+							assert.ErrorIsf(t, err, order.ErrPriceMustBeSetIfLimitOrder, "SubmitOrder should refuse a spot %s %s order with a limit price of %v over the private websocket", tc.side, tc.name, tc.price)
+						}
+					})
+				}
+			})
+		}
+
+		futuresPlaced := newOrdersRequestCheckExchange(t, "/derivatives/api/v3/sendorder",
+			url.Values{"limitPrice": {"0.5"}, "orderType": {"stp"}, "side": {"sell"}, "size": {"0.5"}, "stopPrice": {"0.6"}, "symbol": {"PF_XBTUSD"}, "triggerSignal": {"last"}}.Encode(),
+			`{"result":"success","sendStatus":{"order_id":"f-stop-limit","status":"placed","receivedTime":"2026-10-09T08:33:01.104Z","orderEvents":[]},"serverTime":"2026-10-09T08:33:01.107Z"}`)
+		resp, err := futuresPlaced.SubmitOrder(t.Context(), &order.Submit{Exchange: futuresPlaced.Name, Pair: futuresTestPair, AssetType: asset.Futures, Type: order.StopLimit, Side: order.Sell, Amount: 0.5, TriggerPrice: 0.6, Price: 0.5})
+		require.NoError(t, err, "SubmitOrder must place a futures stop limit order with a limit price below 1")
+		assert.Equal(t, "f-stop-limit", resp.OrderID, "SubmitOrder should return the futures stop limit order's ID")
+
+		spotPlaced := newOrdersRequestCheckExchange(t, "/0/private/AddOrder", `{"ordertype":"take-profit-limit","pair":"XBTUSD","price":"0.6","price2":"0.5","trigger":"last","type":"buy","volume":"0.5"}`,
+			`{"error":[],"result":{"descr":{"order":"buy 0.50000000 XBTUSD @ take profit 0.6 -> limit 0.5"},"txid":["OTPL5-UOSK2-KOFH7X"]}}`)
+		resp, err = spotPlaced.SubmitOrder(t.Context(), &order.Submit{Exchange: spotPlaced.Name, Pair: spotTestPair, AssetType: asset.Spot, Type: order.TakeProfit | order.Limit, Side: order.Buy, Amount: 0.5, TriggerPrice: 0.6, Price: 0.5})
+		require.NoError(t, err, "SubmitOrder must place a spot take profit limit order with a limit price below 1")
+		assert.Equal(t, "OTPL5-UOSK2-KOFH7X", resp.OrderID, "SubmitOrder should return the spot take profit limit order's ID")
+	})
+
+	t.Run("unsupported fields", func(t *testing.T) {
+		t.Parallel()
+		ex := newHTTPTestExchange(t, func(_ http.ResponseWriter, r *http.Request) {
+			assert.Failf(t, "no order should be placed", "%s", r.URL.Path)
+		})
+		wsEx := newHTTPTestExchange(t, func(_ http.ResponseWriter, r *http.Request) {
+			assert.Failf(t, "no order should be placed", "%s", r.URL.Path)
+		})
+		// Without round trips the mock fails the test on any websocket request
+		useOrdersTestWebsocket(t, wsEx)
+		type refusal struct {
+			name   string
+			submit order.Submit
+			assets []asset.Item
+			err    error
+		}
+		refuses := func(t *testing.T, tc refusal) {
+			t.Helper()
+			// The refusals share ex and wsEx in order, so each also checks that a call keeps nothing from the last
+			t.Run(tc.name, func(t *testing.T) {
+				for _, a := range tc.assets {
+					t.Run(a.String(), func(t *testing.T) {
+						for _, kind := range []struct {
+							orderType  order.Type
+							side       order.Side
+							reduceOnly bool
+						}{
+							{orderType: order.Limit, side: order.Buy},
+							{orderType: order.Market, side: order.Sell},
+							{orderType: order.Stop, side: order.Buy},
+							{orderType: order.StopLimit, side: order.Sell, reduceOnly: true},
+						} {
+							t.Run(kind.side.String()+" "+kind.orderType.String(), func(t *testing.T) {
+								s := tc.submit
+								s.Exchange, s.AssetType, s.Type, s.Side, s.ReduceOnly, s.Amount, s.Pair = ex.Name, a, kind.orderType, kind.side, kind.reduceOnly, 0.5, spotTestPair
+								if a == asset.Futures {
+									s.Pair = futuresTestPair
+								}
+								if kind.orderType.Is(order.Limit) {
+									s.Price = 80000
+								}
+								if kind.orderType.Is(order.Stop) {
+									s.TriggerPrice = 90000
+								}
+								_, err := ex.SubmitOrder(t.Context(), &s)
+								assert.ErrorIsf(t, err, tc.err, "SubmitOrder should refuse %s for a %s %s %s order rather than place it without", tc.name, a, kind.side, kind.orderType)
+								// A spot order with leverage goes over REST whether the private websocket is connected or not
+								if a == asset.Spot && s.Leverage == 0 {
+									s.Exchange = wsEx.Name
+									_, err = wsEx.SubmitOrder(t.Context(), &s)
+									assert.ErrorIsf(t, err, tc.err, "SubmitOrder should refuse %s for a spot %s %s order over the private websocket rather than place it without", tc.name, kind.side, kind.orderType)
+								}
+							})
+						}
+					})
+				}
+			})
+		}
+		both := []asset.Item{asset.Spot, asset.Futures}
+		for _, tc := range []refusal{
+			{name: "isolated margin", submit: order.Submit{MarginType: margin.Isolated}, assets: both, err: margin.ErrMarginTypeUnsupported},
+			{name: "cross margin", submit: order.Submit{MarginType: margin.Multi}, assets: both, err: margin.ErrMarginTypeUnsupported},
+			{name: "spot isolated margin", submit: order.Submit{MarginType: margin.SpotIsolated}, assets: both, err: margin.ErrMarginTypeUnsupported},
+			{name: "an unknown margin type", submit: order.Submit{MarginType: margin.Unknown}, assets: both, err: margin.ErrMarginTypeUnsupported},
+			{name: "isolated margin with leverage", submit: order.Submit{MarginType: margin.Isolated, Leverage: 2}, assets: both, err: margin.ErrMarginTypeUnsupported},
+			{name: "cash with leverage", submit: order.Submit{MarginType: margin.NoMargin, Leverage: 2}, assets: []asset.Item{asset.Spot}, err: margin.ErrMarginTypeUnsupported},
+			{name: "cash with leverage of 1", submit: order.Submit{MarginType: margin.NoMargin, Leverage: 1}, assets: []asset.Item{asset.Spot}, err: margin.ErrMarginTypeUnsupported},
+			{name: "cash", submit: order.Submit{MarginType: margin.NoMargin}, assets: []asset.Item{asset.Futures}, err: margin.ErrMarginTypeUnsupported},
+			{name: "isolated margin on a good till cancelled order triggered by the index price", submit: order.Submit{MarginType: margin.Isolated, TimeInForce: order.GoodTillCancel, TriggerPriceType: order.IndexPrice}, assets: both, err: margin.ErrMarginTypeUnsupported},
+			{name: "a risk management mode", submit: order.Submit{RiskManagementModes: order.RiskManagementModes{Mode: "full"}}, assets: both, err: errRiskManagementUnsupported},
+			{name: "a risk management mode with leverage", submit: order.Submit{RiskManagementModes: order.RiskManagementModes{Mode: "full"}, Leverage: 2}, assets: both, err: errRiskManagementUnsupported},
+			{name: "a risk management mode on a good till cancelled order triggered by the index price", submit: order.Submit{RiskManagementModes: order.RiskManagementModes{Mode: "full"}, TimeInForce: order.GoodTillCancel, TriggerPriceType: order.IndexPrice}, assets: both, err: errRiskManagementUnsupported},
+			{name: "a slippage tolerance", submit: order.Submit{SlippageTolerance: 0.0001}, assets: both, err: errSlippageUnsupported},
+			{name: "a slippage tolerance with leverage", submit: order.Submit{SlippageTolerance: 0.0001, Leverage: 2}, assets: both, err: errSlippageUnsupported},
+			{name: "a slippage tolerance on a good till cancelled order triggered by the index price", submit: order.Submit{SlippageTolerance: 0.0001, TimeInForce: order.GoodTillCancel, TriggerPriceType: order.IndexPrice}, assets: both, err: errSlippageUnsupported},
+			{name: "a negative slippage tolerance", submit: order.Submit{SlippageTolerance: -0.0001}, assets: both, err: errSlippageUnsupported},
+			{name: "the smallest slippage tolerance", submit: order.Submit{SlippageTolerance: math.SmallestNonzeroFloat64}, assets: both, err: errSlippageUnsupported},
+			// Spot triggers take no mark price, so these are futures orders alone
+			{name: "isolated margin on an order triggered by the mark price", submit: order.Submit{MarginType: margin.Isolated, TriggerPriceType: order.MarkPrice}, assets: []asset.Item{asset.Futures}, err: margin.ErrMarginTypeUnsupported},
+			{name: "a risk management mode on an order triggered by the mark price", submit: order.Submit{RiskManagementModes: order.RiskManagementModes{Mode: "full"}, TriggerPriceType: order.MarkPrice}, assets: []asset.Item{asset.Futures}, err: errRiskManagementUnsupported},
+			{name: "a slippage tolerance on an order triggered by the mark price", submit: order.Submit{SlippageTolerance: 0.0001, TriggerPriceType: order.MarkPrice}, assets: []asset.Item{asset.Futures}, err: errSlippageUnsupported},
+		} {
+			refuses(t, tc)
+		}
+		// Each field of a take profit, stop loss or stop entry asks for one, set alone
+		for _, kind := range []struct {
+			name string
+			of   func(*order.RiskManagementModes) *order.RiskManagement
+		}{
+			{name: "take profit", of: func(m *order.RiskManagementModes) *order.RiskManagement { return &m.TakeProfit }},
+			{name: "stop loss", of: func(m *order.RiskManagementModes) *order.RiskManagement { return &m.StopLoss }},
+			{name: "stop entry", of: func(m *order.RiskManagementModes) *order.RiskManagement { return &m.StopEntry }},
+		} {
+			for _, field := range []struct {
+				name string
+				set  func(*order.RiskManagement)
+			}{
+				{name: "enabled flag", set: func(r *order.RiskManagement) { r.Enabled = true }},
+				{name: "trigger price type", set: func(r *order.RiskManagement) { r.TriggerPriceType = order.MarkPrice }},
+				{name: "price", set: func(r *order.RiskManagement) { r.Price = 70000 }},
+				{name: "limit price", set: func(r *order.RiskManagement) { r.LimitPrice = 69000 }},
+				{name: "order type", set: func(r *order.RiskManagement) { r.OrderType = order.Market }},
+			} {
+				var modes order.RiskManagementModes
+				field.set(kind.of(&modes))
+				refuses(t, refusal{name: "a " + kind.name + "'s " + field.name, submit: order.Submit{RiskManagementModes: modes}, assets: both, err: errRiskManagementUnsupported})
+			}
+		}
+
+		// A cash spot order without leverage is the order SubmitOrder places, whatever its type, side or size. The cases
+		// run in order, so the cash order placed over the private websocket below still follows them
+		for _, tc := range []struct {
+			submit order.Submit
+			body   string
+		}{
+			{submit: order.Submit{Type: order.Limit, Side: order.Buy, Price: 80000, Amount: 0.5}, body: `{"ordertype":"limit","pair":"XBTUSD","price":"80000","type":"buy","volume":"0.5"}`},
+			{submit: order.Submit{Type: order.Market, Side: order.Sell, Amount: 0.5}, body: `{"ordertype":"market","pair":"XBTUSD","type":"sell","volume":"0.5"}`},
+			{submit: order.Submit{Type: order.Stop, Side: order.Buy, TriggerPrice: 90000, Amount: 0.5}, body: `{"ordertype":"stop-loss","pair":"XBTUSD","price":"90000","trigger":"last","type":"buy","volume":"0.5"}`},
+			{submit: order.Submit{Type: order.Market, Side: order.Buy, QuoteAmount: 100}, body: `{"oflags":"viqc","ordertype":"market","pair":"XBTUSD","type":"buy","volume":"100"}`},
+		} {
+			t.Run("cash spot "+tc.submit.Side.String()+" "+tc.submit.Type.String(), func(t *testing.T) {
+				cash := newOrdersRequestCheckExchange(t, "/0/private/AddOrder", tc.body, `{"error":[],"result":{"descr":{"order":"cash"},"txid":["OCASH5-UOSK2-KOFH7X"]}}`)
+				s := tc.submit
+				s.Exchange, s.Pair, s.AssetType, s.MarginType = cash.Name, spotTestPair, asset.Spot, margin.NoMargin
+				resp, err := cash.SubmitOrder(t.Context(), &s)
+				require.NoErrorf(t, err, "SubmitOrder must place a cash spot %s %s order without leverage", s.Side, s.Type)
+				assert.Equalf(t, "OCASH5-UOSK2-KOFH7X", resp.OrderID, "SubmitOrder should return the cash spot %s %s order's ID", s.Side, s.Type)
+			})
+		}
+		wsCash := newOrdersWsTestExchange(t, ordersWsRoundTrip{
+			request: ordersWsRequest("add_order", `"order_type":"limit","side":"buy","order_qty":0.5,"limit_price":80000,"symbol":"BTC/USD"`),
+			replies: []string{ordersWsReply("add_order", `{"order_id":"OCASH6-UOSK2-KOFH7X"}`)},
+		})
+		resp, err := wsCash.SubmitOrder(t.Context(), &order.Submit{Exchange: wsCash.Name, Pair: spotTestPair, AssetType: asset.Spot, Type: order.Limit, Side: order.Buy, Price: 80000, Amount: 0.5, MarginType: margin.NoMargin})
+		require.NoError(t, err, "SubmitOrder must place a cash spot order without leverage over the private websocket")
+		assert.Equal(t, "OCASH6-UOSK2-KOFH7X", resp.OrderID, "SubmitOrder should return the cash spot order's ID placed over the private websocket")
+	})
+
+	t.Run("market buy sized in the quote currency", func(t *testing.T) {
+		t.Parallel()
+		ex := newOrdersRequestCheckExchange(t, "/0/private/AddOrder",
+			`{"oflags":"viqc","ordertype":"market","pair":"XBTUSD","type":"buy","volume":"100"}`,
+			`{"error":[],"result":{"descr":{"order":"buy 100.00000000 XBTUSD @ market"},"txid":["ODV663-X7J9B-IUFH4O"]}}`)
+		// Without round trips the mock fails the test on any websocket request
+		useOrdersTestWebsocket(t, ex)
+		submitted := time.Now()
+		resp, err := ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: spotTestPair, AssetType: asset.Spot, Type: order.Market, Side: order.Buy, QuoteAmount: 100})
+		require.NoError(t, err, "SubmitOrder must not error")
+		ordersClearSubmitTimes(t, resp, submitted)
+		exp := &order.SubmitResponse{
+			Exchange:    ex.Name,
+			Type:        order.Market,
+			Side:        order.Buy,
+			Pair:        spotTestPair,
+			AssetType:   asset.Spot,
+			QuoteAmount: 100,
+			Status:      order.Filled,
+			OrderID:     "ODV663-X7J9B-IUFH4O",
+		}
+		assert.Equal(t, exp, resp, "SubmitOrder should place a quote-sized market buy over REST while the private websocket is connected")
+	})
+
+	t.Run("leveraged spot order", func(t *testing.T) {
+		t.Parallel()
+		ex := newOrdersRequestCheckExchange(t, "/0/private/AddOrder",
+			`{"leverage":"3","ordertype":"limit","pair":"XBTUSD","price":"80000","type":"buy","volume":"0.5"}`,
+			`{"error":[],"result":{"descr":{"order":"buy 0.50000000 XBTUSD @ limit 80000.0 with 3:1 leverage"},"txid":["OLV3TB-ZQ9KD-4XWBRM"]}}`)
+		// Without round trips the mock fails the test on any websocket request
+		useOrdersTestWebsocket(t, ex)
+		submitted := time.Now()
+		resp, err := ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: spotTestPair, AssetType: asset.Spot, Type: order.Limit, Side: order.Buy, Price: 80000, Amount: 0.5, Leverage: 3})
+		require.NoError(t, err, "SubmitOrder must not error")
+		ordersClearSubmitTimes(t, resp, submitted)
+		exp := &order.SubmitResponse{
+			Exchange:  ex.Name,
+			Type:      order.Limit,
+			Side:      order.Buy,
+			Pair:      spotTestPair,
+			AssetType: asset.Spot,
+			Leverage:  3,
+			Price:     80000,
+			Amount:    0.5,
+			Status:    order.New,
+			OrderID:   "OLV3TB-ZQ9KD-4XWBRM",
+		}
+		assert.Equal(t, exp, resp, "SubmitOrder should place a leveraged spot order over REST, which takes its leverage, while the private websocket is connected")
+	})
+
+	t.Run("spot leverage Kraken does not take", func(t *testing.T) {
+		t.Parallel()
+		ex := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+			assert.Failf(t, "no spot order should be placed", "%s", r.URL.Path)
+			_, _ = w.Write([]byte(`{"error":["EGeneral:Invalid arguments"]}`))
+		})
+		// The cases share ex in order, so each also checks that a call keeps nothing from the last
+		for _, leverage := range []float64{0.5, 2.5, -2, math.NaN(), math.Inf(1), math.MaxUint32 + 1} {
+			t.Run(strconv.FormatFloat(leverage, 'f', -1, 64), func(t *testing.T) {
+				_, err := ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: spotTestPair, AssetType: asset.Spot, Type: order.Limit, Side: order.Buy, Price: 80000, Amount: 0.5, Leverage: leverage})
+				assert.ErrorIsf(t, err, errInvalidLeverage, "SubmitOrder should reject leverage %v, as Kraken takes a whole number", leverage)
+			})
+		}
+		_, err := ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: spotTestPair, AssetType: asset.Spot, Type: order.Market, Side: order.Buy, QuoteAmount: 100, Leverage: 2})
+		assert.ErrorIs(t, err, order.ErrSubmitLeverageNotSupported, "SubmitOrder should reject a leveraged market buy sized in the quote currency, which Kraken does not take")
+	})
+
+	t.Run("websocket token", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name string
+			// tokenReply is Get Websockets Token's reply to the token request the executions subscription makes at connect
+			tokenReply string
+			connectErr error
+			paths      []string
+			requests   []string
+			orderID    string
+		}{
+			{
+				name:       "refused",
+				tokenReply: `{"error":["EGeneral:Permission denied"]}`,
+				connectErr: request.ErrAuthRequestFailed,
+				paths:      []string{"/0/private/GetWebSocketsToken", "/0/private/AddOrder"},
+				orderID:    "OT83XF-1Y4TH-OTWZWB",
+			},
+			{
+				name:       "granted",
+				tokenReply: `{"error":[],"result":{"token":"` + wsTestToken + `","expires":900}}`,
+				paths:      []string{"/0/private/GetWebSocketsToken"},
+				requests: []string{
+					`{"method":"subscribe","params":{"channel":"executions","snap_orders":true,"snap_trades":false,"token":"` + wsTestToken + `"}}`,
+					`{"method":"add_order","params":{"order_type":"limit","side":"buy","order_qty":0.5,"limit_price":80000,"symbol":"BTC/USD","token":"` + wsTestToken + `"}}`,
+				},
+				orderID: "OPS23M-VS41G-DDE5Z2",
+			},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				var mu sync.Mutex
+				var paths, requests []string
+				ex := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+					mu.Lock()
+					paths = append(paths, r.URL.Path)
+					mu.Unlock()
+					reply := tc.tokenReply
+					if r.URL.Path == "/0/private/AddOrder" {
+						assert.JSONEq(t, `{"ordertype":"limit","pair":"XBTUSD","price":"80000","type":"buy","volume":"0.5"}`, tradingRequestBody(t, r), "Add Order should be sent the order")
+						reply = `{"error":[],"result":{"descr":{"order":"buy 0.50000000 XBTUSD @ limit 80000.0"},"txid":["OT83XF-1Y4TH-OTWZWB"]}}`
+					}
+					_, err := w.Write([]byte(reply))
+					assert.NoError(t, err, "Write should not error")
+				})
+				seedTestAssetNames(ex)
+				useTestCredentials(ex)
+				ex.Features.Subscriptions = subscription.List{{Enabled: true, Channel: subscription.MyOrdersChannel, Authenticated: true}}
+				useTestWebsocket(t, ex, newMockWebsocketURL(t, func(_ testing.TB, msg []byte, w *gws.Conn) error {
+					reqID, err := jsonparser.GetInt(msg, "req_id")
+					if err != nil {
+						return err
+					}
+					method, err := jsonparser.GetString(msg, "method")
+					if err != nil {
+						return err
+					}
+					mu.Lock()
+					requests = append(requests, string(jsonparser.Delete(slices.Clone(msg), "req_id")))
+					mu.Unlock()
+					reply := ordersWsReply(method, `{"channel":"executions","maxratecount":125,"snap_orders":true,"snap_trades":false}`)
+					if method == "add_order" {
+						reply = ordersWsReply(method, `{"order_id":"OPS23M-VS41G-DDE5Z2"}`)
+					}
+					b, err := jsonparser.Set([]byte(reply), []byte(strconv.FormatInt(reqID, 10)), "req_id")
+					if err != nil {
+						return err
+					}
+					return w.WriteMessage(gws.TextMessage, b)
+				}), wsPrivateConnection)
+				err := ex.Websocket.Connect(t.Context())
+				if tc.connectErr != nil {
+					require.ErrorIs(t, err, tc.connectErr, "Connect must return the token's refusal")
+				} else {
+					require.NoError(t, err, "Connect must not error")
+				}
+				_, err = ex.Websocket.GetConnection(wsPrivateConnection)
+				require.NoError(t, err, "the private connection must stay connected")
+
+				submitted := time.Now()
+				resp, err := ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: spotTestPair, AssetType: asset.Spot, Type: order.Limit, Side: order.Buy, Price: 80000, Amount: 0.5})
+				require.NoError(t, err, "SubmitOrder must not error")
+				ordersClearSubmitTimes(t, resp, submitted)
+				exp := &order.SubmitResponse{Exchange: ex.Name, Type: order.Limit, Side: order.Buy, Pair: spotTestPair, AssetType: asset.Spot, Price: 80000, Amount: 0.5, Status: order.New, OrderID: tc.orderID}
+				assert.Equal(t, exp, resp, "SubmitOrder should place the order")
+				mu.Lock()
+				defer mu.Unlock()
+				assert.Equal(t, tc.paths, paths, "SubmitOrder should place the order over REST only while the private connection holds no subscription")
+				assertRequests(t, tc.requests, requests)
+			})
+		}
+	})
+
+	t.Run("untriggered orders", func(t *testing.T) {
+		t.Parallel()
+		futuresPlaced := func(orderID, orderType, side string, quantity, limitPrice float64) string {
+			order := `{"algoId":null,"cliOrdId":null,"filled":0,"lastUpdateTimestamp":"2026-10-09T08:33:01.104Z","limitPrice":` + strconv.FormatFloat(limitPrice, 'f', -1, 64) +
+				`,"orderId":"` + orderID + `","quantity":` + strconv.FormatFloat(quantity, 'f', -1, 64) + `,"reduceOnly":false,"side":"` + side +
+				`","symbol":"PF_XBTUSD","timestamp":"2026-10-09T08:33:01.104Z","type":"` + orderType + `"}`
+			return `{"result":"success","sendStatus":{"order_id":"` + orderID + `","orderEvents":[{"order":` + order + `,"reducedQuantity":null,"type":"PLACE"}],` +
+				`"receivedTime":"2026-10-09T08:33:01.104Z","status":"placed"},"serverTime":"2026-10-09T08:33:01.107Z"}`
+		}
+		futuresExecuted := func(orderID, clientOrderID, orderType, side string, quantity, limitPrice, price float64, reduceOnly bool) string {
+			client := "null"
+			if clientOrderID != "" {
+				client = `"` + clientOrderID + `"`
+			}
+			order := `{"algoId":null,"cliOrdId":` + client + `,"filled":0,"lastUpdateTimestamp":"2026-10-09T08:34:12.551Z","limitPrice":` + strconv.FormatFloat(limitPrice, 'f', -1, 64) +
+				`,"orderId":"` + orderID + `","quantity":` + strconv.FormatFloat(quantity, 'f', -1, 64) + `,"reduceOnly":` + strconv.FormatBool(reduceOnly) + `,"side":"` + side +
+				`","symbol":"PF_XBTUSD","timestamp":"2026-10-09T08:34:12.551Z","type":"` + orderType + `"}`
+			return `{"result":"success","sendStatus":{"order_id":"` + orderID + `","orderEvents":[{"amount":` + strconv.FormatFloat(quantity, 'f', -1, 64) +
+				`,"executionId":"0c7d1e5a-3f2b-4a96-8e1d-6b4c9a2f7e30","orderPriorEdit":null,"orderPriorExecution":` + order + `,"price":` + strconv.FormatFloat(price, 'f', -1, 64) +
+				`,"takerReducedQuantity":null,"type":"EXECUTION"}],"receivedTime":"2026-10-09T08:34:12.551Z","status":"placed"},"serverTime":"2026-10-09T08:34:12.554Z"}`
+		}
+		spotPlaced := func(txid, descr string) string {
+			return `{"error":[],"result":{"descr":{"order":"` + descr + `"},"txid":["` + txid + `"]}}`
+		}
+		// executed is the trade futuresExecuted reports, its exchange set by each test
+		executed := func(orderType order.Type, side order.Side, price, amount float64) []order.TradeHistory {
+			return []order.TradeHistory{{
+				TID:       "0c7d1e5a-3f2b-4a96-8e1d-6b4c9a2f7e30",
+				Price:     price,
+				Amount:    amount,
+				Type:      orderType,
+				Side:      side,
+				Timestamp: time.Date(2026, 10, 9, 8, 34, 12, 551000000, time.UTC),
+			}}
+		}
+		for _, tc := range []struct {
+			name    string
+			submit  *order.Submit
+			path    string
+			request string
+			reply   string
+			exp     *order.SubmitResponse
+			err     error
+		}{
+			{
+				name:    "spot limit order",
+				submit:  &order.Submit{AssetType: asset.Spot, Type: order.Limit, Side: order.Buy, Price: 80000, Amount: 0.5, TimeInForce: order.GoodTillCancel},
+				path:    "/0/private/AddOrder",
+				request: `{"ordertype":"limit","pair":"XBTUSD","price":"80000","type":"buy","volume":"0.5"}`,
+				reply:   spotPlaced("OT83XF-1Y4TH-OTWZWB", "buy 0.50000000 XBTUSD @ limit 80000.0"),
+				exp:     &order.SubmitResponse{Type: order.Limit, Side: order.Buy, TimeInForce: order.GoodTillCancel, Price: 80000, Amount: 0.5, Status: order.New, OrderID: "OT83XF-1Y4TH-OTWZWB"},
+			},
+			{
+				name:    "spot post only order with a client order ID",
+				submit:  &order.Submit{AssetType: asset.Spot, Type: order.Limit, Side: order.Sell, Price: 90000, Amount: 0.5, TimeInForce: order.PostOnly, ClientOrderID: "gct-post-1"},
+				path:    "/0/private/AddOrder",
+				request: `{"cl_ord_id":"gct-post-1","oflags":"post","ordertype":"limit","pair":"XBTUSD","price":"90000","type":"sell","volume":"0.5"}`,
+				reply:   spotPlaced("OIPJSD-XXGKZ-RTDNG1", "sell 0.50000000 XBTUSD @ limit 90000.0"),
+				exp:     &order.SubmitResponse{Type: order.Limit, Side: order.Sell, TimeInForce: order.PostOnly, Price: 90000, Amount: 0.5, ClientOrderID: "gct-post-1", Status: order.New, OrderID: "OIPJSD-XXGKZ-RTDNG1"},
+			},
+			{
+				name:    "spot immediate or cancel order",
+				submit:  &order.Submit{AssetType: asset.Spot, Type: order.Limit, Side: order.Buy, Price: 81000, Amount: 0.5, TimeInForce: order.ImmediateOrCancel},
+				path:    "/0/private/AddOrder",
+				request: `{"ordertype":"limit","pair":"XBTUSD","price":"81000","timeinforce":"IOC","type":"buy","volume":"0.5"}`,
+				reply:   spotPlaced("O6ILXG-WV335-W1H72M", "buy 0.50000000 XBTUSD @ limit 81000.0"),
+				exp:     &order.SubmitResponse{Type: order.Limit, Side: order.Buy, TimeInForce: order.ImmediateOrCancel, Price: 81000, Amount: 0.5, Status: order.New, OrderID: "O6ILXG-WV335-W1H72M"},
+			},
+			{
+				name:    "spot fill or kill order",
+				submit:  &order.Submit{AssetType: asset.Spot, Type: order.Limit, Side: order.Buy, Price: 81000, Amount: 0.5, TimeInForce: order.FillOrKill},
+				path:    "/0/private/AddOrder",
+				request: `{"ordertype":"limit","pair":"XBTUSD","price":"81000","timeinforce":"FOK","type":"buy","volume":"0.5"}`,
+				reply:   spotPlaced("O6XQV8-FNDCO-0DF6F7", "buy 0.50000000 XBTUSD @ limit 81000.0"),
+				exp:     &order.SubmitResponse{Type: order.Limit, Side: order.Buy, TimeInForce: order.FillOrKill, Price: 81000, Amount: 0.5, Status: order.New, OrderID: "O6XQV8-FNDCO-0DF6F7"},
+			},
+			{
+				name:    "spot good till time order",
+				submit:  &order.Submit{AssetType: asset.Spot, Type: order.Limit, Side: order.Sell, Price: 90000, Amount: 0.5, TimeInForce: order.GoodTillTime, EndTime: ordersTestExpiry},
+				path:    "/0/private/AddOrder",
+				request: `{"expiretm":"1791590400","ordertype":"limit","pair":"XBTUSD","price":"90000","timeinforce":"GTD","type":"sell","volume":"0.5"}`,
+				reply:   spotPlaced("OR0CEN-TWHE5-ZJOOFV", "sell 0.50000000 XBTUSD @ limit 90000.0"),
+				exp:     &order.SubmitResponse{Type: order.Limit, Side: order.Sell, TimeInForce: order.GoodTillTime, Price: 90000, Amount: 0.5, Status: order.New, OrderID: "OR0CEN-TWHE5-ZJOOFV"},
+			},
+			{
+				name:    "spot market order",
+				submit:  &order.Submit{AssetType: asset.Spot, Type: order.Market, Side: order.Sell, Amount: 0.25},
+				path:    "/0/private/AddOrder",
+				request: `{"ordertype":"market","pair":"XBTUSD","type":"sell","volume":"0.25"}`,
+				reply:   spotPlaced("OZD33P-8CG44-9E2SMV", "sell 0.25000000 XBTUSD @ market"),
+				exp:     &order.SubmitResponse{Type: order.Market, Side: order.Sell, Amount: 0.25, Status: order.Filled, OrderID: "OZD33P-8CG44-9E2SMV"},
+			},
+			{
+				name:    "spot market buy sized in the quote currency",
+				submit:  &order.Submit{AssetType: asset.Spot, Type: order.Market, Side: order.Buy, QuoteAmount: 100},
+				path:    "/0/private/AddOrder",
+				request: `{"oflags":"viqc","ordertype":"market","pair":"XBTUSD","type":"buy","volume":"100"}`,
+				reply:   spotPlaced("OFCPM1-37ISG-FU08H6", "buy 100.00000000 XBTUSD @ market"),
+				exp:     &order.SubmitResponse{Type: order.Market, Side: order.Buy, QuoteAmount: 100, Status: order.Filled, OrderID: "OFCPM1-37ISG-FU08H6"},
+			},
+			{
+				// Add Order takes a quote amount for market buys alone
+				name:    "spot market sell carrying a quote amount",
+				submit:  &order.Submit{AssetType: asset.Spot, Type: order.Market, Side: order.Sell, Amount: 0.25, QuoteAmount: 20000},
+				path:    "/0/private/AddOrder",
+				request: `{"ordertype":"market","pair":"XBTUSD","type":"sell","volume":"0.25"}`,
+				reply:   spotPlaced("OBHC5N-U3V9W-KDTAAS", "sell 0.25000000 XBTUSD @ market"),
+				exp:     &order.SubmitResponse{Type: order.Market, Side: order.Sell, Amount: 0.25, QuoteAmount: 20000, Status: order.Filled, OrderID: "OBHC5N-U3V9W-KDTAAS"},
+			},
+			{
+				name:    "futures limit order",
+				submit:  &order.Submit{AssetType: asset.Futures, Type: order.Limit, Side: order.Buy, Price: 81500, Amount: 0.0005},
+				path:    "/derivatives/api/v3/sendorder",
+				request: "limitPrice=81500&orderType=lmt&side=buy&size=0.0005&symbol=PF_XBTUSD",
+				reply:   futuresPlaced("1c4bb72a-7afe-4b9b-9b9b-50e772c06e89", "lmt", "buy", 0.0005, 81500),
+				exp:     &order.SubmitResponse{Type: order.Limit, Side: order.Buy, Price: 81500, Amount: 0.0005, Status: order.New, OrderID: "1c4bb72a-7afe-4b9b-9b9b-50e772c06e89"},
+			},
+			{
+				name:    "futures post only order",
+				submit:  &order.Submit{AssetType: asset.Futures, Type: order.Limit, Side: order.Sell, Price: 82500, Amount: 0.0005, TimeInForce: order.PostOnly},
+				path:    "/derivatives/api/v3/sendorder",
+				request: "limitPrice=82500&orderType=post&side=sell&size=0.0005&symbol=PF_XBTUSD",
+				reply:   futuresPlaced("64e79f53-8422-4bbc-8a65-2f6a879ccff1", "post", "sell", 0.0005, 82500),
+				exp:     &order.SubmitResponse{Type: order.Limit, Side: order.Sell, TimeInForce: order.PostOnly, Price: 82500, Amount: 0.0005, Status: order.New, OrderID: "64e79f53-8422-4bbc-8a65-2f6a879ccff1"},
+			},
+			{
+				name:    "futures immediate or cancel order",
+				submit:  &order.Submit{AssetType: asset.Futures, Type: order.Limit, Side: order.Buy, Price: 81600, Amount: 0.0005, TimeInForce: order.ImmediateOrCancel},
+				path:    "/derivatives/api/v3/sendorder",
+				request: "limitPrice=81600&orderType=ioc&side=buy&size=0.0005&symbol=PF_XBTUSD",
+				reply:   futuresExecuted("1cd7f466-fba0-4fbc-84e6-6c72fe725b6f", "", "ioc", "buy", 0.0005, 81600, 81588, false),
+				exp: &order.SubmitResponse{
+					Type:                 order.Limit,
+					Side:                 order.Buy,
+					TimeInForce:          order.ImmediateOrCancel,
+					Price:                81600,
+					Amount:               0.0005,
+					ExecutedAmount:       0.0005,
+					AverageExecutedPrice: 81588,
+					Status:               order.Filled,
+					OrderID:              "1cd7f466-fba0-4fbc-84e6-6c72fe725b6f",
+					Trades:               executed(order.Limit, order.Buy, 81588, 0.0005),
+				},
+			},
+			{
+				name:    "futures fill or kill order",
+				submit:  &order.Submit{AssetType: asset.Futures, Type: order.Limit, Side: order.Buy, Price: 81600, Amount: 0.0005, TimeInForce: order.FillOrKill},
+				path:    "/derivatives/api/v3/sendorder",
+				request: "limitPrice=81600&orderType=fok&side=buy&size=0.0005&symbol=PF_XBTUSD",
+				reply:   futuresExecuted("25f378e1-7598-40f4-a5e0-0ac669661081", "", "fok", "buy", 0.0005, 81600, 81591, false),
+				exp: &order.SubmitResponse{
+					Type:                 order.Limit,
+					Side:                 order.Buy,
+					TimeInForce:          order.FillOrKill,
+					Price:                81600,
+					Amount:               0.0005,
+					ExecutedAmount:       0.0005,
+					AverageExecutedPrice: 81591,
+					Status:               order.Filled,
+					OrderID:              "25f378e1-7598-40f4-a5e0-0ac669661081",
+					Trades:               executed(order.Limit, order.Buy, 81591, 0.0005),
+				},
+			},
+			{
+				name:    "futures reduce only market order with a client order ID",
+				submit:  &order.Submit{AssetType: asset.Futures, Type: order.Market, Side: order.Sell, Amount: 0.001, ReduceOnly: true, ClientOrderID: "gct-market-1"},
+				path:    "/derivatives/api/v3/sendorder",
+				request: "cliOrdId=gct-market-1&orderType=mkt&reduceOnly=true&side=sell&size=0.001&symbol=PF_XBTUSD",
+				reply:   futuresExecuted("4a762a34-dffa-48db-b7f1-4cce43a94fa1", "gct-market-1", "ioc", "sell", 0.001, 80784, 81590, true),
+				exp: &order.SubmitResponse{
+					Type:                 order.Market,
+					Side:                 order.Sell,
+					ReduceOnly:           true,
+					Amount:               0.001,
+					ExecutedAmount:       0.001,
+					ClientOrderID:        "gct-market-1",
+					AverageExecutedPrice: 81590,
+					Status:               order.Filled,
+					OrderID:              "4a762a34-dffa-48db-b7f1-4cce43a94fa1",
+					Trades:               executed(order.Market, order.Sell, 81590, 0.001),
+				},
+			},
+			{
+				name:    "futures post only order that would execute",
+				submit:  &order.Submit{AssetType: asset.Futures, Type: order.Limit, Side: order.Buy, Price: 81900, Amount: 0.0005, TimeInForce: order.PostOnly},
+				path:    "/derivatives/api/v3/sendorder",
+				request: "limitPrice=81900&orderType=post&side=buy&size=0.0005&symbol=PF_XBTUSD",
+				reply: `{"result":"success","sendStatus":{"orderEvents":[{"order":{"algoId":null,"cliOrdId":null,"filled":0,"lastUpdateTimestamp":"2026-10-09T08:18:10.005Z",` +
+					`"limitPrice":81900,"orderId":"c5d6e7f8-a9b0-4c3d-8e4f-5a6b7c8d9e0f","quantity":0.0005,"reduceOnly":false,"side":"buy","symbol":"PF_XBTUSD",` +
+					`"timestamp":"2026-10-09T08:18:10.004Z","type":"post"},"reason":"POST_WOULD_EXECUTE","type":"REJECT","uid":"c5d6e7f8-a9b0-4c3d-8e4f-5a6b7c8d9e0f"}],` +
+					`"order_id":"c5d6e7f8-a9b0-4c3d-8e4f-5a6b7c8d9e0f","receivedTime":"2026-10-09T08:18:10.004Z","status":"postWouldExecute"},"serverTime":"2026-10-09T08:18:10.006Z"}`,
+				err: order.ErrPlaceFailed,
+			},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				ex := newOrdersRequestCheckExchange(t, tc.path, tc.request, tc.reply)
+				tc.submit.Exchange, tc.submit.Pair = ex.Name, spotTestPair
+				if tc.submit.AssetType == asset.Futures {
+					tc.submit.Pair = futuresTestPair
+				}
+				submitted := time.Now()
+				resp, err := ex.SubmitOrder(t.Context(), tc.submit)
+				if tc.err != nil {
+					assert.ErrorIs(t, err, tc.err, "SubmitOrder should return Kraken's refusal")
+					return
+				}
+				require.NoError(t, err, "SubmitOrder must not error")
+				ordersClearSubmitTimes(t, resp, submitted)
+				tc.exp.Exchange, tc.exp.Pair, tc.exp.AssetType = ex.Name, tc.submit.Pair, tc.submit.AssetType
+				for i := range tc.exp.Trades {
+					tc.exp.Trades[i].Exchange = ex.Name
+				}
+				assert.Equal(t, tc.exp, resp, "SubmitOrder should place the order without a trigger reference, with what it executed as placed")
+			})
+		}
+	})
+
+	t.Run("spot trailing stop without a tracking mode", func(t *testing.T) {
+		t.Parallel()
+		ex := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+			assert.Failf(t, "no order should be placed", "%s", r.URL.Path)
+			_, _ = w.Write([]byte(`{"error":["EGeneral:Invalid arguments"]}`))
+		})
+		_, err := ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: spotTestPair, AssetType: asset.Spot, Type: order.TrailingStop, Side: order.Sell, Amount: 0.3, TrackingValue: 2.5})
+		assert.ErrorIs(t, err, order.ErrUnknownTrackingMode, "SubmitOrder should reject a spot trailing stop without a tracking mode over REST")
+		ws := newOrdersWsTestExchange(t)
+		_, err = ws.SubmitOrder(t.Context(), &order.Submit{Exchange: ws.Name, Pair: spotTestPair, AssetType: asset.Spot, Type: order.TrailingStop, Side: order.Sell, Amount: 0.3, TrackingValue: 2.5})
+		assert.ErrorIs(t, err, order.ErrUnknownTrackingMode, "SubmitOrder should reject a spot trailing stop without a tracking mode over the private websocket")
+	})
+
+	t.Run("position sides", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name    string
+			submit  *order.Submit
+			path    string
+			request string
+			reply   string
+			orderID string
+		}{
+			{
+				name:    "spot bid over REST",
+				submit:  &order.Submit{AssetType: asset.Spot, Type: order.Stop, Side: order.Bid, TriggerPrice: 90000, Amount: 0.1},
+				path:    "/0/private/AddOrder",
+				request: `{"ordertype":"stop-loss","pair":"XBTUSD","price":"90000","trigger":"last","type":"buy","volume":"0.1"}`,
+				reply:   `{"error":[],"result":{"descr":{"order":"buy 0.10000000 XBTUSD @ stop loss 90000.0"},"txid":["OSIQRP-BJZQK-3R5CPS"]}}`,
+				orderID: "OSIQRP-BJZQK-3R5CPS",
+			},
+			{
+				name:    "futures long",
+				submit:  &order.Submit{AssetType: asset.Futures, Type: order.Stop, Side: order.Long, TriggerPrice: 84000, Amount: 0.001},
+				path:    "/derivatives/api/v3/sendorder",
+				request: "orderType=stp&side=buy&size=0.001&stopPrice=84000&symbol=PF_XBTUSD&triggerSignal=last",
+				reply: `{"result":"success","sendStatus":{"orderEvents":[{"orderTrigger":{"clientId":null,"lastUpdateTimestamp":"2026-10-09T08:35:02.441Z","limitPrice":null,` +
+					`"quantity":0.001,"reduceOnly":false,"side":"buy","startTime":null,"symbol":"PF_XBTUSD","timestamp":"2026-10-09T08:35:02.441Z","triggerPrice":84000,` +
+					`"triggerSide":"trigger_above","triggerSignal":"last_price","type":"lmt","uid":"7e2b9c41-5d8a-4f36-b1e7-3a9c0d6f2b58"},"type":"PLACE"}],` +
+					`"order_id":"7e2b9c41-5d8a-4f36-b1e7-3a9c0d6f2b58","receivedTime":"2026-10-09T08:35:02.441Z","status":"placed"},"serverTime":"2026-10-09T08:35:02.444Z"}`,
+				orderID: "7e2b9c41-5d8a-4f36-b1e7-3a9c0d6f2b58",
+			},
+			{
+				name:    "futures short",
+				submit:  &order.Submit{AssetType: asset.Futures, Type: order.Stop, Side: order.Short, TriggerPrice: 79000, Amount: 0.001},
+				path:    "/derivatives/api/v3/sendorder",
+				request: "orderType=stp&side=sell&size=0.001&stopPrice=79000&symbol=PF_XBTUSD&triggerSignal=last",
+				reply: `{"result":"success","sendStatus":{"orderEvents":[{"orderTrigger":{"clientId":null,"lastUpdateTimestamp":"2026-10-09T08:35:14.902Z","limitPrice":null,` +
+					`"quantity":0.001,"reduceOnly":false,"side":"sell","startTime":null,"symbol":"PF_XBTUSD","timestamp":"2026-10-09T08:35:14.902Z","triggerPrice":79000,` +
+					`"triggerSide":"trigger_below","triggerSignal":"last_price","type":"lmt","uid":"9f4d2a7e-0b6c-4e15-a8d3-5c1e7b9f4a26"},"type":"PLACE"}],` +
+					`"order_id":"9f4d2a7e-0b6c-4e15-a8d3-5c1e7b9f4a26","receivedTime":"2026-10-09T08:35:14.902Z","status":"placed"},"serverTime":"2026-10-09T08:35:14.905Z"}`,
+				orderID: "9f4d2a7e-0b6c-4e15-a8d3-5c1e7b9f4a26",
+			},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				ex := newOrdersRequestCheckExchange(t, tc.path, tc.request, tc.reply)
+				tc.submit.Exchange, tc.submit.Pair = ex.Name, spotTestPair
+				if tc.submit.AssetType == asset.Futures {
+					tc.submit.Pair = futuresTestPair
+				}
+				resp, err := ex.SubmitOrder(t.Context(), tc.submit)
+				require.NoError(t, err, "SubmitOrder must not error")
+				assert.Equal(t, tc.orderID, resp.OrderID, "SubmitOrder should place the order")
+			})
+		}
+		t.Run("spot ask over the private websocket", func(t *testing.T) {
+			t.Parallel()
+			ex := newOrdersWsTestExchange(t, ordersWsRoundTrip{
+				request: ordersWsRequest("add_order", `"order_type":"limit","side":"sell","order_qty":0.5,"limit_price":90000,"symbol":"BTC/USD"`),
+				replies: []string{ordersWsReply("add_order", `{"order_id":"OOSYBA-N7T1K-2E5PUZ"}`)},
+			})
+			resp, err := ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: spotTestPair, AssetType: asset.Spot, Type: order.Limit, Side: order.Ask, Price: 90000, Amount: 0.5})
+			require.NoError(t, err, "SubmitOrder must not error")
+			assert.Equal(t, "OOSYBA-N7T1K-2E5PUZ", resp.OrderID, "SubmitOrder should place the order")
+		})
+	})
+
+	t.Run("unsupported futures time in force", func(t *testing.T) {
+		t.Parallel()
+		ex := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+			assert.Failf(t, "no futures order should be placed", "%s", r.URL.RawQuery)
+			_, _ = w.Write([]byte(`{"result":"error","error":"invalidArgument","serverTime":"2026-10-09T08:42:00.001Z"}`))
+		})
+		// The cases share ex in order, so each also checks that a call keeps nothing from the last
+		for _, tc := range []struct {
+			orderType order.Type
+			tif       order.TimeInForce
+		}{
+			{order.Limit, order.GoodTillTime},
+			{order.Limit, order.GoodTillDay},
+			{order.Limit, order.GoodTillCrossing},
+			{order.Market, order.PostOnly},
+			{order.Market, order.FillOrKill},
+			{order.Stop, order.ImmediateOrCancel},
+			{order.TakeProfit, order.PostOnly},
+			{order.TrailingStop, order.FillOrKill},
+		} {
+			t.Run(tc.orderType.String()+" good for "+tc.tif.String(), func(t *testing.T) {
+				_, err := ex.SubmitOrder(t.Context(), &order.Submit{
+					Exchange:      ex.Name,
+					Pair:          futuresTestPair,
+					AssetType:     asset.Futures,
+					Type:          tc.orderType,
+					Side:          order.Buy,
+					Price:         81500,
+					TriggerPrice:  84000,
+					Amount:        0.001,
+					TrackingMode:  order.Percentage,
+					TrackingValue: 1,
+					TimeInForce:   tc.tif,
+					EndTime:       ordersTestExpiry,
+				})
+				assert.ErrorIsf(t, err, order.ErrUnsupportedTimeInForce, "SubmitOrder should reject a futures %s order good for %s", tc.orderType, tc.tif)
+			})
+		}
+	})
 }
 
 func TestSubmitSpotOrder(t *testing.T) {
@@ -3465,103 +4277,115 @@ func TestSubmitSpotOrder(t *testing.T) {
 		assert.ErrorIs(t, err, order.ErrPlaceFailed, "submitSpotOrder should report an order Kraken returned no transaction ID for as not placed")
 	})
 
-	if !mockTests {
-		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	}
-	for _, tc := range []struct {
-		name   string
-		submit *order.Submit
-		exp    *order.SubmitResponse
-	}{
-		{
-			name:   "stop loss order",
-			submit: &order.Submit{Type: order.Stop, Side: order.Sell, TriggerPrice: 75000, Amount: 0.25},
-			exp:    &order.SubmitResponse{Type: order.Stop, Side: order.Sell, Amount: 0.25, TriggerPrice: 75000, Status: order.New, OrderID: "OM3IVF-M83OG-3QQVT8"},
-		},
-		{
-			name:   "reduce only stop loss market order with a client order ID",
-			submit: &order.Submit{Type: order.StopMarket, Side: order.Sell, TriggerPrice: 74000, Amount: 0.5, ReduceOnly: true, ClientOrderID: "gct-stop-market-1"},
-			exp: &order.SubmitResponse{
-				Type:          order.StopMarket,
-				Side:          order.Sell,
-				ReduceOnly:    true,
-				Amount:        0.5,
-				TriggerPrice:  74000,
-				ClientOrderID: "gct-stop-market-1",
-				Status:        order.New,
-				OrderID:       "OYY4C7-3ZM21-M7RV93",
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+		}
+		for _, tc := range []struct {
+			name   string
+			submit *order.Submit
+			exp    *order.SubmitResponse
+		}{
+			{
+				name:   "stop loss order",
+				submit: &order.Submit{Type: order.Stop, Side: order.Sell, TriggerPrice: 75000, Amount: 0.25},
+				exp:    &order.SubmitResponse{Type: order.Stop, Side: order.Sell, Amount: 0.25, TriggerPrice: 75000, Status: order.New, OrderID: "OM3IVF-M83OG-3QQVT8"},
 			},
-		},
-		{
-			name:   "good till time stop loss limit order on the index price",
-			submit: &order.Submit{Type: order.StopLimit, Side: order.Buy, Price: 90500, TriggerPrice: 90000, TriggerPriceType: order.IndexPrice, Amount: 0.1, TimeInForce: order.GoodTillTime, EndTime: ordersTestExpiry},
-			exp: &order.SubmitResponse{
-				Type:         order.StopLimit,
-				Side:         order.Buy,
-				TimeInForce:  order.GoodTillTime,
-				Price:        90500,
-				Amount:       0.1,
-				TriggerPrice: 90000,
-				Status:       order.New,
-				OrderID:      "OXVM50-FN48W-18YG0H",
+			{
+				name:   "reduce only stop loss market order with a client order ID",
+				submit: &order.Submit{Type: order.StopMarket, Side: order.Sell, TriggerPrice: 74000, Amount: 0.5, ReduceOnly: true, ClientOrderID: "gct-stop-market-1"},
+				exp: &order.SubmitResponse{
+					Type:          order.StopMarket,
+					Side:          order.Sell,
+					ReduceOnly:    true,
+					Amount:        0.5,
+					TriggerPrice:  74000,
+					ClientOrderID: "gct-stop-market-1",
+					Status:        order.New,
+					OrderID:       "OYY4C7-3ZM21-M7RV93",
+				},
 			},
-		},
-		{
-			name:   "take profit order",
-			submit: &order.Submit{Type: order.TakeProfit, Side: order.Sell, TriggerPrice: 95000, Amount: 0.2},
-			exp:    &order.SubmitResponse{Type: order.TakeProfit, Side: order.Sell, Amount: 0.2, TriggerPrice: 95000, Status: order.New, OrderID: "OG0AY1-66MB6-W8XFSL"},
-		},
-		{
-			name:   "take profit market order on the index price",
-			submit: &order.Submit{Type: order.TakeProfitMarket, Side: order.Buy, TriggerPrice: 70000, TriggerPriceType: order.IndexPrice, Amount: 0.2},
-			exp:    &order.SubmitResponse{Type: order.TakeProfitMarket, Side: order.Buy, Amount: 0.2, TriggerPrice: 70000, Status: order.New, OrderID: "OU8BAY-V7GMS-7FHIZP"},
-		},
-		{
-			name:   "immediate or cancel take profit limit order",
-			submit: &order.Submit{Type: order.TakeProfit | order.Limit, Side: order.Sell, Price: 94800, TriggerPrice: 95000, Amount: 0.2, TimeInForce: order.ImmediateOrCancel},
-			exp: &order.SubmitResponse{
-				Type:         order.TakeProfit | order.Limit,
-				Side:         order.Sell,
-				TimeInForce:  order.ImmediateOrCancel,
-				Price:        94800,
-				Amount:       0.2,
-				TriggerPrice: 95000,
-				Status:       order.New,
-				OrderID:      "OXCEYT-TOWNO-UY89O5",
+			{
+				name:   "good till time stop loss limit order on the index price",
+				submit: &order.Submit{Type: order.StopLimit, Side: order.Buy, Price: 90500, TriggerPrice: 90000, TriggerPriceType: order.IndexPrice, Amount: 0.1, TimeInForce: order.GoodTillTime, EndTime: ordersTestExpiry},
+				exp: &order.SubmitResponse{
+					Type:         order.StopLimit,
+					Side:         order.Buy,
+					TimeInForce:  order.GoodTillTime,
+					Price:        90500,
+					Amount:       0.1,
+					TriggerPrice: 90000,
+					Status:       order.New,
+					OrderID:      "OXVM50-FN48W-18YG0H",
+				},
 			},
-		},
-		{
-			name:   "trailing stop order by percentage",
-			submit: &order.Submit{Type: order.TrailingStop, Side: order.Sell, Amount: 0.3, TrackingMode: order.Percentage, TrackingValue: 2.5},
-			exp:    &order.SubmitResponse{Type: order.TrailingStop, Side: order.Sell, Amount: 0.3, Status: order.New, OrderID: "OZHICX-5LU6D-JJX22M"},
-		},
-		{
-			name:   "trailing stop order by distance on the index price",
-			submit: &order.Submit{Type: order.TrailingStop, Side: order.Buy, Amount: 0.3, TrackingMode: order.Distance, TrackingValue: 1500, TriggerPriceType: order.IndexPrice},
-			exp:    &order.SubmitResponse{Type: order.TrailingStop, Side: order.Buy, Amount: 0.3, Status: order.New, OrderID: "O67Q7H-A6HTI-P4Y25B"},
-		},
-	} {
-		t.Run(tc.name+" over REST", func(t *testing.T) {
-			t.Parallel()
-			tc.submit.Exchange, tc.submit.Pair, tc.submit.AssetType = e.Name, spotTestPair, asset.Spot
-			submitted := time.Now()
-			resp, err := e.submitSpotOrder(t.Context(), tc.submit)
-			require.NoError(t, err, "submitSpotOrder must not error")
-			if !mockTests {
-				assert.NotEmpty(t, resp.OrderID, "submitSpotOrder should return the order ID")
-				return
-			}
-			ordersClearSubmitTimes(t, resp, submitted)
-			tc.exp.Exchange, tc.exp.Pair, tc.exp.AssetType = e.Name, spotTestPair, asset.Spot
-			assert.Equal(t, tc.exp, resp, "submitSpotOrder should place the order over REST")
+			{
+				name:   "take profit order",
+				submit: &order.Submit{Type: order.TakeProfit, Side: order.Sell, TriggerPrice: 95000, Amount: 0.2},
+				exp:    &order.SubmitResponse{Type: order.TakeProfit, Side: order.Sell, Amount: 0.2, TriggerPrice: 95000, Status: order.New, OrderID: "OG0AY1-66MB6-W8XFSL"},
+			},
+			{
+				name:   "take profit market order on the index price",
+				submit: &order.Submit{Type: order.TakeProfitMarket, Side: order.Buy, TriggerPrice: 70000, TriggerPriceType: order.IndexPrice, Amount: 0.2},
+				exp:    &order.SubmitResponse{Type: order.TakeProfitMarket, Side: order.Buy, Amount: 0.2, TriggerPrice: 70000, Status: order.New, OrderID: "OU8BAY-V7GMS-7FHIZP"},
+			},
+			{
+				name:   "immediate or cancel take profit limit order",
+				submit: &order.Submit{Type: order.TakeProfit | order.Limit, Side: order.Sell, Price: 94800, TriggerPrice: 95000, Amount: 0.2, TimeInForce: order.ImmediateOrCancel},
+				exp: &order.SubmitResponse{
+					Type:         order.TakeProfit | order.Limit,
+					Side:         order.Sell,
+					TimeInForce:  order.ImmediateOrCancel,
+					Price:        94800,
+					Amount:       0.2,
+					TriggerPrice: 95000,
+					Status:       order.New,
+					OrderID:      "OXCEYT-TOWNO-UY89O5",
+				},
+			},
+			{
+				name:   "trailing stop order by percentage",
+				submit: &order.Submit{Type: order.TrailingStop, Side: order.Sell, Amount: 0.3, TrackingMode: order.Percentage, TrackingValue: 2.5},
+				exp:    &order.SubmitResponse{Type: order.TrailingStop, Side: order.Sell, Amount: 0.3, Status: order.New, OrderID: "OZHICX-5LU6D-JJX22M"},
+			},
+			{
+				name:   "trailing stop order by distance on the index price",
+				submit: &order.Submit{Type: order.TrailingStop, Side: order.Buy, Amount: 0.3, TrackingMode: order.Distance, TrackingValue: 1500, TriggerPriceType: order.IndexPrice},
+				exp:    &order.SubmitResponse{Type: order.TrailingStop, Side: order.Buy, Amount: 0.3, Status: order.New, OrderID: "O67Q7H-A6HTI-P4Y25B"},
+			},
+		} {
+			t.Run(tc.name+" over REST", func(t *testing.T) {
+				t.Parallel()
+				tc.submit.Exchange, tc.submit.Pair, tc.submit.AssetType = e.Name, spotTestPair, asset.Spot
+				submitted := time.Now()
+				resp, err := e.submitSpotOrder(t.Context(), tc.submit)
+				require.NoError(t, err, "submitSpotOrder must not error")
+				if !mockTests {
+					assert.NotEmpty(t, resp.OrderID, "submitSpotOrder should return the order ID")
+					return
+				}
+				ordersClearSubmitTimes(t, resp, submitted)
+				tc.exp.Exchange, tc.exp.Pair, tc.exp.AssetType = e.Name, spotTestPair, asset.Spot
+				assert.Equal(t, tc.exp, resp, "submitSpotOrder should place the order over REST")
+			})
+		}
+		if !mockTests {
+			return
+		}
+		_, err := e.submitSpotOrder(t.Context(), &order.Submit{Exchange: e.Name, Pair: spotTestPair, AssetType: asset.Spot, Type: order.Stop, Side: order.Sell, TriggerPrice: 75000, Amount: 25})
+		require.ErrorIs(t, err, errAPIResponse, "submitSpotOrder must return Kraken's rejection as an API error")
+		assert.ErrorContains(t, err, "EOrder:Insufficient funds", "the error should carry Kraken's reason")
+	})
+
+	t.Run("side neither long nor short", func(t *testing.T) {
+		t.Parallel()
+		ex := newHTTPTestExchange(t, func(_ http.ResponseWriter, r *http.Request) {
+			assert.Failf(t, "no spot order should be placed", "%s", r.URL.Path)
 		})
-	}
-	if !mockTests {
-		return
-	}
-	_, err := e.submitSpotOrder(t.Context(), &order.Submit{Exchange: e.Name, Pair: spotTestPair, AssetType: asset.Spot, Type: order.Stop, Side: order.Sell, TriggerPrice: 75000, Amount: 25})
-	require.ErrorIs(t, err, errAPIResponse, "submitSpotOrder must return Kraken's rejection as an API error")
-	assert.ErrorContains(t, err, "EOrder:Insufficient funds", "the error should carry Kraken's reason")
+		_, err := ex.submitSpotOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: spotTestPair, AssetType: asset.Spot, Type: order.Limit, Side: order.UnknownSide, Price: 80000, Amount: 0.5})
+		assert.ErrorIs(t, err, order.ErrSideIsInvalid, "submitSpotOrder should reject a side that is neither long nor short")
+	})
 }
 
 func TestSpotOrderTypeString(t *testing.T) {
@@ -3577,13 +4401,24 @@ func TestSpotOrderTypeString(t *testing.T) {
 		order.TakeProfit | order.Limit: "take-profit-limit",
 		order.TrailingStop:             "trailing-stop",
 	} {
-		got, err := spotOrderTypeString(orderType)
-		require.NoErrorf(t, err, "spotOrderTypeString must not error for %s", orderType)
-		assert.Equalf(t, exp, got, "spotOrderTypeString should convert %s", orderType)
+		name := orderType.String()
+		// order.Type has no name for the composite take profit limit type, so that case is named by what it converts to
+		if orderType == order.TakeProfit|order.Limit {
+			name = exp
+		}
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			got, err := spotOrderTypeString(orderType)
+			require.NoErrorf(t, err, "spotOrderTypeString must not error for %s", orderType)
+			assert.Equalf(t, exp, got, "spotOrderTypeString should convert %s", orderType)
+		})
 	}
 	for _, orderType := range []order.Type{order.OCO, order.IOS, order.Liquidation} {
-		_, err := spotOrderTypeString(orderType)
-		assert.ErrorIsf(t, err, order.ErrUnsupportedOrderType, "spotOrderTypeString should reject %s", orderType)
+		t.Run(orderType.String(), func(t *testing.T) {
+			t.Parallel()
+			_, err := spotOrderTypeString(orderType)
+			assert.ErrorIsf(t, err, order.ErrUnsupportedOrderType, "spotOrderTypeString should reject %s", orderType)
+		})
 	}
 }
 
@@ -3599,13 +4434,19 @@ func TestSpotTimeInForceString(t *testing.T) {
 		order.GoodTillTime:                    timeInForceGTD,
 		order.GoodTillTime | order.PostOnly:   timeInForceGTD,
 	} {
-		got, err := spotTimeInForceString(tif)
-		require.NoErrorf(t, err, "spotTimeInForceString must not error for %s", tif)
-		assert.Equalf(t, exp, got, "spotTimeInForceString should convert %s", tif)
+		t.Run(cmp.Or(tif.String(), "unknown"), func(t *testing.T) {
+			t.Parallel()
+			got, err := spotTimeInForceString(tif)
+			require.NoErrorf(t, err, "spotTimeInForceString must not error for %s", tif)
+			assert.Equalf(t, exp, got, "spotTimeInForceString should convert %s", tif)
+		})
 	}
 	for _, tif := range []order.TimeInForce{order.GoodTillDay, order.GoodTillCrossing, order.StopOrReduce} {
-		_, err := spotTimeInForceString(tif)
-		assert.ErrorIsf(t, err, order.ErrUnsupportedTimeInForce, "spotTimeInForceString should reject %s", tif)
+		t.Run(tif.String(), func(t *testing.T) {
+			t.Parallel()
+			_, err := spotTimeInForceString(tif)
+			assert.ErrorIsf(t, err, order.ErrUnsupportedTimeInForce, "spotTimeInForceString should reject %s", tif)
+		})
 	}
 }
 
@@ -3616,9 +4457,12 @@ func TestSpotTriggerReference(t *testing.T) {
 		order.LastPrice:        "last",
 		order.IndexPrice:       "index",
 	} {
-		got, err := spotTriggerReference(priceType)
-		require.NoErrorf(t, err, "spotTriggerReference must not error for %s", priceType)
-		assert.Equalf(t, exp, got, "spotTriggerReference should convert %s", priceType)
+		t.Run(cmp.Or(priceType.String(), "unknown"), func(t *testing.T) {
+			t.Parallel()
+			got, err := spotTriggerReference(priceType)
+			require.NoErrorf(t, err, "spotTriggerReference must not error for %s", priceType)
+			assert.Equalf(t, exp, got, "spotTriggerReference should convert %s", priceType)
+		})
 	}
 	_, err := spotTriggerReference(order.MarkPrice)
 	assert.ErrorIs(t, err, order.ErrUnknownPriceType, "spotTriggerReference should reject the mark price, which spot orders cannot trigger on")
@@ -3626,245 +4470,164 @@ func TestSpotTriggerReference(t *testing.T) {
 
 func TestSubmitFuturesOrder(t *testing.T) {
 	t.Parallel()
-	if !mockTests {
-		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	}
-	for _, tc := range []struct {
-		name   string
-		submit *order.Submit
-		exp    *order.SubmitResponse
-	}{
-		{
-			name:   "stop order",
-			submit: &order.Submit{Type: order.Stop, Side: order.Sell, TriggerPrice: 79000, Amount: 0.001},
-			exp:    &order.SubmitResponse{Type: order.Stop, Side: order.Sell, Amount: 0.001, TriggerPrice: 79000, Status: order.New, OrderID: "770a8a11-d8a4-4525-b292-8b3d4ee2e308"},
-		},
-		{
-			name: "reduce only stop limit order on the mark price with a client order ID",
-			submit: &order.Submit{
-				Type:             order.StopLimit,
-				Side:             order.Sell,
-				Price:            78900,
-				TriggerPrice:     79000,
-				TriggerPriceType: order.MarkPrice,
-				Amount:           0.002,
-				ReduceOnly:       true,
-				ClientOrderID:    "gct-stop-limit-1",
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+		}
+		for _, tc := range []struct {
+			name   string
+			submit *order.Submit
+			exp    *order.SubmitResponse
+		}{
+			{
+				name:   "stop order",
+				submit: &order.Submit{Type: order.Stop, Side: order.Sell, TriggerPrice: 79000, Amount: 0.001},
+				exp:    &order.SubmitResponse{Type: order.Stop, Side: order.Sell, Amount: 0.001, TriggerPrice: 79000, Status: order.New, OrderID: "770a8a11-d8a4-4525-b292-8b3d4ee2e308"},
 			},
-			exp: &order.SubmitResponse{
-				Type:          order.StopLimit,
-				Side:          order.Sell,
-				ReduceOnly:    true,
-				Price:         78900,
-				Amount:        0.002,
-				TriggerPrice:  79000,
-				ClientOrderID: "gct-stop-limit-1",
-				Status:        order.New,
-				OrderID:       "517184b8-317e-4cd6-a794-ef3e69ee42bf",
+			{
+				name: "reduce only stop limit order on the mark price with a client order ID",
+				submit: &order.Submit{
+					Type:             order.StopLimit,
+					Side:             order.Sell,
+					Price:            78900,
+					TriggerPrice:     79000,
+					TriggerPriceType: order.MarkPrice,
+					Amount:           0.002,
+					ReduceOnly:       true,
+					ClientOrderID:    "gct-stop-limit-1",
+				},
+				exp: &order.SubmitResponse{
+					Type:          order.StopLimit,
+					Side:          order.Sell,
+					ReduceOnly:    true,
+					Price:         78900,
+					Amount:        0.002,
+					TriggerPrice:  79000,
+					ClientOrderID: "gct-stop-limit-1",
+					Status:        order.New,
+					OrderID:       "517184b8-317e-4cd6-a794-ef3e69ee42bf",
+				},
 			},
-		},
-		{
-			name:   "stop market order on the index price",
-			submit: &order.Submit{Type: order.StopMarket, Side: order.Buy, TriggerPrice: 84000, TriggerPriceType: order.IndexPrice, Amount: 0.001},
-			exp:    &order.SubmitResponse{Type: order.StopMarket, Side: order.Buy, Amount: 0.001, TriggerPrice: 84000, Status: order.New, OrderID: "63d3a362-edfc-4f1b-b420-8a0b172bac98"},
-		},
-		{
-			name:   "take profit order",
-			submit: &order.Submit{Type: order.TakeProfit, Side: order.Sell, TriggerPrice: 86000, Amount: 0.001},
-			exp:    &order.SubmitResponse{Type: order.TakeProfit, Side: order.Sell, Amount: 0.001, TriggerPrice: 86000, Status: order.New, OrderID: "cd1adc0e-2cbe-4c9c-9b0c-7526b5c7c567"},
-		},
-		{
-			name:   "take profit market order",
-			submit: &order.Submit{Type: order.TakeProfitMarket, Side: order.Buy, TriggerPrice: 76000, Amount: 0.001},
-			exp:    &order.SubmitResponse{Type: order.TakeProfitMarket, Side: order.Buy, Amount: 0.001, TriggerPrice: 76000, Status: order.New, OrderID: "f6564232-dcf9-48c5-803b-8ae160fb6d85"},
-		},
-		{
-			name:   "take profit limit order on the index price",
-			submit: &order.Submit{Type: order.TakeProfit | order.Limit, Side: order.Sell, Price: 85900, TriggerPrice: 86000, TriggerPriceType: order.IndexPrice, Amount: 0.001},
-			exp:    &order.SubmitResponse{Type: order.TakeProfit | order.Limit, Side: order.Sell, Price: 85900, Amount: 0.001, TriggerPrice: 86000, Status: order.New, OrderID: "4fd39d86-4af5-4b7a-9bc5-7495be737079"},
-		},
-		{
-			name:   "trailing stop order by distance",
-			submit: &order.Submit{Type: order.TrailingStop, Side: order.Sell, Amount: 0.002, TrackingMode: order.Distance, TrackingValue: 300},
-			exp:    &order.SubmitResponse{Type: order.TrailingStop, Side: order.Sell, Amount: 0.002, Status: order.New, OrderID: "faf96f13-3aef-495d-8b35-a7dbe3417f93"},
-		},
-		{
-			name:   "trailing stop order by percentage on the mark price",
-			submit: &order.Submit{Type: order.TrailingStop, Side: order.Buy, Amount: 0.002, TrackingMode: order.Percentage, TrackingValue: 1.5, TriggerPriceType: order.MarkPrice},
-			exp:    &order.SubmitResponse{Type: order.TrailingStop, Side: order.Buy, Amount: 0.002, Status: order.New, OrderID: "6bbd67fd-65cd-4527-88cf-39ebed970483"},
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			tc.submit.Exchange, tc.submit.Pair, tc.submit.AssetType = e.Name, futuresTestPair, asset.Futures
-			submitted := time.Now()
-			resp, err := e.submitFuturesOrder(t.Context(), tc.submit)
-			require.NoError(t, err, "submitFuturesOrder must not error")
-			if !mockTests {
-				assert.NotEmpty(t, resp.OrderID, "submitFuturesOrder should return the order ID")
-				return
-			}
-			ordersClearSubmitTimes(t, resp, submitted)
-			tc.exp.Exchange, tc.exp.Pair, tc.exp.AssetType = e.Name, futuresTestPair, asset.Futures
-			assert.Equal(t, tc.exp, resp, "submitFuturesOrder should place the order")
+			{
+				name:   "stop market order on the index price",
+				submit: &order.Submit{Type: order.StopMarket, Side: order.Buy, TriggerPrice: 84000, TriggerPriceType: order.IndexPrice, Amount: 0.001},
+				exp:    &order.SubmitResponse{Type: order.StopMarket, Side: order.Buy, Amount: 0.001, TriggerPrice: 84000, Status: order.New, OrderID: "63d3a362-edfc-4f1b-b420-8a0b172bac98"},
+			},
+			{
+				name:   "take profit order",
+				submit: &order.Submit{Type: order.TakeProfit, Side: order.Sell, TriggerPrice: 86000, Amount: 0.001},
+				exp:    &order.SubmitResponse{Type: order.TakeProfit, Side: order.Sell, Amount: 0.001, TriggerPrice: 86000, Status: order.New, OrderID: "cd1adc0e-2cbe-4c9c-9b0c-7526b5c7c567"},
+			},
+			{
+				name:   "take profit market order",
+				submit: &order.Submit{Type: order.TakeProfitMarket, Side: order.Buy, TriggerPrice: 76000, Amount: 0.001},
+				exp:    &order.SubmitResponse{Type: order.TakeProfitMarket, Side: order.Buy, Amount: 0.001, TriggerPrice: 76000, Status: order.New, OrderID: "f6564232-dcf9-48c5-803b-8ae160fb6d85"},
+			},
+			{
+				name:   "take profit limit order on the index price",
+				submit: &order.Submit{Type: order.TakeProfit | order.Limit, Side: order.Sell, Price: 85900, TriggerPrice: 86000, TriggerPriceType: order.IndexPrice, Amount: 0.001},
+				exp:    &order.SubmitResponse{Type: order.TakeProfit | order.Limit, Side: order.Sell, Price: 85900, Amount: 0.001, TriggerPrice: 86000, Status: order.New, OrderID: "4fd39d86-4af5-4b7a-9bc5-7495be737079"},
+			},
+			{
+				name:   "trailing stop order by distance",
+				submit: &order.Submit{Type: order.TrailingStop, Side: order.Sell, Amount: 0.002, TrackingMode: order.Distance, TrackingValue: 300},
+				exp:    &order.SubmitResponse{Type: order.TrailingStop, Side: order.Sell, Amount: 0.002, Status: order.New, OrderID: "faf96f13-3aef-495d-8b35-a7dbe3417f93"},
+			},
+			{
+				name:   "trailing stop order by percentage on the mark price",
+				submit: &order.Submit{Type: order.TrailingStop, Side: order.Buy, Amount: 0.002, TrackingMode: order.Percentage, TrackingValue: 1.5, TriggerPriceType: order.MarkPrice},
+				exp:    &order.SubmitResponse{Type: order.TrailingStop, Side: order.Buy, Amount: 0.002, Status: order.New, OrderID: "6bbd67fd-65cd-4527-88cf-39ebed970483"},
+			},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				tc.submit.Exchange, tc.submit.Pair, tc.submit.AssetType = e.Name, futuresTestPair, asset.Futures
+				submitted := time.Now()
+				resp, err := e.submitFuturesOrder(t.Context(), tc.submit)
+				require.NoError(t, err, "submitFuturesOrder must not error")
+				if !mockTests {
+					assert.NotEmpty(t, resp.OrderID, "submitFuturesOrder should return the order ID")
+					return
+				}
+				ordersClearSubmitTimes(t, resp, submitted)
+				tc.exp.Exchange, tc.exp.Pair, tc.exp.AssetType = e.Name, futuresTestPair, asset.Futures
+				assert.Equal(t, tc.exp, resp, "submitFuturesOrder should place the order")
+			})
+		}
+		if !mockTests {
+			return
+		}
+		_, err := e.submitFuturesOrder(t.Context(), &order.Submit{
+			Exchange:      e.Name,
+			Pair:          futuresTestPair,
+			AssetType:     asset.Futures,
+			Type:          order.TrailingStop,
+			Side:          order.Sell,
+			Amount:        0.002,
+			TrackingMode:  order.Percentage,
+			TrackingValue: 1.5,
+			ClientOrderID: "gct-trailing-1",
 		})
-	}
-	if !mockTests {
-		return
-	}
-	_, err := e.submitFuturesOrder(t.Context(), &order.Submit{
-		Exchange:      e.Name,
-		Pair:          futuresTestPair,
-		AssetType:     asset.Futures,
-		Type:          order.TrailingStop,
-		Side:          order.Sell,
-		Amount:        0.002,
-		TrackingMode:  order.Percentage,
-		TrackingValue: 1.5,
-		ClientOrderID: "gct-trailing-1",
+		require.ErrorIs(t, err, order.ErrPlaceFailed, "submitFuturesOrder must report a placement Kraken refused as failed")
+		assert.ErrorContains(t, err, "insufficientAvailableFunds", "the error should carry Kraken's status")
 	})
-	require.ErrorIs(t, err, order.ErrPlaceFailed, "submitFuturesOrder must report a placement Kraken refused as failed")
-	assert.ErrorContains(t, err, "insufficientAvailableFunds", "the error should carry Kraken's status")
-}
 
-func TestSubmitSpotOrderInvalidSide(t *testing.T) {
-	t.Parallel()
-	ex := newHTTPTestExchange(t, func(_ http.ResponseWriter, r *http.Request) {
-		assert.Failf(t, "no spot order should be placed", "%s", r.URL.Path)
+	t.Run("side neither long nor short", func(t *testing.T) {
+		t.Parallel()
+		ex := newHTTPTestExchange(t, func(_ http.ResponseWriter, r *http.Request) {
+			assert.Failf(t, "no futures order should be placed", "%s", r.URL.Path)
+		})
+		_, err := ex.submitFuturesOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: futuresTestPair, AssetType: asset.Futures, Type: order.Limit, Side: order.UnknownSide, Price: 80000, Amount: 0.001})
+		assert.ErrorIs(t, err, order.ErrSideIsInvalid, "submitFuturesOrder should reject a side that is neither long nor short")
 	})
-	_, err := ex.submitSpotOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: spotTestPair, AssetType: asset.Spot, Type: order.Limit, Side: order.UnknownSide, Price: 80000, Amount: 0.5})
-	assert.ErrorIs(t, err, order.ErrSideIsInvalid, "submitSpotOrder should reject a side that is neither long nor short")
-}
 
-func TestSubmitFuturesOrderInvalidSide(t *testing.T) {
-	t.Parallel()
-	ex := newHTTPTestExchange(t, func(_ http.ResponseWriter, r *http.Request) {
-		assert.Failf(t, "no futures order should be placed", "%s", r.URL.Path)
+	t.Run("placement reported without an order ID", func(t *testing.T) {
+		t.Parallel()
+		ex := newOrdersRequestCheckExchange(t, "/derivatives/api/v3/sendorder", "limitPrice=80000&orderType=lmt&side=buy&size=0.001&symbol=PF_XBTUSD",
+			`{"result":"success","sendStatus":{"orderEvents":[],"receivedTime":"2026-10-09T08:33:01.104Z","status":"placed"},"serverTime":"2026-10-09T08:33:01.107Z"}`)
+		_, err := ex.submitFuturesOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: futuresTestPair, AssetType: asset.Futures, Type: order.Limit, Side: order.Buy, Price: 80000, Amount: 0.001})
+		assert.ErrorIs(t, err, order.ErrOrderIDNotSet, "submitFuturesOrder should reject a placement Kraken reports without an order ID")
 	})
-	_, err := ex.submitFuturesOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: futuresTestPair, AssetType: asset.Futures, Type: order.Limit, Side: order.UnknownSide, Price: 80000, Amount: 0.001})
-	assert.ErrorIs(t, err, order.ErrSideIsInvalid, "submitFuturesOrder should reject a side that is neither long nor short")
-}
-
-func TestSubmitOrderFuturesLeverageRejected(t *testing.T) {
-	t.Parallel()
-	ex := newHTTPTestExchange(t, func(_ http.ResponseWriter, r *http.Request) {
-		assert.Failf(t, "no futures order should be placed", "%s", r.URL.Path)
-	})
-	for _, leverage := range []float64{3, 2.5, 1.5, 0.5, -2, math.NaN(), math.Inf(1)} {
-		_, err := ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: futuresTestPair, AssetType: asset.Futures, Type: order.Limit, Side: order.Buy, Price: 80000, Amount: 0.001, Leverage: leverage})
-		assert.ErrorIsf(t, err, order.ErrSubmitLeverageNotSupported, "SubmitOrder should reject leverage %v, as Kraken's Send order takes none", leverage)
-	}
-}
-
-func TestSubmitOrderFuturesLeverageOfOne(t *testing.T) {
-	t.Parallel()
-	ex := newOrdersRequestCheckExchange(t, "/derivatives/api/v3/sendorder", "limitPrice=80000&orderType=lmt&side=buy&size=0.001&symbol=PF_XBTUSD",
-		`{"result":"success","sendStatus":{"order_id":"o-1","orderEvents":[],"receivedTime":"2026-10-09T08:33:01.104Z","status":"placed"},"serverTime":"2026-10-09T08:33:01.107Z"}`)
-	resp, err := ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: futuresTestPair, AssetType: asset.Futures, Type: order.Limit, Side: order.Buy, Price: 80000, Amount: 0.001, Leverage: 1})
-	require.NoError(t, err, "SubmitOrder must place an order asking for a leverage of 1, as other exchanges do")
-	assert.Equal(t, "o-1", resp.OrderID, "SubmitOrder should return the placed order's ID")
-}
-
-func TestSubmitOrderTriggeredLimitPrice(t *testing.T) {
-	t.Parallel()
-	ex := newHTTPTestExchange(t, func(_ http.ResponseWriter, r *http.Request) {
-		assert.Failf(t, "no order should be placed", "%s", r.URL.Path)
-	})
-	wsEx := newHTTPTestExchange(t, func(_ http.ResponseWriter, r *http.Request) {
-		assert.Failf(t, "no order should be placed", "%s", r.URL.Path)
-	})
-	// Without round trips the mock fails the test on any websocket request
-	useOrdersTestWebsocket(t, wsEx)
-	for _, tc := range []struct {
-		name      string
-		orderType order.Type
-		side      order.Side
-		price     float64
-		tif       order.TimeInForce
-		trigger   order.PriceType
-		leverage  float64
-		assets    []asset.Item
-	}{
-		{name: "stop limit", orderType: order.StopLimit, side: order.Sell},
-		{name: "take profit limit", orderType: order.TakeProfit | order.Limit, side: order.Buy},
-		{name: "stop limit", orderType: order.StopLimit, side: order.Buy, price: -1},
-		{name: "take profit limit", orderType: order.TakeProfit | order.Limit, side: order.Sell, price: -1},
-		{name: "good till cancelled stop limit", orderType: order.StopLimit, side: order.Sell, tif: order.GoodTillCancel},
-		{name: "index price stop limit", orderType: order.StopLimit, side: order.Buy, trigger: order.IndexPrice},
-		{name: "leveraged stop limit", orderType: order.StopLimit, side: order.Sell, leverage: 1},
-		{name: "mark price stop limit", orderType: order.StopLimit, side: order.Buy, trigger: order.MarkPrice, assets: []asset.Item{asset.Futures}},
-	} {
-		assets := tc.assets
-		if assets == nil {
-			assets = []asset.Item{asset.Spot, asset.Futures}
-		}
-		for _, a := range assets {
-			s := order.Submit{Exchange: ex.Name, Pair: spotTestPair, AssetType: a, Type: tc.orderType, Side: tc.side, Amount: 0.5, TriggerPrice: 70000, TriggerPriceType: tc.trigger, Price: tc.price, TimeInForce: tc.tif, Leverage: tc.leverage}
-			if a == asset.Futures {
-				s.Pair = futuresTestPair
-			}
-			_, err := ex.SubmitOrder(t.Context(), &s)
-			assert.ErrorIsf(t, err, order.ErrPriceMustBeSetIfLimitOrder, "SubmitOrder should refuse a %s %s %s order with a limit price of %v", a, tc.side, tc.name, tc.price)
-			if a == asset.Spot {
-				s.Exchange = wsEx.Name
-				_, err = wsEx.SubmitOrder(t.Context(), &s)
-				assert.ErrorIsf(t, err, order.ErrPriceMustBeSetIfLimitOrder, "SubmitOrder should refuse a spot %s %s order with a limit price of %v over the private websocket", tc.side, tc.name, tc.price)
-			}
-		}
-	}
-
-	futuresPlaced := newOrdersRequestCheckExchange(t, "/derivatives/api/v3/sendorder",
-		url.Values{"limitPrice": {"0.5"}, "orderType": {"stp"}, "side": {"sell"}, "size": {"0.5"}, "stopPrice": {"0.6"}, "symbol": {"PF_XBTUSD"}, "triggerSignal": {"last"}}.Encode(),
-		`{"result":"success","sendStatus":{"order_id":"f-stop-limit","status":"placed","receivedTime":"2026-10-09T08:33:01.104Z","orderEvents":[]},"serverTime":"2026-10-09T08:33:01.107Z"}`)
-	resp, err := futuresPlaced.SubmitOrder(t.Context(), &order.Submit{Exchange: futuresPlaced.Name, Pair: futuresTestPair, AssetType: asset.Futures, Type: order.StopLimit, Side: order.Sell, Amount: 0.5, TriggerPrice: 0.6, Price: 0.5})
-	require.NoError(t, err, "SubmitOrder must place a futures stop limit order with a limit price below 1")
-	assert.Equal(t, "f-stop-limit", resp.OrderID, "SubmitOrder should return the futures stop limit order's ID")
-
-	spotPlaced := newOrdersRequestCheckExchange(t, "/0/private/AddOrder", `{"ordertype":"take-profit-limit","pair":"XBTUSD","price":"0.6","price2":"0.5","trigger":"last","type":"buy","volume":"0.5"}`,
-		`{"error":[],"result":{"descr":{"order":"buy 0.50000000 XBTUSD @ take profit 0.6 -> limit 0.5"},"txid":["OTPL5-UOSK2-KOFH7X"]}}`)
-	resp, err = spotPlaced.SubmitOrder(t.Context(), &order.Submit{Exchange: spotPlaced.Name, Pair: spotTestPair, AssetType: asset.Spot, Type: order.TakeProfit | order.Limit, Side: order.Buy, Amount: 0.5, TriggerPrice: 0.6, Price: 0.5})
-	require.NoError(t, err, "SubmitOrder must place a spot take profit limit order with a limit price below 1")
-	assert.Equal(t, "OTPL5-UOSK2-KOFH7X", resp.OrderID, "SubmitOrder should return the spot take profit limit order's ID")
-}
-
-func TestSubmitFuturesOrderWithoutOrderID(t *testing.T) {
-	t.Parallel()
-	ex := newOrdersRequestCheckExchange(t, "/derivatives/api/v3/sendorder", "limitPrice=80000&orderType=lmt&side=buy&size=0.001&symbol=PF_XBTUSD",
-		`{"result":"success","sendStatus":{"orderEvents":[],"receivedTime":"2026-10-09T08:33:01.104Z","status":"placed"},"serverTime":"2026-10-09T08:33:01.107Z"}`)
-	_, err := ex.submitFuturesOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: futuresTestPair, AssetType: asset.Futures, Type: order.Limit, Side: order.Buy, Price: 80000, Amount: 0.001})
-	assert.ErrorIs(t, err, order.ErrOrderIDNotSet, "submitFuturesOrder should reject a placement Kraken reports without an order ID")
 }
 
 func TestFuturesOrderTypeString(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
+		name      string
 		orderType order.Type
 		tif       order.TimeInForce
 		exp       string
 	}{
-		{order.Limit, order.UnknownTIF, "lmt"},
-		{order.Limit, order.GoodTillCancel, "lmt"},
-		{order.Limit, order.PostOnly, "post"},
-		{order.Limit, order.GoodTillCancel | order.PostOnly, "post"},
-		{order.Limit, order.ImmediateOrCancel, "ioc"},
-		{order.Limit, order.FillOrKill, "fok"},
-		{order.Market, order.UnknownTIF, "mkt"},
-		{order.Market, order.ImmediateOrCancel, "mkt"},
-		{order.Stop, order.UnknownTIF, "stp"},
-		{order.StopMarket, order.UnknownTIF, "stp"},
-		{order.StopLimit, order.UnknownTIF, "stp"},
-		{order.TakeProfit, order.UnknownTIF, "take_profit"},
-		{order.TakeProfitMarket, order.UnknownTIF, "take_profit"},
-		{order.TakeProfit | order.Limit, order.UnknownTIF, "take_profit"},
-		{order.TrailingStop, order.UnknownTIF, "trailing_stop"},
+		{"limit", order.Limit, order.UnknownTIF, "lmt"},
+		{"good till cancelled limit", order.Limit, order.GoodTillCancel, "lmt"},
+		{"post only limit", order.Limit, order.PostOnly, "post"},
+		{"post only good till cancelled limit", order.Limit, order.GoodTillCancel | order.PostOnly, "post"},
+		{"immediate or cancel limit", order.Limit, order.ImmediateOrCancel, "ioc"},
+		{"fill or kill limit", order.Limit, order.FillOrKill, "fok"},
+		{"market", order.Market, order.UnknownTIF, "mkt"},
+		{"immediate or cancel market", order.Market, order.ImmediateOrCancel, "mkt"},
+		{"stop", order.Stop, order.UnknownTIF, "stp"},
+		{"stop market", order.StopMarket, order.UnknownTIF, "stp"},
+		{"stop limit", order.StopLimit, order.UnknownTIF, "stp"},
+		{"take profit", order.TakeProfit, order.UnknownTIF, "take_profit"},
+		{"take profit market", order.TakeProfitMarket, order.UnknownTIF, "take_profit"},
+		{"take profit limit", order.TakeProfit | order.Limit, order.UnknownTIF, "take_profit"},
+		{"trailing stop", order.TrailingStop, order.UnknownTIF, "trailing_stop"},
 	} {
-		got, err := futuresOrderTypeString(tc.orderType, tc.tif)
-		require.NoErrorf(t, err, "futuresOrderTypeString must not error for %s %s", tc.orderType, tc.tif)
-		assert.Equalf(t, tc.exp, got, "futuresOrderTypeString should convert %s %s", tc.orderType, tc.tif)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := futuresOrderTypeString(tc.orderType, tc.tif)
+			require.NoErrorf(t, err, "futuresOrderTypeString must not error for %s %s", tc.orderType, tc.tif)
+			assert.Equalf(t, tc.exp, got, "futuresOrderTypeString should convert %s %s", tc.orderType, tc.tif)
+		})
 	}
 	for _, orderType := range []order.Type{order.OCO, order.IOS, order.Liquidation} {
-		_, err := futuresOrderTypeString(orderType, order.UnknownTIF)
-		assert.ErrorIsf(t, err, order.ErrUnsupportedOrderType, "futuresOrderTypeString should reject %s", orderType)
+		t.Run(orderType.String(), func(t *testing.T) {
+			t.Parallel()
+			_, err := futuresOrderTypeString(orderType, order.UnknownTIF)
+			assert.ErrorIsf(t, err, order.ErrUnsupportedOrderType, "futuresOrderTypeString should reject %s", orderType)
+		})
 	}
 }
 
@@ -3876,9 +4639,12 @@ func TestFuturesTriggerSignal(t *testing.T) {
 		order.MarkPrice:        "mark",
 		order.IndexPrice:       "index",
 	} {
-		got, err := futuresTriggerSignal(priceType)
-		require.NoErrorf(t, err, "futuresTriggerSignal must not error for %s", priceType)
-		assert.Equalf(t, exp, got, "futuresTriggerSignal should convert %s", priceType)
+		t.Run(cmp.Or(priceType.String(), "unknown"), func(t *testing.T) {
+			t.Parallel()
+			got, err := futuresTriggerSignal(priceType)
+			require.NoErrorf(t, err, "futuresTriggerSignal must not error for %s", priceType)
+			assert.Equalf(t, exp, got, "futuresTriggerSignal should convert %s", priceType)
+		})
 	}
 	_, err := futuresTriggerSignal(order.IndexPrice | order.MarkPrice)
 	assert.ErrorIs(t, err, order.ErrUnknownPriceType, "futuresTriggerSignal should reject a price type that is not one price")
@@ -3888,6 +4654,7 @@ func TestModifyOrder(t *testing.T) {
 	t.Parallel()
 	_, err := e.ModifyOrder(t.Context(), nil)
 	require.ErrorIs(t, err, order.ErrModifyOrderIsNil, "ModifyOrder must reject a nil modification")
+	// The cases share e in order, as a spot modification reaches its websocket state
 	for _, tc := range []struct {
 		name   string
 		modify *order.Modify
@@ -3899,8 +4666,10 @@ func TestModifyOrder(t *testing.T) {
 		{"an unsupported asset", &order.Modify{Pair: spotTestPair, AssetType: asset.Margin, OrderID: "OHYO67-6LP66-HMQ437", Amount: 1}, asset.ErrNotSupported},
 		{"a negative spot quantity", &order.Modify{Pair: spotTestPair, AssetType: asset.Spot, OrderID: "OHYO67-6LP66-HMQ437", Amount: -1}, order.ErrAmountIsInvalid},
 	} {
-		_, err = e.ModifyOrder(t.Context(), tc.modify)
-		assert.ErrorIsf(t, err, tc.err, "ModifyOrder should reject %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err = e.ModifyOrder(t.Context(), tc.modify)
+			assert.ErrorIsf(t, err, tc.err, "ModifyOrder should reject %s", tc.name)
+		})
 	}
 
 	for _, tc := range []struct {
@@ -4037,104 +4806,268 @@ func TestModifyOrder(t *testing.T) {
 		assert.ErrorIs(t, err, order.ErrOrderNotFound, "ModifyOrder should report an order Kraken does not know as not found")
 	})
 
-	if !mockTests {
-		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	}
-	for _, tc := range []struct {
-		name   string
-		modify *order.Modify
-		exp    *order.ModifyResponse
-	}{
-		{
-			name: "spot order by order ID over REST",
-			modify: &order.Modify{
-				Exchange:      e.Name,
-				OrderID:       "OHYO67-6LP66-HMQ437",
-				ClientOrderID: "6d1b345e-2821-40e2-ad83-4ecb18a06876",
-				Type:          order.Limit,
-				Side:          order.Sell,
-				AssetType:     asset.Spot,
-				Pair:          ordersETHUSDPair,
-				Price:         2655.5,
-				Amount:        8,
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+		}
+		for _, tc := range []struct {
+			name   string
+			modify *order.Modify
+			exp    *order.ModifyResponse
+		}{
+			{
+				name: "spot order by order ID over REST",
+				modify: &order.Modify{
+					Exchange:      e.Name,
+					OrderID:       "OHYO67-6LP66-HMQ437",
+					ClientOrderID: "6d1b345e-2821-40e2-ad83-4ecb18a06876",
+					Type:          order.Limit,
+					Side:          order.Sell,
+					AssetType:     asset.Spot,
+					Pair:          ordersETHUSDPair,
+					Price:         2655.5,
+					Amount:        8,
+				},
+				exp: &order.ModifyResponse{
+					Exchange:      e.Name,
+					OrderID:       "OHYO67-6LP66-HMQ437",
+					ClientOrderID: "6d1b345e-2821-40e2-ad83-4ecb18a06876",
+					Pair:          ordersETHUSDPair,
+					Type:          order.Limit,
+					Side:          order.Sell,
+					AssetType:     asset.Spot,
+					Price:         2655.5,
+					Amount:        8,
+				},
 			},
-			exp: &order.ModifyResponse{
-				Exchange:      e.Name,
-				OrderID:       "OHYO67-6LP66-HMQ437",
-				ClientOrderID: "6d1b345e-2821-40e2-ad83-4ecb18a06876",
-				Pair:          ordersETHUSDPair,
-				Type:          order.Limit,
-				Side:          order.Sell,
-				AssetType:     asset.Spot,
-				Price:         2655.5,
-				Amount:        8,
+			{
+				name:   "spot order by client order ID over REST",
+				modify: &order.Modify{Exchange: e.Name, ClientOrderID: "gct-stop-market-1", Type: order.StopMarket, Side: order.Sell, AssetType: asset.Spot, Pair: spotTestPair, TriggerPrice: 73500},
+				exp: &order.ModifyResponse{
+					Exchange:      e.Name,
+					ClientOrderID: "gct-stop-market-1",
+					Pair:          spotTestPair,
+					Type:          order.StopMarket,
+					Side:          order.Sell,
+					AssetType:     asset.Spot,
+					TriggerPrice:  73500,
+				},
 			},
-		},
-		{
-			name:   "spot order by client order ID over REST",
-			modify: &order.Modify{Exchange: e.Name, ClientOrderID: "gct-stop-market-1", Type: order.StopMarket, Side: order.Sell, AssetType: asset.Spot, Pair: spotTestPair, TriggerPrice: 73500},
-			exp: &order.ModifyResponse{
-				Exchange:      e.Name,
-				ClientOrderID: "gct-stop-market-1",
-				Pair:          spotTestPair,
-				Type:          order.StopMarket,
-				Side:          order.Sell,
-				AssetType:     asset.Spot,
-				TriggerPrice:  73500,
+			{
+				name:   "futures order's prices",
+				modify: &order.Modify{Exchange: e.Name, ClientOrderID: "gct-stop-3", Type: order.StopLimit, Side: order.Sell, AssetType: asset.Futures, Pair: futuresTestPair, Price: 79000, TriggerPrice: 79100},
+				exp: &order.ModifyResponse{
+					Exchange:        e.Name,
+					ClientOrderID:   "gct-stop-3",
+					Pair:            futuresTestPair,
+					Type:            order.StopLimit,
+					Side:            order.Sell,
+					AssetType:       asset.Futures,
+					Price:           79000,
+					Amount:          0.0005,
+					TriggerPrice:    79100,
+					ExecutedAmount:  0.0002,
+					RemainingAmount: 0.0003,
+				},
 			},
-		},
-		{
-			name:   "futures order's prices",
-			modify: &order.Modify{Exchange: e.Name, ClientOrderID: "gct-stop-3", Type: order.StopLimit, Side: order.Sell, AssetType: asset.Futures, Pair: futuresTestPair, Price: 79000, TriggerPrice: 79100},
-			exp: &order.ModifyResponse{
-				Exchange:        e.Name,
-				ClientOrderID:   "gct-stop-3",
-				Pair:            futuresTestPair,
-				Type:            order.StopLimit,
-				Side:            order.Sell,
-				AssetType:       asset.Futures,
-				Price:           79000,
-				Amount:          0.0005,
-				TriggerPrice:    79100,
-				ExecutedAmount:  0.0002,
-				RemainingAmount: 0.0003,
-			},
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				resp, err := e.ModifyOrder(t.Context(), tc.modify)
+				require.NoError(t, err, "ModifyOrder must not error")
+				assert.Equal(t, tc.exp, resp, "ModifyOrder should return the modification")
+			})
+		}
+		if !mockTests {
+			return
+		}
+		t.Run("spot order Kraken does not know over REST", func(t *testing.T) {
 			t.Parallel()
-			resp, err := e.ModifyOrder(t.Context(), tc.modify)
-			require.NoError(t, err, "ModifyOrder must not error")
-			assert.Equal(t, tc.exp, resp, "ModifyOrder should return the modification")
+			_, err := e.ModifyOrder(t.Context(), &order.Modify{Exchange: e.Name, Pair: spotTestPair, AssetType: asset.Spot, OrderID: "OZJW0T-MIQ3C-5NATAU", Amount: 1})
+			assert.ErrorIs(t, err, order.ErrOrderNotFound, "ModifyOrder should report an order Kraken does not know as not found")
 		})
-	}
-	if !mockTests {
-		return
-	}
-	t.Run("spot order Kraken does not know over REST", func(t *testing.T) {
-		t.Parallel()
-		_, err := e.ModifyOrder(t.Context(), &order.Modify{Exchange: e.Name, Pair: spotTestPair, AssetType: asset.Spot, OrderID: "OZJW0T-MIQ3C-5NATAU", Amount: 1})
-		assert.ErrorIs(t, err, order.ErrOrderNotFound, "ModifyOrder should report an order Kraken does not know as not found")
+		t.Run("futures edit Kraken refuses", func(t *testing.T) {
+			t.Parallel()
+			_, err := e.ModifyOrder(t.Context(), &order.Modify{Exchange: e.Name, Pair: futuresTestPair, AssetType: asset.Futures, OrderID: "4d75883e-9327-4827-9256-023fc4b50f35", Price: 81600})
+			require.ErrorIs(t, err, errOrderEditFailed, "ModifyOrder must report an edit Kraken refused as failed")
+			assert.ErrorContains(t, err, "orderForEditNotFound", "the error should carry Kraken's status")
+		})
 	})
-	t.Run("futures edit Kraken refuses", func(t *testing.T) {
+
+	t.Run("unsupported fields", func(t *testing.T) {
 		t.Parallel()
-		_, err := e.ModifyOrder(t.Context(), &order.Modify{Exchange: e.Name, Pair: futuresTestPair, AssetType: asset.Futures, OrderID: "4d75883e-9327-4827-9256-023fc4b50f35", Price: 81600})
-		require.ErrorIs(t, err, errOrderEditFailed, "ModifyOrder must report an edit Kraken refused as failed")
-		assert.ErrorContains(t, err, "orderForEditNotFound", "the error should carry Kraken's status")
+		ex := newHTTPTestExchange(t, func(_ http.ResponseWriter, r *http.Request) {
+			assert.Failf(t, "no order should be edited", "%s", r.URL.Path)
+		})
+		wsEx := newHTTPTestExchange(t, func(_ http.ResponseWriter, r *http.Request) {
+			assert.Failf(t, "no order should be edited", "%s", r.URL.Path)
+		})
+		// Without round trips the mock fails the test on any websocket request
+		useOrdersTestWebsocket(t, wsEx)
+		refuses := func(t *testing.T, name string, m order.Modify, exp error) {
+			t.Helper()
+			// The refusals share ex, wsEx and m in order, so each also checks that a call keeps nothing from the last
+			t.Run(name, func(t *testing.T) {
+				for _, a := range []asset.Item{asset.Spot, asset.Futures} {
+					t.Run(a.String(), func(t *testing.T) {
+						for _, kind := range []struct {
+							orderType order.Type
+							side      order.Side
+							tif       order.TimeInForce
+							trigger   order.PriceType
+						}{
+							{orderType: order.Limit, side: order.Buy},
+							{orderType: order.Limit, side: order.Sell, tif: order.GoodTillCancel},
+							{orderType: order.StopLimit, side: order.Sell, trigger: order.MarkPrice},
+							{orderType: order.Stop, side: order.Buy, tif: order.GoodTillCancel, trigger: order.IndexPrice},
+						} {
+							t.Run(kind.side.String()+" "+kind.orderType.String(), func(t *testing.T) {
+								m.Exchange, m.AssetType, m.OrderID, m.Pair, m.Type, m.Side, m.Amount = ex.Name, a, "OQCLML-BW3P3-BUCMWZ", spotTestPair, kind.orderType, kind.side, 0.5
+								m.TimeInForce, m.TriggerPriceType, m.Price, m.TriggerPrice = kind.tif, kind.trigger, 0, 0
+								if kind.orderType.Is(order.Limit) {
+									m.Price = 80000
+								}
+								if kind.orderType.Is(order.Stop) {
+									m.TriggerPrice = 90000
+								}
+								if a == asset.Futures {
+									m.OrderID, m.Pair = "4f1c3a5e-7b2d-4e8f-9a6b-1c2d3e4f5a6b", futuresTestPair
+								}
+								_, err := ex.ModifyOrder(t.Context(), &m)
+								assert.ErrorIsf(t, err, exp, "ModifyOrder should refuse %s for a %s %s %s order rather than edit it without", name, a, kind.side, kind.orderType)
+								if a == asset.Spot {
+									m.Exchange = wsEx.Name
+									_, err = wsEx.ModifyOrder(t.Context(), &m)
+									assert.ErrorIsf(t, err, exp, "ModifyOrder should refuse %s for a spot %s %s order over the private websocket rather than amend it without", name, kind.side, kind.orderType)
+								}
+							})
+						}
+					})
+				}
+			})
+		}
+		refuses(t, "a risk management mode", order.Modify{RiskManagementModes: order.RiskManagementModes{Mode: "full"}}, errRiskManagementUnsupported)
+		refuses(t, "a slippage tolerance", order.Modify{SlippageTolerance: 0.0001}, errSlippageUnsupported)
+		refuses(t, "a negative slippage tolerance", order.Modify{SlippageTolerance: -0.0001}, errSlippageUnsupported)
+		refuses(t, "the smallest slippage tolerance", order.Modify{SlippageTolerance: math.SmallestNonzeroFloat64}, errSlippageUnsupported)
+		// Each field of a take profit, stop loss or stop entry asks for one, set alone
+		for _, kind := range []struct {
+			name string
+			of   func(*order.RiskManagementModes) *order.RiskManagement
+		}{
+			{name: "take profit", of: func(m *order.RiskManagementModes) *order.RiskManagement { return &m.TakeProfit }},
+			{name: "stop loss", of: func(m *order.RiskManagementModes) *order.RiskManagement { return &m.StopLoss }},
+			{name: "stop entry", of: func(m *order.RiskManagementModes) *order.RiskManagement { return &m.StopEntry }},
+		} {
+			for _, field := range []struct {
+				name string
+				set  func(*order.RiskManagement)
+			}{
+				{name: "enabled flag", set: func(r *order.RiskManagement) { r.Enabled = true }},
+				{name: "trigger price type", set: func(r *order.RiskManagement) { r.TriggerPriceType = order.MarkPrice }},
+				{name: "price", set: func(r *order.RiskManagement) { r.Price = 70000 }},
+				{name: "limit price", set: func(r *order.RiskManagement) { r.LimitPrice = 69000 }},
+				{name: "order type", set: func(r *order.RiskManagement) { r.OrderType = order.Market }},
+			} {
+				var modes order.RiskManagementModes
+				field.set(kind.of(&modes))
+				refuses(t, "a "+kind.name+"'s "+field.name, order.Modify{RiskManagementModes: modes}, errRiskManagementUnsupported)
+			}
+		}
+	})
+
+	t.Run("futures total size", func(t *testing.T) {
+		t.Parallel()
+		reply := `{"editStatus":{"cliOrdId":"gct-limit-1","orderEvents":[{"new":{"algoId":"gct-algo-1","cliOrdId":"gct-limit-1","filled":0.0002,` +
+			`"lastUpdateTimestamp":"2026-10-09T08:19:58.730Z","limitPrice":81520,"orderId":"4f1c3a5e-7b2d-4e8f-9a6b-1c2d3e4f5a6b","quantity":0.0006,"reduceOnly":true,` +
+			`"side":"buy","symbol":"PF_XBTUSD","timestamp":"2026-10-09T08:15:30.412Z","type":"lmt"},"old":{"algoId":"gct-algo-1","cliOrdId":"gct-limit-1","filled":0.0002,` +
+			`"lastUpdateTimestamp":"2026-10-09T08:15:30.413Z","limitPrice":81500,"orderId":"4f1c3a5e-7b2d-4e8f-9a6b-1c2d3e4f5a6b","quantity":0.0004,"reduceOnly":true,` +
+			`"side":"buy","symbol":"PF_XBTUSD","timestamp":"2026-10-09T08:15:30.412Z","type":"lmt"},"reducedQuantity":null,"type":"EDIT"}],` +
+			`"orderId":"4f1c3a5e-7b2d-4e8f-9a6b-1c2d3e4f5a6b","receivedTime":"2026-10-09T08:19:58.729Z","status":"edited"},"result":"success","serverTime":"2026-10-09T08:19:58.735Z"}`
+		for _, tc := range []struct {
+			status      string
+			err, notErr error
+		}{
+			{status: "edited"},
+			// The edit filled the order in full
+			{status: "filled"},
+			// A cancel arriving while Kraken held the edit for maker protection had it applied as immediate or cancel
+			{status: "iocWouldNotExecute", err: errOrderEditImmediateOrCancel, notErr: errOrderEditFailed},
+			// Kraken documents every other status as an edit it did not apply
+			{status: "invalidSize", err: errOrderEditFailed, notErr: errOrderEditImmediateOrCancel},
+			{status: "invalidPrice", err: errOrderEditFailed, notErr: errOrderEditImmediateOrCancel},
+			{status: "insufficientAvailableFunds", err: errOrderEditFailed, notErr: errOrderEditImmediateOrCancel},
+			{status: "selfFill", err: errOrderEditFailed, notErr: errOrderEditImmediateOrCancel},
+			{status: "tooManySmallOrders", err: errOrderEditFailed, notErr: errOrderEditImmediateOrCancel},
+			{status: "outsidePriceCollar", err: errOrderEditFailed, notErr: errOrderEditImmediateOrCancel},
+			{status: "postWouldExecute", err: errOrderEditFailed, notErr: errOrderEditImmediateOrCancel},
+			{status: "wouldNotReducePosition", err: errOrderEditFailed, notErr: errOrderEditImmediateOrCancel},
+			{status: "orderForEditNotFound", err: errOrderEditFailed, notErr: errOrderEditImmediateOrCancel},
+			{status: "orderForEditNotAStop", err: errOrderEditFailed, notErr: errOrderEditImmediateOrCancel},
+			{status: "editAlreadyHeld", err: errOrderEditFailed, notErr: errOrderEditImmediateOrCancel},
+		} {
+			t.Run(tc.status, func(t *testing.T) {
+				t.Parallel()
+				ex := newOrdersRequestCheckExchange(t, "/derivatives/api/v3/editorder",
+					"limitPrice=81520&orderId=4f1c3a5e-7b2d-4e8f-9a6b-1c2d3e4f5a6b&qtyMode=ABSOLUTE&size=0.0006",
+					strings.Replace(reply, `"status":"edited"`, `"status":"`+tc.status+`"`, 1))
+				resp, err := ex.ModifyOrder(t.Context(), &order.Modify{
+					Exchange:      ex.Name,
+					OrderID:       "4f1c3a5e-7b2d-4e8f-9a6b-1c2d3e4f5a6b",
+					ClientOrderID: "gct-limit-1",
+					Type:          order.Limit,
+					Side:          order.Buy,
+					AssetType:     asset.Futures,
+					Pair:          futuresTestPair,
+					Price:         81520,
+					Amount:        0.0006,
+				})
+				if tc.err != nil {
+					require.ErrorIs(t, err, tc.err, "ModifyOrder must report what Kraken's status says of the edit")
+					assert.NotErrorIs(t, err, tc.notErr, "ModifyOrder should not report the edit as another status would")
+					assert.ErrorContains(t, err, tc.status, "the error should carry Kraken's status")
+					assert.Nil(t, resp, "ModifyOrder should return no modification with its error")
+					return
+				}
+				require.NoError(t, err, "ModifyOrder must not error")
+				exp := &order.ModifyResponse{
+					Exchange:      ex.Name,
+					OrderID:       "4f1c3a5e-7b2d-4e8f-9a6b-1c2d3e4f5a6b",
+					ClientOrderID: "gct-limit-1",
+					Pair:          futuresTestPair,
+					Type:          order.Limit,
+					Side:          order.Buy,
+					AssetType:     asset.Futures,
+					Price:         81520,
+					Amount:        0.0006,
+				}
+				// An edit that filled the order is reported filled, and an edited order's sizes are the edited order's
+				if tc.status == "filled" {
+					exp.Status, exp.ExecutedAmount = order.Filled, 0.0006
+				} else {
+					exp.ExecutedAmount, exp.RemainingAmount = 0.0002, 0.0004
+				}
+				assert.Equal(t, exp, resp, "ModifyOrder should set the futures order's total size, as a spot amend does, and return what has executed and what remains of it")
+			})
+		}
 	})
 }
 
 func TestClientOrderIDWithoutOrderID(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		orderID, clientOrderID, exp string
+		name, orderID, clientOrderID, exp string
 	}{
-		{"OHYO67-6LP66-HMQ437", "6d1b345e-2821-40e2-ad83-4ecb18a06876", ""},
-		{"OHYO67-6LP66-HMQ437", "", ""},
-		{"", "6d1b345e-2821-40e2-ad83-4ecb18a06876", "6d1b345e-2821-40e2-ad83-4ecb18a06876"},
-		{"", "", ""},
+		{"both identifiers", "OHYO67-6LP66-HMQ437", "6d1b345e-2821-40e2-ad83-4ecb18a06876", ""},
+		{"an order ID alone", "OHYO67-6LP66-HMQ437", "", ""},
+		{"a client order ID alone", "", "6d1b345e-2821-40e2-ad83-4ecb18a06876", "6d1b345e-2821-40e2-ad83-4ecb18a06876"},
+		{"neither identifier", "", "", ""},
 	} {
-		assert.Equalf(t, tc.exp, clientOrderIDWithoutOrderID(tc.orderID, tc.clientOrderID), "clientOrderIDWithoutOrderID should send %q for order ID %q and client order ID %q", tc.exp, tc.orderID, tc.clientOrderID)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, tc.exp, clientOrderIDWithoutOrderID(tc.orderID, tc.clientOrderID), "clientOrderIDWithoutOrderID should send %q for order ID %q and client order ID %q", tc.exp, tc.orderID, tc.clientOrderID)
+		})
 	}
 }
 
@@ -4148,6 +5081,39 @@ func newRESTCancelTestExchange(t *testing.T, handler http.HandlerFunc) *Exchange
 	useTestWebsocket(t, ex, newMockWebsocketURL(t, func(testing.TB, []byte, *gws.Conn) error { return nil }), wsPublicConnection)
 	ex.Websocket.SetSubscriptionsNotRequired()
 	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
+	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	ex.spotOrders.interval = time.Millisecond
+	return ex
+}
+
+// newConnectingRESTCancelTestExchange returns an exchange as newRESTCancelTestExchange does, but with its websocket still
+// connecting, as it is through a reconnection: the public connection's first step, seeding the asset names, is held
+// until the test ends
+func newConnectingRESTCancelTestExchange(t *testing.T, handler http.HandlerFunc) *Exchange {
+	t.Helper()
+	held := make(chan struct{})
+	ex := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/0/public/Assets" {
+			select {
+			case <-held:
+			case <-r.Context().Done():
+			}
+			http.Error(w, "unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		handler(w, r)
+	})
+	useTestWebsocket(t, ex, newMockWebsocketURL(t, func(testing.TB, []byte, *gws.Conn) error { return nil }), wsPublicConnection)
+	ex.Websocket.SetSubscriptionsNotRequired()
+	connectErr := make(chan error, 1)
+	go func() { connectErr <- ex.Websocket.Connect(t.Context()) }()
+	// Cleanups run last first, so the held request is let go and Connect has returned before the websocket is disabled
+	t.Cleanup(func() {
+		close(held)
+		err := awaitError(t, connectErr, "Connect must return once the test has ended")
+		assert.Error(t, err, "Connect should fail once the test has ended")
+	})
+	require.Eventually(t, ex.Websocket.IsConnecting, testWaitTimeout, time.Millisecond, "the websocket must be connecting while the asset names are seeded")
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	ex.spotOrders.interval = time.Millisecond
 	return ex
@@ -4231,9 +5197,11 @@ func TestCancelOrder(t *testing.T) {
 			name        string
 			cancel      order.Cancel
 			cancelReply string
+			connecting  bool
 			read        bool
 		}{
 			{name: "by order ID", cancel: order.Cancel{OrderID: finishedSpotOrderID}, read: true},
+			{name: "by order ID while the websocket is still connecting", cancel: order.Cancel{OrderID: finishedSpotOrderID}, connecting: true, read: true},
 			{name: "by order ID with a client order ID", cancel: order.Cancel{OrderID: finishedSpotOrderID, ClientOrderID: "6d1b345e-2821-40e2-ad83-4ecb18a06876"}, read: true},
 			{name: "by client order ID", cancel: order.Cancel{ClientOrderID: "6d1b345e-2821-40e2-ad83-4ecb18a06876"}},
 			{name: "Kraken not cancelling it", cancel: order.Cancel{OrderID: finishedSpotOrderID}, cancelReply: `{"error":["EOrder:Unknown order"]}`},
@@ -4241,7 +5209,11 @@ func TestCancelOrder(t *testing.T) {
 			t.Run(tc.name, func(t *testing.T) {
 				t.Parallel()
 				var reads atomic.Int32
-				ex := newRESTCancelTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+				newExchange := newRESTCancelTestExchange
+				if tc.connecting {
+					newExchange = newConnectingRESTCancelTestExchange
+				}
+				ex := newExchange(t, func(w http.ResponseWriter, r *http.Request) {
 					_ = tradingRequestBody(t, r)
 					switch r.URL.Path {
 					case "/0/private/CancelOrder":
@@ -4282,33 +5254,36 @@ func TestCancelOrder(t *testing.T) {
 		}
 	})
 
-	if !mockTests {
-		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	}
-	for _, tc := range []struct {
-		name   string
-		cancel *order.Cancel
-		err    error
-	}{
-		{"spot order by order ID over REST", &order.Cancel{AssetType: asset.Spot, Pair: spotTestPair, OrderID: "OYVGEW-VYV5B-UUEXSK", ClientOrderID: "6d1b345e-2821-40e2-ad83-4ecb18a06876"}, nil},
-		{"spot order by client order ID over REST", &order.Cancel{AssetType: asset.Spot, Pair: spotTestPair, ClientOrderID: "6d1b345e-2821-40e2-ad83-4ecb18a06876"}, nil},
-		{"spot order Kraken does not know over REST", &order.Cancel{AssetType: asset.Spot, Pair: spotTestPair, OrderID: "OZJW0T-MIQ3C-5NATAU"}, order.ErrOrderNotFound},
-		{"futures order by order ID", &order.Cancel{AssetType: asset.Futures, Pair: futuresTestPair, OrderID: "e7f8a9b0-c1d2-4e3f-8a4b-5c6d7e8f9a0b", ClientOrderID: "gct-batch-1"}, nil},
-		{"futures order by client order ID", &order.Cancel{AssetType: asset.Futures, Pair: futuresTestPair, ClientOrderID: "gct-stop-1"}, nil},
-		{"futures order Kraken does not find", &order.Cancel{AssetType: asset.Futures, Pair: futuresTestPair, OrderID: "9ac37735-a838-4323-9dd2-5c672bd97b54"}, order.ErrOrderNotFound},
-		{"futures order already filled", &order.Cancel{AssetType: asset.Futures, Pair: futuresTestPair, OrderID: "d31f46d3-c3c1-4411-ab5d-a6b1e81ea6c9"}, order.ErrCancelFailed},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			tc.cancel.Exchange = e.Name
-			err := e.CancelOrder(t.Context(), tc.cancel)
-			if tc.err == nil || !mockTests {
-				assert.NoError(t, err, "CancelOrder should cancel the order")
-				return
-			}
-			assert.ErrorIs(t, err, tc.err, "CancelOrder should return the cancellation's error")
-		})
-	}
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+		}
+		for _, tc := range []struct {
+			name   string
+			cancel *order.Cancel
+			err    error
+		}{
+			{"spot order by order ID over REST", &order.Cancel{AssetType: asset.Spot, Pair: spotTestPair, OrderID: "OYVGEW-VYV5B-UUEXSK", ClientOrderID: "6d1b345e-2821-40e2-ad83-4ecb18a06876"}, nil},
+			{"spot order by client order ID over REST", &order.Cancel{AssetType: asset.Spot, Pair: spotTestPair, ClientOrderID: "6d1b345e-2821-40e2-ad83-4ecb18a06876"}, nil},
+			{"spot order Kraken does not know over REST", &order.Cancel{AssetType: asset.Spot, Pair: spotTestPair, OrderID: "OZJW0T-MIQ3C-5NATAU"}, order.ErrOrderNotFound},
+			{"futures order by order ID", &order.Cancel{AssetType: asset.Futures, Pair: futuresTestPair, OrderID: "e7f8a9b0-c1d2-4e3f-8a4b-5c6d7e8f9a0b", ClientOrderID: "gct-batch-1"}, nil},
+			{"futures order by client order ID", &order.Cancel{AssetType: asset.Futures, Pair: futuresTestPair, ClientOrderID: "gct-stop-1"}, nil},
+			{"futures order Kraken does not find", &order.Cancel{AssetType: asset.Futures, Pair: futuresTestPair, OrderID: "9ac37735-a838-4323-9dd2-5c672bd97b54"}, order.ErrOrderNotFound},
+			{"futures order already filled", &order.Cancel{AssetType: asset.Futures, Pair: futuresTestPair, OrderID: "d31f46d3-c3c1-4411-ab5d-a6b1e81ea6c9"}, order.ErrCancelFailed},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				tc.cancel.Exchange = e.Name
+				err := e.CancelOrder(t.Context(), tc.cancel)
+				if tc.err == nil || !mockTests {
+					assert.NoError(t, err, "CancelOrder should cancel the order")
+					return
+				}
+				assert.ErrorIs(t, err, tc.err, "CancelOrder should return the cancellation's error")
+			})
+		}
+	})
 }
 
 func TestFuturesCancelStatusError(t *testing.T) {
@@ -4338,8 +5313,11 @@ func TestCancelBatchOrders(t *testing.T) {
 			err: asset.ErrNotSupported,
 		},
 	} {
-		_, err := e.CancelBatchOrders(t.Context(), tc.cancels)
-		assert.ErrorIsf(t, err, tc.err, "CancelBatchOrders should reject %s before cancelling any order", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := e.CancelBatchOrders(t.Context(), tc.cancels)
+			assert.ErrorIsf(t, err, tc.err, "CancelBatchOrders should reject %s before cancelling any order", tc.name)
+		})
 	}
 
 	t.Run("spot orders over the private websocket", func(t *testing.T) {
@@ -4396,16 +5374,19 @@ func TestCancelBatchOrders(t *testing.T) {
 				exp:     map[string]string{a: order.Cancelled.String(), b: order.ErrCancelFailed.Error() + ": no reply named the order"},
 			},
 		} {
-			ids, err := json.Marshal(tc.ids)
-			require.NoErrorf(t, err, "Marshal must not error for %s", tc.name)
-			ex := newOrdersWsTestExchange(t, ordersWsRoundTrip{request: ordersWsRequest("cancel_order", `"order_id":`+string(ids)), replies: tc.replies})
-			cancels := make([]order.Cancel, len(tc.ids))
-			for i, id := range tc.ids {
-				cancels[i] = order.Cancel{Exchange: ex.Name, AssetType: asset.Spot, Pair: spotTestPair, OrderID: id}
-			}
-			resp, err := ex.CancelBatchOrders(t.Context(), cancels)
-			require.NoErrorf(t, err, "CancelBatchOrders must not error for %s", tc.name)
-			assert.Equalf(t, tc.exp, resp.Status, "CancelBatchOrders should report each order's outcome for %s", tc.name)
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				ids, err := json.Marshal(tc.ids)
+				require.NoErrorf(t, err, "Marshal must not error for %s", tc.name)
+				ex := newOrdersWsTestExchange(t, ordersWsRoundTrip{request: ordersWsRequest("cancel_order", `"order_id":`+string(ids)), replies: tc.replies})
+				cancels := make([]order.Cancel, len(tc.ids))
+				for i, id := range tc.ids {
+					cancels[i] = order.Cancel{Exchange: ex.Name, AssetType: asset.Spot, Pair: spotTestPair, OrderID: id}
+				}
+				resp, err := ex.CancelBatchOrders(t.Context(), cancels)
+				require.NoErrorf(t, err, "CancelBatchOrders must not error for %s", tc.name)
+				assert.Equalf(t, tc.exp, resp.Status, "CancelBatchOrders should report each order's outcome for %s", tc.name)
+			})
 		}
 	})
 
@@ -4446,59 +5427,133 @@ func TestCancelBatchOrders(t *testing.T) {
 		})
 	}
 
-	if !mockTests {
-		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	}
-	spotOrders := []order.Cancel{
-		{AssetType: asset.Spot, Pair: spotTestPair, OrderID: "OP5V2Y-RYKVL-ET3V3B"},
-		{AssetType: asset.Spot, Pair: spotTestPair, OrderID: "OP5V2Y-7YKVL-ET3V3B"},
-	}
-	futuresOrders := []order.Cancel{
-		{AssetType: asset.Futures, Pair: futuresTestPair, OrderID: "e7f8a9b0-c1d2-4e3f-8a4b-5c6d7e8f9a0b"},
-		{AssetType: asset.Futures, Pair: futuresTestPair, OrderID: "1a2b3c4d-5e6f-4a7b-9c8d-0e1f2a3b4c5d"},
-	}
-	for _, tc := range []struct {
-		name    string
-		cancels []order.Cancel
-		exp     map[string]string
-	}{
-		{
-			name:    "spot orders cancelled by one Cancel Order Batch",
-			cancels: spotOrders,
-			exp:     map[string]string{"OP5V2Y-RYKVL-ET3V3B": order.Cancelled.String(), "OP5V2Y-7YKVL-ET3V3B": order.Cancelled.String()},
-		},
-		{
-			name:    "a spot order cancelled on its own",
-			cancels: []order.Cancel{{AssetType: asset.Spot, Pair: spotTestPair, OrderID: "OYVGEW-VYV5B-UUEXSK"}},
-			exp:     map[string]string{"OYVGEW-VYV5B-UUEXSK": order.Cancelled.String()},
-		},
-		{
-			name:    "futures orders",
-			cancels: futuresOrders,
-			exp:     map[string]string{"e7f8a9b0-c1d2-4e3f-8a4b-5c6d7e8f9a0b": order.Cancelled.String(), "1a2b3c4d-5e6f-4a7b-9c8d-0e1f2a3b4c5d": order.Cancelled.String()},
-		},
-		{
-			name:    "spot and futures orders",
-			cancels: slices.Concat(spotOrders, futuresOrders),
-			exp: map[string]string{
-				"OP5V2Y-RYKVL-ET3V3B":                  order.Cancelled.String(),
-				"OP5V2Y-7YKVL-ET3V3B":                  order.Cancelled.String(),
-				"e7f8a9b0-c1d2-4e3f-8a4b-5c6d7e8f9a0b": order.Cancelled.String(),
-				"1a2b3c4d-5e6f-4a7b-9c8d-0e1f2a3b4c5d": order.Cancelled.String(),
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+		}
+		spotOrders := []order.Cancel{
+			{AssetType: asset.Spot, Pair: spotTestPair, OrderID: "OP5V2Y-RYKVL-ET3V3B"},
+			{AssetType: asset.Spot, Pair: spotTestPair, OrderID: "OP5V2Y-7YKVL-ET3V3B"},
+		}
+		futuresOrders := []order.Cancel{
+			{AssetType: asset.Futures, Pair: futuresTestPair, OrderID: "e7f8a9b0-c1d2-4e3f-8a4b-5c6d7e8f9a0b"},
+			{AssetType: asset.Futures, Pair: futuresTestPair, OrderID: "1a2b3c4d-5e6f-4a7b-9c8d-0e1f2a3b4c5d"},
+		}
+		for _, tc := range []struct {
+			name    string
+			cancels []order.Cancel
+			exp     map[string]string
+		}{
+			{
+				name:    "spot orders cancelled by one Cancel Order Batch",
+				cancels: spotOrders,
+				exp:     map[string]string{"OP5V2Y-RYKVL-ET3V3B": order.Cancelled.String(), "OP5V2Y-7YKVL-ET3V3B": order.Cancelled.String()},
 			},
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			resp, err := e.CancelBatchOrders(t.Context(), tc.cancels)
-			require.NoError(t, err, "CancelBatchOrders must not error")
-			if !mockTests {
-				assert.Len(t, resp.Status, len(tc.cancels), "CancelBatchOrders should report each order's outcome")
-				return
+			{
+				name:    "a spot order cancelled on its own",
+				cancels: []order.Cancel{{AssetType: asset.Spot, Pair: spotTestPair, OrderID: "OYVGEW-VYV5B-UUEXSK"}},
+				exp:     map[string]string{"OYVGEW-VYV5B-UUEXSK": order.Cancelled.String()},
+			},
+			{
+				name:    "futures orders",
+				cancels: futuresOrders,
+				exp:     map[string]string{"e7f8a9b0-c1d2-4e3f-8a4b-5c6d7e8f9a0b": order.Cancelled.String(), "1a2b3c4d-5e6f-4a7b-9c8d-0e1f2a3b4c5d": order.Cancelled.String()},
+			},
+			{
+				name:    "spot and futures orders",
+				cancels: slices.Concat(spotOrders, futuresOrders),
+				exp: map[string]string{
+					"OP5V2Y-RYKVL-ET3V3B":                  order.Cancelled.String(),
+					"OP5V2Y-7YKVL-ET3V3B":                  order.Cancelled.String(),
+					"e7f8a9b0-c1d2-4e3f-8a4b-5c6d7e8f9a0b": order.Cancelled.String(),
+					"1a2b3c4d-5e6f-4a7b-9c8d-0e1f2a3b4c5d": order.Cancelled.String(),
+				},
+			},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				resp, err := e.CancelBatchOrders(t.Context(), tc.cancels)
+				require.NoError(t, err, "CancelBatchOrders must not error")
+				if !mockTests {
+					assert.Len(t, resp.Status, len(tc.cancels), "CancelBatchOrders should report each order's outcome")
+					return
+				}
+				assert.Equal(t, &order.CancelBatchResponse{Status: tc.exp}, resp, "CancelBatchOrders should report each order's outcome")
+			})
+		}
+	})
+
+	t.Run("spot batch cancelling some of its orders", func(t *testing.T) {
+		t.Parallel()
+		const stopLoss, iceberg, unknown = "OQCLML-BW3P3-BUCMWZ", "OHYO67-6LP66-HMQ437", "OZJW0T-MIQ3C-5NATAU"
+		var mu sync.Mutex
+		// open holds whether each order Kraken knows is still open; Kraken does not know a cancelled order to cancel it again
+		open := map[string]bool{stopLoss: true, iceberg: true}
+		// orderInfo holds each order as Query Orders Info returns it, with STATUS standing for its status
+		orderInfo := map[string]string{
+			stopLoss: `{"cl_ord_id":null,"cost":"11254.68750","descr":{"aclass":"forex","close":"","leverage":"5:1","order":"buy 1.25000000 XBTUSD @ stop loss 30010.0 -> limit 30020.0 with 5:1 leverage",` +
+				`"ordertype":"stop-loss-limit","pair":"XBTUSD","price":"30010.0","price2":"30020.0","type":"buy"},"expiretm":1780668660,"fee":"29.26219","limitprice":"30020.0",` +
+				`"misc":"stopped,partial","oflags":"fciq","opentm":1780582233.729133,"price":"30012.5","reduce_only":true,"refid":null,"starttm":1780582260,"status":"STATUS",` +
+				`"stopprice":"30010.0","time_in_force":"gtd","userref":45326,"vol":"1.25000000","vol_exec":"0.37500000"}`,
+			iceberg: `{"cl_ord_id":"6d1b345e-2821-40e2-ad83-4ecb18a06876","cost":"5301.40","descr":{"aclass":"forex","close":"","leverage":"none","order":"sell 10.00000000 ETHUSD @ limit 2650.50",` +
+				`"ordertype":"iceberg","pair":"ETHUSD","price":"2650.50","price2":"0","type":"sell"},"displayvol":"1.00000000","expiretm":0,"fee":"8.48224","limitprice":"0.00000",` +
+				`"misc":"partial","oflags":"post,fcib","opentm":1780582311.512449,"price":"2650.70","refid":null,"starttm":0,"status":"STATUS","stopprice":"0.00000","time_in_force":"gtc",` +
+				`"userref":null,"vol":"10.00000000","vol_exec":"2.00000000"}`,
+		}
+		ex := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+			var req struct {
+				Orders        []string `json:"orders"`
+				TransactionID string   `json:"txid"`
 			}
-			assert.Equal(t, &order.CancelBatchResponse{Status: tc.exp}, resp, "CancelBatchOrders should report each order's outcome")
+			assert.NoError(t, json.Unmarshal([]byte(tradingRequestBody(t, r)), &req), "Unmarshal should not error")
+			mu.Lock()
+			defer mu.Unlock()
+			switch r.URL.Path {
+			case "/0/private/CancelOrderBatch":
+				var count int
+				for _, id := range req.Orders {
+					if open[id] {
+						open[id] = false
+						count++
+					}
+				}
+				_, _ = w.Write([]byte(`{"error":[],"result":{"count":` + strconv.Itoa(count) + `}}`))
+			case "/0/private/CancelOrder":
+				if !open[req.TransactionID] {
+					_, _ = w.Write([]byte(`{"error":["EOrder:Unknown order"]}`))
+					return
+				}
+				open[req.TransactionID] = false
+				_, _ = w.Write([]byte(`{"error":[],"result":{"count":1,"pending":false}}`))
+			case "/0/private/QueryOrders":
+				result := make([]string, 0, len(open))
+				for id := range strings.SplitSeq(req.TransactionID, ",") {
+					isOpen, known := open[id]
+					if !known {
+						continue
+					}
+					status := "canceled"
+					if isOpen {
+						status = "open"
+					}
+					result = append(result, `"`+id+`":`+strings.Replace(orderInfo[id], "STATUS", status, 1))
+				}
+				_, _ = w.Write([]byte(`{"error":[],"result":{` + strings.Join(result, ",") + `}}`))
+			default:
+				assert.Failf(t, "only Cancel Order Batch, Cancel Order and Query Orders Info should be called", "%s", r.URL.Path)
+			}
 		})
-	}
+		resp, err := ex.CancelBatchOrders(t.Context(), []order.Cancel{
+			{Exchange: ex.Name, AssetType: asset.Spot, Pair: spotTestPair, OrderID: stopLoss},
+			{Exchange: ex.Name, AssetType: asset.Spot, Pair: ordersETHUSDPair, OrderID: iceberg},
+			{Exchange: ex.Name, AssetType: asset.Spot, Pair: spotTestPair, OrderID: unknown},
+		})
+		require.NoError(t, err, "CancelBatchOrders must not error")
+		assert.NotEqual(t, order.Cancelled.String(), resp.Status[unknown], "CancelBatchOrders should not report an order Kraken does not know as cancelled")
+		delete(resp.Status, unknown)
+		assert.Equal(t, map[string]string{stopLoss: order.Cancelled.String(), iceberg: order.Cancelled.String()}, resp.Status, "CancelBatchOrders should report the orders the batch cancelled as cancelled")
+	})
 }
 
 func TestCancelSpotOrders(t *testing.T) {
@@ -4695,6 +5750,31 @@ func TestCancelSpotOrders(t *testing.T) {
 			require.Eventually(t, func() bool { return len(queriedOrders()) == 3 }, testWaitTimeout, time.Millisecond, "the order cancelled must be read")
 			assert.Equal(t, [][]string{{ids[0]}, {ids[1]}, {ids[0]}}, queriedOrders(), "each order should be looked up, then the one cancelled read alone")
 		})
+
+		t.Run("a batch cancelled while the websocket is still connecting", func(t *testing.T) {
+			t.Parallel()
+			cancelled := make(map[string]any, 2)
+			for _, id := range ids[:2] {
+				cancelled[id] = map[string]any{"status": "canceled", "vol": "10", "vol_exec": "0", "cost": "0", "fee": "0", "price": "0", "descr": map[string]any{"pair": "XBTUSD", "type": "buy", "ordertype": "limit", "price": "26599.9"}}
+			}
+			reply, err := json.Marshal(map[string]any{"error": []string{}, "result": cancelled})
+			require.NoError(t, err, "Marshal must not error")
+			server := &finishedSpotOrdersServer{replies: []string{string(reply)}}
+			read := server.handle(t)
+			ex := newConnectingRESTCancelTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == "/0/private/QueryOrders" {
+					read(w, r)
+					return
+				}
+				assert.Equal(t, "/0/private/CancelOrderBatch", r.URL.Path, "cancelSpotOrders should call Cancel Order Batch")
+				_ = tradingRequestBody(t, r)
+				_, _ = w.Write([]byte(`{"error":[],"result":{"count":2}}`))
+			})
+			status := make(map[string]string)
+			require.NoError(t, ex.cancelSpotOrders(t.Context(), ids[:2], status), "cancelSpotOrders must not error")
+			require.Eventually(t, func() bool { return len(server.readOrders()) != 0 }, testWaitTimeout, time.Millisecond, "the orders cancelled must be read")
+			assert.Equal(t, [][]string{slices.Sorted(slices.Values(ids[:2]))}, server.readOrders(), "the read should ask for the orders the batch cancelled")
+		})
 	})
 
 	t.Run("an order named more than once cancelled once", func(t *testing.T) {
@@ -4788,67 +5868,507 @@ func TestCancelAllOrders(t *testing.T) {
 	_, err = e.CancelAllOrders(t.Context(), &order.Cancel{Exchange: e.Name, AssetType: asset.Margin})
 	require.ErrorIs(t, err, asset.ErrNotSupported, "CancelAllOrders must reject an unsupported asset")
 	failing := newOrdersFailingExchange(t)
+	// The cases share failing in order, so each also checks that a call keeps nothing from the last
 	for _, a := range []asset.Item{asset.Spot, asset.Futures} {
-		_, err = failing.CancelAllOrders(t.Context(), &order.Cancel{Exchange: failing.Name, AssetType: a})
-		assert.ErrorIsf(t, err, errAPIResponse, "CancelAllOrders should return the %s request's error", a)
+		t.Run(a.String()+" request failing", func(t *testing.T) {
+			_, err = failing.CancelAllOrders(t.Context(), &order.Cancel{Exchange: failing.Name, AssetType: a})
+			assert.ErrorIsf(t, err, errAPIResponse, "CancelAllOrders should return the %s request's error", a)
+		})
 	}
 
-	if !mockTests {
-		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	}
-	for _, tc := range []struct {
-		name   string
-		cancel *order.Cancel
-		exp    map[string]string
-	}{
-		{
-			name:   "every spot order",
-			cancel: &order.Cancel{AssetType: asset.Spot},
-			exp:    map[string]string{"OQCLML-BW3P3-BUCMWZ": order.Cancelled.String(), "OHYO67-6LP66-HMQ437": order.Cancelled.String()},
-		},
-		{
-			name:   "a spot pair's orders",
-			cancel: &order.Cancel{AssetType: asset.Spot, Pair: spotTestPair},
-			exp:    map[string]string{"OQCLML-BW3P3-BUCMWZ": order.Cancelled.String()},
-		},
-		{
-			name:   "every futures order",
-			cancel: &order.Cancel{AssetType: asset.Futures},
-			exp: map[string]string{
-				"d6e7f8a9-b0c1-4d2e-9f3a-4b5c6d7e8f90": order.Cancelled.String(),
-				"a3b4c5d6-e7f8-4a1b-8c2d-3e4f5a6b7c8d": order.Cancelled.String(),
-			},
-		},
-		{
-			name:   "a futures pair without open orders",
-			cancel: &order.Cancel{AssetType: asset.Futures, Pair: futuresTestPair},
-			exp:    map[string]string{},
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			tc.cancel.Exchange = e.Name
-			resp, err := e.CancelAllOrders(t.Context(), tc.cancel)
-			require.NoError(t, err, "CancelAllOrders must not error")
-			if !mockTests {
-				assert.NotNil(t, resp.Status, "CancelAllOrders should report the cancelled orders")
-				return
-			}
-			assert.Equal(t, order.CancelAllResponse{Status: tc.exp}, resp, "CancelAllOrders should report each cancelled order")
-		})
-	}
-	if !mockTests {
-		return
-	}
-	t.Run("a spot pair's orders over the private websocket", func(t *testing.T) {
+	t.Run("live API", func(t *testing.T) {
 		t.Parallel()
-		ex := newOrdersWsTestExchange(t, ordersWsRoundTrip{
-			request: ordersWsRequest("cancel_order", `"order_id":["OQCLML-BW3P3-BUCMWZ"]`),
-			replies: []string{ordersWsReply("cancel_order", `{"order_id":"OQCLML-BW3P3-BUCMWZ"}`)},
+		if !mockTests {
+			sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+		}
+		for _, tc := range []struct {
+			name   string
+			cancel *order.Cancel
+			exp    map[string]string
+		}{
+			{
+				name:   "every spot order",
+				cancel: &order.Cancel{AssetType: asset.Spot},
+				exp:    map[string]string{"OQCLML-BW3P3-BUCMWZ": order.Cancelled.String(), "OHYO67-6LP66-HMQ437": order.Cancelled.String()},
+			},
+			{
+				name:   "a spot pair's orders",
+				cancel: &order.Cancel{AssetType: asset.Spot, Pair: spotTestPair},
+				exp:    map[string]string{"OQCLML-BW3P3-BUCMWZ": order.Cancelled.String()},
+			},
+			{
+				name:   "every futures order",
+				cancel: &order.Cancel{AssetType: asset.Futures},
+				exp: map[string]string{
+					"d6e7f8a9-b0c1-4d2e-9f3a-4b5c6d7e8f90": order.Cancelled.String(),
+					"a3b4c5d6-e7f8-4a1b-8c2d-3e4f5a6b7c8d": order.Cancelled.String(),
+				},
+			},
+			{
+				name:   "a futures pair without open orders",
+				cancel: &order.Cancel{AssetType: asset.Futures, Pair: futuresTestPair},
+				exp:    map[string]string{},
+			},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				tc.cancel.Exchange = e.Name
+				resp, err := e.CancelAllOrders(t.Context(), tc.cancel)
+				require.NoError(t, err, "CancelAllOrders must not error")
+				if !mockTests {
+					assert.NotNil(t, resp.Status, "CancelAllOrders should report the cancelled orders")
+					return
+				}
+				assert.Equal(t, order.CancelAllResponse{Status: tc.exp}, resp, "CancelAllOrders should report each cancelled order")
+			})
+		}
+		if !mockTests {
+			return
+		}
+		t.Run("a spot pair's orders over the private websocket", func(t *testing.T) {
+			t.Parallel()
+			ex := newOrdersWsTestExchange(t, ordersWsRoundTrip{
+				request: ordersWsRequest("cancel_order", `"order_id":["OQCLML-BW3P3-BUCMWZ"]`),
+				replies: []string{ordersWsReply("cancel_order", `{"order_id":"OQCLML-BW3P3-BUCMWZ"}`)},
+			})
+			resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{Exchange: ex.Name, AssetType: asset.Spot, Pair: spotTestPair})
+			require.NoError(t, err, "CancelAllOrders must not error")
+			assert.Equal(t, order.CancelAllResponse{Status: map[string]string{"OQCLML-BW3P3-BUCMWZ": order.Cancelled.String()}}, resp, "CancelAllOrders should cancel the pair's open orders over the private websocket")
 		})
-		resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{Exchange: ex.Name, AssetType: asset.Spot, Pair: spotTestPair})
+	})
+
+	t.Run("orders of a side and type", func(t *testing.T) {
+		t.Parallel()
+		ethFutures := currency.NewPairWithDelimiter("PF", "ETHUSD", currency.UnderscoreDelimiter)
+		for _, tc := range []struct {
+			name   string
+			cancel order.Cancel
+			exp    []string
+		}{
+			{name: "a pair's buy limit orders, an iceberg order among them", cancel: order.Cancel{AssetType: asset.Spot, Pair: spotTestPair, Side: order.Buy, Type: order.Limit}, exp: []string{"OBUY-ICEBERG-XBT", "OBUY-LIMIT-XBT"}},
+			{name: "sell orders, a cancel only pair's among them", cancel: order.Cancel{AssetType: asset.Spot, Side: order.Sell}, exp: []string{"OSELL-LIMIT-WAVES", "OSELL-SETTLE-ETH", "OSELL-STOP-XBT", "OSELL-TP-ETH", "OSELL-TPL-ETH", "OSELL-TRAIL-XBT"}},
+			{name: "limit orders, a cancel only pair's among them", cancel: order.Cancel{AssetType: asset.Spot, Type: order.Limit}, exp: []string{"OBUY-ICEBERG-XBT", "OBUY-LIMIT-ETH", "OBUY-LIMIT-XBT", "OSELL-LIMIT-WAVES"}},
+			{name: "stop orders, which a stop limit order is not", cancel: order.Cancel{AssetType: asset.Spot, Type: order.Stop}, exp: []string{"OSELL-STOP-XBT"}},
+			{name: "stop market orders, which Kraken lists as stop losses", cancel: order.Cancel{AssetType: asset.Spot, Type: order.StopMarket}, exp: []string{"OSELL-STOP-XBT"}},
+			{name: "stop limit orders", cancel: order.Cancel{AssetType: asset.Spot, Type: order.StopLimit}, exp: []string{"OBUY-STOPLMT-ETH"}},
+			{name: "take profit orders", cancel: order.Cancel{AssetType: asset.Spot, Type: order.TakeProfit}, exp: []string{"OSELL-TP-ETH"}},
+			{name: "take profit market orders, which Kraken lists as take profits", cancel: order.Cancel{AssetType: asset.Spot, Type: order.TakeProfitMarket}, exp: []string{"OSELL-TP-ETH"}},
+			{name: "take profit limit orders", cancel: order.Cancel{AssetType: asset.Spot, Type: order.TakeProfit | order.Limit}, exp: []string{"OSELL-TPL-ETH"}},
+			{name: "market orders, a settle position order among them", cancel: order.Cancel{AssetType: asset.Spot, Type: order.Market}, exp: []string{"OSELL-SETTLE-ETH"}},
+			{name: "trailing stop orders, which a trailing stop limit order is not", cancel: order.Cancel{AssetType: asset.Spot, Type: order.TrailingStop}},
+			{name: "trailing stop limit orders, which the wrapper does not place", cancel: order.Cancel{AssetType: asset.Spot, Type: order.TrailingStopLimit}, exp: []string{"OSELL-TRAIL-XBT"}},
+			{name: "bids, which are buys", cancel: order.Cancel{AssetType: asset.Spot, Side: order.Bid}, exp: []string{"OBUY-ICEBERG-XBT", "OBUY-LIMIT-ETH", "OBUY-LIMIT-XBT", "OBUY-STOPLMT-ETH"}},
+			{name: "asks of a type no ask has", cancel: order.Cancel{AssetType: asset.Spot, Side: order.Ask, Type: order.StopLimit}},
+			{name: "a pair's orders of any side and type", cancel: order.Cancel{AssetType: asset.Spot, Pair: spotTestPair, Side: order.AnySide, Type: order.AnyType}, exp: []string{"OBUY-ICEBERG-XBT", "OBUY-LIMIT-XBT", "OSELL-STOP-XBT", "OSELL-TRAIL-XBT"}},
+			{name: "a pair's sell orders named quote first", cancel: order.Cancel{AssetType: asset.Spot, Pair: spotTestPair.Swap(), Side: order.Sell}, exp: []string{"OSELL-STOP-XBT", "OSELL-TRAIL-XBT"}},
+			{name: "futures long orders", cancel: order.Cancel{AssetType: asset.Futures, Side: order.Long}, exp: []string{"f-buy-limit-xbt", "f-buy-post-xbt", "f-buy-tp-eth", "f-buy-tp-limit-eth"}},
+			{name: "futures limit orders, a post only order among them", cancel: order.Cancel{AssetType: asset.Futures, Type: order.Limit}, exp: []string{"f-buy-limit-xbt", "f-buy-post-xbt", "f-sell-limit-eth", "f-sell-limit-gct"}},
+			{name: "futures short orders, an unlisted product's among them", cancel: order.Cancel{AssetType: asset.Futures, Side: order.Short}, exp: []string{"f-sell-limit-eth", "f-sell-limit-gct", "f-sell-stop-limit-xbt", "f-sell-stop-xbt"}},
+			{name: "futures buy limit orders, a post only order among them", cancel: order.Cancel{AssetType: asset.Futures, Side: order.Buy, Type: order.Limit}, exp: []string{"f-buy-limit-xbt", "f-buy-post-xbt"}},
+			{name: "a futures product's short limit orders", cancel: order.Cancel{AssetType: asset.Futures, Pair: ethFutures, Side: order.Short, Type: order.Limit}, exp: []string{"f-sell-limit-eth"}},
+			{name: "a futures product's stop limit orders, which have a limit price", cancel: order.Cancel{AssetType: asset.Futures, Pair: futuresTestPair, Type: order.StopLimit}, exp: []string{"f-sell-stop-limit-xbt"}},
+			{name: "futures stop orders, which have none", cancel: order.Cancel{AssetType: asset.Futures, Type: order.Stop}, exp: []string{"f-sell-stop-xbt"}},
+			{name: "futures stop market orders", cancel: order.Cancel{AssetType: asset.Futures, Type: order.StopMarket}, exp: []string{"f-sell-stop-xbt"}},
+			{name: "futures take profit orders", cancel: order.Cancel{AssetType: asset.Futures, Type: order.TakeProfit}, exp: []string{"f-buy-tp-eth"}},
+			{name: "futures take profit market orders", cancel: order.Cancel{AssetType: asset.Futures, Type: order.TakeProfitMarket}, exp: []string{"f-buy-tp-eth"}},
+			{name: "futures take profit limit orders", cancel: order.Cancel{AssetType: asset.Futures, Type: order.TakeProfit | order.Limit}, exp: []string{"f-buy-tp-limit-eth"}},
+			{name: "a futures product's short orders", cancel: order.Cancel{AssetType: asset.Futures, Pair: ethFutures, Side: order.Short}, exp: []string{"f-sell-limit-eth"}},
+			{name: "a futures product's short orders named quote first", cancel: order.Cancel{AssetType: asset.Futures, Pair: ethFutures.Swap(), Side: order.Short}, exp: []string{"f-sell-limit-eth"}},
+			{name: "futures limit orders of any side", cancel: order.Cancel{AssetType: asset.Futures, Side: order.AnySide, Type: order.Limit}, exp: []string{"f-buy-limit-xbt", "f-buy-post-xbt", "f-sell-limit-eth", "f-sell-limit-gct"}},
+			{name: "futures short orders of any type", cancel: order.Cancel{AssetType: asset.Futures, Side: order.Short, Type: order.AnyType}, exp: []string{"f-sell-limit-eth", "f-sell-limit-gct", "f-sell-stop-limit-xbt", "f-sell-stop-xbt"}},
+			{name: "futures market orders, which none is", cancel: order.Cancel{AssetType: asset.Futures, Type: order.Market}},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				var mu sync.Mutex
+				var cancelled []string
+				ex := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+					mu.Lock()
+					defer mu.Unlock()
+					switch r.URL.Path {
+					case "/0/private/OpenOrders":
+						_, _ = w.Write([]byte(ordersSideAndTypeOpenOrders))
+					case "/0/private/CancelOrder":
+						var req struct {
+							OrderID string `json:"txid"`
+						}
+						assert.NoError(t, json.Unmarshal([]byte(tradingRequestBody(t, r)), &req), "Unmarshal should not error")
+						cancelled = append(cancelled, req.OrderID)
+						_, _ = w.Write([]byte(`{"error":[],"result":{"count":1}}`))
+					case "/0/private/CancelOrderBatch":
+						var req struct {
+							Orders []string `json:"orders"`
+						}
+						assert.NoError(t, json.Unmarshal([]byte(tradingRequestBody(t, r)), &req), "Unmarshal should not error")
+						cancelled = append(cancelled, req.Orders...)
+						_, _ = w.Write([]byte(`{"error":[],"result":{"count":` + strconv.Itoa(len(req.Orders)) + `}}`))
+					case "/derivatives/api/v3/openorders":
+						_, _ = w.Write([]byte(ordersSideAndTypeFuturesOpenOrders))
+					case "/derivatives/api/v3/batchorder":
+						var batch struct {
+							Orders []struct {
+								OrderID string `json:"order_id"`
+							} `json:"batchOrder"`
+						}
+						assert.NoError(t, json.Unmarshal([]byte(r.URL.Query().Get("json")), &batch), "Unmarshal should not error")
+						statuses := make([]string, len(batch.Orders))
+						for i := range batch.Orders {
+							cancelled = append(cancelled, batch.Orders[i].OrderID)
+							status := "cancelled"
+							if batch.Orders[i].OrderID == "f-buy-post-xbt" {
+								status = "notFound"
+							}
+							statuses[i] = `{"order_id":"` + batch.Orders[i].OrderID + `","orderEvents":[],"status":"` + status + `"}`
+						}
+						_, _ = w.Write([]byte(`{"result":"success","batchStatus":[` + strings.Join(statuses, ",") + `],"serverTime":"2026-10-09T08:42:00.003Z"}`))
+					default:
+						assert.Failf(t, "only open orders should be listed and cancelled", "%s", r.URL.Path)
+					}
+				})
+				c := tc.cancel
+				c.Exchange = ex.Name
+				resp, err := ex.CancelAllOrders(t.Context(), &c)
+				require.NoError(t, err, "CancelAllOrders must not error")
+				mu.Lock()
+				defer mu.Unlock()
+				slices.Sort(cancelled)
+				assert.Equal(t, tc.exp, cancelled, "CancelAllOrders should cancel the open orders matching the pair, side and order type alone")
+				// Kraken reports the post only order as not found, as it would one filled meanwhile
+				exp := map[string]string{}
+				for _, id := range tc.exp {
+					exp[id] = order.Cancelled.String()
+					if id == "f-buy-post-xbt" {
+						exp[id] = order.ErrOrderNotFound.Error()
+					}
+				}
+				assert.Equal(t, order.CancelAllResponse{Status: exp}, resp, "CancelAllOrders should report each order's outcome")
+			})
+		}
+
+		t.Run("futures orders over two batches, the third failing", func(t *testing.T) {
+			t.Parallel()
+			orders := make([]string, 1001)
+			for i := range orders {
+				orders[i] = `{"order_id":"f-` + strconv.Itoa(i) + `","symbol":"PF_XBTUSD","side":"buy","orderType":"lmt","limitPrice":80000,"unfilledSize":1,"filledSize":0,"receivedTime":"2026-10-09T08:33:01.104Z","status":"untouched"}`
+			}
+			var mu sync.Mutex
+			var batches []int
+			ex := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+				mu.Lock()
+				defer mu.Unlock()
+				switch r.URL.Path {
+				case "/derivatives/api/v3/openorders":
+					_, _ = w.Write([]byte(`{"result":"success","openOrders":[` + strings.Join(orders, ",") + `],"serverTime":"2026-10-09T08:33:01.107Z"}`))
+				case "/derivatives/api/v3/batchorder":
+					var batch struct {
+						Orders []struct {
+							OrderID string `json:"order_id"`
+						} `json:"batchOrder"`
+					}
+					assert.NoError(t, json.Unmarshal([]byte(r.URL.Query().Get("json")), &batch), "Unmarshal should not error")
+					batches = append(batches, len(batch.Orders))
+					if len(batches) > 2 {
+						_, _ = w.Write([]byte(`{"result":"error","error":"apiLimitExceeded","serverTime":"2026-10-09T08:42:00.001Z"}`))
+						return
+					}
+					statuses := make([]string, len(batch.Orders))
+					for i := range batch.Orders {
+						statuses[i] = `{"order_id":"` + batch.Orders[i].OrderID + `","orderEvents":[],"status":"cancelled"}`
+					}
+					_, _ = w.Write([]byte(`{"result":"success","batchStatus":[` + strings.Join(statuses, ",") + `],"serverTime":"2026-10-09T08:42:00.003Z"}`))
+				default:
+					assert.Failf(t, "only open orders should be listed and cancelled", "%s", r.URL.Path)
+				}
+			})
+			resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{Exchange: ex.Name, AssetType: asset.Futures, Side: order.Buy})
+			require.ErrorIs(t, err, errAPIResponse, "CancelAllOrders must return the failed batch's error")
+			mu.Lock()
+			defer mu.Unlock()
+			assert.Equal(t, []int{500, 500, 1}, batches, "CancelAllOrders should cancel 500 orders a batch")
+			assert.Len(t, resp.Status, 1000, "CancelAllOrders should report the outcomes of the batches sent before the failed one")
+			assert.Equal(t, order.Cancelled.String(), resp.Status["f-0"], "CancelAllOrders should report each order the first batch cancelled")
+			assert.Equal(t, order.Cancelled.String(), resp.Status["f-999"], "CancelAllOrders should report each order the second batch cancelled")
+		})
+
+		t.Run("futures orders over two batches, the context ending in the second", func(t *testing.T) {
+			t.Parallel()
+			orders := make([]string, 501)
+			for i := range orders {
+				orders[i] = `{"order_id":"f-` + strconv.Itoa(i) + `","symbol":"PF_XBTUSD","side":"buy","orderType":"lmt","limitPrice":80000,"unfilledSize":1,"filledSize":0,"receivedTime":"2026-10-09T08:33:01.104Z","status":"untouched"}`
+			}
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			var batches atomic.Int32
+			ex := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+				switch r.URL.Path {
+				case "/derivatives/api/v3/openorders":
+					_, _ = w.Write([]byte(`{"result":"success","openOrders":[` + strings.Join(orders, ",") + `],"serverTime":"2026-10-09T08:33:01.107Z"}`))
+				case "/derivatives/api/v3/batchorder":
+					if batches.Add(1) > 1 {
+						// The caller gives up while the second batch is in flight
+						cancel()
+						select {
+						case <-r.Context().Done():
+						case <-time.After(time.Minute):
+						}
+						return
+					}
+					var batch struct {
+						Orders []struct {
+							OrderID string `json:"order_id"`
+						} `json:"batchOrder"`
+					}
+					assert.NoError(t, json.Unmarshal([]byte(r.URL.Query().Get("json")), &batch), "Unmarshal should not error")
+					statuses := make([]string, len(batch.Orders))
+					for i := range batch.Orders {
+						statuses[i] = `{"order_id":"` + batch.Orders[i].OrderID + `","orderEvents":[],"status":"cancelled"}`
+					}
+					_, _ = w.Write([]byte(`{"result":"success","batchStatus":[` + strings.Join(statuses, ",") + `],"serverTime":"2026-10-09T08:42:00.003Z"}`))
+				default:
+					assert.Failf(t, "only open orders should be listed and cancelled", "%s", r.URL.Path)
+				}
+			})
+			resp, err := ex.CancelAllOrders(ctx, &order.Cancel{Exchange: ex.Name, AssetType: asset.Futures, Side: order.Buy})
+			require.ErrorIs(t, err, context.Canceled, "CancelAllOrders must return the context's error")
+			assert.Len(t, resp.Status, 500, "CancelAllOrders should report the outcomes of the batch sent before the context ended")
+		})
+
+		t.Run("spot orders over a batch, the second failing", func(t *testing.T) {
+			t.Parallel()
+			orders := make([]string, 101)
+			for i := range orders {
+				orders[i] = `"OSPOT-` + strconv.Itoa(i) + `":{"status":"open","opentm":1791421234.5512,"descr":{"pair":"XBTUSD","type":"buy","ordertype":"limit","price":"80000"},"vol":"1","vol_exec":"0"}`
+			}
+			var mu sync.Mutex
+			var batches int
+			ex := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+				mu.Lock()
+				defer mu.Unlock()
+				switch r.URL.Path {
+				case "/0/private/OpenOrders":
+					_, _ = w.Write([]byte(`{"error":[],"result":{"open":{` + strings.Join(orders, ",") + `}}}`))
+				case "/0/private/CancelOrderBatch":
+					var req struct {
+						Orders []string `json:"orders"`
+					}
+					assert.NoError(t, json.Unmarshal([]byte(tradingRequestBody(t, r)), &req), "Unmarshal should not error")
+					batches++
+					if batches > 1 {
+						_, _ = w.Write([]byte(`{"error":["EAPI:Rate limit exceeded"]}`))
+						return
+					}
+					_, _ = w.Write([]byte(`{"error":[],"result":{"count":` + strconv.Itoa(len(req.Orders)) + `}}`))
+				default:
+					assert.Failf(t, "only open orders should be listed and cancelled", "%s", r.URL.Path)
+				}
+			})
+			resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{Exchange: ex.Name, AssetType: asset.Spot, Side: order.Buy})
+			require.ErrorIs(t, err, errAPIResponse, "CancelAllOrders must return the failed batch's error")
+			assert.Len(t, resp.Status, 50, "CancelAllOrders should report the outcomes of the batch sent before the failed one")
+		})
+
+		t.Run("pairs missing from the available pairs, named", func(t *testing.T) {
+			t.Parallel()
+			// Of the pairs these orders are on, XBT/USD, TGBP/USD unless a row says otherwise, and PF_XBTUSD alone are
+			// available: the other spot pairs stand for those Kraken lists as cancel only or post only, modelled here with open
+			// orders, such as OBOL/USD and XBT/USDR, which it keys XXBTUSDR
+			const spotOrders = `{"error":[],"result":{"open":{` +
+				`"OSELL-LIMIT-WAVES":{"status":"open","opentm":1791421234.5512,"descr":{"pair":"WAVESUSD","type":"sell","ordertype":"limit","price":"1.2250"},"vol":"500","vol_exec":"0"},` +
+				`"OBUY-STOP-WAVES":{"status":"open","opentm":1791421234.5512,"descr":{"pair":"WAVESUSD","type":"buy","ordertype":"stop-loss","price":"1.5000"},"vol":"500","vol_exec":"0"},` +
+				`"OSELL-LIMIT-WAVESEUR":{"status":"open","opentm":1791421234.5512,"descr":{"pair":"WAVESEUR","type":"sell","ordertype":"limit","price":"1.1000"},"vol":"500","vol_exec":"0"},` +
+				`"OSELL-LIMIT-ICX":{"status":"open","opentm":1791421234.5512,"descr":{"pair":"ICXUSD","type":"sell","ordertype":"limit","price":"0.1500"},"vol":"500","vol_exec":"0"},` +
+				`"OSELL-LIMIT-SCA":{"status":"open","opentm":1791421234.5512,"descr":{"pair":"SCAUSD","type":"sell","ordertype":"limit","price":"0.0500"},"vol":"500","vol_exec":"0"},` +
+				`"OSELL-LIMIT-USDTGBP":{"status":"open","opentm":1791421234.5512,"descr":{"pair":"USDTGBP","type":"sell","ordertype":"limit","price":"0.7600"},"vol":"500","vol_exec":"0"},` +
+				`"OSELL-LIMIT-TGBP":{"status":"open","opentm":1791421234.5512,"descr":{"pair":"TGBPUSD","type":"sell","ordertype":"limit","price":"1.3100"},"vol":"500","vol_exec":"0"},` +
+				`"OSELL-LIMIT-XBTUSDR":{"status":"open","opentm":1791421234.5512,"descr":{"pair":"XBTUSDR","type":"sell","ordertype":"limit","price":"81000"},"vol":"1","vol_exec":"0"},` +
+				`"OSELL-LIMIT-OBOL":{"status":"open","opentm":1791421234.5512,"descr":{"pair":"OBOLUSD","type":"sell","ordertype":"limit","price":"0.3000"},"vol":"500","vol_exec":"0"},` +
+				`"OSELL-LIMIT-OBOLUSDT":{"status":"open","opentm":1791421234.5512,"descr":{"pair":"OBOLUSDT","type":"sell","ordertype":"limit","price":"0.3000"},"vol":"500","vol_exec":"0"},` +
+				`"OSELL-LIMIT-IR":{"status":"open","opentm":1791421234.5512,"descr":{"pair":"IRUSD","type":"sell","ordertype":"limit","price":"0.0200"},"vol":"500","vol_exec":"0"},` +
+				`"OSELL-LIMIT-MIR":{"status":"open","opentm":1791421234.5512,"descr":{"pair":"MIRUSD","type":"sell","ordertype":"limit","price":"0.0100"},"vol":"500","vol_exec":"0"},` +
+				`"OBUY-LIMIT-XBT":{"status":"open","opentm":1791421234.5512,"descr":{"pair":"XBTUSD","type":"buy","ordertype":"limit","price":"80000"},"vol":"1","vol_exec":"0"}}}}`
+			const assetPairs = `{"error":[],"result":{` +
+				`"WAVESUSD":{"altname":"WAVESUSD","wsname":"WAVES/USD","status":"cancel_only"},` +
+				`"WAVESEUR":{"altname":"WAVESEUR","wsname":"WAVES/EUR","status":"cancel_only"},` +
+				`"ICXUSD":{"altname":"ICXUSD","wsname":"ICX/USD","status":"cancel_only"},` +
+				`"SCAUSD":{"altname":"SCAUSD","wsname":"SCA/USD","status":"cancel_only"},` +
+				`"USDTGBP":{"altname":"USDTGBP","wsname":"USDT/GBP","status":"post_only"},` +
+				`"XXBTUSDR":{"altname":"XBTUSDR","wsname":"XBT/USDR","status":"post_only"},` +
+				`"OBOLUSD":{"altname":"OBOLUSD","wsname":"OBOL/USD","status":"cancel_only"},` +
+				`"OBOLUSDT":{"altname":"OBOLUSDT","wsname":"OBOL/USDT","status":"cancel_only"},` +
+				`"IRUSD":{"altname":"IRUSD","wsname":"IR/USD","status":"cancel_only"},` +
+				`"MIRUSD":{"altname":"MIRUSD","wsname":"MIR/USD","status":"cancel_only"},` +
+				`"TGBPUSD":{"altname":"TGBPUSD","wsname":"TGBP/USD","status":"online"},` +
+				`"XXBTZUSD":{"altname":"XBTUSD","wsname":"XBT/USD","status":"online"}}}`
+			const futuresOrders = `{"result":"success","openOrders":[` +
+				`{"order_id":"f-sell-limit-gct","symbol":"PF_GCTUSD","side":"sell","orderType":"lmt","limitPrice":5,"unfilledSize":1,"filledSize":0,"receivedTime":"2026-10-09T08:33:01.104Z","status":"untouched"},` +
+				`{"order_id":"f-buy-stop-gct","symbol":"PF_GCTUSD","side":"buy","orderType":"stop","stopPrice":6,"unfilledSize":1,"filledSize":0,"receivedTime":"2026-10-09T08:33:01.104Z","status":"untouched"},` +
+				`{"order_id":"f-sell-limit-gcteur","symbol":"PF_GCTEUR","side":"sell","orderType":"lmt","limitPrice":5,"unfilledSize":1,"filledSize":0,"receivedTime":"2026-10-09T08:33:01.104Z","status":"untouched"},` +
+				`{"order_id":"f-sell-limit-icx","symbol":"PF_ICXUSD","side":"sell","orderType":"lmt","limitPrice":0.2,"unfilledSize":1,"filledSize":0,"receivedTime":"2026-10-09T08:33:01.104Z","status":"untouched"},` +
+				`{"order_id":"f-sell-limit-gct-dated","symbol":"FF_GCTUSD_261225","side":"sell","orderType":"lmt","limitPrice":5,"unfilledSize":1,"filledSize":0,"receivedTime":"2026-10-09T08:33:01.104Z","status":"untouched"},` +
+				`{"order_id":"f-sell-limit-gct-inverse-dated","symbol":"FI_GCTUSD_261225","side":"sell","orderType":"lmt","limitPrice":5,"unfilledSize":1,"filledSize":0,"receivedTime":"2026-10-09T08:33:01.104Z","status":"untouched"},` +
+				`{"order_id":"f-sell-limit-gct-later","symbol":"FF_GCTUSD_270326","side":"sell","orderType":"lmt","limitPrice":5,"unfilledSize":1,"filledSize":0,"receivedTime":"2026-10-09T08:33:01.104Z","status":"untouched"},` +
+				`{"order_id":"f-buy-limit-xbt","symbol":"PF_XBTUSD","side":"buy","orderType":"lmt","limitPrice":80000,"unfilledSize":1,"filledSize":0,"receivedTime":"2026-10-09T08:33:01.104Z","status":"untouched"}],"serverTime":"2026-10-09T08:33:01.107Z"}`
+			waves := currency.NewPair(currency.NewCode("WAVES"), currency.USD)
+			tgbp := currency.NewPair(currency.NewCode("TGBP"), currency.USD)
+			gct := currency.NewPairWithDelimiter("PF", "GCTUSD", currency.UnderscoreDelimiter)
+			for _, tc := range []struct {
+				name      string
+				cancel    order.Cancel
+				available currency.Pairs
+				exp       []string
+			}{
+				{name: "a cancel only pair's orders", cancel: order.Cancel{AssetType: asset.Spot, Pair: waves}, exp: []string{"OBUY-STOP-WAVES", "OSELL-LIMIT-WAVES"}},
+				{name: "a cancel only pair's sell orders", cancel: order.Cancel{AssetType: asset.Spot, Pair: waves, Side: order.Sell}, exp: []string{"OSELL-LIMIT-WAVES"}},
+				{name: "a cancel only pair's stop orders named quote first", cancel: order.Cancel{AssetType: asset.Spot, Pair: waves.Swap(), Type: order.Stop}, exp: []string{"OBUY-STOP-WAVES"}},
+				{name: "a cancel only pair's limit orders named in lower case", cancel: order.Cancel{AssetType: asset.Spot, Pair: currency.NewPair(currency.NewCode("waves"), currency.NewCode("usd")), Type: order.Limit}, exp: []string{"OSELL-LIMIT-WAVES"}},
+				{name: "an available pair's sell orders, which a pair listed under its name quote first is not", cancel: order.Cancel{AssetType: asset.Spot, Pair: tgbp, Side: order.Sell}, exp: []string{"OSELL-LIMIT-TGBP"}},
+				{name: "a missing pair's sell orders, which another listed under its name quote first is not", cancel: order.Cancel{AssetType: asset.Spot, Pair: tgbp, Side: order.Sell}, available: currency.Pairs{spotTestPair}, exp: []string{"OSELL-LIMIT-TGBP"}},
+				{name: "the sell orders of a pair Kraken does not list, named as another is listed", cancel: order.Cancel{AssetType: asset.Spot, Pair: currency.NewPair(currency.NewCode("SC"), currency.NewCode("AUSD")), Side: order.Sell}},
+				{name: "a cancel only pair's sell orders, which those of one named after it plus a currency are not", cancel: order.Cancel{AssetType: asset.Spot, Pair: currency.NewPair(currency.NewCode("OBOL"), currency.USD), Side: order.Sell}, exp: []string{"OSELL-LIMIT-OBOL"}},
+				{name: "a cancel only pair's sell orders, which those of one named with a currency before it are not", cancel: order.Cancel{AssetType: asset.Spot, Pair: currency.NewPair(currency.NewCode("IR"), currency.USD), Side: order.Sell}, exp: []string{"OSELL-LIMIT-IR"}},
+				{name: "a cancel only pair's sell orders, which those of one whose name begins its name are not", cancel: order.Cancel{AssetType: asset.Spot, Pair: currency.NewPair(currency.NewCode("OBOL"), currency.USDT), Side: order.Sell}, exp: []string{"OSELL-LIMIT-OBOLUSDT"}},
+				{name: "a cancel only pair's sell orders, which those of one whose name ends its name are not", cancel: order.Cancel{AssetType: asset.Spot, Pair: currency.NewPair(currency.NewCode("MIR"), currency.USD), Side: order.Sell}, exp: []string{"OSELL-LIMIT-MIR"}},
+				{name: "a post only pair's sell orders, keyed apart from its name", cancel: order.Cancel{AssetType: asset.Spot, Pair: currency.NewPair(currency.XBT, currency.NewCode("USDR")), Side: order.Sell}, exp: []string{"OSELL-LIMIT-XBTUSDR"}},
+				{name: "an available pair's buy orders", cancel: order.Cancel{AssetType: asset.Spot, Pair: spotTestPair, Side: order.Buy}, exp: []string{"OBUY-LIMIT-XBT"}},
+				{name: "an unlisted product's short orders", cancel: order.Cancel{AssetType: asset.Futures, Pair: gct, Side: order.Short}, exp: []string{"f-sell-limit-gct"}},
+				{name: "an unlisted product's stop orders named quote first", cancel: order.Cancel{AssetType: asset.Futures, Pair: gct.Swap(), Type: order.Stop}, exp: []string{"f-buy-stop-gct"}},
+				{name: "an unlisted dated product's short orders, which those of one dated alike or maturing later are not", cancel: order.Cancel{AssetType: asset.Futures, Pair: currency.NewPairWithDelimiter("FF", "GCTUSD_261225", currency.UnderscoreDelimiter), Side: order.Short}, exp: []string{"f-sell-limit-gct-dated"}},
+				{name: "an unlisted inverse dated product's short orders, which those of a linear one dated alike are not", cancel: order.Cancel{AssetType: asset.Futures, Pair: currency.NewPairWithDelimiter("FI", "GCTUSD_261225", currency.UnderscoreDelimiter), Side: order.Short}, exp: []string{"f-sell-limit-gct-inverse-dated"}},
+				{name: "the short orders of a product named with its currencies split elsewhere", cancel: order.Cancel{AssetType: asset.Futures, Pair: currency.NewPairWithDelimiter("PFGCT", "USD", currency.UnderscoreDelimiter), Side: order.Short}},
+				{name: "the short orders of a dated product named split at its last underscore", cancel: order.Cancel{AssetType: asset.Futures, Pair: currency.NewPairWithDelimiter("FF_GCTUSD", "261225", currency.UnderscoreDelimiter), Side: order.Short}},
+				{name: "an available product's long orders", cancel: order.Cancel{AssetType: asset.Futures, Pair: futuresTestPair, Side: order.Long}, exp: []string{"f-buy-limit-xbt"}},
+			} {
+				t.Run(tc.name, func(t *testing.T) {
+					t.Parallel()
+					var mu sync.Mutex
+					var cancelled []string
+					var assetPairsRequests int
+					ex := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+						mu.Lock()
+						defer mu.Unlock()
+						switch r.URL.Path {
+						case "/0/private/OpenOrders":
+							_, _ = w.Write([]byte(spotOrders))
+						case "/0/public/AssetPairs":
+							assetPairsRequests++
+							_, _ = w.Write([]byte(assetPairs))
+						case "/0/private/CancelOrder":
+							var req struct {
+								OrderID string `json:"txid"`
+							}
+							assert.NoError(t, json.Unmarshal([]byte(tradingRequestBody(t, r)), &req), "Unmarshal should not error")
+							cancelled = append(cancelled, req.OrderID)
+							_, _ = w.Write([]byte(`{"error":[],"result":{"count":1}}`))
+						case "/0/private/CancelOrderBatch":
+							var req struct {
+								Orders []string `json:"orders"`
+							}
+							assert.NoError(t, json.Unmarshal([]byte(tradingRequestBody(t, r)), &req), "Unmarshal should not error")
+							cancelled = append(cancelled, req.Orders...)
+							_, _ = w.Write([]byte(`{"error":[],"result":{"count":` + strconv.Itoa(len(req.Orders)) + `}}`))
+						case "/derivatives/api/v3/openorders":
+							_, _ = w.Write([]byte(futuresOrders))
+						case "/derivatives/api/v3/batchorder":
+							var batch struct {
+								Orders []struct {
+									OrderID string `json:"order_id"`
+								} `json:"batchOrder"`
+							}
+							assert.NoError(t, json.Unmarshal([]byte(r.URL.Query().Get("json")), &batch), "Unmarshal should not error")
+							statuses := make([]string, len(batch.Orders))
+							for i := range batch.Orders {
+								cancelled = append(cancelled, batch.Orders[i].OrderID)
+								statuses[i] = `{"order_id":"` + batch.Orders[i].OrderID + `","orderEvents":[],"status":"cancelled"}`
+							}
+							_, _ = w.Write([]byte(`{"result":"success","batchStatus":[` + strings.Join(statuses, ",") + `],"serverTime":"2026-10-09T08:42:00.003Z"}`))
+						default:
+							assert.Failf(t, "only open orders should be listed and cancelled", "%s", r.URL.Path)
+						}
+					})
+					available := tc.available
+					if available == nil {
+						available = currency.Pairs{spotTestPair, tgbp}
+					}
+					require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, available, false), "StorePairs must not error")
+					require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Futures, currency.Pairs{futuresTestPair}, false), "StorePairs must not error")
+					c := tc.cancel
+					c.Exchange = ex.Name
+					resp, err := ex.CancelAllOrders(t.Context(), &c)
+					require.NoError(t, err, "CancelAllOrders must not error")
+					mu.Lock()
+					defer mu.Unlock()
+					slices.Sort(cancelled)
+					assert.Equal(t, tc.exp, cancelled, "CancelAllOrders should cancel the open orders matching the pair, side and order type alone")
+					assert.LessOrEqual(t, assetPairsRequests, 1, "CancelAllOrders should look Kraken's asset pairs up at most once")
+					exp := map[string]string{}
+					for _, id := range tc.exp {
+						exp[id] = order.Cancelled.String()
+					}
+					assert.Equal(t, order.CancelAllResponse{Status: exp}, resp, "CancelAllOrders should report each order cancelled")
+				})
+			}
+		})
+
+		ex := newHTTPTestExchange(t, func(_ http.ResponseWriter, r *http.Request) {
+			assert.Failf(t, "no order should be listed or cancelled", "%s", r.URL.Path)
+		})
+		// The cases share ex in order, so each also checks that a call keeps nothing from the last
+		for _, a := range []asset.Item{asset.Spot, asset.Futures} {
+			t.Run(a.String()+" side and type refused before any request", func(t *testing.T) {
+				_, err := ex.CancelAllOrders(t.Context(), &order.Cancel{Exchange: ex.Name, AssetType: a, Side: order.ClosePosition})
+				assert.ErrorIsf(t, err, order.ErrSideIsInvalid, "CancelAllOrders should refuse a %s side neither long nor short before any request", a)
+				_, err = ex.CancelAllOrders(t.Context(), &order.Cancel{Exchange: ex.Name, AssetType: a, Type: order.Liquidation})
+				assert.ErrorIsf(t, err, order.ErrUnsupportedOrderType, "CancelAllOrders should refuse a %s order type no open order is read as before any request", a)
+			})
+		}
+		_, err := ex.CancelAllOrders(t.Context(), &order.Cancel{Exchange: ex.Name, AssetType: asset.Futures, Type: order.TrailingStopLimit})
+		assert.ErrorIs(t, err, order.ErrUnsupportedOrderType, "CancelAllOrders should refuse futures trailing stop limit orders, which no listed futures order is read as, before any request")
+
+		failing := newOrdersFailingExchange(t)
+		_, err = failing.CancelAllOrders(t.Context(), &order.Cancel{Exchange: failing.Name, AssetType: asset.Futures, Side: order.Buy})
+		assert.ErrorIs(t, err, errAPIResponse, "CancelAllOrders should return the futures open orders request's error")
+
+		unnamed := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+			switch r.URL.Path {
+			case "/0/private/OpenOrders":
+				_, _ = w.Write([]byte(`{"error":[],"result":{"open":{"OBUY-NOPAIR":{"status":"open","opentm":1791421234.5512,"descr":{"pair":"","type":"buy","ordertype":"limit","price":"80000"},"vol":"1","vol_exec":"0"}}}}`))
+			case "/derivatives/api/v3/openorders":
+				_, _ = w.Write([]byte(`{"result":"success","openOrders":[{"order_id":"f-nopair","symbol":"","side":"buy","orderType":"lmt","limitPrice":80000,"unfilledSize":1,"filledSize":0,"receivedTime":"2026-10-09T08:33:01.104Z","status":"untouched"}],"serverTime":"2026-10-09T08:33:01.107Z"}`))
+			default:
+				assert.Failf(t, "no order should be cancelled", "%s", r.URL.Path)
+			}
+		})
+		// The cases share unnamed in order, so each also checks that a call keeps nothing from the last
+		for _, c := range []order.Cancel{{AssetType: asset.Spot, Pair: spotTestPair}, {AssetType: asset.Futures, Pair: futuresTestPair, Side: order.Buy}} {
+			t.Run(c.AssetType.String()+" listed order without a pair", func(t *testing.T) {
+				c.Exchange = unnamed.Name
+				_, err = unnamed.CancelAllOrders(t.Context(), &c)
+				assert.ErrorIsf(t, err, currency.ErrSymbolStringEmpty, "CancelAllOrders should return the error of a listed %s order whose pair cannot be read when a pair is named", c.AssetType)
+			})
+		}
+	})
+
+	t.Run("every spot order, an unlisted pair's among them", func(t *testing.T) {
+		t.Parallel()
+		ex := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+			switch r.URL.Path {
+			case "/0/private/OpenOrders":
+				_, _ = w.Write([]byte(ordersUnlistedOpenOrders))
+			case "/0/private/CancelOrderBatch":
+				var req struct {
+					Orders []string `json:"orders"`
+				}
+				assert.NoError(t, json.Unmarshal([]byte(tradingRequestBody(t, r)), &req), "Unmarshal should not error")
+				assert.ElementsMatch(t, []string{"O0IJNX-TWAD7-W21QA7", "OQCLML-BW3P3-BUCMWZ"}, req.Orders, "Cancel Order Batch should cancel every open order")
+				_, _ = w.Write([]byte(`{"error":[],"result":{"count":2}}`))
+			default:
+				assert.Failf(t, "only Get Open Orders and Cancel Order Batch should be called", "%s", r.URL.Path)
+			}
+		})
+		resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{Exchange: ex.Name, AssetType: asset.Spot})
 		require.NoError(t, err, "CancelAllOrders must not error")
-		assert.Equal(t, order.CancelAllResponse{Status: map[string]string{"OQCLML-BW3P3-BUCMWZ": order.Cancelled.String()}}, resp, "CancelAllOrders should cancel the pair's open orders over the private websocket")
+		exp := order.CancelAllResponse{Status: map[string]string{"O0IJNX-TWAD7-W21QA7": order.Cancelled.String(), "OQCLML-BW3P3-BUCMWZ": order.Cancelled.String()}}
+		assert.Equal(t, exp, resp, "CancelAllOrders should cancel every open spot order")
 	})
 }
 
@@ -4881,434 +6401,33 @@ const ordersSideAndTypeFuturesOpenOrders = `{"result":"success","openOrders":[` 
 	`{"order_id":"f-buy-tp-limit-eth","symbol":"PF_ETHUSD","side":"buy","orderType":"take_profit","limitPrice":1905,"stopPrice":1900,"unfilledSize":1,"filledSize":0,"receivedTime":"2026-10-09T08:33:01.104Z","status":"untouched"},` +
 	`{"order_id":"f-sell-limit-gct","symbol":"PF_GCTUSD","side":"sell","orderType":"lmt","limitPrice":5,"unfilledSize":1,"filledSize":0,"receivedTime":"2026-10-09T08:33:01.104Z","status":"untouched"}],"serverTime":"2026-10-09T08:33:01.107Z"}`
 
-func TestCancelAllOrdersSideAndType(t *testing.T) {
-	t.Parallel()
-	ethFutures := currency.NewPairWithDelimiter("PF", "ETHUSD", currency.UnderscoreDelimiter)
-	for _, tc := range []struct {
-		name   string
-		cancel order.Cancel
-		exp    []string
-	}{
-		{name: "a pair's buy limit orders, an iceberg order among them", cancel: order.Cancel{AssetType: asset.Spot, Pair: spotTestPair, Side: order.Buy, Type: order.Limit}, exp: []string{"OBUY-ICEBERG-XBT", "OBUY-LIMIT-XBT"}},
-		{name: "sell orders, a cancel only pair's among them", cancel: order.Cancel{AssetType: asset.Spot, Side: order.Sell}, exp: []string{"OSELL-LIMIT-WAVES", "OSELL-SETTLE-ETH", "OSELL-STOP-XBT", "OSELL-TP-ETH", "OSELL-TPL-ETH", "OSELL-TRAIL-XBT"}},
-		{name: "limit orders, a cancel only pair's among them", cancel: order.Cancel{AssetType: asset.Spot, Type: order.Limit}, exp: []string{"OBUY-ICEBERG-XBT", "OBUY-LIMIT-ETH", "OBUY-LIMIT-XBT", "OSELL-LIMIT-WAVES"}},
-		{name: "stop orders, which a stop limit order is not", cancel: order.Cancel{AssetType: asset.Spot, Type: order.Stop}, exp: []string{"OSELL-STOP-XBT"}},
-		{name: "stop market orders, which Kraken lists as stop losses", cancel: order.Cancel{AssetType: asset.Spot, Type: order.StopMarket}, exp: []string{"OSELL-STOP-XBT"}},
-		{name: "stop limit orders", cancel: order.Cancel{AssetType: asset.Spot, Type: order.StopLimit}, exp: []string{"OBUY-STOPLMT-ETH"}},
-		{name: "take profit orders", cancel: order.Cancel{AssetType: asset.Spot, Type: order.TakeProfit}, exp: []string{"OSELL-TP-ETH"}},
-		{name: "take profit market orders, which Kraken lists as take profits", cancel: order.Cancel{AssetType: asset.Spot, Type: order.TakeProfitMarket}, exp: []string{"OSELL-TP-ETH"}},
-		{name: "take profit limit orders", cancel: order.Cancel{AssetType: asset.Spot, Type: order.TakeProfit | order.Limit}, exp: []string{"OSELL-TPL-ETH"}},
-		{name: "market orders, a settle position order among them", cancel: order.Cancel{AssetType: asset.Spot, Type: order.Market}, exp: []string{"OSELL-SETTLE-ETH"}},
-		{name: "trailing stop orders, which a trailing stop limit order is not", cancel: order.Cancel{AssetType: asset.Spot, Type: order.TrailingStop}},
-		{name: "trailing stop limit orders, which the wrapper does not place", cancel: order.Cancel{AssetType: asset.Spot, Type: order.TrailingStopLimit}, exp: []string{"OSELL-TRAIL-XBT"}},
-		{name: "bids, which are buys", cancel: order.Cancel{AssetType: asset.Spot, Side: order.Bid}, exp: []string{"OBUY-ICEBERG-XBT", "OBUY-LIMIT-ETH", "OBUY-LIMIT-XBT", "OBUY-STOPLMT-ETH"}},
-		{name: "asks of a type no ask has", cancel: order.Cancel{AssetType: asset.Spot, Side: order.Ask, Type: order.StopLimit}},
-		{name: "a pair's orders of any side and type", cancel: order.Cancel{AssetType: asset.Spot, Pair: spotTestPair, Side: order.AnySide, Type: order.AnyType}, exp: []string{"OBUY-ICEBERG-XBT", "OBUY-LIMIT-XBT", "OSELL-STOP-XBT", "OSELL-TRAIL-XBT"}},
-		{name: "a pair's sell orders named quote first", cancel: order.Cancel{AssetType: asset.Spot, Pair: spotTestPair.Swap(), Side: order.Sell}, exp: []string{"OSELL-STOP-XBT", "OSELL-TRAIL-XBT"}},
-		{name: "futures long orders", cancel: order.Cancel{AssetType: asset.Futures, Side: order.Long}, exp: []string{"f-buy-limit-xbt", "f-buy-post-xbt", "f-buy-tp-eth", "f-buy-tp-limit-eth"}},
-		{name: "futures limit orders, a post only order among them", cancel: order.Cancel{AssetType: asset.Futures, Type: order.Limit}, exp: []string{"f-buy-limit-xbt", "f-buy-post-xbt", "f-sell-limit-eth", "f-sell-limit-gct"}},
-		{name: "futures short orders, an unlisted product's among them", cancel: order.Cancel{AssetType: asset.Futures, Side: order.Short}, exp: []string{"f-sell-limit-eth", "f-sell-limit-gct", "f-sell-stop-limit-xbt", "f-sell-stop-xbt"}},
-		{name: "futures buy limit orders, a post only order among them", cancel: order.Cancel{AssetType: asset.Futures, Side: order.Buy, Type: order.Limit}, exp: []string{"f-buy-limit-xbt", "f-buy-post-xbt"}},
-		{name: "a futures product's short limit orders", cancel: order.Cancel{AssetType: asset.Futures, Pair: ethFutures, Side: order.Short, Type: order.Limit}, exp: []string{"f-sell-limit-eth"}},
-		{name: "a futures product's stop limit orders, which have a limit price", cancel: order.Cancel{AssetType: asset.Futures, Pair: futuresTestPair, Type: order.StopLimit}, exp: []string{"f-sell-stop-limit-xbt"}},
-		{name: "futures stop orders, which have none", cancel: order.Cancel{AssetType: asset.Futures, Type: order.Stop}, exp: []string{"f-sell-stop-xbt"}},
-		{name: "futures stop market orders", cancel: order.Cancel{AssetType: asset.Futures, Type: order.StopMarket}, exp: []string{"f-sell-stop-xbt"}},
-		{name: "futures take profit orders", cancel: order.Cancel{AssetType: asset.Futures, Type: order.TakeProfit}, exp: []string{"f-buy-tp-eth"}},
-		{name: "futures take profit market orders", cancel: order.Cancel{AssetType: asset.Futures, Type: order.TakeProfitMarket}, exp: []string{"f-buy-tp-eth"}},
-		{name: "futures take profit limit orders", cancel: order.Cancel{AssetType: asset.Futures, Type: order.TakeProfit | order.Limit}, exp: []string{"f-buy-tp-limit-eth"}},
-		{name: "a futures product's short orders", cancel: order.Cancel{AssetType: asset.Futures, Pair: ethFutures, Side: order.Short}, exp: []string{"f-sell-limit-eth"}},
-		{name: "a futures product's short orders named quote first", cancel: order.Cancel{AssetType: asset.Futures, Pair: ethFutures.Swap(), Side: order.Short}, exp: []string{"f-sell-limit-eth"}},
-		{name: "futures limit orders of any side", cancel: order.Cancel{AssetType: asset.Futures, Side: order.AnySide, Type: order.Limit}, exp: []string{"f-buy-limit-xbt", "f-buy-post-xbt", "f-sell-limit-eth", "f-sell-limit-gct"}},
-		{name: "futures short orders of any type", cancel: order.Cancel{AssetType: asset.Futures, Side: order.Short, Type: order.AnyType}, exp: []string{"f-sell-limit-eth", "f-sell-limit-gct", "f-sell-stop-limit-xbt", "f-sell-stop-xbt"}},
-		{name: "futures market orders, which none is", cancel: order.Cancel{AssetType: asset.Futures, Type: order.Market}},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			var mu sync.Mutex
-			var cancelled []string
-			ex := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
-				mu.Lock()
-				defer mu.Unlock()
-				switch r.URL.Path {
-				case "/0/private/OpenOrders":
-					_, _ = w.Write([]byte(ordersSideAndTypeOpenOrders))
-				case "/0/private/CancelOrder":
-					var req struct {
-						OrderID string `json:"txid"`
-					}
-					assert.NoError(t, json.Unmarshal([]byte(tradingRequestBody(t, r)), &req), "Unmarshal should not error")
-					cancelled = append(cancelled, req.OrderID)
-					_, _ = w.Write([]byte(`{"error":[],"result":{"count":1}}`))
-				case "/0/private/CancelOrderBatch":
-					var req struct {
-						Orders []string `json:"orders"`
-					}
-					assert.NoError(t, json.Unmarshal([]byte(tradingRequestBody(t, r)), &req), "Unmarshal should not error")
-					cancelled = append(cancelled, req.Orders...)
-					_, _ = w.Write([]byte(`{"error":[],"result":{"count":` + strconv.Itoa(len(req.Orders)) + `}}`))
-				case "/derivatives/api/v3/openorders":
-					_, _ = w.Write([]byte(ordersSideAndTypeFuturesOpenOrders))
-				case "/derivatives/api/v3/batchorder":
-					var batch struct {
-						Orders []struct {
-							OrderID string `json:"order_id"`
-						} `json:"batchOrder"`
-					}
-					assert.NoError(t, json.Unmarshal([]byte(r.URL.Query().Get("json")), &batch), "Unmarshal should not error")
-					statuses := make([]string, len(batch.Orders))
-					for i := range batch.Orders {
-						cancelled = append(cancelled, batch.Orders[i].OrderID)
-						status := "cancelled"
-						if batch.Orders[i].OrderID == "f-buy-post-xbt" {
-							status = "notFound"
-						}
-						statuses[i] = `{"order_id":"` + batch.Orders[i].OrderID + `","orderEvents":[],"status":"` + status + `"}`
-					}
-					_, _ = w.Write([]byte(`{"result":"success","batchStatus":[` + strings.Join(statuses, ",") + `],"serverTime":"2026-10-09T08:42:00.003Z"}`))
-				default:
-					assert.Failf(t, "only open orders should be listed and cancelled", "%s", r.URL.Path)
-				}
-			})
-			c := tc.cancel
-			c.Exchange = ex.Name
-			resp, err := ex.CancelAllOrders(t.Context(), &c)
-			require.NoError(t, err, "CancelAllOrders must not error")
-			mu.Lock()
-			defer mu.Unlock()
-			slices.Sort(cancelled)
-			assert.Equal(t, tc.exp, cancelled, "CancelAllOrders should cancel the open orders matching the pair, side and order type alone")
-			// Kraken reports the post only order as not found, as it would one filled meanwhile
-			exp := map[string]string{}
-			for _, id := range tc.exp {
-				exp[id] = order.Cancelled.String()
-				if id == "f-buy-post-xbt" {
-					exp[id] = order.ErrOrderNotFound.Error()
-				}
-			}
-			assert.Equal(t, order.CancelAllResponse{Status: exp}, resp, "CancelAllOrders should report each order's outcome")
-		})
-	}
-
-	t.Run("futures orders over two batches, the third failing", func(t *testing.T) {
-		t.Parallel()
-		orders := make([]string, 1001)
-		for i := range orders {
-			orders[i] = `{"order_id":"f-` + strconv.Itoa(i) + `","symbol":"PF_XBTUSD","side":"buy","orderType":"lmt","limitPrice":80000,"unfilledSize":1,"filledSize":0,"receivedTime":"2026-10-09T08:33:01.104Z","status":"untouched"}`
-		}
-		var mu sync.Mutex
-		var batches []int
-		ex := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
-			mu.Lock()
-			defer mu.Unlock()
-			switch r.URL.Path {
-			case "/derivatives/api/v3/openorders":
-				_, _ = w.Write([]byte(`{"result":"success","openOrders":[` + strings.Join(orders, ",") + `],"serverTime":"2026-10-09T08:33:01.107Z"}`))
-			case "/derivatives/api/v3/batchorder":
-				var batch struct {
-					Orders []struct {
-						OrderID string `json:"order_id"`
-					} `json:"batchOrder"`
-				}
-				assert.NoError(t, json.Unmarshal([]byte(r.URL.Query().Get("json")), &batch), "Unmarshal should not error")
-				batches = append(batches, len(batch.Orders))
-				if len(batches) > 2 {
-					_, _ = w.Write([]byte(`{"result":"error","error":"apiLimitExceeded","serverTime":"2026-10-09T08:42:00.001Z"}`))
-					return
-				}
-				statuses := make([]string, len(batch.Orders))
-				for i := range batch.Orders {
-					statuses[i] = `{"order_id":"` + batch.Orders[i].OrderID + `","orderEvents":[],"status":"cancelled"}`
-				}
-				_, _ = w.Write([]byte(`{"result":"success","batchStatus":[` + strings.Join(statuses, ",") + `],"serverTime":"2026-10-09T08:42:00.003Z"}`))
-			default:
-				assert.Failf(t, "only open orders should be listed and cancelled", "%s", r.URL.Path)
-			}
-		})
-		resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{Exchange: ex.Name, AssetType: asset.Futures, Side: order.Buy})
-		require.ErrorIs(t, err, errAPIResponse, "CancelAllOrders must return the failed batch's error")
-		mu.Lock()
-		defer mu.Unlock()
-		assert.Equal(t, []int{500, 500, 1}, batches, "CancelAllOrders should cancel 500 orders a batch")
-		assert.Len(t, resp.Status, 1000, "CancelAllOrders should report the outcomes of the batches sent before the failed one")
-		assert.Equal(t, order.Cancelled.String(), resp.Status["f-0"], "CancelAllOrders should report each order the first batch cancelled")
-		assert.Equal(t, order.Cancelled.String(), resp.Status["f-999"], "CancelAllOrders should report each order the second batch cancelled")
-	})
-
-	t.Run("futures orders over two batches, the context ending in the second", func(t *testing.T) {
-		t.Parallel()
-		orders := make([]string, 501)
-		for i := range orders {
-			orders[i] = `{"order_id":"f-` + strconv.Itoa(i) + `","symbol":"PF_XBTUSD","side":"buy","orderType":"lmt","limitPrice":80000,"unfilledSize":1,"filledSize":0,"receivedTime":"2026-10-09T08:33:01.104Z","status":"untouched"}`
-		}
-		ctx, cancel := context.WithCancel(t.Context())
-		defer cancel()
-		var batches atomic.Int32
-		ex := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
-			switch r.URL.Path {
-			case "/derivatives/api/v3/openorders":
-				_, _ = w.Write([]byte(`{"result":"success","openOrders":[` + strings.Join(orders, ",") + `],"serverTime":"2026-10-09T08:33:01.107Z"}`))
-			case "/derivatives/api/v3/batchorder":
-				if batches.Add(1) > 1 {
-					// The caller gives up while the second batch is in flight
-					cancel()
-					select {
-					case <-r.Context().Done():
-					case <-time.After(time.Minute):
-					}
-					return
-				}
-				var batch struct {
-					Orders []struct {
-						OrderID string `json:"order_id"`
-					} `json:"batchOrder"`
-				}
-				assert.NoError(t, json.Unmarshal([]byte(r.URL.Query().Get("json")), &batch), "Unmarshal should not error")
-				statuses := make([]string, len(batch.Orders))
-				for i := range batch.Orders {
-					statuses[i] = `{"order_id":"` + batch.Orders[i].OrderID + `","orderEvents":[],"status":"cancelled"}`
-				}
-				_, _ = w.Write([]byte(`{"result":"success","batchStatus":[` + strings.Join(statuses, ",") + `],"serverTime":"2026-10-09T08:42:00.003Z"}`))
-			default:
-				assert.Failf(t, "only open orders should be listed and cancelled", "%s", r.URL.Path)
-			}
-		})
-		resp, err := ex.CancelAllOrders(ctx, &order.Cancel{Exchange: ex.Name, AssetType: asset.Futures, Side: order.Buy})
-		require.ErrorIs(t, err, context.Canceled, "CancelAllOrders must return the context's error")
-		assert.Len(t, resp.Status, 500, "CancelAllOrders should report the outcomes of the batch sent before the context ended")
-	})
-
-	t.Run("spot orders over a batch, the second failing", func(t *testing.T) {
-		t.Parallel()
-		orders := make([]string, 101)
-		for i := range orders {
-			orders[i] = `"OSPOT-` + strconv.Itoa(i) + `":{"status":"open","opentm":1791421234.5512,"descr":{"pair":"XBTUSD","type":"buy","ordertype":"limit","price":"80000"},"vol":"1","vol_exec":"0"}`
-		}
-		var mu sync.Mutex
-		var batches int
-		ex := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
-			mu.Lock()
-			defer mu.Unlock()
-			switch r.URL.Path {
-			case "/0/private/OpenOrders":
-				_, _ = w.Write([]byte(`{"error":[],"result":{"open":{` + strings.Join(orders, ",") + `}}}`))
-			case "/0/private/CancelOrderBatch":
-				var req struct {
-					Orders []string `json:"orders"`
-				}
-				assert.NoError(t, json.Unmarshal([]byte(tradingRequestBody(t, r)), &req), "Unmarshal should not error")
-				batches++
-				if batches > 1 {
-					_, _ = w.Write([]byte(`{"error":["EAPI:Rate limit exceeded"]}`))
-					return
-				}
-				_, _ = w.Write([]byte(`{"error":[],"result":{"count":` + strconv.Itoa(len(req.Orders)) + `}}`))
-			default:
-				assert.Failf(t, "only open orders should be listed and cancelled", "%s", r.URL.Path)
-			}
-		})
-		resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{Exchange: ex.Name, AssetType: asset.Spot, Side: order.Buy})
-		require.ErrorIs(t, err, errAPIResponse, "CancelAllOrders must return the failed batch's error")
-		assert.Len(t, resp.Status, 50, "CancelAllOrders should report the outcomes of the batch sent before the failed one")
-	})
-
-	t.Run("pairs missing from the available pairs, named", func(t *testing.T) {
-		t.Parallel()
-		// Of the pairs these orders are on, XBT/USD, TGBP/USD unless a row says otherwise, and PF_XBTUSD alone are
-		// available: the other spot pairs stand for those Kraken lists as cancel only or post only, modelled here with open
-		// orders, such as OBOL/USD and XBT/USDR, which it keys XXBTUSDR
-		const spotOrders = `{"error":[],"result":{"open":{` +
-			`"OSELL-LIMIT-WAVES":{"status":"open","opentm":1791421234.5512,"descr":{"pair":"WAVESUSD","type":"sell","ordertype":"limit","price":"1.2250"},"vol":"500","vol_exec":"0"},` +
-			`"OBUY-STOP-WAVES":{"status":"open","opentm":1791421234.5512,"descr":{"pair":"WAVESUSD","type":"buy","ordertype":"stop-loss","price":"1.5000"},"vol":"500","vol_exec":"0"},` +
-			`"OSELL-LIMIT-WAVESEUR":{"status":"open","opentm":1791421234.5512,"descr":{"pair":"WAVESEUR","type":"sell","ordertype":"limit","price":"1.1000"},"vol":"500","vol_exec":"0"},` +
-			`"OSELL-LIMIT-ICX":{"status":"open","opentm":1791421234.5512,"descr":{"pair":"ICXUSD","type":"sell","ordertype":"limit","price":"0.1500"},"vol":"500","vol_exec":"0"},` +
-			`"OSELL-LIMIT-SCA":{"status":"open","opentm":1791421234.5512,"descr":{"pair":"SCAUSD","type":"sell","ordertype":"limit","price":"0.0500"},"vol":"500","vol_exec":"0"},` +
-			`"OSELL-LIMIT-USDTGBP":{"status":"open","opentm":1791421234.5512,"descr":{"pair":"USDTGBP","type":"sell","ordertype":"limit","price":"0.7600"},"vol":"500","vol_exec":"0"},` +
-			`"OSELL-LIMIT-TGBP":{"status":"open","opentm":1791421234.5512,"descr":{"pair":"TGBPUSD","type":"sell","ordertype":"limit","price":"1.3100"},"vol":"500","vol_exec":"0"},` +
-			`"OSELL-LIMIT-XBTUSDR":{"status":"open","opentm":1791421234.5512,"descr":{"pair":"XBTUSDR","type":"sell","ordertype":"limit","price":"81000"},"vol":"1","vol_exec":"0"},` +
-			`"OSELL-LIMIT-OBOL":{"status":"open","opentm":1791421234.5512,"descr":{"pair":"OBOLUSD","type":"sell","ordertype":"limit","price":"0.3000"},"vol":"500","vol_exec":"0"},` +
-			`"OSELL-LIMIT-OBOLUSDT":{"status":"open","opentm":1791421234.5512,"descr":{"pair":"OBOLUSDT","type":"sell","ordertype":"limit","price":"0.3000"},"vol":"500","vol_exec":"0"},` +
-			`"OSELL-LIMIT-IR":{"status":"open","opentm":1791421234.5512,"descr":{"pair":"IRUSD","type":"sell","ordertype":"limit","price":"0.0200"},"vol":"500","vol_exec":"0"},` +
-			`"OSELL-LIMIT-MIR":{"status":"open","opentm":1791421234.5512,"descr":{"pair":"MIRUSD","type":"sell","ordertype":"limit","price":"0.0100"},"vol":"500","vol_exec":"0"},` +
-			`"OBUY-LIMIT-XBT":{"status":"open","opentm":1791421234.5512,"descr":{"pair":"XBTUSD","type":"buy","ordertype":"limit","price":"80000"},"vol":"1","vol_exec":"0"}}}}`
-		const assetPairs = `{"error":[],"result":{` +
-			`"WAVESUSD":{"altname":"WAVESUSD","wsname":"WAVES/USD","status":"cancel_only"},` +
-			`"WAVESEUR":{"altname":"WAVESEUR","wsname":"WAVES/EUR","status":"cancel_only"},` +
-			`"ICXUSD":{"altname":"ICXUSD","wsname":"ICX/USD","status":"cancel_only"},` +
-			`"SCAUSD":{"altname":"SCAUSD","wsname":"SCA/USD","status":"cancel_only"},` +
-			`"USDTGBP":{"altname":"USDTGBP","wsname":"USDT/GBP","status":"post_only"},` +
-			`"XXBTUSDR":{"altname":"XBTUSDR","wsname":"XBT/USDR","status":"post_only"},` +
-			`"OBOLUSD":{"altname":"OBOLUSD","wsname":"OBOL/USD","status":"cancel_only"},` +
-			`"OBOLUSDT":{"altname":"OBOLUSDT","wsname":"OBOL/USDT","status":"cancel_only"},` +
-			`"IRUSD":{"altname":"IRUSD","wsname":"IR/USD","status":"cancel_only"},` +
-			`"MIRUSD":{"altname":"MIRUSD","wsname":"MIR/USD","status":"cancel_only"},` +
-			`"TGBPUSD":{"altname":"TGBPUSD","wsname":"TGBP/USD","status":"online"},` +
-			`"XXBTZUSD":{"altname":"XBTUSD","wsname":"XBT/USD","status":"online"}}}`
-		const futuresOrders = `{"result":"success","openOrders":[` +
-			`{"order_id":"f-sell-limit-gct","symbol":"PF_GCTUSD","side":"sell","orderType":"lmt","limitPrice":5,"unfilledSize":1,"filledSize":0,"receivedTime":"2026-10-09T08:33:01.104Z","status":"untouched"},` +
-			`{"order_id":"f-buy-stop-gct","symbol":"PF_GCTUSD","side":"buy","orderType":"stop","stopPrice":6,"unfilledSize":1,"filledSize":0,"receivedTime":"2026-10-09T08:33:01.104Z","status":"untouched"},` +
-			`{"order_id":"f-sell-limit-gcteur","symbol":"PF_GCTEUR","side":"sell","orderType":"lmt","limitPrice":5,"unfilledSize":1,"filledSize":0,"receivedTime":"2026-10-09T08:33:01.104Z","status":"untouched"},` +
-			`{"order_id":"f-sell-limit-icx","symbol":"PF_ICXUSD","side":"sell","orderType":"lmt","limitPrice":0.2,"unfilledSize":1,"filledSize":0,"receivedTime":"2026-10-09T08:33:01.104Z","status":"untouched"},` +
-			`{"order_id":"f-sell-limit-gct-dated","symbol":"FF_GCTUSD_261225","side":"sell","orderType":"lmt","limitPrice":5,"unfilledSize":1,"filledSize":0,"receivedTime":"2026-10-09T08:33:01.104Z","status":"untouched"},` +
-			`{"order_id":"f-sell-limit-gct-inverse-dated","symbol":"FI_GCTUSD_261225","side":"sell","orderType":"lmt","limitPrice":5,"unfilledSize":1,"filledSize":0,"receivedTime":"2026-10-09T08:33:01.104Z","status":"untouched"},` +
-			`{"order_id":"f-sell-limit-gct-later","symbol":"FF_GCTUSD_270326","side":"sell","orderType":"lmt","limitPrice":5,"unfilledSize":1,"filledSize":0,"receivedTime":"2026-10-09T08:33:01.104Z","status":"untouched"},` +
-			`{"order_id":"f-buy-limit-xbt","symbol":"PF_XBTUSD","side":"buy","orderType":"lmt","limitPrice":80000,"unfilledSize":1,"filledSize":0,"receivedTime":"2026-10-09T08:33:01.104Z","status":"untouched"}],"serverTime":"2026-10-09T08:33:01.107Z"}`
-		waves := currency.NewPair(currency.NewCode("WAVES"), currency.USD)
-		tgbp := currency.NewPair(currency.NewCode("TGBP"), currency.USD)
-		gct := currency.NewPairWithDelimiter("PF", "GCTUSD", currency.UnderscoreDelimiter)
-		for _, tc := range []struct {
-			name      string
-			cancel    order.Cancel
-			available currency.Pairs
-			exp       []string
-		}{
-			{name: "a cancel only pair's orders", cancel: order.Cancel{AssetType: asset.Spot, Pair: waves}, exp: []string{"OBUY-STOP-WAVES", "OSELL-LIMIT-WAVES"}},
-			{name: "a cancel only pair's sell orders", cancel: order.Cancel{AssetType: asset.Spot, Pair: waves, Side: order.Sell}, exp: []string{"OSELL-LIMIT-WAVES"}},
-			{name: "a cancel only pair's stop orders named quote first", cancel: order.Cancel{AssetType: asset.Spot, Pair: waves.Swap(), Type: order.Stop}, exp: []string{"OBUY-STOP-WAVES"}},
-			{name: "a cancel only pair's limit orders named in lower case", cancel: order.Cancel{AssetType: asset.Spot, Pair: currency.NewPair(currency.NewCode("waves"), currency.NewCode("usd")), Type: order.Limit}, exp: []string{"OSELL-LIMIT-WAVES"}},
-			{name: "an available pair's sell orders, which a pair listed under its name quote first is not", cancel: order.Cancel{AssetType: asset.Spot, Pair: tgbp, Side: order.Sell}, exp: []string{"OSELL-LIMIT-TGBP"}},
-			{name: "a missing pair's sell orders, which another listed under its name quote first is not", cancel: order.Cancel{AssetType: asset.Spot, Pair: tgbp, Side: order.Sell}, available: currency.Pairs{spotTestPair}, exp: []string{"OSELL-LIMIT-TGBP"}},
-			{name: "the sell orders of a pair Kraken does not list, named as another is listed", cancel: order.Cancel{AssetType: asset.Spot, Pair: currency.NewPair(currency.NewCode("SC"), currency.NewCode("AUSD")), Side: order.Sell}},
-			{name: "a cancel only pair's sell orders, which those of one named after it plus a currency are not", cancel: order.Cancel{AssetType: asset.Spot, Pair: currency.NewPair(currency.NewCode("OBOL"), currency.USD), Side: order.Sell}, exp: []string{"OSELL-LIMIT-OBOL"}},
-			{name: "a cancel only pair's sell orders, which those of one named with a currency before it are not", cancel: order.Cancel{AssetType: asset.Spot, Pair: currency.NewPair(currency.NewCode("IR"), currency.USD), Side: order.Sell}, exp: []string{"OSELL-LIMIT-IR"}},
-			{name: "a cancel only pair's sell orders, which those of one whose name begins its name are not", cancel: order.Cancel{AssetType: asset.Spot, Pair: currency.NewPair(currency.NewCode("OBOL"), currency.USDT), Side: order.Sell}, exp: []string{"OSELL-LIMIT-OBOLUSDT"}},
-			{name: "a cancel only pair's sell orders, which those of one whose name ends its name are not", cancel: order.Cancel{AssetType: asset.Spot, Pair: currency.NewPair(currency.NewCode("MIR"), currency.USD), Side: order.Sell}, exp: []string{"OSELL-LIMIT-MIR"}},
-			{name: "a post only pair's sell orders, keyed apart from its name", cancel: order.Cancel{AssetType: asset.Spot, Pair: currency.NewPair(currency.XBT, currency.NewCode("USDR")), Side: order.Sell}, exp: []string{"OSELL-LIMIT-XBTUSDR"}},
-			{name: "an available pair's buy orders", cancel: order.Cancel{AssetType: asset.Spot, Pair: spotTestPair, Side: order.Buy}, exp: []string{"OBUY-LIMIT-XBT"}},
-			{name: "an unlisted product's short orders", cancel: order.Cancel{AssetType: asset.Futures, Pair: gct, Side: order.Short}, exp: []string{"f-sell-limit-gct"}},
-			{name: "an unlisted product's stop orders named quote first", cancel: order.Cancel{AssetType: asset.Futures, Pair: gct.Swap(), Type: order.Stop}, exp: []string{"f-buy-stop-gct"}},
-			{name: "an unlisted dated product's short orders, which those of one dated alike or maturing later are not", cancel: order.Cancel{AssetType: asset.Futures, Pair: currency.NewPairWithDelimiter("FF", "GCTUSD_261225", currency.UnderscoreDelimiter), Side: order.Short}, exp: []string{"f-sell-limit-gct-dated"}},
-			{name: "an unlisted inverse dated product's short orders, which those of a linear one dated alike are not", cancel: order.Cancel{AssetType: asset.Futures, Pair: currency.NewPairWithDelimiter("FI", "GCTUSD_261225", currency.UnderscoreDelimiter), Side: order.Short}, exp: []string{"f-sell-limit-gct-inverse-dated"}},
-			{name: "the short orders of a product named with its currencies split elsewhere", cancel: order.Cancel{AssetType: asset.Futures, Pair: currency.NewPairWithDelimiter("PFGCT", "USD", currency.UnderscoreDelimiter), Side: order.Short}},
-			{name: "the short orders of a dated product named split at its last underscore", cancel: order.Cancel{AssetType: asset.Futures, Pair: currency.NewPairWithDelimiter("FF_GCTUSD", "261225", currency.UnderscoreDelimiter), Side: order.Short}},
-			{name: "an available product's long orders", cancel: order.Cancel{AssetType: asset.Futures, Pair: futuresTestPair, Side: order.Long}, exp: []string{"f-buy-limit-xbt"}},
-		} {
-			t.Run(tc.name, func(t *testing.T) {
-				t.Parallel()
-				var mu sync.Mutex
-				var cancelled []string
-				var assetPairsRequests int
-				ex := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
-					mu.Lock()
-					defer mu.Unlock()
-					switch r.URL.Path {
-					case "/0/private/OpenOrders":
-						_, _ = w.Write([]byte(spotOrders))
-					case "/0/public/AssetPairs":
-						assetPairsRequests++
-						_, _ = w.Write([]byte(assetPairs))
-					case "/0/private/CancelOrder":
-						var req struct {
-							OrderID string `json:"txid"`
-						}
-						assert.NoError(t, json.Unmarshal([]byte(tradingRequestBody(t, r)), &req), "Unmarshal should not error")
-						cancelled = append(cancelled, req.OrderID)
-						_, _ = w.Write([]byte(`{"error":[],"result":{"count":1}}`))
-					case "/0/private/CancelOrderBatch":
-						var req struct {
-							Orders []string `json:"orders"`
-						}
-						assert.NoError(t, json.Unmarshal([]byte(tradingRequestBody(t, r)), &req), "Unmarshal should not error")
-						cancelled = append(cancelled, req.Orders...)
-						_, _ = w.Write([]byte(`{"error":[],"result":{"count":` + strconv.Itoa(len(req.Orders)) + `}}`))
-					case "/derivatives/api/v3/openorders":
-						_, _ = w.Write([]byte(futuresOrders))
-					case "/derivatives/api/v3/batchorder":
-						var batch struct {
-							Orders []struct {
-								OrderID string `json:"order_id"`
-							} `json:"batchOrder"`
-						}
-						assert.NoError(t, json.Unmarshal([]byte(r.URL.Query().Get("json")), &batch), "Unmarshal should not error")
-						statuses := make([]string, len(batch.Orders))
-						for i := range batch.Orders {
-							cancelled = append(cancelled, batch.Orders[i].OrderID)
-							statuses[i] = `{"order_id":"` + batch.Orders[i].OrderID + `","orderEvents":[],"status":"cancelled"}`
-						}
-						_, _ = w.Write([]byte(`{"result":"success","batchStatus":[` + strings.Join(statuses, ",") + `],"serverTime":"2026-10-09T08:42:00.003Z"}`))
-					default:
-						assert.Failf(t, "only open orders should be listed and cancelled", "%s", r.URL.Path)
-					}
-				})
-				available := tc.available
-				if available == nil {
-					available = currency.Pairs{spotTestPair, tgbp}
-				}
-				require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, available, false), "StorePairs must not error")
-				require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Futures, currency.Pairs{futuresTestPair}, false), "StorePairs must not error")
-				c := tc.cancel
-				c.Exchange = ex.Name
-				resp, err := ex.CancelAllOrders(t.Context(), &c)
-				require.NoError(t, err, "CancelAllOrders must not error")
-				mu.Lock()
-				defer mu.Unlock()
-				slices.Sort(cancelled)
-				assert.Equal(t, tc.exp, cancelled, "CancelAllOrders should cancel the open orders matching the pair, side and order type alone")
-				assert.LessOrEqual(t, assetPairsRequests, 1, "CancelAllOrders should look Kraken's asset pairs up at most once")
-				exp := map[string]string{}
-				for _, id := range tc.exp {
-					exp[id] = order.Cancelled.String()
-				}
-				assert.Equal(t, order.CancelAllResponse{Status: exp}, resp, "CancelAllOrders should report each order cancelled")
-			})
-		}
-	})
-
-	ex := newHTTPTestExchange(t, func(_ http.ResponseWriter, r *http.Request) {
-		assert.Failf(t, "no order should be listed or cancelled", "%s", r.URL.Path)
-	})
-	for _, a := range []asset.Item{asset.Spot, asset.Futures} {
-		_, err := ex.CancelAllOrders(t.Context(), &order.Cancel{Exchange: ex.Name, AssetType: a, Side: order.ClosePosition})
-		assert.ErrorIsf(t, err, order.ErrSideIsInvalid, "CancelAllOrders should refuse a %s side neither long nor short before any request", a)
-		_, err = ex.CancelAllOrders(t.Context(), &order.Cancel{Exchange: ex.Name, AssetType: a, Type: order.Liquidation})
-		assert.ErrorIsf(t, err, order.ErrUnsupportedOrderType, "CancelAllOrders should refuse a %s order type no open order is read as before any request", a)
-	}
-	_, err := ex.CancelAllOrders(t.Context(), &order.Cancel{Exchange: ex.Name, AssetType: asset.Futures, Type: order.TrailingStopLimit})
-	assert.ErrorIs(t, err, order.ErrUnsupportedOrderType, "CancelAllOrders should refuse futures trailing stop limit orders, which no listed futures order is read as, before any request")
-
-	failing := newOrdersFailingExchange(t)
-	_, err = failing.CancelAllOrders(t.Context(), &order.Cancel{Exchange: failing.Name, AssetType: asset.Futures, Side: order.Buy})
-	assert.ErrorIs(t, err, errAPIResponse, "CancelAllOrders should return the futures open orders request's error")
-
-	unnamed := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/0/private/OpenOrders":
-			_, _ = w.Write([]byte(`{"error":[],"result":{"open":{"OBUY-NOPAIR":{"status":"open","opentm":1791421234.5512,"descr":{"pair":"","type":"buy","ordertype":"limit","price":"80000"},"vol":"1","vol_exec":"0"}}}}`))
-		case "/derivatives/api/v3/openorders":
-			_, _ = w.Write([]byte(`{"result":"success","openOrders":[{"order_id":"f-nopair","symbol":"","side":"buy","orderType":"lmt","limitPrice":80000,"unfilledSize":1,"filledSize":0,"receivedTime":"2026-10-09T08:33:01.104Z","status":"untouched"}],"serverTime":"2026-10-09T08:33:01.107Z"}`))
-		default:
-			assert.Failf(t, "no order should be cancelled", "%s", r.URL.Path)
-		}
-	})
-	for _, c := range []order.Cancel{{AssetType: asset.Spot, Pair: spotTestPair}, {AssetType: asset.Futures, Pair: futuresTestPair, Side: order.Buy}} {
-		c.Exchange = unnamed.Name
-		_, err = unnamed.CancelAllOrders(t.Context(), &c)
-		assert.ErrorIsf(t, err, currency.ErrSymbolStringEmpty, "CancelAllOrders should return the error of a listed %s order whose pair cannot be read when a pair is named", c.AssetType)
-	}
-}
-
 func TestCancelAllOrderType(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
+		name      string
 		asset     asset.Item
 		orderType order.Type
 		exp       order.Type
 	}{
-		{asset: asset.Spot, orderType: order.UnknownType, exp: order.UnknownType},
-		{asset: asset.Futures, orderType: order.AnyType, exp: order.UnknownType},
-		{asset: asset.Spot, orderType: order.Limit, exp: order.Limit},
-		{asset: asset.Futures, orderType: order.Market, exp: order.Market},
-		{asset: asset.Spot, orderType: order.StopMarket, exp: order.Stop},
-		{asset: asset.Futures, orderType: order.StopMarket, exp: order.Stop},
-		{asset: asset.Spot, orderType: order.TakeProfitMarket, exp: order.TakeProfit},
-		{asset: asset.Futures, orderType: order.TakeProfitMarket, exp: order.TakeProfit},
-		{asset: asset.Futures, orderType: order.StopLimit, exp: order.StopLimit},
-		{asset: asset.Spot, orderType: order.TakeProfit | order.Limit, exp: order.TakeProfit | order.Limit},
-		{asset: asset.Futures, orderType: order.TrailingStop, exp: order.TrailingStop},
-		{asset: asset.Spot, orderType: order.TrailingStopLimit, exp: order.TrailingStopLimit},
+		{name: "spot without a type", asset: asset.Spot, orderType: order.UnknownType, exp: order.UnknownType},
+		{name: "futures of any type", asset: asset.Futures, orderType: order.AnyType, exp: order.UnknownType},
+		{name: "spot limit", asset: asset.Spot, orderType: order.Limit, exp: order.Limit},
+		{name: "futures market", asset: asset.Futures, orderType: order.Market, exp: order.Market},
+		{name: "spot stop market", asset: asset.Spot, orderType: order.StopMarket, exp: order.Stop},
+		{name: "futures stop market", asset: asset.Futures, orderType: order.StopMarket, exp: order.Stop},
+		{name: "spot take profit market", asset: asset.Spot, orderType: order.TakeProfitMarket, exp: order.TakeProfit},
+		{name: "futures take profit market", asset: asset.Futures, orderType: order.TakeProfitMarket, exp: order.TakeProfit},
+		{name: "futures stop limit", asset: asset.Futures, orderType: order.StopLimit, exp: order.StopLimit},
+		{name: "spot take profit limit", asset: asset.Spot, orderType: order.TakeProfit | order.Limit, exp: order.TakeProfit | order.Limit},
+		{name: "futures trailing stop", asset: asset.Futures, orderType: order.TrailingStop, exp: order.TrailingStop},
+		{name: "spot trailing stop limit", asset: asset.Spot, orderType: order.TrailingStopLimit, exp: order.TrailingStopLimit},
 	} {
-		got, err := cancelAllOrderType(tc.asset, tc.orderType)
-		require.NoErrorf(t, err, "cancelAllOrderType must not error for %s %s orders", tc.asset, tc.orderType)
-		assert.Equalf(t, tc.exp, got, "cancelAllOrderType should return the order type %s %s orders are listed as", tc.asset, tc.orderType)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := cancelAllOrderType(tc.asset, tc.orderType)
+			require.NoErrorf(t, err, "cancelAllOrderType must not error for %s %s orders", tc.asset, tc.orderType)
+			assert.Equalf(t, tc.exp, got, "cancelAllOrderType should return the order type %s %s orders are listed as", tc.asset, tc.orderType)
+		})
 	}
 	for _, tc := range []struct {
 		asset     asset.Item
@@ -5319,8 +6438,11 @@ func TestCancelAllOrderType(t *testing.T) {
 		{asset: asset.Spot, orderType: order.OCO},
 		{asset: asset.Futures, orderType: order.TrailingStopLimit},
 	} {
-		_, err := cancelAllOrderType(tc.asset, tc.orderType)
-		assert.ErrorIsf(t, err, order.ErrUnsupportedOrderType, "cancelAllOrderType should refuse %s %s orders, which no listed order is read as", tc.asset, tc.orderType)
+		t.Run(tc.asset.String()+" "+tc.orderType.String(), func(t *testing.T) {
+			t.Parallel()
+			_, err := cancelAllOrderType(tc.asset, tc.orderType)
+			assert.ErrorIsf(t, err, order.ErrUnsupportedOrderType, "cancelAllOrderType should refuse %s %s orders, which no listed order is read as", tc.asset, tc.orderType)
+		})
 	}
 }
 
@@ -5331,9 +6453,12 @@ func TestGetOrderInfo(t *testing.T) {
 	_, err = e.GetOrderInfo(t.Context(), "OQCLML-BW3P3-BUCMWZ", spotTestPair, asset.Margin)
 	require.ErrorIs(t, err, asset.ErrNotSupported, "GetOrderInfo must reject an unsupported asset")
 	failing := newOrdersFailingExchange(t)
+	// The cases share failing, its server and err in order, so each also checks that a call keeps nothing from the last
 	for _, a := range []asset.Item{asset.Spot, asset.Futures} {
-		_, err = failing.GetOrderInfo(t.Context(), "OQCLML-BW3P3-BUCMWZ", currency.EMPTYPAIR, a)
-		assert.ErrorIsf(t, err, errAPIResponse, "GetOrderInfo should return the %s request's error", a)
+		t.Run(a.String()+" request error", func(t *testing.T) {
+			_, err = failing.GetOrderInfo(t.Context(), "OQCLML-BW3P3-BUCMWZ", currency.EMPTYPAIR, a)
+			assert.ErrorIsf(t, err, errAPIResponse, "GetOrderInfo should return the %s request's error", a)
+		})
 	}
 	ex := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/0/private/QueryTrades" {
@@ -5386,16 +6511,19 @@ func TestGetOrderInfo(t *testing.T) {
 	assert.Equal(t, expStored, stored, "an order store merging the order should keep its size, status and amounts, adding its trades")
 
 	if !mockTests {
-		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+		// The cases share e in order, so each also checks that a call keeps nothing from the last
 		for _, a := range e.GetAssetTypes(false) {
-			orders, err := e.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: a, Side: order.AnySide, Type: order.AnyType})
-			require.NoErrorf(t, err, "GetActiveOrders must not error for %s", a)
-			if len(orders) == 0 {
-				continue
-			}
-			d, err := e.GetOrderInfo(t.Context(), orders[0].OrderID, orders[0].Pair, a)
-			require.NoErrorf(t, err, "GetOrderInfo must not error for %s", a)
-			assert.Equalf(t, orders[0].OrderID, d.OrderID, "GetOrderInfo should return the %s order requested", a)
+			t.Run("live "+a.String(), func(t *testing.T) {
+				sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+				orders, err := e.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: a, Side: order.AnySide, Type: order.AnyType})
+				require.NoErrorf(t, err, "GetActiveOrders must not error for %s", a)
+				if len(orders) == 0 {
+					return
+				}
+				d, err := e.GetOrderInfo(t.Context(), orders[0].OrderID, orders[0].Pair, a)
+				require.NoErrorf(t, err, "GetOrderInfo must not error for %s", a)
+				assert.Equalf(t, orders[0].OrderID, d.OrderID, "GetOrderInfo should return the %s order requested", a)
+			})
 		}
 		return
 	}
@@ -5466,6 +6594,7 @@ func TestGetOrderInfo(t *testing.T) {
 			assert.Equal(t, tc.exp, got, "GetOrderInfo should return the order")
 		})
 	}
+	// The cases share e and err in order, so each also checks that a call keeps nothing from the last
 	for _, tc := range []struct {
 		orderID string
 		a       asset.Item
@@ -5473,14 +6602,17 @@ func TestGetOrderInfo(t *testing.T) {
 		{"O7VICR-5EPZ6-VHTP7B", asset.Spot},
 		{"89408aa3-845e-4a0f-bd6a-b44dcf4361a5", asset.Futures},
 	} {
-		_, err = e.GetOrderInfo(t.Context(), tc.orderID, currency.EMPTYPAIR, tc.a)
-		assert.ErrorIsf(t, err, order.ErrOrderNotFound, "GetOrderInfo should report a %s order Kraken does not return as not found", tc.a)
+		t.Run(tc.a.String()+" order not found", func(t *testing.T) {
+			_, err = e.GetOrderInfo(t.Context(), tc.orderID, currency.EMPTYPAIR, tc.a)
+			assert.ErrorIsf(t, err, order.ErrOrderNotFound, "GetOrderInfo should report a %s order Kraken does not return as not found", tc.a)
+		})
 	}
 }
 
-func TestSpotOrderDetail(t *testing.T) {
+func TestSpotOrderDetail(t *testing.T) { //nolint:tparallel // the cases share e's pair matcher in order
 	t.Parallel()
 	openTime, closeTime := time.UnixMicro(1791421234551200), time.UnixMicro(1791421301012700)
+	// The cases share e's pair matcher in order, so each also checks that a conversion keeps nothing from the last
 	for _, tc := range []struct {
 		name string
 		info *OrderInfoResponse
@@ -5600,15 +6732,18 @@ func TestSpotOrderDetail(t *testing.T) {
 			},
 		},
 	} {
-		got, err := e.spotOrderDetail("O6KIO9-Y73RV-6LFAIX", tc.info)
-		require.NoErrorf(t, err, "spotOrderDetail must not error for a %s", tc.name)
-		assert.Equalf(t, tc.exp, got, "spotOrderDetail should convert a %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := e.spotOrderDetail("O6KIO9-Y73RV-6LFAIX", tc.info)
+			require.NoErrorf(t, err, "spotOrderDetail must not error for a %s", tc.name)
+			assert.Equalf(t, tc.exp, got, "spotOrderDetail should convert a %s", tc.name)
+		})
 	}
 
 	// A trailing stop's description prices are offsets from the market, as an open trailing stop Kraken returned shows,
 	// so its trigger and limit prices are those it holds now
 	xrpEUR := currency.NewPairWithDelimiter("XRP", "EUR", "_")
 	trailingOpenTime := time.Unix(1706893367, 465664900)
+	// The cases share e's pair matcher in order, so each also checks that a conversion keeps nothing from the last
 	for _, tc := range []struct {
 		name, orderType, price, secondaryPrice string
 		exp                                    *order.Detail
@@ -5627,35 +6762,38 @@ func TestSpotOrderDetail(t *testing.T) {
 			exp:            &order.Detail{Type: order.TrailingStopLimit, TriggerPrice: 0.23424, Price: 0.46847},
 		},
 	} {
-		var info OrderInfoResponse
-		require.NoErrorf(t, json.Unmarshal([]byte(`{"refid":null,"userref":0,"status":"open","opentm":1706893367.4656649,"starttm":0,"expiretm":0,`+
-			`"descr":{"pair":"XRPEUR","type":"sell","ordertype":"`+tc.orderType+`","price":"`+tc.price+`","price2":"`+cmp.Or(tc.secondaryPrice, "0")+`","leverage":"none",`+
-			`"order":"sell 10.00000000 XRPEUR @ trailing stop `+tc.price+`","close":""},"vol":"10.00000000","vol_exec":"0.00000000","cost":"0.00000000",`+
-			`"fee":"0.00000000","price":"0.00000000","stopprice":"0.23424000","limitprice":"0.46847000","misc":"","oflags":"fciq","trigger":"index"}`), &info),
-			"Unmarshal must not error for a %s", tc.name)
-		got, err := e.spotOrderDetail("OKKB2W-DFVLB-P3NNO6", &info)
-		require.NoErrorf(t, err, "spotOrderDetail must not error for a %s", tc.name)
-		exp := &order.Detail{
-			Exchange:        e.Name,
-			AssetType:       asset.Spot,
-			OrderID:         "OKKB2W-DFVLB-P3NNO6",
-			Pair:            xrpEUR,
-			Side:            order.Sell,
-			Type:            tc.exp.Type,
-			Status:          order.Open,
-			Price:           tc.exp.Price,
-			TriggerPrice:    tc.exp.TriggerPrice,
-			Amount:          10,
-			RemainingAmount: 10,
-			CostAsset:       currency.EUR,
-			FeeAsset:        currency.EUR,
-			Date:            trailingOpenTime,
-			LastUpdated:     trailingOpenTime,
-		}
-		assert.Equalf(t, exp, got, "spotOrderDetail should convert a %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			var info OrderInfoResponse
+			require.NoErrorf(t, json.Unmarshal([]byte(`{"refid":null,"userref":0,"status":"open","opentm":1706893367.4656649,"starttm":0,"expiretm":0,`+
+				`"descr":{"pair":"XRPEUR","type":"sell","ordertype":"`+tc.orderType+`","price":"`+tc.price+`","price2":"`+cmp.Or(tc.secondaryPrice, "0")+`","leverage":"none",`+
+				`"order":"sell 10.00000000 XRPEUR @ trailing stop `+tc.price+`","close":""},"vol":"10.00000000","vol_exec":"0.00000000","cost":"0.00000000",`+
+				`"fee":"0.00000000","price":"0.00000000","stopprice":"0.23424000","limitprice":"0.46847000","misc":"","oflags":"fciq","trigger":"index"}`), &info),
+				"Unmarshal must not error for a %s", tc.name)
+			got, err := e.spotOrderDetail("OKKB2W-DFVLB-P3NNO6", &info)
+			require.NoErrorf(t, err, "spotOrderDetail must not error for a %s", tc.name)
+			exp := &order.Detail{
+				Exchange:        e.Name,
+				AssetType:       asset.Spot,
+				OrderID:         "OKKB2W-DFVLB-P3NNO6",
+				Pair:            xrpEUR,
+				Side:            order.Sell,
+				Type:            tc.exp.Type,
+				Status:          order.Open,
+				Price:           tc.exp.Price,
+				TriggerPrice:    tc.exp.TriggerPrice,
+				Amount:          10,
+				RemainingAmount: 10,
+				CostAsset:       currency.EUR,
+				FeeAsset:        currency.EUR,
+				Date:            trailingOpenTime,
+				LastUpdated:     trailingOpenTime,
+			}
+			assert.Equalf(t, exp, got, "spotOrderDetail should convert a %s", tc.name)
+		})
 	}
 
 	valid := OrderInfoResponse{Status: "open", Description: OrderDescription{Pair: "XBTUSD", Side: "buy", OrderType: "limit", Price: OrderPrice{Value: 81250}}, TimeInForce: "gtc"}
+	// The cases share e's pair matcher in order, so each also checks that a conversion keeps nothing from the last
 	for _, tc := range []struct {
 		name   string
 		modify func(*OrderInfoResponse)
@@ -5667,10 +6805,12 @@ func TestSpotOrderDetail(t *testing.T) {
 		{"an unknown status", func(o *OrderInfoResponse) { o.Status = "moon" }, errUnknownOrderStatus},
 		{"an unknown time in force", func(o *OrderInfoResponse) { o.TimeInForce = "gtx" }, order.ErrInvalidTimeInForce},
 	} {
-		info := valid
-		tc.modify(&info)
-		_, err := e.spotOrderDetail("O6KIO9-Y73RV-6LFAIX", &info)
-		assert.ErrorIsf(t, err, tc.err, "spotOrderDetail should reject %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			info := valid
+			tc.modify(&info)
+			_, err := e.spotOrderDetail("O6KIO9-Y73RV-6LFAIX", &info)
+			assert.ErrorIsf(t, err, tc.err, "spotOrderDetail should reject %s", tc.name)
+		})
 	}
 }
 
@@ -5872,10 +7012,13 @@ func TestFuturesOrderInfo(t *testing.T) {
 	ex := newOrdersFillsExchange(t, "", strings.ReplaceAll(ordersFuturesFills, `"PF_XBTUSD"`, `"PF_ZORAUSD"`), newHistoryListing([]string{}))
 	_, err := ex.futuresOrderInfo(t.Context(), ordersFillsOrderID)
 	assert.ErrorIs(t, err, currency.ErrPairNotFound, "futuresOrderInfo should reject fills on a contract no longer listed")
+	// The cases assign ex and err, which the statements after the loop use too, so they run in order
 	for _, path := range []string{"/derivatives/api/v3/openorders", "/derivatives/api/v3/orders/status", "/derivatives/api/v3/fills"} {
-		ex = newOrdersFillsExchange(t, path, ordersFuturesFills, newHistoryListing([]string{}))
-		_, err = ex.futuresOrderInfo(t.Context(), ordersFillsOrderID)
-		assert.ErrorIsf(t, err, errAPIResponse, "futuresOrderInfo should return the error of %s", path)
+		t.Run(path, func(t *testing.T) {
+			ex = newOrdersFillsExchange(t, path, ordersFuturesFills, newHistoryListing([]string{}))
+			_, err = ex.futuresOrderInfo(t.Context(), ordersFillsOrderID)
+			assert.ErrorIsf(t, err, errAPIResponse, "futuresOrderInfo should return the error of %s", path)
+		})
 	}
 	// The order events only add how the order ended, so its fills are returned when they cannot be read
 	ex = newOrdersFillsExchange(t, "/api/history/v3/orders", ordersFuturesFills, newHistoryListing([]string{}))
@@ -6094,9 +7237,10 @@ func TestFuturesOrderInfo(t *testing.T) {
 	}
 }
 
-func TestFuturesOpenOrderDetail(t *testing.T) {
+func TestFuturesOpenOrderDetail(t *testing.T) { //nolint:tparallel // the cases share e's pair matcher in order
 	t.Parallel()
 	received, updated := time.Date(2026, 10, 9, 8, 24, 59, 122000000, time.UTC), time.Date(2026, 10, 9, 8, 26, 15, 4000000, time.UTC)
+	// The cases share e's pair matcher in order, so each also checks that a conversion keeps nothing from the last
 	for _, tc := range []struct {
 		name  string
 		order *FuturesOpenOrder
@@ -6200,11 +7344,14 @@ func TestFuturesOpenOrderDetail(t *testing.T) {
 			},
 		},
 	} {
-		got, err := e.futuresOpenOrderDetail(tc.order)
-		require.NoErrorf(t, err, "futuresOpenOrderDetail must not error for a %s", tc.name)
-		assert.Equalf(t, tc.exp, got, "futuresOpenOrderDetail should convert a %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := e.futuresOpenOrderDetail(tc.order)
+			require.NoErrorf(t, err, "futuresOpenOrderDetail must not error for a %s", tc.name)
+			assert.Equalf(t, tc.exp, got, "futuresOpenOrderDetail should convert a %s", tc.name)
+		})
 	}
 	valid := FuturesOpenOrder{OrderID: "e7f8a9b0-c1d2-4e3f-8a4b-5c6d7e8f9a0b", Symbol: "PF_XBTUSD", Side: "buy", OrderType: "lmt", LimitPrice: 81450, UnfilledSize: 0.0004}
+	// The cases share e's pair matcher in order, so each also checks that a conversion keeps nothing from the last
 	for _, tc := range []struct {
 		name   string
 		modify func(*FuturesOpenOrder)
@@ -6214,14 +7361,16 @@ func TestFuturesOpenOrderDetail(t *testing.T) {
 		{"an order without a side", func(o *FuturesOpenOrder) { o.Side = "" }, order.ErrSideIsInvalid},
 		{"an unknown order type", func(o *FuturesOpenOrder) { o.OrderType = "moon" }, errUnknownOrderType},
 	} {
-		o := valid
-		tc.modify(&o)
-		_, err := e.futuresOpenOrderDetail(&o)
-		assert.ErrorIsf(t, err, tc.err, "futuresOpenOrderDetail should reject %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			o := valid
+			tc.modify(&o)
+			_, err := e.futuresOpenOrderDetail(&o)
+			assert.ErrorIsf(t, err, tc.err, "futuresOpenOrderDetail should reject %s", tc.name)
+		})
 	}
 }
 
-func TestFuturesOrderStatusDetail(t *testing.T) {
+func TestFuturesOrderStatusDetail(t *testing.T) { //nolint:tparallel // the cases share e's pair matcher in order
 	t.Parallel()
 	placed, updated := time.Date(2026, 10, 9, 8, 24, 59, 120000000, time.UTC), time.Date(2026, 10, 9, 8, 26, 14, 982000000, time.UTC)
 	cached := FuturesCachedOrder{
@@ -6256,6 +7405,7 @@ func TestFuturesOrderStatusDetail(t *testing.T) {
 		}
 	}
 	trigger := &FuturesPriceTriggerOptions{TriggerPrice: 81500, TriggerSide: "TRIGGER_ABOVE", TriggerSignal: "MARK_PRICE"}
+	// The cases share e's pair matcher in order, so each also checks that a conversion keeps nothing from the last
 	for _, tc := range []struct {
 		status  string
 		filled  float64
@@ -6271,12 +7421,15 @@ func TestFuturesOrderStatusDetail(t *testing.T) {
 		{"CANCELLED", 0, nil, expected(order.Cancelled, 0, 0.0007, 0)},
 		{"CANCELLED", 0.0003, nil, expected(order.PartiallyFilledCancelled, 0.0003, 0.0004, 0)},
 	} {
-		o := cached
-		o.FilledQuantity, o.PriceTriggerOptions = tc.filled, tc.trigger
-		got, err := e.futuresOrderStatusDetail(&FuturesOrderStatusDetails{Order: o, Status: tc.status})
-		require.NoErrorf(t, err, "futuresOrderStatusDetail must not error for %s with %v filled", tc.status, tc.filled)
-		assert.Equalf(t, tc.exp, got, "futuresOrderStatusDetail should convert %s with %v filled", tc.status, tc.filled)
+		t.Run(tc.status+" with "+strconv.FormatFloat(tc.filled, 'g', -1, 64)+" filled", func(t *testing.T) {
+			o := cached
+			o.FilledQuantity, o.PriceTriggerOptions = tc.filled, tc.trigger
+			got, err := e.futuresOrderStatusDetail(&FuturesOrderStatusDetails{Order: o, Status: tc.status})
+			require.NoErrorf(t, err, "futuresOrderStatusDetail must not error for %s with %v filled", tc.status, tc.filled)
+			assert.Equalf(t, tc.exp, got, "futuresOrderStatusDetail should convert %s with %v filled", tc.status, tc.filled)
+		})
 	}
+	// The cases share e's pair matcher in order, so each also checks that a conversion keeps nothing from the last
 	for _, tc := range []struct {
 		name   string
 		modify func(*FuturesOrderStatusDetails)
@@ -6286,10 +7439,12 @@ func TestFuturesOrderStatusDetail(t *testing.T) {
 		{"an order without a side", func(s *FuturesOrderStatusDetails) { s.Order.Side = "" }, order.ErrSideIsInvalid},
 		{"an unknown status", func(s *FuturesOrderStatusDetails) { s.Status = "PENDING" }, errUnknownOrderStatus},
 	} {
-		s := FuturesOrderStatusDetails{Order: cached, Status: "ENTERED_BOOK"}
-		tc.modify(&s)
-		_, err := e.futuresOrderStatusDetail(&s)
-		assert.ErrorIsf(t, err, tc.err, "futuresOrderStatusDetail should reject %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			s := FuturesOrderStatusDetails{Order: cached, Status: "ENTERED_BOOK"}
+			tc.modify(&s)
+			_, err := e.futuresOrderStatusDetail(&s)
+			assert.ErrorIsf(t, err, tc.err, "futuresOrderStatusDetail should reject %s", tc.name)
+		})
 	}
 }
 
@@ -6325,16 +7480,19 @@ func TestFuturesOrderTypeFromString(t *testing.T) {
 		"Rfq":                    {order.UnknownType, order.UnknownTIF},
 		"Unknown":                {order.UnknownType, order.UnknownTIF},
 	} {
-		orderType, tif, err := futuresOrderTypeFromString(s)
-		require.NoErrorf(t, err, "futuresOrderTypeFromString must not error for %s", s)
-		assert.Equalf(t, exp.orderType, orderType, "futuresOrderTypeFromString should convert %s's order type", s)
-		assert.Equalf(t, exp.tif, tif, "futuresOrderTypeFromString should convert %s's time in force", s)
+		t.Run(s, func(t *testing.T) {
+			t.Parallel()
+			orderType, tif, err := futuresOrderTypeFromString(s)
+			require.NoErrorf(t, err, "futuresOrderTypeFromString must not error for %s", s)
+			assert.Equalf(t, exp.orderType, orderType, "futuresOrderTypeFromString should convert %s's order type", s)
+			assert.Equalf(t, exp.tif, tif, "futuresOrderTypeFromString should convert %s's time in force", s)
+		})
 	}
 	_, _, err := futuresOrderTypeFromString("moon")
 	assert.ErrorIs(t, err, errUnknownOrderType, "futuresOrderTypeFromString should reject an unknown order type")
 }
 
-func TestUnavailableSpotPairName(t *testing.T) {
+func TestUnavailableSpotPairName(t *testing.T) { //nolint:tparallel // the cases share their exchanges and servers in order
 	t.Parallel()
 	ex := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
 		if !assert.Equal(t, "/0/public/AssetPairs", r.URL.Path, "only Kraken's asset pairs should be requested") {
@@ -6356,6 +7514,7 @@ func TestUnavailableSpotPairName(t *testing.T) {
 	waves := currency.NewPair(currency.NewCode("WAVES"), currency.USD)
 	tgbp := currency.NewPair(currency.NewCode("TGBP"), currency.USD)
 	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{spotTestPair, tgbp}, false), "StorePairs must not error")
+	// The cases share ex and its server in order, so each also checks that a call keeps nothing from the last
 	for _, tc := range []struct {
 		pair currency.Pair
 		exp  string
@@ -6371,18 +7530,23 @@ func TestUnavailableSpotPairName(t *testing.T) {
 		{pair: tgbp.Swap()},
 		{pair: currency.NewPair(currency.NewCode("SC"), currency.NewCode("AUSD"))},
 	} {
-		name, err := ex.unavailableSpotPairName(t.Context(), tc.pair)
-		require.NoErrorf(t, err, "unavailableSpotPairName must not error for %s", tc.pair)
-		assert.Equalf(t, tc.exp, name, "unavailableSpotPairName should return the name Kraken lists %s under", tc.pair)
+		t.Run(tc.pair.Base.String()+"/"+tc.pair.Quote.String(), func(t *testing.T) {
+			name, err := ex.unavailableSpotPairName(t.Context(), tc.pair)
+			require.NoErrorf(t, err, "unavailableSpotPairName must not error for %s", tc.pair)
+			assert.Equalf(t, tc.exp, name, "unavailableSpotPairName should return the name Kraken lists %s under", tc.pair)
+		})
 	}
 
 	available := newHTTPTestExchange(t, func(_ http.ResponseWriter, r *http.Request) {
 		assert.Failf(t, "an available pair's name should not be requested", "%s", r.URL.Path)
 	})
+	// The cases share available in order, and the statements after the loop call unavailableSpotPairName again
 	for _, p := range []currency.Pair{spotTestPair, spotTestPair.Swap()} {
-		name, err := available.unavailableSpotPairName(t.Context(), p)
-		require.NoErrorf(t, err, "unavailableSpotPairName must not error for %s", p)
-		assert.Emptyf(t, name, "unavailableSpotPairName should return no name for the available %s", p)
+		t.Run("available "+p.String(), func(t *testing.T) {
+			name, err := available.unavailableSpotPairName(t.Context(), p)
+			require.NoErrorf(t, err, "unavailableSpotPairName must not error for %s", p)
+			assert.Emptyf(t, name, "unavailableSpotPairName should return no name for the available %s", p)
+		})
 	}
 
 	failing := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
@@ -6431,10 +7595,13 @@ func TestFuturesOpenOrderType(t *testing.T) {
 		{name: "take profit order with a limit price", order: FuturesOpenOrder{OrderType: "take_profit", LimitPrice: 90100, StopPrice: 90000}, orderType: order.TakeProfit | order.Limit},
 		{name: "trailing stop order", order: FuturesOpenOrder{OrderType: "trailing_stop", LimitPrice: 1}, orderType: order.TrailingStop},
 	} {
-		orderType, tif, err := futuresOpenOrderType(&tc.order)
-		require.NoErrorf(t, err, "futuresOpenOrderType must not error for a listed %s", tc.name)
-		assert.Equalf(t, tc.orderType, orderType, "futuresOpenOrderType should return a listed %s's order type", tc.name)
-		assert.Equalf(t, tc.tif, tif, "futuresOpenOrderType should return a listed %s's time in force", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			orderType, tif, err := futuresOpenOrderType(&tc.order)
+			require.NoErrorf(t, err, "futuresOpenOrderType must not error for a listed %s", tc.name)
+			assert.Equalf(t, tc.orderType, orderType, "futuresOpenOrderType should return a listed %s's order type", tc.name)
+			assert.Equalf(t, tc.tif, tif, "futuresOpenOrderType should return a listed %s's time in force", tc.name)
+		})
 	}
 	_, _, err := futuresOpenOrderType(&FuturesOpenOrder{OrderType: "moon", LimitPrice: 1})
 	assert.ErrorIs(t, err, errUnknownOrderType, "futuresOpenOrderType should return the error of an order type it cannot read")
@@ -6447,16 +7614,44 @@ func TestGetActiveOrders(t *testing.T) {
 	_, err = e.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Margin, Side: order.AnySide, Type: order.AnyType})
 	require.ErrorIs(t, err, asset.ErrNotSupported, "GetActiveOrders must reject an unsupported asset")
 	failing := newOrdersFailingExchange(t)
+	// The cases share failing, its server and err in order, so each also checks that a call keeps nothing from the last
 	for _, a := range []asset.Item{asset.Spot, asset.Futures} {
-		_, err = failing.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: a, Side: order.AnySide, Type: order.AnyType})
-		assert.ErrorIsf(t, err, errAPIResponse, "GetActiveOrders should return the %s request's error", a)
+		t.Run(a.String()+" request error", func(t *testing.T) {
+			_, err = failing.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: a, Side: order.AnySide, Type: order.AnyType})
+			assert.ErrorIsf(t, err, errAPIResponse, "GetActiveOrders should return the %s request's error", a)
+		})
 	}
 
+	t.Run("orders on unlisted pairs", func(t *testing.T) {
+		t.Parallel()
+		ex := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+			switch r.URL.Path {
+			case "/0/private/OpenOrders":
+				_, _ = w.Write([]byte(ordersUnlistedOpenOrders))
+			case "/derivatives/api/v3/openorders":
+				_, _ = w.Write([]byte(`{"openOrders":[{"algoId":"gct-algo-1","cliOrdId":"gct-batch-1","filledSize":0.0003,"lastUpdateTime":"2026-10-09T08:26:14.982Z","limitPrice":81450,` +
+					`"orderType":"lmt","order_id":"e7f8a9b0-c1d2-4e3f-8a4b-5c6d7e8f9a0b","receivedTime":"2026-10-09T08:24:59.120Z","reduceOnly":true,"side":"buy",` +
+					`"status":"partiallyFilled","symbol":"PF_XBTUSD","unfilledSize":0.0004},{"filledSize":0,"lastUpdateTime":"2026-10-09T08:43:20.611Z","limitPrice":0.0821,` +
+					`"orderType":"lmt","order_id":"2398d7e0-ee86-4911-be2c-ef3a4a874153","receivedTime":"2026-10-09T08:43:20.611Z","reduceOnly":false,"side":"buy",` +
+					`"status":"untouched","symbol":"PF_ZORAUSD","unfilledSize":2500}],"result":"success","serverTime":"2026-10-09T08:44:00.512Z"}`))
+			}
+		})
+		got, err := ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType})
+		require.NoError(t, err, "GetActiveOrders must not error for spot")
+		assert.Equal(t, order.FilteredOrders{ordersStopLossLimitDetail(ex.Name)}, got, "GetActiveOrders should return the spot orders on pairs it can name")
+		got, err = ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Futures, Side: order.AnySide, Type: order.AnyType})
+		require.NoError(t, err, "GetActiveOrders must not error for futures")
+		assert.Equal(t, order.FilteredOrders{ordersFuturesLimitDetail(ex.Name)}, got, "GetActiveOrders should return the futures orders on contracts it can name")
+	})
+
 	if !mockTests {
-		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+		// The cases share e in order, so each also checks that a call keeps nothing from the last
 		for _, a := range e.GetAssetTypes(false) {
-			_, err := e.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: a, Side: order.AnySide, Type: order.AnyType})
-			assert.NoErrorf(t, err, "GetActiveOrders should not error for %s", a)
+			t.Run("live "+a.String(), func(t *testing.T) {
+				sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+				_, err := e.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: a, Side: order.AnySide, Type: order.AnyType})
+				assert.NoErrorf(t, err, "GetActiveOrders should not error for %s", a)
+			})
 		}
 		return
 	}
@@ -6533,25 +7728,430 @@ func TestGetOrderHistory(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrGetOrdersRequestIsNil, "GetOrderHistory must reject a nil request")
 	_, err = e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Margin, Side: order.AnySide, Type: order.AnyType})
 	require.ErrorIs(t, err, asset.ErrNotSupported, "GetOrderHistory must reject an unsupported asset")
+	// The cases share e and err in order, so each also checks that a call keeps nothing from the last
 	for _, a := range []asset.Item{asset.Spot, asset.Futures} {
-		_, err = e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
-			AssetType: a,
-			Side:      order.AnySide,
-			Type:      order.AnyType,
-			StartTime: time.Date(2026, 10, 9, 1, 0, 0, 0, time.UTC),
-			EndTime:   time.Date(2026, 10, 9, 0, 0, 0, 0, time.UTC),
+		t.Run(a.String()+" window ending before it starts", func(t *testing.T) {
+			_, err = e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+				AssetType: a,
+				Side:      order.AnySide,
+				Type:      order.AnyType,
+				StartTime: time.Date(2026, 10, 9, 1, 0, 0, 0, time.UTC),
+				EndTime:   time.Date(2026, 10, 9, 0, 0, 0, 0, time.UTC),
+			})
+			require.ErrorIsf(t, err, common.ErrStartAfterEnd, "GetOrderHistory must reject a %s window ending before it starts", a)
 		})
-		require.ErrorIsf(t, err, common.ErrStartAfterEnd, "GetOrderHistory must reject a %s window ending before it starts", a)
 	}
 	failing := newOrdersFailingExchange(t)
 	_, err = failing.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType})
 	assert.ErrorIs(t, err, errAPIResponse, "GetOrderHistory should return Get Closed Orders' error")
 
+	t.Run("futures trigger orders", func(t *testing.T) {
+		t.Parallel()
+		start := time.UnixMilli(1791518400000)
+		at := start.Add
+		const (
+			limitID              = "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d"
+			cancelledStopID      = "1b2c3d4e-5f6a-4b7c-9d8e-0f1a2b3c4d5e"
+			triggeredStopID      = "2c3d4e5f-6a7b-4c8d-ae9f-1a2b3c4d5e6f"
+			lateActivationID     = "3d4e5f6a-7b8c-4d9e-bfa0-2b3c4d5e6f70"
+			bothListedID         = "4e5f6a7b-8c9d-4eaf-80b1-3c4d5e6f7081"
+			tiedID               = "5f6a7b8c-9dae-4fb0-91c2-4d5e6f708192"
+			delistedID           = "6a7b8c9d-aebf-40c1-a2d3-5e6f708192a3"
+			triggeredElsewhereID = "7b8c9dae-bfc0-41d2-b3e4-6f708192a3b4"
+			placedByTriggerID    = "8c9daebf-c0d1-42e3-c4f5-708192a3b4c5"
+			editedStopID         = "9daebfc0-d1e2-43f4-8506-8192a3b4c5d6"
+		)
+		event := func(kind string, when time.Time, body string) string {
+			return futuresHistoryElement("ev-"+strconv.FormatInt(when.UnixMilli(), 10)+"-"+kind, when, kind, body)
+		}
+		placedEvent := func(o string, when time.Time) string {
+			return event("OrderPlaced", when, `{"order":`+o+`,"reason":"new_user_order","reducedQuantity":""}`)
+		}
+		updatedEvent := func(old, o string, when time.Time) string {
+			return event("OrderUpdated", when, `{"oldOrder":`+old+`,"newOrder":`+o+`,"reason":"full_fill","reducedQuantity":"0"}`)
+		}
+		triggerEvent := func(kind, trigger string, when time.Time) string {
+			reason := "new_user_order"
+			if kind == "OrderTriggerCancelled" {
+				reason = "cancelled_by_user"
+			}
+			return event(kind, when, `{"order":`+trigger+`,"reason":"`+reason+`"}`)
+		}
+		// Order events give an order's quantity as what remains of it to fill
+		limitPlaced := futuresHistoryOrderJSON(limitID, "gct-limit-1", "Buy", "Limit", "0.5", "0", at(time.Minute), at(time.Minute))
+		limitFilled := futuresHistoryOrderJSON(limitID, "gct-limit-1", "Buy", "Limit", "0.25", "0.25", at(time.Minute), at(2*time.Minute))
+		triggeredPlaced := futuresHistoryOrderJSON(triggeredStopID, "gct-stop-2", "Sell", "Stop", "0.25", "0", at(6*time.Minute), at(6*time.Minute))
+		triggeredFilled := futuresHistoryOrderJSON(triggeredStopID, "gct-stop-2", "Sell", "Stop", "0", "0.25", at(6*time.Minute), at(6*time.Minute))
+		latePlaced := futuresHistoryOrderJSON(lateActivationID, "gct-stop-3", "Sell", "Stop", "0.125", "0", at(8*time.Minute), at(8*time.Minute))
+		lateFilled := futuresHistoryOrderJSON(lateActivationID, "gct-stop-3", "Sell", "Stop", "0", "0.125", at(8*time.Minute), at(8*time.Minute+100*time.Millisecond))
+		tiedPlaced := futuresHistoryOrderJSON(tiedID, "gct-stop-5", "Sell", "Stop", "0.5", "0", at(11*time.Minute), at(11*time.Minute))
+		placedByTrigger := futuresHistoryOrderJSON(placedByTriggerID, "gct-stop-7", "Sell", "Stop", "0.25", "0", at(15*time.Minute), at(15*time.Minute))
+		placedByTriggerFilled := futuresHistoryOrderJSON(placedByTriggerID, "gct-stop-7", "Sell", "Stop", "0", "0.25", at(15*time.Minute), at(15*time.Minute))
+		orderPages := [][]string{
+			{
+				placedEvent(limitPlaced, at(time.Minute)),
+				event("OrderUpdated", at(2*time.Minute), `{"oldOrder":`+limitPlaced+`,"newOrder":`+limitFilled+`,"reason":"partial_fill","reducedQuantity":"0"}`),
+				placedEvent(triggeredPlaced, at(6*time.Minute)),
+				updatedEvent(triggeredPlaced, triggeredFilled, at(6*time.Minute)),
+			},
+			{
+				placedEvent(latePlaced, at(8*time.Minute)),
+				updatedEvent(latePlaced, lateFilled, at(8*time.Minute+100*time.Millisecond)),
+				placedEvent(futuresHistoryOrderJSON(bothListedID, "gct-stop-4", "Sell", "Stop", "0.5", "0", at(9*time.Minute), at(9*time.Minute)), at(9*time.Minute)),
+				placedEvent(tiedPlaced, at(11*time.Minute)),
+				event("OrderCancelled", at(12*time.Minute), `{"order":`+tiedPlaced+`,"reason":"cancelled_by_user"}`),
+				placedEvent(placedByTrigger, at(15*time.Minute)),
+				updatedEvent(placedByTrigger, placedByTriggerFilled, at(15*time.Minute)),
+			},
+		}
+		cancelledStop := futuresHistoryTriggerJSON(cancelledStopID, "PF_XBTUSD", "gct-stop-1", "0.5", at(3*time.Minute), at(3*time.Minute))
+		triggered := futuresHistoryTriggerJSON(triggeredStopID, "PF_XBTUSD", "gct-stop-2", "0.25", at(5*time.Minute), at(5*time.Minute))
+		late := futuresHistoryTriggerJSON(lateActivationID, "PF_XBTUSD", "gct-stop-3", "0.125", at(7*time.Minute), at(7*time.Minute))
+		bothListed := futuresHistoryTriggerJSON(bothListedID, "PF_XBTUSD", "gct-stop-4", "0.5", at(9*time.Minute), at(9*time.Minute))
+		tied := futuresHistoryTriggerJSON(tiedID, "PF_XBTUSD", "gct-stop-5", "0.5", at(11*time.Minute), at(11*time.Minute))
+		tiedEdited := futuresHistoryTriggerJSON(tiedID, "PF_XBTUSD", "gct-stop-5", "0.5", at(11*time.Minute), at(12*time.Minute))
+		triggeredElsewhere := futuresHistoryTriggerJSON(triggeredElsewhereID, "PF_XBTUSD", "gct-stop-6", "0.25", at(14*time.Minute), at(14*time.Minute))
+		edited := futuresHistoryTriggerJSON(editedStopID, "PF_XBTUSD", "gct-stop-9", "0.5", at(16*time.Minute), at(16*time.Minute))
+		resized := futuresHistoryTriggerJSON(editedStopID, "PF_XBTUSD", "gct-stop-9", "0.75", at(16*time.Minute), at(17*time.Minute))
+		triggerPages := [][]string{
+			{
+				triggerEvent("OrderTriggerPlaced", cancelledStop, at(3*time.Minute)),
+				triggerEvent("OrderTriggerCancelled", cancelledStop, at(4*time.Minute)),
+				triggerEvent("OrderTriggerPlaced", triggered, at(5*time.Minute)),
+			},
+			{
+				// The stop placed on the page before triggers, as do others, each placing an order
+				event("OrderTriggerActivated", at(6*time.Minute), `{"order":`+triggered+`}`),
+				triggerEvent("OrderTriggerPlaced", late, at(7*time.Minute)),
+				// Timed after the order this stop placed filled, which an activation must not override
+				event("OrderTriggerActivated", at(8*time.Minute+500*time.Millisecond), `{"order":`+late+`}`),
+				// Listed among order events as well, if Kraken lists a stop there before it triggers, where it was placed
+				// before it was cancelled
+				triggerEvent("OrderTriggerPlaced", bothListed, at(9*time.Minute)),
+				triggerEvent("OrderTriggerCancelled", bothListed, at(10*time.Minute)),
+				// Edited at the time the same order's order events cancel it
+				triggerEvent("OrderTriggerPlaced", tied, at(11*time.Minute)),
+				event("OrderTriggerUpdated", at(12*time.Minute), `{"oldOrderTrigger":`+tied+`,"newOrderTrigger":`+tiedEdited+`,"reason":"edited_by_user"}`),
+				triggerEvent("OrderTriggerPlaced", futuresHistoryTriggerJSON(delistedID, "PF_ZORAUSD", "gct-stop-8", "0.5", at(13*time.Minute), at(13*time.Minute)), at(13*time.Minute)),
+				// Triggered, placing an order under its own ID
+				triggerEvent("OrderTriggerPlaced", triggeredElsewhere, at(14*time.Minute)),
+				event("OrderTriggerActivated", at(15*time.Minute), `{"order":`+triggeredElsewhere+`}`),
+				// Resized, and still waiting to trigger when the window ends
+				triggerEvent("OrderTriggerPlaced", edited, at(16*time.Minute)),
+				event("OrderTriggerUpdated", at(17*time.Minute), `{"oldOrderTrigger":`+edited+`,"newOrderTrigger":`+resized+`,"reason":"edited_by_user"}`),
+			},
+		}
+		futuresOrder := func(exchangeName, id, clientID string, side order.Side, orderType order.Type, status order.Status, amount, executed float64, placed, updated time.Time) order.Detail {
+			return order.Detail{
+				Exchange:        exchangeName,
+				AssetType:       asset.Futures,
+				OrderID:         id,
+				ClientOrderID:   clientID,
+				Pair:            futuresTestPair,
+				Side:            side,
+				Type:            orderType,
+				Status:          status,
+				Price:           81450,
+				Amount:          amount,
+				ExecutedAmount:  executed,
+				RemainingAmount: amount - executed,
+				Date:            placed,
+				LastUpdated:     updated,
+			}
+		}
+		triggerOrder := func(exchangeName, id, clientID string, status order.Status, amount float64, placed, updated time.Time) order.Detail {
+			return order.Detail{
+				Exchange:        exchangeName,
+				AssetType:       asset.Futures,
+				OrderID:         id,
+				ClientOrderID:   clientID,
+				Pair:            futuresTestPair,
+				Side:            order.Sell,
+				Status:          status,
+				ReduceOnly:      true,
+				Price:           80000,
+				TriggerPrice:    80500,
+				Amount:          amount,
+				RemainingAmount: amount,
+				Date:            placed,
+				LastUpdated:     updated,
+			}
+		}
+		// The orders only order events list, as order events alone report them
+		orderEventsOnly := func(exchangeName string) []order.Detail {
+			return []order.Detail{
+				futuresOrder(exchangeName, limitID, "gct-limit-1", order.Buy, order.Limit, order.PartiallyFilled, 0.5, 0.25, at(time.Minute), at(2*time.Minute)),
+				futuresOrder(exchangeName, triggeredStopID, "gct-stop-2", order.Sell, order.Stop, order.Filled, 0.25, 0.25, at(6*time.Minute), at(6*time.Minute)),
+				futuresOrder(exchangeName, lateActivationID, "gct-stop-3", order.Sell, order.Stop, order.Filled, 0.125, 0.125, at(8*time.Minute), at(8*time.Minute+100*time.Millisecond)),
+				futuresOrder(exchangeName, tiedID, "gct-stop-5", order.Sell, order.Stop, order.Cancelled, 0.5, 0, at(11*time.Minute), at(12*time.Minute)),
+				futuresOrder(exchangeName, placedByTriggerID, "gct-stop-7", order.Sell, order.Stop, order.Filled, 0.25, 0.25, at(15*time.Minute), at(15*time.Minute)),
+			}
+		}
+		query, nextQuery := "before=1791522000000&since=1791518400000&sort=asc", "before=1791522000000&continuation_token=page2&since=1791518400000&sort=asc"
+		for _, tc := range []struct {
+			name     string
+			triggers [][]string
+			exp      func(exchangeName string) order.FilteredOrders
+		}{
+			{
+				name:     "trigger events",
+				triggers: triggerPages,
+				exp: func(exchangeName string) order.FilteredOrders {
+					o := orderEventsOnly(exchangeName)
+					return order.FilteredOrders{
+						o[0], o[1], o[2],
+						triggerOrder(exchangeName, bothListedID, "gct-stop-4", order.Cancelled, 0.5, at(9*time.Minute), at(10*time.Minute)),
+						o[3], o[4],
+						triggerOrder(exchangeName, cancelledStopID, "gct-stop-1", order.Cancelled, 0.5, at(3*time.Minute), at(4*time.Minute)),
+						triggerOrder(exchangeName, editedStopID, "gct-stop-9", order.Open, 0.75, at(16*time.Minute), at(17*time.Minute)),
+					}
+				},
+			},
+			{
+				name:     "no trigger events",
+				triggers: [][]string{{}},
+				exp: func(exchangeName string) order.FilteredOrders {
+					o := orderEventsOnly(exchangeName)
+					return order.FilteredOrders{
+						o[0], o[1], o[2],
+						futuresOrder(exchangeName, bothListedID, "gct-stop-4", order.Sell, order.Stop, order.Open, 0.5, 0, at(9*time.Minute), at(9*time.Minute)),
+						o[3], o[4],
+					}
+				},
+			},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				orders, triggers := newHistoryListing(orderPages...), newHistoryListing(tc.triggers...)
+				ex := newFuturesHistoryExchange(t, orders, triggers)
+				got, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Futures, Side: order.AnySide, Type: order.AnyType, StartTime: start, EndTime: at(time.Hour)})
+				require.NoError(t, err, "GetOrderHistory must not error")
+				assert.Equal(t, tc.exp(ex.Name), got, "GetOrderHistory should merge each order's order and trigger events by order ID, the later event winning, leaving a stop that triggered to its order events")
+				assert.Equal(t, []string{query, nextQuery}, orders.queries(), "GetOrderHistory should list every page of the window's order events")
+				expTriggerQueries := []string{query}
+				if len(tc.triggers) > 1 {
+					expTriggerQueries = append(expTriggerQueries, nextQuery)
+				}
+				assert.Equal(t, expTriggerQueries, triggers.queries(), "GetOrderHistory should list every page of the window's trigger events")
+			})
+		}
+	})
+
+	t.Run("futures filled orders", func(t *testing.T) {
+		t.Parallel()
+		start := time.UnixMilli(1791522000000)
+		at := start.Add
+		const (
+			cancelledID = "1d2e3f4a-5b6c-4d7e-8f9a-0b1c2d3e4f5a"
+			iocID       = "2e3f4a5b-6c7d-4e8f-9a0b-1c2d3e4f5a6b"
+			filledID    = "3f4a5b6c-7d8e-4f9a-0b1c-2d3e4f5a6b7c"
+		)
+		event := func(kind string, when time.Time, body string) string {
+			return futuresHistoryElement("ev-"+strconv.FormatInt(when.UnixMilli(), 10)+"-"+kind, when, kind, body)
+		}
+		updatedEvent := func(old, o, reason string, when time.Time) string {
+			return event("OrderUpdated", when, `{"oldOrder":`+old+`,"newOrder":`+o+`,"reason":"`+reason+`","reducedQuantity":"0"}`)
+		}
+		// Order events give an order's quantity as what remains of it to fill. An order of 2 fills 0.5, then 0.75, and is
+		// cancelled with 0.75 open
+		cancelledPlaced := futuresHistoryOrderJSON(cancelledID, "gct-partial-1", "Buy", "Limit", "2", "0", at(time.Minute), at(time.Minute))
+		cancelledFirstFill := futuresHistoryOrderJSON(cancelledID, "gct-partial-1", "Buy", "Limit", "1.5", "0.5", at(time.Minute), at(2*time.Minute))
+		cancelledLastFill := futuresHistoryOrderJSON(cancelledID, "gct-partial-1", "Buy", "Limit", "0.75", "1.25", at(time.Minute), at(3*time.Minute))
+		// An immediate or cancel order of 2 fills 1.25 as it is placed, and its unfilled 0.75 is rejected
+		ioc := futuresHistoryOrderJSON(iocID, "gct-ioc-1", "Sell", "IoC", "0.75", "1.25", at(5*time.Minute), at(5*time.Minute))
+		// An order of 2 fills 0.5, then 1.5
+		filledPlaced := futuresHistoryOrderJSON(filledID, "gct-filled-1", "Buy", "Limit", "2", "0", at(6*time.Minute), at(6*time.Minute))
+		filledFirstFill := futuresHistoryOrderJSON(filledID, "gct-filled-1", "Buy", "Limit", "1.5", "0.5", at(6*time.Minute), at(7*time.Minute))
+		filledInFull := futuresHistoryOrderJSON(filledID, "gct-filled-1", "Buy", "Limit", "0", "2", at(6*time.Minute), at(8*time.Minute))
+		orders := newHistoryListing(
+			[]string{
+				event("OrderPlaced", at(time.Minute), `{"order":`+cancelledPlaced+`,"reason":"new_user_order","reducedQuantity":""}`),
+				updatedEvent(cancelledPlaced, cancelledFirstFill, "partial_fill", at(2*time.Minute)),
+				updatedEvent(cancelledFirstFill, cancelledLastFill, "partial_fill", at(3*time.Minute)),
+			},
+			[]string{
+				event("OrderCancelled", at(4*time.Minute), `{"order":`+cancelledLastFill+`,"reason":"cancelled_by_user"}`),
+				event("OrderRejected", at(5*time.Minute), `{"order":`+ioc+`,"orderError":"ioc_would_enter_book","reason":"new_user_order"}`),
+				event("OrderPlaced", at(6*time.Minute), `{"order":`+filledPlaced+`,"reason":"new_user_order","reducedQuantity":""}`),
+				updatedEvent(filledPlaced, filledFirstFill, "partial_fill", at(7*time.Minute)),
+				updatedEvent(filledFirstFill, filledInFull, "full_fill", at(8*time.Minute)),
+			},
+		)
+		ex := newFuturesHistoryExchange(t, orders, newHistoryListing([]string{}))
+		got, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Futures, Side: order.AnySide, Type: order.AnyType, StartTime: start, EndTime: at(time.Hour)})
+		require.NoError(t, err, "GetOrderHistory must not error")
+		exp := order.FilteredOrders{
+			{
+				Exchange:        ex.Name,
+				AssetType:       asset.Futures,
+				OrderID:         cancelledID,
+				ClientOrderID:   "gct-partial-1",
+				Pair:            futuresTestPair,
+				Side:            order.Buy,
+				Type:            order.Limit,
+				Status:          order.PartiallyFilledCancelled,
+				Price:           81450,
+				Amount:          2,
+				ExecutedAmount:  1.25,
+				RemainingAmount: 0.75,
+				Date:            at(time.Minute),
+				LastUpdated:     at(4 * time.Minute),
+			},
+			{
+				Exchange:        ex.Name,
+				AssetType:       asset.Futures,
+				OrderID:         iocID,
+				ClientOrderID:   "gct-ioc-1",
+				Pair:            futuresTestPair,
+				Side:            order.Sell,
+				Type:            order.Limit,
+				TimeInForce:     order.ImmediateOrCancel,
+				Status:          order.PartiallyFilledCancelled,
+				Price:           81450,
+				Amount:          2,
+				ExecutedAmount:  1.25,
+				RemainingAmount: 0.75,
+				Date:            at(5 * time.Minute),
+				LastUpdated:     at(5 * time.Minute),
+			},
+			{
+				Exchange:       ex.Name,
+				AssetType:      asset.Futures,
+				OrderID:        filledID,
+				ClientOrderID:  "gct-filled-1",
+				Pair:           futuresTestPair,
+				Side:           order.Buy,
+				Type:           order.Limit,
+				Status:         order.Filled,
+				Price:          81450,
+				Amount:         2,
+				ExecutedAmount: 2,
+				Date:           at(6 * time.Minute),
+				LastUpdated:    at(8 * time.Minute),
+			},
+		}
+		assert.Equal(t, exp, got, "GetOrderHistory should size each order by what remained of it and what filled, as its last event left it")
+	})
+
+	t.Run("futures cancelled orders", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the cancelled orders are recorded responses")
+		}
+		got, err := e.GetOrderHistory(boundedContext(t), &order.MultiOrderRequest{
+			AssetType: asset.Futures,
+			Side:      order.AnySide,
+			Type:      order.AnyType,
+			StartTime: time.Date(2026, 10, 9, 1, 0, 0, 0, time.UTC),
+			EndTime:   time.Date(2026, 10, 9, 2, 0, 0, 0, time.UTC),
+		})
+		require.NoError(t, err, "GetOrderHistory must not error")
+		exp := order.FilteredOrders{
+			{
+				Exchange:        e.Name,
+				AssetType:       asset.Futures,
+				OrderID:         "1171b7d3-8ba0-449d-af73-f2ee5d34f5e6",
+				ClientOrderID:   "gct-close-1",
+				Pair:            futuresTestPair,
+				Side:            order.Sell,
+				Type:            order.Limit,
+				TimeInForce:     order.PostOnly,
+				Status:          order.Cancelled,
+				Price:           82018,
+				Amount:          0.0575,
+				RemainingAmount: 0.0575,
+				Date:            time.UnixMilli(1791507801988),
+				LastUpdated:     time.UnixMilli(1791507802196),
+			},
+			{
+				Exchange:        e.Name,
+				AssetType:       asset.Futures,
+				OrderID:         "72e04257-ca24-4034-b4f8-de017c57e33b",
+				ClientOrderID:   "gct-close-2",
+				Pair:            futuresTestPair,
+				Side:            order.Buy,
+				Type:            order.Limit,
+				Status:          order.PartiallyFilledCancelled,
+				Price:           81400,
+				Amount:          0.5,
+				ExecutedAmount:  0.25,
+				RemainingAmount: 0.25,
+				Date:            time.UnixMilli(1791508000000),
+				LastUpdated:     time.UnixMilli(1791508100250),
+			},
+		}
+		assert.Equal(t, exp, got, "GetOrderHistory should report a cancelled order as last updated when it was cancelled")
+	})
+
+	t.Run("futures orders with undecoded values", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("the undecoded orders are recorded responses")
+		}
+		got, err := e.GetOrderHistory(boundedContext(t), &order.MultiOrderRequest{
+			AssetType: asset.Futures,
+			Side:      order.AnySide,
+			Type:      order.AnyType,
+			StartTime: time.Date(2026, 10, 9, 2, 0, 0, 0, time.UTC),
+			EndTime:   time.Date(2026, 10, 9, 3, 0, 0, 0, time.UTC),
+		})
+		require.NoError(t, err, "GetOrderHistory must not error")
+		exp := order.FilteredOrders{
+			{
+				Exchange:        e.Name,
+				AssetType:       asset.Futures,
+				OrderID:         "eadab10e-d9f0-4af9-ae2d-f85ea491ab7a",
+				ClientOrderID:   "gct-undecoded-1",
+				Pair:            futuresTestPair,
+				Side:            order.Buy,
+				Status:          order.Open,
+				Price:           81620,
+				Amount:          0.2,
+				RemainingAmount: 0.2,
+				Date:            time.UnixMilli(1791511300000),
+				LastUpdated:     time.UnixMilli(1791511300000),
+			},
+			{
+				Exchange:        e.Name,
+				AssetType:       asset.Futures,
+				OrderID:         "a62ee6b7-ad14-47d6-ab3a-f9151713f756",
+				ClientOrderID:   "gct-undecoded-2",
+				Pair:            futuresTestPair,
+				Type:            order.Limit,
+				Status:          order.Open,
+				Price:           81700,
+				Amount:          0.3,
+				RemainingAmount: 0.3,
+				Date:            time.UnixMilli(1791511400000),
+				LastUpdated:     time.UnixMilli(1791511400000),
+			},
+			{
+				Exchange:        e.Name,
+				AssetType:       asset.Futures,
+				OrderID:         "4a7d2506-5dde-45a6-acb9-3c8080bd9ca9",
+				ClientOrderID:   "gct-plain-1",
+				Pair:            futuresTestPair,
+				Side:            order.Sell,
+				Type:            order.Limit,
+				Status:          order.Open,
+				Price:           82200,
+				Amount:          0.1,
+				RemainingAmount: 0.1,
+				Date:            time.UnixMilli(1791511500000),
+				LastUpdated:     time.UnixMilli(1791511500000),
+			},
+		}
+		assert.Equal(t, exp, got, "GetOrderHistory should keep orders whose order type or direction Kraken could not decode, as unknown")
+	})
+
 	if !mockTests {
-		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+		// The cases share e in order, so each also checks that a call keeps nothing from the last
 		for _, a := range e.GetAssetTypes(false) {
-			_, err := e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: a, Side: order.AnySide, Type: order.AnyType, StartTime: time.Now().Add(-24 * time.Hour), EndTime: time.Now()})
-			assert.NoErrorf(t, err, "GetOrderHistory should not error for %s", a)
+			t.Run("live "+a.String(), func(t *testing.T) {
+				sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+				_, err := e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: a, Side: order.AnySide, Type: order.AnyType, StartTime: time.Now().Add(-24 * time.Hour), EndTime: time.Now()})
+				assert.NoErrorf(t, err, "GetOrderHistory should not error for %s", a)
+			})
 		}
 		return
 	}
@@ -6950,295 +8550,7 @@ func futuresHistoryTriggerJSON(id, tradeable, clientID, quantity string, placed,
 		`"limitPriceOffset":{"priceOffset":"0","unit":"QuoteCurrency"}}}`
 }
 
-func TestGetOrderHistoryFuturesTriggerOrders(t *testing.T) {
-	t.Parallel()
-	start := time.UnixMilli(1791518400000)
-	at := start.Add
-	const (
-		limitID              = "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d"
-		cancelledStopID      = "1b2c3d4e-5f6a-4b7c-9d8e-0f1a2b3c4d5e"
-		triggeredStopID      = "2c3d4e5f-6a7b-4c8d-ae9f-1a2b3c4d5e6f"
-		lateActivationID     = "3d4e5f6a-7b8c-4d9e-bfa0-2b3c4d5e6f70"
-		bothListedID         = "4e5f6a7b-8c9d-4eaf-80b1-3c4d5e6f7081"
-		tiedID               = "5f6a7b8c-9dae-4fb0-91c2-4d5e6f708192"
-		delistedID           = "6a7b8c9d-aebf-40c1-a2d3-5e6f708192a3"
-		triggeredElsewhereID = "7b8c9dae-bfc0-41d2-b3e4-6f708192a3b4"
-		placedByTriggerID    = "8c9daebf-c0d1-42e3-c4f5-708192a3b4c5"
-		editedStopID         = "9daebfc0-d1e2-43f4-8506-8192a3b4c5d6"
-	)
-	event := func(kind string, when time.Time, body string) string {
-		return futuresHistoryElement("ev-"+strconv.FormatInt(when.UnixMilli(), 10)+"-"+kind, when, kind, body)
-	}
-	placedEvent := func(o string, when time.Time) string {
-		return event("OrderPlaced", when, `{"order":`+o+`,"reason":"new_user_order","reducedQuantity":""}`)
-	}
-	updatedEvent := func(old, o string, when time.Time) string {
-		return event("OrderUpdated", when, `{"oldOrder":`+old+`,"newOrder":`+o+`,"reason":"full_fill","reducedQuantity":"0"}`)
-	}
-	triggerEvent := func(kind, trigger string, when time.Time) string {
-		reason := "new_user_order"
-		if kind == "OrderTriggerCancelled" {
-			reason = "cancelled_by_user"
-		}
-		return event(kind, when, `{"order":`+trigger+`,"reason":"`+reason+`"}`)
-	}
-	// Order events give an order's quantity as what remains of it to fill
-	limitPlaced := futuresHistoryOrderJSON(limitID, "gct-limit-1", "Buy", "Limit", "0.5", "0", at(time.Minute), at(time.Minute))
-	limitFilled := futuresHistoryOrderJSON(limitID, "gct-limit-1", "Buy", "Limit", "0.25", "0.25", at(time.Minute), at(2*time.Minute))
-	triggeredPlaced := futuresHistoryOrderJSON(triggeredStopID, "gct-stop-2", "Sell", "Stop", "0.25", "0", at(6*time.Minute), at(6*time.Minute))
-	triggeredFilled := futuresHistoryOrderJSON(triggeredStopID, "gct-stop-2", "Sell", "Stop", "0", "0.25", at(6*time.Minute), at(6*time.Minute))
-	latePlaced := futuresHistoryOrderJSON(lateActivationID, "gct-stop-3", "Sell", "Stop", "0.125", "0", at(8*time.Minute), at(8*time.Minute))
-	lateFilled := futuresHistoryOrderJSON(lateActivationID, "gct-stop-3", "Sell", "Stop", "0", "0.125", at(8*time.Minute), at(8*time.Minute+100*time.Millisecond))
-	tiedPlaced := futuresHistoryOrderJSON(tiedID, "gct-stop-5", "Sell", "Stop", "0.5", "0", at(11*time.Minute), at(11*time.Minute))
-	placedByTrigger := futuresHistoryOrderJSON(placedByTriggerID, "gct-stop-7", "Sell", "Stop", "0.25", "0", at(15*time.Minute), at(15*time.Minute))
-	placedByTriggerFilled := futuresHistoryOrderJSON(placedByTriggerID, "gct-stop-7", "Sell", "Stop", "0", "0.25", at(15*time.Minute), at(15*time.Minute))
-	orderPages := [][]string{
-		{
-			placedEvent(limitPlaced, at(time.Minute)),
-			event("OrderUpdated", at(2*time.Minute), `{"oldOrder":`+limitPlaced+`,"newOrder":`+limitFilled+`,"reason":"partial_fill","reducedQuantity":"0"}`),
-			placedEvent(triggeredPlaced, at(6*time.Minute)),
-			updatedEvent(triggeredPlaced, triggeredFilled, at(6*time.Minute)),
-		},
-		{
-			placedEvent(latePlaced, at(8*time.Minute)),
-			updatedEvent(latePlaced, lateFilled, at(8*time.Minute+100*time.Millisecond)),
-			placedEvent(futuresHistoryOrderJSON(bothListedID, "gct-stop-4", "Sell", "Stop", "0.5", "0", at(9*time.Minute), at(9*time.Minute)), at(9*time.Minute)),
-			placedEvent(tiedPlaced, at(11*time.Minute)),
-			event("OrderCancelled", at(12*time.Minute), `{"order":`+tiedPlaced+`,"reason":"cancelled_by_user"}`),
-			placedEvent(placedByTrigger, at(15*time.Minute)),
-			updatedEvent(placedByTrigger, placedByTriggerFilled, at(15*time.Minute)),
-		},
-	}
-	cancelledStop := futuresHistoryTriggerJSON(cancelledStopID, "PF_XBTUSD", "gct-stop-1", "0.5", at(3*time.Minute), at(3*time.Minute))
-	triggered := futuresHistoryTriggerJSON(triggeredStopID, "PF_XBTUSD", "gct-stop-2", "0.25", at(5*time.Minute), at(5*time.Minute))
-	late := futuresHistoryTriggerJSON(lateActivationID, "PF_XBTUSD", "gct-stop-3", "0.125", at(7*time.Minute), at(7*time.Minute))
-	bothListed := futuresHistoryTriggerJSON(bothListedID, "PF_XBTUSD", "gct-stop-4", "0.5", at(9*time.Minute), at(9*time.Minute))
-	tied := futuresHistoryTriggerJSON(tiedID, "PF_XBTUSD", "gct-stop-5", "0.5", at(11*time.Minute), at(11*time.Minute))
-	tiedEdited := futuresHistoryTriggerJSON(tiedID, "PF_XBTUSD", "gct-stop-5", "0.5", at(11*time.Minute), at(12*time.Minute))
-	triggeredElsewhere := futuresHistoryTriggerJSON(triggeredElsewhereID, "PF_XBTUSD", "gct-stop-6", "0.25", at(14*time.Minute), at(14*time.Minute))
-	edited := futuresHistoryTriggerJSON(editedStopID, "PF_XBTUSD", "gct-stop-9", "0.5", at(16*time.Minute), at(16*time.Minute))
-	resized := futuresHistoryTriggerJSON(editedStopID, "PF_XBTUSD", "gct-stop-9", "0.75", at(16*time.Minute), at(17*time.Minute))
-	triggerPages := [][]string{
-		{
-			triggerEvent("OrderTriggerPlaced", cancelledStop, at(3*time.Minute)),
-			triggerEvent("OrderTriggerCancelled", cancelledStop, at(4*time.Minute)),
-			triggerEvent("OrderTriggerPlaced", triggered, at(5*time.Minute)),
-		},
-		{
-			// The stop placed on the page before triggers, as do others, each placing an order
-			event("OrderTriggerActivated", at(6*time.Minute), `{"order":`+triggered+`}`),
-			triggerEvent("OrderTriggerPlaced", late, at(7*time.Minute)),
-			// Timed after the order this stop placed filled, which an activation must not override
-			event("OrderTriggerActivated", at(8*time.Minute+500*time.Millisecond), `{"order":`+late+`}`),
-			// Listed among order events as well, if Kraken lists a stop there before it triggers, where it was placed
-			// before it was cancelled
-			triggerEvent("OrderTriggerPlaced", bothListed, at(9*time.Minute)),
-			triggerEvent("OrderTriggerCancelled", bothListed, at(10*time.Minute)),
-			// Edited at the time the same order's order events cancel it
-			triggerEvent("OrderTriggerPlaced", tied, at(11*time.Minute)),
-			event("OrderTriggerUpdated", at(12*time.Minute), `{"oldOrderTrigger":`+tied+`,"newOrderTrigger":`+tiedEdited+`,"reason":"edited_by_user"}`),
-			triggerEvent("OrderTriggerPlaced", futuresHistoryTriggerJSON(delistedID, "PF_ZORAUSD", "gct-stop-8", "0.5", at(13*time.Minute), at(13*time.Minute)), at(13*time.Minute)),
-			// Triggered, placing an order under its own ID
-			triggerEvent("OrderTriggerPlaced", triggeredElsewhere, at(14*time.Minute)),
-			event("OrderTriggerActivated", at(15*time.Minute), `{"order":`+triggeredElsewhere+`}`),
-			// Resized, and still waiting to trigger when the window ends
-			triggerEvent("OrderTriggerPlaced", edited, at(16*time.Minute)),
-			event("OrderTriggerUpdated", at(17*time.Minute), `{"oldOrderTrigger":`+edited+`,"newOrderTrigger":`+resized+`,"reason":"edited_by_user"}`),
-		},
-	}
-	futuresOrder := func(exchangeName, id, clientID string, side order.Side, orderType order.Type, status order.Status, amount, executed float64, placed, updated time.Time) order.Detail {
-		return order.Detail{
-			Exchange:        exchangeName,
-			AssetType:       asset.Futures,
-			OrderID:         id,
-			ClientOrderID:   clientID,
-			Pair:            futuresTestPair,
-			Side:            side,
-			Type:            orderType,
-			Status:          status,
-			Price:           81450,
-			Amount:          amount,
-			ExecutedAmount:  executed,
-			RemainingAmount: amount - executed,
-			Date:            placed,
-			LastUpdated:     updated,
-		}
-	}
-	triggerOrder := func(exchangeName, id, clientID string, status order.Status, amount float64, placed, updated time.Time) order.Detail {
-		return order.Detail{
-			Exchange:        exchangeName,
-			AssetType:       asset.Futures,
-			OrderID:         id,
-			ClientOrderID:   clientID,
-			Pair:            futuresTestPair,
-			Side:            order.Sell,
-			Status:          status,
-			ReduceOnly:      true,
-			Price:           80000,
-			TriggerPrice:    80500,
-			Amount:          amount,
-			RemainingAmount: amount,
-			Date:            placed,
-			LastUpdated:     updated,
-		}
-	}
-	// The orders only order events list, as order events alone report them
-	orderEventsOnly := func(exchangeName string) []order.Detail {
-		return []order.Detail{
-			futuresOrder(exchangeName, limitID, "gct-limit-1", order.Buy, order.Limit, order.PartiallyFilled, 0.5, 0.25, at(time.Minute), at(2*time.Minute)),
-			futuresOrder(exchangeName, triggeredStopID, "gct-stop-2", order.Sell, order.Stop, order.Filled, 0.25, 0.25, at(6*time.Minute), at(6*time.Minute)),
-			futuresOrder(exchangeName, lateActivationID, "gct-stop-3", order.Sell, order.Stop, order.Filled, 0.125, 0.125, at(8*time.Minute), at(8*time.Minute+100*time.Millisecond)),
-			futuresOrder(exchangeName, tiedID, "gct-stop-5", order.Sell, order.Stop, order.Cancelled, 0.5, 0, at(11*time.Minute), at(12*time.Minute)),
-			futuresOrder(exchangeName, placedByTriggerID, "gct-stop-7", order.Sell, order.Stop, order.Filled, 0.25, 0.25, at(15*time.Minute), at(15*time.Minute)),
-		}
-	}
-	query, nextQuery := "before=1791522000000&since=1791518400000&sort=asc", "before=1791522000000&continuation_token=page2&since=1791518400000&sort=asc"
-	for _, tc := range []struct {
-		name     string
-		triggers [][]string
-		exp      func(exchangeName string) order.FilteredOrders
-	}{
-		{
-			name:     "trigger events",
-			triggers: triggerPages,
-			exp: func(exchangeName string) order.FilteredOrders {
-				o := orderEventsOnly(exchangeName)
-				return order.FilteredOrders{
-					o[0], o[1], o[2],
-					triggerOrder(exchangeName, bothListedID, "gct-stop-4", order.Cancelled, 0.5, at(9*time.Minute), at(10*time.Minute)),
-					o[3], o[4],
-					triggerOrder(exchangeName, cancelledStopID, "gct-stop-1", order.Cancelled, 0.5, at(3*time.Minute), at(4*time.Minute)),
-					triggerOrder(exchangeName, editedStopID, "gct-stop-9", order.Open, 0.75, at(16*time.Minute), at(17*time.Minute)),
-				}
-			},
-		},
-		{
-			name:     "no trigger events",
-			triggers: [][]string{{}},
-			exp: func(exchangeName string) order.FilteredOrders {
-				o := orderEventsOnly(exchangeName)
-				return order.FilteredOrders{
-					o[0], o[1], o[2],
-					futuresOrder(exchangeName, bothListedID, "gct-stop-4", order.Sell, order.Stop, order.Open, 0.5, 0, at(9*time.Minute), at(9*time.Minute)),
-					o[3], o[4],
-				}
-			},
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			orders, triggers := newHistoryListing(orderPages...), newHistoryListing(tc.triggers...)
-			ex := newFuturesHistoryExchange(t, orders, triggers)
-			got, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Futures, Side: order.AnySide, Type: order.AnyType, StartTime: start, EndTime: at(time.Hour)})
-			require.NoError(t, err, "GetOrderHistory must not error")
-			assert.Equal(t, tc.exp(ex.Name), got, "GetOrderHistory should merge each order's order and trigger events by order ID, the later event winning, leaving a stop that triggered to its order events")
-			assert.Equal(t, []string{query, nextQuery}, orders.queries(), "GetOrderHistory should list every page of the window's order events")
-			expTriggerQueries := []string{query}
-			if len(tc.triggers) > 1 {
-				expTriggerQueries = append(expTriggerQueries, nextQuery)
-			}
-			assert.Equal(t, expTriggerQueries, triggers.queries(), "GetOrderHistory should list every page of the window's trigger events")
-		})
-	}
-}
-
-func TestGetOrderHistoryFuturesFilledOrders(t *testing.T) {
-	t.Parallel()
-	start := time.UnixMilli(1791522000000)
-	at := start.Add
-	const (
-		cancelledID = "1d2e3f4a-5b6c-4d7e-8f9a-0b1c2d3e4f5a"
-		iocID       = "2e3f4a5b-6c7d-4e8f-9a0b-1c2d3e4f5a6b"
-		filledID    = "3f4a5b6c-7d8e-4f9a-0b1c-2d3e4f5a6b7c"
-	)
-	event := func(kind string, when time.Time, body string) string {
-		return futuresHistoryElement("ev-"+strconv.FormatInt(when.UnixMilli(), 10)+"-"+kind, when, kind, body)
-	}
-	updatedEvent := func(old, o, reason string, when time.Time) string {
-		return event("OrderUpdated", when, `{"oldOrder":`+old+`,"newOrder":`+o+`,"reason":"`+reason+`","reducedQuantity":"0"}`)
-	}
-	// Order events give an order's quantity as what remains of it to fill. An order of 2 fills 0.5, then 0.75, and is
-	// cancelled with 0.75 open
-	cancelledPlaced := futuresHistoryOrderJSON(cancelledID, "gct-partial-1", "Buy", "Limit", "2", "0", at(time.Minute), at(time.Minute))
-	cancelledFirstFill := futuresHistoryOrderJSON(cancelledID, "gct-partial-1", "Buy", "Limit", "1.5", "0.5", at(time.Minute), at(2*time.Minute))
-	cancelledLastFill := futuresHistoryOrderJSON(cancelledID, "gct-partial-1", "Buy", "Limit", "0.75", "1.25", at(time.Minute), at(3*time.Minute))
-	// An immediate or cancel order of 2 fills 1.25 as it is placed, and its unfilled 0.75 is rejected
-	ioc := futuresHistoryOrderJSON(iocID, "gct-ioc-1", "Sell", "IoC", "0.75", "1.25", at(5*time.Minute), at(5*time.Minute))
-	// An order of 2 fills 0.5, then 1.5
-	filledPlaced := futuresHistoryOrderJSON(filledID, "gct-filled-1", "Buy", "Limit", "2", "0", at(6*time.Minute), at(6*time.Minute))
-	filledFirstFill := futuresHistoryOrderJSON(filledID, "gct-filled-1", "Buy", "Limit", "1.5", "0.5", at(6*time.Minute), at(7*time.Minute))
-	filledInFull := futuresHistoryOrderJSON(filledID, "gct-filled-1", "Buy", "Limit", "0", "2", at(6*time.Minute), at(8*time.Minute))
-	orders := newHistoryListing(
-		[]string{
-			event("OrderPlaced", at(time.Minute), `{"order":`+cancelledPlaced+`,"reason":"new_user_order","reducedQuantity":""}`),
-			updatedEvent(cancelledPlaced, cancelledFirstFill, "partial_fill", at(2*time.Minute)),
-			updatedEvent(cancelledFirstFill, cancelledLastFill, "partial_fill", at(3*time.Minute)),
-		},
-		[]string{
-			event("OrderCancelled", at(4*time.Minute), `{"order":`+cancelledLastFill+`,"reason":"cancelled_by_user"}`),
-			event("OrderRejected", at(5*time.Minute), `{"order":`+ioc+`,"orderError":"ioc_would_enter_book","reason":"new_user_order"}`),
-			event("OrderPlaced", at(6*time.Minute), `{"order":`+filledPlaced+`,"reason":"new_user_order","reducedQuantity":""}`),
-			updatedEvent(filledPlaced, filledFirstFill, "partial_fill", at(7*time.Minute)),
-			updatedEvent(filledFirstFill, filledInFull, "full_fill", at(8*time.Minute)),
-		},
-	)
-	ex := newFuturesHistoryExchange(t, orders, newHistoryListing([]string{}))
-	got, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Futures, Side: order.AnySide, Type: order.AnyType, StartTime: start, EndTime: at(time.Hour)})
-	require.NoError(t, err, "GetOrderHistory must not error")
-	exp := order.FilteredOrders{
-		{
-			Exchange:        ex.Name,
-			AssetType:       asset.Futures,
-			OrderID:         cancelledID,
-			ClientOrderID:   "gct-partial-1",
-			Pair:            futuresTestPair,
-			Side:            order.Buy,
-			Type:            order.Limit,
-			Status:          order.PartiallyFilledCancelled,
-			Price:           81450,
-			Amount:          2,
-			ExecutedAmount:  1.25,
-			RemainingAmount: 0.75,
-			Date:            at(time.Minute),
-			LastUpdated:     at(4 * time.Minute),
-		},
-		{
-			Exchange:        ex.Name,
-			AssetType:       asset.Futures,
-			OrderID:         iocID,
-			ClientOrderID:   "gct-ioc-1",
-			Pair:            futuresTestPair,
-			Side:            order.Sell,
-			Type:            order.Limit,
-			TimeInForce:     order.ImmediateOrCancel,
-			Status:          order.PartiallyFilledCancelled,
-			Price:           81450,
-			Amount:          2,
-			ExecutedAmount:  1.25,
-			RemainingAmount: 0.75,
-			Date:            at(5 * time.Minute),
-			LastUpdated:     at(5 * time.Minute),
-		},
-		{
-			Exchange:       ex.Name,
-			AssetType:      asset.Futures,
-			OrderID:        filledID,
-			ClientOrderID:  "gct-filled-1",
-			Pair:           futuresTestPair,
-			Side:           order.Buy,
-			Type:           order.Limit,
-			Status:         order.Filled,
-			Price:          81450,
-			Amount:         2,
-			ExecutedAmount: 2,
-			Date:           at(6 * time.Minute),
-			LastUpdated:    at(8 * time.Minute),
-		},
-	}
-	assert.Equal(t, exp, got, "GetOrderHistory should size each order by what remained of it and what filled, as its last event left it")
-}
-
-func TestFuturesHistoryTriggerDetail(t *testing.T) {
+func TestFuturesHistoryTriggerDetail(t *testing.T) { //nolint:tparallel // the cases share e's pair matcher in order
 	t.Parallel()
 	placed, updated := time.UnixMilli(1791518580000), time.UnixMilli(1791518600000)
 	trigger := FuturesHistoryTrigger{
@@ -7281,6 +8593,7 @@ func TestFuturesHistoryTriggerDetail(t *testing.T) {
 	exp.Side = order.UnknownSide
 	assert.Equal(t, exp, got, "futuresHistoryTriggerDetail should leave a direction Kraken could not decode unknown")
 
+	// The cases share e's pair matcher in order, so each also checks that a conversion keeps nothing from the last
 	for _, tc := range []struct {
 		name   string
 		modify func(*FuturesHistoryTrigger)
@@ -7289,14 +8602,16 @@ func TestFuturesHistoryTriggerDetail(t *testing.T) {
 		{"a trigger order on a contract no longer listed", func(o *FuturesHistoryTrigger) { o.Tradeable = "PF_ZORAUSD" }, currency.ErrPairNotFound},
 		{"a trigger order without a direction", func(o *FuturesHistoryTrigger) { o.Direction = "" }, order.ErrSideIsInvalid},
 	} {
-		o := trigger
-		tc.modify(&o)
-		_, err := e.futuresHistoryTriggerDetail(&o, order.Open)
-		assert.ErrorIsf(t, err, tc.err, "futuresHistoryTriggerDetail should reject %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			o := trigger
+			tc.modify(&o)
+			_, err := e.futuresHistoryTriggerDetail(&o, order.Open)
+			assert.ErrorIsf(t, err, tc.err, "futuresHistoryTriggerDetail should reject %s", tc.name)
+		})
 	}
 }
 
-func TestFuturesHistoryOrderDetail(t *testing.T) {
+func TestFuturesHistoryOrderDetail(t *testing.T) { //nolint:tparallel // the cases share e's pair matcher in order
 	t.Parallel()
 	placed, updated := time.UnixMilli(1791504100000), time.UnixMilli(1791504160000)
 	history := FuturesHistoryOrder{
@@ -7312,7 +8627,8 @@ func TestFuturesHistoryOrderDetail(t *testing.T) {
 		ReduceOnly:     true,
 		LastUpdateTime: types.Time(updated),
 	}
-	// Order events give an order's quantity as what remains of it to fill, so its size is that and what filled
+	// Order events give an order's quantity as what remains of it to fill, so its size is that and what filled. The
+	// cases share e's pair matcher in order, so each also checks that a conversion keeps nothing from the last
 	for _, tc := range []struct {
 		status                    order.Status
 		filled, remaining, amount float64
@@ -7331,30 +8647,33 @@ func TestFuturesHistoryOrderDetail(t *testing.T) {
 		// 0.7 and 0.1 add up to 0.7999999999999999 in floating point
 		{order.Open, 0.7, 0.1, 0.8, order.PartiallyFilled},
 	} {
-		o := history
-		o.Quantity, o.FilledQuantity = types.Number(tc.remaining), types.Number(tc.filled)
-		got, err := e.futuresHistoryOrderDetail(&o, tc.status)
-		require.NoErrorf(t, err, "futuresHistoryOrderDetail must not error for a %s event with %v filled and %v remaining", tc.status, tc.filled, tc.remaining)
-		exp := &order.Detail{
-			Exchange:        e.Name,
-			AssetType:       asset.Futures,
-			OrderID:         "44e6100d-b5b9-4b44-9b1b-adf08794d53f",
-			ClientOrderID:   "gct-history-2",
-			Pair:            futuresTestPair,
-			Side:            order.Sell,
-			Type:            order.Limit,
-			TimeInForce:     order.PostOnly,
-			Status:          tc.exp,
-			ReduceOnly:      true,
-			Price:           81950,
-			Amount:          tc.amount,
-			ExecutedAmount:  tc.filled,
-			RemainingAmount: tc.remaining,
-			Date:            placed,
-			LastUpdated:     updated,
-		}
-		assert.Equalf(t, exp, got, "futuresHistoryOrderDetail should convert a %s event with %v filled and %v remaining", tc.status, tc.filled, tc.remaining)
+		t.Run(tc.status.String()+" event with "+strconv.FormatFloat(tc.filled, 'g', -1, 64)+" filled and "+strconv.FormatFloat(tc.remaining, 'g', -1, 64)+" remaining", func(t *testing.T) {
+			o := history
+			o.Quantity, o.FilledQuantity = types.Number(tc.remaining), types.Number(tc.filled)
+			got, err := e.futuresHistoryOrderDetail(&o, tc.status)
+			require.NoErrorf(t, err, "futuresHistoryOrderDetail must not error for a %s event with %v filled and %v remaining", tc.status, tc.filled, tc.remaining)
+			exp := &order.Detail{
+				Exchange:        e.Name,
+				AssetType:       asset.Futures,
+				OrderID:         "44e6100d-b5b9-4b44-9b1b-adf08794d53f",
+				ClientOrderID:   "gct-history-2",
+				Pair:            futuresTestPair,
+				Side:            order.Sell,
+				Type:            order.Limit,
+				TimeInForce:     order.PostOnly,
+				Status:          tc.exp,
+				ReduceOnly:      true,
+				Price:           81950,
+				Amount:          tc.amount,
+				ExecutedAmount:  tc.filled,
+				RemainingAmount: tc.remaining,
+				Date:            placed,
+				LastUpdated:     updated,
+			}
+			assert.Equalf(t, exp, got, "futuresHistoryOrderDetail should convert a %s event with %v filled and %v remaining", tc.status, tc.filled, tc.remaining)
+		})
 	}
+	// The cases share e's pair matcher in order, so each also checks that a conversion keeps nothing from the last
 	for _, tc := range []struct {
 		name   string
 		modify func(*FuturesHistoryOrder)
@@ -7364,10 +8683,12 @@ func TestFuturesHistoryOrderDetail(t *testing.T) {
 		{"an order without a direction", func(o *FuturesHistoryOrder) { o.Direction = "" }, order.ErrSideIsInvalid},
 		{"an unknown order type", func(o *FuturesHistoryOrder) { o.OrderType = "Moon" }, errUnknownOrderType},
 	} {
-		o := history
-		tc.modify(&o)
-		_, err := e.futuresHistoryOrderDetail(&o, order.Open)
-		assert.ErrorIsf(t, err, tc.err, "futuresHistoryOrderDetail should reject %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			o := history
+			tc.modify(&o)
+			_, err := e.futuresHistoryOrderDetail(&o, order.Open)
+			assert.ErrorIsf(t, err, tc.err, "futuresHistoryOrderDetail should reject %s", tc.name)
+		})
 	}
 }
 
@@ -7386,198 +8707,6 @@ func newOrdersRequestCheckExchange(t *testing.T, path, params, reply string) *Ex
 		}
 		_, _ = w.Write([]byte(reply))
 	})
-}
-
-func TestSubmitOrderUnsupportedFields(t *testing.T) {
-	t.Parallel()
-	ex := newHTTPTestExchange(t, func(_ http.ResponseWriter, r *http.Request) {
-		assert.Failf(t, "no order should be placed", "%s", r.URL.Path)
-	})
-	wsEx := newHTTPTestExchange(t, func(_ http.ResponseWriter, r *http.Request) {
-		assert.Failf(t, "no order should be placed", "%s", r.URL.Path)
-	})
-	// Without round trips the mock fails the test on any websocket request
-	useOrdersTestWebsocket(t, wsEx)
-	type refusal struct {
-		name   string
-		submit order.Submit
-		assets []asset.Item
-		err    error
-	}
-	refuses := func(tc refusal) {
-		t.Helper()
-		for _, a := range tc.assets {
-			for _, kind := range []struct {
-				orderType  order.Type
-				side       order.Side
-				reduceOnly bool
-			}{
-				{orderType: order.Limit, side: order.Buy},
-				{orderType: order.Market, side: order.Sell},
-				{orderType: order.Stop, side: order.Buy},
-				{orderType: order.StopLimit, side: order.Sell, reduceOnly: true},
-			} {
-				s := tc.submit
-				s.Exchange, s.AssetType, s.Type, s.Side, s.ReduceOnly, s.Amount, s.Pair = ex.Name, a, kind.orderType, kind.side, kind.reduceOnly, 0.5, spotTestPair
-				if a == asset.Futures {
-					s.Pair = futuresTestPair
-				}
-				if kind.orderType.Is(order.Limit) {
-					s.Price = 80000
-				}
-				if kind.orderType.Is(order.Stop) {
-					s.TriggerPrice = 90000
-				}
-				_, err := ex.SubmitOrder(t.Context(), &s)
-				assert.ErrorIsf(t, err, tc.err, "SubmitOrder should refuse %s for a %s %s %s order rather than place it without", tc.name, a, kind.side, kind.orderType)
-				// A spot order with leverage goes over REST whether the private websocket is connected or not
-				if a == asset.Spot && s.Leverage == 0 {
-					s.Exchange = wsEx.Name
-					_, err = wsEx.SubmitOrder(t.Context(), &s)
-					assert.ErrorIsf(t, err, tc.err, "SubmitOrder should refuse %s for a spot %s %s order over the private websocket rather than place it without", tc.name, kind.side, kind.orderType)
-				}
-			}
-		}
-	}
-	both := []asset.Item{asset.Spot, asset.Futures}
-	for _, tc := range []refusal{
-		{name: "isolated margin", submit: order.Submit{MarginType: margin.Isolated}, assets: both, err: margin.ErrMarginTypeUnsupported},
-		{name: "cross margin", submit: order.Submit{MarginType: margin.Multi}, assets: both, err: margin.ErrMarginTypeUnsupported},
-		{name: "spot isolated margin", submit: order.Submit{MarginType: margin.SpotIsolated}, assets: both, err: margin.ErrMarginTypeUnsupported},
-		{name: "an unknown margin type", submit: order.Submit{MarginType: margin.Unknown}, assets: both, err: margin.ErrMarginTypeUnsupported},
-		{name: "isolated margin with leverage", submit: order.Submit{MarginType: margin.Isolated, Leverage: 2}, assets: both, err: margin.ErrMarginTypeUnsupported},
-		{name: "cash with leverage", submit: order.Submit{MarginType: margin.NoMargin, Leverage: 2}, assets: []asset.Item{asset.Spot}, err: margin.ErrMarginTypeUnsupported},
-		{name: "cash with leverage of 1", submit: order.Submit{MarginType: margin.NoMargin, Leverage: 1}, assets: []asset.Item{asset.Spot}, err: margin.ErrMarginTypeUnsupported},
-		{name: "cash", submit: order.Submit{MarginType: margin.NoMargin}, assets: []asset.Item{asset.Futures}, err: margin.ErrMarginTypeUnsupported},
-		{name: "isolated margin on a good till cancelled order triggered by the index price", submit: order.Submit{MarginType: margin.Isolated, TimeInForce: order.GoodTillCancel, TriggerPriceType: order.IndexPrice}, assets: both, err: margin.ErrMarginTypeUnsupported},
-		{name: "a risk management mode", submit: order.Submit{RiskManagementModes: order.RiskManagementModes{Mode: "full"}}, assets: both, err: errRiskManagementUnsupported},
-		{name: "a risk management mode with leverage", submit: order.Submit{RiskManagementModes: order.RiskManagementModes{Mode: "full"}, Leverage: 2}, assets: both, err: errRiskManagementUnsupported},
-		{name: "a risk management mode on a good till cancelled order triggered by the index price", submit: order.Submit{RiskManagementModes: order.RiskManagementModes{Mode: "full"}, TimeInForce: order.GoodTillCancel, TriggerPriceType: order.IndexPrice}, assets: both, err: errRiskManagementUnsupported},
-		{name: "a slippage tolerance", submit: order.Submit{SlippageTolerance: 0.0001}, assets: both, err: errSlippageUnsupported},
-		{name: "a slippage tolerance with leverage", submit: order.Submit{SlippageTolerance: 0.0001, Leverage: 2}, assets: both, err: errSlippageUnsupported},
-		{name: "a slippage tolerance on a good till cancelled order triggered by the index price", submit: order.Submit{SlippageTolerance: 0.0001, TimeInForce: order.GoodTillCancel, TriggerPriceType: order.IndexPrice}, assets: both, err: errSlippageUnsupported},
-		{name: "a negative slippage tolerance", submit: order.Submit{SlippageTolerance: -0.0001}, assets: both, err: errSlippageUnsupported},
-		{name: "the smallest slippage tolerance", submit: order.Submit{SlippageTolerance: math.SmallestNonzeroFloat64}, assets: both, err: errSlippageUnsupported},
-		// Spot triggers take no mark price, so these are futures orders alone
-		{name: "isolated margin on an order triggered by the mark price", submit: order.Submit{MarginType: margin.Isolated, TriggerPriceType: order.MarkPrice}, assets: []asset.Item{asset.Futures}, err: margin.ErrMarginTypeUnsupported},
-		{name: "a risk management mode on an order triggered by the mark price", submit: order.Submit{RiskManagementModes: order.RiskManagementModes{Mode: "full"}, TriggerPriceType: order.MarkPrice}, assets: []asset.Item{asset.Futures}, err: errRiskManagementUnsupported},
-		{name: "a slippage tolerance on an order triggered by the mark price", submit: order.Submit{SlippageTolerance: 0.0001, TriggerPriceType: order.MarkPrice}, assets: []asset.Item{asset.Futures}, err: errSlippageUnsupported},
-	} {
-		refuses(tc)
-	}
-	// Each field of a take profit, stop loss or stop entry asks for one, set alone
-	for _, kind := range []struct {
-		name string
-		of   func(*order.RiskManagementModes) *order.RiskManagement
-	}{
-		{name: "take profit", of: func(m *order.RiskManagementModes) *order.RiskManagement { return &m.TakeProfit }},
-		{name: "stop loss", of: func(m *order.RiskManagementModes) *order.RiskManagement { return &m.StopLoss }},
-		{name: "stop entry", of: func(m *order.RiskManagementModes) *order.RiskManagement { return &m.StopEntry }},
-	} {
-		for _, field := range []struct {
-			name string
-			set  func(*order.RiskManagement)
-		}{
-			{name: "enabled flag", set: func(r *order.RiskManagement) { r.Enabled = true }},
-			{name: "trigger price type", set: func(r *order.RiskManagement) { r.TriggerPriceType = order.MarkPrice }},
-			{name: "price", set: func(r *order.RiskManagement) { r.Price = 70000 }},
-			{name: "limit price", set: func(r *order.RiskManagement) { r.LimitPrice = 69000 }},
-			{name: "order type", set: func(r *order.RiskManagement) { r.OrderType = order.Market }},
-		} {
-			var modes order.RiskManagementModes
-			field.set(kind.of(&modes))
-			refuses(refusal{name: "a " + kind.name + "'s " + field.name, submit: order.Submit{RiskManagementModes: modes}, assets: both, err: errRiskManagementUnsupported})
-		}
-	}
-
-	// A cash spot order without leverage is the order SubmitOrder places, whatever its type, side or size
-	for _, tc := range []struct {
-		submit order.Submit
-		body   string
-	}{
-		{submit: order.Submit{Type: order.Limit, Side: order.Buy, Price: 80000, Amount: 0.5}, body: `{"ordertype":"limit","pair":"XBTUSD","price":"80000","type":"buy","volume":"0.5"}`},
-		{submit: order.Submit{Type: order.Market, Side: order.Sell, Amount: 0.5}, body: `{"ordertype":"market","pair":"XBTUSD","type":"sell","volume":"0.5"}`},
-		{submit: order.Submit{Type: order.Stop, Side: order.Buy, TriggerPrice: 90000, Amount: 0.5}, body: `{"ordertype":"stop-loss","pair":"XBTUSD","price":"90000","trigger":"last","type":"buy","volume":"0.5"}`},
-		{submit: order.Submit{Type: order.Market, Side: order.Buy, QuoteAmount: 100}, body: `{"oflags":"viqc","ordertype":"market","pair":"XBTUSD","type":"buy","volume":"100"}`},
-	} {
-		cash := newOrdersRequestCheckExchange(t, "/0/private/AddOrder", tc.body, `{"error":[],"result":{"descr":{"order":"cash"},"txid":["OCASH5-UOSK2-KOFH7X"]}}`)
-		s := tc.submit
-		s.Exchange, s.Pair, s.AssetType, s.MarginType = cash.Name, spotTestPair, asset.Spot, margin.NoMargin
-		resp, err := cash.SubmitOrder(t.Context(), &s)
-		require.NoErrorf(t, err, "SubmitOrder must place a cash spot %s %s order without leverage", s.Side, s.Type)
-		assert.Equalf(t, "OCASH5-UOSK2-KOFH7X", resp.OrderID, "SubmitOrder should return the cash spot %s %s order's ID", s.Side, s.Type)
-	}
-	wsCash := newOrdersWsTestExchange(t, ordersWsRoundTrip{
-		request: ordersWsRequest("add_order", `"order_type":"limit","side":"buy","order_qty":0.5,"limit_price":80000,"symbol":"BTC/USD"`),
-		replies: []string{ordersWsReply("add_order", `{"order_id":"OCASH6-UOSK2-KOFH7X"}`)},
-	})
-	resp, err := wsCash.SubmitOrder(t.Context(), &order.Submit{Exchange: wsCash.Name, Pair: spotTestPair, AssetType: asset.Spot, Type: order.Limit, Side: order.Buy, Price: 80000, Amount: 0.5, MarginType: margin.NoMargin})
-	require.NoError(t, err, "SubmitOrder must place a cash spot order without leverage over the private websocket")
-	assert.Equal(t, "OCASH6-UOSK2-KOFH7X", resp.OrderID, "SubmitOrder should return the cash spot order's ID placed over the private websocket")
-}
-
-func TestSubmitOrderQuoteSizedMarketBuy(t *testing.T) {
-	t.Parallel()
-	ex := newOrdersRequestCheckExchange(t, "/0/private/AddOrder",
-		`{"oflags":"viqc","ordertype":"market","pair":"XBTUSD","type":"buy","volume":"100"}`,
-		`{"error":[],"result":{"descr":{"order":"buy 100.00000000 XBTUSD @ market"},"txid":["ODV663-X7J9B-IUFH4O"]}}`)
-	// Without round trips the mock fails the test on any websocket request
-	useOrdersTestWebsocket(t, ex)
-	submitted := time.Now()
-	resp, err := ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: spotTestPair, AssetType: asset.Spot, Type: order.Market, Side: order.Buy, QuoteAmount: 100})
-	require.NoError(t, err, "SubmitOrder must not error")
-	ordersClearSubmitTimes(t, resp, submitted)
-	exp := &order.SubmitResponse{
-		Exchange:    ex.Name,
-		Type:        order.Market,
-		Side:        order.Buy,
-		Pair:        spotTestPair,
-		AssetType:   asset.Spot,
-		QuoteAmount: 100,
-		Status:      order.Filled,
-		OrderID:     "ODV663-X7J9B-IUFH4O",
-	}
-	assert.Equal(t, exp, resp, "SubmitOrder should place a quote-sized market buy over REST while the private websocket is connected")
-}
-
-func TestSubmitOrderLeveragedSpotOrder(t *testing.T) {
-	t.Parallel()
-	ex := newOrdersRequestCheckExchange(t, "/0/private/AddOrder",
-		`{"leverage":"3","ordertype":"limit","pair":"XBTUSD","price":"80000","type":"buy","volume":"0.5"}`,
-		`{"error":[],"result":{"descr":{"order":"buy 0.50000000 XBTUSD @ limit 80000.0 with 3:1 leverage"},"txid":["OLV3TB-ZQ9KD-4XWBRM"]}}`)
-	// Without round trips the mock fails the test on any websocket request
-	useOrdersTestWebsocket(t, ex)
-	submitted := time.Now()
-	resp, err := ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: spotTestPair, AssetType: asset.Spot, Type: order.Limit, Side: order.Buy, Price: 80000, Amount: 0.5, Leverage: 3})
-	require.NoError(t, err, "SubmitOrder must not error")
-	ordersClearSubmitTimes(t, resp, submitted)
-	exp := &order.SubmitResponse{
-		Exchange:  ex.Name,
-		Type:      order.Limit,
-		Side:      order.Buy,
-		Pair:      spotTestPair,
-		AssetType: asset.Spot,
-		Leverage:  3,
-		Price:     80000,
-		Amount:    0.5,
-		Status:    order.New,
-		OrderID:   "OLV3TB-ZQ9KD-4XWBRM",
-	}
-	assert.Equal(t, exp, resp, "SubmitOrder should place a leveraged spot order over REST, which takes its leverage, while the private websocket is connected")
-}
-
-func TestSubmitOrderSpotLeverageRejected(t *testing.T) {
-	t.Parallel()
-	ex := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
-		assert.Failf(t, "no spot order should be placed", "%s", r.URL.Path)
-		_, _ = w.Write([]byte(`{"error":["EGeneral:Invalid arguments"]}`))
-	})
-	for _, leverage := range []float64{0.5, 2.5, -2, math.NaN(), math.Inf(1), math.MaxUint32 + 1} {
-		_, err := ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: spotTestPair, AssetType: asset.Spot, Type: order.Limit, Side: order.Buy, Price: 80000, Amount: 0.5, Leverage: leverage})
-		assert.ErrorIsf(t, err, errInvalidLeverage, "SubmitOrder should reject leverage %v, as Kraken takes a whole number", leverage)
-	}
-	_, err := ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: spotTestPair, AssetType: asset.Spot, Type: order.Market, Side: order.Buy, QuoteAmount: 100, Leverage: 2})
-	assert.ErrorIs(t, err, order.ErrSubmitLeverageNotSupported, "SubmitOrder should reject a leveraged market buy sized in the quote currency, which Kraken does not take")
 }
 
 func TestAddFuturesExecutions(t *testing.T) {
@@ -7697,10 +8826,13 @@ func TestAddFuturesExecutions(t *testing.T) {
 		},
 		{name: "no events about the order", orderType: "stp", exp: order.SubmitResponse{Amount: 0.3, Status: order.New}},
 	} {
-		resp := &order.SubmitResponse{Exchange: "Kraken", Type: order.Limit, Side: order.Buy, Amount: 0.3, Status: order.New, OrderID: "o-1"}
-		addFuturesExecutions(resp, tc.orderType, &FuturesSendOrderStatus{OrderID: "o-1", Status: "placed", ReceivedTime: received, OrderEvents: tc.events})
-		tc.exp.Exchange, tc.exp.Type, tc.exp.Side, tc.exp.OrderID = "Kraken", order.Limit, order.Buy, "o-1"
-		assert.Equalf(t, &tc.exp, resp, "addFuturesExecutions should add what an order %s executed as placed", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			resp := &order.SubmitResponse{Exchange: "Kraken", Type: order.Limit, Side: order.Buy, Amount: 0.3, Status: order.New, OrderID: "o-1"}
+			addFuturesExecutions(resp, tc.orderType, &FuturesSendOrderStatus{OrderID: "o-1", Status: "placed", ReceivedTime: received, OrderEvents: tc.events})
+			tc.exp.Exchange, tc.exp.Type, tc.exp.Side, tc.exp.OrderID = "Kraken", order.Limit, order.Buy, "o-1"
+			assert.Equalf(t, &tc.exp, resp, "addFuturesExecutions should add what an order %s executed as placed", tc.name)
+		})
 	}
 }
 
@@ -7721,583 +8853,6 @@ func TestFuturesOrderPartlyExecutedAsPlacedStored(t *testing.T) {
 	require.NoError(t, stored.UpdateOrderFromDetail(&order.Detail{OrderID: "o-1", Status: order.Filled, Amount: 0.3, ExecutedAmount: 0.3}), "UpdateOrderFromDetail must not error")
 	assert.Equal(t, order.Filled, stored.Status, "Status should be filled after the feeds report it")
 	assert.Zero(t, stored.AverageExecutedPrice, "AverageExecutedPrice should stay unset once fills the placement did not report have filled the order")
-}
-
-func TestSubmitOrderWebsocketToken(t *testing.T) {
-	t.Parallel()
-	for _, tc := range []struct {
-		name string
-		// tokenReply is Get Websockets Token's reply to the token request the executions subscription makes at connect
-		tokenReply string
-		connectErr error
-		paths      []string
-		requests   []string
-		orderID    string
-	}{
-		{
-			name:       "refused",
-			tokenReply: `{"error":["EGeneral:Permission denied"]}`,
-			connectErr: request.ErrAuthRequestFailed,
-			paths:      []string{"/0/private/GetWebSocketsToken", "/0/private/AddOrder"},
-			orderID:    "OT83XF-1Y4TH-OTWZWB",
-		},
-		{
-			name:       "granted",
-			tokenReply: `{"error":[],"result":{"token":"` + wsTestToken + `","expires":900}}`,
-			paths:      []string{"/0/private/GetWebSocketsToken"},
-			requests: []string{
-				`{"method":"subscribe","params":{"channel":"executions","snap_orders":true,"snap_trades":false,"token":"` + wsTestToken + `"}}`,
-				`{"method":"add_order","params":{"order_type":"limit","side":"buy","order_qty":0.5,"limit_price":80000,"symbol":"BTC/USD","token":"` + wsTestToken + `"}}`,
-			},
-			orderID: "OPS23M-VS41G-DDE5Z2",
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			var mu sync.Mutex
-			var paths, requests []string
-			ex := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
-				mu.Lock()
-				paths = append(paths, r.URL.Path)
-				mu.Unlock()
-				reply := tc.tokenReply
-				if r.URL.Path == "/0/private/AddOrder" {
-					assert.JSONEq(t, `{"ordertype":"limit","pair":"XBTUSD","price":"80000","type":"buy","volume":"0.5"}`, tradingRequestBody(t, r), "Add Order should be sent the order")
-					reply = `{"error":[],"result":{"descr":{"order":"buy 0.50000000 XBTUSD @ limit 80000.0"},"txid":["OT83XF-1Y4TH-OTWZWB"]}}`
-				}
-				_, err := w.Write([]byte(reply))
-				assert.NoError(t, err, "Write should not error")
-			})
-			seedTestAssetNames(ex)
-			useTestCredentials(ex)
-			ex.Features.Subscriptions = subscription.List{{Enabled: true, Channel: subscription.MyOrdersChannel, Authenticated: true}}
-			useTestWebsocket(t, ex, newMockWebsocketURL(t, func(_ testing.TB, msg []byte, w *gws.Conn) error {
-				reqID, err := jsonparser.GetInt(msg, "req_id")
-				if err != nil {
-					return err
-				}
-				method, err := jsonparser.GetString(msg, "method")
-				if err != nil {
-					return err
-				}
-				mu.Lock()
-				requests = append(requests, string(jsonparser.Delete(slices.Clone(msg), "req_id")))
-				mu.Unlock()
-				reply := ordersWsReply(method, `{"channel":"executions","maxratecount":125,"snap_orders":true,"snap_trades":false}`)
-				if method == "add_order" {
-					reply = ordersWsReply(method, `{"order_id":"OPS23M-VS41G-DDE5Z2"}`)
-				}
-				b, err := jsonparser.Set([]byte(reply), []byte(strconv.FormatInt(reqID, 10)), "req_id")
-				if err != nil {
-					return err
-				}
-				return w.WriteMessage(gws.TextMessage, b)
-			}), wsPrivateConnection)
-			err := ex.Websocket.Connect(t.Context())
-			if tc.connectErr != nil {
-				require.ErrorIs(t, err, tc.connectErr, "Connect must return the token's refusal")
-			} else {
-				require.NoError(t, err, "Connect must not error")
-			}
-			_, err = ex.Websocket.GetConnection(wsPrivateConnection)
-			require.NoError(t, err, "the private connection must stay connected")
-
-			submitted := time.Now()
-			resp, err := ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: spotTestPair, AssetType: asset.Spot, Type: order.Limit, Side: order.Buy, Price: 80000, Amount: 0.5})
-			require.NoError(t, err, "SubmitOrder must not error")
-			ordersClearSubmitTimes(t, resp, submitted)
-			exp := &order.SubmitResponse{Exchange: ex.Name, Type: order.Limit, Side: order.Buy, Pair: spotTestPair, AssetType: asset.Spot, Price: 80000, Amount: 0.5, Status: order.New, OrderID: tc.orderID}
-			assert.Equal(t, exp, resp, "SubmitOrder should place the order")
-			mu.Lock()
-			defer mu.Unlock()
-			assert.Equal(t, tc.paths, paths, "SubmitOrder should place the order over REST only while the private connection holds no subscription")
-			assertRequests(t, tc.requests, requests)
-		})
-	}
-}
-
-func TestSubmitOrderUntriggeredOrders(t *testing.T) {
-	t.Parallel()
-	futuresPlaced := func(orderID, orderType, side string, quantity, limitPrice float64) string {
-		order := `{"algoId":null,"cliOrdId":null,"filled":0,"lastUpdateTimestamp":"2026-10-09T08:33:01.104Z","limitPrice":` + strconv.FormatFloat(limitPrice, 'f', -1, 64) +
-			`,"orderId":"` + orderID + `","quantity":` + strconv.FormatFloat(quantity, 'f', -1, 64) + `,"reduceOnly":false,"side":"` + side +
-			`","symbol":"PF_XBTUSD","timestamp":"2026-10-09T08:33:01.104Z","type":"` + orderType + `"}`
-		return `{"result":"success","sendStatus":{"order_id":"` + orderID + `","orderEvents":[{"order":` + order + `,"reducedQuantity":null,"type":"PLACE"}],` +
-			`"receivedTime":"2026-10-09T08:33:01.104Z","status":"placed"},"serverTime":"2026-10-09T08:33:01.107Z"}`
-	}
-	futuresExecuted := func(orderID, clientOrderID, orderType, side string, quantity, limitPrice, price float64, reduceOnly bool) string {
-		client := "null"
-		if clientOrderID != "" {
-			client = `"` + clientOrderID + `"`
-		}
-		order := `{"algoId":null,"cliOrdId":` + client + `,"filled":0,"lastUpdateTimestamp":"2026-10-09T08:34:12.551Z","limitPrice":` + strconv.FormatFloat(limitPrice, 'f', -1, 64) +
-			`,"orderId":"` + orderID + `","quantity":` + strconv.FormatFloat(quantity, 'f', -1, 64) + `,"reduceOnly":` + strconv.FormatBool(reduceOnly) + `,"side":"` + side +
-			`","symbol":"PF_XBTUSD","timestamp":"2026-10-09T08:34:12.551Z","type":"` + orderType + `"}`
-		return `{"result":"success","sendStatus":{"order_id":"` + orderID + `","orderEvents":[{"amount":` + strconv.FormatFloat(quantity, 'f', -1, 64) +
-			`,"executionId":"0c7d1e5a-3f2b-4a96-8e1d-6b4c9a2f7e30","orderPriorEdit":null,"orderPriorExecution":` + order + `,"price":` + strconv.FormatFloat(price, 'f', -1, 64) +
-			`,"takerReducedQuantity":null,"type":"EXECUTION"}],"receivedTime":"2026-10-09T08:34:12.551Z","status":"placed"},"serverTime":"2026-10-09T08:34:12.554Z"}`
-	}
-	spotPlaced := func(txid, descr string) string {
-		return `{"error":[],"result":{"descr":{"order":"` + descr + `"},"txid":["` + txid + `"]}}`
-	}
-	// executed is the trade futuresExecuted reports, its exchange set by each test
-	executed := func(orderType order.Type, side order.Side, price, amount float64) []order.TradeHistory {
-		return []order.TradeHistory{{
-			TID:       "0c7d1e5a-3f2b-4a96-8e1d-6b4c9a2f7e30",
-			Price:     price,
-			Amount:    amount,
-			Type:      orderType,
-			Side:      side,
-			Timestamp: time.Date(2026, 10, 9, 8, 34, 12, 551000000, time.UTC),
-		}}
-	}
-	for _, tc := range []struct {
-		name    string
-		submit  *order.Submit
-		path    string
-		request string
-		reply   string
-		exp     *order.SubmitResponse
-		err     error
-	}{
-		{
-			name:    "spot limit order",
-			submit:  &order.Submit{AssetType: asset.Spot, Type: order.Limit, Side: order.Buy, Price: 80000, Amount: 0.5, TimeInForce: order.GoodTillCancel},
-			path:    "/0/private/AddOrder",
-			request: `{"ordertype":"limit","pair":"XBTUSD","price":"80000","type":"buy","volume":"0.5"}`,
-			reply:   spotPlaced("OT83XF-1Y4TH-OTWZWB", "buy 0.50000000 XBTUSD @ limit 80000.0"),
-			exp:     &order.SubmitResponse{Type: order.Limit, Side: order.Buy, TimeInForce: order.GoodTillCancel, Price: 80000, Amount: 0.5, Status: order.New, OrderID: "OT83XF-1Y4TH-OTWZWB"},
-		},
-		{
-			name:    "spot post only order with a client order ID",
-			submit:  &order.Submit{AssetType: asset.Spot, Type: order.Limit, Side: order.Sell, Price: 90000, Amount: 0.5, TimeInForce: order.PostOnly, ClientOrderID: "gct-post-1"},
-			path:    "/0/private/AddOrder",
-			request: `{"cl_ord_id":"gct-post-1","oflags":"post","ordertype":"limit","pair":"XBTUSD","price":"90000","type":"sell","volume":"0.5"}`,
-			reply:   spotPlaced("OIPJSD-XXGKZ-RTDNG1", "sell 0.50000000 XBTUSD @ limit 90000.0"),
-			exp:     &order.SubmitResponse{Type: order.Limit, Side: order.Sell, TimeInForce: order.PostOnly, Price: 90000, Amount: 0.5, ClientOrderID: "gct-post-1", Status: order.New, OrderID: "OIPJSD-XXGKZ-RTDNG1"},
-		},
-		{
-			name:    "spot immediate or cancel order",
-			submit:  &order.Submit{AssetType: asset.Spot, Type: order.Limit, Side: order.Buy, Price: 81000, Amount: 0.5, TimeInForce: order.ImmediateOrCancel},
-			path:    "/0/private/AddOrder",
-			request: `{"ordertype":"limit","pair":"XBTUSD","price":"81000","timeinforce":"IOC","type":"buy","volume":"0.5"}`,
-			reply:   spotPlaced("O6ILXG-WV335-W1H72M", "buy 0.50000000 XBTUSD @ limit 81000.0"),
-			exp:     &order.SubmitResponse{Type: order.Limit, Side: order.Buy, TimeInForce: order.ImmediateOrCancel, Price: 81000, Amount: 0.5, Status: order.New, OrderID: "O6ILXG-WV335-W1H72M"},
-		},
-		{
-			name:    "spot fill or kill order",
-			submit:  &order.Submit{AssetType: asset.Spot, Type: order.Limit, Side: order.Buy, Price: 81000, Amount: 0.5, TimeInForce: order.FillOrKill},
-			path:    "/0/private/AddOrder",
-			request: `{"ordertype":"limit","pair":"XBTUSD","price":"81000","timeinforce":"FOK","type":"buy","volume":"0.5"}`,
-			reply:   spotPlaced("O6XQV8-FNDCO-0DF6F7", "buy 0.50000000 XBTUSD @ limit 81000.0"),
-			exp:     &order.SubmitResponse{Type: order.Limit, Side: order.Buy, TimeInForce: order.FillOrKill, Price: 81000, Amount: 0.5, Status: order.New, OrderID: "O6XQV8-FNDCO-0DF6F7"},
-		},
-		{
-			name:    "spot good till time order",
-			submit:  &order.Submit{AssetType: asset.Spot, Type: order.Limit, Side: order.Sell, Price: 90000, Amount: 0.5, TimeInForce: order.GoodTillTime, EndTime: ordersTestExpiry},
-			path:    "/0/private/AddOrder",
-			request: `{"expiretm":"1791590400","ordertype":"limit","pair":"XBTUSD","price":"90000","timeinforce":"GTD","type":"sell","volume":"0.5"}`,
-			reply:   spotPlaced("OR0CEN-TWHE5-ZJOOFV", "sell 0.50000000 XBTUSD @ limit 90000.0"),
-			exp:     &order.SubmitResponse{Type: order.Limit, Side: order.Sell, TimeInForce: order.GoodTillTime, Price: 90000, Amount: 0.5, Status: order.New, OrderID: "OR0CEN-TWHE5-ZJOOFV"},
-		},
-		{
-			name:    "spot market order",
-			submit:  &order.Submit{AssetType: asset.Spot, Type: order.Market, Side: order.Sell, Amount: 0.25},
-			path:    "/0/private/AddOrder",
-			request: `{"ordertype":"market","pair":"XBTUSD","type":"sell","volume":"0.25"}`,
-			reply:   spotPlaced("OZD33P-8CG44-9E2SMV", "sell 0.25000000 XBTUSD @ market"),
-			exp:     &order.SubmitResponse{Type: order.Market, Side: order.Sell, Amount: 0.25, Status: order.Filled, OrderID: "OZD33P-8CG44-9E2SMV"},
-		},
-		{
-			name:    "spot market buy sized in the quote currency",
-			submit:  &order.Submit{AssetType: asset.Spot, Type: order.Market, Side: order.Buy, QuoteAmount: 100},
-			path:    "/0/private/AddOrder",
-			request: `{"oflags":"viqc","ordertype":"market","pair":"XBTUSD","type":"buy","volume":"100"}`,
-			reply:   spotPlaced("OFCPM1-37ISG-FU08H6", "buy 100.00000000 XBTUSD @ market"),
-			exp:     &order.SubmitResponse{Type: order.Market, Side: order.Buy, QuoteAmount: 100, Status: order.Filled, OrderID: "OFCPM1-37ISG-FU08H6"},
-		},
-		{
-			// Add Order takes a quote amount for market buys alone
-			name:    "spot market sell carrying a quote amount",
-			submit:  &order.Submit{AssetType: asset.Spot, Type: order.Market, Side: order.Sell, Amount: 0.25, QuoteAmount: 20000},
-			path:    "/0/private/AddOrder",
-			request: `{"ordertype":"market","pair":"XBTUSD","type":"sell","volume":"0.25"}`,
-			reply:   spotPlaced("OBHC5N-U3V9W-KDTAAS", "sell 0.25000000 XBTUSD @ market"),
-			exp:     &order.SubmitResponse{Type: order.Market, Side: order.Sell, Amount: 0.25, QuoteAmount: 20000, Status: order.Filled, OrderID: "OBHC5N-U3V9W-KDTAAS"},
-		},
-		{
-			name:    "futures limit order",
-			submit:  &order.Submit{AssetType: asset.Futures, Type: order.Limit, Side: order.Buy, Price: 81500, Amount: 0.0005},
-			path:    "/derivatives/api/v3/sendorder",
-			request: "limitPrice=81500&orderType=lmt&side=buy&size=0.0005&symbol=PF_XBTUSD",
-			reply:   futuresPlaced("1c4bb72a-7afe-4b9b-9b9b-50e772c06e89", "lmt", "buy", 0.0005, 81500),
-			exp:     &order.SubmitResponse{Type: order.Limit, Side: order.Buy, Price: 81500, Amount: 0.0005, Status: order.New, OrderID: "1c4bb72a-7afe-4b9b-9b9b-50e772c06e89"},
-		},
-		{
-			name:    "futures post only order",
-			submit:  &order.Submit{AssetType: asset.Futures, Type: order.Limit, Side: order.Sell, Price: 82500, Amount: 0.0005, TimeInForce: order.PostOnly},
-			path:    "/derivatives/api/v3/sendorder",
-			request: "limitPrice=82500&orderType=post&side=sell&size=0.0005&symbol=PF_XBTUSD",
-			reply:   futuresPlaced("64e79f53-8422-4bbc-8a65-2f6a879ccff1", "post", "sell", 0.0005, 82500),
-			exp:     &order.SubmitResponse{Type: order.Limit, Side: order.Sell, TimeInForce: order.PostOnly, Price: 82500, Amount: 0.0005, Status: order.New, OrderID: "64e79f53-8422-4bbc-8a65-2f6a879ccff1"},
-		},
-		{
-			name:    "futures immediate or cancel order",
-			submit:  &order.Submit{AssetType: asset.Futures, Type: order.Limit, Side: order.Buy, Price: 81600, Amount: 0.0005, TimeInForce: order.ImmediateOrCancel},
-			path:    "/derivatives/api/v3/sendorder",
-			request: "limitPrice=81600&orderType=ioc&side=buy&size=0.0005&symbol=PF_XBTUSD",
-			reply:   futuresExecuted("1cd7f466-fba0-4fbc-84e6-6c72fe725b6f", "", "ioc", "buy", 0.0005, 81600, 81588, false),
-			exp: &order.SubmitResponse{
-				Type:                 order.Limit,
-				Side:                 order.Buy,
-				TimeInForce:          order.ImmediateOrCancel,
-				Price:                81600,
-				Amount:               0.0005,
-				ExecutedAmount:       0.0005,
-				AverageExecutedPrice: 81588,
-				Status:               order.Filled,
-				OrderID:              "1cd7f466-fba0-4fbc-84e6-6c72fe725b6f",
-				Trades:               executed(order.Limit, order.Buy, 81588, 0.0005),
-			},
-		},
-		{
-			name:    "futures fill or kill order",
-			submit:  &order.Submit{AssetType: asset.Futures, Type: order.Limit, Side: order.Buy, Price: 81600, Amount: 0.0005, TimeInForce: order.FillOrKill},
-			path:    "/derivatives/api/v3/sendorder",
-			request: "limitPrice=81600&orderType=fok&side=buy&size=0.0005&symbol=PF_XBTUSD",
-			reply:   futuresExecuted("25f378e1-7598-40f4-a5e0-0ac669661081", "", "fok", "buy", 0.0005, 81600, 81591, false),
-			exp: &order.SubmitResponse{
-				Type:                 order.Limit,
-				Side:                 order.Buy,
-				TimeInForce:          order.FillOrKill,
-				Price:                81600,
-				Amount:               0.0005,
-				ExecutedAmount:       0.0005,
-				AverageExecutedPrice: 81591,
-				Status:               order.Filled,
-				OrderID:              "25f378e1-7598-40f4-a5e0-0ac669661081",
-				Trades:               executed(order.Limit, order.Buy, 81591, 0.0005),
-			},
-		},
-		{
-			name:    "futures reduce only market order with a client order ID",
-			submit:  &order.Submit{AssetType: asset.Futures, Type: order.Market, Side: order.Sell, Amount: 0.001, ReduceOnly: true, ClientOrderID: "gct-market-1"},
-			path:    "/derivatives/api/v3/sendorder",
-			request: "cliOrdId=gct-market-1&orderType=mkt&reduceOnly=true&side=sell&size=0.001&symbol=PF_XBTUSD",
-			reply:   futuresExecuted("4a762a34-dffa-48db-b7f1-4cce43a94fa1", "gct-market-1", "ioc", "sell", 0.001, 80784, 81590, true),
-			exp: &order.SubmitResponse{
-				Type:                 order.Market,
-				Side:                 order.Sell,
-				ReduceOnly:           true,
-				Amount:               0.001,
-				ExecutedAmount:       0.001,
-				ClientOrderID:        "gct-market-1",
-				AverageExecutedPrice: 81590,
-				Status:               order.Filled,
-				OrderID:              "4a762a34-dffa-48db-b7f1-4cce43a94fa1",
-				Trades:               executed(order.Market, order.Sell, 81590, 0.001),
-			},
-		},
-		{
-			name:    "futures post only order that would execute",
-			submit:  &order.Submit{AssetType: asset.Futures, Type: order.Limit, Side: order.Buy, Price: 81900, Amount: 0.0005, TimeInForce: order.PostOnly},
-			path:    "/derivatives/api/v3/sendorder",
-			request: "limitPrice=81900&orderType=post&side=buy&size=0.0005&symbol=PF_XBTUSD",
-			reply: `{"result":"success","sendStatus":{"orderEvents":[{"order":{"algoId":null,"cliOrdId":null,"filled":0,"lastUpdateTimestamp":"2026-10-09T08:18:10.005Z",` +
-				`"limitPrice":81900,"orderId":"c5d6e7f8-a9b0-4c3d-8e4f-5a6b7c8d9e0f","quantity":0.0005,"reduceOnly":false,"side":"buy","symbol":"PF_XBTUSD",` +
-				`"timestamp":"2026-10-09T08:18:10.004Z","type":"post"},"reason":"POST_WOULD_EXECUTE","type":"REJECT","uid":"c5d6e7f8-a9b0-4c3d-8e4f-5a6b7c8d9e0f"}],` +
-				`"order_id":"c5d6e7f8-a9b0-4c3d-8e4f-5a6b7c8d9e0f","receivedTime":"2026-10-09T08:18:10.004Z","status":"postWouldExecute"},"serverTime":"2026-10-09T08:18:10.006Z"}`,
-			err: order.ErrPlaceFailed,
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			ex := newOrdersRequestCheckExchange(t, tc.path, tc.request, tc.reply)
-			tc.submit.Exchange, tc.submit.Pair = ex.Name, spotTestPair
-			if tc.submit.AssetType == asset.Futures {
-				tc.submit.Pair = futuresTestPair
-			}
-			submitted := time.Now()
-			resp, err := ex.SubmitOrder(t.Context(), tc.submit)
-			if tc.err != nil {
-				assert.ErrorIs(t, err, tc.err, "SubmitOrder should return Kraken's refusal")
-				return
-			}
-			require.NoError(t, err, "SubmitOrder must not error")
-			ordersClearSubmitTimes(t, resp, submitted)
-			tc.exp.Exchange, tc.exp.Pair, tc.exp.AssetType = ex.Name, tc.submit.Pair, tc.submit.AssetType
-			for i := range tc.exp.Trades {
-				tc.exp.Trades[i].Exchange = ex.Name
-			}
-			assert.Equal(t, tc.exp, resp, "SubmitOrder should place the order without a trigger reference, with what it executed as placed")
-		})
-	}
-}
-
-func TestSubmitOrderSpotTrailingStopTrackingMode(t *testing.T) {
-	t.Parallel()
-	ex := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
-		assert.Failf(t, "no order should be placed", "%s", r.URL.Path)
-		_, _ = w.Write([]byte(`{"error":["EGeneral:Invalid arguments"]}`))
-	})
-	_, err := ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: spotTestPair, AssetType: asset.Spot, Type: order.TrailingStop, Side: order.Sell, Amount: 0.3, TrackingValue: 2.5})
-	assert.ErrorIs(t, err, order.ErrUnknownTrackingMode, "SubmitOrder should reject a spot trailing stop without a tracking mode over REST")
-	ws := newOrdersWsTestExchange(t)
-	_, err = ws.SubmitOrder(t.Context(), &order.Submit{Exchange: ws.Name, Pair: spotTestPair, AssetType: asset.Spot, Type: order.TrailingStop, Side: order.Sell, Amount: 0.3, TrackingValue: 2.5})
-	assert.ErrorIs(t, err, order.ErrUnknownTrackingMode, "SubmitOrder should reject a spot trailing stop without a tracking mode over the private websocket")
-}
-
-func TestSubmitOrderPositionSides(t *testing.T) {
-	t.Parallel()
-	for _, tc := range []struct {
-		name    string
-		submit  *order.Submit
-		path    string
-		request string
-		reply   string
-		orderID string
-	}{
-		{
-			name:    "spot bid over REST",
-			submit:  &order.Submit{AssetType: asset.Spot, Type: order.Stop, Side: order.Bid, TriggerPrice: 90000, Amount: 0.1},
-			path:    "/0/private/AddOrder",
-			request: `{"ordertype":"stop-loss","pair":"XBTUSD","price":"90000","trigger":"last","type":"buy","volume":"0.1"}`,
-			reply:   `{"error":[],"result":{"descr":{"order":"buy 0.10000000 XBTUSD @ stop loss 90000.0"},"txid":["OSIQRP-BJZQK-3R5CPS"]}}`,
-			orderID: "OSIQRP-BJZQK-3R5CPS",
-		},
-		{
-			name:    "futures long",
-			submit:  &order.Submit{AssetType: asset.Futures, Type: order.Stop, Side: order.Long, TriggerPrice: 84000, Amount: 0.001},
-			path:    "/derivatives/api/v3/sendorder",
-			request: "orderType=stp&side=buy&size=0.001&stopPrice=84000&symbol=PF_XBTUSD&triggerSignal=last",
-			reply: `{"result":"success","sendStatus":{"orderEvents":[{"orderTrigger":{"clientId":null,"lastUpdateTimestamp":"2026-10-09T08:35:02.441Z","limitPrice":null,` +
-				`"quantity":0.001,"reduceOnly":false,"side":"buy","startTime":null,"symbol":"PF_XBTUSD","timestamp":"2026-10-09T08:35:02.441Z","triggerPrice":84000,` +
-				`"triggerSide":"trigger_above","triggerSignal":"last_price","type":"lmt","uid":"7e2b9c41-5d8a-4f36-b1e7-3a9c0d6f2b58"},"type":"PLACE"}],` +
-				`"order_id":"7e2b9c41-5d8a-4f36-b1e7-3a9c0d6f2b58","receivedTime":"2026-10-09T08:35:02.441Z","status":"placed"},"serverTime":"2026-10-09T08:35:02.444Z"}`,
-			orderID: "7e2b9c41-5d8a-4f36-b1e7-3a9c0d6f2b58",
-		},
-		{
-			name:    "futures short",
-			submit:  &order.Submit{AssetType: asset.Futures, Type: order.Stop, Side: order.Short, TriggerPrice: 79000, Amount: 0.001},
-			path:    "/derivatives/api/v3/sendorder",
-			request: "orderType=stp&side=sell&size=0.001&stopPrice=79000&symbol=PF_XBTUSD&triggerSignal=last",
-			reply: `{"result":"success","sendStatus":{"orderEvents":[{"orderTrigger":{"clientId":null,"lastUpdateTimestamp":"2026-10-09T08:35:14.902Z","limitPrice":null,` +
-				`"quantity":0.001,"reduceOnly":false,"side":"sell","startTime":null,"symbol":"PF_XBTUSD","timestamp":"2026-10-09T08:35:14.902Z","triggerPrice":79000,` +
-				`"triggerSide":"trigger_below","triggerSignal":"last_price","type":"lmt","uid":"9f4d2a7e-0b6c-4e15-a8d3-5c1e7b9f4a26"},"type":"PLACE"}],` +
-				`"order_id":"9f4d2a7e-0b6c-4e15-a8d3-5c1e7b9f4a26","receivedTime":"2026-10-09T08:35:14.902Z","status":"placed"},"serverTime":"2026-10-09T08:35:14.905Z"}`,
-			orderID: "9f4d2a7e-0b6c-4e15-a8d3-5c1e7b9f4a26",
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			ex := newOrdersRequestCheckExchange(t, tc.path, tc.request, tc.reply)
-			tc.submit.Exchange, tc.submit.Pair = ex.Name, spotTestPair
-			if tc.submit.AssetType == asset.Futures {
-				tc.submit.Pair = futuresTestPair
-			}
-			resp, err := ex.SubmitOrder(t.Context(), tc.submit)
-			require.NoError(t, err, "SubmitOrder must not error")
-			assert.Equal(t, tc.orderID, resp.OrderID, "SubmitOrder should place the order")
-		})
-	}
-	t.Run("spot ask over the private websocket", func(t *testing.T) {
-		t.Parallel()
-		ex := newOrdersWsTestExchange(t, ordersWsRoundTrip{
-			request: ordersWsRequest("add_order", `"order_type":"limit","side":"sell","order_qty":0.5,"limit_price":90000,"symbol":"BTC/USD"`),
-			replies: []string{ordersWsReply("add_order", `{"order_id":"OOSYBA-N7T1K-2E5PUZ"}`)},
-		})
-		resp, err := ex.SubmitOrder(t.Context(), &order.Submit{Exchange: ex.Name, Pair: spotTestPair, AssetType: asset.Spot, Type: order.Limit, Side: order.Ask, Price: 90000, Amount: 0.5})
-		require.NoError(t, err, "SubmitOrder must not error")
-		assert.Equal(t, "OOSYBA-N7T1K-2E5PUZ", resp.OrderID, "SubmitOrder should place the order")
-	})
-}
-
-func TestSubmitOrderFuturesUnsupportedTimeInForce(t *testing.T) {
-	t.Parallel()
-	ex := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
-		assert.Failf(t, "no futures order should be placed", "%s", r.URL.RawQuery)
-		_, _ = w.Write([]byte(`{"result":"error","error":"invalidArgument","serverTime":"2026-10-09T08:42:00.001Z"}`))
-	})
-	for _, tc := range []struct {
-		orderType order.Type
-		tif       order.TimeInForce
-	}{
-		{order.Limit, order.GoodTillTime},
-		{order.Limit, order.GoodTillDay},
-		{order.Limit, order.GoodTillCrossing},
-		{order.Market, order.PostOnly},
-		{order.Market, order.FillOrKill},
-		{order.Stop, order.ImmediateOrCancel},
-		{order.TakeProfit, order.PostOnly},
-		{order.TrailingStop, order.FillOrKill},
-	} {
-		_, err := ex.SubmitOrder(t.Context(), &order.Submit{
-			Exchange:      ex.Name,
-			Pair:          futuresTestPair,
-			AssetType:     asset.Futures,
-			Type:          tc.orderType,
-			Side:          order.Buy,
-			Price:         81500,
-			TriggerPrice:  84000,
-			Amount:        0.001,
-			TrackingMode:  order.Percentage,
-			TrackingValue: 1,
-			TimeInForce:   tc.tif,
-			EndTime:       ordersTestExpiry,
-		})
-		assert.ErrorIsf(t, err, order.ErrUnsupportedTimeInForce, "SubmitOrder should reject a futures %s order good for %s", tc.orderType, tc.tif)
-	}
-}
-
-func TestModifyOrderUnsupportedFields(t *testing.T) {
-	t.Parallel()
-	ex := newHTTPTestExchange(t, func(_ http.ResponseWriter, r *http.Request) {
-		assert.Failf(t, "no order should be edited", "%s", r.URL.Path)
-	})
-	wsEx := newHTTPTestExchange(t, func(_ http.ResponseWriter, r *http.Request) {
-		assert.Failf(t, "no order should be edited", "%s", r.URL.Path)
-	})
-	// Without round trips the mock fails the test on any websocket request
-	useOrdersTestWebsocket(t, wsEx)
-	refuses := func(name string, m order.Modify, exp error) {
-		t.Helper()
-		for _, a := range []asset.Item{asset.Spot, asset.Futures} {
-			for _, kind := range []struct {
-				orderType order.Type
-				side      order.Side
-				tif       order.TimeInForce
-				trigger   order.PriceType
-			}{
-				{orderType: order.Limit, side: order.Buy},
-				{orderType: order.Limit, side: order.Sell, tif: order.GoodTillCancel},
-				{orderType: order.StopLimit, side: order.Sell, trigger: order.MarkPrice},
-				{orderType: order.Stop, side: order.Buy, tif: order.GoodTillCancel, trigger: order.IndexPrice},
-			} {
-				m.Exchange, m.AssetType, m.OrderID, m.Pair, m.Type, m.Side, m.Amount = ex.Name, a, "OQCLML-BW3P3-BUCMWZ", spotTestPair, kind.orderType, kind.side, 0.5
-				m.TimeInForce, m.TriggerPriceType, m.Price, m.TriggerPrice = kind.tif, kind.trigger, 0, 0
-				if kind.orderType.Is(order.Limit) {
-					m.Price = 80000
-				}
-				if kind.orderType.Is(order.Stop) {
-					m.TriggerPrice = 90000
-				}
-				if a == asset.Futures {
-					m.OrderID, m.Pair = "4f1c3a5e-7b2d-4e8f-9a6b-1c2d3e4f5a6b", futuresTestPair
-				}
-				_, err := ex.ModifyOrder(t.Context(), &m)
-				assert.ErrorIsf(t, err, exp, "ModifyOrder should refuse %s for a %s %s %s order rather than edit it without", name, a, kind.side, kind.orderType)
-				if a == asset.Spot {
-					m.Exchange = wsEx.Name
-					_, err = wsEx.ModifyOrder(t.Context(), &m)
-					assert.ErrorIsf(t, err, exp, "ModifyOrder should refuse %s for a spot %s %s order over the private websocket rather than amend it without", name, kind.side, kind.orderType)
-				}
-			}
-		}
-	}
-	refuses("a risk management mode", order.Modify{RiskManagementModes: order.RiskManagementModes{Mode: "full"}}, errRiskManagementUnsupported)
-	refuses("a slippage tolerance", order.Modify{SlippageTolerance: 0.0001}, errSlippageUnsupported)
-	refuses("a negative slippage tolerance", order.Modify{SlippageTolerance: -0.0001}, errSlippageUnsupported)
-	refuses("the smallest slippage tolerance", order.Modify{SlippageTolerance: math.SmallestNonzeroFloat64}, errSlippageUnsupported)
-	// Each field of a take profit, stop loss or stop entry asks for one, set alone
-	for _, kind := range []struct {
-		name string
-		of   func(*order.RiskManagementModes) *order.RiskManagement
-	}{
-		{name: "take profit", of: func(m *order.RiskManagementModes) *order.RiskManagement { return &m.TakeProfit }},
-		{name: "stop loss", of: func(m *order.RiskManagementModes) *order.RiskManagement { return &m.StopLoss }},
-		{name: "stop entry", of: func(m *order.RiskManagementModes) *order.RiskManagement { return &m.StopEntry }},
-	} {
-		for _, field := range []struct {
-			name string
-			set  func(*order.RiskManagement)
-		}{
-			{name: "enabled flag", set: func(r *order.RiskManagement) { r.Enabled = true }},
-			{name: "trigger price type", set: func(r *order.RiskManagement) { r.TriggerPriceType = order.MarkPrice }},
-			{name: "price", set: func(r *order.RiskManagement) { r.Price = 70000 }},
-			{name: "limit price", set: func(r *order.RiskManagement) { r.LimitPrice = 69000 }},
-			{name: "order type", set: func(r *order.RiskManagement) { r.OrderType = order.Market }},
-		} {
-			var modes order.RiskManagementModes
-			field.set(kind.of(&modes))
-			refuses("a "+kind.name+"'s "+field.name, order.Modify{RiskManagementModes: modes}, errRiskManagementUnsupported)
-		}
-	}
-}
-
-func TestModifyOrderFuturesSize(t *testing.T) {
-	t.Parallel()
-	reply := `{"editStatus":{"cliOrdId":"gct-limit-1","orderEvents":[{"new":{"algoId":"gct-algo-1","cliOrdId":"gct-limit-1","filled":0.0002,` +
-		`"lastUpdateTimestamp":"2026-10-09T08:19:58.730Z","limitPrice":81520,"orderId":"4f1c3a5e-7b2d-4e8f-9a6b-1c2d3e4f5a6b","quantity":0.0006,"reduceOnly":true,` +
-		`"side":"buy","symbol":"PF_XBTUSD","timestamp":"2026-10-09T08:15:30.412Z","type":"lmt"},"old":{"algoId":"gct-algo-1","cliOrdId":"gct-limit-1","filled":0.0002,` +
-		`"lastUpdateTimestamp":"2026-10-09T08:15:30.413Z","limitPrice":81500,"orderId":"4f1c3a5e-7b2d-4e8f-9a6b-1c2d3e4f5a6b","quantity":0.0004,"reduceOnly":true,` +
-		`"side":"buy","symbol":"PF_XBTUSD","timestamp":"2026-10-09T08:15:30.412Z","type":"lmt"},"reducedQuantity":null,"type":"EDIT"}],` +
-		`"orderId":"4f1c3a5e-7b2d-4e8f-9a6b-1c2d3e4f5a6b","receivedTime":"2026-10-09T08:19:58.729Z","status":"edited"},"result":"success","serverTime":"2026-10-09T08:19:58.735Z"}`
-	for _, tc := range []struct {
-		status      string
-		err, notErr error
-	}{
-		{status: "edited"},
-		// The edit filled the order in full
-		{status: "filled"},
-		// A cancel arriving while Kraken held the edit for maker protection had it applied as immediate or cancel
-		{status: "iocWouldNotExecute", err: errOrderEditImmediateOrCancel, notErr: errOrderEditFailed},
-		// Kraken documents every other status as an edit it did not apply
-		{status: "invalidSize", err: errOrderEditFailed, notErr: errOrderEditImmediateOrCancel},
-		{status: "invalidPrice", err: errOrderEditFailed, notErr: errOrderEditImmediateOrCancel},
-		{status: "insufficientAvailableFunds", err: errOrderEditFailed, notErr: errOrderEditImmediateOrCancel},
-		{status: "selfFill", err: errOrderEditFailed, notErr: errOrderEditImmediateOrCancel},
-		{status: "tooManySmallOrders", err: errOrderEditFailed, notErr: errOrderEditImmediateOrCancel},
-		{status: "outsidePriceCollar", err: errOrderEditFailed, notErr: errOrderEditImmediateOrCancel},
-		{status: "postWouldExecute", err: errOrderEditFailed, notErr: errOrderEditImmediateOrCancel},
-		{status: "wouldNotReducePosition", err: errOrderEditFailed, notErr: errOrderEditImmediateOrCancel},
-		{status: "orderForEditNotFound", err: errOrderEditFailed, notErr: errOrderEditImmediateOrCancel},
-		{status: "orderForEditNotAStop", err: errOrderEditFailed, notErr: errOrderEditImmediateOrCancel},
-		{status: "editAlreadyHeld", err: errOrderEditFailed, notErr: errOrderEditImmediateOrCancel},
-	} {
-		t.Run(tc.status, func(t *testing.T) {
-			t.Parallel()
-			ex := newOrdersRequestCheckExchange(t, "/derivatives/api/v3/editorder",
-				"limitPrice=81520&orderId=4f1c3a5e-7b2d-4e8f-9a6b-1c2d3e4f5a6b&qtyMode=ABSOLUTE&size=0.0006",
-				strings.Replace(reply, `"status":"edited"`, `"status":"`+tc.status+`"`, 1))
-			resp, err := ex.ModifyOrder(t.Context(), &order.Modify{
-				Exchange:      ex.Name,
-				OrderID:       "4f1c3a5e-7b2d-4e8f-9a6b-1c2d3e4f5a6b",
-				ClientOrderID: "gct-limit-1",
-				Type:          order.Limit,
-				Side:          order.Buy,
-				AssetType:     asset.Futures,
-				Pair:          futuresTestPair,
-				Price:         81520,
-				Amount:        0.0006,
-			})
-			if tc.err != nil {
-				require.ErrorIs(t, err, tc.err, "ModifyOrder must report what Kraken's status says of the edit")
-				assert.NotErrorIs(t, err, tc.notErr, "ModifyOrder should not report the edit as another status would")
-				assert.ErrorContains(t, err, tc.status, "the error should carry Kraken's status")
-				assert.Nil(t, resp, "ModifyOrder should return no modification with its error")
-				return
-			}
-			require.NoError(t, err, "ModifyOrder must not error")
-			exp := &order.ModifyResponse{
-				Exchange:      ex.Name,
-				OrderID:       "4f1c3a5e-7b2d-4e8f-9a6b-1c2d3e4f5a6b",
-				ClientOrderID: "gct-limit-1",
-				Pair:          futuresTestPair,
-				Type:          order.Limit,
-				Side:          order.Buy,
-				AssetType:     asset.Futures,
-				Price:         81520,
-				Amount:        0.0006,
-			}
-			// An edit that filled the order is reported filled, and an edited order's sizes are the edited order's
-			if tc.status == "filled" {
-				exp.Status, exp.ExecutedAmount = order.Filled, 0.0006
-			} else {
-				exp.ExecutedAmount, exp.RemainingAmount = 0.0002, 0.0004
-			}
-			assert.Equal(t, exp, resp, "ModifyOrder should set the futures order's total size, as a spot amend does, and return what has executed and what remains of it")
-		})
-	}
 }
 
 func TestAddFuturesEditedOrder(t *testing.T) {
@@ -8333,10 +8888,13 @@ func TestAddFuturesEditedOrder(t *testing.T) {
 		{name: "edited, the events about another order", orderID: "o-1", requested: 0.7, status: "edited", events: []FuturesOrderEvent{edited("o-2", "", 0.6, 0.4), {Type: "PLACE", Order: &FuturesOrder{OrderID: "o-1", Quantity: 1}}}, exp: order.ModifyResponse{Amount: 0.7}},
 		{name: "edited without events", orderID: "o-1", requested: 0.7, status: "edited", exp: order.ModifyResponse{Amount: 0.7}},
 	} {
-		mod := &order.ModifyResponse{OrderID: tc.orderID, ClientOrderID: tc.clientOrderID, Amount: tc.requested}
-		addFuturesEditedOrder(mod, &FuturesEditOrderStatus{Status: tc.status, OrderEvents: tc.events})
-		tc.exp.OrderID, tc.exp.ClientOrderID = tc.orderID, tc.clientOrderID
-		assert.Equalf(t, &tc.exp, mod, "addFuturesEditedOrder should add the order an edit %s leaves", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			mod := &order.ModifyResponse{OrderID: tc.orderID, ClientOrderID: tc.clientOrderID, Amount: tc.requested}
+			addFuturesEditedOrder(mod, &FuturesEditOrderStatus{Status: tc.status, OrderEvents: tc.events})
+			tc.exp.OrderID, tc.exp.ClientOrderID = tc.orderID, tc.clientOrderID
+			assert.Equalf(t, &tc.exp, mod, "addFuturesEditedOrder should add the order an edit %s leaves", tc.name)
+		})
 	}
 }
 
@@ -8449,106 +9007,16 @@ func TestFuturesEditMergedIntoStoredOrder(t *testing.T) {
 			exp:    stored(order.PartiallyFilled, 7, 6, 1),
 		},
 	} {
-		mod := &order.ModifyResponse{OrderID: "o-1", Amount: 7}
-		addFuturesEditedOrder(mod, &FuturesEditOrderStatus{Status: tc.status, OrderEvents: tc.events})
-		got := tc.stored
-		got.UpdateOrderFromModifyResponse(mod)
-		got.LastUpdated = time.Time{}
-		assert.Equalf(t, tc.exp, got, "the stored order should be right after an edit %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			mod := &order.ModifyResponse{OrderID: "o-1", Amount: 7}
+			addFuturesEditedOrder(mod, &FuturesEditOrderStatus{Status: tc.status, OrderEvents: tc.events})
+			got := tc.stored
+			got.UpdateOrderFromModifyResponse(mod)
+			got.LastUpdated = time.Time{}
+			assert.Equalf(t, tc.exp, got, "the stored order should be right after an edit %s", tc.name)
+		})
 	}
-}
-
-func TestCancelBatchOrdersPartialSpotBatch(t *testing.T) {
-	t.Parallel()
-	const stopLoss, iceberg, unknown = "OQCLML-BW3P3-BUCMWZ", "OHYO67-6LP66-HMQ437", "OZJW0T-MIQ3C-5NATAU"
-	var mu sync.Mutex
-	// open holds whether each order Kraken knows is still open; Kraken does not know a cancelled order to cancel it again
-	open := map[string]bool{stopLoss: true, iceberg: true}
-	// orderInfo holds each order as Query Orders Info returns it, with STATUS standing for its status
-	orderInfo := map[string]string{
-		stopLoss: `{"cl_ord_id":null,"cost":"11254.68750","descr":{"aclass":"forex","close":"","leverage":"5:1","order":"buy 1.25000000 XBTUSD @ stop loss 30010.0 -> limit 30020.0 with 5:1 leverage",` +
-			`"ordertype":"stop-loss-limit","pair":"XBTUSD","price":"30010.0","price2":"30020.0","type":"buy"},"expiretm":1780668660,"fee":"29.26219","limitprice":"30020.0",` +
-			`"misc":"stopped,partial","oflags":"fciq","opentm":1780582233.729133,"price":"30012.5","reduce_only":true,"refid":null,"starttm":1780582260,"status":"STATUS",` +
-			`"stopprice":"30010.0","time_in_force":"gtd","userref":45326,"vol":"1.25000000","vol_exec":"0.37500000"}`,
-		iceberg: `{"cl_ord_id":"6d1b345e-2821-40e2-ad83-4ecb18a06876","cost":"5301.40","descr":{"aclass":"forex","close":"","leverage":"none","order":"sell 10.00000000 ETHUSD @ limit 2650.50",` +
-			`"ordertype":"iceberg","pair":"ETHUSD","price":"2650.50","price2":"0","type":"sell"},"displayvol":"1.00000000","expiretm":0,"fee":"8.48224","limitprice":"0.00000",` +
-			`"misc":"partial","oflags":"post,fcib","opentm":1780582311.512449,"price":"2650.70","refid":null,"starttm":0,"status":"STATUS","stopprice":"0.00000","time_in_force":"gtc",` +
-			`"userref":null,"vol":"10.00000000","vol_exec":"2.00000000"}`,
-	}
-	ex := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
-		var req struct {
-			Orders        []string `json:"orders"`
-			TransactionID string   `json:"txid"`
-		}
-		assert.NoError(t, json.Unmarshal([]byte(tradingRequestBody(t, r)), &req), "Unmarshal should not error")
-		mu.Lock()
-		defer mu.Unlock()
-		switch r.URL.Path {
-		case "/0/private/CancelOrderBatch":
-			var count int
-			for _, id := range req.Orders {
-				if open[id] {
-					open[id] = false
-					count++
-				}
-			}
-			_, _ = w.Write([]byte(`{"error":[],"result":{"count":` + strconv.Itoa(count) + `}}`))
-		case "/0/private/CancelOrder":
-			if !open[req.TransactionID] {
-				_, _ = w.Write([]byte(`{"error":["EOrder:Unknown order"]}`))
-				return
-			}
-			open[req.TransactionID] = false
-			_, _ = w.Write([]byte(`{"error":[],"result":{"count":1,"pending":false}}`))
-		case "/0/private/QueryOrders":
-			result := make([]string, 0, len(open))
-			for id := range strings.SplitSeq(req.TransactionID, ",") {
-				isOpen, known := open[id]
-				if !known {
-					continue
-				}
-				status := "canceled"
-				if isOpen {
-					status = "open"
-				}
-				result = append(result, `"`+id+`":`+strings.Replace(orderInfo[id], "STATUS", status, 1))
-			}
-			_, _ = w.Write([]byte(`{"error":[],"result":{` + strings.Join(result, ",") + `}}`))
-		default:
-			assert.Failf(t, "only Cancel Order Batch, Cancel Order and Query Orders Info should be called", "%s", r.URL.Path)
-		}
-	})
-	resp, err := ex.CancelBatchOrders(t.Context(), []order.Cancel{
-		{Exchange: ex.Name, AssetType: asset.Spot, Pair: spotTestPair, OrderID: stopLoss},
-		{Exchange: ex.Name, AssetType: asset.Spot, Pair: ordersETHUSDPair, OrderID: iceberg},
-		{Exchange: ex.Name, AssetType: asset.Spot, Pair: spotTestPair, OrderID: unknown},
-	})
-	require.NoError(t, err, "CancelBatchOrders must not error")
-	assert.NotEqual(t, order.Cancelled.String(), resp.Status[unknown], "CancelBatchOrders should not report an order Kraken does not know as cancelled")
-	delete(resp.Status, unknown)
-	assert.Equal(t, map[string]string{stopLoss: order.Cancelled.String(), iceberg: order.Cancelled.String()}, resp.Status, "CancelBatchOrders should report the orders the batch cancelled as cancelled")
-}
-
-func TestGetActiveOrdersUnlistedPairs(t *testing.T) {
-	t.Parallel()
-	ex := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/0/private/OpenOrders":
-			_, _ = w.Write([]byte(ordersUnlistedOpenOrders))
-		case "/derivatives/api/v3/openorders":
-			_, _ = w.Write([]byte(`{"openOrders":[{"algoId":"gct-algo-1","cliOrdId":"gct-batch-1","filledSize":0.0003,"lastUpdateTime":"2026-10-09T08:26:14.982Z","limitPrice":81450,` +
-				`"orderType":"lmt","order_id":"e7f8a9b0-c1d2-4e3f-8a4b-5c6d7e8f9a0b","receivedTime":"2026-10-09T08:24:59.120Z","reduceOnly":true,"side":"buy",` +
-				`"status":"partiallyFilled","symbol":"PF_XBTUSD","unfilledSize":0.0004},{"filledSize":0,"lastUpdateTime":"2026-10-09T08:43:20.611Z","limitPrice":0.0821,` +
-				`"orderType":"lmt","order_id":"2398d7e0-ee86-4911-be2c-ef3a4a874153","receivedTime":"2026-10-09T08:43:20.611Z","reduceOnly":false,"side":"buy",` +
-				`"status":"untouched","symbol":"PF_ZORAUSD","unfilledSize":2500}],"result":"success","serverTime":"2026-10-09T08:44:00.512Z"}`))
-		}
-	})
-	got, err := ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType})
-	require.NoError(t, err, "GetActiveOrders must not error for spot")
-	assert.Equal(t, order.FilteredOrders{ordersStopLossLimitDetail(ex.Name)}, got, "GetActiveOrders should return the spot orders on pairs it can name")
-	got, err = ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Futures, Side: order.AnySide, Type: order.AnyType})
-	require.NoError(t, err, "GetActiveOrders must not error for futures")
-	assert.Equal(t, order.FilteredOrders{ordersFuturesLimitDetail(ex.Name)}, got, "GetActiveOrders should return the futures orders on contracts it can name")
 }
 
 // ordersUnlistedOpenOrders is Get Open Orders' reply holding an order on WAVESUSD, which the available pairs lack, and
@@ -8565,152 +9033,22 @@ const ordersUnlistedOpenOrders = `{"error":[],"result":{"open":{` +
 	`"sender_sub_id":"desk-7","starttm":1780582260,"status":"open","stopprice":"30010.0","time_in_force":"gtd","trigger":"index","userref":45326,` +
 	`"vol":"1.25000000","vol_exec":"0.37500000"}}}}`
 
-func TestCancelAllOrdersUnlistedPairs(t *testing.T) {
-	t.Parallel()
-	ex := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/0/private/OpenOrders":
-			_, _ = w.Write([]byte(ordersUnlistedOpenOrders))
-		case "/0/private/CancelOrderBatch":
-			var req struct {
-				Orders []string `json:"orders"`
-			}
-			assert.NoError(t, json.Unmarshal([]byte(tradingRequestBody(t, r)), &req), "Unmarshal should not error")
-			assert.ElementsMatch(t, []string{"O0IJNX-TWAD7-W21QA7", "OQCLML-BW3P3-BUCMWZ"}, req.Orders, "Cancel Order Batch should cancel every open order")
-			_, _ = w.Write([]byte(`{"error":[],"result":{"count":2}}`))
-		default:
-			assert.Failf(t, "only Get Open Orders and Cancel Order Batch should be called", "%s", r.URL.Path)
-		}
-	})
-	resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{Exchange: ex.Name, AssetType: asset.Spot})
-	require.NoError(t, err, "CancelAllOrders must not error")
-	exp := order.CancelAllResponse{Status: map[string]string{"O0IJNX-TWAD7-W21QA7": order.Cancelled.String(), "OQCLML-BW3P3-BUCMWZ": order.Cancelled.String()}}
-	assert.Equal(t, exp, resp, "CancelAllOrders should cancel every open spot order")
-}
-
-func TestGetOrderHistoryFuturesCancelledOrders(t *testing.T) {
-	t.Parallel()
-	if !mockTests {
-		t.Skip("the cancelled orders are recorded responses")
-	}
-	got, err := e.GetOrderHistory(boundedContext(t), &order.MultiOrderRequest{
-		AssetType: asset.Futures,
-		Side:      order.AnySide,
-		Type:      order.AnyType,
-		StartTime: time.Date(2026, 10, 9, 1, 0, 0, 0, time.UTC),
-		EndTime:   time.Date(2026, 10, 9, 2, 0, 0, 0, time.UTC),
-	})
-	require.NoError(t, err, "GetOrderHistory must not error")
-	exp := order.FilteredOrders{
-		{
-			Exchange:        e.Name,
-			AssetType:       asset.Futures,
-			OrderID:         "1171b7d3-8ba0-449d-af73-f2ee5d34f5e6",
-			ClientOrderID:   "gct-close-1",
-			Pair:            futuresTestPair,
-			Side:            order.Sell,
-			Type:            order.Limit,
-			TimeInForce:     order.PostOnly,
-			Status:          order.Cancelled,
-			Price:           82018,
-			Amount:          0.0575,
-			RemainingAmount: 0.0575,
-			Date:            time.UnixMilli(1791507801988),
-			LastUpdated:     time.UnixMilli(1791507802196),
-		},
-		{
-			Exchange:        e.Name,
-			AssetType:       asset.Futures,
-			OrderID:         "72e04257-ca24-4034-b4f8-de017c57e33b",
-			ClientOrderID:   "gct-close-2",
-			Pair:            futuresTestPair,
-			Side:            order.Buy,
-			Type:            order.Limit,
-			Status:          order.PartiallyFilledCancelled,
-			Price:           81400,
-			Amount:          0.5,
-			ExecutedAmount:  0.25,
-			RemainingAmount: 0.25,
-			Date:            time.UnixMilli(1791508000000),
-			LastUpdated:     time.UnixMilli(1791508100250),
-		},
-	}
-	assert.Equal(t, exp, got, "GetOrderHistory should report a cancelled order as last updated when it was cancelled")
-}
-
-func TestGetOrderHistoryFuturesUndecodedValues(t *testing.T) {
-	t.Parallel()
-	if !mockTests {
-		t.Skip("the undecoded orders are recorded responses")
-	}
-	got, err := e.GetOrderHistory(boundedContext(t), &order.MultiOrderRequest{
-		AssetType: asset.Futures,
-		Side:      order.AnySide,
-		Type:      order.AnyType,
-		StartTime: time.Date(2026, 10, 9, 2, 0, 0, 0, time.UTC),
-		EndTime:   time.Date(2026, 10, 9, 3, 0, 0, 0, time.UTC),
-	})
-	require.NoError(t, err, "GetOrderHistory must not error")
-	exp := order.FilteredOrders{
-		{
-			Exchange:        e.Name,
-			AssetType:       asset.Futures,
-			OrderID:         "eadab10e-d9f0-4af9-ae2d-f85ea491ab7a",
-			ClientOrderID:   "gct-undecoded-1",
-			Pair:            futuresTestPair,
-			Side:            order.Buy,
-			Status:          order.Open,
-			Price:           81620,
-			Amount:          0.2,
-			RemainingAmount: 0.2,
-			Date:            time.UnixMilli(1791511300000),
-			LastUpdated:     time.UnixMilli(1791511300000),
-		},
-		{
-			Exchange:        e.Name,
-			AssetType:       asset.Futures,
-			OrderID:         "a62ee6b7-ad14-47d6-ab3a-f9151713f756",
-			ClientOrderID:   "gct-undecoded-2",
-			Pair:            futuresTestPair,
-			Type:            order.Limit,
-			Status:          order.Open,
-			Price:           81700,
-			Amount:          0.3,
-			RemainingAmount: 0.3,
-			Date:            time.UnixMilli(1791511400000),
-			LastUpdated:     time.UnixMilli(1791511400000),
-		},
-		{
-			Exchange:        e.Name,
-			AssetType:       asset.Futures,
-			OrderID:         "4a7d2506-5dde-45a6-acb9-3c8080bd9ca9",
-			ClientOrderID:   "gct-plain-1",
-			Pair:            futuresTestPair,
-			Side:            order.Sell,
-			Type:            order.Limit,
-			Status:          order.Open,
-			Price:           82200,
-			Amount:          0.1,
-			RemainingAmount: 0.1,
-			Date:            time.UnixMilli(1791511500000),
-			LastUpdated:     time.UnixMilli(1791511500000),
-		},
-	}
-	assert.Equal(t, exp, got, "GetOrderHistory should keep orders whose order type or direction Kraken could not decode, as unknown")
-}
-
-func TestSetDefaults(t *testing.T) {
+func TestSetDefaults(t *testing.T) { //nolint:tparallel // the cases share ex in order
 	t.Parallel()
 	ex := new(Exchange)
 	ex.SetDefaults()
 	assert.Equal(t, "Kraken", ex.Name, "SetDefaults should name the exchange")
 	assert.True(t, ex.Enabled, "SetDefaults should enable the exchange")
 	assert.True(t, ex.API.CredentialsValidator.RequiresBase64DecodeSecret, "SetDefaults should require a base64 secret")
+	// The cases share ex in order, so each also checks that a call keeps nothing from the last
 	for a, delimiter := range map[asset.Item]string{asset.Spot: "", asset.Futures: currency.UnderscoreDelimiter} {
-		format, err := ex.GetPairFormat(a, true)
-		require.NoErrorf(t, err, "GetPairFormat must not error for %s", a)
-		assert.Equalf(t, currency.PairFormat{Uppercase: true, Delimiter: delimiter}, format, "SetDefaults should set the %s request format", a)
+		t.Run(a.String(), func(t *testing.T) {
+			format, err := ex.GetPairFormat(a, true)
+			require.NoErrorf(t, err, "GetPairFormat must not error for %s", a)
+			assert.Equalf(t, currency.PairFormat{Uppercase: true, Delimiter: delimiter}, format, "SetDefaults should set the %s request format", a)
+		})
 	}
+	// The cases share ex in order, so each also checks that a call keeps nothing from the last
 	for u, exp := range map[exchange.URL]string{
 		exchange.RestSpot:                   spotAPIURL,
 		exchange.RestFutures:                futuresAPIURL,
@@ -8720,9 +9058,11 @@ func TestSetDefaults(t *testing.T) {
 		exchange.WebsocketPrivate:           wsLevel3URL,
 		exchange.WebsocketFutures:           wsFuturesURL,
 	} {
-		got, err := ex.API.Endpoints.GetURL(u)
-		require.NoErrorf(t, err, "GetURL must not error for %s", u)
-		assert.Equalf(t, exp, got, "SetDefaults should set the %s endpoint", u)
+		t.Run(u.String(), func(t *testing.T) {
+			got, err := ex.API.Endpoints.GetURL(u)
+			require.NoErrorf(t, err, "GetURL must not error for %s", u)
+			assert.Equalf(t, exp, got, "SetDefaults should set the %s endpoint", u)
+		})
 	}
 	assert.Equal(t, defaultSubscriptions.Clone(), ex.Features.Subscriptions, "SetDefaults should set the default subscriptions")
 	assert.NotNil(t, ex.Websocket, "SetDefaults should create the websocket manager")
@@ -8772,20 +9112,34 @@ func TestReadCancelledSpotOrders(t *testing.T) {
 	for _, tc := range []struct {
 		name          string
 		connected     bool
+		connecting    bool
 		authenticated bool
 		read          bool
+		openFirst     bool
 	}{
 		{name: "connected authenticated websocket", connected: true, authenticated: true, read: true},
+		{name: "authenticated websocket still connecting", connecting: true, authenticated: true, read: true},
+		{name: "connected authenticated websocket, the order open at the first read", connected: true, authenticated: true, read: true, openFirst: true},
+		{name: "authenticated websocket still connecting, the order open at the first read", connecting: true, authenticated: true, read: true, openFirst: true},
 		{name: "connected websocket without authenticated use", connected: true},
+		{name: "websocket still connecting without authenticated use", connecting: true},
 		{name: "authenticated websocket not connected", authenticated: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			server := &finishedSpotOrdersServer{replies: []string{queryOrdersReply(t, "canceled", 4, 0.2766)}}
+			replies, reads := []string{queryOrdersReply(t, "canceled", 4, 0.2766)}, [][]string{{finishedSpotOrderID}}
+			if tc.openFirst {
+				// A read finding the order still open is retried while the websocket is connected or connecting
+				replies, reads = append([]string{queryOrdersReply(t, "open", 4, 0)}, replies...), append(reads, []string{finishedSpotOrderID})
+			}
+			server := &finishedSpotOrdersServer{replies: replies}
 			var ex *Exchange
-			if tc.connected {
+			switch {
+			case tc.connected:
 				ex = newRESTCancelTestExchange(t, server.handle(t))
-			} else {
+			case tc.connecting:
+				ex = newConnectingRESTCancelTestExchange(t, server.handle(t))
+			default:
 				ex = newHTTPTestExchange(t, server.handle(t))
 				seedTestAssetNames(ex)
 				ex.spotOrders.interval = time.Millisecond
@@ -8809,7 +9163,7 @@ func TestReadCancelledSpotOrders(t *testing.T) {
 				return fee != 0
 			}, testWaitTimeout, time.Millisecond, "the read should relay the cancelled order")
 			assert.Equal(t, 0.2766, fee, "the read should relay the order's fee")
-			assert.Equal(t, [][]string{{finishedSpotOrderID}}, server.readOrders(), "the cancelled order should be read once")
+			assert.Equal(t, reads, server.readOrders(), "the cancelled order should be read until a read finds it finished")
 		})
 	}
 }
@@ -8854,12 +9208,18 @@ func TestSpotTrades(t *testing.T) {
 func TestOrderSideString(t *testing.T) {
 	t.Parallel()
 	for side, exp := range map[order.Side]string{order.Buy: "buy", order.Bid: "buy", order.Long: "buy", order.Sell: "sell", order.Ask: "sell", order.Short: "sell"} {
-		got, err := orderSideString(side)
-		require.NoErrorf(t, err, "orderSideString must not error for %s", side)
-		assert.Equalf(t, exp, got, "orderSideString should return the side Kraken takes for %s", side)
+		t.Run(side.String(), func(t *testing.T) {
+			t.Parallel()
+			got, err := orderSideString(side)
+			require.NoErrorf(t, err, "orderSideString must not error for %s", side)
+			assert.Equalf(t, exp, got, "orderSideString should return the side Kraken takes for %s", side)
+		})
 	}
 	for _, side := range []order.Side{order.UnknownSide, order.AnySide} {
-		_, err := orderSideString(side)
-		assert.ErrorIsf(t, err, order.ErrSideIsInvalid, "orderSideString should reject %s", side)
+		t.Run(side.String(), func(t *testing.T) {
+			t.Parallel()
+			_, err := orderSideString(side)
+			assert.ErrorIsf(t, err, order.ErrSideIsInvalid, "orderSideString should reject %s", side)
+		})
 	}
 }

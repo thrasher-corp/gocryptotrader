@@ -4,6 +4,7 @@ import (
 	"math"
 	"net/http"
 	"net/url"
+	"strconv"
 	"testing"
 	"time"
 
@@ -53,8 +54,11 @@ func TestCalculateFundingFees(t *testing.T) {
 	_, err = e.CalculateFundingFees(t.Context(), &FundingFeesRequest{Amount: 5})
 	require.ErrorIs(t, err, errFundingMethodIDEmpty, "CalculateFundingFees must reject an empty method ID")
 	for _, amount := range []float64{0, -5, math.NaN(), math.Inf(1), math.Inf(-1)} {
-		_, err = e.CalculateFundingFees(t.Context(), &FundingFeesRequest{MethodID: "d4ec4d52-b159-428e-ba64-f45455a978a1", Amount: amount})
-		require.ErrorIsf(t, err, limits.ErrAmountBelowMin, "CalculateFundingFees must reject an amount of %v", amount)
+		t.Run(strconv.FormatFloat(amount, 'g', -1, 64), func(t *testing.T) {
+			t.Parallel()
+			_, err := e.CalculateFundingFees(t.Context(), &FundingFeesRequest{MethodID: "d4ec4d52-b159-428e-ba64-f45455a978a1", Amount: amount})
+			require.ErrorIsf(t, err, limits.ErrAmountBelowMin, "CalculateFundingFees must reject an amount of %v", amount)
+		})
 	}
 
 	if !mockTests {
@@ -197,6 +201,7 @@ func TestCreateFundingAddress(t *testing.T) {
 	}
 	_, err := e.CreateFundingAddress(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "CreateFundingAddress must reject a nil request")
+	// Serial, as the cases copy valid, which the network group scope case below passes to CreateFundingAddress
 	for _, tc := range []struct {
 		name   string
 		modify func(*FundingAddressRequest)
@@ -207,10 +212,12 @@ func TestCreateFundingAddress(t *testing.T) {
 		{"an empty address", func(r *FundingAddressRequest) { r.Address = "" }, errFundingAddressEmpty},
 		{"a blank name", func(r *FundingAddressRequest) { r.Name = " \t" }, errFundingAddressNameEmpty},
 	} {
-		invalid := valid
-		tc.modify(&invalid)
-		_, err = e.CreateFundingAddress(t.Context(), &invalid)
-		require.ErrorIsf(t, err, tc.err, "CreateFundingAddress must reject %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			invalid := valid
+			tc.modify(&invalid)
+			_, err = e.CreateFundingAddress(t.Context(), &invalid)
+			require.ErrorIsf(t, err, tc.err, "CreateFundingAddress must reject %s", tc.name)
+		})
 	}
 
 	if !mockTests {
@@ -286,6 +293,7 @@ func TestCreateFundingWithdrawal(t *testing.T) {
 	}
 	_, err := e.CreateFundingWithdrawal(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "CreateFundingWithdrawal must reject a nil request")
+	// Serial, as the cases copy valid, which the current fee case below passes to CreateFundingWithdrawal
 	for _, tc := range []struct {
 		name   string
 		modify func(*FundingWithdrawalRequest)
@@ -308,10 +316,12 @@ func TestCreateFundingWithdrawal(t *testing.T) {
 		{"a negative infinite maximum fee", func(r *FundingWithdrawalRequest) { r.MaximumFee = math.Inf(-1) }, errInvalidMaximumFee},
 		{"a fee token with a maximum fee", func(r *FundingWithdrawalRequest) { r.FeeToken, r.MaximumFee = fundingTestFeeToken, 1 }, errFundingFeeConflict},
 	} {
-		invalid := valid
-		tc.modify(&invalid)
-		_, err = e.CreateFundingWithdrawal(t.Context(), &invalid)
-		require.ErrorIsf(t, err, tc.err, "CreateFundingWithdrawal must reject %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			invalid := valid
+			tc.modify(&invalid)
+			_, err = e.CreateFundingWithdrawal(t.Context(), &invalid)
+			require.ErrorIsf(t, err, tc.err, "CreateFundingWithdrawal must reject %s", tc.name)
+		})
 	}
 
 	if !mockTests {
@@ -1485,8 +1495,11 @@ func TestFundingLimitsRequest(t *testing.T) {
 		{name: "asset name", req: &FundingLimitsRequest{Asset: FundingAsset{Class: "currency"}}, err: currency.ErrCurrencyCodeEmpty},
 		{name: "preferred asset name", req: &FundingLimitsRequest{Asset: usdc, PreferredAsset: FundingAsset{Class: "currency"}}, err: currency.ErrCurrencyCodeEmpty},
 	} {
-		_, _, err := fundingLimitsRequest("/funding/v1/limits/deposit/", tc.req)
-		assert.ErrorIsf(t, err, tc.err, "fundingLimitsRequest should reject a request by its %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, _, err := fundingLimitsRequest("/funding/v1/limits/deposit/", tc.req)
+			assert.ErrorIsf(t, err, tc.err, "fundingLimitsRequest should reject a request by its %s", tc.name)
+		})
 	}
 	path, params, err := fundingLimitsRequest("/funding/v1/limits/withdrawal/", &FundingLimitsRequest{Asset: FundingAsset{Class: "tokenized_asset", Name: currency.NewCode("aaplx")}, PreferredAsset: FundingAsset{Class: "currency", Name: currency.USD}, AccountID: "AA24 N84G HSBB 7ZDO"})
 	require.NoError(t, err, "fundingLimitsRequest must not error")
@@ -1512,16 +1525,20 @@ func TestFundingAssetSetQuery(t *testing.T) {
 func TestFundingScopeSetQuery(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
+		name  string
 		scope FundingScope
 		exp   url.Values
 	}{
-		{scope: FundingScope{}, exp: url.Values{}},
-		{scope: FundingScope{MethodID: "method", NetworkID: "network"}, exp: url.Values{"scope[method_id]": {"method"}}},
-		{scope: FundingScope{NetworkID: "network", NetworkGroupID: "group"}, exp: url.Values{"scope[network_id]": {"network"}}},
-		{scope: FundingScope{NetworkGroupID: "group"}, exp: url.Values{"scope[network_group_id]": {"group"}}},
+		{name: "no ID", scope: FundingScope{}, exp: url.Values{}},
+		{name: "method and network IDs", scope: FundingScope{MethodID: "method", NetworkID: "network"}, exp: url.Values{"scope[method_id]": {"method"}}},
+		{name: "network and network group IDs", scope: FundingScope{NetworkID: "network", NetworkGroupID: "group"}, exp: url.Values{"scope[network_id]": {"network"}}},
+		{name: "network group ID", scope: FundingScope{NetworkGroupID: "group"}, exp: url.Values{"scope[network_group_id]": {"group"}}},
 	} {
-		params := url.Values{}
-		tc.scope.setQuery(params)
-		assert.Equalf(t, tc.exp, params, "setQuery should set the first of %+v's IDs", tc.scope)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			params := url.Values{}
+			tc.scope.setQuery(params)
+			assert.Equalf(t, tc.exp, params, "setQuery should set the first of %+v's IDs", tc.scope)
+		})
 	}
 }

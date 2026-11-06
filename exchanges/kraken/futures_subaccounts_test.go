@@ -1,6 +1,7 @@
 package kraken
 
 import (
+	"strconv"
 	"testing"
 	"time"
 
@@ -107,7 +108,7 @@ func TestGetFuturesSubaccountTradingStatus(t *testing.T) {
 	}
 }
 
-func TestUpdateFuturesSubaccountTradingStatus(t *testing.T) {
+func TestUpdateFuturesSubaccountTradingStatus(t *testing.T) { //nolint:tparallel // the cases set the subaccount's status in order
 	t.Parallel()
 	_, err := e.UpdateFuturesSubaccountTradingStatus(t.Context(), "", true)
 	require.ErrorIs(t, err, errFuturesSubaccountUIDEmpty, "UpdateFuturesSubaccountTradingStatus must reject an empty subaccount UID")
@@ -116,10 +117,12 @@ func TestUpdateFuturesSubaccountTradingStatus(t *testing.T) {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
 	_, subaccountUID := futuresTestAccountUIDs(t)
-	// Disabling first leaves a live subaccount able to trade
+	// The cases run in order, as disabling first leaves a live subaccount able to trade
 	for _, tradingEnabled := range []bool{false, true} {
-		result, err := e.UpdateFuturesSubaccountTradingStatus(t.Context(), subaccountUID, tradingEnabled)
-		require.NoErrorf(t, err, "UpdateFuturesSubaccountTradingStatus must not error setting %t", tradingEnabled)
-		assert.Equalf(t, &FuturesSubaccountTradingStatusResponse{TradingEnabled: tradingEnabled}, result, "UpdateFuturesSubaccountTradingStatus should return the status set to %t", tradingEnabled)
+		t.Run(strconv.FormatBool(tradingEnabled), func(t *testing.T) {
+			result, err := e.UpdateFuturesSubaccountTradingStatus(t.Context(), subaccountUID, tradingEnabled)
+			require.NoErrorf(t, err, "UpdateFuturesSubaccountTradingStatus must not error setting %t", tradingEnabled)
+			assert.Equalf(t, &FuturesSubaccountTradingStatusResponse{TradingEnabled: tradingEnabled}, result, "UpdateFuturesSubaccountTradingStatus should return the status set to %t", tradingEnabled)
+		})
 	}
 }

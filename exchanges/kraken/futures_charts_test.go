@@ -317,6 +317,35 @@ func TestFuturesAnalytics(t *testing.T) {
 
 	_, err = analytics("status")
 	assert.ErrorIs(t, err, request.ErrBadStatus, "futuresAnalytics should return the status error of an error status")
+
+	t.Run("mixed severities and a missing result", func(t *testing.T) {
+		t.Parallel()
+		ex := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+			var reply string
+			switch {
+			case strings.HasSuffix(r.URL.Path, "/warning"):
+				reply = `{"result":{"timestamp":[1791504000],"data":[1],"more":true},"errors":[{"severity":"W","error_class":"General","type":"Deprecated","field":"interval"}]}`
+			case strings.HasSuffix(r.URL.Path, "/error"):
+				reply = `{"result":null,"errors":[{"severity":"W","error_class":"General","type":"Deprecated"},{"severity":"E","error_class":"General","type":"Invalid arguments","field":"interval"},{"severity":"E","error_class":"Query","type":"Unknown","field":"symbol","value":"PF_MOONUSD"}]}`
+			default:
+				reply = `{"errors":[]}`
+			}
+			_, err := w.Write([]byte(reply))
+			assert.NoError(t, err, "Write should not error")
+		})
+		resp, err := ex.futuresAnalytics(t.Context(), "/charts/v1/analytics/warning")
+		require.NoError(t, err, "futuresAnalytics must not error for a result with a warning")
+		exp := &FuturesAnalyticsResponse{Timestamps: []types.Time{types.Time(time.Unix(1791504000, 0))}, Data: FuturesAnalyticsData{Values: []types.Number{1}}, More: true}
+		assert.Equal(t, exp, resp, "futuresAnalytics should return the result beside a warning")
+
+		_, err = ex.futuresAnalytics(t.Context(), "/charts/v1/analytics/error")
+		var apiErr *APIError
+		require.ErrorAs(t, err, &apiErr, "futuresAnalytics must return the errors as an API error")
+		assert.Equal(t, []string{"EGeneral:Invalid arguments:interval", "EQuery:Unknown:symbol:PF_MOONUSD"}, apiErr.Errors, "futuresAnalytics should report each error, leaving out warnings")
+
+		_, err = ex.futuresAnalytics(t.Context(), "/charts/v1/analytics/empty")
+		assert.ErrorIs(t, err, common.ErrNoResponse, "futuresAnalytics should reject a reply without a result")
+	})
 }
 
 func TestFuturesAnalyticsDataUnmarshalJSON(t *testing.T) {
@@ -406,35 +435,6 @@ func TestFuturesAnalyticsParams(t *testing.T) {
 	assert.Equal(t, url.Values{"since": {"1791504000"}, "interval": {"86400"}}, params, "futuresAnalyticsParams should leave out an unset to")
 }
 
-func TestFuturesAnalyticsEnvelope(t *testing.T) {
-	t.Parallel()
-	ex := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
-		var reply string
-		switch {
-		case strings.HasSuffix(r.URL.Path, "/warning"):
-			reply = `{"result":{"timestamp":[1791504000],"data":[1],"more":true},"errors":[{"severity":"W","error_class":"General","type":"Deprecated","field":"interval"}]}`
-		case strings.HasSuffix(r.URL.Path, "/error"):
-			reply = `{"result":null,"errors":[{"severity":"W","error_class":"General","type":"Deprecated"},{"severity":"E","error_class":"General","type":"Invalid arguments","field":"interval"},{"severity":"E","error_class":"Query","type":"Unknown","field":"symbol","value":"PF_MOONUSD"}]}`
-		default:
-			reply = `{"errors":[]}`
-		}
-		_, err := w.Write([]byte(reply))
-		assert.NoError(t, err, "Write should not error")
-	})
-	resp, err := ex.futuresAnalytics(t.Context(), "/charts/v1/analytics/warning")
-	require.NoError(t, err, "futuresAnalytics must not error for a result with a warning")
-	exp := &FuturesAnalyticsResponse{Timestamps: []types.Time{types.Time(time.Unix(1791504000, 0))}, Data: FuturesAnalyticsData{Values: []types.Number{1}}, More: true}
-	assert.Equal(t, exp, resp, "futuresAnalytics should return the result beside a warning")
-
-	_, err = ex.futuresAnalytics(t.Context(), "/charts/v1/analytics/error")
-	var apiErr *APIError
-	require.ErrorAs(t, err, &apiErr, "futuresAnalytics must return the errors as an API error")
-	assert.Equal(t, []string{"EGeneral:Invalid arguments:interval", "EQuery:Unknown:symbol:PF_MOONUSD"}, apiErr.Errors, "futuresAnalytics should report each error, leaving out warnings")
-
-	_, err = ex.futuresAnalytics(t.Context(), "/charts/v1/analytics/empty")
-	assert.ErrorIs(t, err, common.ErrNoResponse, "futuresAnalytics should reject a reply without a result")
-}
-
 func TestFuturesAnalyticsErrorMessage(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
@@ -445,6 +445,9 @@ func TestFuturesAnalyticsErrorMessage(t *testing.T) {
 		{problem: futuresAnalyticsError{Severity: "E", ErrorClass: "General", Type: "Invalid arguments", Field: "interval"}, exp: "EGeneral:Invalid arguments:interval"},
 		{problem: futuresAnalyticsError{Severity: "W", ErrorClass: "Query", Type: "Unknown", Field: "symbol", Message: "not listed", Value: "PF_MOONUSD"}, exp: "WQuery:Unknown:symbol:not listed:PF_MOONUSD"},
 	} {
-		assert.Equalf(t, tc.exp, tc.problem.message(), "message should format %+v as a Spot REST error", tc.problem)
+		t.Run(tc.exp, func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, tc.exp, tc.problem.message(), "message should format %+v as a Spot REST error", tc.problem)
+		})
 	}
 }

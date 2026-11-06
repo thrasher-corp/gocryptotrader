@@ -540,8 +540,11 @@ func TestGetTradesHistory(t *testing.T) {
 	_, err = e.GetTradesHistory(t.Context(), &TradesHistoryRequest{Cursor: "gqNrZXm-VHJhZGVzMg"})
 	require.ErrorIs(t, err, errCursorWithoutPaging, "GetTradesHistory must reject a cursor without cursor pagination")
 	for _, pair := range partialTestPairs {
-		_, err = e.GetTradesHistory(t.Context(), &TradesHistoryRequest{Pair: pair})
-		require.ErrorIsf(t, err, currency.ErrCurrencyCodeEmpty, "GetTradesHistory must reject %q, which lacks a base or a quote", pair)
+		t.Run(pair.String(), func(t *testing.T) {
+			t.Parallel()
+			_, err := e.GetTradesHistory(t.Context(), &TradesHistoryRequest{Pair: pair})
+			require.ErrorIsf(t, err, currency.ErrCurrencyCodeEmpty, "GetTradesHistory must reject %q, which lacks a base or a quote", pair)
+		})
 	}
 
 	if !mockTests {
@@ -1265,110 +1268,118 @@ func newAccountDataRecorder(t *testing.T) (*Exchange, *accountDataRecorder) {
 	return ex, recorder
 }
 
-func TestAccountIDQueryParameter(t *testing.T) {
+func TestAccountIDQueryParameter(t *testing.T) { //nolint:tparallel // the cases share ex and its recorder in order
 	t.Parallel()
 	ex, recorder := newAccountDataRecorder(t)
 	const accountID = "WX6V-JUKW-KKPB-QE36"
+	// The cases share ex and its recorder in order, so each also checks that a call keeps nothing from the last
 	for _, tc := range []struct {
+		name string
 		path string
 		call func() error
 	}{
-		{"/0/private/Balance", func() error {
+		{"GetAccountBalance", "/0/private/Balance", func() error {
 			_, err := ex.GetAccountBalance(t.Context(), &BalanceRequest{AccountID: accountID})
 			return err
 		}},
-		{"/0/private/BalanceEx", func() error {
+		{"GetExtendedBalance", "/0/private/BalanceEx", func() error {
 			_, err := ex.GetExtendedBalance(t.Context(), &BalanceRequest{AccountID: accountID})
 			return err
 		}},
-		{"/0/private/CreditLines", func() error {
+		{"GetCreditLines", "/0/private/CreditLines", func() error {
 			_, err := ex.GetCreditLines(t.Context(), &BalanceRequest{AccountID: accountID})
 			return err
 		}},
-		{"/0/private/TradeBalance", func() error {
+		{"GetTradeBalance", "/0/private/TradeBalance", func() error {
 			_, err := ex.GetTradeBalance(t.Context(), &TradeBalanceRequest{AccountID: accountID})
 			return err
 		}},
-		{"/0/private/OpenOrders", func() error {
+		{"GetOpenOrders", "/0/private/OpenOrders", func() error {
 			_, err := ex.GetOpenOrders(t.Context(), &OpenOrdersRequest{AccountID: accountID})
 			return err
 		}},
-		{"/0/private/ClosedOrders", func() error {
+		{"GetClosedOrders", "/0/private/ClosedOrders", func() error {
 			_, err := ex.GetClosedOrders(t.Context(), &ClosedOrdersRequest{AccountID: accountID})
 			return err
 		}},
-		{"/0/private/QueryOrders", func() error {
+		{"QueryOrdersInfo", "/0/private/QueryOrders", func() error {
 			_, err := ex.QueryOrdersInfo(t.Context(), &QueryOrdersRequest{AccountID: accountID, OrderIDs: []string{"OQCLML-BW3P3-BUCMWZ"}})
 			return err
 		}},
-		{"/0/private/OrderAmends", func() error {
+		{"GetOrderAmends", "/0/private/OrderAmends", func() error {
 			_, err := ex.GetOrderAmends(t.Context(), &OrderAmendsRequest{AccountID: accountID, OrderID: "OQCLML-BW3P3-BUCMWZ"})
 			return err
 		}},
-		{"/0/private/TradesHistory", func() error {
+		{"GetTradesHistory", "/0/private/TradesHistory", func() error {
 			_, err := ex.GetTradesHistory(t.Context(), &TradesHistoryRequest{AccountID: accountID})
 			return err
 		}},
-		{"/0/private/QueryTrades", func() error {
+		{"QueryTradesInfo", "/0/private/QueryTrades", func() error {
 			_, err := ex.QueryTradesInfo(t.Context(), &QueryTradesRequest{AccountID: accountID, TradeIDs: []string{"THVRQM-33VKH-UCI7BS"}})
 			return err
 		}},
-		{"/0/private/OpenPositions", func() error {
+		{"GetOpenPositions", "/0/private/OpenPositions", func() error {
 			_, err := ex.GetOpenPositions(t.Context(), &OpenPositionsRequest{AccountID: accountID})
 			return err
 		}},
-		{"/0/private/OpenPositions", func() error {
+		{"GetConsolidatedOpenPositions", "/0/private/OpenPositions", func() error {
 			_, err := ex.GetConsolidatedOpenPositions(t.Context(), &OpenPositionsRequest{AccountID: accountID})
 			return err
 		}},
-		{"/0/private/Ledgers", func() error {
+		{"GetLedgers", "/0/private/Ledgers", func() error {
 			_, err := ex.GetLedgers(t.Context(), &LedgersRequest{AccountID: accountID})
 			return err
 		}},
-		{"/0/private/QueryLedgers", func() error {
+		{"QueryLedgers", "/0/private/QueryLedgers", func() error {
 			_, err := ex.QueryLedgers(t.Context(), &QueryLedgersRequest{AccountID: accountID, LedgerIDs: []string{"L4UESK-KG3EQ-UFO4T5"}})
 			return err
 		}},
 	} {
-		require.NoErrorf(t, tc.call(), "%s must not error", tc.path)
-		got := recorder.take()
-		require.Lenf(t, got, 1, "%s must send one request", tc.path)
-		assert.Equalf(t, tc.path, got[0].path, "%s should be requested", tc.path)
-		assert.Equalf(t, url.Values{"account_id": {accountID}}, got[0].query, "%s should send account_id in the query", tc.path)
-		assert.NotContainsf(t, got[0].body, "account_id", "%s should not send account_id in the body", tc.path)
+		t.Run(tc.name, func(t *testing.T) {
+			require.NoErrorf(t, tc.call(), "%s must not error", tc.path)
+			got := recorder.take()
+			require.Lenf(t, got, 1, "%s must send one request", tc.path)
+			assert.Equalf(t, tc.path, got[0].path, "%s should be requested", tc.path)
+			assert.Equalf(t, url.Values{"account_id": {accountID}}, got[0].query, "%s should send account_id in the query", tc.path)
+			assert.NotContainsf(t, got[0].body, "account_id", "%s should not send account_id in the body", tc.path)
+		})
 	}
 }
 
-func TestAccountDataNilRequests(t *testing.T) {
+func TestAccountDataNilRequests(t *testing.T) { //nolint:tparallel // the cases share ex and its recorder in order
 	t.Parallel()
 	ex, recorder := newAccountDataRecorder(t)
+	// The cases share ex and its recorder in order, so each also checks that a call keeps nothing from the last
 	for _, tc := range []struct {
+		name string
 		path string
 		call func() error
 		body map[string]any
 	}{
-		{"/0/private/Balance", func() error { _, err := ex.GetAccountBalance(t.Context(), nil); return err }, map[string]any{}},
-		{"/0/private/BalanceEx", func() error { _, err := ex.GetExtendedBalance(t.Context(), nil); return err }, map[string]any{}},
-		{"/0/private/CreditLines", func() error { _, err := ex.GetCreditLines(t.Context(), nil); return err }, map[string]any{}},
-		{"/0/private/TradeBalance", func() error { _, err := ex.GetTradeBalance(t.Context(), nil); return err }, map[string]any{}},
-		{"/0/private/OpenOrders", func() error { _, err := ex.GetOpenOrders(t.Context(), nil); return err }, map[string]any{}},
-		{"/0/private/ClosedOrders", func() error { _, err := ex.GetClosedOrders(t.Context(), nil); return err }, map[string]any{}},
-		{"/0/private/TradesHistory", func() error { _, err := ex.GetTradesHistory(t.Context(), nil); return err }, map[string]any{}},
-		{"/0/private/OpenPositions", func() error { _, err := ex.GetOpenPositions(t.Context(), nil); return err }, map[string]any{}},
-		{"/0/private/OpenPositions", func() error {
+		{"GetAccountBalance", "/0/private/Balance", func() error { _, err := ex.GetAccountBalance(t.Context(), nil); return err }, map[string]any{}},
+		{"GetExtendedBalance", "/0/private/BalanceEx", func() error { _, err := ex.GetExtendedBalance(t.Context(), nil); return err }, map[string]any{}},
+		{"GetCreditLines", "/0/private/CreditLines", func() error { _, err := ex.GetCreditLines(t.Context(), nil); return err }, map[string]any{}},
+		{"GetTradeBalance", "/0/private/TradeBalance", func() error { _, err := ex.GetTradeBalance(t.Context(), nil); return err }, map[string]any{}},
+		{"GetOpenOrders", "/0/private/OpenOrders", func() error { _, err := ex.GetOpenOrders(t.Context(), nil); return err }, map[string]any{}},
+		{"GetClosedOrders", "/0/private/ClosedOrders", func() error { _, err := ex.GetClosedOrders(t.Context(), nil); return err }, map[string]any{}},
+		{"GetTradesHistory", "/0/private/TradesHistory", func() error { _, err := ex.GetTradesHistory(t.Context(), nil); return err }, map[string]any{}},
+		{"GetOpenPositions", "/0/private/OpenPositions", func() error { _, err := ex.GetOpenPositions(t.Context(), nil); return err }, map[string]any{}},
+		{"GetConsolidatedOpenPositions", "/0/private/OpenPositions", func() error {
 			_, err := ex.GetConsolidatedOpenPositions(t.Context(), nil)
 			return err
 		}, map[string]any{"consolidation": "market"}},
-		{"/0/private/Ledgers", func() error { _, err := ex.GetLedgers(t.Context(), nil); return err }, map[string]any{}},
-		{"/0/private/TradeVolume", func() error { _, err := ex.GetTradeVolume(t.Context(), nil); return err }, map[string]any{}},
-		{"/0/private/GetApiKeyInfo", func() error { _, err := ex.GetAPIKeyInfo(t.Context(), nil); return err }, map[string]any{}},
+		{"GetLedgers", "/0/private/Ledgers", func() error { _, err := ex.GetLedgers(t.Context(), nil); return err }, map[string]any{}},
+		{"GetTradeVolume", "/0/private/TradeVolume", func() error { _, err := ex.GetTradeVolume(t.Context(), nil); return err }, map[string]any{}},
+		{"GetAPIKeyInfo", "/0/private/GetApiKeyInfo", func() error { _, err := ex.GetAPIKeyInfo(t.Context(), nil); return err }, map[string]any{}},
 	} {
-		require.NoErrorf(t, tc.call(), "%s must not error for a nil request", tc.path)
-		got := recorder.take()
-		require.Lenf(t, got, 1, "%s must send one request", tc.path)
-		assert.Equalf(t, tc.path, got[0].path, "%s should be requested", tc.path)
-		assert.Emptyf(t, got[0].query, "%s should send no query for a nil request", tc.path)
-		assert.Equalf(t, tc.body, got[0].body, "%s should send only the nonce for a nil request", tc.path)
+		t.Run(tc.name, func(t *testing.T) {
+			require.NoErrorf(t, tc.call(), "%s must not error for a nil request", tc.path)
+			got := recorder.take()
+			require.Lenf(t, got, 1, "%s must send one request", tc.path)
+			assert.Equalf(t, tc.path, got[0].path, "%s should be requested", tc.path)
+			assert.Emptyf(t, got[0].query, "%s should send no query for a nil request", tc.path)
+			assert.Equalf(t, tc.body, got[0].body, "%s should send only the nonce for a nil request", tc.path)
+		})
 	}
 }
 

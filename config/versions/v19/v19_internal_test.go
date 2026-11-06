@@ -1,6 +1,7 @@
 package v19
 
 import (
+	"cmp"
 	"encoding/json" //nolint:depguard // Config versions must retain stable standard-library JSON behaviour
 	"slices"
 	"strings"
@@ -40,9 +41,12 @@ func TestParseInterval(t *testing.T) {
 		{raw: `"99999999999999999999m"`},
 		{raw: `"9007199254740993m"`},
 	} {
-		interval, ok := parseInterval(json.RawMessage(tc.raw))
-		assert.Equalf(t, tc.ok, ok, "parseInterval should report whether %q has a duration", tc.raw)
-		assert.Equalf(t, tc.exp, interval, "parseInterval should parse %q as the runtime does", tc.raw)
+		t.Run(cmp.Or(tc.raw, "omitted"), func(t *testing.T) {
+			t.Parallel()
+			interval, ok := parseInterval(json.RawMessage(tc.raw))
+			assert.Equalf(t, tc.ok, ok, "parseInterval should report whether %q has a duration", tc.raw)
+			assert.Equalf(t, tc.exp, interval, "parseInterval should parse %q as the runtime does", tc.raw)
+		})
 	}
 }
 
@@ -69,7 +73,10 @@ func TestSubscriptionMatches(t *testing.T) {
 		{name: "with another interval", saved: savedSubscription{Enabled: true, Channel: "candles", Asset: "spot", Interval: json.RawMessage(`"5m"`)}},
 		{name: "with an interval without a duration", saved: savedSubscription{Enabled: true, Channel: "candles", Asset: "spot", Interval: json.RawMessage(`"raw"`)}},
 	} {
-		assert.Equalf(t, tc.exp, candles.matches(&tc.saved), "matches should report whether the subscription %s is the default", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, tc.exp, candles.matches(&tc.saved), "matches should report whether the subscription %s is the default", tc.name)
+		})
 	}
 }
 
@@ -101,8 +108,11 @@ func TestMatchDefaults(t *testing.T) {
 		"another subscription": saved(slices.Concat(previous, futuresSubscriptions[:1])...),
 		"no subscriptions":     nil,
 	} {
-		_, ok := matchDefaults(subs, previous)
-		assert.Falsef(t, ok, "matchDefaults should not match %s", name)
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			_, ok := matchDefaults(subs, previous)
+			assert.Falsef(t, ok, "matchDefaults should not match %s", name)
+		})
 	}
 }
 
@@ -151,9 +161,12 @@ func TestMigrateSubscriptions(t *testing.T) {
 		{name: "downgrading the previous defaults", in: features(previous), exp: features(previous)},
 		{name: "upgrading without subscriptions", in: `{"features":{}}`, exp: `{"features":{}}`, upgrade: true},
 	} {
-		got, err := migrateSubscriptions([]byte(tc.in), tc.upgrade)
-		require.NoErrorf(t, err, "migrateSubscriptions must not error %s", tc.name)
-		assert.JSONEqf(t, tc.exp, string(got), "migrateSubscriptions should give the expected subscriptions %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := migrateSubscriptions([]byte(tc.in), tc.upgrade)
+			require.NoErrorf(t, err, "migrateSubscriptions must not error %s", tc.name)
+			assert.JSONEqf(t, tc.exp, string(got), "migrateSubscriptions should give the expected subscriptions %s", tc.name)
+		})
 	}
 
 	_, err := migrateSubscriptions([]byte(`{"features":{"subscriptions":[}}`), true)

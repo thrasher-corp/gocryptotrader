@@ -1046,10 +1046,16 @@ func TestFuturesOrderInverseContract(t *testing.T) {
 	// An inverse contract's quantity is in US dollars, and its fees are charged in bitcoin
 	assert.Equal(t, 2000.0, details[1].ExecutedAmount, "the fill leaving nothing remaining should relay the order filled in full")
 	assertFuturesOrderTotalsUnset(t, details[1], "an inverse contract's order")
-	for i, fee := range []float64{0.00001, 0.00002} {
-		require.Lenf(t, details[i].Trades, 1, "fill %d must relay its trade", i)
-		assert.Equalf(t, fee, details[i].Trades[0].Fee, "fill %d's trade should hold its fee", i)
-		assert.Equalf(t, "XBT", details[i].Trades[0].FeeAsset, "fill %d's trade should hold its fee currency by its alternative name", i)
+	for i, tc := range []struct {
+		fill string
+		fee  float64
+	}{{"f-1", 0.00001}, {"f-2", 0.00002}} {
+		t.Run("fill "+tc.fill, func(t *testing.T) {
+			t.Parallel()
+			require.Lenf(t, details[i].Trades, 1, "fill %d must relay its trade", i)
+			assert.Equalf(t, tc.fee, details[i].Trades[0].Fee, "fill %d's trade should hold its fee", i)
+			assert.Equalf(t, "XBT", details[i].Trades[0].FeeAsset, "fill %d's trade should hold its fee currency by its alternative name", i)
+		})
 	}
 }
 
@@ -1157,10 +1163,17 @@ func TestFuturesOrderFillReportedAfterTheLast(t *testing.T) {
 		futuresFillMessage(wsFuturesFeedFillsSnapshot, "o-45", "f-1", "PF_XBTUSD", 4, 6, 20000, 0.2, "USD"),
 	)
 	require.Len(t, details, 4, "each message must relay an order update")
-	for _, i := range []int{1, 3} {
-		assert.Equalf(t, order.Filled, details[i].Status, "update %d, a fill, should relay the order filled once a fill has left nothing of it remaining", i)
-		assert.Equalf(t, 10.0, details[i].ExecutedAmount, "update %d, a fill, should relay the order's quantity as executed", i)
-		assert.Zerof(t, details[i].RemainingAmount, "update %d, a fill, should relay nothing remaining", i)
+	for _, tc := range []struct {
+		name   string
+		update int
+	}{{"live fill f-2", 1}, {"fills snapshot's fill f-1", 3}} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			i := tc.update
+			assert.Equalf(t, order.Filled, details[i].Status, "update %d, a fill, should relay the order filled once a fill has left nothing of it remaining", i)
+			assert.Equalf(t, 10.0, details[i].ExecutedAmount, "update %d, a fill, should relay the order's quantity as executed", i)
+			assert.Zerof(t, details[i].RemainingAmount, "update %d, a fill, should relay nothing remaining", i)
+		})
 	}
 }
 
@@ -1689,12 +1702,15 @@ func TestFuturesOrderTrackerUnsubscribed(t *testing.T) {
 		{name: "balances", conn: first, feed: wsFuturesFeedBalances, exp: futuresTrackerCoverage{conn: first, ordersSnapshotSeen: true, fillsSnapshotSeen: true, quantity: 10}},
 		{name: "open_orders on another connection", conn: second, feed: wsFuturesFeedOpenOrders, exp: futuresTrackerCoverage{conn: first, ordersSnapshotSeen: true, fillsSnapshotSeen: true, quantity: 10}},
 	} {
-		tracker := coveredFuturesOrderTracker(first)
-		tracker.unsubscribed(tc.conn, tc.feed)
-		tracker.mu.Lock()
-		got := trackerCoverage(tracker)
-		tracker.mu.Unlock()
-		assert.Equalf(t, tc.exp, got, "unsubscribing %s should leave the feeds' coverage and the open orders' quantities as expected", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			tracker := coveredFuturesOrderTracker(first)
+			tracker.unsubscribed(tc.conn, tc.feed)
+			tracker.mu.Lock()
+			got := trackerCoverage(tracker)
+			tracker.mu.Unlock()
+			assert.Equalf(t, tc.exp, got, "unsubscribing %s should leave the feeds' coverage and the open orders' quantities as expected", tc.name)
+		})
 	}
 }
 
@@ -1724,9 +1740,10 @@ func TestFuturesOrderTrackerForgetQuantities(t *testing.T) {
 	assert.Equal(t, exp, got, "forgetQuantities should forget the quantity of each order whose quantity can still change, keeping what filled")
 }
 
-func TestFuturesOrderTrackerRecord(t *testing.T) {
+func TestFuturesOrderTrackerRecord(t *testing.T) { //nolint:tparallel // its cases run before the later statements, which call the same tracker methods
 	t.Parallel()
-	// A report no later fill can match is not kept
+	// A report no later fill can match is not kept. The cases run before the statements after them, which call the same
+	// tracker methods, as they did
 	for _, tc := range []struct {
 		name string
 		// fills is what the fills counted before the report add up to, and ahead whether an earlier report was ahead
@@ -1741,22 +1758,24 @@ func TestFuturesOrderTrackerRecord(t *testing.T) {
 		{name: "a report of less filled than the fills counted", fills: 4, filled: 2},
 		{name: "a report within the fills counted after one ahead of them", fills: 4, ahead: true, filled: 4, exp: true},
 	} {
-		var tracker futuresOrderTracker
-		tracker.snapshot(nil, nil)
-		tracker.fillsSnapshot(nil)
-		if tc.fills != 0 {
-			tracker.fill(nil, &WebsocketFuturesFill{Instrument: "PF_XBTUSD", OrderID: "o-1", FillID: "f-1", Quantity: tc.fills, RemainingOrderQuantity: 10 - tc.fills}, true)
-		}
-		tracker.mu.Lock()
-		tracker.state("o-1", nil).reportedAhead = tc.ahead
-		s := tracker.record(nil, &WebsocketFuturesOpenOrder{Instrument: "PF_XBTUSD", Quantity: 10, Filled: tc.filled, OrderID: "o-1"})
-		got := *s
-		tracker.mu.Unlock()
-		assert.Equalf(t, 10.0, got.quantity, "record should record the quantity of %s", tc.name)
-		assert.Equalf(t, tc.filled, got.filled, "record should record what %s reports filled", tc.name)
-		assert.Truef(t, got.open, "record should record the order of %s open", tc.name)
-		assert.Equalf(t, tc.exp, got.reportedAhead, "record should record whether open_orders has reported more filled than the fills counted, for %s", tc.name)
-		assert.Equalf(t, tc.expReports, got.reports, "record should keep the report %s gives only while a later fill can match it", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			var tracker futuresOrderTracker
+			tracker.snapshot(nil, nil)
+			tracker.fillsSnapshot(nil)
+			if tc.fills != 0 {
+				tracker.fill(nil, &WebsocketFuturesFill{Instrument: "PF_XBTUSD", OrderID: "o-1", FillID: "f-1", Quantity: tc.fills, RemainingOrderQuantity: 10 - tc.fills}, true)
+			}
+			tracker.mu.Lock()
+			tracker.state("o-1", nil).reportedAhead = tc.ahead
+			s := tracker.record(nil, &WebsocketFuturesOpenOrder{Instrument: "PF_XBTUSD", Quantity: 10, Filled: tc.filled, OrderID: "o-1"})
+			got := *s
+			tracker.mu.Unlock()
+			assert.Equalf(t, 10.0, got.quantity, "record should record the quantity of %s", tc.name)
+			assert.Equalf(t, tc.filled, got.filled, "record should record what %s reports filled", tc.name)
+			assert.Truef(t, got.open, "record should record the order of %s open", tc.name)
+			assert.Equalf(t, tc.exp, got.reportedAhead, "record should record whether open_orders has reported more filled than the fills counted, for %s", tc.name)
+			assert.Equalf(t, tc.expReports, got.reports, "record should keep the report %s gives only while a later fill can match it", tc.name)
+		})
 	}
 	var tracker futuresOrderTracker
 	tracker.snapshot(nil, nil)
@@ -1816,8 +1835,10 @@ func TestFuturesOrderTrackerFill(t *testing.T) {
 	assert.True(t, math.IsInf(state.fillQuantity, 1), "fill should give a total beyond float64's range as infinite")
 }
 
-func TestFuturesOrderTrackerFinish(t *testing.T) {
+func TestFuturesOrderTrackerFinish(t *testing.T) { //nolint:tparallel // its cases run before the later statements, which call finish too
 	t.Parallel()
+
+	// The cases run before the statements after them, which call finish too, as they did
 	for _, tc := range []struct {
 		name     string
 		placed   bool
@@ -1834,16 +1855,18 @@ func TestFuturesOrderTrackerFinish(t *testing.T) {
 		{name: "an order not yet recorded, removed as filled before its edit was rejected", removals: []string{"full_fill", "order_for_edit_not_found"}, exp: "full_fill"},
 		{name: "the order a stop placed, cancelled", placed: true, removals: []string{"stop_order_triggered", "cancelled_by_user"}, exp: "cancelled_by_user"},
 	} {
-		var tracker futuresOrderTracker
-		if tc.placed {
-			tracker.update(nil, &WebsocketFuturesOpenOrder{Instrument: "PF_XBTUSD", Quantity: 10, OrderID: "o-1"})
-		}
-		var state futuresOrderState
-		for _, reason := range tc.removals {
-			state = tracker.finish(nil, "o-1", reason)
-		}
-		assert.Falsef(t, state.open, "finish should record %s as removed", tc.name)
-		assert.Equalf(t, tc.exp, state.reason, "finish should record why open_orders removed %s, or why it rejected an edit of it when it reported no removal", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			var tracker futuresOrderTracker
+			if tc.placed {
+				tracker.update(nil, &WebsocketFuturesOpenOrder{Instrument: "PF_XBTUSD", Quantity: 10, OrderID: "o-1"})
+			}
+			var state futuresOrderState
+			for _, reason := range tc.removals {
+				state = tracker.finish(nil, "o-1", reason)
+			}
+			assert.Falsef(t, state.open, "finish should record %s as removed", tc.name)
+			assert.Equalf(t, tc.exp, state.reason, "finish should record why open_orders removed %s, or why it rejected an edit of it when it reported no removal", tc.name)
+		})
 	}
 
 	var tracker futuresOrderTracker
@@ -1885,7 +1908,10 @@ func TestFuturesOrderStateKnownFilled(t *testing.T) {
 		{name: "an order filled by fills all reported as they happened", state: futuresOrderState{fillQuantity: 10, filledInFull: true, liveOnly: true}, exp: true},
 		{name: "an order a fill filled whose quantity is unknown", state: futuresOrderState{fillQuantity: 6, filledInFull: true}},
 	} {
-		assert.Equalf(t, tc.exp, tc.state.knownFilled(), "knownFilled should report whether %s is filled in full with its quantities known", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, tc.exp, tc.state.knownFilled(), "knownFilled should report whether %s is filled in full with its quantities known", tc.name)
+		})
 	}
 }
 
@@ -1909,7 +1935,10 @@ func TestFuturesOrderStateReportStatus(t *testing.T) {
 		{name: "a cancellation after a fill", state: partlyFilled, reason: "cancelled_by_user", isCancel: true, exp: order.PartiallyFilledCancelled},
 		{name: "a stop's trigger after the last fill of an order of unknown quantity", state: unknownQuantity, reason: "stop_order_triggered", isCancel: true, exp: order.Closed},
 	} {
-		assert.Equalf(t, tc.exp, tc.state.reportStatus(tc.reason, tc.isCancel), "reportStatus should return the status %s relays", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, tc.exp, tc.state.reportStatus(tc.reason, tc.isCancel), "reportStatus should return the status %s relays", tc.name)
+		})
 	}
 }
 
@@ -1928,7 +1957,10 @@ func TestFuturesOrderStateFillStatus(t *testing.T) {
 		{name: "an open order", state: futuresOrderState{quantity: 10, fillQuantity: 4}, exp: order.UnknownStatus},
 		{name: "an order a fill filled whose quantity is unknown", state: futuresOrderState{fillQuantity: 6, filledInFull: true}, exp: order.UnknownStatus},
 	} {
-		assert.Equalf(t, tc.exp, tc.state.fillStatus(), "fillStatus should return the status a fill relays of %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, tc.exp, tc.state.fillStatus(), "fillStatus should return the status a fill relays of %s", tc.name)
+		})
 	}
 }
 
@@ -1959,7 +1991,10 @@ func TestFuturesOrderStateFillsComplete(t *testing.T) {
 		{name: "fills of 0.1 leaving 0.2 of 0.3", state: futuresOrderState{reports: []futuresOrderReport{{0.3, 0.1}}, filled: 0.1, fillTotal: decimal.MustFromFloat(0.1), fillQuantity: 0.1}, remaining: 0.2, exp: true},
 		{name: "fills of 1.11111111 leaving 0.12345678 of 1.23456789", state: futuresOrderState{reports: []futuresOrderReport{{1.23456789, 1.11111111}}, filled: 1.11111111, fillTotal: decimal.MustFromFloat(1.11111111), fillQuantity: 1.11111111}, remaining: 0.12345678, exp: true},
 	} {
-		assert.Equalf(t, tc.exp, tc.state.fillsComplete(tc.remaining), "fillsComplete should report whether the %s are complete", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, tc.exp, tc.state.fillsComplete(tc.remaining), "fillsComplete should report whether the %s are complete", tc.name)
+		})
 	}
 }
 
@@ -1990,9 +2025,12 @@ func TestFuturesOrderStateFillsMakeUpQuantity(t *testing.T) {
 		{name: "reported ahead of fills reaching its quantity", change: func(s *futuresOrderState) { s.reportedAhead, s.fillQuantity = true, 10 }, exp: true},
 		{name: "reported ahead of fills, its quantity forgotten", change: func(s *futuresOrderState) { s.reportedAhead, s.quantity = true, 0 }, exp: true},
 	} {
-		state := filledLive
-		tc.change(&state)
-		assert.Equalf(t, tc.exp, state.fillsMakeUpQuantity(), "fillsMakeUpQuantity should report whether an order %s takes its quantity from its fills", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			state := filledLive
+			tc.change(&state)
+			assert.Equalf(t, tc.exp, state.fillsMakeUpQuantity(), "fillsMakeUpQuantity should report whether an order %s takes its quantity from its fills", tc.name)
+		})
 	}
 }
 
@@ -2020,9 +2058,12 @@ func TestFuturesOrderStateAddTo(t *testing.T) {
 		{name: "partly filled by fills all reported as they happened, its quantity unknown", state: futuresOrderState{fillQuantity: 4, liveOnly: true}, exp: quantities{3, 2, 1}},
 		{name: "filled, its quantity unknown", state: futuresOrderState{fillQuantity: 6, filledInFull: true}, exp: quantities{3, 2, 1}},
 	} {
-		d := &order.Detail{Amount: 3, ExecutedAmount: 2, RemainingAmount: 1}
-		tc.state.addTo(d)
-		assert.Equalf(t, tc.exp, quantities{d.Amount, d.ExecutedAmount, d.RemainingAmount}, "addTo should add the quantities of an order %s as far as the feeds have reported them", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			d := &order.Detail{Amount: 3, ExecutedAmount: 2, RemainingAmount: 1}
+			tc.state.addTo(d)
+			assert.Equalf(t, tc.exp, quantities{d.Amount, d.ExecutedAmount, d.RemainingAmount}, "addTo should add the quantities of an order %s as far as the feeds have reported them", tc.name)
+		})
 	}
 }
 
@@ -2171,100 +2212,7 @@ func setFuturesMarginCurrencies(ex *Exchange, currencies map[string]currency.Cod
 	ex.futuresMarginCurrencies = map[accounts.Credentials]futuresMarginRead{*ex.GetDefaultCredentials(): {currencies: currencies}}
 }
 
-func TestWebsocketFuturesProcessBalancesSnapshot(t *testing.T) {
-	t.Parallel()
-	ex := newTestExchange(t)
-	useTestCredentials(ex)
-	require.NoError(t, ex.Accounts.Save(t.Context(), accounts.SubAccounts{
-		{ID: "cash", AssetType: asset.Futures, Balances: accounts.CurrencyBalances{currency.USD: {Total: 1, Free: 1}, currency.EUR: {Total: 2, Free: 2}}},
-		{ID: "flex", AssetType: asset.Futures, Balances: accounts.CurrencyBalances{currency.USD: {Total: 3, Free: 3}}},
-		{ID: "fi_xbtusd", AssetType: asset.Futures, Balances: accounts.CurrencyBalances{currency.XBT: {Total: 1, Free: 1}, currency.XRP: {Total: 9, Free: 9}}},
-	}, true), "Save must not error")
-	setFuturesMarginCurrencies(ex, map[string]currency.Code{"fi_xbtusd": currency.NewCode("xbt"), "fi_etheur": currency.ETH})
-	stored := func(id string) accounts.CurrencyBalances {
-		subAccts, err := ex.Accounts.SubAccounts(ex.GetDefaultCredentials(), asset.Futures)
-		require.NoError(t, err, "SubAccounts must not error")
-		for _, s := range subAccts {
-			if s.ID == id {
-				for c, b := range s.Balances {
-					b.UpdatedAt = time.Time{}
-					s.Balances[c] = b
-				}
-				return s.Balances
-			}
-		}
-		return nil
-	}
-
-	snapshot := `{"feed":"balances_snapshot","account":"DemoUser","holding":{"usd":100},"flex_futures":{"currencies":{}},"futures":{` +
-		`"F-XBT:USD":{"name":"F-XBT:USD","pair":"XBT/USD","unit":"XBT","balance":0.5,"available":0.25},` +
-		`"F-ETH:EUR":{"name":"F-ETH:EUR","pair":"ETH/EUR","unit":"EUR","balance":7,"available":7}},"timestamp":1640995200000,"seq":1}`
-	require.NoError(t, ex.wsFuturesHandleData(t.Context(), nil, []byte(snapshot)), "wsFuturesHandleData must not error for a balances snapshot")
-	relayed(ex)
-	assert.Equal(t, accounts.CurrencyBalances{currency.USD: {Currency: currency.USD, Total: 100, Free: 100}}, stored("cash"), "a snapshot should store its cash wallet whole, removing a currency it no longer lists")
-	assert.Empty(t, stored("flex"), "a snapshot carrying an empty multi-collateral wallet should empty it")
-	assert.Equal(t, accounts.CurrencyBalances{
-		currency.XBT: {Currency: currency.XBT, Total: 0.5, Hold: 0.25, Free: 0.25},
-		currency.XRP: {Currency: currency.XRP, Total: 9, Free: 9},
-	}, stored("fi_xbtusd"), "a snapshot should store a margin account under its REST name, keeping the currencies it does not report")
-	assert.Nil(t, stored("fi_etheur"), "a margin account whose currency differs from the REST account's should be left to REST")
-
-	update := `{"feed":"balances","account":"DemoUser","flex_futures":{"currencies":{"XBT":{"quantity":0.1,"available":0.1}}},"timestamp":1640995200001,"seq":2}`
-	require.NoError(t, ex.wsFuturesHandleData(t.Context(), nil, []byte(update)), "wsFuturesHandleData must not error for a balances update")
-	relayed(ex)
-	assert.Equal(t, accounts.CurrencyBalances{currency.USD: {Currency: currency.USD, Total: 100, Free: 100}}, stored("cash"), "an update leaving the cash wallet out should keep it")
-	assert.Equal(t, accounts.CurrencyBalances{currency.XBT: {Currency: currency.XBT, Total: 0.1, Free: 0.1}}, stored("flex"), "an update should store the balances it holds")
-
-	require.NoError(t, ex.wsFuturesHandleData(t.Context(), nil, []byte(`{"feed":"balances_snapshot","account":"DemoUser","holding":{"usd":100},"timestamp":1640995200002,"seq":3}`)), "wsFuturesHandleData must not error for a balances snapshot")
-	relayed(ex)
-	assert.Equal(t, accounts.CurrencyBalances{currency.XBT: {Currency: currency.XBT, Total: 0.1, Free: 0.1}}, stored("flex"), "a snapshot leaving a wallet out should keep it")
-
-	require.NoError(t, ex.wsFuturesHandleData(t.Context(), nil, []byte(`{"feed":"balances_snapshot","account":"DemoUser","holding":{},"timestamp":1640995200003,"seq":4}`)), "wsFuturesHandleData must not error for a balances snapshot")
-	relayed(ex)
-	assert.Empty(t, stored("cash"), "a snapshot carrying an empty cash wallet should empty it")
-}
-
-func TestWebsocketFuturesProcessBalancesMarginAccount(t *testing.T) {
-	t.Parallel()
-	ex := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
-		if !assert.Equal(t, "/derivatives/api/v3/accounts", r.URL.Path, "only the futures accounts should be requested") {
-			http.Error(w, "unexpected request", http.StatusNotFound)
-			return
-		}
-		// Another account's credentials hold no margin account
-		accounts := `"fi_xbtusd":{"type":"marginAccount","currency":"xbt","balances":{"xbt":"1","xrp":"9","FI_XBTUSD_171215":"5000"},` +
-			`"auxiliary":{"af":0.5},"marginRequirements":{},"triggerEstimates":{}},`
-		if r.Header.Get("APIKey") != "test-key" {
-			accounts = ""
-		}
-		_, err := w.Write([]byte(`{"result":"success","accounts":{` + accounts + `"cash":{"type":"cashAccount","balances":{"usd":"100"}},` +
-			`"flex":{"type":"multiCollateralMarginAccount","currencies":{}}},"serverTime":"2026-10-16T00:00:00.000Z"}`))
-		assert.NoError(t, err, "Write should not error")
-	})
-	_, err := ex.UpdateAccountBalances(t.Context(), asset.Futures)
-	require.NoError(t, err, "UpdateAccountBalances must not error")
-	other := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: "other-key", Secret: testSecret})
-	_, err = ex.UpdateAccountBalances(other, asset.Futures)
-	require.NoError(t, err, "UpdateAccountBalances must not error for other credentials")
-
-	update := `{"feed":"balances","account":"DemoUser","futures":{"F-XBT:USD":{"name":"F-XBT:USD","pair":"XBT/USD","unit":"XBT","balance":0.75,"available":0.5}},"timestamp":1640995200000,"seq":2}`
-	require.NoError(t, ex.wsFuturesHandleData(t.Context(), nil, []byte(update)), "wsFuturesHandleData must not error for a balances update")
-	got := relayed(ex)
-	require.Len(t, got, 2, "the update must relay the margin account and the message")
-	subAccts, ok := got[0].(accounts.SubAccounts)
-	require.True(t, ok, "the margin account must be relayed as a sub-account")
-	require.Len(t, subAccts, 1, "one margin account must be relayed")
-	assert.Equal(t, "fi_xbtusd", subAccts[0].ID, "the margin account should be relayed under its REST name")
-	b, err := ex.Accounts.GetBalance("fi_xbtusd", ex.GetDefaultCredentials(), asset.Futures, currency.XBT)
-	require.NoError(t, err, "GetBalance must not error")
-	b.UpdatedAt = time.Time{}
-	assert.Equal(t, accounts.Balance{Currency: currency.XBT, Total: 0.75, Hold: 0.25, Free: 0.5}, b, "the margin account's balance should be stored under its REST name, whatever another account's REST read held")
-	b, err = ex.Accounts.GetBalance("fi_xbtusd", ex.GetDefaultCredentials(), asset.Futures, currency.XRP)
-	require.NoError(t, err, "GetBalance must not error")
-	assert.Equal(t, 9.0, b.Total, "the margin account's other currencies should be kept")
-}
-
-func TestWebsocketFuturesMarginAccountFreeClamped(t *testing.T) {
+func TestWebsocketFuturesMarginAccountFreeClamped(t *testing.T) { //nolint:tparallel // its cases share ex and its stored balances in order
 	t.Parallel()
 	ex := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
 		if !assert.Equal(t, "/derivatives/api/v3/accounts", r.URL.Path, "only the futures accounts should be requested") {
@@ -2278,21 +2226,25 @@ func TestWebsocketFuturesMarginAccountFreeClamped(t *testing.T) {
 	})
 	_, err := ex.UpdateAccountBalances(t.Context(), asset.Futures)
 	require.NoError(t, err, "UpdateAccountBalances must not error")
+	// The cases share ex and its stored balances in order, so each also checks that an update keeps nothing from the last
 	for _, tc := range []struct {
+		name      string
 		available float64
 		exp       accounts.Balance
 	}{
-		{available: 1.2, exp: accounts.Balance{Currency: currency.XBT, Total: 0.75, Free: 0.75}},
-		{available: -0.1, exp: accounts.Balance{Currency: currency.XBT, Total: 0.75, Hold: 0.75}},
+		{name: "available beyond the balance", available: 1.2, exp: accounts.Balance{Currency: currency.XBT, Total: 0.75, Free: 0.75}},
+		{name: "available below zero", available: -0.1, exp: accounts.Balance{Currency: currency.XBT, Total: 0.75, Hold: 0.75}},
 	} {
-		update := `{"feed":"balances","account":"DemoUser","futures":{"F-XBT:USD":{"name":"F-XBT:USD","pair":"XBT/USD","unit":"XBT","balance":0.75,"available":` +
-			strconv.FormatFloat(tc.available, 'f', -1, 64) + `}},"timestamp":1640995200000,"seq":2}`
-		require.NoErrorf(t, ex.wsFuturesHandleData(t.Context(), nil, []byte(update)), "wsFuturesHandleData must not error for available %v", tc.available)
-		relayed(ex)
-		b, err := ex.Accounts.GetBalance("fi_xbtusd", ex.GetDefaultCredentials(), asset.Futures, currency.XBT)
-		require.NoError(t, err, "GetBalance must not error")
-		b.UpdatedAt = time.Time{}
-		assert.Equalf(t, tc.exp, b, "the free balance stored for available %v should stay within the balance", tc.available)
+		t.Run(tc.name, func(t *testing.T) {
+			update := `{"feed":"balances","account":"DemoUser","futures":{"F-XBT:USD":{"name":"F-XBT:USD","pair":"XBT/USD","unit":"XBT","balance":0.75,"available":` +
+				strconv.FormatFloat(tc.available, 'f', -1, 64) + `}},"timestamp":1640995200000,"seq":2}`
+			require.NoErrorf(t, ex.wsFuturesHandleData(t.Context(), nil, []byte(update)), "wsFuturesHandleData must not error for available %v", tc.available)
+			relayed(ex)
+			b, err := ex.Accounts.GetBalance("fi_xbtusd", ex.GetDefaultCredentials(), asset.Futures, currency.XBT)
+			require.NoError(t, err, "GetBalance must not error")
+			b.UpdatedAt = time.Time{}
+			assert.Equalf(t, tc.exp, b, "the free balance stored for available %v should stay within the balance", tc.available)
+		})
 	}
 }
 
@@ -2393,153 +2345,6 @@ func (c *credentialsOnceContext) Value(key any) any {
 	return c.Context.Value(key)
 }
 
-func TestWebsocketFuturesProcessBalancesUnifiedWallet(t *testing.T) {
-	t.Parallel()
-	ex := newHTTPTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
-		if !assert.Equal(t, "/derivatives/api/v3/accounts", r.URL.Path, "only the futures accounts should be requested") {
-			http.Error(w, "unexpected request", http.StatusNotFound)
-			return
-		}
-		_, err := w.Write([]byte(`{"result":"success","accounts":{"cash":{"type":"cashAccount","balances":{}},"flex":{"type":"multiCollateralMarginAccount",` +
-			`"currencies":{"USD":{"quantity":100,"value":100,"collateral_value":100,"available":100}}}},"serverTime":"2026-10-30T00:00:00.000Z"}`))
-		assert.NoError(t, err, "Write should not error")
-	})
-	// The unified wallet holds the account's spot and futures funds as one balance, which spot lists
-	require.NoError(t, ex.Accounts.Save(t.Context(), accounts.SubAccounts{{AssetType: asset.Spot, Balances: accounts.CurrencyBalances{currency.USD: {Total: 100, Free: 100}}}}, true), "Save must not error")
-	totalUSD := func() float64 {
-		balances, err := ex.Accounts.CurrencyBalances(nil, asset.All)
-		require.NoError(t, err, "CurrencyBalances must not error")
-		return balances[currency.USD].Total
-	}
-	_, err := ex.UpdateAccountBalances(t.Context(), asset.Futures)
-	require.NoError(t, err, "UpdateAccountBalances must not error")
-	require.Equal(t, accounts.CurrencyBalances{currency.USD: {Currency: currency.USD, Total: 100, Free: 100}}, storedFuturesWallets(t, ex)["flex"],
-		"a futures read must store the multi-collateral wallet while the balances feed has not reported it as the unified wallet, as Kraken's reply does not say")
-	send := func(msg string) []any {
-		require.NoErrorf(t, ex.wsFuturesHandleData(t.Context(), nil, []byte(msg)), "wsFuturesHandleData must not error for %s", msg)
-		return relayed(ex)
-	}
-
-	got := send(`{"feed":"balances_snapshot","account":"DemoUser","holding":{},"flex_futures":{"currencies":{"USD":{"quantity":100,"available":100}},"unified_balances":true},"timestamp":1640995200000,"seq":1}`)
-	require.Len(t, got, 2, "the snapshot must relay the wallets it stored and the message")
-	subAccts, ok := got[0].(accounts.SubAccounts)
-	require.True(t, ok, "the wallets must be relayed as sub-accounts")
-	assert.Equal(t, map[string]accounts.CurrencyBalances{"cash": {}, "flex": {}}, futuresWalletBalances(subAccts), "the snapshot should relay the multi-collateral wallet emptied once it is the unified wallet")
-	assert.Equal(t, 100.0, totalUSD(), "a snapshot reporting the multi-collateral wallet as the unified wallet should leave its funds to spot alone")
-
-	send(`{"feed":"balances","account":"DemoUser","flex_futures":{"currencies":{"USD":{"quantity":90,"available":90}}},"timestamp":1640995200001,"seq":2}`)
-	assert.Empty(t, storedFuturesWallets(t, ex)["flex"], "an update leaving out whether the multi-collateral wallet is the unified wallet should keep it emptied")
-
-	read, err := ex.UpdateAccountBalances(t.Context(), asset.Futures)
-	require.NoError(t, err, "UpdateAccountBalances must not error")
-	assert.Equal(t, map[string]accounts.CurrencyBalances{"cash": {}, "flex": {}}, futuresWalletBalances(read), "a futures read should return the unified wallet's multi-collateral wallet emptied")
-	assert.Equal(t, 100.0, totalUSD(), "a futures read after the balances feed reported the unified wallet should leave its funds to spot alone")
-
-	send(`{"feed":"balances_snapshot","account":"DemoUser","holding":{},"flex_futures":{"currencies":{"USD":{"quantity":50,"available":50}},"unified_balances":false},"timestamp":1640995200002,"seq":3}`)
-	assert.Equal(t, accounts.CurrencyBalances{currency.USD: {Currency: currency.USD, Total: 50, Free: 50}}, storedFuturesWallets(t, ex)["flex"], "a snapshot reporting a separate multi-collateral wallet should store it")
-
-	// Spot reads keep the unified wallet's funds current only while spot is enabled
-	require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.Spot, false), "SetAssetEnabled must not error")
-	send(`{"feed":"balances_snapshot","account":"DemoUser","holding":{},"flex_futures":{"currencies":{"USD":{"quantity":125,"available":125}},"unified_balances":true},"timestamp":1640995200003,"seq":4}`)
-	assert.Equal(t, accounts.CurrencyBalances{currency.USD: {Currency: currency.USD, Total: 125, Free: 125}}, storedFuturesWallets(t, ex)["flex"],
-		"the unified wallet should be stored under futures while spot is disabled")
-
-	noCreds := newTestExchange(t)
-	noCreds.SkipAuthCheck = false
-	noCreds.API.AuthenticatedSupport = true
-	noCreds.SetCredentials(&accounts.Credentials{})
-	require.NoError(t, noCreds.wsFuturesProcessBalances(t.Context(), wsFuturesFeedBalancesSnapshot, []byte(`{"feed":"balances_snapshot","account":"DemoUser","flex_futures":{}}`)),
-		"wsFuturesProcessBalances must not need credentials for a message carrying no wallet and leaving out the wallet's kind")
-	assert.Len(t, relayed(noCreds), 1, "wsFuturesProcessBalances should relay a message carrying no wallet")
-	err = noCreds.wsFuturesProcessBalances(t.Context(), wsFuturesFeedBalancesSnapshot, []byte(`{"feed":"balances_snapshot","account":"DemoUser","flex_futures":{"unified_balances":true}}`))
-	assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "wsFuturesProcessBalances should return the error recording the unified wallet")
-}
-
-func TestSaveFuturesFeedBalancesUnifiedWallet(t *testing.T) {
-	t.Parallel()
-	ex := newTestExchange(t)
-	useTestCredentials(ex)
-	creds := ex.GetDefaultCredentials()
-	unified, separate := true, false
-	flex := func(usd float64) accounts.SubAccounts {
-		return accounts.SubAccounts{{ID: "flex", AssetType: asset.Futures, Balances: accounts.CurrencyBalances{currency.USD: {Currency: currency.USD, Total: usd, Free: usd}}}}
-	}
-	emptied := accounts.NewSubAccount(asset.Futures, "flex")
-
-	subAccts, err := ex.saveFuturesFeedBalances(t.Context(), 1, true, nil, flex(5))
-	require.NoError(t, err, "saveFuturesFeedBalances must not error before the feed reports the wallet's kind")
-	assert.Equal(t, map[string]accounts.CurrencyBalances{"flex": {currency.USD: {Currency: currency.USD, Total: 5, Free: 5}}}, futuresWalletBalances(subAccts),
-		"saveFuturesFeedBalances should store the multi-collateral wallet before the feed reports it as the unified wallet")
-
-	ex.futuresBalancesMu.Lock()
-	ex.futuresWalletStored(creds, "flex").recordWhole(10)
-	ex.futuresBalancesMu.Unlock()
-	subAccts, err = ex.saveFuturesFeedBalances(t.Context(), 3, false, &unified, nil)
-	require.NoError(t, err, "saveFuturesFeedBalances must not error for a message reporting the unified wallet")
-	assert.Equal(t, accounts.SubAccounts{emptied}, subAccts, "saveFuturesFeedBalances should return the unified wallet's multi-collateral wallet emptied, though the message carries none")
-	assert.Empty(t, storedFuturesWallets(t, ex)["flex"], "saveFuturesFeedBalances should empty the unified wallet, whatever was stored after the message arrived")
-	subAccts, err = ex.saveFuturesFeedBalances(t.Context(), 4, false, nil, flex(6))
-	require.NoError(t, err, "saveFuturesFeedBalances must not error for a message leaving out the wallet's kind")
-	assert.Equal(t, accounts.SubAccounts{emptied}, subAccts, "saveFuturesFeedBalances should keep the unified wallet emptied while a message leaves out its kind")
-	subAccts, err = ex.saveFuturesFeedBalances(t.Context(), 5, false, nil, nil)
-	require.NoError(t, err, "saveFuturesFeedBalances must not error without wallets")
-	assert.Nil(t, subAccts, "saveFuturesFeedBalances should store nothing for a message that carries no wallet and leaves out the wallet's kind")
-	subAccts, err = ex.saveFuturesFeedBalances(t.Context(), 11, true, &separate, flex(7))
-	require.NoError(t, err, "saveFuturesFeedBalances must not error for a separate wallet")
-	assert.Equal(t, map[string]accounts.CurrencyBalances{"flex": {currency.USD: {Currency: currency.USD, Total: 7, Free: 7}}}, futuresWalletBalances(subAccts),
-		"saveFuturesFeedBalances should store the multi-collateral wallet once the feed reports it separate")
-	ex.futuresBalancesMu.Lock()
-	assert.Equal(t, map[accounts.Credentials]bool{*creds: false}, ex.futuresUnifiedWallets, "saveFuturesFeedBalances should record what the feed last reported of the wallet")
-	ex.futuresBalancesMu.Unlock()
-
-	// A read requested while the wallet was unified, and stored before a message reporting it separate that arrived
-	// earlier, holds back none of that message's balances, as it stored the wallet emptied
-	_, err = ex.saveFuturesFeedBalances(t.Context(), 12, true, &unified, flex(9))
-	require.NoError(t, err, "saveFuturesFeedBalances must not error for a message reporting the unified wallet")
-	require.NoError(t, ex.saveFuturesBalances(t.Context(), 14, flex(9)), "saveFuturesBalances must not error")
-	subAccts, err = ex.saveFuturesFeedBalances(t.Context(), 13, true, &separate, flex(50))
-	require.NoError(t, err, "saveFuturesFeedBalances must not error for a separate wallet")
-	assert.Equal(t, map[string]accounts.CurrencyBalances{"flex": {currency.USD: {Currency: currency.USD, Total: 50, Free: 50}}}, futuresWalletBalances(subAccts),
-		"saveFuturesFeedBalances should store a separate wallet's balances over the emptied wallet a later read stored")
-
-	// A read requested before a message reporting the wallet separate holds the unified wallet's funds
-	_, err = ex.saveFuturesFeedBalances(t.Context(), 20, true, &unified, flex(100))
-	require.NoError(t, err, "saveFuturesFeedBalances must not error for a message reporting the unified wallet")
-	_, err = ex.saveFuturesFeedBalances(t.Context(), 22, false, &separate, nil)
-	require.NoError(t, err, "saveFuturesFeedBalances must not error for a message reporting a separate wallet")
-	require.NoError(t, ex.saveFuturesBalances(t.Context(), 21, flex(100)), "saveFuturesBalances must not error for a read requested before the wallet turned separate")
-	assert.Empty(t, storedFuturesWallets(t, ex)["flex"], "a read requested before the wallet turned separate should not store the unified wallet's funds")
-	require.NoError(t, ex.saveFuturesBalances(t.Context(), 23, flex(60)), "saveFuturesBalances must not error for a read requested after the wallet turned separate")
-	assert.Equal(t, accounts.CurrencyBalances{currency.USD: {Currency: currency.USD, Total: 60, Free: 60}}, storedFuturesWallets(t, ex)["flex"],
-		"a read requested after the wallet turned separate should store it")
-
-	// Emptying the wallet forgets the reads its balances came from: here a read stored while spot was disabled, before a
-	// message reporting the wallet separate that arrived earlier
-	require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.Spot, false), "SetAssetEnabled must not error")
-	_, err = ex.saveFuturesFeedBalances(t.Context(), 30, true, &unified, flex(100))
-	require.NoError(t, err, "saveFuturesFeedBalances must not error while spot is disabled")
-	require.NoError(t, ex.saveFuturesBalances(t.Context(), 32, flex(50)), "saveFuturesBalances must not error while spot is disabled")
-	require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.Spot, true), "SetAssetEnabled must not error")
-	require.NoError(t, ex.saveFuturesBalances(t.Context(), 33, flex(50)), "saveFuturesBalances must not error for the unified wallet")
-	subAccts, err = ex.saveFuturesFeedBalances(t.Context(), 31, true, &separate, flex(50))
-	require.NoError(t, err, "saveFuturesFeedBalances must not error for a separate wallet")
-	assert.Equal(t, map[string]accounts.CurrencyBalances{"flex": {currency.USD: {Currency: currency.USD, Total: 50, Free: 50}}}, futuresWalletBalances(subAccts),
-		"saveFuturesFeedBalances should store a separate wallet's balances over balances the emptied wallet replaced, though a later read stored them")
-
-	noCreds := newTestExchange(t)
-	noCreds.SkipAuthCheck = false
-	noCreds.API.AuthenticatedSupport = true
-	noCreds.SetCredentials(&accounts.Credentials{})
-	_, err = noCreds.saveFuturesFeedBalances(t.Context(), 6, false, &unified, nil)
-	assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "saveFuturesFeedBalances should reject missing credentials for a message reporting the wallet's kind")
-	onceCtx := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: "once-key", Secret: testSecret})
-	onceCreds, err := noCreds.GetCredentials(onceCtx)
-	require.NoError(t, err, "GetCredentials must not error for context credentials")
-	noCreds.futuresUnifiedWallets = map[accounts.Credentials]bool{*onceCreds: true}
-	_, err = noCreds.saveFuturesFeedBalances(&credentialsOnceContext{Context: onceCtx}, 7, false, nil, flex(8))
-	assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "saveFuturesFeedBalances should return the error storing the unified wallet emptied")
-}
-
 func TestStoreUnifiedFlexWallet(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
@@ -2588,27 +2393,31 @@ func TestStoreUnifiedFlexWallet(t *testing.T) {
 	assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "storeUnifiedFlexWallet should return the error storing the wallet")
 }
 
-func TestFuturesMarginAccountName(t *testing.T) {
+func TestFuturesMarginAccountName(t *testing.T) { //nolint:tparallel // its cases share ex in order with the later statements
 	t.Parallel()
 	ex := newTestExchange(t)
 	useTestCredentials(ex)
 	setFuturesMarginCurrencies(ex, map[string]currency.Code{"fi_xbtusd": currency.XBT})
+	// The cases share ex in order with the statements after them, which call futuresMarginAccountName on it too
 	for _, tc := range []struct {
+		name    string
 		account WebsocketFuturesMarginAccount
 		exp     bool
 	}{
-		{WebsocketFuturesMarginAccount{Name: "F-XBT:USD", Pair: "XBT/USD", Unit: "XBT"}, true},
-		{WebsocketFuturesMarginAccount{Name: "F-XBT:USD", Pair: "XBT/USD", Unit: "xbt"}, true},
-		{WebsocketFuturesMarginAccount{Name: "F-XBT:USD", Pair: "XBT/USD", Unit: "USD"}, false},
-		{WebsocketFuturesMarginAccount{Name: "F-ETH:USD", Pair: "XBT/USD", Unit: "XBT"}, false},
-		{WebsocketFuturesMarginAccount{Name: "F-ETH:USD", Pair: "ETH/USD", Unit: "ETH"}, false},
-		{WebsocketFuturesMarginAccount{Name: "F-XBT", Pair: "XBTUSD", Unit: "XBT"}, false},
+		{"pair and currency of the REST account", WebsocketFuturesMarginAccount{Name: "F-XBT:USD", Pair: "XBT/USD", Unit: "XBT"}, true},
+		{"currency in lower case", WebsocketFuturesMarginAccount{Name: "F-XBT:USD", Pair: "XBT/USD", Unit: "xbt"}, true},
+		{"another currency", WebsocketFuturesMarginAccount{Name: "F-XBT:USD", Pair: "XBT/USD", Unit: "USD"}, false},
+		{"name of another pair", WebsocketFuturesMarginAccount{Name: "F-ETH:USD", Pair: "XBT/USD", Unit: "XBT"}, false},
+		{"pair without a REST account", WebsocketFuturesMarginAccount{Name: "F-ETH:USD", Pair: "ETH/USD", Unit: "ETH"}, false},
+		{"pair without a separator", WebsocketFuturesMarginAccount{Name: "F-XBT", Pair: "XBTUSD", Unit: "XBT"}, false},
 	} {
-		name, ok := ex.futuresMarginAccountName(t.Context(), &tc.account)
-		assert.Equalf(t, tc.exp, ok, "futuresMarginAccountName should match %+v only to a REST account of its pair and currency", tc.account)
-		if ok {
-			assert.Equal(t, "fi_xbtusd", name, "futuresMarginAccountName should return the REST account's name")
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			name, ok := ex.futuresMarginAccountName(t.Context(), &tc.account)
+			assert.Equalf(t, tc.exp, ok, "futuresMarginAccountName should match %+v only to a REST account of its pair and currency", tc.account)
+			if ok {
+				assert.Equal(t, "fi_xbtusd", name, "futuresMarginAccountName should return the REST account's name")
+			}
+		})
 	}
 	other := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: "other-key", Secret: testSecret})
 	_, ok := ex.futuresMarginAccountName(other, &WebsocketFuturesMarginAccount{Name: "F-XBT:USD", Pair: "XBT/USD", Unit: "XBT"})
@@ -2727,4 +2536,89 @@ func TestSaveFuturesFeedBalances(t *testing.T) {
 	ex.futuresBalancesMu.Lock()
 	assert.Equal(t, expStored, ex.futuresWalletsStored[*ex.GetDefaultCredentials()], "saveFuturesFeedBalances should record the message each store came from, and nothing it did not store")
 	ex.futuresBalancesMu.Unlock()
+
+	t.Run("unified wallet", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestExchange(t)
+		useTestCredentials(ex)
+		creds := ex.GetDefaultCredentials()
+		unified, separate := true, false
+		flex := func(usd float64) accounts.SubAccounts {
+			return accounts.SubAccounts{{ID: "flex", AssetType: asset.Futures, Balances: accounts.CurrencyBalances{currency.USD: {Currency: currency.USD, Total: usd, Free: usd}}}}
+		}
+		emptied := accounts.NewSubAccount(asset.Futures, "flex")
+
+		subAccts, err := ex.saveFuturesFeedBalances(t.Context(), 1, true, nil, flex(5))
+		require.NoError(t, err, "saveFuturesFeedBalances must not error before the feed reports the wallet's kind")
+		assert.Equal(t, map[string]accounts.CurrencyBalances{"flex": {currency.USD: {Currency: currency.USD, Total: 5, Free: 5}}}, futuresWalletBalances(subAccts),
+			"saveFuturesFeedBalances should store the multi-collateral wallet before the feed reports it as the unified wallet")
+
+		ex.futuresBalancesMu.Lock()
+		ex.futuresWalletStored(creds, "flex").recordWhole(10)
+		ex.futuresBalancesMu.Unlock()
+		subAccts, err = ex.saveFuturesFeedBalances(t.Context(), 3, false, &unified, nil)
+		require.NoError(t, err, "saveFuturesFeedBalances must not error for a message reporting the unified wallet")
+		assert.Equal(t, accounts.SubAccounts{emptied}, subAccts, "saveFuturesFeedBalances should return the unified wallet's multi-collateral wallet emptied, though the message carries none")
+		assert.Empty(t, storedFuturesWallets(t, ex)["flex"], "saveFuturesFeedBalances should empty the unified wallet, whatever was stored after the message arrived")
+		subAccts, err = ex.saveFuturesFeedBalances(t.Context(), 4, false, nil, flex(6))
+		require.NoError(t, err, "saveFuturesFeedBalances must not error for a message leaving out the wallet's kind")
+		assert.Equal(t, accounts.SubAccounts{emptied}, subAccts, "saveFuturesFeedBalances should keep the unified wallet emptied while a message leaves out its kind")
+		subAccts, err = ex.saveFuturesFeedBalances(t.Context(), 5, false, nil, nil)
+		require.NoError(t, err, "saveFuturesFeedBalances must not error without wallets")
+		assert.Nil(t, subAccts, "saveFuturesFeedBalances should store nothing for a message that carries no wallet and leaves out the wallet's kind")
+		subAccts, err = ex.saveFuturesFeedBalances(t.Context(), 11, true, &separate, flex(7))
+		require.NoError(t, err, "saveFuturesFeedBalances must not error for a separate wallet")
+		assert.Equal(t, map[string]accounts.CurrencyBalances{"flex": {currency.USD: {Currency: currency.USD, Total: 7, Free: 7}}}, futuresWalletBalances(subAccts),
+			"saveFuturesFeedBalances should store the multi-collateral wallet once the feed reports it separate")
+		ex.futuresBalancesMu.Lock()
+		assert.Equal(t, map[accounts.Credentials]bool{*creds: false}, ex.futuresUnifiedWallets, "saveFuturesFeedBalances should record what the feed last reported of the wallet")
+		ex.futuresBalancesMu.Unlock()
+
+		// A read requested while the wallet was unified, and stored before a message reporting it separate that arrived
+		// earlier, holds back none of that message's balances, as it stored the wallet emptied
+		_, err = ex.saveFuturesFeedBalances(t.Context(), 12, true, &unified, flex(9))
+		require.NoError(t, err, "saveFuturesFeedBalances must not error for a message reporting the unified wallet")
+		require.NoError(t, ex.saveFuturesBalances(t.Context(), 14, flex(9)), "saveFuturesBalances must not error")
+		subAccts, err = ex.saveFuturesFeedBalances(t.Context(), 13, true, &separate, flex(50))
+		require.NoError(t, err, "saveFuturesFeedBalances must not error for a separate wallet")
+		assert.Equal(t, map[string]accounts.CurrencyBalances{"flex": {currency.USD: {Currency: currency.USD, Total: 50, Free: 50}}}, futuresWalletBalances(subAccts),
+			"saveFuturesFeedBalances should store a separate wallet's balances over the emptied wallet a later read stored")
+
+		// A read requested before a message reporting the wallet separate holds the unified wallet's funds
+		_, err = ex.saveFuturesFeedBalances(t.Context(), 20, true, &unified, flex(100))
+		require.NoError(t, err, "saveFuturesFeedBalances must not error for a message reporting the unified wallet")
+		_, err = ex.saveFuturesFeedBalances(t.Context(), 22, false, &separate, nil)
+		require.NoError(t, err, "saveFuturesFeedBalances must not error for a message reporting a separate wallet")
+		require.NoError(t, ex.saveFuturesBalances(t.Context(), 21, flex(100)), "saveFuturesBalances must not error for a read requested before the wallet turned separate")
+		assert.Empty(t, storedFuturesWallets(t, ex)["flex"], "a read requested before the wallet turned separate should not store the unified wallet's funds")
+		require.NoError(t, ex.saveFuturesBalances(t.Context(), 23, flex(60)), "saveFuturesBalances must not error for a read requested after the wallet turned separate")
+		assert.Equal(t, accounts.CurrencyBalances{currency.USD: {Currency: currency.USD, Total: 60, Free: 60}}, storedFuturesWallets(t, ex)["flex"],
+			"a read requested after the wallet turned separate should store it")
+
+		// Emptying the wallet forgets the reads its balances came from: here a read stored while spot was disabled, before a
+		// message reporting the wallet separate that arrived earlier
+		require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.Spot, false), "SetAssetEnabled must not error")
+		_, err = ex.saveFuturesFeedBalances(t.Context(), 30, true, &unified, flex(100))
+		require.NoError(t, err, "saveFuturesFeedBalances must not error while spot is disabled")
+		require.NoError(t, ex.saveFuturesBalances(t.Context(), 32, flex(50)), "saveFuturesBalances must not error while spot is disabled")
+		require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.Spot, true), "SetAssetEnabled must not error")
+		require.NoError(t, ex.saveFuturesBalances(t.Context(), 33, flex(50)), "saveFuturesBalances must not error for the unified wallet")
+		subAccts, err = ex.saveFuturesFeedBalances(t.Context(), 31, true, &separate, flex(50))
+		require.NoError(t, err, "saveFuturesFeedBalances must not error for a separate wallet")
+		assert.Equal(t, map[string]accounts.CurrencyBalances{"flex": {currency.USD: {Currency: currency.USD, Total: 50, Free: 50}}}, futuresWalletBalances(subAccts),
+			"saveFuturesFeedBalances should store a separate wallet's balances over balances the emptied wallet replaced, though a later read stored them")
+
+		noCreds := newTestExchange(t)
+		noCreds.SkipAuthCheck = false
+		noCreds.API.AuthenticatedSupport = true
+		noCreds.SetCredentials(&accounts.Credentials{})
+		_, err = noCreds.saveFuturesFeedBalances(t.Context(), 6, false, &unified, nil)
+		assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "saveFuturesFeedBalances should reject missing credentials for a message reporting the wallet's kind")
+		onceCtx := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: "once-key", Secret: testSecret})
+		onceCreds, err := noCreds.GetCredentials(onceCtx)
+		require.NoError(t, err, "GetCredentials must not error for context credentials")
+		noCreds.futuresUnifiedWallets = map[accounts.Credentials]bool{*onceCreds: true}
+		_, err = noCreds.saveFuturesFeedBalances(&credentialsOnceContext{Context: onceCtx}, 7, false, nil, flex(8))
+		assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "saveFuturesFeedBalances should return the error storing the unified wallet emptied")
+	})
 }
