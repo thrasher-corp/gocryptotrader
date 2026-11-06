@@ -50,23 +50,7 @@ func TestExecuteStrategyFromFile(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			// Each parser owns its flag metadata so the cases can run concurrently.
-			flags := make([]cli.Flag, 0, len(executeStrategyFromFileCommand.Flags))
-			for _, f := range executeStrategyFromFileCommand.Flags {
-				switch f := f.(type) {
-				case *cli.StringFlag:
-					copyFlag := *f
-					flags = append(flags, &copyFlag)
-				case *cli.BoolFlag:
-					copyFlag := *f
-					flags = append(flags, &copyFlag)
-				case *cli.DurationFlag:
-					copyFlag := *f
-					flags = append(flags, &copyFlag)
-				default:
-					require.FailNowf(t, "flag type must be supported", "unsupported flag type %T", f)
-				}
-			}
+			flags := strategyFlags(t)
 			command := &cli.Command{Name: executeStrategyFromFileCommand.Name, HideHelp: true, Flags: flags, Action: executeStrategyFromFile}
 			app := &cli.App{HideHelp: true, Writer: io.Discard, ErrWriter: io.Discard, Commands: []*cli.Command{command}}
 			args := append([]string{"btcli", command.Name, "--path=strategy.json"}, tc.args...)
@@ -125,23 +109,7 @@ func TestExecuteStrategyFromFileRequest(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			// The real flags exercise aliases; copies isolate cli's mutable metadata.
-			flags := make([]cli.Flag, 0, len(executeStrategyFromFileCommand.Flags))
-			for _, f := range executeStrategyFromFileCommand.Flags {
-				switch f := f.(type) {
-				case *cli.StringFlag:
-					copyFlag := *f
-					flags = append(flags, &copyFlag)
-				case *cli.BoolFlag:
-					copyFlag := *f
-					flags = append(flags, &copyFlag)
-				case *cli.DurationFlag:
-					copyFlag := *f
-					flags = append(flags, &copyFlag)
-				default:
-					require.FailNowf(t, "flag type must be supported", "unsupported flag type %T", f)
-				}
-			}
+			flags := strategyFlags(t)
 			var got *btrpc.ExecuteStrategyFromFileRequest
 			command := &cli.Command{Name: executeStrategyFromFileCommand.Name, HideHelp: true, Flags: flags, Action: func(c *cli.Context) error {
 				var err error
@@ -176,6 +144,48 @@ func TestExecuteStrategyFromFileRequest(t *testing.T) {
 				IntervalOverride:    durationpb.New(tc.interval),
 			}
 			assert.Truef(t, proto.Equal(want, got), "request should preserve all flag values: got %s, want %s", got, want)
+		})
+	}
+}
+
+// strategyFlags copies the command's flags so parallel cases do not share cli's mutable metadata.
+func strategyFlags(t *testing.T) []cli.Flag {
+	t.Helper()
+	flags := make([]cli.Flag, 0, len(executeStrategyFromFileCommand.Flags))
+	for _, f := range executeStrategyFromFileCommand.Flags {
+		switch f := f.(type) {
+		case *cli.StringFlag:
+			copyFlag := *f
+			flags = append(flags, &copyFlag)
+		case *cli.BoolFlag:
+			copyFlag := *f
+			flags = append(flags, &copyFlag)
+		case *cli.DurationFlag:
+			copyFlag := *f
+			flags = append(flags, &copyFlag)
+		default:
+			require.FailNowf(t, "flag type must be supported", "unsupported flag type %T", f)
+		}
+	}
+	return flags
+}
+
+func TestStrategyFlags(t *testing.T) {
+	t.Parallel()
+
+	first := strategyFlags(t)
+	second := strategyFlags(t)
+	require.Len(t, first, len(executeStrategyFromFileCommand.Flags), "first copy must contain every strategy flag")
+	require.Len(t, second, len(executeStrategyFromFileCommand.Flags), "second copy must contain every strategy flag")
+	for i, original := range executeStrategyFromFileCommand.Flags {
+		t.Run(original.Names()[0], func(t *testing.T) {
+			t.Parallel()
+
+			assert.Equal(t, original, first[i], "first copy should preserve the flag metadata")
+			assert.Equal(t, original, second[i], "second copy should preserve the flag metadata")
+			assert.NotSame(t, original, first[i], "first copy should own its flag metadata")
+			assert.NotSame(t, original, second[i], "second copy should own its flag metadata")
+			assert.NotSame(t, first[i], second[i], "separate copies should not share flag metadata")
 		})
 	}
 }
