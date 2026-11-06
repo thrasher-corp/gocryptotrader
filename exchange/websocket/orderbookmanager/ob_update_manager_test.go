@@ -441,6 +441,33 @@ func TestSyncOrderbook(t *testing.T) {
 	cache.updates = []pendingUpdate{{update: &orderbook.Update{Pair: pair, Asset: asset.USDTMarginedFutures, UpdateID: 1337, AllowEmpty: true, UpdateTime: time.Now()}}}
 	err = m.syncOrderbook(t.Context(), cache, pair, asset.USDTMarginedFutures)
 	require.NoError(t, err)
+
+	t.Run("snapshot no queued update follows", func(t *testing.T) {
+		t.Parallel()
+		// A snapshot newer than every queued update is loaded at once rather than withheld until an update follows it
+		tp := newTestParams()
+		tp.LoadSnapshotsAtOnce = true
+		m := NewUpdateManager(&tp)
+		m.fetchOrderbook = fetchOrderbookMock
+		m.checkPendingUpdate = func(lastUpdateID, _ int64, update *orderbook.Update) (bool, error) {
+			return update.UpdateID <= lastUpdateID, nil
+		}
+		pair, err := currency.NewPairFromStrings("SYNCQUIET", "BTC")
+		require.NoError(t, err)
+		cache := &updateCache{
+			updates: []pendingUpdate{{
+				firstUpdateID: 1300,
+				update:        &orderbook.Update{Pair: pair, Asset: asset.Spot, UpdateID: 1300, AllowEmpty: true, UpdateTime: time.Now()},
+			}},
+			state: cacheStateQueuing,
+		}
+		require.NoError(t, m.syncOrderbook(t.Context(), cache, pair, asset.Spot), "syncOrderbook must load a snapshot no queued update follows")
+		assert.Equal(t, cacheStateSnapshotLoaded, cache.state, "syncOrderbook should await the update following the snapshot")
+		assert.Empty(t, cache.updates, "syncOrderbook should clear the queued updates")
+		lastUpdateID, err := m.ob.LastUpdateID(pair, asset.Spot)
+		require.NoError(t, err, "LastUpdateID must not error for the loaded snapshot")
+		assert.Equal(t, int64(1336), lastUpdateID, "syncOrderbook should load the snapshot")
+	})
 }
 
 func TestSyncOrderbookApplyPendingUpdatesFailure(t *testing.T) {
@@ -468,34 +495,6 @@ func TestSyncOrderbookApplyPendingUpdatesFailure(t *testing.T) {
 	assert.Empty(t, cache.updates, "syncOrderbook should clear pending updates after failure")
 	_, err = m.ob.LastUpdateID(pair, asset.USDTMarginedFutures)
 	assert.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "syncOrderbook should invalidate the book after pending update failures")
-}
-
-func TestSyncOrderbookWithoutFollowingUpdate(t *testing.T) {
-	t.Parallel()
-
-	// A snapshot newer than every queued update is loaded at once rather than withheld until an update follows it
-	tp := newTestParams()
-	tp.LoadSnapshotsAtOnce = true
-	m := NewUpdateManager(&tp)
-	m.fetchOrderbook = fetchOrderbookMock
-	m.checkPendingUpdate = func(lastUpdateID, _ int64, update *orderbook.Update) (bool, error) {
-		return update.UpdateID <= lastUpdateID, nil
-	}
-	pair, err := currency.NewPairFromStrings("SYNCQUIET", "BTC")
-	require.NoError(t, err)
-	cache := &updateCache{
-		updates: []pendingUpdate{{
-			firstUpdateID: 1300,
-			update:        &orderbook.Update{Pair: pair, Asset: asset.Spot, UpdateID: 1300, AllowEmpty: true, UpdateTime: time.Now()},
-		}},
-		state: cacheStateQueuing,
-	}
-	require.NoError(t, m.syncOrderbook(t.Context(), cache, pair, asset.Spot), "syncOrderbook must load a snapshot no queued update follows")
-	assert.Equal(t, cacheStateSnapshotLoaded, cache.state, "syncOrderbook should await the update following the snapshot")
-	assert.Empty(t, cache.updates, "syncOrderbook should clear the queued updates")
-	lastUpdateID, err := m.ob.LastUpdateID(pair, asset.Spot)
-	require.NoError(t, err, "LastUpdateID must not error for the loaded snapshot")
-	assert.Equal(t, int64(1336), lastUpdateID, "syncOrderbook should load the snapshot")
 }
 
 func TestApplyFirstUpdate(t *testing.T) {
@@ -659,6 +658,7 @@ func TestSyncKeepsWithdrawnBook(t *testing.T) {
 		f := newSyncFixture(t, "STALETWICE")
 		f.publish(t)
 		f.process(t, 1337, 1337)
+		// Each stale update and failed synchronisation builds on the book the one before left, so they run in turn
 		for _, stale := range []int64{1330, 1331} {
 			f.process(t, stale, stale)
 			published := len(f.m.ob.dataHandler.C)

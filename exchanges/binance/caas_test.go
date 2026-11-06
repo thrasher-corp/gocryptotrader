@@ -321,35 +321,38 @@ func TestUpdateIPRestrictionForSubAccountAPIKey(t *testing.T) {
 	_, err = e.UpdateIPRestrictionForSubAccountAPIKey(t.Context(), arg)
 	require.ErrorIs(t, err, errSubAccountStatusMissing, "UpdateIPRestrictionForSubAccountAPIKey must reject an empty status")
 
-	if !mockTests {
-		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateAPICredentials)
-	}
-	arg.Status = 2
-	result, err := e.UpdateIPRestrictionForSubAccountAPIKey(t.Context(), arg)
-	require.NoError(t, err, "UpdateIPRestrictionForSubAccountAPIKey must not error")
-	if mockTests {
-		exp := &BrokerIPRestrictionUpdateResponse{
-			Status:     "2",
-			IPList:     []string{"192.0.2.1"},
-			UpdateTime: types.Time(time.UnixMilli(1636371437000)),
-			APIKey:     testBrokerSubAccountAPIKey,
+	t.Run("updates the IP restriction", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateAPICredentials)
 		}
-		assert.Equal(t, exp, result, "UpdateIPRestrictionForSubAccountAPIKey should decode every field")
-		return
-	}
-	assert.Contains(t, result.IPList, "192.0.2.1", "UpdateIPRestrictionForSubAccountAPIKey should add the IP")
-}
-
-func TestUpdateIPRestrictionForSubAccountAPIKeyIPAddresses(t *testing.T) {
-	t.Parallel()
-	ex := newTestServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "192.0.2.1,192.0.2.2", r.URL.Query().Get("ipAddress"), "UpdateIPRestrictionForSubAccountAPIKey should send the IPs comma separated")
-		_, err := w.Write([]byte(`{"status":"2","ipList":["192.0.2.1","192.0.2.2"],"updateTime":1636371437000,"apiKey":"test-sub-account-key"}`))
-		assert.NoError(t, err, "Write should not error")
+		arg.Status = 2
+		result, err := e.UpdateIPRestrictionForSubAccountAPIKey(t.Context(), arg)
+		require.NoError(t, err, "UpdateIPRestrictionForSubAccountAPIKey must not error")
+		if mockTests {
+			exp := &BrokerIPRestrictionUpdateResponse{
+				Status:     "2",
+				IPList:     []string{"192.0.2.1"},
+				UpdateTime: types.Time(time.UnixMilli(1636371437000)),
+				APIKey:     testBrokerSubAccountAPIKey,
+			}
+			assert.Equal(t, exp, result, "UpdateIPRestrictionForSubAccountAPIKey should decode every field")
+			return
+		}
+		assert.Contains(t, result.IPList, "192.0.2.1", "UpdateIPRestrictionForSubAccountAPIKey should add the IP")
 	})
-	result, err := ex.UpdateIPRestrictionForSubAccountAPIKey(t.Context(), &BrokerIPRestrictionUpdateRequest{SubAccountID: "1", SubAccountAPIKey: "test-sub-account-key", Status: 2, IPAddresses: []string{"192.0.2.1", "192.0.2.2"}})
-	require.NoError(t, err, "UpdateIPRestrictionForSubAccountAPIKey must not error")
-	assert.Equal(t, []string{"192.0.2.1", "192.0.2.2"}, result.IPList, "UpdateIPRestrictionForSubAccountAPIKey should return both IPs")
+
+	t.Run("sends the IPs comma separated", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "192.0.2.1,192.0.2.2", r.URL.Query().Get("ipAddress"), "UpdateIPRestrictionForSubAccountAPIKey should send the IPs comma separated")
+			_, err := w.Write([]byte(`{"status":"2","ipList":["192.0.2.1","192.0.2.2"],"updateTime":1636371437000,"apiKey":"test-sub-account-key"}`))
+			assert.NoError(t, err, "Write should not error")
+		})
+		result, err := ex.UpdateIPRestrictionForSubAccountAPIKey(t.Context(), &BrokerIPRestrictionUpdateRequest{SubAccountID: "1", SubAccountAPIKey: "test-sub-account-key", Status: 2, IPAddresses: []string{"192.0.2.1", "192.0.2.2"}})
+		require.NoError(t, err, "UpdateIPRestrictionForSubAccountAPIKey must not error")
+		assert.Equal(t, []string{"192.0.2.1", "192.0.2.2"}, result.IPList, "UpdateIPRestrictionForSubAccountAPIKey should return both IPs")
+	})
 }
 
 func TestGetSubAccountDepositHistoryWithBroker(t *testing.T) {

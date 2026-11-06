@@ -16,14 +16,17 @@ func TestExchanges(t *testing.T) {
 
 func TestUpgradeExchange(t *testing.T) {
 	t.Parallel()
-	for _, input := range []string{
-		`{"name":"Binance","api":{"urlEndpoints":{"RestOptionsURL":"https://eapi.binance.com","RestSpotSupplementaryURL":"https://api.binance.com"}}}`,
-		`{"name":"Binance","api":{"urlEndpoints":{"RestSpotSupplementaryURL":"https://api.binance.com"}}}`,
-		`{"name":"Kraken"}`,
+	for _, tc := range []struct{ name, input string }{
+		{name: "default endpoint", input: `{"name":"Binance","api":{"urlEndpoints":{"RestOptionsURL":"https://eapi.binance.com","RestSpotSupplementaryURL":"https://api.binance.com"}}}`},
+		{name: "no options endpoint", input: `{"name":"Binance","api":{"urlEndpoints":{"RestSpotSupplementaryURL":"https://api.binance.com"}}}`},
+		{name: "other exchange", input: `{"name":"Kraken"}`},
 	} {
-		out, err := new(v19.Version).UpgradeExchange(t.Context(), []byte(input))
-		require.NoError(t, err, "UpgradeExchange must not error")
-		assert.Equal(t, input, string(out), "UpgradeExchange should leave the configuration unchanged")
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			out, err := new(v19.Version).UpgradeExchange(t.Context(), []byte(tc.input))
+			require.NoError(t, err, "UpgradeExchange must not error")
+			assert.Equal(t, tc.input, string(out), "UpgradeExchange should leave the configuration unchanged")
+		})
 	}
 }
 

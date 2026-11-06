@@ -548,6 +548,36 @@ func TestGetUSDTMarginedFuturesBasis(t *testing.T) {
 	_, err = new(Exchange).GetUSDTMarginedFuturesBasis(t.Context(), &USDTMarginedFuturesBasisRequest{Pair: currency.NewBTCUSDT(), ContractType: "CURRENT_QUARTER", Period: kline.FifteenMin})
 	require.ErrorIs(t, err, currency.ErrPairManagerNotInitialised, "GetUSDTMarginedFuturesBasis must return the error formatting the pair")
 
+	t.Run("sends the period as Binance writes it", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			period kline.Interval
+			exp    string
+		}{
+			{kline.FiveMin, "5m"},
+			{kline.FifteenMin, "15m"},
+			{kline.ThirtyMin, "30m"},
+			{kline.OneHour, "1h"},
+			{kline.TwoHour, "2h"},
+			{kline.FourHour, "4h"},
+			{kline.SixHour, "6h"},
+			{kline.TwelveHour, "12h"},
+			{kline.OneDay, "1d"},
+		} {
+			t.Run(tc.exp, func(t *testing.T) {
+				t.Parallel()
+				ex := newTestServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
+					assert.Equal(t, "/futures/data/basis", r.URL.Path, "GetUSDTMarginedFuturesBasis should request the basis path")
+					assert.Equal(t, url.Values{"pair": {"BTCUSDT"}, "contractType": {"PERPETUAL"}, "period": {tc.exp}}, r.URL.Query(), "GetUSDTMarginedFuturesBasis should send the period as Binance writes it")
+					_, err := w.Write([]byte(`[]`))
+					assert.NoError(t, err, "Write should not error")
+				})
+				_, err := ex.GetUSDTMarginedFuturesBasis(t.Context(), &USDTMarginedFuturesBasisRequest{Pair: currency.NewBTCUSDT(), ContractType: ContractTypePerpetual, Period: tc.period})
+				assert.NoError(t, err, "GetUSDTMarginedFuturesBasis should not error")
+			})
+		}
+	})
+
 	arg.StartTime, arg.EndTime, arg.Limit = startTime, endTime, 20
 	result, err := e.GetUSDTMarginedFuturesBasis(t.Context(), arg)
 	require.NoError(t, err, "GetUSDTMarginedFuturesBasis must not error")
@@ -578,36 +608,6 @@ func TestGetUSDTMarginedFuturesBasis(t *testing.T) {
 		return
 	}
 	assert.NotEmpty(t, result, "GetUSDTMarginedFuturesBasis should return basis records")
-}
-
-func TestGetUSDTMarginedFuturesBasisPeriod(t *testing.T) {
-	t.Parallel()
-	for _, tc := range []struct {
-		period kline.Interval
-		exp    string
-	}{
-		{kline.FiveMin, "5m"},
-		{kline.FifteenMin, "15m"},
-		{kline.ThirtyMin, "30m"},
-		{kline.OneHour, "1h"},
-		{kline.TwoHour, "2h"},
-		{kline.FourHour, "4h"},
-		{kline.SixHour, "6h"},
-		{kline.TwelveHour, "12h"},
-		{kline.OneDay, "1d"},
-	} {
-		t.Run(tc.exp, func(t *testing.T) {
-			t.Parallel()
-			ex := newTestServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
-				assert.Equal(t, "/futures/data/basis", r.URL.Path, "GetUSDTMarginedFuturesBasis should request the basis path")
-				assert.Equal(t, url.Values{"pair": {"BTCUSDT"}, "contractType": {"PERPETUAL"}, "period": {tc.exp}}, r.URL.Query(), "GetUSDTMarginedFuturesBasis should send the period as Binance writes it")
-				_, err := w.Write([]byte(`[]`))
-				assert.NoError(t, err, "Write should not error")
-			})
-			_, err := ex.GetUSDTMarginedFuturesBasis(t.Context(), &USDTMarginedFuturesBasisRequest{Pair: currency.NewBTCUSDT(), ContractType: ContractTypePerpetual, Period: tc.period})
-			assert.NoError(t, err, "GetUSDTMarginedFuturesBasis should not error")
-		})
-	}
 }
 
 func TestUSDTMarginedFuturesServerTime(t *testing.T) {
@@ -1423,7 +1423,7 @@ func TestGetUSDTMarginedFuturesMultiAssetModeAssetIndex(t *testing.T) {
 	assert.NotEmpty(t, result, "GetUSDTMarginedFuturesMultiAssetModeAssetIndex should return asset indexes")
 }
 
-func TestUSDTMarginedFuturesHistoricalTrades(t *testing.T) {
+func TestUSDTMarginedFuturesHistoricalTrades(t *testing.T) { //nolint:tparallel // the cases share e, so they run in order while the test runs in parallel
 	t.Parallel()
 	_, err := e.USDTMarginedFuturesHistoricalTrades(t.Context(), currency.EMPTYPAIR, 0, 5)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "USDTMarginedFuturesHistoricalTrades must reject an empty symbol")
@@ -1431,32 +1431,35 @@ func TestUSDTMarginedFuturesHistoricalTrades(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
+	// The cases share e in order, so each also checks that a request keeps nothing from the last
 	for _, fromID := range []uint64{0, 8149534980} {
-		result, err := e.USDTMarginedFuturesHistoricalTrades(t.Context(), currency.NewBTCUSDT(), fromID, 5)
-		require.NoErrorf(t, err, "USDTMarginedFuturesHistoricalTrades must not error from trade ID %d", fromID)
-		if mockTests {
-			exp := []USDTMarginedFuturesPublicTradesResponse{
-				{
-					ID:            8149534980,
-					Price:         86065.5,
-					Quantity:      0.001,
-					QuoteQuantity: 86.06,
-					Time:          types.Time(time.UnixMilli(1791283323016)),
-					IsBuyerMaker:  true,
-				},
-				{
-					ID:                            8149534981,
-					Price:                         86065.4,
-					Quantity:                      0.059,
-					QuoteQuantity:                 5077.86,
-					Time:                          types.Time(time.UnixMilli(1791283323999)),
-					IsRetailPriceImprovementTrade: true,
-				},
+		t.Run(strconv.FormatUint(fromID, 10), func(t *testing.T) {
+			result, err := e.USDTMarginedFuturesHistoricalTrades(t.Context(), currency.NewBTCUSDT(), fromID, 5)
+			require.NoErrorf(t, err, "USDTMarginedFuturesHistoricalTrades must not error from trade ID %d", fromID)
+			if mockTests {
+				exp := []USDTMarginedFuturesPublicTradesResponse{
+					{
+						ID:            8149534980,
+						Price:         86065.5,
+						Quantity:      0.001,
+						QuoteQuantity: 86.06,
+						Time:          types.Time(time.UnixMilli(1791283323016)),
+						IsBuyerMaker:  true,
+					},
+					{
+						ID:                            8149534981,
+						Price:                         86065.4,
+						Quantity:                      0.059,
+						QuoteQuantity:                 5077.86,
+						Time:                          types.Time(time.UnixMilli(1791283323999)),
+						IsRetailPriceImprovementTrade: true,
+					},
+				}
+				assert.Equal(t, exp, result, "USDTMarginedFuturesHistoricalTrades should decode every field")
+				return
 			}
-			assert.Equal(t, exp, result, "USDTMarginedFuturesHistoricalTrades should decode every field")
-			continue
-		}
-		assert.NotEmptyf(t, result, "USDTMarginedFuturesHistoricalTrades should return trades from trade ID %d", fromID)
+			assert.NotEmptyf(t, result, "USDTMarginedFuturesHistoricalTrades should return trades from trade ID %d", fromID)
+		})
 	}
 }
 
@@ -2014,7 +2017,7 @@ func TestUSDTMarginedFuturesAccountTradesHistory(t *testing.T) {
 	}
 }
 
-func TestUSDTMarginedFuturesAllAccountOrders(t *testing.T) {
+func TestUSDTMarginedFuturesAllAccountOrders(t *testing.T) { //nolint:tparallel // the cases share e, so they run in order while the test runs in parallel
 	t.Parallel()
 	_, err := e.USDTMarginedFuturesAllAccountOrders(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "USDTMarginedFuturesAllAccountOrders must reject a nil request")
@@ -2025,47 +2028,50 @@ func TestUSDTMarginedFuturesAllAccountOrders(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
+	// The cases share e in order, so each also checks that a request keeps nothing from the last
 	for _, tc := range []*USDTMarginedFuturesAllOrdersRequest{
 		{StartTime: startTime, EndTime: endTime},
 		{Symbol: currency.NewBTCUSDT(), StartTime: startTime, EndTime: endTime, Limit: 5},
 	} {
-		result, err := e.USDTMarginedFuturesAllAccountOrders(t.Context(), tc)
-		require.NoErrorf(t, err, "USDTMarginedFuturesAllAccountOrders must not error for symbol %q", tc.Symbol)
-		if mockTests {
-			exp := []USDTMarginedFuturesAllOrdersResponse{
-				{
-					ClientOrderID:           "testOrder",
-					ExecutedQuantity:        0.001,
-					OrderID:                 22542179,
-					OriginalQuantity:        0.002,
-					Price:                   80000,
-					ReduceOnly:              true,
-					Side:                    "BUY",
-					PositionSide:            "LONG",
-					Status:                  "PARTIALLY_FILLED",
-					StopPrice:               79000,
-					ClosePosition:           true,
-					Symbol:                  "BTCUSDT",
-					TimeInForce:             "GTD",
-					Type:                    "LIMIT",
-					OriginalType:            "TAKE_PROFIT",
-					UpdateTime:              types.Time(time.Unix(1744118400, 0)),
-					WorkingType:             "MARK_PRICE",
-					PriceProtect:            true,
-					PriceMatch:              "QUEUE",
-					SelfTradePreventionMode: "EXPIRE_MAKER",
-					GoodTillDate:            types.Time(time.Unix(1744300800, 0)),
-					AveragePrice:            80000,
-					CumulativeQuote:         80,
-					Time:                    types.Time(time.Unix(1744118000, 0)),
-					ActivatePrice:           79500,
-					PriceRate:               0.3,
-					CumulativeBase:          0.001,
-					Pair:                    "BTCUSDT",
-				},
+		t.Run(subtestName(tc.Symbol.String()), func(t *testing.T) {
+			result, err := e.USDTMarginedFuturesAllAccountOrders(t.Context(), tc)
+			require.NoErrorf(t, err, "USDTMarginedFuturesAllAccountOrders must not error for symbol %q", tc.Symbol)
+			if mockTests {
+				exp := []USDTMarginedFuturesAllOrdersResponse{
+					{
+						ClientOrderID:           "testOrder",
+						ExecutedQuantity:        0.001,
+						OrderID:                 22542179,
+						OriginalQuantity:        0.002,
+						Price:                   80000,
+						ReduceOnly:              true,
+						Side:                    "BUY",
+						PositionSide:            "LONG",
+						Status:                  "PARTIALLY_FILLED",
+						StopPrice:               79000,
+						ClosePosition:           true,
+						Symbol:                  "BTCUSDT",
+						TimeInForce:             "GTD",
+						Type:                    "LIMIT",
+						OriginalType:            "TAKE_PROFIT",
+						UpdateTime:              types.Time(time.Unix(1744118400, 0)),
+						WorkingType:             "MARK_PRICE",
+						PriceProtect:            true,
+						PriceMatch:              "QUEUE",
+						SelfTradePreventionMode: "EXPIRE_MAKER",
+						GoodTillDate:            types.Time(time.Unix(1744300800, 0)),
+						AveragePrice:            80000,
+						CumulativeQuote:         80,
+						Time:                    types.Time(time.Unix(1744118000, 0)),
+						ActivatePrice:           79500,
+						PriceRate:               0.3,
+						CumulativeBase:          0.001,
+						Pair:                    "BTCUSDT",
+					},
+				}
+				assert.Equal(t, exp, result, "USDTMarginedFuturesAllAccountOrders should decode every field")
 			}
-			assert.Equal(t, exp, result, "USDTMarginedFuturesAllAccountOrders should decode every field")
-		}
+		})
 	}
 }
 
@@ -2133,7 +2139,7 @@ func TestUSDTMarginedFuturesQueryAlgoOrder(t *testing.T) {
 	}
 }
 
-func TestUSDTMarginedFuturesNewAlgoOrder(t *testing.T) {
+func TestUSDTMarginedFuturesNewAlgoOrder(t *testing.T) { //nolint:tparallel // the cases share e, so they run in order while the test runs in parallel
 	t.Parallel()
 	_, err := e.USDTMarginedFuturesNewAlgoOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "USDTMarginedFuturesNewAlgoOrder must reject a nil request")
@@ -2167,6 +2173,7 @@ func TestUSDTMarginedFuturesNewAlgoOrder(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
+	// The cases share e in order, so each also checks that a request keeps nothing from the last
 	for _, tc := range []*USDTMarginedFuturesNewAlgoOrderRequest{
 		{
 			AlgoType: "CONDITIONAL", Symbol: currency.NewBTCUSDT(), Side: "SELL", PositionSide: "LONG", OrderType: "TAKE_PROFIT",
@@ -2181,38 +2188,40 @@ func TestUSDTMarginedFuturesNewAlgoOrder(t *testing.T) {
 		{AlgoType: "CONDITIONAL", Symbol: currency.NewBTCUSDT(), Side: "SELL", OrderType: "STOP_MARKET", TriggerPrice: 80000, ClosePosition: true},
 		{AlgoType: "CONDITIONAL", Symbol: currency.NewBTCUSDT(), Side: "SELL", OrderType: "STOP", Quantity: 0.01, Price: 80000, TriggerPrice: 80500},
 	} {
-		result, err := e.USDTMarginedFuturesNewAlgoOrder(t.Context(), tc)
-		require.NoErrorf(t, err, "USDTMarginedFuturesNewAlgoOrder must not error for order type %s", tc.OrderType)
-		if mockTests {
-			exp := &USDTMarginedFuturesNewAlgoOrderResponse{
-				AlgoID:                  2146760,
-				ClientAlgoID:            "6B2I9XVcJpCjqPAJ4YoFX7",
-				AlgoType:                "CONDITIONAL",
-				OrderType:               "TAKE_PROFIT",
-				Symbol:                  "BTCUSDT",
-				Side:                    "SELL",
-				PositionSide:            "LONG",
-				TimeInForce:             "GTD",
-				Quantity:                0.01,
-				AlgoStatus:              "NEW",
-				TriggerPrice:            90000,
-				Price:                   90000,
-				IcebergQuantity:         "null",
-				SelfTradePreventionMode: "EXPIRE_MAKER",
-				WorkingType:             "MARK_PRICE",
-				PriceMatch:              "QUEUE",
-				ClosePosition:           true,
-				PriceProtect:            true,
-				ReduceOnly:              true,
-				CreateTime:              types.Time(time.UnixMilli(1750485492076)),
-				UpdateTime:              types.Time(time.UnixMilli(1750485492076)),
-				TriggerTime:             types.Time(time.UnixMilli(1750514545091)),
-				GoodTillDate:            types.Time(time.Unix(1750550400, 0)),
-				ActivatePrice:           89500,
-				CallbackRate:            0.5,
+		t.Run(subtestName(string(tc.OrderType)), func(t *testing.T) {
+			result, err := e.USDTMarginedFuturesNewAlgoOrder(t.Context(), tc)
+			require.NoErrorf(t, err, "USDTMarginedFuturesNewAlgoOrder must not error for order type %s", tc.OrderType)
+			if mockTests {
+				exp := &USDTMarginedFuturesNewAlgoOrderResponse{
+					AlgoID:                  2146760,
+					ClientAlgoID:            "6B2I9XVcJpCjqPAJ4YoFX7",
+					AlgoType:                "CONDITIONAL",
+					OrderType:               "TAKE_PROFIT",
+					Symbol:                  "BTCUSDT",
+					Side:                    "SELL",
+					PositionSide:            "LONG",
+					TimeInForce:             "GTD",
+					Quantity:                0.01,
+					AlgoStatus:              "NEW",
+					TriggerPrice:            90000,
+					Price:                   90000,
+					IcebergQuantity:         "null",
+					SelfTradePreventionMode: "EXPIRE_MAKER",
+					WorkingType:             "MARK_PRICE",
+					PriceMatch:              "QUEUE",
+					ClosePosition:           true,
+					PriceProtect:            true,
+					ReduceOnly:              true,
+					CreateTime:              types.Time(time.UnixMilli(1750485492076)),
+					UpdateTime:              types.Time(time.UnixMilli(1750485492076)),
+					TriggerTime:             types.Time(time.UnixMilli(1750514545091)),
+					GoodTillDate:            types.Time(time.Unix(1750550400, 0)),
+					ActivatePrice:           89500,
+					CallbackRate:            0.5,
+				}
+				assert.Equal(t, exp, result, "USDTMarginedFuturesNewAlgoOrder should decode every field")
 			}
-			assert.Equal(t, exp, result, "USDTMarginedFuturesNewAlgoOrder should decode every field")
-		}
+		})
 	}
 }
 
@@ -2520,7 +2529,7 @@ func TestUSDTMarginedFuturesModifyOrder(t *testing.T) {
 	}
 }
 
-func TestUSDTMarginedFuturesNewOrder(t *testing.T) {
+func TestUSDTMarginedFuturesNewOrder(t *testing.T) { //nolint:tparallel // the cases share e, so they run in order while the test runs in parallel
 	t.Parallel()
 	_, err := e.USDTMarginedFuturesNewOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "USDTMarginedFuturesNewOrder must reject a nil request")
@@ -2542,6 +2551,7 @@ func TestUSDTMarginedFuturesNewOrder(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
+	// The cases share e in order, so each also checks that a request keeps nothing from the last
 	for _, tc := range []*USDTMarginedFuturesNewOrderRequest{
 		{
 			Symbol: currency.NewBTCUSDT(), Side: "BUY", PositionSide: "LONG", OrderType: "LIMIT", TimeInForce: "GTD", Quantity: 0.002,
@@ -2550,35 +2560,37 @@ func TestUSDTMarginedFuturesNewOrder(t *testing.T) {
 		},
 		{Symbol: currency.NewBTCUSDT(), Side: "SELL", OrderType: "LIMIT", TimeInForce: "GTC", ReduceOnly: true, Quantity: 0.002, PriceMatch: "QUEUE"},
 	} {
-		result, err := e.USDTMarginedFuturesNewOrder(t.Context(), tc)
-		require.NoErrorf(t, err, "USDTMarginedFuturesNewOrder must not error for side %s", tc.Side)
-		if mockTests {
-			exp := &USDTMarginedFuturesNewOrderResponse{
-				ClientOrderID:           "testOrder",
-				ExecutedQuantity:        0.001,
-				OrderID:                 22542179,
-				OriginalQuantity:        0.002,
-				Price:                   80000,
-				ReduceOnly:              true,
-				Side:                    "BUY",
-				PositionSide:            "LONG",
-				Status:                  "PARTIALLY_FILLED",
-				StopPrice:               79000,
-				ClosePosition:           true,
-				Symbol:                  "BTCUSDT",
-				TimeInForce:             "GTD",
-				Type:                    "LIMIT",
-				OriginalType:            "TAKE_PROFIT",
-				UpdateTime:              types.Time(time.Unix(1744118400, 0)),
-				WorkingType:             "MARK_PRICE",
-				PriceProtect:            true,
-				PriceMatch:              "QUEUE",
-				SelfTradePreventionMode: "EXPIRE_MAKER",
-				GoodTillDate:            types.Time(time.Unix(1744300800, 0)),
-				CumulativeQuantity:      0.001,
+		t.Run(subtestName(string(tc.Side)), func(t *testing.T) {
+			result, err := e.USDTMarginedFuturesNewOrder(t.Context(), tc)
+			require.NoErrorf(t, err, "USDTMarginedFuturesNewOrder must not error for side %s", tc.Side)
+			if mockTests {
+				exp := &USDTMarginedFuturesNewOrderResponse{
+					ClientOrderID:           "testOrder",
+					ExecutedQuantity:        0.001,
+					OrderID:                 22542179,
+					OriginalQuantity:        0.002,
+					Price:                   80000,
+					ReduceOnly:              true,
+					Side:                    "BUY",
+					PositionSide:            "LONG",
+					Status:                  "PARTIALLY_FILLED",
+					StopPrice:               79000,
+					ClosePosition:           true,
+					Symbol:                  "BTCUSDT",
+					TimeInForce:             "GTD",
+					Type:                    "LIMIT",
+					OriginalType:            "TAKE_PROFIT",
+					UpdateTime:              types.Time(time.Unix(1744118400, 0)),
+					WorkingType:             "MARK_PRICE",
+					PriceProtect:            true,
+					PriceMatch:              "QUEUE",
+					SelfTradePreventionMode: "EXPIRE_MAKER",
+					GoodTillDate:            types.Time(time.Unix(1744300800, 0)),
+					CumulativeQuantity:      0.001,
+				}
+				assert.Equal(t, exp, result, "USDTMarginedFuturesNewOrder should decode every field")
 			}
-			assert.Equal(t, exp, result, "USDTMarginedFuturesNewOrder should decode every field")
-		}
+		})
 	}
 }
 
@@ -2745,47 +2757,50 @@ func TestUSDTMarginedFuturesCurrentAllAlgoOpenOrders(t *testing.T) {
 	}
 }
 
-func TestUSDTMarginedFuturesAllAccountOpenOrders(t *testing.T) {
+func TestUSDTMarginedFuturesAllAccountOpenOrders(t *testing.T) { //nolint:tparallel // the cases share e, so they run in order while the test runs in parallel
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
+	// The cases share e in order, so each also checks that a request keeps nothing from the last
 	for _, symbol := range []currency.Pair{currency.NewBTCUSDT(), currency.EMPTYPAIR} {
-		result, err := e.USDTMarginedFuturesAllAccountOpenOrders(t.Context(), symbol)
-		require.NoErrorf(t, err, "USDTMarginedFuturesAllAccountOpenOrders must not error for symbol %q", symbol)
-		if mockTests {
-			exp := []USDTMarginedFuturesOrderResponse{
-				{
-					ClientOrderID:           "testOrder",
-					ExecutedQuantity:        0.001,
-					OrderID:                 22542179,
-					OriginalQuantity:        0.002,
-					Price:                   80000,
-					ReduceOnly:              true,
-					Side:                    "BUY",
-					PositionSide:            "LONG",
-					Status:                  "PARTIALLY_FILLED",
-					StopPrice:               79000,
-					ClosePosition:           true,
-					Symbol:                  "BTCUSDT",
-					TimeInForce:             "GTD",
-					Type:                    "LIMIT",
-					OriginalType:            "TAKE_PROFIT",
-					UpdateTime:              types.Time(time.Unix(1744118400, 0)),
-					WorkingType:             "MARK_PRICE",
-					PriceProtect:            true,
-					PriceMatch:              "QUEUE",
-					SelfTradePreventionMode: "EXPIRE_MAKER",
-					GoodTillDate:            types.Time(time.Unix(1744300800, 0)),
-					AveragePrice:            80000,
-					CumulativeQuote:         80,
-					Time:                    types.Time(time.Unix(1744118000, 0)),
-					ActivatePrice:           79500,
-					PriceRate:               0.3,
-				},
+		t.Run(subtestName(symbol.String()), func(t *testing.T) {
+			result, err := e.USDTMarginedFuturesAllAccountOpenOrders(t.Context(), symbol)
+			require.NoErrorf(t, err, "USDTMarginedFuturesAllAccountOpenOrders must not error for symbol %q", symbol)
+			if mockTests {
+				exp := []USDTMarginedFuturesOrderResponse{
+					{
+						ClientOrderID:           "testOrder",
+						ExecutedQuantity:        0.001,
+						OrderID:                 22542179,
+						OriginalQuantity:        0.002,
+						Price:                   80000,
+						ReduceOnly:              true,
+						Side:                    "BUY",
+						PositionSide:            "LONG",
+						Status:                  "PARTIALLY_FILLED",
+						StopPrice:               79000,
+						ClosePosition:           true,
+						Symbol:                  "BTCUSDT",
+						TimeInForce:             "GTD",
+						Type:                    "LIMIT",
+						OriginalType:            "TAKE_PROFIT",
+						UpdateTime:              types.Time(time.Unix(1744118400, 0)),
+						WorkingType:             "MARK_PRICE",
+						PriceProtect:            true,
+						PriceMatch:              "QUEUE",
+						SelfTradePreventionMode: "EXPIRE_MAKER",
+						GoodTillDate:            types.Time(time.Unix(1744300800, 0)),
+						AveragePrice:            80000,
+						CumulativeQuote:         80,
+						Time:                    types.Time(time.Unix(1744118000, 0)),
+						ActivatePrice:           79500,
+						PriceRate:               0.3,
+					},
+				}
+				assert.Equal(t, exp, result, "USDTMarginedFuturesAllAccountOpenOrders should decode every field")
 			}
-			assert.Equal(t, exp, result, "USDTMarginedFuturesAllAccountOpenOrders should decode every field")
-		}
+		})
 	}
 }
 
@@ -2845,54 +2860,57 @@ func TestUSDTMarginedFuturesPositionMarginChangeHistory(t *testing.T) {
 	_, err = new(Exchange).USDTMarginedFuturesPositionMarginChangeHistory(t.Context(), &USDTMarginedFuturesPositionMarginChangeHistoryRequest{Symbol: currency.NewBTCUSDT(), Type: 1})
 	require.ErrorIs(t, err, currency.ErrPairManagerNotInitialised, "USDTMarginedFuturesPositionMarginChangeHistory must return the error formatting the symbol")
 
-	if !mockTests {
-		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	}
-	result, err := e.USDTMarginedFuturesPositionMarginChangeHistory(t.Context(), &USDTMarginedFuturesPositionMarginChangeHistoryRequest{Symbol: currency.NewBTCUSDT(), Type: 1, StartTime: startTime, EndTime: endTime, Limit: 5})
-	require.NoError(t, err, "USDTMarginedFuturesPositionMarginChangeHistory must not error")
-	if mockTests {
-		exp := []USDTMarginedFuturesPositionMarginChangeResponse{
-			{
-				Symbol:       "BTCUSDT",
-				Type:         1,
-				DeltaType:    "USER_ADJUST",
-				Amount:       23.36332311,
-				Asset:        currency.USDT,
-				Time:         types.Time(time.Unix(1744118400, 0)),
-				PositionSide: "LONG",
-			},
+	t.Run("returns the margin change history", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 		}
-		assert.Equal(t, exp, result, "USDTMarginedFuturesPositionMarginChangeHistory should decode every field")
-	}
-}
+		result, err := e.USDTMarginedFuturesPositionMarginChangeHistory(t.Context(), &USDTMarginedFuturesPositionMarginChangeHistoryRequest{Symbol: currency.NewBTCUSDT(), Type: 1, StartTime: startTime, EndTime: endTime, Limit: 5})
+		require.NoError(t, err, "USDTMarginedFuturesPositionMarginChangeHistory must not error")
+		if mockTests {
+			exp := []USDTMarginedFuturesPositionMarginChangeResponse{
+				{
+					Symbol:       "BTCUSDT",
+					Type:         1,
+					DeltaType:    "USER_ADJUST",
+					Amount:       23.36332311,
+					Asset:        currency.USDT,
+					Time:         types.Time(time.Unix(1744118400, 0)),
+					PositionSide: "LONG",
+				},
+			}
+			assert.Equal(t, exp, result, "USDTMarginedFuturesPositionMarginChangeHistory should decode every field")
+		}
+	})
 
-func TestUSDTMarginedFuturesPositionMarginChangeHistoryType(t *testing.T) {
-	t.Parallel()
-	for _, tc := range []struct {
-		name       string
-		changeType uint64
-		exp        url.Values
-	}{
-		{"both directions", 0, url.Values{"symbol": {"BTCUSDT"}}},
-		{"added", 1, url.Values{"symbol": {"BTCUSDT"}, "type": {"1"}}},
-		{"reduced", 2, url.Values{"symbol": {"BTCUSDT"}, "type": {"2"}}},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			ex := newTestServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
-				assert.Equal(t, "/fapi/v1/positionMargin/history", r.URL.Path, "USDTMarginedFuturesPositionMarginChangeHistory should request the history path")
-				query := r.URL.Query()
-				for _, signed := range []string{"recvWindow", "signature", "timestamp"} {
-					query.Del(signed)
-				}
-				assert.Equal(t, tc.exp, query, "USDTMarginedFuturesPositionMarginChangeHistory should send the type only when it is set")
-				_, err := w.Write([]byte(`[]`))
-				assert.NoError(t, err, "Write should not error")
+	t.Run("sends the type only when it is set", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name       string
+			changeType uint64
+			exp        url.Values
+		}{
+			{"both directions", 0, url.Values{"symbol": {"BTCUSDT"}}},
+			{"added", 1, url.Values{"symbol": {"BTCUSDT"}, "type": {"1"}}},
+			{"reduced", 2, url.Values{"symbol": {"BTCUSDT"}, "type": {"2"}}},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				ex := newTestServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
+					assert.Equal(t, "/fapi/v1/positionMargin/history", r.URL.Path, "USDTMarginedFuturesPositionMarginChangeHistory should request the history path")
+					query := r.URL.Query()
+					for _, signed := range []string{"recvWindow", "signature", "timestamp"} {
+						query.Del(signed)
+					}
+					assert.Equal(t, tc.exp, query, "USDTMarginedFuturesPositionMarginChangeHistory should send the type only when it is set")
+					_, err := w.Write([]byte(`[]`))
+					assert.NoError(t, err, "Write should not error")
+				})
+				_, err := ex.USDTMarginedFuturesPositionMarginChangeHistory(t.Context(), &USDTMarginedFuturesPositionMarginChangeHistoryRequest{Symbol: currency.NewBTCUSDT(), Type: tc.changeType})
+				require.NoError(t, err, "USDTMarginedFuturesPositionMarginChangeHistory must not error")
 			})
-			_, err := ex.USDTMarginedFuturesPositionMarginChangeHistory(t.Context(), &USDTMarginedFuturesPositionMarginChangeHistoryRequest{Symbol: currency.NewBTCUSDT(), Type: tc.changeType})
-			require.NoError(t, err, "USDTMarginedFuturesPositionMarginChangeHistory must not error")
-		})
-	}
+		}
+	})
 }
 
 func TestUSDTMarginedFuturesModifyIsolatedPositionMarginRequest(t *testing.T) {
@@ -2906,38 +2924,41 @@ func TestUSDTMarginedFuturesModifyIsolatedPositionMarginRequest(t *testing.T) {
 	_, err = new(Exchange).USDTMarginedFuturesModifyIsolatedPositionMarginRequest(t.Context(), currency.NewBTCUSDT(), "LONG", 1, 5)
 	require.ErrorIs(t, err, currency.ErrPairManagerNotInitialised, "USDTMarginedFuturesModifyIsolatedPositionMarginRequest must return the error formatting the symbol")
 
-	if !mockTests {
-		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	}
-	result, err := e.USDTMarginedFuturesModifyIsolatedPositionMarginRequest(t.Context(), currency.NewBTCUSDT(), "LONG", 1, 5)
-	require.NoError(t, err, "USDTMarginedFuturesModifyIsolatedPositionMarginRequest must not error")
-	if mockTests {
-		exp := &USDTMarginedFuturesModifyIsolatedPositionMarginResponse{
-			Amount:  5,
-			Code:    200,
-			Message: "Successfully modify position margin.",
-			Type:    1,
+	t.Run("modifies the position margin", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 		}
-		assert.Equal(t, exp, result, "USDTMarginedFuturesModifyIsolatedPositionMarginRequest should decode every field")
-	}
-}
+		result, err := e.USDTMarginedFuturesModifyIsolatedPositionMarginRequest(t.Context(), currency.NewBTCUSDT(), "LONG", 1, 5)
+		require.NoError(t, err, "USDTMarginedFuturesModifyIsolatedPositionMarginRequest must not error")
+		if mockTests {
+			exp := &USDTMarginedFuturesModifyIsolatedPositionMarginResponse{
+				Amount:  5,
+				Code:    200,
+				Message: "Successfully modify position margin.",
+				Type:    1,
+			}
+			assert.Equal(t, exp, result, "USDTMarginedFuturesModifyIsolatedPositionMarginRequest should decode every field")
+		}
+	})
 
-func TestUSDTMarginedFuturesModifyIsolatedPositionMarginRequestType(t *testing.T) {
-	t.Parallel()
-	for _, changeType := range []uint64{1, 2} {
-		t.Run(strconv.FormatUint(changeType, 10), func(t *testing.T) {
-			t.Parallel()
-			ex := newTestServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
-				assert.Equal(t, "/fapi/v1/positionMargin", r.URL.Path, "USDTMarginedFuturesModifyIsolatedPositionMarginRequest should request the position margin path")
-				assert.NoError(t, r.ParseForm(), "ParseForm should not error")
-				assert.Equal(t, strconv.FormatUint(changeType, 10), r.Form.Get("type"), "USDTMarginedFuturesModifyIsolatedPositionMarginRequest should send the type as given")
-				_, err := w.Write([]byte(`{"amount":5,"code":200,"msg":"Successfully modify position margin.","type":` + strconv.FormatUint(changeType, 10) + `}`))
-				assert.NoError(t, err, "Write should not error")
+	t.Run("sends the type as given", func(t *testing.T) {
+		t.Parallel()
+		for _, changeType := range []uint64{1, 2} {
+			t.Run(strconv.FormatUint(changeType, 10), func(t *testing.T) {
+				t.Parallel()
+				ex := newTestServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
+					assert.Equal(t, "/fapi/v1/positionMargin", r.URL.Path, "USDTMarginedFuturesModifyIsolatedPositionMarginRequest should request the position margin path")
+					assert.NoError(t, r.ParseForm(), "ParseForm should not error")
+					assert.Equal(t, strconv.FormatUint(changeType, 10), r.Form.Get("type"), "USDTMarginedFuturesModifyIsolatedPositionMarginRequest should send the type as given")
+					_, err := w.Write([]byte(`{"amount":5,"code":200,"msg":"Successfully modify position margin.","type":` + strconv.FormatUint(changeType, 10) + `}`))
+					assert.NoError(t, err, "Write should not error")
+				})
+				_, err := ex.USDTMarginedFuturesModifyIsolatedPositionMarginRequest(t.Context(), currency.NewBTCUSDT(), "LONG", changeType, 5)
+				require.NoError(t, err, "USDTMarginedFuturesModifyIsolatedPositionMarginRequest must not error")
 			})
-			_, err := ex.USDTMarginedFuturesModifyIsolatedPositionMarginRequest(t.Context(), currency.NewBTCUSDT(), "LONG", changeType, 5)
-			require.NoError(t, err, "USDTMarginedFuturesModifyIsolatedPositionMarginRequest must not error")
-		})
-	}
+		}
+	})
 }
 
 func TestUSDTMarginedFuturesPositionsAutoDeleveragingEstimate(t *testing.T) {

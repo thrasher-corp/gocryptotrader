@@ -94,44 +94,58 @@ func TestRateLimit(t *testing.T) {
 				"admission with a deadline should wait for one token")
 		})
 	})
-}
 
-func TestRateLimitDelayNotAllowedKeepsTokens(t *testing.T) {
-	t.Parallel()
-	synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
-		// A weighted request refused because it cannot go at once must leave the limiter's tokens to the requests after
-		// it, though cancelling reservations granted at once gives back only part of their tokens
-		lim := rate.NewLimiter(rate.Limit(4), 200)
-		single, heavy := GetRateLimiterWithWeight(lim, 1), GetRateLimiterWithWeight(lim, 30)
-		for range 180 {
-			require.NoError(t, single.RateLimit(t.Context()), "RateLimit must not error")
-		}
-		// A part token refilled meanwhile leaves the reservations a refused request cancels restoring next to nothing
-		time.Sleep(10 * time.Millisecond)
-		require.ErrorIs(t, heavy.RateLimit(WithDelayNotAllowed(t.Context())), ErrDelayNotAllowed, "RateLimit must refuse a request that cannot go at once")
-		for i := range 20 {
-			require.NoErrorf(t, single.RateLimit(WithDelayNotAllowed(t.Context())), "request %d must take a token the refused request left", i)
-		}
-		assert.ErrorIs(t, single.RateLimit(WithDelayNotAllowed(t.Context())), ErrDelayNotAllowed, "RateLimit should refuse a request once the tokens are spent")
+	t.Run("weighted request that may not wait leaves the tokens when refused", func(t *testing.T) {
+		t.Parallel()
+		synctest.Test(t, func(t *testing.T) {
+			// The refusal must leave the tokens though cancelling reservations granted at once gives back only part of them
+			lim := rate.NewLimiter(rate.Limit(4), 200)
+			single, heavy := GetRateLimiterWithWeight(lim, 1), GetRateLimiterWithWeight(lim, 30)
+			for range 180 {
+				require.NoError(t, single.RateLimit(t.Context()), "RateLimit must not error")
+			}
+			// A part token refilled meanwhile leaves the reservations a refused request cancels restoring next to nothing
+			time.Sleep(10 * time.Millisecond)
+			require.ErrorIs(t, heavy.RateLimit(WithDelayNotAllowed(t.Context())), ErrDelayNotAllowed, "RateLimit must refuse a request that cannot go at once")
+			for i := range 20 {
+				require.NoErrorf(t, single.RateLimit(WithDelayNotAllowed(t.Context())), "request %d must take a token the refused request left", i)
+			}
+			assert.ErrorIs(t, single.RateLimit(WithDelayNotAllowed(t.Context())), ErrDelayNotAllowed, "RateLimit should refuse a request once the tokens are spent")
+		})
 	})
-}
 
-func TestRateLimitDeadlineKeepsTokens(t *testing.T) {
-	t.Parallel()
-	synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
-		// A weighted request refused because its deadline comes before its turn leaves the limiter's tokens as a request
-		// that may not wait does
-		lim := rate.NewLimiter(rate.Limit(4), 200)
-		single, heavy := GetRateLimiterWithWeight(lim, 1), GetRateLimiterWithWeight(lim, 30)
-		for range 180 {
-			require.NoError(t, single.RateLimit(t.Context()), "RateLimit must not error")
-		}
-		time.Sleep(10 * time.Millisecond)
-		ctx, cancel := context.WithTimeout(t.Context(), time.Second)
-		defer cancel()
-		require.ErrorIs(t, heavy.RateLimit(ctx), context.DeadlineExceeded, "RateLimit must refuse a request its deadline cannot wait for")
-		for i := range 20 {
-			require.NoErrorf(t, single.RateLimit(WithDelayNotAllowed(t.Context())), "request %d must take a token the refused request left", i)
+	t.Run("weighted request refused at its deadline leaves the tokens", func(t *testing.T) {
+		t.Parallel()
+		synctest.Test(t, func(t *testing.T) {
+			lim := rate.NewLimiter(rate.Limit(4), 200)
+			single, heavy := GetRateLimiterWithWeight(lim, 1), GetRateLimiterWithWeight(lim, 30)
+			for range 180 {
+				require.NoError(t, single.RateLimit(t.Context()), "RateLimit must not error")
+			}
+			time.Sleep(10 * time.Millisecond)
+			ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+			defer cancel()
+			require.ErrorIs(t, heavy.RateLimit(ctx), context.DeadlineExceeded, "RateLimit must refuse a request its deadline cannot wait for")
+			for i := range 20 {
+				require.NoErrorf(t, single.RateLimit(WithDelayNotAllowed(t.Context())), "request %d must take a token the refused request left", i)
+			}
+		})
+	})
+
+	t.Run("unrestricted limiter takes a request that may not wait", func(t *testing.T) {
+		t.Parallel()
+		// An unrestricted limiter takes any weight at once, whatever its burst
+		for _, tc := range []struct {
+			name    string
+			limiter *RateLimiterWithWeight
+		}{
+			{name: "infinite rate with a burst below the weight", limiter: GetRateLimiterWithWeight(rate.NewLimiter(rate.Inf, 1), 5)},
+			{name: "zero interval", limiter: NewRateLimitWithWeight(0, 0, 40)},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				assert.NoError(t, tc.limiter.RateLimit(WithDelayNotAllowed(t.Context())), "RateLimit should take a request on an unrestricted limiter at once")
+			})
 		}
 	})
 }
@@ -153,17 +167,6 @@ func TestRateLimiterWithWeightDelay(t *testing.T) {
 		assert.Zero(t, GetRateLimiterWithWeight(rate.NewLimiter(rate.Inf, 1), 5).Delay(), "Delay should report no wait for an unrestricted limiter")
 		assert.Equal(t, rate.InfDuration, GetRateLimiterWithWeight(rate.NewLimiter(0, 1), 5).Delay(), "Delay should report an endless wait for a limiter that never refills")
 	})
-}
-
-func TestRateLimitUnrestrictedDelayNotAllowed(t *testing.T) {
-	t.Parallel()
-	// An unrestricted limiter takes any weight at once, whatever its burst, so a request that may not wait goes
-	for _, l := range []*RateLimiterWithWeight{
-		GetRateLimiterWithWeight(rate.NewLimiter(rate.Inf, 1), 5),
-		NewRateLimitWithWeight(0, 0, 40),
-	} {
-		assert.NoError(t, l.RateLimit(WithDelayNotAllowed(t.Context())), "RateLimit should take a request on an unrestricted limiter at once")
-	}
 }
 
 func TestRateLimit_Concurrent_WithFailure(t *testing.T) {

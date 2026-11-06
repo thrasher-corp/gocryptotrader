@@ -176,7 +176,7 @@ func TestGetFuturesSubOrders(t *testing.T) {
 	assert.NotNil(t, result, "GetFuturesSubOrders should return a result")
 }
 
-func TestFuturesTWAPOrder(t *testing.T) {
+func TestFuturesTWAPOrder(t *testing.T) { //nolint:tparallel // The duration cases share arg with the order placed after them
 	t.Parallel()
 	_, err := e.FuturesTWAPOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "FuturesTWAPOrder must reject a nil request")
@@ -192,10 +192,13 @@ func TestFuturesTWAPOrder(t *testing.T) {
 	arg.Quantity, arg.Duration = 0.012, 0
 	_, err = e.FuturesTWAPOrder(t.Context(), arg)
 	require.ErrorIs(t, err, errDurationRequired, "FuturesTWAPOrder must reject an empty duration")
+	// The cases share arg with the order placed after them, so they run in order before it
 	for _, d := range []time.Duration{minTWAPDuration - time.Second, maxTWAPDuration + time.Second} {
-		arg.Duration = d
-		_, err = e.FuturesTWAPOrder(t.Context(), arg)
-		require.ErrorIsf(t, err, errDurationRequired, "FuturesTWAPOrder must reject a duration of %s", d)
+		t.Run(d.String(), func(t *testing.T) {
+			arg.Duration = d
+			_, err = e.FuturesTWAPOrder(t.Context(), arg)
+			require.ErrorIsf(t, err, errDurationRequired, "FuturesTWAPOrder must reject a duration of %s", d)
+		})
 	}
 
 	if !mockTests {
@@ -389,7 +392,7 @@ func TestGetSpotSubOrders(t *testing.T) {
 	assert.NotNil(t, result, "GetSpotSubOrders should return a result")
 }
 
-func TestSpotTWAPNewOrder(t *testing.T) {
+func TestSpotTWAPNewOrder(t *testing.T) { //nolint:tparallel // The duration cases share arg with the order placed after them
 	t.Parallel()
 	_, err := e.SpotTWAPNewOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "SpotTWAPNewOrder must reject a nil request")
@@ -405,10 +408,13 @@ func TestSpotTWAPNewOrder(t *testing.T) {
 	arg.Quantity, arg.Duration = 0.012, 0
 	_, err = e.SpotTWAPNewOrder(t.Context(), arg)
 	require.ErrorIs(t, err, errDurationRequired, "SpotTWAPNewOrder must reject an empty duration")
+	// The cases share arg with the order placed after them, so they run in order before it
 	for _, d := range []time.Duration{minTWAPDuration - time.Second, maxTWAPDuration + time.Second} {
-		arg.Duration = d
-		_, err = e.SpotTWAPNewOrder(t.Context(), arg)
-		require.ErrorIsf(t, err, errDurationRequired, "SpotTWAPNewOrder must reject a duration of %s", d)
+		t.Run(d.String(), func(t *testing.T) {
+			arg.Duration = d
+			_, err = e.SpotTWAPNewOrder(t.Context(), arg)
+			require.ErrorIsf(t, err, errDurationRequired, "SpotTWAPNewOrder must reject a duration of %s", d)
+		})
 	}
 
 	if !mockTests {

@@ -77,6 +77,14 @@ func getTime(expanded ...bool) (startTime, endTime time.Time) {
 	return endTime.Add(-6 * 24 * time.Hour), endTime
 }
 
+// subtestName names a case after a string input, which may be empty
+func subtestName(s string) string {
+	if s == "" {
+		return "empty"
+	}
+	return s
+}
+
 func TestGetExchangeInfo(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetExchangeInfo(t.Context(), &ExchangeInfoRequest{Symbols: currency.Pairs{currency.NewBTCUSDT()}, SymbolStatus: "TRADING"})
@@ -85,6 +93,42 @@ func TestGetExchangeInfo(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidParameterCombination, "GetExchangeInfo must reject permissions with symbols")
 	_, err = e.GetExchangeInfo(t.Context(), &ExchangeInfoRequest{Symbols: currency.Pairs{currency.EMPTYPAIR}})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetExchangeInfo must reject an empty pair")
+
+	// Serial: the filtered request comes before the symbol request below, whose checks then also show it leaves nothing
+	// behind
+	t.Run("filters by permissions and symbol status", func(t *testing.T) {
+		result, err := e.GetExchangeInfo(t.Context(), &ExchangeInfoRequest{
+			Permissions:        []Permission{PermissionSpot, PermissionMargin},
+			ShowPermissionSets: new(false),
+			SymbolStatus:       "HALT",
+		})
+		require.NoError(t, err, "GetExchangeInfo must not error")
+		assert.NotEmpty(t, result.RateLimits, "GetExchangeInfo should return the rate limits")
+	})
+
+	t.Run("sends one permission as it is and several as a JSON list", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name        string
+			permissions []Permission
+			exp         string
+		}{
+			{"one", []Permission{PermissionSpot}, "SPOT"},
+			{"several", []Permission{PermissionMargin, PermissionTradingGroup025}, `["MARGIN","TRD_GRP_025"]`},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				ex := newTestServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
+					assert.Equal(t, "/api/v3/exchangeInfo", r.URL.Path, "GetExchangeInfo should request the exchange information path")
+					assert.Equal(t, url.Values{"permissions": {tc.exp}}, r.URL.Query(), "GetExchangeInfo should send one permission as it is and several as a JSON list")
+					_, err := w.Write([]byte(`{}`))
+					assert.NoError(t, err, "Write should not error")
+				})
+				_, err := ex.GetExchangeInfo(t.Context(), &ExchangeInfoRequest{Permissions: tc.permissions})
+				require.NoError(t, err, "GetExchangeInfo must not error")
+			})
+		}
+	})
 
 	ensureTradablePairs(t)
 	result, err := e.GetExchangeInfo(t.Context(), &ExchangeInfoRequest{Symbols: currency.Pairs{spotTradablePair}})
@@ -294,41 +338,6 @@ func TestGetExchangeInfo(t *testing.T) {
 	assert.WithinRange(t, result.ServerTime.Time(), time.Now().Add(-24*time.Hour), time.Now().Add(24*time.Hour), "ServerTime should be within a day of now")
 }
 
-func TestGetExchangeInfoFilters(t *testing.T) {
-	t.Parallel()
-	result, err := e.GetExchangeInfo(t.Context(), &ExchangeInfoRequest{
-		Permissions:        []Permission{PermissionSpot, PermissionMargin},
-		ShowPermissionSets: new(false),
-		SymbolStatus:       "HALT",
-	})
-	require.NoError(t, err, "GetExchangeInfo must not error")
-	assert.NotEmpty(t, result.RateLimits, "GetExchangeInfo should return the rate limits")
-}
-
-func TestGetExchangeInfoPermissions(t *testing.T) {
-	t.Parallel()
-	for _, tc := range []struct {
-		name        string
-		permissions []Permission
-		exp         string
-	}{
-		{"one", []Permission{PermissionSpot}, "SPOT"},
-		{"several", []Permission{PermissionMargin, PermissionTradingGroup025}, `["MARGIN","TRD_GRP_025"]`},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			ex := newTestServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
-				assert.Equal(t, "/api/v3/exchangeInfo", r.URL.Path, "GetExchangeInfo should request the exchange information path")
-				assert.Equal(t, url.Values{"permissions": {tc.exp}}, r.URL.Query(), "GetExchangeInfo should send one permission as it is and several as a JSON list")
-				_, err := w.Write([]byte(`{}`))
-				assert.NoError(t, err, "Write should not error")
-			})
-			_, err := ex.GetExchangeInfo(t.Context(), &ExchangeInfoRequest{Permissions: tc.permissions})
-			require.NoError(t, err, "GetExchangeInfo must not error")
-		})
-	}
-}
-
 func TestGetExchangeServerTime(t *testing.T) {
 	t.Parallel()
 	result, err := e.GetExchangeServerTime(t.Context())
@@ -343,7 +352,7 @@ func TestGetExchangeServerTime(t *testing.T) {
 	assert.WithinRange(t, result.ServerTime.Time(), time.Now().Add(-time.Hour), time.Now().Add(time.Hour), "ServerTime should be within an hour of now")
 }
 
-func TestGetAggregatedTrades(t *testing.T) {
+func TestGetAggregatedTrades(t *testing.T) { //nolint:tparallel // The limit cases run in order before the request, which calls the same method
 	t.Parallel()
 	_, err := e.GetAggregatedTrades(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetAggregatedTrades must reject a nil request")
@@ -355,9 +364,12 @@ func TestGetAggregatedTrades(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidParameterCombination, "GetAggregatedTrades must reject fromId with a time window")
 	_, err = e.GetAggregatedTrades(t.Context(), &AggregatedTradeRequest{Symbol: currency.NewBTCUSDT(), StartTime: startTime, EndTime: startTime.Add(-time.Minute)})
 	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetAggregatedTrades must reject a start after the end")
+	// The request after the cases calls the same method, so they run in order before it
 	for _, limit := range []uint64{1001, 5000} {
-		_, err = e.GetAggregatedTrades(t.Context(), &AggregatedTradeRequest{Symbol: currency.NewBTCUSDT(), Limit: limit})
-		require.ErrorIsf(t, err, errAggregatedTradesStartRequired, "GetAggregatedTrades must reject a limit of %d without fromId or startTime", limit)
+		t.Run(strconv.FormatUint(limit, 10), func(t *testing.T) {
+			_, err = e.GetAggregatedTrades(t.Context(), &AggregatedTradeRequest{Symbol: currency.NewBTCUSDT(), Limit: limit})
+			require.ErrorIsf(t, err, errAggregatedTradesStartRequired, "GetAggregatedTrades must reject a limit of %d without fromId or startTime", limit)
+		})
 	}
 
 	ensureTradablePairs(t)
@@ -897,14 +909,50 @@ func TestGetTickerData(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetTickerData must reject an empty pair")
 	_, err = e.GetTickerData(t.Context(), &RollingWindowTickerRequest{Symbols: currency.Pairs{currency.NewBTCUSDT()}, WindowSize: 30 * time.Second})
 	require.ErrorIs(t, err, errInvalidWindowSize, "GetTickerData must reject a window size that is not whole minutes")
+	// The request after the cases calls the same method, so they run in order before it
 	for _, windowSize := range []time.Duration{-time.Minute, time.Minute + time.Second, time.Minute + 400*time.Millisecond} {
-		_, err = e.GetTickerData(t.Context(), &RollingWindowTickerRequest{Symbols: currency.Pairs{currency.NewBTCUSDT()}, WindowSize: windowSize})
-		require.ErrorIsf(t, err, errInvalidWindowSize, "GetTickerData must reject window size %s, which is not a positive whole number of minutes", windowSize)
+		t.Run(windowSize.String(), func(t *testing.T) {
+			_, err = e.GetTickerData(t.Context(), &RollingWindowTickerRequest{Symbols: currency.Pairs{currency.NewBTCUSDT()}, WindowSize: windowSize})
+			require.ErrorIsf(t, err, errInvalidWindowSize, "GetTickerData must reject window size %s, which is not a positive whole number of minutes", windowSize)
+		})
 	}
+	// These too run in order before the request after them
 	for _, windowSize := range []time.Duration{90 * time.Minute, 25 * time.Hour, 8 * 24 * time.Hour} {
-		_, err = e.GetTickerData(t.Context(), &RollingWindowTickerRequest{Symbols: currency.Pairs{currency.NewBTCUSDT()}, WindowSize: windowSize})
-		require.ErrorIsf(t, err, errInvalidWindowSize, "GetTickerData must reject window size %s, which Binance rejects with -1102", windowSize)
+		t.Run(windowSize.String(), func(t *testing.T) {
+			_, err = e.GetTickerData(t.Context(), &RollingWindowTickerRequest{Symbols: currency.Pairs{currency.NewBTCUSDT()}, WindowSize: windowSize})
+			require.ErrorIsf(t, err, errInvalidWindowSize, "GetTickerData must reject window size %s, which Binance rejects with -1102", windowSize)
+		})
 	}
+
+	t.Run("sends the window size as Binance writes it", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name string
+			req  *RollingWindowTickerRequest
+			exp  url.Values
+		}{
+			{"no window", &RollingWindowTickerRequest{Symbols: currency.Pairs{currency.NewBTCUSDT()}}, url.Values{"symbol": {"BTCUSDT"}}},
+			{"1m", &RollingWindowTickerRequest{Symbols: currency.Pairs{currency.NewBTCUSDT()}, WindowSize: time.Minute}, url.Values{"symbol": {"BTCUSDT"}, "windowSize": {"1m"}}},
+			{"59m", &RollingWindowTickerRequest{Symbols: currency.Pairs{currency.NewBTCUSDT()}, WindowSize: 59 * time.Minute}, url.Values{"symbol": {"BTCUSDT"}, "windowSize": {"59m"}}},
+			{"1h", &RollingWindowTickerRequest{Symbols: currency.Pairs{currency.NewBTCUSDT()}, WindowSize: time.Hour}, url.Values{"symbol": {"BTCUSDT"}, "windowSize": {"1h"}}},
+			{"23h", &RollingWindowTickerRequest{Symbols: currency.Pairs{currency.NewBTCUSDT()}, WindowSize: 23 * time.Hour}, url.Values{"symbol": {"BTCUSDT"}, "windowSize": {"23h"}}},
+			{"1d", &RollingWindowTickerRequest{Symbols: currency.Pairs{currency.NewBTCUSDT()}, WindowSize: 24 * time.Hour}, url.Values{"symbol": {"BTCUSDT"}, "windowSize": {"1d"}}},
+			{"7d", &RollingWindowTickerRequest{Symbols: currency.Pairs{currency.NewBTCUSDT()}, WindowSize: 7 * 24 * time.Hour}, url.Values{"symbol": {"BTCUSDT"}, "windowSize": {"7d"}}},
+			{"1d for two symbols", &RollingWindowTickerRequest{Symbols: currency.Pairs{currency.NewBTCUSDT(), currency.NewPair(currency.ETH, currency.USDT)}, WindowSize: 24 * time.Hour}, url.Values{"symbols": {`["BTCUSDT","ETHUSDT"]`}, "windowSize": {"1d"}}},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				ex := newTestServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
+					assert.Equal(t, "/api/v3/ticker", r.URL.Path, "GetTickerData should request the rolling window ticker path")
+					assert.Equal(t, tc.exp, r.URL.Query(), "GetTickerData should send the window size as Binance writes it")
+					_, err := w.Write([]byte(`[]`))
+					assert.NoError(t, err, "Write should not error")
+				})
+				_, err := ex.GetTickerData(t.Context(), tc.req)
+				assert.NoError(t, err, "GetTickerData should not error")
+			})
+		}
+	})
 
 	ensureTradablePairs(t)
 	result, err := e.GetTickerData(t.Context(), &RollingWindowTickerRequest{Symbols: currency.Pairs{spotTradablePair}, WindowSize: 20 * time.Minute, Type: "FULL"})
@@ -934,36 +982,6 @@ func TestGetTickerData(t *testing.T) {
 	}
 	require.Len(t, result, 1, "GetTickerData must return the requested symbol")
 	assert.Equal(t, 20*time.Minute, result[0].CloseTime.Time().Sub(result[0].OpenTime.Time()).Truncate(time.Minute), "GetTickerData should return statistics over the window size")
-}
-
-func TestGetTickerDataWindowSize(t *testing.T) {
-	t.Parallel()
-	for _, tc := range []struct {
-		name string
-		req  *RollingWindowTickerRequest
-		exp  url.Values
-	}{
-		{"no window", &RollingWindowTickerRequest{Symbols: currency.Pairs{currency.NewBTCUSDT()}}, url.Values{"symbol": {"BTCUSDT"}}},
-		{"1m", &RollingWindowTickerRequest{Symbols: currency.Pairs{currency.NewBTCUSDT()}, WindowSize: time.Minute}, url.Values{"symbol": {"BTCUSDT"}, "windowSize": {"1m"}}},
-		{"59m", &RollingWindowTickerRequest{Symbols: currency.Pairs{currency.NewBTCUSDT()}, WindowSize: 59 * time.Minute}, url.Values{"symbol": {"BTCUSDT"}, "windowSize": {"59m"}}},
-		{"1h", &RollingWindowTickerRequest{Symbols: currency.Pairs{currency.NewBTCUSDT()}, WindowSize: time.Hour}, url.Values{"symbol": {"BTCUSDT"}, "windowSize": {"1h"}}},
-		{"23h", &RollingWindowTickerRequest{Symbols: currency.Pairs{currency.NewBTCUSDT()}, WindowSize: 23 * time.Hour}, url.Values{"symbol": {"BTCUSDT"}, "windowSize": {"23h"}}},
-		{"1d", &RollingWindowTickerRequest{Symbols: currency.Pairs{currency.NewBTCUSDT()}, WindowSize: 24 * time.Hour}, url.Values{"symbol": {"BTCUSDT"}, "windowSize": {"1d"}}},
-		{"7d", &RollingWindowTickerRequest{Symbols: currency.Pairs{currency.NewBTCUSDT()}, WindowSize: 7 * 24 * time.Hour}, url.Values{"symbol": {"BTCUSDT"}, "windowSize": {"7d"}}},
-		{"1d for two symbols", &RollingWindowTickerRequest{Symbols: currency.Pairs{currency.NewBTCUSDT(), currency.NewPair(currency.ETH, currency.USDT)}, WindowSize: 24 * time.Hour}, url.Values{"symbols": {`["BTCUSDT","ETHUSDT"]`}, "windowSize": {"1d"}}},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			ex := newTestServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
-				assert.Equal(t, "/api/v3/ticker", r.URL.Path, "GetTickerData should request the rolling window ticker path")
-				assert.Equal(t, tc.exp, r.URL.Query(), "GetTickerData should send the window size as Binance writes it")
-				_, err := w.Write([]byte(`[]`))
-				assert.NoError(t, err, "Write should not error")
-			})
-			_, err := ex.GetTickerData(t.Context(), tc.req)
-			assert.NoError(t, err, "GetTickerData should not error")
-		})
-	}
 }
 
 func TestGetPriceChangeStats(t *testing.T) {
@@ -2744,204 +2762,230 @@ func jsonDecimal(tb testing.TB, s string) decimal.Decimal {
 
 func TestGetAccount(t *testing.T) {
 	t.Parallel()
-	if !mockTests {
-		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	}
-	result, err := e.GetAccount(t.Context(), true)
-	require.NoError(t, err, "GetAccount must not error")
-	if mockTests {
-		exp := &AccountResponse{
-			MakerCommissionInBasisPoints:  9,
-			TakerCommissionInBasisPoints:  10,
-			BuyerCommissionInBasisPoints:  2,
-			SellerCommissionInBasisPoints: 3,
-			CommissionRates: CommissionRates{
-				Maker:  0.0009,
-				Taker:  0.001,
-				Buyer:  0.0002,
-				Seller: 0.0003,
-			},
-			CanTrade:                   true,
-			CanWithdraw:                true,
-			CanDeposit:                 true,
-			Brokered:                   true,
-			RequireSelfTradePrevention: true,
-			PreventSOR:                 true,
-			UpdateTime:                 types.Time(time.UnixMilli(1791284811009)),
-			AccountType:                "SPOT",
-			Balances: []Balance{
-				{
-					Asset:  currency.BTC,
-					Free:   jsonDecimal(t, "1.25000000"),
-					Locked: jsonDecimal(t, "0.01000000"),
-				},
-				{
-					Asset:  currency.USDT,
-					Free:   jsonDecimal(t, "86168.13000000"),
-					Locked: jsonDecimal(t, "120.50000000"),
-				},
-			},
-			Permissions: []Permission{
-				"SPOT",
-			},
-			UID: 354937868,
+	t.Run("returns the account", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 		}
-		assert.Equal(t, exp, result, "GetAccount should decode every field")
-		return
-	}
-	assert.NotEmpty(t, result.AccountType, "GetAccount should return the account type")
-}
+		result, err := e.GetAccount(t.Context(), true)
+		require.NoError(t, err, "GetAccount must not error")
+		if mockTests {
+			exp := &AccountResponse{
+				MakerCommissionInBasisPoints:  9,
+				TakerCommissionInBasisPoints:  10,
+				BuyerCommissionInBasisPoints:  2,
+				SellerCommissionInBasisPoints: 3,
+				CommissionRates: CommissionRates{
+					Maker:  0.0009,
+					Taker:  0.001,
+					Buyer:  0.0002,
+					Seller: 0.0003,
+				},
+				CanTrade:                   true,
+				CanWithdraw:                true,
+				CanDeposit:                 true,
+				Brokered:                   true,
+				RequireSelfTradePrevention: true,
+				PreventSOR:                 true,
+				UpdateTime:                 types.Time(time.UnixMilli(1791284811009)),
+				AccountType:                "SPOT",
+				Balances: []Balance{
+					{
+						Asset:  currency.BTC,
+						Free:   jsonDecimal(t, "1.25000000"),
+						Locked: jsonDecimal(t, "0.01000000"),
+					},
+					{
+						Asset:  currency.USDT,
+						Free:   jsonDecimal(t, "86168.13000000"),
+						Locked: jsonDecimal(t, "120.50000000"),
+					},
+				},
+				Permissions: []Permission{
+					"SPOT",
+				},
+				UID: 354937868,
+			}
+			assert.Equal(t, exp, result, "GetAccount should decode every field")
+			return
+		}
+		assert.NotEmpty(t, result.AccountType, "GetAccount should return the account type")
+	})
 
-func TestGetAccountNegativeCommissions(t *testing.T) {
-	t.Parallel()
-	for _, tc := range []struct {
-		field string
-		exp   AccountResponse
-	}{
-		{field: "makerCommission", exp: AccountResponse{MakerCommissionInBasisPoints: -1}},
-		{field: "takerCommission", exp: AccountResponse{TakerCommissionInBasisPoints: -1}},
-		{field: "buyerCommission", exp: AccountResponse{BuyerCommissionInBasisPoints: -1}},
-		{field: "sellerCommission", exp: AccountResponse{SellerCommissionInBasisPoints: -1}},
-	} {
-		t.Run(tc.field, func(t *testing.T) {
-			t.Parallel()
-			ex := newTestServerExchange(t, func(w http.ResponseWriter, _ *http.Request) {
-				_, err := w.Write([]byte(`{"` + tc.field + `":-1}`))
-				assert.NoError(t, err, "Write should not error")
+	t.Run("decodes negative commissions", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			field string
+			exp   AccountResponse
+		}{
+			{field: "makerCommission", exp: AccountResponse{MakerCommissionInBasisPoints: -1}},
+			{field: "takerCommission", exp: AccountResponse{TakerCommissionInBasisPoints: -1}},
+			{field: "buyerCommission", exp: AccountResponse{BuyerCommissionInBasisPoints: -1}},
+			{field: "sellerCommission", exp: AccountResponse{SellerCommissionInBasisPoints: -1}},
+		} {
+			t.Run(tc.field, func(t *testing.T) {
+				t.Parallel()
+				ex := newTestServerExchange(t, func(w http.ResponseWriter, _ *http.Request) {
+					_, err := w.Write([]byte(`{"` + tc.field + `":-1}`))
+					assert.NoError(t, err, "Write should not error")
+				})
+				result, err := ex.GetAccount(t.Context(), false)
+				require.NoErrorf(t, err, "GetAccount must not error for a negative %s", tc.field)
+				assert.Equal(t, &tc.exp, result, "GetAccount should decode the negative commission")
 			})
-			result, err := ex.GetAccount(t.Context(), false)
-			require.NoErrorf(t, err, "GetAccount must not error for a negative %s", tc.field)
-			assert.Equal(t, &tc.exp, result, "GetAccount should decode the negative commission")
-		})
-	}
+		}
+	})
 }
 
 func TestOpenOrders(t *testing.T) {
 	t.Parallel()
-	if !mockTests {
-		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-		ensureTradablePairs(t)
-	}
-	result, err := e.OpenOrders(t.Context(), currency.EMPTYPAIR)
-	require.NoError(t, err, "OpenOrders must not error")
-	if mockTests {
-		exp := []TradeOrderResponse{
-			{
-				Symbol:                     "BTCUSDT",
-				OrderID:                    2,
-				OrderListID:                -1,
-				ClientOrderID:              "myOrder2",
-				Price:                      84000,
-				OriginalQuantity:           0.01,
-				Status:                     "NEW",
-				TimeInForce:                order.GoodTillCancel,
-				Type:                       "STOP_LOSS_LIMIT",
-				Side:                       "SELL",
-				Time:                       types.Time(time.Unix(1744106000, 0)),
-				UpdateTime:                 types.Time(time.Unix(1744106000, 0)),
-				WorkingTime:                -1,
-				SelfTradePreventionMode:    "EXPIRE_MAKER",
-				IcebergQuantity:            0.002,
-				StopPrice:                  85000,
-				StrategyID:                 37463720,
-				StrategyType:               1000000,
-				TrailingDeltaInBasisPoints: 200,
-				TrailingTime:               -1,
-				PegPriceType:               "MARKET_PEG",
-				PegOffsetType:              "PRICE_LEVEL",
-				PegOffsetValue:             1,
-				PeggedPrice:                84000,
-			},
-			{
-				Symbol:                  "ETHUSDT",
-				OrderID:                 4,
-				OrderListID:             -1,
-				ClientOrderID:           "myOrder4",
-				Price:                   2700,
-				OriginalQuantity:        0.01,
-				ExecutedQuantity:        0.001,
-				CumulativeQuoteQuantity: 2.7,
-				Status:                  "PARTIALLY_FILLED",
-				TimeInForce:             order.GoodTillCancel,
-				Type:                    "LIMIT",
-				Side:                    "BUY",
-				Time:                    types.Time(time.Unix(1744108000, 0)),
-				UpdateTime:              types.Time(time.Unix(1744108000, 0)),
-				IsWorking:               true,
-				WorkingTime:             1744108000000,
-				SelfTradePreventionMode: "DECREMENT",
-				PreventedMatchID:        1,
-				PreventedQuantity:       0.00058,
-				UsedSOR:                 true,
-				WorkingFloor:            "SOR",
-			},
+	t.Run("lists open orders", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+			ensureTradablePairs(t)
 		}
-		assert.Equal(t, exp, result, "OpenOrders should decode every field")
-	} else {
-		assert.NotNil(t, result, "OpenOrders should return the orders")
-	}
+		result, err := e.OpenOrders(t.Context(), currency.EMPTYPAIR)
+		require.NoError(t, err, "OpenOrders must not error")
+		if mockTests {
+			exp := []TradeOrderResponse{
+				{
+					Symbol:                     "BTCUSDT",
+					OrderID:                    2,
+					OrderListID:                -1,
+					ClientOrderID:              "myOrder2",
+					Price:                      84000,
+					OriginalQuantity:           0.01,
+					Status:                     "NEW",
+					TimeInForce:                order.GoodTillCancel,
+					Type:                       "STOP_LOSS_LIMIT",
+					Side:                       "SELL",
+					Time:                       types.Time(time.Unix(1744106000, 0)),
+					UpdateTime:                 types.Time(time.Unix(1744106000, 0)),
+					WorkingTime:                -1,
+					SelfTradePreventionMode:    "EXPIRE_MAKER",
+					IcebergQuantity:            0.002,
+					StopPrice:                  85000,
+					StrategyID:                 37463720,
+					StrategyType:               1000000,
+					TrailingDeltaInBasisPoints: 200,
+					TrailingTime:               -1,
+					PegPriceType:               "MARKET_PEG",
+					PegOffsetType:              "PRICE_LEVEL",
+					PegOffsetValue:             1,
+					PeggedPrice:                84000,
+				},
+				{
+					Symbol:                  "ETHUSDT",
+					OrderID:                 4,
+					OrderListID:             -1,
+					ClientOrderID:           "myOrder4",
+					Price:                   2700,
+					OriginalQuantity:        0.01,
+					ExecutedQuantity:        0.001,
+					CumulativeQuoteQuantity: 2.7,
+					Status:                  "PARTIALLY_FILLED",
+					TimeInForce:             order.GoodTillCancel,
+					Type:                    "LIMIT",
+					Side:                    "BUY",
+					Time:                    types.Time(time.Unix(1744108000, 0)),
+					UpdateTime:              types.Time(time.Unix(1744108000, 0)),
+					IsWorking:               true,
+					WorkingTime:             1744108000000,
+					SelfTradePreventionMode: "DECREMENT",
+					PreventedMatchID:        1,
+					PreventedQuantity:       0.00058,
+					UsedSOR:                 true,
+					WorkingFloor:            "SOR",
+				},
+			}
+			assert.Equal(t, exp, result, "OpenOrders should decode every field")
+		} else {
+			assert.NotNil(t, result, "OpenOrders should return the orders")
+		}
 
-	result, err = e.OpenOrders(t.Context(), spotTradablePair)
-	require.NoError(t, err, "OpenOrders must not error")
-	if mockTests {
-		exp := []TradeOrderResponse{
-			{
-				Symbol:                     "BTCUSDT",
-				OrderID:                    2,
-				OrderListID:                -1,
-				ClientOrderID:              "myOrder2",
-				Price:                      84000,
-				OriginalQuantity:           0.01,
-				Status:                     "NEW",
-				TimeInForce:                order.GoodTillCancel,
-				Type:                       "STOP_LOSS_LIMIT",
-				Side:                       "SELL",
-				Time:                       types.Time(time.Unix(1744106000, 0)),
-				UpdateTime:                 types.Time(time.Unix(1744106000, 0)),
-				WorkingTime:                -1,
-				SelfTradePreventionMode:    "EXPIRE_MAKER",
-				IcebergQuantity:            0.002,
-				StopPrice:                  85000,
-				StrategyID:                 37463720,
-				StrategyType:               1000000,
-				TrailingDeltaInBasisPoints: 200,
-				TrailingTime:               -1,
-				PegPriceType:               "MARKET_PEG",
-				PegOffsetType:              "PRICE_LEVEL",
-				PegOffsetValue:             1,
-				PeggedPrice:                84000,
-			},
-			{
-				Symbol:                  "BTCUSDT",
-				OrderID:                 5,
-				OrderListID:             -1,
-				ClientOrderID:           "myOrder5",
-				Price:                   86000,
-				OriginalQuantity:        0.01,
-				ExecutedQuantity:        0.001,
-				CumulativeQuoteQuantity: 86,
-				Status:                  "PARTIALLY_FILLED",
-				TimeInForce:             order.GoodTillCancel,
-				Type:                    "LIMIT",
-				Side:                    "BUY",
-				Time:                    types.Time(time.Unix(1744109000, 0)),
-				UpdateTime:              types.Time(time.Unix(1744109000, 0)),
-				IsWorking:               true,
-				WorkingTime:             1744109000000,
-				SelfTradePreventionMode: "DECREMENT",
-				PreventedMatchID:        1,
-				PreventedQuantity:       0.00058,
-				UsedSOR:                 true,
-				WorkingFloor:            "SOR",
-			},
+		result, err = e.OpenOrders(t.Context(), spotTradablePair)
+		require.NoError(t, err, "OpenOrders must not error")
+		if mockTests {
+			exp := []TradeOrderResponse{
+				{
+					Symbol:                     "BTCUSDT",
+					OrderID:                    2,
+					OrderListID:                -1,
+					ClientOrderID:              "myOrder2",
+					Price:                      84000,
+					OriginalQuantity:           0.01,
+					Status:                     "NEW",
+					TimeInForce:                order.GoodTillCancel,
+					Type:                       "STOP_LOSS_LIMIT",
+					Side:                       "SELL",
+					Time:                       types.Time(time.Unix(1744106000, 0)),
+					UpdateTime:                 types.Time(time.Unix(1744106000, 0)),
+					WorkingTime:                -1,
+					SelfTradePreventionMode:    "EXPIRE_MAKER",
+					IcebergQuantity:            0.002,
+					StopPrice:                  85000,
+					StrategyID:                 37463720,
+					StrategyType:               1000000,
+					TrailingDeltaInBasisPoints: 200,
+					TrailingTime:               -1,
+					PegPriceType:               "MARKET_PEG",
+					PegOffsetType:              "PRICE_LEVEL",
+					PegOffsetValue:             1,
+					PeggedPrice:                84000,
+				},
+				{
+					Symbol:                  "BTCUSDT",
+					OrderID:                 5,
+					OrderListID:             -1,
+					ClientOrderID:           "myOrder5",
+					Price:                   86000,
+					OriginalQuantity:        0.01,
+					ExecutedQuantity:        0.001,
+					CumulativeQuoteQuantity: 86,
+					Status:                  "PARTIALLY_FILLED",
+					TimeInForce:             order.GoodTillCancel,
+					Type:                    "LIMIT",
+					Side:                    "BUY",
+					Time:                    types.Time(time.Unix(1744109000, 0)),
+					UpdateTime:              types.Time(time.Unix(1744109000, 0)),
+					IsWorking:               true,
+					WorkingTime:             1744109000000,
+					SelfTradePreventionMode: "DECREMENT",
+					PreventedMatchID:        1,
+					PreventedQuantity:       0.00058,
+					UsedSOR:                 true,
+					WorkingFloor:            "SOR",
+				},
+			}
+			assert.Equal(t, exp, result, "OpenOrders should decode every field")
+			return
 		}
-		assert.Equal(t, exp, result, "OpenOrders should decode every field")
-		return
-	}
-	assert.NotNil(t, result, "OpenOrders should return the orders")
+		assert.NotNil(t, result, "OpenOrders should return the orders")
+	})
+
+	t.Run("draws a single symbol's listing weight", func(t *testing.T) {
+		t.Parallel()
+		// A listing of one symbol's open orders costs a fraction of every symbol's, which it must not be charged
+		ex := newTradingTestExchange(t, func(w http.ResponseWriter, _ *http.Request) {
+			_, err := w.Write([]byte(`[]`))
+			assert.NoError(t, err, "Write should not error")
+		})
+		require.NoError(t, ex.EnableRateLimiter(), "EnableRateLimiter must not error")
+		exhausted := request.NewRateLimitWithWeight(time.Hour, 1, 1)
+		require.NoError(t, exhausted.RateLimit(t.Context()), "RateLimit must take the limiter's only token")
+		definitions := ex.Requester.GetRateLimiterDefinitions()
+		for _, epl := range []request.EndpointLimit{spotOpenOrdersAllRate, spotCancelAllListingRate} {
+			definitions[epl] = exhausted
+		}
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
+		_, err := ex.OpenOrders(ctx, currency.NewBTCUSDT())
+		assert.NoError(t, err, "OpenOrders should draw a single symbol's listing weight")
+	})
 }
 
-func TestQueryOrder(t *testing.T) {
+func TestQueryOrder(t *testing.T) { //nolint:tparallel // the cases share e, so they run in order while the test runs in parallel
 	t.Parallel()
 	_, err := e.QueryOrder(t.Context(), currency.EMPTYPAIR, "", 1337)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "QueryOrder must reject an empty pair")
@@ -2952,6 +2996,7 @@ func TestQueryOrder(t *testing.T) {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 		ensureTradablePairs(t)
 	}
+	// The cases share e in order, so each also checks that a request keeps nothing from the last
 	for _, tc := range []struct {
 		clientOrderID string
 		orderID       uint64
@@ -3047,13 +3092,15 @@ func TestQueryOrder(t *testing.T) {
 			},
 		},
 	} {
-		result, err := e.QueryOrder(t.Context(), spotTradablePair, tc.clientOrderID, tc.orderID)
-		require.NoErrorf(t, err, "QueryOrder must not error for %s", tc.clientOrderID)
-		if mockTests {
-			assert.Equalf(t, tc.exp, result, "QueryOrder should decode every field for %s", tc.clientOrderID)
-			continue
-		}
-		assert.Equalf(t, tc.clientOrderID, result.ClientOrderID, "QueryOrder should return %s", tc.clientOrderID)
+		t.Run(subtestName(tc.clientOrderID), func(t *testing.T) {
+			result, err := e.QueryOrder(t.Context(), spotTradablePair, tc.clientOrderID, tc.orderID)
+			require.NoErrorf(t, err, "QueryOrder must not error for %s", tc.clientOrderID)
+			if mockTests {
+				assert.Equalf(t, tc.exp, result, "QueryOrder should decode every field for %s", tc.clientOrderID)
+				return
+			}
+			assert.Equalf(t, tc.clientOrderID, result.ClientOrderID, "QueryOrder should return %s", tc.clientOrderID)
+		})
 	}
 }
 
@@ -3797,6 +3844,8 @@ func TestListLengthLimits(t *testing.T) {
 		t.Parallel()
 		// Without a WebSocket API connection, a list at its maximum is only refused for want of one
 		ex := newTestExchange(t)
+
+		// The tickers share ex, so they run one at a time
 		for name, call := range map[string]func(n int) error{
 			"rolling window": func(n int) error {
 				_, err := ex.GetWebsocketRollingWindowPriceChanges(t.Context(), &WebsocketRollingWindowTickerRequest{Symbols: pairs(n)})
@@ -3807,8 +3856,10 @@ func TestListLengthLimits(t *testing.T) {
 				return err
 			},
 		} {
-			assert.ErrorIsf(t, call(100), websocket.ErrNotConnected, "the %s ticker should take 100 symbols", name)
-			assert.ErrorIsf(t, call(101), errTooManyItems, "the %s ticker should refuse 101 symbols", name)
+			t.Run(name, func(t *testing.T) {
+				assert.ErrorIsf(t, call(100), websocket.ErrNotConnected, "the %s ticker should take 100 symbols", name)
+				assert.ErrorIsf(t, call(101), errTooManyItems, "the %s ticker should refuse 101 symbols", name)
+			})
 		}
 	})
 }

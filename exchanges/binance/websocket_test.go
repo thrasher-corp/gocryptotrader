@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -408,10 +409,13 @@ func TestWebsocketHandleData(t *testing.T) {
 			}},
 		},
 	}
+	// The cases take ex's relayed payloads in turn, so they run in order
 	for i := range exp {
-		require.NotEmptyf(t, ex.Websocket.DataHandler.C, "relay must hold payload %d", i)
-		got := (<-ex.Websocket.DataHandler.C).Data
-		assert.Equalf(t, exp[i], got, "relayed payload %d should match", i)
+		t.Run("payload "+strconv.Itoa(i), func(t *testing.T) {
+			require.NotEmptyf(t, ex.Websocket.DataHandler.C, "relay must hold payload %d", i)
+			got := (<-ex.Websocket.DataHandler.C).Data
+			assert.Equalf(t, exp[i], got, "relayed payload %d should match", i)
+		})
 	}
 	stored, err := ticker.GetTicker(t.Name(), pair, asset.Spot)
 	require.NoError(t, err, "GetTicker must not error")
@@ -428,61 +432,64 @@ func TestWebsocketHandleData(t *testing.T) {
 	assert.Equal(t, int64(101096708778), book.LastUpdateID, "the last partial depth payload should be the book")
 	assert.Equal(t, orderbook.Levels{{Price: 86104.01, Amount: 7.31528}, {Price: 86104, Amount: 0.02997}}, book.Bids, "bids should be the last payload's")
 	assert.Equal(t, orderbook.Levels{{Price: 86104.02, Amount: 5.48779}, {Price: 86104.03, Amount: 0.00072}}, book.Asks, "asks should be the last payload's")
-}
 
-func TestWebsocketHandleDataErrors(t *testing.T) {
-	t.Parallel()
-	ex := newTestExchange(t)
-	ex.Features.Enabled.TradeFeed = true
-	for _, tc := range []struct {
-		name string
-		msg  string
-		err  error
-	}{
-		{name: "no stream", msg: `{"data":{"e":"trade"}}`, err: errUnhandledMessage},
-		{name: "no data", msg: `{"stream":"btcusdt@trade"}`, err: errUnhandledMessage},
-		{name: "unknown channel", msg: `{"stream":"btcusdt@aggTrade","data":{"e":"aggTrade"}}`, err: errUnhandledMessage},
-		{name: "unknown kline interval", msg: `{"stream":"btcusdt@kline_2s","data":{"e":"kline","s":"BTCUSDT","k":{"i":"2s"}}}`, err: kline.ErrInvalidInterval},
-		{name: "unknown symbol", msg: `{"stream":"moonusdt@ticker","data":{"e":"24hrTicker","s":"MOONUSDT"}}`, err: currency.ErrPairNotFound},
-		{name: "unknown partial depth symbol", msg: `{"stream":"moonusdt@depth5","data":{"lastUpdateId":1}}`, err: currency.ErrPairNotFound},
-		{name: "unknown diff depth symbol", msg: `{"stream":"moonusdt@depth","data":{"e":"depthUpdate","s":"MOONUSDT","U":1,"u":2}}`, err: currency.ErrPairNotFound},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			assert.ErrorIs(t, ex.wsHandleData(t.Context(), nil, []byte(tc.msg)), tc.err, "wsHandleData should return the expected error")
-		})
-	}
-	for _, msg := range []string{
-		`{"stream":"btcusdt@trade","data":"bad"}`,
-		`{"stream":"btcusdt@ticker","data":"bad"}`,
-		`{"stream":"btcusdt@kline_1m","data":"bad"}`,
-		`{"stream":"btcusdt@depth","data":"bad"}`,
-		`{"stream":"btcusdt@depth5","data":"bad"}`,
-		`{"stream":"!serverShutdown","data":"bad"}`,
-	} {
-		assert.Errorf(t, ex.wsHandleData(t.Context(), nil, []byte(msg)), "wsHandleData should reject %s", msg)
-	}
-}
+	t.Run("rejects frames it cannot handle", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestExchange(t)
+		ex.Features.Enabled.TradeFeed = true
+		for _, tc := range []struct {
+			name string
+			msg  string
+			err  error
+		}{
+			{name: "no stream", msg: `{"data":{"e":"trade"}}`, err: errUnhandledMessage},
+			{name: "no data", msg: `{"stream":"btcusdt@trade"}`, err: errUnhandledMessage},
+			{name: "unknown channel", msg: `{"stream":"btcusdt@aggTrade","data":{"e":"aggTrade"}}`, err: errUnhandledMessage},
+			{name: "unknown kline interval", msg: `{"stream":"btcusdt@kline_2s","data":{"e":"kline","s":"BTCUSDT","k":{"i":"2s"}}}`, err: kline.ErrInvalidInterval},
+			{name: "unknown symbol", msg: `{"stream":"moonusdt@ticker","data":{"e":"24hrTicker","s":"MOONUSDT"}}`, err: currency.ErrPairNotFound},
+			{name: "unknown partial depth symbol", msg: `{"stream":"moonusdt@depth5","data":{"lastUpdateId":1}}`, err: currency.ErrPairNotFound},
+			{name: "unknown diff depth symbol", msg: `{"stream":"moonusdt@depth","data":{"e":"depthUpdate","s":"MOONUSDT","U":1,"u":2}}`, err: currency.ErrPairNotFound},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				assert.ErrorIs(t, ex.wsHandleData(t.Context(), nil, []byte(tc.msg)), tc.err, "wsHandleData should return the expected error")
+			})
+		}
+		// The cases share ex in order, so each also checks that a rejected frame leaves nothing for the next
+		for _, tc := range []struct{ name, msg string }{
+			{"undecodable trade", `{"stream":"btcusdt@trade","data":"bad"}`},
+			{"undecodable ticker", `{"stream":"btcusdt@ticker","data":"bad"}`},
+			{"undecodable kline", `{"stream":"btcusdt@kline_1m","data":"bad"}`},
+			{"undecodable diff depth", `{"stream":"btcusdt@depth","data":"bad"}`},
+			{"undecodable partial depth", `{"stream":"btcusdt@depth5","data":"bad"}`},
+			{"undecodable server shutdown", `{"stream":"!serverShutdown","data":"bad"}`},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				assert.Errorf(t, ex.wsHandleData(t.Context(), nil, []byte(tc.msg)), "wsHandleData should reject %s", tc.msg)
+			})
+		}
+	})
 
-func TestWebsocketHandleDataDisabledPair(t *testing.T) {
-	t.Parallel()
-	ex := newTestExchange(t)
-	ex.Features.Enabled.TradeFeed = true
-	ex.Websocket.Trade.Setup(true, ex.Websocket.DataHandler)
-	ethusdt := currency.NewPairWithDelimiter("ETH", "USDT", "-")
-	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{currency.NewPairWithDelimiter("BTC", "USDT", "-"), ethusdt}, false), "StorePairs must not error")
-	// Without a synchronisation a diff depth frame that reached it would error
-	ex.orderbookSync = nil
-	for _, msg := range []string{
-		`{"stream":"ethusdt@trade","data":{"e":"trade","s":"ETHUSDT","t":1,"p":"1","q":"1"}}`,
-		`{"stream":"ethusdt@ticker","data":{"e":"24hrTicker","s":"ETHUSDT","c":"1"}}`,
-		`{"stream":"ethusdt@kline_1m","data":{"e":"kline","s":"ETHUSDT","k":{"i":"1m"}}}`,
-		`{"stream":"ethusdt@depth5","data":{"lastUpdateId":1,"bids":[["1","1"]],"asks":[["2","1"]]}}`,
-		`{"stream":"ethusdt@depth@100ms","data":{"e":"depthUpdate","s":"ETHUSDT","U":1,"u":2,"b":[["1","1"]],"a":[]}}`,
-	} {
-		require.NoErrorf(t, ex.wsHandleData(t.Context(), nil, []byte(msg)), "wsHandleData must not error for a disabled pair's %s", msg)
-	}
-	assert.Empty(t, ex.Websocket.DataHandler.C, "a disabled pair's payloads should not be relayed")
+	t.Run("does not relay a disabled pair's payloads", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestExchange(t)
+		ex.Features.Enabled.TradeFeed = true
+		ex.Websocket.Trade.Setup(true, ex.Websocket.DataHandler)
+		ethusdt := currency.NewPairWithDelimiter("ETH", "USDT", "-")
+		require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{currency.NewPairWithDelimiter("BTC", "USDT", "-"), ethusdt}, false), "StorePairs must not error")
+		// Without a synchronisation a diff depth frame that reached it would error
+		ex.orderbookSync = nil
+		for _, msg := range []string{
+			`{"stream":"ethusdt@trade","data":{"e":"trade","s":"ETHUSDT","t":1,"p":"1","q":"1"}}`,
+			`{"stream":"ethusdt@ticker","data":{"e":"24hrTicker","s":"ETHUSDT","c":"1"}}`,
+			`{"stream":"ethusdt@kline_1m","data":{"e":"kline","s":"ETHUSDT","k":{"i":"1m"}}}`,
+			`{"stream":"ethusdt@depth5","data":{"lastUpdateId":1,"bids":[["1","1"]],"asks":[["2","1"]]}}`,
+			`{"stream":"ethusdt@depth@100ms","data":{"e":"depthUpdate","s":"ETHUSDT","U":1,"u":2,"b":[["1","1"]],"a":[]}}`,
+		} {
+			require.NoErrorf(t, ex.wsHandleData(t.Context(), nil, []byte(msg)), "wsHandleData must not error for a disabled pair's %s", msg)
+		}
+		assert.Empty(t, ex.Websocket.DataHandler.C, "a disabled pair's payloads should not be relayed")
+	})
 }
 
 func TestHandleServerShutdown(t *testing.T) {
@@ -538,57 +545,57 @@ func TestProcessOrderbookUpdate(t *testing.T) {
 	t.Parallel()
 	err := new(Exchange).processOrderbookUpdate(t.Context(), 1, &orderbook.Update{})
 	assert.ErrorIs(t, err, errOrderbookSyncNotSetUp, "processOrderbookUpdate should require the order book synchronisation")
-}
 
-func TestProcessOrderbookUpdateOverlap(t *testing.T) {
-	t.Parallel()
-	// Spot applies an event that starts within the book and ends after it, while the derivatives procedures need each
-	// event to chain to the last by pu, so a new snapshot is taken instead
-	for a, applied := range map[asset.Item]bool{asset.Spot: true, asset.USDTMarginedFutures: false} {
-		t.Run(a.String(), func(t *testing.T) {
-			t.Parallel()
-			ex := newTestExchange(t)
-			var fetches atomic.Int32
-			useTestOrderbookSync(ex, func(_ context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error) {
-				if fetches.Add(1) > 1 {
-					// Later snapshots fail, so a resynchronisation cannot reload the book an overlapping derivatives event
-					// invalidates before the test reads it
-					return nil, errTestNoSnapshot
+	t.Run("event overlapping the book", func(t *testing.T) {
+		t.Parallel()
+		// Spot applies an event that starts within the book and ends after it, while the derivatives procedures need each
+		// event to chain to the last by pu, so a new snapshot is taken instead
+		for a, applied := range map[asset.Item]bool{asset.Spot: true, asset.USDTMarginedFutures: false} {
+			t.Run(a.String(), func(t *testing.T) {
+				t.Parallel()
+				ex := newTestExchange(t)
+				var fetches atomic.Int32
+				useTestOrderbookSync(ex, func(_ context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error) {
+					if fetches.Add(1) > 1 {
+						// Later snapshots fail, so a resynchronisation cannot reload the book an overlapping derivatives event
+						// invalidates before the test reads it
+						return nil, errTestNoSnapshot
+					}
+					return &orderbook.Book{
+						Exchange: ex.Name, Pair: p, Asset: a, Bids: orderbook.Levels{{Price: 100, Amount: 1}}, Asks: orderbook.Levels{{Price: 101, Amount: 1}},
+						LastUpdateID: 100, LastUpdated: spotDepthFrameTime(100),
+					}, nil
+				})
+				pair := currency.NewPairWithDelimiter("BTC", "USDT", "-")
+				ctx := t.Context()
+				update := func(finalUpdateID int64) *orderbook.Update {
+					return &orderbook.Update{
+						UpdateID: finalUpdateID, UpdateTime: spotDepthFrameTime(finalUpdateID), Asset: a, Pair: pair,
+						Bids: orderbook.Levels{{Price: 100, Amount: float64(finalUpdateID)}},
+					}
 				}
-				return &orderbook.Book{
-					Exchange: ex.Name, Pair: p, Asset: a, Bids: orderbook.Levels{{Price: 100, Amount: 1}}, Asks: orderbook.Levels{{Price: 101, Amount: 1}},
-					LastUpdateID: 100, LastUpdated: spotDepthFrameTime(100),
-				}, nil
+				require.NoError(t, returnWithin(func() error { return ex.processOrderbookUpdate(ctx, 101, update(105)) }), "processOrderbookUpdate must not error")
+				require.Eventually(t, func() bool {
+					id, err := ex.Websocket.Orderbook.LastUpdateID(pair, a)
+					return err == nil && id == 105
+				}, 30*time.Second, 10*time.Millisecond, "the book must synchronise")
+
+				require.NoError(t, returnWithin(func() error { return ex.processOrderbookUpdate(ctx, 103, update(110)) }), "processOrderbookUpdate must not error for an overlapping event")
+				got, err := storedOrderbookState(ex, pair, a)
+				if !applied {
+					assert.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "an overlapping derivatives event should invalidate the book")
+					return
+				}
+				require.NoError(t, err, "an overlapping spot event must leave the book valid")
+				exp := &orderbookState{
+					Bids: orderbook.Levels{{Price: 100, Amount: 110}}, Asks: orderbook.Levels{{Price: 101, Amount: 1}},
+					LastUpdateID: 110, LastUpdated: spotDepthFrameTime(110),
+				}
+				assert.Equal(t, exp, got, "an overlapping spot event should apply")
+				assert.Equal(t, int32(1), fetches.Load(), "an overlapping spot event should not take a new snapshot")
 			})
-			pair := currency.NewPairWithDelimiter("BTC", "USDT", "-")
-			ctx := t.Context()
-			update := func(finalUpdateID int64) *orderbook.Update {
-				return &orderbook.Update{
-					UpdateID: finalUpdateID, UpdateTime: spotDepthFrameTime(finalUpdateID), Asset: a, Pair: pair,
-					Bids: orderbook.Levels{{Price: 100, Amount: float64(finalUpdateID)}},
-				}
-			}
-			require.NoError(t, returnWithin(func() error { return ex.processOrderbookUpdate(ctx, 101, update(105)) }), "processOrderbookUpdate must not error")
-			require.Eventually(t, func() bool {
-				id, err := ex.Websocket.Orderbook.LastUpdateID(pair, a)
-				return err == nil && id == 105
-			}, 30*time.Second, 10*time.Millisecond, "the book must synchronise")
-
-			require.NoError(t, returnWithin(func() error { return ex.processOrderbookUpdate(ctx, 103, update(110)) }), "processOrderbookUpdate must not error for an overlapping event")
-			got, err := storedOrderbookState(ex, pair, a)
-			if !applied {
-				assert.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "an overlapping derivatives event should invalidate the book")
-				return
-			}
-			require.NoError(t, err, "an overlapping spot event must leave the book valid")
-			exp := &orderbookState{
-				Bids: orderbook.Levels{{Price: 100, Amount: 110}}, Asks: orderbook.Levels{{Price: 101, Amount: 1}},
-				LastUpdateID: 110, LastUpdated: spotDepthFrameTime(110),
-			}
-			assert.Equal(t, exp, got, "an overlapping spot event should apply")
-			assert.Equal(t, int32(1), fetches.Load(), "an overlapping spot event should not take a new snapshot")
-		})
-	}
+		}
+	})
 }
 
 func TestCheckSpotPendingUpdate(t *testing.T) {
@@ -606,9 +613,12 @@ func TestCheckSpotPendingUpdate(t *testing.T) {
 		{name: "follows the snapshot", firstUpdateID: 101, finalUpdateID: 110},
 		{name: "starts after a gap", firstUpdateID: 102, finalUpdateID: 110, err: orderbookmanager.ErrOrderbookSnapshotOutdated},
 	} {
-		skip, err := checkSpotPendingUpdate(100, tc.firstUpdateID, &orderbook.Update{UpdateID: tc.finalUpdateID, Asset: asset.Spot})
-		assert.ErrorIsf(t, err, tc.err, "checkSpotPendingUpdate should return the expected error for an event that %s", tc.name)
-		assert.Equalf(t, tc.skip, skip, "checkSpotPendingUpdate should decide whether to skip an event that %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			skip, err := checkSpotPendingUpdate(100, tc.firstUpdateID, &orderbook.Update{UpdateID: tc.finalUpdateID, Asset: asset.Spot})
+			assert.ErrorIsf(t, err, tc.err, "checkSpotPendingUpdate should return the expected error for an event that %s", tc.name)
+			assert.Equalf(t, tc.skip, skip, "checkSpotPendingUpdate should decide whether to skip an event that %s", tc.name)
+		})
 	}
 }
 
@@ -621,9 +631,12 @@ func TestCheckPendingUpdate(t *testing.T) {
 		asset.CoinMarginedFutures: false,
 		asset.Options:             false,
 	} {
-		skip, err := checkPendingUpdate(100, 95, &orderbook.Update{UpdateID: 100, Asset: a})
-		require.NoErrorf(t, err, "checkPendingUpdate must not error for a %s event", a)
-		assert.Equalf(t, exp, skip, "checkPendingUpdate should follow the %s procedure", a)
+		t.Run(a.String(), func(t *testing.T) {
+			t.Parallel()
+			skip, err := checkPendingUpdate(100, 95, &orderbook.Update{UpdateID: 100, Asset: a})
+			require.NoErrorf(t, err, "checkPendingUpdate must not error for a %s event", a)
+			assert.Equalf(t, exp, skip, "checkPendingUpdate should follow the %s procedure", a)
+		})
 	}
 	_, err := checkPendingUpdate(100, 102, &orderbook.Update{UpdateID: 110, Asset: asset.Spot})
 	assert.ErrorIs(t, err, orderbookmanager.ErrOrderbookSnapshotOutdated, "checkPendingUpdate should reject a spot event after a gap")
@@ -645,13 +658,16 @@ func TestOrderbookSnapshotLimit(t *testing.T) {
 		// Options orders share a 400 a minute pool, so their snapshots take the deepest book at the least weight
 		{asset.Options, 50, optionsOrderbookLimit, endpointCost{optionsIPPool, 2}},
 	} {
-		limit := orderbookSnapshotLimit(tc.a)
-		assert.Equalf(t, tc.limit, limit, "orderbookSnapshotLimit should give the %s snapshot depth", tc.a)
-		assert.Equalf(t, tc.cost, endpointCosts[tc.limitRate(limit)], "the %s snapshot should cost its documented weight", tc.a)
+		t.Run(tc.a.String(), func(t *testing.T) {
+			t.Parallel()
+			limit := orderbookSnapshotLimit(tc.a)
+			assert.Equalf(t, tc.limit, limit, "orderbookSnapshotLimit should give the %s snapshot depth", tc.a)
+			assert.Equalf(t, tc.cost, endpointCosts[tc.limitRate(limit)], "the %s snapshot should cost its documented weight", tc.a)
+		})
 	}
 }
 
-func TestFetchOrderbookSnapshot(t *testing.T) {
+func TestFetchOrderbookSnapshot(t *testing.T) { //nolint:tparallel // The cases share ex and its server in order
 	t.Parallel()
 	ex := newDerivativesTestExchange(t)
 	srv := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -677,6 +693,7 @@ func TestFetchOrderbookSnapshot(t *testing.T) {
 	}
 	require.NoError(t, ex.DisableRateLimiter(), "DisableRateLimiter must not error")
 
+	// The cases share ex and its server in order, so each also checks that a fetch keeps nothing from the last
 	for _, tc := range []struct {
 		a    asset.Item
 		pair currency.Pair
@@ -687,15 +704,17 @@ func TestFetchOrderbookSnapshot(t *testing.T) {
 		{asset.CoinMarginedFutures, testCoinMarginedFuturesPair, &orderbook.Book{Bids: orderbook.Levels{{Price: 4, Amount: 431}}, Asks: orderbook.Levels{{Price: 4.000002, Amount: 12}}, LastUpdateID: 1027024, LastUpdated: time.UnixMilli(1589436922959)}},
 		{asset.Options, testOptionsPair, &orderbook.Book{Bids: orderbook.Levels{{Price: 3645, Amount: 1}}, Asks: orderbook.Levels{{Price: 3675, Amount: 5}}, LastUpdateID: 42788078000, LastUpdated: time.UnixMilli(1762866729358)}},
 	} {
-		book, err := ex.fetchOrderbookSnapshot(t.Context(), tc.pair, tc.a)
-		require.NoErrorf(t, err, "fetchOrderbookSnapshot must not error for %s", tc.a)
-		if tc.a == asset.Spot {
-			// The spot snapshot carries no time, so it is stamped when it arrives
-			assert.WithinDuration(t, time.Now(), book.LastUpdated, time.Minute, "the spot snapshot should be stamped with its arrival time")
-			book.LastUpdated = time.Time{}
-		}
-		tc.exp.Exchange, tc.exp.Pair, tc.exp.Asset, tc.exp.ValidateOrderbook = ex.Name, tc.pair, tc.a, ex.ValidateOrderbook
-		assert.Equalf(t, tc.exp, book, "fetchOrderbookSnapshot should convert the %s snapshot", tc.a)
+		t.Run(tc.a.String(), func(t *testing.T) {
+			book, err := ex.fetchOrderbookSnapshot(t.Context(), tc.pair, tc.a)
+			require.NoErrorf(t, err, "fetchOrderbookSnapshot must not error for %s", tc.a)
+			if tc.a == asset.Spot {
+				// The spot snapshot carries no time, so it is stamped when it arrives
+				assert.WithinDuration(t, time.Now(), book.LastUpdated, time.Minute, "the spot snapshot should be stamped with its arrival time")
+				book.LastUpdated = time.Time{}
+			}
+			tc.exp.Exchange, tc.exp.Pair, tc.exp.Asset, tc.exp.ValidateOrderbook = ex.Name, tc.pair, tc.a, ex.ValidateOrderbook
+			assert.Equalf(t, tc.exp, book, "fetchOrderbookSnapshot should convert the %s snapshot", tc.a)
+		})
 	}
 	_, err := ex.fetchOrderbookSnapshot(t.Context(), currency.EMPTYPAIR, asset.Spot)
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "fetchOrderbookSnapshot should return the spot request's error")
@@ -1185,9 +1204,12 @@ func TestStringToOrderStatus(t *testing.T) {
 		"EXPIRED":          order.Expired,
 		"EXPIRED_IN_MATCH": order.Expired,
 	} {
-		got, err := stringToOrderStatus(status)
-		require.NoErrorf(t, err, "stringToOrderStatus must not error for %s", status)
-		assert.Equalf(t, exp, got, "stringToOrderStatus should convert %s", status)
+		t.Run(subtestName(status), func(t *testing.T) {
+			t.Parallel()
+			got, err := stringToOrderStatus(status)
+			require.NoErrorf(t, err, "stringToOrderStatus must not error for %s", status)
+			assert.Equalf(t, exp, got, "stringToOrderStatus should convert %s", status)
+		})
 	}
 	_, err := stringToOrderStatus("LOL")
 	assert.ErrorIs(t, err, errUnknownOrderStatus, "stringToOrderStatus should reject an unknown status")
@@ -1271,7 +1293,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 	assert.Empty(t, subs, "generateSubscriptions should generate nothing with spot disabled")
 }
 
-func TestOneOrderbookSubscription(t *testing.T) {
+func TestOneOrderbookSubscription(t *testing.T) { //nolint:tparallel // the cases share the subscriptions, so they run in order while the test runs in parallel
 	t.Parallel()
 	// Subscriptions arrive expanded, with one pair each
 	btc, eth := currency.Pairs{currency.NewBTCUSDT()}, currency.Pairs{currency.NewPair(currency.ETH, currency.USDT)}
@@ -1281,6 +1303,8 @@ func TestOneOrderbookSubscription(t *testing.T) {
 	partial5 := &subscription.Subscription{Channel: subscription.OrderbookChannel, Asset: asset.Spot, Pairs: btc, Levels: 5, QualifiedChannel: "btcusdt@depth5"}
 	partial20 := &subscription.Subscription{Channel: subscription.OrderbookChannel, Asset: asset.Spot, Pairs: btc, Levels: 20, Interval: kline.HundredMilliseconds, QualifiedChannel: "btcusdt@depth20@100ms"}
 	otherPairDiff := &subscription.Subscription{Channel: subscription.OrderbookChannel, Asset: asset.Spot, Pairs: eth, Interval: kline.HundredMilliseconds, QualifiedChannel: "ethusdt@depth@100ms"}
+	// The cases share the subscriptions above, so they run in order, and each also checks that a call leaves them as
+	// they were for the next
 	for _, tc := range []struct {
 		name     string
 		subs     subscription.List
@@ -1294,20 +1318,22 @@ func TestOneOrderbookSubscription(t *testing.T) {
 		{name: "two diff depths", subs: subscription.List{diff, diffEverySecond}, exp: subscription.List{diff}, conflict: true},
 		{name: "two partial depths", subs: subscription.List{partial5, partial20}, exp: subscription.List{partial5}, conflict: true},
 	} {
-		got, err := oneOrderbookSubscription(tc.subs)
-		assert.Equalf(t, tc.exp, got, "oneOrderbookSubscription should keep one order book subscription for each pair with %s", tc.name)
-		if tc.conflict {
-			assert.ErrorIsf(t, err, errOrderbookSubscriptionConflict, "oneOrderbookSubscription should report the conflict with %s", tc.name)
-		} else {
-			assert.NoErrorf(t, err, "oneOrderbookSubscription should not error with %s", tc.name)
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := oneOrderbookSubscription(tc.subs)
+			assert.Equalf(t, tc.exp, got, "oneOrderbookSubscription should keep one order book subscription for each pair with %s", tc.name)
+			if tc.conflict {
+				assert.ErrorIsf(t, err, errOrderbookSubscriptionConflict, "oneOrderbookSubscription should report the conflict with %s", tc.name)
+			} else {
+				assert.NoErrorf(t, err, "oneOrderbookSubscription should not error with %s", tc.name)
+			}
+		})
 	}
 }
 
 // TestDistinctSubscriptions ensures that only the first of the subscriptions the subscription store holds as one is
 // kept, its pairs compared whatever their order, case or delimiter, and that subscriptions of different streams are
 // all kept
-func TestDistinctSubscriptions(t *testing.T) {
+func TestDistinctSubscriptions(t *testing.T) { //nolint:tparallel // the cases share a subscription, so they run in order while the test runs in parallel
 	t.Parallel()
 	eth := currency.NewPair(currency.ETH, currency.USDT)
 	base := func() *subscription.Subscription {
@@ -1315,6 +1341,7 @@ func TestDistinctSubscriptions(t *testing.T) {
 	}
 	first := base()
 	first.QualifiedChannel = "first"
+	// The cases share first, so they run in order, and each also checks that a call leaves it as it was for the next
 	for _, tc := range []struct {
 		name     string
 		other    func(*subscription.Subscription)
@@ -1330,49 +1357,55 @@ func TestDistinctSubscriptions(t *testing.T) {
 		{"other levels", func(s *subscription.Subscription) { s.Levels = 10 }, true},
 		{"another interval", func(s *subscription.Subscription) { s.Interval = kline.FiveMin }, true},
 	} {
-		other := base()
-		tc.other(other)
-		got := distinctSubscriptions(subscription.List{first, other})
-		if tc.distinct {
-			assert.Equalf(t, subscription.List{first, other}, got, "distinctSubscriptions should keep both subscriptions with %s", tc.name)
-		} else {
-			assert.Equalf(t, subscription.List{first}, got, "distinctSubscriptions should keep only the first subscription with %s", tc.name)
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			other := base()
+			tc.other(other)
+			got := distinctSubscriptions(subscription.List{first, other})
+			if tc.distinct {
+				assert.Equalf(t, subscription.List{first, other}, got, "distinctSubscriptions should keep both subscriptions with %s", tc.name)
+			} else {
+				assert.Equalf(t, subscription.List{first}, got, "distinctSubscriptions should keep only the first subscription with %s", tc.name)
+			}
+		})
 	}
 }
 
 func TestChannelName(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		sub *subscription.Subscription
-		exp string
-		err error
+		name string
+		sub  *subscription.Subscription
+		exp  string
+		err  error
 	}{
-		{sub: &subscription.Subscription{Channel: subscription.TickerChannel}, exp: "ticker"},
-		{sub: &subscription.Subscription{Channel: subscription.AllTradesChannel}, exp: "trade"},
-		{sub: &subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.ThousandMilliseconds}, exp: "kline_1s"},
-		{sub: &subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.FifteenMin}, exp: "kline_15m"},
-		{sub: &subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.OneDay}, exp: "kline_1d"},
-		{sub: &subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.ThreeDay}, exp: "kline_3d"},
-		{sub: &subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.OneWeek}, exp: "kline_1w"},
-		{sub: &subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.OneMonth}, exp: "kline_1M"},
-		{sub: &subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.TwoDay}, err: kline.ErrUnsupportedInterval},
-		{sub: &subscription.Subscription{Channel: subscription.OrderbookChannel}, exp: "depth"},
-		{sub: &subscription.Subscription{Channel: subscription.OrderbookChannel, Interval: kline.ThousandMilliseconds}, exp: "depth"},
-		{sub: &subscription.Subscription{Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds}, exp: "depth@100ms"},
-		{sub: &subscription.Subscription{Channel: subscription.OrderbookChannel, Levels: 5}, exp: "depth5"},
-		{sub: &subscription.Subscription{Channel: subscription.OrderbookChannel, Levels: 20, Interval: kline.HundredMilliseconds}, exp: "depth20@100ms"},
-		{sub: &subscription.Subscription{Channel: subscription.OrderbookChannel, Levels: 7}, err: errUnsupportedLevels},
-		{sub: &subscription.Subscription{Channel: subscription.OrderbookChannel, Interval: kline.FiveHundredMilliseconds}, err: errUnsupportedFrequency},
-		{sub: &subscription.Subscription{Channel: subscription.MyOrdersChannel}, err: errUnsupportedChannel},
+		{name: "ticker", sub: &subscription.Subscription{Channel: subscription.TickerChannel}, exp: "ticker"},
+		{name: "all trades", sub: &subscription.Subscription{Channel: subscription.AllTradesChannel}, exp: "trade"},
+		{name: "1s candles", sub: &subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.ThousandMilliseconds}, exp: "kline_1s"},
+		{name: "15m candles", sub: &subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.FifteenMin}, exp: "kline_15m"},
+		{name: "1d candles", sub: &subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.OneDay}, exp: "kline_1d"},
+		{name: "3d candles", sub: &subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.ThreeDay}, exp: "kline_3d"},
+		{name: "1w candles", sub: &subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.OneWeek}, exp: "kline_1w"},
+		{name: "1M candles", sub: &subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.OneMonth}, exp: "kline_1M"},
+		{name: "unsupported candle interval", sub: &subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.TwoDay}, err: kline.ErrUnsupportedInterval},
+		{name: "order book", sub: &subscription.Subscription{Channel: subscription.OrderbookChannel}, exp: "depth"},
+		{name: "order book every second", sub: &subscription.Subscription{Channel: subscription.OrderbookChannel, Interval: kline.ThousandMilliseconds}, exp: "depth"},
+		{name: "order book every 100ms", sub: &subscription.Subscription{Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds}, exp: "depth@100ms"},
+		{name: "5 order book levels", sub: &subscription.Subscription{Channel: subscription.OrderbookChannel, Levels: 5}, exp: "depth5"},
+		{name: "20 order book levels every 100ms", sub: &subscription.Subscription{Channel: subscription.OrderbookChannel, Levels: 20, Interval: kline.HundredMilliseconds}, exp: "depth20@100ms"},
+		{name: "unsupported order book levels", sub: &subscription.Subscription{Channel: subscription.OrderbookChannel, Levels: 7}, err: errUnsupportedLevels},
+		{name: "unsupported order book frequency", sub: &subscription.Subscription{Channel: subscription.OrderbookChannel, Interval: kline.FiveHundredMilliseconds}, err: errUnsupportedFrequency},
+		{name: "unsupported channel", sub: &subscription.Subscription{Channel: subscription.MyOrdersChannel}, err: errUnsupportedChannel},
 	} {
-		got, err := channelName(tc.sub)
-		if tc.err != nil {
-			assert.ErrorIsf(t, err, tc.err, "channelName should error for %v", tc.sub)
-			continue
-		}
-		require.NoErrorf(t, err, "channelName must not error for %v", tc.sub)
-		assert.Equalf(t, tc.exp, got, "channelName should name %v", tc.sub)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := channelName(tc.sub)
+			if tc.err != nil {
+				assert.ErrorIsf(t, err, tc.err, "channelName should error for %v", tc.sub)
+				return
+			}
+			require.NoErrorf(t, err, "channelName must not error for %v", tc.sub)
+			assert.Equalf(t, tc.exp, got, "channelName should name %v", tc.sub)
+		})
 	}
 }
 
@@ -1451,98 +1484,101 @@ func TestSubscribeBadResp(t *testing.T) {
 	assert.Empty(t, ex.Websocket.GetSubscriptions(), "a failed subscription should be removed")
 }
 
-func TestSetupSpotConnections(t *testing.T) {
+func TestSetup(t *testing.T) {
 	t.Parallel()
-	root, err := testutils.RootPathFromCWD()
-	require.NoError(t, err, "RootPathFromCWD must not error")
-	setup := func(t *testing.T, configure func(*testing.T, *config.Exchange)) *Exchange {
-		t.Helper()
-		cfg := &config.Config{}
-		require.NoError(t, cfg.LoadConfig(filepath.Join(root, "testdata", "configtest.json"), true), "LoadConfig must not error")
-		exchCfg, err := cfg.GetExchangeConfig("Binance")
-		require.NoError(t, err, "GetExchangeConfig must not error")
-		configure(t, exchCfg)
-		ex := new(Exchange)
-		ex.SetDefaults()
-		ex.Websocket = sharedtestvalues.NewTestWebsocket()
-		require.NoError(t, ex.Setup(exchCfg), "Setup must not error")
-		return ex
-	}
-	authenticated := func(_ *testing.T, c *config.Exchange) {
-		c.API.AuthenticatedWebsocketSupport = true
-		c.API.Credentials.Key, c.API.Credentials.Secret = "test-api-key", "test-api-secret"
-	}
-	// The WebSocket API serves market data requests without credentials too, and is optional, so it is registered
-	// whenever spot or margin is enabled
-	for _, tc := range []struct {
-		name         string
-		configure    func(*testing.T, *config.Exchange)
-		websocketAPI bool
-	}{
-		{"unauthenticated", func(*testing.T, *config.Exchange) {}, true},
-		{"authenticated", authenticated, true},
-		{"authenticated without credentials", func(_ *testing.T, c *config.Exchange) { c.API.AuthenticatedWebsocketSupport = true }, true},
-		{"credentials without authenticated websocket use", func(t *testing.T, c *config.Exchange) {
+	t.Run("sets up the spot connections", func(t *testing.T) {
+		t.Parallel()
+		root, err := testutils.RootPathFromCWD()
+		require.NoError(t, err, "RootPathFromCWD must not error")
+		setup := func(t *testing.T, configure func(*testing.T, *config.Exchange)) *Exchange {
 			t.Helper()
-			authenticated(t, c)
-			c.API.AuthenticatedWebsocketSupport = false
-		}, true},
-		{"authenticated with spot and margin disabled", func(t *testing.T, c *config.Exchange) {
-			t.Helper()
-			authenticated(t, c)
-			for _, a := range []asset.Item{asset.Spot, asset.Margin} {
-				require.NoErrorf(t, c.CurrencyPairs.SetAssetEnabled(a, false), "SetAssetEnabled must not error for %s", a)
-			}
-		}, false},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			ex := setup(t, tc.configure)
-			_, err := ex.Websocket.CreateTestConnection(asset.Spot)
-			require.NoError(t, err, "the spot stream connection must be registered")
-			assert.NotNil(t, ex.orderbookSync, "Setup should create the order book synchronisation every connection shares")
-			_, err = ex.Websocket.CreateTestConnection(spotWebsocketAPI)
-			if tc.websocketAPI {
-				assert.NoError(t, err, "the WebSocket API connection should be registered")
-			} else {
-				assert.ErrorIs(t, err, websocket.ErrRequestRouteNotFound, "the WebSocket API connection should not be registered")
-			}
-		})
-	}
-
-	const spotStreamsURL = "wss://stream.binance.com:443/stream"
-	ex := setup(t, func(_ *testing.T, c *config.Exchange) {
-		c.API.Endpoints[exchange.WebsocketSpot.String()] = spotStreamsURL
-	})
-	urls, err := ex.Websocket.GetConfiguredWebsocketURLs()
-	require.NoError(t, err, "GetConfiguredWebsocketURLs must not error")
-	assert.Contains(t, urls, spotStreamsURL, "Setup should connect the spot streams to the configured WebsocketSpotURL")
-	assert.NotContains(t, urls, binanceDefaultWebsocketURL, "Setup should not connect the spot streams to the default URL when another is configured")
-	// Connections connect in the order they are set up, so a slow WebSocket API host must come after every market data
-	// connection to hold none of them back
-	require.NotEmpty(t, urls, "GetConfiguredWebsocketURLs must return the configured URLs")
-	assert.Equal(t, binanceWebsocketAPIURL, urls[len(urls)-1], "Setup should set the WebSocket API up after the market data connections")
-
-	// The WebSocket API carries spot orders, so it goes to a configured WebsocketTradeURL, such as a testnet's, and a
-	// configuration saved before the endpoint existed keeps the production one
-	const testnetAPIURL = "wss://ws-api.testnet.binance.vision/ws-api/v3"
-	for _, tc := range []struct {
-		name, configured, exp string
-	}{
-		{"WebSocket API endpoint not configured", "", binanceWebsocketAPIURL},
-		{"WebSocket API endpoint configured", testnetAPIURL, testnetAPIURL},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			ex := setup(t, func(_ *testing.T, c *config.Exchange) {
-				delete(c.API.Endpoints, exchange.WebsocketTrade.String())
-				if tc.configured != "" {
-					c.API.Endpoints[exchange.WebsocketTrade.String()] = tc.configured
+			cfg := &config.Config{}
+			require.NoError(t, cfg.LoadConfig(filepath.Join(root, "testdata", "configtest.json"), true), "LoadConfig must not error")
+			exchCfg, err := cfg.GetExchangeConfig("Binance")
+			require.NoError(t, err, "GetExchangeConfig must not error")
+			configure(t, exchCfg)
+			ex := new(Exchange)
+			ex.SetDefaults()
+			ex.Websocket = sharedtestvalues.NewTestWebsocket()
+			require.NoError(t, ex.Setup(exchCfg), "Setup must not error")
+			return ex
+		}
+		authenticated := func(_ *testing.T, c *config.Exchange) {
+			c.API.AuthenticatedWebsocketSupport = true
+			c.API.Credentials.Key, c.API.Credentials.Secret = "test-api-key", "test-api-secret"
+		}
+		// The WebSocket API serves market data requests without credentials too, and is optional, so it is registered
+		// whenever spot or margin is enabled
+		for _, tc := range []struct {
+			name         string
+			configure    func(*testing.T, *config.Exchange)
+			websocketAPI bool
+		}{
+			{"unauthenticated", func(*testing.T, *config.Exchange) {}, true},
+			{"authenticated", authenticated, true},
+			{"authenticated without credentials", func(_ *testing.T, c *config.Exchange) { c.API.AuthenticatedWebsocketSupport = true }, true},
+			{"credentials without authenticated websocket use", func(t *testing.T, c *config.Exchange) {
+				t.Helper()
+				authenticated(t, c)
+				c.API.AuthenticatedWebsocketSupport = false
+			}, true},
+			{"authenticated with spot and margin disabled", func(t *testing.T, c *config.Exchange) {
+				t.Helper()
+				authenticated(t, c)
+				for _, a := range []asset.Item{asset.Spot, asset.Margin} {
+					require.NoErrorf(t, c.CurrencyPairs.SetAssetEnabled(a, false), "SetAssetEnabled must not error for %s", a)
+				}
+			}, false},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				ex := setup(t, tc.configure)
+				_, err := ex.Websocket.CreateTestConnection(asset.Spot)
+				require.NoError(t, err, "the spot stream connection must be registered")
+				assert.NotNil(t, ex.orderbookSync, "Setup should create the order book synchronisation every connection shares")
+				_, err = ex.Websocket.CreateTestConnection(spotWebsocketAPI)
+				if tc.websocketAPI {
+					assert.NoError(t, err, "the WebSocket API connection should be registered")
+				} else {
+					assert.ErrorIs(t, err, websocket.ErrRequestRouteNotFound, "the WebSocket API connection should not be registered")
 				}
 			})
-			conn, err := ex.Websocket.CreateTestConnection(spotWebsocketAPI)
-			require.NoError(t, err, "the WebSocket API connection must be registered")
-			assert.Equal(t, tc.exp, conn.GetURL(), "the WebSocket API connection should take the configured WebsocketTradeURL")
+		}
+
+		const spotStreamsURL = "wss://stream.binance.com:443/stream"
+		ex := setup(t, func(_ *testing.T, c *config.Exchange) {
+			c.API.Endpoints[exchange.WebsocketSpot.String()] = spotStreamsURL
 		})
-	}
+		urls, err := ex.Websocket.GetConfiguredWebsocketURLs()
+		require.NoError(t, err, "GetConfiguredWebsocketURLs must not error")
+		assert.Contains(t, urls, spotStreamsURL, "Setup should connect the spot streams to the configured WebsocketSpotURL")
+		assert.NotContains(t, urls, binanceDefaultWebsocketURL, "Setup should not connect the spot streams to the default URL when another is configured")
+		// Connections connect in the order they are set up, so a slow WebSocket API host must come after every market data
+		// connection to hold none of them back
+		require.NotEmpty(t, urls, "GetConfiguredWebsocketURLs must return the configured URLs")
+		assert.Equal(t, binanceWebsocketAPIURL, urls[len(urls)-1], "Setup should set the WebSocket API up after the market data connections")
+
+		// The WebSocket API carries spot orders, so it goes to a configured WebsocketTradeURL, such as a testnet's, and a
+		// configuration saved before the endpoint existed keeps the production one
+		const testnetAPIURL = "wss://ws-api.testnet.binance.vision/ws-api/v3"
+		for _, tc := range []struct {
+			name, configured, exp string
+		}{
+			{"WebSocket API endpoint not configured", "", binanceWebsocketAPIURL},
+			{"WebSocket API endpoint configured", testnetAPIURL, testnetAPIURL},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				ex := setup(t, func(_ *testing.T, c *config.Exchange) {
+					delete(c.API.Endpoints, exchange.WebsocketTrade.String())
+					if tc.configured != "" {
+						c.API.Endpoints[exchange.WebsocketTrade.String()] = tc.configured
+					}
+				})
+				conn, err := ex.Websocket.CreateTestConnection(spotWebsocketAPI)
+				require.NoError(t, err, "the WebSocket API connection must be registered")
+				assert.Equal(t, tc.exp, conn.GetURL(), "the WebSocket API connection should take the configured WebsocketTradeURL")
+			})
+		}
+	})
 }

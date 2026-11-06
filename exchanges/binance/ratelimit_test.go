@@ -21,50 +21,54 @@ import (
 func TestPoolBudgets(t *testing.T) {
 	t.Parallel()
 	rows := []struct {
+		name        string
 		pool        rateLimitPool
 		interval    time.Duration
 		limit       int
 		perEndpoint bool
 	}{
-		{spotIPPool, time.Minute, 5400, false},
-		{spotCancelPool, time.Minute, 600, false},
-		{spotOrderPool, 10 * time.Second, 100, false},
-		{sapiIPPool, time.Minute, 12000, true},
-		{sapiUIDPool, time.Minute, 180000, true},
-		{derivativesIPPool, time.Minute, 1800, false},
-		{derivativesCancelPool, time.Minute, 450, false},
-		{derivativesHeartbeatPool, time.Minute, 150, false},
-		{derivativesOrderPool, time.Minute, 1200, false},
-		{futuresDataPool, 5 * time.Minute, 1000, false},
-		{usdtMarginedFuturesFundingPool, 5 * time.Minute, 500, false},
-		{optionsIPPool, time.Minute, 240, false},
-		{optionsCancelPool, time.Minute, 100, false},
-		{optionsHeartbeatPool, time.Minute, 60, false},
-		{optionsOrderPool, time.Minute, 100, false},
-		{portfolioMarginIPPool, time.Minute, 6000, false},
-		{portfolioMarginOrderPool, time.Minute, 1200, false},
-		{marginMaxLeveragePool, time.Minute, 1, false},
-		{withdrawalHistoryPool, time.Second, 10, false},
-		{subAccountFuturesTransferPool, time.Minute, 2000, false},
-		{portfolioMarginProBNBTransferPool, 10 * time.Minute, 2, false},
-		{autoInvestPlanCreationPool, 3 * time.Second, 1, false},
-		{autoInvestPlanAdjustmentPool, 3 * time.Second, 1, false},
-		{autoInvestPlanStatusPool, 3 * time.Second, 1, false},
-		{autoInvestPlanListPool, 3 * time.Second, 1, false},
-		{autoInvestOneTimeTransactionPool, 3 * time.Second, 1, false},
-		{autoInvestRedemptionPool, 3 * time.Second, 1, false},
-		{flexibleLoanLTVAdjustmentHistoryPool, time.Second, 5, false},
-		{vipLoanApplicationStatusPool, time.Second, 5, false},
-		{brokerCreateAPIKeyPool, time.Second, 1, false},
-		{brokerDeleteAPIKeyPool, time.Second, 1, false},
-		{brokerFuturesTransferPool, time.Minute, 5000, false},
-		{portfolioMarginBNBTransferPool, 10 * time.Minute, 10, false},
+		{"spot IP", spotIPPool, time.Minute, 5400, false},
+		{"spot cancel", spotCancelPool, time.Minute, 600, false},
+		{"spot order", spotOrderPool, 10 * time.Second, 100, false},
+		{"SAPI IP", sapiIPPool, time.Minute, 12000, true},
+		{"SAPI UID", sapiUIDPool, time.Minute, 180000, true},
+		{"derivatives IP", derivativesIPPool, time.Minute, 1800, false},
+		{"derivatives cancel", derivativesCancelPool, time.Minute, 450, false},
+		{"derivatives heartbeat", derivativesHeartbeatPool, time.Minute, 150, false},
+		{"derivatives order", derivativesOrderPool, time.Minute, 1200, false},
+		{"futures data", futuresDataPool, 5 * time.Minute, 1000, false},
+		{"USDⓈ-M funding", usdtMarginedFuturesFundingPool, 5 * time.Minute, 500, false},
+		{"options IP", optionsIPPool, time.Minute, 240, false},
+		{"options cancel", optionsCancelPool, time.Minute, 100, false},
+		{"options heartbeat", optionsHeartbeatPool, time.Minute, 60, false},
+		{"options order", optionsOrderPool, time.Minute, 100, false},
+		{"portfolio margin IP", portfolioMarginIPPool, time.Minute, 6000, false},
+		{"portfolio margin order", portfolioMarginOrderPool, time.Minute, 1200, false},
+		{"margin max leverage", marginMaxLeveragePool, time.Minute, 1, false},
+		{"withdrawal history", withdrawalHistoryPool, time.Second, 10, false},
+		{"sub-account futures transfer", subAccountFuturesTransferPool, time.Minute, 2000, false},
+		{"portfolio margin pro BNB transfer", portfolioMarginProBNBTransferPool, 10 * time.Minute, 2, false},
+		{"auto-invest plan creation", autoInvestPlanCreationPool, 3 * time.Second, 1, false},
+		{"auto-invest plan adjustment", autoInvestPlanAdjustmentPool, 3 * time.Second, 1, false},
+		{"auto-invest plan status", autoInvestPlanStatusPool, 3 * time.Second, 1, false},
+		{"auto-invest plan list", autoInvestPlanListPool, 3 * time.Second, 1, false},
+		{"auto-invest one-time transaction", autoInvestOneTimeTransactionPool, 3 * time.Second, 1, false},
+		{"auto-invest redemption", autoInvestRedemptionPool, 3 * time.Second, 1, false},
+		{"flexible loan LTV adjustment history", flexibleLoanLTVAdjustmentHistoryPool, time.Second, 5, false},
+		{"VIP loan application status", vipLoanApplicationStatusPool, time.Second, 5, false},
+		{"broker API key creation", brokerCreateAPIKeyPool, time.Second, 1, false},
+		{"broker API key deletion", brokerDeleteAPIKeyPool, time.Second, 1, false},
+		{"broker futures transfer", brokerFuturesTransferPool, time.Minute, 5000, false},
+		{"portfolio margin BNB transfer", portfolioMarginBNBTransferPool, 10 * time.Minute, 10, false},
 	}
 	listed := make(map[rateLimitPool]bool, len(rows))
+	// Each case marks its pool in listed for the check after the loop, so they run in order before it
 	for _, tc := range rows {
-		listed[tc.pool] = true
-		assert.Equalf(t, rateLimitBudget{tc.interval, tc.limit}, poolBudgets[tc.pool], "pool %d should have its documented budget", tc.pool)
-		assert.Equalf(t, tc.perEndpoint, tc.pool.perEndpoint(), "pool %d should only budget endpoints separately where Binance does", tc.pool)
+		t.Run(tc.name, func(t *testing.T) {
+			listed[tc.pool] = true
+			assert.Equalf(t, rateLimitBudget{tc.interval, tc.limit}, poolBudgets[tc.pool], "pool %d should have its documented budget", tc.pool)
+			assert.Equalf(t, tc.perEndpoint, tc.pool.perEndpoint(), "pool %d should only budget endpoints separately where Binance does", tc.pool)
+		})
 	}
 	for pool := spotIPPool; pool <= portfolioMarginBNBTransferPool; pool++ {
 		assert.Truef(t, listed[pool], "pool %d should have a documented budget row", pool)
@@ -73,18 +77,22 @@ func TestPoolBudgets(t *testing.T) {
 
 	// A host's IP, cancel and heartbeat pools share its documented IP limit, their bursts included
 	for _, tc := range []struct {
+		name  string
 		pools []rateLimitPool
 		limit int
 	}{
-		{[]rateLimitPool{spotIPPool, spotCancelPool}, 6000},
-		{[]rateLimitPool{derivativesIPPool, derivativesCancelPool, derivativesHeartbeatPool}, 2400},
-		{[]rateLimitPool{optionsIPPool, optionsCancelPool, optionsHeartbeatPool}, 400},
+		{"spot", []rateLimitPool{spotIPPool, spotCancelPool}, 6000},
+		{"derivatives", []rateLimitPool{derivativesIPPool, derivativesCancelPool, derivativesHeartbeatPool}, 2400},
+		{"options", []rateLimitPool{optionsIPPool, optionsCancelPool, optionsHeartbeatPool}, 400},
 	} {
-		var shared int
-		for _, pool := range tc.pools {
-			shared += poolBudgets[pool].limit
-		}
-		assert.Equalf(t, tc.limit, shared, "pools %v should share their host's IP limit", tc.pools)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var shared int
+			for _, pool := range tc.pools {
+				shared += poolBudgets[pool].limit
+			}
+			assert.Equalf(t, tc.limit, shared, "pools %v should share their host's IP limit", tc.pools)
+		})
 	}
 	exp := map[rateLimitPool]int{
 		spotCancelPool:           100,
@@ -107,7 +115,7 @@ func TestPoolBudgets(t *testing.T) {
 	}
 }
 
-func TestEndpointCosts(t *testing.T) {
+func TestEndpointCosts(t *testing.T) { //nolint:tparallel // Each case marks seen for the rows after it
 	t.Parallel()
 	rows := []struct {
 		epl       request.EndpointLimit
@@ -520,10 +528,13 @@ func TestEndpointCosts(t *testing.T) {
 		{portfolioMarginAPIReferralRate, portfolioMarginIPPool, 100, "the OMS Toolkit /papi/v1/apiReferral endpoints"},
 	}
 	seen := make(map[request.EndpointLimit]bool, len(rows))
+	// Each case marks its endpoint limit in seen for the rows after it, so they run in order
 	for _, tc := range rows {
-		require.Falsef(t, seen[tc.epl], "%s must have one row", tc.endpoints)
-		seen[tc.epl] = true
-		assert.Equalf(t, endpointCost{tc.pool, tc.weight}, endpointCosts[tc.epl], "%s should cost its documented weight on its pool", tc.endpoints)
+		t.Run(tc.endpoints, func(t *testing.T) {
+			require.Falsef(t, seen[tc.epl], "%s must have one row", tc.endpoints)
+			seen[tc.epl] = true
+			assert.Equalf(t, endpointCost{tc.pool, tc.weight}, endpointCosts[tc.epl], "%s should cost its documented weight on its pool", tc.endpoints)
+		})
 	}
 	assert.Equal(t, len(rows), len(endpointCosts), "endpointCosts should hold exactly the documented endpoint limits")
 }
@@ -648,66 +659,74 @@ func TestSAPIEndpointLimiters(t *testing.T) {
 	assert.Same(t, limiters[spotDefaultRate], limiters[spotExchangeInfoRate], "spot limits should share the spot IP limiter")
 }
 
-func TestCancelsDoNotQueueBehindMarketData(t *testing.T) {
+func TestCancelsDoNotQueueBehindMarketData(t *testing.T) { //nolint:tparallel // The cases reserve on one set of limiters in order
 	t.Parallel()
 	// A limiter queues requests in turn, so order book snapshots reserving a host's IP pool seconds ahead would hold up a
 	// cancellation drawing on the same pool
 	limiters := endpointLimiters(endpointCosts)
 	now := time.Now()
+	// The cases reserve on one set of limiters, so they run in order
 	for _, tc := range []struct {
+		name                 string
 		snapshot, marketData request.EndpointLimit
 		snapshots            int
 		cancels              []request.EndpointLimit
 		burst                int
 	}{
-		{spotOrderbookDepth1000Rate, spotExchangeInfoRate, 10, []request.EndpointLimit{spotCancelRate, spotCancelAllListingRate}, 100},
-		{usdtMarginedFuturesOrderbook1000Rate, coinMarginedFuturesOrderbook1000Rate, 10, []request.EndpointLimit{usdtMarginedFuturesCancelRate, coinMarginedFuturesCancelRate, usdtMarginedFuturesCancelAllListingRate, coinMarginedFuturesCancelAllListingRate, usdtMarginedFuturesPositionModeLookupRate}, 200},
-		{optionsOrderbook1000Rate, optionsDefaultRate, 10, []request.EndpointLimit{optionsCancelRate, optionsCancelBatchOrdersRate, optionsCancelAllByUnderlyingRate, optionsCancelAllListingRate}, 50},
+		{"spot", spotOrderbookDepth1000Rate, spotExchangeInfoRate, 10, []request.EndpointLimit{spotCancelRate, spotCancelAllListingRate}, 100},
+		{"derivatives", usdtMarginedFuturesOrderbook1000Rate, coinMarginedFuturesOrderbook1000Rate, 10, []request.EndpointLimit{usdtMarginedFuturesCancelRate, coinMarginedFuturesCancelRate, usdtMarginedFuturesCancelAllListingRate, coinMarginedFuturesCancelAllListingRate, usdtMarginedFuturesPositionModeLookupRate}, 200},
+		{"options", optionsOrderbook1000Rate, optionsDefaultRate, 10, []request.EndpointLimit{optionsCancelRate, optionsCancelBatchOrdersRate, optionsCancelAllByUnderlyingRate, optionsCancelAllListingRate}, 50},
 	} {
-		for range tc.snapshots * int(endpointCosts[tc.snapshot].weight) {
-			limiters[tc.snapshot].ReserveN(now, 1)
-		}
-		assert.Positivef(t, limiters[tc.marketData].ReserveN(now, 1).DelayFrom(now), "market data limit %d should queue behind the snapshots", tc.marketData)
-		for _, epl := range tc.cancels[1:] {
-			assert.Samef(t, limiters[tc.cancels[0]], limiters[epl], "cancellation limit %d should share its host's cancel pool", epl)
-		}
-		// The burst lets a cancellation of every order go out at once, after which cancellations are spread out
-		for range tc.burst {
-			assert.Zerof(t, limiters[tc.cancels[0]].ReserveN(now, 1).DelayFrom(now), "cancellation limit %d should not queue behind market data", tc.cancels[0])
-		}
-		assert.Positivef(t, limiters[tc.cancels[0]].ReserveN(now, 1).DelayFrom(now), "cancellation limit %d should be spread out beyond its burst", tc.cancels[0])
+		t.Run(tc.name, func(t *testing.T) {
+			for range tc.snapshots * int(endpointCosts[tc.snapshot].weight) {
+				limiters[tc.snapshot].ReserveN(now, 1)
+			}
+			assert.Positivef(t, limiters[tc.marketData].ReserveN(now, 1).DelayFrom(now), "market data limit %d should queue behind the snapshots", tc.marketData)
+			for _, epl := range tc.cancels[1:] {
+				assert.Samef(t, limiters[tc.cancels[0]], limiters[epl], "cancellation limit %d should share its host's cancel pool", epl)
+			}
+			// The burst lets a cancellation of every order go out at once, after which cancellations are spread out
+			for range tc.burst {
+				assert.Zerof(t, limiters[tc.cancels[0]].ReserveN(now, 1).DelayFrom(now), "cancellation limit %d should not queue behind market data", tc.cancels[0])
+			}
+			assert.Positivef(t, limiters[tc.cancels[0]].ReserveN(now, 1).DelayFrom(now), "cancellation limit %d should be spread out beyond its burst", tc.cancels[0])
+		})
 	}
 }
 
-func TestHeartbeatsDoNotQueueBehindMarketData(t *testing.T) {
+func TestHeartbeatsDoNotQueueBehindMarketData(t *testing.T) { //nolint:tparallel // The cases reserve on one set of limiters in order
 	t.Parallel()
 	// A countdown heartbeat reaching Binance after its countdown has run out has every order it covers cancelled, so
 	// heartbeats and countdown settings draw on a share of their own instead of queueing behind order book snapshots,
 	// and leave the cancel pools to cancellations
 	limiters := endpointLimiters(endpointCosts)
 	now := time.Now()
+	// The cases reserve on one set of limiters, so they run in order
 	for _, tc := range []struct {
+		name       string
 		snapshot   request.EndpointLimit
 		heartbeats []request.EndpointLimit
 		cancel     request.EndpointLimit
 		burst      int
 	}{
-		{usdtMarginedFuturesOrderbook1000Rate, []request.EndpointLimit{usdtMarginedFuturesCountdownCancelRate, coinMarginedFuturesCountdownCancelRate}, usdtMarginedFuturesCancelRate, 50},
-		{optionsOrderbook1000Rate, []request.EndpointLimit{optionsAutoCancelAllOpenOrdersHeartbeatRate, optionsAutoCancelAllOpenOrdersConfigRate}, optionsCancelRate, 20},
+		{"derivatives", usdtMarginedFuturesOrderbook1000Rate, []request.EndpointLimit{usdtMarginedFuturesCountdownCancelRate, coinMarginedFuturesCountdownCancelRate}, usdtMarginedFuturesCancelRate, 50},
+		{"options", optionsOrderbook1000Rate, []request.EndpointLimit{optionsAutoCancelAllOpenOrdersHeartbeatRate, optionsAutoCancelAllOpenOrdersConfigRate}, optionsCancelRate, 20},
 	} {
-		for range 10 * int(endpointCosts[tc.snapshot].weight) {
-			limiters[tc.snapshot].ReserveN(now, 1)
-		}
-		for _, epl := range tc.heartbeats[1:] {
-			assert.Samef(t, limiters[tc.heartbeats[0]], limiters[epl], "heartbeat limit %d should share its host's heartbeat pool", epl)
-		}
-		assert.NotSamef(t, limiters[tc.cancel], limiters[tc.heartbeats[0]], "heartbeat limit %d should not draw on the cancel pool", tc.heartbeats[0])
-		// A round of heartbeats goes out at once, after which heartbeats are spread out while cancellations still go out
-		for range tc.burst {
-			assert.Zerof(t, limiters[tc.heartbeats[0]].ReserveN(now, 1).DelayFrom(now), "heartbeat limit %d should not queue behind market data", tc.heartbeats[0])
-		}
-		assert.Positivef(t, limiters[tc.heartbeats[0]].ReserveN(now, 1).DelayFrom(now), "heartbeat limit %d should be spread out beyond its burst", tc.heartbeats[0])
-		assert.Zerof(t, limiters[tc.cancel].ReserveN(now, 1).DelayFrom(now), "cancellation limit %d should not queue behind heartbeats", tc.cancel)
+		t.Run(tc.name, func(t *testing.T) {
+			for range 10 * int(endpointCosts[tc.snapshot].weight) {
+				limiters[tc.snapshot].ReserveN(now, 1)
+			}
+			for _, epl := range tc.heartbeats[1:] {
+				assert.Samef(t, limiters[tc.heartbeats[0]], limiters[epl], "heartbeat limit %d should share its host's heartbeat pool", epl)
+			}
+			assert.NotSamef(t, limiters[tc.cancel], limiters[tc.heartbeats[0]], "heartbeat limit %d should not draw on the cancel pool", tc.heartbeats[0])
+			// A round of heartbeats goes out at once, after which heartbeats are spread out while cancellations still go out
+			for range tc.burst {
+				assert.Zerof(t, limiters[tc.heartbeats[0]].ReserveN(now, 1).DelayFrom(now), "heartbeat limit %d should not queue behind market data", tc.heartbeats[0])
+			}
+			assert.Positivef(t, limiters[tc.heartbeats[0]].ReserveN(now, 1).DelayFrom(now), "heartbeat limit %d should be spread out beyond its burst", tc.heartbeats[0])
+			assert.Zerof(t, limiters[tc.cancel].ReserveN(now, 1).DelayFrom(now), "cancellation limit %d should not queue behind heartbeats", tc.cancel)
+		})
 	}
 }
 
@@ -803,7 +822,10 @@ func TestEndpointLimitHelpers(t *testing.T) {
 		{"options depth 500", optionsOrderbookLimit(500), optionsIPPool, 10},
 		{"options depth 1000", optionsOrderbookLimit(1000), optionsIPPool, 20},
 	} {
-		assert.Equalf(t, endpointCost{tc.pool, tc.weight}, endpointCosts[tc.limit], "%s should cost its documented weight", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, endpointCost{tc.pool, tc.weight}, endpointCosts[tc.limit], "%s should cost its documented weight", tc.name)
+		})
 	}
 	// The rolling window and trading day tickers cost 4 a symbol up to 200; a tier may round up but never under-charge
 	for symbols := 1; symbols <= 100; symbols++ {
@@ -857,7 +879,10 @@ func TestEndpointLimitArguments(t *testing.T) {
 		})
 	}
 	for sender := range senders {
-		assert.Truef(t, called[sender], "%s should be called by the package", sender)
+		t.Run(subtestName(sender), func(t *testing.T) {
+			t.Parallel()
+			assert.Truef(t, called[sender], "%s should be called by the package", sender)
+		})
 	}
 }
 
@@ -937,7 +962,10 @@ func TestCancelEndpointLimits(t *testing.T) {
 		})
 	}
 	for endpoint := range want {
-		assert.Truef(t, found[endpoint], "a cancellation should be sent to %s", endpoint)
+		t.Run(subtestName(endpoint), func(t *testing.T) {
+			t.Parallel()
+			assert.Truef(t, found[endpoint], "a cancellation should be sent to %s", endpoint)
+		})
 	}
 }
 
@@ -971,12 +999,22 @@ func TestEndpointLimitsUsed(t *testing.T) {
 	}
 }
 
-func TestRateLimitsWithRequester(t *testing.T) {
+func TestRateLimitsWithRequester(t *testing.T) { //nolint:tparallel // The cases share r with the requests after them
 	t.Parallel()
 	r, err := request.New("binanceRateLimitTest", &http.Client{}, request.WithLimiter(GetRateLimits()))
 	require.NoError(t, err, "request.New must not error")
-	for _, epl := range []request.EndpointLimit{request.Unset, request.Auth, request.UnAuth} {
-		assert.ErrorIsf(t, r.InitiateRateLimit(t.Context(), epl), common.ErrNilPointer, "generic endpoint limit %d should find no Binance limiter", epl)
+	// The cases share r with the requests after them, so they run in order before them
+	for _, tc := range []struct {
+		name string
+		epl  request.EndpointLimit
+	}{
+		{name: "unset", epl: request.Unset},
+		{name: "authenticated", epl: request.Auth},
+		{name: "unauthenticated", epl: request.UnAuth},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.ErrorIsf(t, r.InitiateRateLimit(t.Context(), tc.epl), common.ErrNilPointer, "generic endpoint limit %d should find no Binance limiter", tc.epl)
+		})
 	}
 	require.NoError(t, r.InitiateRateLimit(t.Context(), spotDefaultRate), "a weight-1 request must not wait on a fresh pool")
 	ctx, cancel := context.WithTimeout(t.Context(), time.Millisecond)

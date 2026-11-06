@@ -26,7 +26,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
-func TestGenerateOptionsSubscriptions(t *testing.T) {
+func TestGenerateOptionsSubscriptions(t *testing.T) { //nolint:tparallel // The disabled asset cases share ex, subs and err in order
 	t.Parallel()
 	ex := newDerivativesTestExchange(t)
 	subs, err := ex.generateOptionsPublicSubscriptions()
@@ -44,10 +44,19 @@ func TestGenerateOptionsSubscriptions(t *testing.T) {
 	}, subs)
 
 	require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.Options, false), "SetAssetEnabled must not error")
-	for _, generate := range []func() (subscription.List, error){ex.generateOptionsPublicSubscriptions, ex.generateOptionsMarketSubscriptions} {
-		subs, err = generate()
-		require.NoError(t, err, "generating subscriptions for a disabled asset must not error")
-		assert.Empty(t, subs, "a disabled asset should generate no subscriptions, so its connection is skipped")
+	// The cases share ex, subs and err in order, so each also checks that a generation keeps nothing from the last
+	for _, tc := range []struct {
+		name     string
+		generate func() (subscription.List, error)
+	}{
+		{"public subscriptions with options disabled", ex.generateOptionsPublicSubscriptions},
+		{"market subscriptions with options disabled", ex.generateOptionsMarketSubscriptions},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			subs, err = tc.generate()
+			require.NoError(t, err, "generating subscriptions for a disabled asset must not error")
+			assert.Empty(t, subs, "a disabled asset should generate no subscriptions, so its connection is skipped")
+		})
 	}
 }
 
@@ -174,7 +183,7 @@ func TestOptionsTickerBidAskFromOrderbook(t *testing.T) {
 	}
 }
 
-func TestHandleOptionsErrors(t *testing.T) {
+func TestHandleOptionsErrors(t *testing.T) { //nolint:tparallel // The cases share ex and conn, and the test then checks that they relayed nothing
 	t.Parallel()
 	ex := newDerivativesTestExchange(t)
 	conn := &matchRecordingConnection{}
@@ -182,48 +191,66 @@ func TestHandleOptionsErrors(t *testing.T) {
 	require.NoError(t, ex.wsHandleOptionsUserData(t.Context(), conn, []byte(`{"result":null,"id":12}`)), "a request reply must be routed")
 	assert.Equal(t, []any{int64(11), int64(12)}, conn.signatures, "request replies should be routed by their id")
 
-	for frame, wantErr := range map[string]error{
-		`{"stream":"btcusdt@unknown","data":{"e":"unknownEvent"}}`:                             errUnhandledStreamEvent,
-		`{"stream":"x@optionTicker","data":{"e":"24hrTicker","s":"NOT-LISTED"}}`:               currency.ErrPairNotFound,
-		`{"stream":"x@optionTrade","data":{"e":"trade","s":"NOT-LISTED"}}`:                     currency.ErrPairNotFound,
-		`{"stream":"x@optionTrade","data":{"e":"trade","s":"BTC-261030-85000-C","S":"UP"}}`:    order.ErrSideIsInvalid,
-		`{"stream":"x@kline_1m","data":{"e":"kline","s":"NOT-LISTED","k":{"i":"1m"}}}`:         currency.ErrPairNotFound,
-		`{"stream":"x@kline_1m","data":{"e":"kline","s":"BTC-261030-85000-C","k":{"i":"1x"}}}`: kline.ErrInvalidInterval,
-		`{"stream":"x@depth@100ms","data":{"e":"depthUpdate","s":"NOT-LISTED"}}`:               currency.ErrPairNotFound,
-		`{"stream":"` + testListenKey + `","data":{"e":"UNKNOWN_EVENT"}}`:                      errUnhandledStreamEvent,
-		`{"stream":"` + testListenKey + `","data":{"E":1}}`:                                    errUnhandledStreamEvent,
-		`{"stream":"` + testListenKey + `"}`:                                                   errUnhandledStreamEvent,
+	// The cases share ex and conn, so each also checks that a rejected frame leaves nothing for the next
+	for name, tc := range map[string]struct {
+		frame   string
+		wantErr error
+	}{
+		"unknown stream event":             {`{"stream":"btcusdt@unknown","data":{"e":"unknownEvent"}}`, errUnhandledStreamEvent},
+		"ticker of an unlisted symbol":     {`{"stream":"x@optionTicker","data":{"e":"24hrTicker","s":"NOT-LISTED"}}`, currency.ErrPairNotFound},
+		"trade of an unlisted symbol":      {`{"stream":"x@optionTrade","data":{"e":"trade","s":"NOT-LISTED"}}`, currency.ErrPairNotFound},
+		"trade with an invalid side":       {`{"stream":"x@optionTrade","data":{"e":"trade","s":"BTC-261030-85000-C","S":"UP"}}`, order.ErrSideIsInvalid},
+		"kline of an unlisted symbol":      {`{"stream":"x@kline_1m","data":{"e":"kline","s":"NOT-LISTED","k":{"i":"1m"}}}`, currency.ErrPairNotFound},
+		"kline with an invalid interval":   {`{"stream":"x@kline_1m","data":{"e":"kline","s":"BTC-261030-85000-C","k":{"i":"1x"}}}`, kline.ErrInvalidInterval},
+		"diff depth of an unlisted symbol": {`{"stream":"x@depth@100ms","data":{"e":"depthUpdate","s":"NOT-LISTED"}}`, currency.ErrPairNotFound},
+		"unknown user data event":          {`{"stream":"` + testListenKey + `","data":{"e":"UNKNOWN_EVENT"}}`, errUnhandledStreamEvent},
+		"user data event without a type":   {`{"stream":"` + testListenKey + `","data":{"E":1}}`, errUnhandledStreamEvent},
+		"user data frame without data":     {`{"stream":"` + testListenKey + `"}`, errUnhandledStreamEvent},
 	} {
-		handle := ex.wsHandleOptionsData
-		if strings.HasPrefix(frame, `{"stream":"`+testListenKey) {
-			handle = ex.wsHandleOptionsUserData
-		}
-		err := handle(t.Context(), conn, []byte(frame))
-		require.ErrorIsf(t, err, wantErr, "options handlers must reject %s", frame)
-		assert.NotContains(t, err.Error(), testListenKey, "errors should never quote the listen key")
+		t.Run(name, func(t *testing.T) {
+			handle := ex.wsHandleOptionsData
+			if strings.HasPrefix(tc.frame, `{"stream":"`+testListenKey) {
+				handle = ex.wsHandleOptionsUserData
+			}
+			err := handle(t.Context(), conn, []byte(tc.frame))
+			require.ErrorIsf(t, err, tc.wantErr, "options handlers must reject %s", tc.frame)
+			assert.NotContains(t, err.Error(), testListenKey, "errors should never quote the listen key")
+		})
 	}
-	for _, frame := range []string{
-		`{"stream":"x@depth@100ms","data":{"e":"depthUpdate","U":"invalid"}}`,
-		`{"stream":"x@optionTicker","data":{"e":"24hrTicker","E":"invalid"}}`,
-		`{"stream":"x@optionTrade","data":{"e":"trade","t":"invalid"}}`,
-		`{"stream":"x@kline_1m","data":{"e":"kline","E":"invalid"}}`,
-		`{"stream":"!index@arr","data":[{"e":"indexPrice","E":"invalid"}]}`,
+	// The cases share ex and conn in order, so each also checks that a rejected frame leaves nothing for the next
+	for _, tc := range []struct{ name, frame string }{
+		{"undecodable diff depth", `{"stream":"x@depth@100ms","data":{"e":"depthUpdate","U":"invalid"}}`},
+		{"undecodable ticker", `{"stream":"x@optionTicker","data":{"e":"24hrTicker","E":"invalid"}}`},
+		{"undecodable trade", `{"stream":"x@optionTrade","data":{"e":"trade","t":"invalid"}}`},
+		{"undecodable kline", `{"stream":"x@kline_1m","data":{"e":"kline","E":"invalid"}}`},
+		{"undecodable index price", `{"stream":"!index@arr","data":[{"e":"indexPrice","E":"invalid"}]}`},
 	} {
-		assert.Errorf(t, ex.wsHandleOptionsData(t.Context(), conn, []byte(frame)), "wsHandleOptionsData should report the decoding error of %s", frame)
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Errorf(t, ex.wsHandleOptionsData(t.Context(), conn, []byte(tc.frame)), "wsHandleOptionsData should report the decoding error of %s", tc.frame)
+		})
 	}
-	for data, wantErr := range map[string]error{
-		`{"e":"ORDER_TRADE_UPDATE","o":{"s":"BTC-261030-85000-C","S":"UP"}}`:                                   order.ErrSideIsInvalid,
-		`{"e":"ORDER_TRADE_UPDATE","o":{"s":"BTC-261030-85000-C","S":"SELL","o":"ICEBERG"}}`:                   order.ErrUnrecognisedOrderType,
-		`{"e":"ORDER_TRADE_UPDATE","o":{"s":"BTC-261030-85000-C","S":"SELL","o":"LIMIT","X":"SUSPENDED"}}`:     errUnknownOrderStatus,
-		`{"e":"ORDER_TRADE_UPDATE","o":{"s":"BTC-261030-85000-C","S":"SELL","o":"LIMIT","X":"NEW","f":"GTE"}}`: order.ErrInvalidTimeInForce,
+	// The cases share ex and conn, so each also checks that a rejected update leaves nothing for the next
+	for name, tc := range map[string]struct {
+		data    string
+		wantErr error
+	}{
+		"order update with an invalid side":          {`{"e":"ORDER_TRADE_UPDATE","o":{"s":"BTC-261030-85000-C","S":"UP"}}`, order.ErrSideIsInvalid},
+		"order update with an unknown type":          {`{"e":"ORDER_TRADE_UPDATE","o":{"s":"BTC-261030-85000-C","S":"SELL","o":"ICEBERG"}}`, order.ErrUnrecognisedOrderType},
+		"order update with an unknown status":        {`{"e":"ORDER_TRADE_UPDATE","o":{"s":"BTC-261030-85000-C","S":"SELL","o":"LIMIT","X":"SUSPENDED"}}`, errUnknownOrderStatus},
+		"order update with an invalid time in force": {`{"e":"ORDER_TRADE_UPDATE","o":{"s":"BTC-261030-85000-C","S":"SELL","o":"LIMIT","X":"NEW","f":"GTE"}}`, order.ErrInvalidTimeInForce},
 	} {
-		assert.ErrorIsf(t, ex.wsHandleOptionsUserData(t.Context(), conn, []byte(`{"stream":"`+testListenKey+`","data":`+data+`}`)), wantErr, "wsHandleOptionsUserData should reject %s", data)
+		t.Run(name, func(t *testing.T) {
+			assert.ErrorIsf(t, ex.wsHandleOptionsUserData(t.Context(), conn, []byte(`{"stream":"`+testListenKey+`","data":`+tc.data+`}`)), tc.wantErr, "wsHandleOptionsUserData should reject %s", tc.data)
+		})
 	}
-	for _, data := range []string{
-		`{"e":"BALANCE_POSITION_UPDATE","E":"invalid"}`,
-		`{"e":"ORDER_TRADE_UPDATE","E":"invalid"}`,
+	// The cases share ex and conn in order, so each also checks that a rejected update leaves nothing for the next
+	for _, tc := range []struct{ name, data string }{
+		{"undecodable balance and position update", `{"e":"BALANCE_POSITION_UPDATE","E":"invalid"}`},
+		{"undecodable order update", `{"e":"ORDER_TRADE_UPDATE","E":"invalid"}`},
 	} {
-		assert.Errorf(t, ex.wsHandleOptionsUserData(t.Context(), conn, []byte(`{"stream":"`+testListenKey+`","data":`+data+`}`)), "wsHandleOptionsUserData should reject %s", data)
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Errorf(t, ex.wsHandleOptionsUserData(t.Context(), conn, []byte(`{"stream":"`+testListenKey+`","data":`+tc.data+`}`)), "wsHandleOptionsUserData should reject %s", tc.data)
+		})
 	}
 	// Disabled pairs are skipped
 	require.NoError(t, ex.wsHandleOptionsData(t.Context(), conn, []byte(`{"stream":"x@kline_1m","data":{"e":"kline","s":"ETH-261009-2700-C","k":{"i":"1m"}}}`)), "a disabled pair must be skipped")
@@ -410,8 +437,11 @@ func TestOptionsPayloadDecoding(t *testing.T) {
 			},
 		},
 	} {
-		require.NoErrorf(t, json.Unmarshal(fixtureFrameData(t, tc.fixture, tc.key), tc.target), "Unmarshal must not error for the %s", tc.name)
-		assert.Equalf(t, tc.exp, tc.target, "the %s should decode every field", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			require.NoErrorf(t, json.Unmarshal(fixtureFrameData(t, tc.fixture, tc.key), tc.target), "Unmarshal must not error for the %s", tc.name)
+			assert.Equalf(t, tc.exp, tc.target, "the %s should decode every field", tc.name)
+		})
 	}
 }
 
@@ -423,27 +453,26 @@ func TestProcessOptionsBalancePositionUpdate(t *testing.T) {
 			testBalanceEventOrdering(t, tc)
 		}
 	}
-}
-
-func TestProcessOptionsBalancePositionUpdateMixedFreshness(t *testing.T) {
-	t.Parallel()
-	// One event can report a currency an earlier event already reported beside one none did, and only the latter is
-	// stored and relayed
-	ex := newTradingTestExchange(t, serveBalanceRefreshReplies(t))
-	first := `{"e":"BALANCE_POSITION_UPDATE","E":1791300000001,"T":1791300000000,"m":"ORDER","B":[{"a":"USDT","b":"100","bc":"0"}],"P":[]}`
-	require.NoError(t, ex.processOptionsBalancePositionUpdate(t.Context(), []byte(first)), "processOptionsBalancePositionUpdate must not error")
-	relayedPayloads(ex)
-	event := `{"e":"BALANCE_POSITION_UPDATE","E":1791299999001,"T":1791299999000,"m":"ORDER","B":[{"a":"USDT","b":"110","bc":"0"},{"a":"BTC","b":"4","bc":"0"}],"P":[]}`
-	require.NoError(t, ex.processOptionsBalancePositionUpdate(t.Context(), []byte(event)), "processOptionsBalancePositionUpdate must not error")
-	assert.Equal(t, 100.0, storedBalance(t, ex, asset.Options, currency.USDT).Total, "a currency with a later event should keep that event's balance")
-	assert.Equal(t, 4.0, storedBalance(t, ex, asset.Options, currency.BTC).Total, "a currency without a later event should take this event's balance")
-	payloads := relayedPayloads(ex)
-	require.Len(t, payloads, 1, "the event's accepted balances must be relayed once")
-	relayed, ok := payloads[0].(accounts.SubAccounts)
-	require.True(t, ok, "the relayed payload must hold balances")
-	require.Len(t, relayed, 1, "one sub-account must be relayed")
-	assert.Len(t, relayed[0].Balances, 1, "only the accepted currency should be relayed")
-	assert.Contains(t, relayed[0].Balances, currency.BTC, "the accepted currency should be relayed")
+	t.Run("stores only the currencies no later event reported", func(t *testing.T) {
+		t.Parallel()
+		// One event can report a currency an earlier event already reported beside one none did, and only the latter is
+		// stored and relayed
+		ex := newTradingTestExchange(t, serveBalanceRefreshReplies(t))
+		first := `{"e":"BALANCE_POSITION_UPDATE","E":1791300000001,"T":1791300000000,"m":"ORDER","B":[{"a":"USDT","b":"100","bc":"0"}],"P":[]}`
+		require.NoError(t, ex.processOptionsBalancePositionUpdate(t.Context(), []byte(first)), "processOptionsBalancePositionUpdate must not error")
+		relayedPayloads(ex)
+		event := `{"e":"BALANCE_POSITION_UPDATE","E":1791299999001,"T":1791299999000,"m":"ORDER","B":[{"a":"USDT","b":"110","bc":"0"},{"a":"BTC","b":"4","bc":"0"}],"P":[]}`
+		require.NoError(t, ex.processOptionsBalancePositionUpdate(t.Context(), []byte(event)), "processOptionsBalancePositionUpdate must not error")
+		assert.Equal(t, 100.0, storedBalance(t, ex, asset.Options, currency.USDT).Total, "a currency with a later event should keep that event's balance")
+		assert.Equal(t, 4.0, storedBalance(t, ex, asset.Options, currency.BTC).Total, "a currency without a later event should take this event's balance")
+		payloads := relayedPayloads(ex)
+		require.Len(t, payloads, 1, "the event's accepted balances must be relayed once")
+		relayed, ok := payloads[0].(accounts.SubAccounts)
+		require.True(t, ok, "the relayed payload must hold balances")
+		require.Len(t, relayed, 1, "one sub-account must be relayed")
+		assert.Len(t, relayed[0].Balances, 1, "only the accepted currency should be relayed")
+		assert.Contains(t, relayed[0].Balances, currency.BTC, "the accepted currency should be relayed")
+	})
 }
 
 func TestOptionsOlderReplyKeepsOmittedCurrencyOut(t *testing.T) {

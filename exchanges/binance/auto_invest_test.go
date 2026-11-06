@@ -186,7 +186,7 @@ func TestInvestmentPlanCreation(t *testing.T) {
 	assert.NotZero(t, result.PlanID, "InvestmentPlanCreation should return a plan ID")
 }
 
-func TestInvestmentPlanAdjustment(t *testing.T) {
+func TestInvestmentPlanAdjustment(t *testing.T) { //nolint:tparallel // The cases run in order before the adjustment, which calls the same method
 	t.Parallel()
 	_, err := e.InvestmentPlanAdjustment(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "InvestmentPlanAdjustment must reject a nil request")
@@ -199,6 +199,7 @@ func TestInvestmentPlanAdjustment(t *testing.T) {
 	}
 	_, err = e.InvestmentPlanAdjustment(t.Context(), &InvestmentPlanAdjustmentRequest{InvestmentPlanSchedule: schedule})
 	require.ErrorIs(t, err, errPlanIDRequired, "InvestmentPlanAdjustment must reject an empty plan ID")
+	// The adjustment after the cases calls the same method, so they run in order before it
 	for _, tc := range []struct {
 		name   string
 		modify func(*InvestmentPlanSchedule)
@@ -211,10 +212,12 @@ func TestInvestmentPlanAdjustment(t *testing.T) {
 		{"detail target asset", func(s *InvestmentPlanSchedule) { s.Details = []PortfolioDetail{{Percentage: 100}} }, currency.ErrCurrencyCodeEmpty},
 		{"detail percentage", func(s *InvestmentPlanSchedule) { s.Details = []PortfolioDetail{{TargetAsset: currency.BTC}} }, errInvalidPercentageAmount},
 	} {
-		invalid := schedule
-		tc.modify(&invalid)
-		_, err = e.InvestmentPlanAdjustment(t.Context(), &InvestmentPlanAdjustmentRequest{PlanID: 1234232, InvestmentPlanSchedule: invalid})
-		require.ErrorIsf(t, err, tc.err, "InvestmentPlanAdjustment must reject an invalid %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			invalid := schedule
+			tc.modify(&invalid)
+			_, err = e.InvestmentPlanAdjustment(t.Context(), &InvestmentPlanAdjustmentRequest{PlanID: 1234232, InvestmentPlanSchedule: invalid})
+			require.ErrorIsf(t, err, tc.err, "InvestmentPlanAdjustment must reject an invalid %s", tc.name)
+		})
 	}
 
 	if !mockTests {
@@ -500,10 +503,11 @@ func TestGetIndexLinkedPlanPositionDetails(t *testing.T) {
 	assert.NotNil(t, result, "GetIndexLinkedPlanPositionDetails should return a result")
 }
 
-func TestOneTimeTransaction(t *testing.T) {
+func TestOneTimeTransaction(t *testing.T) { //nolint:tparallel // The cases run in order before the transaction, which calls the same method
 	t.Parallel()
 	_, err := e.OneTimeTransaction(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "OneTimeTransaction must reject a nil request")
+	// The transaction after the cases calls the same method, so they run in order before it
 	for _, tc := range []struct {
 		name string
 		req  *OneTimeTransactionRequest
@@ -515,8 +519,10 @@ func TestOneTimeTransaction(t *testing.T) {
 		{"plan, index or details", &OneTimeTransactionRequest{SourceType: "MAIN_SITE", SubscriptionAmount: 12, SourceAsset: currency.USDT}, errPortfolioDetailRequired},
 		{"detail percentage", &OneTimeTransactionRequest{SourceType: "MAIN_SITE", SubscriptionAmount: 12, SourceAsset: currency.USDT, Details: []PortfolioDetail{{TargetAsset: currency.BTC}}}, errInvalidPercentageAmount},
 	} {
-		_, err = e.OneTimeTransaction(t.Context(), tc.req)
-		require.ErrorIsf(t, err, tc.err, "OneTimeTransaction must reject an invalid %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err = e.OneTimeTransaction(t.Context(), tc.req)
+			require.ErrorIsf(t, err, tc.err, "OneTimeTransaction must reject an invalid %s", tc.name)
+		})
 	}
 
 	if !mockTests {

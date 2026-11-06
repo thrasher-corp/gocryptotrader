@@ -485,7 +485,7 @@ func TestUserDataStreams(t *testing.T) {
 	assert.Empty(t, u.pending, "reset should end requests still waiting for their responses")
 }
 
-func TestSendWebsocketAPIRequest(t *testing.T) {
+func TestSendWebsocketAPIRequest(t *testing.T) { //nolint:tparallel // The error cases share ex and its mock connection in order
 	t.Parallel()
 	ex := newTestExchange(t)
 	err := ex.SendWebsocketAPIRequest(t.Context(), spotDefaultRate, "session.status", nil, nil)
@@ -507,9 +507,12 @@ func TestSendWebsocketAPIRequest(t *testing.T) {
 		return w.WriteMessage(gws.TextMessage, fmt.Appendf(nil, `{"id":%q,%s}`, req.ID, responses[req.Method]))
 	})
 	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
+	// The cases share ex and its connection in order, so each also checks that a request keeps nothing from the last
 	for _, method := range []string{"error", "error.data", "status"} {
-		err = ex.SendWebsocketAPIRequest(t.Context(), spotDefaultRate, method, nil, nil)
-		assert.ErrorIsf(t, err, errWebsocketAPIRequestFailed, "SendWebsocketAPIRequest should return the %s response's error", method)
+		t.Run(subtestName(method), func(t *testing.T) {
+			err = ex.SendWebsocketAPIRequest(t.Context(), spotDefaultRate, method, nil, nil)
+			assert.ErrorIsf(t, err, errWebsocketAPIRequestFailed, "SendWebsocketAPIRequest should return the %s response's error", method)
+		})
 	}
 	err = ex.SendWebsocketAPIRequest(t.Context(), spotDefaultRate, "error", nil, nil)
 	assert.ErrorIs(t, err, currency.ErrPairNotFound, "SendWebsocketAPIRequest should return the error the code maps to")
@@ -631,13 +634,19 @@ func TestWindowSizeToString(t *testing.T) {
 		24 * time.Hour:     "1d",
 		7 * 24 * time.Hour: "7d",
 	} {
-		got, err := windowSizeToString(windowSize)
-		require.NoErrorf(t, err, "windowSizeToString must not error for %s", windowSize)
-		assert.Equalf(t, exp, got, "windowSizeToString should format %s", windowSize)
+		t.Run(windowSize.String(), func(t *testing.T) {
+			t.Parallel()
+			got, err := windowSizeToString(windowSize)
+			require.NoErrorf(t, err, "windowSizeToString must not error for %s", windowSize)
+			assert.Equalf(t, exp, got, "windowSizeToString should format %s", windowSize)
+		})
 	}
 	for _, windowSize := range []time.Duration{-time.Minute, 0, 30 * time.Second, 90 * time.Second, 90 * time.Minute, 25 * time.Hour, 8 * 24 * time.Hour} {
-		_, err := windowSizeToString(windowSize)
-		assert.ErrorIsf(t, err, errInvalidWindowSize, "windowSizeToString should reject %s", windowSize)
+		t.Run(windowSize.String(), func(t *testing.T) {
+			t.Parallel()
+			_, err := windowSizeToString(windowSize)
+			assert.ErrorIsf(t, err, errInvalidWindowSize, "windowSizeToString should reject %s", windowSize)
+		})
 	}
 }
 
@@ -884,9 +893,12 @@ func TestWebsocketSessionStatusUserDataStream(t *testing.T) {
 		`{"userDataStream":null}`:  nil,
 		`{}`:                       nil,
 	} {
-		var got WebsocketSessionStatusResponse
-		require.NoErrorf(t, json.Unmarshal([]byte(raw), &got), "Unmarshal must not error for %s", raw)
-		assert.Equalf(t, exp, got.UserDataStream, "UserDataStream should tell %s apart from the other states", raw)
+		t.Run(subtestName(raw), func(t *testing.T) {
+			t.Parallel()
+			var got WebsocketSessionStatusResponse
+			require.NoErrorf(t, json.Unmarshal([]byte(raw), &got), "Unmarshal must not error for %s", raw)
+			assert.Equalf(t, exp, got.UserDataStream, "UserDataStream should tell %s apart from the other states", raw)
+		})
 	}
 }
 
@@ -2421,21 +2433,24 @@ func TestOrdersSkipReconnectingWebsocketAPI(t *testing.T) {
 	assert.True(t, ex.canUseWebsocketAPIForOrders(), "orders should use the WebSocket API once it has reconnected")
 }
 
-func TestSpotWebsocketAPIConnectionSetup(t *testing.T) {
+func TestSpotWebsocketAPIConnectionSetup(t *testing.T) { //nolint:tparallel // The cases share ex in order
 	t.Parallel()
 	ex := newTestExchange(t)
+	// The cases share ex in order, so each also checks that a setup keeps nothing from the last
 	for _, tc := range []struct {
 		configured, exp time.Duration
 	}{
 		{config.DefaultWebsocketResponseMaxLimit, 11 * time.Second},
 		{20 * time.Second, 20 * time.Second},
 	} {
-		setup := ex.spotWebsocketAPIConnectionSetup(&config.Exchange{WebsocketResponseMaxLimit: tc.configured})
-		assert.Equalf(t, tc.exp, setup.ResponseMaxLimit, "spotWebsocketAPIConnectionSetup should await a response beyond Binance's 10 second processing timeout with %s configured", tc.configured)
+		t.Run(tc.configured.String(), func(t *testing.T) {
+			setup := ex.spotWebsocketAPIConnectionSetup(&config.Exchange{WebsocketResponseMaxLimit: tc.configured})
+			assert.Equalf(t, tc.exp, setup.ResponseMaxLimit, "spotWebsocketAPIConnectionSetup should await a response beyond Binance's 10 second processing timeout with %s configured", tc.configured)
+		})
 	}
 }
 
-func TestWebsocketAuthenticateAPI(t *testing.T) {
+func TestWebsocketAuthenticateAPI(t *testing.T) { //nolint:tparallel // The cases take ex's relayed errors in turn
 	t.Parallel()
 	ex := newTestExchange(t)
 	if !mockTests {
@@ -2464,12 +2479,15 @@ func TestWebsocketAuthenticateAPI(t *testing.T) {
 	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error when the User Data Streams are unavailable")
 	assert.True(t, ex.IsAPIStreamConnected(), "the WebSocket API should stay connected without User Data Streams")
 	assert.Empty(t, userDataAssets(ex), "Authenticate should not record failed subscriptions")
+	// The cases take ex's relayed errors in turn, so they run in order
 	for _, a := range []asset.Item{asset.Spot, asset.Margin} {
-		require.NotEmptyf(t, ex.Websocket.DataHandler.C, "relay must hold the %s User Data Stream error", a)
-		err, ok := (<-ex.Websocket.DataHandler.C).Data.(error)
-		require.Truef(t, ok, "relay must hold an error for %s", a)
-		assert.ErrorIsf(t, err, exchange.ErrCredentialsAreEmpty, "the %s User Data Stream error should be the missing credentials", a)
-		assert.ErrorContainsf(t, err, a.String(), "the error should name %s", a)
+		t.Run(a.String(), func(t *testing.T) {
+			require.NotEmptyf(t, ex.Websocket.DataHandler.C, "relay must hold the %s User Data Stream error", a)
+			err, ok := (<-ex.Websocket.DataHandler.C).Data.(error)
+			require.Truef(t, ok, "relay must hold an error for %s", a)
+			assert.ErrorIsf(t, err, exchange.ErrCredentialsAreEmpty, "the %s User Data Stream error should be the missing credentials", a)
+			assert.ErrorContainsf(t, err, a.String(), "the error should name %s", a)
+		})
 	}
 
 	ex = newTestExchange(t)
@@ -2694,20 +2712,23 @@ func TestWebsocketHandleSpotAPIData(t *testing.T) {
 			TransactionTime: types.Time(time.UnixMilli(1581557507268)),
 		},
 	}
+	// The cases take ex's relayed payloads in turn, so they run in order
 	for i := range exp {
-		require.NotEmptyf(t, ex.Websocket.DataHandler.C, "relay must hold payload %d", i)
-		got := (<-ex.Websocket.DataHandler.C).Data
-		if subAccounts, ok := got.(accounts.SubAccounts); ok {
-			// Balances are stamped with their arrival time
-			for _, subAccount := range subAccounts {
-				for c, balance := range subAccount.Balances {
-					assert.WithinDurationf(t, time.Now(), balance.UpdatedAt, time.Minute, "%s balance should be stamped with its arrival time", c)
-					balance.UpdatedAt = time.Time{}
-					subAccount.Balances[c] = balance
+		t.Run("payload "+strconv.Itoa(i), func(t *testing.T) {
+			require.NotEmptyf(t, ex.Websocket.DataHandler.C, "relay must hold payload %d", i)
+			got := (<-ex.Websocket.DataHandler.C).Data
+			if subAccounts, ok := got.(accounts.SubAccounts); ok {
+				// Balances are stamped with their arrival time
+				for _, subAccount := range subAccounts {
+					for c, balance := range subAccount.Balances {
+						assert.WithinDurationf(t, time.Now(), balance.UpdatedAt, time.Minute, "%s balance should be stamped with its arrival time", c)
+						balance.UpdatedAt = time.Time{}
+						subAccount.Balances[c] = balance
+					}
 				}
 			}
-		}
-		assert.Equalf(t, exp[i], got, "relayed payload %d should match", i)
+			assert.Equalf(t, exp[i], got, "relayed payload %d should match", i)
+		})
 	}
 	assert.Empty(t, ex.Websocket.DataHandler.C, "relay should hold nothing else")
 
@@ -2717,6 +2738,115 @@ func TestWebsocketHandleSpotAPIData(t *testing.T) {
 	assert.Equal(t, 1250.0, balance.Total, "the spot balance should be stored")
 	_, err = ex.Accounts.GetBalance("", creds, asset.Margin, currency.BTC)
 	assert.ErrorIs(t, err, accounts.ErrNoBalances, "a margin event should not be stored, as it carries no borrowing")
+
+	t.Run("reports frames it cannot handle", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestExchange(t)
+		ex.SkipAuthCheck = true
+		ex.SetCredentials(&accounts.Credentials{Key: "mock-api-key", Secret: "mock-api-secret"})
+		ex.userData.expect("spot", asset.Spot)
+		ex.userData.recordResponse("spot", []byte(`{"id":"spot","status":200,"result":{"subscriptionId":0}}`))
+		// The cases share ex in order, so each also checks that a frame leaves nothing for the next
+		for _, tc := range []struct {
+			name  string
+			frame string
+			err   error
+		}{
+			{"response without an ID", `{"result":null}`, errUnhandledMessage},
+			{"event without a type", `{"event":{"E":1}}`, errUnhandledMessage},
+			{"event without a subscription", `{"event":{"e":"balanceUpdate","E":1}}`, errUserDataEventWithoutSubscription},
+			{"unknown subscription", `{"subscriptionId":9,"event":{"e":"balanceUpdate","E":1}}`, errUnknownUserDataStreamSubscription},
+			{"unknown event", `{"subscriptionId":0,"event":{"e":"unknownEvent","E":1}}`, errUnhandledMessage},
+			{"execution report of an unknown symbol", `{"subscriptionId":0,"event":{"e":"executionReport","E":1791285059000,"s":"BTCXYZ","i":1}}`, currency.ErrPairNotFound},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				assert.ErrorIsf(t, ex.wsHandleSpotAPIData(t.Context(), nil, []byte(tc.frame)), tc.err, "wsHandleSpotAPIData should error for %s", tc.frame)
+			})
+		}
+		// The cases share ex in order, so each also checks that a frame leaves nothing for the next
+		for _, tc := range []struct{ name, frame string }{
+			{"undecodable account position", `{"subscriptionId":0,"event":{"e":"outboundAccountPosition","B":"invalid"}}`},
+			{"undecodable balance update", `{"subscriptionId":0,"event":{"e":"balanceUpdate","d":true}}`},
+			{"undecodable execution report", `{"subscriptionId":0,"event":{"e":"executionReport","i":"invalid"}}`},
+			{"undecodable list status", `{"subscriptionId":0,"event":{"e":"listStatus","O":"invalid"}}`},
+			{"undecodable external lock update", `{"subscriptionId":0,"event":{"e":"externalLockUpdate","d":true}}`},
+			{"undecodable stream termination", `{"subscriptionId":0,"event":{"e":"eventStreamTerminated","E":"invalid"}}`},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				assert.Errorf(t, ex.wsHandleSpotAPIData(t.Context(), nil, []byte(tc.frame)), "wsHandleSpotAPIData should error for %s", tc.frame)
+			})
+		}
+
+		// The cases share ex and take its relayed errors in turn, so they run in order
+		for _, tc := range []struct {
+			name, field, value string
+			err                error
+		}{
+			{"unclassifiable order status", "X", "UNKNOWN", errUnknownOrderStatus},
+			{"unclassifiable order type", "o", "UNKNOWN", order.ErrUnrecognisedOrderType},
+			{"unclassifiable side", "S", "UNKNOWN", order.ErrSideIsInvalid},
+			{"unclassifiable time in force", "f", "UNKNOWN", order.ErrInvalidTimeInForce},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				frame := map[string]any{"e": "executionReport", "s": "BTCUSDT", "i": int64(5340845958), "X": "NEW", "o": "LIMIT", "S": "BUY", "f": "GTC"}
+				frame[tc.field] = tc.value
+				raw, err := json.Marshal(map[string]any{"subscriptionId": 0, "event": frame})
+				require.NoError(t, err, "Marshal must not error")
+				require.NoErrorf(t, ex.wsHandleSpotAPIData(t.Context(), nil, raw), "wsHandleSpotAPIData must relay an unclassifiable %s", tc.field)
+				require.NotEmpty(t, ex.Websocket.DataHandler.C, "relay must hold the classification error")
+				got, ok := (<-ex.Websocket.DataHandler.C).Data.(order.ClassificationError)
+				require.True(t, ok, "relay must hold a classification error")
+				assert.Equal(t, "5340845958", got.OrderID, "the classification error should name the order")
+				assert.ErrorIsf(t, got.Err, tc.err, "the classification error should explain the %s value", tc.field)
+			})
+		}
+
+		// A list status is relayed as it arrives even when its symbol is unknown, and an unknown list order status is
+		// reported to the order manager instead of the order list
+		err := ex.wsHandleSpotAPIData(t.Context(), nil, []byte(`{"subscriptionId":0,"event":{"e":"listStatus","s":"BTCXYZ","g":3,"c":"OCO","L":"EXECUTING"}}`))
+		assert.ErrorIs(t, err, currency.ErrPairNotFound, "wsHandleSpotAPIData should report a list status of an unknown symbol")
+		assert.Equal(t, []any{&WebsocketListStatus{EventType: "listStatus", Symbol: "BTCXYZ", OrderListID: 3, ContingencyType: "OCO", ListOrderStatus: "EXECUTING"}}, relayedPayloads(ex), "the list status of an unknown symbol should be relayed")
+		require.NoError(t, ex.wsHandleSpotAPIData(t.Context(), nil, []byte(`{"subscriptionId":0,"event":{"e":"listStatus","s":"BTCUSDT","g":3,"c":"OCO","L":"UNKNOWN"}}`)), "wsHandleSpotAPIData must relay an unclassifiable list status")
+		relayed := relayedPayloads(ex)
+		require.Len(t, relayed, 2, "relay must hold the list status and its classification error")
+		assert.Equal(t, &WebsocketListStatus{EventType: "listStatus", Symbol: "BTCUSDT", OrderListID: 3, ContingencyType: "OCO", ListOrderStatus: "UNKNOWN"}, relayed[0], "the unclassifiable list status should be relayed")
+		got, ok := relayed[1].(order.ClassificationError)
+		require.True(t, ok, "relay must hold a classification error")
+		assert.Equal(t, "3", got.OrderID, "the classification error should name the order list")
+		assert.ErrorIs(t, got.Err, errUnknownOrderStatus, "the classification error should explain the list order status")
+	})
+
+	t.Run("closes the WebSocket API connection on server shutdown", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestExchange(t)
+		apiServer := httptest.NewTestServer(t, mockws.CurryWsMockUpgrader(t, wsAPIMock))
+		apiServer.Start()
+		useAPIAndStreamWebsockets(t, ex, "ws"+strings.TrimPrefix(apiServer.URL, "http"))
+		require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
+		api, err := ex.Websocket.GetConnection(spotWebsocketAPI)
+		require.NoError(t, err, "GetConnection must not error for the WebSocket API")
+		streams, err := ex.Websocket.GetConnection(asset.Spot)
+		require.NoError(t, err, "GetConnection must not error for the streams")
+
+		require.NoError(t, ex.wsHandleSpotAPIData(t.Context(), api, []byte(`{"event":{"e":"serverShutdown","E":1770123456789}}`)), "wsHandleSpotAPIData must not error")
+		apiConnected, ok := api.(interface{ IsConnected() bool })
+		require.True(t, ok, "the WebSocket API connection must report whether it is connected")
+		assert.Eventually(t, func() bool { return !apiConnected.IsConnected() }, 30*time.Second, 10*time.Millisecond, "serverShutdown should close the WebSocket API connection for the connection monitor to replace")
+		// Shutting the websocket down would hold its lock while closing the WebSocket API connection, so this waits for it
+		stillStreams, err := ex.Websocket.GetConnection(asset.Spot)
+		require.NoError(t, err, "GetConnection must not error for the streams")
+		assert.Same(t, streams, stillStreams, "the stream connection should not be reconnected")
+		assert.True(t, ex.Websocket.IsConnected(), "the websocket should stay connected")
+	})
+
+	t.Run("rejects a response nothing requested", func(t *testing.T) {
+		t.Parallel()
+		ex := newWsAPITestExchange(t, false)
+		conn, err := ex.Websocket.GetConnection(spotWebsocketAPI)
+		require.NoError(t, err, "GetConnection must not error")
+		err = ex.wsHandleSpotAPIData(t.Context(), conn, []byte(`{"id":"unrequested","status":200,"result":{}}`))
+		assert.ErrorIs(t, err, websocket.ErrSignatureNotMatched, "wsHandleSpotAPIData should error for a response nothing requested")
+	})
 }
 
 func TestSpotBalancesOrderedByAccountUpdateTime(t *testing.T) {
@@ -3090,111 +3220,47 @@ func TestUserDataEventPayloads(t *testing.T) {
 	}
 }
 
-func TestProcessExecutionReportAmounts(t *testing.T) {
+func TestProcessExecutionReport(t *testing.T) {
 	t.Parallel()
-	// REST works out an order's remaining amount and average price in decimal arithmetic, so the stream does too, or the
-	// store would change them on every update from the other source
-	ex := newTestExchange(t)
-	event := []byte(`{"e":"executionReport","E":1791285060000,"s":"BTCUSDT","c":"gct-decimal","S":"BUY","o":"LIMIT","f":"GTC","q":"0.30000000","p":"3.00000000","P":"0.00000000","x":"TRADE","X":"PARTIALLY_FILLED","r":"NONE","i":1,"l":"0.10000000","z":"0.10000000","L":"3.00000000","n":"0","N":null,"T":1791285060000,"t":7,"O":1791285059000,"Z":"0.30000000","Y":"0.30000000","Q":"0.00000000"}`)
-	require.NoError(t, ex.processExecutionReport(t.Context(), asset.Spot, event), "processExecutionReport must not error")
-	exp := []any{&order.Detail{
-		Price:                3,
-		Amount:               0.3,
-		AverageExecutedPrice: 3,
-		ExecutedAmount:       0.1,
-		RemainingAmount:      0.2,
-		Cost:                 0.3,
-		CostAsset:            currency.USDT,
-		Exchange:             t.Name(),
-		OrderID:              "1",
-		ClientOrderID:        "gct-decimal",
-		Type:                 order.Limit,
-		Side:                 order.Buy,
-		Status:               order.PartiallyFilled,
-		AssetType:            asset.Spot,
-		Date:                 time.UnixMilli(1791285059000),
-		LastUpdated:          time.UnixMilli(1791285060000),
-		Pair:                 currency.NewPairWithDelimiter("BTC", "USDT", "-"),
-		TimeInForce:          order.GoodTillCancel,
-		Trades: []order.TradeHistory{{
-			Price:     3,
-			Amount:    0.1,
-			Exchange:  t.Name(),
-			TID:       "7",
-			Type:      order.Limit,
-			Side:      order.Buy,
-			Timestamp: time.UnixMilli(1791285060000),
-			Total:     0.3,
-		}},
-	}}
-	assert.Equal(t, exp, relayedPayloads(ex), "processExecutionReport should relay the amounts REST reports")
-}
-
-func TestWebsocketHandleSpotAPIDataErrors(t *testing.T) {
-	t.Parallel()
-	ex := newTestExchange(t)
-	ex.SkipAuthCheck = true
-	ex.SetCredentials(&accounts.Credentials{Key: "mock-api-key", Secret: "mock-api-secret"})
-	ex.userData.expect("spot", asset.Spot)
-	ex.userData.recordResponse("spot", []byte(`{"id":"spot","status":200,"result":{"subscriptionId":0}}`))
-	for _, tc := range []struct {
-		frame string
-		err   error
-	}{
-		{`{"result":null}`, errUnhandledMessage},
-		{`{"event":{"E":1}}`, errUnhandledMessage},
-		{`{"event":{"e":"balanceUpdate","E":1}}`, errUserDataEventWithoutSubscription},
-		{`{"subscriptionId":9,"event":{"e":"balanceUpdate","E":1}}`, errUnknownUserDataStreamSubscription},
-		{`{"subscriptionId":0,"event":{"e":"unknownEvent","E":1}}`, errUnhandledMessage},
-		{`{"subscriptionId":0,"event":{"e":"executionReport","E":1791285059000,"s":"BTCXYZ","i":1}}`, currency.ErrPairNotFound},
-	} {
-		assert.ErrorIsf(t, ex.wsHandleSpotAPIData(t.Context(), nil, []byte(tc.frame)), tc.err, "wsHandleSpotAPIData should error for %s", tc.frame)
-	}
-	for _, frame := range []string{
-		`{"subscriptionId":0,"event":{"e":"outboundAccountPosition","B":"invalid"}}`,
-		`{"subscriptionId":0,"event":{"e":"balanceUpdate","d":true}}`,
-		`{"subscriptionId":0,"event":{"e":"executionReport","i":"invalid"}}`,
-		`{"subscriptionId":0,"event":{"e":"listStatus","O":"invalid"}}`,
-		`{"subscriptionId":0,"event":{"e":"externalLockUpdate","d":true}}`,
-		`{"subscriptionId":0,"event":{"e":"eventStreamTerminated","E":"invalid"}}`,
-	} {
-		assert.Errorf(t, ex.wsHandleSpotAPIData(t.Context(), nil, []byte(frame)), "wsHandleSpotAPIData should error for %s", frame)
-	}
-
-	for _, tc := range []struct {
-		field, value string
-		err          error
-	}{
-		{"X", "UNKNOWN", errUnknownOrderStatus},
-		{"o", "UNKNOWN", order.ErrUnrecognisedOrderType},
-		{"S", "UNKNOWN", order.ErrSideIsInvalid},
-		{"f", "UNKNOWN", order.ErrInvalidTimeInForce},
-	} {
-		frame := map[string]any{"e": "executionReport", "s": "BTCUSDT", "i": int64(5340845958), "X": "NEW", "o": "LIMIT", "S": "BUY", "f": "GTC"}
-		frame[tc.field] = tc.value
-		raw, err := json.Marshal(map[string]any{"subscriptionId": 0, "event": frame})
-		require.NoError(t, err, "Marshal must not error")
-		require.NoErrorf(t, ex.wsHandleSpotAPIData(t.Context(), nil, raw), "wsHandleSpotAPIData must relay an unclassifiable %s", tc.field)
-		require.NotEmpty(t, ex.Websocket.DataHandler.C, "relay must hold the classification error")
-		got, ok := (<-ex.Websocket.DataHandler.C).Data.(order.ClassificationError)
-		require.True(t, ok, "relay must hold a classification error")
-		assert.Equal(t, "5340845958", got.OrderID, "the classification error should name the order")
-		assert.ErrorIsf(t, got.Err, tc.err, "the classification error should explain the %s value", tc.field)
-	}
-
-	// A list status is relayed as it arrives even when its symbol is unknown, and an unknown list order status is
-	// reported to the order manager instead of the order list
-	err := ex.wsHandleSpotAPIData(t.Context(), nil, []byte(`{"subscriptionId":0,"event":{"e":"listStatus","s":"BTCXYZ","g":3,"c":"OCO","L":"EXECUTING"}}`))
-	assert.ErrorIs(t, err, currency.ErrPairNotFound, "wsHandleSpotAPIData should report a list status of an unknown symbol")
-	assert.Equal(t, []any{&WebsocketListStatus{EventType: "listStatus", Symbol: "BTCXYZ", OrderListID: 3, ContingencyType: "OCO", ListOrderStatus: "EXECUTING"}}, relayedPayloads(ex), "the list status of an unknown symbol should be relayed")
-	require.NoError(t, ex.wsHandleSpotAPIData(t.Context(), nil, []byte(`{"subscriptionId":0,"event":{"e":"listStatus","s":"BTCUSDT","g":3,"c":"OCO","L":"UNKNOWN"}}`)), "wsHandleSpotAPIData must relay an unclassifiable list status")
-	relayed := relayedPayloads(ex)
-	require.Len(t, relayed, 2, "relay must hold the list status and its classification error")
-	assert.Equal(t, &WebsocketListStatus{EventType: "listStatus", Symbol: "BTCUSDT", OrderListID: 3, ContingencyType: "OCO", ListOrderStatus: "UNKNOWN"}, relayed[0], "the unclassifiable list status should be relayed")
-	got, ok := relayed[1].(order.ClassificationError)
-	require.True(t, ok, "relay must hold a classification error")
-	assert.Equal(t, "3", got.OrderID, "the classification error should name the order list")
-	assert.ErrorIs(t, got.Err, errUnknownOrderStatus, "the classification error should explain the list order status")
+	t.Run("relays the amounts REST reports", func(t *testing.T) {
+		t.Parallel()
+		// REST works out an order's remaining amount and average price in decimal arithmetic, so the stream does too, or the
+		// store would change them on every update from the other source
+		ex := newTestExchange(t)
+		event := []byte(`{"e":"executionReport","E":1791285060000,"s":"BTCUSDT","c":"gct-decimal","S":"BUY","o":"LIMIT","f":"GTC","q":"0.30000000","p":"3.00000000","P":"0.00000000","x":"TRADE","X":"PARTIALLY_FILLED","r":"NONE","i":1,"l":"0.10000000","z":"0.10000000","L":"3.00000000","n":"0","N":null,"T":1791285060000,"t":7,"O":1791285059000,"Z":"0.30000000","Y":"0.30000000","Q":"0.00000000"}`)
+		require.NoError(t, ex.processExecutionReport(t.Context(), asset.Spot, event), "processExecutionReport must not error")
+		exp := []any{&order.Detail{
+			Price:                3,
+			Amount:               0.3,
+			AverageExecutedPrice: 3,
+			ExecutedAmount:       0.1,
+			RemainingAmount:      0.2,
+			Cost:                 0.3,
+			CostAsset:            currency.USDT,
+			Exchange:             t.Name(),
+			OrderID:              "1",
+			ClientOrderID:        "gct-decimal",
+			Type:                 order.Limit,
+			Side:                 order.Buy,
+			Status:               order.PartiallyFilled,
+			AssetType:            asset.Spot,
+			Date:                 time.UnixMilli(1791285059000),
+			LastUpdated:          time.UnixMilli(1791285060000),
+			Pair:                 currency.NewPairWithDelimiter("BTC", "USDT", "-"),
+			TimeInForce:          order.GoodTillCancel,
+			Trades: []order.TradeHistory{{
+				Price:     3,
+				Amount:    0.1,
+				Exchange:  t.Name(),
+				TID:       "7",
+				Type:      order.Limit,
+				Side:      order.Buy,
+				Timestamp: time.UnixMilli(1791285060000),
+				Total:     0.3,
+			}},
+		}}
+		assert.Equal(t, exp, relayedPayloads(ex), "processExecutionReport should relay the amounts REST reports")
+	})
 }
 
 // TestListStatusUpdatesTrackedOrderList feeds the events of an OCO order list whose limit maker leg fills and whose stop
@@ -3233,29 +3299,6 @@ func TestListStatusUpdatesTrackedOrderList(t *testing.T) {
 		Pair:          pair,
 	}
 	assert.Equal(t, exp, tracked, "the tracked order list should close with its list status")
-}
-
-func TestWebsocketHandleSpotAPIDataServerShutdown(t *testing.T) {
-	t.Parallel()
-	ex := newTestExchange(t)
-	apiServer := httptest.NewTestServer(t, mockws.CurryWsMockUpgrader(t, wsAPIMock))
-	apiServer.Start()
-	useAPIAndStreamWebsockets(t, ex, "ws"+strings.TrimPrefix(apiServer.URL, "http"))
-	require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
-	api, err := ex.Websocket.GetConnection(spotWebsocketAPI)
-	require.NoError(t, err, "GetConnection must not error for the WebSocket API")
-	streams, err := ex.Websocket.GetConnection(asset.Spot)
-	require.NoError(t, err, "GetConnection must not error for the streams")
-
-	require.NoError(t, ex.wsHandleSpotAPIData(t.Context(), api, []byte(`{"event":{"e":"serverShutdown","E":1770123456789}}`)), "wsHandleSpotAPIData must not error")
-	apiConnected, ok := api.(interface{ IsConnected() bool })
-	require.True(t, ok, "the WebSocket API connection must report whether it is connected")
-	assert.Eventually(t, func() bool { return !apiConnected.IsConnected() }, 30*time.Second, 10*time.Millisecond, "serverShutdown should close the WebSocket API connection for the connection monitor to replace")
-	// Shutting the websocket down would hold its lock while closing the WebSocket API connection, so this waits for it
-	stillStreams, err := ex.Websocket.GetConnection(asset.Spot)
-	require.NoError(t, err, "GetConnection must not error for the streams")
-	assert.Same(t, streams, stillStreams, "the stream connection should not be reconnected")
-	assert.True(t, ex.Websocket.IsConnected(), "the websocket should stay connected")
 }
 
 // keptConnection stands in for a WebSocket API connection whose identity alone matters
@@ -3523,15 +3566,6 @@ func testCancelAllSpotOrdersListingRateWebsocketAPI(t *testing.T, limit func(req
 	assert.Equal(t, map[string]string{"11": "CANCELED"}, resp.Status, "CancelAllOrders should cancel every symbol's open orders")
 }
 
-func TestWebsocketHandleSpotAPIDataUnmatchedResponse(t *testing.T) {
-	t.Parallel()
-	ex := newWsAPITestExchange(t, false)
-	conn, err := ex.Websocket.GetConnection(spotWebsocketAPI)
-	require.NoError(t, err, "GetConnection must not error")
-	err = ex.wsHandleSpotAPIData(t.Context(), conn, []byte(`{"id":"unrequested","status":200,"result":{}}`))
-	assert.ErrorIs(t, err, websocket.ErrSignatureNotMatched, "wsHandleSpotAPIData should error for a response nothing requested")
-}
-
 // retriedUserDataMock answers WebSocket API User Data Stream subscriptions, failing the first failures signature
 // subscriptions with -1001 and holding every later one while hold is closed, and counts the signature subscriptions it
 // receives
@@ -3660,12 +3694,15 @@ func (nullResponseConnection) SendMessageReturnResponse(context.Context, request
 	return []byte("null"), nil
 }
 
-func TestSendWebsocketAPIRequestNullResponse(t *testing.T) {
+func TestSendWsAPIRequest(t *testing.T) {
 	t.Parallel()
-	ex := newTestExchange(t)
-	err := ex.sendWsAPIRequest(t.Context(), nullResponseConnection{}, spotDefaultRate, &WebsocketAPIRequest{ID: "1", Method: "session.status"}, nil)
-	assert.ErrorIs(t, err, errWebsocketAPIRequestFailed, "sendWsAPIRequest should fail a null response")
-	assert.ErrorIs(t, err, common.ErrNoResponse, "sendWsAPIRequest should report a null response as no response")
+	t.Run("fails a null response", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestExchange(t)
+		err := ex.sendWsAPIRequest(t.Context(), nullResponseConnection{}, spotDefaultRate, &WebsocketAPIRequest{ID: "1", Method: "session.status"}, nil)
+		assert.ErrorIs(t, err, errWebsocketAPIRequestFailed, "sendWsAPIRequest should fail a null response")
+		assert.ErrorIs(t, err, common.ErrNoResponse, "sendWsAPIRequest should report a null response as no response")
+	})
 }
 
 func TestUserDataStreamRequestGivenUp(t *testing.T) {

@@ -1,6 +1,7 @@
 package binance
 
 import (
+	"strconv"
 	"testing"
 	"time"
 
@@ -368,7 +369,7 @@ func TestGetFuturesClientIfNewUser(t *testing.T) {
 	assert.Equal(t, "1234", result.BrokerID, "GetFuturesClientIfNewUser should return the broker ID")
 }
 
-func TestGetPortfolioMarginClientIfNewUser(t *testing.T) {
+func TestGetPortfolioMarginClientIfNewUser(t *testing.T) { //nolint:tparallel // the cases share e, so they run in order while the test runs in parallel
 	t.Parallel()
 	_, err := e.GetPortfolioMarginClientIfNewUser(t.Context(), "", false)
 	require.ErrorIs(t, err, errInvalidBrokerID, "GetPortfolioMarginClientIfNewUser must reject an empty broker ID")
@@ -376,19 +377,22 @@ func TestGetPortfolioMarginClientIfNewUser(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
+	// The cases share e in order, so each also checks that a request keeps nothing from the last
 	for _, coinMargined := range []bool{false, true} {
-		result, err := e.GetPortfolioMarginClientIfNewUser(t.Context(), "123123", coinMargined)
-		require.NoErrorf(t, err, "GetPortfolioMarginClientIfNewUser must not error for coinMargined %t", coinMargined)
-		if mockTests {
-			exp := &PortfolioMarginClientNewUserStatusResponse{
-				BrokerID:      "123123",
-				RebateWorking: true,
-				IfNewUser:     true,
+		t.Run(strconv.FormatBool(coinMargined), func(t *testing.T) {
+			result, err := e.GetPortfolioMarginClientIfNewUser(t.Context(), "123123", coinMargined)
+			require.NoErrorf(t, err, "GetPortfolioMarginClientIfNewUser must not error for coinMargined %t", coinMargined)
+			if mockTests {
+				exp := &PortfolioMarginClientNewUserStatusResponse{
+					BrokerID:      "123123",
+					RebateWorking: true,
+					IfNewUser:     true,
+				}
+				assert.Equal(t, exp, result, "GetPortfolioMarginClientIfNewUser should decode every field")
+				return
 			}
-			assert.Equal(t, exp, result, "GetPortfolioMarginClientIfNewUser should decode every field")
-			continue
-		}
-		assert.NotEmptyf(t, result.BrokerID, "GetPortfolioMarginClientIfNewUser should return the broker ID for coinMargined %t", coinMargined)
+			assert.NotEmptyf(t, result.BrokerID, "GetPortfolioMarginClientIfNewUser should return the broker ID for coinMargined %t", coinMargined)
+		})
 	}
 }
 

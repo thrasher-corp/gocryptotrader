@@ -152,6 +152,7 @@ func TestVIPLoanBorrow(t *testing.T) {
 	t.Parallel()
 	_, err := e.VIPLoanBorrow(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "VIPLoanBorrow must reject a nil request")
+	// The borrow after the cases calls the same method, so they run in order before it
 	for _, tc := range []struct {
 		name string
 		req  *VIPLoanBorrowRequest
@@ -166,50 +167,55 @@ func TestVIPLoanBorrow(t *testing.T) {
 		{"zero collateral account ID", &VIPLoanBorrowRequest{LoanAccountID: 1234, LoanCoin: currency.ETH, LoanAmount: 123, CollateralAccountIDs: []uint64{1234, 0}, CollateralCoins: []string{"LTC"}, IsFlexibleRate: true}, errAccountIDRequired},
 		{"empty collateral coin", &VIPLoanBorrowRequest{LoanAccountID: 1234, LoanCoin: currency.ETH, LoanAmount: 123, CollateralAccountIDs: []uint64{1234}, CollateralCoins: []string{""}, IsFlexibleRate: true}, currency.ErrCurrencyCodeEmpty},
 	} {
-		_, err = e.VIPLoanBorrow(t.Context(), tc.req)
-		require.ErrorIsf(t, err, tc.err, "VIPLoanBorrow must reject an invalid %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err = e.VIPLoanBorrow(t.Context(), tc.req)
+			require.ErrorIsf(t, err, tc.err, "VIPLoanBorrow must reject an invalid %s", tc.name)
+		})
 	}
 
-	if !mockTests {
-		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	}
-	result, err := e.VIPLoanBorrow(t.Context(), &VIPLoanBorrowRequest{
-		LoanAccountID:        1234,
-		LoanCoin:             currency.ETH,
-		LoanAmount:           123,
-		CollateralAccountIDs: []uint64{1234},
-		CollateralCoins:      []string{"LTC"},
-		LoanTermInDays:       30,
-	})
-	require.NoError(t, err, "VIPLoanBorrow must not error")
-	if mockTests {
-		exp := &VIPLoanBorrowResponse{
-			LoanAccountID:        "1234",
-			RequestID:            "12345678",
-			LoanCoin:             currency.ETH,
-			IsFlexibleRate:       "No",
-			LoanAmount:           123,
-			CollateralAccountIDs: CommaSeparated[uint64]{1234},
-			CollateralCoins:      CommaSeparated[string]{"LTC"},
-			LoanTermInDays:       "30",
+	t.Run("borrows", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 		}
-		assert.Equal(t, exp, result, "VIPLoanBorrow should decode every field")
-		return
-	}
-	assert.NotEmpty(t, result.RequestID, "VIPLoanBorrow should return a request ID")
-}
-
-func TestVIPLoanBorrowCollateralNames(t *testing.T) {
-	t.Parallel()
-	// A Simple Earn Flexible position is pledged by Binance's own spelling of it, beside its spot coin
-	ex := newTestServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "USDT,USDT-Earn", r.URL.Query().Get("collateralCoin"), "VIPLoanBorrow should send the collateral names as given")
-		_, err := w.Write([]byte(`{"loanAccountId":"12345678","requestId":"12345678","loanCoin":"BTC","isFlexibleRate":"Yes","loanAmount":"100.55","collateralAccountId":"12345678","collateralCoin":"USDT,USDT-Earn","loanTerm":"30"}`))
-		assert.NoError(t, err, "Write should not error")
+		result, err := e.VIPLoanBorrow(t.Context(), &VIPLoanBorrowRequest{
+			LoanAccountID:        1234,
+			LoanCoin:             currency.ETH,
+			LoanAmount:           123,
+			CollateralAccountIDs: []uint64{1234},
+			CollateralCoins:      []string{"LTC"},
+			LoanTermInDays:       30,
+		})
+		require.NoError(t, err, "VIPLoanBorrow must not error")
+		if mockTests {
+			exp := &VIPLoanBorrowResponse{
+				LoanAccountID:        "1234",
+				RequestID:            "12345678",
+				LoanCoin:             currency.ETH,
+				IsFlexibleRate:       "No",
+				LoanAmount:           123,
+				CollateralAccountIDs: CommaSeparated[uint64]{1234},
+				CollateralCoins:      CommaSeparated[string]{"LTC"},
+				LoanTermInDays:       "30",
+			}
+			assert.Equal(t, exp, result, "VIPLoanBorrow should decode every field")
+			return
+		}
+		assert.NotEmpty(t, result.RequestID, "VIPLoanBorrow should return a request ID")
 	})
-	result, err := ex.VIPLoanBorrow(t.Context(), &VIPLoanBorrowRequest{LoanAccountID: 12345678, LoanCoin: currency.BTC, LoanAmount: 100.55, CollateralAccountIDs: []uint64{12345678}, CollateralCoins: []string{"USDT", "USDT-Earn"}, IsFlexibleRate: true})
-	require.NoError(t, err, "VIPLoanBorrow must not error")
-	assert.Equal(t, CommaSeparated[string]{"USDT", "USDT-Earn"}, result.CollateralCoins, "VIPLoanBorrow should return the collateral names as Binance sends them")
+
+	t.Run("sends and returns the collateral names as given", func(t *testing.T) {
+		t.Parallel()
+		// A Simple Earn Flexible position is pledged by Binance's own spelling of it, beside its spot coin
+		ex := newTestServerExchange(t, func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "USDT,USDT-Earn", r.URL.Query().Get("collateralCoin"), "VIPLoanBorrow should send the collateral names as given")
+			_, err := w.Write([]byte(`{"loanAccountId":"12345678","requestId":"12345678","loanCoin":"BTC","isFlexibleRate":"Yes","loanAmount":"100.55","collateralAccountId":"12345678","collateralCoin":"USDT,USDT-Earn","loanTerm":"30"}`))
+			assert.NoError(t, err, "Write should not error")
+		})
+		result, err := ex.VIPLoanBorrow(t.Context(), &VIPLoanBorrowRequest{LoanAccountID: 12345678, LoanCoin: currency.BTC, LoanAmount: 100.55, CollateralAccountIDs: []uint64{12345678}, CollateralCoins: []string{"USDT", "USDT-Earn"}, IsFlexibleRate: true})
+		require.NoError(t, err, "VIPLoanBorrow must not error")
+		assert.Equal(t, CommaSeparated[string]{"USDT", "USDT-Earn"}, result.CollateralCoins, "VIPLoanBorrow should return the collateral names as Binance sends them")
+	})
 }
 
 func TestVIPLoanRenew(t *testing.T) {

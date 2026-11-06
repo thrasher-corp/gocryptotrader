@@ -127,19 +127,22 @@ func (c *matchRecordingConnection) RequireMatchWithData(signature any, _ []byte)
 	return nil
 }
 
-func TestWebsocketDerivativesConnect(t *testing.T) {
+func TestWebsocketDerivativesConnect(t *testing.T) { //nolint:tparallel // the cases share ex, so they run in order while the test runs in parallel
 	t.Parallel()
 	err := e.WebsocketDerivativesConnect(t.Context(), failingDialConnection{})
 	assert.ErrorIs(t, err, errTestDial, "WebsocketDerivativesConnect should return the dial error")
 
 	ex := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, mockws.EchoHandler))
+	// The cases share ex and its connections, so they run in order
 	for _, filter := range []string{usdtmPublicFilter, usdtmMarketFilter, usdtmPrivateFilter, coinmFilter, coinmPrivateFilter, optionsPublicFilter, optionsMarketFilter, optionsPrivateFilter} {
-		_, err := ex.Websocket.GetConnection(filter)
-		assert.NoErrorf(t, err, "WebsocketDerivativesConnect should dial the %s connection at its configured URL", filter)
+		t.Run(subtestName(filter), func(t *testing.T) {
+			_, err := ex.Websocket.GetConnection(filter)
+			assert.NoErrorf(t, err, "WebsocketDerivativesConnect should dial the %s connection at its configured URL", filter)
+		})
 	}
 }
 
-func TestGenerateUSDTMarginedFuturesSubscriptions(t *testing.T) {
+func TestGenerateUSDTMarginedFuturesSubscriptions(t *testing.T) { //nolint:tparallel // the cases share ex, so they run in order while the test runs in parallel
 	t.Parallel()
 	ex := newDerivativesTestExchange(t)
 	subs, err := ex.generateUSDTMarginedFuturesPublicSubscriptions()
@@ -157,24 +160,36 @@ func TestGenerateUSDTMarginedFuturesSubscriptions(t *testing.T) {
 	}, subs)
 
 	require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.USDTMarginedFutures, false), "SetAssetEnabled must not error")
-	for _, generate := range []func() (subscription.List, error){ex.generateUSDTMarginedFuturesPublicSubscriptions, ex.generateUSDTMarginedFuturesMarketSubscriptions} {
-		subs, err = generate()
-		require.NoError(t, err, "generating subscriptions for a disabled asset must not error")
-		assert.Empty(t, subs, "a disabled asset should generate no subscriptions, so its connection is skipped")
+	// The cases share ex, whose asset is disabled above, so they run in order
+	for _, tc := range []struct {
+		name     string
+		generate func() (subscription.List, error)
+	}{
+		{"public of a disabled asset", ex.generateUSDTMarginedFuturesPublicSubscriptions},
+		{"market of a disabled asset", ex.generateUSDTMarginedFuturesMarketSubscriptions},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			subs, err = tc.generate()
+			require.NoError(t, err, "generating subscriptions for a disabled asset must not error")
+			assert.Empty(t, subs, "a disabled asset should generate no subscriptions, so its connection is skipped")
+		})
 	}
 }
 
-func TestGenerateDerivativesSubscriptionsPartialFailure(t *testing.T) {
+func TestGenerateDerivativesSubscriptions(t *testing.T) {
 	t.Parallel()
-	ex := newDerivativesTestExchange(t)
-	// An enabled asset whose pairs cannot be formatted must not fail every other connection
-	require.NoError(t, ex.CurrencyPairs.Store(asset.USDTMarginedFutures, &currency.PairStore{
-		AssetEnabled: true,
-		Available:    currency.Pairs{testUSDTMarginedFuturesPair},
-		Enabled:      currency.Pairs{testUSDTMarginedFuturesPair},
-	}), "Store must not error")
-	_, err := ex.generateDerivativesSubscriptions(asset.USDTMarginedFutures, func(*subscription.Subscription) bool { return true })
-	assert.ErrorIs(t, err, websocket.ErrSubscriptionPartial, "generateDerivativesSubscriptions should return a partial subscription error")
+	t.Run("partial failure", func(t *testing.T) {
+		t.Parallel()
+		ex := newDerivativesTestExchange(t)
+		// An enabled asset whose pairs cannot be formatted must not fail every other connection
+		require.NoError(t, ex.CurrencyPairs.Store(asset.USDTMarginedFutures, &currency.PairStore{
+			AssetEnabled: true,
+			Available:    currency.Pairs{testUSDTMarginedFuturesPair},
+			Enabled:      currency.Pairs{testUSDTMarginedFuturesPair},
+		}), "Store must not error")
+		_, err := ex.generateDerivativesSubscriptions(asset.USDTMarginedFutures, func(*subscription.Subscription) bool { return true })
+		assert.ErrorIs(t, err, websocket.ErrSubscriptionPartial, "generateDerivativesSubscriptions should return a partial subscription error")
+	})
 }
 
 func TestGenerateConfiguredDerivativesSubscriptions(t *testing.T) {
@@ -215,6 +230,7 @@ func TestGenerateConfiguredDerivativesSubscriptions(t *testing.T) {
 		{Enabled: true, Asset: asset.Options, Channel: subscription.OrderbookChannel, Levels: 10, Interval: kline.HundredMilliseconds},
 		{Enabled: true, Asset: asset.Options, Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds},
 	})
+	// The cases generate from one exchange, which the statements after them replace, so they run in order
 	for _, tc := range []struct {
 		name     string
 		generate func() (subscription.List, error)
@@ -239,13 +255,15 @@ func TestGenerateConfiguredDerivativesSubscriptions(t *testing.T) {
 			{Enabled: true, Channel: subscription.CandlesChannel, Asset: asset.Options, Pairs: currency.Pairs{testOptionsPair}, Interval: kline.FiveMin, QualifiedChannel: "btc-261030-85000-c@kline_5m"},
 		}, false},
 	} {
-		subs, err := tc.generate()
-		if tc.partial {
-			assert.ErrorIsf(t, err, websocket.ErrSubscriptionPartial, "%s generation should report the subscriptions it left out", tc.name)
-		} else {
-			assert.NoErrorf(t, err, "%s generation should not error", tc.name)
-		}
-		testsubs.EqualLists(t, tc.exp, subs)
+		t.Run(tc.name, func(t *testing.T) {
+			subs, err := tc.generate()
+			if tc.partial {
+				assert.ErrorIsf(t, err, websocket.ErrSubscriptionPartial, "%s generation should report the subscriptions it left out", tc.name)
+			} else {
+				assert.NoErrorf(t, err, "%s generation should not error", tc.name)
+			}
+			testsubs.EqualLists(t, tc.exp, subs)
+		})
 	}
 
 	// An asset the configuration has no subscription of, enabled or not, streams its defaults
@@ -325,37 +343,41 @@ func TestGenerateConfiguredDerivativesSubscriptions(t *testing.T) {
 func TestDerivativesStreamName(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
+		name    string
 		a       asset.Item
 		sub     *subscription.Subscription
 		exp     string
 		wantErr error
 	}{
-		{a: asset.USDTMarginedFutures, sub: &subscription.Subscription{Channel: subscription.TickerChannel}, exp: "ticker"},
-		{a: asset.Options, sub: &subscription.Subscription{Channel: subscription.TickerChannel}, exp: "optionTicker"},
-		{a: asset.CoinMarginedFutures, sub: &subscription.Subscription{Channel: subscription.AllTradesChannel}, exp: "aggTrade"},
-		{a: asset.Options, sub: &subscription.Subscription{Channel: subscription.AllTradesChannel}, exp: "optionTrade"},
-		{a: asset.USDTMarginedFutures, sub: &subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.OneDay}, exp: "kline_1d"},
-		{a: asset.CoinMarginedFutures, sub: &subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.OneMonth}, exp: "kline_1M"},
-		{a: asset.Options, sub: &subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.OneWeek}, exp: "kline_1w"},
-		{a: asset.Options, sub: &subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.EightHour}, wantErr: kline.ErrUnsupportedInterval},
-		{a: asset.USDTMarginedFutures, sub: &subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.ThousandMilliseconds}, wantErr: kline.ErrUnsupportedInterval},
-		{a: asset.USDTMarginedFutures, sub: &subscription.Subscription{Channel: subscription.OrderbookChannel}, exp: "depth"},
-		{a: asset.USDTMarginedFutures, sub: &subscription.Subscription{Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds}, exp: "depth@100ms"},
-		{a: asset.CoinMarginedFutures, sub: &subscription.Subscription{Channel: subscription.OrderbookChannel, Interval: kline.FiveHundredMilliseconds, Levels: 20}, exp: "depth20@500ms"},
-		{a: asset.USDTMarginedFutures, sub: &subscription.Subscription{Channel: subscription.OrderbookChannel, Levels: 5}, exp: "depth5"},
-		{a: asset.Options, sub: &subscription.Subscription{Channel: subscription.OrderbookChannel, Interval: kline.FiveHundredMilliseconds, Levels: 10}, exp: "depth10@500ms"},
-		{a: asset.Options, sub: &subscription.Subscription{Channel: subscription.OrderbookChannel}, wantErr: errUnsupportedStreamOption},
-		{a: asset.USDTMarginedFutures, sub: &subscription.Subscription{Channel: subscription.OrderbookChannel, Interval: kline.OneMin}, wantErr: errUnsupportedStreamOption},
-		{a: asset.USDTMarginedFutures, sub: &subscription.Subscription{Channel: subscription.OrderbookChannel, Levels: 50}, wantErr: errUnsupportedStreamOption},
-		{a: asset.USDTMarginedFutures, sub: &subscription.Subscription{Channel: subscription.MyOrdersChannel}, wantErr: subscription.ErrNotSupported},
+		{name: "USDⓈ-M ticker", a: asset.USDTMarginedFutures, sub: &subscription.Subscription{Channel: subscription.TickerChannel}, exp: "ticker"},
+		{name: "options ticker", a: asset.Options, sub: &subscription.Subscription{Channel: subscription.TickerChannel}, exp: "optionTicker"},
+		{name: "COIN-M trades", a: asset.CoinMarginedFutures, sub: &subscription.Subscription{Channel: subscription.AllTradesChannel}, exp: "aggTrade"},
+		{name: "options trades", a: asset.Options, sub: &subscription.Subscription{Channel: subscription.AllTradesChannel}, exp: "optionTrade"},
+		{name: "USDⓈ-M daily candles", a: asset.USDTMarginedFutures, sub: &subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.OneDay}, exp: "kline_1d"},
+		{name: "COIN-M monthly candles", a: asset.CoinMarginedFutures, sub: &subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.OneMonth}, exp: "kline_1M"},
+		{name: "options weekly candles", a: asset.Options, sub: &subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.OneWeek}, exp: "kline_1w"},
+		{name: "options eight hour candles", a: asset.Options, sub: &subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.EightHour}, wantErr: kline.ErrUnsupportedInterval},
+		{name: "USDⓈ-M one second candles", a: asset.USDTMarginedFutures, sub: &subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.ThousandMilliseconds}, wantErr: kline.ErrUnsupportedInterval},
+		{name: "USDⓈ-M order book", a: asset.USDTMarginedFutures, sub: &subscription.Subscription{Channel: subscription.OrderbookChannel}, exp: "depth"},
+		{name: "USDⓈ-M order book at 100ms", a: asset.USDTMarginedFutures, sub: &subscription.Subscription{Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds}, exp: "depth@100ms"},
+		{name: "COIN-M 20 levels at 500ms", a: asset.CoinMarginedFutures, sub: &subscription.Subscription{Channel: subscription.OrderbookChannel, Interval: kline.FiveHundredMilliseconds, Levels: 20}, exp: "depth20@500ms"},
+		{name: "USDⓈ-M 5 levels", a: asset.USDTMarginedFutures, sub: &subscription.Subscription{Channel: subscription.OrderbookChannel, Levels: 5}, exp: "depth5"},
+		{name: "options 10 levels at 500ms", a: asset.Options, sub: &subscription.Subscription{Channel: subscription.OrderbookChannel, Interval: kline.FiveHundredMilliseconds, Levels: 10}, exp: "depth10@500ms"},
+		{name: "options order book without a speed", a: asset.Options, sub: &subscription.Subscription{Channel: subscription.OrderbookChannel}, wantErr: errUnsupportedStreamOption},
+		{name: "USDⓈ-M order book at 1m", a: asset.USDTMarginedFutures, sub: &subscription.Subscription{Channel: subscription.OrderbookChannel, Interval: kline.OneMin}, wantErr: errUnsupportedStreamOption},
+		{name: "USDⓈ-M 50 levels", a: asset.USDTMarginedFutures, sub: &subscription.Subscription{Channel: subscription.OrderbookChannel, Levels: 50}, wantErr: errUnsupportedStreamOption},
+		{name: "USDⓈ-M my orders", a: asset.USDTMarginedFutures, sub: &subscription.Subscription{Channel: subscription.MyOrdersChannel}, wantErr: subscription.ErrNotSupported},
 	} {
-		got, err := e.derivativesStreamName(tc.a, tc.sub)
-		if tc.wantErr != nil {
-			assert.ErrorIsf(t, err, tc.wantErr, "derivativesStreamName should reject %s %s", tc.a, tc.sub.Channel)
-			continue
-		}
-		require.NoErrorf(t, err, "derivativesStreamName must not error for %s %s", tc.a, tc.sub.Channel)
-		assert.Equalf(t, tc.exp, got, "derivativesStreamName should name %s %s", tc.a, tc.sub.Channel)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := e.derivativesStreamName(tc.a, tc.sub)
+			if tc.wantErr != nil {
+				assert.ErrorIsf(t, err, tc.wantErr, "derivativesStreamName should reject %s %s", tc.a, tc.sub.Channel)
+				return
+			}
+			require.NoErrorf(t, err, "derivativesStreamName must not error for %s %s", tc.a, tc.sub.Channel)
+			assert.Equalf(t, tc.exp, got, "derivativesStreamName should name %s %s", tc.a, tc.sub.Channel)
+		})
 	}
 }
 
@@ -442,7 +464,7 @@ func TestSetProperty(t *testing.T) {
 	assert.ErrorIs(t, ex.SetProperty(t.Context(), conn, "unknown", true), errStreamRequestRejected, "SetProperty should report a rejected property")
 }
 
-func TestGenerateUserDataSubscriptions(t *testing.T) {
+func TestGenerateUserDataSubscriptions(t *testing.T) { //nolint:tparallel // the cases share ex, so they run in order while the test runs in parallel
 	t.Parallel()
 	ex := newDerivativesTestExchange(t)
 	generators := map[asset.Item]func() (subscription.List, error){
@@ -450,18 +472,24 @@ func TestGenerateUserDataSubscriptions(t *testing.T) {
 		asset.CoinMarginedFutures: ex.generateCoinMarginedFuturesUserDataSubscriptions,
 		asset.Options:             ex.generateOptionsUserDataSubscriptions,
 	}
+	// The cases share ex, whose authenticated use is turned on after them, so they run in order
 	for a, generate := range generators {
-		subs, err := generate()
-		require.NoErrorf(t, err, "%s user data generation must not error", a)
-		assert.Emptyf(t, subs, "%s user data should not be subscribed without authenticated websocket use", a)
+		t.Run("unauthenticated "+a.String(), func(t *testing.T) {
+			subs, err := generate()
+			require.NoErrorf(t, err, "%s user data generation must not error", a)
+			assert.Emptyf(t, subs, "%s user data should not be subscribed without authenticated websocket use", a)
+		})
 	}
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	// The cases share ex, which the statements after them change, so they run in order
 	for a, generate := range generators {
-		subs, err := generate()
-		require.NoErrorf(t, err, "%s user data generation must not error", a)
-		require.Lenf(t, subs, 1, "%s user data generation must return one subscription", a)
-		testsubs.EqualLists(t, subscription.List{{Channel: userDataStreamChannel, Asset: a}}, subs)
-		assert.Truef(t, subs[0].Authenticated, "%s user data subscription should be authenticated", a)
+		t.Run("authenticated "+a.String(), func(t *testing.T) {
+			subs, err := generate()
+			require.NoErrorf(t, err, "%s user data generation must not error", a)
+			require.Lenf(t, subs, 1, "%s user data generation must return one subscription", a)
+			testsubs.EqualLists(t, subscription.List{{Channel: userDataStreamChannel, Asset: a}}, subs)
+			assert.Truef(t, subs[0].Authenticated, "%s user data subscription should be authenticated", a)
+		})
 	}
 	require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.Options, false), "SetAssetEnabled must not error")
 	subs, err := ex.generateOptionsUserDataSubscriptions()
@@ -473,10 +501,11 @@ func TestGenerateUserDataSubscriptions(t *testing.T) {
 	assert.Empty(t, subs, "user data should not be subscribed without usable credentials")
 }
 
-func TestSubscribeUserData(t *testing.T) {
+func TestSubscribeUserData(t *testing.T) { //nolint:tparallel // the cases share ex and its recorder, so they run in order while the test runs in parallel
 	t.Parallel()
 	recorder := &streamRequestRecorder{}
 	ex := newDerivativesWsTestExchange(t, recorder)
+	// The cases share ex and the recorder, whose requests are checked in order after them, so they run in order
 	for _, tc := range []struct {
 		filter string
 		a      asset.Item
@@ -485,13 +514,15 @@ func TestSubscribeUserData(t *testing.T) {
 		{coinmPrivateFilter, asset.CoinMarginedFutures},
 		{optionsPrivateFilter, asset.Options},
 	} {
-		conn, err := ex.Websocket.GetConnection(tc.filter)
-		require.NoErrorf(t, err, "GetConnection must not error for %s", tc.filter)
-		subs := subscription.List{{Channel: userDataStreamChannel, Asset: tc.a, Authenticated: true}}
-		require.NoErrorf(t, ex.SubscribeUserData(t.Context(), conn, subs), "SubscribeUserData must not error for %s", tc.a)
-		assert.Equalf(t, subscription.SubscribedState, subs[0].State(), "%s user data should be subscribed", tc.a)
-		require.NoErrorf(t, ex.UnsubscribeUserData(t.Context(), conn, subs), "UnsubscribeUserData must not error for %s", tc.a)
-		assert.Equalf(t, subscription.UnsubscribedState, subs[0].State(), "%s user data should be unsubscribed", tc.a)
+		t.Run(tc.a.String(), func(t *testing.T) {
+			conn, err := ex.Websocket.GetConnection(tc.filter)
+			require.NoErrorf(t, err, "GetConnection must not error for %s", tc.filter)
+			subs := subscription.List{{Channel: userDataStreamChannel, Asset: tc.a, Authenticated: true}}
+			require.NoErrorf(t, ex.SubscribeUserData(t.Context(), conn, subs), "SubscribeUserData must not error for %s", tc.a)
+			assert.Equalf(t, subscription.SubscribedState, subs[0].State(), "%s user data should be subscribed", tc.a)
+			require.NoErrorf(t, ex.UnsubscribeUserData(t.Context(), conn, subs), "UnsubscribeUserData must not error for %s", tc.a)
+			assert.Equalf(t, subscription.UnsubscribedState, subs[0].State(), "%s user data should be unsubscribed", tc.a)
+		})
 	}
 	requests := recorder.recorded()
 	require.Len(t, requests, 6, "each subscribe and unsubscribe must send one request")
@@ -515,7 +546,7 @@ func TestSubscribeUserData(t *testing.T) {
 	assert.ErrorIs(t, err, asset.ErrNotSupported, "UnsubscribeUserData should reject an asset without user data streams")
 }
 
-func TestSubscribeUserDataRetried(t *testing.T) {
+func TestSubscribeUserDataRetried(t *testing.T) { //nolint:tparallel // the cases share ex and its recorder, so they run in order while the test runs in parallel
 	t.Parallel()
 	// A user data stream subscription failing as its private connection connects is tried again in the background, kept
 	// alive as a first subscription is, and recorded against the connection once made, so that a flush sees the
@@ -573,6 +604,7 @@ func TestSubscribeUserDataRetried(t *testing.T) {
 	ex.userDataRetry.mu.Lock()
 	ex.userDataRetry.delay = 50 * time.Millisecond
 	ex.userDataRetry.mu.Unlock()
+	// The cases share ex and the recorder, and the second turns authenticated use off, so they run in order
 	for _, tc := range []struct {
 		name    string
 		a       asset.Item
@@ -581,20 +613,22 @@ func TestSubscribeUserDataRetried(t *testing.T) {
 		{"subscribed since", asset.CoinMarginedFutures, func() {}},
 		{"no longer wanted", asset.Options, func() { ex.Websocket.SetCanUseAuthenticatedEndpoints(false) }},
 	} {
-		tc.prepare()
-		before := len(recorder.recorded())
-		failed := &subscription.Subscription{Channel: userDataStreamChannel, Asset: tc.a, Authenticated: true}
-		ex.retryUserDataSubscription(t.Context(), conn, failed.Asset, false, func(ctx context.Context) (bool, error) {
-			return ex.resubscribeUserData(ctx, t.Context(), conn, failed)
+		t.Run(tc.name, func(t *testing.T) {
+			tc.prepare()
+			before := len(recorder.recorded())
+			failed := &subscription.Subscription{Channel: userDataStreamChannel, Asset: tc.a, Authenticated: true}
+			ex.retryUserDataSubscription(t.Context(), conn, failed.Asset, false, func(ctx context.Context) (bool, error) {
+				return ex.resubscribeUserData(ctx, t.Context(), conn, failed)
+			})
+			assert.Eventuallyf(t, func() bool {
+				ex.userDataRetry.mu.Lock()
+				defer ex.userDataRetry.mu.Unlock()
+				_, retrying := ex.userDataRetry.running[tc.a]
+				return !retrying
+			}, 30*time.Second, time.Millisecond, "the retry should stop for a stream %s", tc.name)
+			assert.Lenf(t, recorder.recorded(), before, "a retry should not subscribe a stream %s", tc.name)
+			assert.Emptyf(t, relayedPayloads(ex), "a retry should report nothing for a stream %s", tc.name)
 		})
-		assert.Eventuallyf(t, func() bool {
-			ex.userDataRetry.mu.Lock()
-			defer ex.userDataRetry.mu.Unlock()
-			_, retrying := ex.userDataRetry.running[tc.a]
-			return !retrying
-		}, 30*time.Second, time.Millisecond, "the retry should stop for a stream %s", tc.name)
-		assert.Lenf(t, recorder.recorded(), before, "a retry should not subscribe a stream %s", tc.name)
-		assert.Emptyf(t, relayedPayloads(ex), "a retry should report nothing for a stream %s", tc.name)
 	}
 
 	// An asset without user data streams cannot be subscribed however often it is tried
@@ -666,11 +700,14 @@ func TestNextUserDataRetryWait(t *testing.T) {
 		{userDataRetryMaxDelay - time.Second, userDataRetryMaxDelay},
 		{userDataRetryMaxDelay, userDataRetryMaxDelay},
 	} {
-		assert.Equalf(t, tc.exp, nextUserDataRetryWait(tc.wait, userDataRetryDelay), "nextUserDataRetryWait should follow a wait of %s with the expected one", tc.wait)
+		t.Run(tc.wait.String(), func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, tc.exp, nextUserDataRetryWait(tc.wait, userDataRetryDelay), "nextUserDataRetryWait should follow a wait of %s with the expected one", tc.wait)
+		})
 	}
 }
 
-func TestStartUserDataStream(t *testing.T) {
+func TestStartUserDataStream(t *testing.T) { //nolint:tparallel // the cases share active and empty, so they run in order while the test runs in parallel
 	t.Parallel()
 	serve := func(listenKey string) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
@@ -686,29 +723,35 @@ func TestStartUserDataStream(t *testing.T) {
 	}
 	active := newTradingTestExchange(t, serve(testListenKey))
 	empty := newTradingTestExchange(t, serve(""))
+	// The cases share active and empty, which the statement after them calls too, so they run in order
 	for _, a := range []asset.Item{asset.USDTMarginedFutures, asset.CoinMarginedFutures, asset.Options} {
-		listenKey, err := active.startUserDataStream(t.Context(), a)
-		require.NoErrorf(t, err, "startUserDataStream must not error for %s", a)
-		assert.Equalf(t, testListenKey, listenKey, "startUserDataStream should return the %s listen key", a)
-		_, err = empty.startUserDataStream(t.Context(), a)
-		assert.ErrorIsf(t, err, errListenKeyEmpty, "startUserDataStream should reject an empty %s listen key", a)
+		t.Run(a.String(), func(t *testing.T) {
+			listenKey, err := active.startUserDataStream(t.Context(), a)
+			require.NoErrorf(t, err, "startUserDataStream must not error for %s", a)
+			assert.Equalf(t, testListenKey, listenKey, "startUserDataStream should return the %s listen key", a)
+			_, err = empty.startUserDataStream(t.Context(), a)
+			assert.ErrorIsf(t, err, errListenKeyEmpty, "startUserDataStream should reject an empty %s listen key", a)
+		})
 	}
 	_, err := active.startUserDataStream(t.Context(), asset.Spot)
 	assert.ErrorIs(t, err, asset.ErrNotSupported, "startUserDataStream should reject an asset without user data streams")
 }
 
-func TestKeepaliveUserDataSubscription(t *testing.T) {
+func TestKeepaliveUserDataSubscription(t *testing.T) { //nolint:tparallel // the cases share ex, conn and the recorder, so they run in order while the test runs in parallel
 	t.Parallel()
 	recorder := &streamRequestRecorder{}
 	ex := newDerivativesWsTestExchange(t, recorder)
 	conn, err := ex.Websocket.GetConnection(usdtmPrivateFilter)
 	require.NoError(t, err, "GetConnection must not error")
+	// The cases share ex, conn and the recorder, which are checked after them, so they run in order
 	for _, a := range []asset.Item{asset.USDTMarginedFutures, asset.CoinMarginedFutures, asset.Options} {
-		s := &subscription.Subscription{Channel: userDataStreamChannel, Asset: a, Authenticated: true}
-		require.NoError(t, s.SetState(subscription.SubscribedState), "SetState must not error")
-		assert.Truef(t, ex.keepaliveUserDataSubscription(t.Context(), conn, s), "keepaliveUserDataSubscription should keep the %s stream alive", a)
-		require.NoError(t, s.SetState(subscription.UnsubscribedState), "SetState must not error")
-		assert.Falsef(t, ex.keepaliveUserDataSubscription(t.Context(), conn, s), "keepaliveUserDataSubscription should stop for the unsubscribed %s stream", a)
+		t.Run(a.String(), func(t *testing.T) {
+			s := &subscription.Subscription{Channel: userDataStreamChannel, Asset: a, Authenticated: true}
+			require.NoError(t, s.SetState(subscription.SubscribedState), "SetState must not error")
+			assert.Truef(t, ex.keepaliveUserDataSubscription(t.Context(), conn, s), "keepaliveUserDataSubscription should keep the %s stream alive", a)
+			require.NoError(t, s.SetState(subscription.UnsubscribedState), "SetState must not error")
+			assert.Falsef(t, ex.keepaliveUserDataSubscription(t.Context(), conn, s), "keepaliveUserDataSubscription should stop for the unsubscribed %s stream", a)
+		})
 	}
 	assert.Empty(t, recorder.recorded(), "a successful keepalive should not resubscribe")
 	assert.Empty(t, relayedPayloads(ex), "a successful keepalive should relay nothing")
@@ -724,7 +767,7 @@ func TestKeepaliveUserDataSubscription(t *testing.T) {
 	assert.ErrorIs(t, relayedErr, asset.ErrNotSupported, "the renewal error should carry its cause")
 }
 
-func TestProcessListenKeyExpired(t *testing.T) {
+func TestProcessListenKeyExpired(t *testing.T) { //nolint:tparallel // the cases share ex and the recorder, so they run in order while the test runs in parallel
 	t.Parallel()
 	recorder := &streamRequestRecorder{}
 	ex := newDerivativesWsTestExchange(t, recorder)
@@ -738,11 +781,16 @@ func TestProcessListenKeyExpired(t *testing.T) {
 		{coinmPrivateFilter, "testdata/wsCFuturesUserData.jsonl", ex.wsHandleCoinMarginedFuturesUserData, &ListenKeyExpired{EventType: "listenKeyExpired", EventTime: fixtureTime(1576653824250), ListenKey: testListenKey}},
 		{optionsPrivateFilter, "testdata/wsOptionsUserData.jsonl", ex.wsHandleOptionsUserData, &ListenKeyExpired{EventType: "listenKeyExpired", EventTime: fixtureTime(1736996475556), ListenKey: testListenKey}},
 	}
+	// Each expiry starts a renewal that outlives its case, so the cases give the handlers the test's context
+	ctx := t.Context()
+	// The cases share ex and the recorder, whose renewals are counted after them, so they run in order
 	for _, tc := range expiries {
-		conn, err := ex.Websocket.GetConnection(tc.filter)
-		require.NoErrorf(t, err, "GetConnection must not error for %s", tc.filter)
-		require.NoErrorf(t, tc.handle(t.Context(), conn, fixtureFrame(t, tc.fixture, "listenKeyExpired")), "handling listenKeyExpired must not error for %s", tc.filter)
-		assert.Equalf(t, []any{tc.exp}, relayedPayloads(ex), "listenKeyExpired should be relayed for %s", tc.filter)
+		t.Run(subtestName(tc.filter), func(t *testing.T) {
+			conn, err := ex.Websocket.GetConnection(tc.filter)
+			require.NoErrorf(t, err, "GetConnection must not error for %s", tc.filter)
+			require.NoErrorf(t, tc.handle(ctx, conn, fixtureFrame(t, tc.fixture, "listenKeyExpired")), "handling listenKeyExpired must not error for %s", tc.filter)
+			assert.Equalf(t, []any{tc.exp}, relayedPayloads(ex), "listenKeyExpired should be relayed for %s", tc.filter)
+		})
 	}
 	require.Eventually(t, func() bool { return len(recorder.recorded()) == 3 }, time.Second*30, time.Millisecond*10, "each expiry must renew its stream")
 	for _, req := range recorder.recorded() {
@@ -947,7 +995,7 @@ func TestRenewUserDataStreamRetry(t *testing.T) {
 	})
 }
 
-func TestFetchDerivativesOrderbook(t *testing.T) {
+func TestFetchDerivativesOrderbook(t *testing.T) { //nolint:tparallel // the cases share ex and its server, so they run in order while the test runs in parallel
 	t.Parallel()
 	ex := newDerivativesTestExchange(t)
 	srv := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -972,6 +1020,7 @@ func TestFetchDerivativesOrderbook(t *testing.T) {
 	}
 	require.NoError(t, ex.DisableRateLimiter(), "DisableRateLimiter must not error")
 
+	// The cases share ex and its server, which the statements after them repoint, so they run in order
 	for _, tc := range []struct {
 		a    asset.Item
 		pair currency.Pair
@@ -981,10 +1030,12 @@ func TestFetchDerivativesOrderbook(t *testing.T) {
 		{asset.CoinMarginedFutures, testCoinMarginedFuturesPair, &orderbook.Book{Bids: orderbook.Levels{{Price: 4, Amount: 431}}, Asks: orderbook.Levels{{Price: 4.000002, Amount: 12}}, LastUpdateID: 1027024, LastUpdated: time.UnixMilli(1589436922959)}},
 		{asset.Options, testOptionsPair, &orderbook.Book{Bids: orderbook.Levels{{Price: 3645, Amount: 1}}, Asks: orderbook.Levels{{Price: 3675, Amount: 5}}, LastUpdateID: 42788078000, LastUpdated: time.UnixMilli(1762866729358)}},
 	} {
-		book, err := ex.fetchDerivativesOrderbook(t.Context(), tc.pair, tc.a)
-		require.NoErrorf(t, err, "fetchDerivativesOrderbook must not error for %s", tc.a)
-		tc.exp.Exchange, tc.exp.Pair, tc.exp.Asset, tc.exp.ValidateOrderbook = ex.Name, tc.pair, tc.a, ex.ValidateOrderbook
-		assert.Equalf(t, tc.exp, book, "fetchDerivativesOrderbook should convert the %s snapshot", tc.a)
+		t.Run(tc.a.String(), func(t *testing.T) {
+			book, err := ex.fetchDerivativesOrderbook(t.Context(), tc.pair, tc.a)
+			require.NoErrorf(t, err, "fetchDerivativesOrderbook must not error for %s", tc.a)
+			tc.exp.Exchange, tc.exp.Pair, tc.exp.Asset, tc.exp.ValidateOrderbook = ex.Name, tc.pair, tc.a, ex.ValidateOrderbook
+			assert.Equalf(t, tc.exp, book, "fetchDerivativesOrderbook should convert the %s snapshot", tc.a)
+		})
 	}
 	_, err := ex.fetchDerivativesOrderbook(t.Context(), currency.NewBTCUSDT(), asset.Spot)
 	assert.ErrorIs(t, err, asset.ErrNotSupported, "fetchDerivativesOrderbook should reject an asset without derivatives depth")
@@ -1015,9 +1066,12 @@ func TestCheckDerivativesPendingUpdate(t *testing.T) {
 		{name: "follows the snapshot", lastUpdateID: 100, previousFinalUpdateID: 100, finalUpdateID: 120},
 		{name: "starts after the snapshot", lastUpdateID: 100, previousFinalUpdateID: 101, finalUpdateID: 120, wantErr: orderbookmanager.ErrOrderbookSnapshotOutdated},
 	} {
-		skip, err := checkDerivativesPendingUpdate(tc.lastUpdateID, tc.previousFinalUpdateID+1, &orderbook.Update{UpdateID: tc.finalUpdateID})
-		assert.ErrorIsf(t, err, tc.wantErr, "checkDerivativesPendingUpdate should return the expected error for an event that %s", tc.name)
-		assert.Equalf(t, tc.skip, skip, "checkDerivativesPendingUpdate should decide whether to skip an event that %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			skip, err := checkDerivativesPendingUpdate(tc.lastUpdateID, tc.previousFinalUpdateID+1, &orderbook.Update{UpdateID: tc.finalUpdateID})
+			assert.ErrorIsf(t, err, tc.wantErr, "checkDerivativesPendingUpdate should return the expected error for an event that %s", tc.name)
+			assert.Equalf(t, tc.skip, skip, "checkDerivativesPendingUpdate should decide whether to skip an event that %s", tc.name)
+		})
 	}
 }
 
@@ -1178,27 +1232,34 @@ func TestIsPartialDepthStream(t *testing.T) {
 		"btcusdt@rpiDepth@500ms":           false,
 		"btcusdt@bookTicker":               false,
 	} {
-		assert.Equalf(t, exp, isPartialDepthStream(stream), "isPartialDepthStream should classify %q", stream)
+		t.Run(subtestName(stream), func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, exp, isPartialDepthStream(stream), "isPartialDepthStream should classify %q", stream)
+		})
 	}
 }
 
 func TestFuturesSymbolTypeAsset(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
+		name       string
 		symbolType uint64
 		connAsset  asset.Item
 		exp        asset.Item
 		wantErr    error
 	}{
-		{0, asset.USDTMarginedFutures, asset.USDTMarginedFutures, nil},
-		{0, asset.CoinMarginedFutures, asset.CoinMarginedFutures, nil},
-		{1, asset.CoinMarginedFutures, asset.USDTMarginedFutures, nil},
-		{2, asset.USDTMarginedFutures, asset.CoinMarginedFutures, nil},
-		{3, asset.USDTMarginedFutures, asset.Empty, errUnknownSymbolType},
+		{"unset on a USDⓈ-M connection", 0, asset.USDTMarginedFutures, asset.USDTMarginedFutures, nil},
+		{"unset on a COIN-M connection", 0, asset.CoinMarginedFutures, asset.CoinMarginedFutures, nil},
+		{"USDⓈ-M on a COIN-M connection", 1, asset.CoinMarginedFutures, asset.USDTMarginedFutures, nil},
+		{"COIN-M on a USDⓈ-M connection", 2, asset.USDTMarginedFutures, asset.CoinMarginedFutures, nil},
+		{"unknown symbol type", 3, asset.USDTMarginedFutures, asset.Empty, errUnknownSymbolType},
 	} {
-		got, err := futuresSymbolTypeAsset(tc.symbolType, tc.connAsset)
-		assert.ErrorIsf(t, err, tc.wantErr, "futuresSymbolTypeAsset should return the expected error for symbol type %d", tc.symbolType)
-		assert.Equalf(t, tc.exp, got, "futuresSymbolTypeAsset should map symbol type %d", tc.symbolType)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := futuresSymbolTypeAsset(tc.symbolType, tc.connAsset)
+			assert.ErrorIsf(t, err, tc.wantErr, "futuresSymbolTypeAsset should return the expected error for symbol type %d", tc.symbolType)
+			assert.Equalf(t, tc.exp, got, "futuresSymbolTypeAsset should map symbol type %d", tc.symbolType)
+		})
 	}
 }
 
@@ -1209,34 +1270,39 @@ func TestOwnProductEntries(t *testing.T) {
 	assert.Equal(t, []FuturesMarkPrice{{Symbol: "BTCUSDT", SymbolType: 1}, {Symbol: "ETHUSDT"}}, got, "ownProductEntries should keep the connection's product")
 }
 
-func TestMatchDerivativesPair(t *testing.T) {
+func TestMatchDerivativesPair(t *testing.T) { //nolint:tparallel // the cases share ex, so they run in order while the test runs in parallel
 	t.Parallel()
 	ex := newDerivativesTestExchange(t)
+	// The cases share ex, so they run in order
 	for _, tc := range []struct {
+		name    string
 		symbol  string
 		a       asset.Item
 		exp     currency.Pair
 		enabled bool
 		wantErr error
 	}{
-		{"BTCUSDT", asset.USDTMarginedFutures, testUSDTMarginedFuturesPair, true, nil},
-		{"ETHUSDT", asset.USDTMarginedFutures, testUSDTMarginedFuturesDisabledPair, false, nil},
-		{"BTCUSD_PERP", asset.CoinMarginedFutures, testCoinMarginedFuturesPair, true, nil},
-		{"ETHUSD_PERP", asset.CoinMarginedFutures, testCoinMarginedFuturesDisabledPair, false, nil},
-		{"BTC-261030-85000-C", asset.Options, testOptionsPair, true, nil},
-		{"ETH-261009-2700-C", asset.Options, testOptionsDisabledPair, false, nil},
-		{"BTCUSD_PERP", asset.USDTMarginedFutures, currency.EMPTYPAIR, false, currency.ErrPairNotFound},
+		{"enabled USDⓈ-M pair", "BTCUSDT", asset.USDTMarginedFutures, testUSDTMarginedFuturesPair, true, nil},
+		{"disabled USDⓈ-M pair", "ETHUSDT", asset.USDTMarginedFutures, testUSDTMarginedFuturesDisabledPair, false, nil},
+		{"enabled COIN-M pair", "BTCUSD_PERP", asset.CoinMarginedFutures, testCoinMarginedFuturesPair, true, nil},
+		{"disabled COIN-M pair", "ETHUSD_PERP", asset.CoinMarginedFutures, testCoinMarginedFuturesDisabledPair, false, nil},
+		{"enabled options pair", "BTC-261030-85000-C", asset.Options, testOptionsPair, true, nil},
+		{"disabled options pair", "ETH-261009-2700-C", asset.Options, testOptionsDisabledPair, false, nil},
+		{"COIN-M symbol as USDⓈ-M", "BTCUSD_PERP", asset.USDTMarginedFutures, currency.EMPTYPAIR, false, currency.ErrPairNotFound},
 	} {
-		pair, enabled, err := ex.matchDerivativesPair(tc.symbol, tc.a)
-		assert.ErrorIsf(t, err, tc.wantErr, "matchDerivativesPair should return the expected error for %s %s", tc.a, tc.symbol)
-		assert.Equalf(t, tc.exp, pair, "matchDerivativesPair should match %s %s", tc.a, tc.symbol)
-		assert.Equalf(t, tc.enabled, enabled, "matchDerivativesPair should report whether %s %s is enabled", tc.a, tc.symbol)
+		t.Run(tc.name, func(t *testing.T) {
+			pair, enabled, err := ex.matchDerivativesPair(tc.symbol, tc.a)
+			assert.ErrorIsf(t, err, tc.wantErr, "matchDerivativesPair should return the expected error for %s %s", tc.a, tc.symbol)
+			assert.Equalf(t, tc.exp, pair, "matchDerivativesPair should match %s %s", tc.a, tc.symbol)
+			assert.Equalf(t, tc.enabled, enabled, "matchDerivativesPair should report whether %s %s is enabled", tc.a, tc.symbol)
+		})
 	}
 }
 
 func TestDecodeStreamFrame(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
+		name    string
 		frame   string
 		stream  string
 		data    string
@@ -1244,26 +1310,29 @@ func TestDecodeStreamFrame(t *testing.T) {
 		wantErr error
 		errText string
 	}{
-		{frame: `{"stream":"btcusdt@ticker","data":{"e":"24hrTicker"}}`, stream: "btcusdt@ticker", data: `{"e":"24hrTicker"}`, event: "24hrTicker"},
-		{frame: `{"stream":"!ticker@arr","data":[{"e":"24hrTicker"},{"e":"24hrTicker"}]}`, stream: "!ticker@arr", data: `[{"e":"24hrTicker"},{"e":"24hrTicker"}]`, event: "24hrTicker"},
-		{frame: `{"stream":"!ticker@arr","data":[]}`, stream: "!ticker@arr", data: `[]`},
-		{frame: `{"stream":"!ticker@arr","data":[ ]}`, stream: "!ticker@arr", data: `[ ]`},
-		{frame: `{"data":{"e":"24hrTicker"}}`, wantErr: errUnhandledStreamEvent, errText: "frame without a stream"},
-		{frame: `{"stream":"btcusdt@ticker"}`, wantErr: errUnhandledStreamEvent, errText: "frame without data"},
-		{frame: `{"stream":"btcusdt@ticker","data":{"s":"BTCUSDT"}}`, wantErr: errUnhandledStreamEvent, errText: "frame without an event type"},
-		{frame: `{"stream":"!ticker@arr","data":["24hrTicker"]}`, wantErr: errUnhandledStreamEvent, errText: "frame without an event type"},
+		{name: "event", frame: `{"stream":"btcusdt@ticker","data":{"e":"24hrTicker"}}`, stream: "btcusdt@ticker", data: `{"e":"24hrTicker"}`, event: "24hrTicker"},
+		{name: "event array", frame: `{"stream":"!ticker@arr","data":[{"e":"24hrTicker"},{"e":"24hrTicker"}]}`, stream: "!ticker@arr", data: `[{"e":"24hrTicker"},{"e":"24hrTicker"}]`, event: "24hrTicker"},
+		{name: "empty array", frame: `{"stream":"!ticker@arr","data":[]}`, stream: "!ticker@arr", data: `[]`},
+		{name: "empty array with a space", frame: `{"stream":"!ticker@arr","data":[ ]}`, stream: "!ticker@arr", data: `[ ]`},
+		{name: "without a stream", frame: `{"data":{"e":"24hrTicker"}}`, wantErr: errUnhandledStreamEvent, errText: "frame without a stream"},
+		{name: "without data", frame: `{"stream":"btcusdt@ticker"}`, wantErr: errUnhandledStreamEvent, errText: "frame without data"},
+		{name: "without an event type", frame: `{"stream":"btcusdt@ticker","data":{"s":"BTCUSDT"}}`, wantErr: errUnhandledStreamEvent, errText: "frame without an event type"},
+		{name: "array without an event type", frame: `{"stream":"!ticker@arr","data":["24hrTicker"]}`, wantErr: errUnhandledStreamEvent, errText: "frame without an event type"},
 		// jsonparser reports an unreadable first element as missing, as it does for an empty array
-		{frame: `{"stream":"!ticker@arr","data":[x]}`, wantErr: errUnhandledStreamEvent, errText: "frame with an invalid array"},
+		{name: "invalid array", frame: `{"stream":"!ticker@arr","data":[x]}`, wantErr: errUnhandledStreamEvent, errText: "frame with an invalid array"},
 	} {
-		stream, data, event, err := decodeStreamFrame([]byte(tc.frame))
-		require.ErrorIsf(t, err, tc.wantErr, "decodeStreamFrame must return the expected error for %s", tc.frame)
-		if tc.wantErr != nil {
-			assert.ErrorContainsf(t, err, tc.errText, "decodeStreamFrame should give the reason it rejects %s", tc.frame)
-			continue
-		}
-		assert.Equalf(t, tc.stream, stream, "decodeStreamFrame should return the stream of %s", tc.frame)
-		assert.Equalf(t, tc.data, string(data), "decodeStreamFrame should return the data of %s", tc.frame)
-		assert.Equalf(t, tc.event, event, "decodeStreamFrame should return the event of %s", tc.frame)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			stream, data, event, err := decodeStreamFrame([]byte(tc.frame))
+			require.ErrorIsf(t, err, tc.wantErr, "decodeStreamFrame must return the expected error for %s", tc.frame)
+			if tc.wantErr != nil {
+				assert.ErrorContainsf(t, err, tc.errText, "decodeStreamFrame should give the reason it rejects %s", tc.frame)
+				return
+			}
+			assert.Equalf(t, tc.stream, stream, "decodeStreamFrame should return the stream of %s", tc.frame)
+			assert.Equalf(t, tc.data, string(data), "decodeStreamFrame should return the data of %s", tc.frame)
+			assert.Equalf(t, tc.event, event, "decodeStreamFrame should return the event of %s", tc.frame)
+		})
 	}
 }
 
@@ -1273,9 +1342,12 @@ func TestDerivativesOrderConversions(t *testing.T) {
 		"LIMIT": order.Limit, "MARKET": order.Market, "STOP": order.StopLimit, "STOP_MARKET": order.StopMarket, "TAKE_PROFIT": order.TakeProfitLimit,
 		"TAKE_PROFIT_MARKET": order.TakeProfitMarket, "TRAILING_STOP_MARKET": order.TrailingStop, "LIQUIDATION": order.Liquidation,
 	} {
-		got, err := derivativesOrderType(in)
-		require.NoErrorf(t, err, "derivativesOrderType must not error for %s", in)
-		assert.Equalf(t, exp, got, "derivativesOrderType should convert %s", in)
+		t.Run("order type "+string(in), func(t *testing.T) {
+			t.Parallel()
+			got, err := derivativesOrderType(in)
+			require.NoErrorf(t, err, "derivativesOrderType must not error for %s", in)
+			assert.Equalf(t, exp, got, "derivativesOrderType should convert %s", in)
+		})
 	}
 	_, err := derivativesOrderType("ICEBERG")
 	assert.ErrorIs(t, err, order.ErrUnrecognisedOrderType, "derivativesOrderType should reject an unknown type")
@@ -1284,9 +1356,12 @@ func TestDerivativesOrderConversions(t *testing.T) {
 		"NEW": order.New, "PARTIALLY_FILLED": order.PartiallyFilled, "FILLED": order.Filled, "CANCELED": order.Cancelled, "EXPIRED": order.Expired,
 		"EXPIRED_IN_MATCH": order.Expired, "NEW_INSURANCE": order.Liquidated, "NEW_ADL": order.AutoDeleverage,
 	} {
-		got, err := derivativesOrderStatus(in)
-		require.NoErrorf(t, err, "derivativesOrderStatus must not error for %s", in)
-		assert.Equalf(t, exp, got, "derivativesOrderStatus should convert %s", in)
+		t.Run("status "+in, func(t *testing.T) {
+			t.Parallel()
+			got, err := derivativesOrderStatus(in)
+			require.NoErrorf(t, err, "derivativesOrderStatus must not error for %s", in)
+			assert.Equalf(t, exp, got, "derivativesOrderStatus should convert %s", in)
+		})
 	}
 	_, err = derivativesOrderStatus("SUSPENDED")
 	assert.ErrorIs(t, err, errUnknownOrderStatus, "derivativesOrderStatus should reject an unknown status")
@@ -1295,9 +1370,12 @@ func TestDerivativesOrderConversions(t *testing.T) {
 		"GTC": order.GoodTillCancel, "IOC": order.ImmediateOrCancel, "FOK": order.FillOrKill, "GTX": order.PostOnly, "GTD": order.GoodTillDay, "RPI": order.PostOnly,
 		"GTE_GTC": order.GoodTillCancel,
 	} {
-		got, err := derivativesTimeInForce(in)
-		require.NoErrorf(t, err, "derivativesTimeInForce must not error for %s", in)
-		assert.Equalf(t, exp, got, "derivativesTimeInForce should convert %s", in)
+		t.Run("time in force "+string(in), func(t *testing.T) {
+			t.Parallel()
+			got, err := derivativesTimeInForce(in)
+			require.NoErrorf(t, err, "derivativesTimeInForce must not error for %s", in)
+			assert.Equalf(t, exp, got, "derivativesTimeInForce should convert %s", in)
+		})
 	}
 	_, err = derivativesTimeInForce("DAY")
 	assert.ErrorIs(t, err, order.ErrInvalidTimeInForce, "derivativesTimeInForce should reject an unknown time in force")
@@ -1307,28 +1385,32 @@ func TestFuturesPosition(t *testing.T) {
 	t.Parallel()
 	updated := time.UnixMilli(1564745798938)
 	for _, tc := range []struct {
+		name         string
 		positionSide string
 		amount       float64
 		direction    order.Side
 		closed       bool
 	}{
-		{"BOTH", 1, order.Long, false},
-		{"BOTH", -1, order.Short, false},
-		{"BOTH", 0, order.UnknownSide, true},
-		{"LONG", 0, order.Long, true},
-		{"SHORT", 2, order.Short, false},
-		{"", -0.1, order.Short, false},
+		{"one-way long", "BOTH", 1, order.Long, false},
+		{"one-way short", "BOTH", -1, order.Short, false},
+		{"one-way closed", "BOTH", 0, order.UnknownSide, true},
+		{"hedge long closed", "LONG", 0, order.Long, true},
+		{"hedge short", "SHORT", 2, order.Short, false},
+		{"no position side", "", -0.1, order.Short, false},
 	} {
-		amount := decimal.MustFromFloat(tc.amount)
-		exp := futures.Position{
-			Exchange: "test", Asset: asset.USDTMarginedFutures, Pair: testUSDTMarginedFuturesPair, LatestSize: amount.Abs(), Status: order.Open,
-			OpeningDirection: tc.direction, LatestDirection: tc.direction, LastUpdated: updated,
-		}
-		if tc.closed {
-			exp.Status, exp.CloseDate = order.Closed, updated
-		}
-		got := futuresPosition("test", asset.USDTMarginedFutures, testUSDTMarginedFuturesPair, tc.positionSide, amount, updated)
-		assert.Equalf(t, exp, got, "futuresPosition should build the %s %v position", tc.positionSide, tc.amount)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			amount := decimal.MustFromFloat(tc.amount)
+			exp := futures.Position{
+				Exchange: "test", Asset: asset.USDTMarginedFutures, Pair: testUSDTMarginedFuturesPair, LatestSize: amount.Abs(), Status: order.Open,
+				OpeningDirection: tc.direction, LatestDirection: tc.direction, LastUpdated: updated,
+			}
+			if tc.closed {
+				exp.Status, exp.CloseDate = order.Closed, updated
+			}
+			got := futuresPosition("test", asset.USDTMarginedFutures, testUSDTMarginedFuturesPair, tc.positionSide, amount, updated)
+			assert.Equalf(t, exp, got, "futuresPosition should build the %s %v position", tc.positionSide, tc.amount)
+		})
 	}
 }
 
@@ -1360,13 +1442,14 @@ func TestProcessAndSendTickers(t *testing.T) {
 	assert.Empty(t, relayedPayloads(ex), "processAndSendTickers should not relay without tickers")
 }
 
-func TestHandleFuturesStreamErrors(t *testing.T) {
+func TestHandleFuturesStreamErrors(t *testing.T) { //nolint:tparallel // the cases share ex and conn, so they run in order while the test runs in parallel
 	t.Parallel()
 	ex := newDerivativesTestExchange(t)
 	conn := &matchRecordingConnection{}
 	require.NoError(t, ex.wsHandleUSDTMarginedFuturesData(t.Context(), conn, []byte(`{"result":null,"id":7}`)), "a request reply must be routed")
 	assert.Equal(t, []any{int64(7)}, conn.signatures, "a request reply should be routed by its id")
 
+	// The cases share ex and conn, whose relayed payloads are checked after them, so they run in order
 	for frame, wantErr := range map[string]error{
 		`{"stream":"btcusdt@unknown","data":{"e":"unknownEvent"}}`:                                 errUnhandledStreamEvent,
 		`{"stream":"btcusdt@ticker","data":{"e":"24hrTicker","s":"BTCUSDT","st":3}}`:               errUnknownSymbolType,
@@ -1378,8 +1461,11 @@ func TestHandleFuturesStreamErrors(t *testing.T) {
 		`{"stream":"btcusdt@ticker","data":{"e":"24hrTicker","s":"NOTLISTEDUSDT","st":1}}`:         currency.ErrPairNotFound,
 		`{"stream":"btcusdt@miniTicker","data":{"e":"24hrMiniTicker","s":"NOTLISTEDUSDT","st":1}}`: currency.ErrPairNotFound,
 	} {
-		assert.ErrorIsf(t, ex.wsHandleUSDTMarginedFuturesData(t.Context(), conn, []byte(frame)), wantErr, "wsHandleUSDTMarginedFuturesData should reject %s", frame)
+		t.Run(subtestName(frame), func(t *testing.T) {
+			assert.ErrorIsf(t, ex.wsHandleUSDTMarginedFuturesData(t.Context(), conn, []byte(frame)), wantErr, "wsHandleUSDTMarginedFuturesData should reject %s", frame)
+		})
 	}
+	// The cases share ex and conn, as the cases above do, so they run in order
 	for _, frame := range []string{
 		`{"stream":"btcusdt@ticker","data":{"e":"24hrTicker","E":"invalid"}}`,
 		`{"stream":"!ticker@arr","data":[{"e":"24hrTicker","E":"invalid"}]}`,
@@ -1395,18 +1481,21 @@ func TestHandleFuturesStreamErrors(t *testing.T) {
 		`{"stream":"!markPrice@arr","data":[{"e":"markPriceUpdate","E":"invalid"}]}`,
 		`{"stream":"!assetIndex@arr","data":[{"e":"assetIndexUpdate","E":"invalid"}]}`,
 	} {
-		assert.Errorf(t, ex.wsHandleUSDTMarginedFuturesData(t.Context(), conn, []byte(frame)), "wsHandleUSDTMarginedFuturesData should report the decoding error of %s", frame)
+		t.Run(subtestName(frame), func(t *testing.T) {
+			assert.Errorf(t, ex.wsHandleUSDTMarginedFuturesData(t.Context(), conn, []byte(frame)), "wsHandleUSDTMarginedFuturesData should report the decoding error of %s", frame)
+		})
 	}
 	require.NoError(t, ex.wsHandleUSDTMarginedFuturesData(t.Context(), conn, []byte(`{"stream":"ethusdt@kline_1m","data":{"e":"kline","s":"ETHUSDT","k":{"i":"1m"}}}`)), "a disabled pair must be skipped")
 	assert.Empty(t, relayedPayloads(ex), "nothing should be relayed for rejected or disabled frames")
 }
 
-func TestHandleFuturesUserDataErrors(t *testing.T) {
+func TestHandleFuturesUserDataErrors(t *testing.T) { //nolint:tparallel // the cases share ex and conn, so they run in order while the test runs in parallel
 	t.Parallel()
 	ex := newDerivativesTestExchange(t)
 	conn := &matchRecordingConnection{}
 	require.NoError(t, ex.wsHandleUSDTMarginedFuturesUserData(t.Context(), conn, []byte(`{"result":null,"id":3}`)), "a request reply must be routed")
 	assert.Equal(t, []any{int64(3)}, conn.signatures, "a request reply should be routed by its id")
+	// The cases share ex and conn, whose relayed payloads are checked after them, so they run in order
 	for data, wantErr := range map[string]error{
 		``:                      errUnhandledStreamEvent,
 		`{"E":1}`:               errUnhandledStreamEvent,
@@ -1416,14 +1505,17 @@ func TestHandleFuturesUserDataErrors(t *testing.T) {
 		`{"e":"ORDER_TRADE_UPDATE","o":{"s":"BTCUSDT","S":"BUY","o":"LIMIT","X":"SUSPENDED"}}`:     errUnknownOrderStatus,
 		`{"e":"ORDER_TRADE_UPDATE","o":{"s":"BTCUSDT","S":"BUY","o":"LIMIT","X":"NEW","f":"GTE"}}`: order.ErrInvalidTimeInForce,
 	} {
-		frame := `{"stream":"` + testListenKey + `"}`
-		if data != "" {
-			frame = `{"stream":"` + testListenKey + `","data":` + data + `}`
-		}
-		err := ex.wsHandleUSDTMarginedFuturesUserData(t.Context(), conn, []byte(frame))
-		require.ErrorIsf(t, err, wantErr, "wsHandleUSDTMarginedFuturesUserData must reject %s", data)
-		assert.NotContains(t, err.Error(), testListenKey, "user data errors should never quote the listen key")
+		t.Run(subtestName(data), func(t *testing.T) {
+			frame := `{"stream":"` + testListenKey + `"}`
+			if data != "" {
+				frame = `{"stream":"` + testListenKey + `","data":` + data + `}`
+			}
+			err := ex.wsHandleUSDTMarginedFuturesUserData(t.Context(), conn, []byte(frame))
+			require.ErrorIsf(t, err, wantErr, "wsHandleUSDTMarginedFuturesUserData must reject %s", data)
+			assert.NotContains(t, err.Error(), testListenKey, "user data errors should never quote the listen key")
+		})
 	}
+	// The cases share ex and conn, as the cases above do, so they run in order
 	for _, data := range []string{
 		`{"e":"ORDER_TRADE_UPDATE","E":"invalid"}`,
 		`{"e":"ALGO_UPDATE","E":"invalid"}`,
@@ -1431,7 +1523,9 @@ func TestHandleFuturesUserDataErrors(t *testing.T) {
 		`{"e":"MARGIN_CALL","E":"invalid"}`,
 		`{"e":"listenKeyExpired","E":"invalid"}`,
 	} {
-		assert.Errorf(t, ex.wsHandleUSDTMarginedFuturesUserData(t.Context(), conn, []byte(`{"stream":"`+testListenKey+`","data":`+data+`}`)), "wsHandleUSDTMarginedFuturesUserData should reject %s", data)
+		t.Run(subtestName(data), func(t *testing.T) {
+			assert.Errorf(t, ex.wsHandleUSDTMarginedFuturesUserData(t.Context(), conn, []byte(`{"stream":"`+testListenKey+`","data":`+data+`}`)), "wsHandleUSDTMarginedFuturesUserData should reject %s", data)
+		})
 	}
 	assert.Empty(t, relayedPayloads(ex), "nothing should be relayed for rejected frames")
 }
@@ -1665,9 +1759,10 @@ var (
 	testOptionsUnlistedPair             = currency.NewPairWithDelimiter("BTC", "261031-90000-C", currency.DashDelimiter)
 )
 
-func TestUserDataPair(t *testing.T) {
+func TestUserDataPair(t *testing.T) { //nolint:tparallel // the cases share ex, so they run in order while the test runs in parallel
 	t.Parallel()
 	ex := newDerivativesTestExchange(t)
+	// The cases share ex, whose options pairs are deleted after them, so they run in order
 	for _, tc := range []struct {
 		symbol  string
 		a       asset.Item
@@ -1685,19 +1780,22 @@ func TestUserDataPair(t *testing.T) {
 		{"BTC261031C", asset.Options, currency.EMPTYPAIR, currency.ErrPairNotFound},
 		{"", asset.Options, currency.EMPTYPAIR, currency.ErrSymbolStringEmpty},
 	} {
-		pair, err := ex.userDataPair(tc.symbol, tc.a)
-		require.ErrorIsf(t, err, tc.wantErr, "userDataPair must return the expected error for %s %q", tc.a, tc.symbol)
-		assert.Equalf(t, tc.exp, pair, "userDataPair should return the pair of %s %q", tc.a, tc.symbol)
+		t.Run(subtestName(tc.symbol), func(t *testing.T) {
+			pair, err := ex.userDataPair(tc.symbol, tc.a)
+			require.ErrorIsf(t, err, tc.wantErr, "userDataPair must return the expected error for %s %q", tc.a, tc.symbol)
+			assert.Equalf(t, tc.exp, pair, "userDataPair should return the pair of %s %q", tc.a, tc.symbol)
+		})
 	}
 	ex.CurrencyPairs.Delete(asset.Options)
 	_, err := ex.userDataPair("BTC-261031-90000-C", asset.Options)
 	assert.ErrorIs(t, err, currency.ErrAssetNotFound, "userDataPair should return the error of a missing pair format")
 }
 
-func TestUserDataUnknownSymbols(t *testing.T) {
+func TestUserDataUnknownSymbols(t *testing.T) { //nolint:tparallel // the cases share ex, so they run in order while the test runs in parallel
 	t.Parallel()
 	ex := newDerivativesTestExchange(t)
 	updated := time.UnixMilli(1791300000000)
+	// The cases share ex, whose relayed payloads each drains, so they run in order
 	for _, tc := range []struct {
 		name   string
 		handle func(context.Context, websocket.Connection, []byte) error
@@ -1798,10 +1896,12 @@ func TestUserDataUnknownSymbols(t *testing.T) {
 			data:   `{"e":"ORDER_TRADE_UPDATE","E":1791300000001,"T":1791300000000,"o":{"s":"BTC261031C","c":"odd-option","S":"BUY","o":"LIMIT","f":"GTC","q":"1","p":"500","ap":"0","x":"NEW","X":"NEW","i":34,"l":"0","z":"0","L":"0","N":"USDT","n":"0","T":1791300000000,"t":0,"b":"1","a":"0","m":false,"R":false,"ot":"LIMIT","rp":"0","V":"NONE"}}`,
 		},
 	} {
-		require.NoErrorf(t, tc.handle(t.Context(), nil, []byte(`{"stream":"`+testListenKey+`","data":`+tc.data+`}`)), "handling the %s must not error", tc.name)
-		payloads := relayedPayloads(ex)
-		normaliseBalanceTimes(t, payloads)
-		assert.Equalf(t, tc.exp, payloads, "the %s should be relayed without the entries that have no pair", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			require.NoErrorf(t, tc.handle(t.Context(), nil, []byte(`{"stream":"`+testListenKey+`","data":`+tc.data+`}`)), "handling the %s must not error", tc.name)
+			payloads := relayedPayloads(ex)
+			normaliseBalanceTimes(t, payloads)
+			assert.Equalf(t, tc.exp, payloads, "the %s should be relayed without the entries that have no pair", tc.name)
+		})
 	}
 }
 
@@ -1982,6 +2082,46 @@ func TestRefreshAvailableBalances(t *testing.T) {
 			assert.InDelta(t, tc.restTotal-tc.restFree, stored.Hold, 1e-9, "the refresh should keep the margin held the last snapshot reported")
 		})
 	}
+	t.Run("other account", func(t *testing.T) {
+		t.Parallel()
+		// The event and snapshot times are the configured account's, so another account's refresh stores what REST reports
+		// for that account however recent the configured account's snapshot or event
+		for i := range balanceEvents {
+			tc := &balanceEvents[i]
+			t.Run(tc.a.String(), func(t *testing.T) {
+				t.Parallel()
+				var changed atomic.Bool
+				ex := newTradingTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+					reply := balanceReply(tc, 100, 80, 1791300001000)
+					if r.Header.Get("X-MBX-APIKEY") == "other-key" {
+						free := 150.0
+						if changed.Load() {
+							free = 125
+						}
+						reply = balanceReply(tc, 200, free, 1791300000000)
+					}
+					_, err := w.Write([]byte(reply))
+					assert.NoError(t, err, "Write should not error")
+				})
+				_, err := ex.UpdateAccountBalances(t.Context(), tc.a)
+				require.NoError(t, err, "the configured account's poll must not error")
+				newerEvent := strings.ReplaceAll(strings.ReplaceAll(string(tc.walletEvent(100)), "1791300000000", "1791300002000"), "1791300000001", "1791300002001")
+				require.NoError(t, tc.processedBy(ex)(t.Context(), []byte(newerEvent)), "the configured account's event must be processed")
+				creds := &accounts.Credentials{Key: "other-key", Secret: "other-secret"}
+				ctx := accounts.DeployCredentialsToContext(t.Context(), creds)
+				_, err = ex.UpdateAccountBalances(ctx, tc.a)
+				require.NoError(t, err, "the other account's poll must not error")
+				changed.Store(true)
+				lagging, err := ex.refreshAvailableBalances(ctx, tc.a)
+				require.NoError(t, err, "the other account's refresh must not error")
+				assert.False(t, lagging, "the other account's refresh should not be judged against the configured account's snapshot")
+				got, err := ex.Accounts.GetBalance("", creds, tc.a, tc.code)
+				require.NoError(t, err, "GetBalance must not error for the other account")
+				assert.Equal(t, 125.0, got.Free, "the other account's refresh should store its own available balance")
+				assert.Equal(t, 100.0, storedBalance(t, ex, tc.a, tc.code).Total, "the configured account's balance should be left as its event stored it")
+			})
+		}
+	})
 }
 
 func TestRefreshKeepsNewerBalance(t *testing.T) {
@@ -2473,60 +2613,6 @@ func TestStreamBalanceRefreshFollowsEventStores(t *testing.T) {
 	}
 }
 
-func TestUpdateAccountBalancesKeepsStreamedBalance(t *testing.T) {
-	t.Parallel()
-	// A REST poll's snapshot from before a stream event, however late the poll stores it, leaves the event's balance
-	// stored, while a snapshot of the event or later is stored as REST reports it
-	for _, tc := range balanceEvents {
-		t.Run(tc.a.String(), func(t *testing.T) {
-			t.Parallel()
-			var current atomic.Bool
-			ex := newTradingTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
-				if !assert.Equal(t, tc.path, r.URL.Path, "only the balance endpoint should be requested") {
-					return
-				}
-				reply := tc.flatReply
-				if current.Load() {
-					reply = balanceRefreshReplies[tc.path]
-				}
-				_, err := w.Write([]byte(reply))
-				assert.NoError(t, err, "Write should not error")
-			})
-			stored := accounts.NewSubAccount(tc.a, "")
-			stored.Balances.Set(tc.code, accounts.Balance{Total: tc.restTotal + 1, Free: tc.restTotal + 1})
-			require.NoError(t, ex.Accounts.Save(t.Context(), accounts.SubAccounts{stored}, true), "Save must not error")
-			require.NoError(t, tc.processedBy(ex)(t.Context(), tc.walletEvent(tc.eventTotal)), "processing the balance event must not error")
-			streamed := storedBalance(t, ex, tc.a, tc.code)
-			resp, err := ex.UpdateAccountBalances(t.Context(), tc.a)
-			require.NoError(t, err, "UpdateAccountBalances must not error")
-			require.Len(t, resp, 1, "UpdateAccountBalances must return the asset's balances")
-			assert.Equal(t, streamed, resp[0].Balances[tc.code], "the poll should report the stream event's balance")
-			assert.Equal(t, streamed, storedBalance(t, ex, tc.a, tc.code), "a poll older than the stream event should leave its balance stored")
-
-			// The user data streams are the configured account's, so another account's poll stores its snapshot
-			other := &accounts.Credentials{Key: "other-key", Secret: "other-secret"}
-			otherCtx := accounts.DeployCredentialsToContext(t.Context(), other)
-			otherStored := accounts.NewSubAccount(tc.a, "")
-			otherStored.Balances.Set(tc.code, accounts.Balance{Total: 7, Free: 7})
-			require.NoError(t, ex.Accounts.Save(otherCtx, accounts.SubAccounts{otherStored}, true), "Save must not error for another account")
-			_, err = ex.UpdateAccountBalances(otherCtx, tc.a)
-			require.NoError(t, err, "UpdateAccountBalances must not error for another account")
-			otherBalance, err := ex.Accounts.GetBalance("", other, tc.a, tc.code)
-			require.NoError(t, err, "GetBalance must not error for another account")
-			assert.Equal(t, tc.restTotal, otherBalance.Total, "another account's poll should store the wallet balance REST reports")
-			assert.Equal(t, tc.restTotal, otherBalance.Free, "another account's poll should store the available balance REST reports")
-
-			current.Store(true)
-			_, err = ex.UpdateAccountBalances(t.Context(), tc.a)
-			require.NoError(t, err, "UpdateAccountBalances must not error")
-			got := storedBalance(t, ex, tc.a, tc.code)
-			assert.Equal(t, tc.restTotal, got.Total, "a poll of the stream event should store the wallet balance REST reports")
-			assert.Equal(t, tc.restFree, got.Free, "a poll of the stream event should store the available balance REST reports")
-			assert.Equal(t, tc.restOnlyTotal, storedBalance(t, ex, tc.a, tc.restOnly).Total, "a poll should store a currency no event reported")
-		})
-	}
-}
-
 func TestUpdateAccountBalancesKeepsLaterStreamedBalance(t *testing.T) {
 	t.Parallel()
 	// A balance event arriving while a poll's snapshot is being stored waits for it, so the event's balance stands
@@ -2613,37 +2699,6 @@ func (c credentialsWatchingContext) Value(key any) any {
 	return c.Context.Value(key)
 }
 
-func TestUpdateAccountBalancesChecksUnderTheStoreLock(t *testing.T) {
-	t.Parallel()
-	// A poll checks its snapshot against the stream's events under the balance store lock, as it stores it, so no event
-	// is stored between the check and the store
-	for _, tc := range balanceEvents {
-		t.Run(tc.a.String(), func(t *testing.T) {
-			t.Parallel()
-			var answered atomic.Bool
-			ex := newTradingTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
-				answered.Store(true)
-				serveBalanceRefreshReplies(t)(w, r)
-			})
-			require.NoError(t, tc.processedBy(ex)(t.Context(), tc.walletEvent(tc.restTotal)), "processing the balance event must not error")
-			var lookups atomic.Int32
-			ctx := credentialsWatchingContext{Context: t.Context(), onCredentials: func() {
-				if !answered.Load() {
-					return
-				}
-				lookups.Add(1)
-				if ex.balanceRefresh.storeMu.TryLock() {
-					ex.balanceRefresh.storeMu.Unlock()
-					assert.Fail(t, "a poll should check and store its snapshot under the balance store lock")
-				}
-			}}
-			_, err := ex.UpdateAccountBalances(ctx, tc.a)
-			require.NoError(t, err, "UpdateAccountBalances must not error")
-			assert.GreaterOrEqual(t, lookups.Load(), int32(2), "the poll's check and its store should both look the credentials up")
-		})
-	}
-}
-
 func TestBalanceRequestsOutsideTheStoreLock(t *testing.T) {
 	t.Parallel()
 	// REST balance requests are made outside the balance store lock, so a slow reply holds up no stream event
@@ -2678,92 +2733,6 @@ func TestBalanceRequestsOutsideTheStoreLock(t *testing.T) {
 				})
 				require.NoError(t, c.request(t, ex), "the balance request must not error")
 				assert.Equal(t, int32(1), requests.Load(), "the balances should be requested once")
-			})
-		}
-	}
-}
-
-func TestUpdateAccountBalancesKeepsOmittedStreamedCurrency(t *testing.T) {
-	t.Parallel()
-	// A snapshot that leaves out a currency the stream reported removes it only when it shows an update at or after the
-	// currency's latest event; otherwise it may predate the event, so the event's balance stands
-	const eventTime = 1791300000000
-	for _, tc := range balanceEvents {
-		for _, c := range []struct {
-			name       string
-			updateTime int64
-			kept       bool
-		}{
-			{name: "snapshot without an update after the event", updateTime: eventTime - 1, kept: true},
-			{name: "snapshot with an update at the event", updateTime: eventTime},
-			{name: "snapshot with an update after the event", updateTime: eventTime + 1},
-		} {
-			t.Run(tc.a.String()+" "+c.name, func(t *testing.T) {
-				t.Parallel()
-				ex := newTradingTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
-					if !assert.Equal(t, tc.path, r.URL.Path, "only the balance endpoint should be requested") {
-						return
-					}
-					_, err := fmt.Fprintf(w, tc.restOnlyReply, c.updateTime)
-					assert.NoError(t, err, "Fprintf should not error")
-				})
-				require.NoError(t, tc.processedBy(ex)(t.Context(), tc.walletEvent(tc.eventTotal)), "processing the balance event must not error")
-				streamed := storedBalance(t, ex, tc.a, tc.code)
-				_, err := ex.UpdateAccountBalances(t.Context(), tc.a)
-				require.NoError(t, err, "UpdateAccountBalances must not error")
-				assert.Equal(t, tc.restOnlyTotal, storedBalance(t, ex, tc.a, tc.restOnly).Total, "the poll should store the currency it reports")
-				creds, err := ex.GetCredentials(t.Context())
-				require.NoError(t, err, "GetCredentials must not error")
-				got, err := ex.Accounts.GetBalance("", creds, tc.a, tc.code)
-				if c.kept {
-					require.NoError(t, err, "the streamed currency must stay stored")
-					assert.Equal(t, streamed, got, "the streamed currency should keep its stored balance")
-					return
-				}
-				assert.ErrorIs(t, err, accounts.ErrNoBalances, "the snapshot should remove the currency it leaves out")
-			})
-		}
-	}
-}
-
-func TestUpdateAccountBalancesEmptySnapshot(t *testing.T) {
-	t.Parallel()
-	// An empty snapshot shows no update of its own, so it removes a streamed currency only when it has a time of its own,
-	// as options snapshots do, at or after the currency's latest event
-	const eventTime = 1791300000000
-	for _, tc := range balanceEvents {
-		for _, snapshotTime := range []int64{eventTime - 1, eventTime, eventTime + 1} {
-			t.Run(fmt.Sprintf("%s %+d ms", tc.a, snapshotTime-eventTime), func(t *testing.T) {
-				t.Parallel()
-				var reply string
-				switch tc.a {
-				case asset.USDTMarginedFutures:
-					reply = `[]`
-				case asset.CoinMarginedFutures:
-					reply = `{"assets":[],"positions":[],"canTrade":true}`
-				default:
-					reply = fmt.Sprintf(`{"asset":[],"time":%d}`, snapshotTime)
-				}
-				ex := newTradingTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
-					if !assert.Equal(t, tc.path, r.URL.Path, "only the balance endpoint should be requested") {
-						return
-					}
-					_, err := w.Write([]byte(reply))
-					assert.NoError(t, err, "Write should not error")
-				})
-				require.NoError(t, tc.processedBy(ex)(t.Context(), tc.walletEvent(tc.eventTotal)), "processing the balance event must not error")
-				streamed := storedBalance(t, ex, tc.a, tc.code)
-				_, err := ex.UpdateAccountBalances(t.Context(), tc.a)
-				require.NoError(t, err, "UpdateAccountBalances must not error")
-				creds, err := ex.GetCredentials(t.Context())
-				require.NoError(t, err, "GetCredentials must not error")
-				got, err := ex.Accounts.GetBalance("", creds, tc.a, tc.code)
-				if tc.a == asset.Options && snapshotTime >= eventTime {
-					assert.ErrorIs(t, err, accounts.ErrNoBalances, "an options snapshot taken at or after the event should remove the currency it leaves out")
-					return
-				}
-				require.NoError(t, err, "the streamed currency must stay stored")
-				assert.Equal(t, streamed, got, "the streamed currency should keep its stored balance")
 			})
 		}
 	}
@@ -2858,7 +2827,7 @@ func TestFuturesOrderTradeUpdateFills(t *testing.T) {
 	}
 }
 
-func TestFuturesOrderTradeUpdateTrailingStop(t *testing.T) {
+func TestFuturesOrderTradeUpdateTrailingStop(t *testing.T) { //nolint:tparallel // the cases share ex, so they run in order while the test runs in parallel
 	t.Parallel()
 	ex := newDerivativesTestExchange(t)
 	// The REST conversions of the same trailing stops, which the stream must agree with
@@ -2881,6 +2850,7 @@ func TestFuturesOrderTradeUpdateTrailingStop(t *testing.T) {
 	require.NoError(t, err, "coinMarginedFuturesOrderDetail must not error for a triggered trailing stop")
 	require.Equal(t, 86476.8, coinMarginedDetail.TriggerPrice, "the REST COIN-M conversion must keep a triggered trailing stop's activation price")
 
+	// The cases share ex, whose relayed payloads each drains, so they run in order
 	for _, tc := range []struct {
 		name string
 		a    asset.Item
@@ -2928,8 +2898,10 @@ func TestFuturesOrderTradeUpdateTrailingStop(t *testing.T) {
 			},
 		},
 	} {
-		require.NoErrorf(t, ex.handleFuturesUserData(t.Context(), nil, []byte(`{"stream":"`+testListenKey+`","data":`+tc.data+`}`), tc.a), "handleFuturesUserData must not error for the %s", tc.name)
-		assert.Equalf(t, []any{tc.exp}, relayedPayloads(ex), "the %s should trigger at its activation price", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			require.NoErrorf(t, ex.handleFuturesUserData(t.Context(), nil, []byte(`{"stream":"`+testListenKey+`","data":`+tc.data+`}`), tc.a), "handleFuturesUserData must not error for the %s", tc.name)
+			assert.Equalf(t, []any{tc.exp}, relayedPayloads(ex), "the %s should trigger at its activation price", tc.name)
+		})
 	}
 }
 
@@ -2952,7 +2924,7 @@ func TestFuturesOrderTradeUpdateLiquidation(t *testing.T) {
 	assert.Equal(t, exp, relayedPayloads(ex), "wsHandleUSDTMarginedFuturesUserData should relay a liquidation's execution as the order's trade")
 }
 
-func TestProcessFuturesAlgoUpdate(t *testing.T) {
+func TestProcessFuturesAlgoUpdate(t *testing.T) { //nolint:tparallel // the cases share ex, so they run in order while the test runs in parallel
 	t.Parallel()
 	ex := newDerivativesTestExchange(t)
 	algoUpdate := func(symbol, side, orderType, timeInForce, status string) []byte {
@@ -2988,39 +2960,47 @@ func TestProcessFuturesAlgoUpdate(t *testing.T) {
 	assert.Equal(t, order.Cancelled, submitted.Status, "the submitted conditional order should take the update's status")
 
 	// A triggered order's update reports what it executed, which leaves the rest of its quantity; a close position order
-	// is placed without a quantity, so its fills leave nothing
+	// is placed without a quantity, so its fills leave nothing. The cases share ex, whose relayed payloads each drains,
+	// so they run in order
 	for _, tc := range []struct {
+		name               string
 		quantity, executed string
 		exp                float64
 	}{
-		{"0.01", "0.004", 0.006},
-		{"0.01", "0.01", 0},
-		{"0", "0.002", 0},
+		{"partly executed", "0.01", "0.004", 0.006},
+		{"fully executed", "0.01", "0.01", 0},
+		{"close position", "0", "0.002", 0},
 	} {
-		data := fmt.Appendf(nil, `{"e":"ALGO_UPDATE","T":1791300000000,"E":1791300000006,"o":{"caid":"stop-loss","aid":2148720,"at":"CONDITIONAL","o":"STOP_MARKET","s":"BTCUSDT","S":"SELL","ps":"BOTH","f":"GTC","q":%q,"X":"FINISHED","ai":"7","ap":"84990","aq":%q,"act":"MARKET","tp":"85000","p":"0","cp":%t}}`,
-			tc.quantity, tc.executed, tc.quantity == "0")
-		require.NoErrorf(t, ex.processFuturesAlgoUpdate(t.Context(), data, asset.USDTMarginedFutures), "processFuturesAlgoUpdate must not error for %s of %s executed", tc.executed, tc.quantity)
-		payloads = relayedPayloads(ex)
-		require.Lenf(t, payloads, 2, "processFuturesAlgoUpdate must relay the event and its algo order for %s of %s executed", tc.executed, tc.quantity)
-		d, ok := payloads[1].(*order.Detail)
-		require.Truef(t, ok, "the second payload must be an order detail for %s of %s executed", tc.executed, tc.quantity)
-		assert.Equalf(t, tc.executed, strconv.FormatFloat(d.ExecutedAmount, 'f', -1, 64), "processFuturesAlgoUpdate should relay the executed amount %s", tc.executed)
-		assert.Equalf(t, tc.exp, d.RemainingAmount, "processFuturesAlgoUpdate should relay what remains of %s after %s executed", tc.quantity, tc.executed)
+		t.Run(tc.name, func(t *testing.T) {
+			data := fmt.Appendf(nil, `{"e":"ALGO_UPDATE","T":1791300000000,"E":1791300000006,"o":{"caid":"stop-loss","aid":2148720,"at":"CONDITIONAL","o":"STOP_MARKET","s":"BTCUSDT","S":"SELL","ps":"BOTH","f":"GTC","q":%q,"X":"FINISHED","ai":"7","ap":"84990","aq":%q,"act":"MARKET","tp":"85000","p":"0","cp":%t}}`,
+				tc.quantity, tc.executed, tc.quantity == "0")
+			require.NoErrorf(t, ex.processFuturesAlgoUpdate(t.Context(), data, asset.USDTMarginedFutures), "processFuturesAlgoUpdate must not error for %s of %s executed", tc.executed, tc.quantity)
+			payloads = relayedPayloads(ex)
+			require.Lenf(t, payloads, 2, "processFuturesAlgoUpdate must relay the event and its algo order for %s of %s executed", tc.executed, tc.quantity)
+			d, ok := payloads[1].(*order.Detail)
+			require.Truef(t, ok, "the second payload must be an order detail for %s of %s executed", tc.executed, tc.quantity)
+			assert.Equalf(t, tc.executed, strconv.FormatFloat(d.ExecutedAmount, 'f', -1, 64), "processFuturesAlgoUpdate should relay the executed amount %s", tc.executed)
+			assert.Equalf(t, tc.exp, d.RemainingAmount, "processFuturesAlgoUpdate should relay what remains of %s after %s executed", tc.quantity, tc.executed)
+		})
 	}
 
+	// The cases share ex, whose relayed payloads each drains, so they run in order
 	for _, tc := range []struct {
+		name    string
 		data    []byte
 		wantErr error
 	}{
-		{algoUpdate("BTCUSDT", "UP", "STOP_MARKET", "GTC", "NEW"), order.ErrSideIsInvalid},
-		{algoUpdate("BTCUSDT", "SELL", "ICEBERG", "GTC", "NEW"), order.ErrUnrecognisedOrderType},
-		{algoUpdate("BTCUSDT", "SELL", "STOP_MARKET", "DAY", "NEW"), order.ErrInvalidTimeInForce},
-		{algoUpdate("BTCUSDT", "SELL", "STOP_MARKET", "GTC", "SUSPENDED"), errUnknownOrderStatus},
+		{"invalid side", algoUpdate("BTCUSDT", "UP", "STOP_MARKET", "GTC", "NEW"), order.ErrSideIsInvalid},
+		{"unknown order type", algoUpdate("BTCUSDT", "SELL", "ICEBERG", "GTC", "NEW"), order.ErrUnrecognisedOrderType},
+		{"unknown time in force", algoUpdate("BTCUSDT", "SELL", "STOP_MARKET", "DAY", "NEW"), order.ErrInvalidTimeInForce},
+		{"unknown status", algoUpdate("BTCUSDT", "SELL", "STOP_MARKET", "GTC", "SUSPENDED"), errUnknownOrderStatus},
 	} {
-		assert.ErrorIsf(t, ex.processFuturesAlgoUpdate(t.Context(), tc.data, asset.USDTMarginedFutures), tc.wantErr, "processFuturesAlgoUpdate should reject %s", tc.data)
-		payloads = relayedPayloads(ex)
-		require.Lenf(t, payloads, 1, "processFuturesAlgoUpdate must relay only the event of %s", tc.data)
-		assert.IsTypef(t, &FuturesAlgoUpdate{}, payloads[0], "processFuturesAlgoUpdate should relay the event of %s", tc.data)
+		t.Run(tc.name, func(t *testing.T) {
+			assert.ErrorIsf(t, ex.processFuturesAlgoUpdate(t.Context(), tc.data, asset.USDTMarginedFutures), tc.wantErr, "processFuturesAlgoUpdate should reject %s", tc.data)
+			payloads = relayedPayloads(ex)
+			require.Lenf(t, payloads, 1, "processFuturesAlgoUpdate must relay only the event of %s", tc.data)
+			assert.IsTypef(t, &FuturesAlgoUpdate{}, payloads[0], "processFuturesAlgoUpdate should relay the event of %s", tc.data)
+		})
 	}
 
 	require.NoError(t, ex.processFuturesAlgoUpdate(t.Context(), algoUpdate("NEWCOINUSDT", "SELL", "STOP_MARKET", "GTC", "NEW"), asset.USDTMarginedFutures), "processFuturesAlgoUpdate must not error for a symbol without a pair")
@@ -3154,8 +3134,11 @@ func TestFuturesPayloadDecoding(t *testing.T) {
 			},
 		},
 	} {
-		require.NoErrorf(t, json.Unmarshal(fixtureFrameData(t, tc.fixture, tc.key), tc.target), "Unmarshal must not error for the %s", tc.name)
-		assert.Equalf(t, tc.exp, tc.target, "the %s should decode every field", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			require.NoErrorf(t, json.Unmarshal(fixtureFrameData(t, tc.fixture, tc.key), tc.target), "Unmarshal must not error for the %s", tc.name)
+			assert.Equalf(t, tc.exp, tc.target, "the %s should decode every field", tc.name)
+		})
 	}
 }
 
@@ -3361,11 +3344,14 @@ func TestStoreBalanceEvent(t *testing.T) {
 			times := ex.balanceEventTimes(asset.USDTMarginedFutures)
 			previous := map[*currency.Item]time.Time{currency.BTC.Item: tc.btcPrevious, currency.ETH.Item: tc.ethPrevious}
 			for _, c := range []currency.Code{currency.BTC, currency.ETH} {
-				expected := previous[c.Item]
-				if tc.expected[c.Item] {
-					expected = tc.event
-				}
-				assert.Equal(t, expected, times[c.Item], "only accepted currencies should advance their event time")
+				t.Run(c.String(), func(t *testing.T) {
+					t.Parallel()
+					expected := previous[c.Item]
+					if tc.expected[c.Item] {
+						expected = tc.event
+					}
+					assert.Equal(t, expected, times[c.Item], "only accepted currencies should advance their event time")
+				})
 			}
 		})
 	}
@@ -3470,47 +3456,6 @@ func balanceReply(tc *balanceEvent, total, free float64, updateTime int64) strin
 		return fmt.Sprintf(`{"assets":[{"asset":%q,"walletBalance":%q,"availableBalance":%q,"updateTime":%d}]}`, tc.code, totalValue, freeValue, updateTime)
 	default:
 		return fmt.Sprintf(`{"asset":[{"asset":%q,"marginBalance":%q,"available":%q}],"time":%d}`, tc.code, totalValue, freeValue, updateTime)
-	}
-}
-
-func TestRefreshAvailableBalancesOtherAccount(t *testing.T) {
-	t.Parallel()
-	// The event and snapshot times are the configured account's, so another account's refresh stores what REST reports
-	// for that account however recent the configured account's snapshot or event
-	for i := range balanceEvents {
-		tc := &balanceEvents[i]
-		t.Run(tc.a.String(), func(t *testing.T) {
-			t.Parallel()
-			var changed atomic.Bool
-			ex := newTradingTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
-				reply := balanceReply(tc, 100, 80, 1791300001000)
-				if r.Header.Get("X-MBX-APIKEY") == "other-key" {
-					free := 150.0
-					if changed.Load() {
-						free = 125
-					}
-					reply = balanceReply(tc, 200, free, 1791300000000)
-				}
-				_, err := w.Write([]byte(reply))
-				assert.NoError(t, err, "Write should not error")
-			})
-			_, err := ex.UpdateAccountBalances(t.Context(), tc.a)
-			require.NoError(t, err, "the configured account's poll must not error")
-			newerEvent := strings.ReplaceAll(strings.ReplaceAll(string(tc.walletEvent(100)), "1791300000000", "1791300002000"), "1791300000001", "1791300002001")
-			require.NoError(t, tc.processedBy(ex)(t.Context(), []byte(newerEvent)), "the configured account's event must be processed")
-			creds := &accounts.Credentials{Key: "other-key", Secret: "other-secret"}
-			ctx := accounts.DeployCredentialsToContext(t.Context(), creds)
-			_, err = ex.UpdateAccountBalances(ctx, tc.a)
-			require.NoError(t, err, "the other account's poll must not error")
-			changed.Store(true)
-			lagging, err := ex.refreshAvailableBalances(ctx, tc.a)
-			require.NoError(t, err, "the other account's refresh must not error")
-			assert.False(t, lagging, "the other account's refresh should not be judged against the configured account's snapshot")
-			got, err := ex.Accounts.GetBalance("", creds, tc.a, tc.code)
-			require.NoError(t, err, "GetBalance must not error for the other account")
-			assert.Equal(t, 125.0, got.Free, "the other account's refresh should store its own available balance")
-			assert.Equal(t, 100.0, storedBalance(t, ex, tc.a, tc.code).Total, "the configured account's balance should be left as its event stored it")
-		})
 	}
 }
 
