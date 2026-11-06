@@ -30,6 +30,7 @@ var Exchanges = []string{
 	"gemini",
 	"hitbtc",
 	"huobi",
+	"hyperliquid",
 	"kraken",
 	"kucoin",
 	"lbank",
