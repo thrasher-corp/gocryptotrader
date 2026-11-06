@@ -3,6 +3,7 @@ package exchange
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -131,6 +132,16 @@ func MockWsInstance[T any, PT interface {
 
 	err = b.Websocket.Connect(context.TODO())
 	require.NoError(tb, err, "Connect must not error")
+	// The server closes with the test, so the websocket is disabled first, as its connection monitor would otherwise
+	// redial the closed server
+	tb.Cleanup(func() {
+		if b.Websocket.IsEnabled() {
+			assert.NoError(tb, b.Websocket.Disable(), "Disable should not error")
+		}
+		if err := b.Websocket.Shutdown(); !errors.Is(err, websocket.ErrNotConnected) {
+			assert.NoError(tb, err, "Shutdown should not error")
+		}
+	})
 
 	return e
 }

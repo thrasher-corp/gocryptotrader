@@ -384,10 +384,11 @@ func (d *Detail) UpdateOrderFromModifyResponse(m *ModifyResponse) {
 }
 
 // MatchFilter will return true if a detail matches the filter criteria
-// empty elements are ignored
+// empty elements are ignored. Exchange names match in any case, as exchanges are looked up by name in any case and
+// futures position tracking lower-cases the name of each order it tracks
 func (d *Detail) MatchFilter(f *Filter) bool {
 	switch {
-	case f.Exchange != "" && d.Exchange != f.Exchange:
+	case f.Exchange != "" && !strings.EqualFold(d.Exchange, f.Exchange):
 		return false
 	case f.AssetType != asset.Empty && d.AssetType != f.AssetType:
 		return false
@@ -700,6 +701,8 @@ func (t Type) String() string {
 		return orderTakeProfit
 	case TakeProfitMarket:
 		return orderTakeProfitMarket
+	case TakeProfitLimit:
+		return orderTakeProfitLimit
 	case TrailingStop:
 		return orderTrailingStop
 	case TrailingStopLimit:
@@ -1095,6 +1098,8 @@ func StringToOrderType(oType string) (Type, error) {
 		return Chase, nil
 	case orderTakeProfitMarket, "TAKE_PROFIT_MARKET":
 		return TakeProfitMarket, nil
+	case orderTakeProfitLimit, "TAKE_PROFIT_LIMIT":
+		return TakeProfitLimit, nil
 	case orderTakeProfit, "TAKE_PROFIT":
 		return TakeProfit, nil
 	case orderLiquidation:

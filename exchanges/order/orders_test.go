@@ -350,6 +350,7 @@ func TestOrderTypeToString(t *testing.T) {
 		{Chase, "CHASE"},
 		{TakeProfit, "TAKE PROFIT"},
 		{TakeProfitMarket, "TAKE PROFIT MARKET"},
+		{TakeProfitLimit, "TAKE PROFIT LIMIT"},
 		{TrailingStop, "TRAILING_STOP"},
 		{IOS, "IOS"},
 		{Liquidation, "LIQUIDATION"},
@@ -849,6 +850,9 @@ func TestStringToOrderType(t *testing.T) {
 		{"Take ProfIt", TakeProfit, nil},
 		{"TAKE PROFIT MARkEt", TakeProfitMarket, nil},
 		{"TAKE_PROFIT_MARkEt", TakeProfitMarket, nil},
+		{"TAKE PROFIT LIMIT", TakeProfitLimit, nil},
+		{"TAKE_PROFIT_LiMIT", TakeProfitLimit, nil},
+		{"take_profit_limit", TakeProfitLimit, nil},
 		{"brAcket", Bracket, nil},
 		{"TRIGGER_bracket", Bracket, nil},
 		{"optimal_limit", OptimalLimit, nil},
@@ -1311,6 +1315,8 @@ func TestMatchFilter(t *testing.T) {
 		result      bool
 	}{
 		{"Exchange ✓", Filter{Exchange: "A"}, Detail{Exchange: "A"}, true},
+		{"Exchange lower case ✓", Filter{Exchange: "Binance"}, Detail{Exchange: "binance"}, true},
+		{"Exchange upper case ✓", Filter{Exchange: "binance"}, Detail{Exchange: "BINANCE"}, true},
 		{"Exchange 𐄂", Filter{Exchange: "A"}, Detail{Exchange: "B"}, false},
 		{"Exchange Empty", Filter{Exchange: "A"}, Detail{}, false},
 		{"InternalOrderID ✓", Filter{InternalOrderID: id}, Detail{InternalOrderID: id}, true},

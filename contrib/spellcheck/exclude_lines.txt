@@ -14,5 +14,13 @@
 		TotalIn  float64 `json:"totalIn"`
 		TotalIn        int64  `json:"totalIn"`
   behavior: default
-	loanCustomiseMarginCall      = "/sapi/v1/loan/customize/margin_call"
 	// unimplemented method is ever invoked, so we test this at initialization
+// GetSpotUsersCustomisedID calls Get User’s Customize Id (Spot) (USER_DATA), returning the customer ID the account set
+// CustomiseSpotOwnClientID calls Customize Id For Spot Client (USER_DATA), letting a referred user set the unique
+// GetSpotClientEmailCustomisedID calls Get Client Email Customized Id (USER_DATA), filtering by customer ID or email,
+// CustomiseSpotPartnerClientID calls Partner Customize Id For Client (USER_DATA), setting the unique customer ID of a
+// GetFuturesUsersCustomisedID calls Get User's Customize Id (Futures) (USER_DATA), returning the customer ID the
+// CustomiseFuturesOwnClientID calls Customize Id For Futures Client (USER_DATA), letting a referred user set the
+// GetFuturesClientEmailCustomisedID calls Get Futures Client Email Customized Id (USER_DATA), filtering by customer ID
+// CustomiseFuturesPartnerClientID calls Partner Customize Id For Futures Client (USER_DATA), setting the unique
+// ReferralCustomerEmailRequest holds the parameters of Get Futures Client Email Customized Id
