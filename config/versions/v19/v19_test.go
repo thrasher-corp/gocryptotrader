@@ -270,14 +270,20 @@ func TestMigrationWithoutSubscriptions(t *testing.T) {
 		`{"name":"MEXC","features":{}}`,
 		`{"name":"MEXC","features":{"subscriptions":null}}`,
 	} {
-		for name, migrate := range map[string]func(context.Context, []byte) ([]byte, error){
-			"UpgradeExchange":   new(v19.Version).UpgradeExchange,
-			"DowngradeExchange": new(v19.Version).DowngradeExchange,
-		} {
-			got, err := migrate(t.Context(), []byte(input))
-			require.NoErrorf(t, err, "%s must not error for %s", name, input)
-			assert.Equalf(t, input, string(got), "%s should leave %s unchanged", name, input)
-		}
+		t.Run(input, func(t *testing.T) {
+			t.Parallel()
+			for name, migrate := range map[string]func(context.Context, []byte) ([]byte, error){
+				"UpgradeExchange":   new(v19.Version).UpgradeExchange,
+				"DowngradeExchange": new(v19.Version).DowngradeExchange,
+			} {
+				t.Run(name, func(t *testing.T) {
+					t.Parallel()
+					got, err := migrate(t.Context(), []byte(input))
+					require.NoErrorf(t, err, "%s must not error for %s", name, input)
+					assert.Equalf(t, input, string(got), "%s should leave %s unchanged", name, input)
+				})
+			}
+		})
 	}
 }
 

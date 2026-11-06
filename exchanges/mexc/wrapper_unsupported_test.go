@@ -10,6 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -104,4 +105,29 @@ func TestFeaturesMatchImplementation(t *testing.T) {
 		AuthenticatedEndpoints: true,
 	}, ex.Features.Supports.WebsocketCapabilities, "the websocket capabilities should match the implemented streams")
 	assert.Equal(t, exchange.AutoWithdrawCrypto|exchange.NoFiatWithdrawals, ex.Features.Supports.WithdrawPermissions, "only crypto withdrawal should be advertised")
+
+	t.Run("futures capabilities", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		ex.SetDefaults()
+		assert.Equal(t, exchange.FuturesCapabilities{
+			FundingRates:        true,
+			FundingRateBatching: map[asset.Item]bool{asset.Futures: true},
+			SupportedFundingRateFrequencies: map[kline.Interval]bool{
+				kline.OneHour:   true,
+				kline.FourHour:  true,
+				kline.EightHour: true,
+				kline.OneDay:    true,
+			},
+			Positions: true,
+			Leverage:  true,
+			OpenInterest: exchange.OpenInterestSupport{
+				Supported:          true,
+				SupportedViaTicker: true,
+				SupportsRestBatch:  true,
+			},
+		}, ex.Features.Supports.FuturesCapabilities, "the futures capabilities should match the implemented wrapper methods")
+		_, err := ex.CurrencyPairs.Get(asset.Futures)
+		assert.NoError(t, err, "the futures pair store should be set up")
+	})
 }

@@ -1,6 +1,7 @@
 package mexc
 
 import (
+	"cmp"
 	"context"
 	"encoding/hex"
 	"errors"
@@ -189,32 +190,6 @@ func TestWebsocketFuturesHandleTicker(t *testing.T) {
 	assert.Equal(t, futuresTickerFramePrice(ex.Name), tick, "the ticker should be mapped")
 }
 
-func TestWebsocketFuturesHandleTrades(t *testing.T) {
-	t.Parallel()
-	ex := newFuturesWebsocketTestExchange(t)
-	ex.SetSaveTradeDataStatus(false)
-	ex.SetTradeFeedStatus(false)
-	require.NoError(t, ex.WebsocketFuturesHandleData(t.Context(), nil, []byte(futuresDealsFrame)), "WebsocketFuturesHandleData must not error")
-	requireNothingRelayed(t, ex)
-
-	ex.SetTradeFeedStatus(true)
-	require.NoError(t, ex.WebsocketFuturesHandleData(t.Context(), nil, []byte(futuresDealsFrame)), "WebsocketFuturesHandleData must not error")
-	trades, ok := relayed(t, ex).([]trade.Data)
-	require.True(t, ok, "trades must be relayed")
-	// A taker sell is a sell and a taker buy a buy, and the amounts are in contracts
-	exp := []trade.Data{
-		{TID: "16745103311", Exchange: ex.Name, CurrencyPair: futuresTradablePair, AssetType: asset.Futures, Side: order.Sell, Price: 80585.5, Amount: 7739, Timestamp: time.UnixMilli(1792842498973)},
-		{TID: "16745103221", Exchange: ex.Name, CurrencyPair: futuresTradablePair, AssetType: asset.Futures, Side: order.Buy, Price: 80590.1, Amount: 4, Timestamp: time.UnixMilli(1792842498334)},
-	}
-	assert.Equal(t, exp, trades, "every merged trade should be relayed")
-
-	require.NoError(t, ex.WebsocketFuturesHandleData(t.Context(), nil, []byte(futuresDealFrame)), "WebsocketFuturesHandleData must not error for an unmerged trade")
-	trades, ok = relayed(t, ex).([]trade.Data)
-	require.True(t, ok, "an unmerged trade must be relayed")
-	exp = []trade.Data{{TID: "16745103083", Exchange: ex.Name, CurrencyPair: futuresTradablePair, AssetType: asset.Futures, Side: order.Sell, Price: 80590, Amount: 5, Timestamp: time.UnixMilli(1792842497333)}}
-	assert.Equal(t, exp, trades, "the unmerged trade should be relayed")
-}
-
 func TestWebsocketFuturesHandleOrderbook(t *testing.T) {
 	t.Parallel()
 	ex := newFuturesWebsocketTestExchange(t)
@@ -239,36 +214,6 @@ func TestWebsocketFuturesHandleOrderbook(t *testing.T) {
 	assert.Equal(t, exp, book, "the snapshot should be loaded")
 }
 
-func TestWebsocketFuturesHandleCandle(t *testing.T) {
-	t.Parallel()
-	ex := newFuturesWebsocketTestExchange(t)
-	require.NoError(t, ex.WebsocketFuturesHandleData(t.Context(), nil, []byte(futuresKlineFrame)), "WebsocketFuturesHandleData must not error")
-
-	item, ok := relayed(t, ex).(kline.Item)
-	require.True(t, ok, "a candle must be relayed")
-	// The candle is stamped with its open in seconds, an inverse contract's base volume is its turnover, and a candle
-	// still forming is marked partial
-	exp := kline.Item{
-		Exchange: ex.Name,
-		Pair:     futuresInversePair,
-		Asset:    asset.Futures,
-		Interval: kline.FifteenMin,
-		Candles: []kline.Candle{{
-			Time:             time.Unix(1792842300, 0),
-			Open:             80479.5,
-			High:             80490.8,
-			Low:              80479.4,
-			Close:            80490.8,
-			Volume:           0.0708234966710365,
-			ValidationIssues: kline.PartialCandle,
-		}},
-	}
-	assert.Equal(t, exp, item, "the candle should be relayed")
-
-	err := ex.WebsocketFuturesHandleData(t.Context(), nil, []byte(strings.Replace(futuresKlineFrame, `"interval":"Min15"`, `"interval":"Min3"`, 1)))
-	assert.ErrorIs(t, err, kline.ErrInvalidInterval, "an unknown interval should be refused")
-}
-
 func TestWebsocketFuturesHandleOrder(t *testing.T) {
 	t.Parallel()
 	ex := newFuturesWebsocketTestExchange(t)
@@ -286,33 +231,6 @@ func TestWebsocketFuturesHandleOrder(t *testing.T) {
 	require.NoError(t, stored.UpdateOrderFromDetail(detail), "UpdateOrderFromDetail must not error")
 	assert.Equal(t, 5.0, stored.RemainingAmount, "the stored order should have five contracts left")
 	assert.InDelta(t, 0.2025, stored.Fee, 1e-12, "the stored order should carry the fees so far")
-}
-
-func TestWebsocketFuturesHandleFill(t *testing.T) {
-	t.Parallel()
-	ex := newFuturesWebsocketTestExchange(t)
-	require.NoError(t, ex.WebsocketFuturesHandleData(t.Context(), nil, []byte(futuresFillFrame)), "WebsocketFuturesHandleData must not error")
-	requireNothingRelayed(t, ex)
-
-	subscribeFuturesPrivate(t, ex, subscription.MyTradesChannel)
-	require.NoError(t, ex.WebsocketFuturesHandleData(t.Context(), nil, []byte(futuresFillFrame)), "WebsocketFuturesHandleData must not error")
-	fills, ok := relayed(t, ex).([]fill.Data)
-	require.True(t, ok, "fills must be relayed")
-	// Closing a long is a sell, and the amount is in contracts
-	exp := []fill.Data{{
-		ID:            "987654321",
-		Timestamp:     time.UnixMilli(1760942212000),
-		Exchange:      ex.Name,
-		AssetType:     asset.Futures,
-		CurrencyPair:  futuresTradablePair,
-		Side:          order.Sell,
-		OrderID:       "123456789",
-		ClientOrderID: "ext_001",
-		TradeID:       "987654321",
-		Price:         45000.5,
-		Amount:        10,
-	}}
-	assert.Equal(t, exp, fills, "the fill should be relayed")
 }
 
 func TestWebsocketFuturesHandleAsset(t *testing.T) {
@@ -344,53 +262,10 @@ func TestWebsocketFuturesHandleAsset(t *testing.T) {
 	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "a balance without a currency should be refused")
 }
 
-func TestWebsocketFuturesHandlePosition(t *testing.T) {
-	t.Parallel()
-	ex := newFuturesWebsocketTestExchange(t)
-	require.NoError(t, ex.WebsocketFuturesHandleData(t.Context(), nil, []byte(futuresPositionFrame)), "WebsocketFuturesHandleData must not error")
-	requireNothingRelayed(t, ex)
-
-	subscribeFuturesPrivate(t, ex, FuturesPositionsChannel)
-	require.NoError(t, ex.WebsocketFuturesHandleData(t.Context(), nil, []byte(futuresPositionFrame)), "WebsocketFuturesHandleData must not error")
-	positions, ok := relayed(t, ex).([]futures.Position)
-	require.True(t, ok, "the position must be relayed")
-	// A held short position is open and short, its size is in contracts, its unrealised PNL is read from the push's
-	// pnl, its version is the update ID and its collateral the settlement currency
-	exp := []futures.Position{{
-		Exchange:                  ex.Name,
-		Asset:                     asset.Futures,
-		Pair:                      futuresTradablePair,
-		Underlying:                currency.BTC,
-		CollateralCurrency:        currency.USDT,
-		Leverage:                  decimal.NewFromInt(20),
-		PositionMargin:            decimal.MustFromFloat(2250.025),
-		InitialMarginRequirement:  decimal.MustFromFloat(2250.025),
-		EstimatedLiquidationPrice: decimal.MustFromFloat(50000),
-		UpdateID:                  3,
-		RealisedPNL:               decimal.MustFromFloat(-0.1125),
-		UnrealisedPNL:             decimal.MustFromFloat(100.5),
-		Status:                    order.Open,
-		OpeningDate:               time.UnixMilli(1760942212000),
-		OpeningPrice:              decimal.MustFromFloat(45000.5),
-		OpeningDirection:          order.Short,
-		LatestSize:                decimal.MustFromFloat(10),
-		LatestDirection:           order.Short,
-		LastUpdated:               time.UnixMilli(1760942213000),
-	}}
-	assert.Equal(t, exp, positions, "the open position should be relayed")
-
-	require.NoError(t, ex.WebsocketFuturesHandleData(t.Context(), nil, []byte(strings.Replace(futuresPositionFrame, `"state":1`, `"state":3`, 1))),
-		"WebsocketFuturesHandleData must not error for a closed position")
-	positions, ok = relayed(t, ex).([]futures.Position)
-	require.True(t, ok, "the closed position must be relayed")
-	// A closed position closes at its update
-	exp[0].Status, exp[0].CloseDate = order.Closed, time.UnixMilli(1760942213000)
-	assert.Equal(t, exp, positions, "the closed position should be relayed")
-}
-
 func TestWebsocketFuturesHandleData(t *testing.T) {
 	t.Parallel()
 	ex := newFuturesWebsocketTestExchange(t)
+	// The cases share ex in order, and the check after them finds that none of them relayed anything
 	for name, frame := range map[string]string{
 		"pong":                               `{"channel":"pong","data":1792842501046,"ts":1792842501046}`,
 		"unsubscribable push":                `{"channel":"push.personal.leverage.mode","data":{"leverageMode":1},"ts":1760942212000}`,
@@ -398,20 +273,152 @@ func TestWebsocketFuturesHandleData(t *testing.T) {
 		"late marker refusal":                `{"channel":"rs.error","data":"Contract [gct-resync-1] not exists","ts":1792842495741}`,
 		"late marker refusal in other words": `{"channel":"rs.error","data":"marker gct-resync-234 refused","ts":1792842495741}`,
 	} {
-		require.NoErrorf(t, ex.WebsocketFuturesHandleData(t.Context(), &futuresReplyConnection{}, []byte(frame)), "WebsocketFuturesHandleData must not error for a %s", name)
+		t.Run(name, func(t *testing.T) {
+			require.NoErrorf(t, ex.WebsocketFuturesHandleData(t.Context(), &futuresReplyConnection{}, []byte(frame)), "WebsocketFuturesHandleData must not error for a %s", name)
+		})
 	}
 	requireNothingRelayed(t, ex)
 
+	// The cases share ex in order, each taking the next payload it relays
 	for _, frame := range []string{`{"channel":"push.unknown","data":{}}`, `{"channel":"surprise"}`, `null`} {
-		require.NoErrorf(t, ex.WebsocketFuturesHandleData(t.Context(), nil, []byte(frame)), "WebsocketFuturesHandleData must not error for %s", frame)
-		warning, ok := relayed(t, ex).(websocket.UnhandledMessageWarning)
-		require.Truef(t, ok, "%s must be reported as unhandled", frame)
-		assert.Containsf(t, warning.Message, frame, "the warning should carry %s", frame)
+		t.Run(frame, func(t *testing.T) {
+			require.NoErrorf(t, ex.WebsocketFuturesHandleData(t.Context(), nil, []byte(frame)), "WebsocketFuturesHandleData must not error for %s", frame)
+			warning, ok := relayed(t, ex).(websocket.UnhandledMessageWarning)
+			require.Truef(t, ok, "%s must be reported as unhandled", frame)
+			assert.Containsf(t, warning.Message, frame, "the warning should carry %s", frame)
+		})
 	}
 
 	err := ex.WebsocketFuturesHandleData(t.Context(), &futuresReplyConnection{}, []byte(`{"channel":"rs.error","data":"Contract [FOO_BAR] not exists"}`))
 	assert.ErrorIs(t, err, errFuturesWebsocketRejected, "a refusal no request waits for should be reported")
 	assert.Error(t, ex.WebsocketFuturesHandleData(t.Context(), nil, []byte(`{"channel":`)), "a malformed frame should be refused")
+
+	t.Run("trades", func(t *testing.T) {
+		t.Parallel()
+		ex := newFuturesWebsocketTestExchange(t)
+		ex.SetSaveTradeDataStatus(false)
+		ex.SetTradeFeedStatus(false)
+		require.NoError(t, ex.WebsocketFuturesHandleData(t.Context(), nil, []byte(futuresDealsFrame)), "WebsocketFuturesHandleData must not error")
+		requireNothingRelayed(t, ex)
+
+		ex.SetTradeFeedStatus(true)
+		require.NoError(t, ex.WebsocketFuturesHandleData(t.Context(), nil, []byte(futuresDealsFrame)), "WebsocketFuturesHandleData must not error")
+		trades, ok := relayed(t, ex).([]trade.Data)
+		require.True(t, ok, "trades must be relayed")
+		// A taker sell is a sell and a taker buy a buy, and the amounts are in contracts
+		exp := []trade.Data{
+			{TID: "16745103311", Exchange: ex.Name, CurrencyPair: futuresTradablePair, AssetType: asset.Futures, Side: order.Sell, Price: 80585.5, Amount: 7739, Timestamp: time.UnixMilli(1792842498973)},
+			{TID: "16745103221", Exchange: ex.Name, CurrencyPair: futuresTradablePair, AssetType: asset.Futures, Side: order.Buy, Price: 80590.1, Amount: 4, Timestamp: time.UnixMilli(1792842498334)},
+		}
+		assert.Equal(t, exp, trades, "every merged trade should be relayed")
+
+		require.NoError(t, ex.WebsocketFuturesHandleData(t.Context(), nil, []byte(futuresDealFrame)), "WebsocketFuturesHandleData must not error for an unmerged trade")
+		trades, ok = relayed(t, ex).([]trade.Data)
+		require.True(t, ok, "an unmerged trade must be relayed")
+		exp = []trade.Data{{TID: "16745103083", Exchange: ex.Name, CurrencyPair: futuresTradablePair, AssetType: asset.Futures, Side: order.Sell, Price: 80590, Amount: 5, Timestamp: time.UnixMilli(1792842497333)}}
+		assert.Equal(t, exp, trades, "the unmerged trade should be relayed")
+	})
+
+	t.Run("candle", func(t *testing.T) {
+		t.Parallel()
+		ex := newFuturesWebsocketTestExchange(t)
+		require.NoError(t, ex.WebsocketFuturesHandleData(t.Context(), nil, []byte(futuresKlineFrame)), "WebsocketFuturesHandleData must not error")
+
+		item, ok := relayed(t, ex).(kline.Item)
+		require.True(t, ok, "a candle must be relayed")
+		// The candle is stamped with its open in seconds, an inverse contract's base volume is its turnover, and a candle
+		// still forming is marked partial
+		exp := kline.Item{
+			Exchange: ex.Name,
+			Pair:     futuresInversePair,
+			Asset:    asset.Futures,
+			Interval: kline.FifteenMin,
+			Candles: []kline.Candle{{
+				Time:             time.Unix(1792842300, 0),
+				Open:             80479.5,
+				High:             80490.8,
+				Low:              80479.4,
+				Close:            80490.8,
+				Volume:           0.0708234966710365,
+				ValidationIssues: kline.PartialCandle,
+			}},
+		}
+		assert.Equal(t, exp, item, "the candle should be relayed")
+
+		err := ex.WebsocketFuturesHandleData(t.Context(), nil, []byte(strings.Replace(futuresKlineFrame, `"interval":"Min15"`, `"interval":"Min3"`, 1)))
+		assert.ErrorIs(t, err, kline.ErrInvalidInterval, "an unknown interval should be refused")
+	})
+
+	t.Run("fill", func(t *testing.T) {
+		t.Parallel()
+		ex := newFuturesWebsocketTestExchange(t)
+		require.NoError(t, ex.WebsocketFuturesHandleData(t.Context(), nil, []byte(futuresFillFrame)), "WebsocketFuturesHandleData must not error")
+		requireNothingRelayed(t, ex)
+
+		subscribeFuturesPrivate(t, ex, subscription.MyTradesChannel)
+		require.NoError(t, ex.WebsocketFuturesHandleData(t.Context(), nil, []byte(futuresFillFrame)), "WebsocketFuturesHandleData must not error")
+		fills, ok := relayed(t, ex).([]fill.Data)
+		require.True(t, ok, "fills must be relayed")
+		// Closing a long is a sell, and the amount is in contracts
+		exp := []fill.Data{{
+			ID:            "987654321",
+			Timestamp:     time.UnixMilli(1760942212000),
+			Exchange:      ex.Name,
+			AssetType:     asset.Futures,
+			CurrencyPair:  futuresTradablePair,
+			Side:          order.Sell,
+			OrderID:       "123456789",
+			ClientOrderID: "ext_001",
+			TradeID:       "987654321",
+			Price:         45000.5,
+			Amount:        10,
+		}}
+		assert.Equal(t, exp, fills, "the fill should be relayed")
+	})
+
+	t.Run("position", func(t *testing.T) {
+		t.Parallel()
+		ex := newFuturesWebsocketTestExchange(t)
+		require.NoError(t, ex.WebsocketFuturesHandleData(t.Context(), nil, []byte(futuresPositionFrame)), "WebsocketFuturesHandleData must not error")
+		requireNothingRelayed(t, ex)
+
+		subscribeFuturesPrivate(t, ex, FuturesPositionsChannel)
+		require.NoError(t, ex.WebsocketFuturesHandleData(t.Context(), nil, []byte(futuresPositionFrame)), "WebsocketFuturesHandleData must not error")
+		positions, ok := relayed(t, ex).([]futures.Position)
+		require.True(t, ok, "the position must be relayed")
+		// A held short position is open and short, its size is in contracts, its unrealised PNL is read from the push's
+		// pnl, its version is the update ID and its collateral the settlement currency
+		exp := []futures.Position{{
+			Exchange:                  ex.Name,
+			Asset:                     asset.Futures,
+			Pair:                      futuresTradablePair,
+			Underlying:                currency.BTC,
+			CollateralCurrency:        currency.USDT,
+			Leverage:                  decimal.NewFromInt(20),
+			PositionMargin:            decimal.MustFromFloat(2250.025),
+			InitialMarginRequirement:  decimal.MustFromFloat(2250.025),
+			EstimatedLiquidationPrice: decimal.MustFromFloat(50000),
+			UpdateID:                  3,
+			RealisedPNL:               decimal.MustFromFloat(-0.1125),
+			UnrealisedPNL:             decimal.MustFromFloat(100.5),
+			Status:                    order.Open,
+			OpeningDate:               time.UnixMilli(1760942212000),
+			OpeningPrice:              decimal.MustFromFloat(45000.5),
+			OpeningDirection:          order.Short,
+			LatestSize:                decimal.MustFromFloat(10),
+			LatestDirection:           order.Short,
+			LastUpdated:               time.UnixMilli(1760942213000),
+		}}
+		assert.Equal(t, exp, positions, "the open position should be relayed")
+
+		require.NoError(t, ex.WebsocketFuturesHandleData(t.Context(), nil, []byte(strings.Replace(futuresPositionFrame, `"state":1`, `"state":3`, 1))),
+			"WebsocketFuturesHandleData must not error for a closed position")
+		positions, ok = relayed(t, ex).([]futures.Position)
+		require.True(t, ok, "the closed position must be relayed")
+		// A closed position closes at its update
+		exp[0].Status, exp[0].CloseDate = order.Closed, time.UnixMilli(1760942213000)
+		assert.Equal(t, exp, positions, "the closed position should be relayed")
+	})
 }
 
 // futuresReplyConnection answers each futures websocket request with a recorded reply, or fails to send it with err,
@@ -493,18 +500,119 @@ func TestFuturesWebsocketRequest(t *testing.T) {
 	t.Parallel()
 	ex := newFuturesWebsocketTestExchange(t)
 	req := &WebsocketFuturesRequest{Method: "sub.ticker", Param: &WebsocketFuturesChannelParams{Symbol: "BTC_USDT"}}
-	for reply, exp := range map[string]error{
-		`{"channel":"rs.sub.ticker","data":"success","ts":1792842495741}`:                  nil,
-		`{"channel":"rs.error","data":"Contract [FOO_BAR] not exists","ts":1792842495741}`: errFuturesWebsocketRejected,
-		`{"channel":"rs.sub.ticker","data":"Not support interval","ts":1792842495741}`:     errFuturesWebsocketRejected,
-		`{"channel":"rs.sub.deal","data":"success","ts":1792842495741}`:                    errFuturesWebsocketRejected,
-		`{"channel":"rs.sub.ticker","data":{"code":1,"msg":"refused"},"ts":1792842495741}`: errFuturesWebsocketRejected,
-		`null`: common.ErrNoResponse,
+	// The cases share ex and req in order, so each also checks that a request keeps nothing from the last
+	for name, tc := range map[string]struct {
+		reply string
+		err   error
+	}{
+		"acknowledged":                 {`{"channel":"rs.sub.ticker","data":"success","ts":1792842495741}`, nil},
+		"refused":                      {`{"channel":"rs.error","data":"Contract [FOO_BAR] not exists","ts":1792842495741}`, errFuturesWebsocketRejected},
+		"unsuccessful acknowledgement": {`{"channel":"rs.sub.ticker","data":"Not support interval","ts":1792842495741}`, errFuturesWebsocketRejected},
+		"another channel acknowledged": {`{"channel":"rs.sub.deal","data":"success","ts":1792842495741}`, errFuturesWebsocketRejected},
+		"refusal object":               {`{"channel":"rs.sub.ticker","data":{"code":1,"msg":"refused"},"ts":1792842495741}`, errFuturesWebsocketRejected},
+		"null":                         {`null`, common.ErrNoResponse},
 	} {
-		err := ex.futuresWebsocketRequest(t.Context(), &futuresReplyConnection{reply: []byte(reply)}, req)
-		assert.ErrorIsf(t, err, exp, "the reply %s should be read", reply)
+		t.Run(name, func(t *testing.T) {
+			err := ex.futuresWebsocketRequest(t.Context(), &futuresReplyConnection{reply: []byte(tc.reply)}, req)
+			assert.ErrorIsf(t, err, tc.err, "the reply %s should be read", tc.reply)
+		})
 	}
 	assert.Error(t, ex.futuresWebsocketRequest(t.Context(), &futuresReplyConnection{reply: []byte(`{"channel":`)}, req), "a malformed reply should be refused")
+
+	t.Run("holds the request lock", func(t *testing.T) {
+		t.Parallel()
+		ex := newFuturesWebsocketTestExchange(t)
+		req := &WebsocketFuturesRequest{Method: "sub.ticker", Param: &WebsocketFuturesChannelParams{Symbol: "BTC_USDT"}}
+		ctx := &lockCheckingContext{Context: t.Context(), lock: &ex.futuresWebsocketRequestMu}
+		require.NoError(t, ex.futuresWebsocketRequest(ctx, &futuresReplyConnection{reply: []byte(`{"channel":"rs.sub.ticker","data":"success"}`)}, req),
+			"futuresWebsocketRequest must not error")
+		require.NotEmpty(t, ctx.held, "the request's context must be checked before it is sent")
+		assert.NotContains(t, ctx.held, false, "the request's context should be checked under the request lock, so that one ending while it waits for the lock is not sent")
+
+		synctest.Test(t, func(t *testing.T) {
+			ex := newFuturesWebsocketTestExchange(t)
+			conn := &futuresReplyConnection{err: websocket.ErrSignatureTimeout, late: make(chan websocket.MatchedResponse, 1)}
+			done := make(chan error, 1)
+			go func() { done <- ex.futuresWebsocketRequest(t.Context(), conn, req) }()
+			synctest.Wait()
+			held := !ex.futuresWebsocketRequestMu.TryLock()
+			if !held {
+				ex.futuresWebsocketRequestMu.Unlock()
+			}
+			conn.late <- websocket.MatchedResponse{Err: websocket.ErrSignatureTimeout}
+			require.ErrorIs(t, <-done, websocket.ErrSignatureTimeout, "futuresWebsocketRequest must return the timeout")
+			assert.True(t, conn.awaited, "the late reply should be awaited")
+			assert.True(t, held, "the request lock should be held until the late reply is read, so that no other request is sent meanwhile")
+			assert.True(t, ex.futuresRepliesOwed[conn], "a connection whose late reply did not come should owe it")
+		})
+	})
+
+	t.Run("send failure", func(t *testing.T) {
+		t.Parallel()
+		ex := newFuturesWebsocketTestExchange(t)
+		errSendFailed := errors.New("websocket connection: cannot send message")
+		conn := &futuresReplyConnection{err: errSendFailed}
+		err := ex.futuresWebsocketRequest(t.Context(), conn, &WebsocketFuturesRequest{Method: "sub.ticker", Param: &WebsocketFuturesChannelParams{Symbol: "BTC_USDT"}})
+		require.ErrorIs(t, err, errSendFailed, "a request which could not be sent must return why")
+		assert.False(t, conn.awaited, "a request which was never sent should not wait for a reply")
+		assert.Empty(t, ex.futuresRepliesOwed, "a request which was never sent should leave no reply owed")
+	})
+
+	t.Run("late reply wait refused", func(t *testing.T) {
+		t.Parallel()
+		ex := newFuturesWebsocketTestExchange(t)
+		conn := &futuresReplyConnection{err: websocket.ErrSignatureTimeout, lateErr: errors.New("signature collision")}
+		err := ex.futuresWebsocketRequest(t.Context(), conn, &WebsocketFuturesRequest{Method: "sub.ticker", Param: &WebsocketFuturesChannelParams{Symbol: "BTC_USDT"}})
+		require.ErrorIs(t, err, websocket.ErrSignatureTimeout, "futuresWebsocketRequest must return the timeout")
+		assert.True(t, conn.awaited, "the late reply should be waited for")
+		assert.True(t, ex.futuresRepliesOwed[conn], "a connection whose late reply could not be waited for should owe it")
+	})
+
+	t.Run("owed reply", func(t *testing.T) {
+		t.Parallel()
+		const (
+			owed    = `{"channel":"rs.sub.ticker","data":"success","ts":1792842495741}`
+			refusal = `{"channel":"rs.error","data":"Contract [gct-resync-1] not exists","ts":1792842495741}`
+		)
+		errSendFailed := errors.New("websocket connection: cannot send message")
+		req := &WebsocketFuturesRequest{Method: "sub.ticker", Param: &WebsocketFuturesChannelParams{Symbol: "BTC_USDT"}}
+		for _, tc := range []struct {
+			name    string
+			replies []string
+			sendErr error
+			err     error
+		}{
+			{name: "marker answered", replies: []string{refusal}},
+			{name: "marker answered after the reply owed", replies: []string{owed, refusal}},
+			{name: "marker refused in other words", replies: []string{`{"channel":"rs.error","data":"marker gct-resync-1 refused"}`}},
+			{name: "marker unanswered after its replies", replies: []string{owed, owed}, err: errFuturesWebsocketOutOfStep},
+			{name: "no replies", err: errFuturesWebsocketOutOfStep},
+			{name: "marker not sent", sendErr: errSendFailed, err: errSendFailed},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				ex := newFuturesWebsocketTestExchange(t)
+				conn := &futuresReplyConnection{reply: []byte(`{"channel":"rs.sub.ticker","data":"success"}`), err: tc.sendErr}
+				for _, r := range tc.replies {
+					conn.markerReplies = append(conn.markerReplies, []byte(r))
+				}
+				ex.futuresRepliesOwed = map[websocket.Connection]bool{conn: true}
+				err := ex.futuresWebsocketRequest(t.Context(), conn, req)
+				if tc.err != nil {
+					require.ErrorIs(t, err, tc.err, "futuresWebsocketRequest must return why the connection is out of step")
+					assert.ErrorIs(t, err, errFuturesWebsocketOutOfStep, "the request should fail as out of step")
+					assert.Empty(t, conn.sent, "a request should not be sent until a marker is answered")
+					assert.True(t, ex.futuresRepliesOwed[conn], "the connection should still owe a reply")
+					return
+				}
+				require.NoError(t, err, "futuresWebsocketRequest must not error")
+				assert.Equal(t, []*WebsocketFuturesRequest{req}, conn.sent, "the request should be sent once a marker is answered")
+				assert.Empty(t, ex.futuresRepliesOwed, "no reply should be owed once a marker is answered")
+				exp := []*WebsocketFuturesRequest{{Method: "sub.ticker", Param: &WebsocketFuturesChannelParams{Symbol: "gct-resync-1"}}}
+				assert.Equal(t, exp, conn.markers, "the marker should be a subscription to a symbol no contract has")
+			})
+		}
+	})
 }
 
 type lockCheckingContext struct {
@@ -520,55 +628,6 @@ func (c *lockCheckingContext) Err() error {
 	}
 	c.held = append(c.held, held)
 	return c.Context.Err()
-}
-
-func TestFuturesWebsocketRequestHoldsLock(t *testing.T) {
-	t.Parallel()
-	ex := newFuturesWebsocketTestExchange(t)
-	req := &WebsocketFuturesRequest{Method: "sub.ticker", Param: &WebsocketFuturesChannelParams{Symbol: "BTC_USDT"}}
-	ctx := &lockCheckingContext{Context: t.Context(), lock: &ex.futuresWebsocketRequestMu}
-	require.NoError(t, ex.futuresWebsocketRequest(ctx, &futuresReplyConnection{reply: []byte(`{"channel":"rs.sub.ticker","data":"success"}`)}, req),
-		"futuresWebsocketRequest must not error")
-	require.NotEmpty(t, ctx.held, "the request's context must be checked before it is sent")
-	assert.NotContains(t, ctx.held, false, "the request's context should be checked under the request lock, so that one ending while it waits for the lock is not sent")
-
-	synctest.Test(t, func(t *testing.T) {
-		ex := newFuturesWebsocketTestExchange(t)
-		conn := &futuresReplyConnection{err: websocket.ErrSignatureTimeout, late: make(chan websocket.MatchedResponse, 1)}
-		done := make(chan error, 1)
-		go func() { done <- ex.futuresWebsocketRequest(t.Context(), conn, req) }()
-		synctest.Wait()
-		held := !ex.futuresWebsocketRequestMu.TryLock()
-		if !held {
-			ex.futuresWebsocketRequestMu.Unlock()
-		}
-		conn.late <- websocket.MatchedResponse{Err: websocket.ErrSignatureTimeout}
-		require.ErrorIs(t, <-done, websocket.ErrSignatureTimeout, "futuresWebsocketRequest must return the timeout")
-		assert.True(t, conn.awaited, "the late reply should be awaited")
-		assert.True(t, held, "the request lock should be held until the late reply is read, so that no other request is sent meanwhile")
-		assert.True(t, ex.futuresRepliesOwed[conn], "a connection whose late reply did not come should owe it")
-	})
-}
-
-func TestFuturesWebsocketRequestSendFailure(t *testing.T) {
-	t.Parallel()
-	ex := newFuturesWebsocketTestExchange(t)
-	errSendFailed := errors.New("websocket connection: cannot send message")
-	conn := &futuresReplyConnection{err: errSendFailed}
-	err := ex.futuresWebsocketRequest(t.Context(), conn, &WebsocketFuturesRequest{Method: "sub.ticker", Param: &WebsocketFuturesChannelParams{Symbol: "BTC_USDT"}})
-	require.ErrorIs(t, err, errSendFailed, "a request which could not be sent must return why")
-	assert.False(t, conn.awaited, "a request which was never sent should not wait for a reply")
-	assert.Empty(t, ex.futuresRepliesOwed, "a request which was never sent should leave no reply owed")
-}
-
-func TestFuturesWebsocketRequestLateWaitRefused(t *testing.T) {
-	t.Parallel()
-	ex := newFuturesWebsocketTestExchange(t)
-	conn := &futuresReplyConnection{err: websocket.ErrSignatureTimeout, lateErr: errors.New("signature collision")}
-	err := ex.futuresWebsocketRequest(t.Context(), conn, &WebsocketFuturesRequest{Method: "sub.ticker", Param: &WebsocketFuturesChannelParams{Symbol: "BTC_USDT"}})
-	require.ErrorIs(t, err, websocket.ErrSignatureTimeout, "futuresWebsocketRequest must return the timeout")
-	assert.True(t, conn.awaited, "the late reply should be waited for")
-	assert.True(t, ex.futuresRepliesOwed[conn], "a connection whose late reply could not be waited for should owe it")
 }
 
 // futuresLateReplyVenue is a mock futures venue which acknowledges a BTC_USDT subscription once its hold has passed, or
@@ -805,52 +864,6 @@ func TestFuturesWebsocketRequestResyncContextEnds(t *testing.T) {
 	})
 }
 
-func TestResyncFuturesReplies(t *testing.T) {
-	t.Parallel()
-	const (
-		owed    = `{"channel":"rs.sub.ticker","data":"success","ts":1792842495741}`
-		refusal = `{"channel":"rs.error","data":"Contract [gct-resync-1] not exists","ts":1792842495741}`
-	)
-	errSendFailed := errors.New("websocket connection: cannot send message")
-	req := &WebsocketFuturesRequest{Method: "sub.ticker", Param: &WebsocketFuturesChannelParams{Symbol: "BTC_USDT"}}
-	for _, tc := range []struct {
-		name    string
-		replies []string
-		sendErr error
-		err     error
-	}{
-		{name: "marker answered", replies: []string{refusal}},
-		{name: "marker answered after the reply owed", replies: []string{owed, refusal}},
-		{name: "marker refused in other words", replies: []string{`{"channel":"rs.error","data":"marker gct-resync-1 refused"}`}},
-		{name: "marker unanswered after its replies", replies: []string{owed, owed}, err: errFuturesWebsocketOutOfStep},
-		{name: "no replies", err: errFuturesWebsocketOutOfStep},
-		{name: "marker not sent", sendErr: errSendFailed, err: errSendFailed},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			ex := newFuturesWebsocketTestExchange(t)
-			conn := &futuresReplyConnection{reply: []byte(`{"channel":"rs.sub.ticker","data":"success"}`), err: tc.sendErr}
-			for _, r := range tc.replies {
-				conn.markerReplies = append(conn.markerReplies, []byte(r))
-			}
-			ex.futuresRepliesOwed = map[websocket.Connection]bool{conn: true}
-			err := ex.futuresWebsocketRequest(t.Context(), conn, req)
-			if tc.err != nil {
-				require.ErrorIs(t, err, tc.err, "futuresWebsocketRequest must return why the connection is out of step")
-				assert.ErrorIs(t, err, errFuturesWebsocketOutOfStep, "the request should fail as out of step")
-				assert.Empty(t, conn.sent, "a request should not be sent until a marker is answered")
-				assert.True(t, ex.futuresRepliesOwed[conn], "the connection should still owe a reply")
-				return
-			}
-			require.NoError(t, err, "futuresWebsocketRequest must not error")
-			assert.Equal(t, []*WebsocketFuturesRequest{req}, conn.sent, "the request should be sent once a marker is answered")
-			assert.Empty(t, ex.futuresRepliesOwed, "no reply should be owed once a marker is answered")
-			exp := []*WebsocketFuturesRequest{{Method: "sub.ticker", Param: &WebsocketFuturesChannelParams{Symbol: "gct-resync-1"}}}
-			assert.Equal(t, exp, conn.markers, "the marker should be a subscription to a symbol no contract has")
-		})
-	}
-}
-
 func TestOweFuturesReply(t *testing.T) {
 	t.Parallel()
 	ex := newFuturesWebsocketTestExchange(t)
@@ -956,20 +969,24 @@ func TestFuturesChannelRequest(t *testing.T) {
 	t.Parallel()
 	pair := currency.Pairs{currency.NewBTCUSDT()}
 	for _, tc := range []struct {
+		name   string
 		sub    *subscription.Subscription
 		method string
 		params WebsocketFuturesChannelParams
 	}{
-		{&subscription.Subscription{Channel: subscription.TickerChannel, Pairs: pair}, "ticker", WebsocketFuturesChannelParams{Symbol: "BTC_USDT"}},
-		{&subscription.Subscription{Channel: subscription.AllTradesChannel, Pairs: pair}, "deal", WebsocketFuturesChannelParams{Symbol: "BTC_USDT"}},
-		{&subscription.Subscription{Channel: subscription.OrderbookChannel, Pairs: pair}, "depth.full", WebsocketFuturesChannelParams{Symbol: "BTC_USDT", Limit: 20}},
-		{&subscription.Subscription{Channel: subscription.OrderbookChannel, Pairs: pair, Levels: 5}, "depth.full", WebsocketFuturesChannelParams{Symbol: "BTC_USDT", Limit: 5}},
-		{&subscription.Subscription{Channel: subscription.CandlesChannel, Pairs: pair, Interval: kline.FourHour}, "kline", WebsocketFuturesChannelParams{Symbol: "BTC_USDT", Interval: "Hour4"}},
+		{"ticker", &subscription.Subscription{Channel: subscription.TickerChannel, Pairs: pair}, "ticker", WebsocketFuturesChannelParams{Symbol: "BTC_USDT"}},
+		{"trades", &subscription.Subscription{Channel: subscription.AllTradesChannel, Pairs: pair}, "deal", WebsocketFuturesChannelParams{Symbol: "BTC_USDT"}},
+		{"orderbook", &subscription.Subscription{Channel: subscription.OrderbookChannel, Pairs: pair}, "depth.full", WebsocketFuturesChannelParams{Symbol: "BTC_USDT", Limit: 20}},
+		{"orderbook of 5 levels", &subscription.Subscription{Channel: subscription.OrderbookChannel, Pairs: pair, Levels: 5}, "depth.full", WebsocketFuturesChannelParams{Symbol: "BTC_USDT", Limit: 5}},
+		{"candles", &subscription.Subscription{Channel: subscription.CandlesChannel, Pairs: pair, Interval: kline.FourHour}, "kline", WebsocketFuturesChannelParams{Symbol: "BTC_USDT", Interval: "Hour4"}},
 	} {
-		method, params, err := futuresChannelRequest(tc.sub)
-		require.NoErrorf(t, err, "futuresChannelRequest must not error for %s", tc.sub.Channel)
-		assert.Equalf(t, tc.method, method, "%s should be the venue's %s channel", tc.sub.Channel, tc.method)
-		assert.Equalf(t, tc.params, *params, "%s should carry its parameters", tc.sub.Channel)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			method, params, err := futuresChannelRequest(tc.sub)
+			require.NoErrorf(t, err, "futuresChannelRequest must not error for %s", tc.sub.Channel)
+			assert.Equalf(t, tc.method, method, "%s should be the venue's %s channel", tc.sub.Channel, tc.method)
+			assert.Equalf(t, tc.params, *params, "%s should carry its parameters", tc.sub.Channel)
+		})
 	}
 	_, _, err := futuresChannelRequest(&subscription.Subscription{Channel: subscription.TickerChannel})
 	assert.ErrorIs(t, err, subscription.ErrNotSinglePair)
@@ -991,20 +1008,27 @@ func TestFuturesQualifiedChannel(t *testing.T) {
 		{&subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.FourHour}, "kline@BTC_USDT@Hour4"},
 		{&subscription.Subscription{Channel: subscription.MyOrdersChannel}, "personal.order"},
 	} {
-		qualified, err := futuresQualifiedChannel(tc.sub, pair)
-		require.NoErrorf(t, err, "futuresQualifiedChannel must not error for %s", tc.sub.Channel)
-		assert.Equalf(t, tc.exp, qualified, "%s should be qualified as the venue names it", tc.sub.Channel)
+		t.Run(tc.sub.Channel, func(t *testing.T) {
+			t.Parallel()
+			qualified, err := futuresQualifiedChannel(tc.sub, pair)
+			require.NoErrorf(t, err, "futuresQualifiedChannel must not error for %s", tc.sub.Channel)
+			assert.Equalf(t, tc.exp, qualified, "%s should be qualified as the venue names it", tc.sub.Channel)
+		})
 	}
 	for _, tc := range []struct {
-		sub *subscription.Subscription
-		err error
+		name string
+		sub  *subscription.Subscription
+		err  error
 	}{
-		{&subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.TenMin}, kline.ErrUnsupportedInterval},
-		{&subscription.Subscription{Channel: subscription.MyWalletChannel}, subscription.ErrNotSupported},
+		{"10 minute candles", &subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.TenMin}, kline.ErrUnsupportedInterval},
+		{"my wallet", &subscription.Subscription{Channel: subscription.MyWalletChannel}, subscription.ErrNotSupported},
 	} {
-		qualified, err := futuresQualifiedChannel(tc.sub, pair)
-		assert.ErrorIsf(t, err, tc.err, "futuresQualifiedChannel should return why the venue does not serve %s", tc.sub.Channel)
-		assert.Emptyf(t, qualified, "futuresQualifiedChannel should qualify no channel for %s", tc.sub.Channel)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			qualified, err := futuresQualifiedChannel(tc.sub, pair)
+			assert.ErrorIsf(t, err, tc.err, "futuresQualifiedChannel should return why the venue does not serve %s", tc.sub.Channel)
+			assert.Emptyf(t, qualified, "futuresQualifiedChannel should qualify no channel for %s", tc.sub.Channel)
+		})
 	}
 }
 
@@ -1058,49 +1082,58 @@ func TestGenerateFuturesSubscriptionsUnserved(t *testing.T) {
 		{sub: &subscription.Subscription{Enabled: true, Asset: asset.Futures, Channel: subscription.CandlesChannel, Interval: kline.TenMin}, err: kline.ErrUnsupportedInterval},
 		{sub: &subscription.Subscription{Enabled: true, Asset: asset.Futures, Channel: subscription.MyWalletChannel}, err: subscription.ErrNotSupported},
 	} {
-		for _, pairs := range []currency.Pairs{{futuresTradablePair}, {futuresTradablePair, futuresInversePair}} {
-			ex := newFuturesWebsocketTestExchange(t)
-			require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Futures, pairs, true), "StorePairs must not error")
-			ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
-			ex.Features.Subscriptions = subscription.List{
-				{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel, Interval: kline.HundredMilliseconds},
-				{Enabled: true, Asset: asset.Futures, Channel: subscription.TickerChannel},
-				tc.sub,
+		t.Run(tc.sub.Channel, func(t *testing.T) {
+			t.Parallel()
+			// Both cases hand tc.sub itself to the generators, which could change it, so they run in order
+			for _, pairs := range []currency.Pairs{{futuresTradablePair}, {futuresTradablePair, futuresInversePair}} {
+				t.Run(pairs.Join(), func(t *testing.T) {
+					ex := newFuturesWebsocketTestExchange(t)
+					require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Futures, pairs, true), "StorePairs must not error")
+					ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+					ex.Features.Subscriptions = subscription.List{
+						{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel, Interval: kline.HundredMilliseconds},
+						{Enabled: true, Asset: asset.Futures, Channel: subscription.TickerChannel},
+						tc.sub,
+					}
+					public, err := ex.generateFuturesPublicSubscriptions()
+					require.ErrorIsf(t, err, websocket.ErrSubscriptionPartial, "a %s subscription the venue does not serve must leave the others for %s", tc.sub.Channel, pairs.Join())
+					assert.ErrorIsf(t, err, tc.err, "the expansion should say why the venue does not serve %s", tc.sub.Channel)
+					exp := make([]string, len(pairs))
+					for i, p := range pairs {
+						exp[i] = "ticker@" + p.String()
+					}
+					got := make([]string, len(public))
+					for i, s := range public {
+						got[i] = s.QualifiedChannel
+					}
+					assert.ElementsMatchf(t, exp, got, "the futures ticker should still be subscribed for %s", pairs.Join())
+					_, err = ex.generateFuturesPrivateSubscriptions()
+					assert.NoError(t, err, "the private futures connection should not report a public subscription")
+					spot, err := ex.generatePublicSubscriptions()
+					assert.NoError(t, err, "the spot connection should not report a futures subscription")
+					assert.Len(t, spot, 1, "the spot ticker should still be subscribed")
+					_, err = ex.generatePrivateSubscriptions()
+					assert.NoError(t, err, "the private spot connection should not report a futures subscription")
+				})
 			}
-			public, err := ex.generateFuturesPublicSubscriptions()
-			require.ErrorIsf(t, err, websocket.ErrSubscriptionPartial, "a %s subscription the venue does not serve must leave the others for %s", tc.sub.Channel, pairs.Join())
-			assert.ErrorIsf(t, err, tc.err, "the expansion should say why the venue does not serve %s", tc.sub.Channel)
-			exp := make([]string, len(pairs))
-			for i, p := range pairs {
-				exp[i] = "ticker@" + p.String()
-			}
-			got := make([]string, len(public))
-			for i, s := range public {
-				got[i] = s.QualifiedChannel
-			}
-			assert.ElementsMatchf(t, exp, got, "the futures ticker should still be subscribed for %s", pairs.Join())
-			_, err = ex.generateFuturesPrivateSubscriptions()
-			assert.NoError(t, err, "the private futures connection should not report a public subscription")
-			spot, err := ex.generatePublicSubscriptions()
-			assert.NoError(t, err, "the spot connection should not report a futures subscription")
-			assert.Len(t, spot, 1, "the spot ticker should still be subscribed")
-			_, err = ex.generatePrivateSubscriptions()
-			assert.NoError(t, err, "the private spot connection should not report a futures subscription")
-		}
+		})
 	}
 }
 
-func TestGenerateSubscriptionsWildcardAsset(t *testing.T) {
+func TestGeneratePublicSubscriptions(t *testing.T) {
 	t.Parallel()
-	ex := newFuturesWebsocketTestExchange(t)
-	ex.Features.Subscriptions = subscription.List{
-		{Enabled: true, Asset: asset.All, Channel: channelMiniTickerV3},
-		{Enabled: true, Asset: asset.Futures, Channel: subscription.CandlesChannel, Interval: kline.TenMin},
-	}
-	spot, err := ex.generatePublicSubscriptions()
-	require.NoError(t, err, "the spot connection must not report a futures subscription")
-	require.Len(t, spot, 1, "a subscription for every asset must still be expanded for spot")
-	assert.Equal(t, "spot@"+channelMiniTickerV3+"@BTCUSDT@"+miniTickerTimezone, spot[0].QualifiedChannel, "the spot mini ticker should be subscribed")
+	t.Run("subscription for every asset", func(t *testing.T) {
+		t.Parallel()
+		ex := newFuturesWebsocketTestExchange(t)
+		ex.Features.Subscriptions = subscription.List{
+			{Enabled: true, Asset: asset.All, Channel: channelMiniTickerV3},
+			{Enabled: true, Asset: asset.Futures, Channel: subscription.CandlesChannel, Interval: kline.TenMin},
+		}
+		spot, err := ex.generatePublicSubscriptions()
+		require.NoError(t, err, "the spot connection must not report a futures subscription")
+		require.Len(t, spot, 1, "a subscription for every asset must still be expanded for spot")
+		assert.Equal(t, "spot@"+channelMiniTickerV3+"@BTCUSDT@"+miniTickerTimezone, spot[0].QualifiedChannel, "the spot mini ticker should be subscribed")
+	})
 }
 
 func TestGenerateSubscriptionsFailureReportedOnce(t *testing.T) {
@@ -1125,26 +1158,32 @@ func TestGenerateSubscriptionsFailureReportedOnce(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			for _, pairs := range []currency.Pairs{nil, {futuresTradablePair}} {
-				ex := newFuturesWebsocketTestExchange(t)
-				ex.Websocket.SetCanUseAuthenticatedEndpoints(tc.auth)
-				sub := tc.sub.Clone()
-				sub.Pairs = pairs
-				ex.Features.Subscriptions = subscription.List{
-					{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel, Interval: kline.HundredMilliseconds},
-					sub,
-				}
-				for _, g := range connectionGenerators(ex) {
-					subs, err := g.generate()
-					if g.name == "spot public" {
-						assert.Lenf(t, subs, 1, "the spot ticker should still be subscribed with %d explicit pairs", len(pairs))
+				t.Run(cmp.Or(pairs.Join(), "no explicit pairs"), func(t *testing.T) {
+					t.Parallel()
+					ex := newFuturesWebsocketTestExchange(t)
+					ex.Websocket.SetCanUseAuthenticatedEndpoints(tc.auth)
+					sub := tc.sub.Clone()
+					sub.Pairs = pairs
+					ex.Features.Subscriptions = subscription.List{
+						{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel, Interval: kline.HundredMilliseconds},
+						sub,
 					}
-					if g.name != tc.reporter {
-						assert.NoErrorf(t, err, "the %s connection should not report a failure %q reports, with %d explicit pairs", g.name, tc.reporter, len(pairs))
-						continue
+					// The generators share ex in order, so each also checks that a generation keeps nothing from the last
+					for _, g := range connectionGenerators(ex) {
+						t.Run(g.name, func(t *testing.T) {
+							subs, err := g.generate()
+							if g.name == "spot public" {
+								assert.Lenf(t, subs, 1, "the spot ticker should still be subscribed with %d explicit pairs", len(pairs))
+							}
+							if g.name != tc.reporter {
+								assert.NoErrorf(t, err, "the %s connection should not report a failure %q reports, with %d explicit pairs", g.name, tc.reporter, len(pairs))
+								return
+							}
+							assert.ErrorIsf(t, err, websocket.ErrSubscriptionPartial, "the %s connection should report the subscription which can't be expanded, with %d explicit pairs", g.name, len(pairs))
+							assert.ErrorContainsf(t, err, sub.Channel, "the %s connection should name the subscription which can't be expanded, with %d explicit pairs", g.name, len(pairs))
+						})
 					}
-					assert.ErrorIsf(t, err, websocket.ErrSubscriptionPartial, "the %s connection should report the subscription which can't be expanded, with %d explicit pairs", g.name, len(pairs))
-					assert.ErrorContainsf(t, err, sub.Channel, "the %s connection should name the subscription which can't be expanded, with %d explicit pairs", g.name, len(pairs))
-				}
+				})
 			}
 		})
 	}
@@ -1176,14 +1215,17 @@ func TestGenerateSubscriptionsPairListFailureReportedOnce(t *testing.T) {
 				{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel, Interval: kline.HundredMilliseconds},
 				{Enabled: true, Asset: asset.Futures, Channel: subscription.MyOrdersChannel, Authenticated: tc.authenticated},
 			}
+			// The generators share ex in order, so each also checks that a generation keeps nothing from the last
 			for _, g := range connectionGenerators(ex) {
-				_, err := g.generate()
-				if g.name != tc.reporter {
-					assert.NoErrorf(t, err, "the %s connection should not report a failure %q reports", g.name, tc.reporter)
-					continue
-				}
-				assert.ErrorIsf(t, err, websocket.ErrSubscriptionPartial, "the %s connection should report the subscription which can't be expanded", g.name)
-				assert.ErrorIsf(t, err, currency.ErrPairFormatIsNil, "the %s connection should say why the subscription can't be expanded", g.name)
+				t.Run(g.name, func(t *testing.T) {
+					_, err := g.generate()
+					if g.name != tc.reporter {
+						assert.NoErrorf(t, err, "the %s connection should not report a failure %q reports", g.name, tc.reporter)
+						return
+					}
+					assert.ErrorIsf(t, err, websocket.ErrSubscriptionPartial, "the %s connection should report the subscription which can't be expanded", g.name)
+					assert.ErrorIsf(t, err, currency.ErrPairFormatIsNil, "the %s connection should say why the subscription can't be expanded", g.name)
+				})
 			}
 		})
 	}

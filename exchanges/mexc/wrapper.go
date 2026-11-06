@@ -578,7 +578,9 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.It
 			if a == nil || a.Currency.IsEmpty() {
 				continue
 			}
-			subAccount.Balances.Set(a.Currency, futuresBalance(a.AvailableBalance, a.FrozenBalance, a.PositionMargin))
+			balance := futuresBalance(a.AvailableBalance, a.FrozenBalance, a.PositionMargin)
+			balance.Borrowed = a.DebtAmount
+			subAccount.Balances.Set(a.Currency, balance)
 		}
 		subAccounts := accounts.SubAccounts{subAccount}
 		return subAccounts, e.Accounts.Save(ctx, subAccounts, true)

@@ -1,7 +1,10 @@
 package mexc
 
 import (
+	"context"
 	"net/http"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -206,9 +209,12 @@ func TestFuturesDiscountTiersUnmarshalJSON(t *testing.T) {
 		`""`:                                 nil,
 		`null`:                               nil,
 	} {
-		var tiers FuturesDiscountTiers
-		require.NoErrorf(t, json.Unmarshal([]byte(input), &tiers), "Unmarshal must not error for %s", input)
-		assert.Equalf(t, exp, tiers, "%s should decode exactly", input)
+		t.Run(input, func(t *testing.T) {
+			t.Parallel()
+			var tiers FuturesDiscountTiers
+			require.NoErrorf(t, json.Unmarshal([]byte(input), &tiers), "Unmarshal must not error for %s", input)
+			assert.Equalf(t, exp, tiers, "%s should decode exactly", input)
+		})
 	}
 	var tiers FuturesDiscountTiers
 	assert.Error(t, json.Unmarshal([]byte(`"{"`), &tiers), "malformed bands within a string should be refused")
@@ -216,6 +222,16 @@ func TestFuturesDiscountTiersUnmarshalJSON(t *testing.T) {
 
 func TestGetFuturesFeeDeductionDetails(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		ex := liveExchange(t, liveReadOnly)
+		result, err := ex.GetFuturesFeeDeductionDetails(t.Context(), &FuturesFeeDeductionDetailsRequest{Symbol: futuresTradablePair})
+		require.NoError(t, err, "GetFuturesFeeDeductionDetails must not error")
+		for _, deal := range result {
+			assert.NotEmpty(t, deal.ID, "every deal should carry its ID")
+			assert.False(t, deal.FeeCurrency.IsEmpty(), "every deal should carry its fee currency")
+		}
+	})
 	start := time.UnixMilli(1761800000000)
 	_, err := e.GetFuturesFeeDeductionDetails(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
@@ -256,6 +272,33 @@ func TestGetFuturesFeeDeductionDetails(t *testing.T) {
 		{ID: "52060733", OrderID: "735908917455962624", FeeCurrency: currency.USDT, Fee: 0.297936756, Timestamp: types.Time(time.UnixMilli(1761124758000))},
 	}
 	assert.Equal(t, exp, result, "GetFuturesFeeDeductionDetails should decode every deal")
+
+	t.Run("20 deals sent, 21 refused", func(t *testing.T) {
+		t.Parallel()
+		deals := make([]string, 21)
+		for i := range deals {
+			deals[i] = strconv.Itoa(54236193 + i)
+		}
+		requests := make(chan struct{}, 2)
+		handler := futuresHandler(t, futuresRoute{
+			method: http.MethodGet,
+			path:   "private/order/fee_details",
+			query:  "ids=" + strings.Join(deals[:20], "%2C") + "&page_num=1&symbol=BTC_USDT",
+			data:   "[]",
+		})
+		ex := testExchangeFor(t, func(w http.ResponseWriter, r *http.Request) {
+			select {
+			case requests <- struct{}{}:
+			default:
+			}
+			handler(w, r)
+		}, liveUnavailable)
+		_, err := ex.GetFuturesFeeDeductionDetails(t.Context(), &FuturesFeeDeductionDetailsRequest{Symbol: futuresTradablePair, DealIDs: deals[:20]})
+		require.NoError(t, err, "GetFuturesFeeDeductionDetails must send the 20 deals MEXC takes in one request")
+		_, err = ex.GetFuturesFeeDeductionDetails(t.Context(), &FuturesFeeDeductionDetailsRequest{Symbol: futuresTradablePair, DealIDs: deals})
+		require.ErrorIs(t, err, errTooManyOrders, "GetFuturesFeeDeductionDetails must refuse a 21st deal before sending")
+		assert.Len(t, requests, 1, "the 20 should go in one request, and the 21 in none")
+	})
 }
 
 func TestGetFuturesDiscountType(t *testing.T) {
@@ -551,6 +594,14 @@ func TestGetFuturesFeeDetails(t *testing.T) {
 
 func TestChangeFuturesPositionMargin(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		ex := liveExchange(t, liveManipulatesOrders)
+		skipIfExamplePositionHeld(t, ex)
+		// The account holds no position of the example's ID, checked above, so there is no margin to move
+		err := ex.ChangeFuturesPositionMargin(t.Context(), &FuturesChangeMarginRequest{PositionID: futuresExamplePositionID, Amount: 1, Type: FuturesMarginAdd})
+		require.NoError(t, answeredOnMerits(err), "ChangeFuturesPositionMargin must be answered on its merits")
+	})
 	require.ErrorIs(t, e.ChangeFuturesPositionMargin(t.Context(), nil), common.ErrNilPointer)
 	require.ErrorIs(t, e.ChangeFuturesPositionMargin(t.Context(), &FuturesChangeMarginRequest{Amount: 1, Type: FuturesMarginAdd}), errPositionIDRequired)
 	require.ErrorIs(t, e.ChangeFuturesPositionMargin(t.Context(), &FuturesChangeMarginRequest{PositionID: 1, Type: FuturesMarginAdd}), limits.ErrAmountBelowMin)
@@ -567,6 +618,13 @@ func TestChangeFuturesPositionMargin(t *testing.T) {
 
 func TestSetFuturesAutoAddMargin(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		ex := liveExchange(t, liveManipulatesOrders)
+		skipIfExamplePositionHeld(t, ex)
+		// The account holds no position of the example's ID, checked above, so there is no setting to change
+		require.NoError(t, answeredOnMerits(ex.SetFuturesAutoAddMargin(t.Context(), futuresExamplePositionID, true)), "SetFuturesAutoAddMargin must be answered on its merits")
+	})
 	require.ErrorIs(t, e.SetFuturesAutoAddMargin(t.Context(), 0, true), errPositionIDRequired)
 
 	ex := testExchangeFor(t, futuresHandler(t, futuresRoute{
@@ -624,6 +682,14 @@ func TestGetFuturesLeverage(t *testing.T) {
 
 func TestChangeFuturesLeverage(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		ex := liveExchange(t, liveManipulatesOrders)
+		skipIfExamplePositionHeld(t, ex)
+		// The account holds no position of the example's ID, checked above, so there is no leverage to change
+		err := ex.ChangeFuturesLeverage(t.Context(), &FuturesChangeLeverageRequest{PositionID: futuresExamplePositionID, Leverage: 20})
+		require.NoError(t, answeredOnMerits(err), "ChangeFuturesLeverage must be answered on its merits")
+	})
 	require.ErrorIs(t, e.ChangeFuturesLeverage(t.Context(), nil), common.ErrNilPointer)
 	require.ErrorIs(t, e.ChangeFuturesLeverage(t.Context(), &FuturesChangeLeverageRequest{PositionID: 1}), errInvalidLeverage)
 	require.ErrorIs(t, e.ChangeFuturesLeverage(t.Context(), &FuturesChangeLeverageRequest{Leverage: 2, OpenType: FuturesOpenTypeIsolated, PositionType: FuturesPositionTypeLong}), currency.ErrSymbolStringEmpty)
@@ -669,6 +735,14 @@ func TestGetFuturesPositionMode(t *testing.T) {
 
 func TestChangeFuturesPositionMode(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		ex := liveExchange(t, liveManipulatesOrders)
+		mode, err := ex.GetFuturesPositionMode(t.Context())
+		require.NoError(t, err, "GetFuturesPositionMode must not error")
+		// The mode just read, so the setting is left as it was
+		require.NoError(t, answeredOnMerits(ex.ChangeFuturesPositionMode(t.Context(), mode)), "ChangeFuturesPositionMode must be answered on its merits")
+	})
 	require.ErrorIs(t, e.ChangeFuturesPositionMode(t.Context(), 0), errInvalidPositionMode)
 
 	ex := testExchangeFor(t, futuresHandler(t, futuresRoute{
@@ -681,6 +755,12 @@ func TestChangeFuturesPositionMode(t *testing.T) {
 
 func TestChangeFuturesMultiAssetMode(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		ex := liveExchange(t, liveManipulatesOrders)
+		// There is no read of this mode to restore it from, so this switches multi-asset margin off
+		require.NoError(t, answeredOnMerits(ex.ChangeFuturesMultiAssetMode(t.Context(), false)), "ChangeFuturesMultiAssetMode must be answered on its merits")
+	})
 	replay := futuresHandler(t, futuresRoute{method: http.MethodPost, path: "private/multiAssets/changeMultiAssetMode/true"})
 	ex := testExchangeFor(t, func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "application/x-www-form-urlencoded", r.Header.Get("Content-Type"), "ChangeFuturesMultiAssetMode should send a form request, as the venue documents")
@@ -691,6 +771,16 @@ func TestChangeFuturesMultiAssetMode(t *testing.T) {
 
 func TestGetFuturesSelfTradePreventionGroups(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		ex := liveExchange(t, liveReadOnly)
+		skipUnlessMarketMaker(t)
+		result, err := ex.GetFuturesSelfTradePreventionGroups(t.Context(), "")
+		require.NoError(t, answeredOnMerits(err), "GetFuturesSelfTradePreventionGroups must be answered on its merits")
+		for _, group := range result {
+			assert.NotEmpty(t, group.GroupName, "every group should carry its name")
+		}
+	})
 	ex := testExchangeFor(t, futuresHandler(t, futuresRoute{
 		method: http.MethodGet,
 		path:   "private/market_maker/self_trade/blacklist",
@@ -710,6 +800,16 @@ func TestGetFuturesSelfTradePreventionGroups(t *testing.T) {
 
 func TestGetFuturesSelfTradePreventionGroup(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		ex := liveExchange(t, liveReadOnly)
+		skipUnlessMarketMaker(t)
+		result, err := ex.GetFuturesSelfTradePreventionGroup(t.Context())
+		require.NoError(t, answeredOnMerits(err), "GetFuturesSelfTradePreventionGroup must be answered on its merits")
+		if err == nil && result != nil {
+			assert.NotEmpty(t, result.GroupName, "the account's group should carry its name")
+		}
+	})
 	ex := testExchangeFor(t, futuresHandler(t, futuresRoute{
 		method: http.MethodGet,
 		path:   "private/market_maker/self_trade/blacklist/search",
@@ -724,6 +824,22 @@ func TestGetFuturesSelfTradePreventionGroup(t *testing.T) {
 
 func TestCreateFuturesSelfTradePreventionGroup(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		ex := liveExchange(t, liveManipulatesOrders)
+		skipUnlessMarketMaker(t)
+		ctx := context.WithoutCancel(t.Context())
+		name := "gct" + strconv.FormatInt(time.Now().UnixMilli(), 36)
+		id, err := ex.CreateFuturesSelfTradePreventionGroup(t.Context(), &FuturesSelfTradePreventionGroupRequest{ConfigName: name, Blacklist: []uint64{45359845, 72009483}})
+		require.NoError(t, answeredOnMerits(err), "CreateFuturesSelfTradePreventionGroup must be answered on its merits")
+		if err != nil {
+			return
+		}
+		t.Cleanup(func() {
+			assert.NoError(t, answeredOnMerits(ex.DeleteFuturesSelfTradePreventionGroup(ctx, name)), "DeleteFuturesSelfTradePreventionGroup should be answered on its merits")
+		})
+		assert.Positive(t, id, "the created group's ID should be positive")
+	})
 	_, err := e.CreateFuturesSelfTradePreventionGroup(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
 	_, err = e.CreateFuturesSelfTradePreventionGroup(t.Context(), &FuturesSelfTradePreventionGroupRequest{Blacklist: []uint64{1, 2}})
@@ -746,6 +862,14 @@ func TestCreateFuturesSelfTradePreventionGroup(t *testing.T) {
 
 func TestUpdateFuturesSelfTradePreventionGroup(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		ex := liveExchange(t, liveManipulatesOrders)
+		skipUnlessMarketMaker(t)
+		// The account holds no group of the made-up name, checked as it is made, so there is none to change
+		err := ex.UpdateFuturesSelfTradePreventionGroup(t.Context(), &FuturesSelfTradePreventionGroupRequest{ConfigName: absentGroupName(t, ex), Blacklist: []uint64{45359845}})
+		require.NoError(t, answeredOnMerits(err), "UpdateFuturesSelfTradePreventionGroup must be answered on its merits")
+	})
 	require.ErrorIs(t, e.UpdateFuturesSelfTradePreventionGroup(t.Context(), &FuturesSelfTradePreventionGroupRequest{ConfigName: "stp"}), errUIDRequired)
 
 	ex := testExchangeFor(t, futuresHandler(t, futuresRoute{
@@ -759,6 +883,13 @@ func TestUpdateFuturesSelfTradePreventionGroup(t *testing.T) {
 
 func TestDeleteFuturesSelfTradePreventionGroup(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		ex := liveExchange(t, liveManipulatesOrders)
+		skipUnlessMarketMaker(t)
+		// The account holds no group of the made-up name, checked as it is made, so there is none to delete
+		require.NoError(t, answeredOnMerits(ex.DeleteFuturesSelfTradePreventionGroup(t.Context(), absentGroupName(t, ex))), "DeleteFuturesSelfTradePreventionGroup must be answered on its merits")
+	})
 	require.ErrorIs(t, e.DeleteFuturesSelfTradePreventionGroup(t.Context(), ""), errSelfTradePreventionGroupNameRequired)
 
 	ex := testExchangeFor(t, futuresHandler(t, futuresRoute{

@@ -211,9 +211,12 @@ func TestFuturesRateLimitsMatchDocumentation(t *testing.T) {
 		{"take-profit and stop-loss placement at 5 per 2 seconds", futuresPlaceTakeProfitStopLossEPL, 2.5},
 		{"cancellations at 20 per 2 seconds", futuresCancelOrdersEPL, 10},
 	} {
-		limiter, ok := rateLimits[tc.epl]
-		require.Truef(t, ok, "%s must have a rate limiter", tc.name)
-		assert.Equalf(t, tc.rate, limiter.Limit(), "%s should be limited to %v requests per second", tc.name, tc.rate)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			limiter, ok := rateLimits[tc.epl]
+			require.Truef(t, ok, "%s must have a rate limiter", tc.name)
+			assert.Equalf(t, tc.rate, limiter.Limit(), "%s should be limited to %v requests per second", tc.name, tc.rate)
+		})
 	}
 	assert.False(t, rateLimits[futuresPlaceOrderEPL].SharesBudgetWith(rateLimits[futuresBatchPlaceOrdersEPL]), "each futures endpoint should be limited on its own")
 	assert.False(t, rateLimits[futuresServerTimeEPL].SharesBudgetWith(rateLimits[systemTimeEPL]), "the futures API should be limited apart from the spot IP pool")

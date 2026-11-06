@@ -1,7 +1,10 @@
 package mexc
 
 import (
+	"cmp"
+	"context"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -49,9 +52,12 @@ func TestValidateFuturesOrder(t *testing.T) {
 		"unknown mode":         {func(o *FuturesOrderRequest) { o.PositionMode = 3 }, errInvalidPositionMode},
 		"unknown STP mode":     {func(o *FuturesOrderRequest) { o.SelfTradePreventionMode = 4 }, errInvalidSelfTradePrevention},
 	} {
-		o := valid()
-		tc.change(o)
-		assert.ErrorIsf(t, validateFuturesOrder(o), tc.err, "an order with %s should be refused", name)
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			o := valid()
+			tc.change(o)
+			assert.ErrorIsf(t, validateFuturesOrder(o), tc.err, "an order with %s should be refused", name)
+		})
 	}
 	for name, change := range map[string]func(*FuturesOrderRequest){
 		"unpriced market":         func(o *FuturesOrderRequest) { o.Type, o.Price = FuturesOrderTypeMarket, 0 },
@@ -65,9 +71,12 @@ func TestValidateFuturesOrder(t *testing.T) {
 		"buy side type":           func(o *FuturesOrderRequest) { o.SideType = FuturesSideTypeBuy },
 		"sell side type":          func(o *FuturesOrderRequest) { o.SideType = FuturesSideTypeSell },
 	} {
-		o := valid()
-		change(o)
-		assert.NoErrorf(t, validateFuturesOrder(o), "an order with %s should be valid", name)
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			o := valid()
+			change(o)
+			assert.NoErrorf(t, validateFuturesOrder(o), "an order with %s should be valid", name)
+		})
 	}
 }
 
@@ -76,8 +85,11 @@ func TestParseFuturesOrderID(t *testing.T) {
 	_, err := parseFuturesOrderID("")
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 	for _, id := range []string{"0", "-1", "1.5", "abc", "18446744073709551616"} {
-		_, err = parseFuturesOrderID(id)
-		assert.ErrorIsf(t, err, errInvalidFuturesID, "%q should be refused", id)
+		t.Run(id, func(t *testing.T) {
+			t.Parallel()
+			_, err := parseFuturesOrderID(id)
+			assert.ErrorIsf(t, err, errInvalidFuturesID, "%q should be refused", id)
+		})
 	}
 	id, err := parseFuturesOrderID("18446744073709551615")
 	require.NoError(t, err, "parseFuturesOrderID must not error for the largest ID")
@@ -92,11 +104,44 @@ func TestJoinFuturesStates(t *testing.T) {
 
 func TestPlaceFuturesOrder(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		ex := liveExchange(t, liveManipulatesOrders)
+		openType, leverage := liveLongLeverage(t, ex)
+		ctx := context.WithoutCancel(t.Context())
+		// A post-only buy far below the market cannot take an offer, so it rests or is refused
+		result, err := ex.PlaceFuturesOrder(t.Context(), &FuturesOrderRequest{
+			Symbol:   futuresTradablePair.String(),
+			Price:    liveRestingBuyPrice,
+			Volume:   1,
+			Leverage: leverage,
+			Side:     FuturesSideOpenLong,
+			SideType: FuturesSideTypeBuy,
+			Type:     FuturesOrderTypePostOnly,
+			OpenType: openType,
+		})
+		require.NoError(t, answeredOnMerits(err), "PlaceFuturesOrder must be answered on its merits")
+		if err != nil {
+			return
+		}
+		require.NotNil(t, result, "PlaceFuturesOrder must return the placed order")
+		id, err := parseFuturesOrderID(result.OrderID.String())
+		require.NoError(t, err, "the placed order must have a valid ID")
+		t.Cleanup(func() {
+			_, err := ex.CancelFuturesOrders(ctx, []uint64{id})
+			assert.NoError(t, answeredOnMerits(err), "CancelFuturesOrders should be answered on its merits")
+			assertLiveOrdersGone(ctx, t, ex, id)
+		})
+	})
+
 	_, err := e.PlaceFuturesOrder(t.Context(), &FuturesOrderRequest{})
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+	// The cases run in order before the placement below, which calls PlaceFuturesOrder as well
 	for _, side := range []uint8{FuturesSideOpenLong, FuturesSideCloseShort, FuturesSideOpenShort, FuturesSideCloseLong} {
-		_, err = e.PlaceFuturesOrder(t.Context(), &FuturesOrderRequest{Symbol: "BTC_USDT", Volume: 1, Side: side, Type: FuturesOrderTypeMarket, OpenType: FuturesOpenTypeCross})
-		require.ErrorIsf(t, err, errInvalidSideType, "an order of side %d without a side type must be refused before it is sent", side)
+		t.Run("side "+strconv.FormatUint(uint64(side), 10), func(t *testing.T) {
+			_, err = e.PlaceFuturesOrder(t.Context(), &FuturesOrderRequest{Symbol: "BTC_USDT", Volume: 1, Side: side, Type: FuturesOrderTypeMarket, OpenType: FuturesOpenTypeCross})
+			require.ErrorIsf(t, err, errInvalidSideType, "an order of side %d without a side type must be refused before it is sent", side)
+		})
 	}
 
 	ex := testExchangeFor(t, futuresHandler(t, futuresRoute{
@@ -124,6 +169,41 @@ func TestPlaceFuturesOrder(t *testing.T) {
 
 func TestPlaceFuturesBatchOrders(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		ex := liveExchange(t, liveManipulatesOrders)
+		skipUnlessMarketMaker(t)
+		openType, leverage := liveLongLeverage(t, ex)
+		ctx := context.WithoutCancel(t.Context())
+		// Post-only buys far below the market cannot take an offer, so they rest or are refused
+		result, err := ex.PlaceFuturesBatchOrders(t.Context(), []FuturesOrderRequest{
+			{Symbol: futuresTradablePair.String(), Price: liveRestingBuyPrice, Volume: 1, Leverage: leverage, Side: FuturesSideOpenLong, Type: FuturesOrderTypePostOnly, OpenType: openType},
+			{Symbol: futuresTradablePair.String(), Price: liveRestingBuyPrice, Volume: 2, Leverage: leverage, Side: FuturesSideOpenLong, Type: FuturesOrderTypePostOnly, OpenType: openType},
+		})
+		require.NoError(t, answeredOnMerits(err), "PlaceFuturesBatchOrders must be answered on its merits")
+		if err != nil {
+			return
+		}
+		placed := make([]uint64, 0, len(result))
+		for _, o := range result {
+			if !assert.NotNil(t, o, "each order's outcome should be decoded") {
+				continue
+			}
+			assert.Truef(t, outcomeOnMerits(o.ErrorCode), "each order should be placed or refused on its merits, not refused with %d: %s", o.ErrorCode, o.ErrorMessage)
+			if id, err := parseFuturesOrderID(o.OrderID.String()); err == nil {
+				placed = append(placed, id)
+			}
+		}
+		if len(placed) > 0 {
+			t.Cleanup(func() {
+				_, err := ex.CancelFuturesOrders(ctx, placed)
+				assert.NoError(t, answeredOnMerits(err), "CancelFuturesOrders should be answered on its merits")
+				assertLiveOrdersGone(ctx, t, ex, placed...)
+			})
+		}
+		assert.Len(t, result, 2, "each order sent should have an outcome")
+	})
+
 	_, err := e.PlaceFuturesBatchOrders(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrEmptyParams)
 	_, err = e.PlaceFuturesBatchOrders(t.Context(), make([]FuturesOrderRequest, futuresBatchLimit+1))
@@ -151,10 +231,49 @@ func TestPlaceFuturesBatchOrders(t *testing.T) {
 		{ErrorCode: 2009, ErrorMessage: "insufficient balance"},
 	}
 	assert.Equal(t, exp, result, "every order's outcome should be decoded")
+
+	t.Run("50 orders sent, 51 refused", func(t *testing.T) {
+		t.Parallel()
+		orders := make([]FuturesOrderRequest, 51)
+		sent := make([]string, 50)
+		for i := range orders {
+			orders[i] = FuturesOrderRequest{Symbol: "BTC_USDT", Price: 50000, Volume: float64(i + 1), Side: FuturesSideOpenLong, Type: FuturesOrderTypeLimit, OpenType: FuturesOpenTypeCross}
+		}
+		for i := range sent {
+			sent[i] = `{"symbol":"BTC_USDT","price":50000,"vol":` + strconv.Itoa(i+1) + `,"side":1,"type":1,"openType":2,"stpMode":0}`
+		}
+		requests := make(chan struct{}, 2)
+		handler := futuresHandler(t, futuresRoute{
+			method: http.MethodPost,
+			path:   "private/order/submit_batch",
+			body:   "[" + strings.Join(sent, ",") + "]",
+			data:   "[]",
+		})
+		ex := testExchangeFor(t, func(w http.ResponseWriter, r *http.Request) {
+			select {
+			case requests <- struct{}{}:
+			default:
+			}
+			handler(w, r)
+		}, liveUnavailable)
+		_, err := ex.PlaceFuturesBatchOrders(t.Context(), orders[:50])
+		require.NoError(t, err, "PlaceFuturesBatchOrders must send the 50 orders MEXC takes in one request")
+		_, err = ex.PlaceFuturesBatchOrders(t.Context(), orders)
+		require.ErrorIs(t, err, errTooManyOrders, "PlaceFuturesBatchOrders must refuse a 51st order before sending")
+		assert.Len(t, requests, 1, "the 50 should go in one request, and the 51 in none")
+	})
 }
 
 func TestChaseFuturesOrder(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		ex := liveExchange(t, liveManipulatesOrders)
+		skipIfOrderOpen(t, ex, 739204819784386560)
+		// The account holds the example's order finished or not at all, checked above, so there is nothing to reprice
+		require.NoError(t, answeredOnMerits(ex.ChaseFuturesOrder(t.Context(), 739204819784386560)), "ChaseFuturesOrder must be answered on its merits")
+	})
+
 	require.ErrorIs(t, e.ChaseFuturesOrder(t.Context(), 0), order.ErrOrderIDNotSet)
 
 	ex := testExchangeFor(t, futuresHandler(t, futuresRoute{
@@ -167,6 +286,18 @@ func TestChaseFuturesOrder(t *testing.T) {
 
 func TestModifyFuturesOrder(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		ex := liveExchange(t, liveManipulatesOrders)
+		skipIfOrderOpen(t, ex, 739204819784386560)
+		// The account holds the example's order finished or not at all, checked above, so there is nothing to change
+		result, err := ex.ModifyFuturesOrder(t.Context(), &FuturesModifyOrderRequest{OrderID: 739204819784386560, Price: 51000, Volume: 2})
+		require.NoError(t, answeredOnMerits(err), "ModifyFuturesOrder must be answered on its merits")
+		if err == nil && result != "" {
+			assert.Equal(t, FuturesID("739204819784386560"), result, "the order changed should be the one named")
+		}
+	})
+
 	_, err := e.ModifyFuturesOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
 	_, err = e.ModifyFuturesOrder(t.Context(), &FuturesModifyOrderRequest{Price: 1, Volume: 1})
@@ -189,6 +320,19 @@ func TestModifyFuturesOrder(t *testing.T) {
 
 func TestCancelFuturesOrders(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		ex := liveExchange(t, liveManipulatesOrders)
+		sent := []FuturesID{"101716841474621953", "108886241042563584"}
+		result, err := ex.CancelFuturesOrders(t.Context(), []uint64{101716841474621953, 108886241042563584})
+		require.NoError(t, answeredOnMerits(err), "CancelFuturesOrders must be answered on its merits")
+		for _, o := range result {
+			require.NotNil(t, o, "each outcome must be decoded")
+			assert.Contains(t, sent, o.OrderID, "each outcome should name an order sent")
+			assert.Truef(t, outcomeOnMerits(o.ErrorCode), "order %s should be cancelled or refused on its merits, not refused with %d: %s", o.OrderID, o.ErrorCode, o.ErrorMessage)
+		}
+	})
+
 	_, err := e.CancelFuturesOrders(t.Context(), nil)
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 	_, err = e.CancelFuturesOrders(t.Context(), make([]uint64, futuresBatchLimit+1))
@@ -223,6 +367,21 @@ func TestValidateExternalOrders(t *testing.T) {
 
 func TestCancelFuturesOrdersByExternalID(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		ex := liveExchange(t, liveManipulatesOrders)
+		result, err := ex.CancelFuturesOrdersByExternalID(t.Context(), []FuturesExternalOrderRequest{{Symbol: futuresTradablePair.String(), ExternalOrderID: "ext_11"}})
+		require.NoError(t, answeredOnMerits(err), "CancelFuturesOrdersByExternalID must be answered on its merits")
+		for _, o := range result {
+			require.NotNil(t, o, "each outcome must be decoded")
+			// The venue documents outcomes naming orders by their order IDs alone
+			if o.ExternalOrderID != "" {
+				assert.Equal(t, "ext_11", o.ExternalOrderID, "each outcome should name an order sent")
+			}
+			assert.Truef(t, outcomeOnMerits(o.ErrorCode), "order %s should be cancelled or refused on its merits, not refused with %d: %s", o.OrderID, o.ErrorCode, o.ErrorMessage)
+		}
+	})
+
 	_, err := e.CancelFuturesOrdersByExternalID(t.Context(), nil)
 	require.ErrorIs(t, err, errExternalOrderIDRequired)
 
@@ -236,42 +395,109 @@ func TestCancelFuturesOrdersByExternalID(t *testing.T) {
 	require.NoError(t, err, "CancelFuturesOrdersByExternalID must not error")
 	assert.Equal(t, []*FuturesCancelOrderResponse{{OrderID: "108886241042563584", ExternalOrderID: "ext_11", ErrorMessage: "success"}}, result,
 		"the order's outcome should be decoded")
+
+	t.Run("50 external IDs cancelled, 51 refused", func(t *testing.T) {
+		t.Parallel()
+		orders := make([]FuturesExternalOrderRequest, 51)
+		sent := make([]string, 50)
+		for i := range orders {
+			orders[i] = FuturesExternalOrderRequest{Symbol: "BTC_USDT", ExternalOrderID: "ext_" + strconv.Itoa(i+1)}
+		}
+		for i := range sent {
+			sent[i] = `{"symbol":"BTC_USDT","externalOid":"ext_` + strconv.Itoa(i+1) + `"}`
+		}
+		requests := make(chan struct{}, 2)
+		handler := futuresHandler(t, futuresRoute{
+			method: http.MethodPost,
+			path:   "private/order/batch_cancel_with_external",
+			body:   "[" + strings.Join(sent, ",") + "]",
+			data:   "[]",
+		})
+		ex := testExchangeFor(t, func(w http.ResponseWriter, r *http.Request) {
+			select {
+			case requests <- struct{}{}:
+			default:
+			}
+			handler(w, r)
+		}, liveUnavailable)
+		_, err := ex.CancelFuturesOrdersByExternalID(t.Context(), orders[:50])
+		require.NoError(t, err, "CancelFuturesOrdersByExternalID must send 50 orders in one request")
+		_, err = ex.CancelFuturesOrdersByExternalID(t.Context(), orders)
+		require.ErrorIs(t, err, errTooManyOrders, "CancelFuturesOrdersByExternalID must refuse a 51st order before sending")
+		assert.Len(t, requests, 1, "the 50 should go in one request, and the 51 in none")
+	})
 }
 
 func TestCancelFuturesOrderByExternalID(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		ex := liveExchange(t, liveManipulatesOrders)
+		result, err := ex.CancelFuturesOrderByExternalID(t.Context(), futuresTradablePair, "gct-1")
+		require.NoError(t, answeredOnMerits(err), "CancelFuturesOrderByExternalID must be answered on its merits")
+		for _, o := range result {
+			require.NotNil(t, o, "each outcome must be decoded")
+			// The venue documents outcomes naming orders by their order IDs alone
+			if o.ExternalOrderID != "" {
+				assert.Equal(t, "gct-1", o.ExternalOrderID, "each outcome should name the order sent")
+			}
+			assert.Truef(t, outcomeOnMerits(o.ErrorCode), "order %s should be cancelled or refused on its merits, not refused with %d: %s", o.OrderID, o.ErrorCode, o.ErrorMessage)
+		}
+	})
+
 	_, err := e.CancelFuturesOrderByExternalID(t.Context(), currency.EMPTYPAIR, "gct-1")
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 	_, err = e.CancelFuturesOrderByExternalID(t.Context(), futuresTradablePair, "")
 	require.ErrorIs(t, err, errExternalOrderIDRequired)
 
 	// The venue documents a list reply to a request naming one order, so an object is read as well
-	for _, data := range []string{
-		`[{"orderId":108886241042563584,"errorCode":0,"errorMsg":"success"}]`,
-		`{"orderId":108886241042563584,"errorCode":0,"errorMsg":"success"}`,
+	for name, data := range map[string]string{
+		"list reply":   `[{"orderId":108886241042563584,"errorCode":0,"errorMsg":"success"}]`,
+		"object reply": `{"orderId":108886241042563584,"errorCode":0,"errorMsg":"success"}`,
 	} {
-		ex := testExchangeFor(t, futuresHandler(t, futuresRoute{
-			method: http.MethodPost,
-			path:   "private/order/cancel_with_external",
-			body:   `{"symbol":"BTC_USDT","externalOid":"gct-1"}`,
-			data:   data,
-		}), liveUnavailable)
-		result, err := ex.CancelFuturesOrderByExternalID(t.Context(), futuresTradablePair, "gct-1")
-		require.NoErrorf(t, err, "CancelFuturesOrderByExternalID must not error for %s", data)
-		assert.Equalf(t, []*FuturesCancelOrderResponse{{OrderID: "108886241042563584", ErrorMessage: "success"}}, result, "the outcome should be decoded from %s", data)
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			ex := testExchangeFor(t, futuresHandler(t, futuresRoute{
+				method: http.MethodPost,
+				path:   "private/order/cancel_with_external",
+				body:   `{"symbol":"BTC_USDT","externalOid":"gct-1"}`,
+				data:   data,
+			}), liveUnavailable)
+			result, err := ex.CancelFuturesOrderByExternalID(t.Context(), futuresTradablePair, "gct-1")
+			require.NoErrorf(t, err, "CancelFuturesOrderByExternalID must not error for %s", data)
+			assert.Equalf(t, []*FuturesCancelOrderResponse{{OrderID: "108886241042563584", ErrorMessage: "success"}}, result, "the outcome should be decoded from %s", data)
+		})
 	}
 }
 
 func TestCancelAllFuturesOrders(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		ex := liveExchange(t, liveManipulatesOrders)
+		require.NoError(t, answeredOnMerits(ex.CancelAllFuturesOrders(t.Context(), futuresTradablePair)), "CancelAllFuturesOrders must be answered on its merits")
+	})
+
 	for pair, body := range map[currency.Pair]string{futuresTradablePair: `{"symbol":"BTC_USDT"}`, currency.EMPTYPAIR: `{"symbol":""}`} {
-		ex := testExchangeFor(t, futuresHandler(t, futuresRoute{method: http.MethodPost, path: "private/order/cancel_all", body: body}), liveUnavailable)
-		require.NoErrorf(t, ex.CancelAllFuturesOrders(t.Context(), pair), "CancelAllFuturesOrders must not error for %q", pair)
+		t.Run(cmp.Or(pair.String(), "empty pair"), func(t *testing.T) {
+			t.Parallel()
+			ex := testExchangeFor(t, futuresHandler(t, futuresRoute{method: http.MethodPost, path: "private/order/cancel_all", body: body}), liveUnavailable)
+			require.NoErrorf(t, ex.CancelAllFuturesOrders(t.Context(), pair), "CancelAllFuturesOrders must not error for %q", pair)
+		})
 	}
 }
 
 func TestReverseFuturesPosition(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		ex := liveExchange(t, liveManipulatesOrders)
+		skipIfExamplePositionHeld(t, ex)
+		// The account holds no position of the example's ID, checked above, so there is none to reverse
+		err := ex.ReverseFuturesPosition(t.Context(), &FuturesReversePositionRequest{Symbol: futuresTradablePair.String(), PositionID: futuresExamplePositionID, Volume: 5})
+		require.NoError(t, answeredOnMerits(err), "ReverseFuturesPosition must be answered on its merits")
+	})
+
 	require.ErrorIs(t, e.ReverseFuturesPosition(t.Context(), nil), common.ErrNilPointer)
 	require.ErrorIs(t, e.ReverseFuturesPosition(t.Context(), &FuturesReversePositionRequest{PositionID: 1, Volume: 1}), currency.ErrSymbolStringEmpty)
 	require.ErrorIs(t, e.ReverseFuturesPosition(t.Context(), &FuturesReversePositionRequest{Symbol: "BTC_USDT", Volume: 1}), errPositionIDRequired)
@@ -287,6 +513,17 @@ func TestReverseFuturesPosition(t *testing.T) {
 
 func TestCloseAllFuturesPositions(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		ex := liveExchange(t, liveManipulatesOrders)
+		positions, err := ex.GetFuturesOpenPositions(t.Context(), currency.EMPTYPAIR, "")
+		require.NoError(t, err, "GetFuturesOpenPositions must not error")
+		if len(positions) > 0 {
+			t.Skip("the account holds open positions, which this would close")
+		}
+		require.NoError(t, answeredOnMerits(ex.CloseAllFuturesPositions(t.Context())), "CloseAllFuturesPositions must be answered on its merits")
+	})
+
 	ex := testExchangeFor(t, futuresHandler(t, futuresRoute{method: http.MethodPost, path: "private/position/close_all", body: `{}`, data: `[]`}), liveUnavailable)
 	require.NoError(t, ex.CloseAllFuturesPositions(t.Context()), "CloseAllFuturesPositions must not error")
 }
@@ -308,6 +545,17 @@ func TestGetFuturesOpenOrderCounts(t *testing.T) {
 
 func TestGetFuturesOrderByExternalID(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		ex := liveExchange(t, liveReadOnly)
+		result, err := ex.GetFuturesOrderByExternalID(t.Context(), futuresTradablePair, "gct-1")
+		require.NoError(t, answeredOnMerits(err), "GetFuturesOrderByExternalID must be answered on its merits")
+		if err == nil && result != nil {
+			assert.Equal(t, "gct-1", result.ExternalOrderID, "the order returned should be the one asked for")
+			assert.Equal(t, futuresTradablePair.String(), result.Symbol, "the order returned should be of the contract asked for")
+		}
+	})
+
 	_, err := e.GetFuturesOrderByExternalID(t.Context(), currency.EMPTYPAIR, "gct-1")
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 	_, err = e.GetFuturesOrderByExternalID(t.Context(), futuresTradablePair, "")
@@ -325,6 +573,31 @@ func TestGetFuturesOrderByExternalID(t *testing.T) {
 
 func TestGetFuturesOrder(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		ex := liveExchange(t, liveReadOnly)
+		result, err := ex.GetFuturesOrder(t.Context(), "739106551624717312")
+		require.NoError(t, answeredOnMerits(err), "GetFuturesOrder must be answered on its merits")
+		if err == nil && result != nil {
+			assert.Equal(t, FuturesID("739106551624717312"), result.OrderID, "the order returned should be the one asked for")
+		}
+	})
+
+	t.Run("order ID above float precision", func(t *testing.T) {
+		t.Parallel()
+		// Order IDs pass 2^53, where a float64 would round 739106551624717313 to 739106551624717312
+		ex := testExchangeFor(t, futuresHandler(t, futuresRoute{
+			method: http.MethodGet,
+			path:   "private/order/get/739106551624717313",
+			data:   strings.Replace(futuresFilledOrderReply, `"orderId":"739106551624717312"`, `"orderId":739106551624717313`, 1),
+		}), liveUnavailable)
+		result, err := ex.GetFuturesOrder(t.Context(), strconv.FormatUint(739106551624717313, 10))
+		require.NoError(t, err, "GetFuturesOrder must not error")
+		exp := futuresFilledOrder()
+		exp.OrderID = "739106551624717313"
+		assert.Equal(t, exp, result, "an order ID sent as a number should keep every digit")
+	})
+
 	_, err := e.GetFuturesOrder(t.Context(), "x")
 	require.ErrorIs(t, err, errInvalidFuturesID)
 
@@ -352,6 +625,17 @@ func TestGetFuturesOrder(t *testing.T) {
 
 func TestGetFuturesOrdersByID(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		ex := liveExchange(t, liveReadOnly)
+		result, err := ex.GetFuturesOrdersByID(t.Context(), []string{"743829153601634818", "739106551624717312"})
+		require.NoError(t, answeredOnMerits(err), "GetFuturesOrdersByID must be answered on its merits")
+		for _, o := range result {
+			require.NotNil(t, o, "each order returned must be decoded")
+			assert.Contains(t, []FuturesID{"743829153601634818", "739106551624717312"}, o.OrderID, "each order returned should be one asked for")
+		}
+	})
+
 	_, err := e.GetFuturesOrdersByID(t.Context(), nil)
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 	_, err = e.GetFuturesOrdersByID(t.Context(), make([]string, futuresBatchLimit+1))
@@ -368,10 +652,49 @@ func TestGetFuturesOrdersByID(t *testing.T) {
 	result, err := ex.GetFuturesOrdersByID(t.Context(), []string{"743829153601634818", "739106551624717312"})
 	require.NoError(t, err, "GetFuturesOrdersByID must not error")
 	assert.Equal(t, []*FuturesOrderResponse{futuresFilledOrder()}, result, "the orders found should be decoded")
+
+	t.Run("50 IDs queried, 51 refused", func(t *testing.T) {
+		t.Parallel()
+		ids := make([]string, 51)
+		for i := range ids {
+			ids[i] = strconv.FormatUint(739106551624717312+uint64(i), 10)
+		}
+		requests := make(chan struct{}, 2)
+		handler := futuresHandler(t, futuresRoute{
+			method: http.MethodGet,
+			path:   "private/order/batch_query",
+			query:  "order_ids=" + strings.Join(ids[:50], "%2C"),
+			data:   "[]",
+		})
+		ex := testExchangeFor(t, func(w http.ResponseWriter, r *http.Request) {
+			select {
+			case requests <- struct{}{}:
+			default:
+			}
+			handler(w, r)
+		}, liveUnavailable)
+		_, err := ex.GetFuturesOrdersByID(t.Context(), ids[:50])
+		require.NoError(t, err, "GetFuturesOrdersByID must query the 50 orders MEXC takes in one request")
+		_, err = ex.GetFuturesOrdersByID(t.Context(), ids)
+		require.ErrorIs(t, err, errTooManyOrders, "GetFuturesOrdersByID must refuse a 51st order before sending")
+		assert.Len(t, requests, 1, "the 50 should go in one request, and the 51 in none")
+	})
 }
 
 func TestGetFuturesOrdersByExternalID(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		ex := liveExchange(t, liveReadOnly)
+		result, err := ex.GetFuturesOrdersByExternalID(t.Context(), []FuturesExternalOrderRequest{{Symbol: futuresTradablePair.String(), ExternalOrderID: "gct-1"}})
+		require.NoError(t, answeredOnMerits(err), "GetFuturesOrdersByExternalID must be answered on its merits")
+		for _, o := range result {
+			require.NotNil(t, o, "each order returned must be decoded")
+			assert.Equal(t, "gct-1", o.ExternalOrderID, "each order returned should be the one asked for")
+			assert.Equal(t, futuresTradablePair.String(), o.Symbol, "each order returned should be of the contract asked for")
+		}
+	})
+
 	_, err := e.GetFuturesOrdersByExternalID(t.Context(), []FuturesExternalOrderRequest{{Symbol: "BTC_USDT"}})
 	require.ErrorIs(t, err, errExternalOrderIDRequired)
 
@@ -384,6 +707,37 @@ func TestGetFuturesOrdersByExternalID(t *testing.T) {
 	result, err := ex.GetFuturesOrdersByExternalID(t.Context(), []FuturesExternalOrderRequest{{Symbol: "BTC_USDT", ExternalOrderID: "gct-1"}})
 	require.NoError(t, err, "GetFuturesOrdersByExternalID must not error")
 	assert.Equal(t, []*FuturesOrderResponse{futuresFilledOrder()}, result, "the order named should be decoded")
+
+	t.Run("50 external IDs queried, 51 refused", func(t *testing.T) {
+		t.Parallel()
+		orders := make([]FuturesExternalOrderRequest, 51)
+		sent := make([]string, 50)
+		for i := range orders {
+			orders[i] = FuturesExternalOrderRequest{Symbol: "BTC_USDT", ExternalOrderID: "ext_" + strconv.Itoa(i+1)}
+		}
+		for i := range sent {
+			sent[i] = `{"symbol":"BTC_USDT","externalOid":"ext_` + strconv.Itoa(i+1) + `"}`
+		}
+		requests := make(chan struct{}, 2)
+		handler := futuresHandler(t, futuresRoute{
+			method: http.MethodPost,
+			path:   "private/order/batch_query_with_external",
+			body:   "[" + strings.Join(sent, ",") + "]",
+			data:   "[]",
+		})
+		ex := testExchangeFor(t, func(w http.ResponseWriter, r *http.Request) {
+			select {
+			case requests <- struct{}{}:
+			default:
+			}
+			handler(w, r)
+		}, liveUnavailable)
+		_, err := ex.GetFuturesOrdersByExternalID(t.Context(), orders[:50])
+		require.NoError(t, err, "GetFuturesOrdersByExternalID must query 50 orders in one request")
+		_, err = ex.GetFuturesOrdersByExternalID(t.Context(), orders)
+		require.ErrorIs(t, err, errTooManyOrders, "GetFuturesOrdersByExternalID must refuse a 51st order before sending")
+		assert.Len(t, requests, 1, "the 50 should go in one request, and the 51 in none")
+	})
 }
 
 func TestGetFuturesOpenOrders(t *testing.T) {
@@ -407,6 +761,21 @@ func TestGetFuturesOpenOrders(t *testing.T) {
 
 func TestGetFuturesOrderHistory(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		ex := liveExchange(t, liveReadOnly)
+		states := []uint8{FuturesOrderStateFilled, FuturesOrderStateCancelled}
+		now := time.Now().UTC()
+		result, err := ex.GetFuturesOrderHistory(t.Context(), &FuturesOrderHistoryRequest{Symbol: futuresTradablePair, States: states, StartTime: now.AddDate(0, 0, -7), EndTime: now})
+		require.NoError(t, err, "GetFuturesOrderHistory must not error")
+		for _, o := range result {
+			require.NotNil(t, o, "each order must be decoded")
+			assert.Equal(t, futuresTradablePair.String(), o.Symbol, "each order should be of the contract asked for")
+			assert.NotEmpty(t, o.OrderID, "each order should have an ID")
+			assert.Contains(t, states, o.State, "each order should be in a state asked for")
+		}
+	})
+
 	start := time.UnixMilli(1761800000000)
 	_, err := e.GetFuturesOrderHistory(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
@@ -490,6 +859,17 @@ func TestFuturesOrderDealWasTaker(t *testing.T) {
 
 func TestGetFuturesOrderDealDetails(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		ex := liveExchange(t, liveReadOnly)
+		result, err := ex.GetFuturesOrderDealDetails(t.Context(), "102015012431820288")
+		require.NoError(t, answeredOnMerits(err), "GetFuturesOrderDealDetails must be answered on its merits")
+		for _, d := range result {
+			require.NotNil(t, d, "each fill must be decoded")
+			assert.Equal(t, FuturesID("102015012431820288"), d.OrderID, "each fill should be of the order asked for")
+		}
+	})
+
 	_, err := e.GetFuturesOrderDealDetails(t.Context(), "")
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
@@ -539,6 +919,19 @@ func TestGetFuturesClosedOrders(t *testing.T) {
 
 func TestGetFuturesPlanOrders(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		ex := liveExchange(t, liveReadOnly)
+		now := time.Now().UTC()
+		result, err := ex.GetFuturesPlanOrders(t.Context(), &FuturesPlanOrdersRequest{Symbol: futuresTradablePair, StartTime: now.AddDate(0, 0, -7), EndTime: now})
+		require.NoError(t, err, "GetFuturesPlanOrders must not error")
+		for _, o := range result {
+			require.NotNil(t, o, "each plan order must be decoded")
+			assert.Equal(t, futuresTradablePair.String(), o.Symbol, "each plan order should be of the contract asked for")
+			assert.NotEmpty(t, o.ID, "each plan order should have an ID")
+		}
+	})
+
 	start := time.UnixMilli(1761800000000)
 	_, err := e.GetFuturesPlanOrders(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
@@ -600,8 +993,51 @@ func TestGetFuturesPlanOrders(t *testing.T) {
 	})
 }
 
+// liveLongLeverage returns the margin mode and leverage the live account sets for BTC_USDT longs, which a live order
+// that must name a leverage sends, so that it changes neither
+func liveLongLeverage(t *testing.T, ex *Exchange) (openType uint8, leverage uint64) {
+	t.Helper()
+	leverages, err := ex.GetFuturesLeverage(t.Context(), futuresTradablePair)
+	require.NoError(t, err, "GetFuturesLeverage must not error")
+	i := slices.IndexFunc(leverages, func(l *FuturesLeverageResponse) bool {
+		return l != nil && l.PositionType == FuturesPositionTypeLong && l.Leverage > 0
+	})
+	require.NotEqual(t, -1, i, "the account must set a leverage for BTC_USDT longs")
+	return leverages[i].OpenType, leverages[i].Leverage
+}
+
 func TestPlaceFuturesPlanOrder(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		ex := liveExchange(t, liveManipulatesOrders)
+		openType, leverage := liveLongLeverage(t, ex)
+		ctx := context.WithoutCancel(t.Context())
+		// The buy is placed only once the latest price is at most liveRestingBuyPrice, far below the market
+		result, err := ex.PlaceFuturesPlanOrder(t.Context(), &FuturesPlanOrderRequest{
+			Symbol:       futuresTradablePair.String(),
+			Price:        liveRestingBuyPrice,
+			Volume:       1,
+			Leverage:     leverage,
+			Side:         FuturesSideOpenLong,
+			OpenType:     openType,
+			TriggerPrice: liveRestingBuyPrice,
+			TriggerType:  FuturesTriggerLessOrEqual,
+			ExecuteCycle: FuturesExecuteCycle24Hours,
+			OrderType:    FuturesOrderTypeLimit,
+			Trend:        FuturesPriceTypeLatest,
+		})
+		require.NoError(t, answeredOnMerits(err), "PlaceFuturesPlanOrder must be answered on its merits")
+		if err != nil {
+			return
+		}
+		require.NotEmpty(t, result, "PlaceFuturesPlanOrder must return the plan order's ID")
+		t.Cleanup(func() {
+			err := ex.CancelFuturesPlanOrders(ctx, []FuturesCancelPlanOrderRequest{{Symbol: futuresTradablePair.String(), OrderID: result.String()}})
+			assert.NoError(t, answeredOnMerits(err), "CancelFuturesPlanOrders should be answered on its merits")
+		})
+	})
+
 	valid := func() *FuturesPlanOrderRequest {
 		return &FuturesPlanOrderRequest{
 			Symbol: "BTC_USDT", Volume: 1, Leverage: 20, Side: FuturesSideOpenLong, OpenType: FuturesOpenTypeIsolated, TriggerPrice: 100000,
@@ -610,6 +1046,7 @@ func TestPlaceFuturesPlanOrder(t *testing.T) {
 	}
 	_, err := e.PlaceFuturesPlanOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
+	// The cases run in order before the placement below, which calls PlaceFuturesPlanOrder as well
 	for name, tc := range map[string]struct {
 		change func(*FuturesPlanOrderRequest)
 		err    error
@@ -627,10 +1064,12 @@ func TestPlaceFuturesPlanOrder(t *testing.T) {
 		"no trend":             {func(o *FuturesPlanOrderRequest) { o.Trend = 0 }, errInvalidPriceType},
 		"unknown profit trend": {func(o *FuturesPlanOrderRequest) { o.ProfitTrend = 4 }, errInvalidPriceType},
 	} {
-		o := valid()
-		tc.change(o)
-		_, err := e.PlaceFuturesPlanOrder(t.Context(), o)
-		assert.ErrorIsf(t, err, tc.err, "a plan order with %s should be refused", name)
+		t.Run(name, func(t *testing.T) {
+			o := valid()
+			tc.change(o)
+			_, err := e.PlaceFuturesPlanOrder(t.Context(), o)
+			assert.ErrorIsf(t, err, tc.err, "a plan order with %s should be refused", name)
+		})
 	}
 
 	ex := testExchangeFor(t, futuresHandler(t, futuresRoute{
@@ -647,10 +1086,21 @@ func TestPlaceFuturesPlanOrder(t *testing.T) {
 
 func TestModifyFuturesPlanOrder(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		ex := liveExchange(t, liveManipulatesOrders)
+		skipIfOrdersOpen(t, ex, "plan", func(c *FuturesOpenOrderCountsResponse) uint64 { return c.PlanOrderCount })
+		err := ex.ModifyFuturesPlanOrder(t.Context(), &FuturesModifyPlanOrderRequest{
+			Symbol: futuresTradablePair.String(), OrderID: 739206374277809664, TriggerPrice: 101000, Price: 101500, OrderType: FuturesOrderTypeLimit, TriggerType: FuturesTriggerGreaterOrEqual, Trend: FuturesPriceTypeFair,
+		})
+		require.NoError(t, answeredOnMerits(err), "ModifyFuturesPlanOrder must be answered on its merits")
+	})
+
 	valid := func() *FuturesModifyPlanOrderRequest {
 		return &FuturesModifyPlanOrderRequest{Symbol: "BTC_USDT", OrderID: 739206374277809664, TriggerPrice: 101000, Price: 101500, OrderType: FuturesOrderTypeLimit, TriggerType: FuturesTriggerGreaterOrEqual, Trend: FuturesPriceTypeFair}
 	}
 	require.ErrorIs(t, e.ModifyFuturesPlanOrder(t.Context(), nil), common.ErrNilPointer)
+	// The cases run in order before the change below, which calls ModifyFuturesPlanOrder as well
 	for name, tc := range map[string]struct {
 		change func(*FuturesModifyPlanOrderRequest)
 		err    error
@@ -663,9 +1113,11 @@ func TestModifyFuturesPlanOrder(t *testing.T) {
 		"no trigger type":  {func(o *FuturesModifyPlanOrderRequest) { o.TriggerType = 0 }, errInvalidTriggerType},
 		"no trend":         {func(o *FuturesModifyPlanOrderRequest) { o.Trend = 0 }, errInvalidPriceType},
 	} {
-		o := valid()
-		tc.change(o)
-		assert.ErrorIsf(t, e.ModifyFuturesPlanOrder(t.Context(), o), tc.err, "a plan order change with %s should be refused", name)
+		t.Run(name, func(t *testing.T) {
+			o := valid()
+			tc.change(o)
+			assert.ErrorIsf(t, e.ModifyFuturesPlanOrder(t.Context(), o), tc.err, "a plan order change with %s should be refused", name)
+		})
 	}
 
 	ex := testExchangeFor(t, futuresHandler(t, futuresRoute{
@@ -678,6 +1130,13 @@ func TestModifyFuturesPlanOrder(t *testing.T) {
 
 func TestCancelFuturesPlanOrders(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		ex := liveExchange(t, liveManipulatesOrders)
+		err := ex.CancelFuturesPlanOrders(t.Context(), []FuturesCancelPlanOrderRequest{{Symbol: "BTC_USDT", OrderID: "1"}, {Symbol: "ETH_USDT", OrderID: "2"}})
+		require.NoError(t, answeredOnMerits(err), "CancelFuturesPlanOrders must be answered on its merits")
+	})
+
 	require.ErrorIs(t, e.CancelFuturesPlanOrders(t.Context(), nil), order.ErrOrderIDNotSet)
 	require.ErrorIs(t, e.CancelFuturesPlanOrders(t.Context(), make([]FuturesCancelPlanOrderRequest, futuresBatchLimit+1)), errTooManyOrders)
 	require.ErrorIs(t, e.CancelFuturesPlanOrders(t.Context(), []FuturesCancelPlanOrderRequest{{OrderID: "1"}}), currency.ErrSymbolStringEmpty)
@@ -690,18 +1149,75 @@ func TestCancelFuturesPlanOrders(t *testing.T) {
 	}), liveUnavailable)
 	require.NoError(t, ex.CancelFuturesPlanOrders(t.Context(), []FuturesCancelPlanOrderRequest{{Symbol: "BTC_USDT", OrderID: "1"}, {Symbol: "ETH_USDT", OrderID: "2"}}),
 		"CancelFuturesPlanOrders must not error")
+
+	t.Run("50 plan orders cancelled, 51 refused", func(t *testing.T) {
+		t.Parallel()
+		orders := make([]FuturesCancelPlanOrderRequest, 51)
+		sent := make([]string, 50)
+		for i := range orders {
+			orders[i] = FuturesCancelPlanOrderRequest{Symbol: "BTC_USDT", OrderID: strconv.FormatUint(739114860879304259+uint64(i), 10)}
+		}
+		for i := range sent {
+			sent[i] = `{"symbol":"BTC_USDT","orderId":"` + orders[i].OrderID + `"}`
+		}
+		requests := make(chan struct{}, 2)
+		handler := futuresHandler(t, futuresRoute{
+			method: http.MethodPost,
+			path:   "private/planorder/cancel",
+			body:   "[" + strings.Join(sent, ",") + "]",
+		})
+		ex := testExchangeFor(t, func(w http.ResponseWriter, r *http.Request) {
+			select {
+			case requests <- struct{}{}:
+			default:
+			}
+			handler(w, r)
+		}, liveUnavailable)
+		require.NoError(t, ex.CancelFuturesPlanOrders(t.Context(), orders[:50]), "CancelFuturesPlanOrders must send the 50 cancels MEXC takes in one request")
+		require.ErrorIs(t, ex.CancelFuturesPlanOrders(t.Context(), orders), errTooManyOrders, "CancelFuturesPlanOrders must refuse a 51st cancel before sending")
+		assert.Len(t, requests, 1, "the 50 should go in one request, and the 51 in none")
+	})
 }
 
 func TestCancelAllFuturesPlanOrders(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		ex := liveExchange(t, liveManipulatesOrders)
+		require.NoError(t, answeredOnMerits(ex.CancelAllFuturesPlanOrders(t.Context(), futuresTradablePair)), "CancelAllFuturesPlanOrders must be answered on its merits")
+	})
+
 	for pair, body := range map[currency.Pair]string{futuresTradablePair: `{"symbol":"BTC_USDT"}`, currency.EMPTYPAIR: `{}`} {
-		ex := testExchangeFor(t, futuresHandler(t, futuresRoute{method: http.MethodPost, path: "private/planorder/cancel_all", body: body}), liveUnavailable)
-		require.NoErrorf(t, ex.CancelAllFuturesPlanOrders(t.Context(), pair), "CancelAllFuturesPlanOrders must not error for %q", pair)
+		t.Run(cmp.Or(pair.String(), "empty pair"), func(t *testing.T) {
+			t.Parallel()
+			ex := testExchangeFor(t, futuresHandler(t, futuresRoute{method: http.MethodPost, path: "private/planorder/cancel_all", body: body}), liveUnavailable)
+			require.NoErrorf(t, ex.CancelAllFuturesPlanOrders(t.Context(), pair), "CancelAllFuturesPlanOrders must not error for %q", pair)
+		})
 	}
 }
 
 func TestPlaceFuturesTakeProfitStopLossOrder(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		ex := liveExchange(t, liveManipulatesOrders)
+		skipIfExamplePositionHeld(t, ex)
+		ctx := context.WithoutCancel(t.Context())
+		// The account holds no position of the example's ID, checked above, so there is none to close
+		result, err := ex.PlaceFuturesTakeProfitStopLossOrder(t.Context(), &FuturesTakeProfitStopLossRequest{
+			PositionID: futuresExamplePositionID, Volume: 5, LossTrend: FuturesPriceTypeLatest, ProfitTrend: FuturesPriceTypeFair, StopLossPrice: 100000, TakeProfitPrice: 120000,
+		})
+		require.NoError(t, answeredOnMerits(err), "PlaceFuturesTakeProfitStopLossOrder must be answered on its merits")
+		if err != nil || result == "" {
+			return
+		}
+		id, err := parseFuturesOrderID(result.String())
+		require.NoError(t, err, "the placed order must have a valid ID")
+		t.Cleanup(func() {
+			assert.NoError(t, answeredOnMerits(ex.CancelFuturesTakeProfitStopLossOrders(ctx, []uint64{id})), "CancelFuturesTakeProfitStopLossOrders should be answered on its merits")
+		})
+	})
+
 	_, err := e.PlaceFuturesTakeProfitStopLossOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
 	_, err = e.PlaceFuturesTakeProfitStopLossOrder(t.Context(), &FuturesTakeProfitStopLossRequest{Volume: 1, StopLossPrice: 1, LossTrend: 1, ProfitTrend: 1})
@@ -728,6 +1244,12 @@ func TestPlaceFuturesTakeProfitStopLossOrder(t *testing.T) {
 
 func TestCancelFuturesTakeProfitStopLossOrders(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		ex := liveExchange(t, liveManipulatesOrders)
+		require.NoError(t, answeredOnMerits(ex.CancelFuturesTakeProfitStopLossOrders(t.Context(), []uint64{1, 2})), "CancelFuturesTakeProfitStopLossOrders must be answered on its merits")
+	})
+
 	require.ErrorIs(t, e.CancelFuturesTakeProfitStopLossOrders(t.Context(), nil), errStopPlanOrderIDRequired)
 	require.ErrorIs(t, e.CancelFuturesTakeProfitStopLossOrders(t.Context(), []uint64{1, 0}), errStopPlanOrderIDRequired)
 	ids := make([]uint64, futuresBatchLimit+1)
@@ -742,10 +1264,45 @@ func TestCancelFuturesTakeProfitStopLossOrders(t *testing.T) {
 		body:   `[{"stopPlanOrderId":1},{"stopPlanOrderId":2}]`,
 	}), liveUnavailable)
 	require.NoError(t, ex.CancelFuturesTakeProfitStopLossOrders(t.Context(), []uint64{1, 2}), "CancelFuturesTakeProfitStopLossOrders must not error")
+
+	t.Run("50 take-profit and stop-loss orders cancelled, 51 refused", func(t *testing.T) {
+		t.Parallel()
+		ids := make([]uint64, 51)
+		sent := make([]string, 50)
+		for i := range ids {
+			ids[i] = 357859177 + uint64(i)
+		}
+		for i := range sent {
+			sent[i] = `{"stopPlanOrderId":` + strconv.FormatUint(ids[i], 10) + `}`
+		}
+		requests := make(chan struct{}, 2)
+		handler := futuresHandler(t, futuresRoute{
+			method: http.MethodPost,
+			path:   "private/stoporder/cancel",
+			body:   "[" + strings.Join(sent, ",") + "]",
+		})
+		ex := testExchangeFor(t, func(w http.ResponseWriter, r *http.Request) {
+			select {
+			case requests <- struct{}{}:
+			default:
+			}
+			handler(w, r)
+		}, liveUnavailable)
+		require.NoError(t, ex.CancelFuturesTakeProfitStopLossOrders(t.Context(), ids[:50]), "CancelFuturesTakeProfitStopLossOrders must send the 50 cancels MEXC takes in one request")
+		require.ErrorIs(t, ex.CancelFuturesTakeProfitStopLossOrders(t.Context(), ids), errTooManyOrders, "CancelFuturesTakeProfitStopLossOrders must refuse a 51st cancel before sending")
+		assert.Len(t, requests, 1, "the 50 should go in one request, and the 51 in none")
+	})
 }
 
 func TestCancelAllFuturesTakeProfitStopLossOrders(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		ex := liveExchange(t, liveManipulatesOrders)
+		// No position ID, so the request names the contract
+		require.NoError(t, answeredOnMerits(ex.CancelAllFuturesTakeProfitStopLossOrders(t.Context(), 0, futuresTradablePair)), "CancelAllFuturesTakeProfitStopLossOrders must be answered on its merits")
+	})
+
 	for name, tc := range map[string]struct {
 		positionID uint64
 		pair       currency.Pair
@@ -755,13 +1312,24 @@ func TestCancelAllFuturesTakeProfitStopLossOrders(t *testing.T) {
 		"contract": {pair: futuresTradablePair, body: `{"symbol":"BTC_USDT"}`},
 		"account":  {body: `{}`},
 	} {
-		ex := testExchangeFor(t, futuresHandler(t, futuresRoute{method: http.MethodPost, path: "private/stoporder/cancel_all", body: tc.body}), liveUnavailable)
-		require.NoErrorf(t, ex.CancelAllFuturesTakeProfitStopLossOrders(t.Context(), tc.positionID, tc.pair), "CancelAllFuturesTakeProfitStopLossOrders must not error for a %s", name)
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			ex := testExchangeFor(t, futuresHandler(t, futuresRoute{method: http.MethodPost, path: "private/stoporder/cancel_all", body: tc.body}), liveUnavailable)
+			require.NoErrorf(t, ex.CancelAllFuturesTakeProfitStopLossOrders(t.Context(), tc.positionID, tc.pair), "CancelAllFuturesTakeProfitStopLossOrders must not error for a %s", name)
+		})
 	}
 }
 
 func TestModifyFuturesLimitOrderTakeProfitStopLoss(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		ex := liveExchange(t, liveManipulatesOrders)
+		skipIfOrderOpen(t, ex, 739204819784386560)
+		err := ex.ModifyFuturesLimitOrderTakeProfitStopLoss(t.Context(), &FuturesModifyTakeProfitStopLossRequest{OrderID: 739204819784386560, StopLossPrice: 100000})
+		require.NoError(t, answeredOnMerits(err), "ModifyFuturesLimitOrderTakeProfitStopLoss must be answered on its merits")
+	})
+
 	require.ErrorIs(t, e.ModifyFuturesLimitOrderTakeProfitStopLoss(t.Context(), nil), common.ErrNilPointer)
 	require.ErrorIs(t, e.ModifyFuturesLimitOrderTakeProfitStopLoss(t.Context(), &FuturesModifyTakeProfitStopLossRequest{}), order.ErrOrderIDNotSet)
 	require.ErrorIs(t, e.ModifyFuturesLimitOrderTakeProfitStopLoss(t.Context(), &FuturesModifyTakeProfitStopLossRequest{OrderID: 1, LossTrend: 4}), errInvalidPriceType)
@@ -778,6 +1346,14 @@ func TestModifyFuturesLimitOrderTakeProfitStopLoss(t *testing.T) {
 
 func TestModifyFuturesTakeProfitStopLossOrder(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		ex := liveExchange(t, liveManipulatesOrders)
+		skipIfOrdersOpen(t, ex, "take-profit and stop-loss", func(c *FuturesOpenOrderCountsResponse) uint64 { return c.StopOrderCount })
+		err := ex.ModifyFuturesTakeProfitStopLossOrder(t.Context(), &FuturesModifyTakeProfitStopLossRequest{StopPlanOrderID: 357859177, TakeProfitPrice: 125000, ProfitTrend: FuturesPriceTypeIndex})
+		require.NoError(t, answeredOnMerits(err), "ModifyFuturesTakeProfitStopLossOrder must be answered on its merits")
+	})
+
 	require.ErrorIs(t, e.ModifyFuturesTakeProfitStopLossOrder(t.Context(), nil), common.ErrNilPointer)
 	require.ErrorIs(t, e.ModifyFuturesTakeProfitStopLossOrder(t.Context(), &FuturesModifyTakeProfitStopLossRequest{StopLossPrice: 1}), errStopPlanOrderIDRequired)
 	require.ErrorIs(t, e.ModifyFuturesTakeProfitStopLossOrder(t.Context(), &FuturesModifyTakeProfitStopLossRequest{StopPlanOrderID: 1}), errInvalidTakeProfitStopLoss)
@@ -794,6 +1370,16 @@ func TestModifyFuturesTakeProfitStopLossOrder(t *testing.T) {
 
 func TestModifyFuturesPlanOrderTakeProfitStopLoss(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		ex := liveExchange(t, liveManipulatesOrders)
+		skipIfOrdersOpen(t, ex, "plan", func(c *FuturesOpenOrderCountsResponse) uint64 { return c.PlanOrderCount })
+		err := ex.ModifyFuturesPlanOrderTakeProfitStopLoss(t.Context(), &FuturesModifyPlanOrderTakeProfitStopLossRequest{
+			Symbol: futuresTradablePair.String(), OrderID: 739206374277809664, LossTrend: FuturesPriceTypeLatest, StopLossPrice: 95000,
+		})
+		require.NoError(t, answeredOnMerits(err), "ModifyFuturesPlanOrderTakeProfitStopLoss must be answered on its merits")
+	})
+
 	require.ErrorIs(t, e.ModifyFuturesPlanOrderTakeProfitStopLoss(t.Context(), nil), common.ErrNilPointer)
 	require.ErrorIs(t, e.ModifyFuturesPlanOrderTakeProfitStopLoss(t.Context(), &FuturesModifyPlanOrderTakeProfitStopLossRequest{OrderID: 1}), currency.ErrSymbolStringEmpty)
 	require.ErrorIs(t, e.ModifyFuturesPlanOrderTakeProfitStopLoss(t.Context(), &FuturesModifyPlanOrderTakeProfitStopLossRequest{Symbol: "BTC_USDT"}), order.ErrOrderIDNotSet)
@@ -906,6 +1492,42 @@ func TestValidateTrailing(t *testing.T) {
 
 func TestPlaceFuturesTrailingOrder(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		ex := liveExchange(t, liveManipulatesOrders)
+		positions, err := ex.GetFuturesOpenPositions(t.Context(), futuresTradablePair, "")
+		require.NoError(t, err, "GetFuturesOpenPositions must not error")
+		if len(positions) > 0 {
+			t.Skip("the account holds BTC_USDT positions, which this would trade")
+		}
+		mode, err := ex.GetFuturesPositionMode(t.Context())
+		require.NoError(t, err, "GetFuturesPositionMode must not error")
+		openType, leverage := liveLongLeverage(t, ex)
+		ctx := context.WithoutCancel(t.Context())
+		// A close of a long the account doesn't hold, reduce-only in one-way mode, where a sell would open a short
+		result, err := ex.PlaceFuturesTrailingOrder(t.Context(), &FuturesTrailingOrderRequest{
+			Symbol:       futuresTradablePair.String(),
+			Leverage:     leverage,
+			Side:         FuturesSideCloseLong,
+			Volume:       1,
+			OpenType:     openType,
+			Trend:        FuturesPriceTypeLatest,
+			BackType:     FuturesCallbackPercentage,
+			BackValue:    0.02,
+			PositionMode: mode,
+			ReduceOnly:   mode == FuturesPositionModeOneWay,
+		})
+		require.NoError(t, answeredOnMerits(err), "PlaceFuturesTrailingOrder must be answered on its merits")
+		if err != nil || result == "" {
+			return
+		}
+		id, err := parseFuturesOrderID(result.String())
+		require.NoError(t, err, "the placed trailing order must have a valid ID")
+		t.Cleanup(func() {
+			assert.NoError(t, answeredOnMerits(ex.CancelFuturesTrailingOrder(ctx, futuresTradablePair, id)), "CancelFuturesTrailingOrder should be answered on its merits")
+		})
+	})
+
 	valid := func() *FuturesTrailingOrderRequest {
 		return &FuturesTrailingOrderRequest{
 			Symbol: "DOGE_USDT", Leverage: 2, Side: FuturesSideOpenLong, Volume: 100, OpenType: FuturesOpenTypeIsolated,
@@ -914,6 +1536,7 @@ func TestPlaceFuturesTrailingOrder(t *testing.T) {
 	}
 	_, err := e.PlaceFuturesTrailingOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
+	// The cases run in order before the placement below, which calls PlaceFuturesTrailingOrder as well
 	for name, tc := range map[string]struct {
 		change func(*FuturesTrailingOrderRequest)
 		err    error
@@ -928,10 +1551,12 @@ func TestPlaceFuturesTrailingOrder(t *testing.T) {
 		"no price type":   {func(o *FuturesTrailingOrderRequest) { o.Trend = 0 }, errInvalidPriceType},
 		"no callback gap": {func(o *FuturesTrailingOrderRequest) { o.BackValue = 0 }, limits.ErrPriceBelowMin},
 	} {
-		o := valid()
-		tc.change(o)
-		_, err := e.PlaceFuturesTrailingOrder(t.Context(), o)
-		assert.ErrorIsf(t, err, tc.err, "a trailing order with %s should be refused", name)
+		t.Run(name, func(t *testing.T) {
+			o := valid()
+			tc.change(o)
+			_, err := e.PlaceFuturesTrailingOrder(t.Context(), o)
+			assert.ErrorIsf(t, err, tc.err, "a trailing order with %s should be refused", name)
+		})
 	}
 
 	ex := testExchangeFor(t, futuresHandler(t, futuresRoute{
@@ -947,6 +1572,13 @@ func TestPlaceFuturesTrailingOrder(t *testing.T) {
 
 func TestCancelFuturesTrailingOrder(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		ex := liveExchange(t, liveManipulatesOrders)
+		err := ex.CancelFuturesTrailingOrder(t.Context(), currency.NewPairWithDelimiter("DOGE", "USDT", currency.UnderscoreDelimiter), 739628779353703936)
+		require.NoError(t, answeredOnMerits(err), "CancelFuturesTrailingOrder must be answered on its merits")
+	})
+
 	require.ErrorIs(t, e.CancelFuturesTrailingOrder(t.Context(), futuresTradablePair, 0), errTrailingOrderIDRequired)
 
 	ex := testExchangeFor(t, futuresHandler(t, futuresRoute{
@@ -960,6 +1592,16 @@ func TestCancelFuturesTrailingOrder(t *testing.T) {
 
 func TestModifyFuturesTrailingOrder(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		ex := liveExchange(t, liveManipulatesOrders)
+		skipIfOrdersOpen(t, ex, "trailing", func(c *FuturesOpenOrderCountsResponse) uint64 { return c.TrackOrderCount })
+		err := ex.ModifyFuturesTrailingOrder(t.Context(), &FuturesModifyTrailingOrderRequest{
+			Symbol: "DOGE_USDT", TrackOrderID: 739628779353703936, Trend: FuturesPriceTypeFair, ActivePrice: 0.19, BackType: FuturesCallbackAbsolute, BackValue: 0.001, Volume: 50,
+		})
+		require.NoError(t, answeredOnMerits(err), "ModifyFuturesTrailingOrder must be answered on its merits")
+	})
+
 	require.ErrorIs(t, e.ModifyFuturesTrailingOrder(t.Context(), nil), common.ErrNilPointer)
 	require.ErrorIs(t, e.ModifyFuturesTrailingOrder(t.Context(), &FuturesModifyTrailingOrderRequest{TrackOrderID: 1}), currency.ErrSymbolStringEmpty)
 	require.ErrorIs(t, e.ModifyFuturesTrailingOrder(t.Context(), &FuturesModifyTrailingOrderRequest{Symbol: "DOGE_USDT"}), errTrailingOrderIDRequired)
@@ -1018,19 +1660,4 @@ func TestGetFuturesTrailingOrders(t *testing.T) {
 		UpdateTime:   types.Time(time.UnixMilli(1762011642623)),
 	}}
 	assert.Equal(t, exp, result, "GetFuturesTrailingOrders should decode every field")
-}
-
-func TestFuturesOrderIDsAboveFloatPrecision(t *testing.T) {
-	t.Parallel()
-	// Order IDs pass 2^53, where a float64 would round 739106551624717313 to 739106551624717312
-	ex := testExchangeFor(t, futuresHandler(t, futuresRoute{
-		method: http.MethodGet,
-		path:   "private/order/get/739106551624717313",
-		data:   strings.Replace(futuresFilledOrderReply, `"orderId":"739106551624717312"`, `"orderId":739106551624717313`, 1),
-	}), liveUnavailable)
-	result, err := ex.GetFuturesOrder(t.Context(), strconv.FormatUint(739106551624717313, 10))
-	require.NoError(t, err, "GetFuturesOrder must not error")
-	exp := futuresFilledOrder()
-	exp.OrderID = "739106551624717313"
-	assert.Equal(t, exp, result, "an order ID sent as a number should keep every digit")
 }

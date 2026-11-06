@@ -1,7 +1,9 @@
 package v19
 
 import (
+	"cmp"
 	"encoding/json" //nolint:depguard // Matches the encoding/json the migration uses
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -29,9 +31,12 @@ func TestParseInterval(t *testing.T) {
 		{raw: json.RawMessage(`"1d"`)},
 		{raw: json.RawMessage(`true`)},
 	} {
-		got, ok := parseInterval(tc.raw)
-		assert.Equalf(t, tc.ok, ok, "parseInterval should report whether %s parses", tc.raw)
-		assert.Equalf(t, tc.exp, got, "parseInterval should return the duration of %s", tc.raw)
+		t.Run(cmp.Or(string(tc.raw), "empty"), func(t *testing.T) {
+			t.Parallel()
+			got, ok := parseInterval(tc.raw)
+			assert.Equalf(t, tc.ok, ok, "parseInterval should report whether %s parses", tc.raw)
+			assert.Equalf(t, tc.exp, got, "parseInterval should return the duration of %s", tc.raw)
+		})
 	}
 }
 
@@ -44,7 +49,10 @@ func TestShortInterval(t *testing.T) {
 		90 * time.Second:        "1m30s",
 		time.Hour + time.Minute: "1h1m",
 	} {
-		assert.Equalf(t, exp, shortInterval(d), "%s should be saved as the config saves it", d)
+		t.Run(d.String(), func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, exp, shortInterval(d), "%s should be saved as the config saves it", d)
+		})
 	}
 }
 
@@ -95,7 +103,10 @@ func TestNamesDefault(t *testing.T) {
 		{savedSubscription{Channel: "ticker", Asset: "margin"}, false},
 		{savedSubscription{Asset: "spot"}, false},
 	} {
-		assert.Equalf(t, tc.exp, namesDefault(&tc.s), "namesDefault should report whether channel %q under asset %q names a default", tc.s.Channel, tc.s.Asset)
+		t.Run(fmt.Sprintf("%q under %q", tc.s.Channel, tc.s.Asset), func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, tc.exp, namesDefault(&tc.s), "namesDefault should report whether channel %q under asset %q names a default", tc.s.Channel, tc.s.Asset)
+		})
 	}
 }
 
@@ -108,9 +119,12 @@ func TestSavedAssetUnmarshalJSON(t *testing.T) {
 		{`"futures"`, "futures"},
 		{`null`, ""},
 	} {
-		a := savedAsset("spot")
-		require.NoErrorf(t, json.Unmarshal([]byte(tc.raw), &a), "Unmarshal must decode %s", tc.raw)
-		assert.Equalf(t, tc.exp, a, "%s should decode as the loader decodes it", tc.raw)
+		t.Run(tc.raw, func(t *testing.T) {
+			t.Parallel()
+			a := savedAsset("spot")
+			require.NoErrorf(t, json.Unmarshal([]byte(tc.raw), &a), "Unmarshal must decode %s", tc.raw)
+			assert.Equalf(t, tc.exp, a, "%s should decode as the loader decodes it", tc.raw)
+		})
 	}
 	var a savedAsset
 	var typeErr *json.UnmarshalTypeError
@@ -123,21 +137,25 @@ func TestDefaultSubscriptionMatches(t *testing.T) {
 	candles := &defaultSubscription{channel: "candles", asset: spotAsset, interval: 15 * time.Minute}
 	orders := &defaultSubscription{channel: "myOrders", asset: spotAsset, authenticated: true}
 	for _, tc := range []struct {
-		d   *defaultSubscription
-		s   savedSubscription
-		exp bool
+		name string
+		d    *defaultSubscription
+		s    savedSubscription
+		exp  bool
 	}{
-		{orderbook, savedSubscription{Enabled: true, Levels: 20}, true},
-		{orderbook, savedSubscription{Levels: 20}, false},
-		{orderbook, savedSubscription{Enabled: true, Levels: 5}, false},
-		{orderbook, savedSubscription{Enabled: true, Levels: 20, Authenticated: true}, false},
-		{orderbook, savedSubscription{Enabled: true, Levels: 20, Interval: json.RawMessage(`"1m"`)}, false},
-		{candles, savedSubscription{Enabled: true, Interval: json.RawMessage(`"15m"`)}, true},
-		{candles, savedSubscription{Enabled: true, Interval: json.RawMessage(`null`)}, false},
-		{orders, savedSubscription{Enabled: true, Authenticated: true}, true},
-		{orders, savedSubscription{Enabled: true}, false},
+		{"orderbook default", orderbook, savedSubscription{Enabled: true, Levels: 20}, true},
+		{"disabled orderbook", orderbook, savedSubscription{Levels: 20}, false},
+		{"orderbook of 5 levels", orderbook, savedSubscription{Enabled: true, Levels: 5}, false},
+		{"authenticated orderbook", orderbook, savedSubscription{Enabled: true, Levels: 20, Authenticated: true}, false},
+		{"orderbook with an interval", orderbook, savedSubscription{Enabled: true, Levels: 20, Interval: json.RawMessage(`"1m"`)}, false},
+		{"candles default", candles, savedSubscription{Enabled: true, Interval: json.RawMessage(`"15m"`)}, true},
+		{"candles with a null interval", candles, savedSubscription{Enabled: true, Interval: json.RawMessage(`null`)}, false},
+		{"myOrders default", orders, savedSubscription{Enabled: true, Authenticated: true}, true},
+		{"unauthenticated myOrders", orders, savedSubscription{Enabled: true}, false},
 	} {
-		assert.Equalf(t, tc.exp, tc.d.matches(&tc.s), "matches should report whether %+v resolves to the %s default", tc.s, tc.d.channel)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, tc.exp, tc.d.matches(&tc.s), "matches should report whether %+v resolves to the %s default", tc.s, tc.d.channel)
+		})
 	}
 }
 
@@ -154,15 +172,21 @@ func TestMatchDefaults(t *testing.T) {
 		"defaults and enabled entry":  {entries: append(append([]string(nil), savedPrevious...), `{"enabled":true,"channel":"public.bookTicker.batch.v3.api.pb","asset":"spot"}`)},
 		"disabled default":            {entries: append(append([]string(nil), savedPrevious...), `{"enabled":false,"channel":"ticker","asset":"spot"}`)},
 	} {
-		matched, carried, err := matchDefaults(rawEntries(tc.entries...), previousDefaults)
-		require.NoErrorf(t, err, "matchDefaults must not error for %s", name)
-		assert.Equalf(t, tc.matched, matched, "matchDefaults should report whether %s match the defaults", name)
-		assert.Equalf(t, tc.carried, carried, "matchDefaults should carry the disabled entries naming no default for %s", name)
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			matched, carried, err := matchDefaults(rawEntries(tc.entries...), previousDefaults)
+			require.NoErrorf(t, err, "matchDefaults must not error for %s", name)
+			assert.Equalf(t, tc.matched, matched, "matchDefaults should report whether %s match the defaults", name)
+			assert.Equalf(t, tc.carried, carried, "matchDefaults should carry the disabled entries naming no default for %s", name)
+		})
 	}
 	for _, entry := range []string{`"orderbook"`, `{"enabled":true,"channel":"orderbook","asset":"spot","levels":20.5}`} {
-		_, _, err := matchDefaults(rawEntries(entry), previousDefaults)
-		var typeErr *json.UnmarshalTypeError
-		assert.ErrorAsf(t, err, &typeErr, "matchDefaults should refuse the malformed entry %s", entry)
+		t.Run(entry, func(t *testing.T) {
+			t.Parallel()
+			_, _, err := matchDefaults(rawEntries(entry), previousDefaults)
+			var typeErr *json.UnmarshalTypeError
+			assert.ErrorAsf(t, err, &typeErr, "matchDefaults should refuse the malformed entry %s", entry)
+		})
 	}
 }
 
@@ -179,10 +203,13 @@ func TestReplaceSubscriptions(t *testing.T) {
 	assert.Equal(t, saved, string(got), "subscriptions which match no defaults should be left unchanged")
 
 	for _, malformed := range []string{`{"features":{"subscriptions":{}}}`, `{"features":{"subscriptions":["orderbook"]}}`} {
-		got, err = replaceSubscriptions([]byte(malformed), previousDefaults, currentDefaults)
-		var typeErr *json.UnmarshalTypeError
-		assert.ErrorAsf(t, err, &typeErr, "replaceSubscriptions should refuse %s", malformed)
-		assert.Equalf(t, malformed, string(got), "replaceSubscriptions should leave %s unchanged", malformed)
+		t.Run(malformed, func(t *testing.T) {
+			t.Parallel()
+			result, err := replaceSubscriptions([]byte(malformed), previousDefaults, currentDefaults)
+			var typeErr *json.UnmarshalTypeError
+			assert.ErrorAsf(t, err, &typeErr, "replaceSubscriptions should refuse %s", malformed)
+			assert.Equalf(t, malformed, string(result), "replaceSubscriptions should leave %s unchanged", malformed)
+		})
 	}
 	missing := []byte(`{"features":{"subscriptions":}}`)
 	got, err = replaceSubscriptions(missing, previousDefaults, currentDefaults)

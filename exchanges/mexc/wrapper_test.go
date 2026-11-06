@@ -2,9 +2,12 @@ package mexc
 
 import (
 	"bytes"
+	"cmp"
 	"io"
+	"maps"
 	"math"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -18,7 +21,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
@@ -216,7 +218,10 @@ func TestFuturesContractStatus(t *testing.T) {
 		FuturesContractStatePaused:    "paused",
 		9:                             "unknown",
 	} {
-		assert.Equalf(t, exp, futuresContractStatus(state), "state %d should be named", state)
+		t.Run("state "+strconv.Itoa(int(state)), func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, exp, futuresContractStatus(state), "state %d should be named", state)
+		})
 	}
 }
 
@@ -279,6 +284,90 @@ func TestGetLatestFundingRates(t *testing.T) {
 
 func TestGetHistoricalFundingRates(t *testing.T) {
 	t.Parallel()
+	t.Run("pages", func(t *testing.T) {
+		t.Parallel()
+		newest := time.UnixMilli(1792800000000).UTC()
+		settled := func(i int) time.Time { return newest.Add(-time.Duration(i) * 8 * time.Hour) }
+		page := func(n int, data string) futuresRoute {
+			return futuresRoute{method: http.MethodGet, path: "contract/funding_rate/history", query: "page_num=" + strconv.Itoa(n) + "&page_size=1000&symbol=BTC_USDT", data: data}
+		}
+		// rates returns the rates settled from the oldest to the newest given, oldest first
+		rates := func(oldest, latest int, rate float64) []fundingrate.Rate {
+			r := make([]fundingrate.Rate, 0, oldest-latest+1)
+			for i := oldest; i >= latest; i-- {
+				r = append(r, fundingrate.Rate{Time: settled(i), Rate: decimal.MustFromFloat(rate)})
+			}
+			return r
+		}
+		for name, tc := range map[string]struct {
+			start, end time.Time
+			routes     []futuresRoute
+			exp        []fundingrate.Rate
+		}{
+			"latest": {
+				routes: []futuresRoute{page(1, fundingRatePage(newest, 0, 1000, 0.0001))},
+				exp:    rates(999, 0, 0.0001),
+			},
+			"start on the second page": {
+				start: settled(1500), end: settled(0),
+				routes: []futuresRoute{page(1, fundingRatePage(newest, 0, 1000, 0.0001)), page(2, fundingRatePage(newest, 1000, 1000, 0.0001))},
+				exp:    rates(1500, 0, 0.0001),
+			},
+			"end on the second page": {
+				end: settled(1200),
+				routes: []futuresRoute{
+					page(1, fundingRatePage(newest, 0, 1000, 0.0001)), page(2, fundingRatePage(newest, 1000, 1000, 0.0001)), page(3, fundingRatePage(newest, 2000, 0, 0.0001)),
+				},
+				exp: rates(1999, 1200, 0.0001),
+			},
+			"end before a full page": {
+				end:    settled(500),
+				routes: []futuresRoute{page(1, fundingRatePage(newest, 0, 1000, 0.0001)), page(2, fundingRatePage(newest, 1000, 1000, 0.0001))},
+				exp:    rates(1499, 500, 0.0001),
+			},
+			// A page number the venue ignores serves the first page again, which must end the paging
+			"repeated page": {
+				start: settled(1500), end: settled(0),
+				routes: []futuresRoute{page(1, fundingRatePage(newest, 0, 1000, 0.0001)), page(2, fundingRatePage(newest, 0, 1000, 0.0001))},
+				exp:    rates(999, 0, 0.0001),
+			},
+			// Rates settled while paging push the end of the first page onto the next, which repeats them; the repeats carry
+			// another rate to show that each settlement is returned once, as first listed
+			"overlapping page": {
+				start: settled(1500), end: settled(0),
+				routes: []futuresRoute{page(1, fundingRatePage(newest, 0, 1000, 0.0001)), page(2, fundingRatePage(newest, 990, 1000, 0.0002))},
+				exp:    append(rates(1500, 1000, 0.0002), rates(999, 0, 0.0001)...),
+			},
+			"start in a last page of one rate": {
+				start:  settled(1000),
+				routes: []futuresRoute{page(1, fundingRatePage(newest, 0, 1000, 0.0001)), page(2, fundingRatePage(newest, 1000, 1, 0.0001))},
+				exp:    rates(1000, 0, 0.0001),
+			},
+		} {
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+				ex := testExchangeFor(t, futuresHandler(t, tc.routes...), liveUnavailable)
+				result, err := ex.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{Asset: asset.Futures, Pair: futuresTradablePair, StartDate: tc.start, EndDate: tc.end})
+				require.NoError(t, err, "GetHistoricalFundingRates must not error")
+				// Settle times are read in the local time zone
+				result.StartDate, result.EndDate, result.LatestRate.Time = result.StartDate.UTC(), result.EndDate.UTC(), result.LatestRate.Time.UTC()
+				for i := range result.FundingRates {
+					result.FundingRates[i].Time = result.FundingRates[i].Time.UTC()
+				}
+				latest := tc.exp[len(tc.exp)-1]
+				assert.Equal(t, &fundingrate.HistoricalRates{
+					Exchange:     "MEXC",
+					Asset:        asset.Futures,
+					Pair:         futuresTradablePair,
+					StartDate:    tc.exp[0].Time,
+					EndDate:      latest.Time,
+					LatestRate:   latest,
+					FundingRates: tc.exp,
+				}, result, "every rate asked for should be returned once, as first listed, oldest first")
+			})
+		}
+	})
+
 	_, err := e.GetHistoricalFundingRates(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
 	_, err = e.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{Asset: asset.Spot, Pair: spotTradablePair})
@@ -356,6 +445,7 @@ func TestIsPerpetualFutureCurrency(t *testing.T) {
 	assert.False(t, is, "a spot pair should not be perpetual")
 }
 
+//nolint:tparallel // the cases share ex and the contracts it read, in order
 func TestGetCollateralCurrencyForContract(t *testing.T) {
 	t.Parallel()
 	_, _, err := e.GetCollateralCurrencyForContract(asset.Spot, spotTradablePair)
@@ -369,14 +459,18 @@ func TestGetCollateralCurrencyForContract(t *testing.T) {
 
 	_, err = ex.GetFuturesContracts(t.Context(), currency.EMPTYPAIR)
 	require.NoError(t, err, "GetFuturesContracts must not error")
+	// The cases share ex and the contracts it read, in order, so each also checks that a call keeps nothing from the last
 	for p, exp := range map[currency.Pair]currency.Code{futuresTradablePair: currency.USDT, futuresInversePair: currency.BTC} {
-		code, a, err := ex.GetCollateralCurrencyForContract(asset.Futures, p)
-		require.NoErrorf(t, err, "GetCollateralCurrencyForContract must not error for %s", p)
-		assert.Equalf(t, exp, code, "%s should settle in %s", p, exp)
-		assert.Equalf(t, asset.Futures, a, "%s collateral should be held in the futures account", p)
+		t.Run(p.String(), func(t *testing.T) {
+			code, a, err := ex.GetCollateralCurrencyForContract(asset.Futures, p)
+			require.NoErrorf(t, err, "GetCollateralCurrencyForContract must not error for %s", p)
+			assert.Equalf(t, exp, code, "%s should settle in %s", p, exp)
+			assert.Equalf(t, asset.Futures, a, "%s collateral should be held in the futures account", p)
+		})
 	}
 }
 
+//nolint:tparallel // the cases share e and result, in order
 func TestGetOpenInterest(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetOpenInterest(t.Context(), key.PairAsset{Base: spotTradablePair.Base.Item, Quote: spotTradablePair.Quote.Item, Asset: asset.Spot})
@@ -397,18 +491,21 @@ func TestGetOpenInterest(t *testing.T) {
 		assert.Positive(t, result[0].OpenInterest, "the open interest should be positive")
 	}
 
+	// The cases share e and result in order, so each also checks that a call keeps nothing from the last
 	for _, keys := range [][]key.PairAsset{{linear, inverse}, nil} {
-		result, err = e.GetOpenInterest(t.Context(), keys...)
-		require.NoErrorf(t, err, "GetOpenInterest must not error for %d contracts", len(keys))
-		if !mockTests {
-			assert.Lenf(t, result, 2, "both contracts' open interest should be returned for %d contracts asked for", len(keys))
-			continue
-		}
-		exp := []futures.OpenInterest{
-			{Key: key.NewExchangeAssetPair("MEXC", asset.Futures, futuresTradablePair), OpenInterest: 49021.712400000004},
-			{Key: key.NewExchangeAssetPair("MEXC", asset.Futures, futuresInversePair), OpenInterest: 172493300},
-		}
-		assert.Equalf(t, exp, result, "both contracts' open interest should be mapped for %d contracts asked for", len(keys))
+		t.Run(strconv.Itoa(len(keys))+" contracts asked for", func(t *testing.T) {
+			result, err = e.GetOpenInterest(t.Context(), keys...)
+			require.NoErrorf(t, err, "GetOpenInterest must not error for %d contracts", len(keys))
+			if !mockTests {
+				assert.Lenf(t, result, 2, "both contracts' open interest should be returned for %d contracts asked for", len(keys))
+				return
+			}
+			exp := []futures.OpenInterest{
+				{Key: key.NewExchangeAssetPair("MEXC", asset.Futures, futuresTradablePair), OpenInterest: 49021.712400000004},
+				{Key: key.NewExchangeAssetPair("MEXC", asset.Futures, futuresInversePair), OpenInterest: 172493300},
+			}
+			assert.Equalf(t, exp, result, "both contracts' open interest should be mapped for %d contracts asked for", len(keys))
+		})
 	}
 }
 
@@ -444,56 +541,63 @@ func TestFuturesQuoteCost(t *testing.T) {
 		{&FuturesContractResponse{BaseCoin: currency.BTC, QuoteCoin: currency.USDC, SettleCoin: currency.USDC, ContractSize: 0.0001}, 50},
 		{&FuturesContractResponse{BaseCoin: currency.BTC, QuoteCoin: currency.USD, SettleCoin: currency.BTC, ContractSize: 100}, 500},
 	} {
-		assert.InDeltaf(t, tc.exp, futuresQuoteCost(tc.contract, 5, 100000), 1e-9, "five %s margined contracts at 100000 should cost %v %s", tc.contract.SettleCoin, tc.exp, tc.contract.QuoteCoin)
+		t.Run(tc.contract.SettleCoin.String()+" margined", func(t *testing.T) {
+			t.Parallel()
+			assert.InDeltaf(t, tc.exp, futuresQuoteCost(tc.contract, 5, 100000), 1e-9, "five %s margined contracts at 100000 should cost %v %s", tc.contract.SettleCoin, tc.exp, tc.contract.QuoteCoin)
+		})
 	}
 }
 
-func TestFuturesOrderDetailInverseCost(t *testing.T) {
+func TestFuturesOrderDetail(t *testing.T) {
 	t.Parallel()
-	ex := newFuturesWebsocketTestExchange(t)
-	o := futuresFilledOrder()
-	o.Symbol = "BTC_USD"
-	o.Price, o.Volume, o.DealVolume, o.DealAveragePrice, o.State = 51000, 10, 4, 50000, FuturesOrderStateUnfilled
-	o.FeeCurrency = currency.BTC
-	detail, err := ex.futuresOrderDetail(t.Context(), o, currency.EMPTYPAIR)
-	require.NoError(t, err, "futuresOrderDetail must not error")
-	// Four of ten contracts of 100 USD each cost 400 USD, whatever the price they filled at
-	exp := futuresFilledOrderDetail(ex.Name)
-	exp.Pair = futuresInversePair
-	exp.Price, exp.Amount, exp.ContractAmount, exp.ExecutedAmount, exp.RemainingAmount = 51000, 10, 10, 4, 6
-	exp.AverageExecutedPrice, exp.Cost, exp.CostAsset = 50000, 400, currency.USD
-	exp.Status, exp.FeeAsset = order.PartiallyFilled, currency.BTC
-	assert.Equal(t, exp, &detail, "a partly filled inverse order should cost its filled contracts' value in its quote currency")
+	t.Run("inverse cost", func(t *testing.T) {
+		t.Parallel()
+		ex := newFuturesWebsocketTestExchange(t)
+		o := futuresFilledOrder()
+		o.Symbol = "BTC_USD"
+		o.Price, o.Volume, o.DealVolume, o.DealAveragePrice, o.State = 51000, 10, 4, 50000, FuturesOrderStateUnfilled
+		o.FeeCurrency = currency.BTC
+		detail, err := ex.futuresOrderDetail(t.Context(), o, currency.EMPTYPAIR)
+		require.NoError(t, err, "futuresOrderDetail must not error")
+		// Four of ten contracts of 100 USD each cost 400 USD, whatever the price they filled at
+		exp := futuresFilledOrderDetail(ex.Name)
+		exp.Pair = futuresInversePair
+		exp.Price, exp.Amount, exp.ContractAmount, exp.ExecutedAmount, exp.RemainingAmount = 51000, 10, 10, 4, 6
+		exp.AverageExecutedPrice, exp.Cost, exp.CostAsset = 50000, 400, currency.USD
+		exp.Status, exp.FeeAsset = order.PartiallyFilled, currency.BTC
+		assert.Equal(t, exp, &detail, "a partly filled inverse order should cost its filled contracts' value in its quote currency")
+	})
+
+	t.Run("unlisted symbol", func(t *testing.T) {
+		t.Parallel()
+		unformatted := new(Exchange)
+		unformatted.CurrencyPairs.UseGlobalFormat = true
+		o := futuresFilledOrder()
+		o.DealVolume = 0
+		_, err := unformatted.futuresOrderDetail(t.Context(), o, currency.EMPTYPAIR)
+		require.ErrorIs(t, err, currency.ErrPairFormatIsNil, "futuresOrderDetail must return why a symbol has no pair without a fallback pair")
+
+		ex := newFuturesWebsocketTestExchange(t)
+		o.Symbol = "UNLISTED"
+		_, err = ex.futuresOrderDetail(t.Context(), o, currency.EMPTYPAIR)
+		require.ErrorContains(t, err, "delimiter not found", "futuresOrderDetail must return why a symbol which names no pair has none")
+		detail, err := ex.futuresOrderDetail(t.Context(), o, futuresTradablePair)
+		require.NoError(t, err, "futuresOrderDetail must not error with a fallback pair")
+		assert.Equal(t, futuresTradablePair, detail.Pair, "a symbol which names no pair should take the fallback pair")
+
+		ex = testExchangeFor(t, futuresHandler(t, futuresContractsRoute), liveUnavailable)
+		o = futuresFilledOrder()
+		o.Symbol = "ETH_USDT"
+		detail, err = ex.futuresOrderDetail(t.Context(), o, currency.EMPTYPAIR)
+		require.NoError(t, err, "futuresOrderDetail must not error for a contract the venue no longer lists")
+		exp := futuresFilledOrderDetail(ex.Name)
+		exp.Pair = currency.NewPairWithDelimiter("ETH", "USDT", currency.UnderscoreDelimiter)
+		exp.Cost, exp.CostAsset = 0, currency.EMPTYCODE
+		assert.Equal(t, exp, &detail, "an order on a contract the venue no longer lists should be reported without its cost")
+	})
 }
 
-func TestFuturesOrderDetailUnlistedSymbol(t *testing.T) {
-	t.Parallel()
-	unformatted := new(Exchange)
-	unformatted.CurrencyPairs.UseGlobalFormat = true
-	o := futuresFilledOrder()
-	o.DealVolume = 0
-	_, err := unformatted.futuresOrderDetail(t.Context(), o, currency.EMPTYPAIR)
-	require.ErrorIs(t, err, currency.ErrPairFormatIsNil, "futuresOrderDetail must return why a symbol has no pair without a fallback pair")
-
-	ex := newFuturesWebsocketTestExchange(t)
-	o.Symbol = "UNLISTED"
-	_, err = ex.futuresOrderDetail(t.Context(), o, currency.EMPTYPAIR)
-	require.ErrorContains(t, err, "delimiter not found", "futuresOrderDetail must return why a symbol which names no pair has none")
-	detail, err := ex.futuresOrderDetail(t.Context(), o, futuresTradablePair)
-	require.NoError(t, err, "futuresOrderDetail must not error with a fallback pair")
-	assert.Equal(t, futuresTradablePair, detail.Pair, "a symbol which names no pair should take the fallback pair")
-
-	ex = testExchangeFor(t, futuresHandler(t, futuresContractsRoute), liveUnavailable)
-	o = futuresFilledOrder()
-	o.Symbol = "ETH_USDT"
-	detail, err = ex.futuresOrderDetail(t.Context(), o, currency.EMPTYPAIR)
-	require.NoError(t, err, "futuresOrderDetail must not error for a contract the venue no longer lists")
-	exp := futuresFilledOrderDetail(ex.Name)
-	exp.Pair = currency.NewPairWithDelimiter("ETH", "USDT", currency.UnderscoreDelimiter)
-	exp.Cost, exp.CostAsset = 0, currency.EMPTYCODE
-	assert.Equal(t, exp, &detail, "an order on a contract the venue no longer lists should be reported without its cost")
-}
-
+//nolint:tparallel // the cases share ex and its handler, in order
 func TestFuturesCurrentLeverage(t *testing.T) {
 	t.Parallel()
 	ex := testExchangeFor(t, futuresHandler(t, futuresRoute{
@@ -503,6 +607,7 @@ func TestFuturesCurrentLeverage(t *testing.T) {
 		data: `[{"positionType":1,"openType":1,"leverage":2},{"positionType":2,"openType":1,"leverage":3},` +
 			`{"positionType":1,"openType":2,"leverage":5},{"positionType":2,"openType":2,"leverage":0}]`,
 	}), liveUnavailable)
+	// The cases share ex and its handler in order, so each also checks that a call keeps nothing from the last
 	for _, tc := range []struct {
 		side, openType uint8
 		exp            uint64
@@ -513,9 +618,11 @@ func TestFuturesCurrentLeverage(t *testing.T) {
 		{FuturesSideOpenLong, FuturesOpenTypeCross, 5, nil},
 		{FuturesSideOpenShort, FuturesOpenTypeCross, 0, errInvalidLeverage},
 	} {
-		leverage, err := ex.futuresCurrentLeverage(t.Context(), futuresTradablePair, tc.side, tc.openType)
-		require.ErrorIsf(t, err, tc.err, "futuresCurrentLeverage must return the expected error for side %d and open type %d", tc.side, tc.openType)
-		assert.Equalf(t, tc.exp, leverage, "side %d and open type %d should take the leverage of their positions", tc.side, tc.openType)
+		t.Run("side "+strconv.Itoa(int(tc.side))+" open type "+strconv.Itoa(int(tc.openType)), func(t *testing.T) {
+			leverage, err := ex.futuresCurrentLeverage(t.Context(), futuresTradablePair, tc.side, tc.openType)
+			require.ErrorIsf(t, err, tc.err, "futuresCurrentLeverage must return the expected error for side %d and open type %d", tc.side, tc.openType)
+			assert.Equalf(t, tc.exp, leverage, "side %d and open type %d should take the leverage of their positions", tc.side, tc.openType)
+		})
 	}
 
 	ex = testExchangeFor(t, func(w http.ResponseWriter, _ *http.Request) {
@@ -532,6 +639,7 @@ func TestFuturesContractIsInverse(t *testing.T) {
 	assert.False(t, (&FuturesContractResponse{BaseCoin: currency.BTC, QuoteCoin: currency.USD}).IsInverse(), "a contract without a settlement currency should not be inverse")
 }
 
+//nolint:tparallel // the cases run straight after now is read, as their windows are placed around it
 func TestFuturesHistoryWindows(t *testing.T) {
 	t.Parallel()
 	start := time.UnixMilli(1750000000000)
@@ -548,6 +656,7 @@ func TestFuturesHistoryWindows(t *testing.T) {
 
 	now := time.Now()
 	day := 24 * time.Hour
+	// The windows are placed around now, so the cases run straight after it is read rather than when a parallel slot frees
 	for _, tc := range []struct {
 		name       string
 		start, end time.Time
@@ -559,16 +668,18 @@ func TestFuturesHistoryWindows(t *testing.T) {
 		{name: "a later part starting a minute after now", start: now.Add(-futuresHistoryWindow + time.Minute), end: now.Add(10 * day), parts: 1},
 		{name: "a window starting after now, for the request to refuse", start: now.Add(day), end: now.Add(2 * day), parts: 1},
 	} {
-		exp := make([]historyWindow, tc.parts)
-		for i := range exp {
-			from := tc.start.Add(time.Duration(i) * futuresHistoryWindow)
-			to := from.Add(futuresHistoryWindow)
-			if to.After(tc.end) {
-				to = tc.end
+		t.Run(tc.name, func(t *testing.T) {
+			exp := make([]historyWindow, tc.parts)
+			for i := range exp {
+				from := tc.start.Add(time.Duration(i) * futuresHistoryWindow)
+				to := from.Add(futuresHistoryWindow)
+				if to.After(tc.end) {
+					to = tc.end
+				}
+				exp[i] = historyWindow{start: from, end: to}
 			}
-			exp[i] = historyWindow{start: from, end: to}
-		}
-		assert.Equalf(t, exp, futuresHistoryWindows(tc.start, tc.end), "%s should be read in its parts starting before now", tc.name)
+			assert.Equalf(t, exp, futuresHistoryWindows(tc.start, tc.end), "%s should be read in its parts starting before now", tc.name)
+		})
 	}
 }
 
@@ -586,12 +697,15 @@ func TestFuturesOrderSide(t *testing.T) {
 		{order.Short, false, FuturesSideOpenShort},
 		{order.Sell, true, FuturesSideCloseLong},
 	} {
-		side, err := futuresOrderSide(tc.side, tc.reduceOnly)
-		require.NoErrorf(t, err, "futuresOrderSide must not error for %s", tc.side)
-		assert.Equalf(t, tc.exp, side, "%s reducing %t should map to side %d", tc.side, tc.reduceOnly, tc.exp)
-		back, reduceOnly := orderSideFromFuturesSide(side)
-		assert.Equalf(t, tc.side.IsLong(), back.IsLong(), "side %d should map back to the same direction", side)
-		assert.Equalf(t, tc.reduceOnly, reduceOnly, "side %d should map back to the same reduction", side)
+		t.Run(tc.side.String()+" reducing "+strconv.FormatBool(tc.reduceOnly), func(t *testing.T) {
+			t.Parallel()
+			side, err := futuresOrderSide(tc.side, tc.reduceOnly)
+			require.NoErrorf(t, err, "futuresOrderSide must not error for %s", tc.side)
+			assert.Equalf(t, tc.exp, side, "%s reducing %t should map to side %d", tc.side, tc.reduceOnly, tc.exp)
+			back, reduceOnly := orderSideFromFuturesSide(side)
+			assert.Equalf(t, tc.side.IsLong(), back.IsLong(), "side %d should map back to the same direction", side)
+			assert.Equalf(t, tc.reduceOnly, reduceOnly, "side %d should map back to the same reduction", side)
+		})
 	}
 	_, err := futuresOrderSide(order.AnySide, false)
 	assert.ErrorIs(t, err, order.ErrSideIsInvalid)
@@ -610,7 +724,10 @@ func TestFuturesSideType(t *testing.T) {
 		0:                     "",
 		5:                     "",
 	} {
-		assert.Equalf(t, exp, futuresSideType(side), "side %d should have side type %q", side, exp)
+		t.Run("side "+strconv.Itoa(int(side)), func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, exp, futuresSideType(side), "side %d should have side type %q", side, exp)
+		})
 	}
 }
 
@@ -637,9 +754,12 @@ func TestFuturesPositionTypes(t *testing.T) {
 		order.Sell:        {FuturesPositionTypeShort},
 		order.Short:       {FuturesPositionTypeShort},
 	} {
-		positionTypes, err := futuresPositionTypes(side)
-		require.NoErrorf(t, err, "futuresPositionTypes must not error for %s", side)
-		assert.Equalf(t, exp, positionTypes, "%s should name its position types", side)
+		t.Run(side.String(), func(t *testing.T) {
+			t.Parallel()
+			positionTypes, err := futuresPositionTypes(side)
+			require.NoErrorf(t, err, "futuresPositionTypes must not error for %s", side)
+			assert.Equalf(t, exp, positionTypes, "%s should name its position types", side)
+		})
 	}
 	_, err := futuresPositionTypes(order.ClosePosition)
 	assert.ErrorIs(t, err, order.ErrSideIsInvalid)
@@ -661,9 +781,12 @@ func TestFuturesOrderTypeFromOrderTypeAndTimeInForce(t *testing.T) {
 		{order.Market, order.UnknownTIF, FuturesOrderTypeMarket},
 		{order.Market, order.ImmediateOrCancel, FuturesOrderTypeMarket},
 	} {
-		oType, err := futuresOrderTypeFromOrderTypeAndTimeInForce(tc.oType, tc.tif)
-		require.NoErrorf(t, err, "futuresOrderTypeFromOrderTypeAndTimeInForce must not error for %s %s", tc.oType, tc.tif)
-		assert.Equalf(t, tc.exp, oType, "%s %s should map to type %d", tc.oType, tc.tif, tc.exp)
+		t.Run(tc.oType.String()+" "+cmp.Or(tc.tif.String(), "empty"), func(t *testing.T) {
+			t.Parallel()
+			oType, err := futuresOrderTypeFromOrderTypeAndTimeInForce(tc.oType, tc.tif)
+			require.NoErrorf(t, err, "futuresOrderTypeFromOrderTypeAndTimeInForce must not error for %s %s", tc.oType, tc.tif)
+			assert.Equalf(t, tc.exp, oType, "%s %s should map to type %d", tc.oType, tc.tif, tc.exp)
+		})
 	}
 	_, err := futuresOrderTypeFromOrderTypeAndTimeInForce(order.Limit, order.GoodTillTime)
 	assert.ErrorIs(t, err, order.ErrUnsupportedTimeInForce)
@@ -692,9 +815,12 @@ func TestOrderTypeFromFuturesOrder(t *testing.T) {
 		{FuturesOrderTypeLimit, FuturesOrderCategoryAutoDeleverage, order.Limit, order.GoodTillCancel},
 		{9, FuturesOrderCategoryLimit, order.UnknownType, order.UnknownTIF},
 	} {
-		oType, tif := orderTypeFromFuturesOrder(tc.orderType, tc.category)
-		assert.Equalf(t, tc.oType, oType, "type %d in category %d should map to %s", tc.orderType, tc.category, tc.oType)
-		assert.Equalf(t, tc.tif, tif, "type %d in category %d should map to %s", tc.orderType, tc.category, tc.tif)
+		t.Run("type "+strconv.Itoa(int(tc.orderType))+" category "+strconv.Itoa(int(tc.category)), func(t *testing.T) {
+			t.Parallel()
+			oType, tif := orderTypeFromFuturesOrder(tc.orderType, tc.category)
+			assert.Equalf(t, tc.oType, oType, "type %d in category %d should map to %s", tc.orderType, tc.category, tc.oType)
+			assert.Equalf(t, tc.tif, tif, "type %d in category %d should map to %s", tc.orderType, tc.category, tc.tif)
+		})
 	}
 }
 
@@ -714,16 +840,22 @@ func TestOrderStatusFromFuturesState(t *testing.T) {
 		{FuturesOrderStateInvalid, 0, order.Rejected},
 		{9, 0, order.UnknownStatus},
 	} {
-		assert.Equalf(t, tc.exp, orderStatusFromFuturesState(tc.state, tc.filled), "state %d with %v filled should map to %s", tc.state, tc.filled, tc.exp)
+		t.Run("state "+strconv.Itoa(int(tc.state))+" filled "+strconv.FormatFloat(tc.filled, 'f', -1, 64), func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, tc.exp, orderStatusFromFuturesState(tc.state, tc.filled), "state %d with %v filled should map to %s", tc.state, tc.filled, tc.exp)
+		})
 	}
 }
 
 func TestFuturesOpenTypeFromMarginType(t *testing.T) {
 	t.Parallel()
 	for m, exp := range map[margin.Type]uint8{margin.Unset: FuturesOpenTypeIsolated, margin.Isolated: FuturesOpenTypeIsolated, margin.Multi: FuturesOpenTypeCross} {
-		openType, err := futuresOpenTypeFromMarginType(m)
-		require.NoErrorf(t, err, "futuresOpenTypeFromMarginType must not error for %s", m)
-		assert.Equalf(t, exp, openType, "%s should map to open type %d", m, exp)
+		t.Run(cmp.Or(m.String(), "empty"), func(t *testing.T) {
+			t.Parallel()
+			openType, err := futuresOpenTypeFromMarginType(m)
+			require.NoErrorf(t, err, "futuresOpenTypeFromMarginType must not error for %s", m)
+			assert.Equalf(t, exp, openType, "%s should map to open type %d", m, exp)
+		})
 	}
 	_, err := futuresOpenTypeFromMarginType(margin.SpotIsolated)
 	assert.ErrorIs(t, err, margin.ErrMarginTypeUnsupported)
@@ -766,7 +898,10 @@ func TestFuturesMarginChange(t *testing.T) {
 		{ulpsAbove(documented, 2), documented, 0},
 		{ulpsAbove(documented, 3), documented, 1e-14},
 	} {
-		assert.Equalf(t, tc.exp, futuresMarginChange(tc.newMargin, tc.currentMargin), "moving a margin of %v to %v should change it by %v", tc.currentMargin, tc.newMargin, tc.exp)
+		t.Run(strconv.FormatFloat(tc.currentMargin, 'f', -1, 64)+" to "+strconv.FormatFloat(tc.newMargin, 'f', -1, 64), func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, tc.exp, futuresMarginChange(tc.newMargin, tc.currentMargin), "moving a margin of %v to %v should change it by %v", tc.currentMargin, tc.newMargin, tc.exp)
+		})
 	}
 	assert.True(t, math.IsNaN(futuresMarginChange(math.NaN(), documented)), "a new margin which is not a number should give no change amount")
 }
@@ -812,165 +947,6 @@ func TestRecordFuturesCancelOutcomes(t *testing.T) {
 	err = recordFuturesCancelOutcomes(resp, requested[:1], nil, errFuturesRequestFailed)
 	require.ErrorIs(t, err, errFuturesRequestFailed, "a failed request must be returned")
 	assert.Equal(t, errFuturesRequestFailed.Error(), resp.Status["101716841474621953"], "a failed request should be reported against its orders")
-}
-
-func TestUpdateAccountBalancesFutures(t *testing.T) {
-	t.Parallel()
-	ex := testExchangeFor(t, futuresHandler(t, futuresRoute{
-		method: http.MethodGet,
-		path:   "private/account/assets",
-		data:   `[{"currency":"USDT","positionMargin":1.5,"frozenBalance":2,"availableBalance":10},{"currency":"","availableBalance":1}]`,
-	}), liveReadOnly)
-	subAccounts, err := ex.UpdateAccountBalances(t.Context(), asset.Futures)
-	require.NoError(t, err, "UpdateAccountBalances must not error for futures")
-	require.Len(t, subAccounts, 1, "the futures account must be returned")
-	assert.Equal(t, asset.Futures, subAccounts[0].AssetType, "the futures account should be named")
-	if !mockTests {
-		return
-	}
-	b := subAccounts[0].Balances[currency.USDT]
-	assert.False(t, b.UpdatedAt.IsZero(), "the balance should record when it was updated")
-	b.UpdatedAt = time.Time{}
-	subAccounts[0].Balances[currency.USDT] = b
-	// A balance without a currency is skipped
-	exp := accounts.SubAccounts{{
-		AssetType: asset.Futures,
-		Balances:  accounts.CurrencyBalances{currency.USDT: {Currency: currency.USDT, Total: 13.5, Hold: 3.5, Free: 10}},
-	}}
-	assert.Equal(t, exp, subAccounts, "the futures balances should be mapped")
-}
-
-func TestSubmitOrderFutures(t *testing.T) {
-	t.Parallel()
-	submit := func(ex *Exchange, s order.Submit) (*order.SubmitResponse, error) {
-		s.Exchange, s.AssetType, s.Pair = ex.Name, asset.Futures, futuresTradablePair
-		return ex.SubmitOrder(t.Context(), &s)
-	}
-	_, err := submit(e, order.Submit{Side: order.Buy, Type: order.Market, QuoteAmount: 100})
-	require.ErrorIs(t, err, order.ErrAmountIsInvalid, "a futures order sized in quote currency must be refused")
-	_, err = submit(e, order.Submit{Side: order.Buy, Type: order.Market, Amount: 1, MarginType: margin.SpotIsolated})
-	require.ErrorIs(t, err, margin.ErrMarginTypeUnsupported)
-	_, err = submit(e, order.Submit{Side: order.Buy, Type: order.Market, Amount: 1, Leverage: 2.5})
-	require.ErrorIs(t, err, errInvalidLeverage, "fractional leverage must be refused")
-	_, err = submit(e, order.Submit{Side: order.Buy, Type: order.Limit, Price: 1, Amount: 1, TimeInForce: order.GoodTillTime})
-	require.ErrorIs(t, err, order.ErrUnsupportedTimeInForce)
-
-	t.Run("isolated open takes the account's leverage", func(t *testing.T) {
-		t.Parallel()
-		ex := testExchangeFor(t, futuresHandler(t, futuresRoute{
-			method: http.MethodGet,
-			path:   "private/position/leverage",
-			query:  "symbol=BTC_USDT",
-			data:   `[{"positionType":1,"openType":1,"leverage":20},{"positionType":2,"openType":1,"leverage":10}]`,
-		}, futuresRoute{
-			method: http.MethodPost,
-			path:   "private/order/create",
-			body:   `{"symbol":"BTC_USDT","price":50000,"vol":1,"leverage":20,"side":1,"sideType":"buy","type":1,"openType":1,"externalOid":"gct-1","stpMode":0}`,
-			data:   `{"orderId":"739113577038255616","ts":1761888808839}`,
-		}), liveUnavailable)
-		resp, err := submit(ex, order.Submit{Side: order.Buy, Type: order.Limit, Price: 50000, Amount: 1, ClientOrderID: "gct-1"})
-		require.NoError(t, err, "SubmitOrder must not error for futures")
-		// An order without a margin type is isolated, at the account's leverage, and stamped with the venue's time
-		exp := &order.SubmitResponse{
-			Exchange:      ex.Name,
-			Type:          order.Limit,
-			Side:          order.Buy,
-			Pair:          futuresTradablePair,
-			AssetType:     asset.Futures,
-			Leverage:      20,
-			Price:         50000,
-			Amount:        1,
-			ClientOrderID: "gct-1",
-			LastUpdated:   time.UnixMilli(1761888808839),
-			Date:          time.UnixMilli(1761888808839),
-			Status:        order.New,
-			OrderID:       "739113577038255616",
-			MarginType:    margin.Isolated,
-		}
-		assert.Equal(t, exp, resp, "the placed order should be returned")
-	})
-
-	t.Run("isolated open without leverage set", func(t *testing.T) {
-		t.Parallel()
-		ex := testExchangeFor(t, futuresHandler(t, futuresRoute{
-			method: http.MethodGet,
-			path:   "private/position/leverage",
-			query:  "symbol=BTC_USDT",
-			data:   `[{"positionType":1,"openType":2,"leverage":20}]`,
-		}), liveUnavailable)
-		_, err := submit(ex, order.Submit{Side: order.Sell, Type: order.Market, Amount: 1})
-		assert.ErrorIs(t, err, errInvalidLeverage, "an isolated open without leverage should be refused before it is sent")
-	})
-
-	// A close names the position it closes, when one is open, and takes that position's margin mode when it names none.
-	// On a one-way account it is also sent reduce-only
-	isolatedLong := futuresOpenPositionReply
-	crossLong := strings.NewReplacer(`"positionId":1109973831`, `"positionId":1109973832`, `"openType":1`, `"openType":2`).Replace(futuresOpenPositionReply)
-	for name, tc := range map[string]struct {
-		positionMode string
-		positions    string
-		marginType   margin.Type
-		body         string
-		exp          margin.Type
-		err          error
-	}{
-		"cross close": {
-			positionMode: "1", positions: "[" + isolatedLong + "," + crossLong + "]", marginType: margin.Multi,
-			body: `{"symbol":"BTC_USDT","vol":2,"side":4,"sideType":"sell","type":5,"openType":2,"positionId":1109973832,"stpMode":0}`, exp: margin.Multi,
-		},
-		"close of the position's margin mode": {
-			positionMode: "1", positions: "[" + crossLong + "]",
-			body: `{"symbol":"BTC_USDT","vol":2,"side":4,"sideType":"sell","type":5,"openType":2,"positionId":1109973832,"stpMode":0}`, exp: margin.Multi,
-		},
-		"close without a position": {
-			positionMode: "1", positions: "[]",
-			body: `{"symbol":"BTC_USDT","vol":2,"side":4,"sideType":"sell","type":5,"openType":1,"stpMode":0}`, exp: margin.Isolated,
-		},
-		"close of either margin mode": {positionMode: "1", positions: "[" + isolatedLong + "," + crossLong + "]", err: errMarginTypeAmbiguous},
-		"one-way cross close": {
-			positionMode: "2", positions: "[" + crossLong + "]", marginType: margin.Multi,
-			body: `{"symbol":"BTC_USDT","vol":2,"side":4,"sideType":"sell","type":5,"openType":2,"positionId":1109973832,"positionMode":2,"reduceOnly":true,"stpMode":0}`,
-			exp:  margin.Multi,
-		},
-		"one-way close without a position": {
-			positionMode: "2", positions: "[]",
-			body: `{"symbol":"BTC_USDT","vol":2,"side":4,"sideType":"sell","type":5,"openType":1,"positionMode":2,"reduceOnly":true,"stpMode":0}`,
-			exp:  margin.Isolated,
-		},
-	} {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			routes := []futuresRoute{
-				{method: http.MethodGet, path: "private/position/position_mode", data: tc.positionMode},
-				{method: http.MethodGet, path: "private/position/open_positions", query: "symbol=BTC_USDT", data: tc.positions},
-			}
-			if tc.body != "" {
-				routes = append(routes, futuresRoute{method: http.MethodPost, path: "private/order/create", body: tc.body, data: `{"orderId":"739113577038255617","ts":1761888808840}`})
-			}
-			ex := testExchangeFor(t, futuresHandler(t, routes...), liveUnavailable)
-			resp, err := submit(ex, order.Submit{Side: order.Sell, Type: order.Market, Amount: 2, ReduceOnly: true, MarginType: tc.marginType})
-			require.ErrorIs(t, err, tc.err, "SubmitOrder must return the expected error for a closing order")
-			if tc.err != nil {
-				return
-			}
-			// A closing order is returned as reduce-only, and sends no leverage
-			exp := &order.SubmitResponse{
-				Exchange:    ex.Name,
-				Type:        order.Market,
-				Side:        order.Sell,
-				Pair:        futuresTradablePair,
-				AssetType:   asset.Futures,
-				ReduceOnly:  true,
-				Amount:      2,
-				LastUpdated: time.UnixMilli(1761888808840),
-				Date:        time.UnixMilli(1761888808840),
-				Status:      order.New,
-				OrderID:     "739113577038255617",
-				MarginType:  tc.exp,
-			}
-			assert.Equal(t, exp, resp, "the closing order should be returned with the closed position's margin type")
-		})
-	}
 }
 
 func TestSubmitFuturesOrder(t *testing.T) {
@@ -1176,6 +1152,7 @@ func TestSubmitFuturesOrder(t *testing.T) {
 					t.Parallel()
 					var serving atomic.Pointer[http.HandlerFunc]
 					ex := testExchangeFor(t, func(w http.ResponseWriter, r *http.Request) { (*serving.Load())(w, r) }, liveUnavailable)
+					// The cases share ex in order, so each also checks that a submission keeps nothing from the last
 					for _, venue := range []struct {
 						name      string
 						positions string
@@ -1188,71 +1165,73 @@ func TestSubmitFuturesOrder(t *testing.T) {
 						{name: "positions refused", refuse: "private/position/open_positions"},
 						{name: "placement refused", positions: "[]", refuse: "private/order/create"},
 					} {
-						send := func(positionMode string) ([]string, []byte, error) {
-							handler := futuresHandler(t,
-								futuresRoute{method: http.MethodGet, path: "private/position/position_mode", data: positionMode},
-								futuresRoute{method: http.MethodGet, path: "private/position/open_positions", query: "symbol=BTC_USDT", data: venue.positions},
-								futuresRoute{method: http.MethodPost, path: "private/order/create", data: placed},
-							)
+						t.Run(venue.name, func(t *testing.T) {
+							send := func(positionMode string) ([]string, []byte, error) {
+								handler := futuresHandler(t,
+									futuresRoute{method: http.MethodGet, path: "private/position/position_mode", data: positionMode},
+									futuresRoute{method: http.MethodGet, path: "private/position/open_positions", query: "symbol=BTC_USDT", data: venue.positions},
+									futuresRoute{method: http.MethodPost, path: "private/order/create", data: placed},
+								)
+								if venue.refuse != "" {
+									handler = refuse(venue.refuse, handler)
+								}
+								handler, requests := record(handler)
+								serving.Store(&handler)
+								_, err := submit(ex, order.Submit{Side: side, Type: kind.orderType, TimeInForce: kind.timeInForce, MarginType: marginType, ReduceOnly: true})
+								sent, body := requests()
+								return sent, body, err
+							}
+							hedgeRequests, hedgeBody, hedgeErr := send("1")
+							oneWayRequests, oneWayBody, oneWayErr := send("2")
+							wantRequests := []string{readMode, readPositions, place}
 							if venue.refuse != "" {
-								handler = refuse(venue.refuse, handler)
+								require.ErrorIsf(t, hedgeErr, errFuturesRequestFailed, "with %s, the refusal must be returned in hedge mode", venue.name)
+								require.ErrorIsf(t, oneWayErr, errFuturesRequestFailed, "with %s, the refusal must be returned in one-way mode", venue.name)
+								assert.Equalf(t, hedgeErr.Error(), oneWayErr.Error(), "with %s, both position modes should return the same error", venue.name)
+								if venue.refuse == "private/position/open_positions" {
+									wantRequests = wantRequests[:2]
+								}
+							} else {
+								require.NoErrorf(t, hedgeErr, "with %s, submitFuturesOrder must not error in hedge mode", venue.name)
+								require.NoErrorf(t, oneWayErr, "with %s, submitFuturesOrder must not error in one-way mode", venue.name)
 							}
-							handler, requests := record(handler)
-							serving.Store(&handler)
-							_, err := submit(ex, order.Submit{Side: side, Type: kind.orderType, TimeInForce: kind.timeInForce, MarginType: marginType, ReduceOnly: true})
-							sent, body := requests()
-							return sent, body, err
-						}
-						hedgeRequests, hedgeBody, hedgeErr := send("1")
-						oneWayRequests, oneWayBody, oneWayErr := send("2")
-						wantRequests := []string{readMode, readPositions, place}
-						if venue.refuse != "" {
-							require.ErrorIsf(t, hedgeErr, errFuturesRequestFailed, "with %s, the refusal must be returned in hedge mode", venue.name)
-							require.ErrorIsf(t, oneWayErr, errFuturesRequestFailed, "with %s, the refusal must be returned in one-way mode", venue.name)
-							assert.Equalf(t, hedgeErr.Error(), oneWayErr.Error(), "with %s, both position modes should return the same error", venue.name)
+							assert.Equalf(t, wantRequests, hedgeRequests, "with %s, a hedge mode reducing order should read the mode, then its position, before it is placed", venue.name)
+							assert.Equalf(t, wantRequests, oneWayRequests, "with %s, a one-way mode reducing order should read the mode, then its position, before it is placed", venue.name)
 							if venue.refuse == "private/position/open_positions" {
-								wantRequests = wantRequests[:2]
+								return
 							}
-						} else {
-							require.NoErrorf(t, hedgeErr, "with %s, submitFuturesOrder must not error in hedge mode", venue.name)
-							require.NoErrorf(t, oneWayErr, "with %s, submitFuturesOrder must not error in one-way mode", venue.name)
-						}
-						assert.Equalf(t, wantRequests, hedgeRequests, "with %s, a hedge mode reducing order should read the mode, then its position, before it is placed", venue.name)
-						assert.Equalf(t, wantRequests, oneWayRequests, "with %s, a one-way mode reducing order should read the mode, then its position, before it is placed", venue.name)
-						if venue.refuse == "private/position/open_positions" {
-							continue
-						}
-						// A position of the margin type named, or of either when none is, is named and lends its margin type
-						openType := map[margin.Type]string{margin.Unset: "1", margin.Isolated: "1", margin.Multi: "2"}[marginType]
-						positionID := ""
-						switch {
-						case venue.held == "isolated" && marginType != margin.Multi:
-							openType, positionID = "1", isolatedID
-						case venue.held == "cross" && marginType != margin.Isolated:
-							openType, positionID = "2", crossID
-						}
-						exp := map[string]any{
-							"symbol":   "BTC_USDT",
-							"vol":      exactNumber("1"),
-							"side":     exactNumber(wantSide),
-							"sideType": wantSideType,
-							"type":     exactNumber(kind.wantType),
-							"openType": exactNumber(openType),
-							"stpMode":  exactNumber("0"),
-						}
-						if kind.orderType == order.Limit {
-							exp["price"] = exactNumber("201/2")
-						}
-						if positionID != "" {
-							exp["positionId"] = exactNumber(positionID)
-						}
-						hedge, err := exactJSON(hedgeBody)
-						require.NoErrorf(t, err, "with %s, the hedge mode body must be JSON", venue.name)
-						assert.Equalf(t, exp, hedge, "with %s, the hedge mode body should be sent", venue.name)
-						exp["positionMode"], exp["reduceOnly"] = exactNumber("2"), true
-						oneWay, err := exactJSON(oneWayBody)
-						require.NoErrorf(t, err, "with %s, the one-way mode body must be JSON", venue.name)
-						assert.Equalf(t, exp, oneWay, "with %s, the one-way mode body should add positionMode 2 and reduceOnly", venue.name)
+							// A position of the margin type named, or of either when none is, is named and lends its margin type
+							openType := map[margin.Type]string{margin.Unset: "1", margin.Isolated: "1", margin.Multi: "2"}[marginType]
+							positionID := ""
+							switch {
+							case venue.held == "isolated" && marginType != margin.Multi:
+								openType, positionID = "1", isolatedID
+							case venue.held == "cross" && marginType != margin.Isolated:
+								openType, positionID = "2", crossID
+							}
+							exp := map[string]any{
+								"symbol":   "BTC_USDT",
+								"vol":      exactNumber("1"),
+								"side":     exactNumber(wantSide),
+								"sideType": wantSideType,
+								"type":     exactNumber(kind.wantType),
+								"openType": exactNumber(openType),
+								"stpMode":  exactNumber("0"),
+							}
+							if kind.orderType == order.Limit {
+								exp["price"] = exactNumber("201/2")
+							}
+							if positionID != "" {
+								exp["positionId"] = exactNumber(positionID)
+							}
+							hedge, err := exactJSON(hedgeBody)
+							require.NoErrorf(t, err, "with %s, the hedge mode body must be JSON", venue.name)
+							assert.Equalf(t, exp, hedge, "with %s, the hedge mode body should be sent", venue.name)
+							exp["positionMode"], exp["reduceOnly"] = exactNumber("2"), true
+							oneWay, err := exactJSON(oneWayBody)
+							require.NoErrorf(t, err, "with %s, the one-way mode body must be JSON", venue.name)
+							assert.Equalf(t, exp, oneWay, "with %s, the one-way mode body should add positionMode 2 and reduceOnly", venue.name)
+						})
 					}
 				})
 			}
@@ -1276,17 +1255,24 @@ func TestSubmitFuturesOrder(t *testing.T) {
 			}
 			var serving atomic.Pointer[http.HandlerFunc]
 			ex := testExchangeFor(t, func(w http.ResponseWriter, r *http.Request) { (*serving.Load())(w, r) }, liveUnavailable)
+			// The cases share ex and handler in order, so each also checks that a submission keeps nothing from the last
 			for _, side := range []order.Side{order.Buy, order.Sell} {
-				for _, orderType := range []order.Type{order.Market, order.Limit} {
-					for marginName, marginType := range map[string]margin.Type{"unnamed margin": margin.Unset, "isolated": margin.Isolated, "cross": margin.Multi} {
-						recorded, requests := record(handler)
-						serving.Store(&recorded)
-						_, err := submit(ex, order.Submit{Side: side, Type: orderType, MarginType: marginType, ReduceOnly: true})
-						assert.ErrorIsf(t, err, exp, "a %s %s order with %s should be stopped by the position mode", side, orderType, marginName)
-						sent, _ := requests()
-						assert.Equalf(t, []string{readMode}, sent, "a %s %s order with %s should make no request after the position mode stops it", side, orderType, marginName)
+				t.Run(side.String(), func(t *testing.T) {
+					for _, orderType := range []order.Type{order.Market, order.Limit} {
+						t.Run(orderType.String(), func(t *testing.T) {
+							for marginName, marginType := range map[string]margin.Type{"unnamed margin": margin.Unset, "isolated": margin.Isolated, "cross": margin.Multi} {
+								t.Run(marginName, func(t *testing.T) {
+									recorded, requests := record(handler)
+									serving.Store(&recorded)
+									_, err := submit(ex, order.Submit{Side: side, Type: orderType, MarginType: marginType, ReduceOnly: true})
+									assert.ErrorIsf(t, err, exp, "a %s %s order with %s should be stopped by the position mode", side, orderType, marginName)
+									sent, _ := requests()
+									assert.Equalf(t, []string{readMode}, sent, "a %s %s order with %s should make no request after the position mode stops it", side, orderType, marginName)
+								})
+							}
+						})
 					}
-				}
+				})
 			}
 		})
 	}
@@ -1358,193 +1344,69 @@ func TestSubmitFuturesOrder(t *testing.T) {
 	}
 }
 
-func TestCancelOrderFutures(t *testing.T) {
+func TestCancelBatchOrders(t *testing.T) {
 	t.Parallel()
-	cancel := func(ex *Exchange, c order.Cancel) error {
-		c.AssetType = asset.Futures
-		return ex.CancelOrder(t.Context(), &c)
-	}
-	require.ErrorIs(t, cancel(e, order.Cancel{}), order.ErrOrderIDNotSet)
-	require.ErrorIs(t, cancel(e, order.Cancel{ClientOrderID: "gct-1"}), currency.ErrCurrencyPairEmpty, "a client order ID must be named with its pair")
-	require.ErrorIs(t, cancel(e, order.Cancel{OrderID: "abc"}), errInvalidFuturesID)
-
-	const orderID = "739106551624717312"
-	for name, tc := range map[string]struct {
-		data string
-		err  error
-	}{
-		"cancelled": {data: `[{"orderId":739106551624717312,"errorCode":0,"errorMsg":"success"}]`},
-		"refused":   {data: `[{"orderId":739106551624717312,"errorCode":2040,"errorMsg":"order not exist"}]`, err: errFuturesRequestFailed},
-		"missing":   {data: `[]`, err: errCancelOutcomeMissing},
-	} {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			var sent []byte
-			replay := futuresHandler(t, futuresRoute{method: http.MethodPost, path: "private/order/cancel", body: `[739106551624717312]`, data: tc.data})
-			ex := testExchangeFor(t, func(w http.ResponseWriter, r *http.Request) {
-				var err error
-				sent, err = io.ReadAll(r.Body)
-				assert.NoError(t, err, "reading the request body should not error")
-				r.Body = io.NopCloser(bytes.NewReader(sent))
-				replay(w, r)
-			}, liveUnavailable)
-			err := cancel(ex, order.Cancel{OrderID: orderID})
-			require.ErrorIs(t, err, tc.err, "the cancellation's outcome must be returned")
-			assert.Equal(t, "["+orderID+"]", string(sent), "the order ID should be sent exactly, as a number")
-		})
-	}
-
-	for data, exp := range map[string]error{
-		`[{"orderId":739106551624717312,"errorCode":0,"errorMsg":"success"}]`:            nil,
-		`{"orderId":739106551624717312,"errorCode":0,"errorMsg":"success"}`:              nil,
-		`[{"orderId":739106551624717312,"errorCode":2040,"errorMsg":"order not exist"}]`: errFuturesRequestFailed,
-		`[]`:   errCancelOutcomeMissing,
-		`null`: errCancelOutcomeMissing,
-	} {
-		ex := testExchangeFor(t, futuresHandler(t, futuresRoute{
-			method: http.MethodPost,
-			path:   "private/order/cancel_with_external",
-			body:   `{"symbol":"BTC_USDT","externalOid":"gct-1"}`,
-			data:   data,
-		}), liveUnavailable)
-		assert.ErrorIsf(t, cancel(ex, order.Cancel{ClientOrderID: "gct-1", Pair: futuresTradablePair}), exp, "a cancellation by client order ID answered %s should report its outcome", data)
-	}
-}
-
-func TestCancelBatchOrdersFutures(t *testing.T) {
-	t.Parallel()
-	_, err := e.CancelBatchOrders(t.Context(), nil)
-	require.ErrorIs(t, err, order.ErrCancelOrderIsNil)
-	_, err = e.CancelBatchOrders(t.Context(), []order.Cancel{{AssetType: asset.Futures, OrderID: "x"}})
-	require.ErrorIs(t, err, errInvalidFuturesID)
-
-	// 51 orders take two requests, of 50 orders and of one
-	orders := make([]order.Cancel, futuresBatchLimit+1)
-	firstIDs, firstOutcomes := make([]string, futuresBatchLimit), make([]string, futuresBatchLimit)
-	for i := range orders {
-		id := strconv.Itoa(1000 + i)
-		orders[i] = order.Cancel{OrderID: id, AssetType: asset.Futures, Pair: futuresTradablePair}
-		if i < futuresBatchLimit {
-			firstIDs[i] = id
-			firstOutcomes[i] = `{"orderId":` + id + `,"errorCode":0}`
+	t.Run("futures live", func(t *testing.T) {
+		t.Parallel()
+		ex := liveExchange(t, liveManipulatesOrders)
+		// The mock case's IDs, 1000 to 1050, sent as batches of 50 and 1; MEXC's order IDs are far longer
+		orders := make([]order.Cancel, futuresBatchLimit+1)
+		ids := make([]string, len(orders))
+		for i := range orders {
+			ids[i] = strconv.Itoa(1000 + i)
+			orders[i] = order.Cancel{OrderID: ids[i], AssetType: asset.Futures, Pair: futuresTradablePair}
 		}
-	}
-	var requests atomic.Int32
-	replay := futuresHandler(t, futuresRoute{
-		method: http.MethodPost,
-		path:   "private/order/cancel",
-		body:   "[" + strings.Join(firstIDs, ",") + "]",
-		data:   "[" + strings.Join(firstOutcomes, ",") + "]",
-	}, futuresRoute{
-		method: http.MethodPost,
-		path:   "private/order/cancel",
-		body:   `[1050]`,
-		data:   `[{"orderId":1050,"errorCode":2041,"errorMsg":"order state cannot be cancelled"}]`,
+		resp, err := ex.CancelBatchOrders(t.Context(), orders)
+		require.NoError(t, answeredOnMerits(err), "CancelBatchOrders must be answered on its merits")
+		if resp != nil {
+			assert.ElementsMatch(t, ids, slices.Collect(maps.Keys(resp.Status)), "every order sent should have a status")
+		}
 	})
-	ex := testExchangeFor(t, func(w http.ResponseWriter, r *http.Request) {
-		requests.Add(1)
-		replay(w, r)
-	}, liveUnavailable)
-	resp, err := ex.CancelBatchOrders(t.Context(), orders)
-	require.NoError(t, err, "a refused cancellation must be reported in its status, not as an error")
-	assert.EqualValues(t, 2, requests.Load(), "the orders should be cancelled 50 at a time")
-	// A refused order carries the venue's reason
-	exp := &order.CancelBatchResponse{Status: map[string]string{"1050": "order state cannot be cancelled"}}
-	for _, id := range firstIDs {
-		exp.Status[id] = order.Cancelled.String()
-	}
-	assert.Equal(t, exp, resp, "every order should carry its outcome")
-}
 
-func TestCancelAllOrdersFutures(t *testing.T) {
-	t.Parallel()
-	for name, tc := range map[string]struct {
-		pair currency.Pair
-		body string
-	}{
-		"contract":  {pair: futuresTradablePair, body: `{"symbol":"BTC_USDT"}`},
-		"account":   {body: `{"symbol":""}`},
-		"formatted": {pair: currency.NewBTCUSDT(), body: `{"symbol":"BTC_USDT"}`},
-	} {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			ex := testExchangeFor(t, futuresHandler(t, futuresRoute{method: http.MethodPost, path: "private/order/cancel_all", body: tc.body}), liveUnavailable)
-			resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Futures, Pair: tc.pair})
-			require.NoError(t, err, "CancelAllOrders must not error for futures")
-			assert.Equal(t, order.CancelAllResponse{Status: map[string]string{}}, resp, "the venue names no orders, so none should be reported")
+	t.Run("futures", func(t *testing.T) {
+		t.Parallel()
+		_, err := e.CancelBatchOrders(t.Context(), nil)
+		require.ErrorIs(t, err, order.ErrCancelOrderIsNil)
+		_, err = e.CancelBatchOrders(t.Context(), []order.Cancel{{AssetType: asset.Futures, OrderID: "x"}})
+		require.ErrorIs(t, err, errInvalidFuturesID)
+
+		// 51 orders take two requests, of 50 orders and of one
+		orders := make([]order.Cancel, futuresBatchLimit+1)
+		firstIDs, firstOutcomes := make([]string, futuresBatchLimit), make([]string, futuresBatchLimit)
+		for i := range orders {
+			id := strconv.Itoa(1000 + i)
+			orders[i] = order.Cancel{OrderID: id, AssetType: asset.Futures, Pair: futuresTradablePair}
+			if i < futuresBatchLimit {
+				firstIDs[i] = id
+				firstOutcomes[i] = `{"orderId":` + id + `,"errorCode":0}`
+			}
+		}
+		var requests atomic.Int32
+		replay := futuresHandler(t, futuresRoute{
+			method: http.MethodPost,
+			path:   "private/order/cancel",
+			body:   "[" + strings.Join(firstIDs, ",") + "]",
+			data:   "[" + strings.Join(firstOutcomes, ",") + "]",
+		}, futuresRoute{
+			method: http.MethodPost,
+			path:   "private/order/cancel",
+			body:   `[1050]`,
+			data:   `[{"orderId":1050,"errorCode":2041,"errorMsg":"order state cannot be cancelled"}]`,
 		})
-	}
-}
-
-func TestGetOrderInfoFutures(t *testing.T) {
-	t.Parallel()
-	_, err := e.GetOrderInfo(t.Context(), "", futuresTradablePair, asset.Futures)
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
-
-	ex := testExchangeFor(t, futuresHandler(t, futuresContractsRoute, futuresRoute{
-		method: http.MethodGet,
-		path:   "private/order/get/739106551624717312",
-		data:   futuresFilledOrderReply,
-	}, futuresRoute{
-		method: http.MethodGet,
-		path:   "private/order/deal_details/739106551624717312",
-		data: `[{"id":"9466823344","symbol":"BTC_USDT","side":1,"vol":5,"price":109777.5,"fee":0.0329,"feeCurrency":"USDT",` +
-			`"profit":0,"category":1,"orderId":"739106551624717312","timestamp":1761887134000,"taker":true}]`,
-	}), liveUnavailable)
-	detail, err := ex.GetOrderInfo(t.Context(), "739106551624717312", futuresTradablePair, asset.Futures)
-	require.NoError(t, err, "GetOrderInfo must not error for futures")
-	// An opening long is a buy, its amounts are in contracts and its cost is their value in the quote currency
-	exp := futuresFilledOrderDetail(ex.Name)
-	exp.Trades = []order.TradeHistory{{
-		Price:     109777.5,
-		Amount:    5,
-		Fee:       0.0329,
-		Exchange:  ex.Name,
-		TID:       "9466823344",
-		Side:      order.Buy,
-		Timestamp: time.UnixMilli(1761887134000),
-		FeeAsset:  "USDT",
-	}}
-	assert.Equal(t, exp, detail, "the order and its fill should be mapped")
-}
-
-func TestGetActiveOrdersFutures(t *testing.T) {
-	t.Parallel()
-	ex := testExchangeFor(t, futuresHandler(t, futuresContractsRoute, futuresRoute{
-		method: http.MethodGet,
-		path:   "private/order/list/open_orders",
-		query:  "page_num=1&page_size=100",
-		data: `[{"orderId":"750330744886358528","symbol":"ETH_USDT","price":2500,"vol":10,"leverage":1,"side":1,"category":1,` +
-			`"orderType":1,"dealVol":0,"openType":2,"state":2,"createTime":1764563189993,"updateTime":1764563190059},` +
-			`{"orderId":"750330663772702720","symbol":"BTC_USDT","price":80000,"vol":10,"leverage":1,"side":1,"category":1,` +
-			`"orderType":1,"dealVol":0,"openType":2,"state":2,"createTime":1764563170653,"updateTime":1764563170723}]`,
-	}), liveReadOnly)
-	orders, err := ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Futures, Pairs: currency.Pairs{futuresTradablePair}, Side: order.AnySide, Type: order.AnyType})
-	require.NoError(t, err, "GetActiveOrders must not error for futures")
-	if !mockTests {
-		return
-	}
-	// Only the pair asked for is returned; an unfilled cross limit order is new, multi margined and rests until
-	// cancelled, with every contract remaining
-	exp := order.FilteredOrders{{
-		TimeInForce:     order.GoodTillCancel,
-		Leverage:        1,
-		Price:           80000,
-		Amount:          10,
-		ContractAmount:  10,
-		RemainingAmount: 10,
-		Exchange:        ex.Name,
-		OrderID:         "750330663772702720",
-		Type:            order.Limit,
-		Side:            order.Buy,
-		Status:          order.New,
-		AssetType:       asset.Futures,
-		Date:            time.UnixMilli(1764563170653),
-		LastUpdated:     time.UnixMilli(1764563170723),
-		Pair:            futuresTradablePair,
-		MarginType:      margin.Multi,
-	}}
-	assert.Equal(t, exp, orders, "the pair's order should be mapped")
+		ex := testExchangeFor(t, func(w http.ResponseWriter, r *http.Request) {
+			requests.Add(1)
+			replay(w, r)
+		}, liveUnavailable)
+		resp, err := ex.CancelBatchOrders(t.Context(), orders)
+		require.NoError(t, err, "a refused cancellation must be reported in its status, not as an error")
+		assert.EqualValues(t, 2, requests.Load(), "the orders should be cancelled 50 at a time")
+		// A refused order carries the venue's reason
+		exp := &order.CancelBatchResponse{Status: map[string]string{"1050": "order state cannot be cancelled"}}
+		for _, id := range firstIDs {
+			exp.Status[id] = order.Cancelled.String()
+		}
+		assert.Equal(t, exp, resp, "every order should carry its outcome")
+	})
 }
 
 // futuresOrderPage returns a page of open orders with consecutive IDs at a price
@@ -1583,124 +1445,6 @@ func futuresOrderPageDetails(firstID, n int, price float64) []order.Detail {
 	return details
 }
 
-func TestGetActiveOrdersFuturesPaging(t *testing.T) {
-	t.Parallel()
-	for name, tc := range map[string]struct {
-		second string
-		exp    order.FilteredOrders
-	}{
-		"next page": {
-			second: futuresOrderPage(6000, 20, 80000),
-			exp:    append(futuresOrderPageDetails(5000, futuresDefaultPageSizeLimit, 80000), futuresOrderPageDetails(6000, 20, 80000)...),
-		},
-		// A page number the venue ignores serves the first page again, which must end the paging
-		"repeated page": {
-			second: futuresOrderPage(5000, futuresDefaultPageSizeLimit, 80000),
-			exp:    futuresOrderPageDetails(5000, futuresDefaultPageSizeLimit, 80000),
-		},
-		// Orders placed while paging push the end of the first page onto the next, which repeats them; the repeats are
-		// priced differently to show that each order is returned once, as first listed
-		"overlapping page": {
-			second: futuresOrderPage(5090, 11, 81000),
-			exp:    append(futuresOrderPageDetails(5000, futuresDefaultPageSizeLimit, 80000), futuresOrderPageDetails(5100, 1, 81000)...),
-		},
-		// A null order decodes to nil and is passed over
-		"nil order": {
-			second: "[null," + strings.TrimPrefix(futuresOrderPage(6000, 1, 80000), "["),
-			exp:    append(futuresOrderPageDetails(5000, futuresDefaultPageSizeLimit, 80000), futuresOrderPageDetails(6000, 1, 80000)...),
-		},
-	} {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			ex := testExchangeFor(t, futuresHandler(t, futuresRoute{
-				method: http.MethodGet, path: "private/order/list/open_orders", query: "page_num=1&page_size=100", data: futuresOrderPage(5000, futuresDefaultPageSizeLimit, 80000),
-			}, futuresRoute{
-				method: http.MethodGet, path: "private/order/list/open_orders", query: "page_num=2&page_size=100", data: tc.second,
-			}), liveUnavailable)
-			// A call knows none of the orders an earlier call read
-			for call := 1; call <= 2; call++ {
-				orders, err := ex.GetActiveOrders(t.Context(), &order.MultiOrderRequest{AssetType: asset.Futures, Side: order.AnySide, Type: order.AnyType})
-				require.NoErrorf(t, err, "GetActiveOrders call %d must not error", call)
-				assert.Equalf(t, tc.exp, orders, "call %d should return every order once, as first listed", call)
-			}
-		})
-	}
-}
-
-func TestGetOrderHistoryFuturesPaging(t *testing.T) {
-	t.Parallel()
-	const start, end int64 = 1757900000000, 1758100000000
-	query := func(page int) string {
-		return "end_time=" + strconv.FormatInt(end, 10) + "&page_num=" + strconv.Itoa(page) + "&page_size=100&start_time=" + strconv.FormatInt(start, 10) + "&states=3%2C4%2C5&symbol=BTC_USDT"
-	}
-	for name, tc := range map[string]struct {
-		second string
-		exp    order.FilteredOrders
-	}{
-		"next page": {
-			second: futuresOrderPage(6000, 1, 80000),
-			exp:    append(futuresOrderPageDetails(5000, futuresDefaultPageSizeLimit, 80000), futuresOrderPageDetails(6000, 1, 80000)...),
-		},
-		// A page number the venue ignores serves the first page again, which must end the paging
-		"repeated page": {
-			second: futuresOrderPage(5000, futuresDefaultPageSizeLimit, 80000),
-			exp:    futuresOrderPageDetails(5000, futuresDefaultPageSizeLimit, 80000),
-		},
-		// Orders ending while paging push the end of the first page onto the next, which repeats them; the repeats are
-		// priced differently to show that each order is returned once, as first listed
-		"overlapping page": {
-			second: futuresOrderPage(5090, 20, 81000),
-			exp:    append(futuresOrderPageDetails(5000, futuresDefaultPageSizeLimit, 80000), futuresOrderPageDetails(5100, 10, 81000)...),
-		},
-	} {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			ex := testExchangeFor(t, futuresHandler(t, futuresRoute{
-				method: http.MethodGet, path: "private/order/list/history_orders", query: query(1), data: futuresOrderPage(5000, futuresDefaultPageSizeLimit, 80000),
-			}, futuresRoute{
-				method: http.MethodGet, path: "private/order/list/history_orders", query: query(2), data: tc.second,
-			}), liveUnavailable)
-			// A call knows none of the orders an earlier call read
-			for call := 1; call <= 2; call++ {
-				orders, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
-					AssetType: asset.Futures,
-					Pairs:     currency.Pairs{futuresTradablePair},
-					Side:      order.AnySide,
-					Type:      order.AnyType,
-					StartTime: time.UnixMilli(start),
-					EndTime:   time.UnixMilli(end),
-				})
-				require.NoErrorf(t, err, "GetOrderHistory call %d must not error", call)
-				assert.Equalf(t, tc.exp, orders, "call %d should return every order once, as first listed", call)
-			}
-		})
-	}
-}
-
-func TestGetOrderHistoryFuturesRepeatedPair(t *testing.T) {
-	t.Parallel()
-	// A pair asked for in two of its forms can be read twice; an order the second read lists again, changed, is
-	// returned once, as first listed
-	var reads atomic.Int64
-	ex := testExchangeFor(t, func(w http.ResponseWriter, r *http.Request) {
-		price := 80000.0
-		if reads.Add(1) > 1 {
-			price = 81000
-		}
-		futuresHandler(t, futuresRoute{
-			method: http.MethodGet, path: "private/order/list/history_orders", query: "page_num=1&page_size=100&states=3%2C4%2C5&symbol=BTC_USDT", data: futuresOrderPage(5000, 1, price),
-		})(w, r)
-	}, liveUnavailable)
-	orders, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
-		AssetType: asset.Futures,
-		Pairs:     currency.Pairs{futuresTradablePair, futuresTradablePair.Lower()},
-		Side:      order.AnySide,
-		Type:      order.AnyType,
-	})
-	require.NoError(t, err, "GetOrderHistory must not error")
-	assert.Equal(t, order.FilteredOrders(futuresOrderPageDetails(5000, 1, 80000)), orders, "an order read for each form of a pair should be returned once, as first listed")
-}
-
 // fundingRatePage returns a page of funding rates, newest first, settled 8 hours apart from the newest
 func fundingRatePage(newest time.Time, first, n int, rate float64) string {
 	rates := make([]string, n)
@@ -1711,167 +1455,188 @@ func fundingRatePage(newest time.Time, first, n int, rate float64) string {
 	return `{"pageSize":1000,"currentPage":1,"resultList":[` + strings.Join(rates, ",") + `]}`
 }
 
-func TestGetHistoricalFundingRatesPaging(t *testing.T) {
+func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
-	newest := time.UnixMilli(1792800000000).UTC()
-	settled := func(i int) time.Time { return newest.Add(-time.Duration(i) * 8 * time.Hour) }
-	page := func(n int, data string) futuresRoute {
-		return futuresRoute{method: http.MethodGet, path: "contract/funding_rate/history", query: "page_num=" + strconv.Itoa(n) + "&page_size=1000&symbol=BTC_USDT", data: data}
-	}
-	// rates returns the rates settled from the oldest to the newest given, oldest first
-	rates := func(oldest, latest int, rate float64) []fundingrate.Rate {
-		r := make([]fundingrate.Rate, 0, oldest-latest+1)
-		for i := oldest; i >= latest; i-- {
-			r = append(r, fundingrate.Rate{Time: settled(i), Rate: decimal.MustFromFloat(rate)})
-		}
-		return r
-	}
-	for name, tc := range map[string]struct {
-		start, end time.Time
-		routes     []futuresRoute
-		exp        []fundingrate.Rate
-	}{
-		"latest": {
-			routes: []futuresRoute{page(1, fundingRatePage(newest, 0, 1000, 0.0001))},
-			exp:    rates(999, 0, 0.0001),
-		},
-		"start on the second page": {
-			start: settled(1500), end: settled(0),
-			routes: []futuresRoute{page(1, fundingRatePage(newest, 0, 1000, 0.0001)), page(2, fundingRatePage(newest, 1000, 1000, 0.0001))},
-			exp:    rates(1500, 0, 0.0001),
-		},
-		"end on the second page": {
-			end: settled(1200),
-			routes: []futuresRoute{
-				page(1, fundingRatePage(newest, 0, 1000, 0.0001)), page(2, fundingRatePage(newest, 1000, 1000, 0.0001)), page(3, fundingRatePage(newest, 2000, 0, 0.0001)),
-			},
-			exp: rates(1999, 1200, 0.0001),
-		},
-		"end before a full page": {
-			end:    settled(500),
-			routes: []futuresRoute{page(1, fundingRatePage(newest, 0, 1000, 0.0001)), page(2, fundingRatePage(newest, 1000, 1000, 0.0001))},
-			exp:    rates(1499, 500, 0.0001),
-		},
-		// A page number the venue ignores serves the first page again, which must end the paging
-		"repeated page": {
-			start: settled(1500), end: settled(0),
-			routes: []futuresRoute{page(1, fundingRatePage(newest, 0, 1000, 0.0001)), page(2, fundingRatePage(newest, 0, 1000, 0.0001))},
-			exp:    rates(999, 0, 0.0001),
-		},
-		// Rates settled while paging push the end of the first page onto the next, which repeats them; the repeats carry
-		// another rate to show that each settlement is returned once, as first listed
-		"overlapping page": {
-			start: settled(1500), end: settled(0),
-			routes: []futuresRoute{page(1, fundingRatePage(newest, 0, 1000, 0.0001)), page(2, fundingRatePage(newest, 990, 1000, 0.0002))},
-			exp:    append(rates(1500, 1000, 0.0002), rates(999, 0, 0.0001)...),
-		},
-		"start in a last page of one rate": {
-			start:  settled(1000),
-			routes: []futuresRoute{page(1, fundingRatePage(newest, 0, 1000, 0.0001)), page(2, fundingRatePage(newest, 1000, 1, 0.0001))},
-			exp:    rates(1000, 0, 0.0001),
-		},
-	} {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			ex := testExchangeFor(t, futuresHandler(t, tc.routes...), liveUnavailable)
-			result, err := ex.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{Asset: asset.Futures, Pair: futuresTradablePair, StartDate: tc.start, EndDate: tc.end})
-			require.NoError(t, err, "GetHistoricalFundingRates must not error")
-			// Settle times are read in the local time zone
-			result.StartDate, result.EndDate, result.LatestRate.Time = result.StartDate.UTC(), result.EndDate.UTC(), result.LatestRate.Time.UTC()
-			for i := range result.FundingRates {
-				result.FundingRates[i].Time = result.FundingRates[i].Time.UTC()
-			}
-			latest := tc.exp[len(tc.exp)-1]
-			assert.Equal(t, &fundingrate.HistoricalRates{
-				Exchange:     "MEXC",
-				Asset:        asset.Futures,
-				Pair:         futuresTradablePair,
-				StartDate:    tc.exp[0].Time,
-				EndDate:      latest.Time,
-				LatestRate:   latest,
-				FundingRates: tc.exp,
-			}, result, "every rate asked for should be returned once, as first listed, oldest first")
+	t.Run("futures live", func(t *testing.T) {
+		t.Parallel()
+		ex := liveExchange(t, liveReadOnly)
+		end := time.Now().UTC()
+		orders, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+			AssetType: asset.Futures,
+			Pairs:     currency.Pairs{futuresTradablePair},
+			Side:      order.AnySide,
+			Type:      order.AnyType,
+			StartTime: end.Add(-7 * 24 * time.Hour),
+			EndTime:   end,
 		})
-	}
-}
-
-func TestGetOrderHistoryFutures(t *testing.T) {
-	t.Parallel()
-	_, err := e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Futures, Side: order.AnySide, Type: order.AnyType})
-	require.ErrorIs(t, err, currency.ErrCurrencyPairsEmpty)
-
-	// A 100 day window is read as 90 days and 10, and an order on the boundary is returned once
-	const start, middle, end int64 = 1750000000000, 1757776000000, 1758640000000
-	window := func(from, to int64) string {
-		return "end_time=" + strconv.FormatInt(to, 10) + "&page_num=1&page_size=100&start_time=" + strconv.FormatInt(from, 10) + "&states=3%2C4%2C5&symbol=BTC_USDT"
-	}
-	boundary := `{"orderId":"739211854408619008","symbol":"BTC_USDT","price":0,"vol":1,"side":3,"category":1,"orderType":5,` +
-		`"dealAvgPrice":100000,"dealVol":1,"openType":1,"state":3,"createTime":1757776000000,"updateTime":1757776000000}`
-	ex := testExchangeFor(t, futuresHandler(t, futuresContractsRoute, futuresRoute{
-		method: http.MethodGet,
-		path:   "private/order/list/history_orders",
-		query:  window(start, middle),
-		data:   "[" + boundary + "]",
-	}, futuresRoute{
-		method: http.MethodGet,
-		path:   "private/order/list/history_orders",
-		query:  window(middle, end),
-		data: "[" + boundary + `,{"orderId":"739211257974395392","symbol":"BTC_USDT","price":90000,"vol":1,"side":2,` +
-			`"category":1,"orderType":1,"dealVol":0,"openType":1,"state":4,"createTime":1758000000000,"updateTime":1758000001000}]`,
-	}), liveUnavailable)
-	orders, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
-		AssetType: asset.Futures,
-		Pairs:     currency.Pairs{futuresTradablePair},
-		Side:      order.AnySide,
-		Type:      order.AnyType,
-		StartTime: time.UnixMilli(start),
-		EndTime:   time.UnixMilli(end),
+		require.NoError(t, err, "GetOrderHistory must not error for the futures pair's last seven days")
+		for i := range orders {
+			assert.Equalf(t, asset.Futures, orders[i].AssetType, "order %s should be a futures order", orders[i].OrderID)
+			assert.Truef(t, orders[i].Pair.Equal(futuresTradablePair), "order %s should be on the pair asked for", orders[i].OrderID)
+		}
 	})
-	require.NoError(t, err, "GetOrderHistory must not error for futures")
-	// An opening short is a sell, and a closing order reduces only
-	exp := order.FilteredOrders{
-		{
-			Amount:               1,
-			ContractAmount:       1,
-			AverageExecutedPrice: 100000,
-			ExecutedAmount:       1,
-			Cost:                 10,
-			CostAsset:            currency.USDT,
-			Exchange:             ex.Name,
-			OrderID:              "739211854408619008",
-			Type:                 order.Market,
-			Side:                 order.Sell,
-			Status:               order.Filled,
-			AssetType:            asset.Futures,
-			Date:                 time.UnixMilli(1757776000000),
-			LastUpdated:          time.UnixMilli(1757776000000),
-			Pair:                 futuresTradablePair,
-			MarginType:           margin.Isolated,
-		},
-		{
-			TimeInForce:     order.GoodTillCancel,
-			ReduceOnly:      true,
-			Price:           90000,
-			Amount:          1,
-			ContractAmount:  1,
-			RemainingAmount: 1,
-			Exchange:        ex.Name,
-			OrderID:         "739211257974395392",
-			Type:            order.Limit,
-			Side:            order.Buy,
-			Status:          order.Cancelled,
-			AssetType:       asset.Futures,
-			Date:            time.UnixMilli(1758000000000),
-			LastUpdated:     time.UnixMilli(1758000001000),
-			Pair:            futuresTradablePair,
-			MarginType:      margin.Isolated,
-		},
-	}
-	assert.Equal(t, exp, orders, "each order should be mapped once")
+
+	t.Run("futures", func(t *testing.T) {
+		t.Parallel()
+		_, err := e.GetOrderHistory(t.Context(), &order.MultiOrderRequest{AssetType: asset.Futures, Side: order.AnySide, Type: order.AnyType})
+		require.ErrorIs(t, err, currency.ErrCurrencyPairsEmpty)
+
+		// A 100 day window is read as 90 days and 10, and an order on the boundary is returned once
+		const start, middle, end int64 = 1750000000000, 1757776000000, 1758640000000
+		window := func(from, to int64) string {
+			return "end_time=" + strconv.FormatInt(to, 10) + "&page_num=1&page_size=100&start_time=" + strconv.FormatInt(from, 10) + "&states=3%2C4%2C5&symbol=BTC_USDT"
+		}
+		boundary := `{"orderId":"739211854408619008","symbol":"BTC_USDT","price":0,"vol":1,"side":3,"category":1,"orderType":5,` +
+			`"dealAvgPrice":100000,"dealVol":1,"openType":1,"state":3,"createTime":1757776000000,"updateTime":1757776000000}`
+		ex := testExchangeFor(t, futuresHandler(t, futuresContractsRoute, futuresRoute{
+			method: http.MethodGet,
+			path:   "private/order/list/history_orders",
+			query:  window(start, middle),
+			data:   "[" + boundary + "]",
+		}, futuresRoute{
+			method: http.MethodGet,
+			path:   "private/order/list/history_orders",
+			query:  window(middle, end),
+			data: "[" + boundary + `,{"orderId":"739211257974395392","symbol":"BTC_USDT","price":90000,"vol":1,"side":2,` +
+				`"category":1,"orderType":1,"dealVol":0,"openType":1,"state":4,"createTime":1758000000000,"updateTime":1758000001000}]`,
+		}), liveUnavailable)
+		orders, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+			AssetType: asset.Futures,
+			Pairs:     currency.Pairs{futuresTradablePair},
+			Side:      order.AnySide,
+			Type:      order.AnyType,
+			StartTime: time.UnixMilli(start),
+			EndTime:   time.UnixMilli(end),
+		})
+		require.NoError(t, err, "GetOrderHistory must not error for futures")
+		// An opening short is a sell, and a closing order reduces only
+		exp := order.FilteredOrders{
+			{
+				Amount:               1,
+				ContractAmount:       1,
+				AverageExecutedPrice: 100000,
+				ExecutedAmount:       1,
+				Cost:                 10,
+				CostAsset:            currency.USDT,
+				Exchange:             ex.Name,
+				OrderID:              "739211854408619008",
+				Type:                 order.Market,
+				Side:                 order.Sell,
+				Status:               order.Filled,
+				AssetType:            asset.Futures,
+				Date:                 time.UnixMilli(1757776000000),
+				LastUpdated:          time.UnixMilli(1757776000000),
+				Pair:                 futuresTradablePair,
+				MarginType:           margin.Isolated,
+			},
+			{
+				TimeInForce:     order.GoodTillCancel,
+				ReduceOnly:      true,
+				Price:           90000,
+				Amount:          1,
+				ContractAmount:  1,
+				RemainingAmount: 1,
+				Exchange:        ex.Name,
+				OrderID:         "739211257974395392",
+				Type:            order.Limit,
+				Side:            order.Buy,
+				Status:          order.Cancelled,
+				AssetType:       asset.Futures,
+				Date:            time.UnixMilli(1758000000000),
+				LastUpdated:     time.UnixMilli(1758000001000),
+				Pair:            futuresTradablePair,
+				MarginType:      margin.Isolated,
+			},
+		}
+		assert.Equal(t, exp, orders, "each order should be mapped once")
+	})
+
+	t.Run("futures pages", func(t *testing.T) {
+		t.Parallel()
+		const start, end int64 = 1757900000000, 1758100000000
+		query := func(page int) string {
+			return "end_time=" + strconv.FormatInt(end, 10) + "&page_num=" + strconv.Itoa(page) + "&page_size=100&start_time=" + strconv.FormatInt(start, 10) + "&states=3%2C4%2C5&symbol=BTC_USDT"
+		}
+		for name, tc := range map[string]struct {
+			second string
+			exp    order.FilteredOrders
+		}{
+			"next page": {
+				second: futuresOrderPage(6000, 1, 80000),
+				exp:    append(futuresOrderPageDetails(5000, futuresDefaultPageSizeLimit, 80000), futuresOrderPageDetails(6000, 1, 80000)...),
+			},
+			// A page number the venue ignores serves the first page again, which must end the paging
+			"repeated page": {
+				second: futuresOrderPage(5000, futuresDefaultPageSizeLimit, 80000),
+				exp:    futuresOrderPageDetails(5000, futuresDefaultPageSizeLimit, 80000),
+			},
+			// Orders ending while paging push the end of the first page onto the next, which repeats them; the repeats are
+			// priced differently to show that each order is returned once, as first listed
+			"overlapping page": {
+				second: futuresOrderPage(5090, 20, 81000),
+				exp:    append(futuresOrderPageDetails(5000, futuresDefaultPageSizeLimit, 80000), futuresOrderPageDetails(5100, 10, 81000)...),
+			},
+		} {
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+				ex := testExchangeFor(t, futuresHandler(t, futuresRoute{
+					method: http.MethodGet, path: "private/order/list/history_orders", query: query(1), data: futuresOrderPage(5000, futuresDefaultPageSizeLimit, 80000),
+				}, futuresRoute{
+					method: http.MethodGet, path: "private/order/list/history_orders", query: query(2), data: tc.second,
+				}), liveUnavailable)
+				// A call knows none of the orders an earlier call read
+				for call := 1; call <= 2; call++ {
+					orders, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+						AssetType: asset.Futures,
+						Pairs:     currency.Pairs{futuresTradablePair},
+						Side:      order.AnySide,
+						Type:      order.AnyType,
+						StartTime: time.UnixMilli(start),
+						EndTime:   time.UnixMilli(end),
+					})
+					require.NoErrorf(t, err, "GetOrderHistory call %d must not error", call)
+					assert.Equalf(t, tc.exp, orders, "call %d should return every order once, as first listed", call)
+				}
+			})
+		}
+	})
+
+	t.Run("futures repeated pair", func(t *testing.T) {
+		t.Parallel()
+		// A pair asked for in two of its forms can be read twice; an order the second read lists again, changed, is
+		// returned once, as first listed
+		var reads atomic.Int64
+		ex := testExchangeFor(t, func(w http.ResponseWriter, r *http.Request) {
+			price := 80000.0
+			if reads.Add(1) > 1 {
+				price = 81000
+			}
+			futuresHandler(t, futuresRoute{
+				method: http.MethodGet, path: "private/order/list/history_orders", query: "page_num=1&page_size=100&states=3%2C4%2C5&symbol=BTC_USDT", data: futuresOrderPage(5000, 1, price),
+			})(w, r)
+		}, liveUnavailable)
+		orders, err := ex.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+			AssetType: asset.Futures,
+			Pairs:     currency.Pairs{futuresTradablePair, futuresTradablePair.Lower()},
+			Side:      order.AnySide,
+			Type:      order.AnyType,
+		})
+		require.NoError(t, err, "GetOrderHistory must not error")
+		assert.Equal(t, order.FilteredOrders(futuresOrderPageDetails(5000, 1, 80000)), orders, "an order read for each form of a pair should be returned once, as first listed")
+	})
 }
 
 func TestSetLeverage(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		ex := liveExchange(t, liveManipulatesOrders)
+		leverage, err := ex.GetLeverage(t.Context(), asset.Futures, futuresTradablePair, margin.Isolated, order.Buy)
+		require.NoError(t, err, "GetLeverage must read the isolated long leverage")
+		// The leverage just read, so the setting is left as it was
+		require.NoError(t, answeredOnMerits(ex.SetLeverage(t.Context(), asset.Futures, futuresTradablePair, margin.Isolated, leverage, order.Buy)), "SetLeverage must be answered on its merits")
+	})
+
 	require.ErrorIs(t, e.SetLeverage(t.Context(), asset.Spot, spotTradablePair, margin.Isolated, 2, order.Buy), futures.ErrNotFuturesAsset)
 	require.ErrorIs(t, e.SetLeverage(t.Context(), asset.Futures, futuresTradablePair, margin.Isolated, 0, order.Buy), errInvalidLeverage)
 	require.ErrorIs(t, e.SetLeverage(t.Context(), asset.Futures, futuresTradablePair, margin.Isolated, 2.5, order.Buy), errInvalidLeverage)
@@ -1925,6 +1690,14 @@ func TestSetLeverage(t *testing.T) {
 
 func TestGetLeverage(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		ex := liveExchange(t, liveReadOnly)
+		leverage, err := ex.GetLeverage(t.Context(), asset.Futures, futuresTradablePair, margin.Isolated, order.Buy)
+		require.NoError(t, err, "GetLeverage must not error for the isolated long positions")
+		assert.Positive(t, leverage, "the isolated long leverage should be positive")
+	})
+
 	_, err := e.GetLeverage(t.Context(), asset.Spot, spotTradablePair, margin.Isolated, order.Buy)
 	require.ErrorIs(t, err, futures.ErrNotFuturesAsset)
 	_, err = e.GetLeverage(t.Context(), asset.Futures, currency.EMPTYPAIR, margin.Isolated, order.Buy)
@@ -1937,6 +1710,7 @@ func TestGetLeverage(t *testing.T) {
 		data: `[{"positionType":1,"openType":1,"leverage":20},{"positionType":2,"openType":1,"leverage":10},` +
 			`{"positionType":1,"openType":2,"leverage":5},{"positionType":2,"openType":2,"leverage":5}]`,
 	}), liveUnavailable)
+	// The cases share ex and its handler in order, so each also checks that a call keeps nothing from the last
 	for _, tc := range []struct {
 		marginType margin.Type
 		side       order.Side
@@ -1946,9 +1720,11 @@ func TestGetLeverage(t *testing.T) {
 		{margin.Isolated, order.Short, 10},
 		{margin.Multi, order.UnknownSide, 5},
 	} {
-		leverage, err := ex.GetLeverage(t.Context(), asset.Futures, futuresTradablePair, tc.marginType, tc.side)
-		require.NoErrorf(t, err, "GetLeverage must not error for %s %s", tc.marginType, tc.side)
-		assert.Equalf(t, tc.exp, leverage, "%s %s should have its own leverage", tc.marginType, tc.side)
+		t.Run(tc.marginType.String()+" "+tc.side.String(), func(t *testing.T) {
+			leverage, err := ex.GetLeverage(t.Context(), asset.Futures, futuresTradablePair, tc.marginType, tc.side)
+			require.NoErrorf(t, err, "GetLeverage must not error for %s %s", tc.marginType, tc.side)
+			assert.Equalf(t, tc.exp, leverage, "%s %s should have its own leverage", tc.marginType, tc.side)
+		})
 	}
 	_, err = ex.GetLeverage(t.Context(), asset.Futures, futuresTradablePair, margin.Isolated, order.UnknownSide)
 	assert.ErrorIs(t, err, errInvalidLeverage, "sides of different leverage should need a side named")
@@ -1956,6 +1732,19 @@ func TestGetLeverage(t *testing.T) {
 
 func TestGetFuturesPositionSummary(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		ex := liveExchange(t, liveReadOnly)
+		// A direction is named, so that a hedge account holding both sides is summarised too
+		summary, err := ex.GetFuturesPositionSummary(t.Context(), &futures.PositionSummaryRequest{Asset: asset.Futures, Pair: futuresTradablePair, Direction: order.Long})
+		if err != nil {
+			require.ErrorIs(t, err, futures.ErrNoPositionsFound, "GetFuturesPositionSummary must summarise a long position or report that none is held")
+			return
+		}
+		assert.Equal(t, futuresTradablePair, summary.Pair, "the summary should be of the pair asked for")
+		assert.True(t, summary.CurrentSize.IsPositive(), "a long position's size should be positive")
+	})
+
 	_, err := e.GetFuturesPositionSummary(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
 	_, err = e.GetFuturesPositionSummary(t.Context(), &futures.PositionSummaryRequest{Asset: asset.Spot, Pair: spotTradablePair})
@@ -2058,6 +1847,16 @@ func TestGetFuturesPositionSummary(t *testing.T) {
 
 func TestGetFuturesPositionOrders(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		ex := liveExchange(t, liveReadOnly)
+		end := time.Now().UTC()
+		resp, err := ex.GetFuturesPositionOrders(t.Context(), &futures.PositionsRequest{Asset: asset.Futures, Pairs: currency.Pairs{futuresTradablePair}, StartDate: end.Add(-7 * 24 * time.Hour), EndDate: end})
+		require.NoError(t, err, "GetFuturesPositionOrders must not error for the pair's last seven days")
+		require.Len(t, resp, 1, "the pair's orders must be returned")
+		assert.Equal(t, futuresTradablePair, resp[0].Pair, "the orders should be for the pair asked for")
+	})
+
 	_, err := e.GetFuturesPositionOrders(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
 	_, err = e.GetFuturesPositionOrders(t.Context(), &futures.PositionsRequest{Asset: asset.Spot})
@@ -2087,6 +1886,18 @@ func TestGetFuturesPositionOrders(t *testing.T) {
 
 func TestChangePositionMargin(t *testing.T) {
 	t.Parallel()
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		ex := liveExchange(t, liveManipulatesOrders)
+		positions, err := ex.GetFuturesOpenPositions(t.Context(), futuresTradablePair, "")
+		require.NoError(t, err, "GetFuturesOpenPositions must not error")
+		if len(positions) != 0 {
+			t.Skip("the account holds BTC_USDT positions, whose margin this would change")
+		}
+		_, err = ex.ChangePositionMargin(t.Context(), &margin.PositionChangeRequest{Exchange: ex.Name, Asset: asset.Futures, Pair: futuresTradablePair, MarginType: margin.Isolated, NewAllocatedMargin: 30})
+		assert.ErrorIs(t, err, futures.ErrNoPositionsFound, "ChangePositionMargin should refuse a pair without a position")
+	})
+
 	_, err := e.ChangePositionMargin(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
 	_, err = e.ChangePositionMargin(t.Context(), &margin.PositionChangeRequest{Asset: asset.Spot, Pair: spotTradablePair})
@@ -2242,38 +2053,6 @@ func historicCandlesFailures() []historicCandlesFailure {
 			a:    asset.Margin,
 			err:  asset.ErrNotSupported,
 		},
-	}
-}
-
-func TestGetHistoricCandlesFailures(t *testing.T) {
-	t.Parallel()
-	for _, tc := range historicCandlesFailures() {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			ex := testExchangeFor(t, tc.handler(t), liveUnavailable)
-			if tc.setup != nil {
-				tc.setup(t, ex)
-			}
-			start, end := futuresWindow()
-			_, err := ex.GetHistoricCandles(t.Context(), tc.pair, tc.a, kline.OneHour, start, end)
-			assert.ErrorIs(t, err, tc.err, "GetHistoricCandles should return why no candles were returned")
-		})
-	}
-}
-
-func TestGetHistoricCandlesExtendedFailures(t *testing.T) {
-	t.Parallel()
-	for _, tc := range historicCandlesFailures() {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			ex := testExchangeFor(t, tc.handler(t), liveUnavailable)
-			if tc.setup != nil {
-				tc.setup(t, ex)
-			}
-			start, end := futuresWindow()
-			_, err := ex.GetHistoricCandlesExtended(t.Context(), tc.pair, tc.a, kline.OneHour, start, end)
-			assert.ErrorIs(t, err, tc.err, "GetHistoricCandlesExtended should return why no candles were returned")
-		})
 	}
 }
 
@@ -2445,59 +2224,4 @@ func (c *candleIntervals) intervals() []string {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.requested
-}
-
-func TestGetHistoricCandlesSourceIntervals(t *testing.T) {
-	t.Parallel()
-	for _, tc := range candleSources() {
-		t.Run(tc.a.String()+" "+tc.interval.Word(), func(t *testing.T) {
-			t.Parallel()
-			var venue candleIntervals
-			ex := testExchangeFor(t, venue.handler(t), liveUnavailable)
-			start, end := futuresWindow()
-			_, err := ex.GetHistoricCandles(t.Context(), tc.pair, tc.a, tc.interval, start, end)
-			require.ErrorIs(t, err, kline.ErrNoTimeSeriesDataToConvert, "GetHistoricCandles must return that the venue sent no candles")
-			assert.Equal(t, []string{tc.source}, venue.intervals(), "GetHistoricCandles should request the interval the candles are built from")
-		})
-	}
-}
-
-func TestGetHistoricCandlesExtendedSourceIntervals(t *testing.T) {
-	t.Parallel()
-	for _, tc := range candleSources() {
-		t.Run(tc.a.String()+" "+tc.interval.Word(), func(t *testing.T) {
-			t.Parallel()
-			var venue candleIntervals
-			ex := testExchangeFor(t, venue.handler(t), liveUnavailable)
-			start, end := futuresWindow()
-			_, err := ex.GetHistoricCandlesExtended(t.Context(), tc.pair, tc.a, tc.interval, start, end)
-			require.ErrorIs(t, err, kline.ErrNoTimeSeriesDataToConvert, "GetHistoricCandlesExtended must return that the venue sent no candles")
-			assert.Equal(t, []string{tc.source}, venue.intervals(), "GetHistoricCandlesExtended should request the interval the candles are built from")
-		})
-	}
-}
-
-func TestFuturesCapabilities(t *testing.T) {
-	t.Parallel()
-	ex := new(Exchange)
-	ex.SetDefaults()
-	assert.Equal(t, exchange.FuturesCapabilities{
-		FundingRates:        true,
-		FundingRateBatching: map[asset.Item]bool{asset.Futures: true},
-		SupportedFundingRateFrequencies: map[kline.Interval]bool{
-			kline.OneHour:   true,
-			kline.FourHour:  true,
-			kline.EightHour: true,
-			kline.OneDay:    true,
-		},
-		Positions: true,
-		Leverage:  true,
-		OpenInterest: exchange.OpenInterestSupport{
-			Supported:          true,
-			SupportedViaTicker: true,
-			SupportsRestBatch:  true,
-		},
-	}, ex.Features.Supports.FuturesCapabilities, "the futures capabilities should match the implemented wrapper methods")
-	_, err := ex.CurrencyPairs.Get(asset.Futures)
-	assert.NoError(t, err, "the futures pair store should be set up")
 }

@@ -240,6 +240,26 @@ func TestGetFuturesDepthSnapshots(t *testing.T) {
 		require.NotEmpty(t, result, "GetFuturesDepthSnapshots must return changes")
 		assert.Positive(t, result[0].Version, "a change should carry its version")
 	}
+
+	t.Run("1000 changes sent, 1001 refused", func(t *testing.T) {
+		t.Parallel()
+		requests := make(chan struct{}, 2)
+		handler := futuresHandler(t, futuresRoute{method: http.MethodGet, path: "contract/depth_commits/BTC_USDT/1000", data: "[]"})
+		ex := testExchangeFor(t, func(w http.ResponseWriter, r *http.Request) {
+			select {
+			case requests <- struct{}{}:
+			default:
+			}
+			handler(w, r)
+		}, livePublic)
+		_, err := ex.GetFuturesDepthSnapshots(t.Context(), futuresTradablePair, 1000)
+		require.NoError(t, err, "GetFuturesDepthSnapshots must send the limit of 1000 MEXC takes")
+		_, err = ex.GetFuturesDepthSnapshots(t.Context(), futuresTradablePair, 1001)
+		require.ErrorIs(t, err, errInvalidLimit, "GetFuturesDepthSnapshots must refuse a limit of 1001 before sending")
+		if mockTests {
+			assert.Len(t, requests, 1, "the limit of 1000 should go in one request, and that of 1001 in none")
+		}
+	})
 }
 
 func TestGetFuturesIndexPrice(t *testing.T) {
@@ -316,11 +336,14 @@ func TestGetFuturesFundingRates(t *testing.T) {
 func TestFuturesIntervals(t *testing.T) {
 	t.Parallel()
 	for _, i := range futuresIntervals {
-		value, err := futuresIntervalString(i.interval)
-		require.NoErrorf(t, err, "futuresIntervalString must not error for %s", i.interval)
-		interval, err := futuresIntervalFromString(value)
-		require.NoErrorf(t, err, "futuresIntervalFromString must not error for %s", value)
-		assert.Equalf(t, i.interval, interval, "%s should round trip", value)
+		t.Run(i.interval.Short(), func(t *testing.T) {
+			t.Parallel()
+			value, err := futuresIntervalString(i.interval)
+			require.NoErrorf(t, err, "futuresIntervalString must not error for %s", i.interval)
+			interval, err := futuresIntervalFromString(value)
+			require.NoErrorf(t, err, "futuresIntervalFromString must not error for %s", value)
+			assert.Equalf(t, i.interval, interval, "%s should round trip", value)
+		})
 	}
 	_, err := futuresIntervalString(kline.TenMin)
 	assert.ErrorIs(t, err, kline.ErrUnsupportedInterval)
@@ -600,13 +623,19 @@ func TestFuturesIDUnmarshalJSON(t *testing.T) {
 		`0`:                    "",
 		`"0"`:                  "",
 	} {
-		id := FuturesID("1") // a receiver reused from an earlier decode
-		require.NoErrorf(t, json.Unmarshal([]byte(input), &id), "Unmarshal must not error for %s", input)
-		assert.Equalf(t, exp, id, "%s should decode exactly", input)
+		t.Run(input, func(t *testing.T) {
+			t.Parallel()
+			id := FuturesID("1") // a receiver reused from an earlier decode
+			require.NoErrorf(t, json.Unmarshal([]byte(input), &id), "Unmarshal must not error for %s", input)
+			assert.Equalf(t, exp, id, "%s should decode exactly", input)
+		})
 	}
 	for _, input := range []string{`-1`, `1.5`, `true`, `{}`} {
-		var id FuturesID
-		assert.ErrorIsf(t, json.Unmarshal([]byte(input), &id), errInvalidFuturesID, "%s should be refused", input)
+		t.Run(input+" refused", func(t *testing.T) {
+			t.Parallel()
+			var id FuturesID
+			assert.ErrorIsf(t, json.Unmarshal([]byte(input), &id), errInvalidFuturesID, "%s should be refused", input)
+		})
 	}
 }
 

@@ -1,6 +1,7 @@
 package mexc
 
 import (
+	"cmp"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -217,7 +218,10 @@ func TestSubscriptionAccepted(t *testing.T) {
 func TestIsSpotSubscription(t *testing.T) {
 	t.Parallel()
 	for _, a := range []asset.Item{asset.Spot, asset.All, asset.Empty} {
-		assert.Truef(t, isSpotSubscription(&subscription.Subscription{Asset: a}), "a subscription for asset %q should be expanded with the spot template", a)
+		t.Run(cmp.Or(a.String(), "empty"), func(t *testing.T) {
+			t.Parallel()
+			assert.Truef(t, isSpotSubscription(&subscription.Subscription{Asset: a}), "a subscription for asset %q should be expanded with the spot template", a)
+		})
 	}
 	assert.False(t, isSpotSubscription(&subscription.Subscription{Asset: asset.Futures}), "a futures subscription should not be expanded with the spot template")
 }
