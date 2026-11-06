@@ -1416,15 +1416,12 @@ func (s *RPCServer) CancelBatchOrders(ctx context.Context, r *gctrpc.CancelBatch
 		return nil, err
 	}
 
-	status := make(map[string]string)
 	orders := strings.Split(r.OrdersId, ",")
 	req := make([]order.Cancel, len(orders))
 	for x := range orders {
-		orderID := orders[x]
-		status[orderID] = order.Cancelled.String()
 		req[x] = order.Cancel{
 			AccountID: r.AccountId,
-			OrderID:   orderID,
+			OrderID:   orders[x],
 			Side:      side,
 			Pair:      pair,
 			AssetType: assetType,
@@ -1432,7 +1429,7 @@ func (s *RPCServer) CancelBatchOrders(ctx context.Context, r *gctrpc.CancelBatch
 	}
 
 	// TODO: Change to order manager
-	_, err = exch.CancelBatchOrders(ctx, req)
+	resp, err := exch.CancelBatchOrders(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -1440,7 +1437,7 @@ func (s *RPCServer) CancelBatchOrders(ctx context.Context, r *gctrpc.CancelBatch
 	return &gctrpc.CancelBatchOrdersResponse{
 		Orders: []*gctrpc.Orders{{
 			Exchange:    r.Exchange,
-			OrderStatus: status,
+			OrderStatus: resp.Status,
 		}},
 	}, nil
 }

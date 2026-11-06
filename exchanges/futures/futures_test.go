@@ -69,6 +69,49 @@ func TestUpsertPNLEntry(t *testing.T) {
 	}
 }
 
+func TestPositionControllerTrackNewOrder(t *testing.T) {
+	t.Parallel()
+	pair := currency.NewPair(currency.BTC, currency.NewCode("1231"))
+	for _, tc := range []struct {
+		name string
+		od   order.Detail
+		err  error
+	}{
+		{name: "spot order", od: order.Detail{Exchange: "Test", AssetType: asset.Spot, Pair: pair}, err: ErrNotFuturesAsset},
+		{name: "no underlying", od: order.Detail{Exchange: "Test", AssetType: asset.Futures, Pair: currency.Pair{Quote: pair.Quote}}, err: errEmptyUnderlying},
+		{name: "no side", od: order.Detail{Exchange: "Test", AssetType: asset.Futures, Pair: pair, OrderID: "1"}, err: order.ErrSideIsInvalid},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			c := SetupPositionController()
+			od := tc.od
+			assert.ErrorIs(t, c.TrackNewOrder(&od), tc.err, "TrackNewOrder should return the expected error")
+			assert.Equal(t, tc.od, od, "TrackNewOrder should leave a refused order as it is")
+		})
+	}
+
+	c := SetupPositionController()
+	od := &order.Detail{
+		Exchange:  "Test",
+		AssetType: asset.Futures,
+		Pair:      pair,
+		OrderID:   "2",
+		Side:      order.Long,
+		Amount:    1,
+		Price:     1,
+		Date:      time.Now(),
+		Trades:    []order.TradeHistory{{TID: "1", Amount: 1}},
+	}
+	exp := od.Copy()
+	require.NoError(t, c.TrackNewOrder(od), "TrackNewOrder must not error")
+	assert.Equal(t, &exp, od, "TrackNewOrder should leave the caller's order as it is, as an order store matches orders by the exchange's own name")
+	positions, err := c.GetPositionsForExchange("Test", asset.Futures, pair)
+	require.NoError(t, err, "GetPositionsForExchange must not error")
+	require.Len(t, positions, 1, "the order must open a position")
+	require.Len(t, positions[0].Orders, 1, "the position must hold the order")
+	assert.Equal(t, "test", positions[0].Orders[0].Exchange, "the position should hold its copy under the lowercase exchange name")
+}
+
 func TestTrackNewOrder(t *testing.T) {
 	t.Parallel()
 	exch := testExchange
