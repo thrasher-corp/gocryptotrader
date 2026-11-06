@@ -1,16 +1,31 @@
 package mexc
 
 import (
+	"bytes"
+	"context"
+	"encoding/hex"
+	"errors"
+	"fmt"
+	"io"
+	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"reflect"
+	"regexp"
+	"slices"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -20,12 +35,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-// newPrivateTestExchange builds an isolated Exchange whose spot REST endpoint points at a local
-// httptest server returning recorded (fixture) MEXC responses. It never reaches a live private
-// endpoint: it exercises the private response mapping without live keys. The credentials are dummy
-// and the server ignores the signature. It exists because the shipped auth tests skip under mock
-// without keys, so the private response-mapping was never exercised - which is how these defects
-// reached review.
+// newPrivateTestExchange builds an isolated Exchange whose spot and futures REST endpoints point at a local
+// httptest server returning recorded (fixture) MEXC responses, so the private response mapping is exercised without
+// live keys. The credentials are dummy; the spot handlers ignore the signature, which futuresHandler checks
 func newPrivateTestExchange(t *testing.T, handler http.HandlerFunc) *Exchange {
 	t.Helper()
 	ex := new(Exchange)
@@ -39,6 +51,7 @@ func newPrivateTestExchange(t *testing.T, handler http.HandlerFunc) *Exchange {
 	b := ex.GetBase()
 	b.SkipAuthCheck = true
 	require.NoError(t, b.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), srv.URL), "SetRunningURL must not error")
+	require.NoError(t, b.API.Endpoints.SetRunningURL(exchange.RestFutures.String(), srv.URL), "SetRunningURL must not error")
 	require.NoError(t, ex.setEnabledPairs(spotTradablePair), "setEnabledPairs must not error")
 	return ex
 }
@@ -53,6 +66,9 @@ const (
 	liveReadOnly
 	// liveManipulatesOrders tests place, cancel or withdraw and also need canManipulateRealOrders
 	liveManipulatesOrders
+	// liveUnavailable tests replay recorded replies only, since they name records, such as order IDs, which no live
+	// account holds
+	liveUnavailable
 )
 
 // testExchangeFor returns the exchange a private test runs against. In mock mode it is an isolated
@@ -70,8 +86,429 @@ func testExchangeFor(t *testing.T, handler http.HandlerFunc, access liveAccess) 
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	case liveManipulatesOrders:
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	case liveUnavailable:
+		t.Skip("the test names records which only its recorded replies hold")
 	}
 	return e
+}
+
+// liveExchange returns the live instance for a test's live case, which runs only when built with -tags mock_test_off,
+// and then only with the access it needs
+func liveExchange(t *testing.T, access liveAccess) *Exchange {
+	t.Helper()
+	if mockTests {
+		t.Skip("live cases run only with -tags mock_test_off")
+	}
+	return testExchangeFor(t, nil, access)
+}
+
+// skipUnlessMarketMaker skips a live case of an endpoint MEXC serves only to market maker accounts, unless the test
+// account is one
+func skipUnlessMarketMaker(t *testing.T) {
+	t.Helper()
+	if !marketMakerAccount {
+		t.Skip("MEXC serves this endpoint only to market maker accounts")
+	}
+}
+
+// liveRestingBuyPrice is a BTC_USDT price far below the market, so a live post-only buy at it rests unfilled, or is
+// refused by the venue's price limits
+const liveRestingBuyPrice = 1000
+
+// futuresFirstMeritsCode is the lowest of MEXC's futures error codes for a request refused on its merits; the codes
+// below it refuse the request itself
+const futuresFirstMeritsCode = 2000
+
+var (
+	errRequestRefused  = errors.New("the venue refused the request itself")
+	errUnexpectedOrder = errors.New("the venue returned another order")
+	futuresRefusalCode = regexp.MustCompile(`code (\d+):`)
+)
+
+// answeredOnMerits returns nil for a live futures request the venue took, or refused on its merits, as it refuses an
+// order or position the account doesn't hold. The venue's codes below 2000 refuse the request itself: one it couldn't
+// read, authenticate, authorise or verify, one over the rate limit, or one naming no account, contract or valid amount.
+// A batch's errors, joined, are answered on their merits only when each is
+func answeredOnMerits(err error) error {
+	var joined interface{ Unwrap() []error }
+	switch {
+	case err == nil:
+		return nil
+	case errors.As(err, &joined):
+		for _, part := range joined.Unwrap() {
+			if partErr := answeredOnMerits(part); partErr != nil {
+				if errors.Is(partErr, errRequestRefused) {
+					return fmt.Errorf("%w: %w", errRequestRefused, err)
+				}
+				return err
+			}
+		}
+		return nil
+	case errors.Is(err, errFuturesRequestFailed):
+		matches := futuresRefusalCode.FindAllStringSubmatch(err.Error(), -1)
+		if len(matches) == 0 {
+			return fmt.Errorf("%w: %w", errRequestRefused, err)
+		}
+		for _, match := range matches {
+			if code, convErr := strconv.ParseUint(match[1], 10, 64); convErr != nil || code < futuresFirstMeritsCode {
+				return fmt.Errorf("%w: %w", errRequestRefused, err)
+			}
+		}
+		return nil
+	default:
+		return err
+	}
+}
+
+// outcomeOnMerits reports whether an order's error code in a batch reply is a success or a refusal on its merits
+func outcomeOnMerits(code uint64) bool {
+	return code == 0 || code >= futuresFirstMeritsCode
+}
+
+// refusedAsAbsentOrder reports whether the venue refused a request for naming an order it does not hold, which MEXC
+// codes 2040, and for nothing else
+func refusedAsAbsentOrder(err error) bool {
+	if errors.Is(err, errFuturesRequestFailed) {
+		matches := futuresRefusalCode.FindAllStringSubmatch(err.Error(), -1)
+		return len(matches) == 1 && matches[0][1] == "2040"
+	}
+	return false
+}
+
+func TestRefusedAsAbsentOrder(t *testing.T) {
+	t.Parallel()
+	refused := func(text string) error { return fmt.Errorf("%w: %s", errFuturesRequestFailed, text) }
+	for name, tc := range map[string]struct {
+		err    error
+		absent bool
+	}{
+		"order not held":         {refused("code 2040: Order does not exist"), true},
+		"another merits refusal": {refused("code 2001: Order direction error"), false},
+		"a request refusal":      {refused("code 602: Confirming signature failed"), false},
+		"two codes":              {refused("code 2040: Order does not exist, code 602: unsigned"), false},
+		"no code":                {refused("Order does not exist"), false},
+		"a longer code":          {refused("code 20400: refused"), false},
+		"not from the venue":     {errors.New("code 2040: Order does not exist"), false},
+		"no error":               {nil, false},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.absent, refusedAsAbsentOrder(tc.err), "only the venue's refusal of an order it does not hold should report the order absent")
+		})
+	}
+}
+
+func TestAnsweredOnMerits(t *testing.T) {
+	t.Parallel()
+	refused := func(text string) error { return fmt.Errorf("%w: %s", errFuturesRequestFailed, text) }
+	coded := errors.New("decoding: code 2040: unexpected end")
+	wrappedCoded := fmt.Errorf("decoding %w: code 2040: unexpected end", io.ErrUnexpectedEOF)
+	for name, tc := range map[string]struct {
+		err error
+		// exp is an error the result wraps, or nil for a request answered on its merits
+		exp error
+	}{
+		"taken":                          {nil, nil},
+		"order not held":                 {refused("code 2040: Order does not exist"), nil},
+		"batch order not held":           {refused("order 1: code 2040: order not exist"), nil},
+		"position not held":              {refused("code 2009: Position is nonexistent or closed"), nil},
+		"lowest merits code":             {refused("code 2000: refused"), nil},
+		"unsigned":                       {refused("code 602: Confirming signature failed"), errRequestRefused},
+		"parameter error":                {refused("code 600: Parameter error"), errRequestRefused},
+		"no contract":                    {refused("code 1001: Contract does not exist"), errRequestRefused},
+		"highest request code":           {refused("code 1999: refused"), errRequestRefused},
+		"refusal coded 0":                {refused("code 0: unsuccessful envelope"), errRequestRefused},
+		"no code":                        {refused("refused"), errRequestRefused},
+		"oversized code":                 {refused("code 99999999999999999999: refused"), errRequestRefused},
+		"a request code after a merit":   {refused("order 1: code 2040: order not exist, order 2: code 602: unsigned"), errRequestRefused},
+		"batch refused on its merits":    {common.AppendError(refused("order 1: code 2040: order not exist"), refused("order 2: code 2041: cancelled")), nil},
+		"batch with a request refusal":   {common.AppendError(refused("order 1: code 2040: order not exist"), refused("code 602: unsigned")), errRequestRefused},
+		"batch with an error of its own": {common.AppendError(refused("order 1: code 2040: order not exist"), errCancelOutcomeMissing), errCancelOutcomeMissing},
+		"not from the venue":             {io.ErrUnexpectedEOF, io.ErrUnexpectedEOF},
+		"not from the venue, coded":      {coded, coded},
+		"wrapping another error, coded":  {wrappedCoded, wrappedCoded},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			err := answeredOnMerits(tc.err)
+			switch {
+			case tc.exp == nil:
+				assert.NoError(t, err, "a request the venue took or refused on its merits should be answered")
+			case errors.Is(tc.err, errFuturesRequestFailed):
+				assert.ErrorIs(t, err, tc.exp, "a request the venue didn't answer on its merits should be reported")
+				assert.ErrorIs(t, err, tc.err, "the venue's own error should be kept")
+			default:
+				assert.Same(t, tc.err, err, "an error not from the venue should be returned as it is")
+			}
+		})
+	}
+}
+
+// futuresExamplePositionID is the position MEXC's documentation examples name, which the live cases change only once
+// skipIfExamplePositionHeld finds the account doesn't hold it
+const futuresExamplePositionID = 1109973831
+
+// skipIfExamplePositionHeld skips a live case naming the documentation's example position when the account holds that
+// position, which the case would change
+func skipIfExamplePositionHeld(t *testing.T, ex *Exchange) {
+	t.Helper()
+	id := strconv.FormatUint(futuresExamplePositionID, 10)
+	positions, err := ex.GetFuturesOpenPositions(t.Context(), currency.EMPTYPAIR, id)
+	require.NoError(t, err, "GetFuturesOpenPositions must not error")
+	if slices.ContainsFunc(positions, func(p *FuturesPositionResponse) bool { return p != nil && p.PositionID.String() == id }) {
+		t.Skipf("the account holds position %s, which this would change", id)
+	}
+}
+
+// futuresOrderFinishedStates are the states of an order that no longer rests: filled, cancelled and invalid
+var futuresOrderFinishedStates = []uint8{FuturesOrderStateFilled, FuturesOrderStateCancelled, FuturesOrderStateInvalid}
+
+// skipIfOrderOpen skips a live case naming an order by ID when the account holds that order unfinished, which the case
+// would change
+func skipIfOrderOpen(t *testing.T, ex *Exchange, orderID uint64) {
+	t.Helper()
+	id := strconv.FormatUint(orderID, 10)
+	o, err := ex.GetFuturesOrder(t.Context(), id)
+	held, err := heldUnfinished(id, o, err)
+	require.NoError(t, err, "GetFuturesOrder must read the order or report the venue does not hold it")
+	if held {
+		t.Skipf("the account holds order %s unfinished, which this would change", id)
+	}
+}
+
+// heldUnfinished reports whether a read of the order id names found the account holding it unfinished. A read the venue
+// refused, other than as an order it does not hold, or one returning another order, is an error, as the order may be
+// held
+func heldUnfinished(id string, o *FuturesOrderResponse, err error) (bool, error) {
+	switch {
+	case refusedAsAbsentOrder(err):
+		return false, nil
+	case err != nil:
+		return false, err
+	case o == nil:
+		return false, nil
+	case o.OrderID.String() != id:
+		return false, fmt.Errorf("%w: order %s read back as %s", errUnexpectedOrder, id, o.OrderID)
+	}
+	return !slices.Contains(futuresOrderFinishedStates, o.State), nil
+}
+
+func TestHeldUnfinished(t *testing.T) {
+	t.Parallel()
+	const id = "739204819784386560"
+	read := func(state uint8) *FuturesOrderResponse { return &FuturesOrderResponse{OrderID: id, State: state} }
+	refused := fmt.Errorf("%w: code 2001: refused", errFuturesRequestFailed)
+	for name, tc := range map[string]struct {
+		order *FuturesOrderResponse
+		err   error
+		held  bool
+		exp   error
+	}{
+		"pending":                {order: read(FuturesOrderStatePending), held: true},
+		"unfilled":               {order: read(FuturesOrderStateUnfilled), held: true},
+		"filled":                 {order: read(FuturesOrderStateFilled)},
+		"cancelled":              {order: read(FuturesOrderStateCancelled)},
+		"invalid":                {order: read(FuturesOrderStateInvalid)},
+		"no state":               {order: read(0), held: true},
+		"unknown state":          {order: read(6), held: true},
+		"nothing returned":       {},
+		"not held":               {err: fmt.Errorf("%w: code 2040: Order does not exist", errFuturesRequestFailed)},
+		"read refused otherwise": {err: refused, exp: refused},
+		"read failed":            {err: io.ErrUnexpectedEOF, exp: io.ErrUnexpectedEOF},
+		"another order":          {order: &FuturesOrderResponse{OrderID: "1", State: FuturesOrderStateCancelled}, exp: errUnexpectedOrder},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			held, err := heldUnfinished(id, tc.order, tc.err)
+			require.ErrorIs(t, err, tc.exp, "heldUnfinished must report a read that cannot show the order absent or finished")
+			assert.Equal(t, tc.held, held, "only an order read back unfinished should be held")
+		})
+	}
+}
+
+// skipIfOrdersOpen skips a live case naming a plan, take-profit and stop-loss or trailing order by ID while the account
+// holds open orders of that kind, any of which the case could change. The venue lists such orders only by page, so
+// the case does not look for the one it names
+func skipIfOrdersOpen(t *testing.T, ex *Exchange, kind string, open func(*FuturesOpenOrderCountsResponse) uint64) {
+	t.Helper()
+	counts, err := ex.GetFuturesOpenOrderCounts(t.Context())
+	require.NoError(t, err, "GetFuturesOpenOrderCounts must not error")
+	require.NotNil(t, counts, "GetFuturesOpenOrderCounts must return the counts")
+	if open(counts) > 0 {
+		t.Skipf("the account holds open %s orders, which this could change", kind)
+	}
+}
+
+// absentGroupName returns a self-trade prevention group name made up for a live case and checked to name no group
+// the account holds, so that changing or deleting it changes nothing
+func absentGroupName(t *testing.T, ex *Exchange) string {
+	t.Helper()
+	name := "gct" + strconv.FormatInt(time.Now().UnixNano(), 36)
+	groups, err := ex.GetFuturesSelfTradePreventionGroups(t.Context(), "")
+	require.NoError(t, err, "GetFuturesSelfTradePreventionGroups must list the account's groups")
+	require.False(t, slices.ContainsFunc(groups, func(g *FuturesSelfTradePreventionGroupResponse) bool { return g != nil && g.GroupName == name }),
+		"the made-up group name must name no group the account holds")
+	return name
+}
+
+// assertLiveOrdersGone checks that the orders a live case placed rest no longer once it cancelled them, whichever
+// cancel took them first, as a parallel live cancel-all may
+func assertLiveOrdersGone(ctx context.Context, t *testing.T, ex *Exchange, orderIDs ...uint64) {
+	t.Helper()
+	for _, id := range orderIDs {
+		o, err := ex.GetFuturesOrder(ctx, strconv.FormatUint(id, 10))
+		assert.Truef(t, futuresOrderGone(o, err), "order %d should no longer rest once cancelled: read back %v, %v", id, o, err)
+	}
+}
+
+// futuresOrderGone reports whether an order read back after its cancel no longer rests: the venue refused the read as
+// one for an order it does not hold, or returned the order filled, cancelled or invalid
+func futuresOrderGone(o *FuturesOrderResponse, err error) bool {
+	if err != nil {
+		return refusedAsAbsentOrder(err)
+	}
+	return o != nil && slices.Contains(futuresOrderFinishedStates, o.State)
+}
+
+func TestFuturesOrderGone(t *testing.T) {
+	t.Parallel()
+	read := func(state uint8) *FuturesOrderResponse {
+		return &FuturesOrderResponse{OrderID: "739113577038255616", State: state}
+	}
+	for name, tc := range map[string]struct {
+		order *FuturesOrderResponse
+		err   error
+		gone  bool
+	}{
+		"filled":                 {order: read(FuturesOrderStateFilled), gone: true},
+		"cancelled":              {order: read(FuturesOrderStateCancelled), gone: true},
+		"invalid":                {order: read(FuturesOrderStateInvalid), gone: true},
+		"pending":                {order: read(FuturesOrderStatePending)},
+		"unfilled":               {order: read(FuturesOrderStateUnfilled)},
+		"no state":               {order: read(0)},
+		"unknown state":          {order: read(6)},
+		"not held":               {err: fmt.Errorf("%w: code 2040: Order does not exist", errFuturesRequestFailed), gone: true},
+		"read refused otherwise": {err: fmt.Errorf("%w: code 2001: refused", errFuturesRequestFailed)},
+		"read failed":            {err: io.ErrUnexpectedEOF},
+		"nothing returned":       {},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.gone, futuresOrderGone(tc.order, tc.err), "only an order the venue no longer holds, or holds finished, should be gone")
+		})
+	}
+}
+
+// futuresRoute is a recorded futures reply to a request. A route serves the requests of its method and path which carry
+// its query and its body, where it names them
+type futuresRoute struct {
+	method string
+	// path follows /api/v1/
+	path string
+	// query is the request's encoded query
+	query string
+	// body is the request's JSON body, compared as JSON
+	body string
+	// data is the reply's data member; a reply without one carries none
+	data string
+}
+
+// matches reports whether the route serves a request
+func (f *futuresRoute) matches(t *testing.T, r *http.Request, body []byte) bool {
+	t.Helper()
+	if r.Method != f.method || r.URL.Path != "/api/v1/"+f.path || (f.query != "" && r.URL.RawQuery != f.query) {
+		return false
+	}
+	if f.body == "" {
+		return true
+	}
+	// The handler runs off the test's goroutine, where a require would not stop the test
+	want, err := exactJSON([]byte(f.body))
+	if !assert.NoError(t, err, "the route's body should be JSON") {
+		return false
+	}
+	got, err := exactJSON(body)
+	return err == nil && reflect.DeepEqual(want, got)
+}
+
+// exactNumber is a JSON number held as its exact rational value
+type exactNumber string
+
+// exactJSON decodes JSON as unmarshalling into an any does, but keeps each number exact: as float64s, order IDs above
+// 2^53 such as 739206374277809664 and 739206374277809665 compare equal
+func exactJSON(data []byte) (any, error) {
+	var v any
+	if err := json.Unmarshal(data, &v); err != nil {
+		return nil, err
+	}
+	switch v.(type) {
+	case map[string]any:
+		var members map[string]json.RawMessage
+		if err := json.Unmarshal(data, &members); err != nil {
+			return nil, err
+		}
+		object := make(map[string]any, len(members))
+		for name, member := range members {
+			var err error
+			if object[name], err = exactJSON(member); err != nil {
+				return nil, err
+			}
+		}
+		return object, nil
+	case []any:
+		var elements []json.RawMessage
+		if err := json.Unmarshal(data, &elements); err != nil {
+			return nil, err
+		}
+		list := make([]any, len(elements))
+		for i, element := range elements {
+			var err error
+			if list[i], err = exactJSON(element); err != nil {
+				return nil, err
+			}
+		}
+		return list, nil
+	case float64:
+		n, _ := new(big.Rat).SetString(string(bytes.TrimSpace(data))) // every JSON number is a valid rational
+		return exactNumber(n.RatString()), nil
+	}
+	return v, nil
+}
+
+// futuresHandler serves recorded futures replies and reports a request no route serves. It checks each private
+// request's signature as the venue verifies it: a hex HMAC-SHA256 of the API key, the request time and the query, or
+// the body of a POST
+func futuresHandler(t *testing.T, routes ...futuresRoute) http.HandlerFunc {
+	t.Helper()
+	return func(w http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(r.Body)
+		if !assert.NoError(t, err, "reading the request body should not error") {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		i := slices.IndexFunc(routes, func(f futuresRoute) bool { return f.matches(t, r, body) })
+		if i == -1 {
+			t.Errorf("unexpected request %s %s %s", r.Method, r.URL, body)
+			http.Error(w, "unexpected request", http.StatusNotFound)
+			return
+		}
+		if strings.HasPrefix(routes[i].path, "private/") {
+			signed := r.URL.RawQuery
+			if r.Method == http.MethodPost {
+				signed = string(body)
+			}
+			mac, err := crypto.GetHMAC(crypto.HashSHA256, []byte("test-key"+r.Header.Get("Request-Time")+signed), []byte("test-secret"))
+			assert.NoError(t, err, "GetHMAC should not error")
+			assert.Equalf(t, "test-key", r.Header.Get("ApiKey"), "%s should carry the API key", routes[i].path)
+			assert.Equalf(t, hex.EncodeToString(mac), r.Header.Get("Signature"), "%s should be signed over the key, the request time and its parameters", routes[i].path)
+		}
+		reply := `{"success":true,"code":0}`
+		if routes[i].data != "" {
+			reply = `{"success":true,"code":0,"data":` + routes[i].data + `}`
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(reply))
+	}
 }
 
 // jsonHandler routes on the request path suffix and writes the matching recorded body.
@@ -87,6 +524,29 @@ func jsonHandler(t *testing.T, bySuffix map[string]string) http.HandlerFunc {
 		}
 		t.Errorf("unexpected request path %q", r.URL.Path)
 		http.Error(w, "unexpected path", http.StatusNotFound)
+	}
+}
+
+func TestFuturesRouteMatches(t *testing.T) {
+	t.Parallel()
+	route := &futuresRoute{method: http.MethodPost, path: "private/planorder/cancel", body: `[{"symbol":"BTC_USDT","orderId":739206374277809664}]`}
+	for name, tc := range map[string]struct {
+		body string
+		exp  bool
+	}{
+		"identical body":            {`[{"symbol":"BTC_USDT","orderId":739206374277809664}]`, true},
+		"reordered with spaces":     {`[ { "orderId" : 739206374277809664, "symbol" : "BTC_USDT" } ]`, true},
+		"order ID in exponent form": {`[{"symbol":"BTC_USDT","orderId":7.39206374277809664e17}]`, true},
+		"next order ID":             {`[{"symbol":"BTC_USDT","orderId":739206374277809665}]`, false},
+		"quoted order ID":           {`[{"symbol":"BTC_USDT","orderId":"739206374277809664"}]`, false},
+		"extra member":              {`[{"symbol":"BTC_USDT","orderId":739206374277809664,"x":1}]`, false},
+		"truncated body":            {`[{"symbol":"BTC_USDT","orderId":739206374277809664`, false},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			r := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/private/planorder/cancel", http.NoBody)
+			assert.Equalf(t, tc.exp, route.matches(t, r, []byte(tc.body)), "matching %s should report %t", tc.body, tc.exp)
+		})
 	}
 }
 

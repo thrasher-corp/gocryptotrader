@@ -281,6 +281,72 @@ func TestSubmitResponse_DeriveDetail(t *testing.T) {
 	deets, err := s.DeriveDetail(id)
 	require.NoError(t, err)
 	assert.Equal(t, id, deets.InternalOrderID)
+
+	placed := time.Unix(1761887134, 0)
+	s = &SubmitResponse{
+		Exchange:             "test",
+		Type:                 Limit,
+		Side:                 Buy,
+		Pair:                 currency.NewBTCUSDT(),
+		AssetType:            asset.Futures,
+		TimeInForce:          GoodTillCancel,
+		ReduceOnly:           true,
+		Leverage:             20,
+		Price:                50000,
+		Amount:               5,
+		QuoteAmount:          250000,
+		RemainingAmount:      3,
+		TriggerPrice:         49000,
+		ClientID:             "client",
+		ClientOrderID:        "gct-1",
+		AverageExecutedPrice: 49999.5,
+		LastUpdated:          placed.Add(time.Second),
+		Date:                 placed,
+		Status:               PartiallyFilled,
+		OrderID:              "1337",
+		Trades:               []TradeHistory{{TID: "1", Price: 49999.5, Amount: 2}},
+		Fee:                  0.01,
+		FeeAsset:             currency.BNB,
+		Cost:                 99999,
+		MarginType:           margin.Multi,
+	}
+	deets, err = s.DeriveDetail(id)
+	require.NoError(t, err, "DeriveDetail must not error")
+	// The remaining amount is left out, as some venues report a market buy's in quote funds
+	exp := &Detail{
+		Exchange:             "test",
+		Type:                 Limit,
+		Side:                 Buy,
+		Pair:                 currency.NewBTCUSDT(),
+		AssetType:            asset.Futures,
+		TimeInForce:          GoodTillCancel,
+		ReduceOnly:           true,
+		Leverage:             20,
+		Price:                50000,
+		Amount:               5,
+		QuoteAmount:          250000,
+		TriggerPrice:         49000,
+		ClientID:             "client",
+		ClientOrderID:        "gct-1",
+		AverageExecutedPrice: 49999.5,
+		MarginType:           margin.Multi,
+		InternalOrderID:      id,
+		LastUpdated:          placed.Add(time.Second),
+		Date:                 placed,
+		Status:               PartiallyFilled,
+		OrderID:              "1337",
+		Trades:               []TradeHistory{{TID: "1", Price: 49999.5, Amount: 2}},
+		Fee:                  0.01,
+		FeeAsset:             currency.BNB,
+		Cost:                 99999,
+	}
+	assert.Equal(t, exp, deets, "DeriveDetail should carry the fields the submission reported")
+
+	for _, m := range []margin.Type{margin.Unset, margin.Isolated, margin.Multi} {
+		deets, err = (&SubmitResponse{MarginType: m}).DeriveDetail(id)
+		require.NoErrorf(t, err, "DeriveDetail must not error for margin type %s", m)
+		assert.Equalf(t, m, deets.MarginType, "DeriveDetail should carry margin type %s", m)
+	}
 }
 
 func TestOrderSides(t *testing.T) {
@@ -1193,6 +1259,36 @@ func TestUpdateOrderFromDetailRemainingAmountInvariant(t *testing.T) {
 	}
 	require.NoError(t, od.UpdateOrderFromDetail(om), "UpdateOrderFromDetail must not error")
 	assert.Equal(t, 2.0, od.RemainingAmount, "RemainingAmount should be updated when the fill is larger than the reported remainder")
+}
+
+func TestUpdateOrderFromDetailFinalFill(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name     string
+		incoming Detail
+		exp      float64
+	}{
+		{"filled", Detail{Amount: 5, ExecutedAmount: 5, Status: Filled}, 0},
+		{"status only filled", Detail{Status: Filled}, 0},
+		{"remainder unknown", Detail{Amount: 5, ExecutedAmount: 4, Status: PartiallyFilled}, 3},
+		{"cancelled", Detail{Amount: 5, ExecutedAmount: 2, Status: Cancelled}, 3},
+		{"negative remainder", Detail{RemainingAmount: -1, Status: Filled}, 3},
+		{"reported remainder", Detail{RemainingAmount: 1, Status: PartiallyFilled}, 1},
+	} {
+		stored := &Detail{OrderID: "1", Amount: 5, ExecutedAmount: 2, RemainingAmount: 3, Status: PartiallyFilled}
+		require.NoErrorf(t, stored.UpdateOrderFromDetail(&tc.incoming), "UpdateOrderFromDetail must not error for a %s update", tc.name)
+		assert.Equalf(t, tc.exp, stored.RemainingAmount, "the remainder should be %v after a %s update", tc.exp, tc.name)
+	}
+	stored := &Detail{OrderID: "1", Amount: 5, RemainingAmount: 3, Status: Filled}
+	require.NoError(t, stored.UpdateOrderFromDetail(&Detail{}), "UpdateOrderFromDetail must not error")
+	assert.Equal(t, 3.0, stored.RemainingAmount, "an update which does not report the order filled should leave the remainder")
+}
+
+func TestUpdateOrderFromDetailTradeSideAndType(t *testing.T) {
+	t.Parallel()
+	stored := &Detail{OrderID: "1", Trades: []TradeHistory{{TID: "1", Side: Buy, Type: Limit}}}
+	require.NoError(t, stored.UpdateOrderFromDetail(&Detail{Trades: []TradeHistory{{TID: "1", Side: Sell, Type: Market}}}), "UpdateOrderFromDetail must not error")
+	assert.Equal(t, []TradeHistory{{TID: "1", Side: Sell, Type: Market}}, stored.Trades, "a trade's side and type should take the incoming ones")
 }
 
 // TestUpdateOrderFromDetailTradesOnly pins the behaviour for feeds that report

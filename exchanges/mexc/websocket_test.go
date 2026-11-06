@@ -1,6 +1,7 @@
 package mexc
 
 import (
+	"cmp"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -214,13 +215,24 @@ func TestSubscriptionAccepted(t *testing.T) {
 	assert.True(t, subscriptionAccepted("UNSUBSCRIPTION", ch, ch), "an echoed channel means the unsubscribe was accepted")
 }
 
+func TestIsSpotSubscription(t *testing.T) {
+	t.Parallel()
+	for _, a := range []asset.Item{asset.Spot, asset.All, asset.Empty} {
+		t.Run(cmp.Or(a.String(), "empty"), func(t *testing.T) {
+			t.Parallel()
+			assert.Truef(t, isSpotSubscription(&subscription.Subscription{Asset: a}), "a subscription for asset %q should be expanded with the spot template", a)
+		})
+	}
+	assert.False(t, isSpotSubscription(&subscription.Subscription{Asset: asset.Futures}), "a futures subscription should not be expanded with the spot template")
+}
+
 func TestGenerateSubscriptionsIncludesMiniTicker(t *testing.T) {
 	t.Parallel()
 	// A fresh instance: the live websocket tests' testexch.SetupWs empties the shared one's subscriptions.
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Setup must not error")
 	require.NoError(t, ex.setEnabledPairs(spotTradablePair), "setEnabledPairs must not error")
-	subs, err := ex.generateSubscriptions()
+	subs, err := ex.generateSubscriptions(nil)
 	require.NoError(t, err, "generateSubscriptions must not error")
 	var found bool
 	for _, s := range subs {
