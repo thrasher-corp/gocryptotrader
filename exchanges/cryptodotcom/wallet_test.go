@@ -13,20 +13,25 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-func TestCreateWithdrawal(t *testing.T) {
+func TestCreateWithdrawal(t *testing.T) { //nolint:tparallel // the cases run in order before the later calls of the same method
 	t.Parallel()
+	// The cases run in order on e, before the CreateWithdrawal calls below, so each also checks that a refusal leaves
+	// nothing behind
 	for _, tc := range []struct {
-		req *WithdrawalRequest
-		err error
+		name string
+		req  *WithdrawalRequest
+		err  error
 	}{
-		{req: nil, err: common.ErrNilPointer},
-		{req: &WithdrawalRequest{Amount: 1, Address: "a"}, err: currency.ErrCurrencyCodeEmpty},
-		{req: &WithdrawalRequest{Currency: currency.BTC, Address: "a"}, err: errInvalidAmount},
-		{req: &WithdrawalRequest{Currency: currency.BTC, Amount: -1, Address: "a"}, err: errInvalidAmount},
-		{req: &WithdrawalRequest{Currency: currency.BTC, Amount: 1}, err: errAddressRequired},
+		{name: "a nil request", req: nil, err: common.ErrNilPointer},
+		{name: "a withdrawal without a currency", req: &WithdrawalRequest{Amount: 1, Address: "a"}, err: currency.ErrCurrencyCodeEmpty},
+		{name: "a withdrawal without an amount", req: &WithdrawalRequest{Currency: currency.BTC, Address: "a"}, err: errInvalidAmount},
+		{name: "a negative amount", req: &WithdrawalRequest{Currency: currency.BTC, Amount: -1, Address: "a"}, err: errInvalidAmount},
+		{name: "a withdrawal without an address", req: &WithdrawalRequest{Currency: currency.BTC, Amount: 1}, err: errAddressRequired},
 	} {
-		_, err := e.CreateWithdrawal(t.Context(), tc.req)
-		require.ErrorIsf(t, err, tc.err, "CreateWithdrawal must refuse %+v", tc.req)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.CreateWithdrawal(t.Context(), tc.req)
+			require.ErrorIsf(t, err, tc.err, "CreateWithdrawal must refuse %+v", tc.req)
+		})
 	}
 
 	ex, sent := newSignedRecorder(t, "private/create-withdrawal", `{"id":"1"}`)
@@ -171,20 +176,25 @@ func TestGetDepositAddresses(t *testing.T) {
 	}
 }
 
-func TestGetDepositHistory(t *testing.T) {
+func TestGetDepositHistory(t *testing.T) { //nolint:tparallel // the cases run in order before the later calls of the same method
 	t.Parallel()
+	// The cases run in order on e, before the GetDepositHistory calls below, so each also checks that a refusal leaves
+	// nothing behind
 	for _, tc := range []struct {
-		req *WalletHistoryRequest
-		err error
+		name string
+		req  *WalletHistoryRequest
+		err  error
 	}{
-		{req: nil, err: common.ErrNilPointer},
-		{req: &WalletHistoryRequest{StartTime: time.UnixMilli(1607100000000), EndTime: time.UnixMilli(1607000000000)}, err: common.ErrStartAfterEnd},
-		{req: &WalletHistoryRequest{StartTime: time.UnixMilli(-1), EndTime: time.UnixMilli(1607000000000)}, err: errTimeBeforeUnixEpoch},
-		{req: &WalletHistoryRequest{EndTime: time.UnixMilli(-1)}, err: errTimeBeforeUnixEpoch},
-		{req: &WalletHistoryRequest{PageSize: maxWalletHistoryPageSize + 1}, err: errInvalidCount},
+		{name: "a nil request", req: nil, err: common.ErrNilPointer},
+		{name: "a window starting after it ends", req: &WalletHistoryRequest{StartTime: time.UnixMilli(1607100000000), EndTime: time.UnixMilli(1607000000000)}, err: common.ErrStartAfterEnd},
+		{name: "a start before the Unix epoch", req: &WalletHistoryRequest{StartTime: time.UnixMilli(-1), EndTime: time.UnixMilli(1607000000000)}, err: errTimeBeforeUnixEpoch},
+		{name: "an end before the Unix epoch", req: &WalletHistoryRequest{EndTime: time.UnixMilli(-1)}, err: errTimeBeforeUnixEpoch},
+		{name: "a page size above 200", req: &WalletHistoryRequest{PageSize: maxWalletHistoryPageSize + 1}, err: errInvalidCount},
 	} {
-		_, err := e.GetDepositHistory(t.Context(), tc.req)
-		require.ErrorIsf(t, err, tc.err, "GetDepositHistory must refuse %+v", tc.req)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.GetDepositHistory(t.Context(), tc.req)
+			require.ErrorIsf(t, err, tc.err, "GetDepositHistory must refuse %+v", tc.req)
+		})
 	}
 
 	ex, sent := newSignedRecorder(t, "private/get-deposit-history", `{"deposit_list":[]}`)
@@ -225,19 +235,24 @@ func TestGetDepositHistory(t *testing.T) {
 	}
 }
 
-func TestGetWithdrawalHistory(t *testing.T) {
+func TestGetWithdrawalHistory(t *testing.T) { //nolint:tparallel // the cases run in order before the later calls of the same method
 	t.Parallel()
+	// The cases run in order on e, before the GetWithdrawalHistory calls below, so each also checks that a refusal
+	// leaves nothing behind
 	for _, tc := range []struct {
-		req *WalletHistoryRequest
-		err error
+		name string
+		req  *WalletHistoryRequest
+		err  error
 	}{
-		{req: nil, err: common.ErrNilPointer},
-		{req: &WalletHistoryRequest{StartTime: time.UnixMilli(1607100000000), EndTime: time.UnixMilli(1607000000000)}, err: common.ErrStartAfterEnd},
-		{req: &WalletHistoryRequest{StartTime: time.UnixMilli(-1), EndTime: time.UnixMilli(1607000000000)}, err: errTimeBeforeUnixEpoch},
-		{req: &WalletHistoryRequest{EndTime: time.UnixMilli(-1)}, err: errTimeBeforeUnixEpoch},
+		{name: "a nil request", req: nil, err: common.ErrNilPointer},
+		{name: "a window starting after it ends", req: &WalletHistoryRequest{StartTime: time.UnixMilli(1607100000000), EndTime: time.UnixMilli(1607000000000)}, err: common.ErrStartAfterEnd},
+		{name: "a start before the Unix epoch", req: &WalletHistoryRequest{StartTime: time.UnixMilli(-1), EndTime: time.UnixMilli(1607000000000)}, err: errTimeBeforeUnixEpoch},
+		{name: "an end before the Unix epoch", req: &WalletHistoryRequest{EndTime: time.UnixMilli(-1)}, err: errTimeBeforeUnixEpoch},
 	} {
-		_, err := e.GetWithdrawalHistory(t.Context(), tc.req)
-		require.ErrorIsf(t, err, tc.err, "GetWithdrawalHistory must refuse %+v", tc.req)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.GetWithdrawalHistory(t.Context(), tc.req)
+			require.ErrorIsf(t, err, tc.err, "GetWithdrawalHistory must refuse %+v", tc.req)
+		})
 	}
 
 	ex, sent := newSignedRecorder(t, "private/get-withdrawal-history", `{"withdrawal_list":[]}`)

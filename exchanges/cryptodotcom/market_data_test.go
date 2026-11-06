@@ -3,6 +3,7 @@ package cryptodotcom
 import (
 	"net/http"
 	"net/url"
+	"strconv"
 	"testing"
 	"time"
 
@@ -179,13 +180,14 @@ func TestGetInstruments(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetInstruments should return a request failure")
 }
 
-func TestGetOrderbook(t *testing.T) {
+func TestGetOrderbook(t *testing.T) { //nolint:tparallel // the cases share e's recorded mock in order
 	t.Parallel()
 	_, err := e.GetOrderbook(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetOrderbook must refuse a nil request")
 	_, err = e.GetOrderbook(t.Context(), &OrderbookRequest{Depth: 3})
 	require.ErrorIs(t, err, errInstrumentNameRequired, "GetOrderbook must refuse a request without an instrument name")
 
+	// The cases share e and its recorded mock in order, before the GetOrderbook calls below
 	for _, tc := range []struct {
 		req *OrderbookRequest
 		exp *OrderbookResponse
@@ -235,15 +237,17 @@ func TestGetOrderbook(t *testing.T) {
 			},
 		},
 	} {
-		result, err := e.GetOrderbook(t.Context(), tc.req)
-		require.NoErrorf(t, err, "GetOrderbook must not error for %s", tc.req.InstrumentName)
-		if mockTests {
-			assert.Equalf(t, tc.exp, result, "GetOrderbook should decode every field for %s", tc.req.InstrumentName)
-		} else {
-			require.Lenf(t, result.Data, 1, "GetOrderbook must return one book for %s", tc.req.InstrumentName)
-			assert.Lenf(t, result.Data[0].Bids, 3, "GetOrderbook should return the depth of bids requested for %s", tc.req.InstrumentName)
-			assert.Lenf(t, result.Data[0].Asks, 3, "GetOrderbook should return the depth of asks requested for %s", tc.req.InstrumentName)
-		}
+		t.Run(tc.req.InstrumentName, func(t *testing.T) {
+			result, err := e.GetOrderbook(t.Context(), tc.req)
+			require.NoErrorf(t, err, "GetOrderbook must not error for %s", tc.req.InstrumentName)
+			if mockTests {
+				assert.Equalf(t, tc.exp, result, "GetOrderbook should decode every field for %s", tc.req.InstrumentName)
+			} else {
+				require.Lenf(t, result.Data, 1, "GetOrderbook must return one book for %s", tc.req.InstrumentName)
+				assert.Lenf(t, result.Data[0].Bids, 3, "GetOrderbook should return the depth of bids requested for %s", tc.req.InstrumentName)
+				assert.Lenf(t, result.Data[0].Asks, 3, "GetOrderbook should return the depth of asks requested for %s", tc.req.InstrumentName)
+			}
+		})
 	}
 
 	ex := newQueryCheckExchange(t, "public/get-book", url.Values{"instrument_name": {"BTC_USD"}}, `{"depth":150,"data":[],"instrument_name":"BTC_USD"}`)
@@ -255,7 +259,7 @@ func TestGetOrderbook(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetOrderbook should return a request failure")
 }
 
-func TestGetCandlestick(t *testing.T) {
+func TestGetCandlestick(t *testing.T) { //nolint:tparallel // the cases share e's recorded mock in order
 	t.Parallel()
 	start := time.Date(2026, 10, 24, 0, 0, 0, 0, time.UTC)
 	_, err := e.GetCandlestick(t.Context(), nil)
@@ -269,6 +273,7 @@ func TestGetCandlestick(t *testing.T) {
 	_, err = e.GetCandlestick(t.Context(), &CandlestickRequest{InstrumentName: "BTC_USD", StartTime: time.UnixMilli(-1)})
 	require.ErrorIs(t, err, errTimeBeforeUnixEpoch, "GetCandlestick must refuse a time before the Unix epoch")
 
+	// The cases share e and its recorded mock in order, before the GetCandlestick calls below
 	for _, tc := range []struct {
 		req *CandlestickRequest
 		exp *CandlestickResponse
@@ -297,14 +302,16 @@ func TestGetCandlestick(t *testing.T) {
 			},
 		},
 	} {
-		result, err := e.GetCandlestick(t.Context(), tc.req)
-		require.NoErrorf(t, err, "GetCandlestick must not error for %s", tc.req.InstrumentName)
-		if mockTests {
-			assert.Equalf(t, tc.exp, result, "GetCandlestick should decode every field for %s", tc.req.InstrumentName)
-		} else {
-			assert.Lenf(t, result.Data, len(tc.exp.Data), "GetCandlestick should return the candles of the window for %s", tc.req.InstrumentName)
-			assert.Equalf(t, tc.exp.Interval, result.Interval, "GetCandlestick should return the timeframe requested for %s", tc.req.InstrumentName)
-		}
+		t.Run(tc.req.InstrumentName, func(t *testing.T) {
+			result, err := e.GetCandlestick(t.Context(), tc.req)
+			require.NoErrorf(t, err, "GetCandlestick must not error for %s", tc.req.InstrumentName)
+			if mockTests {
+				assert.Equalf(t, tc.exp, result, "GetCandlestick should decode every field for %s", tc.req.InstrumentName)
+			} else {
+				assert.Lenf(t, result.Data, len(tc.exp.Data), "GetCandlestick should return the candles of the window for %s", tc.req.InstrumentName)
+				assert.Equalf(t, tc.exp.Interval, result.Interval, "GetCandlestick should return the timeframe requested for %s", tc.req.InstrumentName)
+			}
+		})
 	}
 
 	ex := newQueryCheckExchange(t, "public/get-candlestick", url.Values{"instrument_name": {"BTC_USD"}}, `{"interval":"1m","data":[],"instrument_name":"BTC_USD"}`)
@@ -316,7 +323,7 @@ func TestGetCandlestick(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetCandlestick should return a request failure")
 }
 
-func TestGetTrades(t *testing.T) {
+func TestGetTrades(t *testing.T) { //nolint:tparallel // the cases share e's recorded mock in order
 	t.Parallel()
 	start := time.Date(2026, 10, 25, 1, 46, 26, 0, time.UTC)
 	_, err := e.GetTrades(t.Context(), nil)
@@ -328,6 +335,7 @@ func TestGetTrades(t *testing.T) {
 	_, err = e.GetTrades(t.Context(), &TradesRequest{InstrumentName: "BTC_USD", EndTime: time.Unix(0, -1)})
 	require.ErrorIs(t, err, errTimeBeforeUnixEpoch, "GetTrades must refuse a time before the Unix epoch")
 
+	// The cases share e and its recorded mock in order, before the GetTrades calls below
 	for _, tc := range []struct {
 		req *TradesRequest
 		exp []TradeResponse
@@ -350,13 +358,15 @@ func TestGetTrades(t *testing.T) {
 			},
 		},
 	} {
-		result, err := e.GetTrades(t.Context(), tc.req)
-		require.NoErrorf(t, err, "GetTrades must not error for %s", tc.req.InstrumentName)
-		if mockTests {
-			assert.Equalf(t, tc.exp, result, "GetTrades should decode every field for %s", tc.req.InstrumentName)
-		} else {
-			assert.Lenf(t, result, len(tc.exp), "GetTrades should return the trades requested for %s", tc.req.InstrumentName)
-		}
+		t.Run(tc.req.InstrumentName, func(t *testing.T) {
+			result, err := e.GetTrades(t.Context(), tc.req)
+			require.NoErrorf(t, err, "GetTrades must not error for %s", tc.req.InstrumentName)
+			if mockTests {
+				assert.Equalf(t, tc.exp, result, "GetTrades should decode every field for %s", tc.req.InstrumentName)
+			} else {
+				assert.Lenf(t, result, len(tc.exp), "GetTrades should return the trades requested for %s", tc.req.InstrumentName)
+			}
+		})
 	}
 
 	ex := newQueryCheckExchange(t, "public/get-trades", url.Values{"instrument_name": {"BTC_USD"}}, `{"data":[]}`)
@@ -368,11 +378,12 @@ func TestGetTrades(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetTrades should return a request failure")
 }
 
-func TestGetTickers(t *testing.T) {
+func TestGetTickers(t *testing.T) { //nolint:tparallel // the cases share e's recorded mock in order
 	t.Parallel()
 	_, err := e.GetTickers(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetTickers must refuse a nil request")
 
+	// The cases share e and its recorded mock in order, before the GetTickers calls below
 	for _, tc := range []struct {
 		req *TickersRequest
 		exp []TickerResponse
@@ -399,18 +410,20 @@ func TestGetTickers(t *testing.T) {
 			},
 		},
 	} {
-		result, err := e.GetTickers(t.Context(), tc.req)
-		require.NoErrorf(t, err, "GetTickers must not error for %q", tc.req.InstrumentName)
-		if mockTests {
-			assert.Equalf(t, tc.exp, result, "GetTickers should decode every field for %q", tc.req.InstrumentName)
-			continue
-		}
-		if tc.req.InstrumentName == "" {
-			assert.NotEmpty(t, result, "GetTickers should return every instrument's ticker")
-			continue
-		}
-		require.Lenf(t, result, 1, "GetTickers must return one ticker for %s", tc.req.InstrumentName)
-		assert.Equalf(t, tc.req.InstrumentName, result[0].InstrumentName, "GetTickers should return the ticker of %s", tc.req.InstrumentName)
+		t.Run(subtestName(tc.req.InstrumentName), func(t *testing.T) {
+			result, err := e.GetTickers(t.Context(), tc.req)
+			require.NoErrorf(t, err, "GetTickers must not error for %q", tc.req.InstrumentName)
+			if mockTests {
+				assert.Equalf(t, tc.exp, result, "GetTickers should decode every field for %q", tc.req.InstrumentName)
+				return
+			}
+			if tc.req.InstrumentName == "" {
+				assert.NotEmpty(t, result, "GetTickers should return every instrument's ticker")
+				return
+			}
+			require.Lenf(t, result, 1, "GetTickers must return one ticker for %s", tc.req.InstrumentName)
+			assert.Equalf(t, tc.req.InstrumentName, result[0].InstrumentName, "GetTickers should return the ticker of %s", tc.req.InstrumentName)
+		})
 	}
 
 	_, err = newResponseServerExchange(t, `{"id":-1,"method":"public/get-tickers","code":0,"result":null}`).GetTickers(t.Context(), &TickersRequest{})
@@ -419,7 +432,7 @@ func TestGetTickers(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetTickers should return a request failure")
 }
 
-func TestGetValuations(t *testing.T) {
+func TestGetValuations(t *testing.T) { //nolint:tparallel // the cases share e's recorded mock in order
 	t.Parallel()
 	start := time.Date(2026, 10, 24, 0, 0, 0, 0, time.UTC)
 	_, err := e.GetValuations(t.Context(), nil)
@@ -433,6 +446,7 @@ func TestGetValuations(t *testing.T) {
 	_, err = e.GetValuations(t.Context(), &ValuationsRequest{InstrumentName: "BTCUSD-PERP", ValuationType: ValuationTypeFundingHistory, StartTime: time.UnixMilli(-1)})
 	require.ErrorIs(t, err, errTimeBeforeUnixEpoch, "GetValuations must refuse a time before the Unix epoch")
 
+	// The cases share e and its recorded mock in order, before the GetValuations calls below
 	for _, tc := range []struct {
 		req *ValuationsRequest
 		exp *ValuationsResponse
@@ -470,13 +484,15 @@ func TestGetValuations(t *testing.T) {
 			},
 		},
 	} {
-		result, err := e.GetValuations(t.Context(), tc.req)
-		require.NoErrorf(t, err, "GetValuations must not error for %s %s", tc.req.InstrumentName, tc.req.ValuationType)
-		if mockTests {
-			assert.Equalf(t, tc.exp, result, "GetValuations should decode every field for %s %s", tc.req.InstrumentName, tc.req.ValuationType)
-		} else {
-			assert.Lenf(t, result.Data, len(tc.exp.Data), "GetValuations should return the values requested for %s %s", tc.req.InstrumentName, tc.req.ValuationType)
-		}
+		t.Run(tc.req.ValuationType, func(t *testing.T) {
+			result, err := e.GetValuations(t.Context(), tc.req)
+			require.NoErrorf(t, err, "GetValuations must not error for %s %s", tc.req.InstrumentName, tc.req.ValuationType)
+			if mockTests {
+				assert.Equalf(t, tc.exp, result, "GetValuations should decode every field for %s %s", tc.req.InstrumentName, tc.req.ValuationType)
+			} else {
+				assert.Lenf(t, result.Data, len(tc.exp.Data), "GetValuations should return the values requested for %s %s", tc.req.InstrumentName, tc.req.ValuationType)
+			}
+		})
 	}
 
 	ex := newQueryCheckExchange(t, "public/get-valuations", url.Values{"instrument_name": {"BTCUSD-PERP"}, "valuation_type": {ValuationTypeMarkPrice}}, `{"data":[],"instrument_name":"BTCUSD-PERP"}`)
@@ -488,13 +504,14 @@ func TestGetValuations(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetValuations should return a request failure")
 }
 
-func TestGetExpiredSettlementPrice(t *testing.T) {
+func TestGetExpiredSettlementPrice(t *testing.T) { //nolint:tparallel // the cases share e's recorded mock in order
 	t.Parallel()
 	_, err := e.GetExpiredSettlementPrice(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetExpiredSettlementPrice must refuse a nil request")
 	_, err = e.GetExpiredSettlementPrice(t.Context(), &ExpiredSettlementPriceRequest{Page: 1})
 	require.ErrorIs(t, err, errInstrumentTypeRequired, "GetExpiredSettlementPrice must refuse a request without an instrument type")
 
+	// The cases share e and its recorded mock in order, before the GetExpiredSettlementPrice calls below
 	for _, tc := range []struct {
 		req *ExpiredSettlementPriceRequest
 		exp []ExpiredSettlementPriceResponse
@@ -514,13 +531,15 @@ func TestGetExpiredSettlementPrice(t *testing.T) {
 			},
 		},
 	} {
-		result, err := e.GetExpiredSettlementPrice(t.Context(), tc.req)
-		require.NoErrorf(t, err, "GetExpiredSettlementPrice must not error for page %d", tc.req.Page)
-		if mockTests {
-			assert.Equalf(t, tc.exp, result, "GetExpiredSettlementPrice should decode every field for page %d", tc.req.Page)
-		} else {
-			assert.NotEmptyf(t, result, "GetExpiredSettlementPrice should return settlement prices for page %d", tc.req.Page)
-		}
+		t.Run("page "+strconv.FormatUint(tc.req.Page, 10), func(t *testing.T) {
+			result, err := e.GetExpiredSettlementPrice(t.Context(), tc.req)
+			require.NoErrorf(t, err, "GetExpiredSettlementPrice must not error for page %d", tc.req.Page)
+			if mockTests {
+				assert.Equalf(t, tc.exp, result, "GetExpiredSettlementPrice should decode every field for page %d", tc.req.Page)
+			} else {
+				assert.NotEmptyf(t, result, "GetExpiredSettlementPrice should return settlement prices for page %d", tc.req.Page)
+			}
+		})
 	}
 
 	_, err = newResponseServerExchange(t, `{"id":-1,"method":"public/get-expired-settlement-price","code":0,"result":null}`).GetExpiredSettlementPrice(t.Context(), &ExpiredSettlementPriceRequest{InstrumentType: InstrumentTypeFuture})
@@ -591,7 +610,7 @@ func TestGetDepositInstruments(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetDepositInstruments should return a request failure")
 }
 
-func TestGetInsurance(t *testing.T) {
+func TestGetInsurance(t *testing.T) { //nolint:tparallel // the cases share e's recorded mock in order
 	t.Parallel()
 	start := time.Date(2026, 10, 24, 0, 0, 0, 0, time.UTC)
 	_, err := e.GetInsurance(t.Context(), nil)
@@ -603,6 +622,7 @@ func TestGetInsurance(t *testing.T) {
 	_, err = e.GetInsurance(t.Context(), &InsuranceRequest{Currency: currency.USD, EndTime: time.UnixMilli(-1)})
 	require.ErrorIs(t, err, errTimeBeforeUnixEpoch, "GetInsurance must refuse a time before the Unix epoch")
 
+	// The cases share e and its recorded mock in order, before the GetInsurance calls below
 	for _, tc := range []struct {
 		req *InsuranceRequest
 		exp *InsuranceResponse
@@ -624,13 +644,15 @@ func TestGetInsurance(t *testing.T) {
 			exp: &InsuranceResponse{Currency: currency.BTC, Data: []InsuranceFundBalance{}},
 		},
 	} {
-		result, err := e.GetInsurance(t.Context(), tc.req)
-		require.NoErrorf(t, err, "GetInsurance must not error for %s", tc.req.Currency)
-		if mockTests {
-			assert.Equalf(t, tc.exp, result, "GetInsurance should decode every field for %s", tc.req.Currency)
-		} else {
-			assert.Equalf(t, tc.req.Currency, result.Currency, "GetInsurance should return the fund of %s", tc.req.Currency)
-		}
+		t.Run(tc.req.Currency.String(), func(t *testing.T) {
+			result, err := e.GetInsurance(t.Context(), tc.req)
+			require.NoErrorf(t, err, "GetInsurance must not error for %s", tc.req.Currency)
+			if mockTests {
+				assert.Equalf(t, tc.exp, result, "GetInsurance should decode every field for %s", tc.req.Currency)
+			} else {
+				assert.Equalf(t, tc.req.Currency, result.Currency, "GetInsurance should return the fund of %s", tc.req.Currency)
+			}
+		})
 	}
 
 	ex := newQueryCheckExchange(t, "public/get-insurance", url.Values{"instrument_name": {"USD"}}, `{"data":[],"instrument_name":"USD"}`)
@@ -662,10 +684,13 @@ func TestSetTimeWindowParams(t *testing.T) {
 		{name: "start before the epoch", start: time.Unix(0, -1), toParam: unixNanoParam, exp: url.Values{}, err: errTimeBeforeUnixEpoch},
 		{name: "end before the epoch", end: time.UnixMilli(-1), toParam: unixMilliParam, exp: url.Values{}, err: errTimeBeforeUnixEpoch},
 	} {
-		params := url.Values{}
-		err := setTimeWindowParams(params, tc.start, tc.end, tc.toParam)
-		require.ErrorIsf(t, err, tc.err, "setTimeWindowParams must return the expected error for %s", tc.name)
-		assert.Equalf(t, tc.exp, params, "setTimeWindowParams should set the bounds expected for %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			params := url.Values{}
+			err := setTimeWindowParams(params, tc.start, tc.end, tc.toParam)
+			require.ErrorIsf(t, err, tc.err, "setTimeWindowParams must return the expected error for %s", tc.name)
+			assert.Equalf(t, tc.exp, params, "setTimeWindowParams should set the bounds expected for %s", tc.name)
+		})
 	}
 }
 
@@ -690,55 +715,78 @@ var candlestickTimeframes = []struct {
 
 func TestIntervalToTimeframe(t *testing.T) {
 	t.Parallel()
+	// The cases run in order before the later calls of the same function, so each also checks that a call keeps
+	// nothing from the last
 	for _, tc := range candlestickTimeframes {
-		timeframe, err := intervalToTimeframe(tc.interval)
-		require.NoErrorf(t, err, "intervalToTimeframe must not error for %s", tc.interval)
-		assert.Equalf(t, tc.timeframe, timeframe, "intervalToTimeframe should name %s as Crypto.com does", tc.interval)
+		t.Run(tc.interval.Short(), func(t *testing.T) {
+			timeframe, err := intervalToTimeframe(tc.interval)
+			require.NoErrorf(t, err, "intervalToTimeframe must not error for %s", tc.interval)
+			assert.Equalf(t, tc.timeframe, timeframe, "intervalToTimeframe should name %s as Crypto.com does", tc.interval)
+		})
 	}
 	// Crypto.com also serves 6h candles, which its docs leave out
 	for _, interval := range []kline.Interval{0, kline.ThreeMin, kline.SixHour, kline.ThreeDay} {
-		_, err := intervalToTimeframe(interval)
-		assert.ErrorIsf(t, err, kline.ErrUnsupportedInterval, "intervalToTimeframe should refuse %s", interval)
+		t.Run("unsupported "+interval.Short(), func(t *testing.T) {
+			t.Parallel()
+			_, err := intervalToTimeframe(interval)
+			assert.ErrorIsf(t, err, kline.ErrUnsupportedInterval, "intervalToTimeframe should refuse %s", interval)
+		})
 	}
 }
 
 func TestTimeframeToInterval(t *testing.T) {
 	t.Parallel()
+	// The cases run in order before the later calls of the same function, so each also checks that a call keeps
+	// nothing from the last
 	for _, tc := range candlestickTimeframes {
-		interval, err := timeframeToInterval(tc.timeframe)
-		require.NoErrorf(t, err, "timeframeToInterval must not error for %s", tc.timeframe)
-		assert.Equalf(t, tc.interval, interval, "timeframeToInterval should give the interval of %s", tc.timeframe)
+		t.Run(tc.timeframe, func(t *testing.T) {
+			interval, err := timeframeToInterval(tc.timeframe)
+			require.NoErrorf(t, err, "timeframeToInterval must not error for %s", tc.timeframe)
+			assert.Equalf(t, tc.interval, interval, "timeframeToInterval should give the interval of %s", tc.timeframe)
+		})
 	}
 	// Crypto.com echoes the timeframe a request names, and also accepts its older names, such as M5, and 1d
 	for _, timeframe := range []string{"", "6h", "M5", "1d", "1H", "1w"} {
-		_, err := timeframeToInterval(timeframe)
-		assert.ErrorIsf(t, err, kline.ErrInvalidInterval, "timeframeToInterval should refuse %q", timeframe)
+		t.Run("invalid "+subtestName(timeframe), func(t *testing.T) {
+			t.Parallel()
+			_, err := timeframeToInterval(timeframe)
+			assert.ErrorIsf(t, err, kline.ErrInvalidInterval, "timeframeToInterval should refuse %q", timeframe)
+		})
 	}
 }
 
 func TestOrderbookLevelUnmarshalJSON(t *testing.T) {
 	t.Parallel()
 	exp := OrderbookLevel{Price: 80694.94, Quantity: 0.03103, OrderCount: 3}
-	for _, data := range []string{`["80694.94","0.03103","3"]`, `[80694.94,0.03103,3]`} {
-		var level OrderbookLevel
-		require.NoErrorf(t, json.Unmarshal([]byte(data), &level), "Unmarshal must not error for %s", data)
-		assert.Equalf(t, exp, level, "Unmarshal should decode the price, quantity and number of orders of %s", data)
+	for name, data := range map[string]string{
+		"quoted numbers": `["80694.94","0.03103","3"]`,
+		"bare numbers":   `[80694.94,0.03103,3]`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			var level OrderbookLevel
+			require.NoErrorf(t, json.Unmarshal([]byte(data), &level), "Unmarshal must not error for %s", data)
+			assert.Equalf(t, exp, level, "Unmarshal should decode the price, quantity and number of orders of %s", data)
+		})
 	}
 	for _, tc := range []struct {
-		data, reason string
+		name, data, reason string
 	}{
-		{data: `{"price":"1"}`, reason: "malformed order book level"},
-		{data: `["1","2"]`, reason: "2 values"},
-		{data: `["1","2","3","4"]`, reason: "4 values"},
-		{data: `[true,"2","3"]`, reason: "price"},
-		{data: `["1",{},"3"]`, reason: "quantity"},
-		{data: `["1","2","x"]`, reason: "number of orders"},
-		{data: `["1","2","-1"]`, reason: "number of orders"},
-		{data: `["1","2","1.5"]`, reason: "number of orders"},
+		{name: "an object", data: `{"price":"1"}`, reason: "malformed order book level"},
+		{name: "two values", data: `["1","2"]`, reason: "2 values"},
+		{name: "four values", data: `["1","2","3","4"]`, reason: "4 values"},
+		{name: "a boolean price", data: `[true,"2","3"]`, reason: "price"},
+		{name: "an object quantity", data: `["1",{},"3"]`, reason: "quantity"},
+		{name: "a non-numeric number of orders", data: `["1","2","x"]`, reason: "number of orders"},
+		{name: "a negative number of orders", data: `["1","2","-1"]`, reason: "number of orders"},
+		{name: "a fractional number of orders", data: `["1","2","1.5"]`, reason: "number of orders"},
 	} {
-		var level OrderbookLevel
-		err := level.UnmarshalJSON([]byte(tc.data))
-		assert.ErrorIsf(t, err, errMalformedOrderbookLevel, "UnmarshalJSON should refuse %s", tc.data)
-		assert.ErrorContainsf(t, err, tc.reason, "UnmarshalJSON should say why it refuses %s", tc.data)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var level OrderbookLevel
+			err := level.UnmarshalJSON([]byte(tc.data))
+			assert.ErrorIsf(t, err, errMalformedOrderbookLevel, "UnmarshalJSON should refuse %s", tc.data)
+			assert.ErrorContainsf(t, err, tc.reason, "UnmarshalJSON should say why it refuses %s", tc.data)
+		})
 	}
 }

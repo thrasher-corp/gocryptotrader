@@ -371,6 +371,14 @@ func skipLiveUnlessCanManipulate(t *testing.T) {
 	}
 }
 
+// subtestName names a subtest after s, or "empty" when s is empty, which t.Run would otherwise name "#00"
+func subtestName(s string) string {
+	if s == "" {
+		return "empty"
+	}
+	return s
+}
+
 // signatureVectors are requests signed with the docs' JavaScript example, run with node's crypto in place of
 // crypto-js; ccxt's signer, which Crypto.com accepts live, gives the same params strings for the docs' examples and
 // for order lists holding execution instructions
@@ -432,42 +440,62 @@ var signatureVectors = []struct {
 
 func TestParamString(t *testing.T) {
 	t.Parallel()
+	// The cases run in order before the later calls of the same function, so each also checks that a call keeps
+	// nothing from the last
 	for _, v := range signatureVectors {
-		got, err := paramString([]byte(v.params))
-		require.NoErrorf(t, err, "paramString must not error for %s", v.name)
-		assert.Equalf(t, v.paramsStr, got, "paramString should build the params string of %s", v.name)
+		t.Run(v.name, func(t *testing.T) {
+			got, err := paramString([]byte(v.params))
+			require.NoErrorf(t, err, "paramString must not error for %s", v.name)
+			assert.Equalf(t, v.paramsStr, got, "paramString should build the params string of %s", v.name)
+		})
 	}
-	for _, params := range []string{`{"a":`, `{"a":"\uZZZZ"}`, `{"a":["\uZZZZ"]}`, `{"\uZZZZ":1}`} {
-		_, err := paramString([]byte(params))
-		assert.Errorf(t, err, "paramString should error for malformed params %s", params)
+	for name, params := range map[string]string{
+		"truncated":                 `{"a":`,
+		"invalid escape in a value": `{"a":"\uZZZZ"}`,
+		"invalid escape in a list":  `{"a":["\uZZZZ"]}`,
+		"invalid escape in a key":   `{"\uZZZZ":1}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			_, err := paramString([]byte(params))
+			assert.Errorf(t, err, "paramString should error for malformed params %s", params)
+		})
 	}
 }
 
 func TestSignRequest(t *testing.T) {
 	t.Parallel()
 	for _, v := range signatureVectors {
-		params, err := paramString([]byte(v.params))
-		require.NoErrorf(t, err, "paramString must not error for %s", v.name)
-		got, err := signRequest(v.secret, v.method, v.id, v.apiKey, params, v.nonce)
-		require.NoErrorf(t, err, "signRequest must not error for %s", v.name)
-		assert.Equalf(t, v.signature, got, "signRequest should sign %s as the docs' example does", v.name)
+		t.Run(v.name, func(t *testing.T) {
+			t.Parallel()
+			params, err := paramString([]byte(v.params))
+			require.NoErrorf(t, err, "paramString must not error for %s", v.name)
+			got, err := signRequest(v.secret, v.method, v.id, v.apiKey, params, v.nonce)
+			require.NoErrorf(t, err, "signRequest must not error for %s", v.name)
+			assert.Equalf(t, v.signature, got, "signRequest should sign %s as the docs' example does", v.name)
+		})
 	}
 }
 
-func TestEncodeParams(t *testing.T) {
+func TestEncodeParams(t *testing.T) { //nolint:tparallel // the cases run in order before the later calls of the same function
 	t.Parallel()
+	// The cases run in order before the later calls of the same function, so each also checks that a call keeps
+	// nothing from the last
 	for _, tc := range []struct {
+		name   string
 		params any
 		exp    string
 	}{
-		{params: nil, exp: `{}`},
-		{params: (*struct{})(nil), exp: `{}`},
-		{params: &struct{}{}, exp: `{}`},
-		{params: map[string]string{"a": "b"}, exp: `{"a":"b"}`},
+		{name: "nil", params: nil, exp: `{}`},
+		{name: "nil pointer", params: (*struct{})(nil), exp: `{}`},
+		{name: "empty struct", params: &struct{}{}, exp: `{}`},
+		{name: "map", params: map[string]string{"a": "b"}, exp: `{"a":"b"}`},
 	} {
-		got, err := encodeParams(tc.params)
-		require.NoErrorf(t, err, "encodeParams must not error for %v", tc.params)
-		assert.Equalf(t, tc.exp, string(got), "encodeParams should encode %v", tc.params)
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := encodeParams(tc.params)
+			require.NoErrorf(t, err, "encodeParams must not error for %v", tc.params)
+			assert.Equalf(t, tc.exp, string(got), "encodeParams should encode %v", tc.params)
+		})
 	}
 	_, err := encodeParams(make(chan int))
 	assert.Error(t, err, "encodeParams should error for params that cannot be marshalled")
@@ -577,59 +605,70 @@ func TestSendAuthenticatedHTTPRequest(t *testing.T) {
 	assert.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled, "SendAuthenticatedHTTPRequest should error without authentication support")
 }
 
-func TestSendPostRequestUnsigned(t *testing.T) {
+func TestSendPostRequest(t *testing.T) {
 	t.Parallel()
-	ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var body requestBody
-		raw, err := io.ReadAll(r.Body)
-		if !assert.NoError(t, err, "Reading the request body should not error") {
-			return
-		}
-		if !assert.NoError(t, json.Unmarshal(raw, &body), "The request body should decode") {
-			return
-		}
-		assert.Empty(t, body.APIKey, "An unsigned request should not send the API key")
-		assert.Empty(t, body.Signature, "An unsigned request should not send a signature")
-		assert.Equal(t, "public/staking/get-conversion-rate", body.Method, "An unsigned request should name the method in the body")
-		_, err = w.Write([]byte(`{"id":1,"method":"public/staking/get-conversion-rate","code":0,"result":{"order_id":"2"}}`))
-		assert.NoError(t, err, "Writing the response should not error")
-	}))
-	var result OrderIDResponse
-	require.NoError(t, ex.sendPostRequest(t.Context(), stakingEPL, "public/staking/get-conversion-rate", nil, &result, nil), "sendPostRequest must not error unsigned")
-	assert.Equal(t, OrderIDResponse{OrderID: "2"}, result, "sendPostRequest should decode the result")
+	t.Run("unsigned", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			var body requestBody
+			raw, err := io.ReadAll(r.Body)
+			if !assert.NoError(t, err, "Reading the request body should not error") {
+				return
+			}
+			if !assert.NoError(t, json.Unmarshal(raw, &body), "The request body should decode") {
+				return
+			}
+			assert.Empty(t, body.APIKey, "An unsigned request should not send the API key")
+			assert.Empty(t, body.Signature, "An unsigned request should not send a signature")
+			assert.Equal(t, "public/staking/get-conversion-rate", body.Method, "An unsigned request should name the method in the body")
+			_, err = w.Write([]byte(`{"id":1,"method":"public/staking/get-conversion-rate","code":0,"result":{"order_id":"2"}}`))
+			assert.NoError(t, err, "Writing the response should not error")
+		}))
+		var result OrderIDResponse
+		require.NoError(t, ex.sendPostRequest(t.Context(), stakingEPL, "public/staking/get-conversion-rate", nil, &result, nil), "sendPostRequest must not error unsigned")
+		assert.Equal(t, OrderIDResponse{OrderID: "2"}, result, "sendPostRequest should decode the result")
+	})
 }
 
 func TestUnixMilliParam(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		t   time.Time
-		exp uint64
-		err error
+		name string
+		t    time.Time
+		exp  uint64
+		err  error
 	}{
-		{},
-		{t: time.UnixMilli(1700000000123), exp: 1700000000123},
-		{t: time.UnixMilli(-1), err: errTimeBeforeUnixEpoch},
+		{name: "zero time"},
+		{name: "after the epoch", t: time.UnixMilli(1700000000123), exp: 1700000000123},
+		{name: "before the epoch", t: time.UnixMilli(-1), err: errTimeBeforeUnixEpoch},
 	} {
-		got, err := unixMilliParam(tc.t)
-		require.ErrorIsf(t, err, tc.err, "unixMilliParam must return the expected error for %s", tc.t)
-		assert.Equalf(t, tc.exp, got, "unixMilliParam should give %s in Unix milliseconds", tc.t)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := unixMilliParam(tc.t)
+			require.ErrorIsf(t, err, tc.err, "unixMilliParam must return the expected error for %s", tc.t)
+			assert.Equalf(t, tc.exp, got, "unixMilliParam should give %s in Unix milliseconds", tc.t)
+		})
 	}
 }
 
 func TestUnixNanoParam(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		t   time.Time
-		exp uint64
-		err error
+		name string
+		t    time.Time
+		exp  uint64
+		err  error
 	}{
-		{},
-		{t: time.Unix(0, 1700000000123456789), exp: 1700000000123456789},
-		{t: time.Unix(0, -1), err: errTimeBeforeUnixEpoch},
+		{name: "zero time"},
+		{name: "after the epoch", t: time.Unix(0, 1700000000123456789), exp: 1700000000123456789},
+		{name: "before the epoch", t: time.Unix(0, -1), err: errTimeBeforeUnixEpoch},
 	} {
-		got, err := unixNanoParam(tc.t)
-		require.ErrorIsf(t, err, tc.err, "unixNanoParam must return the expected error for %s", tc.t)
-		assert.Equalf(t, tc.exp, got, "unixNanoParam should give %s in Unix nanoseconds", tc.t)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := unixNanoParam(tc.t)
+			require.ErrorIsf(t, err, tc.err, "unixNanoParam must return the expected error for %s", tc.t)
+			assert.Equalf(t, tc.exp, got, "unixNanoParam should give %s in Unix nanoseconds", tc.t)
+		})
 	}
 }
 
@@ -638,47 +677,51 @@ func TestUnixNanoParam(t *testing.T) {
 func TestUnrecordedResponseFields(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
+		name string
 		data string
 		got  any
 		exp  any
 	}{
-		{`{"suspended":true}`, new(Account), &Account{Suspended: true}},
-		{`{"terminated":true}`, new(Account), &Account{Terminated: true}},
-		{`{"is_liquidating":true}`, new(BalanceSummary), &BalanceSummary{IsLiquidating: true}},
-		{`{"terminatable":true}`, new(BalanceSummary), &BalanceSummary{Terminatable: true}},
-		{`{"ok":"true"}`, new(FiatBankAccountResponse), &FiatBankAccountResponse{OK: "true"}},
-		{`{"code":"0"}`, new(FiatBankAccountResponse), &FiatBankAccountResponse{Code: "0"}},
-		{`{"message":"success"}`, new(FiatBankAccountResponse), &FiatBankAccountResponse{Message: "success"}},
-		{`{"bank_city":"West Reading"}`, new(FiatBankAccountResponse), &FiatBankAccountResponse{BankCity: "West Reading"}},
-		{`{"bank_account_holder_name":"Smoke Test Co"}`, new(FiatBankAccountResponse), &FiatBankAccountResponse{BankAccountHolderName: "Smoke Test Co"}},
-		{`{"account_type":"business"}`, new(FiatBankAccountResponse), &FiatBankAccountResponse{AccountType: "business"}},
-		{`{"withdrawal_payment_networks":["usd_cubix"]}`, new(FiatBankAccountResponse), &FiatBankAccountResponse{WithdrawalPaymentNetworks: []string{PaymentNetworkUSDCubix}}},
-		{`{"intermediate_bank_options":[{"bank_name":"Example Bank"}]}`, new(FiatBankAccountDetails), &FiatBankAccountDetails{IntermediateBankOptions: []json.RawMessage{json.RawMessage(`{"bank_name":"Example Bank"}`)}}},
-		{`{"page":"3"}`, new(FiatTransactionHistoryResponse), &FiatTransactionHistoryResponse{Page: 3}},
-		{`{"currency_transactions_per_month":200}`, new(FiatTransactionQuotaResponse), &FiatTransactionQuotaResponse{CurrencyTransactionsPerMonth: new(types.Number(200))}},
-		{`{"currency_remaining_transactions_monthly_count":189}`, new(FiatTransactionQuotaResponse), &FiatTransactionQuotaResponse{CurrencyRemainingTransactionsMonthlyCount: new(types.Number(189))}},
-		{`{"default_collateral_cap":"5000000.0"}`, new(RiskParametersResponse), &RiskParametersResponse{DefaultCollateralCap: 5000000}},
-		{`{"max_product_leverage_for_futures":"25.0"}`, new(BaseCurrencyRiskConfig), &BaseCurrencyRiskConfig{MaximumProductLeverageForFutures: 25}},
-		{`{"beta_product":true}`, new(InstrumentResponse), &InstrumentResponse{BetaProduct: true}},
-		{`{"tradable":true}`, new(DepositInstrumentResponse), &DepositInstrumentResponse{Tradable: true}},
-		{`{"expiry_timestamp_ms":1793347200000}`, new(DepositInstrumentResponse), &DepositInstrumentResponse{ExpiryTime: types.Time(time.UnixMilli(1793347200000))}},
-		{`{"beta_product":true}`, new(DepositInstrumentResponse), &DepositInstrumentResponse{BetaProduct: true}},
-		{`{"margin_buy_enabled":true}`, new(DepositInstrumentResponse), &DepositInstrumentResponse{MarginBuyEnabled: true}},
-		{`{"margin_sell_enabled":true}`, new(DepositInstrumentResponse), &DepositInstrumentResponse{MarginSellEnabled: true}},
-		{`{"inst_id":501}`, new(DepositInstrumentResponse), &DepositInstrumentResponse{InstrumentID: 501}},
-		{`{"firm_quote":true}`, new(OTCQuoteRequestResponse), &OTCQuoteRequestResponse{FirmQuote: true}},
-		{`{"notional":"1000"}`, new(OTCQuoteLeg), &OTCQuoteLeg{Notional: 1000}},
-		{`{"notional":"1000"}`, new(OTCDealLeg), &OTCDealLeg{Notional: preciseNumber("1000")}},
-		{`{"out_of_stock":true}`, new(StakingInstrumentResponse), &StakingInstrumentResponse{OutOfStock: true}},
-		{`{"block_unstake":true}`, new(StakingInstrumentResponse), &StakingInstrumentResponse{BlockUnstake: true}},
-		{`{"pre_stake_charge_enable":true}`, new(StakingInstrumentResponse), &StakingInstrumentResponse{PreStakeChargeEnabled: true}},
-		{`{"pre_stake_charge_rate_in_bps":"50"}`, new(StakingInstrumentResponse), &StakingInstrumentResponse{PreStakeChargeRateBasisPoints: 50}},
-		{`{"is_restaked":true}`, new(StakingInstrumentResponse), &StakingInstrumentResponse{IsRestaked: true}},
-		{`{"match_index":"1"}`, new(UserTradeResponse), &UserTradeResponse{MatchIndex: 1}},
-		{`{"isolation_id":"6530219466236720402"}`, new(UserTradeResponse), &UserTradeResponse{IsolationID: "6530219466236720402"}},
-		{`{"isolation_type":"ISOLATED_MARGIN"}`, new(UserTradeResponse), &UserTradeResponse{IsolationType: IsolationTypeIsolatedMargin}},
+		{"Account.Suspended", `{"suspended":true}`, new(Account), &Account{Suspended: true}},
+		{"Account.Terminated", `{"terminated":true}`, new(Account), &Account{Terminated: true}},
+		{"BalanceSummary.IsLiquidating", `{"is_liquidating":true}`, new(BalanceSummary), &BalanceSummary{IsLiquidating: true}},
+		{"BalanceSummary.Terminatable", `{"terminatable":true}`, new(BalanceSummary), &BalanceSummary{Terminatable: true}},
+		{"FiatBankAccountResponse.OK", `{"ok":"true"}`, new(FiatBankAccountResponse), &FiatBankAccountResponse{OK: "true"}},
+		{"FiatBankAccountResponse.Code", `{"code":"0"}`, new(FiatBankAccountResponse), &FiatBankAccountResponse{Code: "0"}},
+		{"FiatBankAccountResponse.Message", `{"message":"success"}`, new(FiatBankAccountResponse), &FiatBankAccountResponse{Message: "success"}},
+		{"FiatBankAccountResponse.BankCity", `{"bank_city":"West Reading"}`, new(FiatBankAccountResponse), &FiatBankAccountResponse{BankCity: "West Reading"}},
+		{"FiatBankAccountResponse.BankAccountHolderName", `{"bank_account_holder_name":"Smoke Test Co"}`, new(FiatBankAccountResponse), &FiatBankAccountResponse{BankAccountHolderName: "Smoke Test Co"}},
+		{"FiatBankAccountResponse.AccountType", `{"account_type":"business"}`, new(FiatBankAccountResponse), &FiatBankAccountResponse{AccountType: "business"}},
+		{"FiatBankAccountResponse.WithdrawalPaymentNetworks", `{"withdrawal_payment_networks":["usd_cubix"]}`, new(FiatBankAccountResponse), &FiatBankAccountResponse{WithdrawalPaymentNetworks: []string{PaymentNetworkUSDCubix}}},
+		{"FiatBankAccountDetails.IntermediateBankOptions", `{"intermediate_bank_options":[{"bank_name":"Example Bank"}]}`, new(FiatBankAccountDetails), &FiatBankAccountDetails{IntermediateBankOptions: []json.RawMessage{json.RawMessage(`{"bank_name":"Example Bank"}`)}}},
+		{"FiatTransactionHistoryResponse.Page", `{"page":"3"}`, new(FiatTransactionHistoryResponse), &FiatTransactionHistoryResponse{Page: 3}},
+		{"FiatTransactionQuotaResponse.CurrencyTransactionsPerMonth", `{"currency_transactions_per_month":200}`, new(FiatTransactionQuotaResponse), &FiatTransactionQuotaResponse{CurrencyTransactionsPerMonth: new(types.Number(200))}},
+		{"FiatTransactionQuotaResponse.CurrencyRemainingTransactionsMonthlyCount", `{"currency_remaining_transactions_monthly_count":189}`, new(FiatTransactionQuotaResponse), &FiatTransactionQuotaResponse{CurrencyRemainingTransactionsMonthlyCount: new(types.Number(189))}},
+		{"RiskParametersResponse.DefaultCollateralCap", `{"default_collateral_cap":"5000000.0"}`, new(RiskParametersResponse), &RiskParametersResponse{DefaultCollateralCap: 5000000}},
+		{"BaseCurrencyRiskConfig.MaximumProductLeverageForFutures", `{"max_product_leverage_for_futures":"25.0"}`, new(BaseCurrencyRiskConfig), &BaseCurrencyRiskConfig{MaximumProductLeverageForFutures: 25}},
+		{"InstrumentResponse.BetaProduct", `{"beta_product":true}`, new(InstrumentResponse), &InstrumentResponse{BetaProduct: true}},
+		{"DepositInstrumentResponse.Tradable", `{"tradable":true}`, new(DepositInstrumentResponse), &DepositInstrumentResponse{Tradable: true}},
+		{"DepositInstrumentResponse.ExpiryTime", `{"expiry_timestamp_ms":1793347200000}`, new(DepositInstrumentResponse), &DepositInstrumentResponse{ExpiryTime: types.Time(time.UnixMilli(1793347200000))}},
+		{"DepositInstrumentResponse.BetaProduct", `{"beta_product":true}`, new(DepositInstrumentResponse), &DepositInstrumentResponse{BetaProduct: true}},
+		{"DepositInstrumentResponse.MarginBuyEnabled", `{"margin_buy_enabled":true}`, new(DepositInstrumentResponse), &DepositInstrumentResponse{MarginBuyEnabled: true}},
+		{"DepositInstrumentResponse.MarginSellEnabled", `{"margin_sell_enabled":true}`, new(DepositInstrumentResponse), &DepositInstrumentResponse{MarginSellEnabled: true}},
+		{"DepositInstrumentResponse.InstrumentID", `{"inst_id":501}`, new(DepositInstrumentResponse), &DepositInstrumentResponse{InstrumentID: 501}},
+		{"OTCQuoteRequestResponse.FirmQuote", `{"firm_quote":true}`, new(OTCQuoteRequestResponse), &OTCQuoteRequestResponse{FirmQuote: true}},
+		{"OTCQuoteLeg.Notional", `{"notional":"1000"}`, new(OTCQuoteLeg), &OTCQuoteLeg{Notional: 1000}},
+		{"OTCDealLeg.Notional", `{"notional":"1000"}`, new(OTCDealLeg), &OTCDealLeg{Notional: preciseNumber("1000")}},
+		{"StakingInstrumentResponse.OutOfStock", `{"out_of_stock":true}`, new(StakingInstrumentResponse), &StakingInstrumentResponse{OutOfStock: true}},
+		{"StakingInstrumentResponse.BlockUnstake", `{"block_unstake":true}`, new(StakingInstrumentResponse), &StakingInstrumentResponse{BlockUnstake: true}},
+		{"StakingInstrumentResponse.PreStakeChargeEnabled", `{"pre_stake_charge_enable":true}`, new(StakingInstrumentResponse), &StakingInstrumentResponse{PreStakeChargeEnabled: true}},
+		{"StakingInstrumentResponse.PreStakeChargeRateBasisPoints", `{"pre_stake_charge_rate_in_bps":"50"}`, new(StakingInstrumentResponse), &StakingInstrumentResponse{PreStakeChargeRateBasisPoints: 50}},
+		{"StakingInstrumentResponse.IsRestaked", `{"is_restaked":true}`, new(StakingInstrumentResponse), &StakingInstrumentResponse{IsRestaked: true}},
+		{"UserTradeResponse.MatchIndex", `{"match_index":"1"}`, new(UserTradeResponse), &UserTradeResponse{MatchIndex: 1}},
+		{"UserTradeResponse.IsolationID", `{"isolation_id":"6530219466236720402"}`, new(UserTradeResponse), &UserTradeResponse{IsolationID: "6530219466236720402"}},
+		{"UserTradeResponse.IsolationType", `{"isolation_type":"ISOLATED_MARGIN"}`, new(UserTradeResponse), &UserTradeResponse{IsolationType: IsolationTypeIsolatedMargin}},
 	} {
-		require.NoErrorf(t, json.Unmarshal([]byte(tc.data), tc.got), "Unmarshal must not error for %T %s", tc.exp, tc.data)
-		assert.Equalf(t, tc.exp, tc.got, "Unmarshal should decode %T %s", tc.exp, tc.data)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			require.NoErrorf(t, json.Unmarshal([]byte(tc.data), tc.got), "Unmarshal must not error for %T %s", tc.exp, tc.data)
+			assert.Equalf(t, tc.exp, tc.got, "Unmarshal should decode %T %s", tc.exp, tc.data)
+		})
 	}
 }

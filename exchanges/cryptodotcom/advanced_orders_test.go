@@ -42,11 +42,15 @@ type advancedParamsCase[T any] struct {
 func testAdvancedOrderParams[T any](t *testing.T, method, result string, send func(*Exchange, T) error, cases []advancedParamsCase[T]) {
 	t.Helper()
 	ex, sent := newSignedRecorder(t, method, result)
+	// The cases share ex and its recorder in order, each counting the requests before it, so each also checks that a
+	// call keeps nothing from the last
 	for i, tc := range cases {
-		require.NoErrorf(t, send(ex, tc.req), "Sending %s must not error", tc.name)
-		params := sent()
-		require.Lenf(t, params, i+1, "Sending %s must send one request", tc.name)
-		assert.JSONEqf(t, tc.params, params[i], "Sending %s should send its params", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			require.NoErrorf(t, send(ex, tc.req), "Sending %s must not error", tc.name)
+			params := sent()
+			require.Lenf(t, params, i+1, "Sending %s must send one request", tc.name)
+			assert.JSONEqf(t, tc.params, params[i], "Sending %s should send its params", tc.name)
+		})
 	}
 }
 
@@ -274,16 +278,19 @@ func testCancelContingency(t *testing.T, name, method, listID string, cancel fun
 	require.NoErrorf(t, cancel(e, t.Context(), listID), "%s must not error", name)
 }
 
-func TestCreateAdvancedOrder(t *testing.T) {
+func TestCreateAdvancedOrder(t *testing.T) { //nolint:tparallel // the refusals share refuser in order
 	t.Parallel()
 	refuser := newAdvancedRefusalExchange(t)
 	_, err := refuser.CreateAdvancedOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "CreateAdvancedOrder must refuse a nil request")
+	// The cases share refuser in order, before the calls below, so each also checks that a refusal leaves nothing behind
 	for _, tc := range triggerOrderRefusals {
-		req := advancedTriggerOrder()
-		tc.change(&req)
-		_, err := refuser.CreateAdvancedOrder(t.Context(), &req)
-		assert.ErrorIsf(t, err, tc.err, "CreateAdvancedOrder should refuse %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			req := advancedTriggerOrder()
+			tc.change(&req)
+			_, err := refuser.CreateAdvancedOrder(t.Context(), &req)
+			assert.ErrorIsf(t, err, tc.err, "CreateAdvancedOrder should refuse %s", tc.name)
+		})
 	}
 
 	testAdvancedOrderParams(t, "private/advanced/create-order", advancedOrderIDResult, func(ex *Exchange, req *CreateAdvancedOrderRequest) error {
@@ -383,12 +390,15 @@ var amendAdvancedOrderRefusals = []struct {
 	{name: "an amendment without a new price", req: &AmendAdvancedOrderRequest{OrderID: "5755600460443882762", NewQuantity: 10}, err: errNewPriceRequired},
 }
 
-func TestAmendAdvancedOrder(t *testing.T) {
+func TestAmendAdvancedOrder(t *testing.T) { //nolint:tparallel // the refusals share refuser in order
 	t.Parallel()
 	refuser := newAdvancedRefusalExchange(t)
+	// The cases share refuser in order, before the calls below, so each also checks that a refusal leaves nothing behind
 	for _, tc := range amendAdvancedOrderRefusals {
-		_, err := refuser.AmendAdvancedOrder(t.Context(), tc.req)
-		assert.ErrorIsf(t, err, tc.err, "AmendAdvancedOrder should refuse %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := refuser.AmendAdvancedOrder(t.Context(), tc.req)
+			assert.ErrorIsf(t, err, tc.err, "AmendAdvancedOrder should refuse %s", tc.name)
+		})
 	}
 
 	testAdvancedOrderParams(t, "private/advanced/amend-order", advancedOrderIDResult, func(ex *Exchange, req *AmendAdvancedOrderRequest) error {
@@ -429,12 +439,15 @@ func TestAmendAdvancedOrder(t *testing.T) {
 	}
 }
 
-func TestCreateOneCancelsTheOtherOrder(t *testing.T) {
+func TestCreateOneCancelsTheOtherOrder(t *testing.T) { //nolint:tparallel // the refusals share refuser in order
 	t.Parallel()
 	refuser := newAdvancedRefusalExchange(t)
+	// The cases share refuser in order, before the calls below, so each also checks that a refusal leaves nothing behind
 	for _, tc := range oneCancelsTheOtherRefusals() {
-		_, err := refuser.CreateOneCancelsTheOtherOrder(t.Context(), tc.orders)
-		assert.ErrorIsf(t, err, tc.err, "CreateOneCancelsTheOtherOrder should refuse %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := refuser.CreateOneCancelsTheOtherOrder(t.Context(), tc.orders)
+			assert.ErrorIsf(t, err, tc.err, "CreateOneCancelsTheOtherOrder should refuse %s", tc.name)
+		})
 	}
 
 	testAdvancedOrderParams(t, "private/advanced/create-oco", `{"list_id":"6498090546073120100"}`, func(ex *Exchange, orders []AdvancedOrderLegRequest) error {
@@ -509,12 +522,15 @@ func TestCancelOneCancelsTheOtherOrder(t *testing.T) {
 	testCancelContingency(t, "CancelOneCancelsTheOtherOrder", "private/advanced/cancel-oco", "6498090546073120100", (*Exchange).CancelOneCancelsTheOtherOrder)
 }
 
-func TestCreateOneTriggersTheOtherOrder(t *testing.T) {
+func TestCreateOneTriggersTheOtherOrder(t *testing.T) { //nolint:tparallel // the refusals share refuser in order
 	t.Parallel()
 	refuser := newAdvancedRefusalExchange(t)
+	// The cases share refuser in order, before the calls below, so each also checks that a refusal leaves nothing behind
 	for _, tc := range oneTriggersTheOtherRefusals() {
-		_, err := refuser.CreateOneTriggersTheOtherOrder(t.Context(), tc.orders)
-		assert.ErrorIsf(t, err, tc.err, "CreateOneTriggersTheOtherOrder should refuse %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := refuser.CreateOneTriggersTheOtherOrder(t.Context(), tc.orders)
+			assert.ErrorIsf(t, err, tc.err, "CreateOneTriggersTheOtherOrder should refuse %s", tc.name)
+		})
 	}
 
 	testAdvancedOrderParams(t, "private/advanced/create-oto", `{"list_id":"6498090546073120199"}`, func(ex *Exchange, orders []AdvancedOrderLegRequest) error {
@@ -594,12 +610,15 @@ func TestCancelOneTriggersTheOtherOrder(t *testing.T) {
 	testCancelContingency(t, "CancelOneTriggersTheOtherOrder", "private/advanced/cancel-oto", "6498090546073120199", (*Exchange).CancelOneTriggersTheOtherOrder)
 }
 
-func TestCreateOneTriggersAOneCancelsTheOtherOrder(t *testing.T) {
+func TestCreateOneTriggersAOneCancelsTheOtherOrder(t *testing.T) { //nolint:tparallel // the refusals share refuser in order
 	t.Parallel()
 	refuser := newAdvancedRefusalExchange(t)
+	// The cases share refuser in order, before the calls below, so each also checks that a refusal leaves nothing behind
 	for _, tc := range oneTriggersAOneCancelsTheOtherRefusals() {
-		_, err := refuser.CreateOneTriggersAOneCancelsTheOtherOrder(t.Context(), tc.orders)
-		assert.ErrorIsf(t, err, tc.err, "CreateOneTriggersAOneCancelsTheOtherOrder should refuse %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := refuser.CreateOneTriggersAOneCancelsTheOtherOrder(t.Context(), tc.orders)
+			assert.ErrorIsf(t, err, tc.err, "CreateOneTriggersAOneCancelsTheOtherOrder should refuse %s", tc.name)
+		})
 	}
 
 	testAdvancedOrderParams(t, "private/advanced/create-otoco", `{"list_id":"6498090546073120243"}`, func(ex *Exchange, orders []AdvancedOrderLegRequest) error {
@@ -696,11 +715,14 @@ var cancelAllAdvancedOrdersRefusals = []struct {
 	{name: "a position type with the TRIGGER order type", req: &CancelAllAdvancedOrdersRequest{InstrumentName: "BTCUSD-PERP", OrderType: CancelOrderTypeTrigger, PositionType: PositionTypeCrossMargin}, err: errPositionTypeCancelOrderType},
 }
 
-func TestCancelAllAdvancedOrders(t *testing.T) {
+func TestCancelAllAdvancedOrders(t *testing.T) { //nolint:tparallel // the refusals share refuser in order
 	t.Parallel()
 	refuser := newAdvancedRefusalExchange(t)
+	// The cases share refuser in order, before the calls below, so each also checks that a refusal leaves nothing behind
 	for _, tc := range cancelAllAdvancedOrdersRefusals {
-		assert.ErrorIsf(t, refuser.CancelAllAdvancedOrders(t.Context(), tc.req), tc.err, "CancelAllAdvancedOrders should refuse %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			assert.ErrorIsf(t, refuser.CancelAllAdvancedOrders(t.Context(), tc.req), tc.err, "CancelAllAdvancedOrders should refuse %s", tc.name)
+		})
 	}
 
 	testAdvancedOrderParams(t, "private/advanced/cancel-all-orders", "", func(ex *Exchange, req *CancelAllAdvancedOrdersRequest) error {
@@ -919,10 +941,11 @@ func TestGetAdvancedOrderDetail(t *testing.T) {
 	}
 }
 
-func TestGetAdvancedOrderHistory(t *testing.T) {
+func TestGetAdvancedOrderHistory(t *testing.T) { //nolint:tparallel // the refusals share refuser in order
 	t.Parallel()
 	startTime, endTime := time.Unix(0, 1792713600000081486), time.Unix(0, 1792799991058211357)
 	refuser := newAdvancedRefusalExchange(t)
+	// The cases share refuser in order, before the calls below, so each also checks that a refusal leaves nothing behind
 	for _, tc := range []struct {
 		name string
 		req  *GetAdvancedOrderHistoryRequest
@@ -934,8 +957,10 @@ func TestGetAdvancedOrderHistory(t *testing.T) {
 		{name: "a start time before 1970", req: &GetAdvancedOrderHistoryRequest{StartTime: time.Unix(0, -1)}, err: errTimeBeforeUnixEpoch},
 		{name: "an end time before 1970", req: &GetAdvancedOrderHistoryRequest{EndTime: time.Unix(0, -1)}, err: errTimeBeforeUnixEpoch},
 	} {
-		_, err := refuser.GetAdvancedOrderHistory(t.Context(), tc.req)
-		assert.ErrorIsf(t, err, tc.err, "GetAdvancedOrderHistory should refuse %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := refuser.GetAdvancedOrderHistory(t.Context(), tc.req)
+			assert.ErrorIsf(t, err, tc.err, "GetAdvancedOrderHistory should refuse %s", tc.name)
+		})
 	}
 
 	testAdvancedOrderParams(t, "private/advanced/get-order-history", `{"data":[]}`, func(ex *Exchange, req *GetAdvancedOrderHistoryRequest) error {
@@ -1132,12 +1157,15 @@ func cancelAdvancedOrderListRefusals() []advancedListRefusal[AdvancedOrderIDRequ
 	}
 }
 
-func TestCreateAdvancedOrderList(t *testing.T) {
+func TestCreateAdvancedOrderList(t *testing.T) { //nolint:tparallel // the refusals share refuser in order
 	t.Parallel()
 	refuser := newAdvancedRefusalExchange(t)
+	// The cases share refuser in order, before the calls below, so each also checks that a refusal leaves nothing behind
 	for _, tc := range createAdvancedOrderListRefusals() {
-		_, err := refuser.CreateAdvancedOrderList(t.Context(), tc.orders)
-		assert.ErrorIsf(t, err, tc.err, "CreateAdvancedOrderList should refuse %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := refuser.CreateAdvancedOrderList(t.Context(), tc.orders)
+			assert.ErrorIsf(t, err, tc.err, "CreateAdvancedOrderList should refuse %s", tc.name)
+		})
 	}
 	stopLoss := advancedOrderListOrders()[0]
 
@@ -1186,12 +1214,15 @@ func TestCreateAdvancedOrderList(t *testing.T) {
 	}
 }
 
-func TestCancelAdvancedOrderList(t *testing.T) {
+func TestCancelAdvancedOrderList(t *testing.T) { //nolint:tparallel // the refusals share refuser in order
 	t.Parallel()
 	refuser := newAdvancedRefusalExchange(t)
+	// The cases share refuser in order, before the calls below, so each also checks that a refusal leaves nothing behind
 	for _, tc := range cancelAdvancedOrderListRefusals() {
-		_, err := refuser.CancelAdvancedOrderList(t.Context(), tc.orders)
-		assert.ErrorIsf(t, err, tc.err, "CancelAdvancedOrderList should refuse %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := refuser.CancelAdvancedOrderList(t.Context(), tc.orders)
+			assert.ErrorIsf(t, err, tc.err, "CancelAdvancedOrderList should refuse %s", tc.name)
+		})
 	}
 
 	testAdvancedOrderParams(t, "private/advanced/cancel-order-list", `[{"index":0,"code":0}]`, func(ex *Exchange, orders []AdvancedOrderIDRequest) error {
@@ -1232,12 +1263,22 @@ func TestCancelAdvancedOrderList(t *testing.T) {
 	}
 }
 
-func TestGetAdvancedOrderListDetail(t *testing.T) {
+func TestGetAdvancedOrderListDetail(t *testing.T) { //nolint:tparallel // the refusals share refuser in order
 	t.Parallel()
 	refuser := newAdvancedRefusalExchange(t)
-	for _, listIDs := range [][]string{nil, {}, {"4611686018427705308", ""}} {
-		_, err := refuser.GetAdvancedOrderListDetail(t.Context(), listIDs)
-		assert.ErrorIsf(t, err, errListIDRequired, "GetAdvancedOrderListDetail should refuse list IDs %q", listIDs)
+	// The cases share refuser in order, before the calls below, so each also checks that a refusal leaves nothing behind
+	for _, tc := range []struct {
+		name    string
+		listIDs []string
+	}{
+		{name: "a nil list", listIDs: nil},
+		{name: "an empty list", listIDs: []string{}},
+		{name: "a list holding an empty ID", listIDs: []string{"4611686018427705308", ""}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := refuser.GetAdvancedOrderListDetail(t.Context(), tc.listIDs)
+			assert.ErrorIsf(t, err, errListIDRequired, "GetAdvancedOrderListDetail should refuse list IDs %q", tc.listIDs)
+		})
 	}
 
 	testAdvancedOrderParams(t, "private/advanced/get-order-list-detail", `{"data":[]}`, func(ex *Exchange, listIDs []string) error {
@@ -1338,11 +1379,17 @@ func TestGetAdvancedOrderListDetail(t *testing.T) {
 func TestCreateAdvancedOrderRequestValidate(t *testing.T) {
 	t.Parallel()
 	assert.ErrorIs(t, (*CreateAdvancedOrderRequest)(nil).validate(), common.ErrNilPointer, "validate should refuse a nil request")
+	// The cases run in order before the later calls of the same function, so each also checks that a call keeps
+	// nothing from the last
 	for _, tc := range triggerOrderRefusals {
-		req := advancedTriggerOrder()
-		tc.change(&req)
-		assert.ErrorIsf(t, req.validate(), tc.err, "validate should refuse %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			req := advancedTriggerOrder()
+			tc.change(&req)
+			assert.ErrorIsf(t, req.validate(), tc.err, "validate should refuse %s", tc.name)
+		})
 	}
+	// The cases run in order before the later calls of the same function, so each also checks that a call keeps
+	// nothing from the last
 	for _, tc := range []struct {
 		name   string
 		change func(*CreateAdvancedOrderRequest)
@@ -1352,9 +1399,11 @@ func TestCreateAdvancedOrderRequestValidate(t *testing.T) {
 		}},
 		{"a self-trade prevention ID without a scope", func(r *CreateAdvancedOrderRequest) { r.SelfTradePreventionID = 100 }},
 	} {
-		req := advancedTriggerOrder()
-		tc.change(&req)
-		assert.ErrorIsf(t, req.validate(), errInvalidSelfTradePreventionID, "validate should refuse %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			req := advancedTriggerOrder()
+			tc.change(&req)
+			assert.ErrorIsf(t, req.validate(), errInvalidSelfTradePreventionID, "validate should refuse %s", tc.name)
+		})
 	}
 	for _, tc := range []struct {
 		name   string
@@ -1368,19 +1417,28 @@ func TestCreateAdvancedOrderRequestValidate(t *testing.T) {
 			r.SelfTradePreventionScope, r.SelfTradePreventionInstruction, r.SelfTradePreventionID = SelfTradePreventionScopeMasterOrSubAccount, SelfTradePreventionCancelBoth, 100
 		}},
 	} {
-		req := advancedTriggerOrder()
-		tc.change(&req)
-		assert.NoErrorf(t, req.validate(), "validate should accept %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			req := advancedTriggerOrder()
+			tc.change(&req)
+			assert.NoErrorf(t, req.validate(), "validate should accept %s", tc.name)
+		})
 	}
 }
 
 func TestAdvancedOrderLegRequestValidate(t *testing.T) {
 	t.Parallel()
+	// The cases run in order before the later calls of the same function, so each also checks that a call keeps
+	// nothing from the last
 	for _, tc := range advancedOrderLegChanges {
-		leg := ocoOrders()[1]
-		tc.change(&leg)
-		assert.ErrorIsf(t, leg.validate(), tc.err, "validate should refuse %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			leg := ocoOrders()[1]
+			tc.change(&leg)
+			assert.ErrorIsf(t, leg.validate(), tc.err, "validate should refuse %s", tc.name)
+		})
 	}
+	// The cases run in order before the later calls of the same function, so each also checks that a call keeps
+	// nothing from the last
 	for _, tc := range []struct {
 		name   string
 		change func(*AdvancedOrderLegRequest)
@@ -1394,9 +1452,11 @@ func TestAdvancedOrderLegRequestValidate(t *testing.T) {
 		}, errInvalidSelfTradePreventionID},
 		{"a self-trade prevention ID without a scope", func(o *AdvancedOrderLegRequest) { o.SelfTradePreventionID = 7 }, errInvalidSelfTradePreventionID},
 	} {
-		leg := ocoOrders()[1]
-		tc.change(&leg)
-		assert.ErrorIsf(t, leg.validate(), tc.err, "validate should refuse %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			leg := ocoOrders()[1]
+			tc.change(&leg)
+			assert.ErrorIsf(t, leg.validate(), tc.err, "validate should refuse %s", tc.name)
+		})
 	}
 	for _, tc := range []struct {
 		name   string
@@ -1416,8 +1476,11 @@ func TestAdvancedOrderLegRequestValidate(t *testing.T) {
 			o.SelfTradePreventionScope, o.SelfTradePreventionInstruction, o.SelfTradePreventionID = SelfTradePreventionScopeSubAccount, SelfTradePreventionCancelMaker, 32767
 		}},
 	} {
-		leg := ocoOrders()[1]
-		tc.change(&leg)
-		assert.NoErrorf(t, leg.validate(), "validate should accept %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			leg := ocoOrders()[1]
+			tc.change(&leg)
+			assert.NoErrorf(t, leg.validate(), "validate should accept %s", tc.name)
+		})
 	}
 }

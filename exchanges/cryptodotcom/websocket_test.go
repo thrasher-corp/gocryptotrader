@@ -24,19 +24,35 @@ import (
 
 func TestWebsocketMessageID(t *testing.T) {
 	t.Parallel()
-	for msg, exp := range map[string]int64{
-		`{"id":1792891216162,"method":"public/heartbeat","code":0}`: 1792891216162,
-		`{"id":"7","method":"private/create-order"}`:                7,
-		`{"id":-1,"method":"subscribe"}`:                            -1,
-		`{"method":"subscribe"}`:                                    0,
+	// The cases run in order before the later calls of the same function, so each also checks that a call keeps
+	// nothing from the last
+	for _, tc := range []struct {
+		name string
+		msg  string
+		exp  int64
+	}{
+		{"a numeric ID", `{"id":1792891216162,"method":"public/heartbeat","code":0}`, 1792891216162},
+		{"a quoted numeric ID", `{"id":"7","method":"private/create-order"}`, 7},
+		{"a negative ID", `{"id":-1,"method":"subscribe"}`, -1},
+		{"no ID", `{"method":"subscribe"}`, 0},
 	} {
-		id, err := websocketMessageID([]byte(msg))
-		require.NoErrorf(t, err, "websocketMessageID must not error for %s", msg)
-		assert.Equalf(t, exp, id, "websocketMessageID should read the ID of %s", msg)
+		t.Run(tc.name, func(t *testing.T) {
+			id, err := websocketMessageID([]byte(tc.msg))
+			require.NoErrorf(t, err, "websocketMessageID must not error for %s", tc.msg)
+			assert.Equalf(t, tc.exp, id, "websocketMessageID should read the ID of %s", tc.msg)
+		})
 	}
-	for _, msg := range []string{`{"id":"x"}`, `{"id":true}`, `{"id":`, `{"id":1.5}`} {
-		_, err := websocketMessageID([]byte(msg))
-		assert.ErrorIsf(t, err, errMalformedWebsocketMessage, "websocketMessageID should refuse %s", msg)
+	for _, tc := range []struct{ name, msg string }{
+		{"a quoted ID that is no number", `{"id":"x"}`},
+		{"a boolean ID", `{"id":true}`},
+		{"a truncated message", `{"id":`},
+		{"a fractional ID", `{"id":1.5}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := websocketMessageID([]byte(tc.msg))
+			assert.ErrorIsf(t, err, errMalformedWebsocketMessage, "websocketMessageID should refuse %s", tc.msg)
+		})
 	}
 }
 
@@ -92,36 +108,52 @@ func TestDecodeWebsocketResponse(t *testing.T) {
 
 func TestSendWebsocketRequest(t *testing.T) {
 	t.Parallel()
-	if !mockTests {
-		t.Skip("SendWebsocketRequest is tested against the mock websocket, as it sends test methods")
-	}
-	ex, venue := newWebsocketTestExchange(t)
-	require.Len(t, venue.received(websocketMethodAuth), 1, "the trade connection must authenticate once")
-	venue.respond("private/test-method", `{"order_id":"9","client_oid":"c"}`)
-	var result OrderIDResponse
-	require.NoError(t, ex.SendWebsocketRequest(t.Context(), "private/test-method", map[string]string{"order_id": "9"}, &result), "SendWebsocketRequest must not error")
-	assert.Equal(t, OrderIDResponse{OrderID: "9", ClientOrderID: "c"}, result, "SendWebsocketRequest should decode the result")
-	requests := venue.received("private/test-method")
-	require.Len(t, requests, 1, "SendWebsocketRequest must send one request")
-	assert.JSONEq(t, `{"order_id":"9"}`, string(requests[0].Params), "SendWebsocketRequest should send the params")
-	assert.Positive(t, requests[0].ID, "SendWebsocketRequest should send a request ID")
+	t.Run("connected", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("SendWebsocketRequest is tested against the mock websocket, as it sends test methods")
+		}
+		ex, venue := newWebsocketTestExchange(t)
+		require.Len(t, venue.received(websocketMethodAuth), 1, "the trade connection must authenticate once")
+		venue.respond("private/test-method", `{"order_id":"9","client_oid":"c"}`)
+		var result OrderIDResponse
+		require.NoError(t, ex.SendWebsocketRequest(t.Context(), "private/test-method", map[string]string{"order_id": "9"}, &result), "SendWebsocketRequest must not error")
+		assert.Equal(t, OrderIDResponse{OrderID: "9", ClientOrderID: "c"}, result, "SendWebsocketRequest should decode the result")
+		requests := venue.received("private/test-method")
+		require.Len(t, requests, 1, "SendWebsocketRequest must send one request")
+		assert.JSONEq(t, `{"order_id":"9"}`, string(requests[0].Params), "SendWebsocketRequest should send the params")
+		assert.Positive(t, requests[0].ID, "SendWebsocketRequest should send a request ID")
 
-	require.NoError(t, ex.SendWebsocketRequest(t.Context(), "private/test-method", nil, &result), "SendWebsocketRequest must not error without params")
-	requests = venue.received("private/test-method")
-	require.Len(t, requests, 2, "SendWebsocketRequest must send a second request")
-	assert.JSONEq(t, `{}`, string(requests[1].Params), "SendWebsocketRequest should send empty params without any")
-	assert.NotEqual(t, requests[0].ID, requests[1].ID, "SendWebsocketRequest should send each request with its own ID")
+		require.NoError(t, ex.SendWebsocketRequest(t.Context(), "private/test-method", nil, &result), "SendWebsocketRequest must not error without params")
+		requests = venue.received("private/test-method")
+		require.Len(t, requests, 2, "SendWebsocketRequest must send a second request")
+		assert.JSONEq(t, `{}`, string(requests[1].Params), "SendWebsocketRequest should send empty params without any")
+		assert.NotEqual(t, requests[0].ID, requests[1].ID, "SendWebsocketRequest should send each request with its own ID")
 
-	venue.fail("private/test-method", &APIError{Code: 306, Message: "INSUFFICIENT_AVAILABLE_BALANCE"})
-	err := ex.SendWebsocketRequest(t.Context(), "private/test-method", nil, &result)
-	var apiErr *APIError
-	require.ErrorAs(t, err, &apiErr, "SendWebsocketRequest must return the error Crypto.com reports")
-	assert.Equal(t, &APIError{Code: 306, Message: "INSUFFICIENT_AVAILABLE_BALANCE"}, apiErr, "SendWebsocketRequest should decode the reported error")
-	assert.Error(t, ex.SendWebsocketRequest(t.Context(), "private/test-method", make(chan int), &result), "SendWebsocketRequest should error for params that cannot be marshalled")
+		venue.fail("private/test-method", &APIError{Code: 306, Message: "INSUFFICIENT_AVAILABLE_BALANCE"})
+		err := ex.SendWebsocketRequest(t.Context(), "private/test-method", nil, &result)
+		var apiErr *APIError
+		require.ErrorAs(t, err, &apiErr, "SendWebsocketRequest must return the error Crypto.com reports")
+		assert.Equal(t, &APIError{Code: 306, Message: "INSUFFICIENT_AVAILABLE_BALANCE"}, apiErr, "SendWebsocketRequest should decode the reported error")
+		assert.Error(t, ex.SendWebsocketRequest(t.Context(), "private/test-method", make(chan int), &result), "SendWebsocketRequest should error for params that cannot be marshalled")
 
-	ex.Websocket.SetCanUseAuthenticatedEndpoints(false)
-	err = ex.SendWebsocketRequest(t.Context(), "private/test-method", nil, &result)
-	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "SendWebsocketRequest should refuse to send over a connected websocket without authentication")
+		ex.Websocket.SetCanUseAuthenticatedEndpoints(false)
+		err = ex.SendWebsocketRequest(t.Context(), "private/test-method", nil, &result)
+		assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "SendWebsocketRequest should refuse to send over a connected websocket without authentication")
+	})
+
+	t.Run("not connected", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestExchange(t)
+		// The cases share ex, setting its authentication in turn, so the second also checks the first leaves nothing behind
+		for _, authenticated := range []bool{false, true} {
+			t.Run(strconv.FormatBool(authenticated), func(t *testing.T) {
+				ex.Websocket.SetCanUseAuthenticatedEndpoints(authenticated)
+				err := ex.SendWebsocketRequest(t.Context(), "private/test-method", nil, nil)
+				assert.ErrorIsf(t, err, websocket.ErrNotConnected, "SendWebsocketRequest should report a websocket not connected as such, whether or not it can authenticate (%t)", authenticated)
+			})
+		}
+	})
 }
 
 func TestSendConnectionRequest(t *testing.T) {
@@ -148,16 +180,6 @@ func TestSendConnectionRequest(t *testing.T) {
 
 	holdAnswers(t, venue, "private/test-method")
 	assert.ErrorIs(t, ex.sendConnectionRequest(endedContext(t), conn, "private/test-method", nil, nil), context.Canceled, "sendConnectionRequest should stop at its context's end")
-}
-
-func TestSendWebsocketRequestNotConnected(t *testing.T) {
-	t.Parallel()
-	ex := newTestExchange(t)
-	for _, authenticated := range []bool{false, true} {
-		ex.Websocket.SetCanUseAuthenticatedEndpoints(authenticated)
-		err := ex.SendWebsocketRequest(t.Context(), "private/test-method", nil, nil)
-		assert.ErrorIsf(t, err, websocket.ErrNotConnected, "SendWebsocketRequest should report a websocket not connected as such, whether or not it can authenticate (%t)", authenticated)
-	}
 }
 
 func TestWebsocketAuthenticate(t *testing.T) {
@@ -244,73 +266,73 @@ func requestedChannels(t *testing.T, venue *websocketVenue, method string) [][]s
 func TestWebsocketSubscriptionLimits(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
-		t.Skip("what a request holds is tested against the mock websocket, which records it")
+		t.Skip("what a request holds and its refusal are tested against the mock websocket, which records each request and can refuse it")
 	}
-	venue := newWebsocketVenue(t)
-	ex, channels, err := newSubscriptionLimitsExchange(t, venue)
-	require.NoError(t, err, "Connect must not error")
-	assert.ElementsMatch(t, channels, slices.Concat(requestedChannels(t, venue, websocketMethodSubscribe)...), "each channel should be subscribed once")
-	assert.ElementsMatch(t, channels, qualifiedChannels(ex.Websocket.GetSubscriptions()), "every channel should be stored")
-	conn, err := ex.Websocket.GetConnection(websocketMarketDataConnection)
-	require.NoError(t, err, "GetConnection must not error")
-	subs := conn.Subscriptions().List()
-	require.Len(t, subs, 400, "the first connection must hold as many channels as Crypto.com allows it")
+	t.Run("channels split across requests and connections", func(t *testing.T) {
+		t.Parallel()
+		venue := newWebsocketVenue(t)
+		ex, channels, err := newSubscriptionLimitsExchange(t, venue)
+		require.NoError(t, err, "Connect must not error")
+		assert.ElementsMatch(t, channels, slices.Concat(requestedChannels(t, venue, websocketMethodSubscribe)...), "each channel should be subscribed once")
+		assert.ElementsMatch(t, channels, qualifiedChannels(ex.Websocket.GetSubscriptions()), "every channel should be stored")
+		conn, err := ex.Websocket.GetConnection(websocketMarketDataConnection)
+		require.NoError(t, err, "GetConnection must not error")
+		subs := conn.Subscriptions().List()
+		require.Len(t, subs, 400, "the first connection must hold as many channels as Crypto.com allows it")
 
-	require.NoError(t, ex.wsUnsubscribe(t.Context(), conn, nil), "wsUnsubscribe must not error without channels")
-	assert.Empty(t, venue.received(websocketMethodUnsubscribe), "wsUnsubscribe should send nothing without channels")
-	require.NoError(t, ex.wsUnsubscribe(t.Context(), conn, subs), "wsUnsubscribe must not error")
-	assert.ElementsMatch(t, qualifiedChannels(subs), slices.Concat(requestedChannels(t, venue, websocketMethodUnsubscribe)...), "each channel should be unsubscribed once")
-	assert.Len(t, ex.Websocket.GetSubscriptions(), len(channels)-len(subs), "only that connection's channels should be removed")
-}
+		require.NoError(t, ex.wsUnsubscribe(t.Context(), conn, nil), "wsUnsubscribe must not error without channels")
+		assert.Empty(t, venue.received(websocketMethodUnsubscribe), "wsUnsubscribe should send nothing without channels")
+		require.NoError(t, ex.wsUnsubscribe(t.Context(), conn, subs), "wsUnsubscribe must not error")
+		assert.ElementsMatch(t, qualifiedChannels(subs), slices.Concat(requestedChannels(t, venue, websocketMethodUnsubscribe)...), "each channel should be unsubscribed once")
+		assert.Len(t, ex.Websocket.GetSubscriptions(), len(channels)-len(subs), "only that connection's channels should be removed")
+	})
 
-// TestWebsocketSubscriptionLimitsRefusal has Crypto.com refuse the first request of several, whose channels alone are left
-// out or kept, and then one channel of a request
-func TestWebsocketSubscriptionLimitsRefusal(t *testing.T) {
-	t.Parallel()
-	if !mockTests {
-		t.Skip("a refusal is tested against the mock websocket")
-	}
-	refused := &APIError{Code: 42901, Message: "TOO_MANY_REQUESTS"}
-	refuseFirst := func(venue *websocketVenue, method string) {
-		venue.fail(method, refused)
-		venue.beforeAnswering(method, func() { venue.fail(method, nil) })
-	}
-	var apiErr *APIError
+	// Crypto.com refuses the first request of several, whose channels alone are left out or kept, and then one channel of a
+	// request
+	t.Run("a refused request or channel", func(t *testing.T) {
+		t.Parallel()
+		refused := &APIError{Code: 42901, Message: "TOO_MANY_REQUESTS"}
+		refuseFirst := func(venue *websocketVenue, method string) {
+			venue.fail(method, refused)
+			venue.beforeAnswering(method, func() { venue.fail(method, nil) })
+		}
+		var apiErr *APIError
 
-	venue := newWebsocketVenue(t)
-	refuseFirst(venue, websocketMethodSubscribe)
-	ex, channels, err := newSubscriptionLimitsExchange(t, venue)
-	require.ErrorAs(t, err, &apiErr, "Connect must report the refused request")
-	assert.Equal(t, refused, apiErr, "Connect should report the refused request's error")
-	requested := requestedChannels(t, venue, websocketMethodSubscribe)
-	require.Greater(t, len(requested), 1, "the channels must take more than one request")
-	assert.ElementsMatch(t, channels, slices.Concat(requested...), "every request should be sent")
-	assert.ElementsMatch(t, slices.Concat(requested[1:]...), qualifiedChannels(ex.Websocket.GetSubscriptions()), "only the refused request's channels should be left out")
+		venue := newWebsocketVenue(t)
+		refuseFirst(venue, websocketMethodSubscribe)
+		ex, channels, err := newSubscriptionLimitsExchange(t, venue)
+		require.ErrorAs(t, err, &apiErr, "Connect must report the refused request")
+		assert.Equal(t, refused, apiErr, "Connect should report the refused request's error")
+		requested := requestedChannels(t, venue, websocketMethodSubscribe)
+		require.Greater(t, len(requested), 1, "the channels must take more than one request")
+		assert.ElementsMatch(t, channels, slices.Concat(requested...), "every request should be sent")
+		assert.ElementsMatch(t, slices.Concat(requested[1:]...), qualifiedChannels(ex.Websocket.GetSubscriptions()), "only the refused request's channels should be left out")
 
-	venue = newWebsocketVenue(t)
-	ex, channels, err = newSubscriptionLimitsExchange(t, venue)
-	require.NoError(t, err, "Connect must not error")
-	conn, err := ex.Websocket.GetConnection(websocketMarketDataConnection)
-	require.NoError(t, err, "GetConnection must not error")
-	subs := conn.Subscriptions().List()
-	refuseFirst(venue, websocketMethodUnsubscribe)
-	require.ErrorAs(t, ex.wsUnsubscribe(t.Context(), conn, subs), &apiErr, "wsUnsubscribe must report the refused request")
-	assert.Equal(t, refused, apiErr, "wsUnsubscribe should report the refused request's error")
-	requested = requestedChannels(t, venue, websocketMethodUnsubscribe)
-	require.Greater(t, len(requested), 1, "the channels must take more than one request")
-	assert.ElementsMatch(t, qualifiedChannels(subs), slices.Concat(requested...), "every request should be sent")
-	unsubscribed := slices.Concat(requested[1:]...)
-	kept := slices.DeleteFunc(channels, func(channel string) bool { return slices.Contains(unsubscribed, channel) })
-	assert.ElementsMatch(t, kept, qualifiedChannels(ex.Websocket.GetSubscriptions()), "only the channels of the requests acknowledged should be removed")
+		venue = newWebsocketVenue(t)
+		ex, channels, err = newSubscriptionLimitsExchange(t, venue)
+		require.NoError(t, err, "Connect must not error")
+		conn, err := ex.Websocket.GetConnection(websocketMarketDataConnection)
+		require.NoError(t, err, "GetConnection must not error")
+		subs := conn.Subscriptions().List()
+		refuseFirst(venue, websocketMethodUnsubscribe)
+		require.ErrorAs(t, ex.wsUnsubscribe(t.Context(), conn, subs), &apiErr, "wsUnsubscribe must report the refused request")
+		assert.Equal(t, refused, apiErr, "wsUnsubscribe should report the refused request's error")
+		requested = requestedChannels(t, venue, websocketMethodUnsubscribe)
+		require.Greater(t, len(requested), 1, "the channels must take more than one request")
+		assert.ElementsMatch(t, qualifiedChannels(subs), slices.Concat(requested...), "every request should be sent")
+		unsubscribed := slices.Concat(requested[1:]...)
+		kept := slices.DeleteFunc(channels, func(channel string) bool { return slices.Contains(unsubscribed, channel) })
+		assert.ElementsMatch(t, kept, qualifiedChannels(ex.Websocket.GetSubscriptions()), "only the channels of the requests acknowledged should be removed")
 
-	// A channel refused ahead of others that are acknowledged, which Crypto.com answers in the order a request names them
-	venue = newWebsocketVenue(t)
-	venue.rejectSubscriptions("ticker.TESTCOIN0_USD", refused)
-	ex, channels, err = newSubscriptionLimitsExchange(t, venue)
-	require.ErrorAs(t, err, &apiErr, "Connect must report the refused channel")
-	assert.Equal(t, refused, apiErr, "Connect should report the refused channel's error")
-	kept = slices.DeleteFunc(channels, func(channel string) bool { return channel == "ticker.TESTCOIN0_USD" })
-	assert.ElementsMatch(t, kept, qualifiedChannels(ex.Websocket.GetSubscriptions()), "only the refused channel should be left out")
+		// A channel refused ahead of others that are acknowledged, which Crypto.com answers in the order a request names them
+		venue = newWebsocketVenue(t)
+		venue.rejectSubscriptions("ticker.TESTCOIN0_USD", refused)
+		ex, channels, err = newSubscriptionLimitsExchange(t, venue)
+		require.ErrorAs(t, err, &apiErr, "Connect must report the refused channel")
+		assert.Equal(t, refused, apiErr, "Connect should report the refused channel's error")
+		kept = slices.DeleteFunc(channels, func(channel string) bool { return channel == "ticker.TESTCOIN0_USD" })
+		assert.ElementsMatch(t, kept, qualifiedChannels(ex.Websocket.GetSubscriptions()), "only the refused channel should be left out")
+	})
 }
 
 func TestWebsocketUnsubscribeBatch(t *testing.T) {
@@ -441,32 +463,42 @@ func TestWebsocketSubscriptionRequest(t *testing.T) {
 
 func TestWebsocketResponseSubscribedChannel(t *testing.T) {
 	t.Parallel()
-	for msg, exp := range map[string]string{
-		`{"id":1,"method":"subscribe","code":0,"channel":"ticker.BTC_USD"}`:                                             "ticker.BTC_USD",
-		`{"id":1,"method":"subscribe","code":0,"result":{"subscription":"book.BTC_USD.10","channel":"book","data":[]}}`: "book.BTC_USD.10",
-		`{"id":1,"method":"subscribe","code":40003,"channel":"ticker.BTC_USDT","message":"Unknown symbol"}`:             "ticker.BTC_USDT",
-		`{"id":1,"method":"subscribe","code":40001,"message":"BAD_REQUEST"}`:                                            "",
-		`{"id":1,"method":"subscribe","code":0,"result":{"channel":"book","data":[]}}`:                                  "",
-		`{"id":1,"method":"subscribe","code":0,"result":{"subscription":1}}`:                                            "",
+	for _, tc := range []struct{ name, msg, exp string }{
+		{"an acknowledgement's channel", `{"id":1,"method":"subscribe","code":0,"channel":"ticker.BTC_USD"}`, "ticker.BTC_USD"},
+		{"a result's subscription", `{"id":1,"method":"subscribe","code":0,"result":{"subscription":"book.BTC_USD.10","channel":"book","data":[]}}`, "book.BTC_USD.10"},
+		{"a rejection's channel", `{"id":1,"method":"subscribe","code":40003,"channel":"ticker.BTC_USDT","message":"Unknown symbol"}`, "ticker.BTC_USDT"},
+		{"a refusal naming no channel", `{"id":1,"method":"subscribe","code":40001,"message":"BAD_REQUEST"}`, ""},
+		{"a result naming no subscription", `{"id":1,"method":"subscribe","code":0,"result":{"channel":"book","data":[]}}`, ""},
+		{"a subscription that is no string", `{"id":1,"method":"subscribe","code":0,"result":{"subscription":1}}`, ""},
 	} {
-		var resp websocketResponse
-		require.NoErrorf(t, json.Unmarshal([]byte(msg), &resp), "Unmarshal must not error for %s", msg)
-		assert.Equalf(t, exp, resp.subscribedChannel(), "subscribedChannel should name the channel %s answers", msg)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var resp websocketResponse
+			require.NoErrorf(t, json.Unmarshal([]byte(tc.msg), &resp), "Unmarshal must not error for %s", tc.msg)
+			assert.Equalf(t, tc.exp, resp.subscribedChannel(), "subscribedChannel should name the channel %s answers", tc.msg)
+		})
 	}
 }
 
 func TestSubscribeInspector(t *testing.T) {
 	t.Parallel()
-	for msg, exp := range map[string]bool{
-		`{"id":1,"method":"subscribe","code":40001,"message":"BAD_REQUEST"}`:                                true,
-		`{"id":1,"method":"subscribe","code":"40001","message":"BAD_REQUEST"}`:                              true,
-		`{"id":1,"method":"subscribe","code":40003,"channel":"ticker.BTC_USDT","message":"Unknown symbol"}`: false,
-		`{"id":1,"method":"subscribe","code":40003,"result":{"subscription":"ticker.BTC_USDT"}}`:            false,
-		`{"id":1,"method":"subscribe","code":0,"channel":"ticker.BTC_USD"}`:                                 false,
-		`{"id":1,"method":"subscribe","code":0}`:                                                            false,
-		`{"id":`:                                                                                            false,
+	for _, tc := range []struct {
+		name string
+		msg  string
+		exp  bool
+	}{
+		{"a refusal", `{"id":1,"method":"subscribe","code":40001,"message":"BAD_REQUEST"}`, true},
+		{"a refusal with a quoted code", `{"id":1,"method":"subscribe","code":"40001","message":"BAD_REQUEST"}`, true},
+		{"a rejection naming its channel", `{"id":1,"method":"subscribe","code":40003,"channel":"ticker.BTC_USDT","message":"Unknown symbol"}`, false},
+		{"a rejection naming its subscription", `{"id":1,"method":"subscribe","code":40003,"result":{"subscription":"ticker.BTC_USDT"}}`, false},
+		{"an acknowledgement", `{"id":1,"method":"subscribe","code":0,"channel":"ticker.BTC_USD"}`, false},
+		{"an acknowledgement naming no channel", `{"id":1,"method":"subscribe","code":0}`, false},
+		{"a truncated message", `{"id":`, false},
 	} {
-		assert.Equalf(t, exp, subscribeInspector{}.IsFinal([]byte(msg)), "IsFinal should report whether %s refuses its subscribe request as a whole", msg)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, tc.exp, subscribeInspector{}.IsFinal([]byte(tc.msg)), "IsFinal should report whether %s refuses its subscribe request as a whole", tc.msg)
+		})
 	}
 }
 
@@ -703,45 +735,47 @@ func TestGenerateMarketDataSubscriptions(t *testing.T) {
 			assert.ErrorIs(t, err, tc.err, "generateMarketDataSubscriptions should refuse the subscription")
 		})
 	}
+
+	t.Run("the default subscriptions", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestExchange(t)
+		got, err := ex.generateMarketDataSubscriptions()
+		require.NoError(t, err, "generateMarketDataSubscriptions must not error for the default subscriptions")
+		channel := map[string]func(instrument string) string{
+			subscription.TickerChannel:    func(instrument string) string { return "ticker." + instrument },
+			subscription.OrderbookChannel: func(instrument string) string { return "book." + instrument + ".50" },
+			subscription.AllTradesChannel: func(instrument string) string { return "trade." + instrument },
+			subscription.CandlesChannel:   func(instrument string) string { return "candlestick.1m." + instrument },
+		}
+		instruments := []instrumentAsset{
+			{Asset: asset.Spot, Pair: spotBTCUSD},
+			{Asset: asset.Spot, Pair: spotBTCUSDT},
+			{Asset: asset.Spot, Pair: spotCROUSD},
+			{Asset: asset.Spot, Pair: spotETHUSD},
+			{Asset: asset.Futures, Pair: futureBTCUSD},
+			{Asset: asset.PerpetualSwap, Pair: perpBTCUSD},
+			{Asset: asset.PerpetualSwap, Pair: perpETHUSD},
+		}
+		exp := make(subscription.List, 0, len(defaultSubscriptions)*len(instruments))
+		for _, s := range defaultSubscriptions {
+			if s.Authenticated {
+				// The market data connections carry no user channel, whose defaults TestGenerateUserSubscriptions covers
+				continue
+			}
+			require.Containsf(t, channel, s.Channel, "the %s default subscription must be expected", s.Channel)
+			for _, a := range instruments {
+				exp = append(exp, expandedSubscription(s, a.Asset, a.Pair, channel[s.Channel](a.Pair.String())))
+			}
+		}
+		testsubs.EqualLists(t, exp, got)
+	})
 }
 
-func TestDefaultSubscriptions(t *testing.T) {
-	t.Parallel()
-	ex := newTestExchange(t)
-	got, err := ex.generateMarketDataSubscriptions()
-	require.NoError(t, err, "generateMarketDataSubscriptions must not error for the default subscriptions")
-	channel := map[string]func(instrument string) string{
-		subscription.TickerChannel:    func(instrument string) string { return "ticker." + instrument },
-		subscription.OrderbookChannel: func(instrument string) string { return "book." + instrument + ".50" },
-		subscription.AllTradesChannel: func(instrument string) string { return "trade." + instrument },
-		subscription.CandlesChannel:   func(instrument string) string { return "candlestick.1m." + instrument },
-	}
-	instruments := []instrumentAsset{
-		{Asset: asset.Spot, Pair: spotBTCUSD},
-		{Asset: asset.Spot, Pair: spotBTCUSDT},
-		{Asset: asset.Spot, Pair: spotCROUSD},
-		{Asset: asset.Spot, Pair: spotETHUSD},
-		{Asset: asset.Futures, Pair: futureBTCUSD},
-		{Asset: asset.PerpetualSwap, Pair: perpBTCUSD},
-		{Asset: asset.PerpetualSwap, Pair: perpETHUSD},
-	}
-	exp := make(subscription.List, 0, len(defaultSubscriptions)*len(instruments))
-	for _, s := range defaultSubscriptions {
-		if s.Authenticated {
-			// The market data connections carry no user channel, whose defaults TestGenerateUserSubscriptions covers
-			continue
-		}
-		require.Containsf(t, channel, s.Channel, "the %s default subscription must be expected", s.Channel)
-		for _, a := range instruments {
-			exp = append(exp, expandedSubscription(s, a.Asset, a.Pair, channel[s.Channel](a.Pair.String())))
-		}
-	}
-	testsubs.EqualLists(t, exp, got)
-}
-
-func TestChannelServesAsset(t *testing.T) {
+func TestChannelServesAsset(t *testing.T) { //nolint:tparallel // the cases run in order before the later calls of the same function
 	t.Parallel()
 	everyAsset := []asset.Item{asset.Spot, asset.Margin, asset.PerpetualSwap, asset.Futures}
+	// The cases run in order before the later calls of the same function, so each also checks that a call keeps
+	// nothing from the last
 	for channel, served := range map[string][]asset.Item{
 		subscription.TickerChannel:    everyAsset,
 		subscription.OrderbookChannel: everyAsset,
@@ -753,26 +787,33 @@ func TestChannelServesAsset(t *testing.T) {
 		EstimatedFundingRateChannel:   {asset.PerpetualSwap},
 		SettlementPriceChannel:        {asset.Futures},
 	} {
-		for _, a := range everyAsset {
-			serves := slices.Contains(served, a)
-			got, err := channelServesAsset(&subscription.Subscription{Channel: channel, Asset: asset.All}, a)
-			require.NoErrorf(t, err, "channelServesAsset must not error for a %s subscription of every asset", channel)
-			assert.Equalf(t, serves, got, "channelServesAsset should report whether the %s channel serves %s", channel, a)
-			got, err = channelServesAsset(&subscription.Subscription{Channel: channel, Asset: a}, a)
-			if serves {
-				require.NoErrorf(t, err, "channelServesAsset must not error for a %s subscription of %s", channel, a)
-				assert.Truef(t, got, "channelServesAsset should report the %s channel serves %s", channel, a)
-				continue
+		t.Run(channel, func(t *testing.T) {
+			for _, a := range everyAsset {
+				t.Run(a.String(), func(t *testing.T) {
+					t.Parallel()
+					serves := slices.Contains(served, a)
+					got, err := channelServesAsset(&subscription.Subscription{Channel: channel, Asset: asset.All}, a)
+					require.NoErrorf(t, err, "channelServesAsset must not error for a %s subscription of every asset", channel)
+					assert.Equalf(t, serves, got, "channelServesAsset should report whether the %s channel serves %s", channel, a)
+					got, err = channelServesAsset(&subscription.Subscription{Channel: channel, Asset: a}, a)
+					if serves {
+						require.NoErrorf(t, err, "channelServesAsset must not error for a %s subscription of %s", channel, a)
+						assert.Truef(t, got, "channelServesAsset should report the %s channel serves %s", channel, a)
+						return
+					}
+					assert.ErrorIsf(t, err, subscription.ErrNotSupported, "channelServesAsset should refuse a %s subscription of %s", channel, a)
+				})
 			}
-			assert.ErrorIsf(t, err, subscription.ErrNotSupported, "channelServesAsset should refuse a %s subscription of %s", channel, a)
-		}
+		})
 	}
 	_, err := channelServesAsset(&subscription.Subscription{Channel: "nope", Asset: asset.All}, asset.Spot)
 	assert.ErrorIs(t, err, subscription.ErrNotSupported, "channelServesAsset should refuse a channel Crypto.com does not serve")
 }
 
-func TestQualifiedChannel(t *testing.T) {
+func TestQualifiedChannel(t *testing.T) { //nolint:tparallel // the cases run in order on e, whose pair formats qualifiedChannel reads
 	t.Parallel()
+
+	// The cases run in order on e, whose pair formats qualifiedChannel reads, before the refusals below call it too
 	for _, tc := range []struct {
 		sub  *subscription.Subscription
 		a    asset.Item
@@ -791,40 +832,52 @@ func TestQualifiedChannel(t *testing.T) {
 		{&subscription.Subscription{Channel: FundingRateChannel}, asset.PerpetualSwap, perpBTCUSD, "funding.BTCUSD-PERP"},
 		{&subscription.Subscription{Channel: EstimatedFundingRateChannel}, asset.PerpetualSwap, perpBTCUSD, "estimatedfunding.BTCUSD-PERP"},
 	} {
-		got, err := e.qualifiedChannel(tc.sub, tc.a, tc.pair)
-		require.NoErrorf(t, err, "qualifiedChannel must not error for the %s channel of %s %s", tc.sub.Channel, tc.a, tc.pair)
-		assert.Equalf(t, tc.exp, got, "qualifiedChannel should name the %s channel of %s %s", tc.sub.Channel, tc.a, tc.pair)
+		t.Run(tc.exp, func(t *testing.T) {
+			got, err := e.qualifiedChannel(tc.sub, tc.a, tc.pair)
+			require.NoErrorf(t, err, "qualifiedChannel must not error for the %s channel of %s %s", tc.sub.Channel, tc.a, tc.pair)
+			assert.Equalf(t, tc.exp, got, "qualifiedChannel should name the %s channel of %s %s", tc.sub.Channel, tc.a, tc.pair)
+		})
 	}
+	// The cases run in order on e, whose pair formats qualifiedChannel reads
 	for _, tc := range []struct {
-		sub *subscription.Subscription
-		a   asset.Item
-		err error
+		name string
+		sub  *subscription.Subscription
+		a    asset.Item
+		err  error
 	}{
-		{&subscription.Subscription{Channel: "nope"}, asset.Spot, subscription.ErrNotSupported},
-		{&subscription.Subscription{Channel: IndexPriceChannel}, asset.Spot, errNoUnderlyingIndex},
-		{&subscription.Subscription{Channel: subscription.TickerChannel}, asset.Options, asset.ErrNotSupported},
-		{&subscription.Subscription{Channel: subscription.OrderbookChannel, Levels: 20}, asset.Spot, subscription.ErrInvalidLevel},
-		{&subscription.Subscription{Channel: subscription.OrderbookChannel, Interval: kline.OneMin}, asset.Spot, subscription.ErrInvalidInterval},
-		{&subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.ThreeMin}, asset.Spot, kline.ErrUnsupportedInterval},
+		{"a channel Crypto.com does not serve", &subscription.Subscription{Channel: "nope"}, asset.Spot, subscription.ErrNotSupported},
+		{"the underlying index of a spot pair", &subscription.Subscription{Channel: IndexPriceChannel}, asset.Spot, errNoUnderlyingIndex},
+		{"an asset Crypto.com does not trade", &subscription.Subscription{Channel: subscription.TickerChannel}, asset.Options, asset.ErrNotSupported},
+		{"a book depth Crypto.com does not serve", &subscription.Subscription{Channel: subscription.OrderbookChannel, Levels: 20}, asset.Spot, subscription.ErrInvalidLevel},
+		{"a book interval Crypto.com does not serve", &subscription.Subscription{Channel: subscription.OrderbookChannel, Interval: kline.OneMin}, asset.Spot, subscription.ErrInvalidInterval},
+		{"a candle interval Crypto.com does not serve", &subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.ThreeMin}, asset.Spot, kline.ErrUnsupportedInterval},
 	} {
-		_, err := e.qualifiedChannel(tc.sub, tc.a, spotBTCUSD)
-		assert.ErrorIsf(t, err, tc.err, "qualifiedChannel should refuse the %s channel of %s with levels %d and interval %s", tc.sub.Channel, tc.a, tc.sub.Levels, tc.sub.Interval)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.qualifiedChannel(tc.sub, tc.a, spotBTCUSD)
+			assert.ErrorIsf(t, err, tc.err, "qualifiedChannel should refuse the %s channel of %s with levels %d and interval %s", tc.sub.Channel, tc.a, tc.sub.Levels, tc.sub.Interval)
+		})
 	}
 }
 
-func TestBookDepth(t *testing.T) {
+func TestBookDepth(t *testing.T) { //nolint:tparallel // the cases run in order before the later calls of the same function
 	t.Parallel()
+	// The cases run in order before the later calls of the same function, so each also checks that a call keeps
+	// nothing from the last
 	for levels, exp := range map[int]int{0: 50, 10: 10, 50: 50} {
-		got, err := bookDepth(&subscription.Subscription{Levels: levels})
-		require.NoErrorf(t, err, "bookDepth must not error for %d levels", levels)
-		assert.Equalf(t, exp, got, "bookDepth should give the depth of a subscription to %d levels", levels)
+		t.Run(strconv.Itoa(levels), func(t *testing.T) {
+			got, err := bookDepth(&subscription.Subscription{Levels: levels})
+			require.NoErrorf(t, err, "bookDepth must not error for %d levels", levels)
+			assert.Equalf(t, exp, got, "bookDepth should give the depth of a subscription to %d levels", levels)
+		})
 	}
 	_, err := bookDepth(&subscription.Subscription{Levels: 20})
 	assert.ErrorIs(t, err, subscription.ErrInvalidLevel, "bookDepth should refuse a depth Crypto.com does not serve")
 }
 
-func TestBookUpdates(t *testing.T) {
+func TestBookUpdates(t *testing.T) { //nolint:tparallel // the cases run in order before the later calls of the same function
 	t.Parallel()
+	// The cases run in order before the later calls of the same function, so each also checks that a call keeps
+	// nothing from the last
 	for _, tc := range []struct {
 		interval         kline.Interval
 		subscriptionType string
@@ -835,10 +888,12 @@ func TestBookUpdates(t *testing.T) {
 		{kline.HundredMilliseconds, BookSubscriptionTypeSnapshotAndUpdate, 100},
 		{bookSnapshotInterval, BookSubscriptionTypeSnapshot, 500},
 	} {
-		subscriptionType, frequency, err := bookUpdates(&subscription.Subscription{Interval: tc.interval})
-		require.NoErrorf(t, err, "bookUpdates must not error for an interval of %s", tc.interval)
-		assert.Equalf(t, tc.subscriptionType, subscriptionType, "bookUpdates should give the subscription type of an interval of %s", tc.interval)
-		assert.Equalf(t, tc.frequency, frequency, "bookUpdates should give the update frequency of an interval of %s", tc.interval)
+		t.Run(tc.interval.Short(), func(t *testing.T) {
+			subscriptionType, frequency, err := bookUpdates(&subscription.Subscription{Interval: tc.interval})
+			require.NoErrorf(t, err, "bookUpdates must not error for an interval of %s", tc.interval)
+			assert.Equalf(t, tc.subscriptionType, subscriptionType, "bookUpdates should give the subscription type of an interval of %s", tc.interval)
+			assert.Equalf(t, tc.frequency, frequency, "bookUpdates should give the update frequency of an interval of %s", tc.interval)
+		})
 	}
 	_, _, err := bookUpdates(&subscription.Subscription{Interval: kline.ThousandMilliseconds})
 	assert.ErrorIs(t, err, subscription.ErrInvalidInterval, "bookUpdates should refuse an interval Crypto.com does not update books at")

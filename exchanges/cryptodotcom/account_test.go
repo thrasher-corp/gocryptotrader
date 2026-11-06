@@ -83,7 +83,7 @@ func TestGetUserBalance(t *testing.T) {
 	}
 }
 
-func TestGetUserBalanceHistory(t *testing.T) {
+func TestGetUserBalanceHistory(t *testing.T) { //nolint:tparallel // the cases run in order before the later calls of the same method
 	t.Parallel()
 	_, err := e.GetUserBalanceHistory(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetUserBalanceHistory must refuse a nil request")
@@ -91,9 +91,20 @@ func TestGetUserBalanceHistory(t *testing.T) {
 	require.ErrorIs(t, err, errTimeBeforeUnixEpoch, "GetUserBalanceHistory must refuse an end time before 1970")
 	_, err = e.GetUserBalanceHistory(t.Context(), &UserBalanceHistoryRequest{Timeframe: "M1"})
 	require.ErrorIs(t, err, errInvalidBalanceHistoryTimeframe, "GetUserBalanceHistory must refuse an unknown timeframe")
-	for _, req := range []*UserBalanceHistoryRequest{{Limit: 31}, {Timeframe: BalanceHistoryTimeframeDaily, Limit: 31}, {Timeframe: BalanceHistoryTimeframeHourly, Limit: 121}} {
-		_, err = e.GetUserBalanceHistory(t.Context(), req)
-		require.ErrorIsf(t, err, errInvalidCount, "GetUserBalanceHistory must refuse %d %s points", req.Limit, req.Timeframe)
+	// The cases run in order on e, before the GetUserBalanceHistory calls below, so each also checks that a refusal
+	// leaves nothing behind
+	for _, tc := range []struct {
+		name string
+		req  *UserBalanceHistoryRequest
+	}{
+		{"31 points with no timeframe", &UserBalanceHistoryRequest{Limit: 31}},
+		{"31 daily points", &UserBalanceHistoryRequest{Timeframe: BalanceHistoryTimeframeDaily, Limit: 31}},
+		{"121 hourly points", &UserBalanceHistoryRequest{Timeframe: BalanceHistoryTimeframeHourly, Limit: 121}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.GetUserBalanceHistory(t.Context(), tc.req)
+			require.ErrorIsf(t, err, errInvalidCount, "GetUserBalanceHistory must refuse %d %s points", tc.req.Limit, tc.req.Timeframe)
+		})
 	}
 
 	ex, sent := newSignedRecorder(t, "private/user-balance-history", `{"instrument_name":"USD","data":[]}`)
@@ -198,20 +209,25 @@ func TestGetAccounts(t *testing.T) {
 	}
 }
 
-func TestCreateSubAccountTransfer(t *testing.T) {
+func TestCreateSubAccountTransfer(t *testing.T) { //nolint:tparallel // the cases run in order before the later calls of the same method
 	t.Parallel()
+	// The cases run in order on e, before the CreateSubAccountTransfer calls below, so each also checks that a refusal
+	// leaves nothing behind
 	for _, tc := range []struct {
-		req *SubAccountTransferRequest
-		err error
+		name string
+		req  *SubAccountTransferRequest
+		err  error
 	}{
-		{req: nil, err: common.ErrNilPointer},
-		{req: &SubAccountTransferRequest{ToAccountUUID: "b", Currency: currency.CRO, Amount: 1}, err: errFromAccountRequired},
-		{req: &SubAccountTransferRequest{FromAccountUUID: "a", Currency: currency.CRO, Amount: 1}, err: errToAccountRequired},
-		{req: &SubAccountTransferRequest{FromAccountUUID: "a", ToAccountUUID: "b", Amount: 1}, err: currency.ErrCurrencyCodeEmpty},
-		{req: &SubAccountTransferRequest{FromAccountUUID: "a", ToAccountUUID: "b", Currency: currency.CRO}, err: errInvalidAmount},
-		{req: &SubAccountTransferRequest{FromAccountUUID: "a", ToAccountUUID: "b", Currency: currency.CRO, Amount: -1}, err: errInvalidAmount},
+		{name: "a nil request", req: nil, err: common.ErrNilPointer},
+		{name: "a transfer without a from account", req: &SubAccountTransferRequest{ToAccountUUID: "b", Currency: currency.CRO, Amount: 1}, err: errFromAccountRequired},
+		{name: "a transfer without a to account", req: &SubAccountTransferRequest{FromAccountUUID: "a", Currency: currency.CRO, Amount: 1}, err: errToAccountRequired},
+		{name: "a transfer without a currency", req: &SubAccountTransferRequest{FromAccountUUID: "a", ToAccountUUID: "b", Amount: 1}, err: currency.ErrCurrencyCodeEmpty},
+		{name: "a transfer without an amount", req: &SubAccountTransferRequest{FromAccountUUID: "a", ToAccountUUID: "b", Currency: currency.CRO}, err: errInvalidAmount},
+		{name: "a negative amount", req: &SubAccountTransferRequest{FromAccountUUID: "a", ToAccountUUID: "b", Currency: currency.CRO, Amount: -1}, err: errInvalidAmount},
 	} {
-		require.ErrorIsf(t, e.CreateSubAccountTransfer(t.Context(), tc.req), tc.err, "CreateSubAccountTransfer must refuse %+v", tc.req)
+		t.Run(tc.name, func(t *testing.T) {
+			require.ErrorIsf(t, e.CreateSubAccountTransfer(t.Context(), tc.req), tc.err, "CreateSubAccountTransfer must refuse %+v", tc.req)
+		})
 	}
 
 	ex, sent := newSignedRecorder(t, "private/create-subaccount-transfer", `null`)

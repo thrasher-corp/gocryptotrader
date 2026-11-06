@@ -34,6 +34,8 @@ func validOTCQuoteRequest() *OTCQuoteRequest {
 func requireOTCQuoteRequestValidation(t *testing.T, method string, call func(*OTCQuoteRequest) error) {
 	t.Helper()
 	require.ErrorIsf(t, call(nil), common.ErrNilPointer, "%s must error for a nil request", method)
+	// The cases run in order through call, on the caller's exchange and before its later calls of the method, so each
+	// also checks that a refusal leaves nothing behind
 	for _, tc := range []struct {
 		name   string
 		modify func(*OTCQuoteRequest)
@@ -52,9 +54,11 @@ func requireOTCQuoteRequestValidation(t *testing.T, method string, call func(*OT
 		{name: "for a negative duration", modify: func(r *OTCQuoteRequest) { r.Duration = -10 * time.Second }, err: errInvalidOTCQuoteRequestDuration},
 		{name: "for a time to live not offered", modify: func(r *OTCQuoteRequest) { r.QuoteTimeToLive = 6 * time.Second }, err: errInvalidOTCQuoteTimeToLive},
 	} {
-		req := validOTCQuoteRequest()
-		tc.modify(req)
-		require.ErrorIsf(t, call(req), tc.err, "%s must error %s", method, tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			req := validOTCQuoteRequest()
+			tc.modify(req)
+			require.ErrorIsf(t, call(req), tc.err, "%s must error %s", method, tc.name)
+		})
 	}
 }
 
@@ -72,6 +76,8 @@ func validOTCDealRequest() *OTCDealRequest {
 func requireOTCDealValidation(t *testing.T, method string, call func(*OTCDealRequest) error) {
 	t.Helper()
 	require.ErrorIsf(t, call(nil), common.ErrNilPointer, "%s must error for a nil request", method)
+	// The cases run in order through call, on the caller's exchange and before its later calls of the method, so each
+	// also checks that a refusal leaves nothing behind
 	for _, tc := range []struct {
 		name   string
 		modify func(*OTCDealRequest)
@@ -89,9 +95,11 @@ func requireOTCDealValidation(t *testing.T, method string, call func(*OTCDealReq
 		{name: "for a leg with both a quantity and a notional", modify: func(r *OTCDealRequest) { r.Legs[0].Notional = 95734.2 }, err: errOTCQuantityOrNotionalRequired},
 		{name: "for a leg without a price", modify: func(r *OTCDealRequest) { r.Legs[0].Price = 0 }, err: errInvalidPrice},
 	} {
-		req := validOTCDealRequest()
-		tc.modify(req)
-		require.ErrorIsf(t, call(req), tc.err, "%s must error %s", method, tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			req := validOTCDealRequest()
+			tc.modify(req)
+			require.ErrorIsf(t, call(req), tc.err, "%s must error %s", method, tc.name)
+		})
 	}
 }
 
@@ -107,7 +115,7 @@ func requireOTCWindowValidation(t *testing.T, method string, takesLimit bool, ca
 	}
 }
 
-func TestRequestOTCQuote(t *testing.T) {
+func TestRequestOTCQuote(t *testing.T) { //nolint:tparallel // the cases run in order on e and before the later calls of RequestOTCQuote
 	t.Parallel()
 	requireOTCQuoteRequestValidation(t, "RequestOTCQuote", func(req *OTCQuoteRequest) error {
 		_, err := e.RequestOTCQuote(t.Context(), req)
@@ -125,11 +133,14 @@ func TestRequestOTCQuote(t *testing.T) {
 		assert.NotEmpty(t, result[0].QuoteRequestID, "RequestOTCQuote should return the quote request's ID")
 	}
 
+	// The cases run in order, before the calls of RequestOTCQuote below, which parallel cases would follow
 	for _, tc := range []struct {
-		req *OTCQuoteRequest
-		exp string
+		name string
+		req  *OTCQuoteRequest
+		exp  string
 	}{
 		{
+			name: "a firm quote of two legs with every param",
 			req: &OTCQuoteRequest{
 				ClientQuoteRequestID:  "abcd13456",
 				FirmQuote:             true,
@@ -144,13 +155,16 @@ func TestRequestOTCQuote(t *testing.T) {
 			exp: `{"cl_quote_req_id":"abcd13456","firm_quote":true,"settlement_arrangement":"T1","duration":"300000","quote_ttl":"4000","leg_list":[{"instrument_name":"BTC_USD","side":"BUY","quantity":"1"},{"instrument_name":"ETH_USD","side":"SELL","notional":"1000"}]}`,
 		},
 		{
-			req: &OTCQuoteRequest{ClientQuoteRequestID: "q-1", Legs: []OTCQuoteRequestLeg{{InstrumentName: "BTC_USD", Side: SideBuy, Quantity: 0.5}}},
-			exp: `{"cl_quote_req_id":"q-1","leg_list":[{"instrument_name":"BTC_USD","side":"BUY","quantity":"0.5"}]}`,
+			name: "only the required params",
+			req:  &OTCQuoteRequest{ClientQuoteRequestID: "q-1", Legs: []OTCQuoteRequestLeg{{InstrumentName: "BTC_USD", Side: SideBuy, Quantity: 0.5}}},
+			exp:  `{"cl_quote_req_id":"q-1","leg_list":[{"instrument_name":"BTC_USD","side":"BUY","quantity":"0.5"}]}`,
 		},
 	} {
-		ex := newSignedParamsServer(t, "private/otc/request-quote", tc.exp, `{"id":1,"method":"private/otc/request-quote","code":0,"result":{"data":[]}}`)
-		_, err = ex.RequestOTCQuote(t.Context(), tc.req)
-		require.NoErrorf(t, err, "RequestOTCQuote must not error against the test server for %+v", tc.req)
+		t.Run(tc.name, func(t *testing.T) {
+			ex := newSignedParamsServer(t, "private/otc/request-quote", tc.exp, `{"id":1,"method":"private/otc/request-quote","code":0,"result":{"data":[]}}`)
+			_, err := ex.RequestOTCQuote(t.Context(), tc.req)
+			require.NoErrorf(t, err, "RequestOTCQuote must not error against the test server for %+v", tc.req)
+		})
 	}
 	_, err = newResponseServerExchange(t, `{"id":1,"method":"private/otc/request-quote","code":0,"result":null}`).RequestOTCQuote(t.Context(), validOTCQuoteRequest())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "RequestOTCQuote should error for a null result")
@@ -194,17 +208,19 @@ func TestGetOTCInstruments(t *testing.T) {
 // otcQuoteRequestHistoryParamCases are a quote request query with every param set and with none, and the params each
 // sends
 var otcQuoteRequestHistoryParamCases = []struct {
-	req *OTCQuoteRequestHistoryRequest
-	exp string
+	name string
+	req  *OTCQuoteRequestHistoryRequest
+	exp  string
 }{
 	{
-		req: &OTCQuoteRequestHistoryRequest{ClientQuoteRequestID: "abcd13456", QuoteRequestID: "4611686018427626536", StartTime: otcHistoryStart, EndTime: otcHistoryEnd, Limit: 200},
-		exp: `{"cl_quote_req_id":"abcd13456","quote_req_id":"4611686018427626536","start_time":"1749081600123456789","end_time":"1749168000987654321","limit":200}`,
+		name: "every param",
+		req:  &OTCQuoteRequestHistoryRequest{ClientQuoteRequestID: "abcd13456", QuoteRequestID: "4611686018427626536", StartTime: otcHistoryStart, EndTime: otcHistoryEnd, Limit: 200},
+		exp:  `{"cl_quote_req_id":"abcd13456","quote_req_id":"4611686018427626536","start_time":"1749081600123456789","end_time":"1749168000987654321","limit":200}`,
 	},
-	{req: &OTCQuoteRequestHistoryRequest{}, exp: `{}`},
+	{name: "no params", req: &OTCQuoteRequestHistoryRequest{}, exp: `{}`},
 }
 
-func TestGetOTCOpenQuoteRequests(t *testing.T) {
+func TestGetOTCOpenQuoteRequests(t *testing.T) { //nolint:tparallel // the cases run in order before the later calls of GetOTCOpenQuoteRequests
 	t.Parallel()
 	_, err := e.GetOTCOpenQuoteRequests(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetOTCOpenQuoteRequests must error for a nil request")
@@ -235,10 +251,13 @@ func TestGetOTCOpenQuoteRequests(t *testing.T) {
 		}
 	}
 
+	// The cases run in order, before the calls of GetOTCOpenQuoteRequests below, which parallel cases would follow
 	for _, tc := range otcQuoteRequestHistoryParamCases {
-		ex := newSignedParamsServer(t, "private/otc/get-open-quote-requests", tc.exp, `{"id":1,"method":"private/otc/get-open-quote-requests","code":0,"result":{"count":0,"quote_request_list":[]}}`)
-		_, err = ex.GetOTCOpenQuoteRequests(t.Context(), tc.req)
-		require.NoErrorf(t, err, "GetOTCOpenQuoteRequests must not error against the test server for %+v", tc.req)
+		t.Run(tc.name, func(t *testing.T) {
+			ex := newSignedParamsServer(t, "private/otc/get-open-quote-requests", tc.exp, `{"id":1,"method":"private/otc/get-open-quote-requests","code":0,"result":{"count":0,"quote_request_list":[]}}`)
+			_, err := ex.GetOTCOpenQuoteRequests(t.Context(), tc.req)
+			require.NoErrorf(t, err, "GetOTCOpenQuoteRequests must not error against the test server for %+v", tc.req)
+		})
 	}
 	_, err = newResponseServerExchange(t, `{"id":1,"method":"private/otc/get-open-quote-requests","code":0,"result":null}`).GetOTCOpenQuoteRequests(t.Context(), &OTCQuoteRequestHistoryRequest{})
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetOTCOpenQuoteRequests should error for a null result")
@@ -248,17 +267,19 @@ func TestGetOTCOpenQuoteRequests(t *testing.T) {
 
 // otcQuoteHistoryParamCases are a quote query with every param set and with none, and the params each sends
 var otcQuoteHistoryParamCases = []struct {
-	req *OTCQuoteHistoryRequest
-	exp string
+	name string
+	req  *OTCQuoteHistoryRequest
+	exp  string
 }{
 	{
-		req: &OTCQuoteHistoryRequest{QuoteID: "4611686018492075123", LiquidityProviderQuoteID: "98765", StartTime: otcHistoryStart, EndTime: otcHistoryEnd, Limit: 50},
-		exp: `{"quote_id":"4611686018492075123","lp_quote_id":"98765","start_time":"1749081600123456789","end_time":"1749168000987654321","limit":50}`,
+		name: "every param",
+		req:  &OTCQuoteHistoryRequest{QuoteID: "4611686018492075123", LiquidityProviderQuoteID: "98765", StartTime: otcHistoryStart, EndTime: otcHistoryEnd, Limit: 50},
+		exp:  `{"quote_id":"4611686018492075123","lp_quote_id":"98765","start_time":"1749081600123456789","end_time":"1749168000987654321","limit":50}`,
 	},
-	{req: &OTCQuoteHistoryRequest{}, exp: `{}`},
+	{name: "no params", req: &OTCQuoteHistoryRequest{}, exp: `{}`},
 }
 
-func TestGetOTCOpenQuotes(t *testing.T) {
+func TestGetOTCOpenQuotes(t *testing.T) { //nolint:tparallel // the cases run in order before the later calls of GetOTCOpenQuotes
 	t.Parallel()
 	_, err := e.GetOTCOpenQuotes(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetOTCOpenQuotes must error for a nil request")
@@ -290,10 +311,13 @@ func TestGetOTCOpenQuotes(t *testing.T) {
 		}
 	}
 
+	// The cases run in order, before the calls of GetOTCOpenQuotes below, which parallel cases would follow
 	for _, tc := range otcQuoteHistoryParamCases {
-		ex := newSignedParamsServer(t, "private/otc/get-open-quotes", tc.exp, `{"id":1,"method":"private/otc/get-open-quotes","code":0,"result":{"count":0,"quote_list":[]}}`)
-		_, err = ex.GetOTCOpenQuotes(t.Context(), tc.req)
-		require.NoErrorf(t, err, "GetOTCOpenQuotes must not error against the test server for %+v", tc.req)
+		t.Run(tc.name, func(t *testing.T) {
+			ex := newSignedParamsServer(t, "private/otc/get-open-quotes", tc.exp, `{"id":1,"method":"private/otc/get-open-quotes","code":0,"result":{"count":0,"quote_list":[]}}`)
+			_, err := ex.GetOTCOpenQuotes(t.Context(), tc.req)
+			require.NoErrorf(t, err, "GetOTCOpenQuotes must not error against the test server for %+v", tc.req)
+		})
 	}
 	_, err = newResponseServerExchange(t, `{"id":1,"method":"private/otc/get-open-quotes","code":0,"result":null}`).GetOTCOpenQuotes(t.Context(), &OTCQuoteHistoryRequest{})
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetOTCOpenQuotes should error for a null result")
@@ -301,7 +325,7 @@ func TestGetOTCOpenQuotes(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetOTCOpenQuotes should return a request failure")
 }
 
-func TestGetOTCQuoteHistory(t *testing.T) {
+func TestGetOTCQuoteHistory(t *testing.T) { //nolint:tparallel // the cases run in order before the later calls of GetOTCQuoteHistory
 	t.Parallel()
 	_, err := e.GetOTCQuoteHistory(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetOTCQuoteHistory must error for a nil request")
@@ -333,10 +357,13 @@ func TestGetOTCQuoteHistory(t *testing.T) {
 		}
 	}
 
+	// The cases run in order, before the calls of GetOTCQuoteHistory below, which parallel cases would follow
 	for _, tc := range otcQuoteHistoryParamCases {
-		ex := newSignedParamsServer(t, "private/otc/get-quote-history", tc.exp, `{"id":1,"method":"private/otc/get-quote-history","code":0,"result":{"count":0,"quote_list":[]}}`)
-		_, err = ex.GetOTCQuoteHistory(t.Context(), tc.req)
-		require.NoErrorf(t, err, "GetOTCQuoteHistory must not error against the test server for %+v", tc.req)
+		t.Run(tc.name, func(t *testing.T) {
+			ex := newSignedParamsServer(t, "private/otc/get-quote-history", tc.exp, `{"id":1,"method":"private/otc/get-quote-history","code":0,"result":{"count":0,"quote_list":[]}}`)
+			_, err := ex.GetOTCQuoteHistory(t.Context(), tc.req)
+			require.NoErrorf(t, err, "GetOTCQuoteHistory must not error against the test server for %+v", tc.req)
+		})
 	}
 	_, err = newResponseServerExchange(t, `{"id":1,"method":"private/otc/get-quote-history","code":0,"result":null}`).GetOTCQuoteHistory(t.Context(), &OTCQuoteHistoryRequest{})
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetOTCQuoteHistory should error for a null result")
@@ -344,7 +371,7 @@ func TestGetOTCQuoteHistory(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetOTCQuoteHistory should return a request failure")
 }
 
-func TestGetOTCQuoteRequestHistory(t *testing.T) {
+func TestGetOTCQuoteRequestHistory(t *testing.T) { //nolint:tparallel // the cases run in order before the later calls of GetOTCQuoteRequestHistory
 	t.Parallel()
 	_, err := e.GetOTCQuoteRequestHistory(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetOTCQuoteRequestHistory must error for a nil request")
@@ -383,10 +410,13 @@ func TestGetOTCQuoteRequestHistory(t *testing.T) {
 		}
 	}
 
+	// The cases run in order, before the calls of GetOTCQuoteRequestHistory below, which parallel cases would follow
 	for _, tc := range otcQuoteRequestHistoryParamCases {
-		ex := newSignedParamsServer(t, "private/otc/get-quote-request-history", tc.exp, `{"id":1,"method":"private/otc/get-quote-request-history","code":0,"result":{"count":0,"quote_request_list":[]}}`)
-		_, err = ex.GetOTCQuoteRequestHistory(t.Context(), tc.req)
-		require.NoErrorf(t, err, "GetOTCQuoteRequestHistory must not error against the test server for %+v", tc.req)
+		t.Run(tc.name, func(t *testing.T) {
+			ex := newSignedParamsServer(t, "private/otc/get-quote-request-history", tc.exp, `{"id":1,"method":"private/otc/get-quote-request-history","code":0,"result":{"count":0,"quote_request_list":[]}}`)
+			_, err := ex.GetOTCQuoteRequestHistory(t.Context(), tc.req)
+			require.NoErrorf(t, err, "GetOTCQuoteRequestHistory must not error against the test server for %+v", tc.req)
+		})
 	}
 	_, err = newResponseServerExchange(t, `{"id":1,"method":"private/otc/get-quote-request-history","code":0,"result":null}`).GetOTCQuoteRequestHistory(t.Context(), &OTCQuoteRequestHistoryRequest{})
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetOTCQuoteRequestHistory should error for a null result")
@@ -394,7 +424,7 @@ func TestGetOTCQuoteRequestHistory(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetOTCQuoteRequestHistory should return a request failure")
 }
 
-func TestRequestOTCDeal(t *testing.T) {
+func TestRequestOTCDeal(t *testing.T) { //nolint:tparallel // the cases run in order on e and before the later calls of RequestOTCDeal
 	t.Parallel()
 	requireOTCDealValidation(t, "RequestOTCDeal", func(req *OTCDealRequest) error {
 		_, err := e.RequestOTCDeal(t.Context(), req)
@@ -426,22 +456,29 @@ func TestRequestOTCDeal(t *testing.T) {
 		{InstrumentName: "BTC_USD", Side: SideBuy, Price: 95734.2, Quantity: 1},
 		{InstrumentName: "ETH_USD", Side: SideSell, Price: 3500.5, Notional: 7001},
 	}
+	// The cases run in order, one using everyLeg, before the calls of RequestOTCDeal below, which parallel cases
+	// would follow
 	for _, tc := range []struct {
-		req *OTCDealRequest
-		exp string
+		name string
+		req  *OTCDealRequest
+		exp  string
 	}{
 		{
-			req: everyLeg,
-			exp: `{"deal_type":"QUOTE_REQUEST","cl_deal_id":"client_id_1","quote_id":"4611686018492073851","quote_req_id":"4611686018427623960","leg_list":[{"instrument_name":"BTC_USD","side":"BUY","price":"95734.2","quantity":"1"},{"instrument_name":"ETH_USD","side":"SELL","price":"3500.5","notional":"7001"}]}`,
+			name: "two legs, one by notional",
+			req:  everyLeg,
+			exp:  `{"deal_type":"QUOTE_REQUEST","cl_deal_id":"client_id_1","quote_id":"4611686018492073851","quote_req_id":"4611686018427623960","leg_list":[{"instrument_name":"BTC_USD","side":"BUY","price":"95734.2","quantity":"1"},{"instrument_name":"ETH_USD","side":"SELL","price":"3500.5","notional":"7001"}]}`,
 		},
 		{
-			req: validOTCDealRequest(),
-			exp: `{"deal_type":"QUOTE_REQUEST","cl_deal_id":"client_id_1","quote_id":"4611686018492073851","quote_req_id":"4611686018427623960","leg_list":[{"instrument_name":"BTC_USD","side":"BUY","price":"95734.2","quantity":"1"}]}`,
+			name: "one leg by quantity",
+			req:  validOTCDealRequest(),
+			exp:  `{"deal_type":"QUOTE_REQUEST","cl_deal_id":"client_id_1","quote_id":"4611686018492073851","quote_req_id":"4611686018427623960","leg_list":[{"instrument_name":"BTC_USD","side":"BUY","price":"95734.2","quantity":"1"}]}`,
 		},
 	} {
-		ex := newSignedParamsServer(t, "private/otc/request-deal", tc.exp, `{"id":1,"method":"private/otc/request-deal","code":0,"result":{"deal_id":"1"}}`)
-		_, err = ex.RequestOTCDeal(t.Context(), tc.req)
-		require.NoErrorf(t, err, "RequestOTCDeal must not error against the test server for %+v", tc.req)
+		t.Run(tc.name, func(t *testing.T) {
+			ex := newSignedParamsServer(t, "private/otc/request-deal", tc.exp, `{"id":1,"method":"private/otc/request-deal","code":0,"result":{"deal_id":"1"}}`)
+			_, err := ex.RequestOTCDeal(t.Context(), tc.req)
+			require.NoErrorf(t, err, "RequestOTCDeal must not error against the test server for %+v", tc.req)
+		})
 	}
 	_, err = newResponseServerExchange(t, `{"id":1,"method":"private/otc/request-deal","code":0,"result":null}`).RequestOTCDeal(t.Context(), validOTCDealRequest())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "RequestOTCDeal should error for a null result")
@@ -452,17 +489,19 @@ func TestRequestOTCDeal(t *testing.T) {
 // otcDealHistoryParamCases are a deal query with every param set and with none, and the params each sends, which always
 // name the deal type
 var otcDealHistoryParamCases = []struct {
-	req *OTCDealHistoryRequest
-	exp string
+	name string
+	req  *OTCDealHistoryRequest
+	exp  string
 }{
 	{
-		req: &OTCDealHistoryRequest{DealID: "4611686018429016536", StartTime: otcHistoryStart, EndTime: otcHistoryEnd},
-		exp: `{"deal_type":"QUOTE_REQUEST","deal_id":"4611686018429016536","start_time":"1749081600123456789","end_time":"1749168000987654321"}`,
+		name: "every param",
+		req:  &OTCDealHistoryRequest{DealID: "4611686018429016536", StartTime: otcHistoryStart, EndTime: otcHistoryEnd},
+		exp:  `{"deal_type":"QUOTE_REQUEST","deal_id":"4611686018429016536","start_time":"1749081600123456789","end_time":"1749168000987654321"}`,
 	},
-	{req: &OTCDealHistoryRequest{}, exp: `{"deal_type":"QUOTE_REQUEST"}`},
+	{name: "no params", req: &OTCDealHistoryRequest{}, exp: `{"deal_type":"QUOTE_REQUEST"}`},
 }
 
-func TestGetOTCOpenDeals(t *testing.T) {
+func TestGetOTCOpenDeals(t *testing.T) { //nolint:tparallel // the cases run in order before the later calls of GetOTCOpenDeals
 	t.Parallel()
 	_, err := e.GetOTCOpenDeals(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetOTCOpenDeals must error for a nil request")
@@ -498,10 +537,13 @@ func TestGetOTCOpenDeals(t *testing.T) {
 		}
 	}
 
+	// The cases run in order, before the calls of GetOTCOpenDeals below, which parallel cases would follow
 	for _, tc := range otcDealHistoryParamCases {
-		ex := newSignedParamsServer(t, "private/otc/get-open-deals", tc.exp, `{"id":1,"method":"private/otc/get-open-deals","code":0,"result":{"deal_list":[]}}`)
-		_, err = ex.GetOTCOpenDeals(t.Context(), tc.req)
-		require.NoErrorf(t, err, "GetOTCOpenDeals must not error against the test server for %+v", tc.req)
+		t.Run(tc.name, func(t *testing.T) {
+			ex := newSignedParamsServer(t, "private/otc/get-open-deals", tc.exp, `{"id":1,"method":"private/otc/get-open-deals","code":0,"result":{"deal_list":[]}}`)
+			_, err := ex.GetOTCOpenDeals(t.Context(), tc.req)
+			require.NoErrorf(t, err, "GetOTCOpenDeals must not error against the test server for %+v", tc.req)
+		})
 	}
 	_, err = newResponseServerExchange(t, `{"id":1,"method":"private/otc/get-open-deals","code":0,"result":null}`).GetOTCOpenDeals(t.Context(), &OTCDealHistoryRequest{})
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetOTCOpenDeals should error for a null result")
@@ -509,7 +551,7 @@ func TestGetOTCOpenDeals(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetOTCOpenDeals should return a request failure")
 }
 
-func TestGetOTCDealHistory(t *testing.T) {
+func TestGetOTCDealHistory(t *testing.T) { //nolint:tparallel // the cases run in order before the later calls of GetOTCDealHistory
 	t.Parallel()
 	_, err := e.GetOTCDealHistory(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetOTCDealHistory must error for a nil request")
@@ -546,10 +588,13 @@ func TestGetOTCDealHistory(t *testing.T) {
 		}
 	}
 
+	// The cases run in order, before the calls of GetOTCDealHistory below, which parallel cases would follow
 	for _, tc := range otcDealHistoryParamCases {
-		ex := newSignedParamsServer(t, "private/otc/get-deal-history", tc.exp, `{"id":1,"method":"private/otc/get-deal-history","code":0,"result":{"deal_list":[]}}`)
-		_, err = ex.GetOTCDealHistory(t.Context(), tc.req)
-		require.NoErrorf(t, err, "GetOTCDealHistory must not error against the test server for %+v", tc.req)
+		t.Run(tc.name, func(t *testing.T) {
+			ex := newSignedParamsServer(t, "private/otc/get-deal-history", tc.exp, `{"id":1,"method":"private/otc/get-deal-history","code":0,"result":{"deal_list":[]}}`)
+			_, err := ex.GetOTCDealHistory(t.Context(), tc.req)
+			require.NoErrorf(t, err, "GetOTCDealHistory must not error against the test server for %+v", tc.req)
+		})
 	}
 	_, err = newResponseServerExchange(t, `{"id":1,"method":"private/otc/get-deal-history","code":0,"result":null}`).GetOTCDealHistory(t.Context(), &OTCDealHistoryRequest{})
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetOTCDealHistory should error for a null result")
@@ -612,13 +657,17 @@ func TestGetOTCUnsettledAmounts(t *testing.T) {
 
 func TestOTCUnsettledAmountsResponseAmounts(t *testing.T) {
 	t.Parallel()
+	// The cases run in order before the later calls of the same function, so each also checks that a call keeps
+	// nothing from the last
 	for _, tc := range []struct {
+		name    string
 		payload string
 		exp     []OTCUnsettledAmountResponse
 	}{
-		{payload: `{}`, exp: []OTCUnsettledAmountResponse{}},
-		{payload: `{"unsettled_ccys":{}}`, exp: []OTCUnsettledAmountResponse{}},
+		{name: "no unsettled currencies", payload: `{}`, exp: []OTCUnsettledAmountResponse{}},
+		{name: "empty unsettled currencies", payload: `{"unsettled_ccys":{}}`, exp: []OTCUnsettledAmountResponse{}},
 		{
+			name:    "dates and currencies out of order",
 			payload: `{"unsettled_ccys":{"1764057600000000000":{"USD":"1022.0646","BTC":"-0.01"},"1762848000000000000":{"USD":"583.08"}}}`,
 			exp: []OTCUnsettledAmountResponse{
 				{SettlementDate: time.Unix(0, 1762848000000000000), Currency: currency.USD, Amount: preciseNumber("583.08")},
@@ -627,22 +676,29 @@ func TestOTCUnsettledAmountsResponseAmounts(t *testing.T) {
 			},
 		},
 	} {
-		var resp otcUnsettledAmountsResponse
-		require.NoErrorf(t, json.Unmarshal([]byte(tc.payload), &resp), "Unmarshal must not error for %s", tc.payload)
-		amounts, err := resp.amounts()
-		require.NoErrorf(t, err, "amounts must not error for %s", tc.payload)
-		assert.Equalf(t, tc.exp, amounts, "amounts should order the amounts of %s by date and currency", tc.payload)
+		t.Run(tc.name, func(t *testing.T) {
+			var resp otcUnsettledAmountsResponse
+			require.NoErrorf(t, json.Unmarshal([]byte(tc.payload), &resp), "Unmarshal must not error for %s", tc.payload)
+			amounts, err := resp.amounts()
+			require.NoErrorf(t, err, "amounts must not error for %s", tc.payload)
+			assert.Equalf(t, tc.exp, amounts, "amounts should order the amounts of %s by date and currency", tc.payload)
+		})
 	}
 	for _, date := range []string{"tomorrow", "12345", "1764057600x"} {
-		resp := otcUnsettledAmountsResponse{UnsettledCurrencies: map[string]map[currency.Code]types.PreciseNumber{date: {currency.BTC: preciseNumber("1")}}}
-		_, err := resp.amounts()
-		assert.ErrorIsf(t, err, errInvalidOTCSettlementDate, "amounts should error for the settlement date %q", date)
+		t.Run(date, func(t *testing.T) {
+			t.Parallel()
+			resp := otcUnsettledAmountsResponse{UnsettledCurrencies: map[string]map[currency.Code]types.PreciseNumber{date: {currency.BTC: preciseNumber("1")}}}
+			_, err := resp.amounts()
+			assert.ErrorIsf(t, err, errInvalidOTCSettlementDate, "amounts should error for the settlement date %q", date)
+		})
 	}
 }
 
-func TestOTCQuoteResponseUnmarshalJSON(t *testing.T) {
+func TestOTCQuoteResponseUnmarshalJSON(t *testing.T) { //nolint:tparallel // the cases run in order before the later calls of the same function
 	t.Parallel()
 	expiry := types.Time(time.Unix(0, 1749104839012345678))
+	// The cases run in order before the later calls of the same function, so each also checks that a call keeps
+	// nothing from the last
 	for _, tc := range []struct {
 		name    string
 		payload string
@@ -653,17 +709,20 @@ func TestOTCQuoteResponseUnmarshalJSON(t *testing.T) {
 		{name: "expiry_time_ns over its alias", payload: `{"quote_id":"1","expiry_time_ns":"1749104839012345678","expire_time_ns":"1749104840000000000"}`, exp: expiry},
 		{name: "neither", payload: `{"quote_id":"1"}`},
 	} {
-		var quote OTCQuoteResponse
-		require.NoErrorf(t, json.Unmarshal([]byte(tc.payload), &quote), "Unmarshal must not error for %s", tc.name)
-		assert.Equalf(t, OTCQuoteResponse{QuoteID: "1", ExpiryTime: tc.exp}, quote, "Unmarshal should take the expiry time from %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			var quote OTCQuoteResponse
+			require.NoErrorf(t, json.Unmarshal([]byte(tc.payload), &quote), "Unmarshal must not error for %s", tc.name)
+			assert.Equalf(t, OTCQuoteResponse{QuoteID: "1", ExpiryTime: tc.exp}, quote, "Unmarshal should take the expiry time from %s", tc.name)
+		})
 	}
 	var quote OTCQuoteResponse
 	assert.Error(t, json.Unmarshal([]byte(`{"quote_id":1}`), &quote), "Unmarshal should error for a malformed quote")
 	assert.Error(t, json.Unmarshal([]byte(`{"expire_time_ns":"soon"}`), &quote), "Unmarshal should error for a malformed alias")
 }
 
-func TestOTCDurationParam(t *testing.T) {
+func TestOTCDurationParam(t *testing.T) { //nolint:tparallel // the cases share otcQuoteRequestDurations in order
 	t.Parallel()
+	// The cases share otcQuoteRequestDurations in order, so each also checks that a call keeps nothing from the last
 	for _, tc := range []struct {
 		duration time.Duration
 		exp      uint64
@@ -676,8 +735,10 @@ func TestOTCDurationParam(t *testing.T) {
 		{duration: -10 * time.Second, err: errInvalidOTCQuoteRequestDuration},
 		{duration: time.Nanosecond, err: errInvalidOTCQuoteRequestDuration},
 	} {
-		got, err := otcDurationParam(tc.duration, otcQuoteRequestDurations, errInvalidOTCQuoteRequestDuration)
-		require.ErrorIsf(t, err, tc.err, "otcDurationParam must return the expected error for %s", tc.duration)
-		assert.Equalf(t, tc.exp, got, "otcDurationParam should give %s in milliseconds", tc.duration)
+		t.Run(tc.duration.String(), func(t *testing.T) {
+			got, err := otcDurationParam(tc.duration, otcQuoteRequestDurations, errInvalidOTCQuoteRequestDuration)
+			require.ErrorIsf(t, err, tc.err, "otcDurationParam must return the expected error for %s", tc.duration)
+			assert.Equalf(t, tc.exp, got, "otcDurationParam should give %s in milliseconds", tc.duration)
+		})
 	}
 }

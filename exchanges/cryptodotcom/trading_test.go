@@ -198,7 +198,7 @@ func cancelTradingOrderAfterTest(t *testing.T, orderID string) {
 	})
 }
 
-func TestCreateOrder(t *testing.T) {
+func TestCreateOrder(t *testing.T) { //nolint:tparallel // the cases run in order before the later calls of the same method
 	t.Parallel()
 	_, err := e.CreateOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "CreateOrder must refuse a nil request")
@@ -206,13 +206,18 @@ func TestCreateOrder(t *testing.T) {
 	noInstrument.InstrumentName = ""
 	_, err = e.CreateOrder(t.Context(), noInstrument)
 	require.ErrorIs(t, err, errInstrumentNameRequired, "CreateOrder must refuse an order without an instrument")
+	// The cases run in order on e, before the CreateOrder calls below, so each also checks that a refusal leaves
+	// nothing behind
 	for _, tc := range createOrderRefusals {
-		req := tradingTestOrder()
-		tc.modify(req)
-		_, err := e.CreateOrder(t.Context(), req)
-		assert.ErrorIsf(t, err, tc.err, "CreateOrder should refuse %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			req := tradingTestOrder()
+			tc.modify(req)
+			_, err := e.CreateOrder(t.Context(), req)
+			assert.ErrorIsf(t, err, tc.err, "CreateOrder should refuse %s", tc.name)
+		})
 	}
 
+	// Serial, so the cases still run before the CreateOrder calls below rather than after them
 	for _, tc := range []struct {
 		name   string
 		req    *CreateOrderRequest
@@ -269,9 +274,11 @@ func TestCreateOrder(t *testing.T) {
 			params: `{"instrument_name":"BTCUSD-PERP","side":"BUY","type":"LIMIT","price":"50000.5","quantity":"0.0001","exec_inst":["POST_ONLY"],"stp_scope":"D"}`,
 		},
 	} {
-		ex := newSignedParamsServer(t, "private/create-order", tc.params, testResponse("private/create-order", tradingTestOrderIDResult))
-		_, err := ex.CreateOrder(t.Context(), tc.req)
-		assert.NoErrorf(t, err, "CreateOrder should not error for %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			ex := newSignedParamsServer(t, "private/create-order", tc.params, testResponse("private/create-order", tradingTestOrderIDResult))
+			_, err := ex.CreateOrder(t.Context(), tc.req)
+			assert.NoErrorf(t, err, "CreateOrder should not error for %s", tc.name)
+		})
 	}
 	_, err = newResponseServerExchange(t, `{"id":1,"method":"private/create-order","code":0,"result":null}`).CreateOrder(t.Context(), tradingTestOrder())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "CreateOrder should error for a null result")
@@ -294,13 +301,18 @@ func TestCreateOrder(t *testing.T) {
 	}
 }
 
-func TestAmendOrder(t *testing.T) {
+func TestAmendOrder(t *testing.T) { //nolint:tparallel // the cases run in order before the later calls of the same method
 	t.Parallel()
+	// The cases run in order on e, before the AmendOrder calls below, so each also checks that a refusal leaves nothing
+	// behind
 	for _, tc := range amendOrderRefusals {
-		_, err := e.AmendOrder(t.Context(), tc.req)
-		assert.ErrorIsf(t, err, tc.err, "AmendOrder should refuse %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.AmendOrder(t.Context(), tc.req)
+			assert.ErrorIsf(t, err, tc.err, "AmendOrder should refuse %s", tc.name)
+		})
 	}
 
+	// Serial, so the cases still run before the AmendOrder calls below rather than after them
 	for _, tc := range []struct {
 		name   string
 		req    *AmendOrderRequest
@@ -322,9 +334,11 @@ func TestAmendOrder(t *testing.T) {
 			params: `{"orig_client_oid":"c5f682ed-7108-4f1c-b755-972fcdca0f02","new_price":"50000","new_quantity":"0.0002"}`,
 		},
 	} {
-		ex := newSignedParamsServer(t, "private/amend-order", tc.params, testResponse("private/amend-order", tradingTestOrderIDResult))
-		_, err := ex.AmendOrder(t.Context(), tc.req)
-		assert.NoErrorf(t, err, "AmendOrder should not error for %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			ex := newSignedParamsServer(t, "private/amend-order", tc.params, testResponse("private/amend-order", tradingTestOrderIDResult))
+			_, err := ex.AmendOrder(t.Context(), tc.req)
+			assert.NoErrorf(t, err, "AmendOrder should not error for %s", tc.name)
+		})
 	}
 	req := &AmendOrderRequest{OrderID: tradingTestOrderID, NewPrice: 50000, NewQuantity: 0.0002}
 	_, err := newResponseServerExchange(t, `{"id":1,"method":"private/amend-order","code":0,"result":null}`).AmendOrder(t.Context(), req)
@@ -348,13 +362,18 @@ func TestAmendOrder(t *testing.T) {
 	}
 }
 
-func TestCancelExistingOrder(t *testing.T) {
+func TestCancelExistingOrder(t *testing.T) { //nolint:tparallel // the cases run in order before the later calls of the same method
 	t.Parallel()
+	// The cases run in order on e, before the CancelExistingOrder calls below, so each also checks that a refusal
+	// leaves nothing behind
 	for _, tc := range cancelOrderRefusals {
-		_, err := e.CancelExistingOrder(t.Context(), tc.req)
-		assert.ErrorIsf(t, err, tc.err, "CancelExistingOrder should refuse %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.CancelExistingOrder(t.Context(), tc.req)
+			assert.ErrorIsf(t, err, tc.err, "CancelExistingOrder should refuse %s", tc.name)
+		})
 	}
 
+	// Serial, so the cases still run before the CancelExistingOrder calls below rather than after them
 	for _, tc := range []struct {
 		name   string
 		req    *CancelOrderRequest
@@ -376,9 +395,11 @@ func TestCancelExistingOrder(t *testing.T) {
 			params: `{"client_oid":"c5f682ed-7108-4f1c-b755-972fcdca0f02"}`,
 		},
 	} {
-		ex := newSignedParamsServer(t, "private/cancel-order", tc.params, testResponse("private/cancel-order", tradingTestOrderIDResult))
-		_, err := ex.CancelExistingOrder(t.Context(), tc.req)
-		assert.NoErrorf(t, err, "CancelExistingOrder should not error for %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			ex := newSignedParamsServer(t, "private/cancel-order", tc.params, testResponse("private/cancel-order", tradingTestOrderIDResult))
+			_, err := ex.CancelExistingOrder(t.Context(), tc.req)
+			assert.NoErrorf(t, err, "CancelExistingOrder should not error for %s", tc.name)
+		})
 	}
 	req := &CancelOrderRequest{OrderID: tradingTestOrderID}
 	_, err := newResponseServerExchange(t, `{"id":1,"method":"private/cancel-order","code":0,"result":null}`).CancelExistingOrder(t.Context(), req)
@@ -400,12 +421,17 @@ func TestCancelExistingOrder(t *testing.T) {
 	}
 }
 
-func TestCancelAllExistingOrders(t *testing.T) {
+func TestCancelAllExistingOrders(t *testing.T) { //nolint:tparallel // the cases run in order before the later calls of the same method
 	t.Parallel()
+	// The cases run in order on e, before the CancelAllExistingOrders calls below, so each also checks that a refusal
+	// leaves nothing behind
 	for _, tc := range cancelAllOrdersRefusals {
-		assert.ErrorIsf(t, e.CancelAllExistingOrders(t.Context(), tc.req), tc.err, "CancelAllExistingOrders should refuse %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			assert.ErrorIsf(t, e.CancelAllExistingOrders(t.Context(), tc.req), tc.err, "CancelAllExistingOrders should refuse %s", tc.name)
+		})
 	}
 
+	// Serial, so the cases still run before the CancelAllExistingOrders calls below rather than after them
 	for _, tc := range []struct {
 		name   string
 		req    *CancelAllOrdersRequest
@@ -415,8 +441,10 @@ func TestCancelAllExistingOrders(t *testing.T) {
 		{name: "limit orders", req: &CancelAllOrdersRequest{OrderType: CancelOrderTypeLimit}, params: `{"type":"LIMIT"}`},
 		{name: "no params", req: &CancelAllOrdersRequest{}, params: `{}`},
 	} {
-		ex := newSignedParamsServer(t, "private/cancel-all-orders", tc.params, testResponse("private/cancel-all-orders", ""))
-		assert.NoErrorf(t, ex.CancelAllExistingOrders(t.Context(), tc.req), "CancelAllExistingOrders should not error for %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			ex := newSignedParamsServer(t, "private/cancel-all-orders", tc.params, testResponse("private/cancel-all-orders", ""))
+			assert.NoErrorf(t, ex.CancelAllExistingOrders(t.Context(), tc.req), "CancelAllExistingOrders should not error for %s", tc.name)
+		})
 	}
 	req := &CancelAllOrdersRequest{InstrumentName: tradingTestCancelAllInstrument}
 	assert.ErrorIs(t, newUnavailableServerExchange(t).CancelAllExistingOrders(t.Context(), req), request.ErrBadStatus, "CancelAllExistingOrders should return a request failure")
@@ -426,13 +454,18 @@ func TestCancelAllExistingOrders(t *testing.T) {
 	require.NoError(t, e.CancelAllExistingOrders(t.Context(), req), "CancelAllExistingOrders must not error")
 }
 
-func TestClosePosition(t *testing.T) {
+func TestClosePosition(t *testing.T) { //nolint:tparallel // the cases run in order before the later calls of the same method
 	t.Parallel()
+	// The cases run in order on e, before the ClosePosition calls below, so each also checks that a refusal leaves
+	// nothing behind
 	for _, tc := range closePositionRefusals {
-		_, err := e.ClosePosition(t.Context(), tc.req)
-		assert.ErrorIsf(t, err, tc.err, "ClosePosition should refuse %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.ClosePosition(t.Context(), tc.req)
+			assert.ErrorIsf(t, err, tc.err, "ClosePosition should refuse %s", tc.name)
+		})
 	}
 
+	// Serial, so the cases still run before the ClosePosition calls below rather than after them
 	for _, tc := range []struct {
 		name   string
 		req    *ClosePositionRequest
@@ -449,9 +482,11 @@ func TestClosePosition(t *testing.T) {
 			params: `{"instrument_name":"BTCUSD-PERP","type":"MARKET"}`,
 		},
 	} {
-		ex := newSignedParamsServer(t, "private/close-position", tc.params, testResponse("private/close-position", tradingTestOrderIDResult))
-		_, err := ex.ClosePosition(t.Context(), tc.req)
-		assert.NoErrorf(t, err, "ClosePosition should not error for %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			ex := newSignedParamsServer(t, "private/close-position", tc.params, testResponse("private/close-position", tradingTestOrderIDResult))
+			_, err := ex.ClosePosition(t.Context(), tc.req)
+			assert.NoErrorf(t, err, "ClosePosition should not error for %s", tc.name)
+		})
 	}
 	req := &ClosePositionRequest{InstrumentName: "BTCUSD-PERP", OrderType: OrderTypeLimit, Price: 30000, Quantity: 0.0001}
 	_, err := newResponseServerExchange(t, `{"id":1,"method":"private/close-position","code":0,"result":null}`).ClosePosition(t.Context(), req)
@@ -469,11 +504,12 @@ func TestClosePosition(t *testing.T) {
 	assert.Equal(t, exp, result, "ClosePosition should decode every field")
 }
 
-func TestGetOpenOrders(t *testing.T) {
+func TestGetOpenOrders(t *testing.T) { //nolint:tparallel // the cases run in order before the later calls of the same method
 	t.Parallel()
 	_, err := e.GetOpenOrders(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetOpenOrders must refuse a nil request")
 
+	// Serial, so the cases still run before the GetOpenOrders calls below rather than after them
 	for _, tc := range []struct {
 		name   string
 		req    *OpenOrdersRequest
@@ -482,9 +518,11 @@ func TestGetOpenOrders(t *testing.T) {
 		{name: "an instrument", req: &OpenOrdersRequest{InstrumentName: "BTCUSD-PERP"}, params: `{"instrument_name":"BTCUSD-PERP"}`},
 		{name: "every instrument", req: &OpenOrdersRequest{}, params: `{}`},
 	} {
-		ex := newSignedParamsServer(t, "private/get-open-orders", tc.params, testResponse("private/get-open-orders", `{"data":[]}`))
-		_, err := ex.GetOpenOrders(t.Context(), tc.req)
-		assert.NoErrorf(t, err, "GetOpenOrders should not error for %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			ex := newSignedParamsServer(t, "private/get-open-orders", tc.params, testResponse("private/get-open-orders", `{"data":[]}`))
+			_, err := ex.GetOpenOrders(t.Context(), tc.req)
+			assert.NoErrorf(t, err, "GetOpenOrders should not error for %s", tc.name)
+		})
 	}
 	req := &OpenOrdersRequest{InstrumentName: "BTCUSD-PERP"}
 	_, err = newResponseServerExchange(t, `{"id":1,"method":"private/get-open-orders","code":0,"result":null}`).GetOpenOrders(t.Context(), req)
@@ -562,13 +600,14 @@ func TestGetOpenOrders(t *testing.T) {
 	}
 }
 
-func TestGetOrderDetail(t *testing.T) {
+func TestGetOrderDetail(t *testing.T) { //nolint:tparallel // the cases run in order before the later calls of the same method
 	t.Parallel()
 	_, err := e.GetOrderDetail(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetOrderDetail must refuse a nil request")
 	_, err = e.GetOrderDetail(t.Context(), &OrderDetailRequest{})
 	require.ErrorIs(t, err, errOrderIDRequired, "GetOrderDetail must refuse a request naming no order")
 
+	// Serial, so the cases still run before the GetOrderDetail calls below rather than after them
 	for _, tc := range []struct {
 		name   string
 		req    *OrderDetailRequest
@@ -586,9 +625,11 @@ func TestGetOrderDetail(t *testing.T) {
 			params: `{"client_oid":"c5f682ed-7108-4f1c-b755-972fcdca0f02"}`,
 		},
 	} {
-		ex := newSignedParamsServer(t, "private/get-order-detail", tc.params, testResponse("private/get-order-detail", tradingTestOrderIDResult))
-		_, err := ex.GetOrderDetail(t.Context(), tc.req)
-		assert.NoErrorf(t, err, "GetOrderDetail should not error for %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			ex := newSignedParamsServer(t, "private/get-order-detail", tc.params, testResponse("private/get-order-detail", tradingTestOrderIDResult))
+			_, err := ex.GetOrderDetail(t.Context(), tc.req)
+			assert.NoErrorf(t, err, "GetOrderDetail should not error for %s", tc.name)
+		})
 	}
 	req := &OrderDetailRequest{OrderID: "6530219466236720403"}
 	_, err = newResponseServerExchange(t, `{"id":1,"method":"private/get-order-detail","code":0,"result":null}`).GetOrderDetail(t.Context(), req)
@@ -641,7 +682,7 @@ func TestGetOrderDetail(t *testing.T) {
 	}
 }
 
-func TestCreateOrderList(t *testing.T) {
+func TestCreateOrderList(t *testing.T) { //nolint:tparallel // the cases run in order before the later calls of the same method
 	t.Parallel()
 	_, err := e.CreateOrderList(t.Context(), nil)
 	require.ErrorIs(t, err, errOrderListEmpty, "CreateOrderList must refuse an empty list")
@@ -649,12 +690,16 @@ func TestCreateOrderList(t *testing.T) {
 	require.ErrorIs(t, err, errOrderListTooLong, "CreateOrderList must refuse a list of 11 orders")
 	_, err = e.CreateOrderList(t.Context(), []CreateOrderRequest{*tradingTestOrder(), {Side: SideBuy, OrderType: OrderTypeMarket, Quantity: 0.0001}})
 	require.ErrorIs(t, err, errInstrumentNameRequired, "CreateOrderList must refuse an order without an instrument")
+	// The cases run in order on e, before the CreateOrderList calls below, so each also checks that a refusal leaves
+	// nothing behind
 	for _, tc := range createOrderRefusals {
-		orders := []CreateOrderRequest{*tradingTestOrder(), *tradingTestOrder()}
-		tc.modify(&orders[1])
-		_, err := e.CreateOrderList(t.Context(), orders)
-		assert.ErrorIsf(t, err, tc.err, "CreateOrderList should refuse %s", tc.name)
-		assert.ErrorContainsf(t, err, "order 1:", "CreateOrderList should name the index of %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			orders := []CreateOrderRequest{*tradingTestOrder(), *tradingTestOrder()}
+			tc.modify(&orders[1])
+			_, err := e.CreateOrderList(t.Context(), orders)
+			assert.ErrorIsf(t, err, tc.err, "CreateOrderList should refuse %s", tc.name)
+			assert.ErrorContainsf(t, err, "order 1:", "CreateOrderList should name the index of %s", tc.name)
+		})
 	}
 
 	ex := newSignedParamsServer(t, "private/create-order-list", tradingTestOrderListParams, testResponse("private/create-order-list", tradingTestOrderListEntryResult))
@@ -704,15 +749,20 @@ func TestCreateOrderList(t *testing.T) {
 	}
 }
 
-func TestCancelOrderList(t *testing.T) {
+func TestCancelOrderList(t *testing.T) { //nolint:tparallel // the cases run in order before the later calls of the same method
 	t.Parallel()
+	// The cases run in order on e, before the CancelOrderList calls below, so each also checks that a refusal leaves
+	// nothing behind
 	for _, tc := range cancelOrderListRefusals {
-		_, err := e.CancelOrderList(t.Context(), tc.orders)
-		assert.ErrorIsf(t, err, tc.err, "CancelOrderList should refuse %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.CancelOrderList(t.Context(), tc.orders)
+			assert.ErrorIsf(t, err, tc.err, "CancelOrderList should refuse %s", tc.name)
+		})
 	}
 	_, err := e.CancelOrderList(t.Context(), []CancelOrderListEntryRequest{{OrderID: tradingTestOrderID}, {InstrumentName: "CRO_USD"}})
 	assert.ErrorContains(t, err, "order 1:", "CancelOrderList should name the index of the order named by neither ID")
 
+	// Serial, so the cases still run before the CancelOrderList calls below rather than after them
 	for _, tc := range []struct {
 		name   string
 		orders []CancelOrderListEntryRequest
@@ -729,9 +779,11 @@ func TestCancelOrderList(t *testing.T) {
 			params: `{"contingency_type":"LIST","order_list":[{"instrument_name":"CRO_USD","order_id":"5755600460443882762","client_oid":"api_leg1"},{"order_id":"5755600460443882763"}]}`,
 		},
 	} {
-		ex := newSignedParamsServer(t, "private/cancel-order-list", tc.params, testResponse("private/cancel-order-list", `[{"code":"0","index":"0"}]`))
-		_, err := ex.CancelOrderList(t.Context(), tc.orders)
-		assert.NoErrorf(t, err, "CancelOrderList should not error for %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			ex := newSignedParamsServer(t, "private/cancel-order-list", tc.params, testResponse("private/cancel-order-list", `[{"code":"0","index":"0"}]`))
+			_, err := ex.CancelOrderList(t.Context(), tc.orders)
+			assert.NoErrorf(t, err, "CancelOrderList should not error for %s", tc.name)
+		})
 	}
 	orders := []CancelOrderListEntryRequest{{InstrumentName: "CRO_USD", ClientOrderID: "api_leg1"}, {InstrumentName: "CRO_USD", ClientOrderID: "api_leg2"}}
 	tenOrders := make([]CancelOrderListEntryRequest, 10)
@@ -764,8 +816,10 @@ func TestCancelOrderList(t *testing.T) {
 	}
 }
 
-func TestChangeAccountLeverage(t *testing.T) {
+func TestChangeAccountLeverage(t *testing.T) { //nolint:tparallel // the cases run in order before the later calls of the same method
 	t.Parallel()
+	// The cases run in order on e, before the ChangeAccountLeverage calls below, so each also checks that a refusal
+	// leaves nothing behind
 	for _, tc := range []struct {
 		name string
 		req  *ChangeAccountLeverageRequest
@@ -776,13 +830,18 @@ func TestChangeAccountLeverage(t *testing.T) {
 		{"no leverage", &ChangeAccountLeverageRequest{AccountID: tradingTestAccountID}, errInvalidLeverage},
 		{"a leverage above 100", &ChangeAccountLeverageRequest{AccountID: tradingTestAccountID, Leverage: 101}, errInvalidLeverage},
 	} {
-		assert.ErrorIsf(t, e.ChangeAccountLeverage(t.Context(), tc.req), tc.err, "ChangeAccountLeverage should refuse %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			assert.ErrorIsf(t, e.ChangeAccountLeverage(t.Context(), tc.req), tc.err, "ChangeAccountLeverage should refuse %s", tc.name)
+		})
 	}
 
+	// Serial, so the cases still run before the ChangeAccountLeverage calls below rather than after them
 	for _, leverage := range []uint64{1, 100} {
-		params := `{"account_id":"52e7c00f-1324-5a6a-bf6e-de445bde21a5","leverage":` + strconv.FormatUint(leverage, 10) + `}`
-		ex := newSignedParamsServer(t, "private/change-account-leverage", params, testResponse("private/change-account-leverage", ""))
-		assert.NoErrorf(t, ex.ChangeAccountLeverage(t.Context(), &ChangeAccountLeverageRequest{AccountID: tradingTestAccountID, Leverage: leverage}), "ChangeAccountLeverage should not error for a leverage of %d", leverage)
+		t.Run(strconv.FormatUint(leverage, 10), func(t *testing.T) {
+			params := `{"account_id":"52e7c00f-1324-5a6a-bf6e-de445bde21a5","leverage":` + strconv.FormatUint(leverage, 10) + `}`
+			ex := newSignedParamsServer(t, "private/change-account-leverage", params, testResponse("private/change-account-leverage", ""))
+			assert.NoErrorf(t, ex.ChangeAccountLeverage(t.Context(), &ChangeAccountLeverageRequest{AccountID: tradingTestAccountID, Leverage: leverage}), "ChangeAccountLeverage should not error for a leverage of %d", leverage)
+		})
 	}
 	req := &ChangeAccountLeverageRequest{AccountID: tradingTestAccountID, Leverage: 10}
 	assert.ErrorIs(t, newUnavailableServerExchange(t).ChangeAccountLeverage(t.Context(), req), request.ErrBadStatus, "ChangeAccountLeverage should return a request failure")
@@ -794,8 +853,10 @@ func TestChangeAccountLeverage(t *testing.T) {
 	require.NoError(t, e.ChangeAccountLeverage(t.Context(), req), "ChangeAccountLeverage must not error")
 }
 
-func TestChangeAccountSettings(t *testing.T) {
+func TestChangeAccountSettings(t *testing.T) { //nolint:tparallel // the cases run in order before the later calls of the same method
 	t.Parallel()
+	// The cases run in order on e, before the ChangeAccountSettings calls below, so each also checks that a refusal
+	// leaves nothing behind
 	for _, tc := range []struct {
 		name string
 		req  *ChangeAccountSettingsRequest
@@ -810,9 +871,12 @@ func TestChangeAccountSettings(t *testing.T) {
 		{"a self-trade prevention ID above 32767", &ChangeAccountSettingsRequest{SelfTradePreventionScope: SelfTradePreventionScopeSubAccount, SelfTradePreventionInstruction: SelfTradePreventionCancelMaker, SelfTradePreventionID: 32768}, errInvalidSelfTradePreventionID},
 		{"a self-trade prevention ID without a scope", &ChangeAccountSettingsRequest{SelfTradePreventionInstruction: SelfTradePreventionCancelMaker, SelfTradePreventionID: 100}, errInvalidSelfTradePreventionID},
 	} {
-		assert.ErrorIsf(t, e.ChangeAccountSettings(t.Context(), tc.req), tc.err, "ChangeAccountSettings should refuse %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			assert.ErrorIsf(t, e.ChangeAccountSettings(t.Context(), tc.req), tc.err, "ChangeAccountSettings should refuse %s", tc.name)
+		})
 	}
 
+	// Serial, so the cases still run before the ChangeAccountSettings calls below rather than after them
 	for _, tc := range []struct {
 		name   string
 		req    *ChangeAccountSettingsRequest
@@ -826,8 +890,10 @@ func TestChangeAccountSettings(t *testing.T) {
 		{name: "only the leverage", req: &ChangeAccountSettingsRequest{Leverage: 20}, params: `{"leverage":20}`},
 		{name: "a reset of self-trade prevention", req: &ChangeAccountSettingsRequest{SelfTradePreventionScope: SelfTradePreventionScopeReset}, params: `{"stp_scope":"D"}`},
 	} {
-		ex := newSignedParamsServer(t, "private/change-account-settings", tc.params, testResponse("private/change-account-settings", ""))
-		assert.NoErrorf(t, ex.ChangeAccountSettings(t.Context(), tc.req), "ChangeAccountSettings should not error for %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			ex := newSignedParamsServer(t, "private/change-account-settings", tc.params, testResponse("private/change-account-settings", ""))
+			assert.NoErrorf(t, ex.ChangeAccountSettings(t.Context(), tc.req), "ChangeAccountSettings should not error for %s", tc.name)
+		})
 	}
 	req := &ChangeAccountSettingsRequest{SelfTradePreventionScope: SelfTradePreventionScopeSubAccount, SelfTradePreventionID: 100, SelfTradePreventionInstruction: SelfTradePreventionCancelMaker}
 	assert.ErrorIs(t, newUnavailableServerExchange(t).ChangeAccountSettings(t.Context(), req), request.ErrBadStatus, "ChangeAccountSettings should return a request failure")
@@ -867,8 +933,10 @@ func TestGetAccountSettings(t *testing.T) {
 	}
 }
 
-func TestCreateIsolatedMarginTransfer(t *testing.T) {
+func TestCreateIsolatedMarginTransfer(t *testing.T) { //nolint:tparallel // the cases run in order before the later calls of the same method
 	t.Parallel()
+	// The cases run in order on e, before the CreateIsolatedMarginTransfer calls below, so each also checks that a
+	// refusal leaves nothing behind
 	for _, tc := range []struct {
 		name string
 		req  *CreateIsolatedMarginTransferRequest
@@ -881,9 +949,12 @@ func TestCreateIsolatedMarginTransfer(t *testing.T) {
 		{"a request without an amount", &CreateIsolatedMarginTransferRequest{IsolationID: tradingTestIsolationID, Direction: IsolatedMarginTransferDirectionCredit}, errInvalidAmount},
 		{"a negative amount", &CreateIsolatedMarginTransferRequest{IsolationID: tradingTestIsolationID, Direction: IsolatedMarginTransferDirectionDebit, Amount: -50}, errInvalidAmount},
 	} {
-		assert.ErrorIsf(t, e.CreateIsolatedMarginTransfer(t.Context(), tc.req), tc.err, "CreateIsolatedMarginTransfer should refuse %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			assert.ErrorIsf(t, e.CreateIsolatedMarginTransfer(t.Context(), tc.req), tc.err, "CreateIsolatedMarginTransfer should refuse %s", tc.name)
+		})
 	}
 
+	// Serial, so the cases still run before the CreateIsolatedMarginTransfer calls below rather than after them
 	for _, tc := range []struct {
 		req    *CreateIsolatedMarginTransferRequest
 		params string
@@ -891,8 +962,10 @@ func TestCreateIsolatedMarginTransfer(t *testing.T) {
 		{&CreateIsolatedMarginTransferRequest{IsolationID: tradingTestIsolationID, Direction: IsolatedMarginTransferDirectionCredit, Amount: 50}, `{"isolation_id":"6530219466236720402","direction":"CREDIT","amount":"50"}`},
 		{&CreateIsolatedMarginTransferRequest{IsolationID: tradingTestIsolationID, Direction: IsolatedMarginTransferDirectionDebit, Amount: 25.5}, `{"isolation_id":"6530219466236720402","direction":"DEBIT","amount":"25.5"}`},
 	} {
-		ex := newSignedParamsServer(t, "private/create-isolated-margin-transfer", tc.params, testResponse("private/create-isolated-margin-transfer", ""))
-		assert.NoErrorf(t, ex.CreateIsolatedMarginTransfer(t.Context(), tc.req), "CreateIsolatedMarginTransfer should not error for a %s transfer", tc.req.Direction)
+		t.Run(tc.req.Direction, func(t *testing.T) {
+			ex := newSignedParamsServer(t, "private/create-isolated-margin-transfer", tc.params, testResponse("private/create-isolated-margin-transfer", ""))
+			assert.NoErrorf(t, ex.CreateIsolatedMarginTransfer(t.Context(), tc.req), "CreateIsolatedMarginTransfer should not error for a %s transfer", tc.req.Direction)
+		})
 	}
 	req := &CreateIsolatedMarginTransferRequest{IsolationID: tradingTestIsolationID, Direction: IsolatedMarginTransferDirectionCredit, Amount: 50}
 	assert.ErrorIs(t, newUnavailableServerExchange(t).CreateIsolatedMarginTransfer(t.Context(), req), request.ErrBadStatus, "CreateIsolatedMarginTransfer should return a request failure")
@@ -904,8 +977,10 @@ func TestCreateIsolatedMarginTransfer(t *testing.T) {
 	require.NoError(t, e.CreateIsolatedMarginTransfer(t.Context(), req), "CreateIsolatedMarginTransfer must not error")
 }
 
-func TestChangeIsolatedMarginLeverage(t *testing.T) {
+func TestChangeIsolatedMarginLeverage(t *testing.T) { //nolint:tparallel // the cases run in order before the later calls of the same method
 	t.Parallel()
+	// The cases run in order on e, before the ChangeIsolatedMarginLeverage calls below, so each also checks that a
+	// refusal leaves nothing behind
 	for _, tc := range []struct {
 		name string
 		req  *ChangeIsolatedMarginLeverageRequest
@@ -916,9 +991,12 @@ func TestChangeIsolatedMarginLeverage(t *testing.T) {
 		{"a request without a leverage", &ChangeIsolatedMarginLeverageRequest{IsolationID: tradingTestIsolationID}, errInvalidLeverage},
 		{"a negative leverage", &ChangeIsolatedMarginLeverageRequest{IsolationID: tradingTestIsolationID, Leverage: -10}, errInvalidLeverage},
 	} {
-		assert.ErrorIsf(t, e.ChangeIsolatedMarginLeverage(t.Context(), tc.req), tc.err, "ChangeIsolatedMarginLeverage should refuse %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			assert.ErrorIsf(t, e.ChangeIsolatedMarginLeverage(t.Context(), tc.req), tc.err, "ChangeIsolatedMarginLeverage should refuse %s", tc.name)
+		})
 	}
 
+	// Serial, so the cases still run before the ChangeIsolatedMarginLeverage calls below rather than after them
 	for _, tc := range []struct {
 		req    *ChangeIsolatedMarginLeverageRequest
 		params string
@@ -926,8 +1004,10 @@ func TestChangeIsolatedMarginLeverage(t *testing.T) {
 		{&ChangeIsolatedMarginLeverageRequest{IsolationID: tradingTestIsolationID, Leverage: 10}, `{"isolation_id":"6530219466236720402","leverage":"10"}`},
 		{&ChangeIsolatedMarginLeverageRequest{IsolationID: tradingTestIsolationID, Leverage: 12.5}, `{"isolation_id":"6530219466236720402","leverage":"12.5"}`},
 	} {
-		ex := newSignedParamsServer(t, "private/change-isolated-margin-leverage", tc.params, testResponse("private/change-isolated-margin-leverage", ""))
-		assert.NoErrorf(t, ex.ChangeIsolatedMarginLeverage(t.Context(), tc.req), "ChangeIsolatedMarginLeverage should not error for a leverage of %v", tc.req.Leverage)
+		t.Run(tc.req.Leverage.String(), func(t *testing.T) {
+			ex := newSignedParamsServer(t, "private/change-isolated-margin-leverage", tc.params, testResponse("private/change-isolated-margin-leverage", ""))
+			assert.NoErrorf(t, ex.ChangeIsolatedMarginLeverage(t.Context(), tc.req), "ChangeIsolatedMarginLeverage should not error for a leverage of %v", tc.req.Leverage)
+		})
 	}
 	req := &ChangeIsolatedMarginLeverageRequest{IsolationID: tradingTestIsolationID, Leverage: 10}
 	assert.ErrorIs(t, newUnavailableServerExchange(t).ChangeIsolatedMarginLeverage(t.Context(), req), request.ErrBadStatus, "ChangeIsolatedMarginLeverage should return a request failure")
@@ -991,8 +1071,10 @@ func TestGetInstrumentFeeRate(t *testing.T) {
 	}
 }
 
-func TestGetUserOrderHistory(t *testing.T) {
+func TestGetUserOrderHistory(t *testing.T) { //nolint:tparallel // the cases run in order before the later calls of the same method
 	t.Parallel()
+	// The cases run in order on e, before the GetUserOrderHistory calls below, so each also checks that a refusal
+	// leaves nothing behind
 	for _, tc := range []struct {
 		name string
 		req  *UserOrderHistoryRequest
@@ -1004,10 +1086,13 @@ func TestGetUserOrderHistory(t *testing.T) {
 		{"a start before the Unix epoch", &UserOrderHistoryRequest{StartTime: time.Unix(-1, 0)}, errTimeBeforeUnixEpoch},
 		{"an end before the Unix epoch", &UserOrderHistoryRequest{EndTime: time.Unix(-1, 0)}, errTimeBeforeUnixEpoch},
 	} {
-		_, err := e.GetUserOrderHistory(t.Context(), tc.req)
-		assert.ErrorIsf(t, err, tc.err, "GetUserOrderHistory should refuse %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.GetUserOrderHistory(t.Context(), tc.req)
+			assert.ErrorIsf(t, err, tc.err, "GetUserOrderHistory should refuse %s", tc.name)
+		})
 	}
 
+	// Serial, so the cases still run before the GetUserOrderHistory calls below rather than after them
 	for _, tc := range []struct {
 		name   string
 		req    *UserOrderHistoryRequest
@@ -1020,9 +1105,11 @@ func TestGetUserOrderHistory(t *testing.T) {
 		},
 		{name: "no params", req: &UserOrderHistoryRequest{}, params: `{}`},
 	} {
-		ex := newSignedParamsServer(t, "private/get-order-history", tc.params, testResponse("private/get-order-history", `{"data":[]}`))
-		_, err := ex.GetUserOrderHistory(t.Context(), tc.req)
-		assert.NoErrorf(t, err, "GetUserOrderHistory should not error for %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			ex := newSignedParamsServer(t, "private/get-order-history", tc.params, testResponse("private/get-order-history", `{"data":[]}`))
+			_, err := ex.GetUserOrderHistory(t.Context(), tc.req)
+			assert.NoErrorf(t, err, "GetUserOrderHistory should not error for %s", tc.name)
+		})
 	}
 	req := &UserOrderHistoryRequest{InstrumentName: "BTCUSD-PERP", StartTime: time.Unix(0, tradingTestOrderHistoryStart), EndTime: time.Unix(0, tradingTestOrderHistoryEnd), Limit: 20}
 	_, err := newResponseServerExchange(t, `{"id":1,"method":"private/get-order-history","code":0,"result":null}`).GetUserOrderHistory(t.Context(), req)
@@ -1100,8 +1187,10 @@ func TestGetUserOrderHistory(t *testing.T) {
 	}
 }
 
-func TestGetUserTrades(t *testing.T) {
+func TestGetUserTrades(t *testing.T) { //nolint:tparallel // the cases run in order before the later calls of the same method
 	t.Parallel()
+	// The cases run in order on e, before the GetUserTrades calls below, so each also checks that a refusal leaves
+	// nothing behind
 	for _, tc := range []struct {
 		name string
 		req  *UserTradesRequest
@@ -1113,10 +1202,13 @@ func TestGetUserTrades(t *testing.T) {
 		{"a start before the Unix epoch", &UserTradesRequest{StartTime: time.Unix(-1, 0)}, errTimeBeforeUnixEpoch},
 		{"an end before the Unix epoch", &UserTradesRequest{EndTime: time.Unix(-1, 0)}, errTimeBeforeUnixEpoch},
 	} {
-		_, err := e.GetUserTrades(t.Context(), tc.req)
-		assert.ErrorIsf(t, err, tc.err, "GetUserTrades should refuse %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.GetUserTrades(t.Context(), tc.req)
+			assert.ErrorIsf(t, err, tc.err, "GetUserTrades should refuse %s", tc.name)
+		})
 	}
 
+	// Serial, so the cases still run before the GetUserTrades calls below rather than after them
 	for _, tc := range []struct {
 		name   string
 		req    *UserTradesRequest
@@ -1129,9 +1221,11 @@ func TestGetUserTrades(t *testing.T) {
 		},
 		{name: "no params", req: &UserTradesRequest{}, params: `{}`},
 	} {
-		ex := newSignedParamsServer(t, "private/get-trades", tc.params, testResponse("private/get-trades", `{"data":[]}`))
-		_, err := ex.GetUserTrades(t.Context(), tc.req)
-		assert.NoErrorf(t, err, "GetUserTrades should not error for %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			ex := newSignedParamsServer(t, "private/get-trades", tc.params, testResponse("private/get-trades", `{"data":[]}`))
+			_, err := ex.GetUserTrades(t.Context(), tc.req)
+			assert.NoErrorf(t, err, "GetUserTrades should not error for %s", tc.name)
+		})
 	}
 	req := &UserTradesRequest{InstrumentName: "BTCUSD-PERP", StartTime: time.Unix(0, tradingTestTradesWindowStart), EndTime: time.Unix(0, tradingTestTradesWindowEnd), Limit: 20}
 	_, err := newResponseServerExchange(t, `{"id":1,"method":"private/get-trades","code":0,"result":null}`).GetUserTrades(t.Context(), req)
@@ -1178,8 +1272,10 @@ func TestGetUserTrades(t *testing.T) {
 	}
 }
 
-func TestGetTransactions(t *testing.T) {
+func TestGetTransactions(t *testing.T) { //nolint:tparallel // the cases run in order before the later calls of the same method
 	t.Parallel()
+	// The cases run in order on e, before the GetTransactions calls below, so each also checks that a refusal leaves
+	// nothing behind
 	for _, tc := range []struct {
 		name string
 		req  *TransactionsRequest
@@ -1191,10 +1287,13 @@ func TestGetTransactions(t *testing.T) {
 		{"a start before the Unix epoch", &TransactionsRequest{StartTime: time.Unix(-1, 0)}, errTimeBeforeUnixEpoch},
 		{"an end before the Unix epoch", &TransactionsRequest{EndTime: time.Unix(-1, 0)}, errTimeBeforeUnixEpoch},
 	} {
-		_, err := e.GetTransactions(t.Context(), tc.req)
-		assert.ErrorIsf(t, err, tc.err, "GetTransactions should refuse %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.GetTransactions(t.Context(), tc.req)
+			assert.ErrorIsf(t, err, tc.err, "GetTransactions should refuse %s", tc.name)
+		})
 	}
 
+	// Serial, so the cases still run before the GetTransactions calls below rather than after them
 	for _, tc := range []struct {
 		name   string
 		req    *TransactionsRequest
@@ -1207,9 +1306,11 @@ func TestGetTransactions(t *testing.T) {
 		},
 		{name: "no params", req: &TransactionsRequest{}, params: `{}`},
 	} {
-		ex := newSignedParamsServer(t, "private/get-transactions", tc.params, testResponse("private/get-transactions", `{"data":[]}`))
-		_, err := ex.GetTransactions(t.Context(), tc.req)
-		assert.NoErrorf(t, err, "GetTransactions should not error for %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			ex := newSignedParamsServer(t, "private/get-transactions", tc.params, testResponse("private/get-transactions", `{"data":[]}`))
+			_, err := ex.GetTransactions(t.Context(), tc.req)
+			assert.NoErrorf(t, err, "GetTransactions should not error for %s", tc.name)
+		})
 	}
 	req := &TransactionsRequest{InstrumentName: "BTCUSD-PERP", StartTime: time.Unix(0, tradingTestTradesWindowStart), EndTime: time.Unix(0, tradingTestTradesWindowEnd), Limit: 20}
 	_, err := newResponseServerExchange(t, `{"id":1,"method":"private/get-transactions","code":0,"result":null}`).GetTransactions(t.Context(), req)
@@ -1284,70 +1385,83 @@ func TestGetTransactions(t *testing.T) {
 func TestValidateSelfTradePrevention(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		scope, instruction string
-		id                 uint64
-		err                error
+		name, scope, instruction string
+		id                       uint64
+		err                      error
 	}{
-		{},
-		{scope: SelfTradePreventionScopeMasterOrSubAccount, instruction: SelfTradePreventionCancelMaker},
-		{scope: SelfTradePreventionScopeSubAccount, instruction: SelfTradePreventionCancelTaker, id: 32767},
-		{scope: SelfTradePreventionScopeReset},
-		{scope: SelfTradePreventionScopeReset, id: 100},
-		{instruction: SelfTradePreventionCancelBoth},
-		{scope: "m", instruction: SelfTradePreventionCancelMaker, err: errInvalidSelfTradePreventionScope},
-		{scope: SelfTradePreventionScopeSubAccount, instruction: "t", err: errInvalidSelfTradePreventionInstruction},
-		{instruction: "X", err: errInvalidSelfTradePreventionInstruction},
-		{scope: SelfTradePreventionScopeMasterOrSubAccount, err: errInvalidSelfTradePreventionInstruction},
-		{scope: SelfTradePreventionScopeSubAccount, err: errInvalidSelfTradePreventionInstruction},
-		{scope: SelfTradePreventionScopeSubAccount, instruction: SelfTradePreventionCancelBoth, id: 32768, err: errInvalidSelfTradePreventionID},
-		{id: 1, err: errInvalidSelfTradePreventionID},
-		{instruction: SelfTradePreventionCancelMaker, id: 5, err: errInvalidSelfTradePreventionID},
+		{name: "nothing set"},
+		{name: "a scope and an instruction", scope: SelfTradePreventionScopeMasterOrSubAccount, instruction: SelfTradePreventionCancelMaker},
+		{name: "the largest ID", scope: SelfTradePreventionScopeSubAccount, instruction: SelfTradePreventionCancelTaker, id: 32767},
+		{name: "a reset", scope: SelfTradePreventionScopeReset},
+		{name: "a reset with an ID", scope: SelfTradePreventionScopeReset, id: 100},
+		{name: "an instruction alone", instruction: SelfTradePreventionCancelBoth},
+		{name: "a lower-case scope", scope: "m", instruction: SelfTradePreventionCancelMaker, err: errInvalidSelfTradePreventionScope},
+		{name: "a lower-case instruction", scope: SelfTradePreventionScopeSubAccount, instruction: "t", err: errInvalidSelfTradePreventionInstruction},
+		{name: "an unknown instruction", instruction: "X", err: errInvalidSelfTradePreventionInstruction},
+		{name: "the master or sub-account scope without an instruction", scope: SelfTradePreventionScopeMasterOrSubAccount, err: errInvalidSelfTradePreventionInstruction},
+		{name: "the sub-account scope without an instruction", scope: SelfTradePreventionScopeSubAccount, err: errInvalidSelfTradePreventionInstruction},
+		{name: "an ID above 32767", scope: SelfTradePreventionScopeSubAccount, instruction: SelfTradePreventionCancelBoth, id: 32768, err: errInvalidSelfTradePreventionID},
+		{name: "an ID alone", id: 1, err: errInvalidSelfTradePreventionID},
+		{name: "an ID with an instruction but no scope", instruction: SelfTradePreventionCancelMaker, id: 5, err: errInvalidSelfTradePreventionID},
 	} {
-		err := validateSelfTradePrevention(tc.scope, tc.instruction, tc.id)
-		assert.ErrorIsf(t, err, tc.err, "validateSelfTradePrevention should return the expected error for scope %q, instruction %q and ID %d", tc.scope, tc.instruction, tc.id)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			err := validateSelfTradePrevention(tc.scope, tc.instruction, tc.id)
+			assert.ErrorIsf(t, err, tc.err, "validateSelfTradePrevention should return the expected error for scope %q, instruction %q and ID %d", tc.scope, tc.instruction, tc.id)
+		})
 	}
 }
 
 func TestBareIntegerFields(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		data      string
-		into, exp any
+		name, data string
+		into, exp  any
 	}{
-		{`{"reason":43012}`, new(OrderResponse), &OrderResponse{Reason: "43012"}},
-		{`{"reason":"43012"}`, new(OrderResponse), &OrderResponse{Reason: "43012"}},
-		{`{"stp_id":100}`, new(AccountSettingsResponse), &AccountSettingsResponse{SelfTradePreventionID: 100}},
-		{`{"stp_id":"100"}`, new(AccountSettingsResponse), &AccountSettingsResponse{SelfTradePreventionID: 100}},
-		{`{"isolation_id":19848526}`, new(TransactionResponse), &TransactionResponse{IsolationID: "19848526"}},
-		{`{"isolation_id":"19848526"}`, new(TransactionResponse), &TransactionResponse{IsolationID: "19848526"}},
-		{`{"convert_id":1}`, new(ConvertStakedTokenResponse), &ConvertStakedTokenResponse{ConvertID: "1"}},
-		{`{"convert_id":"1"}`, new(ConvertStakedTokenResponse), &ConvertStakedTokenResponse{ConvertID: "1"}},
-		{`{"convert_id":1}`, new(StakingConvertRequestResponse), &StakingConvertRequestResponse{ConvertID: "1"}},
-		{`{"convert_id":"1"}`, new(StakingConvertRequestResponse), &StakingConvertRequestResponse{ConvertID: "1"}},
-		{`{"page":2,"page_size":10,"total":30}`, new(FiatTransactionHistoryResponse), &FiatTransactionHistoryResponse{Page: 2, PageSize: 10, Total: 30}},
-		{`{"page":"2","page_size":"10","total":"30"}`, new(FiatTransactionHistoryResponse), &FiatTransactionHistoryResponse{Page: 2, PageSize: 10, Total: 30}},
+		{"a bare order reason", `{"reason":43012}`, new(OrderResponse), &OrderResponse{Reason: "43012"}},
+		{"a quoted order reason", `{"reason":"43012"}`, new(OrderResponse), &OrderResponse{Reason: "43012"}},
+		{"a bare self-trade prevention ID", `{"stp_id":100}`, new(AccountSettingsResponse), &AccountSettingsResponse{SelfTradePreventionID: 100}},
+		{"a quoted self-trade prevention ID", `{"stp_id":"100"}`, new(AccountSettingsResponse), &AccountSettingsResponse{SelfTradePreventionID: 100}},
+		{"a bare isolation ID", `{"isolation_id":19848526}`, new(TransactionResponse), &TransactionResponse{IsolationID: "19848526"}},
+		{"a quoted isolation ID", `{"isolation_id":"19848526"}`, new(TransactionResponse), &TransactionResponse{IsolationID: "19848526"}},
+		{"a bare staked token convert ID", `{"convert_id":1}`, new(ConvertStakedTokenResponse), &ConvertStakedTokenResponse{ConvertID: "1"}},
+		{"a quoted staked token convert ID", `{"convert_id":"1"}`, new(ConvertStakedTokenResponse), &ConvertStakedTokenResponse{ConvertID: "1"}},
+		{"a bare convert request ID", `{"convert_id":1}`, new(StakingConvertRequestResponse), &StakingConvertRequestResponse{ConvertID: "1"}},
+		{"a quoted convert request ID", `{"convert_id":"1"}`, new(StakingConvertRequestResponse), &StakingConvertRequestResponse{ConvertID: "1"}},
+		{"bare fiat history paging", `{"page":2,"page_size":10,"total":30}`, new(FiatTransactionHistoryResponse), &FiatTransactionHistoryResponse{Page: 2, PageSize: 10, Total: 30}},
+		{"quoted fiat history paging", `{"page":"2","page_size":"10","total":"30"}`, new(FiatTransactionHistoryResponse), &FiatTransactionHistoryResponse{Page: 2, PageSize: 10, Total: 30}},
 	} {
-		require.NoErrorf(t, json.Unmarshal([]byte(tc.data), tc.into), "Unmarshal must not error for %s into %T", tc.data, tc.into)
-		assert.Equalf(t, tc.exp, tc.into, "Unmarshal should decode %s into %T", tc.data, tc.into)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			require.NoErrorf(t, json.Unmarshal([]byte(tc.data), tc.into), "Unmarshal must not error for %s into %T", tc.data, tc.into)
+			assert.Equalf(t, tc.exp, tc.into, "Unmarshal should decode %s into %T", tc.data, tc.into)
+		})
 	}
 }
 
-func TestNumericIDUnmarshalJSON(t *testing.T) {
+func TestNumericIDUnmarshalJSON(t *testing.T) { //nolint:tparallel // the cases run in order before the later calls of the same function
 	t.Parallel()
-	for data, exp := range map[string]NumericID{
-		`"6498090546073120152"`: "6498090546073120152",
-		`6498090546073120152`:   "6498090546073120152",
+	// The cases run in order before the later calls of the same function, so each also checks that a call keeps
+	// nothing from the last
+	for _, tc := range []struct {
+		name, data string
+		exp        NumericID
+	}{
+		{"a quoted identifier", `"6498090546073120152"`, "6498090546073120152"},
+		{"a bare identifier", `6498090546073120152`, "6498090546073120152"},
 		// 2^53 + 1, which a float cannot hold
-		`9007199254740993`: "9007199254740993",
-		`1`:                "1",
-		`""`:               "",
+		{"beyond a float's precision", `9007199254740993`, "9007199254740993"},
+		{"a single digit", `1`, "1"},
+		{"an empty string", `""`, ""},
 	} {
-		var direct NumericID
-		require.NoErrorf(t, direct.UnmarshalJSON([]byte(data)), "UnmarshalJSON must not error for %s", data)
-		assert.Equalf(t, exp, direct, "UnmarshalJSON should decode %s digit for digit", data)
-		var n NumericID
-		require.NoErrorf(t, json.Unmarshal([]byte(data), &n), "Unmarshal must not error for %s", data)
-		assert.Equalf(t, exp, n, "Unmarshal should decode %s digit for digit", data)
+		t.Run(tc.name, func(t *testing.T) {
+			var direct NumericID
+			require.NoErrorf(t, direct.UnmarshalJSON([]byte(tc.data)), "UnmarshalJSON must not error for %s", tc.data)
+			assert.Equalf(t, tc.exp, direct, "UnmarshalJSON should decode %s digit for digit", tc.data)
+			var n NumericID
+			require.NoErrorf(t, json.Unmarshal([]byte(tc.data), &n), "Unmarshal must not error for %s", tc.data)
+			assert.Equalf(t, tc.exp, n, "Unmarshal should decode %s digit for digit", tc.data)
+		})
 	}
 	unchanged := NumericID("7")
 	require.NoError(t, unchanged.UnmarshalJSON([]byte(`null`)), "UnmarshalJSON must not error for null")
@@ -1355,11 +1469,20 @@ func TestNumericIDUnmarshalJSON(t *testing.T) {
 	n := NumericID("7")
 	require.NoError(t, json.Unmarshal([]byte(`null`), &n), "Unmarshal must not error for null")
 	assert.Equal(t, NumericID("7"), n, "Unmarshal should leave an identifier unchanged for null")
-	for _, data := range []string{`1.5`, `1e3`, `true`, `{}`, `[]`} {
-		refused := NumericID("7")
-		assert.ErrorIsf(t, refused.UnmarshalJSON([]byte(data)), errInvalidInteger, "UnmarshalJSON should refuse %s", data)
-		assert.Equalf(t, NumericID("7"), refused, "UnmarshalJSON should leave an identifier unchanged refusing %s", data)
-		assert.ErrorIsf(t, json.Unmarshal([]byte(data), &n), errInvalidInteger, "Unmarshal should refuse %s", data)
+	// The cases decode into n in order, before the check below that reuses it
+	for _, tc := range []struct{ name, data string }{
+		{"a decimal", `1.5`},
+		{"an exponent", `1e3`},
+		{"a boolean", `true`},
+		{"an object", `{}`},
+		{"an array", `[]`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			refused := NumericID("7")
+			assert.ErrorIsf(t, refused.UnmarshalJSON([]byte(tc.data)), errInvalidInteger, "UnmarshalJSON should refuse %s", tc.data)
+			assert.Equalf(t, NumericID("7"), refused, "UnmarshalJSON should leave an identifier unchanged refusing %s", tc.data)
+			assert.ErrorIsf(t, json.Unmarshal([]byte(tc.data), &n), errInvalidInteger, "Unmarshal should refuse %s", tc.data)
+		})
 	}
 	assert.ErrorIs(t, n.UnmarshalJSON([]byte(`"6498`)), errInvalidInteger, "UnmarshalJSON should refuse a string it cannot decode")
 }

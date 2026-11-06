@@ -145,8 +145,10 @@ func recordedBookChannelSubscription() subscription.List {
 	return subscription.List{{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel, Levels: 10, Pairs: currency.Pairs{spotBTCUSD}}}
 }
 
-func TestWebsocketCandleTimeframe(t *testing.T) {
+func TestWebsocketCandleTimeframe(t *testing.T) { //nolint:tparallel // the cases run in order before the later calls of the same function
 	t.Parallel()
+	// The cases run in order before the later calls of the same function, so each also checks that a call keeps
+	// nothing from the last
 	for timeframe, interval := range map[string]kline.Interval{
 		"1m":  kline.OneMin,
 		"5m":  kline.FiveMin,
@@ -161,12 +163,14 @@ func TestWebsocketCandleTimeframe(t *testing.T) {
 		"14D": kline.TwoWeek,
 		"1M":  kline.OneMonth,
 	} {
-		got, err := websocketCandleTimeframe(interval)
-		require.NoErrorf(t, err, "websocketCandleTimeframe must not error for %s", interval)
-		assert.Equalf(t, timeframe, got, "websocketCandleTimeframe should name %s by its timeframe", interval)
-		gotInterval, err := websocketCandleInterval(timeframe)
-		require.NoErrorf(t, err, "websocketCandleInterval must not error for %s", timeframe)
-		assert.Equalf(t, interval, gotInterval, "websocketCandleInterval should give the interval of %s", timeframe)
+		t.Run(timeframe, func(t *testing.T) {
+			got, err := websocketCandleTimeframe(interval)
+			require.NoErrorf(t, err, "websocketCandleTimeframe must not error for %s", interval)
+			assert.Equalf(t, timeframe, got, "websocketCandleTimeframe should name %s by its timeframe", interval)
+			gotInterval, err := websocketCandleInterval(timeframe)
+			require.NoErrorf(t, err, "websocketCandleInterval must not error for %s", timeframe)
+			assert.Equalf(t, interval, gotInterval, "websocketCandleInterval should give the interval of %s", timeframe)
+		})
 	}
 	_, err := websocketCandleTimeframe(kline.ThreeMin)
 	assert.ErrorIs(t, err, kline.ErrUnsupportedInterval, "websocketCandleTimeframe should refuse an interval the candlestick channel does not serve")
@@ -174,16 +178,20 @@ func TestWebsocketCandleTimeframe(t *testing.T) {
 	assert.ErrorIs(t, err, kline.ErrUnsupportedInterval, "websocketCandleInterval should refuse a timeframe Crypto.com does not name")
 }
 
-func TestInstrumentAssets(t *testing.T) {
+func TestInstrumentAssets(t *testing.T) { //nolint:tparallel // the cases run in order on e, whose available pairs instrumentAssets reads
 	t.Parallel()
 	_, err := e.instrumentAssets("")
 	require.ErrorIs(t, err, errInstrumentNameRequired, "instrumentAssets must require an instrument name")
+	// The cases run in order on e, whose available pairs instrumentAssets reads, before the instruments below
 	for _, name := range []string{"NOPE_USD", "BTC-USD", "btc_usd", "BTCUSD_PERP", "BTCUSD-INDEX"} {
-		_, err := e.instrumentAssets(name)
-		assert.ErrorIsf(t, err, currency.ErrPairNotFound, "instrumentAssets should find no asset trading %s", name)
+		t.Run(name, func(t *testing.T) {
+			_, err := e.instrumentAssets(name)
+			assert.ErrorIsf(t, err, currency.ErrPairNotFound, "instrumentAssets should find no asset trading %s", name)
+		})
 	}
 	oneInchUSD := currency.NewPair(currency.NewCode("1INCH"), currency.USD).Format(currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter})
 	futureBTCUSD261127 := currency.NewPairWithDelimiter("BTCUSD", "261127", currency.DashDelimiter)
+	// The cases run in order on e, whose available pairs instrumentAssets reads
 	for name, exp := range map[string][]instrumentAsset{
 		"BTC_USD":       {{Asset: asset.Spot, Pair: spotBTCUSD}, {Asset: asset.Margin, Pair: spotBTCUSD}},
 		"BTC_USDT":      {{Asset: asset.Spot, Pair: spotBTCUSDT}, {Asset: asset.Margin, Pair: spotBTCUSDT}},
@@ -191,25 +199,30 @@ func TestInstrumentAssets(t *testing.T) {
 		"BTCUSD-PERP":   {{Asset: asset.PerpetualSwap, Pair: perpBTCUSD}},
 		"BTCUSD-261127": {{Asset: asset.Futures, Pair: futureBTCUSD261127}},
 	} {
-		got, err := e.instrumentAssets(name)
-		require.NoErrorf(t, err, "instrumentAssets must not error for %s", name)
-		assert.Equalf(t, exp, got, "instrumentAssets should find each asset %s trades as among the available pairs", name)
+		t.Run(name, func(t *testing.T) {
+			got, err := e.instrumentAssets(name)
+			require.NoErrorf(t, err, "instrumentAssets must not error for %s", name)
+			assert.Equalf(t, exp, got, "instrumentAssets should find each asset %s trades as among the available pairs", name)
+		})
 	}
 }
 
-func TestEnabledInstrumentAssets(t *testing.T) {
+func TestEnabledInstrumentAssets(t *testing.T) { //nolint:tparallel // the cases run in order on e, whose enabled pairs enabledInstrumentAssets reads
 	t.Parallel()
 	_, err := e.enabledInstrumentAssets("NOPE_USD")
 	require.ErrorIs(t, err, currency.ErrPairNotFound, "enabledInstrumentAssets must refuse an instrument no asset trades")
+	// The cases run in order on e, whose enabled pairs enabledInstrumentAssets reads
 	for name, exp := range map[string][]instrumentAsset{
 		"BTC_USD":       {{Asset: asset.Spot, Pair: spotBTCUSD}, {Asset: asset.Margin, Pair: spotBTCUSD}},
 		"BTC_USDT":      {{Asset: asset.Spot, Pair: spotBTCUSDT}},
 		"1INCH_USD":     {},
 		"BTCUSD-261030": {{Asset: asset.Futures, Pair: futureBTCUSD}},
 	} {
-		got, err := e.enabledInstrumentAssets(name)
-		require.NoErrorf(t, err, "enabledInstrumentAssets must not error for %s", name)
-		assert.Equalf(t, exp, got, "enabledInstrumentAssets should find each asset whose enabled pairs hold %s", name)
+		t.Run(name, func(t *testing.T) {
+			got, err := e.enabledInstrumentAssets(name)
+			require.NoErrorf(t, err, "enabledInstrumentAssets must not error for %s", name)
+			assert.Equalf(t, exp, got, "enabledInstrumentAssets should find each asset whose enabled pairs hold %s", name)
+		})
 	}
 }
 
@@ -223,27 +236,44 @@ func TestWebsocketBookLevelsUnmarshalJSON(t *testing.T) {
 	assert.Error(t, json.Unmarshal([]byte(`{}`), &levels), "Unmarshal should error for levels that are not an array")
 }
 
-func TestIntegerUnmarshalJSON(t *testing.T) {
+func TestIntegerUnmarshalJSON(t *testing.T) { //nolint:tparallel // the cases run in order before the later calls of the same function
 	t.Parallel()
-	for data, exp := range map[string]Integer{
-		`542048017824`:   542048017824,
-		`"542048017824"`: 542048017824,
-		`-1`:             -1,
+	// The cases run in order before the later calls of the same function, so each also checks that a call keeps
+	// nothing from the last
+	for _, tc := range []struct {
+		name string
+		data string
+		exp  Integer
+	}{
+		{"a number", `542048017824`, 542048017824},
+		{"a quoted number", `"542048017824"`, 542048017824},
+		{"a negative number", `-1`, -1},
 		// 2^53 + 1, which a float cannot hold
-		`9007199254740993`:   9007199254740993,
-		`"9007199254740993"`: 9007199254740993,
+		{"a number a float cannot hold", `9007199254740993`, 9007199254740993},
+		{"a quoted number a float cannot hold", `"9007199254740993"`, 9007199254740993},
 		// A JSON string's escapes are decoded first
-		`"\u002d\u0031"`: -1,
+		{"a quoted number in escapes", `"\u002d\u0031"`, -1},
 	} {
-		var i Integer
-		require.NoErrorf(t, json.Unmarshal([]byte(data), &i), "Unmarshal must not error for %s", data)
-		assert.Equalf(t, exp, i, "Unmarshal should decode %s", data)
+		t.Run(tc.name, func(t *testing.T) {
+			var i Integer
+			require.NoErrorf(t, json.Unmarshal([]byte(tc.data), &i), "Unmarshal must not error for %s", tc.data)
+			assert.Equalf(t, tc.exp, i, "Unmarshal should decode %s", tc.data)
+		})
 	}
 	i := Integer(7)
 	require.NoError(t, json.Unmarshal([]byte(`null`), &i), "Unmarshal must not error for null")
 	assert.Equal(t, Integer(7), i, "Unmarshal should leave an integer unchanged for null")
-	for _, data := range []string{`"x"`, `1.5`, `"1.5"`, `""`, `true`} {
-		assert.ErrorIsf(t, json.Unmarshal([]byte(data), &i), errInvalidInteger, "Unmarshal should refuse %s", data)
+	// The cases decode in order into the i above, which the calls below decode into too
+	for _, tc := range []struct{ name, data string }{
+		{"a string that is no number", `"x"`},
+		{"a fraction", `1.5`},
+		{"a quoted fraction", `"1.5"`},
+		{"an empty string", `""`},
+		{"a boolean", `true`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.ErrorIsf(t, json.Unmarshal([]byte(tc.data), &i), errInvalidInteger, "Unmarshal should refuse %s", tc.data)
+		})
 	}
 	assert.ErrorIs(t, i.UnmarshalJSON([]byte(`"6498`)), errInvalidInteger, "UnmarshalJSON should refuse a string it cannot decode")
 	// Sonic keeps a string it has read when it refuses what follows it, so the string must not then be parsed
@@ -358,53 +388,141 @@ func TestWebsocketBookUpdate(t *testing.T) {
 	assert.ErrorIs(t, ex.wsHandleChannelData(t.Context(), nil, []byte(noUpdate)), errBookDeltaHasNoUpdate, "wsHandleChannelData should refuse a delta without its update")
 }
 
-func TestWebsocketBookResubscribesOutOfSequence(t *testing.T) {
+func TestWebsocketBookResubscription(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
-		t.Skip("book resynchronisation is tested against the mock websocket, which can send deltas out of sequence")
+		t.Skip("book resynchronisation is tested against the mock websocket, which can send deltas out of sequence or that break a book, and fail an unsubscription")
 	}
-	venue := newMarketDataVenue(t)
-	ex, err := newMarketDataTestExchange(t, venue, recordedBookChannelSubscription())
-	require.NoError(t, err, "Connect must not error")
-	conn, err := ex.Websocket.GetConnection(websocketMarketDataConnection)
-	require.NoError(t, err, "GetConnection must not error")
-	requireBooksAt(t, ex, spotBTCUSD, recordedBookUpdateID)
+	t.Run("a delta out of sequence", func(t *testing.T) {
+		t.Parallel()
+		t.Run("a delta repeated", func(t *testing.T) {
+			t.Parallel()
+			venue := newMarketDataVenue(t)
+			ex, err := newMarketDataTestExchange(t, venue, recordedBookChannelSubscription())
+			require.NoError(t, err, "Connect must not error")
+			conn, err := ex.Websocket.GetConnection(websocketMarketDataConnection)
+			require.NoError(t, err, "GetConnection must not error")
+			requireBooksAt(t, ex, spotBTCUSD, recordedBookUpdateID)
 
-	// The second recorded delta again, which follows an update before the books' last
-	err = ex.wsHandleData(t.Context(), conn, marketDataFrame(t, recordedBookChannel, 3))
-	require.ErrorIs(t, err, errBookOutOfSync, "wsHandleData must report a delta out of sequence")
-	requireBooksAt(t, ex, spotBTCUSD, resubscribedBookUpdateID)
+			// The second recorded delta again, which follows an update before the books' last
+			err = ex.wsHandleData(t.Context(), conn, marketDataFrame(t, recordedBookChannel, 3))
+			require.ErrorIs(t, err, errBookOutOfSync, "wsHandleData must report a delta out of sequence")
+			requireBooksAt(t, ex, spotBTCUSD, resubscribedBookUpdateID)
 
-	unsubscribes := venue.received(websocketMethodUnsubscribe)
-	require.Len(t, unsubscribes, 1, "the book channel must be unsubscribed once")
-	assert.JSONEq(t, `{"channels":["book.BTC_USD.10"]}`, string(unsubscribes[0].Params), "the book channel should be unsubscribed")
-	subscribes := venue.received(websocketMethodSubscribe)
-	require.Len(t, subscribes, 2, "the book channel must be subscribed again")
-	assert.JSONEq(t, `{"channels":["book.BTC_USD.10"],"book_subscription_type":"SNAPSHOT_AND_UPDATE","book_update_frequency":100}`, string(subscribes[1].Params), "the book channel should be subscribed again for deltas")
-	// The books take the snapshot the acknowledgement carries before the resubscription stores the channel again
-	assert.Eventually(t, func() bool {
-		s := conn.Subscriptions().Get(qualifiedChannelKey{&subscription.Subscription{QualifiedChannel: recordedBookChannel}})
-		return s != nil && s.State() == subscription.SubscribedState
-	}, 10*time.Second, 10*time.Millisecond, "the book channel should be stored against its connection again, subscribed")
+			unsubscribes := venue.received(websocketMethodUnsubscribe)
+			require.Len(t, unsubscribes, 1, "the book channel must be unsubscribed once")
+			assert.JSONEq(t, `{"channels":["book.BTC_USD.10"]}`, string(unsubscribes[0].Params), "the book channel should be unsubscribed")
+			subscribes := venue.received(websocketMethodSubscribe)
+			require.Len(t, subscribes, 2, "the book channel must be subscribed again")
+			assert.JSONEq(t, `{"channels":["book.BTC_USD.10"],"book_subscription_type":"SNAPSHOT_AND_UPDATE","book_update_frequency":100}`, string(subscribes[1].Params), "the book channel should be subscribed again for deltas")
+			// The books take the snapshot the acknowledgement carries before the resubscription stores the channel again
+			assert.Eventually(t, func() bool {
+				s := conn.Subscriptions().Get(qualifiedChannelKey{&subscription.Subscription{QualifiedChannel: recordedBookChannel}})
+				return s != nil && s.State() == subscription.SubscribedState
+			}, 10*time.Second, 10*time.Millisecond, "the book channel should be stored against its connection again, subscribed")
+		})
 
-	t.Run("a delta following a missed one", func(t *testing.T) {
+		t.Run("a delta following a missed one", func(t *testing.T) {
+			t.Parallel()
+			venue := newMarketDataVenue(t)
+			answerBookSnapshotFirst(t, venue)
+			ex, err := newMarketDataTestExchange(t, venue, recordedBookChannelSubscription())
+			require.NoError(t, err, "Connect must not error")
+			conn, err := ex.Websocket.GetConnection(websocketMarketDataConnection)
+			require.NoError(t, err, "GetConnection must not error")
+			requireBooksAt(t, ex, spotBTCUSD, recordedBookSnapshotUpdateID)
+
+			// The second recorded delta, which follows the first, never taken
+			err = ex.wsHandleData(t.Context(), conn, marketDataFrame(t, recordedBookChannel, 3))
+			require.ErrorIs(t, err, errBookOutOfSync, "wsHandleData must report a delta following an update the books never took")
+			requireBooksAt(t, ex, spotBTCUSD, resubscribedBookUpdateID)
+			assert.Len(t, venue.received(websocketMethodUnsubscribe), 1, "the book channel should be unsubscribed once")
+		})
+
+		t.Run("a delta of a pair disabled since it subscribed", func(t *testing.T) {
+			t.Parallel()
+			venue := newMarketDataVenue(t)
+			ex, err := newMarketDataTestExchange(t, venue, recordedBookChannelSubscription())
+			require.NoError(t, err, "Connect must not error")
+			conn, err := ex.Websocket.GetConnection(websocketMarketDataConnection)
+			require.NoError(t, err, "GetConnection must not error")
+			requireBooksAt(t, ex, spotBTCUSD, recordedBookUpdateID)
+			for _, a := range []asset.Item{asset.Spot, asset.Margin} {
+				require.NoErrorf(t, ex.CurrencyPairs.DisablePair(a, spotBTCUSD), "DisablePair must not error for %s", a)
+			}
+
+			// A delta out of sequence, which the books of an enabled pair are resubscribed for
+			require.NoError(t, ex.wsHandleData(t.Context(), conn, marketDataFrame(t, recordedBookChannel, 3)), "wsHandleData must drop a delta of a pair disabled since it subscribed")
+			requireBooksAt(t, ex, spotBTCUSD, recordedBookUpdateID)
+			assert.Never(t, func() bool { return len(venue.received(websocketMethodUnsubscribe)) != 0 }, 100*time.Millisecond, 10*time.Millisecond, "a delta of a disabled pair should not resubscribe its channel")
+		})
+	})
+
+	t.Run("books out of step", func(t *testing.T) {
+		t.Parallel()
+		// Each book's last update is the snapshot's, which the first recorded delta follows, so that only the books being out
+		// of step can resynchronise them
+		t.Run("a book missing from an asset enabled since the snapshot", func(t *testing.T) {
+			t.Parallel()
+			venue := newMarketDataVenue(t)
+			answerBookSnapshotFirst(t, venue)
+			ex, err := newMarketDataTestExchange(t, venue, recordedBookChannelSubscription(), func(ex *Exchange) {
+				require.NoError(t, ex.CurrencyPairs.DisablePair(asset.Margin, spotBTCUSD), "DisablePair must not error")
+			})
+			require.NoError(t, err, "Connect must not error")
+			conn, err := ex.Websocket.GetConnection(websocketMarketDataConnection)
+			require.NoError(t, err, "GetConnection must not error")
+			requireBooksAt(t, ex, spotBTCUSD, recordedBookSnapshotUpdateID, asset.Spot)
+			require.NoError(t, ex.CurrencyPairs.EnablePair(asset.Margin, spotBTCUSD), "EnablePair must not error")
+
+			err = ex.wsHandleData(t.Context(), conn, marketDataFrame(t, recordedBookChannel, 2))
+			require.ErrorIs(t, err, errBookOutOfSync, "wsHandleData must report books out of step")
+			requireBooksAt(t, ex, spotBTCUSD, resubscribedBookUpdateID)
+			assert.Len(t, venue.received(websocketMethodUnsubscribe), 1, "the book channel should be unsubscribed once")
+		})
+		t.Run("a book invalidated", func(t *testing.T) {
+			t.Parallel()
+			venue := newMarketDataVenue(t)
+			answerBookSnapshotFirst(t, venue)
+			ex, err := newMarketDataTestExchange(t, venue, recordedBookChannelSubscription())
+			require.NoError(t, err, "Connect must not error")
+			conn, err := ex.Websocket.GetConnection(websocketMarketDataConnection)
+			require.NoError(t, err, "GetConnection must not error")
+			requireBooksAt(t, ex, spotBTCUSD, recordedBookSnapshotUpdateID)
+			require.NoError(t, ex.Websocket.Orderbook.InvalidateOrderbook(spotBTCUSD, asset.Margin), "InvalidateOrderbook must not error")
+			// The mock holds back the resubscription, whose snapshot would make the books valid again, until they are checked
+			checked := make(chan struct{})
+			release := sync.OnceFunc(func() { close(checked) })
+			t.Cleanup(release)
+			venue.beforeAnswering(websocketMethodUnsubscribe, func() { <-checked })
+
+			err = ex.wsHandleData(t.Context(), conn, marketDataFrame(t, recordedBookChannel, 2))
+			require.ErrorIs(t, err, errBookOutOfSync, "wsHandleData must report books out of step")
+			_, err = ex.Websocket.Orderbook.LastUpdateID(spotBTCUSD, asset.Spot)
+			assert.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "the spot book should be invalidated with the margin book")
+			release()
+			requireBooksAt(t, ex, spotBTCUSD, resubscribedBookUpdateID)
+			assert.Len(t, venue.received(websocketMethodUnsubscribe), 1, "the book channel should be unsubscribed once")
+		})
+	})
+
+	t.Run("a delta that breaks a book", func(t *testing.T) {
 		t.Parallel()
 		venue := newMarketDataVenue(t)
-		answerBookSnapshotFirst(t, venue)
 		ex, err := newMarketDataTestExchange(t, venue, recordedBookChannelSubscription())
 		require.NoError(t, err, "Connect must not error")
 		conn, err := ex.Websocket.GetConnection(websocketMarketDataConnection)
 		require.NoError(t, err, "GetConnection must not error")
-		requireBooksAt(t, ex, spotBTCUSD, recordedBookSnapshotUpdateID)
+		requireBooksAt(t, ex, spotBTCUSD, recordedBookUpdateID)
 
-		// The second recorded delta, which follows the first, never taken
-		err = ex.wsHandleData(t.Context(), conn, marketDataFrame(t, recordedBookChannel, 3))
-		require.ErrorIs(t, err, errBookOutOfSync, "wsHandleData must report a delta following an update the books never took")
+		broken := `{"id":-1,"method":"subscribe","code":0,"result":{"instrument_name":"BTC_USD","subscription":"book.BTC_USD.10","channel":"book.update","depth":10,"data":[{"update":{"asks":[],"bids":[["0","1","1"]]},"t":1792893127409,"tt":1792893127400,"u":382097464700000,"pu":382097464465088,"cs":0}]}}`
+		err = ex.wsHandleData(t.Context(), conn, []byte(broken))
+		require.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "wsHandleData must report a delta that breaks a book")
 		requireBooksAt(t, ex, spotBTCUSD, resubscribedBookUpdateID)
 		assert.Len(t, venue.received(websocketMethodUnsubscribe), 1, "the book channel should be unsubscribed once")
 	})
 
-	t.Run("a delta of a pair disabled since it subscribed", func(t *testing.T) {
+	t.Run("retried by a later delta", func(t *testing.T) {
 		t.Parallel()
 		venue := newMarketDataVenue(t)
 		ex, err := newMarketDataTestExchange(t, venue, recordedBookChannelSubscription())
@@ -412,185 +530,118 @@ func TestWebsocketBookResubscribesOutOfSequence(t *testing.T) {
 		conn, err := ex.Websocket.GetConnection(websocketMarketDataConnection)
 		require.NoError(t, err, "GetConnection must not error")
 		requireBooksAt(t, ex, spotBTCUSD, recordedBookUpdateID)
-		for _, a := range []asset.Item{asset.Spot, asset.Margin} {
-			require.NoErrorf(t, ex.CurrencyPairs.DisablePair(a, spotBTCUSD), "DisablePair must not error for %s", a)
-		}
+		s := conn.Subscriptions().Get(qualifiedChannelKey{&subscription.Subscription{QualifiedChannel: recordedBookChannel}})
+		require.NotNil(t, s, "the book channel must be stored against its connection")
 
-		// A delta out of sequence, which the books of an enabled pair are resubscribed for
-		require.NoError(t, ex.wsHandleData(t.Context(), conn, marketDataFrame(t, recordedBookChannel, 3)), "wsHandleData must drop a delta of a pair disabled since it subscribed")
-		requireBooksAt(t, ex, spotBTCUSD, recordedBookUpdateID)
-		assert.Never(t, func() bool { return len(venue.received(websocketMethodUnsubscribe)) != 0 }, 100*time.Millisecond, 10*time.Millisecond, "a delta of a disabled pair should not resubscribe its channel")
+		// A delta arriving while the channel resubscribes or unsubscribes starts no resubscription of its own
+		require.NoError(t, s.SetState(subscription.ResubscribingState), "SetState must not error")
+		err = ex.wsHandleData(t.Context(), conn, marketDataFrame(t, recordedBookChannel, 3))
+		require.ErrorIs(t, err, errBookOutOfSync, "wsHandleData must report a delta out of sequence")
+		require.NoError(t, s.SetState(subscription.UnsubscribingState), "SetState must not error")
+		require.NoError(t, ex.wsHandleData(t.Context(), conn, marketDataFrame(t, recordedBookChannel, 4)), "wsHandleData must drop a delta while its books await a snapshot")
+		assert.Never(t, func() bool { return len(venue.received(websocketMethodUnsubscribe)) != 0 }, 100*time.Millisecond, 10*time.Millisecond, "a delta should not resubscribe a channel resubscribing or unsubscribing")
+
+		// A failed unsubscription leaves the channel subscribed, for a later delta to retry
+		require.NoError(t, s.SetState(subscription.SubscribedState), "SetState must not error")
+		venue.fail(websocketMethodUnsubscribe, &APIError{Code: 50001, Message: "ERR_INTERNAL"})
+		require.NoError(t, ex.wsHandleData(t.Context(), conn, marketDataFrame(t, recordedBookChannel, 4)), "wsHandleData must drop a delta while its books await a snapshot")
+		require.Eventually(t, func() bool { return len(venue.received(websocketMethodUnsubscribe)) == 1 }, 10*time.Second, 10*time.Millisecond, "the book channel must be unsubscribed")
+		require.Eventually(t, func() bool { return s.State() == subscription.SubscribedState }, 10*time.Second, 10*time.Millisecond, "a failed unsubscription must leave the book channel subscribed")
+		assert.Len(t, venue.received(websocketMethodSubscribe), 1, "the book channel should not be subscribed again after its unsubscription failed")
+
+		venue.fail(websocketMethodUnsubscribe, nil)
+		require.NoError(t, ex.wsHandleData(t.Context(), conn, marketDataFrame(t, recordedBookChannel, 4)), "wsHandleData must drop a delta while its books await a snapshot")
+		requireBooksAt(t, ex, spotBTCUSD, resubscribedBookUpdateID)
+		assert.Len(t, venue.received(websocketMethodUnsubscribe), 2, "the book channel should be unsubscribed again")
+		assert.Len(t, venue.received(websocketMethodSubscribe), 2, "the book channel should be subscribed again")
 	})
 }
 
-func TestWebsocketBookResubscribesOutOfStep(t *testing.T) {
+func TestWebsocketBookSubscriptionRetry(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
-		t.Skip("book resynchronisation is tested against the mock websocket, which can send deltas out of sequence")
+		t.Skip("book resynchronisation is tested against the mock websocket, which can refuse a subscription")
 	}
-	// Each book's last update is the snapshot's, which the first recorded delta follows, so that only the books being out
-	// of step can resynchronise them
-	t.Run("a book missing from an asset enabled since the snapshot", func(t *testing.T) {
+	t.Run("a refused resubscription retried", func(t *testing.T) {
 		t.Parallel()
 		venue := newMarketDataVenue(t)
-		answerBookSnapshotFirst(t, venue)
+		ex, err := newMarketDataTestExchange(t, venue, recordedBookChannelSubscription())
+		require.NoError(t, err, "Connect must not error")
+		conn, err := ex.Websocket.GetConnection(websocketMarketDataConnection)
+		require.NoError(t, err, "GetConnection must not error")
+		requireBooksAt(t, ex, spotBTCUSD, recordedBookUpdateID)
+		key := qualifiedChannelKey{&subscription.Subscription{QualifiedChannel: recordedBookChannel}}
+		s := conn.Subscriptions().Get(key)
+		require.NotNil(t, s, "the book channel must be stored against its connection")
+
+		// The channel is unsubscribed for a new snapshot, then refused when subscribed again, leaving no delta to retry it. The
+		// mock clears the refusal as it answers that subscription, so that the retry is accepted whatever the test's timing
+		venue.rejectSubscriptions(recordedBookChannel, &APIError{Code: 42901, Message: "TOO_MANY_REQUESTS"})
+		venue.beforeAnswering(websocketMethodSubscribe, func() { venue.rejectSubscriptions(recordedBookChannel, nil) })
+		err = ex.wsHandleData(t.Context(), conn, marketDataFrame(t, recordedBookChannel, 3))
+		require.ErrorIs(t, err, errBookOutOfSync, "wsHandleData must report a delta out of sequence")
+		require.Eventually(t, func() bool { return len(venue.received(websocketMethodSubscribe)) >= 2 }, 10*time.Second, 10*time.Millisecond, "the book channel must be subscribed again")
+		requireBooksAt(t, ex, spotBTCUSD, resubscribedBookUpdateID)
+		require.Eventually(t, func() bool {
+			stored := conn.Subscriptions().Get(key)
+			return stored != nil && stored.State() == subscription.SubscribedState
+		}, 10*time.Second, 10*time.Millisecond, "the retried book channel must be stored against its connection again, subscribed")
+		assert.Len(t, venue.received(websocketMethodSubscribe), 3, "the refused book channel should be subscribed once more")
+		assert.Len(t, venue.received(websocketMethodUnsubscribe), 1, "the refused book channel should not be unsubscribed again")
+
+		// TestWebsocketBookRetryStops checks how soon the retry stops on a synctest bubble's clock, which a stall of the test
+		// cannot move
+		ex.retryBookSubscription(t.Context(), conn, s)
+		assert.Len(t, venue.received(websocketMethodSubscribe), 3, "retryBookSubscription should not subscribe a book channel held again")
+	})
+
+	t.Run("a channel no longer configured left out", func(t *testing.T) {
+		t.Parallel()
+		venue := newMarketDataVenue(t)
+		tickers := subscription.List{{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel, Pairs: currency.Pairs{spotBTCUSD}}}
+		ex, err := newMarketDataTestExchange(t, venue, append(recordedBookChannelSubscription(), tickers...))
+		require.NoError(t, err, "Connect must not error")
+		conn, err := ex.Websocket.GetConnection(websocketMarketDataConnection)
+		require.NoError(t, err, "GetConnection must not error")
+		requireBooksAt(t, ex, spotBTCUSD, recordedBookUpdateID)
+		key := qualifiedChannelKey{&subscription.Subscription{QualifiedChannel: recordedBookChannel}}
+		s := conn.Subscriptions().Get(key)
+		require.NotNil(t, s, "the book channel must be stored against its connection")
+		venue.rejectSubscriptions(recordedBookChannel, &APIError{Code: 42901, Message: "TOO_MANY_REQUESTS"})
+		require.Error(t, ex.Websocket.ResubscribeFromConnection(t.Context(), conn, subscription.List{s}), "ResubscribeFromConnection must fail for a refused subscription")
+
+		// The book channel is no longer configured by the time it is retried, as a flush applying the change makes it
+		ex.Features.Subscriptions = tickers
+		require.NoError(t, ex.Websocket.FlushChannels(t.Context()), "FlushChannels must not error")
+		venue.rejectSubscriptions(recordedBookChannel, nil)
+		ex.retryBookSubscription(t.Context(), conn, s)
+		assert.Nil(t, ex.Websocket.GetSubscription(key), "retryBookSubscription should not subscribe a book channel no longer configured")
+		assert.Len(t, venue.received(websocketMethodSubscribe), 3, "retryBookSubscription should not subscribe the book channel again")
+	})
+
+	t.Run("given up once its attempts run out", func(t *testing.T) {
+		t.Parallel()
+		venue := newMarketDataVenue(t)
 		ex, err := newMarketDataTestExchange(t, venue, recordedBookChannelSubscription(), func(ex *Exchange) {
-			require.NoError(t, ex.CurrencyPairs.DisablePair(asset.Margin, spotBTCUSD), "DisablePair must not error")
+			ex.bookResubscribeDelay = 10 * time.Millisecond
 		})
 		require.NoError(t, err, "Connect must not error")
 		conn, err := ex.Websocket.GetConnection(websocketMarketDataConnection)
 		require.NoError(t, err, "GetConnection must not error")
-		requireBooksAt(t, ex, spotBTCUSD, recordedBookSnapshotUpdateID, asset.Spot)
-		require.NoError(t, ex.CurrencyPairs.EnablePair(asset.Margin, spotBTCUSD), "EnablePair must not error")
+		requireBooksAt(t, ex, spotBTCUSD, recordedBookUpdateID)
 
-		err = ex.wsHandleData(t.Context(), conn, marketDataFrame(t, recordedBookChannel, 2))
-		require.ErrorIs(t, err, errBookOutOfSync, "wsHandleData must report books out of step")
-		requireBooksAt(t, ex, spotBTCUSD, resubscribedBookUpdateID)
-		assert.Len(t, venue.received(websocketMethodUnsubscribe), 1, "the book channel should be unsubscribed once")
+		venue.rejectSubscriptions(recordedBookChannel, &APIError{Code: 40003, Message: "BAD_REQUEST"})
+		start := time.Now()
+		err = ex.wsHandleData(t.Context(), conn, marketDataFrame(t, recordedBookChannel, 3))
+		require.ErrorIs(t, err, errBookOutOfSync, "wsHandleData must report a delta out of sequence")
+		// The first subscription, the resubscription and each retry
+		subscribes := 2 + bookResubscribeAttempts
+		require.Eventuallyf(t, func() bool { return len(venue.received(websocketMethodSubscribe)) == subscribes }, 10*time.Second, 10*time.Millisecond, "the book channel must be subscribed %d times", subscribes)
+		// The retries wait 1, 2, 4, 8 and 16 times the first delay
+		assert.GreaterOrEqual(t, time.Since(start), 31*ex.bookResubscribeDelay, "each retry should wait twice as long as the last")
+		assert.Never(t, func() bool { return len(venue.received(websocketMethodSubscribe)) > subscribes }, 500*time.Millisecond, 10*time.Millisecond, "the book channel should not be retried once its attempts run out")
+		assert.Nil(t, ex.Websocket.GetSubscription(qualifiedChannelKey{&subscription.Subscription{QualifiedChannel: recordedBookChannel}}), "a book channel whose attempts run out should be left unsubscribed")
 	})
-	t.Run("a book invalidated", func(t *testing.T) {
-		t.Parallel()
-		venue := newMarketDataVenue(t)
-		answerBookSnapshotFirst(t, venue)
-		ex, err := newMarketDataTestExchange(t, venue, recordedBookChannelSubscription())
-		require.NoError(t, err, "Connect must not error")
-		conn, err := ex.Websocket.GetConnection(websocketMarketDataConnection)
-		require.NoError(t, err, "GetConnection must not error")
-		requireBooksAt(t, ex, spotBTCUSD, recordedBookSnapshotUpdateID)
-		require.NoError(t, ex.Websocket.Orderbook.InvalidateOrderbook(spotBTCUSD, asset.Margin), "InvalidateOrderbook must not error")
-		// The mock holds back the resubscription, whose snapshot would make the books valid again, until they are checked
-		checked := make(chan struct{})
-		release := sync.OnceFunc(func() { close(checked) })
-		t.Cleanup(release)
-		venue.beforeAnswering(websocketMethodUnsubscribe, func() { <-checked })
-
-		err = ex.wsHandleData(t.Context(), conn, marketDataFrame(t, recordedBookChannel, 2))
-		require.ErrorIs(t, err, errBookOutOfSync, "wsHandleData must report books out of step")
-		_, err = ex.Websocket.Orderbook.LastUpdateID(spotBTCUSD, asset.Spot)
-		assert.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "the spot book should be invalidated with the margin book")
-		release()
-		requireBooksAt(t, ex, spotBTCUSD, resubscribedBookUpdateID)
-		assert.Len(t, venue.received(websocketMethodUnsubscribe), 1, "the book channel should be unsubscribed once")
-	})
-}
-
-func TestWebsocketBookResubscribesBrokenBook(t *testing.T) {
-	t.Parallel()
-	if !mockTests {
-		t.Skip("book resynchronisation is tested against the mock websocket, which can send deltas that break a book")
-	}
-	venue := newMarketDataVenue(t)
-	ex, err := newMarketDataTestExchange(t, venue, recordedBookChannelSubscription())
-	require.NoError(t, err, "Connect must not error")
-	conn, err := ex.Websocket.GetConnection(websocketMarketDataConnection)
-	require.NoError(t, err, "GetConnection must not error")
-	requireBooksAt(t, ex, spotBTCUSD, recordedBookUpdateID)
-
-	broken := `{"id":-1,"method":"subscribe","code":0,"result":{"instrument_name":"BTC_USD","subscription":"book.BTC_USD.10","channel":"book.update","depth":10,"data":[{"update":{"asks":[],"bids":[["0","1","1"]]},"t":1792893127409,"tt":1792893127400,"u":382097464700000,"pu":382097464465088,"cs":0}]}}`
-	err = ex.wsHandleData(t.Context(), conn, []byte(broken))
-	require.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "wsHandleData must report a delta that breaks a book")
-	requireBooksAt(t, ex, spotBTCUSD, resubscribedBookUpdateID)
-	assert.Len(t, venue.received(websocketMethodUnsubscribe), 1, "the book channel should be unsubscribed once")
-}
-
-func TestWebsocketBookRetriesResubscription(t *testing.T) {
-	t.Parallel()
-	if !mockTests {
-		t.Skip("book resynchronisation is tested against the mock websocket, which can fail an unsubscription")
-	}
-	venue := newMarketDataVenue(t)
-	ex, err := newMarketDataTestExchange(t, venue, recordedBookChannelSubscription())
-	require.NoError(t, err, "Connect must not error")
-	conn, err := ex.Websocket.GetConnection(websocketMarketDataConnection)
-	require.NoError(t, err, "GetConnection must not error")
-	requireBooksAt(t, ex, spotBTCUSD, recordedBookUpdateID)
-	s := conn.Subscriptions().Get(qualifiedChannelKey{&subscription.Subscription{QualifiedChannel: recordedBookChannel}})
-	require.NotNil(t, s, "the book channel must be stored against its connection")
-
-	// A delta arriving while the channel resubscribes or unsubscribes starts no resubscription of its own
-	require.NoError(t, s.SetState(subscription.ResubscribingState), "SetState must not error")
-	err = ex.wsHandleData(t.Context(), conn, marketDataFrame(t, recordedBookChannel, 3))
-	require.ErrorIs(t, err, errBookOutOfSync, "wsHandleData must report a delta out of sequence")
-	require.NoError(t, s.SetState(subscription.UnsubscribingState), "SetState must not error")
-	require.NoError(t, ex.wsHandleData(t.Context(), conn, marketDataFrame(t, recordedBookChannel, 4)), "wsHandleData must drop a delta while its books await a snapshot")
-	assert.Never(t, func() bool { return len(venue.received(websocketMethodUnsubscribe)) != 0 }, 100*time.Millisecond, 10*time.Millisecond, "a delta should not resubscribe a channel resubscribing or unsubscribing")
-
-	// A failed unsubscription leaves the channel subscribed, for a later delta to retry
-	require.NoError(t, s.SetState(subscription.SubscribedState), "SetState must not error")
-	venue.fail(websocketMethodUnsubscribe, &APIError{Code: 50001, Message: "ERR_INTERNAL"})
-	require.NoError(t, ex.wsHandleData(t.Context(), conn, marketDataFrame(t, recordedBookChannel, 4)), "wsHandleData must drop a delta while its books await a snapshot")
-	require.Eventually(t, func() bool { return len(venue.received(websocketMethodUnsubscribe)) == 1 }, 10*time.Second, 10*time.Millisecond, "the book channel must be unsubscribed")
-	require.Eventually(t, func() bool { return s.State() == subscription.SubscribedState }, 10*time.Second, 10*time.Millisecond, "a failed unsubscription must leave the book channel subscribed")
-	assert.Len(t, venue.received(websocketMethodSubscribe), 1, "the book channel should not be subscribed again after its unsubscription failed")
-
-	venue.fail(websocketMethodUnsubscribe, nil)
-	require.NoError(t, ex.wsHandleData(t.Context(), conn, marketDataFrame(t, recordedBookChannel, 4)), "wsHandleData must drop a delta while its books await a snapshot")
-	requireBooksAt(t, ex, spotBTCUSD, resubscribedBookUpdateID)
-	assert.Len(t, venue.received(websocketMethodUnsubscribe), 2, "the book channel should be unsubscribed again")
-	assert.Len(t, venue.received(websocketMethodSubscribe), 2, "the book channel should be subscribed again")
-}
-
-func TestWebsocketBookRetriesRefusedSubscription(t *testing.T) {
-	t.Parallel()
-	if !mockTests {
-		t.Skip("book resynchronisation is tested against the mock websocket, which can refuse a subscription")
-	}
-	venue := newMarketDataVenue(t)
-	ex, err := newMarketDataTestExchange(t, venue, recordedBookChannelSubscription())
-	require.NoError(t, err, "Connect must not error")
-	conn, err := ex.Websocket.GetConnection(websocketMarketDataConnection)
-	require.NoError(t, err, "GetConnection must not error")
-	requireBooksAt(t, ex, spotBTCUSD, recordedBookUpdateID)
-	key := qualifiedChannelKey{&subscription.Subscription{QualifiedChannel: recordedBookChannel}}
-	s := conn.Subscriptions().Get(key)
-	require.NotNil(t, s, "the book channel must be stored against its connection")
-
-	// The channel is unsubscribed for a new snapshot, then refused when subscribed again, leaving no delta to retry it. The
-	// mock clears the refusal as it answers that subscription, so that the retry is accepted whatever the test's timing
-	venue.rejectSubscriptions(recordedBookChannel, &APIError{Code: 42901, Message: "TOO_MANY_REQUESTS"})
-	venue.beforeAnswering(websocketMethodSubscribe, func() { venue.rejectSubscriptions(recordedBookChannel, nil) })
-	err = ex.wsHandleData(t.Context(), conn, marketDataFrame(t, recordedBookChannel, 3))
-	require.ErrorIs(t, err, errBookOutOfSync, "wsHandleData must report a delta out of sequence")
-	require.Eventually(t, func() bool { return len(venue.received(websocketMethodSubscribe)) >= 2 }, 10*time.Second, 10*time.Millisecond, "the book channel must be subscribed again")
-	requireBooksAt(t, ex, spotBTCUSD, resubscribedBookUpdateID)
-	require.Eventually(t, func() bool {
-		stored := conn.Subscriptions().Get(key)
-		return stored != nil && stored.State() == subscription.SubscribedState
-	}, 10*time.Second, 10*time.Millisecond, "the retried book channel must be stored against its connection again, subscribed")
-	assert.Len(t, venue.received(websocketMethodSubscribe), 3, "the refused book channel should be subscribed once more")
-	assert.Len(t, venue.received(websocketMethodUnsubscribe), 1, "the refused book channel should not be unsubscribed again")
-
-	// TestWebsocketBookRetryStops checks how soon the retry stops on a synctest bubble's clock, which a stall of the test
-	// cannot move
-	ex.retryBookSubscription(t.Context(), conn, s)
-	assert.Len(t, venue.received(websocketMethodSubscribe), 3, "retryBookSubscription should not subscribe a book channel held again")
-}
-
-func TestWebsocketBookRetryLeavesOutUnconfiguredChannel(t *testing.T) {
-	t.Parallel()
-	if !mockTests {
-		t.Skip("book resynchronisation is tested against the mock websocket, which can refuse a subscription")
-	}
-	venue := newMarketDataVenue(t)
-	tickers := subscription.List{{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel, Pairs: currency.Pairs{spotBTCUSD}}}
-	ex, err := newMarketDataTestExchange(t, venue, append(recordedBookChannelSubscription(), tickers...))
-	require.NoError(t, err, "Connect must not error")
-	conn, err := ex.Websocket.GetConnection(websocketMarketDataConnection)
-	require.NoError(t, err, "GetConnection must not error")
-	requireBooksAt(t, ex, spotBTCUSD, recordedBookUpdateID)
-	key := qualifiedChannelKey{&subscription.Subscription{QualifiedChannel: recordedBookChannel}}
-	s := conn.Subscriptions().Get(key)
-	require.NotNil(t, s, "the book channel must be stored against its connection")
-	venue.rejectSubscriptions(recordedBookChannel, &APIError{Code: 42901, Message: "TOO_MANY_REQUESTS"})
-	require.Error(t, ex.Websocket.ResubscribeFromConnection(t.Context(), conn, subscription.List{s}), "ResubscribeFromConnection must fail for a refused subscription")
-
-	// The book channel is no longer configured by the time it is retried, as a flush applying the change makes it
-	ex.Features.Subscriptions = tickers
-	require.NoError(t, ex.Websocket.FlushChannels(t.Context()), "FlushChannels must not error")
-	venue.rejectSubscriptions(recordedBookChannel, nil)
-	ex.retryBookSubscription(t.Context(), conn, s)
-	assert.Nil(t, ex.Websocket.GetSubscription(key), "retryBookSubscription should not subscribe a book channel no longer configured")
-	assert.Len(t, venue.received(websocketMethodSubscribe), 3, "retryBookSubscription should not subscribe the book channel again")
 }
 
 // bookRetryConnection stands in for a connection to the mock websocket in the synctest bubbles timing
@@ -712,33 +763,6 @@ func TestWebsocketBookRetryStops(t *testing.T) {
 	})
 }
 
-func TestWebsocketBookGivesUpRefusedSubscription(t *testing.T) {
-	t.Parallel()
-	if !mockTests {
-		t.Skip("book resynchronisation is tested against the mock websocket, which can refuse a subscription")
-	}
-	venue := newMarketDataVenue(t)
-	ex, err := newMarketDataTestExchange(t, venue, recordedBookChannelSubscription(), func(ex *Exchange) {
-		ex.bookResubscribeDelay = 10 * time.Millisecond
-	})
-	require.NoError(t, err, "Connect must not error")
-	conn, err := ex.Websocket.GetConnection(websocketMarketDataConnection)
-	require.NoError(t, err, "GetConnection must not error")
-	requireBooksAt(t, ex, spotBTCUSD, recordedBookUpdateID)
-
-	venue.rejectSubscriptions(recordedBookChannel, &APIError{Code: 40003, Message: "BAD_REQUEST"})
-	start := time.Now()
-	err = ex.wsHandleData(t.Context(), conn, marketDataFrame(t, recordedBookChannel, 3))
-	require.ErrorIs(t, err, errBookOutOfSync, "wsHandleData must report a delta out of sequence")
-	// The first subscription, the resubscription and each retry
-	subscribes := 2 + bookResubscribeAttempts
-	require.Eventuallyf(t, func() bool { return len(venue.received(websocketMethodSubscribe)) == subscribes }, 10*time.Second, 10*time.Millisecond, "the book channel must be subscribed %d times", subscribes)
-	// The retries wait 1, 2, 4, 8 and 16 times the first delay
-	assert.GreaterOrEqual(t, time.Since(start), 31*ex.bookResubscribeDelay, "each retry should wait twice as long as the last")
-	assert.Never(t, func() bool { return len(venue.received(websocketMethodSubscribe)) > subscribes }, 500*time.Millisecond, 10*time.Millisecond, "the book channel should not be retried once its attempts run out")
-	assert.Nil(t, ex.Websocket.GetSubscription(qualifiedChannelKey{&subscription.Subscription{QualifiedChannel: recordedBookChannel}}), "a book channel whose attempts run out should be left unsubscribed")
-}
-
 func TestQualifiedChannelKey(t *testing.T) {
 	t.Parallel()
 	k := qualifiedChannelKey{&subscription.Subscription{QualifiedChannel: "ticker.BTC_USD"}}
@@ -749,10 +773,11 @@ func TestQualifiedChannelKey(t *testing.T) {
 	assert.Equal(t, "ticker.BTC_USD", k.String(), "String should give the qualified channel")
 }
 
-func TestWebsocketTicker(t *testing.T) {
+func TestWebsocketTicker(t *testing.T) { //nolint:tparallel // the cases share one exchange and its data handler in order
 	t.Parallel()
 	ex := newTestExchange(t)
 	btcUSDChange, btcUSDTChange, perpChange := -0.02, 0.0, -0.13
+	// The cases share ex and drain its data handler in order, before the checks below on the same exchange
 	for channel, exp := range map[string][]ticker.Price{
 		"ticker.BTC_USD": {
 			{Last: 80787.84, High: 81007.04, Low: 79128.21, Bid: 80787.84, BidSize: 0.05028, Ask: 80787.85, AskSize: 0.5319, BaseVolume: 2215.1469, QuoteVolume: 177736579.59, PercentChange24Hour: btcUSDChange, Pair: spotBTCUSD, ExchangeName: ex.Name, AssetType: asset.Spot, LastUpdated: time.UnixMilli(1792892978711)},
@@ -766,15 +791,17 @@ func TestWebsocketTicker(t *testing.T) {
 			{Last: 80750.3, High: 81004.7, Low: 79117.7, Bid: 80750.3, BidSize: 0.0087, Ask: 80750.4, AskSize: 0.0331, BaseVolume: 2512.7932, QuoteVolume: 201559679.09, PercentChange24Hour: perpChange, OpenInterest: 6179.573, Pair: perpBTCUSD, ExchangeName: ex.Name, AssetType: asset.PerpetualSwap, LastUpdated: time.UnixMilli(1792893199728)},
 		},
 	} {
-		require.NoErrorf(t, ex.wsHandleChannelData(t.Context(), nil, marketDataFrame(t, channel, 0)), "wsHandleChannelData must not error for %s", channel)
-		relayed := relayedData(ex)
-		require.Lenf(t, relayed, 1, "the %s tickers must be relayed once", channel)
-		assert.Equalf(t, exp, relayed[0], "%s should relay a ticker for each asset its instrument trades as", channel)
-		for i := range exp {
-			stored, err := ticker.GetTicker(ex.Name, exp[i].Pair, exp[i].AssetType)
-			require.NoErrorf(t, err, "the %s %s ticker must be stored", channel, exp[i].AssetType)
-			assert.Equalf(t, &exp[i], stored, "the %s %s ticker should be stored as relayed", channel, exp[i].AssetType)
-		}
+		t.Run(channel, func(t *testing.T) {
+			require.NoErrorf(t, ex.wsHandleChannelData(t.Context(), nil, marketDataFrame(t, channel, 0)), "wsHandleChannelData must not error for %s", channel)
+			relayed := relayedData(ex)
+			require.Lenf(t, relayed, 1, "the %s tickers must be relayed once", channel)
+			assert.Equalf(t, exp, relayed[0], "%s should relay a ticker for each asset its instrument trades as", channel)
+			for i := range exp {
+				stored, err := ticker.GetTicker(ex.Name, exp[i].Pair, exp[i].AssetType)
+				require.NoErrorf(t, err, "the %s %s ticker must be stored", channel, exp[i].AssetType)
+				assert.Equalf(t, &exp[i], stored, "the %s %s ticker should be stored as relayed", channel, exp[i].AssetType)
+			}
+		})
 	}
 
 	// A ticker that cannot be stored is not relayed
@@ -821,7 +848,10 @@ func TestQuotedInUSD(t *testing.T) {
 		{instrumentAsset{Asset: asset.Futures, Pair: futureBTCUSD}, true},
 		{instrumentAsset{Asset: asset.PerpetualSwap, Pair: currency.NewPair(currency.NewCode("BTCUSDT"), currency.NewCode("PERP"))}, false},
 	} {
-		assert.Equalf(t, tc.exp, quotedInUSD(tc.instrumentAsset), "quotedInUSD should report whether %s %s is quoted in USD", tc.Asset, tc.Pair)
+		t.Run(tc.Asset.String()+" "+tc.Pair.String(), func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, tc.exp, quotedInUSD(tc.instrumentAsset), "quotedInUSD should report whether %s %s is quoted in USD", tc.Asset, tc.Pair)
+		})
 	}
 }
 
@@ -941,17 +971,27 @@ func TestWebsocketHandleChannelData(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
 	enableTradeFeed(ex)
-	for _, frame := range []string{
-		`{"id":1,"method":"subscribe","code":0,"channel":"book.BTC_USD.10"}`,
-		`{"id":-1,"method":"subscribe","code":0,"result":null}`,
-		string(marketDataFrame(t, "ticker.1INCH_USD", 0)),
+	// The cases share ex in order, and the check after them covers what they relayed
+	for _, tc := range []struct{ name, frame string }{
+		{"an acknowledgement", `{"id":1,"method":"subscribe","code":0,"channel":"book.BTC_USD.10"}`},
+		{"a null result", `{"id":-1,"method":"subscribe","code":0,"result":null}`},
+		{"an instrument not enabled", string(marketDataFrame(t, "ticker.1INCH_USD", 0))},
 	} {
-		require.NoErrorf(t, ex.wsHandleChannelData(t.Context(), nil, []byte(frame)), "wsHandleChannelData must not error for %s", frame)
+		t.Run(tc.name, func(t *testing.T) {
+			require.NoErrorf(t, ex.wsHandleChannelData(t.Context(), nil, []byte(tc.frame)), "wsHandleChannelData must not error for %s", tc.frame)
+		})
 	}
 	assert.Empty(t, relayedData(ex), "nothing should be relayed for an acknowledgement or an instrument not enabled")
 
-	for _, frame := range []string{`{"result":`, `{"result":"x"}`, `{"result":[1]}`} {
-		assert.ErrorIsf(t, ex.wsHandleChannelData(t.Context(), nil, []byte(frame)), errMalformedWebsocketMessage, "wsHandleChannelData should refuse %s", frame)
+	// The cases share ex in order, before the calls below on the same exchange
+	for _, tc := range []struct{ name, frame string }{
+		{"a truncated message", `{"result":`},
+		{"a string result", `{"result":"x"}`},
+		{"an array result", `{"result":[1]}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.ErrorIsf(t, ex.wsHandleChannelData(t.Context(), nil, []byte(tc.frame)), errMalformedWebsocketMessage, "wsHandleChannelData should refuse %s", tc.frame)
+		})
 	}
 
 	unhandled := `{"id":-1,"method":"subscribe","code":0,"result":{"instrument_name":"BTC_USD","subscription":"nope.BTC_USD","channel":"nope","data":[]}}`
@@ -959,17 +999,38 @@ func TestWebsocketHandleChannelData(t *testing.T) {
 	assert.Equal(t, []any{websocket.UnhandledMessageWarning{Message: ex.Name + websocket.UnhandledMessage + unhandled}}, relayedData(ex), "a channel wsHandleChannelData does not know should be relayed as unhandled")
 
 	channels := []string{channelBook, channelBookUpdate, channelTicker, channelTrade, channelCandlestick, IndexPriceChannel, MarkPriceChannel, SettlementPriceChannel, FundingRateChannel, EstimatedFundingRateChannel}
+	// The cases share ex in order, and the check after them covers what they relayed
 	for _, channel := range channels {
-		frame := `{"id":-1,"method":"subscribe","code":0,"result":{"instrument_name":"BTC_USD","subscription":"x","channel":"` + channel + `","interval":"1m","data":{}}}`
-		assert.ErrorIsf(t, ex.wsHandleChannelData(t.Context(), nil, []byte(frame)), errMalformedWebsocketMessage, "wsHandleChannelData should refuse %s data it cannot decode", channel)
-		if channel == IndexPriceChannel {
-			// An index is named for itself rather than an instrument
-			continue
-		}
-		frame = `{"id":-1,"method":"subscribe","code":0,"result":{"instrument_name":"NOPE_USD","subscription":"x","channel":"` + channel + `","interval":"1m","data":[]}}`
-		assert.ErrorIsf(t, ex.wsHandleChannelData(t.Context(), nil, []byte(frame)), currency.ErrPairNotFound, "wsHandleChannelData should refuse %s data for an instrument no asset trades", channel)
+		t.Run(channel, func(t *testing.T) {
+			frame := `{"id":-1,"method":"subscribe","code":0,"result":{"instrument_name":"BTC_USD","subscription":"x","channel":"` + channel + `","interval":"1m","data":{}}}`
+			assert.ErrorIsf(t, ex.wsHandleChannelData(t.Context(), nil, []byte(frame)), errMalformedWebsocketMessage, "wsHandleChannelData should refuse %s data it cannot decode", channel)
+			if channel == IndexPriceChannel {
+				// An index is named for itself rather than an instrument
+				return
+			}
+			frame = `{"id":-1,"method":"subscribe","code":0,"result":{"instrument_name":"NOPE_USD","subscription":"x","channel":"` + channel + `","interval":"1m","data":[]}}`
+			assert.ErrorIsf(t, ex.wsHandleChannelData(t.Context(), nil, []byte(frame)), currency.ErrPairNotFound, "wsHandleChannelData should refuse %s data for an instrument no asset trades", channel)
+		})
 	}
 	assert.Empty(t, relayedData(ex), "nothing should be relayed for data that cannot be decoded or routed")
+
+	t.Run("undecodable or unknown user channels", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestExchange(t)
+		// The cases share ex in order, and the check after them covers what they relayed
+		for _, channel := range []string{TransactionsChannel, PositionsChannel, PositionBalanceChannel, OTCQuoteRequestsChannel, OTCQuotesChannel, OTCDealsChannel} {
+			t.Run(channel, func(t *testing.T) {
+				frame := `{"id":-1,"method":"subscribe","code":0,"result":{"subscription":"` + channel + `","channel":"` + channel + `","data":{}}}`
+				assert.ErrorIsf(t, ex.wsHandleChannelData(t.Context(), nil, []byte(frame)), errMalformedWebsocketMessage, "wsHandleChannelData should refuse %s data it cannot decode", channel)
+			})
+		}
+		assert.Empty(t, relayedData(ex), "nothing should be relayed for data that cannot be decoded")
+
+		unknown := `{"id":-1,"method":"subscribe","code":0,"result":{"subscription":"user.nope","channel":"user.nope","data":[]}}`
+		require.NoError(t, ex.wsHandleChannelData(t.Context(), nil, []byte(unknown)), "wsHandleChannelData must not error for a user channel it does not know")
+		exp := []any{websocket.UnhandledMessageWarning{Message: ex.Name + websocket.UnhandledMessage + unknown}}
+		assert.Equal(t, exp, relayedData(ex), "a user channel wsHandleChannelData does not know should be relayed as unhandled")
+	})
 }
 
 func TestWebsocketMarketDataConnect(t *testing.T) {
@@ -1056,84 +1117,78 @@ func TestWebsocketDefaultSubscriptions(t *testing.T) {
 	],"book_subscription_type":"SNAPSHOT_AND_UPDATE","book_update_frequency":100}`, string(requests[1].Params), "the default books should be subscribed for deltas every 100 milliseconds")
 }
 
-func TestWebsocketSubscribeRejected(t *testing.T) {
+func TestWebsocketSubscribe(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
-		t.Skip("rejected subscriptions are tested against the mock websocket")
+		t.Skip("subscribing is tested against the mock websocket, which can reject a subscription, refuse a request or send a malformed acknowledgement, and records the requests")
 	}
-	venue := newMarketDataVenue(t)
-	venue.rejectSubscriptions("ticker.BTC_USDT", &APIError{Code: 40003, Message: "Unknown symbol"})
-	ex, err := newMarketDataTestExchange(t, venue, subscription.List{{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel, Pairs: currency.Pairs{spotBTCUSD, spotBTCUSDT}}})
-	var apiErr *APIError
-	require.ErrorAs(t, err, &apiErr, "Connect must report the rejected subscription")
-	assert.Equal(t, &APIError{Code: 40003, Message: "Unknown symbol"}, apiErr, "Connect should report why the subscription was rejected")
-	stored := ex.Websocket.GetSubscriptions()
-	require.Len(t, stored, 1, "only the accepted subscription must be stored")
-	assert.Equal(t, "ticker.BTC_USD", stored[0].QualifiedChannel, "the accepted subscription should be stored")
-	assert.Equal(t, subscription.SubscribedState, stored[0].State(), "the accepted subscription should be subscribed")
-}
-
-func TestWebsocketSubscribeRefused(t *testing.T) {
-	t.Parallel()
-	if !mockTests {
-		t.Skip("refused subscribe requests are tested against the mock websocket")
-	}
-	venue := newMarketDataVenue(t)
-	venue.fail(websocketMethodSubscribe, &APIError{Code: 40001, Message: "BAD_REQUEST"})
-	start := time.Now()
-	ex, err := newMarketDataTestExchange(t, venue, subscription.List{{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel, Pairs: currency.Pairs{spotBTCUSD, spotBTCUSDT}}})
-	var apiErr *APIError
-	require.ErrorAs(t, err, &apiErr, "Connect must report the refused subscribe request")
-	assert.Equal(t, &APIError{Code: 40001, Message: "BAD_REQUEST"}, apiErr, "Connect should report why the subscribe request was refused")
-	assert.Less(t, time.Since(start), ex.Config.WebsocketResponseMaxLimit, "Connect should not wait for answers to a subscribe request refused as a whole")
-	assert.Empty(t, ex.Websocket.GetSubscriptions(), "no subscription should be stored")
-}
-
-func TestWebsocketSubscribeAcknowledgementNamesNoChannel(t *testing.T) {
-	t.Parallel()
-	if !mockTests {
-		t.Skip("a malformed acknowledgement is tested against the mock websocket")
-	}
-	venue := newMarketDataVenue(t)
-	venue.answerSubscriptions("ticker.BTC_USD", []json.RawMessage{json.RawMessage(`{"id":1,"method":"subscribe","code":0}`)})
-	ex, err := newMarketDataTestExchange(t, venue, subscription.List{{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel, Pairs: currency.Pairs{spotBTCUSD}}})
-	require.ErrorIs(t, err, errMalformedWebsocketMessage, "Connect must report an acknowledgement naming no channel")
-	assert.Empty(t, ex.Websocket.GetSubscriptions(), "no subscription should be stored")
-}
-
-func TestWebsocketSubscribeBookUpdates(t *testing.T) {
-	t.Parallel()
-	if !mockTests {
-		t.Skip("the subscribe requests are tested against the mock websocket, which records them")
-	}
-	venue := newMarketDataVenue(t)
-	ex, err := newMarketDataTestExchange(t, venue, subscription.List{
-		{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel, Levels: 10, Interval: kline.TenMilliseconds, Pairs: currency.Pairs{spotBTCUSD}},
-		{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel, Pairs: currency.Pairs{spotETHUSD}},
-		{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel, Interval: bookSnapshotInterval, Pairs: currency.Pairs{spotBTCUSDT}},
-		{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds, Pairs: currency.Pairs{spotCROUSD}},
-		{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel, Pairs: currency.Pairs{spotBTCUSD}},
+	t.Run("a subscription rejected", func(t *testing.T) {
+		t.Parallel()
+		venue := newMarketDataVenue(t)
+		venue.rejectSubscriptions("ticker.BTC_USDT", &APIError{Code: 40003, Message: "Unknown symbol"})
+		ex, err := newMarketDataTestExchange(t, venue, subscription.List{{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel, Pairs: currency.Pairs{spotBTCUSD, spotBTCUSDT}}})
+		var apiErr *APIError
+		require.ErrorAs(t, err, &apiErr, "Connect must report the rejected subscription")
+		assert.Equal(t, &APIError{Code: 40003, Message: "Unknown symbol"}, apiErr, "Connect should report why the subscription was rejected")
+		stored := ex.Websocket.GetSubscriptions()
+		require.Len(t, stored, 1, "only the accepted subscription must be stored")
+		assert.Equal(t, "ticker.BTC_USD", stored[0].QualifiedChannel, "the accepted subscription should be stored")
+		assert.Equal(t, subscription.SubscribedState, stored[0].State(), "the accepted subscription should be subscribed")
 	})
-	require.NoError(t, err, "Connect must not error")
-	requests := venue.received(websocketMethodSubscribe)
-	require.Len(t, requests, 4, "a subscribe request must be sent for each book update frequency and one for the other channels")
-	for i, exp := range []string{
-		`{"channels":["book.BTC_USD.10"],"book_subscription_type":"SNAPSHOT_AND_UPDATE","book_update_frequency":10}`,
-		`{"channels":["book.ETH_USD.50","book.CRO_USD.50"],"book_subscription_type":"SNAPSHOT_AND_UPDATE","book_update_frequency":100}`,
-		`{"channels":["book.BTC_USDT.50"],"book_subscription_type":"SNAPSHOT","book_update_frequency":500}`,
-		`{"channels":["ticker.BTC_USD"]}`,
-	} {
-		assert.JSONEqf(t, exp, string(requests[i].Params), "subscribe request %d should name its channels and their book updates", i)
-	}
 
-	conn, err := ex.Websocket.GetConnection(websocketMarketDataConnection)
-	require.NoError(t, err, "GetConnection must not error")
-	invalid := &subscription.Subscription{Channel: subscription.OrderbookChannel, Asset: asset.Spot, Pairs: currency.Pairs{spotCROUSD}, Interval: kline.OneMin, QualifiedChannel: "book.CRO_USD.10"}
-	valid := &subscription.Subscription{Channel: subscription.TickerChannel, Asset: asset.Spot, Pairs: currency.Pairs{spotETHUSD}, QualifiedChannel: "ticker.ETH_USD"}
-	err = ex.wsSubscribe(t.Context(), conn, subscription.List{invalid, valid})
-	assert.ErrorIs(t, err, subscription.ErrInvalidInterval, "wsSubscribe should refuse a book subscription to updates Crypto.com does not send")
-	assert.Equal(t, subscription.SubscribedState, valid.State(), "wsSubscribe should subscribe the other channels")
-	requests = venue.received(websocketMethodSubscribe)
-	require.Len(t, requests, 5, "wsSubscribe must send one subscribe request")
-	assert.JSONEq(t, `{"channels":["ticker.ETH_USD"]}`, string(requests[4].Params), "wsSubscribe should leave out the refused book subscription")
+	t.Run("a subscribe request refused", func(t *testing.T) {
+		t.Parallel()
+		venue := newMarketDataVenue(t)
+		venue.fail(websocketMethodSubscribe, &APIError{Code: 40001, Message: "BAD_REQUEST"})
+		start := time.Now()
+		ex, err := newMarketDataTestExchange(t, venue, subscription.List{{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel, Pairs: currency.Pairs{spotBTCUSD, spotBTCUSDT}}})
+		var apiErr *APIError
+		require.ErrorAs(t, err, &apiErr, "Connect must report the refused subscribe request")
+		assert.Equal(t, &APIError{Code: 40001, Message: "BAD_REQUEST"}, apiErr, "Connect should report why the subscribe request was refused")
+		assert.Less(t, time.Since(start), ex.Config.WebsocketResponseMaxLimit, "Connect should not wait for answers to a subscribe request refused as a whole")
+		assert.Empty(t, ex.Websocket.GetSubscriptions(), "no subscription should be stored")
+	})
+
+	t.Run("an acknowledgement naming no channel", func(t *testing.T) {
+		t.Parallel()
+		venue := newMarketDataVenue(t)
+		venue.answerSubscriptions("ticker.BTC_USD", []json.RawMessage{json.RawMessage(`{"id":1,"method":"subscribe","code":0}`)})
+		ex, err := newMarketDataTestExchange(t, venue, subscription.List{{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel, Pairs: currency.Pairs{spotBTCUSD}}})
+		require.ErrorIs(t, err, errMalformedWebsocketMessage, "Connect must report an acknowledgement naming no channel")
+		assert.Empty(t, ex.Websocket.GetSubscriptions(), "no subscription should be stored")
+	})
+
+	t.Run("book update frequencies", func(t *testing.T) {
+		t.Parallel()
+		venue := newMarketDataVenue(t)
+		ex, err := newMarketDataTestExchange(t, venue, subscription.List{
+			{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel, Levels: 10, Interval: kline.TenMilliseconds, Pairs: currency.Pairs{spotBTCUSD}},
+			{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel, Pairs: currency.Pairs{spotETHUSD}},
+			{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel, Interval: bookSnapshotInterval, Pairs: currency.Pairs{spotBTCUSDT}},
+			{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds, Pairs: currency.Pairs{spotCROUSD}},
+			{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel, Pairs: currency.Pairs{spotBTCUSD}},
+		})
+		require.NoError(t, err, "Connect must not error")
+		requests := venue.received(websocketMethodSubscribe)
+		require.Len(t, requests, 4, "a subscribe request must be sent for each book update frequency and one for the other channels")
+		for i, exp := range []string{
+			`{"channels":["book.BTC_USD.10"],"book_subscription_type":"SNAPSHOT_AND_UPDATE","book_update_frequency":10}`,
+			`{"channels":["book.ETH_USD.50","book.CRO_USD.50"],"book_subscription_type":"SNAPSHOT_AND_UPDATE","book_update_frequency":100}`,
+			`{"channels":["book.BTC_USDT.50"],"book_subscription_type":"SNAPSHOT","book_update_frequency":500}`,
+			`{"channels":["ticker.BTC_USD"]}`,
+		} {
+			assert.JSONEqf(t, exp, string(requests[i].Params), "subscribe request %d should name its channels and their book updates", i)
+		}
+
+		conn, err := ex.Websocket.GetConnection(websocketMarketDataConnection)
+		require.NoError(t, err, "GetConnection must not error")
+		invalid := &subscription.Subscription{Channel: subscription.OrderbookChannel, Asset: asset.Spot, Pairs: currency.Pairs{spotCROUSD}, Interval: kline.OneMin, QualifiedChannel: "book.CRO_USD.10"}
+		valid := &subscription.Subscription{Channel: subscription.TickerChannel, Asset: asset.Spot, Pairs: currency.Pairs{spotETHUSD}, QualifiedChannel: "ticker.ETH_USD"}
+		err = ex.wsSubscribe(t.Context(), conn, subscription.List{invalid, valid})
+		assert.ErrorIs(t, err, subscription.ErrInvalidInterval, "wsSubscribe should refuse a book subscription to updates Crypto.com does not send")
+		assert.Equal(t, subscription.SubscribedState, valid.State(), "wsSubscribe should subscribe the other channels")
+		requests = venue.received(websocketMethodSubscribe)
+		require.Len(t, requests, 5, "wsSubscribe must send one subscribe request")
+		assert.JSONEq(t, `{"channels":["ticker.ETH_USD"]}`, string(requests[4].Params), "wsSubscribe should leave out the refused book subscription")
+	})
 }

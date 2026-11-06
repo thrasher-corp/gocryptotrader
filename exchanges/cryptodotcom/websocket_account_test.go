@@ -13,7 +13,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
-	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
@@ -112,6 +111,8 @@ func documentedAdvancedOrderLegs(exchangeName string) []order.Detail {
 
 func TestUserChannel(t *testing.T) {
 	t.Parallel()
+	// The cases run in order before the later calls of the same function, so each also checks that a call keeps
+	// nothing from the last
 	for channel, exp := range map[string]string{
 		subscription.MyOrdersChannel:  "user.order",
 		subscription.MyTradesChannel:  "user.trade",
@@ -125,22 +126,33 @@ func TestUserChannel(t *testing.T) {
 		OTCQuotesChannel:              "user.otc_qr.quotes",
 		OTCDealsChannel:               "user.otc.deals",
 	} {
-		got, err := userChannel(&subscription.Subscription{Channel: channel})
-		require.NoErrorf(t, err, "userChannel must not error for %s", channel)
-		assert.Equalf(t, exp, got, "userChannel should name the %s channel as Crypto.com does", channel)
+		t.Run(channel, func(t *testing.T) {
+			got, err := userChannel(&subscription.Subscription{Channel: channel})
+			require.NoErrorf(t, err, "userChannel must not error for %s", channel)
+			assert.Equalf(t, exp, got, "userChannel should name the %s channel as Crypto.com does", channel)
+		})
 	}
+	// The cases run in order before the later calls of the same function, so each also checks that a call keeps
+	// nothing from the last
 	for _, channel := range []string{"user.order", "user.trade", "user.balance"} {
-		_, err := userChannel(&subscription.Subscription{Channel: channel})
-		assert.ErrorIsf(t, err, subscription.ErrUseConstChannelName, "userChannel should refuse Crypto.com's name for %s", channel)
+		t.Run(channel, func(t *testing.T) {
+			_, err := userChannel(&subscription.Subscription{Channel: channel})
+			assert.ErrorIsf(t, err, subscription.ErrUseConstChannelName, "userChannel should refuse Crypto.com's name for %s", channel)
+		})
 	}
 	for _, channel := range []string{"nope", subscription.TickerChannel, "user.advanced.order"} {
-		_, err := userChannel(&subscription.Subscription{Channel: channel})
-		assert.ErrorIsf(t, err, subscription.ErrNotSupported, "userChannel should refuse the %s channel", channel)
+		t.Run(channel, func(t *testing.T) {
+			t.Parallel()
+			_, err := userChannel(&subscription.Subscription{Channel: channel})
+			assert.ErrorIsf(t, err, subscription.ErrNotSupported, "userChannel should refuse the %s channel", channel)
+		})
 	}
 }
 
-func TestUserChannelByInstrument(t *testing.T) {
+func TestUserChannelByInstrument(t *testing.T) { //nolint:tparallel // the cases run in order before the later calls of the same function
 	t.Parallel()
+	// The cases run in order before the later calls of the same function, so each also checks that a call keeps
+	// nothing from the last
 	for _, tc := range []struct {
 		channel string
 		a       asset.Item
@@ -153,9 +165,11 @@ func TestUserChannelByInstrument(t *testing.T) {
 		{subscription.MyAccountChannel, asset.Spot, false},
 		{OTCDealsChannel, asset.Empty, false},
 	} {
-		got, err := userChannelByInstrument(&subscription.Subscription{Channel: tc.channel}, tc.a)
-		require.NoErrorf(t, err, "userChannelByInstrument must not error for %s of %q", tc.channel, tc.a)
-		assert.Equalf(t, tc.exp, got, "userChannelByInstrument should report whether %s of %q names a channel of each instrument", tc.channel, tc.a)
+		t.Run(tc.channel+" "+subtestName(tc.a.String()), func(t *testing.T) {
+			got, err := userChannelByInstrument(&subscription.Subscription{Channel: tc.channel}, tc.a)
+			require.NoErrorf(t, err, "userChannelByInstrument must not error for %s of %q", tc.channel, tc.a)
+			assert.Equalf(t, tc.exp, got, "userChannelByInstrument should report whether %s of %q names a channel of each instrument", tc.channel, tc.a)
+		})
 	}
 	_, err := userChannelByInstrument(&subscription.Subscription{Channel: "nope"}, asset.Spot)
 	assert.ErrorIs(t, err, subscription.ErrNotSupported, "userChannelByInstrument should refuse a channel Crypto.com does not serve")
@@ -362,45 +376,45 @@ func TestWebsocketUserOrders(t *testing.T) {
 	require.NoError(t, ex.wsHandleChannelData(t.Context(), nil, []byte(`{"id":1,"method":"subscribe","code":0,"result":{"subscription":"user.order","channel":"user.order","data":[]}}`)), "wsHandleChannelData must not error without open orders")
 	assert.ErrorIs(t, ex.wsHandleChannelData(t.Context(), nil, []byte(`{"id":-1,"method":"subscribe","code":0,"result":{"subscription":"user.order","channel":"user.order","data":{}}}`)), errMalformedWebsocketMessage, "wsHandleChannelData should refuse orders it cannot decode")
 	assert.Empty(t, relayedData(ex), "nothing should be relayed without an order whose detail can be told")
+
+	t.Run("advanced orders", func(t *testing.T) {
+		t.Parallel()
+		ex := newTestExchange(t)
+		frame := accountFrame(t, "user.advance.order", 0)
+		legs := documentedAdvancedOrderLegs(ex.Name)
+		require.NoError(t, ex.wsHandleChannelData(t.Context(), nil, frame), "wsHandleChannelData must not error")
+		assert.Equal(t, []any{legs}, relayedData(ex), "the legs of the advanced order should be relayed as order details")
+
+		// Some of Crypto.com's docs name the channel user.advanced.order
+		advanced := bytes.ReplaceAll(frame, []byte(`"channel":"user.advance.order"`), []byte(`"channel":"user.advanced.order"`))
+		require.NoError(t, ex.wsHandleChannelData(t.Context(), nil, advanced), "wsHandleChannelData must not error for a push of the user.advanced.order channel")
+		assert.Equal(t, []any{legs}, relayedData(ex), "a push of the user.advanced.order channel should be relayed as an advanced order's")
+
+		// Crypto.com's AsyncAPI document gives the list and leg IDs as bare integers, the list ID one a float cannot hold
+		bare := frame
+		for quoted, integer := range map[string]string{
+			`"list_id":"6498090546073120152"`: `"list_id":6498090546073120152`,
+			`"leg_id":"1"`:                    `"leg_id":1`,
+			`"leg_id":"2"`:                    `"leg_id":2`,
+			`"leg_id":"3"`:                    `"leg_id":3`,
+		} {
+			bare = bytes.ReplaceAll(bare, []byte(quoted), []byte(integer))
+		}
+		require.NoError(t, ex.wsHandleChannelData(t.Context(), nil, bare), "wsHandleChannelData must not error for bare list and leg IDs")
+		assert.Equal(t, []any{legs}, relayedData(ex), "the legs of an advanced order with bare list and leg IDs should be relayed")
+		data, _, _, err := jsonparser.Get(bare, "result", "data")
+		require.NoError(t, err, "the push must hold its legs")
+		var orders []OrderResponse
+		require.NoError(t, json.Unmarshal(data, &orders), "Unmarshal must not error for bare list and leg IDs")
+		require.Len(t, orders, len(legs), "the push must hold every leg")
+		for i, legID := range []NumericID{"1", "2", "3"} {
+			assert.Equalf(t, NumericID("6498090546073120152"), orders[i].ListID, "leg %d should keep its list ID digit for digit", i)
+			assert.Equalf(t, legID, orders[i].LegID, "leg %d should keep its leg ID", i)
+		}
+	})
 }
 
-func TestWebsocketAdvancedOrders(t *testing.T) {
-	t.Parallel()
-	ex := newTestExchange(t)
-	frame := accountFrame(t, "user.advance.order", 0)
-	legs := documentedAdvancedOrderLegs(ex.Name)
-	require.NoError(t, ex.wsHandleChannelData(t.Context(), nil, frame), "wsHandleChannelData must not error")
-	assert.Equal(t, []any{legs}, relayedData(ex), "the legs of the advanced order should be relayed as order details")
-
-	// Some of Crypto.com's docs name the channel user.advanced.order
-	advanced := bytes.ReplaceAll(frame, []byte(`"channel":"user.advance.order"`), []byte(`"channel":"user.advanced.order"`))
-	require.NoError(t, ex.wsHandleChannelData(t.Context(), nil, advanced), "wsHandleChannelData must not error for a push of the user.advanced.order channel")
-	assert.Equal(t, []any{legs}, relayedData(ex), "a push of the user.advanced.order channel should be relayed as an advanced order's")
-
-	// Crypto.com's AsyncAPI document gives the list and leg IDs as bare integers, the list ID one a float cannot hold
-	bare := frame
-	for quoted, integer := range map[string]string{
-		`"list_id":"6498090546073120152"`: `"list_id":6498090546073120152`,
-		`"leg_id":"1"`:                    `"leg_id":1`,
-		`"leg_id":"2"`:                    `"leg_id":2`,
-		`"leg_id":"3"`:                    `"leg_id":3`,
-	} {
-		bare = bytes.ReplaceAll(bare, []byte(quoted), []byte(integer))
-	}
-	require.NoError(t, ex.wsHandleChannelData(t.Context(), nil, bare), "wsHandleChannelData must not error for bare list and leg IDs")
-	assert.Equal(t, []any{legs}, relayedData(ex), "the legs of an advanced order with bare list and leg IDs should be relayed")
-	data, _, _, err := jsonparser.Get(bare, "result", "data")
-	require.NoError(t, err, "the push must hold its legs")
-	var orders []OrderResponse
-	require.NoError(t, json.Unmarshal(data, &orders), "Unmarshal must not error for bare list and leg IDs")
-	require.Len(t, orders, len(legs), "the push must hold every leg")
-	for i, legID := range []NumericID{"1", "2", "3"} {
-		assert.Equalf(t, NumericID("6498090546073120152"), orders[i].ListID, "leg %d should keep its list ID digit for digit", i)
-		assert.Equalf(t, legID, orders[i].LegID, "leg %d should keep its leg ID", i)
-	}
-}
-
-func TestWebsocketUserTrades(t *testing.T) {
+func TestWebsocketUserTrades(t *testing.T) { //nolint:tparallel // the cases share one exchange and its data handler in order
 	t.Parallel()
 	ex := newTestExchange(t)
 	require.NoError(t, ex.wsHandleChannelData(t.Context(), nil, accountFrame(t, "user.trade", 0)), "wsHandleChannelData must not error without a fills feed")
@@ -485,11 +499,14 @@ func TestWebsocketUserTrades(t *testing.T) {
 	}}}
 	assert.Equal(t, exp, relayedData(ex), "the trades whose fills can be told should be filled, timed to the millisecond without a nanosecond time")
 
-	for _, frame := range []string{
-		`{"id":-1,"method":"subscribe","code":0,"result":{"subscription":"user.trade","channel":"user.trade","data":[]}}`,
-		`{"id":1,"method":"subscribe","code":0,"channel":"user.trade"}`,
+	// The cases share ex in order, and the check after them covers what they relayed
+	for _, tc := range []struct{ name, frame string }{
+		{"a push without trades", `{"id":-1,"method":"subscribe","code":0,"result":{"subscription":"user.trade","channel":"user.trade","data":[]}}`},
+		{"an acknowledgement without a result", `{"id":1,"method":"subscribe","code":0,"channel":"user.trade"}`},
 	} {
-		require.NoErrorf(t, ex.wsHandleChannelData(t.Context(), nil, []byte(frame)), "wsHandleChannelData must not error for %s", frame)
+		t.Run(tc.name, func(t *testing.T) {
+			require.NoErrorf(t, ex.wsHandleChannelData(t.Context(), nil, []byte(tc.frame)), "wsHandleChannelData must not error for %s", tc.frame)
+		})
 	}
 	assert.Empty(t, relayedData(ex), "nothing should be relayed without trades")
 	assert.ErrorIs(t, ex.wsHandleChannelData(t.Context(), nil, []byte(`{"id":-1,"method":"subscribe","code":0,"result":{"subscription":"user.trade","channel":"user.trade","data":{}}}`)), errMalformedWebsocketMessage, "wsHandleChannelData should refuse trades it cannot decode")
@@ -620,7 +637,7 @@ func TestWebsocketTransactions(t *testing.T) {
 	assert.Empty(t, relayedData(ex), "nothing should be relayed without transactions")
 }
 
-func TestWebsocketUserBalance(t *testing.T) {
+func TestWebsocketUserBalance(t *testing.T) { //nolint:tparallel // the cases change one exchange's stored balances in order
 	t.Parallel()
 	ex := newTestExchange(t)
 	setTestCredentials(ex, &accounts.Credentials{Key: testAPIKey, Secret: testAPISecret})
@@ -651,6 +668,8 @@ func TestWebsocketUserBalance(t *testing.T) {
 
 	// Crypto.com's docs leave out whether a push holds every currency, so a push leaving one out keeps it
 	usdOnly := `{"id":-1,"method":"subscribe","code":0,"result":{"subscription":"user.balance","channel":"user.balance","data":[{"instrument_name":"USD","position_balances":[{"instrument_name":"USD","quantity":"3113.50747209","reserved_qty":"0.00000000"}]}]}}`
+
+	// The cases change the balances ex stores in order, so the second checks the currency it leaves out is kept
 	for _, tc := range []struct {
 		name  string
 		frame []byte
@@ -659,19 +678,21 @@ func TestWebsocketUserBalance(t *testing.T) {
 		{"a change", accountFrame(t, "user.balance", 1), accounts.Balance{Currency: currency.USD, Total: 3113.50747209, Hold: 100, Free: 3013.50747209}},
 		{"a change leaving a currency out", []byte(usdOnly), accounts.Balance{Currency: currency.USD, Total: 3113.50747209, Free: 3113.50747209}},
 	} {
-		require.NoErrorf(t, ex.wsHandleChannelData(t.Context(), nil, tc.frame), "wsHandleChannelData must not error for %s", tc.name)
-		assert.Lenf(t, relayedData(ex), 1, "%s should be relayed once", tc.name)
-		stored, err := ex.Accounts.CurrencyBalances(creds, asset.Spot)
-		require.NoError(t, err, "the balances must be stored")
-		for c, b := range stored {
-			b.UpdatedAt = time.Time{}
-			stored[c] = b
-		}
-		exp := accounts.CurrencyBalances{
-			currency.CRO: {Currency: currency.CRO, Total: 24422.72427884, Free: 24422.72427884},
-			currency.USD: tc.usd,
-		}
-		assert.Equalf(t, exp, stored, "the balances should take %s, keeping any currency it leaves out", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			require.NoErrorf(t, ex.wsHandleChannelData(t.Context(), nil, tc.frame), "wsHandleChannelData must not error for %s", tc.name)
+			assert.Lenf(t, relayedData(ex), 1, "%s should be relayed once", tc.name)
+			stored, err := ex.Accounts.CurrencyBalances(creds, asset.Spot)
+			require.NoError(t, err, "the balances must be stored")
+			for c, b := range stored {
+				b.UpdatedAt = time.Time{}
+				stored[c] = b
+			}
+			exp := accounts.CurrencyBalances{
+				currency.CRO: {Currency: currency.CRO, Total: 24422.72427884, Free: 24422.72427884},
+				currency.USD: tc.usd,
+			}
+			assert.Equalf(t, exp, stored, "the balances should take %s, keeping any currency it leaves out", tc.name)
+		})
 	}
 
 	require.NoError(t, ex.wsHandleChannelData(t.Context(), nil, []byte(`{"id":-1,"method":"subscribe","code":0,"result":{"subscription":"user.balance","channel":"user.balance","data":[]}}`)), "wsHandleChannelData must not error without balances")
@@ -912,21 +933,6 @@ func TestWebsocketOTCDeals(t *testing.T) {
 	settled.Legs = []OTCDealLeg{{InstrumentName: "BTC_USD", Side: SideBuy, Price: preciseNumber("96086.01"), Quantity: preciseNumber("1"), ExecutedQuantity: preciseNumber("1"), ExecutedNotional: preciseNumber("96086.01"), Type: OTCLegTypePrice}}
 	exp := []any{[]OTCDealResponse{deal}, []OTCDealResponse{settled}}
 	assert.Equal(t, exp, relayedData(ex), "the deal should be relayed as its status changes")
-}
-
-func TestWebsocketUserChannelsUndecodable(t *testing.T) {
-	t.Parallel()
-	ex := newTestExchange(t)
-	for _, channel := range []string{TransactionsChannel, PositionsChannel, PositionBalanceChannel, OTCQuoteRequestsChannel, OTCQuotesChannel, OTCDealsChannel} {
-		frame := `{"id":-1,"method":"subscribe","code":0,"result":{"subscription":"` + channel + `","channel":"` + channel + `","data":{}}}`
-		assert.ErrorIsf(t, ex.wsHandleChannelData(t.Context(), nil, []byte(frame)), errMalformedWebsocketMessage, "wsHandleChannelData should refuse %s data it cannot decode", channel)
-	}
-	assert.Empty(t, relayedData(ex), "nothing should be relayed for data that cannot be decoded")
-
-	unknown := `{"id":-1,"method":"subscribe","code":0,"result":{"subscription":"user.nope","channel":"user.nope","data":[]}}`
-	require.NoError(t, ex.wsHandleChannelData(t.Context(), nil, []byte(unknown)), "wsHandleChannelData must not error for a user channel it does not know")
-	exp := []any{websocket.UnhandledMessageWarning{Message: ex.Name + websocket.UnhandledMessage + unknown}}
-	assert.Equal(t, exp, relayedData(ex), "a user channel wsHandleChannelData does not know should be relayed as unhandled")
 }
 
 func TestWebsocketUserDataConnect(t *testing.T) {

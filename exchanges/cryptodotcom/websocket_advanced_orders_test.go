@@ -43,16 +43,19 @@ func testWebsocketAPICancelContingency(t *testing.T, name, method, listID string
 	})
 }
 
-func TestWebsocketAPICreateAdvancedOrder(t *testing.T) {
+func TestWebsocketAPICreateAdvancedOrder(t *testing.T) { //nolint:tparallel // the refusals share refuser in order
 	t.Parallel()
 	refuser := newAdvancedRefusalExchange(t).WebsocketAPI()
 	_, err := refuser.CreateAdvancedOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "CreateAdvancedOrder must refuse a nil request")
+	// The cases share refuser in order, before the calls below, so each also checks that a refusal leaves nothing behind
 	for _, tc := range triggerOrderRefusals {
-		req := advancedTriggerOrder()
-		tc.change(&req)
-		_, err := refuser.CreateAdvancedOrder(t.Context(), &req)
-		assert.ErrorIsf(t, err, tc.err, "CreateAdvancedOrder should refuse %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			req := advancedTriggerOrder()
+			tc.change(&req)
+			_, err := refuser.CreateAdvancedOrder(t.Context(), &req)
+			assert.ErrorIsf(t, err, tc.err, "CreateAdvancedOrder should refuse %s", tc.name)
+		})
 	}
 	skipLiveUnlessCanManipulate(t)
 
@@ -75,12 +78,15 @@ func TestWebsocketAPICreateAdvancedOrder(t *testing.T) {
 	})
 }
 
-func TestWebsocketAPIAmendAdvancedOrder(t *testing.T) {
+func TestWebsocketAPIAmendAdvancedOrder(t *testing.T) { //nolint:tparallel // the refusals share refuser in order
 	t.Parallel()
 	refuser := newAdvancedRefusalExchange(t).WebsocketAPI()
+	// The cases share refuser in order, before the calls below, so each also checks that a refusal leaves nothing behind
 	for _, tc := range amendAdvancedOrderRefusals {
-		_, err := refuser.AmendAdvancedOrder(t.Context(), tc.req)
-		assert.ErrorIsf(t, err, tc.err, "AmendAdvancedOrder should refuse %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := refuser.AmendAdvancedOrder(t.Context(), tc.req)
+			assert.ErrorIsf(t, err, tc.err, "AmendAdvancedOrder should refuse %s", tc.name)
+		})
 	}
 	skipLiveUnlessCanManipulate(t)
 
@@ -103,12 +109,15 @@ func TestWebsocketAPIAmendAdvancedOrder(t *testing.T) {
 	})
 }
 
-func TestWebsocketAPICreateOneCancelsTheOtherOrder(t *testing.T) {
+func TestWebsocketAPICreateOneCancelsTheOtherOrder(t *testing.T) { //nolint:tparallel // the refusals share refuser in order
 	t.Parallel()
 	refuser := newAdvancedRefusalExchange(t).WebsocketAPI()
+	// The cases share refuser in order, before the calls below, so each also checks that a refusal leaves nothing behind
 	for _, tc := range oneCancelsTheOtherRefusals() {
-		_, err := refuser.CreateOneCancelsTheOtherOrder(t.Context(), tc.orders)
-		assert.ErrorIsf(t, err, tc.err, "CreateOneCancelsTheOtherOrder should refuse %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := refuser.CreateOneCancelsTheOtherOrder(t.Context(), tc.orders)
+			assert.ErrorIsf(t, err, tc.err, "CreateOneCancelsTheOtherOrder should refuse %s", tc.name)
+		})
 	}
 	skipLiveUnlessCanManipulate(t)
 
@@ -135,12 +144,15 @@ func TestWebsocketAPICancelOneCancelsTheOtherOrder(t *testing.T) {
 	testWebsocketAPICancelContingency(t, "CancelOneCancelsTheOtherOrder", "private/advanced/cancel-oco", "6498090546073120100", WebsocketAPI.CancelOneCancelsTheOtherOrder)
 }
 
-func TestWebsocketAPICreateOneTriggersTheOtherOrder(t *testing.T) {
+func TestWebsocketAPICreateOneTriggersTheOtherOrder(t *testing.T) { //nolint:tparallel // the refusals share refuser in order
 	t.Parallel()
 	refuser := newAdvancedRefusalExchange(t).WebsocketAPI()
+	// The cases share refuser in order, before the calls below, so each also checks that a refusal leaves nothing behind
 	for _, tc := range oneTriggersTheOtherRefusals() {
-		_, err := refuser.CreateOneTriggersTheOtherOrder(t.Context(), tc.orders)
-		assert.ErrorIsf(t, err, tc.err, "CreateOneTriggersTheOtherOrder should refuse %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := refuser.CreateOneTriggersTheOtherOrder(t.Context(), tc.orders)
+			assert.ErrorIsf(t, err, tc.err, "CreateOneTriggersTheOtherOrder should refuse %s", tc.name)
+		})
 	}
 	skipLiveUnlessCanManipulate(t)
 
@@ -167,12 +179,15 @@ func TestWebsocketAPICancelOneTriggersTheOtherOrder(t *testing.T) {
 	testWebsocketAPICancelContingency(t, "CancelOneTriggersTheOtherOrder", "private/advanced/cancel-oto", "6498090546073120199", WebsocketAPI.CancelOneTriggersTheOtherOrder)
 }
 
-func TestWebsocketAPICreateOneTriggersAOneCancelsTheOtherOrder(t *testing.T) {
+func TestWebsocketAPICreateOneTriggersAOneCancelsTheOtherOrder(t *testing.T) { //nolint:tparallel // the refusals share refuser in order
 	t.Parallel()
 	refuser := newAdvancedRefusalExchange(t).WebsocketAPI()
+	// The cases share refuser in order, before the calls below, so each also checks that a refusal leaves nothing behind
 	for _, tc := range oneTriggersAOneCancelsTheOtherRefusals() {
-		_, err := refuser.CreateOneTriggersAOneCancelsTheOtherOrder(t.Context(), tc.orders)
-		assert.ErrorIsf(t, err, tc.err, "CreateOneTriggersAOneCancelsTheOtherOrder should refuse %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := refuser.CreateOneTriggersAOneCancelsTheOtherOrder(t.Context(), tc.orders)
+			assert.ErrorIsf(t, err, tc.err, "CreateOneTriggersAOneCancelsTheOtherOrder should refuse %s", tc.name)
+		})
 	}
 	skipLiveUnlessCanManipulate(t)
 
@@ -227,11 +242,14 @@ func TestWebsocketAPICancelAdvancedOrder(t *testing.T) {
 	})
 }
 
-func TestWebsocketAPICancelAllAdvancedOrders(t *testing.T) {
+func TestWebsocketAPICancelAllAdvancedOrders(t *testing.T) { //nolint:tparallel // the refusals share refuser in order
 	t.Parallel()
 	refuser := newAdvancedRefusalExchange(t).WebsocketAPI()
+	// The cases share refuser in order, before the calls below, so each also checks that a refusal leaves nothing behind
 	for _, tc := range cancelAllAdvancedOrdersRefusals {
-		assert.ErrorIsf(t, refuser.CancelAllAdvancedOrders(t.Context(), tc.req), tc.err, "CancelAllAdvancedOrders should refuse %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			assert.ErrorIsf(t, refuser.CancelAllAdvancedOrders(t.Context(), tc.req), tc.err, "CancelAllAdvancedOrders should refuse %s", tc.name)
+		})
 	}
 	skipLiveUnlessCanManipulate(t)
 
@@ -249,12 +267,15 @@ func TestWebsocketAPICancelAllAdvancedOrders(t *testing.T) {
 	})
 }
 
-func TestWebsocketAPICreateAdvancedOrderList(t *testing.T) {
+func TestWebsocketAPICreateAdvancedOrderList(t *testing.T) { //nolint:tparallel // the refusals share refuser in order
 	t.Parallel()
 	refuser := newAdvancedRefusalExchange(t).WebsocketAPI()
+	// The cases share refuser in order, before the calls below, so each also checks that a refusal leaves nothing behind
 	for _, tc := range createAdvancedOrderListRefusals() {
-		_, err := refuser.CreateAdvancedOrderList(t.Context(), tc.orders)
-		assert.ErrorIsf(t, err, tc.err, "CreateAdvancedOrderList should refuse %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := refuser.CreateAdvancedOrderList(t.Context(), tc.orders)
+			assert.ErrorIsf(t, err, tc.err, "CreateAdvancedOrderList should refuse %s", tc.name)
+		})
 	}
 	skipLiveUnlessCanManipulate(t)
 
@@ -279,12 +300,15 @@ func TestWebsocketAPICreateAdvancedOrderList(t *testing.T) {
 	})
 }
 
-func TestWebsocketAPICancelAdvancedOrderList(t *testing.T) {
+func TestWebsocketAPICancelAdvancedOrderList(t *testing.T) { //nolint:tparallel // the refusals share refuser in order
 	t.Parallel()
 	refuser := newAdvancedRefusalExchange(t).WebsocketAPI()
+	// The cases share refuser in order, before the calls below, so each also checks that a refusal leaves nothing behind
 	for _, tc := range cancelAdvancedOrderListRefusals() {
-		_, err := refuser.CancelAdvancedOrderList(t.Context(), tc.orders)
-		assert.ErrorIsf(t, err, tc.err, "CancelAdvancedOrderList should refuse %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := refuser.CancelAdvancedOrderList(t.Context(), tc.orders)
+			assert.ErrorIsf(t, err, tc.err, "CancelAdvancedOrderList should refuse %s", tc.name)
+		})
 	}
 	skipLiveUnlessCanManipulate(t)
 

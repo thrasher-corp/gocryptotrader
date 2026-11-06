@@ -135,22 +135,27 @@ func TestGetFiatDepositInfo(t *testing.T) {
 
 // fiatHistoryValidationCases are the fiat history requests both fiat history methods must refuse
 var fiatHistoryValidationCases = []struct {
-	req *FiatHistoryRequest
-	err error
+	name string
+	req  *FiatHistoryRequest
+	err  error
 }{
-	{req: nil, err: common.ErrNilPointer},
-	{req: &FiatHistoryRequest{}, err: errPageSizeRequired},
-	{req: &FiatHistoryRequest{PageSize: 10, EndTime: time.UnixMilli(1781127400000)}, err: common.ErrDateUnset},
-	{req: &FiatHistoryRequest{PageSize: 10, StartTime: time.UnixMilli(1781127400000), EndTime: time.UnixMilli(1781126400000)}, err: common.ErrStartAfterEnd},
-	{req: &FiatHistoryRequest{PageSize: 10, StartTime: time.UnixMilli(-1)}, err: errTimeBeforeUnixEpoch},
-	{req: &FiatHistoryRequest{PageSize: 10, StartTime: time.UnixMilli(-2), EndTime: time.UnixMilli(-1)}, err: errTimeBeforeUnixEpoch},
+	{name: "a nil request", req: nil, err: common.ErrNilPointer},
+	{name: "a request without a page size", req: &FiatHistoryRequest{}, err: errPageSizeRequired},
+	{name: "an end without a start", req: &FiatHistoryRequest{PageSize: 10, EndTime: time.UnixMilli(1781127400000)}, err: common.ErrDateUnset},
+	{name: "a window starting after it ends", req: &FiatHistoryRequest{PageSize: 10, StartTime: time.UnixMilli(1781127400000), EndTime: time.UnixMilli(1781126400000)}, err: common.ErrStartAfterEnd},
+	{name: "a start before the Unix epoch", req: &FiatHistoryRequest{PageSize: 10, StartTime: time.UnixMilli(-1)}, err: errTimeBeforeUnixEpoch},
+	{name: "a window before the Unix epoch", req: &FiatHistoryRequest{PageSize: 10, StartTime: time.UnixMilli(-2), EndTime: time.UnixMilli(-1)}, err: errTimeBeforeUnixEpoch},
 }
 
-func TestGetFiatDepositHistory(t *testing.T) {
+func TestGetFiatDepositHistory(t *testing.T) { //nolint:tparallel // the cases run in order before the later calls of the same method
 	t.Parallel()
+	// The cases run in order on e, before the GetFiatDepositHistory calls below, so each also checks that a refusal
+	// leaves nothing behind
 	for _, tc := range fiatHistoryValidationCases {
-		_, err := e.GetFiatDepositHistory(t.Context(), tc.req)
-		require.ErrorIsf(t, err, tc.err, "GetFiatDepositHistory must refuse %+v", tc.req)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.GetFiatDepositHistory(t.Context(), tc.req)
+			require.ErrorIsf(t, err, tc.err, "GetFiatDepositHistory must refuse %+v", tc.req)
+		})
 	}
 
 	ex, sent := newSignedRecorder(t, "private/fiat/fiat-deposit-history", `{"page":"0","page_size":"10","total":"0","transaction_history_list":[]}`)
@@ -212,11 +217,15 @@ func TestGetFiatDepositHistory(t *testing.T) {
 	}
 }
 
-func TestGetFiatWithdrawHistory(t *testing.T) {
+func TestGetFiatWithdrawHistory(t *testing.T) { //nolint:tparallel // the cases run in order before the later calls of the same method
 	t.Parallel()
+	// The cases run in order on e, before the GetFiatWithdrawHistory calls below, so each also checks that a refusal
+	// leaves nothing behind
 	for _, tc := range fiatHistoryValidationCases {
-		_, err := e.GetFiatWithdrawHistory(t.Context(), tc.req)
-		require.ErrorIsf(t, err, tc.err, "GetFiatWithdrawHistory must refuse %+v", tc.req)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.GetFiatWithdrawHistory(t.Context(), tc.req)
+			require.ErrorIsf(t, err, tc.err, "GetFiatWithdrawHistory must refuse %+v", tc.req)
+		})
 	}
 
 	ex, sent := newSignedRecorder(t, "private/fiat/fiat-withdraw-history", `{"page":"0","page_size":"10","total":"0","transaction_history_list":[]}`)
@@ -279,21 +288,26 @@ func TestGetFiatWithdrawHistory(t *testing.T) {
 	}
 }
 
-func TestCreateFiatWithdrawal(t *testing.T) {
+func TestCreateFiatWithdrawal(t *testing.T) { //nolint:tparallel // the cases run in order before the later calls of the same method
 	t.Parallel()
+	// The cases run in order on e, before the CreateFiatWithdrawal calls below, so each also checks that a refusal
+	// leaves nothing behind
 	for _, tc := range []struct {
-		req *FiatWithdrawalRequest
-		err error
+		name string
+		req  *FiatWithdrawalRequest
+		err  error
 	}{
-		{req: nil, err: common.ErrNilPointer},
-		{req: &FiatWithdrawalRequest{Amount: 1, Currency: currency.USD, PaymentNetwork: PaymentNetworkUSDSWIFT}, err: errBankAccountIDRequired},
-		{req: &FiatWithdrawalRequest{BankAccountID: "b", Currency: currency.USD, PaymentNetwork: PaymentNetworkUSDSWIFT}, err: errInvalidAmount},
-		{req: &FiatWithdrawalRequest{BankAccountID: "b", Amount: -1, Currency: currency.USD, PaymentNetwork: PaymentNetworkUSDSWIFT}, err: errInvalidAmount},
-		{req: &FiatWithdrawalRequest{BankAccountID: "b", Amount: 1, PaymentNetwork: PaymentNetworkUSDSWIFT}, err: currency.ErrCurrencyCodeEmpty},
-		{req: &FiatWithdrawalRequest{BankAccountID: "b", Amount: 1, Currency: currency.USD}, err: errPaymentNetworkRequired},
+		{name: "a nil request", req: nil, err: common.ErrNilPointer},
+		{name: "a withdrawal without a bank account", req: &FiatWithdrawalRequest{Amount: 1, Currency: currency.USD, PaymentNetwork: PaymentNetworkUSDSWIFT}, err: errBankAccountIDRequired},
+		{name: "a withdrawal without an amount", req: &FiatWithdrawalRequest{BankAccountID: "b", Currency: currency.USD, PaymentNetwork: PaymentNetworkUSDSWIFT}, err: errInvalidAmount},
+		{name: "a negative amount", req: &FiatWithdrawalRequest{BankAccountID: "b", Amount: -1, Currency: currency.USD, PaymentNetwork: PaymentNetworkUSDSWIFT}, err: errInvalidAmount},
+		{name: "a withdrawal without a currency", req: &FiatWithdrawalRequest{BankAccountID: "b", Amount: 1, PaymentNetwork: PaymentNetworkUSDSWIFT}, err: currency.ErrCurrencyCodeEmpty},
+		{name: "a withdrawal without a payment network", req: &FiatWithdrawalRequest{BankAccountID: "b", Amount: 1, Currency: currency.USD}, err: errPaymentNetworkRequired},
 	} {
-		_, err := e.CreateFiatWithdrawal(t.Context(), tc.req)
-		require.ErrorIsf(t, err, tc.err, "CreateFiatWithdrawal must refuse %+v", tc.req)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.CreateFiatWithdrawal(t.Context(), tc.req)
+			require.ErrorIsf(t, err, tc.err, "CreateFiatWithdrawal must refuse %+v", tc.req)
+		})
 	}
 
 	ex, sent := newSignedRecorder(t, "private/fiat/fiat-create-withdraw", `{"id":"1"}`)
@@ -397,7 +411,7 @@ func TestCreateFiatWithdrawal(t *testing.T) {
 	}
 }
 
-func TestGetFiatTransactionQuota(t *testing.T) {
+func TestGetFiatTransactionQuota(t *testing.T) { //nolint:tparallel // the cases run in order before the later calls of the same method
 	t.Parallel()
 	_, err := e.GetFiatTransactionQuota(t.Context(), "")
 	require.ErrorIs(t, err, errPaymentNetworkRequired, "GetFiatTransactionQuota must refuse an empty payment network")
@@ -409,9 +423,17 @@ func TestGetFiatTransactionQuota(t *testing.T) {
 	require.Len(t, params, 1, "GetFiatTransactionQuota must send one request")
 	assert.JSONEq(t, `{"payment_network":"usd_swift"}`, params[0], "GetFiatTransactionQuota should send the payment network")
 
-	for _, result := range []string{`null`, `{"details":null}`} {
-		_, err = newResponseServerExchange(t, `{"id":1,"method":"private/fiat/fiat-transaction-quota","code":0,"result":`+result+`}`).GetFiatTransactionQuota(t.Context(), PaymentNetworkUSDSWIFT)
-		assert.ErrorIsf(t, err, common.ErrNoResponse, "GetFiatTransactionQuota should error for the result %s", result)
+	// Serial, so the cases still run before the GetFiatTransactionQuota calls below rather than after them
+	for _, tc := range []struct {
+		name, result string
+	}{
+		{"a null result", `null`},
+		{"null details", `{"details":null}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := newResponseServerExchange(t, `{"id":1,"method":"private/fiat/fiat-transaction-quota","code":0,"result":`+tc.result+`}`).GetFiatTransactionQuota(t.Context(), PaymentNetworkUSDSWIFT)
+			assert.ErrorIsf(t, err, common.ErrNoResponse, "GetFiatTransactionQuota should error for the result %s", tc.result)
+		})
 	}
 	_, err = newUnavailableServerExchange(t).GetFiatTransactionQuota(t.Context(), PaymentNetworkUSDSWIFT)
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetFiatTransactionQuota should return the request's failure")
@@ -532,19 +554,24 @@ func TestGetFiatTransactionLimit(t *testing.T) {
 	}
 }
 
-func TestCreateFiatBankAccount(t *testing.T) {
+func TestCreateFiatBankAccount(t *testing.T) { //nolint:tparallel // the cases run in order before the later calls of the same method
 	t.Parallel()
+	// The cases run in order on e, before the CreateFiatBankAccount calls below, so each also checks that a refusal
+	// leaves nothing behind
 	for _, tc := range []struct {
-		req *FiatBankAccountRequest
-		err error
+		name string
+		req  *FiatBankAccountRequest
+		err  error
 	}{
-		{req: nil, err: common.ErrNilPointer},
-		{req: &FiatBankAccountRequest{PlaidPublicToken: "p", Currency: currency.USD}, err: errPlaidAccountIDRequired},
-		{req: &FiatBankAccountRequest{PlaidAccountID: "a", Currency: currency.USD}, err: errPlaidPublicTokenRequired},
-		{req: &FiatBankAccountRequest{PlaidAccountID: "a", PlaidPublicToken: "p"}, err: currency.ErrCurrencyCodeEmpty},
+		{name: "a nil request", req: nil, err: common.ErrNilPointer},
+		{name: "a request without a Plaid account ID", req: &FiatBankAccountRequest{PlaidPublicToken: "p", Currency: currency.USD}, err: errPlaidAccountIDRequired},
+		{name: "a request without a Plaid public token", req: &FiatBankAccountRequest{PlaidAccountID: "a", Currency: currency.USD}, err: errPlaidPublicTokenRequired},
+		{name: "a request without a currency", req: &FiatBankAccountRequest{PlaidAccountID: "a", PlaidPublicToken: "p"}, err: currency.ErrCurrencyCodeEmpty},
 	} {
-		_, err := e.CreateFiatBankAccount(t.Context(), tc.req)
-		require.ErrorIsf(t, err, tc.err, "CreateFiatBankAccount must refuse %+v", tc.req)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.CreateFiatBankAccount(t.Context(), tc.req)
+			require.ErrorIsf(t, err, tc.err, "CreateFiatBankAccount must refuse %+v", tc.req)
+		})
 	}
 
 	ex, sent := newSignedRecorder(t, "private/fiat/fiat-create-bank-account", `{"bank_accounts_list":[]}`)

@@ -31,7 +31,7 @@ func tradingTestBatch() *BatchOrderRequest {
 	}
 }
 
-func TestWebsocketAPICreateOrder(t *testing.T) {
+func TestWebsocketAPICreateOrder(t *testing.T) { //nolint:tparallel // the refusals run in order on e
 	t.Parallel()
 	_, err := e.WebsocketAPI().CreateOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "CreateOrder must refuse a nil request")
@@ -39,11 +39,14 @@ func TestWebsocketAPICreateOrder(t *testing.T) {
 	noInstrument.InstrumentName = ""
 	_, err = e.WebsocketAPI().CreateOrder(t.Context(), noInstrument)
 	require.ErrorIs(t, err, errInstrumentNameRequired, "CreateOrder must refuse an order without an instrument")
+	// The cases run in order on e, before the calls below, so each also checks that a refusal leaves nothing behind
 	for _, tc := range createOrderRefusals {
-		req := tradingTestOrder()
-		tc.modify(req)
-		_, err := e.WebsocketAPI().CreateOrder(t.Context(), req)
-		assert.ErrorIsf(t, err, tc.err, "CreateOrder should refuse %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			req := tradingTestOrder()
+			tc.modify(req)
+			_, err := e.WebsocketAPI().CreateOrder(t.Context(), req)
+			assert.ErrorIsf(t, err, tc.err, "CreateOrder should refuse %s", tc.name)
+		})
 	}
 	skipLiveUnlessCanManipulate(t)
 
@@ -70,11 +73,14 @@ func TestWebsocketAPICreateOrder(t *testing.T) {
 	}
 }
 
-func TestWebsocketAPIAmendOrder(t *testing.T) {
+func TestWebsocketAPIAmendOrder(t *testing.T) { //nolint:tparallel // the refusals run in order on e
 	t.Parallel()
+	// The cases run in order on e, before the calls below, so each also checks that a refusal leaves nothing behind
 	for _, tc := range amendOrderRefusals {
-		_, err := e.WebsocketAPI().AmendOrder(t.Context(), tc.req)
-		assert.ErrorIsf(t, err, tc.err, "AmendOrder should refuse %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.WebsocketAPI().AmendOrder(t.Context(), tc.req)
+			assert.ErrorIsf(t, err, tc.err, "AmendOrder should refuse %s", tc.name)
+		})
 	}
 	skipLiveUnlessCanManipulate(t)
 
@@ -102,11 +108,14 @@ func TestWebsocketAPIAmendOrder(t *testing.T) {
 	}
 }
 
-func TestWebsocketAPICancelExistingOrder(t *testing.T) {
+func TestWebsocketAPICancelExistingOrder(t *testing.T) { //nolint:tparallel // the refusals run in order on e
 	t.Parallel()
+	// The cases run in order on e, before the calls below, so each also checks that a refusal leaves nothing behind
 	for _, tc := range cancelOrderRefusals {
-		_, err := e.WebsocketAPI().CancelExistingOrder(t.Context(), tc.req)
-		assert.ErrorIsf(t, err, tc.err, "CancelExistingOrder should refuse %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.WebsocketAPI().CancelExistingOrder(t.Context(), tc.req)
+			assert.ErrorIsf(t, err, tc.err, "CancelExistingOrder should refuse %s", tc.name)
+		})
 	}
 	skipLiveUnlessCanManipulate(t)
 
@@ -132,10 +141,13 @@ func TestWebsocketAPICancelExistingOrder(t *testing.T) {
 	}
 }
 
-func TestWebsocketAPICancelAllExistingOrders(t *testing.T) {
+func TestWebsocketAPICancelAllExistingOrders(t *testing.T) { //nolint:tparallel // the refusals run in order on e
 	t.Parallel()
+	// The cases run in order on e, before the calls below, so each also checks that a refusal leaves nothing behind
 	for _, tc := range cancelAllOrdersRefusals {
-		assert.ErrorIsf(t, e.WebsocketAPI().CancelAllExistingOrders(t.Context(), tc.req), tc.err, "CancelAllExistingOrders should refuse %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			assert.ErrorIsf(t, e.WebsocketAPI().CancelAllExistingOrders(t.Context(), tc.req), tc.err, "CancelAllExistingOrders should refuse %s", tc.name)
+		})
 	}
 	// An instrument the other tests place no orders on, so that cancelling its orders live leaves theirs
 	skipLiveUnlessCanManipulate(t)
@@ -155,11 +167,14 @@ func TestWebsocketAPICancelAllExistingOrders(t *testing.T) {
 	}
 }
 
-func TestWebsocketAPIClosePosition(t *testing.T) {
+func TestWebsocketAPIClosePosition(t *testing.T) { //nolint:tparallel // the refusals run in order on e
 	t.Parallel()
+	// The cases run in order on e, before the calls below, so each also checks that a refusal leaves nothing behind
 	for _, tc := range closePositionRefusals {
-		_, err := e.WebsocketAPI().ClosePosition(t.Context(), tc.req)
-		assert.ErrorIsf(t, err, tc.err, "ClosePosition should refuse %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.WebsocketAPI().ClosePosition(t.Context(), tc.req)
+			assert.ErrorIsf(t, err, tc.err, "ClosePosition should refuse %s", tc.name)
+		})
 	}
 	skipLiveUnlessCanManipulate(t)
 	if !mockTests {
@@ -181,7 +196,7 @@ func TestWebsocketAPIClosePosition(t *testing.T) {
 	assert.ErrorIs(t, err, common.ErrNoResponse, "ClosePosition should error for a null result")
 }
 
-func TestWebsocketAPICreateOrderList(t *testing.T) {
+func TestWebsocketAPICreateOrderList(t *testing.T) { //nolint:tparallel // the refusals run in order on e
 	t.Parallel()
 	_, err := e.WebsocketAPI().CreateOrderList(t.Context(), nil)
 	require.ErrorIs(t, err, errOrderListEmpty, "CreateOrderList must refuse an empty list")
@@ -189,12 +204,15 @@ func TestWebsocketAPICreateOrderList(t *testing.T) {
 	require.ErrorIs(t, err, errOrderListTooLong, "CreateOrderList must refuse a list of 11 orders")
 	_, err = e.WebsocketAPI().CreateOrderList(t.Context(), []CreateOrderRequest{*tradingTestOrder(), {Side: SideBuy, OrderType: OrderTypeMarket, Quantity: 0.0001}})
 	require.ErrorIs(t, err, errInstrumentNameRequired, "CreateOrderList must refuse an order without an instrument")
+	// The cases run in order on e, before the calls below, so each also checks that a refusal leaves nothing behind
 	for _, tc := range createOrderRefusals {
-		orders := []CreateOrderRequest{*tradingTestOrder(), *tradingTestOrder()}
-		tc.modify(&orders[1])
-		_, err := e.WebsocketAPI().CreateOrderList(t.Context(), orders)
-		assert.ErrorIsf(t, err, tc.err, "CreateOrderList should refuse %s", tc.name)
-		assert.ErrorContainsf(t, err, "order 1:", "CreateOrderList should name the index of %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			orders := []CreateOrderRequest{*tradingTestOrder(), *tradingTestOrder()}
+			tc.modify(&orders[1])
+			_, err := e.WebsocketAPI().CreateOrderList(t.Context(), orders)
+			assert.ErrorIsf(t, err, tc.err, "CreateOrderList should refuse %s", tc.name)
+			assert.ErrorContainsf(t, err, "order 1:", "CreateOrderList should name the index of %s", tc.name)
+		})
 	}
 	skipLiveUnlessCanManipulate(t)
 
@@ -230,11 +248,14 @@ func TestWebsocketAPICreateOrderList(t *testing.T) {
 	}
 }
 
-func TestWebsocketAPICancelOrderList(t *testing.T) {
+func TestWebsocketAPICancelOrderList(t *testing.T) { //nolint:tparallel // the refusals run in order on e
 	t.Parallel()
+	// The cases run in order on e, before the calls below, so each also checks that a refusal leaves nothing behind
 	for _, tc := range cancelOrderListRefusals {
-		_, err := e.WebsocketAPI().CancelOrderList(t.Context(), tc.orders)
-		assert.ErrorIsf(t, err, tc.err, "CancelOrderList should refuse %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.WebsocketAPI().CancelOrderList(t.Context(), tc.orders)
+			assert.ErrorIsf(t, err, tc.err, "CancelOrderList should refuse %s", tc.name)
+		})
 	}
 	_, err := e.WebsocketAPI().CancelOrderList(t.Context(), []CancelOrderListEntryRequest{{OrderID: tradingTestOrderID}, {InstrumentName: "CRO_USD"}})
 	assert.ErrorContains(t, err, "order 1:", "CancelOrderList should name the index of the order named by neither ID")
@@ -267,12 +288,13 @@ func TestWebsocketAPICancelOrderList(t *testing.T) {
 	}
 }
 
-func TestWebsocketAPISendBatchOrderRequest(t *testing.T) {
+func TestWebsocketAPISendBatchOrderRequest(t *testing.T) { //nolint:tparallel // the cases run in order on e, then on ex and its venue
 	t.Parallel()
 	elevenCreates := make([]CreateOrderRequest, 11)
 	for i := range elevenCreates {
 		elevenCreates[i] = *tradingTestOrder()
 	}
+	// The cases run in order on e, before the calls below, so each also checks that a refusal leaves nothing behind
 	for _, tc := range []struct {
 		name string
 		req  *BatchOrderRequest
@@ -285,17 +307,22 @@ func TestWebsocketAPISendBatchOrderRequest(t *testing.T) {
 		{"a cancel naming no order", &BatchOrderRequest{InstrumentName: "BTCUSD-PERP", Cancels: []CancelOrderRequest{{OrderID: tradingTestOrderID}, {}}}, errOrderIDRequired},
 		{"a create of another instrument", &BatchOrderRequest{InstrumentName: "ETHUSD-PERP", Creates: []CreateOrderRequest{*tradingTestOrder()}}, errBatchInstrumentMismatch},
 	} {
-		_, err := e.WebsocketAPI().SendBatchOrderRequest(t.Context(), tc.req)
-		assert.ErrorIsf(t, err, tc.err, "SendBatchOrderRequest should refuse %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.WebsocketAPI().SendBatchOrderRequest(t.Context(), tc.req)
+			assert.ErrorIsf(t, err, tc.err, "SendBatchOrderRequest should refuse %s", tc.name)
+		})
 	}
 	_, err := e.WebsocketAPI().SendBatchOrderRequest(t.Context(), &BatchOrderRequest{InstrumentName: "BTCUSD-PERP", Cancels: []CancelOrderRequest{{OrderID: tradingTestOrderID}, {}}})
 	assert.ErrorContains(t, err, "cancel 1:", "SendBatchOrderRequest should name the index of the cancel naming no order")
+	// The cases run in order on e, before the calls below, so each also checks that a refusal leaves nothing behind
 	for _, tc := range createOrderRefusals {
-		req := tradingTestBatch()
-		tc.modify(&req.Creates[1])
-		_, err := e.WebsocketAPI().SendBatchOrderRequest(t.Context(), req)
-		assert.ErrorIsf(t, err, tc.err, "SendBatchOrderRequest should refuse %s", tc.name)
-		assert.ErrorContainsf(t, err, "create 1:", "SendBatchOrderRequest should name the index of %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			req := tradingTestBatch()
+			tc.modify(&req.Creates[1])
+			_, err := e.WebsocketAPI().SendBatchOrderRequest(t.Context(), req)
+			assert.ErrorIsf(t, err, tc.err, "SendBatchOrderRequest should refuse %s", tc.name)
+			assert.ErrorContainsf(t, err, "create 1:", "SendBatchOrderRequest should name the index of %s", tc.name)
+		})
 	}
 	skipLiveUnlessCanManipulate(t)
 
@@ -352,15 +379,21 @@ func TestWebsocketAPISendBatchOrderRequest(t *testing.T) {
 			params: `{"instrument_name":"BTCUSD-PERP","creates":[` + strings.Join(tenCreatesParams, ",") + `]}`,
 		},
 	}
+	// The cases share ex and its venue in order, as the requests checked below are matched to them by position
 	for _, tc := range cases {
-		_, err := ex.WebsocketAPI().SendBatchOrderRequest(t.Context(), tc.req)
-		assert.NoErrorf(t, err, "SendBatchOrderRequest should not error for %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := ex.WebsocketAPI().SendBatchOrderRequest(t.Context(), tc.req)
+			assert.NoErrorf(t, err, "SendBatchOrderRequest should not error for %s", tc.name)
+		})
 	}
 	requests := venue.received("private/batch-order-request")
 	require.Len(t, requests, len(cases)+1, "SendBatchOrderRequest must send one request each call")
 	assert.JSONEq(t, `{"instrument_name":"BTCUSD-PERP","cancels":[{"order_id":"6530219466236720401"},{"client_oid":"my-client-order-id"}],"creates":[{"side":"BUY","type":"LIMIT","price":"41555","quantity":"0.01","client_oid":"optional-client-id","time_in_force":"GOOD_TILL_CANCEL","exec_inst":["POST_ONLY","REDUCE_ONLY"]},{"side":"BUY","type":"LIMIT","price":"41000","quantity":"0.0001","exec_inst":["POST_ONLY"]}]}`, string(requests[0].Params), "SendBatchOrderRequest should send the batch, its creates inheriting its instrument")
+	// The cases check the requests recorded above before the call below sends another to the venue
 	for i, tc := range cases {
-		assert.JSONEqf(t, tc.params, string(requests[i+1].Params), "SendBatchOrderRequest should send the params of %s", tc.name)
+		t.Run("params of "+tc.name, func(t *testing.T) {
+			assert.JSONEqf(t, tc.params, string(requests[i+1].Params), "SendBatchOrderRequest should send the params of %s", tc.name)
+		})
 	}
 	assert.Equal(t, tradingTestBatch(), req, "SendBatchOrderRequest should leave the request's creates as they were")
 
@@ -369,13 +402,14 @@ func TestWebsocketAPISendBatchOrderRequest(t *testing.T) {
 	assert.ErrorIs(t, err, common.ErrNoResponse, "SendBatchOrderRequest should error for a null result")
 }
 
-func TestWebsocketAPIRefusedRequests(t *testing.T) {
+func TestWebsocketAPIRefusedRequests(t *testing.T) { //nolint:tparallel // the cases share ex and its venue in turn
 	t.Parallel()
 	if !mockTests {
 		t.Skip("refused requests are tested against the mock websocket")
 	}
 	ex, venue := newWebsocketTestExchange(t)
 	api := ex.WebsocketAPI()
+	// The cases share ex and its venue in turn, each leaving its method refused for those after it
 	for method, call := range map[string]func() error{
 		"private/create-order": func() error {
 			_, err := api.CreateOrder(t.Context(), tradingTestOrder())
@@ -418,11 +452,13 @@ func TestWebsocketAPIRefusedRequests(t *testing.T) {
 			return err
 		},
 	} {
-		venue.fail(method, &APIError{Code: 50001, Message: "INTERNAL_SERVER_ERROR"})
-		var apiErr *APIError
-		require.ErrorAsf(t, call(), &apiErr, "%s must return Crypto.com's refusal", method)
-		assert.Equalf(t, int64(50001), apiErr.Code, "%s should return Crypto.com's refusal", method)
-		// The mock keeps refusing each method already called, so a request sent under another's name would be refused too
-		assert.Lenf(t, venue.received(method), 1, "%s should be requested once", method)
+		t.Run(method, func(t *testing.T) {
+			venue.fail(method, &APIError{Code: 50001, Message: "INTERNAL_SERVER_ERROR"})
+			var apiErr *APIError
+			require.ErrorAsf(t, call(), &apiErr, "%s must return Crypto.com's refusal", method)
+			assert.Equalf(t, int64(50001), apiErr.Code, "%s should return Crypto.com's refusal", method)
+			// The mock keeps refusing each method already called, so a request sent under another's name would be refused too
+			assert.Lenf(t, venue.received(method), 1, "%s should be requested once", method)
+		})
 	}
 }

@@ -142,7 +142,7 @@ func invalidTradingBotSettingsCases() []invalidTradingBotSettingsCase {
 	}
 }
 
-func TestCreateTradingBot(t *testing.T) {
+func TestCreateTradingBot(t *testing.T) { //nolint:tparallel // the cases run in order on e and before the later calls of CreateTradingBot
 	t.Parallel()
 	_, err := e.CreateTradingBot(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "CreateTradingBot must error for a nil request")
@@ -154,12 +154,16 @@ func TestCreateTradingBot(t *testing.T) {
 	require.ErrorIs(t, err, errTradingBotSettingsRequired, "CreateTradingBot must error without settings")
 	_, err = e.CreateTradingBot(t.Context(), &CreateTradingBotRequest{BotType: TradingBotTypeGrid, Settings: dcaBotSettings()})
 	require.ErrorIs(t, err, errTradingBotSettingsMismatch, "CreateTradingBot must error for settings of another bot type")
+	// The cases run in order on e, before the calls below, so each also checks that a refusal leaves nothing behind
 	for _, tc := range invalidTradingBotSettingsCases() {
-		_, err = e.CreateTradingBot(t.Context(), &CreateTradingBotRequest{BotType: tc.settings.BotType(), Settings: tc.settings})
-		require.ErrorIsf(t, err, tc.err, "CreateTradingBot must error for %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.CreateTradingBot(t.Context(), &CreateTradingBotRequest{BotType: tc.settings.BotType(), Settings: tc.settings})
+			require.ErrorIsf(t, err, tc.err, "CreateTradingBot must error for %s", tc.name)
+		})
 	}
 	skipLiveUnlessCanManipulate(t)
 
+	// The cases run in order on e, which every test shares, before the calls of CreateTradingBot below
 	for _, tc := range []struct {
 		settings TradingBotSettings
 		botID    string
@@ -169,13 +173,15 @@ func TestCreateTradingBot(t *testing.T) {
 		{settings: gridBotSettings(), botID: "4611686018431234563"},
 		{settings: fundingArbitrageBotSettings(), botID: "4611686018431234564"},
 	} {
-		result, err := e.CreateTradingBot(t.Context(), &CreateTradingBotRequest{BotType: tc.settings.BotType(), NotifyOnBotChange: true, Settings: tc.settings})
-		require.NoErrorf(t, err, "CreateTradingBot must not error for the docs' %s bot", tc.settings.BotType())
-		if mockTests {
-			assert.Equalf(t, &CreateTradingBotResponse{BotID: tc.botID}, result, "CreateTradingBot should return the %s bot's ID", tc.settings.BotType())
-		} else {
-			assert.NotEmptyf(t, result.BotID, "CreateTradingBot should return the %s bot's ID", tc.settings.BotType())
-		}
+		t.Run(tc.settings.BotType(), func(t *testing.T) {
+			result, err := e.CreateTradingBot(t.Context(), &CreateTradingBotRequest{BotType: tc.settings.BotType(), NotifyOnBotChange: true, Settings: tc.settings})
+			require.NoErrorf(t, err, "CreateTradingBot must not error for the docs' %s bot", tc.settings.BotType())
+			if mockTests {
+				assert.Equalf(t, &CreateTradingBotResponse{BotID: tc.botID}, result, "CreateTradingBot should return the %s bot's ID", tc.settings.BotType())
+			} else {
+				assert.NotEmptyf(t, result.BotID, "CreateTradingBot should return the %s bot's ID", tc.settings.BotType())
+			}
+		})
 	}
 
 	autoStake := &TradingBotDollarCostAveragingSettings{
@@ -218,38 +224,49 @@ func TestCreateTradingBot(t *testing.T) {
 		TakeProfitPrice:    36000,
 		TrailingUpPriceCap: 50000,
 	}
+	// The cases run in order, using the settings above, before the calls of CreateTradingBot below, which parallel
+	// cases would follow
 	for _, tc := range []struct {
-		req *CreateTradingBotRequest
-		exp string
+		name string
+		req  *CreateTradingBotRequest
+		exp  string
 	}{
 		{
-			req: &CreateTradingBotRequest{BotType: TradingBotTypeDollarCostAveraging, NotifyOnBotChange: true, DisplayName: "Selling DCA", Settings: autoStake},
-			exp: `{"bot_type":"DCA","notify_on_bot_change":true,"display_name":"Selling DCA","settings":{"is_basket":false,"allocations":[{"instrument_name":"BTC_USDT","allocated_percentage":"100"}],"investment_currency":"USDT","side":"SELL","type":"LIMIT","auto_stake":true,"price":"30000","quantity":"0.01","total_investment":"300","investment_frequency_mode":"FIXED_DURATION","investment_frequency":3600000,"first_investment_time":1792890000000,"investment_duration":86400000,"max_order":"24","stop_price":"20000","take_profit_price":"40000","simplified_mode":true}}`,
+			name: "a selling DCA bot with every setting",
+			req:  &CreateTradingBotRequest{BotType: TradingBotTypeDollarCostAveraging, NotifyOnBotChange: true, DisplayName: "Selling DCA", Settings: autoStake},
+			exp:  `{"bot_type":"DCA","notify_on_bot_change":true,"display_name":"Selling DCA","settings":{"is_basket":false,"allocations":[{"instrument_name":"BTC_USDT","allocated_percentage":"100"}],"investment_currency":"USDT","side":"SELL","type":"LIMIT","auto_stake":true,"price":"30000","quantity":"0.01","total_investment":"300","investment_frequency_mode":"FIXED_DURATION","investment_frequency":3600000,"first_investment_time":1792890000000,"investment_duration":86400000,"max_order":"24","stop_price":"20000","take_profit_price":"40000","simplified_mode":true}}`,
 		},
 		{
-			req: &CreateTradingBotRequest{BotType: TradingBotTypeDollarCostAveraging, Settings: basket},
-			exp: `{"bot_type":"DCA","notify_on_bot_change":false,"settings":{"is_basket":true,"allocations":[{"instrument_name":"BTC_USDT","allocated_percentage":"60"},{"instrument_name":"ETH_USDT","allocated_percentage":"40"}],"investment_currency":"USDT","auto_stake":false,"total_investment":"1000","investment_frequency_mode":"MONTHLY","investment_duration":12}}`,
+			name: "a basket DCA bot",
+			req:  &CreateTradingBotRequest{BotType: TradingBotTypeDollarCostAveraging, Settings: basket},
+			exp:  `{"bot_type":"DCA","notify_on_bot_change":false,"settings":{"is_basket":true,"allocations":[{"instrument_name":"BTC_USDT","allocated_percentage":"60"},{"instrument_name":"ETH_USDT","allocated_percentage":"40"}],"investment_currency":"USDT","auto_stake":false,"total_investment":"1000","investment_frequency_mode":"MONTHLY","investment_duration":12}}`,
 		},
 		{
-			req: &CreateTradingBotRequest{BotType: TradingBotTypeTimeWeightedAveragePrice, Settings: limitTWAP},
-			exp: `{"bot_type":"TWAP","notify_on_bot_change":false,"settings":{"instrument_name":"BTC_USDT","side":"SELL","type":"LIMIT","price":"30000","quantity":"0.5","start_time_millis":1792890000000,"end_time_millis":1792893600000}}`,
+			name: "a limit TWAP bot",
+			req:  &CreateTradingBotRequest{BotType: TradingBotTypeTimeWeightedAveragePrice, Settings: limitTWAP},
+			exp:  `{"bot_type":"TWAP","notify_on_bot_change":false,"settings":{"instrument_name":"BTC_USDT","side":"SELL","type":"LIMIT","price":"30000","quantity":"0.5","start_time_millis":1792890000000,"end_time_millis":1792893600000}}`,
 		},
 		{
-			req: &CreateTradingBotRequest{BotType: TradingBotTypeGrid, Settings: gridBotSettings()},
-			exp: `{"bot_type":"GRID","notify_on_bot_change":false,"settings":{"instrument_name":"BTC_USDT","total_investment":"1000","lower_price":"25000","upper_price":"35000","grid_mode":"ARITHMETIC","grid_no":10,"margin_enabled":false,"trailing_up_enabled":false}}`,
+			name: "the docs' grid bot",
+			req:  &CreateTradingBotRequest{BotType: TradingBotTypeGrid, Settings: gridBotSettings()},
+			exp:  `{"bot_type":"GRID","notify_on_bot_change":false,"settings":{"instrument_name":"BTC_USDT","total_investment":"1000","lower_price":"25000","upper_price":"35000","grid_mode":"ARITHMETIC","grid_no":10,"margin_enabled":false,"trailing_up_enabled":false}}`,
 		},
 		{
-			req: &CreateTradingBotRequest{BotType: TradingBotTypeGrid, NotifyOnBotChange: true, DisplayName: "Trailing Grid", Settings: everyGrid},
-			exp: `{"bot_type":"GRID","notify_on_bot_change":true,"display_name":"Trailing Grid","settings":{"instrument_name":"BTC_USDT","total_investment":"1000","lower_price":"25000","upper_price":"35000","grid_mode":"GEOMETRIC","grid_no":20,"margin_enabled":true,"trailing_up_enabled":true,"stop_price":"24000","take_profit_price":"36000","trailing_up_price_cap":"50000"}}`,
+			name: "a trailing grid bot with every setting",
+			req:  &CreateTradingBotRequest{BotType: TradingBotTypeGrid, NotifyOnBotChange: true, DisplayName: "Trailing Grid", Settings: everyGrid},
+			exp:  `{"bot_type":"GRID","notify_on_bot_change":true,"display_name":"Trailing Grid","settings":{"instrument_name":"BTC_USDT","total_investment":"1000","lower_price":"25000","upper_price":"35000","grid_mode":"GEOMETRIC","grid_no":20,"margin_enabled":true,"trailing_up_enabled":true,"stop_price":"24000","take_profit_price":"36000","trailing_up_price_cap":"50000"}}`,
 		},
 		{
-			req: &CreateTradingBotRequest{BotType: TradingBotTypeFundingArbitrage, Settings: fundingArbitrageBotSettings()},
-			exp: `{"bot_type":"FUNDING_ARBITRAGE","notify_on_bot_change":false,"settings":{"total_investment":"5000","investment_currency":"USDT","spot_leg":{"instrument_name":"BTC_USDT","side":"BUY"},"perp_leg":{"instrument_name":"BTCUSD-PERP","side":"SELL"}}}`,
+			name: "the docs' funding arbitrage bot",
+			req:  &CreateTradingBotRequest{BotType: TradingBotTypeFundingArbitrage, Settings: fundingArbitrageBotSettings()},
+			exp:  `{"bot_type":"FUNDING_ARBITRAGE","notify_on_bot_change":false,"settings":{"total_investment":"5000","investment_currency":"USDT","spot_leg":{"instrument_name":"BTC_USDT","side":"BUY"},"perp_leg":{"instrument_name":"BTCUSD-PERP","side":"SELL"}}}`,
 		},
 	} {
-		ex := newSignedParamsServer(t, "private/bot/create-trading-bot", tc.exp, `{"id":1,"method":"private/bot/create-trading-bot","code":0,"result":{"bot_id":"1"}}`)
-		_, err = ex.CreateTradingBot(t.Context(), tc.req)
-		require.NoErrorf(t, err, "CreateTradingBot must not error against the test server for a %s bot", tc.req.BotType)
+		t.Run(tc.name, func(t *testing.T) {
+			ex := newSignedParamsServer(t, "private/bot/create-trading-bot", tc.exp, `{"id":1,"method":"private/bot/create-trading-bot","code":0,"result":{"bot_id":"1"}}`)
+			_, err := ex.CreateTradingBot(t.Context(), tc.req)
+			require.NoErrorf(t, err, "CreateTradingBot must not error against the test server for a %s bot", tc.req.BotType)
+		})
 	}
 	_, err = newResponseServerExchange(t, `{"id":1,"method":"private/bot/create-trading-bot","code":0,"result":null}`).CreateTradingBot(t.Context(), &CreateTradingBotRequest{BotType: TradingBotTypeGrid, Settings: gridBotSettings()})
 	assert.ErrorIs(t, err, common.ErrNoResponse, "CreateTradingBot should error for a null result")
@@ -296,9 +313,10 @@ func TestTradingBotRequestSignature(t *testing.T) {
 	require.NoError(t, err, "CreateTradingBot must not error against the test server")
 }
 
-func TestUpdateTradingBot(t *testing.T) {
+func TestUpdateTradingBot(t *testing.T) { //nolint:tparallel // the cases run in order on e and before the later calls of UpdateTradingBot
 	t.Parallel()
 	require.ErrorIs(t, e.UpdateTradingBot(t.Context(), nil), common.ErrNilPointer, "UpdateTradingBot must error for a nil request")
+	// The cases run in order on e, before the calls below, so each also checks that a refusal leaves nothing behind
 	for _, tc := range []struct {
 		name string
 		req  *UpdateTradingBotRequest
@@ -319,10 +337,13 @@ func TestUpdateTradingBot(t *testing.T) {
 		{name: "for typed nil grid settings", req: &UpdateTradingBotRequest{BotID: "1", BotType: TradingBotTypeGrid, Settings: (*TradingBotGridUpdateSettings)(nil)}, err: common.ErrNilPointer},
 		{name: "for a negative grid price", req: &UpdateTradingBotRequest{BotID: "1", BotType: TradingBotTypeGrid, Settings: &TradingBotGridUpdateSettings{TrailingUpPriceCap: -1}}, err: errInvalidPrice},
 	} {
-		require.ErrorIsf(t, e.UpdateTradingBot(t.Context(), tc.req), tc.err, "UpdateTradingBot must error %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			require.ErrorIsf(t, e.UpdateTradingBot(t.Context(), tc.req), tc.err, "UpdateTradingBot must error %s", tc.name)
+		})
 	}
 	skipLiveUnlessCanManipulate(t)
 
+	// The cases run in order on e, which every test shares, before the calls of UpdateTradingBot below
 	for _, req := range []*UpdateTradingBotRequest{
 		{
 			BotID:             "4611686018431234561",
@@ -337,15 +358,21 @@ func TestUpdateTradingBot(t *testing.T) {
 		{BotID: "4611686018431234563", BotType: TradingBotTypeGrid, NotifyOnBotChange: true, Settings: &TradingBotGridUpdateSettings{StopPrice: 24000}},
 		{BotID: "4611686018431234564", BotType: TradingBotTypeFundingArbitrage, NotifyOnBotChange: true, DisplayName: "Funding Arb Bot"},
 	} {
-		require.NoErrorf(t, e.UpdateTradingBot(t.Context(), req), "UpdateTradingBot must not error for the docs' %s bot", req.BotType)
+		t.Run(req.BotType, func(t *testing.T) {
+			require.NoErrorf(t, e.UpdateTradingBot(t.Context(), req), "UpdateTradingBot must not error for the docs' %s bot", req.BotType)
+		})
 	}
 
 	autoStake := false
+	// The cases run in order, one using autoStake, before the call of UpdateTradingBot below, which parallel cases
+	// would follow
 	for _, tc := range []struct {
-		req *UpdateTradingBotRequest
-		exp string
+		name string
+		req  *UpdateTradingBotRequest
+		exp  string
 	}{
 		{
+			name: "a DCA bot with every setting",
 			req: &UpdateTradingBotRequest{
 				BotID:             "4611686018431234561",
 				BotType:           TradingBotTypeDollarCostAveraging,
@@ -367,16 +394,20 @@ func TestUpdateTradingBot(t *testing.T) {
 			exp: `{"bot_id":4611686018431234561,"bot_type":"DCA","notify_on_bot_change":true,"display_name":"Updated DCA","settings":{"allocations":[{"instrument_name":"BTC_USDT","allocated_percentage":"100"}],"type":"LIMIT","price":"29000","max_order":"12","stop_price":"20000","take_profit_price":"40000","auto_stake":false,"investment_duration":43200000,"investment_frequency":1800000,"quantity":"0.02"}}`,
 		},
 		{
-			req: &UpdateTradingBotRequest{BotID: "4611686018431234563", BotType: TradingBotTypeGrid, Settings: &TradingBotGridUpdateSettings{StopPrice: 24000, TakeProfitPrice: 36000, TrailingUpPriceCap: 50000}},
-			exp: `{"bot_id":4611686018431234563,"bot_type":"GRID","notify_on_bot_change":false,"settings":{"stop_price":"24000","take_profit_price":"36000","trailing_up_price_cap":"50000"}}`,
+			name: "a grid bot's prices",
+			req:  &UpdateTradingBotRequest{BotID: "4611686018431234563", BotType: TradingBotTypeGrid, Settings: &TradingBotGridUpdateSettings{StopPrice: 24000, TakeProfitPrice: 36000, TrailingUpPriceCap: 50000}},
+			exp:  `{"bot_id":4611686018431234563,"bot_type":"GRID","notify_on_bot_change":false,"settings":{"stop_price":"24000","take_profit_price":"36000","trailing_up_price_cap":"50000"}}`,
 		},
 		{
-			req: &UpdateTradingBotRequest{BotID: "4611686018431234562", BotType: TradingBotTypeTimeWeightedAveragePrice},
-			exp: `{"bot_id":4611686018431234562,"bot_type":"TWAP","notify_on_bot_change":false}`,
+			name: "a TWAP bot without settings",
+			req:  &UpdateTradingBotRequest{BotID: "4611686018431234562", BotType: TradingBotTypeTimeWeightedAveragePrice},
+			exp:  `{"bot_id":4611686018431234562,"bot_type":"TWAP","notify_on_bot_change":false}`,
 		},
 	} {
-		ex := newSignedParamsServer(t, "private/bot/update-trading-bot", tc.exp, `{"id":1,"method":"private/bot/update-trading-bot","code":0}`)
-		require.NoErrorf(t, ex.UpdateTradingBot(t.Context(), tc.req), "UpdateTradingBot must not error against the test server for a %s bot", tc.req.BotType)
+		t.Run(tc.name, func(t *testing.T) {
+			ex := newSignedParamsServer(t, "private/bot/update-trading-bot", tc.exp, `{"id":1,"method":"private/bot/update-trading-bot","code":0}`)
+			require.NoErrorf(t, ex.UpdateTradingBot(t.Context(), tc.req), "UpdateTradingBot must not error against the test server for a %s bot", tc.req.BotType)
+		})
 	}
 	err := newUnavailableServerExchange(t).UpdateTradingBot(t.Context(), &UpdateTradingBotRequest{BotID: "1", BotType: TradingBotTypeTimeWeightedAveragePrice})
 	assert.ErrorIs(t, err, request.ErrBadStatus, "UpdateTradingBot should return a request failure")
@@ -392,7 +423,7 @@ func requireTradingBotIdentityValidation(t *testing.T, method string, call func(
 	require.ErrorIsf(t, call("1", "MARTINGALE"), errInvalidTradingBotType, "%s must error for an unknown bot type", method)
 }
 
-func TestTerminateTradingBot(t *testing.T) {
+func TestTerminateTradingBot(t *testing.T) { //nolint:tparallel // the cases run in order before the later call of TerminateTradingBot
 	t.Parallel()
 	require.ErrorIs(t, e.TerminateTradingBot(t.Context(), nil), common.ErrNilPointer, "TerminateTradingBot must error for a nil request")
 	requireTradingBotIdentityValidation(t, "TerminateTradingBot", func(botID, botType string) error {
@@ -402,6 +433,7 @@ func TestTerminateTradingBot(t *testing.T) {
 
 	require.NoError(t, e.TerminateTradingBot(t.Context(), &TerminateTradingBotRequest{BotID: "4611686018431234561", BotType: TradingBotTypeDollarCostAveraging}), "TerminateTradingBot must not error")
 
+	// The cases run in order, before the call of TerminateTradingBot below, which parallel cases would follow
 	for _, tc := range []struct {
 		req *TerminateTradingBotRequest
 		exp string
@@ -415,8 +447,10 @@ func TestTerminateTradingBot(t *testing.T) {
 			exp: `{"bot_id":4611686018431234561,"bot_type":"DCA"}`,
 		},
 	} {
-		ex := newSignedParamsServer(t, "private/bot/terminate-trading-bot", tc.exp, `{"id":1,"method":"private/bot/terminate-trading-bot","code":0}`)
-		require.NoErrorf(t, ex.TerminateTradingBot(t.Context(), tc.req), "TerminateTradingBot must not error against the test server for a %s bot", tc.req.BotType)
+		t.Run(tc.req.BotType, func(t *testing.T) {
+			ex := newSignedParamsServer(t, "private/bot/terminate-trading-bot", tc.exp, `{"id":1,"method":"private/bot/terminate-trading-bot","code":0}`)
+			require.NoErrorf(t, ex.TerminateTradingBot(t.Context(), tc.req), "TerminateTradingBot must not error against the test server for a %s bot", tc.req.BotType)
+		})
 	}
 	err := newUnavailableServerExchange(t).TerminateTradingBot(t.Context(), &TerminateTradingBotRequest{BotID: "1", BotType: TradingBotTypeDollarCostAveraging})
 	assert.ErrorIs(t, err, request.ErrBadStatus, "TerminateTradingBot should return a request failure")
@@ -454,10 +488,11 @@ func TestResumeTradingBot(t *testing.T) {
 	assert.ErrorIs(t, newUnavailableServerExchange(t).ResumeTradingBot(t.Context(), req), request.ErrBadStatus, "ResumeTradingBot should return a request failure")
 }
 
-func TestGetTradingBots(t *testing.T) {
+func TestGetTradingBots(t *testing.T) { //nolint:tparallel // the cases run in order on e and before the later calls of GetTradingBots
 	t.Parallel()
 	_, err := e.GetTradingBots(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetTradingBots must error for a nil request")
+	// The cases run in order on e, before the calls below, so each also checks that a refusal leaves nothing behind
 	for _, tc := range []struct {
 		name string
 		req  *TradingBotsRequest
@@ -470,8 +505,10 @@ func TestGetTradingBots(t *testing.T) {
 		{name: "for an unknown state", req: &TradingBotsRequest{BotTypes: []string{TradingBotTypeDollarCostAveraging}, States: []string{"STOPPED"}}, err: errInvalidTradingBotState},
 		{name: "for a page size above the maximum", req: &TradingBotsRequest{BotTypes: []string{TradingBotTypeDollarCostAveraging}, States: []string{TradingBotStateRunning}, PageSize: tradingBotMaximumPageSize + 1}, err: errInvalidCount},
 	} {
-		_, err = e.GetTradingBots(t.Context(), tc.req)
-		require.ErrorIsf(t, err, tc.err, "GetTradingBots must error %s", tc.name)
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := e.GetTradingBots(t.Context(), tc.req)
+			require.ErrorIsf(t, err, tc.err, "GetTradingBots must error %s", tc.name)
+		})
 	}
 	skipLiveWithoutCredentials(t)
 
@@ -532,26 +569,33 @@ func TestGetTradingBots(t *testing.T) {
 		}
 	}
 
+	// The cases run in order, before the calls of GetTradingBots below, which parallel cases would follow
 	for _, tc := range []struct {
-		req *TradingBotsRequest
-		exp string
+		name string
+		req  *TradingBotsRequest
+		exp  string
 	}{
 		{
-			req: &TradingBotsRequest{BotID: "4611686018431234561", BotTypes: []string{TradingBotTypeDollarCostAveraging}, States: []string{TradingBotStateRunning}, Page: 2, PageSize: 50},
-			exp: `{"bot_id":4611686018431234561,"bot_types":["DCA"],"state":["RUNNING"],"page":2,"page_size":50}`,
+			name: "every param",
+			req:  &TradingBotsRequest{BotID: "4611686018431234561", BotTypes: []string{TradingBotTypeDollarCostAveraging}, States: []string{TradingBotStateRunning}, Page: 2, PageSize: 50},
+			exp:  `{"bot_id":4611686018431234561,"bot_types":["DCA"],"state":["RUNNING"],"page":2,"page_size":50}`,
 		},
 		{
-			req: &TradingBotsRequest{BotTypes: []string{TradingBotTypeGrid}, States: []string{TradingBotStatePaused}},
-			exp: `{"bot_types":["GRID"],"state":["PAUSED"]}`,
+			name: "bot types and states",
+			req:  &TradingBotsRequest{BotTypes: []string{TradingBotTypeGrid}, States: []string{TradingBotStatePaused}},
+			exp:  `{"bot_types":["GRID"],"state":["PAUSED"]}`,
 		},
 		{
-			req: &TradingBotsRequest{BotID: "4611686018431234563", BotTypes: []string{TradingBotTypeGrid}},
-			exp: `{"bot_id":4611686018431234563,"bot_types":["GRID"]}`,
+			name: "a bot ID without states",
+			req:  &TradingBotsRequest{BotID: "4611686018431234563", BotTypes: []string{TradingBotTypeGrid}},
+			exp:  `{"bot_id":4611686018431234563,"bot_types":["GRID"]}`,
 		},
 	} {
-		ex := newSignedParamsServer(t, "private/bot/get-trading-bots", tc.exp, `{"id":1,"method":"private/bot/get-trading-bots","code":0,"result":{"bot_list":[]}}`)
-		_, err = ex.GetTradingBots(t.Context(), tc.req)
-		require.NoErrorf(t, err, "GetTradingBots must not error against the test server for %+v", tc.req)
+		t.Run(tc.name, func(t *testing.T) {
+			ex := newSignedParamsServer(t, "private/bot/get-trading-bots", tc.exp, `{"id":1,"method":"private/bot/get-trading-bots","code":0,"result":{"bot_list":[]}}`)
+			_, err := ex.GetTradingBots(t.Context(), tc.req)
+			require.NoErrorf(t, err, "GetTradingBots must not error against the test server for %+v", tc.req)
+		})
 	}
 	minimal := &TradingBotsRequest{BotTypes: []string{TradingBotTypeDollarCostAveraging}, States: []string{TradingBotStateRunning}}
 	_, err = newResponseServerExchange(t, `{"id":1,"method":"private/bot/get-trading-bots","code":0,"result":null}`).GetTradingBots(t.Context(), minimal)
@@ -560,7 +604,7 @@ func TestGetTradingBots(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetTradingBots should return a request failure")
 }
 
-func TestGetTradingBotExecutions(t *testing.T) {
+func TestGetTradingBotExecutions(t *testing.T) { //nolint:tparallel // the cases run in order before the later calls of GetTradingBotExecutions
 	t.Parallel()
 	_, err := e.GetTradingBotExecutions(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetTradingBotExecutions must error for a nil request")
@@ -599,22 +643,28 @@ func TestGetTradingBotExecutions(t *testing.T) {
 		}
 	}
 
+	// The cases run in order, before the calls of GetTradingBotExecutions below, which parallel cases would follow
 	for _, tc := range []struct {
-		req *TradingBotExecutionsRequest
-		exp string
+		name string
+		req  *TradingBotExecutionsRequest
+		exp  string
 	}{
 		{
-			req: &TradingBotExecutionsRequest{BotID: "4611686018431234561", OrderStatuses: []string{OrderStatusFilled, OrderStatusCanceled}, BasketInstrumentNames: []string{"BTC_USDT", "ETH_USDT"}, Page: 1, PageSize: 100},
-			exp: `{"bot_id":4611686018431234561,"order_status":["FILLED","CANCELED"],"basket_bot_filter":{"include_child_symbols":["BTC_USDT","ETH_USDT"]},"page":1,"page_size":100}`,
+			name: "every param",
+			req:  &TradingBotExecutionsRequest{BotID: "4611686018431234561", OrderStatuses: []string{OrderStatusFilled, OrderStatusCanceled}, BasketInstrumentNames: []string{"BTC_USDT", "ETH_USDT"}, Page: 1, PageSize: 100},
+			exp:  `{"bot_id":4611686018431234561,"order_status":["FILLED","CANCELED"],"basket_bot_filter":{"include_child_symbols":["BTC_USDT","ETH_USDT"]},"page":1,"page_size":100}`,
 		},
 		{
-			req: &TradingBotExecutionsRequest{BotID: "4611686018431234561"},
-			exp: `{"bot_id":4611686018431234561}`,
+			name: "only the bot ID",
+			req:  &TradingBotExecutionsRequest{BotID: "4611686018431234561"},
+			exp:  `{"bot_id":4611686018431234561}`,
 		},
 	} {
-		ex := newSignedParamsServer(t, "private/bot/get-trading-bot-executions", tc.exp, `{"id":1,"method":"private/bot/get-trading-bot-executions","code":0,"result":{"execution_list":[]}}`)
-		_, err = ex.GetTradingBotExecutions(t.Context(), tc.req)
-		require.NoErrorf(t, err, "GetTradingBotExecutions must not error against the test server for %+v", tc.req)
+		t.Run(tc.name, func(t *testing.T) {
+			ex := newSignedParamsServer(t, "private/bot/get-trading-bot-executions", tc.exp, `{"id":1,"method":"private/bot/get-trading-bot-executions","code":0,"result":{"execution_list":[]}}`)
+			_, err := ex.GetTradingBotExecutions(t.Context(), tc.req)
+			require.NoErrorf(t, err, "GetTradingBotExecutions must not error against the test server for %+v", tc.req)
+		})
 	}
 	_, err = newResponseServerExchange(t, `{"id":1,"method":"private/bot/get-trading-bot-executions","code":0,"result":null}`).GetTradingBotExecutions(t.Context(), &TradingBotExecutionsRequest{BotID: "1"})
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetTradingBotExecutions should error for a null result")
@@ -622,41 +672,50 @@ func TestGetTradingBotExecutions(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetTradingBotExecutions should return a request failure")
 }
 
-func TestTradingBotResponseUnmarshalJSON(t *testing.T) {
+func TestTradingBotResponseUnmarshalJSON(t *testing.T) { //nolint:tparallel // the cases run in order before the later calls of the same function
 	t.Parallel()
+	// The cases run in order before the later calls of the same function, so each also checks that a call keeps
+	// nothing from the last
 	for _, tc := range []struct {
+		name     string
 		botType  string
 		settings string
 		exp      TradingBotSettings
 	}{
 		{
+			name:     "a DCA bot",
 			botType:  TradingBotTypeDollarCostAveraging,
 			settings: `{"is_basket":false,"allocations":[{"instrument_name":"BTC_USDT","allocated_percentage":"100"}],"investment_currency":"USDT","side":"BUY","type":"MARKET","auto_stake":false,"quantity":"0.01","investment_frequency_mode":"FIXED_DURATION","investment_frequency":300000,"max_order":"10","first_investment_time":1691510460000}`,
 			exp:      dcaBotSettings(),
 		},
 		{
+			name:     "a TWAP bot",
 			botType:  TradingBotTypeTimeWeightedAveragePrice,
 			settings: `{"instrument_name":"BTC_USDT","side":"BUY","type":"MARKET","quantity":"1","start_time_millis":1691510460000,"end_time_millis":1691513460000}`,
 			exp:      twapBotSettings(),
 		},
 		{
+			name:     "a grid bot",
 			botType:  TradingBotTypeGrid,
 			settings: `{"instrument_name":"BTC_USDT","total_investment":"1000","lower_price":"25000","upper_price":"35000","grid_mode":"ARITHMETIC","grid_no":10,"margin_enabled":false,"trailing_up_enabled":false}`,
 			exp:      gridBotSettings(),
 		},
 		{
+			name:     "a funding arbitrage bot",
 			botType:  TradingBotTypeFundingArbitrage,
 			settings: `{"total_investment":"5000","investment_currency":"USDT","spot_leg":{"instrument_name":"BTC_USDT","side":"BUY"},"perp_leg":{"instrument_name":"BTCUSD-PERP","side":"SELL"}}`,
 			exp:      fundingArbitrageBotSettings(),
 		},
-		{botType: "MARTINGALE", settings: `{"martingale_multiplier":"2"}`},
-		{botType: TradingBotTypeGrid, settings: `null`},
+		{name: "an unknown bot type", botType: "MARTINGALE", settings: `{"martingale_multiplier":"2"}`},
+		{name: "a grid bot with null settings", botType: TradingBotTypeGrid, settings: `null`},
 	} {
-		var bot TradingBotResponse
-		payload := `{"bot_id":"9","bot_type":"` + tc.botType + `","state":"RUNNING","settings":` + tc.settings + `}`
-		require.NoErrorf(t, json.Unmarshal([]byte(payload), &bot), "Unmarshal must not error for a %s bot", tc.botType)
-		exp := TradingBotResponse{BotID: "9", BotType: tc.botType, State: TradingBotStateRunning, Settings: tc.exp}
-		assert.Equalf(t, exp, bot, "Unmarshal should decode a %s bot's settings by its type", tc.botType)
+		t.Run(tc.name, func(t *testing.T) {
+			var bot TradingBotResponse
+			payload := `{"bot_id":"9","bot_type":"` + tc.botType + `","state":"RUNNING","settings":` + tc.settings + `}`
+			require.NoErrorf(t, json.Unmarshal([]byte(payload), &bot), "Unmarshal must not error for a %s bot", tc.botType)
+			exp := TradingBotResponse{BotID: "9", BotType: tc.botType, State: TradingBotStateRunning, Settings: tc.exp}
+			assert.Equalf(t, exp, bot, "Unmarshal should decode a %s bot's settings by its type", tc.botType)
+		})
 	}
 
 	var bot TradingBotResponse
@@ -674,50 +733,64 @@ func TestTradingBotResponseUnmarshalJSON(t *testing.T) {
 
 func TestTradingBotSettingsMarshalJSON(t *testing.T) {
 	t.Parallel()
+	// The cases run in order before the later calls of the same function, so each also checks that a call keeps
+	// nothing from the last
 	for _, tc := range []struct {
+		name     string
 		settings any
 		exp      string
 	}{
 		{
+			name:     "DCA settings",
 			settings: dcaBotSettings(),
 			exp:      `{"is_basket":false,"allocations":[{"instrument_name":"BTC_USDT","allocated_percentage":"100"}],"investment_currency":"USDT","side":"BUY","type":"MARKET","auto_stake":false,"quantity":"0.01","investment_frequency_mode":"FIXED_DURATION","investment_frequency":300000,"first_investment_time":1691510460000,"max_order":"10"}`,
 		},
 		{
+			name:     "TWAP settings",
 			settings: twapBotSettings(),
 			exp:      `{"instrument_name":"BTC_USDT","side":"BUY","type":"MARKET","quantity":"1","start_time_millis":1691510460000,"end_time_millis":1691513460000}`,
 		},
 	} {
-		encoded, err := json.Marshal(tc.settings)
-		require.NoErrorf(t, err, "Marshal must not error for %T", tc.settings)
-		assert.JSONEqf(t, tc.exp, string(encoded), "Marshal should encode %T as Crypto.com takes it", tc.settings)
+		t.Run(tc.name, func(t *testing.T) {
+			encoded, err := json.Marshal(tc.settings)
+			require.NoErrorf(t, err, "Marshal must not error for %T", tc.settings)
+			assert.JSONEqf(t, tc.exp, string(encoded), "Marshal should encode %T as Crypto.com takes it", tc.settings)
+		})
 	}
-	for _, settings := range []any{
-		&TradingBotDollarCostAveragingSettings{FirstInvestmentTime: time.UnixMilli(-1)},
-		&TradingBotDollarCostAveragingSettings{InvestmentFrequency: -time.Hour},
-		&TradingBotTimeWeightedAveragePriceSettings{StartTime: time.UnixMilli(-1)},
-		&TradingBotTimeWeightedAveragePriceSettings{EndTime: time.UnixMilli(-1)},
+	for name, settings := range map[string]any{
+		"DCA settings first investing before 1970": &TradingBotDollarCostAveragingSettings{FirstInvestmentTime: time.UnixMilli(-1)},
+		"DCA settings with a negative frequency":   &TradingBotDollarCostAveragingSettings{InvestmentFrequency: -time.Hour},
+		"TWAP settings starting before 1970":       &TradingBotTimeWeightedAveragePriceSettings{StartTime: time.UnixMilli(-1)},
+		"TWAP settings ending before 1970":         &TradingBotTimeWeightedAveragePriceSettings{EndTime: time.UnixMilli(-1)},
 	} {
-		_, err := json.Marshal(settings)
-		assert.Errorf(t, err, "Marshal should error for %+v, which Crypto.com cannot take", settings)
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			_, err := json.Marshal(settings)
+			assert.Errorf(t, err, "Marshal should error for %+v, which Crypto.com cannot take", settings)
+		})
 	}
 }
 
 func TestTradingBotUpdateSettingsParams(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
+		name     string
 		settings TradingBotUpdateSettings
 		exp      string
 	}{
-		{settings: &TradingBotDollarCostAveragingUpdateSettings{}, exp: `{}`},
-		{settings: &TradingBotDollarCostAveragingUpdateSettings{InvestmentFrequency: 90 * time.Second, MaximumOrders: 3}, exp: `{"max_order":"3","investment_frequency":90000}`},
-		{settings: &TradingBotGridUpdateSettings{}, exp: `{}`},
-		{settings: &TradingBotGridUpdateSettings{TakeProfitPrice: 36000}, exp: `{"take_profit_price":"36000"}`},
+		{name: "empty DCA settings", settings: &TradingBotDollarCostAveragingUpdateSettings{}, exp: `{}`},
+		{name: "a DCA frequency and maximum orders", settings: &TradingBotDollarCostAveragingUpdateSettings{InvestmentFrequency: 90 * time.Second, MaximumOrders: 3}, exp: `{"max_order":"3","investment_frequency":90000}`},
+		{name: "empty grid settings", settings: &TradingBotGridUpdateSettings{}, exp: `{}`},
+		{name: "a grid take profit price", settings: &TradingBotGridUpdateSettings{TakeProfitPrice: 36000}, exp: `{"take_profit_price":"36000"}`},
 	} {
-		params, err := tc.settings.updateSettingsParams()
-		require.NoErrorf(t, err, "updateSettingsParams must not error for %+v", tc.settings)
-		encoded, err := json.Marshal(params)
-		require.NoErrorf(t, err, "Marshal must not error for the params of %+v", tc.settings)
-		assert.JSONEqf(t, tc.exp, string(encoded), "updateSettingsParams should give %+v as Crypto.com takes it", tc.settings)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			params, err := tc.settings.updateSettingsParams()
+			require.NoErrorf(t, err, "updateSettingsParams must not error for %+v", tc.settings)
+			encoded, err := json.Marshal(params)
+			require.NoErrorf(t, err, "Marshal must not error for the params of %+v", tc.settings)
+			assert.JSONEqf(t, tc.exp, string(encoded), "updateSettingsParams should give %+v as Crypto.com takes it", tc.settings)
+		})
 	}
 }
 
@@ -735,15 +808,19 @@ func TestUnixMilliTime(t *testing.T) {
 	assert.True(t, unixMilliTime(math.MaxUint64).IsZero(), "unixMilliTime should give the zero time for milliseconds too large to hold")
 }
 
-func TestTradingBotSettingsBotType(t *testing.T) {
+func TestTradingBotSettingsBotType(t *testing.T) { //nolint:tparallel // the cases run in order before the later calls of the same function
 	t.Parallel()
+	// The cases run in order before the later calls of the same function, so each also checks that a call keeps
+	// nothing from the last
 	for exp, settings := range map[string]interface{ BotType() string }{
 		TradingBotTypeDollarCostAveraging:      (*TradingBotDollarCostAveragingSettings)(nil),
 		TradingBotTypeTimeWeightedAveragePrice: (*TradingBotTimeWeightedAveragePriceSettings)(nil),
 		TradingBotTypeGrid:                     (*TradingBotGridSettings)(nil),
 		TradingBotTypeFundingArbitrage:         (*TradingBotFundingArbitrageSettings)(nil),
 	} {
-		assert.Equalf(t, exp, settings.BotType(), "%T should be a %s bot's settings", settings, exp)
+		t.Run(exp, func(t *testing.T) {
+			assert.Equalf(t, exp, settings.BotType(), "%T should be a %s bot's settings", settings, exp)
+		})
 	}
 	assert.Equal(t, TradingBotTypeDollarCostAveraging, (*TradingBotDollarCostAveragingUpdateSettings)(nil).BotType(), "TradingBotDollarCostAveragingUpdateSettings should be a DCA bot's settings")
 	assert.Equal(t, TradingBotTypeGrid, (*TradingBotGridUpdateSettings)(nil).BotType(), "TradingBotGridUpdateSettings should be a grid bot's settings")

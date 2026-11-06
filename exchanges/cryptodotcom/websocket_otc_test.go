@@ -10,7 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-func TestWebsocketAPIRequestOTCQuote(t *testing.T) {
+func TestWebsocketAPIRequestOTCQuote(t *testing.T) { //nolint:tparallel // the validation cases run in order on e and before the later calls of RequestOTCQuote
 	t.Parallel()
 	requireOTCQuoteRequestValidation(t, "RequestOTCQuote", func(req *OTCQuoteRequest) error {
 		_, err := e.WebsocketAPI().RequestOTCQuote(t.Context(), req)
@@ -37,7 +37,7 @@ func TestWebsocketAPIRequestOTCQuote(t *testing.T) {
 	}
 }
 
-func TestWebsocketAPIRequestOTCDeal(t *testing.T) {
+func TestWebsocketAPIRequestOTCDeal(t *testing.T) { //nolint:tparallel // the validation cases run in order on e and before the later calls of RequestOTCDeal
 	t.Parallel()
 	requireOTCDealValidation(t, "RequestOTCDeal", func(req *OTCDealRequest) error {
 		_, err := e.WebsocketAPI().RequestOTCDeal(t.Context(), req)

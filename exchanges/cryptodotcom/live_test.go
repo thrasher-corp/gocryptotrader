@@ -62,7 +62,13 @@ func newTestExchange(tb testing.TB) *Exchange {
 var websocketTestExchange = sync.OnceValues(func() (*Exchange, error) {
 	e.Features.Subscriptions = subscription.List{}
 	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	return e, e.Websocket.Connect(context.Background())
+	if err := e.Websocket.Connect(context.Background()); err != nil {
+		// Disabling stops the connection monitor, which would otherwise keep redialling Crypto.com while disconnected;
+		// Disable fails only for a websocket already disabled, whose monitor, if any, stops by itself
+		_ = e.Websocket.Disable()
+		return e, err
+	}
+	return e, nil
 })
 
 // newWebsocketTestExchange returns the exchange connected to Crypto.com's websocket, which every caller shares; it
