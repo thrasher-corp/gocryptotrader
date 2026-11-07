@@ -1707,6 +1707,9 @@ func TestPlaceTWAPOrder(t *testing.T) {
 		{name: "nil request", err: common.ErrNilPointer},
 		{name: "too few minutes", arg: &TWAPOrderRequest{Size: 1, Minutes: minimumTWAPMinutes - 1}, err: errTWAPMinutesInvalid},
 		{name: "too many minutes", arg: &TWAPOrderRequest{Size: 1, Minutes: maximumTWAPMinutes + 1}, err: errTWAPMinutesInvalid},
+		{name: "four minutes", arg: &TWAPOrderRequest{Size: 1, Minutes: 4}, err: errTWAPMinutesInvalid},
+		{name: "a minute past seven days", arg: &TWAPOrderRequest{Size: 1, Minutes: 10081}, err: errTWAPMinutesInvalid},
+		{name: "the most minutes a uint64 holds", arg: &TWAPOrderRequest{Size: 1, Minutes: math.MaxUint64}, err: errTWAPMinutesInvalid},
 		{name: "no size", arg: &TWAPOrderRequest{Minutes: 30}, err: order.ErrAmountIsInvalid},
 		{name: "a size beyond 8 decimals", arg: &TWAPOrderRequest{Size: 0.000000001, Minutes: 30}, err: errWireNumberRounding},
 	} {
@@ -1730,10 +1733,26 @@ func TestPlaceTWAPOrder(t *testing.T) {
 
 	var captured SignedActionRequest
 	ex := newActionServerExchange(t, subAccountCredentials(), &captured, `{"status":"ok","response":{"type":"twapOrder","data":{"status":{"running":{"twapId":1}}}}}`)
-	_, err := ex.PlaceTWAPOrder(t.Context(), &TWAPOrderRequest{Asset: 1, Size: 2, ReduceOnly: true, Minutes: 5})
-	require.NoError(t, err, "PlaceTWAPOrder must not error")
-	assert.JSONEq(t, `{"type":"twapOrder","twap":{"a":1,"b":false,"s":"2","r":true,"m":5,"t":false}}`, capturedAction(t, &captured), "PlaceTWAPOrder should send the TWAP order")
-	assert.Equal(t, testSubAccountAddress, captured.VaultAddress, "PlaceTWAPOrder should act for the configured subaccount")
+	ctx := t.Context()
+	// Hyperliquid runs a TWAP order for 5 minutes to 7 days. The cases share ex, captured and ctx in turn, so each also
+	// checks that a call keeps nothing from the last
+	for _, tc := range []struct {
+		name   string
+		arg    *TWAPOrderRequest
+		action string
+	}{
+		{name: "five minutes and reduce only", arg: &TWAPOrderRequest{Asset: 1, Size: 2, ReduceOnly: true, Minutes: 5}, action: `{"type":"twapOrder","twap":{"a":1,"b":false,"s":"2","r":true,"m":5,"t":false}}`},
+		{name: "seven days", arg: &TWAPOrderRequest{Asset: 1, Size: 2, Minutes: 10080}, action: `{"type":"twapOrder","twap":{"a":1,"b":false,"s":"2","r":false,"m":10080,"t":false}}`},
+		{name: "any whole number of minutes", arg: &TWAPOrderRequest{Asset: 1, Size: 2, Minutes: 4067}, action: `{"type":"twapOrder","twap":{"a":1,"b":false,"s":"2","r":false,"m":4067,"t":false}}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			status, err := ex.PlaceTWAPOrder(ctx, tc.arg)
+			require.NoErrorf(t, err, "PlaceTWAPOrder must accept a TWAP order of %d minutes", tc.arg.Minutes)
+			assert.Equalf(t, &TWAPOrderStatusResponse{Running: &TWAPRunningStatus{TWAPID: 1}}, status, "PlaceTWAPOrder should return the running TWAP order of %d minutes", tc.arg.Minutes)
+			assert.JSONEqf(t, tc.action, capturedAction(t, &captured), "PlaceTWAPOrder should send the TWAP order of %d minutes unchanged", tc.arg.Minutes)
+			assert.Equalf(t, testSubAccountAddress, captured.VaultAddress, "PlaceTWAPOrder should act for the configured subaccount with %d minutes", tc.arg.Minutes)
+		})
+	}
 
 	arg := &TWAPOrderRequest{Asset: 0, IsBuy: true, Size: 0.01, Minutes: 30, Randomise: true}
 	if !mockTests {

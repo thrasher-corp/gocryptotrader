@@ -875,7 +875,7 @@ type TWAPOrderRequest struct {
 	IsBuy      bool
 	Size       float64
 	ReduceOnly bool
-	// Minutes is the order's duration, 5 to 1440
+	// Minutes is the order's duration, 5 minutes to 7 days
 	Minutes uint64
 	// Randomise varies the timing of the order's slices
 	Randomise bool

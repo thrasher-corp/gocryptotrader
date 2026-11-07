@@ -28,7 +28,7 @@ const (
 	maximumSpotBuilderFee      TenthsOfABasisPoint = 1000
 	minimumScheduleCancelDelay                     = 5 * time.Second
 	minimumTWAPMinutes                             = 5
-	maximumTWAPMinutes                             = 1440
+	maximumTWAPMinutes                             = 7 * 24 * 60
 	// liquidatorTransferStep is 1000 quote tokens with 6 decimals, the unit of HIP-3 backstop liquidator transfers
 	liquidatorTransferStep = 1000e6
 	maximumAgentNameLength = 16
@@ -84,7 +84,7 @@ var (
 	errTransferTokenInvalid        = errors.New("invalid transfer token")
 	errTriggerPriceRequired        = errors.New("trigger price must be set")
 	errTWAPIDRequired              = errors.New("TWAP order ID is required")
-	errTWAPMinutesInvalid          = errors.New("TWAP duration must be 5 to 1440 minutes")
+	errTWAPMinutesInvalid          = errors.New("TWAP duration must be 5 minutes to 7 days")
 )
 
 // PlaceOrders places a batch of orders as one signed order action and returns each order's status, in request order
