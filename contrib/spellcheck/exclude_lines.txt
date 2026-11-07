@@ -16,3 +16,4 @@
   behavior: default
 	loanCustomiseMarginCall      = "/sapi/v1/loan/customize/margin_call"
 	// unimplemented method is ever invoked, so we test this at initialization
+	// Status is RAW, REJECTED, NEW, INITIALIZING, RUNNING, CANCELLING or COMPLETED

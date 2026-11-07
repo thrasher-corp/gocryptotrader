@@ -1,0 +1,2 @@
+{"topic":"insurance.USDT","type":"snapshot","ts":1791535781000,"data":[{"coin":"USDT","symbols":"HYPEUSDT-23OCT26,HYPEUSDT-16OCT26,HYPEUSDT-27NOV26,HYPEUSDT-30OCT26","balance":"50044.12025128","updateTime":"1791535781000"},{"coin":"USDT","symbols":"PRLUSDT,BASEDUSDT,GWEIUSDT","balance":"2170104.46560389","updateTime":"1791535781000"}]}
+{"topic":"insurance.USDT","type":"delta","ts":1791535782000,"data":[{"coin":"USDT","symbols":"PRLUSDT,BASEDUSDT,GWEIUSDT","balance":"2170101.02210391","updateTime":"1791535782000"}]}

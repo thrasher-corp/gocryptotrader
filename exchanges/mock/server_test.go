@@ -326,6 +326,13 @@ func TestMatchAndGetResponse(t *testing.T) {
 			wantResult:  `{"match":"float"}`,
 		},
 		{
+			name:        "json object body with nested values",
+			mockData:    []HTTPResponse{{BodyParams: `{"category":"linear","request":[{"symbol":"BTCUSDT","qty":"1"}],"filter":{"a":1},"none":null}`, Data: json.RawMessage(`{"match":"nested"}`)}},
+			requestVals: url.Values{"category": {"linear"}, "request": {`[{"qty":"1","symbol":"BTCUSDT"}]`}, "filter": {`{"a":1}`}, "none": {"null"}},
+			isQueryData: false,
+			wantResult:  `{"match":"nested"}`,
+		},
+		{
 			name: "json array body params entry skipped falling through to next",
 			mockData: []HTTPResponse{
 				{BodyParams: `[1,2,3]`, Data: json.RawMessage(`{"match":"should-not-reach"}`)},
@@ -348,6 +355,13 @@ func TestMatchAndGetResponse(t *testing.T) {
 			requestVals: url.Values{"currency": {"btc"}},
 			isQueryData: false,
 			wantErr:     errNoDataMatched,
+		},
+		{
+			name:        "malformed recorded query string returns its parse error",
+			mockData:    []HTTPResponse{{QueryString: "currency=%zz", Data: json.RawMessage(`{"match":"malformed"}`)}},
+			requestVals: url.Values{"currency": {"btc"}},
+			isQueryData: true,
+			wantErr:     url.EscapeError("%zz"),
 		},
 		{
 			name:        "empty body params matches empty request vals",
