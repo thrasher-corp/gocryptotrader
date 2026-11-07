@@ -6566,6 +6566,12 @@
         "id": {
           "type": "string",
           "format": "int64"
+        },
+        "strAmount": {
+          "type": "string"
+        },
+        "strPrice": {
+          "type": "string"
         }
       }
     },
