@@ -660,16 +660,17 @@ func (bot *Engine) GetAllExchangeCryptocurrencyDepositAddresses() map[string]Exc
 						// store the default non-chain specified address for a specified crypto
 						chainContainsItself := common.StringSliceCompareInsensitive(availChains, cryptocurrency)
 						if !chainContainsItself && !requiresChainSet {
+							// Some accounts only have addresses on a chain, which are still fetched below
 							depositAddr, err := exch.GetDepositAddress(runtimeCtx, currency.NewCode(cryptocurrency), "", "")
 							if err != nil {
 								log.Errorf(log.Global, "%s failed to get cryptocurrency deposit address for %s. Err: %s\n",
 									exchName,
 									cryptocurrency,
 									err)
-								continue
+							} else {
+								depositAddr.Chain = cryptocurrency
+								depositAddrs = append(depositAddrs, *depositAddr)
 							}
-							depositAddr.Chain = cryptocurrency
-							depositAddrs = append(depositAddrs, *depositAddr)
 						}
 						for z := range availChains {
 							if availChains[z] == "" {
@@ -707,6 +708,9 @@ func (bot *Engine) GetAllExchangeCryptocurrencyDepositAddresses() map[string]Exc
 						continue
 					}
 					depositAddrs = append(depositAddrs, *depositAddr)
+				}
+				if len(depositAddrs) == 0 {
+					continue
 				}
 				cryptoAddr[cryptocurrency] = depositAddrs
 			}

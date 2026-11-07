@@ -649,13 +649,14 @@ func TestGetCryptocurrenciesByExchange(t *testing.T) {
 }
 
 type fakeDepositExchangeOpts struct {
-	SupportsAuth             bool
-	SupportsMultiChain       bool
-	RequiresChainSet         bool
-	ReturnMultipleChains     bool
-	ThrowPairError           bool
-	ThrowTransferChainError  bool
-	ThrowDepositAddressError bool
+	SupportsAuth                      bool
+	SupportsMultiChain                bool
+	RequiresChainSet                  bool
+	ReturnMultipleChains              bool
+	ThrowPairError                    bool
+	ThrowTransferChainError           bool
+	ThrowDepositAddressError          bool
+	ThrowChainlessDepositAddressError bool
 }
 
 type fakeDepositExchange struct {
@@ -695,8 +696,8 @@ func (f fakeDepositExchange) GetAvailableTransferChains(_ context.Context, c cur
 	return []string{"BITCOIN"}, nil
 }
 
-func (f fakeDepositExchange) GetDepositAddress(_ context.Context, _ currency.Code, _, _ string) (*deposit.Address, error) {
-	if f.ThrowDepositAddressError {
+func (f fakeDepositExchange) GetDepositAddress(_ context.Context, _ currency.Code, _, chain string) (*deposit.Address, error) {
+	if f.ThrowDepositAddressError || (f.ThrowChainlessDepositAddressError && chain == "") {
 		return nil, errors.New("unable to get deposit address")
 	}
 	return &deposit.Address{Address: "fakeaddr"}, nil
@@ -801,9 +802,11 @@ func TestGetAllExchangeCryptocurrencyDepositAddresses(t *testing.T) {
 		t.Error("should have returned no deposit addresses for a fake exchange with transfer error")
 	}
 	e = createDepositEngine(&fakeDepositExchangeOpts{SupportsAuth: true, SupportsMultiChain: true, ThrowDepositAddressError: true})
-	if r := e.GetAllExchangeCryptocurrencyDepositAddresses(); len(r["fake"]["btc"]) != 0 {
-		t.Error("should have returned no deposit addresses for fake exchange with deposit error, with multichain support enabled")
-	}
+	r := e.GetAllExchangeCryptocurrencyDepositAddresses()
+	assert.NotContains(t, r["fake"], "btc", "GetAllExchangeCryptocurrencyDepositAddresses should store no BTC entry when every deposit address request fails")
+	e = createDepositEngine(&fakeDepositExchangeOpts{SupportsAuth: true, SupportsMultiChain: true, ThrowChainlessDepositAddressError: true})
+	r = e.GetAllExchangeCryptocurrencyDepositAddresses()
+	assert.Equal(t, []deposit.Address{{Address: "fakeaddr", Chain: "BITCOIN"}}, r["fake"]["btc"], "GetAllExchangeCryptocurrencyDepositAddresses should fetch each chain's address when the address without a chain fails")
 	e = createDepositEngine(&fakeDepositExchangeOpts{SupportsAuth: true, SupportsMultiChain: true, RequiresChainSet: true})
 	if r := e.GetAllExchangeCryptocurrencyDepositAddresses(); len(r["fake"]["btc"]) == 0 {
 		t.Error("should of returned a BTC address")

@@ -149,7 +149,7 @@ func TestWithHeaders(t *testing.T) {
 
 func TestWithRetryNotAllowed(t *testing.T) {
 	t.Parallel()
-	assert.True(t, hasRetryNotAllowed(WithRetryNotAllowed(t.Context())))
-	assert.False(t, hasRetryNotAllowed(t.Context()))
-	assert.False(t, hasRetryNotAllowed(WithDelayNotAllowed(WithVerbose(t.Context()))))
+	assert.True(t, HasRetryNotAllowed(WithRetryNotAllowed(t.Context())))
+	assert.False(t, HasRetryNotAllowed(t.Context()))
+	assert.False(t, HasRetryNotAllowed(WithDelayNotAllowed(WithVerbose(t.Context()))))
 }

@@ -16,6 +16,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"testing/iotest"
 	"time"
@@ -23,6 +24,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/timedmutex"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/nonce"
 )
 
@@ -1232,6 +1234,38 @@ func BenchmarkGetNonce(b *testing.B) {
 		r.GetNonce(nonce.UnixNano)
 		r.timedLock.UnlockIfLocked()
 	}
+}
+
+func TestSendPayloadNonceEnabled(t *testing.T) {
+	t.Parallel()
+	var sent atomic.Int32
+	client := &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+		sent.Add(1)
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     http.Header{"Content-Type": {"application/json"}},
+			Body:       io.NopCloser(strings.NewReader(`{}`)),
+		}, nil
+	})}
+	r, err := New("test", client)
+	require.NoError(t, err, "New must not error")
+	// Taking a nonce holds the timed lock until the request ends, so a request taking the lock again would wait out the
+	// whole hour
+	r.timedLock = timedmutex.NewTimedMutex(time.Hour)
+	done := make(chan error, 1)
+	go func() {
+		done <- r.SendPayload(t.Context(), Unset, func() (*Item, error) {
+			r.GetNonce(nonce.UnixNano)
+			return &Item{Method: http.MethodGet, Path: "https://example.com", Result: new(any), NonceEnabled: true}, nil
+		}, UnauthenticatedRequest)
+	}()
+	select {
+	case err := <-done:
+		require.NoError(t, err, "SendPayload must not error")
+	case <-time.After(5 * time.Second):
+		require.FailNow(t, "SendPayload must not take the timed lock again for a nonce enabled request")
+	}
+	assert.Equal(t, int32(1), sent.Load(), "SendPayload should send the request once")
 }
 
 func TestSetProxy(t *testing.T) {

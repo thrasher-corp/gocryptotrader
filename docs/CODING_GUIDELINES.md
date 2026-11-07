@@ -384,6 +384,16 @@ func TestUpdateAccountBalances(t *testing.T) {
 - Comments should explain **why** the code is doing something, not **what** it's doing, which should be self-explanatory.
 - Self-explanatory comments must be avoided.
 - Only retain comments for complex logic or where external behaviour needs clarification.
+- Mark deprecated exported identifiers, including exchange API fields and methods the exchange documents as
+    deprecated, with a `Deprecated:` paragraph in their doc comment that names any replacement, so staticcheck
+    reports their use outside the package:
+
+```go
+    // FutureType is linear or reversed, for a future
+    //
+    // Deprecated: Deribit will remove this field; use InstrumentType.
+    FutureType string `json:"future_type"`
+```
 
 ## Formatting
 
