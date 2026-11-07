@@ -101,7 +101,10 @@ func (m *Manager) ConnectionSubscriptionCaps(url string) (map[any]int, error) {
 
 	caps := make(map[any]int)
 	for _, ws := range m.snapshotConnectionManager() {
-		if ws.setup == nil || ws.setup.URL != url {
+		if ws.setup == nil {
+			return nil, fmt.Errorf("%w: ConnectionSetup", common.ErrNilPointer)
+		}
+		if ws.setup.URL != url {
 			continue
 		}
 		caps[ws.setup.MessageFilter] = m.maxSubscriptionsPerConnection(ws)

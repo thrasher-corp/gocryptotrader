@@ -1590,28 +1590,56 @@ func TestSetAllConnectionURLsErrorsAfterConnect(t *testing.T) {
 func TestConnectionSubscriptionCaps(t *testing.T) {
 	t.Parallel()
 
-	_, err := (*Manager)(nil).ConnectionSubscriptionCaps("wss://one.example/ws")
-	require.ErrorIs(t, err, common.ErrNilPointer, "ConnectionSubscriptionCaps must error on a nil manager")
+	t.Run("nil manager", func(t *testing.T) {
+		t.Parallel()
+		_, err := (*Manager)(nil).ConnectionSubscriptionCaps("wss://one.example/ws")
+		require.ErrorIs(t, err, common.ErrNilPointer, "ConnectionSubscriptionCaps must error on a nil manager")
+	})
+
+	withoutSetup := NewManager()
+	withoutSetup.connectionManager = []*websocket{
+		{setup: &ConnectionSetup{URL: "wss://one.example/ws"}},
+		{setup: nil},
+		{setup: &ConnectionSetup{URL: "wss://two.example/ws"}},
+	}
+	for _, tc := range []struct {
+		name string
+		url  string
+	}{
+		{name: "websocket without a setup after the setup asked for", url: "wss://one.example/ws"},
+		{name: "websocket without a setup before the setup asked for", url: "wss://two.example/ws"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			caps, err := withoutSetup.ConnectionSubscriptionCaps(tc.url)
+			require.ErrorIsf(t, err, common.ErrNilPointer, "ConnectionSubscriptionCaps must error on a websocket without a setup for %s", tc.url)
+			assert.EqualErrorf(t, err, common.ErrNilPointer.Error()+": ConnectionSetup", "ConnectionSubscriptionCaps should name the missing setup and nothing else for %s", tc.url)
+			assert.Nilf(t, caps, "ConnectionSubscriptionCaps should return no caps on error for %s", tc.url)
+		})
+	}
 
 	m := NewManager()
 	m.MaxSubscriptionsPerConnection = 3
 	m.connectionManager = []*websocket{
-		{setup: nil},
 		{setup: &ConnectionSetup{URL: "wss://one.example/ws"}},
 		{setup: &ConnectionSetup{URL: "wss://one.example/ws", MessageFilter: "capped", MaxSubscriptionsPerConnection: 5}},
 		{setup: &ConnectionSetup{URL: "wss://two.example/ws", MaxSubscriptionsPerConnection: 2}},
 	}
 	for _, tc := range []struct {
-		url string
-		exp map[any]int
+		name string
+		url  string
+		exp  map[any]int
 	}{
-		{url: "wss://one.example/ws", exp: map[any]int{nil: 3, "capped": 5}},
-		{url: "wss://two.example/ws", exp: map[any]int{nil: 2}},
-		{url: "wss://unregistered.example/ws", exp: map[any]int{}},
+		{name: "setups with and without a cap of their own", url: "wss://one.example/ws", exp: map[any]int{nil: 3, "capped": 5}},
+		{name: "a setup cap below the manager's", url: "wss://two.example/ws", exp: map[any]int{nil: 2}},
+		{name: "a URL with no setup", url: "wss://unregistered.example/ws", exp: map[any]int{}},
 	} {
-		caps, err := m.ConnectionSubscriptionCaps(tc.url)
-		require.NoErrorf(t, err, "ConnectionSubscriptionCaps must not error for %s", tc.url)
-		assert.Equalf(t, tc.exp, caps, "ConnectionSubscriptionCaps should return the cap applying to each setup registered for %s", tc.url)
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			caps, err := m.ConnectionSubscriptionCaps(tc.url)
+			require.NoErrorf(t, err, "ConnectionSubscriptionCaps must not error for %s", tc.url)
+			assert.Equalf(t, tc.exp, caps, "ConnectionSubscriptionCaps should return the cap applying to each setup registered for %s", tc.url)
+		})
 	}
 }
 
