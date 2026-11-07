@@ -123,7 +123,7 @@ func (e *Exchange) wsHandleDerivativeStatus(ctx context.Context, s *subscription
 func wsFrameData(respRaw []byte) []byte {
 	for i := range respRaw {
 		if respRaw[i] == ',' {
-			return respRaw[skipSpace(respRaw, i+1):]
+			return bytes.TrimLeft(respRaw[i+1:], " \t\n\r")
 		}
 	}
 	return nil
@@ -134,8 +134,8 @@ func isSnapshot(data []byte) bool {
 	if len(data) == 0 || data[0] != '[' {
 		return false
 	}
-	i := skipSpace(data, 1)
-	return i < len(data) && (data[i] == '[' || data[i] == ']')
+	rest := bytes.TrimLeft(data[1:], " \t\n\r")
+	return len(rest) > 0 && (rest[0] == '[' || rest[0] == ']')
 }
 
 // wsHandleTicker stores and relays a trading pair's or funding currency's ticker, as of the time Bitfinex sent it

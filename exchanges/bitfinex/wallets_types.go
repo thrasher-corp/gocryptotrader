@@ -2,6 +2,7 @@ package bitfinex
 
 import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -22,7 +23,7 @@ type WalletResponse struct {
 }
 
 // UnmarshalJSON decodes a wallet array
-func (w *WalletResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, w) }
+func (w *WalletResponse) UnmarshalJSON(data []byte) error { return json.UnmarshalTuple(data, w) }
 
 // WalletChangeMetadata details a wallet's last ledger entry; which fields are set depends on its reason
 type WalletChangeMetadata struct {

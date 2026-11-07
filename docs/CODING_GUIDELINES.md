@@ -92,6 +92,33 @@ Never relay an empty batch.
     }
 ```
 
+- Decode a record the API sends as a JSON array, whose positions carry its fields, into a named
+  struct whose `tuple` tags give each field's position, with an `UnmarshalJSON` method calling
+  `json.UnmarshalTuple`, rather than unmarshalling into an array of field pointers. Positions
+  without a tagged field are skipped and elements after the last one are ignored, so the struct
+  needs no change when the API appends fields. See `json.UnmarshalTuple` for records prefixed with
+  a symbol or key, nested tuples and null elements:
+
+```go
+    // Preferred
+    // KlineItem is a candle, which the API sends as an array.
+    type KlineItem struct {
+        StartTime types.Time   `tuple:"0"`
+        Open      types.Number `tuple:"1"`
+        High      types.Number `tuple:"2"`
+        Low       types.Number `tuple:"3"`
+        Close     types.Number `tuple:"4"`
+    }
+
+    // UnmarshalJSON decodes a candle array.
+    func (k *KlineItem) UnmarshalJSON(data []byte) error { return json.UnmarshalTuple(data, k) }
+
+    // Avoid
+    func (k *KlineItem) UnmarshalJSON(data []byte) error {
+        return json.Unmarshal(data, &[5]any{&k.StartTime, &k.Open, &k.High, &k.Low, &k.Close})
+    }
+```
+
 ### TestMain usage
 
 - TestMain must avoid API calls, so that individual unit tests can run quickly. Use sync.Once or similar patterns to bootstrap common data without burdening all unit tests with the same overhaed. See `UpdatePairsOnce` for an example of this.

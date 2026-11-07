@@ -823,8 +823,8 @@ func TestOrderOperationOrdersUnmarshalJSON(t *testing.T) {
 	assert.Equal(t, OrderOperationOrdersResponse{Orders: []OrderResponse{{ID: 1, ClientOrderID: 2}}}, reused, "UnmarshalJSON should not keep an earlier decode's fields where the new orders are null")
 
 	var orders OrderOperationOrdersResponse
-	assert.ErrorIs(t, orders.UnmarshalJSON([]byte(`[1,"x"]`)), errTupleElementType, "UnmarshalJSON should refuse a malformed order")
-	assert.ErrorIs(t, orders.UnmarshalJSON([]byte(`[["x"]]`)), errTupleElementType, "UnmarshalJSON should refuse a malformed order in a list")
+	assert.ErrorIs(t, orders.UnmarshalJSON([]byte(`[1,"x"]`)), json.ErrTupleElementType, "UnmarshalJSON should refuse a malformed order")
+	assert.ErrorIs(t, orders.UnmarshalJSON([]byte(`[["x"]]`)), json.ErrTupleElementType, "UnmarshalJSON should refuse a malformed order in a list")
 	assert.Error(t, orders.UnmarshalJSON([]byte(`{}`)), "UnmarshalJSON should refuse an object")
 }
 

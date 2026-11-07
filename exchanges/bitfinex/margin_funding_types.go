@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 // FundingOfferFlagHidden keeps a funding offer out of the funding book; see https://docs.bitfinex.com/docs/flag-values
@@ -60,7 +61,7 @@ type FundingAutoRenewSettingsResponse struct {
 
 // UnmarshalJSON decodes a funding auto-renew settings array
 func (f *FundingAutoRenewSettingsResponse) UnmarshalJSON(data []byte) error {
-	return unmarshalTuple(data, f)
+	return json.UnmarshalTuple(data, f)
 }
 
 // KeepFundingRequest holds the credits or loans whose funding to keep, or stop keeping

@@ -262,6 +262,20 @@ func TestGetIncreasePositionInfo(t *testing.T) {
 		require.ErrorIsf(t, err, errTradingSymbolRequired, "GetIncreasePositionInfo must refuse symbol %q", symbol)
 	}
 
+	// The response decodes these through their tuple tags, never calling their own UnmarshalJSON methods
+	t.Run("nested arrays decode alone", func(t *testing.T) {
+		t.Parallel()
+		testTupleDecode(t, `[0.5,1.5]`, IncreasePositionInfoPosition{MaximumPosition: 0.5, CurrentPosition: 1.5})
+		testTupleDecode(t, `[0.5,[1.5,2.5,3.5,4.5],5.5]`, IncreasePositionInfoBalance{
+			BaseCurrencyBalance: 0.5,
+			TradableBalance:     IncreasePositionInfoTradableBalance{QuoteCurrency: 1.5, QuoteCurrencyTotal: 2.5, BaseCurrency: 3.5, BaseCurrencyTotal: 4.5},
+			FundingAvailable:    5.5,
+		})
+		testTupleDecode(t, `[0.5,1.5,2.5,3.5]`, IncreasePositionInfoTradableBalance{QuoteCurrency: 0.5, QuoteCurrencyTotal: 1.5, BaseCurrency: 2.5, BaseCurrencyTotal: 3.5})
+		testTupleDecode(t, `[0.5,1.5]`, IncreasePositionInfoFunding{Value: 0.5, Required: 1.5})
+		testTupleDecode(t, `["BTC","USD"]`, IncreasePositionInfoFundingCurrency{ValueCurrency: currency.BTC, RequiredCurrency: currency.USD})
+	})
+
 	skipLiveWithoutCredentials(t)
 	req := &IncreasePositionInfoRequest{Symbol: "tBTCUSD", Amount: 1.5}
 	if !mockTests {

@@ -231,7 +231,7 @@ func TestWebsocketInputFailures(t *testing.T) {
 	assert.ErrorIs(t, err, context.Canceled, "WebsocketPlaceOrder should return why its request failed")
 	req.Symbol = venueUnreadableSymbol
 	_, err = ex.WebsocketPlaceOrder(t.Context(), &req)
-	assert.ErrorIs(t, err, errTupleElementType, "WebsocketPlaceOrder should report a notification it cannot read")
+	assert.ErrorIs(t, err, json.ErrTupleElementType, "WebsocketPlaceOrder should report a notification it cannot read")
 }
 
 func TestWebsocketCalc(t *testing.T) {

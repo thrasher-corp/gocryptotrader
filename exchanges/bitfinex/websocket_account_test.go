@@ -310,14 +310,14 @@ func TestWebsocketHandleAccountEventErrors(t *testing.T) {
 		{frame: `[0,"hb`, err: errWebsocketMalformedFrame},
 		{frame: `[0,"miu",["novel",[1]]]`, err: errWebsocketMalformedFrame},
 		{frame: `[0,"miu",[]]`, err: errWebsocketMalformedFrame},
-		{frame: `[0,"ps",[1]]`, err: errTupleNotArray},
-		{frame: `[0,"n",{}]`, err: errTupleNotArray},
+		{frame: `[0,"ps",[1]]`, err: json.ErrTupleNotArray},
+		{frame: `[0,"n",{}]`, err: json.ErrTupleNotArray},
 		{frame: `[0,"on",[1,null,null,"tETHUSD",null,null,1,1,"NOVEL"]]`, err: errUnknownOrderType},
 		{frame: `[0,"os",[[1,null,null,"tETHUSD",null,null,0,0,"LIMIT"]]]`, err: errOrderSideUnresolved},
 		{frame: `[0,"wu",["novel","BTC",1,0,null,null,null]]`, err: errUnknownWalletType},
 		{frame: `[0,"tu",[1,"tETHUST",1574963975602,2,0,153.57,"MARKET",0,-1,0,"USD",0]]`, err: errOrderSideUnresolved},
 		{frame: `[0,"tu",[1,"tX",1574963975602,2,1,153.57,"MARKET",0,-1,0,"USD",0]]`, err: errSymbolUnparsable},
-		{frame: `[0,"bu",{}]`, err: errTupleNotArray},
+		{frame: `[0,"bu",{}]`, err: json.ErrTupleNotArray},
 	} {
 		assert.ErrorIsf(t, ex.wsHandleData(t.Context(), conn, []byte(tc.frame)), tc.err, "wsHandleData should return the expected error for %s", tc.frame)
 	}
@@ -339,7 +339,7 @@ func TestBalanceInfoUnmarshalJSON(t *testing.T) {
 	var got BalanceInfo
 	require.NoError(t, got.UnmarshalJSON([]byte(`[4131.85,4130.5]`)), "UnmarshalJSON must not error")
 	assert.Equal(t, BalanceInfo{AssetsUnderManagement: 4131.85, NetAssetsUnderManagement: 4130.5}, got, "UnmarshalJSON should decode the assets under management, then their net")
-	assert.ErrorIs(t, got.UnmarshalJSON([]byte(`{}`)), errTupleNotArray, "UnmarshalJSON should refuse balance info that is not an array")
+	assert.ErrorIs(t, got.UnmarshalJSON([]byte(`{}`)), json.ErrTupleNotArray, "UnmarshalJSON should refuse balance info that is not an array")
 }
 
 func TestWebsocketHandleOrder(t *testing.T) {
@@ -368,7 +368,7 @@ func TestWebsocketHandleOrder(t *testing.T) {
 		require.Truef(t, ok, "wsHandleAccountEvent must relay the order of an %s event as an order detail", event)
 		assert.Equalf(t, exp, d.Status, "wsHandleAccountEvent should report a partially filled order of an %s event %s", event, exp)
 	}
-	assert.ErrorIs(t, ex.wsHandleOrder(t.Context(), true, []byte(`[0,"oc",{}]`)), errTupleNotArray, "wsHandleOrder should refuse an order that is not an array")
+	assert.ErrorIs(t, ex.wsHandleOrder(t.Context(), true, []byte(`[0,"oc",{}]`)), json.ErrTupleNotArray, "wsHandleOrder should refuse an order that is not an array")
 	assert.ErrorIs(t, ex.wsHandleOrder(t.Context(), true, []byte(`[0,"oc",[1,null,null,"tETHUSD",null,null,1,1,"NOVEL"]]`)), errUnknownOrderType, "wsHandleOrder should refuse an order of an unknown type")
 }
 
@@ -419,7 +419,7 @@ func TestWebsocketHandleOrders(t *testing.T) {
 	assert.ErrorIs(t, ex.wsHandleOrders(t.Context(), []byte(`[0,"os",[`+novel+`]]`)), errUnknownOrderType, "wsHandleOrders should report a snapshot holding no order it can relay")
 	require.NoError(t, ex.wsHandleOrders(t.Context(), []byte(`[0,"os",[]]`)), "wsHandleOrders must not error for an empty snapshot")
 	assert.Empty(t, relayedPayloads(ex), "wsHandleOrders should relay nothing for a snapshot holding no order it can relay")
-	assert.ErrorIs(t, ex.wsHandleOrders(t.Context(), []byte(`[0,"os",{}]`)), errTupleElementType, "wsHandleOrders should refuse a snapshot that is not an array")
+	assert.ErrorIs(t, ex.wsHandleOrders(t.Context(), []byte(`[0,"os",{}]`)), json.ErrTupleElementType, "wsHandleOrders should refuse a snapshot that is not an array")
 	fillRelay(t, ex)
 	assert.ErrorContains(t, ex.wsHandleOrders(t.Context(), []byte(`[0,"os",[`+open+`]]`)), "channel buffer is full", "wsHandleOrders should report orders it cannot relay")
 }
@@ -457,7 +457,7 @@ func TestWebsocketHandleAccountTrade(t *testing.T) {
 		name, frame string
 		err         error
 	}{
-		{name: "a trade that is not an array", frame: `[0,"tu",{}]`, err: errTupleNotArray},
+		{name: "a trade that is not an array", frame: `[0,"tu",{}]`, err: json.ErrTupleNotArray},
 		{name: "a trade on a symbol that is not a pair", frame: `[0,"tu",[1,"tX",1574963975602,2,1,153.57,"MARKET",0,-1,0,"USD",0]]`, err: errSymbolUnparsable},
 		{name: "a trade without an amount", frame: `[0,"tu",[1,"tETHUST",1574963975602,2,0,153.57,"MARKET",0,-1,0,"USD",0]]`, err: errOrderSideUnresolved},
 	} {
@@ -509,7 +509,7 @@ func TestWebsocketHandleWallets(t *testing.T) {
 		asset.MarginFunding: {currency.USD: {820, 0, 820}},
 	})
 	assert.Equal(t, []string{`[0,"calc",null,[["wallet_funding_USD"]]]`}, conn.messages(), "wsHandleWallets should ask Bitfinex to calculate an available balance it has yet to")
-	assert.ErrorIs(t, ex.wsHandleWallets(t.Context(), conn, []byte(`[0,"ws",{}]`)), errTupleElementType, "wsHandleWallets should refuse a snapshot that is not an array")
+	assert.ErrorIs(t, ex.wsHandleWallets(t.Context(), conn, []byte(`[0,"ws",{}]`)), json.ErrTupleElementType, "wsHandleWallets should refuse a snapshot that is not an array")
 }
 
 func TestWebsocketHandleWalletUpdate(t *testing.T) {
@@ -519,7 +519,7 @@ func TestWebsocketHandleWalletUpdate(t *testing.T) {
 	assert.Equal(t, []asset.Item{asset.Margin}, relayedSubAccountAssets(t, ex), "wsHandleWalletUpdate should relay the wallet under the asset its balance funds")
 	assertWalletBalances(t, ex, map[asset.Item]map[currency.Code][3]float64{asset.Margin: {currency.UST: {100, 80, 20}}})
 	assert.Empty(t, conn.messages(), "wsHandleWalletUpdate should not ask for an available balance Bitfinex has sent")
-	assert.ErrorIs(t, ex.wsHandleWalletUpdate(t.Context(), conn, []byte(`[0,"wu",{}]`)), errTupleNotArray, "wsHandleWalletUpdate should refuse an update that is not an array")
+	assert.ErrorIs(t, ex.wsHandleWalletUpdate(t.Context(), conn, []byte(`[0,"wu",{}]`)), json.ErrTupleNotArray, "wsHandleWalletUpdate should refuse an update that is not an array")
 }
 
 func TestWebsocketWalletSnapshotReplacesWallets(t *testing.T) {

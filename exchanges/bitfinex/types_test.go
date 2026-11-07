@@ -104,6 +104,14 @@ func TestSharedRecordsEveryPosition(t *testing.T) {
 		MarginInfoSymbolResponse{Key: "s0", Symbol: "s1", Info: MarginInfoSymbol{TradableBalance: 0.5, GrossBalance: 1.5, BuyAmount: 2.5, SellAmount: 3.5}})
 	testTupleDecode(t, `["s0","s1",[0.5,1.5,2.5,3.5]]`,
 		FundingInfoResponse{Key: "s0", Symbol: "s1", Info: FundingInfo{YieldLoan: 0.5, YieldLend: 1.5, DurationLoan: 2.5, DurationLend: 3.5}})
+
+	// The keyed records decode these through their tuple tags, never calling their own UnmarshalJSON methods
+	t.Run("nested records decode alone", func(t *testing.T) {
+		t.Parallel()
+		testTupleDecode(t, `[0.5,1.5,2.5,3.5,4.5]`, MarginInfoBase{UserProfitLoss: 0.5, UserSwaps: 1.5, MarginBalance: 2.5, MarginNet: 3.5, MarginMinimum: 4.5})
+		testTupleDecode(t, `[0.5,1.5,2.5,3.5]`, MarginInfoSymbol{TradableBalance: 0.5, GrossBalance: 1.5, BuyAmount: 2.5, SellAmount: 3.5})
+		testTupleDecode(t, `[0.5,1.5,2.5,3.5]`, FundingInfo{YieldLoan: 0.5, YieldLend: 1.5, DurationLoan: 2.5, DurationLend: 3.5})
+	})
 }
 
 // TestSharedRecordsDocumentedExamples decodes the docs' REST and websocket examples of each shared record

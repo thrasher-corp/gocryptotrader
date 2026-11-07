@@ -47,7 +47,7 @@ type wsInput struct {
 }
 
 // MarshalJSON encodes an input request array
-func (w *wsInput) MarshalJSON() ([]byte, error) { return marshalTuple(w) }
+func (w *wsInput) MarshalJSON() ([]byte, error) { return json.MarshalTuple(w) }
 
 // WebsocketPlaceOrder places an order through the authenticated websocket, returning the order Bitfinex placed. A
 // request without a client order ID is given one, which the notification answering it is matched by

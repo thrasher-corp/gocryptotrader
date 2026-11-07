@@ -88,7 +88,7 @@ type wsDataFrame[T any] struct {
 }
 
 // UnmarshalJSON decodes a channel event array
-func (f *wsDataFrame[T]) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, f) }
+func (f *wsDataFrame[T]) UnmarshalJSON(data []byte) error { return json.UnmarshalTuple(data, f) }
 
 // wsTypedFrame is a channel event carrying a type before its data: [CHANNEL_ID, TYPE, DATA, TIME]
 type wsTypedFrame[T any] struct {
@@ -99,7 +99,7 @@ type wsTypedFrame[T any] struct {
 }
 
 // UnmarshalJSON decodes a typed channel event array
-func (f *wsTypedFrame[T]) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, f) }
+func (f *wsTypedFrame[T]) UnmarshalJSON(data []byte) error { return json.UnmarshalTuple(data, f) }
 
 // wsChannelKey identifies a channel, which Bitfinex numbers per connection
 type wsChannelKey struct {
@@ -456,7 +456,7 @@ type BalanceInfo struct {
 }
 
 // UnmarshalJSON decodes a balance info array
-func (b *BalanceInfo) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, b) }
+func (b *BalanceInfo) UnmarshalJSON(data []byte) error { return json.UnmarshalTuple(data, b) }
 
 // wsNotificationSignature returns the signature matching a notification with the input request it answers, from the
 // ID of the order or offer it carries, or the client order ID a new order is placed with. A request whose

@@ -559,7 +559,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 		return e.wsHandleEvent(ctx, conn, respRaw)
 	case '[':
 		// The channel ID leads the frame, and is read directly, as an index lookup walks every element of the frame
-		value, dataType, err := leadingElement(respRaw)
+		value, dataType, err := json.FirstArrayElement(respRaw)
 		if err != nil {
 			return fmt.Errorf("%w: %w: %.256s", errWebsocketMalformedFrame, err, respRaw)
 		}

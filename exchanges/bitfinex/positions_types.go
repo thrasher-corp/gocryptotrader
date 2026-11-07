@@ -55,7 +55,7 @@ type IncreasePositionInfoResponse struct {
 
 // UnmarshalJSON decodes an increase position info array
 func (i *IncreasePositionInfoResponse) UnmarshalJSON(data []byte) error {
-	return unmarshalTuple(data, i)
+	return json.UnmarshalTuple(data, i)
 }
 
 // IncreasePositionInfoPosition is the largest position on a pair that increasing it can reach, and the pair's current
@@ -67,7 +67,7 @@ type IncreasePositionInfoPosition struct {
 
 // UnmarshalJSON decodes an increase position info position array
 func (i *IncreasePositionInfoPosition) UnmarshalJSON(data []byte) error {
-	return unmarshalTuple(data, i)
+	return json.UnmarshalTuple(data, i)
 }
 
 // IncreasePositionInfoBalance is the margin wallet's balance and the funding an increase can use
@@ -82,7 +82,7 @@ type IncreasePositionInfoBalance struct {
 
 // UnmarshalJSON decodes an increase position info balance array
 func (i *IncreasePositionInfoBalance) UnmarshalJSON(data []byte) error {
-	return unmarshalTuple(data, i)
+	return json.UnmarshalTuple(data, i)
 }
 
 // IncreasePositionInfoTradableBalance is the balance a pair's position can be increased with, in each of the pair's
@@ -100,7 +100,7 @@ type IncreasePositionInfoTradableBalance struct {
 
 // UnmarshalJSON decodes an increase position info tradable balance array
 func (i *IncreasePositionInfoTradableBalance) UnmarshalJSON(data []byte) error {
-	return unmarshalTuple(data, i)
+	return json.UnmarshalTuple(data, i)
 }
 
 // IncreasePositionInfoFunding is the funding a position of the requested amount needs, in the currencies
@@ -113,7 +113,7 @@ type IncreasePositionInfoFunding struct {
 
 // UnmarshalJSON decodes an increase position info funding array
 func (i *IncreasePositionInfoFunding) UnmarshalJSON(data []byte) error {
-	return unmarshalTuple(data, i)
+	return json.UnmarshalTuple(data, i)
 }
 
 // IncreasePositionInfoFundingCurrency is the currencies of an IncreasePositionInfoFunding's amounts
@@ -124,7 +124,7 @@ type IncreasePositionInfoFundingCurrency struct {
 
 // UnmarshalJSON decodes an increase position info funding currency array
 func (i *IncreasePositionInfoFundingCurrency) UnmarshalJSON(data []byte) error {
-	return unmarshalTuple(data, i)
+	return json.UnmarshalTuple(data, i)
 }
 
 // PositionsHistoryRequest holds the window, limit and position to get past positions for, each optional
@@ -181,7 +181,7 @@ type DerivativePositionCollateralResponse struct {
 
 // UnmarshalJSON decodes a derivative position collateral status array
 func (d *DerivativePositionCollateralResponse) UnmarshalJSON(data []byte) error {
-	return unmarshalTuple(data, d)
+	return json.UnmarshalTuple(data, d)
 }
 
 // DerivativePositionCollateralLimitsResponse is the least and most collateral a derivative position can be given
@@ -192,7 +192,7 @@ type DerivativePositionCollateralLimitsResponse struct {
 
 // UnmarshalJSON decodes a derivative position collateral limits array
 func (d *DerivativePositionCollateralLimitsResponse) UnmarshalJSON(data []byte) error {
-	return unmarshalTuple(data, d)
+	return json.UnmarshalTuple(data, d)
 }
 
 type claimPositionBody struct {

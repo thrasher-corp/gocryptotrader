@@ -85,7 +85,7 @@ type errorTuple struct {
 }
 
 // UnmarshalJSON decodes an error array
-func (e *errorTuple) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, e) }
+func (e *errorTuple) UnmarshalJSON(data []byte) error { return json.UnmarshalTuple(data, e) }
 
 // responseError returns the error a response body reports, or nil when it reports none
 func responseError(body []byte) error {
@@ -96,7 +96,7 @@ func responseError(body []byte) error {
 	switch body[0] {
 	case '[':
 		// Only the first element is read, so a large response is not decoded twice
-		if event, dataType, _ := leadingElement(body); dataType != jsonparser.String || string(event) != "error" {
+		if event, dataType, _ := json.FirstArrayElement(body); dataType != jsonparser.String || string(event) != "error" {
 			return nil
 		}
 		var e errorTuple

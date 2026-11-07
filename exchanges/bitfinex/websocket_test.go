@@ -263,9 +263,9 @@ func TestWebsocketFrameData(t *testing.T) {
 		assert.Equalf(t, exp, isSnapshot([]byte(data)), "isSnapshot should report %s correctly", data)
 	}
 	var data wsDataFrame[json.RawMessage]
-	assert.ErrorIs(t, data.UnmarshalJSON([]byte(`[-1,[1],1792128955839]`)), errTupleElementType, "a data frame's channel ID should not be negative")
+	assert.ErrorIs(t, data.UnmarshalJSON([]byte(`[-1,[1],1792128955839]`)), json.ErrTupleElementType, "a data frame's channel ID should not be negative")
 	var typed wsTypedFrame[json.RawMessage]
-	assert.ErrorIs(t, typed.UnmarshalJSON([]byte(`[-1,"on",[1],1792128955839]`)), errTupleElementType, "a typed frame's channel ID should not be negative")
+	assert.ErrorIs(t, typed.UnmarshalJSON([]byte(`[-1,"on",[1],1792128955839]`)), json.ErrTupleElementType, "a typed frame's channel ID should not be negative")
 }
 
 func TestFundingTradeData(t *testing.T) {
@@ -325,7 +325,7 @@ func TestWebsocketHandleTicker(t *testing.T) {
 		}, *got, "wsHandleTicker should store the funding currency's ticker as of the time Bitfinex sent it")
 		assert.Len(t, relayedPayloads(ex), 2, "wsHandleTicker should relay each ticker it stores")
 		for key, frame := range map[string]string{"ticker:tBTCUSD": `[27793,{},1792128955839]`, "ticker:fUSD": `[47414,{},1792128955839]`} {
-			assert.ErrorIsf(t, ex.wsHandleTicker(t.Context(), fixtureSubscription(t, key), []byte(frame)), errTupleNotArray, "wsHandleTicker should refuse channel %s's ticker that is not an array", key)
+			assert.ErrorIsf(t, ex.wsHandleTicker(t.Context(), fixtureSubscription(t, key), []byte(frame)), json.ErrTupleNotArray, "wsHandleTicker should refuse channel %s's ticker that is not an array", key)
 		}
 	})
 }
@@ -353,7 +353,7 @@ func TestWebsocketHandleDerivativeStatus(t *testing.T) {
 		websocket.FundingData{Timestamp: time.UnixMilli(1792362497000), CurrencyPair: testDerivativePair, AssetType: asset.USDTMarginedFutures, Exchange: ex.Name, Rate: 0.00003859},
 		&WebsocketDerivativeStatus{Pair: testDerivativePair, AssetType: asset.USDTMarginedFutures, Status: status},
 	}, relayedPayloads(ex), "wsHandleDerivativeStatus should relay the pair's funding rate, then its status")
-	assert.ErrorIs(t, ex.wsHandleDerivativeStatus(t.Context(), s, []byte(`[133706,{},1792362499497]`)), errTupleNotArray, "wsHandleDerivativeStatus should refuse a status that is not an array")
+	assert.ErrorIs(t, ex.wsHandleDerivativeStatus(t.Context(), s, []byte(`[133706,{},1792362499497]`)), json.ErrTupleNotArray, "wsHandleDerivativeStatus should refuse a status that is not an array")
 	fillRelay(t, ex)
 	assert.ErrorContains(t, ex.wsHandleDerivativeStatus(t.Context(), s, frame), "channel buffer is full", "wsHandleDerivativeStatus should report a funding rate it cannot relay")
 }
@@ -566,8 +566,8 @@ func TestWebsocketHandleTradesSnapshot(t *testing.T) {
 		err   error
 	}{
 		{name: "a trade rather than a snapshot", s: spot, frame: `[20,[1994606751,1792128966407,0.00022,82200],1792128966409]`, err: errWebsocketMalformedFrame},
-		{name: "a trading pair's trade whose amount is not a number", s: spot, frame: `[20,[[1994606745,1792128952874,"x",82187]],1792128966409]`, err: errTupleElementType},
-		{name: "a funding trade whose amount is not a number", s: funding, frame: `[73873,[[434121332,1792129001000,"x",0.000125,2]],1792129172479]`, err: errTupleElementType},
+		{name: "a trading pair's trade whose amount is not a number", s: spot, frame: `[20,[[1994606745,1792128952874,"x",82187]],1792128966409]`, err: json.ErrTupleElementType},
+		{name: "a funding trade whose amount is not a number", s: funding, frame: `[73873,[[434121332,1792129001000,"x",0.000125,2]],1792129172479]`, err: json.ErrTupleElementType},
 	} {
 		assert.ErrorIsf(t, ex.wsHandleTradesSnapshot(tc.s, wsFrameData([]byte(tc.frame)), []byte(tc.frame)), tc.err, "wsHandleTradesSnapshot should refuse %s", tc.name)
 	}
@@ -601,8 +601,8 @@ func TestWebsocketHandleTradeExecuted(t *testing.T) {
 		err   error
 	}{
 		{name: "a trade on a ticker channel", s: fixtureSubscription(t, "ticker:tBTCUSD"), frame: string(executed), err: errWebsocketMalformedFrame},
-		{name: "a trading pair's trade that is not an array", s: spot, frame: string(notArray), err: errTupleNotArray},
-		{name: "a funding trade that is not an array", s: funding, frame: `[73873,"fte",{},1792129281509]`, err: errTupleNotArray},
+		{name: "a trading pair's trade that is not an array", s: spot, frame: string(notArray), err: json.ErrTupleNotArray},
+		{name: "a funding trade that is not an array", s: funding, frame: `[73873,"fte",{},1792129281509]`, err: json.ErrTupleNotArray},
 	} {
 		assert.ErrorIsf(t, ex.wsHandleTradeExecuted(tc.s, []byte(tc.frame)), tc.err, "wsHandleTradeExecuted should refuse %s", tc.name)
 	}
@@ -673,8 +673,8 @@ func TestWebsocketHandleCandles(t *testing.T) {
 		name, frame string
 		err         error
 	}{
-		{name: "a snapshot's candle whose open is not a number", frame: `[47158,[[1792128900000,"x",82187,82210,82186,0.01000381]],1792128955850]`, err: errTupleElementType},
-		{name: "a candle update that is not an array", frame: `[47158,{},1792128968974]`, err: errTupleNotArray},
+		{name: "a snapshot's candle whose open is not a number", frame: `[47158,[[1792128900000,"x",82187,82210,82186,0.01000381]],1792128955850]`, err: json.ErrTupleElementType},
+		{name: "a candle update that is not an array", frame: `[47158,{},1792128968974]`, err: json.ErrTupleNotArray},
 	} {
 		assert.ErrorIsf(t, ex.wsHandleCandles(t.Context(), s, wsFrameData([]byte(tc.frame)), []byte(tc.frame)), tc.err, "wsHandleCandles should refuse %s", tc.name)
 	}
@@ -1032,7 +1032,7 @@ func TestWebsocketHandleDataErrors(t *testing.T) {
 		{frame: `[27793,"zz",1]`, err: errWebsocketMalformedFrame},
 		{frame: `[27793,"cs",1,1]`, err: errWebsocketMalformedFrame},
 		{frame: `[27793,"te",[1,1,1,1],1]`, err: errWebsocketMalformedFrame},
-		{frame: `[27793,[1,"x"],1]`, err: errTupleElementType},
+		{frame: `[27793,[1,"x"],1]`, err: json.ErrTupleElementType},
 		{frame: `[0]`, err: errWebsocketMalformedFrame},
 		{frame: `[0,[1]]`, err: errWebsocketMalformedFrame},
 		{frame: `{"event":`, err: nil},

@@ -95,7 +95,7 @@ type UserInfoResponse struct {
 }
 
 // UnmarshalJSON decodes a user info array
-func (u *UserInfoResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, u) }
+func (u *UserInfoResponse) UnmarshalJSON(data []byte) error { return json.UnmarshalTuple(data, u) }
 
 // AccountSummaryResponse is the account's fee rates, its trading volume, fees and funding earnings over the last 30
 // days, and its LEO discount level
@@ -107,7 +107,9 @@ type AccountSummaryResponse struct {
 }
 
 // UnmarshalJSON decodes a summary array
-func (a *AccountSummaryResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, a) }
+func (a *AccountSummaryResponse) UnmarshalJSON(data []byte) error {
+	return json.UnmarshalTuple(data, a)
+}
 
 // SummaryFeeRates is the account's maker and taker fee rates, each a fraction of the amount traded; 0.001 is 0.1
 // percent
@@ -117,7 +119,7 @@ type SummaryFeeRates struct {
 }
 
 // UnmarshalJSON decodes a fee info array
-func (s *SummaryFeeRates) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, s) }
+func (s *SummaryFeeRates) UnmarshalJSON(data []byte) error { return json.UnmarshalTuple(data, s) }
 
 // SummaryMakerFeeRates is the account's maker fee rates. The docs name the first three alike, MAKER_FEE, so their
 // counter currencies are taken from the taker fee rates' order: crypto, stablecoin and fiat
@@ -130,7 +132,7 @@ type SummaryMakerFeeRates struct {
 }
 
 // UnmarshalJSON decodes a maker fee info array
-func (s *SummaryMakerFeeRates) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, s) }
+func (s *SummaryMakerFeeRates) UnmarshalJSON(data []byte) error { return json.UnmarshalTuple(data, s) }
 
 // SummaryTakerFeeRates is the account's taker fee rates
 type SummaryTakerFeeRates struct {
@@ -144,7 +146,7 @@ type SummaryTakerFeeRates struct {
 }
 
 // UnmarshalJSON decodes a taker fee info array
-func (s *SummaryTakerFeeRates) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, s) }
+func (s *SummaryTakerFeeRates) UnmarshalJSON(data []byte) error { return json.UnmarshalTuple(data, s) }
 
 // SummaryTradingVolumeAndFees is the account's trading volume and the trading fees it paid over the last 30 days
 type SummaryTradingVolumeAndFees struct {
@@ -158,7 +160,7 @@ type SummaryTradingVolumeAndFees struct {
 
 // UnmarshalJSON decodes a trading volume and fees array
 func (s *SummaryTradingVolumeAndFees) UnmarshalJSON(data []byte) error {
-	return unmarshalTuple(data, s)
+	return json.UnmarshalTuple(data, s)
 }
 
 // SummaryTradeVolume is the volume the account traded in a currency over the last 30 days, or in total in USD
@@ -183,7 +185,9 @@ type SummaryFundingEarnings struct {
 }
 
 // UnmarshalJSON decodes a funding earnings array
-func (s *SummaryFundingEarnings) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, s) }
+func (s *SummaryFundingEarnings) UnmarshalJSON(data []byte) error {
+	return json.UnmarshalTuple(data, s)
+}
 
 // SummaryLEOInfo is the account's LEO discount level and the LEO it held on average over the last 30 days
 type SummaryLEOInfo struct {
@@ -208,7 +212,7 @@ type LoginResponse struct {
 }
 
 // UnmarshalJSON decodes a login info array
-func (l *LoginResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, l) }
+func (l *LoginResponse) UnmarshalJSON(data []byte) error { return json.UnmarshalTuple(data, l) }
 
 // LoginExtraInfo is a JSON object of more about a login, such as its network, location and user agent
 type LoginExtraInfo json.RawMessage
@@ -247,7 +251,7 @@ type KeyPermissionResponse struct {
 }
 
 // UnmarshalJSON decodes a key permission array
-func (k *KeyPermissionResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, k) }
+func (k *KeyPermissionResponse) UnmarshalJSON(data []byte) error { return json.UnmarshalTuple(data, k) }
 
 // GenerateTokenRequest holds the lifetime and capabilities of an authentication token
 type GenerateTokenRequest struct {
@@ -276,7 +280,7 @@ type GenerateTokenResponse struct {
 }
 
 // UnmarshalJSON decodes a token array
-func (g *GenerateTokenResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, g) }
+func (g *GenerateTokenResponse) UnmarshalJSON(data []byte) error { return json.UnmarshalTuple(data, g) }
 
 // ChangelogRequest holds the window of the changes GetChangelog returns
 type ChangelogRequest struct {
@@ -298,7 +302,9 @@ type ChangelogEntryResponse struct {
 }
 
 // UnmarshalJSON decodes a changelog array
-func (c *ChangelogEntryResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, c) }
+func (c *ChangelogEntryResponse) UnmarshalJSON(data []byte) error {
+	return json.UnmarshalTuple(data, c)
+}
 
 // TwoFactorToken validates a request with two factor authentication, by a one time password or a U2F (WebAuthn)
 // assertion
@@ -375,7 +381,9 @@ type WalletTransferResponse struct {
 }
 
 // UnmarshalJSON decodes a transfer array
-func (w *WalletTransferResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, w) }
+func (w *WalletTransferResponse) UnmarshalJSON(data []byte) error {
+	return json.UnmarshalTuple(data, w)
+}
 
 // DepositAddressRequest holds the method and wallet of a deposit address
 type DepositAddressRequest struct {
@@ -407,7 +415,9 @@ type DepositAddressResponse struct {
 }
 
 // UnmarshalJSON decodes a deposit address array
-func (d *DepositAddressResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, d) }
+func (d *DepositAddressResponse) UnmarshalJSON(data []byte) error {
+	return json.UnmarshalTuple(data, d)
+}
 
 // DepositAddressListRequest holds the method and page of the deposit addresses GetDepositAddressList returns
 type DepositAddressListRequest struct {
@@ -435,7 +445,7 @@ type WalletDepositAddressResponse struct {
 
 // UnmarshalJSON decodes a deposit address list array
 func (w *WalletDepositAddressResponse) UnmarshalJSON(data []byte) error {
-	return unmarshalTuple(data, w)
+	return json.UnmarshalTuple(data, w)
 }
 
 // generateInvoiceBody is the body of a Generate Invoice request
@@ -454,7 +464,9 @@ type GenerateInvoiceResponse struct {
 }
 
 // UnmarshalJSON decodes an invoice array
-func (g *GenerateInvoiceResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, g) }
+func (g *GenerateInvoiceResponse) UnmarshalJSON(data []byte) error {
+	return json.UnmarshalTuple(data, g)
+}
 
 // lnxInvoicePaymentsBody is the body of an LNX Invoice Payments request, whose response depends on its action
 type lnxInvoicePaymentsBody struct {
@@ -558,7 +570,7 @@ type WithdrawalResponse struct {
 }
 
 // UnmarshalJSON decodes a withdrawal array
-func (w *WithdrawalResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, w) }
+func (w *WithdrawalResponse) UnmarshalJSON(data []byte) error { return json.UnmarshalTuple(data, w) }
 
 // MovementsRequest holds the currency and filters of the deposits and withdrawals GetMovements returns
 type MovementsRequest struct {
@@ -606,7 +618,7 @@ type MovementResponse struct {
 }
 
 // UnmarshalJSON decodes a movement array
-func (m *MovementResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, m) }
+func (m *MovementResponse) UnmarshalJSON(data []byte) error { return json.UnmarshalTuple(data, m) }
 
 // movementInfoBody is the body of a Movement Info request
 type movementInfoBody struct {
@@ -631,7 +643,7 @@ type MovementInfoResponse struct {
 }
 
 // UnmarshalJSON decodes a movement info array
-func (m *MovementInfoResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, m) }
+func (m *MovementInfoResponse) UnmarshalJSON(data []byte) error { return json.UnmarshalTuple(data, m) }
 
 // alertTypePrice is the only alert type, of an alert triggered by a trading pair's price
 const alertTypePrice = "price"
@@ -654,7 +666,7 @@ type AlertResponse struct {
 }
 
 // UnmarshalJSON decodes an alert array
-func (a *AlertResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, a) }
+func (a *AlertResponse) UnmarshalJSON(data []byte) error { return json.UnmarshalTuple(data, a) }
 
 // SetAlertRequest holds a price alert on a trading pair
 type SetAlertRequest struct {
@@ -686,7 +698,7 @@ type DeleteAlertResponse struct {
 }
 
 // UnmarshalJSON decodes an alert delete array
-func (d *DeleteAlertResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, d) }
+func (d *DeleteAlertResponse) UnmarshalJSON(data []byte) error { return json.UnmarshalTuple(data, d) }
 
 // BalanceAvailableRequest describes the order or funding offer GetBalanceAvailable finds the largest amount for
 type BalanceAvailableRequest struct {
@@ -719,7 +731,9 @@ type BalanceAvailableResponse struct {
 }
 
 // UnmarshalJSON decodes a balance available array
-func (b *BalanceAvailableResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, b) }
+func (b *BalanceAvailableResponse) UnmarshalJSON(data []byte) error {
+	return json.UnmarshalTuple(data, b)
+}
 
 // userSettingsWriteBody is the body of a User Settings Write request
 type userSettingsWriteBody struct {
@@ -737,7 +751,9 @@ type UserSettingsCountResponse struct {
 }
 
 // UnmarshalJSON decodes a settings count array
-func (u *UserSettingsCountResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, u) }
+func (u *UserSettingsCountResponse) UnmarshalJSON(data []byte) error {
+	return json.UnmarshalTuple(data, u)
+}
 
 // userSetting is a setting's key and value, as User Settings Read returns them
 type userSetting struct {
@@ -746,4 +762,4 @@ type userSetting struct {
 }
 
 // UnmarshalJSON decodes a setting array
-func (u *userSetting) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, u) }
+func (u *userSetting) UnmarshalJSON(data []byte) error { return json.UnmarshalTuple(data, u) }

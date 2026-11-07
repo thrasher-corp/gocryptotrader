@@ -243,7 +243,7 @@ type OrderOperationOrdersResponse struct {
 // Cancel Orders (multiple) return, but which may be one order, as Update Order and Cancel Order return
 func (o *OrderOperationOrdersResponse) UnmarshalJSON(data []byte) error {
 	// An order begins with its ID, a list of orders with an order
-	if _, dataType, err := leadingElement(data); err == nil && dataType == jsonparser.Number {
+	if _, dataType, err := json.FirstArrayElement(data); err == nil && dataType == jsonparser.Number {
 		var single OrderResponse
 		if err := single.UnmarshalJSON(data); err != nil {
 			return err
@@ -351,7 +351,7 @@ type OTCOrderResponse struct {
 }
 
 // UnmarshalJSON decodes an OTC order array
-func (o *OTCOrderResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, o) }
+func (o *OTCOrderResponse) UnmarshalJSON(data []byte) error { return json.UnmarshalTuple(data, o) }
 
 // LedgersRequest filters the ledger entries GetLedgers returns
 type LedgersRequest struct {
@@ -388,4 +388,4 @@ type LedgerEntryResponse struct {
 }
 
 // UnmarshalJSON decodes a ledger entry array
-func (l *LedgerEntryResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, l) }
+func (l *LedgerEntryResponse) UnmarshalJSON(data []byte) error { return json.UnmarshalTuple(data, l) }

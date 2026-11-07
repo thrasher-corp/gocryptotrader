@@ -176,11 +176,11 @@ func TestTickersResponseUnmarshalJSON(t *testing.T) {
 
 	assert.ErrorIs(t, resp.UnmarshalJSON([]byte(`[["xBTCUSD",1]]`)), errUnknownSymbolType, "UnmarshalJSON should refuse a symbol of neither kind")
 	for _, data := range []string{`[[1,2]]`, `[[]]`, `[1]`, `[["\uZZZZ",1]]`} {
-		assert.ErrorIsf(t, resp.UnmarshalJSON([]byte(data)), errTupleElementType, "UnmarshalJSON should refuse %s, a ticker without a symbol", data)
+		assert.ErrorIsf(t, resp.UnmarshalJSON([]byte(data)), json.ErrTupleElementType, "UnmarshalJSON should refuse %s, a ticker without a symbol", data)
 	}
-	assert.ErrorIs(t, resp.UnmarshalJSON([]byte(`[["tBTCUSD","x"]]`)), errTupleElementType, "UnmarshalJSON should refuse a malformed trading pair ticker")
-	assert.ErrorIs(t, resp.UnmarshalJSON([]byte(`[["fUSD","x"]]`)), errTupleElementType, "UnmarshalJSON should refuse a malformed funding currency ticker")
-	assert.ErrorIs(t, resp.UnmarshalJSON([]byte(`{}`)), errTupleNotArray, "UnmarshalJSON should refuse an object")
+	assert.ErrorIs(t, resp.UnmarshalJSON([]byte(`[["tBTCUSD","x"]]`)), json.ErrTupleElementType, "UnmarshalJSON should refuse a malformed trading pair ticker")
+	assert.ErrorIs(t, resp.UnmarshalJSON([]byte(`[["fUSD","x"]]`)), json.ErrTupleElementType, "UnmarshalJSON should refuse a malformed funding currency ticker")
+	assert.ErrorIs(t, resp.UnmarshalJSON([]byte(`{}`)), json.ErrTupleNotArray, "UnmarshalJSON should refuse an object")
 }
 
 func TestGetTickersHistory(t *testing.T) {
@@ -745,10 +745,10 @@ func TestLiquidationsResponseUnmarshalJSON(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(` null `), &resp), "Unmarshal must not error for null")
 	assert.Empty(t, resp, "Unmarshal should decode no liquidations from null, dropping earlier ones")
 
-	assert.ErrorIs(t, resp.UnmarshalJSON([]byte(`[["pos",1]]`)), errTupleNotArray, "UnmarshalJSON should refuse a liquidation sent unwrapped")
-	assert.ErrorIs(t, resp.UnmarshalJSON([]byte(`[1]`)), errTupleNotArray, "UnmarshalJSON should refuse an element that is not an array")
-	assert.ErrorIs(t, resp.UnmarshalJSON([]byte(`[[["pos","x"]]]`)), errTupleElementType, "UnmarshalJSON should refuse a malformed liquidation")
-	assert.ErrorIs(t, resp.UnmarshalJSON([]byte(`{}`)), errTupleNotArray, "UnmarshalJSON should refuse an object")
+	assert.ErrorIs(t, resp.UnmarshalJSON([]byte(`[["pos",1]]`)), json.ErrTupleNotArray, "UnmarshalJSON should refuse a liquidation sent unwrapped")
+	assert.ErrorIs(t, resp.UnmarshalJSON([]byte(`[1]`)), json.ErrTupleNotArray, "UnmarshalJSON should refuse an element that is not an array")
+	assert.ErrorIs(t, resp.UnmarshalJSON([]byte(`[[["pos","x"]]]`)), json.ErrTupleElementType, "UnmarshalJSON should refuse a malformed liquidation")
+	assert.ErrorIs(t, resp.UnmarshalJSON([]byte(`{}`)), json.ErrTupleNotArray, "UnmarshalJSON should refuse an object")
 }
 
 func TestGetLeaderboards(t *testing.T) {

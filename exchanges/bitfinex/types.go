@@ -78,7 +78,7 @@ type Notification[T any] struct {
 }
 
 // UnmarshalJSON decodes a notification array
-func (n *Notification[T]) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, n) }
+func (n *Notification[T]) UnmarshalJSON(data []byte) error { return json.UnmarshalTuple(data, n) }
 
 // Err returns an error when the notification reports its request failed
 func (n *Notification[T]) Err() error {
@@ -127,7 +127,7 @@ type OrderResponse struct {
 }
 
 // UnmarshalJSON decodes an order array
-func (o *OrderResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, o) }
+func (o *OrderResponse) UnmarshalJSON(data []byte) error { return json.UnmarshalTuple(data, o) }
 
 // AccountTradeResponse is a trade one of the account's orders made
 type AccountTradeResponse struct {
@@ -151,7 +151,7 @@ type AccountTradeResponse struct {
 }
 
 // UnmarshalJSON decodes an account trade array
-func (t *AccountTradeResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, t) }
+func (t *AccountTradeResponse) UnmarshalJSON(data []byte) error { return json.UnmarshalTuple(data, t) }
 
 // PositionResponse is a margin or derivative position
 type PositionResponse struct {
@@ -183,7 +183,7 @@ type PositionResponse struct {
 }
 
 // UnmarshalJSON decodes a position array
-func (p *PositionResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, p) }
+func (p *PositionResponse) UnmarshalJSON(data []byte) error { return json.UnmarshalTuple(data, p) }
 
 // FundingFlags is the sum of a funding offer's or credit's flags. Bitfinex documents some endpoints' flags as an
 // object reserved for future parameters, which decodes as no flags
@@ -227,7 +227,7 @@ type FundingOfferResponse struct {
 }
 
 // UnmarshalJSON decodes a funding offer array
-func (f *FundingOfferResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, f) }
+func (f *FundingOfferResponse) UnmarshalJSON(data []byte) error { return json.UnmarshalTuple(data, f) }
 
 // FundingCreditResponse is funding provided or taken that is open: a credit is used in a position, a loan is not and leaves
 // PositionPair empty
@@ -259,7 +259,7 @@ type FundingCreditResponse struct {
 }
 
 // UnmarshalJSON decodes a funding credit or loan array
-func (f *FundingCreditResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, f) }
+func (f *FundingCreditResponse) UnmarshalJSON(data []byte) error { return json.UnmarshalTuple(data, f) }
 
 // AccountFundingTradeResponse is a trade one of the account's funding offers made
 type AccountFundingTradeResponse struct {
@@ -279,7 +279,7 @@ type AccountFundingTradeResponse struct {
 
 // UnmarshalJSON decodes an account funding trade array
 func (f *AccountFundingTradeResponse) UnmarshalJSON(data []byte) error {
-	return unmarshalTuple(data, f)
+	return json.UnmarshalTuple(data, f)
 }
 
 // MarginInfoBase is the account's margin summary
@@ -294,7 +294,7 @@ type MarginInfoBase struct {
 }
 
 // UnmarshalJSON decodes a margin summary array
-func (m *MarginInfoBase) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, m) }
+func (m *MarginInfoBase) UnmarshalJSON(data []byte) error { return json.UnmarshalTuple(data, m) }
 
 // MarginInfoBaseResponse is the margin summary keyed "base", as REST and websocket margin info send it
 type MarginInfoBaseResponse struct {
@@ -303,7 +303,9 @@ type MarginInfoBaseResponse struct {
 }
 
 // UnmarshalJSON decodes a keyed margin summary array
-func (m *MarginInfoBaseResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, m) }
+func (m *MarginInfoBaseResponse) UnmarshalJSON(data []byte) error {
+	return json.UnmarshalTuple(data, m)
+}
 
 // MarginInfoSymbol is the account's buying power on a trading pair
 type MarginInfoSymbol struct {
@@ -317,7 +319,7 @@ type MarginInfoSymbol struct {
 }
 
 // UnmarshalJSON decodes a trading pair's margin array
-func (m *MarginInfoSymbol) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, m) }
+func (m *MarginInfoSymbol) UnmarshalJSON(data []byte) error { return json.UnmarshalTuple(data, m) }
 
 // MarginInfoSymbolResponse is a trading pair's margin keyed "sym", as REST and websocket margin info send it
 type MarginInfoSymbolResponse struct {
@@ -327,7 +329,9 @@ type MarginInfoSymbolResponse struct {
 }
 
 // UnmarshalJSON decodes a keyed trading pair margin array
-func (m *MarginInfoSymbolResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, m) }
+func (m *MarginInfoSymbolResponse) UnmarshalJSON(data []byte) error {
+	return json.UnmarshalTuple(data, m)
+}
 
 // FundingInfo is the yield and duration of a currency's funding the account provides and takes
 type FundingInfo struct {
@@ -342,7 +346,7 @@ type FundingInfo struct {
 }
 
 // UnmarshalJSON decodes a funding info array
-func (f *FundingInfo) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, f) }
+func (f *FundingInfo) UnmarshalJSON(data []byte) error { return json.UnmarshalTuple(data, f) }
 
 // FundingInfoResponse is a funding currency's info keyed "sym", as REST and websocket funding info send it
 type FundingInfoResponse struct {
@@ -352,4 +356,4 @@ type FundingInfoResponse struct {
 }
 
 // UnmarshalJSON decodes a keyed funding info array
-func (f *FundingInfoResponse) UnmarshalJSON(data []byte) error { return unmarshalTuple(data, f) }
+func (f *FundingInfoResponse) UnmarshalJSON(data []byte) error { return json.UnmarshalTuple(data, f) }
