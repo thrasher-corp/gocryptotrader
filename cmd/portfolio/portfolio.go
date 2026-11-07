@@ -135,8 +135,8 @@ func main() {
 			if errf != nil {
 				log.Println(errf)
 			} else {
-				priceMap[y.Coin.Item] = ticker.Last
-				pf.Subtotal = ticker.Last * y.Balance
+				priceMap[y.Coin.Item] = ticker.LastPrice
+				pf.Subtotal = ticker.LastPrice * y.Balance
 			}
 		}
 		portfolioMap[y.Coin.Item] = pf
