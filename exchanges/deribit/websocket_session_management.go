@@ -6,13 +6,16 @@ import (
 	"time"
 )
 
-// SetHeartbeat makes Deribit send heartbeats and test requests over the websocket at an interval of at least 10
-// seconds, closing the connection when a test request goes unanswered; Deribit only accepts it over the websocket
+// SetHeartbeat makes Deribit send heartbeats and test requests over the websocket at an interval of whole seconds, at
+// least 10, closing the connection when a test request goes unanswered; Deribit only accepts it over the websocket
 func (w WebsocketAPI) SetHeartbeat(ctx context.Context, interval time.Duration) error {
 	if interval < minimumHeartbeatInterval {
 		return fmt.Errorf("%w: %s", errHeartbeatIntervalTooShort, interval)
 	}
-	return w.e.sendRequestMatchOKResponse(ctx, true, "public/set_heartbeat", &SetHeartbeatRequest{Interval: interval.Seconds()})
+	if interval%time.Second != 0 {
+		return fmt.Errorf("%w: %s", errHeartbeatIntervalNotWholeSeconds, interval)
+	}
+	return w.e.sendRequestMatchOKResponse(ctx, true, "public/set_heartbeat", &SetHeartbeatRequest{Interval: uint64(interval.Seconds())})
 }
 
 // DisableHeartbeat stops Deribit sending heartbeats over the websocket; Deribit only accepts it over the websocket

@@ -918,9 +918,8 @@ func wrapperTickerPair(t *testing.T, a asset.Item) currency.Pair {
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
 	ex := newTestExchange(t)
-	assert.ErrorIs(t, ex.UpdateTickers(t.Context(), asset.Margin), asset.ErrNotSupported, "UpdateTickers should reject an unsupported asset")
-	// The assets and then the pair Deribit does not summarise run serially and in order on ex, so a refresh that relies on
-	// what an earlier one stored fails
+	// The assets, the pair Deribit does not summarise and then an unsupported asset run serially and in order on ex, so a
+	// refresh that relies on what an earlier one stored or returned fails
 	for _, a := range ex.GetAssetTypes(false) {
 		t.Run(a.String(), func(t *testing.T) {
 			pair := wrapperTickerPair(t, a)
@@ -935,6 +934,7 @@ func TestUpdateTickers(t *testing.T) {
 	t.Run("pair Deribit does not summarise", func(t *testing.T) {
 		testUpdateTickersUnsummarised(t, ex)
 	})
+	assert.ErrorIs(t, ex.UpdateTickers(t.Context(), asset.Margin), asset.ErrNotSupported, "UpdateTickers should reject an unsupported asset")
 	t.Run("pair Deribit does not summarise on a new exchange", func(t *testing.T) {
 		t.Parallel()
 		testUpdateTickersUnsummarised(t, newTestExchange(t))
@@ -1364,13 +1364,14 @@ func TestGetWithdrawalsHistory(t *testing.T) {
 	}
 }
 
-func TestGetRecentTrades(t *testing.T) {
+func TestGetRecentTrades(t *testing.T) { //nolint:tparallel // Its assets run serially on one exchange before the futures trades are fetched again
 	t.Parallel()
 	spot, err := currency.NewPairFromString(wrapperTradesSpot)
 	require.NoError(t, err, "NewPairFromString must not error")
+	// The assets run serially on e before the mock check fetches the futures trades again, so a second fetch that relies
+	// on the first fails
 	for a, pair := range map[asset.Item]currency.Pair{asset.Futures: wrapperTestPair(t, asset.Futures), asset.Spot: spot} {
 		t.Run(a.String(), func(t *testing.T) {
-			t.Parallel()
 			trades, err := e.GetRecentTrades(t.Context(), pair, a)
 			require.NoErrorf(t, err, "GetRecentTrades must not error for %s", a)
 			require.NotEmptyf(t, trades, "GetRecentTrades must return %s trades", a)

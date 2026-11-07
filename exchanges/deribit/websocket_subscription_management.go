@@ -4,9 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"unicode/utf8"
 )
 
-// maximumSubscriptionLabelLength is the longest label Deribit adds to private channel notifications
+// maximumSubscriptionLabelLength is the most characters of a label Deribit adds to private channel notifications
 const maximumSubscriptionLabelLength = 16
 
 var (
@@ -32,7 +33,7 @@ func (w WebsocketAPI) SubscribePrivate(ctx context.Context, arg *PrivateSubscrib
 	if arg == nil || len(arg.Channels) == 0 {
 		return nil, errChannelsRequired
 	}
-	if len(arg.Label) > maximumSubscriptionLabelLength {
+	if utf8.RuneCountInString(arg.Label) > maximumSubscriptionLabelLength {
 		return nil, fmt.Errorf("%w: %q", errSubscriptionLabelTooLong, arg.Label)
 	}
 	var resp []string

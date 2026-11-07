@@ -234,7 +234,7 @@ func (e *Exchange) WebsocketConnect(ctx context.Context, conn websocket.Connecti
 func (e *Exchange) setWebsocketHeartbeat(ctx context.Context, conn websocket.Connection) error {
 	const method = "public/set_heartbeat"
 	var resp string
-	if err := e.sendWebsocketRequest(ctx, conn, nonMatchingEPL, method, &SetHeartbeatRequest{Interval: websocketHeartbeatInterval.Seconds()}, &resp); err != nil {
+	if err := e.sendWebsocketRequest(ctx, conn, nonMatchingEPL, method, &SetHeartbeatRequest{Interval: uint64(websocketHeartbeatInterval.Seconds())}, &resp); err != nil {
 		return err
 	}
 	return matchOKResponse(method, resp)

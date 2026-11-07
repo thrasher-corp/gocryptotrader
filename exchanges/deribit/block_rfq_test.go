@@ -455,6 +455,24 @@ func TestAddBlockRFQQuote(t *testing.T) {
 	arg.Amount = -1
 	_, err = e.AddBlockRFQQuote(t.Context(), arg)
 	require.ErrorIs(t, err, errInvalidAmount, "AddBlockRFQQuote must reject a negative amount")
+	t.Run("zero amount", func(t *testing.T) {
+		t.Parallel()
+		quote := mockAddBlockRFQQuoteRequest()
+		quote.Amount = 0
+		_, err := newResponseServerExchange(t, `{"jsonrpc":"2.0","result":{}}`).AddBlockRFQQuote(t.Context(), quote)
+		assert.ErrorIs(t, err, errInvalidAmount, "AddBlockRFQQuote should reject a zero amount")
+	})
+	t.Run("amount below one", func(t *testing.T) {
+		t.Parallel()
+		ex, lastParams := newTradingParamsCaptureExchange(t, `{"jsonrpc":"2.0","result":{}}`)
+		quote := mockAddBlockRFQQuoteRequest()
+		quote.Amount = 0.5
+		_, err := ex.AddBlockRFQQuote(t.Context(), quote)
+		require.NoError(t, err, "AddBlockRFQQuote must not error for an amount below one")
+		var sent AddBlockRFQQuoteRequest
+		require.NoError(t, json.Unmarshal([]byte(lastParams()), &sent), "Unmarshal must not error for the params sent")
+		assert.Equal(t, 0.5, sent.Amount, "AddBlockRFQQuote should send an amount below one")
+	})
 	arg = mockAddBlockRFQQuoteRequest()
 	arg.Direction = ""
 	_, err = e.AddBlockRFQQuote(t.Context(), arg)

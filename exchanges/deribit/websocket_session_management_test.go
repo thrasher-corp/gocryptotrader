@@ -25,6 +25,28 @@ func TestWebsocketAPISetHeartbeat(t *testing.T) {
 
 	err = newTestExchange(t).WebsocketAPI().SetHeartbeat(t.Context(), 30*time.Second)
 	assert.ErrorIs(t, err, websocket.ErrNotConnected, "WebsocketAPI.SetHeartbeat should error without a websocket connection")
+
+	t.Run("interval of 10 seconds", func(t *testing.T) {
+		t.Parallel()
+		if !mockTests {
+			t.Skip("an interval at the limit is checked against the mock websocket, which records the request")
+		}
+		ex, venue := newWebsocketTestExchange(t)
+		// testdata/http.json holds no answer for this interval, so the mock gives Deribit's answer to the others
+		venue.answerNext("public/set_heartbeat", `{"result":"ok"}`)
+		require.NoError(t, ex.WebsocketAPI().SetHeartbeat(t.Context(), 10*time.Second), "WebsocketAPI.SetHeartbeat must accept an interval of 10 seconds")
+		requests := venue.receivedOn(requestVenueConnection, "public/set_heartbeat")
+		require.Len(t, requests, 2, "the request connection and WebsocketAPI.SetHeartbeat must each set its heartbeat")
+		assert.JSONEq(t, `{"interval":10}`, string(requests[1].Params), "WebsocketAPI.SetHeartbeat should send an interval of 10 seconds")
+	})
+	// The last interval is too large for float64 seconds to hold its nanosecond, so a check made in float seconds fails it
+	for _, interval := range []time.Duration{10500 * time.Millisecond, 10*time.Second + 999*time.Microsecond, 10*time.Second + time.Nanosecond, (1<<24)*time.Second + time.Nanosecond} {
+		t.Run("interval of "+interval.String(), func(t *testing.T) {
+			t.Parallel()
+			err := newTestExchange(t).WebsocketAPI().SetHeartbeat(t.Context(), interval)
+			assert.ErrorIs(t, err, errHeartbeatIntervalNotWholeSeconds, "WebsocketAPI.SetHeartbeat should reject an interval that is not whole seconds")
+		})
+	}
 }
 
 func TestWebsocketAPIDisableHeartbeat(t *testing.T) {

@@ -1695,6 +1695,13 @@ func TestSetMarketMakerProtectionConfig(t *testing.T) {
 	_, err = ex.SetMarketMakerProtectionConfig(t.Context(), &SetMarketMakerProtectionConfigRequest{IndexName: "btc_usd", FrozenTime: 90 * time.Second})
 	require.NoError(t, err, "SetMarketMakerProtectionConfig must not error")
 	assert.JSONEq(t, `{"index_name":"btc_usd","interval":0,"frozen_time":90,"max_quote_quantity":0}`, lastParams(), "SetMarketMakerProtectionConfig should send the times in seconds, and a zero interval, which removes the configuration")
+	t.Run("trade count limit of 1000", func(t *testing.T) {
+		t.Parallel()
+		ex, lastParams := newTradingParamsCaptureExchange(t, `{"jsonrpc":"2.0","result":[]}`)
+		_, err := ex.SetMarketMakerProtectionConfig(t.Context(), &SetMarketMakerProtectionConfigRequest{IndexName: marketMakerProtectionIndexNameAll, BlockRFQ: true, TradeCountLimit: 1000})
+		require.NoError(t, err, "SetMarketMakerProtectionConfig must not error for a trade count limit of 1000")
+		assert.JSONEq(t, `{"index_name":"all","block_rfq":true,"trade_count_limit":1000,"interval":0,"frozen_time":0,"max_quote_quantity":0}`, lastParams(), "SetMarketMakerProtectionConfig should send a trade count limit of 1000")
+	})
 	limited, noDelay := newRateLimitedServerExchange(t, `{"jsonrpc":"2.0","result":[]}`)
 	_, err = limited.SetMarketMakerProtectionConfig(noDelay, mockSetMarketMakerProtectionConfigRequest())
 	assert.NoError(t, err, "SetMarketMakerProtectionConfig should be limited as a non-matching engine request")

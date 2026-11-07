@@ -1,8 +1,8 @@
 package deribit
 
-// SetHeartbeatRequest contains the heartbeat interval, in seconds, of a public/set_heartbeat request
+// SetHeartbeatRequest contains the heartbeat interval, in whole seconds, of a public/set_heartbeat request
 type SetHeartbeatRequest struct {
-	Interval float64 `json:"interval"`
+	Interval uint64 `json:"interval"`
 }
 
 // CancelOnDisconnectRequest contains the scope of a cancel on disconnect request; an empty scope is left out, so Deribit

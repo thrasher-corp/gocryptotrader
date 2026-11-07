@@ -19,8 +19,9 @@ const (
 const minimumHeartbeatInterval = 10 * time.Second
 
 var (
-	errHeartbeatIntervalTooShort      = errors.New("heartbeat interval must be at least 10 seconds")
-	errInvalidCancelOnDisconnectScope = errors.New("invalid cancel on disconnect scope")
+	errHeartbeatIntervalTooShort        = errors.New("heartbeat interval must be at least 10 seconds")
+	errHeartbeatIntervalNotWholeSeconds = errors.New("heartbeat interval must be whole seconds")
+	errInvalidCancelOnDisconnectScope   = errors.New("invalid cancel on disconnect scope")
 )
 
 // GetCancelOnDisconnect returns whether the account cancels a connection's orders once it closes; over HTTP only the

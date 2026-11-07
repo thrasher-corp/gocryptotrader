@@ -782,6 +782,14 @@ func TestListAddressBeneficiaries(t *testing.T) {
 	require.NoError(t, err, "ListAddressBeneficiaries must not error for a request with every time set")
 	assert.JSONEq(t, `{"currency":"BTC","created_before":1700000003000,"created_after":1700000000000,"updated_before":1700000004000,"updated_after":1700000001000}`, lastParams(), "ListAddressBeneficiaries should send each time in Unix milliseconds")
 
+	t.Run("limit of 1000", func(t *testing.T) {
+		t.Parallel()
+		ex, lastParams := newTradingParamsCaptureExchange(t, `{"jsonrpc":"2.0","result":{"data":[],"continuation":"","count":0}}`)
+		_, err := ex.ListAddressBeneficiaries(t.Context(), &ListAddressBeneficiariesRequest{Limit: 1000})
+		require.NoError(t, err, "ListAddressBeneficiaries must not error for a limit of 1000")
+		assert.JSONEq(t, `{"limit":1000}`, lastParams(), "ListAddressBeneficiaries should send a limit of 1000")
+	})
+
 	skipLiveWithoutCredentials(t)
 	result, err := e.ListAddressBeneficiaries(t.Context(), testListAddressBeneficiariesRequest())
 	require.NoError(t, err, "ListAddressBeneficiaries must not error")
@@ -1121,6 +1129,18 @@ func TestSubmitTransferToSubaccount(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "SubmitTransferToSubaccount must reject an empty currency")
 	_, err = e.SubmitTransferToSubaccount(t.Context(), &SubmitTransferToSubaccountRequest{Currency: currency.ETH, Amount: -1, Destination: mockDestinationSubaccountID})
 	require.ErrorIs(t, err, errInvalidAmount, "SubmitTransferToSubaccount must reject a negative amount")
+	t.Run("zero amount", func(t *testing.T) {
+		t.Parallel()
+		_, err := newResponseServerExchange(t, `{"jsonrpc":"2.0","result":{}}`).SubmitTransferToSubaccount(t.Context(), &SubmitTransferToSubaccountRequest{Currency: currency.ETH, Destination: mockDestinationSubaccountID})
+		assert.ErrorIs(t, err, errInvalidAmount, "SubmitTransferToSubaccount should reject a zero amount")
+	})
+	t.Run("amount below one", func(t *testing.T) {
+		t.Parallel()
+		ex, lastParams := newTradingParamsCaptureExchange(t, `{"jsonrpc":"2.0","result":{}}`)
+		_, err := ex.SubmitTransferToSubaccount(t.Context(), &SubmitTransferToSubaccountRequest{Currency: currency.ETH, Amount: 0.5, Destination: mockDestinationSubaccountID})
+		require.NoError(t, err, "SubmitTransferToSubaccount must not error for an amount below one")
+		assert.JSONEq(t, `{"currency":"ETH","amount":0.5,"destination":20}`, lastParams(), "SubmitTransferToSubaccount should send an amount below one")
+	})
 	_, err = e.SubmitTransferToSubaccount(t.Context(), &SubmitTransferToSubaccountRequest{Currency: currency.ETH, Amount: 1})
 	require.ErrorIs(t, err, errTransferDestinationRequired, "SubmitTransferToSubaccount must reject an empty destination")
 

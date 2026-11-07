@@ -57,6 +57,21 @@ func TestWebsocketAPISubscribePrivate(t *testing.T) {
 
 	_, err = newTestExchange(t).WebsocketAPI().SubscribePrivate(t.Context(), &PrivateSubscribeRequest{Channels: channels})
 	assert.ErrorIs(t, err, errWebsocketNotAuthenticated, "WebsocketAPI.SubscribePrivate should error without an authenticated connection")
+
+	for name, label := range map[string]string{"label of 16 letters": strings.Repeat("a", 16), "label of 16 two-byte letters": strings.Repeat("é", 16)} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			if !mockTests {
+				t.Skip("a label at the limit is checked against the mock websocket, which records the request")
+			}
+			ex, venue := newWebsocketTestExchange(t)
+			_, err := ex.WebsocketAPI().SubscribePrivate(t.Context(), &PrivateSubscribeRequest{Channels: channels, Label: label})
+			require.NoErrorf(t, err, "WebsocketAPI.SubscribePrivate must accept a %s", name)
+			requests := venue.received("private/subscribe")
+			require.Len(t, requests, 1, "WebsocketAPI.SubscribePrivate must send one request")
+			assert.JSONEqf(t, `{"channels":["user.lock"],"label":"`+label+`"}`, string(requests[0].Params), "WebsocketAPI.SubscribePrivate should send a %s", name)
+		})
+	}
 }
 
 func TestWebsocketAPIUnsubscribe(t *testing.T) {
