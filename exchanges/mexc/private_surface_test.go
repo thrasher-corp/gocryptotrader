@@ -16,6 +16,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -90,6 +91,26 @@ func testExchangeFor(t *testing.T, handler http.HandlerFunc, access liveAccess) 
 		t.Skip("the test names records which only its recorded replies hold")
 	}
 	return e
+}
+
+// countRequests returns a handler counting the requests it passes to handler, and the count
+func countRequests(handler http.HandlerFunc) (http.HandlerFunc, *atomic.Int32) {
+	requests := new(atomic.Int32)
+	return func(w http.ResponseWriter, r *http.Request) {
+		requests.Add(1)
+		handler(w, r)
+	}, requests
+}
+
+// newRefusingTestExchange returns an isolated exchange whose venue refuses every request, and the count of the
+// requests sent to it, for a test of a request refused before anything is sent. It runs in mock mode only, since a
+// regression would send the request to the live venue
+func newRefusingTestExchange(t *testing.T) (*Exchange, *atomic.Int32) {
+	t.Helper()
+	handler, requests := countRequests(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "nothing should be sent", http.StatusTeapot)
+	})
+	return testExchangeFor(t, handler, liveUnavailable), requests
 }
 
 // liveExchange returns the live instance for a test's live case, which runs only when built with -tags mock_test_off,

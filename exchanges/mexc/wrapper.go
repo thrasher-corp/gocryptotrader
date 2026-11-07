@@ -947,7 +947,8 @@ func (e *Exchange) GetServerTime(ctx context.Context, a asset.Item) (time.Time, 
 	return serverTime.Time(), err
 }
 
-// SubmitOrder submits a new order
+// SubmitOrder submits a new order. Take-profit, stop-loss and stop entry settings and a slippage tolerance are
+// refused, since the order would be placed without them
 func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if err := s.Validate(e.GetTradingRequirements()); err != nil {
 		return nil, err
@@ -956,6 +957,12 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	s.Pair, err = e.FormatExchangeCurrency(s.Pair, s.AssetType)
 	if err != nil {
 		return nil, err
+	}
+	if s.RiskManagementModes != (order.RiskManagementModes{}) {
+		return nil, fmt.Errorf("%w on a %s order", errRiskManagementUnsupported, s.AssetType)
+	}
+	if s.SlippageTolerance != 0 {
+		return nil, fmt.Errorf("%w on a %s order", errSlippageToleranceUnsupported, s.AssetType)
 	}
 	switch s.AssetType {
 	case asset.Spot:
@@ -1342,13 +1349,18 @@ func recordFuturesCancelOutcomes(resp *order.CancelBatchResponse, requested []or
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair, or every open order of the
-// account when no pair is given
+// account when no pair is given. A cancellation naming one side or order type is refused: neither the spot nor the
+// futures cancel-all can narrow to one, so it would cancel orders not asked for
 func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
 	// This is a symbol-wide cancel: it cancels every open order for the pair and takes no order id,
 	// so StandardCancel() (which requires an OrderID) must not gate it - it rejected a valid
 	// symbol-wide request with order.ErrOrderIDNotSet.
 	if err := orderCancellation.Validate(); err != nil {
 		return order.CancelAllResponse{}, err
+	}
+	if (orderCancellation.Side != order.UnknownSide && orderCancellation.Side != order.AnySide) ||
+		(orderCancellation.Type != order.UnknownType && orderCancellation.Type != order.AnyType) {
+		return order.CancelAllResponse{}, fmt.Errorf("%w: cancelling only the orders of one side or type (side %s, type %s)", common.ErrFunctionNotSupported, orderCancellation.Side, orderCancellation.Type)
 	}
 	resp := order.CancelAllResponse{
 		Status: make(map[string]string),

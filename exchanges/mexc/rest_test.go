@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/hex"
 	"io"
+	"maps"
 	"math"
 	"net/http"
 	"net/url"
@@ -2147,6 +2148,78 @@ func TestGetOrderInfo(t *testing.T) {
 	})
 }
 
+// eachRiskManagementFieldAlone returns risk management settings with one field of one setting set, keyed by the
+// setting and the field, so that a check of only some of the fields fails a case
+func eachRiskManagementFieldAlone() map[string]order.RiskManagementModes {
+	settings := make(map[string]order.RiskManagementModes)
+	for setting, set := range map[string]func(*order.RiskManagementModes, order.RiskManagement){
+		"take-profit": func(m *order.RiskManagementModes, r order.RiskManagement) { m.TakeProfit = r },
+		"stop-loss":   func(m *order.RiskManagementModes, r order.RiskManagement) { m.StopLoss = r },
+		"stop entry":  func(m *order.RiskManagementModes, r order.RiskManagement) { m.StopEntry = r },
+	} {
+		for field, r := range map[string]order.RiskManagement{
+			"enabled":            {Enabled: true},
+			"trigger price type": {TriggerPriceType: order.MarkPrice},
+			"price":              {Price: 44000},
+			"limit price":        {LimitPrice: 43900},
+			"order type":         {OrderType: order.Limit},
+		} {
+			var m order.RiskManagementModes
+			set(&m, r)
+			settings[setting+" "+field+" alone"] = m
+		}
+	}
+	return settings
+}
+
+// eachOrderKind returns an order of each side, order type and time in force SubmitOrder takes, keyed by its kind, so
+// that a check skipping some of them fails a case
+func eachOrderKind() map[string]order.Submit {
+	kinds := make(map[string]order.Submit)
+	for sideName, side := range map[string]order.Side{"buy": order.Buy, "sell": order.Sell, "bid": order.Bid, "ask": order.Ask, "long": order.Long, "short": order.Short} {
+		for tifName, tif := range map[string]order.TimeInForce{
+			"":                               order.UnknownTIF,
+			"good-till-cancelled ":           order.GoodTillCancel,
+			"post-only ":                     order.PostOnly,
+			"good-till-cancelled post-only ": order.GoodTillCancel | order.PostOnly,
+			"immediate-or-cancel ":           order.ImmediateOrCancel,
+			"fill-or-kill ":                  order.FillOrKill,
+		} {
+			kinds[tifName+"limit "+sideName] = order.Submit{Side: side, Type: order.Limit, TimeInForce: tif, Price: 45000, Amount: 1}
+		}
+		for tifName, tif := range map[string]order.TimeInForce{"": order.UnknownTIF, "good-till-cancelled ": order.GoodTillCancel, "immediate-or-cancel ": order.ImmediateOrCancel} {
+			kinds[tifName+"market "+sideName] = order.Submit{Side: side, Type: order.Market, TimeInForce: tif, Amount: 1}
+		}
+	}
+	return kinds
+}
+
+// eachSideAndTypeAlone returns cancellations naming one side or one order type, each but the unknown and any ones, of
+// the pair and of every pair, keyed by the side or type and the pairs, so that a check of only some of them fails a case
+func eachSideAndTypeAlone(pair currency.Pair) map[string]order.Cancel {
+	cancellations := make(map[string]order.Cancel)
+	add := func(name string, c order.Cancel) {
+		c.Pair = pair
+		cancellations[name+" orders"] = c
+		c.Pair = currency.EMPTYPAIR
+		cancellations[name+" orders of every pair"] = c
+	}
+	for side := order.Buy; side <= order.MissingData; side <<= 1 {
+		if side != order.AnySide {
+			add(side.String(), order.Cancel{Side: side})
+		}
+	}
+	for oType := order.Limit; oType <= order.MarketMakerProtection; oType <<= 1 {
+		if oType != order.AnyType {
+			add(oType.String(), order.Cancel{Type: oType})
+		}
+	}
+	for _, oType := range []order.Type{order.StopLimit, order.StopMarket, order.TakeProfitMarket, order.TrailingStopLimit, order.Bracket} {
+		add(oType.String(), order.Cancel{Type: oType})
+	}
+	return cancellations
+}
+
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
 	t.Run("futures live", func(t *testing.T) {
@@ -2186,6 +2259,57 @@ func TestSubmitOrder(t *testing.T) {
 		require.NoError(t, testexch.Setup(ex), "Setup must not error")
 		_, err := ex.SubmitOrder(t.Context(), nil)
 		require.ErrorIs(t, err, order.ErrSubmissionIsNil)
+	})
+	t.Run("spot", func(t *testing.T) {
+		t.Parallel()
+		type refusal struct {
+			s   order.Submit
+			err error
+		}
+		stopLoss := order.RiskManagementModes{StopLoss: order.RiskManagement{Enabled: true, Price: 44000, OrderType: order.Market}}
+		refusals := map[string]refusal{
+			"stop-loss": {s: order.Submit{Side: order.Buy, Type: order.Limit, Price: 45000, Amount: 0.001, RiskManagementModes: stopLoss}, err: errRiskManagementUnsupported},
+			"stop-loss on a post-only order": {
+				s:   order.Submit{Side: order.Buy, Type: order.Limit, TimeInForce: order.PostOnly, Price: 45000, Amount: 0.001, RiskManagementModes: stopLoss},
+				err: errRiskManagementUnsupported,
+			},
+			"take-profit on a market sell": {s: order.Submit{
+				Side: order.Sell, Type: order.Market, Amount: 0.001,
+				RiskManagementModes: order.RiskManagementModes{TakeProfit: order.RiskManagement{Enabled: true, Price: 48000, TriggerPriceType: order.MarkPrice}},
+			}, err: errRiskManagementUnsupported},
+			"stop entry on a market buy by quote amount": {s: order.Submit{
+				Side: order.Buy, Type: order.Market, QuoteAmount: 100,
+				RiskManagementModes: order.RiskManagementModes{StopEntry: order.RiskManagement{Enabled: true, Price: 46000}},
+			}, err: errRiskManagementUnsupported},
+			"risk management mode":                               {s: order.Submit{Side: order.Buy, Type: order.Limit, Price: 45000, Amount: 0.001, RiskManagementModes: order.RiskManagementModes{Mode: "full"}}, err: errRiskManagementUnsupported},
+			"slippage tolerance on a market buy by quote amount": {s: order.Submit{Side: order.Buy, Type: order.Market, QuoteAmount: 100, SlippageTolerance: 0.001}, err: errSlippageToleranceUnsupported},
+			"negative slippage tolerance":                        {s: order.Submit{Side: order.Sell, Type: order.Market, Amount: 0.001, SlippageTolerance: -0.001}, err: errSlippageToleranceUnsupported},
+			"slippage tolerance on a limit order":                {s: order.Submit{Side: order.Sell, Type: order.Limit, Price: 45000, Amount: 0.001, SlippageTolerance: 0.001}, err: errSlippageToleranceUnsupported},
+			"slippage tolerance on a fill-or-kill order": {
+				s:   order.Submit{Side: order.Sell, Type: order.Limit, TimeInForce: order.FillOrKill, Price: 45000, Amount: 0.001, SlippageTolerance: 0.001},
+				err: errSlippageToleranceUnsupported,
+			},
+		}
+		for name, modes := range eachRiskManagementFieldAlone() {
+			refusals[name] = refusal{s: order.Submit{Side: order.Buy, Type: order.Limit, Price: 45000, Amount: 0.001, RiskManagementModes: modes}, err: errRiskManagementUnsupported}
+		}
+		for kind, s := range eachOrderKind() {
+			withStopLoss, withSlippage := s, s
+			withStopLoss.RiskManagementModes, withSlippage.SlippageTolerance = stopLoss, 0.001
+			refusals[kind+" order with a stop-loss"] = refusal{s: withStopLoss, err: errRiskManagementUnsupported}
+			refusals[kind+" order with a slippage tolerance"] = refusal{s: withSlippage, err: errSlippageToleranceUnsupported}
+		}
+		for name, tc := range refusals {
+			t.Run(name+" refused", func(t *testing.T) {
+				t.Parallel()
+				ex, requests := newRefusingTestExchange(t)
+				tc.s.Exchange, tc.s.AssetType, tc.s.Pair = ex.Name, asset.Spot, spotTradablePair
+				resp, err := ex.SubmitOrder(t.Context(), &tc.s)
+				require.ErrorIs(t, err, tc.err, "SubmitOrder must refuse a setting the spot order would be placed without")
+				assert.Nil(t, resp, "no order should be returned")
+				assert.Zero(t, requests.Load(), "nothing should be sent to the venue")
+			})
+		}
 	})
 	// Serial, and before the checks below: its calls on e come first, as they could when it was a test of its own, so
 	// a call that kept a request for the next fails those checks
@@ -2249,6 +2373,69 @@ func TestSubmitOrder(t *testing.T) {
 			_, err := submit(ex, order.Submit{Side: order.Sell, Type: order.Market, Amount: 1})
 			assert.ErrorIs(t, err, errInvalidLeverage, "an isolated open without leverage should be refused before it is sent")
 		})
+
+		type refusal struct {
+			s   order.Submit
+			err error
+		}
+		stopLoss := order.RiskManagementModes{StopLoss: order.RiskManagement{Enabled: true, Price: 44000, OrderType: order.Market}}
+		refusals := map[string]refusal{
+			"stop-loss": {s: order.Submit{Side: order.Buy, Type: order.Limit, Price: 45000, Amount: 1, Leverage: 20, RiskManagementModes: stopLoss}, err: errRiskManagementUnsupported},
+			"take-profit": {s: order.Submit{
+				Side: order.Buy, Type: order.Limit, Price: 45000, Amount: 1, Leverage: 20,
+				RiskManagementModes: order.RiskManagementModes{TakeProfit: order.RiskManagement{Enabled: true, Price: 48000, TriggerPriceType: order.MarkPrice}},
+			}, err: errRiskManagementUnsupported},
+			"stop entry": {s: order.Submit{
+				Side: order.Buy, Type: order.Limit, Price: 45000, Amount: 1, Leverage: 20,
+				RiskManagementModes: order.RiskManagementModes{StopEntry: order.RiskManagement{Enabled: true, Price: 46000}},
+			}, err: errRiskManagementUnsupported},
+			"stop-loss priced but not enabled": {s: order.Submit{
+				Side: order.Buy, Type: order.Limit, Price: 45000, Amount: 1, Leverage: 20,
+				RiskManagementModes: order.RiskManagementModes{StopLoss: order.RiskManagement{Price: 44000}},
+			}, err: errRiskManagementUnsupported},
+			"risk management mode":                  {s: order.Submit{Side: order.Buy, Type: order.Limit, Price: 45000, Amount: 1, Leverage: 20, RiskManagementModes: order.RiskManagementModes{Mode: "full"}}, err: errRiskManagementUnsupported},
+			"stop-loss on a market order":           {s: order.Submit{Side: order.Sell, Type: order.Market, Amount: 1, Leverage: 20, RiskManagementModes: stopLoss}, err: errRiskManagementUnsupported},
+			"stop-loss on an open without leverage": {s: order.Submit{Side: order.Buy, Type: order.Market, Amount: 1, RiskManagementModes: stopLoss}, err: errRiskManagementUnsupported},
+			"stop-loss on a close":                  {s: order.Submit{Side: order.Sell, Type: order.Market, Amount: 1, ReduceOnly: true, RiskManagementModes: stopLoss}, err: errRiskManagementUnsupported},
+			"stop-loss on a cross order":            {s: order.Submit{Side: order.Buy, Type: order.Market, Amount: 1, MarginType: margin.Multi, RiskManagementModes: stopLoss}, err: errRiskManagementUnsupported},
+			"stop-loss on an isolated order":        {s: order.Submit{Side: order.Buy, Type: order.Market, Amount: 1, Leverage: 20, MarginType: margin.Isolated, RiskManagementModes: stopLoss}, err: errRiskManagementUnsupported},
+			"stop-loss on a post-only order": {
+				s:   order.Submit{Side: order.Buy, Type: order.Limit, TimeInForce: order.PostOnly, Price: 45000, Amount: 1, Leverage: 20, RiskManagementModes: stopLoss},
+				err: errRiskManagementUnsupported,
+			},
+			"slippage tolerance":                  {s: order.Submit{Side: order.Buy, Type: order.Market, Amount: 1, Leverage: 20, SlippageTolerance: 0.001}, err: errSlippageToleranceUnsupported},
+			"negative slippage tolerance":         {s: order.Submit{Side: order.Buy, Type: order.Market, Amount: 1, Leverage: 20, SlippageTolerance: -0.001}, err: errSlippageToleranceUnsupported},
+			"slippage tolerance on a limit order": {s: order.Submit{Side: order.Sell, Type: order.Limit, Price: 45000, Amount: 1, Leverage: 20, SlippageTolerance: 0.001}, err: errSlippageToleranceUnsupported},
+			"slippage tolerance on a close":       {s: order.Submit{Side: order.Buy, Type: order.Market, Amount: 1, ReduceOnly: true, SlippageTolerance: 0.001}, err: errSlippageToleranceUnsupported},
+			"slippage tolerance on a cross order": {s: order.Submit{Side: order.Sell, Type: order.Market, Amount: 1, MarginType: margin.Multi, SlippageTolerance: 0.001}, err: errSlippageToleranceUnsupported},
+			"slippage tolerance on a fill-or-kill order": {
+				s:   order.Submit{Side: order.Sell, Type: order.Limit, TimeInForce: order.FillOrKill, Price: 45000, Amount: 1, Leverage: 20, SlippageTolerance: 0.001},
+				err: errSlippageToleranceUnsupported,
+			},
+			"slippage tolerance on an isolated order": {
+				s:   order.Submit{Side: order.Sell, Type: order.Market, Amount: 1, Leverage: 20, MarginType: margin.Isolated, SlippageTolerance: 0.001},
+				err: errSlippageToleranceUnsupported,
+			},
+		}
+		for name, modes := range eachRiskManagementFieldAlone() {
+			refusals[name] = refusal{s: order.Submit{Side: order.Buy, Type: order.Limit, Price: 45000, Amount: 1, Leverage: 20, RiskManagementModes: modes}, err: errRiskManagementUnsupported}
+		}
+		for kind, s := range eachOrderKind() {
+			withStopLoss, withSlippage := s, s
+			withStopLoss.RiskManagementModes, withSlippage.SlippageTolerance = stopLoss, 0.001
+			refusals[kind+" order with a stop-loss"] = refusal{s: withStopLoss, err: errRiskManagementUnsupported}
+			refusals[kind+" order with a slippage tolerance"] = refusal{s: withSlippage, err: errSlippageToleranceUnsupported}
+		}
+		for name, tc := range refusals {
+			t.Run(name+" refused", func(t *testing.T) {
+				t.Parallel()
+				ex, requests := newRefusingTestExchange(t)
+				resp, err := submit(ex, tc.s)
+				require.ErrorIs(t, err, tc.err, "SubmitOrder must refuse a setting the futures order would be placed without")
+				assert.Nil(t, resp, "no order should be returned")
+				assert.Zero(t, requests.Load(), "nothing should be sent to the venue")
+			})
+		}
 
 		// A close names the position it closes, when one is open, and takes that position's margin mode when it names none.
 		// On a one-way account it is also sent reduce-only
@@ -2498,10 +2685,102 @@ func TestCancelAllOrders(t *testing.T) {
 		} {
 			t.Run(name, func(t *testing.T) {
 				t.Parallel()
-				ex := testExchangeFor(t, futuresHandler(t, futuresRoute{method: http.MethodPost, path: "private/order/cancel_all", body: tc.body}), liveUnavailable)
+				handler, requests := countRequests(futuresHandler(t, futuresRoute{method: http.MethodPost, path: "private/order/cancel_all", body: tc.body}))
+				ex := testExchangeFor(t, handler, liveUnavailable)
 				resp, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Futures, Pair: tc.pair})
 				require.NoError(t, err, "CancelAllOrders must not error for futures")
 				assert.Equal(t, order.CancelAllResponse{Status: map[string]string{}}, resp, "the venue names no orders, so none should be reported")
+				assert.EqualValues(t, 1, requests.Load(), "the cancel-all should be sent once")
+			})
+		}
+		for name, c := range map[string]order.Cancel{
+			"any side and type":  {Side: order.AnySide, Type: order.AnyType},
+			"any side":           {Side: order.AnySide},
+			"any type":           {Type: order.AnyType},
+			"any side, one pair": {Side: order.AnySide, Pair: currency.NewBTCUSDT()},
+		} {
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+				handler, requests := countRequests(futuresHandler(t, futuresRoute{method: http.MethodPost, path: "private/order/cancel_all", body: `{"symbol":"BTC_USDT"}`}))
+				ex := testExchangeFor(t, handler, liveUnavailable)
+				if c.Pair.IsEmpty() {
+					c.Pair = futuresTradablePair
+				}
+				c.AssetType = asset.Futures
+				resp, err := ex.CancelAllOrders(t.Context(), &c)
+				require.NoError(t, err, "CancelAllOrders must cancel the contract's orders of every side and type")
+				assert.Equal(t, order.CancelAllResponse{Status: map[string]string{}}, resp, "the venue names no orders, so none should be reported")
+				assert.EqualValues(t, 1, requests.Load(), "the cancel-all should be sent once")
+			})
+		}
+		refusals := map[string]order.Cancel{
+			"buy limit orders":         {Side: order.Buy, Type: order.Limit, Pair: futuresTradablePair},
+			"limit orders of any side": {Side: order.AnySide, Type: order.Limit, Pair: futuresTradablePair},
+			"buys of any type":         {Side: order.Buy, Type: order.AnyType, Pair: futuresTradablePair},
+			"every contract's sells":   {Side: order.Sell},
+			"every contract's limits":  {Type: order.Limit},
+		}
+		maps.Copy(refusals, eachSideAndTypeAlone(futuresTradablePair))
+		for name, c := range refusals {
+			t.Run(name+" refused", func(t *testing.T) {
+				t.Parallel()
+				ex, requests := newRefusingTestExchange(t)
+				c.AssetType = asset.Futures
+				_, err := ex.CancelAllOrders(t.Context(), &c)
+				require.ErrorIs(t, err, common.ErrFunctionNotSupported, "CancelAllOrders must refuse to cancel futures orders of one side or type")
+				assert.Zero(t, requests.Load(), "nothing should be sent to the venue")
+			})
+		}
+	})
+	t.Run("spot", func(t *testing.T) {
+		t.Parallel()
+		for name, tc := range map[string]struct {
+			cancel order.Cancel
+			// sent is the cancellation's method, path and symbol
+			sent string
+			exp  map[string]string
+		}{
+			"any side and type":      {cancel: order.Cancel{Side: order.AnySide, Type: order.AnyType, Pair: spotTradablePair}, sent: "DELETE /api/v3/openOrders BTCUSDT", exp: map[string]string{"9": "cancelled"}},
+			"any side":               {cancel: order.Cancel{Side: order.AnySide, Pair: spotTradablePair}, sent: "DELETE /api/v3/openOrders BTCUSDT", exp: map[string]string{"9": "cancelled"}},
+			"any type":               {cancel: order.Cancel{Type: order.AnyType, Pair: spotTradablePair}, sent: "DELETE /api/v3/openOrders BTCUSDT", exp: map[string]string{"9": "cancelled"}},
+			"any side, every symbol": {cancel: order.Cancel{Side: order.AnySide}, sent: "DELETE /api/v3/order/all ", exp: map[string]string{}},
+			"any type, every symbol": {cancel: order.Cancel{Type: order.AnyType}, sent: "DELETE /api/v3/order/all ", exp: map[string]string{}},
+		} {
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+				var sent []string
+				ex := testExchangeFor(t, func(w http.ResponseWriter, r *http.Request) {
+					sent = append(sent, r.Method+" "+r.URL.Path+" "+r.URL.Query().Get("symbol"))
+					if r.URL.Path == "/api/v3/openOrders" {
+						_, _ = w.Write([]byte(`[{"symbol":"BTCUSDT","orderId":"9"}]`))
+						return
+					}
+					_, _ = w.Write([]byte(`{"code":200,"msg":"success","timestamp":1778744778528}`))
+				}, liveUnavailable)
+				tc.cancel.AssetType = asset.Spot
+				resp, err := ex.CancelAllOrders(t.Context(), &tc.cancel)
+				require.NoError(t, err, "CancelAllOrders must cancel the spot orders of every side and type")
+				assert.Equal(t, order.CancelAllResponse{Status: tc.exp}, resp, "the orders the venue names should be reported cancelled")
+				assert.Equal(t, []string{tc.sent}, sent, "the venue's cancel-all should be sent once")
+			})
+		}
+		refusals := map[string]order.Cancel{
+			"sell market orders":        {Side: order.Sell, Type: order.Market, Pair: spotTradablePair},
+			"limit orders of any side":  {Side: order.AnySide, Type: order.Limit, Pair: spotTradablePair},
+			"buys of any type":          {Side: order.Buy, Type: order.AnyType, Pair: spotTradablePair},
+			"every symbol's sells":      {Side: order.Sell},
+			"every symbol's limits":     {Type: order.Limit},
+			"every symbol's ask orders": {Side: order.Ask, Type: order.AnyType},
+		}
+		maps.Copy(refusals, eachSideAndTypeAlone(spotTradablePair))
+		for name, c := range refusals {
+			t.Run(name+" refused", func(t *testing.T) {
+				t.Parallel()
+				ex, requests := newRefusingTestExchange(t)
+				c.AssetType = asset.Spot
+				_, err := ex.CancelAllOrders(t.Context(), &c)
+				require.ErrorIs(t, err, common.ErrFunctionNotSupported, "CancelAllOrders must refuse to cancel spot orders of one side or type")
+				assert.Zero(t, requests.Load(), "nothing should be sent to the venue")
 			})
 		}
 	})

@@ -118,6 +118,8 @@ var (
 	errCancelOutcomeMissing                 = errors.New("cancellation outcome missing")
 	errMarginTypeAmbiguous                  = errors.New("margin type ambiguous")
 	errMalformedCandles                     = errors.New("malformed candles")
+	errRiskManagementUnsupported            = errors.New("take-profit, stop-loss and stop entry settings are not supported")
+	errSlippageToleranceUnsupported         = errors.New("a slippage tolerance is not supported")
 )
 
 // GetSymbols retrieves current exchange trading rules and symbol information
