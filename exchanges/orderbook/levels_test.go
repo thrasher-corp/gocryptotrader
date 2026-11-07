@@ -1,6 +1,8 @@
 package orderbook
 
 import (
+	"slices"
+	"strconv"
 	"testing"
 	"time"
 
@@ -232,6 +234,33 @@ func TestUpdateInsertByPrice(t *testing.T) {
 	}, 0)
 
 	Check(t, b, 6, 36, 6)
+
+	// Serial, as its parent test is
+	t.Run("order count", func(t *testing.T) {
+		for _, tc := range []struct {
+			side    string
+			compare comparison
+			levels  Levels
+			updated int
+		}{
+			{"ask", askCompare, Levels{{Price: 1, Amount: 1, OrderCount: 1}, {Price: 3, Amount: 1, OrderCount: 2}}, 1},
+			{"bid", bidCompare, Levels{{Price: 3, Amount: 1, OrderCount: 2}, {Price: 1, Amount: 1, OrderCount: 1}}, 0},
+		} {
+			t.Run(tc.side, func(t *testing.T) {
+				t.Parallel()
+				l := slices.Clone(tc.levels)
+				// The counts update one book in turn, so each also checks that an update replaces the count before it
+				for _, count := range []int64{5, 0, 4} {
+					t.Run(strconv.FormatInt(count, 10), func(t *testing.T) {
+						l.updateInsertByPrice(Levels{{Price: 3, Amount: 2, OrderCount: count}}, 0, tc.compare)
+						exp := slices.Clone(tc.levels)
+						exp[tc.updated] = Level{Price: 3, Amount: 2, OrderCount: count}
+						assert.Equalf(t, exp, l, "an updated %s level should take the update's order count of %d", tc.side, count)
+					})
+				}
+			})
+		}
+	})
 }
 
 func TestUpdateByID(t *testing.T) {
@@ -581,6 +610,33 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 	}
 
 	Check(t, a, 14, 87, 7)
+
+	// Serial, as its parent test is
+	t.Run("order count", func(t *testing.T) {
+		for _, tc := range []struct {
+			side    string
+			compare comparison
+			levels  Levels
+			updated int
+		}{
+			{"ask", askCompare, Levels{{Price: 1, Amount: 1, ID: 1, OrderCount: 1}, {Price: 3, Amount: 1, ID: 3, OrderCount: 2}}, 1},
+			{"bid", bidCompare, Levels{{Price: 3, Amount: 1, ID: 3, OrderCount: 2}, {Price: 1, Amount: 1, ID: 1, OrderCount: 1}}, 0},
+		} {
+			t.Run(tc.side, func(t *testing.T) {
+				t.Parallel()
+				l := slices.Clone(tc.levels)
+				// The counts update one book in turn, so each also checks that an update replaces the count before it
+				for _, count := range []int64{5, 0, 4} {
+					t.Run(strconv.FormatInt(count, 10), func(t *testing.T) {
+						require.NoErrorf(t, l.updateInsertByID(Levels{{Price: 3, Amount: 2, ID: 3, OrderCount: count}}, tc.compare), "updateInsertByID must not error for a %s level", tc.side)
+						exp := slices.Clone(tc.levels)
+						exp[tc.updated] = Level{Price: 3, Amount: 2, ID: 3, OrderCount: count}
+						assert.Equalf(t, exp, l, "an updated %s level should take the update's order count of %d", tc.side, count)
+					})
+				}
+			})
+		}
+	})
 }
 
 func TestUpdateInsertByIDBids(t *testing.T) {

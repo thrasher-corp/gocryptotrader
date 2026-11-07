@@ -315,6 +315,7 @@ func TestOrderIs(t *testing.T) {
 		{Type: TrailingStop | Limit, Targets: []Type{TrailingStopLimit, Limit}},
 		{Type: LimitMaker, Targets: []Type{LimitMaker}},
 		{Type: TakeProfitMarket, Targets: []Type{TakeProfit, Market}},
+		{Type: TakeProfitLimit, Targets: []Type{TakeProfit, Limit}},
 	}
 	for _, oType := range orderComparisonList {
 		t.Run(oType.Type.String(), func(t *testing.T) {
@@ -350,6 +351,7 @@ func TestOrderTypeToString(t *testing.T) {
 		{Chase, "CHASE"},
 		{TakeProfit, "TAKE PROFIT"},
 		{TakeProfitMarket, "TAKE PROFIT MARKET"},
+		{TakeProfitLimit, "TAKE PROFIT LIMIT"},
 		{TrailingStop, "TRAILING_STOP"},
 		{IOS, "IOS"},
 		{Liquidation, "LIQUIDATION"},
@@ -849,6 +851,8 @@ func TestStringToOrderType(t *testing.T) {
 		{"Take ProfIt", TakeProfit, nil},
 		{"TAKE PROFIT MARkEt", TakeProfitMarket, nil},
 		{"TAKE_PROFIT_MARkEt", TakeProfitMarket, nil},
+		{"TAKE PROFIT LIMIT", TakeProfitLimit, nil},
+		{"take_profit_limit", TakeProfitLimit, nil},
 		{"brAcket", Bracket, nil},
 		{"TRIGGER_bracket", Bracket, nil},
 		{"optimal_limit", OptimalLimit, nil},
