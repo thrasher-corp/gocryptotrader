@@ -205,7 +205,7 @@ func (e *Exchange) SetDefaults() {
 	}
 
 	var err error
-	e.Requester, err = request.New(e.Name, common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout), request.WithLimiter(GetRateLimit()))
+	e.Requester, err = request.New(e.Name, common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout), request.WithLimiter(rateLimits))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -220,6 +220,10 @@ func (e *Exchange) SetDefaults() {
 	e.Websocket = websocket.NewManager()
 	e.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	e.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
+	e.wsChannels = newWebsocketChannelRegistry()
+	e.wsFundingBookIDs = newWebsocketFundingBookIDs()
+	e.wsBookResync = newWebsocketBookResync()
+	e.wsWalletCalcs = newWebsocketWalletCalcs()
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -265,6 +269,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 		if err != nil {
 			return nil, err
 		}
+		symbols = make([]string, 0, len(tickers.Funding))
 		for i := range tickers.Funding {
 			symbols = append(symbols, tickers.Funding[i].Symbol)
 		}
@@ -487,6 +492,7 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset
 		if err != nil {
 			return nil, err
 		}
+		book.Bids, book.Asks = make(orderbook.Levels, 0, len(levels)), make(orderbook.Levels, 0, len(levels))
 		for i := range levels {
 			addBookLevel(book, &levels[i])
 		}
@@ -495,6 +501,7 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset
 		if err != nil {
 			return nil, err
 		}
+		book.Bids, book.Asks = make(orderbook.Levels, 0, len(levels)), make(orderbook.Levels, 0, len(levels))
 		for i := range levels {
 			addBookLevel(book, &levels[i])
 		}
@@ -602,13 +609,14 @@ func movementType(m *MovementResponse) string {
 
 // GetWithdrawalsHistory returns the account's withdrawals of a currency, or of every currency when it is empty
 func (e *Exchange) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
-	movements, err := e.getMovementsHistory(ctx, bitfinexCurrency(c))
+	movements, err := e.getMovementsHistory(ctx, exchangeCurrency(c))
 	if err != nil {
 		return nil, err
 	}
 	resp := make([]exchange.WithdrawalHistory, 0, len(movements))
 	for i := range movements {
 		m := &movements[i]
+		// The movements history lists deposits as well as withdrawals, which alone have negative amounts
 		if m.Amount.Float64() >= 0 {
 			continue
 		}
@@ -667,22 +675,21 @@ func (e *Exchange) GetHistoricTrades(ctx context.Context, p currency.Pair, a ass
 // does a server ignoring the end
 func pageBack[T any, K comparable](start, end time.Time, limit int, fetch func(end time.Time) ([]T, error), id func(*T) K, at func(*T) time.Time) ([]T, error) {
 	var resp []T
-	seen := make(map[K]struct{})
+	seen := make(common.Seen[K])
 	for {
 		page, err := fetch(end)
 		if err != nil {
 			return nil, err
 		}
+		resp = slices.Grow(resp, len(page))
 		oldest := end
 		for i := range page {
 			if t := at(&page[i]); oldest.IsZero() || t.Before(oldest) {
 				oldest = t
 			}
-			k := id(&page[i])
-			if _, ok := seen[k]; ok {
+			if seen.CheckAndRecord(id(&page[i])) {
 				continue
 			}
-			seen[k] = struct{}{}
 			resp = append(resp, page[i])
 		}
 		if len(page) < limit {
@@ -764,7 +771,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	if err != nil {
 		return nil, err
 	}
-	if status := orderStatusFromBitfinex(placed.Status); status != order.UnknownStatus {
+	if status := orderStatusFromExchange(placed.Status); status != order.UnknownStatus {
 		resp.Status = status
 	}
 	// Neither stop has a price of its own, which the order manager would copy into their later modifications; a
@@ -1219,6 +1226,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, p currency.
 	if (!p.IsEmpty() && !d.Pair.Equal(p)) || (a.IsValid() && d.AssetType != a) {
 		return nil, fmt.Errorf("%w: %s is a %s %s order", order.ErrOrderNotFound, orderID, d.AssetType, d.Pair)
 	}
+	d.Trades = slices.Grow(d.Trades, len(trades))
 	for j := range trades {
 		t := &trades[j]
 		side, err := orderSideFromAmount(t.ExecutedAmount)
@@ -1423,7 +1431,7 @@ func withdrawalTravelRule(t *withdraw.TravelRule) (*TravelRuleDetails, error) {
 	if !t.IsSelf && len(name) == 0 && t.BeneficiaryFinancialInstitution == "" {
 		return nil, nil
 	}
-	details := &TravelRuleDetails{BeneficiarySelf: t.IsSelf, VASPName: t.BeneficiaryFinancialInstitution}
+	details := &TravelRuleDetails{BeneficiarySelf: t.IsSelf, VirtualAssetServiceProviderName: t.BeneficiaryFinancialInstitution}
 	// The account's verification data names it, so a name given with it is not sent
 	if t.IsSelf || len(name) == 0 {
 		return details, nil
@@ -1507,7 +1515,7 @@ func (e *Exchange) cryptocurrencyWithdrawalFee(ctx context.Context, c currency.C
 		}
 		return fees[i].Fee.Amount, true
 	}
-	c = bitfinexCurrency(c)
+	c = exchangeCurrency(c)
 	if fee, ok := feeOf(c.String()); ok {
 		return fee, nil
 	}
@@ -1541,7 +1549,7 @@ func tradingFeeRate(rates *SummaryFeeRates, p currency.Pair, maker bool) float64
 		}
 		return rates.Taker.Derivative
 	}
-	quote := bitfinexCurrency(p.Quote)
+	quote := exchangeCurrency(p.Quote)
 	switch {
 	case maker && quote.IsFiatCurrency():
 		return rates.Maker.ToFiat
@@ -1557,8 +1565,8 @@ func tradingFeeRate(rates *SummaryFeeRates, p currency.Pair, maker bool) float64
 	return rates.Taker.ToCrypto
 }
 
-// bitfinexCurrency returns the code Bitfinex names a currency by: UST for Tether's USDT
-func bitfinexCurrency(c currency.Code) currency.Code {
+// exchangeCurrency returns the code Bitfinex names a currency by: UST for Tether's USDT
+func exchangeCurrency(c currency.Code) currency.Code {
 	if c.Equal(currency.USDT) {
 		return currency.UST
 	}
@@ -1594,8 +1602,8 @@ func (e *Exchange) GetAvailableTransferChains(ctx context.Context, c currency.Co
 	if err != nil {
 		return nil, err
 	}
-	c = bitfinexCurrency(c)
-	var chains []string
+	c = exchangeCurrency(c)
+	chains := make([]string, 0, len(methods))
 	for i := range methods {
 		if slices.ContainsFunc(methods[i].Currencies, c.Equal) {
 			chains = append(chains, strings.ToLower(methods[i].Method))
@@ -1876,17 +1884,17 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 	if err != nil {
 		return nil, err
 	}
-	var rates []fundingrate.Rate
-	seen := make(map[int64]struct{})
+	events := min(len(snapshots), int(r.EndDate.Sub(r.StartDate)/derivativeFundingInterval)+1)
+	rates := make([]fundingrate.Rate, 0, events)
+	seen := make(common.Seen[int64], events)
 	for i := range snapshots {
 		rate := latestFundingRate(&snapshots[i])
 		if rate.Time.IsZero() || rate.Time.Before(r.StartDate) || rate.Time.After(r.EndDate) {
 			continue
 		}
-		if _, ok := seen[rate.Time.UnixMilli()]; ok {
+		if seen.CheckAndRecord(rate.Time.UnixMilli()) {
 			continue
 		}
-		seen[rate.Time.UnixMilli()] = struct{}{}
 		rates = append(rates, rate)
 	}
 	if len(rates) == 0 {

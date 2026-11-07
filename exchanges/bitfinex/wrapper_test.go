@@ -2585,7 +2585,7 @@ func TestWithdrawalTravelRule(t *testing.T) {
 	}{
 		{name: "none"},
 		{name: "self", travel: withdraw.TravelRule{IsSelf: true, BeneficiaryName: "John Doe"}, exp: &TravelRuleDetails{BeneficiarySelf: true}},
-		{name: "provider", travel: withdraw.TravelRule{BeneficiaryFinancialInstitution: "Strawb Exchange Ltd"}, exp: &TravelRuleDetails{VASPName: "Strawb Exchange Ltd"}},
+		{name: "provider", travel: withdraw.TravelRule{BeneficiaryFinancialInstitution: "Strawb Exchange Ltd"}, exp: &TravelRuleDetails{VirtualAssetServiceProviderName: "Strawb Exchange Ltd"}},
 		{name: "person", travel: withdraw.TravelRule{BeneficiaryName: "  John   Doe "}, exp: &TravelRuleDetails{FirstName: "John", LastName: "Doe"}},
 		{name: "one name", travel: withdraw.TravelRule{BeneficiaryName: "Satoshi"}, err: errTravelRuleNameIncomplete},
 	} {
@@ -2876,6 +2876,18 @@ func TestTradingFeeRate(t *testing.T) {
 		{p: testCoinMarginedPair, exp: 0.8},
 	} {
 		assert.Equalf(t, tc.exp, tradingFeeRate(rates, tc.p, tc.maker), "tradingFeeRate should give %s's rate, maker %t", tc.p, tc.maker)
+	}
+}
+
+func TestExchangeCurrency(t *testing.T) {
+	t.Parallel()
+	for c, exp := range map[currency.Code]currency.Code{
+		currency.USDT: currency.UST,
+		currency.UST:  currency.UST,
+		currency.BTC:  currency.BTC,
+		currency.USD:  currency.USD,
+	} {
+		assert.Truef(t, exp.Equal(exchangeCurrency(c)), "exchangeCurrency should name %s as %s", c, exp)
 	}
 }
 

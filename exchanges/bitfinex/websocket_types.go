@@ -138,13 +138,21 @@ type wsChannelRegistry struct {
 	draining map[wsChannelKey]struct{}
 }
 
+// newWebsocketChannelRegistry returns an empty channel registry
+func newWebsocketChannelRegistry() *wsChannelRegistry {
+	return &wsChannelRegistry{
+		channels: make(map[wsChannelKey]wsMappedChannel),
+		pending:  make(map[string]wsPendingSubscription),
+		awaited:  make(map[string]struct{}),
+		dropped:  make(map[string]struct{}),
+		draining: make(map[wsChannelKey]struct{}),
+	}
+}
+
 // addPending records a subscription sent with a request ID
 func (r *wsChannelRegistry) addPending(subID string, conn websocket.Connection, s *subscription.Subscription) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if r.pending == nil {
-		r.pending = make(map[string]wsPendingSubscription)
-	}
 	r.pending[subID] = wsPendingSubscription{conn: conn, sub: s}
 }
 
@@ -152,9 +160,6 @@ func (r *wsChannelRegistry) addPending(subID string, conn websocket.Connection, 
 func (r *wsChannelRegistry) await(subID string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if r.awaited == nil {
-		r.awaited = make(map[string]struct{})
-	}
 	r.awaited[subID] = struct{}{}
 }
 
@@ -203,9 +208,6 @@ func (r *wsChannelRegistry) dropPending(conn websocket.Connection, s *subscripti
 	match := parkedMatch(conn, s)
 	for subID, p := range r.pending {
 		if match(p) {
-			if r.dropped == nil {
-				r.dropped = make(map[string]struct{})
-			}
 			r.dropped[subID] = struct{}{}
 		}
 	}
@@ -224,14 +226,8 @@ func (r *wsChannelRegistry) confirm(subID string, conn websocket.Connection, cha
 	k := wsChannelKey{conn: conn, id: channelID}
 	if _, ok := r.dropped[subID]; ok {
 		delete(r.dropped, subID)
-		if r.draining == nil {
-			r.draining = make(map[wsChannelKey]struct{})
-		}
 		r.draining[k] = struct{}{}
 		return false, nil
-	}
-	if r.channels == nil {
-		r.channels = make(map[wsChannelKey]wsMappedChannel)
 	}
 	r.channels[k] = wsMappedChannel{sub: p.sub, subID: subID}
 	r.parked = slices.DeleteFunc(r.parked, func(parked wsPendingSubscription) bool { return parked == p })
@@ -248,18 +244,12 @@ func (r *wsChannelRegistry) abandon(subID string) (uint64, bool) {
 	defer r.mu.Unlock()
 	delete(r.awaited, subID)
 	if _, ok := r.pending[subID]; ok {
-		if r.dropped == nil {
-			r.dropped = make(map[string]struct{})
-		}
 		r.dropped[subID] = struct{}{}
 		return 0, false
 	}
 	for k, c := range r.channels {
 		if c.subID == subID {
 			delete(r.channels, k)
-			if r.draining == nil {
-				r.draining = make(map[wsChannelKey]struct{})
-			}
 			r.draining[k] = struct{}{}
 			return k.id, true
 		}
@@ -339,7 +329,7 @@ func (r *wsChannelRegistry) channelOf(conn websocket.Connection, s *subscription
 func (r *wsChannelRegistry) withBooks(fn func([]*subscription.Subscription)) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	var books []*subscription.Subscription
+	books := make([]*subscription.Subscription, 0, len(r.channels))
 	for k, c := range r.channels {
 		if c.sub.Channel == subscription.OrderbookChannel && !isConnectionClosed(k.conn) {
 			books = append(books, c.sub)
@@ -426,7 +416,7 @@ func (w *wsSharedChannels) set(requests map[string]*subscription.Subscription) [
 	if previous == nil {
 		return nil
 	}
-	var dropped []*subscription.Subscription
+	dropped := make([]*subscription.Subscription, 0, len(*previous))
 	for request, s := range *previous {
 		if _, ok := requests[request]; !ok {
 			dropped = append(dropped, s)

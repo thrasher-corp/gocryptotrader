@@ -20,14 +20,14 @@ import (
 
 // Mock inputs, which the recorded requests in testdata/http.json hold
 const (
-	testLoginHistoryStart int64  = 1579000000000
-	testLoginHistoryEnd   int64  = 1579300000000
-	testChangelogStart    int64  = 1574300000000
-	testChangelogEnd      int64  = 1574400000000
-	testMovementsStart    int64  = 1569340000000
-	testMovementsEnd      int64  = 1569350000000
-	testLNXPaymentsOffset uint64 = 10
-	testLNXPaymentHash           = "05f589c28838e8f08d83ed6419ab54a6e58cfc125e1e7f63c2d350f504ed34d0"
+	testLoginHistoryStart              int64  = 1579000000000
+	testLoginHistoryEnd                int64  = 1579300000000
+	testChangelogStart                 int64  = 1574300000000
+	testChangelogEnd                   int64  = 1574400000000
+	testMovementsStart                 int64  = 1569340000000
+	testMovementsEnd                   int64  = 1569350000000
+	testLightningNetworkPaymentsOffset uint64 = 10
+	testLightningNetworkPaymentHash           = "05f589c28838e8f08d83ed6419ab54a6e58cfc125e1e7f63c2d350f504ed34d0"
 	// testUserSettingKey is the setting the live user settings tests write and delete
 	testUserSettingKey = "api:gct_test"
 )
@@ -53,16 +53,16 @@ func testWithdrawalRequest() *WithdrawalRequest {
 		DeductFee: true,
 		Note:      "Purchase of 100 pizzas",
 		TravelRule: &TravelRuleDetails{
-			VASPDID:   "did:ethr:0x36c12a3d41698534463a6dcda1c549b8f178249b",
-			FirstName: "John",
-			LastName:  "Doe",
+			VirtualAssetServiceProviderDID: "did:ethr:0x36c12a3d41698534463a6dcda1c549b8f178249b",
+			FirstName:                      "John",
+			LastName:                       "Doe",
 		},
 	}
 }
 
-// testLNXInvoice is the invoice the LNX mock responses hold, the payments' alike
-var testLNXInvoice = LNXInvoiceResponse{
-	PaymentHash:        testLNXPaymentHash,
+// testLightningNetworkInvoice is the invoice the LNX mock responses hold, the payments' alike
+var testLightningNetworkInvoice = LightningNetworkInvoiceResponse{
+	PaymentHash:        testLightningNetworkPaymentHash,
 	CreatedAt:          types.Time(time.UnixMilli(1732125293487)),
 	ExpiresAt:          types.Time(time.UnixMilli(1732128893487)),
 	Invoice:            "lnbc10m1p0rn2fkpp5ng8cq7084jssenhcmdl2sczgtvja26ufz47rx4n7azsr03dk6evqdp5xy6kzwfsvfjrzd3cxcux2wfexcmrxcek8psnjdpkvyurxef38y6scqzpgxqzjcyrp0kymmeqejdelm3r586ehz5cs5ntxx96hr3ec49q70rlnljzcpag5pynsalrwmd0w8serwmmtjru6g6z3a607kqw47mqgm6m4ztkqqxgkujx",
@@ -163,7 +163,7 @@ func TestGetAccountSummary(t *testing.T) {
 				Volumes: []SummaryTradeVolume{
 					{Currency: "BTCF0", Volume: 0.016},
 					{Currency: "BTC", Volume: 0.765},
-					{Currency: "Total (USD)", Volume: 52069.01928633, VolumeSafe: 52069.01928633, VolumeMaker: 11362.82692633, VolumeBFX: 52069.01928633, VolumeBFXSafe: 52069.01928633, VolumeBFXMaker: 11362.82692633},
+					{Currency: "Total (USD)", Volume: 52069.01928633, VolumeSafe: 52069.01928633, VolumeMaker: 11362.82692633, VolumeBitfinex: 52069.01928633, VolumeBitfinexSafe: 52069.01928633, VolumeBitfinexMaker: 11362.82692633},
 				},
 				Fees:         map[currency.Code]float64{currency.NewCode("USTF0"): 0.17569482, currency.USD: 38.95555663, currency.BTC: 0.0005152},
 				TotalFeesUSD: 51.12300602,
@@ -458,7 +458,7 @@ func TestGenerateInvoice(t *testing.T) {
 	if mockTests {
 		exp := &GenerateInvoiceResponse{
 			InvoiceHash: "9a0f8079e7aca10ccef8db7ea860485b25d56b89157c33567ee8a037c5b6d658",
-			Invoice:     testLNXInvoice.Invoice,
+			Invoice:     testLightningNetworkInvoice.Invoice,
 			Amount:      0.01,
 		}
 		assert.Equal(t, exp, result, "GenerateInvoice should decode every field")
@@ -472,111 +472,111 @@ func TestGenerateInvoice(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GenerateInvoice should return the request failure")
 }
 
-func TestLNXInvoicePayments(t *testing.T) {
+func TestLightningNetworkInvoicePayments(t *testing.T) {
 	t.Parallel()
 	ex, bodies := newRequestBodyExchange(t, "/v2/auth/r/ext/invoice/payments", `{"payments":[{"payment_hash":"abc"}]}`)
-	var resp lnxInvoiceListResponse
-	require.NoError(t, ex.lnxInvoicePayments(t.Context(), "getPaymentsByUser", lnxInvoicePaymentsQuery{Offset: 5}, &resp), "lnxInvoicePayments must not error")
-	assert.JSONEq(t, `{"action":"getPaymentsByUser","query":{"offset":5}}`, requestBody(t, bodies), "lnxInvoicePayments should send the action and query")
-	assert.Equal(t, lnxInvoiceListResponse{Payments: []LNXInvoiceResponse{{PaymentHash: "abc"}}}, resp, "lnxInvoicePayments should decode the response")
-	require.NoError(t, ex.lnxInvoicePayments(t.Context(), "getInvoiceById", lnxInvoicePaymentsQuery{PaymentHash: "abc"}, nil), "lnxInvoicePayments must not error")
-	assert.JSONEq(t, `{"action":"getInvoiceById","query":{"txid":"abc"}}`, requestBody(t, bodies), "lnxInvoicePayments should send the payment hash as txid")
-	require.NoError(t, ex.lnxInvoicePayments(t.Context(), "getInvoicesByUser", lnxInvoicePaymentsQuery{}, nil), "lnxInvoicePayments must not error")
-	assert.JSONEq(t, `{"action":"getInvoicesByUser","query":{}}`, requestBody(t, bodies), "lnxInvoicePayments should send an empty query when nothing is set")
+	var resp lightningNetworkInvoiceListResponse
+	require.NoError(t, ex.lightningNetworkInvoicePayments(t.Context(), "getPaymentsByUser", lightningNetworkInvoicePaymentsQuery{Offset: 5}, &resp), "lightningNetworkInvoicePayments must not error")
+	assert.JSONEq(t, `{"action":"getPaymentsByUser","query":{"offset":5}}`, requestBody(t, bodies), "lightningNetworkInvoicePayments should send the action and query")
+	assert.Equal(t, lightningNetworkInvoiceListResponse{Payments: []LightningNetworkInvoiceResponse{{PaymentHash: "abc"}}}, resp, "lightningNetworkInvoicePayments should decode the response")
+	require.NoError(t, ex.lightningNetworkInvoicePayments(t.Context(), "getInvoiceById", lightningNetworkInvoicePaymentsQuery{PaymentHash: "abc"}, nil), "lightningNetworkInvoicePayments must not error")
+	assert.JSONEq(t, `{"action":"getInvoiceById","query":{"txid":"abc"}}`, requestBody(t, bodies), "lightningNetworkInvoicePayments should send the payment hash as txid")
+	require.NoError(t, ex.lightningNetworkInvoicePayments(t.Context(), "getInvoicesByUser", lightningNetworkInvoicePaymentsQuery{}, nil), "lightningNetworkInvoicePayments must not error")
+	assert.JSONEq(t, `{"action":"getInvoicesByUser","query":{}}`, requestBody(t, bodies), "lightningNetworkInvoicePayments should send an empty query when nothing is set")
 }
 
-func TestGetLNXInvoices(t *testing.T) {
+func TestGetLightningNetworkInvoices(t *testing.T) {
 	t.Parallel()
 	skipLiveWithoutCredentials(t)
-	result, err := e.GetLNXInvoices(t.Context(), 0)
-	require.NoError(t, err, "GetLNXInvoices must not error")
+	result, err := e.GetLightningNetworkInvoices(t.Context(), 0)
+	require.NoError(t, err, "GetLightningNetworkInvoices must not error")
 	if mockTests {
-		assert.Equal(t, []LNXInvoiceResponse{testLNXInvoice}, result, "GetLNXInvoices should decode every invoice")
+		assert.Equal(t, []LightningNetworkInvoiceResponse{testLightningNetworkInvoice}, result, "GetLightningNetworkInvoices should decode every invoice")
 	}
 
-	result, err = newResponseServerExchange(t, `{"payments":[{}]}`).GetLNXInvoices(t.Context(), 0)
-	require.NoError(t, err, "GetLNXInvoices must not error for a response without invoices")
-	assert.Empty(t, result, "GetLNXInvoices should return no invoices from a response without them")
-	_, err = newUnavailableServerExchange(t).GetLNXInvoices(t.Context(), 0)
-	assert.ErrorIs(t, err, request.ErrBadStatus, "GetLNXInvoices should return the request failure")
+	result, err = newResponseServerExchange(t, `{"payments":[{}]}`).GetLightningNetworkInvoices(t.Context(), 0)
+	require.NoError(t, err, "GetLightningNetworkInvoices must not error for a response without invoices")
+	assert.Empty(t, result, "GetLightningNetworkInvoices should return no invoices from a response without them")
+	_, err = newUnavailableServerExchange(t).GetLightningNetworkInvoices(t.Context(), 0)
+	assert.ErrorIs(t, err, request.ErrBadStatus, "GetLightningNetworkInvoices should return the request failure")
 }
 
-func TestGetLNXPayments(t *testing.T) {
+func TestGetLightningNetworkPayments(t *testing.T) {
 	t.Parallel()
 	skipLiveWithoutCredentials(t)
-	offset := testLNXPaymentsOffset
+	offset := testLightningNetworkPaymentsOffset
 	if !mockTests {
 		offset = 0
 	}
-	result, err := e.GetLNXPayments(t.Context(), offset)
-	require.NoError(t, err, "GetLNXPayments must not error")
+	result, err := e.GetLightningNetworkPayments(t.Context(), offset)
+	require.NoError(t, err, "GetLightningNetworkPayments must not error")
 	if mockTests {
-		assert.Equal(t, []LNXInvoiceResponse{testLNXInvoice}, result, "GetLNXPayments should decode every payment")
+		assert.Equal(t, []LightningNetworkInvoiceResponse{testLightningNetworkInvoice}, result, "GetLightningNetworkPayments should decode every payment")
 	}
 
-	result, err = newResponseServerExchange(t, `{"invoices":[{}]}`).GetLNXPayments(t.Context(), offset)
-	require.NoError(t, err, "GetLNXPayments must not error for a response without payments")
-	assert.Empty(t, result, "GetLNXPayments should return no payments from a response without them")
-	_, err = newUnavailableServerExchange(t).GetLNXPayments(t.Context(), offset)
-	assert.ErrorIs(t, err, request.ErrBadStatus, "GetLNXPayments should return the request failure")
+	result, err = newResponseServerExchange(t, `{"invoices":[{}]}`).GetLightningNetworkPayments(t.Context(), offset)
+	require.NoError(t, err, "GetLightningNetworkPayments must not error for a response without payments")
+	assert.Empty(t, result, "GetLightningNetworkPayments should return no payments from a response without them")
+	_, err = newUnavailableServerExchange(t).GetLightningNetworkPayments(t.Context(), offset)
+	assert.ErrorIs(t, err, request.ErrBadStatus, "GetLightningNetworkPayments should return the request failure")
 }
 
-func TestGetLNXInvoice(t *testing.T) {
+func TestGetLightningNetworkInvoice(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetLNXInvoice(t.Context(), "")
-	require.ErrorIs(t, err, errLNXPaymentHashRequired, "GetLNXInvoice must require a payment hash")
+	_, err := e.GetLightningNetworkInvoice(t.Context(), "")
+	require.ErrorIs(t, err, errLightningNetworkPaymentHashRequired, "GetLightningNetworkInvoice must require a payment hash")
 
 	skipLiveWithoutCredentials(t)
-	paymentHash := testLNXPaymentHash
+	paymentHash := testLightningNetworkPaymentHash
 	if !mockTests {
-		invoices, err := e.GetLNXInvoices(t.Context(), 0)
-		require.NoError(t, err, "GetLNXInvoices must not error")
+		invoices, err := e.GetLightningNetworkInvoices(t.Context(), 0)
+		require.NoError(t, err, "GetLightningNetworkInvoices must not error")
 		if len(invoices) == 0 {
 			t.Skip("The account has no Lightning Network invoice to get")
 		}
 		paymentHash = invoices[0].PaymentHash
 	}
-	result, err := e.GetLNXInvoice(t.Context(), paymentHash)
-	require.NoError(t, err, "GetLNXInvoice must not error")
+	result, err := e.GetLightningNetworkInvoice(t.Context(), paymentHash)
+	require.NoError(t, err, "GetLightningNetworkInvoice must not error")
 	if mockTests {
-		assert.Equal(t, &testLNXInvoice, result, "GetLNXInvoice should decode every field")
+		assert.Equal(t, &testLightningNetworkInvoice, result, "GetLightningNetworkInvoice should decode every field")
 	} else {
-		assert.Equal(t, paymentHash, result.PaymentHash, "GetLNXInvoice should return the invoice with the payment hash")
+		assert.Equal(t, paymentHash, result.PaymentHash, "GetLightningNetworkInvoice should return the invoice with the payment hash")
 	}
 
-	_, err = newResponseServerExchange(t, `null`).GetLNXInvoice(t.Context(), paymentHash)
-	assert.ErrorIs(t, err, common.ErrNoResponse, "GetLNXInvoice should error for a null response")
-	_, err = newUnavailableServerExchange(t).GetLNXInvoice(t.Context(), paymentHash)
-	assert.ErrorIs(t, err, request.ErrBadStatus, "GetLNXInvoice should return the request failure")
+	_, err = newResponseServerExchange(t, `null`).GetLightningNetworkInvoice(t.Context(), paymentHash)
+	assert.ErrorIs(t, err, common.ErrNoResponse, "GetLightningNetworkInvoice should error for a null response")
+	_, err = newUnavailableServerExchange(t).GetLightningNetworkInvoice(t.Context(), paymentHash)
+	assert.ErrorIs(t, err, request.ErrBadStatus, "GetLightningNetworkInvoice should return the request failure")
 }
 
-func TestGetLNXPayment(t *testing.T) {
+func TestGetLightningNetworkPayment(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetLNXPayment(t.Context(), "")
-	require.ErrorIs(t, err, errLNXPaymentHashRequired, "GetLNXPayment must require a payment hash")
+	_, err := e.GetLightningNetworkPayment(t.Context(), "")
+	require.ErrorIs(t, err, errLightningNetworkPaymentHashRequired, "GetLightningNetworkPayment must require a payment hash")
 
 	skipLiveWithoutCredentials(t)
-	paymentHash := testLNXPaymentHash
+	paymentHash := testLightningNetworkPaymentHash
 	if !mockTests {
-		payments, err := e.GetLNXPayments(t.Context(), 0)
-		require.NoError(t, err, "GetLNXPayments must not error")
+		payments, err := e.GetLightningNetworkPayments(t.Context(), 0)
+		require.NoError(t, err, "GetLightningNetworkPayments must not error")
 		if len(payments) == 0 {
 			t.Skip("The account has no Lightning Network payment to get")
 		}
 		paymentHash = payments[0].PaymentHash
 	}
-	result, err := e.GetLNXPayment(t.Context(), paymentHash)
-	require.NoError(t, err, "GetLNXPayment must not error")
+	result, err := e.GetLightningNetworkPayment(t.Context(), paymentHash)
+	require.NoError(t, err, "GetLightningNetworkPayment must not error")
 	if mockTests {
-		assert.Equal(t, &testLNXInvoice, result, "GetLNXPayment should decode every field")
+		assert.Equal(t, &testLightningNetworkInvoice, result, "GetLightningNetworkPayment should decode every field")
 	} else {
-		assert.Equal(t, paymentHash, result.PaymentHash, "GetLNXPayment should return the payment with the payment hash")
+		assert.Equal(t, paymentHash, result.PaymentHash, "GetLightningNetworkPayment should return the payment with the payment hash")
 	}
 
-	_, err = newResponseServerExchange(t, `null`).GetLNXPayment(t.Context(), paymentHash)
-	assert.ErrorIs(t, err, common.ErrNoResponse, "GetLNXPayment should error for a null response")
-	_, err = newUnavailableServerExchange(t).GetLNXPayment(t.Context(), paymentHash)
-	assert.ErrorIs(t, err, request.ErrBadStatus, "GetLNXPayment should return the request failure")
+	_, err = newResponseServerExchange(t, `null`).GetLightningNetworkPayment(t.Context(), paymentHash)
+	assert.ErrorIs(t, err, common.ErrNoResponse, "GetLightningNetworkPayment should error for a null response")
+	_, err = newUnavailableServerExchange(t).GetLightningNetworkPayment(t.Context(), paymentHash)
+	assert.ErrorIs(t, err, request.ErrBadStatus, "GetLightningNetworkPayment should return the request failure")
 }
 
 func TestRequestWithdrawal(t *testing.T) {
@@ -604,7 +604,7 @@ func TestRequestWithdrawal(t *testing.T) {
 
 	// The recorded request holds the travel rule details; these hold the other optional fields
 	ex, bodies := newRequestBodyExchange(t, "/v2/auth/w/withdraw", `[1568742390999,"acc_wd-req",null,null,[13080092,null,"lnx",null,"exchange",0.0001,null,null,0],null,"SUCCESS","Your withdrawal request has been successfully submitted."]`)
-	_, err = ex.RequestWithdrawal(t.Context(), &WithdrawalRequest{Wallet: WalletTypeExchange, Method: "LNX", Invoice: "lnbc1", TravelRule: &TravelRuleDetails{VASPName: "Strawb Exchange Ltd", BeneficiarySelf: true}})
+	_, err = ex.RequestWithdrawal(t.Context(), &WithdrawalRequest{Wallet: WalletTypeExchange, Method: "LNX", Invoice: "lnbc1", TravelRule: &TravelRuleDetails{VirtualAssetServiceProviderName: "Strawb Exchange Ltd", BeneficiarySelf: true}})
 	require.NoError(t, err, "RequestWithdrawal must not error for a Lightning withdrawal")
 	assert.JSONEq(t, `{"wallet":"exchange","method":"lnx","invoice":"lnbc1","travel_rule_tos":true,"vasp_name":"Strawb Exchange Ltd","beneficiary_self":true}`, requestBody(t, bodies), "RequestWithdrawal should send a Lightning withdrawal's invoice and no amount or address")
 	_, err = ex.RequestWithdrawal(t.Context(), &WithdrawalRequest{Wallet: WalletTypeFunding, Method: "ripple", Amount: 25.5, Address: "rAddress", PaymentID: "1234", TravelRule: &TravelRuleDetails{CorporateName: "Yotsuba Ltd"}})
@@ -997,7 +997,7 @@ func TestAccountActionsRecordsEveryPosition(t *testing.T) {
 	lastLogin, err := time.Parse(time.RFC3339, "2023-11-14T22:13:20.044Z")
 	require.NoError(t, err, "Parse must not error")
 	testTupleDecode(t, `[1000,"s1","s2",1700000000003,1,1005,null,"s7","s8","s9",1,null,{"k":12},null,1700000000014,1015,1016,1,1,1,null,1,1,1,null,null,["s26"],null,1,1,1,1,1,null,null,null,null,null,1,1,null,null,1,null,"2023-11-14T22:13:20.044Z",null,null,1047,null,["s49"],["s50"],"s51",null,1,1]`,
-		UserInfoResponse{ID: 1000, Email: "s1", Username: "s2", CreatedAt: types.Time(time.UnixMilli(1700000000003)), Verified: true, VerificationLevel: 1005, Timezone: "s7", Locale: "s8", Company: "s9", EmailVerified: true, SubAccountType: json.RawMessage(`{"k":12}`), MasterAccountCreatedAt: types.Time(time.UnixMilli(1700000000014)), GroupID: 1015, MasterAccountID: 1016, InheritsMasterAccountVerification: true, IsGroupMaster: true, GroupWithdrawEnabled: true, PaperTradingEnabled: true, MerchantEnabled: true, CompetitionEnabled: true, TwoFactorModes: []string{"s26"}, IsSecuritiesMaster: true, SecuritiesEnabled: true, IsSecuritiesInvestorAccredited: true, IsSecuritiesElSalvador: true, IsSecuritiesAIFC: true, AllowDisableContextSwitch: true, ContextSwitchDisabled: true, HighNetWorth: true, LastLoginAt: lastLogin, VerificationLevelSubmitted: 1047, ComplianceCountries: []string{"s49"}, ComplianceResidenceCountries: []string{"s50"}, ComplianceAccountType: "s51", PermittedBeneficiary: true, IsMerchantEnterprise: true})
+		UserInfoResponse{ID: 1000, Email: "s1", Username: "s2", CreatedAt: types.Time(time.UnixMilli(1700000000003)), Verified: true, VerificationLevel: 1005, Timezone: "s7", Locale: "s8", Company: "s9", EmailVerified: true, SubAccountType: json.RawMessage(`{"k":12}`), MasterAccountCreatedAt: types.Time(time.UnixMilli(1700000000014)), GroupID: 1015, MasterAccountID: 1016, InheritsMasterAccountVerification: true, IsGroupMaster: true, GroupWithdrawEnabled: true, PaperTradingEnabled: true, MerchantEnabled: true, CompetitionEnabled: true, TwoFactorModes: []string{"s26"}, IsSecuritiesMaster: true, SecuritiesEnabled: true, IsSecuritiesInvestorAccredited: true, IsSecuritiesElSalvador: true, IsSecuritiesAstanaInternationalFinancialCentre: true, AllowDisableContextSwitch: true, ContextSwitchDisabled: true, HighNetWorth: true, LastLoginAt: lastLogin, VerificationLevelSubmitted: 1047, ComplianceCountries: []string{"s49"}, ComplianceResidenceCountries: []string{"s50"}, ComplianceAccountType: "s51", PermittedBeneficiary: true, IsMerchantEnterprise: true})
 	testTupleDecode(t, `[null,null,null,null,[[0.5,1.5,2.5,null,null,5.5],[10.5,11.5,12.5,null,null,15.5]],[[{"curr":"s0","vol":0.25,"vol_safe":1.25,"vol_maker":2.25,"vol_BFX":3.25,"vol_BFX_safe":4.25,"vol_BFX_maker":5.25}],{"BTC":1.5},2.5],[null,{"ETH":1.75},2.75],null,null,{"leo_lev":1009,"leo_amount_avg":9.5}]`,
 		AccountSummaryResponse{
 			FeeRates: SummaryFeeRates{
@@ -1005,7 +1005,7 @@ func TestAccountActionsRecordsEveryPosition(t *testing.T) {
 				Taker: SummaryTakerFeeRates{ToCrypto: 10.5, ToStable: 11.5, ToFiat: 12.5, Derivative: 15.5},
 			},
 			TradingVolumeAndFees: SummaryTradingVolumeAndFees{
-				Volumes:      []SummaryTradeVolume{{Currency: "s0", Volume: 0.25, VolumeSafe: 1.25, VolumeMaker: 2.25, VolumeBFX: 3.25, VolumeBFXSafe: 4.25, VolumeBFXMaker: 5.25}},
+				Volumes:      []SummaryTradeVolume{{Currency: "s0", Volume: 0.25, VolumeSafe: 1.25, VolumeMaker: 2.25, VolumeBitfinex: 3.25, VolumeBitfinexSafe: 4.25, VolumeBitfinexMaker: 5.25}},
 				Fees:         map[currency.Code]float64{currency.BTC: 1.5},
 				TotalFeesUSD: 2.5,
 			},

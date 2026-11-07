@@ -33,15 +33,17 @@ type wsWalletCalcs struct {
 	pending map[string]time.Time
 }
 
+// newWebsocketWalletCalcs returns calc requests holding no wallet
+func newWebsocketWalletCalcs() *wsWalletCalcs {
+	return &wsWalletCalcs{pending: make(map[string]time.Time)}
+}
+
 // request returns the calc requests of the wallets not asked about within wsWalletCalcWait, marking them asked
 func (w *wsWalletCalcs) request(calcs []string) []string {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	if w.pending == nil {
-		w.pending = make(map[string]time.Time)
-	}
 	now := time.Now()
-	var asked []string
+	asked := make([]string, 0, len(calcs))
 	for _, c := range calcs {
 		if at, ok := w.pending[c]; !ok || now.Sub(at) >= wsWalletCalcWait {
 			w.pending[c] = now
@@ -241,7 +243,7 @@ func (e *Exchange) wsStoreWalletSnapshot(ctx context.Context, conn websocket.Con
 	for i, a := range walletAssets {
 		snapshot[i] = accounts.NewSubAccount(a, "")
 	}
-	var calcs []string
+	calcs := make([]string, 0, len(wallets))
 	var errs error
 	for i := range wallets {
 		w := &wallets[i]
@@ -280,8 +282,8 @@ func (e *Exchange) wsHandleWalletUpdate(ctx context.Context, conn websocket.Conn
 // sends no available balance until it has calculated it, so until then none of the wallet is free, and Bitfinex is
 // asked to calculate it
 func (e *Exchange) wsStoreWallets(ctx context.Context, conn websocket.Connection, wallets []WalletResponse) error {
-	var subAccts accounts.SubAccounts
-	var calcs []string
+	subAccts := make(accounts.SubAccounts, 0, len(wallets))
+	calcs := make([]string, 0, len(wallets))
 	var errs error
 	for i := range wallets {
 		w := &wallets[i]

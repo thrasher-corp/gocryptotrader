@@ -8,9 +8,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
-func TestGetRateLimit(t *testing.T) {
+func TestRateLimits(t *testing.T) {
 	t.Parallel()
-	limits := GetRateLimit()
+	limits := rateLimits
 	for _, tc := range []struct {
 		epl       request.EndpointLimit
 		perMinute float64
@@ -45,7 +45,7 @@ func TestGetRateLimit(t *testing.T) {
 		{orderTradesEPL, 90},
 		{tradesEPL, 90},
 		{tradesBySymbolEPL, 90},
-		{otcOrdersHistoryEPL, 90},
+		{overTheCounterOrdersHistoryEPL, 90},
 		{ledgersEPL, 90},
 		{marginInfoEPL, 90},
 		{positionsEPL, 90},
@@ -82,7 +82,7 @@ func TestGetRateLimit(t *testing.T) {
 		{depositAddressEPL, 10},
 		{depositAddressListEPL, 10},
 		{generateInvoiceEPL, 10},
-		{lnxInvoicePaymentsEPL, 10},
+		{lightningNetworkInvoicePaymentsEPL, 10},
 		{withdrawalEPL, 10},
 		{movementsEPL, 90},
 		{movementInfoEPL, 90},
@@ -98,16 +98,29 @@ func TestGetRateLimit(t *testing.T) {
 		{thalexFreeTransferCountEPL, 10},
 		{fiatWithdrawalEPL, 10},
 	} {
-		require.Containsf(t, limits, tc.epl, "GetRateLimit must define endpoint limit %d", tc.epl)
-		assert.InDeltaf(t, tc.perMinute/60, float64(limits[tc.epl].Limit()), 1e-9, "GetRateLimit should refill endpoint limit %d at its documented rate", tc.epl)
-		assert.Equalf(t, request.Weight(1), limits[tc.epl].Weight(), "GetRateLimit should weigh endpoint limit %d as one request", tc.epl)
+		require.Containsf(t, limits, tc.epl, "rateLimits must define endpoint limit %d", tc.epl)
+		assert.InDeltaf(t, tc.perMinute/60, float64(limits[tc.epl].Limit()), 1e-9, "rateLimits should refill endpoint limit %d at its documented rate", tc.epl)
+		assert.Equalf(t, request.Weight(1), limits[tc.epl].Weight(), "rateLimits should weigh endpoint limit %d as one request", tc.epl)
 	}
-	assert.Len(t, limits, 82, "GetRateLimit should define a limit for every endpoint and no more")
+	assert.Len(t, limits, 82, "rateLimits should define a limit for every endpoint and no more")
 	for a, limitA := range limits {
 		for b, limitB := range limits {
 			if a != b {
 				assert.Falsef(t, limitA.SharesBudgetWith(limitB), "Endpoint limits %v and %v should not share a budget, as Bitfinex limits each endpoint separately", a, b)
 			}
 		}
+	}
+}
+
+func TestRateLimitsAreSharedAcrossInstances(t *testing.T) {
+	t.Parallel()
+	first, second := new(Exchange), new(Exchange)
+	first.SetDefaults()
+	second.SetDefaults()
+	firstLimits := first.Requester.GetRateLimiterDefinitions()
+	secondLimits := second.Requester.GetRateLimiterDefinitions()
+	require.Len(t, secondLimits, len(firstLimits), "both instances must define the same endpoints")
+	for epl, limiter := range firstLimits {
+		assert.Truef(t, limiter.SharesBudgetWith(secondLimits[epl]), "endpoint %d should draw on the same budget in both instances, as Bitfinex limits each IP", epl)
 	}
 }

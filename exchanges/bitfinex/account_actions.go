@@ -17,23 +17,23 @@ import (
 )
 
 var (
-	errInvalidAccountWallet             = errors.New("wallet must be exchange, margin or funding")
-	errTransactionMethodRequired        = errors.New("deposit or withdrawal method required, such as bitcoin")
-	errWithdrawalAddressRequired        = errors.New("withdrawal address required")
-	errWithdrawalInvoiceRequired        = errors.New("lightning withdrawal invoice required")
-	errTravelRuleNameIncomplete         = errors.New("travel rule beneficiary needs both a first and a last name")
-	errInvalidTokenTimeToLive           = errors.New("token time to live must be a whole number of seconds")
-	errInvalidTokenCapability           = errors.New("invalid token capability")
-	errTokenWithdrawNeedsWrite          = errors.New("token withdraw capability needs write permission")
-	errInvalidTwoFactorMethod           = errors.New("two factor method must be otp or u2f")
-	errTwoFactorPasswordRequired        = errors.New("one time password required for the otp two factor method")
-	errTwoFactorAssertionRequired       = errors.New("assertion required for the u2f two factor method")
-	errLNXPaymentHashRequired           = errors.New("lightning payment hash required")
-	errMovementIDRequired               = errors.New("movement ID required")
-	errInvalidBalanceAvailableType      = errors.New("type must be EXCHANGE, MARGIN, DERIV or FUNDING")
-	errInvalidBalanceAvailableDirection = errors.New("direction must be 1 to buy or -1 to sell")
-	errUserSettingsRequired             = errors.New("user settings required")
-	errInvalidUserSettingKey            = errors.New("user setting key must be api: followed by letters, digits, underscores or hyphens")
+	errInvalidAccountWallet                = errors.New("wallet must be exchange, margin or funding")
+	errTransactionMethodRequired           = errors.New("deposit or withdrawal method required, such as bitcoin")
+	errWithdrawalAddressRequired           = errors.New("withdrawal address required")
+	errWithdrawalInvoiceRequired           = errors.New("lightning withdrawal invoice required")
+	errTravelRuleNameIncomplete            = errors.New("travel rule beneficiary needs both a first and a last name")
+	errInvalidTokenTimeToLive              = errors.New("token time to live must be a whole number of seconds")
+	errInvalidTokenCapability              = errors.New("invalid token capability")
+	errTokenWithdrawNeedsWrite             = errors.New("token withdraw capability needs write permission")
+	errInvalidTwoFactorMethod              = errors.New("two factor method must be otp or u2f")
+	errTwoFactorPasswordRequired           = errors.New("one time password required for the otp two factor method")
+	errTwoFactorAssertionRequired          = errors.New("assertion required for the u2f two factor method")
+	errLightningNetworkPaymentHashRequired = errors.New("lightning payment hash required")
+	errMovementIDRequired                  = errors.New("movement ID required")
+	errInvalidBalanceAvailableType         = errors.New("type must be EXCHANGE, MARGIN, DERIV or FUNDING")
+	errInvalidBalanceAvailableDirection    = errors.New("direction must be 1 to buy or -1 to sell")
+	errUserSettingsRequired                = errors.New("user settings required")
+	errInvalidUserSettingKey               = errors.New("user setting key must be api: followed by letters, digits, underscores or hyphens")
 )
 
 // GetUserInfo returns the account's details, such as its verification level and two factor methods
@@ -221,36 +221,36 @@ func (e *Exchange) GenerateInvoice(ctx context.Context, amount float64) (*Genera
 	return resp, nil
 }
 
-// lnxInvoicePayments sends an LNX Invoice Payments query, whose response depends on its action
-func (e *Exchange) lnxInvoicePayments(ctx context.Context, action string, query lnxInvoicePaymentsQuery, result any) error {
-	return e.SendAuthenticatedHTTPRequest(ctx, lnxInvoicePaymentsEPL, "auth/r/ext/invoice/payments", &lnxInvoicePaymentsBody{Action: action, Query: query}, result)
+// lightningNetworkInvoicePayments sends an LNX Invoice Payments query, whose response depends on its action
+func (e *Exchange) lightningNetworkInvoicePayments(ctx context.Context, action string, query lightningNetworkInvoicePaymentsQuery, result any) error {
+	return e.SendAuthenticatedHTTPRequest(ctx, lightningNetworkInvoicePaymentsEPL, "auth/r/ext/invoice/payments", &lightningNetworkInvoicePaymentsBody{Action: action, Query: query}, result)
 }
 
-// GetLNXInvoices returns the account's Lightning Network invoices, from an offset into them
-func (e *Exchange) GetLNXInvoices(ctx context.Context, offset uint64) ([]LNXInvoiceResponse, error) {
-	var resp lnxInvoiceListResponse
-	if err := e.lnxInvoicePayments(ctx, "getInvoicesByUser", lnxInvoicePaymentsQuery{Offset: offset}, &resp); err != nil {
+// GetLightningNetworkInvoices returns the account's Lightning Network invoices, from an offset into them
+func (e *Exchange) GetLightningNetworkInvoices(ctx context.Context, offset uint64) ([]LightningNetworkInvoiceResponse, error) {
+	var resp lightningNetworkInvoiceListResponse
+	if err := e.lightningNetworkInvoicePayments(ctx, "getInvoicesByUser", lightningNetworkInvoicePaymentsQuery{Offset: offset}, &resp); err != nil {
 		return nil, err
 	}
 	return resp.Invoices, nil
 }
 
-// GetLNXPayments returns the account's Lightning Network payments, from an offset into them
-func (e *Exchange) GetLNXPayments(ctx context.Context, offset uint64) ([]LNXInvoiceResponse, error) {
-	var resp lnxInvoiceListResponse
-	if err := e.lnxInvoicePayments(ctx, "getPaymentsByUser", lnxInvoicePaymentsQuery{Offset: offset}, &resp); err != nil {
+// GetLightningNetworkPayments returns the account's Lightning Network payments, from an offset into them
+func (e *Exchange) GetLightningNetworkPayments(ctx context.Context, offset uint64) ([]LightningNetworkInvoiceResponse, error) {
+	var resp lightningNetworkInvoiceListResponse
+	if err := e.lightningNetworkInvoicePayments(ctx, "getPaymentsByUser", lightningNetworkInvoicePaymentsQuery{Offset: offset}, &resp); err != nil {
 		return nil, err
 	}
 	return resp.Payments, nil
 }
 
-// GetLNXInvoice returns the account's Lightning Network invoice with a payment hash
-func (e *Exchange) GetLNXInvoice(ctx context.Context, paymentHash string) (*LNXInvoiceResponse, error) {
+// GetLightningNetworkInvoice returns the account's Lightning Network invoice with a payment hash
+func (e *Exchange) GetLightningNetworkInvoice(ctx context.Context, paymentHash string) (*LightningNetworkInvoiceResponse, error) {
 	if paymentHash == "" {
-		return nil, errLNXPaymentHashRequired
+		return nil, errLightningNetworkPaymentHashRequired
 	}
-	var resp *LNXInvoiceResponse
-	if err := e.lnxInvoicePayments(ctx, "getInvoiceById", lnxInvoicePaymentsQuery{PaymentHash: paymentHash}, &resp); err != nil {
+	var resp *LightningNetworkInvoiceResponse
+	if err := e.lightningNetworkInvoicePayments(ctx, "getInvoiceById", lightningNetworkInvoicePaymentsQuery{PaymentHash: paymentHash}, &resp); err != nil {
 		return nil, err
 	}
 	if resp == nil {
@@ -259,13 +259,13 @@ func (e *Exchange) GetLNXInvoice(ctx context.Context, paymentHash string) (*LNXI
 	return resp, nil
 }
 
-// GetLNXPayment returns the account's Lightning Network payment with a payment hash
-func (e *Exchange) GetLNXPayment(ctx context.Context, paymentHash string) (*LNXInvoiceResponse, error) {
+// GetLightningNetworkPayment returns the account's Lightning Network payment with a payment hash
+func (e *Exchange) GetLightningNetworkPayment(ctx context.Context, paymentHash string) (*LightningNetworkInvoiceResponse, error) {
 	if paymentHash == "" {
-		return nil, errLNXPaymentHashRequired
+		return nil, errLightningNetworkPaymentHashRequired
 	}
-	var resp *LNXInvoiceResponse
-	if err := e.lnxInvoicePayments(ctx, "getPaymentById", lnxInvoicePaymentsQuery{PaymentHash: paymentHash}, &resp); err != nil {
+	var resp *LightningNetworkInvoiceResponse
+	if err := e.lightningNetworkInvoicePayments(ctx, "getPaymentById", lightningNetworkInvoicePaymentsQuery{PaymentHash: paymentHash}, &resp); err != nil {
 		return nil, err
 	}
 	if resp == nil {
@@ -322,8 +322,8 @@ func (e *Exchange) RequestWithdrawal(ctx context.Context, req *WithdrawalRequest
 			return nil, errTravelRuleNameIncomplete
 		}
 		body.TravelRuleTermsOfService = true
-		body.VASPDID = t.VASPDID
-		body.VASPName = t.VASPName
+		body.VirtualAssetServiceProviderDID = t.VirtualAssetServiceProviderDID
+		body.VirtualAssetServiceProviderName = t.VirtualAssetServiceProviderName
 		body.BeneficiarySelf = t.BeneficiarySelf
 		body.DestinationFirstName = t.FirstName
 		body.DestinationLastName = t.LastName

@@ -72,10 +72,10 @@ func TestWebsocketPlaceOrder(t *testing.T) {
 	require.Len(t, inputs, 1, "WebsocketPlaceOrder must send one order")
 	var body map[string]any
 	require.NoError(t, json.Unmarshal(inputs[0], &body), "the order must decode")
-	cid, ok := body["cid"].(float64)
+	clientOrderID, ok := body["cid"].(float64)
 	require.True(t, ok, "WebsocketPlaceOrder must give the order a client order ID to match its notification by")
-	assert.Equal(t, map[string]any{"type": "EXCHANGE LIMIT", "symbol": "tBTCUSD", "amount": "0.0002", "price": "40000", "cid": cid}, body, "WebsocketPlaceOrder should send the order's fields")
-	assert.Equal(t, uint64(cid), placed.ClientOrderID, "WebsocketPlaceOrder should return the order its notification carries")
+	assert.Equal(t, map[string]any{"type": "EXCHANGE LIMIT", "symbol": "tBTCUSD", "amount": "0.0002", "price": "40000", "cid": clientOrderID}, body, "WebsocketPlaceOrder should send the order's fields")
+	assert.Equal(t, uint64(clientOrderID), placed.ClientOrderID, "WebsocketPlaceOrder should return the order its notification carries")
 	assert.Equal(t, uint64(1185815098), placed.ID, "WebsocketPlaceOrder should return the ID Bitfinex gave the order")
 
 	again, err := ex.WebsocketPlaceOrder(t.Context(), req)

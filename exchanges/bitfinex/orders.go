@@ -191,8 +191,8 @@ func (e *Exchange) GetAccountTradesBySymbol(ctx context.Context, req *AccountTra
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, tradesBySymbolEPL, "auth/r/trades/"+req.Symbol+"/hist", &body, &resp)
 }
 
-// GetOTCOrdersHistory returns the account's over the counter orders, on a trading pair or on every pair
-func (e *Exchange) GetOTCOrdersHistory(ctx context.Context, req *OTCOrdersHistoryRequest) ([]OTCOrderResponse, error) {
+// GetOverTheCounterOrdersHistory returns the account's over the counter orders, on a trading pair or on every pair
+func (e *Exchange) GetOverTheCounterOrdersHistory(ctx context.Context, req *OverTheCounterOrdersHistoryRequest) ([]OverTheCounterOrderResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -207,8 +207,8 @@ func (e *Exchange) GetOTCOrdersHistory(ctx context.Context, req *OTCOrdersHistor
 	if err != nil {
 		return nil, err
 	}
-	var resp []OTCOrderResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, otcOrdersHistoryEPL, path, &ordersHistoryBody{historyBody: history, IDs: req.IDs}, &resp)
+	var resp []OverTheCounterOrderResponse
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, overTheCounterOrdersHistoryEPL, path, &ordersHistoryBody{historyBody: history, IDs: req.IDs}, &resp)
 }
 
 // GetLedgers returns the account's ledger entries, of a currency or of every currency, the most recent by default and
@@ -241,7 +241,7 @@ func newOpenOrdersBody(ids []uint64, groupID, clientOrderID uint64, clientOrderI
 		IDs:               ids,
 		GroupID:           groupID,
 		ClientOrderID:     clientOrderID,
-		ClientOrderIDDate: orderTimeParam(clientOrderIDDate, cidDateLayout),
+		ClientOrderIDDate: orderTimeParam(clientOrderIDDate, clientOrderIDDateLayout),
 	}, nil
 }
 
@@ -259,23 +259,23 @@ func (r *PlaceOrderRequest) body() (*placeOrderBody, error) {
 	if r.Amount == 0 {
 		return nil, fmt.Errorf("%w: an order's amount must not be zero", errInvalidAmount)
 	}
-	if err := checkOrderNumbers([]float64{r.Amount}, []float64{r.Price, r.TrailingPrice, r.AuxiliaryLimitPrice, r.OCOStopPrice}); err != nil {
+	if err := checkOrderNumbers([]float64{r.Amount}, []float64{r.Price, r.TrailingPrice, r.AuxiliaryLimitPrice, r.OneCancelsOtherStopPrice}); err != nil {
 		return nil, err
 	}
 	return &placeOrderBody{
-		Type:                r.Type,
-		Symbol:              r.Symbol,
-		Amount:              strconv.FormatFloat(r.Amount, 'f', -1, 64),
-		Price:               strconv.FormatFloat(r.Price, 'f', -1, 64),
-		Leverage:            r.Leverage,
-		TrailingPrice:       orderDecimalParam(r.TrailingPrice),
-		AuxiliaryLimitPrice: orderDecimalParam(r.AuxiliaryLimitPrice),
-		OCOStopPrice:        orderDecimalParam(r.OCOStopPrice),
-		GroupID:             r.GroupID,
-		ClientOrderID:       r.ClientOrderID,
-		Flags:               r.Flags,
-		TimeInForce:         orderTimeParam(r.TimeInForce, tifLayout),
-		Meta:                r.Meta.body(),
+		Type:                     r.Type,
+		Symbol:                   r.Symbol,
+		Amount:                   strconv.FormatFloat(r.Amount, 'f', -1, 64),
+		Price:                    strconv.FormatFloat(r.Price, 'f', -1, 64),
+		Leverage:                 r.Leverage,
+		TrailingPrice:            orderDecimalParam(r.TrailingPrice),
+		AuxiliaryLimitPrice:      orderDecimalParam(r.AuxiliaryLimitPrice),
+		OneCancelsOtherStopPrice: orderDecimalParam(r.OneCancelsOtherStopPrice),
+		GroupID:                  r.GroupID,
+		ClientOrderID:            r.ClientOrderID,
+		Flags:                    r.Flags,
+		TimeInForce:              orderTimeParam(r.TimeInForce, timeInForceLayout),
+		Meta:                     r.Meta.body(),
 	}, nil
 }
 
@@ -302,13 +302,13 @@ func (r *UpdateOrderRequest) body() (*updateOrderBody, error) {
 		Price:               orderDecimalParam(r.Price),
 		Delta:               orderDecimalParam(r.Delta),
 		ClientOrderID:       r.ClientOrderID,
-		ClientOrderIDDate:   orderTimeParam(r.ClientOrderIDDate, cidDateLayout),
+		ClientOrderIDDate:   orderTimeParam(r.ClientOrderIDDate, clientOrderIDDateLayout),
 		GroupID:             r.GroupID,
 		Flags:               r.Flags,
 		Leverage:            r.Leverage,
 		TrailingPrice:       orderDecimalParam(r.TrailingPrice),
 		AuxiliaryLimitPrice: orderDecimalParam(r.AuxiliaryLimitPrice),
-		TimeInForce:         orderTimeParam(r.TimeInForce, tifLayout),
+		TimeInForce:         orderTimeParam(r.TimeInForce, timeInForceLayout),
 		Meta:                r.Meta.body(),
 	}, nil
 }
@@ -333,7 +333,7 @@ func (r *CancelExistingOrderRequest) body() (*cancelOrderBody, error) {
 	return &cancelOrderBody{
 		ID:                r.ID,
 		ClientOrderID:     r.ClientOrderID,
-		ClientOrderIDDate: orderTimeParam(r.ClientOrderIDDate, cidDateLayout),
+		ClientOrderIDDate: orderTimeParam(r.ClientOrderIDDate, clientOrderIDDateLayout),
 	}, nil
 }
 
@@ -356,7 +356,7 @@ func (r *CancelOrdersRequest) body() (*cancelOrdersBody, error) {
 		if c.Date.IsZero() {
 			return nil, fmt.Errorf("%w: client order ID %d", errClientOrderIDDateUnset, c.ID)
 		}
-		body.ClientOrderIDs[i] = [2]any{c.ID, c.Date.UTC().Format(cidDateLayout)}
+		body.ClientOrderIDs[i] = [2]any{c.ID, c.Date.UTC().Format(clientOrderIDDateLayout)}
 	}
 	if r.All {
 		body.All = 1
@@ -401,9 +401,9 @@ func isLedgerCategory(category uint64) bool {
 		LedgerCategoryPositionSwap, LedgerCategoryPositionFundingCost, LedgerCategoryMarginPayment,
 		LedgerCategoryDerivativesFunding, LedgerCategorySettlement, LedgerCategoryTransfer, LedgerCategoryDeposit,
 		LedgerCategoryWithdrawal, LedgerCategoryCancelledWithdrawal, LedgerCategoryTradingFee, LedgerCategoryTradingRebate,
-		LedgerCategoryHiddenOrderFee, LedgerCategoryOTCTradeFee, LedgerCategorySwapFee, LedgerCategoryClaimingFee,
+		LedgerCategoryHiddenOrderFee, LedgerCategoryOverTheCounterTradeFee, LedgerCategorySwapFee, LedgerCategoryClaimingFee,
 		LedgerCategoryUsedMarginFundingCharge, LedgerCategoryUnusedMarginFundingFee, LedgerCategoryEarnedFee,
-		LedgerCategoryETHFXLoyaltyFee, LedgerCategoryDepositFee, LedgerCategoryWithdrawalFee,
+		LedgerCategoryEthfinexLoyaltyFee, LedgerCategoryDepositFee, LedgerCategoryWithdrawalFee,
 		LedgerCategoryWithdrawalExpressFee, LedgerCategoryMinerFee, LedgerCategoryStakingPayment, LedgerCategoryAdjustment,
 		LedgerCategoryExpense, LedgerCategoryCurrencyConversionFee, LedgerCategoryMonthlyProfitPayment,
 		LedgerCategoryLosses:

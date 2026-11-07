@@ -45,7 +45,7 @@ type TickerResponse struct {
 func (t *TickerResponse) UnmarshalJSON(data []byte) error { return json.UnmarshalTuple(data, t) }
 
 // FundingTickerResponse is a funding currency's ticker; its rates are daily, and its changes, volume, high and low cover the
-// last 24 hours
+// last 24 hours. Its tags skip the positions Bitfinex's docs mark as placeholders
 type FundingTickerResponse struct {
 	// FlashReturnRate is the average rate of all fixed rate funding over the last hour
 	FlashReturnRate float64 `tuple:"0"`
@@ -147,7 +147,8 @@ type TickersHistoryRequest struct {
 	Sort int64
 }
 
-// HistoricTickerResponse is a trading pair's best bid and ask at an hour
+// HistoricTickerResponse is a trading pair's best bid and ask at an hour. Its tags skip the positions Bitfinex's docs
+// mark as placeholders
 type HistoricTickerResponse struct {
 	Symbol string     `tuple:"0"`
 	Bid    float64    `tuple:"1"`
@@ -383,7 +384,8 @@ type CandleResponse struct {
 // UnmarshalJSON decodes a candle array
 func (c *CandleResponse) UnmarshalJSON(data []byte) error { return json.UnmarshalTuple(data, c) }
 
-// DerivativeStatusResponse is a derivative pair's status, as its history and the websocket status channel send it
+// DerivativeStatusResponse is a derivative pair's status, as its history and the websocket status channel send it. Its
+// tags skip the positions Bitfinex's docs mark as placeholders
 type DerivativeStatusResponse struct {
 	Time types.Time `tuple:"0"`
 	// DerivativePrice is the mid price of the derivative's book
@@ -446,7 +448,7 @@ type LiquidationsRequest struct {
 	Sort int64
 }
 
-// LiquidationResponse is a position's liquidation
+// LiquidationResponse is a position's liquidation. Its tags skip the positions Bitfinex's docs mark as placeholders
 type LiquidationResponse struct {
 	// Type is pos
 	Type       string     `tuple:"0"`
@@ -529,7 +531,8 @@ type LeaderboardsRequest struct {
 	Sort int64
 }
 
-// LeaderboardStandingResponse is a user's standing on a leaderboard
+// LeaderboardStandingResponse is a user's standing on a leaderboard. Its tags skip the positions Bitfinex's docs mark
+// as placeholders
 type LeaderboardStandingResponse struct {
 	Time     types.Time `tuple:"0"`
 	Username string     `tuple:"2"`
@@ -555,7 +558,8 @@ type FundingStatisticsRequest struct {
 	Limit uint64
 }
 
-// FundingStatisticResponse is a funding currency's funding at a time
+// FundingStatisticResponse is a funding currency's funding at a time. Its tags skip the positions Bitfinex's docs mark
+// as placeholders
 type FundingStatisticResponse struct {
 	Time types.Time `tuple:"0"`
 	// FlashReturnRate is the daily flash return rate divided by 365: multiplied by 365 it gives the daily rate, and by
@@ -691,7 +695,7 @@ type PairInfoEntryResponse struct {
 // UnmarshalJSON decodes a pair info entry array
 func (p *PairInfoEntryResponse) UnmarshalJSON(data []byte) error { return json.UnmarshalTuple(data, p) }
 
-// PairInfo is a pair's market information
+// PairInfo is a pair's market information. Its tags skip the positions Bitfinex's docs mark as placeholders
 type PairInfo struct {
 	// FirstTradeTime is unset for some pairs
 	FirstTradeTime types.Time `tuple:"0"`
@@ -709,7 +713,8 @@ type PairInfo struct {
 // UnmarshalJSON decodes a pair info array
 func (p *PairInfo) UnmarshalJSON(data []byte) error { return json.UnmarshalTuple(data, p) }
 
-// TransferMethodStatusResponse is whether a transfer method's deposits and withdrawals run, and what they need
+// TransferMethodStatusResponse is whether a transfer method's deposits and withdrawals run, and what they need. Its
+// tags skip the positions Bitfinex's docs mark as placeholders
 type TransferMethodStatusResponse struct {
 	// Method is the method's name, such as BITCOIN, as GetTransferMethods lists it
 	Method string `tuple:"0"`

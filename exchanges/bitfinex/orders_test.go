@@ -50,8 +50,8 @@ var (
 		ID: 33961681942, GroupID: 1227, ClientOrderID: 1337, Symbol: "tBTCUSD", CreatedAt: types.Time(time.UnixMilli(1573482478000)), UpdatedAt: types.Time(time.UnixMilli(1573485373000)),
 		Amount: 0.001, OriginalAmount: 0.001, Type: ExchangeOrderTypePrefix + OrderTypeLimit, Status: "CANCELED", Price: 15, Routing: "API>BFX",
 	}
-	// testOTCOrder is the order the documented OTC Orders History example returns
-	testOTCOrder = OTCOrderResponse{
+	// testOverTheCounterOrder is the order the documented OTC Orders History example returns
+	testOverTheCounterOrder = OverTheCounterOrderResponse{
 		ID: 123, Symbol: "tBTCUSD", CreatedAt: types.Time(time.UnixMilli(1669126974000)), UpdatedAt: types.Time(time.UnixMilli(1670596411000)), IsInitiator: true,
 		InitiatorNickname: "john-doe", CounterpartyNickname: "jane-btc", Amount: 0.025, Price: 26325, Status: "REJECTED",
 	}
@@ -575,37 +575,37 @@ func TestGetAccountTradesBySymbol(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetAccountTradesBySymbol should return the request failure")
 }
 
-func TestGetOTCOrdersHistory(t *testing.T) {
+func TestGetOverTheCounterOrdersHistory(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetOTCOrdersHistory(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "GetOTCOrdersHistory must reject a nil request")
+	_, err := e.GetOverTheCounterOrdersHistory(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "GetOverTheCounterOrdersHistory must reject a nil request")
 	for _, symbol := range []string{"t", "fUSD", "BTCUSD"} {
-		_, err = e.GetOTCOrdersHistory(t.Context(), &OTCOrdersHistoryRequest{Symbol: symbol})
-		assert.ErrorIsf(t, err, errTradingSymbolRequired, "GetOTCOrdersHistory should refuse symbol %q", symbol)
+		_, err = e.GetOverTheCounterOrdersHistory(t.Context(), &OverTheCounterOrdersHistoryRequest{Symbol: symbol})
+		assert.ErrorIsf(t, err, errTradingSymbolRequired, "GetOverTheCounterOrdersHistory should refuse symbol %q", symbol)
 	}
-	_, err = e.GetOTCOrdersHistory(t.Context(), &OTCOrdersHistoryRequest{Start: time.UnixMilli(1670600000000), End: time.UnixMilli(1669000000000)})
-	assert.ErrorIs(t, err, common.ErrStartAfterEnd, "GetOTCOrdersHistory should refuse a reversed window")
+	_, err = e.GetOverTheCounterOrdersHistory(t.Context(), &OverTheCounterOrdersHistoryRequest{Start: time.UnixMilli(1670600000000), End: time.UnixMilli(1669000000000)})
+	assert.ErrorIs(t, err, common.ErrStartAfterEnd, "GetOverTheCounterOrdersHistory should refuse a reversed window")
 
 	skipLiveWithoutCredentials(t)
-	reqs := []*OTCOrdersHistoryRequest{{}, {Symbol: "tBTCUSD"}}
+	reqs := []*OverTheCounterOrdersHistoryRequest{{}, {Symbol: "tBTCUSD"}}
 	if mockTests {
-		reqs = []*OTCOrdersHistoryRequest{{}, {Symbol: "tBTCUSD", Start: time.UnixMilli(1669000000000), End: time.UnixMilli(1670600000000), Limit: 25, IDs: []uint64{123}}}
+		reqs = []*OverTheCounterOrdersHistoryRequest{{}, {Symbol: "tBTCUSD", Start: time.UnixMilli(1669000000000), End: time.UnixMilli(1670600000000), Limit: 25, IDs: []uint64{123}}}
 	}
 	for _, req := range reqs {
-		result, err := e.GetOTCOrdersHistory(t.Context(), req)
-		require.NoErrorf(t, err, "GetOTCOrdersHistory must not error for symbol %q", req.Symbol)
+		result, err := e.GetOverTheCounterOrdersHistory(t.Context(), req)
+		require.NoErrorf(t, err, "GetOverTheCounterOrdersHistory must not error for symbol %q", req.Symbol)
 		if mockTests {
-			exp := []OTCOrderResponse{testOTCOrder}
-			assert.Equalf(t, exp, result, "GetOTCOrdersHistory should decode every field for symbol %q", req.Symbol)
+			exp := []OverTheCounterOrderResponse{testOverTheCounterOrder}
+			assert.Equalf(t, exp, result, "GetOverTheCounterOrdersHistory should decode every field for symbol %q", req.Symbol)
 		} else {
 			for i := range result {
-				assert.NotZerof(t, result[i].ID, "GetOTCOrdersHistory should return each order's ID for symbol %q", req.Symbol)
+				assert.NotZerof(t, result[i].ID, "GetOverTheCounterOrdersHistory should return each order's ID for symbol %q", req.Symbol)
 			}
 		}
 	}
 
-	_, err = newUnavailableServerExchange(t).GetOTCOrdersHistory(t.Context(), &OTCOrdersHistoryRequest{})
-	assert.ErrorIs(t, err, request.ErrBadStatus, "GetOTCOrdersHistory should return the request failure")
+	_, err = newUnavailableServerExchange(t).GetOverTheCounterOrdersHistory(t.Context(), &OverTheCounterOrdersHistoryRequest{})
+	assert.ErrorIs(t, err, request.ErrBadStatus, "GetOverTheCounterOrdersHistory should return the request failure")
 }
 
 func TestGetLedgers(t *testing.T) {
@@ -657,19 +657,19 @@ func TestPlaceOrderRequestBody(t *testing.T) {
 	_, err := (*PlaceOrderRequest)(nil).body()
 	require.ErrorIs(t, err, common.ErrNilPointer, "body must reject a nil request")
 	body, err := (&PlaceOrderRequest{
-		Type:                OrderTypeStopLimit,
-		Symbol:              "tBTCF0:USTF0",
-		Amount:              -0.00000001,
-		Price:               25000.5,
-		Leverage:            20,
-		TrailingPrice:       10,
-		AuxiliaryLimitPrice: 24999,
-		OCOStopPrice:        26000,
-		GroupID:             7,
-		ClientOrderID:       8,
-		Flags:               OrderFlagHidden | OrderFlagOneCancelsOther,
-		TimeInForce:         time.Date(2020, time.January, 15, 21, 45, 23, 0, time.FixedZone("AEDT", 11*60*60)),
-		Meta:                &OrderMeta{AffiliateCode: "abc", MakeVisible: true, ProtectSelfMatch: true},
+		Type:                     OrderTypeStopLimit,
+		Symbol:                   "tBTCF0:USTF0",
+		Amount:                   -0.00000001,
+		Price:                    25000.5,
+		Leverage:                 20,
+		TrailingPrice:            10,
+		AuxiliaryLimitPrice:      24999,
+		OneCancelsOtherStopPrice: 26000,
+		GroupID:                  7,
+		ClientOrderID:            8,
+		Flags:                    OrderFlagHidden | OrderFlagOneCancelsOther,
+		TimeInForce:              time.Date(2020, time.January, 15, 21, 45, 23, 0, time.FixedZone("AEDT", 11*60*60)),
+		Meta:                     &OrderMeta{AffiliateCode: "abc", MakeVisible: true, ProtectSelfMatch: true},
 	}).body()
 	require.NoError(t, err, "body must not error")
 	assertBodyJSON(t, `{"type":"STOP LIMIT","symbol":"tBTCF0:USTF0","amount":"-0.00000001","price":"25000.5","lev":20,"price_trailing":"10","price_aux_limit":"24999","price_oco_stop":"26000","gid":7,"cid":8,"flags":16448,"tif":"2020-01-15 10:45:23","meta":{"aff_code":"abc","make_visible":1,"protect_selfmatch":1}}`, body)
@@ -685,7 +685,7 @@ func TestPlaceOrderRequestBody(t *testing.T) {
 		{r: PlaceOrderRequest{Amount: 1, Price: math.NaN()}, err: errInvalidPrice},
 		{r: PlaceOrderRequest{Amount: 1, TrailingPrice: math.Inf(1)}, err: errInvalidPrice},
 		{r: PlaceOrderRequest{Amount: 1, AuxiliaryLimitPrice: -1}, err: errInvalidPrice},
-		{r: PlaceOrderRequest{Amount: 1, OCOStopPrice: math.NaN()}, err: errInvalidPrice},
+		{r: PlaceOrderRequest{Amount: 1, OneCancelsOtherStopPrice: math.NaN()}, err: errInvalidPrice},
 	} {
 		tc.r.Type, tc.r.Symbol = OrderTypeLimit, "tBTCUSD"
 		_, err := tc.r.body()
@@ -833,7 +833,7 @@ func TestOrderOperationOrdersUnmarshalJSON(t *testing.T) {
 func TestOrdersRecordsEveryPosition(t *testing.T) {
 	t.Parallel()
 	testTupleDecode(t, `[1000,"s1",1700000000002,1700000000003,null,1,"s6","s7",null,9.5,10.5,null,"s12",1700000000013]`,
-		OTCOrderResponse{ID: 1000, Symbol: "s1", CreatedAt: types.Time(time.UnixMilli(1700000000002)), UpdatedAt: types.Time(time.UnixMilli(1700000000003)), IsInitiator: true, InitiatorNickname: "s6", CounterpartyNickname: "s7", Amount: 9.5, Price: 10.5, Status: "s12", TimeInForce: types.Time(time.UnixMilli(1700000000013))})
+		OverTheCounterOrderResponse{ID: 1000, Symbol: "s1", CreatedAt: types.Time(time.UnixMilli(1700000000002)), UpdatedAt: types.Time(time.UnixMilli(1700000000003)), IsInitiator: true, InitiatorNickname: "s6", CounterpartyNickname: "s7", Amount: 9.5, Price: 10.5, Status: "s12", TimeInForce: types.Time(time.UnixMilli(1700000000013))})
 	testTupleDecode(t, `[1000,"UST","s2",1700000000003,null,5.5,6.5,null,"s8"]`,
 		LedgerEntryResponse{ID: 1000, Currency: currency.UST, Wallet: "s2", Time: types.Time(time.UnixMilli(1700000000003)), Amount: 5.5, Balance: 6.5, Description: "s8"})
 }
@@ -856,8 +856,8 @@ func TestIsLedgerCategory(t *testing.T) {
 		LedgerCategoryPositionSwap, LedgerCategoryPositionFundingCost, LedgerCategoryMarginPayment, LedgerCategoryDerivativesFunding,
 		LedgerCategorySettlement, LedgerCategoryTransfer, LedgerCategoryDeposit, LedgerCategoryWithdrawal,
 		LedgerCategoryCancelledWithdrawal, LedgerCategoryTradingFee, LedgerCategoryTradingRebate, LedgerCategoryHiddenOrderFee,
-		LedgerCategoryOTCTradeFee, LedgerCategorySwapFee, LedgerCategoryClaimingFee, LedgerCategoryUsedMarginFundingCharge,
-		LedgerCategoryUnusedMarginFundingFee, LedgerCategoryEarnedFee, LedgerCategoryETHFXLoyaltyFee, LedgerCategoryDepositFee,
+		LedgerCategoryOverTheCounterTradeFee, LedgerCategorySwapFee, LedgerCategoryClaimingFee, LedgerCategoryUsedMarginFundingCharge,
+		LedgerCategoryUnusedMarginFundingFee, LedgerCategoryEarnedFee, LedgerCategoryEthfinexLoyaltyFee, LedgerCategoryDepositFee,
 		LedgerCategoryWithdrawalFee, LedgerCategoryWithdrawalExpressFee, LedgerCategoryMinerFee, LedgerCategoryStakingPayment,
 		LedgerCategoryAdjustment, LedgerCategoryExpense, LedgerCategoryCurrencyConversionFee, LedgerCategoryMonthlyProfitPayment,
 		LedgerCategoryLosses,
@@ -878,8 +878,8 @@ func TestOrderDecimalParam(t *testing.T) {
 
 func TestOrderTimeParam(t *testing.T) {
 	t.Parallel()
-	assert.Empty(t, orderTimeParam(time.Time{}, tifLayout), "orderTimeParam should leave the zero time unsent")
+	assert.Empty(t, orderTimeParam(time.Time{}, timeInForceLayout), "orderTimeParam should leave the zero time unsent")
 	local := time.Date(2020, time.January, 15, 21, 45, 23, 999, time.FixedZone("AEDT", 11*60*60))
-	assert.Equal(t, "2020-01-15 10:45:23", orderTimeParam(local, tifLayout), "orderTimeParam should format a time in force in UTC")
-	assert.Equal(t, "2020-01-15", orderTimeParam(local, cidDateLayout), "orderTimeParam should format a client order ID date in UTC")
+	assert.Equal(t, "2020-01-15 10:45:23", orderTimeParam(local, timeInForceLayout), "orderTimeParam should format a time in force in UTC")
+	assert.Equal(t, "2020-01-15", orderTimeParam(local, clientOrderIDDateLayout), "orderTimeParam should format a client order ID date in UTC")
 }

@@ -228,7 +228,7 @@ func TestWebsocketWalletCalcsAskAgainAfterWait(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		// The fake clock starts on a whole second, which would hide a wait kept in whole seconds or milliseconds
 		time.Sleep(750500500 * time.Nanosecond)
-		var calcs wsWalletCalcs
+		calcs := newWebsocketWalletCalcs()
 		btc, eth := []string{"wallet_exchange_BTC"}, []string{"wallet_exchange_ETH"}
 		btcFirst, ethFirst := []string{btc[0], eth[0]}, []string{eth[0], btc[0]}
 		assert.Equal(t, btc, calcs.request(btc), "an available balance should be asked for")

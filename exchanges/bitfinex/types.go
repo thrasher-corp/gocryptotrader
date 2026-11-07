@@ -64,7 +64,7 @@ const (
 )
 
 // Notification is Bitfinex's reply to a write request, and an account event on the websocket, carrying the record the
-// request affected as Data
+// request affected as Data. Its tags skip the positions Bitfinex's docs mark as placeholders
 type Notification[T any] struct {
 	// Time is when Bitfinex sent the notification, in seconds or milliseconds depending on the endpoint
 	Time      types.Time `tuple:"0"`
@@ -89,7 +89,7 @@ func (n *Notification[T]) Err() error {
 	return nil
 }
 
-// OrderResponse is an order on a trading pair
+// OrderResponse is an order on a trading pair. Its tags skip the positions Bitfinex's docs mark as placeholders
 type OrderResponse struct {
 	ID            uint64     `tuple:"0"`
 	GroupID       uint64     `tuple:"1"`
@@ -153,7 +153,7 @@ type AccountTradeResponse struct {
 // UnmarshalJSON decodes an account trade array
 func (t *AccountTradeResponse) UnmarshalJSON(data []byte) error { return json.UnmarshalTuple(data, t) }
 
-// PositionResponse is a margin or derivative position
+// PositionResponse is a margin or derivative position. Its tags skip the positions Bitfinex's docs mark as placeholders
 type PositionResponse struct {
 	Symbol string `tuple:"0"`
 	// Status is ACTIVE or CLOSED
@@ -203,7 +203,8 @@ func (f *FundingFlags) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// FundingOfferResponse is an offer to provide or take funding
+// FundingOfferResponse is an offer to provide or take funding. Its tags skip the positions Bitfinex's docs mark as
+// placeholders
 type FundingOfferResponse struct {
 	ID        uint64     `tuple:"0"`
 	Symbol    string     `tuple:"1"`
@@ -230,7 +231,7 @@ type FundingOfferResponse struct {
 func (f *FundingOfferResponse) UnmarshalJSON(data []byte) error { return json.UnmarshalTuple(data, f) }
 
 // FundingCreditResponse is funding provided or taken that is open: a credit is used in a position, a loan is not and leaves
-// PositionPair empty
+// PositionPair empty. Its tags skip the positions Bitfinex's docs mark as placeholders
 type FundingCreditResponse struct {
 	ID     uint64 `tuple:"0"`
 	Symbol string `tuple:"1"`

@@ -53,7 +53,7 @@ func TestRecordBooleanPositions(t *testing.T) {
 	testTupleBooleans[UserInfoResponse](t, map[string]int{
 		"Verified": 4, "EmailVerified": 10, "InheritsMasterAccountVerification": 17, "IsGroupMaster": 18, "GroupWithdrawEnabled": 19,
 		"PaperTradingEnabled": 21, "MerchantEnabled": 22, "CompetitionEnabled": 23, "IsSecuritiesMaster": 28, "SecuritiesEnabled": 29,
-		"IsSecuritiesInvestorAccredited": 30, "IsSecuritiesElSalvador": 31, "IsSecuritiesAIFC": 32, "AllowDisableContextSwitch": 38,
+		"IsSecuritiesInvestorAccredited": 30, "IsSecuritiesElSalvador": 31, "IsSecuritiesAstanaInternationalFinancialCentre": 32, "AllowDisableContextSwitch": 38,
 		"ContextSwitchDisabled": 39, "HighNetWorth": 42, "PermittedBeneficiary": 53, "IsMerchantEnterprise": 54,
 	})
 	testTupleBooleans[KeyPermissionResponse](t, map[string]int{"Read": 1, "Write": 2})

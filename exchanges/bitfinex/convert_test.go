@@ -105,34 +105,34 @@ func TestOrderAsset(t *testing.T) {
 	assert.False(t, isDerivativePair(currency.NewPair(currency.NewCode("BTCF0"), currency.USD)), "a pair with one F0 currency should not be a derivative")
 }
 
-func TestOrderTypeFromBitfinex(t *testing.T) {
+func TestOrderTypeFromExchange(t *testing.T) {
 	t.Parallel()
 	for orderType, exp := range map[string]struct {
-		t   order.Type
-		tif order.TimeInForce
+		t           order.Type
+		timeInForce order.TimeInForce
 	}{
 		OrderTypeLimit: {t: order.Limit},
 		ExchangeOrderTypePrefix + OrderTypeMarket: {t: order.Market},
 		OrderTypeStop: {t: order.Stop},
 		ExchangeOrderTypePrefix + OrderTypeStopLimit:      {t: order.StopLimit},
 		OrderTypeTrailingStop:                             {t: order.TrailingStop},
-		ExchangeOrderTypePrefix + OrderTypeFillOrKill:     {t: order.Limit, tif: order.FillOrKill},
-		OrderTypeImmediateOrCancel:                        {t: order.Limit, tif: order.ImmediateOrCancel},
+		ExchangeOrderTypePrefix + OrderTypeFillOrKill:     {t: order.Limit, timeInForce: order.FillOrKill},
+		OrderTypeImmediateOrCancel:                        {t: order.Limit, timeInForce: order.ImmediateOrCancel},
 		ExchangeOrderTypePrefix + OrderTypeTrailingStop:   {t: order.TrailingStop},
 		ExchangeOrderTypePrefix + OrderTypeLimit + "    ": {t: order.UnknownType},
 	} {
-		gotType, gotTIF, err := orderTypeFromBitfinex(orderType)
+		gotType, gotTimeInForce, err := orderTypeFromExchange(orderType)
 		if exp.t == order.UnknownType {
-			assert.ErrorIsf(t, err, errUnknownOrderType, "orderTypeFromBitfinex should refuse %q", orderType)
+			assert.ErrorIsf(t, err, errUnknownOrderType, "orderTypeFromExchange should refuse %q", orderType)
 			continue
 		}
-		require.NoErrorf(t, err, "orderTypeFromBitfinex must not error for %s", orderType)
-		assert.Equalf(t, exp.t, gotType, "orderTypeFromBitfinex should give %s's type", orderType)
-		assert.Equalf(t, exp.tif, gotTIF, "orderTypeFromBitfinex should give %s's time in force", orderType)
+		require.NoErrorf(t, err, "orderTypeFromExchange must not error for %s", orderType)
+		assert.Equalf(t, exp.t, gotType, "orderTypeFromExchange should give %s's type", orderType)
+		assert.Equalf(t, exp.timeInForce, gotTimeInForce, "orderTypeFromExchange should give %s's time in force", orderType)
 	}
 }
 
-func TestOrderStatusFromBitfinex(t *testing.T) {
+func TestOrderStatusFromExchange(t *testing.T) {
 	t.Parallel()
 	for status, exp := range map[string]order.Status{
 		"ACTIVE":                         order.Active,
@@ -172,7 +172,7 @@ func TestOrderStatusFromBitfinex(t *testing.T) {
 		"INSUFFICIENT BALANCE (G1) was: LLED @ 12.58(-15.53)":          order.PartiallyFilledCancelled,
 		"...LLED @ 2365.3(45.58642898)":                                order.UnknownStatus,
 	} {
-		assert.Equalf(t, exp, orderStatusFromBitfinex(status), "orderStatusFromBitfinex should give %q's status", status)
+		assert.Equalf(t, exp, orderStatusFromExchange(status), "orderStatusFromExchange should give %q's status", status)
 	}
 }
 

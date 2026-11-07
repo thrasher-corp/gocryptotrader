@@ -140,8 +140,8 @@ func orderAsset(orderType string, p currency.Pair) asset.Item {
 	return asset.Margin
 }
 
-// orderTypeFromBitfinex returns the order type and any time in force a Bitfinex order type implies
-func orderTypeFromBitfinex(orderType string) (order.Type, order.TimeInForce, error) {
+// orderTypeFromExchange returns the order type and any time in force a Bitfinex order type implies
+func orderTypeFromExchange(orderType string) (order.Type, order.TimeInForce, error) {
 	switch strings.TrimPrefix(orderType, ExchangeOrderTypePrefix) {
 	case OrderTypeLimit:
 		return order.Limit, order.UnknownTIF, nil
@@ -161,9 +161,9 @@ func orderTypeFromBitfinex(orderType string) (order.Type, order.TimeInForce, err
 	return order.UnknownType, order.UnknownTIF, fmt.Errorf("%w: %q", errUnknownOrderType, orderType)
 }
 
-// orderStatusFromBitfinex returns the status an order's status text describes. Bitfinex appends how an order got
+// orderStatusFromExchange returns the status an order's status text describes. Bitfinex appends how an order got
 // there: "EXECUTED @ 107.6(-0.2)", "CANCELED was: PARTIALLY FILLED @ 107.6(-0.1)"
-func orderStatusFromBitfinex(status string) order.Status {
+func orderStatusFromExchange(status string) order.Status {
 	primary, history := splitOrderStatus(status)
 	for _, note := range orderStatusPositionCloseNotes {
 		// The note stays ahead of the fills that go on to partly fill the order
@@ -302,7 +302,7 @@ func (e *Exchange) orderDetail(o *OrderResponse) (*order.Detail, error) {
 	if err != nil {
 		return nil, err
 	}
-	orderType, tif, err := orderTypeFromBitfinex(o.Type)
+	orderType, timeInForce, err := orderTypeFromExchange(o.Type)
 	if err != nil {
 		return nil, err
 	}
@@ -313,10 +313,10 @@ func (e *Exchange) orderDetail(o *OrderResponse) (*order.Detail, error) {
 	// Bitfinex reports some orders' post only flag, and their leverage, in their meta data instead
 	postOnly, _ := jsonparser.GetInt(o.Meta, orderMetaPostOnlyKey)
 	if o.Flags&OrderFlagPostOnly != 0 || postOnly == 1 {
-		tif |= order.PostOnly
+		timeInForce |= order.PostOnly
 	}
 	if !o.TimeInForce.Time().IsZero() {
-		tif |= order.GoodTillTime
+		timeInForce |= order.GoodTillTime
 	}
 	remaining := math.Abs(o.Amount)
 	executed := orderExecutedAmount(o)
@@ -327,8 +327,8 @@ func (e *Exchange) orderDetail(o *OrderResponse) (*order.Detail, error) {
 		AssetType:            orderAsset(o.Type, pair),
 		Side:                 side,
 		Type:                 orderType,
-		TimeInForce:          tif,
-		Status:               orderStatusFromBitfinex(o.Status),
+		TimeInForce:          timeInForce,
+		Status:               orderStatusFromExchange(o.Status),
 		Price:                o.Price,
 		Amount:               executed.Add(decimal.MustFromFloat(remaining)).InexactFloat64(),
 		RemainingAmount:      remaining,

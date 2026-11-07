@@ -45,7 +45,8 @@ type IncreasePositionInfoRequest struct {
 }
 
 // IncreasePositionInfoResponse is what increasing a trading pair's position can do: the sizes it can reach, the
-// balances it can use and the funding a position of the requested amount needs
+// balances it can use and the funding a position of the requested amount needs. Its tags skip the positions Bitfinex's
+// docs mark as placeholders
 type IncreasePositionInfoResponse struct {
 	Position        IncreasePositionInfoPosition        `tuple:"0"`
 	Balance         IncreasePositionInfoBalance         `tuple:"1"`

@@ -224,13 +224,13 @@ func (e *Exchange) generateSubscriptions() (subscription.List, error) {
 	}
 	// Account events need no subscription, so a configured authenticated subscription has nothing to subscribe to
 	subs = subs.Public()
-	spot := make(map[string]*subscription.Subscription)
+	spot := make(map[string]*subscription.Subscription, len(subs))
 	for _, s := range subs {
 		if s.Asset == asset.Spot {
 			spot[s.QualifiedChannel] = s
 		}
 	}
-	shared := make(map[string]*subscription.Subscription)
+	shared := make(map[string]*subscription.Subscription, len(spot))
 	subs = slices.DeleteFunc(subs, func(s *subscription.Subscription) bool {
 		if s.Asset != asset.Margin {
 			return false

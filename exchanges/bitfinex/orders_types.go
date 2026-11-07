@@ -30,14 +30,14 @@ const (
 	LedgerCategoryTradingFee              uint64 = 201
 	LedgerCategoryTradingRebate           uint64 = 202
 	LedgerCategoryHiddenOrderFee          uint64 = 204
-	LedgerCategoryOTCTradeFee             uint64 = 207
+	LedgerCategoryOverTheCounterTradeFee  uint64 = 207
 	LedgerCategorySwapFee                 uint64 = 222
 	LedgerCategoryClaimingFee             uint64 = 224
 	LedgerCategoryUsedMarginFundingCharge uint64 = 226
 	LedgerCategoryUnusedMarginFundingFee  uint64 = 228
 	// LedgerCategoryEarnedFee is an earned fee or affiliate rebate
 	LedgerCategoryEarnedFee            uint64 = 241
-	LedgerCategoryETHFXLoyaltyFee      uint64 = 243
+	LedgerCategoryEthfinexLoyaltyFee   uint64 = 243
 	LedgerCategoryDepositFee           uint64 = 251
 	LedgerCategoryWithdrawalFee        uint64 = 254
 	LedgerCategoryWithdrawalExpressFee uint64 = 255
@@ -112,9 +112,9 @@ type PlaceOrderRequest struct {
 	TrailingPrice float64
 	// AuxiliaryLimitPrice is a stop limit order's limit price
 	AuxiliaryLimitPrice float64
-	// OCOStopPrice is the stop price of the order OrderFlagOneCancelsOther pairs this one with
-	OCOStopPrice float64
-	GroupID      uint64
+	// OneCancelsOtherStopPrice is the stop price of the order OrderFlagOneCancelsOther pairs this one with
+	OneCancelsOtherStopPrice float64
+	GroupID                  uint64
 	// ClientOrderID should be unique within its UTC day
 	ClientOrderID uint64
 	// Flags is the sum of the order's flags
@@ -126,19 +126,19 @@ type PlaceOrderRequest struct {
 
 // placeOrderBody is the body PlaceOrder sends, and an order submission of OrderMultiOp
 type placeOrderBody struct {
-	Type                string         `json:"type"`
-	Symbol              string         `json:"symbol"`
-	Amount              string         `json:"amount"`
-	Price               string         `json:"price"`
-	Leverage            uint64         `json:"lev,omitempty"`
-	TrailingPrice       string         `json:"price_trailing,omitempty"`
-	AuxiliaryLimitPrice string         `json:"price_aux_limit,omitempty"`
-	OCOStopPrice        string         `json:"price_oco_stop,omitempty"`
-	GroupID             uint64         `json:"gid,omitempty"`
-	ClientOrderID       uint64         `json:"cid,omitempty"`
-	Flags               uint64         `json:"flags,omitempty"`
-	TimeInForce         string         `json:"tif,omitempty"`
-	Meta                *orderMetaBody `json:"meta,omitempty"`
+	Type                     string         `json:"type"`
+	Symbol                   string         `json:"symbol"`
+	Amount                   string         `json:"amount"`
+	Price                    string         `json:"price"`
+	Leverage                 uint64         `json:"lev,omitempty"`
+	TrailingPrice            string         `json:"price_trailing,omitempty"`
+	AuxiliaryLimitPrice      string         `json:"price_aux_limit,omitempty"`
+	OneCancelsOtherStopPrice string         `json:"price_oco_stop,omitempty"`
+	GroupID                  uint64         `json:"gid,omitempty"`
+	ClientOrderID            uint64         `json:"cid,omitempty"`
+	Flags                    uint64         `json:"flags,omitempty"`
+	TimeInForce              string         `json:"tif,omitempty"`
+	Meta                     *orderMetaBody `json:"meta,omitempty"`
 }
 
 // UpdateOrderRequest is an update UpdateOrder makes to an order; the order keeps what the request leaves unset
@@ -320,8 +320,8 @@ type AccountTradesBySymbolRequest struct {
 	Sort int64
 }
 
-// OTCOrdersHistoryRequest filters the over the counter orders GetOTCOrdersHistory returns
-type OTCOrdersHistoryRequest struct {
+// OverTheCounterOrdersHistoryRequest filters the over the counter orders GetOverTheCounterOrdersHistory returns
+type OverTheCounterOrdersHistoryRequest struct {
 	// Symbol is a trading pair, such as tBTCUSD, or empty for every pair
 	Symbol string
 	Start  time.Time
@@ -331,8 +331,9 @@ type OTCOrdersHistoryRequest struct {
 	IDs   []uint64
 }
 
-// OTCOrderResponse is an over the counter order between the account and a counterparty
-type OTCOrderResponse struct {
+// OverTheCounterOrderResponse is an over the counter order between the account and a counterparty. Its tags skip the
+// positions Bitfinex's docs mark as placeholders
+type OverTheCounterOrderResponse struct {
 	ID        uint64     `tuple:"0"`
 	Symbol    string     `tuple:"1"`
 	CreatedAt types.Time `tuple:"2"`
@@ -351,7 +352,9 @@ type OTCOrderResponse struct {
 }
 
 // UnmarshalJSON decodes an OTC order array
-func (o *OTCOrderResponse) UnmarshalJSON(data []byte) error { return json.UnmarshalTuple(data, o) }
+func (o *OverTheCounterOrderResponse) UnmarshalJSON(data []byte) error {
+	return json.UnmarshalTuple(data, o)
+}
 
 // LedgersRequest filters the ledger entries GetLedgers returns
 type LedgersRequest struct {
@@ -374,7 +377,8 @@ type ledgersBody struct {
 	Wallet   string `json:"wallet,omitempty"`
 }
 
-// LedgerEntryResponse is a change to one of the account's wallet balances
+// LedgerEntryResponse is a change to one of the account's wallet balances. Its tags skip the positions Bitfinex's docs
+// mark as placeholders
 type LedgerEntryResponse struct {
 	ID       uint64        `tuple:"0"`
 	Currency currency.Code `tuple:"1"`

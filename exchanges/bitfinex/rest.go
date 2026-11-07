@@ -24,15 +24,15 @@ import (
 // Exchange implements exchange.IBotExchange and contains additional specific api methods for interacting with Bitfinex
 type Exchange struct {
 	exchange.Base
-	wsChannels       wsChannelRegistry
+	wsChannels       *wsChannelRegistry
 	wsSharedChannels wsSharedChannels
 	wsClientOrderID  nonce.Nonce
 	wsInputMu        sync.Mutex
 	// wsRenewMu keeps a channel's renewal apart from the manager unsubscribing it
 	wsRenewMu        sync.RWMutex
-	wsFundingBookIDs wsFundingBookIDs
-	wsBookResync     wsBookResync
-	wsWalletCalcs    wsWalletCalcs
+	wsFundingBookIDs *wsFundingBookIDs
+	wsBookResync     *wsBookResync
+	wsWalletCalcs    *wsWalletCalcs
 }
 
 const (
@@ -42,10 +42,10 @@ const (
 	tradeBaseURL = "https://trading.bitfinex.com"
 	// apiVersionPath prefixes every endpoint path, and the authenticated request signature
 	apiVersionPath = "/v2/"
-	// cidDateLayout is the layout of the cid_date parameter, the UTC day a client order ID belongs to
-	cidDateLayout = time.DateOnly
-	// tifLayout is the layout of the tif parameter, the UTC time an order is cancelled at
-	tifLayout = time.DateTime
+	// clientOrderIDDateLayout is the layout of the cid_date parameter, the UTC day a client order ID belongs to
+	clientOrderIDDateLayout = time.DateOnly
+	// timeInForceLayout is the layout of the tif parameter, the UTC time an order is cancelled at
+	timeInForceLayout = time.DateTime
 )
 
 var (
@@ -261,18 +261,10 @@ func sendNotificationRequest[T any](ctx context.Context, e *Exchange, epl reques
 	return resp, nil
 }
 
-// checkWindow returns an error when a window's start is after its end; either may be unset
-func checkWindow(start, end time.Time) error {
-	if !start.IsZero() && !end.IsZero() {
-		return common.StartEndTimeCheck(start, end)
-	}
-	return nil
-}
-
 // setHistoryParams sets the window, limit and sort of a public history endpoint's query; each is sent only when set,
 // and sort must be 1 for oldest first or -1 for newest first
 func setHistoryParams(params url.Values, start, end time.Time, limit uint64, sort int64) error {
-	if err := checkWindow(start, end); err != nil {
+	if err := common.StartEndTimeCheckSkipZero(start, end); err != nil {
 		return err
 	}
 	if sort != 0 {
@@ -306,7 +298,7 @@ type historyBody struct {
 // newHistoryBody returns the body of a window, limit and sort, erroring when the window is reversed or sort is
 // neither 1 for oldest first nor -1 for newest first
 func newHistoryBody(start, end time.Time, limit uint64, sort int64) (historyBody, error) {
-	if err := checkWindow(start, end); err != nil {
+	if err := common.StartEndTimeCheckSkipZero(start, end); err != nil {
 		return historyBody{}, err
 	}
 	if sort != 0 {

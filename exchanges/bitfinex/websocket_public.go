@@ -230,7 +230,9 @@ func (e *Exchange) wsSharedTrades(s *subscription.Subscription, trades []trade.D
 	if !e.wsSharedChannels.carriesMargin(s) {
 		return trades
 	}
-	for i, n := 0, len(trades); i < n; i++ {
+	n := len(trades)
+	trades = slices.Grow(trades, n)
+	for i := range n {
 		t := trades[i]
 		t.AssetType = asset.Margin
 		trades = append(trades, t)
@@ -393,6 +395,8 @@ func wsProcessBook[T any, PT interface {
 			ValidateOrderbook: e.ValidateOrderbook,
 			LastUpdated:       wsEventTime(f.Time),
 			LastPushed:        wsEventTime(f.Time),
+			Bids:              make(orderbook.Levels, 0, len(f.Data)),
+			Asks:              make(orderbook.Levels, 0, len(f.Data)),
 		}
 		for i := range f.Data {
 			l, bid, _ := PT(&f.Data[i]).level()
@@ -576,10 +580,10 @@ func bookChecksum(b *orderbook.Book, raw bool) uint32 {
 		if raw {
 			buf = strconv.AppendInt(buf, l.ID, 10)
 		} else {
-			buf = appendJSNumber(buf, l.Price)
+			buf = appendJavaScriptNumber(buf, l.Price)
 		}
 		buf = append(buf, ':')
-		buf = appendJSNumber(buf, sign*l.Amount)
+		buf = appendJavaScriptNumber(buf, sign*l.Amount)
 	}
 	for i := range wsChecksumDepth {
 		if i < len(b.Bids) {
@@ -592,9 +596,9 @@ func bookChecksum(b *orderbook.Book, raw bool) uint32 {
 	return crc32.ChecksumIEEE(buf)
 }
 
-// appendJSNumber appends a number as JavaScript writes it, as Bitfinex builds its checksums in JavaScript: the shortest
-// digits that read back as the number, in exponent form below 1e-6 and from 1e21, such as 1e-7 or 1.5e+21
-func appendJSNumber(buf []byte, f float64) []byte {
+// appendJavaScriptNumber appends a number as JavaScript writes it, as Bitfinex builds its checksums in JavaScript: the
+// shortest digits that read back as the number, in exponent form below 1e-6 and from 1e21, such as 1e-7 or 1.5e+21
+func appendJavaScriptNumber(buf []byte, f float64) []byte {
 	if f == 0 {
 		return append(buf, '0')
 	}
@@ -630,14 +634,20 @@ type wsFundingBookIDs struct {
 	books map[key.PairAsset]*fundingLevelIDs
 }
 
+// newWebsocketFundingBookIDs returns level IDs holding no book
+func newWebsocketFundingBookIDs() *wsFundingBookIDs {
+	return &wsFundingBookIDs{books: make(map[key.PairAsset]*fundingLevelIDs)}
+}
+
 // load numbers the levels of a book's snapshot afresh, setting their IDs
 func (f *wsFundingBookIDs) load(k key.PairAsset, sides ...orderbook.Levels) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	if f.books == nil {
-		f.books = make(map[key.PairAsset]*fundingLevelIDs)
+	var size int
+	for _, levels := range sides {
+		size += len(levels)
 	}
-	book := &fundingLevelIDs{ids: make(map[fundingLevelKey]int64)}
+	book := &fundingLevelIDs{ids: make(map[fundingLevelKey]int64, size)}
 	f.books[k] = book
 	for _, levels := range sides {
 		for i := range levels {
@@ -681,15 +691,17 @@ type wsBookResync struct {
 	last  uint64
 }
 
+// newWebsocketBookResync returns resyncs holding no book
+func newWebsocketBookResync() *wsBookResync {
+	return &wsBookResync{books: make(map[key.PairAsset]uint64)}
+}
+
 // start reports whether a book's resync should start, as none is pending, numbering it
 func (r *wsBookResync) start(k key.PairAsset) (uint64, bool) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if _, ok := r.books[k]; ok {
 		return 0, false
-	}
-	if r.books == nil {
-		r.books = make(map[key.PairAsset]uint64)
 	}
 	r.last++
 	r.books[k] = r.last

@@ -999,15 +999,15 @@ func TestBookChecksum(t *testing.T) {
 	assert.Equal(t, crc32.ChecksumIEEE(exp[:len(exp)-1]), bookChecksum(deep, true), "bookChecksum should take the 25 lowest IDs of the orders sharing a price, from beyond the top 25 too")
 }
 
-func TestAppendJSNumber(t *testing.T) {
+func TestAppendJavaScriptNumber(t *testing.T) {
 	t.Parallel()
 	for f, exp := range map[float64]string{
 		0: "0", 82191: "82191", -0.0002: "-0.0002", 0.000001: "0.000001", 1e-7: "1e-7", 1.5e-7: "1.5e-7", -9.99e-7: "-9.99e-7",
 		1e20: "100000000000000000000", 1e21: "1e+21", 1.5e22: "1.5e+22", 0.00013122534246575346: "0.00013122534246575346", 1e-100: "1e-100",
 	} {
-		assert.Equalf(t, exp, string(appendJSNumber(nil, f)), "appendJSNumber should write %v as JavaScript does", f)
+		assert.Equalf(t, exp, string(appendJavaScriptNumber(nil, f)), "appendJavaScriptNumber should write %v as JavaScript does", f)
 	}
-	assert.Equal(t, "x:1e-7", string(appendJSNumber([]byte("x:"), 1e-7)), "appendJSNumber should append to what the buffer holds")
+	assert.Equal(t, "x:1e-7", string(appendJavaScriptNumber([]byte("x:"), 1e-7)), "appendJavaScriptNumber should append to what the buffer holds")
 }
 
 func TestWebsocketHandleDataErrors(t *testing.T) {
@@ -1168,7 +1168,7 @@ func TestWebsocketChannelRegistry(t *testing.T) {
 	ex, conn := newChannelTestExchange(t)
 	other, err := ex.Websocket.CreateTestConnection(wsPublicConnection)
 	require.NoError(t, err, "CreateTestConnection must not error")
-	var r wsChannelRegistry
+	r := newWebsocketChannelRegistry()
 	confirm := func(subID string, c websocket.Connection, channelID uint64) error {
 		_, err := r.confirm(subID, c, channelID)
 		return err
@@ -1208,7 +1208,7 @@ func TestWebsocketChannelRegistryAdopt(t *testing.T) {
 	ex, conn := newChannelTestExchange(t)
 	other, err := ex.Websocket.CreateTestConnection(wsPublicConnection)
 	require.NoError(t, err, "CreateTestConnection must not error")
-	var r wsChannelRegistry
+	r := newWebsocketChannelRegistry()
 	confirm := func(subID string, c websocket.Connection, channelID uint64, s *subscription.Subscription) {
 		t.Helper()
 		r.addPending(subID, c, s)
@@ -1237,7 +1237,7 @@ func TestWebsocketChannelRegistryAdopt(t *testing.T) {
 // Bitfinex confirmed it
 func newDrainingRegistry(t *testing.T, conn websocket.Connection) *wsChannelRegistry {
 	t.Helper()
-	r := new(wsChannelRegistry)
+	r := newWebsocketChannelRegistry()
 	s := fixtureSubscription(t, "ticker:tBTCUSD")
 	r.addPending("dropped", conn, s)
 	r.dropPending(conn, s)
@@ -1276,7 +1276,7 @@ func TestWebsocketChannelRegistryAbandon(t *testing.T) {
 	ex, conn := newChannelTestExchange(t)
 	other, err := ex.Websocket.CreateTestConnection(wsPublicConnection)
 	require.NoError(t, err, "CreateTestConnection must not error")
-	var r wsChannelRegistry
+	r := newWebsocketChannelRegistry()
 	s := fixtureSubscription(t, "ticker:tBTCUSD")
 
 	r.addPending("unconfirmed", conn, s)
@@ -1316,7 +1316,7 @@ func TestWebsocketChannelRegistryAbandon(t *testing.T) {
 func TestWebsocketChannelRegistryRenewable(t *testing.T) {
 	t.Parallel()
 	_, conn := newChannelTestExchange(t)
-	var r wsChannelRegistry
+	r := newWebsocketChannelRegistry()
 	confirmed := func(subID string, channelID uint64) *subscription.Subscription {
 		t.Helper()
 		s := fixtureSubscription(t, "ticker:tBTCUSD")
@@ -1364,7 +1364,7 @@ func TestWebsocketChannelRegistryWithBooks(t *testing.T) {
 	t.Parallel()
 	_, conn := newChannelTestExchange(t)
 	open, closed := &stateConnection{Connection: conn, connected: true}, &stateConnection{Connection: conn}
-	var r wsChannelRegistry
+	r := newWebsocketChannelRegistry()
 	book := fixtureSubscription(t, "book:tBTCUSD:R0")
 	for _, c := range []struct {
 		conn      websocket.Connection

@@ -39,7 +39,7 @@ const (
 	BalanceAvailableTypeFunding    = "FUNDING"
 )
 
-// UserInfoResponse is the account's details
+// UserInfoResponse is the account's details. Its tags skip the positions Bitfinex's docs mark as placeholders
 type UserInfoResponse struct {
 	ID        uint64     `tuple:"0"`
 	Email     string     `tuple:"1"`
@@ -73,8 +73,9 @@ type UserInfoResponse struct {
 	IsSecuritiesInvestorAccredited types.Boolean `tuple:"30"`
 	// IsSecuritiesElSalvador is whether the account is verified for El Salvador securities
 	IsSecuritiesElSalvador types.Boolean `tuple:"31"`
-	// IsSecuritiesAIFC is whether the account is verified for Astana International Financial Centre securities
-	IsSecuritiesAIFC types.Boolean `tuple:"32"`
+	// IsSecuritiesAstanaInternationalFinancialCentre is whether the account is verified for Astana International
+	// Financial Centre securities
+	IsSecuritiesAstanaInternationalFinancialCentre types.Boolean `tuple:"32"`
 	// AllowDisableContextSwitch is whether the account can stop its master account switching into it
 	AllowDisableContextSwitch types.Boolean `tuple:"38"`
 	// ContextSwitchDisabled is whether the master account is stopped from switching into the account
@@ -98,7 +99,7 @@ type UserInfoResponse struct {
 func (u *UserInfoResponse) UnmarshalJSON(data []byte) error { return json.UnmarshalTuple(data, u) }
 
 // AccountSummaryResponse is the account's fee rates, its trading volume, fees and funding earnings over the last 30
-// days, and its LEO discount level
+// days, and its LEO discount level. Its tags skip the positions Bitfinex's docs mark as placeholders
 type AccountSummaryResponse struct {
 	FeeRates             SummaryFeeRates             `tuple:"4"`
 	TradingVolumeAndFees SummaryTradingVolumeAndFees `tuple:"5"`
@@ -122,7 +123,8 @@ type SummaryFeeRates struct {
 func (s *SummaryFeeRates) UnmarshalJSON(data []byte) error { return json.UnmarshalTuple(data, s) }
 
 // SummaryMakerFeeRates is the account's maker fee rates. The docs name the first three alike, MAKER_FEE, so their
-// counter currencies are taken from the taker fee rates' order: crypto, stablecoin and fiat
+// counter currencies are taken from the taker fee rates' order: crypto, stablecoin and fiat. Its tags skip the
+// positions Bitfinex's docs mark as placeholders
 type SummaryMakerFeeRates struct {
 	ToCrypto float64 `tuple:"0"`
 	ToStable float64 `tuple:"1"`
@@ -134,7 +136,8 @@ type SummaryMakerFeeRates struct {
 // UnmarshalJSON decodes a maker fee info array
 func (s *SummaryMakerFeeRates) UnmarshalJSON(data []byte) error { return json.UnmarshalTuple(data, s) }
 
-// SummaryTakerFeeRates is the account's taker fee rates
+// SummaryTakerFeeRates is the account's taker fee rates. Its tags skip the positions Bitfinex's docs mark as
+// placeholders
 type SummaryTakerFeeRates struct {
 	// ToCrypto is the rate of trades of crypto for crypto
 	ToCrypto float64 `tuple:"0"`
@@ -169,14 +172,15 @@ type SummaryTradeVolume struct {
 	Currency string  `json:"curr"`
 	Volume   float64 `json:"vol"`
 	// The total alone has the volumes below, which the docs leave undescribed
-	VolumeSafe     float64 `json:"vol_safe"`
-	VolumeMaker    float64 `json:"vol_maker"`
-	VolumeBFX      float64 `json:"vol_BFX"`
-	VolumeBFXSafe  float64 `json:"vol_BFX_safe"`
-	VolumeBFXMaker float64 `json:"vol_BFX_maker"`
+	VolumeSafe          float64 `json:"vol_safe"`
+	VolumeMaker         float64 `json:"vol_maker"`
+	VolumeBitfinex      float64 `json:"vol_BFX"`
+	VolumeBitfinexSafe  float64 `json:"vol_BFX_safe"`
+	VolumeBitfinexMaker float64 `json:"vol_BFX_maker"`
 }
 
-// SummaryFundingEarnings is what the funding the account provided earned over the last 30 days
+// SummaryFundingEarnings is what the funding the account provided earned over the last 30 days. Its tags skip the
+// positions Bitfinex's docs mark as placeholders
 type SummaryFundingEarnings struct {
 	// Earnings are what was earned in each currency
 	Earnings map[currency.Code]float64 `tuple:"1"`
@@ -203,7 +207,7 @@ type LoginHistoryRequest struct {
 	Limit uint64
 }
 
-// LoginResponse is a login to the account
+// LoginResponse is a login to the account. Its tags skip the positions Bitfinex's docs mark as placeholders
 type LoginResponse struct {
 	ID        uint64         `tuple:"0"`
 	Time      types.Time     `tuple:"2"`
@@ -290,7 +294,7 @@ type ChangelogRequest struct {
 	Limit uint64
 }
 
-// ChangelogEntryResponse is a change to the account
+// ChangelogEntryResponse is a change to the account. Its tags skip the positions Bitfinex's docs mark as placeholders
 type ChangelogEntryResponse struct {
 	CreatedAt types.Time `tuple:"0"`
 	// Log describes the change, such as "settings: api key created"
@@ -369,7 +373,8 @@ type transferBody struct {
 	TwoFactorToken    *TwoFactorToken `json:"tfaToken,omitempty"`
 }
 
-// WalletTransferResponse is a transfer of funds between wallets
+// WalletTransferResponse is a transfer of funds between wallets. Its tags skip the positions Bitfinex's docs mark as
+// placeholders
 type WalletTransferResponse struct {
 	UpdatedAt  types.Time    `tuple:"0"`
 	WalletFrom string        `tuple:"1"`
@@ -403,7 +408,7 @@ type depositAddressBody struct {
 	Renew  uint64 `json:"op_renew,omitempty"`
 }
 
-// DepositAddressResponse is a deposit address
+// DepositAddressResponse is a deposit address. Its tags skip the positions Bitfinex's docs mark as placeholders
 type DepositAddressResponse struct {
 	// Method is the deposit method, such as BITCOIN
 	Method   string        `tuple:"1"`
@@ -455,7 +460,8 @@ type generateInvoiceBody struct {
 	Amount   string `json:"amount"`
 }
 
-// GenerateInvoiceResponse is a Lightning Network invoice for a deposit
+// GenerateInvoiceResponse is a Lightning Network invoice for a deposit. Its tags skip the positions Bitfinex's docs
+// mark as placeholders
 type GenerateInvoiceResponse struct {
 	InvoiceHash string `tuple:"0"`
 	Invoice     string `tuple:"1"`
@@ -468,27 +474,29 @@ func (g *GenerateInvoiceResponse) UnmarshalJSON(data []byte) error {
 	return json.UnmarshalTuple(data, g)
 }
 
-// lnxInvoicePaymentsBody is the body of an LNX Invoice Payments request, whose response depends on its action
-type lnxInvoicePaymentsBody struct {
-	Action string                  `json:"action"`
-	Query  lnxInvoicePaymentsQuery `json:"query"`
+// lightningNetworkInvoicePaymentsBody is the body of an LNX Invoice Payments request, whose response depends on its
+// action
+type lightningNetworkInvoicePaymentsBody struct {
+	Action string                               `json:"action"`
+	Query  lightningNetworkInvoicePaymentsQuery `json:"query"`
 }
 
-// lnxInvoicePaymentsQuery is the query of an LNX Invoice Payments request; the list actions take the offset and the
-// single record actions the payment hash
-type lnxInvoicePaymentsQuery struct {
+// lightningNetworkInvoicePaymentsQuery is the query of an LNX Invoice Payments request; the list actions take the offset
+// and the single record actions the payment hash
+type lightningNetworkInvoicePaymentsQuery struct {
 	Offset      uint64 `json:"offset,omitempty"`
 	PaymentHash string `json:"txid,omitempty"`
 }
 
-// lnxInvoiceListResponse is the invoices or payments the LNX Invoice Payments list actions return
-type lnxInvoiceListResponse struct {
-	Invoices []LNXInvoiceResponse `json:"invoices"`
-	Payments []LNXInvoiceResponse `json:"payments"`
+// lightningNetworkInvoiceListResponse is the invoices or payments the LNX Invoice Payments list actions return
+type lightningNetworkInvoiceListResponse struct {
+	Invoices []LightningNetworkInvoiceResponse `json:"invoices"`
+	Payments []LightningNetworkInvoiceResponse `json:"payments"`
 }
 
-// LNXInvoiceResponse is a Lightning Network invoice of the account, or a payment of one, which Bitfinex describes alike
-type LNXInvoiceResponse struct {
+// LightningNetworkInvoiceResponse is a Lightning Network invoice of the account, or a payment of one, which Bitfinex
+// describes alike
+type LightningNetworkInvoiceResponse struct {
 	PaymentHash string     `json:"payment_hash"`
 	CreatedAt   types.Time `json:"created_at"`
 	// ExpiresAt is unset for an invoice without an expiry
@@ -525,11 +533,11 @@ type WithdrawalRequest struct {
 // TravelRuleDetails identify a withdrawal's beneficiary, by the account's own verification data, a person's names or
 // a company's name, and the virtual asset service provider it goes to
 type TravelRuleDetails struct {
-	// VASPDID is the provider's decentralised identifier, from the virtual asset service providers endpoint; leave it
-	// and VASPName unset for self custody
-	VASPDID string
-	// VASPName names a provider that has no decentralised identifier
-	VASPName string
+	// VirtualAssetServiceProviderDID is the provider's decentralised identifier, from the virtual asset service providers
+	// endpoint; leave it and VirtualAssetServiceProviderName unset for self custody
+	VirtualAssetServiceProviderDID string
+	// VirtualAssetServiceProviderName names a provider that has no decentralised identifier
+	VirtualAssetServiceProviderName string
 	// BeneficiarySelf names the account itself as the beneficiary, from its verification data
 	BeneficiarySelf bool
 	// FirstName and LastName name a person as the beneficiary, and need each other
@@ -541,24 +549,24 @@ type TravelRuleDetails struct {
 
 // withdrawalBody is the body of a Withdrawal request
 type withdrawalBody struct {
-	Wallet                   string `json:"wallet"`
-	Method                   string `json:"method"`
-	Amount                   string `json:"amount,omitempty"`
-	Address                  string `json:"address,omitempty"`
-	Invoice                  string `json:"invoice,omitempty"`
-	PaymentID                string `json:"payment_id,omitempty"`
-	DeductFee                uint64 `json:"fee_deduct,omitempty"`
-	Note                     string `json:"note,omitempty"`
-	TravelRuleTermsOfService bool   `json:"travel_rule_tos,omitempty"`
-	VASPDID                  string `json:"vasp_did,omitempty"`
-	VASPName                 string `json:"vasp_name,omitempty"`
-	BeneficiarySelf          bool   `json:"beneficiary_self,omitempty"`
-	DestinationFirstName     string `json:"dest_firstname,omitempty"`
-	DestinationLastName      string `json:"dest_lastname,omitempty"`
-	DestinationCorporateName string `json:"dest_corp_name,omitempty"`
+	Wallet                          string `json:"wallet"`
+	Method                          string `json:"method"`
+	Amount                          string `json:"amount,omitempty"`
+	Address                         string `json:"address,omitempty"`
+	Invoice                         string `json:"invoice,omitempty"`
+	PaymentID                       string `json:"payment_id,omitempty"`
+	DeductFee                       uint64 `json:"fee_deduct,omitempty"`
+	Note                            string `json:"note,omitempty"`
+	TravelRuleTermsOfService        bool   `json:"travel_rule_tos,omitempty"`
+	VirtualAssetServiceProviderDID  string `json:"vasp_did,omitempty"`
+	VirtualAssetServiceProviderName string `json:"vasp_name,omitempty"`
+	BeneficiarySelf                 bool   `json:"beneficiary_self,omitempty"`
+	DestinationFirstName            string `json:"dest_firstname,omitempty"`
+	DestinationLastName             string `json:"dest_lastname,omitempty"`
+	DestinationCorporateName        string `json:"dest_corp_name,omitempty"`
 }
 
-// WithdrawalResponse is a requested withdrawal
+// WithdrawalResponse is a requested withdrawal. Its tags skip the positions Bitfinex's docs mark as placeholders
 type WithdrawalResponse struct {
 	// ID is zero when the withdrawal failed
 	ID        uint64  `tuple:"0"`
@@ -594,7 +602,7 @@ type movementsBody struct {
 	Address string   `json:"address,omitempty"`
 }
 
-// MovementResponse is a deposit or withdrawal
+// MovementResponse is a deposit or withdrawal. Its tags skip the positions Bitfinex's docs mark as placeholders
 type MovementResponse struct {
 	ID       uint64        `tuple:"0"`
 	Currency currency.Code `tuple:"1"`
@@ -625,7 +633,8 @@ type movementInfoBody struct {
 	ID uint64 `json:"id"`
 }
 
-// MovementInfoResponse details a deposit or withdrawal
+// MovementInfoResponse details a deposit or withdrawal. Its tags skip the positions Bitfinex's docs mark as
+// placeholders
 type MovementInfoResponse struct {
 	// Movement's PaymentID is the memo or tag
 	Movement MovementResponse `tuple:"0,inline"`
