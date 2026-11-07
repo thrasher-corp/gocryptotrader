@@ -5,6 +5,7 @@ import (
 	"math"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -542,7 +543,9 @@ func newDerivativesTradingLiveOrderRequest(t *testing.T, direction string) *Deri
 	if direction == DerivativesDirectionSell {
 		price = math.Ceil(ticker.MaximumPrice/5) * 10
 	}
-	label := "gct-" + strconv.FormatInt(time.Now().UnixNano(), 36) + "-" + t.Name()
+	// The label names the top-level test, as a subtest's name would add a slash to a field the gateway documents only by
+	// its length
+	label := "gct-" + strconv.FormatInt(time.Now().UnixNano(), 36) + "-" + strings.SplitN(t.Name(), "/", 2)[0]
 	label = label[:min(len(label), derivativesTradingLiveLabelLength)]
 	t.Cleanup(func() {
 		_, err := e.GlobalDerivatives().CancelByLabel(context.WithoutCancel(t.Context()), &DerivativesCancelByLabelRequest{Label: label, Currency: derivativesTradingLiveCurrency})
@@ -601,7 +604,7 @@ func setDerivativesTradingLiveLeverage(t *testing.T, set func(context.Context, *
 	return leverage
 }
 
-func TestGlobalDerivativesBuy(t *testing.T) {
+func TestGlobalDerivativesBuy(t *testing.T) { //nolint:tparallel // the live case runs before the cases on local servers
 	t.Parallel()
 	_, err := e.GlobalDerivatives().Buy(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "Buy must reject a nil request")
@@ -635,18 +638,21 @@ func TestGlobalDerivativesBuy(t *testing.T) {
 	exp = `{"instrument_name":"BTC-27NOV26-90000-C","amount":1,"price":50,"post_only":false,"reduce_only":true,"advanced":"implv","mmp":true}`
 	assert.JSONEq(t, exp, string(lastRequest().Params), "Buy should always send post_only, which the gateway defaults to true")
 
-	skipLiveUnlessCanManipulate(t)
 	req := mockDerivativesBuyRequest()
-	if !mockTests {
-		req = newDerivativesTradingLiveOrderRequest(t, DerivativesDirectionBuy)
-	}
-	resp, err := e.GlobalDerivatives().Buy(t.Context(), req)
-	require.NoError(t, err, "Buy must not error")
-	if mockTests {
-		assert.Equal(t, testDerivativesPlacedOrderResponse(), resp, "Buy should decode every field")
-	} else {
-		assert.Equal(t, DerivativesOrderStateOpen, resp.Order.OrderState, "Buy should place a resting order")
-	}
+	// The live case runs first and may set req, which the cases on local servers then use, as one test ran them in turn
+	t.Run("places a buy order", func(t *testing.T) {
+		skipLiveUnlessCanManipulate(t)
+		if !mockTests {
+			req = newDerivativesTradingLiveOrderRequest(t, DerivativesDirectionBuy)
+		}
+		resp, err := e.GlobalDerivatives().Buy(t.Context(), req)
+		require.NoError(t, err, "Buy must not error")
+		if mockTests {
+			assert.Equal(t, testDerivativesPlacedOrderResponse(), resp, "Buy should decode every field")
+		} else {
+			assert.Equal(t, DerivativesOrderStateOpen, resp.Order.OrderState, "Buy should place a resting order")
+		}
+	})
 
 	_, err = newResponseServerExchange(t, derivativesTradingNullResult).GlobalDerivatives().Buy(t.Context(), req)
 	assert.ErrorIs(t, err, common.ErrNoResponse, "Buy should error for a null result")
@@ -654,26 +660,29 @@ func TestGlobalDerivativesBuy(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "Buy should return the request failure")
 }
 
-func TestGlobalDerivativesCancelOrderByID(t *testing.T) {
+func TestGlobalDerivativesCancelOrderByID(t *testing.T) { //nolint:tparallel // the live case runs before the cases on local servers
 	t.Parallel()
 	_, err := e.GlobalDerivatives().CancelOrderByID(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "CancelOrderByID must reject a nil request")
 	_, err = e.GlobalDerivatives().CancelOrderByID(t.Context(), &DerivativesCancelOrderByIDRequest{Isolated: true})
 	require.ErrorIs(t, err, errDerivativesOrderIDRequired, "CancelOrderByID must require an order ID")
 
-	skipLiveUnlessCanManipulate(t)
 	req := mockDerivativesCancelOrderByIDRequest()
-	if !mockTests {
-		_, order := placeDerivativesTradingLiveOrder(t)
-		req = &DerivativesCancelOrderByIDRequest{OrderID: order.OrderID}
-	}
-	resp, err := e.GlobalDerivatives().CancelOrderByID(t.Context(), req)
-	require.NoError(t, err, "CancelOrderByID must not error")
-	if mockTests {
-		assert.Equal(t, testDerivativesCancelledOrder(), resp, "CancelOrderByID should decode every field")
-	} else {
-		assert.Equal(t, DerivativesOrderStateCancelled, resp.OrderState, "CancelOrderByID should cancel the order")
-	}
+	// The live case runs first and may set req, which the cases on local servers then use, as one test ran them in turn
+	t.Run("cancels the order", func(t *testing.T) {
+		skipLiveUnlessCanManipulate(t)
+		if !mockTests {
+			_, order := placeDerivativesTradingLiveOrder(t)
+			req = &DerivativesCancelOrderByIDRequest{OrderID: order.OrderID}
+		}
+		resp, err := e.GlobalDerivatives().CancelOrderByID(t.Context(), req)
+		require.NoError(t, err, "CancelOrderByID must not error")
+		if mockTests {
+			assert.Equal(t, testDerivativesCancelledOrder(), resp, "CancelOrderByID should decode every field")
+		} else {
+			assert.Equal(t, DerivativesOrderStateCancelled, resp.OrderState, "CancelOrderByID should cancel the order")
+		}
+	})
 
 	_, err = newResponseServerExchange(t, derivativesTradingNullResult).GlobalDerivatives().CancelOrderByID(t.Context(), req)
 	assert.ErrorIs(t, err, common.ErrNoResponse, "CancelOrderByID should error for a null result")
@@ -681,17 +690,20 @@ func TestGlobalDerivativesCancelOrderByID(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "CancelOrderByID should return the request failure")
 }
 
-func TestGlobalDerivativesCancelAll(t *testing.T) {
+func TestGlobalDerivativesCancelAll(t *testing.T) { //nolint:tparallel // the live case runs before the cases on local servers
 	t.Parallel()
 	_, err := e.GlobalDerivatives().CancelAll(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "CancelAll must reject a nil request")
 
-	if !mockTests {
-		t.Skip("CancelAll is not tested live, as " + derivativesTradingSkipCancelAll)
-	}
-	resp, err := e.GlobalDerivatives().CancelAll(t.Context(), mockDerivativesCancelAllRequest())
-	require.NoError(t, err, "CancelAll must not error")
-	assert.Equal(t, &DerivativesCancelAllResponse{CancelledCount: 4}, resp, "CancelAll should decode the count")
+	// The live case runs first, as the cases on local servers after it call the same method
+	t.Run("cancels every order", func(t *testing.T) {
+		if !mockTests {
+			t.Skip("CancelAll is not tested live, as " + derivativesTradingSkipCancelAll)
+		}
+		resp, err := e.GlobalDerivatives().CancelAll(t.Context(), mockDerivativesCancelAllRequest())
+		require.NoError(t, err, "CancelAll must not error")
+		assert.Equal(t, &DerivativesCancelAllResponse{CancelledCount: 4}, resp, "CancelAll should decode the count")
+	})
 
 	_, err = newResponseServerExchange(t, derivativesTradingNullResult).GlobalDerivatives().CancelAll(t.Context(), mockDerivativesCancelAllRequest())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "CancelAll should error for a null result")
@@ -699,7 +711,7 @@ func TestGlobalDerivativesCancelAll(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "CancelAll should return the request failure")
 }
 
-func TestGlobalDerivativesCancelAllByCurrency(t *testing.T) {
+func TestGlobalDerivativesCancelAllByCurrency(t *testing.T) { //nolint:tparallel // the live case runs before the cases on local servers
 	t.Parallel()
 	_, err := e.GlobalDerivatives().CancelAllByCurrency(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "CancelAllByCurrency must reject a nil request")
@@ -715,12 +727,15 @@ func TestGlobalDerivativesCancelAllByCurrency(t *testing.T) {
 	require.NoError(t, err, "CancelAllByCurrency must not error")
 	assert.JSONEq(t, `{"currency":"USDC","kind":"any","detailed":true,"freeze_quotes":true,"include_isolated":true}`, string(lastRequest().Params), "CancelAllByCurrency should send the currency in upper case")
 
-	if !mockTests {
-		t.Skip("CancelAllByCurrency is not tested live, as " + derivativesTradingSkipCancelAll)
-	}
-	resp, err := e.GlobalDerivatives().CancelAllByCurrency(t.Context(), mockDerivativesCancelAllByCurrencyRequest())
-	require.NoError(t, err, "CancelAllByCurrency must not error")
-	assert.Equal(t, &DerivativesCancelAllResponse{CancelledCount: 4}, resp, "CancelAllByCurrency should decode the count")
+	// The live case runs first, as the cases on local servers after it call the same method
+	t.Run("cancels the currency's orders", func(t *testing.T) {
+		if !mockTests {
+			t.Skip("CancelAllByCurrency is not tested live, as " + derivativesTradingSkipCancelAll)
+		}
+		resp, err := e.GlobalDerivatives().CancelAllByCurrency(t.Context(), mockDerivativesCancelAllByCurrencyRequest())
+		require.NoError(t, err, "CancelAllByCurrency must not error")
+		assert.Equal(t, &DerivativesCancelAllResponse{CancelledCount: 4}, resp, "CancelAllByCurrency should decode the count")
+	})
 
 	_, err = newResponseServerExchange(t, derivativesTradingNullResult).GlobalDerivatives().CancelAllByCurrency(t.Context(), mockDerivativesCancelAllByCurrencyRequest())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "CancelAllByCurrency should error for a null result")
@@ -728,7 +743,7 @@ func TestGlobalDerivativesCancelAllByCurrency(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "CancelAllByCurrency should return the request failure")
 }
 
-func TestGlobalDerivativesCancelAllByCurrencyPair(t *testing.T) {
+func TestGlobalDerivativesCancelAllByCurrencyPair(t *testing.T) { //nolint:tparallel // the live case runs before the cases on local servers
 	t.Parallel()
 	_, err := e.GlobalDerivatives().CancelAllByCurrencyPair(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "CancelAllByCurrencyPair must reject a nil request")
@@ -739,12 +754,15 @@ func TestGlobalDerivativesCancelAllByCurrencyPair(t *testing.T) {
 	_, err = e.GlobalDerivatives().CancelAllByCurrencyPair(t.Context(), &DerivativesCancelAllByCurrencyPairRequest{CurrencyPair: "btc_usdc", Type: DerivativesOrderTypeMarket})
 	require.ErrorIs(t, err, errDerivativesInvalidCancelOrderType, "CancelAllByCurrencyPair must refuse an undocumented order type")
 
-	if !mockTests {
-		t.Skip("CancelAllByCurrencyPair is not tested live, as " + derivativesTradingSkipCancelAll)
-	}
-	resp, err := e.GlobalDerivatives().CancelAllByCurrencyPair(t.Context(), mockDerivativesCancelAllByCurrencyPairRequest())
-	require.NoError(t, err, "CancelAllByCurrencyPair must not error")
-	assert.Equal(t, &DerivativesCancelAllResponse{CancelledCount: 4}, resp, "CancelAllByCurrencyPair should decode the count")
+	// The live case runs first, as the cases on local servers after it call the same method
+	t.Run("cancels the currency pair's orders", func(t *testing.T) {
+		if !mockTests {
+			t.Skip("CancelAllByCurrencyPair is not tested live, as " + derivativesTradingSkipCancelAll)
+		}
+		resp, err := e.GlobalDerivatives().CancelAllByCurrencyPair(t.Context(), mockDerivativesCancelAllByCurrencyPairRequest())
+		require.NoError(t, err, "CancelAllByCurrencyPair must not error")
+		assert.Equal(t, &DerivativesCancelAllResponse{CancelledCount: 4}, resp, "CancelAllByCurrencyPair should decode the count")
+	})
 
 	_, err = newResponseServerExchange(t, derivativesTradingNullResult).GlobalDerivatives().CancelAllByCurrencyPair(t.Context(), mockDerivativesCancelAllByCurrencyPairRequest())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "CancelAllByCurrencyPair should error for a null result")
@@ -752,7 +770,7 @@ func TestGlobalDerivativesCancelAllByCurrencyPair(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "CancelAllByCurrencyPair should return the request failure")
 }
 
-func TestGlobalDerivativesCancelAllByInstrument(t *testing.T) {
+func TestGlobalDerivativesCancelAllByInstrument(t *testing.T) { //nolint:tparallel // the live case runs before the cases on local servers
 	t.Parallel()
 	_, err := e.GlobalDerivatives().CancelAllByInstrument(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "CancelAllByInstrument must reject a nil request")
@@ -761,12 +779,15 @@ func TestGlobalDerivativesCancelAllByInstrument(t *testing.T) {
 	_, err = e.GlobalDerivatives().CancelAllByInstrument(t.Context(), &DerivativesCancelAllByInstrumentRequest{InstrumentName: "SOL_USDC-PERPETUAL", Type: DerivativesOpenOrderTypeStopAll})
 	require.ErrorIs(t, err, errDerivativesInvalidCancelOrderType, "CancelAllByInstrument must refuse an order type only open orders methods take")
 
-	if !mockTests {
-		t.Skip("CancelAllByInstrument is not tested live, as " + derivativesTradingSkipCancelAll)
-	}
-	resp, err := e.GlobalDerivatives().CancelAllByInstrument(t.Context(), mockDerivativesCancelAllByInstrumentRequest())
-	require.NoError(t, err, "CancelAllByInstrument must not error")
-	assert.Equal(t, &DerivativesCancelAllResponse{CancelledCount: 4}, resp, "CancelAllByInstrument should decode the count")
+	// The live case runs first, as the cases on local servers after it call the same method
+	t.Run("cancels the instrument's orders", func(t *testing.T) {
+		if !mockTests {
+			t.Skip("CancelAllByInstrument is not tested live, as " + derivativesTradingSkipCancelAll)
+		}
+		resp, err := e.GlobalDerivatives().CancelAllByInstrument(t.Context(), mockDerivativesCancelAllByInstrumentRequest())
+		require.NoError(t, err, "CancelAllByInstrument must not error")
+		assert.Equal(t, &DerivativesCancelAllResponse{CancelledCount: 4}, resp, "CancelAllByInstrument should decode the count")
+	})
 
 	_, err = newResponseServerExchange(t, derivativesTradingNullResult).GlobalDerivatives().CancelAllByInstrument(t.Context(), mockDerivativesCancelAllByInstrumentRequest())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "CancelAllByInstrument should error for a null result")
@@ -774,7 +795,7 @@ func TestGlobalDerivativesCancelAllByInstrument(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "CancelAllByInstrument should return the request failure")
 }
 
-func TestGlobalDerivativesCancelAllByKindOrType(t *testing.T) { //nolint:tparallel // the cases share ex and its recording server in order
+func TestGlobalDerivativesCancelAllByKindOrType(t *testing.T) { //nolint:tparallel // the cases share ex and its recording server in order, and the live case runs before the cases on local servers
 	t.Parallel()
 	_, err := e.GlobalDerivatives().CancelAllByKindOrType(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "CancelAllByKindOrType must reject a nil request")
@@ -803,12 +824,15 @@ func TestGlobalDerivativesCancelAllByKindOrType(t *testing.T) { //nolint:tparall
 		})
 	}
 
-	if !mockTests {
-		t.Skip("CancelAllByKindOrType is not tested live, as " + derivativesTradingSkipCancelAll)
-	}
-	resp, err := e.GlobalDerivatives().CancelAllByKindOrType(t.Context(), mockDerivativesCancelAllByKindOrTypeRequest())
-	require.NoError(t, err, "CancelAllByKindOrType must not error")
-	assert.Equal(t, &DerivativesCancelAllResponse{CancelledCount: 4}, resp, "CancelAllByKindOrType should decode the count")
+	// The live case runs first, as the cases on local servers after it call the same method
+	t.Run("cancels orders by kind or type", func(t *testing.T) {
+		if !mockTests {
+			t.Skip("CancelAllByKindOrType is not tested live, as " + derivativesTradingSkipCancelAll)
+		}
+		resp, err := e.GlobalDerivatives().CancelAllByKindOrType(t.Context(), mockDerivativesCancelAllByKindOrTypeRequest())
+		require.NoError(t, err, "CancelAllByKindOrType must not error")
+		assert.Equal(t, &DerivativesCancelAllResponse{CancelledCount: 4}, resp, "CancelAllByKindOrType should decode the count")
+	})
 
 	_, err = newResponseServerExchange(t, derivativesTradingNullResult).GlobalDerivatives().CancelAllByKindOrType(t.Context(), mockDerivativesCancelAllByKindOrTypeRequest())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "CancelAllByKindOrType should error for a null result")
@@ -816,7 +840,7 @@ func TestGlobalDerivativesCancelAllByKindOrType(t *testing.T) { //nolint:tparall
 	assert.ErrorIs(t, err, request.ErrBadStatus, "CancelAllByKindOrType should return the request failure")
 }
 
-func TestGlobalDerivativesCancelByLabel(t *testing.T) {
+func TestGlobalDerivativesCancelByLabel(t *testing.T) { //nolint:tparallel // the live case runs before the cases on local servers
 	t.Parallel()
 	_, err := e.GlobalDerivatives().CancelByLabel(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "CancelByLabel must reject a nil request")
@@ -831,19 +855,22 @@ func TestGlobalDerivativesCancelByLabel(t *testing.T) {
 	require.NoError(t, err, "CancelByLabel must not error with a currency")
 	assert.JSONEq(t, `{"label":"gct","currency":"USDC"}`, string(lastRequest().Params), "CancelByLabel should send the currency in upper case")
 
-	skipLiveUnlessCanManipulate(t)
 	req := mockDerivativesCancelByLabelRequest()
-	if !mockTests {
-		placed, _ := placeDerivativesTradingLiveOrder(t)
-		req = &DerivativesCancelByLabelRequest{Label: placed.Label, Currency: derivativesTradingLiveCurrency}
-	}
-	resp, err := e.GlobalDerivatives().CancelByLabel(t.Context(), req)
-	require.NoError(t, err, "CancelByLabel must not error")
-	if mockTests {
-		assert.Equal(t, &DerivativesCancelAllResponse{CancelledCount: 4}, resp, "CancelByLabel should decode the count")
-	} else {
-		assert.Equal(t, &DerivativesCancelAllResponse{CancelledCount: 1}, resp, "CancelByLabel should cancel the order with the label")
-	}
+	// The live case runs first and may set req, which the cases on local servers then use, as one test ran them in turn
+	t.Run("cancels the orders with the label", func(t *testing.T) {
+		skipLiveUnlessCanManipulate(t)
+		if !mockTests {
+			placed, _ := placeDerivativesTradingLiveOrder(t)
+			req = &DerivativesCancelByLabelRequest{Label: placed.Label, Currency: derivativesTradingLiveCurrency}
+		}
+		resp, err := e.GlobalDerivatives().CancelByLabel(t.Context(), req)
+		require.NoError(t, err, "CancelByLabel must not error")
+		if mockTests {
+			assert.Equal(t, &DerivativesCancelAllResponse{CancelledCount: 4}, resp, "CancelByLabel should decode the count")
+		} else {
+			assert.Equal(t, &DerivativesCancelAllResponse{CancelledCount: 1}, resp, "CancelByLabel should cancel the order with the label")
+		}
+	})
 
 	_, err = newResponseServerExchange(t, derivativesTradingNullResult).GlobalDerivatives().CancelByLabel(t.Context(), req)
 	assert.ErrorIs(t, err, common.ErrNoResponse, "CancelByLabel should error for a null result")
@@ -851,7 +878,7 @@ func TestGlobalDerivativesCancelByLabel(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "CancelByLabel should return the request failure")
 }
 
-func TestGlobalDerivativesClosePosition(t *testing.T) {
+func TestGlobalDerivativesClosePosition(t *testing.T) { //nolint:tparallel // the live case runs before the cases on local servers
 	t.Parallel()
 	_, err := e.GlobalDerivatives().ClosePosition(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "ClosePosition must reject a nil request")
@@ -862,12 +889,15 @@ func TestGlobalDerivativesClosePosition(t *testing.T) {
 	_, err = e.GlobalDerivatives().ClosePosition(t.Context(), &DerivativesClosePositionRequest{InstrumentName: "SOL_USDC-PERPETUAL", Type: DerivativesOrderTypeStopMarket})
 	require.ErrorIs(t, err, errDerivativesInvalidOrderType, "ClosePosition must refuse an order type other than limit or market")
 
-	if !mockTests {
-		t.Skip("ClosePosition is not tested live, as " + derivativesTradingSkipClosePosition)
-	}
-	resp, err := e.GlobalDerivatives().ClosePosition(t.Context(), mockDerivativesClosePositionRequest())
-	require.NoError(t, err, "ClosePosition must not error")
-	assert.Equal(t, testDerivativesPlacedOrderResponse(), resp, "ClosePosition should decode every field")
+	// The live case runs first, as the cases on local servers after it call the same method
+	t.Run("closes the position", func(t *testing.T) {
+		if !mockTests {
+			t.Skip("ClosePosition is not tested live, as " + derivativesTradingSkipClosePosition)
+		}
+		resp, err := e.GlobalDerivatives().ClosePosition(t.Context(), mockDerivativesClosePositionRequest())
+		require.NoError(t, err, "ClosePosition must not error")
+		assert.Equal(t, testDerivativesPlacedOrderResponse(), resp, "ClosePosition should decode every field")
+	})
 
 	_, err = newResponseServerExchange(t, derivativesTradingNullResult).GlobalDerivatives().ClosePosition(t.Context(), mockDerivativesClosePositionRequest())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "ClosePosition should error for a null result")
@@ -875,7 +905,7 @@ func TestGlobalDerivativesClosePosition(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "ClosePosition should return the request failure")
 }
 
-func TestGlobalDerivativesEditOrder(t *testing.T) {
+func TestGlobalDerivativesEditOrder(t *testing.T) { //nolint:tparallel // the live case runs before the cases on local servers
 	t.Parallel()
 	_, err := e.GlobalDerivatives().EditOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "EditOrder must reject a nil request")
@@ -903,19 +933,22 @@ func TestGlobalDerivativesEditOrder(t *testing.T) {
 	exp := `{"order_id":"94166","contracts":15,"price":50000,"post_only":false,"trigger_offset":10,"valid_until":1792368000000,"display_amount":5,"isolated":true,"allocated_margin":12.5}`
 	assert.JSONEq(t, exp, string(sent.Params), "EditOrder should always send post_only and leave an unset MMP flag out, which the gateway refuses changing")
 
-	skipLiveUnlessCanManipulate(t)
 	req := mockDerivativesEditOrderRequest()
-	if !mockTests {
-		placed, order := placeDerivativesTradingLiveOrder(t)
-		req = &DerivativesEditOrderRequest{OrderID: order.OrderID, Amount: placed.Amount, Price: placed.Price - 10, PostOnly: true, RejectPostOnly: true}
-	}
-	resp, err := e.GlobalDerivatives().EditOrder(t.Context(), req)
-	require.NoError(t, err, "EditOrder must not error")
-	if mockTests {
-		assert.Equal(t, testDerivativesEditedOrderResponse(), resp, "EditOrder should decode every field")
-	} else {
-		assert.Equal(t, req.Price, resp.Order.Price.Value, "EditOrder should reprice the order")
-	}
+	// The live case runs first and may set req, which the cases on local servers then use, as one test ran them in turn
+	t.Run("reprices the order", func(t *testing.T) {
+		skipLiveUnlessCanManipulate(t)
+		if !mockTests {
+			placed, order := placeDerivativesTradingLiveOrder(t)
+			req = &DerivativesEditOrderRequest{OrderID: order.OrderID, Amount: placed.Amount, Price: placed.Price - 10, PostOnly: true, RejectPostOnly: true}
+		}
+		resp, err := e.GlobalDerivatives().EditOrder(t.Context(), req)
+		require.NoError(t, err, "EditOrder must not error")
+		if mockTests {
+			assert.Equal(t, testDerivativesEditedOrderResponse(), resp, "EditOrder should decode every field")
+		} else {
+			assert.Equal(t, req.Price, resp.Order.Price.Value, "EditOrder should reprice the order")
+		}
+	})
 
 	_, err = newResponseServerExchange(t, derivativesTradingNullResult).GlobalDerivatives().EditOrder(t.Context(), req)
 	assert.ErrorIs(t, err, common.ErrNoResponse, "EditOrder should error for a null result")
@@ -923,7 +956,7 @@ func TestGlobalDerivativesEditOrder(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "EditOrder should return the request failure")
 }
 
-func TestGlobalDerivativesEditOrderByLabel(t *testing.T) {
+func TestGlobalDerivativesEditOrderByLabel(t *testing.T) { //nolint:tparallel // the live case runs before the cases on local servers
 	t.Parallel()
 	_, err := e.GlobalDerivatives().EditOrderByLabel(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "EditOrderByLabel must reject a nil request")
@@ -941,19 +974,22 @@ func TestGlobalDerivativesEditOrderByLabel(t *testing.T) {
 	assert.Equal(t, "private/edit_by_label", sent.Method, "EditOrderByLabel should call private/edit_by_label")
 	assert.JSONEq(t, `{"instrument_name":"BTC-PERPETUAL","label":"gct","amount":20,"post_only":true,"valid_until":1792368000000,"isolated":true,"allocated_margin":3}`, string(sent.Params), "EditOrderByLabel should send the valid until time in Unix milliseconds")
 
-	skipLiveUnlessCanManipulate(t)
 	req := mockDerivativesEditOrderByLabelRequest()
-	if !mockTests {
-		placed, _ := placeDerivativesTradingLiveOrder(t)
-		req = &DerivativesEditOrderByLabelRequest{InstrumentName: placed.InstrumentName, Label: placed.Label, Amount: placed.Amount, Price: placed.Price - 10, PostOnly: true, RejectPostOnly: true}
-	}
-	resp, err := e.GlobalDerivatives().EditOrderByLabel(t.Context(), req)
-	require.NoError(t, err, "EditOrderByLabel must not error")
-	if mockTests {
-		assert.Equal(t, testDerivativesEditedOrderResponse(), resp, "EditOrderByLabel should decode every field")
-	} else {
-		assert.Equal(t, req.Price, resp.Order.Price.Value, "EditOrderByLabel should reprice the order")
-	}
+	// The live case runs first and may set req, which the cases on local servers then use, as one test ran them in turn
+	t.Run("reprices the order with the label", func(t *testing.T) {
+		skipLiveUnlessCanManipulate(t)
+		if !mockTests {
+			placed, _ := placeDerivativesTradingLiveOrder(t)
+			req = &DerivativesEditOrderByLabelRequest{InstrumentName: placed.InstrumentName, Label: placed.Label, Amount: placed.Amount, Price: placed.Price - 10, PostOnly: true, RejectPostOnly: true}
+		}
+		resp, err := e.GlobalDerivatives().EditOrderByLabel(t.Context(), req)
+		require.NoError(t, err, "EditOrderByLabel must not error")
+		if mockTests {
+			assert.Equal(t, testDerivativesEditedOrderResponse(), resp, "EditOrderByLabel should decode every field")
+		} else {
+			assert.Equal(t, req.Price, resp.Order.Price.Value, "EditOrderByLabel should reprice the order")
+		}
+	})
 
 	_, err = newResponseServerExchange(t, derivativesTradingNullResult).GlobalDerivatives().EditOrderByLabel(t.Context(), req)
 	assert.ErrorIs(t, err, common.ErrNoResponse, "EditOrderByLabel should error for a null result")
@@ -961,7 +997,7 @@ func TestGlobalDerivativesEditOrderByLabel(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "EditOrderByLabel should return the request failure")
 }
 
-func TestGlobalDerivativesGetMargins(t *testing.T) {
+func TestGlobalDerivativesGetMargins(t *testing.T) { //nolint:tparallel // the live case runs before the cases on local servers
 	t.Parallel()
 	_, err := e.GlobalDerivatives().GetMargins(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetMargins must reject a nil request")
@@ -970,18 +1006,21 @@ func TestGlobalDerivativesGetMargins(t *testing.T) {
 	_, err = e.GlobalDerivatives().GetMargins(t.Context(), &DerivativesMarginsRequest{InstrumentName: "SOL_USDC-PERPETUAL", Price: 1})
 	require.ErrorIs(t, err, errInvalidAmount, "GetMargins must require an amount")
 
-	skipLiveWithoutCredentials(t)
 	req := mockDerivativesMarginsRequest()
-	if !mockTests {
-		req = &DerivativesMarginsRequest{InstrumentName: derivativesTradingLiveInstrument, Amount: derivativesTradingLiveAmount, Price: getDerivativesTradingLiveTicker(t).MarkPrice}
-	}
-	resp, err := e.GlobalDerivatives().GetMargins(t.Context(), req)
-	require.NoError(t, err, "GetMargins must not error")
-	if mockTests {
-		assert.Equal(t, testDerivativesMarginsResponse(), resp, "GetMargins should decode every field")
-	} else {
-		assert.Positive(t, resp.MaximumPrice, "GetMargins should return the highest buy price")
-	}
+	// The live case runs first and may set req, which the cases on local servers then use, as one test ran them in turn
+	t.Run("returns the margins", func(t *testing.T) {
+		skipLiveWithoutCredentials(t)
+		if !mockTests {
+			req = &DerivativesMarginsRequest{InstrumentName: derivativesTradingLiveInstrument, Amount: derivativesTradingLiveAmount, Price: getDerivativesTradingLiveTicker(t).MarkPrice}
+		}
+		resp, err := e.GlobalDerivatives().GetMargins(t.Context(), req)
+		require.NoError(t, err, "GetMargins must not error")
+		if mockTests {
+			assert.Equal(t, testDerivativesMarginsResponse(), resp, "GetMargins should decode every field")
+		} else {
+			assert.Positive(t, resp.MaximumPrice, "GetMargins should return the highest buy price")
+		}
+	})
 
 	_, err = newResponseServerExchange(t, derivativesTradingNullResult).GlobalDerivatives().GetMargins(t.Context(), req)
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetMargins should error for a null result")
@@ -989,7 +1028,7 @@ func TestGlobalDerivativesGetMargins(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetMargins should return the request failure")
 }
 
-func TestGlobalDerivativesGetMaxOrderSize(t *testing.T) {
+func TestGlobalDerivativesGetMaxOrderSize(t *testing.T) { //nolint:tparallel // the live case runs before the cases on local servers
 	t.Parallel()
 	_, err := e.GlobalDerivatives().GetMaxOrderSize(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetMaxOrderSize must reject a nil request")
@@ -1007,18 +1046,21 @@ func TestGlobalDerivativesGetMaxOrderSize(t *testing.T) {
 	require.NoError(t, err, "GetMaxOrderSize must not error")
 	assert.JSONEq(t, `{"instrument_name":"BTC_USDC-PERPETUAL","subaccount_id":7,"isolated":true,"leverage":5,"taker_fee_rate":0}`, string(lastRequest().Params), "GetMaxOrderSize should send a zero taker fee rate and leave an unset price out")
 
-	skipLiveWithoutCredentials(t)
 	req := mockDerivativesMaxOrderSizeRequest()
-	if !mockTests {
-		req = &DerivativesMaxOrderSizeRequest{InstrumentName: derivativesTradingLiveInstrument}
-	}
-	resp, err := e.GlobalDerivatives().GetMaxOrderSize(t.Context(), req)
-	require.NoError(t, err, "GetMaxOrderSize must not error")
-	if mockTests {
-		assert.Equal(t, testDerivativesMaxOrderSizeResponse(), resp, "GetMaxOrderSize should decode every field")
-	} else {
-		assert.Positive(t, resp.BuyPrice, "GetMaxOrderSize should return the reference buy price")
-	}
+	// The live case runs first and may set req, which the cases on local servers then use, as one test ran them in turn
+	t.Run("returns the maximum order size", func(t *testing.T) {
+		skipLiveWithoutCredentials(t)
+		if !mockTests {
+			req = &DerivativesMaxOrderSizeRequest{InstrumentName: derivativesTradingLiveInstrument}
+		}
+		resp, err := e.GlobalDerivatives().GetMaxOrderSize(t.Context(), req)
+		require.NoError(t, err, "GetMaxOrderSize must not error")
+		if mockTests {
+			assert.Equal(t, testDerivativesMaxOrderSizeResponse(), resp, "GetMaxOrderSize should decode every field")
+		} else {
+			assert.Positive(t, resp.BuyPrice, "GetMaxOrderSize should return the reference buy price")
+		}
+	})
 
 	_, err = newResponseServerExchange(t, derivativesTradingNullResult).GlobalDerivatives().GetMaxOrderSize(t.Context(), req)
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetMaxOrderSize should error for a null result")
@@ -1026,7 +1068,7 @@ func TestGlobalDerivativesGetMaxOrderSize(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetMaxOrderSize should return the request failure")
 }
 
-func TestGlobalDerivativesGetOpenOrders(t *testing.T) {
+func TestGlobalDerivativesGetOpenOrders(t *testing.T) { //nolint:tparallel // the live case runs before the case on a local server
 	t.Parallel()
 	_, err := e.GlobalDerivatives().GetOpenOrders(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetOpenOrders must reject a nil request")
@@ -1040,22 +1082,25 @@ func TestGlobalDerivativesGetOpenOrders(t *testing.T) {
 	require.NoError(t, err, "GetOpenOrders must not error")
 	assert.JSONEq(t, `{"kind":"future","type":"trigger_all","subaccount_id":123456}`, string(lastRequest().Params), "GetOpenOrders should send a subaccount ID")
 
-	skipLiveWithoutCredentials(t)
 	req := mockDerivativesOpenOrdersRequest()
-	if !mockTests {
-		req = &DerivativesOpenOrdersRequest{}
-	}
-	resp, err := e.GlobalDerivatives().GetOpenOrders(t.Context(), req)
-	require.NoError(t, err, "GetOpenOrders must not error")
-	if mockTests {
-		assert.Equal(t, testDerivativesOpenOrders(), resp, "GetOpenOrders should decode every field")
-	}
+	// The live case runs first and may set req, which the case on a local server then uses, as one test ran them in turn
+	t.Run("returns the open orders", func(t *testing.T) {
+		skipLiveWithoutCredentials(t)
+		if !mockTests {
+			req = &DerivativesOpenOrdersRequest{}
+		}
+		resp, err := e.GlobalDerivatives().GetOpenOrders(t.Context(), req)
+		require.NoError(t, err, "GetOpenOrders must not error")
+		if mockTests {
+			assert.Equal(t, testDerivativesOpenOrders(), resp, "GetOpenOrders should decode every field")
+		}
+	})
 
 	_, err = newUnavailableServerExchange(t).GlobalDerivatives().GetOpenOrders(t.Context(), req)
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetOpenOrders should return the request failure")
 }
 
-func TestGlobalDerivativesGetOpenOrdersByCurrency(t *testing.T) {
+func TestGlobalDerivativesGetOpenOrdersByCurrency(t *testing.T) { //nolint:tparallel // the live case runs before the case on a local server
 	t.Parallel()
 	_, err := e.GlobalDerivatives().GetOpenOrdersByCurrency(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetOpenOrdersByCurrency must reject a nil request")
@@ -1071,22 +1116,25 @@ func TestGlobalDerivativesGetOpenOrdersByCurrency(t *testing.T) {
 	require.NoError(t, err, "GetOpenOrdersByCurrency must not error")
 	assert.JSONEq(t, `{"currency":"USDC"}`, string(lastRequest().Params), "GetOpenOrdersByCurrency should send the currency in upper case")
 
-	skipLiveWithoutCredentials(t)
 	req := mockDerivativesOpenOrdersByCurrencyRequest()
-	if !mockTests {
-		req = &DerivativesOpenOrdersByCurrencyRequest{Currency: derivativesTradingLiveCurrency}
-	}
-	resp, err := e.GlobalDerivatives().GetOpenOrdersByCurrency(t.Context(), req)
-	require.NoError(t, err, "GetOpenOrdersByCurrency must not error")
-	if mockTests {
-		assert.Equal(t, testDerivativesOpenOrders(), resp, "GetOpenOrdersByCurrency should decode every field")
-	}
+	// The live case runs first and may set req, which the case on a local server then uses, as one test ran them in turn
+	t.Run("returns the currency's open orders", func(t *testing.T) {
+		skipLiveWithoutCredentials(t)
+		if !mockTests {
+			req = &DerivativesOpenOrdersByCurrencyRequest{Currency: derivativesTradingLiveCurrency}
+		}
+		resp, err := e.GlobalDerivatives().GetOpenOrdersByCurrency(t.Context(), req)
+		require.NoError(t, err, "GetOpenOrdersByCurrency must not error")
+		if mockTests {
+			assert.Equal(t, testDerivativesOpenOrders(), resp, "GetOpenOrdersByCurrency should decode every field")
+		}
+	})
 
 	_, err = newUnavailableServerExchange(t).GlobalDerivatives().GetOpenOrdersByCurrency(t.Context(), req)
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetOpenOrdersByCurrency should return the request failure")
 }
 
-func TestGlobalDerivativesGetOpenOrdersByInstrument(t *testing.T) {
+func TestGlobalDerivativesGetOpenOrdersByInstrument(t *testing.T) { //nolint:tparallel // the live case runs before the case on a local server
 	t.Parallel()
 	_, err := e.GlobalDerivatives().GetOpenOrdersByInstrument(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetOpenOrdersByInstrument must reject a nil request")
@@ -1095,22 +1143,25 @@ func TestGlobalDerivativesGetOpenOrdersByInstrument(t *testing.T) {
 	_, err = e.GlobalDerivatives().GetOpenOrdersByInstrument(t.Context(), &DerivativesOpenOrdersByInstrumentRequest{InstrumentName: derivativesTradingLiveInstrument, Type: DerivativesCancelOrderTypeStop})
 	require.ErrorIs(t, err, errDerivativesInvalidOpenOrderType, "GetOpenOrdersByInstrument must refuse an order type only cancel methods take")
 
-	skipLiveWithoutCredentials(t)
 	req := mockDerivativesOpenOrdersByInstrumentRequest()
-	if !mockTests {
-		req = &DerivativesOpenOrdersByInstrumentRequest{InstrumentName: derivativesTradingLiveInstrument}
-	}
-	resp, err := e.GlobalDerivatives().GetOpenOrdersByInstrument(t.Context(), req)
-	require.NoError(t, err, "GetOpenOrdersByInstrument must not error")
-	if mockTests {
-		assert.Equal(t, testDerivativesOpenOrders(), resp, "GetOpenOrdersByInstrument should decode every field")
-	}
+	// The live case runs first and may set req, which the case on a local server then uses, as one test ran them in turn
+	t.Run("returns the instrument's open orders", func(t *testing.T) {
+		skipLiveWithoutCredentials(t)
+		if !mockTests {
+			req = &DerivativesOpenOrdersByInstrumentRequest{InstrumentName: derivativesTradingLiveInstrument}
+		}
+		resp, err := e.GlobalDerivatives().GetOpenOrdersByInstrument(t.Context(), req)
+		require.NoError(t, err, "GetOpenOrdersByInstrument must not error")
+		if mockTests {
+			assert.Equal(t, testDerivativesOpenOrders(), resp, "GetOpenOrdersByInstrument should decode every field")
+		}
+	})
 
 	_, err = newUnavailableServerExchange(t).GlobalDerivatives().GetOpenOrdersByInstrument(t.Context(), req)
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetOpenOrdersByInstrument should return the request failure")
 }
 
-func TestGlobalDerivativesGetOpenOrdersByLabel(t *testing.T) {
+func TestGlobalDerivativesGetOpenOrdersByLabel(t *testing.T) { //nolint:tparallel // the live case runs before the case on a local server
 	t.Parallel()
 	_, err := e.GlobalDerivatives().GetOpenOrdersByLabel(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetOpenOrdersByLabel must reject a nil request")
@@ -1124,22 +1175,25 @@ func TestGlobalDerivativesGetOpenOrdersByLabel(t *testing.T) {
 	require.NoError(t, err, "GetOpenOrdersByLabel must not error")
 	assert.JSONEq(t, `{"currency":"USDC","label":"gct"}`, string(lastRequest().Params), "GetOpenOrdersByLabel should send the currency in upper case")
 
-	skipLiveWithoutCredentials(t)
 	req := mockDerivativesOpenOrdersByLabelRequest()
-	if !mockTests {
-		req = &DerivativesOpenOrdersByLabelRequest{Currency: derivativesTradingLiveCurrency, Label: "gct-no-orders"}
-	}
-	resp, err := e.GlobalDerivatives().GetOpenOrdersByLabel(t.Context(), req)
-	require.NoError(t, err, "GetOpenOrdersByLabel must not error")
-	if mockTests {
-		assert.Equal(t, testDerivativesOpenOrders(), resp, "GetOpenOrdersByLabel should decode every field")
-	}
+	// The live case runs first and may set req, which the case on a local server then uses, as one test ran them in turn
+	t.Run("returns the label's open orders", func(t *testing.T) {
+		skipLiveWithoutCredentials(t)
+		if !mockTests {
+			req = &DerivativesOpenOrdersByLabelRequest{Currency: derivativesTradingLiveCurrency, Label: "gct-no-orders"}
+		}
+		resp, err := e.GlobalDerivatives().GetOpenOrdersByLabel(t.Context(), req)
+		require.NoError(t, err, "GetOpenOrdersByLabel must not error")
+		if mockTests {
+			assert.Equal(t, testDerivativesOpenOrders(), resp, "GetOpenOrdersByLabel should decode every field")
+		}
+	})
 
 	_, err = newUnavailableServerExchange(t).GlobalDerivatives().GetOpenOrdersByLabel(t.Context(), req)
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetOpenOrdersByLabel should return the request failure")
 }
 
-func TestGlobalDerivativesGetOrderHistoryByCurrency(t *testing.T) {
+func TestGlobalDerivativesGetOrderHistoryByCurrency(t *testing.T) { //nolint:tparallel // the live case runs before the cases on local servers
 	t.Parallel()
 	_, err := e.GlobalDerivatives().GetOrderHistoryByCurrency(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetOrderHistoryByCurrency must reject a nil request")
@@ -1155,18 +1209,21 @@ func TestGlobalDerivativesGetOrderHistoryByCurrency(t *testing.T) {
 	require.NoError(t, err, "GetOrderHistoryByCurrency must not error")
 	assert.JSONEq(t, `{"currency":"USDC","kind":"combo","with_continuation":true,"continuation":"next","historical":true}`, string(lastRequest().Params), "GetOrderHistoryByCurrency should send the currency in upper case")
 
-	skipLiveWithoutCredentials(t)
 	req := mockDerivativesOrderHistoryByCurrencyRequest()
-	if !mockTests {
-		req = &DerivativesOrderHistoryByCurrencyRequest{Currency: derivativesTradingLiveCurrency, Count: 1}
-	}
-	resp, err := e.GlobalDerivatives().GetOrderHistoryByCurrency(t.Context(), req)
-	require.NoError(t, err, "GetOrderHistoryByCurrency must not error")
-	if mockTests {
-		assert.Equal(t, testDerivativesOrderHistoryResponse(), resp, "GetOrderHistoryByCurrency should decode every field")
-	} else {
-		assert.LessOrEqual(t, len(resp.Orders), 1, "GetOrderHistoryByCurrency should return at most the count of orders")
-	}
+	// The live case runs first and may set req, which the cases on local servers then use, as one test ran them in turn
+	t.Run("returns the currency's order history", func(t *testing.T) {
+		skipLiveWithoutCredentials(t)
+		if !mockTests {
+			req = &DerivativesOrderHistoryByCurrencyRequest{Currency: derivativesTradingLiveCurrency, Count: 1}
+		}
+		resp, err := e.GlobalDerivatives().GetOrderHistoryByCurrency(t.Context(), req)
+		require.NoError(t, err, "GetOrderHistoryByCurrency must not error")
+		if mockTests {
+			assert.Equal(t, testDerivativesOrderHistoryResponse(), resp, "GetOrderHistoryByCurrency should decode every field")
+		} else {
+			assert.LessOrEqual(t, len(resp.Orders), 1, "GetOrderHistoryByCurrency should return at most the count of orders")
+		}
+	})
 
 	_, err = newResponseServerExchange(t, derivativesTradingNullResult).GlobalDerivatives().GetOrderHistoryByCurrency(t.Context(), req)
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetOrderHistoryByCurrency should error for a null result")
@@ -1174,7 +1231,7 @@ func TestGlobalDerivativesGetOrderHistoryByCurrency(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetOrderHistoryByCurrency should return the request failure")
 }
 
-func TestGlobalDerivativesGetOrderHistoryByInstrument(t *testing.T) {
+func TestGlobalDerivativesGetOrderHistoryByInstrument(t *testing.T) { //nolint:tparallel // the live case runs before the cases on local servers
 	t.Parallel()
 	_, err := e.GlobalDerivatives().GetOrderHistoryByInstrument(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetOrderHistoryByInstrument must reject a nil request")
@@ -1183,18 +1240,21 @@ func TestGlobalDerivativesGetOrderHistoryByInstrument(t *testing.T) {
 	_, err = e.GlobalDerivatives().GetOrderHistoryByInstrument(t.Context(), &DerivativesOrderHistoryByInstrumentRequest{InstrumentName: derivativesTradingLiveInstrument, Count: derivativesMaximumTradingCount + 1})
 	require.ErrorIs(t, err, errDerivativesInvalidTradingCount, "GetOrderHistoryByInstrument must refuse a count over 1000")
 
-	skipLiveWithoutCredentials(t)
 	req := mockDerivativesOrderHistoryByInstrumentRequest()
-	if !mockTests {
-		req = &DerivativesOrderHistoryByInstrumentRequest{InstrumentName: derivativesTradingLiveInstrument, Count: 1}
-	}
-	resp, err := e.GlobalDerivatives().GetOrderHistoryByInstrument(t.Context(), req)
-	require.NoError(t, err, "GetOrderHistoryByInstrument must not error")
-	if mockTests {
-		assert.Equal(t, testDerivativesOrderHistoryResponse(), resp, "GetOrderHistoryByInstrument should decode every field")
-	} else {
-		assert.LessOrEqual(t, len(resp.Orders), 1, "GetOrderHistoryByInstrument should return at most the count of orders")
-	}
+	// The live case runs first and may set req, which the cases on local servers then use, as one test ran them in turn
+	t.Run("returns the instrument's order history", func(t *testing.T) {
+		skipLiveWithoutCredentials(t)
+		if !mockTests {
+			req = &DerivativesOrderHistoryByInstrumentRequest{InstrumentName: derivativesTradingLiveInstrument, Count: 1}
+		}
+		resp, err := e.GlobalDerivatives().GetOrderHistoryByInstrument(t.Context(), req)
+		require.NoError(t, err, "GetOrderHistoryByInstrument must not error")
+		if mockTests {
+			assert.Equal(t, testDerivativesOrderHistoryResponse(), resp, "GetOrderHistoryByInstrument should decode every field")
+		} else {
+			assert.LessOrEqual(t, len(resp.Orders), 1, "GetOrderHistoryByInstrument should return at most the count of orders")
+		}
+	})
 
 	_, err = newResponseServerExchange(t, derivativesTradingNullResult).GlobalDerivatives().GetOrderHistoryByInstrument(t.Context(), req)
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetOrderHistoryByInstrument should error for a null result")
@@ -1202,7 +1262,7 @@ func TestGlobalDerivativesGetOrderHistoryByInstrument(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetOrderHistoryByInstrument should return the request failure")
 }
 
-func TestGlobalDerivativesGetOrderMarginByIDs(t *testing.T) {
+func TestGlobalDerivativesGetOrderMarginByIDs(t *testing.T) { //nolint:tparallel // the live case runs before the case on a local server
 	t.Parallel()
 	_, err := e.GlobalDerivatives().GetOrderMarginByIDs(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetOrderMarginByIDs must reject a nil request")
@@ -1216,44 +1276,50 @@ func TestGlobalDerivativesGetOrderMarginByIDs(t *testing.T) {
 	require.NoError(t, err, "GetOrderMarginByIDs must not error")
 	assert.JSONEq(t, `{"ids":["SOL_USDC-1"],"isolated":true}`, string(lastRequest().Params), "GetOrderMarginByIDs should send the order IDs as a list")
 
-	skipLiveUnlessCanManipulate(t)
 	req := mockDerivativesOrderMarginByIDsRequest()
-	if !mockTests {
-		_, order := placeDerivativesTradingLiveOrder(t)
-		req = &DerivativesOrderMarginByIDsRequest{OrderIDs: []string{order.OrderID}}
-	}
-	resp, err := e.GlobalDerivatives().GetOrderMarginByIDs(t.Context(), req)
-	require.NoError(t, err, "GetOrderMarginByIDs must not error")
-	if mockTests {
-		assert.Equal(t, testDerivativesOrderMargins(), resp, "GetOrderMarginByIDs should decode every field")
-	} else if assert.Len(t, resp, 1, "GetOrderMarginByIDs should return the order's margin") {
-		assert.Equal(t, req.OrderIDs[0], resp[0].OrderID, "GetOrderMarginByIDs should return the order's margin")
-	}
+	// The live case runs first and may set req, which the case on a local server then uses, as one test ran them in turn
+	t.Run("returns the orders' margins", func(t *testing.T) {
+		skipLiveUnlessCanManipulate(t)
+		if !mockTests {
+			_, order := placeDerivativesTradingLiveOrder(t)
+			req = &DerivativesOrderMarginByIDsRequest{OrderIDs: []string{order.OrderID}}
+		}
+		resp, err := e.GlobalDerivatives().GetOrderMarginByIDs(t.Context(), req)
+		require.NoError(t, err, "GetOrderMarginByIDs must not error")
+		if mockTests {
+			assert.Equal(t, testDerivativesOrderMargins(), resp, "GetOrderMarginByIDs should decode every field")
+		} else if assert.Len(t, resp, 1, "GetOrderMarginByIDs should return the order's margin") {
+			assert.Equal(t, req.OrderIDs[0], resp[0].OrderID, "GetOrderMarginByIDs should return the order's margin")
+		}
+	})
 
 	_, err = newUnavailableServerExchange(t).GlobalDerivatives().GetOrderMarginByIDs(t.Context(), req)
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetOrderMarginByIDs should return the request failure")
 }
 
-func TestGlobalDerivativesGetOrderState(t *testing.T) {
+func TestGlobalDerivativesGetOrderState(t *testing.T) { //nolint:tparallel // the live case runs before the cases on local servers
 	t.Parallel()
 	_, err := e.GlobalDerivatives().GetOrderState(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetOrderState must reject a nil request")
 	_, err = e.GlobalDerivatives().GetOrderState(t.Context(), &DerivativesOrderStateRequest{Isolated: true})
 	require.ErrorIs(t, err, errDerivativesOrderIDRequired, "GetOrderState must require an order ID")
 
-	skipLiveUnlessCanManipulate(t)
 	req := mockDerivativesOrderStateRequest()
-	if !mockTests {
-		_, order := placeDerivativesTradingLiveOrder(t)
-		req = &DerivativesOrderStateRequest{OrderID: order.OrderID}
-	}
-	resp, err := e.GlobalDerivatives().GetOrderState(t.Context(), req)
-	require.NoError(t, err, "GetOrderState must not error")
-	if mockTests {
-		assert.Equal(t, testDerivativesOrderState(""), resp, "GetOrderState should decode every field")
-	} else {
-		assert.Equal(t, req.OrderID, resp.OrderID, "GetOrderState should return the order")
-	}
+	// The live case runs first and may set req, which the cases on local servers then use, as one test ran them in turn
+	t.Run("returns the order's state", func(t *testing.T) {
+		skipLiveUnlessCanManipulate(t)
+		if !mockTests {
+			_, order := placeDerivativesTradingLiveOrder(t)
+			req = &DerivativesOrderStateRequest{OrderID: order.OrderID}
+		}
+		resp, err := e.GlobalDerivatives().GetOrderState(t.Context(), req)
+		require.NoError(t, err, "GetOrderState must not error")
+		if mockTests {
+			assert.Equal(t, testDerivativesOrderState(""), resp, "GetOrderState should decode every field")
+		} else {
+			assert.Equal(t, req.OrderID, resp.OrderID, "GetOrderState should return the order")
+		}
+	})
 
 	_, err = newResponseServerExchange(t, derivativesTradingNullResult).GlobalDerivatives().GetOrderState(t.Context(), req)
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetOrderState should error for a null result")
@@ -1261,7 +1327,7 @@ func TestGlobalDerivativesGetOrderState(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetOrderState should return the request failure")
 }
 
-func TestGlobalDerivativesGetOrderStateByLabel(t *testing.T) {
+func TestGlobalDerivativesGetOrderStateByLabel(t *testing.T) { //nolint:tparallel // the live case runs before the case on a local server
 	t.Parallel()
 	_, err := e.GlobalDerivatives().GetOrderStateByLabel(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetOrderStateByLabel must reject a nil request")
@@ -1275,22 +1341,25 @@ func TestGlobalDerivativesGetOrderStateByLabel(t *testing.T) {
 	require.NoError(t, err, "GetOrderStateByLabel must not error")
 	assert.JSONEq(t, `{"currency":"ETH","label":"gct"}`, string(lastRequest().Params), "GetOrderStateByLabel should send the currency in upper case")
 
-	skipLiveWithoutCredentials(t)
 	req := mockDerivativesOrderStateByLabelRequest()
-	if !mockTests {
-		req = &DerivativesOrderStateByLabelRequest{Currency: derivativesTradingLiveCurrency, Label: "gct-no-orders"}
-	}
-	resp, err := e.GlobalDerivatives().GetOrderStateByLabel(t.Context(), req)
-	require.NoError(t, err, "GetOrderStateByLabel must not error")
-	if mockTests {
-		assert.Equal(t, []DerivativesOrderResponse{*testDerivativesOrderState("fooBar")}, resp, "GetOrderStateByLabel should decode every field")
-	}
+	// The live case runs first and may set req, which the case on a local server then uses, as one test ran them in turn
+	t.Run("returns the label's order states", func(t *testing.T) {
+		skipLiveWithoutCredentials(t)
+		if !mockTests {
+			req = &DerivativesOrderStateByLabelRequest{Currency: derivativesTradingLiveCurrency, Label: "gct-no-orders"}
+		}
+		resp, err := e.GlobalDerivatives().GetOrderStateByLabel(t.Context(), req)
+		require.NoError(t, err, "GetOrderStateByLabel must not error")
+		if mockTests {
+			assert.Equal(t, []DerivativesOrderResponse{*testDerivativesOrderState("fooBar")}, resp, "GetOrderStateByLabel should decode every field")
+		}
+	})
 
 	_, err = newUnavailableServerExchange(t).GlobalDerivatives().GetOrderStateByLabel(t.Context(), req)
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetOrderStateByLabel should return the request failure")
 }
 
-func TestGlobalDerivativesGetSettlementHistoryByCurrency(t *testing.T) {
+func TestGlobalDerivativesGetSettlementHistoryByCurrency(t *testing.T) { //nolint:tparallel // the live case runs before the cases on local servers
 	t.Parallel()
 	_, err := e.GlobalDerivatives().GetSettlementHistoryByCurrency(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetSettlementHistoryByCurrency must reject a nil request")
@@ -1306,18 +1375,21 @@ func TestGlobalDerivativesGetSettlementHistoryByCurrency(t *testing.T) {
 	require.NoError(t, err, "GetSettlementHistoryByCurrency must not error")
 	assert.JSONEq(t, `{"currency":"USDC","type":"delivery","search_start_timestamp":1792368000000}`, string(lastRequest().Params), "GetSettlementHistoryByCurrency should send the search start time in Unix milliseconds")
 
-	skipLiveWithoutCredentials(t)
 	req := mockDerivativesSettlementHistoryByCurrencyRequest()
-	if !mockTests {
-		req = &DerivativesSettlementHistoryByCurrencyRequest{Currency: derivativesTradingLiveCurrency, Count: 1}
-	}
-	resp, err := e.GlobalDerivatives().GetSettlementHistoryByCurrency(t.Context(), req)
-	require.NoError(t, err, "GetSettlementHistoryByCurrency must not error")
-	if mockTests {
-		assert.Equal(t, testDerivativesSettlementHistoryResponse(), resp, "GetSettlementHistoryByCurrency should decode every field")
-	} else {
-		assert.LessOrEqual(t, len(resp.Settlements), 1, "GetSettlementHistoryByCurrency should return at most the count of events")
-	}
+	// The live case runs first and may set req, which the cases on local servers then use, as one test ran them in turn
+	t.Run("returns the currency's settlement history", func(t *testing.T) {
+		skipLiveWithoutCredentials(t)
+		if !mockTests {
+			req = &DerivativesSettlementHistoryByCurrencyRequest{Currency: derivativesTradingLiveCurrency, Count: 1}
+		}
+		resp, err := e.GlobalDerivatives().GetSettlementHistoryByCurrency(t.Context(), req)
+		require.NoError(t, err, "GetSettlementHistoryByCurrency must not error")
+		if mockTests {
+			assert.Equal(t, testDerivativesSettlementHistoryResponse(), resp, "GetSettlementHistoryByCurrency should decode every field")
+		} else {
+			assert.LessOrEqual(t, len(resp.Settlements), 1, "GetSettlementHistoryByCurrency should return at most the count of events")
+		}
+	})
 
 	_, err = newResponseServerExchange(t, derivativesTradingNullResult).GlobalDerivatives().GetSettlementHistoryByCurrency(t.Context(), req)
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetSettlementHistoryByCurrency should error for a null result")
@@ -1325,7 +1397,7 @@ func TestGlobalDerivativesGetSettlementHistoryByCurrency(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetSettlementHistoryByCurrency should return the request failure")
 }
 
-func TestGlobalDerivativesGetSettlementHistoryByInstrument(t *testing.T) {
+func TestGlobalDerivativesGetSettlementHistoryByInstrument(t *testing.T) { //nolint:tparallel // the live case runs before the cases on local servers
 	t.Parallel()
 	_, err := e.GlobalDerivatives().GetSettlementHistoryByInstrument(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetSettlementHistoryByInstrument must reject a nil request")
@@ -1341,18 +1413,21 @@ func TestGlobalDerivativesGetSettlementHistoryByInstrument(t *testing.T) {
 	require.NoError(t, err, "GetSettlementHistoryByInstrument must not error")
 	assert.JSONEq(t, `{"instrument_name":"BTC_USDC-PERPETUAL","continuation":"next","search_start_timestamp":1792368000000}`, string(lastRequest().Params), "GetSettlementHistoryByInstrument should send the search start time in Unix milliseconds")
 
-	skipLiveWithoutCredentials(t)
 	req := mockDerivativesSettlementHistoryByInstrumentRequest()
-	if !mockTests {
-		req = &DerivativesSettlementHistoryByInstrumentRequest{InstrumentName: derivativesTradingLiveInstrument, Count: 1}
-	}
-	resp, err := e.GlobalDerivatives().GetSettlementHistoryByInstrument(t.Context(), req)
-	require.NoError(t, err, "GetSettlementHistoryByInstrument must not error")
-	if mockTests {
-		assert.Equal(t, testDerivativesSettlementHistoryResponse(), resp, "GetSettlementHistoryByInstrument should decode every field")
-	} else {
-		assert.LessOrEqual(t, len(resp.Settlements), 1, "GetSettlementHistoryByInstrument should return at most the count of events")
-	}
+	// The live case runs first and may set req, which the cases on local servers then use, as one test ran them in turn
+	t.Run("returns the instrument's settlement history", func(t *testing.T) {
+		skipLiveWithoutCredentials(t)
+		if !mockTests {
+			req = &DerivativesSettlementHistoryByInstrumentRequest{InstrumentName: derivativesTradingLiveInstrument, Count: 1}
+		}
+		resp, err := e.GlobalDerivatives().GetSettlementHistoryByInstrument(t.Context(), req)
+		require.NoError(t, err, "GetSettlementHistoryByInstrument must not error")
+		if mockTests {
+			assert.Equal(t, testDerivativesSettlementHistoryResponse(), resp, "GetSettlementHistoryByInstrument should decode every field")
+		} else {
+			assert.LessOrEqual(t, len(resp.Settlements), 1, "GetSettlementHistoryByInstrument should return at most the count of events")
+		}
+	})
 
 	_, err = newResponseServerExchange(t, derivativesTradingNullResult).GlobalDerivatives().GetSettlementHistoryByInstrument(t.Context(), req)
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetSettlementHistoryByInstrument should error for a null result")
@@ -1360,7 +1435,7 @@ func TestGlobalDerivativesGetSettlementHistoryByInstrument(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetSettlementHistoryByInstrument should return the request failure")
 }
 
-func TestGlobalDerivativesGetTriggerOrderHistory(t *testing.T) {
+func TestGlobalDerivativesGetTriggerOrderHistory(t *testing.T) { //nolint:tparallel // the live case runs before the cases on local servers
 	t.Parallel()
 	_, err := e.GlobalDerivatives().GetTriggerOrderHistory(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetTriggerOrderHistory must reject a nil request")
@@ -1374,18 +1449,21 @@ func TestGlobalDerivativesGetTriggerOrderHistory(t *testing.T) {
 	require.NoError(t, err, "GetTriggerOrderHistory must not error")
 	assert.JSONEq(t, `{"currency":"USDC","continuation":"next"}`, string(lastRequest().Params), "GetTriggerOrderHistory should send the currency in upper case")
 
-	skipLiveWithoutCredentials(t)
 	req := mockDerivativesTriggerOrderHistoryRequest()
-	if !mockTests {
-		req = &DerivativesTriggerOrderHistoryRequest{Currency: derivativesTradingLiveCurrency, Count: 1}
-	}
-	resp, err := e.GlobalDerivatives().GetTriggerOrderHistory(t.Context(), req)
-	require.NoError(t, err, "GetTriggerOrderHistory must not error")
-	if mockTests {
-		assert.Equal(t, testDerivativesTriggerOrderHistoryResponse(), resp, "GetTriggerOrderHistory should decode every field")
-	} else {
-		assert.LessOrEqual(t, len(resp.Entries), 1, "GetTriggerOrderHistory should return at most the count of entries")
-	}
+	// The live case runs first and may set req, which the cases on local servers then use, as one test ran them in turn
+	t.Run("returns the trigger order history", func(t *testing.T) {
+		skipLiveWithoutCredentials(t)
+		if !mockTests {
+			req = &DerivativesTriggerOrderHistoryRequest{Currency: derivativesTradingLiveCurrency, Count: 1}
+		}
+		resp, err := e.GlobalDerivatives().GetTriggerOrderHistory(t.Context(), req)
+		require.NoError(t, err, "GetTriggerOrderHistory must not error")
+		if mockTests {
+			assert.Equal(t, testDerivativesTriggerOrderHistoryResponse(), resp, "GetTriggerOrderHistory should decode every field")
+		} else {
+			assert.LessOrEqual(t, len(resp.Entries), 1, "GetTriggerOrderHistory should return at most the count of entries")
+		}
+	})
 
 	_, err = newResponseServerExchange(t, derivativesTradingNullResult).GlobalDerivatives().GetTriggerOrderHistory(t.Context(), req)
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetTriggerOrderHistory should error for a null result")
@@ -1393,7 +1471,7 @@ func TestGlobalDerivativesGetTriggerOrderHistory(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetTriggerOrderHistory should return the request failure")
 }
 
-func TestGlobalDerivativesGetUserTradesByCurrency(t *testing.T) {
+func TestGlobalDerivativesGetUserTradesByCurrency(t *testing.T) { //nolint:tparallel // the live case runs before the cases on local servers
 	t.Parallel()
 	_, err := e.GlobalDerivatives().GetUserTradesByCurrency(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetUserTradesByCurrency must reject a nil request")
@@ -1413,18 +1491,21 @@ func TestGlobalDerivativesGetUserTradesByCurrency(t *testing.T) {
 	require.NoError(t, err, "GetUserTradesByCurrency must not error")
 	assert.JSONEq(t, `{"currency":"USDC","start_id":"USDC-1","end_id":"USDC-9","end_timestamp":1792368000000,"historical":true,"subaccount_id":123456}`, string(lastRequest().Params), "GetUserTradesByCurrency should send a set end time alone, in Unix milliseconds")
 
-	skipLiveWithoutCredentials(t)
 	req := mockDerivativesUserTradesByCurrencyRequest()
-	if !mockTests {
-		req = &DerivativesUserTradesByCurrencyRequest{Currency: derivativesTradingLiveCurrency, Count: 1}
-	}
-	resp, err := e.GlobalDerivatives().GetUserTradesByCurrency(t.Context(), req)
-	require.NoError(t, err, "GetUserTradesByCurrency must not error")
-	if mockTests {
-		assert.Equal(t, testDerivativesUserTradesResponse(), resp, "GetUserTradesByCurrency should decode every field")
-	} else {
-		assert.LessOrEqual(t, len(resp.Trades), 1, "GetUserTradesByCurrency should return at most the count of trades")
-	}
+	// The live case runs first and may set req, which the cases on local servers then use, as one test ran them in turn
+	t.Run("returns the currency's trades", func(t *testing.T) {
+		skipLiveWithoutCredentials(t)
+		if !mockTests {
+			req = &DerivativesUserTradesByCurrencyRequest{Currency: derivativesTradingLiveCurrency, Count: 1}
+		}
+		resp, err := e.GlobalDerivatives().GetUserTradesByCurrency(t.Context(), req)
+		require.NoError(t, err, "GetUserTradesByCurrency must not error")
+		if mockTests {
+			assert.Equal(t, testDerivativesUserTradesResponse(), resp, "GetUserTradesByCurrency should decode every field")
+		} else {
+			assert.LessOrEqual(t, len(resp.Trades), 1, "GetUserTradesByCurrency should return at most the count of trades")
+		}
+	})
 
 	_, err = newResponseServerExchange(t, derivativesTradingNullResult).GlobalDerivatives().GetUserTradesByCurrency(t.Context(), req)
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetUserTradesByCurrency should error for a null result")
@@ -1432,7 +1513,7 @@ func TestGlobalDerivativesGetUserTradesByCurrency(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetUserTradesByCurrency should return the request failure")
 }
 
-func TestGlobalDerivativesGetUserTradesByCurrencyAndTime(t *testing.T) {
+func TestGlobalDerivativesGetUserTradesByCurrencyAndTime(t *testing.T) { //nolint:tparallel // the live case runs before the cases on local servers
 	t.Parallel()
 	_, err := e.GlobalDerivatives().GetUserTradesByCurrencyAndTime(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetUserTradesByCurrencyAndTime must reject a nil request")
@@ -1454,18 +1535,21 @@ func TestGlobalDerivativesGetUserTradesByCurrencyAndTime(t *testing.T) {
 	require.NoError(t, err, "GetUserTradesByCurrencyAndTime must not error")
 	assert.JSONEq(t, `{"currency":"USDC","kind":"future","start_timestamp":1792368000000,"sorting":"default","subaccount_id":123456}`, string(lastRequest().Params), "GetUserTradesByCurrencyAndTime should send a set start time alone, in Unix milliseconds")
 
-	skipLiveWithoutCredentials(t)
 	req := mockDerivativesUserTradesByCurrencyAndTimeRequest()
-	if !mockTests {
-		req = &DerivativesUserTradesByCurrencyAndTimeRequest{Currency: derivativesTradingLiveCurrency, StartTime: time.Now().Add(-24 * time.Hour), EndTime: time.Now(), Count: 1}
-	}
-	resp, err := e.GlobalDerivatives().GetUserTradesByCurrencyAndTime(t.Context(), req)
-	require.NoError(t, err, "GetUserTradesByCurrencyAndTime must not error")
-	if mockTests {
-		assert.Equal(t, testDerivativesUserTradesResponse(), resp, "GetUserTradesByCurrencyAndTime should decode every field")
-	} else {
-		assert.LessOrEqual(t, len(resp.Trades), 1, "GetUserTradesByCurrencyAndTime should return at most the count of trades")
-	}
+	// The live case runs first and may set req, which the cases on local servers then use, as one test ran them in turn
+	t.Run("returns the currency's trades in the window", func(t *testing.T) {
+		skipLiveWithoutCredentials(t)
+		if !mockTests {
+			req = &DerivativesUserTradesByCurrencyAndTimeRequest{Currency: derivativesTradingLiveCurrency, StartTime: time.Now().Add(-24 * time.Hour), EndTime: time.Now(), Count: 1}
+		}
+		resp, err := e.GlobalDerivatives().GetUserTradesByCurrencyAndTime(t.Context(), req)
+		require.NoError(t, err, "GetUserTradesByCurrencyAndTime must not error")
+		if mockTests {
+			assert.Equal(t, testDerivativesUserTradesResponse(), resp, "GetUserTradesByCurrencyAndTime should decode every field")
+		} else {
+			assert.LessOrEqual(t, len(resp.Trades), 1, "GetUserTradesByCurrencyAndTime should return at most the count of trades")
+		}
+	})
 
 	_, err = newResponseServerExchange(t, derivativesTradingNullResult).GlobalDerivatives().GetUserTradesByCurrencyAndTime(t.Context(), req)
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetUserTradesByCurrencyAndTime should error for a null result")
@@ -1473,7 +1557,7 @@ func TestGlobalDerivativesGetUserTradesByCurrencyAndTime(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetUserTradesByCurrencyAndTime should return the request failure")
 }
 
-func TestGlobalDerivativesGetUserTradesByInstrument(t *testing.T) {
+func TestGlobalDerivativesGetUserTradesByInstrument(t *testing.T) { //nolint:tparallel // the live case runs before the cases on local servers
 	t.Parallel()
 	_, err := e.GlobalDerivatives().GetUserTradesByInstrument(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetUserTradesByInstrument must reject a nil request")
@@ -1491,18 +1575,21 @@ func TestGlobalDerivativesGetUserTradesByInstrument(t *testing.T) {
 	require.NoError(t, err, "GetUserTradesByInstrument must not error")
 	assert.JSONEq(t, `{"instrument_name":"BTC_USDC-PERPETUAL","start_seq":3,"end_seq":9,"start_timestamp":1792368000000,"end_timestamp":1792371600000}`, string(lastRequest().Params), "GetUserTradesByInstrument should send the time range in Unix milliseconds")
 
-	skipLiveWithoutCredentials(t)
 	req := mockDerivativesUserTradesByInstrumentRequest()
-	if !mockTests {
-		req = &DerivativesUserTradesByInstrumentRequest{InstrumentName: derivativesTradingLiveInstrument, Count: 1}
-	}
-	resp, err := e.GlobalDerivatives().GetUserTradesByInstrument(t.Context(), req)
-	require.NoError(t, err, "GetUserTradesByInstrument must not error")
-	if mockTests {
-		assert.Equal(t, testDerivativesUserTradesResponse(), resp, "GetUserTradesByInstrument should decode every field")
-	} else {
-		assert.LessOrEqual(t, len(resp.Trades), 1, "GetUserTradesByInstrument should return at most the count of trades")
-	}
+	// The live case runs first and may set req, which the cases on local servers then use, as one test ran them in turn
+	t.Run("returns the instrument's trades", func(t *testing.T) {
+		skipLiveWithoutCredentials(t)
+		if !mockTests {
+			req = &DerivativesUserTradesByInstrumentRequest{InstrumentName: derivativesTradingLiveInstrument, Count: 1}
+		}
+		resp, err := e.GlobalDerivatives().GetUserTradesByInstrument(t.Context(), req)
+		require.NoError(t, err, "GetUserTradesByInstrument must not error")
+		if mockTests {
+			assert.Equal(t, testDerivativesUserTradesResponse(), resp, "GetUserTradesByInstrument should decode every field")
+		} else {
+			assert.LessOrEqual(t, len(resp.Trades), 1, "GetUserTradesByInstrument should return at most the count of trades")
+		}
+	})
 
 	_, err = newResponseServerExchange(t, derivativesTradingNullResult).GlobalDerivatives().GetUserTradesByInstrument(t.Context(), req)
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetUserTradesByInstrument should error for a null result")
@@ -1510,7 +1597,7 @@ func TestGlobalDerivativesGetUserTradesByInstrument(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetUserTradesByInstrument should return the request failure")
 }
 
-func TestGlobalDerivativesGetUserTradesByInstrumentAndTime(t *testing.T) {
+func TestGlobalDerivativesGetUserTradesByInstrumentAndTime(t *testing.T) { //nolint:tparallel // the live case runs before the cases on local servers
 	t.Parallel()
 	_, err := e.GlobalDerivatives().GetUserTradesByInstrumentAndTime(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetUserTradesByInstrumentAndTime must reject a nil request")
@@ -1530,18 +1617,21 @@ func TestGlobalDerivativesGetUserTradesByInstrumentAndTime(t *testing.T) {
 	require.NoError(t, err, "GetUserTradesByInstrumentAndTime must not error")
 	assert.JSONEq(t, `{"instrument_name":"BTC_USDC-PERPETUAL","end_timestamp":1792371600000,"historical":true}`, string(lastRequest().Params), "GetUserTradesByInstrumentAndTime should send a set end time alone, in Unix milliseconds")
 
-	skipLiveWithoutCredentials(t)
 	req := mockDerivativesUserTradesByInstrumentAndTimeRequest()
-	if !mockTests {
-		req = &DerivativesUserTradesByInstrumentAndTimeRequest{InstrumentName: derivativesTradingLiveInstrument, StartTime: time.Now().Add(-24 * time.Hour), EndTime: time.Now(), Count: 1}
-	}
-	resp, err := e.GlobalDerivatives().GetUserTradesByInstrumentAndTime(t.Context(), req)
-	require.NoError(t, err, "GetUserTradesByInstrumentAndTime must not error")
-	if mockTests {
-		assert.Equal(t, testDerivativesUserTradesResponse(), resp, "GetUserTradesByInstrumentAndTime should decode every field")
-	} else {
-		assert.LessOrEqual(t, len(resp.Trades), 1, "GetUserTradesByInstrumentAndTime should return at most the count of trades")
-	}
+	// The live case runs first and may set req, which the cases on local servers then use, as one test ran them in turn
+	t.Run("returns the instrument's trades in the window", func(t *testing.T) {
+		skipLiveWithoutCredentials(t)
+		if !mockTests {
+			req = &DerivativesUserTradesByInstrumentAndTimeRequest{InstrumentName: derivativesTradingLiveInstrument, StartTime: time.Now().Add(-24 * time.Hour), EndTime: time.Now(), Count: 1}
+		}
+		resp, err := e.GlobalDerivatives().GetUserTradesByInstrumentAndTime(t.Context(), req)
+		require.NoError(t, err, "GetUserTradesByInstrumentAndTime must not error")
+		if mockTests {
+			assert.Equal(t, testDerivativesUserTradesResponse(), resp, "GetUserTradesByInstrumentAndTime should decode every field")
+		} else {
+			assert.LessOrEqual(t, len(resp.Trades), 1, "GetUserTradesByInstrumentAndTime should return at most the count of trades")
+		}
+	})
 
 	_, err = newResponseServerExchange(t, derivativesTradingNullResult).GlobalDerivatives().GetUserTradesByInstrumentAndTime(t.Context(), req)
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetUserTradesByInstrumentAndTime should error for a null result")
@@ -1549,7 +1639,7 @@ func TestGlobalDerivativesGetUserTradesByInstrumentAndTime(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetUserTradesByInstrumentAndTime should return the request failure")
 }
 
-func TestGlobalDerivativesGetUserTradesByOrder(t *testing.T) {
+func TestGlobalDerivativesGetUserTradesByOrder(t *testing.T) { //nolint:tparallel // the live case runs before the case on a local server
 	t.Parallel()
 	_, err := e.GlobalDerivatives().GetUserTradesByOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetUserTradesByOrder must reject a nil request")
@@ -1563,25 +1653,28 @@ func TestGlobalDerivativesGetUserTradesByOrder(t *testing.T) {
 	require.NoError(t, err, "GetUserTradesByOrder must not error")
 	assert.JSONEq(t, `{"order_id":"SOL_USDC-1","historical":true,"subaccount_id":123456,"isolated":true}`, string(lastRequest().Params), "GetUserTradesByOrder should send the isolated flag")
 
-	skipLiveUnlessCanManipulate(t)
 	req := mockDerivativesUserTradesByOrderRequest()
-	if !mockTests {
-		_, order := placeDerivativesTradingLiveOrder(t)
-		req = &DerivativesUserTradesByOrderRequest{OrderID: order.OrderID}
-	}
-	resp, err := e.GlobalDerivatives().GetUserTradesByOrder(t.Context(), req)
-	require.NoError(t, err, "GetUserTradesByOrder must not error")
-	if mockTests {
-		assert.Equal(t, testDerivativesUserTradesByOrder(), resp, "GetUserTradesByOrder should decode every field")
-	} else {
-		assert.Empty(t, resp, "GetUserTradesByOrder should return no trades for an unfilled order")
-	}
+	// The live case runs first and may set req, which the case on a local server then uses, as one test ran them in turn
+	t.Run("returns the order's trades", func(t *testing.T) {
+		skipLiveUnlessCanManipulate(t)
+		if !mockTests {
+			_, order := placeDerivativesTradingLiveOrder(t)
+			req = &DerivativesUserTradesByOrderRequest{OrderID: order.OrderID}
+		}
+		resp, err := e.GlobalDerivatives().GetUserTradesByOrder(t.Context(), req)
+		require.NoError(t, err, "GetUserTradesByOrder must not error")
+		if mockTests {
+			assert.Equal(t, testDerivativesUserTradesByOrder(), resp, "GetUserTradesByOrder should decode every field")
+		} else {
+			assert.Empty(t, resp, "GetUserTradesByOrder should return no trades for an unfilled order")
+		}
+	})
 
 	_, err = newUnavailableServerExchange(t).GlobalDerivatives().GetUserTradesByOrder(t.Context(), req)
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetUserTradesByOrder should return the request failure")
 }
 
-func TestGlobalDerivativesSell(t *testing.T) {
+func TestGlobalDerivativesSell(t *testing.T) { //nolint:tparallel // the live case runs before the cases on local servers
 	t.Parallel()
 	_, err := e.GlobalDerivatives().Sell(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "Sell must reject a nil request")
@@ -1597,18 +1690,21 @@ func TestGlobalDerivativesSell(t *testing.T) {
 	assert.Equal(t, "private/sell", sent.Method, "Sell should call private/sell")
 	assert.JSONEq(t, `{"instrument_name":"BTC_USDC-PERPETUAL","amount":0.001,"type":"trailing_stop","post_only":false,"reduce_only":true,"trigger_offset":100,"trigger":"mark_price"}`, string(sent.Params), "Sell should send a trailing stop's offset and trigger")
 
-	skipLiveUnlessCanManipulate(t)
 	req := mockDerivativesSellRequest()
-	if !mockTests {
-		req = newDerivativesTradingLiveOrderRequest(t, DerivativesDirectionSell)
-	}
-	resp, err := e.GlobalDerivatives().Sell(t.Context(), req)
-	require.NoError(t, err, "Sell must not error")
-	if mockTests {
-		assert.Equal(t, testDerivativesPlacedOrderResponse(), resp, "Sell should decode every field")
-	} else {
-		assert.Equal(t, DerivativesOrderStateOpen, resp.Order.OrderState, "Sell should place a resting order")
-	}
+	// The live case runs first and may set req, which the cases on local servers then use, as one test ran them in turn
+	t.Run("places a sell order", func(t *testing.T) {
+		skipLiveUnlessCanManipulate(t)
+		if !mockTests {
+			req = newDerivativesTradingLiveOrderRequest(t, DerivativesDirectionSell)
+		}
+		resp, err := e.GlobalDerivatives().Sell(t.Context(), req)
+		require.NoError(t, err, "Sell must not error")
+		if mockTests {
+			assert.Equal(t, testDerivativesPlacedOrderResponse(), resp, "Sell should decode every field")
+		} else {
+			assert.Equal(t, DerivativesOrderStateOpen, resp.Order.OrderState, "Sell should place a resting order")
+		}
+	})
 
 	_, err = newResponseServerExchange(t, derivativesTradingNullResult).GlobalDerivatives().Sell(t.Context(), req)
 	assert.ErrorIs(t, err, common.ErrNoResponse, "Sell should error for a null result")
@@ -1616,7 +1712,7 @@ func TestGlobalDerivativesSell(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "Sell should return the request failure")
 }
 
-func TestGlobalDerivativesSetLeverage(t *testing.T) {
+func TestGlobalDerivativesSetLeverage(t *testing.T) { //nolint:tparallel // the live case runs before the cases on local servers
 	t.Parallel()
 	_, err := e.GlobalDerivatives().SetLeverage(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "SetLeverage must reject a nil request")
@@ -1625,17 +1721,20 @@ func TestGlobalDerivativesSetLeverage(t *testing.T) {
 	_, err = e.GlobalDerivatives().SetLeverage(t.Context(), &DerivativesSetLeverageRequest{InstrumentName: "SOL_USDC-PERPETUAL", Leverage: new(0.5)})
 	require.ErrorIs(t, err, errDerivativesInvalidLeverage, "SetLeverage must refuse a leverage under 1")
 
-	skipLiveUnlessCanManipulate(t)
-	if !mockTests {
-		assert.Equal(t, 2.0, setDerivativesTradingLiveLeverage(t, e.GlobalDerivatives().SetLeverage), "SetLeverage should return the leverage set")
-		return
-	}
-	leverage, err := e.GlobalDerivatives().SetLeverage(t.Context(), mockDerivativesSetLeverageRequest())
-	require.NoError(t, err, "SetLeverage must not error")
-	assert.Equal(t, 50.0, leverage, "SetLeverage should return the leverage stored")
-	leverage, err = e.GlobalDerivatives().SetLeverage(t.Context(), mockDerivativesRemoveLeverageRequest())
-	require.NoError(t, err, "SetLeverage must not error removing the custom leverage")
-	assert.Zero(t, leverage, "SetLeverage should return zero once the custom leverage is removed")
+	// The live case runs first, as the cases on local servers after it call the same method
+	t.Run("sets and removes the leverage", func(t *testing.T) {
+		skipLiveUnlessCanManipulate(t)
+		if !mockTests {
+			assert.Equal(t, 2.0, setDerivativesTradingLiveLeverage(t, e.GlobalDerivatives().SetLeverage), "SetLeverage should return the leverage set")
+			return
+		}
+		leverage, err := e.GlobalDerivatives().SetLeverage(t.Context(), mockDerivativesSetLeverageRequest())
+		require.NoError(t, err, "SetLeverage must not error")
+		assert.Equal(t, 50.0, leverage, "SetLeverage should return the leverage stored")
+		leverage, err = e.GlobalDerivatives().SetLeverage(t.Context(), mockDerivativesRemoveLeverageRequest())
+		require.NoError(t, err, "SetLeverage must not error removing the custom leverage")
+		assert.Zero(t, leverage, "SetLeverage should return zero once the custom leverage is removed")
+	})
 
 	_, err = newResponseServerExchange(t, derivativesTradingNullResult).GlobalDerivatives().SetLeverage(t.Context(), mockDerivativesSetLeverageRequest())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "SetLeverage should error for a null result to setting a leverage")
@@ -2105,7 +2204,7 @@ func TestValidateDerivativesUserTradesSorting(t *testing.T) {
 func TestValidateDerivativesTradingCount(t *testing.T) {
 	t.Parallel()
 	for _, count := range []uint64{0, 1, derivativesMaximumTradingCount} {
-		t.Run(strconv.FormatUint(count, 10), func(t *testing.T) {
+		t.Run("count "+strconv.FormatUint(count, 10), func(t *testing.T) {
 			t.Parallel()
 			assert.NoErrorf(t, validateDerivativesTradingCount(count), "validateDerivativesTradingCount should accept %d", count)
 		})

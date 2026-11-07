@@ -9,7 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
-func TestGetTransactionSummary(t *testing.T) {
+func TestGetTransactionSummary(t *testing.T) { //nolint:tparallel // the live case runs before the cases on local servers
 	t.Parallel()
 	_, err := e.GetTransactionSummary(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetTransactionSummary must reject a nil request")
@@ -20,65 +20,68 @@ func TestGetTransactionSummary(t *testing.T) {
 	_, err = e.GetTransactionSummary(t.Context(), &TransactionSummaryRequest{ProductVenue: ProductVenueDeribit})
 	require.ErrorIs(t, err, errInvalidTransactionSummaryProductVenue, "GetTransactionSummary must refuse an undocumented product venue")
 
-	skipLiveWithoutCredentials(t)
-	req := &TransactionSummaryRequest{}
-	if mockTests {
-		// The docs' example answers an INTX derivatives request, the only one Coinbase sends venue data for
-		req = &TransactionSummaryRequest{ProductType: ProductTypeFuture, ContractExpiryType: ContractExpiryTypePerpetual, ProductVenue: ProductVenueINTX}
-	}
-	resp, err := e.GetTransactionSummary(t.Context(), req)
-	require.NoError(t, err, "GetTransactionSummary must not error")
-	if mockTests {
-		tier := &FeeTier{
-			PricingTier:        "<$10k",
-			TakerFeeRate:       0.001,
-			MakerFeeRate:       0.002,
-			AssetsOnPlatformTo: 10000,
-			VolumeTypesAndRanges: []VolumeTypesAndRange{
-				{VolumeTypes: []string{VolumeTypeSpot, VolumeTypeUSDerivatives}, VolumeTo: 50000},
-			},
+	// The live case runs first, as the cases on local servers after it call the same method
+	t.Run("returns the transaction summary", func(t *testing.T) {
+		skipLiveWithoutCredentials(t)
+		req := &TransactionSummaryRequest{}
+		if mockTests {
+			// The docs' example answers an INTX derivatives request, the only one Coinbase sends venue data for
+			req = &TransactionSummaryRequest{ProductType: ProductTypeFuture, ContractExpiryType: ContractExpiryTypePerpetual, ProductVenue: ProductVenueINTX}
 		}
-		nextTier := &FeeTier{
-			PricingTier:          "$10k-$50k",
-			TakerFeeRate:         0.0008,
-			MakerFeeRate:         0.0016,
-			AssetsOnPlatformFrom: 10000,
-			AssetsOnPlatformTo:   50000,
-			VolumeTypesAndRanges: []VolumeTypesAndRange{
-				{VolumeTypes: []string{VolumeTypeSpot, VolumeTypeUSDerivatives}, VolumeFrom: 50000, VolumeTo: 100000},
-			},
+		resp, err := e.GetTransactionSummary(t.Context(), req)
+		require.NoError(t, err, "GetTransactionSummary must not error")
+		if mockTests {
+			tier := &FeeTier{
+				PricingTier:        "<$10k",
+				TakerFeeRate:       0.001,
+				MakerFeeRate:       0.002,
+				AssetsOnPlatformTo: 10000,
+				VolumeTypesAndRanges: []VolumeTypesAndRange{
+					{VolumeTypes: []string{VolumeTypeSpot, VolumeTypeUSDerivatives}, VolumeTo: 50000},
+				},
+			}
+			nextTier := &FeeTier{
+				PricingTier:          "$10k-$50k",
+				TakerFeeRate:         0.0008,
+				MakerFeeRate:         0.0016,
+				AssetsOnPlatformFrom: 10000,
+				AssetsOnPlatformTo:   50000,
+				VolumeTypesAndRanges: []VolumeTypesAndRange{
+					{VolumeTypes: []string{VolumeTypeSpot, VolumeTypeUSDerivatives}, VolumeFrom: 50000, VolumeTo: 100000},
+				},
+			}
+			exp := &TransactionSummaryResponse{
+				TotalVolume:             1000,
+				TotalFees:               25,
+				FeeTier:                 *tier,
+				MarginRate:              0.5,
+				GoodsAndServicesTax:     &GoodsAndServicesTax{Rate: 0.1, Type: GoodsAndServicesTaxExclusive},
+				AdvancedTradeOnlyVolume: 1000,
+				AdvancedTradeOnlyFees:   25,
+				CoinbaseProVolume:       1000,
+				CoinbaseProFees:         25,
+				TotalBalance:            1000,
+				VolumeBreakdown:         []FeeTierVolume{{VolumeType: VolumeTypeSpot, Volume: 1000}},
+				FeeTierWithoutPromotion: &FeeTierWithoutPromotion{
+					PricingTier:          "Advanced 3",
+					QualificationType:    FeeTierQualificationTypeSpotVolume,
+					CurrentValue:         25000,
+					NextTierThreshold:    50000,
+					CurrentTier:          tier,
+					NextTier:             nextTier,
+					CurrentTierThreshold: 10000,
+				},
+				DeribitVenueData: &DeribitVenueData{
+					Perpetuals:   &ProductTypeTransactionSummary{TotalVolume: 1000, TotalFees: 25, FeeTier: tier},
+					DatedFutures: &ProductTypeTransactionSummary{TotalVolume: 2000, TotalFees: 50, FeeTier: tier},
+					Options:      &ProductTypeTransactionSummary{TotalVolume: 3000, TotalFees: 75, FeeTier: nextTier},
+				},
+			}
+			assert.Equal(t, exp, resp, "GetTransactionSummary should decode every field")
+		} else {
+			assert.NotEmpty(t, resp.FeeTier.PricingTier, "GetTransactionSummary should return the user's fee tier")
 		}
-		exp := &TransactionSummaryResponse{
-			TotalVolume:             1000,
-			TotalFees:               25,
-			FeeTier:                 *tier,
-			MarginRate:              0.5,
-			GoodsAndServicesTax:     &GoodsAndServicesTax{Rate: 0.1, Type: GoodsAndServicesTaxExclusive},
-			AdvancedTradeOnlyVolume: 1000,
-			AdvancedTradeOnlyFees:   25,
-			CoinbaseProVolume:       1000,
-			CoinbaseProFees:         25,
-			TotalBalance:            1000,
-			VolumeBreakdown:         []FeeTierVolume{{VolumeType: VolumeTypeSpot, Volume: 1000}},
-			FeeTierWithoutPromotion: &FeeTierWithoutPromotion{
-				PricingTier:          "Advanced 3",
-				QualificationType:    FeeTierQualificationTypeSpotVolume,
-				CurrentValue:         25000,
-				NextTierThreshold:    50000,
-				CurrentTier:          tier,
-				NextTier:             nextTier,
-				CurrentTierThreshold: 10000,
-			},
-			DeribitVenueData: &DeribitVenueData{
-				Perpetuals:   &ProductTypeTransactionSummary{TotalVolume: 1000, TotalFees: 25, FeeTier: tier},
-				DatedFutures: &ProductTypeTransactionSummary{TotalVolume: 2000, TotalFees: 50, FeeTier: tier},
-				Options:      &ProductTypeTransactionSummary{TotalVolume: 3000, TotalFees: 75, FeeTier: nextTier},
-			},
-		}
-		assert.Equal(t, exp, resp, "GetTransactionSummary should decode every field")
-	} else {
-		assert.NotEmpty(t, resp.FeeTier.PricingTier, "GetTransactionSummary should return the user's fee tier")
-	}
+	})
 
 	_, err = newJWTCheckingServerExchange(t, `null`).GetTransactionSummary(t.Context(), &TransactionSummaryRequest{})
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetTransactionSummary should error for a null response")

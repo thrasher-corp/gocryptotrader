@@ -72,21 +72,24 @@ func mockComboBooksCreatedCombo() *DerivativesComboResponse {
 	}
 }
 
-func TestGlobalDerivativesCreateCombo(t *testing.T) {
+func TestGlobalDerivativesCreateCombo(t *testing.T) { //nolint:tparallel // the live case runs before the cases on local servers
 	t.Parallel()
 	_, err := e.GlobalDerivatives().CreateCombo(t.Context(), nil)
 	require.ErrorIs(t, err, errDerivativesComboTradesRequired, "CreateCombo must require trades")
 	_, err = e.GlobalDerivatives().CreateCombo(t.Context(), []DerivativesComboTrade{{Amount: 1, Direction: DerivativesDirectionBuy}})
 	require.ErrorIs(t, err, errInstrumentNameRequired, "CreateCombo must require each trade's instrument")
 
-	skipLiveUnlessCanManipulate(t)
-	resp, err := e.GlobalDerivatives().CreateCombo(t.Context(), testComboBooksTrades(t))
-	require.NoError(t, err, "CreateCombo must not error")
-	if mockTests {
-		assert.Equal(t, mockComboBooksCreatedCombo(), resp, "CreateCombo should decode every field")
-	} else {
-		assert.Len(t, resp.Legs, 2, "CreateCombo should return the combo's legs")
-	}
+	// The live case runs first, as the cases on local servers after it call the same method
+	t.Run("creates a combo", func(t *testing.T) {
+		skipLiveUnlessCanManipulate(t)
+		resp, err := e.GlobalDerivatives().CreateCombo(t.Context(), testComboBooksTrades(t))
+		require.NoError(t, err, "CreateCombo must not error")
+		if mockTests {
+			assert.Equal(t, mockComboBooksCreatedCombo(), resp, "CreateCombo should decode every field")
+		} else {
+			assert.Len(t, resp.Legs, 2, "CreateCombo should return the combo's legs")
+		}
+	})
 
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GlobalDerivatives().CreateCombo(t.Context(), mockComboBooksTrades())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "CreateCombo should error for a null result")
@@ -126,7 +129,7 @@ func mockComboBooksLegPrices() *DerivativesLegPricesResponse {
 	}
 }
 
-func TestGlobalDerivativesGetLegPrices(t *testing.T) {
+func TestGlobalDerivativesGetLegPrices(t *testing.T) { //nolint:tparallel // the live case runs before the cases on local servers
 	t.Parallel()
 	_, err := e.GlobalDerivatives().GetLegPrices(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetLegPrices must reject a nil request")
@@ -135,14 +138,17 @@ func TestGlobalDerivativesGetLegPrices(t *testing.T) {
 	_, err = e.GlobalDerivatives().GetLegPrices(t.Context(), &DerivativesLegPricesRequest{Legs: []DerivativesComboTrade{{InstrumentName: mockMarketDataOption, Direction: DerivativesDirectionBuy}}, Price: 0.6})
 	require.ErrorIs(t, err, errInvalidAmount, "GetLegPrices must require each leg's amount")
 
-	skipLiveWithoutCredentials(t)
-	resp, err := e.GlobalDerivatives().GetLegPrices(t.Context(), testComboBooksLegPricesRequest(t))
-	require.NoError(t, err, "GetLegPrices must not error")
-	if mockTests {
-		assert.Equal(t, mockComboBooksLegPrices(), resp, "GetLegPrices should decode every field")
-	} else {
-		assert.Len(t, resp.Legs, 2, "GetLegPrices should return each leg's price")
-	}
+	// The live case runs first, as the cases on local servers after it call the same method
+	t.Run("returns the leg prices", func(t *testing.T) {
+		skipLiveWithoutCredentials(t)
+		resp, err := e.GlobalDerivatives().GetLegPrices(t.Context(), testComboBooksLegPricesRequest(t))
+		require.NoError(t, err, "GetLegPrices must not error")
+		if mockTests {
+			assert.Equal(t, mockComboBooksLegPrices(), resp, "GetLegPrices should decode every field")
+		} else {
+			assert.Len(t, resp.Legs, 2, "GetLegPrices should return each leg's price")
+		}
+	})
 
 	ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		req, ok := readJSONRPC(t, r)

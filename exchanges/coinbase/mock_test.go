@@ -168,9 +168,9 @@ func (v *derivativesVenue) answer(_ testing.TB, msg []byte, conn *gws.Conn) erro
 	if err != nil {
 		return err
 	}
-	if err := conn.WriteMessage(gws.TextMessage, frame); err != nil {
-		return err
-	}
+	// A reply to a client that has closed the connection, as one does when its test ends during a reconnection, goes
+	// nowhere, and reporting it would fail a test that has already finished
+	_ = conn.WriteMessage(gws.TextMessage, frame)
 	return answerErr
 }
 

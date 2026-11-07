@@ -1889,7 +1889,7 @@ func TestGlobalDerivativesGetOrderBookByInstrumentID(t *testing.T) {
 func TestValidateDerivativesOrderBookDepth(t *testing.T) {
 	t.Parallel()
 	for _, depth := range []uint64{0, 1, 3, derivativesMaximumOrderBookDepth} {
-		t.Run(strconv.FormatUint(depth, 10), func(t *testing.T) {
+		t.Run("depth "+strconv.FormatUint(depth, 10), func(t *testing.T) {
 			t.Parallel()
 			assert.NoErrorf(t, validateDerivativesOrderBookDepth(depth), "validateDerivativesOrderBookDepth should accept a depth of %d, which the gateway rounds up", depth)
 		})

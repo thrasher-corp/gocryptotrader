@@ -214,7 +214,7 @@ func testUpdateTradablePairsGatewayOutage(t *testing.T, name string, gateway htt
 	})
 	// The cases share handler, so they run in order
 	for _, gatewayEnabled := range []bool{false, true} {
-		t.Run(strconv.FormatBool(gatewayEnabled), func(t *testing.T) {
+		t.Run("gateway enabled "+strconv.FormatBool(gatewayEnabled), func(t *testing.T) {
 			ex := newTestServerExchange(t, handler)
 			for _, a := range []asset.Item{asset.USDCMarginedFutures, asset.CoinMarginedFutures} {
 				require.NoErrorf(t, ex.CurrencyPairs.SetAssetEnabled(a, gatewayEnabled), "SetAssetEnabled must not error for %s", a)
@@ -399,7 +399,7 @@ func TestUpdateTickers(t *testing.T) {
 		})
 		// The cases share handler, so they run in order
 		for _, stored := range []bool{false, true} {
-			t.Run(strconv.FormatBool(stored), func(t *testing.T) {
+			t.Run("ticker stored "+strconv.FormatBool(stored), func(t *testing.T) {
 				ex := newTestServerExchange(t, handler)
 				require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{currency.NewBTCUSD()}, false), "StorePairs must not error for available pairs")
 				require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{currency.NewBTCUSD()}, true), "StorePairs must not error for enabled pairs")
@@ -1507,7 +1507,7 @@ func TestRefuseRiskControls(t *testing.T) {
 	}
 	assert.ErrorIs(t, refuseRiskControls(&order.RiskManagementModes{Mode: "partial"}, 0), common.ErrFunctionNotSupported, "refuseRiskControls should refuse a take profit and stop loss mode")
 	for _, slippage := range []float64{math.SmallestNonzeroFloat64, 0.005, -0.005, math.NaN(), math.Inf(-1)} {
-		t.Run(strconv.FormatFloat(slippage, 'g', -1, 64), func(t *testing.T) {
+		t.Run("slippage "+strconv.FormatFloat(slippage, 'g', -1, 64), func(t *testing.T) {
 			t.Parallel()
 			assert.ErrorIsf(t, refuseRiskControls(&order.RiskManagementModes{}, slippage), common.ErrFunctionNotSupported, "refuseRiskControls should refuse a slippage tolerance of %v", slippage)
 		})
@@ -2038,7 +2038,7 @@ func TestModifyOrder(t *testing.T) {
 					amount, price, triggerPrice float64
 				}{{"nothing", 0, 0, 0}, {"amount alone", g.amount, 0, 0}, {"amount, price and trigger price", g.amount, 81000, 85000}}
 				for _, byLabel := range []bool{false, true} {
-					t.Run(strconv.FormatBool(byLabel), func(t *testing.T) {
+					t.Run("by label "+strconv.FormatBool(byLabel), func(t *testing.T) {
 						for _, tif := range timesInForce {
 							t.Run(subtestName(tif.String()), func(t *testing.T) {
 								for _, change := range changes {
@@ -3097,9 +3097,12 @@ func TestCancelAllOrders(t *testing.T) {
 			_, err := w.Write([]byte(body))
 			assert.NoError(t, err, "writing the response should not error")
 		}))
+		// The cases share ex and cancelled, which the check after them reads, so they run in order
 		for _, a := range []asset.Item{asset.Spot, asset.Futures} {
-			_, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: a, Type: order.Limit})
-			require.NoErrorf(t, err, "CancelAllOrders must not error for %s", a)
+			t.Run(a.String(), func(t *testing.T) {
+				_, err := ex.CancelAllOrders(t.Context(), &order.Cancel{AssetType: a, Type: order.Limit})
+				require.NoErrorf(t, err, "CancelAllOrders must not error for %s", a)
+			})
 		}
 		mu.Lock()
 		defer mu.Unlock()

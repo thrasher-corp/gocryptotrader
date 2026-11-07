@@ -979,48 +979,54 @@ func TestDerivativesAccountCurrency(t *testing.T) {
 	assert.ErrorIs(t, err, errDerivativesInvalidAccountCurrency, "derivativesAccountCurrency should refuse a currency the method does not document")
 }
 
-func TestGlobalDerivativesChangeMarginModel(t *testing.T) {
+func TestGlobalDerivativesChangeMarginModel(t *testing.T) { //nolint:tparallel // the live case runs before the case on a local server
 	t.Parallel()
 	_, err := e.GlobalDerivatives().ChangeMarginModel(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "ChangeMarginModel must reject a nil request")
 	_, err = e.GlobalDerivatives().ChangeMarginModel(t.Context(), &DerivativesChangeMarginModelRequest{MarginModel: "cross"})
 	require.ErrorIs(t, err, errDerivativesInvalidMarginModel, "ChangeMarginModel must reject an undocumented margin model")
 
-	// The live request is a dry run, which changes nothing, but needs the trade scope
-	skipLiveUnlessCanManipulate(t)
 	arg := testDerivativesChangeMarginModelRequest()
-	if !mockTests {
-		arg = liveDerivativesChangeMarginModelRequest()
-	}
-	resp, err := e.GlobalDerivatives().ChangeMarginModel(t.Context(), arg)
-	require.NoError(t, err, "ChangeMarginModel must not error")
-	if mockTests {
-		assert.Equal(t, testDerivativesMarginModelChanges(), resp, "ChangeMarginModel should decode every field")
-	} else {
-		assert.NotEmpty(t, resp, "ChangeMarginModel should return the change's effect on each currency")
-	}
+	// The live case runs first and may set arg, which the case on a local server then uses, as one test ran them in turn
+	t.Run("dry runs a margin model change", func(t *testing.T) {
+		// The live request is a dry run, which changes nothing, but needs the trade scope
+		skipLiveUnlessCanManipulate(t)
+		if !mockTests {
+			arg = liveDerivativesChangeMarginModelRequest()
+		}
+		resp, err := e.GlobalDerivatives().ChangeMarginModel(t.Context(), arg)
+		require.NoError(t, err, "ChangeMarginModel must not error")
+		if mockTests {
+			assert.Equal(t, testDerivativesMarginModelChanges(), resp, "ChangeMarginModel should decode every field")
+		} else {
+			assert.NotEmpty(t, resp, "ChangeMarginModel should return the change's effect on each currency")
+		}
+	})
 
 	_, err = newUnavailableServerExchange(t).GlobalDerivatives().ChangeMarginModel(t.Context(), arg)
 	assert.ErrorIs(t, err, request.ErrBadStatus, "ChangeMarginModel should return the request failure")
 }
 
-func TestGlobalDerivativesGetAccessLog(t *testing.T) {
+func TestGlobalDerivativesGetAccessLog(t *testing.T) { //nolint:tparallel // the live case runs before the cases on local servers
 	t.Parallel()
 	_, err := e.GlobalDerivatives().GetAccessLog(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetAccessLog must reject a nil request")
 
-	skipLiveWithoutCredentials(t)
-	resp, err := e.GlobalDerivatives().GetAccessLog(t.Context(), &DerivativesGetAccessLogRequest{Count: testDerivativesAccessLogCount})
-	if mockTests {
-		require.NoError(t, err, "GetAccessLog must not error")
-		assert.Equal(t, testDerivativesAccessLog(), resp, "GetAccessLog should decode every field")
-	} else {
-		// As of October 2026 the gateway answers the HTTP form with HTTP 403 and an HTML page
-		assert.ErrorIs(t, err, request.ErrBadStatus, "GetAccessLog should be refused over HTTP")
-	}
+	// The live case runs first, as the cases on local servers after it call the same method
+	t.Run("requests the access log", func(t *testing.T) {
+		skipLiveWithoutCredentials(t)
+		resp, err := e.GlobalDerivatives().GetAccessLog(t.Context(), &DerivativesGetAccessLogRequest{Count: testDerivativesAccessLogCount})
+		if mockTests {
+			require.NoError(t, err, "GetAccessLog must not error")
+			assert.Equal(t, testDerivativesAccessLog(), resp, "GetAccessLog should decode every field")
+		} else {
+			// As of October 2026 the gateway answers the HTTP form with HTTP 403 and an HTML page
+			assert.ErrorIs(t, err, request.ErrBadStatus, "GetAccessLog should be refused over HTTP")
+		}
+	})
 
 	ex, sent := newDerivativesAccountParamsServer(t, `[]`)
-	resp, err = ex.GlobalDerivatives().GetAccessLog(t.Context(), &DerivativesGetAccessLogRequest{Offset: 10, Count: 1000})
+	resp, err := ex.GlobalDerivatives().GetAccessLog(t.Context(), &DerivativesGetAccessLogRequest{Offset: 10, Count: 1000})
 	require.NoError(t, err, "GetAccessLog must not error for a bare list of entries")
 	assert.Equal(t, &DerivativesAccessLogResponse{Entries: []DerivativesAccessLogEntry{}}, resp, "GetAccessLog should decode the bare list the schema documents")
 	params := sent()
@@ -1071,19 +1077,22 @@ func TestDerivativesAccessLogResponseUnmarshalJSON(t *testing.T) {
 	}
 }
 
-func TestGlobalDerivativesGetAccountSummaries(t *testing.T) {
+func TestGlobalDerivativesGetAccountSummaries(t *testing.T) { //nolint:tparallel // the live case runs before the cases on local servers
 	t.Parallel()
 	_, err := e.GlobalDerivatives().GetAccountSummaries(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetAccountSummaries must reject a nil request")
 
-	skipLiveWithoutCredentials(t)
-	resp, err := e.GlobalDerivatives().GetAccountSummaries(t.Context(), &DerivativesGetAccountSummariesRequest{Extended: true, IncludeIsolated: true})
-	require.NoError(t, err, "GetAccountSummaries must not error")
-	if mockTests {
-		assert.Equal(t, testDerivativesAccountSummaries(), resp, "GetAccountSummaries should decode every field")
-	} else {
-		assert.NotEmpty(t, resp.Summaries, "GetAccountSummaries should return a summary for each currency")
-	}
+	// The live case runs first, as the cases on local servers after it call the same method
+	t.Run("returns each currency's summary", func(t *testing.T) {
+		skipLiveWithoutCredentials(t)
+		resp, err := e.GlobalDerivatives().GetAccountSummaries(t.Context(), &DerivativesGetAccountSummariesRequest{Extended: true, IncludeIsolated: true})
+		require.NoError(t, err, "GetAccountSummaries must not error")
+		if mockTests {
+			assert.Equal(t, testDerivativesAccountSummaries(), resp, "GetAccountSummaries should decode every field")
+		} else {
+			assert.NotEmpty(t, resp.Summaries, "GetAccountSummaries should return a summary for each currency")
+		}
+	})
 
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GlobalDerivatives().GetAccountSummaries(t.Context(), &DerivativesGetAccountSummariesRequest{})
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetAccountSummaries should error for a null result")
@@ -1091,7 +1100,7 @@ func TestGlobalDerivativesGetAccountSummaries(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetAccountSummaries should return the request failure")
 }
 
-func TestGlobalDerivativesGetAccountSummary(t *testing.T) {
+func TestGlobalDerivativesGetAccountSummary(t *testing.T) { //nolint:tparallel // the live case runs before the cases on local servers
 	t.Parallel()
 	_, err := e.GlobalDerivatives().GetAccountSummary(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetAccountSummary must reject a nil request")
@@ -1100,18 +1109,21 @@ func TestGlobalDerivativesGetAccountSummary(t *testing.T) {
 	_, err = e.GlobalDerivatives().GetAccountSummary(t.Context(), &DerivativesGetAccountSummaryRequest{Currency: currency.LTC})
 	require.ErrorIs(t, err, errDerivativesInvalidAccountCurrency, "GetAccountSummary must refuse a currency the method does not document")
 
-	skipLiveWithoutCredentials(t)
 	arg := &DerivativesGetAccountSummaryRequest{Currency: currency.BTC, Extended: true}
-	if !mockTests {
-		arg.Currency = currency.USDC
-	}
-	resp, err := e.GlobalDerivatives().GetAccountSummary(t.Context(), arg)
-	require.NoError(t, err, "GetAccountSummary must not error")
-	if mockTests {
-		assert.Equal(t, testDerivativesAccountSummary(), resp, "GetAccountSummary should decode every field")
-	} else {
-		assert.True(t, resp.Currency.Equal(currency.USDC), "GetAccountSummary should return the currency asked for")
-	}
+	// The live case runs first and may set arg, which the cases on local servers then use, as one test ran them in turn
+	t.Run("returns the currency's summary", func(t *testing.T) {
+		skipLiveWithoutCredentials(t)
+		if !mockTests {
+			arg.Currency = currency.USDC
+		}
+		resp, err := e.GlobalDerivatives().GetAccountSummary(t.Context(), arg)
+		require.NoError(t, err, "GetAccountSummary must not error")
+		if mockTests {
+			assert.Equal(t, testDerivativesAccountSummary(), resp, "GetAccountSummary should decode every field")
+		} else {
+			assert.True(t, resp.Currency.Equal(currency.USDC), "GetAccountSummary should return the currency asked for")
+		}
+	})
 
 	// The wallet currencies are documented for the account summary alone among the currency methods
 	ex, sent := newDerivativesAccountParamsServer(t, `{"currency":"SOL"}`)
@@ -1189,27 +1201,30 @@ func TestDerivativesMatchingEngineLimitsUnmarshalJSON(t *testing.T) {
 	}
 }
 
-func TestGlobalDerivativesGetLeverage(t *testing.T) {
+func TestGlobalDerivativesGetLeverage(t *testing.T) { //nolint:tparallel // the live case runs before the cases on local servers
 	t.Parallel()
 	_, err := e.GlobalDerivatives().GetLeverage(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetLeverage must reject a nil request")
 
-	skipLiveWithoutCredentials(t)
 	arg := &DerivativesGetLeverageRequest{InstrumentName: testDerivativesAccountInstrument}
-	if !mockTests {
-		arg.InstrumentName = "BTC_USDC-PERPETUAL"
-	}
-	resp, err := e.GlobalDerivatives().GetLeverage(t.Context(), arg)
-	require.NoError(t, err, "GetLeverage must not error")
-	if mockTests {
-		assert.Equal(t, testDerivativesLeverages(), resp, "GetLeverage should decode every field")
-	} else {
-		require.Len(t, resp, 1, "GetLeverage must return the instrument's leverage")
-		assert.Positive(t, resp[0].MaximumLeverage, "GetLeverage should return the maximum leverage")
-	}
+	// The live case runs first and may set arg, which the cases on local servers then use, as one test ran them in turn
+	t.Run("returns the instrument's leverage", func(t *testing.T) {
+		skipLiveWithoutCredentials(t)
+		if !mockTests {
+			arg.InstrumentName = "BTC_USDC-PERPETUAL"
+		}
+		resp, err := e.GlobalDerivatives().GetLeverage(t.Context(), arg)
+		require.NoError(t, err, "GetLeverage must not error")
+		if mockTests {
+			assert.Equal(t, testDerivativesLeverages(), resp, "GetLeverage should decode every field")
+		} else {
+			require.Len(t, resp, 1, "GetLeverage must return the instrument's leverage")
+			assert.Positive(t, resp[0].MaximumLeverage, "GetLeverage should return the maximum leverage")
+		}
+	})
 
 	ex, sent := newDerivativesAccountParamsServer(t, `[{"instrument_name":"SOL_USDC-PERPETUAL","leverage":5,"max_leverage":50}]`)
-	resp, err = ex.GlobalDerivatives().GetLeverage(t.Context(), &DerivativesGetLeverageRequest{Isolated: true})
+	resp, err := ex.GlobalDerivatives().GetLeverage(t.Context(), &DerivativesGetLeverageRequest{Isolated: true})
 	require.NoError(t, err, "GetLeverage must not error for every future")
 	assert.Equal(t, []DerivativesLeverageResponse{{InstrumentName: "SOL_USDC-PERPETUAL", Leverage: 5, MaximumLeverage: 50}}, resp, "GetLeverage should decode the list of futures with a custom leverage")
 	params := sent()
@@ -1257,27 +1272,30 @@ func TestDerivativesLeveragesUnmarshalJSON(t *testing.T) {
 	}
 }
 
-func TestGlobalDerivativesGetPMEParams(t *testing.T) {
+func TestGlobalDerivativesGetPMEParams(t *testing.T) { //nolint:tparallel // the live case runs before the cases on local servers
 	t.Parallel()
 	_, err := e.GlobalDerivatives().GetPMEParams(t.Context(), currency.EMPTYCODE)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "GetPMEParams must require a currency")
 	_, err = e.GlobalDerivatives().GetPMEParams(t.Context(), currency.SOL)
 	require.ErrorIs(t, err, errDerivativesInvalidAccountCurrency, "GetPMEParams must refuse a currency the method does not document")
 
-	skipLiveWithoutCredentials(t)
-	ccy := currency.BTC
-	if !mockTests {
-		ccy = currency.USDC
-	}
-	resp, err := e.GlobalDerivatives().GetPMEParams(t.Context(), ccy)
-	require.NoError(t, err, "GetPMEParams must not error")
-	if mockTests {
-		assert.Equal(t, testDerivativesPMEParams(), resp, "GetPMEParams should decode every field")
-	} else if resp.Enabled {
-		assert.Positive(t, resp.MaximumTotalOpenOrders, "GetPMEParams should return the open order limit with portfolio margin enabled")
-	}
+	// The live case runs first, as the cases on local servers after it call the same method
+	t.Run("returns the portfolio margin parameters", func(t *testing.T) {
+		skipLiveWithoutCredentials(t)
+		ccy := currency.BTC
+		if !mockTests {
+			ccy = currency.USDC
+		}
+		resp, err := e.GlobalDerivatives().GetPMEParams(t.Context(), ccy)
+		require.NoError(t, err, "GetPMEParams must not error")
+		if mockTests {
+			assert.Equal(t, testDerivativesPMEParams(), resp, "GetPMEParams should decode every field")
+		} else if resp.Enabled {
+			assert.Positive(t, resp.MaximumTotalOpenOrders, "GetPMEParams should return the open order limit with portfolio margin enabled")
+		}
+	})
 
-	resp, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":{"enabled":false}}`).GlobalDerivatives().GetPMEParams(t.Context(), currency.USDC)
+	resp, err := newResponseServerExchange(t, `{"jsonrpc":"2.0","result":{"enabled":false}}`).GlobalDerivatives().GetPMEParams(t.Context(), currency.USDC)
 	require.NoError(t, err, "GetPMEParams must not error with portfolio margin disabled")
 	assert.Equal(t, &DerivativesPMEParamsResponse{}, resp, "GetPMEParams should decode a disabled portfolio margin")
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GlobalDerivatives().GetPMEParams(t.Context(), currency.BTC)
@@ -1286,25 +1304,28 @@ func TestGlobalDerivativesGetPMEParams(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetPMEParams should return the request failure")
 }
 
-func TestGlobalDerivativesGetPosition(t *testing.T) {
+func TestGlobalDerivativesGetPosition(t *testing.T) { //nolint:tparallel // the live case runs before the cases on local servers
 	t.Parallel()
 	_, err := e.GlobalDerivatives().GetPosition(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetPosition must reject a nil request")
 	_, err = e.GlobalDerivatives().GetPosition(t.Context(), &DerivativesGetPositionRequest{IncludeIsolated: true})
 	require.ErrorIs(t, err, errInstrumentNameRequired, "GetPosition must require an instrument")
 
-	skipLiveWithoutCredentials(t)
 	arg := &DerivativesGetPositionRequest{InstrumentName: testDerivativesAccountInstrument}
-	if !mockTests {
-		arg.InstrumentName = "BTC_USDC-PERPETUAL"
-	}
-	resp, err := e.GlobalDerivatives().GetPosition(t.Context(), arg)
-	require.NoError(t, err, "GetPosition must not error")
-	if mockTests {
-		assert.Equal(t, testDerivativesPosition(), resp, "GetPosition should decode every field")
-	} else {
-		assert.Equal(t, arg.InstrumentName, resp.InstrumentName, "GetPosition should return the instrument's position")
-	}
+	// The live case runs first and may set arg, which the cases on local servers then use, as one test ran them in turn
+	t.Run("returns the instrument's position", func(t *testing.T) {
+		skipLiveWithoutCredentials(t)
+		if !mockTests {
+			arg.InstrumentName = "BTC_USDC-PERPETUAL"
+		}
+		resp, err := e.GlobalDerivatives().GetPosition(t.Context(), arg)
+		require.NoError(t, err, "GetPosition must not error")
+		if mockTests {
+			assert.Equal(t, testDerivativesPosition(), resp, "GetPosition should decode every field")
+		} else {
+			assert.Equal(t, arg.InstrumentName, resp.InstrumentName, "GetPosition should return the instrument's position")
+		}
+	})
 
 	ex, sent := newDerivativesAccountParamsServer(t, `{"instrument_name":"SOL_USDC-PERPETUAL","isolated":true}`)
 	_, err = ex.GlobalDerivatives().GetPosition(t.Context(), &DerivativesGetPositionRequest{InstrumentName: "SOL_USDC-PERPETUAL", IncludeIsolated: true})
@@ -1319,7 +1340,7 @@ func TestGlobalDerivativesGetPosition(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetPosition should return the request failure")
 }
 
-func TestGlobalDerivativesGetPositions(t *testing.T) {
+func TestGlobalDerivativesGetPositions(t *testing.T) { //nolint:tparallel // the live case runs before the cases on local servers, and the request cases share ex in order
 	t.Parallel()
 	_, err := e.GlobalDerivatives().GetPositions(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetPositions must reject a nil request")
@@ -1328,36 +1349,45 @@ func TestGlobalDerivativesGetPositions(t *testing.T) {
 	_, err = e.GlobalDerivatives().GetPositions(t.Context(), &DerivativesGetPositionsRequest{Kind: DerivativesKindSpot})
 	require.ErrorIs(t, err, errDerivativesInvalidPositionKind, "GetPositions must refuse spot, which has no positions")
 
-	skipLiveWithoutCredentials(t)
 	arg := &DerivativesGetPositionsRequest{Currency: currency.BTC, Kind: DerivativesKindFuture}
-	if !mockTests {
-		arg.Currency = currency.USDC
-	}
-	resp, err := e.GlobalDerivatives().GetPositions(t.Context(), arg)
-	require.NoError(t, err, "GetPositions must not error")
-	if mockTests {
-		assert.Equal(t, testDerivativesPositions(), resp, "GetPositions should decode every field")
-	} else {
-		for i := range resp {
-			assert.Equal(t, DerivativesKindFuture, resp[i].Kind, "GetPositions should return future positions")
+	// The live case runs first and may set arg, which the cases on local servers then use, as one test ran them in turn
+	t.Run("returns the positions", func(t *testing.T) {
+		skipLiveWithoutCredentials(t)
+		if !mockTests {
+			arg.Currency = currency.USDC
 		}
-	}
+		resp, err := e.GlobalDerivatives().GetPositions(t.Context(), arg)
+		require.NoError(t, err, "GetPositions must not error")
+		if mockTests {
+			assert.Equal(t, testDerivativesPositions(), resp, "GetPositions should decode every field")
+		} else {
+			for i := range resp {
+				assert.Equal(t, DerivativesKindFuture, resp[i].Kind, "GetPositions should return future positions")
+			}
+		}
 
-	arg = &DerivativesGetPositionsRequest{Currency: currency.NewCode(DerivativesCurrencyAny), IncludeIsolated: true}
-	resp, err = e.GlobalDerivatives().GetPositions(t.Context(), arg)
-	require.NoError(t, err, "GetPositions must not error for every currency")
-	if mockTests {
-		assert.Equal(t, testDerivativesIsolatedPositions(), resp, "GetPositions should decode an isolated margin position")
-	}
+		arg = &DerivativesGetPositionsRequest{Currency: currency.NewCode(DerivativesCurrencyAny), IncludeIsolated: true}
+		resp, err = e.GlobalDerivatives().GetPositions(t.Context(), arg)
+		require.NoError(t, err, "GetPositions must not error for every currency")
+		if mockTests {
+			assert.Equal(t, testDerivativesIsolatedPositions(), resp, "GetPositions should decode an isolated margin position")
+		}
+	})
 
 	ex, sent := newDerivativesAccountParamsServer(t, `[]`)
-	for _, req := range []*DerivativesGetPositionsRequest{
-		{Currency: currency.NewCode("ANY"), Kind: DerivativesKindOption},
-		{Currency: currency.NewCode("usdt"), SubaccountID: testDerivativesAccountIsolatedSubaccountID},
-		{},
+	// The cases share ex, whose requests the check after them reads in order, so they run in order
+	for _, tc := range []struct {
+		name string
+		req  *DerivativesGetPositionsRequest
+	}{
+		{"any option", &DerivativesGetPositionsRequest{Currency: currency.NewCode("ANY"), Kind: DerivativesKindOption}},
+		{"usdt subaccount", &DerivativesGetPositionsRequest{Currency: currency.NewCode("usdt"), SubaccountID: testDerivativesAccountIsolatedSubaccountID}},
+		{"empty", &DerivativesGetPositionsRequest{}},
 	} {
-		_, err = ex.GlobalDerivatives().GetPositions(t.Context(), req)
-		require.NoError(t, err, "GetPositions must not error")
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := ex.GlobalDerivatives().GetPositions(t.Context(), tc.req)
+			require.NoErrorf(t, err, "GetPositions must not error for the %s request", tc.name)
+		})
 	}
 	assert.Equal(t, []string{`{"currency":"any","kind":"option"}`, `{"currency":"USDT","subaccount_id":123456}`, `{}`}, sent(), "GetPositions should send any in lower case, other currencies in upper case and leave an empty currency out")
 
@@ -1365,20 +1395,23 @@ func TestGlobalDerivativesGetPositions(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetPositions should return the request failure")
 }
 
-func TestGlobalDerivativesGetRiskProfile(t *testing.T) {
+func TestGlobalDerivativesGetRiskProfile(t *testing.T) { //nolint:tparallel // the live case runs before the cases on local servers
 	t.Parallel()
-	skipLiveWithoutCredentials(t)
-	resp, err := e.GlobalDerivatives().GetRiskProfile(t.Context())
-	require.NoError(t, err, "GetRiskProfile must not error")
-	if mockTests {
-		exp := &DerivativesRiskProfileResponse{
-			PortfolioMarginingAllowed: true,
-			ShortOptionAllowed:        true,
+	// The live case runs first, as the cases on local servers after it call the same method
+	t.Run("returns the risk profile", func(t *testing.T) {
+		skipLiveWithoutCredentials(t)
+		resp, err := e.GlobalDerivatives().GetRiskProfile(t.Context())
+		require.NoError(t, err, "GetRiskProfile must not error")
+		if mockTests {
+			exp := &DerivativesRiskProfileResponse{
+				PortfolioMarginingAllowed: true,
+				ShortOptionAllowed:        true,
+			}
+			assert.Equal(t, exp, resp, "GetRiskProfile should decode every field")
 		}
-		assert.Equal(t, exp, resp, "GetRiskProfile should decode every field")
-	}
+	})
 
-	resp, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":{"max_leverage":20,"portfolio_margining_allowed":false,"short_option_allowed":false}}`).GlobalDerivatives().GetRiskProfile(t.Context())
+	resp, err := newResponseServerExchange(t, `{"jsonrpc":"2.0","result":{"max_leverage":20,"portfolio_margining_allowed":false,"short_option_allowed":false}}`).GlobalDerivatives().GetRiskProfile(t.Context())
 	require.NoError(t, err, "GetRiskProfile must not error for a leverage ceiling")
 	assert.Equal(t, &DerivativesRiskProfileResponse{MaximumLeverage: 20}, resp, "GetRiskProfile should decode the leverage ceiling")
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GlobalDerivatives().GetRiskProfile(t.Context())
@@ -1387,33 +1420,36 @@ func TestGlobalDerivativesGetRiskProfile(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetRiskProfile should return the request failure")
 }
 
-func TestGlobalDerivativesGetSubaccounts(t *testing.T) {
+func TestGlobalDerivativesGetSubaccounts(t *testing.T) { //nolint:tparallel // the live case runs before the case on a local server
 	t.Parallel()
 	_, err := e.GlobalDerivatives().GetSubaccounts(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetSubaccounts must reject a nil request")
 
-	skipLiveWithoutCredentials(t)
-	resp, err := e.GlobalDerivatives().GetSubaccounts(t.Context(), &DerivativesGetSubaccountsRequest{WithPortfolio: true})
-	require.NoError(t, err, "GetSubaccounts must not error")
-	if mockTests {
-		assert.Equal(t, testDerivativesSubaccounts(), resp, "GetSubaccounts should decode every field")
-	} else {
-		assert.NotEmpty(t, resp, "GetSubaccounts should return the main account")
-	}
+	// The live case runs first, as the case on a local server after it calls the same method
+	t.Run("returns the subaccounts", func(t *testing.T) {
+		skipLiveWithoutCredentials(t)
+		resp, err := e.GlobalDerivatives().GetSubaccounts(t.Context(), &DerivativesGetSubaccountsRequest{WithPortfolio: true})
+		require.NoError(t, err, "GetSubaccounts must not error")
+		if mockTests {
+			assert.Equal(t, testDerivativesSubaccounts(), resp, "GetSubaccounts should decode every field")
+		} else {
+			assert.NotEmpty(t, resp, "GetSubaccounts should return the main account")
+		}
 
-	resp, err = e.GlobalDerivatives().GetSubaccounts(t.Context(), &DerivativesGetSubaccountsRequest{IncludeIsolated: true})
-	require.NoError(t, err, "GetSubaccounts must not error with the isolated margin subaccounts")
-	if mockTests {
-		assert.Equal(t, testDerivativesIsolatedSubaccounts(), resp, "GetSubaccounts should decode the isolated margin fields")
-	} else {
-		assert.NotEmpty(t, resp, "GetSubaccounts should return the main account")
-	}
+		resp, err = e.GlobalDerivatives().GetSubaccounts(t.Context(), &DerivativesGetSubaccountsRequest{IncludeIsolated: true})
+		require.NoError(t, err, "GetSubaccounts must not error with the isolated margin subaccounts")
+		if mockTests {
+			assert.Equal(t, testDerivativesIsolatedSubaccounts(), resp, "GetSubaccounts should decode the isolated margin fields")
+		} else {
+			assert.NotEmpty(t, resp, "GetSubaccounts should return the main account")
+		}
+	})
 
 	_, err = newUnavailableServerExchange(t).GlobalDerivatives().GetSubaccounts(t.Context(), &DerivativesGetSubaccountsRequest{})
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetSubaccounts should return the request failure")
 }
 
-func TestGlobalDerivativesGetSubaccountsDetails(t *testing.T) {
+func TestGlobalDerivativesGetSubaccountsDetails(t *testing.T) { //nolint:tparallel // the live case runs before the cases on local servers
 	t.Parallel()
 	_, err := e.GlobalDerivatives().GetSubaccountsDetails(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetSubaccountsDetails must reject a nil request")
@@ -1422,16 +1458,19 @@ func TestGlobalDerivativesGetSubaccountsDetails(t *testing.T) {
 	_, err = e.GlobalDerivatives().GetSubaccountsDetails(t.Context(), &DerivativesGetSubaccountsDetailsRequest{Currency: currency.SOL})
 	require.ErrorIs(t, err, errDerivativesInvalidAccountCurrency, "GetSubaccountsDetails must refuse a currency the method does not document")
 
-	skipLiveWithoutCredentials(t)
 	arg := &DerivativesGetSubaccountsDetailsRequest{Currency: currency.BTC, WithOpenOrders: true}
-	if !mockTests {
-		arg.Currency = currency.USDC
-	}
-	resp, err := e.GlobalDerivatives().GetSubaccountsDetails(t.Context(), arg)
-	require.NoError(t, err, "GetSubaccountsDetails must not error")
-	if mockTests {
-		assert.Equal(t, testDerivativesSubaccountsDetails(), resp, "GetSubaccountsDetails should decode every field")
-	}
+	// The live case runs first and may set arg, which the cases on local servers then use, as one test ran them in turn
+	t.Run("returns the subaccounts' details", func(t *testing.T) {
+		skipLiveWithoutCredentials(t)
+		if !mockTests {
+			arg.Currency = currency.USDC
+		}
+		resp, err := e.GlobalDerivatives().GetSubaccountsDetails(t.Context(), arg)
+		require.NoError(t, err, "GetSubaccountsDetails must not error")
+		if mockTests {
+			assert.Equal(t, testDerivativesSubaccountsDetails(), resp, "GetSubaccountsDetails should decode every field")
+		}
+	})
 
 	ex, sent := newDerivativesAccountParamsServer(t, `[]`)
 	_, err = ex.GlobalDerivatives().GetSubaccountsDetails(t.Context(), &DerivativesGetSubaccountsDetailsRequest{Currency: currency.NewCode("usdc"), IncludeIsolated: true})
@@ -1444,25 +1483,28 @@ func TestGlobalDerivativesGetSubaccountsDetails(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetSubaccountsDetails should return the request failure")
 }
 
-func TestGlobalDerivativesGetTradingLimits(t *testing.T) {
+func TestGlobalDerivativesGetTradingLimits(t *testing.T) { //nolint:tparallel // the live case runs before the cases on local servers
 	t.Parallel()
 	_, err := e.GlobalDerivatives().GetTradingLimits(t.Context(), currency.EMPTYCODE)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "GetTradingLimits must require a currency")
 	_, err = e.GlobalDerivatives().GetTradingLimits(t.Context(), currency.SOL)
 	require.ErrorIs(t, err, errDerivativesInvalidAccountCurrency, "GetTradingLimits must refuse a currency the method does not document")
 
-	skipLiveWithoutCredentials(t)
-	ccy := currency.BTC
-	if !mockTests {
-		ccy = currency.USDC
-	}
-	resp, err := e.GlobalDerivatives().GetTradingLimits(t.Context(), ccy)
-	require.NoError(t, err, "GetTradingLimits must not error")
-	if mockTests {
-		assert.Equal(t, testDerivativesTradingLimits(), resp, "GetTradingLimits should decode every field")
-	} else {
-		assert.True(t, resp.Currency.Equal(ccy), "GetTradingLimits should return the currency's limits")
-	}
+	// The live case runs first, as the cases on local servers after it call the same method
+	t.Run("returns the trading limits", func(t *testing.T) {
+		skipLiveWithoutCredentials(t)
+		ccy := currency.BTC
+		if !mockTests {
+			ccy = currency.USDC
+		}
+		resp, err := e.GlobalDerivatives().GetTradingLimits(t.Context(), ccy)
+		require.NoError(t, err, "GetTradingLimits must not error")
+		if mockTests {
+			assert.Equal(t, testDerivativesTradingLimits(), resp, "GetTradingLimits should decode every field")
+		} else {
+			assert.True(t, resp.Currency.Equal(ccy), "GetTradingLimits should return the currency's limits")
+		}
+	})
 
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GlobalDerivatives().GetTradingLimits(t.Context(), currency.BTC)
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetTradingLimits should error for a null result")
@@ -1470,7 +1512,7 @@ func TestGlobalDerivativesGetTradingLimits(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetTradingLimits should return the request failure")
 }
 
-func TestGlobalDerivativesGetTransactionLog(t *testing.T) {
+func TestGlobalDerivativesGetTransactionLog(t *testing.T) { //nolint:tparallel // the live case runs before the cases on local servers
 	t.Parallel()
 	_, err := e.GlobalDerivatives().GetTransactionLog(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetTransactionLog must reject a nil request")
@@ -1494,21 +1536,24 @@ func TestGlobalDerivativesGetTransactionLog(t *testing.T) {
 	_, err = e.GlobalDerivatives().GetTransactionLog(t.Context(), arg)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd, "GetTransactionLog must refuse a reversed window")
 
-	skipLiveWithoutCredentials(t)
-	arg = testDerivativesTransactionLogRequest()
-	if !mockTests {
-		arg = liveDerivativesTransactionLogRequest()
-	}
-	resp, err := e.GlobalDerivatives().GetTransactionLog(t.Context(), arg)
-	require.NoError(t, err, "GetTransactionLog must not error")
-	if mockTests {
-		assert.Equal(t, testDerivativesTransactionLog(), resp, "GetTransactionLog should decode every field")
-	} else {
-		assert.LessOrEqual(t, len(resp.Logs), testDerivativesTransactionLogCount, "GetTransactionLog should return at most the entries asked for")
-	}
+	// The live case runs first, as the cases on local servers after it call the same method
+	t.Run("returns the transaction log", func(t *testing.T) {
+		skipLiveWithoutCredentials(t)
+		arg = testDerivativesTransactionLogRequest()
+		if !mockTests {
+			arg = liveDerivativesTransactionLogRequest()
+		}
+		resp, err := e.GlobalDerivatives().GetTransactionLog(t.Context(), arg)
+		require.NoError(t, err, "GetTransactionLog must not error")
+		if mockTests {
+			assert.Equal(t, testDerivativesTransactionLog(), resp, "GetTransactionLog should decode every field")
+		} else {
+			assert.LessOrEqual(t, len(resp.Logs), testDerivativesTransactionLogCount, "GetTransactionLog should return at most the entries asked for")
+		}
+	})
 
 	ex, sent := newDerivativesAccountParamsServer(t, `{"continuation":null,"logs":[]}`)
-	resp, err = ex.GlobalDerivatives().GetTransactionLog(t.Context(), &DerivativesGetTransactionLogRequest{
+	resp, err := ex.GlobalDerivatives().GetTransactionLog(t.Context(), &DerivativesGetTransactionLogRequest{
 		Currency:     currency.NewCode("usde"),
 		StartTime:    time.UnixMilli(testDerivativesTransactionLogStart),
 		EndTime:      time.UnixMilli(testDerivativesTransactionLogEnd),
@@ -1529,25 +1574,28 @@ func TestGlobalDerivativesGetTransactionLog(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetTransactionLog should return the request failure")
 }
 
-func TestGlobalDerivativesGetUserLocks(t *testing.T) {
+func TestGlobalDerivativesGetUserLocks(t *testing.T) { //nolint:tparallel // the live case runs before the cases on local servers
 	t.Parallel()
-	skipLiveWithoutCredentials(t)
-	resp, err := e.GlobalDerivatives().GetUserLocks(t.Context())
-	require.NoError(t, err, "GetUserLocks must not error")
-	if mockTests {
-		assert.Equal(t, testDerivativesUserLocks(), resp, "GetUserLocks should decode every field")
-	} else {
-		assert.NotEmpty(t, resp, "GetUserLocks should return each currency's lock")
-	}
+	// The live case runs first, as the cases on local servers after it call the same method
+	t.Run("returns the user locks", func(t *testing.T) {
+		skipLiveWithoutCredentials(t)
+		resp, err := e.GlobalDerivatives().GetUserLocks(t.Context())
+		require.NoError(t, err, "GetUserLocks must not error")
+		if mockTests {
+			assert.Equal(t, testDerivativesUserLocks(), resp, "GetUserLocks should decode every field")
+		} else {
+			assert.NotEmpty(t, resp, "GetUserLocks should return each currency's lock")
+		}
+	})
 
-	resp, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":[{"currency":"USDC","enabled":true,"message":"locked"}]}`).GlobalDerivatives().GetUserLocks(t.Context())
+	resp, err := newResponseServerExchange(t, `{"jsonrpc":"2.0","result":[{"currency":"USDC","enabled":true,"message":"locked"}]}`).GlobalDerivatives().GetUserLocks(t.Context())
 	require.NoError(t, err, "GetUserLocks must not error for the schema's field name")
 	assert.Equal(t, []DerivativesUserLockResponse{{Currency: currency.USDC, Enabled: true, Message: "locked"}}, resp, "GetUserLocks should decode the lock under the schema's name")
 	_, err = newUnavailableServerExchange(t).GlobalDerivatives().GetUserLocks(t.Context())
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetUserLocks should return the request failure")
 }
 
-func TestGlobalDerivativesPMESimulate(t *testing.T) {
+func TestGlobalDerivativesPMESimulate(t *testing.T) { //nolint:tparallel // the live case runs before the cases on local servers
 	t.Parallel()
 	_, err := e.GlobalDerivatives().PMESimulate(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "PMESimulate must reject a nil request")
@@ -1556,18 +1604,21 @@ func TestGlobalDerivativesPMESimulate(t *testing.T) {
 	_, err = e.GlobalDerivatives().PMESimulate(t.Context(), &DerivativesSimulatePortfolioRequest{Currency: currency.EURR})
 	require.ErrorIs(t, err, errDerivativesInvalidAccountCurrency, "PMESimulate must refuse a currency the method does not document")
 
-	skipLiveWithoutCredentials(t)
 	arg := &DerivativesSimulatePortfolioRequest{Currency: currency.BTC}
-	if !mockTests {
-		arg.Currency = currency.USDC
-	}
-	resp, err := e.GlobalDerivatives().PMESimulate(t.Context(), arg)
-	require.NoError(t, err, "PMESimulate must not error")
-	if mockTests {
-		assert.Equal(t, testDerivativesPMESimulation(), resp, "PMESimulate should decode every field")
-	} else {
-		assert.NotEmpty(t, resp.Margins, "PMESimulate should return the simulated margins")
-	}
+	// The live case runs first and may set arg, which the cases on local servers then use, as one test ran them in turn
+	t.Run("simulates the portfolio margins", func(t *testing.T) {
+		skipLiveWithoutCredentials(t)
+		if !mockTests {
+			arg.Currency = currency.USDC
+		}
+		resp, err := e.GlobalDerivatives().PMESimulate(t.Context(), arg)
+		require.NoError(t, err, "PMESimulate must not error")
+		if mockTests {
+			assert.Equal(t, testDerivativesPMESimulation(), resp, "PMESimulate should decode every field")
+		} else {
+			assert.NotEmpty(t, resp.Margins, "PMESimulate should return the simulated margins")
+		}
+	})
 
 	ex, sent := newDerivativesAccountParamsServer(t, `{}`)
 	_, err = ex.GlobalDerivatives().PMESimulate(t.Context(), &DerivativesSimulatePortfolioRequest{Currency: currency.NewCode("cross"), AddPositions: new(false), SimulatedPositions: map[string]float64{"BTC_USDC-PERPETUAL": -1}})
@@ -1582,7 +1633,7 @@ func TestGlobalDerivativesPMESimulate(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "PMESimulate should return the request failure")
 }
 
-func TestGlobalDerivativesSimulatePortfolio(t *testing.T) {
+func TestGlobalDerivativesSimulatePortfolio(t *testing.T) { //nolint:tparallel // the live case runs before the cases on local servers
 	t.Parallel()
 	_, err := e.GlobalDerivatives().SimulatePortfolio(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "SimulatePortfolio must reject a nil request")
@@ -1591,18 +1642,21 @@ func TestGlobalDerivativesSimulatePortfolio(t *testing.T) {
 	_, err = e.GlobalDerivatives().SimulatePortfolio(t.Context(), &DerivativesSimulatePortfolioRequest{Currency: currency.NewCode("CROSS")})
 	require.ErrorIs(t, err, errDerivativesInvalidAccountCurrency, "SimulatePortfolio must refuse CROSS, which only PMESimulate takes")
 
-	skipLiveWithoutCredentials(t)
-	arg := testDerivativesSimulatePortfolioRequest()
-	if !mockTests {
-		arg = &DerivativesSimulatePortfolioRequest{Currency: currency.USDC, SimulatedPositions: map[string]float64{"BTC_USDC-PERPETUAL": 0.0001}}
-	}
-	resp, err := e.GlobalDerivatives().SimulatePortfolio(t.Context(), arg)
-	require.NoError(t, err, "SimulatePortfolio must not error")
-	if mockTests {
-		assert.Equal(t, testDerivativesSimulatedPortfolio(), resp, "SimulatePortfolio should decode every field")
-	} else {
-		assert.True(t, resp.Currency.Equal(currency.USDC), "SimulatePortfolio should return the simulated currency")
-	}
+	// The live case runs first, as the cases on local servers after it call the same method
+	t.Run("simulates the portfolio", func(t *testing.T) {
+		skipLiveWithoutCredentials(t)
+		arg := testDerivativesSimulatePortfolioRequest()
+		if !mockTests {
+			arg = &DerivativesSimulatePortfolioRequest{Currency: currency.USDC, SimulatedPositions: map[string]float64{"BTC_USDC-PERPETUAL": 0.0001}}
+		}
+		resp, err := e.GlobalDerivatives().SimulatePortfolio(t.Context(), arg)
+		require.NoError(t, err, "SimulatePortfolio must not error")
+		if mockTests {
+			assert.Equal(t, testDerivativesSimulatedPortfolio(), resp, "SimulatePortfolio should decode every field")
+		} else {
+			assert.True(t, resp.Currency.Equal(currency.USDC), "SimulatePortfolio should return the simulated currency")
+		}
+	})
 
 	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GlobalDerivatives().SimulatePortfolio(t.Context(), testDerivativesSimulatePortfolioRequest())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "SimulatePortfolio should error for a null result")

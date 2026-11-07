@@ -9,19 +9,22 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
-func TestGlobalDerivativesGetCancelOnDisconnect(t *testing.T) {
+func TestGlobalDerivativesGetCancelOnDisconnect(t *testing.T) { //nolint:tparallel // the live case runs before the cases on local servers
 	t.Parallel()
-	skipLiveWithoutCredentials(t)
-	resp, err := e.GlobalDerivatives().GetCancelOnDisconnect(t.Context())
-	require.NoError(t, err, "GetCancelOnDisconnect must not error")
-	if mockTests {
-		exp := &DerivativesCancelOnDisconnectResponse{Scope: "account"}
-		assert.Equal(t, exp, resp, "GetCancelOnDisconnect should decode every field")
-	} else {
-		assert.Equal(t, DerivativesCancelOnDisconnectScopeAccount, resp.Scope, "GetCancelOnDisconnect should return the account scope")
-	}
+	// The live case runs first, as the cases on local servers after it call the same method
+	t.Run("returns the cancel on disconnect setting", func(t *testing.T) {
+		skipLiveWithoutCredentials(t)
+		resp, err := e.GlobalDerivatives().GetCancelOnDisconnect(t.Context())
+		require.NoError(t, err, "GetCancelOnDisconnect must not error")
+		if mockTests {
+			exp := &DerivativesCancelOnDisconnectResponse{Scope: "account"}
+			assert.Equal(t, exp, resp, "GetCancelOnDisconnect should decode every field")
+		} else {
+			assert.Equal(t, DerivativesCancelOnDisconnectScopeAccount, resp.Scope, "GetCancelOnDisconnect should return the account scope")
+		}
+	})
 
-	_, err = newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GlobalDerivatives().GetCancelOnDisconnect(t.Context())
+	_, err := newResponseServerExchange(t, `{"jsonrpc":"2.0","result":null}`).GlobalDerivatives().GetCancelOnDisconnect(t.Context())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetCancelOnDisconnect should error for a null result")
 	_, err = newUnavailableServerExchange(t).GlobalDerivatives().GetCancelOnDisconnect(t.Context())
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetCancelOnDisconnect should return the request failure")

@@ -276,11 +276,13 @@ func TestWebsocketHandleLevel2(t *testing.T) {
 	for a, books := range exp {
 		t.Run(a.String(), func(t *testing.T) {
 			for p, want := range books {
-				got, err := ex.Websocket.Orderbook.GetOrderbook(p, a)
-				require.NoErrorf(t, err, "GetOrderbook must not error for %s %s", a, p)
-				assert.Equalf(t, want.bids, got.Bids, "the %s %s book's bids should be its snapshot's with its updates applied", a, p)
-				assert.Equalf(t, want.asks, got.Asks, "the %s %s book's asks should be its snapshot's with its updates applied", a, p)
-				assert.Equalf(t, want.lastUpdated, got.LastUpdated, "the %s %s book should be updated as its last message was sent", a, p)
+				t.Run(p.String(), func(t *testing.T) {
+					got, err := ex.Websocket.Orderbook.GetOrderbook(p, a)
+					require.NoErrorf(t, err, "GetOrderbook must not error for %s %s", a, p)
+					assert.Equalf(t, want.bids, got.Bids, "the %s %s book's bids should be its snapshot's with its updates applied", a, p)
+					assert.Equalf(t, want.asks, got.Asks, "the %s %s book's asks should be its snapshot's with its updates applied", a, p)
+					assert.Equalf(t, want.lastUpdated, got.LastUpdated, "the %s %s book should be updated as its last message was sent", a, p)
+				})
 			}
 		})
 	}
@@ -2326,23 +2328,66 @@ func TestWebsocketSendRequest(t *testing.T) {
 
 	t.Run("reconnects when its context ends before the reply", func(t *testing.T) {
 		t.Parallel()
-		venue := new(advancedTradeVenue)
-		ex, err := connectAdvancedTradeTestExchange(t, venue, subscription.List{{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel}})
-		require.NoError(t, err, "Connect must subscribe to the mock venue")
-		conn, err := ex.Websocket.GetConnection(websocketMarketDataConnection)
-		require.NoError(t, err, "GetConnection must not error")
-		// The venue confirms the level2 request after its caller stopped waiting
-		venue.mu.Lock()
-		venue.delayOnce = map[string]time.Duration{wsChannelLevel2: 600 * time.Millisecond}
-		venue.mu.Unlock()
-		ctx, cancel := context.WithTimeout(t.Context(), 200*time.Millisecond)
-		defer cancel()
-		_, err = ex.wsSendRequest(ctx, conn, wsRequestSubscribe, wsChannelLevel2, []string{"BTC-USD"}, false)
-		require.ErrorIs(t, err, context.DeadlineExceeded, "wsSendRequest must return its context's error")
+		// connected subscribes a websocket to a mock venue that holds the level2 confirmation until confirm closes, so the
+		// confirmation can only come once its caller has stopped waiting
+		connected := func(t *testing.T) (ex *Exchange, conn websocket.Connection, venue *advancedTradeVenue, confirm chan struct{}) {
+			t.Helper()
+			venue = new(advancedTradeVenue)
+			ex, err := connectAdvancedTradeTestExchange(t, venue, subscription.List{{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel}})
+			require.NoError(t, err, "Connect must subscribe to the mock venue")
+			conn, err = ex.Websocket.GetConnection(websocketMarketDataConnection)
+			require.NoError(t, err, "GetConnection must not error")
+			confirm = make(chan struct{})
+			venue.mu.Lock()
+			venue.holdOnce = map[string]chan struct{}{wsChannelLevel2: confirm}
+			venue.mu.Unlock()
+			return ex, conn, venue, confirm
+		}
 		// The connection is closed, then dialled and subscribed again, rather than reused for the next request
-		require.Eventually(t, func() bool {
-			return len(venue.requestsFor(wsChannelHeartbeats)) >= 2 && len(ex.Websocket.GetSubscriptions()) == 2
-		}, 30*time.Second, 10*time.Millisecond, "the websocket must reconnect and subscribe afresh")
+		reconnects := func(t *testing.T, ex *Exchange, venue *advancedTradeVenue) {
+			t.Helper()
+			require.Eventually(t, func() bool {
+				return len(venue.requestsFor(wsChannelHeartbeats)) >= 2 && len(ex.Websocket.GetSubscriptions()) == 2
+			}, 30*time.Second, 10*time.Millisecond, "the websocket must reconnect and subscribe afresh")
+		}
+
+		t.Run("cancelled once the venue has the request", func(t *testing.T) {
+			t.Parallel()
+			ex, conn, venue, confirm := connected(t)
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			go func() {
+				defer cancel()
+				// A request that never arrives is cancelled after the bound, for the checks below to fail
+				bound := time.Now().Add(30 * time.Second)
+				for len(venue.requestsFor(wsChannelLevel2)) == 0 && time.Now().Before(bound) {
+					time.Sleep(time.Millisecond)
+				}
+			}()
+			_, err := ex.wsSendRequest(ctx, conn, wsRequestSubscribe, wsChannelLevel2, []string{"BTC-USD"}, false)
+			close(confirm)
+			require.ErrorIs(t, err, context.Canceled, "wsSendRequest must return its context's error")
+			require.Len(t, venue.requestsFor(wsChannelLevel2), 1, "the venue must receive the level2 request")
+			reconnects(t, ex, venue)
+		})
+
+		t.Run("past its deadline", func(t *testing.T) {
+			t.Parallel()
+			ex, conn, venue, confirm := connected(t)
+			ctx, cancel := context.WithTimeout(t.Context(), 200*time.Millisecond)
+			defer cancel()
+			_, err := ex.wsSendRequest(ctx, conn, wsRequestSubscribe, wsChannelLevel2, []string{"BTC-USD"}, false)
+			ended := ctx.Err()
+			close(confirm)
+			require.ErrorIs(t, err, context.DeadlineExceeded, "wsSendRequest must return its context's error")
+			if len(venue.requestsFor(wsChannelLevel2)) == 0 {
+				// A test held up past the deadline before the request went out leaves no reply to come late, while a request
+				// refused before its deadline has passed is a fault
+				require.ErrorIs(t, ended, context.DeadlineExceeded, "wsSendRequest must send a request whose deadline has not passed")
+				t.Skip("the deadline passed before the request was sent")
+			}
+			reconnects(t, ex, venue)
+		})
 	})
 
 	t.Run("sends nothing once its context is cancelled", func(t *testing.T) {
@@ -2367,7 +2412,7 @@ func TestWebsocketSendRequest(t *testing.T) {
 		ex := newWebsocketTestExchange(t)
 		// The cases share ex in order, so each also checks that a request keeps nothing from the last
 		for _, connected := range []bool{true, false} {
-			t.Run(strconv.FormatBool(connected), func(t *testing.T) {
+			t.Run("connected "+strconv.FormatBool(connected), func(t *testing.T) {
 				conn := &timedOutConnection{connected: connected}
 				_, err := ex.wsSendRequest(t.Context(), conn, wsRequestSubscribe, wsChannelHeartbeats, nil, false)
 				require.ErrorIsf(t, err, websocket.ErrSignatureTimeout, "wsSendRequest must return the timeout on a connection connected %t", connected)

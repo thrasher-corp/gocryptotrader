@@ -178,35 +178,41 @@ func TestAppDepositFunds(t *testing.T) {
 	t.Parallel()
 	testAppFiatTransferRequestErrors(t, "DepositFunds", e.App().DepositFunds)
 
-	if !mockTests {
-		t.Skip("a deposit needs a payment method's ID, which Advanced Trade's List Payment Methods returns, so DepositFunds is tested against its documented response only")
-	}
-	resp, err := e.App().DepositFunds(t.Context(), &AppFiatTransferRequest{AccountID: testAppAccountID, Amount: 10, Currency: currency.USD, PaymentMethodID: testAppPaymentMethodID})
-	require.NoError(t, err, "DepositFunds must not error")
-	exp := testAppDepositTransfer("7ada05f0-4ab9-4e42-8cb9-4501e795315d", "", time.Date(2025, 4, 9, 20, 13, 48, 917581730, time.UTC))
-	assert.Equal(t, exp, resp, "DepositFunds should decode every field")
+	// The live case runs first, as the cases on local servers after it call the same method
+	t.Run("deposits funds", func(t *testing.T) {
+		if !mockTests {
+			t.Skip("a deposit needs a payment method's ID, which Advanced Trade's List Payment Methods returns, so DepositFunds is tested against its documented response only")
+		}
+		resp, err := e.App().DepositFunds(t.Context(), &AppFiatTransferRequest{AccountID: testAppAccountID, Amount: 10, Currency: currency.USD, PaymentMethodID: testAppPaymentMethodID})
+		require.NoError(t, err, "DepositFunds must not error")
+		exp := testAppDepositTransfer("7ada05f0-4ab9-4e42-8cb9-4501e795315d", "", time.Date(2025, 4, 9, 20, 13, 48, 917581730, time.UTC))
+		assert.Equal(t, exp, resp, "DepositFunds should decode every field")
+	})
 
 	req := &AppFiatTransferRequest{AccountID: testAppAccountID, Amount: 10, Currency: currency.USD, PaymentMethodID: testAppPaymentMethodID}
-	_, err = newResponseServerExchange(t, `null`).App().DepositFunds(t.Context(), req)
+	_, err := newResponseServerExchange(t, `null`).App().DepositFunds(t.Context(), req)
 	assert.ErrorIs(t, err, common.ErrNoResponse, "DepositFunds should error for a null response")
 	_, err = newUnavailableServerExchange(t).App().DepositFunds(t.Context(), req)
 	assert.ErrorIs(t, err, request.ErrBadStatus, "DepositFunds should return the request failure")
 }
 
-func TestAppCommitDeposit(t *testing.T) {
+func TestAppCommitDeposit(t *testing.T) { //nolint:tparallel // the live case runs before the cases on local servers
 	t.Parallel()
 	testAppFiatTransferIDRequestErrors(t, "CommitDeposit", e.App().CommitDeposit)
 
-	if !mockTests {
-		t.Skip("a committed deposit cannot be undone, so CommitDeposit is tested against its documented response only")
-	}
-	resp, err := e.App().CommitDeposit(t.Context(), &AppFiatTransferIDRequest{AccountID: testAppAccountID, TransferID: testAppUncommittedTransferID})
-	require.NoError(t, err, "CommitDeposit must not error")
-	exp := testAppDepositTransfer("bd4d2728-9d0c-478e-829e-8f4b4888b108", "CODE", time.Date(2025, 4, 10, 18, 7, 25, 938533583, time.UTC))
-	assert.Equal(t, exp, resp, "CommitDeposit should decode every field")
+	// The live case runs first, as the cases on local servers after it call the same method
+	t.Run("commits a deposit", func(t *testing.T) {
+		if !mockTests {
+			t.Skip("a committed deposit cannot be undone, so CommitDeposit is tested against its documented response only")
+		}
+		resp, err := e.App().CommitDeposit(t.Context(), &AppFiatTransferIDRequest{AccountID: testAppAccountID, TransferID: testAppUncommittedTransferID})
+		require.NoError(t, err, "CommitDeposit must not error")
+		exp := testAppDepositTransfer("bd4d2728-9d0c-478e-829e-8f4b4888b108", "CODE", time.Date(2025, 4, 10, 18, 7, 25, 938533583, time.UTC))
+		assert.Equal(t, exp, resp, "CommitDeposit should decode every field")
+	})
 
 	req := &AppFiatTransferIDRequest{AccountID: testAppAccountID, TransferID: testAppUncommittedTransferID}
-	_, err = newResponseServerExchange(t, `null`).App().CommitDeposit(t.Context(), req)
+	_, err := newResponseServerExchange(t, `null`).App().CommitDeposit(t.Context(), req)
 	assert.ErrorIs(t, err, common.ErrNoResponse, "CommitDeposit should error for a null response")
 	_, err = newUnavailableServerExchange(t).App().CommitDeposit(t.Context(), req)
 	assert.ErrorIs(t, err, request.ErrBadStatus, "CommitDeposit should return the request failure")
@@ -216,50 +222,56 @@ func TestAppListDeposits(t *testing.T) {
 	t.Parallel()
 	testAppListFiatTransfersRequestErrors(t, "ListDeposits", e.App().ListDeposits)
 
-	skipLiveWithoutCredentials(t)
-	resp, err := e.App().ListDeposits(t.Context(), &AppListFiatTransfersRequest{AccountID: testAppAccount(t)})
-	require.NoError(t, err, "ListDeposits must not error")
-	if mockTests {
-		exp := &AppListResponse[AppFiatTransferResponse]{
-			Data:       []AppFiatTransferResponse{testAppFiatTransfer(t, "deposit")},
-			Pagination: AppPagination{Limit: 25, Order: AppOrderDescending},
+	// The live case runs first, as the case on a local server after it calls the same method
+	t.Run("lists the deposits", func(t *testing.T) {
+		skipLiveWithoutCredentials(t)
+		resp, err := e.App().ListDeposits(t.Context(), &AppListFiatTransfersRequest{AccountID: testAppAccount(t)})
+		require.NoError(t, err, "ListDeposits must not error")
+		if mockTests {
+			exp := &AppListResponse[AppFiatTransferResponse]{
+				Data:       []AppFiatTransferResponse{testAppFiatTransfer(t, "deposit")},
+				Pagination: AppPagination{Limit: 25, Order: AppOrderDescending},
+			}
+			assert.Equal(t, exp, resp, "ListDeposits should decode every field")
+		} else {
+			for i := range resp.Data {
+				assert.Equalf(t, "deposit", resp.Data[i].Resource, "ListDeposits should return deposit %d as a deposit", i)
+			}
 		}
-		assert.Equal(t, exp, resp, "ListDeposits should decode every field")
-	} else {
-		for i := range resp.Data {
-			assert.Equalf(t, "deposit", resp.Data[i].Resource, "ListDeposits should return deposit %d as a deposit", i)
-		}
-	}
+	})
 
-	_, err = newUnavailableServerExchange(t).App().ListDeposits(t.Context(), &AppListFiatTransfersRequest{AccountID: testAppAccountID})
+	_, err := newUnavailableServerExchange(t).App().ListDeposits(t.Context(), &AppListFiatTransfersRequest{AccountID: testAppAccountID})
 	assert.ErrorIs(t, err, request.ErrBadStatus, "ListDeposits should return the request failure")
 }
 
-func TestAppGetDeposit(t *testing.T) {
+func TestAppGetDeposit(t *testing.T) { //nolint:tparallel // the live case runs before the cases on local servers
 	t.Parallel()
 	testAppFiatTransferIDRequestErrors(t, "GetDeposit", e.App().GetDeposit)
 
-	skipLiveWithoutCredentials(t)
-	req := &AppFiatTransferIDRequest{AccountID: testAppAccountID, TransferID: testAppFiatTransferID}
-	if !mockTests {
-		req.AccountID = testAppAccount(t)
-		deposits, err := e.App().ListDeposits(t.Context(), &AppListFiatTransfersRequest{AccountID: req.AccountID, Page: &AppPageRequest{Limit: 1}})
-		require.NoError(t, err, "ListDeposits must not error")
-		if len(deposits.Data) == 0 {
-			t.Skip("the account has no deposits")
+	// The live case runs first, as the cases on local servers after it call the same method
+	t.Run("returns the deposit", func(t *testing.T) {
+		skipLiveWithoutCredentials(t)
+		req := &AppFiatTransferIDRequest{AccountID: testAppAccountID, TransferID: testAppFiatTransferID}
+		if !mockTests {
+			req.AccountID = testAppAccount(t)
+			deposits, err := e.App().ListDeposits(t.Context(), &AppListFiatTransfersRequest{AccountID: req.AccountID, Page: &AppPageRequest{Limit: 1}})
+			require.NoError(t, err, "ListDeposits must not error")
+			if len(deposits.Data) == 0 {
+				t.Skip("the account has no deposits")
+			}
+			req.TransferID = deposits.Data[0].ID
 		}
-		req.TransferID = deposits.Data[0].ID
-	}
-	resp, err := e.App().GetDeposit(t.Context(), req)
-	require.NoError(t, err, "GetDeposit must not error")
-	if mockTests {
-		exp := testAppFiatTransfer(t, "deposit")
-		assert.Equal(t, &exp, resp, "GetDeposit should decode every field")
-	} else {
-		assert.Equal(t, req.TransferID, resp.ID, "GetDeposit should return the deposit")
-	}
+		resp, err := e.App().GetDeposit(t.Context(), req)
+		require.NoError(t, err, "GetDeposit must not error")
+		if mockTests {
+			exp := testAppFiatTransfer(t, "deposit")
+			assert.Equal(t, &exp, resp, "GetDeposit should decode every field")
+		} else {
+			assert.Equal(t, req.TransferID, resp.ID, "GetDeposit should return the deposit")
+		}
+	})
 
-	_, err = newResponseServerExchange(t, `null`).App().GetDeposit(t.Context(), &AppFiatTransferIDRequest{AccountID: testAppAccountID, TransferID: testAppFiatTransferID})
+	_, err := newResponseServerExchange(t, `null`).App().GetDeposit(t.Context(), &AppFiatTransferIDRequest{AccountID: testAppAccountID, TransferID: testAppFiatTransferID})
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetDeposit should error for a null response")
 	_, err = newUnavailableServerExchange(t).App().GetDeposit(t.Context(), &AppFiatTransferIDRequest{AccountID: testAppAccountID, TransferID: testAppFiatTransferID})
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetDeposit should return the request failure")
@@ -274,7 +286,7 @@ func TestAppCreateFiatTransfer(t *testing.T) {
 		t.Run(subtestName(kind), func(t *testing.T) {
 			t.Parallel()
 			for _, commit := range []bool{false, true} {
-				t.Run(strconv.FormatBool(commit), func(t *testing.T) {
+				t.Run("commit "+strconv.FormatBool(commit), func(t *testing.T) {
 					t.Parallel()
 					ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 						assert.Equalf(t, http.MethodPost, r.Method, "createFiatTransfer should post the %s", kind)

@@ -177,7 +177,7 @@ func testConvertQuote(t *testing.T, fromAccount, toAccount string) *ConvertTrade
 	return quote
 }
 
-func TestCommitConvertTrade(t *testing.T) {
+func TestCommitConvertTrade(t *testing.T) { //nolint:tparallel // the live case runs before the cases on local servers
 	t.Parallel()
 	_, err := e.CommitConvertTrade(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "CommitConvertTrade must reject a nil request")
@@ -188,24 +188,27 @@ func TestCommitConvertTrade(t *testing.T) {
 	_, err = e.CommitConvertTrade(t.Context(), &ConvertTradeRequest{TradeID: testConvertTradeID, FromAccount: testConvertFromAccount})
 	require.ErrorIs(t, err, errConvertAccountRequired, "CommitConvertTrade must require the account converted to")
 
-	skipLiveUnlessCanManipulate(t)
 	req := &ConvertTradeRequest{TradeID: testConvertTradeID, FromAccount: testConvertFromAccount, ToAccount: testConvertToAccount}
-	if !mockTests {
-		req.TradeID = testConvertQuote(t, testConvertFromAccount, testConvertToAccount).ID
-	}
-	resp, err := e.CommitConvertTrade(t.Context(), req)
-	require.NoError(t, err, "CommitConvertTrade must not error")
-	if mockTests {
-		exp := testConvertTrade(ConvertTradeStatusStarted)
-		assert.Equal(t, exp, resp, "CommitConvertTrade should decode every field")
-	} else {
-		assert.Equal(t, req.TradeID, resp.ID, "CommitConvertTrade should commit the quoted trade")
-		back := testConvertQuote(t, testConvertToAccount, testConvertFromAccount)
-		_, err = e.CommitConvertTrade(t.Context(), &ConvertTradeRequest{TradeID: back.ID, FromAccount: testConvertToAccount, ToAccount: testConvertFromAccount})
-		assert.NoError(t, err, "CommitConvertTrade should convert the funds back")
-	}
+	// The live case runs first and may set req, which the cases on local servers then use, as one test ran them in turn
+	t.Run("commits the quoted trade", func(t *testing.T) {
+		skipLiveUnlessCanManipulate(t)
+		if !mockTests {
+			req.TradeID = testConvertQuote(t, testConvertFromAccount, testConvertToAccount).ID
+		}
+		resp, err := e.CommitConvertTrade(t.Context(), req)
+		require.NoError(t, err, "CommitConvertTrade must not error")
+		if mockTests {
+			exp := testConvertTrade(ConvertTradeStatusStarted)
+			assert.Equal(t, exp, resp, "CommitConvertTrade should decode every field")
+		} else {
+			assert.Equal(t, req.TradeID, resp.ID, "CommitConvertTrade should commit the quoted trade")
+			back := testConvertQuote(t, testConvertToAccount, testConvertFromAccount)
+			_, err = e.CommitConvertTrade(t.Context(), &ConvertTradeRequest{TradeID: back.ID, FromAccount: testConvertToAccount, ToAccount: testConvertFromAccount})
+			assert.NoError(t, err, "CommitConvertTrade should convert the funds back")
+		}
 
-	req = &ConvertTradeRequest{TradeID: testConvertTradeID, FromAccount: testConvertFromAccount, ToAccount: testConvertToAccount}
+		req = &ConvertTradeRequest{TradeID: testConvertTradeID, FromAccount: testConvertFromAccount, ToAccount: testConvertToAccount}
+	})
 	_, err = newResponseServerExchange(t, `null`).CommitConvertTrade(t.Context(), req)
 	assert.ErrorIs(t, err, common.ErrNoResponse, "CommitConvertTrade should error for a null response")
 	_, err = newResponseServerExchange(t, `{"trade":null}`).CommitConvertTrade(t.Context(), req)
@@ -214,7 +217,7 @@ func TestCommitConvertTrade(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "CommitConvertTrade should return the request failure")
 }
 
-func TestCreateConvertQuote(t *testing.T) {
+func TestCreateConvertQuote(t *testing.T) { //nolint:tparallel // the live case runs before the cases on local servers
 	t.Parallel()
 	_, err := e.CreateConvertQuote(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "CreateConvertQuote must reject a nil request")
@@ -225,19 +228,22 @@ func TestCreateConvertQuote(t *testing.T) {
 	_, err = e.CreateConvertQuote(t.Context(), &CreateConvertQuoteRequest{FromAccount: testConvertFromAccount, ToAccount: testConvertToAccount})
 	require.ErrorIs(t, err, errInvalidAmount, "CreateConvertQuote must require an amount")
 
-	skipLiveUnlessCanManipulate(t)
-	req := &CreateConvertQuoteRequest{FromAccount: testConvertFromAccount, ToAccount: testConvertToAccount, Amount: testConvertAmount}
-	if !mockTests {
-		req.Amount = testLiveConvertAmount
-	}
-	resp, err := e.CreateConvertQuote(t.Context(), req)
-	require.NoError(t, err, "CreateConvertQuote must not error")
-	if mockTests {
-		exp := testConvertTrade(ConvertTradeStatusCreated)
-		assert.Equal(t, exp, resp, "CreateConvertQuote should decode every field")
-	} else {
-		assert.NotEmpty(t, resp.ID, "CreateConvertQuote should return the quote's trade ID")
-	}
+	// The live case runs first, as the cases on local servers after it call the same method
+	t.Run("creates a quote", func(t *testing.T) {
+		skipLiveUnlessCanManipulate(t)
+		req := &CreateConvertQuoteRequest{FromAccount: testConvertFromAccount, ToAccount: testConvertToAccount, Amount: testConvertAmount}
+		if !mockTests {
+			req.Amount = testLiveConvertAmount
+		}
+		resp, err := e.CreateConvertQuote(t.Context(), req)
+		require.NoError(t, err, "CreateConvertQuote must not error")
+		if mockTests {
+			exp := testConvertTrade(ConvertTradeStatusCreated)
+			assert.Equal(t, exp, resp, "CreateConvertQuote should decode every field")
+		} else {
+			assert.NotEmpty(t, resp.ID, "CreateConvertQuote should return the quote's trade ID")
+		}
+	})
 
 	ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, err := io.ReadAll(r.Body)
@@ -250,7 +256,7 @@ func TestCreateConvertQuote(t *testing.T) {
 	_, err = ex.CreateConvertQuote(t.Context(), &CreateConvertQuoteRequest{FromAccount: testConvertFromAccount, ToAccount: testConvertToAccount, Amount: 0.5, UserIncentiveID: "incentive", CodeValue: "PROMO"})
 	assert.NoError(t, err, "CreateConvertQuote should not error with a trade incentive")
 
-	req = &CreateConvertQuoteRequest{FromAccount: testConvertFromAccount, ToAccount: testConvertToAccount, Amount: testConvertAmount}
+	req := &CreateConvertQuoteRequest{FromAccount: testConvertFromAccount, ToAccount: testConvertToAccount, Amount: testConvertAmount}
 	_, err = newResponseServerExchange(t, `null`).CreateConvertQuote(t.Context(), req)
 	assert.ErrorIs(t, err, common.ErrNoResponse, "CreateConvertQuote should error for a null response")
 	_, err = newResponseServerExchange(t, `{"trade":null}`).CreateConvertQuote(t.Context(), req)
@@ -259,7 +265,7 @@ func TestCreateConvertQuote(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "CreateConvertQuote should return the request failure")
 }
 
-func TestGetConvertTrade(t *testing.T) {
+func TestGetConvertTrade(t *testing.T) { //nolint:tparallel // the live case runs before the cases on local servers
 	t.Parallel()
 	_, err := e.GetConvertTrade(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "GetConvertTrade must reject a nil request")
@@ -270,22 +276,25 @@ func TestGetConvertTrade(t *testing.T) {
 	_, err = e.GetConvertTrade(t.Context(), &ConvertTradeRequest{TradeID: testConvertTradeID, FromAccount: testConvertFromAccount})
 	require.ErrorIs(t, err, errConvertAccountRequired, "GetConvertTrade must require the account converted to")
 
-	// A live trade to get needs a quote, which needs the trade permission
-	skipLiveUnlessCanManipulate(t)
 	req := &ConvertTradeRequest{TradeID: testConvertTradeID, FromAccount: testConvertFromAccount, ToAccount: testConvertToAccount}
-	if !mockTests {
-		req.TradeID = testConvertQuote(t, testConvertFromAccount, testConvertToAccount).ID
-	}
-	resp, err := e.GetConvertTrade(t.Context(), req)
-	require.NoError(t, err, "GetConvertTrade must not error")
-	if mockTests {
-		exp := testConvertTrade(ConvertTradeStatusCompleted)
-		assert.Equal(t, exp, resp, "GetConvertTrade should decode every field")
-	} else {
-		assert.Equal(t, req.TradeID, resp.ID, "GetConvertTrade should return the quoted trade")
-	}
+	// The live case runs first and may set req, which the cases on local servers then use, as one test ran them in turn
+	t.Run("returns the quoted trade", func(t *testing.T) {
+		// A live trade to get needs a quote, which needs the trade permission
+		skipLiveUnlessCanManipulate(t)
+		if !mockTests {
+			req.TradeID = testConvertQuote(t, testConvertFromAccount, testConvertToAccount).ID
+		}
+		resp, err := e.GetConvertTrade(t.Context(), req)
+		require.NoError(t, err, "GetConvertTrade must not error")
+		if mockTests {
+			exp := testConvertTrade(ConvertTradeStatusCompleted)
+			assert.Equal(t, exp, resp, "GetConvertTrade should decode every field")
+		} else {
+			assert.Equal(t, req.TradeID, resp.ID, "GetConvertTrade should return the quoted trade")
+		}
 
-	req = &ConvertTradeRequest{TradeID: testConvertTradeID, FromAccount: testConvertFromAccount, ToAccount: testConvertToAccount}
+		req = &ConvertTradeRequest{TradeID: testConvertTradeID, FromAccount: testConvertFromAccount, ToAccount: testConvertToAccount}
+	})
 	_, err = newResponseServerExchange(t, `null`).GetConvertTrade(t.Context(), req)
 	assert.ErrorIs(t, err, common.ErrNoResponse, "GetConvertTrade should error for a null response")
 	_, err = newResponseServerExchange(t, `{"trade":null}`).GetConvertTrade(t.Context(), req)

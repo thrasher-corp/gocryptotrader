@@ -120,49 +120,52 @@ func newOrderNotFoundServerExchange(t *testing.T) *Exchange {
 	}))
 }
 
-func TestCancelOrders(t *testing.T) {
+func TestCancelOrders(t *testing.T) { //nolint:tparallel // the live case runs before the cases on local servers
 	t.Parallel()
 	_, err := e.CancelOrders(t.Context(), nil)
 	require.ErrorIs(t, err, errOrderIDRequired, "CancelOrders must require an order ID")
 	_, err = e.CancelOrders(t.Context(), []string{testSandboxOrderID, ""})
 	require.ErrorIs(t, err, errOrderIDRequired, "CancelOrders must refuse an empty order ID")
 
-	skipLiveUnlessCanManipulate(t)
-	orderID := testSandboxOrderID
-	if !mockTests {
-		orderID = newLiveTestOrder(t)
-	}
-	resp, err := e.CancelOrders(t.Context(), []string{orderID})
-	require.NoError(t, err, "CancelOrders must not error")
-	if mockTests {
-		exp := &CancelOrdersResponse{
-			Results: []CancelOrderResult{
-				{
-					Success:       true,
-					FailureReason: "UNKNOWN_CANCEL_FAILURE_REASON",
-					OrderID:       "f898eaf4-6ffc-47be-a159-7ff292e5cdcf",
-				},
-			},
+	// The live case runs first, as the cases on local servers after it call the same method
+	t.Run("cancels the orders", func(t *testing.T) {
+		skipLiveUnlessCanManipulate(t)
+		orderID := testSandboxOrderID
+		if !mockTests {
+			orderID = newLiveTestOrder(t)
 		}
-		assert.Equal(t, exp, resp, "CancelOrders should decode every field")
-	} else {
-		require.Len(t, resp.Results, 1, "CancelOrders must return the order's result")
-		assert.Equal(t, orderID, resp.Results[0].OrderID, "CancelOrders should return the order's result")
-	}
+		resp, err := e.CancelOrders(t.Context(), []string{orderID})
+		require.NoError(t, err, "CancelOrders must not error")
+		if mockTests {
+			exp := &CancelOrdersResponse{
+				Results: []CancelOrderResult{
+					{
+						Success:       true,
+						FailureReason: "UNKNOWN_CANCEL_FAILURE_REASON",
+						OrderID:       "f898eaf4-6ffc-47be-a159-7ff292e5cdcf",
+					},
+				},
+			}
+			assert.Equal(t, exp, resp, "CancelOrders should decode every field")
+		} else {
+			require.Len(t, resp.Results, 1, "CancelOrders must return the order's result")
+			assert.Equal(t, orderID, resp.Results[0].OrderID, "CancelOrders should return the order's result")
+		}
 
-	resp, err = e.CancelOrders(t.Context(), []string{testUnknownOrderID})
-	assert.ErrorIs(t, err, order.ErrOrderNotFound, "CancelOrders should report an order Coinbase does not know")
-	if mockTests {
-		exp := &CancelOrdersResponse{
-			Results: []CancelOrderResult{
-				{
-					FailureReason: "UNKNOWN_CANCEL_ORDER",
-					OrderID:       "00000000-0000-0000-0000-000000000000",
+		resp, err = e.CancelOrders(t.Context(), []string{testUnknownOrderID})
+		assert.ErrorIs(t, err, order.ErrOrderNotFound, "CancelOrders should report an order Coinbase does not know")
+		if mockTests {
+			exp := &CancelOrdersResponse{
+				Results: []CancelOrderResult{
+					{
+						FailureReason: "UNKNOWN_CANCEL_ORDER",
+						OrderID:       "00000000-0000-0000-0000-000000000000",
+					},
 				},
-			},
+			}
+			assert.Equal(t, exp, resp, "CancelOrders should return the results reporting the failure")
 		}
-		assert.Equal(t, exp, resp, "CancelOrders should return the results reporting the failure")
-	}
+	})
 
 	_, err = newResponseServerExchange(t, `{"results":[{"success":false,"failure_reason":"ORDER_IS_FULLY_FILLED","order_id":"`+testSandboxOrderID+`"}]}`).CancelOrders(t.Context(), []string{testSandboxOrderID})
 	assert.ErrorIs(t, err, errCancelOrderFailed, "CancelOrders should report a cancel request Coinbase did not submit")
@@ -174,7 +177,7 @@ func TestCancelOrders(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "CancelOrders should return the request failure")
 }
 
-func TestClosePosition(t *testing.T) {
+func TestClosePosition(t *testing.T) { //nolint:tparallel // the live case runs before the cases on local servers
 	t.Parallel()
 	_, err := e.ClosePosition(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "ClosePosition must reject a nil request")
@@ -185,30 +188,33 @@ func TestClosePosition(t *testing.T) {
 	_, err = e.ClosePosition(t.Context(), &ClosePositionRequest{ClientOrderID: "close", ProductID: testSandboxFuturesProductID, Size: -1})
 	require.ErrorIs(t, err, errInvalidAmount, "ClosePosition must refuse a negative size")
 
-	if !mockTests {
-		t.Skip("closing a position cannot be undone, and needs an open position to close")
-	}
-	resp, err := e.ClosePosition(t.Context(), testClosePositionRequest())
-	require.NoError(t, err, "ClosePosition must not error")
-	exp := &CreateOrderResponse{
-		Success: true,
-		SuccessResponse: &CreateOrderSuccess{
-			OrderID:       "f898eaf4-6ffc-47be-a159-7ff292e5cdcf",
-			ProductID:     "BIT-30AUG24-CDE",
-			Side:          "SELL",
-			ClientOrderID: "sandbox_success_close_position",
-		},
-		OrderConfiguration: &OrderConfiguration{
-			MarketMarketIOC: &MarketMarketIOC{
-				BaseSize: 100,
+	// The live case runs first, as the cases on local servers after it call the same method
+	t.Run("closes the position", func(t *testing.T) {
+		if !mockTests {
+			t.Skip("closing a position cannot be undone, and needs an open position to close")
+		}
+		resp, err := e.ClosePosition(t.Context(), testClosePositionRequest())
+		require.NoError(t, err, "ClosePosition must not error")
+		exp := &CreateOrderResponse{
+			Success: true,
+			SuccessResponse: &CreateOrderSuccess{
+				OrderID:       "f898eaf4-6ffc-47be-a159-7ff292e5cdcf",
+				ProductID:     "BIT-30AUG24-CDE",
+				Side:          "SELL",
+				ClientOrderID: "sandbox_success_close_position",
 			},
-		},
-	}
-	assert.Equal(t, exp, resp, "ClosePosition should decode every field")
+			OrderConfiguration: &OrderConfiguration{
+				MarketMarketIOC: &MarketMarketIOC{
+					BaseSize: 100,
+				},
+			},
+		}
+		assert.Equal(t, exp, resp, "ClosePosition should decode every field")
+	})
 
-	resp, err = newResponseServerExchange(t, `{"success":false,"error_response":{"error":"UNKNOWN_FAILURE_REASON","message":"Position cannot be closed","error_details":"no open position","preview_failure_reason":"UNKNOWN_PREVIEW_FAILURE_REASON","new_order_failure_reason":"CANNOT_CLOSE_ZERO_POSITION"}}`).ClosePosition(t.Context(), testClosePositionRequest())
+	resp, err := newResponseServerExchange(t, `{"success":false,"error_response":{"error":"UNKNOWN_FAILURE_REASON","message":"Position cannot be closed","error_details":"no open position","preview_failure_reason":"UNKNOWN_PREVIEW_FAILURE_REASON","new_order_failure_reason":"CANNOT_CLOSE_ZERO_POSITION"}}`).ClosePosition(t.Context(), testClosePositionRequest())
 	assert.ErrorIs(t, err, errOrderNotCreated, "ClosePosition should report an order Coinbase did not create")
-	exp = &CreateOrderResponse{
+	exp := &CreateOrderResponse{
 		ErrorResponse: &CreateOrderFailure{
 			FailureReason:         "UNKNOWN_FAILURE_REASON",
 			Message:               "Position cannot be closed",
@@ -224,7 +230,7 @@ func TestClosePosition(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "ClosePosition should return the request failure")
 }
 
-func TestCreateOrder(t *testing.T) {
+func TestCreateOrder(t *testing.T) { //nolint:tparallel // the live case runs before the cases on local servers
 	t.Parallel()
 	_, err := e.CreateOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "CreateOrder must reject a nil request")
@@ -237,54 +243,57 @@ func TestCreateOrder(t *testing.T) {
 	_, err = e.CreateOrder(t.Context(), req)
 	require.ErrorIs(t, err, errOrderConfigurationRequired, "CreateOrder must require an order configuration")
 
-	skipLiveUnlessCanManipulate(t)
-	req = testCreateOrderRequest()
-	if !mockTests {
-		req = liveTestCreateOrderRequest()
-	}
-	resp, err := e.CreateOrder(t.Context(), req)
-	require.NoError(t, err, "CreateOrder must not error")
-	if mockTests {
-		exp := &CreateOrderResponse{
-			Success: true,
-			SuccessResponse: &CreateOrderSuccess{
-				OrderID:       "f898eaf4-6ffc-47be-a159-7ff292e5cdcf",
-				ProductID:     "BTC-USD",
-				Side:          "SELL",
-				ClientOrderID: "sandbox_success_order",
-			},
-			OrderConfiguration: &OrderConfiguration{
-				LimitLimitGTC: &LimitLimitGTC{
-					BaseSize:   1,
-					LimitPrice: 70000.44,
-				},
-			},
+	// The live case runs first, as the cases on local servers after it call the same method
+	t.Run("places an order", func(t *testing.T) {
+		skipLiveUnlessCanManipulate(t)
+		req = testCreateOrderRequest()
+		if !mockTests {
+			req = liveTestCreateOrderRequest()
 		}
-		assert.Equal(t, exp, resp, "CreateOrder should decode every field")
-	} else {
-		require.NotNil(t, resp.SuccessResponse, "CreateOrder must identify the order it placed")
-		cancelLiveTestOrder(t, resp.SuccessResponse.OrderID)
-		assert.Equal(t, req.ClientOrderID, resp.SuccessResponse.ClientOrderID, "CreateOrder should return the order's client order ID")
-	}
+		resp, err := e.CreateOrder(t.Context(), req)
+		require.NoError(t, err, "CreateOrder must not error")
+		if mockTests {
+			exp := &CreateOrderResponse{
+				Success: true,
+				SuccessResponse: &CreateOrderSuccess{
+					OrderID:       "f898eaf4-6ffc-47be-a159-7ff292e5cdcf",
+					ProductID:     "BTC-USD",
+					Side:          "SELL",
+					ClientOrderID: "sandbox_success_order",
+				},
+				OrderConfiguration: &OrderConfiguration{
+					LimitLimitGTC: &LimitLimitGTC{
+						BaseSize:   1,
+						LimitPrice: 70000.44,
+					},
+				},
+			}
+			assert.Equal(t, exp, resp, "CreateOrder should decode every field")
+		} else {
+			require.NotNil(t, resp.SuccessResponse, "CreateOrder must identify the order it placed")
+			cancelLiveTestOrder(t, resp.SuccessResponse.OrderID)
+			assert.Equal(t, req.ClientOrderID, resp.SuccessResponse.ClientOrderID, "CreateOrder should return the order's client order ID")
+		}
 
-	if mockTests {
-		resp, err = e.CreateOrder(t.Context(), testInsufficientFundsCreateOrderRequest())
-		assert.ErrorIs(t, err, errOrderNotCreated, "CreateOrder should report an order Coinbase did not create")
-		exp := &CreateOrderResponse{
-			ErrorResponse: &CreateOrderFailure{
-				FailureReason:        "INSUFFICIENT_FUND",
-				Message:              "Insufficient balance in source account",
-				PreviewFailureReason: "PREVIEW_INSUFFICIENT_FUND",
-			},
-			OrderConfiguration: &OrderConfiguration{
-				LimitLimitGTC: &LimitLimitGTC{
-					BaseSize:   1,
-					LimitPrice: 70000.44,
+		if mockTests {
+			resp, err = e.CreateOrder(t.Context(), testInsufficientFundsCreateOrderRequest())
+			assert.ErrorIs(t, err, errOrderNotCreated, "CreateOrder should report an order Coinbase did not create")
+			exp := &CreateOrderResponse{
+				ErrorResponse: &CreateOrderFailure{
+					FailureReason:        "INSUFFICIENT_FUND",
+					Message:              "Insufficient balance in source account",
+					PreviewFailureReason: "PREVIEW_INSUFFICIENT_FUND",
 				},
-			},
+				OrderConfiguration: &OrderConfiguration{
+					LimitLimitGTC: &LimitLimitGTC{
+						BaseSize:   1,
+						LimitPrice: 70000.44,
+					},
+				},
+			}
+			assert.Equal(t, exp, resp, "CreateOrder should return the response reporting the failure")
 		}
-		assert.Equal(t, exp, resp, "CreateOrder should return the response reporting the failure")
-	}
+	})
 
 	_, err = newResponseServerExchange(t, `null`).CreateOrder(t.Context(), testCreateOrderRequest())
 	assert.ErrorIs(t, err, common.ErrNoResponse, "CreateOrder should error for a null response")
@@ -292,43 +301,46 @@ func TestCreateOrder(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "CreateOrder should return the request failure")
 }
 
-func TestEditOrder(t *testing.T) {
+func TestEditOrder(t *testing.T) { //nolint:tparallel // the live case runs before the cases on local servers
 	t.Parallel()
 	_, err := e.EditOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "EditOrder must reject a nil request")
 	_, err = e.EditOrder(t.Context(), testEditOrderRequest(""))
 	require.ErrorIs(t, err, errOrderIDRequired, "EditOrder must require an order ID")
 
-	skipLiveUnlessCanManipulate(t)
-	req := testEditOrderRequest(testSandboxOrderID)
-	if !mockTests {
-		req = &EditOrderRequest{OrderID: newLiveTestOrder(t), Price: 1100, Size: liveTestOrderSize}
-	}
-	resp, err := e.EditOrder(t.Context(), req)
-	require.NoError(t, err, "EditOrder must not error")
-	if mockTests {
-		exp := &EditOrderResponse{
-			Success: true,
-			Errors:  []EditOrderError{},
+	// The live case runs first, as the cases on local servers after it call the same method
+	t.Run("edits the order", func(t *testing.T) {
+		skipLiveUnlessCanManipulate(t)
+		req := testEditOrderRequest(testSandboxOrderID)
+		if !mockTests {
+			req = &EditOrderRequest{OrderID: newLiveTestOrder(t), Price: 1100, Size: liveTestOrderSize}
 		}
-		assert.Equal(t, exp, resp, "EditOrder should decode every field")
-	} else {
-		assert.True(t, resp.Success, "EditOrder should place the edit")
-	}
+		resp, err := e.EditOrder(t.Context(), req)
+		require.NoError(t, err, "EditOrder must not error")
+		if mockTests {
+			exp := &EditOrderResponse{
+				Success: true,
+				Errors:  []EditOrderError{},
+			}
+			assert.Equal(t, exp, resp, "EditOrder should decode every field")
+		} else {
+			assert.True(t, resp.Success, "EditOrder should place the edit")
+		}
 
-	resp, err = e.EditOrder(t.Context(), testEditOrderRequest(testUnknownOrderID))
-	assert.ErrorIs(t, err, order.ErrOrderNotFound, "EditOrder should report an order Coinbase does not know")
-	if mockTests {
-		assert.ErrorIs(t, err, errOrderNotEdited, "EditOrder should report an edit Coinbase did not place")
-		exp := &EditOrderResponse{
-			Errors: []EditOrderError{
-				{
-					EditFailureReason: "ORDER_NOT_FOUND",
+		resp, err = e.EditOrder(t.Context(), testEditOrderRequest(testUnknownOrderID))
+		assert.ErrorIs(t, err, order.ErrOrderNotFound, "EditOrder should report an order Coinbase does not know")
+		if mockTests {
+			assert.ErrorIs(t, err, errOrderNotEdited, "EditOrder should report an edit Coinbase did not place")
+			exp := &EditOrderResponse{
+				Errors: []EditOrderError{
+					{
+						EditFailureReason: "ORDER_NOT_FOUND",
+					},
 				},
-			},
+			}
+			assert.Equal(t, exp, resp, "EditOrder should return the response reporting the failure")
 		}
-		assert.Equal(t, exp, resp, "EditOrder should return the response reporting the failure")
-	}
+	})
 
 	_, err = newOrderNotFoundServerExchange(t).EditOrder(t.Context(), testEditOrderRequest(testUnknownOrderID))
 	assert.ErrorIs(t, err, order.ErrOrderNotFound, "EditOrder should report a request refused for an order Coinbase does not know")
@@ -338,57 +350,60 @@ func TestEditOrder(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "EditOrder should return the request failure")
 }
 
-func TestEditOrderPreview(t *testing.T) {
+func TestEditOrderPreview(t *testing.T) { //nolint:tparallel // the live case runs before the cases on local servers
 	t.Parallel()
 	_, err := e.EditOrderPreview(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "EditOrderPreview must reject a nil request")
 	_, err = e.EditOrderPreview(t.Context(), &EditOrderRequest{OrderID: testSandboxOrderID, Size: 1})
 	require.ErrorIs(t, err, errInvalidPrice, "EditOrderPreview must require a price")
 
-	// A live preview needs an order to edit, which the test places and cancels
-	skipLiveUnlessCanManipulate(t)
-	req := testEditOrderRequest(testSandboxOrderID)
-	if !mockTests {
-		req = &EditOrderRequest{OrderID: newLiveTestOrder(t), Price: 1100, Size: liveTestOrderSize}
-	}
-	resp, err := e.EditOrderPreview(t.Context(), req)
-	require.NoError(t, err, "EditOrderPreview must not error")
-	if mockTests {
-		exp := &EditOrderPreviewResponse{
-			Errors:             []EditOrderError{},
-			OrderTotal:         67456.43648,
-			CommissionTotal:    544.00352,
-			QuoteSize:          68000.44,
-			BaseSize:           1,
-			BestBid:            62675.96,
-			BestAsk:            62683.73,
-			AverageFilledPrice: 68000.44,
+	// The live case runs first, as the cases on local servers after it call the same method
+	t.Run("previews an edit", func(t *testing.T) {
+		// A live preview needs an order to edit, which the test places and cancels
+		skipLiveUnlessCanManipulate(t)
+		req := testEditOrderRequest(testSandboxOrderID)
+		if !mockTests {
+			req = &EditOrderRequest{OrderID: newLiveTestOrder(t), Price: 1100, Size: liveTestOrderSize}
 		}
-		assert.Equal(t, exp, resp, "EditOrderPreview should decode every field")
-	} else {
-		assert.Positive(t, resp.BaseSize.Float64(), "EditOrderPreview should return the edited size")
-	}
+		resp, err := e.EditOrderPreview(t.Context(), req)
+		require.NoError(t, err, "EditOrderPreview must not error")
+		if mockTests {
+			exp := &EditOrderPreviewResponse{
+				Errors:             []EditOrderError{},
+				OrderTotal:         67456.43648,
+				CommissionTotal:    544.00352,
+				QuoteSize:          68000.44,
+				BaseSize:           1,
+				BestBid:            62675.96,
+				BestAsk:            62683.73,
+				AverageFilledPrice: 68000.44,
+			}
+			assert.Equal(t, exp, resp, "EditOrderPreview should decode every field")
+		} else {
+			assert.Positive(t, resp.BaseSize.Float64(), "EditOrderPreview should return the edited size")
+		}
 
-	if mockTests {
-		resp, err = e.EditOrderPreview(t.Context(), testEditOrderRequest(testUnknownOrderID))
-		assert.ErrorIs(t, err, errOrderEditPreviewFailed, "EditOrderPreview should report an edit that would fail")
-		assert.ErrorIs(t, err, order.ErrOrderNotFound, "EditOrderPreview should report an order Coinbase does not know")
-		exp := &EditOrderPreviewResponse{
-			Errors: []EditOrderError{
-				{
-					EditFailureReason: "ORDER_NOT_FOUND",
+		if mockTests {
+			resp, err = e.EditOrderPreview(t.Context(), testEditOrderRequest(testUnknownOrderID))
+			assert.ErrorIs(t, err, errOrderEditPreviewFailed, "EditOrderPreview should report an edit that would fail")
+			assert.ErrorIs(t, err, order.ErrOrderNotFound, "EditOrderPreview should report an order Coinbase does not know")
+			exp := &EditOrderPreviewResponse{
+				Errors: []EditOrderError{
+					{
+						EditFailureReason: "ORDER_NOT_FOUND",
+					},
 				},
-			},
-			OrderTotal:         67456.43648,
-			CommissionTotal:    544.00352,
-			QuoteSize:          68000.44,
-			BaseSize:           1,
-			BestBid:            62675.96,
-			BestAsk:            62683.73,
-			AverageFilledPrice: 68000.44,
+				OrderTotal:         67456.43648,
+				CommissionTotal:    544.00352,
+				QuoteSize:          68000.44,
+				BaseSize:           1,
+				BestBid:            62675.96,
+				BestAsk:            62683.73,
+				AverageFilledPrice: 68000.44,
+			}
+			assert.Equal(t, exp, resp, "EditOrderPreview should return the response reporting the failure")
 		}
-		assert.Equal(t, exp, resp, "EditOrderPreview should return the response reporting the failure")
-	}
+	})
 
 	_, err = newOrderNotFoundServerExchange(t).EditOrderPreview(t.Context(), testEditOrderRequest(testUnknownOrderID))
 	assert.ErrorIs(t, err, order.ErrOrderNotFound, "EditOrderPreview should report a request refused for an order Coinbase does not know")
@@ -398,125 +413,128 @@ func TestEditOrderPreview(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "EditOrderPreview should return the request failure")
 }
 
-func TestGetOrder(t *testing.T) {
+func TestGetOrder(t *testing.T) { //nolint:tparallel // the live case runs before the cases on local servers
 	t.Parallel()
 	_, err := e.GetOrder(t.Context(), "")
 	require.ErrorIs(t, err, errOrderIDRequired, "GetOrder must require an order ID")
 
-	skipLiveWithoutCredentials(t)
-	orderID := testSandboxBracketedOrderID
-	if !mockTests {
-		orders, err := e.ListOrders(t.Context(), &ListOrdersRequest{Limit: 1})
-		require.NoError(t, err, "ListOrders must not error")
-		if len(orders.Orders) == 0 {
-			t.Skip("the account has no orders to get")
+	// The live case runs first, as the cases on local servers after it call the same method
+	t.Run("returns the order", func(t *testing.T) {
+		skipLiveWithoutCredentials(t)
+		orderID := testSandboxBracketedOrderID
+		if !mockTests {
+			orders, err := e.ListOrders(t.Context(), &ListOrdersRequest{Limit: 1})
+			require.NoError(t, err, "ListOrders must not error")
+			if len(orders.Orders) == 0 {
+				t.Skip("the account has no orders to get")
+			}
+			orderID = orders.Orders[0].OrderID
 		}
-		orderID = orders.Orders[0].OrderID
-	}
-	resp, err := e.GetOrder(t.Context(), orderID)
-	require.NoError(t, err, "GetOrder must not error")
-	if mockTests {
-		exp := &Order{
-			OrderID:   "c6981abf-a8b4-4209-b33f-2aa6ee8cd72f",
-			ProductID: "BTC-USD",
-			UserID:    "eec99928-3d46-5b38-a1ca-122d0e5fb7f0",
-			OrderConfiguration: &OrderConfiguration{
-				LimitLimitGTC: &LimitLimitGTC{
-					BaseSize:   0.05,
-					LimitPrice: 99900.83,
+		resp, err := e.GetOrder(t.Context(), orderID)
+		require.NoError(t, err, "GetOrder must not error")
+		if mockTests {
+			exp := &Order{
+				OrderID:   "c6981abf-a8b4-4209-b33f-2aa6ee8cd72f",
+				ProductID: "BTC-USD",
+				UserID:    "eec99928-3d46-5b38-a1ca-122d0e5fb7f0",
+				OrderConfiguration: &OrderConfiguration{
+					LimitLimitGTC: &LimitLimitGTC{
+						BaseSize:   0.05,
+						LimitPrice: 99900.83,
+					},
 				},
-			},
-			Side:                  "BUY",
-			ClientOrderID:         "originating_order",
-			Status:                "OPEN",
-			TimeInForce:           "GOOD_UNTIL_CANCELLED",
-			CreatedTime:           time.Date(2024, 12, 11, 18, 36, 12, 323813000, time.UTC),
-			CompletionPercentage:  20,
-			FilledSize:            0.01,
-			AverageFilledPrice:    99900.83,
-			NumberOfFills:         1,
-			FilledValue:           999.0083,
-			TotalFees:             0.69930581,
-			TotalValueAfterFees:   999.70760581,
-			TriggerStatus:         "INVALID_ORDER_TYPE",
-			OrderType:             "LIMIT",
-			RejectReason:          "REJECT_REASON_UNSPECIFIED",
-			ProductType:           "SPOT",
-			OrderPlacementSource:  "RETAIL_ADVANCED",
-			OutstandingHoldAmount: 5003.0335664000001,
-			LastFillTime:          time.Date(2024, 12, 11, 18, 36, 14, 410774000, time.UTC),
-			EditHistory:           []OrderEdit{},
-			MarginType:            "UNKNOWN_MARGIN_TYPE",
-			RetailPortfolioID:     "eec99928-3d46-5b38-a1ca-122d0e5fb7f0",
-			AttachedOrderID:       "3daff354-c513-4c9d-869e-6ebf223364f4",
-			AttachedOrderConfiguration: &OrderConfiguration{
-				TriggerBracketGTC: &TriggerBracketGTC{
-					LimitPrice:       99990,
-					StopTriggerPrice: 99800,
+				Side:                  "BUY",
+				ClientOrderID:         "originating_order",
+				Status:                "OPEN",
+				TimeInForce:           "GOOD_UNTIL_CANCELLED",
+				CreatedTime:           time.Date(2024, 12, 11, 18, 36, 12, 323813000, time.UTC),
+				CompletionPercentage:  20,
+				FilledSize:            0.01,
+				AverageFilledPrice:    99900.83,
+				NumberOfFills:         1,
+				FilledValue:           999.0083,
+				TotalFees:             0.69930581,
+				TotalValueAfterFees:   999.70760581,
+				TriggerStatus:         "INVALID_ORDER_TYPE",
+				OrderType:             "LIMIT",
+				RejectReason:          "REJECT_REASON_UNSPECIFIED",
+				ProductType:           "SPOT",
+				OrderPlacementSource:  "RETAIL_ADVANCED",
+				OutstandingHoldAmount: 5003.0335664000001,
+				LastFillTime:          time.Date(2024, 12, 11, 18, 36, 14, 410774000, time.UTC),
+				EditHistory:           []OrderEdit{},
+				MarginType:            "UNKNOWN_MARGIN_TYPE",
+				RetailPortfolioID:     "eec99928-3d46-5b38-a1ca-122d0e5fb7f0",
+				AttachedOrderID:       "3daff354-c513-4c9d-869e-6ebf223364f4",
+				AttachedOrderConfiguration: &OrderConfiguration{
+					TriggerBracketGTC: &TriggerBracketGTC{
+						LimitPrice:       99990,
+						StopTriggerPrice: 99800,
+					},
 				},
-			},
-			CostBasisMethod:      "COST_BASIS_METHOD_UNSPECIFIED",
-			DisplayedOrderConfig: "UNKNOWN_DISPLAYED_ORDER_CONFIG",
-			EquityTradingSession: "UNKNOWN_EQUITY_TRADING_SESSION",
-			PredictionSide:       "PREDICTION_SIDE_UNKNOWN",
-			OrderDataSource:      "ORDER_DATA_SOURCE_UNKNOWN",
-			FundingSource:        "FUNDING_SOURCE_UNSPECIFIED",
-			OptionLegs:           json.RawMessage(`[]`),
-			Holds:                json.RawMessage(`null`),
-			ComboLegs:            json.RawMessage(`[]`),
-		}
-		assert.Equal(t, exp, resp, "GetOrder should decode every field")
+				CostBasisMethod:      "COST_BASIS_METHOD_UNSPECIFIED",
+				DisplayedOrderConfig: "UNKNOWN_DISPLAYED_ORDER_CONFIG",
+				EquityTradingSession: "UNKNOWN_EQUITY_TRADING_SESSION",
+				PredictionSide:       "PREDICTION_SIDE_UNKNOWN",
+				OrderDataSource:      "ORDER_DATA_SOURCE_UNKNOWN",
+				FundingSource:        "FUNDING_SOURCE_UNSPECIFIED",
+				OptionLegs:           json.RawMessage(`[]`),
+				Holds:                json.RawMessage(`null`),
+				ComboLegs:            json.RawMessage(`[]`),
+			}
+			assert.Equal(t, exp, resp, "GetOrder should decode every field")
 
-		resp, err = e.GetOrder(t.Context(), testSandboxAttachedOrderID)
-		require.NoError(t, err, "GetOrder must not error for an attached order")
-		exp = &Order{
-			OrderID:   "3daff354-c513-4c9d-869e-6ebf223364f4",
-			ProductID: "BTC-USD",
-			UserID:    "eec99928-3d46-5b38-a1ca-122d0e5fb7f0",
-			OrderConfiguration: &OrderConfiguration{
-				TriggerBracketGTC: &TriggerBracketGTC{
-					BaseSize:         0.05,
-					LimitPrice:       99990,
-					StopTriggerPrice: 99800,
+			resp, err = e.GetOrder(t.Context(), testSandboxAttachedOrderID)
+			require.NoError(t, err, "GetOrder must not error for an attached order")
+			exp = &Order{
+				OrderID:   "3daff354-c513-4c9d-869e-6ebf223364f4",
+				ProductID: "BTC-USD",
+				UserID:    "eec99928-3d46-5b38-a1ca-122d0e5fb7f0",
+				OrderConfiguration: &OrderConfiguration{
+					TriggerBracketGTC: &TriggerBracketGTC{
+						BaseSize:         0.05,
+						LimitPrice:       99990,
+						StopTriggerPrice: 99800,
+					},
 				},
-			},
-			Side:                 "SELL",
-			ClientOrderID:        "attached_order",
-			Status:               "FILLED",
-			TimeInForce:          "GOOD_UNTIL_CANCELLED",
-			CreatedTime:          time.Date(2024, 12, 11, 18, 36, 18, 184309000, time.UTC),
-			CompletionPercentage: 100,
-			FilledSize:           0.05,
-			AverageFilledPrice:   99990,
-			NumberOfFills:        3,
-			FilledValue:          4999.5,
-			TotalFees:            3.49965,
-			TotalValueAfterFees:  4996.00035,
-			TriggerStatus:        "INVALID_ORDER_TYPE",
-			OrderType:            "TAKE_PROFIT_STOP_LOSS",
-			RejectReason:         "REJECT_REASON_UNSPECIFIED",
-			Settled:              true,
-			ProductType:          "SPOT",
-			OrderPlacementSource: "RETAIL_ADVANCED",
-			LastFillTime:         time.Date(2024, 12, 11, 18, 36, 23, 430757000, time.UTC),
-			EditHistory:          []OrderEdit{},
-			MarginType:           "UNKNOWN_MARGIN_TYPE",
-			RetailPortfolioID:    "eec99928-3d46-5b38-a1ca-122d0e5fb7f0",
-			OriginatingOrderID:   "c6981abf-a8b4-4209-b33f-2aa6ee8cd72f",
-			CostBasisMethod:      "COST_BASIS_METHOD_UNSPECIFIED",
-			DisplayedOrderConfig: "UNKNOWN_DISPLAYED_ORDER_CONFIG",
-			EquityTradingSession: "UNKNOWN_EQUITY_TRADING_SESSION",
-			PredictionSide:       "PREDICTION_SIDE_UNKNOWN",
-			OrderDataSource:      "ORDER_DATA_SOURCE_UNKNOWN",
-			FundingSource:        "FUNDING_SOURCE_UNSPECIFIED",
-			OptionLegs:           json.RawMessage(`[]`),
-			Holds:                json.RawMessage(`null`),
-			ComboLegs:            json.RawMessage(`[]`),
+				Side:                 "SELL",
+				ClientOrderID:        "attached_order",
+				Status:               "FILLED",
+				TimeInForce:          "GOOD_UNTIL_CANCELLED",
+				CreatedTime:          time.Date(2024, 12, 11, 18, 36, 18, 184309000, time.UTC),
+				CompletionPercentage: 100,
+				FilledSize:           0.05,
+				AverageFilledPrice:   99990,
+				NumberOfFills:        3,
+				FilledValue:          4999.5,
+				TotalFees:            3.49965,
+				TotalValueAfterFees:  4996.00035,
+				TriggerStatus:        "INVALID_ORDER_TYPE",
+				OrderType:            "TAKE_PROFIT_STOP_LOSS",
+				RejectReason:         "REJECT_REASON_UNSPECIFIED",
+				Settled:              true,
+				ProductType:          "SPOT",
+				OrderPlacementSource: "RETAIL_ADVANCED",
+				LastFillTime:         time.Date(2024, 12, 11, 18, 36, 23, 430757000, time.UTC),
+				EditHistory:          []OrderEdit{},
+				MarginType:           "UNKNOWN_MARGIN_TYPE",
+				RetailPortfolioID:    "eec99928-3d46-5b38-a1ca-122d0e5fb7f0",
+				OriginatingOrderID:   "c6981abf-a8b4-4209-b33f-2aa6ee8cd72f",
+				CostBasisMethod:      "COST_BASIS_METHOD_UNSPECIFIED",
+				DisplayedOrderConfig: "UNKNOWN_DISPLAYED_ORDER_CONFIG",
+				EquityTradingSession: "UNKNOWN_EQUITY_TRADING_SESSION",
+				PredictionSide:       "PREDICTION_SIDE_UNKNOWN",
+				OrderDataSource:      "ORDER_DATA_SOURCE_UNKNOWN",
+				FundingSource:        "FUNDING_SOURCE_UNSPECIFIED",
+				OptionLegs:           json.RawMessage(`[]`),
+				Holds:                json.RawMessage(`null`),
+				ComboLegs:            json.RawMessage(`[]`),
+			}
+			assert.Equal(t, exp, resp, "GetOrder should decode every field of an attached take profit/stop loss order")
+		} else {
+			assert.Equal(t, orderID, resp.OrderID, "GetOrder should return the order")
 		}
-		assert.Equal(t, exp, resp, "GetOrder should decode every field of an attached take profit/stop loss order")
-	} else {
-		assert.Equal(t, orderID, resp.OrderID, "GetOrder should return the order")
-	}
+	})
 
 	_, err = newOrderNotFoundServerExchange(t).GetOrder(t.Context(), testUnknownOrderID)
 	assert.ErrorIs(t, err, order.ErrOrderNotFound, "GetOrder should report an order Coinbase does not know")
@@ -528,92 +546,95 @@ func TestGetOrder(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "GetOrder should return the request failure")
 }
 
-func TestListFills(t *testing.T) {
+func TestListFills(t *testing.T) { //nolint:tparallel // the live case runs before the cases on local servers
 	t.Parallel()
 	_, err := e.ListFills(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "ListFills must reject a nil request")
 	_, err = e.ListFills(t.Context(), &ListFillsRequest{SortBy: OrdersSortByLimitPrice})
 	require.ErrorIs(t, err, errInvalidFillsSortBy, "ListFills must refuse an order list sort field")
 
-	skipLiveWithoutCredentials(t)
-	req := &ListFillsRequest{}
-	if !mockTests {
-		req.Limit = 5
-	}
-	resp, err := e.ListFills(t.Context(), req)
-	require.NoError(t, err, "ListFills must not error")
-	if mockTests {
-		exp := &ListFillsResponse{
-			Fills: []Fill{
-				{
-					EntryID:            "f8b3aa2ba0825457bad20056c52cbe51177af5dd2f66dc55445640f95658f1f3",
-					TradeID:            "d006d1e0-cf64-4cdf-8fe1-8441221cd96f",
-					OrderID:            "37f17b89-cd9e-41eb-9187-2df6aa72f895",
-					TradeTime:          time.Date(2024, 6, 27, 20, 32, 6, 568973000, time.UTC),
-					TradeType:          "FILL",
-					Price:              70000.44,
-					Size:               0.00137199,
-					Commission:         0.3841596147024,
-					ProductID:          "BTC-USD",
-					SequenceTimestamp:  time.Date(2024, 6, 27, 20, 32, 6, 574070000, time.UTC),
-					LiquidityIndicator: "MAKER",
-					UserID:             "eec99928-3d46-5b38-a1ca-122d0e5fb7f0",
-					Side:               "SELL",
-					RetailPortfolioID:  "eec99928-3d46-5b38-a1ca-122d0e5fb7f0",
-					FillSource:         "FILL_SOURCE_UNKNOWN",
-					OrderDataSource:    "ORDER_DATA_SOURCE_UNKNOWN",
-					FutureLegs:         []FillFutureLeg{},
-					OptionLegs:         json.RawMessage(`[]`),
-					ProductType:        "UNKNOWN_PRODUCT_TYPE",
-				},
-				{
-					EntryID:            "49e5397c27030f629a3f02c8a359022fa295b96681e1a630b4dd94eca3837582",
-					TradeID:            "0b639999-60d1-4b9c-bf2e-90b3b5f48dfd",
-					OrderID:            "439e8aa4-47ab-48f6-bb44-33907960e92f",
-					TradeTime:          time.Date(2024, 6, 18, 19, 59, 10, 102220957, time.UTC),
-					TradeType:          "FILL",
-					Price:              60000.44,
-					Size:               1,
-					Commission:         480.00352,
-					ProductID:          "BTC-USD",
-					SequenceTimestamp:  time.Date(2024, 6, 18, 19, 59, 10, 111915000, time.UTC),
-					LiquidityIndicator: "UNKNOWN_LIQUIDITY_INDICATOR",
-					UserID:             "eec99928-3d46-5b38-a1ca-122d0e5fb7f0",
-					Side:               "BUY",
-					RetailPortfolioID:  "eec99928-3d46-5b38-a1ca-122d0e5fb7f0",
-					FillSource:         "FILL_SOURCE_UNKNOWN",
-					OrderDataSource:    "ORDER_DATA_SOURCE_UNKNOWN",
-					FutureLegs:         []FillFutureLeg{},
-					OptionLegs:         json.RawMessage(`[]`),
-					ProductType:        "UNKNOWN_PRODUCT_TYPE",
-				},
-				{
-					EntryID:            "dc91f6cd8c78f47685530484bf34585769b062f8fd1497e0e503388928d69614",
-					TradeID:            "2a013f5a-f8e1-4f73-b15b-336fcf4d88d6",
-					OrderID:            "48c3142a-3601-40b0-bb42-ac88872fe40a",
-					TradeTime:          time.Date(2024, 6, 18, 19, 58, 42, 263681859, time.UTC),
-					TradeType:          "FILL",
-					Price:              61000.44,
-					Size:               1,
-					Commission:         488.00352,
-					ProductID:          "BTC-USD",
-					SequenceTimestamp:  time.Date(2024, 6, 18, 19, 58, 42, 265863000, time.UTC),
-					LiquidityIndicator: "UNKNOWN_LIQUIDITY_INDICATOR",
-					UserID:             "eec99928-3d46-5b38-a1ca-122d0e5fb7f0",
-					Side:               "BUY",
-					RetailPortfolioID:  "eec99928-3d46-5b38-a1ca-122d0e5fb7f0",
-					FillSource:         "FILL_SOURCE_UNKNOWN",
-					OrderDataSource:    "ORDER_DATA_SOURCE_UNKNOWN",
-					FutureLegs:         []FillFutureLeg{},
-					OptionLegs:         json.RawMessage(`[]`),
-					ProductType:        "UNKNOWN_PRODUCT_TYPE",
-				},
-			},
+	// The live case runs first, as the cases on local servers after it call the same method
+	t.Run("lists the fills", func(t *testing.T) {
+		skipLiveWithoutCredentials(t)
+		req := &ListFillsRequest{}
+		if !mockTests {
+			req.Limit = 5
 		}
-		assert.Equal(t, exp, resp, "ListFills should decode every field")
-	} else {
-		assert.LessOrEqual(t, len(resp.Fills), 5, "ListFills should return at most the limited fills")
-	}
+		resp, err := e.ListFills(t.Context(), req)
+		require.NoError(t, err, "ListFills must not error")
+		if mockTests {
+			exp := &ListFillsResponse{
+				Fills: []Fill{
+					{
+						EntryID:            "f8b3aa2ba0825457bad20056c52cbe51177af5dd2f66dc55445640f95658f1f3",
+						TradeID:            "d006d1e0-cf64-4cdf-8fe1-8441221cd96f",
+						OrderID:            "37f17b89-cd9e-41eb-9187-2df6aa72f895",
+						TradeTime:          time.Date(2024, 6, 27, 20, 32, 6, 568973000, time.UTC),
+						TradeType:          "FILL",
+						Price:              70000.44,
+						Size:               0.00137199,
+						Commission:         0.3841596147024,
+						ProductID:          "BTC-USD",
+						SequenceTimestamp:  time.Date(2024, 6, 27, 20, 32, 6, 574070000, time.UTC),
+						LiquidityIndicator: "MAKER",
+						UserID:             "eec99928-3d46-5b38-a1ca-122d0e5fb7f0",
+						Side:               "SELL",
+						RetailPortfolioID:  "eec99928-3d46-5b38-a1ca-122d0e5fb7f0",
+						FillSource:         "FILL_SOURCE_UNKNOWN",
+						OrderDataSource:    "ORDER_DATA_SOURCE_UNKNOWN",
+						FutureLegs:         []FillFutureLeg{},
+						OptionLegs:         json.RawMessage(`[]`),
+						ProductType:        "UNKNOWN_PRODUCT_TYPE",
+					},
+					{
+						EntryID:            "49e5397c27030f629a3f02c8a359022fa295b96681e1a630b4dd94eca3837582",
+						TradeID:            "0b639999-60d1-4b9c-bf2e-90b3b5f48dfd",
+						OrderID:            "439e8aa4-47ab-48f6-bb44-33907960e92f",
+						TradeTime:          time.Date(2024, 6, 18, 19, 59, 10, 102220957, time.UTC),
+						TradeType:          "FILL",
+						Price:              60000.44,
+						Size:               1,
+						Commission:         480.00352,
+						ProductID:          "BTC-USD",
+						SequenceTimestamp:  time.Date(2024, 6, 18, 19, 59, 10, 111915000, time.UTC),
+						LiquidityIndicator: "UNKNOWN_LIQUIDITY_INDICATOR",
+						UserID:             "eec99928-3d46-5b38-a1ca-122d0e5fb7f0",
+						Side:               "BUY",
+						RetailPortfolioID:  "eec99928-3d46-5b38-a1ca-122d0e5fb7f0",
+						FillSource:         "FILL_SOURCE_UNKNOWN",
+						OrderDataSource:    "ORDER_DATA_SOURCE_UNKNOWN",
+						FutureLegs:         []FillFutureLeg{},
+						OptionLegs:         json.RawMessage(`[]`),
+						ProductType:        "UNKNOWN_PRODUCT_TYPE",
+					},
+					{
+						EntryID:            "dc91f6cd8c78f47685530484bf34585769b062f8fd1497e0e503388928d69614",
+						TradeID:            "2a013f5a-f8e1-4f73-b15b-336fcf4d88d6",
+						OrderID:            "48c3142a-3601-40b0-bb42-ac88872fe40a",
+						TradeTime:          time.Date(2024, 6, 18, 19, 58, 42, 263681859, time.UTC),
+						TradeType:          "FILL",
+						Price:              61000.44,
+						Size:               1,
+						Commission:         488.00352,
+						ProductID:          "BTC-USD",
+						SequenceTimestamp:  time.Date(2024, 6, 18, 19, 58, 42, 265863000, time.UTC),
+						LiquidityIndicator: "UNKNOWN_LIQUIDITY_INDICATOR",
+						UserID:             "eec99928-3d46-5b38-a1ca-122d0e5fb7f0",
+						Side:               "BUY",
+						RetailPortfolioID:  "eec99928-3d46-5b38-a1ca-122d0e5fb7f0",
+						FillSource:         "FILL_SOURCE_UNKNOWN",
+						OrderDataSource:    "ORDER_DATA_SOURCE_UNKNOWN",
+						FutureLegs:         []FillFutureLeg{},
+						OptionLegs:         json.RawMessage(`[]`),
+						ProductType:        "UNKNOWN_PRODUCT_TYPE",
+					},
+				},
+			}
+			assert.Equal(t, exp, resp, "ListFills should decode every field")
+		} else {
+			assert.LessOrEqual(t, len(resp.Fills), 5, "ListFills should return at most the limited fills")
+		}
+	})
 
 	// The mock joins a repeated param's values before matching them, so a test server checks they are repeated
 	ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -626,7 +647,7 @@ func TestListFills(t *testing.T) {
 		_, err := w.Write([]byte(`{"fills":[],"cursor":"","proof_token_required":false}`))
 		assert.NoError(t, err, "Writing the response should not error")
 	}))
-	resp, err = ex.ListFills(t.Context(), &ListFillsRequest{OrderIDs: []string{"a", "b"}, AssetFilters: []currency.Code{currency.BTC, currency.ETH}, ProductTypes: []string{ProductTypeSpot, ProductTypeFuture}})
+	resp, err := ex.ListFills(t.Context(), &ListFillsRequest{OrderIDs: []string{"a", "b"}, AssetFilters: []currency.Code{currency.BTC, currency.ETH}, ProductTypes: []string{ProductTypeSpot, ProductTypeFuture}})
 	require.NoError(t, err, "ListFills must not error")
 	assert.Equal(t, &ListFillsResponse{Fills: []Fill{}}, resp, "ListFills should decode an empty page")
 
@@ -636,61 +657,64 @@ func TestListFills(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "ListFills should return the request failure")
 }
 
-func TestListOrders(t *testing.T) {
+func TestListOrders(t *testing.T) { //nolint:tparallel // the live case runs before the cases on local servers
 	t.Parallel()
 	_, err := e.ListOrders(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "ListOrders must reject a nil request")
 	_, err = e.ListOrders(t.Context(), &ListOrdersRequest{OrderStatuses: []string{"ACTIVE"}})
 	require.ErrorIs(t, err, errInvalidOrderStatus, "ListOrders must refuse an unknown order status")
 
-	skipLiveWithoutCredentials(t)
-	resp, err := e.ListOrders(t.Context(), testListOrdersRequest())
-	require.NoError(t, err, "ListOrders must not error")
-	if mockTests {
-		exp := &ListOrdersResponse{
-			Orders: []Order{
-				{
-					OrderID:   "ff6e8dad-22c4-422d-bbf2-3c55b70e42d2",
-					ProductID: "BTC-USD",
-					UserID:    "eec99928-3d46-5b38-a1ca-122d0e5fb7f0",
-					OrderConfiguration: &OrderConfiguration{
-						LimitLimitGTC: &LimitLimitGTC{
-							BaseSize:   1,
-							LimitPrice: 70000.44,
+	// The live case runs first, as the cases on local servers after it call the same method
+	t.Run("lists the orders", func(t *testing.T) {
+		skipLiveWithoutCredentials(t)
+		resp, err := e.ListOrders(t.Context(), testListOrdersRequest())
+		require.NoError(t, err, "ListOrders must not error")
+		if mockTests {
+			exp := &ListOrdersResponse{
+				Orders: []Order{
+					{
+						OrderID:   "ff6e8dad-22c4-422d-bbf2-3c55b70e42d2",
+						ProductID: "BTC-USD",
+						UserID:    "eec99928-3d46-5b38-a1ca-122d0e5fb7f0",
+						OrderConfiguration: &OrderConfiguration{
+							LimitLimitGTC: &LimitLimitGTC{
+								BaseSize:   1,
+								LimitPrice: 70000.44,
+							},
 						},
+						Side:                  "SELL",
+						ClientOrderID:         "spot_order_2",
+						Status:                "OPEN",
+						TimeInForce:           "GOOD_UNTIL_CANCELLED",
+						CreatedTime:           time.Date(2024, 6, 28, 15, 16, 47, 696748000, time.UTC),
+						TriggerStatus:         "INVALID_ORDER_TYPE",
+						OrderType:             "LIMIT",
+						RejectReason:          "REJECT_REASON_UNSPECIFIED",
+						ProductType:           "SPOT",
+						OrderPlacementSource:  "RETAIL_ADVANCED",
+						OutstandingHoldAmount: 1,
+						EditHistory:           []OrderEdit{},
+						MarginType:            "UNKNOWN_MARGIN_TYPE",
+						RetailPortfolioID:     "eec99928-3d46-5b38-a1ca-122d0e5fb7f0",
+						CostBasisMethod:       "COST_BASIS_METHOD_UNSPECIFIED",
+						DisplayedOrderConfig:  "UNKNOWN_DISPLAYED_ORDER_CONFIG",
+						EquityTradingSession:  "UNKNOWN_EQUITY_TRADING_SESSION",
+						PredictionSide:        "PREDICTION_SIDE_UNKNOWN",
+						OrderDataSource:       "ORDER_DATA_SOURCE_UNKNOWN",
+						FundingSource:         "FUNDING_SOURCE_UNSPECIFIED",
+						OptionLegs:            json.RawMessage(`[]`),
+						Holds:                 json.RawMessage(`null`),
+						ComboLegs:             json.RawMessage(`[]`),
 					},
-					Side:                  "SELL",
-					ClientOrderID:         "spot_order_2",
-					Status:                "OPEN",
-					TimeInForce:           "GOOD_UNTIL_CANCELLED",
-					CreatedTime:           time.Date(2024, 6, 28, 15, 16, 47, 696748000, time.UTC),
-					TriggerStatus:         "INVALID_ORDER_TYPE",
-					OrderType:             "LIMIT",
-					RejectReason:          "REJECT_REASON_UNSPECIFIED",
-					ProductType:           "SPOT",
-					OrderPlacementSource:  "RETAIL_ADVANCED",
-					OutstandingHoldAmount: 1,
-					EditHistory:           []OrderEdit{},
-					MarginType:            "UNKNOWN_MARGIN_TYPE",
-					RetailPortfolioID:     "eec99928-3d46-5b38-a1ca-122d0e5fb7f0",
-					CostBasisMethod:       "COST_BASIS_METHOD_UNSPECIFIED",
-					DisplayedOrderConfig:  "UNKNOWN_DISPLAYED_ORDER_CONFIG",
-					EquityTradingSession:  "UNKNOWN_EQUITY_TRADING_SESSION",
-					PredictionSide:        "PREDICTION_SIDE_UNKNOWN",
-					OrderDataSource:       "ORDER_DATA_SOURCE_UNKNOWN",
-					FundingSource:         "FUNDING_SOURCE_UNSPECIFIED",
-					OptionLegs:            json.RawMessage(`[]`),
-					Holds:                 json.RawMessage(`null`),
-					ComboLegs:             json.RawMessage(`[]`),
 				},
-			},
+			}
+			assert.Equal(t, exp, resp, "ListOrders should decode every field")
+		} else {
+			for i := range resp.Orders {
+				assert.Equalf(t, OrderStatusOpen, resp.Orders[i].Status, "ListOrders should return only open orders, not order %s", resp.Orders[i].OrderID)
+			}
 		}
-		assert.Equal(t, exp, resp, "ListOrders should decode every field")
-	} else {
-		for i := range resp.Orders {
-			assert.Equalf(t, OrderStatusOpen, resp.Orders[i].Status, "ListOrders should return only open orders, not order %s", resp.Orders[i].OrderID)
-		}
-	}
+	})
 
 	// The mock joins a repeated param's values before matching them, so a test server checks they are repeated
 	ex := newTestServerExchange(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -703,7 +727,7 @@ func TestListOrders(t *testing.T) {
 		_, err := w.Write([]byte(`{"orders":[],"sequence":"0","has_next":false,"cursor":"","proof_token_required":false}`))
 		assert.NoError(t, err, "Writing the response should not error")
 	}))
-	resp, err = ex.ListOrders(t.Context(), &ListOrdersRequest{
+	resp, err := ex.ListOrders(t.Context(), &ListOrdersRequest{
 		ProductIDs:    []string{"BTC-USD", "ETH-USD"},
 		OrderStatuses: []string{OrderStatusOpen, OrderStatusPending},
 		TimeInForces:  []string{TimeInForceGoodUntilCancelled, TimeInForceFillOrKill},
@@ -717,7 +741,7 @@ func TestListOrders(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrBadStatus, "ListOrders should return the request failure")
 }
 
-func TestPreviewOrder(t *testing.T) {
+func TestPreviewOrder(t *testing.T) { //nolint:tparallel // the live case runs before the cases on local servers
 	t.Parallel()
 	_, err := e.PreviewOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "PreviewOrder must reject a nil request")
@@ -726,37 +750,40 @@ func TestPreviewOrder(t *testing.T) {
 	_, err = e.PreviewOrder(t.Context(), req)
 	require.ErrorIs(t, err, errInvalidOrderSide, "PreviewOrder must require a side")
 
-	// A preview places nothing, so it only needs credentials
-	skipLiveWithoutCredentials(t)
-	resp, err := e.PreviewOrder(t.Context(), testPreviewOrderRequest(5))
-	if mockTests {
-		require.NoError(t, err, "PreviewOrder must not error")
-		exp := &PreviewOrderResponse{
-			OrderTotal:      5.04,
-			CommissionTotal: 0.04,
-			Errors:          []string{},
-			Warnings:        []string{},
-			QuoteSize:       5,
-			BaseSize:        0.0001,
-			BestBid:         65769.37,
-			BestAsk:         65769.38,
-			PreviewID:       "d5524676-73b5-4616-abe8-3abcf6bf001f",
-			FillLikelihood:  "FILL_LIKELIHOOD_UNSPECIFIED",
-		}
-		assert.Equal(t, exp, resp, "PreviewOrder should decode every field")
+	// The live case runs first, as the cases on local servers after it call the same method
+	t.Run("previews an order", func(t *testing.T) {
+		// A preview places nothing, so it only needs credentials
+		skipLiveWithoutCredentials(t)
+		resp, err := e.PreviewOrder(t.Context(), testPreviewOrderRequest(5))
+		if mockTests {
+			require.NoError(t, err, "PreviewOrder must not error")
+			exp := &PreviewOrderResponse{
+				OrderTotal:      5.04,
+				CommissionTotal: 0.04,
+				Errors:          []string{},
+				Warnings:        []string{},
+				QuoteSize:       5,
+				BaseSize:        0.0001,
+				BestBid:         65769.37,
+				BestAsk:         65769.38,
+				PreviewID:       "d5524676-73b5-4616-abe8-3abcf6bf001f",
+				FillLikelihood:  "FILL_LIKELIHOOD_UNSPECIFIED",
+			}
+			assert.Equal(t, exp, resp, "PreviewOrder should decode every field")
 
-		resp, err = e.PreviewOrder(t.Context(), testPreviewOrderRequest(5000000))
-		assert.ErrorIs(t, err, errOrderPreviewFailed, "PreviewOrder should report an order that would fail")
-		exp.Errors = []string{"PREVIEW_INSUFFICIENT_FUND"}
-		assert.Equal(t, exp, resp, "PreviewOrder should return the response reporting the failure")
-	} else {
-		// The account may lack the funds to place the order, which the preview reports along with its totals
-		if err != nil {
-			require.ErrorIs(t, err, errOrderPreviewFailed, "PreviewOrder must only report the order's failures")
+			resp, err = e.PreviewOrder(t.Context(), testPreviewOrderRequest(5000000))
+			assert.ErrorIs(t, err, errOrderPreviewFailed, "PreviewOrder should report an order that would fail")
+			exp.Errors = []string{"PREVIEW_INSUFFICIENT_FUND"}
+			assert.Equal(t, exp, resp, "PreviewOrder should return the response reporting the failure")
+		} else {
+			// The account may lack the funds to place the order, which the preview reports along with its totals
+			if err != nil {
+				require.ErrorIs(t, err, errOrderPreviewFailed, "PreviewOrder must only report the order's failures")
+			}
+			require.NotNil(t, resp, "PreviewOrder must return the preview")
+			assert.Positive(t, resp.QuoteSize.Float64(), "PreviewOrder should return the order's quote size")
 		}
-		require.NotNil(t, resp, "PreviewOrder must return the preview")
-		assert.Positive(t, resp.QuoteSize.Float64(), "PreviewOrder should return the order's quote size")
-	}
+	})
 
 	_, err = newResponseServerExchange(t, `null`).PreviewOrder(t.Context(), testPreviewOrderRequest(5))
 	assert.ErrorIs(t, err, common.ErrNoResponse, "PreviewOrder should error for a null response")
@@ -1332,7 +1359,7 @@ func TestCheckOrderNumbers(t *testing.T) {
 	assert.NoError(t, checkOrderNumbers(errInvalidAmount, 0, 1.5), "checkOrderNumbers should accept zero and positive values")
 	assert.ErrorIs(t, checkOrderNumbers(errInvalidPrice, 1, -0.5), errInvalidPrice, "checkOrderNumbers should refuse a negative value with the sentinel given")
 	for _, v := range []float64{math.NaN(), math.Inf(1), math.Inf(-1)} {
-		t.Run(strconv.FormatFloat(v, 'g', -1, 64), func(t *testing.T) {
+		t.Run("value "+strconv.FormatFloat(v, 'g', -1, 64), func(t *testing.T) {
 			t.Parallel()
 			assert.ErrorIsf(t, checkOrderNumbers(errInvalidAmount, v), errInvalidAmount, "checkOrderNumbers should refuse %v", v)
 		})

@@ -12,7 +12,7 @@ import (
 func TestDerivativesLogoutParams(t *testing.T) {
 	t.Parallel()
 	for invalidateToken, exp := range map[bool]string{false: `{"invalidate_token":false}`, true: `{"invalidate_token":true}`} {
-		t.Run(strconv.FormatBool(invalidateToken), func(t *testing.T) {
+		t.Run("invalidate token "+strconv.FormatBool(invalidateToken), func(t *testing.T) {
 			t.Parallel()
 			encoded, err := json.Marshal(&DerivativesLogoutWireRequest{InvalidateToken: invalidateToken})
 			require.NoError(t, err, "Marshal must not error")

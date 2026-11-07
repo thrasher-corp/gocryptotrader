@@ -51,7 +51,7 @@ func testDerivativesTransfer() *DerivativesTransferResponse {
 	}
 }
 
-func TestGlobalDerivativesSubmitTransferBetweenSubaccounts(t *testing.T) {
+func TestGlobalDerivativesSubmitTransferBetweenSubaccounts(t *testing.T) { //nolint:tparallel // the live case runs before the cases on local servers
 	t.Parallel()
 	_, err := e.GlobalDerivatives().SubmitTransferBetweenSubaccounts(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "SubmitTransferBetweenSubaccounts must reject a nil request")
@@ -78,13 +78,16 @@ func TestGlobalDerivativesSubmitTransferBetweenSubaccounts(t *testing.T) {
 	_, err = e.GlobalDerivatives().SubmitTransferBetweenSubaccounts(t.Context(), arg)
 	require.ErrorIs(t, err, errDerivativesInvalidTransferNonce, "SubmitTransferBetweenSubaccounts must refuse a nonce under 8 characters")
 
-	skipLiveUnlessCanManipulate(t)
-	if !mockTests {
-		t.Skip("SubmitTransferBetweenSubaccounts needs subaccounts, which live tests do not have")
-	}
-	resp, err := e.GlobalDerivatives().SubmitTransferBetweenSubaccounts(t.Context(), testDerivativesTransferRequest())
-	require.NoError(t, err, "SubmitTransferBetweenSubaccounts must not error")
-	assert.Equal(t, testDerivativesTransfer(), resp, "SubmitTransferBetweenSubaccounts should decode every field")
+	// The live case runs first, as the cases on local servers after it call the same method
+	t.Run("transfers between subaccounts", func(t *testing.T) {
+		skipLiveUnlessCanManipulate(t)
+		if !mockTests {
+			t.Skip("SubmitTransferBetweenSubaccounts needs subaccounts, which live tests do not have")
+		}
+		resp, err := e.GlobalDerivatives().SubmitTransferBetweenSubaccounts(t.Context(), testDerivativesTransferRequest())
+		require.NoError(t, err, "SubmitTransferBetweenSubaccounts must not error")
+		assert.Equal(t, testDerivativesTransfer(), resp, "SubmitTransferBetweenSubaccounts should decode every field")
+	})
 
 	ex, sent := newDerivativesAccountParamsServer(t, `{"id":3}`)
 	_, err = ex.GlobalDerivatives().SubmitTransferBetweenSubaccounts(t.Context(), &DerivativesSubmitTransferBetweenSubaccountsRequest{Currency: currency.NewCode("usdc"), Amount: 50, Destination: testDerivativesAccountIsolatedSubaccountID})
