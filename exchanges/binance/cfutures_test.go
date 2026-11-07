@@ -721,11 +721,6 @@ func symbolKlineTests(t *testing.T, fn func(*CoinMarginedFuturesKlineRequest) er
 
 func TestGetCoinMarginedFuturesKlineData(t *testing.T) {
 	t.Parallel()
-	req := symbolKlineTests(t, func(r *CoinMarginedFuturesKlineRequest) error {
-		_, err := e.GetCoinMarginedFuturesKlineData(t.Context(), r)
-		return err
-	})
-
 	t.Run("sends the interval as Binance writes it", func(t *testing.T) {
 		t.Parallel()
 		for _, tc := range []struct {
@@ -760,6 +755,11 @@ func TestGetCoinMarginedFuturesKlineData(t *testing.T) {
 				assert.NoError(t, err, "GetCoinMarginedFuturesKlineData should not error")
 			})
 		}
+	})
+
+	req := symbolKlineTests(t, func(r *CoinMarginedFuturesKlineRequest) error {
+		_, err := e.GetCoinMarginedFuturesKlineData(t.Context(), r)
+		return err
 	})
 
 	result, err := e.GetCoinMarginedFuturesKlineData(t.Context(), req)

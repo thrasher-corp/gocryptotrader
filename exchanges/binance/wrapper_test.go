@@ -9001,9 +9001,11 @@ func TestGetCurrencyTradeURL(t *testing.T) { //nolint:tparallel // the cases sha
 
 	if !mockTests {
 		for a, pair := range marketTestPairs(t) {
-			result, err := e.GetCurrencyTradeURL(t.Context(), a, pair)
-			require.NoErrorf(t, err, "GetCurrencyTradeURL must not error for %s", a)
-			assert.NotEmptyf(t, result, "GetCurrencyTradeURL should return a URL for %s", a)
+			t.Run(a.String(), func(t *testing.T) {
+				result, err := e.GetCurrencyTradeURL(t.Context(), a, pair)
+				require.NoErrorf(t, err, "GetCurrencyTradeURL must not error for %s", a)
+				assert.NotEmptyf(t, result, "GetCurrencyTradeURL should return a URL for %s", a)
+			})
 		}
 		return
 	}
@@ -9330,7 +9332,10 @@ func TestIsAlgoOrderType(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			for _, orderType := range tc.types {
-				assert.Equalf(t, tc.exp, isAlgoOrderType(tc.a, orderType), "isAlgoOrderType should report whether a %s %s type names an algo order", tc.a, orderType)
+				t.Run(orderType.String(), func(t *testing.T) {
+					t.Parallel()
+					assert.Equalf(t, tc.exp, isAlgoOrderType(tc.a, orderType), "isAlgoOrderType should report whether a %s %s type names an algo order", tc.a, orderType)
+				})
 			}
 		})
 	}
@@ -9354,7 +9359,10 @@ func TestNamesOrderOrAlgoOrder(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			for _, orderType := range tc.types {
-				assert.Equalf(t, tc.exp, namesOrderOrAlgoOrder(tc.a, orderType), "namesOrderOrAlgoOrder should report whether a %s %s type may name either kind", tc.a, orderType)
+				t.Run(orderType.String(), func(t *testing.T) {
+					t.Parallel()
+					assert.Equalf(t, tc.exp, namesOrderOrAlgoOrder(tc.a, orderType), "namesOrderOrAlgoOrder should report whether a %s %s type may name either kind", tc.a, orderType)
+				})
 			}
 		})
 	}

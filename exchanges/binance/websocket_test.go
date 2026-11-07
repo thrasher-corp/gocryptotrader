@@ -194,7 +194,7 @@ func BenchmarkWebsocketHandleData(b *testing.B) {
 	}
 }
 
-func TestStreamPayloads(t *testing.T) {
+func TestStreamPayloads(t *testing.T) { //nolint:tparallel // the frames decode in the fixture's order, so they run in order while the test runs in parallel
 	t.Parallel()
 	exp := []struct {
 		stream  string
@@ -323,15 +323,18 @@ func TestStreamPayloads(t *testing.T) {
 	}
 	lines := fixtureLines(t, "testdata/wsSpot.jsonl")
 	require.Len(t, lines, len(exp), "fixture must have one frame per expected payload")
+	// The frames decode in the fixture's order, so each also checks that a decode keeps nothing from the frames before
 	for i, line := range lines {
-		name, err := jsonparser.GetString(line, "stream")
-		require.NoErrorf(t, err, "frame %d must have a stream", i)
-		require.Equalf(t, exp[i].stream, name, "frame %d must be from the expected stream", i)
-		data, _, _, err := jsonparser.Get(line, "data")
-		require.NoErrorf(t, err, "frame %d must have data", i)
-		got := reflect.New(reflect.TypeOf(exp[i].payload).Elem()).Interface()
-		require.NoErrorf(t, json.Unmarshal(data, got), "Unmarshal must not error for frame %d", i)
-		assert.Equalf(t, exp[i].payload, got, "frame %d of %s should decode every field", i, name)
+		t.Run("frame "+strconv.Itoa(i)+" of "+exp[i].stream, func(t *testing.T) {
+			name, err := jsonparser.GetString(line, "stream")
+			require.NoErrorf(t, err, "frame %d must have a stream", i)
+			require.Equalf(t, exp[i].stream, name, "frame %d must be from the expected stream", i)
+			data, _, _, err := jsonparser.Get(line, "data")
+			require.NoErrorf(t, err, "frame %d must have data", i)
+			got := reflect.New(reflect.TypeOf(exp[i].payload).Elem()).Interface()
+			require.NoErrorf(t, json.Unmarshal(data, got), "Unmarshal must not error for frame %d", i)
+			assert.Equalf(t, exp[i].payload, got, "frame %d of %s should decode every field", i, name)
+		})
 	}
 }
 

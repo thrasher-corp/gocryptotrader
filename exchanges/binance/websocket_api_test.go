@@ -2981,7 +2981,7 @@ func TestSpotBalancesOrderedByAccountUpdateTime(t *testing.T) {
 	})
 }
 
-func TestUserDataEventPayloads(t *testing.T) {
+func TestUserDataEventPayloads(t *testing.T) { //nolint:tparallel // the events decode in the fixture's order, so they run in order while the test runs in parallel
 	t.Parallel()
 	exp := []any{
 		&WebsocketAccountPosition{
@@ -3211,12 +3211,15 @@ func TestUserDataEventPayloads(t *testing.T) {
 	}
 	lines := fixtureLines(t, "testdata/wsSpotUserData.jsonl")
 	require.Len(t, lines, len(exp), "fixture must hold an event per expected payload")
+	// The events decode in the fixture's order, so each also checks that a decode keeps nothing from the events before
 	for i, line := range lines {
-		event, _, _, err := jsonparser.Get(line, "event")
-		require.NoErrorf(t, err, "event %d must be present", i)
-		got := reflect.New(reflect.TypeOf(exp[i]).Elem()).Interface()
-		require.NoErrorf(t, json.Unmarshal(event, got), "Unmarshal must not error for event %d", i)
-		assert.Equalf(t, exp[i], got, "event %d should decode every field", i)
+		t.Run("event "+strconv.Itoa(i)+" "+reflect.TypeOf(exp[i]).Elem().Name(), func(t *testing.T) {
+			event, _, _, err := jsonparser.Get(line, "event")
+			require.NoErrorf(t, err, "event %d must be present", i)
+			got := reflect.New(reflect.TypeOf(exp[i]).Elem()).Interface()
+			require.NoErrorf(t, json.Unmarshal(event, got), "Unmarshal must not error for event %d", i)
+			assert.Equalf(t, exp[i], got, "event %d should decode every field", i)
+		})
 	}
 }
 
