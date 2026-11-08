@@ -871,9 +871,9 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 }
 
 // submitOrderRequest returns the order request placing an order, but its instrument. Deribit sizes an order by
-// amount, margins it under the account's margin model and places a take profit or stop loss only as a linked order,
-// so an order asking for a quote amount, a leverage, a margin type other than cash for spot, or a take profit or stop
-// loss is refused rather than placed without it
+// amount, margins it under the account's margin model and attaches a take profit or stop loss only as a linked
+// order, so an order asking for a quote amount, a nonzero leverage other than one, a margin type other than cash for
+// spot, or a take profit or stop loss attached through RiskManagementModes is refused rather than placed without it
 func submitOrderRequest(s *order.Submit) (*OrderRequest, error) {
 	if s.QuoteAmount != 0 {
 		return nil, fmt.Errorf("%w: %v", errQuoteAmountUnsupported, s.QuoteAmount)
@@ -1008,8 +1008,8 @@ func tradeHistory(exchangeName string, t *UserTradeResponse) (order.TradeHistory
 }
 
 // ModifyOrder edits an open order, identified by its ID or by its label in the pair; an amount left unset keeps the
-// order's amount, which Deribit requires with every edit. Deribit edits no take profit or stop loss with an order, so
-// a modification setting one is refused
+// order's amount, as Deribit requires an amount or a contract count with every edit. A take profit or stop loss
+// attached through RiskManagementModes is refused, as Deribit attaches neither with an edit
 func (e *Exchange) ModifyOrder(ctx context.Context, m *order.Modify) (*order.ModifyResponse, error) {
 	if err := m.Validate(); err != nil {
 		return nil, err

@@ -29,6 +29,7 @@ const (
 	WithdrawalPriorityExtremeHigh = "extreme_high"
 	WithdrawalPriorityVeryHigh    = "very_high"
 	WithdrawalPriorityHigh        = "high"
+	WithdrawalPriorityNormal      = "normal"
 	WithdrawalPriorityMid         = "mid"
 	WithdrawalPriorityLow         = "low"
 	WithdrawalPriorityVeryLow     = "very_low"
@@ -687,7 +688,7 @@ func (e *Exchange) withdraw(ctx context.Context, arg *WithdrawRequest, overWebso
 	}
 	switch arg.Priority {
 	case "", WithdrawalPriorityInsane, WithdrawalPriorityExtremeHigh, WithdrawalPriorityVeryHigh, WithdrawalPriorityHigh,
-		WithdrawalPriorityMid, WithdrawalPriorityLow, WithdrawalPriorityVeryLow:
+		WithdrawalPriorityNormal, WithdrawalPriorityMid, WithdrawalPriorityLow, WithdrawalPriorityVeryLow:
 	default:
 		return nil, fmt.Errorf("%w: %q", errInvalidWithdrawalPriority, arg.Priority)
 	}

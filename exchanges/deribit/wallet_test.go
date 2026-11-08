@@ -1325,9 +1325,42 @@ func TestWithdraw(t *testing.T) {
 	_, err = e.Withdraw(t.Context(), arg)
 	require.ErrorIs(t, err, errAddressOrEntryIDRequired, "Withdraw must reject a request without an address or entry ID")
 	arg = testLegacyWithdrawRequest()
-	arg.Priority = "normal"
+	arg.Priority = "urgent"
 	_, err = e.Withdraw(t.Context(), arg)
 	require.ErrorIs(t, err, errInvalidWithdrawalPriority, "Withdraw must reject an undocumented priority")
+	for _, tc := range []struct{ name, priority string }{
+		{name: "capitalised", priority: "Normal"},
+		{name: "trailing space", priority: "normal "},
+		{name: "leading space", priority: " normal"},
+		{name: "first letters", priority: "norm"},
+		{name: "last letters", priority: "mal"},
+		{name: "extra prefix", priority: "xnormal"},
+		{name: "hyphenated", priority: "very-low"},
+		{name: "space separated", priority: "very low"},
+		{name: "medium for mid", priority: "medium"},
+		{name: "undocumented default", priority: "default"},
+	} {
+		t.Run(tc.name+" priority", func(t *testing.T) {
+			t.Parallel()
+			ex, lastParams := newTradingParamsCaptureExchange(t, `{"jsonrpc":"2.0","result":null}`)
+			withdrawRequest := testLegacyWithdrawRequest()
+			withdrawRequest.Priority = tc.priority
+			_, err := ex.Withdraw(t.Context(), withdrawRequest)
+			assert.ErrorIsf(t, err, errInvalidWithdrawalPriority, "Withdraw should reject the undocumented priority %q", tc.priority)
+			assert.Emptyf(t, lastParams(), "Withdraw should send nothing for the undocumented priority %q", tc.priority)
+		})
+	}
+	for _, priority := range []string{"insane", "extreme_high", "very_high", "high", "normal", "mid", "low", "very_low"} {
+		t.Run("priority "+priority, func(t *testing.T) {
+			t.Parallel()
+			ex, lastParams := newTradingParamsCaptureExchange(t, `{"jsonrpc":"2.0","result":{"address":"2NBqqD5GRJ8wHy1PYyCXTe9ke5226FhavBz","amount":0.4,"created_timestamp":1550571443070,"currency":"BTC","fee":0.0001,"id":1,"priority":0.15,"state":"unconfirmed","updated_timestamp":1550571443070}}`)
+			withdrawRequest := testLegacyWithdrawRequest()
+			withdrawRequest.Priority = priority
+			_, err := ex.Withdraw(t.Context(), withdrawRequest)
+			require.NoErrorf(t, err, "Withdraw must not error for the documented priority %s", priority)
+			assert.JSONEqf(t, `{"currency":"BTC","amount":0.4,"address":"2NBqqD5GRJ8wHy1PYyCXTe9ke5226FhavBz","priority":"`+priority+`","nonce":"bF1_gfgcsd"}`, lastParams(), "Withdraw should send the priority %s", priority)
+		})
+	}
 	arg = testLegacyWithdrawRequest()
 	arg.Nonce = strings.Repeat("n", 129)
 	_, err = e.Withdraw(t.Context(), arg)
