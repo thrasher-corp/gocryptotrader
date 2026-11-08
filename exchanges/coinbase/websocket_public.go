@@ -205,8 +205,12 @@ func (e *Exchange) wsHandleMarketTrades(ctx context.Context, envelope *Websocket
 	return errs
 }
 
-// takerSide returns the taker's side of a trade from the maker's side Coinbase reports
+// takerSide returns the taker's side of a trade from the maker's side Coinbase reports. Coinbase reports some trades'
+// maker side as unknown, which leaves the taker's side unknown too
 func takerSide(makerSide string) (order.Side, error) {
+	if makerSide == OrderSideUnknown {
+		return order.UnknownSide, nil
+	}
 	side, err := order.StringToOrderSide(makerSide)
 	if err != nil {
 		return order.UnknownSide, err

@@ -33,8 +33,9 @@ const (
 
 // Order sides
 const (
-	OrderSideBuy  = "BUY"
-	OrderSideSell = "SELL"
+	OrderSideBuy     = "BUY"
+	OrderSideSell    = "SELL"
+	OrderSideUnknown = "UNKNOWN_ORDER_SIDE"
 )
 
 // Amount is an amount of a currency

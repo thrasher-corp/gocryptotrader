@@ -362,29 +362,56 @@ func TestWebsocketHandleMarketTrades(t *testing.T) {
 
 	envelope.Events = json.RawMessage(`[{"type":"update","trades":[{"product_id":"BTC-USD","trade_id":"1","side":"HOLD"},{"product_id":"NOPE-USD","trade_id":"2","side":"BUY"}]}]`)
 	err := ex.wsHandleMarketTrades(t.Context(), envelope)
-	assert.ErrorIs(t, err, order.ErrSideIsInvalid, "wsHandleMarketTrades should error for an unknown side")
+	assert.ErrorIs(t, err, order.ErrSideIsInvalid, "wsHandleMarketTrades should error for an invalid side")
 	assert.ErrorIs(t, err, errWebsocketUnknownProduct, "wsHandleMarketTrades should error for an unknown product")
 	envelope.Events = json.RawMessage(`{}`)
 	assert.Error(t, ex.wsHandleMarketTrades(t.Context(), envelope), "wsHandleMarketTrades should error for malformed events")
 
 	ex.Features.Enabled.TradeFeed = false
 	assert.NoError(t, ex.wsHandleMarketTrades(t.Context(), envelope), "wsHandleMarketTrades should ignore trades when neither the trade feed nor trade saving is on")
+
+	t.Run("relays a trade whose maker side is unknown", func(t *testing.T) {
+		t.Parallel()
+		ex := newWebsocketTestExchange(t)
+		envelope := &WebsocketEnvelope{
+			Channel: wsChannelMarketTrades,
+			Events:  json.RawMessage(`[{"type":"update","trades":[{"product_id":"BIP-20DEC30-CDE","trade_id":"131237897381","price":"82395","size":"3","time":"2026-10-19T01:25:22.278527Z","side":"UNKNOWN_ORDER_SIDE"},{"product_id":"BIP-20DEC30-CDE","trade_id":"131237897384","price":"82390","size":"1","time":"2026-10-19T01:25:23.104412Z","side":"BUY"}]}]`),
+		}
+		require.NoError(t, ex.wsHandleMarketTrades(t.Context(), envelope), "wsHandleMarketTrades must not error for a trade whose maker side is unknown")
+		exp := [][]trade.Data{{
+			{TID: "131237897381", Exchange: ex.Name, CurrencyPair: testFuturesPair, AssetType: asset.Futures, Side: order.UnknownSide, Price: 82395, Amount: 3, Timestamp: mustParseTime(t, "2026-10-19T01:25:22.278527Z")},
+			{TID: "131237897384", Exchange: ex.Name, CurrencyPair: testFuturesPair, AssetType: asset.Futures, Side: order.Sell, Price: 82390, Amount: 1, Timestamp: mustParseTime(t, "2026-10-19T01:25:23.104412Z")},
+		}}
+		assert.Equal(t, exp, relayed[[]trade.Data](ex), "wsHandleMarketTrades should relay a trade whose maker side is unknown with an unknown side, beside the trades it relays with theirs")
+	})
+
+	t.Run("relays the trades it can read beside one with an invalid side", func(t *testing.T) {
+		t.Parallel()
+		ex := newWebsocketTestExchange(t)
+		envelope := &WebsocketEnvelope{
+			Channel: wsChannelMarketTrades,
+			Events:  json.RawMessage(`[{"type":"update","trades":[{"product_id":"BIP-20DEC30-CDE","trade_id":"131237897385","price":"82390","size":"1","time":"2026-10-19T01:25:23.104412Z","side":"HOLD"},{"product_id":"BIP-20DEC30-CDE","trade_id":"131237897386","price":"82395","size":"2","time":"2026-10-19T01:25:24.501123Z","side":"SELL"}]}]`),
+		}
+		assert.ErrorIs(t, ex.wsHandleMarketTrades(t.Context(), envelope), order.ErrSideIsInvalid, "wsHandleMarketTrades should report a trade with an invalid side")
+		exp := [][]trade.Data{{{TID: "131237897386", Exchange: ex.Name, CurrencyPair: testFuturesPair, AssetType: asset.Futures, Side: order.Buy, Price: 82395, Amount: 2, Timestamp: mustParseTime(t, "2026-10-19T01:25:24.501123Z")}}}
+		assert.Equal(t, exp, relayed[[]trade.Data](ex), "wsHandleMarketTrades should relay the trades it can read beside one with an invalid side")
+	})
 }
 
 func TestTakerSide(t *testing.T) {
 	t.Parallel()
-	for maker, exp := range map[string]order.Side{"BUY": order.Sell, "SELL": order.Buy} {
+	for maker, exp := range map[string]order.Side{"BUY": order.Sell, "SELL": order.Buy, "UNKNOWN_ORDER_SIDE": order.UnknownSide} {
 		t.Run(subtestName(maker), func(t *testing.T) {
 			t.Parallel()
 			side, err := takerSide(maker)
 			require.NoErrorf(t, err, "takerSide must not error for %s", maker)
-			assert.Equalf(t, exp, side, "takerSide should return the opposite of the maker's %s", maker)
+			assert.Equalf(t, exp, side, "takerSide should return the taker's side for the maker's %s", maker)
 		})
 	}
 	_, err := takerSide("ANY")
 	assert.ErrorIs(t, err, order.ErrSideIsInvalid, "takerSide should error for a side with no opposite")
 	_, err = takerSide("HOLD")
-	assert.ErrorIs(t, err, order.ErrSideIsInvalid, "takerSide should error for an unknown side")
+	assert.ErrorIs(t, err, order.ErrSideIsInvalid, "takerSide should error for an invalid side")
 }
 
 func TestWebsocketHandleStatus(t *testing.T) {

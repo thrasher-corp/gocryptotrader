@@ -882,7 +882,19 @@ func TestAppAccountID(t *testing.T) {
 	assert.ErrorIs(t, err, errAccountNotFound, "appAccountID should report a currency without an account")
 }
 
-func TestGetRecentTrades(t *testing.T) { //nolint:tparallel // the cases share ex in order
+// unknownSideTradesResponse is a public trades reply holding a trade whose maker side Coinbase reports as unknown
+// beside one it reports as a sell, as MC-17DEC26-CDE's did
+const unknownSideTradesResponse = `{"trades":[{"trade_id":"137115579476","product_id":"BIP-20DEC30-CDE","price":"2768.25","size":"2","time":"2026-11-06T01:34:40.416713Z","side":"SELL","exchange":"cde"},{"trade_id":"137115456612","product_id":"BIP-20DEC30-CDE","price":"2774.25","size":"4","time":"2026-11-06T01:34:23.335152Z","side":"UNKNOWN_ORDER_SIDE","exchange":"cde"}]}`
+
+// unknownSideTrades returns the trades a wrapper should return for unknownSideTradesResponse, oldest first
+func unknownSideTrades(exchangeName string) []trade.Data {
+	return []trade.Data{
+		{TID: "137115456612", Exchange: exchangeName, CurrencyPair: testFuturesPair, AssetType: asset.Futures, Side: order.UnknownSide, Price: 2774.25, Amount: 4, Timestamp: time.Date(2026, 11, 6, 1, 34, 23, 335152000, time.UTC)},
+		{TID: "137115579476", Exchange: exchangeName, CurrencyPair: testFuturesPair, AssetType: asset.Futures, Side: order.Buy, Price: 2768.25, Amount: 2, Timestamp: time.Date(2026, 11, 6, 1, 34, 40, 416713000, time.UTC)},
+	}
+}
+
+func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
 	ex := newWrapperTestExchange(t)
 	_, err := ex.GetRecentTrades(t.Context(), currency.NewBTCUSD(), asset.Options)
@@ -896,9 +908,17 @@ func TestGetRecentTrades(t *testing.T) { //nolint:tparallel // the cases share e
 			assert.Truef(t, slices.IsSortedFunc(trades, func(x, y trade.Data) int { return x.Timestamp.Compare(y.Timestamp) }), "GetRecentTrades should sort %s trades oldest first", a)
 		})
 	}
+
+	t.Run("keeps a trade whose maker side is unknown", func(t *testing.T) {
+		t.Parallel()
+		ex := newResponseServerExchange(t, unknownSideTradesResponse)
+		trades, err := ex.GetRecentTrades(t.Context(), testFuturesPair, asset.Futures)
+		require.NoError(t, err, "GetRecentTrades must not error for a trade whose maker side is unknown")
+		assert.Equal(t, unknownSideTrades(ex.Name), trades, "GetRecentTrades should keep a trade whose maker side is unknown with an unknown side")
+	})
 }
 
-func TestGetHistoricTrades(t *testing.T) { //nolint:tparallel // the cases share ex in order
+func TestGetHistoricTrades(t *testing.T) {
 	t.Parallel()
 	ex := newWrapperTestExchange(t)
 	start, end := wrapperWindow(time.Minute)
@@ -926,6 +946,15 @@ func TestGetHistoricTrades(t *testing.T) { //nolint:tparallel // the cases share
 			}
 		})
 	}
+
+	t.Run("keeps a trade whose maker side is unknown", func(t *testing.T) {
+		t.Parallel()
+		ex := newResponseServerExchange(t, unknownSideTradesResponse)
+		start := time.Date(2026, 11, 6, 1, 30, 0, 0, time.UTC)
+		trades, err := ex.GetHistoricTrades(t.Context(), testFuturesPair, asset.Futures, start, start.Add(10*time.Minute))
+		require.NoError(t, err, "GetHistoricTrades must not error for a trade whose maker side is unknown")
+		assert.Equal(t, unknownSideTrades(ex.Name), trades, "GetHistoricTrades should keep a trade whose maker side is unknown with an unknown side")
+	})
 }
 
 func TestPageMarketTrades(t *testing.T) {
@@ -1092,9 +1121,16 @@ func TestMarketTrades(t *testing.T) {
 	require.NoError(t, err, "marketTrades must not error")
 	assert.Equal(t, []trade.Data{{TID: "1", Exchange: ex.Name, CurrencyPair: currency.NewBTCUSD(), AssetType: asset.Spot, Side: order.Sell, Price: 100, Amount: 2, Timestamp: at}}, trades, "marketTrades should report a trade hitting a resting buy as its taker's sell")
 	_, err = ex.marketTrades([]MarketTrade{{TradeID: "1", Side: "SIDEWAYS"}}, currency.NewBTCUSD(), asset.Spot)
-	assert.ErrorIs(t, err, order.ErrSideIsInvalid, "marketTrades should error for an unknown side")
+	assert.ErrorIs(t, err, order.ErrSideIsInvalid, "marketTrades should error for an invalid side")
 	_, err = ex.derivativesTrades([]DerivativesPublicTrade{{TradeID: "1", Direction: "sideways"}}, testUSDCPerpetual, asset.USDCMarginedFutures)
 	assert.ErrorIs(t, err, order.ErrSideIsInvalid, "derivativesTrades should error for an unknown direction")
+
+	t.Run("refuses a reply with an invalid side after a valid one", func(t *testing.T) {
+		t.Parallel()
+		trades, err := ex.marketTrades([]MarketTrade{{TradeID: "1", Price: 100, Size: 2, Time: at, Side: OrderSideBuy}, {TradeID: "2", Side: "SIDEWAYS"}}, currency.NewBTCUSD(), asset.Spot)
+		assert.ErrorIs(t, err, order.ErrSideIsInvalid, "marketTrades should error for an invalid side after a valid one")
+		assert.Nil(t, trades, "marketTrades should return no trades beside its error")
+	})
 }
 
 func TestSubmitOrder(t *testing.T) {
