@@ -538,6 +538,40 @@ func TestParseStartEndDate(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestStartEndTimeCheckSkipZero(t *testing.T) {
+	t.Parallel()
+	past := time.Date(1999, 1, 1, 0, 0, 0, 0, time.UTC)
+	start := time.Date(2020, 1, 1, 1, 0, 0, 0, time.UTC)
+	future := time.Date(2222, 1, 1, 0, 0, 0, 0, time.UTC)
+	for _, tc := range []struct {
+		name       string
+		start, end time.Time
+		err        error
+	}{
+		{name: "both unset", start: time.Time{}, end: time.Time{}},
+		{name: "start unset", start: time.Time{}, end: start},
+		{name: "end unset", start: start, end: time.Time{}},
+		{name: "start unset and end in the future", start: time.Time{}, end: future},
+		{name: "start in the future and end unset", start: future, end: time.Time{}},
+		{name: "start before end", start: past, end: start},
+		{name: "start after end", start: start, end: past, err: ErrStartAfterEnd},
+		{name: "start equals end", start: start, end: start, err: ErrStartEqualsEnd},
+		{name: "start after the current time", start: future, end: future.Add(time.Hour), err: ErrStartAfterTimeNow},
+		{name: "start at the Unix epoch is checked", start: zeroValueUnix, end: start, err: ErrDateUnset},
+		{name: "end at the Unix epoch is checked", start: start, end: zeroValueUnix, err: ErrDateUnset},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			err := StartEndTimeCheckSkipZero(tc.start, tc.end)
+			if tc.err == nil {
+				assert.NoError(t, err, "StartEndTimeCheckSkipZero should not error")
+				return
+			}
+			assert.ErrorIs(t, err, tc.err, "StartEndTimeCheckSkipZero should return the expected error")
+		})
+	}
+}
+
 func TestGetAssertError(t *testing.T) {
 	err := GetTypeAssertError("*[]string", float64(0))
 	if err.Error() != "type assert failure from float64 to *[]string" {

@@ -1473,11 +1473,8 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 
-	if !r.StartDate.IsZero() && !r.EndDate.IsZero() {
-		err := common.StartEndTimeCheck(r.StartDate, r.EndDate)
-		if err != nil {
-			return nil, err
-		}
+	if err := common.StartEndTimeCheckSkipZero(r.StartDate, r.EndDate); err != nil {
+		return nil, err
 	}
 	if r.IncludePayments {
 		return nil, fmt.Errorf("include payments %w", common.ErrNotYetImplemented)
